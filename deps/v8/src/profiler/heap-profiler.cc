@@ -64,6 +64,19 @@ void HeapProfiler::BuildEmbedderGraph(Isolate* isolate,
   }
 }
 
+void HeapProfiler::SetGetDetachednessCallback(
+    v8::HeapProfiler::GetDetachednessCallback callback, void* data) {
+  get_detachedness_callback_ = {callback, data};
+}
+
+v8::EmbedderGraph::Node::Detachedness HeapProfiler::GetDetachedness(
+    const v8::Local<v8::Value> v8_value, uint16_t class_id) {
+  DCHECK(HasGetDetachednessCallback());
+  return get_detachedness_callback_.first(
+      reinterpret_cast<v8::Isolate*>(heap()->isolate()), v8_value, class_id,
+      get_detachedness_callback_.second);
+}
+
 HeapSnapshot* HeapProfiler::TakeSnapshot(
     v8::ActivityControl* control,
     v8::HeapProfiler::ObjectNameResolver* resolver,
@@ -178,7 +191,7 @@ void HeapProfiler::ObjectMoveEvent(Address from, Address to, int size) {
 }
 
 void HeapProfiler::AllocationEvent(Address addr, int size) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   if (allocation_tracker_) {
     allocation_tracker_->AllocationEvent(addr, size);
   }

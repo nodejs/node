@@ -7,6 +7,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
+#include "src/common/globals.h"
 #include "src/logging/counters.h"
 #include "src/objects/js-proxy.h"
 #include "src/objects/objects-inl.h"
@@ -51,8 +52,10 @@ TNode<JSProxy> ProxiesCodeStubAssembler::AllocateProxy(
   BIND(&create_proxy);
   TNode<HeapObject> proxy = Allocate(JSProxy::kSize);
   StoreMapNoWriteBarrier(proxy, map.value());
-  StoreObjectFieldRoot(proxy, JSProxy::kPropertiesOrHashOffset,
-                       RootIndex::kEmptyPropertyDictionary);
+  RootIndex empty_dict = V8_DICT_MODE_PROTOTYPES_BOOL
+                             ? RootIndex::kEmptyOrderedPropertyDictionary
+                             : RootIndex::kEmptyPropertyDictionary;
+  StoreObjectFieldRoot(proxy, JSProxy::kPropertiesOrHashOffset, empty_dict);
   StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kTargetOffset, target);
   StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kHandlerOffset, handler);
 
@@ -83,11 +86,10 @@ TNode<JSFunction> ProxiesCodeStubAssembler::AllocateProxyRevokeFunction(
 }
 
 TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
-  TNode<Int32T> argc =
-      UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   TNode<IntPtrT> argc_ptr = ChangeInt32ToIntPtr(argc);
-  TNode<JSProxy> proxy = CAST(Parameter(Descriptor::kFunction));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto proxy = Parameter<JSProxy>(Descriptor::kFunction);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   CSA_ASSERT(this, IsCallable(proxy));
 
@@ -139,12 +141,11 @@ TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
 }
 
 TF_BUILTIN(ConstructProxy, ProxiesCodeStubAssembler) {
-  TNode<Int32T> argc =
-      UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   TNode<IntPtrT> argc_ptr = ChangeInt32ToIntPtr(argc);
-  TNode<JSProxy> proxy = CAST(Parameter(Descriptor::kTarget));
-  TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto proxy = Parameter<JSProxy>(Descriptor::kTarget);
+  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   CSA_ASSERT(this, IsCallable(proxy));
 

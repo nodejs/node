@@ -3,10 +3,11 @@
 // found in the LICENSE file.
 
 #include "src/objects/js-array-buffer.h"
-#include "src/objects/js-array-buffer-inl.h"
 
+#include "src/base/platform/wrappers.h"
 #include "src/execution/protectors-inl.h"
 #include "src/logging/counters.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/property-descriptor.h"
 
 namespace v8 {
@@ -44,6 +45,7 @@ void JSArrayBuffer::Setup(SharedFlag shared,
     SetEmbedderField(i, Smi::zero());
   }
   set_extension(nullptr);
+  AllocateExternalPointerEntries(GetIsolate());
   if (!backing_store) {
     set_backing_store(GetIsolate(), nullptr);
     set_byte_length(0);
@@ -173,7 +175,7 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
 
   // Copy the elements into the backing store of the array buffer.
   if (byte_length > 0) {
-    memcpy(backing_store->buffer_start(), self->DataPtr(), byte_length);
+    base::Memcpy(backing_store->buffer_start(), self->DataPtr(), byte_length);
   }
 
   // Attach the backing store to the array buffer.

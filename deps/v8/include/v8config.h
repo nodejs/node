@@ -239,6 +239,7 @@
 //  V8_HAS_ATTRIBUTE_VISIBILITY         - __attribute__((visibility)) supported
 //  V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT - __attribute__((warn_unused_result))
 //                                        supported
+//  V8_HAS_CPP_ATTRIBUTE_NODISCARD      - [[nodiscard]] supported
 //  V8_HAS_BUILTIN_BSWAP16              - __builtin_bswap16() supported
 //  V8_HAS_BUILTIN_BSWAP32              - __builtin_bswap32() supported
 //  V8_HAS_BUILTIN_BSWAP64              - __builtin_bswap64() supported
@@ -262,6 +263,12 @@
 //   ...
 //  #endif
 
+#if defined(__has_cpp_attribute)
+#define V8_HAS_CPP_ATTRIBUTE(FEATURE) __has_cpp_attribute(FEATURE)
+#else
+#define V8_HAS_CPP_ATTRIBUTE(FEATURE) 0
+#endif
+
 #if defined(__clang__)
 
 #if defined(__GNUC__)  // Clang in gcc mode.
@@ -275,6 +282,8 @@
 # define V8_HAS_ATTRIBUTE_VISIBILITY (__has_attribute(visibility))
 # define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT \
     (__has_attribute(warn_unused_result))
+
+# define V8_HAS_CPP_ATTRIBUTE_NODISCARD (V8_HAS_CPP_ATTRIBUTE(nodiscard))
 
 # define V8_HAS_BUILTIN_ASSUME_ALIGNED (__has_builtin(__builtin_assume_aligned))
 # define V8_HAS_BUILTIN_BSWAP16 (__has_builtin(__builtin_bswap16))
@@ -319,6 +328,7 @@
 # define V8_HAS_ATTRIBUTE_UNUSED 1
 # define V8_HAS_ATTRIBUTE_VISIBILITY 1
 # define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT (!V8_CC_INTEL)
+# define V8_HAS_CPP_ATTRIBUTE_NODISCARD (V8_HAS_CPP_ATTRIBUTE(nodiscard))
 
 # define V8_HAS_BUILTIN_ASSUME_ALIGNED 1
 # define V8_HAS_BUILTIN_CLZ 1
@@ -436,6 +446,20 @@
 #define V8_WARN_UNUSED_RESULT /* NOT SUPPORTED */
 #endif
 
+
+// Annotate a class or constructor indicating the caller must assign the
+// constructed instances.
+// Apply to the whole class like:
+//   class V8_NODISCARD Foo() { ... };
+// or apply to just one constructor like:
+//   V8_NODISCARD Foo() { ... };
+// [[nodiscard]] comes in C++17 but supported in clang with -std >= c++11.
+#if V8_HAS_CPP_ATTRIBUTE_NODISCARD
+#define V8_NODISCARD [[nodiscard]]
+#else
+#define V8_NODISCARD /* NOT SUPPORTED */
+#endif
+
 // Helper macro to define no_sanitize attributes only with clang.
 #if defined(__clang__) && defined(__has_attribute)
 #if __has_attribute(no_sanitize)
@@ -482,15 +506,8 @@ V8 shared library set USING_V8_SHARED.
 
 #endif  // V8_OS_WIN
 
-// Support for floating point parameters in calls to C.
-// It's currently enabled only for the platforms listed below. We don't plan
-// to add support for IA32, because it has a totally different approach
-// (using FP stack). As support is added to more platforms, please make sure
-// to list them here in order to enable tests of this functionality.
-#if defined(V8_TARGET_ARCH_X64)
-#define V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
-#endif
-
 // clang-format on
+
+#undef V8_HAS_CPP_ATTRIBUTE
 
 #endif  // V8CONFIG_H_

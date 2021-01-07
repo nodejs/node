@@ -23,4 +23,4 @@ assertSame(sentinelObject, new C());
 assertSame(sentinelObject, new C());
 %OptimizeFunctionOnNextCall(C)
 assertSame(sentinelObject, new C());
-assertFalse(evaluatedArg);
+assertTrue(evaluatedArg);

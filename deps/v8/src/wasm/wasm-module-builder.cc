@@ -500,13 +500,14 @@ void WriteGlobalInitializer(ZoneBuffer* buffer, const WasmInitExpr& init,
       buffer->write_i32v(HeapType(init.immediate().heap_type).code());
       break;
     case WasmInitExpr::kRttSub:
+      // The operand to rtt.sub must be emitted first.
+      WriteGlobalInitializer(buffer, *init.operand(), kWasmBottom);
       // TODO(7748): If immediates for rtts remain in the standard, adapt this
       // to emit them.
       STATIC_ASSERT((kExprRttSub >> 8) == kGCPrefix);
       buffer->write_u8(kGCPrefix);
       buffer->write_u8(static_cast<uint8_t>(kExprRttSub));
       buffer->write_i32v(HeapType(init.immediate().heap_type).code());
-      WriteGlobalInitializer(buffer, *init.operand(), kWasmBottom);
       break;
   }
 }
@@ -597,7 +598,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     size_t start = EmitSection(kTableSectionCode, buffer);
     buffer->write_size(tables_.size());
     for (const WasmTable& table : tables_) {
-      buffer->write_u8(table.type.value_type_code());
+      WriteValueType(buffer, table.type);
       buffer->write_u8(table.has_maximum ? kWithMaximum : kNoMaximum);
       buffer->write_size(table.min_size);
       if (table.has_maximum) buffer->write_size(table.max_size);

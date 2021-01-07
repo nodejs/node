@@ -408,9 +408,8 @@ static inline int32_t v8_run_int32value(v8::Local<v8::Script> script) {
 
 static inline v8::Local<v8::Script> CompileWithOrigin(
     v8::Local<v8::String> source, v8::Local<v8::String> origin_url,
-    v8::Local<v8::Boolean> is_shared_cross_origin) {
-  v8::ScriptOrigin origin(origin_url, v8::Local<v8::Integer>(),
-                          v8::Local<v8::Integer>(), is_shared_cross_origin);
+    bool is_shared_cross_origin) {
+  v8::ScriptOrigin origin(origin_url, 0, 0, is_shared_cross_origin);
   v8::ScriptCompiler::Source script_source(source, origin);
   return v8::ScriptCompiler::Compile(
              v8::Isolate::GetCurrent()->GetCurrentContext(), &script_source)
@@ -420,14 +419,13 @@ static inline v8::Local<v8::Script> CompileWithOrigin(
 static inline v8::Local<v8::Script> CompileWithOrigin(
     v8::Local<v8::String> source, const char* origin_url,
     bool is_shared_cross_origin) {
-  return CompileWithOrigin(source, v8_str(origin_url),
-                           v8_bool(is_shared_cross_origin));
+  return CompileWithOrigin(source, v8_str(origin_url), is_shared_cross_origin);
 }
 
 static inline v8::Local<v8::Script> CompileWithOrigin(
     const char* source, const char* origin_url, bool is_shared_cross_origin) {
   return CompileWithOrigin(v8_str(source), v8_str(origin_url),
-                           v8_bool(is_shared_cross_origin));
+                           is_shared_cross_origin);
 }
 
 // Helper functions that compile and run the source.
@@ -488,9 +486,7 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(const char* source,
                                                         int column_number) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  v8::ScriptOrigin origin(v8_str(origin_url),
-                          v8::Integer::New(isolate, line_number),
-                          v8::Integer::New(isolate, column_number));
+  v8::ScriptOrigin origin(v8_str(origin_url), line_number, column_number);
   v8::ScriptCompiler::Source script_source(v8_str(source), origin);
   return CompileRun(context, &script_source,
                     v8::ScriptCompiler::CompileOptions());
@@ -602,7 +598,7 @@ static inline void EmptyMessageQueues(v8::Isolate* isolate) {
 
 class InitializedHandleScopeImpl;
 
-class InitializedHandleScope {
+class V8_NODISCARD InitializedHandleScope {
  public:
   InitializedHandleScope();
   ~InitializedHandleScope();
@@ -615,7 +611,7 @@ class InitializedHandleScope {
   std::unique_ptr<InitializedHandleScopeImpl> initialized_handle_scope_impl_;
 };
 
-class HandleAndZoneScope : public InitializedHandleScope {
+class V8_NODISCARD HandleAndZoneScope : public InitializedHandleScope {
  public:
   explicit HandleAndZoneScope(bool support_zone_compression = false);
   ~HandleAndZoneScope();
@@ -642,7 +638,7 @@ class StaticOneByteResource : public v8::String::ExternalOneByteStringResource {
   const char* data_;
 };
 
-class ManualGCScope {
+class V8_NODISCARD ManualGCScope {
  public:
   ManualGCScope()
       : flag_concurrent_marking_(i::FLAG_concurrent_marking),
@@ -685,6 +681,9 @@ class ManualGCScope {
 // of construction.
 class TestPlatform : public v8::Platform {
  public:
+  TestPlatform(const TestPlatform&) = delete;
+  TestPlatform& operator=(const TestPlatform&) = delete;
+
   // v8::Platform implementation.
   v8::PageAllocator* GetPageAllocator() override {
     return old_platform_->GetPageAllocator();
@@ -746,8 +745,6 @@ class TestPlatform : public v8::Platform {
 
  private:
   v8::Platform* old_platform_;
-
-  DISALLOW_COPY_AND_ASSIGN(TestPlatform);
 };
 
 #if defined(USE_SIMULATOR)
@@ -810,5 +807,27 @@ class SimulatorHelper {
   v8::internal::Simulator* simulator_;
 };
 #endif  // USE_SIMULATOR
+
+// The following should correspond to Chromium's kV8DOMWrapperTypeIndex and
+// kV8DOMWrapperObjectIndex.
+static const int kV8WrapperTypeIndex = 0;
+static const int kV8WrapperObjectIndex = 1;
+
+enum class ApiCheckerResult : uint8_t {
+  kNotCalled = 0,
+  kSlowCalled = 1 << 0,
+  kFastCalled = 1 << 1,
+};
+using ApiCheckerResultFlags = v8::base::Flags<ApiCheckerResult>;
+DEFINE_OPERATORS_FOR_FLAGS(ApiCheckerResultFlags)
+
+bool IsValidUnwrapObject(v8::Object* object);
+
+template <typename T, int offset>
+T* GetInternalField(v8::Object* wrapper) {
+  assert(offset < wrapper->InternalFieldCount());
+  return reinterpret_cast<T*>(
+      wrapper->GetAlignedPointerFromInternalField(offset));
+}
 
 #endif  // ifndef CCTEST_H_

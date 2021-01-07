@@ -8,12 +8,43 @@
 #include "include/cppgc/heap.h"
 #include "include/cppgc/platform.h"
 #include "src/heap/cppgc/heap.h"
+#include "src/heap/cppgc/trace-event.h"
 #include "test/unittests/heap/cppgc/test-platform.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cppgc {
 namespace internal {
 namespace testing {
+class DelegatingTracingController : public TracingController {
+ public:
+#if !defined(V8_USE_PERFETTO)
+  const uint8_t* GetCategoryGroupEnabled(const char* name) override {
+    static uint8_t yes = 1;
+    return &yes;
+  }
+
+  uint64_t AddTraceEvent(
+      char phase, const uint8_t* category_enabled_flag, const char* name,
+      const char* scope, uint64_t id, uint64_t bind_id, int32_t num_args,
+      const char** arg_names, const uint8_t* arg_types,
+      const uint64_t* arg_values,
+      std::unique_ptr<ConvertableToTraceFormat>* arg_convertables,
+      unsigned int flags) override {
+    return tracing_controller_->AddTraceEvent(
+        phase, category_enabled_flag, name, scope, id, bind_id, num_args,
+        arg_names, arg_types, arg_values, arg_convertables, flags);
+  }
+#endif  // !defined(V8_USE_PERFETTO)
+
+  void SetTracingController(
+      std::unique_ptr<TracingController> tracing_controller_impl) {
+    tracing_controller_ = std::move(tracing_controller_impl);
+  }
+
+ private:
+  std::unique_ptr<TracingController> tracing_controller_ =
+      std::make_unique<TracingController>();
+};
 
 class TestWithPlatform : public ::testing::Test {
  protected:
@@ -24,6 +55,12 @@ class TestWithPlatform : public ::testing::Test {
 
   std::shared_ptr<TestPlatform> GetPlatformHandle() const { return platform_; }
 
+  void SetTracingController(
+      std::unique_ptr<TracingController> tracing_controller_impl) {
+    static_cast<DelegatingTracingController*>(platform_->GetTracingController())
+        ->SetTracingController(std::move(tracing_controller_impl));
+  }
+
  protected:
   static std::shared_ptr<TestPlatform> platform_;
 };
@@ -33,8 +70,9 @@ class TestWithHeap : public TestWithPlatform {
   TestWithHeap();
 
   void PreciseGC() {
-    heap_->ForceGarbageCollectionSlow("TestWithHeap", "Testing",
-                                      cppgc::Heap::StackState::kNoHeapPointers);
+    heap_->ForceGarbageCollectionSlow(
+        ::testing::UnitTest::GetInstance()->current_test_info()->name(),
+        "Testing", cppgc::Heap::StackState::kNoHeapPointers);
   }
 
   cppgc::Heap* GetHeap() const { return heap_.get(); }

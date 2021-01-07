@@ -25,6 +25,8 @@ class MemoryPressureTask : public v8::Task {
   MemoryPressureTask(Isolate* isolate, base::Semaphore* semaphore)
       : isolate_(isolate), semaphore_(semaphore) {}
   ~MemoryPressureTask() override = default;
+  MemoryPressureTask(const MemoryPressureTask&) = delete;
+  MemoryPressureTask& operator=(const MemoryPressureTask&) = delete;
 
   // v8::Task implementation.
   void Run() override {
@@ -35,8 +37,6 @@ class MemoryPressureTask : public v8::Task {
  private:
   Isolate* isolate_;
   base::Semaphore* semaphore_;
-
-  DISALLOW_COPY_AND_ASSIGN(MemoryPressureTask);
 };
 
 }  // namespace

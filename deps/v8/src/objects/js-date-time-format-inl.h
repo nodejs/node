@@ -18,6 +18,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-date-time-format-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSDateTimeFormat)
 
 ACCESSORS(JSDateTimeFormat, icu_locale, Managed<icu::Locale>, kIcuLocaleOffset)

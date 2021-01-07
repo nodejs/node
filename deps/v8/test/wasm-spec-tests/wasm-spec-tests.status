@@ -7,15 +7,17 @@
   'skip-stack-guard-page': [PASS, ['((arch == ppc or arch == ppc64 or arch == s390 or arch == s390x) and simulator_run)', SKIP]],
   # TODO(wasm) Investigate failing spec tests after update.
   'binary': [FAIL],
-  'proposals/js-types/binary-leb128': [FAIL],
   'proposals/bulk-memory-operations/binary': [FAIL],
-  'proposals/bulk-memory-operations/binary-leb128': [FAIL],
+  # TODO(v8:10994): Failing spec test after update.
+  'proposals/simd/binary': [FAIL],
+  'proposals/simd/data': [FAIL],
+  'proposals/js-types/data': [FAIL],
+  'proposals/reference-types/binary': [FAIL],
 
   # TODO(v8:9144): The MVP behavior when bounds-checking segments changed in
   # the bulk-memory proposal. Since we've enabled bulk-memory by default, we
   # need to update to use its testsuite.
   'linking': [FAIL],
-  'binary-leb128': [FAIL],
   'elem': [FAIL],
   'data': [FAIL],
 
@@ -33,16 +35,10 @@
   'proposals/tail-call/imports': [FAIL],
   'proposals/tail-call/linking': [FAIL],
   'proposals/tail-call/type': [FAIL],
+  'proposals/tail-call/unreached-invalid': [FAIL],
 
   # This test requires the reftypes flag to be disabled.
   'proposals/bulk-memory-operations/imports': [FAIL],
-
-  # SIMD test cases
-  # Scalar lowering is incomplete, we skip these and selectively enable as
-  # we finish the implementation, see v8:10507.
-  'proposals/simd/simd_conversions' : [PASS, FAIL],
-  'proposals/simd/simd_lane' : [PASS, FAIL],
-
 }],  # ALWAYS
 
 ['arch == arm and not simulator_run', {
@@ -53,6 +49,7 @@
   # This test only has 1 problematic use of f32x4.min and f32x4.div, consider
   # removing it from upstream, then we can run this test.
   'proposals/simd/simd_splat' : [PASS, FAIL],
+  'proposals/simd/simd_f32x4_pmin_pmax' : [PASS, FAIL],
 }],  # arch == arm and not simulator_run
 
 ['arch == mipsel or arch == mips64el or arch == mips or arch == mips64', {

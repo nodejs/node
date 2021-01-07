@@ -10,13 +10,21 @@
 
 THIS_DIR="$(readlink -f "$(dirname "${0}")")"
 
-PACKAGE_DIR="${THIS_DIR}/../../tools/gcmole/gcmole-tools"
-PACKAGE_FILE="${THIS_DIR}/../../tools/gcmole/gcmole-tools.tar.gz"
-PACKAGE_SUM="${THIS_DIR}/../../tools/gcmole/gcmole-tools.tar.gz.sha1"
-BUILD_DIR="${THIS_DIR}/../../third_party/llvm+clang-build"
+PACKAGE_DIR="${THIS_DIR}/gcmole-tools"
+PACKAGE_FILE="${THIS_DIR}/gcmole-tools.tar.gz"
+PACKAGE_SUM="${THIS_DIR}/gcmole-tools.tar.gz.sha1"
+BUILD_DIR="${THIS_DIR}/bootstrap/build"
 
 # Echo all commands
 set -x
+
+# Clean out any old files
+if [ -e "${PACKAGE_DIR:?}/bin" ] ; then
+  rm -rf "${PACKAGE_DIR:?}/bin"
+fi
+if [ -e "${PACKAGE_DIR:?}/lib" ] ; then
+  rm -rf "${PACKAGE_DIR:?}/lib"
+fi
 
 # Copy all required files
 mkdir -p "${PACKAGE_DIR}/bin"
@@ -41,5 +49,5 @@ echo $(readlink -f "${PACKAGE_FILE}")
 echo
 echo You can now run gcmole using this command:
 echo
-echo CLANG_BIN="tools/gcmole/gcmole-tools/bin" lua tools/gcmole/gcmole.lua
+echo CLANG_BIN=\"tools/gcmole/gcmole-tools/bin\" python tools/gcmole/gcmole.py
 echo

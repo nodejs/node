@@ -90,34 +90,33 @@ class V8ValueStringBuilder {
     if (value.IsEmpty()) return true;
     if ((ignoreOptions & IgnoreNull) && value->IsNull()) return true;
     if ((ignoreOptions & IgnoreUndefined) && value->IsUndefined()) return true;
-    if (value->IsString()) return append(v8::Local<v8::String>::Cast(value));
+    if (value->IsString()) return append(value.As<v8::String>());
     if (value->IsStringObject())
-      return append(v8::Local<v8::StringObject>::Cast(value)->ValueOf());
-    if (value->IsBigInt()) return append(v8::Local<v8::BigInt>::Cast(value));
+      return append(value.As<v8::StringObject>()->ValueOf());
+    if (value->IsBigInt()) return append(value.As<v8::BigInt>());
     if (value->IsBigIntObject())
-      return append(v8::Local<v8::BigIntObject>::Cast(value)->ValueOf());
-    if (value->IsSymbol()) return append(v8::Local<v8::Symbol>::Cast(value));
+      return append(value.As<v8::BigIntObject>()->ValueOf());
+    if (value->IsSymbol()) return append(value.As<v8::Symbol>());
     if (value->IsSymbolObject())
-      return append(v8::Local<v8::SymbolObject>::Cast(value)->ValueOf());
+      return append(value.As<v8::SymbolObject>()->ValueOf());
     if (value->IsNumberObject()) {
-      m_builder.append(String16::fromDouble(
-          v8::Local<v8::NumberObject>::Cast(value)->ValueOf(), 6));
+      m_builder.append(
+          String16::fromDouble(value.As<v8::NumberObject>()->ValueOf(), 6));
       return true;
     }
     if (value->IsBooleanObject()) {
-      m_builder.append(v8::Local<v8::BooleanObject>::Cast(value)->ValueOf()
-                           ? "true"
-                           : "false");
+      m_builder.append(value.As<v8::BooleanObject>()->ValueOf() ? "true"
+                                                                : "false");
       return true;
     }
-    if (value->IsArray()) return append(v8::Local<v8::Array>::Cast(value));
+    if (value->IsArray()) return append(value.As<v8::Array>());
     if (value->IsProxy()) {
       m_builder.append("[object Proxy]");
       return true;
     }
     if (value->IsObject() && !value->IsDate() && !value->IsFunction() &&
         !value->IsNativeError() && !value->IsRegExp()) {
-      v8::Local<v8::Object> object = v8::Local<v8::Object>::Cast(value);
+      v8::Local<v8::Object> object = value.As<v8::Object>();
       v8::Local<v8::String> stringValue;
       if (object->ObjectProtoToString(m_context).ToLocal(&stringValue))
         return append(stringValue);
@@ -267,7 +266,7 @@ V8ConsoleMessage::wrapArguments(V8InspectorSessionImpl* session,
     if (m_arguments.size() > 1) {
       v8::Local<v8::Value> secondArgument = m_arguments[1]->Get(isolate);
       if (secondArgument->IsArray()) {
-        columns = v8::Local<v8::Array>::Cast(secondArgument);
+        columns = secondArgument.As<v8::Array>();
       } else if (secondArgument->IsString()) {
         v8::TryCatch tryCatch(isolate);
         v8::Local<v8::Array> array = v8::Array::New(isolate);
@@ -277,8 +276,7 @@ V8ConsoleMessage::wrapArguments(V8InspectorSessionImpl* session,
       }
     }
     std::unique_ptr<protocol::Runtime::RemoteObject> wrapped =
-        session->wrapTable(context, v8::Local<v8::Object>::Cast(value),
-                           columns);
+        session->wrapTable(context, value.As<v8::Object>(), columns);
     inspectedContext = inspector->getContext(contextGroupId, contextId);
     if (!inspectedContext) return nullptr;
     if (wrapped) {

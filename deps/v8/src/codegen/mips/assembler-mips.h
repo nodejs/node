@@ -1372,7 +1372,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   // Class for scoping postponing the trampoline pool generation.
-  class BlockTrampolinePoolScope {
+  class V8_NODISCARD BlockTrampolinePoolScope {
    public:
     explicit BlockTrampolinePoolScope(Assembler* assem) : assem_(assem) {
       assem_->StartBlockTrampolinePool();
@@ -1389,7 +1389,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // sequences of instructions that must be emitted as a unit, before
   // buffer growth (and relocation) can occur.
   // This blocking scope is not nestable.
-  class BlockGrowBufferScope {
+  class V8_NODISCARD BlockGrowBufferScope {
    public:
     explicit BlockGrowBufferScope(Assembler* assem) : assem_(assem) {
       assem_->StartBlockGrowBuffer();
@@ -1908,7 +1908,7 @@ class EnsureSpace {
   explicit inline EnsureSpace(Assembler* assembler);
 };
 
-class V8_EXPORT_PRIVATE UseScratchRegisterScope {
+class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
  public:
   explicit UseScratchRegisterScope(Assembler* assembler);
   ~UseScratchRegisterScope();

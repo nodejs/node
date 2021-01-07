@@ -5,6 +5,7 @@
 #include "src/codegen/optimized-compilation-info.h"
 
 #include "src/api/api.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/source-position.h"
 #include "src/debug/debug.h"
 #include "src/execution/isolate.h"
@@ -25,7 +26,7 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
       optimization_id_(isolate->NextOptimizationId()) {
   DCHECK_EQ(*shared, closure->shared());
   DCHECK(shared->is_compiled());
-  bytecode_array_ = handle(shared->GetBytecodeArray(), isolate);
+  bytecode_array_ = handle(shared->GetBytecodeArray(isolate), isolate);
   shared_info_ = shared;
   closure_ = closure;
 
@@ -80,11 +81,12 @@ void OptimizedCompilationInfo::ConfigureFlags() {
   if (FLAG_untrusted_code_mitigations) set_untrusted_code_mitigations();
 
   switch (code_kind_) {
-    case CodeKind::OPTIMIZED_FUNCTION:
+    case CodeKind::TURBOFAN:
       if (FLAG_function_context_specialization) {
         set_function_context_specializing();
       }
       V8_FALLTHROUGH;
+    case CodeKind::TURBOPROP:
     case CodeKind::NATIVE_CONTEXT_INDEPENDENT:
       set_called_with_code_start_register();
       set_switch_jump_table();
@@ -98,7 +100,7 @@ void OptimizedCompilationInfo::ConfigureFlags() {
       if (FLAG_turbo_splitting) set_splitting();
       break;
     case CodeKind::BUILTIN:
-    case CodeKind::STUB:
+    case CodeKind::FOR_TESTING:
       if (FLAG_turbo_splitting) set_splitting();
 #if ENABLE_GDB_JIT_INTERFACE && DEBUG
       set_source_positions();
@@ -148,19 +150,19 @@ void OptimizedCompilationInfo::RetryOptimization(BailoutReason reason) {
 
 std::unique_ptr<char[]> OptimizedCompilationInfo::GetDebugName() const {
   if (!shared_info().is_null()) {
-    return shared_info()->DebugName().ToCString();
+    return shared_info()->DebugNameCStr();
   }
   Vector<const char> name_vec = debug_name_;
   if (name_vec.empty()) name_vec = ArrayVector("unknown");
   std::unique_ptr<char[]> name(new char[name_vec.length() + 1]);
-  memcpy(name.get(), name_vec.begin(), name_vec.length());
+  base::Memcpy(name.get(), name_vec.begin(), name_vec.length());
   name[name_vec.length()] = '\0';
   return name;
 }
 
 StackFrame::Type OptimizedCompilationInfo::GetOutputStackFrameType() const {
   switch (code_kind()) {
-    case CodeKind::STUB:
+    case CodeKind::FOR_TESTING:
     case CodeKind::BYTECODE_HANDLER:
     case CodeKind::BUILTIN:
       return StackFrame::STUB;

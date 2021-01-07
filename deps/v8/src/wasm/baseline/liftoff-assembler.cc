@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include "src/base/optional.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/compiler/linkage.h"
@@ -71,6 +72,8 @@ class StackTransferRecipe {
 
  public:
   explicit StackTransferRecipe(LiftoffAssembler* wasm_asm) : asm_(wasm_asm) {}
+  StackTransferRecipe(const StackTransferRecipe&) = delete;
+  StackTransferRecipe& operator=(const StackTransferRecipe&) = delete;
   ~StackTransferRecipe() { Execute(); }
 
   void Execute() {
@@ -343,8 +346,6 @@ class StackTransferRecipe {
     }
     load_dst_regs_ = {};
   }
-
-  DISALLOW_COPY_AND_ASSIGN(StackTransferRecipe);
 };
 
 class RegisterReuseMap {
@@ -488,21 +489,45 @@ void LiftoffAssembler::CacheState::Split(const CacheState& source) {
   *this = source;
 }
 
+namespace {
+int GetSafepointIndexForStackSlot(const VarState& slot) {
+  // index = 0 is for the stack slot at 'fp + kFixedFrameSizeAboveFp -
+  // kSystemPointerSize', the location of the current stack slot is 'fp -
+  // slot.offset()'. The index we need is therefore '(fp +
+  // kFixedFrameSizeAboveFp - kSystemPointerSize) - (fp - slot.offset())' =
+  // 'slot.offset() + kFixedFrameSizeAboveFp - kSystemPointerSize'.
+  // Concretely, the index of the first stack slot is '4'.
+  return (slot.offset() + StandardFrameConstants::kFixedFrameSizeAboveFp -
+          kSystemPointerSize) /
+         kSystemPointerSize;
+}
+}  // namespace
+
+void LiftoffAssembler::CacheState::GetTaggedSlotsForOOLCode(
+    ZoneVector<int>* slots, LiftoffRegList* spills,
+    SpillLocation spill_location) {
+  for (const auto& slot : stack_state) {
+    if (!slot.type().is_reference_type()) continue;
+
+    if (spill_location == SpillLocation::kTopOfStack && slot.is_reg()) {
+      // Registers get spilled just before the call to the runtime. In {spills}
+      // we store which of the spilled registers contain references, so that we
+      // can add the spill slots to the safepoint.
+      spills->set(slot.reg());
+      continue;
+    }
+    DCHECK_IMPLIES(slot.is_reg(), spill_location == SpillLocation::kStackSlots);
+
+    slots->push_back(GetSafepointIndexForStackSlot(slot));
+  }
+}
+
 void LiftoffAssembler::CacheState::DefineSafepoint(Safepoint& safepoint) {
-  for (auto slot : stack_state) {
+  for (const auto& slot : stack_state) {
     DCHECK(!slot.is_reg());
 
     if (slot.type().is_reference_type()) {
-      // index = 0 is for the stack slot at 'fp + kFixedFrameSizeAboveFp -
-      // kSystemPointerSize', the location of the current stack slot is 'fp -
-      // slot.offset()'. The index we need is therefore '(fp +
-      // kFixedFrameSizeAboveFp - kSystemPointerSize) - (fp - slot.offset())' =
-      // 'slot.offset() + kFixedFrameSizeAboveFp - kSystemPointerSize'.
-      auto index =
-          (slot.offset() + StandardFrameConstants::kFixedFrameSizeAboveFp -
-           kSystemPointerSize) /
-          kSystemPointerSize;
-      safepoint.DefinePointerSlot(index);
+      safepoint.DefinePointerSlot(GetSafepointIndexForStackSlot(slot));
     }
   }
 }
@@ -513,15 +538,14 @@ int LiftoffAssembler::GetTotalFrameSlotCountForGC() const {
   // that the offset of the first spill slot is kSystemPointerSize and not
   // '0'. Therefore we don't have to add '+1' here.
   return (max_used_spill_offset_ +
-          StandardFrameConstants::kFixedFrameSizeAboveFp) /
+          StandardFrameConstants::kFixedFrameSizeAboveFp +
+          ool_spill_space_size_) /
          kSystemPointerSize;
 }
 
 namespace {
 
-constexpr AssemblerOptions DefaultLiftoffOptions() {
-  return AssemblerOptions{};
-}
+AssemblerOptions DefaultLiftoffOptions() { return AssemblerOptions{}; }
 
 }  // namespace
 
@@ -533,7 +557,7 @@ LiftoffAssembler::LiftoffAssembler(std::unique_ptr<AssemblerBuffer> buffer)
 
 LiftoffAssembler::~LiftoffAssembler() {
   if (num_locals_ > kInlineLocalTypes) {
-    free(more_local_types_);
+    base::Free(more_local_types_);
   }
 }
 
@@ -860,8 +884,6 @@ void LiftoffAssembler::PrepareCall(const FunctionSig* sig,
 
 void LiftoffAssembler::FinishCall(const FunctionSig* sig,
                                   compiler::CallDescriptor* call_descriptor) {
-  // Offset of the current return value relative to the stack pointer.
-  int return_offset = 0;
   int call_desc_return_idx = 0;
   for (ValueType return_type : sig->returns()) {
     DCHECK_LT(call_desc_return_idx, call_descriptor->ReturnCount());
@@ -883,10 +905,11 @@ void LiftoffAssembler::FinishCall(const FunctionSig* sig,
       } else {
         DCHECK(loc.IsCallerFrameSlot());
         reg_pair[pair_idx] = GetUnusedRegister(rc, pinned);
-        LoadReturnStackSlot(reg_pair[pair_idx], return_offset, lowered_type);
-        const int type_size = lowered_type.element_size_bytes();
-        const int slot_size = RoundUp<kSystemPointerSize>(type_size);
-        return_offset += slot_size;
+        // Get slot offset relative to the stack pointer.
+        int offset = call_descriptor->GetOffsetToReturns();
+        int return_slot = -loc.GetLocation() - offset - 1;
+        LoadReturnStackSlot(reg_pair[pair_idx],
+                            return_slot * kSystemPointerSize, lowered_type);
       }
       if (pair_idx == 0) {
         pinned.set(reg_pair[0]);
@@ -899,7 +922,8 @@ void LiftoffAssembler::FinishCall(const FunctionSig* sig,
                                                          reg_pair[1].gp()));
     }
   }
-  RecordUsedSpillOffset(TopSpillOffset() + return_offset);
+  int return_slots = static_cast<int>(call_descriptor->StackReturnCount());
+  RecordUsedSpillOffset(TopSpillOffset() + return_slots * kSystemPointerSize);
 }
 
 void LiftoffAssembler::Move(LiftoffRegister dst, LiftoffRegister src,
@@ -1118,8 +1142,8 @@ void LiftoffAssembler::set_num_locals(uint32_t num_locals) {
   DCHECK_EQ(0, num_locals_);  // only call this once.
   num_locals_ = num_locals;
   if (num_locals > kInlineLocalTypes) {
-    more_local_types_ =
-        reinterpret_cast<ValueType*>(malloc(num_locals * sizeof(ValueType)));
+    more_local_types_ = reinterpret_cast<ValueType*>(
+        base::Malloc(num_locals * sizeof(ValueType)));
     DCHECK_NOT_NULL(more_local_types_);
   }
 }

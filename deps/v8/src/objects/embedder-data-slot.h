@@ -43,13 +43,19 @@ class EmbedderDataSlot
 #endif
 
 #ifdef V8_COMPRESS_POINTERS
-  // The raw payload is located in the other tagged part of the full pointer.
+  // The raw payload is located in the other "tagged" part of the full pointer
+  // and cotains the upper part of aligned address. The raw part is not expected
+  // to look like a tagged value.
+  // When V8_HEAP_SANDBOX is defined the raw payload contains an index into the
+  // external pointer table.
   static constexpr int kRawPayloadOffset = kTaggedSize - kTaggedPayloadOffset;
 #endif
   static constexpr int kRequiredPtrAlignment = kSmiTagSize;
 
   // Opaque type used for storing raw embedder data.
   using RawData = Address;
+
+  V8_INLINE void AllocateExternalPointerEntry(Isolate* isolate);
 
   V8_INLINE Object load_tagged() const;
   V8_INLINE void store_smi(Smi value);
@@ -66,8 +72,22 @@ class EmbedderDataSlot
   // the pointer-like value. Note, that some Smis could still look like an
   // aligned pointers.
   // Returns true on success.
-  V8_INLINE bool ToAlignedPointer(const Isolate* isolate,
-                                  void** out_result) const;
+  // When V8 heap sandbox is enabled, calling this method when the raw part of
+  // the slot does not contain valid external pointer table index is undefined
+  // behaviour and most likely result in crashes.
+  V8_INLINE bool ToAlignedPointer(IsolateRoot isolate, void** out_result) const;
+
+  // Same as ToAlignedPointer() but with a workaround for V8 heap sandbox.
+  // When V8 heap sandbox is enabled, this method doesn't crash when the raw
+  // part of the slot contains "undefined" instead of a correct external table
+  // entry index (see Factory::InitializeJSObjectBody() for details).
+  // Returns true when the external pointer table index was pointing to a valid
+  // entry, otherwise false.
+  //
+  // Call this function if you are not sure whether the slot contains valid
+  // external pointer or not.
+  V8_INLINE bool ToAlignedPointerSafe(IsolateRoot isolate,
+                                      void** out_result) const;
 
   // Returns true if the pointer was successfully stored or false it the pointer
   // was improperly aligned.
@@ -82,7 +102,7 @@ class EmbedderDataSlot
  private:
   // Stores given value to the embedder data slot in a concurrent-marker
   // friendly manner (tagged part of the slot is written atomically).
-  V8_INLINE void gc_safe_store(Address value);
+  V8_INLINE void gc_safe_store(Isolate* isolate, Address value);
 };
 
 }  // namespace internal

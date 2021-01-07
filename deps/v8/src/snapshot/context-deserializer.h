@@ -6,12 +6,14 @@
 #define V8_SNAPSHOT_CONTEXT_DESERIALIZER_H_
 
 #include "src/snapshot/deserializer.h"
+#include "src/snapshot/snapshot-data.h"
 #include "src/snapshot/snapshot.h"
 
 namespace v8 {
 namespace internal {
 
 class Context;
+class Isolate;
 
 // Deserializes the context-dependent object graph rooted at a given object.
 // The ContextDeserializer is not expected to deserialize any code objects.
@@ -23,8 +25,10 @@ class V8_EXPORT_PRIVATE ContextDeserializer final : public Deserializer {
       v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
 
  private:
-  explicit ContextDeserializer(const SnapshotData* data)
-      : Deserializer(data, false) {}
+  explicit ContextDeserializer(Isolate* isolate, const SnapshotData* data,
+                               bool can_rehash)
+      : Deserializer(isolate, data->Payload(), data->GetMagicNumber(), false,
+                     can_rehash) {}
 
   // Deserialize a single object and the objects reachable from it.
   MaybeHandle<Object> Deserialize(

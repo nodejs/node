@@ -30,9 +30,9 @@ WASM_SIMD_TEST(I8x16ToF32x4) {
   float* g = r.builder().AddGlobal<float>(kWasmS128);
   byte param1 = 0;
   BUILD(r,
-        WASM_SET_GLOBAL(
+        WASM_GLOBAL_SET(
             0, WASM_SIMD_UNOP(kExprF32x4Sqrt,
-                              WASM_SIMD_I8x16_SPLAT(WASM_GET_LOCAL(param1)))),
+                              WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(param1)))),
         WASM_ONE);
 
   // Arbitrary pattern that doesn't end up creating a NaN.
@@ -52,7 +52,7 @@ WASM_SIMD_TEST(F64x2_Call_Return) {
 
   WasmFunctionCompiler& fn = r.NewFunction(sigs.s_ss());
   BUILD(fn,
-        WASM_SIMD_BINOP(kExprF64x2Min, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+        WASM_SIMD_BINOP(kExprF64x2Min, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)));
 
   byte c1[16] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -76,7 +76,7 @@ WASM_SIMD_TEST(F32x4_Call_Return) {
 
   // A simple function that just calls f32x4.neg on the param.
   WasmFunctionCompiler& fn = r.NewFunction(sigs.s_s());
-  BUILD(fn, WASM_SIMD_UNOP(kExprF32x4Neg, WASM_GET_LOCAL(0)));
+  BUILD(fn, WASM_SIMD_UNOP(kExprF32x4Neg, WASM_LOCAL_GET(0)));
 
   // TODO(v8:10507)
   // Use i32x4 splat since scalar lowering has a problem with f32x4 as a param
@@ -84,7 +84,7 @@ WASM_SIMD_TEST(F32x4_Call_Return) {
   BUILD(r,
         WASM_SIMD_F32x4_EXTRACT_LANE(
             0, WASM_CALL_FUNCTION(fn.function_index(),
-                                  WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(0)))));
+                                  WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(0)))));
   CHECK_EQ(-1.0, r.Call(1));
 }
 
@@ -97,13 +97,13 @@ WASM_SIMD_TEST(I8x16_Call_Return) {
 
   WasmFunctionCompiler& fn = r.NewFunction(sigs.s_ss());
   BUILD(fn,
-        WASM_SIMD_BINOP(kExprI8x16Add, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+        WASM_SIMD_BINOP(kExprI8x16Add, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)));
 
   BUILD(r,
         WASM_SIMD_I8x16_EXTRACT_LANE(
             0, WASM_CALL_FUNCTION(fn.function_index(),
-                                  WASM_SIMD_I8x16_SPLAT(WASM_GET_LOCAL(0)),
-                                  WASM_SIMD_I8x16_SPLAT(WASM_GET_LOCAL(0)))));
+                                  WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(0)),
+                                  WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(0)))));
   CHECK_EQ(2, r.Call(1));
 }
 
@@ -116,13 +116,13 @@ WASM_SIMD_TEST(I16x8_Call_Return) {
 
   WasmFunctionCompiler& fn = r.NewFunction(sigs.s_ss());
   BUILD(fn,
-        WASM_SIMD_BINOP(kExprI16x8Add, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+        WASM_SIMD_BINOP(kExprI16x8Add, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)));
 
   BUILD(r,
         WASM_SIMD_I16x8_EXTRACT_LANE(
             0, WASM_CALL_FUNCTION(fn.function_index(),
-                                  WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(0)),
-                                  WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(0)))));
+                                  WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(0)),
+                                  WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(0)))));
   CHECK_EQ(2, r.Call(1));
 }
 
@@ -135,13 +135,13 @@ WASM_SIMD_TEST(I64x2_Call_Return) {
 
   WasmFunctionCompiler& fn = r.NewFunction(sigs.s_ss());
   BUILD(fn,
-        WASM_SIMD_BINOP(kExprI64x2Add, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+        WASM_SIMD_BINOP(kExprI64x2Add, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)));
 
   BUILD(r,
         WASM_SIMD_I64x2_EXTRACT_LANE(
             0, WASM_CALL_FUNCTION(fn.function_index(),
-                                  WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(0)),
-                                  WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(0)))));
+                                  WASM_SIMD_I64x2_SPLAT(WASM_LOCAL_GET(0)),
+                                  WASM_SIMD_I64x2_SPLAT(WASM_LOCAL_GET(0)))));
   CHECK_EQ(2, r.Call(1));
 }
 
@@ -192,7 +192,7 @@ WASM_SIMD_TEST(AllTrue_DifferentShapes) {
   {
     WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
 
-    BUILD(r, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(0)),
+    BUILD(r, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(0)),
           WASM_SIMD_OP(kExprV8x16AllTrue));
 
     CHECK_EQ(0, r.Call(0x00FF00FF));
@@ -201,7 +201,7 @@ WASM_SIMD_TEST(AllTrue_DifferentShapes) {
   {
     WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
 
-    BUILD(r, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(0)),
+    BUILD(r, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(0)),
           WASM_SIMD_OP(kExprV16x8AllTrue));
 
     CHECK_EQ(0, r.Call(0x000000FF));
@@ -211,7 +211,7 @@ WASM_SIMD_TEST(AllTrue_DifferentShapes) {
   {
     WasmRunner<int32_t, float> r(execution_tier, lower_simd);
 
-    BUILD(r, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(0)),
+    BUILD(r, WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(0)),
           WASM_SIMD_OP(kExprV16x8AllTrue));
 
     CHECK_EQ(1, r.Call(0x000F000F));
@@ -223,7 +223,7 @@ WASM_SIMD_TEST(AnyTrue_DifferentShapes) {
   {
     WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
 
-    BUILD(r, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(0)),
+    BUILD(r, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(0)),
           WASM_SIMD_OP(kExprV8x16AnyTrue));
 
     CHECK_EQ(0, r.Call(0x00000000));
@@ -232,7 +232,7 @@ WASM_SIMD_TEST(AnyTrue_DifferentShapes) {
   {
     WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
 
-    BUILD(r, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(0)),
+    BUILD(r, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(0)),
           WASM_SIMD_OP(kExprV16x8AnyTrue));
 
     CHECK_EQ(1, r.Call(0x000000FF));
@@ -242,7 +242,7 @@ WASM_SIMD_TEST(AnyTrue_DifferentShapes) {
   {
     WasmRunner<int32_t, float> r(execution_tier, lower_simd);
 
-    BUILD(r, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(0)),
+    BUILD(r, WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(0)),
           WASM_SIMD_OP(kExprV8x16AnyTrue));
 
     CHECK_EQ(0, r.Call(0x00000000));
@@ -265,12 +265,65 @@ WASM_SIMD_TEST(V128_I64_PARAMS) {
 
   // Build a function that has both V128 and I64 arguments.
   BUILD(fn,
-        WASM_SIMD_I64x2_REPLACE_LANE(0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+        WASM_SIMD_I64x2_REPLACE_LANE(0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)));
 
   BUILD(r, WASM_SIMD_I64x2_EXTRACT_LANE(
-               0, WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(0))));
+               0, WASM_SIMD_I64x2_SPLAT(WASM_LOCAL_GET(0))));
 
   CHECK_EQ(0, r.Call(0));
+}
+
+WASM_SIMD_TEST(I8x16WidenS_I16x8NarrowU) {
+  // Test any_true lowring with splats of different shapes.
+  {
+    WasmRunner<int32_t, int16_t> r(execution_tier, lower_simd);
+
+    BUILD(r, WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(0)),
+          WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(0)),
+          WASM_SIMD_OP(kExprI8x16UConvertI16x8),
+          WASM_SIMD_OP(kExprI16x8SConvertI8x16Low),
+          WASM_SIMD_OP(kExprI32x4ExtractLane), TO_BYTE(0));
+
+    CHECK_EQ(bit_cast<int32_t>(0xffffffff), r.Call(0x7fff));
+  }
+}
+
+WASM_SIMD_TEST(S128SelectWithF32x4) {
+  WasmRunner<float, int32_t, float, int32_t> r(execution_tier, lower_simd);
+  BUILD(r, WASM_LOCAL_GET(0), WASM_SIMD_OP(kExprI32x4Splat), WASM_LOCAL_GET(1),
+        WASM_SIMD_OP(kExprF32x4Splat), WASM_LOCAL_GET(2),
+        WASM_SIMD_OP(kExprI32x4Splat), WASM_SIMD_OP(kExprS128Select),
+        WASM_SIMD_OP(kExprF32x4ExtractLane), 0);
+  // Selection mask is all 0, so always select 2.0.
+  CHECK_EQ(2.0, r.Call(1, 2.0, 0));
+}
+
+WASM_SIMD_TEST(S128AndNotWithF32x4) {
+  WasmRunner<float, int32_t, float> r(execution_tier, lower_simd);
+  BUILD(r, WASM_LOCAL_GET(0), WASM_SIMD_OP(kExprI32x4Splat), WASM_LOCAL_GET(1),
+        WASM_SIMD_OP(kExprF32x4Splat), WASM_SIMD_OP(kExprS128AndNot),
+        WASM_SIMD_OP(kExprF32x4ExtractLane), 0);
+  // 0x00700000 & !0x40800000 = 0x00700000
+  CHECK_EQ(bit_cast<float>(0x700000),
+           r.Call(0x00700000, bit_cast<float>(0x40800000)));
+}
+
+WASM_SIMD_TEST(FunctionCallWithExtractLaneOutputAsArgument) {
+  // This uses the result of an extract lane as an argument to a function call
+  // to exercise lowering for kCall and make sure the the extract lane is
+  // correctly replaced with a scalar.
+  TestSignatures sigs;
+  WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
+  WasmFunctionCompiler& fn = r.NewFunction(sigs.f_f());
+
+  BUILD(fn, WASM_LOCAL_GET(0), WASM_LOCAL_GET(0), kExprF32Add);
+
+  BUILD(r, WASM_LOCAL_GET(0), WASM_SIMD_OP(kExprI32x4Splat),
+        WASM_SIMD_OP(kExprF32x4ExtractLane), 0, kExprCallFunction,
+        fn.function_index(), WASM_SIMD_OP(kExprF32x4Splat), WASM_LOCAL_GET(0),
+        WASM_SIMD_OP(kExprI32x4Splat), WASM_SIMD_OP(kExprI32x4Add),
+        WASM_SIMD_OP(kExprI32x4ExtractLane), 0);
+  CHECK_EQ(15, r.Call(5));
 }
 
 }  // namespace test_run_wasm_simd

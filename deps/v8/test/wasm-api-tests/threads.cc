@@ -66,7 +66,7 @@ TEST_F(WasmCapiTest, Threads) {
       builder()->AddGlobalImport(CStrVector("id"), kWasmI32, false);
 
   byte code[] = {
-      WASM_CALL_FUNCTION(callback_index, WASM_GET_GLOBAL(global_index))};
+      WASM_CALL_FUNCTION(callback_index, WASM_GLOBAL_GET(global_index))};
   FunctionSig empty_sig(0, 0, nullptr);
   AddExportedFunction(CStrVector("run"), code, sizeof(code), &empty_sig);
   Compile();

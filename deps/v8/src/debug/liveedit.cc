@@ -1025,7 +1025,7 @@ void TranslateSourcePositionTable(Isolate* isolate, Handle<BytecodeArray> code,
 
   Handle<ByteArray> new_source_position_table(
       builder.ToSourcePositionTable(isolate));
-  code->set_synchronized_source_position_table(*new_source_position_table);
+  code->set_source_position_table(*new_source_position_table, kReleaseStore);
   LOG_CODE_EVENT(isolate,
                  CodeLinePosInfoRecordEvent(code->GetFirstBytecodeAddress(),
                                             *new_source_position_table));
@@ -1044,7 +1044,7 @@ void UpdatePositions(Isolate* isolate, Handle<SharedFunctionInfo> sfi,
                                 new_start_position);
   if (sfi->HasBytecodeArray()) {
     TranslateSourcePositionTable(
-        isolate, handle(sfi->GetBytecodeArray(), isolate), diffs);
+        isolate, handle(sfi->GetBytecodeArray(isolate), isolate), diffs);
   }
 }
 }  // anonymous namespace
@@ -1159,7 +1159,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     }
 
     if (!sfi->HasBytecodeArray()) continue;
-    FixedArray constants = sfi->GetBytecodeArray().constant_pool();
+    FixedArray constants = sfi->GetBytecodeArray(isolate).constant_pool();
     for (int i = 0; i < constants.length(); ++i) {
       if (!constants.get(i).IsSharedFunctionInfo()) continue;
       FunctionData* data = nullptr;
@@ -1204,7 +1204,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
   SharedFunctionInfo::ScriptIterator it(isolate, *new_script);
   for (SharedFunctionInfo sfi = it.Next(); !sfi.is_null(); sfi = it.Next()) {
     if (!sfi.HasBytecodeArray()) continue;
-    FixedArray constants = sfi.GetBytecodeArray().constant_pool();
+    FixedArray constants = sfi.GetBytecodeArray(isolate).constant_pool();
     for (int i = 0; i < constants.length(); ++i) {
       if (!constants.get(i).IsSharedFunctionInfo()) continue;
       SharedFunctionInfo inner_sfi = SharedFunctionInfo::cast(constants.get(i));
@@ -1233,7 +1233,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     // Check that all the functions in the new script are valid, that their
     // function literals match what is expected, and that start positions are
     // unique.
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
 
     SharedFunctionInfo::ScriptIterator it(isolate, *new_script);
     std::set<int> start_positions;
@@ -1252,7 +1252,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
       // Check that all the functions in this function's constant pool are also
       // on the new script, and that their id matches their index in the new
       // scripts function list.
-      FixedArray constants = sfi.GetBytecodeArray().constant_pool();
+      FixedArray constants = sfi.GetBytecodeArray(isolate).constant_pool();
       for (int i = 0; i < constants.length(); ++i) {
         if (!constants.get(i).IsSharedFunctionInfo()) continue;
         SharedFunctionInfo inner_sfi =

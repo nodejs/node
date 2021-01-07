@@ -92,16 +92,25 @@ class RegExp final : public AllStatic {
       Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
       int index, Handle<RegExpMatchInfo> last_match_info);
 
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
+  ExperimentalOneshotExec(Isolate* isolate, Handle<JSRegExp> regexp,
+                          Handle<String> subject, int index,
+                          Handle<RegExpMatchInfo> last_match_info);
+
   // Integral return values used throughout regexp code layers.
   static constexpr int kInternalRegExpFailure = 0;
   static constexpr int kInternalRegExpSuccess = 1;
   static constexpr int kInternalRegExpException = -1;
   static constexpr int kInternalRegExpRetry = -2;
+  static constexpr int kInternalRegExpFallbackToExperimental = -3;
+  static constexpr int kInternalRegExpSmallestResult = -3;
 
   enum IrregexpResult : int32_t {
     RE_FAILURE = kInternalRegExpFailure,
     RE_SUCCESS = kInternalRegExpSuccess,
     RE_EXCEPTION = kInternalRegExpException,
+    RE_RETRY = kInternalRegExpRetry,
+    RE_FALLBACK_TO_EXPERIMENTAL = kInternalRegExpFallbackToExperimental,
   };
 
   // Set last match info.  If match is nullptr, then setting captures is
@@ -129,6 +138,8 @@ class RegExp final : public AllStatic {
                                                   RegExpError error);
   static void ThrowRegExpException(Isolate* isolate, Handle<JSRegExp> re,
                                    RegExpError error_text);
+
+  static bool IsUnmodifiedRegExp(Isolate* isolate, Handle<JSRegExp> regexp);
 };
 
 // Uses a special global mode of irregexp-generated code to perform a global

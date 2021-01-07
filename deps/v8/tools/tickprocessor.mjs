@@ -36,31 +36,30 @@ export function inherits(childCtor, parentCtor) {
 };
 
 
-function V8Profile(separateIc, separateBytecodes, separateBuiltins,
-    separateStubs) {
-  Profile.call(this);
-  var regexps = [];
-  if (!separateIc) regexps.push(V8Profile.IC_RE);
-  if (!separateBytecodes) regexps.push(V8Profile.BYTECODES_RE);
-  if (!separateBuiltins) regexps.push(V8Profile.BUILTINS_RE);
-  if (!separateStubs) regexps.push(V8Profile.STUBS_RE);
-  if (regexps.length > 0) {
-    this.skipThisFunction = function(name) {
-      for (var i=0; i<regexps.length; i++) {
-        if (regexps[i].test(name)) return true;
-      }
-      return false;
-    };
+class V8Profile extends Profile {
+  static IC_RE =
+      /^(LoadGlobalIC: )|(Handler: )|(?:CallIC|LoadIC|StoreIC)|(?:Builtin: (?:Keyed)?(?:Load|Store)IC_)/;
+  static BYTECODES_RE = /^(BytecodeHandler: )/;
+  static BUILTINS_RE = /^(Builtin: )/;
+  static STUBS_RE = /^(Stub: )/;
+
+  constructor(separateIc, separateBytecodes, separateBuiltins, separateStubs) {
+    super();
+    const regexps = [];
+    if (!separateIc) regexps.push(V8Profile.IC_RE);
+    if (!separateBytecodes) regexps.push(V8Profile.BYTECODES_RE);
+    if (!separateBuiltins) regexps.push(V8Profile.BUILTINS_RE);
+    if (!separateStubs) regexps.push(V8Profile.STUBS_RE);
+    if (regexps.length > 0) {
+      this.skipThisFunction = function(name) {
+        for (let i=0; i<regexps.length; i++) {
+          if (regexps[i].test(name)) return true;
+        }
+        return false;
+      };
+    }
   }
-};
-inherits(V8Profile, Profile);
-
-
-V8Profile.IC_RE =
-    /^(LoadGlobalIC: )|(Handler: )|(?:CallIC|LoadIC|StoreIC)|(?:Builtin: (?:Keyed)?(?:Load|Store)IC_)/;
-V8Profile.BYTECODES_RE = /^(BytecodeHandler: )/
-V8Profile.BUILTINS_RE = /^(Builtin: )/
-V8Profile.STUBS_RE = /^(Stub: )/
+}
 
 
 /**
@@ -73,19 +72,6 @@ export function readFile(fileName) {
     printErr(fileName + ': ' + (e.message || e));
     throw e;
   }
-}
-
-
-/**
- * Parser for dynamic code optimization state.
- */
-function parseState(s) {
-  switch (s) {
-  case "": return Profile.CodeState.COMPILED;
-  case "~": return Profile.CodeState.OPTIMIZABLE;
-  case "*": return Profile.CodeState.OPTIMIZED;
-  }
-  throw new Error("unknown code state: " + s);
 }
 
 
@@ -166,29 +152,29 @@ export function TickProcessor(
   this.stateFilter_ = stateFilter;
   this.runtimeTimerFilter_ = runtimeTimerFilter;
   this.sourceMap = sourceMap;
-  var ticks = this.ticks_ =
+  const ticks = this.ticks_ =
     { total: 0, unaccounted: 0, excluded: 0, gc: 0 };
 
   distortion = parseInt(distortion);
   // Convert picoseconds to nanoseconds.
   this.distortion_per_entry = isNaN(distortion) ? 0 : (distortion / 1000);
   this.distortion = 0;
-  var rangelimits = range ? range.split(",") : [];
-  var range_start = parseInt(rangelimits[0]);
-  var range_end = parseInt(rangelimits[1]);
+  const rangelimits = range ? range.split(",") : [];
+  const range_start = parseInt(rangelimits[0]);
+  const range_end = parseInt(rangelimits[1]);
   // Convert milliseconds to nanoseconds.
   this.range_start = isNaN(range_start) ? -Infinity : (range_start * 1000);
   this.range_end = isNaN(range_end) ? Infinity : (range_end * 1000)
 
   V8Profile.prototype.handleUnknownCode = function(
       operation, addr, opt_stackPos) {
-    var op = Profile.Operation;
+    const op = Profile.Operation;
     switch (operation) {
       case op.MOVE:
-        printErr('Code move event for unknown code: 0x' + addr.toString(16));
+        printErr(`Code move event for unknown code: 0x${addr.toString(16)}`);
         break;
       case op.DELETE:
-        printErr('Code delete event for unknown code: 0x' + addr.toString(16));
+        printErr(`Code delete event for unknown code: 0x${addr.toString(16)}`);
         break;
       case op.TICK:
         // Only unknown PCs (the first frame) are reported as unaccounted,
@@ -273,7 +259,7 @@ TickProcessor.prototype.isJsCode = function(name) {
 
 TickProcessor.prototype.processLogFile = function(fileName) {
   this.lastLogFileName_ = fileName;
-  var line;
+  let line;
   while (line = readline()) {
     this.processLogLine(line);
   }
@@ -283,18 +269,18 @@ TickProcessor.prototype.processLogFile = function(fileName) {
 TickProcessor.prototype.processLogFileInTest = function(fileName) {
    // Hack file name to avoid dealing with platform specifics.
   this.lastLogFileName_ = 'v8.log';
-  var contents = readFile(fileName);
+  const contents = readFile(fileName);
   this.processLogChunk(contents);
 };
 
 
 TickProcessor.prototype.processSharedLibrary = function(
     name, startAddr, endAddr, aslrSlide) {
-  var entry = this.profile_.addLibrary(name, startAddr, endAddr, aslrSlide);
+  const entry = this.profile_.addLibrary(name, startAddr, endAddr, aslrSlide);
   this.setCodeType(entry.getName(), 'SHARED_LIB');
 
-  var self = this;
-  var libFuncs = this.cppEntriesProvider_.parseVmSymbols(
+  const self = this;
+  const libFuncs = this.cppEntriesProvider_.parseVmSymbols(
       name, startAddr, endAddr, aslrSlide, function(fName, fStart, fEnd) {
     self.profile_.addStaticCode(fName, fStart, fEnd);
     self.setCodeType(fName, 'CPP');
@@ -305,8 +291,8 @@ TickProcessor.prototype.processSharedLibrary = function(
 TickProcessor.prototype.processCodeCreation = function(
     type, kind, timestamp, start, size, name, maybe_func) {
   if (maybe_func.length) {
-    var funcAddr = parseInt(maybe_func[0]);
-    var state = parseState(maybe_func[1]);
+    const funcAddr = parseInt(maybe_func[0]);
+    const state = Profile.parseState(maybe_func[1]);
     this.profile_.addFuncCode(type, name, timestamp, start, size, funcAddr, state);
   } else {
     this.profile_.addCode(type, name, timestamp, start, size);
@@ -386,7 +372,7 @@ TickProcessor.prototype.processTick = function(pc,
   } else if (tos_or_external_callback) {
     // Find out, if top of stack was pointing inside a JS function
     // meaning that we have encountered a frameless invocation.
-    var funcEntry = this.profile_.findEntry(tos_or_external_callback);
+    const funcEntry = this.profile_.findEntry(tos_or_external_callback);
     if (!funcEntry || !funcEntry.isJSFunction || !funcEntry.isJSFunction()) {
       tos_or_external_callback = 0;
     }
@@ -412,14 +398,14 @@ TickProcessor.prototype.processHeapSampleBegin = function(space, state, ticks) {
 TickProcessor.prototype.processHeapSampleEnd = function(space, state) {
   if (space != 'Heap' || !this.currentProducerProfile_) return;
 
-  print('Generation ' + this.generation_ + ':');
-  var tree = this.currentProducerProfile_;
+  print(`Generation ${this.generation_}:`);
+  const tree = this.currentProducerProfile_;
   tree.computeTotalWeights();
-  var producersView = this.viewBuilder_.buildView(tree);
+  const producersView = this.viewBuilder_.buildView(tree);
   // Sort by total time, desc, then by name, desc.
-  producersView.sort(function(rec1, rec2) {
-      return rec2.totalTime - rec1.totalTime ||
-          (rec2.internalFuncName < rec1.internalFuncName ? -1 : 1); });
+  producersView.sort((rec1, rec2) =>
+      rec2.totalTime - rec1.totalTime ||
+          (rec2.internalFuncName < rec1.internalFuncName ? -1 : 1) );
   this.printHeavyProfile(producersView.head.children);
 
   this.currentProducerProfile_ = null;
@@ -433,46 +419,46 @@ TickProcessor.prototype.printStatistics = function() {
     return;
   }
 
-  print('Statistical profiling result from ' + this.lastLogFileName_ +
+  print(`Statistical profiling result from ${this.lastLogFileName_}` +
         ', (' + this.ticks_.total +
         ' ticks, ' + this.ticks_.unaccounted + ' unaccounted, ' +
         this.ticks_.excluded + ' excluded).');
 
   if (this.ticks_.total == 0) return;
 
-  var flatProfile = this.profile_.getFlatProfile();
-  var flatView = this.viewBuilder_.buildView(flatProfile);
+  const flatProfile = this.profile_.getFlatProfile();
+  const flatView = this.viewBuilder_.buildView(flatProfile);
   // Sort by self time, desc, then by name, desc.
-  flatView.sort(function(rec1, rec2) {
-      return rec2.selfTime - rec1.selfTime ||
-          (rec2.internalFuncName < rec1.internalFuncName ? -1 : 1); });
-  var totalTicks = this.ticks_.total;
+  flatView.sort((rec1, rec2) =>
+      rec2.selfTime - rec1.selfTime ||
+          (rec2.internalFuncName < rec1.internalFuncName ? -1 : 1) );
+  let totalTicks = this.ticks_.total;
   if (this.ignoreUnknown_) {
     totalTicks -= this.ticks_.unaccounted;
   }
-  var printAllTicks = !this.onlySummary_;
+  const printAllTicks = !this.onlySummary_;
 
   // Count library ticks
-  var flatViewNodes = flatView.head.children;
-  var self = this;
+  const flatViewNodes = flatView.head.children;
+  const self = this;
 
-  var libraryTicks = 0;
+  let libraryTicks = 0;
   if(printAllTicks) this.printHeader('Shared libraries');
   this.printEntries(flatViewNodes, totalTicks, null,
-      function(name) { return self.isSharedLibrary(name); },
+      name => self.isSharedLibrary(name),
       function(rec) { libraryTicks += rec.selfTime; }, printAllTicks);
-  var nonLibraryTicks = totalTicks - libraryTicks;
+  const nonLibraryTicks = totalTicks - libraryTicks;
 
-  var jsTicks = 0;
+  let jsTicks = 0;
   if(printAllTicks) this.printHeader('JavaScript');
   this.printEntries(flatViewNodes, totalTicks, nonLibraryTicks,
-      function(name) { return self.isJsCode(name); },
+      name => self.isJsCode(name),
       function(rec) { jsTicks += rec.selfTime; }, printAllTicks);
 
-  var cppTicks = 0;
+  let cppTicks = 0;
   if(printAllTicks) this.printHeader('C++');
   this.printEntries(flatViewNodes, totalTicks, nonLibraryTicks,
-      function(name) { return self.isCppCode(name); },
+      name => self.isCppCode(name),
       function(rec) { cppTicks += rec.selfTime; }, printAllTicks);
 
   this.printHeader('Summary');
@@ -488,22 +474,22 @@ TickProcessor.prototype.printStatistics = function() {
   if(printAllTicks) {
     print('\n [C++ entry points]:');
     print('   ticks    cpp   total   name');
-    var c_entry_functions = this.profile_.getCEntryProfile();
-    var total_c_entry = c_entry_functions[0].ticks;
-    for (var i = 1; i < c_entry_functions.length; i++) {
+    const c_entry_functions = this.profile_.getCEntryProfile();
+    const total_c_entry = c_entry_functions[0].ticks;
+    for (let i = 1; i < c_entry_functions.length; i++) {
       const c = c_entry_functions[i];
       this.printLine(c.name, c.ticks, total_c_entry, totalTicks);
     }
 
     this.printHeavyProfHeader();
-    var heavyProfile = this.profile_.getBottomUpProfile();
-    var heavyView = this.viewBuilder_.buildView(heavyProfile);
+    const heavyProfile = this.profile_.getBottomUpProfile();
+    const heavyView = this.viewBuilder_.buildView(heavyProfile);
     // To show the same percentages as in the flat profile.
     heavyView.head.totalTime = totalTicks;
     // Sort by total time, desc, then by name, desc.
-    heavyView.sort(function(rec1, rec2) {
-        return rec2.totalTime - rec1.totalTime ||
-            (rec2.internalFuncName < rec1.internalFuncName ? -1 : 1); });
+    heavyView.sort((rec1, rec2) =>
+        rec2.totalTime - rec1.totalTime ||
+            (rec2.internalFuncName < rec1.internalFuncName ? -1 : 1) );
     this.printHeavyProfile(heavyView.head.children);
   }
 };
@@ -512,7 +498,7 @@ TickProcessor.prototype.printStatistics = function() {
 function padLeft(s, len) {
   s = s.toString();
   if (s.length < len) {
-    var padLength = len - s.length;
+    const padLength = len - s.length;
     if (!(padLength in padLeft)) {
       padLeft[padLength] = new Array(padLength + 1).join(' ');
     }
@@ -523,18 +509,18 @@ function padLeft(s, len) {
 
 
 TickProcessor.prototype.printHeader = function(headerTitle) {
-  print('\n [' + headerTitle + ']:');
+  print(`\n [${headerTitle}]:`);
   print('   ticks  total  nonlib   name');
 };
 
 
 TickProcessor.prototype.printLine = function(
     entry, ticks, totalTicks, nonLibTicks) {
-  var pct = ticks * 100 / totalTicks;
-  var nonLibPct = nonLibTicks != null
+  const pct = ticks * 100 / totalTicks;
+  const nonLibPct = nonLibTicks != null
       ? padLeft((ticks * 100 / nonLibTicks).toFixed(1), 5) + '%  '
       : '        ';
-  print('  ' + padLeft(ticks, 5) + '  ' +
+  print(`  ${padLeft(ticks, 5)}  ` +
         padLeft(pct.toFixed(1), 5) + '%  ' +
         nonLibPct +
         entry);
@@ -554,8 +540,8 @@ TickProcessor.prototype.printHeavyProfHeader = function() {
 
 TickProcessor.prototype.processProfile = function(
     profile, filterP, func) {
-  for (var i = 0, n = profile.length; i < n; ++i) {
-    var rec = profile[i];
+  for (let i = 0, n = profile.length; i < n; ++i) {
+    const rec = profile[i];
     if (!filterP(rec.internalFuncName)) {
       continue;
     }
@@ -564,8 +550,8 @@ TickProcessor.prototype.processProfile = function(
 };
 
 TickProcessor.prototype.getLineAndColumn = function(name) {
-  var re = /:([0-9]+):([0-9]+)$/;
-  var array = re.exec(name);
+  const re = /:([0-9]+):([0-9]+)$/;
+  const array = re.exec(name);
   if (!array) {
     return null;
   }
@@ -581,28 +567,28 @@ TickProcessor.prototype.formatFunctionName = function(funcName) {
   if (!this.hasSourceMap()) {
     return funcName;
   }
-  var lc = this.getLineAndColumn(funcName);
+  const lc = this.getLineAndColumn(funcName);
   if (lc == null) {
     return funcName;
   }
   // in source maps lines and columns are zero based
-  var lineNumber = lc.line - 1;
-  var column = lc.column - 1;
-  var entry = this.sourceMap.findEntry(lineNumber, column);
-  var sourceFile = entry[2];
-  var sourceLine = entry[3] + 1;
-  var sourceColumn = entry[4] + 1;
+  const lineNumber = lc.line - 1;
+  const column = lc.column - 1;
+  const entry = this.sourceMap.findEntry(lineNumber, column);
+  const sourceFile = entry[2];
+  const sourceLine = entry[3] + 1;
+  const sourceColumn = entry[4] + 1;
 
   return sourceFile + ':' + sourceLine + ':' + sourceColumn + ' -> ' + funcName;
 };
 
 TickProcessor.prototype.printEntries = function(
     profile, totalTicks, nonLibTicks, filterP, callback, printAllTicks) {
-  var that = this;
+  const that = this;
   this.processProfile(profile, filterP, function (rec) {
     if (rec.selfTime == 0) return;
     callback(rec);
-    var funcName = that.formatFunctionName(rec.internalFuncName);
+    const funcName = that.formatFunctionName(rec.internalFuncName);
     if(printAllTicks) {
       that.printLine(funcName, rec.selfTime, totalTicks, nonLibTicks);
     }
@@ -611,14 +597,14 @@ TickProcessor.prototype.printEntries = function(
 
 
 TickProcessor.prototype.printHeavyProfile = function(profile, opt_indent) {
-  var self = this;
-  var indent = opt_indent || 0;
-  var indentStr = padLeft('', indent);
-  this.processProfile(profile, function() { return true; }, function (rec) {
+  const self = this;
+  const indent = opt_indent || 0;
+  const indentStr = padLeft('', indent);
+  this.processProfile(profile, () => true, function (rec) {
     // Cut off too infrequent callers.
     if (rec.parentTotalPercent < TickProcessor.CALL_PROFILE_CUTOFF_PCT) return;
-    var funcName = self.formatFunctionName(rec.internalFuncName);
-    print('  ' + padLeft(rec.totalTime, 5) + '  ' +
+    const funcName = self.formatFunctionName(rec.internalFuncName);
+    print(`  ${padLeft(rec.totalTime, 5)}  ` +
           padLeft(rec.parentTotalPercent.toFixed(1), 5) + '%  ' +
           indentStr + funcName);
     // Limit backtrace depth.
@@ -641,8 +627,8 @@ CppEntriesProvider.prototype.parseVmSymbols = function(
     libName, libStart, libEnd, libASLRSlide, processorFunc) {
   this.loadSymbols(libName);
 
-  var lastUnknownSize;
-  var lastAdded;
+  let lastUnknownSize;
+  let lastAdded;
 
   function inRange(funcInfo, start, end) {
     return funcInfo.start >= start && funcInfo.end <= end;
@@ -682,7 +668,7 @@ CppEntriesProvider.prototype.parseVmSymbols = function(
   }
 
   while (true) {
-    var funcInfo = this.parseNextLine();
+    const funcInfo = this.parseNextLine();
     if (funcInfo === null) {
       continue;
     } else if (funcInfo === false) {
@@ -707,9 +693,7 @@ CppEntriesProvider.prototype.loadSymbols = function(libName) {
 };
 
 
-CppEntriesProvider.prototype.parseNextLine = function() {
-  return false;
-};
+CppEntriesProvider.prototype.parseNextLine = () => false;
 
 
 export function UnixCppEntriesProvider(nmExec, objdumpExec, targetRootFS, apkEmbeddedLibrary) {
@@ -760,17 +744,17 @@ UnixCppEntriesProvider.prototype.parseNextLine = function() {
   if (this.symbols.length == 0) {
     return false;
   }
-  var lineEndPos = this.symbols[0].indexOf('\n', this.parsePos);
+  const lineEndPos = this.symbols[0].indexOf('\n', this.parsePos);
   if (lineEndPos == -1) {
     this.symbols.shift();
     this.parsePos = 0;
     return this.parseNextLine();
   }
 
-  var line = this.symbols[0].substring(this.parsePos, lineEndPos);
+  const line = this.symbols[0].substring(this.parsePos, lineEndPos);
   this.parsePos = lineEndPos + 1;
-  var fields = line.match(this.FUNC_RE);
-  var funcInfo = null;
+  const fields = line.match(this.FUNC_RE);
+  let funcInfo = null;
   if (fields) {
     funcInfo = { name: fields[3], start: parseInt(fields[1], 16) + this.fileOffsetMinusVma };
     if (fields[2]) {
@@ -830,9 +814,9 @@ WindowsCppEntriesProvider.EXE_IMAGE_BASE = 0x00400000;
 
 WindowsCppEntriesProvider.prototype.loadSymbols = function(libName) {
   libName = this.targetRootFS + libName;
-  var fileNameFields = libName.match(WindowsCppEntriesProvider.FILENAME_RE);
+  const fileNameFields = libName.match(WindowsCppEntriesProvider.FILENAME_RE);
   if (!fileNameFields) return;
-  var mapFileName = fileNameFields[1] + '.map';
+  const mapFileName = fileNameFields[1] + '.map';
   this.moduleType_ = fileNameFields[2].toLowerCase();
   try {
     this.symbols = read(mapFileName);
@@ -844,26 +828,26 @@ WindowsCppEntriesProvider.prototype.loadSymbols = function(libName) {
 
 
 WindowsCppEntriesProvider.prototype.parseNextLine = function() {
-  var lineEndPos = this.symbols.indexOf('\r\n', this.parsePos);
+  const lineEndPos = this.symbols.indexOf('\r\n', this.parsePos);
   if (lineEndPos == -1) {
     return false;
   }
 
-  var line = this.symbols.substring(this.parsePos, lineEndPos);
+  const line = this.symbols.substring(this.parsePos, lineEndPos);
   this.parsePos = lineEndPos + 2;
 
   // Image base entry is above all other symbols, so we can just
   // terminate parsing.
-  var imageBaseFields = line.match(WindowsCppEntriesProvider.IMAGE_BASE_RE);
+  const imageBaseFields = line.match(WindowsCppEntriesProvider.IMAGE_BASE_RE);
   if (imageBaseFields) {
-    var imageBase = parseInt(imageBaseFields[1], 16);
+    const imageBase = parseInt(imageBaseFields[1], 16);
     if ((this.moduleType_ == 'exe') !=
         (imageBase == WindowsCppEntriesProvider.EXE_IMAGE_BASE)) {
       return false;
     }
   }
 
-  var fields = line.match(WindowsCppEntriesProvider.FUNC_RE);
+  const fields = line.match(WindowsCppEntriesProvider.FUNC_RE);
   return fields ?
       { name: this.unmangleName(fields[1]), start: parseInt(fields[2], 16) } :
       null;
@@ -881,8 +865,8 @@ WindowsCppEntriesProvider.prototype.parseNextLine = function() {
 WindowsCppEntriesProvider.prototype.unmangleName = function(name) {
   // Empty or non-mangled name.
   if (name.length < 1 || name.charAt(0) != '?') return name;
-  var nameEndPos = name.indexOf('@@');
-  var components = name.substring(1, nameEndPos).split('@');
+  const nameEndPos = name.indexOf('@@');
+  const components = name.substring(1, nameEndPos).split('@');
   components.reverse();
   return components.join('::');
 };

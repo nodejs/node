@@ -17,6 +17,8 @@ namespace internal {
 
 class UnorderedModuleSet;
 
+#include "torque-generated/src/objects/source-text-module-tq.inc"
+
 // The runtime representation of an ECMAScript Source Text Module Record.
 // https://tc39.github.io/ecma262/#sec-source-text-module-records
 class SourceTextModule
@@ -29,6 +31,8 @@ class SourceTextModule
   // The shared function info in case {status} is not kEvaluating, kEvaluated or
   // kErrored.
   SharedFunctionInfo GetSharedFunctionInfo() const;
+
+  Script GetScript() const;
 
   // Whether or not this module is an async module. Set during module creation
   // and does not change afterwards.
@@ -124,7 +128,7 @@ class SourceTextModule
       MessageLocation loc, bool must_resolve, ResolveSet* resolve_set);
   static V8_WARN_UNUSED_RESULT MaybeHandle<Cell> ResolveImport(
       Isolate* isolate, Handle<SourceTextModule> module, Handle<String> name,
-      int module_request, MessageLocation loc, bool must_resolve,
+      int module_request_index, MessageLocation loc, bool must_resolve,
       ResolveSet* resolve_set);
 
   static V8_WARN_UNUSED_RESULT MaybeHandle<Cell> ResolveExportUsingStarExports(
@@ -134,7 +138,9 @@ class SourceTextModule
 
   static V8_WARN_UNUSED_RESULT bool PrepareInstantiate(
       Isolate* isolate, Handle<SourceTextModule> module,
-      v8::Local<v8::Context> context, v8::Module::ResolveCallback callback);
+      v8::Local<v8::Context> context,
+      v8::Module::ResolveModuleCallback callback,
+      Module::DeprecatedResolveCallback callback_without_import_assertions);
   static V8_WARN_UNUSED_RESULT bool FinishInstantiate(
       Isolate* isolate, Handle<SourceTextModule> module,
       ZoneForwardList<Handle<SourceTextModule>>* stack, unsigned* dfs_index,
@@ -201,7 +207,6 @@ class SourceTextModuleInfo : public FixedArray {
   inline FixedArray regular_exports() const;
   inline FixedArray regular_imports() const;
   inline FixedArray namespace_imports() const;
-  inline FixedArray module_request_positions() const;
 
   // Accessors for [regular_exports].
   int RegularExportCount() const;
@@ -223,7 +228,6 @@ class SourceTextModuleInfo : public FixedArray {
     kRegularExportsIndex,
     kNamespaceImportsIndex,
     kRegularImportsIndex,
-    kModuleRequestPositionsIndex,
     kLength
   };
   enum {
@@ -234,6 +238,25 @@ class SourceTextModuleInfo : public FixedArray {
   };
 
   OBJECT_CONSTRUCTORS(SourceTextModuleInfo, FixedArray);
+};
+
+class ModuleRequest
+    : public TorqueGeneratedModuleRequest<ModuleRequest, Struct> {
+ public:
+  NEVER_READ_ONLY_SPACE
+  DECL_VERIFIER(ModuleRequest)
+
+  template <typename LocalIsolate>
+  static Handle<ModuleRequest> New(LocalIsolate* isolate,
+                                   Handle<String> specifier,
+                                   Handle<FixedArray> import_assertions,
+                                   int position);
+
+  // The number of entries in the import_assertions FixedArray that are used for
+  // a single assertion.
+  static const size_t kAssertionEntrySize = 3;
+
+  TQ_OBJECT_CONSTRUCTORS(ModuleRequest)
 };
 
 class SourceTextModuleInfoEntry

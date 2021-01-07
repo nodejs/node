@@ -24,6 +24,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/descriptor-array-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(DescriptorArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(EnumCache)
 
@@ -104,11 +106,11 @@ ObjectSlot DescriptorArray::GetDescriptorSlot(int descriptor) {
 }
 
 Name DescriptorArray::GetKey(InternalIndex descriptor_number) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return GetKey(isolate, descriptor_number);
 }
 
-Name DescriptorArray::GetKey(const Isolate* isolate,
+Name DescriptorArray::GetKey(IsolateRoot isolate,
                              InternalIndex descriptor_number) const {
   DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
   int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
@@ -127,12 +129,11 @@ int DescriptorArray::GetSortedKeyIndex(int descriptor_number) {
 }
 
 Name DescriptorArray::GetSortedKey(int descriptor_number) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return GetSortedKey(isolate, descriptor_number);
 }
 
-Name DescriptorArray::GetSortedKey(const Isolate* isolate,
-                                   int descriptor_number) {
+Name DescriptorArray::GetSortedKey(IsolateRoot isolate, int descriptor_number) {
   return GetKey(isolate, InternalIndex(GetSortedKeyIndex(descriptor_number)));
 }
 
@@ -142,11 +143,11 @@ void DescriptorArray::SetSortedKey(int descriptor_number, int pointer) {
 }
 
 Object DescriptorArray::GetStrongValue(InternalIndex descriptor_number) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return GetStrongValue(isolate, descriptor_number);
 }
 
-Object DescriptorArray::GetStrongValue(const Isolate* isolate,
+Object DescriptorArray::GetStrongValue(IsolateRoot isolate,
                                        InternalIndex descriptor_number) {
   return GetValue(isolate, descriptor_number).cast<Object>();
 }
@@ -160,11 +161,11 @@ void DescriptorArray::SetValue(InternalIndex descriptor_number,
 }
 
 MaybeObject DescriptorArray::GetValue(InternalIndex descriptor_number) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return GetValue(isolate, descriptor_number);
 }
 
-MaybeObject DescriptorArray::GetValue(const Isolate* isolate,
+MaybeObject DescriptorArray::GetValue(IsolateRoot isolate,
                                       InternalIndex descriptor_number) {
   DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
   int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
@@ -191,11 +192,11 @@ int DescriptorArray::GetFieldIndex(InternalIndex descriptor_number) {
 }
 
 FieldType DescriptorArray::GetFieldType(InternalIndex descriptor_number) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return GetFieldType(isolate, descriptor_number);
 }
 
-FieldType DescriptorArray::GetFieldType(const Isolate* isolate,
+FieldType DescriptorArray::GetFieldType(IsolateRoot isolate,
                                         InternalIndex descriptor_number) {
   DCHECK_EQ(GetDetails(descriptor_number).location(), kField);
   MaybeObject wrapped_type = GetValue(isolate, descriptor_number);
@@ -216,13 +217,13 @@ void DescriptorArray::Set(InternalIndex descriptor_number, Descriptor* desc) {
 }
 
 void DescriptorArray::Append(Descriptor* desc) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   int descriptor_number = number_of_descriptors();
   DCHECK_LE(descriptor_number + 1, number_of_all_descriptors());
   set_number_of_descriptors(descriptor_number + 1);
   Set(InternalIndex(descriptor_number), desc);
 
-  uint32_t hash = desc->GetKey()->Hash();
+  uint32_t hash = desc->GetKey()->hash();
 
   int insertion;
 

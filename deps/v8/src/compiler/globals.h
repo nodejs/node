@@ -71,4 +71,13 @@ inline std::ostream& operator<<(std::ostream& os,
 }  // namespace internal
 }  // namespace v8
 
+// Support for floating point parameters in calls to C.
+// It's currently enabled only for the platforms listed below. We don't plan
+// to add support for IA32, because it has a totally different approach
+// (using FP stack). As support is added to more platforms, please make sure
+// to list them here in order to enable tests of this functionality.
+#if defined(V8_TARGET_ARCH_X64)
+#define V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+#endif
+
 #endif  // V8_COMPILER_GLOBALS_H_

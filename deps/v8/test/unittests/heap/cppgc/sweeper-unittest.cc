@@ -46,9 +46,14 @@ class SweeperTest : public testing::TestWithHeap {
     Sweeper& sweeper = heap->sweeper();
     // Pretend do finish marking as StatsCollector verifies that Notify*
     // methods are called in the right order.
-    heap->stats_collector()->NotifyMarkingStarted();
+    heap->stats_collector()->NotifyMarkingStarted(
+        GarbageCollector::Config::CollectionType::kMajor,
+        GarbageCollector::Config::IsForcedGC::kNotForced);
     heap->stats_collector()->NotifyMarkingCompleted(0);
-    sweeper.Start(Sweeper::Config::kAtomic);
+    const Sweeper::SweepingConfig sweeping_config{
+        Sweeper::SweepingConfig::SweepingType::kAtomic,
+        Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep};
+    sweeper.Start(sweeping_config);
     sweeper.FinishIfRunning();
   }
 

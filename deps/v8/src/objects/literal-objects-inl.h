@@ -15,6 +15,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/literal-objects-tq-inl.inc"
+
 //
 // ObjectBoilerplateDescription
 //
@@ -27,11 +29,11 @@ SMI_ACCESSORS(ObjectBoilerplateDescription, flags,
               FixedArray::OffsetOfElementAt(kLiteralTypeOffset))
 
 Object ObjectBoilerplateDescription::name(int index) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return name(isolate, index);
 }
 
-Object ObjectBoilerplateDescription::name(const Isolate* isolate,
+Object ObjectBoilerplateDescription::name(IsolateRoot isolate,
                                           int index) const {
   // get() already checks for out of bounds access, but we do not want to allow
   // access to the last element, if it is the number of properties.
@@ -40,11 +42,11 @@ Object ObjectBoilerplateDescription::name(const Isolate* isolate,
 }
 
 Object ObjectBoilerplateDescription::value(int index) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return value(isolate, index);
 }
 
-Object ObjectBoilerplateDescription::value(const Isolate* isolate,
+Object ObjectBoilerplateDescription::value(IsolateRoot isolate,
                                            int index) const {
   return get(isolate, 2 * index + 1 + kDescriptionStartIndex);
 }

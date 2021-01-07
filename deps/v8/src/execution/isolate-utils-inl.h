@@ -13,32 +13,17 @@
 namespace v8 {
 namespace internal {
 
-inline const Isolate* GetIsolateForPtrComprFromOnHeapAddress(Address address) {
+inline constexpr IsolateRoot GetIsolateForPtrComprFromOnHeapAddress(
+    Address address) {
 #ifdef V8_COMPRESS_POINTERS
-  return Isolate::FromRoot(GetIsolateRoot(address));
+  return IsolateRoot(GetIsolateRootAddress(address));
 #else
-  return nullptr;
+  return IsolateRoot();
 #endif  // V8_COMPRESS_POINTERS
 }
 
-inline const Isolate* GetIsolateForPtrCompr(HeapObject object) {
+inline IsolateRoot GetIsolateForPtrCompr(HeapObject object) {
   return GetIsolateForPtrComprFromOnHeapAddress(object.ptr());
-}
-
-inline const Isolate* GetIsolateForPtrCompr(const Isolate* isolate) {
-#ifdef V8_COMPRESS_POINTERS
-  return isolate;
-#else
-  return nullptr;
-#endif  // V8_COMPRESS_POINTERS
-}
-
-inline const Isolate* GetIsolateForPtrCompr(const LocalIsolate* isolate) {
-#ifdef V8_COMPRESS_POINTERS
-  return isolate->GetIsolateForPtrCompr();
-#else
-  return nullptr;
-#endif  // V8_COMPRESS_POINTERS
 }
 
 V8_INLINE Heap* GetHeapFromWritableObject(HeapObject object) {
@@ -48,7 +33,8 @@ V8_INLINE Heap* GetHeapFromWritableObject(HeapObject object) {
 #if defined V8_ENABLE_THIRD_PARTY_HEAP
   return Heap::GetIsolateFromWritableObject(object)->heap();
 #elif defined V8_COMPRESS_POINTERS
-  Isolate* isolate = Isolate::FromRoot(GetIsolateRoot(object.ptr()));
+  Isolate* isolate =
+      Isolate::FromRootAddress(GetIsolateRootAddress(object.ptr()));
   DCHECK_NOT_NULL(isolate);
   return isolate->heap();
 #else
@@ -62,7 +48,8 @@ V8_INLINE Isolate* GetIsolateFromWritableObject(HeapObject object) {
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
   return Heap::GetIsolateFromWritableObject(object);
 #elif defined V8_COMPRESS_POINTERS
-  Isolate* isolate = Isolate::FromRoot(GetIsolateRoot(object.ptr()));
+  Isolate* isolate =
+      Isolate::FromRootAddress(GetIsolateRootAddress(object.ptr()));
   DCHECK_NOT_NULL(isolate);
   return isolate;
 #else

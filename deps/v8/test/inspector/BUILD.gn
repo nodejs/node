@@ -4,16 +4,34 @@
 
 import("../../gni/v8.gni")
 
-v8_executable("inspector-test") {
-  testonly = true
-
+v8_source_set("inspector_test") {
   sources = [
-    "inspector-test.cc",
+    "frontend-channel.h",
     "isolate-data.cc",
     "isolate-data.h",
     "task-runner.cc",
     "task-runner.h",
+    "tasks.cc",
+    "tasks.h",
+    "utils.cc",
+    "utils.h",
   ]
+
+  configs = [ "../..:internal_config_base" ]
+
+  public_deps = [
+    "../..:v8",
+    "../..:v8_libbase",
+    "../..:v8_libplatform",
+    "../..:v8_wrappers",
+    "../../src/inspector:inspector_test_headers",
+  ]
+}
+
+v8_executable("inspector-test") {
+  testonly = true
+
+  sources = [ "inspector-test.cc" ]
 
   configs = [
     "../..:external_config",
@@ -21,10 +39,7 @@ v8_executable("inspector-test") {
   ]
 
   deps = [
-    "../..:v8",
-    "../..:v8_libbase",
-    "../..:v8_libplatform",
-    "../../src/inspector:inspector_test_headers",
+    ":inspector_test",
     "//build/win:default_exe_manifest",
   ]
 
@@ -37,8 +52,6 @@ v8_executable("inspector-test") {
     "debugger/",
     "heap-profiler/",
     "inspector.status",
-    "json-parse-expected.txt",
-    "json-parse.js",
     "protocol-test.js",
     "runtime/",
     "runtime-call-stats/",

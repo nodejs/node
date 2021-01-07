@@ -71,6 +71,8 @@ class ExternalReferenceTable {
   }
 
   ExternalReferenceTable() = default;
+  ExternalReferenceTable(const ExternalReferenceTable&) = delete;
+  ExternalReferenceTable& operator=(const ExternalReferenceTable&) = delete;
   void Init(Isolate* isolate);
 
  private:
@@ -99,8 +101,6 @@ class ExternalReferenceTable {
   // This field is uint32_t since the MacroAssembler and CodeStubAssembler
   // accesses this field as a uint32_t.
   uint32_t dummy_stats_counter_ = 0;
-
-  DISALLOW_COPY_AND_ASSIGN(ExternalReferenceTable);
 };
 
 STATIC_ASSERT(ExternalReferenceTable::kSizeInBytes ==

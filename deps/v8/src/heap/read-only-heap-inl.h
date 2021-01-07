@@ -15,8 +15,8 @@ namespace internal {
 // static
 ReadOnlyRoots ReadOnlyHeap::GetReadOnlyRoots(HeapObject object) {
 #ifdef V8_COMPRESS_POINTERS
-  const Isolate* isolate = GetIsolateForPtrCompr(object);
-  return ReadOnlyRoots(const_cast<Isolate*>(isolate));
+  IsolateRoot isolate = GetIsolateForPtrCompr(object);
+  return ReadOnlyRoots(Isolate::FromRootAddress(isolate.address()));
 #else
 #ifdef V8_SHARED_RO_HEAP
   // This fails if we are creating heap objects and the roots haven't yet been

@@ -5,73 +5,22 @@
 #include <iomanip>
 #include <memory>
 
+#include "src/common/globals.h"
+#include "src/compiler/node.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/heap/heap-inl.h"                // For InOldSpace.
 #include "src/heap/heap-write-barrier-inl.h"  // For GetIsolateFromWritableObj.
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/bytecodes.h"
-#include "src/objects/arguments-inl.h"
-#include "src/objects/cell-inl.h"
-#include "src/objects/data-handler-inl.h"
-#include "src/objects/debug-objects-inl.h"
-#include "src/objects/embedder-data-array-inl.h"
-#include "src/objects/embedder-data-slot-inl.h"
-#include "src/objects/feedback-cell-inl.h"
-#include "src/objects/foreign-inl.h"
-#include "src/objects/free-space-inl.h"
-#include "src/objects/hash-table-inl.h"
-#include "src/objects/heap-number-inl.h"
-#include "src/objects/js-array-buffer-inl.h"
-#include "src/objects/js-array-inl.h"
-#include "src/objects/objects-inl.h"
-#include "src/objects/objects.h"
-#include "src/snapshot/embedded/embedded-data.h"
-#ifdef V8_INTL_SUPPORT
-#include "src/objects/js-break-iterator-inl.h"
-#include "src/objects/js-collator-inl.h"
-#endif  // V8_INTL_SUPPORT
-#include "src/objects/js-collection-inl.h"
-#ifdef V8_INTL_SUPPORT
-#include "src/objects/js-date-time-format-inl.h"
-#include "src/objects/js-display-names-inl.h"
-#endif  // V8_INTL_SUPPORT
-#include "src/objects/js-generator-inl.h"
-#ifdef V8_INTL_SUPPORT
-#include "src/objects/js-list-format-inl.h"
-#include "src/objects/js-locale-inl.h"
-#include "src/objects/js-number-format-inl.h"
-#include "src/objects/js-plural-rules-inl.h"
-#endif  // V8_INTL_SUPPORT
-#include "src/objects/js-regexp-inl.h"
-#include "src/objects/js-regexp-string-iterator-inl.h"
-#ifdef V8_INTL_SUPPORT
-#include "src/objects/js-relative-time-format-inl.h"
-#include "src/objects/js-segment-iterator-inl.h"
-#include "src/objects/js-segmenter-inl.h"
-#include "src/objects/js-segments-inl.h"
-#endif  // V8_INTL_SUPPORT
-#include "src/compiler/node.h"
-#include "src/objects/js-weak-refs-inl.h"
-#include "src/objects/literal-objects-inl.h"
-#include "src/objects/microtask-inl.h"
-#include "src/objects/module-inl.h"
-#include "src/objects/oddball-inl.h"
-#include "src/objects/promise-inl.h"
-#include "src/objects/property-descriptor-object-inl.h"
-#include "src/objects/stack-frame-info-inl.h"
-#include "src/objects/string-set-inl.h"
-#include "src/objects/struct-inl.h"
-#include "src/objects/template-objects-inl.h"
-#include "src/objects/transitions-inl.h"
+#include "src/objects/all-objects-inl.h"
+#include "src/objects/code-kind.h"
 #include "src/regexp/regexp.h"
+#include "src/snapshot/embedded/embedded-data.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
-#include "torque-generated/class-definitions-inl.h"
-#include "torque-generated/exported-class-definitions-inl.h"
-#include "torque-generated/internal-class-definitions-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -116,6 +65,24 @@ void PrintHeapObjectHeaderWithoutMap(HeapObject object, std::ostream& os,
   }
 }
 
+template <typename T>
+void PrintDictionaryContents(std::ostream& os, T dict) {
+  DisallowGarbageCollection no_gc;
+  ReadOnlyRoots roots = dict.GetReadOnlyRoots();
+
+  for (InternalIndex i : dict.IterateEntries()) {
+    Object k;
+    if (!dict.ToKey(roots, i, &k)) continue;
+    os << "\n   ";
+    if (k.IsString()) {
+      String::cast(k).PrintUC16(os);
+    } else {
+      os << Brief(k);
+    }
+    os << ": " << Brief(dict.ValueAt(i)) << " ";
+    dict.DetailsAt(i).PrintAsSlowTo(os, !T::kIsOrderedDictionaryType);
+  }
+}
 }  // namespace
 
 void HeapObject::PrintHeader(std::ostream& os, const char* id) {  // NOLINT
@@ -155,10 +122,20 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       ObjectHashTable::cast(*this).ObjectHashTablePrint(os);
       break;
     case ORDERED_HASH_MAP_TYPE:
+      OrderedHashMap::cast(*this).OrderedHashMapPrint(os);
+      break;
     case ORDERED_HASH_SET_TYPE:
+      OrderedHashSet::cast(*this).OrderedHashSetPrint(os);
+      break;
     case ORDERED_NAME_DICTIONARY_TYPE:
+      OrderedNameDictionary::cast(*this).OrderedNameDictionaryPrint(os);
+      break;
     case NAME_DICTIONARY_TYPE:
+      NameDictionary::cast(*this).NameDictionaryPrint(os);
+      break;
     case GLOBAL_DICTIONARY_TYPE:
+      GlobalDictionary::cast(*this).GlobalDictionaryPrint(os);
+      break;
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
       FixedArray::cast(*this).FixedArrayPrint(os);
       break;
@@ -182,11 +159,21 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case FILLER_TYPE:
       os << "filler";
       break;
-    case JS_OBJECT_TYPE:  // fall through
     case JS_API_OBJECT_TYPE:
-    case JS_SPECIAL_API_OBJECT_TYPE:
+    case JS_ARRAY_ITERATOR_PROTOTYPE_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_ERROR_TYPE:
+    case JS_ITERATOR_PROTOTYPE_TYPE:
+    case JS_MAP_ITERATOR_PROTOTYPE_TYPE:
+    case JS_OBJECT_PROTOTYPE_TYPE:
+    case JS_OBJECT_TYPE:
+    case JS_PROMISE_PROTOTYPE_TYPE:
+    case JS_REG_EXP_PROTOTYPE_TYPE:
+    case JS_SET_ITERATOR_PROTOTYPE_TYPE:
+    case JS_SET_PROTOTYPE_TYPE:
+    case JS_SPECIAL_API_OBJECT_TYPE:
+    case JS_STRING_ITERATOR_PROTOTYPE_TYPE:
+    case JS_TYPED_ARRAY_PROTOTYPE_TYPE:
       JSObject::cast(*this).JSObjectPrint(os);
       break;
     case WASM_INSTANCE_OBJECT_TYPE:
@@ -284,7 +271,7 @@ void FreeSpace::FreeSpacePrint(std::ostream& os) {  // NOLINT
 
 bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
   if (HasFastProperties()) {
-    DescriptorArray descs = map().instance_descriptors();
+    DescriptorArray descs = map().instance_descriptors(kRelaxedLoad);
     int nof_inobject_properties = map().GetInObjectProperties();
     for (InternalIndex i : map().IterateOwnDescriptors()) {
       os << "\n    ";
@@ -307,18 +294,26 @@ bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
       }
       os << " ";
       details.PrintAsFastTo(os, PropertyDetails::kForProperties);
-      if (details.location() != kField) continue;
-      int field_index = details.field_index();
-      if (nof_inobject_properties <= field_index) {
-        field_index -= nof_inobject_properties;
-        os << " properties[" << field_index << "]";
+      if (details.location() == kField) {
+        int field_index = details.field_index();
+        if (field_index < nof_inobject_properties) {
+          os << ", location: in-object";
+        } else {
+          field_index -= nof_inobject_properties;
+          os << ", location: properties[" << field_index << "]";
+        }
+      } else {
+        os << ", location: descriptor";
       }
     }
     return map().NumberOfOwnDescriptors() > 0;
   } else if (IsJSGlobalObject()) {
-    JSGlobalObject::cast(*this).global_dictionary().Print(os);
+    PrintDictionaryContents(
+        os, JSGlobalObject::cast(*this).global_dictionary(kAcquireLoad));
+  } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    PrintDictionaryContents(os, property_dictionary_ordered());
   } else {
-    property_dictionary().Print(os);
+    PrintDictionaryContents(os, property_dictionary());
   }
   return true;
 }
@@ -438,7 +433,7 @@ void PrintDictionaryElements(std::ostream& os, FixedArrayBase elements) {
   } else {
     os << "\n   - max_number_key: " << dict.max_number_key();
   }
-  dict.Print(os);
+  PrintDictionaryContents(os, dict);
 }
 
 void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
@@ -468,9 +463,9 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
   }
 }
 
-void PrintEmbedderData(const Isolate* isolate, std::ostream& os,
+void PrintEmbedderData(IsolateRoot isolate, std::ostream& os,
                        EmbedderDataSlot slot) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Object value = slot.load_tagged();
   os << Brief(value);
   void* raw_pointer;
@@ -568,9 +563,10 @@ static void JSObjectPrintBody(std::ostream& os,
   if (!properties_or_hash.IsSmi()) {
     os << Brief(properties_or_hash);
   }
-  os << " {";
+  os << "\n - All own properties (excluding elements): {";
   if (obj.PrintProperties(os)) os << "\n ";
   os << "}\n";
+
   if (print_elements) {
     size_t length = obj.IsJSTypedArray() ? JSTypedArray::cast(obj).length()
                                          : obj.elements().length();
@@ -578,7 +574,7 @@ static void JSObjectPrintBody(std::ostream& os,
   }
   int embedder_fields = obj.GetEmbedderFieldCount();
   if (embedder_fields > 0) {
-    const Isolate* isolate = GetIsolateForPtrCompr(obj);
+    IsolateRoot isolate = GetIsolateForPtrCompr(obj);
     os << " - embedder fields = {";
     for (int i = 0; i < embedder_fields; i++) {
       os << "\n    ";
@@ -622,7 +618,7 @@ void JSGeneratorObject::JSGeneratorObjectPrint(std::ostream& os) {  // NOLINT
   if (is_executing()) os << " (executing)";
   if (is_suspended()) os << " (suspended)";
   if (is_suspended()) {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     SharedFunctionInfo fun_info = function().shared();
     if (fun_info.HasSourceCode()) {
       Script script = Script::cast(fun_info.script());
@@ -633,8 +629,9 @@ void JSGeneratorObject::JSGeneratorObjectPrint(std::ostream& os) {  // NOLINT
       os << "\n - source position: ";
       // Can't collect source positions here if not available as that would
       // allocate memory.
+      Isolate* isolate = GetIsolate();
       if (fun_info.HasBytecodeArray() &&
-          fun_info.GetBytecodeArray().HasSourcePositionTable()) {
+          fun_info.GetBytecodeArray(isolate).HasSourcePositionTable()) {
         os << source_position();
         os << " (";
         script_name.PrintUC16(os);
@@ -691,7 +688,7 @@ void JSRegExpStringIterator::JSRegExpStringIteratorPrint(
 
 void Symbol::SymbolPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "Symbol");
-  os << "\n - hash: " << Hash();
+  os << "\n - hash: " << hash();
   os << "\n - description: " << Brief(description());
   if (description().IsUndefined()) {
     os << " (" << PrivateSymbolToName() << ")";
@@ -728,23 +725,6 @@ void PrintFixedArrayWithHeader(std::ostream& os, FixedArray array,
 }
 
 template <typename T>
-void PrintHashTableWithHeader(std::ostream& os, T table, const char* type) {
-  table.PrintHeader(os, type);
-  os << "\n - length: " << table.length();
-  os << "\n - elements: " << table.NumberOfElements();
-  os << "\n - deleted: " << table.NumberOfDeletedElements();
-  os << "\n - capacity: " << table.Capacity();
-
-  os << "\n - elements: {";
-  for (InternalIndex i : table.IterateEntries()) {
-    os << '\n'
-       << std::setw(12) << i.as_int() << ": " << Brief(table.KeyAt(i)) << " -> "
-       << Brief(table.ValueAt(i));
-  }
-  os << "\n }\n";
-}
-
-template <typename T>
 void PrintWeakArrayElements(std::ostream& os, T* array) {
   // Print in array notation for non-sparse arrays.
   MaybeObject previous_value =
@@ -771,8 +751,13 @@ void PrintWeakArrayElements(std::ostream& os, T* array) {
 
 }  // namespace
 
+void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionPrint(
+    std::ostream& os) {
+  PrintFixedArrayWithHeader(os, *this, "ObjectBoilerplateDescription");
+}
+
 void EmbedderDataArray::EmbedderDataArrayPrint(std::ostream& os) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   PrintHeader(os, "EmbedderDataArray");
   os << "\n - length: " << length();
   EmbedderDataSlot start(*this, 0);
@@ -810,21 +795,157 @@ void NativeContext::NativeContextPrint(std::ostream& os) {
   os << " - microtask_queue: " << microtask_queue() << "\n";
 }
 
+namespace {
+using DataPrinter = std::function<void(InternalIndex)>;
+
+// Prints the data associated with each key (but no headers or other meta
+// data) in a hash table. Works on different hash table types, like the
+// subtypes of HashTable and OrderedHashTable. |print_data_at| is given an
+// index into the table (where a valid key resides) and prints the data at
+// that index, like just the value (in case of a hash map), or value and
+// property details (in case of a property dictionary). No leading space
+// required or trailing newline required. It can be null/non-callable
+// std::function to indicate that there is no associcated data to be printed
+// (for example in case of a hash set).
+template <typename T>
+void PrintTableContentsGeneric(std::ostream& os, T dict,
+                               DataPrinter print_data_at) {
+  DisallowGarbageCollection no_gc;
+  ReadOnlyRoots roots = dict.GetReadOnlyRoots();
+
+  for (InternalIndex i : dict.IterateEntries()) {
+    Object k;
+    if (!dict.ToKey(roots, i, &k)) continue;
+    os << "\n   " << std::setw(12) << i.as_int() << ": ";
+    if (k.IsString()) {
+      String::cast(k).PrintUC16(os);
+    } else {
+      os << Brief(k);
+    }
+    if (print_data_at) {
+      os << " -> ";
+      print_data_at(i);
+    }
+  }
+}
+
+// Used for ordered and unordered dictionaries.
+template <typename T>
+void PrintDictionaryContentsFull(std::ostream& os, T dict) {
+  os << "\n - elements: {";
+  auto print_value_and_property_details = [&](InternalIndex i) {
+    os << Brief(dict.ValueAt(i)) << " ";
+    dict.DetailsAt(i).PrintAsSlowTo(os, !T::kIsOrderedDictionaryType);
+  };
+  PrintTableContentsGeneric(os, dict, print_value_and_property_details);
+  os << "\n }\n";
+}
+
+// Used for ordered and unordered hash maps.
+template <typename T>
+void PrintHashMapContentsFull(std::ostream& os, T dict) {
+  os << "\n - elements: {";
+  auto print_value = [&](InternalIndex i) { os << Brief(dict.ValueAt(i)); };
+  PrintTableContentsGeneric(os, dict, print_value);
+  os << "\n }\n";
+}
+
+// Used for ordered and unordered hash sets.
+template <typename T>
+void PrintHashSetContentsFull(std::ostream& os, T dict) {
+  os << "\n - elements: {";
+  // Passing non-callable std::function as there are no values to print.
+  PrintTableContentsGeneric(os, dict, nullptr);
+  os << "\n }\n";
+}
+
+// Used for subtypes of OrderedHashTable.
+template <typename T>
+void PrintOrderedHashTableHeaderAndBuckets(std::ostream& os, T table,
+                                           const char* type) {
+  DisallowGarbageCollection no_gc;
+
+  PrintHeapObjectHeaderWithoutMap(table, os, type);
+  os << "\n - FixedArray length: " << table.length();
+  os << "\n - elements: " << table.NumberOfElements();
+  os << "\n - deleted: " << table.NumberOfDeletedElements();
+  os << "\n - buckets: " << table.NumberOfBuckets();
+  os << "\n - capacity: " << table.Capacity();
+
+  os << "\n - buckets: {";
+  for (int bucket = 0; bucket < table.NumberOfBuckets(); bucket++) {
+    Object entry = table.get(T::HashTableStartIndex() + bucket);
+    DCHECK(entry.IsSmi());
+    os << "\n   " << std::setw(12) << bucket << ": " << Brief(entry);
+  }
+  os << "\n }";
+}
+
+// Used for subtypes of HashTable.
+template <typename T>
+void PrintHashTableHeader(std::ostream& os, T table, const char* type) {
+  PrintHeapObjectHeaderWithoutMap(table, os, type);
+  os << "\n - FixedArray length: " << table.length();
+  os << "\n - elements: " << table.NumberOfElements();
+  os << "\n - deleted: " << table.NumberOfDeletedElements();
+  os << "\n - capacity: " << table.Capacity();
+}
+}  // namespace
+
 void ObjectHashTable::ObjectHashTablePrint(std::ostream& os) {
-  PrintHashTableWithHeader(os, *this, "ObjectHashTable");
+  PrintHashTableHeader(os, *this, "ObjectHashTable");
+  PrintHashMapContentsFull(os, *this);
 }
 
 void NumberDictionary::NumberDictionaryPrint(std::ostream& os) {
-  PrintHashTableWithHeader(os, *this, "NumberDictionary");
+  PrintHashTableHeader(os, *this, "NumberDictionary");
+  PrintDictionaryContentsFull(os, *this);
 }
 
 void EphemeronHashTable::EphemeronHashTablePrint(std::ostream& os) {
-  PrintHashTableWithHeader(os, *this, "EphemeronHashTable");
+  PrintHashTableHeader(os, *this, "EphemeronHashTable");
+  PrintHashMapContentsFull(os, *this);
 }
 
-void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionPrint(
+void NameDictionary::NameDictionaryPrint(std::ostream& os) {
+  PrintHashTableHeader(os, *this, "NameDictionary");
+  PrintDictionaryContentsFull(os, *this);
+}
+
+void GlobalDictionary::GlobalDictionaryPrint(std::ostream& os) {
+  PrintHashTableHeader(os, *this, "GlobalDictionary");
+  PrintDictionaryContentsFull(os, *this);
+}
+
+void SmallOrderedHashSet::SmallOrderedHashSetPrint(std::ostream& os) {
+  PrintHeader(os, "SmallOrderedHashSet");
+  // TODO(tebbi): Print all fields.
+}
+
+void SmallOrderedHashMap::SmallOrderedHashMapPrint(std::ostream& os) {
+  PrintHeader(os, "SmallOrderedHashMap");
+  // TODO(tebbi): Print all fields.
+}
+
+void SmallOrderedNameDictionary::SmallOrderedNameDictionaryPrint(
     std::ostream& os) {
-  PrintFixedArrayWithHeader(os, *this, "ObjectBoilerplateDescription");
+  PrintHeader(os, "SmallOrderedNameDictionary");
+  // TODO(tebbi): Print all fields.
+}
+
+void OrderedHashSet::OrderedHashSetPrint(std::ostream& os) {
+  PrintOrderedHashTableHeaderAndBuckets(os, *this, "OrderedHashSet");
+  PrintHashSetContentsFull(os, *this);
+}
+
+void OrderedHashMap::OrderedHashMapPrint(std::ostream& os) {
+  PrintOrderedHashTableHeaderAndBuckets(os, *this, "OrderedHashMap");
+  PrintHashMapContentsFull(os, *this);
+}
+
+void OrderedNameDictionary::OrderedNameDictionaryPrint(std::ostream& os) {
+  PrintOrderedHashTableHeaderAndBuckets(os, *this, "OrderedNameDictionary");
+  PrintDictionaryContentsFull(os, *this);
 }
 
 void PropertyArray::PropertyArrayPrint(std::ostream& os) {  // NOLINT
@@ -888,14 +1009,13 @@ void FeedbackVectorSpec::Print() {
 }
 
 void FeedbackVectorSpec::FeedbackVectorSpecPrint(std::ostream& os) {  // NOLINT
-  int slot_count = slots();
-  os << " - slot_count: " << slot_count;
-  if (slot_count == 0) {
+  os << " - slot_count: " << slot_count();
+  if (slot_count() == 0) {
     os << " (empty)\n";
     return;
   }
 
-  for (int slot = 0; slot < slot_count;) {
+  for (int slot = 0; slot < slot_count();) {
     FeedbackSlotKind kind = GetKind(FeedbackSlot(slot));
     int entry_size = FeedbackMetadata::GetSlotSize(kind);
     DCHECK_LT(0, entry_size);
@@ -908,6 +1028,7 @@ void FeedbackVectorSpec::FeedbackVectorSpecPrint(std::ostream& os) {  // NOLINT
 void FeedbackMetadata::FeedbackMetadataPrint(std::ostream& os) {
   PrintHeader(os, "FeedbackMetadata");
   os << "\n - slot_count: " << slot_count();
+  os << "\n - create_closure_slot_count: " << create_closure_slot_count();
 
   FeedbackMetadataIterator iter(*this);
   while (iter.HasNext()) {
@@ -931,12 +1052,13 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
   }
 
   os << "\n - shared function info: " << Brief(shared_function_info());
-  os << "\n - optimized code/marker: ";
   if (has_optimized_code()) {
-    os << Brief(optimized_code());
+    os << "\n - optimized code: " << Brief(optimized_code());
   } else {
-    os << optimization_marker();
+    os << "\n - no optimized code";
   }
+  os << "\n - optimization marker: " << optimization_marker();
+  os << "\n - optimization tier: " << optimization_tier();
   os << "\n - invocation count: " << invocation_count();
   os << "\n - profiler ticks: " << profiler_ticks();
 
@@ -1279,16 +1401,15 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
 
   os << "\n - formal_parameter_count: "
      << shared().internal_formal_parameter_count();
-  if (shared().is_safe_to_skip_arguments_adaptor()) {
-    os << "\n - safe_to_skip_arguments_adaptor";
-  }
   os << "\n - kind: " << shared().kind();
   os << "\n - context: " << Brief(context());
   os << "\n - code: " << Brief(code());
-  if (ActiveTierIsIgnition()) {
+  if (code().kind() == CodeKind::FOR_TESTING) {
+    os << "\n - FOR_TESTING";
+  } else if (ActiveTierIsIgnition()) {
     os << "\n - interpreted";
     if (shared().HasBytecodeArray()) {
-      os << "\n - bytecode: " << shared().GetBytecodeArray();
+      os << "\n - bytecode: " << shared().GetBytecodeArray(isolate);
     }
   }
   if (WasmExportedFunction::IsWasmExportedFunction(*this)) {
@@ -1324,22 +1445,6 @@ void SharedFunctionInfo::PrintSourceCode(std::ostream& os) {
   }
 }
 
-void SmallOrderedHashSet::SmallOrderedHashSetPrint(std::ostream& os) {
-  PrintHeader(os, "SmallOrderedHashSet");
-  // TODO(tebbi): Print all fields.
-}
-
-void SmallOrderedHashMap::SmallOrderedHashMapPrint(std::ostream& os) {
-  PrintHeader(os, "SmallOrderedHashMap");
-  // TODO(tebbi): Print all fields.
-}
-
-void SmallOrderedNameDictionary::SmallOrderedNameDictionaryPrint(
-    std::ostream& os) {
-  PrintHeader(os, "SmallOrderedNameDictionary");
-  // TODO(tebbi): Print all fields.
-}
-
 void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "SharedFunctionInfo");
   os << "\n - name: ";
@@ -1364,12 +1469,9 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   }
   os << "\n - function_map_index: " << function_map_index();
   os << "\n - formal_parameter_count: " << internal_formal_parameter_count();
-  if (is_safe_to_skip_arguments_adaptor()) {
-    os << "\n - safe_to_skip_arguments_adaptor";
-  }
   os << "\n - expected_nof_properties: " << expected_nof_properties();
   os << "\n - language_mode: " << language_mode();
-  os << "\n - data: " << Brief(function_data());
+  os << "\n - data: " << Brief(function_data(kAcquireLoad));
   os << "\n - code (from data): ";
     os << Brief(GetCode());
   PrintSourceCode(os);
@@ -1420,47 +1522,9 @@ void PropertyCell::PropertyCellPrint(std::ostream& os) {  // NOLINT
   name().NamePrint(os);
   os << "\n - value: " << Brief(value());
   os << "\n - details: ";
-  property_details().PrintAsSlowTo(os);
+  property_details().PrintAsSlowTo(os, true);
   PropertyCellType cell_type = property_details().cell_type();
-  os << "\n - cell_type: ";
-  if (value().IsTheHole()) {
-    switch (cell_type) {
-      case PropertyCellType::kUninitialized:
-        os << "Uninitialized";
-        break;
-      case PropertyCellType::kInvalidated:
-        os << "Invalidated";
-        break;
-      default:
-        os << "??? " << static_cast<int>(cell_type);
-        break;
-    }
-  } else {
-    switch (cell_type) {
-      case PropertyCellType::kUndefined:
-        os << "Undefined";
-        break;
-      case PropertyCellType::kConstant:
-        os << "Constant";
-        break;
-      case PropertyCellType::kConstantType:
-        os << "ConstantType"
-           << " (";
-        switch (GetConstantType()) {
-          case PropertyCellConstantType::kSmi:
-            os << "Smi";
-            break;
-          case PropertyCellConstantType::kStableMap:
-            os << "StableMap";
-            break;
-        }
-        os << ")";
-        break;
-      case PropertyCellType::kMutable:
-        os << "Mutable";
-        break;
-    }
-  }
+  os << "\n - cell_type: " << cell_type;
   os << "\n";
 }
 
@@ -1598,10 +1662,11 @@ void Module::ModulePrint(std::ostream& os) {  // NOLINT
 void SourceTextModule::SourceTextModulePrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "SourceTextModule");
   PrintModuleFields(*this, os);
-  os << "\n - origin: " << Brief(script().GetNameOrSourceURL());
-  os << "\n - code: " << Brief(code());
+  os << "\n - sfi/code/info: " << Brief(code());
+  Script script = GetScript();
+  os << "\n - script: " << Brief(script);
+  os << "\n - origin: " << Brief(script.GetNameOrSourceURL());
   os << "\n - requested_modules: " << Brief(requested_modules());
-  os << "\n - script: " << Brief(script());
   os << "\n - import_meta: " << Brief(import_meta());
   os << "\n";
 }
@@ -1610,6 +1675,7 @@ void SyntheticModule::SyntheticModulePrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "SyntheticModule");
   PrintModuleFields(*this, os);
   os << "\n - export_names: " << Brief(export_names());
+  os << "\n - name: " << Brief(name());
   os << "\n";
 }
 
@@ -1689,7 +1755,7 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {  // NOLINT
       case wasm::ValueType::kRtt:
       case wasm::ValueType::kBottom:
       case wasm::ValueType::kStmt:
-        UNIMPLEMENTED();  // TODO(7748): Implement.
+        os << "UNIMPLEMENTED";  // TODO(7748): Implement.
         break;
     }
   }
@@ -1728,7 +1794,8 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {  // NOLINT
     case wasm::ValueType::kRtt:
     case wasm::ValueType::kBottom:
     case wasm::ValueType::kStmt:
-      UNIMPLEMENTED();  // TODO(7748): Implement.
+      os << "\n   Printing elements of this type is unimplemented, sorry";
+      // TODO(7748): Implement.
       break;
   }
   os << "\n";
@@ -1913,7 +1980,7 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(
   os << "\n - tag: " << tag();
   os << "\n - serial_number: " << serial_number();
   os << "\n - property_list: " << Brief(property_list());
-  os << "\n - call_code: " << Brief(call_code());
+  os << "\n - call_code: " << Brief(call_code(kAcquireLoad));
   os << "\n - property_accessors: " << Brief(property_accessors());
   os << "\n - signature: " << Brief(signature());
   os << "\n - cached_property_name: " << Brief(cached_property_name());
@@ -1921,16 +1988,6 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(
   os << "\n - need_access_check: " << (needs_access_check() ? "true" : "false");
   os << "\n - instantiated: " << (instantiated() ? "true" : "false");
   os << "\n - rare_data: " << Brief(rare_data());
-  os << "\n";
-}
-
-void WasmCapiFunctionData::WasmCapiFunctionDataPrint(
-    std::ostream& os) {  // NOLINT
-  PrintHeader(os, "WasmCapiFunctionData");
-  os << "\n - call_target: " << call_target();
-  os << "\n - embedder_data: " << Brief(embedder_data());
-  os << "\n - wrapper_code: " << Brief(wrapper_code());
-  os << "\n - serialized_signature: " << Brief(serialized_signature());
   os << "\n";
 }
 
@@ -1997,6 +2054,7 @@ void Script::ScriptPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "Script");
   os << "\n - source: " << Brief(source());
   os << "\n - name: " << Brief(name());
+  os << "\n - source_url: " << Brief(source_url());
   os << "\n - line_offset: " << line_offset();
   os << "\n - column_offset: " << column_offset();
   os << "\n - type: " << type();
@@ -2284,23 +2342,6 @@ void PreparseData::PreparseDataPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
-void UncompiledDataWithoutPreparseData::UncompiledDataWithoutPreparseDataPrint(
-    std::ostream& os) {  // NOLINT
-  PrintHeader(os, "UncompiledDataWithoutPreparseData");
-  os << "\n - start position: " << start_position();
-  os << "\n - end position: " << end_position();
-  os << "\n";
-}
-
-void UncompiledDataWithPreparseData::UncompiledDataWithPreparseDataPrint(
-    std::ostream& os) {  // NOLINT
-  PrintHeader(os, "UncompiledDataWithPreparseData");
-  os << "\n - start position: " << start_position();
-  os << "\n - end position: " << end_position();
-  os << "\n - preparse_data: " << Brief(preparse_data());
-  os << "\n";
-}
-
 void InterpreterData::InterpreterDataPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "InterpreterData");
   os << "\n - bytecode_array: " << Brief(bytecode_array());
@@ -2391,9 +2432,9 @@ int Name::NameShortPrint(Vector<char> str) {
 }
 
 void Map::PrintMapDetails(std::ostream& os) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   this->MapPrint(os);
-  instance_descriptors().PrintDescriptors(os);
+  instance_descriptors(kRelaxedLoad).PrintDescriptors(os);
 }
 
 void Map::MapPrint(std::ostream& os) {  // NOLINT
@@ -2447,17 +2488,17 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   os << "\n - prototype_validity cell: " << Brief(prototype_validity_cell());
   os << "\n - instance descriptors " << (owns_descriptors() ? "(own) " : "")
      << "#" << NumberOfOwnDescriptors() << ": "
-     << Brief(instance_descriptors());
+     << Brief(instance_descriptors(kRelaxedLoad));
   if (FLAG_unbox_double_fields) {
     os << "\n - layout descriptor: ";
-    layout_descriptor().ShortPrint(os);
+    layout_descriptor(kAcquireLoad).ShortPrint(os);
   }
 
   // Read-only maps can't have transitions, which is fortunate because we need
   // the isolate to iterate over the transitions.
   if (!IsReadOnlyHeapObject(*this)) {
     Isolate* isolate = GetIsolateFromWritableObject(*this);
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     TransitionsAccessor transitions(isolate, *this, &no_gc);
     int nof_transitions = transitions.NumberOfTransitions();
     if (nof_transitions > 0) {
@@ -2563,7 +2604,7 @@ void TransitionsAccessor::PrintOneTransition(std::ostream& os, Name key,
     DCHECK(!IsSpecialTransition(roots, key));
     os << "(transition to ";
     InternalIndex descriptor = target.LastAdded();
-    DescriptorArray descriptors = target.instance_descriptors();
+    DescriptorArray descriptors = target.instance_descriptors(kRelaxedLoad);
     descriptors.PrintDescriptorDetails(os, descriptor,
                                        PropertyDetails::kForTransitions);
     os << ")";
@@ -2602,13 +2643,13 @@ void TransitionsAccessor::PrintTransitions(std::ostream& os) {  // NOLINT
 void TransitionsAccessor::PrintTransitionTree() {
   StdoutStream os;
   os << "map= " << Brief(map_);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   PrintTransitionTree(os, 0, &no_gc);
   os << "\n" << std::flush;
 }
 
-void TransitionsAccessor::PrintTransitionTree(std::ostream& os, int level,
-                                              DisallowHeapAllocation* no_gc) {
+void TransitionsAccessor::PrintTransitionTree(
+    std::ostream& os, int level, DisallowGarbageCollection* no_gc) {
   ReadOnlyRoots roots = ReadOnlyRoots(isolate_);
   int num_transitions = NumberOfTransitions();
   if (num_transitions == 0) return;
@@ -2641,7 +2682,7 @@ void TransitionsAccessor::PrintTransitionTree(std::ostream& os, int level,
       DCHECK(!IsSpecialTransition(ReadOnlyRoots(isolate_), key));
       os << "to ";
       InternalIndex descriptor = target.LastAdded();
-      DescriptorArray descriptors = target.instance_descriptors();
+      DescriptorArray descriptors = target.instance_descriptors(kRelaxedLoad);
       descriptors.PrintDescriptorDetails(os, descriptor,
                                          PropertyDetails::kForTransitions);
     }
@@ -2651,7 +2692,7 @@ void TransitionsAccessor::PrintTransitionTree(std::ostream& os, int level,
 }
 
 void JSObject::PrintTransitions(std::ostream& os) {  // NOLINT
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   TransitionsAccessor ta(GetIsolate(), map(), &no_gc);
   if (ta.NumberOfTransitions() == 0) return;
   os << "\n - transitions";
@@ -2751,7 +2792,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_TransitionTree(void* object) {
     printf("Please provide a valid Map\n");
   } else {
 #if defined(DEBUG) || defined(OBJECT_PRINT)
-    i::DisallowHeapAllocation no_gc;
+    i::DisallowGarbageCollection no_gc;
     i::Map map = i::Map::unchecked_cast(o);
     i::TransitionsAccessor transitions(i::Isolate::Current(), map, &no_gc);
     transitions.PrintTransitionTree();

@@ -10,6 +10,7 @@
 #include "src/objects/function-kind.h"
 #include "src/objects/instance-type.h"
 #include "src/roots/roots.h"
+#include "torque-generated/class-forward-declarations.h"
 
 namespace v8 {
 namespace internal {
@@ -25,6 +26,8 @@ class ArrayBoilerplateDescription;
 class TemplateObjectDescription;
 class SourceTextModuleInfo;
 class PreparseData;
+template <class T>
+class PodArray;
 class UncompiledDataWithoutPreparseData;
 class UncompiledDataWithPreparseData;
 class BytecodeArray;
@@ -34,8 +37,28 @@ struct SourceRange;
 template <typename T>
 class ZoneVector;
 
+namespace wasm {
+class ValueType;
+}  // namespace wasm
+
 template <typename Impl>
-class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase {
+class FactoryBase;
+
+// Putting Torque-generated definitions in a superclass allows to shadow them
+// easily when they shouldn't be used and to reference them when they happen to
+// have the same signature.
+template <typename Impl>
+class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) TorqueGeneratedFactory {
+ private:
+  FactoryBase<Impl>* factory() { return static_cast<FactoryBase<Impl>*>(this); }
+
+ public:
+#include "torque-generated/factory.inc"
+};
+
+template <typename Impl>
+class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
+    : public TorqueGeneratedFactory<Impl> {
  public:
   // Converts the given boolean condition to JavaScript boolean value.
   inline Handle<Oddball> ToBoolean(bool value);
@@ -118,8 +141,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase {
   Handle<TemplateObjectDescription> NewTemplateObjectDescription(
       Handle<FixedArray> raw_strings, Handle<FixedArray> cooked_strings);
 
-  Handle<Script> NewScript(Handle<String> source);
-  Handle<Script> NewScriptWithId(Handle<String> source, int script_id);
+  Handle<Script> NewScript(Handle<PrimitiveHeapObject> source);
+  Handle<Script> NewScriptWithId(Handle<PrimitiveHeapObject> source,
+                                 int script_id);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForLiteral(
       FunctionLiteral* literal, Handle<Script> script, bool is_toplevel);
@@ -137,7 +161,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase {
 
   // Allocates a FeedbackMedata object and zeroes the data section.
   Handle<FeedbackMetadata> NewFeedbackMetadata(
-      int slot_count, int feedback_cell_count,
+      int slot_count, int create_closure_slot_count,
       AllocationType allocation = AllocationType::kOld);
 
   Handle<CoverageInfo> NewCoverageInfo(const ZoneVector<SourceRange>& slots);
@@ -151,14 +175,14 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase {
   Handle<String> InternalizeStringWithKey(StringTableKey* key);
 
   Handle<SeqOneByteString> NewOneByteInternalizedString(
-      const Vector<const uint8_t>& str, uint32_t hash_field);
+      const Vector<const uint8_t>& str, uint32_t raw_hash_field);
   Handle<SeqTwoByteString> NewTwoByteInternalizedString(
-      const Vector<const uc16>& str, uint32_t hash_field);
+      const Vector<const uc16>& str, uint32_t raw_hash_field);
 
   Handle<SeqOneByteString> AllocateRawOneByteInternalizedString(
-      int length, uint32_t hash_field);
+      int length, uint32_t raw_hash_field);
   Handle<SeqTwoByteString> AllocateRawTwoByteInternalizedString(
-      int length, uint32_t hash_field);
+      int length, uint32_t raw_hash_field);
 
   // Allocates and partially initializes an one-byte or two-byte String. The
   // characters of the string are uninitialized. Currently used in regexp code
@@ -223,6 +247,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase {
 
   HeapObject AllocateRaw(int size, AllocationType allocation,
                          AllocationAlignment alignment = kWordAligned);
+
+  friend TorqueGeneratedFactory<Impl>;
 };
 
 }  // namespace internal

@@ -131,6 +131,39 @@ def TorqueLintWorker(command):
     print('Error running format-torque.py')
     process.kill()
 
+def JSLintWorker(command):
+  def format_file(command):
+    try:
+      file_name = command[-1]
+      with open(file_name, "r") as file_handle:
+        contents = file_handle.read()
+
+      process = subprocess.Popen(command, stdout=PIPE, stderr=subprocess.PIPE)
+      output, err = process.communicate()
+      rc = process.returncode
+      if rc != 0:
+        sys.stdout.write("error code " + str(rc) + " running clang-format.\n")
+        return rc
+
+      if output != contents:
+        return 1
+
+      return 0
+    except KeyboardInterrupt:
+      process.kill()
+    except Exception:
+      print('Error running clang-format. Please make sure you have depot_tools' +
+            ' in your $PATH. Lint check skipped.')
+      process.kill()
+
+  rc = format_file(command)
+  if rc == 1:
+    # There are files that need to be formatted, let's format them in place.
+    file_name = command[-1]
+    sys.stdout.write("Formatting %s.\n" % (file_name))
+    rc = format_file(command[:-1] + ["-i", file_name])
+  return rc
+
 class FileContentsCache(object):
 
   def __init__(self, sums_file_name):
@@ -391,6 +424,33 @@ class TorqueLintProcessor(CacheableSourceFileProcessor):
       return torque_path, arguments
 
     return None, arguments
+
+class JSLintProcessor(CacheableSourceFileProcessor):
+  """
+  Check .{m}js file to verify they follow the JS Style guide.
+  """
+  def __init__(self, use_cache=True):
+    super(JSLintProcessor, self).__init__(
+      use_cache=use_cache, cache_file_path='.jslint-cache',
+      file_type='JavaScript')
+
+  def IsRelevant(self, name):
+    return name.endswith('.js') or name.endswith('.mjs')
+
+  def GetPathsToSearch(self):
+    return ['tools/system-analyzer']
+
+  def GetProcessorWorker(self):
+    return JSLintWorker
+
+  def GetProcessorScript(self):
+    for path in [TOOLS_PATH] + os.environ["PATH"].split(os.pathsep):
+      path = path.strip('"')
+      clang_format = os.path.join(path, 'clang_format.py')
+      if os.path.isfile(clang_format):
+        return clang_format, []
+
+    return None, []
 
 COPYRIGHT_HEADER_PATTERN = re.compile(
     r'Copyright [\d-]*20[0-2][0-9] the V8 project authors. All rights reserved.')
@@ -707,6 +767,9 @@ def Main():
 
   print("Running Torque formatting check...")
   success &= TorqueLintProcessor(use_cache=use_linter_cache).RunOnPath(
+    workspace)
+  print("Running JavaScript formatting check...")
+  success &= JSLintProcessor(use_cache=use_linter_cache).RunOnPath(
     workspace)
   print("Running copyright header, trailing whitespaces and " \
         "two empty lines between declarations check...")

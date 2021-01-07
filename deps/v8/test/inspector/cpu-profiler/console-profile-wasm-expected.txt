@@ -1,4 +1,29 @@
 Test that console profiles contain wasm function names.
+testEnableProfilerEarly
 Compiling wasm.
+Building wasm module with sentinel 1.
 Running fib with increasing input until it shows up in the profile.
 Found expected functions in profile.
+Wasm script id is set.
+Wasm position: wasm://wasm/6b211e7e@0:47
+testEnableProfilerLate
+Compiling wasm.
+Building wasm module with sentinel 2.
+Running fib with increasing input until it shows up in the profile.
+Found expected functions in profile.
+Wasm script id is set.
+Wasm position: wasm://wasm/d6029ed6@0:47
+testEnableProfilerAfterDebugger
+Compiling wasm.
+Building wasm module with sentinel 3.
+Running fib with increasing input until it shows up in the profile.
+Found expected functions in profile.
+Wasm script id is set.
+Wasm position: wasm://wasm/6df1c11a@0:47
+testEnableProfilerBeforeDebugger
+Compiling wasm.
+Building wasm module with sentinel 4.
+Running fib with increasing input until it shows up in the profile.
+Found expected functions in profile.
+Wasm script id is set.
+Wasm position: wasm://wasm/07da49be@0:47

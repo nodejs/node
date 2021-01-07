@@ -4,6 +4,7 @@
 
 #include "src/wasm/local-decl-encoder.h"
 
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/signature.h"
 #include "src/wasm/leb-helper.h"
 
@@ -20,7 +21,7 @@ void LocalDeclEncoder::Prepend(Zone* zone, const byte** start,
   byte* buffer = zone->NewArray<byte, LocalDeclEncoderBuffer>(Size() + size);
   size_t pos = Emit(buffer);
   if (size > 0) {
-    memcpy(buffer + pos, *start, size);
+    base::Memcpy(buffer + pos, *start, size);
   }
   pos += size;
   *start = buffer;

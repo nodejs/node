@@ -33,7 +33,7 @@ enum ValueTypeCode : uint8_t {
   kI16Code = 0x79,
   kFuncRefCode = 0x70,
   kExternRefCode = 0x6f,
-  // kAnyCode = 0x6e, // TODO(7748): Implement
+  kAnyRefCode = 0x6e,
   kEqRefCode = 0x6d,
   kOptRefCode = 0x6c,
   kRefCode = 0x6b,
@@ -122,6 +122,21 @@ constexpr WasmCodePosition kNoCodePosition = -1;
 constexpr uint32_t kExceptionAttribute = 0;
 
 constexpr int kAnonymousFuncIndex = -1;
+
+// The number of calls to an exported Wasm function that will be handled
+// by the generic wrapper. Once the budget is exhausted, a specific wrapper
+// is to be compiled for the function's signature.
+// The abstract goal of the tiering strategy for the js-to-wasm wrappers is to
+// use the generic wrapper as much as possible (less space, no need to compile),
+// but fall back to compiling a specific wrapper for any function (signature)
+// that is used often enough for the generic wrapper's small execution penalty
+// to start adding up.
+// So, when choosing a value for the initial budget, we are interested in a
+// value that skips on tiering up functions that are called only a few times and
+// the tier-up only wastes resources, but triggers compilation of specific
+// wrappers early on for those functions that have the potential to be called
+// often enough.
+constexpr uint32_t kGenericWrapperBudget = 1000;
 
 }  // namespace wasm
 }  // namespace internal

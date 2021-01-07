@@ -17,15 +17,14 @@ template <typename TMixin>
 class WithHeapInternals : public TMixin {
  public:
   WithHeapInternals() = default;
+  WithHeapInternals(const WithHeapInternals&) = delete;
+  WithHeapInternals& operator=(const WithHeapInternals&) = delete;
 
   void CollectGarbage(i::AllocationSpace space) {
     heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);
   }
 
   Heap* heap() const { return this->i_isolate()->heap(); }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(WithHeapInternals);
 };
 
 using TestWithHeapInternals =       //

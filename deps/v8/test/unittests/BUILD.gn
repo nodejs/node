@@ -57,32 +57,37 @@ v8_source_set("v8_cppgc_shared_unittests_sources") {
 # Stand-alone target for C++ GC unittests. This is used to ensure that it
 # builds without V8 as well. They are also included in the regular unittests
 # target for simplicity.
-v8_executable("cppgc_unittests") {
-  testonly = true
+if (cppgc_is_standalone) {
+  v8_executable("cppgc_unittests") {
+    testonly = true
 
-  configs = [
-    "../..:external_config",
-    "../..:internal_config_base",
-  ]
+    configs = [
+      "../..:external_config",
+      "../..:internal_config_base",
+    ]
 
-  sources = [ "heap/cppgc/run-all-unittests.cc" ]
+    sources = [ "heap/cppgc/run-all-unittests.cc" ]
 
-  deps = [
-    ":cppgc_unittests_sources",
-    ":v8_cppgc_shared_unittests_sources",
-    "../..:cppgc_for_testing",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
+    deps = [
+      ":cppgc_unittests_sources",
+      ":v8_cppgc_shared_unittests_sources",
+      "../..:cppgc_for_testing",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+  }
 }
 
 v8_source_set("cppgc_unittests_sources") {
   testonly = true
 
   sources = [
+    "heap/cppgc/compactor-unittest.cc",
     "heap/cppgc/concurrent-marking-unittest.cc",
     "heap/cppgc/concurrent-sweeper-unittest.cc",
+    "heap/cppgc/cross-thread-persistent-unittest.cc",
     "heap/cppgc/custom-spaces-unittest.cc",
+    "heap/cppgc/ephemeron-pair-unittest.cc",
     "heap/cppgc/finalizer-trait-unittest.cc",
     "heap/cppgc/free-list-unittest.cc",
     "heap/cppgc/garbage-collected-unittest.cc",
@@ -99,12 +104,14 @@ v8_source_set("cppgc_unittests_sources") {
     "heap/cppgc/marking-visitor-unittest.cc",
     "heap/cppgc/member-unittest.cc",
     "heap/cppgc/minor-gc-unittest.cc",
+    "heap/cppgc/name-trait-unittest.cc",
     "heap/cppgc/object-start-bitmap-unittest.cc",
     "heap/cppgc/page-memory-unittest.cc",
-    "heap/cppgc/persistent-unittest.cc",
+    "heap/cppgc/persistent-family-unittest.cc",
     "heap/cppgc/prefinalizer-unittest.cc",
     "heap/cppgc/source-location-unittest.cc",
     "heap/cppgc/stack-unittest.cc",
+    "heap/cppgc/stats-collector-scopes-unittest.cc",
     "heap/cppgc/stats-collector-unittest.cc",
     "heap/cppgc/sweeper-unittest.cc",
     "heap/cppgc/test-platform.cc",
@@ -112,6 +119,7 @@ v8_source_set("cppgc_unittests_sources") {
     "heap/cppgc/tests.cc",
     "heap/cppgc/tests.h",
     "heap/cppgc/visitor-unittest.cc",
+    "heap/cppgc/weak-container-unittest.cc",
     "heap/cppgc/write-barrier-unittest.cc",
   ]
 
@@ -125,6 +133,10 @@ v8_source_set("cppgc_unittests_sources") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+
+  if (!cppgc_is_standalone) {
+    deps += [ "../..:v8_tracing" ]
+  }
 }
 
 v8_executable("unittests") {
@@ -136,7 +148,6 @@ v8_executable("unittests") {
   #}],
 
   deps = [
-    ":cppgc_unittests_sources",
     ":unittests_sources",
     ":v8_cppgc_shared_unittests_sources",
     "../..:v8_for_testing",
@@ -146,6 +157,10 @@ v8_executable("unittests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+
+  if (!cppgc_is_standalone) {
+    deps += [ ":cppgc_unittests_sources" ]
+  }
 
   data_deps = [ "../../tools:v8_testrunner" ]
 
@@ -282,7 +297,6 @@ v8_source_set("unittests_sources") {
     "heap/heap-utils.h",
     "heap/index-generator-unittest.cc",
     "heap/item-parallel-job-unittest.cc",
-    "heap/js-member-unittest.cc",
     "heap/list-unittest.cc",
     "heap/local-factory-unittest.cc",
     "heap/local-heap-unittest.cc",
@@ -294,7 +308,11 @@ v8_source_set("unittests_sources") {
     "heap/safepoint-unittest.cc",
     "heap/slot-set-unittest.cc",
     "heap/spaces-unittest.cc",
+    "heap/traced-reference-unittest.cc",
+    "heap/unified-heap-snapshot-unittest.cc",
     "heap/unified-heap-unittest.cc",
+    "heap/unified-heap-utils.cc",
+    "heap/unified-heap-utils.h",
     "heap/unmapper-unittest.cc",
     "heap/worklist-unittest.cc",
     "interpreter/bytecode-array-builder-unittest.cc",
@@ -441,6 +459,7 @@ v8_source_set("unittests_sources") {
     "../..:v8_for_testing",
     "../..:v8_libbase",
     "../..:v8_libplatform",
+    "../..:v8_wrappers",
     "../..:wasm_test_common",
     "../../third_party/inspector_protocol:crdtp_test",
     "//build/win:default_exe_manifest",

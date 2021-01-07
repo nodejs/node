@@ -27,6 +27,3 @@ per-file *-mips*=file:MIPS_OWNERS
 per-file *-mips64*=file:MIPS_OWNERS
 per-file *-ppc*=file:PPC_OWNERS
 per-file *-s390*=file:S390_OWNERS
-
-# TEAM: v8-dev@googlegroups.com
-# COMPONENT: Blink>JavaScript

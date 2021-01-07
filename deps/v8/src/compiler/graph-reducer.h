@@ -139,6 +139,9 @@ class V8_EXPORT_PRIVATE GraphReducer
                JSHeapBroker* broker, Node* dead = nullptr);
   ~GraphReducer() override;
 
+  GraphReducer(const GraphReducer&) = delete;
+  GraphReducer& operator=(const GraphReducer&) = delete;
+
   Graph* graph() const { return graph_; }
 
   void AddReducer(Reducer* reducer);
@@ -190,8 +193,6 @@ class V8_EXPORT_PRIVATE GraphReducer
   ZoneStack<NodeState> stack_;
   TickCounter* const tick_counter_;
   JSHeapBroker* const broker_;
-
-  DISALLOW_COPY_AND_ASSIGN(GraphReducer);
 };
 
 }  // namespace compiler

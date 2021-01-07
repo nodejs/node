@@ -65,7 +65,7 @@ static double GetDoubleFieldValue(JSObject obj, FieldIndex field_index) {
 }
 
 void WriteToField(JSObject object, int index, Object value) {
-  DescriptorArray descriptors = object.map().instance_descriptors();
+  DescriptorArray descriptors = object.map().instance_descriptors(kRelaxedLoad);
   InternalIndex descriptor(index);
   PropertyDetails details = descriptors.GetDetails(descriptor);
   object.WriteToField(descriptor, details, value);
@@ -297,7 +297,7 @@ static void TestLayoutDescriptorQueries(int layout_descriptor_length,
                                           : (layout_desc.capacity() - i);
       }
       expected_sequence_length =
-          Min(expected_sequence_length, max_sequence_length);
+          std::min(expected_sequence_length, max_sequence_length);
       int sequence_length;
       CHECK_EQ(tagged,
                layout_desc.IsTagged(i, max_sequence_length, &sequence_length));
@@ -673,7 +673,8 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppend(
     }
     map->InitializeDescriptors(isolate, *descriptors, *layout_descriptor);
   }
-  Handle<LayoutDescriptor> layout_descriptor(map->layout_descriptor(), isolate);
+  Handle<LayoutDescriptor> layout_descriptor(
+      map->layout_descriptor(kAcquireLoad), isolate);
   CHECK(layout_descriptor->IsConsistentWithMap(*map, true));
   return layout_descriptor;
 }
@@ -800,7 +801,7 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppendIfFastOrUseFull(
   for (int i = 0; i < number_of_descriptors; i++) {
     PropertyDetails details = descriptors->GetDetails(InternalIndex(i));
     map = maps[i];
-    LayoutDescriptor layout_desc = map->layout_descriptor();
+    LayoutDescriptor layout_desc = map->layout_descriptor(kAcquireLoad);
 
     if (layout_desc.IsSlowLayout()) {
       switched_to_slow_mode = true;
@@ -820,7 +821,7 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppendIfFastOrUseFull(
         CHECK(layout_desc.IsTagged(field_index + field_width_in_words));
       }
     }
-    CHECK(map->layout_descriptor().IsConsistentWithMap(*map));
+    CHECK(map->layout_descriptor(kAcquireLoad).IsConsistentWithMap(*map));
   }
 
   Handle<LayoutDescriptor> layout_descriptor(map->GetLayoutDescriptor(),
@@ -991,10 +992,10 @@ TEST(DescriptorArrayTrimming) {
                            NONE, PropertyConstness::kMutable,
                            Representation::Double(), INSERT_TRANSITION)
             .ToHandleChecked();
-  CHECK(map->layout_descriptor().IsConsistentWithMap(*map, true));
-  CHECK(map->layout_descriptor().IsSlowLayout());
+  CHECK(map->layout_descriptor(kAcquireLoad).IsConsistentWithMap(*map, true));
+  CHECK(map->layout_descriptor(kAcquireLoad).IsSlowLayout());
   CHECK(map->owns_descriptors());
-  CHECK_EQ(8, map->layout_descriptor().length());
+  CHECK_EQ(8, map->layout_descriptor(kAcquireLoad).length());
 
   {
     // Add transitions to double fields.
@@ -1006,35 +1007,38 @@ TEST(DescriptorArrayTrimming) {
                                    any_type, NONE, PropertyConstness::kMutable,
                                    Representation::Double(), INSERT_TRANSITION)
                     .ToHandleChecked();
-      CHECK(tmp_map->layout_descriptor().IsConsistentWithMap(*tmp_map, true));
+      CHECK(tmp_map->layout_descriptor(kAcquireLoad)
+                .IsConsistentWithMap(*tmp_map, true));
     }
     // Check that descriptors are shared.
     CHECK(tmp_map->owns_descriptors());
-    CHECK_EQ(map->instance_descriptors(), tmp_map->instance_descriptors());
-    CHECK_EQ(map->layout_descriptor(), tmp_map->layout_descriptor());
+    CHECK_EQ(map->instance_descriptors(kRelaxedLoad),
+             tmp_map->instance_descriptors(kRelaxedLoad));
+    CHECK_EQ(map->layout_descriptor(kAcquireLoad),
+             tmp_map->layout_descriptor(kAcquireLoad));
   }
-  CHECK(map->layout_descriptor().IsSlowLayout());
-  CHECK_EQ(16, map->layout_descriptor().length());
+  CHECK(map->layout_descriptor(kAcquireLoad).IsSlowLayout());
+  CHECK_EQ(16, map->layout_descriptor(kAcquireLoad).length());
 
   // The unused tail of the layout descriptor is now "durty" because of sharing.
-  CHECK(map->layout_descriptor().IsConsistentWithMap(*map));
+  CHECK(map->layout_descriptor(kAcquireLoad).IsConsistentWithMap(*map));
   for (int i = kSplitFieldIndex + 1; i < kTrimmedLayoutDescriptorLength; i++) {
-    CHECK(!map->layout_descriptor().IsTagged(i));
+    CHECK(!map->layout_descriptor(kAcquireLoad).IsTagged(i));
   }
   CHECK_LT(map->NumberOfOwnDescriptors(),
-           map->instance_descriptors().number_of_descriptors());
+           map->instance_descriptors(kRelaxedLoad).number_of_descriptors());
 
   // Call GC that should trim both |map|'s descriptor array and layout
   // descriptor.
   CcTest::CollectAllGarbage();
 
   // The unused tail of the layout descriptor is now "clean" again.
-  CHECK(map->layout_descriptor().IsConsistentWithMap(*map, true));
+  CHECK(map->layout_descriptor(kAcquireLoad).IsConsistentWithMap(*map, true));
   CHECK(map->owns_descriptors());
   CHECK_EQ(map->NumberOfOwnDescriptors(),
-           map->instance_descriptors().number_of_descriptors());
-  CHECK(map->layout_descriptor().IsSlowLayout());
-  CHECK_EQ(8, map->layout_descriptor().length());
+           map->instance_descriptors(kRelaxedLoad).number_of_descriptors());
+  CHECK(map->layout_descriptor(kAcquireLoad).IsSlowLayout());
+  CHECK_EQ(8, map->layout_descriptor(kAcquireLoad).length());
 
   {
     // Add transitions to tagged fields.
@@ -1047,18 +1051,21 @@ TEST(DescriptorArrayTrimming) {
                              any_type, NONE, PropertyConstness::kMutable,
                              Representation::Tagged(), INSERT_TRANSITION)
               .ToHandleChecked();
-      CHECK(tmp_map->layout_descriptor().IsConsistentWithMap(*tmp_map, true));
+      CHECK(tmp_map->layout_descriptor(kAcquireLoad)
+                .IsConsistentWithMap(*tmp_map, true));
     }
     tmp_map = Map::CopyWithField(isolate, tmp_map, CcTest::MakeString("dbl"),
                                  any_type, NONE, PropertyConstness::kMutable,
                                  Representation::Double(), INSERT_TRANSITION)
                   .ToHandleChecked();
-    CHECK(tmp_map->layout_descriptor().IsConsistentWithMap(*tmp_map, true));
+    CHECK(tmp_map->layout_descriptor(kAcquireLoad)
+              .IsConsistentWithMap(*tmp_map, true));
     // Check that descriptors are shared.
     CHECK(tmp_map->owns_descriptors());
-    CHECK_EQ(map->instance_descriptors(), tmp_map->instance_descriptors());
+    CHECK_EQ(map->instance_descriptors(kRelaxedLoad),
+             tmp_map->instance_descriptors(kRelaxedLoad));
   }
-  CHECK(map->layout_descriptor().IsSlowLayout());
+  CHECK(map->layout_descriptor(kAcquireLoad).IsSlowLayout());
 }
 
 
@@ -1247,7 +1254,7 @@ static void TestLayoutDescriptorHelper(Isolate* isolate,
     bool expected_tagged = !index.is_double();
     if (!expected_tagged) {
       first_non_tagged_field_offset =
-          Min(first_non_tagged_field_offset, index.offset());
+          std::min(first_non_tagged_field_offset, index.offset());
     }
 
     int end_of_region_offset;
@@ -1390,7 +1397,7 @@ TEST(LayoutDescriptorSharing) {
                     .ToHandleChecked();
   }
   Handle<LayoutDescriptor> split_layout_descriptor(
-      split_map->layout_descriptor(), isolate);
+      split_map->layout_descriptor(kAcquireLoad), isolate);
   CHECK(split_layout_descriptor->IsConsistentWithMap(*split_map, true));
   CHECK(split_layout_descriptor->IsSlowLayout());
   CHECK(split_map->owns_descriptors());
@@ -1401,12 +1408,13 @@ TEST(LayoutDescriptorSharing) {
                          Representation::Double(), INSERT_TRANSITION)
           .ToHandleChecked();
   CHECK(!split_map->owns_descriptors());
-  CHECK_EQ(*split_layout_descriptor, split_map->layout_descriptor());
+  CHECK_EQ(*split_layout_descriptor,
+           split_map->layout_descriptor(kAcquireLoad));
 
   // Layout descriptors should be shared with |split_map|.
   CHECK(map1->owns_descriptors());
-  CHECK_EQ(*split_layout_descriptor, map1->layout_descriptor());
-  CHECK(map1->layout_descriptor().IsConsistentWithMap(*map1, true));
+  CHECK_EQ(*split_layout_descriptor, map1->layout_descriptor(kAcquireLoad));
+  CHECK(map1->layout_descriptor(kAcquireLoad).IsConsistentWithMap(*map1, true));
 
   Handle<Map> map2 =
       Map::CopyWithField(isolate, split_map, CcTest::MakeString("bar"),
@@ -1416,8 +1424,8 @@ TEST(LayoutDescriptorSharing) {
 
   // Layout descriptors should not be shared with |split_map|.
   CHECK(map2->owns_descriptors());
-  CHECK_NE(*split_layout_descriptor, map2->layout_descriptor());
-  CHECK(map2->layout_descriptor().IsConsistentWithMap(*map2, true));
+  CHECK_NE(*split_layout_descriptor, map2->layout_descriptor(kAcquireLoad));
+  CHECK(map2->layout_descriptor(kAcquireLoad).IsConsistentWithMap(*map2, true));
 }
 
 static void TestWriteBarrier(Handle<Map> map, Handle<Map> new_map,

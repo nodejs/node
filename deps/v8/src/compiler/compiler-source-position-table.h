@@ -17,7 +17,7 @@ namespace compiler {
 class V8_EXPORT_PRIVATE SourcePositionTable final
     : public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  class Scope final {
+  class V8_NODISCARD Scope final {
    public:
     Scope(SourcePositionTable* source_positions, SourcePosition position)
         : source_positions_(source_positions),
@@ -30,6 +30,8 @@ class V8_EXPORT_PRIVATE SourcePositionTable final
       Init(source_positions_->GetSourcePosition(node));
     }
     ~Scope() { source_positions_->current_position_ = prev_position_; }
+    Scope(const Scope&) = delete;
+    Scope& operator=(const Scope&) = delete;
 
    private:
     void Init(SourcePosition position) {
@@ -38,10 +40,11 @@ class V8_EXPORT_PRIVATE SourcePositionTable final
 
     SourcePositionTable* const source_positions_;
     SourcePosition const prev_position_;
-    DISALLOW_COPY_AND_ASSIGN(Scope);
   };
 
   explicit SourcePositionTable(Graph* graph);
+  SourcePositionTable(const SourcePositionTable&) = delete;
+  SourcePositionTable& operator=(const SourcePositionTable&) = delete;
 
   void AddDecorator();
   void RemoveDecorator();
@@ -63,8 +66,6 @@ class V8_EXPORT_PRIVATE SourcePositionTable final
   Decorator* decorator_;
   SourcePosition current_position_;
   NodeAuxData<SourcePosition, SourcePosition::Unknown> table_;
-
-  DISALLOW_COPY_AND_ASSIGN(SourcePositionTable);
 };
 
 }  // namespace compiler

@@ -12,7 +12,7 @@
 #define FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(V) /*     (force 80 columns) */ \
   /* Exception handling proposal. */                                           \
   /* https://github.com/WebAssembly/exception-handling */                      \
-  /* V8 side owner: clemensb */                                                \
+  /* V8 side owner: thibaudm */                                                \
   V(eh, "exception handling opcodes", false)                                   \
                                                                                \
   /* No official proposal (yet?). */                                           \
@@ -27,7 +27,7 @@
                                                                                \
   /* Typed function references proposal. */                                    \
   /* Official proposal: https://github.com/WebAssembly/function-references */  \
-  /* V8 side owner: ahaas */                                                   \
+  /* V8 side owner: manoskouk */                                               \
   V(typed_funcref, "typed function references", false)                         \
                                                                                \
   /* Memory64 proposal. */                                                     \

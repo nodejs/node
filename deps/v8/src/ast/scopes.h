@@ -705,8 +705,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   void SetDefaults();
 
-  void set_scope_info(Handle<ScopeInfo> scope_info);
-
   friend class DeclarationScope;
   friend class ClassScope;
   friend class ScopeTestHelper;

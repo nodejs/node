@@ -36,7 +36,13 @@ const expected_breaks = [
   `imported:${import_line_nr + 1}:2`,   // debugger;
   `imported:${import_line_nr + 2}:2`,   // return 7;
   `imported:${import_line_nr + 2}:11`,  // return 7;
-  'sub:1:58', 'sub:1:60', 'sub:1:62', 'sub:1:63', 'main:1:72'
+  'main:1:68',                          // i32.const 3
+  'main:1:70',                          // call 'sub'
+  'sub:1:58',                           // local.get i0
+  'sub:1:60',                           // local.get i1
+  'sub:1:62',                           // i32.sub
+  'sub:1:63',                           // end
+  'main:1:72'                           // end
 ];
 let error;
 function onBreak(event, exec_state, data) {

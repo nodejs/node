@@ -28,7 +28,7 @@ type never;
 
 type Tagged generates 'TNode<MaybeObject>' constexpr 'MaybeObject';
 type StrongTagged extends Tagged
-    generates 'TNode<Object>' constexpr 'ObjectPtr';
+    generates 'TNode<Object>' constexpr 'Object';
 type Smi extends StrongTagged generates 'TNode<Smi>' constexpr 'Smi';
 type TaggedIndex extends StrongTagged
     generates 'TNode<TaggedIndex>' constexpr 'TaggedIndex';
@@ -45,15 +45,18 @@ type PositiveSmi extends Smi;
 
 // The Smi value zero, which is often used as null for HeapObject types.
 type Zero extends PositiveSmi;
+// A tagged value represented by an all-zero bitpattern.
+type TaggedZeroPattern extends TaggedIndex;
 
 // A value with the size of Tagged which may contain arbitrary data.
 type Uninitialized extends Tagged;
 
 extern macro MakeWeak(HeapObject): WeakHeapObject;
-extern macro GetHeapObjectAssumeWeak(WeakHeapObject):
-    HeapObject labels ClearedWeakPointer;
+extern macro GetHeapObjectAssumeWeak(MaybeObject): HeapObject labels IfCleared;
+extern macro GetHeapObjectIfStrong(MaybeObject): HeapObject labels IfNotStrong;
 extern macro IsWeakOrCleared(MaybeObject): bool;
 extern macro IsWeakReferenceToObject(MaybeObject, Object): bool;
+extern macro IsStrong(MaybeObject): bool;
 
 macro StrongToWeak<T: type>(x: T): Weak<T> {
   return %RawDownCast<Weak<T>>(MakeWeak(x));
@@ -98,7 +101,7 @@ type uint16 extends uint31
 type int8 extends int16 generates 'TNode<Int8T>' constexpr 'int8_t';
 type uint8 extends uint16
     generates 'TNode<Uint8T>' constexpr 'uint8_t';
-type char8 extends int8 constexpr 'char';
+type char8 extends uint8 constexpr 'char';
 type char16 extends uint16 constexpr 'char16_t';
 type int64 generates 'TNode<Int64T>' constexpr 'int64_t';
 type intptr generates 'TNode<IntPtrT>' constexpr 'intptr_t';
@@ -110,7 +113,7 @@ type bint generates 'TNode<BInt>' constexpr 'BInt';
 type string constexpr 'const char*';
 
 // A Smi value containing a bitfield struct as its integer data.
-type SmiTagged<T : type extends uint31> extends Smi;
+@useParentTypeChecker type SmiTagged<T : type extends uint31> extends Smi;
 
 // WARNING: The memory representation (i.e., in class fields and arrays) of
 // float64_or_hole is just a float64 that may be the hole-representing
@@ -133,6 +136,40 @@ struct float64_or_hole {
 }
 const kDoubleHole: float64_or_hole = float64_or_hole{is_hole: true, value: 0};
 
+@doNotGenerateCast
+@abstract
+extern class JSPrototype extends JSObject generates 'TNode<JSObject>';
+@doNotGenerateCast
+extern class JSObjectPrototype extends JSPrototype
+    generates 'TNode<JSObject>';
+@doNotGenerateCast
+extern class JSRegExpPrototype extends JSPrototype
+    generates 'TNode<JSObject>';
+@doNotGenerateCast
+extern class JSPromisePrototype extends JSPrototype
+    generates 'TNode<JSObject>';
+@doNotGenerateCast
+extern class JSTypedArrayPrototype extends JSPrototype
+    generates 'TNode<JSObject>';
+@doNotGenerateCast
+extern class JSSetPrototype extends JSPrototype
+    generates 'TNode<JSObject>';
+@doNotGenerateCast
+extern class JSIteratorPrototype extends JSPrototype
+    generates 'TNode<JSObject>';
+@doNotGenerateCast
+extern class JSArrayIteratorPrototype extends JSPrototype
+    generates 'TNode<JSObject>';
+@doNotGenerateCast
+extern class JSMapIteratorPrototype extends JSPrototype
+    generates 'TNode<JSObject>';
+@doNotGenerateCast
+extern class JSSetIteratorPrototype extends JSPrototype
+    generates 'TNode<JSObject>';
+@doNotGenerateCast
+extern class JSStringIteratorPrototype extends JSPrototype
+    generates 'TNode<JSObject>';
+
 // The HashTable inheritance hierarchy doesn't actually look like this in C++
 // because it uses some class templates that we can't yet (and may never)
 // express in Torque, but this is the expected organization of instance types.
@@ -149,7 +186,8 @@ type ObjectHashTable extends HashTable
     generates 'TNode<ObjectHashTable>';
 extern class NumberDictionary extends HashTable;
 
-type RawPtr generates 'TNode<RawPtrT>' constexpr 'void*';
+type RawPtr generates 'TNode<RawPtrT>' constexpr 'Address';
+type RawPtr<To: type> extends RawPtr;
 type ExternalPointer
     generates 'TNode<ExternalPointerT>' constexpr 'ExternalPointer_t';
 extern class Code extends HeapObject;
@@ -165,6 +203,9 @@ extern class ScriptContextTable extends FixedArray;
 type LayoutDescriptor extends ByteArray
     generates 'TNode<LayoutDescriptor>';
 extern class TransitionArray extends WeakFixedArray;
+
+extern operator '.length_intptr' macro LoadAndUntagWeakFixedArrayLength(
+    WeakFixedArray): intptr;
 
 type InstanceType extends uint16 constexpr 'InstanceType';
 
@@ -278,6 +319,7 @@ extern enum MessageTemplate {
   kFirstArgumentNotRegExp,
   kBigIntMixedTypes,
   kTypedArrayTooShort,
+  kTypedArrayTooLargeToSort,
   kInvalidCountValue,
   kConstructorNotFunction,
   kSymbolToString,
@@ -320,17 +362,14 @@ extern enum MessageTemplate {
   kWasmTrapDivUnrepresentable,
   kWasmTrapRemByZero,
   kWasmTrapFloatUnrepresentable,
-  kWasmTrapFuncInvalid,
   kWasmTrapFuncSigMismatch,
   kWasmTrapDataSegmentDropped,
   kWasmTrapElemSegmentDropped,
   kWasmTrapTableOutOfBounds,
-  kWasmTrapBrOnExnNull,
   kWasmTrapRethrowNull,
   kWasmTrapNullDereference,
   kWasmTrapIllegalCast,
   kWasmTrapArrayOutOfBounds,
-  kWasmTrapWasmJSFunction,
   kWeakRefsRegisterTargetAndHoldingsMustNotBeSame,
   kWeakRefsRegisterTargetMustBeObject,
   kWeakRefsUnregisterTokenMustBeObject,
@@ -389,6 +428,14 @@ extern enum PrimitiveType { kString, kBoolean, kSymbol, kNumber }
 
 const kNameDictionaryInitialCapacity:
     constexpr int32 generates 'NameDictionary::kInitialCapacity';
+const kOrderedNameDictionaryInitialCapacity:
+    constexpr int32 generates 'OrderedNameDictionary::kInitialCapacity';
+
+const kWasmArrayHeaderSize:
+    constexpr int32 generates 'WasmArray::kHeaderSize';
+
+const kDictModePrototypes:
+    constexpr bool generates 'V8_DICT_MODE_PROTOTYPES_BOOL';
 
 type TheHole extends Oddball;
 type Null extends Oddball;
@@ -437,6 +484,8 @@ const kReturnString: String = ReturnStringConstant();
 
 const kNaN: NaN = NanConstant();
 const kZero: Zero = %RawDownCast<Zero>(SmiConstant(0));
+const kZeroBitPattern: TaggedZeroPattern = %RawDownCast<TaggedZeroPattern>(
+    Convert<Tagged>(BitcastWordToTaggedSigned(Convert<intptr>(0))));
 
 const true: constexpr bool generates 'true';
 const false: constexpr bool generates 'false';
@@ -606,13 +655,14 @@ extern macro SpeciesConstructor(implicit context: Context)(
 extern macro ConstructorBuiltinsAssembler::IsDictionaryMap(Map): bool;
 extern macro CodeStubAssembler::AllocateNameDictionary(constexpr int32):
     NameDictionary;
+extern macro CodeStubAssembler::AllocateOrderedNameDictionary(constexpr int32):
+    OrderedNameDictionary;
 
 extern builtin ToObject(Context, JSAny): JSReceiver;
 extern macro ToObject_Inline(Context, JSAny): JSReceiver;
 extern macro IsUndefined(Object): bool;
 extern macro IsNullOrUndefined(Object): bool;
 extern macro IsString(HeapObject): bool;
-extern macro IsSeqOneByteString(HeapObject): bool;
 extern transitioning builtin NonPrimitiveToPrimitive_String(
     Context, JSAny): JSPrimitive;
 extern transitioning builtin NonPrimitiveToPrimitive_Default(
@@ -641,9 +691,9 @@ extern macro LoadBufferIntptr(RawPtr, constexpr int32): intptr;
 
 extern runtime StringEqual(Context, String, String): Oddball;
 extern builtin StringLessThan(Context, String, String): Boolean;
-extern macro StringCharCodeAt(String, uintptr): int32;
-extern runtime StringCompareSequence(Context, String, String, Number): Boolean;
-extern macro StringFromSingleCharCode(int32): String;
+extern macro StringCharCodeAt(String, uintptr): char16;
+extern macro StringFromSingleCharCode(char8): String;
+extern macro StringFromSingleCharCode(char16): String;
 
 extern macro NumberToString(Number): String;
 extern macro StringToNumber(String): Number;
@@ -831,6 +881,10 @@ extern operator '==' macro
 ConstexprInt31Equal(constexpr int31, constexpr int31): constexpr bool;
 extern operator '!=' macro
 ConstexprInt31NotEqual(constexpr int31, constexpr int31): constexpr bool;
+extern operator '==' macro
+ConstexprUint32Equal(constexpr uint32, constexpr uint32): constexpr bool;
+extern operator '!=' macro
+ConstexprUint32NotEqual(constexpr uint32, constexpr uint32): constexpr bool;
 extern operator '>=' macro
 ConstexprInt31GreaterThanEqual(
     constexpr int31, constexpr int31): constexpr bool;
@@ -1053,6 +1107,7 @@ extern macro IsArraySpeciesProtectorCellInvalid(): bool;
 extern macro IsTypedArraySpeciesProtectorCellInvalid(): bool;
 extern macro IsPromiseSpeciesProtectorCellInvalid(): bool;
 extern macro IsMockArrayBufferAllocatorFlag(): bool;
+extern macro HasBuiltinSubclassingFlag(): bool;
 extern macro IsPrototypeTypedArrayPrototype(implicit context: Context)(Map):
     bool;
 
@@ -1555,6 +1610,7 @@ namespace runtime {
 extern runtime
 GetDerivedMap(Context, JSFunction, JSReceiver): Map;
 }
+extern macro IsDeprecatedMap(Map): bool;
 
 transitioning builtin FastCreateDataProperty(implicit context: Context)(
     receiver: JSReceiver, key: JSAny, value: JSAny): Object {
@@ -1703,3 +1759,8 @@ struct ConstantIterator<T: type> {
 macro ConstantIterator<T: type>(value: T): ConstantIterator<T> {
   return ConstantIterator{value};
 }
+
+extern macro FeedbackIteratorEntrySize(): intptr;
+extern macro FeedbackIteratorHandlerOffset(): intptr;
+extern operator '[]' macro LoadWeakFixedArrayElement(
+    WeakFixedArray, intptr): MaybeObject;

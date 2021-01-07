@@ -91,6 +91,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayAccessor {
   BytecodeArrayAccessor(Handle<BytecodeArray> bytecode_array,
                         int initial_offset);
 
+  BytecodeArrayAccessor(const BytecodeArrayAccessor&) = delete;
+  BytecodeArrayAccessor& operator=(const BytecodeArrayAccessor&) = delete;
+
   void SetOffset(int offset);
 
   void ApplyDebugBreak();
@@ -144,6 +147,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayAccessor {
 
   std::ostream& PrintTo(std::ostream& os) const;
 
+  int bytecode_length() const { return bytecode_length_; }
+
  private:
   bool OffsetInBounds() const;
 
@@ -154,11 +159,10 @@ class V8_EXPORT_PRIVATE BytecodeArrayAccessor {
   void UpdateOperandScale();
 
   std::unique_ptr<AbstractBytecodeArray> bytecode_array_;
+  const int bytecode_length_;
   int bytecode_offset_;
   OperandScale operand_scale_;
   int prefix_offset_;
-
-  DISALLOW_COPY_AND_ASSIGN(BytecodeArrayAccessor);
 };
 
 }  // namespace interpreter

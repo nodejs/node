@@ -29,6 +29,11 @@ namespace internal {
 class Heap;
 }  // namespace internal
 
+/**
+ * Used for additional heap APIs.
+ */
+class HeapHandle;
+
 class V8_EXPORT Heap {
  public:
   /**
@@ -52,6 +57,41 @@ class V8_EXPORT Heap {
   };
 
   /**
+   * Specifies supported marking types
+   */
+  enum class MarkingType : uint8_t {
+    /**
+     * Atomic stop-the-world marking. This option does not require any write
+     * barriers but is the most intrusive in terms of jank.
+     */
+    kAtomic,
+    /**
+     * Incremental marking, i.e. interleave marking is the rest of the
+     * application on the same thread.
+     */
+    kIncremental,
+    /**
+     * Incremental and concurrent marking.
+     */
+    kIncrementalAndConcurrent
+  };
+
+  /**
+   * Specifies supported sweeping types
+   */
+  enum class SweepingType : uint8_t {
+    /**
+     * Atomic stop-the-world sweeping. All of sweeping is performed at once.
+     */
+    kAtomic,
+    /**
+     * Incremental and concurrent sweeping. Sweeping is split and interleaved
+     * with the rest of the application.
+     */
+    kIncrementalAndConcurrent
+  };
+
+  /**
    * Constraints for a Heap setup.
    */
   struct ResourceConstraints {
@@ -66,20 +106,20 @@ class V8_EXPORT Heap {
 
   /**
    * Options specifying Heap properties (e.g. custom spaces) when initializing a
-   * heap through Heap::Create().
+   * heap through `Heap::Create()`.
    */
   struct HeapOptions {
     /**
      * Creates reasonable defaults for instantiating a Heap.
      *
-     * \returns the HeapOptions that can be passed to Heap::Create().
+     * \returns the HeapOptions that can be passed to `Heap::Create()`.
      */
     static HeapOptions Default() { return {}; }
 
     /**
      * Custom spaces added to heap are required to have indices forming a
-     * numbered sequence starting at 0, i.e., their kSpaceIndex must correspond
-     * to the index they reside in the vector.
+     * numbered sequence starting at 0, i.e., their `kSpaceIndex` must
+     * correspond to the index they reside in the vector.
      */
     std::vector<std::unique_ptr<CustomSpaceBase>> custom_spaces;
 
@@ -89,9 +129,19 @@ class V8_EXPORT Heap {
      * garbage collections using non-nestable task, which are guaranteed to have
      * no interesting stack, through the provided Platform. If such tasks are
      * not supported by the Platform, the embedder must take care of invoking
-     * the GC through ForceGarbageCollectionSlow().
+     * the GC through `ForceGarbageCollectionSlow()`.
      */
     StackSupport stack_support = StackSupport::kSupportsConservativeStackScan;
+
+    /**
+     * Specifies which types of marking are supported by the heap.
+     */
+    MarkingType marking_support = MarkingType::kIncrementalAndConcurrent;
+
+    /**
+     * Specifies which types of sweeping are supported by the heap.
+     */
+    SweepingType sweeping_support = SweepingType::kIncrementalAndConcurrent;
 
     /**
      * Resource constraints specifying various properties that the internal
@@ -126,7 +176,17 @@ class V8_EXPORT Heap {
       const char* source, const char* reason,
       StackState stack_state = StackState::kMayContainHeapPointers);
 
+  /**
+   * \returns the opaque handle for allocating objects using
+   * `MakeGarbageCollected()`.
+   */
   AllocationHandle& GetAllocationHandle();
+
+  /**
+   * \returns the opaque heap handle which may be used to refer to this heap in
+   *   other APIs. Valid as long as the underlying `Heap` is alive.
+   */
+  HeapHandle& GetHeapHandle();
 
  private:
   Heap() = default;

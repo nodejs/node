@@ -1,0 +1,109 @@
+Test wasm debug evaluate
+
+Running test: testInstanceAndModule
+Compile module.
+Set breakpoint in main.
+Instantiate module.
+Call main.
+Debugger paused in main.
+> instance = Instance
+> module = Module
+
+Running test: testGlobals
+Compile module.
+Set breakpoint in main.
+Instantiate module.
+Call main.
+Debugger paused in main.
+> typeof globals = "object"
+> globals[0] = 0
+> globals[1] = 1
+> globals[2] = 2n
+> globals[3] = 3n
+> globals["$global0"] = 1
+> $global0 = 1
+> globals["$global3"] = 3n
+> $global3 = 3n
+Stepping twice in main.
+Debugger paused in main.
+> globals[0] = 0
+> globals[1] = 1
+> globals[2] = 2n
+> globals[3] = 42n
+> globals["$global0"] = 1
+> $global0 = 1
+> globals["$global3"] = 42n
+> $global3 = 42n
+Changing global from JavaScript.
+> globals[0] = 0
+> globals[1] = 21
+> globals[2] = 2n
+> globals[3] = 42n
+> globals["$global0"] = 21
+> $global0 = 21
+> globals["$global3"] = 42n
+> $global3 = 42n
+
+Running test: testFunctions
+Compile module.
+Set breakpoint in main.
+Instantiate module.
+Call main.
+Debugger paused in main.
+> typeof functions = "object"
+> functions[0] = function 0() { [native code] }
+> functions[1] = function 1() { [native code] }
+> functions[2] = function 2() { [native code] }
+> functions[3] = function 3() { [native code] }
+> functions["$main"] = function 0() { [native code] }
+> $main = function 0() { [native code] }
+> functions["$func1"] = function 2() { [native code] }
+> $func1 = function 2() { [native code] }
+> functions["$func3"] = function 3() { [native code] }
+> $func3 = function 3() { [native code] }
+
+Running test: testLocals
+Compile module.
+Set breakpoint in main.
+Instantiate module.
+Call main.
+Debugger paused in main.
+> typeof locals = "object"
+> locals[0] = 3
+> locals[1] = 6
+> locals[2] = 0
+> locals["$x"] = 6
+> $x = 6
+> locals["$var2"] = 0
+> $var2 = 0
+Stepping twice in main.
+Debugger paused in main.
+> locals[0] = 3
+> locals[1] = 6
+> locals[2] = 42
+> locals["$x"] = 6
+> $x = 6
+> locals["$var2"] = 42
+> $var2 = 42
+
+Running test: testMemories
+Compile module.
+Set breakpoint in main.
+Instantiate module.
+Call main.
+Debugger paused in main.
+> typeof memories = "object"
+> memories[0] = Memory(1)
+> memories["$foo"] = Memory(1)
+> $foo = Memory(1)
+
+Running test: testTables
+Compile module.
+Set breakpoint in main.
+Instantiate module.
+Call main.
+Debugger paused in main.
+> typeof tables = "object"
+> tables[0] = Table
+> tables["$bar"] = Table
+> $bar = Table

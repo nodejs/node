@@ -1,9 +1,11 @@
 Test scope inspection and stepping after a trap.
+
+Running test: test
 Instantiating.
 Calling div function.
 Paused at:
 --- 0 ---
-Script wasm://wasm/a9a86c5e byte offset 46: Wasm opcode 0x6d
+Script wasm://wasm/a9a86c5e byte offset 46: Wasm opcode 0x6d (kExprI32DivS)
 scope at div (0:46):
    a: 1
    b: 0
@@ -33,7 +35,7 @@ Paused at:
 -> resume
 Paused at:
 --- 0 ---
-Script wasm://wasm/a9a86c5e byte offset 46: Wasm opcode 0x6d
+Script wasm://wasm/a9a86c5e byte offset 46: Wasm opcode 0x6d (kExprI32DivS)
 scope at div (0:46):
    a: -2147483648
    b: -1
@@ -61,4 +63,3 @@ Paused at:
 
 -------------
 -> resume
-Finished.

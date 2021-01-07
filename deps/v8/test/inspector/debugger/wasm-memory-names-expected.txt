@@ -1,4 +1,6 @@
 Test wasm memory names
+
+Running test: test
 Waiting for wasm script to be parsed.
 Setting breakpoint in wasm.
 Running main.

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-intl-segmenter
-
 // Test subclassing of Segmenter
 class CustomSegmenter extends Intl.Segmenter {
   constructor(locales, options) {

@@ -36,6 +36,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final {
   BytecodeArrayWriter(
       Zone* zone, ConstantArrayBuilder* constant_array_builder,
       SourcePositionTableBuilder::RecordingMode source_position_mode);
+  BytecodeArrayWriter(const BytecodeArrayWriter&) = delete;
+  BytecodeArrayWriter& operator=(const BytecodeArrayWriter&) = delete;
 
   void Write(BytecodeNode* node);
   void WriteJump(BytecodeNode* node, BytecodeLabel* label);
@@ -126,7 +128,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final {
   bool exit_seen_in_block_;
 
   friend class bytecode_array_writer_unittest::BytecodeArrayWriterUnittest;
-  DISALLOW_COPY_AND_ASSIGN(BytecodeArrayWriter);
 };
 
 }  // namespace interpreter

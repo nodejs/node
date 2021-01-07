@@ -32,14 +32,15 @@
 
   ##############################################################################
 
-  # This test is so detailed in it's look at the literals array, I can't
-  # maintain it until the CL is done.
-  'test-heap-profiler/AllocationSitesAreVisible': [FAIL, ['lite_mode == True', SKIP]],
-
   # These tests always fail.  They are here to test test.py.  If
   # they don't fail then test.py has failed.
   'test-serialize/TestThatAlwaysFails': [FAIL],
   'test-api/SealHandleScope': [FAIL],
+
+  # These tests are expected to hit a CHECK (i.e. a FAIL result actually means
+  # the test passed).
+  'test-api/RegExpInterruptAndReenterIrregexp': [FAIL, CRASH],
+  'test-verifiers/Fail*': [FAIL, CRASH],
 
   # This test always fails.  It tests that LiveEdit causes abort when turned off.
   'test-debug/LiveEditDisabled': [FAIL],
@@ -70,8 +71,6 @@
   'test-heap/OutOfMemory': [SKIP],
 
   # BUG(5193). The cpu profiler tests are notoriously flaky.
-  'test-profile-generator/RecordStackTraceAtStartProfiling': [SKIP],
-  'test-cpu-profiler/CollectDeoptEvents': [SKIP],
   'test-cpu-profiler/CollectCpuProfile': [SKIP],
   'test-cpu-profiler/JsNative1JsNative2JsSample': [SKIP],
   'test-cpu-profiler/JsNativeJsRuntimeJsSample': [SKIP],
@@ -112,7 +111,15 @@
   # https://crbug.com/v8/8919
   'test-platform/StackAlignment': [PASS, ['not is_clang', SKIP]],
 
-  ############################################################################
+  # Test that misuse of PopAndReturn does not compile.
+  'test-code-stub-assembler/PopAndReturnFromJSBuiltinWithStackParameters' : [FAIL],
+  'test-code-stub-assembler/PopAndReturnFromTFCBuiltinWithStackParameters' : [FAIL],
+
+  # These tests are supposed to fail in a slow DCHECK, skip them otherwise.
+  'test-local-handles/DereferenceLocalHandleFailsWhenDisallowed': [SKIP, ['mode == debug', FAIL]],
+  'test-persistent-handles/DereferencePersistentHandleFailsWhenDisallowed': [SKIP, ['mode == debug', FAIL]],
+
+############################################################################
   # Slow tests.
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, SLOW],
@@ -124,7 +131,6 @@
 
 ##############################################################################
 ['mode == debug', {
-  # These tests are supposed to fail in a DCHECK.
   'test-persistent-handles/NewPersistentHandleFailsWhenParked': [FAIL],
   'test-persistent-handles/NewPersistentHandleFailsWhenParkedExplicit': [FAIL],
 }],
@@ -193,12 +199,6 @@
 }],  # variant == nooptimization
 
 ##############################################################################
-['variant == no_lfa', {
-  # https://crbug.com/v8/10219
-  'test-compiler/DecideToPretenureDuringCompilation': [SKIP],
-}],  # variant == no_lfa
-
-##############################################################################
 ['asan == True', {
   # Skip tests not suitable for ASAN.
   'test-assembler-x64/AssemblerX64XchglOperations': [SKIP],
@@ -250,12 +250,13 @@
   # BUG(v8:8744).
   'test-cpu-profiler/FunctionCallSample': [SKIP],
 
-  # BUG(5920): Flaky crash.
-  'test-serialize/ContextSerializerContext': [PASS, ['arch == x64 and mode == debug', SKIP]],
-
   # BUG(10107): Failing flakily
   'test-cpu-profiler/Inlining2': ['arch == ia32 and mode == debug', SKIP],
+  'test-cpu-profiler/CrossScriptInliningCallerLineNumbers': ['arch == ia32 and mode == debug', SKIP],
   'test-cpu-profiler/CrossScriptInliningCallerLineNumbers2': ['arch == ia32 and mode == debug', SKIP],
+
+  # BUG(v8:10996): Flaky on Win32
+  'test-cpu-profiler/StartProfilingAfterOsr': ['arch == ia32', SKIP],
 }],  # 'system == windows'
 
 ##############################################################################
@@ -387,14 +388,9 @@
   # TODO(ppc): Implement load/store reverse byte instructions
   'test-run-wasm-simd/RunWasm_SimdLoadStoreLoad': [SKIP],
   'test-run-wasm-simd/RunWasm_SimdLoadStoreLoad_turbofan': [SKIP],
-  # TODO(miladfarca): remove once aix gcc bug is fixed.
-  # gcc on aix has a bug when using ceilf or truncf:
-  # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=97086
-  'test-run-wasm-simd/RunWasm_F32x4Ceil_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_F32x4Trunc_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_F64x2Ceil_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_F64x2Trunc_interpreter': [SKIP],
-
+  # slow in PASE emulator
+  'test-cpu-profiler/Inlining2': [PASS, SLOW],
+  'test-cpu-profiler/CollectCpuProfileCallerLineNumbers': [PASS, SLOW],
 }],  # 'system == aix or (arch == ppc64 and byteorder == big)'
 
 ##############################################################################
@@ -415,9 +411,9 @@
   # Liftoff is not currently supported on ppc and s390
   'test-liftoff-*': [SKIP],
   'test-wasm-breakpoints/*' : [SKIP],
-  'test-wasm-debug-evaluate/*': [SKIP],
   'test-run-wasm-module/Run_WasmModule_CompilationHintsNoTiering': [SKIP],
   'test-wasm-serialization/TierDownAfterDeserialization': [SKIP],
+  'test-gc/RunWasmLiftoff*': [SKIP],
 
   # SIMD not fully implemented yet
   'test-run-wasm-simd-liftoff/*': [SKIP],
@@ -475,18 +471,6 @@
   'test-unwinder-code-pages/*': [SKIP]
 }],
 
-# TODO(solanes, v8:10833): Re-enable these tests or create specific ones for
-# Arm. They are disabled because the stack is not being set up the way it does
-# in the wild.
-['arch == arm64 or arch == arm', {
-  'test-unwinder-code-pages/Unwind_CodeObjectPCInMiddle_Success_CodePagesAPI': [SKIP],
-  'test-unwinder-code-pages/Unwind_JSEntryBeforeFrame_Fail_CodePagesAPI': [SKIP],
-  'test-unwinder-code-pages/Unwind_OneJSFrame_Success_CodePagesAPI': [SKIP],
-  'test-unwinder-code-pages/Unwind_TwoJSFrames_Success_CodePagesAPI': [SKIP],
-  'test-unwinder-code-pages/Unwind_StackBounds_Basic_CodePagesAPI': [SKIP],
-  'test-unwinder-code-pages/Unwind_StackBounds_WithUnwinding_CodePagesAPI': [SKIP],
-}],
-
 ##############################################################################
 ['lite_mode or variant == jitless', {
 
@@ -518,10 +502,10 @@
   'test-run-wasm-simd-liftoff/*': [SKIP],
   'test-run-wasm-simd-scalar-lowering/*': [SKIP],
   'test-run-wasm-simd/*': [SKIP],
+  'test-run-wasm-wrappers/*': [SKIP],
   'test-streaming-compilation/*': [SKIP],
   'test-wasm-breakpoints/*': [SKIP],
   'test-wasm-codegen/*': [SKIP],
-  'test-wasm-debug-evaluate/*': [SKIP],
   'test-wasm-import-wrapper-cache/*': [SKIP],
   'test-wasm-metrics/*': [SKIP],
   'test-wasm-serialization/*': [SKIP],

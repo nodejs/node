@@ -42,11 +42,9 @@
 #include "src/objects/string.h"
 #include "src/objects/synthetic-module.h"
 #include "src/objects/template-objects-inl.h"
+#include "src/objects/torque-defined-classes-inl.h"
 #include "src/regexp/regexp.h"
 #include "src/wasm/wasm-objects.h"
-#include "torque-generated/class-definitions.h"
-#include "torque-generated/exported-class-definitions-inl.h"
-#include "torque-generated/internal-class-definitions-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -167,7 +165,8 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
   map.set_instance_size(instance_size);
   // Initialize to only containing tagged fields.
   if (FLAG_unbox_double_fields) {
-    map.set_layout_descriptor(LayoutDescriptor::FastPointerLayout());
+    map.set_layout_descriptor(LayoutDescriptor::FastPointerLayout(),
+                              kReleaseStore);
   }
   // GetVisitorId requires a properly initialized LayoutDescriptor.
   map.set_visitor_id(Map::GetVisitorId(map));
@@ -194,7 +193,8 @@ void Heap::FinalizePartialMap(Map map) {
   map.set_raw_transitions(MaybeObject::FromSmi(Smi::zero()));
   map.SetInstanceDescriptors(isolate(), roots.empty_descriptor_array(), 0);
   if (FLAG_unbox_double_fields) {
-    map.set_layout_descriptor(LayoutDescriptor::FastPointerLayout());
+    map.set_layout_descriptor(LayoutDescriptor::FastPointerLayout(),
+                              kReleaseStore);
   }
   map.set_prototype(roots.null_value());
   map.set_constructor_or_backpointer(roots.null_value());
@@ -423,12 +423,15 @@ bool Heap::CreateInitialMaps() {
                          small_ordered_name_dictionary)
 
 #define TORQUE_ALLOCATE_MAP(NAME, Name, name) \
-  ALLOCATE_MAP(NAME, Name::kSize, name)
+  ALLOCATE_MAP(NAME, Name::SizeFor(), name)
     TORQUE_DEFINED_FIXED_INSTANCE_TYPE_LIST(TORQUE_ALLOCATE_MAP);
 #undef TORQUE_ALLOCATE_MAP
 
-#define TORQUE_ALLOCATE_VARSIZE_MAP(NAME, Name, name) \
-  ALLOCATE_VARSIZE_MAP(NAME, name)
+#define TORQUE_ALLOCATE_VARSIZE_MAP(NAME, Name, name)                   \
+  /* The DescriptorArray map is pre-allocated and initialized above. */ \
+  if (NAME != DESCRIPTOR_ARRAY_TYPE) {                                  \
+    ALLOCATE_VARSIZE_MAP(NAME, name)                                    \
+  }
     TORQUE_DEFINED_VARSIZE_INSTANCE_TYPE_LIST(TORQUE_ALLOCATE_VARSIZE_MAP);
 #undef TORQUE_ALLOCATE_VARSIZE_MAP
 
@@ -492,12 +495,6 @@ bool Heap::CreateInitialMaps() {
                  next_call_side_effect_free_call_handler_info)
 
     ALLOCATE_VARSIZE_MAP(PREPARSE_DATA_TYPE, preparse_data)
-    ALLOCATE_MAP(UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE,
-                 UncompiledDataWithoutPreparseData::kSize,
-                 uncompiled_data_without_preparse_data)
-    ALLOCATE_MAP(UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE,
-                 UncompiledDataWithPreparseData::kSize,
-                 uncompiled_data_with_preparse_data)
     ALLOCATE_MAP(SHARED_FUNCTION_INFO_TYPE, SharedFunctionInfo::kAlignedSize,
                  shared_function_info)
     ALLOCATE_MAP(SOURCE_TEXT_MODULE_TYPE, SourceTextModule::kSize,
@@ -514,6 +511,7 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(WASM_STRUCT_TYPE, 0, wasm_rttcanon_externref)
     ALLOCATE_MAP(WASM_STRUCT_TYPE, 0, wasm_rttcanon_funcref)
     ALLOCATE_MAP(WASM_STRUCT_TYPE, 0, wasm_rttcanon_i31ref)
+    ALLOCATE_MAP(WASM_STRUCT_TYPE, 0, wasm_rttcanon_anyref)
     ALLOCATE_MAP(WASM_TYPE_INFO_TYPE, WasmTypeInfo::kSize, wasm_type_info)
 
     ALLOCATE_MAP(WEAK_CELL_TYPE, WeakCell::kSize, weak_cell)
@@ -530,10 +528,20 @@ bool Heap::CreateInitialMaps() {
 
   {
     AllocationResult alloc =
-        AllocateRaw(FixedArray::SizeFor(0), AllocationType::kReadOnly);
+        AllocateRaw(FixedArray::SizeFor(ScopeInfo::kVariablePartIndex),
+                    AllocationType::kReadOnly);
     if (!alloc.To(&obj)) return false;
     obj.set_map_after_allocation(roots.scope_info_map(), SKIP_WRITE_BARRIER);
-    FixedArray::cast(obj).set_length(0);
+    FixedArray::cast(obj).set_length(ScopeInfo::kVariablePartIndex);
+    int flags = ScopeInfo::IsEmptyBit::encode(true);
+    DCHECK_EQ(ScopeInfo::LanguageModeBit::decode(flags), LanguageMode::kSloppy);
+    DCHECK_EQ(ScopeInfo::ReceiverVariableBits::decode(flags),
+              VariableAllocationInfo::NONE);
+    DCHECK_EQ(ScopeInfo::FunctionVariableBits::decode(flags),
+              VariableAllocationInfo::NONE);
+    ScopeInfo::cast(obj).SetFlags(flags);
+    ScopeInfo::cast(obj).SetContextLocalCount(0);
+    ScopeInfo::cast(obj).SetParameterCount(0);
   }
   set_empty_scope_info(ScopeInfo::cast(obj));
 
@@ -614,27 +622,65 @@ bool Heap::CreateInitialMaps() {
   }
 
   // Set up the WasmTypeInfo objects for built-in generic Wasm RTTs.
-#define ALLOCATE_TYPE_INFO(which)                                           \
-  {                                                                         \
-    int slot_count = ArrayList::kHeaderFields;                              \
-    if (!AllocateRaw(ArrayList::SizeFor(slot_count), AllocationType::kOld)  \
-             .To(&obj)) {                                                   \
-      return false;                                                         \
-    }                                                                       \
-    obj.set_map_after_allocation(roots.array_list_map());                   \
-    ArrayList subtypes = ArrayList::cast(obj);                              \
-    subtypes.set_length(slot_count);                                        \
-    subtypes.SetLength(0);                                                  \
-    if (!AllocateRaw(WasmTypeInfo::kSize, AllocationType::kOld).To(&obj)) { \
-      return false;                                                         \
-    }                                                                       \
-    obj.set_map_after_allocation(roots.wasm_type_info_map(),                \
-                                 SKIP_WRITE_BARRIER);                       \
-    WasmTypeInfo type_info = WasmTypeInfo::cast(obj);                       \
-    type_info.set_subtypes(subtypes);                                       \
-    type_info.set_parent(roots.null_map());                                 \
-    type_info.clear_foreign_address(isolate());                             \
-    wasm_rttcanon_##which##_map().set_wasm_type_info(type_info);            \
+  // anyref:
+  {
+    /* Subtypes. We do not cache subtypes for (rtt.canon any). */
+    int slot_count = ArrayList::kHeaderFields;
+    if (!AllocateRaw(ArrayList::SizeFor(slot_count), AllocationType::kOld)
+             .To(&obj)) {
+      return false;
+    }
+    obj.set_map_after_allocation(roots.array_list_map());
+    ArrayList subtypes = ArrayList::cast(obj);
+    subtypes.set_length(slot_count);
+    subtypes.SetLength(0);
+    /* TypeInfo */
+    if (!AllocateRaw(WasmTypeInfo::kSize, AllocationType::kOld).To(&obj)) {
+      return false;
+    }
+    obj.set_map_after_allocation(roots.wasm_type_info_map(),
+                                 SKIP_WRITE_BARRIER);
+    WasmTypeInfo type_info = WasmTypeInfo::cast(obj);
+    type_info.set_subtypes(subtypes);
+    type_info.set_supertypes(roots.empty_fixed_array());
+    type_info.set_parent(roots.null_map());
+    type_info.clear_foreign_address(isolate());
+    wasm_rttcanon_anyref_map().set_wasm_type_info(type_info);
+  }
+
+  // Rest of builtin types:
+#define ALLOCATE_TYPE_INFO(which)                                              \
+  {                                                                            \
+    /* Subtypes */                                                             \
+    int slot_count = ArrayList::kHeaderFields;                                 \
+    if (!AllocateRaw(ArrayList::SizeFor(slot_count), AllocationType::kOld)     \
+             .To(&obj)) {                                                      \
+      return false;                                                            \
+    }                                                                          \
+    obj.set_map_after_allocation(roots.array_list_map());                      \
+    ArrayList subtypes = ArrayList::cast(obj);                                 \
+    subtypes.set_length(slot_count);                                           \
+    subtypes.SetLength(0);                                                     \
+    /* Supertypes */                                                           \
+    if (!AllocateRaw(FixedArray::SizeFor(1), AllocationType::kOld).To(&obj)) { \
+      return false;                                                            \
+    }                                                                          \
+    obj.set_map_after_allocation(roots.fixed_array_map(), SKIP_WRITE_BARRIER); \
+    FixedArray supertypes = FixedArray::cast(obj);                             \
+    supertypes.set_length(1);                                                  \
+    supertypes.set(0, wasm_rttcanon_anyref_map());                             \
+    /* TypeInfo */                                                             \
+    if (!AllocateRaw(WasmTypeInfo::kSize, AllocationType::kOld).To(&obj)) {    \
+      return false;                                                            \
+    }                                                                          \
+    obj.set_map_after_allocation(roots.wasm_type_info_map(),                   \
+                                 SKIP_WRITE_BARRIER);                          \
+    WasmTypeInfo type_info = WasmTypeInfo::cast(obj);                          \
+    type_info.set_subtypes(subtypes);                                          \
+    type_info.set_supertypes(supertypes);                                      \
+    type_info.set_parent(wasm_rttcanon_anyref_map());                          \
+    type_info.clear_foreign_address(isolate());                                \
+    wasm_rttcanon_##which##_map().set_wasm_type_info(type_info);               \
   }
 
   ALLOCATE_TYPE_INFO(eqref)
@@ -842,24 +888,22 @@ void Heap::CreateInitialObjects() {
   set_next_template_serial_number(Smi::zero());
 
   // Allocate the empty OrderedHashMap.
-  Handle<FixedArray> empty_ordered_hash_map = factory->NewFixedArray(
-      OrderedHashMap::HashTableStartIndex(), AllocationType::kReadOnly);
-  empty_ordered_hash_map->set_map_no_write_barrier(
-      *factory->ordered_hash_map_map());
-  for (int i = 0; i < empty_ordered_hash_map->length(); ++i) {
-    empty_ordered_hash_map->set(i, Smi::zero());
-  }
+  Handle<OrderedHashMap> empty_ordered_hash_map =
+      OrderedHashMap::AllocateEmpty(isolate(), AllocationType::kReadOnly)
+          .ToHandleChecked();
   set_empty_ordered_hash_map(*empty_ordered_hash_map);
 
   // Allocate the empty OrderedHashSet.
-  Handle<FixedArray> empty_ordered_hash_set = factory->NewFixedArray(
-      OrderedHashSet::HashTableStartIndex(), AllocationType::kReadOnly);
-  empty_ordered_hash_set->set_map_no_write_barrier(
-      *factory->ordered_hash_set_map());
-  for (int i = 0; i < empty_ordered_hash_set->length(); ++i) {
-    empty_ordered_hash_set->set(i, Smi::zero());
-  }
+  Handle<OrderedHashSet> empty_ordered_hash_set =
+      OrderedHashSet::AllocateEmpty(isolate(), AllocationType::kReadOnly)
+          .ToHandleChecked();
   set_empty_ordered_hash_set(*empty_ordered_hash_set);
+
+  // Allocate the empty OrderedNameDictionary
+  Handle<OrderedNameDictionary> empty_ordered_property_dictionary =
+      OrderedNameDictionary::AllocateEmpty(isolate(), AllocationType::kReadOnly)
+          .ToHandleChecked();
+  set_empty_ordered_property_dictionary(*empty_ordered_property_dictionary);
 
   // Allocate the empty FeedbackMetadata.
   Handle<FeedbackMetadata> empty_feedback_metadata =
@@ -1024,8 +1068,8 @@ void Heap::CreateInitialObjects() {
           AllocationType::kReadOnly));
 
   // Evaluate the hash values which will then be cached in the strings.
-  isolate()->factory()->zero_string()->Hash();
-  isolate()->factory()->one_string()->Hash();
+  isolate()->factory()->zero_string()->EnsureHash();
+  isolate()->factory()->one_string()->EnsureHash();
 
   // Initialize builtins constants table.
   set_builtins_constants_table(roots.empty_fixed_array());

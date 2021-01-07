@@ -16,7 +16,10 @@ v8_executable("cctest") {
 
   sources = [ "cctest.cc" ]
 
-  deps = [ ":cctest_sources" ]
+  deps = [
+    ":cctest_sources",
+    "../..:v8_wrappers",
+  ]
 
   data_deps = [ "../../tools:v8_testrunner" ]
 
@@ -72,9 +75,11 @@ v8_source_set("cctest_sources") {
   sources = [
     ### gcmole(all) ###
     "../common/assembler-tester.h",
+    "../common/flag-utils.h",
     "../common/wasm/flag-utils.h",
     "../common/wasm/test-signatures.h",
     "../common/wasm/wasm-macro-gen.h",
+    "cctest-utils.h",
     "collector.h",
     "compiler/c-signature.h",
     "compiler/call-tester.h",
@@ -90,6 +95,7 @@ v8_source_set("cctest_sources") {
     "compiler/test-branch-combine.cc",
     "compiler/test-code-assembler.cc",
     "compiler/test-code-generator.cc",
+    "compiler/test-concurrent-shared-function-info.cc",
     "compiler/test-gap-resolver.cc",
     "compiler/test-graph-visualizer.cc",
     "compiler/test-instruction-scheduler.cc",
@@ -204,8 +210,10 @@ v8_source_set("cctest_sources") {
     "test-code-stub-assembler.cc",
     "test-compiler.cc",
     "test-concurrent-descriptor-array.cc",
+    "test-concurrent-feedback-vector.cc",
     "test-concurrent-prototype.cc",
     "test-concurrent-script-context-table.cc",
+    "test-concurrent-string.cc",
     "test-concurrent-transition-array.cc",
     "test-constantpool.cc",
     "test-conversions.cc",
@@ -276,6 +284,7 @@ v8_source_set("cctest_sources") {
     "test-unwinder-code-pages.cc",
     "test-usecounters.cc",
     "test-utils.cc",
+    "test-verifiers.cc",
     "test-version.cc",
     "test-weakmaps.cc",
     "test-weaksets.cc",
@@ -303,12 +312,11 @@ v8_source_set("cctest_sources") {
     "wasm/test-run-wasm-simd-liftoff.cc",
     "wasm/test-run-wasm-simd-scalar-lowering.cc",
     "wasm/test-run-wasm-simd.cc",
+    "wasm/test-run-wasm-wrappers.cc",
     "wasm/test-run-wasm.cc",
     "wasm/test-streaming-compilation.cc",
     "wasm/test-wasm-breakpoints.cc",
     "wasm/test-wasm-codegen.cc",
-    "wasm/test-wasm-debug-evaluate.cc",
-    "wasm/test-wasm-debug-evaluate.h",
     "wasm/test-wasm-import-wrapper-cache.cc",
     "wasm/test-wasm-metrics.cc",
     "wasm/test-wasm-serialization.cc",
@@ -418,6 +426,7 @@ v8_source_set("cctest_sources") {
     "../..:v8_for_testing",
     "../..:v8_libbase",
     "../..:v8_libplatform",
+    "../..:v8_wrappers",
     "../..:wasm_test_common",
     "../../tools/debug_helper:v8_debug_helper",
     "//build/win:default_exe_manifest",
@@ -488,6 +497,7 @@ v8_executable("generate-bytecode-expectations") {
     "../..:v8",
     "../..:v8_libbase",
     "../..:v8_libplatform",
+    "../..:v8_wrappers",
     "//build/win:default_exe_manifest",
   ]
 

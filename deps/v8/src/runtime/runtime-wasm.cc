@@ -64,7 +64,7 @@ Context GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
   return GetWasmInstanceOnStackTop(isolate).native_context();
 }
 
-class ClearThreadInWasmScope {
+class V8_NODISCARD ClearThreadInWasmScope {
  public:
   ClearThreadInWasmScope() {
     DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
@@ -90,7 +90,8 @@ Object ThrowWasmError(Isolate* isolate, MessageTemplate message) {
 
 RUNTIME_FUNCTION(Runtime_WasmIsValidRefValue) {
   // This code is called from wrappers, so the "thread is wasm" flag is not set.
-  DCHECK(!trap_handler::IsThreadInWasm());
+  DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
+                 !trap_handler::IsThreadInWasm());
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0)
@@ -137,7 +138,7 @@ RUNTIME_FUNCTION(Runtime_ThrowWasmStackOverflow) {
   return isolate->StackOverflow();
 }
 
-RUNTIME_FUNCTION(Runtime_WasmThrowTypeError) {
+RUNTIME_FUNCTION(Runtime_WasmThrowJSTypeError) {
   // This runtime function is called both from wasm and from e.g. js-to-js
   // functions. Hence the "thread in wasm" flag can be either set or not. Both
   // is OK, since throwing will trigger unwinding anyway, which sets the flag
@@ -145,7 +146,7 @@ RUNTIME_FUNCTION(Runtime_WasmThrowTypeError) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kWasmTrapTypeError));
+      isolate, NewTypeError(MessageTemplate::kWasmTrapJSTypeError));
 }
 
 RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {
@@ -201,16 +202,82 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
 
   DCHECK(isolate->context().is_null());
   isolate->set_context(instance->native_context());
-  auto* native_module = instance->module_object().native_module();
-  bool success = wasm::CompileLazy(isolate, native_module, func_index);
+  Handle<WasmModuleObject> module_object{instance->module_object(), isolate};
+  bool success = wasm::CompileLazy(isolate, module_object, func_index);
   if (!success) {
     DCHECK(isolate->has_pending_exception());
     return ReadOnlyRoots(isolate).exception();
   }
 
-  Address entrypoint = native_module->GetCallTargetForFunction(func_index);
+  Address entrypoint =
+      module_object->native_module()->GetCallTargetForFunction(func_index);
 
   return Object(entrypoint);
+}
+
+namespace {
+void ReplaceWrapper(Isolate* isolate, Handle<WasmInstanceObject> instance,
+                    int function_index, Handle<Code> wrapper_code) {
+  Handle<WasmExternalFunction> exported_function =
+      WasmInstanceObject::GetWasmExternalFunction(isolate, instance,
+                                                  function_index)
+          .ToHandleChecked();
+  exported_function->set_code(*wrapper_code);
+  WasmExportedFunctionData function_data =
+      exported_function->shared().wasm_exported_function_data();
+  function_data.set_wrapper_code(*wrapper_code);
+}
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
+  CONVERT_ARG_HANDLE_CHECKED(WasmExportedFunctionData, function_data, 1);
+  DCHECK(isolate->context().is_null());
+  isolate->set_context(instance->native_context());
+
+  const wasm::WasmModule* module = instance->module();
+  const int function_index = function_data->function_index();
+  const wasm::WasmFunction function = module->functions[function_index];
+  const wasm::FunctionSig* sig = function.sig;
+
+  // The start function is not guaranteed to be registered as
+  // an exported function (although it is called as one).
+  // If there is no entry for the start function,
+  // the tier-up is abandoned.
+  MaybeHandle<WasmExternalFunction> maybe_exported_function =
+      WasmInstanceObject::GetWasmExternalFunction(isolate, instance,
+                                                  function_index);
+  Handle<WasmExternalFunction> exported_function;
+  if (!maybe_exported_function.ToHandle(&exported_function)) {
+    DCHECK_EQ(function_index, module->start_function_index);
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
+  Handle<Code> wrapper_code =
+      wasm::JSToWasmWrapperCompilationUnit::CompileSpecificJSToWasmWrapper(
+          isolate, sig, module);
+
+  // Replace the wrapper for the function that triggered the tier-up.
+  // This is to verify that the wrapper is replaced, even if the function
+  // is implicitly exported and is not part of the export_table.
+  ReplaceWrapper(isolate, instance, function_index, wrapper_code);
+
+  // Iterate over all exports to replace eagerly the wrapper for all functions
+  // that share the signature of the function that tiered up.
+  for (wasm::WasmExport exp : module->export_table) {
+    if (exp.kind != wasm::kExternalFunction) {
+      continue;
+    }
+    int index = static_cast<int>(exp.index);
+    wasm::WasmFunction function = module->functions[index];
+    if (function.sig == sig && index != function_index) {
+      ReplaceWrapper(isolate, instance, index, wrapper_code);
+    }
+  }
+
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
@@ -227,32 +294,20 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-// Should be called from within a handle scope
-Handle<JSArrayBuffer> GetArrayBuffer(Handle<WasmInstanceObject> instance,
-                                     Isolate* isolate, uint32_t address) {
-  DCHECK(instance->has_memory_object());
-  Handle<JSArrayBuffer> array_buffer(instance->memory_object().array_buffer(),
-                                     isolate);
-
-  // Should have trapped if address was OOB
-  DCHECK_LT(address, array_buffer->byte_length());
-  return array_buffer;
-}
-
 RUNTIME_FUNCTION(Runtime_WasmAtomicNotify) {
   ClearThreadInWasmScope clear_wasm_flag;
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
-  CONVERT_NUMBER_CHECKED(uint32_t, address, Uint32, args[1]);
+  CONVERT_DOUBLE_ARG_CHECKED(offset_double, 1);
+  uintptr_t offset = static_cast<uintptr_t>(offset_double);
   CONVERT_NUMBER_CHECKED(uint32_t, count, Uint32, args[2]);
-  Handle<JSArrayBuffer> array_buffer =
-      GetArrayBuffer(instance, isolate, address);
-  if (array_buffer->is_shared()) {
-    return FutexEmulation::Wake(array_buffer, address, count);
-  } else {
-    return Smi::FromInt(0);
-  }
+  Handle<JSArrayBuffer> array_buffer{instance->memory_object().array_buffer(),
+                                     isolate};
+  // Should have trapped if address was OOB.
+  DCHECK_LT(offset, array_buffer->byte_length());
+  if (!array_buffer->is_shared()) return Smi::FromInt(0);
+  return FutexEmulation::Wake(array_buffer, offset, count);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
@@ -260,18 +315,21 @@ RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
-  CONVERT_NUMBER_CHECKED(uint32_t, address, Uint32, args[1]);
+  CONVERT_DOUBLE_ARG_CHECKED(offset_double, 1);
+  uintptr_t offset = static_cast<uintptr_t>(offset_double);
   CONVERT_NUMBER_CHECKED(int32_t, expected_value, Int32, args[2]);
   CONVERT_ARG_HANDLE_CHECKED(BigInt, timeout_ns, 3);
 
-  Handle<JSArrayBuffer> array_buffer =
-      GetArrayBuffer(instance, isolate, address);
+  Handle<JSArrayBuffer> array_buffer{instance->memory_object().array_buffer(),
+                                     isolate};
+  // Should have trapped if address was OOB.
+  DCHECK_LT(offset, array_buffer->byte_length());
 
-  // Trap if memory is not shared
+  // Trap if memory is not shared.
   if (!array_buffer->is_shared()) {
     return ThrowWasmError(isolate, MessageTemplate::kAtomicsWaitNotAllowed);
   }
-  return FutexEmulation::WaitWasm32(isolate, array_buffer, address,
+  return FutexEmulation::WaitWasm32(isolate, array_buffer, offset,
                                     expected_value, timeout_ns->AsInt64());
 }
 
@@ -280,18 +338,21 @@ RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
-  CONVERT_NUMBER_CHECKED(uint32_t, address, Uint32, args[1]);
+  CONVERT_DOUBLE_ARG_CHECKED(offset_double, 1);
+  uintptr_t offset = static_cast<uintptr_t>(offset_double);
   CONVERT_ARG_HANDLE_CHECKED(BigInt, expected_value, 2);
   CONVERT_ARG_HANDLE_CHECKED(BigInt, timeout_ns, 3);
 
-  Handle<JSArrayBuffer> array_buffer =
-      GetArrayBuffer(instance, isolate, address);
+  Handle<JSArrayBuffer> array_buffer{instance->memory_object().array_buffer(),
+                                     isolate};
+  // Should have trapped if address was OOB.
+  DCHECK_LT(offset, array_buffer->byte_length());
 
-  // Trap if memory is not shared
+  // Trap if memory is not shared.
   if (!array_buffer->is_shared()) {
     return ThrowWasmError(isolate, MessageTemplate::kAtomicsWaitNotAllowed);
   }
-  return FutexEmulation::WaitWasm64(isolate, array_buffer, address,
+  return FutexEmulation::WaitWasm64(isolate, array_buffer, offset,
                                     expected_value->AsInt64(),
                                     timeout_ns->AsInt64());
 }

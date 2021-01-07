@@ -141,20 +141,27 @@ TEST_F(StringsStorageWithIsolate, Refcounting) {
   CHECK_EQ(storage.GetStringCountForTesting(), 1);
   CHECK(storage.Release(d));
   CHECK_EQ(storage.GetStringCountForTesting(), 0);
-#if !DEBUG
   CHECK(!storage.Release("12"));
-#endif  // !DEBUG
 }
 
 TEST_F(StringsStorageWithIsolate, InvalidRelease) {
   StringsStorage storage;
 
-  // If a refcount becomes invalid, throw in debug builds.
-#ifdef DEBUG
-  ASSERT_DEATH_IF_SUPPORTED(storage.Release("12"), "check failed");
-#else
+  // If we attempt to release a string not being managed by the StringsStorage,
+  // return false.
   CHECK(!storage.Release("12"));
-#endif  // DEBUG
+}
+
+TEST_F(StringsStorageWithIsolate, CopyAndConsShareStorage) {
+  StringsStorage storage;
+
+  Handle<String> str = isolate()->factory()->NewStringFromAsciiChecked("foo");
+
+  const char* copy_str = storage.GetCopy("get foo");
+  const char* cons_str = storage.GetConsName("get ", *str);
+
+  CHECK_EQ(storage.GetStringCountForTesting(), 1);
+  CHECK_EQ(copy_str, cons_str);
 }
 
 }  // namespace internal

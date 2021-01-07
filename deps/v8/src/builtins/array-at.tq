@@ -1,0 +1,27 @@
+// Copyright 2020 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace array {
+// https://tc39.es/proposal-item-method/#sec-array.prototype.at
+transitioning javascript builtin ArrayPrototypeAt(
+    js-implicit context: NativeContext, receiver: JSAny)(index: JSAny): JSAny {
+  // 1. Let O be ? ToObject(this value).
+  const o = ToObject_Inline(context, receiver);
+  // 2. Let len be ? LengthOfArrayLike(O).
+  const len = GetLengthProperty(o);
+  // 3. Let relativeIndex be ? ToInteger(index).
+  const relativeIndex = ToInteger_Inline(index);
+  // 4. If relativeIndex ≥ 0, then
+  //   a. Let k be relativeIndex.
+  // 5. Else,
+  //   a. Let k be len + relativeIndex.
+  const k = relativeIndex >= 0 ? relativeIndex : len + relativeIndex;
+  // 6. If k < 0 or k ≥ len, then return undefined.
+  if (k < 0 || k >= len) {
+    return Undefined;
+  }
+  // 7. Return ? Get(O, ! ToString(k)).
+  return GetProperty(o, k);
+}
+}

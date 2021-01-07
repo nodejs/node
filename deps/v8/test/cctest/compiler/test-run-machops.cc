@@ -9,6 +9,7 @@
 #include "src/base/bits.h"
 #include "src/base/ieee754.h"
 #include "src/base/overflowing-math.h"
+#include "src/base/safe_conversions.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/objects/objects-inl.h"
@@ -4188,12 +4189,16 @@ TEST(RunTruncateFloat32ToInt32) {
       if (i < upper_bound && i >= lower_bound) {
         CHECK_FLOAT_EQ(static_cast<int32_t>(i), m.Call(i));
       } else if (i < lower_bound) {
+#if (V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64) && !_MIPS_ARCH_MIPS32R6 && \
+    !_MIPS_ARCH_MIPS64R6
+        CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::max(), m.Call(i));
+#else
         CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
+#endif
       } else if (i >= upper_bound) {
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
         CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
-#elif V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_S390X || \
-    V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+#else
         CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::max(), m.Call(i));
 #endif
       } else {
@@ -6464,10 +6469,9 @@ TEST(RunChangeFloat64ToInt64) {
   BufferedRawMachineAssemblerTester<int64_t> m(MachineType::Float64());
   m.Return(m.ChangeFloat64ToInt64(m.Parameter(0)));
 
-  FOR_INT64_INPUTS(i) {
-    double input = static_cast<double>(i);
-    if (static_cast<int64_t>(input) == i) {
-      CHECK_EQ(static_cast<int64_t>(input), m.Call(input));
+  FOR_FLOAT64_INPUTS(i) {
+    if (base::IsValueInRangeForNumericType<int64_t>(i)) {
+      CHECK_EQ(static_cast<int64_t>(i), m.Call(i));
     }
   }
 }
@@ -6477,9 +6481,7 @@ TEST(RunChangeInt64ToFloat64) {
   m.Return(m.ChangeInt64ToFloat64(m.Parameter(0)));
   FOR_INT64_INPUTS(i) {
     double output = static_cast<double>(i);
-    if (static_cast<int64_t>(output) == i) {
-      CHECK_EQ(output, m.Call(i));
-    }
+    CHECK_EQ(output, m.Call(i));
   }
 }
 
@@ -6548,9 +6550,11 @@ TEST(RunTryTruncateFloat64ToInt64WithoutCheck) {
   BufferedRawMachineAssemblerTester<int64_t> m(MachineType::Float64());
   m.Return(m.TryTruncateFloat64ToInt64(m.Parameter(0)));
 
-  FOR_INT64_INPUTS(i) {
-    double input = static_cast<double>(i);
-    CHECK_EQ(static_cast<int64_t>(input), m.Call(input));
+  FOR_FLOAT64_INPUTS(i) {
+    if (base::IsValueInRangeForNumericType<int64_t>(i)) {
+      double input = static_cast<double>(i);
+      CHECK_EQ(static_cast<int64_t>(input), m.Call(input));
+    }
   }
 }
 

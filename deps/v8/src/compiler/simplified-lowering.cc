@@ -101,8 +101,6 @@ UseInfo CheckedUseInfoAsWord32FromHint(
     case NumberOperationHint::kSignedSmall:
     case NumberOperationHint::kSignedSmallInputs:
       return UseInfo::CheckedSignedSmallAsWord32(identify_zeros, feedback);
-    case NumberOperationHint::kSigned32:
-      return UseInfo::CheckedSigned32AsWord32(identify_zeros, feedback);
     case NumberOperationHint::kNumber:
       return UseInfo::CheckedNumberAsWord32(feedback);
     case NumberOperationHint::kNumberOrBoolean:
@@ -120,7 +118,6 @@ UseInfo CheckedUseInfoAsFloat64FromHint(
   switch (hint) {
     case NumberOperationHint::kSignedSmall:
     case NumberOperationHint::kSignedSmallInputs:
-    case NumberOperationHint::kSigned32:
       // Not used currently.
       UNREACHABLE();
     case NumberOperationHint::kNumber:
@@ -293,7 +290,7 @@ class RepresentationSelector {
                          RepresentationChanger* changer,
                          SourcePositionTable* source_positions,
                          NodeOriginTable* node_origins,
-                         TickCounter* tick_counter)
+                         TickCounter* tick_counter, Linkage* linkage)
       : jsgraph_(jsgraph),
         zone_(zone),
         might_need_revisit_(zone),
@@ -310,7 +307,8 @@ class RepresentationSelector {
         node_origins_(node_origins),
         type_cache_(TypeCache::Get()),
         op_typer_(broker, graph_zone()),
-        tick_counter_(tick_counter) {
+        tick_counter_(tick_counter),
+        linkage_(linkage) {
   }
 
   void ResetNodeInfoState() {
@@ -1362,8 +1360,8 @@ class RepresentationSelector {
         return kPointerWriteBarrier;
       }
       NumberMatcher m(value);
-      if (m.HasValue()) {
-        if (IsSmiDouble(m.Value())) {
+      if (m.HasResolvedValue()) {
+        if (IsSmiDouble(m.ResolvedValue())) {
           // Storing a smi doesn't need a write barrier.
           return kNoWriteBarrier;
         }
@@ -1408,7 +1406,6 @@ class RepresentationSelector {
                 IsSomePositiveOrderedNumber(input1_type)
             ? CheckForMinusZeroMode::kDontCheckForMinusZero
             : CheckForMinusZeroMode::kCheckForMinusZero;
-
     NodeProperties::ChangeOp(node, simplified()->CheckedInt32Mul(mz_mode));
   }
 
@@ -1447,11 +1444,17 @@ class RepresentationSelector {
 
     // Try to use type feedback.
     NumberOperationHint hint = NumberOperationHintOf(node->op());
-    DCHECK(hint == NumberOperationHint::kSignedSmall ||
-           hint == NumberOperationHint::kSigned32);
+    DCHECK_EQ(hint, NumberOperationHint::kSignedSmall);
 
     Type left_feedback_type = TypeOf(node->InputAt(0));
     Type right_feedback_type = TypeOf(node->InputAt(1));
+
+    // Using Signed32 as restriction type amounts to promising there won't be
+    // signed overflow. This is incompatible with relying on a Word32
+    // truncation in order to skip the overflow check.
+    Type const restriction =
+        truncation.IsUsedAsWord32() ? Type::Any() : Type::Signed32();
+
     // Handle the case when no int32 checks on inputs are necessary (but
     // an overflow check is needed on the output). Note that we do not
     // have to do any check if at most one side can be minus zero. For
@@ -1465,7 +1468,7 @@ class RepresentationSelector {
         right_upper.Is(Type::Signed32OrMinusZero()) &&
         (left_upper.Is(Type::Signed32()) || right_upper.Is(Type::Signed32()))) {
       VisitBinop<T>(node, UseInfo::TruncatingWord32(),
-                    MachineRepresentation::kWord32, Type::Signed32());
+                    MachineRepresentation::kWord32, restriction);
     } else {
       // If the output's truncation is identify-zeros, we can pass it
       // along. Moreover, if the operation is addition and we know the
@@ -1485,8 +1488,9 @@ class RepresentationSelector {
       UseInfo right_use = CheckedUseInfoAsWord32FromHint(hint, FeedbackSource(),
                                                          kIdentifyZeros);
       VisitBinop<T>(node, left_use, right_use, MachineRepresentation::kWord32,
-                    Type::Signed32());
+                    restriction);
     }
+
     if (lower<T>()) {
       if (truncation.IsUsedAsWord32() ||
           !CanOverflowSigned32(node->op(), left_feedback_type,
@@ -1551,8 +1555,7 @@ class RepresentationSelector {
     // Handle the case when no uint32 checks on inputs are necessary
     // (but an overflow check is needed on the output).
     if (BothInputsAreUnsigned32(node)) {
-      if (hint == NumberOperationHint::kSignedSmall ||
-          hint == NumberOperationHint::kSigned32) {
+      if (hint == NumberOperationHint::kSignedSmall) {
         VisitBinop<T>(node, UseInfo::TruncatingWord32(),
                       MachineRepresentation::kWord32, Type::Unsigned32());
         if (lower<T>()) ChangeToUint32OverflowOp(node);
@@ -1564,8 +1567,7 @@ class RepresentationSelector {
     // (but an overflow check is needed on the output).
     if (BothInputsAre(node, Type::Signed32())) {
       // If both the inputs the feedback are int32, use the overflow op.
-      if (hint == NumberOperationHint::kSignedSmall ||
-          hint == NumberOperationHint::kSigned32) {
+      if (hint == NumberOperationHint::kSignedSmall) {
         VisitBinop<T>(node, UseInfo::TruncatingWord32(),
                       MachineRepresentation::kWord32, Type::Signed32());
         if (lower<T>()) ChangeToInt32OverflowOp(node);
@@ -1573,8 +1575,7 @@ class RepresentationSelector {
       }
     }
 
-    if (hint == NumberOperationHint::kSignedSmall ||
-        hint == NumberOperationHint::kSigned32) {
+    if (hint == NumberOperationHint::kSignedSmall) {
       // If the result is truncated, we only need to check the inputs.
       // For the left hand side we just propagate the identify zeros
       // mode of the {truncation}; and for modulus the sign of the
@@ -1745,15 +1746,15 @@ class RepresentationSelector {
         return UseInfo::Bool();
       case CTypeInfo::Type::kInt32:
       case CTypeInfo::Type::kUint32:
-      case CTypeInfo::Type::kFloat32:
         return UseInfo::CheckedNumberAsWord32(feedback);
       // TODO(mslekova): We deopt for unsafe integers, but ultimately we want
       // to make this less restrictive in order to stay on the fast path.
       case CTypeInfo::Type::kInt64:
       case CTypeInfo::Type::kUint64:
         return UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, feedback);
+      case CTypeInfo::Type::kFloat32:
       case CTypeInfo::Type::kFloat64:
-        return UseInfo::CheckedNumberAsFloat64(kIdentifyZeros, feedback);
+        return UseInfo::CheckedNumberAsFloat64(kDistinguishZeros, feedback);
       case CTypeInfo::Type::kV8Value:
         return UseInfo::AnyTagged();
     }
@@ -1838,9 +1839,10 @@ class RepresentationSelector {
         // here, otherwise the input conversion will fail.
         return VisitLeaf<T>(node, MachineRepresentation::kTagged);
       case IrOpcode::kParameter:
-        // TODO(titzer): use representation from linkage.
         return VisitUnop<T>(node, UseInfo::None(),
-                            MachineRepresentation::kTagged);
+                            linkage()
+                                ->GetParameterType(ParameterIndexOf(node->op()))
+                                .representation());
       case IrOpcode::kInt32Constant:
         return VisitLeaf<T>(node, MachineRepresentation::kWord32);
       case IrOpcode::kInt64Constant:
@@ -2048,7 +2050,6 @@ class RepresentationSelector {
         // Try to use type feedback.
         NumberOperationHint hint = NumberOperationHintOf(node->op());
         switch (hint) {
-          case NumberOperationHint::kSigned32:
           case NumberOperationHint::kSignedSmall:
             if (propagate<T>()) {
               VisitBinop<T>(node,
@@ -2151,8 +2152,7 @@ class RepresentationSelector {
         // (but an overflow check is needed on the output).
         if (BothInputsAre(node, Type::Signed32())) {
           // If both inputs and feedback are int32, use the overflow op.
-          if (hint == NumberOperationHint::kSignedSmall ||
-              hint == NumberOperationHint::kSigned32) {
+          if (hint == NumberOperationHint::kSignedSmall) {
             VisitBinop<T>(node, UseInfo::TruncatingWord32(),
                           MachineRepresentation::kWord32, Type::Signed32());
             if (lower<T>()) {
@@ -2163,8 +2163,7 @@ class RepresentationSelector {
           }
         }
 
-        if (hint == NumberOperationHint::kSignedSmall ||
-            hint == NumberOperationHint::kSigned32) {
+        if (hint == NumberOperationHint::kSignedSmall) {
           VisitBinop<T>(node, CheckedUseInfoAsWord32FromHint(hint),
                         MachineRepresentation::kWord32, Type::Signed32());
           if (lower<T>()) {
@@ -2230,8 +2229,7 @@ class RepresentationSelector {
         // Handle the case when no uint32 checks on inputs are necessary
         // (but an overflow check is needed on the output).
         if (BothInputsAreUnsigned32(node)) {
-          if (hint == NumberOperationHint::kSignedSmall ||
-              hint == NumberOperationHint::kSigned32) {
+          if (hint == NumberOperationHint::kSignedSmall) {
             VisitBinop<T>(node, UseInfo::TruncatingWord32(),
                           MachineRepresentation::kWord32, Type::Unsigned32());
             if (lower<T>()) ChangeToUint32OverflowOp(node);
@@ -2243,8 +2241,7 @@ class RepresentationSelector {
         // (but an overflow check is needed on the output).
         if (BothInputsAreSigned32(node)) {
           // If both the inputs the feedback are int32, use the overflow op.
-          if (hint == NumberOperationHint::kSignedSmall ||
-              hint == NumberOperationHint::kSigned32) {
+          if (hint == NumberOperationHint::kSignedSmall) {
             VisitBinop<T>(node, UseInfo::TruncatingWord32(),
                           MachineRepresentation::kWord32, Type::Signed32());
             if (lower<T>()) ChangeToInt32OverflowOp(node);
@@ -2252,8 +2249,7 @@ class RepresentationSelector {
           }
         }
 
-        if (hint == NumberOperationHint::kSigned32 ||
-            hint == NumberOperationHint::kSignedSmall ||
+        if (hint == NumberOperationHint::kSignedSmall ||
             hint == NumberOperationHint::kSignedSmallInputs) {
           // If the result is truncated, we only need to check the inputs.
           if (truncation.IsUsedAsWord32()) {
@@ -2433,8 +2429,7 @@ class RepresentationSelector {
         NumberOperationHint hint = NumberOperationHintOf(node->op());
         Type rhs_type = GetUpperBound(node->InputAt(1));
         if (rhs_type.Is(type_cache_->kZeroish) &&
-            (hint == NumberOperationHint::kSignedSmall ||
-             hint == NumberOperationHint::kSigned32) &&
+            hint == NumberOperationHint::kSignedSmall &&
             !truncation.IsUsedAsWord32()) {
           // The SignedSmall or Signed32 feedback means that the results that we
           // have seen so far were of type Unsigned31.  We speculate that this
@@ -2828,7 +2823,16 @@ class RepresentationSelector {
         return VisitUnop<T>(node, UseInfo::AnyTagged(),
                             MachineRepresentation::kTaggedPointer);
       }
-      case IrOpcode::kTierUpCheck:
+      case IrOpcode::kTierUpCheck: {
+        ProcessInput<T>(node, 0, UseInfo::AnyTagged());
+        ProcessInput<T>(node, 1, UseInfo::AnyTagged());
+        ProcessInput<T>(node, 2, UseInfo::AnyTagged());
+        ProcessInput<T>(node, 3, UseInfo::TruncatingWord32());
+        ProcessInput<T>(node, 4, UseInfo::AnyTagged());
+        ProcessRemainingInputs<T>(node, 5);
+        SetOutput<T>(node, MachineRepresentation::kNone);
+        return;
+      }
       case IrOpcode::kUpdateInterruptBudget: {
         ProcessInput<T>(node, 0, UseInfo::AnyTagged());
         ProcessRemainingInputs<T>(node, 1);
@@ -3312,7 +3316,6 @@ class RepresentationSelector {
         NumberOperationParameters const& p =
             NumberOperationParametersOf(node->op());
         switch (p.hint()) {
-          case NumberOperationHint::kSigned32:
           case NumberOperationHint::kSignedSmall:
           case NumberOperationHint::kSignedSmallInputs:
             VisitUnop<T>(node,
@@ -3836,6 +3839,7 @@ class RepresentationSelector {
   TypeCache const* type_cache_;
   OperationTyper op_typer_;  // helper for the feedback typer
   TickCounter* const tick_counter_;
+  Linkage* const linkage_;
 
   NodeInfo* GetInfo(Node* node) {
     DCHECK(node->id() < count_);
@@ -3843,6 +3847,7 @@ class RepresentationSelector {
   }
   Zone* zone() { return zone_; }
   Zone* graph_zone() { return jsgraph_->zone(); }
+  Linkage* linkage() { return linkage_; }
 };
 
 // Template specializations
@@ -4006,7 +4011,8 @@ SimplifiedLowering::SimplifiedLowering(JSGraph* jsgraph, JSHeapBroker* broker,
                                        SourcePositionTable* source_positions,
                                        NodeOriginTable* node_origins,
                                        PoisoningMitigationLevel poisoning_level,
-                                       TickCounter* tick_counter)
+                                       TickCounter* tick_counter,
+                                       Linkage* linkage)
     : jsgraph_(jsgraph),
       broker_(broker),
       zone_(zone),
@@ -4014,13 +4020,14 @@ SimplifiedLowering::SimplifiedLowering(JSGraph* jsgraph, JSHeapBroker* broker,
       source_positions_(source_positions),
       node_origins_(node_origins),
       poisoning_level_(poisoning_level),
-      tick_counter_(tick_counter) {}
+      tick_counter_(tick_counter),
+      linkage_(linkage) {}
 
 void SimplifiedLowering::LowerAllNodes() {
   RepresentationChanger changer(jsgraph(), broker_);
   RepresentationSelector selector(jsgraph(), broker_, zone_, &changer,
                                   source_positions_, node_origins_,
-                                  tick_counter_);
+                                  tick_counter_, linkage_);
   selector.Run(this);
 }
 
@@ -4279,7 +4286,7 @@ Node* SimplifiedLowering::Int32Div(Node* const node) {
     return graph()->NewNode(machine()->Int32Sub(), zero, lhs);
   } else if (m.right().Is(0)) {
     return rhs;
-  } else if (machine()->Int32DivIsSafe() || m.right().HasValue()) {
+  } else if (machine()->Int32DivIsSafe() || m.right().HasResolvedValue()) {
     return graph()->NewNode(machine()->Int32Div(), lhs, rhs, graph()->start());
   }
 
@@ -4350,7 +4357,7 @@ Node* SimplifiedLowering::Int32Mod(Node* const node) {
 
   if (m.right().Is(-1) || m.right().Is(0)) {
     return zero;
-  } else if (m.right().HasValue()) {
+  } else if (m.right().HasResolvedValue()) {
     return graph()->NewNode(machine()->Int32Mod(), lhs, rhs, graph()->start());
   }
 
@@ -4463,7 +4470,7 @@ Node* SimplifiedLowering::Uint32Div(Node* const node) {
 
   if (m.right().Is(0)) {
     return zero;
-  } else if (machine()->Uint32DivIsSafe() || m.right().HasValue()) {
+  } else if (machine()->Uint32DivIsSafe() || m.right().HasResolvedValue()) {
     return graph()->NewNode(machine()->Uint32Div(), lhs, rhs, graph()->start());
   }
 
@@ -4482,7 +4489,7 @@ Node* SimplifiedLowering::Uint32Mod(Node* const node) {
 
   if (m.right().Is(0)) {
     return zero;
-  } else if (m.right().HasValue()) {
+  } else if (m.right().HasResolvedValue()) {
     return graph()->NewNode(machine()->Uint32Mod(), lhs, rhs, graph()->start());
   }
 

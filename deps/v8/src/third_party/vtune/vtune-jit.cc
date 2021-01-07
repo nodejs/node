@@ -146,7 +146,8 @@ static std::string GetFunctionNameFromMixedName(const char* str, int length) {
 
   while (str[index++] != ':' && (index < length)) {}
 
-  if (str[index] == '*' || str[index] == '~' ) index++;
+  const char state = str[index];
+  if (state == '*' || state == '+' || state == '-' || state == '~') index++;
   if (index >= length) return std::string();
 
   start_ptr = const_cast<char*>(str + index);
@@ -194,8 +195,7 @@ void VTUNEJITInterface::event_handler(const v8::JitCodeEvent* event) {
         if (*script != NULL) {
           // Get the source file name and set it to jmethod.source_file_name
           if ((*script->GetScriptName())->IsString()) {
-            Local<String> script_name =
-                Local<String>::Cast(script->GetScriptName());
+            Local<String> script_name = script->GetScriptName().As<String>();
             temp_file_name.reset(
                 new char[script_name->Utf8Length(event->isolate) + 1]);
             script_name->WriteUtf8(event->isolate, temp_file_name.get());

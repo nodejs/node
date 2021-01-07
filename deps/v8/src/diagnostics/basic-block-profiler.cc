@@ -10,7 +10,7 @@
 
 #include "src/base/lazy-instance.h"
 #include "src/heap/heap-inl.h"
-#include "torque-generated/exported-class-definitions-inl.h"
+#include "src/objects/shared-function-info-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -59,58 +59,60 @@ Handle<String> CopyStringToJSHeap(const std::string& source, Isolate* isolate) {
                                                        AllocationType::kOld);
 }
 
-// Size of entries in both block_ids and counts.
-constexpr int kBasicBlockSlotSize = kInt32Size;
+constexpr int kBlockIdSlotSize = kInt32Size;
+constexpr int kBlockCountSlotSize = kDoubleSize;
 }  // namespace
 
 BasicBlockProfilerData::BasicBlockProfilerData(
     Handle<OnHeapBasicBlockProfilerData> js_heap_data, Isolate* isolate) {
-  function_name_ = js_heap_data->name().ToCString().get();
-  schedule_ = js_heap_data->schedule().ToCString().get();
-  code_ = js_heap_data->code().ToCString().get();
-  Handle<ByteArray> counts(js_heap_data->counts(), isolate);
-  for (int i = 0; i < counts->length() / kBasicBlockSlotSize; ++i) {
-    counts_.push_back(counts->get_uint32(i));
-  }
-  Handle<ByteArray> block_ids(js_heap_data->block_ids(), isolate);
-  for (int i = 0; i < block_ids->length() / kBasicBlockSlotSize; ++i) {
-    block_ids_.push_back(block_ids->get_int(i));
-  }
-  CHECK_EQ(block_ids_.size(), counts_.size());
-  hash_ = js_heap_data->hash();
+  DisallowHeapAllocation no_gc;
+  CopyFromJSHeap(*js_heap_data);
 }
 
 BasicBlockProfilerData::BasicBlockProfilerData(
+    OnHeapBasicBlockProfilerData js_heap_data) {
+  CopyFromJSHeap(js_heap_data);
+}
+
+void BasicBlockProfilerData::CopyFromJSHeap(
     OnHeapBasicBlockProfilerData js_heap_data) {
   function_name_ = js_heap_data.name().ToCString().get();
   schedule_ = js_heap_data.schedule().ToCString().get();
   code_ = js_heap_data.code().ToCString().get();
   ByteArray counts(js_heap_data.counts());
-  for (int i = 0; i < counts.length() / kBasicBlockSlotSize; ++i) {
-    counts_.push_back(counts.get_uint32(i));
+  for (int i = 0; i < counts.length() / kBlockCountSlotSize; ++i) {
+    counts_.push_back(
+        reinterpret_cast<double*>(counts.GetDataStartAddress())[i]);
   }
   ByteArray block_ids(js_heap_data.block_ids());
-  for (int i = 0; i < block_ids.length() / kBasicBlockSlotSize; ++i) {
+  for (int i = 0; i < block_ids.length() / kBlockIdSlotSize; ++i) {
     block_ids_.push_back(block_ids.get_int(i));
   }
   CHECK_EQ(block_ids_.size(), counts_.size());
+  hash_ = js_heap_data.hash();
 }
 
 Handle<OnHeapBasicBlockProfilerData> BasicBlockProfilerData::CopyToJSHeap(
     Isolate* isolate) {
-  int array_size_in_bytes = static_cast<int>(n_blocks() * kBasicBlockSlotSize);
-  CHECK(array_size_in_bytes >= 0 &&
-        static_cast<size_t>(array_size_in_bytes) / kBasicBlockSlotSize ==
+  int id_array_size_in_bytes = static_cast<int>(n_blocks() * kBlockIdSlotSize);
+  CHECK(id_array_size_in_bytes >= 0 &&
+        static_cast<size_t>(id_array_size_in_bytes) / kBlockIdSlotSize ==
             n_blocks());  // Overflow
   Handle<ByteArray> block_ids = isolate->factory()->NewByteArray(
-      array_size_in_bytes, AllocationType::kOld);
+      id_array_size_in_bytes, AllocationType::kOld);
   for (int i = 0; i < static_cast<int>(n_blocks()); ++i) {
     block_ids->set_int(i, block_ids_[i]);
   }
+
+  int counts_array_size_in_bytes =
+      static_cast<int>(n_blocks() * kBlockCountSlotSize);
+  CHECK(counts_array_size_in_bytes >= 0 &&
+        static_cast<size_t>(counts_array_size_in_bytes) / kBlockCountSlotSize ==
+            n_blocks());  // Overflow
   Handle<ByteArray> counts = isolate->factory()->NewByteArray(
-      array_size_in_bytes, AllocationType::kOld);
+      counts_array_size_in_bytes, AllocationType::kOld);
   for (int i = 0; i < static_cast<int>(n_blocks()); ++i) {
-    counts->set_uint32(i, counts_[i]);
+    reinterpret_cast<double*>(counts->GetDataStartAddress())[i] = counts_[i];
   }
   Handle<String> name = CopyStringToJSHeap(function_name_, isolate);
   Handle<String> schedule = CopyStringToJSHeap(schedule_, isolate);
@@ -130,8 +132,8 @@ void BasicBlockProfiler::ResetCounts(Isolate* isolate) {
   for (int i = 0; i < list->Length(); ++i) {
     Handle<ByteArray> counts(
         OnHeapBasicBlockProfilerData::cast(list->Get(i)).counts(), isolate);
-    for (int j = 0; j < counts->length() / kBasicBlockSlotSize; ++j) {
-      counts->set_uint32(j, 0);
+    for (int j = 0; j < counts->length() / kBlockCountSlotSize; ++j) {
+      reinterpret_cast<double*>(counts->GetDataStartAddress())[j] = 0;
     }
   }
 }
@@ -166,7 +168,7 @@ void BasicBlockProfiler::Print(std::ostream& os, Isolate* isolate) {
 }
 
 std::vector<bool> BasicBlockProfiler::GetCoverageBitmap(Isolate* isolate) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   ArrayList list(isolate->heap()->basic_block_profiling_data());
   std::vector<bool> out;
   int list_length = list.Length();
@@ -195,7 +197,8 @@ void BasicBlockProfilerData::Log(Isolate* isolate) {
 }
 
 std::ostream& operator<<(std::ostream& os, const BasicBlockProfilerData& d) {
-  int block_count_sum = std::accumulate(d.counts_.begin(), d.counts_.end(), 0);
+  double block_count_sum =
+      std::accumulate(d.counts_.begin(), d.counts_.end(), 0);
   if (block_count_sum == 0) return os;
   const char* name = "unknown function";
   if (!d.function_name_.empty()) {
@@ -207,14 +210,14 @@ std::ostream& operator<<(std::ostream& os, const BasicBlockProfilerData& d) {
     os << d.schedule_.c_str() << std::endl;
   }
   os << "block counts for " << name << ":" << std::endl;
-  std::vector<std::pair<size_t, uint32_t>> pairs;
+  std::vector<std::pair<size_t, double>> pairs;
   pairs.reserve(d.n_blocks());
   for (size_t i = 0; i < d.n_blocks(); ++i) {
     pairs.push_back(std::make_pair(i, d.counts_[i]));
   }
   std::sort(
       pairs.begin(), pairs.end(),
-      [=](std::pair<size_t, uint32_t> left, std::pair<size_t, uint32_t> right) {
+      [=](std::pair<size_t, double> left, std::pair<size_t, double> right) {
         if (right.second == left.second) return left.first < right.first;
         return right.second < left.second;
       });

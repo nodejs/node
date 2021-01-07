@@ -18,6 +18,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/stack-frame-info-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(StackFrameInfo)
 
 NEVER_READ_ONLY_SPACE_IMPL(StackFrameInfo)

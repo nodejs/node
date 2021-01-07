@@ -325,9 +325,7 @@ TEST(CaptureStackTrace) {
       "eval('new baz();');";
   v8::Local<v8::String> detailed_src = v8_str(detailed_source);
   // Make the script using a non-zero line and column offset.
-  v8::Local<v8::Integer> line_offset = v8::Integer::New(isolate, 3);
-  v8::Local<v8::Integer> column_offset = v8::Integer::New(isolate, 5);
-  v8::ScriptOrigin detailed_origin(origin, line_offset, column_offset);
+  v8::ScriptOrigin detailed_origin(origin, 3, 5);
   v8::ScriptCompiler::Source script_source2(detailed_src, detailed_origin);
   v8::Local<v8::UnboundScript> detailed_script(
       v8::ScriptCompiler::CompileUnboundScript(isolate, &script_source2)

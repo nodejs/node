@@ -33,5 +33,7 @@ var fun2 = (function GenerateFun2() {
 })();
 
 // Both exported functions should throw, no matter how often they get wrapped.
-assertThrows(fun1, TypeError, /wasm function signature contains illegal type/);
-assertThrows(fun2, TypeError, /wasm function signature contains illegal type/);
+assertThrows(fun1, TypeError,
+             /type incompatibility when transforming from\/to JS/);
+assertThrows(fun2, TypeError,
+             /type incompatibility when transforming from\/to JS/);

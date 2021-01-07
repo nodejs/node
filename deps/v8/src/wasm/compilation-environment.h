@@ -24,6 +24,7 @@ namespace wasm {
 
 class NativeModule;
 class WasmCode;
+class WasmEngine;
 class WasmError;
 
 enum RuntimeExceptionSupport : bool {
@@ -115,6 +116,8 @@ class V8_EXPORT_PRIVATE CompilationState {
   using callback_t = std::function<void(CompilationEvent)>;
 
   ~CompilationState();
+
+  void InitCompileJob(WasmEngine*);
 
   void CancelCompilation();
 

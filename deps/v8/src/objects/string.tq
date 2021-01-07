@@ -6,31 +6,88 @@
 @generateCppClass
 @reserveBitsInInstanceType(6)
 extern class String extends Name {
+  macro StringInstanceType(): StringInstanceType {
+    return %RawDownCast<StringInstanceType>(
+        Convert<uint16>(this.map.instance_type));
+  }
+
   const length: int32;
+}
+
+extern enum StringRepresentationTag extends uint32 {
+  kSeqStringTag,
+  kConsStringTag,
+  kExternalStringTag,
+  kSlicedStringTag,
+  kThinStringTag
+}
+
+bitfield struct StringInstanceType extends uint16 {
+  representation: StringRepresentationTag: 3 bit;
+  is_one_byte: bool: 1 bit;
+  is_uncached: bool: 1 bit;
+  is_not_internalized: bool: 1 bit;
 }
 
 @generateCppClass
 @generateBodyDescriptor
 @doNotGenerateCast
 extern class ConsString extends String {
+  // Corresponds to String::IsFlat() in the C++ runtime.
+  macro IsFlat(): bool {
+    return this.second.length == 0;
+  }
+
+  macro IsOneByteRepresentation(): bool {
+    return this.StringInstanceType().is_one_byte;
+  }
+
   first: String;
   second: String;
 }
 
 @abstract
-@generateBodyDescriptor
 @doNotGenerateCast
 extern class ExternalString extends String {
   resource: ExternalPointer;
+  // WARNING: This field is missing for uncached external strings.
   resource_data: ExternalPointer;
 }
 
+extern operator '.resource_ptr' macro LoadExternalStringResourcePtr(
+    ExternalString): RawPtr;
+extern operator '.resource_data_ptr' macro LoadExternalStringResourceDataPtr(
+    ExternalString): RawPtr;
+extern operator '.resource_data_ptr' macro LoadExternalStringResourceDataPtr(
+    ExternalOneByteString): RawPtr<char8>;
+extern operator '.resource_data_ptr' macro LoadExternalStringResourceDataPtr(
+    ExternalTwoByteString): RawPtr<char16>;
+
+extern macro ExternalOneByteStringGetChars(ExternalOneByteString):
+    RawPtr<char8>;
+extern macro ExternalTwoByteStringGetChars(ExternalTwoByteString):
+    RawPtr<char16>;
+
 @doNotGenerateCast
 extern class ExternalOneByteString extends ExternalString {
+  macro GetChars(): RawPtr<char8> {
+    if (this.StringInstanceType().is_uncached) {
+      return ExternalOneByteStringGetChars(this);
+    } else {
+      return this.resource_data_ptr;
+    }
+  }
 }
 
 @doNotGenerateCast
 extern class ExternalTwoByteString extends ExternalString {
+  macro GetChars(): RawPtr<char16> {
+    if (this.StringInstanceType().is_uncached) {
+      return ExternalTwoByteStringGetChars(this);
+    } else {
+      return this.resource_data_ptr;
+    }
+  }
 }
 
 @generateCppClass
@@ -47,13 +104,13 @@ extern class SeqString extends String {
 @generateBodyDescriptor
 @doNotGenerateCast
 extern class SeqOneByteString extends SeqString {
-  chars[length]: char8;
+  const chars[length]: char8;
 }
 @generateCppClass
 @generateBodyDescriptor
 @doNotGenerateCast
 extern class SeqTwoByteString extends SeqString {
-  chars[length]: char16;
+  const chars[length]: char16;
 }
 
 @generateCppClass
@@ -75,26 +132,177 @@ extern class ThinString extends String {
 // C++ runtime. See also: ToDirectStringAssembler.
 type DirectString extends String;
 
-@export
-macro AllocateSeqOneByteString(length: uint32): SeqOneByteString {
-  assert(length <= kStringMaxLength);
-  if (length == 0) return UnsafeCast<SeqOneByteString>(kEmptyString);
+macro AllocateNonEmptySeqOneByteString<Iterator: type>(
+    length: uint32, content: Iterator): SeqOneByteString {
+  assert(length != 0 && length <= kStringMaxLength);
   return new SeqOneByteString{
     map: kOneByteStringMap,
-    hash_field: kNameEmptyHashField,
+    raw_hash_field: kNameEmptyHashField,
     length: Signed(length),
-    chars: ...UninitializedIterator {}
+    chars: ...content
   };
 }
 
-@export
-macro AllocateSeqTwoByteString(length: uint32): String {
-  assert(length <= kStringMaxLength);
-  if (length == 0) return kEmptyString;
+macro AllocateNonEmptySeqTwoByteString<Iterator: type>(
+    length: uint32, content: Iterator): SeqTwoByteString {
+  assert(length > 0 && length <= kStringMaxLength);
   return new SeqTwoByteString{
     map: kStringMap,
-    hash_field: kNameEmptyHashField,
+    raw_hash_field: kNameEmptyHashField,
     length: Signed(length),
-    chars: ...UninitializedIterator {}
+    chars: ...content
   };
+}
+
+macro AllocateNonEmptySeqOneByteString(length: uint32): SeqOneByteString {
+  return AllocateNonEmptySeqOneByteString(length, UninitializedIterator{});
+}
+macro AllocateNonEmptySeqTwoByteString(length: uint32): SeqTwoByteString {
+  return AllocateNonEmptySeqTwoByteString(length, UninitializedIterator{});
+}
+
+macro AllocateSeqOneByteString<Iterator: type>(
+    length: uint32, content: Iterator): SeqOneByteString|EmptyString {
+  if (length == 0) return kEmptyString;
+  return AllocateNonEmptySeqOneByteString(length, content);
+}
+
+macro AllocateSeqTwoByteString<Iterator: type>(
+    length: uint32, content: Iterator): SeqTwoByteString|EmptyString {
+  if (length == 0) return kEmptyString;
+  return AllocateNonEmptySeqTwoByteString(length, content);
+}
+
+@export
+macro AllocateSeqOneByteString(length: uint32): SeqOneByteString|EmptyString {
+  return AllocateSeqOneByteString(length, UninitializedIterator{});
+}
+
+@export
+macro AllocateSeqTwoByteString(length: uint32): SeqTwoByteString|EmptyString {
+  return AllocateSeqTwoByteString(length, UninitializedIterator{});
+}
+
+extern macro StringWriteToFlatOneByte(String, RawPtr<char8>, int32, int32);
+extern macro StringWriteToFlatTwoByte(String, RawPtr<char16>, int32, int32);
+
+// Corresponds to String::SlowFlatten in the C++ runtime.
+builtin StringSlowFlatten(cons: ConsString): String {
+  // TurboFan can create cons strings with empty first parts.
+  let cons = cons;
+  while (cons.first.length == 0) {
+    // We do not want to call this function recursively. Therefore we call
+    // String::Flatten only in those cases where String::SlowFlatten is not
+    // called again.
+    try {
+      const second = Cast<ConsString>(cons.second) otherwise FoundFlatString;
+      if (second.IsFlat()) goto FoundFlatString;
+      cons = second;
+    } label FoundFlatString {
+      return Flatten(cons.second);
+    }
+  }
+
+  let flat: String;
+  if (cons.IsOneByteRepresentation()) {
+    const allocated = AllocateNonEmptySeqOneByteString(Unsigned(cons.length));
+    StringWriteToFlatOneByte(
+        cons, (&allocated.chars).GCUnsafeStartPointer(), 0, cons.length);
+    flat = allocated;
+  } else {
+    const allocated = UnsafeCast<SeqTwoByteString>(
+        AllocateNonEmptySeqTwoByteString(Unsigned(cons.length)));
+    StringWriteToFlatTwoByte(
+        cons, (&allocated.chars).GCUnsafeStartPointer(), 0, cons.length);
+    flat = allocated;
+  }
+  cons.first = flat;
+  cons.second = kEmptyString;
+  return flat;
+}
+
+// Corresponds to String::Flatten in the C++ runtime.
+macro Flatten(string: String): String {
+  typeswitch (string) {
+    case (cons: ConsString): {
+      return Flatten(cons);
+    }
+    case (thin: ThinString): {
+      assert(!Is<ConsString>(thin.actual));
+      return thin.actual;
+    }
+    case (other: String): {
+      return other;
+    }
+  }
+}
+macro Flatten(cons: ConsString): String {
+  if (cons.IsFlat()) return cons.first;
+  return StringSlowFlatten(cons);
+}
+
+// Get a slice to the string data, flatten only if unavoidable for this.
+macro StringToSlice(string: String): never labels OneByte(ConstSlice<char8>),
+    TwoByte(ConstSlice<char16>) {
+  let string = string;
+  let offset: intptr = 0;
+  const length = Convert<intptr>(string.length);
+  while (true) {
+    typeswitch (string) {
+      case (s: SeqOneByteString): {
+        goto OneByte(Subslice(&s.chars, offset, length) otherwise unreachable);
+      }
+      case (s: SeqTwoByteString): {
+        goto TwoByte(Subslice(&s.chars, offset, length) otherwise unreachable);
+      }
+      case (s: ThinString): {
+        string = s.actual;
+      }
+      case (s: ConsString): {
+        string = Flatten(s);
+      }
+      case (s: SlicedString): {
+        offset += Convert<intptr>(s.offset);
+        string = s.parent;
+      }
+      case (s: ExternalOneByteString): {
+        const data = torque_internal::unsafe::NewOffHeapConstSlice(
+            s.GetChars(), Convert<intptr>(s.length));
+        goto OneByte(Subslice(data, offset, length) otherwise unreachable);
+      }
+      case (s: ExternalTwoByteString): {
+        const data = torque_internal::unsafe::NewOffHeapConstSlice(
+            s.GetChars(), Convert<intptr>(s.length));
+        goto TwoByte(Subslice(data, offset, length) otherwise unreachable);
+      }
+      case (String): {
+        unreachable;
+      }
+    }
+  }
+  VerifiedUnreachable();
+}
+
+// Dispatch on the slice type of two different strings.
+macro TwoStringsToSlices<Result: type, Functor: type>(
+    s1: String, s2: String, f: Functor): Result {
+  try {
+    StringToSlice(s1) otherwise FirstOneByte, FirstTwoByte;
+  } label FirstOneByte(s1Slice: ConstSlice<char8>) {
+    try {
+      StringToSlice(s2) otherwise SecondOneByte, SecondTwoByte;
+    } label SecondOneByte(s2Slice: ConstSlice<char8>) {
+      return Call(f, s1Slice, s2Slice);
+    } label SecondTwoByte(s2Slice: ConstSlice<char16>) {
+      return Call(f, s1Slice, s2Slice);
+    }
+  } label FirstTwoByte(s1Slice: ConstSlice<char16>) {
+    try {
+      StringToSlice(s2) otherwise SecondOneByte, SecondTwoByte;
+    } label SecondOneByte(s2Slice: ConstSlice<char8>) {
+      return Call(f, s1Slice, s2Slice);
+    } label SecondTwoByte(s2Slice: ConstSlice<char16>) {
+      return Call(f, s1Slice, s2Slice);
+    }
+  }
 }

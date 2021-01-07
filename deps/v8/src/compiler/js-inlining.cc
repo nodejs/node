@@ -267,7 +267,7 @@ Node* JSInliner::CreateArtificialFrameState(Node* node, Node* outer_frame_state,
 namespace {
 
 bool NeedsImplicitReceiver(SharedFunctionInfoRef shared_info) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   return !shared_info.construct_as_builtin() &&
          !IsDerivedConstructor(shared_info.kind());
 }
@@ -287,7 +287,7 @@ base::Optional<SharedFunctionInfoRef> JSInliner::DetermineCallTarget(
   // calls whenever the target is a constant function object, as follows:
   //  - JSCall(target:constant, receiver, args..., vector)
   //  - JSConstruct(target:constant, new.target, args..., vector)
-  if (match.HasValue() && match.Ref(broker()).IsJSFunction()) {
+  if (match.HasResolvedValue() && match.Ref(broker()).IsJSFunction()) {
     JSFunctionRef function = match.Ref(broker()).AsJSFunction();
 
     // The function might have not been called yet.
@@ -332,20 +332,20 @@ base::Optional<SharedFunctionInfoRef> JSInliner::DetermineCallTarget(
 // following static information is provided:
 //  - context         : The context (as SSA value) bound by the call target.
 //  - feedback_vector : The target is guaranteed to use this feedback vector.
-FeedbackVectorRef JSInliner::DetermineCallContext(Node* node,
-                                                  Node** context_out) {
+FeedbackCellRef JSInliner::DetermineCallContext(Node* node,
+                                                Node** context_out) {
   DCHECK(IrOpcode::IsInlineeOpcode(node->opcode()));
   Node* target = node->InputAt(JSCallOrConstructNode::TargetIndex());
   HeapObjectMatcher match(target);
 
-  if (match.HasValue() && match.Ref(broker()).IsJSFunction()) {
+  if (match.HasResolvedValue() && match.Ref(broker()).IsJSFunction()) {
     JSFunctionRef function = match.Ref(broker()).AsJSFunction();
     // This was already ensured by DetermineCallTarget
     CHECK(function.has_feedback_vector());
 
     // The inlinee specializes to the context from the JSFunction object.
     *context_out = jsgraph()->Constant(function.context());
-    return function.feedback_vector();
+    return function.raw_feedback_cell();
   }
 
   if (match.IsJSCreateClosure()) {
@@ -356,7 +356,7 @@ FeedbackVectorRef JSInliner::DetermineCallContext(Node* node,
 
     // The inlinee uses the locally provided context at instantiation.
     *context_out = NodeProperties::GetContextInput(match.node());
-    return cell.value().AsFeedbackVector();
+    return cell;
   } else if (match.IsCheckClosure()) {
     FeedbackCellRef cell(broker(), FeedbackCellOf(match.op()));
 
@@ -367,7 +367,7 @@ FeedbackVectorRef JSInliner::DetermineCallContext(Node* node,
         match.node(), effect, control);
     NodeProperties::ReplaceEffectInput(node, effect);
 
-    return cell.value().AsFeedbackVector();
+    return cell;
   }
 
   // Must succeed.
@@ -438,8 +438,9 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
                                                       : ""));
   // Determine the target's feedback vector and its context.
   Node* context;
-  FeedbackVectorRef feedback_vector = DetermineCallContext(node, &context);
-  CHECK(broker()->IsSerializedForCompilation(*shared_info, feedback_vector));
+  FeedbackCellRef feedback_cell = DetermineCallContext(node, &context);
+  CHECK(broker()->IsSerializedForCompilation(
+      *shared_info, feedback_cell.value().AsFeedbackVector()));
 
   // ----------------------------------------------------------------
   // After this point, we've made a decision to inline this function.
@@ -468,7 +469,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     }
     {
       CallFrequency frequency = call.frequency();
-      BuildGraphFromBytecode(broker(), zone(), *shared_info, feedback_vector,
+      BuildGraphFromBytecode(broker(), zone(), *shared_info, feedback_cell,
                              BailoutId::None(), jsgraph(), frequency,
                              source_positions_, inlining_id, info_->code_kind(),
                              flags, &info_->tick_counter());

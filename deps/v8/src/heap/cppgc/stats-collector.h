@@ -12,21 +12,185 @@
 
 #include "src/base/macros.h"
 #include "src/base/platform/time.h"
+#include "src/heap/cppgc/garbage-collector.h"
+#include "src/heap/cppgc/heap-base.h"
+#include "src/heap/cppgc/trace-event.h"
 
 namespace cppgc {
 namespace internal {
 
+#define CPPGC_FOR_ALL_SCOPES(V)             \
+  V(AtomicMark)                             \
+  V(AtomicSweep)                            \
+  V(AtomicCompact)                          \
+  V(IncrementalMark)                        \
+  V(IncrementalSweep)                       \
+  V(MarkIncrementalStart)                   \
+  V(MarkIncrementalFinalize)                \
+  V(MarkAtomicPrologue)                     \
+  V(MarkAtomicEpilogue)                     \
+  V(MarkTransitiveClosure)                  \
+  V(MarkTransitiveClosureWithDeadline)      \
+  V(MarkFlushEphemerons)                    \
+  V(MarkProcessBailOutObjects)              \
+  V(MarkProcessMarkingWorklist)             \
+  V(MarkProcessWriteBarrierWorklist)        \
+  V(MarkProcessNotFullyconstructedWorklist) \
+  V(MarkProcessEphemerons)                  \
+  V(MarkVisitRoots)                         \
+  V(MarkVisitNotFullyConstructedObjects)    \
+  V(MarkVisitPersistents)                   \
+  V(MarkVisitCrossThreadPersistents)        \
+  V(MarkVisitStack)                         \
+  V(MarkVisitRememberedSets)                \
+  V(WeakInvokeCallbacks)                    \
+  V(SweepInvokePreFinalizers)               \
+  V(SweepIdleStep)                          \
+  V(SweepOnAllocation)                      \
+  V(SweepFinalize)
+
+#define CPPGC_FOR_ALL_CONCURRENT_SCOPES(V) \
+  V(ConcurrentMarkProcessEphemerons)       \
+  V(ConcurrentMark)                        \
+  V(ConcurrentSweep)
+
 // Sink for various time and memory statistics.
 class V8_EXPORT_PRIVATE StatsCollector final {
+  using CollectionType = GarbageCollector::Config::CollectionType;
+  using IsForcedGC = GarbageCollector::Config::IsForcedGC;
+
  public:
+#if defined(CPPGC_DECLARE_ENUM)
+  static_assert(false, "CPPGC_DECLARE_ENUM macro is already defined");
+#endif
+
+  enum ScopeId {
+#define CPPGC_DECLARE_ENUM(name) k##name,
+    CPPGC_FOR_ALL_SCOPES(CPPGC_DECLARE_ENUM)
+#undef CPPGC_DECLARE_ENUM
+        kNumScopeIds,
+  };
+
+  enum ConcurrentScopeId {
+#define CPPGC_DECLARE_ENUM(name) k##name,
+    CPPGC_FOR_ALL_CONCURRENT_SCOPES(CPPGC_DECLARE_ENUM)
+#undef CPPGC_DECLARE_ENUM
+        kNumConcurrentScopeIds
+  };
+
   // POD to hold interesting data accumulated during a garbage collection cycle.
   //
   // The event is always fully populated when looking at previous events but
   // may only be partially populated when looking at the current event.
   struct Event final {
+    V8_EXPORT_PRIVATE explicit Event();
+
+    v8::base::TimeDelta scope_data[kNumScopeIds];
+    v8::base::Atomic32 concurrent_scope_data[kNumConcurrentScopeIds]{0};
+
+    size_t epoch = -1;
+    CollectionType collection_type = CollectionType::kMajor;
+    IsForcedGC is_forced_gc = IsForcedGC::kNotForced;
     // Marked bytes collected during marking.
     size_t marked_bytes = 0;
   };
+
+ private:
+#if defined(CPPGC_CASE)
+  static_assert(false, "CPPGC_CASE macro is already defined");
+#endif
+
+  constexpr static const char* GetScopeName(ScopeId id, CollectionType type) {
+    switch (id) {
+#define CPPGC_CASE(name)                                   \
+  case k##name:                                            \
+    return type == CollectionType::kMajor ? "CppGC." #name \
+                                          : "CppGC." #name ".Minor";
+      CPPGC_FOR_ALL_SCOPES(CPPGC_CASE)
+#undef CPPGC_CASE
+      default:
+        return nullptr;
+    }
+  }
+
+  constexpr static const char* GetScopeName(ConcurrentScopeId id,
+                                            CollectionType type) {
+    switch (id) {
+#define CPPGC_CASE(name)                                   \
+  case k##name:                                            \
+    return type == CollectionType::kMajor ? "CppGC." #name \
+                                          : "CppGC." #name ".Minor";
+      CPPGC_FOR_ALL_CONCURRENT_SCOPES(CPPGC_CASE)
+#undef CPPGC_CASE
+      default:
+        return nullptr;
+    }
+  }
+
+  enum TraceCategory { kEnabled, kDisabled };
+  enum ScopeContext { kMutatorThread, kConcurrentThread };
+
+  // Trace a particular scope. Will emit a trace event and record the time in
+  // the corresponding StatsCollector.
+  template <TraceCategory trace_category, ScopeContext scope_category>
+  class V8_NODISCARD InternalScope {
+    using ScopeIdType = std::conditional_t<scope_category == kMutatorThread,
+                                           ScopeId, ConcurrentScopeId>;
+
+   public:
+    template <typename... Args>
+    InternalScope(HeapBase& heap, ScopeIdType scope_id, Args... args)
+        : heap_(heap),
+          stats_collector_(heap_.stats_collector()),
+          start_time_(v8::base::TimeTicks::Now()),
+          scope_id_(scope_id) {
+      DCHECK_LE(0, scope_id_);
+      DCHECK_LT(static_cast<int>(scope_id_),
+                scope_category == kMutatorThread
+                    ? static_cast<int>(kNumScopeIds)
+                    : static_cast<int>(kNumConcurrentScopeIds));
+      StartTrace(args...);
+    }
+
+    ~InternalScope() {
+      StopTrace();
+      IncreaseScopeTime();
+    }
+
+    InternalScope(const InternalScope&) = delete;
+    InternalScope& operator=(const InternalScope&) = delete;
+
+   private:
+    void* operator new(size_t, void*) = delete;
+    void* operator new(size_t) = delete;
+
+    inline constexpr static const char* TraceCategory();
+
+    template <typename... Args>
+    inline void StartTrace(Args... args);
+    inline void StopTrace();
+
+    inline void StartTraceImpl();
+    template <typename Value1>
+    inline void StartTraceImpl(const char* k1, Value1 v1);
+    template <typename Value1, typename Value2>
+    inline void StartTraceImpl(const char* k1, Value1 v1, const char* k2,
+                               Value2 v2);
+    inline void StopTraceImpl();
+
+    inline void IncreaseScopeTime();
+
+    HeapBase& heap_;
+    StatsCollector* const stats_collector_;
+    const v8::base::TimeTicks start_time_;
+    const ScopeIdType scope_id_;
+  };
+
+ public:
+  using DisabledScope = InternalScope<kDisabled, kMutatorThread>;
+  using EnabledScope = InternalScope<kEnabled, kMutatorThread>;
+  using DisabledConcurrentScope = InternalScope<kDisabled, kConcurrentThread>;
+  using EnabledConcurrentScope = InternalScope<kEnabled, kConcurrentThread>;
 
   // Observer for allocated object size. May be used to implement heap growing
   // heuristics.
@@ -68,19 +232,21 @@ class V8_EXPORT_PRIVATE StatsCollector final {
   void NotifySafePointForConservativeCollection();
 
   // Indicates a new garbage collection cycle.
-  void NotifyMarkingStarted();
+  void NotifyMarkingStarted(CollectionType, IsForcedGC);
   // Indicates that marking of the current garbage collection cycle is
   // completed.
   void NotifyMarkingCompleted(size_t marked_bytes);
   // Indicates the end of a garbage collection cycle. This means that sweeping
   // is finished at this point.
-  const Event& NotifySweepingCompleted();
+  void NotifySweepingCompleted();
 
   // Size of live objects in bytes  on the heap. Based on the most recent marked
   // bytes and the bytes allocated since last marking.
   size_t allocated_object_size() const;
 
   double GetRecentAllocationSpeedInBytesPerMs() const;
+
+  const Event& GetPreviousEventForTesting() const { return previous_; }
 
  private:
   enum class GarbageCollectionState : uint8_t {
@@ -126,6 +292,97 @@ void StatsCollector::ForAllAllocationObservers(Callback callback) {
   for (AllocationObserver* observer : allocation_observers_) {
     callback(observer);
   }
+}
+
+template <StatsCollector::TraceCategory trace_category,
+          StatsCollector::ScopeContext scope_category>
+constexpr const char*
+StatsCollector::InternalScope<trace_category, scope_category>::TraceCategory() {
+  switch (trace_category) {
+    case kEnabled:
+      return "cppgc";
+    case kDisabled:
+      return TRACE_DISABLED_BY_DEFAULT("cppgc");
+  }
+}
+
+template <StatsCollector::TraceCategory trace_category,
+          StatsCollector::ScopeContext scope_category>
+template <typename... Args>
+void StatsCollector::InternalScope<trace_category, scope_category>::StartTrace(
+    Args... args) {
+  if (trace_category == StatsCollector::TraceCategory::kEnabled)
+    StartTraceImpl(args...);
+}
+
+template <StatsCollector::TraceCategory trace_category,
+          StatsCollector::ScopeContext scope_category>
+void StatsCollector::InternalScope<trace_category,
+                                   scope_category>::StopTrace() {
+  if (trace_category == StatsCollector::TraceCategory::kEnabled)
+    StopTraceImpl();
+}
+
+template <StatsCollector::TraceCategory trace_category,
+          StatsCollector::ScopeContext scope_category>
+void StatsCollector::InternalScope<trace_category,
+                                   scope_category>::StartTraceImpl() {
+  TRACE_EVENT_BEGIN0(
+      TraceCategory(),
+      GetScopeName(scope_id_, stats_collector_->current_.collection_type));
+}
+
+template <StatsCollector::TraceCategory trace_category,
+          StatsCollector::ScopeContext scope_category>
+template <typename Value1>
+void StatsCollector::InternalScope<
+    trace_category, scope_category>::StartTraceImpl(const char* k1, Value1 v1) {
+  TRACE_EVENT_BEGIN1(
+      TraceCategory(),
+      GetScopeName(scope_id_, stats_collector_->current_.collection_type), k1,
+      v1);
+}
+
+template <StatsCollector::TraceCategory trace_category,
+          StatsCollector::ScopeContext scope_category>
+template <typename Value1, typename Value2>
+void StatsCollector::InternalScope<
+    trace_category, scope_category>::StartTraceImpl(const char* k1, Value1 v1,
+                                                    const char* k2, Value2 v2) {
+  TRACE_EVENT_BEGIN2(
+      TraceCategory(),
+      GetScopeName(scope_id_, stats_collector_->current_.collection_type), k1,
+      v1, k2, v2);
+}
+
+template <StatsCollector::TraceCategory trace_category,
+          StatsCollector::ScopeContext scope_category>
+void StatsCollector::InternalScope<trace_category,
+                                   scope_category>::StopTraceImpl() {
+  TRACE_EVENT_END2(
+      TraceCategory(),
+      GetScopeName(scope_id_, stats_collector_->current_.collection_type),
+      "epoch", stats_collector_->current_.epoch, "forced",
+      stats_collector_->current_.is_forced_gc == IsForcedGC::kForced);
+}
+
+template <StatsCollector::TraceCategory trace_category,
+          StatsCollector::ScopeContext scope_category>
+void StatsCollector::InternalScope<trace_category,
+                                   scope_category>::IncreaseScopeTime() {
+  DCHECK_NE(GarbageCollectionState::kNotRunning, stats_collector_->gc_state_);
+  v8::base::TimeDelta time = v8::base::TimeTicks::Now() - start_time_;
+  if (scope_category == StatsCollector::ScopeContext::kMutatorThread) {
+    stats_collector_->current_.scope_data[scope_id_] += time;
+    return;
+  }
+  // scope_category == StatsCollector::ScopeContext::kConcurrentThread
+  using Atomic32 = v8::base::Atomic32;
+  const int64_t ms = time.InMicroseconds();
+  DCHECK(ms <= std::numeric_limits<Atomic32>::max());
+  v8::base::Relaxed_AtomicIncrement(
+      &stats_collector_->current_.concurrent_scope_data[scope_id_],
+      static_cast<Atomic32>(ms));
 }
 
 }  // namespace internal

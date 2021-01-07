@@ -30,12 +30,12 @@ Dictionary<Derived, Shape>::Dictionary(Address ptr)
 
 template <typename Derived, typename Shape>
 Object Dictionary<Derived, Shape>::ValueAt(InternalIndex entry) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return ValueAt(isolate, entry);
 }
 
 template <typename Derived, typename Shape>
-Object Dictionary<Derived, Shape>::ValueAt(const Isolate* isolate,
+Object Dictionary<Derived, Shape>::ValueAt(IsolateRoot isolate,
                                            InternalIndex entry) {
   return this->get(isolate, DerivedHashTable::EntryToIndex(entry) +
                                 Derived::kEntryValueIndex);
@@ -139,7 +139,7 @@ void Dictionary<Derived, Shape>::SetEntry(InternalIndex entry, Object key,
   DCHECK(Dictionary::kEntrySize == 2 || Dictionary::kEntrySize == 3);
   DCHECK(!key.IsName() || details.dictionary_index() > 0);
   int index = DerivedHashTable::EntryToIndex(entry);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   WriteBarrierMode mode = this->GetWriteBarrierMode(no_gc);
   this->set(index + Derived::kEntryKeyIndex, key, mode);
   this->set(index + Derived::kEntryValueIndex, value, mode);
@@ -181,11 +181,11 @@ Handle<Map> GlobalDictionary::GetMap(ReadOnlyRoots roots) {
 }
 
 Name NameDictionary::NameAt(InternalIndex entry) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return NameAt(isolate, entry);
 }
 
-Name NameDictionary::NameAt(const Isolate* isolate, InternalIndex entry) {
+Name NameDictionary::NameAt(IsolateRoot isolate, InternalIndex entry) {
   return Name::cast(KeyAt(isolate, entry));
 }
 
@@ -194,31 +194,31 @@ Handle<Map> NameDictionary::GetMap(ReadOnlyRoots roots) {
 }
 
 PropertyCell GlobalDictionary::CellAt(InternalIndex entry) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return CellAt(isolate, entry);
 }
 
-PropertyCell GlobalDictionary::CellAt(const Isolate* isolate,
+PropertyCell GlobalDictionary::CellAt(IsolateRoot isolate,
                                       InternalIndex entry) {
   DCHECK(KeyAt(isolate, entry).IsPropertyCell(isolate));
   return PropertyCell::cast(KeyAt(isolate, entry));
 }
 
 Name GlobalDictionary::NameAt(InternalIndex entry) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return NameAt(isolate, entry);
 }
 
-Name GlobalDictionary::NameAt(const Isolate* isolate, InternalIndex entry) {
+Name GlobalDictionary::NameAt(IsolateRoot isolate, InternalIndex entry) {
   return CellAt(isolate, entry).name(isolate);
 }
 
 Object GlobalDictionary::ValueAt(InternalIndex entry) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return ValueAt(isolate, entry);
 }
 
-Object GlobalDictionary::ValueAt(const Isolate* isolate, InternalIndex entry) {
+Object GlobalDictionary::ValueAt(IsolateRoot isolate, InternalIndex entry) {
   return CellAt(isolate, entry).value(isolate);
 }
 
@@ -279,21 +279,24 @@ bool NameDictionaryShape::IsMatch(Handle<Name> key, Object other) {
 }
 
 uint32_t NameDictionaryShape::Hash(ReadOnlyRoots roots, Handle<Name> key) {
-  return key->Hash();
+  DCHECK(key->IsUniqueName());
+  return key->hash();
 }
 
 uint32_t NameDictionaryShape::HashForObject(ReadOnlyRoots roots, Object other) {
-  return Name::cast(other).Hash();
+  DCHECK(other.IsUniqueName());
+  return Name::cast(other).hash();
 }
 
 bool GlobalDictionaryShape::IsMatch(Handle<Name> key, Object other) {
+  DCHECK(key->IsUniqueName());
   DCHECK(PropertyCell::cast(other).name().IsUniqueName());
   return *key == PropertyCell::cast(other).name();
 }
 
 uint32_t GlobalDictionaryShape::HashForObject(ReadOnlyRoots roots,
                                               Object other) {
-  return PropertyCell::cast(other).name().Hash();
+  return PropertyCell::cast(other).name().hash();
 }
 
 Handle<Object> NameDictionaryShape::AsHandle(Isolate* isolate,
@@ -320,7 +323,11 @@ void GlobalDictionaryShape::DetailsAtPut(Dictionary dict, InternalIndex entry,
                                          PropertyDetails value) {
   DCHECK(entry.is_found());
   PropertyCell cell = dict.CellAt(entry);
-  if (cell.property_details().IsReadOnly() != value.IsReadOnly()) {
+  // Deopt when when making a writable property read-only. The reverse direction
+  // is uninteresting because Turbofan does not currently rely on read-only
+  // unless the property is also configurable, in which case it will stay
+  // read-only forever.
+  if (!cell.property_details().IsReadOnly() && value.IsReadOnly()) {
     cell.dependent_code().DeoptimizeDependentCodeGroup(
         DependentCode::kPropertyCellChangedGroup);
   }

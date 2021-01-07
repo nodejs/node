@@ -214,6 +214,7 @@ Macro* Declarations::DeclareMacro(
     macro = CreateTorqueMacro(name, name, accessible_from_csa, signature, body,
                               is_user_defined);
   }
+
   Declare(name, macro);
   if (op) {
     if (TryLookupMacro(*op, signature.GetExplicitTypes())) {

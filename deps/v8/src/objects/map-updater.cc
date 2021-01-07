@@ -28,7 +28,7 @@ inline bool EqualImmutableValues(Object obj1, Object obj2) {
 MapUpdater::MapUpdater(Isolate* isolate, Handle<Map> old_map)
     : isolate_(isolate),
       old_map_(old_map),
-      old_descriptors_(old_map->instance_descriptors(), isolate_),
+      old_descriptors_(old_map->instance_descriptors(kRelaxedLoad), isolate_),
       old_nof_(old_map_->NumberOfOwnDescriptors()),
       new_elements_kind_(old_map_->elements_kind()),
       is_transitionable_fast_elements_kind_(
@@ -197,8 +197,9 @@ void MapUpdater::GeneralizeField(Handle<Map> map, InternalIndex modify_index,
   Map::GeneralizeField(isolate_, map, modify_index, new_constness,
                        new_representation, new_field_type);
 
-  DCHECK(*old_descriptors_ == old_map_->instance_descriptors() ||
-         *old_descriptors_ == integrity_source_map_->instance_descriptors());
+  DCHECK(*old_descriptors_ == old_map_->instance_descriptors(kRelaxedLoad) ||
+         *old_descriptors_ ==
+             integrity_source_map_->instance_descriptors(kRelaxedLoad));
 }
 
 MapUpdater::State MapUpdater::Normalize(const char* reason) {
@@ -216,6 +217,14 @@ MapUpdater::State MapUpdater::TryReconfigureToDataFieldInplace() {
 
   PropertyDetails old_details =
       old_descriptors_->GetDetails(modified_descriptor_);
+
+  if (old_details.attributes() != new_attributes_ ||
+      old_details.kind() != new_kind_ ||
+      old_details.location() != new_location_) {
+    // These changes can't be done in-place.
+    return state_;  // Not done yet.
+  }
+
   Representation old_representation = old_details.representation();
   if (!old_representation.CanBeInPlaceChangedTo(new_representation_)) {
     return state_;  // Not done yet.
@@ -284,8 +293,8 @@ bool MapUpdater::TrySaveIntegrityLevelTransitions() {
            integrity_source_map_->NumberOfOwnDescriptors());
 
   has_integrity_level_transition_ = true;
-  old_descriptors_ =
-      handle(integrity_source_map_->instance_descriptors(), isolate_);
+  old_descriptors_ = handle(
+      integrity_source_map_->instance_descriptors(kRelaxedLoad), isolate_);
   return true;
 }
 
@@ -380,8 +389,8 @@ MapUpdater::State MapUpdater::FindTargetMap() {
     if (transition.is_null()) break;
     Handle<Map> tmp_map(transition, isolate_);
 
-    Handle<DescriptorArray> tmp_descriptors(tmp_map->instance_descriptors(),
-                                            isolate_);
+    Handle<DescriptorArray> tmp_descriptors(
+        tmp_map->instance_descriptors(kRelaxedLoad), isolate_);
 
     // Check if target map is incompatible.
     PropertyDetails tmp_details = tmp_descriptors->GetDetails(i);
@@ -428,7 +437,8 @@ MapUpdater::State MapUpdater::FindTargetMap() {
   if (target_nof == old_nof_) {
 #ifdef DEBUG
     if (modified_descriptor_.is_found()) {
-      DescriptorArray target_descriptors = target_map_->instance_descriptors();
+      DescriptorArray target_descriptors =
+          target_map_->instance_descriptors(kRelaxedLoad);
       PropertyDetails details =
           target_descriptors.GetDetails(modified_descriptor_);
       DCHECK_EQ(new_kind_, details.kind());
@@ -476,8 +486,8 @@ MapUpdater::State MapUpdater::FindTargetMap() {
                                            old_details.attributes());
     if (transition.is_null()) break;
     Handle<Map> tmp_map(transition, isolate_);
-    Handle<DescriptorArray> tmp_descriptors(tmp_map->instance_descriptors(),
-                                            isolate_);
+    Handle<DescriptorArray> tmp_descriptors(
+        tmp_map->instance_descriptors(kRelaxedLoad), isolate_);
 #ifdef DEBUG
     // Check that target map is compatible.
     PropertyDetails tmp_details = tmp_descriptors->GetDetails(i);
@@ -501,7 +511,7 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
   InstanceType instance_type = old_map_->instance_type();
   int target_nof = target_map_->NumberOfOwnDescriptors();
   Handle<DescriptorArray> target_descriptors(
-      target_map_->instance_descriptors(), isolate_);
+      target_map_->instance_descriptors(kRelaxedLoad), isolate_);
 
   // Allocate a new descriptor array large enough to hold the required
   // descriptors, with minimally the exact same size as the old descriptor
@@ -665,7 +675,7 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
 }
 
 Handle<Map> MapUpdater::FindSplitMap(Handle<DescriptorArray> descriptors) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
 
   int root_nof = root_map_->NumberOfOwnDescriptors();
   Map current = *root_map_;
@@ -673,10 +683,10 @@ Handle<Map> MapUpdater::FindSplitMap(Handle<DescriptorArray> descriptors) {
     Name name = descriptors->GetKey(i);
     PropertyDetails details = descriptors->GetDetails(i);
     Map next =
-        TransitionsAccessor(isolate_, current, &no_allocation)
+        TransitionsAccessor(isolate_, current, &no_gc)
             .SearchTransition(name, details.kind(), details.attributes());
     if (next.is_null()) break;
-    DescriptorArray next_descriptors = next.instance_descriptors();
+    DescriptorArray next_descriptors = next.instance_descriptors(kRelaxedLoad);
 
     PropertyDetails next_details = next_descriptors.GetDetails(i);
     DCHECK_EQ(details.kind(), next_details.kind());

@@ -21,18 +21,15 @@ namespace internal {
 // header, with slot index 2 corresponding to the current function context and 3
 // corresponding to the frame marker/JSFunction.
 //
-// If V8_REVERSE_JSARGS is set, then the parameters are reversed in the stack,
-// i.e., the first parameter (the receiver) is just above the return address.
-//
 //  slot      JS frame
 //       +-----------------+--------------------------------
-//  -n-1 |   parameter 0   |                            ^
+//  -n-1 |   parameter n   |                            ^
 //       |- - - - - - - - -|                            |
-//  -n   |                 |                          Caller
+//  -n   |  parameter n-1  |                          Caller
 //  ...  |       ...       |                       frame slots
-//  -2   |  parameter n-1  |                       (slot < 0)
+//  -2   |   parameter 1   |                       (slot < 0)
 //       |- - - - - - - - -|                            |
-//  -1   |   parameter n   |                            v
+//  -1   |   parameter 0   |                            v
 //  -----+-----------------+--------------------------------
 //   0   |   return addr   |   ^                        ^
 //       |- - - - - - - - -|   |                        |
@@ -59,7 +56,7 @@ class CommonFrameConstants : public AllStatic {
 
   // Fixed part of the frame consists of return address, caller fp,
   // constant pool (if FLAG_enable_embedded_constant_pool), context, and
-  // function. StandardFrame::IterateExpressions assumes that kLastObjectOffset
+  // function. CommonFrame::IterateExpressions assumes that kLastObjectOffset
   // is the last object pointer.
   static constexpr int kFixedFrameSizeAboveFp = kPCOnStackSize + kFPOnStackSize;
   static constexpr int kFixedSlotCountAboveFp =
@@ -82,13 +79,13 @@ class CommonFrameConstants : public AllStatic {
 //
 //  slot      JS frame
 //       +-----------------+--------------------------------
-//  -n-1 |   parameter 0   |                            ^
+//  -n-1 |   parameter n   |                            ^
 //       |- - - - - - - - -|                            |
-//  -n   |                 |                          Caller
+//  -n   |  parameter n-1  |                          Caller
 //  ...  |       ...       |                       frame slots
-//  -2   |  parameter n-1  |                       (slot < 0)
+//  -2   |   parameter 1   |                       (slot < 0)
 //       |- - - - - - - - -|                            |
-//  -1   |   parameter n   |                            v
+//  -1   |   parameter 0   |                            v
 //  -----+-----------------+--------------------------------
 //   0   |   return addr   |   ^                        ^
 //       |- - - - - - - - -|   |                        |
@@ -133,13 +130,13 @@ class StandardFrameConstants : public CommonFrameConstants {
 //
 //  slot      JS frame
 //       +-----------------+--------------------------------
-//  -n-1 |   parameter 0   |                            ^
+//  -n-1 |   parameter n   |                            ^
 //       |- - - - - - - - -|                            |
-//  -n   |                 |                          Caller
+//  -n   |  parameter n-1  |                          Caller
 //  ...  |       ...       |                       frame slots
-//  -2   |  parameter n-1  |                       (slot < 0)
+//  -2   |   parameter 1   |                       (slot < 0)
 //       |- - - - - - - - -|                            |
-//  -1   |   parameter n   |                            v
+//  -1   |   parameter 0   |                            v
 //  -----+-----------------+--------------------------------
 //   0   |   return addr   |   ^                        ^
 //       |- - - - - - - - -|   |                        |
@@ -305,18 +302,13 @@ class InterpreterFrameConstants : public StandardFrameConstants {
       STANDARD_FRAME_EXTRA_PUSHED_VALUE_OFFSET(1);
   DEFINE_STANDARD_FRAME_SIZES(2);
 
-#ifdef V8_REVERSE_JSARGS
   static constexpr int kFirstParamFromFp =
       StandardFrameConstants::kCallerSPOffset;
-#else
-  static constexpr int kLastParamFromFp =
-      StandardFrameConstants::kCallerSPOffset;
-#endif
   static constexpr int kRegisterFileFromFp =
       -kFixedFrameSizeFromFp - kSystemPointerSize;
   static constexpr int kExpressionsOffset = kRegisterFileFromFp;
 
-  // Expression index for {StandardFrame::GetExpressionAddress}.
+  // Expression index for {JavaScriptFrame::GetExpressionAddress}.
   static constexpr int kBytecodeArrayExpressionIndex = -2;
   static constexpr int kBytecodeOffsetExpressionIndex = -1;
   static constexpr int kRegisterFileExpressionIndex = 0;

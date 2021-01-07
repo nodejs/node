@@ -10,7 +10,6 @@
 #include "src/objects/internal-index.h"
 #include "src/objects/objects.h"
 #include "src/objects/property-array.h"
-#include "torque-generated/class-definitions.h"
 #include "torque-generated/field-offsets.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -29,6 +28,8 @@ class JSGlobalProxy;
 class NativeContext;
 class IsCompiledScope;
 
+#include "torque-generated/src/objects/js-objects-tq.inc"
+
 // JSReceiver includes types on which properties can be defined, i.e.,
 // JSObject and JSProxy.
 class JSReceiver : public HeapObject {
@@ -43,8 +44,13 @@ class JSReceiver : public HeapObject {
   // map.
   DECL_GETTER(property_array, PropertyArray)
 
-  // Gets slow properties for non-global objects.
+  // Gets slow properties for non-global objects (if v8_dict_mode_prototypes is
+  // not set).
   DECL_GETTER(property_dictionary, NameDictionary)
+
+  // Gets slow properties for non-global objects (if v8_dict_mode_prototypes is
+  // set).
+  DECL_GETTER(property_dictionary_ordered, OrderedNameDictionary)
 
   // Sets the properties backing store and makes sure any existing hash is moved
   // to the new properties store. To clear out the properties store, pass in the
@@ -106,6 +112,7 @@ class JSReceiver : public HeapObject {
   // maybe_excluded_properties list.
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetOrCopyDataProperties(
       Isolate* isolate, Handle<JSReceiver> target, Handle<Object> source,
+      PropertiesEnumerationMode mode,
       const ScopedVector<Handle<Object>>* excluded_properties = nullptr,
       bool use_set = true);
 
@@ -278,6 +285,9 @@ class JSReceiver : public HeapObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 TORQUE_GENERATED_JS_RECEIVER_FIELDS)
   bool HasProxyInPrototype(Isolate* isolate);
+
+  // TC39 "Dynamic Code Brand Checks"
+  bool IsCodeLike(Isolate* isolate) const;
 
   OBJECT_CONSTRUCTORS(JSReceiver, HeapObject);
 };
@@ -567,6 +577,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   static inline int GetEmbedderFieldCount(Map map);
   inline int GetEmbedderFieldCount() const;
   inline int GetEmbedderFieldOffset(int index);
+  inline void InitializeEmbedderField(Isolate* isolate, int index);
   inline Object GetEmbedderField(int index);
   inline void SetEmbedderField(int index, Object value);
   inline void SetEmbedderField(int index, Smi value);
@@ -620,16 +631,14 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                                                   const char* reason);
 
   inline bool IsUnboxedDoubleField(FieldIndex index) const;
-  inline bool IsUnboxedDoubleField(const Isolate* isolate,
-                                   FieldIndex index) const;
+  inline bool IsUnboxedDoubleField(IsolateRoot isolate, FieldIndex index) const;
 
   // Access fast-case object properties at index.
   static Handle<Object> FastPropertyAt(Handle<JSObject> object,
                                        Representation representation,
                                        FieldIndex index);
   inline Object RawFastPropertyAt(FieldIndex index) const;
-  inline Object RawFastPropertyAt(const Isolate* isolate,
-                                  FieldIndex index) const;
+  inline Object RawFastPropertyAt(IsolateRoot isolate, FieldIndex index) const;
   inline double RawFastDoublePropertyAt(FieldIndex index) const;
   inline uint64_t RawFastDoublePropertyAsBitsAt(FieldIndex index) const;
 
@@ -724,7 +733,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // If a GC was caused while constructing this object, the elements pointer
   // may point to a one pointer filler map. The object won't be rooted, but
   // our heap verification code could stumble across it.
-  V8_EXPORT_PRIVATE bool ElementsAreSafeToExamine(const Isolate* isolate) const;
+  V8_EXPORT_PRIVATE bool ElementsAreSafeToExamine(IsolateRoot isolate) const;
 #endif
 
   Object SlowReverseLookup(Object value);
@@ -938,6 +947,7 @@ class JSGlobalProxy
     : public TorqueGeneratedJSGlobalProxy<JSGlobalProxy, JSSpecialObject> {
  public:
   inline bool IsDetachedFrom(JSGlobalObject global) const;
+  V8_EXPORT_PRIVATE bool IsDetached() const;
 
   static int SizeWithEmbedderFields(int embedder_field_count);
 
@@ -957,9 +967,7 @@ class JSGlobalObject : public JSSpecialObject {
   // [global proxy]: the global proxy object of the context
   DECL_ACCESSORS(global_proxy, JSGlobalProxy)
 
-  // Gets global object properties.
-  DECL_GETTER(global_dictionary, GlobalDictionary)
-  inline void set_global_dictionary(GlobalDictionary dictionary);
+  DECL_RELEASE_ACQUIRE_ACCESSORS(global_dictionary, GlobalDictionary)
 
   static void InvalidatePropertyCell(Handle<JSGlobalObject> object,
                                      Handle<Name> name);

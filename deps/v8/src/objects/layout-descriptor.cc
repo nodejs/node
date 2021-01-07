@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include "src/base/bits.h"
+#include "src/base/platform/wrappers.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/objects-inl.h"
 
@@ -52,7 +53,7 @@ Handle<LayoutDescriptor> LayoutDescriptor::ShareAppend(
   layout_descriptor = LayoutDescriptor::EnsureCapacity(
       isolate, layout_descriptor, field_index + details.field_width_in_words());
 
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   LayoutDescriptor layout_desc = *layout_descriptor;
   layout_desc = layout_desc.SetRawData(field_index);
   if (details.field_width_in_words() > 1) {
@@ -64,8 +65,8 @@ Handle<LayoutDescriptor> LayoutDescriptor::ShareAppend(
 Handle<LayoutDescriptor> LayoutDescriptor::AppendIfFastOrUseFull(
     Isolate* isolate, Handle<Map> map, PropertyDetails details,
     Handle<LayoutDescriptor> full_layout_descriptor) {
-  DisallowHeapAllocation no_allocation;
-  LayoutDescriptor layout_descriptor = map->layout_descriptor();
+  DisallowGarbageCollection no_gc;
+  LayoutDescriptor layout_descriptor = map->layout_descriptor(kAcquireLoad);
   if (layout_descriptor.IsSlowLayout()) {
     return full_layout_descriptor;
   }
@@ -101,9 +102,9 @@ Handle<LayoutDescriptor> LayoutDescriptor::EnsureCapacity(
   DCHECK(new_layout_descriptor->IsSlowLayout());
 
   if (layout_descriptor->IsSlowLayout()) {
-    memcpy(new_layout_descriptor->GetDataStartAddress(),
-           layout_descriptor->GetDataStartAddress(),
-           layout_descriptor->DataSize());
+    base::Memcpy(new_layout_descriptor->GetDataStartAddress(),
+                 layout_descriptor->GetDataStartAddress(),
+                 layout_descriptor->DataSize());
     return new_layout_descriptor;
   } else {
     // Fast layout.
@@ -164,8 +165,8 @@ bool LayoutDescriptor::IsTagged(int field_index, int max_sequence_length,
       }
     }
   } else {  // Fast layout.
-    sequence_length = Min(base::bits::CountTrailingZeros(value),
-                          static_cast<unsigned>(kBitsInSmiLayout)) -
+    sequence_length = std::min(base::bits::CountTrailingZeros(value),
+                               static_cast<unsigned>(kBitsInSmiLayout)) -
                       layout_bit_index;
     if (is_tagged && (field_index + sequence_length == capacity())) {
       // The contiguous sequence of tagged fields lasts till the end of the
@@ -174,7 +175,7 @@ bool LayoutDescriptor::IsTagged(int field_index, int max_sequence_length,
       sequence_length = std::numeric_limits<int>::max();
     }
   }
-  *out_sequence_length = Min(sequence_length, max_sequence_length);
+  *out_sequence_length = std::min(sequence_length, max_sequence_length);
   return is_tagged;
 }
 
@@ -200,7 +201,7 @@ bool LayoutDescriptorHelper::IsTagged(
     return true;
   }
   int max_sequence_length = (end_offset - offset_in_bytes) / kTaggedSize;
-  int field_index = Max(0, (offset_in_bytes - header_size_) / kTaggedSize);
+  int field_index = std::max(0, (offset_in_bytes - header_size_) / kTaggedSize);
   int sequence_length;
   bool tagged = layout_descriptor_.IsTagged(field_index, max_sequence_length,
                                             &sequence_length);
@@ -228,7 +229,7 @@ bool LayoutDescriptorHelper::IsTagged(
 LayoutDescriptor LayoutDescriptor::Trim(Heap* heap, Map map,
                                         DescriptorArray descriptors,
                                         int num_descriptors) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   // Fast mode descriptors are never shared and therefore always fully
   // correspond to their map.
   if (!IsSlowLayout()) return *this;
@@ -257,7 +258,7 @@ LayoutDescriptor LayoutDescriptor::Trim(Heap* heap, Map map,
 
 bool LayoutDescriptor::IsConsistentWithMap(Map map, bool check_tail) {
   if (FLAG_unbox_double_fields) {
-    DescriptorArray descriptors = map.instance_descriptors();
+    DescriptorArray descriptors = map.instance_descriptors(kRelaxedLoad);
     int last_field_index = 0;
     for (InternalIndex i : map.IterateOwnDescriptors()) {
       PropertyDetails details = descriptors.GetDetails(i);
@@ -271,8 +272,8 @@ bool LayoutDescriptor::IsConsistentWithMap(Map map, bool check_tail) {
         if (tagged_actual != tagged_expected) return false;
       }
       last_field_index =
-          Max(last_field_index,
-              details.field_index() + details.field_width_in_words());
+          std::max(last_field_index,
+                   details.field_index() + details.field_width_in_words());
     }
     if (check_tail) {
       int n = capacity();

@@ -69,7 +69,7 @@ class Processor final : public AstVisitor<Processor> {
   // [replacement_].  In many cases this will just be the original node.
   Statement* replacement_;
 
-  class BreakableScope final {
+  class V8_NODISCARD BreakableScope final {
    public:
     explicit BreakableScope(Processor* processor, bool breakable = true)
         : processor_(processor), previous_(processor->breakable_) {
@@ -246,23 +246,40 @@ void Processor::VisitTryFinallyStatement(TryFinallyStatement* node) {
     is_set_ = true;
     Visit(node->finally_block());
     node->set_finally_block(replacement_->AsBlock());
-    // Save .result value at the beginning of the finally block and restore it
-    // at the end again: ".backup = .result; ...; .result = .backup"
-    // This is necessary because the finally block does not normally contribute
-    // to the completion value.
     CHECK_NOT_NULL(closure_scope());
-    Variable* backup = closure_scope()->NewTemporary(
-        factory()->ast_value_factory()->dot_result_string());
-    Expression* backup_proxy = factory()->NewVariableProxy(backup);
-    Expression* result_proxy = factory()->NewVariableProxy(result_);
-    Expression* save = factory()->NewAssignment(
-        Token::ASSIGN, backup_proxy, result_proxy, kNoSourcePosition);
-    Expression* restore = factory()->NewAssignment(
-        Token::ASSIGN, result_proxy, backup_proxy, kNoSourcePosition);
-    node->finally_block()->statements()->InsertAt(
-        0, factory()->NewExpressionStatement(save, kNoSourcePosition), zone());
-    node->finally_block()->statements()->Add(
-        factory()->NewExpressionStatement(restore, kNoSourcePosition), zone());
+    if (is_set_) {
+      // Save .result value at the beginning of the finally block and restore it
+      // at the end again: ".backup = .result; ...; .result = .backup" This is
+      // necessary because the finally block does not normally contribute to the
+      // completion value.
+      Variable* backup = closure_scope()->NewTemporary(
+          factory()->ast_value_factory()->dot_result_string());
+      Expression* backup_proxy = factory()->NewVariableProxy(backup);
+      Expression* result_proxy = factory()->NewVariableProxy(result_);
+      Expression* save = factory()->NewAssignment(
+          Token::ASSIGN, backup_proxy, result_proxy, kNoSourcePosition);
+      Expression* restore = factory()->NewAssignment(
+          Token::ASSIGN, result_proxy, backup_proxy, kNoSourcePosition);
+      node->finally_block()->statements()->InsertAt(
+          0, factory()->NewExpressionStatement(save, kNoSourcePosition),
+          zone());
+      node->finally_block()->statements()->Add(
+          factory()->NewExpressionStatement(restore, kNoSourcePosition),
+          zone());
+    } else {
+      // If is_set_ is false, it means the finally block has a 'break' or a
+      // 'continue' and was not preceded by a statement that assigned to
+      // .result. Try-finally statements return the abrupt completions from the
+      // finally block, meaning this case should get an undefined.
+      //
+      // Since the finally block will definitely result in an abrupt completion,
+      // there's no need to save and restore the .result.
+      Expression* undef = factory()->NewUndefinedLiteral(kNoSourcePosition);
+      Expression* assignment = SetResult(undef);
+      node->finally_block()->statements()->InsertAt(
+          0, factory()->NewExpressionStatement(assignment, kNoSourcePosition),
+          zone());
+    }
     // We can't tell whether the finally-block is guaranteed to set .result, so
     // reset is_set_ before visiting the try-block.
     is_set_ = false;
@@ -383,7 +400,7 @@ bool Rewriter::Rewrite(ParseInfo* info) {
 
 base::Optional<VariableProxy*> Rewriter::RewriteBody(
     ParseInfo* info, Scope* scope, ZonePtrList<Statement>* body) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
 

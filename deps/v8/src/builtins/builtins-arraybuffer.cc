@@ -139,8 +139,8 @@ static Object SliceHelper(BuiltinArguments args, Isolate* isolate,
   // * If relativeStart < 0, let first be max((len + relativeStart), 0); else
   //   let first be min(relativeStart, len).
   double const first = (relative_start->Number() < 0)
-                           ? Max(len + relative_start->Number(), 0.0)
-                           : Min(relative_start->Number(), len);
+                           ? std::max(len + relative_start->Number(), 0.0)
+                           : std::min(relative_start->Number(), len);
   Handle<Object> first_obj = isolate->factory()->NewNumber(first);
 
   // * If end is undefined, let relativeEnd be len; else let relativeEnd be ?
@@ -157,11 +157,11 @@ static Object SliceHelper(BuiltinArguments args, Isolate* isolate,
 
   // * If relativeEnd < 0, let final be max((len + relativeEnd), 0); else let
   //   final be min(relativeEnd, len).
-  double const final_ = (relative_end < 0) ? Max(len + relative_end, 0.0)
-                                           : Min(relative_end, len);
+  double const final_ = (relative_end < 0) ? std::max(len + relative_end, 0.0)
+                                           : std::min(relative_end, len);
 
   // * Let newLen be max(final-first, 0).
-  double const new_len = Max(final_ - first, 0.0);
+  double const new_len = std::max(final_ - first, 0.0);
   Handle<Object> new_len_obj = isolate->factory()->NewNumber(new_len);
 
   // * [AB] Let ctor be ? SpeciesConstructor(O, %ArrayBuffer%).

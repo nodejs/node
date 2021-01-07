@@ -21,12 +21,14 @@ using F_ppiii = void*(void* p0, void* p1, int p2, int p3, int p4);
 using F_pppii = void*(void* p0, void* p1, void* p2, int p3, int p4);
 using F_ippii = void*(int p0, void* p1, void* p2, int p3, int p4);
 
-Handle<Code> AssembleCodeImpl(std::function<void(MacroAssembler&)> assemble);
+Handle<Code> AssembleCodeImpl(Isolate* isolate,
+                              std::function<void(MacroAssembler&)> assemble);
 
 template <typename Signature>
 GeneratedCode<Signature> AssembleCode(
-    std::function<void(MacroAssembler&)> assemble) {
-  return GeneratedCode<Signature>::FromCode(*AssembleCodeImpl(assemble));
+    Isolate* isolate, std::function<void(MacroAssembler&)> assemble) {
+  return GeneratedCode<Signature>::FromCode(
+      *AssembleCodeImpl(isolate, assemble));
 }
 
 }  // namespace internal

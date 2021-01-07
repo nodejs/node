@@ -276,6 +276,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
         stack_order_(stack_order),
         debug_name_(debug_name) {}
 
+  CallDescriptor(const CallDescriptor&) = delete;
+  CallDescriptor& operator=(const CallDescriptor&) = delete;
+
   // Returns the kind of this call.
   Kind kind() const { return kind_; }
 
@@ -304,10 +307,10 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   // The number of C parameters to this call.
   size_t ParameterCount() const { return location_sig_->parameter_count(); }
 
-  // The number of stack parameters to the call.
+  // The number of stack parameter slots to the call.
   size_t StackParameterCount() const { return stack_param_count_; }
 
-  // The number of stack return values from the call.
+  // The number of stack return value slots from the call.
   size_t StackReturnCount() const { return stack_return_count_; }
 
   // The number of parameters to the JS function call.
@@ -317,16 +320,12 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   }
 
   int GetStackIndexFromSlot(int slot_index) const {
-#ifdef V8_REVERSE_JSARGS
     switch (GetStackArgumentOrder()) {
       case StackArgumentOrder::kDefault:
         return -slot_index - 1;
       case StackArgumentOrder::kJS:
         return slot_index + static_cast<int>(StackParameterCount());
     }
-#else
-    return -slot_index - 1;
-#endif
   }
 
   // The total number of inputs to this call, which includes the target,
@@ -395,6 +394,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   int GetStackParameterDelta(const CallDescriptor* tail_caller) const;
 
+  // Returns the number of slots to the first return value slot.
+  int GetOffsetToReturns() const;
+
   int GetTaggedParameterSlots() const;
 
   bool CanTailCall(const CallDescriptor* callee) const;
@@ -433,8 +435,6 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   const StackArgumentOrder stack_order_;
   const char* const debug_name_;
   const CFunctionInfo* c_function_info_ = nullptr;
-
-  DISALLOW_COPY_AND_ASSIGN(CallDescriptor);
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(CallDescriptor::Flags)
@@ -460,6 +460,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   explicit Linkage(CallDescriptor* incoming) : incoming_(incoming) {}
+  Linkage(const Linkage&) = delete;
+  Linkage& operator=(const Linkage&) = delete;
 
   static CallDescriptor* ComputeIncoming(Zone* zone,
                                          OptimizedCompilationInfo* info);
@@ -558,8 +560,6 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
 
  private:
   CallDescriptor* const incoming_;
-
-  DISALLOW_COPY_AND_ASSIGN(Linkage);
 };
 
 }  // namespace compiler

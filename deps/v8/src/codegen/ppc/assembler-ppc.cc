@@ -71,17 +71,20 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
     supported_ |= (1u << MODULO);
   }
 #if V8_TARGET_ARCH_PPC64
-  if (cpu.part() == base::CPU::PPC_POWER8) {
+  if (cpu.part() == base::CPU::PPC_POWER8 ||
+      cpu.part() == base::CPU::PPC_POWER9) {
     supported_ |= (1u << FPR_GPR_MOV);
   }
 #endif
   if (cpu.part() == base::CPU::PPC_POWER6 ||
       cpu.part() == base::CPU::PPC_POWER7 ||
-      cpu.part() == base::CPU::PPC_POWER8) {
+      cpu.part() == base::CPU::PPC_POWER8 ||
+      cpu.part() == base::CPU::PPC_POWER9) {
     supported_ |= (1u << LWSYNC);
   }
   if (cpu.part() == base::CPU::PPC_POWER7 ||
-      cpu.part() == base::CPU::PPC_POWER8) {
+      cpu.part() == base::CPU::PPC_POWER8 ||
+      cpu.part() == base::CPU::PPC_POWER9) {
     supported_ |= (1u << ISELECT);
     supported_ |= (1u << VSX);
   }
@@ -248,6 +251,15 @@ Assembler::Assembler(const AssemblerOptions& options,
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
                         SafepointTableBuilder* safepoint_table_builder,
                         int handler_table_offset) {
+  // As a crutch to avoid having to add manual Align calls wherever we use a
+  // raw workflow to create Code objects (mostly in tests), add another Align
+  // call here. It does no harm - the end of the Code object is aligned to the
+  // (larger) kCodeAlignment anyways.
+  // TODO(jgruber): Consider moving responsibility for proper alignment to
+  // metadata table builders (safepoint, handler, constant pool, code
+  // comments).
+  DataAlign(Code::kMetadataAlignment);
+
   // Emit constant pool if necessary.
   int constant_pool_size = EmitConstantPool();
 
@@ -1457,6 +1469,9 @@ void Assembler::mcrfs(CRegister cr, FPSCRBit bit) {
 
 void Assembler::mfcr(Register dst) { emit(EXT2 | MFCR | dst.code() * B21); }
 
+void Assembler::mtcrf(unsigned char FXM, Register src) {
+  emit(MTCRF | src.code() * B21 | FXM * B12);
+}
 #if V8_TARGET_ARCH_PPC64
 void Assembler::mffprd(Register dst, DoubleRegister src) {
   emit(EXT2 | MFVSRD | src.code() * B21 | dst.code() * B16);
@@ -1777,16 +1792,75 @@ void Assembler::mtvsrd(const Simd128Register rt, const Register ra) {
   emit(MTVSRD | rt.code() * B21 | ra.code() * B16 | TX);
 }
 
+void Assembler::mtvsrdd(const Simd128Register rt, const Register ra,
+                        const Register rb) {
+  int TX = 1;
+  emit(MTVSRDD | rt.code() * B21 | ra.code() * B16 | rb.code() * B11 | TX);
+}
+
 void Assembler::lxvd(const Simd128Register rt, const MemOperand& src) {
   int TX = 1;
   emit(LXVD | rt.code() * B21 | src.ra().code() * B16 | src.rb().code() * B11 |
        TX);
 }
 
+void Assembler::lxsdx(const Simd128Register rt, const MemOperand& src) {
+  int TX = 1;
+  emit(LXSDX | rt.code() * B21 | src.ra().code() * B16 | src.rb().code() * B11 |
+       TX);
+}
+
+void Assembler::lxsibzx(const Simd128Register rt, const MemOperand& src) {
+  int TX = 1;
+  emit(LXSIBZX | rt.code() * B21 | src.ra().code() * B16 |
+       src.rb().code() * B11 | TX);
+}
+
+void Assembler::lxsihzx(const Simd128Register rt, const MemOperand& src) {
+  int TX = 1;
+  emit(LXSIHZX | rt.code() * B21 | src.ra().code() * B16 |
+       src.rb().code() * B11 | TX);
+}
+
+void Assembler::lxsiwzx(const Simd128Register rt, const MemOperand& src) {
+  int TX = 1;
+  emit(LXSIWZX | rt.code() * B21 | src.ra().code() * B16 |
+       src.rb().code() * B11 | TX);
+}
+
+void Assembler::stxsdx(const Simd128Register rs, const MemOperand& src) {
+  int SX = 1;
+  emit(STXSDX | rs.code() * B21 | src.ra().code() * B16 |
+       src.rb().code() * B11 | SX);
+}
+
+void Assembler::stxsibx(const Simd128Register rs, const MemOperand& src) {
+  int SX = 1;
+  emit(STXSIBX | rs.code() * B21 | src.ra().code() * B16 |
+       src.rb().code() * B11 | SX);
+}
+
+void Assembler::stxsihx(const Simd128Register rs, const MemOperand& src) {
+  int SX = 1;
+  emit(STXSIHX | rs.code() * B21 | src.ra().code() * B16 |
+       src.rb().code() * B11 | SX);
+}
+
+void Assembler::stxsiwx(const Simd128Register rs, const MemOperand& src) {
+  int SX = 1;
+  emit(STXSIWX | rs.code() * B21 | src.ra().code() * B16 |
+       src.rb().code() * B11 | SX);
+}
+
 void Assembler::stxvd(const Simd128Register rt, const MemOperand& dst) {
   int SX = 1;
   emit(STXVD | rt.code() * B21 | dst.ra().code() * B16 | dst.rb().code() * B11 |
        SX);
+}
+
+void Assembler::xxspltib(const Simd128Register rt, const Operand& imm) {
+  int TX = 1;
+  emit(XXSPLTIB | rt.code() * B21 | imm.immediate() * B11 | TX);
 }
 
 // Pseudo instructions.

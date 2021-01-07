@@ -47,6 +47,7 @@ namespace torque {
 #define AST_TYPE_EXPRESSION_NODE_KIND_LIST(V) \
   V(BasicTypeExpression)                      \
   V(FunctionTypeExpression)                   \
+  V(PrecomputedTypeExpression)                \
   V(UnionTypeExpression)
 
 #define AST_STATEMENT_NODE_KIND_LIST(V) \
@@ -651,6 +652,17 @@ struct FunctionTypeExpression : TypeExpression {
   TypeExpression* return_type;
 };
 
+// A PrecomputedTypeExpression is never created directly by the parser. Later
+// stages can use this to insert AST snippets where the type has already been
+// resolved.
+class Type;
+struct PrecomputedTypeExpression : TypeExpression {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(PrecomputedTypeExpression)
+  PrecomputedTypeExpression(SourcePosition pos, const Type* type)
+      : TypeExpression(kKind, pos), type(type) {}
+  const Type* type;
+};
+
 struct UnionTypeExpression : TypeExpression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(UnionTypeExpression)
   UnionTypeExpression(SourcePosition pos, TypeExpression* a, TypeExpression* b)
@@ -843,16 +855,22 @@ struct InstanceTypeConstraints {
 
 struct AbstractTypeDeclaration : TypeDeclaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(AbstractTypeDeclaration)
-  AbstractTypeDeclaration(SourcePosition pos, Identifier* name, bool transient,
+  AbstractTypeDeclaration(SourcePosition pos, Identifier* name,
+                          AbstractTypeFlags flags,
                           base::Optional<TypeExpression*> extends,
                           base::Optional<std::string> generates)
       : TypeDeclaration(kKind, pos, name),
-        is_constexpr(IsConstexprName(name->value)),
-        transient(transient),
+        flags(flags),
         extends(extends),
-        generates(std::move(generates)) {}
-  bool is_constexpr;
-  bool transient;
+        generates(std::move(generates)) {
+    CHECK_EQ(IsConstexprName(name->value),
+             !!(flags & AbstractTypeFlag::kConstexpr));
+  }
+
+  bool IsConstexpr() const { return flags & AbstractTypeFlag::kConstexpr; }
+  bool IsTransient() const { return flags & AbstractTypeFlag::kTransient; }
+
+  AbstractTypeFlags flags;
   base::Optional<TypeExpression*> extends;
   base::Optional<std::string> generates;
 };
@@ -913,6 +931,7 @@ struct ClassFieldExpression {
   bool weak;
   bool const_qualified;
   bool generate_verify;
+  bool relaxed_write;
 };
 
 struct LabelAndTypes {
@@ -1235,6 +1254,58 @@ template <class T, class... Args>
 T* MakeNode(Args... args) {
   return CurrentAst::Get().AddNode(
       std::make_unique<T>(CurrentSourcePosition::Get(), std::move(args)...));
+}
+
+inline FieldAccessExpression* MakeFieldAccessExpression(Expression* object,
+                                                        std::string field) {
+  return MakeNode<FieldAccessExpression>(
+      object, MakeNode<Identifier>(std::move(field)));
+}
+
+inline IdentifierExpression* MakeIdentifierExpression(
+    std::vector<std::string> namespace_qualification, std::string name,
+    std::vector<TypeExpression*> args = {}) {
+  return MakeNode<IdentifierExpression>(std::move(namespace_qualification),
+                                        MakeNode<Identifier>(std::move(name)),
+                                        std::move(args));
+}
+
+inline IdentifierExpression* MakeIdentifierExpression(std::string name) {
+  return MakeIdentifierExpression({}, std::move(name));
+}
+
+inline CallExpression* MakeCallExpression(
+    IdentifierExpression* callee, std::vector<Expression*> arguments,
+    std::vector<Identifier*> labels = {}) {
+  return MakeNode<CallExpression>(callee, std::move(arguments),
+                                  std::move(labels));
+}
+
+inline CallExpression* MakeCallExpression(
+    std::string callee, std::vector<Expression*> arguments,
+    std::vector<Identifier*> labels = {}) {
+  return MakeCallExpression(MakeIdentifierExpression(std::move(callee)),
+                            std::move(arguments), std::move(labels));
+}
+
+inline VarDeclarationStatement* MakeConstDeclarationStatement(
+    std::string name, Expression* initializer) {
+  return MakeNode<VarDeclarationStatement>(
+      /*const_qualified=*/true, MakeNode<Identifier>(std::move(name)),
+      base::Optional<TypeExpression*>{}, initializer);
+}
+
+inline BasicTypeExpression* MakeBasicTypeExpression(
+    std::vector<std::string> namespace_qualification, std::string name,
+    std::vector<TypeExpression*> generic_arguments = {}) {
+  return MakeNode<BasicTypeExpression>(std::move(namespace_qualification),
+                                       std::move(name),
+                                       std::move(generic_arguments));
+}
+
+inline StructExpression* MakeStructExpression(
+    TypeExpression* type, std::vector<NameAndExpression> initializers) {
+  return MakeNode<StructExpression>(type, std::move(initializers));
 }
 
 }  // namespace torque

@@ -77,9 +77,9 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwaitResumeClosure(
 }
 
 TF_BUILTIN(AsyncFunctionEnter, AsyncFunctionBuiltinsAssembler) {
-  TNode<JSFunction> closure = CAST(Parameter(Descriptor::kClosure));
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto closure = Parameter<JSFunction>(Descriptor::kClosure);
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   // Compute the number of registers and parameters.
   TNode<SharedFunctionInfo> shared = LoadObjectField<SharedFunctionInfo>(
@@ -175,11 +175,11 @@ TF_BUILTIN(AsyncFunctionEnter, AsyncFunctionBuiltinsAssembler) {
 }
 
 TF_BUILTIN(AsyncFunctionReject, AsyncFunctionBuiltinsAssembler) {
-  TNode<JSAsyncFunctionObject> async_function_object =
-      CAST(Parameter(Descriptor::kAsyncFunctionObject));
-  TNode<Object> reason = CAST(Parameter(Descriptor::kReason));
-  TNode<Oddball> can_suspend = CAST(Parameter(Descriptor::kCanSuspend));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto async_function_object =
+      Parameter<JSAsyncFunctionObject>(Descriptor::kAsyncFunctionObject);
+  auto reason = Parameter<Object>(Descriptor::kReason);
+  auto can_suspend = Parameter<Oddball>(Descriptor::kCanSuspend);
+  auto context = Parameter<Context>(Descriptor::kContext);
   TNode<JSPromise> promise = LoadObjectField<JSPromise>(
       async_function_object, JSAsyncFunctionObject::kPromiseOffset);
 
@@ -200,11 +200,11 @@ TF_BUILTIN(AsyncFunctionReject, AsyncFunctionBuiltinsAssembler) {
 }
 
 TF_BUILTIN(AsyncFunctionResolve, AsyncFunctionBuiltinsAssembler) {
-  TNode<JSAsyncFunctionObject> async_function_object =
-      CAST(Parameter(Descriptor::kAsyncFunctionObject));
-  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  TNode<Oddball> can_suspend = CAST(Parameter(Descriptor::kCanSuspend));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto async_function_object =
+      Parameter<JSAsyncFunctionObject>(Descriptor::kAsyncFunctionObject);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto can_suspend = Parameter<Oddball>(Descriptor::kCanSuspend);
+  auto context = Parameter<Context>(Descriptor::kContext);
   TNode<JSPromise> promise = LoadObjectField<JSPromise>(
       async_function_object, JSAsyncFunctionObject::kPromiseOffset);
 
@@ -224,14 +224,14 @@ TF_BUILTIN(AsyncFunctionResolve, AsyncFunctionBuiltinsAssembler) {
 // the promise instead of the result of RejectPromise or ResolvePromise
 // respectively from a lazy deoptimization.
 TF_BUILTIN(AsyncFunctionLazyDeoptContinuation, AsyncFunctionBuiltinsAssembler) {
-  TNode<JSPromise> promise = CAST(Parameter(Descriptor::kPromise));
+  auto promise = Parameter<JSPromise>(Descriptor::kPromise);
   Return(promise);
 }
 
 TF_BUILTIN(AsyncFunctionAwaitRejectClosure, AsyncFunctionBuiltinsAssembler) {
   CSA_ASSERT_JS_ARGC_EQ(this, 1);
-  const TNode<Object> sentError = CAST(Parameter(Descriptor::kSentError));
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  const auto sentError = Parameter<Object>(Descriptor::kSentError);
+  const auto context = Parameter<Context>(Descriptor::kContext);
 
   AsyncFunctionAwaitResumeClosure(context, sentError,
                                   JSGeneratorObject::kThrow);
@@ -240,8 +240,8 @@ TF_BUILTIN(AsyncFunctionAwaitRejectClosure, AsyncFunctionBuiltinsAssembler) {
 
 TF_BUILTIN(AsyncFunctionAwaitResolveClosure, AsyncFunctionBuiltinsAssembler) {
   CSA_ASSERT_JS_ARGC_EQ(this, 1);
-  const TNode<Object> sentValue = CAST(Parameter(Descriptor::kSentValue));
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  const auto sentValue = Parameter<Object>(Descriptor::kSentValue);
+  const auto context = Parameter<Context>(Descriptor::kContext);
 
   AsyncFunctionAwaitResumeClosure(context, sentValue, JSGeneratorObject::kNext);
   Return(UndefinedConstant());
@@ -258,10 +258,10 @@ TF_BUILTIN(AsyncFunctionAwaitResolveClosure, AsyncFunctionBuiltinsAssembler) {
 template <typename Descriptor>
 void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwait(
     const bool is_predicted_as_caught) {
-  TNode<JSAsyncFunctionObject> async_function_object =
-      CAST(Parameter(Descriptor::kAsyncFunctionObject));
-  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto async_function_object =
+      Parameter<JSAsyncFunctionObject>(Descriptor::kAsyncFunctionObject);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   TNode<JSPromise> outer_promise = LoadObjectField<JSPromise>(
       async_function_object, JSAsyncFunctionObject::kPromiseOffset);

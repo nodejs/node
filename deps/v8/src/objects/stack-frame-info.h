@@ -17,6 +17,8 @@ namespace internal {
 class FrameArray;
 class WasmInstanceObject;
 
+#include "torque-generated/src/objects/stack-frame-info-tq.inc"
+
 class StackFrameInfo
     : public TorqueGeneratedStackFrameInfo<StackFrameInfo, Struct> {
  public:

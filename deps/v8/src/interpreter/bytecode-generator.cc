@@ -34,7 +34,7 @@ namespace interpreter {
 // Scoped class tracking context objects created by the visitor. Represents
 // mutations of the context chain within the function body, allowing pushing and
 // popping of the current {context_register} during visitation.
-class BytecodeGenerator::ContextScope {
+class V8_NODISCARD BytecodeGenerator::ContextScope {
  public:
   ContextScope(BytecodeGenerator* generator, Scope* scope)
       : generator_(generator),
@@ -98,8 +98,8 @@ class BytecodeGenerator::ContextScope {
 };
 
 // Scoped class for tracking control statements entered by the
-// visitor. The pattern derives AstGraphBuilder::ControlScope.
-class BytecodeGenerator::ControlScope {
+// visitor.
+class V8_NODISCARD BytecodeGenerator::ControlScope {
  public:
   explicit ControlScope(BytecodeGenerator* generator)
       : generator_(generator),
@@ -107,7 +107,9 @@ class BytecodeGenerator::ControlScope {
         context_(generator->execution_context()) {
     generator_->set_execution_control(this);
   }
-  virtual ~ControlScope() { generator_->set_execution_control(outer()); }
+  ~ControlScope() { generator_->set_execution_control(outer()); }
+  ControlScope(const ControlScope&) = delete;
+  ControlScope& operator=(const ControlScope&) = delete;
 
   void Break(Statement* stmt) {
     PerformCommand(CMD_BREAK, stmt, kNoSourcePosition);
@@ -154,15 +156,13 @@ class BytecodeGenerator::ControlScope {
   BytecodeGenerator* generator_;
   ControlScope* outer_;
   ContextScope* context_;
-
-  DISALLOW_COPY_AND_ASSIGN(ControlScope);
 };
 
 // Helper class for a try-finally control scope. It can record intercepted
 // control-flow commands that cause entry into a finally-block, and re-apply
 // them after again leaving that block. Special tokens are used to identify
 // paths going through the finally-block to dispatch after leaving the block.
-class BytecodeGenerator::ControlScope::DeferredCommands final {
+class V8_NODISCARD BytecodeGenerator::ControlScope::DeferredCommands final {
  public:
   // Fixed value tokens for paths we know we need.
   // Fallthrough is set to -1 to make it the fallthrough case of the jump table,
@@ -550,7 +550,7 @@ void BytecodeGenerator::ControlScope::PopContextToExpectedDepth() {
   }
 }
 
-class BytecodeGenerator::RegisterAllocationScope final {
+class V8_NODISCARD BytecodeGenerator::RegisterAllocationScope final {
  public:
   explicit RegisterAllocationScope(BytecodeGenerator* generator)
       : generator_(generator),
@@ -562,16 +562,17 @@ class BytecodeGenerator::RegisterAllocationScope final {
         outer_next_register_index_);
   }
 
+  RegisterAllocationScope(const RegisterAllocationScope&) = delete;
+  RegisterAllocationScope& operator=(const RegisterAllocationScope&) = delete;
+
   BytecodeGenerator* generator() const { return generator_; }
 
  private:
   BytecodeGenerator* generator_;
   int outer_next_register_index_;
-
-  DISALLOW_COPY_AND_ASSIGN(RegisterAllocationScope);
 };
 
-class BytecodeGenerator::AccumulatorPreservingScope final {
+class V8_NODISCARD BytecodeGenerator::AccumulatorPreservingScope final {
  public:
   explicit AccumulatorPreservingScope(BytecodeGenerator* generator,
                                       AccumulatorPreservingMode mode)
@@ -591,16 +592,18 @@ class BytecodeGenerator::AccumulatorPreservingScope final {
     }
   }
 
+  AccumulatorPreservingScope(const AccumulatorPreservingScope&) = delete;
+  AccumulatorPreservingScope& operator=(const AccumulatorPreservingScope&) =
+      delete;
+
  private:
   BytecodeGenerator* generator_;
   Register saved_accumulator_register_;
-
-  DISALLOW_COPY_AND_ASSIGN(AccumulatorPreservingScope);
 };
 
 // Scoped base class for determining how the result of an expression will be
 // used.
-class BytecodeGenerator::ExpressionResultScope {
+class V8_NODISCARD BytecodeGenerator::ExpressionResultScope {
  public:
   ExpressionResultScope(BytecodeGenerator* generator, Expression::Context kind)
       : outer_(generator->execution_result()),
@@ -613,6 +616,9 @@ class BytecodeGenerator::ExpressionResultScope {
   ~ExpressionResultScope() {
     allocator_.generator()->set_execution_result(outer_);
   }
+
+  ExpressionResultScope(const ExpressionResultScope&) = delete;
+  ExpressionResultScope& operator=(const ExpressionResultScope&) = delete;
 
   bool IsEffect() const { return kind_ == Expression::kEffect; }
   bool IsValue() const { return kind_ == Expression::kValue; }
@@ -641,8 +647,6 @@ class BytecodeGenerator::ExpressionResultScope {
   RegisterAllocationScope allocator_;
   Expression::Context kind_;
   TypeHint type_hint_;
-
-  DISALLOW_COPY_AND_ASSIGN(ExpressionResultScope);
 };
 
 // Scoped class used when the result of the current expression is not
@@ -656,7 +660,8 @@ class BytecodeGenerator::EffectResultScope final
 
 // Scoped class used when the result of the current expression to be
 // evaluated should go into the interpreter's accumulator.
-class BytecodeGenerator::ValueResultScope final : public ExpressionResultScope {
+class V8_NODISCARD BytecodeGenerator::ValueResultScope final
+    : public ExpressionResultScope {
  public:
   explicit ValueResultScope(BytecodeGenerator* generator)
       : ExpressionResultScope(generator, Expression::kValue) {}
@@ -664,7 +669,8 @@ class BytecodeGenerator::ValueResultScope final : public ExpressionResultScope {
 
 // Scoped class used when the result of the current expression to be
 // evaluated is only tested with jumps to two branches.
-class BytecodeGenerator::TestResultScope final : public ExpressionResultScope {
+class V8_NODISCARD BytecodeGenerator::TestResultScope final
+    : public ExpressionResultScope {
  public:
   TestResultScope(BytecodeGenerator* generator, BytecodeLabels* then_labels,
                   BytecodeLabels* else_labels, TestFallthrough fallthrough)
@@ -673,6 +679,9 @@ class BytecodeGenerator::TestResultScope final : public ExpressionResultScope {
         fallthrough_(fallthrough),
         then_labels_(then_labels),
         else_labels_(else_labels) {}
+
+  TestResultScope(const TestResultScope&) = delete;
+  TestResultScope& operator=(const TestResultScope&) = delete;
 
   // Used when code special cases for TestResultScope and consumes any
   // possible value by testing and jumping to a then/else label.
@@ -719,8 +728,6 @@ class BytecodeGenerator::TestResultScope final : public ExpressionResultScope {
   TestFallthrough fallthrough_;
   BytecodeLabels* then_labels_;
   BytecodeLabels* else_labels_;
-
-  DISALLOW_COPY_AND_ASSIGN(TestResultScope);
 };
 
 // Used to build a list of toplevel declaration data.
@@ -832,7 +839,7 @@ class BytecodeGenerator::TopLevelDeclarationsBuilder final : public ZoneObject {
   bool processed_ = false;
 };
 
-class BytecodeGenerator::CurrentScope final {
+class V8_NODISCARD BytecodeGenerator::CurrentScope final {
  public:
   CurrentScope(BytecodeGenerator* generator, Scope* scope)
       : generator_(generator), outer_scope_(generator->current_scope()) {
@@ -936,7 +943,7 @@ class BytecodeGenerator::IteratorRecord final {
   Register next_;
 };
 
-class BytecodeGenerator::OptionalChainNullLabelScope final {
+class V8_NODISCARD BytecodeGenerator::OptionalChainNullLabelScope final {
  public:
   explicit OptionalChainNullLabelScope(BytecodeGenerator* bytecode_generator)
       : bytecode_generator_(bytecode_generator),
@@ -961,7 +968,7 @@ class BytecodeGenerator::OptionalChainNullLabelScope final {
 // It should be constructed iff a (conceptual) back edge should be produced. In
 // the case of creating a LoopBuilder but never emitting the loop, it is valid
 // to skip the creation of LoopScope.
-class BytecodeGenerator::LoopScope final {
+class V8_NODISCARD BytecodeGenerator::LoopScope final {
  public:
   explicit LoopScope(BytecodeGenerator* bytecode_generator, LoopBuilder* loop)
       : bytecode_generator_(bytecode_generator),
@@ -1098,7 +1105,7 @@ struct NullContextScopeHelper<Isolate> {
 
 template <>
 struct NullContextScopeHelper<LocalIsolate> {
-  class DummyNullContextScope {
+  class V8_NODISCARD DummyNullContextScope {
    public:
     explicit DummyNullContextScope(LocalIsolate*) {}
   };
@@ -1275,7 +1282,7 @@ bool NeedsContextInitialization(DeclarationScope* scope) {
 }  // namespace
 
 void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
 
@@ -2531,7 +2538,7 @@ void BytecodeGenerator::BuildInstanceMemberInitialization(Register constructor,
 void BytecodeGenerator::VisitNativeFunctionLiteral(
     NativeFunctionLiteral* expr) {
   size_t entry = builder()->AllocateDeferredConstantPoolEntry();
-  int index = feedback_spec()->AddFeedbackCellForCreateClosure();
+  int index = feedback_spec()->AddCreateClosureSlot();
   uint8_t flags = CreateClosureFlags::Encode(false, false, false);
   builder()->CreateClosure(entry, index, flags);
   native_function_literals_.push_back(std::make_pair(expr, entry));
@@ -3005,7 +3012,9 @@ void BytecodeGenerator::BuildCreateArrayLiteral(
     if (current != end) {
       // If there are remaining elements, prepare the index register
       // to store the next element, which comes from the first spread.
-      builder()->LoadLiteral(array_index).StoreAccumulatorInRegister(index);
+      builder()
+          ->LoadLiteral(Smi::FromInt(array_index))
+          .StoreAccumulatorInRegister(index);
     }
   } else {
     // In other cases, we prepare an empty array to be filled in below.
@@ -5019,6 +5028,9 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
     // First generate the array containing all arguments.
     BuildCreateArrayLiteral(args, nullptr);
 
+    // Check if the constructor is in fact a constructor.
+    builder()->ThrowIfNotSuperConstructor(constructor);
+
     // Now pass that array to %reflect_construct.
     RegisterList construct_args = register_allocator()->NewRegisterList(3);
     builder()->StoreAccumulatorInRegister(construct_args[1]);
@@ -5028,6 +5040,10 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
   } else {
     RegisterList args_regs = register_allocator()->NewGrowableRegisterList();
     VisitArguments(args, &args_regs);
+
+    // Check if the constructor is in fact a constructor.
+    builder()->ThrowIfNotSuperConstructor(constructor);
+
     // The new target is loaded into the accumulator from the
     // {new.target} variable.
     VisitForAccumulatorValue(super->new_target_var());
@@ -6651,7 +6667,7 @@ int BytecodeGenerator::GetCachedCreateClosureSlot(FunctionLiteral* literal) {
   if (index != -1) {
     return index;
   }
-  index = feedback_spec()->AddFeedbackCellForCreateClosure();
+  index = feedback_spec()->AddCreateClosureSlot();
   feedback_slot_cache()->Put(slot_kind, literal, index);
   return index;
 }

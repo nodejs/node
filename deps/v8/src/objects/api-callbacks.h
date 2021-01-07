@@ -7,13 +7,14 @@
 
 #include "src/objects/struct.h"
 #include "torque-generated/bit-fields.h"
-#include "torque-generated/class-definitions.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/api-callbacks-tq.inc"
 
 // An accessor must have a getter, but can have no setter.
 //

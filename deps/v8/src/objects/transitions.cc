@@ -134,7 +134,7 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
                                 : GetTargetDetails(*name, *target);
 
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     TransitionArray array = transitions();
     number_of_transitions = array.number_of_transitions();
 
@@ -180,7 +180,7 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
   // it was weakly traversed, though it is guaranteed not to disappear. Trim the
   // result copy if needed, and recompute variables.
   Reload();
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   TransitionArray array = transitions();
   if (array.number_of_transitions() != number_of_transitions) {
     DCHECK_LT(array.number_of_transitions(), number_of_transitions);
@@ -230,11 +230,9 @@ Map TransitionsAccessor::SearchTransition(Name name, PropertyKind kind,
       return map;
     }
     case kFullTransitionArray: {
-      if (concurrent_access_) isolate_->transition_array_access()->LockShared();
-      Map result = transitions().SearchAndGetTarget(kind, name, attributes);
-      if (concurrent_access_)
-        isolate_->transition_array_access()->UnlockShared();
-      return result;
+      base::SharedMutexGuardIf<base::kShared> scope(
+          isolate_->transition_array_access(), concurrent_access_);
+      return transitions().SearchAndGetTarget(kind, name, attributes);
     }
   }
   UNREACHABLE();
@@ -259,7 +257,7 @@ bool TransitionsAccessor::IsSpecialTransition(ReadOnlyRoots roots, Name name) {
 MaybeHandle<Map> TransitionsAccessor::FindTransitionToDataProperty(
     Handle<Name> name, RequestedLocation requested_location) {
   DCHECK(name->IsUniqueName());
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   PropertyAttributes attributes = name->IsPrivate() ? DONT_ENUM : NONE;
   Map target = SearchTransition(*name, kData, attributes);
   if (target.is_null()) return MaybeHandle<Map>();
@@ -285,7 +283,7 @@ bool TransitionsAccessor::IsMatchingMap(Map target, Name name,
                                         PropertyKind kind,
                                         PropertyAttributes attributes) {
   InternalIndex descriptor = target.LastAdded();
-  DescriptorArray descriptors = target.instance_descriptors();
+  DescriptorArray descriptors = target.instance_descriptors(kRelaxedLoad);
   Name key = descriptors.GetKey(descriptor);
   if (key != name) return false;
   return descriptors.GetDetails(descriptor)
@@ -330,7 +328,7 @@ Handle<WeakFixedArray> TransitionArray::GrowPrototypeTransitionArray(
     Handle<WeakFixedArray> array, int new_capacity, Isolate* isolate) {
   // Grow array by factor 2 up to MaxCachedPrototypeTransitions.
   int capacity = array->length() - kProtoTransitionHeaderSize;
-  new_capacity = Min(kMaxCachedPrototypeTransitions, new_capacity);
+  new_capacity = std::min({kMaxCachedPrototypeTransitions, new_capacity});
   DCHECK_GT(new_capacity, capacity);
   int grow_by = new_capacity - capacity;
   array = isolate->factory()->CopyWeakFixedArrayAndGrow(array, grow_by);
@@ -377,7 +375,7 @@ void TransitionsAccessor::PutPrototypeTransition(Handle<Object> prototype,
 
 Handle<Map> TransitionsAccessor::GetPrototypeTransition(
     Handle<Object> prototype) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   WeakFixedArray cache = GetPrototypeTransitions();
   int length = TransitionArray::NumberOfPrototypeTransitions(cache);
   for (int i = 0; i < length; i++) {
@@ -483,7 +481,7 @@ void TransitionsAccessor::EnsureHasFullTransitionArray() {
 }
 
 void TransitionsAccessor::TraverseTransitionTreeInternal(
-    TraverseCallback callback, void* data, DisallowHeapAllocation* no_gc) {
+    TraverseCallback callback, void* data, DisallowGarbageCollection* no_gc) {
   switch (encoding()) {
     case kPrototypeInfo:
     case kUninitialized:
@@ -530,7 +528,8 @@ void TransitionsAccessor::CheckNewTransitionsAreConsistent(
   TransitionArray new_transitions = TransitionArray::cast(transitions);
   for (int i = 0; i < old_transitions.number_of_transitions(); i++) {
     Map target = old_transitions.GetTarget(i);
-    if (target.instance_descriptors() == map_.instance_descriptors()) {
+    if (target.instance_descriptors(kRelaxedLoad) ==
+        map_.instance_descriptors(kRelaxedLoad)) {
       Name key = old_transitions.GetKey(i);
       int new_target_index;
       if (IsSpecialTransition(ReadOnlyRoots(isolate_), key)) {
@@ -614,7 +613,7 @@ Map TransitionArray::SearchAndGetTarget(PropertyKind kind, Name name,
 }
 
 void TransitionArray::Sort() {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   // In-place insertion sort.
   int length = number_of_transitions();
   ReadOnlyRoots roots = GetReadOnlyRoots();

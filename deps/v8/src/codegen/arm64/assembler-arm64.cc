@@ -372,6 +372,15 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
                         SafepointTableBuilder* safepoint_table_builder,
                         int handler_table_offset) {
+  // As a crutch to avoid having to add manual Align calls wherever we use a
+  // raw workflow to create Code objects (mostly in tests), add another Align
+  // call here. It does no harm - the end of the Code object is aligned to the
+  // (larger) kCodeAlignment anyways.
+  // TODO(jgruber): Consider moving responsibility for proper alignment to
+  // metadata table builders (safepoint, handler, constant pool, code
+  // comments).
+  DataAlign(Code::kMetadataAlignment);
+
   // Emit constant pool if necessary.
   ForceConstantPoolEmissionWithoutJump();
   DCHECK(constpool_.IsEmpty());
@@ -403,7 +412,9 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
 }
 
 void Assembler::Align(int m) {
-  DCHECK(m >= 4 && base::bits::IsPowerOfTwo(m));
+  // If not, the loop below won't terminate.
+  DCHECK(IsAligned(pc_offset(), kInstrSize));
+  DCHECK(m >= kInstrSize && base::bits::IsPowerOfTwo(m));
   while ((pc_offset() & (m - 1)) != 0) {
     nop();
   }
@@ -1401,6 +1412,37 @@ void Assembler::stlxrh(const Register& rs, const Register& rt,
   DCHECK(rn.Is64Bits());
   DCHECK(rs != rt && rs != rn);
   Emit(STLXR_h | Rs(rs) | Rt2(x31) | RnSP(rn) | Rt(rt));
+}
+
+void Assembler::prfm(int prfop, const MemOperand& addr) {
+  // Restricted support for prfm, only register offset.
+  // This can probably be merged with Assembler::LoadStore as we expand support.
+  DCHECK(addr.IsRegisterOffset());
+  DCHECK(is_uint5(prfop));
+  Instr memop = PRFM | prfop | RnSP(addr.base());
+
+  Extend ext = addr.extend();
+  Shift shift = addr.shift();
+  unsigned shift_amount = addr.shift_amount();
+
+  // LSL is encoded in the option field as UXTX.
+  if (shift == LSL) {
+    ext = UXTX;
+  }
+
+  // Shifts are encoded in one bit, indicating a left shift by the memory
+  // access size.
+  DCHECK((shift_amount == 0) ||
+         (shift_amount == static_cast<unsigned>(CalcLSDataSize(PRFM))));
+
+  Emit(LoadStoreRegisterOffsetFixed | memop | Rm(addr.regoffset()) |
+       ExtendMode(ext) | ImmShiftLS((shift_amount > 0) ? 1 : 0));
+}
+
+void Assembler::prfm(PrefetchOperation prfop, const MemOperand& addr) {
+  // Restricted support for prfm, only register offset.
+  // This can probably be merged with Assembler::LoadStore as we expand support.
+  prfm(static_cast<int>(prfop), addr);
 }
 
 void Assembler::NEON3DifferentL(const VRegister& vd, const VRegister& vn,
@@ -3199,9 +3241,11 @@ void Assembler::movi(const VRegister& vd, const uint64_t imm, Shift shift,
     Emit(q | NEONModImmOp(1) | NEONModifiedImmediate_MOVI |
          ImmNEONabcdefgh(imm8) | NEONCmode(0xE) | Rd(vd));
   } else if (shift == LSL) {
+    DCHECK(is_uint8(imm));
     NEONModifiedImmShiftLsl(vd, static_cast<int>(imm), shift_amount,
                             NEONModifiedImmediate_MOVI);
   } else {
+    DCHECK(is_uint8(imm));
     NEONModifiedImmShiftMsl(vd, static_cast<int>(imm), shift_amount,
                             NEONModifiedImmediate_MOVI);
   }

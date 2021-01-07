@@ -308,16 +308,16 @@ class ErrorUtils : public AllStatic {
                                               Handle<JSObject> error,
                                               Handle<Object> stack_trace);
 
-  static Handle<Object> NewIteratorError(Isolate* isolate,
-                                         Handle<Object> source);
-  static Handle<Object> NewCalledNonCallableError(Isolate* isolate,
-                                                  Handle<Object> source);
-  static Handle<Object> NewConstructedNonConstructable(Isolate* isolate,
-                                                       Handle<Object> source);
+  static Handle<JSObject> NewIteratorError(Isolate* isolate,
+                                           Handle<Object> source);
+  static Handle<JSObject> NewCalledNonCallableError(Isolate* isolate,
+                                                    Handle<Object> source);
+  static Handle<JSObject> NewConstructedNonConstructable(Isolate* isolate,
+                                                         Handle<Object> source);
+  // Returns the Exception sentinel.
   static Object ThrowSpreadArgError(Isolate* isolate, MessageTemplate id,
                                     Handle<Object> object);
-  static Object ThrowLoadFromNullOrUndefined(Isolate* isolate,
-                                             Handle<Object> object);
+  // Returns the Exception sentinel.
   static Object ThrowLoadFromNullOrUndefined(Isolate* isolate,
                                              Handle<Object> object,
                                              MaybeHandle<Object> key);

@@ -5,6 +5,7 @@
 #include "src/compiler/escape-analysis-reducer.h"
 
 #include "src/compiler/all-nodes.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
 #include "src/execution/frame-constants.h"
@@ -67,17 +68,6 @@ Reduction EscapeAnalysisReducer::ReplaceNode(Node* original,
   ReplaceWithValue(original, original, original, control);
   return NoChange();
 }
-
-namespace {
-
-Node* SkipTypeGuards(Node* node) {
-  while (node->opcode() == IrOpcode::kTypeGuard) {
-    node = NodeProperties::GetValueInput(node, 0);
-  }
-  return node;
-}
-
-}  // namespace
 
 Node* EscapeAnalysisReducer::ObjectIdNode(const VirtualObject* vobject) {
   VirtualObject::Id id = vobject->id();
@@ -185,8 +175,8 @@ Node* EscapeAnalysisReducer::ReduceDeoptState(Node* node, Node* effect,
                                  i);
     }
     return new_node.Get();
-  } else if (const VirtualObject* vobject =
-                 analysis_result().GetVirtualObject(SkipTypeGuards(node))) {
+  } else if (const VirtualObject* vobject = analysis_result().GetVirtualObject(
+                 SkipValueIdentities(node))) {
     if (vobject->HasEscaped()) return node;
     if (deduplicator->SeenBefore(vobject)) {
       return ObjectIdNode(vobject);
@@ -315,7 +305,6 @@ void EscapeAnalysisReducer::Finalize() {
                 formal_parameter_count,
                 Type::Constant(params.formal_parameter_count(),
                                jsgraph()->graph()->zone()));
-#ifdef V8_REVERSE_JSARGS
             Node* offset_to_first_elem = jsgraph()->Constant(
                 CommonFrameConstants::kFixedSlotCountAboveFp);
             if (!NodeProperties::IsTyped(offset_to_first_elem)) {
@@ -337,22 +326,6 @@ void EscapeAnalysisReducer::Finalize() {
                   jsgraph()->simplified()->NumberAdd(), offset,
                   formal_parameter_count);
             }
-#else
-            // {offset} is a reverted index starting from 1. The base address is
-            // adapted to allow offsets starting from 1.
-            Node* offset = jsgraph()->graph()->NewNode(
-                jsgraph()->simplified()->NumberSubtract(), arguments_length,
-                index);
-            if (type == CreateArgumentsType::kRestParameter) {
-              // In the case of rest parameters we should skip the formal
-              // parameters.
-              NodeProperties::SetType(offset,
-                                      TypeCache::Get()->kArgumentsLengthType);
-              offset = jsgraph()->graph()->NewNode(
-                  jsgraph()->simplified()->NumberSubtract(), offset,
-                  formal_parameter_count);
-            }
-#endif
             NodeProperties::SetType(offset,
                                     TypeCache::Get()->kArgumentsLengthType);
             NodeProperties::ReplaceValueInput(load, arguments_frame, 0);

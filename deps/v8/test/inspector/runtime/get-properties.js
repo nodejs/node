@@ -51,7 +51,8 @@ InspectorTest.runAsyncTestSuite([
       await logGetPropertiesResult(prop.value.objectId);
     }
     for (let prop of props.result.internalProperties) {
-      InspectorTest.log(prop.name + ' ' + prop.value.value);
+      InspectorTest.log(prop.name);
+      await logGetPropertiesResult(prop.value.objectId);
     }
   },
 

@@ -235,7 +235,7 @@ void LocalContext::Initialize(v8::Isolate* isolate,
 
 // This indirection is needed because HandleScopes cannot be heap-allocated, and
 // we don't want any unnecessary #includes in cctest.h.
-class InitializedHandleScopeImpl {
+class V8_NODISCARD InitializedHandleScopeImpl {
  public:
   explicit InitializedHandleScopeImpl(i::Isolate* isolate)
       : handle_scope_(isolate) {}
@@ -269,7 +269,7 @@ i::Handle<i::JSFunction> Optimize(
   CHECK_NOT_NULL(zone);
 
   i::OptimizedCompilationInfo info(zone, isolate, shared, function,
-                                   i::CodeKind::OPTIMIZED_FUNCTION);
+                                   i::CodeKind::TURBOFAN);
 
   if (flags & i::OptimizedCompilationInfo::kInlining) {
     info.set_inlining();
@@ -406,3 +406,11 @@ int main(int argc, char* argv[]) {
 
 RegisterThreadedTest* RegisterThreadedTest::first_ = nullptr;
 int RegisterThreadedTest::count_ = 0;
+
+bool IsValidUnwrapObject(v8::Object* object) {
+  i::Address addr = *reinterpret_cast<i::Address*>(object);
+  auto instance_type = i::Internals::GetInstanceType(addr);
+  return (instance_type == i::Internals::kJSObjectType ||
+          instance_type == i::Internals::kJSApiObjectType ||
+          instance_type == i::Internals::kJSSpecialApiObjectType);
+}

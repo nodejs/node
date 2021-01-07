@@ -969,6 +969,7 @@
 #define TRACE_TASK_EXECUTION(run_function, task) \
   INTERNAL_TRACE_TASK_EXECUTION(run_function, task)
 
+// Special trace event macro to trace log messages.
 #define TRACE_LOG_MESSAGE(file, message, line) \
   INTERNAL_TRACE_LOG_MESSAGE(file, message, line)
 

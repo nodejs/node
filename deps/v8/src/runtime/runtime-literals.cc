@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/ast/ast.h"
+#include "src/common/globals.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/logging/counters.h"
@@ -30,7 +31,7 @@ bool HasBoilerplate(Handle<Object> literal_site) {
 
 void PreInitializeLiteralSite(Handle<FeedbackVector> vector,
                               FeedbackSlot slot) {
-  vector->Set(slot, Smi::FromInt(1));
+  vector->SynchronizedSet(slot, Smi::FromInt(1));
 }
 
 enum DeepCopyHints { kNoHints = 0, kObjectIsShallow = 1 };
@@ -110,7 +111,8 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
   if (!copy->IsJSArray(isolate)) {
     if (copy->HasFastProperties(isolate)) {
       Handle<DescriptorArray> descriptors(
-          copy->map(isolate).instance_descriptors(isolate), isolate);
+          copy->map(isolate).instance_descriptors(isolate, kRelaxedLoad),
+          isolate);
       for (InternalIndex i : copy->map(isolate).IterateOwnDescriptors()) {
         PropertyDetails details = descriptors->GetDetails(i);
         DCHECK_EQ(kField, details.location());
@@ -132,15 +134,30 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         }
       }
     } else {
-      Handle<NameDictionary> dict(copy->property_dictionary(isolate), isolate);
-      for (InternalIndex i : dict->IterateEntries()) {
-        Object raw = dict->ValueAt(isolate, i);
-        if (!raw.IsJSObject(isolate)) continue;
-        DCHECK(dict->KeyAt(isolate, i).IsName());
-        Handle<JSObject> value(JSObject::cast(raw), isolate);
-        ASSIGN_RETURN_ON_EXCEPTION(
-            isolate, value, VisitElementOrProperty(copy, value), JSObject);
-        if (copying) dict->ValueAtPut(i, *value);
+      if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+        Handle<OrderedNameDictionary> dict(
+            copy->property_dictionary_ordered(isolate), isolate);
+        for (InternalIndex i : dict->IterateEntries()) {
+          Object raw = dict->ValueAt(i);
+          if (!raw.IsJSObject(isolate)) continue;
+          DCHECK(dict->KeyAt(i).IsName());
+          Handle<JSObject> value(JSObject::cast(raw), isolate);
+          ASSIGN_RETURN_ON_EXCEPTION(
+              isolate, value, VisitElementOrProperty(copy, value), JSObject);
+          if (copying) dict->ValueAtPut(i, *value);
+        }
+      } else {
+        Handle<NameDictionary> dict(copy->property_dictionary(isolate),
+                                    isolate);
+        for (InternalIndex i : dict->IterateEntries()) {
+          Object raw = dict->ValueAt(isolate, i);
+          if (!raw.IsJSObject(isolate)) continue;
+          DCHECK(dict->KeyAt(isolate, i).IsName());
+          Handle<JSObject> value(JSObject::cast(raw), isolate);
+          ASSIGN_RETURN_ON_EXCEPTION(
+              isolate, value, VisitElementOrProperty(copy, value), JSObject);
+          if (copying) dict->ValueAtPut(i, *value);
+        }
       }
     }
 
@@ -567,7 +584,7 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
                         JSObject);
     creation_context.ExitScope(site, boilerplate);
 
-    vector->Set(literals_slot, *site);
+    vector->SynchronizedSet(literals_slot, *site);
   }
 
   STATIC_ASSERT(static_cast<int>(ObjectLiteral::kDisableMementos) ==
@@ -677,7 +694,7 @@ RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
     PreInitializeLiteralSite(vector, literal_slot);
     return *boilerplate;
   }
-  vector->Set(literal_slot, *boilerplate);
+  vector->SynchronizedSet(literal_slot, *boilerplate);
   return *JSRegExp::Copy(boilerplate);
 }
 

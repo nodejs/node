@@ -8,6 +8,7 @@
 #include <algorithm>
 
 #include "src/codegen/reloc-info.h"
+#include "src/objects/arguments-inl.h"
 #include "src/objects/cell.h"
 #include "src/objects/data-handler.h"
 #include "src/objects/foreign-inl.h"
@@ -19,11 +20,9 @@
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/source-text-module.h"
 #include "src/objects/synthetic-module.h"
+#include "src/objects/torque-defined-classes-inl.h"
 #include "src/objects/transitions.h"
 #include "src/wasm/wasm-objects-inl.h"
-#include "torque-generated/class-definitions-inl.h"
-#include "torque-generated/exported-class-definitions-inl.h"
-#include "torque-generated/internal-class-definitions-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -263,30 +262,6 @@ class JSFinalizationRegistry::BodyDescriptor final : public BodyDescriptorBase {
     IterateCustomWeakPointer(obj, kNextDirtyOffset, v);
     IterateJSObjectBodyImpl(map, obj, kNextDirtyOffset + kTaggedSize,
                             object_size, v);
-  }
-
-  static inline int SizeOf(Map map, HeapObject object) {
-    return map.instance_size();
-  }
-};
-
-class SharedFunctionInfo::BodyDescriptor final : public BodyDescriptorBase {
- public:
-  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
-    static_assert(kEndOfWeakFieldsOffset == kStartOfStrongFieldsOffset,
-                  "Leverage that strong fields directly follow weak fields"
-                  "to call FixedBodyDescriptor<...>::IsValidSlot below");
-    return FixedBodyDescriptor<kStartOfWeakFieldsOffset,
-                               kEndOfStrongFieldsOffset,
-                               kAlignedSize>::IsValidSlot(map, obj, offset);
-  }
-
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Map map, HeapObject obj, int object_size,
-                                 ObjectVisitor* v) {
-    IterateCustomWeakPointer(obj, kFunctionDataOffset, v);
-    IteratePointers(obj, SharedFunctionInfo::kStartOfStrongFieldsOffset,
-                    SharedFunctionInfo::kEndOfStrongFieldsOffset, v);
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
@@ -589,6 +564,7 @@ class WasmTypeInfo::BodyDescriptor final : public BodyDescriptorBase {
     Foreign::BodyDescriptor::IterateBody<ObjectVisitor>(map, obj, object_size,
                                                         v);
     IteratePointer(obj, kParentOffset, v);
+    IteratePointer(obj, kSupertypesOffset, v);
     IteratePointer(obj, kSubtypesOffset, v);
   }
 
@@ -805,12 +781,12 @@ class WasmArray::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
-    if (!WasmArray::type(map)->element_type().is_reference_type()) return;
+    if (!WasmArray::GcSafeType(map)->element_type().is_reference_type()) return;
     IteratePointers(obj, WasmArray::kHeaderSize, object_size, v);
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
-    return WasmArray::SizeFor(map, WasmArray::cast(object).length());
+    return WasmArray::GcSafeSizeFor(map, WasmArray::cast(object).length());
   }
 };
 
@@ -946,9 +922,6 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
                                                                   p4);
     case PROPERTY_ARRAY_TYPE:
       return Op::template apply<PropertyArray::BodyDescriptor>(p1, p2, p3, p4);
-    case DESCRIPTOR_ARRAY_TYPE:
-      return Op::template apply<DescriptorArray::BodyDescriptor>(p1, p2, p3,
-                                                                 p4);
     case TRANSITION_ARRAY_TYPE:
       return Op::template apply<TransitionArray::BodyDescriptor>(p1, p2, p3,
                                                                  p4);
@@ -962,37 +935,47 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
       return Op::template apply<WasmStruct::BodyDescriptor>(p1, p2, p3, p4);
     case WASM_TYPE_INFO_TYPE:
       return Op::template apply<WasmTypeInfo::BodyDescriptor>(p1, p2, p3, p4);
-    case JS_OBJECT_TYPE:
-    case JS_ERROR_TYPE:
+    case JS_API_OBJECT_TYPE:
     case JS_ARGUMENTS_OBJECT_TYPE:
+    case JS_ARRAY_ITERATOR_PROTOTYPE_TYPE:
+    case JS_ARRAY_ITERATOR_TYPE:
+    case JS_ARRAY_TYPE:
     case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
-    case JS_PROMISE_TYPE:
-    case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
-    case JS_GENERATOR_OBJECT_TYPE:
     case JS_ASYNC_FUNCTION_OBJECT_TYPE:
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
-    case JS_PRIMITIVE_WRAPPER_TYPE:
+    case JS_BOUND_FUNCTION_TYPE:
+    case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_DATE_TYPE:
-    case JS_ARRAY_TYPE:
-    case JS_ARRAY_ITERATOR_TYPE:
-    case JS_MODULE_NAMESPACE_TYPE:
-    case JS_SET_TYPE:
-    case JS_MAP_TYPE:
-    case JS_SET_KEY_VALUE_ITERATOR_TYPE:
-    case JS_SET_VALUE_ITERATOR_TYPE:
+    case JS_ERROR_TYPE:
+    case JS_FINALIZATION_REGISTRY_TYPE:
+    case JS_GENERATOR_OBJECT_TYPE:
+    case JS_GLOBAL_OBJECT_TYPE:
+    case JS_GLOBAL_PROXY_TYPE:
+    case JS_ITERATOR_PROTOTYPE_TYPE:
+    case JS_MAP_ITERATOR_PROTOTYPE_TYPE:
     case JS_MAP_KEY_ITERATOR_TYPE:
     case JS_MAP_KEY_VALUE_ITERATOR_TYPE:
+    case JS_MAP_TYPE:
     case JS_MAP_VALUE_ITERATOR_TYPE:
-    case JS_STRING_ITERATOR_TYPE:
+    case JS_MESSAGE_OBJECT_TYPE:
+    case JS_MODULE_NAMESPACE_TYPE:
+    case JS_OBJECT_PROTOTYPE_TYPE:
+    case JS_OBJECT_TYPE:
+    case JS_PRIMITIVE_WRAPPER_TYPE:
+    case JS_PROMISE_PROTOTYPE_TYPE:
+    case JS_PROMISE_TYPE:
+    case JS_REG_EXP_PROTOTYPE_TYPE:
     case JS_REG_EXP_STRING_ITERATOR_TYPE:
     case JS_REG_EXP_TYPE:
-    case JS_GLOBAL_PROXY_TYPE:
-    case JS_GLOBAL_OBJECT_TYPE:
-    case JS_API_OBJECT_TYPE:
+    case JS_SET_ITERATOR_PROTOTYPE_TYPE:
+    case JS_SET_KEY_VALUE_ITERATOR_TYPE:
+    case JS_SET_PROTOTYPE_TYPE:
+    case JS_SET_TYPE:
+    case JS_SET_VALUE_ITERATOR_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
-    case JS_MESSAGE_OBJECT_TYPE:
-    case JS_BOUND_FUNCTION_TYPE:
-    case JS_FINALIZATION_REGISTRY_TYPE:
+    case JS_STRING_ITERATOR_PROTOTYPE_TYPE:
+    case JS_STRING_ITERATOR_TYPE:
+    case JS_TYPED_ARRAY_PROTOTYPE_TYPE:
 #ifdef V8_INTL_SUPPORT
     case JS_V8_BREAK_ITERATOR_TYPE:
     case JS_COLLATOR_TYPE:
@@ -1032,8 +1015,6 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
       return Op::template apply<WeakCell::BodyDescriptor>(p1, p2, p3, p4);
     case JS_WEAK_REF_TYPE:
       return Op::template apply<JSWeakRef::BodyDescriptor>(p1, p2, p3, p4);
-    case ODDBALL_TYPE:
-      return Op::template apply<Oddball::BodyDescriptor>(p1, p2, p3, p4);
     case JS_PROXY_TYPE:
       return Op::template apply<JSProxy::BodyDescriptor>(p1, p2, p3, p4);
     case FOREIGN_TYPE:
@@ -1067,23 +1048,12 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
                                                                    p4);
     case PREPARSE_DATA_TYPE:
       return Op::template apply<PreparseData::BodyDescriptor>(p1, p2, p3, p4);
-    case UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE:
-      return Op::template apply<
-          UncompiledDataWithoutPreparseData::BodyDescriptor>(p1, p2, p3, p4);
-    case UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE:
-      return Op::template apply<UncompiledDataWithPreparseData::BodyDescriptor>(
-          p1, p2, p3, p4);
     case HEAP_NUMBER_TYPE:
     case FILLER_TYPE:
     case BYTE_ARRAY_TYPE:
     case FREE_SPACE_TYPE:
     case BIGINT_TYPE:
       return ReturnType();
-
-    case SHARED_FUNCTION_INFO_TYPE: {
-      return Op::template apply<SharedFunctionInfo::BodyDescriptor>(p1, p2, p3,
-                                                                    p4);
-    }
     case ALLOCATION_SITE_TYPE:
       return Op::template apply<AllocationSite::BodyDescriptor>(p1, p2, p3, p4);
 

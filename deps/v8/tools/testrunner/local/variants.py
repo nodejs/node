@@ -12,7 +12,7 @@ ALL_VARIANT_FLAGS = {
   # Alias of exhaustive variants, but triggering new test framework features.
   "infra_staging": [[]],
   "interpreted_regexp": [["--regexp-interpret-all"]],
-  "experimental_regexp":  [["--enable-experimental-regexp-engine"]],
+  "experimental_regexp":  [["--default-to-experimental-regexp-engine"]],
   "jitless": [["--jitless"]],
   "minor_mc": [["--minor-mc"]],
   "nci": [["--turbo-nci"]],
@@ -28,11 +28,13 @@ ALL_VARIANT_FLAGS = {
   # For WebAssembly, we test "Liftoff-only" in the nooptimization variant and
   # "TurboFan-only" in the stress variant. The WebAssembly configuration is
   # independent of JS optimizations, so we can combine those configs.
-  "nooptimization": [["--no-opt", "--liftoff", "--no-wasm-tier-up"]],
+  "nooptimization": [["--no-opt", "--liftoff", "--no-wasm-tier-up",
+                      "--wasm-generic-wrapper"]],
   "slow_path": [["--force-slow-path"]],
   "stress": [["--stress-opt", "--no-liftoff", "--stress-lazy-source-positions"]],
   "stress_concurrent_allocation": [["--stress-concurrent-allocation"]],
   "stress_js_bg_compile_wasm_code_gc": [["--stress-background-compile",
+                                         "--finalize-streaming-on-background",
                                          "--stress-wasm-code-gc"]],
   "stress_incremental_marking": [["--stress-incremental-marking"]],
   "stress_snapshot": [["--stress-snapshot"]],
@@ -51,18 +53,20 @@ ALL_VARIANT_FLAGS = {
 # implications defined in flag-definitions.h.
 INCOMPATIBLE_FLAGS_PER_VARIANT = {
   "assert_types": ["--no-assert-types"],
-  "jitless": ["--opt", "--liftoff", "--track-field-types", "--validate-asm"],
+  "jitless": ["--opt", "--always-opt", "--liftoff", "--track-field-types", "--validate-asm"],
   "no_wasm_traps": ["--wasm-trap-handler"],
-  "nooptimization": ["--opt", "--no-liftoff", "--predictable", "--wasm-tier-up"],
+  "nooptimization": ["--opt", "--always-opt", "--no-liftoff", "--wasm-tier-up"],
   "slow_path": ["--no-force-slow-path"],
+  "stress_concurrent_allocation": ["--single-threaded-gc", "--predictable"],
   "stress_incremental_marking": ["--no-stress-incremental-marking"],
-  "stress_js_bg_compile_wasm_code_gc": ["--no-stress-background-compile"],
+  "future": ["--parallel-compile-tasks"],
+  "stress_js_bg_compile_wasm_code_gc": ["--no-stress-background-compile", "--parallel-compile-tasks"],
   "stress": ["--no-stress-opt", "--always-opt", "--no-always-opt", "--liftoff", "--max-inlined-bytecode-size=*",
              "--max-inlined-bytecode-size-cumulative=*", "--stress-inline"],
-  "turboprop": ["--turbo-inlining", "--interrupt-budget=*", "--no-turboprop"],
+  "turboprop": ["--interrupt-budget=*", "--no-turboprop"],
   "code_serializer": ["--cache=after-execute", "--cache=full-code-cache", "--cache=none"],
   "no_local_heaps": ["--concurrent-inlining", "--turboprop"],
-  "experimental_regexp": ["--no-enable-experimental-regexp-engine"],
+  "experimental_regexp": ["--no-enable-experimental-regexp-engine", "--no-default-to-experimental-regexp-engine"],
 }
 
 # Flags that lead to a contradiction under certain build variables.
@@ -75,7 +79,8 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
                + INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"],
   "predictable": ["--liftoff", "--parallel-compile-tasks",
                   "--concurrent-recompilation",
-                  "--wasm-num-compilation-tasks=*"],
+                  "--wasm-num-compilation-tasks=*",
+                  "--stress-concurrent-allocation"],
 }
 
 # Flags that lead to a contradiction when a certain extra-flag is present.
@@ -90,6 +95,7 @@ INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG = {
   "--no-enable-sse3": ["--enable-sse3"],
   "--no-enable-sse4-1": ["--enable-sse4-1"],
   "--optimize-for-size": ["--max-semi-space-size=*"],
+  "--stress_concurrent_allocation": ["--single-threaded-gc", "--predictable"],
   "--stress-flush-bytecode": ["--no-stress-flush-bytecode"],
   "--stress-incremental-marking": INCOMPATIBLE_FLAGS_PER_VARIANT["stress_incremental_marking"],
 }

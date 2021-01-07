@@ -4,16 +4,30 @@
 
 #include "src/heap/cppgc/marking-state.h"
 
+#include <unordered_set>
+
+#include "src/heap/cppgc/stats-collector.h"
+
 namespace cppgc {
 namespace internal {
 
-void MarkingState::FlushNotFullyConstructedObjects() {
-  not_fully_constructed_worklist().Publish();
-  if (!not_fully_constructed_worklist_.IsGlobalEmpty()) {
-    previously_not_fully_constructed_worklist_.Merge(
-        &not_fully_constructed_worklist_);
+void MutatorMarkingState::FlushNotFullyConstructedObjects() {
+  std::unordered_set<HeapObjectHeader*> objects =
+      not_fully_constructed_worklist_.Extract<AccessMode::kAtomic>();
+  for (HeapObjectHeader* object : objects) {
+    if (MarkNoPush(*object))
+      previously_not_fully_constructed_worklist_.Push(object);
   }
-  DCHECK(not_fully_constructed_worklist_.IsGlobalEmpty());
+}
+
+void MutatorMarkingState::FlushDiscoveredEphemeronPairs() {
+  StatsCollector::EnabledScope stats_scope(
+      heap_, StatsCollector::kMarkFlushEphemerons);
+  discovered_ephemeron_pairs_worklist_.Publish();
+  if (!discovered_ephemeron_pairs_worklist_.IsGlobalEmpty()) {
+    ephemeron_pairs_for_processing_worklist_.Merge(
+        &discovered_ephemeron_pairs_worklist_);
+  }
 }
 
 }  // namespace internal

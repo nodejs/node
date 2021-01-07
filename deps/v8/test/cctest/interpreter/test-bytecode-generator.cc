@@ -85,7 +85,8 @@ namespace interpreter {
 static const char* kGoldenFileDirectory =
     "test/cctest/interpreter/bytecode_expectations/";
 
-class InitializedIgnitionHandleScope : public InitializedHandleScope {
+class V8_NODISCARD InitializedIgnitionHandleScope
+    : public InitializedHandleScope {
  public:
   InitializedIgnitionHandleScope() {
     i::FLAG_always_opt = false;
@@ -2591,6 +2592,10 @@ TEST(ClassDeclarations) {
 }
 
 TEST(ClassAndSuperClass) {
+  // Different bytecodes are generated with and without --future temporarily,
+  // see crbug.com/v8/9237 . TODO(marja): remove this hack once --super-ic is on
+  // by default.
+  FLAG_super_ic = false;
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
   printer.set_wrap(false);
@@ -2793,8 +2798,6 @@ TEST(PrivateClassFieldAccess) {
 }
 
 TEST(PrivateMethodDeclaration) {
-  bool old_methods_flag = i::FLAG_harmony_private_methods;
-  i::FLAG_harmony_private_methods = true;
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
 
@@ -2823,12 +2826,9 @@ TEST(PrivateMethodDeclaration) {
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("PrivateMethodDeclaration.golden")));
-  i::FLAG_harmony_private_methods = old_methods_flag;
 }
 
 TEST(PrivateMethodAccess) {
-  bool old_methods_flag = i::FLAG_harmony_private_methods;
-  i::FLAG_harmony_private_methods = true;
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
   printer.set_wrap(false);
@@ -2869,12 +2869,9 @@ TEST(PrivateMethodAccess) {
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("PrivateMethodAccess.golden")));
-  i::FLAG_harmony_private_methods = old_methods_flag;
 }
 
 TEST(PrivateAccessorAccess) {
-  bool old_methods_flag = i::FLAG_harmony_private_methods;
-  i::FLAG_harmony_private_methods = true;
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
   printer.set_wrap(false);
@@ -2924,12 +2921,9 @@ TEST(PrivateAccessorAccess) {
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("PrivateAccessorAccess.golden")));
-  i::FLAG_harmony_private_methods = old_methods_flag;
 }
 
 TEST(StaticPrivateMethodDeclaration) {
-  bool old_methods_flag = i::FLAG_harmony_private_methods;
-  i::FLAG_harmony_private_methods = true;
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
 
@@ -2968,12 +2962,9 @@ TEST(StaticPrivateMethodDeclaration) {
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("StaticPrivateMethodDeclaration.golden")));
-  i::FLAG_harmony_private_methods = old_methods_flag;
 }
 
 TEST(StaticPrivateMethodAccess) {
-  bool old_methods_flag = i::FLAG_harmony_private_methods;
-  i::FLAG_harmony_private_methods = true;
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
   printer.set_wrap(false);
@@ -3048,12 +3039,9 @@ TEST(StaticPrivateMethodAccess) {
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("StaticPrivateMethodAccess.golden")));
-  i::FLAG_harmony_private_methods = old_methods_flag;
 }
 
 TEST(PrivateAccessorDeclaration) {
-  bool old_methods_flag = i::FLAG_harmony_private_methods;
-  i::FLAG_harmony_private_methods = true;
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
 
@@ -3107,7 +3095,6 @@ TEST(PrivateAccessorDeclaration) {
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("PrivateAccessorDeclaration.golden")));
-  i::FLAG_harmony_private_methods = old_methods_flag;
 }
 
 TEST(StaticClassFields) {

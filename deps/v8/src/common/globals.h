@@ -103,6 +103,13 @@ STATIC_ASSERT(V8_DEFAULT_STACK_SIZE_KB* KB +
 #define V8_DOUBLE_FIELDS_UNBOXING false
 #endif
 
+// Determine whether dict mode prototypes feature is enabled.
+#ifdef V8_DICT_MODE_PROTOTYPES
+#define V8_DICT_MODE_PROTOTYPES_BOOL true
+#else
+#define V8_DICT_MODE_PROTOTYPES_BOOL false
+#endif
+
 // Determine whether tagged pointers are 8 bytes (used in Torque layouts for
 // choosing where to insert padding).
 #if V8_TARGET_ARCH_64_BIT && !defined(V8_COMPRESS_POINTERS)
@@ -189,9 +196,8 @@ constexpr int kDoubleSizeLog2 = 3;
 
 // Total wasm code space per engine (i.e. per process) is limited to make
 // certain attacks that rely on heap spraying harder.
-// This limit was increased to 2GB in August 2020 and we have security clearance
-// to increase to 4GB if needed.
-constexpr size_t kMaxWasmCodeMB = 2048;
+// Just below 4GB, such that {kMaxWasmCodeMemory} fits in a 32-bit size_t.
+constexpr size_t kMaxWasmCodeMB = 4095;
 constexpr size_t kMaxWasmCodeMemory = kMaxWasmCodeMB * MB;
 
 #if V8_HOST_ARCH_64_BIT
@@ -295,7 +301,6 @@ STATIC_ASSERT(kPointerSize == (1 << kPointerSizeLog2));
 
 // This type defines raw storage type for external (or off-V8 heap) pointers
 // stored on V8 heap.
-using ExternalPointer_t = Address;
 constexpr int kExternalPointerSize = sizeof(ExternalPointer_t);
 
 constexpr int kEmbedderDataSlotSize = kSystemPointerSize;
@@ -460,13 +465,20 @@ constexpr int kNoDeoptimizationId = -1;
 // - Bailout: a check failed in the optimized code but we don't
 //   deoptimize the code, but try to heal the feedback and try to rerun
 //   the optimized code again.
+// - EagerWithResume: a check failed in the optimized code, but we can execute
+//   a more expensive check in a builtin that might either result in us resuming
+//   execution in the optimized code, or deoptimizing immediately.
 enum class DeoptimizeKind : uint8_t {
   kEager,
   kSoft,
   kBailout,
   kLazy,
-  kLastDeoptimizeKind = kLazy
+  kEagerWithResume,
 };
+constexpr DeoptimizeKind kFirstDeoptimizeKind = DeoptimizeKind::kEager;
+constexpr DeoptimizeKind kLastDeoptimizeKind = DeoptimizeKind::kEagerWithResume;
+STATIC_ASSERT(static_cast<int>(kFirstDeoptimizeKind) == 0);
+constexpr int kDeoptimizeKindCount = static_cast<int>(kLastDeoptimizeKind) + 1;
 inline size_t hash_value(DeoptimizeKind kind) {
   return static_cast<size_t>(kind);
 }
@@ -480,23 +492,10 @@ inline std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {
       return os << "Lazy";
     case DeoptimizeKind::kBailout:
       return os << "Bailout";
+    case DeoptimizeKind::kEagerWithResume:
+      return os << "EagerMaybeResume";
   }
-  UNREACHABLE();
 }
-
-enum class IsolateAllocationMode {
-  // Allocate Isolate in C++ heap using default new/delete operators.
-  kInCppHeap,
-
-  // Allocate Isolate in a committed region inside V8 heap reservation.
-  kInV8Heap,
-
-#ifdef V8_COMPRESS_POINTERS
-  kDefault = kInV8Heap,
-#else
-  kDefault = kInCppHeap,
-#endif
-};
 
 // Indicates whether the lookup is related to sloppy-mode block-scoped
 // function hoisting, and is a synthetic assignment for that.
@@ -795,12 +794,7 @@ inline std::ostream& operator<<(std::ostream& os, AllocationType kind) {
 }
 
 // TODO(ishell): review and rename kWordAligned to kTaggedAligned.
-enum AllocationAlignment {
-  kWordAligned,
-  kDoubleAligned,
-  kDoubleUnaligned,
-  kCodeAligned
-};
+enum AllocationAlignment { kWordAligned, kDoubleAligned, kDoubleUnaligned };
 
 enum class AccessMode { ATOMIC, NON_ATOMIC };
 
@@ -899,15 +893,7 @@ enum ShouldThrow {
   kDontThrow = Internals::kDontThrow
 };
 
-// The Store Buffer (GC).
-enum StoreBufferEvent {
-  kStoreBufferFullEvent,
-  kStoreBufferStartScanningPagesEvent,
-  kStoreBufferScanningPageEvent
-};
-
-using StoreBufferCallback = void (*)(Heap* heap, MemoryChunk* page,
-                                     StoreBufferEvent event);
+enum class ThreadKind { kMain, kBackground };
 
 // Union used for customized checking of the IEEE double types
 // inlined within v8 runtime, rather than going to the underlying
@@ -1426,22 +1412,21 @@ enum class Operation {
 // at different points by performing an 'OR' operation. Type feedback moves
 // to a more generic type when we combine feedback.
 // kNone -> kEnumCacheKeysAndIndices -> kEnumCacheKeys -> kAny
-class ForInFeedback {
- public:
-  enum {
-    kNone = 0x0,
-    kEnumCacheKeysAndIndices = 0x1,
-    kEnumCacheKeys = 0x3,
-    kAny = 0x7
-  };
+enum class ForInFeedback : uint8_t {
+  kNone = 0x0,
+  kEnumCacheKeysAndIndices = 0x1,
+  kEnumCacheKeys = 0x3,
+  kAny = 0x7
 };
-STATIC_ASSERT((ForInFeedback::kNone |
-               ForInFeedback::kEnumCacheKeysAndIndices) ==
-              ForInFeedback::kEnumCacheKeysAndIndices);
-STATIC_ASSERT((ForInFeedback::kEnumCacheKeysAndIndices |
-               ForInFeedback::kEnumCacheKeys) == ForInFeedback::kEnumCacheKeys);
-STATIC_ASSERT((ForInFeedback::kEnumCacheKeys | ForInFeedback::kAny) ==
-              ForInFeedback::kAny);
+STATIC_ASSERT((static_cast<int>(ForInFeedback::kNone) |
+               static_cast<int>(ForInFeedback::kEnumCacheKeysAndIndices)) ==
+              static_cast<int>(ForInFeedback::kEnumCacheKeysAndIndices));
+STATIC_ASSERT((static_cast<int>(ForInFeedback::kEnumCacheKeysAndIndices) |
+               static_cast<int>(ForInFeedback::kEnumCacheKeys)) ==
+              static_cast<int>(ForInFeedback::kEnumCacheKeys));
+STATIC_ASSERT((static_cast<int>(ForInFeedback::kEnumCacheKeys) |
+               static_cast<int>(ForInFeedback::kAny)) ==
+              static_cast<int>(ForInFeedback::kAny));
 
 enum class UnicodeEncoding : uint8_t {
   // Different unicode encodings in a |word32|:
@@ -1530,13 +1515,31 @@ inline std::ostream& operator<<(std::ostream& os,
 
 using FileAndLine = std::pair<const char*, int>;
 
-enum class OptimizationMarker {
-  kLogFirstExecution,
-  kNone,
-  kCompileOptimized,
-  kCompileOptimizedConcurrent,
-  kInOptimizationQueue
+enum OptimizationMarker : int32_t {
+  // These values are set so that it is easy to check if there is a marker where
+  // some processing needs to be done.
+  kNone = 0b000,
+  kInOptimizationQueue = 0b001,
+  kCompileOptimized = 0b010,
+  kCompileOptimizedConcurrent = 0b011,
+  kLogFirstExecution = 0b100,
+  kLastOptimizationMarker = kLogFirstExecution
 };
+// For kNone or kInOptimizationQueue we don't need any special processing.
+// To check both cases using a single mask, we expect the kNone to be 0 and
+// kInOptimizationQueue to be 1 so that we can mask off the lsb for checking.
+STATIC_ASSERT(kNone == 0b000 && kInOptimizationQueue == 0b001);
+STATIC_ASSERT(kLastOptimizationMarker <= 0b111);
+static constexpr uint32_t kNoneOrInOptimizationQueueMask = 0b110;
+
+inline bool IsInOptimizationQueueMarker(OptimizationMarker marker) {
+  return marker == OptimizationMarker::kInOptimizationQueue;
+}
+
+inline bool IsCompileOptimizedMarker(OptimizationMarker marker) {
+  return marker == OptimizationMarker::kCompileOptimized ||
+         marker == OptimizationMarker::kCompileOptimizedConcurrent;
+}
 
 inline std::ostream& operator<<(std::ostream& os,
                                 const OptimizationMarker& marker) {
@@ -1552,8 +1555,27 @@ inline std::ostream& operator<<(std::ostream& os,
     case OptimizationMarker::kInOptimizationQueue:
       return os << "OptimizationMarker::kInOptimizationQueue";
   }
-  UNREACHABLE();
-  return os;
+}
+
+enum class OptimizationTier {
+  kNone = 0b00,
+  kMidTier = 0b01,
+  kTopTier = 0b10,
+  kLastOptimizationTier = kTopTier
+};
+static constexpr uint32_t kNoneOrMidTierMask = 0b10;
+static constexpr uint32_t kNoneMask = 0b11;
+
+inline std::ostream& operator<<(std::ostream& os,
+                                const OptimizationTier& tier) {
+  switch (tier) {
+    case OptimizationTier::kNone:
+      return os << "OptimizationTier::kNone";
+    case OptimizationTier::kMidTier:
+      return os << "OptimizationTier::kMidTier";
+    case OptimizationTier::kTopTier:
+      return os << "OptimizationTier::kTopTier";
+  }
 }
 
 enum class SpeculationMode { kAllowSpeculation, kDisallowSpeculation };
@@ -1618,16 +1640,13 @@ enum class LoadSensitivity {
   V(TrapDivUnrepresentable)        \
   V(TrapRemByZero)                 \
   V(TrapFloatUnrepresentable)      \
-  V(TrapFuncInvalid)               \
   V(TrapFuncSigMismatch)           \
   V(TrapDataSegmentDropped)        \
   V(TrapElemSegmentDropped)        \
   V(TrapTableOutOfBounds)          \
-  V(TrapBrOnExnNull)               \
   V(TrapRethrowNull)               \
   V(TrapNullDereference)           \
   V(TrapIllegalCast)               \
-  V(TrapWasmJSFunction)            \
   V(TrapArrayOutOfBounds)
 
 enum KeyedAccessLoadMode {
@@ -1695,7 +1714,75 @@ enum class TraceRetainingPathMode { kEnabled, kDisabled };
 // can be used in Torque.
 enum class VariableAllocationInfo { NONE, STACK, CONTEXT, UNUSED };
 
+enum class DynamicCheckMapsStatus : uint8_t {
+  kSuccess = 0,
+  kBailout = 1,
+  kDeopt = 2
+};
+
+#ifdef V8_COMPRESS_POINTERS
+class IsolateRoot {
+ public:
+  explicit constexpr IsolateRoot(Address address) : address_(address) {}
+  // NOLINTNEXTLINE
+  inline IsolateRoot(const Isolate* isolate);
+  // NOLINTNEXTLINE
+  inline IsolateRoot(const LocalIsolate* isolate);
+
+  inline Address address() const;
+
+ private:
+  Address address_;
+};
+#else
+class IsolateRoot {
+ public:
+  IsolateRoot() = default;
+  // NOLINTNEXTLINE
+  IsolateRoot(const Isolate* isolate) {}
+  // NOLINTNEXTLINE
+  IsolateRoot(const LocalIsolate* isolate) {}
+};
+#endif
+
+class int31_t {
+ public:
+  constexpr int31_t() : value_(0) {}
+  constexpr int31_t(int value) : value_(value) {  // NOLINT(runtime/explicit)
+    DCHECK_EQ((value & 0x80000000) != 0, (value & 0x40000000) != 0);
+  }
+  int31_t& operator=(int value) {
+    DCHECK_EQ((value & 0x80000000) != 0, (value & 0x40000000) != 0);
+    value_ = value;
+    return *this;
+  }
+  int32_t value() const { return value_; }
+  operator int32_t() const { return value_; }
+
+ private:
+  int32_t value_;
+};
+
+enum PropertiesEnumerationMode {
+  // String and then Symbol properties according to the spec
+  // ES#sec-object.assign
+  kEnumerationOrder,
+  // Order of property addition
+  kPropertyAdditionOrder,
+};
+
 }  // namespace internal
+
+// Tag dispatching support for acquire loads and release stores.
+struct AcquireLoadTag {};
+struct RelaxedLoadTag {};
+struct ReleaseStoreTag {};
+struct RelaxedStoreTag {};
+static constexpr AcquireLoadTag kAcquireLoad;
+static constexpr RelaxedLoadTag kRelaxedLoad;
+static constexpr ReleaseStoreTag kReleaseStore;
+static constexpr RelaxedStoreTag kRelaxedStore;
+
 }  // namespace v8
 
 namespace i = v8::internal;

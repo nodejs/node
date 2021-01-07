@@ -71,6 +71,7 @@ class StatsCounter;
     "IsolateData::fast_c_call_caller_fp_address")                              \
   V(fast_c_call_caller_pc_address,                                             \
     "IsolateData::fast_c_call_caller_pc_address")                              \
+  V(fast_api_call_target_address, "IsolateData::fast_api_call_target_address") \
   V(stack_is_iterable_address, "IsolateData::stack_is_iterable_address")       \
   V(address_of_regexp_stack_limit_address,                                     \
     "RegExpStack::limit_address_address()")                                    \
@@ -84,17 +85,30 @@ class StatsCounter;
   V(re_check_stack_guard_state,                                                \
     "RegExpMacroAssembler*::CheckStackGuardState()")                           \
   V(re_grow_stack, "NativeRegExpMacroAssembler::GrowStack()")                  \
-  V(re_word_character_map, "NativeRegExpMacroAssembler::word_character_map")
+  V(re_word_character_map, "NativeRegExpMacroAssembler::word_character_map")   \
+  EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_HEAP_SANDBOX(V)
+
+#ifdef V8_HEAP_SANDBOX
+#define EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_HEAP_SANDBOX(V) \
+  V(external_pointer_table_address,                          \
+    "Isolate::external_pointer_table_address("               \
+    ")")
+#else
+#define EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_HEAP_SANDBOX(V)
+#endif  // V8_HEAP_SANDBOX
 
 #define EXTERNAL_REFERENCE_LIST(V)                                             \
   V(abort_with_reason, "abort_with_reason")                                    \
   V(address_of_double_abs_constant, "double_absolute_constant")                \
   V(address_of_double_neg_constant, "double_negate_constant")                  \
+  V(address_of_enable_experimental_regexp_engine,                              \
+    "address_of_enable_experimental_regexp_engine")                            \
   V(address_of_float_abs_constant, "float_absolute_constant")                  \
   V(address_of_float_neg_constant, "float_negate_constant")                    \
   V(address_of_min_int, "LDoubleConstant::min_int")                            \
   V(address_of_mock_arraybuffer_allocator_flag,                                \
     "FLAG_mock_arraybuffer_allocator")                                         \
+  V(address_of_builtin_subclassing_flag, "FLAG_builtin_subclassing")           \
   V(address_of_one_half, "LDoubleConstant::one_half")                          \
   V(address_of_runtime_stats_flag, "TracingFlags::runtime_stats")              \
   V(address_of_the_hole_nan, "the_hole_nan")                                   \
@@ -165,6 +179,10 @@ class StatsCounter;
   V(search_string_raw_one_two, "search_string_raw_one_two")                    \
   V(search_string_raw_two_one, "search_string_raw_two_one")                    \
   V(search_string_raw_two_two, "search_string_raw_two_two")                    \
+  V(string_write_to_flat_one_byte, "string_write_to_flat_one_byte")            \
+  V(string_write_to_flat_two_byte, "string_write_to_flat_two_byte")            \
+  V(external_one_byte_string_get_chars, "external_one_byte_string_get_chars")  \
+  V(external_two_byte_string_get_chars, "external_two_byte_string_get_chars")  \
   V(smi_lexicographic_compare_function, "smi_lexicographic_compare_function")  \
   V(string_to_array_index_function, "String::ToArrayIndex")                    \
   V(try_string_to_index_or_lookup_existing,                                    \
@@ -233,7 +251,8 @@ class StatsCounter;
   V(re_match_for_call_from_js, "IrregexpInterpreter::MatchForCallFromJs")      \
   V(re_experimental_match_for_call_from_js,                                    \
     "ExperimentalRegExp::MatchForCallFromJs")                                  \
-  EXTERNAL_REFERENCE_LIST_INTL(V)
+  EXTERNAL_REFERENCE_LIST_INTL(V)                                              \
+  EXTERNAL_REFERENCE_LIST_HEAP_SANDBOX(V)
 
 #ifdef V8_INTL_SUPPORT
 #define EXTERNAL_REFERENCE_LIST_INTL(V)                               \
@@ -242,6 +261,14 @@ class StatsCounter;
 #else
 #define EXTERNAL_REFERENCE_LIST_INTL(V)
 #endif  // V8_INTL_SUPPORT
+
+#ifdef V8_HEAP_SANDBOX
+#define EXTERNAL_REFERENCE_LIST_HEAP_SANDBOX(V) \
+  V(external_pointer_table_grow_table_function, \
+    "ExternalPointerTable::GrowTable")
+#else
+#define EXTERNAL_REFERENCE_LIST_HEAP_SANDBOX(V)
+#endif  // V8_HEAP_SANDBOX
 
 // An ExternalReference represents a C++ address used in the generated
 // code. All references to C++ functions and variables must be encapsulated

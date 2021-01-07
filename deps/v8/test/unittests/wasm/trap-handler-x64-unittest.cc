@@ -80,6 +80,8 @@ class TrapHandlerTest : public TestWithIsolate,
                         public ::testing::WithParamInterface<TrapHandlerStyle> {
  protected:
   void SetUp() override {
+    InstallFallbackHandler();
+    SetupTrapHandler(GetParam());
     backing_store_ = BackingStore::AllocateWasmMemory(i_isolate(), 1, 1,
                                                       SharedFlag::kNotShared);
     CHECK(backing_store_);
@@ -92,7 +94,9 @@ class TrapHandlerTest : public TestWithIsolate,
                                       GetRandomMmapAddr());
 
     InitRecoveryCode();
+  }
 
+  void InstallFallbackHandler() {
 #if V8_OS_LINUX || V8_OS_MACOSX || V8_OS_FREEBSD
     // Set up a signal handler to recover from the expected crash.
     struct sigaction action;
@@ -196,13 +200,13 @@ class TrapHandlerTest : public TestWithIsolate,
   }
 #endif
 
- public:
   void SetupTrapHandler(TrapHandlerStyle style) {
     bool use_default_handler = style == kDefault;
     g_use_as_first_chance_handler = !use_default_handler;
     CHECK(v8::V8::EnableWebAssemblyTrapHandler(use_default_handler));
   }
 
+ public:
   void GenerateSetThreadInWasmFlagCode(MacroAssembler* masm) {
     masm->Move(scratch,
                i_isolate()->thread_local_top()->thread_in_wasm_flag_address_,
@@ -281,7 +285,6 @@ TEST_P(TrapHandlerTest, TestTrapHandlerRecovery) {
   CodeDesc desc;
   masm.GetCode(nullptr, &desc);
 
-  SetupTrapHandler(GetParam());
   trap_handler::ProtectedInstructionData protected_instruction{crash_offset,
                                                                recovery_offset};
   trap_handler::RegisterHandlerData(reinterpret_cast<Address>(desc.buffer),
@@ -313,8 +316,6 @@ TEST_P(TrapHandlerTest, TestReleaseHandlerData) {
       reinterpret_cast<Address>(desc.buffer), desc.instr_size, 1,
       &protected_instruction);
 
-  SetupTrapHandler(GetParam());
-
   ExecuteBuffer();
 
   // Deregister from the trap handler. The trap handler should not do the
@@ -344,8 +345,6 @@ TEST_P(TrapHandlerTest, TestNoThreadInWasmFlag) {
   trap_handler::RegisterHandlerData(reinterpret_cast<Address>(desc.buffer),
                                     desc.instr_size, 1, &protected_instruction);
 
-  SetupTrapHandler(GetParam());
-
   ExecuteExpectCrash(buffer_.get());
 }
 
@@ -372,8 +371,6 @@ TEST_P(TrapHandlerTest, TestCrashInWasmNoProtectedInstruction) {
   trap_handler::RegisterHandlerData(reinterpret_cast<Address>(desc.buffer),
                                     desc.instr_size, 1, &protected_instruction);
 
-  SetupTrapHandler(GetParam());
-
   ExecuteExpectCrash(buffer_.get());
 }
 
@@ -399,8 +396,6 @@ TEST_P(TrapHandlerTest, TestCrashInWasmWrongCrashType) {
                                                                recovery_offset};
   trap_handler::RegisterHandlerData(reinterpret_cast<Address>(desc.buffer),
                                     desc.instr_size, 1, &protected_instruction);
-
-  SetupTrapHandler(GetParam());
 
 #if V8_OS_POSIX
   // On Posix, the V8 default trap handler does not register for SIGFPE,
@@ -460,8 +455,6 @@ TEST_P(TrapHandlerTest, TestCrashInOtherThread) {
                                                                recovery_offset};
   trap_handler::RegisterHandlerData(reinterpret_cast<Address>(desc.buffer),
                                     desc.instr_size, 1, &protected_instruction);
-
-  SetupTrapHandler(GetParam());
 
   CodeRunner runner(this, buffer_.get());
   CHECK(!GetThreadInWasmFlag());

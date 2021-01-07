@@ -23,9 +23,8 @@ namespace internal {
 struct GCInfo final {
   FinalizationCallback finalize;
   TraceCallback trace;
+  NameCallback name;
   bool has_v_table;
-  // Keep sizeof(GCInfo) a power of 2.
-  size_t padding = 0;
 };
 
 class V8_EXPORT GCInfoTable final {
@@ -52,6 +51,8 @@ class V8_EXPORT GCInfoTable final {
   // of testing code.
   explicit GCInfoTable(PageAllocator* page_allocator);
   ~GCInfoTable();
+  GCInfoTable(const GCInfoTable&) = delete;
+  GCInfoTable& operator=(const GCInfoTable&) = delete;
 
   GCInfoIndex RegisterNewGCInfo(const GCInfo& info);
 
@@ -85,12 +86,13 @@ class V8_EXPORT GCInfoTable final {
   GCInfoIndex limit_ = 0;
 
   v8::base::Mutex table_mutex_;
-
-  DISALLOW_COPY_AND_ASSIGN(GCInfoTable);
 };
 
 class V8_EXPORT GlobalGCInfoTable final {
  public:
+  GlobalGCInfoTable(const GlobalGCInfoTable&) = delete;
+  GlobalGCInfoTable& operator=(const GlobalGCInfoTable&) = delete;
+
   // Sets up a singleton table that can be acquired using Get().
   static void Create(PageAllocator* page_allocator);
 
@@ -107,7 +109,6 @@ class V8_EXPORT GlobalGCInfoTable final {
   static GCInfoTable* global_table_;
 
   DISALLOW_NEW_AND_DELETE()
-  DISALLOW_COPY_AND_ASSIGN(GlobalGCInfoTable);
 };
 
 }  // namespace internal

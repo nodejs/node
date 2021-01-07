@@ -73,7 +73,10 @@ class V8_EXPORT_PRIVATE NativeContextInferrer {
                        Address* native_context);
 
  private:
-  bool InferForJSFunction(JSFunction function, Address* native_context);
+  bool InferForContext(Isolate* isolate, Context context,
+                       Address* native_context);
+  bool InferForJSFunction(Isolate* isolate, JSFunction function,
+                          Address* native_context);
   bool InferForJSObject(Isolate* isolate, Map map, JSObject object,
                         Address* native_context);
 };

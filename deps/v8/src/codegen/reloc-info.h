@@ -368,6 +368,9 @@ class RelocInfoWriter {
  public:
   RelocInfoWriter() : pos_(nullptr), last_pc_(nullptr) {}
 
+  RelocInfoWriter(const RelocInfoWriter&) = delete;
+  RelocInfoWriter& operator=(const RelocInfoWriter&) = delete;
+
   byte* pos() const { return pos_; }
   byte* last_pc() const { return last_pc_; }
 
@@ -397,8 +400,6 @@ class RelocInfoWriter {
 
   byte* pos_;
   byte* last_pc_;
-
-  DISALLOW_COPY_AND_ASSIGN(RelocInfoWriter);
 };
 
 // A RelocIterator iterates over relocation information.
@@ -425,6 +426,9 @@ class V8_EXPORT_PRIVATE RelocIterator : public Malloced {
                          Vector<const byte> reloc_info, Address const_pool,
                          int mode_mask = -1);
   RelocIterator(RelocIterator&&) V8_NOEXCEPT = default;
+
+  RelocIterator(const RelocIterator&) = delete;
+  RelocIterator& operator=(const RelocIterator&) = delete;
 
   // Iteration
   bool done() const { return done_; }
@@ -467,8 +471,6 @@ class V8_EXPORT_PRIVATE RelocIterator : public Malloced {
   RelocInfo rinfo_;
   bool done_ = false;
   const int mode_mask_;
-
-  DISALLOW_COPY_AND_ASSIGN(RelocIterator);
 };
 
 }  // namespace internal

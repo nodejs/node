@@ -16,10 +16,10 @@
 #include "src/objects/elements-kind.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/promise-inl.h"
+#include "src/objects/torque-defined-classes-inl.h"
 #include "src/strings/char-predicates.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
-#include "torque-generated/exported-class-definitions-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -137,8 +137,7 @@ TEST(TestFunctionPointers) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   TestTorqueAssembler m(asm_tester.state());
   {
-    TNode<Context> context =
-        m.UncheckedCast<Context>(m.Parameter(kNumParams + 2));
+    TNode<Context> context = m.UncheckedParameter<Context>(kNumParams + 2);
     m.Return(m.TestFunctionPointers(context));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -151,7 +150,7 @@ TEST(TestTernaryOperator) {
   CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
   TestTorqueAssembler m(asm_tester.state());
   {
-    TNode<Smi> arg = m.UncheckedCast<Smi>(m.Parameter(1));
+    TNode<Smi> arg = m.UncheckedParameter<Smi>(1);
     m.Return(m.TestTernaryOperator(arg));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -622,7 +621,7 @@ TEST(TestBranchOnBoolOptimization) {
   {
     m.TestBranchOnBoolOptimization(
         m.UncheckedCast<Context>(m.HeapConstant(context)),
-        m.UncheckedCast<Smi>(m.Parameter(0)));
+        m.UncheckedParameter<Smi>(0));
     m.Return(m.UndefinedConstant());
   }
   asm_tester.GenerateCode();
@@ -638,15 +637,15 @@ TEST(TestBitFieldLoad) {
   {
     // Untag all of the parameters to get plain integer values.
     TNode<Uint8T> val =
-        m.UncheckedCast<Uint8T>(m.Unsigned(m.SmiToInt32(m.Parameter(1))));
+        m.UncheckedCast<Uint8T>(m.Unsigned(m.SmiToInt32(m.Parameter<Smi>(1))));
     TNode<BoolT> expected_a =
-        m.UncheckedCast<BoolT>(m.Unsigned(m.SmiToInt32(m.Parameter(2))));
+        m.UncheckedCast<BoolT>(m.Unsigned(m.SmiToInt32(m.Parameter<Smi>(2))));
     TNode<Uint16T> expected_b =
-        m.UncheckedCast<Uint16T>(m.Unsigned(m.SmiToInt32(m.Parameter(3))));
+        m.UncheckedCast<Uint16T>(m.Unsigned(m.SmiToInt32(m.Parameter<Smi>(3))));
     TNode<Uint32T> expected_c =
-        m.UncheckedCast<Uint32T>(m.Unsigned(m.SmiToInt32(m.Parameter(4))));
+        m.UncheckedCast<Uint32T>(m.Unsigned(m.SmiToInt32(m.Parameter<Smi>(4))));
     TNode<BoolT> expected_d =
-        m.UncheckedCast<BoolT>(m.Unsigned(m.SmiToInt32(m.Parameter(5))));
+        m.UncheckedCast<BoolT>(m.Unsigned(m.SmiToInt32(m.Parameter<Smi>(5))));
 
     // Call the Torque-defined macro, which verifies that reading each bitfield
     // out of val yields the correct result.
@@ -677,8 +676,8 @@ TEST(TestBitFieldStore) {
   TestTorqueAssembler m(asm_tester.state());
   {
     // Untag the parameters to get a plain integer value.
-    TNode<Uint8T> val = m.UncheckedCast<Uint8T>(
-        m.Unsigned(m.SmiToInt32(m.CAST(m.Parameter(1)))));
+    TNode<Uint8T> val =
+        m.UncheckedCast<Uint8T>(m.Unsigned(m.SmiToInt32(m.Parameter<Smi>(1))));
 
     m.TestBitFieldStore(val);
     m.Return(m.UndefinedConstant());
@@ -701,13 +700,13 @@ TEST(TestBitFieldInit) {
   {
     // Untag all of the parameters to get plain integer values.
     TNode<BoolT> a =
-        m.UncheckedCast<BoolT>(m.Unsigned(m.SmiToInt32(m.Parameter(1))));
+        m.UncheckedCast<BoolT>(m.Unsigned(m.SmiToInt32(m.Parameter<Smi>(1))));
     TNode<Uint16T> b =
-        m.UncheckedCast<Uint16T>(m.Unsigned(m.SmiToInt32(m.Parameter(2))));
+        m.UncheckedCast<Uint16T>(m.Unsigned(m.SmiToInt32(m.Parameter<Smi>(2))));
     TNode<Uint32T> c =
-        m.UncheckedCast<Uint32T>(m.Unsigned(m.SmiToInt32(m.Parameter(3))));
+        m.UncheckedCast<Uint32T>(m.Unsigned(m.SmiToInt32(m.Parameter<Smi>(3))));
     TNode<BoolT> d =
-        m.UncheckedCast<BoolT>(m.Unsigned(m.SmiToInt32(m.Parameter(4))));
+        m.UncheckedCast<BoolT>(m.Unsigned(m.SmiToInt32(m.Parameter<Smi>(4))));
 
     // Call the Torque-defined macro, which verifies that reading each bitfield
     // out of val yields the correct result.
@@ -738,9 +737,9 @@ TEST(TestBitFieldUintptrOps) {
   {
     // Untag the parameters to get a plain integer value.
     TNode<Uint32T> val2 =
-        m.UncheckedCast<Uint32T>(m.Unsigned(m.SmiToInt32(m.Parameter(1))));
+        m.UncheckedCast<Uint32T>(m.Unsigned(m.SmiToInt32(m.Parameter<Smi>(1))));
     TNode<UintPtrT> val3 = m.UncheckedCast<UintPtrT>(
-        m.ChangeUint32ToWord(m.Unsigned(m.SmiToInt32(m.Parameter(2)))));
+        m.ChangeUint32ToWord(m.Unsigned(m.SmiToInt32(m.Parameter<Smi>(2)))));
 
     m.TestBitFieldUintptrOps(val2, val3);
     m.Return(m.UndefinedConstant());
@@ -763,10 +762,10 @@ TEST(TestBitFieldMultipleFlags) {
   TestTorqueAssembler m(asm_tester.state());
   {
     TNode<BoolT> a =
-        m.UncheckedCast<BoolT>(m.Unsigned(m.SmiToInt32(m.Parameter(0))));
-    TNode<Int32T> b = m.SmiToInt32(m.Parameter(1));
+        m.UncheckedCast<BoolT>(m.Unsigned(m.SmiToInt32(m.Parameter<Smi>(0))));
+    TNode<Int32T> b = m.SmiToInt32(m.Parameter<Smi>(1));
     TNode<BoolT> c =
-        m.UncheckedCast<BoolT>(m.Unsigned(m.SmiToInt32(m.Parameter(2))));
+        m.UncheckedCast<BoolT>(m.Unsigned(m.SmiToInt32(m.Parameter<Smi>(2))));
     m.TestBitFieldMultipleFlags(a, b, c);
     m.Return(m.UndefinedConstant());
   }
@@ -860,6 +859,22 @@ TEST(TestWord8Phi) {
   TestTorqueAssembler m(asm_tester.state());
   {
     m.TestWord8Phi();
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
+}
+
+TEST(TestOffHeapSlice) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  CodeAssemblerTester asm_tester(isolate, 1);
+  TestTorqueAssembler m(asm_tester.state());
+  std::string data = "Hello World!";
+  {
+    m.TestOffHeapSlice(m.PointerConstant(const_cast<char*>(data.data())),
+                       m.IntPtrConstant(data.size()));
     m.Return(m.UndefinedConstant());
   }
   FunctionTester ft(asm_tester.GenerateCode(), 0);

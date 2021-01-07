@@ -14,6 +14,7 @@
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
 #include "test/common/wasm/wasm-interpreter.h"
 
@@ -137,6 +138,13 @@ WasmInterpretationResult InterpretWasmModule(
   v8::internal::HandleScope scope(isolate);
   const WasmFunction* func = &instance->module()->functions[function_index];
 
+  CHECK(func->exported);
+  // This would normally be handled by export wrappers.
+  if (!IsJSCompatibleSignature(func->sig, instance->module(),
+                               WasmFeatures::FromIsolate(isolate))) {
+    return WasmInterpretationResult::Trapped(false);
+  }
+
   WasmInterpreter interpreter{
       isolate, instance->module(),
       ModuleWireBytes{instance->module_object().native_module()->wire_bytes()},
@@ -229,6 +237,13 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate,
     return -1;
   }
   Handle<Object> result = retval.ToHandleChecked();
+
+  // Multi-value returns, get the first return value (see InterpretWasmModule).
+  if (result->IsJSArray()) {
+    auto receiver = Handle<JSReceiver>::cast(result);
+    result = JSObject::GetElement(isolate, receiver, 0).ToHandleChecked();
+  }
+
   if (result->IsSmi()) {
     return Smi::ToInt(*result);
   }

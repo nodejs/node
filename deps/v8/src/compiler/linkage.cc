@@ -119,6 +119,12 @@ int CallDescriptor::GetStackParameterDelta(
   return stack_param_delta;
 }
 
+int CallDescriptor::GetOffsetToReturns() const {
+  int offset = static_cast<int>(StackParameterCount());
+  if (ShouldPadArguments(offset)) offset++;
+  return offset;
+}
+
 int CallDescriptor::GetTaggedParameterSlots() const {
   int result = 0;
   for (size_t i = 0; i < InputCount(); ++i) {
@@ -339,11 +345,7 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
 
   // All parameters to JS calls go on the stack.
   for (int i = 0; i < js_parameter_count; i++) {
-#ifdef V8_REVERSE_JSARGS
     int spill_slot_index = -i - 1;
-#else
-    int spill_slot_index = i - js_parameter_count;
-#endif
     locations.AddParam(LinkageLocation::ForCallerFrameSlot(
         spill_slot_index, MachineType::AnyTagged()));
   }

@@ -2,20 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/objects/module.h"
+
 #include <unordered_map>
 #include <unordered_set>
-
-#include "src/objects/module.h"
 
 #include "src/api/api-inl.h"
 #include "src/ast/modules.h"
 #include "src/builtins/accessors.h"
+#include "src/common/assert-scope.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/source-text-module.h"
+#include "src/objects/synthetic-module-inl.h"
 #include "src/utils/ostreams.h"
 
 namespace v8 {
@@ -25,7 +28,7 @@ namespace {
 #ifdef DEBUG
 void PrintModuleName(Module module, std::ostream& os) {
   if (module.IsSourceTextModule()) {
-    SourceTextModule::cast(module).script().GetNameOrSourceURL().Print(os);
+    SourceTextModule::cast(module).GetScript().GetNameOrSourceURL().Print(os);
   } else {
     SyntheticModule::cast(module).name().Print(os);
   }
@@ -51,7 +54,7 @@ void PrintStatusMessage(Module module, const char* message) {
 #endif  // DEBUG
 
 void SetStatusInternal(Module module, Module::Status new_status) {
-  DisallowHeapAllocation no_alloc;
+  DisallowGarbageCollection no_gc;
 #ifdef DEBUG
   PrintStatusTransition(module, new_status);
 #endif  // DEBUG
@@ -61,7 +64,7 @@ void SetStatusInternal(Module module, Module::Status new_status) {
 }  // end namespace
 
 void Module::SetStatus(Status new_status) {
-  DisallowHeapAllocation no_alloc;
+  DisallowGarbageCollection no_gc;
   DCHECK_LE(status(), new_status);
   DCHECK_NE(new_status, Module::kErrored);
   SetStatusInternal(*this, new_status);
@@ -77,11 +80,14 @@ void Module::RecordErrorUsingPendingException(Isolate* isolate,
 // static
 void Module::RecordError(Isolate* isolate, Handle<Module> module,
                          Handle<Object> error) {
+  DisallowGarbageCollection no_gc;
   DCHECK(module->exception().IsTheHole(isolate));
   DCHECK(!error->IsTheHole(isolate));
   if (module->IsSourceTextModule()) {
-    Handle<SourceTextModule> self(SourceTextModule::cast(*module), isolate);
-    self->set_code(self->info());
+    // Revert to minmal SFI in case we have already been instantiating or
+    // evaluating.
+    auto self = SourceTextModule::cast(*module);
+    self.set_code(self.GetSharedFunctionInfo());
   }
   SetStatusInternal(*module, Module::kErrored);
   if (isolate->is_catchable_by_javascript(*error)) {
@@ -143,7 +149,7 @@ void Module::Reset(Isolate* isolate, Handle<Module> module) {
 }
 
 Object Module::GetException() {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   DCHECK_EQ(status(), Module::kErrored);
   DCHECK(!exception().IsTheHole());
   return exception();
@@ -168,14 +174,16 @@ MaybeHandle<Cell> Module::ResolveExport(Isolate* isolate, Handle<Module> module,
   }
 }
 
-bool Module::Instantiate(Isolate* isolate, Handle<Module> module,
-                         v8::Local<v8::Context> context,
-                         v8::Module::ResolveCallback callback) {
+bool Module::Instantiate(
+    Isolate* isolate, Handle<Module> module, v8::Local<v8::Context> context,
+    v8::Module::ResolveModuleCallback callback,
+    DeprecatedResolveCallback callback_without_import_assertions) {
 #ifdef DEBUG
   PrintStatusMessage(*module, "Instantiating module ");
 #endif  // DEBUG
 
-  if (!PrepareInstantiate(isolate, module, context, callback)) {
+  if (!PrepareInstantiate(isolate, module, context, callback,
+                          callback_without_import_assertions)) {
     ResetGraph(isolate, module);
     DCHECK_EQ(module->status(), kUninstantiated);
     return false;
@@ -194,9 +202,10 @@ bool Module::Instantiate(Isolate* isolate, Handle<Module> module,
   return true;
 }
 
-bool Module::PrepareInstantiate(Isolate* isolate, Handle<Module> module,
-                                v8::Local<v8::Context> context,
-                                v8::Module::ResolveCallback callback) {
+bool Module::PrepareInstantiate(
+    Isolate* isolate, Handle<Module> module, v8::Local<v8::Context> context,
+    v8::Module::ResolveModuleCallback callback,
+    DeprecatedResolveCallback callback_without_import_assertions) {
   DCHECK_NE(module->status(), kEvaluating);
   DCHECK_NE(module->status(), kInstantiating);
   if (module->status() >= kPreInstantiating) return true;
@@ -205,10 +214,11 @@ bool Module::PrepareInstantiate(Isolate* isolate, Handle<Module> module,
 
   if (module->IsSourceTextModule()) {
     return SourceTextModule::PrepareInstantiate(
-        isolate, Handle<SourceTextModule>::cast(module), context, callback);
+        isolate, Handle<SourceTextModule>::cast(module), context, callback,
+        callback_without_import_assertions);
   } else {
     return SyntheticModule::PrepareInstantiate(
-        isolate, Handle<SyntheticModule>::cast(module), context, callback);
+        isolate, Handle<SyntheticModule>::cast(module), context);
   }
 }
 
@@ -369,6 +379,39 @@ Maybe<PropertyAttributes> JSModuleNamespace::GetPropertyAttributes(
   }
 
   return Just(it->property_attributes());
+}
+
+bool Module::IsGraphAsync(Isolate* isolate) const {
+  DisallowGarbageCollection no_gc;
+
+  // Only SourceTextModules may be async.
+  if (!IsSourceTextModule()) return false;
+  SourceTextModule root = SourceTextModule::cast(*this);
+
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  const size_t bucket_count = 2;
+  ZoneUnorderedSet<Module, Module::Hash> visited(&zone, bucket_count);
+  ZoneVector<SourceTextModule> worklist(&zone);
+  visited.insert(root);
+  worklist.push_back(root);
+
+  do {
+    SourceTextModule current = worklist.back();
+    worklist.pop_back();
+    DCHECK_GE(current.status(), kInstantiated);
+
+    if (current.async()) return true;
+    FixedArray requested_modules = current.requested_modules();
+    for (int i = 0, length = requested_modules.length(); i < length; ++i) {
+      Module descendant = Module::cast(requested_modules.get(i));
+      if (descendant.IsSourceTextModule()) {
+        const bool cycle = !visited.insert(descendant).second;
+        if (!cycle) worklist.push_back(SourceTextModule::cast(descendant));
+      }
+    }
+  } while (!worklist.empty());
+
+  return false;
 }
 
 }  // namespace internal

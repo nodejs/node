@@ -28,7 +28,6 @@
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/template-objects.h"
-#include "torque-generated/exported-class-definitions.h"
 
 namespace v8 {
 namespace internal {
@@ -56,7 +55,6 @@ const int kBlockContextAllocationLimit = 16;
 }  // namespace
 
 Reduction JSCreateLowering::Reduce(Node* node) {
-  DisallowHeapAccess disallow_heap_access;
   switch (node->opcode()) {
     case IrOpcode::kJSCreate:
       return ReduceJSCreate(node);
@@ -1202,10 +1200,15 @@ Reduction JSCreateLowering::ReduceJSCreateLiteralRegExp(Node* node) {
 Reduction JSCreateLowering::ReduceJSGetTemplateObject(Node* node) {
   JSGetTemplateObjectNode n(node);
   GetTemplateObjectParameters const& parameters = n.Parameters();
-  SharedFunctionInfoRef shared(broker(), parameters.shared());
-  JSArrayRef template_object = shared.GetTemplateObject(
-      TemplateObjectDescriptionRef(broker(), parameters.description()),
-      parameters.feedback());
+
+  const ProcessedFeedback& feedback =
+      broker()->GetFeedbackForTemplateObject(parameters.feedback());
+  // TODO(v8:7790): Consider not generating JSGetTemplateObject operator
+  // in the BytecodeGraphBuilder in the first place, if template_object is not
+  // available.
+  if (feedback.IsInsufficient()) return NoChange();
+
+  JSArrayRef template_object = feedback.AsTemplateObject().value();
   Node* value = jsgraph()->Constant(template_object);
   ReplaceWithValue(node, value);
   return Replace(value);
@@ -1496,7 +1499,7 @@ Node* JSCreateLowering::AllocateAliasedArguments(
   }
 
   // Calculate number of argument values being aliased/mapped.
-  int mapped_count = Min(argument_count, parameter_count);
+  int mapped_count = std::min(argument_count, parameter_count);
   *has_aliased_arguments = true;
 
   // Prepare an iterator over argument values recorded in the frame state.

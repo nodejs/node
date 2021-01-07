@@ -2,18 +2,26 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+type OptimizationMarker extends uint16 constexpr 'OptimizationMarker';
+type OptimizationTier extends uint16 constexpr 'OptimizationTier';
+
+bitfield struct FeedbackVectorFlags extends uint32 {
+  optimization_marker: OptimizationMarker: 3 bit;
+  optimization_tier: OptimizationTier: 2 bit;
+}
+
 @generateBodyDescriptor
 @generateCppClass
 extern class FeedbackVector extends HeapObject {
   const length: int32;
   invocation_count: int32;
   profiler_ticks: int32;
-  // TODO(v8:9287) The padding is not necessary on platforms with 4 bytes
-  // tagged pointers, we should make it conditional; however, platform-specific
-  // interacts badly with GCMole, so we need to address that first.
-  padding: uint32;
+  // TODO(turboprop, v8:11010): This field could be removed by changing the
+  // tier up checks for Turboprop. If removing this field also check v8:9287.
+  // Padding was necessary for GCMole.
+  flags: FeedbackVectorFlags;
   shared_function_info: SharedFunctionInfo;
-  optimized_code_weak_or_smi: Weak<Code>|Smi;
+  maybe_optimized_code: Weak<Code>;
   closure_feedback_cell_array: ClosureFeedbackCellArray;
   raw_feedback_slots[length]: MaybeObject;
 }

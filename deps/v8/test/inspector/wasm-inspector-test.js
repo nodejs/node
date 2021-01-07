@@ -5,20 +5,21 @@
 utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
 WasmInspectorTest = {}
+InspectorTest.getWasmOpcodeName = getOpcodeName;
 
 WasmInspectorTest.evalWithUrl = (code, url) =>
     Protocol.Runtime
         .evaluate({'expression': code + '\n//# sourceURL=v8://test/' + url})
         .then(printIfFailure);
 
-WasmInspectorTest.instantiateFromBuffer = function(bytes) {
+WasmInspectorTest.instantiateFromBuffer = function(bytes, imports) {
   var buffer = new ArrayBuffer(bytes.length);
   var view = new Uint8Array(buffer);
   for (var i = 0; i < bytes.length; ++i) {
     view[i] = bytes[i] | 0;
   }
   const module = new WebAssembly.Module(buffer);
-  return new WebAssembly.Instance(module);
+  return new WebAssembly.Instance(module, imports);
 }
 
 WasmInspectorTest.instantiate = async function(bytes, instance_name = 'instance') {
@@ -49,9 +50,9 @@ function printIfFailure(message) {
 
 async function getScopeValues(name, value) {
   if (value.type == 'object') {
-    if (value.subtype == 'typedarray') return value.description;
-    if (name == 'instance') return dumpInstanceProperties(value);
-    if (name == 'function tables') return dumpTables(value);
+    if (value.subtype === 'typedarray' || value.subtype == 'webassemblymemory') return value.description;
+    if (name === 'instance') return dumpInstanceProperties(value);
+    if (name === 'module') return value.description;
 
     let msg = await Protocol.Runtime.getProperties({objectId: value.objectId});
     printIfFailure(msg);
@@ -77,23 +78,6 @@ async function recursiveGetProperties(value, depth) {
     return recursiveProperties.flat();
   }
   return value;
-}
-
-async function dumpTables(tablesObj) {
-  let msg = await Protocol.Runtime.getProperties({objectId: tablesObj.objectId});
-  var tables_str = [];
-  for (var table of msg.result.result) {
-    const func_entries = await recursiveGetPropertiesWrapper(table, 2);
-    var functions = [];
-    for (var func of func_entries) {
-      for (var value of func.result.result) {
-        functions.push(`${value.name}: ${value.value.description}`);
-      }
-    }
-    const functions_str = functions.join(', ');
-    tables_str.push(`      ${table.name}: ${functions_str}`);
-  }
-  return '\n' + tables_str.join('\n');
 }
 
 async function dumpInstanceProperties(instanceObj) {

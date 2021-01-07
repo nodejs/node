@@ -28,8 +28,10 @@ class V8_EXPORT_PRIVATE CodeObjectRegistry {
   Address GetCodeObjectStartFromInnerAddress(Address address) const;
 
  private:
-  std::vector<Address> code_object_registry_already_existing_;
-  std::set<Address> code_object_registry_newly_allocated_;
+  // A vector of addresses, which may be sorted. This is set to 'mutable' so
+  // that it can be lazily sorted during GetCodeObjectStartFromInnerAddress.
+  mutable std::vector<Address> code_object_registry_;
+  mutable bool is_sorted_ = true;
 };
 
 }  // namespace internal

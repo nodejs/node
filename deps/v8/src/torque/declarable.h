@@ -291,6 +291,11 @@ class ExternConstant : public Value {
   }
 };
 
+enum class OutputType {
+  kCSA,
+  kCC,
+};
+
 class Callable : public Scope {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(Callable, callable)
@@ -308,8 +313,26 @@ class Callable : public Scope {
   bool HasReturns() const { return returns_; }
   base::Optional<Statement*> body() const { return body_; }
   bool IsExternal() const { return !body_.has_value(); }
-  virtual bool ShouldBeInlined() const { return false; }
-  virtual bool ShouldGenerateExternalCode() const { return !ShouldBeInlined(); }
+  virtual bool ShouldBeInlined(OutputType output_type) const {
+    // C++ output doesn't support exiting to labels, so functions with labels in
+    // the signature must be inlined.
+    return output_type == OutputType::kCC && !signature().labels.empty();
+  }
+  bool ShouldGenerateExternalCode(OutputType output_type) const {
+    return !ShouldBeInlined(output_type);
+  }
+
+  static std::string PrefixNameForCCOutput(const std::string& name) {
+    // If a Torque macro requires a C++ runtime function to be generated, then
+    // the generated function begins with this prefix to avoid any naming
+    // collisions with the generated CSA function for the same macro.
+    return "TqRuntime" + name;
+  }
+
+  // Name to use in runtime C++ code.
+  virtual std::string CCName() const {
+    return PrefixNameForCCOutput(ExternalName());
+  }
 
  protected:
   Callable(Declarable::Kind kind, std::string external_name,
@@ -336,7 +359,7 @@ class Callable : public Scope {
 class Macro : public Callable {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(Macro, macro)
-  bool ShouldBeInlined() const override {
+  bool ShouldBeInlined(OutputType output_type) const override {
     for (const LabelDeclaration& label : signature().labels) {
       for (const Type* type : label.types) {
         if (type->StructSupertype()) return true;
@@ -345,7 +368,7 @@ class Macro : public Callable {
     // Intrinsics that are used internally in Torque and implemented as torque
     // code should be inlined and not generate C++ definitions.
     if (ReadableName()[0] == '%') return true;
-    return Callable::ShouldBeInlined();
+    return Callable::ShouldBeInlined(output_type);
   }
 
   void SetUsed() { used_ = true; }
@@ -375,6 +398,11 @@ class ExternMacro : public Macro {
     return external_assembler_name_;
   }
 
+  std::string CCName() const override {
+    return "TorqueRuntimeMacroShims::" + external_assembler_name() +
+           "::" + ExternalName();
+  }
+
  private:
   friend class Declarations;
   ExternMacro(const std::string& name, std::string external_assembler_name,
@@ -390,6 +418,12 @@ class TorqueMacro : public Macro {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(TorqueMacro, TorqueMacro)
   bool IsExportedToCSA() const { return exported_to_csa_; }
+  std::string CCName() const override {
+    // Exported functions must have unique and C++-friendly readable names, so
+    // prefer those wherever possible.
+    return PrefixNameForCCOutput(IsExportedToCSA() ? ReadableName()
+                                                   : ExternalName());
+  }
 
  protected:
   TorqueMacro(Declarable::Kind kind, std::string external_name,
@@ -417,8 +451,8 @@ class TorqueMacro : public Macro {
 class Method : public TorqueMacro {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(Method, Method)
-  bool ShouldBeInlined() const override {
-    return Macro::ShouldBeInlined() ||
+  bool ShouldBeInlined(OutputType output_type) const override {
+    return Macro::ShouldBeInlined(output_type) ||
            signature()
                .parameter_types.types[signature().implicit_count]
                ->IsStructType();

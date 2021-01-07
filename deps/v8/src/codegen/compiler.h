@@ -16,6 +16,7 @@
 #include "src/handles/persistent-handles.h"
 #include "src/logging/code-events.h"
 #include "src/objects/contexts.h"
+#include "src/objects/debug-objects.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/pending-compilation-error-handler.h"
 #include "src/utils/allocation.h"
@@ -141,13 +142,14 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // Create a (bound) function for a String source within a context for eval.
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSFunction> GetFunctionFromString(
       Handle<Context> context, Handle<i::Object> source,
-      ParseRestriction restriction, int parameters_end_pos);
+      ParseRestriction restriction, int parameters_end_pos, bool is_code_like);
 
   // Decompose GetFunctionFromString into two functions, to allow callers to
   // deal seperately with a case of object not handled by the embedder.
   V8_WARN_UNUSED_RESULT static std::pair<MaybeHandle<String>, bool>
   ValidateDynamicCompilationSource(Isolate* isolate, Handle<Context> context,
-                                   Handle<i::Object> source_object);
+                                   Handle<i::Object> source_object,
+                                   bool is_code_like = false);
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSFunction>
   GetFunctionFromValidatedString(Handle<Context> context,
                                  MaybeHandle<String> source,
@@ -328,14 +330,15 @@ class OptimizedCompilationJob : public CompilationJob {
         compiler_name_(compiler_name) {}
 
   // Prepare the compile job. Must be called on the main thread.
-  V8_WARN_UNUSED_RESULT Status PrepareJob(Isolate* isolate);
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Status PrepareJob(Isolate* isolate);
 
   // Executes the compile job. Can be called on a background thread if
   // can_execute_on_background_thread() returns true.
-  V8_WARN_UNUSED_RESULT Status ExecuteJob(RuntimeCallStats* stats);
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Status
+  ExecuteJob(RuntimeCallStats* stats, LocalIsolate* local_isolate = nullptr);
 
   // Finalizes the compile job. Must be called on the main thread.
-  V8_WARN_UNUSED_RESULT Status FinalizeJob(Isolate* isolate);
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Status FinalizeJob(Isolate* isolate);
 
   // Report a transient failure, try again next time. Should only be called on
   // optimization compilation jobs.
@@ -357,7 +360,8 @@ class OptimizedCompilationJob : public CompilationJob {
  protected:
   // Overridden by the actual implementation.
   virtual Status PrepareJobImpl(Isolate* isolate) = 0;
-  virtual Status ExecuteJobImpl(RuntimeCallStats* stats) = 0;
+  virtual Status ExecuteJobImpl(RuntimeCallStats* stats,
+                                LocalIsolate* local_heap) = 0;
   virtual Status FinalizeJobImpl(Isolate* isolate) = 0;
 
  private:
@@ -372,20 +376,25 @@ class FinalizeUnoptimizedCompilationData {
  public:
   FinalizeUnoptimizedCompilationData(Isolate* isolate,
                                      Handle<SharedFunctionInfo> function_handle,
+                                     MaybeHandle<CoverageInfo> coverage_info,
                                      base::TimeDelta time_taken_to_execute,
                                      base::TimeDelta time_taken_to_finalize)
       : time_taken_to_execute_(time_taken_to_execute),
         time_taken_to_finalize_(time_taken_to_finalize),
-        function_handle_(function_handle) {}
+        function_handle_(function_handle),
+        coverage_info_(coverage_info) {}
 
   FinalizeUnoptimizedCompilationData(LocalIsolate* isolate,
                                      Handle<SharedFunctionInfo> function_handle,
+                                     MaybeHandle<CoverageInfo> coverage_info,
                                      base::TimeDelta time_taken_to_execute,
                                      base::TimeDelta time_taken_to_finalize);
 
   Handle<SharedFunctionInfo> function_handle() const {
     return function_handle_;
   }
+
+  MaybeHandle<CoverageInfo> coverage_info() const { return coverage_info_; }
 
   base::TimeDelta time_taken_to_execute() const {
     return time_taken_to_execute_;
@@ -398,6 +407,7 @@ class FinalizeUnoptimizedCompilationData {
   base::TimeDelta time_taken_to_execute_;
   base::TimeDelta time_taken_to_finalize_;
   Handle<SharedFunctionInfo> function_handle_;
+  MaybeHandle<CoverageInfo> coverage_info_;
 };
 
 using FinalizeUnoptimizedCompilationDataList =
@@ -428,12 +438,12 @@ class DeferredFinalizationJobData {
 // A wrapper around a OptimizedCompilationInfo that detaches the Handles from
 // the underlying PersistentHandlesScope and stores them in info_ on
 // destruction.
-class CompilationHandleScope final {
+class V8_NODISCARD CompilationHandleScope final {
  public:
   explicit CompilationHandleScope(Isolate* isolate,
                                   OptimizedCompilationInfo* info)
       : persistent_(isolate), info_(info) {}
-  ~CompilationHandleScope();
+  V8_EXPORT_PRIVATE ~CompilationHandleScope();
 
  private:
   PersistentHandlesScope persistent_;
@@ -449,7 +459,10 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   // script associated with |data| and can be finalized with
   // Compiler::GetSharedFunctionInfoForStreamedScript.
   // Note: does not take ownership of |data|.
-  BackgroundCompileTask(ScriptStreamingData* data, Isolate* isolate);
+  BackgroundCompileTask(ScriptStreamingData* data, Isolate* isolate,
+                        v8::ScriptType type);
+  BackgroundCompileTask(const BackgroundCompileTask&) = delete;
+  BackgroundCompileTask& operator=(const BackgroundCompileTask&) = delete;
   ~BackgroundCompileTask();
 
   // Creates a new task that when run will parse and compile the
@@ -474,9 +487,6 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   UnoptimizedCompileFlags flags() const { return flags_; }
   UnoptimizedCompileState* compile_state() { return &compile_state_; }
   LanguageMode language_mode() { return language_mode_; }
-  bool finalize_on_background_thread() {
-    return finalize_on_background_thread_;
-  }
   FinalizeUnoptimizedCompilationDataList*
   finalize_unoptimized_compilation_data() {
     return &finalize_unoptimized_compilation_data_;
@@ -526,15 +536,6 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats_;
   TimedHistogram* timer_;
   LanguageMode language_mode_;
-
-  // True if the background compilation should be finalized on the background
-  // thread. When this is true, the ParseInfo, Parser and compilation jobs are
-  // freed on the background thread, the outer_function_sfi holds the top-level
-  // function, and the off_thread_isolate has to be merged into the main-thread
-  // Isolate.
-  bool finalize_on_background_thread_;
-
-  DISALLOW_COPY_AND_ASSIGN(BackgroundCompileTask);
 };
 
 // Contains all data which needs to be transmitted between threads for
@@ -543,6 +544,8 @@ struct ScriptStreamingData {
   ScriptStreamingData(
       std::unique_ptr<ScriptCompiler::ExternalSourceStream> source_stream,
       ScriptCompiler::StreamedSource::Encoding encoding);
+  ScriptStreamingData(const ScriptStreamingData&) = delete;
+  ScriptStreamingData& operator=(const ScriptStreamingData&) = delete;
   ~ScriptStreamingData();
 
   void Release();
@@ -553,8 +556,6 @@ struct ScriptStreamingData {
 
   // Task that performs background parsing and compilation.
   std::unique_ptr<BackgroundCompileTask> task;
-
-  DISALLOW_COPY_AND_ASSIGN(ScriptStreamingData);
 };
 
 }  // namespace internal

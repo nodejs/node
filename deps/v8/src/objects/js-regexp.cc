@@ -4,6 +4,7 @@
 
 #include "src/objects/js-regexp.h"
 
+#include "src/common/globals.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/regexp/regexp.h"
@@ -135,7 +136,12 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   // their corresponding capture indices.
   Handle<FixedArray> names(Handle<FixedArray>::cast(maybe_names));
   int num_names = names->length() >> 1;
-  Handle<NameDictionary> group_names = NameDictionary::New(isolate, num_names);
+  Handle<HeapObject> group_names;
+  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    group_names = isolate->factory()->NewOrderedNameDictionary(num_names);
+  } else {
+    group_names = isolate->factory()->NewNameDictionary(num_names);
+  }
   for (int i = 0; i < num_names; i++) {
     int base_offset = i * 2;
     int name_offset = base_offset;
@@ -147,8 +153,17 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
     if (!capture_indices->IsUndefined(isolate)) {
       capture_indices = Handle<JSArray>::cast(capture_indices);
     }
-    group_names = NameDictionary::Add(
-        isolate, group_names, name, capture_indices, PropertyDetails::Empty());
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      group_names =
+          OrderedNameDictionary::Add(
+              isolate, Handle<OrderedNameDictionary>::cast(group_names), name,
+              capture_indices, PropertyDetails::Empty())
+              .ToHandleChecked();
+    } else {
+      group_names = NameDictionary::Add(
+          isolate, Handle<NameDictionary>::cast(group_names), name,
+          capture_indices, PropertyDetails::Empty());
+    }
   }
 
   // Convert group_names to a JSObject and store at the groups property of the
@@ -171,13 +186,6 @@ uint32_t JSRegExp::BacktrackLimit() const {
 // static
 JSRegExp::Flags JSRegExp::FlagsFromString(Isolate* isolate,
                                           Handle<String> flags, bool* success) {
-  STATIC_ASSERT(*JSRegExp::FlagFromChar('g') == JSRegExp::kGlobal);
-  STATIC_ASSERT(*JSRegExp::FlagFromChar('i') == JSRegExp::kIgnoreCase);
-  STATIC_ASSERT(*JSRegExp::FlagFromChar('m') == JSRegExp::kMultiline);
-  STATIC_ASSERT(*JSRegExp::FlagFromChar('s') == JSRegExp::kDotAll);
-  STATIC_ASSERT(*JSRegExp::FlagFromChar('u') == JSRegExp::kUnicode);
-  STATIC_ASSERT(*JSRegExp::FlagFromChar('y') == JSRegExp::kSticky);
-
   int length = flags->length();
   if (length == 0) {
     *success = true;
@@ -187,7 +195,7 @@ JSRegExp::Flags JSRegExp::FlagsFromString(Isolate* isolate,
   if (length > JSRegExp::kFlagCount) return JSRegExp::Flags(0);
   JSRegExp::Flags value(0);
   if (flags->IsSeqOneByteString()) {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     SeqOneByteString seq_flags = SeqOneByteString::cast(*flags);
     for (int i = 0; i < length; i++) {
       base::Optional<JSRegExp::Flag> maybe_flag =
@@ -200,7 +208,7 @@ JSRegExp::Flags JSRegExp::FlagsFromString(Isolate* isolate,
     }
   } else {
     flags = String::Flatten(isolate, flags);
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     String::FlatContent flags_content = flags->GetFlatContent(no_gc);
     for (int i = 0; i < length; i++) {
       base::Optional<JSRegExp::Flag> maybe_flag =
@@ -318,7 +326,7 @@ bool IsLineTerminator(int c) {
 // and move related code closer to each other.
 template <typename Char>
 int CountAdditionalEscapeChars(Handle<String> source, bool* needs_escapes_out) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   int escapes = 0;
   bool needs_escapes = false;
   bool in_char_class = false;
@@ -373,7 +381,7 @@ void WriteStringToCharVector(Vector<Char> v, int* d, const char* string) {
 template <typename Char, typename StringType>
 Handle<StringType> WriteEscapedRegExpSource(Handle<String> source,
                                             Handle<StringType> result) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Vector<const Char> src = source->GetCharVector<Char>(no_gc);
   Vector<Char> dst(result->GetChars(no_gc), result->length());
   int s = 0;

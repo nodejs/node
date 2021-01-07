@@ -75,7 +75,7 @@ void EmptyInterceptorEnumerator(
 
 void SimpleAccessorGetter(Local<String> name,
                           const v8::PropertyCallbackInfo<v8::Value>& info) {
-  Local<Object> self = Local<Object>::Cast(info.This());
+  Local<Object> self = info.This().As<Object>();
   info.GetReturnValue().Set(
       self->Get(info.GetIsolate()->GetCurrentContext(),
                 String::Concat(info.GetIsolate(), v8_str("accessor_"), name))
@@ -84,7 +84,7 @@ void SimpleAccessorGetter(Local<String> name,
 
 void SimpleAccessorSetter(Local<String> name, Local<Value> value,
                           const v8::PropertyCallbackInfo<void>& info) {
-  Local<Object> self = Local<Object>::Cast(info.This());
+  Local<Object> self = info.This().As<Object>();
   self->Set(info.GetIsolate()->GetCurrentContext(),
             String::Concat(info.GetIsolate(), v8_str("accessor_"), name), value)
       .FromJust();
@@ -94,23 +94,23 @@ void SimpleAccessorSetter(Local<String> name, Local<Value> value,
 void SymbolAccessorGetter(Local<Name> name,
                           const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(name->IsSymbol());
-  Local<Symbol> sym = Local<Symbol>::Cast(name);
+  Local<Symbol> sym = name.As<Symbol>();
   if (sym->Description()->IsUndefined()) return;
-  SimpleAccessorGetter(Local<String>::Cast(sym->Description()), info);
+  SimpleAccessorGetter(sym->Description().As<String>(), info);
 }
 
 void SymbolAccessorSetter(Local<Name> name, Local<Value> value,
                           const v8::PropertyCallbackInfo<void>& info) {
   CHECK(name->IsSymbol());
-  Local<Symbol> sym = Local<Symbol>::Cast(name);
+  Local<Symbol> sym = name.As<Symbol>();
   if (sym->Description()->IsUndefined()) return;
-  SimpleAccessorSetter(Local<String>::Cast(sym->Description()), value, info);
+  SimpleAccessorSetter(sym->Description().As<String>(), value, info);
 }
 
 void InterceptorGetter(Local<Name> generic_name,
                        const v8::PropertyCallbackInfo<v8::Value>& info) {
   if (generic_name->IsSymbol()) return;
-  Local<String> name = Local<String>::Cast(generic_name);
+  Local<String> name = generic_name.As<String>();
   String::Utf8Value utf8(info.GetIsolate(), name);
   char* name_str = *utf8;
   char prefix[] = "interceptor_";
@@ -118,7 +118,7 @@ void InterceptorGetter(Local<Name> generic_name,
   for (i = 0; name_str[i] && prefix[i]; ++i) {
     if (name_str[i] != prefix[i]) return;
   }
-  Local<Object> self = Local<Object>::Cast(info.This());
+  Local<Object> self = info.This().As<Object>();
   info.GetReturnValue().Set(
       self->GetPrivate(
               info.GetIsolate()->GetCurrentContext(),
@@ -129,7 +129,7 @@ void InterceptorGetter(Local<Name> generic_name,
 void InterceptorSetter(Local<Name> generic_name, Local<Value> value,
                        const v8::PropertyCallbackInfo<v8::Value>& info) {
   if (generic_name->IsSymbol()) return;
-  Local<String> name = Local<String>::Cast(generic_name);
+  Local<String> name = generic_name.As<String>();
   // Intercept accesses that set certain integer values, for which the name does
   // not start with 'accessor_'.
   String::Utf8Value utf8(info.GetIsolate(), name);
@@ -143,7 +143,7 @@ void InterceptorSetter(Local<Name> generic_name, Local<Value> value,
 
   Local<Context> context = info.GetIsolate()->GetCurrentContext();
   if (value->IsInt32() && value->Int32Value(context).FromJust() < 10000) {
-    Local<Object> self = Local<Object>::Cast(info.This());
+    Local<Object> self = info.This().As<Object>();
     Local<v8::Private> symbol = v8::Private::ForApi(info.GetIsolate(), name);
     self->SetPrivate(context, symbol, value).FromJust();
     info.GetReturnValue().Set(value);
@@ -154,19 +154,18 @@ void GenericInterceptorGetter(Local<Name> generic_name,
                               const v8::PropertyCallbackInfo<v8::Value>& info) {
   Local<String> str;
   if (generic_name->IsSymbol()) {
-    Local<Value> name = Local<Symbol>::Cast(generic_name)->Description();
+    Local<Value> name = generic_name.As<Symbol>()->Description();
     if (name->IsUndefined()) return;
-    str = String::Concat(info.GetIsolate(), v8_str("_sym_"),
-                         Local<String>::Cast(name));
+    str = String::Concat(info.GetIsolate(), v8_str("_sym_"), name.As<String>());
   } else {
-    Local<String> name = Local<String>::Cast(generic_name);
+    Local<String> name = generic_name.As<String>();
     String::Utf8Value utf8(info.GetIsolate(), name);
     char* name_str = *utf8;
     if (*name_str == '_') return;
     str = String::Concat(info.GetIsolate(), v8_str("_str_"), name);
   }
 
-  Local<Object> self = Local<Object>::Cast(info.This());
+  Local<Object> self = info.This().As<Object>();
   info.GetReturnValue().Set(
       self->Get(info.GetIsolate()->GetCurrentContext(), str).ToLocalChecked());
 }
@@ -175,19 +174,18 @@ void GenericInterceptorSetter(Local<Name> generic_name, Local<Value> value,
                               const v8::PropertyCallbackInfo<v8::Value>& info) {
   Local<String> str;
   if (generic_name->IsSymbol()) {
-    Local<Value> name = Local<Symbol>::Cast(generic_name)->Description();
+    Local<Value> name = generic_name.As<Symbol>()->Description();
     if (name->IsUndefined()) return;
-    str = String::Concat(info.GetIsolate(), v8_str("_sym_"),
-                         Local<String>::Cast(name));
+    str = String::Concat(info.GetIsolate(), v8_str("_sym_"), name.As<String>());
   } else {
-    Local<String> name = Local<String>::Cast(generic_name);
+    Local<String> name = generic_name.As<String>();
     String::Utf8Value utf8(info.GetIsolate(), name);
     char* name_str = *utf8;
     if (*name_str == '_') return;
     str = String::Concat(info.GetIsolate(), v8_str("_str_"), name);
   }
 
-  Local<Object> self = Local<Object>::Cast(info.This());
+  Local<Object> self = info.This().As<Object>();
   self->Set(info.GetIsolate()->GetCurrentContext(), str, value).FromJust();
   info.GetReturnValue().Set(value);
 }
@@ -1101,7 +1099,8 @@ THREADED_TEST(InterceptorLoadICInvalidatedFieldViaGlobal) {
 
 static void SetOnThis(Local<String> name, Local<Value> value,
                       const v8::PropertyCallbackInfo<void>& info) {
-  Local<Object>::Cast(info.This())
+  info.This()
+      .As<Object>()
       ->CreateDataProperty(info.GetIsolate()->GetCurrentContext(), name, value)
       .FromJust();
 }
@@ -3017,7 +3016,7 @@ void UnboxedDoubleIndexedPropertyEnumerator(
   Local<Value> result =
       indexed_property_names_script->Run(info.GetIsolate()->GetCurrentContext())
           .ToLocalChecked();
-  info.GetReturnValue().Set(Local<v8::Array>::Cast(result));
+  info.GetReturnValue().Set(result.As<v8::Array>());
 }
 
 
@@ -3062,9 +3061,10 @@ void SloppyArgsIndexedPropertyEnumerator(
       "}"
       "keys = f(0, 1, 2, 3);"
       "keys;");
-  Local<Object> result = Local<Object>::Cast(
+  Local<Object> result =
       indexed_property_names_script->Run(info.GetIsolate()->GetCurrentContext())
-          .ToLocalChecked());
+          .ToLocalChecked()
+          .As<Object>();
   // Have to populate the handle manually, as it's not Cast-able.
   i::Handle<i::JSReceiver> o =
       v8::Utils::OpenHandle<Object, i::JSReceiver>(result);
@@ -3633,24 +3633,25 @@ THREADED_TEST(Enumerators) {
       ->Set(context.local(), v8_str("k"),
             obj->NewInstance(context.local()).ToLocalChecked())
       .FromJust();
-  v8::Local<v8::Array> result =
-      v8::Local<v8::Array>::Cast(CompileRun("k[10] = 0;"
-                                            "k.a = 0;"
-                                            "k[5] = 0;"
-                                            "k.b = 0;"
-                                            "k[4294967294] = 0;"
-                                            "k.c = 0;"
-                                            "k[4294967295] = 0;"
-                                            "k.d = 0;"
-                                            "k[140000] = 0;"
-                                            "k.e = 0;"
-                                            "k[30000000000] = 0;"
-                                            "k.f = 0;"
-                                            "var result = [];"
-                                            "for (var prop in k) {"
-                                            "  result.push(prop);"
-                                            "}"
-                                            "result"));
+  v8::Local<v8::Array> result = CompileRun(
+                                    "k[10] = 0;"
+                                    "k.a = 0;"
+                                    "k[5] = 0;"
+                                    "k.b = 0;"
+                                    "k[4294967294] = 0;"
+                                    "k.c = 0;"
+                                    "k[4294967295] = 0;"
+                                    "k.d = 0;"
+                                    "k[140000] = 0;"
+                                    "k.e = 0;"
+                                    "k[30000000000] = 0;"
+                                    "k.f = 0;"
+                                    "var result = [];"
+                                    "for (var prop in k) {"
+                                    "  result.push(prop);"
+                                    "}"
+                                    "result")
+                                    .As<v8::Array>();
   // Check that we get all the property names returned including the
   // ones from the enumerators in the right order: indexed properties
   // in numerical order, indexed interceptor properties, named
@@ -4731,7 +4732,7 @@ THREADED_TEST(GetOwnPropertyNamesWithInterceptor) {
   v8::Local<v8::Value> result =
       CompileRun("Object.getOwnPropertyNames(object)");
   CHECK(result->IsArray());
-  v8::Local<v8::Array> result_array = v8::Local<v8::Array>::Cast(result);
+  v8::Local<v8::Array> result_array = result.As<v8::Array>();
   CHECK_EQ(2u, result_array->Length());
   CHECK(result_array->Get(context.local(), 0).ToLocalChecked()->IsString());
   CHECK(result_array->Get(context.local(), 1).ToLocalChecked()->IsString());
@@ -4746,7 +4747,7 @@ THREADED_TEST(GetOwnPropertyNamesWithInterceptor) {
 
   result = CompileRun("var ret = []; for (var k in object) ret.push(k); ret");
   CHECK(result->IsArray());
-  result_array = v8::Local<v8::Array>::Cast(result);
+  result_array = result.As<v8::Array>();
   CHECK_EQ(2u, result_array->Length());
   CHECK(result_array->Get(context.local(), 0).ToLocalChecked()->IsString());
   CHECK(result_array->Get(context.local(), 1).ToLocalChecked()->IsString());
@@ -4761,7 +4762,7 @@ THREADED_TEST(GetOwnPropertyNamesWithInterceptor) {
 
   result = CompileRun("Object.getOwnPropertySymbols(object)");
   CHECK(result->IsArray());
-  result_array = v8::Local<v8::Array>::Cast(result);
+  result_array = result.As<v8::Array>();
   CHECK_EQ(1u, result_array->Length());
   CHECK(result_array->Get(context.local(), 0)
             .ToLocalChecked()

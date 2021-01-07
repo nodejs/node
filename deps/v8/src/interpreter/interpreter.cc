@@ -35,6 +35,9 @@ class InterpreterCompilationJob final : public UnoptimizedCompilationJob {
       ParseInfo* parse_info, FunctionLiteral* literal,
       AccountingAllocator* allocator,
       std::vector<FunctionLiteral*>* eager_inner_literals);
+  InterpreterCompilationJob(const InterpreterCompilationJob&) = delete;
+  InterpreterCompilationJob& operator=(const InterpreterCompilationJob&) =
+      delete;
 
  protected:
   Status ExecuteJobImpl() final;
@@ -57,8 +60,6 @@ class InterpreterCompilationJob final : public UnoptimizedCompilationJob {
   Zone zone_;
   UnoptimizedCompilationInfo compilation_info_;
   BytecodeGenerator generator_;
-
-  DISALLOW_COPY_AND_ASSIGN(InterpreterCompilationJob);
 };
 
 Interpreter::Interpreter(Isolate* isolate)
@@ -78,12 +79,21 @@ Interpreter::Interpreter(Isolate* isolate)
 namespace {
 
 int BuiltinIndexFromBytecode(Bytecode bytecode, OperandScale operand_scale) {
-  int index = BytecodeOperands::OperandScaleAsIndex(operand_scale) *
-                  kNumberOfBytecodeHandlers +
-              static_cast<int>(bytecode);
-  int offset = kBytecodeToBuiltinsMapping[index];
-  return offset >= 0 ? Builtins::kFirstBytecodeHandler + offset
-                     : Builtins::kIllegalHandler;
+  int index = static_cast<int>(bytecode);
+  if (operand_scale != OperandScale::kSingle) {
+    // The table contains uint8_t offsets starting at 0 with
+    // kIllegalBytecodeHandlerEncoding for illegal bytecode/scale combinations.
+    uint8_t offset = kWideBytecodeToBuiltinsMapping[index];
+    if (offset == kIllegalBytecodeHandlerEncoding) {
+      return Builtins::kIllegalHandler;
+    } else {
+      index = kNumberOfBytecodeHandlers + offset;
+      if (operand_scale == OperandScale::kQuadruple) {
+        index += kNumberOfWideBytecodeHandlers;
+      }
+    }
+  }
+  return Builtins::kFirstBytecodeHandler + index;
 }
 
 }  // namespace
@@ -250,7 +260,7 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::DoFinalizeJobImpl(
       SourcePositionTableBuilder::RecordingMode::RECORD_SOURCE_POSITIONS) {
     Handle<ByteArray> source_position_table =
         generator()->FinalizeSourcePositionTable(isolate);
-    bytecodes->set_synchronized_source_position_table(*source_position_table);
+    bytecodes->set_source_position_table(*source_position_table, kReleaseStore);
   }
 
   if (ShouldPrintBytecode(shared_info)) {
@@ -286,7 +296,7 @@ Interpreter::NewSourcePositionCollectionJob(
   auto job = std::make_unique<InterpreterCompilationJob>(parse_info, literal,
                                                          allocator, nullptr);
   job->compilation_info()->SetBytecodeArray(existing_bytecode);
-  return std::unique_ptr<UnoptimizedCompilationJob> { static_cast<UnoptimizedCompilationJob*>(job.release()) };
+  return job;
 }
 
 void Interpreter::ForEachBytecode(

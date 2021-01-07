@@ -17,6 +17,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-weak-refs-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakCell)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSWeakRef)
 OBJECT_CONSTRUCTORS_IMPL(JSFinalizationRegistry, JSObject)
@@ -83,7 +85,7 @@ bool JSFinalizationRegistry::RemoveUnregisterToken(
   // This method is called from both FinalizationRegistry#unregister and for
   // removing weakly-held dead unregister tokens. The latter is during GC so
   // this function cannot GC.
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   if (key_map().IsUndefined(isolate)) {
     return false;
   }

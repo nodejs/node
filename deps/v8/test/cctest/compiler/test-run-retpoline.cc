@@ -27,8 +27,8 @@ Handle<Code> BuildCallee(Isolate* isolate, CallDescriptor* call_descriptor) {
   int param_count = static_cast<int>(call_descriptor->StackParameterCount());
   TNode<IntPtrT> sum = __ IntPtrConstant(0);
   for (int i = 0; i < param_count; ++i) {
-    TNode<IntPtrT> product =
-        __ Signed(__ IntPtrMul(__ Parameter(i), __ IntPtrConstant(i + 1)));
+    TNode<IntPtrT> product = __ Signed(__ IntPtrMul(
+        __ UncheckedParameter<IntPtrT>(i), __ IntPtrConstant(i + 1)));
     sum = __ IntPtrAdd(sum, product);
   }
   __ Return(sum);

@@ -20,6 +20,8 @@ class BytecodeLivenessState : public ZoneObject {
  public:
   BytecodeLivenessState(int register_count, Zone* zone)
       : bit_vector_(register_count + 1, zone) {}
+  BytecodeLivenessState(const BytecodeLivenessState&) = delete;
+  BytecodeLivenessState& operator=(const BytecodeLivenessState&) = delete;
 
   const BitVector& bit_vector() const { return bit_vector_; }
 
@@ -71,8 +73,6 @@ class BytecodeLivenessState : public ZoneObject {
 
  private:
   BitVector bit_vector_;
-
-  DISALLOW_COPY_AND_ASSIGN(BytecodeLivenessState);
 };
 
 struct BytecodeLiveness {

@@ -13,6 +13,7 @@
 #include "src/utils/boxed-float.h"
 
 namespace v8 {
+
 class CFunctionInfo;
 
 namespace internal {
@@ -32,6 +33,7 @@ class NativeContext;
 class ScriptContextTable;
 
 namespace compiler {
+
 // Whether we are loading a property or storing to a property.
 // For a store during literal creation, do not walk up the prototype chain.
 enum class AccessMode { kLoad, kStore, kStoreInLiteral, kHas };
@@ -58,9 +60,15 @@ enum class OddballType : uint8_t {
 #define HEAP_BROKER_NEVER_SERIALIZED_OBJECT_LIST(V) \
   /* Subtypes of FixedArray */                      \
   V(ObjectBoilerplateDescription)                   \
+  V(ScopeInfo)                                      \
+  /* Subtypes of String */                          \
+  V(InternalizedString)                             \
+  /* Subtypes of Name */                            \
+  V(Symbol)                                         \
   /* Subtypes of HeapObject */                      \
   V(AccessorInfo)                                   \
   V(ArrayBoilerplateDescription)                    \
+  V(CallHandlerInfo)                                \
   V(Cell)                                           \
   V(TemplateObjectDescription)
 
@@ -80,22 +88,18 @@ enum class OddballType : uint8_t {
   V(NativeContext)                            \
   /* Subtypes of FixedArray */                \
   V(Context)                                  \
-  V(ScopeInfo)                                \
   V(ScriptContextTable)                       \
   /* Subtypes of FixedArrayBase */            \
   V(BytecodeArray)                            \
   V(FixedArray)                               \
   V(FixedDoubleArray)                         \
   /* Subtypes of Name */                      \
-  V(InternalizedString)                       \
   V(String)                                   \
-  V(Symbol)                                   \
   /* Subtypes of JSReceiver */                \
   V(JSObject)                                 \
   /* Subtypes of HeapObject */                \
   V(AllocationSite)                           \
   V(BigInt)                                   \
-  V(CallHandlerInfo)                          \
   V(Code)                                     \
   V(DescriptorArray)                          \
   V(FeedbackCell)                             \
@@ -135,6 +139,7 @@ class V8_EXPORT_PRIVATE ObjectRef {
   Handle<Object> object() const;
 
   bool equals(const ObjectRef& other) const;
+  bool ShouldHaveBeenSerialized() const;
 
   bool IsSmi() const;
   int AsSmi() const;
@@ -173,6 +178,10 @@ class V8_EXPORT_PRIVATE ObjectRef {
       return lhs.equals(rhs);
     }
   };
+
+#ifdef DEBUG
+  bool IsNeverSerializedHeapObject() const;
+#endif  // DEBUG
 
  protected:
   JSHeapBroker* broker() const;
@@ -316,7 +325,7 @@ class JSBoundFunctionRef : public JSObjectRef {
 
   Handle<JSBoundFunction> object() const;
 
-  void Serialize();
+  bool Serialize();
   bool serialized() const;
 
   // The following are available only after calling Serialize().
@@ -347,6 +356,7 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   NativeContextRef native_context() const;
   SharedFunctionInfoRef shared() const;
   FeedbackVectorRef feedback_vector() const;
+  FeedbackCellRef raw_feedback_cell() const;
   CodeRef code() const;
   int InitialMapInstanceSizeWithMinSlack() const;
 };
@@ -588,7 +598,6 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   int UnusedPropertyFields() const;
   ElementsKind elements_kind() const;
   bool is_stable() const;
-  bool is_extensible() const;
   bool is_constructor() const;
   bool has_prototype_slot() const;
   bool is_access_check_needed() const;
@@ -627,7 +636,6 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
       ZoneVector<MapRef>* prototype_maps);
 
   // Concerning the underlying instance_descriptors:
-  void SerializeOwnDescriptors();
   void SerializeOwnDescriptor(InternalIndex descriptor_index);
   bool serialized_own_descriptor(InternalIndex descriptor_index) const;
   MapRef FindFieldOwner(InternalIndex descriptor_index) const;
@@ -772,8 +780,7 @@ class ScopeInfoRef : public HeapObjectRef {
 
   int ContextLength() const;
   bool HasOuterScopeInfo() const;
-  int Flags() const;
-  bool HasContextExtension() const;
+  bool HasContextExtensionSlot() const;
 
   // Only serialized via SerializeScopeInfoChain.
   ScopeInfoRef OuterScopeInfo() const;
@@ -791,8 +798,6 @@ class ScopeInfoRef : public HeapObjectRef {
   V(bool, HasBuiltinId)                                  \
   V(bool, construct_as_builtin)                          \
   V(bool, HasBytecodeArray)                              \
-  V(bool, is_safe_to_skip_arguments_adaptor)             \
-  V(SharedFunctionInfo::Inlineability, GetInlineability) \
   V(int, StartPosition)                                  \
   V(bool, is_compiled)                                   \
   V(bool, IsUserJavaScript)
@@ -806,6 +811,7 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
   int builtin_id() const;
   int context_header_size() const;
   BytecodeArrayRef GetBytecodeArray() const;
+  SharedFunctionInfo::Inlineability GetInlineability() const;
 
 #define DECL_ACCESSOR(type, name) type name() const;
   BROKER_SFI_FIELDS(DECL_ACCESSOR)
@@ -814,13 +820,6 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
   bool IsInlineable() const {
     return GetInlineability() == SharedFunctionInfo::kIsInlineable;
   }
-
-  // Template objects may not be created at compilation time. This method
-  // wraps the retrieval of the template object and creates it if
-  // necessary.
-  JSArrayRef GetTemplateObject(
-      TemplateObjectDescriptionRef description, FeedbackSource const& source,
-      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
 
   void SerializeFunctionTemplateInfo();
   base::Optional<FunctionTemplateInfoRef> function_template_info() const;

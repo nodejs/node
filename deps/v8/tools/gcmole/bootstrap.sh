@@ -33,14 +33,11 @@
 # that the resulting binary is easier transferable between different
 # environments.
 
-CLANG_RELEASE=8.0
+LLVM_RELEASE=9.0.1
 
 THIS_DIR="$(readlink -f "$(dirname "${0}")")"
-LLVM_DIR="${THIS_DIR}/../../third_party/llvm"
-CLANG_DIR="${THIS_DIR}/../../third_party/clang"
-BUILD_DIR="${THIS_DIR}/../../third_party/llvm+clang-build"
-
-LLVM_REPO_URL=${LLVM_URL:-https://llvm.org/svn/llvm-project}
+LLVM_PROJECT_DIR="${THIS_DIR}/bootstrap/llvm"
+BUILD_DIR="${THIS_DIR}/bootstrap/build"
 
 # Die if any command dies.
 set -e
@@ -72,21 +69,14 @@ if [[ "${OS}" = "Darwin" ]] && xcodebuild -version | grep -q 'Xcode 3.2' ; then
   fi
 fi
 
-echo Getting LLVM release "${CLANG_RELEASE}" in "${LLVM_DIR}"
-if ! svn co --force \
-    "${LLVM_REPO_URL}/llvm/branches/release_${CLANG_RELEASE/./}" \
-    "${LLVM_DIR}"; then
-  echo Checkout failed, retrying
-  rm -rf "${LLVM_DIR}"
-  svn co --force \
-      "${LLVM_REPO_URL}/llvm/branches/release_${CLANG_RELEASE/./}" \
-      "${LLVM_DIR}"
+echo Getting LLVM release "${LLVM_RELEASE}" in "${LLVM_PROJECT_DIR}"
+if ! [ -d "${LLVM_PROJECT_DIR}" ] || ! git -C "${LLVM_PROJECT_DIR}" remote get-url origin | grep -q -F "https://github.com/llvm/llvm-project.git" ; then
+  rm -rf "${LLVM_PROJECT_DIR}"
+  git clone --depth=1 --branch "llvmorg-${LLVM_RELEASE}" "https://github.com/llvm/llvm-project.git" "${LLVM_PROJECT_DIR}"
+else
+  git -C "${LLVM_PROJECT_DIR}" fetch --depth=1 origin "llvmorg-${LLVM_RELEASE}"
+  git -C "${LLVM_PROJECT_DIR}" checkout FETCH_HEAD
 fi
-
-echo Getting clang release "${CLANG_RELEASE}" in "${CLANG_DIR}"
-svn co --force \
-    "${LLVM_REPO_URL}/cfe/branches/release_${CLANG_RELEASE/./}" \
-    "${CLANG_DIR}"
 
 # Echo all commands
 set -x
@@ -103,9 +93,10 @@ if [ ! -e "${BUILD_DIR}" ]; then
   mkdir "${BUILD_DIR}"
 fi
 cd "${BUILD_DIR}"
-cmake -DCMAKE_CXX_FLAGS="-static-libstdc++" -DLLVM_ENABLE_TERMINFO=OFF \
-    -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_PROJECTS=clang "${LLVM_DIR}"
-MACOSX_DEPLOYMENT_TARGET=10.5 make -j"${NUM_JOBS}"
+cmake -GNinja -DCMAKE_CXX_FLAGS="-static-libstdc++" -DLLVM_ENABLE_TERMINFO=OFF \
+    -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_PROJECTS=clang \
+    -DLLVM_ENABLE_Z3_SOLVER=OFF "${LLVM_PROJECT_DIR}/llvm"
+MACOSX_DEPLOYMENT_TARGET=10.5 ninja -j"${NUM_JOBS}"
 
 # Strip the clang binary.
 STRIP_FLAGS=
@@ -118,13 +109,13 @@ cd -
 
 # Build libgcmole.so
 make -C "${THIS_DIR}" clean
-make -C "${THIS_DIR}" LLVM_SRC_ROOT="${LLVM_DIR}" \
-    CLANG_SRC_ROOT="${CLANG_DIR}" BUILD_ROOT="${BUILD_DIR}" libgcmole.so
+make -C "${THIS_DIR}" LLVM_SRC_ROOT="${LLVM_PROJECT_DIR}/llvm" \
+    CLANG_SRC_ROOT="${LLVM_PROJECT_DIR}/clang" BUILD_ROOT="${BUILD_DIR}" libgcmole.so
 
 set +x
 
 echo
 echo You can now run gcmole using this command:
 echo
-echo CLANG_BIN=\"third_party/llvm+clang-build/bin\" lua tools/gcmole/gcmole.lua
+echo CLANG_BIN=\"tools/gcmole/gcmole-tools/bin\" python tools/gcmole/gcmole.py
 echo

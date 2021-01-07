@@ -249,9 +249,19 @@ bool RegisterDefaultTrapHandler() { return false; }
 void RemoveTrapHandler() {}
 #endif
 
-bool g_is_trap_handler_enabled;
+bool g_is_trap_handler_enabled{false};
+std::atomic<bool> g_can_enable_trap_handler{true};
 
 bool EnableTrapHandler(bool use_v8_handler) {
+  // We should only enable the trap handler once, and before any call to
+  // {IsTrapHandlerEnabled}. Enabling the trap handler late can lead to problems
+  // because code or objects might have been generated under the assumption that
+  // trap handlers are disabled.
+  bool can_enable =
+      g_can_enable_trap_handler.exchange(false, std::memory_order_relaxed);
+  if (!can_enable) {
+    FATAL("EnableTrapHandler called twice, or after IsTrapHandlerEnabled");
+  }
   if (!V8_TRAP_HANDLER_SUPPORTED) {
     return false;
   }

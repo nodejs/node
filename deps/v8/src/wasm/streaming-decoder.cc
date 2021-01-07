@@ -4,6 +4,7 @@
 
 #include "src/wasm/streaming-decoder.h"
 
+#include "src/base/platform/wrappers.h"
 #include "src/handles/handles.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/dictionary.h"
@@ -28,6 +29,8 @@ namespace wasm {
 class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
  public:
   explicit AsyncStreamingDecoder(std::unique_ptr<StreamingProcessor> processor);
+  AsyncStreamingDecoder(const AsyncStreamingDecoder&) = delete;
+  AsyncStreamingDecoder& operator=(const AsyncStreamingDecoder&) = delete;
 
   // The buffer passed into OnBytesReceived is owned by the caller.
   void OnBytesReceived(Vector<const uint8_t> bytes) override;
@@ -60,7 +63,8 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
               1 + length_bytes.length() + payload_length)),
           payload_offset_(1 + length_bytes.length()) {
       bytes_.start()[0] = id;
-      memcpy(bytes_.start() + 1, &length_bytes.first(), length_bytes.length());
+      base::Memcpy(bytes_.start() + 1, &length_bytes.first(),
+                   length_bytes.length());
     }
 
     SectionCode section_code() const {
@@ -180,13 +184,13 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
 
   void StartCodeSection(int num_functions,
                         std::shared_ptr<WireBytesStorage> wire_bytes_storage,
-                        int code_section_length) {
+                        int code_section_start, int code_section_length) {
     if (!ok()) return;
     // The offset passed to {ProcessCodeSectionHeader} is an error offset and
     // not the start offset of a buffer. Therefore we need the -1 here.
     if (!processor_->ProcessCodeSectionHeader(
             num_functions, module_offset() - 1, std::move(wire_bytes_storage),
-            code_section_length)) {
+            code_section_start, code_section_length)) {
       Fail();
     }
   }
@@ -218,8 +222,6 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
 
   // We need wire bytes in an array for deserializing cached modules.
   std::vector<uint8_t> wire_bytes_for_deserializing_;
-
-  DISALLOW_COPY_AND_ASSIGN(AsyncStreamingDecoder);
 };
 
 void AsyncStreamingDecoder::OnBytesReceived(Vector<const uint8_t> bytes) {
@@ -252,7 +254,7 @@ size_t AsyncStreamingDecoder::DecodingState::ReadBytes(
   Vector<uint8_t> remaining_buf = buffer() + offset();
   size_t num_bytes = std::min(bytes.size(), remaining_buf.size());
   TRACE_STREAMING("ReadBytes(%zu bytes)\n", num_bytes);
-  memcpy(remaining_buf.begin(), &bytes.first(), num_bytes);
+  base::Memcpy(remaining_buf.begin(), &bytes.first(), num_bytes);
   set_offset(offset() + num_bytes);
   return num_bytes;
 }
@@ -288,12 +290,12 @@ void AsyncStreamingDecoder::Finish() {
 #define BYTES(x) (x & 0xFF), (x >> 8) & 0xFF, (x >> 16) & 0xFF, (x >> 24) & 0xFF
     uint8_t module_header[]{BYTES(kWasmMagic), BYTES(kWasmVersion)};
 #undef BYTES
-    memcpy(cursor, module_header, arraysize(module_header));
+    base::Memcpy(cursor, module_header, arraysize(module_header));
     cursor += arraysize(module_header);
   }
   for (const auto& buffer : section_buffers_) {
     DCHECK_LE(cursor - bytes.start() + buffer->length(), total_size_);
-    memcpy(cursor, buffer->bytes().begin(), buffer->length());
+    base::Memcpy(cursor, buffer->bytes().begin(), buffer->length());
     cursor += buffer->length();
   }
   processor_->OnFinishedStream(std::move(bytes));
@@ -512,15 +514,11 @@ size_t AsyncStreamingDecoder::DecodeVarInt32::ReadBytes(
   Vector<uint8_t> remaining_buf = buf + offset();
   size_t new_bytes = std::min(bytes.size(), remaining_buf.size());
   TRACE_STREAMING("ReadBytes of a VarInt\n");
-  memcpy(remaining_buf.begin(), &bytes.first(), new_bytes);
+  base::Memcpy(remaining_buf.begin(), &bytes.first(), new_bytes);
   buf.Truncate(offset() + new_bytes);
   Decoder decoder(buf,
                   streaming->module_offset() - static_cast<uint32_t>(offset()));
   value_ = decoder.consume_u32v(field_name_);
-  // The number of bytes we actually needed to read.
-  DCHECK_GT(decoder.pc(), buffer().begin());
-  bytes_consumed_ = static_cast<size_t>(decoder.pc() - buf.begin());
-  TRACE_STREAMING("  ==> %zu bytes consumed\n", bytes_consumed_);
 
   if (decoder.failed()) {
     if (new_bytes == remaining_buf.size()) {
@@ -530,6 +528,11 @@ size_t AsyncStreamingDecoder::DecodeVarInt32::ReadBytes(
     set_offset(offset() + new_bytes);
     return new_bytes;
   }
+
+  // The number of bytes we actually needed to read.
+  DCHECK_GT(decoder.pc(), buffer().begin());
+  bytes_consumed_ = static_cast<size_t>(decoder.pc() - buf.begin());
+  TRACE_STREAMING("  ==> %zu bytes consumed\n", bytes_consumed_);
 
   // We read all the bytes we needed.
   DCHECK_GT(bytes_consumed_, offset());
@@ -625,7 +628,7 @@ AsyncStreamingDecoder::DecodeNumberOfFunctions::NextWithValue(
   if (payload_buf.size() < bytes_consumed_) {
     return streaming->Error("invalid code section length");
   }
-  memcpy(payload_buf.begin(), buffer().begin(), bytes_consumed_);
+  base::Memcpy(payload_buf.begin(), buffer().begin(), bytes_consumed_);
 
   // {value} is the number of functions.
   if (value_ == 0) {
@@ -635,12 +638,16 @@ AsyncStreamingDecoder::DecodeNumberOfFunctions::NextWithValue(
     return std::make_unique<DecodeSectionID>(streaming->module_offset());
   }
 
+  DCHECK_GE(kMaxInt, section_buffer_->module_offset() +
+                         section_buffer_->payload_offset());
+  int code_section_start = static_cast<int>(section_buffer_->module_offset() +
+                                            section_buffer_->payload_offset());
   DCHECK_GE(kMaxInt, payload_buf.length());
   int code_section_len = static_cast<int>(payload_buf.length());
   DCHECK_GE(kMaxInt, value_);
   streaming->StartCodeSection(static_cast<int>(value_),
                               streaming->section_buffers_.back(),
-                              code_section_len);
+                              code_section_start, code_section_len);
   if (!streaming->ok()) return nullptr;
   return std::make_unique<DecodeFunctionLength>(
       section_buffer_, section_buffer_->payload_offset() + bytes_consumed_,
@@ -656,7 +663,7 @@ AsyncStreamingDecoder::DecodeFunctionLength::NextWithValue(
   if (fun_length_buffer.size() < bytes_consumed_) {
     return streaming->Error("read past code section end");
   }
-  memcpy(fun_length_buffer.begin(), buffer().begin(), bytes_consumed_);
+  base::Memcpy(fun_length_buffer.begin(), buffer().begin(), bytes_consumed_);
 
   // {value} is the length of the function.
   if (value_ == 0) return streaming->Error("invalid function length (0)");

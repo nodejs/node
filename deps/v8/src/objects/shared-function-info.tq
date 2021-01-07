@@ -37,7 +37,6 @@ bitfield struct SharedFunctionInfoFlags extends uint32 {
   has_reported_binary_coverage: bool: 1 bit;
   is_top_level: bool: 1 bit;
   is_oneshot_iife_or_properties_are_final: bool: 1 bit;
-  is_safe_to_skip_arguments_adaptor: bool: 1 bit;
   private_name_lookup_skips_outer_class: bool: 1 bit;
 }
 
@@ -48,42 +47,59 @@ bitfield struct SharedFunctionInfoFlags2 extends uint8 {
   may_have_cached_code: bool: 1 bit;
 }
 
-extern class SharedFunctionInfo extends HeapObject {
+@export
+@customCppClass
+@customMap  // Just to place the map at the beginning of the roots array.
+class SharedFunctionInfo extends HeapObject {
   weak function_data: Object;
   name_or_scope_info: String|NoSharedNameSentinel|ScopeInfo;
   outer_scope_info_or_feedback_metadata: HeapObject;
   script_or_debug_info: Script|DebugInfo|Undefined;
+  // [length]: The function length - usually the number of declared parameters.
+  // Use up to 2^16-2 parameters (16 bits of values, where one is reserved for
+  // kDontAdaptArgumentsSentinel). The value is only reliable when the function
+  // has been compiled.
   length: int16;
   formal_parameter_count: uint16;
-  function_token_offset: int16;
+  function_token_offset: uint16;
+  // [expected_nof_properties]: Expected number of properties for the
+  // function. The value is only reliable when the function has been compiled.
   expected_nof_properties: uint8;
   flags2: SharedFunctionInfoFlags2;
   flags: SharedFunctionInfoFlags;
+  // [function_literal_id] - uniquely identifies the FunctionLiteral this
+  // SharedFunctionInfo represents within its script, or -1 if this
+  // SharedFunctionInfo object doesn't correspond to a parsed FunctionLiteral.
   function_literal_id: int32;
+  // [unique_id] - For --trace-maps purposes, an identifier that's persistent
+  // even if the GC moves this SharedFunctionInfo.
   @if(V8_SFI_HAS_UNIQUE_ID) unique_id: int32;
 }
 
 @abstract
-@generateCppClass
-extern class UncompiledData extends HeapObject {
+@export
+@customCppClass
+class UncompiledData extends HeapObject {
   inferred_name: String;
   start_position: int32;
   end_position: int32;
 }
 
-@generateCppClass
-extern class UncompiledDataWithoutPreparseData extends UncompiledData {
+@export
+@customCppClass
+class UncompiledDataWithoutPreparseData extends UncompiledData {
 }
 
-@generateCppClass
-extern class UncompiledDataWithPreparseData extends UncompiledData {
+@export
+@customCppClass
+class UncompiledDataWithPreparseData extends UncompiledData {
   preparse_data: PreparseData;
 }
 
 @export
 class OnHeapBasicBlockProfilerData extends HeapObject {
   block_ids: ByteArray;  // Stored as 4-byte ints
-  counts: ByteArray;     // Stored as 4-byte ints
+  counts: ByteArray;     // Stored as 8-byte floats
   name: String;
   schedule: String;
   code: String;

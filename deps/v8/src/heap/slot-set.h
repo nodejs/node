@@ -39,6 +39,9 @@ class PossiblyEmptyBuckets {
 
   ~PossiblyEmptyBuckets() { Release(); }
 
+  PossiblyEmptyBuckets(const PossiblyEmptyBuckets&) = delete;
+  PossiblyEmptyBuckets& operator=(const PossiblyEmptyBuckets&) = delete;
+
   void Initialize() {
     bitmap_ = kNullAddress;
     DCHECK(!IsAllocated());
@@ -117,8 +120,6 @@ class PossiblyEmptyBuckets {
   }
 
   FRIEND_TEST(PossiblyEmptyBucketsTest, WordsForBuckets);
-
-  DISALLOW_COPY_AND_ASSIGN(PossiblyEmptyBuckets);
 };
 
 STATIC_ASSERT(std::is_standard_layout<PossiblyEmptyBuckets>::value);
@@ -639,7 +640,7 @@ class V8_EXPORT_PRIVATE TypedSlots {
   static const size_t kInitialBufferSize = 100;
   static const size_t kMaxBufferSize = 16 * KB;
   static size_t NextCapacity(size_t capacity) {
-    return Min(kMaxBufferSize, capacity * 2);
+    return std::min({kMaxBufferSize, capacity * 2});
   }
   Chunk* EnsureChunk();
   Chunk* NewChunk(Chunk* next, size_t capacity);

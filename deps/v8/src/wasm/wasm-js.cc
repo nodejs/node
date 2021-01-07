@@ -10,9 +10,12 @@
 #include "src/api/api-inl.h"
 #include "src/api/api-natives.h"
 #include "src/ast/ast.h"
+#include "src/base/logging.h"
 #include "src/base/overflowing-math.h"
+#include "src/base/platform/wrappers.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/execution.h"
+#include "src/execution/frames-inl.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
 #include "src/heap/factory.h"
@@ -23,12 +26,15 @@
 #include "src/parsing/parse-info.h"
 #include "src/tasks/task-utils.h"
 #include "src/trap-handler/trap-handler.h"
+#include "src/wasm/function-compiler.h"
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/value-type.h"
+#include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-serialization.h"
+#include "src/wasm/wasm-value.h"
 
 using v8::internal::wasm::ErrorThrower;
 using v8::internal::wasm::ScheduledErrorThrower;
@@ -102,7 +108,7 @@ WasmStreaming::WasmStreaming(std::unique_ptr<WasmStreamingImpl> impl)
 WasmStreaming::~WasmStreaming() = default;
 
 void WasmStreaming::OnBytesReceived(const uint8_t* bytes, size_t size) {
-  TRACE_EVENT1("v8.wasm", "wasm.OnBytesReceived", "num_bytes", size);
+  TRACE_EVENT1("v8.wasm", "wasm.OnBytesReceived", "bytes", size);
   impl_->OnBytesReceived(bytes, size);
 }
 
@@ -631,7 +637,7 @@ void WebAssemblyValidate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (is_shared) {
     // Make a copy of the wire bytes to avoid concurrent modification.
     std::unique_ptr<uint8_t[]> copy(new uint8_t[bytes.length()]);
-    memcpy(copy.get(), bytes.start(), bytes.length());
+    base::Memcpy(copy.get(), bytes.start(), bytes.length());
     i::wasm::ModuleWireBytes bytes_copy(copy.get(),
                                         copy.get() + bytes.length());
     validated = i_isolate->wasm_engine()->SyncValidate(
@@ -674,7 +680,7 @@ void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (is_shared) {
     // Make a copy of the wire bytes to avoid concurrent modification.
     std::unique_ptr<uint8_t[]> copy(new uint8_t[bytes.length()]);
-    memcpy(copy.get(), bytes.start(), bytes.length());
+    base::Memcpy(copy.get(), bytes.start(), bytes.length());
     i::wasm::ModuleWireBytes bytes_copy(copy.get(),
                                         copy.get() + bytes.length());
     module_obj = i_isolate->wasm_engine()->SyncCompile(
@@ -1344,7 +1350,8 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
     case i::wasm::ValueType::kOptRef: {
       switch (type.heap_representation()) {
         case i::wasm::HeapType::kExtern:
-        case i::wasm::HeapType::kExn: {
+        case i::wasm::HeapType::kExn:
+        case i::wasm::HeapType::kAny: {
           if (args.Length() < 2) {
             // When no initial value is provided, we have to use the WebAssembly
             // default value 'null', and not the JS default value 'undefined'.
@@ -1581,7 +1588,7 @@ constexpr const char* kName_WasmTableObject = "WebAssembly.Table";
   }
 
 void WebAssemblyInstanceGetExports(
-  const v8::FunctionCallbackInfo<v8::Value>& args) {
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
@@ -1844,6 +1851,7 @@ void WebAssemblyGlobalGetValueCommon(
         case i::wasm::HeapType::kExtern:
         case i::wasm::HeapType::kFunc:
         case i::wasm::HeapType::kExn:
+        case i::wasm::HeapType::kAny:
           return_value.Set(Utils::ToLocal(receiver->GetRef()));
           break;
         case i::wasm::HeapType::kEq:
@@ -1932,6 +1940,7 @@ void WebAssemblyGlobalSetValue(
       switch (receiver->type().heap_representation()) {
         case i::wasm::HeapType::kExtern:
         case i::wasm::HeapType::kExn:
+        case i::wasm::HeapType::kAny:
           receiver->SetExternRef(Utils::OpenHandle(*args[0]));
           break;
         case i::wasm::HeapType::kFunc: {
@@ -1982,9 +1991,11 @@ void WebAssemblyGlobalType(const v8::FunctionCallbackInfo<v8::Value>& args) {
 // TODO(titzer): we use the API to create the function template because the
 // internal guts are too ugly to replicate here.
 static i::Handle<i::FunctionTemplateInfo> NewFunctionTemplate(
-    i::Isolate* i_isolate, FunctionCallback func, bool has_prototype) {
+    i::Isolate* i_isolate, FunctionCallback func, bool has_prototype,
+    SideEffectType side_effect_type = SideEffectType::kHasSideEffect) {
   Isolate* isolate = reinterpret_cast<Isolate*>(i_isolate);
-  Local<FunctionTemplate> templ = FunctionTemplate::New(isolate, func);
+  Local<FunctionTemplate> templ = FunctionTemplate::New(
+      isolate, func, {}, {}, 0, ConstructorBehavior::kAllow, side_effect_type);
   has_prototype ? templ->ReadOnlyPrototype() : templ->RemovePrototype();
   return v8::Utils::OpenHandle(*templ);
 }
@@ -1998,31 +2009,35 @@ static i::Handle<i::ObjectTemplateInfo> NewObjectTemplate(
 
 namespace internal {
 
-Handle<JSFunction> CreateFunc(Isolate* isolate, Handle<String> name,
-                              FunctionCallback func, bool has_prototype) {
+Handle<JSFunction> CreateFunc(
+    Isolate* isolate, Handle<String> name, FunctionCallback func,
+    bool has_prototype,
+    SideEffectType side_effect_type = SideEffectType::kHasSideEffect) {
   Handle<FunctionTemplateInfo> temp =
-      NewFunctionTemplate(isolate, func, has_prototype);
+      NewFunctionTemplate(isolate, func, has_prototype, side_effect_type);
   Handle<JSFunction> function =
       ApiNatives::InstantiateFunction(temp, name).ToHandleChecked();
   DCHECK(function->shared().HasSharedName());
   return function;
 }
 
-Handle<JSFunction> InstallFunc(Isolate* isolate, Handle<JSObject> object,
-                               const char* str, FunctionCallback func,
-                               int length, bool has_prototype = false,
-                               PropertyAttributes attributes = NONE) {
+Handle<JSFunction> InstallFunc(
+    Isolate* isolate, Handle<JSObject> object, const char* str,
+    FunctionCallback func, int length, bool has_prototype = false,
+    PropertyAttributes attributes = NONE,
+    SideEffectType side_effect_type = SideEffectType::kHasSideEffect) {
   Handle<String> name = v8_str(isolate, str);
-  Handle<JSFunction> function = CreateFunc(isolate, name, func, has_prototype);
+  Handle<JSFunction> function =
+      CreateFunc(isolate, name, func, has_prototype, side_effect_type);
   function->shared().set_length(length);
   JSObject::AddProperty(isolate, object, name, function, attributes);
   return function;
 }
 
 Handle<JSFunction> InstallConstructorFunc(Isolate* isolate,
-                                         Handle<JSObject> object,
-                                         const char* str,
-                                         FunctionCallback func) {
+                                          Handle<JSObject> object,
+                                          const char* str,
+                                          FunctionCallback func) {
   return InstallFunc(isolate, object, str, func, 1, true, DONT_ENUM);
 }
 
@@ -2035,7 +2050,8 @@ void InstallGetter(Isolate* isolate, Handle<JSObject> object, const char* str,
                    FunctionCallback func) {
   Handle<String> name = v8_str(isolate, str);
   Handle<JSFunction> function =
-      CreateFunc(isolate, GetterName(isolate, name), func, false);
+      CreateFunc(isolate, GetterName(isolate, name), func, false,
+                 SideEffectType::kHasNoSideEffect);
 
   Utils::ToLocal(object)->SetAccessorProperty(Utils::ToLocal(name),
                                               Utils::ToLocal(function),
@@ -2088,9 +2104,13 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
 
   // Setup WebAssembly
   Handle<String> name = v8_str(isolate, "WebAssembly");
-  NewFunctionArgs args = NewFunctionArgs::ForFunctionWithoutCode(
-      name, isolate->strict_function_map(), LanguageMode::kStrict);
-  Handle<JSFunction> cons = factory->NewFunction(args);
+  // Not supposed to be called, hence using the kIllegal builtin as code.
+  Handle<SharedFunctionInfo> info =
+      factory->NewSharedFunctionInfoForBuiltin(name, Builtins::kIllegal);
+  info->set_language_mode(LanguageMode::kStrict);
+
+  Handle<JSFunction> cons =
+      Factory::JSFunctionBuilder{isolate, info, context}.Build();
   JSFunction::SetPrototype(cons, isolate->initial_object_prototype());
   Handle<JSObject> webassembly =
       factory->NewJSObject(cons, AllocationType::kOld);

@@ -47,7 +47,7 @@ class BasicBlock;
   V(Float64ExtractLowWord32)             \
   V(Float64SilenceNaN)                   \
   V(RoundFloat64ToInt32)                 \
-  V(TruncateFloat64ToInt64)              \
+  V(TruncateFloat64ToFloat32)            \
   V(TruncateFloat64ToWord32)             \
   V(TruncateInt64ToInt32)                \
   V(Word32ReverseBytes)                  \
@@ -236,6 +236,7 @@ class V8_EXPORT_PRIVATE GraphAssembler {
 
   // Value creation.
   Node* IntPtrConstant(intptr_t value);
+  Node* UintPtrConstant(uintptr_t value);
   Node* Uint32Constant(uint32_t value);
   Node* Int32Constant(int32_t value);
   Node* Int64Constant(int64_t value);
@@ -282,6 +283,7 @@ class V8_EXPORT_PRIVATE GraphAssembler {
 
   Node* Float64RoundDown(Node* value);
   Node* Float64RoundTruncate(Node* value);
+  Node* TruncateFloat64ToInt64(Node* value, TruncateKind kind);
 
   Node* BitcastWordToTagged(Node* value);
   Node* BitcastWordToTaggedSigned(Node* value);
@@ -302,6 +304,10 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* StoreUnaligned(MachineRepresentation rep, Node* object, Node* offset,
                        Node* value);
   Node* LoadUnaligned(MachineType type, Node* object, Node* offset);
+
+  Node* ProtectedStore(MachineRepresentation rep, Node* object, Node* offset,
+                       Node* value);
+  Node* ProtectedLoad(MachineType type, Node* object, Node* offset);
 
   Node* Retain(Node* buffer);
   Node* UnsafePointerAdd(Node* base, Node* external);
@@ -324,6 +330,9 @@ class V8_EXPORT_PRIVATE GraphAssembler {
       DeoptimizeReason reason, FeedbackSource const& feedback, Node* condition,
       Node* frame_state,
       IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
+  Node* DynamicCheckMapsWithDeoptUnless(Node* condition, Node* slot_index,
+                                        Node* map, Node* handler,
+                                        Node* frame_state);
   TNode<Object> Call(const CallDescriptor* call_descriptor, int inputs_size,
                      Node** inputs);
   TNode<Object> Call(const Operator* op, int inputs_size, Node** inputs);
@@ -429,11 +438,11 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   // All labels created while a LoopScope is live are considered to be inside
   // the loop.
   template <MachineRepresentation... Reps>
-  class LoopScope final {
+  class V8_NODISCARD LoopScope final {
    private:
     // The internal scope is only here to increment the graph assembler's
     // nesting level prior to `loop_header_label` creation below.
-    class LoopScopeInternal {
+    class V8_NODISCARD LoopScopeInternal {
      public:
       explicit LoopScopeInternal(GraphAssembler* gasm)
           : previous_loop_nesting_level_(gasm->loop_nesting_level_),
@@ -480,7 +489,7 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   };
 
   // Upon destruction, restores effect and control to the state at construction.
-  class RestoreEffectControlScope {
+  class V8_NODISCARD RestoreEffectControlScope {
    public:
     explicit RestoreEffectControlScope(GraphAssembler* gasm)
         : gasm_(gasm), effect_(gasm->effect()), control_(gasm->control()) {}
@@ -560,8 +569,9 @@ void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
                              *loop_headers_.back()));
     AddNode(graph()->NewNode(common()->LoopExitEffect(), effect(), control()));
     for (size_t i = 0; i < kVarCount; i++) {
-      var_array[i] = AddNode(
-          graph()->NewNode(common()->LoopExitValue(), var_array[i], control()));
+      var_array[i] = AddNode(graph()->NewNode(
+          common()->LoopExitValue(MachineRepresentation::kTagged), var_array[i],
+          control()));
     }
   }
 

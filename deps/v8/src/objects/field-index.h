@@ -31,7 +31,7 @@ class FieldIndex final {
   static inline FieldIndex ForInObjectOffset(int offset, Encoding encoding);
   static inline FieldIndex ForDescriptor(Map map,
                                          InternalIndex descriptor_index);
-  static inline FieldIndex ForDescriptor(const Isolate* isolate, Map map,
+  static inline FieldIndex ForDescriptor(IsolateRoot isolate, Map map,
                                          InternalIndex descriptor_index);
 
   inline int GetLoadByFieldIndex() const;

@@ -66,18 +66,6 @@ static T ArithmeticShiftRight(T x, int shift) {
   }
 }
 
-// Returns the maximum of the two parameters.
-template <typename T>
-constexpr T Max(T a, T b) {
-  return a < b ? b : a;
-}
-
-// Returns the minimum of the two parameters.
-template <typename T>
-constexpr T Min(T a, T b) {
-  return a < b ? a : b;
-}
-
 // Returns the maximum of the two parameters according to JavaScript semantics.
 template <typename T>
 T JSMax(T x, T y) {
@@ -135,6 +123,15 @@ inline double Modulo(double x, double y) {
 }
 
 template <typename T>
+T Saturate(int64_t value) {
+  static_assert(sizeof(int64_t) > sizeof(T), "T must be int32_t or smaller");
+  int64_t min = static_cast<int64_t>(std::numeric_limits<T>::min());
+  int64_t max = static_cast<int64_t>(std::numeric_limits<T>::max());
+  int64_t clamped = std::max(min, std::min(max, value));
+  return static_cast<T>(clamped);
+}
+
+template <typename T>
 T SaturateAdd(T a, T b) {
   if (std::is_signed<T>::value) {
     if (a > 0 && b > 0) {
@@ -174,6 +171,53 @@ T SaturateSub(T a, T b) {
     }
   }
   return a - b;
+}
+
+template <typename T>
+T SaturateRoundingQMul(T a, T b) {
+  // Saturating rounding multiplication for Q-format numbers. See
+  // https://en.wikipedia.org/wiki/Q_(number_format) for a description.
+  // Specifically this supports Q7, Q15, and Q31. This follows the
+  // implementation in simulator-logic-arm64.cc (sqrdmulh) to avoid overflow
+  // when a == b == int32 min.
+  static_assert(std::is_integral<T>::value, "only integral types");
+
+  constexpr int size_in_bits = sizeof(T) * 8;
+  int round_const = 1 << (size_in_bits - 2);
+  int64_t product = a * b;
+  product += round_const;
+  product >>= (size_in_bits - 1);
+  return Saturate<T>(product);
+}
+
+// Multiply two numbers, returning a result that is twice as wide, no overflow.
+// Put Wide first so we can use function template argument deduction for Narrow,
+// and callers can provide only Wide.
+template <typename Wide, typename Narrow>
+Wide MultiplyLong(Narrow a, Narrow b) {
+  static_assert(
+      std::is_integral<Narrow>::value && std::is_integral<Wide>::value,
+      "only integral types");
+  static_assert(std::is_signed<Narrow>::value == std::is_signed<Wide>::value,
+                "both must have same signedness");
+  static_assert(sizeof(Narrow) * 2 == sizeof(Wide), "only twice as long");
+
+  return static_cast<Wide>(a) * static_cast<Wide>(b);
+}
+
+// Add two numbers, returning a result that is twice as wide, no overflow.
+// Put Wide first so we can use function template argument deduction for Narrow,
+// and callers can provide only Wide.
+template <typename Wide, typename Narrow>
+Wide AddLong(Narrow a, Narrow b) {
+  static_assert(
+      std::is_integral<Narrow>::value && std::is_integral<Wide>::value,
+      "only integral types");
+  static_assert(std::is_signed<Narrow>::value == std::is_signed<Wide>::value,
+                "both must have same signedness");
+  static_assert(sizeof(Narrow) * 2 == sizeof(Wide), "only twice as long");
+
+  return static_cast<Wide>(a) + static_cast<Wide>(b);
 }
 
 // Helper macros for defining a contiguous sequence of field offset constants.
@@ -293,46 +337,54 @@ class SetOncePointer {
 
 // Compare 8bit/16bit chars to 8bit/16bit chars.
 template <typename lchar, typename rchar>
+inline bool CompareCharsEqualUnsigned(const lchar* lhs, const rchar* rhs,
+                                      size_t chars) {
+  STATIC_ASSERT(std::is_unsigned<lchar>::value);
+  STATIC_ASSERT(std::is_unsigned<rchar>::value);
+  if (sizeof(*lhs) == sizeof(*rhs)) {
+    // memcmp compares byte-by-byte, but for equality it doesn't matter whether
+    // two-byte char comparison is little- or big-endian.
+    return memcmp(lhs, rhs, chars * sizeof(*lhs)) == 0;
+  }
+  for (const lchar* limit = lhs + chars; lhs < limit; ++lhs, ++rhs) {
+    if (*lhs != *rhs) return false;
+  }
+  return true;
+}
+
+template <typename lchar, typename rchar>
+inline bool CompareCharsEqual(const lchar* lhs, const rchar* rhs,
+                              size_t chars) {
+  using ulchar = typename std::make_unsigned<lchar>::type;
+  using urchar = typename std::make_unsigned<rchar>::type;
+  return CompareCharsEqualUnsigned(reinterpret_cast<const ulchar*>(lhs),
+                                   reinterpret_cast<const urchar*>(rhs), chars);
+}
+
+// Compare 8bit/16bit chars to 8bit/16bit chars.
+template <typename lchar, typename rchar>
 inline int CompareCharsUnsigned(const lchar* lhs, const rchar* rhs,
                                 size_t chars) {
-  const lchar* limit = lhs + chars;
+  STATIC_ASSERT(std::is_unsigned<lchar>::value);
+  STATIC_ASSERT(std::is_unsigned<rchar>::value);
   if (sizeof(*lhs) == sizeof(char) && sizeof(*rhs) == sizeof(char)) {
     // memcmp compares byte-by-byte, yielding wrong results for two-byte
     // strings on little-endian systems.
     return memcmp(lhs, rhs, chars);
   }
-  while (lhs < limit) {
+  for (const lchar* limit = lhs + chars; lhs < limit; ++lhs, ++rhs) {
     int r = static_cast<int>(*lhs) - static_cast<int>(*rhs);
     if (r != 0) return r;
-    ++lhs;
-    ++rhs;
   }
   return 0;
 }
 
 template <typename lchar, typename rchar>
 inline int CompareChars(const lchar* lhs, const rchar* rhs, size_t chars) {
-  DCHECK_LE(sizeof(lchar), 2);
-  DCHECK_LE(sizeof(rchar), 2);
-  if (sizeof(lchar) == 1) {
-    if (sizeof(rchar) == 1) {
-      return CompareCharsUnsigned(reinterpret_cast<const uint8_t*>(lhs),
-                                  reinterpret_cast<const uint8_t*>(rhs), chars);
-    } else {
-      return CompareCharsUnsigned(reinterpret_cast<const uint8_t*>(lhs),
-                                  reinterpret_cast<const uint16_t*>(rhs),
-                                  chars);
-    }
-  } else {
-    if (sizeof(rchar) == 1) {
-      return CompareCharsUnsigned(reinterpret_cast<const uint16_t*>(lhs),
-                                  reinterpret_cast<const uint8_t*>(rhs), chars);
-    } else {
-      return CompareCharsUnsigned(reinterpret_cast<const uint16_t*>(lhs),
-                                  reinterpret_cast<const uint16_t*>(rhs),
-                                  chars);
-    }
-  }
+  using ulchar = typename std::make_unsigned<lchar>::type;
+  using urchar = typename std::make_unsigned<rchar>::type;
+  return CompareCharsUnsigned(reinterpret_cast<const ulchar*>(lhs),
+                              reinterpret_cast<const urchar*>(rhs), chars);
 }
 
 // Calculate 10^exponent.
@@ -681,6 +733,19 @@ static inline V ByteReverse(V value) {
       UNREACHABLE();
   }
 }
+
+#if V8_OS_AIX
+// glibc on aix has a bug when using ceil, trunc or nearbyint:
+// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=97086
+template <typename T>
+T FpOpWorkaround(T input, T value) {
+  if (/*if -*/ std::signbit(input) && value == 0.0 &&
+      /*if +*/ !std::signbit(value)) {
+    return -0.0;
+  }
+  return value;
+}
+#endif
 
 V8_EXPORT_PRIVATE bool PassesFilter(Vector<const char> name,
                                     Vector<const char> filter);

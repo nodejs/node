@@ -275,6 +275,9 @@ void PagedSpace::SetTopAndLimit(Address top, Address limit) {
          Page::FromAddress(top) == Page::FromAddress(limit - 1));
   BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
   allocation_info_.Reset(top, limit);
+  // The order of the following two stores is important.
+  original_limit_.store(limit, std::memory_order_relaxed);
+  original_top_.store(top, std::memory_order_release);
 }
 
 size_t PagedSpace::ShrinkPageToHighWaterMark(Page* page) {
@@ -435,10 +438,9 @@ void PagedSpace::FreeLinearAllocationArea() {
         MemoryChunk::FromAddress(current_top));
   }
 
-  DCHECK_IMPLIES(
-      current_limit - current_top >= 2 * kTaggedSize,
-      heap()->incremental_marking()->non_atomic_marking_state()->IsWhite(
-          HeapObject::FromAddress(current_top)));
+  DCHECK_IMPLIES(current_limit - current_top >= 2 * kTaggedSize,
+                 heap()->incremental_marking()->marking_state()->IsWhite(
+                     HeapObject::FromAddress(current_top)));
   Free(current_top, current_limit - current_top,
        SpaceAccountingMode::kSpaceAccounted);
 }
@@ -638,7 +640,7 @@ PagedSpace::TryAllocationFromFreeListBackground(LocalHeap* local_heap,
 
   heap()->StartIncrementalMarkingIfAllocationLimitIsReachedBackground();
 
-  size_t used_size_in_bytes = Min(new_node_size, max_size_in_bytes);
+  size_t used_size_in_bytes = std::min(new_node_size, max_size_in_bytes);
 
   Address start = new_node.address();
   Address end = new_node.address() + new_node_size;
@@ -844,6 +846,18 @@ bool CompactionSpace::RefillLabMain(int size_in_bytes,
   return RawRefillLabMain(size_in_bytes, origin);
 }
 
+bool PagedSpace::TryExpand(int size_in_bytes, AllocationOrigin origin) {
+  Page* page = Expand();
+  if (!page) return false;
+  if (!is_compaction_space()) {
+    heap()->NotifyOldGenerationExpansion(identity(), page);
+  }
+  DCHECK((CountTotalPages() > 1) ||
+         (static_cast<size_t>(size_in_bytes) <= free_list_->Available()));
+  return TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
+                                       origin);
+}
+
 bool PagedSpace::RawRefillLabMain(int size_in_bytes, AllocationOrigin origin) {
   // Non-compaction local spaces are not supported.
   DCHECK_IMPLIES(is_local_space(), is_compaction_space());
@@ -886,33 +900,22 @@ bool PagedSpace::RawRefillLabMain(int size_in_bytes, AllocationOrigin origin) {
 
   if (heap()->ShouldExpandOldGenerationOnSlowAllocation() &&
       heap()->CanExpandOldGeneration(AreaSize())) {
-    Page* page = Expand();
-    if (page) {
-      if (!is_compaction_space()) {
-        heap()->NotifyOldGenerationExpansion(identity(), page);
-      }
-      DCHECK((CountTotalPages() > 1) ||
-             (static_cast<size_t>(size_in_bytes) <= free_list_->Available()));
-      return TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
-                                           origin);
+    if (TryExpand(size_in_bytes, origin)) {
+      return true;
     }
   }
 
-  if (is_compaction_space()) {
-    return ContributeToSweepingMain(0, 0, size_in_bytes, origin);
-
-  } else {
-    DCHECK(!is_local_space());
-    if (collector->sweeping_in_progress()) {
-      // Complete sweeping for this space.
-      collector->DrainSweepingWorklistForSpace(identity());
-      RefillFreeList();
-
-      // Last try to acquire memory from free list.
-      return TryAllocationFromFreeListMain(size_in_bytes, origin);
-    }
-    return false;
+  // Try sweeping all pages.
+  if (ContributeToSweepingMain(0, 0, size_in_bytes, origin)) {
+    return true;
   }
+
+  if (heap()->gc_state() != Heap::NOT_IN_GC && !heap()->force_oom()) {
+    // Avoid OOM crash in the GC in order to invoke NearHeapLimitCallback after
+    // GC and give it a chance to increase the heap limit.
+    return TryExpand(size_in_bytes, origin);
+  }
+  return false;
 }
 
 bool PagedSpace::ContributeToSweepingMain(int required_freed_bytes,
@@ -926,12 +929,11 @@ bool PagedSpace::ContributeToSweepingMain(int required_freed_bytes,
 
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
-    int max_freed = collector->sweeper()->ParallelSweepSpace(
-        identity(), required_freed_bytes, max_pages,
-        invalidated_slots_in_free_space);
+    collector->sweeper()->ParallelSweepSpace(identity(), required_freed_bytes,
+                                             max_pages,
+                                             invalidated_slots_in_free_space);
     RefillFreeList();
-    if (max_freed >= size_in_bytes)
-      return TryAllocationFromFreeListMain(size_in_bytes, origin);
+    return TryAllocationFromFreeListMain(size_in_bytes, origin);
   }
   return false;
 }

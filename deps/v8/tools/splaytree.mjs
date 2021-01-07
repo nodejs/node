@@ -75,7 +75,7 @@ SplayTree.prototype.insert = function(key, value) {
   if (this.root_.key == key) {
     return;
   }
-  var node = new SplayTree.Node(key, value);
+  const node = new SplayTree.Node(key, value);
   if (key > this.root_.key) {
     node.left = this.root_;
     node.right = this.root_.right;
@@ -99,17 +99,17 @@ SplayTree.prototype.insert = function(key, value) {
  */
 SplayTree.prototype.remove = function(key) {
   if (this.isEmpty()) {
-    throw Error('Key not found: ' + key);
+    throw Error(`Key not found: ${key}`);
   }
   this.splay_(key);
   if (this.root_.key != key) {
-    throw Error('Key not found: ' + key);
+    throw Error(`Key not found: ${key}`);
   }
-  var removed = this.root_;
+  const removed = this.root_;
   if (!this.root_.left) {
     this.root_ = this.root_.right;
   } else {
-    var right = this.root_.right;
+    const { right } = this.root_;
     this.root_ = this.root_.left;
     // Splay to make sure that the new root has an empty right child.
     this.splay_(key);
@@ -144,7 +144,7 @@ SplayTree.prototype.findMin = function() {
   if (this.isEmpty()) {
     return null;
   }
-  var current = this.root_;
+  let current = this.root_;
   while (current.left) {
     current = current.left;
   }
@@ -159,7 +159,7 @@ SplayTree.prototype.findMax = function(opt_startNode) {
   if (this.isEmpty()) {
     return null;
   }
-  var current = opt_startNode || this.root_;
+  let current = opt_startNode || this.root_;
   while (current.right) {
     current = current.right;
   }
@@ -195,7 +195,7 @@ SplayTree.prototype.findGreatestLessThan = function(key) {
  *     with keys.
  */
 SplayTree.prototype.exportKeysAndValues = function() {
-  var result = [];
+  const result = [];
   this.traverse_(function(node) { result.push([node.key, node.value]); });
   return result;
 };
@@ -205,7 +205,7 @@ SplayTree.prototype.exportKeysAndValues = function() {
  * @return {Array<*>} An array containing all the values of tree's nodes.
  */
 SplayTree.prototype.exportValues = function() {
-  var result = [];
+  const result = [];
   this.traverse_(function(node) { result.push(node.value); });
   return result;
 };
@@ -230,9 +230,9 @@ SplayTree.prototype.splay_ = function(key) {
   // the L tree of the algorithm.  The left child of the dummy node
   // will hold the R tree of the algorithm.  Using a dummy node, left
   // and right will always be nodes and we avoid special cases.
-  var dummy, left, right;
+  let dummy, left, right;
   dummy = left = right = new SplayTree.Node(null, null);
-  var current = this.root_;
+  let current = this.root_;
   while (true) {
     if (key < current.key) {
       if (!current.left) {
@@ -240,7 +240,7 @@ SplayTree.prototype.splay_ = function(key) {
       }
       if (key < current.left.key) {
         // Rotate right.
-        var tmp = current.left;
+        const tmp = current.left;
         current.left = tmp.right;
         tmp.right = current;
         current = tmp;
@@ -258,7 +258,7 @@ SplayTree.prototype.splay_ = function(key) {
       }
       if (key > current.right.key) {
         // Rotate left.
-        var tmp = current.right;
+        const tmp = current.right;
         current.right = tmp.left;
         tmp.left = current;
         current = tmp;
@@ -290,9 +290,9 @@ SplayTree.prototype.splay_ = function(key) {
  * @private
  */
 SplayTree.prototype.traverse_ = function(f) {
-  var nodesToVisit = [this.root_];
+  const nodesToVisit = [this.root_];
   while (nodesToVisit.length > 0) {
-    var node = nodesToVisit.shift();
+    const node = nodesToVisit.shift();
     if (node == null) {
       continue;
     }

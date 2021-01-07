@@ -76,8 +76,8 @@ static Handle<JSFunction> Compile(const char* source) {
           v8::ScriptCompiler::kNoCompileOptions,
           ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE)
           .ToHandleChecked();
-  return isolate->factory()->NewFunctionFromSharedFunctionInfo(
-      shared, isolate->native_context());
+  return Factory::JSFunctionBuilder{isolate, shared, isolate->native_context()}
+      .Build();
 }
 
 
@@ -652,9 +652,7 @@ TEST(CompileFunctionInContextScriptOrigin) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   LocalContext env;
-  v8::ScriptOrigin origin(v8_str("test"),
-                          v8::Integer::New(CcTest::isolate(), 22),
-                          v8::Integer::New(CcTest::isolate(), 41));
+  v8::ScriptOrigin origin(v8_str("test"), 22, 41);
   v8::ScriptCompiler::Source script_source(v8_str("throw new Error()"), origin);
   Local<ScriptOrModule> script;
   v8::Local<v8::Function> fun =
@@ -700,7 +698,7 @@ void TestCompileFunctionInContextToStringImpl() {
 
     // Regression test for v8:6190
     {
-      v8::ScriptOrigin origin(v8_str("test"), v8_int(22), v8_int(41));
+      v8::ScriptOrigin origin(v8_str("test"), 22, 41);
       v8::ScriptCompiler::Source script_source(v8_str("return event"), origin);
 
       v8::Local<v8::String> params[] = {v8_str("event")};
@@ -727,7 +725,7 @@ void TestCompileFunctionInContextToStringImpl() {
 
     // With no parameters:
     {
-      v8::ScriptOrigin origin(v8_str("test"), v8_int(17), v8_int(31));
+      v8::ScriptOrigin origin(v8_str("test"), 17, 31);
       v8::ScriptCompiler::Source script_source(v8_str("return 0"), origin);
 
       v8::TryCatch try_catch(CcTest::isolate());
@@ -752,7 +750,7 @@ void TestCompileFunctionInContextToStringImpl() {
 
     // With a name:
     {
-      v8::ScriptOrigin origin(v8_str("test"), v8_int(17), v8_int(31));
+      v8::ScriptOrigin origin(v8_str("test"), 17, 31);
       v8::ScriptCompiler::Source script_source(v8_str("return 0"), origin);
 
       v8::TryCatch try_catch(CcTest::isolate());
@@ -806,30 +804,6 @@ TEST(InvocationCount) {
   CHECK_EQ(2, foo->feedback_vector().invocation_count());
   CompileRun("foo(); foo()");
   CHECK_EQ(4, foo->feedback_vector().invocation_count());
-}
-
-TEST(SafeToSkipArgumentsAdaptor) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  CompileRun(
-      "function a() { \"use strict\"; }; a();"
-      "function b() { }; b();"
-      "function c() { \"use strict\"; return arguments; }; c();"
-      "function d(...args) { return args; }; d();"
-      "function e() { \"use strict\"; return eval(\"\"); }; e();"
-      "function f(x, y) { \"use strict\"; return x + y; }; f(1, 2);");
-  Handle<JSFunction> a = Handle<JSFunction>::cast(GetGlobalProperty("a"));
-  CHECK(a->shared().is_safe_to_skip_arguments_adaptor());
-  Handle<JSFunction> b = Handle<JSFunction>::cast(GetGlobalProperty("b"));
-  CHECK(!b->shared().is_safe_to_skip_arguments_adaptor());
-  Handle<JSFunction> c = Handle<JSFunction>::cast(GetGlobalProperty("c"));
-  CHECK(!c->shared().is_safe_to_skip_arguments_adaptor());
-  Handle<JSFunction> d = Handle<JSFunction>::cast(GetGlobalProperty("d"));
-  CHECK(!d->shared().is_safe_to_skip_arguments_adaptor());
-  Handle<JSFunction> e = Handle<JSFunction>::cast(GetGlobalProperty("e"));
-  CHECK(!e->shared().is_safe_to_skip_arguments_adaptor());
-  Handle<JSFunction> f = Handle<JSFunction>::cast(GetGlobalProperty("f"));
-  CHECK(f->shared().is_safe_to_skip_arguments_adaptor());
 }
 
 TEST(ShallowEagerCompilation) {
@@ -981,6 +955,9 @@ TEST(DecideToPretenureDuringCompilation) {
   FLAG_allow_natives_syntax = true;
   FLAG_allocation_site_pretenuring = true;
   FLAG_flush_bytecode = false;
+  // Turn on lazy feedback allocation, so we create exactly one allocation site.
+  // Without lazy feedback allocation, we create two allocation sites.
+  FLAG_lazy_feedback_allocation = true;
 
   // We want to trigger exactly 1 optimization.
   FLAG_use_osr = false;
@@ -1105,7 +1082,7 @@ TEST(ProfilerEnabledDuringBackgroundCompile) {
       std::make_unique<DummySourceStream>(source),
       v8::ScriptCompiler::StreamedSource::UTF8);
   std::unique_ptr<v8::ScriptCompiler::ScriptStreamingTask> task(
-      v8::ScriptCompiler::StartStreamingScript(isolate, &streamed_source));
+      v8::ScriptCompiler::StartStreaming(isolate, &streamed_source));
 
   // Run the background compilation task on the main thread.
   task->Run();
@@ -1124,7 +1101,8 @@ TEST(ProfilerEnabledDuringBackgroundCompile) {
           .ToLocalChecked();
 
   i::Handle<i::Object> obj = Utils::OpenHandle(*script);
-  CHECK(i::JSFunction::cast(*obj).shared().AreSourcePositionsAvailable());
+  CHECK(i::JSFunction::cast(*obj).shared().AreSourcePositionsAvailable(
+      CcTest::i_isolate()));
 
   cpu_profiler->StopProfiling(profile);
 }

@@ -40,14 +40,7 @@ TNode<RawPtrT> StringBuiltinsAssembler::DirectStringData(
 
   BIND(&if_external);
   {
-    // This is only valid for ExternalStrings where the resource data
-    // pointer is cached (i.e. no uncached external strings).
-    CSA_ASSERT(this, Word32NotEqual(
-                         Word32And(string_instance_type,
-                                   Int32Constant(kUncachedExternalStringMask)),
-                         Int32Constant(kUncachedExternalStringTag)));
-    var_data =
-        DecodeExternalPointer(LoadExternalStringResourceData(CAST(string)));
+    var_data = LoadExternalStringResourceDataPtr(CAST(string));
     Goto(&if_join);
   }
 
@@ -337,16 +330,18 @@ TNode<String> StringBuiltinsAssembler::AllocateConsString(TNode<Uint32T> length,
   TNode<HeapObject> result = AllocateInNewSpace(ConsString::kSize);
   StoreMapNoWriteBarrier(result, result_map);
   StoreObjectFieldNoWriteBarrier(result, ConsString::kLengthOffset, length);
-  StoreObjectFieldNoWriteBarrier(result, ConsString::kHashFieldOffset,
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kRawHashFieldOffset,
                                  Int32Constant(String::kEmptyHashField));
   StoreObjectFieldNoWriteBarrier(result, ConsString::kFirstOffset, left);
   StoreObjectFieldNoWriteBarrier(result, ConsString::kSecondOffset, right);
   return CAST(result);
 }
 
-TNode<String> StringBuiltinsAssembler::StringAdd(SloppyTNode<Context> context,
-                                                 TNode<String> left,
-                                                 TNode<String> right) {
+TNode<String> StringBuiltinsAssembler::StringAdd(
+    TNode<ContextOrEmptyContext> context, TNode<String> left,
+    TNode<String> right) {
+  CSA_ASSERT(this, IsZeroOrContext(context));
+
   TVARIABLE(String, result);
   Label check_right(this), runtime(this, Label::kDeferred), cons(this),
       done(this, &result), done_native(this, &result);
@@ -540,16 +535,18 @@ TNode<String> StringBuiltinsAssembler::DerefIndirectString(
 }
 
 TF_BUILTIN(StringAdd_CheckNone, StringBuiltinsAssembler) {
-  TNode<String> left = CAST(Parameter(Descriptor::kLeft));
-  TNode<String> right = CAST(Parameter(Descriptor::kRight));
-  Node* context = Parameter(Descriptor::kContext);
+  auto left = Parameter<String>(Descriptor::kLeft);
+  auto right = Parameter<String>(Descriptor::kRight);
+  TNode<ContextOrEmptyContext> context =
+      UncheckedParameter<ContextOrEmptyContext>(Descriptor::kContext);
+  CSA_ASSERT(this, IsZeroOrContext(context));
   Return(StringAdd(context, left, right));
 }
 
 TF_BUILTIN(SubString, StringBuiltinsAssembler) {
-  TNode<String> string = CAST(Parameter(Descriptor::kString));
-  TNode<Smi> from = CAST(Parameter(Descriptor::kFrom));
-  TNode<Smi> to = CAST(Parameter(Descriptor::kTo));
+  auto string = Parameter<String>(Descriptor::kString);
+  auto from = Parameter<Smi>(Descriptor::kFrom);
+  auto to = Parameter<Smi>(Descriptor::kTo);
   Return(SubString(string, SmiUntag(from), SmiUntag(to)));
 }
 
@@ -723,40 +720,39 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
 }
 
 TF_BUILTIN(StringEqual, StringBuiltinsAssembler) {
-  TNode<String> left = CAST(Parameter(Descriptor::kLeft));
-  TNode<String> right = CAST(Parameter(Descriptor::kRight));
+  auto left = Parameter<String>(Descriptor::kLeft);
+  auto right = Parameter<String>(Descriptor::kRight);
   GenerateStringEqual(left, right);
 }
 
 TF_BUILTIN(StringLessThan, StringBuiltinsAssembler) {
-  TNode<String> left = CAST(Parameter(Descriptor::kLeft));
-  TNode<String> right = CAST(Parameter(Descriptor::kRight));
+  auto left = Parameter<String>(Descriptor::kLeft);
+  auto right = Parameter<String>(Descriptor::kRight);
   GenerateStringRelationalComparison(left, right, Operation::kLessThan);
 }
 
 TF_BUILTIN(StringLessThanOrEqual, StringBuiltinsAssembler) {
-  TNode<String> left = CAST(Parameter(Descriptor::kLeft));
-  TNode<String> right = CAST(Parameter(Descriptor::kRight));
+  auto left = Parameter<String>(Descriptor::kLeft);
+  auto right = Parameter<String>(Descriptor::kRight);
   GenerateStringRelationalComparison(left, right, Operation::kLessThanOrEqual);
 }
 
 TF_BUILTIN(StringGreaterThan, StringBuiltinsAssembler) {
-  TNode<String> left = CAST(Parameter(Descriptor::kLeft));
-  TNode<String> right = CAST(Parameter(Descriptor::kRight));
+  auto left = Parameter<String>(Descriptor::kLeft);
+  auto right = Parameter<String>(Descriptor::kRight);
   GenerateStringRelationalComparison(left, right, Operation::kGreaterThan);
 }
 
 TF_BUILTIN(StringGreaterThanOrEqual, StringBuiltinsAssembler) {
-  TNode<String> left = CAST(Parameter(Descriptor::kLeft));
-  TNode<String> right = CAST(Parameter(Descriptor::kRight));
+  auto left = Parameter<String>(Descriptor::kLeft);
+  auto right = Parameter<String>(Descriptor::kRight);
   GenerateStringRelationalComparison(left, right,
                                      Operation::kGreaterThanOrEqual);
 }
 
 TF_BUILTIN(StringCodePointAt, StringBuiltinsAssembler) {
-  TNode<String> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<IntPtrT> position =
-      UncheckedCast<IntPtrT>(Parameter(Descriptor::kPosition));
+  auto receiver = Parameter<String>(Descriptor::kReceiver);
+  auto position = UncheckedParameter<IntPtrT>(Descriptor::kPosition);
 
   // TODO(sigurds) Figure out if passing length as argument pays off.
   TNode<IntPtrT> length = LoadStringLengthAsWord(receiver);
@@ -770,9 +766,8 @@ TF_BUILTIN(StringCodePointAt, StringBuiltinsAssembler) {
 }
 
 TF_BUILTIN(StringFromCodePointAt, StringBuiltinsAssembler) {
-  TNode<String> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<IntPtrT> position =
-      UncheckedCast<IntPtrT>(Parameter(Descriptor::kPosition));
+  auto receiver = Parameter<String>(Descriptor::kReceiver);
+  auto position = UncheckedParameter<IntPtrT>(Descriptor::kPosition);
 
   // TODO(sigurds) Figure out if passing length as argument pays off.
   TNode<IntPtrT> length = LoadStringLengthAsWord(receiver);
@@ -791,15 +786,16 @@ TF_BUILTIN(StringFromCodePointAt, StringBuiltinsAssembler) {
 TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
   // TODO(ishell): use constants from Descriptor once the JSFunction linkage
   // arguments are reordered.
-  TNode<Int32T> argc =
-      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   CodeStubArguments arguments(this, argc);
+  TNode<Uint32T> unsigned_argc =
+      Unsigned(TruncateIntPtrToInt32(arguments.GetLength()));
   // Check if we have exactly one argument (plus the implicit receiver), i.e.
   // if the parent frame is not an arguments adaptor frame.
   Label if_oneargument(this), if_notoneargument(this);
-  Branch(Word32Equal(argc, Int32Constant(1)), &if_oneargument,
+  Branch(IntPtrEqual(arguments.GetLength(), IntPtrConstant(1)), &if_oneargument,
          &if_notoneargument);
 
   BIND(&if_oneargument);
@@ -820,7 +816,7 @@ TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
   {
     Label two_byte(this);
     // Assume that the resulting string contains only one-byte characters.
-    TNode<String> one_byte_result = AllocateSeqOneByteString(Unsigned(argc));
+    TNode<String> one_byte_result = AllocateSeqOneByteString(unsigned_argc);
 
     TVARIABLE(IntPtrT, var_max_index, IntPtrConstant(0));
 
@@ -851,7 +847,7 @@ TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
     // At least one of the characters in the string requires a 16-bit
     // representation.  Allocate a SeqTwoByteString to hold the resulting
     // string.
-    TNode<String> two_byte_result = AllocateSeqTwoByteString(Unsigned(argc));
+    TNode<String> two_byte_result = AllocateSeqTwoByteString(unsigned_argc);
 
     // Copy the characters that have already been put in the 8-bit string into
     // their corresponding positions in the new 16-bit string.
@@ -1064,9 +1060,9 @@ void StringBuiltinsAssembler::StringIndexOf(
 // #sec-string.prototype.indexof
 // Unchecked helper for builtins lowering.
 TF_BUILTIN(StringIndexOf, StringBuiltinsAssembler) {
-  TNode<String> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<String> search_string = CAST(Parameter(Descriptor::kSearchString));
-  TNode<Smi> position = CAST(Parameter(Descriptor::kPosition));
+  auto receiver = Parameter<String>(Descriptor::kReceiver);
+  auto search_string = Parameter<String>(Descriptor::kSearchString);
+  auto position = Parameter<Smi>(Descriptor::kPosition);
   StringIndexOf(receiver, search_string, position,
                 [this](TNode<Smi> result) { this->Return(result); });
 }
@@ -1075,8 +1071,8 @@ TF_BUILTIN(StringIndexOf, StringBuiltinsAssembler) {
 // #sec-string.prototype.includes
 TF_BUILTIN(StringPrototypeIncludes, StringIncludesIndexOfAssembler) {
   TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
-      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+      UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount));
+  auto context = Parameter<Context>(Descriptor::kContext);
   Generate(kIncludes, argc, context);
 }
 
@@ -1084,8 +1080,8 @@ TF_BUILTIN(StringPrototypeIncludes, StringIncludesIndexOfAssembler) {
 // #sec-string.prototype.indexof
 TF_BUILTIN(StringPrototypeIndexOf, StringIncludesIndexOfAssembler) {
   TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
-      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+      UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount));
+  auto context = Parameter<Context>(Descriptor::kContext);
   Generate(kIndexOf, argc, context);
 }
 
@@ -1100,11 +1096,11 @@ void StringIncludesIndexOfAssembler::Generate(SearchVariant variant,
   Label argc_1(this), argc_2(this), call_runtime(this, Label::kDeferred),
       fast_path(this);
 
-  GotoIf(IntPtrEqual(argc, IntPtrConstant(1)), &argc_1);
-  GotoIf(IntPtrGreaterThan(argc, IntPtrConstant(1)), &argc_2);
+  GotoIf(IntPtrEqual(arguments.GetLength(), IntPtrConstant(1)), &argc_1);
+  GotoIf(IntPtrGreaterThan(arguments.GetLength(), IntPtrConstant(1)), &argc_2);
   {
     Comment("0 Argument case");
-    CSA_ASSERT(this, IntPtrEqual(argc, IntPtrConstant(0)));
+    CSA_ASSERT(this, IntPtrEqual(arguments.GetLength(), IntPtrConstant(0)));
     TNode<Oddball> undefined = UndefinedConstant();
     var_search_string = undefined;
     var_position = undefined;
@@ -1276,10 +1272,10 @@ TNode<String> StringBuiltinsAssembler::GetSubstitution(
 TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   Label out(this);
 
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  const TNode<Object> search = CAST(Parameter(Descriptor::kSearch));
-  const TNode<Object> replace = CAST(Parameter(Descriptor::kReplace));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  const auto search = Parameter<Object>(Descriptor::kSearch);
+  const auto replace = Parameter<Object>(Descriptor::kReplace);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   const TNode<Smi> smi_zero = SmiConstant(0);
 
@@ -1503,9 +1499,9 @@ class StringMatchSearchAssembler : public StringBuiltinsAssembler {
 
 // ES6 #sec-string.prototype.match
 TF_BUILTIN(StringPrototypeMatch, StringMatchSearchAssembler) {
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> maybe_regexp = CAST(Parameter(Descriptor::kRegexp));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto maybe_regexp = Parameter<Object>(Descriptor::kRegexp);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   Generate(kMatch, "String.prototype.match", receiver, maybe_regexp, context);
 }
@@ -1514,9 +1510,9 @@ TF_BUILTIN(StringPrototypeMatch, StringMatchSearchAssembler) {
 TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
   char const* method_name = "String.prototype.matchAll";
 
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> maybe_regexp = CAST(Parameter(Descriptor::kRegexp));
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto maybe_regexp = Parameter<Object>(Descriptor::kRegexp);
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
   TNode<NativeContext> native_context = LoadNativeContext(context);
 
   // 1. Let O be ? RequireObjectCoercible(this value).
@@ -1611,9 +1607,9 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
 
 // ES6 #sec-string.prototype.search
 TF_BUILTIN(StringPrototypeSearch, StringMatchSearchAssembler) {
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> maybe_regexp = CAST(Parameter(Descriptor::kRegexp));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto maybe_regexp = Parameter<Object>(Descriptor::kRegexp);
+  auto context = Parameter<Context>(Descriptor::kContext);
   Generate(kSearch, "String.prototype.search", receiver, maybe_regexp, context);
 }
 
@@ -1656,8 +1652,9 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
     BuildFastLoop<IntPtrT>(
         IntPtrConstant(0), length,
         [&](TNode<IntPtrT> index) {
-          // TODO(jkummerow): Implement a CSA version of DisallowHeapAllocation
-          // and use that to guard ToDirectStringAssembler.PointerToData().
+          // TODO(jkummerow): Implement a CSA version of
+          // DisallowGarbageCollection and use that to guard
+          // ToDirectStringAssembler.PointerToData().
           CSA_ASSERT(this, WordEqual(to_direct.PointerToData(&call_runtime),
                                      string_data));
           TNode<Int32T> char_code =
@@ -1703,13 +1700,13 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   const int kLimitArg = 1;
 
   const TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
-      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
+      UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 
   TNode<Object> receiver = args.GetReceiver();
   const TNode<Object> separator = args.GetOptionalArgumentValue(kSeparatorArg);
   const TNode<Object> limit = args.GetOptionalArgumentValue(kLimitArg);
-  TNode<NativeContext> context = CAST(Parameter(Descriptor::kContext));
+  auto context = Parameter<NativeContext>(Descriptor::kContext);
 
   TNode<Smi> smi_zero = SmiConstant(0);
 
@@ -1800,185 +1797,13 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
 }
 
 TF_BUILTIN(StringSubstring, StringBuiltinsAssembler) {
-  TNode<String> string = CAST(Parameter(Descriptor::kString));
-  TNode<IntPtrT> from = UncheckedCast<IntPtrT>(Parameter(Descriptor::kFrom));
-  TNode<IntPtrT> to = UncheckedCast<IntPtrT>(Parameter(Descriptor::kTo));
+  auto string = Parameter<String>(Descriptor::kString);
+  auto from = UncheckedParameter<IntPtrT>(Descriptor::kFrom);
+  auto to = UncheckedParameter<IntPtrT>(Descriptor::kTo);
 
   Return(SubString(string, from, to));
 }
 
-// ES6 #sec-string.prototype.trim
-TF_BUILTIN(StringPrototypeTrim, StringTrimAssembler) {
-  TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
-      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-
-  Generate(String::kTrim, "String.prototype.trim", argc, context);
-}
-
-// https://github.com/tc39/proposal-string-left-right-trim
-TF_BUILTIN(StringPrototypeTrimStart, StringTrimAssembler) {
-  TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
-      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-
-  Generate(String::kTrimStart, "String.prototype.trimLeft", argc, context);
-}
-
-// https://github.com/tc39/proposal-string-left-right-trim
-TF_BUILTIN(StringPrototypeTrimEnd, StringTrimAssembler) {
-  TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
-      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-
-  Generate(String::kTrimEnd, "String.prototype.trimRight", argc, context);
-}
-
-void StringTrimAssembler::Generate(String::TrimMode mode,
-                                   const char* method_name, TNode<IntPtrT> argc,
-                                   TNode<Context> context) {
-  Label return_emptystring(this), if_runtime(this);
-
-  CodeStubArguments arguments(this, argc);
-  TNode<Object> receiver = arguments.GetReceiver();
-
-  // Check that {receiver} is coercible to Object and convert it to a String.
-  const TNode<String> string = ToThisString(context, receiver, method_name);
-  const TNode<IntPtrT> string_length = LoadStringLengthAsWord(string);
-
-  ToDirectStringAssembler to_direct(state(), string);
-  to_direct.TryToDirect(&if_runtime);
-  const TNode<RawPtrT> string_data = to_direct.PointerToData(&if_runtime);
-  const TNode<Int32T> instance_type = to_direct.instance_type();
-  const TNode<BoolT> is_stringonebyte =
-      IsOneByteStringInstanceType(instance_type);
-  const TNode<IntPtrT> string_data_offset = to_direct.offset();
-
-  TVARIABLE(IntPtrT, var_start, IntPtrConstant(0));
-  TVARIABLE(IntPtrT, var_end, IntPtrSub(string_length, IntPtrConstant(1)));
-
-  if (mode == String::kTrimStart || mode == String::kTrim) {
-    ScanForNonWhiteSpaceOrLineTerminator(string_data, string_data_offset,
-                                         is_stringonebyte, &var_start,
-                                         string_length, 1, &return_emptystring);
-  }
-  if (mode == String::kTrimEnd || mode == String::kTrim) {
-    ScanForNonWhiteSpaceOrLineTerminator(
-        string_data, string_data_offset, is_stringonebyte, &var_end,
-        IntPtrConstant(-1), -1, &return_emptystring);
-  }
-
-  arguments.PopAndReturn(
-      SubString(string, var_start.value(),
-                IntPtrAdd(var_end.value(), IntPtrConstant(1))));
-
-  BIND(&if_runtime);
-  arguments.PopAndReturn(
-      CallRuntime(Runtime::kStringTrim, context, string, SmiConstant(mode)));
-
-  BIND(&return_emptystring);
-  arguments.PopAndReturn(EmptyStringConstant());
-}
-
-void StringTrimAssembler::ScanForNonWhiteSpaceOrLineTerminator(
-    const TNode<RawPtrT> string_data, const TNode<IntPtrT> string_data_offset,
-    const TNode<BoolT> is_stringonebyte, TVariable<IntPtrT>* const var_index,
-    const TNode<IntPtrT> end, int increment, Label* const if_none_found) {
-  Label if_stringisonebyte(this), out(this);
-
-  GotoIf(is_stringonebyte, &if_stringisonebyte);
-
-  // Two Byte String
-  BuildLoop<Uint16T>(
-      var_index, end, increment, if_none_found, &out,
-      [&](const TNode<IntPtrT> index) {
-        return Load<Uint16T>(
-            string_data,
-            WordShl(IntPtrAdd(index, string_data_offset), IntPtrConstant(1)));
-      });
-
-  BIND(&if_stringisonebyte);
-  BuildLoop<Uint8T>(var_index, end, increment, if_none_found, &out,
-                    [&](const TNode<IntPtrT> index) {
-                      return Load<Uint8T>(string_data,
-                                          IntPtrAdd(index, string_data_offset));
-                    });
-
-  BIND(&out);
-}
-
-template <typename T>
-void StringTrimAssembler::BuildLoop(
-    TVariable<IntPtrT>* const var_index, const TNode<IntPtrT> end,
-    int increment, Label* const if_none_found, Label* const out,
-    const std::function<TNode<T>(const TNode<IntPtrT>)>& get_character) {
-  Label loop(this, var_index);
-  Goto(&loop);
-  BIND(&loop);
-  {
-    TNode<IntPtrT> index = var_index->value();
-    GotoIf(IntPtrEqual(index, end), if_none_found);
-    GotoIfNotWhiteSpaceOrLineTerminator(
-        UncheckedCast<Uint32T>(get_character(index)), out);
-    Increment(var_index, increment);
-    Goto(&loop);
-  }
-}
-
-void StringTrimAssembler::GotoIfNotWhiteSpaceOrLineTerminator(
-    const TNode<Word32T> char_code, Label* const if_not_whitespace) {
-  Label out(this);
-
-  // 0x0020 - SPACE (Intentionally out of order to fast path a commmon case)
-  GotoIf(Word32Equal(char_code, Int32Constant(0x0020)), &out);
-
-  // 0x0009 - HORIZONTAL TAB
-  GotoIf(Uint32LessThan(char_code, Int32Constant(0x0009)), if_not_whitespace);
-  // 0x000A - LINE FEED OR NEW LINE
-  // 0x000B - VERTICAL TAB
-  // 0x000C - FORMFEED
-  // 0x000D - HORIZONTAL TAB
-  GotoIf(Uint32LessThanOrEqual(char_code, Int32Constant(0x000D)), &out);
-
-  // Common Non-whitespace characters
-  GotoIf(Uint32LessThan(char_code, Int32Constant(0x00A0)), if_not_whitespace);
-
-  // 0x00A0 - NO-BREAK SPACE
-  GotoIf(Word32Equal(char_code, Int32Constant(0x00A0)), &out);
-
-  // 0x1680 - Ogham Space Mark
-  GotoIf(Word32Equal(char_code, Int32Constant(0x1680)), &out);
-
-  // 0x2000 - EN QUAD
-  GotoIf(Uint32LessThan(char_code, Int32Constant(0x2000)), if_not_whitespace);
-  // 0x2001 - EM QUAD
-  // 0x2002 - EN SPACE
-  // 0x2003 - EM SPACE
-  // 0x2004 - THREE-PER-EM SPACE
-  // 0x2005 - FOUR-PER-EM SPACE
-  // 0x2006 - SIX-PER-EM SPACE
-  // 0x2007 - FIGURE SPACE
-  // 0x2008 - PUNCTUATION SPACE
-  // 0x2009 - THIN SPACE
-  // 0x200A - HAIR SPACE
-  GotoIf(Uint32LessThanOrEqual(char_code, Int32Constant(0x200A)), &out);
-
-  // 0x2028 - LINE SEPARATOR
-  GotoIf(Word32Equal(char_code, Int32Constant(0x2028)), &out);
-  // 0x2029 - PARAGRAPH SEPARATOR
-  GotoIf(Word32Equal(char_code, Int32Constant(0x2029)), &out);
-  // 0x202F - NARROW NO-BREAK SPACE
-  GotoIf(Word32Equal(char_code, Int32Constant(0x202F)), &out);
-  // 0x205F - MEDIUM MATHEMATICAL SPACE
-  GotoIf(Word32Equal(char_code, Int32Constant(0x205F)), &out);
-  // 0xFEFF - BYTE ORDER MARK
-  GotoIf(Word32Equal(char_code, Int32Constant(0xFEFF)), &out);
-  // 0x3000 - IDEOGRAPHIC SPACE
-  Branch(Word32Equal(char_code, Int32Constant(0x3000)), &out,
-         if_not_whitespace);
-
-  BIND(&out);
-}
 
 // Return the |word32| codepoint at {index}. Supports SeqStrings and
 // ExternalStrings.
@@ -2114,8 +1939,8 @@ void StringBuiltinsAssembler::CopyStringCharacters(
   int to_index_constant = 0, from_index_constant = 0;
   bool index_same = (from_encoding == to_encoding) &&
                     (from_index == to_index ||
-                     (ToInt32Constant(from_index, &from_index_constant) &&
-                      ToInt32Constant(to_index, &to_index_constant) &&
+                     (TryToInt32Constant(from_index, &from_index_constant) &&
+                      TryToInt32Constant(to_index, &to_index_constant) &&
                       from_index_constant == to_index_constant));
   BuildFastLoop<IntPtrT>(
       vars, from_offset, limit_offset,

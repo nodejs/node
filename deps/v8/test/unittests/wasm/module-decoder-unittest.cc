@@ -32,7 +32,7 @@ namespace module_decoder_unittest {
 #define WASM_INIT_EXPR_EXTERN_REF_NULL WASM_REF_NULL(kExternRefCode), kExprEnd
 #define WASM_INIT_EXPR_FUNC_REF_NULL WASM_REF_NULL(kFuncRefCode), kExprEnd
 #define WASM_INIT_EXPR_REF_FUNC(val) WASM_REF_FUNC(val), kExprEnd
-#define WASM_INIT_EXPR_GLOBAL(index) WASM_GET_GLOBAL(index), kExprEnd
+#define WASM_INIT_EXPR_GLOBAL(index) WASM_GLOBAL_GET(index), kExprEnd
 
 #define REF_NULL_ELEMENT kExprRefNull, kFuncRefCode, kExprEnd
 #define REF_FUNC_ELEMENT(v) kExprRefFunc, U32V_1(v), kExprEnd
@@ -540,7 +540,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
       SECTION(Global, ENTRY_COUNT(1),         // --
               kI32Code,                       // type
               1,                              // mutable
-              WASM_GET_GLOBAL(42), kExprEnd)  // init value
+              WASM_GLOBAL_GET(42), kExprEnd)  // init value
   };
   EXPECT_FAILURE_WITH_MSG(referencing_out_of_bounds_global,
                           "global index is out of bounds");
@@ -549,7 +549,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
       SECTION(Global, ENTRY_COUNT(2),        // --
               kI32Code,                      // type
               0,                             // mutable
-              WASM_GET_GLOBAL(1), kExprEnd,  // init value
+              WASM_GLOBAL_GET(1), kExprEnd,  // init value
               kI32Code,                      // type
               0,                             // mutable
               WASM_I32V(0), kExprEnd)        // init value
@@ -566,7 +566,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
                 WASM_RTT(2, kFuncRefCode),               // type
                 0,                                       // mutable
                 WASM_RTT_SUB(kFuncRefCode,               // init value
-                             WASM_GET_GLOBAL(1)),        // --
+                             WASM_GLOBAL_GET(1)),        // --
                 kExprEnd,                                // --
                 WASM_RTT(1, kFuncRefCode),               // type
                 0,                                       // mutable
@@ -583,7 +583,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
               WASM_I32V(1), kExprEnd,        // init value
               kI32Code,                      // type
               0,                             // mutable
-              WASM_GET_GLOBAL(0), kExprEnd)  // init value
+              WASM_GLOBAL_GET(0), kExprEnd)  // init value
   };
   EXPECT_FAILURE_WITH_MSG(
       referencing_mutable_global,
@@ -598,7 +598,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
       SECTION(Global, ENTRY_COUNT(1),          // --
               kI32Code,                        // type
               0,                               // mutable
-              WASM_GET_GLOBAL(0), kExprEnd)    // init value
+              WASM_GLOBAL_GET(0), kExprEnd)    // init value
   };
   EXPECT_FAILURE_WITH_MSG(
       referencing_mutable_imported_global,
@@ -613,7 +613,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
       SECTION(Global, ENTRY_COUNT(1),          // --
               kI32Code,                        // type
               0,                               // mutable
-              WASM_GET_GLOBAL(0), kExprEnd)    // init value
+              WASM_GLOBAL_GET(0), kExprEnd)    // init value
   };
   EXPECT_VERIFIES(referencing_immutable_imported_global);
 
@@ -624,7 +624,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
               WASM_I32V(1), kExprEnd,        // init value
               kI32Code,                      // type
               0,                             // mutable
-              WASM_GET_GLOBAL(0), kExprEnd)  // init value
+              WASM_GLOBAL_GET(0), kExprEnd)  // init value
   };
   EXPECT_FAILURE_WITH_MSG(
       referencing_local_global,
@@ -864,7 +864,7 @@ TEST_F(WasmModuleVerifyTest, GlobalRttSubOfGlobal) {
               WASM_RTT(1, kEqRefCode),  // type
               0),                       // mutability
       SECTION(Global, ENTRY_COUNT(1), WASM_RTT(2, kI31RefCode), 1,
-              WASM_RTT_SUB(kI31RefCode, WASM_GET_GLOBAL(0)), kExprEnd)};
+              WASM_RTT_SUB(kI31RefCode, WASM_GLOBAL_GET(0)), kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   WasmInitExpr expected =
       WasmInitExpr::RttSub(HeapType::kI31, WasmInitExpr::GlobalGet(0));
@@ -885,7 +885,7 @@ TEST_F(WasmModuleVerifyTest, GlobalRttSubOfGlobalTypeError) {
               kI32Code,         // type
               0),               // mutability
       SECTION(Global, ENTRY_COUNT(1), WASM_RTT(2, kExternRefCode), 1,
-              WASM_RTT_SUB(kExternRefCode, WASM_GET_GLOBAL(0)), kExprEnd)};
+              WASM_RTT_SUB(kExternRefCode, WASM_GLOBAL_GET(0)), kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_NOT_OK(result, "rtt.sub requires a supertype rtt on stack");
 }
@@ -1264,6 +1264,41 @@ TEST_F(WasmModuleVerifyTest, MultipleSignatures) {
   EXPECT_OFF_END_FAILURE(data, 1);
 }
 
+TEST_F(WasmModuleVerifyTest, CanonicalTypeIds) {
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+  WASM_FEATURE_SCOPE(reftypes);
+
+  static const byte data[] = {
+      SECTION(Type,                               // --
+              ENTRY_COUNT(5),                     // --
+              WASM_STRUCT_DEF(                    // Struct definition
+                  FIELD_COUNT(1),                 // --
+                  STRUCT_FIELD(kI32Code, true)),  // --
+              SIG_ENTRY_x_x(kI32Code, kF32Code),  // f32 -> i32
+              SIG_ENTRY_x_x(kI32Code, kF64Code),  // f64 -> i32
+              SIG_ENTRY_x_x(kI32Code, kF32Code),  // f32 -> i32 (again)
+              WASM_ARRAY_DEF(kI32Code, true))     // Array definition
+  };
+
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_OK(result);
+  const WasmModule* module = result.value().get();
+
+  EXPECT_EQ(5u, module->types.size());
+  EXPECT_EQ(5u, module->type_kinds.size());
+  EXPECT_EQ(5u, module->canonicalized_type_ids.size());
+  EXPECT_EQ(2u, module->signature_map.size());
+
+  // No canonicalization for structs.
+  EXPECT_EQ(0u, module->canonicalized_type_ids[0]);
+  EXPECT_EQ(0u, module->canonicalized_type_ids[1]);
+  EXPECT_EQ(1u, module->canonicalized_type_ids[2]);
+  EXPECT_EQ(0u, module->canonicalized_type_ids[3]);
+  // No canonicalization for arrays.
+  EXPECT_EQ(0u, module->canonicalized_type_ids[4]);
+}
+
 TEST_F(WasmModuleVerifyTest, DataSegmentWithImmutableImportedGlobal) {
   // Import 2 globals so that we can initialize data with a global index != 0.
   const byte data[] = {
@@ -1417,6 +1452,15 @@ TEST_F(WasmModuleVerifyTest, MaxMaximumMemorySize) {
     const byte data[] = {
         SECTION(Memory, ENTRY_COUNT(1), kWithMaximum, 0, U32V_3(65537))};
     EXPECT_FAILURE(data);
+  }
+}
+
+TEST_F(WasmModuleVerifyTest, InvalidMemoryLimits) {
+  {
+    const byte kInvalidLimits = 0x15;
+    const byte data[] = {
+        SECTION(Memory, ENTRY_COUNT(1), kInvalidLimits, 0, 10)};
+    EXPECT_FAILURE_WITH_MSG(data, "invalid memory limits flags 0x15");
   }
 }
 
@@ -2828,8 +2872,8 @@ TEST_F(WasmInitExprDecodeTest, InitExpr_ExternRef) {
 
 TEST_F(WasmInitExprDecodeTest, InitExpr_illegal) {
   EXPECT_INIT_EXPR_FAIL(WASM_I32V_1(0), WASM_I32V_1(0));
-  EXPECT_INIT_EXPR_FAIL(WASM_GET_LOCAL(0));
-  EXPECT_INIT_EXPR_FAIL(WASM_SET_LOCAL(0, WASM_I32V_1(0)));
+  EXPECT_INIT_EXPR_FAIL(WASM_LOCAL_GET(0));
+  EXPECT_INIT_EXPR_FAIL(WASM_LOCAL_SET(0, WASM_I32V_1(0)));
   EXPECT_INIT_EXPR_FAIL(WASM_I32_ADD(WASM_I32V_1(0), WASM_I32V_1(0)));
   EXPECT_INIT_EXPR_FAIL(WASM_IF_ELSE(WASM_ZERO, WASM_ZERO, WASM_ZERO));
 }
@@ -3236,6 +3280,32 @@ TEST_F(WasmModuleVerifyTest, IllegalPackedFields) {
   ModuleResult result = DecodeModule(data, data + sizeof(data));
 
   EXPECT_NOT_OK(result, "invalid value type");
+}
+
+TEST_F(WasmModuleVerifyTest, Memory64DataSegment) {
+  WASM_FEATURE_SCOPE(memory64);
+  for (bool enable_memory64 : {false, true}) {
+    for (bool use_memory64 : {false, true}) {
+      byte const_opcode = use_memory64 ? kExprI64Const : kExprI32Const;
+      const byte data[] = {
+          SECTION(Memory, ENTRY_COUNT(1),
+                  enable_memory64 ? kMemory64WithMaximum : kWithMaximum, 28,
+                  28),
+          SECTION(Data, ENTRY_COUNT(1), LINEAR_MEMORY_INDEX_0,  // -
+                  const_opcode, 0, kExprEnd,                    // dest addr
+                  U32V_1(3),                                    // source size
+                  'a', 'b', 'c')                                // data bytes
+      };
+
+      if (enable_memory64 == use_memory64) {
+        EXPECT_VERIFIES(data);
+      } else if (enable_memory64) {
+        EXPECT_FAILURE_WITH_MSG(data, "expected i64, got i32");
+      } else {
+        EXPECT_FAILURE_WITH_MSG(data, "expected i32, got i64");
+      }
+    }
+  }
 }
 
 #undef EXPECT_INIT_EXPR

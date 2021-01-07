@@ -61,14 +61,14 @@ int FieldIndex::GetLoadByFieldIndex() const {
 }
 
 FieldIndex FieldIndex::ForDescriptor(Map map, InternalIndex descriptor_index) {
-  const Isolate* isolate = GetIsolateForPtrCompr(map);
+  IsolateRoot isolate = GetIsolateForPtrCompr(map);
   return ForDescriptor(isolate, map, descriptor_index);
 }
 
-FieldIndex FieldIndex::ForDescriptor(const Isolate* isolate, Map map,
+FieldIndex FieldIndex::ForDescriptor(IsolateRoot isolate, Map map,
                                      InternalIndex descriptor_index) {
-  PropertyDetails details =
-      map.instance_descriptors(isolate).GetDetails(descriptor_index);
+  PropertyDetails details = map.instance_descriptors(isolate, kRelaxedLoad)
+                                .GetDetails(descriptor_index);
   int field_index = details.field_index();
   return ForPropertyIndex(map, field_index, details.representation());
 }

@@ -355,6 +355,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       break;
     case IrOpcode::kDeoptimizeIf:
     case IrOpcode::kDeoptimizeUnless:
+    case IrOpcode::kDynamicCheckMapsWithDeoptUnless:
       CheckNotTyped(node);
       break;
     case IrOpcode::kTrapIf:
@@ -772,7 +773,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // We don't check the input for Type::Function because this_function can
       // be context-allocated.
       CheckValueInputIs(node, 0, Type::Any());
-      CheckTypeIs(node, Type::Callable());
+      CheckTypeIs(node, Type::NonInternal());
       break;
 
     case IrOpcode::kJSHasContextExtension:

@@ -78,8 +78,20 @@ int StackTraceFrame::GetWasmFunctionIndex(Handle<StackTraceFrame> frame) {
 
 // static
 Handle<Object> StackTraceFrame::GetFileName(Handle<StackTraceFrame> frame) {
-  auto name = GetFrameInfo(frame)->script_name();
-  return handle(name, frame->GetIsolate());
+  Isolate* isolate = frame->GetIsolate();
+
+  // Use FrameInfo if it's already there, but avoid initializing it for just
+  // the file name, as it is much more expensive than just getting this
+  // directly. See GetScriptNameOrSourceUrl() for more detail.
+  if (!frame->frame_info().IsUndefined()) {
+    auto name = GetFrameInfo(frame)->script_name();
+    return handle(name, isolate);
+  }
+  FrameArrayIterator it(isolate,
+                        handle(FrameArray::cast(frame->frame_array()), isolate),
+                        frame->frame_index());
+  DCHECK(it.HasFrame());
+  return it.Frame()->GetFileName();
 }
 
 // static
@@ -196,6 +208,9 @@ Handle<StackFrameInfo> StackTraceFrame::GetFrameInfo(
 
 // static
 void StackTraceFrame::InitializeFrameInfo(Handle<StackTraceFrame> frame) {
+  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"),
+               "SymbolizeStackFrame", "frameIndex", frame->frame_index());
+
   Isolate* isolate = frame->GetIsolate();
   Handle<StackFrameInfo> frame_info = isolate->factory()->NewStackFrameInfo(
       handle(FrameArray::cast(frame->frame_array()), isolate),

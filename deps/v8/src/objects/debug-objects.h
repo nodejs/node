@@ -22,6 +22,8 @@ namespace internal {
 class BreakPoint;
 class BytecodeArray;
 
+#include "torque-generated/src/objects/debug-objects-tq.inc"
+
 // The DebugInfo class holds additional information for a function being
 // debugged.
 class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
@@ -43,6 +45,9 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
   ExecutionMode DebugExecutionMode() const;
   void SetDebugExecutionMode(ExecutionMode value);
 
+  DECL_RELEASE_ACQUIRE_ACCESSORS(debug_bytecode_array, HeapObject)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(original_bytecode_array, HeapObject)
+
   // Specifies whether the associated function has an instrumented bytecode
   // array. If so, OriginalBytecodeArray returns the non-instrumented bytecode,
   // and DebugBytecodeArray returns the instrumented bytecode.
@@ -57,7 +62,7 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
   bool HasBreakInfo() const;
 
   // Clears all fields related to break points.
-  void ClearBreakInfo(Isolate* isolate);
+  V8_EXPORT_PRIVATE void ClearBreakInfo(Isolate* isolate);
 
   // Accessors to flag whether to break before entering the function.
   // This is used to break for functions with no source, e.g. builtins.

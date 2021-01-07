@@ -7,7 +7,7 @@
   // tag registry. Nonetheless, ICU cooks up a value when canonicalizing.
   // v8 works around that ICU issue.
   // See https://www.iana.org/assignments/language-subtag-registry/language-subtag-registry .
-  ["cel-gaulish", "cel-gaulish"],
+  ["cel-gaulish", "xtg"],
 
   // Matching should be case-insensitive.
 ].forEach(([inputLocale, expectedLocale]) => {

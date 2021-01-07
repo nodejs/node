@@ -5,7 +5,6 @@
 ---
 wrap: no
 test function name: test
-private methods: yes
 
 ---
 snippet: "
@@ -57,7 +56,7 @@ bytecodes: [
                 B(Mov), R(this), R(0),
                 B(Mov), R(context), R(2),
   /*   44 E> */ B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(0), U8(3),
-  /*   49 S> */ B(Wide), B(LdaSmi), I16(266),
+  /*   49 S> */ B(Wide), B(LdaSmi), I16(270),
                 B(Star), R(3),
                 B(LdaConstant), U8(0),
                 B(Star), R(4),
@@ -89,7 +88,7 @@ bytecodes: [
                 B(Mov), R(this), R(0),
                 B(Mov), R(context), R(2),
   /*   44 E> */ B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(0), U8(3),
-  /*   49 S> */ B(Wide), B(LdaSmi), I16(266),
+  /*   49 S> */ B(Wide), B(LdaSmi), I16(270),
                 B(Star), R(3),
                 B(LdaConstant), U8(0),
                 B(Star), R(4),

@@ -281,7 +281,7 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 
 #define IS_TYPE_FUNCTION_DECL(Type) \
   V8_INLINE bool Is##Type() const;  \
-  V8_INLINE bool Is##Type(const Isolate* isolate) const;
+  V8_INLINE bool Is##Type(IsolateRoot isolate) const;
   OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
   IS_TYPE_FUNCTION_DECL(HashTableBase)
@@ -309,7 +309,7 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 
 #define DECL_STRUCT_PREDICATE(NAME, Name, name) \
   V8_INLINE bool Is##Name() const;              \
-  V8_INLINE bool Is##Name(const Isolate* isolate) const;
+  V8_INLINE bool Is##Name(IsolateRoot isolate) const;
   STRUCT_LIST(DECL_STRUCT_PREDICATE)
 #undef DECL_STRUCT_PREDICATE
 
@@ -324,9 +324,9 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   V8_EXPORT_PRIVATE bool ToInt32(int32_t* value);
   inline bool ToUint32(uint32_t* value) const;
 
-  inline Representation OptimalRepresentation(const Isolate* isolate) const;
+  inline Representation OptimalRepresentation(IsolateRoot isolate) const;
 
-  inline ElementsKind OptimalElementsKind(const Isolate* isolate) const;
+  inline ElementsKind OptimalElementsKind(IsolateRoot isolate) const;
 
   inline bool FitsRepresentation(Representation representation);
 
@@ -586,6 +586,9 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // and length.
   bool IterationHasObservableEffects();
 
+  // TC39 "Dynamic Code Brand Checks"
+  bool IsCodeLike(Isolate* isolate) const;
+
   EXPORT_DECL_VERIFIER(Object)
 
 #ifdef VERIFY_HEAP
@@ -665,6 +668,17 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
       base::Memory<T>(field_address(offset)) = value;
     }
   }
+
+  //
+  // ExternalPointer_t field accessors.
+  //
+  inline void InitExternalPointerField(size_t offset, Isolate* isolate);
+  inline void InitExternalPointerField(size_t offset, Isolate* isolate,
+                                       Address value, ExternalPointerTag tag);
+  inline Address ReadExternalPointerField(size_t offset, IsolateRoot isolate,
+                                          ExternalPointerTag tag) const;
+  inline void WriteExternalPointerField(size_t offset, Isolate* isolate,
+                                        Address value, ExternalPointerTag tag);
 
  protected:
   inline Address field_address(size_t offset) const {

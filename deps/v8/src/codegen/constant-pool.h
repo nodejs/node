@@ -282,7 +282,7 @@ class ConstantPool {
   void SetNextCheckIn(size_t instructions);
 
   // Class for scoping postponing the constant pool generation.
-  class V8_EXPORT_PRIVATE BlockScope {
+  class V8_EXPORT_PRIVATE V8_NODISCARD BlockScope {
    public:
     // BlockScope immediatelly emits the pool if necessary to ensure that
     // during the block scope at least {margin} bytes can be emitted without

@@ -24,6 +24,12 @@ Protocol.Debugger.onPaused(message => {
     throwOnSideEffect: false
   }));
 
+  InspectorTest.log("Test prototype extension expression with side-effect, with throwOnSideEffect: true");
+  InspectorTest.logMessage(await Protocol.Runtime.evaluate({
+    expression: "f.prototype.test = () => console.log('test fn');",
+    throwOnSideEffect: true
+  }));
+
   InspectorTest.log("Test expression with side-effect, with throwOnSideEffect: true");
   InspectorTest.logMessage(await Protocol.Runtime.evaluate({
     expression: "x = 3; x;",

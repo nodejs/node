@@ -12,6 +12,67 @@ namespace compiler {
 
 namespace {
 
+// We can't just use the size of the moves collection, because of
+// redundant moves which need to be discounted.
+int GetMoveCount(const ParallelMove& moves) {
+  int move_count = 0;
+  for (auto move : moves) {
+    if (move->IsEliminated() || move->IsRedundant()) continue;
+    ++move_count;
+  }
+  return move_count;
+}
+
+bool AreOperandsOfSameType(
+    const AllocatedOperand& op,
+    const InstructionSequenceTest::TestOperand& test_op) {
+  bool test_op_is_reg =
+      (test_op.type_ ==
+           InstructionSequenceTest::TestOperandType::kFixedRegister ||
+       test_op.type_ == InstructionSequenceTest::TestOperandType::kRegister);
+
+  return (op.IsRegister() && test_op_is_reg) ||
+         (op.IsStackSlot() && !test_op_is_reg);
+}
+
+bool AllocatedOperandMatches(
+    const AllocatedOperand& op,
+    const InstructionSequenceTest::TestOperand& test_op) {
+  return AreOperandsOfSameType(op, test_op) &&
+         ((op.IsRegister() ? op.GetRegister().code() : op.index()) ==
+              test_op.value_ ||
+          test_op.value_ == InstructionSequenceTest::kNoValue);
+}
+
+int GetParallelMoveCount(int instr_index, Instruction::GapPosition gap_pos,
+                         const InstructionSequence* sequence) {
+  const ParallelMove* moves =
+      sequence->InstructionAt(instr_index)->GetParallelMove(gap_pos);
+  if (moves == nullptr) return 0;
+  return GetMoveCount(*moves);
+}
+
+bool IsParallelMovePresent(int instr_index, Instruction::GapPosition gap_pos,
+                           const InstructionSequence* sequence,
+                           const InstructionSequenceTest::TestOperand& src,
+                           const InstructionSequenceTest::TestOperand& dest) {
+  const ParallelMove* moves =
+      sequence->InstructionAt(instr_index)->GetParallelMove(gap_pos);
+  EXPECT_NE(nullptr, moves);
+
+  bool found_match = false;
+  for (auto move : *moves) {
+    if (move->IsEliminated() || move->IsRedundant()) continue;
+    if (AllocatedOperandMatches(AllocatedOperand::cast(move->source()), src) &&
+        AllocatedOperandMatches(AllocatedOperand::cast(move->destination()),
+                                dest)) {
+      found_match = true;
+      break;
+    }
+  }
+  return found_match;
+}
+
 class MidTierRegisterAllocatorTest : public InstructionSequenceTest {
  public:
   void Allocate() {
@@ -606,6 +667,99 @@ TEST_F(MidTierRegisterAllocatorTest, DiamondWithCallSecondBlock) {
   Return(Reg(x));
   EndBlock();
   Allocate();
+}
+
+TEST_F(MidTierRegisterAllocatorTest, SingleDeferredBlockSpill) {
+  StartBlock();  // B0
+  auto var = EmitOI(Reg(0));
+  EndBlock(Branch(Reg(var), 1, 2));
+
+  StartBlock();  // B1
+  EndBlock(Jump(2));
+
+  StartBlock(true);  // B2
+  EmitCall(Slot(-1), Slot(var));
+  EndBlock();
+
+  StartBlock();  // B3
+  EmitNop();
+  EndBlock();
+
+  StartBlock();  // B4
+  Return(Reg(var, 0));
+  EndBlock();
+
+  Allocate();
+
+  const int var_def_index = 1;
+  const int call_index = 3;
+
+  // We should have no parallel moves at the "var_def_index" position.
+  EXPECT_EQ(
+      0, GetParallelMoveCount(var_def_index, Instruction::START, sequence()));
+
+  // The spill should be performed at the position "call_index".
+  EXPECT_TRUE(IsParallelMovePresent(call_index, Instruction::START, sequence(),
+                                    Reg(0), Slot(0)));
+}
+
+TEST_F(MidTierRegisterAllocatorTest, ValidMultipleDeferredBlockSpills) {
+  StartBlock();  // B0
+  auto var1 = EmitOI(Reg(0));
+  auto var2 = EmitOI(Reg(1));
+  auto var3 = EmitOI(Reg(2));
+  EndBlock(Branch(Reg(var1, 0), 1, 2));
+
+  StartBlock(true);  // B1
+  EmitCall(Slot(-2), Slot(var1));
+  EndBlock(Jump(5));
+
+  StartBlock();  // B2
+  EmitNop();
+  EndBlock();
+
+  StartBlock();  // B3
+  EmitNop();
+  EndBlock(Branch(Reg(var2, 0), 1, 2));
+
+  StartBlock(true);  // B4
+  EmitCall(Slot(-1), Slot(var2));
+  EndBlock(Jump(2));
+
+  StartBlock();  // B5
+  EmitNop();
+  EndBlock();
+
+  StartBlock();  // B6
+  Return(Reg(var3, 2));
+  EndBlock();
+
+  const int def_of_v2 = 2;
+  const int start_of_b1 = 4;
+  const int start_of_b4 = 10;
+  const int end_of_b1 = 5;
+  const int end_of_b4 = 11;
+  const int start_of_b6 = 14;
+
+  Allocate();
+
+  const int var3_reg = 2;
+  const int var3_slot = 2;
+
+  EXPECT_FALSE(IsParallelMovePresent(def_of_v2, Instruction::START, sequence(),
+                                     Reg(var3_reg), Slot()));
+  EXPECT_TRUE(IsParallelMovePresent(start_of_b1, Instruction::START, sequence(),
+                                    Reg(var3_reg), Slot(var3_slot)));
+  EXPECT_TRUE(IsParallelMovePresent(end_of_b1, Instruction::END, sequence(),
+                                    Slot(var3_slot), Reg()));
+
+  EXPECT_TRUE(IsParallelMovePresent(start_of_b4, Instruction::START, sequence(),
+                                    Reg(var3_reg), Slot(var3_slot)));
+  EXPECT_TRUE(IsParallelMovePresent(end_of_b4, Instruction::END, sequence(),
+                                    Slot(var3_slot), Reg()));
+
+  EXPECT_EQ(0,
+            GetParallelMoveCount(start_of_b6, Instruction::START, sequence()));
 }
 
 namespace {

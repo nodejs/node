@@ -8,12 +8,14 @@
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
+#include "src/common/assert-scope.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/local-handles-inl.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/heap.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/local-heap.h"
+#include "src/heap/parked-scope.h"
 #include "src/heap/safepoint.h"
 #include "src/objects/heap-number.h"
 #include "test/cctest/cctest.h"
@@ -41,7 +43,8 @@ class PersistentHandlesThread final : public v8::base::Thread {
         sema_gc_finished_(sema_gc_finished) {}
 
   void Run() override {
-    LocalHeap local_heap(heap_, std::move(ph_));
+    LocalHeap local_heap(heap_, ThreadKind::kBackground, std::move(ph_));
+    UnparkedScope unparked_scope(&local_heap);
     LocalHandleScope scope(&local_heap);
 
     for (int i = 0; i < kNumHandles; i++) {
@@ -65,6 +68,12 @@ class PersistentHandlesThread final : public v8::base::Thread {
     ph_ = local_heap.DetachPersistentHandles();
   }
 
+  std::unique_ptr<PersistentHandles> DetachPersistentHandles() {
+    CHECK(ph_);
+    return std::move(ph_);
+  }
+
+ private:
   Heap* heap_;
   std::vector<Handle<HeapNumber>> handles_;
   std::unique_ptr<PersistentHandles> ph_;
@@ -105,7 +114,7 @@ TEST(CreatePersistentHandles) {
   thread->Join();
 
   // get persistent handles back to main thread
-  ph = std::move(thread->ph_);
+  ph = thread->DetachPersistentHandles();
   ph->NewHandle(number);
 }
 
@@ -122,8 +131,29 @@ TEST(DereferencePersistentHandle) {
     ph = phs->NewHandle(number);
   }
   {
-    LocalHeap local_heap(isolate->heap(), std::move(phs));
+    LocalHeap local_heap(isolate->heap(), ThreadKind::kBackground,
+                         std::move(phs));
+    UnparkedScope scope(&local_heap);
     CHECK_EQ(42, ph->value());
+  }
+}
+
+TEST(DereferencePersistentHandleFailsWhenDisallowed) {
+  heap::EnsureFlagLocalHeapsEnabled();
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+
+  std::unique_ptr<PersistentHandles> phs = isolate->NewPersistentHandles();
+  Handle<HeapNumber> ph;
+  {
+    HandleScope handle_scope(isolate);
+    Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(42.0);
+    ph = phs->NewHandle(number);
+  }
+  {
+    LocalHeap local_heap(isolate->heap(), ThreadKind::kBackground,
+                         std::move(phs));
+    UnparkedScope scope(&local_heap);
     DisallowHandleDereference disallow_scope;
     CHECK_EQ(42, ph->value());
   }
@@ -133,8 +163,7 @@ TEST(NewPersistentHandleFailsWhenParked) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
 
-  LocalHeap local_heap(isolate->heap());
-  ParkedScope scope(&local_heap);
+  LocalHeap local_heap(isolate->heap(), ThreadKind::kBackground);
   // Fail here in debug mode: Persistent handles can't be created if local heap
   // is parked
   local_heap.NewPersistentHandle(Smi::FromInt(1));
@@ -144,8 +173,8 @@ TEST(NewPersistentHandleFailsWhenParkedExplicit) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
 
-  LocalHeap local_heap(isolate->heap(), isolate->NewPersistentHandles());
-  ParkedScope scope(&local_heap);
+  LocalHeap local_heap(isolate->heap(), ThreadKind::kBackground,
+                       isolate->NewPersistentHandles());
   // Fail here in debug mode: Persistent handles can't be created if local heap
   // is parked
   local_heap.NewPersistentHandle(Smi::FromInt(1));

@@ -50,7 +50,7 @@ namespace internal {
 namespace heap {
 
 // Temporarily sets a given allocator in an isolate.
-class TestMemoryAllocatorScope {
+class V8_NODISCARD TestMemoryAllocatorScope {
  public:
   TestMemoryAllocatorScope(Isolate* isolate, size_t max_capacity,
                            size_t code_range_size,
@@ -75,15 +75,17 @@ class TestMemoryAllocatorScope {
     isolate_->GetCodePages()->swap(code_pages_);
   }
 
+  TestMemoryAllocatorScope(const TestMemoryAllocatorScope&) = delete;
+  TestMemoryAllocatorScope& operator=(const TestMemoryAllocatorScope&) = delete;
+
  private:
   Isolate* isolate_;
   std::unique_ptr<MemoryAllocator> old_allocator_;
   std::vector<MemoryRange> code_pages_;
-  DISALLOW_COPY_AND_ASSIGN(TestMemoryAllocatorScope);
 };
 
 // Temporarily sets a given code page allocator in an isolate.
-class TestCodePageAllocatorScope {
+class V8_NODISCARD TestCodePageAllocatorScope {
  public:
   TestCodePageAllocatorScope(Isolate* isolate,
                              v8::PageAllocator* code_page_allocator)
@@ -98,12 +100,13 @@ class TestCodePageAllocatorScope {
     isolate_->heap()->memory_allocator()->code_page_allocator_ =
         old_code_page_allocator_;
   }
+  TestCodePageAllocatorScope(const TestCodePageAllocatorScope&) = delete;
+  TestCodePageAllocatorScope& operator=(const TestCodePageAllocatorScope&) =
+      delete;
 
  private:
   Isolate* isolate_;
   v8::PageAllocator* old_code_page_allocator_;
-
-  DISALLOW_COPY_AND_ASSIGN(TestCodePageAllocatorScope);
 };
 
 static void VerifyMemoryChunk(Isolate* isolate, Heap* heap,
@@ -344,6 +347,7 @@ TEST(OldLargeObjectSpace) {
 // messages are also not stable if files are moved and modified during the build
 // process (jumbo builds).
 TEST(SizeOfInitialHeap) {
+  ManualGCScope manual_gc_scope;
   if (i::FLAG_always_opt) return;
   // Bootstrapping without a snapshot causes more allocations.
   CcTest::InitializeVM();
@@ -374,26 +378,16 @@ TEST(SizeOfInitialHeap) {
   // Freshly initialized VM gets by with the snapshot size (which is below
   // kMaxInitialSizePerSpace per space).
   Heap* heap = isolate->heap();
-  int page_count[LAST_GROWABLE_PAGED_SPACE + 1] = {0, 0, 0, 0};
   for (int i = FIRST_GROWABLE_PAGED_SPACE; i <= LAST_GROWABLE_PAGED_SPACE;
        i++) {
     // Debug code can be very large, so skip CODE_SPACE if we are generating it.
     if (i == CODE_SPACE && i::FLAG_debug_code) continue;
 
-    page_count[i] = heap->paged_space(i)->CountTotalPages();
     // Check that the initial heap is also below the limit.
     CHECK_LE(heap->paged_space(i)->CommittedMemory(), kMaxInitialSizePerSpace);
   }
 
-  // Executing the empty script gets by with the same number of pages, i.e.,
-  // requires no extra space.
   CompileRun("/*empty*/");
-  for (int i = FIRST_GROWABLE_PAGED_SPACE; i <= LAST_GROWABLE_PAGED_SPACE;
-       i++) {
-    // Skip CODE_SPACE, since we had to generate code even for an empty script.
-    if (i == CODE_SPACE) continue;
-    CHECK_EQ(page_count[i], isolate->heap()->paged_space(i)->CountTotalPages());
-  }
 
   // No large objects required to perform the above steps.
   CHECK_EQ(initial_lo_space,
@@ -805,7 +799,7 @@ namespace {
 // cannot take an argument. Since these tests create ReadOnlySpaces not attached
 // to the Heap directly, they need to be destroyed to ensure the
 // MemoryAllocator's stats are all 0 at exit.
-class ReadOnlySpaceScope {
+class V8_NODISCARD ReadOnlySpaceScope {
  public:
   explicit ReadOnlySpaceScope(Heap* heap) : ro_space_(heap) {}
   ~ReadOnlySpaceScope() {

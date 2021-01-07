@@ -18,6 +18,9 @@ class LiteralBuffer final {
 
   ~LiteralBuffer() { backing_store_.Dispose(); }
 
+  LiteralBuffer(const LiteralBuffer&) = delete;
+  LiteralBuffer& operator=(const LiteralBuffer&) = delete;
+
   V8_INLINE void AddChar(char code_unit) {
     DCHECK(IsValidAscii(code_unit));
     AddOneByteChar(static_cast<byte>(code_unit));
@@ -95,8 +98,6 @@ class LiteralBuffer final {
   int position_;
 
   bool is_one_byte_;
-
-  DISALLOW_COPY_AND_ASSIGN(LiteralBuffer);
 };
 
 }  // namespace internal

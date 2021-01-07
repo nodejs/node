@@ -167,7 +167,6 @@ class MockTransport : public TransportBase {
   MOCK_METHOD(bool, AcceptConnection, (), (override));
   MOCK_METHOD(bool, Read, (char*, int32_t), (override));
   MOCK_METHOD(bool, Write, (const char*, int32_t), (override));
-  MOCK_METHOD(bool, IsDataAvailable, (), (override));
   MOCK_METHOD(bool, IsDataAvailable, (), (const, override));
   MOCK_METHOD(void, Disconnect, (), (override));
   MOCK_METHOD(void, Close, (), (override));

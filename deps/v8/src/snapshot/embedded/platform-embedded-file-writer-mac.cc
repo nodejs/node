@@ -4,6 +4,8 @@
 
 #include "src/snapshot/embedded/platform-embedded-file-writer-mac.h"
 
+#include "src/objects/code.h"
+
 namespace v8 {
 namespace internal {
 
@@ -54,6 +56,7 @@ void PlatformEmbeddedFileWriterMac::DeclareSymbolGlobal(const char* name) {
   // prevents something along the compilation chain from messing with the
   // embedded blob. Using .global here causes embedded blob hash verification
   // failures at runtime.
+  STATIC_ASSERT(32 >= kCodeAlignment);
   fprintf(fp_, ".private_extern _%s\n", name);
 }
 
@@ -62,6 +65,7 @@ void PlatformEmbeddedFileWriterMac::AlignToCodeAlignment() {
 }
 
 void PlatformEmbeddedFileWriterMac::AlignToDataAlignment() {
+  STATIC_ASSERT(8 >= Code::kMetadataAlignment);
   fprintf(fp_, ".balign 8\n");
 }
 

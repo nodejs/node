@@ -14,7 +14,7 @@ namespace compiler {
 
 namespace {
 constexpr int kMaxNumAllocatable =
-    Max(Register::kNumRegisters, DoubleRegister::kNumRegisters);
+    std::max(Register::kNumRegisters, DoubleRegister::kNumRegisters);
 static std::array<int, kMaxNumAllocatable> kAllocatableCodes =
     base::make_array<kMaxNumAllocatable>(
         [](size_t i) { return static_cast<int>(i); });

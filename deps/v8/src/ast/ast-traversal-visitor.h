@@ -30,6 +30,8 @@ class AstTraversalVisitor : public AstVisitor<Subclass> {
  public:
   explicit AstTraversalVisitor(Isolate* isolate, AstNode* root = nullptr);
   explicit AstTraversalVisitor(uintptr_t stack_limit, AstNode* root = nullptr);
+  AstTraversalVisitor(const AstTraversalVisitor&) = delete;
+  AstTraversalVisitor& operator=(const AstTraversalVisitor&) = delete;
 
   void Run() {
     DCHECK_NOT_NULL(root_);
@@ -56,8 +58,6 @@ class AstTraversalVisitor : public AstVisitor<Subclass> {
 
   AstNode* root_;
   int depth_;
-
-  DISALLOW_COPY_AND_ASSIGN(AstTraversalVisitor);
 };
 
 // ----------------------------------------------------------------------------

@@ -877,7 +877,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (HasRegisterInput(instr, 0)) {
         Register reg = i.InputRegister(0);
         DCHECK_IMPLIES(
-            HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
+            instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
         __ CallCodeObject(reg);
       } else {
@@ -925,7 +925,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (HasRegisterInput(instr, 0)) {
         Register reg = i.InputRegister(0);
         DCHECK_IMPLIES(
-            HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
+            instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
         __ JumpCodeObject(reg);
       } else {
@@ -962,7 +962,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CHECK(!instr->InputAt(0)->IsImmediate());
       Register reg = i.InputRegister(0);
       DCHECK_IMPLIES(
-          HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
+          instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
           reg == kJavaScriptCallCodeStartRegister);
       __ Jump(reg);
       frame_access_state()->ClearSPDelta();
@@ -1130,9 +1130,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchDeoptimize: {
       DeoptimizationExit* exit =
-          BuildTranslation(instr, -1, 0, OutputFrameStateCombine::Ignore());
-      CodeGenResult result = AssembleDeoptimizerCall(exit);
-      if (result != kSuccess) return result;
+          BuildTranslation(instr, -1, 0, 0, OutputFrameStateCombine::Ignore());
+      __ b(exit->label());
       break;
     }
     case kArchRet:
@@ -1238,7 +1237,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
           __ mov(ip, Operand(offset));
           __ LoadSimd128(i.OutputSimd128Register(), MemOperand(fp, ip), r0,
-                         kScratchDoubleReg);
+                         kScratchSimd128Reg);
         }
       } else {
         __ LoadP(i.OutputRegister(), MemOperand(fp, offset), r0);
@@ -1759,8 +1758,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             break;
           case MachineRepresentation::kSimd128: {
             __ addi(sp, sp, Operand(-kSimd128Size));
-            __ StoreSimd128(i.InputDoubleRegister(0), MemOperand(r0, sp), r0,
-                            kScratchDoubleReg);
+            __ StoreSimd128(i.InputSimd128Register(0), MemOperand(r0, sp), r0,
+                            kScratchSimd128Reg);
             frame_access_state()->IncreaseSPDelta(kSimd128Size /
                                                   kSystemPointerSize);
             break;
@@ -1806,8 +1805,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         } else {
           DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
           __ mov(ip, Operand(slot * kSystemPointerSize));
-          __ StoreSimd128(i.InputDoubleRegister(0), MemOperand(ip, sp), r0,
-                          kScratchDoubleReg);
+          __ StoreSimd128(i.InputSimd128Register(0), MemOperand(ip, sp), r0,
+                          kScratchSimd128Reg);
         }
       } else {
         __ StoreP(i.InputRegister(0), MemOperand(sp, slot * kSystemPointerSize),
@@ -1919,9 +1918,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #if V8_TARGET_ARCH_PPC64
       bool check_conversion =
           (opcode == kPPC_DoubleToInt64 && i.OutputCount() > 1);
-      if (check_conversion) {
         __ mtfsb0(VXCVI);  // clear FPSCR:VXCVI bit
-      }
 #endif
       __ ConvertDoubleToInt64(i.InputDoubleRegister(0),
 #if !V8_TARGET_ARCH_PPC64
@@ -1929,21 +1926,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif
                               i.OutputRegister(0), kScratchDoubleReg);
 #if V8_TARGET_ARCH_PPC64
-      if (check_conversion) {
-        // Set 2nd output to zero if conversion fails.
         CRegister cr = cr7;
         int crbit = v8::internal::Assembler::encode_crbit(
             cr, static_cast<CRBit>(VXCVI % CRWIDTH));
         __ mcrfs(cr, VXCVI);  // extract FPSCR field containing VXCVI into cr7
+        // Handle conversion failures (such as overflow).
         if (CpuFeatures::IsSupported(ISELECT)) {
-          __ li(i.OutputRegister(1), Operand(1));
-          __ isel(i.OutputRegister(1), r0, i.OutputRegister(1), crbit);
+          if (check_conversion) {
+            __ li(i.OutputRegister(1), Operand(1));
+            __ isel(i.OutputRegister(1), r0, i.OutputRegister(1), crbit);
+          } else {
+            __ isel(i.OutputRegister(0), r0, i.OutputRegister(0), crbit);
+          }
         } else {
-          __ li(i.OutputRegister(1), Operand::Zero());
-          __ bc(v8::internal::kInstrSize * 2, BT, crbit);
-          __ li(i.OutputRegister(1), Operand(1));
+          if (check_conversion) {
+            __ li(i.OutputRegister(1), Operand::Zero());
+            __ bc(v8::internal::kInstrSize * 2, BT, crbit);
+            __ li(i.OutputRegister(1), Operand(1));
+          } else {
+            __ mr(ip, i.OutputRegister(0));
+            __ li(i.OutputRegister(0), Operand::Zero());
+            __ bc(v8::internal::kInstrSize * 2, BT, crbit);
+            __ mr(i.OutputRegister(0), ip);
+          }
         }
-      }
 #endif
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
@@ -2067,7 +2073,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       bool is_atomic = i.InputInt32(2);
       // lvx only supports MRR.
       DCHECK_EQ(mode, kMode_MRR);
-      __ LoadSimd128(result, operand, r0, kScratchDoubleReg);
+      __ LoadSimd128(result, operand, r0, kScratchSimd128Reg);
       if (is_atomic) __ lwsync();
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
@@ -2101,7 +2107,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (is_atomic) __ lwsync();
       // stvx only supports MRR.
       DCHECK_EQ(mode, kMode_MRR);
-      __ StoreSimd128(value, operand, r0, kScratchDoubleReg);
+      __ StoreSimd128(value, operand, r0, kScratchSimd128Reg);
       if (is_atomic) __ sync();
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
@@ -2270,189 +2276,118 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vspltb(dst, dst, Operand(7));
       break;
     }
-#define SHIFT_TO_CORRECT_LANE(starting_lane_nummber, lane_input,     \
-                              lane_width_in_bytes, input_register)   \
-  int shift_bits = abs(lane_input - starting_lane_nummber) *         \
-                   lane_width_in_bytes * kBitsPerByte;               \
-  if (shift_bits > 0) {                                              \
-    __ li(ip, Operand(shift_bits));                                  \
-    __ mtvsrd(kScratchDoubleReg, ip);                                \
-    __ vspltb(kScratchDoubleReg, kScratchDoubleReg, Operand(7));     \
-    if (lane_input < starting_lane_nummber) {                        \
-      __ vsro(kScratchDoubleReg, input_register, kScratchDoubleReg); \
-    } else {                                                         \
-      DCHECK(lane_input > starting_lane_nummber);                    \
-      __ vslo(kScratchDoubleReg, input_register, kScratchDoubleReg); \
-    }                                                                \
-    input_register = kScratchDoubleReg;                              \
-  }
     case kPPC_F64x2ExtractLane: {
-      int32_t lane = 1 - i.InputInt8(1);
-      Simd128Register src = i.InputSimd128Register(0);
-      SHIFT_TO_CORRECT_LANE(0, lane, 8, src);
-      __ mfvsrd(kScratchReg, src);
+      constexpr int lane_width_in_bytes = 8;
+      __ vextractd(kScratchSimd128Reg, i.InputSimd128Register(0),
+                   Operand((1 - i.InputInt8(1)) * lane_width_in_bytes));
+      __ mfvsrd(kScratchReg, kScratchSimd128Reg);
       __ MovInt64ToDouble(i.OutputDoubleRegister(), kScratchReg);
       break;
     }
     case kPPC_F32x4ExtractLane: {
-      int32_t lane = 3 - i.InputInt8(1);
-      Simd128Register src = i.InputSimd128Register(0);
-      SHIFT_TO_CORRECT_LANE(1, lane, 4, src)
-      __ mfvsrwz(kScratchReg, src);
+      constexpr int lane_width_in_bytes = 4;
+      __ vextractuw(kScratchSimd128Reg, i.InputSimd128Register(0),
+                    Operand((3 - i.InputInt8(1)) * lane_width_in_bytes));
+      __ mfvsrd(kScratchReg, kScratchSimd128Reg);
       __ MovIntToFloat(i.OutputDoubleRegister(), kScratchReg);
       break;
     }
     case kPPC_I64x2ExtractLane: {
-      int32_t lane = 1 - i.InputInt8(1);
-      Simd128Register src = i.InputSimd128Register(0);
-      SHIFT_TO_CORRECT_LANE(0, lane, 8, src)
-      __ mfvsrd(i.OutputRegister(), src);
+      constexpr int lane_width_in_bytes = 8;
+      __ vextractd(kScratchSimd128Reg, i.InputSimd128Register(0),
+                   Operand((1 - i.InputInt8(1)) * lane_width_in_bytes));
+      __ mfvsrd(i.OutputRegister(), kScratchSimd128Reg);
       break;
     }
     case kPPC_I32x4ExtractLane: {
-      int32_t lane = 3 - i.InputInt8(1);
-      Simd128Register src = i.InputSimd128Register(0);
-      SHIFT_TO_CORRECT_LANE(1, lane, 4, src)
-      __ mfvsrwz(i.OutputRegister(), src);
+      constexpr int lane_width_in_bytes = 4;
+      __ vextractuw(kScratchSimd128Reg, i.InputSimd128Register(0),
+                    Operand((3 - i.InputInt8(1)) * lane_width_in_bytes));
+      __ mfvsrd(i.OutputRegister(), kScratchSimd128Reg);
       break;
     }
     case kPPC_I16x8ExtractLaneU: {
-      int32_t lane = 7 - i.InputInt8(1);
-      Simd128Register src = i.InputSimd128Register(0);
-      SHIFT_TO_CORRECT_LANE(2, lane, 2, src)
-      __ mfvsrwz(r0, src);
-      __ li(ip, Operand(16));
-      __ srd(i.OutputRegister(), r0, ip);
+      constexpr int lane_width_in_bytes = 2;
+      __ vextractuh(kScratchSimd128Reg, i.InputSimd128Register(0),
+                    Operand((7 - i.InputInt8(1)) * lane_width_in_bytes));
+      __ mfvsrd(i.OutputRegister(), kScratchSimd128Reg);
       break;
     }
     case kPPC_I16x8ExtractLaneS: {
-      int32_t lane = 7 - i.InputInt8(1);
-      Simd128Register src = i.InputSimd128Register(0);
-      SHIFT_TO_CORRECT_LANE(2, lane, 2, src)
-      __ mfvsrwz(kScratchReg, src);
-      __ sradi(i.OutputRegister(), kScratchReg, 16);
+      constexpr int lane_width_in_bytes = 2;
+      __ vextractuh(kScratchSimd128Reg, i.InputSimd128Register(0),
+                    Operand((7 - i.InputInt8(1)) * lane_width_in_bytes));
+      __ mfvsrd(kScratchReg, kScratchSimd128Reg);
+      __ extsh(i.OutputRegister(), kScratchReg);
       break;
     }
     case kPPC_I8x16ExtractLaneU: {
-      int32_t lane = 15 - i.InputInt8(1);
-      Simd128Register src = i.InputSimd128Register(0);
-      SHIFT_TO_CORRECT_LANE(4, lane, 1, src)
-      __ mfvsrwz(r0, src);
-      __ li(ip, Operand(24));
-      __ srd(i.OutputRegister(), r0, ip);
+      __ vextractub(kScratchSimd128Reg, i.InputSimd128Register(0),
+                    Operand(15 - i.InputInt8(1)));
+      __ mfvsrd(i.OutputRegister(), kScratchSimd128Reg);
       break;
     }
     case kPPC_I8x16ExtractLaneS: {
-      int32_t lane = 15 - i.InputInt8(1);
-      Simd128Register src = i.InputSimd128Register(0);
-      SHIFT_TO_CORRECT_LANE(4, lane, 1, src)
-      __ mfvsrwz(kScratchReg, src);
-      __ sradi(i.OutputRegister(), kScratchReg, 24);
+      __ vextractub(kScratchSimd128Reg, i.InputSimd128Register(0),
+                    Operand(15 - i.InputInt8(1)));
+      __ mfvsrd(kScratchReg, kScratchSimd128Reg);
+      __ extsb(i.OutputRegister(), kScratchReg);
       break;
     }
-#undef SHIFT_TO_CORRECT_LANE
-#define GENERATE_REPLACE_LANE_MASK(lane, replacement_value_byte_lane, \
-                                   lane_width_in_bytes)               \
-  uint64_t mask = 0;                                                  \
-  for (int i = 0, j = 0; i <= kSimd128Size - 1; i++) {                \
-    mask <<= kBitsPerByte;                                            \
-    if (i >= lane * lane_width_in_bytes &&                            \
-        i < lane * lane_width_in_bytes + lane_width_in_bytes) {       \
-      mask |= replacement_value_byte_lane + j;                        \
-      j++;                                                            \
-    } else {                                                          \
-      mask |= i;                                                      \
-    }                                                                 \
-    if (i == (kSimd128Size / 2) - 1) {                                \
-      __ mov(r0, Operand(mask));                                      \
-      mask = 0;                                                       \
-    } else if (i >= kSimd128Size - 1) {                               \
-      __ mov(ip, Operand(mask));                                      \
-    }                                                                 \
-  }                                                                   \
-  /* Need to maintain 16 byte alignment for lvx */                    \
-  __ mr(kScratchReg, sp);                                             \
-  __ ClearRightImm(sp, sp, Operand(base::bits::WhichPowerOfTwo(16))); \
-  __ addi(sp, sp, Operand(-16));                                      \
-  __ StoreP(ip, MemOperand(sp, 0));                                   \
-  __ StoreP(r0, MemOperand(sp, 8));                                   \
-  __ lvx(kScratchDoubleReg, MemOperand(r0, sp));                      \
-  __ mr(sp, kScratchReg);
     case kPPC_F64x2ReplaceLane: {
-      Simd128Register src = i.InputSimd128Register(0);
-      Simd128Register dst = i.OutputSimd128Register();
-      int32_t lane = 1 - i.InputInt8(1);
-      constexpr int replacement_value_byte_lane = 16;
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       constexpr int lane_width_in_bytes = 8;
-      GENERATE_REPLACE_LANE_MASK(lane, replacement_value_byte_lane,
-                                 lane_width_in_bytes)
+      Simd128Register dst = i.OutputSimd128Register();
       __ MovDoubleToInt64(r0, i.InputDoubleRegister(2));
-      __ mtvsrd(dst, r0);
-      __ vperm(dst, src, dst, kScratchDoubleReg);
+      __ mtvsrd(kScratchSimd128Reg, r0);
+      __ vinsertd(dst, kScratchSimd128Reg,
+                  Operand((1 - i.InputInt8(1)) * lane_width_in_bytes));
       break;
     }
     case kPPC_F32x4ReplaceLane: {
-      Simd128Register src = i.InputSimd128Register(0);
-      Simd128Register dst = i.OutputSimd128Register();
-      int32_t lane = 3 - i.InputInt8(1);
-      constexpr int replacement_value_byte_lane = 20;
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       constexpr int lane_width_in_bytes = 4;
-      GENERATE_REPLACE_LANE_MASK(lane, replacement_value_byte_lane,
-                                 lane_width_in_bytes)
-      __ MovFloatToInt(kScratchReg, i.InputDoubleRegister(2));
-      __ mtvsrd(dst, kScratchReg);
-      __ vperm(dst, src, dst, kScratchDoubleReg);
+      Simd128Register dst = i.OutputSimd128Register();
+      __ MovFloatToInt(r0, i.InputDoubleRegister(2));
+      __ mtvsrd(kScratchSimd128Reg, r0);
+      __ vinsertw(dst, kScratchSimd128Reg,
+                  Operand((3 - i.InputInt8(1)) * lane_width_in_bytes));
       break;
     }
     case kPPC_I64x2ReplaceLane: {
-      Simd128Register src = i.InputSimd128Register(0);
-      Simd128Register dst = i.OutputSimd128Register();
-      int32_t lane = 1 - i.InputInt8(1);
-      constexpr int replacement_value_byte_lane = 16;
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       constexpr int lane_width_in_bytes = 8;
-      GENERATE_REPLACE_LANE_MASK(lane, replacement_value_byte_lane,
-                                 lane_width_in_bytes)
-      __ mtvsrd(dst, i.InputRegister(2));
-      __ vperm(dst, src, dst, kScratchDoubleReg);
+      Simd128Register dst = i.OutputSimd128Register();
+      __ mtvsrd(kScratchSimd128Reg, i.InputRegister(2));
+      __ vinsertd(dst, kScratchSimd128Reg,
+                  Operand((1 - i.InputInt8(1)) * lane_width_in_bytes));
       break;
     }
     case kPPC_I32x4ReplaceLane: {
-      Simd128Register src = i.InputSimd128Register(0);
-      Simd128Register dst = i.OutputSimd128Register();
-      int32_t lane = 3 - i.InputInt8(1);
-      constexpr int replacement_value_byte_lane = 20;
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       constexpr int lane_width_in_bytes = 4;
-      GENERATE_REPLACE_LANE_MASK(lane, replacement_value_byte_lane,
-                                 lane_width_in_bytes)
-      __ mtvsrd(dst, i.InputRegister(2));
-      __ vperm(dst, src, dst, kScratchDoubleReg);
+      Simd128Register dst = i.OutputSimd128Register();
+      __ mtvsrd(kScratchSimd128Reg, i.InputRegister(2));
+      __ vinsertw(dst, kScratchSimd128Reg,
+                  Operand((3 - i.InputInt8(1)) * lane_width_in_bytes));
       break;
     }
     case kPPC_I16x8ReplaceLane: {
-      Simd128Register src = i.InputSimd128Register(0);
-      Simd128Register dst = i.OutputSimd128Register();
-      int32_t lane = 7 - i.InputInt8(1);
-      constexpr int replacement_value_byte_lane = 22;
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       constexpr int lane_width_in_bytes = 2;
-      GENERATE_REPLACE_LANE_MASK(lane, replacement_value_byte_lane,
-                                 lane_width_in_bytes)
-      __ mtvsrd(dst, i.InputRegister(2));
-      __ vperm(dst, src, dst, kScratchDoubleReg);
+      Simd128Register dst = i.OutputSimd128Register();
+      __ mtvsrd(kScratchSimd128Reg, i.InputRegister(2));
+      __ vinserth(dst, kScratchSimd128Reg,
+                  Operand((7 - i.InputInt8(1)) * lane_width_in_bytes));
       break;
     }
     case kPPC_I8x16ReplaceLane: {
-      Simd128Register src = i.InputSimd128Register(0);
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       Simd128Register dst = i.OutputSimd128Register();
-      int32_t lane = 15 - i.InputInt8(1);
-      constexpr int replacement_value_byte_lane = 23;
-      constexpr int lane_width_in_bytes = 1;
-      GENERATE_REPLACE_LANE_MASK(lane, replacement_value_byte_lane,
-                                 lane_width_in_bytes)
-      __ mtvsrd(dst, i.InputRegister(2));
-      __ vperm(dst, src, dst, kScratchDoubleReg);
+      __ mtvsrd(kScratchSimd128Reg, i.InputRegister(2));
+      __ vinsertb(dst, kScratchSimd128Reg, Operand(15 - i.InputInt8(1)));
       break;
     }
-#undef GENERATE_REPLACE_LANE_MASK
     case kPPC_F64x2Add: {
       __ xvadddp(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
@@ -2488,9 +2423,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vspltb(tempFPReg2, tempFPReg2, Operand(7));
       __ vsro(tempFPReg1, src0, tempFPReg2);
       __ vsro(tempFPReg2, src1, tempFPReg2);
-      __ vpkudum(kScratchDoubleReg, tempFPReg2, tempFPReg1);
+      __ vpkudum(kScratchSimd128Reg, tempFPReg2, tempFPReg1);
       // add the operands
-      __ vaddfp(dst, kScratchDoubleReg, dst);
+      __ vaddfp(dst, kScratchSimd128Reg, dst);
       break;
     }
     case kPPC_F32x4Sub: {
@@ -2542,10 +2477,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register src0 = i.InputSimd128Register(0);
       Simd128Register src1 = i.InputSimd128Register(1);
       Simd128Register dst = i.OutputSimd128Register();
-      __ vxor(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
-      __ vsum2sws(dst, src0, kScratchDoubleReg);
-      __ vsum2sws(kScratchDoubleReg, src1, kScratchDoubleReg);
-      __ vpkudum(dst, kScratchDoubleReg, dst);
+      __ vxor(kScratchSimd128Reg, kScratchSimd128Reg, kScratchSimd128Reg);
+      __ vsum2sws(dst, src0, kScratchSimd128Reg);
+      __ vsum2sws(kScratchSimd128Reg, src1, kScratchSimd128Reg);
+      __ vpkudum(dst, kScratchSimd128Reg, dst);
       break;
     }
     case kPPC_I32x4Sub: {
@@ -2567,10 +2502,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register src0 = i.InputSimd128Register(0);
       Simd128Register src1 = i.InputSimd128Register(1);
       Simd128Register dst = i.OutputSimd128Register();
-      __ vxor(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
-      __ vsum4shs(dst, src0, kScratchDoubleReg);
-      __ vsum4shs(kScratchDoubleReg, src1, kScratchDoubleReg);
-      __ vpkuwus(dst, kScratchDoubleReg, dst);
+      __ vxor(kScratchSimd128Reg, kScratchSimd128Reg, kScratchSimd128Reg);
+      __ vsum4shs(dst, src0, kScratchSimd128Reg);
+      __ vsum4shs(kScratchSimd128Reg, src1, kScratchSimd128Reg);
+      __ vpkuwus(dst, kScratchSimd128Reg, dst);
       break;
     }
     case kPPC_I16x8Sub: {
@@ -2579,9 +2514,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_I16x8Mul: {
-      __ vxor(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
-      __ vmladduhm(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                   i.InputSimd128Register(1), kScratchDoubleReg);
+      Simd128Register src0 = i.InputSimd128Register(0);
+      Simd128Register src1 = i.InputSimd128Register(1);
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
+      __ vmuleuh(kScratchSimd128Reg, src0, src1);
+      __ vmulouh(i.OutputSimd128Register(), src0, src1);
+      __ xxspltib(tempFPReg1, Operand(16));
+      __ vslw(kScratchSimd128Reg, kScratchSimd128Reg, tempFPReg1);
+      __ vslw(dst, dst, tempFPReg1);
+      __ vsrw(dst, dst, tempFPReg1);
+      __ vor(dst, kScratchSimd128Reg, dst);
       break;
     }
     case kPPC_I8x16Add: {
@@ -2595,12 +2538,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_I8x16Mul: {
-      __ vmuleub(kScratchDoubleReg, i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
-      __ vmuloub(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
-      __ vpkuhum(i.OutputSimd128Register(), kScratchDoubleReg,
-                 i.OutputSimd128Register());
+      Simd128Register src0 = i.InputSimd128Register(0);
+      Simd128Register src1 = i.InputSimd128Register(1);
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
+      __ vmuleub(kScratchSimd128Reg, src0, src1);
+      __ vmuloub(i.OutputSimd128Register(), src0, src1);
+      __ xxspltib(tempFPReg1, Operand(8));
+      __ vslh(kScratchSimd128Reg, kScratchSimd128Reg, tempFPReg1);
+      __ vslh(dst, dst, tempFPReg1);
+      __ vsrh(dst, dst, tempFPReg1);
+      __ vor(dst, kScratchSimd128Reg, dst);
       break;
     }
     case kPPC_I64x2MinS: {
@@ -2689,9 +2637,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_F64x2Ne: {
-      __ xvcmpeqdp(kScratchDoubleReg, i.InputSimd128Register(0),
+      __ xvcmpeqdp(kScratchSimd128Reg, i.InputSimd128Register(0),
                    i.InputSimd128Register(1));
-      __ vnor(i.OutputSimd128Register(), kScratchDoubleReg, kScratchDoubleReg);
+      __ vnor(i.OutputSimd128Register(), kScratchSimd128Reg,
+              kScratchSimd128Reg);
       break;
     }
     case kPPC_F64x2Le: {
@@ -2730,33 +2679,38 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_F32x4Ne: {
-      __ xvcmpeqsp(kScratchDoubleReg, i.InputSimd128Register(0),
+      __ xvcmpeqsp(kScratchSimd128Reg, i.InputSimd128Register(0),
                    i.InputSimd128Register(1));
-      __ vnor(i.OutputSimd128Register(), kScratchDoubleReg, kScratchDoubleReg);
+      __ vnor(i.OutputSimd128Register(), kScratchSimd128Reg,
+              kScratchSimd128Reg);
       break;
     }
     case kPPC_I64x2Ne: {
-      __ vcmpequd(kScratchDoubleReg, i.InputSimd128Register(0),
+      __ vcmpequd(kScratchSimd128Reg, i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
-      __ vnor(i.OutputSimd128Register(), kScratchDoubleReg, kScratchDoubleReg);
+      __ vnor(i.OutputSimd128Register(), kScratchSimd128Reg,
+              kScratchSimd128Reg);
       break;
     }
     case kPPC_I32x4Ne: {
-      __ vcmpequw(kScratchDoubleReg, i.InputSimd128Register(0),
+      __ vcmpequw(kScratchSimd128Reg, i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
-      __ vnor(i.OutputSimd128Register(), kScratchDoubleReg, kScratchDoubleReg);
+      __ vnor(i.OutputSimd128Register(), kScratchSimd128Reg,
+              kScratchSimd128Reg);
       break;
     }
     case kPPC_I16x8Ne: {
-      __ vcmpequh(kScratchDoubleReg, i.InputSimd128Register(0),
+      __ vcmpequh(kScratchSimd128Reg, i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
-      __ vnor(i.OutputSimd128Register(), kScratchDoubleReg, kScratchDoubleReg);
+      __ vnor(i.OutputSimd128Register(), kScratchSimd128Reg,
+              kScratchSimd128Reg);
       break;
     }
     case kPPC_I8x16Ne: {
-      __ vcmpequb(kScratchDoubleReg, i.InputSimd128Register(0),
+      __ vcmpequb(kScratchSimd128Reg, i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
-      __ vnor(i.OutputSimd128Register(), kScratchDoubleReg, kScratchDoubleReg);
+      __ vnor(i.OutputSimd128Register(), kScratchSimd128Reg,
+              kScratchSimd128Reg);
       break;
     }
     case kPPC_F32x4Lt: {
@@ -2780,21 +2734,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_I64x2GeS: {
-      __ vcmpequd(kScratchDoubleReg, i.InputSimd128Register(0),
+      __ vcmpequd(kScratchSimd128Reg, i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
       __ vcmpgtsd(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
       __ vor(i.OutputSimd128Register(), i.OutputSimd128Register(),
-             kScratchDoubleReg);
+             kScratchSimd128Reg);
       break;
     }
     case kPPC_I32x4GeS: {
-      __ vcmpequw(kScratchDoubleReg, i.InputSimd128Register(0),
+      __ vcmpequw(kScratchSimd128Reg, i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
       __ vcmpgtsw(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
       __ vor(i.OutputSimd128Register(), i.OutputSimd128Register(),
-             kScratchDoubleReg);
+             kScratchSimd128Reg);
       break;
     }
     case kPPC_I64x2GtU: {
@@ -2809,22 +2763,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_I64x2GeU: {
-      __ vcmpequd(kScratchDoubleReg, i.InputSimd128Register(0),
+      __ vcmpequd(kScratchSimd128Reg, i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
       __ vcmpgtud(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
       __ vor(i.OutputSimd128Register(), i.OutputSimd128Register(),
-             kScratchDoubleReg);
+             kScratchSimd128Reg);
 
       break;
     }
     case kPPC_I32x4GeU: {
-      __ vcmpequw(kScratchDoubleReg, i.InputSimd128Register(0),
+      __ vcmpequw(kScratchSimd128Reg, i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
       __ vcmpgtuw(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
       __ vor(i.OutputSimd128Register(), i.OutputSimd128Register(),
-             kScratchDoubleReg);
+             kScratchSimd128Reg);
       break;
     }
     case kPPC_I16x8GtS: {
@@ -2833,12 +2787,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_I16x8GeS: {
-      __ vcmpequh(kScratchDoubleReg, i.InputSimd128Register(0),
+      __ vcmpequh(kScratchSimd128Reg, i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
       __ vcmpgtsh(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
       __ vor(i.OutputSimd128Register(), i.OutputSimd128Register(),
-             kScratchDoubleReg);
+             kScratchSimd128Reg);
       break;
     }
     case kPPC_I16x8GtU: {
@@ -2847,12 +2801,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_I16x8GeU: {
-      __ vcmpequh(kScratchDoubleReg, i.InputSimd128Register(0),
+      __ vcmpequh(kScratchSimd128Reg, i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
       __ vcmpgtuh(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
       __ vor(i.OutputSimd128Register(), i.OutputSimd128Register(),
-             kScratchDoubleReg);
+             kScratchSimd128Reg);
       break;
     }
     case kPPC_I8x16GtS: {
@@ -2861,12 +2815,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_I8x16GeS: {
-      __ vcmpequb(kScratchDoubleReg, i.InputSimd128Register(0),
+      __ vcmpequb(kScratchSimd128Reg, i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
       __ vcmpgtsb(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
       __ vor(i.OutputSimd128Register(), i.OutputSimd128Register(),
-             kScratchDoubleReg);
+             kScratchSimd128Reg);
       break;
     }
     case kPPC_I8x16GtU: {
@@ -2875,20 +2829,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_I8x16GeU: {
-      __ vcmpequb(kScratchDoubleReg, i.InputSimd128Register(0),
+      __ vcmpequb(kScratchSimd128Reg, i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
       __ vcmpgtub(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
       __ vor(i.OutputSimd128Register(), i.OutputSimd128Register(),
-             kScratchDoubleReg);
+             kScratchSimd128Reg);
       break;
     }
-#define VECTOR_SHIFT(op)                                         \
-  {                                                              \
-    __ mtvsrd(kScratchDoubleReg, i.InputRegister(1));            \
-    __ vspltb(kScratchDoubleReg, kScratchDoubleReg, Operand(7)); \
-    __ op(i.OutputSimd128Register(), i.InputSimd128Register(0),  \
-          kScratchDoubleReg);                                    \
+#define VECTOR_SHIFT(op)                                           \
+  {                                                                \
+    __ mtvsrd(kScratchSimd128Reg, i.InputRegister(1));             \
+    __ vspltb(kScratchSimd128Reg, kScratchSimd128Reg, Operand(7)); \
+    __ op(i.OutputSimd128Register(), i.InputSimd128Register(0),    \
+          kScratchSimd128Reg);                                     \
   }
     case kPPC_I64x2Shl: {
       VECTOR_SHIFT(vsld)
@@ -2957,9 +2911,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vxor(dst, i.InputSimd128Register(0), src);
       break;
     }
+    case kPPC_S128Const: {
+      Simd128Register dst = i.OutputSimd128Register();
+      constexpr int lane_width_in_bytes = 8;
+      uint64_t low = make_uint64(i.InputUint32(1), i.InputUint32(0));
+      uint64_t high = make_uint64(i.InputUint32(3), i.InputUint32(2));
+      __ mov(r0, Operand(low));
+      __ mov(ip, Operand(high));
+      __ mtvsrd(dst, ip);
+      __ mtvsrd(kScratchSimd128Reg, r0);
+      __ vinsertd(dst, kScratchSimd128Reg, Operand(1 * lane_width_in_bytes));
+      break;
+    }
     case kPPC_S128Zero: {
       Simd128Register dst = i.OutputSimd128Register();
       __ vxor(dst, dst, dst);
+      break;
+    }
+    case kPPC_S128AllOnes: {
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vcmpequb(dst, dst, dst);
       break;
     }
     case kPPC_S128Not: {
@@ -3019,20 +2990,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ addi(sp, sp, Operand(-16));
       __ StoreP(ip, MemOperand(sp, 0));
       __ StoreP(ip, MemOperand(sp, 8));
-      __ lvx(kScratchDoubleReg, MemOperand(r0, sp));
+      __ lvx(kScratchSimd128Reg, MemOperand(r0, sp));
       __ mr(sp, kScratchReg);
       // Perform negation.
       __ vnor(tempFPReg1, i.InputSimd128Register(0), i.InputSimd128Register(0));
-      __ vaddudm(i.OutputSimd128Register(), tempFPReg1, kScratchDoubleReg);
+      __ vaddudm(i.OutputSimd128Register(), tempFPReg1, kScratchSimd128Reg);
       break;
     }
     case kPPC_I32x4Neg: {
       Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
       __ li(ip, Operand(1));
-      __ mtvsrd(kScratchDoubleReg, ip);
-      __ vspltw(kScratchDoubleReg, kScratchDoubleReg, Operand(1));
+      __ mtvsrd(kScratchSimd128Reg, ip);
+      __ vspltw(kScratchSimd128Reg, kScratchSimd128Reg, Operand(1));
       __ vnor(tempFPReg1, i.InputSimd128Register(0), i.InputSimd128Register(0));
-      __ vadduwm(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1);
+      __ vadduwm(i.OutputSimd128Register(), kScratchSimd128Reg, tempFPReg1);
       break;
     }
     case kPPC_I32x4Abs: {
@@ -3040,20 +3011,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register src = i.InputSimd128Register(0);
       constexpr int shift_bits = 31;
       __ li(ip, Operand(shift_bits));
-      __ mtvsrd(kScratchDoubleReg, ip);
-      __ vspltb(kScratchDoubleReg, kScratchDoubleReg, Operand(7));
-      __ vsraw(kScratchDoubleReg, src, kScratchDoubleReg);
-      __ vxor(tempFPReg1, src, kScratchDoubleReg);
-      __ vsubuwm(i.OutputSimd128Register(), tempFPReg1, kScratchDoubleReg);
+      __ mtvsrd(kScratchSimd128Reg, ip);
+      __ vspltb(kScratchSimd128Reg, kScratchSimd128Reg, Operand(7));
+      __ vsraw(kScratchSimd128Reg, src, kScratchSimd128Reg);
+      __ vxor(tempFPReg1, src, kScratchSimd128Reg);
+      __ vsubuwm(i.OutputSimd128Register(), tempFPReg1, kScratchSimd128Reg);
       break;
     }
     case kPPC_I16x8Neg: {
       Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
       __ li(ip, Operand(1));
-      __ mtvsrd(kScratchDoubleReg, ip);
-      __ vsplth(kScratchDoubleReg, kScratchDoubleReg, Operand(3));
+      __ mtvsrd(kScratchSimd128Reg, ip);
+      __ vsplth(kScratchSimd128Reg, kScratchSimd128Reg, Operand(3));
       __ vnor(tempFPReg1, i.InputSimd128Register(0), i.InputSimd128Register(0));
-      __ vadduhm(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1);
+      __ vadduhm(i.OutputSimd128Register(), kScratchSimd128Reg, tempFPReg1);
       break;
     }
     case kPPC_I16x8Abs: {
@@ -3061,20 +3032,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register src = i.InputSimd128Register(0);
       constexpr int shift_bits = 15;
       __ li(ip, Operand(shift_bits));
-      __ mtvsrd(kScratchDoubleReg, ip);
-      __ vspltb(kScratchDoubleReg, kScratchDoubleReg, Operand(7));
-      __ vsrah(kScratchDoubleReg, src, kScratchDoubleReg);
-      __ vxor(tempFPReg1, src, kScratchDoubleReg);
-      __ vsubuhm(i.OutputSimd128Register(), tempFPReg1, kScratchDoubleReg);
+      __ mtvsrd(kScratchSimd128Reg, ip);
+      __ vspltb(kScratchSimd128Reg, kScratchSimd128Reg, Operand(7));
+      __ vsrah(kScratchSimd128Reg, src, kScratchSimd128Reg);
+      __ vxor(tempFPReg1, src, kScratchSimd128Reg);
+      __ vsubuhm(i.OutputSimd128Register(), tempFPReg1, kScratchSimd128Reg);
       break;
     }
     case kPPC_I8x16Neg: {
       Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
       __ li(ip, Operand(1));
-      __ mtvsrd(kScratchDoubleReg, ip);
-      __ vspltb(kScratchDoubleReg, kScratchDoubleReg, Operand(7));
+      __ mtvsrd(kScratchSimd128Reg, ip);
+      __ vspltb(kScratchSimd128Reg, kScratchSimd128Reg, Operand(7));
       __ vnor(tempFPReg1, i.InputSimd128Register(0), i.InputSimd128Register(0));
-      __ vaddubm(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1);
+      __ vaddubm(i.OutputSimd128Register(), kScratchSimd128Reg, tempFPReg1);
       break;
     }
     case kPPC_I8x16Abs: {
@@ -3082,11 +3053,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register src = i.InputSimd128Register(0);
       constexpr int shift_bits = 7;
       __ li(ip, Operand(shift_bits));
-      __ mtvsrd(kScratchDoubleReg, ip);
-      __ vspltb(kScratchDoubleReg, kScratchDoubleReg, Operand(7));
-      __ vsrab(kScratchDoubleReg, src, kScratchDoubleReg);
-      __ vxor(tempFPReg1, src, kScratchDoubleReg);
-      __ vsububm(i.OutputSimd128Register(), tempFPReg1, kScratchDoubleReg);
+      __ mtvsrd(kScratchSimd128Reg, ip);
+      __ vspltb(kScratchSimd128Reg, kScratchSimd128Reg, Operand(7));
+      __ vsrab(kScratchSimd128Reg, src, kScratchSimd128Reg);
+      __ vxor(tempFPReg1, src, kScratchSimd128Reg);
+      __ vsububm(i.OutputSimd128Register(), tempFPReg1, kScratchSimd128Reg);
       break;
     }
     case kPPC_V64x2AnyTrue:
@@ -3097,22 +3068,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register dst = i.OutputRegister();
       constexpr int bit_number = 24;
       __ li(r0, Operand(0));
-      __ li(ip, Operand(-1));
+      __ li(ip, Operand(1));
       // Check if both lanes are 0, if so then return false.
-      __ vxor(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
-      __ vcmpequd(kScratchDoubleReg, src, kScratchDoubleReg, SetRC);
+      __ vxor(kScratchSimd128Reg, kScratchSimd128Reg, kScratchSimd128Reg);
+      __ mtcrf(0xFF, r0);  // Clear cr.
+      __ vcmpequd(kScratchSimd128Reg, src, kScratchSimd128Reg, SetRC);
       __ isel(dst, r0, ip, bit_number);
       break;
     }
-#define SIMD_ALL_TRUE(opcode)                                       \
-  Simd128Register src = i.InputSimd128Register(0);                  \
-  Register dst = i.OutputRegister();                                \
-  constexpr int bit_number = 24;                                    \
-  __ li(r0, Operand(0));                                            \
-  __ li(ip, Operand(-1));                                           \
-  /* Check if all lanes > 0, if not then return false.*/            \
-  __ vxor(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg); \
-  __ opcode(kScratchDoubleReg, src, kScratchDoubleReg, SetRC);      \
+#define SIMD_ALL_TRUE(opcode)                                          \
+  Simd128Register src = i.InputSimd128Register(0);                     \
+  Register dst = i.OutputRegister();                                   \
+  constexpr int bit_number = 24;                                       \
+  __ li(r0, Operand(0));                                               \
+  __ li(ip, Operand(1));                                               \
+  /* Check if all lanes > 0, if not then return false.*/               \
+  __ vxor(kScratchSimd128Reg, kScratchSimd128Reg, kScratchSimd128Reg); \
+  __ mtcrf(0xFF, r0); /* Clear cr.*/                                   \
+  __ opcode(kScratchSimd128Reg, src, kScratchSimd128Reg, SetRC);       \
   __ isel(dst, ip, r0, bit_number);
     case kPPC_V64x2AllTrue: {
       SIMD_ALL_TRUE(vcmpgtud)
@@ -3134,10 +3107,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kPPC_I32x4SConvertF32x4: {
       Simd128Register src = i.InputSimd128Register(0);
       // NaN to 0
-      __ vor(kScratchDoubleReg, src, src);
-      __ xvcmpeqsp(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
-      __ vand(kScratchDoubleReg, src, kScratchDoubleReg);
-      __ xvcvspsxws(i.OutputSimd128Register(), kScratchDoubleReg);
+      __ vor(kScratchSimd128Reg, src, src);
+      __ xvcmpeqsp(kScratchSimd128Reg, kScratchSimd128Reg, kScratchSimd128Reg);
+      __ vand(kScratchSimd128Reg, src, kScratchSimd128Reg);
+      __ xvcvspsxws(i.OutputSimd128Register(), kScratchSimd128Reg);
       break;
     }
     case kPPC_I32x4UConvertF32x4: {
@@ -3164,9 +3137,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vupklsh(i.OutputSimd128Register(), i.InputSimd128Register(0));
       // Zero extend.
       __ mov(ip, Operand(0xFFFF));
-      __ mtvsrd(kScratchDoubleReg, ip);
-      __ vspltw(kScratchDoubleReg, kScratchDoubleReg, Operand(1));
-      __ vand(i.OutputSimd128Register(), kScratchDoubleReg,
+      __ mtvsrd(kScratchSimd128Reg, ip);
+      __ vspltw(kScratchSimd128Reg, kScratchSimd128Reg, Operand(1));
+      __ vand(i.OutputSimd128Register(), kScratchSimd128Reg,
               i.OutputSimd128Register());
       break;
     }
@@ -3174,9 +3147,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vupkhsh(i.OutputSimd128Register(), i.InputSimd128Register(0));
       // Zero extend.
       __ mov(ip, Operand(0xFFFF));
-      __ mtvsrd(kScratchDoubleReg, ip);
-      __ vspltw(kScratchDoubleReg, kScratchDoubleReg, Operand(1));
-      __ vand(i.OutputSimd128Register(), kScratchDoubleReg,
+      __ mtvsrd(kScratchSimd128Reg, ip);
+      __ vspltw(kScratchSimd128Reg, kScratchSimd128Reg, Operand(1));
+      __ vand(i.OutputSimd128Register(), kScratchSimd128Reg,
               i.OutputSimd128Register());
       break;
     }
@@ -3193,9 +3166,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vupklsb(i.OutputSimd128Register(), i.InputSimd128Register(0));
       // Zero extend.
       __ li(ip, Operand(0xFF));
-      __ mtvsrd(kScratchDoubleReg, ip);
-      __ vsplth(kScratchDoubleReg, kScratchDoubleReg, Operand(3));
-      __ vand(i.OutputSimd128Register(), kScratchDoubleReg,
+      __ mtvsrd(kScratchSimd128Reg, ip);
+      __ vsplth(kScratchSimd128Reg, kScratchSimd128Reg, Operand(3));
+      __ vand(i.OutputSimd128Register(), kScratchSimd128Reg,
               i.OutputSimd128Register());
       break;
     }
@@ -3203,30 +3176,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vupkhsb(i.OutputSimd128Register(), i.InputSimd128Register(0));
       // Zero extend.
       __ li(ip, Operand(0xFF));
-      __ mtvsrd(kScratchDoubleReg, ip);
-      __ vsplth(kScratchDoubleReg, kScratchDoubleReg, Operand(3));
-      __ vand(i.OutputSimd128Register(), kScratchDoubleReg,
+      __ mtvsrd(kScratchSimd128Reg, ip);
+      __ vsplth(kScratchSimd128Reg, kScratchSimd128Reg, Operand(3));
+      __ vand(i.OutputSimd128Register(), kScratchSimd128Reg,
               i.OutputSimd128Register());
       break;
     }
     case kPPC_I16x8SConvertI32x4: {
-      __ vpkswss(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
+      __ vpkswss(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                 i.InputSimd128Register(0));
       break;
     }
     case kPPC_I16x8UConvertI32x4: {
-      __ vpkswus(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
+      __ vpkswus(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                 i.InputSimd128Register(0));
       break;
     }
     case kPPC_I8x16SConvertI16x8: {
-      __ vpkshss(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
+      __ vpkshss(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                 i.InputSimd128Register(0));
       break;
     }
     case kPPC_I8x16UConvertI16x8: {
-      __ vpkshus(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
+      __ vpkshus(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                 i.InputSimd128Register(0));
       break;
     }
     case kPPC_I8x16Shuffle: {
@@ -3243,67 +3216,73 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ addi(sp, sp, Operand(-16));
       __ StoreP(r0, MemOperand(sp, 0));
       __ StoreP(ip, MemOperand(sp, 8));
-      __ lvx(kScratchDoubleReg, MemOperand(r0, sp));
+      __ lvx(kScratchSimd128Reg, MemOperand(r0, sp));
       __ mr(sp, kScratchReg);
-      __ vperm(dst, src0, src1, kScratchDoubleReg);
+      __ vperm(dst, src0, src1, kScratchSimd128Reg);
       break;
     }
-    case kPPC_I16x8AddSaturateS: {
+    case kPPC_I16x8AddSatS: {
       __ vaddshs(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
       break;
     }
-    case kPPC_I16x8SubSaturateS: {
+    case kPPC_I16x8SubSatS: {
       __ vsubshs(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
       break;
     }
-    case kPPC_I16x8AddSaturateU: {
+    case kPPC_I16x8AddSatU: {
       __ vadduhs(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
       break;
     }
-    case kPPC_I16x8SubSaturateU: {
+    case kPPC_I16x8SubSatU: {
       __ vsubuhs(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
       break;
     }
-    case kPPC_I8x16AddSaturateS: {
+    case kPPC_I8x16AddSatS: {
       __ vaddsbs(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
       break;
     }
-    case kPPC_I8x16SubSaturateS: {
+    case kPPC_I8x16SubSatS: {
       __ vsubsbs(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
       break;
     }
-    case kPPC_I8x16AddSaturateU: {
+    case kPPC_I8x16AddSatU: {
       __ vaddubs(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
       break;
     }
-    case kPPC_I8x16SubSaturateU: {
+    case kPPC_I8x16SubSatU: {
       __ vsububs(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
       break;
     }
     case kPPC_I8x16Swizzle: {
-      // Reverse the input to match IBM lane numbering.
-      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src0 = i.InputSimd128Register(0),
+                      src1 = i.InputSimd128Register(1),
+                      tempFPReg1 = i.ToSimd128Register(instr->TempAt(0)),
+                      tempFPReg2 = i.ToSimd128Register(instr->TempAt(1));
+      // Saturate the indices to 5 bits. Input indices more than 31 should
+      // return 0.
+      __ xxspltib(tempFPReg2, Operand(31));
+      __ vminub(tempFPReg2, src1, tempFPReg2);
       __ addi(sp, sp, Operand(-16));
-      __ stxvd(i.InputSimd128Register(0), MemOperand(r0, sp));
+      __ stxvd(src0, MemOperand(r0, sp));
       __ ldbrx(r0, MemOperand(r0, sp));
       __ li(ip, Operand(8));
       __ ldbrx(ip, MemOperand(ip, sp));
       __ stdx(ip, MemOperand(r0, sp));
       __ li(ip, Operand(8));
       __ stdx(r0, MemOperand(ip, sp));
-      __ lxvd(kScratchDoubleReg, MemOperand(r0, sp));
+      __ lxvd(kScratchSimd128Reg, MemOperand(r0, sp));
       __ addi(sp, sp, Operand(16));
       __ vxor(tempFPReg1, tempFPReg1, tempFPReg1);
-      __ vperm(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
-               i.InputSimd128Register(1));
+      __ vperm(dst, kScratchSimd128Reg, tempFPReg1, tempFPReg2);
       break;
     }
     case kPPC_F64x2Qfma: {
@@ -3311,9 +3290,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register src1 = i.InputSimd128Register(1);
       Simd128Register src2 = i.InputSimd128Register(2);
       Simd128Register dst = i.OutputSimd128Register();
-      __ vor(kScratchDoubleReg, src1, src1);
-      __ xvmaddmdp(kScratchDoubleReg, src2, src0);
-      __ vor(dst, kScratchDoubleReg, kScratchDoubleReg);
+      __ vor(kScratchSimd128Reg, src1, src1);
+      __ xvmaddmdp(kScratchSimd128Reg, src2, src0);
+      __ vor(dst, kScratchSimd128Reg, kScratchSimd128Reg);
       break;
     }
     case kPPC_F64x2Qfms: {
@@ -3321,9 +3300,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register src1 = i.InputSimd128Register(1);
       Simd128Register src2 = i.InputSimd128Register(2);
       Simd128Register dst = i.OutputSimd128Register();
-      __ vor(kScratchDoubleReg, src1, src1);
-      __ xvnmsubmdp(kScratchDoubleReg, src2, src0);
-      __ vor(dst, kScratchDoubleReg, kScratchDoubleReg);
+      __ vor(kScratchSimd128Reg, src1, src1);
+      __ xvnmsubmdp(kScratchSimd128Reg, src2, src0);
+      __ vor(dst, kScratchSimd128Reg, kScratchSimd128Reg);
       break;
     }
     case kPPC_F32x4Qfma: {
@@ -3331,9 +3310,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register src1 = i.InputSimd128Register(1);
       Simd128Register src2 = i.InputSimd128Register(2);
       Simd128Register dst = i.OutputSimd128Register();
-      __ vor(kScratchDoubleReg, src1, src1);
-      __ xvmaddmsp(kScratchDoubleReg, src2, src0);
-      __ vor(dst, kScratchDoubleReg, kScratchDoubleReg);
+      __ vor(kScratchSimd128Reg, src1, src1);
+      __ xvmaddmsp(kScratchSimd128Reg, src2, src0);
+      __ vor(dst, kScratchSimd128Reg, kScratchSimd128Reg);
       break;
     }
     case kPPC_F32x4Qfms: {
@@ -3341,9 +3320,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register src1 = i.InputSimd128Register(1);
       Simd128Register src2 = i.InputSimd128Register(2);
       Simd128Register dst = i.OutputSimd128Register();
-      __ vor(kScratchDoubleReg, src1, src1);
-      __ xvnmsubmsp(kScratchDoubleReg, src2, src0);
-      __ vor(dst, kScratchDoubleReg, kScratchDoubleReg);
+      __ vor(kScratchSimd128Reg, src1, src1);
+      __ xvnmsubmsp(kScratchSimd128Reg, src2, src0);
+      __ vor(dst, kScratchSimd128Reg, kScratchSimd128Reg);
       break;
     }
     case kPPC_I16x8RoundingAverageU: {
@@ -3375,19 +3354,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   __ xvcmpeqdp(tempFPReg1, i.InputSimd128Register(1),                   \
                i.InputSimd128Register(1));                              \
   __ vsel(i.OutputSimd128Register(), i.InputSimd128Register(1), result, \
-          tempFPReg1);
+          tempFPReg1);                                                  \
+  /* Use xvmindp to turn any selected SNANs to QNANs. */                \
+  __ xvmindp(i.OutputSimd128Register(), i.OutputSimd128Register(),      \
+             i.OutputSimd128Register());
     case kPPC_F64x2Min: {
-      __ xvmindp(kScratchDoubleReg, i.InputSimd128Register(0),
+      __ xvmindp(kScratchSimd128Reg, i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
       // We need to check if an input is NAN and preserve it.
-      F64X2_MIN_MAX_NAN(kScratchDoubleReg)
+      F64X2_MIN_MAX_NAN(kScratchSimd128Reg)
       break;
     }
     case kPPC_F64x2Max: {
-      __ xvmaxdp(kScratchDoubleReg, i.InputSimd128Register(0),
+      __ xvmaxdp(kScratchSimd128Reg, i.InputSimd128Register(0),
                  i.InputSimd128Register(1));
       // We need to check if an input is NAN and preserve it.
-      F64X2_MIN_MAX_NAN(kScratchDoubleReg)
+      F64X2_MIN_MAX_NAN(kScratchSimd128Reg)
       break;
     }
 #undef F64X2_MIN_MAX_NAN
@@ -3436,6 +3418,278 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kPPC_F32x4NearestInt: {
       __ xvrspi(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kPPC_I64x2BitMask: {
+      __ mov(kScratchReg,
+             Operand(0x8080808080800040));  // Select 0 for the high bits.
+      __ mtvsrd(kScratchSimd128Reg, kScratchReg);
+      __ vbpermq(kScratchSimd128Reg, i.InputSimd128Register(0),
+                 kScratchSimd128Reg);
+      __ vextractub(kScratchSimd128Reg, kScratchSimd128Reg, Operand(6));
+      __ mfvsrd(i.OutputRegister(), kScratchSimd128Reg);
+      break;
+    }
+    case kPPC_I32x4BitMask: {
+      __ mov(kScratchReg,
+             Operand(0x8080808000204060));  // Select 0 for the high bits.
+      __ mtvsrd(kScratchSimd128Reg, kScratchReg);
+      __ vbpermq(kScratchSimd128Reg, i.InputSimd128Register(0),
+                 kScratchSimd128Reg);
+      __ vextractub(kScratchSimd128Reg, kScratchSimd128Reg, Operand(6));
+      __ mfvsrd(i.OutputRegister(), kScratchSimd128Reg);
+      break;
+    }
+    case kPPC_I16x8BitMask: {
+      __ mov(kScratchReg, Operand(0x10203040506070));
+      __ mtvsrd(kScratchSimd128Reg, kScratchReg);
+      __ vbpermq(kScratchSimd128Reg, i.InputSimd128Register(0),
+                 kScratchSimd128Reg);
+      __ vextractub(kScratchSimd128Reg, kScratchSimd128Reg, Operand(6));
+      __ mfvsrd(i.OutputRegister(), kScratchSimd128Reg);
+      break;
+    }
+    case kPPC_I8x16BitMask: {
+      Register temp = i.ToRegister(instr->TempAt(0));
+      __ mov(temp, Operand(0x8101820283038));
+      __ mov(ip, Operand(0x4048505860687078));
+      __ mtvsrdd(kScratchSimd128Reg, temp, ip);
+      __ vbpermq(kScratchSimd128Reg, i.InputSimd128Register(0),
+                 kScratchSimd128Reg);
+      __ vextractuh(kScratchSimd128Reg, kScratchSimd128Reg, Operand(6));
+      __ mfvsrd(i.OutputRegister(), kScratchSimd128Reg);
+      break;
+    }
+    case kPPC_I32x4DotI16x8S: {
+      __ vxor(kScratchSimd128Reg, kScratchSimd128Reg, kScratchSimd128Reg);
+      __ vmsumshm(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1), kScratchSimd128Reg);
+      break;
+    }
+    case kPPC_F32x4Pmin: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src0 = i.InputSimd128Register(0),
+                      src1 = i.InputSimd128Register(1);
+      __ xvcmpgtsp(kScratchSimd128Reg, src0, src1);
+      __ vsel(dst, src0, src1, kScratchSimd128Reg);
+      break;
+    }
+    case kPPC_F32x4Pmax: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src0 = i.InputSimd128Register(0),
+                      src1 = i.InputSimd128Register(1);
+      __ xvcmpgtsp(kScratchSimd128Reg, src1, src0);
+      __ vsel(dst, src0, src1, kScratchSimd128Reg);
+      break;
+    }
+    case kPPC_F64x2Pmin: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src0 = i.InputSimd128Register(0),
+                      src1 = i.InputSimd128Register(1);
+      __ xvcmpgtdp(kScratchSimd128Reg, src0, src1);
+      __ vsel(dst, src0, src1, kScratchSimd128Reg);
+      break;
+    }
+    case kPPC_F64x2Pmax: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      src0 = i.InputSimd128Register(0),
+                      src1 = i.InputSimd128Register(1);
+      __ xvcmpgtdp(kScratchSimd128Reg, src1, src0);
+      __ vsel(dst, src0, src1, kScratchSimd128Reg);
+      break;
+    }
+#define ASSEMBLE_LOAD_TRANSFORM(scratch, load_instr) \
+  AddressingMode mode = kMode_None;                  \
+  MemOperand operand = i.MemoryOperand(&mode);       \
+  DCHECK_EQ(mode, kMode_MRR);                        \
+  __ load_instr(scratch, operand);
+    case kPPC_S128Load8Splat: {
+      Simd128Register dst = i.OutputSimd128Register();
+      ASSEMBLE_LOAD_TRANSFORM(kScratchSimd128Reg, lxsibzx)
+      __ vspltb(dst, kScratchSimd128Reg, Operand(7));
+      break;
+    }
+    case kPPC_S128Load16Splat: {
+      Simd128Register dst = i.OutputSimd128Register();
+      ASSEMBLE_LOAD_TRANSFORM(kScratchSimd128Reg, lxsihzx)
+      __ vsplth(dst, kScratchSimd128Reg, Operand(3));
+      break;
+    }
+    case kPPC_S128Load32Splat: {
+      Simd128Register dst = i.OutputSimd128Register();
+      ASSEMBLE_LOAD_TRANSFORM(kScratchSimd128Reg, lxsiwzx)
+      __ vspltw(dst, kScratchSimd128Reg, Operand(1));
+      break;
+    }
+    case kPPC_S128Load64Splat: {
+      constexpr int lane_width_in_bytes = 8;
+      Simd128Register dst = i.OutputSimd128Register();
+      ASSEMBLE_LOAD_TRANSFORM(dst, lxsdx)
+      __ vinsertd(dst, dst, Operand(1 * lane_width_in_bytes));
+      break;
+    }
+    case kPPC_S128Load8x8S: {
+      Simd128Register dst = i.OutputSimd128Register();
+      ASSEMBLE_LOAD_TRANSFORM(kScratchSimd128Reg, lxsdx)
+      __ vupkhsb(dst, kScratchSimd128Reg);
+      break;
+    }
+    case kPPC_S128Load8x8U: {
+      Simd128Register dst = i.OutputSimd128Register();
+      ASSEMBLE_LOAD_TRANSFORM(kScratchSimd128Reg, lxsdx)
+      __ vupkhsb(dst, kScratchSimd128Reg);
+      // Zero extend.
+      __ li(ip, Operand(0xFF));
+      __ mtvsrd(kScratchSimd128Reg, ip);
+      __ vsplth(kScratchSimd128Reg, kScratchSimd128Reg, Operand(3));
+      __ vand(dst, kScratchSimd128Reg, dst);
+      break;
+    }
+    case kPPC_S128Load16x4S: {
+      Simd128Register dst = i.OutputSimd128Register();
+      ASSEMBLE_LOAD_TRANSFORM(kScratchSimd128Reg, lxsdx)
+      __ vupkhsh(dst, kScratchSimd128Reg);
+      break;
+    }
+    case kPPC_S128Load16x4U: {
+      Simd128Register dst = i.OutputSimd128Register();
+      ASSEMBLE_LOAD_TRANSFORM(kScratchSimd128Reg, lxsdx)
+      __ vupkhsh(dst, kScratchSimd128Reg);
+      // Zero extend.
+      __ mov(ip, Operand(0xFFFF));
+      __ mtvsrd(kScratchSimd128Reg, ip);
+      __ vspltw(kScratchSimd128Reg, kScratchSimd128Reg, Operand(1));
+      __ vand(dst, kScratchSimd128Reg, dst);
+
+      break;
+    }
+    case kPPC_S128Load32x2S: {
+      Simd128Register dst = i.OutputSimd128Register();
+      ASSEMBLE_LOAD_TRANSFORM(kScratchSimd128Reg, lxsdx)
+      __ vupkhsw(dst, kScratchSimd128Reg);
+      break;
+    }
+    case kPPC_S128Load32x2U: {
+      constexpr int lane_width_in_bytes = 8;
+      Simd128Register dst = i.OutputSimd128Register();
+      ASSEMBLE_LOAD_TRANSFORM(kScratchSimd128Reg, lxsdx)
+      __ vupkhsw(dst, kScratchSimd128Reg);
+      // Zero extend.
+      __ mov(ip, Operand(0xFFFFFFFF));
+      __ mtvsrd(kScratchSimd128Reg, ip);
+      __ vinsertd(kScratchSimd128Reg, kScratchSimd128Reg,
+                  Operand(1 * lane_width_in_bytes));
+      __ vand(dst, kScratchSimd128Reg, dst);
+      break;
+    }
+    case kPPC_S128Load32Zero: {
+      constexpr int lane_width_in_bytes = 4;
+      Simd128Register dst = i.OutputSimd128Register();
+      ASSEMBLE_LOAD_TRANSFORM(kScratchSimd128Reg, lxsiwzx)
+      __ vxor(dst, dst, dst);
+      __ vinsertw(dst, kScratchSimd128Reg, Operand(3 * lane_width_in_bytes));
+      break;
+    }
+    case kPPC_S128Load64Zero: {
+      constexpr int lane_width_in_bytes = 8;
+      Simd128Register dst = i.OutputSimd128Register();
+      ASSEMBLE_LOAD_TRANSFORM(kScratchSimd128Reg, lxsdx)
+      __ vxor(dst, dst, dst);
+      __ vinsertd(dst, kScratchSimd128Reg, Operand(1 * lane_width_in_bytes));
+      break;
+    }
+#undef ASSEMBLE_LOAD_TRANSFORM
+    case kPPC_S128Load8Lane: {
+      Simd128Register dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      AddressingMode mode = kMode_None;
+      size_t index = 1;
+      MemOperand operand = i.MemoryOperand(&mode, &index);
+      DCHECK_EQ(mode, kMode_MRR);
+      __ lxsibzx(kScratchSimd128Reg, operand);
+      __ vinsertb(dst, kScratchSimd128Reg, Operand(15 - i.InputUint8(3)));
+      break;
+    }
+    case kPPC_S128Load16Lane: {
+      Simd128Register dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      constexpr int lane_width_in_bytes = 2;
+      AddressingMode mode = kMode_None;
+      size_t index = 1;
+      MemOperand operand = i.MemoryOperand(&mode, &index);
+      DCHECK_EQ(mode, kMode_MRR);
+      __ lxsihzx(kScratchSimd128Reg, operand);
+      __ vinserth(dst, kScratchSimd128Reg,
+                  Operand((7 - i.InputUint8(3)) * lane_width_in_bytes));
+      break;
+    }
+    case kPPC_S128Load32Lane: {
+      Simd128Register dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      constexpr int lane_width_in_bytes = 4;
+      AddressingMode mode = kMode_None;
+      size_t index = 1;
+      MemOperand operand = i.MemoryOperand(&mode, &index);
+      DCHECK_EQ(mode, kMode_MRR);
+      __ lxsiwzx(kScratchSimd128Reg, operand);
+      __ vinsertw(dst, kScratchSimd128Reg,
+                  Operand((3 - i.InputUint8(3)) * lane_width_in_bytes));
+      break;
+    }
+    case kPPC_S128Load64Lane: {
+      Simd128Register dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      constexpr int lane_width_in_bytes = 8;
+      AddressingMode mode = kMode_None;
+      size_t index = 1;
+      MemOperand operand = i.MemoryOperand(&mode, &index);
+      DCHECK_EQ(mode, kMode_MRR);
+      __ lxsdx(kScratchSimd128Reg, operand);
+      __ vinsertd(dst, kScratchSimd128Reg,
+                  Operand((1 - i.InputUint8(3)) * lane_width_in_bytes));
+      break;
+    }
+    case kPPC_S128Store8Lane: {
+      AddressingMode mode = kMode_None;
+      size_t index = 1;
+      MemOperand operand = i.MemoryOperand(&mode, &index);
+      DCHECK_EQ(mode, kMode_MRR);
+      __ vextractub(kScratchSimd128Reg, i.InputSimd128Register(0),
+                    Operand(15 - i.InputInt8(3)));
+      __ stxsibx(kScratchSimd128Reg, operand);
+      break;
+    }
+    case kPPC_S128Store16Lane: {
+      AddressingMode mode = kMode_None;
+      constexpr int lane_width_in_bytes = 2;
+      size_t index = 1;
+      MemOperand operand = i.MemoryOperand(&mode, &index);
+      DCHECK_EQ(mode, kMode_MRR);
+      __ vextractuh(kScratchSimd128Reg, i.InputSimd128Register(0),
+                    Operand((7 - i.InputUint8(3)) * lane_width_in_bytes));
+      __ stxsihx(kScratchSimd128Reg, operand);
+      break;
+    }
+    case kPPC_S128Store32Lane: {
+      AddressingMode mode = kMode_None;
+      constexpr int lane_width_in_bytes = 4;
+      size_t index = 1;
+      MemOperand operand = i.MemoryOperand(&mode, &index);
+      DCHECK_EQ(mode, kMode_MRR);
+      __ vextractuw(kScratchSimd128Reg, i.InputSimd128Register(0),
+                    Operand((3 - i.InputUint8(3)) * lane_width_in_bytes));
+      __ stxsiwx(kScratchSimd128Reg, operand);
+      break;
+    }
+    case kPPC_S128Store64Lane: {
+      AddressingMode mode = kMode_None;
+      constexpr int lane_width_in_bytes = 8;
+      size_t index = 1;
+      MemOperand operand = i.MemoryOperand(&mode, &index);
+      DCHECK_EQ(mode, kMode_MRR);
+      __ vextractd(kScratchSimd128Reg, i.InputSimd128Register(0),
+                   Operand((1 - i.InputUint8(3)) * lane_width_in_bytes));
+      __ stxsdx(kScratchSimd128Reg, operand);
       break;
     }
     case kPPC_StoreCompressTagged: {
@@ -3826,9 +4080,8 @@ void CodeGenerator::AssembleConstructFrame() {
   }
 }
 
-void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
+void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   auto call_descriptor = linkage()->GetIncomingDescriptor();
-  int pop_count = static_cast<int>(call_descriptor->StackParameterCount());
 
   const int returns = frame()->GetReturnSlotCount();
   if (returns != 0) {
@@ -3850,42 +4103,91 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   if (double_saves != 0) {
     __ MultiPopDoubles(double_saves);
   }
-  PPCOperandConverter g(this, nullptr);
+
   unwinding_info_writer_.MarkBlockWillExit();
 
+  // We might need r6 for scratch.
+  DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & r6.bit());
+  PPCOperandConverter g(this, nullptr);
+  const int parameter_count =
+      static_cast<int>(call_descriptor->StackParameterCount());
+
+  // {aditional_pop_count} is only greater than zero if {parameter_count = 0}.
+  // Check RawMachineAssembler::PopAndReturn.
+  if (parameter_count != 0) {
+    if (additional_pop_count->IsImmediate()) {
+      DCHECK_EQ(g.ToConstant(additional_pop_count).ToInt32(), 0);
+    } else if (__ emit_debug_code()) {
+      __ cmpi(g.ToRegister(additional_pop_count), Operand(0));
+      __ Assert(eq, AbortReason::kUnexpectedAdditionalPopValue);
+    }
+  }
+
+  Register argc_reg = r6;
+#ifdef V8_NO_ARGUMENTS_ADAPTOR
+  // Functions with JS linkage have at least one parameter (the receiver).
+  // If {parameter_count} == 0, it means it is a builtin with
+  // kDontAdaptArgumentsSentinel, which takes care of JS arguments popping
+  // itself.
+  const bool drop_jsargs = frame_access_state()->has_frame() &&
+                           call_descriptor->IsJSFunctionCall() &&
+                           parameter_count != 0;
+#else
+  const bool drop_jsargs = false;
+#endif
   if (call_descriptor->IsCFunctionCall()) {
     AssembleDeconstructFrame();
   } else if (frame_access_state()->has_frame()) {
     // Canonicalize JSFunction return sites for now unless they have an variable
     // number of stack slot pops
-    if (pop->IsImmediate() && g.ToConstant(pop).ToInt32() == 0) {
+    if (additional_pop_count->IsImmediate() &&
+        g.ToConstant(additional_pop_count).ToInt32() == 0) {
       if (return_label_.is_bound()) {
         __ b(&return_label_);
         return;
       } else {
         __ bind(&return_label_);
-        AssembleDeconstructFrame();
       }
-    } else {
-      AssembleDeconstructFrame();
     }
+    if (drop_jsargs) {
+      // Get the actual argument count.
+      __ LoadP(argc_reg, MemOperand(fp, StandardFrameConstants::kArgCOffset));
+    }
+    AssembleDeconstructFrame();
   }
   // Constant pool is unavailable since the frame has been destructed
   ConstantPoolUnavailableScope constant_pool_unavailable(tasm());
-  if (pop->IsImmediate()) {
-    DCHECK(Constant::kInt32 == g.ToConstant(pop).type() ||
-           Constant::kInt64 == g.ToConstant(pop).type());
-    pop_count += g.ToConstant(pop).ToInt32();
+  if (drop_jsargs) {
+    // We must pop all arguments from the stack (including the receiver). This
+    // number of arguments is given by max(1 + argc_reg, parameter_count).
+    __ addi(argc_reg, argc_reg, Operand(1));  // Also pop the receiver.
+    if (parameter_count > 1) {
+      Label skip;
+      __ cmpi(argc_reg, Operand(parameter_count));
+      __ bgt(&skip);
+      __ mov(argc_reg, Operand(parameter_count));
+      __ bind(&skip);
+    }
+    __ Drop(argc_reg);
+  } else if (additional_pop_count->IsImmediate()) {
+    int additional_count = g.ToConstant(additional_pop_count).ToInt32();
+    __ Drop(parameter_count + additional_count);
+  } else if (parameter_count == 0) {
+    __ Drop(g.ToRegister(additional_pop_count));
   } else {
-    __ Drop(g.ToRegister(pop));
+    // {additional_pop_count} is guaranteed to be zero if {parameter_count !=
+    // 0}. Check RawMachineAssembler::PopAndReturn.
+    __ Drop(parameter_count);
   }
-  __ Drop(pop_count);
   __ Ret();
 }
 
 void CodeGenerator::FinishCode() {}
 
-void CodeGenerator::PrepareForDeoptimizationExits(int deopt_count) {}
+void CodeGenerator::PrepareForDeoptimizationExits(
+    ZoneDeque<DeoptimizationExit*>* exits) {
+  // __ EmitConstantPool();
+}
 
 void CodeGenerator::AssembleMove(InstructionOperand* source,
                                  InstructionOperand* destination) {
@@ -4025,7 +4327,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         MemOperand dst = g.ToMemOperand(destination);
         __ mov(ip, Operand(dst.offset()));
         __ StoreSimd128(g.ToSimd128Register(source), MemOperand(dst.ra(), ip),
-                        r0, kScratchDoubleReg);
+                        r0, kScratchSimd128Reg);
       }
     } else {
       DoubleRegister src = g.ToDoubleRegister(source);
@@ -4056,7 +4358,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         MemOperand src = g.ToMemOperand(source);
         __ mov(ip, Operand(src.offset()));
         __ LoadSimd128(g.ToSimd128Register(destination),
-                       MemOperand(src.ra(), ip), r0, kScratchDoubleReg);
+                       MemOperand(src.ra(), ip), r0, kScratchSimd128Reg);
       }
     } else {
       LocationOperand* op = LocationOperand::cast(source);
@@ -4069,17 +4371,17 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ StoreSingle(temp, g.ToMemOperand(destination), r0);
       } else {
         DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
-        // push d0, to be used as scratch
+        // push v0, to be used as scratch
         __ addi(sp, sp, Operand(-kSimd128Size));
-        __ StoreSimd128(d0, MemOperand(r0, sp), r0, kScratchDoubleReg);
+        __ StoreSimd128(v0, MemOperand(r0, sp), r0, kScratchSimd128Reg);
         MemOperand src = g.ToMemOperand(source);
         MemOperand dst = g.ToMemOperand(destination);
         __ mov(ip, Operand(src.offset()));
-        __ LoadSimd128(d0, MemOperand(src.ra(), ip), r0, kScratchDoubleReg);
+        __ LoadSimd128(v0, MemOperand(src.ra(), ip), r0, kScratchSimd128Reg);
         __ mov(ip, Operand(dst.offset()));
-        __ StoreSimd128(d0, MemOperand(dst.ra(), ip), r0, kScratchDoubleReg);
-        // restore d0
-        __ LoadSimd128(d0, MemOperand(r0, sp), ip, kScratchDoubleReg);
+        __ StoreSimd128(v0, MemOperand(dst.ra(), ip), r0, kScratchSimd128Reg);
+        // restore v0
+        __ LoadSimd128(v0, MemOperand(r0, sp), ip, kScratchSimd128Reg);
         __ addi(sp, sp, Operand(kSimd128Size));
       }
     }
@@ -4139,15 +4441,15 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
   } else if (source->IsSimd128Register()) {
     Simd128Register src = g.ToSimd128Register(source);
     if (destination->IsSimd128Register()) {
-      __ SwapSimd128(src, g.ToSimd128Register(destination), kScratchDoubleReg);
+      __ SwapSimd128(src, g.ToSimd128Register(destination), kScratchSimd128Reg);
     } else {
       DCHECK(destination->IsSimd128StackSlot());
-      __ SwapSimd128(src, g.ToMemOperand(destination), kScratchDoubleReg);
+      __ SwapSimd128(src, g.ToMemOperand(destination), kScratchSimd128Reg);
     }
   } else if (source->IsSimd128StackSlot()) {
     DCHECK(destination->IsSimd128StackSlot());
     __ SwapSimd128(g.ToMemOperand(source), g.ToMemOperand(destination),
-                   kScratchDoubleReg);
+                   kScratchSimd128Reg);
 
   } else {
     UNREACHABLE();

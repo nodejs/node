@@ -15,6 +15,7 @@ namespace internal {
 
 // The layout of an EntryFrame is as follows:
 //
+//         BOTTOM OF THE STACK   HIGHEST ADDRESS
 //  slot      Entry frame
 //       +---------------------+-----------------------
 // -20   | saved register d15  |
@@ -45,6 +46,7 @@ namespace internal {
 //       |- - - - - - - - - - -|
 //   5   |      padding        |  <-- stack ptr
 //  -----+---------------------+-----------------------
+//          TOP OF THE STACK     LOWEST ADDRESS
 //
 class EntryFrameConstants : public AllStatic {
  public:

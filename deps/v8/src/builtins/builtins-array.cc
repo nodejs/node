@@ -42,7 +42,7 @@ inline bool HasOnlySimpleReceiverElements(Isolate* isolate, JSObject receiver) {
 }
 
 inline bool HasOnlySimpleElements(Isolate* isolate, JSReceiver receiver) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   PrototypeIterator iter(isolate, receiver, kStartAtReceiver);
   for (; !iter.IsAtEnd(); iter.Advance()) {
     if (iter.GetCurrent().IsJSProxy()) return false;
@@ -68,7 +68,7 @@ void MatchArrayElementsKindToArguments(Isolate* isolate, Handle<JSArray> array,
 
   ElementsKind target_kind = origin_kind;
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     int last_arg_index = std::min(first_arg_index + num_arguments, args_length);
     for (int i = first_arg_index; i < last_arg_index; i++) {
       Object arg = (*args)[i];
@@ -457,11 +457,11 @@ BUILTIN(ArrayPop) {
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
 
   uint32_t len = static_cast<uint32_t>(array->length().Number());
-  if (len == 0) return ReadOnlyRoots(isolate).undefined_value();
 
   if (JSArray::HasReadOnlyLength(array)) {
     return GenericArrayPop(isolate, &args);
   }
+  if (len == 0) return ReadOnlyRoots(isolate).undefined_value();
 
   Handle<Object> result;
   if (IsJSArrayFastElementMovingAllowed(isolate, JSArray::cast(*receiver))) {
@@ -818,7 +818,7 @@ class ArrayConcatVisitor {
 };
 
 uint32_t EstimateElementCount(Isolate* isolate, Handle<JSArray> array) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   uint32_t length = static_cast<uint32_t>(array->length().Number());
   int element_count = 0;
   switch (array->GetElementsKind()) {
@@ -902,7 +902,7 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
     case HOLEY_SEALED_ELEMENTS:
     case HOLEY_NONEXTENSIBLE_ELEMENTS:
     case HOLEY_ELEMENTS: {
-      DisallowHeapAllocation no_gc;
+      DisallowGarbageCollection no_gc;
       FixedArray elements = FixedArray::cast(object->elements());
       uint32_t length = static_cast<uint32_t>(elements.length());
       if (range < length) length = range;
@@ -931,7 +931,7 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
       break;
     }
     case DICTIONARY_ELEMENTS: {
-      DisallowHeapAllocation no_gc;
+      DisallowGarbageCollection no_gc;
       NumberDictionary dict = NumberDictionary::cast(object->elements());
       uint32_t capacity = dict.Capacity();
       ReadOnlyRoots roots(isolate);
@@ -968,7 +968,7 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
       }
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS: {
-      DisallowHeapAllocation no_gc;
+      DisallowGarbageCollection no_gc;
       FixedArrayBase elements = object->elements();
       JSObject raw_object = *object;
       ElementsAccessor* accessor = object->GetElementsAccessor();
@@ -988,7 +988,7 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
       Handle<String> string(String::cast(js_value->value()), isolate);
       uint32_t length = static_cast<uint32_t>(string->length());
       uint32_t i = 0;
-      uint32_t limit = Min(length, range);
+      uint32_t limit = std::min(length, range);
       for (; i < limit; i++) {
         indices->push_back(i);
       }
@@ -1284,7 +1284,7 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
           double_storage->set(j, obj->Number());
           j++;
         } else {
-          DisallowHeapAllocation no_gc;
+          DisallowGarbageCollection no_gc;
           JSArray array = JSArray::cast(*obj);
           uint32_t length = static_cast<uint32_t>(array.length().Number());
           switch (array.GetElementsKind()) {
@@ -1399,7 +1399,7 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
 }
 
 bool IsSimpleArray(Isolate* isolate, Handle<JSArray> obj) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Map map = obj->map();
   // If there is only the 'length' property we are fine.
   if (map.prototype() == isolate->native_context()->initial_array_prototype() &&
@@ -1425,7 +1425,7 @@ MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate,
   int n_arguments = args->length();
   int result_len = 0;
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     // Iterate through all the arguments performing checks
     // and calculating total length.
     for (int i = 0; i < n_arguments; i++) {
@@ -1449,7 +1449,7 @@ MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate,
       // Throw an Error if we overflow the FixedArray limits
       if (FixedDoubleArray::kMaxLength < result_len ||
           FixedArray::kMaxLength < result_len) {
-        AllowHeapAllocation gc;
+        AllowGarbageCollection gc;
         THROW_NEW_ERROR(isolate,
                         NewRangeError(MessageTemplate::kInvalidArrayLength),
                         JSArray);

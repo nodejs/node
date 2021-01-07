@@ -89,6 +89,8 @@ class CallDescriptor;
 class V8_EXPORT_PRIVATE Frame : public ZoneObject {
  public:
   explicit Frame(int fixed_frame_size_in_slots);
+  Frame(const Frame&) = delete;
+  Frame& operator=(const Frame&) = delete;
 
   inline int GetTotalFrameSlotCount() const { return frame_slot_count_; }
   inline int GetFixedSlotCount() const { return fixed_slot_count_; }
@@ -144,7 +146,7 @@ class V8_EXPORT_PRIVATE Frame : public ZoneObject {
     }
   }
 
-  int AlignFrame(int alignment = kDoubleSize);
+  void AlignFrame(int alignment = kDoubleSize);
 
   int ReserveSpillSlots(size_t slot_count) {
     DCHECK_EQ(0, spill_slot_count_);
@@ -173,8 +175,6 @@ class V8_EXPORT_PRIVATE Frame : public ZoneObject {
   int return_slot_count_;
   BitVector* allocated_registers_;
   BitVector* allocated_double_registers_;
-
-  DISALLOW_COPY_AND_ASSIGN(Frame);
 };
 
 // Represents an offset from either the stack pointer or frame pointer.

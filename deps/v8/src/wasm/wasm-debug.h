@@ -21,6 +21,7 @@ namespace internal {
 template <typename T>
 class Handle;
 class JSObject;
+class JSProxy;
 template <typename T>
 class Vector;
 class WasmFrame;
@@ -34,6 +35,7 @@ class NativeModule;
 class WasmCode;
 class WireBytesRef;
 class WasmValue;
+struct WasmFunction;
 
 // Side table storing information used to inspect Liftoff frames at runtime.
 // This table is only created on demand for debugging, so it is not optimized
@@ -153,6 +155,9 @@ class V8_EXPORT_PRIVATE DebugInfo {
   WasmValue GetLocalValue(int local, Address pc, Address fp,
                           Address debug_break_fp);
   int GetStackDepth(Address pc);
+
+  const wasm::WasmFunction& GetFunctionAtAddress(Address pc);
+
   WasmValue GetStackValue(int index, Address pc, Address fp,
                           Address debug_break_fp);
 
@@ -166,7 +171,11 @@ class V8_EXPORT_PRIVATE DebugInfo {
 
   void SetBreakpoint(int func_index, int offset, Isolate* current_isolate);
 
-  void PrepareStep(Isolate*, StackFrameId);
+  // Returns true if we stay inside the passed frame (or a called frame) after
+  // the step. False if the frame will return after the step.
+  bool PrepareStep(WasmFrame*);
+
+  void PrepareStepOutTo(WasmFrame*);
 
   void ClearStepping(Isolate*);
 
@@ -185,6 +194,8 @@ class V8_EXPORT_PRIVATE DebugInfo {
  private:
   std::unique_ptr<DebugInfoImpl> impl_;
 };
+
+Handle<JSProxy> GetJSDebugProxy(WasmFrame* frame);
 
 }  // namespace wasm
 }  // namespace internal

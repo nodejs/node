@@ -70,6 +70,9 @@ class SafepointTable {
   explicit SafepointTable(Code code);
   explicit SafepointTable(const wasm::WasmCode* code);
 
+  SafepointTable(const SafepointTable&) = delete;
+  SafepointTable& operator=(const SafepointTable&) = delete;
+
   int size() const {
     return kHeaderSize + (length_ * (kFixedEntrySize + entry_size_));
   }
@@ -145,7 +148,7 @@ class SafepointTable {
 
   static void PrintBits(std::ostream& os, uint8_t byte, int digits);
 
-  DISALLOW_HEAP_ALLOCATION(no_allocation_)
+  DISALLOW_GARBAGE_COLLECTION(no_gc_)
 
   const Address instruction_start_;
   const uint32_t stack_slots_;
@@ -158,8 +161,6 @@ class SafepointTable {
 
   friend class SafepointTableBuilder;
   friend class SafepointEntry;
-
-  DISALLOW_COPY_AND_ASSIGN(SafepointTable);
 };
 
 class Safepoint {
@@ -183,6 +184,9 @@ class SafepointTableBuilder {
       : deoptimization_info_(zone),
         emitted_(false),
         zone_(zone) {}
+
+  SafepointTableBuilder(const SafepointTableBuilder&) = delete;
+  SafepointTableBuilder& operator=(const SafepointTableBuilder&) = delete;
 
   // Get the offset of the emitted safepoint table in the code.
   unsigned GetCodeOffset() const;
@@ -228,8 +232,6 @@ class SafepointTableBuilder {
   bool emitted_;
 
   Zone* zone_;
-
-  DISALLOW_COPY_AND_ASSIGN(SafepointTableBuilder);
 };
 
 }  // namespace internal

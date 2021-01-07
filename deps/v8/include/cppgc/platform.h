@@ -20,6 +20,7 @@ using PageAllocator = v8::PageAllocator;
 using Task = v8::Task;
 using TaskPriority = v8::TaskPriority;
 using TaskRunner = v8::TaskRunner;
+using TracingController = v8::TracingController;
 
 /**
  * Platform interface used by Heap. Contains allocators and executors.
@@ -51,22 +52,23 @@ class V8_EXPORT Platform {
   }
 
   /**
-   * Posts |job_task| to run in parallel. Returns a JobHandle associated with
-   * the Job, which can be joined or canceled.
+   * Posts `job_task` to run in parallel. Returns a `JobHandle` associated with
+   * the `Job`, which can be joined or canceled.
    * This avoids degenerate cases:
-   * - Calling CallOnWorkerThread() for each work item, causing significant
+   * - Calling `CallOnWorkerThread()` for each work item, causing significant
    *   overhead.
-   * - Fixed number of CallOnWorkerThread() calls that split the work and might
-   *   run for a long time. This is problematic when many components post
+   * - Fixed number of `CallOnWorkerThread()` calls that split the work and
+   *   might run for a long time. This is problematic when many components post
    *   "num cores" tasks and all expect to use all the cores. In these cases,
    *   the scheduler lacks context to be fair to multiple same-priority requests
    *   and/or ability to request lower priority work to yield when high priority
    *   work comes in.
-   * A canonical implementation of |job_task| looks like:
+   * A canonical implementation of `job_task` looks like:
+   * \code
    * class MyJobTask : public JobTask {
    *  public:
    *   MyJobTask(...) : worker_queue_(...) {}
-   *   // JobTask:
+   *   // JobTask implementation.
    *   void Run(JobDelegate* delegate) override {
    *     while (!delegate->ShouldYield()) {
    *       // Smallest unit of work.
@@ -80,33 +82,45 @@ class V8_EXPORT Platform {
    *     return worker_queue_.GetSize(); // Thread safe.
    *   }
    * };
+   *
+   * // ...
    * auto handle = PostJob(TaskPriority::kUserVisible,
    *                       std::make_unique<MyJobTask>(...));
    * handle->Join();
+   * \endcode
    *
-   * PostJob() and methods of the returned JobHandle/JobDelegate, must never be
-   * called while holding a lock that could be acquired by JobTask::Run or
-   * JobTask::GetMaxConcurrency -- that could result in a deadlock. This is
-   * because [1] JobTask::GetMaxConcurrency may be invoked while holding
-   * internal lock (A), hence JobTask::GetMaxConcurrency can only use a lock (B)
-   * if that lock is *never* held while calling back into JobHandle from any
-   * thread (A=>B/B=>A deadlock) and [2] JobTask::Run or
-   * JobTask::GetMaxConcurrency may be invoked synchronously from JobHandle
-   * (B=>JobHandle::foo=>B deadlock).
+   * `PostJob()` and methods of the returned JobHandle/JobDelegate, must never
+   * be called while holding a lock that could be acquired by `JobTask::Run()`
+   * or `JobTask::GetMaxConcurrency()` -- that could result in a deadlock. This
+   * is because (1) `JobTask::GetMaxConcurrency()` may be invoked while holding
+   * internal lock (A), hence `JobTask::GetMaxConcurrency()` can only use a lock
+   * (B) if that lock is *never* held while calling back into `JobHandle` from
+   * any thread (A=>B/B=>A deadlock) and (2) `JobTask::Run()` or
+   * `JobTask::GetMaxConcurrency()` may be invoked synchronously from
+   * `JobHandle` (B=>JobHandle::foo=>B deadlock).
    *
-   * A sufficient PostJob() implementation that uses the default Job provided in
-   * libplatform looks like:
-   *  std::unique_ptr<JobHandle> PostJob(
-   *      TaskPriority priority, std::unique_ptr<JobTask> job_task) override {
-   *    return std::make_unique<DefaultJobHandle>(
-   *        std::make_shared<DefaultJobState>(
-   *            this, std::move(job_task), kNumThreads));
+   * A sufficient `PostJob()` implementation that uses the default Job provided
+   * in libplatform looks like:
+   * \code
+   * std::unique_ptr<JobHandle> PostJob(
+   *     TaskPriority priority, std::unique_ptr<JobTask> job_task) override {
+   *   return std::make_unique<DefaultJobHandle>(
+   *       std::make_shared<DefaultJobState>(
+   *           this, std::move(job_task), kNumThreads));
    * }
+   * \endcode
    */
   virtual std::unique_ptr<JobHandle> PostJob(
       TaskPriority priority, std::unique_ptr<JobTask> job_task) {
     return nullptr;
   }
+
+  /**
+   * Returns an instance of a `TracingController`. This must be non-nullptr. The
+   * default implementation returns an empty `TracingController` that consumes
+   * trace data without effect.
+   */
+  virtual TracingController* GetTracingController();
 };
 
 /**

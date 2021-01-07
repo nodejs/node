@@ -103,6 +103,9 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   OptimizedCompilationInfo(Vector<const char> debug_name, Zone* zone,
                            CodeKind code_kind);
 
+  OptimizedCompilationInfo(const OptimizedCompilationInfo&) = delete;
+  OptimizedCompilationInfo& operator=(const OptimizedCompilationInfo&) = delete;
+
   ~OptimizedCompilationInfo();
 
   Zone* zone() { return zone_; }
@@ -149,7 +152,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   bool IsNativeContextIndependent() const {
     return code_kind() == CodeKind::NATIVE_CONTEXT_INDEPENDENT;
   }
-  bool IsStub() const { return code_kind() == CodeKind::STUB; }
+  bool IsTurboprop() const { return code_kind() == CodeKind::TURBOPROP; }
   bool IsWasm() const { return code_kind() == CodeKind::WASM_FUNCTION; }
 
   void SetOptimizingForOsr(BailoutId osr_offset, JavaScriptFrame* osr_frame) {
@@ -299,11 +302,8 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   // 1) PersistentHandles created via PersistentHandlesScope inside of
   //    CompilationHandleScope
   // 2) Owned by OptimizedCompilationInfo
-  // 3) Owned by JSHeapBroker
-  // 4) Owned by the broker's LocalHeap
-  // 5) Back to the broker for a brief moment (after tearing down the
-  //   LocalHeap as part of exiting LocalHeapScope)
-  // 6) Back to OptimizedCompilationInfo when exiting the LocalHeapScope.
+  // 3) Owned by the broker's LocalHeap when entering the LocalHeapScope.
+  // 4) Back to OptimizedCompilationInfo when exiting the LocalHeapScope.
   //
   // In normal execution it gets destroyed when PipelineData gets destroyed.
   // There is a special case in GenerateCodeForTesting where the JSHeapBroker
@@ -315,8 +315,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   // handles above. The only difference is that is created in the
   // CanonicalHandleScope(i.e step 1) is different).
   std::unique_ptr<CanonicalHandlesMap> canonical_handles_;
-
-  DISALLOW_COPY_AND_ASSIGN(OptimizedCompilationInfo);
 };
 
 }  // namespace internal

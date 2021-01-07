@@ -10,6 +10,7 @@
 #include "src/heap/heap.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/local-heap.h"
+#include "src/heap/parked-scope.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
@@ -33,7 +34,8 @@ class ConcurrentSearchThread final : public v8::base::Thread {
         sema_started_(sema_started) {}
 
   void Run() override {
-    LocalHeap local_heap(heap_, std::move(ph_));
+    LocalHeap local_heap(heap_, ThreadKind::kBackground, std::move(ph_));
+    UnparkedScope unparked_scope(&local_heap);
     LocalHandleScope scope(&local_heap);
 
     for (int i = 0; i < kNumHandles; i++) {
@@ -48,7 +50,7 @@ class ConcurrentSearchThread final : public v8::base::Thread {
       Handle<Map> map(handle->map(), &local_heap);
 
       Handle<DescriptorArray> descriptors(
-          map->synchronized_instance_descriptors(), &local_heap);
+          map->instance_descriptors(kAcquireLoad), &local_heap);
       bool is_background_thread = true;
       InternalIndex const number =
           descriptors->Search(*name_, *map, is_background_thread);
@@ -56,11 +58,9 @@ class ConcurrentSearchThread final : public v8::base::Thread {
     }
 
     CHECK_EQ(handles_.size(), kNumHandles * 2);
-
-    CHECK(!ph_);
-    ph_ = local_heap.DetachPersistentHandles();
   }
 
+ private:
   Heap* heap_;
   std::vector<Handle<JSObject>> handles_;
   std::unique_ptr<PersistentHandles> ph_;
@@ -81,7 +81,7 @@ TEST(LinearSearchFlatObject) {
   HandleScope handle_scope(isolate);
 
   Handle<JSFunction> function =
-      factory->NewFunctionForTest(factory->empty_string());
+      factory->NewFunctionForTesting(factory->empty_string());
   Handle<JSObject> js_object = factory->NewJSObject(function);
   Handle<String> name = CcTest::MakeString("property");
   Handle<Object> value = CcTest::MakeString("dummy_value");
@@ -133,7 +133,7 @@ TEST(LinearSearchFlatObject_ManyElements) {
   HandleScope handle_scope(isolate);
 
   Handle<JSFunction> function =
-      factory->NewFunctionForTest(factory->empty_string());
+      factory->NewFunctionForTesting(factory->empty_string());
   Handle<JSObject> js_object = factory->NewJSObject(function);
   Handle<String> name = CcTest::MakeString("property");
   Handle<Object> value = CcTest::MakeString("dummy_value");

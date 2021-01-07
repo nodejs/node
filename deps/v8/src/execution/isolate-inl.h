@@ -17,10 +17,6 @@
 namespace v8 {
 namespace internal {
 
-IsolateAllocationMode Isolate::isolate_allocation_mode() {
-  return isolate_allocator_->mode();
-}
-
 void Isolate::set_context(Context context) {
   DCHECK(context.is_null() || context.IsContext());
   thread_local_top()->context_ = context;
@@ -88,7 +84,7 @@ bool Isolate::is_catchable_by_wasm(Object exception) {
   if (!is_catchable_by_javascript(exception)) return false;
   if (!exception.IsJSObject()) return true;
   // We don't allocate, but the LookupIterator interface expects a handle.
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   HandleScope handle_scope(this);
   LookupIterator it(this, handle(JSReceiver::cast(exception), this),
                     factory()->wasm_uncatchable_symbol(),

@@ -168,6 +168,9 @@ V8_EXPORT_PRIVATE size_t ProjectionIndexOf(const Operator* const)
     V8_WARN_UNUSED_RESULT;
 
 V8_EXPORT_PRIVATE MachineRepresentation
+LoopExitValueRepresentationOf(const Operator* const) V8_WARN_UNUSED_RESULT;
+
+V8_EXPORT_PRIVATE MachineRepresentation
 PhiRepresentationOf(const Operator* const) V8_WARN_UNUSED_RESULT;
 
 // The {IrOpcode::kParameter} opcode represents an incoming parameter to the
@@ -459,6 +462,8 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
     : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   explicit CommonOperatorBuilder(Zone* zone);
+  CommonOperatorBuilder(const CommonOperatorBuilder&) = delete;
+  CommonOperatorBuilder& operator=(const CommonOperatorBuilder&) = delete;
 
   const Operator* Dead();
   const Operator* DeadValue(MachineRepresentation rep);
@@ -486,6 +491,10 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
       DeoptimizeKind kind, DeoptimizeReason reason,
       FeedbackSource const& feedback,
       IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
+  // DynamicCheckMapsWithDeoptUnless will call the dynamic map check builtin if
+  // the condition is false, which may then either deoptimize or resume
+  // execution.
+  const Operator* DynamicCheckMapsWithDeoptUnless();
   const Operator* TrapIf(TrapId trap_id);
   const Operator* TrapUnless(TrapId trap_id);
   const Operator* Return(int value_input_count = 1);
@@ -521,7 +530,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* EffectPhi(int effect_input_count);
   const Operator* InductionVariablePhi(int value_input_count);
   const Operator* LoopExit();
-  const Operator* LoopExitValue();
+  const Operator* LoopExitValue(MachineRepresentation rep);
   const Operator* LoopExitEffect();
   const Operator* Checkpoint();
   const Operator* BeginRegion(RegionObservability);
@@ -563,8 +572,6 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
 
   const CommonOperatorGlobalCache& cache_;
   Zone* const zone_;
-
-  DISALLOW_COPY_AND_ASSIGN(CommonOperatorBuilder);
 };
 
 // Node wrappers.
@@ -633,6 +640,27 @@ class StartNode final : public CommonNodeWrapperBase {
               kExtraOutputCount + kReceiverOutputCount);
     return node()->op()->ValueOutputCount() - kExtraOutputCount -
            kReceiverOutputCount;
+  }
+};
+
+class DynamicCheckMapsWithDeoptUnlessNode final : public CommonNodeWrapperBase {
+ public:
+  explicit constexpr DynamicCheckMapsWithDeoptUnlessNode(Node* node)
+      : CommonNodeWrapperBase(node) {
+    CONSTEXPR_DCHECK(node->opcode() ==
+                     IrOpcode::kDynamicCheckMapsWithDeoptUnless);
+  }
+
+#define INPUTS(V)                   \
+  V(Condition, condition, 0, BoolT) \
+  V(Slot, slot, 1, IntPtrT)         \
+  V(Map, map, 2, Map)               \
+  V(Handler, handler, 3, Object)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+
+  FrameState frame_state() {
+    return FrameState{NodeProperties::GetValueInput(node(), 4)};
   }
 };
 

@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+@useParentTypeChecker
 type PodArrayOfWasmValueType extends ByteArray
-constexpr 'PodArray<wasm::ValueType>';
+    constexpr 'PodArray<wasm::ValueType>';
+@useParentTypeChecker
 type ManagedWasmNativeModule extends Foreign
-constexpr 'Managed<wasm::NativeModule>';
+    constexpr 'Managed<wasm::NativeModule>';
 type WasmValueType extends uint8 constexpr 'wasm::ValueType::Kind';
 
 extern class WasmInstanceObject extends JSObject;
@@ -15,23 +17,26 @@ extern class WasmExportedFunctionData extends Struct {
   instance: WasmInstanceObject;
   jump_table_offset: Smi;
   function_index: Smi;
+  signature: Foreign;
+  wrapper_budget: Smi;
   // The remaining fields are for fast calling from C++. The contract is
   // that they are lazily populated, and either all will be present or none.
   c_wrapper_code: Object;
   wasm_call_target: Smi|Foreign;
   packed_args_size: Smi;
-  signature: Foreign;
 }
 
 extern class WasmJSFunctionData extends Struct {
   callable: JSReceiver;
   wrapper_code: Code;
+  wasm_to_js_wrapper_code: Code;
   serialized_return_count: Smi;
   serialized_parameter_count: Smi;
   serialized_signature: PodArrayOfWasmValueType;
 }
 
-extern class WasmCapiFunctionData extends Struct {
+@export
+class WasmCapiFunctionData extends HeapObject {
   call_target: RawPtr;
   embedder_data: Foreign;  // Managed<wasm::FuncData>
   wrapper_code: Code;
@@ -102,6 +107,7 @@ extern class AsmWasmData extends Struct {
 @generateCppClass
 extern class WasmTypeInfo extends Foreign {
   parent: Map;
+  supertypes: FixedArray;
   subtypes: ArrayList;
 }
 

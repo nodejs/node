@@ -1777,10 +1777,11 @@ class LoopInitializationMarker {
     DCHECK(node_->traversed_loop_initialization_node_);
     node_->traversed_loop_initialization_node_ = false;
   }
+  LoopInitializationMarker(const LoopInitializationMarker&) = delete;
+  LoopInitializationMarker& operator=(const LoopInitializationMarker&) = delete;
 
  private:
   LoopChoiceNode* node_;
-  DISALLOW_COPY_AND_ASSIGN(LoopInitializationMarker);
 };
 
 // Temporarily decrements min_loop_iterations_.
@@ -1791,10 +1792,11 @@ class IterationDecrementer {
     --node_->min_loop_iterations_;
   }
   ~IterationDecrementer() { ++node_->min_loop_iterations_; }
+  IterationDecrementer(const IterationDecrementer&) = delete;
+  IterationDecrementer& operator=(const IterationDecrementer&) = delete;
 
  private:
   LoopChoiceNode* node_;
-  DISALLOW_COPY_AND_ASSIGN(IterationDecrementer);
 };
 
 RegExpNode* SeqRegExpNode::FilterOneByte(int depth) {
@@ -2121,7 +2123,7 @@ void AssertionNode::EmitBoundaryCheck(RegExpCompiler* compiler, Trace* trace) {
   BoyerMooreLookahead* lookahead = bm_info(not_at_start);
   if (lookahead == nullptr) {
     int eats_at_least =
-        Min(kMaxLookaheadForBoyerMoore, EatsAtLeast(not_at_start));
+        std::min(kMaxLookaheadForBoyerMoore, EatsAtLeast(not_at_start));
     if (eats_at_least >= 1) {
       BoyerMooreLookahead* bm =
           zone()->New<BoyerMooreLookahead>(eats_at_least, compiler, zone());
@@ -2466,7 +2468,7 @@ void Trace::AdvanceCurrentPositionInTrace(int by, RegExpCompiler* compiler) {
     compiler->SetRegExpTooBig();
     cp_offset_ = 0;
   }
-  bound_checked_up_to_ = Max(0, bound_checked_up_to_ - by);
+  bound_checked_up_to_ = std::max(0, bound_checked_up_to_ - by);
 }
 
 void TextNode::MakeCaseIndependent(Isolate* isolate, bool is_one_byte) {
@@ -2574,7 +2576,7 @@ void LoopChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 
 int ChoiceNode::CalculatePreloadCharacters(RegExpCompiler* compiler,
                                            int eats_at_least) {
-  int preload_characters = Min(4, eats_at_least);
+  int preload_characters = std::min(4, eats_at_least);
   DCHECK_LE(preload_characters, 4);
   if (compiler->macro_assembler()->CanReadUnaligned()) {
     bool one_byte = compiler->one_byte();
@@ -3148,7 +3150,7 @@ int ChoiceNode::EmitOptimizedUnanchoredSearch(RegExpCompiler* compiler,
   // small alternation.
   BoyerMooreLookahead* bm = bm_info(false);
   if (bm == nullptr) {
-    eats_at_least = Min(kMaxLookaheadForBoyerMoore, EatsAtLeast(false));
+    eats_at_least = std::min(kMaxLookaheadForBoyerMoore, EatsAtLeast(false));
     if (eats_at_least >= 1) {
       bm = zone()->New<BoyerMooreLookahead>(eats_at_least, compiler, zone());
       GuardedAlternative alt0 = alternatives_->at(0);
@@ -3785,7 +3787,7 @@ void TextNode::FillInBMInfo(Isolate* isolate, int initial_offset, int budget,
         for (int k = 0; k < ranges->length(); k++) {
           CharacterRange& range = ranges->at(k);
           if (static_cast<int>(range.from()) > max_char) continue;
-          int to = Min(max_char, static_cast<int>(range.to()));
+          int to = std::min(max_char, static_cast<int>(range.to()));
           bm->SetInterval(offset, Interval(range.from(), to));
         }
       }

@@ -120,6 +120,23 @@ constexpr bool HeapSandboxIsEnabled() {
 
 using ExternalPointer_t = Address;
 
+// If the heap sandbox is enabled, these tag values will be XORed with the
+// external pointers in the external pointer table to prevent use of pointers of
+// the wrong type.
+enum ExternalPointerTag : Address {
+  kExternalPointerNullTag = static_cast<Address>(0ULL),
+  kArrayBufferBackingStoreTag = static_cast<Address>(1ULL << 48),
+  kTypedArrayExternalPointerTag = static_cast<Address>(2ULL << 48),
+  kDataViewDataPointerTag = static_cast<Address>(3ULL << 48),
+  kExternalStringResourceTag = static_cast<Address>(4ULL << 48),
+  kExternalStringResourceDataTag = static_cast<Address>(5ULL << 48),
+  kForeignForeignAddressTag = static_cast<Address>(6ULL << 48),
+  kNativeContextMicrotaskQueueTag = static_cast<Address>(7ULL << 48),
+  // TODO(v8:10391, saelo): Currently has to be zero so that raw zero values are
+  // also nullptr
+  kEmbedderDataSlotPayloadTag = static_cast<Address>(0ULL << 48),
+};
+
 #ifdef V8_31BIT_SMIS_ON_64BIT_ARCH
 using PlatformSmiTagging = SmiTagging<kApiInt32Size>;
 #else
@@ -139,6 +156,11 @@ V8_INLINE static constexpr internal::Address IntToSmi(int value) {
   return (static_cast<Address>(value) << (kSmiTagSize + kSmiShiftSize)) |
          kSmiTag;
 }
+
+// Converts encoded external pointer to address.
+V8_EXPORT Address DecodeExternalPointerImpl(const Isolate* isolate,
+                                            ExternalPointer_t pointer,
+                                            ExternalPointerTag tag);
 
 // {obj} must be the raw tagged pointer representation of a HeapObject
 // that's guaranteed to never be in ReadOnlySpace.
@@ -168,6 +190,9 @@ class Internals {
   static const int kFixedArrayHeaderSize = 2 * kApiTaggedSize;
   static const int kEmbedderDataArrayHeaderSize = 2 * kApiTaggedSize;
   static const int kEmbedderDataSlotSize = kApiSystemPointerSize;
+#ifdef V8_HEAP_SANDBOX
+  static const int kEmbedderDataSlotRawPayloadOffset = kApiTaggedSize;
+#endif
   static const int kNativeContextEmbedderDataOffset = 6 * kApiTaggedSize;
   static const int kFullStringRepresentationMask = 0x0f;
   static const int kStringEncodingMask = 0x8;
@@ -182,10 +207,18 @@ class Internals {
       kNumIsolateDataSlots * kApiSystemPointerSize;
   static const int kIsolateFastCCallCallerPcOffset =
       kIsolateFastCCallCallerFpOffset + kApiSystemPointerSize;
-  static const int kIsolateStackGuardOffset =
+  static const int kIsolateFastApiCallTargetOffset =
       kIsolateFastCCallCallerPcOffset + kApiSystemPointerSize;
+  static const int kIsolateStackGuardOffset =
+      kIsolateFastApiCallTargetOffset + kApiSystemPointerSize;
   static const int kIsolateRootsOffset =
       kIsolateStackGuardOffset + 7 * kApiSystemPointerSize;
+
+  static const int kExternalPointerTableBufferOffset = 0;
+  static const int kExternalPointerTableLengthOffset =
+      kExternalPointerTableBufferOffset + kApiSystemPointerSize;
+  static const int kExternalPointerTableCapacityOffset =
+      kExternalPointerTableLengthOffset + kApiInt32Size;
 
   static const int kUndefinedValueRootIndex = 4;
   static const int kTheHoleValueRootIndex = 5;
@@ -352,25 +385,34 @@ class Internals {
 #endif
   }
 
-  V8_INLINE static internal::Address ReadExternalPointerField(
-      internal::Isolate* isolate, internal::Address heap_object_ptr,
-      int offset) {
-    internal::Address value = ReadRawField<Address>(heap_object_ptr, offset);
+  V8_INLINE static Address DecodeExternalPointer(
+      const Isolate* isolate, ExternalPointer_t encoded_pointer,
+      ExternalPointerTag tag) {
 #ifdef V8_HEAP_SANDBOX
-    // We currently have to treat zero as nullptr in embedder slots.
-    if (value) value = DecodeExternalPointer(isolate, value);
+    return internal::DecodeExternalPointerImpl(isolate, encoded_pointer, tag);
+#else
+    return encoded_pointer;
 #endif
-    return value;
+  }
+
+  V8_INLINE static internal::Address ReadExternalPointerField(
+      internal::Isolate* isolate, internal::Address heap_object_ptr, int offset,
+      ExternalPointerTag tag) {
+#ifdef V8_HEAP_SANDBOX
+    internal::ExternalPointer_t encoded_value =
+        ReadRawField<uint32_t>(heap_object_ptr, offset);
+    // We currently have to treat zero as nullptr in embedder slots.
+    return encoded_value ? DecodeExternalPointer(isolate, encoded_value, tag)
+                         : 0;
+#else
+    return ReadRawField<Address>(heap_object_ptr, offset);
+#endif
   }
 
 #ifdef V8_COMPRESS_POINTERS
   // See v8:7703 or src/ptr-compr.* for details about pointer compression.
   static constexpr size_t kPtrComprHeapReservationSize = size_t{1} << 32;
   static constexpr size_t kPtrComprIsolateRootAlignment = size_t{1} << 32;
-
-  // See v8:10391 for details about V8 heap sandbox.
-  static constexpr uint32_t kExternalPointerSalt =
-      0x7fffffff & ~static_cast<uint32_t>(kHeapObjectTagMask);
 
   V8_INLINE static internal::Address GetRootFromOnHeapAddress(
       internal::Address addr) {
@@ -383,14 +425,6 @@ class Internals {
     return root + static_cast<internal::Address>(static_cast<uintptr_t>(value));
   }
 
-  V8_INLINE static Address DecodeExternalPointer(
-      const Isolate* isolate, ExternalPointer_t encoded_pointer) {
-#ifndef V8_HEAP_SANDBOX
-    return encoded_pointer;
-#else
-    return encoded_pointer ^ kExternalPointerSalt;
-#endif
-  }
 #endif  // V8_COMPRESS_POINTERS
 };
 

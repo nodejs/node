@@ -128,6 +128,8 @@ class Utf16 {
   static inline uint16_t TrailSurrogate(uint32_t char_code) {
     return 0xdc00 + (char_code & 0x3ff);
   }
+  static inline bool HasUnpairedSurrogate(const uint16_t* code_units,
+                                          size_t length);
 };
 
 class Latin1 {

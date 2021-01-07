@@ -133,7 +133,11 @@ const char* ValueTypeToConstantName(ValueType type) {
           return "kWasmFuncRef";
         case HeapType::kExn:
           return "kWasmExnRef";
+        case HeapType::kAny:
+        case HeapType::kI31:
+        case HeapType::kBottom:
         default:
+          // TODO(7748): Implement these if fuzzing for them is enabled.
           UNREACHABLE();
       }
     default:
@@ -265,7 +269,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 
     // Add locals.
     BodyLocalDecls decls(&tmp_zone);
-    DecodeLocalDecls(enabled_features, &decls, func_code.begin(),
+    DecodeLocalDecls(enabled_features, &decls, module, func_code.begin(),
                      func_code.end());
     if (!decls.type_list.empty()) {
       os << "  ";
@@ -305,15 +309,25 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   }
 }
 
+void OneTimeEnableStagedWasmFeatures() {
+  struct EnableStagedWasmFeatures {
+    EnableStagedWasmFeatures() {
+#define ENABLE_STAGED_FEATURES(feat, desc, val) \
+  FLAG_experimental_wasm_##feat = true;
+      FOREACH_WASM_STAGING_FEATURE_FLAG(ENABLE_STAGED_FEATURES)
+#undef ENABLE_STAGED_FEATURES
+    }
+  };
+  // The compiler will properly synchronize the constructor call.
+  static EnableStagedWasmFeatures one_time_enable_staged_features;
+}
+
 void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
                                          bool require_valid) {
   // We explicitly enable staged WebAssembly features here to increase fuzzer
   // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
   // the flag by itself.
-#define ENABLE_STAGED_FEATURES(feat, desc, val) \
-  FlagScope<bool> enable_##feat(&FLAG_experimental_wasm_##feat, true);
-  FOREACH_WASM_STAGING_FEATURE_FLAG(ENABLE_STAGED_FEATURES)
-#undef ENABLE_STAGED_FEATURES
+  OneTimeEnableStagedWasmFeatures();
 
   // Strictly enforce the input size limit. Note that setting "max_len" on the
   // fuzzer target is not enough, since different fuzzers are used and not all

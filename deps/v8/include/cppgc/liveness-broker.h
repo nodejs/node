@@ -19,7 +19,7 @@ class LivenessBrokerFactory;
 /**
  * The broker is passed to weak callbacks to allow (temporarily) querying
  * the liveness state of an object. References to non-live objects must be
- * cleared when IsHeapObjectAlive() returns false.
+ * cleared when `IsHeapObjectAlive()` returns false.
  *
  * \code
  * class GCedWithCustomWeakCallback final

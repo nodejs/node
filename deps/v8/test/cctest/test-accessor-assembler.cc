@@ -28,8 +28,8 @@ void TestStubCacheOffsetCalculation(StubCache::Table table) {
   AccessorAssembler m(data.state());
 
   {
-    TNode<Name> name = m.CAST(m.Parameter(1));
-    TNode<Map> map = m.CAST(m.Parameter(2));
+    auto name = m.Parameter<Name>(1);
+    auto map = m.Parameter<Map>(2);
     TNode<IntPtrT> primary_offset =
         m.StubCachePrimaryOffsetForTesting(name, map);
     Node* result;
@@ -128,10 +128,9 @@ TEST(TryProbeStubCache) {
   stub_cache.Clear();
 
   {
-    TNode<Object> receiver = m.CAST(m.Parameter(1));
-    TNode<Name> name = m.CAST(m.Parameter(2));
-    TNode<MaybeObject> expected_handler =
-        m.UncheckedCast<MaybeObject>(m.Parameter(3));
+    auto receiver = m.Parameter<Object>(1);
+    auto name = m.Parameter<Name>(2);
+    TNode<MaybeObject> expected_handler = m.UncheckedParameter<MaybeObject>(3);
 
     Label passed(&m), failed(&m);
 
@@ -204,12 +203,12 @@ TEST(TryProbeStubCache) {
 
   // Generate some number of handlers.
   for (int i = 0; i < 30; i++) {
-    handlers.push_back(CreateCodeOfKind(CodeKind::STUB));
+    handlers.push_back(CreateCodeOfKind(CodeKind::FOR_TESTING));
   }
 
   // Ensure that GC does happen because from now on we are going to fill our
   // own stub cache instance with raw values.
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   // Populate {stub_cache}.
   const int N = StubCache::kPrimaryTableSize + StubCache::kSecondaryTableSize;

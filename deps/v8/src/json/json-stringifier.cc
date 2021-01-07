@@ -381,10 +381,10 @@ JsonStringifier::Result JsonStringifier::StackPush(Handle<Object> object,
   }
 
   {
-    DisallowHeapAllocation no_allocation;
+    DisallowGarbageCollection no_gc;
     for (size_t i = 0; i < stack_.size(); ++i) {
       if (*stack_[i].second == *object) {
-        AllowHeapAllocation allow_to_return_error;
+        AllowGarbageCollection allow_to_return_error;
         Handle<String> circle_description =
             ConstructCircularStructureErrorMessage(key, i);
         Handle<Object> error = factory()->NewTypeError(
@@ -772,11 +772,13 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
     Indent();
     bool comma = false;
     for (InternalIndex i : map->IterateOwnDescriptors()) {
-      Handle<Name> name(map->instance_descriptors().GetKey(i), isolate_);
+      Handle<Name> name(map->instance_descriptors(kRelaxedLoad).GetKey(i),
+                        isolate_);
       // TODO(rossberg): Should this throw?
       if (!name->IsString()) continue;
       Handle<String> key = Handle<String>::cast(name);
-      PropertyDetails details = map->instance_descriptors().GetDetails(i);
+      PropertyDetails details =
+          map->instance_descriptors(kRelaxedLoad).GetDetails(i);
       if (details.IsDontEnum()) continue;
       Handle<Object> property;
       if (details.location() == kField && *map == object->map()) {
@@ -934,7 +936,7 @@ void JsonStringifier::SerializeString_(Handle<String> string) {
   // We might be able to fit the whole escaped string in the current string
   // part, or we might need to allocate.
   if (int worst_case_length = builder_.EscapedLengthIfCurrentPartFits(length)) {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     Vector<const SrcChar> vector = string->GetCharVector<SrcChar>(no_gc);
     IncrementalStringBuilder::NoExtendBuilder<DestChar> no_extend(
         &builder_, worst_case_length, no_gc);
