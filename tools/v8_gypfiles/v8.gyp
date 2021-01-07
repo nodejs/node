@@ -1089,6 +1089,8 @@
         '<(V8_ROOT)/src/libplatform/delayed-task-queue.h',
         '<(V8_ROOT)/src/libplatform/task-queue.cc',
         '<(V8_ROOT)/src/libplatform/task-queue.h',
+        '<(V8_ROOT)/src/libplatform/tracing/recorder-default.cc',
+        '<(V8_ROOT)/src/libplatform/tracing/recorder.h',
         '<(V8_ROOT)/src/libplatform/tracing/trace-buffer.cc',
         '<(V8_ROOT)/src/libplatform/tracing/trace-buffer.h',
         '<(V8_ROOT)/src/libplatform/tracing/trace-config.cc',
@@ -1109,16 +1111,31 @@
           },
           'defines': ['BUILDING_V8_PLATFORM_SHARED'],
         }],
-        ['v8_use_perfetto', {
+        ['v8_use_perfetto==1', {
+          'sources!': [
+            '<(V8_ROOT)/base/trace_event/common/trace_event_common.h',
+            '<(V8_ROOT)/src/libplatform/tracing/recorder-default.cc',
+            '<(V8_ROOT)/src/libplatform/tracing/trace-buffer.cc',
+            '<(V8_ROOT)/src/libplatform/tracing/trace-buffer.h',
+            '<(V8_ROOT)/src/libplatform/tracing/trace-object.cc',
+            '<(V8_ROOT)/src/libplatform/tracing/trace-writer.cc',
+            '<(V8_ROOT)/src/libplatform/tracing/trace-writer.h',
+          ],
           'sources': [
-            '<(V8_ROOT)/src/libplatform/tracing/json-trace-event-listener.cc',
-            '<(V8_ROOT)/src/libplatform/tracing/json-trace-event-listener.h',
             '<(V8_ROOT)/src/libplatform/tracing/trace-event-listener.cc',
             '<(V8_ROOT)/src/libplatform/tracing/trace-event-listener.h',
           ],
           'dependencies': [
             '<(V8_ROOT)/third_party/perfetto:libperfetto',
             '<(V8_ROOT)/third_party/perfetto/protos/perfetto/trace:lite',
+          ],
+        }],
+        ['v8_use_perfetto==0 and is_win', {
+          'sources!': [
+            '<(V8_ROOT)/src/libplatform/tracing/recorder-default.cc',
+          ],
+          'sources': [
+            '<(V8_ROOT)/src/libplatform/tracing/recorder-win.cc',
           ],
         }],
       ],
