@@ -7,9 +7,8 @@ module.exports = (mode, isDir, portable) => {
   // (as some linux distros do), then we'll write the
   // archive with 0o644 instead.  Also, don't ever create
   // a file that is not readable/writable by the owner.
-  if (portable) {
-    mode = (mode | 0o600) &~0o22
-  }
+  if (portable)
+    mode = (mode | 0o600) & ~0o22
 
   // if dirs are readable, then they should be listable
   if (isDir) {

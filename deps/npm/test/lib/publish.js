@@ -193,7 +193,11 @@ t.test('should log tarball contents', (t) => {
         dryRun: true,
         registry: 'https://registry.npmjs.org/',
       },
-      config,
+      config: {
+        ...config,
+        getCredentialsByURI: () => {
+          throw new Error('should not call getCredentialsByURI!')
+        }},
     },
     '../../lib/utils/tar.js': {
       getContents: () => ({
