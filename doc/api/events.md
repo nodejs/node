@@ -1344,10 +1344,10 @@ This is not used in Node.js and is provided purely for completeness.
 added: v14.5.0
 -->
 
-* Type: {boolean} True for Node.js internal events, false otherwise.
+* Type: {boolean}
 
-Currently only `AbortSignal`s' `"abort"` event is fired with `isTrusted`
-set to `true`.
+The {AbortSignal} `"abort"` event is emitted with `isTrusted` set to `true`. The
+value is `false` in all other cases.
 
 #### `event.preventDefault()`
 <!-- YAML
