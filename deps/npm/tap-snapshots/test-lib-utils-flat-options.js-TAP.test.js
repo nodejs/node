@@ -36,6 +36,7 @@ Object {
   "engineStrict": "engine-strict",
   "fmode": 438,
   "force": "force",
+  "foregroundScripts": false,
   "formatPackageLock": "format-package-lock",
   "fund": "fund",
   "git": "git",

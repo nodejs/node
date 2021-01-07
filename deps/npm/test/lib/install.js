@@ -72,6 +72,40 @@ test('should install using Arborist', (t) => {
   t.end()
 })
 
+test('should ignore scripts with --ignore-scripts', (t) => {
+  const SCRIPTS = []
+  let REIFY_CALLED = false
+  const install = requireInject('../../lib/install.js', {
+    '../../lib/utils/reify-finish.js': async () => {},
+    '../../lib/npm.js': {
+      globalDir: 'path/to/node_modules/',
+      prefix: 'foo',
+      flatOptions: {
+        global: false,
+        ignoreScripts: true,
+      },
+      config: {
+        get: () => false,
+      },
+    },
+    '@npmcli/run-script': ({ event }) => {
+      SCRIPTS.push(event)
+    },
+    '@npmcli/arborist': function () {
+      this.reify = () => {
+        REIFY_CALLED = true
+      }
+    },
+  })
+  install([], er => {
+    if (er)
+      throw er
+    t.equal(REIFY_CALLED, true, 'called reify')
+    t.strictSame(SCRIPTS, [], 'no scripts when adding dep')
+    t.end()
+  })
+})
+
 test('should install globally using Arborist', (t) => {
   const install = requireInject('../../lib/install.js', {
     '../../lib/utils/reify-finish.js': async () => {},
@@ -79,7 +113,7 @@ test('should install globally using Arborist', (t) => {
       globalDir: 'path/to/node_modules/',
       prefix: 'foo',
       flatOptions: {
-        global: 'true',
+        global: true,
       },
       config: {
         get: () => false,

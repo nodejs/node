@@ -4,12 +4,11 @@
 const hlo = require('./high-level-opt.js')
 
 const Pack = require('./pack.js')
-const fs = require('fs')
 const fsm = require('fs-minipass')
 const t = require('./list.js')
 const path = require('path')
 
-const c = module.exports = (opt_, files, cb) => {
+module.exports = (opt_, files, cb) => {
   if (typeof files === 'function')
     cb = files
 
@@ -38,7 +37,7 @@ const c = module.exports = (opt_, files, cb) => {
 const createFileSync = (opt, files) => {
   const p = new Pack.Sync(opt)
   const stream = new fsm.WriteStreamSync(opt.file, {
-    mode: opt.mode || 0o666
+    mode: opt.mode || 0o666,
   })
   p.pipe(stream)
   addFilesSync(p, files)
@@ -47,7 +46,7 @@ const createFileSync = (opt, files) => {
 const createFile = (opt, files, cb) => {
   const p = new Pack(opt)
   const stream = new fsm.WriteStream(opt.file, {
-    mode: opt.mode || 0o666
+    mode: opt.mode || 0o666,
   })
   p.pipe(stream)
 
@@ -64,14 +63,14 @@ const createFile = (opt, files, cb) => {
 
 const addFilesSync = (p, files) => {
   files.forEach(file => {
-    if (file.charAt(0) === '@')
+    if (file.charAt(0) === '@') {
       t({
         file: path.resolve(p.cwd, file.substr(1)),
         sync: true,
         noResume: true,
-        onentry: entry => p.add(entry)
+        onentry: entry => p.add(entry),
       })
-    else
+    } else
       p.add(file)
   })
   p.end()
@@ -80,13 +79,13 @@ const addFilesSync = (p, files) => {
 const addFilesAsync = (p, files) => {
   while (files.length) {
     const file = files.shift()
-    if (file.charAt(0) === '@')
+    if (file.charAt(0) === '@') {
       return t({
         file: path.resolve(p.cwd, file.substr(1)),
         noResume: true,
-        onentry: entry => p.add(entry)
+        onentry: entry => p.add(entry),
       }).then(_ => addFilesAsync(p, files))
-    else
+    } else
       p.add(file)
   }
   p.end()

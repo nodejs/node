@@ -6,6 +6,41 @@ const { test } = require('tap')
 
 const requireInject = require('require-inject')
 
+test('should ignore scripts with --ignore-scripts', (t) => {
+  const SCRIPTS = []
+  let REIFY_CALLED = false
+  const ci = requireInject('../../lib/ci.js', {
+    '../../lib/utils/reify-finish.js': async () => {},
+    '../../lib/npm.js': {
+      globalDir: 'path/to/node_modules/',
+      prefix: 'foo',
+      flatOptions: {
+        global: false,
+        ignoreScripts: true,
+      },
+      config: {
+        get: () => false,
+      },
+    },
+    '@npmcli/run-script': ({ event }) => {
+      SCRIPTS.push(event)
+    },
+    '@npmcli/arborist': function () {
+      this.loadVirtual = async () => {}
+      this.reify = () => {
+        REIFY_CALLED = true
+      }
+    },
+  })
+  ci([], er => {
+    if (er)
+      throw er
+    t.equal(REIFY_CALLED, true, 'called reify')
+    t.strictSame(SCRIPTS, [], 'no scripts when running ci')
+    t.end()
+  })
+})
+
 test('should use Arborist and run-script', (t) => {
   const scripts = [
     'preinstall',

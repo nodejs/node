@@ -1,11 +1,5 @@
 const t = require('tap')
 const requireInject = require('require-inject')
-Object.defineProperty(process, 'umask', {
-  value: () => 0o26,
-  writable: true,
-  configurable: true,
-  enumerable: true,
-})
 
 // have to fake the node version, or else it'll only pass on this one
 Object.defineProperty(process, 'version', {
@@ -89,32 +83,6 @@ t.test('no working network interfaces, on windows', t => {
     '../../../lib/utils/is-windows.js': true,
     '../../../package.json': pkg,
   })
-  t.matchSnapshot(config)
-  t.end()
-})
-
-t.test('no process.umask() method', t => {
-  Object.defineProperty(process, 'umask', {
-    value: null,
-    writable: true,
-    configurable: true,
-    enumerable: true,
-  })
-  t.teardown(() => {
-    Object.defineProperty(process, 'umask', {
-      value: () => 0o26,
-      writable: true,
-      configurable: true,
-      enumerable: true,
-    })
-  })
-  const config = requireInject('../../../lib/utils/config.js', {
-    os: { tmpdir, networkInterfaces: networkInterfacesThrow },
-    '@npmcli/ci-detect': () => false,
-    '../../../lib/utils/is-windows.js': true,
-    '../../../package.json': pkg,
-  })
-  t.equal(config.defaults.umask, 0o22)
   t.matchSnapshot(config)
   t.end()
 })

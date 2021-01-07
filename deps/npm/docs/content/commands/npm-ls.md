@@ -62,7 +62,7 @@ this gets even more curious, as `peerDependencies` are logically
 physically at or above their location on disk.
 
 Also, in the years since npm got an `ls` command (in version 0.0.2!),
-dependency graphs have gotten much larger as a general rule.  Therefor, in
+dependency graphs have gotten much larger as a general rule.  Therefore, in
 order to avoid dumping an excessive amount of content to the terminal, `npm
 ls` now only shows the _top_ level dependencies, unless `--all` is
 provided.
