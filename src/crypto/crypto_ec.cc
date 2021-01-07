@@ -601,9 +601,11 @@ WebCryptoKeyExportStatus EC_Raw_Export(
     KeyObjectData* key_data,
     const ECKeyExportConfig& params,
     ByteSource* out) {
-  CHECK(key_data->GetAsymmetricKey());
+  ManagedEVPPKey m_pkey = key_data->GetAsymmetricKey();
+  CHECK(m_pkey);
+  Mutex::ScopedLock lock(*m_pkey.mutex());
 
-  EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(key_data->GetAsymmetricKey().get());
+  EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(m_pkey.get());
 
   unsigned char* data;
   size_t len = 0;
@@ -688,10 +690,11 @@ Maybe<bool> ExportJWKEcKey(
     Environment* env,
     std::shared_ptr<KeyObjectData> key,
     Local<Object> target) {
-  ManagedEVPPKey pkey = key->GetAsymmetricKey();
-  CHECK_EQ(EVP_PKEY_id(pkey.get()), EVP_PKEY_EC);
+  ManagedEVPPKey m_pkey = key->GetAsymmetricKey();
+  Mutex::ScopedLock lock(*m_pkey.mutex());
+  CHECK_EQ(EVP_PKEY_id(m_pkey.get()), EVP_PKEY_EC);
 
-  EC_KEY* ec = EVP_PKEY_get0_EC_KEY(pkey.get());
+  EC_KEY* ec = EVP_PKEY_get0_EC_KEY(m_pkey.get());
   CHECK_NOT_NULL(ec);
 
   const EC_POINT* pub = EC_KEY_get0_public_key(ec);
@@ -893,10 +896,11 @@ Maybe<bool> GetEcKeyDetail(
     Environment* env,
     std::shared_ptr<KeyObjectData> key,
     Local<Object> target) {
-  ManagedEVPPKey pkey = key->GetAsymmetricKey();
-  CHECK_EQ(EVP_PKEY_id(pkey.get()), EVP_PKEY_EC);
+  ManagedEVPPKey m_pkey = key->GetAsymmetricKey();
+  Mutex::ScopedLock lock(*m_pkey.mutex());
+  CHECK_EQ(EVP_PKEY_id(m_pkey.get()), EVP_PKEY_EC);
 
-  EC_KEY* ec = EVP_PKEY_get0_EC_KEY(pkey.get());
+  EC_KEY* ec = EVP_PKEY_get0_EC_KEY(m_pkey.get());
   CHECK_NOT_NULL(ec);
 
   const EC_GROUP* group = EC_KEY_get0_group(ec);
