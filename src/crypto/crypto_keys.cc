@@ -552,7 +552,8 @@ Maybe<bool> GetAsymmetricKeyDetail(
 }
 }  // namespace
 
-ManagedEVPPKey::ManagedEVPPKey(EVPKeyPointer&& pkey) : pkey_(std::move(pkey)) {}
+ManagedEVPPKey::ManagedEVPPKey(EVPKeyPointer&& pkey) : pkey_(std::move(pkey)),
+    mutex_(std::make_shared<Mutex>()) {}
 
 ManagedEVPPKey::ManagedEVPPKey(const ManagedEVPPKey& that) {
   *this = that;
@@ -564,6 +565,8 @@ ManagedEVPPKey& ManagedEVPPKey::operator=(const ManagedEVPPKey& that) {
   if (pkey_)
     EVP_PKEY_up_ref(pkey_.get());
 
+  mutex_ = that.mutex_;
+
   return *this;
 }
 
@@ -573,6 +576,10 @@ ManagedEVPPKey::operator bool() const {
 
 EVP_PKEY* ManagedEVPPKey::get() const {
   return pkey_.get();
+}
+
+Mutex* ManagedEVPPKey::mutex() const {
+  return mutex_.get();
 }
 
 void ManagedEVPPKey::MemoryInfo(MemoryTracker* tracker) const {
@@ -1326,8 +1333,10 @@ WebCryptoKeyExportStatus PKEY_SPKI_Export(
     KeyObjectData* key_data,
     ByteSource* out) {
   CHECK_EQ(key_data->GetKeyType(), kKeyTypePublic);
+  ManagedEVPPKey m_pkey = key_data->GetAsymmetricKey();
+  Mutex::ScopedLock lock(*m_pkey.mutex());
   BIOPointer bio(BIO_new(BIO_s_mem()));
-  if (!i2d_PUBKEY_bio(bio.get(), key_data->GetAsymmetricKey().get()))
+  if (!i2d_PUBKEY_bio(bio.get(), m_pkey.get()))
     return WebCryptoKeyExportStatus::FAILED;
 
   *out = ByteSource::FromBIO(bio);
@@ -1338,8 +1347,11 @@ WebCryptoKeyExportStatus PKEY_PKCS8_Export(
     KeyObjectData* key_data,
     ByteSource* out) {
   CHECK_EQ(key_data->GetKeyType(), kKeyTypePrivate);
+  ManagedEVPPKey m_pkey = key_data->GetAsymmetricKey();
+  Mutex::ScopedLock lock(*m_pkey.mutex());
+
   BIOPointer bio(BIO_new(BIO_s_mem()));
-  PKCS8Pointer p8inf(EVP_PKEY2PKCS8(key_data->GetAsymmetricKey().get()));
+  PKCS8Pointer p8inf(EVP_PKEY2PKCS8(m_pkey.get()));
   if (!i2d_PKCS8_PRIV_KEY_INFO_bio(bio.get(), p8inf.get()))
     return WebCryptoKeyExportStatus::FAILED;
 

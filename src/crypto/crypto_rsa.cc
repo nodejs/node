@@ -191,9 +191,10 @@ WebCryptoCipherStatus RSA_Cipher(
     const ByteSource& in,
     ByteSource* out) {
   CHECK_NE(key_data->GetKeyType(), kKeyTypeSecret);
+  ManagedEVPPKey m_pkey = key_data->GetAsymmetricKey();
+  Mutex::ScopedLock lock(*m_pkey.mutex());
 
-  EVPKeyCtxPointer ctx(
-      EVP_PKEY_CTX_new(key_data->GetAsymmetricKey().get(), nullptr));
+  EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(m_pkey.get(), nullptr));
 
   if (!ctx || init(ctx.get()) <= 0)
     return WebCryptoCipherStatus::FAILED;
@@ -363,17 +364,18 @@ Maybe<bool> ExportJWKRsaKey(
     Environment* env,
     std::shared_ptr<KeyObjectData> key,
     Local<Object> target) {
-  ManagedEVPPKey pkey = key->GetAsymmetricKey();
-  int type = EVP_PKEY_id(pkey.get());
+  ManagedEVPPKey m_pkey = key->GetAsymmetricKey();
+  Mutex::ScopedLock lock(*m_pkey.mutex());
+  int type = EVP_PKEY_id(m_pkey.get());
   CHECK(type == EVP_PKEY_RSA || type == EVP_PKEY_RSA_PSS);
 
   // TODO(tniessen): Remove the "else" branch once we drop support for OpenSSL
   // versions older than 1.1.1e via FIPS / dynamic linking.
   RSA* rsa;
   if (OpenSSL_version_num() >= 0x1010105fL) {
-    rsa = EVP_PKEY_get0_RSA(pkey.get());
+    rsa = EVP_PKEY_get0_RSA(m_pkey.get());
   } else {
-    rsa = static_cast<RSA*>(EVP_PKEY_get0(pkey.get()));
+    rsa = static_cast<RSA*>(EVP_PKEY_get0(m_pkey.get()));
   }
   CHECK_NOT_NULL(rsa);
 
@@ -511,17 +513,18 @@ Maybe<bool> GetRsaKeyDetail(
   const BIGNUM* e;  // Public Exponent
   const BIGNUM* n;  // Modulus
 
-  ManagedEVPPKey pkey = key->GetAsymmetricKey();
-  int type = EVP_PKEY_id(pkey.get());
+  ManagedEVPPKey m_pkey = key->GetAsymmetricKey();
+  Mutex::ScopedLock lock(*m_pkey.mutex());
+  int type = EVP_PKEY_id(m_pkey.get());
   CHECK(type == EVP_PKEY_RSA || type == EVP_PKEY_RSA_PSS);
 
   // TODO(tniessen): Remove the "else" branch once we drop support for OpenSSL
   // versions older than 1.1.1e via FIPS / dynamic linking.
   RSA* rsa;
   if (OpenSSL_version_num() >= 0x1010105fL) {
-    rsa = EVP_PKEY_get0_RSA(pkey.get());
+    rsa = EVP_PKEY_get0_RSA(m_pkey.get());
   } else {
-    rsa = static_cast<RSA*>(EVP_PKEY_get0(pkey.get()));
+    rsa = static_cast<RSA*>(EVP_PKEY_get0(m_pkey.get()));
   }
   CHECK_NOT_NULL(rsa);
 

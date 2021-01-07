@@ -81,6 +81,7 @@ class ManagedEVPPKey : public MemoryRetainer {
 
   operator bool() const;
   EVP_PKEY* get() const;
+  Mutex* mutex() const;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(ManagedEVPPKey)
@@ -127,6 +128,7 @@ class ManagedEVPPKey : public MemoryRetainer {
   size_t size_of_public_key() const;
 
   EVPKeyPointer pkey_;
+  std::shared_ptr<Mutex> mutex_;
 };
 
 // Objects of this class can safely be shared among threads.
