@@ -96,9 +96,9 @@ AllocatedBuffer Node_SignFinal(Environment* env,
   return AllocatedBuffer();
 }
 
-int GetDefaultSignPadding(const ManagedEVPPKey& key) {
-  return EVP_PKEY_id(key.get()) == EVP_PKEY_RSA_PSS ? RSA_PKCS1_PSS_PADDING :
-                                                      RSA_PKCS1_PADDING;
+int GetDefaultSignPadding(const ManagedEVPPKey& m_pkey) {
+  return EVP_PKEY_id(m_pkey.get()) == EVP_PKEY_RSA_PSS ? RSA_PKCS1_PSS_PADDING :
+                                                         RSA_PKCS1_PADDING;
 }
 
 unsigned int GetBytesOfRS(const ManagedEVPPKey& pkey) {
@@ -752,11 +752,11 @@ Maybe<bool> SignTraits::AdditionalConfig(
     }
     // If this is an EC key (assuming ECDSA) we need to convert the
     // the signature from WebCrypto format into DER format...
-    if (EVP_PKEY_id(params->key->GetAsymmetricKey().get()) == EVP_PKEY_EC) {
+    ManagedEVPPKey m_pkey = params->key->GetAsymmetricKey();
+    Mutex::ScopedLock lock(*m_pkey.mutex());
+    if (EVP_PKEY_id(m_pkey.get()) == EVP_PKEY_EC) {
       params->signature =
-          ConvertFromWebCryptoSignature(
-              params->key->GetAsymmetricKey(),
-              signature.ToByteSource());
+          ConvertFromWebCryptoSignature(m_pkey, signature.ToByteSource());
     } else {
       params->signature = mode == kCryptoJobAsync
           ? signature.ToCopy()
@@ -774,6 +774,8 @@ bool SignTraits::DeriveBits(
   EVPMDPointer context(EVP_MD_CTX_new());
   EVP_PKEY_CTX* ctx = nullptr;
 
+  ManagedEVPPKey m_pkey = params.key->GetAsymmetricKey();
+  Mutex::ScopedLock lock(*m_pkey.mutex());
   switch (params.mode) {
     case SignConfiguration::kSign:
       CHECK_EQ(params.key->GetKeyType(), kKeyTypePrivate);
@@ -782,7 +784,7 @@ bool SignTraits::DeriveBits(
               &ctx,
               params.digest,
               nullptr,
-              params.key->GetAsymmetricKey().get())) {
+              m_pkey.get())) {
         return false;
       }
       break;
@@ -793,7 +795,7 @@ bool SignTraits::DeriveBits(
               &ctx,
               params.digest,
               nullptr,
-              params.key->GetAsymmetricKey().get())) {
+              m_pkey.get())) {
         return false;
       }
       break;
@@ -801,13 +803,13 @@ bool SignTraits::DeriveBits(
 
   int padding = params.flags & SignConfiguration::kHasPadding
       ? params.padding
-      : GetDefaultSignPadding(params.key->GetAsymmetricKey());
+      : GetDefaultSignPadding(m_pkey);
 
   Maybe<int> salt_length = params.flags & SignConfiguration::kHasSaltLength
       ? Just<int>(params.salt_length) : Nothing<int>();
 
   if (!ApplyRSAOptions(
-          params.key->GetAsymmetricKey(),
+          m_pkey,
           ctx,
           padding,
           salt_length)) {
