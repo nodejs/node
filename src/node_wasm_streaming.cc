@@ -115,8 +115,8 @@ void WasmStreaming::OnBytesReceived(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&ws, args.Holder());
 
   if (args.Length() == 0 || !args[0]->IsArrayBufferView()) {
-    env->ThrowError("First argument must be an ArrayBufferView");
-    return;
+    return node::THROW_ERR_INVALID_ARG_TYPE(
+        env, "First argument must be an ArrayBufferView");
   }
 
   auto const* p = reinterpret_cast<uint8_t *>(Buffer::Data(args[0]));
@@ -138,8 +138,8 @@ void WasmStreaming::Finish(const FunctionCallbackInfo<Value>& args) {
 
   if (args.Length() != 0) {
     if (!args[0]->IsFunction()) {
-      env->ThrowError("First argument must be a function");
-      return;
+      return node::THROW_ERR_INVALID_ARG_TYPE(
+          env, "First argument must be a function");
     }
     if (ws->client_) {
       auto reg = std::make_unique<OnModuleCompiledCallbackReg>(
@@ -161,13 +161,11 @@ void WasmStreaming::Abort(const FunctionCallbackInfo<Value>& args) {
   WasmStreaming* ws;
   ASSIGN_OR_RETURN_UNWRAP(&ws, args.Holder());
 
-  if (args.Length() == 0) {
-    env->ThrowError("No arguments provided");
-    return;
-  }
+  Local<Value> err = args.Length() ? args[0] :
+      v8::Exception::Error(FIXED_ONE_BYTE_STRING(env->isolate(), "Aborted"));
 
   if (ws->wasm_streaming_)
-    ws->wasm_streaming_->Abort(args[0]);
+    ws->wasm_streaming_->Abort(err);
 
   ws->Reset();
 }
@@ -184,8 +182,8 @@ void WasmStreaming::SetCompiledModuleBytes(
   ASSIGN_OR_RETURN_UNWRAP(&ws, args.Holder());
 
   if (args.Length() == 0 || !args[0]->IsArrayBufferView()) {
-    env->ThrowError("First argument must be an ArrayBufferView");
-    return;
+    return node::THROW_ERR_INVALID_ARG_TYPE(
+        env, "First argument must be an ArrayBufferView");
   }
 
   if (ws->wasm_streaming_) {
@@ -213,8 +211,8 @@ void WasmStreaming::SetUrl(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&ws, args.Holder());
 
   if (args.Length() == 0 || !args[0]->IsString()) {
-    env->ThrowError("First argument must be a string");
-    return;
+    return node::THROW_ERR_INVALID_ARG_TYPE(
+        env, "First argument must be a string");
   }
 
   Utf8Value url(args.GetIsolate(), args[0]);
@@ -277,7 +275,8 @@ void WasmStreaming::OnModuleCompiledCallbackReg::Run() {
 void SetCallback(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   if (args.Length() == 0 || !args[0]->IsFunction())
-    env->ThrowError("First argument must be a function");
+    node::THROW_ERR_INVALID_ARG_TYPE(
+        env, "First argument must be a function");
   else
     env->set_wasm_streaming_callback(args[0].As<Function>());
 }
