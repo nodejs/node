@@ -13,7 +13,7 @@ mkdir babel-eslint-tmp
 cd babel-eslint-tmp || exit
 npm init --yes
 
-npm install --global-style --no-bin-links --production --no-package-lock @babel/core @babel/eslint-parser@latest @babel/plugin-syntax-class-properties@latest
+npm install --global-style --no-bin-links --production --no-package-lock @babel/core @babel/eslint-parser@latest @babel/plugin-syntax-class-properties@latest @babel/plugin-syntax-top-level-await@latest
 
 # Use dmn to remove some unneeded files.
 npx dmn@2.2.2 -f clean
