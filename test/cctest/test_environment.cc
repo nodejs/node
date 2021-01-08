@@ -1,6 +1,7 @@
 #include "node_buffer.h"
 #include "node_internals.h"
 #include "libplatform/libplatform.h"
+#include "util.h"
 
 #include <string>
 #include "gtest/gtest.h"
@@ -10,6 +11,7 @@
 
 using node::AtExit;
 using node::RunAtExit;
+using node::USE;
 
 static bool called_cb_1 = false;
 static bool called_cb_2 = false;
@@ -74,7 +76,7 @@ class RedirectStdErr {
     fflush(stderr);
     fgetpos(stderr, &pos_);
     fd_ = dup(fileno(stderr));
-    freopen(filename_, "w", stderr);
+    USE(freopen(filename_, "w", stderr));
   }
 
   ~RedirectStdErr() {
