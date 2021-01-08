@@ -57,6 +57,7 @@ module.exports = {
         'doc/api/module.md',
         'doc/api/modules.md',
         'doc/api/packages.md',
+        'doc/api/wasi.md',
         'test/es-module/test-esm-type-flag.js',
         'test/es-module/test-esm-type-flag-alias.js',
         '*.mjs',
