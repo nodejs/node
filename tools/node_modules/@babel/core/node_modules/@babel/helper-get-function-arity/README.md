@@ -2,7 +2,7 @@
 
 > Helper function to get function arity
 
-See our website [@babel/helper-get-function-arity](https://babeljs.io/docs/en/next/babel-helper-get-function-arity.html) for more information.
+See our website [@babel/helper-get-function-arity](https://babeljs.io/docs/en/babel-helper-get-function-arity) for more information.
 
 ## Install
 
