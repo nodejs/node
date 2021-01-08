@@ -959,6 +959,18 @@ int nghttp2_session_add_rst_stream(nghttp2_session *session, int32_t stream_id,
     return 0;
   }
 
+  /* Sending RST_STREAM to an idle stream is subject to protocol
+     violation.  Historically, nghttp2 allows this.  In order not to
+     disrupt the existing applications, we don't error out this case
+     and simply ignore it. */
+  if (nghttp2_session_is_my_stream_id(session, stream_id)) {
+    if ((uint32_t)stream_id >= session->next_stream_id) {
+      return 0;
+    }
+  } else if (session->last_recv_stream_id < stream_id) {
+    return 0;
+  }
+
   /* Cancel pending request HEADERS in ob_syn if this RST_STREAM
      refers to that stream. */
   if (!session->server && nghttp2_session_is_my_stream_id(session, stream_id) &&
@@ -969,8 +981,7 @@ int nghttp2_session_add_rst_stream(nghttp2_session *session, int32_t stream_id,
     headers_frame = &nghttp2_outbound_queue_top(&session->ob_syn)->frame;
     assert(headers_frame->hd.type == NGHTTP2_HEADERS);
 
-    if (headers_frame->hd.stream_id <= stream_id &&
-        (uint32_t)stream_id < session->next_stream_id) {
+    if (headers_frame->hd.stream_id <= stream_id) {
 
       for (item = session->ob_syn.head; item; item = item->qnext) {
         aux_data = &item->aux_data.headers;
@@ -5353,9 +5364,11 @@ static ssize_t inbound_frame_effective_readlen(nghttp2_inbound_frame *iframe,
   return (ssize_t)(readlen);
 }
 
+static const uint8_t static_in[] = {0};
+
 ssize_t nghttp2_session_mem_recv(nghttp2_session *session, const uint8_t *in,
                                  size_t inlen) {
-  const uint8_t *first = in, *last = in + inlen;
+  const uint8_t *first, *last;
   nghttp2_inbound_frame *iframe = &session->iframe;
   size_t readlen;
   ssize_t padlen;
@@ -5365,6 +5378,14 @@ ssize_t nghttp2_session_mem_recv(nghttp2_session *session, const uint8_t *in,
   nghttp2_stream *stream;
   size_t pri_fieldlen;
   nghttp2_mem *mem;
+
+  if (in == NULL) {
+    assert(inlen == 0);
+    in = static_in;
+  }
+
+  first = in;
+  last = in + inlen;
 
   DEBUGF("recv: connection recv_window_size=%d, local_window=%d\n",
          session->recv_window_size, session->local_window_size);
@@ -7448,8 +7469,8 @@ static int nghttp2_session_upgrade_internal(nghttp2_session *session,
     return NGHTTP2_ERR_INVALID_ARGUMENT;
   }
   /* SETTINGS frame contains too many settings */
-  if (settings_payloadlen / NGHTTP2_FRAME_SETTINGS_ENTRY_LENGTH
-        > session->max_settings) {
+  if (settings_payloadlen / NGHTTP2_FRAME_SETTINGS_ENTRY_LENGTH >
+      session->max_settings) {
     return NGHTTP2_ERR_TOO_MANY_SETTINGS;
   }
   rv = nghttp2_frame_unpack_settings_payload2(&iv, &niv, settings_payload,
