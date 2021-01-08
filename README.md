@@ -289,6 +289,8 @@ For information about the governance of the Node.js project, see
 **David Carlier** &lt;devnexen@gmail.com&gt;
 * [devsnek](https://github.com/devsnek) -
 **Gus Caplan** &lt;me@gus.host&gt; (they/them)
+* [dnlup](https://github.com/dnlup)
+**Daniele Belardi** &lt;dwon.dnl@gmail.com&gt; (he/him)
 * [edsadr](https://github.com/edsadr) -
 **Adrian Estrada** &lt;edsadr@gmail.com&gt; (he/him)
 * [eugeneo](https://github.com/eugeneo) -
