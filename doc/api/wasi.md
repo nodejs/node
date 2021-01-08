@@ -11,9 +11,9 @@ specification. WASI gives sandboxed WebAssembly applications access to the
 underlying operating system via a collection of POSIX-like functions.
 
 ```js
-'use strict';
-const fs = require('fs');
-const { WASI } = require('wasi');
+import fs from 'fs';
+import { WASI } from 'wasi';
+
 const wasi = new WASI({
   args: process.argv,
   env: process.env,
@@ -23,12 +23,10 @@ const wasi = new WASI({
 });
 const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
 
-(async () => {
-  const wasm = await WebAssembly.compile(fs.readFileSync('./demo.wasm'));
-  const instance = await WebAssembly.instantiate(wasm, importObject);
+const wasm = await WebAssembly.compile(fs.readFileSync('./demo.wasm'));
+const instance = await WebAssembly.instantiate(wasm, importObject);
 
-  wasi.start(instance);
-})();
+wasi.start(instance);
 ```
 
 To run the above example, create a new WebAssembly text format file named
