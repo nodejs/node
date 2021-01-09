@@ -30,13 +30,6 @@ const util = require('util');
 
 const tls = require('tls');
 
-common.expectWarning('DeprecationWarning', [
-  ['The URI http://[a.b.a.com]/ found in cert.subjectaltname ' +
-  'is not a valid URI, and is supported in the tls module ' +
-  'solely for compatibility.',
-   'DEP0109'],
-]);
-
 const tests = [
   // False-y values.
   {
@@ -281,13 +274,6 @@ const tests = [
     },
     error: 'Host: a.b.a.com. is not in the cert\'s altnames: ' +
            'URI:http://*.b.a.com/'
-  },
-  // Invalid URI
-  {
-    host: 'a.b.a.com', cert: {
-      subjectaltname: 'URI:http://[a.b.a.com]/',
-      subject: {}
-    }
   },
   // IP addresses
   {
