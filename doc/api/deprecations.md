@@ -2048,7 +2048,7 @@ because it also made sense to interpret the value as the number of bytes
 read by the engine, but is inconsistent with other streams in Node.js that
 expose values under these names.
 
-### DEP0109: `http`, `https`, and `tls` support for invalid URLs
+### EOL: `http`, `https`, and `tls` support for invalid URLs
 <!-- YAML
 changes:
   - version: v11.0.0
