@@ -562,7 +562,7 @@ The following condition definitions are currently endorsed by Node.js:
 Other condition strings are unknown to Node.js and thus ignored by default.
 Runtimes or tools other than Node.js can use them at their discretion.
 
-Platform specific conditions such as `"deno"`, `"electron"` or `"react-native"`
+Platform specific conditions such as `"deno"`, `"electron"`, or `"react-native"`
 may be used, but while there remain no implementation or integration intent
 from these platforms, the above are not explicitly endorsed by Node.js.
 
