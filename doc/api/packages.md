@@ -545,7 +545,8 @@ Any number of custom conditions can be set with repeat flags.
 ### Conditions Definitions
 
 The `"import"`, `"require"`, `"node"` and `"default"` conditions are defined
-and implemented in Node.js core, [as specified above](#conditional_exports).
+and implemented in Node.js core,
+[as specified above](#esm_conditional_exports).
 
 The following condition definitions are currently endorsed by Node.js:
 
