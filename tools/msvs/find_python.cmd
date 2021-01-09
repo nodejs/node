@@ -61,7 +61,7 @@ exit /b 0
 %~1 -V
 :: 9009 means error file not found
 if %errorlevel% equ 9009 (
-  echo Not a executable Python program
+  echo Not an executable Python program
   exit /b 1
 )
 exit /b 0
