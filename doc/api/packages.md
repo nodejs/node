@@ -449,7 +449,7 @@ For example, a package that wants to provide different ES module exports for
 }
 ```
 
-Node.js supports the following conditions out of the box:
+Node.js implements the following conditions:
 
 * `"import"` - matches when the package is loaded via `import` or
    `import()`, or via any top-level import or resolve operation by the
@@ -471,11 +471,6 @@ Within the [`"exports"`][] object, key order is significant. During condition
 matching, earlier entries have higher priority and take precedence over later
 entries. _The general rule is that conditions should be from most specific to
 least specific in object order_.
-
-Other conditions such as `"browser"`, `"electron"`, `"deno"`, `"react-native"`,
-etc., are unknown to Node.js, and thus ignored. Runtimes or tools other than
-Node.js can use them at their discretion. Further restrictions, definitions, or
-guidance on condition names might occur in the future.
 
 Using the `"import"` and `"require"` conditions can lead to some hazards,
 which are further explained in [the dual CommonJS/ES module packages section][].
@@ -546,6 +541,52 @@ exports, while resolving the existing `"node"`, `"default"`, `"import"`, and
 `"require"` conditions as appropriate.
 
 Any number of custom conditions can be set with repeat flags.
+
+### Conditions Definitions
+
+The `"import"`, `"require"`, `"node"` and `"default"` conditions are defined
+and implemented in Node.js core,
+[as specified above](#esm_conditional_exports).
+
+Other condition strings are unknown to Node.js and thus ignored by default.
+Runtimes or tools other than Node.js can use them at their discretion.
+
+These user conditions can be enabled in Node.js via the [`--conditions`
+flag](#packages_resolving_user_conditions).
+
+The following condition definitions are currently endorsed by Node.js:
+
+* `"browser"` - any environment which implements a standard subset of global
+   browser APIs available from JavaScript in web browsers, including the DOM
+   APIs.
+* `"development"` - can be used to define a development-only environment
+   entry point. _Must always be mutually exclusive with `"production"`._
+* `"production"` - can be used to define a production environment entry
+   point. _Must always be mutually exclusive with `"development"`._
+
+The above user conditions can be enabled in Node.js via the [`--conditions`
+flag](#packages_resolving_user_conditions).
+
+Platform specific conditions such as `"deno"`, `"electron"`, or `"react-native"`
+may be used, but while there remain no implementation or integration intent
+from these platforms, the above are not explicitly endorsed by Node.js.
+
+New conditions definitions may be added to this list by creating a PR to the
+[Node.js documentation for this section][]. The requirements for listing a
+new condition definition here are that:
+
+* The definition should be clear and unambigious for all implementers.
+* The use case for why the condition is needed should be clearly justified.
+* There should exist sufficient existing implementation usage.
+* The condition name should not conflict with another condition definition or
+  condition in wide usage.
+* The listing of the condition definition should provide a coordination
+  benefit to the ecosystem that wouldn't otherwise be possible. For example,
+  this would not necessarily be the case for company-specific or
+  application-specific conditions.
+
+The above definitions may be moved to a dedicated conditions registry in due
+course.
 
 ### Self-referencing a package using its name
 
@@ -1056,6 +1097,7 @@ This field defines [subpath imports][] for the current package.
 [CommonJS]: modules.md
 [ES module]: esm.md
 [ES modules]: esm.md
+[Node.js documentation for this section]: https://github.com/nodejs/node/blob/master/doc/api/packages.md#conditions-definitions
 [`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.md#errors_err_package_path_not_exported
 [`esm`]: https://github.com/standard-things/esm#readme
 [`"exports"`]: #packages_exports
