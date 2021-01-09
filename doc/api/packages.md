@@ -558,7 +558,7 @@ The following condition definitions are currently endorsed by Node.js:
 * `"production"` - can be used to define a production environment entry
    point. Enabled via the `--conditions=production` flag to Node.js.
    _Must always be mutually exclusive with `"development"`._
- 
+
 Other condition strings are unknown to Node.js and thus ignored by default.
 Runtimes or tools other than Node.js can use them at their discretion.
 
@@ -566,7 +566,7 @@ Platform specific conditions such as `"deno"`, `"electron"` or `"react-native"`
 may be used, but while there remain no implementation or integration intent
 from these platforms, the above are not explicitly endorsed by Node.js.
 
-New conditions definitions may be added to this list by creation a PR to the
+New conditions definitions may be added to this list by creating a PR to the
 [Node.js documentation for this section][]. The requirements for listing a
 new condition definition here are that:
 
