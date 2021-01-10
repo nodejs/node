@@ -60,18 +60,18 @@ Maybe<bool> ProcessEmitWarningGeneric(Environment* env,
   if (!String::NewFromUtf8(env->isolate(), warning).ToLocal(&args[argc++]))
     return Nothing<bool>();
 
-  if (type != nullptr) {
-    if (!String::NewFromOneByte(env->isolate(),
-                                reinterpret_cast<const uint8_t*>(type))
-             .ToLocal(&args[argc++])) {
-      return Nothing<bool>();
-    }
-    if (code != nullptr &&
-        !String::NewFromOneByte(env->isolate(),
-                                reinterpret_cast<const uint8_t*>(code))
-             .ToLocal(&args[argc++])) {
-      return Nothing<bool>();
-    }
+  if (type != nullptr &&
+      !String::NewFromOneByte(env->isolate(),
+                              reinterpret_cast<const uint8_t*>(type))
+           .ToLocal(&args[argc++])) {
+    return Nothing<bool>();
+  }
+
+  if (code != nullptr &&
+      !String::NewFromOneByte(env->isolate(),
+                              reinterpret_cast<const uint8_t*>(code))
+           .ToLocal(&args[argc++])) {
+    return Nothing<bool>();
   }
 
   // MakeCallback() unneeded because emitWarning is internal code, it calls
