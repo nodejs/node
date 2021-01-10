@@ -185,6 +185,7 @@ class KeyObjectHandle : public BaseObject {
 
   static void Init(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void InitECRaw(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void InitEDRaw(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void InitJWK(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetKeyDetail(const v8::FunctionCallbackInfo<v8::Value>& args);
 
