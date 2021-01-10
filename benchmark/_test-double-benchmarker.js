@@ -46,7 +46,7 @@ function run() {
     }
   } else { // HTTP/2
     const client = http.connect(url);
-    client.on('error', (e) => { throw e; });
+    client.on('error', () => {});
     request(client.request(), client);
   }
 }
