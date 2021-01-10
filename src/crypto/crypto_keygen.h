@@ -161,7 +161,8 @@ struct KeyPairGenTraits final {
       Environment* env,
       AdditionalParameters* params) {
     EVPKeyCtxPointer ctx = KeyPairAlgorithmTraits::Setup(params);
-    if (!ctx || EVP_PKEY_keygen_init(ctx.get()) <= 0)
+
+    if (!ctx)
       return KeyGenJobStatus::FAILED;
 
     // Generate the key

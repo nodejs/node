@@ -16,6 +16,8 @@
 
 namespace node {
 namespace crypto {
+int GetCurveFromName(const char* name);
+
 class ECDH final : public BaseObject {
  public:
   ~ECDH() override;
@@ -52,11 +54,11 @@ class ECDH final : public BaseObject {
 };
 
 struct ECDHBitsConfig final : public MemoryRetainer {
-  ECKeyPointer private_key;
-  ECKeyPointer public_key;
-  const EC_GROUP* group = nullptr;
+  int id_;
+  std::shared_ptr<KeyObjectData> private_;
+  std::shared_ptr<KeyObjectData> public_;
 
-  SET_NO_MEMORY_INFO();
+  void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(ECDHBitsConfig);
   SET_SELF_SIZE(ECDHBitsConfig);
 };
@@ -140,6 +142,11 @@ struct ECKeyExportTraits final {
 using ECKeyExportJob = KeyExportJob<ECKeyExportTraits>;
 
 v8::Maybe<bool> ExportJWKEcKey(
+    Environment* env,
+    std::shared_ptr<KeyObjectData> key,
+    v8::Local<v8::Object> target);
+
+v8::Maybe<bool> ExportJWKEdKey(
     Environment* env,
     std::shared_ptr<KeyObjectData> key,
     v8::Local<v8::Object> target);
