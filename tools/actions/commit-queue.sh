@@ -76,24 +76,25 @@ for pr in "$@"; do
 
   # TODO(mmarchini): workaround for ncu not returning the expected status code,
   # if the "Landed in..." message was not on the output we assume land failed
-  if ! tail -n 10 output | grep '. Post "Landed in .*/pull/'"${pr}"; then
+  if ! grep -q '. Post "Landed in .*/pull/'"${pr}" output; then
     commit_queue_failed "$pr"
     # If `git node land --abort` fails, we're in unknown state. Better to stop
     # the script here, current PR was removed from the queue so it shouldn't
     # interfer again in the future
     git node land --abort --yes
-  else
-    commits="$(git rev-parse $UPSTREAM/$DEFAULT_BRANCH)...$(git rev-parse HEAD)"
-
-    git push $UPSTREAM $DEFAULT_BRANCH >> output 2>&1 || (\
-      commit_queue_failed "$pr" && \
-      continue \
-    )
-
-    rm output
-
-    gitHubCurl "$(commentsUrl "$pr")" POST --data '{"body": "Landed in '"$commits"'"}'
-
-    gitHubCurl "$(issueUrl "$pr")" PATCH --data '{"state": "closed"}'
+    continue
   fi
+  
+  commits="$(git rev-parse $UPSTREAM/$DEFAULT_BRANCH)...$(git rev-parse HEAD)"
+
+  if ! git push $UPSTREAM $DEFAULT_BRANCH >> output 2>&1; then
+    commit_queue_failed "$pr"
+    continue
+  fi
+
+  rm output
+
+  gitHubCurl "$(commentsUrl "$pr")" POST --data '{"body": "Landed in '"$commits"'"}'
+
+  gitHubCurl "$(issueUrl "$pr")" PATCH --data '{"state": "closed"}'
 done
