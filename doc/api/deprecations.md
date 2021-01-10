@@ -2048,15 +2048,18 @@ because it also made sense to interpret the value as the number of bytes
 read by the engine, but is inconsistent with other streams in Node.js that
 expose values under these names.
 
-### EOL: `http`, `https`, and `tls` support for invalid URLs
+### DEP0109: `http`, `https`, and `tls` support for invalid URLs
 <!-- YAML
 changes:
+  - version: v15.5.1
+    pr-url: https://github.com/nodejs/node/pull/36853
+    description: End-of-Life.
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/20270
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 Some previously supported (but strictly invalid) URLs were accepted through the
 [`http.request()`][], [`http.get()`][], [`https.request()`][],
