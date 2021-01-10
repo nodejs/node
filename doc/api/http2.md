@@ -1736,7 +1736,7 @@ the request body.
 When this event is emitted and handled, the [`'request'`][] event will
 not be emitted.
 
-### Event: `'connection'`
+#### Event: `'connection'`
 <!-- YAML
 added: v8.4.0
 -->
@@ -1924,7 +1924,7 @@ the request body.
 When this event is emitted and handled, the [`'request'`][] event will
 not be emitted.
 
-### Event: `'connection'`
+#### Event: `'connection'`
 <!-- YAML
 added: v8.4.0
 -->
