@@ -554,11 +554,12 @@ The following condition definitions are currently endorsed by Node.js:
    global browser APIs available from JS in web browsers, including the DOM
    APIs.
 * `"development"` - can be used to define a development-only environment
-   entry point. Enabled via the `--conditions=development` flag to Node.js.
-   _Must always be mutually exclusive with `"production"`._
+   entry point. _Must always be mutually exclusive with `"production"`._
 * `"production"` - can be used to define a production environment entry
-   point. Enabled via the `--conditions=production` flag to Node.js.
-   _Must always be mutually exclusive with `"development"`._
+   point. _Must always be mutually exclusive with `"development"`._
+
+The above user conditions can be enabled in Node.js via the [`--conditions`
+flag](#packages_resolving_user_conditions).
 
 Other condition strings are unknown to Node.js and thus ignored by default.
 Runtimes or tools other than Node.js can use them at their discretion.
