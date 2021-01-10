@@ -25,10 +25,11 @@ function main({ requests, streams, clients, duration }) {
       stream.respondWithFD(fd);
       stream.on('error', (err) => {});
     });
-    server.listen(common.PORT, () => {
+    server.listen(0, () => {
       bench.http({
         path: '/',
         requests,
+        port: server.address().port,
         maxConcurrentStreams: streams,
         clients,
         duration,
