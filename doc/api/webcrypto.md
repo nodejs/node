@@ -65,6 +65,26 @@ async function generateEcKey(namedCurve = 'P-521') {
 }
 ```
 
+#### ED25519/ED448/X25519/X448 Elliptic curve key pairs
+
+```js
+const { subtle } = require('crypto').webcrypto;
+
+async function generateEd25519Key() {
+  return subtle.generateKey({
+    name: 'NODE-ED25519',
+    namedCurve: 'NODE-ED25519',
+  }, true, ['sign', 'verify']);
+}
+
+async function generateX25519Key() {
+  return subtle.generateKey({
+    name: 'ECDH',
+    namedCurve: 'NODE-X25519',
+  }, true, ['deriveKey']);
+}
+```
+
 #### HMAC keys
 
 ```js
@@ -305,6 +325,8 @@ implementation and the APIs supported for each:
 | `'SHA-512'`           |   |   |   |   |   |   |   |   |   |   |   | ✔ |
 | `'NODE-DSA'`<sup>1</sup> | ✔ | ✔ | ✔ |   |   |   |   |   |   | ✔ | ✔ |   |
 | `'NODE-DH'`<sup>1</sup> | ✔ | ✔ | ✔ |   |   |   |   | ✔ | ✔ |   |   |   |
+| `'NODE-ED25519'`<sup>1</sup> | ✔ | ✔ | ✔ |   |   |   |   |   |   | ✔ | ✔ |   |
+| `'NODE-ED448'`<sup>1</sup> | ✔ | ✔ | ✔ |   |   |   |   |   |   | ✔ | ✔ |   |
 
 <sup>1</sup> Node.js-specific extension
 
@@ -420,6 +442,8 @@ Valid key usages depend on the key algorithm (identified by
 | `'NODE-DSA'` <sup>1</sup> |   |   | ✔ | ✔ |   |   |   |   |
 | `'NODE-DH'` <sup>1</sup> |   |   |   |   | ✔ | ✔ |   |   |
 | `'NODE-SCRYPT'` <sup>1</sup> |   |   |   |   | ✔ | ✔ |   |   |
+| `'NODE-ED25519'` <sup>1</sup> |   |   | ✔ | ✔ |   |   |   |   |
+| `'NODE-ED448'` <sup>1</sup> |   |   | ✔ | ✔ |   |   |   |   |
 
 <sup>1</sup> Node.js-specific extension.
 
@@ -620,6 +644,8 @@ extension that allows converting a {CryptoKey} into a Node.js {KeyObject}.
 | `'NODE-DSA'` <sup>1</sup> | ✔ | ✔ | ✔ |   |
 | `'NODE-DH'` <sup>1</sup> | ✔ | ✔ |   |   |
 | `'NODE-SCRYPT'` <sup>1</sup> |   |   |   |   |
+| `'NODE-ED25519'` <sup>1</sup> | ✔ | ✔ | ✔ | ✔ |
+| `'NODE-ED448'` <sup>1</sup> | ✔ | ✔ | ✔ | ✔ |
 
 <sup>1</sup> Node.js-specific extension
 
@@ -629,7 +655,7 @@ added: v15.0.0
 -->
 
 <!--lint disable maximum-line-length remark-lint-->
-* `algorithm`: {RsaHashedKeyGenParams|EcKeyGenParams|HmacKeyGenParams|AesKeyGenParams|NodeDsaKeyGenParams|NodeDhKeyGenParams}
+* `algorithm`: {RsaHashedKeyGenParams|EcKeyGenParams|HmacKeyGenParams|AesKeyGenParams|NodeDsaKeyGenParams|NodeDhKeyGenParams|NodeEdKeyGenParams}
 <!--lint enable maximum-line-length remark-lint-->
 * `extractable`: {boolean}
 * `keyUsages`: {string[]} See [Key usages][].
@@ -649,6 +675,8 @@ include:
 * `'ECDH'`
 * `'NODE-DSA'` <sup>1</sup>
 * `'NODE-DH'` <sup>1</sup>
+* `'NODE-ED25519'` <sup>1</sup>
+* `'NODE-ED448'` <sup>1</sup>
 
 The {CryptoKey} (secret key) generating algorithms supported include:
 
@@ -669,7 +697,7 @@ added: v15.0.0
   `node.keyObject`.
 * `keyData`: {ArrayBuffer|TypedArray|DataView|Buffer|KeyObject}
 <!--lint disable maximum-line-length remark-lint-->
-* `algorithm`: {RsaHashedImportParams|EcKeyImportParams|HmacImportParams|AesImportParams|Pbkdf2ImportParams|NodeDsaImportParams|NodeDhImportParams|NodeScryptImportParams}
+* `algorithm`: {RsaHashedImportParams|EcKeyImportParams|HmacImportParams|AesImportParams|Pbkdf2ImportParams|NodeDsaImportParams|NodeDhImportParams|NodeScryptImportParams|NodeEdKeyImportParams}
 <!--lint enable maximum-line-length remark-lint-->
 * `extractable`: {boolean}
 * `keyUsages`: {string[]} See [Key usages][].
@@ -704,6 +732,8 @@ The algorithms currently supported include:
 | `'NODE-DSA'` <sup>1</sup> | ✔ | ✔ | ✔ |   |
 | `'NODE-DH'` <sup>1</sup> | ✔ | ✔ |   |   |
 | `'NODE-SCRYPT'` <sup>1</sup> |   |   |   | ✔ |
+| `'NODE-ED25519'` <sup>1</sup> | ✔ | ✔ | ✔ | ✔ |
+| `'NODE-ED448'` <sup>1</sup> | ✔ | ✔ | ✔ | ✔ |
 
 <sup>1</sup> Node.js-specific extension
 
@@ -731,6 +761,8 @@ The algorithms currently supported include:
 * `'ECDSA'`
 * `'HMAC'`
 * `'NODE-DSA'`<sup>1</sup>
+* `'NODE-ED25519'`<sup>1</sup>
+* `'NODE-ED448'`<sup>1</sup>
 
 <sup>1</sup> Non-standadrd Node.js extension
 
@@ -809,6 +841,8 @@ The algorithms currently supported include:
 * `'ECDSA'`
 * `'HMAC'`
 * `'NODE-DSA'`<sup>1</sup>
+* `'NODE-ED25519'`<sup>1</sup>
+* `'NODE-ED448'`<sup>1</sup>
 
 <sup>1</sup> Non-standard Node.js extension
 
@@ -1062,7 +1096,8 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string} Must be one of `'P-256'`, `'P-384'` or `'P-521'`.
+* Type: {string} Must be one of `'P-256'`, `'P-384'`, `'P-521'`,
+  `'NODE-ED25519'`, `'NODE-ED448'`, `'NODE-X25519'`, or `'NODE-X448'`.
 
 ### Class: `EcKeyImportParams`
 <!-- YAML
@@ -1081,7 +1116,8 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string} Must be one of `'P-256'`, `'P-384'` or `'P-521'`.
+* Type: {string} Must be one of `'P-256'`, `'P-384'`, `'P-521'`,
+  `'NODE-ED25519'`, `'NODE-ED448'`, `'NODE-X25519'`, or `'NODE-X448'`.
 
 ### Class: `HkdfParams`
 <!-- YAML
@@ -1597,6 +1633,63 @@ added: v15.0.0
 -->
 
 * Type: {string} Must be `'NODE-DSA'`
+
+### `NODE-ED25519` and `NODE-ED448` Algorithms
+<!-- YAML
+added: REPLACEME
+-->
+
+#### Class: `NodeEdKeyGenParams`
+<!-- YAML
+added: REPLACEME
+-->
+
+##### `nodeEdKeyGenParams.name`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string} Must be one of `'NODE-ED25519'`, `'NODE-ED448'` or `'ECDH'`.
+
+##### `nodeEdKeyGenParams.namedCurve`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string} Must be one of `'NODE-ED25519'`, `'NODE-ED448'`,
+  `'NODE-X25519'`, or `'NODE-X448'`.
+
+#### Class: `NodeEdKeyImportParams`
+<!-- YAML
+added: REPLACEME
+-->
+
+##### `nodeEdKeyImportParams.name`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string} Must be one of `'NODE-ED25519'` or `'NODE-ED448'`
+  if importing an `Ed25519` or `Ed448` key, or `'ECDH'` if importing
+  an `X25519` or `X448` key.
+
+##### `nodeEdKeyImportParams.namedCurve`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string} Must be one of `'NODE-ED25519'`, `'NODE-ED448'`,
+  `'NODE-X25519'`, or `'NODE-X448'`.
+
+##### `nodeEdKeyImportParams.public`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean}
+
+The `public` parameter is used to specify that the key is to be interpreted
+as a public key.
 
 ### `NODE-SCRYPT` Algorithm
 <!-- YAML

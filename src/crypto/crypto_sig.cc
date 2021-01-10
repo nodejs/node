@@ -223,6 +223,16 @@ void CheckThrow(Environment* env, SignBase::Error error) {
       return;
   }
 }
+
+bool IsOneShot(const ManagedEVPPKey& key) {
+  switch (EVP_PKEY_id(key.get())) {
+    case EVP_PKEY_ED25519:
+    case EVP_PKEY_ED448:
+      return true;
+    default:
+      return false;
+  }
+}
 }  // namespace
 
 SignBase::Error SignBase::Init(const char* sign_type) {
@@ -807,26 +817,47 @@ bool SignTraits::DeriveBits(
   switch (params.mode) {
     case SignConfiguration::kSign: {
       size_t len;
-      if (!EVP_DigestSignUpdate(
-              context.get(),
-              params.data.data<unsigned char>(),
-              params.data.size()) ||
-          !EVP_DigestSignFinal(context.get(), nullptr, &len)) {
-        return false;
-      }
-      char* data = MallocOpenSSL<char>(len);
-      ByteSource buf = ByteSource::Allocated(data, len);
-      unsigned char* ptr = reinterpret_cast<unsigned char*>(data);
-      if (!EVP_DigestSignFinal(context.get(), ptr, &len))
-        return false;
-
-      // If this is an EC key (assuming ECDSA) we have to
-      // convert the signature in to the proper format.
-      if (EVP_PKEY_id(params.key->GetAsymmetricKey().get()) == EVP_PKEY_EC) {
-        *out = ConvertToWebCryptoSignature(params.key->GetAsymmetricKey(), buf);
-      } else {
-        buf.Resize(len);
+      unsigned char* data = nullptr;
+      if (IsOneShot(params.key->GetAsymmetricKey())) {
+        EVP_DigestSign(
+            context.get(),
+            nullptr,
+            &len,
+            params.data.data<unsigned char>(),
+            params.data.size());
+        data = MallocOpenSSL<unsigned char>(len);
+        EVP_DigestSign(
+            context.get(),
+            data,
+            &len,
+            params.data.data<unsigned char>(),
+            params.data.size());
+        ByteSource buf =
+            ByteSource::Allocated(reinterpret_cast<char*>(data), len);
         *out = std::move(buf);
+      } else {
+        if (!EVP_DigestSignUpdate(
+                context.get(),
+                params.data.data<unsigned char>(),
+                params.data.size()) ||
+            !EVP_DigestSignFinal(context.get(), nullptr, &len)) {
+          return false;
+        }
+        data = MallocOpenSSL<unsigned char>(len);
+        ByteSource buf =
+            ByteSource::Allocated(reinterpret_cast<char*>(data), len);
+        if (!EVP_DigestSignFinal(context.get(), data, &len))
+          return false;
+
+        // If this is an EC key (assuming ECDSA) we have to
+        // convert the signature in to the proper format.
+        if (EVP_PKEY_id(params.key->GetAsymmetricKey().get()) == EVP_PKEY_EC) {
+          *out = ConvertToWebCryptoSignature(
+              params.key->GetAsymmetricKey(), buf);
+        } else {
+          buf.Resize(len);
+          *out = std::move(buf);
+        }
       }
       break;
     }
@@ -834,17 +865,12 @@ bool SignTraits::DeriveBits(
       char* data = MallocOpenSSL<char>(1);
       data[0] = 0;
       *out = ByteSource::Allocated(data, 1);
-      if (!EVP_DigestVerifyUpdate(
-              context.get(),
-              params.data.data<unsigned char>(),
-              params.data.size())) {
-        return false;
-      }
-
-      if (EVP_DigestVerifyFinal(
+      if (EVP_DigestVerify(
               context.get(),
               params.signature.data<unsigned char>(),
-              params.signature.size()) == 1) {
+              params.signature.size(),
+              params.data.data<unsigned char>(),
+              params.data.size()) == 1) {
         data[0] = 1;
       }
     }

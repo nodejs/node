@@ -112,6 +112,10 @@ const customTypesMap = {
   'NodeScryptImportParams':
     'webcrypto.html#webcrypto_class_nodescryptimportparams',
   'NodeScryptParams': 'webcrypto.html#webcrypto_class_nodescryptparams',
+  'NodeEdKeyImportParams':
+    'webcrypto.html#webcrypto_class_nodeedkeyimportparams',
+  'NodeEdKeyGenParams':
+    'webcrypto.html#webcrypto_class_nodeedkeygenparams',
 
   'dgram.Socket': 'dgram.html#dgram_class_dgram_socket',
 

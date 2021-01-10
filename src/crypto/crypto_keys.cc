@@ -492,6 +492,13 @@ Maybe<bool> ExportJWKAsymmetricKey(
     case EVP_PKEY_RSA_PSS: return ExportJWKRsaKey(env, key, target);
     case EVP_PKEY_DSA: return ExportJWKDsaKey(env, key, target);
     case EVP_PKEY_EC: return ExportJWKEcKey(env, key, target);
+    case EVP_PKEY_ED25519:
+      // Fall through
+    case EVP_PKEY_ED448:
+      // Fall through
+    case EVP_PKEY_X25519:
+      // Fall through
+    case EVP_PKEY_X448: return ExportJWKEdKey(env, key, target);
   }
   THROW_ERR_CRYPTO_INVALID_KEYTYPE(env);
   return Just(false);
@@ -873,6 +880,7 @@ v8::Local<v8::Function> KeyObjectHandle::Initialize(Environment* env) {
   env->SetProtoMethod(t, "export", Export);
   env->SetProtoMethod(t, "exportJwk", ExportJWK);
   env->SetProtoMethod(t, "initECRaw", InitECRaw);
+  env->SetProtoMethod(t, "initEDRaw", InitEDRaw);
   env->SetProtoMethod(t, "initJwk", InitJWK);
   env->SetProtoMethod(t, "keyDetail", GetKeyDetail);
 
@@ -1028,6 +1036,48 @@ void KeyObjectHandle::InitECRaw(const FunctionCallbackInfo<Value>& args) {
       KeyObjectData::CreateAsymmetric(
           kKeyTypePublic,
           ManagedEVPPKey(std::move(pkey)));
+
+  args.GetReturnValue().Set(true);
+}
+
+void KeyObjectHandle::InitEDRaw(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  KeyObjectHandle* key;
+  ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
+
+  CHECK(args[0]->IsString());
+  Utf8Value name(env->isolate(), args[0]);
+
+  ArrayBufferOrViewContents<unsigned char> key_data(args[1]);
+  KeyType type = static_cast<KeyType>(args[2].As<Int32>()->Value());
+
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
+  typedef EVP_PKEY* (*new_key_fn)(int, ENGINE*, const unsigned char*, size_t);
+  new_key_fn fn = type == kKeyTypePrivate
+      ? EVP_PKEY_new_raw_private_key
+      : EVP_PKEY_new_raw_public_key;
+
+  int id = GetCurveFromName(*name);
+
+  switch (id) {
+    case EVP_PKEY_X25519:
+    case EVP_PKEY_X448:
+    case EVP_PKEY_ED25519:
+    case EVP_PKEY_ED448: {
+      EVPKeyPointer pkey(fn(id, nullptr, key_data.data(), key_data.size()));
+      if (!pkey)
+        return args.GetReturnValue().Set(false);
+      key->data_ =
+          KeyObjectData::CreateAsymmetric(
+              type,
+              ManagedEVPPKey(std::move(pkey)));
+      CHECK(key->data_);
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 
   args.GetReturnValue().Set(true);
 }
