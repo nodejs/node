@@ -22,9 +22,10 @@ function main({ requests, streams, clients, duration }) {
     out.pipe(stream);
     stream.on('error', (err) => {});
   });
-  server.listen(common.PORT, () => {
+  server.listen(0, () => {
     bench.http({
       path: '/',
+      port: server.address().port,
       requests,
       maxConcurrentStreams: streams,
       clients,
