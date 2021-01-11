@@ -556,8 +556,8 @@ flag](#packages_resolving_user_conditions).
 
 The following condition definitions are currently endorsed by Node.js:
 
-* `"browser"` - any environment which implements a standard subset of
-   global browser APIs available from JavaScript in web browsers, including the DOM
+* `"browser"` - any environment which implements a standard subset of global
+   browser APIs available from JavaScript in web browsers, including the DOM
    APIs.
 * `"development"` - can be used to define a development-only environment
    entry point. _Must always be mutually exclusive with `"production"`._
