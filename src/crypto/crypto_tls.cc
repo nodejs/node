@@ -1339,8 +1339,6 @@ int TLSWrap::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
   return SSL_TLSEXT_ERR_OK;
 }
 
-#ifndef OPENSSL_NO_PSK
-
 int TLSWrap::SetCACerts(SecureContext* sc) {
   int err = SSL_set1_verify_cert_store(
       ssl_.get(), SSL_CTX_get_cert_store(sc->ctx_.get()));
@@ -1354,6 +1352,8 @@ int TLSWrap::SetCACerts(SecureContext* sc) {
   SSL_set_client_CA_list(ssl_.get(), list);
   return 1;
 }
+
+#ifndef OPENSSL_NO_PSK
 
 void TLSWrap::SetPskIdentityHint(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* p;
