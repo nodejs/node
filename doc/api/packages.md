@@ -548,6 +548,9 @@ The `"import"`, `"require"`, `"node"` and `"default"` conditions are defined
 and implemented in Node.js core,
 [as specified above](#esm_conditional_exports).
 
+Other condition strings are unknown to Node.js and thus ignored by default.
+Runtimes or tools other than Node.js can use them at their discretion.
+
 The following condition definitions are currently endorsed by Node.js:
 
 * `"browser"` - any environment which implements a standard subset of
@@ -560,9 +563,6 @@ The following condition definitions are currently endorsed by Node.js:
 
 The above user conditions can be enabled in Node.js via the [`--conditions`
 flag](#packages_resolving_user_conditions).
-
-Other condition strings are unknown to Node.js and thus ignored by default.
-Runtimes or tools other than Node.js can use them at their discretion.
 
 Platform specific conditions such as `"deno"`, `"electron"`, or `"react-native"`
 may be used, but while there remain no implementation or integration intent
