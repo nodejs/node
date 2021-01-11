@@ -551,6 +551,9 @@ and implemented in Node.js core,
 Other condition strings are unknown to Node.js and thus ignored by default.
 Runtimes or tools other than Node.js can use them at their discretion.
 
+These user conditions can be enabled in Node.js via the [`--conditions`
+flag](#packages_resolving_user_conditions).
+
 The following condition definitions are currently endorsed by Node.js:
 
 * `"browser"` - any environment which implements a standard subset of
