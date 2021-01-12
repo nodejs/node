@@ -474,7 +474,7 @@ are part of the channel.
 <!-- YAML
 added: v10.5.0
 changes:
-  - version: REPLACEME
+  - version: v15.6.0
     pr-url: https://github.com/nodejs/node/pull/36804
     description: Added `X509Certificate` tot he list of cloneable types.
   - version:

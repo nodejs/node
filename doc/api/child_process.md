@@ -351,7 +351,7 @@ controller.abort();
 <!-- YAML
 added: v0.5.0
 changes:
-  - version: REPLACEME
+  - version: v15.6.0
     pr-url: https://github.com/nodejs/node/pull/36603
     description: AbortSignal support was added.
   - version:
@@ -660,7 +660,7 @@ subprocess.unref();
 <!-- YAML
 added: v0.7.10
 changes:
-  - version: REPLACEME
+  - version: v15.6.0
     pr-url: https://github.com/nodejs/node/pull/29412
     description: Added the `overlapped` stdio flag.
   - version: v3.3.1
