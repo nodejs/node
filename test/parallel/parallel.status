@@ -36,9 +36,6 @@ test-async-hooks-http-parser-destroy: PASS,FLAKY
 # https://github.com/nodejs/node/pull/31178
 test-crypto-dh-stateless: SKIP
 test-crypto-keygen: SKIP
-# https://github.com/nodejs/node/issues/36847
-test-cluster-bind-privileged-port: PASS,FLAKY
-test-cluster-shared-handle-bind-privileged-port: PASS,FLAKY
 
 [$system==solaris] # Also applies to SmartOS
 
