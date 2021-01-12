@@ -571,9 +571,9 @@ See also: [`request.setTimeout()`][].
 added: v0.1.94
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/36901
     description: The `head` argument is deprecated and is always an
-    empty buffer.
+                 empty buffer.
 -->
 
 * `response` {http.IncomingMessage}
