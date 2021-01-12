@@ -2288,11 +2288,45 @@ void MarkCompactCollector::ClearFullMapTransitions() {
   }
 }
 
+// Returns false if no maps have died, or if the transition array is
+// still being deserialized.
+bool MarkCompactCollector::TransitionArrayNeedsCompaction(
+    TransitionArray transitions, int num_transitions) {
+  for (int i = 0; i < num_transitions; ++i) {
+    MaybeObject raw_target = transitions.GetRawTarget(i);
+    if (raw_target.IsSmi()) {
+      // This target is still being deserialized,
+      DCHECK(isolate()->has_active_deserializer());
+      DCHECK_EQ(raw_target.ToSmi(), Deserializer::uninitialized_field_value());
+#ifdef DEBUG
+      // Targets can only be dead iff this array is fully deserialized.
+      for (int i = 0; i < num_transitions; ++i) {
+        DCHECK(!non_atomic_marking_state()->IsWhite(transitions.GetTarget(i)));
+      }
+#endif
+      return false;
+    } else if (non_atomic_marking_state()->IsWhite(
+                   TransitionsAccessor::GetTargetFromRaw(raw_target))) {
+#ifdef DEBUG
+      // Targets can only be dead iff this array is fully deserialized.
+      for (int i = 0; i < num_transitions; ++i) {
+        DCHECK(!transitions.GetRawTarget(i).IsSmi());
+      }
+#endif
+      return true;
+    }
+  }
+  return false;
+}
+
 bool MarkCompactCollector::CompactTransitionArray(Map map,
                                                   TransitionArray transitions,
                                                   DescriptorArray descriptors) {
   DCHECK(!map.is_prototype_map());
   int num_transitions = transitions.number_of_entries();
+  if (!TransitionArrayNeedsCompaction(transitions, num_transitions)) {
+    return false;
+  }
   bool descriptors_owner_died = false;
   int transition_index = 0;
   // Compact all live transitions to the left.

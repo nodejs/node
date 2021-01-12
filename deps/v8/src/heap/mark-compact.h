@@ -681,6 +681,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void TrimEnumCache(Map map, DescriptorArray descriptors);
   bool CompactTransitionArray(Map map, TransitionArray transitions,
                               DescriptorArray descriptors);
+  bool TransitionArrayNeedsCompaction(TransitionArray transitions,
+                                      int num_transitions);
 
   // After all reachable objects have been marked those weak map entries
   // with an unreachable key are removed from all encountered weak maps.
