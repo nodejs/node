@@ -2580,7 +2580,7 @@ added: v0.1.30
 changes:
   - version: v15.3.0
     pr-url: https://github.com/nodejs/node/pull/33716
-    description: Accepts an additional `options` object to specify whether
+    description: Accepts a `throwIfNoEntry` option to specify whether
                  an exception should be thrown if the entry does not exist.
   - version: v10.5.0
     pr-url: https://github.com/nodejs/node/pull/20220
@@ -3829,7 +3829,7 @@ added: v0.1.21
 changes:
   - version: v15.3.0
     pr-url: https://github.com/nodejs/node/pull/33716
-    description: Accepts an additional `options` object to specify whether
+    description: Accepts a `throwIfNoEntry` option to specify whether
                  an exception should be thrown if the entry does not exist.
   - version: v10.5.0
     pr-url: https://github.com/nodejs/node/pull/20220
