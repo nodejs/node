@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/resources/testdriver.js></script>
+<script src=/resources/testdriver-vendor.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+<script src=/common/utils.js></script>
+<script src=/portals/resources/stash-utils.sub.js></script>
+<body>
+<script>
+  const USER = true;
+  const FORCED = false;
+
+  function create_test(host, expectations) {
+    async_test(t => {
+      assert_implements("HTMLPortalElement" in window, "Portals are not supported.");
+
+      let p = document.createElement('portal');
+      const key = token();
+      StashUtils.takeValue(key).then(t.step_func_done(value => {
+        assert_header_equals(value, expectations, `{{host}} -> ${host} portal`);
+      }));
+
+      let url = `https://${host}/fetch/metadata/resources/post-to-owner.py?key=${key}`;
+      p.src = url;
+      document.body.appendChild(p);
+    }, `{{host}} -> ${host} portal`);
+  }
+
+  create_test("{{host}}:{{ports[https][0]}}", {
+    "site": "same-origin",
+    "user": "",
+    "mode": "navigate",
+    "dest": "iframe"
+  });
+
+  create_test("{{hosts[][www]}}:{{ports[https][0]}}", {
+    "site": "same-site",
+    "user": "",
+    "mode": "navigate",
+    "dest": "iframe"
+  });
+
+  create_test("{{hosts[alt][www]}}:{{ports[https][0]}}", {
+    "site": "cross-site",
+    "user": "",
+    "mode": "navigate",
+    "dest": "iframe"
+  });
+</script>

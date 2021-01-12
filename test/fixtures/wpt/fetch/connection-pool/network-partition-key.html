@@ -1,0 +1,264 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Connection partitioning by site</title>
+  <meta name="help" href="https://fetch.spec.whatwg.org/#network-partition-keys">
+  <meta name="timeout" content="long">
+  <script src="/resources/testharness.js"></script>
+  <script src="/resources/testharnessreport.js"></script>
+  <script src="/common/utils.js"></script>
+  <script src="/common/get-host-info.sub.js"></script>
+</head>
+<body>
+<!-- Used to open about:blank tabs from opaque origins -->
+<iframe id="iframe0" sandbox="allow-popups allow-scripts allow-popups-to-escape-sandbox"></iframe>
+<iframe id="iframe1" sandbox="allow-popups allow-scripts allow-popups-to-escape-sandbox"></iframe>
+<script>
+const host = get_host_info();
+
+// These two origins must correspond to different sites for this test to pass.
+const POPUP_ORIGINS = [
+  host.ORIGIN,
+  host.HTTP_NOTSAMESITE_ORIGIN
+];
+
+// This origin should ideally correspond to a different site from the two above, but the
+// tests will still pass if it matches the site of one of the other two origins.
+const OTHER_ORIGIN = host.REMOTE_ORIGIN;
+
+// Except for the csp_sandbox and about:blanks, each test opens up two windows, one at
+// POPUP_ORIGINS[0], one at POPUP_ORIGINS[1], and has them request subresources from
+// subresource_origin. All requests (HTML, JS, and fetch requests) for each window go
+// through network-partition-key.py and have a partition_id parameter, which is used
+// to check if any request for one window uses the same socket as a request for the
+// other window.
+//
+// Whenever requests from the two different popup windows use the same connection, the
+// fetch requests all start returning 400 errors, but other requests will continue to
+// succeed, to make for clearer errors.
+//
+// include_credentials indicates whether the fetch requests use credentials or not,
+// which is interesting as uncredentialed sockets have separate connection pools.
+const tests = [
+  {
+    name: 'With credentials',
+    subresource_origin: POPUP_ORIGINS[0],
+    include_credentials: true,
+    popup_params: [
+      {type: 'main_frame'},
+      {type: 'main_frame'}
+    ]
+  },
+  {
+    name: 'Without credentials',
+    subresource_origin: POPUP_ORIGINS[0],
+    include_credentials: false,
+    popup_params: [
+      {type: 'main_frame'},
+      {type: 'main_frame'}
+    ]
+  },
+  {
+    name: 'Cross-site resources with credentials',
+    subresource_origin: OTHER_ORIGIN,
+    include_credentials: true,
+    popup_params: [
+      {type: 'main_frame'},
+      {type: 'main_frame'}
+    ]
+  },
+  {
+    name: 'Cross-site resources without credentials',
+    subresource_origin: OTHER_ORIGIN,
+    include_credentials: false,
+    popup_params: [
+      {type: 'main_frame'},
+      {type: 'main_frame'}
+    ]
+  },
+  {
+    name: 'Iframes',
+    subresource_origin: OTHER_ORIGIN,
+    include_credentials: true,
+    popup_params: [
+      {
+        type: 'iframe',
+        iframe_origin: OTHER_ORIGIN
+      },
+      {
+        type: 'iframe',
+        iframe_origin: OTHER_ORIGIN
+      }
+    ]
+  },
+  {
+    name: 'Workers',
+    subresource_origin: POPUP_ORIGINS[0],
+    include_credentials: true,
+    popup_params: [
+      {type: 'worker'},
+      {type: 'worker'}
+    ]
+  },
+  {
+    name: 'Workers with cross-site resources',
+    subresource_origin: OTHER_ORIGIN,
+    include_credentials: true,
+    popup_params: [
+      {type: 'worker'},
+      {type: 'worker'}
+    ]
+  },
+  {
+    name: 'CSP sandbox',
+    subresource_origin: POPUP_ORIGINS[0],
+    include_credentials: true,
+    popup_params: [
+      {type: 'csp_sandbox'},
+      {type: 'csp_sandbox'}
+    ]
+  },
+  {
+    name: 'about:blank from opaque origin iframe',
+    subresource_origin: OTHER_ORIGIN,
+    include_credentials: true,
+    popup_params: [
+      {type: 'opaque_about_blank'},
+      {type: 'opaque_about_blank'}
+    ]
+  },
+];
+
+const BASE_PATH = window.location.pathname.replace(/\/[^\/]*$/, '/');
+
+function create_script_url(origin, uuid, partition_id, dispatch) {
+  return `${origin}${BASE_PATH}resources/network-partition-key.py?uuid=${uuid}&partition_id=${partition_id}&dispatch=${dispatch}`
+}
+
+function run_test(test) {
+  var uuid = token();
+
+  // Used to track the opened popup windows, so they can be closed at the end of the test.
+  // They could be closed immediately after use, but safest to keep them open, as browsers
+  // could use closing a window as a hint to close idle sockets that the window used.
+  var popup_windows = [];
+
+  // Creates a popup window at |url| and waits for a test result. Returns a promise.
+  function create_popup_and_wait_for_result(url) {
+    return new Promise(function(resolve, reject) {
+      popup_windows.push(window.open(url));
+      // Listen for the result
+      function message_listener(event) {
+        if (event.data.result === 'success') {
+          resolve();
+        } else if (event.data.result === 'error') {
+          reject(event.data.details);
+        } else {
+          reject('Unexpected message.');
+        }
+      }
+      window.addEventListener('message', message_listener, {once: 'true'});
+    });
+  }
+
+  // Navigates iframe to url and waits for a test result. Returns a promise.
+  function navigate_iframe_and_wait_for_result(iframe, url) {
+    return new Promise(function(resolve, reject) {
+      iframe.src = url;
+      // Listen for the result
+      function message_listener(event) {
+        if (event.data.result === 'success') {
+          resolve();
+        } else if (event.data.result === 'error') {
+          reject(event.data.details);
+        } else {
+          reject('Unexpected message.');
+        }
+      }
+      window.addEventListener('message', message_listener, {once: 'true'});
+    });
+  }
+
+  function make_test_function(test, index) {
+    var popup_params = test.popup_params[index];
+    return function() {
+      var popup_path;
+      var additional_url_params = '';
+      var origin = POPUP_ORIGINS[index];
+      var partition_id = POPUP_ORIGINS[index];
+      if (popup_params.type == 'main_frame') {
+        popup_path = 'resources/network-partition-checker.html';
+      } else if (popup_params.type == 'iframe') {
+        popup_path = 'resources/network-partition-iframe-checker.html';
+        additional_url_params = `&other_origin=${popup_params.iframe_origin}`;
+      } else if (popup_params.type == 'worker') {
+        popup_path = 'resources/network-partition-worker-checker.html';
+        // The origin of the dedicated worker must mutch the page that loads it.
+        additional_url_params = `&other_origin=${POPUP_ORIGINS[index]}`;
+      } else if (popup_params.type == 'csp_sandbox') {
+        // For the Content-Security-Policy sandbox test, all requests are from the same origin, but
+        // the origin should be treated as an opaque origin, so sockets should not be reused.
+        origin = test.subresource_origin;
+        partition_id = index;
+        popup_path = 'resources/network-partition-checker.html';
+        // Don't check partition of root document, since the document isn't sandboxed until the
+        // root document is fetched.
+        additional_url_params = '&sandbox=true&nocheck_partition=true'
+      } else if (popup_params.type=='opaque_about_blank') {
+        popup_path = 'resources/network-partition-about-blank-checker.html';
+      } else if (popup_params.type == 'iframe') {
+        throw 'Unrecognized popup_params.type.';
+      }
+      var url = create_script_url(origin, uuid, partition_id, 'fetch_file');
+      url += `&subresource_origin=${test.subresource_origin}`
+      url += `&include_credentials=${test.include_credentials}`
+      url += `&path=${BASE_PATH.substring(1)}${popup_path}`;
+      url += additional_url_params;
+
+      if (popup_params.type=='opaque_about_blank') {
+        return navigate_iframe_and_wait_for_result(iframe = document.getElementById('iframe' + index), url);
+      }
+
+      return create_popup_and_wait_for_result(url);
+    }
+  }
+
+  // Takes a Promise, and cleans up state when the promise has completed, successfully or not, re-throwing
+  // any exception from the passed in Promise.
+  async function clean_up_when_done(promise) {
+    var error;
+    try {
+      await promise;
+    } catch (e) {
+      error = e;
+    }
+
+    popup_windows.map(function (win) { win.close(); });
+
+    try {
+      var cleanup_url = create_script_url(host.ORIGIN, uuid, host.ORIGIN, 'clean_up');
+      var response = await fetch(cleanup_url, {credentials: 'omit', mode: 'cors'});
+      assert_equals(await response.text(), 'cleanup complete', `Sever state cleanup failed`);
+    } catch (e) {
+      // Prefer error from the passed in Promise over errors from the fetch request to clean up server state.
+      error = error || e;
+    }
+    if (error)
+      throw error;
+  }
+
+  return clean_up_when_done(
+      make_test_function(test, 0)()
+      .then(make_test_function(test, 1)));
+}
+
+tests.forEach(function (test) {
+  promise_test(
+      function() { return run_test(test); },
+      test.name);
+})
+
+</script>
+</body>
+</html>

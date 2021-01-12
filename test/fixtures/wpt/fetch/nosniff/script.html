@@ -1,0 +1,43 @@
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<div id=log></div>
+<script>
+  var log = function() {}, // see comment below
+      p = function() {}, // see comment below
+      fails = [null, "", "x", "x/x", "text/html", "text/json"],
+      passes = ["text/javascript", "text/ecmascript", "text/ecmascript;blah", "text/javascript1.0"]
+
+  // Ideally we'd also check whether the scripts in fact execute, but that would involve
+  // timers and might get a bit racy without cross-browser support for the execute events.
+
+  const get_url = (mime, outcome) => {
+    let url = "resources/js.py"
+    if (mime != null) {
+        url += "?type=" + encodeURIComponent(mime)
+    }
+    if (outcome) {
+      url += "&outcome=p"
+    }
+    return url
+  }
+
+  fails.forEach(function(mime) {
+    async_test(function(t) {
+      var script = document.createElement("script")
+      script.onerror = t.step_func_done(function(){})
+      script.onload = t.unreached_func("Unexpected load event")
+      script.src = get_url(mime)
+      document.body.appendChild(script)
+    }, "URL query: " + mime)
+  })
+
+  passes.forEach(function(mime) {
+    async_test(function(t) {
+      var script = document.createElement("script")
+      script.onerror = t.unreached_func("Unexpected error event")
+      script.onload = t.step_func_done(function(){})
+      script.src = get_url(mime, true)
+      document.body.appendChild(script)
+    }, "URL query: " + mime)
+  })
+</script>

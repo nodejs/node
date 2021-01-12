@@ -1,0 +1,97 @@
+﻿<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Request Keepalive Quota Tests</title>
+        <meta name="timeout" content="long">
+        <meta name="help" href="https://fetch.spec.whatwg.org/#request">
+        <meta name="help" href="https://fetch.spec.whatwg.org/#body-mixin">
+        <meta name="author" title="Microsoft Edge" href="https://www.microsoft.com">
+        <meta name="variant" content="?include=fast">
+        <meta name="variant" content="?include=slow-1">
+        <meta name="variant" content="?include=slow-2">
+        <meta name="variant" content="?include=slow-3">
+        <script src="/resources/testharness.js"></script>
+        <script src="/resources/testharnessreport.js"></script>
+        <script src="/common/subset-tests-by-key.js"></script>
+    </head>
+    <body>
+        <script>
+            'use strict';
+
+            // We want to ensure that our keepalive requests hang slightly before completing so we can validate
+            // the effects of a rolling quota. To do this we will utilize trickle.py with a 1s delay. This should
+            // prevent any of the Fetch's from finishing in this window.
+            const trickleURL = '../resources/trickle.py?count=1&ms=';
+            const noDelay = 0;
+            const standardDelay = 1000;
+            function wait(ms) {
+                return new Promise(resolve => step_timeout(resolve, ms));
+            }
+
+            // We should expect 64KiB of rolling quota for any type of keep-alive request sent.
+            const expectedQuota = 65536;
+
+            function fetchKeepAliveRequest(delay, bodySize) {
+                // Create a body of the specified size that's filled with *'s
+                const body = '*'.repeat(bodySize);
+                return fetch(trickleURL + delay, {keepalive: true, body, method: 'POST'}).then(res => {
+                    return res.text();
+                }).then(() => {
+                    return wait(1);
+                });
+            }
+
+            // Test 1 Byte
+            subsetTestByKey("fast", promise_test, function(test) {
+                return fetchKeepAliveRequest(noDelay, 1 /* bodySize */);
+            }, 'A Keep-Alive fetch() with a small body should succeed.');
+
+            // Test Quota full limit
+            subsetTestByKey("fast", promise_test, function(test) {
+                return fetchKeepAliveRequest(noDelay, expectedQuota /* bodySize */);
+            }, 'A Keep-Alive fetch() with a body at the Quota Limit should succeed.');
+
+            // Test Quota + 1 Byte
+            subsetTestByKey("fast", promise_test, function(test) {
+                return promise_rejects_js(test, TypeError, fetchKeepAliveRequest(noDelay, expectedQuota + 1));
+            }, 'A Keep-Alive fetch() with a body over the Quota Limit should reject.');
+
+            // Test the Quota becomes available upon promise completion.
+            subsetTestByKey("slow-1", promise_test, function (test) {
+                // Fill our Quota then try to send a second fetch.
+                return fetchKeepAliveRequest(standardDelay, expectedQuota).then(() => {
+                    // Now validate that we can send another Keep-Alive fetch for the full size of the quota.
+                    return fetchKeepAliveRequest(noDelay, expectedQuota);
+                });
+            }, 'A Keep-Alive fetch() should return its allocated Quota upon promise resolution.');
+
+            // Ensure only the correct amount of Quota becomes available when a fetch completes.
+            subsetTestByKey("slow-2", promise_test, function(test) {
+                // Create a fetch that uses all but 1 Byte of the Quota and runs for 2x as long as the other requests.
+                const first = fetchKeepAliveRequest(standardDelay * 2, expectedQuota - 1);
+
+                // Now create a single Byte request that will complete quicker.
+                const second = fetchKeepAliveRequest(standardDelay, 1 /* bodySize */).then(() => {
+                    // We shouldn't be able to create a 2 Byte request right now as only 1 Byte should have freed up.
+                    return promise_rejects_js(test, TypeError, fetchKeepAliveRequest(noDelay, 2 /* bodySize */));
+                }).then(() => {
+                    // Now validate that we can send another Keep-Alive fetch for just 1 Byte.
+                    return fetchKeepAliveRequest(noDelay, 1 /* bodySize */);
+                });
+
+                return Promise.all([first, second]);
+            }, 'A Keep-Alive fetch() should return only its allocated Quota upon promise resolution.');
+
+            // Test rejecting a fetch() after the quota is used up.
+            subsetTestByKey("slow-3", promise_test, function (test) {
+                // Fill our Quota then try to send a second fetch.
+                const p = fetchKeepAliveRequest(standardDelay, expectedQuota);
+
+                const q = promise_rejects_js(test, TypeError, fetchKeepAliveRequest(noDelay, 1 /* bodySize */));
+                return Promise.all([p, q]);
+            }, 'A Keep-Alive fetch() should not be allowed if the Quota is used up.');
+
+        </script>
+    </body>
+</html>

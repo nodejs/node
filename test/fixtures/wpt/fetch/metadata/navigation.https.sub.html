@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+<script>
+  test(t => {
+    let expected = {
+      "mode": "navigate",
+      "site": "none",
+      "dest": "document"
+    };
+
+    let actual = {
+      "mode": "{{headers[sec-fetch-mode]}}",
+      "site": "{{headers[sec-fetch-site]}}",
+      // Skipping `Sec-Fetch-User`, as the test harness isn't consistent here.
+      "dest": "{{headers[sec-fetch-dest]}}"
+    };
+
+    assert_header_equals(actual, expected);
+  }, "This page's top-level navigation.");
+</script>

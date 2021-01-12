@@ -1,0 +1,58 @@
+[
+  {
+    "input": "X-Content-Type-Options: NOSNIFF",
+    "nosniff": true
+  },
+  {
+    "input": "x-content-type-OPTIONS: nosniff",
+    "nosniff": true
+  },
+  {
+    "input": "X-Content-Type-Options: nosniff,,@#$#%%&^&^*()()11!",
+    "nosniff": true
+  },
+  {
+    "input": "X-Content-Type-Options: @#$#%%&^&^*()()11!,nosniff",
+    "nosniff": false
+  },
+  {
+    "input": "X-Content-Type-Options: nosniff\r\nX-Content-Type-Options: no",
+    "nosniff": true
+  },
+  {
+    "input": "X-Content-Type-Options: no\r\nX-Content-Type-Options: nosniff",
+    "nosniff": false
+  },
+  {
+    "input": "X-Content-Type-Options:\r\nX-Content-Type-Options: nosniff",
+    "nosniff": false
+  },
+  {
+    "input": "X-Content-Type-Options: ,nosniff",
+    "nosniff": false
+  },
+  {
+    "input": "X-Content-Type-Options: nosniff\u000C",
+    "nosniff": false
+  },
+  {
+    "input": "X-Content-Type-Options: nosniff\u000B",
+    "nosniff": false
+  },
+  {
+    "input": "X-Content-Type-Options: nosniff\u000B,nosniff",
+    "nosniff": false
+  },
+  {
+    "input": "X-Content-Type-Options: 'NosniFF'",
+    "nosniff": false
+  },
+  {
+    "input": "X-Content-Type-Options: \"nosniFF\"",
+    "nosniff": false
+  },
+  {
+    "input": "Content-Type-Options: nosniff",
+    "nosniff": false
+  }
+]

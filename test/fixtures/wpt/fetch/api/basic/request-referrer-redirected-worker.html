@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Fetch in worker: referrer header</title>
+    <script src="/resources/testharness.js"></script>
+    <script src="/resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      let finalURL = "/fetch/api/basic/request-referrer.any.worker.js";
+      let url = "/fetch/api/resources/redirect.py?location=" +
+                encodeURIComponent(finalURL);
+      fetch_tests_from_worker(new Worker(url));
+    </script>
+  </body>
+</html>

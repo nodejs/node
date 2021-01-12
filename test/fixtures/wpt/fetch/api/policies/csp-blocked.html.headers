@@ -1,0 +1,1 @@
+Content-Security-Policy: connect-src 'none';

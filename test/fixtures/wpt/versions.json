@@ -42,5 +42,9 @@
   "FileAPI": {
     "commit": "d9d921b8f9235e0d2ec92672040c0ccfc8262e21",
     "path": "FileAPI"
+  },
+  "fetch": {
+    "commit": "5c46bbe8d09ff44e4f9186f137f28a3c5574a483",
+    "path": "fetch"
   }
 }

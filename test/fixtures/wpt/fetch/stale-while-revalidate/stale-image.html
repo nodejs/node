@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Tests Stale While Revalidate works for images</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/utils.js"></script>
+<body>
+<!--
+Use a child document to load the second stale image into because
+an image loaded into the same document will skip cache-control headers.
+See: https://html.spec.whatwg.org/#the-list-of-available-images
+-->
+<iframe id="child1" srcdoc=""></iframe>
+<iframe id="child2" srcdoc=""></iframe>
+<script>
+
+var request_token = token();
+let image_src = "resources/stale-image.py?token=" + request_token;
+
+let loadImage = async (document) => {
+  let img = document.createElement("img");
+  img.src = image_src;
+  let loaded = new Promise(r => img.onload = r);
+  document.body.appendChild(img);
+  await loaded;
+  return img;
+};
+
+promise_test(async t => {
+  await new Promise(r => window.onload = r);
+
+  let img1 = await loadImage(document);
+  assert_equals(img1.width, 16, "(initial version loaded)");
+
+  let img2 = await loadImage(child1.contentDocument);
+  assert_equals(img2.width, 16, "(stale version loaded)");
+
+  // Query the server again and again. At some point it must have received the
+  // revalidation request. We poll, because we don't know when the revalidation
+  // will occur.
+  while(true) {
+    await new Promise(r => step_timeout(r, 25));
+    let response = await fetch(image_src + "&query");
+    let count = response.headers.get("Count");
+    if (count == '2')
+      break;
+  }
+
+  let img3 = await loadImage(child2.contentDocument);
+  assert_equals(img3.width, 256, "(revalidated version loaded)");
+
+}, 'Cache returns stale resource');
+
+</script>
+</body>

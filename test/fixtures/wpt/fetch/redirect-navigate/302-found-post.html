@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<!-- Step 1: send POST request to a URL which will then 302 Found redirect -->
+<title>HTTP 302 Found POST Navigation Test</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+async_test(function(t) {
+  window.addEventListener("load", function() {
+    var frame = document.getElementById("frame");
+    var link = new URL("302-found-post-handler.py", window.location.href);
+    frame.contentWindow.document.body.innerHTML = '<form action="' + link.href + '" method="POST" id="form"><input name="n"></form>';
+    frame.contentWindow.document.getElementById("form").submit();
+    frame.addEventListener("load", t.step_func_done(function() {
+      assert_equals(frame.contentWindow.document.body.textContent, "OK");
+    }));
+  });
+}, "HTTP 302 Found POST Navigation");
+</script>
+<body>
+<iframe id="frame" src="about:blank"></iframe>

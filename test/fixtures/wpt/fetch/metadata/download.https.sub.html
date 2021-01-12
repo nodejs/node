@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/resources/testdriver.js></script>
+<script src=/resources/testdriver-vendor.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+<script src=/common/utils.js></script>
+<body>
+<script>
+  function create_test(host, expectations) {
+    async_test(t => {
+      let nonce = token();
+      let a = document.createElement('a');
+      a.download = '';
+      a.text = nonce;
+
+      let url = `https://${host}/fetch/metadata/resources/record-header.py?file=download` + nonce;
+      a.href = url;
+      document.body.appendChild(a);
+
+      test_driver.click(a);
+
+      t.step_timeout(_ => {
+        validate_expectations("download" + nonce, expectations, `{{host}} -> ${host} download`);
+        t.done();
+      }, 1000);
+    }, `{{host}} -> ${host} download`);
+  }
+
+  // Only testing same-origin a download because same-site and cross-site is not supported.
+  create_test("{{host}}:{{ports[https][0]}}", {
+    "site": "same-origin",
+    "user": "",
+    "mode": "navigate",
+    "dest": "empty"
+  });
+</script>

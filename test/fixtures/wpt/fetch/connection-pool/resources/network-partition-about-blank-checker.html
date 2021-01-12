@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>about:blank Network Partition Checker</title>
+  <meta name="help" href="https://fetch.spec.whatwg.org/#network-partition-keys">
+  <meta name="timeout" content="normal">
+</head>
+<body>
+<script>
+  async function fetch_and_reply() {
+    // Load about:blank in a new tab, and inject the network partition checking code into it.
+    var win;
+    try {
+      win = window.open();
+      var url = 'SUBRESOURCE_PREFIX:&dispatch=fetch_file&path=fetch/connection-pool/resources/network-partition-checker.html&sandbox=true';
+      var response = await fetch(url, {credentials: 'omit', mode: 'cors'});
+      win.document.write(await response.text());
+    } catch (e) {
+      win.close();
+      window.parent.postMessage({result: 'error', details: e.message}, '*');
+      return;
+    }
+
+    // Listen for first message from the new window and pass it back to the parent.
+    function message_listener(event) {
+      window.parent.postMessage(event.data, '*');
+      win.close();
+    }
+    window.addEventListener('message', message_listener, {once: true});
+  }
+  fetch_and_reply();
+</script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<!-- Test verifies that CORB won't impact a cross-origin stylesheet mislabeled
+  as text/html (because even without CORB mislabeled CSS will be rejected).
+-->
+<meta charset="utf-8">
+<title>CSS is not applied (because of strict content-type enforcement for cross-origin stylesheets)</title>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+
+<!-- Default style that will be applied if the external stylesheet resource
+  below won't load for any reason.  This stylesheet will set h1's
+  color to green (see |default_color| below). -->
+<style>
+h1 { color: green; }
+</style>
+
+<!-- This stylesheet (if loaded) should set h1#header's color to red
+    (see |external_color| below). -->
+<!-- www1 is cross-origin, so the HTTP response is CORB-eligible -->
+<link rel="stylesheet" type="text/css"
+      href="http://{{domains[www1]}}:{{ports[http][0]}}/fetch/corb/resources/css-mislabeled-as-html.css">
+
+<body>
+  <h1 id="header">Header example</h1>
+  <p>Paragraph body</p>
+</body>
+
+<script>
+test(() => {
+  let style = getComputedStyle(document.getElementById('header'));
+  const external_color = 'rgb(255, 0, 0)';  // red
+  const default_color = 'rgb(0, 128, 0)';  // green
+  assert_equals(style.getPropertyValue('color'), default_color);
+  assert_not_equals(style.getPropertyValue('color'), external_color);
+});
+</script>

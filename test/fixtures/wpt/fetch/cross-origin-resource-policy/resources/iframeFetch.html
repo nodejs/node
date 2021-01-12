@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script>
+        function processMessage(event)
+        {
+            fetch(event.data, { mode: "no-cors" }).then(() => {
+                parent.postMessage("ok", "*");
+            }, () => {
+                parent.postMessage("ko", "*");
+            });
+        }
+        window.addEventListener("message", processMessage, false);
+    </script>
+</head>
+<body>
+    <h3>The iframe making a same origin fetch call.</h3>
+</body>
+</html>

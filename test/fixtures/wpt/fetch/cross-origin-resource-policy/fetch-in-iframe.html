@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="/resources/testharness.js"></script>
+    <script src="/resources/testharnessreport.js"></script>
+    <script src="/common/get-host-info.sub.js"></script>
+</head>
+<body>
+    <script>
+const host = get_host_info();
+const remoteBaseURL = host.HTTP_REMOTE_ORIGIN + window.location.pathname.replace(/\/[^\/]*$/, '/') ;
+const notSameSiteBaseURL = host.HTTP_NOTSAMESITE_ORIGIN + window.location.pathname.replace(/\/[^\/]*$/, '/') ;
+const localBaseURL = host.HTTP_ORIGIN + window.location.pathname.replace(/\/[^\/]*$/, '/') ;
+
+function with_iframe(url)
+{
+  return new Promise(function(resolve) {
+      var frame = document.createElement('iframe');
+      frame.src = url;
+      frame.onload = function() { resolve(frame); };
+      document.body.appendChild(frame);
+    });
+}
+
+function loadIFrameAndFetch(iframeURL, fetchURL, expectedFetchResult, title)
+{
+    promise_test(async () => {
+        const frame = await with_iframe(iframeURL);
+        let receiveMessage;
+        const promise = new Promise((resolve, reject) => {
+            receiveMessage = (event) => {
+                if (event.data !== expectedFetchResult) {
+                    reject("Received unexpected message " + event.data);
+                    return;
+                }
+                resolve();
+            }
+            window.addEventListener("message", receiveMessage, false);
+        });
+        frame.contentWindow.postMessage(fetchURL, "*");
+        return promise.finally(() => {
+            frame.remove();
+            window.removeEventListener("message", receiveMessage, false);
+        });
+    }, title);
+}
+
+// This above data URL should be equivalent to resources/iframeFetch.html
+var dataIFrameURL = "data:text/html;base64,PCFET0NUWVBFIGh0bWw+CjxodG1sPgo8aGVhZD4KICAgIDxzY3JpcHQ+CiAgICAgICAgZnVuY3Rpb24gcHJvY2Vzc01lc3NhZ2UoZXZlbnQpCiAgICAgICAgewogICAgICAgICAgICBmZXRjaChldmVudC5kYXRhLCB7IG1vZGU6ICJuby1jb3JzIiB9KS50aGVuKCgpID0+IHsKICAgICAgICAgICAgICAgIHBhcmVudC5wb3N0TWVzc2FnZSgib2siLCAiKiIpOwogICAgICAgICAgICB9LCAoKSA9PiB7CiAgICAgICAgICAgICAgICBwYXJlbnQucG9zdE1lc3NhZ2UoImtvIiwgIioiKTsKICAgICAgICAgICAgfSk7CiAgICAgICAgfQogICAgICAgIHdpbmRvdy5hZGRFdmVudExpc3RlbmVyKCJtZXNzYWdlIiwgcHJvY2Vzc01lc3NhZ2UsIGZhbHNlKTsKICAgIDwvc2NyaXB0Pgo8L2hlYWQ+Cjxib2R5PgogICAgPGgzPlRoZSBpZnJhbWUgbWFraW5nIGEgc2FtZSBvcmlnaW4gZmV0Y2ggY2FsbC48L2gzPgo8L2JvZHk+CjwvaHRtbD4K";
+
+loadIFrameAndFetch(dataIFrameURL, localBaseURL + "resources/hello.py?corp=same-origin", "ko",
+    "Cross-origin fetch in a data: iframe load fails if the server blocks cross-origin loads with a 'Cross-Origin-Resource-Policy: same-origin' response header.");
+
+loadIFrameAndFetch(dataIFrameURL, localBaseURL + "resources/hello.py?corp=same-site", "ko",
+    "Cross-origin fetch in a data: iframe load fails if the server blocks cross-origin loads with a 'Cross-Origin-Resource-Policy: same-site' response header.");
+
+loadIFrameAndFetch(remoteBaseURL + "resources/iframeFetch.html", localBaseURL + "resources/hello.py?corp=same-origin", "ko",
+    "Cross-origin fetch in a cross origin iframe load fails if the server blocks cross-origin loads with a 'Cross-Origin-Resource-Policy: same-origin' response header.");
+
+loadIFrameAndFetch(notSameSiteBaseURL + "resources/iframeFetch.html", localBaseURL + "resources/hello.py?corp=same-site", "ko",
+    "Cross-origin fetch in a cross origin iframe load fails if the server blocks cross-origin loads with a 'Cross-Origin-Resource-Policy: same-site' response header.");
+
+loadIFrameAndFetch(remoteBaseURL + "resources/iframeFetch.html", remoteBaseURL + "resources/hello.py?corp=same-origin", "ok",
+    "Same-origin fetch in a cross origin iframe load succeeds if the server blocks cross-origin loads with a 'Cross-Origin-Resource-Policy: same-origin' response header.");
+    </script>
+</body>
+</html>

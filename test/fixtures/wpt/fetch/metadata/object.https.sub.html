@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<meta charset="utf-8"/>
+<link rel="author" href="mtrzos@google.com" title="Maciek Trzos">
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+<script src=/common/utils.js></script>
+<body>
+<script>
+  let nonce = token();
+
+  promise_test(t => {
+    return new Promise((resolve, reject) => {
+      let key = "object-same-origin" + nonce;
+
+      let e = document.createElement('object');
+      e.data = "https://{{host}}:{{ports[https][0]}}/fetch/metadata/resources/record-header.py?file=" + key;
+      e.onload = e => {
+        let expected = {"site":"same-origin", "user":"", "mode":"navigate", "dest": "object"};
+        validate_expectations(key, expected, "Same-Origin object")
+          .then(_ => resolve())
+          .catch(e => reject(e));
+      };
+
+      document.body.appendChild(e);
+    })
+  }, "Same-Origin object");
+
+  promise_test(t => {
+    return new Promise((resolve, reject) => {
+      let key = "object-same-site" + nonce;
+
+      let e = document.createElement('object');
+      e.data = "https://{{hosts[][www]}}:{{ports[https][0]}}/fetch/metadata/resources/record-header.py?file=" + key;
+      e.onload = e => {
+        let expected = {"site":"same-site", "user":"", "mode":"navigate", "dest": "object"};
+        validate_expectations(key, expected, "Same-Site object")
+          .then(_ => resolve())
+          .catch(e => reject(e));
+      };
+
+      document.body.appendChild(e);
+    })
+  }, "Same-Site object");
+
+  promise_test(t => {
+    return new Promise((resolve, reject) => {
+      let key = "object-cross-site" + nonce;
+
+      let e = document.createElement('object');
+      e.data = "https://{{hosts[alt][www]}}:{{ports[https][0]}}/fetch/metadata/resources/record-header.py?file=" + key;
+      e.onload = e => {
+        let expected = {"site":"cross-site", "user":"", "mode":"navigate", "dest": "object"};
+        validate_expectations(key, expected, "Cross-Site object")
+          .then(_ => resolve())
+          .catch(e => reject(e));
+      };
+
+      document.body.appendChild(e);
+    })
+  }, "Cross-Site object");
+</script>

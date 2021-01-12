@@ -1,0 +1,84 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Request: init with request or url</title>
+    <meta name="help" href="https://fetch.spec.whatwg.org/#request">
+    <meta name="help" href="https://url.spec.whatwg.org/#concept-url-serializer">
+    <meta name="author" title="Canon Research France" href="https://www.crf.canon.fr">
+    <script src="/resources/testharness.js"></script>
+    <script src="/resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script src="../resources/utils.js"></script>
+    <script>
+      var headers = new Headers( {"name":"value"} );
+      var emptyHeaders = new Headers();
+
+      var initValuesDict = {"method" : "POST",
+                            "referrer" : "http://{{host}}:{{ports[http][0]}}/",
+                            "referrerPolicy" : "origin",
+                            "mode" : "same-origin",
+                            "credentials" : "include",
+                            "cache" : "no-cache",
+                            "redirect" : "error",
+                            "integrity" : "Request's Integrity",
+                            "headers" : headers,
+                            "body" : "Request's body"
+      };
+
+      var expectedInitialized = {"method" : "POST",
+                                 "referrer" : "http://{{host}}:{{ports[http][0]}}/",
+                                 "referrerPolicy" : "origin",
+                                 "mode" : "same-origin",
+                                 "credentials" : "include",
+                                 "cache" : "no-cache",
+                                 "redirect" : "error",
+                                 "integrity" : "Request's Integrity",
+                                 "headers" : headers,
+                                 "body" : "Request's body"
+      };
+
+      var expectedDefault = {"method" : "GET",
+                             "url" : location.href,
+                             "referrer" : "about:client",
+                             "referrerPolicy" : "",
+                             "mode" : "cors",
+                             "credentials" : "same-origin",
+                             "cache" : "default",
+                             "redirect" : "follow",
+                             "integrity" : "",
+                             "headers" : emptyHeaders
+      };
+
+      var requestDefault = new Request("");
+      var requestInitialized = new Request("", initValuesDict);
+
+      test(function() {
+        var requestToCheck = new Request(requestInitialized);
+        checkRequest(requestToCheck, expectedInitialized);
+      }, "Check request values when initialized from Request");
+
+      test(function() {
+        var requestToCheck = new Request(requestDefault, initValuesDict);
+        checkRequest(requestToCheck, expectedInitialized);
+      }, "Check request values when initialized from Request and init values");
+
+      test(function() {
+        var url = "http://url.test:1234/path/subpath?query=true";
+        url += "#fragment";
+        expectedDefault["url"] = url;
+        var requestToCheck = new Request(url);
+        checkRequest(requestToCheck, expectedDefault);
+      }, "Check request values when initialized from url string");
+
+      test(function() {
+        var url = "http://url.test:1234/path/subpath?query=true";
+        url += "#fragment";
+        expectedInitialized["url"] = url;
+        var requestToCheck = new Request(url , initValuesDict);
+        checkRequest(requestToCheck, expectedInitialized);
+      }, "Check request values when initialized from url and init values");
+    </script>
+  </body>
+</html>

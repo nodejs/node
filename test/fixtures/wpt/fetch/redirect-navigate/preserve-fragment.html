@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Ensure fragment is kept across redirects</title>
+    <meta name="timeout" content="long">
+    <link rel=help href="https://www.w3.org/TR/cuap/#uri">
+    <link rel=help href="https://tools.ietf.org/html/rfc7231#section-7.1.2">
+    <link rel=help href="https://bugs.webkit.org/show_bug.cgi?id=158420">
+    <link rel=help href="https://bugs.webkit.org/show_bug.cgi?id=24175">
+    <script src="/common/get-host-info.sub.js"></script>
+    <script src="/resources/testharness.js"></script>
+    <script src="/resources/testharnessreport.js"></script>
+    <script>
+      let frame;
+      let message;
+
+      const HTTP_SAME_ORIGIN = "HTTP - SameOrigin";
+      const HTTPS_SAME_ORIGIN = "HTTPS - SameOrigin";
+      const HTTP_CROSS_ORIGIN = "HTTP - CrossOrigin";
+      const HTTPS_CROSS_ORIGIN = "HTTPS - CrossOrigin";
+
+      function messageReceived(f) {
+        return new Promise((resolve) => {
+          window.addEventListener("message", (e) => {
+            message = e.data;
+            resolve();
+          }, {once: true});
+          f();
+        });
+      }
+
+      function getHostname(navigation_type) {
+        switch (navigation_type) {
+          case HTTP_SAME_ORIGIN:
+            return get_host_info().HTTP_ORIGIN;
+          case HTTPS_SAME_ORIGIN:
+            return get_host_info().HTTPS_ORIGIN
+          case HTTP_CROSS_ORIGIN:
+            return get_host_info().HTTP_REMOTE_ORIGIN
+          case HTTPS_CROSS_ORIGIN:
+            return get_host_info().HTTPS_REMOTE_ORIGIN
+        }
+
+        return 'nonexistent'
+      }
+
+      // Turns |path| from a relative to this file path into a full URL, with
+      // the host being determined by one of the ORIGIN strings above.
+      function relativePathToFull(path,  navigation_type) {
+        let host = getHostname(navigation_type);
+
+        const pathname = window.location.pathname;
+        const base_path = pathname.substring(0, pathname.lastIndexOf('/') + 1);
+
+        return host + base_path + path;
+      }
+
+      // Constructs a URL to redirect.py which will respond with the given
+      // redirect status |code| to the provided |to_url|. Optionally adds on a
+      // |fragment|, if provided, to use in the initial request to redirect.py
+      function buildRedirectUrl(to_url, code, fragment) {
+        to_url = encodeURIComponent(to_url);
+        let dest = `/common/redirect.py?status=${code}&location=${to_url}`;
+        if (fragment)
+          dest = dest + '#' + fragment;
+        return dest;
+      }
+
+      async function redirectTo(url, code, navigation_type, fragment) {
+        const dest = buildRedirectUrl(url, code, fragment);
+        await messageReceived( () => {
+          frame.contentWindow.location = getHostname(navigation_type) + dest;
+        });
+      }
+
+      async function doubleRedirectTo(url, code, navigation_type, fragment, intermediate_fragment) {
+        const second_redirection = buildRedirectUrl(url, code, intermediate_fragment);
+        const first_redirection = buildRedirectUrl(second_redirection, code, fragment);
+        await messageReceived( () => {
+          frame.contentWindow.location = getHostname(navigation_type) + first_redirection;
+        });
+      }
+
+      onload = () => {
+        frame = document.getElementById("frame");
+
+        // The tests in this file verify fragments are correctly propagated in
+        // a number of HTTP redirect scenarios. Each test is run for every
+        // relevant redirect status code. We also run each scenario under each
+        // combination of navigating to cross/same origin and using http/https.
+        const status_codes = [301, 302, 303, 307, 308];
+        const navigation_types = [HTTP_SAME_ORIGIN,
+                                  HTTPS_SAME_ORIGIN,
+                                  HTTP_CROSS_ORIGIN,
+                                  HTTPS_CROSS_ORIGIN];
+
+        for (let navigation_type of navigation_types) {
+          // Navigate to a URL with a fragment. The URL redirects to a different
+          // page. Ensure we land on the redirected page with the fragment
+          // specified in the initial navigation's URL.
+          //
+          // Redirect chain: urlA#target -> urlB
+          //
+          for (let code of status_codes) {
+            promise_test(async () => {
+              const to_url = relativePathToFull('resources/destination.html', navigation_type);
+              await redirectTo(to_url, code, navigation_type, "target");
+              assert_true(message.url.endsWith('#target'));
+              assert_equals(message.scrollY, 2000, "scrolls to fragment from initial navigation.");
+            }, `[${navigation_type}] Preserve fragment in ${code} redirect`);
+          }
+
+          // Navigate to a URL with a fragment. The URL redirects to a different
+          // URL that also contains a fragment. Ensure we land on the redirected
+          // page using the fragment specified in the redirect response and not
+          // the one in the initial navigation.
+          //
+          // Redirect chain: urlA#target -> urlB#fromRedirect
+          //
+          for (let code of status_codes) {
+            promise_test(async () => {
+              const to_url = relativePathToFull('resources/destination.html#fromRedirect', navigation_type);
+              await redirectTo(to_url, code, navigation_type, "target");
+              assert_true(message.url.endsWith('#fromRedirect'), `Unexpected fragment: ${message.url}`);
+              assert_equals(message.scrollY, 4000, "scrolls to fragment from redirect.");
+            }, `[${navigation_type}] Redirect URL fragment takes precedence in ${code} redirect`);
+          }
+
+          // Perform two redirects. The initial navigation has a fragment and
+          // will redirect to a URL that also responds with a redirect. Ensure we
+          // land on the final page with the fragment from the original
+          // navigation.
+          //
+          // Redirect chain: urlA#target -> urlB -> urlC
+          //
+          for (let code of status_codes) {
+            promise_test(async () => {
+              const to_url = relativePathToFull('resources/destination.html', navigation_type);
+              await doubleRedirectTo(to_url, code, navigation_type, "target");
+              assert_true(message.url.endsWith('#target'), `Unexpected fragment: ${message.url}`);
+              assert_equals(message.scrollY, 2000, "scrolls to fragment from initial navigation.");
+            }, `[${navigation_type}] Preserve fragment in multiple ${code} redirects`);
+          }
+
+          // Perform two redirects. The initial navigation has a fragment and
+          // will redirect to a URL that also responds with a redirect. The
+          // second redirection to the final page also has a fragment. Ensure we
+          // land on the final page with the fragment from the redirection
+          // response URL.
+          //
+          // Redirect chain: urlA#target -> urlB -> urlC#fromRedirect
+          //
+          for (let code of status_codes) {
+            promise_test(async () => {
+              const to_url = relativePathToFull('resources/destination.html#fromRedirect', navigation_type);
+              await doubleRedirectTo(to_url, code, navigation_type, "target");
+              assert_true(message.url.endsWith('#fromRedirect'), `Unexpected fragment: ${message.url}`);
+              assert_equals(message.scrollY, 4000, "scrolls to fragment from redirect.");
+            }, `[${navigation_type}] Destination URL fragment takes precedence in multiple ${code} redirects`);
+          }
+
+          // Perform two redirects. The initial navigation has a fragment and
+          // will redirect to a URL that also responds with a redirect. This
+          // time, both redirect response have a fragment. Ensure we land on the
+          // final page with the fragment from the last redirection response URL.
+          //
+          // Redirect chain: urlA#target -> urlB#intermediate -> urlC#fromRedirect
+          //
+          for (let code of status_codes) {
+            promise_test(async () => {
+              const to_url = relativePathToFull('resources/destination.html#fromRedirect', navigation_type);
+              await doubleRedirectTo(to_url, code, navigation_type, "target", "intermediate");
+              assert_true(message.url.endsWith('#fromRedirect'), `Unexpected fragment: ${message.url}`);
+              assert_equals(message.scrollY, 4000, "scrolls to fragment from redirect.");
+            }, `[${navigation_type}] Final redirect fragment takes precedence over intermediate in multiple ${code} redirects`);
+          }
+
+          // Perform two redirects. The initial navigation has a fragment and
+          // will redirect to a URL that also responds with a redirect. The first
+          // redirect response has a fragment but the second doesn't. Ensure we
+          // land on the final page with the fragment from the first redirection
+          // response URL.
+          //
+          // Redirect chain: urlA#target -> urlB#fromRedirect -> urlC
+          //
+          for (let code of status_codes) {
+            promise_test(async () => {
+              const to_url = relativePathToFull('resources/destination.html', navigation_type);
+              await doubleRedirectTo(to_url, code, navigation_type, "target", "fromRedirect");
+              assert_true(message.url.endsWith('#fromRedirect'), `Unexpected fragment: ${message.url}`);
+              assert_equals(message.scrollY, 4000, "scrolls to fragment from redirect.");
+            }, `[${navigation_type}] Preserve intermediate fragment in multiple ${code} redirects`);
+          }
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <iframe id="frame" src=""></iframe>
+  </body>
+</html>

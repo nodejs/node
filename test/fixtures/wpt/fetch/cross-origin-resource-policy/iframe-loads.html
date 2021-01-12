@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="/resources/testharness.js"></script>
+    <script src="/resources/testharnessreport.js"></script>
+    <script src="/common/get-host-info.sub.js"></script>
+</head>
+<body>
+    <script>
+const host = get_host_info();
+const remoteBaseURL = host.HTTP_REMOTE_ORIGIN + window.location.pathname.replace(/\/[^\/]*$/, '/') ;
+const localBaseURL = host.HTTP_ORIGIN + window.location.pathname.replace(/\/[^\/]*$/, '/') ;
+
+function with_iframe(url) {
+  return new Promise(function(resolve) {
+      var frame = document.createElement('iframe');
+      frame.src = url;
+      frame.onload = function() { resolve(frame); };
+      document.body.appendChild(frame);
+    });
+}
+
+promise_test(async() => {
+    const url = remoteBaseURL + "resources/iframe.py?corp=same-origin";
+
+    await new Promise((resolve, reject) => {
+        return fetch(url, { mode: "no-cors" }).then(reject, resolve);
+    });
+
+    const iframe = await with_iframe(url);
+    return new Promise((resolve, reject) => {
+        window.addEventListener("message", (event) => {
+            if (event.data !== "pong") {
+                reject(event.data);
+                return;
+            }
+            resolve();
+        }, false);
+        iframe.contentWindow.postMessage("ping", "*");
+    }).finally(() => {
+        iframe.remove();
+    });
+}, "Load an iframe that has Cross-Origin-Resource-Policy header");
+    </script>
+</body>
+</html>

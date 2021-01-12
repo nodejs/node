@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<meta charset="utf-8">
+<script src="/common/utils.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script>
+const TOKEN = token();
+const {
+  HTTP_NOTSAMESITE_ORIGIN,
+  HTTP_REMOTE_ORIGIN,
+  HTTP_REMOTE_ORIGIN_WITH_DIFFERENT_PORT
+} = get_host_info();
+const REDIRECT_DESTINATION =
+  `${HTTP_REMOTE_ORIGIN_WITH_DIFFERENT_PORT}/fetch/api/resources/stash-put.py` +
+  `?key=${TOKEN}&value=on`;
+const URL =
+    `${HTTP_REMOTE_ORIGIN}/fetch/api/resources/redirect.py?` +
+    `delay=500&` +
+    `allow_headers=foo&` +
+    `location=${encodeURIComponent(REDIRECT_DESTINATION)}`;
+
+addEventListener('load', () => {
+  const iframe = document.createElement('iframe');
+  document.body.appendChild(iframe);
+  iframe.contentWindow.addEventListener('unload', () => {
+    iframe.contentWindow.fetch(URL, {keepalive: true, headers: {foo: 'bar'}});
+  });
+
+  window.opener.postMessage(TOKEN, '*');
+  // Do NOT remove `iframe` here. We want to check the case where the nested
+  // frame is implicitly closed by window closure.
+});
+</script>
+</html>

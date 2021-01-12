@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/resources/testdriver.js></script>
+<script src=/resources/testdriver-vendor.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+<script src=/common/utils.js></script>
+<body>
+<script>
+  // The test
+  // 1. Creates a same-origin iframe
+  // 2. Adds to the iframe an unload handler that will
+  //    trigger a request to <unload_request_url>/.../record-header.py...
+  // 3. Navigate the iframe to a cross-origin url (to data: url)
+  // 4. Waits until the request goes through
+  // 5. Verifies Sec-Fetch-Site request header of the request.
+  //
+  // This is a regression test for https://crbug.com/986577.
+  function create_test(unload_request_origin, expectations) {
+    async_test(t => {
+      // STEP 1: Create an iframe.
+      let nonce = token();
+      let key = "unload-test-" + nonce;
+      let url = unload_request_origin +
+          "/fetch/metadata/resources/record-header.py?file=" + key;
+      let i = document.createElement('iframe');
+      i.src = 'resources/unload-with-beacon.html';
+      i.onload = () => {
+          // STEP 2: Ask the iframe to add an unload handler.
+          i.contentWindow.postMessage(url, '*');
+      };
+      window.addEventListener('message', e => {
+          // STEP 3: Navigate the iframe away
+          i.contentWindow.location = 'data:text/html,DONE';
+      });
+      document.body.appendChild(i);
+
+      // STEPS 4 and 5: Wait for the beacon to go through and verify
+      // the request headers.
+      function wait_and_verify() {
+          t.step_timeout(() => {
+              fetch("resources/record-header.py?retrieve=true&file=" + key)
+                  .then(response => response.text())
+                  .then(text => t.step(() => {
+                      if (text == 'No header has been recorded') {
+                        wait_and_verify();
+                        return;
+                      }
+                      assert_header_equals(text, expectations);
+                      t.done();
+                  }))
+          }, 200);
+      }
+      wait_and_verify();
+    }, "Fetch from an unload handler");
+  }
+
+  create_test("https://{{host}}:{{ports[https][0]}}", {
+    "site": "same-origin",
+    "user": "",
+    "mode": "no-cors",
+    "dest": "empty"
+  });
+</script>

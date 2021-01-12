@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>HTTP Cache - helper</title>
+  <meta name="help" href="https://fetch.spec.whatwg.org/#http-cache-partitions">
+  <meta name="timeout" content="normal">
+  <script src="/resources/testharness.js"></script>
+  <script src="../http-cache.js"></script>
+</head>
+<body>
+<script>
+   window.addEventListener("message", function listener(event) {
+      window.removeEventListener("message", listener)
+
+      var fetchFunction = makeFetchFunctions(event.data.requests, event.data.uuid)[event.data.index]
+      fetchFunction.code(event.data.index).then(
+         function(response) {
+            event.source.postMessage("success", event.origin)
+         },
+         function(response) {
+            event.source.postMessage("error", event.origin)
+         }
+      )
+   })
+</script>
+</body>
+</html>

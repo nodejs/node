@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+<body>
+<script>
+  async_test(t => {
+    let i = document.createElement('iframe');
+    i.src = "http://{{host}}:{{ports[http][0]}}/fetch/metadata/resources/post-to-owner.py";
+    window.addEventListener('message', t.step_func(e => {
+      if (e.source != i.contentWindow)
+        return;
+
+      assert_header_equals(e.data, {
+        "site": "",
+        "user": "",
+        "mode": "",
+        "dest": ""
+      }, "Non-secure same-origin iframe => No headers");
+      t.done();
+    }));
+
+    document.body.appendChild(i);
+  }, "Non-secure same-origin iframe => No headers");
+
+  async_test(t => {
+    let i = document.createElement('iframe');
+    i.src = "http://{{hosts[][www]}}:{{ports[http][0]}}/fetch/metadata/resources/post-to-owner.py";
+    window.addEventListener('message', t.step_func(e => {
+      if (e.source != i.contentWindow)
+        return;
+
+      assert_header_equals(e.data, {
+        "site": "",
+        "user": "",
+        "mode": "",
+        "dest": ""
+      }, "Non-secure same-site iframe => No headers");
+      t.done();
+    }));
+
+    document.body.appendChild(i);
+  }, "Non-secure same-site iframe => No headers");
+
+  async_test(t => {
+    let i = document.createElement('iframe');
+    i.src = "http://{{hosts[alt][www]}}:{{ports[http][0]}}/fetch/metadata/resources/post-to-owner.py";
+    window.addEventListener('message', t.step_func(e => {
+      if (e.source != i.contentWindow)
+        return;
+
+      assert_header_equals(e.data, {
+        "site": "",
+        "user": "",
+        "mode": "",
+        "dest": ""
+      }, "Non-secure cross-site iframe => No headers.");
+      t.done();
+    }));
+
+    document.body.appendChild(i);
+  }, "Non-secure cross-site iframe => No headers.");
+
+  async_test(t => {
+    let i = document.createElement('iframe');
+    i.src = "https://{{host}}:{{ports[https][0]}}/fetch/metadata/resources/post-to-owner.py";
+    window.addEventListener('message', t.step_func(e => {
+      if (e.source != i.contentWindow)
+        return;
+
+      assert_header_equals(e.data, {
+        "site": "cross-site",
+        "user": "",
+        "mode": "navigate",
+        "dest": "iframe"
+      }, "Secure, cross-site (cross-scheme, same-host) iframe");
+      t.done();
+    }));
+
+    document.body.appendChild(i);
+  }, "Secure, cross-site (cross-scheme, same-host) iframe");
+</script>

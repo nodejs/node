@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+<script>
+
+// Test that correct `Sec-Fetch-Site` (and other `Sec-Fetch-...` request
+/// headers) are used in navigations triggered by |history.back()|.
+function add_test(description, report_host, go_back_host, expectations) {
+  async_test(t => {
+    // STEP1: Navigate a new window to report_host/post-to-owner-onload.py
+    const url_suffix = '/fetch/metadata/resources/post-to-owner-onload.py';
+    const url = `https://${report_host}${url_suffix}`;
+    const w = window.open(url, '_blank');
+
+    var msg_counter = 0;
+    window.addEventListener('message', t.step_func(e => {
+      if (e.source != w)
+        return;
+      msg_counter = msg_counter + 1;
+      if (msg_counter == 1) {
+        // STEP2: Verify the headers (this is a sanity check that the same
+        // headers are used here and in STEP5).
+        assert_header_equals(e.data, expectations, description + " 1");
+
+        // STEP3: Go to go_back_host/go-back.html
+        const url_suffix = '/fetch/metadata/resources/go-back.html';
+        const url = `https://${go_back_host}${url_suffix}`;
+        w.location = url;
+
+        // STEP4 (elsewhere - inside go-back.html): Call history.back().
+      } else if (msg_counter == 2) {
+        // STEP5: Verify the headers (this is the main verification and focus
+        // of the test).
+        assert_header_equals(e.data, expectations, description + " 2");
+
+        // STEP6: Finish the test.
+        t.done();
+      }
+    }));
+  }, description);
+}
+
+const same_origin_host = "{{host}}:{{ports[https][0]}}";
+const same_site_host = "{{hosts[][www]}}:{{ports[https][0]}}";
+const cross_site_host = "{{hosts[alt][www]}}:{{ports[https][0]}}";
+
+add_test(
+  "back to same-origin-initiated navigation",
+  same_origin_host,  // report_host
+  cross_site_host,  // go_back_host
+  { "site": "same-origin",
+    "user": "",
+    "mode": "navigate",
+    "dest": "document"
+  });
+
+add_test(
+  "back to same-site-initiated navigation",
+  same_site_host,  // report_host
+  cross_site_host,  // go_back_host
+  { "site": "same-site",
+    "user": "",
+    "mode": "navigate",
+    "dest": "document"
+  });
+
+add_test(
+  "back to cross-site-initiated navigation",
+  cross_site_host,  // report_host
+  cross_site_host,  // go_back_host
+  { "site": "cross-site",
+    "user": "",
+    "mode": "navigate",
+    "dest": "document"
+  });
+
+</script>

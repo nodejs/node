@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet href="https://{{host}}:{{ports[https][0]}}/fetch/metadata/resources/record-header.py?file=xslt-same-origin{{GET[token]}}" type="text/xsl" ?>
+<!-- Only testing same-origin XSLT because same-site and cross-site XSLT is blocked. -->
+
+<!-- postMessage parent back when the resources are loaded -->
+<script xmlns="http://www.w3.org/1999/xhtml"><![CDATA[
+  setTimeout(function(){
+    if (window.opener)
+        window.opener.postMessage("", "*");
+    if (window.top != window)
+        window.top.postMessage("", "*");}, 100);
+]]></script>

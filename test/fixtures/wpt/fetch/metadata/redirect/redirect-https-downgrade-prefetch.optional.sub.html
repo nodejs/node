@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+<script src=/fetch/metadata/resources/redirectTestHelper.sub.js></script>
+<body>
+<script>
+  "use strict";
+  let nonce = "{{uuid()}}";
+  let expected = {"site": "", "user": "", "mode": "", "dest": ""};
+
+  testPrefetch(nonce, "Https downgrade", downgradeRedirectTo, expected);
+</script>
+</body>

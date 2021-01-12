@@ -1,0 +1,8 @@
+<script>
+  window.addEventListener("message", function (event) {
+    fetch(event.data)
+        .then(response => {parent.postMessage("success", "*")})
+        .catch(error => {parent.postMessage("failure", "*")});
+  });
+</script>
+

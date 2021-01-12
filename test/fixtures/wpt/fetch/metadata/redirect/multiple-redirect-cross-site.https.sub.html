@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+
+<link rel="author" href="mtrzos@google.com" title="Maciek Trzos">
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+<script src=/common/utils.js></script>
+<body></body>
+<script>
+  let nonce = token();
+
+  promise_test(t => {
+    return new Promise((resolve, reject) => {
+      let key = "redirect-multiple-cross-site" + nonce;
+
+      let e = document.createElement('img');
+      e.src = "https://{{host}}:{{ports[https][0]}}/xhr/resources/redirect.py?location=" +// same-origin
+      "https://{{hosts[alt][www]}}:{{ports[https][0]}}/xhr/resources/redirect.py?location=" +// cross-site
+      "https://{{host}}:{{ports[https][0]}}/fetch/metadata/resources/record-header.py?file=" + key;// same-origin
+      let expected = {"site":"cross-site", "user":"", "mode": "no-cors", "dest": "image"};
+
+      e.onload = e => {
+        validate_expectations(key, expected, "Same-Origin -> Cross-Site -> Same-Origin redirect")
+          .then(_ => resolve())
+          .catch(e => reject(e));
+      };
+      e.onerror = e => {
+        validate_expectations(key, expected, "Same-Origin -> Cross-Site -> Same-Origin redirect")
+          .then(_ => resolve())
+          .catch(e => reject(e));
+      };
+
+      document.body.appendChild(e);
+    })
+  }, "Same-Origin -> Cross-Site -> Same-Origin redirect");
+</script>

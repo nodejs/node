@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<!-- Test verifies CORB will block responses beginning with a JSON parser
+  breaker regardless of their MIME type (excluding text/css - see below).
+
+  A JSON parser breaker is a prefix added to resources with sensitive data to
+  prevent cross-site script inclusion (XSSI) and similar attacks.  For example,
+  it may be included in JSON files to prevent them from leaking data via a
+  <script> tag, making the response only useful to a fetch or XmlHttpRequest.
+  See also https://chromium.googlesource.com/chromium/src/+/master/services/network/cross_origin_read_blocking_explainer.md#Protecting-JSON
+
+  The assumption is that all images, other media, scripts, fonts and other
+  resources that may be embedded cross-origin will never begin with a JSON
+  parser breaker.  For example an JPEG image should always being with FF D8 FF,
+  a PNG image with 89 50 4E 47 0D 0A 1A 0A bytes and an SVG image with "<?xml"
+  substring.
+
+  The assumption above excludes text/css which (as shown by
+  style-css-with-json-parser-breaker.sub.html) can parse as valid stylesheet
+  even in presence of a JSON parser breaker.
+-->
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+setup({allow_uncaught_exception : true});
+
+// A subset of JSON security prefixes (only ones that are parser breakers).
+json_parser_breakers = [
+  ")]}'",
+  "{}&&",
+  "{} &&",
+]
+
+// JSON parser breaker should trigger CORB blocking for any Content-Type - even
+// for resources that claim to be of a MIME type that is normally allowed to be
+// embedded in cross-origin documents (like images and/or scripts).
+mime_types = [
+  // CORB-protected MIME types
+  "text/html",
+  "text/xml",
+  "text/json",
+  "text/plain",
+
+  // MIME types that normally are allowed by CORB.
+  "application/javascript",
+  "image/png",
+  "image/svg+xml",
+
+  // Other types.
+  "application/pdf",
+  "application/zip",
+]
+
+function test(mime_type, body) {
+  // The test below depends on a global/shared event handler - we need to ensure
+  // that no tests run in parallel - this is achieved by using `promise_test`
+  // instead of `async_test`.  See also
+  // https://web-platform-tests.org/writing-tests/testharness-api.html#promise-tests
+  promise_test(t => new Promise(function(resolve, reject) {
+    var script = document.createElement("script")
+
+    // Without CORB, the JSON parser breaker would cause a syntax error when
+    // parsed as JavaScript, but with CORB there should be no errors (because
+    // CORB will replace the response body with an empty body).
+    script.onload = resolve;
+    addEventListener("error", t.unreached_func(
+        "Empty body of a CORS-blocked response shouldn't trigger syntax errors."))
+
+    // www1 is cross-origin, so the HTTP response is CORB-eligible.
+    var src_prefix = "http://{{domains[www1]}}:{{ports[http][0]}}/fetch/corb/resources/sniffable-resource.py";
+    script.src = src_prefix + "?type=" + mime_type + "&body=" + encodeURIComponent(body);
+    document.body.appendChild(script)
+  }), "CORB-blocks '" + mime_type + "' that starts with the following JSON parser breaker: " + body);
+}
+
+mime_types.forEach(function(type) {
+    json_parser_breakers.forEach(function(body) {
+        test(type, body);
+    });
+});
+
+</script>

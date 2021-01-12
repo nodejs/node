@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Tests Stale While Revalidate works for css</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/utils.js"></script>
+<body>
+<script>
+
+var request_token = token();
+let link_src = "./resources/stale-css.py?token=" + request_token;
+
+let loadLink = async() => {
+  let link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.type = "text/css";
+  link.href = "resources/stale-css.py?token=" + request_token;
+  let loaded = new Promise(r => link.onload = r);
+  document.body.appendChild(link);
+  await loaded;
+  return window
+    .getComputedStyle(document.body)
+    .getPropertyValue('background-color');
+};
+
+promise_test(async t => {
+  await new Promise(r => window.onload = r);
+
+  let bgColor1 = await loadLink();
+  assert_equals(bgColor1, "rgb(0, 128, 0)", "(initial version loaded)");
+
+  let bgColor2 = await loadLink();
+  assert_equals(bgColor2, "rgb(0, 128, 0)", "(stale version loaded)");
+
+  // Query the server again and again. At some point it must have received the
+  // revalidation request. We poll, because we don't know when the revalidation
+  // will occur.
+  while(true) {
+    await new Promise(r => step_timeout(r, 25));
+    let response = await fetch(link_src + "&query");
+    let count = response.headers.get("Count");
+    if (count == '2')
+      break;
+  }
+
+  let bgColor3 = await loadLink();
+  assert_equals(bgColor3, "rgb(255, 0, 0)", "(revalidated version loaded)");
+}, 'Cache returns stale resource');
+
+</script>
+</body>

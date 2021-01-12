@@ -1,0 +1,28 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Load a no-cors image from a same-origin URL that redirects to a cross-origin URL that redirects to the initial origin</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script>
+setup({ single_test: true });
+var image = new Image();
+image.onload = function() {
+    const canvas = document.createElement("canvas");
+    canvas.width = 100;
+    canvas.height = 100;
+
+    const context = canvas.getContext("2d");
+    context.drawImage(image, 0, 0, 100, 100);
+
+    assert_throws_dom("SecurityError", () => {
+        context.getImageData(0, 0, 100, 100);
+    });
+    done();
+}
+
+const info = get_host_info();
+const finalURL = get_host_info().HTTP_ORIGIN + "/images/apng.png";
+const intermediateURL = get_host_info().HTTP_REMOTE_ORIGIN + "/fetch/api/resources/redirect.py?location=" + finalURL;
+image.src = "/fetch/api/resources/redirect.py?location=" + encodeURIComponent(intermediateURL);
+</script>

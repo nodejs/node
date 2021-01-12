@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="/resources/testharness.js"></script>
+    <script src="/resources/testharnessreport.js"></script>
+    <script src="/common/get-host-info.sub.js"></script>
+</head>
+<body>
+    <div id="testDiv"></div>
+    <script>
+const host = get_host_info();
+const notSameSiteBaseURL = host.HTTP_NOTSAMESITE_ORIGIN + window.location.pathname.replace(/\/[^\/]*$/, '/') ;
+const ok = true;
+const ko = false;
+const noCors = false;
+
+function loadImage(url, shoudLoad, corsMode, title)
+{
+    const testDiv = document.getElementById("testDiv");
+    promise_test(() => {
+        const img = new Image();
+        if (corsMode)
+            img.crossOrigin = corsMode;
+        img.src = url;
+        return new Promise((resolve, reject) => {
+            img.onload = shoudLoad ? resolve : reject;
+            img.onerror = shoudLoad ? reject : resolve;
+            testDiv.appendChild(img);
+        }).finally(() => {
+            testDiv.innerHTML = "";
+        });
+    }, title);
+}
+
+loadImage("./resources/image.py?corp=same-origin", ok, noCors,
+    "Same-origin image load with a 'Cross-Origin-Resource-Policy: same-origin' response header.");
+
+loadImage("./resources/image.py?corp=same-site", ok, noCors,
+    "Same-origin image load with a 'Cross-Origin-Resource-Policy: same-site' response header.");
+
+loadImage(notSameSiteBaseURL + "resources/image.py?corp=same-origin&acao=*", ok, "anonymous",
+    "Cross-origin cors image load with a 'Cross-Origin-Resource-Policy: same-origin' response header.");
+
+loadImage(notSameSiteBaseURL + "resources/image.py?corp=same-site&acao=*", ok, "anonymous",
+    "Cross-origin cors image load with a 'Cross-Origin-Resource-Policy: same-site' response header.");
+
+loadImage(notSameSiteBaseURL + "resources/image.py?corp=same-origin&acao=*", ko, noCors,
+    "Cross-origin no-cors image load with a 'Cross-Origin-Resource-Policy: same-origin' response header.");
+
+loadImage(notSameSiteBaseURL + "resources/image.py?corp=same-site&acao=*", ko, noCors,
+    "Cross-origin no-cors image load with a 'Cross-Origin-Resource-Policy: same-site' response header.");
+    </script>
+</body>
+</html>

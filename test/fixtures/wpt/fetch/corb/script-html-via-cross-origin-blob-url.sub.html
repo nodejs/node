@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<!-- Test verifies that cross-origin blob URIs are blocked both with and
+  without CORB.
+-->
+<meta charset="utf-8">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+async_test(function(t) {
+  function step1_createSubframe() {
+    addEventListener("message", function(e) {
+      t.step(function() { step2_processSubframeMsg(e.data); })
+    });
+    var subframe = document.createElement("iframe")
+    // www1 is cross-origin, to ensure that the received blob will be cross-origin.
+    subframe.src = 'http://{{domains[www1]}}:{{ports[http][0]}}/fetch/corb/resources/subframe-that-posts-html-containing-blob-url-to-parent.html';
+    document.body.appendChild(subframe);
+  }
+
+  function step2_processSubframeMsg(msg) {
+    assert_false(msg.hasOwnProperty('error'), 'unexpected property found: "error"');
+    assert_equals(msg.blob_type, 'text/html');
+    assert_equals(msg.blob_size, 147);
+
+    // With and without CORB loading of a cross-origin blob should be blocked
+    // (this is verified by expecting |script.onerror|, but not |script.onload|
+    // below).
+    var script = document.createElement("script")
+    script.src = msg.blob_url;
+    script.onerror = t.step_func_done(function(){})
+    script.onload = t.unreached_func("Unexpected load event")
+    document.body.appendChild(script)
+  }
+
+  step1_createSubframe();
+});
+</script>

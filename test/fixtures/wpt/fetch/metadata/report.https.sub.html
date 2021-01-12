@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<link rel="author" href="mtrzos@google.com" title="Maciek Trzos">
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+
+<!-- The hostname here is unimportant, so long as it doesn't match 'self'. -->
+<link id="style" href="https://{{hosts[alt][élève]}}:{{ports[https][0]}}/css/support/a-green.css" rel="stylesheet">
+
+<body></body>
+<script>
+  setup({ explicit_done: true });
+  function generate_test(expected, name) {
+    async_test(t => {
+      t.step_timeout(_ => {
+        return validate_expectations("report-" + name, expected, name + " report")
+            .then(_ => t.done());
+      }, 1000);
+    }, name + " report");
+  }
+
+  let counter = 0;
+  document.addEventListener("securitypolicyviolation", (e) => {
+    counter++;
+    if (counter == 3) {
+      generate_test({"site":"same-origin", "user":"", "mode": "no-cors", "dest": "report"}, "same-origin");
+      generate_test({"site":"same-site", "user":"", "mode": "no-cors", "dest": "report"}, "same-site");
+      generate_test({"site":"cross-site", "user":"", "mode": "no-cors", "dest": "report"}, "cross-site");
+
+      done();
+    }
+  });
+</script>

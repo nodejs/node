@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<!-- Test verifies that CORB blocks an image mislabeled as text/html if
+  sniffing is disabled via `X-Content-Type-Options: nosniff` response header.
+  This has an observable effect (the image stops rendering), compared to the
+  behavior with no CORB.
+-->
+<meta charset="utf-8">
+<!-- Reference page uses same-origin resources, which are not CORB-eligible. -->
+<link rel="match" href="img-png-mislabeled-as-html-nosniff.tentative.sub-ref.html">
+<!-- www1 is cross-origin, so the HTTP response is CORB-eligible -->
+<img src="http://{{domains[www1]}}:{{ports[http][0]}}/fetch/corb/resources/png-mislabeled-as-html-nosniff.png">

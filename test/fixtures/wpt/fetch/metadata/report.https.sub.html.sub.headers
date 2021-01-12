@@ -1,0 +1,3 @@
+Content-Security-Policy: style-src 'self' 'unsafe-inline'; report-uri /fetch/metadata/resources/record-header.py?file=report-same-origin
+Content-Security-Policy: style-src 'self' 'unsafe-inline'; report-uri https://{{hosts[][www]}}:{{ports[https][0]}}/fetch/metadata/resources/record-header.py?file=report-same-site
+Content-Security-Policy: style-src 'self' 'unsafe-inline'; report-uri https://{{hosts[alt][www]}}:{{ports[https][0]}}/fetch/metadata/resources/record-header.py?file=report-cross-site

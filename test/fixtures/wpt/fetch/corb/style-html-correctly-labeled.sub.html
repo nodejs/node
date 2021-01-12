@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<!-- Test verifies that using a HTML document as a stylesheet has no observable
+  differences with and without CORB:
+  - The cross-origin stylesheet requires a correct text/css Content-Type
+    and therefore won't render even without CORB.  This aspect of this test
+    is similar to the style-css-mislabeled-as-html.sub.html test.
+  - Even if the Content-Type requirements were relaxed for cross-origin stylesheets,
+    the HTML document is unlikely to parse as a stylesheet (unless a polyglot
+    HTML/CSS document is crafted as part of an attack) and therefore the
+    observable behavior should be indistinguishable from parsing the empty,
+    CORB-blocked response as a stylesheet.
+-->
+<meta charset="utf-8">
+<title>CSS is not applied (because of mismatched Content-Type header)</title>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+
+<!-- Default style that will be applied if the external stylesheet resource
+  below won't load for any reason.  This stylesheet will set h1's
+  color to green (see |default_color| below). -->
+<style>
+h1 { color: green; }
+</style>
+
+<!-- This is not really a stylesheet... -->
+<!-- www1 is cross-origin, so the HTTP response is CORB-eligible -->
+<link rel="stylesheet" type="text/css"
+      href="http://{{domains[www1]}}:{{ports[http][0]}}/fetch/corb/resources/html-correctly-labeled.html">
+
+<body>
+  <h1 id="header">Header example</h1>
+  <p>Paragraph body</p>
+</body>
+
+<script>
+test(() => {
+  var style = getComputedStyle(document.getElementById('header'));
+  const default_color = 'rgb(0, 128, 0)';  // green
+  assert_equals(style.getPropertyValue('color'), default_color);
+});
+</script>

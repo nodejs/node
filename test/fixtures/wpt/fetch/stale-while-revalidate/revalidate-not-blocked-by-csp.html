@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Test revalidations requests aren't blocked by CSP.</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/utils.js"></script>
+<body>
+<script>
+
+// Regression test for https://crbug.com/1070117.
+var request_token = token();
+let image_src = "resources/stale-image.py?token=" + request_token;
+
+let loadImage = async () => {
+  let img = document.createElement("img");
+  img.src = image_src;
+  let loaded = new Promise(r => img.onload = r);
+  document.body.appendChild(img);
+  await loaded;
+  return img;
+};
+
+promise_test(async t => {
+  await new Promise(r => window.onload = r);
+
+  // No CSP report must be sent from now.
+  //
+  // TODO(arthursonzogni): Some browser implementations do not support the
+  // ReportingObserver yet. Ideally, another way to access the reports should be
+  // used to test them.
+  const observer = new ReportingObserver(t.unreached_func(
+    "CSP reports aren't sent for revalidation requests"));
+  if (observer)
+    observer.observe();
+
+  let img1 = await loadImage(); // Load initial resource.
+  let img2 = loadImage();       // Request stale resource.
+
+  // Insert a <meta> CSP. This will block any image load starting from now.
+  const metaCSP = document.createElement("meta");
+  metaCSP.httpEquiv = "Content-Security-Policy";
+  metaCSP.content = "img-src 'none'";
+  document.getElementsByTagName("head")[0].appendChild(metaCSP)
+
+  // The images were requested before the <meta> CSP above was added. So they
+  // will load. Nevertheless, the resource will be stale. A revalidation request
+  // is going to be made after that.
+  assert_equals(img1.width, 16, "(initial version loaded)");
+  assert_equals((await img2).width, 16, "(stale version loaded)");
+
+  // At some point, the <img> resource is going to be revalidated. It must not
+  // be blocked nor trigger a CSP violation report.
+
+  // Query the server again and again. At some point it must have received the
+  // revalidation request. We poll, because we don't know when the revalidation
+  // will occur.
+  while(true) {
+    await new Promise(r => step_timeout(r, 25));
+    let response = await fetch(image_src + "&query");
+    let count = response.headers.get("Count");
+    if (count == "2")
+      break;
+  }
+}, "Request revalidation aren't blocked by CSP");
+
+</script>
+</body>

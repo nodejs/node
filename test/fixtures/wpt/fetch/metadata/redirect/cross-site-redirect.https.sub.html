@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+
+<link rel="author" href="mtrzos@google.com" title="Maciek Trzos">
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+<script src=/common/utils.js></script>
+<body></body>
+<script>
+  let nonce = token();
+
+  promise_test(t => {
+    return new Promise((resolve, reject) => {
+      let key = "redirect-cross-site-same-origin" + nonce;
+
+      let e = document.createElement('img');
+      e.src = "https://{{hosts[alt][www]}}:{{ports[https][0]}}/xhr/resources/redirect.py?location=https://{{host}}:{{ports[https][0]}}/fetch/metadata/resources/record-header.py?file=" + key;
+      let expected = {"site":"cross-site", "user":"", "mode": "no-cors", "dest": "image"};
+      e.onload = e => {
+        validate_expectations(key, expected, "Cross-Site -> Same-Origin redirect")
+          .then(_ => resolve())
+          .catch(e => reject(e));
+      };
+      e.onerror = e => {
+        validate_expectations(key, expected, "Cross-Site -> Same-Origin redirect")
+          .then(_ => resolve())
+          .catch(e => reject(e));
+      };
+
+      document.body.appendChild(e);
+    })
+  }, "Cross-Site -> Same-Origin redirect");
+
+  promise_test(t => {
+    return new Promise((resolve, reject) => {
+      let key = "redirect-cross-site-same-site" + nonce;
+
+      let e = document.createElement('img');
+      e.src = "https://{{hosts[alt][www]}}:{{ports[https][0]}}/xhr/resources/redirect.py?location=https://{{hosts[][www]}}:{{ports[https][0]}}/fetch/metadata/resources/record-header.py?file=" + key;
+      let expected = {"site":"cross-site", "user":"", "mode": "no-cors", "dest": "image"};
+      e.onload = e => {
+        validate_expectations(key, expected, "Cross-Site -> Same-Site redirect")
+          .then(_ => resolve())
+          .catch(e => reject(e));
+      };
+      e.onerror = e => {
+        validate_expectations(key, expected, "Cross-Site -> Same-Site redirect")
+          .then(_ => resolve())
+          .catch(e => reject(e));
+      };
+
+      document.body.appendChild(e);
+    })
+  }, "Cross-Site -> Same-Site redirect");
+
+  promise_test(t => {
+    return new Promise((resolve, reject) => {
+      let key = "redirect-cross-site-cross-site" + nonce;
+
+      let e = document.createElement('img');
+      e.src = "https://{{hosts[alt][www]}}:{{ports[https][0]}}/xhr/resources/redirect.py?location=https://{{hosts[alt][www]}}:{{ports[https][0]}}/fetch/metadata/resources/record-header.py?file=" + key;
+      let expected = {"site":"cross-site", "user":"", "mode": "no-cors", "dest": "image"};
+      e.onload = e => {
+        validate_expectations(key, expected, "Cross-Site -> Cross-Site redirect")
+          .then(_ => resolve())
+          .catch(e => reject(e));
+      };
+      e.onerror = e => {
+        validate_expectations(key, expected, "Cross-Site -> Cross-Site redirect")
+          .then(_ => resolve())
+          .catch(e => reject(e));
+      };
+
+      document.body.appendChild(e);
+    })
+  }, "Cross-Site -> Cross-Site redirect");
+</script>

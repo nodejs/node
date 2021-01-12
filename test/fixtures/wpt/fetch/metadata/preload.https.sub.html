@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<meta name="timeout" content="long">
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+<script src=/common/utils.js></script>
+<body></body>
+<script>
+  test(t => {
+    assert_true(document.createElement('link').relList.supports('preload'));
+  }, "Browser supports preload.");
+
+  function create_test(host, as, expected) {
+    async_test(t => {
+      let nonce = token();
+      let key = as + nonce;
+
+      let e = document.createElement('link');
+      e.rel = "preload";
+      e.href = `https://${host}/fetch/metadata/resources/record-header.py?file=${key}`;
+      e.setAttribute("crossorigin", "crossorigin");
+      if (as !== undefined) {
+        e.setAttribute("as", as);
+      }
+      e.onload = e.onerror = t.step_func(e => {
+        fetch("/fetch/metadata/resources/record-header.py?retrieve=true&file=" + key)
+          .then(t.step_func(response => response.text()))
+          .then(t.step_func_done(text => assert_header_equals(text, expected, `preload ${as} ${host}`)))
+          .catch(t.unreached_func());
+      });
+
+      document.head.appendChild(e);
+    }, `<link rel='preload' as='${as}' href='https://${host}/...'>`);
+  }
+
+  let as_tests = [
+    [ "fetch", "empty" ],
+    [ "font", "font" ],
+    [ "image", "image" ],
+    [ "script", "script" ],
+    [ "style", "style" ],
+    [ "track", "track" ],
+  ];
+
+  as_tests.forEach(item => {
+    create_test("{{host}}:{{ports[https][0]}}", item[0], {"site":"same-origin", "user":"", "mode": "cors", "dest": item[1]});
+    create_test("{{hosts[][www]}}:{{ports[https][0]}}", item[0], {"site":"same-site", "user":"", "mode": "cors", "dest": item[1]});
+    create_test("{{hosts[alt][www]}}:{{ports[https][0]}}", item[0], {"site":"cross-site", "user":"", "mode": "cors", "dest": item[1]});
+  });
+</script>

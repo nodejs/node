@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/common/security-features/resources/common.sub.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+<body>
+<script>
+  // These tests reuse the `referrer-policy` infrastructure to load images that
+  // encode their request headers in their pixels. Fun stuff!
+  promise_test(() =>
+    requestViaImage(
+      "https://{{host}}:{{ports[https][0]}}/common/security-features/subresource/image.py")
+    .then(result => {
+        headers = result.headers;
+        got = {
+          "mode": headers["sec-fetch-mode"],
+          "site": headers["sec-fetch-site"],
+          "user": headers["sec-fetch-user"],
+          "dest": headers["sec-fetch-dest"]
+        };
+        assert_header_equals(got, {
+          "site": "same-origin",
+          // Note that we're using `undefined` here, as opposed to "" elsewhere because of the way
+          // that `image.py` encodes data.
+          "user": undefined,
+          "mode": "cors", // Because `loadImageInWindow` tacks on `crossorigin`
+          "dest": "image"
+        }, "Same-origin image");
+      }),
+    "Same-origin image");
+
+  promise_test(() =>
+    requestViaImage(
+      "https://{{hosts[][www]}}:{{ports[https][0]}}/common/security-features/subresource/image.py")
+    .then(result => {
+        headers = result.headers;
+        got = {
+          "mode": headers["sec-fetch-mode"],
+          "site": headers["sec-fetch-site"],
+          "user": headers["sec-fetch-user"],
+          "dest": headers["sec-fetch-dest"]
+        };
+        assert_header_equals(got, {
+          "site": "same-site",
+          // Note that we're using `undefined` here, as opposed to "" elsewhere because of the way
+          // that `image.py` encodes data.
+          "user": undefined,
+          "mode": "cors", // Because `loadImageInWindow` tacks on `crossorigin`
+          "dest": "image"
+        }, "Same-site image");
+      }),
+    "Same-site image");
+
+  promise_test(() =>
+    requestViaImage(
+      "https://{{hosts[alt][www]}}:{{ports[https][0]}}/common/security-features/subresource/image.py")
+    .then(result => {
+        headers = result.headers;
+        got = {
+          "mode": headers["sec-fetch-mode"],
+          "site": headers["sec-fetch-site"],
+          "user": headers["sec-fetch-user"],
+          "dest": headers["sec-fetch-dest"]
+        };
+        assert_header_equals(got, {
+          "site": "cross-site",
+          // Note that we're using `undefined` here, as opposed to "" elsewhere because of the way
+          // that `image.py` encodes data.
+          "user": undefined,
+          "mode": "cors", // Because `loadImageInWindow` tacks on `crossorigin`
+          "dest": "image"
+        }, "Cross-site image");
+      }),
+    "Cross-site image");
+</script>

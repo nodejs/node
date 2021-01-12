@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+<script>
+  // http -> https should see `Sec-Fetch-Site: cross-site`.
+  // This is a regression test for
+  // https://github.com/w3c/webappsec-fetch-metadata/issues/34
+  promise_test(t => {
+    assert_equals(location.protocol, "http:");
+    return validate_expectations_custom_url("https://{{host}}:{{ports[https][0]}}/fetch/metadata/resources/echo-as-json.py", {}, {
+            "site": "cross-site",
+            "user": "",
+            "mode": "cors",
+            "dest": "empty"
+          }, "http->https fetch (cross-scheme => cross-site)");
+  }, "http->https fetch (cross-scheme => cross-site)");
+
+  // http -> http should see no `Sec-Fetch-Site`.
+  promise_test(t => {
+    assert_equals(location.protocol, "http:");
+    return validate_expectations_custom_url("resources/echo-as-json.py", {}, {
+            "site": "",
+            "user": "",
+            "mode": "",
+            "dest": ""
+          }, "http->http fetch (non-trustworthy destination => no metadata)");
+  }, "http->http fetch (non-trustworthy destination => no metadata)");
+</script>

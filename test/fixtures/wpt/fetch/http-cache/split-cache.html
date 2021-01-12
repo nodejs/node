@@ -1,0 +1,142 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>HTTP Cache - Partioning by site</title>
+  <meta name="help" href="https://fetch.spec.whatwg.org/#http-cache-partitions">
+  <script src="/resources/testharness.js"></script>
+  <script src="/resources/testharnessreport.js"></script>
+  <script src="/common/utils.js"></script>
+  <script src="/common/get-host-info.sub.js"></script>
+  <script src="http-cache.js"></script>
+</head>
+<body>
+<script>
+const host = get_host_info();
+
+// We run this entire test four times, varying the following two booleans:
+// - is_cross_site_test, which controls whether the popup is cross-site.
+// - load_resource_in_iframe, which controls whether the popup loads the
+//     resource in an iframe or the top-level frame. Note that the iframe is
+//     always same-site to the opener.
+function performFullTest(is_cross_site_test, load_resource_in_iframe, name) {
+  const POPUP_HTTP_ORIGIN = is_cross_site_test ? host.HTTP_NOTSAMESITE_ORIGIN : host.HTTP_ORIGIN
+  const LOCAL_HTTP_ORIGIN = host.HTTP_ORIGIN
+
+  const popupBaseURL = POPUP_HTTP_ORIGIN + window.location.pathname.replace(/\/[^\/]*$/, '/') ;
+  const localBaseURL = LOCAL_HTTP_ORIGIN + window.location.pathname.replace(/\/[^\/]*$/, '/') ;
+
+  var test = {
+    requests: [
+      {
+        response_headers: [
+              ["Expires", (30 * 24 * 60 * 60)]
+            ],
+        base_url: localBaseURL
+      },
+      {
+        base_url: localBaseURL
+      },
+      {
+        request_headers: [
+          ["Cache-Control", "no-cache"]
+        ],
+        // If the popup's request was a cache hit, we would only expect 2
+        // requests to the server. If it was a cache miss, we would expect 3.
+        // load_resource_in_iframe does not affect the expectation as, even
+        // though the iframe (if present) is same-site, we expect a cache miss
+        // when the popup's top-level frame is a different site.
+        expected_response_headers: [
+          ["server-request-count", is_cross_site_test ? "3" : "2"]
+        ],
+        base_url: localBaseURL
+      }
+    ]
+  }
+
+  var uuid = token()
+  var local_requests = expandTemplates(test)
+  var fetchFns = makeFetchFunctions(local_requests, uuid)
+
+  var popup_requests = expandTemplates(test)
+
+  // Request the resource with a long cache expiry
+  function local_fetch() {
+    return fetchFns[0].code(0)
+  }
+
+  function popup_fetch() {
+    return new Promise(function(resolve, reject) {
+      var relativeUrl = load_resource_in_iframe
+          ? "resources/split-cache-popup-with-iframe.html"
+          : "resources/split-cache-popup.html";
+      var win = window.open(popupBaseURL + relativeUrl);
+
+      // Post a message to initiate the popup's request and give the necessary
+      // information. Posted repeatedly to account for dropped messages as the
+      // popup is loading.
+      function postMessage(event) {
+        var payload = {
+          index: 1,
+          requests: popup_requests,
+          uuid: uuid
+        }
+        win.postMessage(payload, POPUP_HTTP_ORIGIN)
+      }
+      var messagePoster = setInterval(postMessage, 100)
+
+      // Listen for the result
+      function messageListener(event) {
+        if (event.origin !== POPUP_HTTP_ORIGIN) {
+          reject("Unknown error")
+        } else if (event.data === "success") {
+          resolve()
+        } else if (event.data === "error") {
+          reject("Error in popup")
+        } else {
+          return; // Ignore testharness.js internal messages
+        }
+        window.removeEventListener("message", messageListener)
+        clearInterval(messagePoster)
+        win.close()
+      }
+      window.addEventListener("message", messageListener)
+    })
+  }
+
+  function local_fetch2() {
+    return fetchFns[2].code(2)
+  }
+
+  // Final checks.
+  function check_server_info() {
+    return getServerState(uuid)
+      .then(function (testState) {
+        checkRequests(local_requests, testState)
+        return Promise.resolve()
+      })
+  }
+
+  promise_test(() => {
+    return local_fetch()
+      .then(popup_fetch)
+      .then(local_fetch2)
+      .then(check_server_info)
+  }, name)
+}
+
+performFullTest(
+  false /* is_cross_site_test */, false /* load_resource_in_iframe */,
+  "HTTP cache is shared between same-site top-level frames");
+performFullTest(
+  true /* is_cross_site_test */, false /* load_resource_in_iframe */,
+  "HTTP cache is not shared between cross-site top-level frames");
+performFullTest(
+  false /* is_cross_site_test */, true /* load_resource_in_iframe */,
+  "HTTP cache is shared between same-site frames with same-site top-level frames");
+performFullTest(
+  true /* is_cross_site_test */, true /* load_resource_in_iframe */,
+  "HTTP cache is not shared between same-site frames with cross-site top-level frames");
+</script>
+</body>
+</html>

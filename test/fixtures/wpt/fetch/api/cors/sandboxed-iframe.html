@@ -1,0 +1,14 @@
+<!doctype html>
+<html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<iframe sandbox="allow-scripts" src="../resources/sandboxed-iframe.html"></iframe>
+<script>
+promise_test(async (t) => {
+  const message = await new Promise((resolve) => {
+    window.addEventListener('message', e => resolve(e.data));
+  });
+  assert_equals(message, 'PASS');
+}, 'CORS with sandboxed iframe');
+</script>
+</html>

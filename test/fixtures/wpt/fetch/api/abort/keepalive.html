@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/utils.js"></script>
+<script>
+// This controller must be on the window so it is visible to the iframe.
+window.sharedController = new AbortController();
+
+async function fetchJson(url) {
+  const response = await fetch(url);
+  assert_true(response.ok, 'response should be ok');
+  return response.json();
+}
+
+promise_test(async () => {
+  const stateKey = token();
+  const controller = new AbortController();
+  await fetch(`../resources/infinite-slow-response.py?stateKey=${stateKey}`,
+              {
+                signal: controller.signal,
+                keepalive: true
+              });
+  const before = await fetchJson(`../resources/stash-take.py?key=${stateKey}`);
+  assert_equals(before, 'open', 'connection should be open');
+
+  controller.abort();
+
+  // Spin until the abort completes.
+  while (true) {
+    const after = await fetchJson(`../resources/stash-take.py?key=${stateKey}`);
+    if (after) {
+      // stateKey='open' was removed from the dictionary by the first fetch of
+      // stash-take.py, so we should only ever see the value 'closed' here.
+      assert_equals(after, 'closed', 'connection should have closed');
+      break;
+    }
+  }
+}, 'aborting a keepalive fetch should work');
+
+promise_test(async t => {
+  const key = token();
+  const iframeEl = document.querySelector('iframe');
+
+  // Tell the iframe to start the fetch, and wait until it says it has.
+  await new Promise(resolve => {
+    onmessage = t.step_func(event => {
+      assert_equals(event.data, 'started', 'event data should be "started"');
+      resolve();
+    });
+    iframeEl.contentWindow.postMessage(key, '*');
+  });
+
+  // Detach the context of the fetch.
+  iframeEl.remove();
+
+  sharedController.abort();
+
+  // The abort should not do anything. The connection should stay open. Wait 1
+  // second to give time for the fetch to complete.
+  await new Promise(resolve => t.step_timeout(resolve, 1000));
+
+  const after = await fetchJson(`../resources/stash-take.py?key=${key}`);
+  assert_equals(after, 'on', 'fetch should have completed');
+}, 'aborting a detached keepalive fetch should not do anything');
+</script>
+
+<iframe srcdoc="
+                <!DOCTYPE html>
+                <meta charset=utf-8>
+                <script>
+                onmessage = async event => {
+                  const key = event.data;
+                  await fetch(
+                    `../resources/redirect.py?delay=500&amp;location=` +
+                    `../resources/stash-put.py%3fkey=${key}%26value=on`,
+                        {
+                          signal: parent.sharedController.signal,
+                          keepalive: true
+                        });
+                  parent.postMessage('started', '*');
+                };
+                </script>
+                ">
+</iframe>

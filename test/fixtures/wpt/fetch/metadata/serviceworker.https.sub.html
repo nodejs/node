@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<!--
+  This test verifies presence of Sec-Fetch-... request headers on a request
+  that fetches the service worker script itself (i.e. the script at the URL
+  passed as an argument to navigator.serviceWorker.register).
+-->
+<meta charset="utf-8"/>
+<link rel="author" href="mtrzos@google.com" title="Maciek Trzos">
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+<script src=/common/utils.js></script>
+<body>
+  <script>
+    promise_test(async t => {
+      const nonce = token();
+      const key = "serviceworker-same-origin" + nonce;
+
+      // Register a service worker and check the request header.
+      const registration = await navigator.serviceWorker.register('https://{{host}}:{{ports[https][0]}}/fetch/metadata/resources/record-header.py?file=' + key);
+      t.add_cleanup(() => registration.unregister());
+      await retrieve_and_assert_headers(key, 'Register service worker');
+
+      // Trigger an update check and check the request header again.
+      await registration.update();
+      await retrieve_and_assert_headers(key, 'Update service worker');
+    }, 'metadata for service worker scripts');
+
+    async function retrieve_and_assert_headers(key, tag) {
+      let expected = { "site": "same-origin", "user": "", "mode": "same-origin", "dest": "serviceworker" };
+      const response = await fetch("/fetch/metadata/resources/record-header.py?retrieve=true&file=" + key);
+      const text = await response.text();
+      assert_header_equals(text, expected, tag);
+    }
+  </script>
+</body>

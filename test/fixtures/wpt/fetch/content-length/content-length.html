@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<!-- CAUTION: if updating this test also update the expected content-length in the .headers file -->
+<title>Content-Length Test</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+setup({ single_test: true });
+onload = function() {
+  assert_equals(document.body.textContent, "PASS");
+  done();
+}
+</script>
+<body>PASS
+but FAIL if this is in the body.

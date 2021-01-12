@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Network Partition Checker</title>
+  <meta name="help" href="https://fetch.spec.whatwg.org/#network-partition-keys">
+  <meta name="timeout" content="normal">
+  <script src="SUBRESOURCE_PREFIX:&dispatch=fetch_file&path=common/utils.js"></script>
+  <script src="SUBRESOURCE_PREFIX:&dispatch=fetch_file&path=resources/testharness.js"></script>
+  <script src="SUBRESOURCE_PREFIX:&dispatch=fetch_file&path=fetch/connection-pool/resources/network-partition-key.js"></script>
+</head>
+<body>
+<script>
+  async function fetch_and_reply() {
+    // If this is a top level window, report to the opener. Otherwise, this is an iframe,
+    // so report to the parent.
+    var report_to = window.opener;
+    if (!report_to)
+      report_to = window.parent;
+    try {
+       await check_partition_ids();
+       report_to.postMessage({result: 'success'}, '*');
+    } catch (e) {
+     report_to.postMessage({result: 'error', details: e.message}, '*');
+    }
+  }
+  fetch_and_reply();
+</script>
+</body>
+</html>

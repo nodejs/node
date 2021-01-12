@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<!-- Test verifies that script mislabeled as html will execute with and without
+  CORB (CORB should allow the script after sniffing).
+-->
+<meta charset="utf-8">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+
+<script>
+setup({ single_test: true });
+window.has_executed_script = false;
+</script>
+
+<!-- www1 is cross-origin, so the HTTP response is CORB-eligible -->
+<script src="http://{{domains[www1]}}:{{ports[http][0]}}/fetch/corb/resources/js-mislabeled-as-html.js">
+</script>
+
+<script>
+// Verify what observable effects the <script> tag above had.
+// Assertion should hold with and without CORB:
+assert_true(window.has_executed_script,
+            'The cross-origin script should execute');
+done();
+</script>

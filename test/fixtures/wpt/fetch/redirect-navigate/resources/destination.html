@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <style>
+      body {
+        height: 10000px;
+        margin: 0;
+      }
+      p {
+        position: absolute;
+        margin: 0;
+      }
+    </style>
+    <script>
+      window.onload = () => {
+        window.parent.postMessage({
+          url: window.location.toString(),
+          scrollY: window.scrollY
+        }, "*");
+      }
+    </script>
+  </head>
+  <body>
+    <p style="top: 2000px" id="target">Target</p>
+    <p style="top: 4000px" id="fromRedirect">Target</p>
+  </body>
+</html>

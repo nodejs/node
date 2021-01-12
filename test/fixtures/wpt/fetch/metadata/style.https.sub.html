@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<link rel="author" href="mtrzos@google.com" title="Maciek Trzos">
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+<script src=/common/utils.js></script>
+<body></body>
+<script>
+  let nonce = token();
+
+  promise_test(t => {
+    return new Promise((resolve, reject) => {
+      let key = "style-same-origin" + nonce;
+
+      let e = document.createElement('link');
+      e.rel = "stylesheet";
+      e.href = "https://{{host}}:{{ports[https][0]}}/fetch/metadata/resources/record-header.py?file=" + key;
+      e.onload = e => {
+        let expected = {"site":"same-origin", "user":"", "mode": "no-cors", "dest": "style"};
+        validate_expectations(key, expected, "Same-Origin style")
+          .then(_ => resolve())
+          .catch(e => reject(e));
+      };
+
+      document.body.appendChild(e);
+    })
+  }, "Same-Origin style");
+
+  promise_test(t => {
+    return new Promise((resolve, reject) => {
+      let key = "style-same-site" + nonce;
+
+      let e = document.createElement('link');
+      e.rel = "stylesheet";
+      e.href = "https://{{hosts[][www]}}:{{ports[https][0]}}/fetch/metadata/resources/record-header.py?file=" + key;
+      e.onload = e => {
+        let expected = {"site":"same-site", "user":"", "mode": "no-cors", "dest": "style"};
+        validate_expectations(key, expected, "Same-Site style")
+          .then(_ => resolve())
+          .catch(e => reject(e));
+      };
+
+      document.body.appendChild(e);
+    })
+  }, "Same-Site style");
+
+  promise_test(t => {
+    return new Promise((resolve, reject) => {
+      let key = "style-cross-site" + nonce;
+
+      let e = document.createElement('link');
+      e.rel = "stylesheet";
+      e.href = "https://{{hosts[alt][www]}}:{{ports[https][0]}}/fetch/metadata/resources/record-header.py?file=" + key;
+      e.onload = e => {
+        let expected = {"site":"cross-site", "user":"", "mode": "no-cors", "dest": "style"};
+        validate_expectations(key, expected, "Cross-Site style")
+          .then(_ => resolve())
+          .catch(e => reject(e));
+      };
+
+      document.body.appendChild(e);
+    })
+  }, "Cross-Site style");
+
+  promise_test(t => {
+    return new Promise((resolve, reject) => {
+      let key = "style-same-origin-cors" + nonce;
+
+      let e = document.createElement('link');
+      e.rel = "stylesheet";
+      e.href = "https://{{host}}:{{ports[https][0]}}/fetch/metadata/resources/record-header.py?file=" + key;
+      e.crossOrigin = "anonymous";
+      e.onload = e => {
+        let expected = {"site":"same-origin", "user":"", "mode": "cors", "dest": "style"};
+        validate_expectations(key, expected, "Same-Origin, cors style")
+          .then(_ => resolve())
+          .catch(e => reject(e));
+      };
+
+      document.body.appendChild(e);
+    })
+  }, "Same-Origin, cors style");
+</script>
+</html>
+

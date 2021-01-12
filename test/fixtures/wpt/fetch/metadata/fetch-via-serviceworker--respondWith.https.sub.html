@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<!--
+  This test verifies presence of Sec-Fetch-... request headers on a request
+  handled by a service worker - this test covers the scenario when the service
+  worker responds to the `fetch` event with:
+      event.respondWith(fetch(event.request));
+-->
+<meta charset="utf-8"/>
+<link rel="author" href="lukasza@chromium.org" title="Lukasz Anforowicz">
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+<script src=/service-workers/service-worker/resources/test-helpers.sub.js></script>
+<script src=/common/utils.js></script>
+<script>
+    const nonce = token();
+    const key = "fetch-via-serviceworker--respondWith--" + nonce;
+
+    promise_test(async function(t) {
+        const SCOPE = 'resources/fetch-via-serviceworker--respondWith--frame.html';
+        const SCRIPT = 'resources/fetch-via-serviceworker--respondWith--sw.js';
+        const URL = '/fetch/metadata/resources/record-header.py?file=' + key;
+        const RETRIEVAL_URL = "/fetch/metadata/resources/record-header.py?retrieve=true&file=" + key;
+
+        const reg = await service_worker_unregister_and_register(t, SCRIPT, SCOPE);
+        t.add_cleanup(async () => {
+          if (reg)
+            await reg.unregister();
+        });
+
+        await wait_for_state(t, reg.installing, 'activated');
+
+        const frame = await with_iframe(SCOPE);
+        t.add_cleanup(async () => {
+          if (frame)
+            frame.remove();
+        });
+
+        // Trigger a fetch that 1) will go through the service worker and 2) will
+        // fetch a special URL that records request headers.
+        await frame.contentWindow.fetch(URL, {mode:'no-cors'});
+
+        // Retrieve the request headers that have been recorder in the previous step.
+        const response = await fetch(RETRIEVAL_URL);
+        const text = await response.text();
+
+        // Verify presence of the expected Sec-Fetch-... request headers.
+        let expected = {"site":"same-origin", "user":"", "mode": "no-cors", "dest": "empty"};
+        assert_header_equals(text, expected);
+      }, 'Sec-Fetch headers after SW fallback');
+</script>

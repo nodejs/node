@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+
+<link rel="author" href="mtrzos@google.com" title="Maciek Trzos">
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+<script src=/common/utils.js></script>
+<script>
+  let nonce = token();
+  let key = "sharedworker-same-origin" + nonce;
+
+  // TESTS //
+  if (window.Worker) {
+
+      //  Same-Origin test
+      var sharedWorker = new SharedWorker('/fetch/metadata/resources/record-header.py?file=' + key);
+      sharedWorker.port.start();
+
+      sharedWorker.onerror = function(){
+        test_same_origin();
+      }
+      sharedWorker.port.onmessage = function(e) {
+        test_same_origin();
+      }
+      sharedWorker.port.postMessage("Ready");
+    }
+
+  function test_same_origin(){
+    promise_test(t => {
+      return new Promise((resolve, reject) => {
+        let expected = {"site":"same-origin", "user":"", "mode": "same-origin", "dest": "sharedworker"};
+
+        validate_expectations(key, expected)
+          .then(_ => resolve())
+          .catch(e => reject(e));
+      })
+    }, "Same-Origin sharedworker")
+  }
+</script>
+<body></body>

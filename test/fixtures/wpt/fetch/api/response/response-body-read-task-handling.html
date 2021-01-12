@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+  <script src="/resources/testharness.js"></script>
+  <script src="/resources/testharnessreport.js"></script>
+</head>
+<body>
+  <script>
+function performMicrotaskCheckpoint() {
+    document.createNodeIterator(document, -1, {
+        acceptNode() {
+            return NodeFilter.FILTER_ACCEPT;
+        }
+    }).nextNode();
+}
+
+promise_test(function() {
+    return fetch("../resources/data.json").then(function(response) {
+        // Add a getter for "then" that will incidentally be invoked
+        // during promise resolution.
+        Object.prototype.__defineGetter__('then', () => {
+            // Clean up behind ourselves.
+            delete Object.prototype.then;
+
+            // This promise should (like all promises) be resolved
+            // asynchronously.
+            var executed = false;
+            Promise.resolve().then(_ => { executed = true; });
+
+            // This shouldn't run microtasks!  They should only run
+            // after the fetch is resolved.
+            performMicrotaskCheckpoint();
+
+            // The fulfill handler above shouldn't have run yet.  If it has run,
+            // throw to reject this promise and fail the test.
+            if (executed) {
+                throw "shouldn't have run microtasks yet";
+            }
+
+            // Otherwise act as if there's no "then" property so the promise
+            // fulfills and the test passes.
+            return undefined;
+        });
+
+        // Create a read request, incidentally resolving a promise with an
+        // object value, thereby invoking the getter installed above.
+        return response.body.getReader().read();
+    });
+}, "reading from a body stream should occur in a microtask scope");
+  </script>
+</body>
+</html>

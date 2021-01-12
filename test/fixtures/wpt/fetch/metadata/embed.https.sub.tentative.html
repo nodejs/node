@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<meta charset="utf-8"/>
+<link rel="author" href="mtrzos@google.com" title="Maciek Trzos">
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+<script src=/common/utils.js></script>
+<body>
+
+<p>Relevant issue: <a href="https://github.com/whatwg/html/issues/513">
+&lt;embed> should support loading random HTML documents, like &lt;object>
+</a></p>
+
+<script>
+  const nonce = token();
+
+  const origins = {
+    "same-origin": "https://{{host}}:{{ports[https][0]}}",
+    "same-site":   "https://{{hosts[][www]}}:{{ports[https][0]}}",
+    "cross-site":  "https://{{hosts[alt][www]}}:{{ports[https][0]}}",
+  };
+
+  for (let site in origins) {
+    promise_test(t => {
+      return new Promise((resolve, reject) => {
+        let key = "embed-" + site + "-" + nonce;
+
+        let el = document.createElement('embed');
+        el.src = origins[site] + "/fetch/metadata/resources/record-header.py?file=" + key;
+        el.onload = _ => {
+          let expected = {"dest": "embed", "site": site, "user": "", "mode": "navigate"};
+          validate_expectations(key, expected, site + " embed")
+            .then(resolve)
+            .catch(reject);
+        };
+
+        document.body.appendChild(el);
+      })
+    }, "Wrapper: " + site + " embed");
+
+    promise_test(t => {
+      return new Promise((resolve, reject) => {
+        let key = "post-embed-" + site + "-" + nonce;
+
+        let el = document.createElement('embed');
+        el.src = "/common/blank.html";
+        el.addEventListener("load", _ => {
+          el.addEventListener("load", _ => {
+            let expected = {"dest": "embed", "site": site, "user":"", "mode":"navigate"};
+            validate_expectations(key, expected, "Navigate to " + site + " embed")
+              .then(resolve)
+              .catch(reject);
+          }, { once: true });
+
+          // Navigate the existing `<embed>`
+          window.frames[window.length - 1].location = origins[site] + "/fetch/metadata/resources/record-header.py?file=" + key;
+        }, { once: true });
+
+        document.body.appendChild(el);
+      })
+    }, "Wrapper: Navigate to " + site + " embed");
+  }
+</script>

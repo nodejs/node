@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<body>
+<script>
+  function readableURL(url) {
+    return url.replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t");
+  }
+
+  // For each of the following tests, we'll inject a frame containing the HTML we'd like to poke at
+  // as a `srcdoc` attribute. Because we're injecting markup via `srcdoc`, we need to entity-escape
+  // the content we'd like to treat as "raw" (e.g. `\n` => `&#10;`, `<` => `&lt;`), and
+  // double-escape the "escaped" content.
+  var rawBrace = "&lt;";
+  var escapedBrace = "&amp;lt;";
+  var doubleEscapedBrace = "&amp;amp;lt;";
+  var rawNewline = "&#10;";
+  var escapedNewline = "&amp;#10;";
+  // doubleEscapedNewline is used inside a data URI, and so must have its '#' escaped.
+  var doubleEscapedNewline = "&amp;amp;%2310;";
+
+  function appendFrameAndGetElement(test, frame) {
+    return new Promise((resolve, reject) => {
+      frame.onload = test.step_func(_ => {
+        frame.onload = null;
+        resolve(frame.contentDocument.querySelector('#dangling'));
+      });
+      document.body.appendChild(frame);
+    });
+  }
+
+  function assert_img_loaded(test, frame) {
+    appendFrameAndGetElement(test, frame)
+      .then(test.step_func_done(img => {
+        assert_equals(img.naturalHeight, 1, "Height");
+        frame.remove();
+      }));
+  }
+
+  function assert_img_not_loaded(test, frame) {
+    appendFrameAndGetElement(test, frame)
+      .then(test.step_func_done(img => {
+        assert_equals(img.naturalHeight, 0, "Height");
+        assert_equals(img.naturalWidth, 0, "Width");
+      }));
+  }
+
+  function assert_nested_img_not_loaded(test, frame) {
+    window.addEventListener('message', test.step_func(e => {
+      if (e.source != frame.contentWindow)
+        return;
+
+      assert_equals(e.data, 'error');
+      test.done();
+    }));
+    appendFrameAndGetElement(test, frame);
+  }
+
+  function assert_nested_img_loaded(test, frame) {
+    window.addEventListener('message', test.step_func(e => {
+      if (e.source != frame.contentWindow)
+        return;
+
+      assert_equals(e.data, 'loaded');
+      test.done();
+    }));
+    appendFrameAndGetElement(test, frame);
+  }
+
+  function createFrame(markup) {
+    var i = document.createElement('iframe');
+    i.srcdoc = `${markup}sekrit`;
+    return i;
+  }
+
+  // Subresource requests:
+  [
+    // Data URLs don't themselves trigger blocking:
+    `<img id="dangling" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">`,
+    `<img id="dangling" src="data:image/png;base64,${rawNewline}iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">`,
+    `<img id="dangling" src="data:image/png;base64,i${rawNewline}VBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">`,
+
+    // Data URLs with visual structure don't trigger blocking
+    `<img id="dangling" src="data:image/svg+xml;utf8,
+      <svg width='1' height='1' xmlns='http://www.w3.org/2000/svg'>
+        <rect width='100%' height='100%' fill='rebeccapurple'/>
+        <rect x='10%' y='10%' width='80%' height='80%' fill='lightgreen'/>
+      </svg>">`
+  ].forEach(markup => {
+    async_test(t => {
+      var i = createFrame(`${markup} <element attr="" another=''>`);
+      assert_img_loaded(t, i);
+    }, readableURL(markup));
+  });
+
+  // Nested subresource requests:
+  //
+  // The following tests load a given HTML string into `<iframe srcdoc="...">`, so we'll
+  // end up with a frame with an ID of `dangling` inside the srcdoc frame. That frame's
+  // `src` is a `data:` URL that resolves to an HTML document containing an `<img>`. The
+  // error/load handlers on that image are piped back up to the top-level document to
+  // determine whether the tests' expectations were met. *phew*
+
+  // Allowed:
+  [
+     // Just a newline:
+     `<iframe id="dangling"
+        src="data:text/html,
+            <img
+              onload='window.parent.postMessage(&quot;loaded&quot;, &quot;*&quot;);'
+              onerror='window.parent.postMessage(&quot;error&quot;, &quot;*&quot;);'
+              src='http://{{host}}:{{ports[http][0]}}/images/gr${rawNewline}een-256x256.png'>
+        ">
+     </iframe>`,
+
+     // Just a brace:
+     `<iframe id="dangling"
+        src="data:text/html,
+            <img
+              onload='window.parent.postMessage(&quot;loaded&quot;, &quot;*&quot;);'
+              onerror='window.parent.postMessage(&quot;error&quot;, &quot;*&quot;);'
+              src='http://{{host}}:{{ports[http][0]}}/images/green-256x256.png?${rawBrace}'>
+        ">
+     </iframe>`,
+
+     // Newline and escaped brace.
+     `<iframe id="dangling"
+        src="data:text/html,
+            <img
+              onload='window.parent.postMessage(&quot;loaded&quot;, &quot;*&quot;);'
+              onerror='window.parent.postMessage(&quot;error&quot;, &quot;*&quot;);'
+              src='http://{{host}}:{{ports[http][0]}}/images/gr${rawNewline}een-256x256.png?${doubleEscapedBrace}'>
+        ">
+     </iframe>`,
+
+     // Brace and escaped newline:
+     `<iframe id="dangling"
+        src="data:text/html,
+            <img
+              onload='window.parent.postMessage(&quot;loaded&quot;, &quot;*&quot;);'
+              onerror='window.parent.postMessage(&quot;error&quot;, &quot;*&quot;);'
+              src='http://{{host}}:{{ports[http][0]}}/images/green-256x256.png?${doubleEscapedNewline}${rawBrace}'>
+        ">
+     </iframe>`,
+  ].forEach(markup => {
+    async_test(t => {
+      var i = createFrame(`
+        <script>
+          // Repeat the message so that the parent can track this frame as the source.
+          window.onmessage = e => window.parent.postMessage(e.data, '*');
+        </scr`+`ipt>
+        ${markup}
+      `);
+      assert_nested_img_loaded(t, i);
+    }, readableURL(markup));
+  });
+
+  // Nested requests that should fail:
+  [
+     // Newline and brace:
+     `<iframe id="dangling"
+        src="data:text/html,
+            <img
+              onload='window.parent.postMessage(&quot;loaded&quot;, &quot;*&quot;);'
+              onerror='window.parent.postMessage(&quot;error&quot;, &quot;*&quot;);'
+              src='http://{{host}}:{{ports[http][0]}}/images/gr${rawNewline}een-256x256.png?${rawBrace}'>
+        ">
+     </iframe>`,
+
+     // Leading whitespace:
+     `<iframe id="dangling"
+        src="     data:text/html,
+            <img
+              onload='window.parent.postMessage(&quot;loaded&quot;, &quot;*&quot;);'
+              onerror='window.parent.postMessage(&quot;error&quot;, &quot;*&quot;);'
+              src='http://{{host}}:{{ports[http][0]}}/images/gr${rawNewline}een-256x256.png?${rawBrace}'>
+        ">
+     </iframe>`,
+
+     // Leading newline:
+     `<iframe id="dangling"
+        src="\ndata:text/html,
+            <img
+              onload='window.parent.postMessage(&quot;loaded&quot;, &quot;*&quot;);'
+              onerror='window.parent.postMessage(&quot;error&quot;, &quot;*&quot;);'
+              src='http://{{host}}:{{ports[http][0]}}/images/gr${rawNewline}een-256x256.png?${rawBrace}'>
+        ">
+     </iframe>`,
+     `<iframe id="dangling"
+        src="${rawNewline}data:text/html,
+            <img
+              onload='window.parent.postMessage(&quot;loaded&quot;, &quot;*&quot;);'
+              onerror='window.parent.postMessage(&quot;error&quot;, &quot;*&quot;);'
+              src='http://{{host}}:{{ports[http][0]}}/images/gr${rawNewline}een-256x256.png?${rawBrace}'>
+        ">
+     </iframe>`,
+
+     // Leading tab:
+     `<iframe id="dangling"
+        src="\tdata:text/html,
+            <img
+              onload='window.parent.postMessage(&quot;loaded&quot;, &quot;*&quot;);'
+              onerror='window.parent.postMessage(&quot;error&quot;, &quot;*&quot;);'
+              src='http://{{host}}:{{ports[http][0]}}/images/gr${rawNewline}een-256x256.png?${rawBrace}'>
+        ">
+     </iframe>`,
+
+     // Leading carrige return:
+     `<iframe id="dangling"
+        src="\rdata:text/html,
+            <img
+              onload='window.parent.postMessage(&quot;loaded&quot;, &quot;*&quot;);'
+              onerror='window.parent.postMessage(&quot;error&quot;, &quot;*&quot;);'
+              src='http://{{host}}:{{ports[http][0]}}/images/gr${rawNewline}een-256x256.png?${rawBrace}'>
+        ">
+     </iframe>`,
+  ].forEach(markup => {
+    async_test(t => {
+      var i = createFrame(`
+        <script>
+          // Repeat the message so that the parent can track this frame as the source.
+          window.onmessage = e => window.parent.postMessage(e.data, '*');
+        </scr`+`ipt>
+        ${markup}
+      `);
+      assert_nested_img_not_loaded(t, i);
+    }, readableURL(markup));
+  });
+</script>

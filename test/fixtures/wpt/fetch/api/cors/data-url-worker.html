@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+
+const fetch_from_data_url_shared_worker_test =
+    (url, cors, expectation, description) => {
+  promise_test(async () => {
+    const fetchURL = new URL(url, location.href) +
+        `${cors === 'null-origin'
+             ? '?pipe=header(Access-Control-Allow-Origin, null)' : ''}`;
+    const scriptURL =
+      `data:text/javascript,` +
+      `async function test() {` +
+      `  let allowed = true;` +
+      `  try {` +
+      `    await fetch('${fetchURL}');` +
+      `  } catch (e) {` +
+      `    allowed = false;` +
+      `  }` +
+      `  postMessage({allowed});` +
+      `}` +
+      `test();`;
+    const worker = new Worker(scriptURL);
+    const msgEvent = await new Promise(resolve => worker.onmessage = resolve);
+    assert_equals(msgEvent.data.allowed ? 'allowed' : 'rejected', expectation);
+  }, description);
+};
+
+fetch_from_data_url_shared_worker_test(
+  '../resources/top.txt',
+  'acao-omitted',
+  'rejected',
+  'fetching "top.txt" without ACAO should be rejected.'
+);
+fetch_from_data_url_shared_worker_test(
+  '../resources/top.txt',
+  'null-origin',
+  'allowed',
+  'fetching "top.txt" with CORS allowing null origin should be allowed.'
+);
+fetch_from_data_url_shared_worker_test(
+  'data:text/plain, top',
+  'acao-omitted',
+  'allowed',
+  'fetching data url script should be allowed.'
+);
+
+</script>

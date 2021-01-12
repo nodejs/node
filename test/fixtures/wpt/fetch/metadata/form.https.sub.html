@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/resources/testdriver.js></script>
+<script src=/resources/testdriver-vendor.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+<script src=/common/utils.js></script>
+<body>
+<script>
+  const USER = true;
+  const FORCED = false;
+
+  function create_test(host, user_activated, expectations) {
+    async_test(t => {
+      let nonce = token();
+      let w = window.open("", nonce);
+      let f = document.createElement('form');
+
+      window.addEventListener('message', t.step_func(e => {
+        if (e.source != w)
+          return;
+        assert_header_equals(e.data, expectations,
+            `{{host}} -> ${host} iframe: ${user_activated ? "user-activated" : "forced"}`);
+        t.done();
+      }));
+
+      let url = `https://${host}/fetch/metadata/resources/post-to-owner.py`;
+      f.action = url;
+      f.target = nonce;
+      document.body.appendChild(f);
+
+      if (user_activated == FORCED) {
+        f.submit();
+      } else if (user_activated == USER) {
+        let s = document.createElement('input');
+        s.type = "submit";
+        f.appendChild(s);
+
+        test_driver.click(s);
+      }
+    }, `{{host}} -> ${host} iframe: ${user_activated ? "user-activated" : "forced"}`);
+  }
+
+  create_test("{{host}}:{{ports[https][0]}}", FORCED, {
+    "site": "same-origin",
+    "user": "",
+    "mode": "navigate",
+    "dest": "document"
+  });
+
+  create_test("{{hosts[][www]}}:{{ports[https][0]}}", FORCED, {
+    "site": "same-site",
+    "user": "",
+    "mode": "navigate",
+    "dest": "document"
+  });
+
+  create_test("{{hosts[alt][www]}}:{{ports[https][0]}}", FORCED, {
+    "site": "cross-site",
+    "user": "",
+    "mode": "navigate",
+    "dest": "document"
+  });
+
+  create_test("{{host}}:{{ports[https][0]}}", USER, {
+    "site": "same-origin",
+    "user": "?1",
+    "mode": "navigate",
+    "dest": "document"
+  });
+
+  create_test("{{hosts[][www]}}:{{ports[https][0]}}", USER, {
+    "site": "same-site",
+    "user": "?1",
+    "mode": "navigate",
+    "dest": "document"
+  });
+
+  create_test("{{hosts[alt][www]}}:{{ports[https][0]}}", USER, {
+    "site": "cross-site",
+    "user": "?1",
+    "mode": "navigate",
+    "dest": "document"
+  });
+</script>

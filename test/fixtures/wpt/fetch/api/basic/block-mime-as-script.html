@@ -1,0 +1,43 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Block mime type as script</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div></div>
+<script>
+  var noop = function() {};
+
+  ["non-empty", "empty"].forEach(function(content) {
+    ["text/csv",
+     "audio/aiff",
+     "audio/midi",
+     "audio/whatever",
+     "video/avi",
+     "video/fli",
+     "video/whatever",
+     "image/jpeg",
+     "image/gif",
+     "image/whatever"].forEach(function(test_case) {
+      async_test(function(t) {
+        var script = document.createElement("script");
+        script.onerror = t.step_func_done(noop);
+        script.onload = t.unreached_func("Unexpected load event");
+        script.src = "../resources/script-with-header.py?content=" + content +
+                     "&mime=" + test_case;
+        document.body.appendChild(script);
+      }, "Should fail loading " + content + " script with " + test_case +
+         " MIME type");
+    });
+  });
+
+  ["html", "plain"].forEach(function(test_case) {
+    async_test(function(t) {
+      var script = document.createElement("script");
+      script.onerror = t.unreached_func("Unexpected error event");
+      script.onload = t.step_func_done(noop);
+      script.src = "../resources/script-with-header.py?mime=text/" + test_case;
+      document.body.appendChild(script);
+    }, "Should load script with text/" + test_case + " MIME type");
+  });
+
+</script>

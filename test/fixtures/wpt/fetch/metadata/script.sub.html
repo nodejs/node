@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+
+<!-- Same-origin script -->
+<script src="http://{{host}}:{{ports[http][0]}}/fetch/metadata/resources/echo-as-script.py"></script>
+<script>
+  test(t => {
+    t.add_cleanup(_ => { header = null; });
+
+    assert_header_equals(header, {
+      "site": "",
+      "user": "",
+      "mode": "",
+      "dest": ""
+    }, "Non-secure same-origin script => No headers");
+  }, "Non-secure same-origin script => No headers");
+</script>
+
+<!-- Same-site script -->
+<script src="http://{{hosts[][www]}}:{{ports[http][0]}}/fetch/metadata/resources/echo-as-script.py"></script>
+<script>
+  test(t => {
+    t.add_cleanup(_ => { header = null; });
+
+    assert_header_equals(header, {
+      "site": "",
+      "user": "",
+      "mode": "",
+      "dest": ""
+    }, "Non-secure same-site script => No headers");
+  }, "Non-secure same-site script => No headers");
+</script>
+
+<!-- Cross-site script -->
+<script src="http://{{hosts[alt][www]}}:{{ports[http][0]}}/fetch/metadata/resources/echo-as-script.py"></script>
+<script>
+  test(t => {
+    t.add_cleanup(_ => { header = null; });
+
+    assert_header_equals(header, {
+      "site": "",
+      "user": "",
+      "mode": "",
+      "dest": ""
+    }, "Non-secure cross-site script => No headers");
+  }, "Non-secure cross-site script => No headers");
+</script>

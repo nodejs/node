@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+
+<link rel="author" href="mtrzos@google.com" title="Maciek Trzos">
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+<script src=/common/utils.js></script>
+<script>
+  // Open a window with XML document which loads resources via <?xml-stylesheet/> tag
+  let nonce = token();
+  let w = window.open("resources/xslt-test.sub.xml?token=" + nonce);
+  window.addEventListener('message', function(e) {
+    if (e.source != w)
+      return;
+
+    // Only testing same-origin XSLT because same-site and cross-site XSLT is blocked.
+    promise_test(t => {
+      let expected = {"site":"same-origin", "user":"", "mode": "same-origin", "dest": "xslt"};
+      return validate_expectations("xslt-same-origin" + nonce, expected);
+    }, "Same-Origin xslt");
+
+    w.close();
+  });
+
+</script>

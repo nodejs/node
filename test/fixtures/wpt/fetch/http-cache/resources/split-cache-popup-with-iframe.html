@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>HTTP Cache - helper</title>
+  <meta name="help" href="https://fetch.spec.whatwg.org/#http-cache-partitions">
+  <meta name="timeout" content="normal">
+  <script src="/resources/testharness.js"></script>
+  <script src="/common/get-host-info.sub.js"></script>
+</head>
+<body>
+<script>
+  const host = get_host_info();
+
+  // Create iframe that is same-origin to the opener.
+  var iframe = document.createElement("iframe");
+  iframe.src = host.HTTP_ORIGIN + window.location.pathname.replace(/\/[^\/]*$/, '/') + "split-cache-popup.html";
+  document.body.appendChild(iframe);
+
+  window.addEventListener("message", function listener(event) {
+    if (event.origin !== host.HTTP_ORIGIN) {
+      // Ignore messages not from the iframe or opener
+      return;
+    } else if (typeof(event.data) === "object") {
+      // This message came from the opener, pass it on to the iframe
+      iframe.contentWindow.postMessage(event.data, host.HTTP_ORIGIN);
+    } else if (typeof(event.data) === "string") {
+      // This message came from the iframe, pass it on to the opener
+      window.opener.postMessage(event.data, host.HTTP_ORIGIN);
+    }
+  })
+</script>
+</body>
+</html>

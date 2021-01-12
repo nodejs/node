@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<link rel="author" href="mtrzos@google.com" title="Maciek Trzos">
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+<script src=/common/utils.js></script>
+<body></body>
+<script>
+  promise_test(t => {
+    return new Promise((resolve, reject) => {
+      let nonce = token();
+      let key = "image" + nonce;
+
+      let e = document.createElement('link');
+      e.rel = "icon";
+      e.type = "image/png";
+      e.href = "https://{{host}}:{{ports[https][0]}}/fetch/metadata/resources/record-header.py?file=" + key;
+      document.head.appendChild(e);
+      t.step_timeout(_=> {
+        let expected = {"site":"same-origin", "user":"", "mode": "no-cors", "dest": "image"};
+        validate_expectations(key, expected, "Same-Origin favicon")
+          .then(_ => resolve())
+          .catch(e => reject(e));
+      }, 1000);
+    })
+  }, "Same-Origin favicon");
+
+  promise_test(t => {
+    return new Promise((resolve, reject) => {
+      let nonce = token();
+      let key = "image" + nonce;
+
+      let e = document.createElement('link');
+      e.rel = "icon";
+      e.type = "image/png";
+      e.href = "https://{{hosts[][www]}}:{{ports[https][0]}}/fetch/metadata/resources/record-header.py?file=" + key;
+      document.head.appendChild(e);
+      t.step_timeout(_=> {
+        let expected = {"site":"same-site", "user":"", "mode": "no-cors", "dest": "image"};
+        validate_expectations(key, expected, "Same-Site favicon")
+          .then(_ => resolve())
+          .catch(e => reject(e));
+      }, 1000);
+    })
+  }, "Same-Site favicon");
+
+  promise_test(t => {
+    return new Promise((resolve, reject) => {
+      let nonce = token();
+      let key = "image" + nonce;
+
+      let e = document.createElement('link');
+      e.rel = "icon";
+      e.type = "image/png";
+      e.href = "https://{{hosts[alt][www]}}:{{ports[https][0]}}/fetch/metadata/resources/record-header.py?file=" + key;
+      document.head.appendChild(e);
+      t.step_timeout(_=> {
+        let expected = {"site":"cross-site", "user":"", "mode": "no-cors", "dest": "image"};
+        validate_expectations(key, expected, "Cross-Site favicon")
+          .then(_ => resolve())
+          .catch(e => reject(e));
+      }, 1000);
+    })
+  }, "Cross-Site favicon");
+</script>
+</html>

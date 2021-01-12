@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<body>
+<script>
+  function readableURL(url) {
+    return url.replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t");
+  }
+
+  var should_load = [
+    `/images/green-1x1.png`,
+    `/images/gre\nen-1x1.png`,
+    `/images/gre\ten-1x1.png`,
+    `/images/gre\ren-1x1.png`,
+    `/images/green-1x1.png?img=<`,
+    `/images/green-1x1.png?img=&lt;`,
+    `/images/green-1x1.png?img=%3C`,
+    `/images/gr\neen-1x1.png?img=%3C`,
+    `/images/gr\reen-1x1.png?img=%3C`,
+    `/images/gr\teen-1x1.png?img=%3C`,
+    `/images/green-1x1.png?img=&#10;`,
+    `/images/gr\neen-1x1.png?img=&#10;`,
+    `/images/gr\reen-1x1.png?img=&#10;`,
+    `/images/gr\teen-1x1.png?img=&#10;`,
+  ];
+  should_load.forEach(url => async_test(t => {
+    fetch(url)
+      .then(t.step_func_done(r => {
+        assert_equals(r.status, 200);
+      }))
+      .catch(t.unreached_func("Fetch should succeed."));
+  }, "Fetch: " + readableURL(url)));
+
+  var should_block = [
+    `/images/gre\nen-1x1.png?img=<`,
+    `/images/gre\ren-1x1.png?img=<`,
+    `/images/gre\ten-1x1.png?img=<`,
+    `/images/green-1x1.png?<\n=block`,
+    `/images/green-1x1.png?<\r=block`,
+    `/images/green-1x1.png?<\t=block`,
+  ];
+  should_block.forEach(url => async_test(t => {
+    fetch(url)
+      .then(t.unreached_func("Fetch should fail."))
+      .catch(t.step_func_done());
+  }, "Fetch: " + readableURL(url)));
+
+
+  // For each of the following tests, we'll inject a frame containing the HTML we'd like to poke at
+  // as a `srcdoc` attribute. Because we're injecting markup via `srcdoc`, we need to entity-escape
+  // the content we'd like to treat as "raw" (e.g. `\n` => `&#10;`, `<` => `&lt;`), and
+  // double-escape the "escaped" content.
+  var rawBrace = "&lt;";
+  var escapedBrace = "&amp;lt;";
+  var rawNewline = "&#10;";
+  var escapedNewline = "&amp;#10;";
+
+  function appendFrameAndGetElement(test, frame) {
+    return new Promise((resolve, reject) => {
+      frame.onload = test.step_func(_ => {
+        frame.onload = null;
+        resolve(frame.contentDocument.querySelector('#dangling'));
+      });
+      document.body.appendChild(frame);
+    });
+  }
+
+  function assert_img_loaded(test, frame) {
+    appendFrameAndGetElement(test, frame)
+      .then(test.step_func_done(img => {
+        assert_equals(img.naturalHeight, 1, "Height");
+        frame.remove();
+      }));
+  }
+
+  function assert_img_not_loaded(test, frame) {
+    appendFrameAndGetElement(test, frame)
+      .then(test.step_func_done(img => {
+        assert_equals(img.naturalHeight, 0, "Height");
+        assert_equals(img.naturalWidth, 0, "Width");
+      }));
+  }
+
+  function createFrame(markup) {
+    var i = document.createElement('iframe');
+    i.srcdoc = `${markup}sekrit`;
+    return i;
+  }
+
+  // The following resources should not be blocked, as their URLs do not contain both a `\n` and `<`
+  // character in the body of the URL.
+  var should_load = [
+    // Brace alone doesn't block:
+    `<img id="dangling" src="/images/green-1x1.png?img=${rawBrace}b">`,
+
+    // Newline alone doesn't block:
+    `<img id="dangling" src="/images/green-1x1.png?img=${rawNewline}b">`,
+
+    // Entity-escaped characters don't trigger blocking:
+    `<img id="dangling" src="/images/green-1x1.png?img=${escapedNewline}b">`,
+    `<img id="dangling" src="/images/green-1x1.png?img=${escapedBrace}b">`,
+    `<img id="dangling" src="/images/green-1x1.png?img=${escapedNewline}b${escapedBrace}c">`,
+
+    // Leading and trailing whitespace is stripped:
+    `
+      <img id="dangling" src="
+        /images/green-1x1.png?img=
+      ">
+    `,
+    `
+      <img id="dangling" src="
+        /images/green-1x1.png?img=${escapedBrace}
+      ">
+    `,
+    `
+      <img id="dangling" src="
+        /images/green-1x1.png?img=${escapedNewline}
+      ">
+    `,
+  ];
+
+  should_load.forEach(markup => {
+    async_test(t => {
+      var i = createFrame(`${markup} <element attr="" another=''>`);
+      assert_img_loaded(t, i);
+    }, readableURL(markup));
+  });
+
+  // The following resources should be blocked, as their URLs contain both `\n` and `<` characters:
+  var should_block = [
+    `<img id="dangling" src="/images/green-1x1.png?img=${rawNewline}${rawBrace}b">`,
+    `<img id="dangling" src="/images/green-1x1.png?img=${rawBrace}${rawNewline}b">`,
+    `
+      <img id="dangling" src="/images/green-1x1.png?img=
+        ${rawBrace}
+        ${rawNewline}b
+      ">
+    `,
+  ];
+
+  should_block.forEach(markup => {
+    async_test(t => {
+      var i = createFrame(`${markup}`);
+      assert_img_not_loaded(t, i);
+    }, readableURL(markup));
+  });
+</script>

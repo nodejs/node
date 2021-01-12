@@ -1,0 +1,39 @@
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<div id=log></div>
+<script>
+  // Note: images get always sniffed, nosniff doesn't do anything
+  // (but note the tentative Cross-Origin Read Blocking (CORB) tests
+  // - for example wpt/fetch/corb/img-mime-types-coverage.tentative.sub.html).
+  var passes = [
+      // Empty or non-sensical MIME types
+      null, "", "x", "x/x",
+
+      // Image MIME types
+      "image/gif", "image/png", "image/png;blah", "image/svg+xml",
+
+      // CORB-protected MIME types (but note that CORB doesn't apply here,
+      // because CORB ignores same-origin requests).
+      "text/html", "application/xml", "application/blah+xml"
+  ]
+
+  const get_url = (mime) => {
+    let url = "resources/image.py"
+    if (mime != null) {
+        url += "?type=" + encodeURIComponent(mime)
+    }
+    return url
+  }
+
+  passes.forEach(function(mime) {
+    async_test(function(t) {
+      var img = document.createElement("img")
+      img.onerror = t.unreached_func("Unexpected error event")
+      img.onload = t.step_func_done(function(){
+        assert_equals(img.width, 96)
+      })
+      img.src = get_url(mime)
+      document.body.appendChild(img)
+    }, "URL query: " + mime)
+  })
+</script>

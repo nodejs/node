@@ -1,0 +1,18 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Fetch in worker: referrer with unsafe-url policy</title>
+    <meta name="help" href="https://fetch.spec.whatwg.org/#main-fetch">
+    <meta name="help" href="https://fetch.spec.whatwg.org/#http-network-or-cache-fetch">
+    <meta name="author" title="Canon Research France" href="https://www.crf.canon.fr">
+    <script src="/resources/testharness.js"></script>
+    <script src="/resources/testharnessreport.js"></script>
+    <script src="/service-workers/service-worker/resources/test-helpers.sub.js"></script>
+  </head>
+  <body>
+    <script>
+      service_worker_test("referrer-unsafe-url.js");
+    </script>
+  </body>
+</html>

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+
+<!-- Same-origin script -->
+<script src="https://{{host}}:{{ports[https][0]}}/fetch/metadata/resources/echo-as-script.py"></script>
+<script>
+  test(t => {
+    t.add_cleanup(_ => { header = null; });
+
+    assert_header_equals(header, {
+      "site": "same-origin",
+      "user": "",
+      "mode": "no-cors",
+      "dest": "script"
+    }, "Same-origin script");
+  }, "Same-origin script");
+</script>
+
+<!-- Same-site script -->
+<script src="https://{{hosts[][www]}}:{{ports[https][0]}}/fetch/metadata/resources/echo-as-script.py"></script>
+<script>
+  test(t => {
+    t.add_cleanup(_ => { header = null; });
+
+    assert_header_equals(header, {
+      "site": "same-site",
+      "user": "",
+      "mode": "no-cors",
+      "dest": "script"
+    }, "Same-site script");
+  }, "Same-site script");
+</script>
+
+<!-- Cross-site script -->
+<script src="https://{{hosts[alt][www]}}:{{ports[https][0]}}/fetch/metadata/resources/echo-as-script.py"></script>
+<script>
+  test(t => {
+    t.add_cleanup(_ => { header = null; });
+
+    assert_header_equals(header, {
+      "site": "cross-site",
+      "user": "",
+      "mode": "no-cors",
+      "dest": "script"
+    }, "Cross-site script");
+  }, "Cross-site script");
+</script>
+
+<!-- Same-origin script, CORS mode -->
+<script src="https://{{host}}:{{ports[https][0]}}/fetch/metadata/resources/echo-as-script.py" crossorigin="anonymous"></script>
+<script>
+  test(t => {
+    t.add_cleanup(_ => { header = null; });
+
+    assert_header_equals(header, {
+      "site": "same-origin",
+      "user": "",
+      "mode": "cors",
+      "dest": "script"
+    }, "Same-origin CORS script");
+  }, "Same-origin CORS script");
+</script>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Tests Stale While Revalidate works for scripts</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/utils.js"></script>
+<body>
+<script>
+
+const request_token = token();
+const script_src = "./resources/stale-script.py?token=" + request_token;
+
+// The script above will call report() via a uniquely generated ID on the
+// subresource. If it is a cache hit, the ID will be the same and
+// |last_modified_count| won't be incremented.
+let last_modified;
+let last_modified_count = 0;
+function report(mod) {
+  if (last_modified == mod)
+    return;
+  last_modified = mod;
+  last_modified_count++;
+}
+
+let loadScript = async () => {
+  let script = document.createElement("script");
+  let script_loaded = new Promise(r => script.onload = r);
+  script.src = script_src;
+  document.body.appendChild(script);
+  await script_loaded;
+};
+
+promise_test(async t => {
+  await new Promise(r => window.onload = r);
+
+  await loadScript();
+  assert_equals(last_modified_count, 1, '(initial version loaded)');
+
+  await loadScript();
+  assert_equals(last_modified_count, 1, '(stale version loaded)');
+
+  // Query the server again and again. At some point it must have received the
+  // revalidation request. We poll, because we don't know when the revalidation
+  // will occur.
+  while(true) {
+    await new Promise(r => step_timeout(r, 25));
+    let response = await fetch(script_src + "&query");
+    let count = response.headers.get("Count");
+    if (count == '2')
+      break;
+  }
+
+  await loadScript();
+  assert_equals(last_modified_count, 2, '(revalidated version loaded)');
+
+}, 'Cache returns stale resource');
+
+</script>
+</body>

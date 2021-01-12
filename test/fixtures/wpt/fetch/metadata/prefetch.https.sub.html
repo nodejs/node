@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+<script src=/common/utils.js></script>
+<body></body>
+<script>
+  test(t => {
+    assert_true(document.createElement('link').relList.supports('prefetch'));
+  }, "Browser supports prefetch.");
+
+  function create_test(host, expected) {
+    async_test(t => {
+      let nonce = token();
+      let key = "prefetch" + nonce;
+
+      let e = document.createElement('link');
+      e.rel = "prefetch";
+      e.href = `https://${host}/fetch/metadata/resources/record-header.py?file=${key}`;
+      e.setAttribute("crossorigin", "crossorigin");
+      e.onload = t.step_func(e => {
+        fetch("/fetch/metadata/resources/record-header.py?retrieve=true&file=" + key)
+          .then(t.step_func(response => response.text()))
+          .then(t.step_func_done(text => assert_header_equals(text, expected, `<link rel='prefetch' href='https://${host}/...'>`)))
+          .catch(t.unreached_func("Fetching and verifying the results should succeed."));
+      });
+      e.onerror = t.unreached_func();
+
+      document.head.appendChild(e);
+    }, `<link rel='prefetch' href='https://${host}/...'>`);
+  }
+
+  create_test("{{host}}:{{ports[https][0]}}", {"site":"same-origin", "user":"", "mode": "cors", "dest": "empty"});
+  create_test("{{hosts[][www]}}:{{ports[https][0]}}", {"site":"same-site", "user":"", "mode": "cors", "dest": "empty"});
+  create_test("{{hosts[alt][www]}}:{{ports[https][0]}}", {"site":"cross-site", "user":"", "mode": "cors", "dest": "empty"});
+</script>

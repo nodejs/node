@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Worker Network Partition Checker</title>
+  <meta name="help" href="https://fetch.spec.whatwg.org/#network-partition-keys">
+  <meta name="timeout" content="normal">
+  <script src="SUBRESOURCE_PREFIX:&dispatch=fetch_file&path=common/utils.js"></script>
+  <script src="SUBRESOURCE_PREFIX:&dispatch=fetch_file&path=resources/testharness.js"></script>
+  <script src="SUBRESOURCE_PREFIX:&dispatch=fetch_file&path=fetch/connection-pool/resources/network-partition-key.js"></script>
+</head>
+<body>
+<script>
+    // Workers must be same origin as the page loading them, but it's simpler to reuse the
+    // OTHER_PREFIX mechanism in the Python code than to craft the URL in Javascript here.
+    var worker = new Worker('OTHER_PREFIX:&dispatch=fetch_file&path=fetch/connection-pool/resources/network-partition-worker.js');
+    function message_listener(event) {
+      window.opener.postMessage(event.data, '*');
+      worker.terminate();
+    }
+    worker.addEventListener('message', message_listener);
+</script>
+</body>
+</html>

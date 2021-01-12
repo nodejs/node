@@ -1,0 +1,92 @@
+[
+  {
+    "contentType": ["text/javascript;charset=windows-1252"],
+    "executes": true,
+    "encoding": "windows-1252"
+  },
+  {
+    "contentType": ["text/javascript;\";charset=windows-1252"],
+    "executes": true,
+    "encoding": "windows-1252"
+  },
+  {
+    "contentType": ["text/javascript\u000C"],
+    "executes": false,
+    "encoding": null
+  },
+  {
+    "contentType": ["\"text/javascript\""],
+    "executes": false,
+    "encoding": null
+  },
+  {
+    "contentType": ["text/ javascript"],
+    "executes": false,
+    "encoding": null
+  },
+  {
+    "contentType": ["text /javascript"],
+    "executes": false,
+    "encoding": null
+  },
+  {
+    "contentType": ["x/x", "text/javascript"],
+    "executes": true,
+    "encoding": null
+  },
+  {
+    "contentType": ["x/x;charset=windows-1252", "text/javascript"],
+    "executes": true,
+    "encoding": null
+  },
+  {
+    "contentType": ["text/javascript", "x/x"],
+    "executes": false,
+    "encoding": null
+  },
+  {
+    "contentType": ["text/javascript; charset=windows-1252", "text/javascript"],
+    "executes": true,
+    "encoding": "windows-1252"
+  },
+  {
+    "contentType": ["text/javascript;\"", "x/x"],
+    "executes": true,
+    "encoding": null
+  },
+  {
+    "contentType": ["text/javascript", ""],
+    "executes": true,
+    "encoding": null
+  },
+  {
+    "contentType": ["text/javascript", "error"],
+    "executes": true,
+    "encoding": null
+  },
+  {
+    "contentType": ["text/javascript;charset=windows-1252", "x/x", "text/javascript"],
+    "executes": true,
+    "encoding": null
+  },
+  {
+    "contentType": ["text/javascript;charset=windows-1252", "error", "text/javascript"],
+    "executes": true,
+    "encoding": "windows-1252"
+  },
+  {
+    "contentType": ["text/javascript;charset=windows-1252", "", "text/javascript"],
+    "executes": true,
+    "encoding": "windows-1252"
+  },
+  {
+    "contentType": ["text/javascript;charset=windows-1252;\"", "\\\"", "x/x"],
+    "executes": true,
+    "encoding": "windows-1252"
+  },
+  {
+    "contentType": ["x/x;\"", "x/y;\\\"", "text/javascript;charset=windows-1252;\"", "text/javascript"],
+    "executes": true,
+    "encoding": null
+  }
+]

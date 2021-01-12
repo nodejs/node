@@ -1,0 +1,85 @@
+<!-- Test verifies that cross-origin, nosniff images are 1) blocked when their
+  MIME type is covered by CORB and 2) allowed otherwise.
+
+  This test is very similar to fetch/nosniff/images.html, except that
+  1) it deals with cross-origin images (CORB ignores same-origin fetches),
+  2) it focuses on MIME types relevant to CORB.
+  There are opportunities to unify the test here with nosniff tests *if*
+  we can also start blocking same-origin (or cors-allowed) images.  We
+  should try to gather data to quantify the impact of such change.
+-->
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<div id=log></div>
+<script>
+  var passes = [
+      // Empty or non-sensical MIME types
+      null, "", "x", "x/x",
+
+      // MIME-types not protected by CORB
+      "image/gif", "image/png", "image/png;blah", "image/svg+xml",
+      "application/javascript", "application/jsonp",
+      "application/dash+xml", // video format
+      "image/gif;HI=THERE",
+
+      // Non-image MIME-types that in practice get used for images on the web.
+      //
+      // https://bugzilla.mozilla.org/show_bug.cgi?id=1302539
+      "application/octet-stream",
+      // https://crbug.com/990853
+      "application/x-www-form-urlencoded",
+
+      // MIME types that may seem to be JSON or XML, but really aren't - i.e.
+      // these MIME types are not covered by:
+      // - https://mimesniff.spec.whatwg.org/#json-mime-type
+      // - https://mimesniff.spec.whatwg.org/#xml-mime-type
+      // - https://tools.ietf.org/html/rfc6839
+      // - https://tools.ietf.org/html/rfc7303
+      "text/x-json", "text/json+blah", "application/json+blah",
+      "text/xml+blah", "application/xml+blah",
+      "application/blahjson", "text/blahxml"]
+
+  var fails = [
+      // CORB-protected MIME-types - i.e. ones covered by:
+      // - https://mimesniff.spec.whatwg.org/#html-mime-type
+      // - https://mimesniff.spec.whatwg.org/#json-mime-type
+      // - https://mimesniff.spec.whatwg.org/#xml-mime-type
+      "text/html",
+      "text/json", "application/json", "text/xml", "application/xml",
+      "application/blah+json", "text/blah+json",
+      "application/blah+xml", "text/blah+xml",
+      "TEXT/HTML", "TEXT/JSON", "TEXT/BLAH+JSON", "APPLICATION/BLAH+XML",
+      "text/json;does=it;matter", "text/HTML;NO=it;does=NOT"]
+
+  const get_url = (mime) => {
+    // www1 is cross-origin, so the HTTP response is CORB-eligible -->
+    url = "http://{{domains[www1]}}:{{ports[http][0]}}"
+    url = url + "/fetch/nosniff/resources/image.py"
+    if (mime != null) {
+        url += "?type=" + encodeURIComponent(mime)
+    }
+    return url
+  }
+
+  passes.forEach(function(mime) {
+    async_test(function(t) {
+      var img = document.createElement("img")
+      img.onerror = t.unreached_func("Unexpected error event")
+      img.onload = t.step_func_done(function(){
+        assert_equals(img.width, 96)
+      })
+      img.src = get_url(mime)
+      document.body.appendChild(img)
+    }, "CORB should allow the response if Content-Type is: '" + mime + "'.  ")
+  })
+
+  fails.forEach(function(mime) {
+    async_test(function(t) {
+      var img = document.createElement("img")
+      img.onerror = t.step_func_done()
+      img.onload = t.unreached_func("Unexpected load event")
+      img.src = get_url(mime)
+      document.body.appendChild(img)
+    }, "CORB should block the response if Content-Type is: '" + mime + "'.  ")
+  })
+</script>

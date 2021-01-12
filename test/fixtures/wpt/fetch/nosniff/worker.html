@@ -1,0 +1,28 @@
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<div id=log></div>
+<script>
+  var workers = [],
+      fails = ["", "?type=", "?type=x", "?type=x/x", "?type=text/html", "?type=text/json"],
+      passes = ["?type=text/javascript", "?type=text/ecmascript", "?type=text/ecmascript;yay"]
+
+  fails.forEach(function(urlpart) {
+    async_test(function(t) {
+      var w = new Worker("resources/worker.py" + urlpart)
+      w.onmessage = t.unreached_func("Unexpected message event")
+      w.onerror = t.step_func_done(function(){})
+      workers.push(w) // avoid GC
+    }, "URL query: " + urlpart)
+  })
+
+  passes.forEach(function(urlpart) {
+    async_test(function(t) {
+      var w = new Worker("resources/worker.py" + urlpart)
+      w.onmessage = t.step_func_done(function(e){
+        assert_equals(e.data, "hi")
+      })
+      w.onerror = t.unreached_func("Unexpected error event")
+      workers.push(w) // avoid GC
+    }, "URL query: " + urlpart)
+  })
+</script>

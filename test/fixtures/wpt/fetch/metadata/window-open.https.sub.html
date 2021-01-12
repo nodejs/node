@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/resources/testdriver.js></script>
+<script src=/resources/testdriver-vendor.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+<body>
+<script>
+  // Forced navigations:
+  async_test(t => {
+    let w = window.open("https://{{host}}:{{ports[https][0]}}/fetch/metadata/resources/post-to-owner.py");
+    t.add_cleanup(_ => w.close());
+    window.addEventListener('message', t.step_func(e => {
+      if (e.source != w)
+        return;
+
+      assert_header_equals(e.data, {
+        "site": "same-origin",
+        "user": "",
+        "mode": "navigate",
+        "dest": "document"
+      }, "Same-origin window, forced");
+      t.done();
+    }));
+  }, "Same-origin window, forced");
+
+  async_test(t => {
+    let w = window.open("https://{{hosts[][www]}}:{{ports[https][0]}}/fetch/metadata/resources/post-to-owner.py");
+    t.add_cleanup(_ => w.close());
+    window.addEventListener('message', t.step_func(e => {
+      if (e.source != w)
+        return;
+
+      assert_header_equals(e.data, {
+        "site": "same-site",
+        "user": "",
+        "mode": "navigate",
+        "dest": "document"
+      }, "Same-site window, forced");
+      t.done();
+    }));
+  }, "Same-site window, forced");
+
+  async_test(t => {
+    let w = window.open("https://{{hosts[alt][www]}}:{{ports[https][0]}}/fetch/metadata/resources/post-to-owner.py");
+    t.add_cleanup(_ => w.close());
+    window.addEventListener('message', t.step_func(e => {
+      if (e.source != w)
+        return;
+
+      assert_header_equals(e.data, {
+        "site": "cross-site",
+        "user": "",
+        "mode": "navigate",
+        "dest": "document"
+      }, "Cross-site window, forced");
+      t.done();
+    }));
+  }, "Cross-site window, forced");
+
+  async_test(t => {
+    let w = window.open("https://{{host}}:{{ports[https][0]}}/fetch/metadata/resources/post-to-owner.py");
+    t.add_cleanup(_ => w.close());
+    let messages = 0;
+    window.addEventListener('message', t.step_func(e => {
+      messages++;
+      if (e.source != w)
+        return;
+
+      assert_header_equals(e.data, {
+        "site": "same-origin",
+        "user": "",
+        "mode": "navigate",
+        "dest": "document"
+      }, "Same-origin window, forced, reloaded");
+
+      if (messages == 1) {
+        w.location.reload();
+      } else {
+        t.done();
+      }
+    }));
+  }, "Same-origin window, forced, reloaded");
+
+  async_test(t => {
+    let w = window.open("https://{{hosts[][www]}}:{{ports[https][0]}}/fetch/metadata/resources/post-to-owner.py");
+    t.add_cleanup(_ => w.close());
+    let messages = 0;
+    window.addEventListener('message', t.step_func(e => {
+      messages++;
+      if (e.source != w)
+        return;
+
+      assert_header_equals(e.data, {
+        "site": "same-site",
+        "user": "",
+        "mode": "navigate",
+        "dest": "document"
+      }, "Same-site window, forced, reloaded");
+
+      if (messages == 1) {
+        w.location.reload();
+      } else {
+        t.done();
+      }
+    }));
+  }, "Same-site window, forced, reloaded");
+
+  async_test(t => {
+    let w = window.open("https://{{hosts[alt][www]}}:{{ports[https][0]}}/fetch/metadata/resources/post-to-owner.py");
+    t.add_cleanup(_ => w.close());
+    let messages = 0;
+    window.addEventListener('message', t.step_func(e => {
+      messages++;
+      if (e.source != w)
+        return;
+
+      assert_header_equals(e.data, {
+        "site": "cross-site",
+        "user": "",
+        "mode": "navigate",
+        "dest": "document"
+      }, "Cross-site window, forced, reloaded");
+
+      if (messages == 1) {
+        w.location.reload();
+      } else {
+        t.done();
+      }
+    }));
+  }, "Cross-site window, forced, reloaded");
+
+  // User-activated navigations:
+  async_test(t => {
+    let b = document.createElement('button');
+    b.onclick = t.step_func(_ => {
+      let w = window.open("https://{{host}}:{{ports[https][0]}}/fetch/metadata/resources/post-to-owner.py");
+      t.add_cleanup(_ => w.close());
+      window.addEventListener('message', t.step_func(e => {
+        if (e.source != w)
+          return;
+
+        assert_header_equals(e.data, {
+          "site": "same-origin",
+          "user": "?1",
+          "mode": "navigate",
+          "dest": "document"
+        }, "Same-origin window, user-activated");
+        t.done();
+      }));
+    });
+    document.body.appendChild(b);
+    test_driver.click(b);
+  }, "Same-origin window, user-activated");
+
+  async_test(t => {
+    let b = document.createElement('button');
+    b.onclick = t.step_func(_ => {
+      let w = window.open("https://{{hosts[][www]}}:{{ports[https][0]}}/fetch/metadata/resources/post-to-owner.py");
+      t.add_cleanup(_ => w.close());
+      window.addEventListener('message', t.step_func(e => {
+        if (e.source != w)
+          return;
+
+        assert_header_equals(e.data, {
+          "site": "same-site",
+          "user": "?1",
+          "mode": "navigate",
+          "dest": "document"
+        }, "Same-site window, user-activated");
+        t.done();
+      }));
+    });
+    document.body.appendChild(b);
+    test_driver.click(b);
+  }, "Same-site window, user-activated");
+
+  async_test(t => {
+    let b = document.createElement('button');
+    b.onclick = t.step_func(_ => {
+      let w = window.open("https://{{hosts[alt][www]}}:{{ports[https][0]}}/fetch/metadata/resources/post-to-owner.py");
+      t.add_cleanup(_ => w.close());
+      window.addEventListener('message', t.step_func(e => {
+        if (e.source != w)
+          return;
+
+        assert_header_equals(e.data, {
+          "site": "cross-site",
+          "user": "?1",
+          "mode": "navigate",
+          "dest": "document"
+        }, "Cross-site window, user-activated");
+        t.done();
+      }));
+    });
+    document.body.appendChild(b);
+    test_driver.click(b);
+  }, "Cross-site window, user-activated");
+</script>

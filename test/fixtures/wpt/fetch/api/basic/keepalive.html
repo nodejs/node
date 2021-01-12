@@ -1,0 +1,106 @@
+<!doctype html>
+<html>
+<meta charset="utf-8">
+<title>Fetch API: keepalive handling</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<body>
+<script>
+
+const {
+  HTTP_NOTSAMESITE_ORIGIN,
+  HTTP_REMOTE_ORIGIN,
+  HTTP_REMOTE_ORIGIN_WITH_DIFFERENT_PORT
+} = get_host_info();
+
+function getUrl(origin1, origin2, withHeaders) {
+  const frameOrigin = HTTP_NOTSAMESITE_ORIGIN;
+  return `${frameOrigin}/fetch/api/resources/keepalive-iframe.html?` +
+    `origin1=${origin1}&` +
+    `origin2=${origin2}&` +
+    (withHeaders ? `with-headers` : ``);
+}
+
+async function getToken() {
+  return new Promise((resolve) => {
+    window.addEventListener('message', (event) => {
+      resolve(event.data);
+    }, {once: true});
+  });
+}
+
+async function queryToken(token) {
+  const response = await fetch(`../resources/stash-take.py?key=${token}`);
+  const json = await response.json();
+  return json;
+}
+
+// In order to parallelize the work, we are going to have an async_test
+// for the rest of the work. Note that we want the serialized behavior
+// for the steps so far, so we don't want to make the entire test case
+// an async_test.
+function checkToken(testName, token) {
+  async_test((test) => {
+    new Promise((resolve) => test.step_timeout(resolve, 3000)).then(() => {
+      return queryToken(token);
+    }).then((result) => {
+      assert_equals(result, 'on');
+    }).then(() => {
+      test.done();
+    }).catch(test.step_func((e) => {
+      assert_unreached(e);
+    }));
+  }, testName);
+}
+
+promise_test(async (test) => {
+  const iframe = document.createElement('iframe');
+  iframe.src = getUrl('', '', false);
+  document.body.appendChild(iframe);
+  const tokenPromise = getToken();
+  await (new Promise((resolve) => iframe.addEventListener('load', resolve)));
+  const token = await tokenPromise;
+  iframe.remove();
+
+  checkToken('same-origin', token);
+}, 'same-origin; setting up');
+
+promise_test(async (test) => {
+  const iframe = document.createElement('iframe');
+  iframe.src = getUrl(HTTP_REMOTE_ORIGIN,
+                      HTTP_REMOTE_ORIGIN_WITH_DIFFERENT_PORT, false);
+  document.body.appendChild(iframe);
+  const tokenPromise = getToken();
+  await (new Promise((resolve) => iframe.addEventListener('load', resolve)));
+  const token = await tokenPromise;
+  iframe.remove();
+
+  checkToken('cross-origin redirect', token);
+}, 'cross-origin redirect; setting up');
+
+promise_test(async (test) => {
+  const iframe = document.createElement('iframe');
+  iframe.src = getUrl(HTTP_REMOTE_ORIGIN,
+                      HTTP_REMOTE_ORIGIN_WITH_DIFFERENT_PORT, true);
+  document.body.appendChild(iframe);
+  const tokenPromise = getToken();
+  await (new Promise((resolve) => iframe.addEventListener('load', resolve)));
+  const token = await tokenPromise;
+  iframe.remove();
+
+  checkToken('cross-origin redirect with preflight', token);
+}, 'cross-origin redirect with preflight; setting up');
+
+promise_test(async (test) => {
+  const w = window.open(
+    `${HTTP_NOTSAMESITE_ORIGIN}/fetch/api/resources/keepalive-window.html`);
+  const tokenPromise = getToken();
+  const token = await tokenPromise;
+  w.close();
+
+  checkToken('keepalive in onunload in nested frame in another window', token);
+}, 'keepalive in onunload in nested frame in another window; setting up');
+</script>
+</body>
+</html>

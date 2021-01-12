@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+<script src=/fetch/metadata/resources/redirectTestHelper.sub.js></script>
+<script src=/common/security-features/resources/common.sub.js></script>
+<script src=/common/utils.js></script>
+<style>
+  @font-face {
+    font-family: myUpgradedFont;
+    src: url(http://{{host}}:{{ports[http][0]}}/fetch/api/resources/redirect.py?location=https%3A%2F%2F{{host}}%3A{{ports[https][0]}}%2Ffetch%2Fmetadata%2Fresources%2Frecord-header.py%3Ffile%3Dfont-https-upgrade{{$id:uuid()}});
+  }
+  #fontTest {
+    font-family: myUpgradedFont;
+  }
+</style>
+<body>
+    <div id="fontTest">Upgraded font</div>
+    <script>
+  let nonce = "{{$id}}";
+  let expected = { "site": "cross-site", "user": "", "mode": "cors", "dest": "font" };
+
+  // Validate various scenarios handle a request that redirects from http => https correctly and add the proper Sec- headers.
+  RunCommonRedirectTests("Http upgrade", upgradeRedirectTo, expected);
+
+  document.fonts.ready.then(function () {
+    promise_test(t => {
+      return new Promise((resolve, reject) => {
+        let key = "font-https-upgrade{{$id}}";
+        validate_expectations(key, expected, "Http upgrade font => No headers")
+          .then(_ => resolve())
+          .catch(e => reject(e));
+      });
+    }, "Http upgrade font => No headers");
+  });
+
+  promise_test(() => {
+    return requestViaImage(insecureRedirectURL + encodeURIComponent("https://{{host}}:{{ports[https][0]}}/common/security-features/subresource/image.py"))
+      .then(result => {
+         headers = result.headers;
+         got = {
+           "mode": headers["sec-fetch-mode"],
+           "site": headers["sec-fetch-site"],
+           "user": headers["sec-fetch-user"],
+           "dest": headers["sec-fetch-dest"]
+         };
+         assert_header_equals(got, {
+           // Note that we're using `undefined` here, as opposed to "" elsewhere because of the way
+           // that `image.py` encodes data.
+           "site": "cross-site",
+           "user": undefined,
+           "mode": "cors",
+           "dest": "image",
+         }, "Http upgrade image => No headers");
+      });
+  }, "Http upgrade image => No headers");
+</script>
+
+<script src="http://{{host}}:{{ports[http][0]}}/fetch/api/resources/redirect.py?location=https%3A%2F%2F{{host}}%3A{{ports[https][0]}}%2Ffetch%2Fmetadata%2Fresources%2Fecho-as-script.py"></script>
+<script>
+  test(t => {
+    t.add_cleanup(_ => { header = null; });
+    assert_header_equals(header, { "site": "cross-site", "user": "", "mode": "no-cors", "dest": "script" }, "Http upgrade script => No headers");
+  }, "Http upgrade script => No headers");
+</script>
+</body>

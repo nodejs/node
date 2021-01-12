@@ -1,0 +1,27 @@
+<!doctype html>
+<html id="doc" class="reftest-wait">
+  <meta charset="utf-8">
+  <link rel="match" href="basic-auth-cache-test-ref.html">
+
+  <img id="auth" onload="loadNoAuth()">
+  <img id="noauth" onload="removeWait()">
+
+
+  <script type="text/javascript">
+    function loadAuth() {
+        var authUrl = 'http://testuser:testpass@' + window.location.host + '/fetch/http-cache/resources/securedimage.py';
+        document.getElementById('auth').src = authUrl;
+    }
+
+    function loadNoAuth() {
+        var noAuthUrl = 'http://' + window.location.host + '/fetch/http-cache/resources/securedimage.py';
+        document.getElementById('noauth').src = noAuthUrl;
+    }
+
+    function removeWait() {
+        document.getElementById('doc').className = "";
+    }
+
+    window.onload = loadAuth;
+  </script>
+</html>

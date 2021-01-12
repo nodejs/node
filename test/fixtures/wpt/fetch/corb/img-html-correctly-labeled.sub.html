@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<!-- Test verifies that html fed to an <img> tag doesn't have any observable
+  difference with and without CORB (in both cases the resource body cannot be
+  rendered as an image - html cannot be rendered as an image and the empty body
+  from a CORB-blocked response also cannot be rendered as an image).
+-->
+<meta charset="utf-8">
+<!-- Reference page uses same-origin resources, which are not CORB-eligible. -->
+<link rel="match" href="img-html-correctly-labeled.sub-ref.html">
+<!-- www1 is cross-origin, so the HTTP response is CORB-eligible -->
+<img src="http://{{domains[www1]}}:{{ports[http][0]}}/fetch/corb/resources/html-correctly-labeled.html">

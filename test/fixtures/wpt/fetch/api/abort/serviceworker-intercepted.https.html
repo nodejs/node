@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Aborting fetch when intercepted by a service worker</title>
+  <script src="/resources/testharness.js"></script>
+  <script src="/resources/testharnessreport.js"></script>
+  <script src="../../../service-workers/service-worker/resources/test-helpers.sub.js"></script>
+</head>
+<body>
+<script>
+  // Duplicating this resource to make service worker scoping simpler.
+  const SCOPE = '../resources/basic.html';
+  const BODY_METHODS = ['arrayBuffer', 'blob', 'formData', 'json', 'text'];
+
+  async function setupRegistration(t, scope) {
+    const reg = await navigator.serviceWorker.register('../resources/sw-intercept.js', { scope });
+    await wait_for_state(t, reg.installing, 'activated');
+    add_completion_callback(_ => reg.unregister());
+    return reg;
+  }
+
+  promise_test(async t => {
+    const suffix = "?q=aborted-not-intercepted";
+    const scope = SCOPE + suffix;
+    await setupRegistration(t, scope);
+    const iframe = await with_iframe(scope);
+    add_completion_callback(_ => iframe.remove());
+    const w = iframe.contentWindow;
+
+    const controller = new w.AbortController();
+    const signal = controller.signal;
+    controller.abort();
+
+    const nextData = new Promise(resolve => {
+      w.navigator.serviceWorker.addEventListener('message', function once(event) {
+        // The message triggered by the iframe's document's fetch
+        // request cannot get dispatched by the time we add the event
+        // listener, so we have to guard against it.
+        if (!event.data.endsWith(suffix)) {
+          w.navigator.serviceWorker.removeEventListener('message', once);
+          resolve(event.data);
+        }
+      })
+    });
+
+    const fetchPromise = w.fetch('data.json', { signal });
+
+    await promise_rejects_dom(t, "AbortError", w.DOMException, fetchPromise);
+
+    await w.fetch('data.json?no-abort');
+
+    assert_true((await nextData).endsWith('?no-abort'), "Aborted request does not go through service worker");
+  }, "Already aborted request does not land in service worker");
+
+  for (const bodyMethod of BODY_METHODS) {
+    promise_test(async t => {
+      const scope = SCOPE + "?q=aborted-" + bodyMethod + "-rejects";
+      await setupRegistration(t, scope);
+      const iframe = await with_iframe(scope);
+      add_completion_callback(_ => iframe.remove());
+      const w = iframe.contentWindow;
+
+      const controller = new w.AbortController();
+      const signal = controller.signal;
+
+      const log = [];
+      const response = await w.fetch('data.json', { signal });
+
+      controller.abort();
+
+      const bodyPromise = response[bodyMethod]();
+
+      await Promise.all([
+        bodyPromise.catch(() => log.push(`${bodyMethod}-reject`)),
+        Promise.resolve().then(() => log.push('next-microtask'))
+      ]);
+
+      await promise_rejects_dom(t, "AbortError", w.DOMException, bodyPromise);
+
+      assert_array_equals(log, [`${bodyMethod}-reject`, 'next-microtask']);
+    }, `response.${bodyMethod}() rejects if already aborted`);
+  }
+
+  promise_test(async t => {
+    const scope = SCOPE + "?q=aborted-stream-errors";
+    await setupRegistration(t, scope);
+    const iframe = await with_iframe(scope);
+    add_completion_callback(_ => iframe.remove());
+    const w = iframe.contentWindow;
+
+    const controller = new w.AbortController();
+    const signal = controller.signal;
+
+    const response = await w.fetch('data.json', { signal });
+    const reader = response.body.getReader();
+
+    controller.abort();
+
+    await promise_rejects_dom(t, "AbortError", w.DOMException, reader.read());
+    await promise_rejects_dom(t, "AbortError", w.DOMException, reader.closed);
+  }, "Stream errors once aborted.");
+</script>
+</body>
+</html>

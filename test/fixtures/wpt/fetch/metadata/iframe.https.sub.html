@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/resources/testdriver.js></script>
+<script src=/resources/testdriver-vendor.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+<script src=/common/utils.js></script>
+<body>
+<script>
+  const USER = true;
+  const FORCED = false;
+
+  function create_test(host, user_activated, expectations) {
+    async_test(t => {
+      let i = document.createElement('iframe');
+      window.addEventListener('message', t.step_func(e => {
+        if (e.source != i.contentWindow)
+          return;
+
+        assert_header_equals(e.data, expectations, `{{host}} -> ${host} iframe: ${user_activated ? "user-activated" : "forced"}`);
+        t.done();
+      }));
+
+      let url = `https://${host}/fetch/metadata/resources/post-to-owner.py`;
+      if (user_activated == FORCED) {
+        i.src = url;
+        document.body.appendChild(i);
+      } else if (user_activated == USER) {
+        let uuid = token();
+        i.name = uuid;
+        let a = document.createElement('a');
+        a.href = url;
+        a.target = uuid;
+        a.text = "This is a link!";
+
+        document.body.appendChild(i);
+        document.body.appendChild(a);
+
+        test_driver.click(a);
+      }
+    }, `{{host}} -> ${host} iframe: ${user_activated ? "user-activated" : "forced"}`);
+  }
+
+  create_test("{{host}}:{{ports[https][0]}}", FORCED, {
+    "site": "same-origin",
+    "user": "",
+    "mode": "navigate",
+    "dest": "iframe"
+  });
+
+  create_test("{{hosts[][www]}}:{{ports[https][0]}}", FORCED, {
+    "site": "same-site",
+    "user": "",
+    "mode": "navigate",
+    "dest": "iframe"
+  });
+
+  create_test("{{hosts[alt][www]}}:{{ports[https][0]}}", FORCED, {
+    "site": "cross-site",
+    "user": "",
+    "mode": "navigate",
+    "dest": "iframe"
+  });
+
+  create_test("{{host}}:{{ports[https][0]}}", USER, {
+    "site": "same-origin",
+    "user": "?1",
+    "mode": "navigate",
+    "dest": "iframe"
+  });
+
+  create_test("{{hosts[][www]}}:{{ports[https][0]}}", USER, {
+    "site": "same-site",
+    "user": "?1",
+    "mode": "navigate",
+    "dest": "iframe"
+  });
+
+  create_test("{{hosts[alt][www]}}:{{ports[https][0]}}", USER, {
+    "site": "cross-site",
+    "user": "?1",
+    "mode": "navigate",
+    "dest": "iframe"
+  });
+</script>

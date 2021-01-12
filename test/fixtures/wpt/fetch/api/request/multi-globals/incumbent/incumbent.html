@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<title>Incumbent page used as a test helper</title>
+
+<iframe src="../current/current.html" id="c"></iframe>
+
+<script>
+'use strict';
+
+window.createRequest = (...args) => {
+    const current = document.querySelector('#c').contentWindow;
+    return new current.Request(...args);
+};
+
+</script>

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<title>Fetch destination tests for resources with no load event</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/service-workers/service-worker/resources/test-helpers.sub.js"></script>
+<script>
+let frame;
+
+// Set up the service worker and the frame.
+promise_test(t => {
+    const kScope = 'resources/dummy.html';
+    const kScript = 'resources/fetch-destination-worker-no-load-event.js';
+    return service_worker_unregister_and_register(t, kScript, kScope)
+      .then(registration => {
+          add_completion_callback(() => {
+              registration.unregister();
+            });
+
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(() => {
+          return with_iframe(kScope);
+        })
+      .then(f => {
+          frame = f;
+          add_completion_callback(() => { f.remove(); });
+        });
+  }, 'Initialize global state');
+
+var waitOnMessageFromSW = async t => {
+    await new Promise((resolve, reject) => {
+        frame.contentWindow.navigator.serviceWorker.onmessage = t.step_func(event => {
+            if (event.data == "PASS") {
+                resolve();
+            } else {
+                reject();
+            }
+        });
+    }).catch(() => {;
+        assert_unreached("Wrong destination.");
+    });
+    t.add_cleanup(() => { frame.contentWindow.navigator.serviceWorker.onmessage = null; });
+}
+
+// worker destination
+/////////////////////
+promise_test(async t => {
+    // We can use an html file as we don't really care about the dedicated worker successfully loading.
+    let worker = new frame.contentWindow.Worker("dummy.html?t=worker&dest=worker");
+    await waitOnMessageFromSW(t);
+}, 'DedicatedWorker fetches with a "worker" Request.destination');
+
+promise_test(async t => {
+    // We can use an html file as we don't really care about the shared worker successfully loading.
+    let worker = new frame.contentWindow.SharedWorker("dummy.html?t=sharedworker&dest=sharedworker");
+    await waitOnMessageFromSW(t);
+}, 'SharedWorker fetches with a "sharedworker" Request.destination');
+
+</script>

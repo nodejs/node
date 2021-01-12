@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<link rel="author" href="mtrzos@google.com" title="Maciek Trzos">
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/fetch/metadata/resources/helper.js></script>
+<body>
+  <div id="test1">1</div>
+  <div id="test2">2</div>
+  <div id="test3">3</div>
+  <!-- Same-Origin request -->
+  <style>
+    @font-face {
+      font-family: myFirstFont;
+      src: url(https://{{host}}:{{ports[https][0]}}/fetch/metadata/resources/record-header.py?file=font-same-origin);
+    }
+    #test1 {
+      font-family: myFirstFont;
+    }
+  </style>
+
+  <!-- Same-Site request -->
+  <style>
+    @font-face {
+      font-family: mySecondFont;
+      src: url(https://{{hosts[][www]}}:{{ports[https][0]}}/fetch/metadata/resources/record-header.py?file=font-same-site);
+    }
+    #test2 {
+      font-family: mySecondFont;
+    }
+  </style>
+
+  <!-- Cross-Site request -->
+  <style>
+    @font-face {
+      font-family: myThirdFont;
+      src: url(https://{{hosts[alt][www]}}:{{ports[https][0]}}/fetch/metadata/resources/record-header.py?file=font-cross-site);
+    }
+    #test3 {
+      font-family: myThirdFont;
+    }
+  </style>
+</body>
+<script>
+  document.fonts.ready.then(function () {
+    promise_test(t => {
+      return new Promise((resolve, reject) => {
+        let key = "font-same-origin";
+        let expected = {"site":"same-origin", "user":"", "mode": "cors", "dest": "font"};
+        validate_expectations(key, expected, "Same-Origin font")
+          .then(_ => resolve())
+          .catch(e => reject(e));
+        });
+    }, "Same-Origin font");
+
+    promise_test(t => {
+      return new Promise((resolve, reject) => {
+        let key = "font-same-site";
+        let expected = {"site":"same-site", "user":"", "mode": "cors", "dest": "font"};
+        validate_expectations(key, expected, "Same-Site font")
+          .then(_ => resolve())
+          .catch(e => reject(e));
+        });
+    }, "Same-Site font");
+
+    promise_test(t => {
+      return new Promise((resolve, reject) => {
+        let key = "font-cross-site";
+        let expected = {"site":"cross-site", "user":"", "mode": "cors", "dest": "font"};
+        validate_expectations(key, expected, "Cross-Site font")
+          .then(_ => resolve())
+          .catch(e => reject(e));
+        });
+    }, "Cross-Site font");
+
+  });
+</script>
+</html>

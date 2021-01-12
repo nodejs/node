@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<!-- Test verifies that html fed to a <script> tag won't report a syntax
+  error after CORB blocks the response (an empty response body injected
+  by CORB won't have any JavaScript syntax errors).
+-->
+<meta charset="utf-8">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+setup({allow_uncaught_exception : true});
+async_test(function(t) {
+  var script = document.createElement("script")
+
+  // Without CORB, the html document would cause a syntax error when parsed as
+  // JavaScript, but with CORB there should be no errors (because CORB will
+  // replace the response body with an empty body).
+  script.onload = t.step_func_done(function(){})
+  addEventListener("error",function(e) {
+    t.step(function() {
+      assert_unreached("Empty body of a CORS-blocked response shouldn't trigger syntax errors.");
+      t.done();
+    })
+  });
+
+  // www1 is cross-origin, so the HTTP response is CORB-eligible.
+  script.src = 'http://{{domains[www1]}}:{{ports[http][0]}}/fetch/corb/resources/html-correctly-labeled.html';
+  document.body.appendChild(script)
+}, "CORB-blocked script has no syntax errors");
+</script>

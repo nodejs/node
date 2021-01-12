@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Stale Revalidation Requests don't get sent to service worker</title>
+  <script src="/resources/testharness.js"></script>
+  <script src="/resources/testharnessreport.js"></script>
+  <script src="../../service-workers/service-worker/resources/test-helpers.sub.js"></script>
+  <script src="/common/utils.js"></script>
+</head>
+<body>
+<script>
+
+  // Duplicating this resource to make service worker scoping simpler.
+  async function setupRegistrationAndWaitToBeControlled(t, scope) {
+    const controlled = new Promise((resolve) => {
+      navigator.serviceWorker.oncontrollerchange = () => { resolve(); };
+    });
+    const reg = await navigator.serviceWorker.register('sw-intercept.js');
+    await wait_for_state(t, reg.installing, 'activated');
+    await controlled;
+    add_completion_callback(_ => reg.unregister());
+    return reg;
+  }
+
+  // Using 250ms polling interval to provide enough 'network calmness' to give
+  // the background low priority revalidation request a chance to kick in.
+  function wait250ms(test) {
+    return new Promise(resolve => {
+      test.step_timeout(() => {
+        resolve();
+      }, 250);
+    });
+  }
+
+  promise_test(async (test) => {
+    var request_token = token();
+    const uri = 'resources/stale-script.py?token=' + request_token;
+
+    await setupRegistrationAndWaitToBeControlled(test, 'resources/stale-script.py');
+
+    var service_worker_count = 0;
+    navigator.serviceWorker.addEventListener('message', function once(event) {
+      if (event.data.endsWith(uri)) {
+        service_worker_count++;
+      }
+    });
+
+    const response = await fetch(uri);
+    const response2 = await fetch(uri);
+    assert_equals(response.headers.get('Unique-Id'), response2.headers.get('Unique-Id'));
+    while(true) {
+      const revalidation_check = await fetch(`resources/stale-script.py?query&token=` + request_token);
+      if (revalidation_check.headers.get('Count') == '2') {
+        // The service worker should not see the revalidation request.
+        assert_equals(service_worker_count, 2);
+        break;
+      }
+      await wait250ms(test);
+    }
+  }, 'Second fetch returns same response');
+
+</script>
+</body>
+</html>

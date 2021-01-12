@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<!-- Test verifies that CORB won't block a polyglot script that is
+     both a valid HTML document and also valid Javascript.
+-->
+<meta charset="utf-8">
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<div id=log></div>
+<script>
+["html-js-polyglot.js", "html-js-polyglot2.js"].forEach(polyglot_name => {
+  async_test(function(t) {
+    window[polyglot_name] = false;
+    var script = document.createElement("script");
+
+    script.onload = t.step_func_done(function(){
+      // Verify that the script response wasn't blocked - that script
+      // should have set window[polyglot_name] to true.
+      assert_true(window[polyglot_name]);
+    })
+    addEventListener("error",function(e) {
+      t.step(function() {
+        assert_unreached("No errors are expected with or without CORB.");
+        t.done();
+      })
+    });
+
+    // www1 is cross-origin, so the HTTP response is CORB-eligible.
+    script.src = "http://{{domains[www1]}}:{{ports[http][0]}}/fetch/corb/resources/" + polyglot_name;
+    document.body.appendChild(script);
+  }, "CORB cannot block polyglot HTML/JS: " + polyglot_name);
+});
+</script>

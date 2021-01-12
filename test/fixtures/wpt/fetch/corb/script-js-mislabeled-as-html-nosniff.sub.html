@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<!-- Test verifies that script mislabeled as html won't execute with and without CORB
+  if the nosniff response header is present.
+
+  The expected behavior is covered by the Fetch spec at
+  https://fetch.spec.whatwg.org/#should-response-to-request-be-blocked-due-to-nosniff?
+
+  See also the following tests:
+  - fetch/nosniff/importscripts.html
+  - fetch/nosniff/script.html
+  - fetch/nosniff/worker.html
+-->
+<meta charset="utf-8">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+
+<script>
+setup({ single_test: true });
+window.has_executed_script = false;
+</script>
+
+<!-- www1 is cross-origin, so the HTTP response is CORB-eligible -->
+<script src="http://{{domains[www1]}}:{{ports[http][0]}}/fetch/corb/resources/js-mislabeled-as-html-nosniff.js">
+</script>
+
+<script>
+// Verify what observable effects the <script> tag above had.
+// Assertion should hold with and without CORB:
+assert_false(window.has_executed_script,
+             'The cross-origin script should not be executed');
+done();
+</script>
