@@ -2711,6 +2711,21 @@ Type: Documentation-only.
 
 Prefer [`message.socket`][] over [`message.connection`][].
 
+### DEP0XXX: Changing the value of `process.config`
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/36902
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+The `process.config` property is intended to provide access to configuration
+settings set when the Node.js binary was compiled. However, the property has
+been mutable by user code making it impossible to rely on. The ability to
+change the value has been deprecated and will be disabled in the future.
+
 [Legacy URL API]: url.md#url_legacy_url_api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
