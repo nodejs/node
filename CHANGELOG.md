@@ -32,7 +32,8 @@ release.
 </tr>
 <tr>
     <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V15.md#15.5.1">15.5.1</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V15.md#15.6.0">15.6.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V15.md#15.5.1">15.5.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V15.md#15.5.0">15.5.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V15.md#15.4.0">15.4.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V15.md#15.3.0">15.3.0</a><br/>

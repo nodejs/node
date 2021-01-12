@@ -1611,7 +1611,7 @@ program memory allocations.
 
 ## `process.memoryUsage.rss()`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 * Returns: {integer}
