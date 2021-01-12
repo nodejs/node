@@ -15,7 +15,6 @@ See [details on our policy on Code of Conduct](./doc/guides/contributing/code-of
 
 ## [Issues](./doc/guides/contributing/issues.md)
 
-* [How to Contribute in Issues](./doc/guides/contributing/issues.md#how-to-contribute-in-issues)
 * [Asking for General Help](./doc/guides/contributing/issues.md#asking-for-general-help)
 * [Discussing non-technical topics](./doc/guides/contributing/issues.md#discussing-non-technical-topics)
 * [Submitting a Bug Report](./doc/guides/contributing/issues.md#submitting-a-bug-report)
