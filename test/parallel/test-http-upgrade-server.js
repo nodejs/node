@@ -100,7 +100,7 @@ function test_upgrade_with_listener() {
 
     if (state === 1) {
       assert.strictEqual(data.substr(0, 12), 'HTTP/1.1 101');
-      assert.strictEqual(request_upgradeHead.toString('utf8'), 'WjN}|M(6');
+      assert.strictEqual(request_upgradeHead.toString('utf8'), '');
       conn.write('test', 'utf8');
     } else if (state === 2) {
       assert.strictEqual(data, 'test');

@@ -569,11 +569,15 @@ See also: [`request.setTimeout()`][].
 ### Event: `'upgrade'`
 <!-- YAML
 added: v0.1.94
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: The `head` argument is deprecated and is always an
+    empty buffer.
 -->
 
 * `response` {http.IncomingMessage}
 * `socket` {stream.Duplex}
-* `head` {Buffer}
 
 Emitted each time a server responds to a request with an upgrade. If this
 event is not being listened for and the response status code is 101 Switching
