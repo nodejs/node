@@ -472,8 +472,8 @@ hr {
   margin: 0 0 1rem;
 }
 
-#toc h2 {
-  margin: 1.5rem 0;
+#toc > ul {
+  margin-top: 1.5rem;
 }
 
 #toc p {

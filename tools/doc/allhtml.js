@@ -31,10 +31,10 @@ for (const link of toc.match(/<a.*?>/g)) {
   const data = fs.readFileSync(source + '/' + href, 'utf8');
 
   // Split the doc.
-  const match = /(<\/ul>\s*)?<\/div>\s*<div id="apicontent">/.exec(data);
+  const match = /(<\/ul>\s*)?<\/\w+>\s*<\w+ id="apicontent">/.exec(data);
 
   contents += data.slice(0, match.index)
-    .replace(/[\s\S]*?<div id="toc">\s*<h2>.*?<\/h2>\s*(<ul>\s*)?/, '');
+    .replace(/[\s\S]*?id="toc"[^>]*>\s*<\w+>.*?<\/\w+>\s*(<ul>\s*)?/, '');
 
   apicontent += data.slice(match.index + match[0].length)
     .replace(/<!-- API END -->[\s\S]*/, '')
@@ -59,13 +59,13 @@ let all = toc.replace(/index\.html/g, 'all.html')
 all = all.replace(/<title>.*?\| /, '<title>');
 
 // Insert the combined table of contents.
-const tocStart = /<div id="toc">\s*<h2>.*?<\/h2>\s*/.exec(all);
+const tocStart = /<\w+ id="toc"[^>]*>\s*<\w+>.*?<\/\w+>\s*/.exec(all);
 all = all.slice(0, tocStart.index + tocStart[0].length) +
   '<ul>\n' + contents + '</ul>\n' +
   all.slice(tocStart.index + tocStart[0].length);
 
 // Replace apicontent with the concatenated set of apicontents from each source.
-const apiStart = /<div id="apicontent">\s*/.exec(all);
+const apiStart = /<\w+ id="apicontent">\s*/.exec(all);
 const apiEnd = all.lastIndexOf('<!-- API END -->');
 all = all.slice(0, apiStart.index + apiStart[0].length) +
   apicontent +
