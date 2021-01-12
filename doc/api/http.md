@@ -113,7 +113,7 @@ http.get({
 <!-- YAML
 added: v0.3.4
 changes:
-  - version: REPLACEME
+  - version: v15.6.0
     pr-url: https://github.com/nodejs/node/pull/36685
     description: Change the default scheduling from 'fifo' to 'lifo'.
   - version:

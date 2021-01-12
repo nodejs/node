@@ -324,7 +324,7 @@ Listening on a file descriptor is not supported on Windows.
 <!-- YAML
 added: v0.11.14
 changes:
-  - version: REPLACEME
+  - version: v15.6.0
     pr-url: https://github.com/nodejs/node/pull/36623
     description: AbortSignal support was added.
   - version: v11.4.0

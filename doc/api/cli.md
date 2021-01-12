@@ -850,7 +850,7 @@ environment data.
 
 ### `--secure-heap=n`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 Initializes an OpenSSL secure heap of `n` bytes. When initialized, the
@@ -874,7 +874,7 @@ See [`CRYPTO_secure_malloc_init`][] for more details.
 
 ### `--secure-heap-min=n`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 When using `--secure-heap`, the `--secure-heap-min` flag specifies the

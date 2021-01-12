@@ -1666,7 +1666,7 @@ be passed instead of a public key.
 
 ## Class: `X509Certificate`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 Encapsulates an X509 certificate and provides read-only access to
@@ -1682,7 +1682,7 @@ console.log(x509.subject);
 
 ### `new X509Certificate(buffer)`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 * `buffer` {string|TypedArray|Buffer|DataView} A PEM or DER encoded
@@ -1690,7 +1690,7 @@ added: REPLACEME
 
 ### `x509.ca`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 * Type: {boolean} Will be `true` if this is a Certificate Authority (ca)
@@ -1698,7 +1698,7 @@ added: REPLACEME
 
 ### `x509.checkEmail(email[, options])`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 * `email` {string}
@@ -1715,7 +1715,7 @@ Checks whether the certificate matches the given email address.
 
 ### `x509.checkHost(name[, options])`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 * `name` {string}
@@ -1732,7 +1732,7 @@ Checks whether the certificate matches the given host name.
 
 ### `x509.checkIP(ip[, options])`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 * `ip` {string}
@@ -1749,7 +1749,7 @@ Checks whether the certificate matches the given IP address (IPv4 or IPv6).
 
 ### `x509.checkIssued(otherCert)`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 * `otherCert` {X509Certificate}
@@ -1759,7 +1759,7 @@ Checks whether this certificate was issued by the given `otherCert`.
 
 ### `x509.checkPrivateKey(privateKey)`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 * `privateKey` {KeyObject} A private key.
@@ -1770,7 +1770,7 @@ the given private key.
 
 ### `x509.fingerprint`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 * Type: {string}
@@ -1779,7 +1779,7 @@ The SHA-1 fingerprint of this certificate.
 
 ### `x509.fingerprint256`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 * Type: {string}
@@ -1788,7 +1788,7 @@ The SHA-256 fingerprint of this certificate.
 
 ### `x509.infoAccess`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 * Type: {string}
@@ -1797,7 +1797,7 @@ The information access content of this certificate.
 
 ### `x509.issuer`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 * Type: {string}
@@ -1806,7 +1806,7 @@ The issuer identification included in this certificate.
 
 ### `x509.keyUsage`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 * Type: {string[]}
@@ -1815,7 +1815,7 @@ An array detailing the key usages for this certificate.
 
 ### `x509.publicKey`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 * Type: {KeyObject}
@@ -1824,7 +1824,7 @@ The public key {KeyObject} for this certificate.
 
 ### `x509.raw`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 * Type: {Buffer}
@@ -1833,7 +1833,7 @@ A `Buffer` containing the DER encoding of this certificate.
 
 ### `x509.serialNumber`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 * Type: {string}
@@ -1842,7 +1842,7 @@ The serial number of this certificate.
 
 ### `x509.subject`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 * Type: {string}
@@ -1851,7 +1851,7 @@ The complete subject of this certificate.
 
 ### `x509.subjectAltName`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 * Type: {string}
@@ -1860,7 +1860,7 @@ The subject alternative name specified for this certificate.
 
 ### `x509.toJSON()`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 * Type: {string}
@@ -1871,7 +1871,7 @@ certificate.
 
 ### `x509.toLegacyObject()`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 * Type: {Object}
@@ -1881,7 +1881,7 @@ Returns information about this certificate using the legacy
 
 ### `x509.toString()`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 * Type: {string}
@@ -1890,7 +1890,7 @@ Returns the PEM-encoded certificate.
 
 ### `x509.validFrom`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 * Type: {string}
@@ -1899,7 +1899,7 @@ The date/time from which this certificate is considered valid.
 
 ### `x509.validTo`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 * Type: {string}
@@ -1908,7 +1908,7 @@ The date/time until which this certificate is considered valid.
 
 ### `x509.verify(publicKey)`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 * `publicKey` {KeyObject} A public key.
@@ -3434,7 +3434,7 @@ console.log(`The dice rolled: ${n}`);
 
 ### `crypto.randomUUID([options])`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 * `options` {Object}
@@ -3566,7 +3566,7 @@ console.log(key2.toString('hex'));  // '3745e48...aa39b34'
 
 ### `crypto.secureHeapUsed()`
 <!-- YAML
-added: REPLACEME
+added: v15.6.0
 -->
 
 * Returns: {Object}
