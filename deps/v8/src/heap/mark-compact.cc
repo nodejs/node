@@ -2290,7 +2290,9 @@ bool MarkCompactCollector::TransitionArrayNeedsCompaction(
 #ifdef DEBUG
       // Targets can only be dead iff this array is fully deserialized.
       for (int i = 0; i < num_transitions; ++i) {
-        DCHECK(!non_atomic_marking_state()->IsWhite(transitions.GetTarget(i)));
+        DCHECK_IMPLIES(
+            !transitions.GetRawTarget(i).IsSmi(),
+            !non_atomic_marking_state()->IsWhite(transitions.GetTarget(i)));
       }
 #endif
       return false;
