@@ -1140,7 +1140,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`cluster` module]: cluster.md
 [`data:` URL]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
 [`fs.close()`]: fs.md#fs_fs_close_fd_callback
-[`fs.open()`]: fs.md#fs_fs_open_path_flags_mode_callback
+[`fs.open()`]: fs.md#fs_fs_open_path_flag_mode_callback
 [`markAsUntransferable()`]: #worker_threads_worker_markasuntransferable_object
 [`perf_hooks.performance`]: perf_hooks.md#perf_hooks_perf_hooks_performance
 [`perf_hooks` `eventLoopUtilization()`]: perf_hooks.md#perf_hooks_performance_eventlooputilization_utilization1_utilization2
