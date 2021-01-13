@@ -2649,10 +2649,7 @@ class StrongRootBlockAllocator {
   using size_type = size_t;
   using difference_type = ptrdiff_t;
   template <class U>
-  struct rebind {
-    STATIC_ASSERT((std::is_same<Address, U>::value));
-    using other = StrongRootBlockAllocator;
-  };
+  struct rebind;
 
   explicit StrongRootBlockAllocator(Heap* heap) : heap_(heap) {}
 
@@ -2661,6 +2658,23 @@ class StrongRootBlockAllocator {
 
  private:
   Heap* heap_;
+};
+
+// Rebinding to Address gives another StrongRootBlockAllocator.
+template <>
+struct StrongRootBlockAllocator::rebind<Address> {
+  using other = StrongRootBlockAllocator;
+};
+
+// Rebinding to something other than Address gives a std::allocator that
+// is copy-constructable from StrongRootBlockAllocator.
+template <class U>
+struct StrongRootBlockAllocator::rebind {
+  class other : public std::allocator<U> {
+   public:
+    // NOLINTNEXTLINE
+    other(const StrongRootBlockAllocator&) {}
+  };
 };
 
 }  // namespace internal
