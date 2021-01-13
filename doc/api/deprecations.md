@@ -2699,8 +2699,7 @@ resolutions not in `node_modules`. This means there will not be deprecation
 warnings for `"exports"` in dependencies. With `--pending-deprecation`, a
 runtime warning results no matter where the `"exports"` usage occurs.
 
-<a id="DEP0148"></a>
-### DEP0148: `http.IncomingMessage#connection`
+### DEP0149: `http.IncomingMessage#connection`
 <!-- YAML
 changes:
   - version: REPLACEME
