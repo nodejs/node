@@ -2748,11 +2748,11 @@ an explicit [`"exports"` or `"main"` entry][] with the exact file extension.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/33768
+    pr-url: https://github.com/nodejs/node/pull/36901
     description: Documentation-only deprecation.
  -->
 
-Type: Runtime.
+Type: Documentation-only.
 
 `head` is unshifted into the socket buffer.
 
