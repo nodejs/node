@@ -2732,7 +2732,7 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: Documentation (supports [`--pending-deprecation`][])
 
 Previously, `index.js` lookup would apply for `require('pkg')` even for packages
 with a `"type": "module"` field in their package.json
