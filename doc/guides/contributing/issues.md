@@ -4,7 +4,6 @@
 * [Discussing non-technical topics](#discussing-non-technical-topics)
 * [Submitting a Bug Report](#submitting-a-bug-report)
 * [Triaging a Bug Report](#triaging-a-bug-report)
-* [Resolving a Bug Report](#resolving-a-bug-report)
 
 ## Asking for General Help
 
@@ -87,14 +86,6 @@ The triage role enables the ability to carry out the most common triage
 activities, such as applying labels and closing/reopening/assigning issues.
 For more information on the roles and permissions, see ["Permission levels for
 repositories owned by an organization"](https://docs.github.com/en/github/setting-up-and-managing-organizations-and-teams/repository-permission-levels-for-an-organization#permission-levels-for-repositories-owned-by-an-organization).
-
-## Resolving a Bug Report
-
-In the vast majority of cases, issues are resolved by opening a Pull Request.
-The process for opening and reviewing a Pull Request is similar to that of
-opening and triaging issues, but carries with it a necessary review and approval
-workflow that ensures that the proposed changes meet the minimal quality and
-functional guidelines of the Node.js project.
 
 [Node.js help repository]: https://github.com/nodejs/help/issues
 [Technical Steering Committee (TSC) repository]: https://github.com/nodejs/TSC/issues

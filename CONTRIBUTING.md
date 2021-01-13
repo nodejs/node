@@ -19,7 +19,6 @@ See [details on our policy on Code of Conduct](./doc/guides/contributing/code-of
 * [Discussing non-technical topics](./doc/guides/contributing/issues.md#discussing-non-technical-topics)
 * [Submitting a Bug Report](./doc/guides/contributing/issues.md#submitting-a-bug-report)
 * [Triaging a Bug Report](./doc/guides/contributing/issues.md#triaging-a-bug-report)
-* [Resolving a Bug Report](./doc/guides/contributing/issues.md#resolving-a-bug-report)
 
 ## [Pull Requests](./doc/guides/contributing/pull-requests.md)
 
