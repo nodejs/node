@@ -2739,7 +2739,7 @@ napi_status napi_get_buffer_info(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 This API is used to retrieve the underlying data buffer of a `node::Buffer`
-and it's length.
+and its length.
 
 *Warning*: Use caution while using this API since the underlying data buffer's
 lifetime is not guaranteed if it's managed by the VM.

@@ -1651,7 +1651,7 @@ added: v15.6.0
 -->
 
 Encapsulates an X509 certificate and provides read-only access to
-it's information.
+its information.
 
 ```js
 const { X509Certificate } = require('crypto');
