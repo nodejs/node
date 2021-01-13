@@ -109,14 +109,18 @@ fs.read(fd,
         0,
         expected.length,
         0n,
-        common.mustCall());
+        common.mustSucceed());
 
 fs.read(fd,
         Buffer.allocUnsafe(expected.length),
         0,
         expected.length,
         2n ** 53n - 1n,
-        common.mustCall());
+        common.mustCall((err) => {
+          if (err) {
+            assert.strictEqual(err.code, 'EFBIG');
+          }
+        }));
 
 assert.throws(
   () => fs.readSync(fd, expected.length, 0, 'utf-8'),
