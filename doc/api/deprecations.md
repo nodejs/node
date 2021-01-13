@@ -2728,7 +2728,7 @@ change the value has been deprecated and will be disabled in the future.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/36918
     description: Runtime deprecation.
 -->
 
