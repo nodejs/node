@@ -1,5 +1,6 @@
 # Modules: Packages
 
+<!--introduced_in=v12.20.0-->
 <!-- type=misc -->
 <!-- YAML
 changes:
