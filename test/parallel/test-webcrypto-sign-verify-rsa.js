@@ -23,7 +23,7 @@ async function testVerify({
     noVerifyPublicKey,
     privateKey,
     hmacKey,
-    rsaKeys
+    ecdsaKeys
   ] = await Promise.all([
     subtle.importKey(
       'spki',
@@ -85,7 +85,7 @@ async function testVerify({
     });
 
   await assert.rejects(
-    subtle.verify(algorithm, rsaKeys.publicKey, signature, plaintext), {
+    subtle.verify(algorithm, ecdsaKeys.publicKey, signature, plaintext), {
       message: /Unable to use this key to verify/
     });
 
@@ -138,7 +138,7 @@ async function testSign({
     noSignPrivateKey,
     privateKey,
     hmacKey,
-    rsaKeys,
+    ecdsaKeys
   ] = await Promise.all([
     subtle.importKey(
       'spki',
@@ -205,7 +205,7 @@ async function testSign({
     });
 
   await assert.rejects(
-    subtle.sign(algorithm, rsaKeys.privateKey, plaintext), {
+    subtle.sign(algorithm, ecdsaKeys.privateKey, plaintext), {
       message: /Unable to use this key to sign/
     });
 }
