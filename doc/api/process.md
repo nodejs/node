@@ -759,6 +759,10 @@ This feature is not available in [`Worker`][] threads.
 ## `process.config`
 <!-- YAML
 added: v0.7.7
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/36902
+    description: Modifying process.config has been deprecated.
 -->
 
 * {Object}
@@ -802,6 +806,10 @@ An example of the possible output looks like:
 The `process.config` property is **not** read-only and there are existing
 modules in the ecosystem that are known to extend, modify, or entirely replace
 the value of `process.config`.
+
+Modifying the `process.config` property, or any child-property of the
+`process.config` object has been deprecated. The `process.config` will be made
+read-only in a future release.
 
 ## `process.connected`
 <!-- YAML
