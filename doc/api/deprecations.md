@@ -2653,10 +2653,28 @@ In future versions of Node.js, `fs.rmdir(path, { recursive: true })` will throw
 on nonexistent paths, or when given a file as a target.
 Use `fs.rm(path, { recursive: true, force: true })` instead.
 
+### DEP0XXX: Main index lookup and extension searching
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/36918
+    description: Documentation-only deprecation
+                 with `--pending-deprecation` support.
+-->
+
+Type: Documentation-only (supports [`--pending-deprecation`][])
+
+Previously, `index.js` and extension searching lookups would apply to
+`import 'pkg'` main entry point resolution, even when resolving ES modules.
+
+With this deprecation, all ES module main entry point resolutions require
+an explicit [`"exports"` or `"main"` entry][] with the exact file extension.
+
 [Legacy URL API]: url.md#url_legacy_url_api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [WHATWG URL API]: url.md#url_the_whatwg_url_api
+[`"exports"` or `"main"` entry]: packages.md#packages_main_entry_point_export
 [`--pending-deprecation`]: cli.md#cli_pending_deprecation
 [`--throw-deprecation`]: cli.md#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.md#buffer_static_method_buffer_allocunsafeslow_size
