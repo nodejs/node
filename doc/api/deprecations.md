@@ -2719,12 +2719,27 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Runtime
-
 The `process.config` property is intended to provide access to configuration
 settings set when the Node.js binary was compiled. However, the property has
 been mutable by user code making it impossible to rely on. The ability to
 change the value has been deprecated and will be disabled in the future.
+
+### DEP0150: Folder index for "type": "module"
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+Previously, `index.js` lookup would apply for `require('pkg')` even for packages
+with a `"type": "module"` field in their package.json
+
+With this deprecation, all packages with `"type": "module"` require an explicit
+`"exports"` field entry point to resolve for the main.
+
 
 [Legacy URL API]: url.md#url_legacy_url_api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
