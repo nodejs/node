@@ -21,7 +21,8 @@ net.createServer(mustCall(function(conn) {
     port: this.address().port,
     headers: { 'Connection': 'upgrade', 'Upgrade': 'websocket' },
   }).on('upgrade', mustCall((res, conn, head) => {
-    assert.strictEqual(head.length, 1);
+    assert.strictEqual(head.length, 0);
+    head = conn.read(1);
     assert.strictEqual(head[0], 128);
     conn.destroy();
   }));
