@@ -598,7 +598,7 @@ const server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('okay');
 });
-server.on('upgrade', (req, socket, head) => {
+server.on('upgrade', (req, socket) => {
   socket.write('HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
                'Upgrade: WebSocket\r\n' +
                'Connection: Upgrade\r\n' +
@@ -623,7 +623,7 @@ server.listen(1337, '127.0.0.1', () => {
   const req = http.request(options);
   req.end();
 
-  req.on('upgrade', (res, socket, upgradeHead) => {
+  req.on('upgrade', (res, socket) => {
     console.log('got upgraded!');
     socket.end();
     process.exit(0);
