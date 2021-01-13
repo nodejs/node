@@ -55,7 +55,7 @@ server.listen(0, common.mustCall(function() {
     let data = firstBodyChunk.toString();
 
     // Test that the firstBodyChunk was not parsed as HTTP
-    assert.strictEqual(data, 'Head');
+    assert.strictEqual(data, '');
 
     socket.on('data', function(buf) {
       data += buf.toString();
