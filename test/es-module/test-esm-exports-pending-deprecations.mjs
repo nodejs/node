@@ -6,7 +6,9 @@ let curWarning = 0;
 const expectedWarnings = [
   '"./sub/"',
   '"./fallbackdir/"',
-  '"./subpath/"'
+  '"./subpath/"',
+  'no_exports',
+  'default_index'
 ];
 
 process.addListener('warning', mustCall((warning) => {
