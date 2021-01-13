@@ -19,37 +19,10 @@ should be directed to the [Technical Steering Committee (TSC) repository][].
 ## Submitting a Bug Report
 
 When opening a new issue in the `nodejs/node` issue tracker, users will be
-presented with a basic template that should be filled in.
-
-```markdown
-<!--
-Thank you for reporting an issue.
-
-This issue tracker is for bugs and issues found within Node.js core.
-If you require more general support please file an issue on our help
-repo. https://github.com/nodejs/help
-
-
-Please fill in as much of the template below as you're able.
-
-Version: output of `node -v`
-Platform: output of `uname -a` (UNIX), or version and 32 or 64-bit (Windows)
-Subsystem: if known, please specify affected core module name
-
-If possible, please provide code that demonstrates the problem, keeping it as
-simple and free of external dependencies as you are able.
--->
-
-* **Version**:
-* **Platform**:
-* **Subsystem**:
-
-<!-- Enter your issue details below this comment. -->
-```
-
-If you believe that you have uncovered a bug in Node.js, please fill out this
-form, following the template to the best of your ability. Do not worry if you
-cannot answer every detail, just fill in what you can.
+presented with a choice of issue templates. If you believe that you have
+uncovered a bug in Node.js, please fill out the `Bug Report` template to the
+best of your ability. Do not worry if you cannot answer every detail; just fill
+in what you can.
 
 The two most important pieces of information we need in order to properly
 evaluate the report is a description of the behavior you are seeing and a simple
