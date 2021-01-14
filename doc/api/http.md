@@ -417,6 +417,7 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/36901
     description: The `head` argument is deprecated and is always an
+                 empty Buffer.
 -->
 
 * `response` {http.IncomingMessage}
@@ -1167,6 +1168,7 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/36901
     description: The `head` argument is deprecated and is always an
+                 empty Buffer.
 -->
 
 * `request` {http.IncomingMessage} Arguments for the HTTP request, as it is in
@@ -1231,6 +1233,7 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/36901
     description: The `head` argument is deprecated and is always an
+                 empty Buffer.
 -->
 
 * `request` {http.IncomingMessage} Arguments for the HTTP request, as it is in
