@@ -4,7 +4,6 @@
 
 require('../common');
 const assert = require('assert');
-const { URL, URLSearchParams } = require('url');
 
 assert.deepStrictEqual(
   Object.getOwnPropertyDescriptor(global, 'URL'),

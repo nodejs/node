@@ -7,7 +7,6 @@
 require('../common');
 
 const assert = require('assert');
-const { URL } = require('url');
 const { Loader } = require('internal/modules/esm/loader');
 const ModuleMap = require('internal/modules/esm/module_map');
 const ModuleJob = require('internal/modules/esm/module_job');

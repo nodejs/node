@@ -4,7 +4,6 @@
 // Tests below are not from WPT.
 
 require('../common');
-const URL = require('url').URL;
 const assert = require('assert');
 
 const url = new URL('http://user:pass@foo.bar.com:21/aaa/zzz?l=24#test');
