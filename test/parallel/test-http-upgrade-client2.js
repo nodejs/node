@@ -52,7 +52,8 @@ server.listen(0, common.mustCall(function() {
       wasUpgrade = true;
 
       request.removeListener('upgrade', onUpgrade);
-      socket.destroy();
+      socket.end();
+      socket.resume();
     }
     request.on('upgrade', onUpgrade);
 
