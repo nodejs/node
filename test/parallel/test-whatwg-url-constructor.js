@@ -6,7 +6,6 @@ if (!common.hasIntl) {
 }
 
 const fixtures = require('../common/fixtures');
-const { URL, URLSearchParams } = require('url');
 const { test, assert_equals, assert_true, assert_throws } =
   require('../common/wpt').harness;
 

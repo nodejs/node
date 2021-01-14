@@ -4,7 +4,6 @@
 // Tests below are not from WPT.
 
 require('../common');
-const URL = require('url').URL;
 const assert = require('assert');
 const urlToOptions = require('internal/url').urlToOptions;
 

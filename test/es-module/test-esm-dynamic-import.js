@@ -1,7 +1,6 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const { URL } = require('url');
 
 const relativePath = '../fixtures/es-modules/test-esm-ok.mjs';
 const absolutePath = require.resolve('../fixtures/es-modules/test-esm-ok.mjs');

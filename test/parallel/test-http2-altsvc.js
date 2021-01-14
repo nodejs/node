@@ -6,7 +6,6 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const http2 = require('http2');
-const { URL } = require('url');
 const Countdown = require('../common/countdown');
 
 const server = http2.createServer();
