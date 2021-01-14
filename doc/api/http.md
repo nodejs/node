@@ -412,13 +412,15 @@ emitted on the first call to `abort()`.
 
 ### Event: `'connect'`
 <!-- YAML
-added: v0.7.0
+added: v0.7.0changes:
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/36901
+    description: The `head` argument is deprecated and is always an
 -->
 
 * `response` {http.IncomingMessage}
 * `socket` {stream.Duplex}
-* `head` {Buffer}
-
 Emitted each time a server responds to a request with a `CONNECT` method. If
 this event is not being listened for, clients receiving a `CONNECT` method will
 have their connections closed.
@@ -1161,12 +1163,15 @@ Emitted when the server closes.
 ### Event: `'connect'`
 <!-- YAML
 added: v0.7.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/36901
+    description: The `head` argument is deprecated and is always an
 -->
 
 * `request` {http.IncomingMessage} Arguments for the HTTP request, as it is in
   the [`'request'`][] event
 * `socket` {stream.Duplex} Network socket between the server and client
-* `head` {Buffer} The first packet of the tunneling stream (may be empty)
 
 Emitted each time a client requests an HTTP `CONNECT` method. If this event is
 not listened for, then clients requesting a `CONNECT` method will have their
@@ -1223,12 +1228,14 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/19981
     description: Not listening to this event no longer causes the socket
                  to be destroyed if a client sends an Upgrade header.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/36901
+    description: The `head` argument is deprecated and is always an
 -->
 
 * `request` {http.IncomingMessage} Arguments for the HTTP request, as it is in
   the [`'request'`][] event
 * `socket` {stream.Duplex} Network socket between the server and client
-* `head` {Buffer} The first packet of the upgraded stream (may be empty)
 
 Emitted each time a client requests an HTTP upgrade. Listening to this event
 is optional and clients cannot insist on a protocol change.
