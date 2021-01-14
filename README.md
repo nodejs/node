@@ -359,6 +359,8 @@ For information about the governance of the Node.js project, see
 **Matteo Collina** &lt;matteo.collina@gmail.com&gt; (he/him)
 * [mhdawson](https://github.com/mhdawson) -
 **Michael Dawson** &lt;midawson@redhat.com&gt; (he/him)
+* [miladfarca](https://github.com/miladfarca) -
+**Milad Fa** &lt;mfarazma@redhat.com&gt; (he/him)
 * [mildsunrise](https://github.com/mildsunrise) -
 **Alba Mendez** &lt;me@alba.sh&gt; (she/her)
 * [misterdjules](https://github.com/misterdjules) -
