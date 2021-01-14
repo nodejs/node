@@ -412,7 +412,7 @@ emitted on the first call to `abort()`.
 
 ### Event: `'connect'`
 <!-- YAML
-added: v0.7.0changes:
+added: v0.7.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/36901
