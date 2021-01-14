@@ -2712,11 +2712,15 @@ Type: Documentation-only.
 
 Prefer [`message.socket`][] over [`message.connection`][].
 
-<a id="DEP0XXX"></a>
 ### DEP0XXX: Changing the value of `process.config`
 <!-- YAML
-added: REPLACEME
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/36902
+    description: Runtime deprecation.
 -->
+
+Type: Runtime
 
 The `process.config` property is intended to provide access to configuration
 settings set when the Node.js binary was compiled. However, the property has
