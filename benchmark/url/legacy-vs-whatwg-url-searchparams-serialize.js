@@ -1,6 +1,5 @@
 'use strict';
 const common = require('../common.js');
-const { URLSearchParams } = require('url');
 const querystring = require('querystring');
 const searchParams = common.searchParams;
 

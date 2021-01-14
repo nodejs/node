@@ -23,7 +23,6 @@
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
-const URL = require('url').URL;
 
 function check(async, sync) {
   const argsSync = Array.prototype.slice.call(arguments, 2);

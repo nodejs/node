@@ -5,7 +5,6 @@
 require('../common');
 const assert = require('assert');
 const util = require('util');
-const URLSearchParams = require('url').URLSearchParams;
 
 const sp = new URLSearchParams('?a=a&b=b&b=c');
 assert.strictEqual(util.inspect(sp),

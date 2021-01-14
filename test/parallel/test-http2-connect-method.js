@@ -6,7 +6,6 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const net = require('net');
 const http2 = require('http2');
-const { URL } = require('url');
 
 const {
   HTTP2_HEADER_METHOD,

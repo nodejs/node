@@ -9,7 +9,6 @@ if (!common.hasCrypto)
 const fixtures = require('../common/fixtures');
 const h2 = require('http2');
 const url = require('url');
-const URL = url.URL;
 
 {
   const server = h2.createServer();

@@ -1,7 +1,6 @@
 'use strict';
 const common = require('../common.js');
 const assert = require('assert');
-const { URLSearchParams } = require('url');
 
 const bench = common.createBenchmark(main, {
   loopMethod: ['forEach', 'iterator'],

@@ -1,6 +1,5 @@
 'use strict';
 const common = require('../common.js');
-const URLSearchParams = require('url').URLSearchParams;
 
 const inputs = {
   wpt: 'wpt',  // To work around tests

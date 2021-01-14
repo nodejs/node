@@ -3,7 +3,6 @@
 // Tests below are not from WPT.
 
 require('../common');
-const { URL, URLSearchParams } = require('url');
 const { test, assert_array_equals } = require('../common/wpt').harness;
 
 // TODO(joyeecheung): upstream this to WPT, if possible - even

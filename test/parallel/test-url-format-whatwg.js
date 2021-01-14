@@ -6,7 +6,6 @@ if (!common.hasIntl)
 
 const assert = require('assert');
 const url = require('url');
-const URL = url.URL;
 
 const myURL = new URL('http://xn--lck1c3crb1723bpq4a.com/a?a=b#c');
 
