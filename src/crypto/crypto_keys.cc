@@ -543,7 +543,8 @@ Maybe<bool> GetAsymmetricKeyDetail(
     case EVP_PKEY_EC: return GetEcKeyDetail(env, key, target);
     case EVP_PKEY_DH: return GetDhKeyDetail(env, key, target);
   }
-  return Just(false);
+  THROW_ERR_CRYPTO_INVALID_KEYTYPE(env);
+  return Nothing<bool>();
 }
 }  // namespace
 

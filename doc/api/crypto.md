@@ -1300,6 +1300,9 @@ this object contains information about the key. None of the information obtained
 through this property can be used to uniquely identify a key or to compromise
 the security of the key.
 
+RSA-PSS parameters, DH, or any future key type details might be exposed via this
+API using additional attributes.
+
 ### `keyObject.asymmetricKeyType`
 <!-- YAML
 added: v11.6.0
