@@ -8,7 +8,6 @@ if (!common.hasIntl) {
   common.skip('missing Intl');
 }
 
-const URL = require('url').URL;
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
 
