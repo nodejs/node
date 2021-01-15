@@ -17,7 +17,7 @@ token._validateCIDRList = validateCIDRList
 const usageUtil = require('./utils/usage.js')
 token.usage = usageUtil('token',
   'npm token list\n' +
-  'npm token revoke <tokenKey>\n' +
+  'npm token revoke <id|token>\n' +
   'npm token create [--read-only] [--cidr=list]')
 
 const UsageError = (msg) =>
