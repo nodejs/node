@@ -50,6 +50,9 @@ const buf7 = Buffer.from('tést', 'latin1');
 ## Buffers and character encodings
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/36952
+    description: Introduced `base64url` encoding.
   - version: v6.4.0
     pr-url: https://github.com/nodejs/node/pull/7111
     description: Introduced `latin1` as an alias for `binary`.
@@ -105,6 +108,11 @@ string into a `Buffer` as decoding.
   this encoding will also correctly accept "URL and Filename Safe Alphabet" as
   specified in [RFC 4648, Section 5][]. Whitespace characters such as spaces,
   tabs, and new lines contained within the base64-encoded string are ignored.
+
+* `'base64url'`: [base64url][] encoding as specified in
+  [RFC 4648, Section 5][]. When creating a `Buffer` from a string, this
+  encoding will also correctly accept regular base64-encoded strings. When
+  encoding a `Buffer` to a string, this encoding will omit padding.
 
 * `'hex'`: Encode each byte as two hexadecimal characters. Data truncation
   may occur when decoding strings that do exclusively contain valid hexadecimal
@@ -482,9 +490,10 @@ Returns the byte length of a string when encoded using `encoding`.
 This is not the same as [`String.prototype.length`][], which does not account
 for the encoding that is used to convert the string into bytes.
 
-For `'base64'` and `'hex'`, this function assumes valid input. For strings that
-contain non-base64/hex-encoded data (e.g. whitespace), the return value might be
-greater than the length of a `Buffer` created from the string.
+For `'base64'`, `'base64url'`, and `'hex'`, this function assumes valid input.
+For strings that contain non-base64/hex-encoded data (e.g. whitespace), the
+return value might be greater than the length of a `Buffer` created from the
+string.
 
 ```js
 const str = '\u00bd + \u00bc = \u00be';
@@ -3418,6 +3427,7 @@ introducing security vulnerabilities into an application.
 [`buffer.constants.MAX_STRING_LENGTH`]: #buffer_buffer_constants_max_string_length
 [`buffer.kMaxLength`]: #buffer_buffer_kmaxlength
 [`util.inspect()`]: util.md#util_util_inspect_object_options
+[base64url]: https://tools.ietf.org/html/rfc4648#section-5
 [binary strings]: https://developer.mozilla.org/en-US/docs/Web/API/DOMString/Binary
 [endianness]: https://en.wikipedia.org/wiki/Endianness
 [iterator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols

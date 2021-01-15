@@ -68,6 +68,8 @@ enum encoding ParseEncoding(const char* encoding,
       } else if (encoding[1] == 'a') {
         if (strncmp(encoding + 2, "se64", 5) == 0)
           return BASE64;
+        if (strncmp(encoding + 2, "se64url", 8) == 0)
+          return BASE64URL;
       }
       if (StringEqualNoCase(encoding, "binary"))
         return LATIN1;  // BINARY is a deprecated alias of LATIN1.
@@ -75,6 +77,8 @@ enum encoding ParseEncoding(const char* encoding,
         return BUFFER;
       if (StringEqualNoCase(encoding, "base64"))
         return BASE64;
+      if (StringEqualNoCase(encoding, "base64url"))
+        return BASE64URL;
       break;
 
     case 'a':
