@@ -973,6 +973,15 @@ chains. It allows storing data throughout the lifetime of a web request
 or any other asynchronous duration. It is similar to thread-local storage
 in other languages.
 
+`AsyncLocalStorage` doesn't provide any new functionality that Async Hooks
+doesn't already provide: anything implemented with `AsyncLocalStorage` can be
+implemented with Async Hooks instead. The goal of `AsyncLocalStorage` is to
+provide a more performant and memory safe way to share state accross
+asynchronous calls. For example, the `AsyncLocalStorage` implementation doesn't
+involve any `destroy` callback, which considerably improves performance, and,
+in some cases, `destoy` can not be called or called very late which usually
+leads to memory leak in implementations using it.
+
 The following example uses `AsyncLocalStorage` to build a simple logger
 that assigns IDs to incoming HTTP requests and includes them in messages
 logged within each request.
