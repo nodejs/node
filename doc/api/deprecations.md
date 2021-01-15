@@ -2740,7 +2740,7 @@ Previously, `index.js` and extension searching lookups would apply to
 `import 'pkg'` main entry point resolution, even when resolving ES modules.
 
 With this deprecation, all ES module main entry point resolutions require
-an explicit [`"exports"`][] or [`"main"`][] entry with the exact file extension.
+an explicit [`"exports" or "main" entry`] with the exact file extension.
 
 
 [Legacy URL API]: url.md#url_legacy_url_api
@@ -2785,6 +2785,7 @@ an explicit [`"exports"`][] or [`"main"`][] entry with the exact file extension.
 [`ecdh.setPublicKey()`]: crypto.md#crypto_ecdh_setpublickey_publickey_encoding
 [`emitter.listenerCount(eventName)`]: events.md#events_emitter_listenercount_eventname
 [`events.listenerCount(emitter, eventName)`]: events.md#events_events_listenercount_emitter_eventname
+[`"exports" or "main" entry`]: packages.md#packages_main_entry_point_export
 [`fs.FileHandle`]: fs.md#fs_class_filehandle
 [`fs.access()`]: fs.md#fs_fs_access_path_mode_callback
 [`fs.createReadStream()`]: fs.md#fs_fs_createreadstream_path_options
@@ -2869,7 +2870,7 @@ an explicit [`"exports"`][] or [`"main"`][] entry with the exact file extension.
 [from_string_encoding]: buffer.md#buffer_static_method_buffer_from_string_encoding
 [legacy `urlObject`]: url.md#url_legacy_urlobject
 [static methods of `crypto.Certificate()`]: crypto.md#crypto_class_certificate
-[subpath exports]: #packages_subpath_exports
-[subpath folder mappings]: #packages_subpath_folder_mappings
-[subpath imports]: #packages_subpath_imports
-[subpath patterns]: #packages_subpath_patterns
+[subpath exports]: packages.md#packages_subpath_exports
+[subpath folder mappings]: packages.md#packages_subpath_folder_mappings
+[subpath imports]: packages.md#packages_subpath_imports
+[subpath patterns]: packages.md#packages_subpath_patterns
