@@ -243,7 +243,7 @@ async function testWrap(wrappingKey, unwrappingKey, key, wrap, format) {
   assert.deepStrictEqual(exported, exportedAgain);
 }
 
-async function testWrapping(name, keys, ecdhPeerKey) {
+async function testWrapping(name, keys) {
   const variations = [];
 
   const {
@@ -264,13 +264,9 @@ async function testWrapping(name, keys, ecdhPeerKey) {
 (async function() {
   await generateWrappingKeys();
   const keys = await generateKeysToWrap();
-  const ecdhPeerKey = await subtle.generateKey({
-    name: 'ECDH',
-    namedCurve: 'P-384'
-  }, true, ['deriveBits']);
   const variations = [];
   Object.keys(kWrappingData).forEach((name) => {
-    return testWrapping(name, keys, ecdhPeerKey);
+    return testWrapping(name, keys);
   });
   await Promise.all(variations);
 })().then(common.mustCall());
