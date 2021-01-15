@@ -476,7 +476,7 @@ added: v10.5.0
 changes:
   - version: v15.6.0
     pr-url: https://github.com/nodejs/node/pull/36804
-    description: Added `X509Certificate` tot he list of cloneable types.
+    description: Added `X509Certificate` to the list of cloneable types.
   - version:
     - v14.5.0
     - v12.19.0
