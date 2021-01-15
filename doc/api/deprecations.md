@@ -2730,16 +2730,17 @@ change the value has been deprecated and will be disabled in the future.
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/36918
-    description: Documentation-only deprecation.
+    description: Documentation-only deprecation
+                 with `--pending-deprecation` support.
 -->
 
-Type: Documentation (supports [`--pending-deprecation`][])
+Type: Documentation-only (supports [`--pending-deprecation`][])
 
 Previously, `index.js` and extension searching lookups would apply to
 `import 'pkg'` main entry point resolution, even when resolving ES modules.
 
 With this deprecation, all ES module main entry point resolutions require
-an explicit `"exports"` or `"main"` entry with the exact file extension.
+an explicit [`"exports"`][] or [`"main"`][] entry with the exact file extension.
 
 
 [Legacy URL API]: url.md#url_legacy_url_api
