@@ -3795,6 +3795,7 @@ t.test('ls --json', (t) => {
       t.deepEqual(
         jsonParse(result),
         {
+          name: 'ls-ls-json-global',
           dependencies: {
             a: {
               version: '1.0.0',

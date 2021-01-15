@@ -60,6 +60,7 @@ class FetcherBase {
     // clone the opts object so that others aren't upset when we mutate it
     // by adding/modifying the integrity value.
     this.opts = {...opts}
+
     this.cache = opts.cache || cacheDir()
     this.resolved = opts.resolved || null
 

@@ -1,6 +1,7 @@
 // An edge in the dependency graph
 // Represents a dependency relationship of some kind
 
+const util = require('util')
 const npa = require('npm-package-arg')
 const depValid = require('./dep-valid.js')
 const _from = Symbol('_from')
@@ -23,6 +24,21 @@ const types = new Set([
   'peerOptional',
   'workspace',
 ])
+
+class ArboristEdge {}
+const printableEdge = (edge) => {
+  const edgeFrom = edge.from && edge.from.location
+  const edgeTo = edge.to && edge.to.location
+
+  return Object.assign(new ArboristEdge(), {
+    name: edge.name,
+    spec: edge.spec,
+    type: edge.type,
+    ...(edgeFrom != null ? { from: edgeFrom } : {}),
+    ...(edgeTo ? { to: edgeTo } : {}),
+    ...(edge.error ? { error: edge.error } : {}),
+  })
+}
 
 class Edge {
   constructor (options) {
@@ -184,6 +200,14 @@ class Edge {
 
   get to () {
     return this[_to]
+  }
+
+  toJSON () {
+    return printableEdge(this)
+  }
+
+  [util.inspect.custom] () {
+    return this.toJSON()
   }
 }
 

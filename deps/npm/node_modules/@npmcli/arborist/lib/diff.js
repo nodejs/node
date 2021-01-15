@@ -72,6 +72,11 @@ const allChildren = node => {
   if (!node)
     return new Map()
 
+  // if the node is a global root, and also a link, then what we really
+  // want is to traverse the target's children
+  if (node.global && node.isRoot && node.isLink)
+    return allChildren(node.target)
+
   const kids = new Map()
   for (const n of [node, ...node.fsChildren]) {
     for (const kid of n.children.values())

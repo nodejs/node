@@ -131,6 +131,9 @@ t.test('should display outdated deps', t => {
       devDependencies: {
         zeta: '^1.0.0',
       },
+      optionalDependencies: {
+        lorem: '^1.0.0',
+      },
       peerDependencies: {
         beta: '^1.0.0',
       },

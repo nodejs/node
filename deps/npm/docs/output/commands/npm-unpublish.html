@@ -145,6 +145,7 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
+<p>To learn more about how the npm registry treats unpublish, see our <!-- raw HTML omitted --> unpublish policies<!-- raw HTML omitted --></p>
 <h4 id="unpublishing-a-single-version-of-a-package">Unpublishing a single version of a package</h4>
 <pre lang="bash"><code>npm unpublish [&lt;@scope&gt;/]&lt;pkg&gt;@&lt;version&gt;
 </code></pre>
@@ -152,16 +153,21 @@ npm command-line interface
 <pre lang="bash"><code>npm unpublish [&lt;@scope&gt;/]&lt;pkg&gt; --force
 </code></pre>
 <h3 id="warning">Warning</h3>
-<p>Consider using the <code>deprecate</code> command instead, if your intent is to encourage users to upgrade, or if you no longer want to maintain a package.</p>
+<p>Consider using the <a href="../commands/npm-deprecate.html"><code>deprecate</code></a> command instead,
+if your intent is to encourage users to upgrade, or if you no longer
+want to maintain a package.</p>
 <h3 id="description">Description</h3>
-<p>This removes a package version from the registry, deleting its
-entry and removing the tarball.</p>
-<p>If no version is specified, or if all versions are removed then
-the root package entry is removed from the registry entirely.</p>
-<p>Even if a package version is unpublished, that specific name and
-version combination can never be reused. In order to publish the
-package again, a new version number must be used. If you unpublish the entire package, you may not publish any new versions of that package until 24 hours have passed.</p>
-<p>To learn more about how unpublish is treated on the npm registry, see our <!-- raw HTML omitted --> unpublish policies<!-- raw HTML omitted -->.</p>
+<p>This removes a package version from the registry, deleting its entry and
+removing the tarball.</p>
+<p>The npm registry will return an error if you are not <a href="../commands/npm-login.html">logged
+in</a>.</p>
+<p>If you do not specify a version or if you remove all of a package’s
+versions then the registry will remove the root package entry entirely.</p>
+<p>Even if you unpublish a package version, that specific name and version
+combination can never be reused. In order to publish the package again,
+you must use a new version number. If you unpublish the entire package,
+you may not publish any new versions of that package until 24 hours have
+passed.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-deprecate.html">npm deprecate</a></li>
@@ -169,6 +175,7 @@ package again, a new version number must be used. If you unpublish the entire pa
 <li><a href="../using-npm/registry.html">npm registry</a></li>
 <li><a href="../commands/npm-adduser.html">npm adduser</a></li>
 <li><a href="../commands/npm-owner.html">npm owner</a></li>
+<li><a href="../commands/npm-login.html">npm login</a></li>
 </ul>
 </div>
 

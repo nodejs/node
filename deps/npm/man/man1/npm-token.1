@@ -16,8 +16,8 @@ This lets you list, create and revoke authentication tokens\.
 .RS 0
 .IP \(bu 2
 \fBnpm token list\fP:
-Shows a table of all active authentication tokens\. You can request this as
-JSON with \fB\-\-json\fP or tab\-separated values with \fB\-\-parseable\fP\|\.
+Shows a table of all active authentication tokens\. You can request
+this as JSON with \fB\-\-json\fP or tab\-separated values with \fB\-\-parseable\fP\|\.
 
 .RE
 .P
@@ -45,10 +45,16 @@ JSON with \fB\-\-json\fP or tab\-separated values with \fB\-\-parseable\fP\|\.
 .RS 0
 .IP \(bu 2
 \fBnpm token create [\-\-read\-only] [\-\-cidr=<cidr\-ranges>]\fP:
-Create a new authentication token\. It can be \fB\-\-read\-only\fP or accept a list of
-CIDR \fIhttps://en\.wikipedia\.org/wiki/Classless_Inter\-Domain_Routing\fR ranges to
-limit use of this token to\. This will prompt you for your password, and, if you have
-two\-factor authentication enabled, an otp\.
+Create a new authentication token\. It can be \fB\-\-read\-only\fP, or accept
+a list of
+CIDR \fIhttps://en\.wikipedia\.org/wiki/Classless_Inter\-Domain_Routing\fR
+ranges with which to limit use of this token\. This will prompt you for
+your password, and, if you have two\-factor authentication enabled, an
+otp\.
+Currently, the cli can not generate automation tokens\. Please refer to
+the docs
+website \fIhttps://docs\.npmjs\.com/creating\-and\-viewing\-access\-tokens\fR
+for more information on generating automation tokens\.
 
 .RE
 .P
@@ -68,9 +74,11 @@ two\-factor authentication enabled, an otp\.
 .RS 0
 .IP \(bu 2
 \fBnpm token revoke <token|id>\fP:
-This removes an authentication token, making it immediately unusable\. This can accept
-both complete tokens (as you get back from \fBnpm token create\fP and will
-find in your \fB\|\.npmrc\fP) and ids as seen in the \fBnpm token list\fP output\. 
-This will NOT accept the truncated token found in \fBnpm token list\fP output\.
+Immediately removes an authentication token from the registry\.  You
+will no longer be able to use it\.  This can accept both complete
+tokens (such as those you get back from \fBnpm token create\fP, and those
+found in your \fB\|\.npmrc\fP), and ids as seen in the parseable or json
+output of \fBnpm token list\fP\|\.  This will NOT accept the truncated token
+found in the normal \fBnpm token list\fP output\.
 
 .RE

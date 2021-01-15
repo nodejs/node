@@ -136,7 +136,7 @@ module.exports = cls => class Reifier extends cls {
 
   async [_validatePath] () {
     // don't create missing dirs on dry runs
-    if (this[_packageLockOnly] || this[_dryRun] || this[_global])
+    if (this[_packageLockOnly] || this[_dryRun])
       return
 
     await mkdirp(resolve(this.path))

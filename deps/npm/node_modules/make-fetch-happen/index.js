@@ -285,6 +285,10 @@ function remoteFetch (uri, opts) {
     size: opts.size,
     counter: opts.counter,
     timeout: opts.timeout,
+    ca: opts.ca,
+    cert: opts.cert,
+    key: opts.key,
+    rejectUnauthorized: opts.strictSSL,
   }
 
   return retry(

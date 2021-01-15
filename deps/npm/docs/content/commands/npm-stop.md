@@ -12,7 +12,31 @@ npm stop [-- <args>]
 
 ### Description
 
-This runs a package's "stop" script, if one was provided.
+This runs a predefined command specified in the "stop" property of a
+package's "scripts" object.
+
+Unlike with [npm start](/commands/npm-start), there is no default script
+that will run if the `"stop"` property is not defined.
+
+### Example
+
+```json
+{
+  "scripts": {
+    "stop": "node bar.js"
+  }
+}
+```
+
+```bash
+npm stop
+
+> npm@x.x.x stop
+> node bar.js
+
+(bar.js output would be here)
+
+```
 
 ### See Also
 

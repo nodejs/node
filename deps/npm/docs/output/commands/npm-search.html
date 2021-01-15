@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#a-note-on-caching">A Note on caching</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#description2">description</a></li><li><a href="#json">json</a></li><li><a href="#parseable">parseable</a></li><li><a href="#long">long</a></li><li><a href="#searchopts">searchopts</a></li><li><a href="#searchexclude">searchexclude</a></li><li><a href="#searchstaleness">searchstaleness</a></li><li><a href="#registry">registry</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#description2">description</a></li><li><a href="#color">color</a></li><li><a href="#json">json</a></li><li><a href="#parseable">parseable</a></li><li><a href="#long">long</a></li><li><a href="#searchopts">searchopts</a></li><li><a href="#searchexclude">searchexclude</a></li><li><a href="#registry">registry</a></li></ul><li><a href="#a-note-on-caching">A note on caching</a></li><ul><li><a href="#prefer-online">prefer-online</a></li><li><a href="#prefer-offline">prefer-offline</a></li><li><a href="#offline">offline</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -152,29 +152,36 @@ aliases: s, se, find
 <h3 id="description">Description</h3>
 <p>Search the registry for packages matching the search terms. <code>npm search</code>
 performs a linear, incremental, lexically-ordered search through package
-metadata for all files in the registry. If color is enabled, it will further
-highlight the matches in the results.</p>
-<p>Additionally, using the <code>--searchopts</code> and <code>--searchexclude</code> options paired with
-more search terms will respectively include and exclude further patterns. The
-main difference between <code>--searchopts</code> and the standard search terms is that the
-former does not highlight results in the output and can be used for more
-fine-grained filtering. Additionally, both of these can be added to <code>.npmrc</code> for
-default search filtering behavior.</p>
+metadata for all files in the registry. If your terminal has color
+support, it will further highlight the matches in the results.  This can
+be disabled with the config item <code>color</code></p>
+<p>Additionally, using the <code>--searchopts</code> and <code>--searchexclude</code> options
+paired with more search terms will include and exclude further patterns.
+The main difference between <code>--searchopts</code> and the standard search terms
+is that the former does not highlight results in the output and you can
+use them more fine-grained filtering. Additionally, you can add both of
+these to your config to change default search filtering behavior.</p>
 <p>Search also allows targeting of maintainers in search results, by prefixing
 their npm username with <code>=</code>.</p>
-<p>If a term starts with <code>/</code>, then it’s interpreted as a regular expression and
-supports standard JavaScript RegExp syntax. A trailing <code>/</code> will be ignored in
-this case. (Note that many regular expression characters must be escaped or
-quoted in most shells.)</p>
-<h3 id="a-note-on-caching">A Note on caching</h3>
+<p>If a term starts with <code>/</code>, then it’s interpreted as a regular expression
+and supports standard JavaScript RegExp syntax. In this case search will
+ignore a trailing <code>/</code> .  (Note you must escape or quote many regular
+expression characters in most shells.)</p>
 <h3 id="configuration">Configuration</h3>
+<p>All of the following can be defined in a <code>.npmrc</code> file, or passed as
+parameters to the cli prefixed with <code>--</code> (e.g. <code>--json</code>)</p>
 <h4 id="description2">description</h4>
 <ul>
 <li>Default: true</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Used as <code>--no-description</code>, disables search matching in package descriptions and
-suppresses display of that field in results.</p>
+<h4 id="color">color</h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Used as <code>--no-color</code>, disables color highlighting of matches in the
+results.</p>
 <h4 id="json">json</h4>
 <ul>
 <li>Default: false</li>
@@ -193,9 +200,9 @@ suppresses display of that field in results.</p>
 <li>Type: Boolean</li>
 </ul>
 <p>Display full package descriptions and other long text across multiple
-lines. When disabled (default) search results are truncated to fit
-neatly on a single line. Modules with extremely long names will
-fall on multiple lines.</p>
+lines. When disabled (which is the default) the output will
+truncate search results to fit neatly on a single line. Modules with
+extremely long names will fall on multiple lines.</p>
 <h4 id="searchopts">searchopts</h4>
 <ul>
 <li>Default: “”</li>
@@ -208,28 +215,37 @@ fall on multiple lines.</p>
 <li>Type: String</li>
 </ul>
 <p>Space-separated options that limit the results from search.</p>
-<h4 id="searchstaleness">searchstaleness</h4>
-<ul>
-<li>Default: 900 (15 minutes)</li>
-<li>Type: Number</li>
-</ul>
-<p>The age of the cache, in seconds, before another registry request is made.</p>
 <h4 id="registry">registry</h4>
 <ul>
 <li>Default: <a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a></li>
 <li>Type: url</li>
 </ul>
-<p>Search the specified registry for modules. If you have configured npm to point
-to a different default registry, such as your internal private module
-repository, <code>npm search</code> will default to that registry when searching. Pass a
-different registry url such as the default above in order to override this
-setting.</p>
+<p>Search the specified registry for modules. If you have configured npm to
+point to a different default registry (such as your internal private
+module repository), <code>npm search</code> will also default to that registry when
+searching.</p>
+<h3 id="a-note-on-caching">A note on caching</h3>
+<p>The npm cli caches search results with the same terms and options
+locally in its cache. You can use the following to change how and when
+the cli uses this cache. See <a href="../commands/npm-cache.html"><code>npm cache</code></a> for more
+on how the cache works.</p>
+<h4 id="prefer-online">prefer-online</h4>
+<p>Forced staleness checks for cached searches, making the cli look for
+updates immediately even for fresh search results.</p>
+<h4 id="prefer-offline">prefer-offline</h4>
+<p>Bypasses staleness checks for cached.  Missing data will still be
+requested from the server. To force full offline mode, use <code>offline</code>.</p>
+<h4 id="offline">offline</h4>
+<p>Forces full offline mode. Any searches not locally cached will result in
+an error.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../using-npm/registry.html">npm registry</a></li>
 <li><a href="../commands/npm-config.html">npm config</a></li>
 <li><a href="../configuring-npm/npmrc.html">npmrc</a></li>
 <li><a href="../commands/npm-view.html">npm view</a></li>
+<li><a href="../commands/npm-cache.html">npm cache</a></li>
+<li><a href="https://npm.im/npm-registry-fetch">https://npm.im/npm-registry-fetch</a></li>
 </ul>
 </div>
 

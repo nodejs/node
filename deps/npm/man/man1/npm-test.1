@@ -12,7 +12,29 @@ aliases: t, tst
 .RE
 .SS Description
 .P
-This runs a package's "test" script, if one was provided\.
+This runs a predefined command specified in the \fB"test"\fP property of
+a package's \fB"scripts"\fP object\.
+.SS Example
+.P
+.RS 2
+.nf
+{
+  "scripts": {
+    "test": "node test\.js"
+  }
+}
+.fi
+.RE
+.P
+.RS 2
+.nf
+npm test
+> npm@x\.x\.x test
+> node test\.js
+
+(test\.js output would be here)
+.fi
+.RE
 .SS See Also
 .RS 0
 .IP \(bu 2

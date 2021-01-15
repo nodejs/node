@@ -1,3 +1,78 @@
+## v7.4.2 (2021-01-15)
+
+### DEPENDENCIES
+
+* [`e5ce6bbba`](https://github.com/npm/cli/commit/e5ce6bbbad82b85c8e74a4558503513e4f337476)
+  * `@npmcli/arborist@2.0.5`
+    * fix creating missing dirs when using --prefix and --global
+    * fix omit types of deps in global installs
+    * fix prioritizing npm-shrinkwrap.json over package-lock.json
+    * better cache system for packuments
+    * improves audit performance
+
+## v7.4.1 (2021-01-14)
+
+### BUG FIXES
+
+* [`23df96d33`](https://github.com/npm/cli/commit/23df96d3394ba0b69a37f416d7f0c26bb9354975)
+  [#2486](https://github.com/npm/cli/issues/2486)
+  npm link no longer deletes entire project when global prefix is a symlink
+  ([@nlf](https://github.com/nlf))
+
+### DOCUMENTATION
+
+* [`7dd0dfc59`](https://github.com/npm/cli/commit/7dd0dfc59c861e7d3e30a86a8e6db10872fc6b44)
+  [#2459](https://github.com/npm/cli/issues/2459)
+  fix(docs): clean up `npm start` docs
+  ([@wraithgar](https://github.com/wraithgar))
+* [`307b3bd9f`](https://github.com/npm/cli/commit/307b3bd9f90e96fcc8805a1d5ddec80787a3d3a7)
+  [#2460](https://github.com/npm/cli/issues/2460)
+  fix(docs): clean up `npm stop` docs
+  ([@wraithgar](https://github.com/wraithgar))
+* [`23f01b739`](https://github.com/npm/cli/commit/23f01b739d7a01a7dc3672322e14eb76ff33d712)
+  [#2462](https://github.com/npm/cli/issues/2462)
+  fix(docs): clean up `npm test` docs
+  ([@wraithgar](https://github.com/wraithgar))
+* [`4b43656fc`](https://github.com/npm/cli/commit/4b43656fc608783a29ccf8495dc305459abc5cc7)
+  [#2463](https://github.com/npm/cli/issues/2463)
+  fix(docs): clean up `npm prefix` docs
+  ([@wraithgar](https://github.com/wraithgar))
+* [`1135539ba`](https://github.com/npm/cli/commit/1135539bac9f98bb1a5d5ed05227a8ecd19493d3)
+  [`a07bb8e69`](https://github.com/npm/cli/commit/a07bb8e692a85b55d51850534c09fa58224c2285)
+  [`9b55b798e`](https://github.com/npm/cli/commit/9b55b798ed8f2b9be7b3199a1bfc23b1cd89c4cd)
+  [`cd5eeaaa0`](https://github.com/npm/cli/commit/cd5eeaaa08eabb505b65747a428c3c59159663dc)
+  [`6df69ce10`](https://github.com/npm/cli/commit/6df69ce107912f8429665eb851825d2acebc8575)
+  [`dc6b2a8b0`](https://github.com/npm/cli/commit/dc6b2a8b032d118be3566ce0fa7c67c171c8d2cb)
+  [`a3c127446`](https://github.com/npm/cli/commit/a3c1274460e16d1edbdca6a0cee86ef313fdd961)
+  [#2464](https://github.com/npm/cli/issues/2464)
+  fix(docs): clean up `npm uninstall` docs
+  ([@wraithgar](https://github.com/wraithgar))
+* [`cfdcf32fd`](https://github.com/npm/cli/commit/cfdcf32fd7628501712b8cad4a541c6b8e7b66bc)
+  [#2474](https://github.com/npm/cli/issues/2474)
+  fix(docs): clean up `npm unpublish` docs
+  ([@wraithgar](https://github.com/wraithgar))
+* [`acd5b062a`](https://github.com/npm/cli/commit/acd5b062a811fcd98849df908ce26855823ca671)
+  [#2475](https://github.com/npm/cli/issues/2475)
+  fix(docs): update `package-lock.json` docs
+  ([@isaacs](https://github.com/isaacs))
+* [`b0b0edf6d`](https://github.com/npm/cli/commit/b0b0edf6de1678de7f4a000700c88daa5f7194ef)
+  [#2482](https://github.com/npm/cli/issues/2482)
+  fix(docs): clean up `npm token` docs
+  ([@wraithgar](https://github.com/wraithgar))
+* [`35559201a`](https://github.com/npm/cli/commit/35559201a4a0a5b111ce58d6824e5b4030eb4496)
+  [#2487](https://github.com/npm/cli/issues/2487)
+  fix(docs): clean up `npm search` docs
+  ([@wraithgar](https://github.com/wraithgar))
+
+### DEPENDENCIES
+
+* [`ea8c02169`](https://github.com/npm/cli/commit/ea8c02169cfbf0484d67db7c0e7a6ec8aecb7210)
+  `@npmcli/arborist@2.0.5`
+* [`fb6f2c313`](https://github.com/npm/cli/commit/fb6f2c313d1d9770cc7d02a3900c7945df3cb661)
+  `pacote@11.2.1`
+* [`c549b7657`](https://github.com/npm/cli/commit/c549b76573b1835a63e1e5898e9c16860079d84e)
+  `make-fetch-happen@8.0.13`
+
 ## v7.4.0 (2021-01-07)
 
 ### FEATURES

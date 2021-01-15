@@ -200,9 +200,9 @@ class Shrinkwrap {
     return s[_maybeStat]().then(([sw, lock]) => {
       s.filename = resolve(s.path,
         (s.hiddenLockfile ? 'node_modules/.package-lock'
-        : s.shrinkwrapOnly || sw && !lock ? 'npm-shrinkwrap'
+        : s.shrinkwrapOnly || sw ? 'npm-shrinkwrap'
         : 'package-lock') + '.json')
-      s.loadedFromDisk = sw || lock
+      s.loadedFromDisk = !!(sw || lock)
       s.type = basename(s.filename)
       return s
     })
@@ -353,14 +353,14 @@ class Shrinkwrap {
     // we don't need to load package-lock.json except for top of tree nodes,
     // only npm-shrinkwrap.json.
     return this[_maybeRead]().then(([sw, lock, yarn]) => {
-      const data = lock || sw || ''
+      const data = sw || lock || ''
 
       // use shrinkwrap only for deps, otherwise prefer package-lock
       // and ignore npm-shrinkwrap if both are present.
       // TODO: emit a warning here or something if both are present.
       this.filename = resolve(this.path,
         (this.hiddenLockfile ? 'node_modules/.package-lock'
-        : this.shrinkwrapOnly || sw && !lock ? 'npm-shrinkwrap'
+        : this.shrinkwrapOnly || sw ? 'npm-shrinkwrap'
         : 'package-lock') + '.json')
 
       this.type = basename(this.filename)

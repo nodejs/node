@@ -19,6 +19,11 @@ exports[`test/lib/link.js TAP link pkg already in global space > should create a
 
 `
 
+exports[`test/lib/link.js TAP link pkg already in global space when prefix is a symlink > should create a local symlink to global pkg 1`] = `
+{CWD}/test/lib/link-link-pkg-already-in-global-space-when-prefix-is-a-symlink/my-project/node_modules/@myscope/linked -> {CWD}/test/lib/link-link-pkg-already-in-global-space-when-prefix-is-a-symlink/scoped-linked
+
+`
+
 exports[`test/lib/link.js TAP link to globalDir when in current working dir of pkg and no args > should create a global link to current pkg 1`] = `
 {CWD}/test/lib/link-link-to-globalDir-when-in-current-working-dir-of-pkg-and-no-args/global-prefix/lib/node_modules/test-pkg-link -> {CWD}/test/lib/link-link-to-globalDir-when-in-current-working-dir-of-pkg-and-no-args/test-pkg-link
 
