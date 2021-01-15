@@ -11,6 +11,7 @@ const assert = require('assert');
   'latin1',
   'binary',
   'base64',
+  'base64url',
   'ucs2',
   'ucs-2',
   'utf16le',
