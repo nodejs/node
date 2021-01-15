@@ -3,9 +3,11 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "async_wrap.h"
 #include "base_object.h"
 #include "env.h"
 #include "memory_tracker.h"
+#include "node_internals.h"
 #include "node_worker.h"
 #include "v8.h"
 
@@ -21,6 +23,8 @@ struct BlobEntry {
 
 class Blob : public BaseObject {
  public:
+  static void RegisterExternalReferences(
+      ExternalReferenceRegistry* registry);
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -85,6 +89,45 @@ class Blob : public BaseObject {
 
  private:
   std::vector<BlobEntry> store_;
+  size_t length_ = 0;
+};
+
+class FixedSizeBlobCopyJob : public AsyncWrap, public ThreadPoolWork {
+ public:
+  enum class Mode {
+    SYNC,
+    ASYNC
+  };
+
+  static void RegisterExternalReferences(
+      ExternalReferenceRegistry* registry);
+  static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Run(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  bool IsNotIndicativeOfMemoryLeakAtExit() const override {
+    return true;
+  }
+
+  void DoThreadPoolWork() override;
+  void AfterThreadPoolWork(int status) override;
+
+  Mode mode() const { return mode_; }
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(FixedSizeBlobCopyJob)
+  SET_SELF_SIZE(FixedSizeBlobCopyJob)
+
+ private:
+  FixedSizeBlobCopyJob(
+    Environment* env,
+    v8::Local<v8::Object> object,
+    Blob* blob,
+    Mode mode = Mode::ASYNC);
+
+  Mode mode_;
+  std::vector<BlobEntry> source_;
+  std::shared_ptr<v8::BackingStore> destination_;
   size_t length_ = 0;
 };
 

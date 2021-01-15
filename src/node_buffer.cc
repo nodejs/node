@@ -1239,9 +1239,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(StringWrite<UTF8>);
   registry->Register(GetZeroFillToggle);
 
-  registry->Register(Blob::New);
-  registry->Register(Blob::ToArrayBuffer);
-  registry->Register(Blob::ToSlice);
+  Blob::RegisterExternalReferences(registry);
+  FixedSizeBlobCopyJob::RegisterExternalReferences(registry);
 }
 
 }  // namespace Buffer

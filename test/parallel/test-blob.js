@@ -104,6 +104,21 @@ assert.throws(() => new Blob(['test', 1]), {
 }
 
 {
+  const b = new Blob(
+    [
+      'h',
+      'e',
+      'l',
+      'lo',
+      Buffer.from('world')
+    ]);
+  assert.strictEqual(b.size, 10);
+  b.text().then(common.mustCall((text) => {
+    assert.strictEqual(text, 'helloworld');
+  }));
+}
+
+{
   const b = new Blob(['hello', Buffer.from('world')]);
   assert.strictEqual(b.size, 10);
   assert.strictEqual(b.type, '');
