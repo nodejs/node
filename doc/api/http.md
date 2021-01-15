@@ -143,8 +143,14 @@ changes:
     the [initial delay](net.md#net_socket_setkeepalive_enable_initialdelay)
     for TCP Keep-Alive packets. Ignored when the
     `keepAlive` option is `false` or `undefined`. **Default:** `1000`.
-  * `maxSockets` {number} Maximum number of sockets to allow per
-    host. Each request will use a new socket until the maximum is reached.
+  * `maxSockets` {number} Maximum number of sockets to allow per host.
+     If the same host opens multiple concurrent connections, each request
+     will use new socket until the `maxSockets` value is reached.
+     If the host attempts to open more connections than `maxSockets`,
+     the additional requests will enter into a pending request queue, and
+     will enter active connection state when an existing connection terminates.
+     This makes sure there are at most `maxSockets` active connections at
+     any point in time, from a given host.
     **Default:** `Infinity`.
   * `maxTotalSockets` {number} Maximum number of sockets allowed for
     all hosts in total. Each request will use a new socket
