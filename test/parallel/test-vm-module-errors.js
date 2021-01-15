@@ -6,7 +6,7 @@ const common = require('../common');
 
 const assert = require('assert');
 
-const { SourceTextModule, createContext } = require('vm');
+const { SourceTextModule, createContext, Module } = require('vm');
 
 async function createEmptyLinkedModule() {
   const m = new SourceTextModule('');
@@ -205,6 +205,17 @@ async function checkInvalidOptionForEvaluate() {
       "Received type string ('a-string')",
     code: 'ERR_INVALID_ARG_TYPE'
   });
+
+  {
+    ['link', 'evaluate'].forEach(async (method) => {
+      await assert.rejects(async () => {
+        await Module.prototype[method]();
+      }, {
+        code: 'ERR_VM_MODULE_NOT_MODULE',
+        message: /Provided module is not an instance of Module/
+      });
+    });
+  }
 }
 
 function checkInvalidCachedData() {
@@ -223,6 +234,19 @@ function checkInvalidCachedData() {
   });
 }
 
+function checkGettersErrors() {
+  const getters = ['identifier', 'context', 'namespace', 'status', 'error'];
+  getters.forEach((getter) => {
+    assert.throws(() => {
+      // eslint-disable-next-line no-unused-expressions
+      Module.prototype[getter];
+    }, {
+      code: 'ERR_VM_MODULE_NOT_MODULE',
+      message: /Provided module is not an instance of Module/
+    });
+  });
+}
+
 const finished = common.mustCall();
 
 (async function main() {
@@ -232,5 +256,6 @@ const finished = common.mustCall();
   await checkExecution();
   await checkInvalidOptionForEvaluate();
   checkInvalidCachedData();
+  checkGettersErrors();
   finished();
 })().then(common.mustCall());
