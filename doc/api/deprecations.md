@@ -2740,17 +2740,17 @@ Previously, `index.js` and extension searching lookups would apply to
 `import 'pkg'` main entry point resolution, even when resolving ES modules.
 
 With this deprecation, all ES module main entry point resolutions require
-an explicit [`"exports" or "main" entry`] with the exact file extension.
+an explicit [`"exports"` or `"main"` entry][] with the exact file extension.
 
 
 [Legacy URL API]: url.md#url_legacy_url_api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [WHATWG URL API]: url.md#url_the_whatwg_url_api
+[`"exports"` or `"main"` entry]: packages.md#packages_main_entry_point_export
 [`--pending-deprecation`]: cli.md#cli_pending_deprecation
 [`--throw-deprecation`]: cli.md#cli_throw_deprecation
 [`--unhandled-rejections`]: cli.md#cli_unhandled_rejections_mode
-[`"exports" or "main" entry`]: packages.md#packages_main_entry_point_export
 [`Buffer.allocUnsafeSlow(size)`]: buffer.md#buffer_static_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.md#buffer_static_method_buffer_from_array
 [`Buffer.from(buffer)`]: buffer.md#buffer_static_method_buffer_from_buffer
