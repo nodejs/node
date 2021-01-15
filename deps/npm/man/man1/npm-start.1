@@ -10,12 +10,41 @@ npm start [\-\- <args>]
 .RE
 .SS Description
 .P
-This runs an arbitrary command specified in the package's \fB"start"\fP property of
-its \fB"scripts"\fP object\. If no \fB"start"\fP property is specified on the
-\fB"scripts"\fP object, it will run \fBnode server\.js\fP\|\.
+This runs a predefined command specified in the \fB"start"\fP property of
+a package's \fB"scripts"\fP object\.
+.P
+If the \fB"scripts"\fP object does not define a  \fB"start"\fP property, npm
+will run \fBnode server\.js\fP\|\.
+.P
+Note that this is different from the default node behavior of running
+the file specified in a package's \fB"main"\fP attribute when evoking with
+\fBnode \.\fP
 .P
 As of \fBnpm@2\.0\.0\fP \fIhttps://blog\.npmjs\.org/post/98131109725/npm\-2\-0\-0\fR, you can
 use custom arguments when executing scripts\. Refer to npm help \fBrun\-script\fP for more details\.
+.SS Example
+.P
+.RS 2
+.nf
+{
+  "scripts": {
+    "start": "node foo\.js"
+  }
+}
+.fi
+.RE
+.P
+.RS 2
+.nf
+npm start
+
+> npm@x\.x\.x start
+> node foo\.js
+
+(foo\.js output would be here)
+
+.fi
+.RE
 .SS See Also
 .RS 0
 .IP \(bu 2

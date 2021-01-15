@@ -5,7 +5,7 @@
 .P
 .RS 2
 .nf
-npm uninstall [<@scope>/]<pkg>[@<version>]\.\.\. [\-S|\-\-save|\-D|\-\-save\-dev|\-O|\-\-save\-optional|\-\-no\-save]
+npm uninstall [<@scope>/]<pkg>[@<version>]\.\.\. [\-S|\-\-save|\-\-no\-save]
 
 aliases: remove, rm, r, un, unlink
 .fi
@@ -15,7 +15,27 @@ aliases: remove, rm, r, un, unlink
 This uninstalls a package, completely removing everything npm installed
 on its behalf\.
 .P
-Example:
+It also removes the package from the \fBdependencies\fP, \fBdevDependencies\fP,
+\fBoptionalDependencies\fP, and \fBpeerDependencies\fP objects in your
+\fBpackage\.json\fP\|\.
+.P
+Futher, if you have an \fBnpm\-shrinkwrap\.json\fP or \fBpackage\-lock\.json\fP, npm
+will update those files as well\.
+.P
+\fB\-\-no\-save\fP will tell npm not to remove the package from your
+\fBpackage\.json\fP, \fBnpm\-shrinkwrap\.json\fP, or \fBpackage\-lock\.json\fP files\.
+.P
+\fB\-\-save\fP or \fB\-S\fP will tell npm to remove the package from your
+\fBpackage\.json\fP, \fBnpm\-shrinkwrap\.json\fP, and \fBpackage\-lock\.json\fP files\.
+This is the default, but you may need to use this if you have for
+instance \fBsave=false\fP in your \fBnpmrc\fP file
+.P
+In global mode (ie, with \fB\-g\fP or \fB\-\-global\fP appended to the command),
+it uninstalls the current package context as a global package\.
+\fB\-\-no\-save\fP is ignored in this case\.
+.P
+Scope is optional and follows the usual rules for npm help \fBscope\fP\|\.
+.SS Examples
 .P
 .RS 2
 .nf
@@ -23,39 +43,17 @@ npm uninstall sax
 .fi
 .RE
 .P
-In global mode (ie, with \fB\-g\fP or \fB\-\-global\fP appended to the command),
-it uninstalls the current package context as a global package\.
-.P
-\fBnpm uninstall\fP takes 3 exclusive, optional flags which save or update
-the package version in your main package\.json:
-.RS 0
-.IP \(bu 2
-\fB\-S, \-\-save\fP: Package will be removed from your \fBdependencies\fP\|\.
-.IP \(bu 2
-\fB\-D, \-\-save\-dev\fP: Package will be removed from your \fBdevDependencies\fP\|\.
-.IP \(bu 2
-\fB\-O, \-\-save\-optional\fP: Package will be removed from your \fBoptionalDependencies\fP\|\.
-.IP \(bu 2
-\fB\-\-no\-save\fP: Package will not be removed from your \fBpackage\.json\fP file\.
-
-.RE
-.P
-Further, if you have an \fBnpm\-shrinkwrap\.json\fP then it will be updated as
-well\.
-.P
-Scope is optional and follows the usual rules for npm help \fBscope\fP\|\.
-.P
-Examples:
+\fBsax\fP will no longer be in your \fBpackage\.json\fP, \fBnpm\-shrinkwrap\.json\fP, or
+\fBpackage\-lock\.json\fP files\.
 .P
 .RS 2
 .nf
-npm uninstall sax \-\-save
-npm uninstall @myorg/privatepackage \-\-save
-npm uninstall node\-tap \-\-save\-dev
-npm uninstall dtrace\-provider \-\-save\-optional
 npm uninstall lodash \-\-no\-save
 .fi
 .RE
+.P
+\fBlodash\fP will not be removed from your \fBpackage\.json\fP,
+\fBnpm\-shrinkwrap\.json\fP, or \fBpackage\-lock\.json\fP files\.
 .SS See Also
 .RS 0
 .IP \(bu 2

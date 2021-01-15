@@ -10,7 +10,34 @@ npm stop [\-\- <args>]
 .RE
 .SS Description
 .P
-This runs a package's "stop" script, if one was provided\.
+This runs a predefined command specified in the "stop" property of a
+package's "scripts" object\.
+.P
+Unlike with npm help start, there is no default script
+that will run if the \fB"stop"\fP property is not defined\.
+.SS Example
+.P
+.RS 2
+.nf
+{
+  "scripts": {
+    "stop": "node bar\.js"
+  }
+}
+.fi
+.RE
+.P
+.RS 2
+.nf
+npm stop
+
+> npm@x\.x\.x stop
+> node bar\.js
+
+(bar\.js output would be here)
+
+.fi
+.RE
 .SS See Also
 .RS 0
 .IP \(bu 2

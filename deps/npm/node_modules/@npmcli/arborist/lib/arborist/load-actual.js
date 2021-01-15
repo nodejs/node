@@ -111,7 +111,7 @@ module.exports = cls => class ActualLoader extends cls {
         pkg: {},
         global,
       })
-      return this[_loadActualActually]({root, ignoreMissing})
+      return this[_loadActualActually]({root, ignoreMissing, global})
     }
 
     // not in global mode, hidden lockfile is allowed, load root pkg too
@@ -154,7 +154,7 @@ module.exports = cls => class ActualLoader extends cls {
     return this[_actualTree]
   }
 
-  async [_loadActualActually] ({ root, ignoreMissing }) {
+  async [_loadActualActually] ({ root, ignoreMissing, global }) {
     await this[_loadFSTree](this[_actualTree])
     if (!ignoreMissing)
       await this[_findMissingEdges]()
@@ -162,6 +162,17 @@ module.exports = cls => class ActualLoader extends cls {
     this[_transplant](root)
 
     await this[_loadWorkspaces](this[_actualTree])
+    if (global) {
+      // need to depend on the children, or else all of them
+      // will end up being flagged as extraneous, since the
+      // global root isn't a "real" project
+      const tree = this[_actualTree]
+      const actualRoot = tree.isLink ? tree.target : tree
+      const { dependencies = {} } = actualRoot.package
+      for (const name of actualRoot.children.keys())
+        dependencies[name] = dependencies[name] || '*'
+      actualRoot.package = { ...actualRoot.package, dependencies }
+    }
     // only reset root flags if we're not re-rooting, otherwise leave as-is
     calcDepFlags(this[_actualTree], !root)
     return this[_actualTree]
