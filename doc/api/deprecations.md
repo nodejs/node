@@ -2724,21 +2724,22 @@ settings set when the Node.js binary was compiled. However, the property has
 been mutable by user code making it impossible to rely on. The ability to
 change the value has been deprecated and will be disabled in the future.
 
-### DEP0150: Folder index for "type": "module"
+### DEP0XXX: Main index lookup and extension searching
+
 <!-- YAML
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/36918
-    description: Runtime deprecation.
+    description: Documentation-only deprecation.
 -->
 
 Type: Documentation (supports [`--pending-deprecation`][])
 
-Previously, `index.js` lookup would apply for `require('pkg')` even for packages
-with a `"type": "module"` field in their package.json
+Previously, `index.js` and extension searching lookups would apply to
+`import 'pkg'` main entry point resolution, even when resolving ES modules.
 
-With this deprecation, all packages with `"type": "module"` require an explicit
-`"exports"` field entry point to resolve for the main.
+With this deprecation, all ES module main entry point resolutions require
+an explicit `"exports"` or `"main"` entry with the exact file extension.
 
 
 [Legacy URL API]: url.md#url_legacy_url_api
