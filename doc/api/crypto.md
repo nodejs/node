@@ -2841,6 +2841,20 @@ const n = crypto.randomInt(1, 7);
 console.log(`The dice rolled: ${n}`);
 ```
 
+### `crypto.randomUUID([options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `disableEntropyCache` {boolean} By default, to improve performance,
+    Node.js generates and caches enough random data to generate up to
+    128 random UUIDs. To generate a UUID without using the cache, set
+    `disableEntropyCache` to `true`. **Defaults**: `false`.
+* Returns: {string}
+
+Generates a random [RFC 4122][] Version 4 UUID.
+
 ### `crypto.scrypt(password, salt, keylen[, options], callback)`
 <!-- YAML
 added: v10.5.0
@@ -3582,6 +3596,7 @@ See the [list of SSL OP Flags][] for details.
 [RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt
 [RFC 3610]: https://www.rfc-editor.org/rfc/rfc3610.txt
 [RFC 4055]: https://www.rfc-editor.org/rfc/rfc4055.txt
+[RFC 4122]: https://www.rfc-editor.org/rfc/rfc4122.txt
 [RFC 5208]: https://www.rfc-editor.org/rfc/rfc5208.txt
 [`Buffer`]: buffer.md
 [`EVP_BytesToKey`]: https://www.openssl.org/docs/man1.1.0/crypto/EVP_BytesToKey.html

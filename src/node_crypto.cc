@@ -67,7 +67,9 @@ namespace crypto {
 using node::THROW_ERR_TLS_INVALID_PROTOCOL_METHOD;
 
 using v8::Array;
+using v8::ArrayBuffer;
 using v8::ArrayBufferView;
+using v8::BackingStore;
 using v8::Boolean;
 using v8::ConstructorBehavior;
 using v8::Context;
@@ -97,6 +99,7 @@ using v8::SideEffectType;
 using v8::Signature;
 using v8::String;
 using v8::Uint32;
+using v8::Uint8Array;
 using v8::Undefined;
 using v8::Value;
 
@@ -6944,6 +6947,35 @@ void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
 }
 #endif /* NODE_FIPS_MODE */
 
+namespace {
+// SecureBuffer uses openssl to allocate a Uint8Array using
+// OPENSSL_secure_malloc. Because we do not yet actually
+// make use of secure heap, this has the same semantics as
+// using OPENSSL_malloc. However, if the secure heap is
+// initialized, SecureBuffer will automatically use it.
+void SecureBuffer(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsUint32());
+  Environment* env = Environment::GetCurrent(args);
+  uint32_t len = args[0].As<Uint32>()->Value();
+  char* data = static_cast<char*>(OPENSSL_secure_malloc(len));
+  if (data == nullptr) {
+    // There's no memory available for the allocation.
+    // Return nothing.
+    return;
+  }
+  memset(data, 0, len);
+  std::shared_ptr<BackingStore> store =
+      ArrayBuffer::NewBackingStore(
+          data,
+          len,
+          [](void* data, size_t len, void* deleter_data) {
+            OPENSSL_secure_clear_free(data, len);
+          },
+          data);
+  Local<ArrayBuffer> buffer = ArrayBuffer::New(env->isolate(), store);
+  args.GetReturnValue().Set(Uint8Array::New(buffer, 0, len));
+}
+}  // namespace
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,
@@ -7038,6 +7070,8 @@ void Initialize(Local<Object> target,
 #ifndef OPENSSL_NO_SCRYPT
   env->SetMethod(target, "scrypt", Scrypt);
 #endif  // OPENSSL_NO_SCRYPT
+
+  env->SetMethod(target, "secureBuffer", SecureBuffer);
 }
 
 }  // namespace crypto
