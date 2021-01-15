@@ -45,6 +45,9 @@ const link = async args => {
 // Returns a list of items that can't be fulfilled by
 // things found in the current arborist inventory
 const missingArgsFromTree = (tree, args) => {
+  if (tree.isLink)
+    return missingArgsFromTree(tree.target, args)
+
   const foundNodes = []
   const missing = args.filter(a => {
     const arg = npa(a)

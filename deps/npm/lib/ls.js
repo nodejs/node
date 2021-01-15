@@ -99,7 +99,7 @@ const getHumanOutputItem = (node, { args, color, global, long }) => {
   // special formatting for top-level package name
   if (node.isRoot) {
     const hasNoPackageJson = !Object.keys(node.package).length
-    if (hasNoPackageJson)
+    if (hasNoPackageJson || global)
       printable = path
     else
       printable += `${long ? EOL : ' '}${path}`

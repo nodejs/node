@@ -12,7 +12,7 @@ const completion = require('./utils/completion/none.js')
 
 const usage = usageUtil(
   'search',
-  'npm search [--long] [search terms ...]'
+  'npm search [-l|--long] [--json] [--parseable] [--no-description] [search terms ...]'
 )
 
 const cmd = (args, cb) => search(args).then(() => cb()).catch(cb)

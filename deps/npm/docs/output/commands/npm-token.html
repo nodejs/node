@@ -153,8 +153,8 @@ npm command-line interface
 <p>This lets you list, create and revoke authentication tokens.</p>
 <ul>
 <li><code>npm token list</code>:
-Shows a table of all active authentication tokens. You can request this as
-JSON with <code>--json</code> or tab-separated values with <code>--parseable</code>.</li>
+Shows a table of all active authentication tokens. You can request
+this as JSON with <code>--json</code> or tab-separated values with <code>--parseable</code>.</li>
 </ul>
 <pre lang="bash"><code>+--------+---------+------------+----------+----------------+
 | id     | token   | created    | read-only | CIDR whitelist |
@@ -175,11 +175,19 @@ JSON with <code>--json</code> or tab-separated values with <code>--parseable</co
 +--------+---------+------------+----------+----------------+
 </code></pre>
 <ul>
-<li><code>npm token create [--read-only] [--cidr=&lt;cidr-ranges&gt;]</code>:
-Create a new authentication token. It can be <code>--read-only</code> or accept a list of
-<a href="https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing">CIDR</a> ranges to
-limit use of this token to. This will prompt you for your password, and, if you have
-two-factor authentication enabled, an otp.</li>
+<li>
+<p><code>npm token create [--read-only] [--cidr=&lt;cidr-ranges&gt;]</code>:
+Create a new authentication token. It can be <code>--read-only</code>, or accept
+a list of
+<a href="https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing">CIDR</a>
+ranges with which to limit use of this token. This will prompt you for
+your password, and, if you have two-factor authentication enabled, an
+otp.</p>
+<p>Currently, the cli can not generate automation tokens. Please refer to
+the <a href="https://docs.npmjs.com/creating-and-viewing-access-tokens">docs
+website</a>
+for more information on generating automation tokens.</p>
+</li>
 </ul>
 <pre lang="bash"><code>+----------------+--------------------------------------+
 | token          | a73c9572-f1b9-8983-983d-ba3ac3cc913d |
@@ -193,10 +201,12 @@ two-factor authentication enabled, an otp.</li>
 </code></pre>
 <ul>
 <li><code>npm token revoke &lt;token|id&gt;</code>:
-This removes an authentication token, making it immediately unusable. This can accept
-both complete tokens (as you get back from <code>npm token create</code> and will
-find in your <code>.npmrc</code>) and ids as seen in the <code>npm token list</code> output.
-This will NOT accept the truncated token found in <code>npm token list</code> output.</li>
+Immediately removes an authentication token from the registry.  You
+will no longer be able to use it.  This can accept both complete
+tokens (such as those you get back from <code>npm token create</code>, and those
+found in your <code>.npmrc</code>), and ids as seen in the parseable or json
+output of <code>npm token list</code>.  This will NOT accept the truncated token
+found in the normal <code>npm token list</code> output.</li>
 </ul>
 </div>
 

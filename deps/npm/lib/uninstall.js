@@ -9,7 +9,7 @@ const completion = require('./utils/completion/installed-shallow.js')
 
 const usage = usageUtil(
   'uninstall',
-  'npm uninstall [<@scope>/]<pkg>[@<version>]... [--save-prod|--save-dev|--save-optional] [--no-save]'
+  'npm uninstall [<@scope>/]<pkg>[@<version>]... [-S|--save|--no-save]'
 )
 
 const cmd = (args, cb) => rm(args).then(() => cb()).catch(cb)

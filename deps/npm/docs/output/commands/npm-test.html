@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#example">Example</a></li><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -150,7 +150,21 @@ npm command-line interface
 aliases: t, tst
 </code></pre>
 <h3 id="description">Description</h3>
-<p>This runs a package’s “test” script, if one was provided.</p>
+<p>This runs a predefined command specified in the <code>"test"</code> property of
+a package’s <code>"scripts"</code> object.</p>
+<h3 id="example">Example</h3>
+<pre lang="json"><code>{
+  "scripts": {
+    "test": "node test.js"
+  }
+}
+</code></pre>
+<pre lang="bash"><code>npm test
+&gt; npm@x.x.x test
+&gt; node test.js
+
+(test.js output would be here)
+</code></pre>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-run-script.html">npm run-script</a></li>

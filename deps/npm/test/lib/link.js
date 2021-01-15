@@ -259,6 +259,64 @@ t.test('link pkg already in global space', (t) => {
   })
 })
 
+t.test('link pkg already in global space when prefix is a symlink', (t) => {
+  t.plan(3)
+
+  const testdir = t.testdir({
+    'global-prefix': t.fixture('symlink', './real-global-prefix'),
+    'real-global-prefix': {
+      lib: {
+        node_modules: {
+          '@myscope': {
+            linked: t.fixture('symlink', '../../../../scoped-linked'),
+          },
+        },
+      },
+    },
+    'scoped-linked': {
+      'package.json': JSON.stringify({
+        name: '@myscope/linked',
+        version: '1.0.0',
+      }),
+    },
+    'my-project': {
+      'package.json': JSON.stringify({
+        name: 'my-project',
+        version: '1.0.0',
+      }),
+    },
+  })
+  npm.globalDir = resolve(testdir, 'global-prefix', 'lib', 'node_modules')
+  npm.prefix = resolve(testdir, 'my-project')
+
+  npm.config.find = () => 'default'
+
+  const _cwd = process.cwd()
+  process.chdir(npm.prefix)
+
+  reifyOutput = async () => {
+    reifyOutput = undefined
+    process.chdir(_cwd)
+    npm.config.find = () => null
+
+    const links = await printLinks({
+      path: npm.prefix,
+    })
+
+    t.equal(
+      require(resolve(testdir, 'my-project', 'package.json')).dependencies,
+      undefined,
+      'should not save to package.json upon linking'
+    )
+
+    t.matchSnapshot(links, 'should create a local symlink to global pkg')
+  }
+
+  link(['@myscope/linked'], (err) => {
+    t.ifError(err, 'should not error out')
+  })
+})
+
 t.test('completion', (t) => {
   const testdir = t.testdir({
     'global-prefix': {
