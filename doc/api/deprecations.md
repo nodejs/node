@@ -2750,6 +2750,7 @@ an explicit [`"exports" or "main" entry`] with the exact file extension.
 [`--pending-deprecation`]: cli.md#cli_pending_deprecation
 [`--throw-deprecation`]: cli.md#cli_throw_deprecation
 [`--unhandled-rejections`]: cli.md#cli_unhandled_rejections_mode
+[`"exports" or "main" entry`]: packages.md#packages_main_entry_point_export
 [`Buffer.allocUnsafeSlow(size)`]: buffer.md#buffer_static_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.md#buffer_static_method_buffer_from_array
 [`Buffer.from(buffer)`]: buffer.md#buffer_static_method_buffer_from_buffer
@@ -2785,7 +2786,6 @@ an explicit [`"exports" or "main" entry`] with the exact file extension.
 [`ecdh.setPublicKey()`]: crypto.md#crypto_ecdh_setpublickey_publickey_encoding
 [`emitter.listenerCount(eventName)`]: events.md#events_emitter_listenercount_eventname
 [`events.listenerCount(emitter, eventName)`]: events.md#events_events_listenercount_emitter_eventname
-[`"exports" or "main" entry`]: packages.md#packages_main_entry_point_export
 [`fs.FileHandle`]: fs.md#fs_class_filehandle
 [`fs.access()`]: fs.md#fs_fs_access_path_mode_callback
 [`fs.createReadStream()`]: fs.md#fs_fs_createreadstream_path_options
