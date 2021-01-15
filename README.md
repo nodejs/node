@@ -325,11 +325,11 @@ For information about the governance of the Node.js project, see
 **Zeyu Yang** &lt;himself65@outlook.com&gt; (he/him)
 * [hiroppy](https://github.com/hiroppy) -
 **Yuta Hiroto** &lt;hello@hiroppy.me&gt; (he/him)
+* [iansu](https://github.com/iansu) -
+**Ian Sutherland** &lt;ian@iansutherland.ca&gt;
 * [indutny](https://github.com/indutny) -
 **Fedor Indutny** &lt;fedor.indutny@gmail.com&gt;
 * [JacksonTian](https://github.com/JacksonTian) -
-**Ian Sutherland** &lt;ian@iansutherland.ca&gt;
-* [iansu](https://github.com/iansu) -
 **Jackson Tian** &lt;shyvo1987@gmail.com&gt;
 * [jasnell](https://github.com/jasnell) -
 **James M Snell** &lt;jasnell@gmail.com&gt; (he/him)
