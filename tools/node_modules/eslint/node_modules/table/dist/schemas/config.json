@@ -14,6 +14,9 @@
         },
         "drawHorizontalLine": {
             "typeof": "function"
+        },
+        "singleLine": {
+            "typeof": "boolean"
         }
     },
     "additionalProperties": false

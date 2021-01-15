@@ -153,7 +153,13 @@ module.exports = {
             IfStatement: increaseComplexity,
             SwitchCase: increaseSwitchComplexity,
             WhileStatement: increaseComplexity,
-            DoWhileStatement: increaseComplexity
+            DoWhileStatement: increaseComplexity,
+
+            AssignmentExpression(node) {
+                if (astUtils.isLogicalAssignmentOperator(node.operator)) {
+                    increaseComplexity();
+                }
+            }
         };
 
     }
