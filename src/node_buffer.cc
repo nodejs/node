@@ -1184,6 +1184,7 @@ void Initialize(Local<Object> target,
 
   env->SetMethodNoSideEffect(target, "asciiSlice", StringSlice<ASCII>);
   env->SetMethodNoSideEffect(target, "base64Slice", StringSlice<BASE64>);
+  env->SetMethodNoSideEffect(target, "base64urlSlice", StringSlice<BASE64URL>);
   env->SetMethodNoSideEffect(target, "latin1Slice", StringSlice<LATIN1>);
   env->SetMethodNoSideEffect(target, "hexSlice", StringSlice<HEX>);
   env->SetMethodNoSideEffect(target, "ucs2Slice", StringSlice<UCS2>);
@@ -1191,6 +1192,7 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "asciiWrite", StringWrite<ASCII>);
   env->SetMethod(target, "base64Write", StringWrite<BASE64>);
+  env->SetMethod(target, "base64urlWrite", StringWrite<BASE64URL>);
   env->SetMethod(target, "latin1Write", StringWrite<LATIN1>);
   env->SetMethod(target, "hexWrite", StringWrite<HEX>);
   env->SetMethod(target, "ucs2Write", StringWrite<UCS2>);
@@ -1223,6 +1225,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
   registry->Register(StringSlice<ASCII>);
   registry->Register(StringSlice<BASE64>);
+  registry->Register(StringSlice<BASE64URL>);
   registry->Register(StringSlice<LATIN1>);
   registry->Register(StringSlice<HEX>);
   registry->Register(StringSlice<UCS2>);
@@ -1230,6 +1233,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
   registry->Register(StringWrite<ASCII>);
   registry->Register(StringWrite<BASE64>);
+  registry->Register(StringWrite<BASE64URL>);
   registry->Register(StringWrite<LATIN1>);
   registry->Register(StringWrite<HEX>);
   registry->Register(StringWrite<UCS2>);
