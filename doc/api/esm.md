@@ -1086,9 +1086,6 @@ The resolver can throw the following errors:
 >          **PACKAGE_EXPORTS_RESOLVE**(_packageURL_, _packageSubpath_,
 >           _pjson.exports_, _defaultConditions_).
 >    1. Otherwise, if _packageSubpath_ is equal to _"."_, then
->       1. If _pjson_ is not **null** and _pjson_._type_ is equal to _"module"_,
->          then,
->          1. Throw a _Package Path Not Exports_ error.
 >       1. Return the result applying the legacy **LOAD_AS_DIRECTORY**
 >          CommonJS resolver to _packageURL_, throwing a _Module Not Found_
 >          error for no resolution.
