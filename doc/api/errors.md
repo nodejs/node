@@ -1704,6 +1704,12 @@ compiled with ICU support.
 
 A non-context-aware native addon was loaded in a process that disallows them.
 
+<a id="ERR_OPERATION_FAILED"></a>
+### `ERR_OPERATION_FAILED`
+
+An operation failed. This is typically used to signal the general failure of an
+asynchronous operation.
+
 <a id="ERR_OUT_OF_RANGE"></a>
 ### `ERR_OUT_OF_RANGE`
 
