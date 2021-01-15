@@ -803,7 +803,7 @@ Maybe<bool> ExportJWKEdKey(
           &error).ToLocal(&encoded) ||
       !target->Set(
           env->context(),
-          env->jwk_k_string(),
+          env->jwk_x_string(),
           encoded).IsJust()) {
     if (!error.IsEmpty())
       env->isolate()->ThrowException(error);

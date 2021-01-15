@@ -302,10 +302,10 @@ async function test2(namedCurve) {
     assert.strictEqual(publicKeyJwk.crv, vector.crv);
     assert.strictEqual(privateKeyJwk.crv, vector.crv);
     assert.deepStrictEqual(
-      Buffer.from(publicKeyJwk.k, 'base64'),
+      Buffer.from(publicKeyJwk.x, 'base64'),
       vector.publicKey);
     assert.deepStrictEqual(
-      Buffer.from(privateKeyJwk.k, 'base64'),
+      Buffer.from(privateKeyJwk.x, 'base64'),
       vector.publicKey);
     assert.deepStrictEqual(
       Buffer.from(privateKeyJwk.d, 'base64'),
