@@ -47,6 +47,7 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
   } else {
     // no exports field
     validSpecifiers.set('no_exports', { default: 'main' });
+    validSpecifiers.set('default_index', { default: 'main' });
   }
 
   for (const [validSpecifier, expected] of validSpecifiers) {
