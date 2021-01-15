@@ -565,7 +565,8 @@ function promptUser() {
         {
             type: "toggle",
             name: "installESLint",
-            message(answers) {
+            message() {
+                const { answers } = this.state;
                 const verb = semver.ltr(answers.localESLintVersion, answers.requiredESLintVersionRange)
                     ? "upgrade"
                     : "downgrade";
