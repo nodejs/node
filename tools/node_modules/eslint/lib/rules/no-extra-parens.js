@@ -895,6 +895,22 @@ module.exports = {
                 }
 
                 if (node.init) {
+
+                    if (node.init.type !== "VariableDeclaration") {
+                        const firstToken = sourceCode.getFirstToken(node.init, astUtils.isNotOpeningParenToken);
+
+                        if (
+                            firstToken.value === "let" &&
+                            astUtils.isOpeningBracketToken(
+                                sourceCode.getTokenAfter(firstToken, astUtils.isNotClosingParenToken)
+                            )
+                        ) {
+
+                            // ForStatement#init expression cannot start with `let[`.
+                            tokensToIgnore.add(firstToken);
+                        }
+                    }
+
                     startNewReportsBuffering();
 
                     if (hasExcessParens(node.init)) {

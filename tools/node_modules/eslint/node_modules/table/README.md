@@ -1,7 +1,6 @@
 <a name="table"></a>
 # Table
 
-[![GitSpo Mentions](https://gitspo.com/badges/mentions/gajus/table?style=flat-square)](https://gitspo.com/mentions/gajus/table)
 [![Travis build status](http://img.shields.io/travis/gajus/table/master.svg?style=flat-square)](https://travis-ci.org/gajus/table)
 [![Coveralls](https://img.shields.io/coveralls/gajus/table.svg?style=flat-square)](https://coveralls.io/github/gajus/table)
 [![NPM version](http://img.shields.io/npm/v/table.svg?style=flat-square)](https://www.npmjs.org/package/table)
