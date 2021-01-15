@@ -76,14 +76,6 @@ const requireUtil = createRequireFromPath('../src/utils/');
 requireUtil('./some-tool');
 ```
 
-### `module.isPreloading`
-<!-- YAML
-added: REPLACEME
--->
-
-* Type: {boolean} `true` if the module is running during the Node.js preload
-  phase.
-
 ### `module.syncBuiltinESMExports()`
 <!-- YAML
 added: v12.12.0
