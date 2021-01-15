@@ -775,6 +775,7 @@ Maybe<bool> ExportJWKEdKey(
     return Nothing<bool>();
 
   unsigned char* data = MallocOpenSSL<unsigned char>(len);
+  ByteSource out = ByteSource::Allocated(reinterpret_cast<char*>(data), len);
 
   if (key->GetKeyType() == kKeyTypePrivate) {
     if (!EVP_PKEY_get_raw_private_key(pkey.get(), data, &len) ||
