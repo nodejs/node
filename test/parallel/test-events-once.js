@@ -169,6 +169,19 @@ async function abortSignalAfterEvent() {
   await once(ee, 'foo', { signal: ac.signal });
 }
 
+async function abortSignalRemoveListener() {
+  const ee = new EventEmitter();
+  const ac = new AbortController();
+
+  try {
+    process.nextTick(() => ac.abort());
+    await once(ee, 'test', { signal: ac.signal });
+  } catch {
+    strictEqual(ee.listeners('test').length, 0);
+    strictEqual(ee.listeners('error').length, 0);
+  }
+}
+
 async function eventTargetAbortSignalBefore() {
   const et = new EventTarget();
   const ac = new AbortController();
@@ -218,6 +231,7 @@ Promise.all([
   abortSignalBefore(),
   abortSignalAfter(),
   abortSignalAfterEvent(),
+  abortSignalRemoveListener(),
   eventTargetAbortSignalBefore(),
   eventTargetAbortSignalAfter(),
   eventTargetAbortSignalAfterEvent(),
