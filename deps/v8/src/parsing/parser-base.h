@@ -3296,6 +3296,7 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
 
   bool optional_chaining = false;
   bool is_optional = false;
+  int optional_link_begin;
   do {
     switch (peek()) {
       case Token::QUESTION_PERIOD: {
@@ -3303,10 +3304,16 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
           ReportUnexpectedToken(peek());
           return impl()->FailureExpression();
         }
+        // Include the ?. in the source range position.
+        optional_link_begin = scanner()->peek_location().beg_pos;
         Consume(Token::QUESTION_PERIOD);
         is_optional = true;
         optional_chaining = true;
-        continue;
+        if (Token::IsPropertyOrCall(peek())) continue;
+        int pos = position();
+        ExpressionT key = ParsePropertyOrPrivatePropertyName();
+        result = factory()->NewProperty(result, key, pos, is_optional);
+        break;
       }
 
       /* Property */
@@ -3386,14 +3393,7 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
       }
 
       default:
-        /* Optional Property */
-        if (is_optional) {
-          DCHECK_EQ(scanner()->current_token(), Token::QUESTION_PERIOD);
-          int pos = position();
-          ExpressionT key = ParsePropertyOrPrivatePropertyName();
-          result = factory()->NewProperty(result, key, pos, is_optional);
-          break;
-        }
+        // Template literals in/after an Optional Chain not supported:
         if (optional_chaining) {
           impl()->ReportMessageAt(scanner()->peek_location(),
                                   MessageTemplate::kOptionalChainingNoTemplate);
@@ -3404,8 +3404,12 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
         result = ParseTemplateLiteral(result, position(), true);
         break;
     }
-    is_optional = false;
-  } while (is_optional || Token::IsPropertyOrCall(peek()));
+    if (is_optional) {
+      SourceRange chain_link_range(optional_link_begin, end_position());
+      impl()->RecordExpressionSourceRange(result, chain_link_range);
+      is_optional = false;
+    }
+  } while (Token::IsPropertyOrCall(peek()));
   if (optional_chaining) return factory()->NewOptionalChain(result);
   return result;
 }

@@ -4595,8 +4595,11 @@ void BytecodeGenerator::VisitThrow(Throw* expr) {
 void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* property) {
   if (property->is_optional_chain_link()) {
     DCHECK_NOT_NULL(optional_chaining_null_labels_);
+    int right_range =
+        AllocateBlockCoverageSlotIfEnabled(property, SourceRangeKind::kRight);
     builder()->LoadAccumulatorWithRegister(obj).JumpIfUndefinedOrNull(
         optional_chaining_null_labels_->New());
+    BuildIncrementBlockCoverageCounterIfEnabled(right_range);
   }
 
   AssignType property_kind = Property::GetAssignType(property);
@@ -4937,8 +4940,11 @@ void BytecodeGenerator::VisitCall(Call* expr) {
 
   if (expr->is_optional_chain_link()) {
     DCHECK_NOT_NULL(optional_chaining_null_labels_);
+    int right_range =
+        AllocateBlockCoverageSlotIfEnabled(expr, SourceRangeKind::kRight);
     builder()->LoadAccumulatorWithRegister(callee).JumpIfUndefinedOrNull(
         optional_chaining_null_labels_->New());
+    BuildIncrementBlockCoverageCounterIfEnabled(right_range);
   }
 
   // Evaluate all arguments to the function call and store in sequential args
@@ -5217,7 +5223,10 @@ void BytecodeGenerator::VisitDelete(UnaryOperation* unary) {
       OptionalChainNullLabelScope label_scope(this);
       VisitForAccumulatorValue(property->obj());
       if (property->is_optional_chain_link()) {
+        int right_range = AllocateBlockCoverageSlotIfEnabled(
+            property, SourceRangeKind::kRight);
         builder()->JumpIfUndefinedOrNull(label_scope.labels()->New());
+        BuildIncrementBlockCoverageCounterIfEnabled(right_range);
       }
       Register object = register_allocator()->NewRegister();
       builder()->StoreAccumulatorInRegister(object);
