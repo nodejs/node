@@ -47,6 +47,7 @@ struct SourceRange {
   V(Block)                       \
   V(CaseClause)                  \
   V(Conditional)                 \
+  V(Expression)                  \
   V(FunctionLiteral)             \
   V(IfStatement)                 \
   V(IterationStatement)          \
@@ -279,6 +280,24 @@ class NaryOperationSourceRanges final : public AstNodeSourceRanges {
 
  private:
   ZoneVector<SourceRange> ranges_;
+};
+
+class ExpressionSourceRanges final : public AstNodeSourceRanges {
+ public:
+  explicit ExpressionSourceRanges(const SourceRange& right_range)
+      : right_range_(right_range) {}
+
+  SourceRange GetRange(SourceRangeKind kind) override {
+    DCHECK(HasRange(kind));
+    return right_range_;
+  }
+
+  bool HasRange(SourceRangeKind kind) override {
+    return kind == SourceRangeKind::kRight;
+  }
+
+ private:
+  SourceRange right_range_;
 };
 
 class SuspendSourceRanges final : public ContinuationSourceRanges {

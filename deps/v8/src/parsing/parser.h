@@ -997,6 +997,14 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
         node, zone()->New<IterationStatementSourceRanges>(body_range));
   }
 
+  // Used to record source ranges of expressions associated with optional chain:
+  V8_INLINE void RecordExpressionSourceRange(Expression* node,
+                                             const SourceRange& right_range) {
+    if (source_range_map_ == nullptr) return;
+    source_range_map_->Insert(node,
+                              zone()->New<ExpressionSourceRanges>(right_range));
+  }
+
   V8_INLINE void RecordSuspendSourceRange(Expression* node,
                                           int32_t continuation_position) {
     if (source_range_map_ == nullptr) return;
