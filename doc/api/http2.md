@@ -3276,7 +3276,7 @@ will result in a [`TypeError`][] being thrown.
 added: REPLACEME
 -->
 
-* {Integer}
+* {integer}
 
 Number of bytes written to response body.
 
