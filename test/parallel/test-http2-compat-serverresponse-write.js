@@ -27,6 +27,7 @@ const assert = require('assert');
     server.once('request', mustCall((request, response) => {
       // response.write() returns true
       assert(response.write('muahaha', 'utf8', mustCall()));
+      assert.strictEqual(response.bytesWritten, Buffer.byteLength('muahaha'));
 
       response.stream.close(0, mustCall(() => {
         response.on('error', mustNotCall());

@@ -40,9 +40,11 @@ const { once } = require('events');
     for (let j = 0; j < kSockets; j += 1) {
       const stream = client.request({ ':method': 'POST' });
       stream.on('data', () => {});
-
+      let bytesWritten = 0;
       for (let i = 0; i < kTimes; i += 1) {
         stream.write(Buffer.allocUnsafe(kBufferSize), mustSucceed());
+        bytesWritten += kBufferSize;
+        assert.strictEqual(stream.bytesWritten, bytesWritten);
         const expectedSocketBufferSize = kBufferSize * (i + 1);
         assert.strictEqual(stream.bufferSize, expectedSocketBufferSize);
       }

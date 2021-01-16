@@ -37,15 +37,21 @@ const httpServer = http.createServer(common.mustCall(function(req, res) {
 
   // Write 1.5mb to cause some requests to buffer
   // Also, mix up the encodings a bit.
+  let bytesWritten = 0;
   const chunk = '7'.repeat(1024);
   const bchunk = Buffer.from(chunk);
   for (let i = 0; i < 1024; i++) {
     res.write(chunk);
+    bytesWritten += chunk.length;
     res.write(bchunk);
+    bytesWritten += bchunk.length;
     res.write(chunk, 'hex');
+    bytesWritten += Buffer.byteLength(chunk, 'hex');
+
   }
   // Get .bytesWritten while buffer is not empty
   assert(res.connection.bytesWritten > 0);
+  assert.strictEqual(res.bytesWritten, bytesWritten);
 
   res.end(body);
 }));
