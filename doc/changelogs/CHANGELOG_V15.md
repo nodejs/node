@@ -1101,7 +1101,7 @@ As of Node.js 15, the default mode for `unhandledRejection` is changed to `throw
 
 #### QUIC - [#32379](https://github.com/nodejs/node/pull/32379)
 
-Node.js 15 comes with experimental support QUIC, which can be enabled by compiling Node.js with the `--experimental-quic` configuration flag. The Node.js QUIC implementation is exposed by the core `net` module.
+Node.js 15 comes with experimental support for [QUIC](https://en.wikipedia.org/wiki/QUIC), which can be enabled by compiling Node.js with the `--experimental-quic` configuration flag. The Node.js QUIC implementation is exposed by the core `net` module.
 
 #### V8 8.6 - [#35415](https://github.com/nodejs/node/pull/35415)
 
