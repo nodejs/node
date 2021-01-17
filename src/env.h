@@ -550,6 +550,10 @@ constexpr size_t kFsStatsBufferLength =
   V(prepare_stack_trace_callback, v8::Function)                                \
   V(process_object, v8::Object)                                                \
   V(primordials, v8::Object)                                                   \
+  V(primordials_safe_map_prototype_object, v8::Object)                         \
+  V(primordials_safe_set_prototype_object, v8::Object)                         \
+  V(primordials_safe_weak_map_prototype_object, v8::Object)                    \
+  V(primordials_safe_weak_set_prototype_object, v8::Object)                    \
   V(promise_hook_handler, v8::Function)                                        \
   V(promise_reject_callback, v8::Function)                                     \
   V(script_data_constructor_function, v8::Function)                            \
