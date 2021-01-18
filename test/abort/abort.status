@@ -1,4 +1,4 @@
-prefix addons
+prefix abort
 
 # To mark a test as flaky, list the test name in the appropriate section
 # below, without ".js", followed by ": PASS,FLAKY". Example:
@@ -6,12 +6,6 @@ prefix addons
 
 [true] # This section applies to all platforms
 
-[$arch==arm]
-# https://github.com/nodejs/node/issues/30786
-openssl-binding/test: PASS,FLAKY
-
 [$system==ibmi]
-openssl-binding/test: SKIP
-zlib-binding/test: SKIP
 # https://github.com/nodejs/node/issues/34410
-register-signal-handler/test: PASS,FLAKY
+test-addon-register-signal-handler: PASS,FLAKY
