@@ -91,6 +91,7 @@ int CRYPTO_secure_malloc_init(size_t size, int minsize)
 int CRYPTO_secure_malloc_done(void)
 {
 #ifdef OPENSSL_SECURE_MEMORY
+printf("!!! secure_mem_used %llu\n", secure_mem_used);
     if (secure_mem_used == 0) {
         sh_done();
         secure_mem_initialized = 0;

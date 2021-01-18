@@ -607,7 +607,9 @@ void OPENSSL_cleanup(void)
     obj_cleanup_int();
     err_cleanup();
 
+printf("About to call CRYPTO_secure_malloc_done\n");
     CRYPTO_secure_malloc_done();
+printf("Just called CRYPTO_secure_malloc_done\n");
 
     base_inited = 0;
 }
