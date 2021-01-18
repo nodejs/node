@@ -158,7 +158,7 @@ process.versions.icu;
 new Intl.DateTimeFormat('es', { month: 'long' }).format(new Date(9E8));
 ```
 
-(This should print your updated ICU version number, and also `January` again.)
+(This should print your updated ICU version number, and also `enero` again.)
 
 You are ready to check in the updated `deps/icu-small`. This is a big commit,
 so make this a separate commit from the smaller changes.
