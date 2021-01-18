@@ -980,9 +980,9 @@ doesn't already provide: anything implemented with `AsyncLocalStorage` can be
 implemented with Async Hooks instead.
 
 The goal of `AsyncLocalStorage` is to provide a more performant and memory safe
-way to share state accross asynchronous calls. For example, the
+way to share state across asynchronous calls. For example, the
 `AsyncLocalStorage` implementation doesn't involve any `destroy` callback,
-which considerably improves performance, and, in some cases, `destoy` can not
+which considerably improves performance, and, in some cases, `destroy` can not
 be called or called very late which usually leads to memory leak in
 implementations using it.
 
