@@ -34,7 +34,37 @@ class EnvironmentTest : public EnvironmentTestFixture {
   }
 };
 
+class RedirectStdErr {
+ public:
+  explicit RedirectStdErr(const char* filename) : filename_(filename) {
+    fflush(stderr);
+    fgetpos(stderr, &pos_);
+    fd_ = dup(fileno(stderr));
+    freopen(filename_, "w", stderr);
+  }
+
+  ~RedirectStdErr() {
+    fflush(stderr);
+    dup2(fd_, fileno(stderr));
+    close(fd_);
+    remove(filename_);
+    clearerr(stderr);
+    fsetpos(stderr, &pos_);
+  }
+
+ private:
+  int fd_;
+  fpos_t pos_;
+  const char* filename_;
+};
+
 TEST_F(EnvironmentTest, EnvironmentWithESMLoader) {
+  // The following line will cause stderr to get redirected to avoid the
+  // ExperimentalWarning that is currently being displayed. It might be possible
+  // to add an argument to Argv at some point in the future
+  // (https://github.com/nodejs/node/issues/30810) instead of using
+  // RedirectStdErr.
+  RedirectStdErr redirect_scope("environment_test.log");
   const v8::HandleScope handle_scope(isolate_);
   Argv argv;
   Env env {handle_scope, argv};
@@ -67,30 +97,6 @@ TEST_F(EnvironmentTest, EnvironmentWithESMLoader) {
         "process.exit(0);"
       "})()");
 }
-
-class RedirectStdErr {
- public:
-  explicit RedirectStdErr(const char* filename) : filename_(filename) {
-    fflush(stderr);
-    fgetpos(stderr, &pos_);
-    fd_ = dup(fileno(stderr));
-    freopen(filename_, "w", stderr);
-  }
-
-  ~RedirectStdErr() {
-    fflush(stderr);
-    dup2(fd_, fileno(stderr));
-    close(fd_);
-    remove(filename_);
-    clearerr(stderr);
-    fsetpos(stderr, &pos_);
-  }
-
- private:
-  int fd_;
-  fpos_t pos_;
-  const char* filename_;
-};
 
 TEST_F(EnvironmentTest, EnvironmentWithNoESMLoader) {
   // The following line will cause stderr to get redirected to avoid the
