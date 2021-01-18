@@ -6,6 +6,11 @@ const { promisify } = require('util');
 
 let pwdcommand, dir;
 const execPromisifed = promisify(exec);
+const invalidArgTypeError = {
+  code: 'ERR_INVALID_ARG_TYPE',
+  name: 'TypeError'
+};
+
 
 if (common.isWindows) {
   pwdcommand = 'echo %cd%';
@@ -25,22 +30,16 @@ if (common.isWindows) {
 }
 
 {
-  assert.rejects(execPromisifed(pwdcommand, { cwd: dir, signal: {} }), {
-    code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError',
-    message: 'The "options.signal" property must be an ' +
-             'instance of AbortSignal. Received an instance of Object'
-  });
+  assert.throws(() => {
+    execPromisifed(pwdcommand, { cwd: dir, signal: {} });
+  }, invalidArgTypeError);
 }
 
 {
   function signal() {}
-  assert.rejects(execPromisifed(pwdcommand, { cwd: dir, signal }), {
-    code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError',
-    message: 'The "options.signal" property must be an ' +
-             'instance of AbortSignal. Received function signal'
-  });
+  assert.throws(function() {
+    execPromisifed(pwdcommand, { cwd: dir, signal });
+  }, invalidArgTypeError);
 }
 
 {
