@@ -725,9 +725,14 @@ public:
     }
 
     MemoryPool& operator=(MemoryPool&& other) U_NOEXCEPT {
-        fCount = other.fCount;
-        fPool = std::move(other.fPool);
-        other.fCount = 0;
+        // Since `this` may contain instances that need to be deleted, we can't
+        // just throw them away and replace them with `other`. The normal way of
+        // dealing with this in C++ is to swap `this` and `other`, rather than
+        // simply overwrite: the destruction of `other` can then take care of
+        // running MemoryPool::~MemoryPool() over the still-to-be-deallocated
+        // instances.
+        std::swap(fCount, other.fCount);
+        std::swap(fPool, other.fPool);
         return *this;
     }
 
@@ -796,9 +801,6 @@ protected:
 template<typename T, int32_t stackCapacity = 8>
 class MaybeStackVector : protected MemoryPool<T, stackCapacity> {
 public:
-    using MemoryPool<T, stackCapacity>::MemoryPool;
-    using MemoryPool<T, stackCapacity>::operator=;
-
     template<typename... Args>
     T* emplaceBack(Args&&... args) {
         return this->create(args...);

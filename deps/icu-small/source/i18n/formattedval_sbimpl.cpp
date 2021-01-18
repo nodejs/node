@@ -46,19 +46,19 @@ Appendable& FormattedValueStringBuilderImpl::appendTo(Appendable& appendable, UE
 
 UBool FormattedValueStringBuilderImpl::nextPosition(ConstrainedFieldPosition& cfpos, UErrorCode& status) const {
     // NOTE: MSVC sometimes complains when implicitly converting between bool and UBool
-    return nextPositionImpl(cfpos, fNumericField, status) ? TRUE : FALSE;
+    return nextPositionImpl(cfpos, fNumericField, status) ? true : false;
 }
 
 UBool FormattedValueStringBuilderImpl::nextFieldPosition(FieldPosition& fp, UErrorCode& status) const {
     int32_t rawField = fp.getField();
 
     if (rawField == FieldPosition::DONT_CARE) {
-        return FALSE;
+        return false;
     }
 
     if (rawField < 0 || rawField >= UNUM_FIELD_COUNT) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
-        return FALSE;
+        return false;
     }
 
     ConstrainedFieldPosition cfpos;
@@ -67,7 +67,7 @@ UBool FormattedValueStringBuilderImpl::nextFieldPosition(FieldPosition& fp, UErr
     if (nextPositionImpl(cfpos, kUndefinedField, status)) {
         fp.setBeginIndex(cfpos.getStart());
         fp.setEndIndex(cfpos.getLimit());
-        return TRUE;
+        return true;
     }
 
     // Special case: fraction should start after integer if fraction is not present
@@ -85,7 +85,7 @@ UBool FormattedValueStringBuilderImpl::nextFieldPosition(FieldPosition& fp, UErr
         fp.setEndIndex(i - fString.fZero);
     }
 
-    return FALSE;
+    return false;
 }
 
 void FormattedValueStringBuilderImpl::getAllFieldPositions(FieldPositionIteratorHandler& fpih,
@@ -103,23 +103,12 @@ static constexpr Field kEndField = Field(0xf, 0xf);
 bool FormattedValueStringBuilderImpl::nextPositionImpl(ConstrainedFieldPosition& cfpos, Field numericField, UErrorCode& /*status*/) const {
     int32_t fieldStart = -1;
     Field currField = kUndefinedField;
-    UFieldCategory spanCategory = UFIELD_CATEGORY_UNDEFINED;
-    int32_t spanValue;
     for (int32_t i = fString.fZero + cfpos.getLimit(); i <= fString.fZero + fString.fLength; i++) {
         Field _field = (i < fString.fZero + fString.fLength) ? fString.getFieldPtr()[i] : kEndField;
         // Case 1: currently scanning a field.
         if (currField != kUndefinedField) {
             if (currField != _field) {
                 int32_t end = i - fString.fZero;
-                // Handle span fields; don't trim them
-                if (spanCategory != UFIELD_CATEGORY_UNDEFINED) {
-                    cfpos.setState(
-                        spanCategory,
-                        spanValue,
-                        fieldStart,
-                        end);
-                    return true;
-                }
                 // Grouping separators can be whitespace; don't throw them out!
                 if (isTrimmable(currField)) {
                     end = trimBack(i - fString.fZero);
@@ -182,13 +171,11 @@ bool FormattedValueStringBuilderImpl::nextPositionImpl(ConstrainedFieldPosition&
             if (elementField == Field(UFIELD_CATEGORY_LIST, ULISTFMT_ELEMENT_FIELD)
                     && cfpos.matchesField(elementField.getCategory(), elementField.getField())
                     && (cfpos.getLimit() < i - fString.fZero || cfpos.getCategory() != elementField.getCategory())) {
-                // Re-wind to the beginning of the field and then emit it
-                int32_t j = i - 1;
-                for (; j >= fString.fZero && fString.getFieldPtr()[j] == fString.getFieldPtr()[i-1]; j--) {}
+                int64_t si = cfpos.getInt64IterationContext() - 1;
                 cfpos.setState(
                     elementField.getCategory(),
                     elementField.getField(),
-                    j - fString.fZero + 1,
+                    i - fString.fZero - spanIndices[si].length,
                     i - fString.fZero);
                 return true;
             }
@@ -203,22 +190,28 @@ bool FormattedValueStringBuilderImpl::nextPositionImpl(ConstrainedFieldPosition&
         }
         // Case 3: check for field starting at this position
         // Case 3a: Need to add a SpanField
-        if (_field == Field(UFIELD_CATEGORY_LIST, ULISTFMT_ELEMENT_FIELD)
-                // don't return the same field twice in a row:
-                && (i == fString.fZero
-                    || fString.getFieldPtr()[i-1].getCategory() != UFIELD_CATEGORY_LIST
-                    || fString.getFieldPtr()[i-1].getField() != ULISTFMT_ELEMENT_FIELD)) {
+        if (_field == Field(UFIELD_CATEGORY_LIST, ULISTFMT_ELEMENT_FIELD)) {
             int64_t si = cfpos.getInt64IterationContext();
-            spanValue = spanIndices[si];
+            int32_t spanValue = spanIndices[si].spanValue;
+            int32_t length = spanIndices[si].length;
             cfpos.setInt64IterationContext(si + 1);
             if (cfpos.matchesField(UFIELD_CATEGORY_LIST_SPAN, spanValue)) {
-                spanCategory = UFIELD_CATEGORY_LIST_SPAN;
+                UFieldCategory spanCategory = UFIELD_CATEGORY_LIST_SPAN;
                 fieldStart = i - fString.fZero;
-                currField = _field;
+                int32_t end = fieldStart + length;
+                cfpos.setState(
+                    spanCategory,
+                    spanValue,
+                    fieldStart,
+                    end);
+                return true;
+            } else {
+                // Failed to match; jump ahead
+                i += length - 1;
                 continue;
             }
         }
-        // Case 3b: No SpanField or SpanField did not match
+        // Case 3b: No SpanField
         if (cfpos.matchesField(_field.getCategory(), _field.getField())) {
             fieldStart = i - fString.fZero;
             currField = _field;
@@ -226,24 +219,40 @@ bool FormattedValueStringBuilderImpl::nextPositionImpl(ConstrainedFieldPosition&
     }
 
     U_ASSERT(currField == kUndefinedField);
+    // Always set the position to the end so that we don't revisit previous sections
+    cfpos.setState(
+        cfpos.getCategory(),
+        cfpos.getField(),
+        fString.fLength,
+        fString.fLength);
     return false;
 }
 
-void FormattedValueStringBuilderImpl::appendSpanIndex(int32_t position) {
-    if (spanIndices.getCapacity() <= position) {
-        spanIndices.resize(position * 2);
+void FormattedValueStringBuilderImpl::appendSpanInfo(int32_t spanValue, int32_t length, UErrorCode& status) {
+    if (U_FAILURE(status)) { return; }
+    U_ASSERT(spanIndices.getCapacity() >= spanValue);
+    if (spanIndices.getCapacity() == spanValue) {
+        if (!spanIndices.resize(spanValue * 2, spanValue)) {
+            status = U_MEMORY_ALLOCATION_ERROR;
+            return;
+        }
     }
-    spanIndices[position] = position;
+    spanIndices[spanValue] = {spanValue, length};
 }
 
-void FormattedValueStringBuilderImpl::prependSpanIndex(int32_t position) {
-    if (spanIndices.getCapacity() <= position) {
-        spanIndices.resize(position * 2);
+void FormattedValueStringBuilderImpl::prependSpanInfo(int32_t spanValue, int32_t length, UErrorCode& status) {
+    if (U_FAILURE(status)) { return; }
+    U_ASSERT(spanIndices.getCapacity() >= spanValue);
+    if (spanIndices.getCapacity() == spanValue) {
+        if (!spanIndices.resize(spanValue * 2, spanValue)) {
+            status = U_MEMORY_ALLOCATION_ERROR;
+            return;
+        }
     }
-    for (int32_t i = 0; i < position; i++) {
+    for (int32_t i = spanValue - 1; i >= 0; i--) {
         spanIndices[i+1] = spanIndices[i];
     }
-    spanIndices[0] = position;
+    spanIndices[0] = {spanValue, length};
 }
 
 bool FormattedValueStringBuilderImpl::isIntOrGroup(Field field) {

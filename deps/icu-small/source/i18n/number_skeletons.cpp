@@ -732,6 +732,7 @@ skeleton::parseStem(const StringSegment& segment, const UCharsTrie& stemTrie, Se
 
         case STEM_CURRENCY:
             CHECK_NULL(seen, unit, status);
+            CHECK_NULL(seen, perUnit, status);
             return STATE_CURRENCY_UNIT;
 
         case STEM_INTEGER_WIDTH:
@@ -1500,32 +1501,33 @@ bool GeneratorHelpers::notation(const MacroProps& macros, UnicodeString& sb, UEr
 }
 
 bool GeneratorHelpers::unit(const MacroProps& macros, UnicodeString& sb, UErrorCode& status) {
-    if (utils::unitIsCurrency(macros.unit)) {
+    MeasureUnit unit = macros.unit;
+    if (!utils::unitIsBaseUnit(macros.perUnit)) {
+        if (utils::unitIsCurrency(macros.unit) || utils::unitIsCurrency(macros.perUnit)) {
+            status = U_UNSUPPORTED_ERROR;
+            return false;
+        }
+        unit = unit.product(macros.perUnit.reciprocal(status), status);
+    }
+
+    if (utils::unitIsCurrency(unit)) {
         sb.append(u"currency/", -1);
-        CurrencyUnit currency(macros.unit, status);
+        CurrencyUnit currency(unit, status);
         if (U_FAILURE(status)) {
             return false;
         }
         blueprint_helpers::generateCurrencyOption(currency, sb, status);
         return true;
-    } else if (utils::unitIsBaseUnit(macros.unit)) {
+    } else if (utils::unitIsBaseUnit(unit)) {
         // Default value is not shown in normalized form
         return false;
-    } else if (utils::unitIsPercent(macros.unit)) {
+    } else if (utils::unitIsPercent(unit)) {
         sb.append(u"percent", -1);
         return true;
-    } else if (utils::unitIsPermille(macros.unit)) {
+    } else if (utils::unitIsPermille(unit)) {
         sb.append(u"permille", -1);
         return true;
     } else {
-        MeasureUnit unit = macros.unit;
-        if (utils::unitIsCurrency(macros.perUnit)) {
-            status = U_UNSUPPORTED_ERROR;
-            return false;
-        }
-        if (!utils::unitIsBaseUnit(macros.perUnit)) {
-            unit = unit.product(macros.perUnit.reciprocal(status), status);
-        }
         sb.append(u"unit/", -1);
         sb.append(unit.getIdentifier());
         return true;

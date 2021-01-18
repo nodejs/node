@@ -1137,6 +1137,7 @@
 #define ulocimp_toLanguageTag U_ICU_ENTRY_POINT_RENAME(ulocimp_toLanguageTag)
 #define ulocimp_toLegacyKey U_ICU_ENTRY_POINT_RENAME(ulocimp_toLegacyKey)
 #define ulocimp_toLegacyType U_ICU_ENTRY_POINT_RENAME(ulocimp_toLegacyType)
+#define ultag_getTKeyStart U_ICU_ENTRY_POINT_RENAME(ultag_getTKeyStart)
 #define ultag_isExtensionSubtags U_ICU_ENTRY_POINT_RENAME(ultag_isExtensionSubtags)
 #define ultag_isLanguageSubtag U_ICU_ENTRY_POINT_RENAME(ultag_isLanguageSubtag)
 #define ultag_isPrivateuseValueSubtags U_ICU_ENTRY_POINT_RENAME(ultag_isPrivateuseValueSubtags)

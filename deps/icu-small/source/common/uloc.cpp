@@ -877,6 +877,9 @@ uloc_setKeywordValue(const char* keywordName,
     if(U_FAILURE(*status)) {
         return -1;
     }
+    if (*status == U_STRING_NOT_TERMINATED_WARNING) {
+        *status = U_ZERO_ERROR;
+    }
     if (keywordName == NULL || keywordName[0] == 0 || bufferCapacity <= 1) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
@@ -914,6 +917,7 @@ uloc_setKeywordValue(const char* keywordName,
     startSearchHere = (char*)locale_getKeywordsStart(buffer);
     if(startSearchHere == NULL || (startSearchHere[1]==0)) {
         if(keywordValueLen == 0) { /* no keywords = nothing to remove */
+            U_ASSERT(*status != U_STRING_NOT_TERMINATED_WARNING);
             return bufLen;
         }
 
@@ -933,6 +937,7 @@ uloc_setKeywordValue(const char* keywordName,
         startSearchHere += keywordNameLen;
         *startSearchHere++ = '=';
         uprv_strcpy(startSearchHere, keywordValueBuffer);
+        U_ASSERT(*status != U_STRING_NOT_TERMINATED_WARNING);
         return needLen;
     } /* end shortcut - no @ */
 
@@ -1047,13 +1052,27 @@ uloc_setKeywordValue(const char* keywordName,
     if (!handledInputKeyAndValue || U_FAILURE(*status)) {
         /* if input key/value specified removal of a keyword not present in locale, or
          * there was an error in CharString.append, leave original locale alone. */
+        U_ASSERT(*status != U_STRING_NOT_TERMINATED_WARNING);
         return bufLen;
     }
 
     // needLen = length of the part before '@'
     needLen = (int32_t)(startSearchHere - buffer);
-    return needLen + updatedKeysAndValues.extract(
+    // Check to see can we fit the startSearchHere, if not, return
+    // U_BUFFER_OVERFLOW_ERROR without copy updatedKeysAndValues into it.
+    // We do this because this API function does not behave like most others:
+    // It promises never to set a U_STRING_NOT_TERMINATED_WARNING.
+    // When the contents fits but without the terminating NUL, in this case we need to not change
+    // the buffer contents and return with a buffer overflow error.
+    int32_t appendLength = updatedKeysAndValues.length();
+    if (appendLength >= bufferCapacity - needLen) {
+        *status = U_BUFFER_OVERFLOW_ERROR;
+        return needLen + appendLength;
+    }
+    needLen += updatedKeysAndValues.extract(
                          startSearchHere, bufferCapacity - needLen, *status);
+    U_ASSERT(*status != U_STRING_NOT_TERMINATED_WARNING);
+    return needLen;
 }
 
 /* ### ID parsing implementation **************************************************/

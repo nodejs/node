@@ -3519,6 +3519,7 @@ class U_I18N_API MeasureUnit: public UObject {
      */
     static MeasureUnit getTeaspoon();
 
+
 // End generated createXXX methods
 
  protected:

@@ -143,6 +143,11 @@
  *     <td>icu::MessageFormat</td>
  *   </tr>
  *   <tr>
+ *     <td>List Formatting</td>
+ *     <td>ulistformatter.h</td>
+ *     <td>icu::ListFormatter</td>
+ *   </tr>
+ *   <tr>
  *     <td>Number Formatting<br/>(includes currency and unit formatting)</td>
  *     <td>unumberformatter.h, unum.h</td>
  *     <td>icu::number::NumberFormatter (ICU 60+) or icu::NumberFormat (older versions)</td>

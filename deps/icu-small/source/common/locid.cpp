@@ -35,6 +35,7 @@
 
 #include "unicode/bytestream.h"
 #include "unicode/locid.h"
+#include "unicode/localebuilder.h"
 #include "unicode/strenum.h"
 #include "unicode/stringpiece.h"
 #include "unicode/uloc.h"
@@ -1028,7 +1029,7 @@ public:
     // place the the replaced locale ID in out and return true.
     // Otherwise return false for no replacement or error.
     bool replace(
-        const Locale& locale, CharString& out, UErrorCode status);
+        const Locale& locale, CharString& out, UErrorCode& status);
 
 private:
     const char* language;
@@ -1336,10 +1337,13 @@ AliasReplacer::replaceTerritory(UVector& toBeFreed, UErrorCode& status)
         // Cannot use nullptr for language because that will construct
         // the default locale, in that case, use "und" to get the correct
         // locale.
-        Locale l(language == nullptr ? "und" : language, nullptr, script);
+        Locale l = LocaleBuilder()
+            .setLanguage(language == nullptr ? "und" : language)
+            .setScript(script)
+            .build(status);
         l.addLikelySubtags(status);
         const char* likelyRegion = l.getCountry();
-        CharString* item = nullptr;
+        LocalPointer<CharString> item;
         if (likelyRegion != nullptr && uprv_strlen(likelyRegion) > 0) {
             size_t len = uprv_strlen(likelyRegion);
             const char* foundInReplacement = uprv_strstr(replacement,
@@ -1351,20 +1355,22 @@ AliasReplacer::replaceTerritory(UVector& toBeFreed, UErrorCode& status)
                          *(foundInReplacement-1) == ' ');
                 U_ASSERT(foundInReplacement[len] == ' ' ||
                          foundInReplacement[len] == '\0');
-                item = new CharString(foundInReplacement, (int32_t)len, status);
+                item.adoptInsteadAndCheckErrorCode(
+                    new CharString(foundInReplacement, (int32_t)len, status), status);
             }
         }
-        if (item == nullptr) {
-            item = new CharString(replacement,
-                                  (int32_t)(firstSpace - replacement), status);
+        if (item.isNull() && U_SUCCESS(status)) {
+            item.adoptInsteadAndCheckErrorCode(
+                new CharString(replacement,
+                               (int32_t)(firstSpace - replacement), status), status);
         }
         if (U_FAILURE(status)) { return false; }
-        if (item == nullptr) {
+        if (item.isNull()) {
             status = U_MEMORY_ALLOCATION_ERROR;
             return false;
         }
         replacedRegion = item->data();
-        toBeFreed.addElement(item, status);
+        toBeFreed.addElement(item.orphan(), status);
     }
     U_ASSERT(!same(region, replacedRegion));
     region = replacedRegion;
@@ -1453,7 +1459,7 @@ AliasReplacer::outputToString(
         int32_t variantsStart = out.length();
         for (int32_t i = 0; i < variants.size(); i++) {
              out.append(SEP_CHAR, status)
-                 .append((const char*)((UVector*)variants.elementAt(i)),
+                 .append((const char*)(variants.elementAt(i)),
                          status);
         }
         T_CString_toUpperCase(out.data() + variantsStart);
@@ -1470,7 +1476,7 @@ AliasReplacer::outputToString(
 }
 
 bool
-AliasReplacer::replace(const Locale& locale, CharString& out, UErrorCode status)
+AliasReplacer::replace(const Locale& locale, CharString& out, UErrorCode& status)
 {
     data = AliasData::singleton(status);
     if (U_FAILURE(status)) {
@@ -2453,9 +2459,13 @@ Locale::setKeywordValue(const char* keywordName, const char* keywordValue, UErro
     if (U_FAILURE(status)) {
         return;
     }
+    if (status == U_STRING_NOT_TERMINATED_WARNING) {
+        status = U_ZERO_ERROR;
+    }
     int32_t bufferLength = uprv_max((int32_t)(uprv_strlen(fullName) + 1), ULOC_FULLNAME_CAPACITY);
     int32_t newLength = uloc_setKeywordValue(keywordName, keywordValue, fullName,
                                              bufferLength, &status) + 1;
+    U_ASSERT(status != U_STRING_NOT_TERMINATED_WARNING);
     /* Handle the case the current buffer is not enough to hold the new id */
     if (status == U_BUFFER_OVERFLOW_ERROR) {
         U_ASSERT(newLength > bufferLength);
@@ -2472,6 +2482,7 @@ Locale::setKeywordValue(const char* keywordName, const char* keywordValue, UErro
         fullName = newFullName;
         status = U_ZERO_ERROR;
         uloc_setKeywordValue(keywordName, keywordValue, fullName, newLength, &status);
+        U_ASSERT(status != U_STRING_NOT_TERMINATED_WARNING);
     } else {
         U_ASSERT(newLength <= bufferLength);
     }
