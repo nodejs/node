@@ -2838,6 +2838,28 @@ Type: Runtime
 The remapping of specifiers ending in `"/"` like `import 'pkg/x/'` is deprecated
 for package `"exports"` and `"imports"` pattern resolutions.
 
+### DEP0XXX: `.aborted` property and `'abort'`, `'aborted'` event in `http`
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/36670
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Move to {Stream} API instead, as the [`http.ClientRequest`][],
+[`http.ServerResponse`][], and [`http.IncomingMessage`][] are all stream-based.
+Check `stream.destroyed` instead of the `.aborted` property, and listen for
+`'close'` instead of `'abort'`, `'aborted'` event.
+
+The `.aborted` property and `'abort'` event are only useful for detecting
+`.abort()` calls. For closing a request early, use the Stream
+`.destroy([error])` then check the `.destroyed` property and `'close'` event
+should have the same effect. The receiving end should also check the
+[`readable.readableEnded`][] value on [`http.IncomingMessage`][] to get whether
+it was an aborted or graceful destroy.
+
 [Legacy URL API]: url.md#legacy-url-api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -2895,6 +2917,9 @@ for package `"exports"` and `"imports"` pattern resolutions.
 [`fs.read()`]: fs.md#fsreadfd-buffer-offset-length-position-callback
 [`fs.readSync()`]: fs.md#fsreadsyncfd-buffer-offset-length-position
 [`fs.stat()`]: fs.md#fsstatpath-options-callback
+[`http.ClientRequest`]: http.md#class-httpclientrequest
+[`http.IncomingMessage`]: http.md#class-httpincomingmessage
+[`http.ServerResponse`]: http.md#class-httpserverresponse
 [`http.get()`]: http.md#httpgetoptions-callback
 [`http.request()`]: http.md#httprequestoptions-callback
 [`https.get()`]: https.md#httpsgetoptions-callback
@@ -2907,6 +2932,7 @@ for package `"exports"` and `"imports"` pattern resolutions.
 [`process.env`]: process.md#processenv
 [`process.mainModule`]: process.md#processmainmodule
 [`punycode`]: punycode.md
+[`readable.readableEnded`]: stream.md#readablereadableended
 [`request.abort()`]: http.md#requestabort
 [`request.connection`]: http.md#requestconnection
 [`request.destroy()`]: http.md#requestdestroyerror
