@@ -83,9 +83,18 @@ function processStability() {
 }
 
 function updateStabilityMark(file, value, mark) {
-  const content = fs.readFileSync(file, { encoding: 'utf-8' });
-  const newContent = content.replace(mark, value);
-  fs.writeFileSync(file, newContent, { encoding: 'utf-8' });
+  const fd = fs.openSync(file, 'r+');
+  const content = fs.readFileSync(fd);
+
+  // Find the position of the `mark`.
+  const index = content.indexOf(mark);
+
+  // Overwrite the mark with `value` parameter.
+  fs.writeSync(fd, value, index, 'utf-8');
+
+  // Re-write the end of the file after `value`.
+  fs.writeSync(fd, content, index + mark.length);
+  fs.closeSync(fd);
 }
 
 const stability = collectStability(data);
