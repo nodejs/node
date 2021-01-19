@@ -52,8 +52,7 @@ server.listen(0, common.mustCall(function() {
       wasUpgrade = true;
 
       request.removeListener('upgrade', onUpgrade);
-      socket.end();
-      socket.on('data', common.mustCall());
+      socket.destroy();
     }
     request.on('upgrade', onUpgrade);
 
