@@ -1226,14 +1226,14 @@ per connection (in the case of HTTP Keep-Alive connections).
 <!-- YAML
 added: v0.1.94
 changes:
-  - version: v10.0.0
-    pr-url: https://github.com/nodejs/node/pull/19981
-    description: Not listening to this event no longer causes the socket
-                 to be destroyed if a client sends an Upgrade header.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/36901
     description: The `head` argument is deprecated and is always an
                  empty Buffer.
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/19981
+    description: Not listening to this event no longer causes the socket
+                 to be destroyed if a client sends an Upgrade header.
 -->
 
 * `request` {http.IncomingMessage} Arguments for the HTTP request, as it is in
