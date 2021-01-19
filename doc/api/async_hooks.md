@@ -973,9 +973,9 @@ chains. It allows storing data throughout the lifetime of a web request
 or any other asynchronous duration. It is similar to thread-local storage
 in other languages.
 
-While you can implement your own implementation on top of the `async_hooks`
-module, `AsyncLocalStorage` is a performant and memory safe implementation that
-involves non-obvious optimizations.
+While you can create your own implementation on top of the `async_hooks` module,
+`AsyncLocalStorage` should be preferred as it is a performant and memory safe
+implementation that involves non-obvious optimizations.
 
 The following example uses `AsyncLocalStorage` to build a simple logger
 that assigns IDs to incoming HTTP requests and includes them in messages
