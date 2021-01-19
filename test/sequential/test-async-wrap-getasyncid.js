@@ -70,6 +70,8 @@ const { getSystemErrorName } = require('util');
     delete providers.SIGINTWATCHDOG;
     delete providers.WORKERHEAPSNAPSHOT;
     delete providers.FIXEDSIZEBLOBCOPY;
+    delete providers.RANDOMPRIMEREQUEST;
+    delete providers.CHECKPRIMEREQUEST;
 
     const objKeys = Object.keys(providers);
     if (objKeys.length > 0)
