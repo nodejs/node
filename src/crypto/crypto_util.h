@@ -59,6 +59,7 @@ using EVPMDPointer = DeleteFnPtr<EVP_MD_CTX, EVP_MD_CTX_free>;
 using RSAPointer = DeleteFnPtr<RSA, RSA_free>;
 using ECPointer = DeleteFnPtr<EC_KEY, EC_KEY_free>;
 using BignumPointer = DeleteFnPtr<BIGNUM, BN_free>;
+using BignumCtxPointer = DeleteFnPtr<BN_CTX, BN_CTX_free>;
 using NetscapeSPKIPointer = DeleteFnPtr<NETSCAPE_SPKI, NETSCAPE_SPKI_free>;
 using ECGroupPointer = DeleteFnPtr<EC_GROUP, EC_GROUP_free>;
 using ECPointPointer = DeleteFnPtr<EC_POINT, EC_POINT_free>;
@@ -648,6 +649,7 @@ std::vector<T> CopyBuffer(v8::Local<v8::Value> buf) {
 v8::MaybeLocal<v8::Value> EncodeBignum(
     Environment* env,
     const BIGNUM* bn,
+    int size,
     v8::Local<v8::Value>* error);
 
 v8::Maybe<bool> SetEncodedValue(
