@@ -39,7 +39,8 @@ Local<FunctionTemplate> Blob::GetConstructorTemplate(Environment* env) {
   Local<FunctionTemplate> tmpl = env->blob_constructor_template();
   if (tmpl.IsEmpty()) {
     tmpl = FunctionTemplate::New(env->isolate());
-    tmpl->InstanceTemplate()->SetInternalFieldCount(1);
+    tmpl->InstanceTemplate()->SetInternalFieldCount(
+        BaseObject::kInternalFieldCount);
     tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
     tmpl->SetClassName(
         FIXED_ONE_BYTE_STRING(env->isolate(), "Blob"));
