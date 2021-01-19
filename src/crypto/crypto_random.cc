@@ -64,9 +64,18 @@ bool RandomBytesTraits::DeriveBits(
   return RAND_bytes(params.buffer, params.size) != 0;
 }
 
+namespace {
+void ContributeEntropy(const FunctionCallbackInfo<Value>& args) {
+  ArrayBufferOrViewContents<char> data(args[0]);
+  RAND_add(data.data(), data.size(), data.size());
+  args.GetReturnValue().Set(RAND_status());
+}
+}  // namespace
+
 namespace Random {
 void Initialize(Environment* env, Local<Object> target) {
   RandomBytesJob::Initialize(env, target);
+  env->SetMethod(target, "contributeEntropy", ContributeEntropy);
 }
 }  // namespace Random
 }  // namespace crypto

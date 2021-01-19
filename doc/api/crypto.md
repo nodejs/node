@@ -1961,6 +1961,19 @@ is currently in use. Setting to true requires a FIPS build of Node.js.
 This property is deprecated. Please use `crypto.setFips()` and
 `crypto.getFips()` instead.
 
+### `crypto.contributeEntropy(data)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `data` {ArrayBuffer|SharedArrayBuffer|TypedArray|Buffer|DataView}
+* Returns {boolean} `true` if the pseudorandon number generator state has
+  enough collected entropy to generate suitably random data.
+
+Contributes the given data to the pseudorandom number generator used by the
+crypto module for generating random bytes. The given `data` should be
+unpredictable.
+
 ### `crypto.createCipher(algorithm, password[, options])`
 <!-- YAML
 added: v0.1.94
