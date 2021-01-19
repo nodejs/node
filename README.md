@@ -387,6 +387,8 @@ For information about the governance of the Node.js project, see
 **Andrey Pechkurov** &lt;apechkurov@gmail.com&gt; (he/him)
 * [Qard](https://github.com/Qard) -
 **Stephen Belanger** &lt;admin@stephenbelanger.com&gt; (he/him)
+* [RaisinTen](https://github.com/RaisinTen) -
+**Darshan Sen** &lt;raisinten@gmail.com&gt; (he/him)
 * [refack](https://github.com/refack) -
 **Refael Ackermann (רפאל פלחי)** &lt;refack@gmail.com&gt; (he/him/הוא/אתה)
 * [rexagod](https://github.com/rexagod) -
