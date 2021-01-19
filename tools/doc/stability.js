@@ -93,7 +93,7 @@ function updateStabilityMark(file, value, mark) {
   const offset = fs.writeSync(fd, value, index, 'utf-8');
 
   // Re-write the end of the file after `value`.
-  fs.writeSync(fd, content, index + mark.length);
+  fs.writeSync(fd, content, index + mark.length, undefined, index + offset);
   fs.closeSync(fd);
 }
 
