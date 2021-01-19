@@ -1967,7 +1967,7 @@ added: REPLACEME
 -->
 
 * `data` {ArrayBuffer|SharedArrayBuffer|TypedArray|Buffer|DataView}
-* Returns {boolean} `true` if the pseudorandon number generator state has
+* Returns {boolean} `true` if the pseudorandom number generator state has
   enough collected entropy to generate suitably random data.
 
 Contributes the given data to the pseudorandom number generator used by the
