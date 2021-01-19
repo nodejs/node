@@ -925,12 +925,22 @@ struct ACHHandle;
 struct NODE_EXTERN DeleteACHHandle { void operator()(ACHHandle*) const; };
 typedef std::unique_ptr<ACHHandle, DeleteACHHandle> AsyncCleanupHookHandle;
 
-NODE_EXTERN AsyncCleanupHookHandle AddEnvironmentCleanupHook(
+NODE_EXTERN ACHHandle* AddEnvironmentCleanupHookRaw(
     v8::Isolate* isolate,
     void (*fun)(void* arg, void (*cb)(void*), void* cbarg),
     void* arg);
+inline AsyncCleanupHookHandle AddEnvironmentCleanupHook(
+    v8::Isolate* isolate,
+    void (*fun)(void* arg, void (*cb)(void*), void* cbarg),
+    void* arg) {
+  return AsyncCleanupHookHandle(AddEnvironmentCleanupHookRaw(isolate, fun,
+      arg));
+}
 
-NODE_EXTERN void RemoveEnvironmentCleanupHook(AsyncCleanupHookHandle holder);
+NODE_EXTERN void RemoveEnvironmentCleanupHookRaw(ACHHandle* holder);
+inline void RemoveEnvironmentCleanupHook(AsyncCleanupHookHandle holder) {
+  RemoveEnvironmentCleanupHookRaw(holder.get());
+}
 
 /* Returns the id of the current execution context. If the return value is
  * zero then no execution has been set. This will happen if the user handles
