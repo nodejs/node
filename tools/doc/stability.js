@@ -108,4 +108,4 @@ const html = createHTML(markdownTable);
 updateStabilityMark(output.docHTML, html, mark);
 
 // add json output
-updateStabilityMark(output.docJSON, JSON.stringify(html), `"${mark}"`);
+updateStabilityMark(output.docJSON, JSON.stringify(html), JSON.stringify(mark));
