@@ -30,7 +30,6 @@ const http = require('http');
 
 let requests_recv = 0;
 let requests_sent = 0;
-let request_upgradeHead = null;
 
 function createTestServer() {
   return new testServer();
@@ -54,8 +53,6 @@ function testServer() {
                  'Upgrade: WebSocket\r\n' +
                  'Connection: Upgrade\r\n' +
                  '\r\n\r\n');
-
-    request_upgradeHead = upgradeHead;
 
     socket.on('data', function(d) {
       const data = d.toString('utf8');
@@ -93,21 +90,24 @@ function test_upgrade_with_listener() {
              'WjN}|M(6');
   });
 
+  let buf = '';
   conn.on('data', function(data) {
     state++;
 
     assert.strictEqual(typeof data, 'string');
 
     if (state === 1) {
+      buf += data.split('\r\n').pop();
       assert.strictEqual(data.substr(0, 12), 'HTTP/1.1 101');
       conn.write('test', 'utf8');
     } else if (state === 2) {
-      assert.strictEqual(data, 'test');
+      buf += data;
       conn.write('kill', 'utf8');
     }
   });
 
   conn.on('end', function() {
+    assert.strictEqual(buf, 'WjN}|M(6test');
     assert.strictEqual(state, 2);
     conn.end();
     server.removeAllListeners('upgrade');
