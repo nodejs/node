@@ -53,7 +53,7 @@ server.listen(0, common.mustCall(function() {
 
       request.removeListener('upgrade', onUpgrade);
       socket.end();
-      socket.resume();
+      socket.on('data', common.mustCall());
     }
     request.on('upgrade', onUpgrade);
 
