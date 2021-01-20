@@ -18,7 +18,7 @@ Last update:
 - html/webappapis/microtask-queuing: https://github.com/web-platform-tests/wpt/tree/2c5c3c4c27/html/webappapis/microtask-queuing
 - html/webappapis/timers: https://github.com/web-platform-tests/wpt/tree/264f12bc7b/html/webappapis/timers
 - hr-time: https://github.com/web-platform-tests/wpt/tree/a5d1774ecf/hr-time
-- common: https://github.com/web-platform-tests/wpt/tree/4dacb6e2ff/common
+- common: https://github.com/web-platform-tests/wpt/tree/841a51412f/common
 - dom/abort: https://github.com/web-platform-tests/wpt/tree/7caa3de747/dom/abort
 - FileAPI: https://github.com/web-platform-tests/wpt/tree/d9d921b8f9/FileAPI
 
