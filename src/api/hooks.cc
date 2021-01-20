@@ -145,7 +145,7 @@ static void RunAsyncCleanupHook(void* arg) {
   info->fun(info->arg, FinishAsyncCleanupHook, info);
 }
 
-ACHHandle* AddEnvironmentCleanupHookRaw(
+ACHHandle* AddEnvironmentCleanupHookInternal(
     Isolate* isolate,
     AsyncCleanupHook fun,
     void* arg) {
@@ -160,7 +160,7 @@ ACHHandle* AddEnvironmentCleanupHookRaw(
   return new ACHHandle { info };
 }
 
-void RemoveEnvironmentCleanupHookRaw(
+void RemoveEnvironmentCleanupHookInternal(
     ACHHandle* handle) {
   if (handle->info->started) return;
   handle->info->self.reset();
