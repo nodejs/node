@@ -2642,6 +2642,8 @@ Asynchronously creates a directory.
 
 The callback is given a possible exception and, if `recursive` is `true`, the
 first directory path created, `(err, [path])`.
+`path` can still be `undefined` when `recursive` is `true`, if no directory was
+created.
 
 The optional `options` argument can be an integer specifying `mode` (permission
 and sticky bits), or an object with a `mode` property and a `recursive`
