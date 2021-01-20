@@ -925,7 +925,9 @@ struct ACHHandle;
 struct NODE_EXTERN DeleteACHHandle { void operator()(ACHHandle*) const; };
 typedef std::unique_ptr<ACHHandle, DeleteACHHandle> AsyncCleanupHookHandle;
 
-NODE_EXTERN ACHHandle* AddEnvironmentCleanupHookRaw(
+/* This function is not intended to be used externally, it exists to aid in
+ * keeping ABI compatibility between Node and Electron. */
+NODE_EXTERN ACHHandle* AddEnvironmentCleanupHookInternal(
     v8::Isolate* isolate,
     void (*fun)(void* arg, void (*cb)(void*), void* cbarg),
     void* arg);
@@ -933,13 +935,15 @@ inline AsyncCleanupHookHandle AddEnvironmentCleanupHook(
     v8::Isolate* isolate,
     void (*fun)(void* arg, void (*cb)(void*), void* cbarg),
     void* arg) {
-  return AsyncCleanupHookHandle(AddEnvironmentCleanupHookRaw(isolate, fun,
+  return AsyncCleanupHookHandle(AddEnvironmentCleanupHookInternal(isolate, fun,
       arg));
 }
 
-NODE_EXTERN void RemoveEnvironmentCleanupHookRaw(ACHHandle* holder);
+/* This function is not intended to be used externally, it exists to aid in
+ * keeping ABI compatibility between Node and Electron. */
+NODE_EXTERN void RemoveEnvironmentCleanupHookInternal(ACHHandle* holder);
 inline void RemoveEnvironmentCleanupHook(AsyncCleanupHookHandle holder) {
-  RemoveEnvironmentCleanupHookRaw(holder.get());
+  RemoveEnvironmentCleanupHookInternal(holder.get());
 }
 
 /* Returns the id of the current execution context. If the return value is
