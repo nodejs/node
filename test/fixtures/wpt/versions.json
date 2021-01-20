@@ -32,7 +32,7 @@
     "path": "hr-time"
   },
   "common": {
-    "commit": "4dacb6e2ff8dbabbe328fde2d8c75491598e4c10",
+    "commit": "841a51412f236ad63655daca843d3b8e83e0777b",
     "path": "common"
   },
   "dom/abort": {
