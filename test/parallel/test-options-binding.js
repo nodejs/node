@@ -2,10 +2,7 @@
 'use strict';
 
 const common = require('../common');
-const { primordials } = require('internal/test/binding');
-const {
-  SafeMap,
-} = primordials;
+const { primordials: { SafeMap } } = require('internal/test/binding');
 
 const { options, aliases, getOptionValue } = require('internal/options');
 const assert = require('assert');
@@ -17,5 +14,5 @@ assert(aliases instanceof SafeMap,
        "require('internal/options').aliases is a SafeMap");
 
 Map.prototype.get =
-  common.mustNotCall('%Map.prototype.get% must not be called');
+  common.mustNotCall('`getOptionValue` must not call user-mutable method');
 assert.strictEqual(getOptionValue('--expose-internals'), true);
