@@ -830,9 +830,14 @@ module.exports = cls => class Reifier extends cls {
           const pname = child.package.name
           const alias = name !== pname
           updateDepSpec(pkg, name, (alias ? `npm:${pname}@` : '') + range)
-        } else if (req.hosted)
-          updateDepSpec(pkg, name, req.hosted.shortcut({ noCommittish: false }))
-        else
+        } else if (req.hosted) {
+          // save the git+https url if it has auth, otherwise shortcut
+          const h = req.hosted
+          const opt = { noCommittish: false }
+          const save = h.https && h.auth ? `git+${h.https(opt)}`
+            : h.shortcut(opt)
+          updateDepSpec(pkg, name, save)
+        } else
           updateDepSpec(pkg, name, req.saveSpec)
       }
 
