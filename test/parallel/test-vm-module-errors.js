@@ -235,16 +235,26 @@ function checkInvalidCachedData() {
 }
 
 function checkGettersErrors() {
+  const expectedError = {
+    code: 'ERR_VM_MODULE_NOT_MODULE',
+    message: /Provided module is not an instance of Module/
+  };
   const getters = ['identifier', 'context', 'namespace', 'status', 'error'];
   getters.forEach((getter) => {
     assert.throws(() => {
       // eslint-disable-next-line no-unused-expressions
       Module.prototype[getter];
-    }, {
-      code: 'ERR_VM_MODULE_NOT_MODULE',
-      message: /Provided module is not an instance of Module/
-    });
+    }, expectedError);
+    assert.throws(() => {
+      // eslint-disable-next-line no-unused-expressions
+      SourceTextModule.prototype[getter];
+    }, expectedError);
   });
+  // `dependencySpecifiers` getter is just part of SourceTextModule
+  assert.throws(() => {
+    // eslint-disable-next-line no-unused-expressions
+    SourceTextModule.prototype.dependencySpecifiers;
+  }, expectedError);
 }
 
 const finished = common.mustCall();
