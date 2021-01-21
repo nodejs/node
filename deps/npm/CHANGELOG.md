@@ -1,3 +1,23 @@
+## v7.4.3 (2021-01-21)
+
+### DOCUMENTATION
+
+* [`ec1f06d06`](https://github.com/npm/cli/commit/ec1f06d06447a29c74bee063cff103ede7a2111b)
+  [#2498](https://github.com/npm/cli/issues/2498)
+  docs(npm): update `npm` docs
+  ([@darcyclarke](https://github.com/darcyclarke))
+
+### DEPENDENCIES
+* [`bc23284cd`](https://github.com/npm/cli/commit/bc23284cd5c4cc4532875aff14df94213727a509)
+  [#2511](https://github.com/npm/cli/issues/2511)
+  remove coverage files
+  ([@ruyadorno](https://github.com/ruyadorno))
+* [`fcbc676b8`](https://github.com/npm/cli/commit/fcbc676b88e1b7c8d01a3799683cd388a82c44d6)
+  `pacote@11.2.3`
+* [`ebd3a24ff`](https://github.com/npm/cli/commit/ebd3a24ff8381f2def306136b745d1615fd6139f)
+  `@npmcli/arborist@2.0.6`
+    * Preserve git+https auth when provided
+
 ## v7.4.2 (2021-01-15)
 
 ### DEPENDENCIES

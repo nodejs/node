@@ -133,19 +133,12 @@ See [`config`](/using-npm/config) for much much more information.
 Patches welcome!
 
 If you would like to contribute, but don't know what to work on, read
-the contributing guidelines and check the issues list.
-
-* [CONTRIBUTING.md](https://github.com/npm/cli/blob/latest/CONTRIBUTING.md)
-* [Bug tracker](https://github.com/npm/cli/issues)
+the [contributing guidelines](https://github.com/npm/cli/blob/latest/CONTRIBUTING.md)
+and check the issues list.
 
 ### Bugs
 
-When you find issues, please report them:
-
-* web:
-  <https://github.com/npm/npm/issues>
-* archived web:
-  <https://npm.community/c/bugs>
+When you find issues, please report them: <https://github.com/npm/cli/issues>
 
 Be sure to follow the template and bug reporting guidelines.
 
@@ -158,13 +151,6 @@ Discuss new feature ideas on our discussion forum:
 Or suggest formal RFC proposals:
 
 * <https://github.com/npm/rfcs>
-
-### Author
-
-[Isaac Z. Schlueter](http://blog.izs.me/) ::
-[isaacs](https://github.com/isaacs/) ::
-[@izs](https://twitter.com/izs) ::
-<i@izs.me>
 
 ### See Also
 * [npm help](/commands/npm-help)
