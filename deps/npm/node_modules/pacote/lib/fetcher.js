@@ -47,6 +47,8 @@ class FetcherBase {
       throw new TypeError('options object is required')
     this.spec = npa(spec, opts.where)
 
+    this.allowGitIgnore = !!opts.allowGitIgnore
+
     // a bit redundant because presumably the caller already knows this,
     // but it makes it easier to not have to keep track of the requested
     // spec when we're dispatching thousands of these at once, and normalizing
@@ -414,7 +416,7 @@ class FetcherBase {
           const base = basename(entry.path)
           if (base === '.npmignore')
             sawIgnores.add(entry.path)
-          else if (base === '.gitignore') {
+          else if (base === '.gitignore' && !this.allowGitIgnore) {
             // rename, but only if there's not already a .npmignore
             const ni = entry.path.replace(/\.gitignore$/, '.npmignore')
             if (sawIgnores.has(ni))

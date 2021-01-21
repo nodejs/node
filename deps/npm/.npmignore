@@ -12,6 +12,7 @@ node_modules/.bin
 node_modules/npm-registry-mock
 /npmrc
 /release/
+/coverage/
 
 # don't need these in the npm package.
 html/*.png
