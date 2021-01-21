@@ -21,9 +21,10 @@ const invalidArgTypeError = {
 
   ac.abort();
 
-  promise.catch(common.mustCall((e) => {
-    assert.strictEqual(e.name, 'AbortError');
-  }));
+  assert.rejects(
+    promise,
+    { name: 'AbortError' }
+  ).then(common.mustCall());
 }
 
 {
@@ -32,11 +33,10 @@ const invalidArgTypeError = {
   const { signal } = ac;
   ac.abort();
 
-  const promise = promisified(process.execPath, [echoFixture, 0], { signal });
-
-  promise.catch(common.mustCall((e) => {
-    assert.strictEqual(e.name, 'AbortError');
-  }));
+  assert.rejects(
+    promisified(process.execPath, [echoFixture, 0], { signal }),
+    { name: 'AbortError' }
+  ).then(common.mustCall());
 }
 
 {
