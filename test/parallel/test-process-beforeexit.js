@@ -55,6 +55,14 @@ function tryRepeatedTimer() {
   const repeatedTimer = common.mustCall(function() {
     if (++n < N)
       setTimeout(repeatedTimer, 1);
+    else // n == N
+      process.once('beforeExit', common.mustCall(tryNextTick));
   }, N);
   setTimeout(repeatedTimer, 1);
+}
+
+function tryNextTick() {
+  process.nextTick(common.mustCall(function() {
+    process.once('beforeExit', common.mustNotCall(function() {}));
+  }));
 }
