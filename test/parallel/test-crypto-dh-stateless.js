@@ -12,6 +12,20 @@ assert.throws(() => crypto.diffieHellman(), {
   message: 'The "options" argument must be of type object. Received undefined'
 });
 
+assert.throws(() => crypto.diffieHellman(null), {
+  name: 'TypeError',
+  code: 'ERR_INVALID_ARG_TYPE',
+  message: 'The "options" argument must be of type object. Received null'
+});
+
+assert.throws(() => crypto.diffieHellman([]), {
+  name: 'TypeError',
+  code: 'ERR_INVALID_ARG_TYPE',
+  message:
+    'The "options" argument must be of type object. ' +
+    'Received an instance of Array',
+});
+
 function test({ publicKey: alicePublicKey, privateKey: alicePrivateKey },
               { publicKey: bobPublicKey, privateKey: bobPrivateKey },
               expectedValue) {
