@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#10.23.2">10.23.2</a><br/>
 <a href="#10.23.1">10.23.1</a><br/>
 <a href="#10.23.0">10.23.0</a><br/>
 <a href="#10.22.1">10.22.1</a><br/>
@@ -71,6 +72,26 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="10.23.2"></a>
+## 2021-01-26, Version 10.23.2 'Dubnium' (LTS), @richardlau
+
+### Notable changes
+
+Release keys have been synchronized with the main branch.
+
+* **deps**:
+  * upgrade npm to 6.14.11 (Darcy Clarke) [#36838](https://github.com/nodejs/node/pull/36838)
+
+### Commits
+
+* [[`cc6b69557a`](https://github.com/nodejs/node/commit/cc6b69557a)] - **deps**: upgrade npm to 6.14.11 (Darcy Clarke) [#36838](https://github.com/nodejs/node/pull/36838)
+* [[`aefb66528a`](https://github.com/nodejs/node/commit/aefb66528a)] - **doc**: update contact information for @BethGriggs (Beth Griggs) [#35451](https://github.com/nodejs/node/pull/35451)
+* [[`08931481d8`](https://github.com/nodejs/node/commit/08931481d8)] - **doc**: update contact information for richardlau (Richard Lau) [#35450](https://github.com/nodejs/node/pull/35450)
+* [[`bc0617f4ea`](https://github.com/nodejs/node/commit/bc0617f4ea)] - **doc**: update release key for Danielle Adams (Danielle Adams) [#36793](https://github.com/nodejs/node/pull/36793)
+* [[`d7c09fcfd3`](https://github.com/nodejs/node/commit/d7c09fcfd3)] - **doc**: add release key for Danielle Adams (Danielle Adams) [#35545](https://github.com/nodejs/node/pull/35545)
+* [[`ac49d415b0`](https://github.com/nodejs/node/commit/ac49d415b0)] - **doc**: add release key for Ruy Adorno (Ruy Adorno) [#34628](https://github.com/nodejs/node/pull/34628)
+* [[`b8426ae3ce`](https://github.com/nodejs/node/commit/b8426ae3ce)] - **doc**: add release key for Richard Lau (Richard Lau) [#34397](https://github.com/nodejs/node/pull/34397)
 
 <a id="10.23.1"></a>
 ## 2021-01-04, Version 10.23.1 'Dubnium' (LTS), @richardlau
