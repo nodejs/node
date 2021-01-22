@@ -1031,7 +1031,7 @@ pathToFileURL('/some/path%.c');    // Correct:   file:///some/path%25.c (POSIX)
 
 ### `url.urlToHttpOptions(url)`
 <!-- YAML
-added: REPLACEME
+added: v15.7.0
 -->
 
 * `url` {URL} The [WHATWG URL][] object to convert to an options object.

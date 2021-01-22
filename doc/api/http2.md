@@ -3439,7 +3439,7 @@ response.removeHeader('Content-Encoding');
 
 ### `response.req`
 <!-- YAML
-added: REPLACEME
+added: v15.7.0
 -->
 
 * {http2.Http2ServerRequest}

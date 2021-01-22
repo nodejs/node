@@ -1286,7 +1286,7 @@ be listed in the `transferList` argument.
 
 ### `keyObject.asymmetricKeyDetails`
 <!-- YAML
-added: REPLACEME
+added: v15.7.0
 -->
 
 * {Object}
