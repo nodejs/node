@@ -50,7 +50,7 @@ const buf7 = Buffer.from('tést', 'latin1');
 ## Buffers and character encodings
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v15.7.0
     pr-url: https://github.com/nodejs/node/pull/36952
     description: Introduced `base64url` encoding.
   - version: v6.4.0
@@ -289,7 +289,7 @@ Additionally, the [`buf.values()`][], [`buf.keys()`][], and
 
 ## Class: `Blob`
 <!-- YAML
-added: REPLACEME
+added: v15.7.0
 -->
 
 > Stability: 1 - Experimental
@@ -299,7 +299,7 @@ multiple worker threads.
 
 ### `new buffer.Blob([sources[, options]])`
 <!-- YAML
-added: REPLACEME
+added: v15.7.0
 -->
 
 * `sources` {string[]|ArrayBuffer[]|TypedArray[]|DataView[]|Blob[]} An array
@@ -321,7 +321,7 @@ String sources are also copied into the `Blob`.
 
 ### `blob.arrayBuffer()`
 <!-- YAML
-added: REPLACEME
+added: v15.7.0
 -->
 
 * Returns: {Promise}
@@ -331,14 +331,14 @@ the `Blob` data.
 
 ### `blob.size`
 <!-- YAML
-added: REPLACEME
+added: v15.7.0
 -->
 
 The total size of the `Blob` in bytes.
 
 ### `blob.slice([start, [end, [type]]])`
 <!-- YAML
-added: REPLACEME
+added: v15.7.0
 -->
 
 * `start` {number} The starting index.
@@ -350,7 +350,7 @@ data. The original `Blob` is not alterered.
 
 ### `blob.text()`
 <!-- YAML
-added: REPLACEME
+added: v15.7.0
 -->
 
 * Returns: {Promise}
@@ -360,7 +360,7 @@ string.
 
 ### `blob.type`
 <!-- YAML
-added: REPLACEME
+added: v15.7.0
 -->
 
 * Type: {string}
