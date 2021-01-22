@@ -975,7 +975,8 @@ in other languages.
 
 While you can create your own implementation on top of the `async_hooks` module,
 `AsyncLocalStorage` should be preferred as it is a performant and memory safe
-implementation that involves non-obvious optimizations.
+implementation that involves significant optimizations that are non-obvious to
+implement.
 
 The following example uses `AsyncLocalStorage` to build a simple logger
 that assigns IDs to incoming HTTP requests and includes them in messages
