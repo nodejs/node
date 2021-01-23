@@ -36,7 +36,7 @@ const interval = setInterval(function() {
 
   const rss = process.memoryUsage.rss();
   assert.ok(rss < 64 * 1024 * 1024,
-            `memory usage: ${Math.round(rss / (1024 * 1024))}Mb`);
+            `memory usage: ${rss} (${Math.round(rss / (1024 * 1024))} MB)`);
 
   // Stop after 5 seconds.
   if (Date.now() - start > 5 * 1000) {
