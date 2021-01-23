@@ -67,7 +67,8 @@ function child2() {
   const socket = new net.Socket({
     fd: 2,
     readable: false,
-    writable: true });
+    writable: true,
+  });
   socket.write('child 2\n');
   socket.write('foo\n');
   socket.write('bar\n');

@@ -10,11 +10,10 @@ const { subtle } = require('crypto').webcrypto;
 
 const vectors = require('../fixtures/crypto/hmac')();
 
-async function testVerify({
-  hash,
-  keyBuffer,
-  signature,
-  plaintext }) {
+async function testVerify({ hash,
+                            keyBuffer,
+                            signature,
+                            plaintext }) {
   const name = 'HMAC';
   const [
     key,
@@ -104,11 +103,10 @@ async function testVerify({
     });
 }
 
-async function testSign({
-  hash,
-  keyBuffer,
-  signature,
-  plaintext }) {
+async function testSign({ hash,
+                          keyBuffer,
+                          signature,
+                          plaintext }) {
   const name = 'HMAC';
   const [
     key,

@@ -54,7 +54,8 @@ function getInterface(options) {
   const rli = new readline.Interface({
     input: fi,
     output: fi,
-    ...options });
+    ...options,
+  });
   return [rli, fi];
 }
 

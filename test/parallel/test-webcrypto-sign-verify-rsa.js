@@ -17,7 +17,8 @@ async function testVerify({
   publicKeyBuffer,
   privateKeyBuffer,
   signature,
-  plaintext }) {
+  plaintext,
+}) {
   const [
     publicKey,
     noVerifyPublicKey,
@@ -132,7 +133,8 @@ async function testSign({
   publicKeyBuffer,
   privateKeyBuffer,
   signature,
-  plaintext }) {
+  plaintext,
+}) {
   const [
     publicKey,
     noSignPrivateKey,

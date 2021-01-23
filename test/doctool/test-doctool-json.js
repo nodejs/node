@@ -121,8 +121,7 @@ const testData = [
                   { 'version': 'v4.2.0',
                     'pr-url': 'https://github.com/nodejs/node/pull/3276',
                     'description': 'The `error` parameter can now be ' +
-                      'an arrow function.'
-                  }
+                      'an arrow function.' }
                 ]
               },
               desc: '<p>Describe <code>Foobar II</code> in more detail ' +
