@@ -41,12 +41,13 @@ for (const line of [...nodeOptionsLines, ...v8OptionsLines]) {
 
 // Filter out options that are conditionally present.
 const conditionalOpts = [
-  { include: common.hasCrypto,
+  {
+    include: common.hasCrypto,
     filter: (opt) => {
       return ['--openssl-config', '--tls-cipher-list', '--use-bundled-ca',
               '--use-openssl-ca' ].includes(opt);
-    } },
-  {
+    }
+  }, {
     // We are using openssl_is_fips from the configuration because it could be
     // the case that OpenSSL is FIPS compatible but fips has not been enabled
     // (starting node with --enable-fips). If we use common.hasFipsCrypto
@@ -54,11 +55,14 @@ const conditionalOpts = [
     // want to check options which will be available regardless of whether fips
     // is enabled at runtime or not.
     include: process.config.variables.openssl_is_fips,
-    filter: (opt) => opt.includes('-fips') },
-  { include: common.hasIntl,
-    filter: (opt) => opt === '--icu-data-dir' },
-  { include: process.features.inspector,
-    filter: (opt) => opt.startsWith('--inspect') || opt === '--debug-port' },
+    filter: (opt) => opt.includes('-fips')
+  }, {
+    include: common.hasIntl,
+    filter: (opt) => opt === '--icu-data-dir'
+  }, {
+    include: process.features.inspector,
+    filter: (opt) => opt.startsWith('--inspect') || opt === '--debug-port'
+  },
 ];
 documented.forEach((opt) => {
   conditionalOpts.forEach(({ include, filter }) => {
