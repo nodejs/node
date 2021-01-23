@@ -362,18 +362,15 @@ assert.throws(() => {
           expire: 1800,
           minttl: 3333333333
         },
-      ]
-    },
+      ] },
 
     { method: 'resolve4',
       options: { ttl: true },
-      answers: [ { type: 'A', address: '1.2.3.4', ttl: 3333333333 } ]
-    },
+      answers: [ { type: 'A', address: '1.2.3.4', ttl: 3333333333 } ] },
 
     { method: 'resolve6',
       options: { ttl: true },
-      answers: [ { type: 'AAAA', address: '::42', ttl: 3333333333 } ]
-    },
+      answers: [ { type: 'AAAA', address: '::42', ttl: 3333333333 } ] },
 
     { method: 'resolveSoa',
       answers: [
@@ -387,8 +384,7 @@ assert.throws(() => {
           expire: 1800,
           minttl: 3333333333
         }
-      ]
-    },
+      ] },
   ];
 
   const server = dgram.createSocket('udp4');

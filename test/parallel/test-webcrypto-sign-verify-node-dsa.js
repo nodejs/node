@@ -10,13 +10,12 @@ const { subtle } = require('crypto').webcrypto;
 
 const dsa = require('../fixtures/crypto/dsa');
 
-async function testVerify({
-  algorithm,
-  hash,
-  publicKeyBuffer,
-  privateKeyBuffer,
-  signature,
-  plaintext }) {
+async function testVerify({ algorithm,
+                            hash,
+                            publicKeyBuffer,
+                            privateKeyBuffer,
+                            signature,
+                            plaintext }) {
   const [
     publicKey,
     noVerifyPublicKey,
@@ -131,7 +130,8 @@ async function testSign({
   publicKeyBuffer,
   privateKeyBuffer,
   signature,
-  plaintext }) {
+  plaintext,
+}) {
   const [
     publicKey,
     noSignPrivateKey,
