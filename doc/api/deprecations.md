@@ -2727,7 +2727,6 @@ been mutable by user code making it impossible to rely on. The ability to
 change the value has been deprecated and will be disabled in the future.
 
 ### DEP0XXX: Main index lookup and extension searching
-
 <!-- YAML
 changes:
   - version: REPLACEME

@@ -45,8 +45,9 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     validSpecifiers.set('pkgexports/subpath/dir2', { default: 'index' });
     validSpecifiers.set('pkgexports/subpath/dir2/', { default: 'index' });
   } else {
-    // no exports field
+    // no exports or main field
     validSpecifiers.set('no_exports', { default: 'main' });
+    // main field without extension
     validSpecifiers.set('default_index', { default: 'main' });
   }
 
