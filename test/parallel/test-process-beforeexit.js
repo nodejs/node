@@ -63,6 +63,6 @@ function tryRepeatedTimer() {
 
 function tryNextTick() {
   process.nextTick(common.mustCall(function() {
-    process.once('beforeExit', common.mustNotCall(function() {}));
+    process.once('beforeExit', common.mustNotCall());
   }));
 }
