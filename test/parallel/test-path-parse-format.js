@@ -132,8 +132,7 @@ const trailingTests = [
         dir: 'D:\\foo\\\\',
         base: 'bar.baz',
         ext: '.baz',
-        name: 'bar'
-      }
+        name: 'bar' }
      ]
     ]
   ],

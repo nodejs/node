@@ -27,7 +27,8 @@ server.listen(0, common.mustCall(() => {
         // The actual settings values do not matter.
         headerTableSize: 1000,
         enablePush: false,
-      } });
+      },
+    });
 
   client.on('error', common.mustCall(() => {
     server.close();

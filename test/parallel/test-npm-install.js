@@ -44,8 +44,7 @@ const env = { ...process.env,
               NPM_CONFIG_TMP: path.join(npmSandbox, 'npm-tmp'),
               NPM_CONFIG_AUDIT: false,
               NPM_CONFIG_UPDATE_NOTIFIER: false,
-              HOME: homeDir,
-};
+              HOME: homeDir };
 
 exec(`${process.execPath} ${npmPath} install`, {
   cwd: installDir,
