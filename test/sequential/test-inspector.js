@@ -86,15 +86,14 @@ async function testBreakpoint(session) {
       'params': { 'lineNumber': 5,
                   'url': session.scriptURL(),
                   'columnNumber': 0,
-                  'condition': ''
-      }
-    },
+                  'condition': '' } },
     { 'method': 'Debugger.resume' },
   ];
   await session.send(commands);
   const { scriptSource } = await session.send({
     'method': 'Debugger.getScriptSource',
-    'params': { 'scriptId': session.mainScriptId } });
+    'params': { 'scriptId': session.mainScriptId },
+  });
   assert(scriptSource && (scriptSource.includes(session.script())),
          `Script source is wrong: ${scriptSource}`);
 

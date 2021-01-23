@@ -75,7 +75,8 @@ const vectors = {
       'sign',
       'verify'
     ],
-    mandatoryUsages: ['sign'] },
+    mandatoryUsages: ['sign'],
+  },
   'RSA-PSS': {
     algorithm: {
       modulusLength: 1024,

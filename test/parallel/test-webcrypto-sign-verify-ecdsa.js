@@ -10,14 +10,13 @@ const { subtle } = require('crypto').webcrypto;
 
 const vectors = require('../fixtures/crypto/ecdsa')();
 
-async function testVerify({
-  name,
-  hash,
-  namedCurve,
-  publicKeyBuffer,
-  privateKeyBuffer,
-  signature,
-  plaintext }) {
+async function testVerify({ name,
+                            hash,
+                            namedCurve,
+                            publicKeyBuffer,
+                            privateKeyBuffer,
+                            signature,
+                            plaintext }) {
   const [
     publicKey,
     noVerifyPublicKey,
@@ -128,14 +127,13 @@ async function testVerify({
     });
 }
 
-async function testSign({
-  name,
-  hash,
-  namedCurve,
-  publicKeyBuffer,
-  privateKeyBuffer,
-  signature,
-  plaintext }) {
+async function testSign({ name,
+                          hash,
+                          namedCurve,
+                          publicKeyBuffer,
+                          privateKeyBuffer,
+                          signature,
+                          plaintext }) {
   const [
     publicKey,
     noSignPrivateKey,

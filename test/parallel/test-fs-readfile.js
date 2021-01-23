@@ -15,20 +15,15 @@ tmpdir.refresh();
 
 const fileInfo = [
   { name: path.join(tmpdir.path, `${prefix}-1K.txt`),
-    len: 1024,
-  },
+    len: 1024 },
   { name: path.join(tmpdir.path, `${prefix}-64K.txt`),
-    len: 64 * 1024,
-  },
+    len: 64 * 1024 },
   { name: path.join(tmpdir.path, `${prefix}-64KLessOne.txt`),
-    len: (64 * 1024) - 1,
-  },
+    len: (64 * 1024) - 1 },
   { name: path.join(tmpdir.path, `${prefix}-1M.txt`),
-    len: 1 * 1024 * 1024,
-  },
+    len: 1 * 1024 * 1024 },
   { name: path.join(tmpdir.path, `${prefix}-1MPlusOne.txt`),
-    len: (1 * 1024 * 1024) + 1,
-  },
+    len: (1 * 1024 * 1024) + 1 },
 ];
 
 // Populate each fileInfo (and file) with unique fill.

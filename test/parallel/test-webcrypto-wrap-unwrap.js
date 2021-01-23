@@ -180,7 +180,8 @@ async function generateKeysToWrap() {
     return [{
       algorithm: params.algorithm,
       usages: params.usages,
-      key: keys }];
+      key: keys,
+    }];
   }));
 
   return allkeys.flat();

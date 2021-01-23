@@ -36,7 +36,8 @@ function testWithJSMarshaller({
   quitAfter,
   abort,
   maxQueueSize,
-  launchSecondary }) {
+  launchSecondary,
+}) {
   return new Promise((resolve) => {
     const array = [];
     binding[threadStarter](function testCallback(value) {

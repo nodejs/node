@@ -330,8 +330,7 @@ function spawnPrimary({ execArgv, workers, clusterSettings = {} }) {
       env: { ...process.env,
              workers: JSON.stringify(workers),
              clusterSettings: JSON.stringify(clusterSettings),
-             testProcess: true
-      },
+             testProcess: true },
       execArgv: execArgv.concat(['--expose-internals'])
     }).on('exit', common.mustCall((code, signal) => {
       checkExitCode(code, signal);

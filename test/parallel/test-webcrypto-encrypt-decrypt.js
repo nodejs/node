@@ -53,11 +53,13 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
       length: 256
     }, true, ['encrypt', 'decrypt']);
 
-    const ciphertext = await subtle.encrypt({
-      name: 'AES-CTR', counter, length: 64 }, key, buf);
+    const ciphertext = await subtle.encrypt(
+      { name: 'AES-CTR', counter, length: 64 }, key, buf,
+    );
 
-    const plaintext = await subtle.decrypt({
-      name: 'AES-CTR', counter, length: 64 }, key, ciphertext);
+    const plaintext = await subtle.decrypt(
+      { name: 'AES-CTR', counter, length: 64 }, key, ciphertext,
+    );
 
     assert.strictEqual(
       Buffer.from(plaintext).toString('hex'),
@@ -78,11 +80,13 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
       length: 256
     }, true, ['encrypt', 'decrypt']);
 
-    const ciphertext = await subtle.encrypt({
-      name: 'AES-CBC', iv }, key, buf);
+    const ciphertext = await subtle.encrypt(
+      { name: 'AES-CBC', iv }, key, buf,
+    );
 
-    const plaintext = await subtle.decrypt({
-      name: 'AES-CBC', iv }, key, ciphertext);
+    const plaintext = await subtle.decrypt(
+      { name: 'AES-CBC', iv }, key, ciphertext,
+    );
 
     assert.strictEqual(
       Buffer.from(plaintext).toString('hex'),
@@ -103,11 +107,13 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
       length: 256
     }, true, ['encrypt', 'decrypt']);
 
-    const ciphertext = await subtle.encrypt({
-      name: 'AES-GCM', iv }, key, buf);
+    const ciphertext = await subtle.encrypt(
+      { name: 'AES-GCM', iv }, key, buf,
+    );
 
-    const plaintext = await subtle.decrypt({
-      name: 'AES-GCM', iv }, key, ciphertext);
+    const plaintext = await subtle.decrypt(
+      { name: 'AES-GCM', iv }, key, ciphertext,
+    );
 
     assert.strictEqual(
       Buffer.from(plaintext).toString('hex'),

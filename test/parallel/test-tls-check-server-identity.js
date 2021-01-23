@@ -124,12 +124,13 @@ const tests = [
     cert: { subject: { CN: '*n.b.com' } },
     error: 'Host: \n.b.com. is not cert\'s CN: *n.b.com'
   },
-  { host: 'b.a.com', cert: {
-    subjectaltname: 'DNS:omg.com',
-    subject: { CN: '*.a.com' } },
+  { host: 'b.a.com',
+    cert: {
+      subjectaltname: 'DNS:omg.com',
+      subject: { CN: '*.a.com' },
+    },
     error: 'Host: b.a.com. is not in the cert\'s altnames: ' +
-           'DNS:omg.com'
-  },
+           'DNS:omg.com' },
   {
     host: 'b.a.com',
     cert: { subject: { CN: 'b*b.a.com' } },
