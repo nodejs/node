@@ -70,6 +70,6 @@ test-tls-env-extra-ca: SKIP
 # https://github.com/nodejs/node/pull/34209
 test-dgram-error-message-address: SKIP
 # https://github.com/nodejs/node/issues/36929
-test-crypto-secure-heap: PASS,FLAKY
+test-crypto-secure-heap: SKIP
 # https://github.com/nodejs/node/issues/36925
-test-fs-read-type: PASS,FLAKY
+test-fs-read-type: SKIP
