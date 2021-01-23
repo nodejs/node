@@ -1016,8 +1016,8 @@ The resolver can throw the following errors:
   subpath in the package for the given module.
 * _Package Import Not Defined_: Package imports do not define the specifier.
 * _Module Not Found_: The package or module requested does not exist.
-* _Unsupported Directory Import_: There was an attempt to import a module
-  ending in a trailing _"/"_.
+* _Unsupported Directory Import_: The resolved path cooresponds to a directory,
+  which is not a supported target for module imports.
 
 ### Resolver Algorithm Specification
 
