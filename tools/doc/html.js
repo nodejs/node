@@ -382,13 +382,19 @@ function buildToc({ filename, apilinks }) {
       node.children.push({ type: 'html', value: anchor });
     });
 
-    file.toc = unified()
-      .use(markdown)
-      .use(gfm)
-      .use(remark2rehype, { allowDangerousHtml: true })
-      .use(raw)
-      .use(htmlStringify)
-      .processSync(toc).toString();
+    if (toc !== '') {
+      file.toc = '<details id="toc" open><summary>Table of contents</summary>' +
+        unified()
+          .use(markdown)
+          .use(gfm)
+          .use(remark2rehype, { allowDangerousHtml: true })
+          .use(raw)
+          .use(htmlStringify)
+          .processSync(toc).toString() +
+        '</details>';
+    } else {
+      file.toc = '<!-- TOC -->';
+    }
   };
 }
 

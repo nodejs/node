@@ -59,9 +59,11 @@ let all = toc.replace(/index\.html/g, 'all.html')
 all = all.replace(/<title>.*?\| /, '<title>');
 
 // Insert the combined table of contents.
-const tocStart = /<\w+ id="toc"[^>]*>\s*<\w+>.*?<\/\w+>\s*/.exec(all);
+const tocStart = /<!-- TOC -->/.exec(all);
 all = all.slice(0, tocStart.index + tocStart[0].length) +
+  '<details id="toc" open><summary>Table of contents</summary>\n' +
   '<ul>\n' + contents + '</ul>\n' +
+  '</details>\n' +
   all.slice(tocStart.index + tocStart[0].length);
 
 // Replace apicontent with the concatenated set of apicontents from each source.
