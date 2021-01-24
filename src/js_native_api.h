@@ -7,9 +7,11 @@
 
 // Use INT_MAX, this should only be consumed by the pre-processor anyway.
 #define NAPI_VERSION_EXPERIMENTAL 2147483647
-#ifndef NAPI_VERSION
-#ifdef NAPI_EXPERIMENTAL
+#define NODE_API_VERSION_EXPERIMENTAL NAPI_VERSION_EXPERIMENTAL
+#if !(defined(NAPI_VERSION) || defined(NODE_API_VERSION))
+#if defined(NAPI_EXPERIMENTAL) || defined(NODE_API_EXPERIMENTAL)
 #define NAPI_VERSION NAPI_VERSION_EXPERIMENTAL
+#define NODE_API_VERSION NODE_API_VERSION_EXPERIMENTAL
 #else
 // The baseline version for N-API.
 // The NAPI_VERSION controls which version will be used by default when
@@ -18,6 +20,7 @@
 // LTS versions, they can set NAPI_VERSION knowing that they have specifically
 // depended on that version.
 #define NAPI_VERSION 7
+#define NODE_API_VERSION NAPI_VERSION
 #endif
 #endif
 
@@ -48,7 +51,7 @@
 
 EXTERN_C_START
 
-NAPI_EXTERN napi_status
+NODE_API_EXTERN node_api_status
 napi_get_last_error_info(napi_env env,
                          const napi_extended_error_info** result);
 
