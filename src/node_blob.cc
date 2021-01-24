@@ -254,8 +254,6 @@ void FixedSizeBlobCopyJob::AfterThreadPoolWork(int status) {
 }
 
 void FixedSizeBlobCopyJob::DoThreadPoolWork() {
-  Environment* env = AsyncWrap::env();
-  destination_ = ArrayBuffer::NewBackingStore(env->isolate(), length_);
   unsigned char* dest = static_cast<unsigned char*>(destination_->Data());
   if (length_ > 0) {
     size_t total = 0;
@@ -314,6 +312,8 @@ void FixedSizeBlobCopyJob::Run(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   FixedSizeBlobCopyJob* job;
   ASSIGN_OR_RETURN_UNWRAP(&job, args.Holder());
+  job->destination_ =
+      ArrayBuffer::NewBackingStore(env->isolate(), job->length_);
   if (job->mode() == FixedSizeBlobCopyJob::Mode::ASYNC)
     return job->ScheduleWork();
 
