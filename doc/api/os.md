@@ -263,7 +263,6 @@ The properties available on the assigned network address object include:
     }
   ]
 }
-```
 
 ## `os.platform()`
 <!-- YAML
@@ -930,9 +929,7 @@ The following error constants are exported by `os.constants.errno`.
     <td><code>EXDEV</code></td>
     <td>Indicates an improper link.
   </tr>
-</table>
 
-#### Windows-specific error constants
 
 The following error codes are specific to the Windows operating system.
 
