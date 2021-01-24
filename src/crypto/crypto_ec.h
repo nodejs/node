@@ -1,5 +1,5 @@
-#ifndef SRC_CRYPTO_CRYPTO_ECDH_H_
-#define SRC_CRYPTO_CRYPTO_ECDH_H_
+#ifndef SRC_CRYPTO_CRYPTO_EC_H_
+#define SRC_CRYPTO_CRYPTO_EC_H_
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
@@ -174,4 +174,4 @@ ByteSource ConvertFromWebCryptoSignature(
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-#endif  // SRC_CRYPTO_CRYPTO_ECDH_H_
+#endif  // SRC_CRYPTO_CRYPTO_EC_H_

@@ -1,5 +1,5 @@
 #include "crypto/crypto_sig.h"
-#include "crypto/crypto_ecdh.h"
+#include "crypto/crypto_ec.h"
 #include "crypto/crypto_keys.h"
 #include "crypto/crypto_util.h"
 #include "allocated_buffer-inl.h"

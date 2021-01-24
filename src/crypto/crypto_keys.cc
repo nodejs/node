@@ -1,7 +1,7 @@
 #include "crypto/crypto_keys.h"
 #include "crypto/crypto_common.h"
 #include "crypto/crypto_dsa.h"
-#include "crypto/crypto_ecdh.h"
+#include "crypto/crypto_ec.h"
 #include "crypto/crypto_dh.h"
 #include "crypto/crypto_rsa.h"
 #include "crypto/crypto_util.h"
