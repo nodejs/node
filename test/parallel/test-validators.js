@@ -78,14 +78,17 @@ const invalidArgValueError = {
   validateObject({}, 'foo');
   validateObject({ a: 42, b: 'foo' }, 'foo');
 
-  [undefined, null, true, false, 0, 0.0, 42, '', 'string', []]
+  [undefined, null, true, false, 0, 0.0, 42, '', 'string', [], () => {}]
     .forEach((val) => {
       assert.throws(() => {
         validateObject(val, 'foo');
       }, invalidArgTypeError);
     });
 
+  // validateObject options tests:
   validateObject(null, 'foo', { nullable: true });
+  validateObject([], 'foo', { allowArray: true });
+  validateObject(() => {}, 'foo', { allowFunction: true });
 }
 
 {
