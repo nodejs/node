@@ -1,4 +1,4 @@
-#include "crypto/crypto_ecdh.h"
+#include "crypto/crypto_ec.h"
 #include "crypto/crypto_common.h"
 #include "crypto/crypto_util.h"
 #include "allocated_buffer-inl.h"
