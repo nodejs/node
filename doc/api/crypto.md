@@ -1307,6 +1307,9 @@ API using additional attributes.
 <!-- YAML
 added: v11.6.0
 changes:
+  - version: REPLACEME
+    pr-url: ???
+    description: Added support for `'sm2'`.
   - version:
      - v13.9.0
      - v12.17.0
@@ -1336,6 +1339,7 @@ types are:
 * `'rsa-pss'` (OID 1.2.840.113549.1.1.10)
 * `'dsa'` (OID 1.2.840.10040.4.1)
 * `'ec'` (OID 1.2.840.10045.2.1)
+* `'sm2'` (OID 1.2.840.10045.2.1)
 * `'x25519'` (OID 1.3.101.110)
 * `'x448'` (OID 1.3.101.111)
 * `'ed25519'` (OID 1.3.101.112)
@@ -2555,6 +2559,9 @@ console.log(key.export().toString('hex'));  // e89..........41e
 <!-- YAML
 added: v10.12.0
 changes:
+  - version: REPLACEME
+    pr-url: ???
+    description: Add support for SM2.
   - version:
      - v13.9.0
      - v12.17.0
@@ -2573,7 +2580,7 @@ changes:
 -->
 
 * `type`: {string} Must be `'rsa'`, `'dsa'`, `'ec'`, `'ed25519'`, `'ed448'`,
-  `'x25519'`, `'x448'`, or `'dh'`.
+  `'x25519'`, `'x448'`, `'dh'`, or `'sm2'`.
 * `options`: {Object}
   * `modulusLength`: {number} Key size in bits (RSA, DSA).
   * `publicExponent`: {number} Public exponent (RSA). **Default:** `0x10001`.
@@ -2592,7 +2599,7 @@ changes:
   * `privateKey`: {string | Buffer | KeyObject}
 
 Generates a new asymmetric key pair of the given `type`. RSA, DSA, EC, Ed25519,
-Ed448, X25519, X448, and DH are currently supported.
+Ed448, X25519, X448, DH, and SM2 are currently supported.
 
 If a `publicKeyEncoding` or `privateKeyEncoding` was specified, this function
 behaves as if [`keyObject.export()`][] had been called on its result. Otherwise,
@@ -2630,6 +2637,9 @@ a `Promise` for an `Object` with `publicKey` and `privateKey` properties.
 <!-- YAML
 added: v10.12.0
 changes:
+  - version: REPLACEME
+    pr-url: ???
+    description: Add support for SM2.
   - version:
      - v13.9.0
      - v12.17.0
@@ -2645,7 +2655,7 @@ changes:
 -->
 
 * `type`: {string} Must be `'rsa'`, `'dsa'`, `'ec'`, `'ed25519'`, `'ed448'`,
-  `'x25519'`, `'x448'`, or `'dh'`.
+  `'x25519'`, `'x448'`, `'dh'`, or `'sm2'`.
 * `options`: {Object}
   * `modulusLength`: {number} Key size in bits (RSA, DSA).
   * `publicExponent`: {number} Public exponent (RSA). **Default:** `0x10001`.
@@ -2663,7 +2673,7 @@ changes:
   * `privateKey`: {string | Buffer | KeyObject}
 
 Generates a new asymmetric key pair of the given `type`. RSA, DSA, EC, Ed25519,
-Ed448, X25519, X448, and DH are currently supported.
+Ed448, X25519, X448, DH, and SM2 are currently supported.
 
 If a `publicKeyEncoding` or `privateKeyEncoding` was specified, this function
 behaves as if [`keyObject.export()`][] had been called on its result. Otherwise,

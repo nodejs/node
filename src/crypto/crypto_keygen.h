@@ -130,6 +130,9 @@ struct KeyPairGenTraits final {
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int* offset,
       AdditionalParameters* params) {
+    // This can be overwritten by the next call to AdditionalConfig.
+    params->alias_key_type = EVP_PKEY_NONE;
+
     // Notice that offset is a pointer. Each of the AdditionalConfig,
     // GetPublicKeyEncodingFromJs, and GetPrivateKeyEncodingFromJs
     // functions will update the value of the offset as they successfully
@@ -169,6 +172,11 @@ struct KeyPairGenTraits final {
     EVP_PKEY* pkey = nullptr;
     if (!EVP_PKEY_keygen(ctx.get(), &pkey))
       return KeyGenJobStatus::FAILED;
+
+    if (params->alias_key_type != EVP_PKEY_NONE) {
+      if (EVP_PKEY_set_alias_type(pkey, params->alias_key_type) != 1)
+        return KeyGenJobStatus::FAILED;
+    }
 
     params->key = ManagedEVPPKey(EVPKeyPointer(pkey));
     return KeyGenJobStatus::OK;
@@ -231,6 +239,7 @@ template <typename AlgorithmParams>
 struct KeyPairGenConfig final : public MemoryRetainer {
   PublicKeyEncodingConfig public_key_encoding;
   PrivateKeyEncodingConfig private_key_encoding;
+  int alias_key_type;
   ManagedEVPPKey key;
   AlgorithmParams params;
 
@@ -241,6 +250,7 @@ struct KeyPairGenConfig final : public MemoryRetainer {
         private_key_encoding(
             std::forward<PrivateKeyEncodingConfig>(
                 other.private_key_encoding)),
+        alias_key_type(other.alias_key_type),
         key(std::move(other.key)),
         params(std::move(other.params)) {}
 

@@ -1126,6 +1126,8 @@ Local<Value> KeyObjectHandle::GetAsymmetricKeyType() const {
     return env()->crypto_ed25519_string();
   case EVP_PKEY_ED448:
     return env()->crypto_ed448_string();
+  case EVP_PKEY_SM2:
+    return env()->crypto_sm2_string();
   case EVP_PKEY_X25519:
     return env()->crypto_x25519_string();
   case EVP_PKEY_X448:
@@ -1361,8 +1363,10 @@ void Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, kWebCryptoKeyFormatSPKI);
   NODE_DEFINE_CONSTANT(target, kWebCryptoKeyFormatJWK);
 
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_EC);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ED25519);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ED448);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_SM2);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_X25519);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_X448);
   NODE_DEFINE_CONSTANT(target, kKeyEncodingPKCS1);

@@ -572,6 +572,7 @@ Maybe<bool> EcKeyGenTraits::AdditionalConfig(
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[*offset]->IsString());  // curve name
   CHECK(args[*offset + 1]->IsInt32());  // param encoding
+  CHECK(args[*offset + 2]->IsInt32());  // target key type
 
   Utf8Value curve_name(env->isolate(), args[*offset]);
   params->params.curve_nid = GetCurveFromName(*curve_name);
@@ -587,7 +588,14 @@ Maybe<bool> EcKeyGenTraits::AdditionalConfig(
     return Nothing<bool>();
   }
 
-  *offset += 2;
+  params->alias_key_type = args[*offset + 2].As<Int32>()->Value();
+  if (params->alias_key_type != EVP_PKEY_EC &&
+      params->alias_key_type != EVP_PKEY_SM2) {
+    THROW_ERR_OUT_OF_RANGE(env, "Invalid alias_key_type specified");
+    return Nothing<bool>();
+  }
+
+  *offset += 3;
 
   return Just(true);
 }
