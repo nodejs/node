@@ -132,6 +132,21 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert.strictEqual(derivedPublicKey.asymmetricKeyType, 'rsa');
   assert.strictEqual(derivedPublicKey.symmetricKeySize, undefined);
 
+  // It should also be possible to import an encrypted private key as a public
+  // key.
+  const decryptedKey = createPublicKey({
+    key: privateKey.export({
+      type: 'pkcs8',
+      format: 'pem',
+      passphrase: '123',
+      cipher: 'aes-128-cbc'
+    }),
+    format: 'pem',
+    passphrase: '123'
+  });
+  assert.strictEqual(decryptedKey.type, 'public');
+  assert.strictEqual(decryptedKey.asymmetricKeyType, 'rsa');
+
   // Test exporting with an invalid options object, this should throw.
   for (const opt of [undefined, null, 'foo', 0, NaN]) {
     assert.throws(() => publicKey.export(opt), {

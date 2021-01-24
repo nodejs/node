@@ -939,7 +939,7 @@ void KeyObjectHandle::Init(const FunctionCallbackInfo<Value>& args) {
     break;
   }
   case kKeyTypePublic: {
-    CHECK_EQ(args.Length(), 4);
+    CHECK_EQ(args.Length(), 5);
 
     offset = 1;
     pkey = ManagedEVPPKey::GetPublicOrPrivateKeyFromJs(args, &offset);
