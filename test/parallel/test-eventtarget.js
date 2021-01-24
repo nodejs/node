@@ -60,7 +60,6 @@ let asyncTest = Promise.resolve();
     'foo',
     1,
     false,
-    function() {},
   ].forEach((i) => (
     throws(() => new Event('foo', i), {
       code: 'ERR_INVALID_ARG_TYPE',
