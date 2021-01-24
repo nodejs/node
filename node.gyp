@@ -931,7 +931,7 @@
             'src/crypto/crypto_timing.cc',
             'src/crypto/crypto_cipher.cc',
             'src/crypto/crypto_context.cc',
-            'src/crypto/crypto_ecdh.cc',
+            'src/crypto/crypto_ec.cc',
             'src/crypto/crypto_hmac.cc',
             'src/crypto/crypto_random.cc',
             'src/crypto/crypto_rsa.cc',
