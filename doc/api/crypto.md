@@ -3637,6 +3637,9 @@ Throws an error if FIPS mode is not available.
 <!-- YAML
 added: v12.0.0
 changes:
+  - version: REPLACEME
+    pr-url: ???
+    description: Add support for SM2.
   - version:
      - v13.2.0
      - v12.16.0
@@ -3653,7 +3656,7 @@ changes:
 
 Calculates and returns the signature for `data` using the given private key and
 algorithm. If `algorithm` is `null` or `undefined`, then the algorithm is
-dependent upon the key type (especially Ed25519 and Ed448).
+dependent upon the key type (especially Ed25519, Ed448, and SM2).
 
 If `key` is not a [`KeyObject`][], this function behaves as if `key` had been
 passed to [`crypto.createPrivateKey()`][]. If it is an object, the following
@@ -3674,6 +3677,9 @@ additional properties can be passed:
   `crypto.constants.RSA_PSS_SALTLEN_DIGEST` sets the salt length to the digest
   size, `crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN` (default) sets it to the
   maximum permissible value.
+* `sm2Identifier` {ArrayBuffer|Buffer|TypedArray|DataView} For SM2, this option
+  specifies the SM2 identifier. The same identifier must be specified during
+  verification.
 
 ### `crypto.timingSafeEqual(a, b)`
 <!-- YAML
@@ -3709,6 +3715,9 @@ not introduce timing vulnerabilities.
 <!-- YAML
 added: v12.0.0
 changes:
+  - version: REPLACEME
+    pr-url: ???
+    description: Add support for SM2.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
     description: The data, key, and signature arguments can also be ArrayBuffer.
@@ -3729,7 +3738,7 @@ changes:
 
 Verifies the given signature for `data` using the given key and algorithm. If
 `algorithm` is `null` or `undefined`, then the algorithm is dependent upon the
-key type (especially Ed25519 and Ed448).
+key type (especially Ed25519, Ed448, and SM2).
 
 If `key` is not a [`KeyObject`][], this function behaves as if `key` had been
 passed to [`crypto.createPublicKey()`][]. If it is an object, the following
@@ -3750,6 +3759,8 @@ additional properties can be passed:
   `crypto.constants.RSA_PSS_SALTLEN_DIGEST` sets the salt length to the digest
   size, `crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN` (default) sets it to the
   maximum permissible value.
+* `sm2Identifier` {ArrayBuffer|Buffer|TypedArray|DataView} For SM2, this option
+  specifies the SM2 identifier.
 
 The `signature` argument is the previously calculated signature for the `data`.
 

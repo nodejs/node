@@ -64,6 +64,7 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_MEMORY_ALLOCATION_FAILED, Error)                                       \
   V(ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE, Error)                             \
   V(ERR_MISSING_ARGS, TypeError)                                               \
+  V(ERR_MISSING_OPTION, TypeError)                                             \
   V(ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST, TypeError)                      \
   V(ERR_MISSING_PASSPHRASE, TypeError)                                         \
   V(ERR_MISSING_PLATFORM_FOR_WORKER, Error)                                    \
