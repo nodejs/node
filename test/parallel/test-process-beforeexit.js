@@ -50,7 +50,8 @@ function tryListen() {
 // to keep the event loop open, which can use another timer to keep the event
 // loop open, etc.
 //
-// After N times, call function tryNextTick to test behaviors of nextTick
+// After N times, call function `tryNextTick` to test behaviors of the
+// `process.nextTick`
 function tryRepeatedTimer() {
   const N = 5;
   let n = 0;
@@ -63,7 +64,7 @@ function tryRepeatedTimer() {
   setTimeout(repeatedTimer, 1);
 }
 
-// Test if the callback of process.nextTick can be invoked
+// Test if the callback of `process.nextTick` can be invoked
 function tryNextTick() {
   process.nextTick(common.mustCall(function() {
     process.once('beforeExit', common.mustNotCall());
