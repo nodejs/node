@@ -39,6 +39,22 @@ int GetCurveFromName(const char* name) {
   return nid;
 }
 
+int GetOKPCurveFromName(const char* name) {
+  int nid;
+  if (strcmp(name, "NODE-ED25519") == 0) {
+    nid = EVP_PKEY_ED25519;
+  } else if (strcmp(name, "NODE-ED448") == 0) {
+    nid = EVP_PKEY_ED448;
+  } else if (strcmp(name, "NODE-X25519") == 0) {
+    nid = EVP_PKEY_X25519;
+  } else if (strcmp(name, "NODE-X448") == 0) {
+    nid = EVP_PKEY_X448;
+  } else {
+    nid = NID_undef;
+  }
+  return nid;
+}
+
 void ECDH::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->Inherit(BaseObject::GetConstructorTemplate(env));
@@ -431,7 +447,7 @@ Maybe<bool> ECDHBitsTraits::AdditionalConfig(
     return Nothing<bool>();
   }
 
-  params->id_ = GetCurveFromName(*name);
+  params->id_ = GetOKPCurveFromName(*name);
   params->private_ = private_key->Data();
   params->public_ = public_key->Data();
 
