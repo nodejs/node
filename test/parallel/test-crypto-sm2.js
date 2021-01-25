@@ -5,7 +5,10 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const {
+  createPrivateKey,
+  createPublicKey,
   generateKeyPairSync,
+  getCurves,
   getHashes,
   randomBytes,
   sign,
@@ -140,5 +143,110 @@ const {
         name: 'TypeError'
       });
     }
+  }
+}
+
+{
+  // The type of existing KeyObjects cannot be changed.
+
+  assert.throws(() => {
+    createPublicKey({ key: sm2PrivateKey, asymmetricKeyType: 'ec' });
+  }, {
+    code: 'ERR_CRYPTO_INCOMPATIBLE_KEY',
+    name: 'Error'
+  });
+}
+
+{
+  // Only EC keys with the SM2 curve can be imported as SM2 keys.
+
+  const otherKeyArgs = [
+    ['dh', { group: 'modp5' }],
+    ['dsa', { modulusLength: 1024 }],
+    ['ec', { namedCurve: 'P-256' }],
+    ['ed25519'],
+    ['ed448'],
+    ['rsa', { modulusLength: 512, divisorLength: 256 }],
+    ['x25519'],
+    ['x448']
+  ];
+
+  for (const [type, opts] of otherKeyArgs) {
+    const { publicKey } = generateKeyPairSync(type, {
+      publicKeyEncoding: {
+        format: 'pem',
+        type: 'spki'
+      },
+      ...opts
+    });
+
+    assert.throws(() => {
+      createPublicKey({
+        key: publicKey,
+        asymmetricKeyType: 'sm2'
+      })
+    }, {
+      code: 'ERR_CRYPTO_INCOMPATIBLE_KEY',
+      name: 'Error'
+    });
+  }
+}
+
+{
+  // When importing key material, it must be possible to specify the
+  // asymmetricKeyType since the ASN.1 key material itself does not distinguish
+  // between EC using the SM2 curve and SM2.
+
+  const ecPrivateExport = ecdsaPrivateKey.export({
+    format: 'pem',
+    type: 'pkcs8'
+  });
+
+  const ecPublicExport = ecdsaPublicKey.export({
+    format: 'pem',
+    type: 'spki'
+  });
+
+  const ecPrivateAsSm2Private = createPrivateKey({
+    key: ecPrivateExport,
+    asymmetricKeyType: 'sm2'
+  });
+
+  const ecPrivateAsSm2Public = createPublicKey({
+    key: ecPrivateExport,
+    asymmetricKeyType: 'sm2'
+  });
+
+  const ecPublicAsSm2Public = createPublicKey({
+    key: ecPublicExport,
+    asymmetricKeyType: 'sm2'
+  });
+
+
+  assert.strictEqual(ecdsaPrivateKey.asymmetricKeyType, 'ec');
+  assert.strictEqual(ecPrivateAsSm2Private.asymmetricKeyType, 'sm2');
+  assert.strictEqual(ecPrivateAsSm2Public.asymmetricKeyType, 'sm2');
+  assert.strictEqual(ecPublicAsSm2Public.asymmetricKeyType, 'sm2');
+
+
+  const ecPrivateAsSm2PrivateExport = ecPrivateAsSm2Private.export({
+    format: 'pem',
+    type: 'pkcs8'
+  });
+
+  const ecPrivateAsSm2PublicExport = ecPrivateAsSm2Public.export({
+    format: 'pem',
+    type: 'spki'
+  });
+
+  const ecPublicAsSm2PublicExport = ecPublicAsSm2Public.export({
+    format: 'pem',
+    type: 'spki'
+  });
+
+  // The exported PEM string is exactly the same for EC and SM2.
+  assert.strictEqual(ecPrivateAsSm2PrivateExport, ecPrivateExport);
+  for (const e of [ecPrivateAsSm2PublicExport, ecPublicAsSm2PublicExport]) {
+    assert.strictEqual(e, ecPublicExport);
   }
 }

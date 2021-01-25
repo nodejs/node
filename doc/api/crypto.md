@@ -2360,6 +2360,9 @@ input.on('readable', () => {
 <!-- YAML
 added: v11.6.0
 changes:
+  - version: REPLACEME
+    pr-url: ???
+    description: Add `asymmetricKeyType` option.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
     description: The key can also be an ArrayBuffer. The encoding option was
@@ -2375,6 +2378,7 @@ changes:
      required only if the `format` is `'der'` and ignored if it is `'pem'`.
   * `passphrase`: {string | Buffer} The passphrase to use for decryption.
   * `encoding`: {string} The string encoding to use when `key` is a string.
+  * `asymmetricKeyType` {string} The requested asymmetric key type.
 * Returns: {KeyObject}
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -2385,10 +2389,18 @@ must be an object with the properties described above.
 If the private key is encrypted, a `passphrase` must be specified. The length
 of the passphrase is limited to 1024 bytes.
 
+If the `asymmetricKeyType` is specified, Node.js will attempt to assign the
+given type to the key. This can be used, for example, to distinguish between
+EC keys on the SM2 curve (`'ec'`) and SM2 keys (`'sm2'`). If the given type
+cannot be assigned to the key, the function fails.
+
 ### `crypto.createPublicKey(key)`
 <!-- YAML
 added: v11.6.0
 changes:
+  - version: REPLACEME
+    pr-url: ???
+    description: Add `asymmetricKeyType` option.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
     description: The key can also be an ArrayBuffer. The encoding option was
@@ -2409,6 +2421,7 @@ changes:
   * `type`: {string} Must be `'pkcs1'` or `'spki'`. This option is required
     only if the `format` is `'der'`.
   * `encoding` {string} The string encoding to use when `key` is a string.
+  * `asymmetricKeyType` {string} The requested asymmetric key type.
 * Returns: {KeyObject}
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -2418,6 +2431,11 @@ with type `'private'`, the public key is derived from the given private key;
 otherwise, `key` must be an object with the properties described above.
 
 If the format is `'pem'`, the `'key'` may also be an X.509 certificate.
+
+If the `asymmetricKeyType` is specified, Node.js will attempt to assign the
+given type to the key. This can be used, for example, to distinguish between
+EC keys on the SM2 curve (`'ec'`) and SM2 keys (`'sm2'`). If the given type
+cannot be assigned to the key, the function fails.
 
 Because public keys can be derived from private keys, a private key may be
 passed instead of a public key. In that case, this function behaves as if

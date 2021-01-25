@@ -686,10 +686,62 @@ PublicKeyEncodingConfig ManagedEVPPKey::GetPublicKeyEncodingFromJs(
   return result;
 }
 
+static bool CanAssignAliasTypeForNewKey(EVP_PKEY* pkey, int requested_type) {
+  // Currently, the only possible conversion is EC -> SM2, and only if the EC
+  // curve is the (named) SM2 curve.
+  if (EVP_PKEY_id(pkey) == EVP_PKEY_EC && requested_type == EVP_PKEY_SM2) {
+    const EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(pkey);
+    const EC_GROUP* ec_group = EC_KEY_get0_group(ec_key);
+    if (EC_GROUP_get_curve_name(ec_group) == NID_sm2) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static bool AdjustAsymmetricKeyType(const FunctionCallbackInfo<Value>& args,
+                                    unsigned int* offset, EVP_PKEY* pkey,
+                                    bool is_new_key) {
+  Environment* env = Environment::GetCurrent(args);
+
+  // The caller can request a specific key type, either to ensure that the
+  // key has the expected type, or to convert between key types with an
+  // indistinguishable representation during import.
+  Local<Value> arg = args[(*offset)++];
+  if (!arg->IsUndefined()) {
+    CHECK(arg->IsInt32());
+    int requested_type = arg.As<Int32>()->Value();
+    if (requested_type != EVP_PKEY_id(pkey)) {
+      // At this point, the caller requested a type that is not the actual key
+      // type. If we cannot assign the requested type as an alias type, we fail.
+      // If the key is not "new", meaning that we are reusing an EVP_PKEY that
+      // we obtained from another KeyObject, we cannot change the alias type.
+      // Changing the alias type would affect all other KeyObjects that
+      // reference the same EVP_PKEY. OpenSSL also does not provide a good way
+      // of cloning an EVP_PKEY, so we just disable the behavior in this case.
+      if (is_new_key && CanAssignAliasTypeForNewKey(pkey, requested_type)) {
+        if (EVP_PKEY_set_alias_type(pkey, requested_type) != 1) {
+          ThrowCryptoError(env, ERR_get_error(),
+                           "Failed to apply requested asymmetric key type");
+          return false;
+        }
+      } else {
+        THROW_ERR_CRYPTO_INCOMPATIBLE_KEY(env);
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
 ManagedEVPPKey ManagedEVPPKey::GetPrivateKeyFromJs(
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
     bool allow_key_object) {
+  ManagedEVPPKey result;
+  bool is_new_key;
+
   if (args[*offset]->IsString() || IsAnyByteSource(args[*offset])) {
     Environment* env = Environment::GetCurrent(args);
     ByteSource key = ByteSource::FromStringOrBuffer(env, args[(*offset)++]);
@@ -701,21 +753,35 @@ ManagedEVPPKey ManagedEVPPKey::GetPrivateKeyFromJs(
     EVPKeyPointer pkey;
     ParseKeyResult ret =
         ParsePrivateKey(&pkey, config.Release(), key.get(), key.size());
-    return GetParsedKey(env, std::move(pkey), ret,
-                        "Failed to read private key");
+
+    result = GetParsedKey(env, std::move(pkey), ret,
+                          "Failed to read private key");
+    is_new_key = true;
   } else {
     CHECK(args[*offset]->IsObject() && allow_key_object);
     KeyObjectHandle* key;
     ASSIGN_OR_RETURN_UNWRAP(&key, args[*offset].As<Object>(), ManagedEVPPKey());
     CHECK_EQ(key->Data()->GetKeyType(), kKeyTypePrivate);
     (*offset) += 4;
-    return key->Data()->GetAsymmetricKey();
+
+    result = key->Data()->GetAsymmetricKey();
+    is_new_key = false;
   }
+
+  if (result &&
+      !AdjustAsymmetricKeyType(args, offset, result.get(), is_new_key)) {
+    return ManagedEVPPKey();
+  }
+
+  return result;
 }
 
 ManagedEVPPKey ManagedEVPPKey::GetPublicOrPrivateKeyFromJs(
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset) {
+  ManagedEVPPKey result;
+  bool is_new_key;
+
   if (IsAnyByteSource(args[*offset])) {
     Environment* env = Environment::GetCurrent(args);
     ArrayBufferOrViewContents<char> data(args[(*offset)++]);
@@ -765,16 +831,27 @@ ManagedEVPPKey ManagedEVPPKey::GetPublicOrPrivateKeyFromJs(
       }
     }
 
-    return ManagedEVPPKey::GetParsedKey(
-        env, std::move(pkey), ret, "Failed to read asymmetric key");
+    result = ManagedEVPPKey::GetParsedKey(env, std::move(pkey), ret,
+                                          "Failed to read asymmetric key");
+    is_new_key = true;
   } else {
     CHECK(args[*offset]->IsObject());
     KeyObjectHandle* key = Unwrap<KeyObjectHandle>(args[*offset].As<Object>());
     CHECK_NOT_NULL(key);
     CHECK_NE(key->Data()->GetKeyType(), kKeyTypeSecret);
+
     (*offset) += 4;
-    return key->Data()->GetAsymmetricKey();
+
+    result = key->Data()->GetAsymmetricKey();
+    is_new_key = false;
   }
+
+  if (result &&
+      !AdjustAsymmetricKeyType(args, offset, result.get(), is_new_key)) {
+    return ManagedEVPPKey();
+  }
+
+  return result;
 }
 
 ManagedEVPPKey ManagedEVPPKey::GetParsedKey(Environment* env,
@@ -939,7 +1016,7 @@ void KeyObjectHandle::Init(const FunctionCallbackInfo<Value>& args) {
     break;
   }
   case kKeyTypePublic: {
-    CHECK_EQ(args.Length(), 4);
+    CHECK_EQ(args.Length(), 6);
 
     offset = 1;
     pkey = ManagedEVPPKey::GetPublicOrPrivateKeyFromJs(args, &offset);
@@ -949,7 +1026,7 @@ void KeyObjectHandle::Init(const FunctionCallbackInfo<Value>& args) {
     break;
   }
   case kKeyTypePrivate: {
-    CHECK_EQ(args.Length(), 5);
+    CHECK_EQ(args.Length(), 6);
 
     offset = 1;
     pkey = ManagedEVPPKey::GetPrivateKeyFromJs(args, &offset, false);
@@ -1363,12 +1440,17 @@ void Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, kWebCryptoKeyFormatSPKI);
   NODE_DEFINE_CONSTANT(target, kWebCryptoKeyFormatJWK);
 
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_DH);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_DSA);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_EC);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ED25519);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ED448);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_RSA);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_RSA_PSS);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_SM2);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_X25519);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_X448);
+
   NODE_DEFINE_CONSTANT(target, kKeyEncodingPKCS1);
   NODE_DEFINE_CONSTANT(target, kKeyEncodingPKCS8);
   NODE_DEFINE_CONSTANT(target, kKeyEncodingSPKI);
