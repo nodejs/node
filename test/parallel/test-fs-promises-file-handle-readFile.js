@@ -6,7 +6,12 @@ const common = require('../common');
 // FileHandle.readFile method.
 
 const fs = require('fs');
-const { open, readFile, writeFile } = fs.promises;
+const {
+  open,
+  readFile,
+  writeFile,
+  truncate
+} = fs.promises;
 const path = require('path');
 const tmpdir = require('../common/tmpdir');
 const tick = require('../common/tick');
@@ -97,8 +102,8 @@ async function doReadAndCancel() {
     const kIoMaxLength = 2 ** 31 - 1;
 
     const newFile = path.resolve(tmpDir, 'dogs-running3.txt');
-    const buffer = Buffer.alloc(kIoMaxLength + 1);
-    await writeFile(newFile, buffer);
+    await writeFile(newFile, Buffer.from('0'));
+    await truncate(newFile, kIoMaxLength + 1);
 
     const fileHandle = await open(newFile, 'r');
 
