@@ -260,6 +260,8 @@ struct text_region FindNodeTextRegion() {
 bool IsTransparentHugePagesEnabled() {
   std::ifstream ifs;
 
+  // File format reference:
+  // https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/mm/huge_memory.c?id=13391c60da3308ed9980de0168f74cce6c62ac1d#n163
   ifs.open("/sys/kernel/mm/transparent_hugepage/enabled");
   if (!ifs) {
     PrintWarning("could not open /sys/kernel/mm/transparent_hugepage/enabled");
@@ -268,7 +270,7 @@ bool IsTransparentHugePagesEnabled() {
 
   std::string always, madvise;
   if (ifs.is_open()) {
-    while (ifs >> always >> madvise) {}
+    ifs >> always >> madvise;
   }
   ifs.close();
 
