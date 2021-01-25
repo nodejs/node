@@ -47,7 +47,6 @@
 * [Process](process.md)
 * [Punycode](punycode.md)
 * [Query strings](querystring.md)
-* [QUIC](quic.md)
 * [Readline](readline.md)
 * [REPL](repl.md)
 * [Report](report.md)

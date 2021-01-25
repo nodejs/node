@@ -14,7 +14,7 @@ env:
   FLAKY_TESTS: dontcare
 
 jobs:
-  build-windows-with-quic:
+  build-windows:
     if: github.event.pull_request.draft == false
     runs-on: windows-latest
     steps:
@@ -28,4 +28,4 @@ jobs:
       - name: Environment Information
         run: npx envinfo
       - name: Build
-        run: ./vcbuild.bat experimental-quic
+        run: ./vcbuild.bat

@@ -16,13 +16,6 @@
         'OPENSSL_NO_HW',
       ],
       'conditions': [
-        [
-          # Disable building QUIC support in openssl if experimental_quic
-          # is not enabled.
-          'experimental_quic!=1', {
-            'defines': ['OPENSSL_NO_QUIC=1'],
-          }
-        ],
         [ 'openssl_no_asm==1', {
           'includes': ['./openssl_no_asm.gypi'],
         }, 'target_arch=="arm64" and OS=="win"', {
