@@ -1214,28 +1214,7 @@ EXT_RETURN tls_construct_ctos_post_handshake_auth(SSL *s, WPACKET *pkt,
 #endif
 }
 
-#ifndef OPENSSL_NO_QUIC
-/* SAME AS tls_construct_stoc_quic_transport_params() */
-EXT_RETURN tls_construct_ctos_quic_transport_params(SSL *s, WPACKET *pkt,
-                                                    unsigned int context, X509 *x,
-                                                    size_t chainidx)
-{
-    if (s->ext.quic_transport_params == NULL
-        || s->ext.quic_transport_params_len == 0) {
-        return EXT_RETURN_NOT_SENT;
-    }
 
-    if (!WPACKET_put_bytes_u16(pkt, TLSEXT_TYPE_quic_transport_parameters)
-        || !WPACKET_sub_memcpy_u16(pkt, s->ext.quic_transport_params,
-                                   s->ext.quic_transport_params_len)) {
-        SSLfatal(s, SSL_AD_INTERNAL_ERROR,
-                 SSL_F_TLS_CONSTRUCT_CTOS_QUIC_TRANSPORT_PARAMS, ERR_R_INTERNAL_ERROR);
-        return EXT_RETURN_FAIL;
-    }
-
-    return EXT_RETURN_SENT;
-}
-#endif
 /*
  * Parse the server's renegotiation binding and abort if it's not right
  */
@@ -1933,18 +1912,6 @@ int tls_parse_stoc_early_data(SSL *s, PACKET *pkt, unsigned int context,
             return 0;
         }
 
-#ifndef OPENSSL_NO_QUIC
-        /*
-         * QUIC server must send 0xFFFFFFFF or it's a PROTOCOL_VIOLATION
-         * per draft-ietf-quic-tls-27 S4.5
-         */
-        if (s->quic_method != NULL && max_early_data != 0xFFFFFFFF) {
-            SSLfatal(s, SSL_AD_ILLEGAL_PARAMETER, SSL_F_TLS_PARSE_STOC_EARLY_DATA,
-                     SSL_R_INVALID_MAX_EARLY_DATA);
-            return 0;
-        }
-#endif
-
         s->session->ext.max_early_data = max_early_data;
 
         return 1;
@@ -2032,23 +1999,3 @@ int tls_parse_stoc_psk(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
 
     return 1;
 }
-#ifndef OPENSSL_NO_QUIC
-/* SAME AS tls_parse_ctos_quic_transport_params() */
-int tls_parse_stoc_quic_transport_params(SSL *s, PACKET *pkt, unsigned int context,
-                                         X509 *x, size_t chainidx)
-{
-    OPENSSL_free(s->ext.peer_quic_transport_params);
-    s->ext.peer_quic_transport_params = NULL;
-    s->ext.peer_quic_transport_params_len = 0;
-
-    if (!PACKET_memdup(pkt,
-                       &s->ext.peer_quic_transport_params,
-                       &s->ext.peer_quic_transport_params_len)) {
-        SSLfatal(s, SSL_AD_INTERNAL_ERROR,
-                 SSL_F_TLS_PARSE_STOC_QUIC_TRANSPORT_PARAMS,
-                 ERR_R_INTERNAL_ERROR);
-        return 0;
-    }
-    return 1;
-}
-#endif
