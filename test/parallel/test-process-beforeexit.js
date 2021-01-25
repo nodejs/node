@@ -49,8 +49,8 @@ function tryListen() {
 // Test that a function invoked from the beforeExit handler can use a timer
 // to keep the event loop open, which can use another timer to keep the event
 // loop open, etc.
-// 
-// After N times, call function tryNextTick to test behaviors of process.nextTick
+//
+// After N times, call function tryNextTick to test behaviors of nextTick
 function tryRepeatedTimer() {
   const N = 5;
   let n = 0;
