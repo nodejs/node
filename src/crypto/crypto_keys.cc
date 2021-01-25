@@ -1058,7 +1058,7 @@ void KeyObjectHandle::InitEDRaw(const FunctionCallbackInfo<Value>& args) {
       ? EVP_PKEY_new_raw_private_key
       : EVP_PKEY_new_raw_public_key;
 
-  int id = GetCurveFromName(*name);
+  int id = GetOKPCurveFromName(*name);
 
   switch (id) {
     case EVP_PKEY_X25519:
