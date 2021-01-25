@@ -1283,3 +1283,19 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }));
   }
 }
+
+{
+  // Proprietary Web Cryptography API ECDH/ECDSA namedCurve parameters
+  // should not be recognized in this API.
+  // See https://github.com/nodejs/node/issues/37055
+  const curves = ['NODE-ED25519', 'NODE-ED448', 'NODE-X25519', 'NODE-X448'];
+  for (const namedCurve of curves) {
+    assert.throws(
+      () => generateKeyPair('ec', { namedCurve }, common.mustNotCall()),
+      {
+        name: 'TypeError',
+        message: 'Invalid EC curve name'
+      }
+    );
+  }
+}

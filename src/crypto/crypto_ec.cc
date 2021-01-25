@@ -36,17 +36,21 @@ int GetCurveFromName(const char* name) {
   int nid = EC_curve_nist2nid(name);
   if (nid == NID_undef)
     nid = OBJ_sn2nid(name);
-  // If there is still no match, check manually for known curves
-  if (nid == NID_undef) {
-    if (strcmp(name, "NODE-ED25519") == 0) {
-      nid = EVP_PKEY_ED25519;
-    } else if (strcmp(name, "NODE-ED448") == 0) {
-      nid = EVP_PKEY_ED448;
-    } else if (strcmp(name, "NODE-X25519") == 0) {
-      nid = EVP_PKEY_X25519;
-    } else if (strcmp(name, "NODE-X448") == 0) {
-      nid = EVP_PKEY_X448;
-    }
+  return nid;
+}
+
+int GetOKPCurveFromName(const char* name) {
+  int nid;
+  if (strcmp(name, "NODE-ED25519") == 0) {
+    nid = EVP_PKEY_ED25519;
+  } else if (strcmp(name, "NODE-ED448") == 0) {
+    nid = EVP_PKEY_ED448;
+  } else if (strcmp(name, "NODE-X25519") == 0) {
+    nid = EVP_PKEY_X25519;
+  } else if (strcmp(name, "NODE-X448") == 0) {
+    nid = EVP_PKEY_X448;
+  } else {
+    nid = NID_undef;
   }
   return nid;
 }
@@ -443,7 +447,7 @@ Maybe<bool> ECDHBitsTraits::AdditionalConfig(
     return Nothing<bool>();
   }
 
-  params->id_ = GetCurveFromName(*name);
+  params->id_ = GetOKPCurveFromName(*name);
   params->private_ = private_key->Data();
   params->public_ = public_key->Data();
 
