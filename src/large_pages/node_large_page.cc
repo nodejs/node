@@ -268,7 +268,7 @@ bool IsTransparentHugePagesEnabled() {
 
   std::string always, madvise;
   if (ifs.is_open()) {
-    while (ifs >> always >> madvise) {}
+    ifs >> always >> madvise;
   }
   ifs.close();
 
