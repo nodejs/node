@@ -1,7 +1,24 @@
-From 3b0bdf80dabddfe37d8f8f07e82a2ba85f5a93ad Mon Sep 17 00:00:00 2001
+From d82945ead1320ea893c237e1c0f37c4afd933eed Mon Sep 17 00:00:00 2001
 From: Todd Short <tshort@akamai.com>
 Date: Fri, 12 Apr 2019 11:13:25 -0400
-Subject: [PATCH 01/14] Add support for BoringSSL QUIC APIs
+Subject: [PATCH 1/3] deps: add support for BoringSSL QUIC APIs
+
+Acquired from: https://github.com/akamai/openssl/tree/OpenSSL_1_1_1f-quic
+
+Squashed:
+
+*
+https://github.com/akamai/openssl/commit/2ef7c58b2cb432abd4e371322667228d7ce2637b
+*
+https://github.com/akamai/openssl/commit/3f8eda3128f52f4d14399a1a912d1fdfacd86a86
+*
+https://github.com/akamai/openssl/commit/b37f665884be2e17e8ff4ad919138626fb13f6c9
+*
+https://github.com/akamai/openssl/commit/6b235895a16da3c0dd36a24cf8dfbe249c6cda3c
+*
+https://github.com/akamai/openssl/commit/3a793e06a5031311ce7ce094455be87fa92b8240
+
+---
 
 This is a cherry-pick of 2a4b03a306439307e0b822b17eda3bdabddfbb68
 on the master-quic-support2 branch (2019-10-07)
@@ -82,48 +99,63 @@ initialized).
 Tweeks to quic_change_cipher_state()
 
 Add support for more secrets
----
- CHANGES                              |   3 +
- Configure                            |   3 +
- INSTALL                              |   3 +
- crypto/err/openssl.txt               |  20 +-
- doc/man3/SSL_CIPHER_get_name.pod     |  13 ++
- doc/man3/SSL_CTX_set_quic_method.pod | 232 ++++++++++++++++++++++
- include/openssl/evp.h                |   4 +
- include/openssl/ossl_typ.h           |   2 +
- include/openssl/ssl.h                |  45 +++++
- include/openssl/sslerr.h             |  18 +-
- include/openssl/tls1.h               |   3 +
- ssl/build.info                       |   3 +-
- ssl/s3_msg.c                         |  12 +-
- ssl/ssl_ciph.c                       |  32 +++
- ssl/ssl_err.c                        |  26 +++
- ssl/ssl_lib.c                        |  41 +++-
- ssl/ssl_local.h                      |  44 +++++
- ssl/ssl_quic.c                       | 285 +++++++++++++++++++++++++++
- ssl/statem/extensions.c              |  29 +++
- ssl/statem/extensions_clnt.c         |  40 ++++
- ssl/statem/extensions_srvr.c         |  43 ++++
- ssl/statem/statem.c                  |  21 +-
- ssl/statem/statem_lib.c              |  19 +-
- ssl/statem/statem_local.h            |  19 ++
- ssl/statem/statem_quic.c             | 109 ++++++++++
- ssl/tls13_enc.c                      | 146 ++++++++++++--
- test/sslapitest.c                    | 132 +++++++++++++
- test/ssltestlib.c                    |   5 +
- test/tls13secretstest.c              |   7 +
- util/libssl.num                      |  11 ++
- util/private.num                     |   2 +
- 31 files changed, 1341 insertions(+), 31 deletions(-)
- create mode 100644 doc/man3/SSL_CTX_set_quic_method.pod
- create mode 100644 ssl/ssl_quic.c
- create mode 100644 ssl/statem/statem_quic.c
 
-diff --git a/CHANGES b/CHANGES
-index 37dd60b726e..ede9dfb0b22 100644
---- a/CHANGES
-+++ b/CHANGES
-@@ -178,6 +178,9 @@
+Fix resumption secret
+
+(cherry picked from commit 16fafdf4e0ec6cddd5705f407e5dca26cb30914d)
+
+QUIC: Handle EndOfEarlyData and MaxEarlyData
+
+QUIC: Increase HKDF_MAXBUF to 2048
+
+Fall-through for 0RTT
+
+Signed-off-by: James M Snell <jasnell@gmail.com>
+---
+ deps/openssl/openssl/CHANGES                  |   3 +
+ deps/openssl/openssl/Configure                |   3 +
+ deps/openssl/openssl/INSTALL                  |   3 +
+ deps/openssl/openssl/crypto/err/openssl.txt   |  20 +-
+ deps/openssl/openssl/crypto/kdf/hkdf.c        |   2 +-
+ .../openssl/doc/man3/SSL_CIPHER_get_name.pod  |  13 +
+ .../doc/man3/SSL_CTX_set_quic_method.pod      | 232 ++++++++++++++
+ deps/openssl/openssl/include/openssl/evp.h    |   4 +
+ .../openssl/include/openssl/ossl_typ.h        |   2 +
+ deps/openssl/openssl/include/openssl/ssl.h    |  45 +++
+ deps/openssl/openssl/include/openssl/sslerr.h |  18 +-
+ deps/openssl/openssl/include/openssl/tls1.h   |   3 +
+ deps/openssl/openssl/ssl/build.info           |   3 +-
+ deps/openssl/openssl/ssl/s3_msg.c             |  12 +-
+ deps/openssl/openssl/ssl/ssl_ciph.c           |  32 ++
+ deps/openssl/openssl/ssl/ssl_err.c            |  26 ++
+ deps/openssl/openssl/ssl/ssl_lib.c            |  41 ++-
+ deps/openssl/openssl/ssl/ssl_local.h          |  44 +++
+ deps/openssl/openssl/ssl/ssl_quic.c           | 285 ++++++++++++++++++
+ deps/openssl/openssl/ssl/statem/extensions.c  |  29 ++
+ .../openssl/ssl/statem/extensions_clnt.c      |  52 ++++
+ .../openssl/ssl/statem/extensions_srvr.c      |  55 +++-
+ deps/openssl/openssl/ssl/statem/statem.c      |  21 +-
+ deps/openssl/openssl/ssl/statem/statem_clnt.c |   8 +
+ deps/openssl/openssl/ssl/statem/statem_lib.c  |  19 +-
+ .../openssl/openssl/ssl/statem/statem_local.h |  19 ++
+ deps/openssl/openssl/ssl/statem/statem_quic.c | 109 +++++++
+ deps/openssl/openssl/ssl/statem/statem_srvr.c |   3 +-
+ deps/openssl/openssl/ssl/tls13_enc.c          | 155 ++++++++--
+ deps/openssl/openssl/test/sslapitest.c        | 132 ++++++++
+ deps/openssl/openssl/test/ssltestlib.c        |   5 +
+ deps/openssl/openssl/test/tls13secretstest.c  |   7 +
+ deps/openssl/openssl/util/libssl.num          |  11 +
+ deps/openssl/openssl/util/private.num         |   2 +
+ 34 files changed, 1383 insertions(+), 35 deletions(-)
+ create mode 100644 deps/openssl/openssl/doc/man3/SSL_CTX_set_quic_method.pod
+ create mode 100644 deps/openssl/openssl/ssl/ssl_quic.c
+ create mode 100644 deps/openssl/openssl/ssl/statem/statem_quic.c
+
+diff --git a/deps/openssl/openssl/CHANGES b/deps/openssl/openssl/CHANGES
+index 057405b0bf..f660c799f0 100644
+--- a/deps/openssl/openssl/CHANGES
++++ b/deps/openssl/openssl/CHANGES
+@@ -115,6 +115,9 @@
  
   Changes between 1.1.1c and 1.1.1d [10 Sep 2019]
  
@@ -133,11 +165,11 @@ index 37dd60b726e..ede9dfb0b22 100644
    *) Fixed a fork protection issue. OpenSSL 1.1.1 introduced a rewritten random
       number generator (RNG). This was intended to include protection in the
       event of a fork() system call in order to ensure that the parent and child
-diff --git a/Configure b/Configure
-index 1d73d06e1b3..125963902fd 100755
---- a/Configure
-+++ b/Configure
-@@ -401,6 +401,7 @@ my @disablables = (
+diff --git a/deps/openssl/openssl/Configure b/deps/openssl/openssl/Configure
+index 2e9efaa5f3..79a60d0cb5 100755
+--- a/deps/openssl/openssl/Configure
++++ b/deps/openssl/openssl/Configure
+@@ -391,6 +391,7 @@ my @disablables = (
      "poly1305",
      "posix-io",
      "psk",
@@ -145,7 +177,7 @@ index 1d73d06e1b3..125963902fd 100755
      "rc2",
      "rc4",
      "rc5",
-@@ -517,6 +518,8 @@ my @disable_cascades = (
+@@ -507,6 +508,8 @@ my @disable_cascades = (
      sub { !$disabled{"unit-test"} } => [ "heartbeats" ],
  
      sub { !$disabled{"msan"} } => [ "asm" ],
@@ -154,10 +186,10 @@ index 1d73d06e1b3..125963902fd 100755
      );
  
  # Avoid protocol support holes.  Also disable all versions below N, if version
-diff --git a/INSTALL b/INSTALL
-index f5118428b3b..5938e185a14 100644
---- a/INSTALL
-+++ b/INSTALL
+diff --git a/deps/openssl/openssl/INSTALL b/deps/openssl/openssl/INSTALL
+index f5118428b3..5938e185a1 100644
+--- a/deps/openssl/openssl/INSTALL
++++ b/deps/openssl/openssl/INSTALL
 @@ -456,6 +456,9 @@
    no-psk
                     Don't build support for Pre-Shared Key based ciphersuites.
@@ -168,11 +200,11 @@ index f5118428b3b..5938e185a14 100644
    no-rdrand
                     Don't use hardware RDRAND capabilities.
  
-diff --git a/crypto/err/openssl.txt b/crypto/err/openssl.txt
-index 815460b24f6..3d24711e4c3 100644
---- a/crypto/err/openssl.txt
-+++ b/crypto/err/openssl.txt
-@@ -1183,7 +1183,7 @@ SSL_F_OSSL_STATEM_SERVER_CONSTRUCT_MESSAGE:431:*
+diff --git a/deps/openssl/openssl/crypto/err/openssl.txt b/deps/openssl/openssl/crypto/err/openssl.txt
+index 35512f9caf..e7b8799070 100644
+--- a/deps/openssl/openssl/crypto/err/openssl.txt
++++ b/deps/openssl/openssl/crypto/err/openssl.txt
+@@ -1180,7 +1180,7 @@ SSL_F_OSSL_STATEM_SERVER_CONSTRUCT_MESSAGE:431:*
  SSL_F_OSSL_STATEM_SERVER_POST_PROCESS_MESSAGE:601:\
  	ossl_statem_server_post_process_message
  SSL_F_OSSL_STATEM_SERVER_POST_WORK:602:ossl_statem_server_post_work
@@ -181,7 +213,7 @@ index 815460b24f6..3d24711e4c3 100644
  SSL_F_OSSL_STATEM_SERVER_PROCESS_MESSAGE:603:ossl_statem_server_process_message
  SSL_F_OSSL_STATEM_SERVER_READ_TRANSITION:418:ossl_statem_server_read_transition
  SSL_F_OSSL_STATEM_SERVER_WRITE_TRANSITION:604:\
-@@ -1192,6 +1192,9 @@ SSL_F_PARSE_CA_NAMES:541:parse_ca_names
+@@ -1189,6 +1189,9 @@ SSL_F_PARSE_CA_NAMES:541:parse_ca_names
  SSL_F_PITEM_NEW:624:pitem_new
  SSL_F_PQUEUE_NEW:625:pqueue_new
  SSL_F_PROCESS_KEY_SHARE_EXT:439:*
@@ -191,7 +223,7 @@ index 815460b24f6..3d24711e4c3 100644
  SSL_F_READ_STATE_MACHINE:352:read_state_machine
  SSL_F_SET_CLIENT_CIPHERSUITE:540:set_client_ciphersuite
  SSL_F_SRP_GENERATE_CLIENT_MASTER_SECRET:595:srp_generate_client_master_secret
-@@ -1202,7 +1205,9 @@ SSL_F_SSL3_CHECK_CERT_AND_ALGORITHM:130:ssl3_check_cert_and_algorithm
+@@ -1199,7 +1202,9 @@ SSL_F_SSL3_CHECK_CERT_AND_ALGORITHM:130:ssl3_check_cert_and_algorithm
  SSL_F_SSL3_CTRL:213:ssl3_ctrl
  SSL_F_SSL3_CTX_CTRL:133:ssl3_ctx_ctrl
  SSL_F_SSL3_DIGEST_CACHED_RECORDS:293:ssl3_digest_cached_records
@@ -201,7 +233,7 @@ index 815460b24f6..3d24711e4c3 100644
  SSL_F_SSL3_ENC:608:ssl3_enc
  SSL_F_SSL3_FINAL_FINISH_MAC:285:ssl3_final_finish_mac
  SSL_F_SSL3_FINISH_MAC:587:ssl3_finish_mac
-@@ -1310,6 +1315,8 @@ SSL_F_SSL_PARSE_SERVERHELLO_USE_SRTP_EXT:311:*
+@@ -1307,6 +1312,8 @@ SSL_F_SSL_PARSE_SERVERHELLO_USE_SRTP_EXT:311:*
  SSL_F_SSL_PEEK:270:SSL_peek
  SSL_F_SSL_PEEK_EX:432:SSL_peek_ex
  SSL_F_SSL_PEEK_INTERNAL:522:ssl_peek_internal
@@ -210,7 +242,7 @@ index 815460b24f6..3d24711e4c3 100644
  SSL_F_SSL_READ:223:SSL_read
  SSL_F_SSL_READ_EARLY_DATA:529:SSL_read_early_data
  SSL_F_SSL_READ_EX:434:SSL_read_ex
-@@ -1359,6 +1366,7 @@ SSL_F_SSL_WRITE_EARLY_DATA:526:SSL_write_early_data
+@@ -1356,6 +1363,7 @@ SSL_F_SSL_WRITE_EARLY_DATA:526:SSL_write_early_data
  SSL_F_SSL_WRITE_EARLY_FINISH:527:*
  SSL_F_SSL_WRITE_EX:433:SSL_write_ex
  SSL_F_SSL_WRITE_INTERNAL:524:ssl_write_internal
@@ -218,7 +250,7 @@ index 815460b24f6..3d24711e4c3 100644
  SSL_F_STATE_MACHINE:353:state_machine
  SSL_F_TLS12_CHECK_PEER_SIGALG:333:tls12_check_peer_sigalg
  SSL_F_TLS12_COPY_SIGALGS:533:tls12_copy_sigalgs
-@@ -1422,6 +1430,8 @@ SSL_F_TLS_CONSTRUCT_CTOS_POST_HANDSHAKE_AUTH:619:\
+@@ -1419,6 +1427,8 @@ SSL_F_TLS_CONSTRUCT_CTOS_POST_HANDSHAKE_AUTH:619:\
  	tls_construct_ctos_post_handshake_auth
  SSL_F_TLS_CONSTRUCT_CTOS_PSK:501:tls_construct_ctos_psk
  SSL_F_TLS_CONSTRUCT_CTOS_PSK_KEX_MODES:509:tls_construct_ctos_psk_kex_modes
@@ -227,7 +259,7 @@ index 815460b24f6..3d24711e4c3 100644
  SSL_F_TLS_CONSTRUCT_CTOS_RENEGOTIATE:473:tls_construct_ctos_renegotiate
  SSL_F_TLS_CONSTRUCT_CTOS_SCT:474:tls_construct_ctos_sct
  SSL_F_TLS_CONSTRUCT_CTOS_SERVER_NAME:475:tls_construct_ctos_server_name
-@@ -1463,6 +1473,8 @@ SSL_F_TLS_CONSTRUCT_STOC_KEY_SHARE:456:tls_construct_stoc_key_share
+@@ -1460,6 +1470,8 @@ SSL_F_TLS_CONSTRUCT_STOC_KEY_SHARE:456:tls_construct_stoc_key_share
  SSL_F_TLS_CONSTRUCT_STOC_MAXFRAGMENTLEN:548:tls_construct_stoc_maxfragmentlen
  SSL_F_TLS_CONSTRUCT_STOC_NEXT_PROTO_NEG:457:tls_construct_stoc_next_proto_neg
  SSL_F_TLS_CONSTRUCT_STOC_PSK:504:tls_construct_stoc_psk
@@ -236,7 +268,7 @@ index 815460b24f6..3d24711e4c3 100644
  SSL_F_TLS_CONSTRUCT_STOC_RENEGOTIATE:458:tls_construct_stoc_renegotiate
  SSL_F_TLS_CONSTRUCT_STOC_SERVER_NAME:459:tls_construct_stoc_server_name
  SSL_F_TLS_CONSTRUCT_STOC_SESSION_TICKET:460:tls_construct_stoc_session_ticket
-@@ -1491,6 +1503,8 @@ SSL_F_TLS_PARSE_CTOS_MAXFRAGMENTLEN:571:tls_parse_ctos_maxfragmentlen
+@@ -1488,6 +1500,8 @@ SSL_F_TLS_PARSE_CTOS_MAXFRAGMENTLEN:571:tls_parse_ctos_maxfragmentlen
  SSL_F_TLS_PARSE_CTOS_POST_HANDSHAKE_AUTH:620:tls_parse_ctos_post_handshake_auth
  SSL_F_TLS_PARSE_CTOS_PSK:505:tls_parse_ctos_psk
  SSL_F_TLS_PARSE_CTOS_PSK_KEX_MODES:572:tls_parse_ctos_psk_kex_modes
@@ -245,7 +277,7 @@ index 815460b24f6..3d24711e4c3 100644
  SSL_F_TLS_PARSE_CTOS_RENEGOTIATE:464:tls_parse_ctos_renegotiate
  SSL_F_TLS_PARSE_CTOS_SERVER_NAME:573:tls_parse_ctos_server_name
  SSL_F_TLS_PARSE_CTOS_SESSION_TICKET:574:tls_parse_ctos_session_ticket
-@@ -1509,6 +1523,8 @@ SSL_F_TLS_PARSE_STOC_KEY_SHARE:445:tls_parse_stoc_key_share
+@@ -1506,6 +1520,8 @@ SSL_F_TLS_PARSE_STOC_KEY_SHARE:445:tls_parse_stoc_key_share
  SSL_F_TLS_PARSE_STOC_MAXFRAGMENTLEN:581:tls_parse_stoc_maxfragmentlen
  SSL_F_TLS_PARSE_STOC_NPN:582:tls_parse_stoc_npn
  SSL_F_TLS_PARSE_STOC_PSK:502:tls_parse_stoc_psk
@@ -254,7 +286,7 @@ index 815460b24f6..3d24711e4c3 100644
  SSL_F_TLS_PARSE_STOC_RENEGOTIATE:448:tls_parse_stoc_renegotiate
  SSL_F_TLS_PARSE_STOC_SCT:564:tls_parse_stoc_sct
  SSL_F_TLS_PARSE_STOC_SERVER_NAME:583:tls_parse_stoc_server_name
-@@ -2713,6 +2729,7 @@ SSL_R_INCONSISTENT_EARLY_DATA_ALPN:222:inconsistent early data alpn
+@@ -2706,6 +2722,7 @@ SSL_R_INCONSISTENT_EARLY_DATA_ALPN:222:inconsistent early data alpn
  SSL_R_INCONSISTENT_EARLY_DATA_SNI:231:inconsistent early data sni
  SSL_R_INCONSISTENT_EXTMS:104:inconsistent extms
  SSL_R_INSUFFICIENT_SECURITY:241:insufficient security
@@ -262,7 +294,7 @@ index 815460b24f6..3d24711e4c3 100644
  SSL_R_INVALID_ALERT:205:invalid alert
  SSL_R_INVALID_CCS_MESSAGE:260:invalid ccs message
  SSL_R_INVALID_CERTIFICATE_OR_ALG:238:invalid certificate or alg
-@@ -2888,6 +2905,7 @@ SSL_R_VERSION_TOO_LOW:396:version too low
+@@ -2881,6 +2898,7 @@ SSL_R_VERSION_TOO_LOW:396:version too low
  SSL_R_WRONG_CERTIFICATE_TYPE:383:wrong certificate type
  SSL_R_WRONG_CIPHER_RETURNED:261:wrong cipher returned
  SSL_R_WRONG_CURVE:378:wrong curve
@@ -270,10 +302,23 @@ index 815460b24f6..3d24711e4c3 100644
  SSL_R_WRONG_SIGNATURE_LENGTH:264:wrong signature length
  SSL_R_WRONG_SIGNATURE_SIZE:265:wrong signature size
  SSL_R_WRONG_SIGNATURE_TYPE:370:wrong signature type
-diff --git a/doc/man3/SSL_CIPHER_get_name.pod b/doc/man3/SSL_CIPHER_get_name.pod
-index 26edae3d80b..20437b76e84 100644
---- a/doc/man3/SSL_CIPHER_get_name.pod
-+++ b/doc/man3/SSL_CIPHER_get_name.pod
+diff --git a/deps/openssl/openssl/crypto/kdf/hkdf.c b/deps/openssl/openssl/crypto/kdf/hkdf.c
+index 25bf4b729f..6d1a32c885 100644
+--- a/deps/openssl/openssl/crypto/kdf/hkdf.c
++++ b/deps/openssl/openssl/crypto/kdf/hkdf.c
+@@ -15,7 +15,7 @@
+ #include "internal/cryptlib.h"
+ #include "crypto/evp.h"
+ 
+-#define HKDF_MAXBUF 1024
++#define HKDF_MAXBUF 2048
+ 
+ static unsigned char *HKDF(const EVP_MD *evp_md,
+                            const unsigned char *salt, size_t salt_len,
+diff --git a/deps/openssl/openssl/doc/man3/SSL_CIPHER_get_name.pod b/deps/openssl/openssl/doc/man3/SSL_CIPHER_get_name.pod
+index 26edae3d80..20437b76e8 100644
+--- a/deps/openssl/openssl/doc/man3/SSL_CIPHER_get_name.pod
++++ b/deps/openssl/openssl/doc/man3/SSL_CIPHER_get_name.pod
 @@ -13,6 +13,7 @@ SSL_CIPHER_get_digest_nid,
  SSL_CIPHER_get_handshake_digest,
  SSL_CIPHER_get_kx_nid,
@@ -315,11 +360,11 @@ index 26edae3d80b..20437b76e84 100644
  =head1 COPYRIGHT
  
  Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
-diff --git a/doc/man3/SSL_CTX_set_quic_method.pod b/doc/man3/SSL_CTX_set_quic_method.pod
+diff --git a/deps/openssl/openssl/doc/man3/SSL_CTX_set_quic_method.pod b/deps/openssl/openssl/doc/man3/SSL_CTX_set_quic_method.pod
 new file mode 100644
-index 00000000000..60bf704944b
+index 0000000000..60bf704944
 --- /dev/null
-+++ b/doc/man3/SSL_CTX_set_quic_method.pod
++++ b/deps/openssl/openssl/doc/man3/SSL_CTX_set_quic_method.pod
 @@ -0,0 +1,232 @@
 +=pod
 +
@@ -553,10 +598,10 @@ index 00000000000..60bf704944b
 +L<https://www.openssl.org/source/license.html>.
 +
 +=cut
-diff --git a/include/openssl/evp.h b/include/openssl/evp.h
-index a411f3f2f94..275b7a4acca 100644
---- a/include/openssl/evp.h
-+++ b/include/openssl/evp.h
+diff --git a/deps/openssl/openssl/include/openssl/evp.h b/deps/openssl/openssl/include/openssl/evp.h
+index a411f3f2f9..275b7a4acc 100644
+--- a/deps/openssl/openssl/include/openssl/evp.h
++++ b/deps/openssl/openssl/include/openssl/evp.h
 @@ -1324,6 +1324,10 @@ void EVP_PKEY_asn1_set_security_bits(EVP_PKEY_ASN1_METHOD *ameth,
   */
  # define EVP_PKEY_FLAG_SIGCTX_CUSTOM     4
@@ -568,10 +613,10 @@ index a411f3f2f94..275b7a4acca 100644
  const EVP_PKEY_METHOD *EVP_PKEY_meth_find(int type);
  EVP_PKEY_METHOD *EVP_PKEY_meth_new(int id, int flags);
  void EVP_PKEY_meth_get0_info(int *ppkey_id, int *pflags,
-diff --git a/include/openssl/ossl_typ.h b/include/openssl/ossl_typ.h
-index e0edfaaf476..d2fdce8fdf6 100644
---- a/include/openssl/ossl_typ.h
-+++ b/include/openssl/ossl_typ.h
+diff --git a/deps/openssl/openssl/include/openssl/ossl_typ.h b/deps/openssl/openssl/include/openssl/ossl_typ.h
+index e0edfaaf47..d2fdce8fdf 100644
+--- a/deps/openssl/openssl/include/openssl/ossl_typ.h
++++ b/deps/openssl/openssl/include/openssl/ossl_typ.h
 @@ -176,6 +176,8 @@ typedef struct ct_policy_eval_ctx_st CT_POLICY_EVAL_CTX;
  typedef struct ossl_store_info_st OSSL_STORE_INFO;
  typedef struct ossl_store_search_st OSSL_STORE_SEARCH;
@@ -581,10 +626,10 @@ index e0edfaaf476..d2fdce8fdf6 100644
  #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L && \
      defined(INTMAX_MAX) && defined(UINTMAX_MAX)
  typedef intmax_t ossl_intmax_t;
-diff --git a/include/openssl/ssl.h b/include/openssl/ssl.h
-index fd0c5a99967..8d9b9fb0a36 100644
---- a/include/openssl/ssl.h
-+++ b/include/openssl/ssl.h
+diff --git a/deps/openssl/openssl/include/openssl/ssl.h b/deps/openssl/openssl/include/openssl/ssl.h
+index 6724ccf2d2..f21458cd5e 100644
+--- a/deps/openssl/openssl/include/openssl/ssl.h
++++ b/deps/openssl/openssl/include/openssl/ssl.h
 @@ -2432,6 +2432,51 @@ void SSL_set_allow_early_data_cb(SSL *s,
                                   SSL_allow_early_data_cb_fn cb,
                                   void *arg);
@@ -637,10 +682,10 @@ index fd0c5a99967..8d9b9fb0a36 100644
  # ifdef  __cplusplus
  }
  # endif
-diff --git a/include/openssl/sslerr.h b/include/openssl/sslerr.h
-index 82983d3c1e9..e3915c0a559 100644
---- a/include/openssl/sslerr.h
-+++ b/include/openssl/sslerr.h
+diff --git a/deps/openssl/openssl/include/openssl/sslerr.h b/deps/openssl/openssl/include/openssl/sslerr.h
+index 82983d3c1e..e3915c0a55 100644
+--- a/deps/openssl/openssl/include/openssl/sslerr.h
++++ b/deps/openssl/openssl/include/openssl/sslerr.h
 @@ -11,9 +11,7 @@
  #ifndef HEADER_SSLERR_H
  # define HEADER_SSLERR_H
@@ -737,10 +782,10 @@ index 82983d3c1e9..e3915c0a559 100644
  # define SSL_R_WRONG_SIGNATURE_LENGTH                     264
  # define SSL_R_WRONG_SIGNATURE_SIZE                       265
  # define SSL_R_WRONG_SIGNATURE_TYPE                       370
-diff --git a/include/openssl/tls1.h b/include/openssl/tls1.h
-index 76d9fda46e2..6e16c97316d 100644
---- a/include/openssl/tls1.h
-+++ b/include/openssl/tls1.h
+diff --git a/deps/openssl/openssl/include/openssl/tls1.h b/deps/openssl/openssl/include/openssl/tls1.h
+index 76d9fda46e..6e16c97316 100644
+--- a/deps/openssl/openssl/include/openssl/tls1.h
++++ b/deps/openssl/openssl/include/openssl/tls1.h
 @@ -148,6 +148,9 @@ extern "C" {
  /* Temporary extension type */
  # define TLSEXT_TYPE_renegotiate                 0xff01
@@ -751,10 +796,10 @@ index 76d9fda46e2..6e16c97316d 100644
  # ifndef OPENSSL_NO_NEXTPROTONEG
  /* This is not an IANA defined extension number */
  #  define TLSEXT_TYPE_next_proto_neg              13172
-diff --git a/ssl/build.info b/ssl/build.info
-index bb2f1deb530..eec0d14f2c5 100644
---- a/ssl/build.info
-+++ b/ssl/build.info
+diff --git a/deps/openssl/openssl/ssl/build.info b/deps/openssl/openssl/ssl/build.info
+index bb2f1deb53..eec0d14f2c 100644
+--- a/deps/openssl/openssl/ssl/build.info
++++ b/deps/openssl/openssl/ssl/build.info
 @@ -12,4 +12,5 @@ SOURCE[../libssl]=\
          ssl_asn1.c ssl_txt.c ssl_init.c ssl_conf.c  ssl_mcnf.c \
          bio_ssl.c ssl_err.c tls_srp.c t1_trce.c ssl_utst.c \
@@ -762,10 +807,10 @@ index bb2f1deb530..eec0d14f2c5 100644
 -        statem/statem.c record/ssl3_record_tls13.c
 +        statem/statem.c record/ssl3_record_tls13.c \
 +        ssl_quic.c statem/statem_quic.c
-diff --git a/ssl/s3_msg.c b/ssl/s3_msg.c
-index 339fb2774a6..8d3cd442aa0 100644
---- a/ssl/s3_msg.c
-+++ b/ssl/s3_msg.c
+diff --git a/deps/openssl/openssl/ssl/s3_msg.c b/deps/openssl/openssl/ssl/s3_msg.c
+index 339fb2774a..8d3cd442aa 100644
+--- a/deps/openssl/openssl/ssl/s3_msg.c
++++ b/deps/openssl/openssl/ssl/s3_msg.c
 @@ -1,5 +1,5 @@
  /*
 - * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
@@ -790,10 +835,10 @@ index 339fb2774a6..8d3cd442aa0 100644
      i = do_ssl3_write(s, SSL3_RT_ALERT, &s->s3->send_alert[0], &alertlen, 1, 0,
                        &written);
      if (i <= 0) {
-diff --git a/ssl/ssl_ciph.c b/ssl/ssl_ciph.c
-index 735a483c644..a3fe97597b5 100644
---- a/ssl/ssl_ciph.c
-+++ b/ssl/ssl_ciph.c
+diff --git a/deps/openssl/openssl/ssl/ssl_ciph.c b/deps/openssl/openssl/ssl/ssl_ciph.c
+index 735a483c64..a3fe97597b 100644
+--- a/deps/openssl/openssl/ssl/ssl_ciph.c
++++ b/deps/openssl/openssl/ssl/ssl_ciph.c
 @@ -2162,3 +2162,35 @@ int ssl_cert_is_disabled(size_t idx)
          return 1;
      return 0;
@@ -830,10 +875,10 @@ index 735a483c644..a3fe97597b5 100644
 +    }
 +    return NID_undef;
 +}
-diff --git a/ssl/ssl_err.c b/ssl/ssl_err.c
-index 4b12ed1485d..3cdbee2ffa9 100644
---- a/ssl/ssl_err.c
-+++ b/ssl/ssl_err.c
+diff --git a/deps/openssl/openssl/ssl/ssl_err.c b/deps/openssl/openssl/ssl/ssl_err.c
+index 4b12ed1485..3cdbee2ffa 100644
+--- a/deps/openssl/openssl/ssl/ssl_err.c
++++ b/deps/openssl/openssl/ssl/ssl_err.c
 @@ -112,6 +112,8 @@ static const ERR_STRING_DATA SSL_str_functs[] = {
       "ossl_statem_server_post_process_message"},
      {ERR_PACK(ERR_LIB_SSL, SSL_F_OSSL_STATEM_SERVER_POST_WORK, 0),
@@ -939,10 +984,10 @@ index 4b12ed1485d..3cdbee2ffa9 100644
      {ERR_PACK(ERR_LIB_SSL, 0, SSL_R_WRONG_SIGNATURE_LENGTH),
      "wrong signature length"},
      {ERR_PACK(ERR_LIB_SSL, 0, SSL_R_WRONG_SIGNATURE_SIZE),
-diff --git a/ssl/ssl_lib.c b/ssl/ssl_lib.c
-index 98057921f84..da898d193cc 100644
---- a/ssl/ssl_lib.c
-+++ b/ssl/ssl_lib.c
+diff --git a/deps/openssl/openssl/ssl/ssl_lib.c b/deps/openssl/openssl/ssl/ssl_lib.c
+index b9adc45a8e..9b318de506 100644
+--- a/deps/openssl/openssl/ssl/ssl_lib.c
++++ b/deps/openssl/openssl/ssl/ssl_lib.c
 @@ -839,6 +839,10 @@ SSL *SSL_new(SSL_CTX *ctx)
  
      s->job = NULL;
@@ -954,7 +999,7 @@ index 98057921f84..da898d193cc 100644
  #ifndef OPENSSL_NO_CT
      if (!SSL_set_ct_validation_callback(s, ctx->ct_validation_callback,
                                          ctx->ct_validation_callback_arg))
-@@ -1206,6 +1210,18 @@ void SSL_free(SSL *s)
+@@ -1204,6 +1208,18 @@ void SSL_free(SSL *s)
      OPENSSL_free(s->pha_context);
      EVP_MD_CTX_free(s->pha_dgst);
  
@@ -973,7 +1018,7 @@ index 98057921f84..da898d193cc 100644
      sk_X509_NAME_pop_free(s->ca_names, X509_NAME_free);
      sk_X509_NAME_pop_free(s->client_ca_names, X509_NAME_free);
  
-@@ -1725,6 +1741,12 @@ static int ssl_io_intern(void *vargs)
+@@ -1723,6 +1739,12 @@ static int ssl_io_intern(void *vargs)
  
  int ssl_read_internal(SSL *s, void *buf, size_t num, size_t *readbytes)
  {
@@ -986,7 +1031,7 @@ index 98057921f84..da898d193cc 100644
      if (s->handshake_func == NULL) {
          SSLerr(SSL_F_SSL_READ_INTERNAL, SSL_R_UNINITIALIZED);
          return -1;
-@@ -1857,6 +1879,12 @@ int SSL_get_early_data_status(const SSL *s)
+@@ -1855,6 +1877,12 @@ int SSL_get_early_data_status(const SSL *s)
  
  static int ssl_peek_internal(SSL *s, void *buf, size_t num, size_t *readbytes)
  {
@@ -999,7 +1044,7 @@ index 98057921f84..da898d193cc 100644
      if (s->handshake_func == NULL) {
          SSLerr(SSL_F_SSL_PEEK_INTERNAL, SSL_R_UNINITIALIZED);
          return -1;
-@@ -1917,6 +1945,12 @@ int SSL_peek_ex(SSL *s, void *buf, size_t num, size_t *readbytes)
+@@ -1915,6 +1943,12 @@ int SSL_peek_ex(SSL *s, void *buf, size_t num, size_t *readbytes)
  
  int ssl_write_internal(SSL *s, const void *buf, size_t num, size_t *written)
  {
@@ -1012,7 +1057,7 @@ index 98057921f84..da898d193cc 100644
      if (s->handshake_func == NULL) {
          SSLerr(SSL_F_SSL_WRITE_INTERNAL, SSL_R_UNINITIALIZED);
          return -1;
-@@ -3568,6 +3602,11 @@ int SSL_get_error(const SSL *s, int i)
+@@ -3565,6 +3599,11 @@ int SSL_get_error(const SSL *s, int i)
      }
  
      if (SSL_want_read(s)) {
@@ -1024,7 +1069,7 @@ index 98057921f84..da898d193cc 100644
          bio = SSL_get_rbio(s);
          if (BIO_should_read(bio))
              return SSL_ERROR_WANT_READ;
-@@ -3933,7 +3972,7 @@ EVP_PKEY *SSL_CTX_get0_privatekey(const SSL_CTX *ctx)
+@@ -3943,7 +3982,7 @@ EVP_PKEY *SSL_CTX_get0_privatekey(const SSL_CTX *ctx)
  
  const SSL_CIPHER *SSL_get_current_cipher(const SSL *s)
  {
@@ -1033,10 +1078,10 @@ index 98057921f84..da898d193cc 100644
          return s->session->cipher;
      return NULL;
  }
-diff --git a/ssl/ssl_local.h b/ssl/ssl_local.h
-index 8ddbde77296..016b2538587 100644
---- a/ssl/ssl_local.h
-+++ b/ssl/ssl_local.h
+diff --git a/deps/openssl/openssl/ssl/ssl_local.h b/deps/openssl/openssl/ssl/ssl_local.h
+index 8ddbde7729..016b253858 100644
+--- a/deps/openssl/openssl/ssl/ssl_local.h
++++ b/deps/openssl/openssl/ssl/ssl_local.h
 @@ -315,6 +315,13 @@
  /* Flag used on OpenSSL ciphersuite ids to indicate they are for SSLv3+ */
  # define SSL3_CK_CIPHERSUITE_FLAG                0x03000000
@@ -1119,11 +1164,11 @@ index 8ddbde77296..016b2538587 100644
      /*
       * Parsed form of the ClientHello, kept around across client_hello_cb
       * calls.
-diff --git a/ssl/ssl_quic.c b/ssl/ssl_quic.c
+diff --git a/deps/openssl/openssl/ssl/ssl_quic.c b/deps/openssl/openssl/ssl/ssl_quic.c
 new file mode 100644
-index 00000000000..2d8accbdd18
+index 0000000000..2d8accbdd1
 --- /dev/null
-+++ b/ssl/ssl_quic.c
++++ b/deps/openssl/openssl/ssl/ssl_quic.c
 @@ -0,0 +1,285 @@
 +/*
 + * Copyright 2019 The OpenSSL Project Authors. All Rights Reserved.
@@ -1410,10 +1455,10 @@ index 00000000000..2d8accbdd18
 +}
 +
 +#endif
-diff --git a/ssl/statem/extensions.c b/ssl/statem/extensions.c
-index c785ab785d3..a79315f78db 100644
---- a/ssl/statem/extensions.c
-+++ b/ssl/statem/extensions.c
+diff --git a/deps/openssl/openssl/ssl/statem/extensions.c b/deps/openssl/openssl/ssl/statem/extensions.c
+index 4ef8b417b8..be09afbe71 100644
+--- a/deps/openssl/openssl/ssl/statem/extensions.c
++++ b/deps/openssl/openssl/ssl/statem/extensions.c
 @@ -56,6 +56,10 @@ static int final_sig_algs(SSL *s, unsigned int context, int sent);
  static int final_early_data(SSL *s, unsigned int context, int sent);
  static int final_maxfragmentlen(SSL *s, unsigned int context, int sent);
@@ -1445,7 +1490,7 @@ index c785ab785d3..a79315f78db 100644
      {
          /* Must be immediately before pre_shared_key */
          TLSEXT_TYPE_padding,
-@@ -1713,3 +1730,15 @@ static int init_post_handshake_auth(SSL *s, unsigned int context)
+@@ -1701,3 +1718,15 @@ static int init_post_handshake_auth(SSL *s, unsigned int context)
  
      return 1;
  }
@@ -1461,10 +1506,10 @@ index c785ab785d3..a79315f78db 100644
 +    return 1;
 +}
 +#endif
-diff --git a/ssl/statem/extensions_clnt.c b/ssl/statem/extensions_clnt.c
-index bcce0f1d953..b8473e7afaa 100644
---- a/ssl/statem/extensions_clnt.c
-+++ b/ssl/statem/extensions_clnt.c
+diff --git a/deps/openssl/openssl/ssl/statem/extensions_clnt.c b/deps/openssl/openssl/ssl/statem/extensions_clnt.c
+index bcce0f1d95..a9f73f07dc 100644
+--- a/deps/openssl/openssl/ssl/statem/extensions_clnt.c
++++ b/deps/openssl/openssl/ssl/statem/extensions_clnt.c
 @@ -1214,7 +1214,28 @@ EXT_RETURN tls_construct_ctos_post_handshake_auth(SSL *s, WPACKET *pkt,
  #endif
  }
@@ -1479,7 +1524,7 @@ index bcce0f1d953..b8473e7afaa 100644
 +        || s->ext.quic_transport_params_len == 0) {
 +        return EXT_RETURN_NOT_SENT;
 +    }
- 
++
 +    if (!WPACKET_put_bytes_u16(pkt, TLSEXT_TYPE_quic_transport_parameters)
 +        || !WPACKET_sub_memcpy_u16(pkt, s->ext.quic_transport_params,
 +                                   s->ext.quic_transport_params_len)) {
@@ -1487,14 +1532,33 @@ index bcce0f1d953..b8473e7afaa 100644
 +                 SSL_F_TLS_CONSTRUCT_CTOS_QUIC_TRANSPORT_PARAMS, ERR_R_INTERNAL_ERROR);
 +        return EXT_RETURN_FAIL;
 +    }
-+
+ 
 +    return EXT_RETURN_SENT;
 +}
 +#endif
  /*
   * Parse the server's renegotiation binding and abort if it's not right
   */
-@@ -1999,3 +2020,22 @@ int tls_parse_stoc_psk(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
+@@ -1912,6 +1933,18 @@ int tls_parse_stoc_early_data(SSL *s, PACKET *pkt, unsigned int context,
+             return 0;
+         }
+ 
++#ifndef OPENSSL_NO_QUIC
++        /*
++         * QUIC server must send 0xFFFFFFFF or it's a PROTOCOL_VIOLATION
++         * per draft-ietf-quic-tls-24 S4.5
++         */
++        if (s->quic_method != NULL && max_early_data != 0xFFFFFFFF) {
++            SSLfatal(s, SSL_AD_ILLEGAL_PARAMETER, SSL_F_TLS_PARSE_STOC_EARLY_DATA,
++                     SSL_R_INVALID_MAX_EARLY_DATA);
++            return 0;
++        }
++#endif
++
+         s->session->ext.max_early_data = max_early_data;
+ 
+         return 1;
+@@ -1999,3 +2032,22 @@ int tls_parse_stoc_psk(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
  
      return 1;
  }
@@ -1517,10 +1581,10 @@ index bcce0f1d953..b8473e7afaa 100644
 +    return 1;
 +}
 +#endif
-diff --git a/ssl/statem/extensions_srvr.c b/ssl/statem/extensions_srvr.c
-index 3c7395c0eb2..c9e4acfe691 100644
---- a/ssl/statem/extensions_srvr.c
-+++ b/ssl/statem/extensions_srvr.c
+diff --git a/deps/openssl/openssl/ssl/statem/extensions_srvr.c b/deps/openssl/openssl/ssl/statem/extensions_srvr.c
+index 3b07c6b940..602c9da314 100644
+--- a/deps/openssl/openssl/ssl/statem/extensions_srvr.c
++++ b/deps/openssl/openssl/ssl/statem/extensions_srvr.c
 @@ -1303,6 +1303,26 @@ int tls_parse_ctos_post_handshake_auth(SSL *s, PACKET *pkt, unsigned int context
      return 1;
  }
@@ -1548,7 +1612,30 @@ index 3c7395c0eb2..c9e4acfe691 100644
  /*
   * Add the server's renegotiation binding
   */
-@@ -1972,3 +1992,26 @@ EXT_RETURN tls_construct_stoc_psk(SSL *s, WPACKET *pkt, unsigned int context,
+@@ -1926,12 +1946,20 @@ EXT_RETURN tls_construct_stoc_early_data(SSL *s, WPACKET *pkt,
+                                          size_t chainidx)
+ {
+     if (context == SSL_EXT_TLS1_3_NEW_SESSION_TICKET) {
+-        if (s->max_early_data == 0)
++        uint32_t max_early_data = s->max_early_data;
++
++        if (max_early_data == 0)
+             return EXT_RETURN_NOT_SENT;
+ 
++#ifndef OPENSSL_NO_QUIC
++        /* QUIC server must always send 0xFFFFFFFF, per draft-ietf-quic-tls-24 S4.5 */
++        if (s->quic_method != NULL)
++            max_early_data = 0xFFFFFFFF;
++#endif
++
+         if (!WPACKET_put_bytes_u16(pkt, TLSEXT_TYPE_early_data)
+                 || !WPACKET_start_sub_packet_u16(pkt)
+-                || !WPACKET_put_bytes_u32(pkt, s->max_early_data)
++                || !WPACKET_put_bytes_u32(pkt, max_early_data)
+                 || !WPACKET_close(pkt)) {
+             SSLfatal(s, SSL_AD_INTERNAL_ERROR,
+                      SSL_F_TLS_CONSTRUCT_STOC_EARLY_DATA, ERR_R_INTERNAL_ERROR);
+@@ -1972,3 +2000,26 @@ EXT_RETURN tls_construct_stoc_psk(SSL *s, WPACKET *pkt, unsigned int context,
  
      return EXT_RETURN_SENT;
  }
@@ -1575,10 +1662,10 @@ index 3c7395c0eb2..c9e4acfe691 100644
 +    return EXT_RETURN_SENT;
 +}
 +#endif
-diff --git a/ssl/statem/statem.c b/ssl/statem/statem.c
-index 20f5bd584e6..0a8acedebfe 100644
---- a/ssl/statem/statem.c
-+++ b/ssl/statem/statem.c
+diff --git a/deps/openssl/openssl/ssl/statem/statem.c b/deps/openssl/openssl/ssl/statem/statem.c
+index 20f5bd584e..0a8acedebf 100644
+--- a/deps/openssl/openssl/ssl/statem/statem.c
++++ b/deps/openssl/openssl/ssl/statem/statem.c
 @@ -575,6 +575,10 @@ static SUB_STATE_RETURN read_state_machine(SSL *s)
                   * In DTLS we get the whole message in one go - header and body
                   */
@@ -1628,10 +1715,29 @@ index 20f5bd584e6..0a8acedebfe 100644
      if (BIO_flush(s->wbio) <= 0) {
          return 0;
      }
-diff --git a/ssl/statem/statem_lib.c b/ssl/statem/statem_lib.c
-index 364f77f08a4..b22b7f5e935 100644
---- a/ssl/statem/statem_lib.c
-+++ b/ssl/statem/statem_lib.c
+diff --git a/deps/openssl/openssl/ssl/statem/statem_clnt.c b/deps/openssl/openssl/ssl/statem/statem_clnt.c
+index 64e392cfbf..aa2f5ad3f4 100644
+--- a/deps/openssl/openssl/ssl/statem/statem_clnt.c
++++ b/deps/openssl/openssl/ssl/statem/statem_clnt.c
+@@ -909,6 +909,14 @@ int ossl_statem_client_construct_message(SSL *s, WPACKET *pkt,
+         break;
+ 
+     case TLS_ST_CW_END_OF_EARLY_DATA:
++#ifndef OPENSSL_NO_QUIC
++        /* QUIC does not send EndOfEarlyData, draft-ietf-quic-tls-24 S8.3 */
++        if (s->quic_method != NULL) {
++            *confunc = NULL;
++            *mt = SSL3_MT_DUMMY;
++            break;
++        }
++#endif
+         *confunc = tls_construct_end_of_early_data;
+         *mt = SSL3_MT_END_OF_EARLY_DATA;
+         break;
+diff --git a/deps/openssl/openssl/ssl/statem/statem_lib.c b/deps/openssl/openssl/ssl/statem/statem_lib.c
+index 43d6fd5de9..09e7575832 100644
+--- a/deps/openssl/openssl/ssl/statem/statem_lib.c
++++ b/deps/openssl/openssl/ssl/statem/statem_lib.c
 @@ -42,9 +42,23 @@ int ssl3_do_write(SSL *s, int type)
  {
      int ret;
@@ -1666,10 +1772,10 @@ index 364f77f08a4..b22b7f5e935 100644
              i = s->method->ssl_read_bytes(s, SSL3_RT_HANDSHAKE, &recvd_type,
                                            &p[s->init_num],
                                            SSL3_HM_HEADER_LENGTH - s->init_num,
-diff --git a/ssl/statem/statem_local.h b/ssl/statem/statem_local.h
-index e27c0c13a2b..1551dac9527 100644
---- a/ssl/statem/statem_local.h
-+++ b/ssl/statem/statem_local.h
+diff --git a/deps/openssl/openssl/ssl/statem/statem_local.h b/deps/openssl/openssl/ssl/statem/statem_local.h
+index e27c0c13a2..1551dac952 100644
+--- a/deps/openssl/openssl/ssl/statem/statem_local.h
++++ b/deps/openssl/openssl/ssl/statem/statem_local.h
 @@ -93,6 +93,7 @@ WORK_STATE ossl_statem_server_post_process_message(SSL *s, WORK_STATE wst);
  __owur int tls_get_message_header(SSL *s, int *mt);
  __owur int tls_get_message_body(SSL *s, size_t *len);
@@ -1724,11 +1830,11 @@ index e27c0c13a2b..1551dac9527 100644
  
  int tls_handle_alpn(SSL *s);
  
-diff --git a/ssl/statem/statem_quic.c b/ssl/statem/statem_quic.c
+diff --git a/deps/openssl/openssl/ssl/statem/statem_quic.c b/deps/openssl/openssl/ssl/statem/statem_quic.c
 new file mode 100644
-index 00000000000..eb1a76ec9d8
+index 0000000000..eb1a76ec9d
 --- /dev/null
-+++ b/ssl/statem/statem_quic.c
++++ b/deps/openssl/openssl/ssl/statem/statem_quic.c
 @@ -0,0 +1,109 @@
 +/*
 + * Copyright 2019 The OpenSSL Project Authors. All Rights Reserved.
@@ -1839,11 +1945,25 @@ index 00000000000..eb1a76ec9d8
 +}
 +
 +#endif
-diff --git a/ssl/tls13_enc.c b/ssl/tls13_enc.c
-index b8fb07f210e..77f95767616 100644
---- a/ssl/tls13_enc.c
-+++ b/ssl/tls13_enc.c
-@@ -434,27 +434,131 @@ static int derive_secret_key_and_iv(SSL *s, int sending, const EVP_MD *md,
+diff --git a/deps/openssl/openssl/ssl/statem/statem_srvr.c b/deps/openssl/openssl/ssl/statem/statem_srvr.c
+index 14cb27e6db..ffa89d3b54 100644
+--- a/deps/openssl/openssl/ssl/statem/statem_srvr.c
++++ b/deps/openssl/openssl/ssl/statem/statem_srvr.c
+@@ -72,7 +72,8 @@ static int ossl_statem_server13_read_transition(SSL *s, int mt)
+                 return 1;
+             }
+             break;
+-        } else if (s->ext.early_data == SSL_EARLY_DATA_ACCEPTED) {
++        } else if (s->ext.early_data == SSL_EARLY_DATA_ACCEPTED
++                   && !SSL_IS_QUIC(s)) {
+             if (mt == SSL3_MT_END_OF_EARLY_DATA) {
+                 st->hand_state = TLS_ST_SR_END_OF_EARLY_DATA;
+                 return 1;
+diff --git a/deps/openssl/openssl/ssl/tls13_enc.c b/deps/openssl/openssl/ssl/tls13_enc.c
+index 86754dc967..a05401bfdc 100644
+--- a/deps/openssl/openssl/ssl/tls13_enc.c
++++ b/deps/openssl/openssl/ssl/tls13_enc.c
+@@ -427,27 +427,140 @@ static int derive_secret_key_and_iv(SSL *s, int sending, const EVP_MD *md,
      return 0;
  }
  
@@ -1943,10 +2063,7 @@ index b8fb07f210e..77f95767616 100644
 +                || !tls13_hkdf_expand(s, md, s->master_secret, server_application_traffic,
 +                                      sizeof(server_application_traffic)-1, hash, hashlen,
 +                                      s->server_app_traffic_secret, hashlen, 1)
-+                || !ssl_log_secret(s, SERVER_APPLICATION_LABEL, s->server_app_traffic_secret, hashlen)
-+                || !tls13_hkdf_expand(s, md, s->master_secret, resumption_master_secret,
-+                                      sizeof(resumption_master_secret)-1, hash, hashlen,
-+                                      s->resumption_master_secret, hashlen, 1)) {
++                || !ssl_log_secret(s, SERVER_APPLICATION_LABEL, s->server_app_traffic_secret, hashlen)) {
 +                /* SSLfatal() already called */
 +                goto err;
 +            }
@@ -1960,6 +2077,8 @@ index b8fb07f210e..77f95767616 100644
 +        else
 +            s->quic_read_level = level;
 +    } else {
++        /* is_client_write || is_server_read */
++
 +        if (is_early) {
 +            level = ssl_encryption_early_data;
 +
@@ -1975,6 +2094,16 @@ index b8fb07f210e..77f95767616 100644
 +            level = ssl_encryption_handshake;
 +        } else {
 +            level = ssl_encryption_application;
++            /*
++             * We also create the resumption master secret, but this time use the
++             * hash for the whole handshake including the Client Finished
++             */
++            if (!tls13_hkdf_expand(s, md, s->master_secret, resumption_master_secret,
++                                   sizeof(resumption_master_secret)-1, hash, hashlen,
++                                   s->resumption_master_secret, hashlen, 1)) {
++                /* SSLfatal() already called */
++                goto err;
++            }
 +        }
 +
 +        if (s->server)
@@ -1993,7 +2122,7 @@ index b8fb07f210e..77f95767616 100644
      unsigned char *iv;
      unsigned char secret[EVP_MAX_MD_SIZE];
      unsigned char hashval[EVP_MAX_MD_SIZE];
-@@ -470,6 +574,11 @@ int tls13_change_cipher_state(SSL *s, int which)
+@@ -463,6 +576,11 @@ int tls13_change_cipher_state(SSL *s, int which)
      const EVP_MD *md = NULL;
      const EVP_CIPHER *cipher = NULL;
  
@@ -2005,7 +2134,7 @@ index b8fb07f210e..77f95767616 100644
      if (which & SSL3_CC_READ) {
          if (s->enc_read_ctx != NULL) {
              EVP_CIPHER_CTX_reset(s->enc_read_ctx);
-@@ -714,6 +823,7 @@ int tls13_change_cipher_state(SSL *s, int which)
+@@ -707,6 +825,7 @@ int tls13_change_cipher_state(SSL *s, int which)
          s->statem.enc_write_state = ENC_WRITE_STATE_WRITE_PLAIN_ALERTS;
      else
          s->statem.enc_write_state = ENC_WRITE_STATE_VALID;
@@ -2013,13 +2142,13 @@ index b8fb07f210e..77f95767616 100644
      ret = 1;
   err:
      OPENSSL_cleanse(secret, sizeof(secret));
-diff --git a/test/sslapitest.c b/test/sslapitest.c
-index ad1824c68d5..784a6a911fa 100644
---- a/test/sslapitest.c
-+++ b/test/sslapitest.c
-@@ -6658,6 +6658,135 @@ static int test_ssl_dup(void)
+diff --git a/deps/openssl/openssl/test/sslapitest.c b/deps/openssl/openssl/test/sslapitest.c
+index 5c118108ef..fc06e4faa0 100644
+--- a/deps/openssl/openssl/test/sslapitest.c
++++ b/deps/openssl/openssl/test/sslapitest.c
+@@ -6471,6 +6471,135 @@ static int test_servername(int tst)
+     return testresult;
  }
- #endif
  
 +#ifndef OPENSSL_NO_QUIC
 +
@@ -2153,20 +2282,20 @@ index ad1824c68d5..784a6a911fa 100644
  int setup_tests(void)
  {
      if (!TEST_ptr(certsdir = test_get_argument(0))
-@@ -6780,6 +6909,9 @@ int setup_tests(void)
+@@ -6590,6 +6719,9 @@ int setup_tests(void)
+     ADD_ALL_TESTS(test_client_cert_cb, 2);
+     ADD_ALL_TESTS(test_ca_names, 3);
      ADD_ALL_TESTS(test_servername, 10);
- #ifndef OPENSSL_NO_TLS1_2
-     ADD_TEST(test_ssl_dup);
-+#endif
 +#ifndef OPENSSL_NO_QUIC
 +    ADD_TEST(test_quic_api);
- #endif
++#endif
      return 1;
  }
-diff --git a/test/ssltestlib.c b/test/ssltestlib.c
-index 456afdf4716..5f61e633902 100644
---- a/test/ssltestlib.c
-+++ b/test/ssltestlib.c
+ 
+diff --git a/deps/openssl/openssl/test/ssltestlib.c b/deps/openssl/openssl/test/ssltestlib.c
+index 456afdf471..5f61e63390 100644
+--- a/deps/openssl/openssl/test/ssltestlib.c
++++ b/deps/openssl/openssl/test/ssltestlib.c
 @@ -917,6 +917,11 @@ int create_ssl_connection(SSL *serverssl, SSL *clientssl, int want)
      if (!create_bare_ssl_connection(serverssl, clientssl, want, 1))
          return 0;
@@ -2179,10 +2308,10 @@ index 456afdf4716..5f61e633902 100644
      /*
       * We attempt to read some data on the client side which we expect to fail.
       * This will ensure we have received the NewSessionTicket in TLSv1.3 where
-diff --git a/test/tls13secretstest.c b/test/tls13secretstest.c
-index 52fc2b66736..970c2f4aae1 100644
---- a/test/tls13secretstest.c
-+++ b/test/tls13secretstest.c
+diff --git a/deps/openssl/openssl/test/tls13secretstest.c b/deps/openssl/openssl/test/tls13secretstest.c
+index 52fc2b6673..970c2f4aae 100644
+--- a/deps/openssl/openssl/test/tls13secretstest.c
++++ b/deps/openssl/openssl/test/tls13secretstest.c
 @@ -216,6 +216,13 @@ int ossl_statem_export_early_allowed(SSL *s)
      return 1;
  }
@@ -2197,10 +2326,10 @@ index 52fc2b66736..970c2f4aae1 100644
  /* End of mocked out code */
  
  static int test_secret(SSL *s, unsigned char *prk,
-diff --git a/util/libssl.num b/util/libssl.num
-index 297522c3639..15785fe10d0 100644
---- a/util/libssl.num
-+++ b/util/libssl.num
+diff --git a/deps/openssl/openssl/util/libssl.num b/deps/openssl/openssl/util/libssl.num
+index 297522c363..15785fe10d 100644
+--- a/deps/openssl/openssl/util/libssl.num
++++ b/deps/openssl/openssl/util/libssl.num
 @@ -498,3 +498,14 @@ SSL_CTX_get_recv_max_early_data         498	1_1_1	EXIST::FUNCTION:
  SSL_CTX_set_recv_max_early_data         499	1_1_1	EXIST::FUNCTION:
  SSL_CTX_set_post_handshake_auth         500	1_1_1	EXIST::FUNCTION:
@@ -2216,10 +2345,10 @@ index 297522c3639..15785fe10d0 100644
 +SSL_quic_max_handshake_flight_len       10102	1_1_1d	EXIST::FUNCTION:QUIC
 +SSL_process_quic_post_handshake         10103	1_1_1d	EXIST::FUNCTION:QUIC
 +SSL_provide_quic_data                   10104	1_1_1d	EXIST::FUNCTION:QUIC
-diff --git a/util/private.num b/util/private.num
-index bc7d967b5d1..eb3d409f6e9 100644
---- a/util/private.num
-+++ b/util/private.num
+diff --git a/deps/openssl/openssl/util/private.num b/deps/openssl/openssl/util/private.num
+index bc7d967b5d..eb3d409f6e 100644
+--- a/deps/openssl/openssl/util/private.num
++++ b/deps/openssl/openssl/util/private.num
 @@ -91,6 +91,8 @@ custom_ext_free_cb                      datatype
  custom_ext_parse_cb                     datatype
  pem_password_cb                         datatype
@@ -2229,1776 +2358,6 @@ index bc7d967b5d1..eb3d409f6e9 100644
  #
  BIO_append_filename                     define
  BIO_destroy_bio_pair                    define
+-- 
+2.26.0.windows.1
 
-From b97af137adf08bdd75c0c5843b2eb4a1483c2293 Mon Sep 17 00:00:00 2001
-From: Todd Short <tshort@akamai.com>
-Date: Tue, 12 Nov 2019 13:52:35 -0500
-Subject: [PATCH 02/14] Fix resumption secret
-
-(cherry picked from commit 16fafdf4e0ec6cddd5705f407e5dca26cb30914d)
----
- ssl/tls13_enc.c | 17 +++++++++++++----
- 1 file changed, 13 insertions(+), 4 deletions(-)
-
-diff --git a/ssl/tls13_enc.c b/ssl/tls13_enc.c
-index 77f95767616..89678d6c221 100644
---- a/ssl/tls13_enc.c
-+++ b/ssl/tls13_enc.c
-@@ -512,10 +512,7 @@ static int quic_change_cipher_state(SSL *s, int which)
-                 || !tls13_hkdf_expand(s, md, s->master_secret, server_application_traffic,
-                                       sizeof(server_application_traffic)-1, hash, hashlen,
-                                       s->server_app_traffic_secret, hashlen, 1)
--                || !ssl_log_secret(s, SERVER_APPLICATION_LABEL, s->server_app_traffic_secret, hashlen)
--                || !tls13_hkdf_expand(s, md, s->master_secret, resumption_master_secret,
--                                      sizeof(resumption_master_secret)-1, hash, hashlen,
--                                      s->resumption_master_secret, hashlen, 1)) {
-+                || !ssl_log_secret(s, SERVER_APPLICATION_LABEL, s->server_app_traffic_secret, hashlen)) {
-                 /* SSLfatal() already called */
-                 goto err;
-             }
-@@ -529,6 +526,8 @@ static int quic_change_cipher_state(SSL *s, int which)
-         else
-             s->quic_read_level = level;
-     } else {
-+        /* is_client_write || is_server_read */
-+
-         if (is_early) {
-             level = ssl_encryption_early_data;
- 
-@@ -544,6 +543,16 @@ static int quic_change_cipher_state(SSL *s, int which)
-             level = ssl_encryption_handshake;
-         } else {
-             level = ssl_encryption_application;
-+            /*
-+             * We also create the resumption master secret, but this time use the
-+             * hash for the whole handshake including the Client Finished
-+             */
-+            if (!tls13_hkdf_expand(s, md, s->master_secret, resumption_master_secret,
-+                                   sizeof(resumption_master_secret)-1, hash, hashlen,
-+                                   s->resumption_master_secret, hashlen, 1)) {
-+                /* SSLfatal() already called */
-+                goto err;
-+            }
-         }
- 
-         if (s->server)
-
-From 946e0c928b14ce22eb6a4a5b3d360853e33eb98b Mon Sep 17 00:00:00 2001
-From: Todd Short <tshort@akamai.com>
-Date: Wed, 13 Nov 2019 12:11:00 -0500
-Subject: [PATCH 03/14] QUIC: Handle EndOfEarlyData and MaxEarlyData
-
----
- ssl/statem/extensions_clnt.c | 12 ++++++++++++
- ssl/statem/extensions_srvr.c | 12 ++++++++++--
- ssl/statem/statem_clnt.c     |  8 ++++++++
- ssl/statem/statem_srvr.c     |  4 ++++
- 4 files changed, 34 insertions(+), 2 deletions(-)
-
-diff --git a/ssl/statem/extensions_clnt.c b/ssl/statem/extensions_clnt.c
-index b8473e7afaa..a9f73f07dca 100644
---- a/ssl/statem/extensions_clnt.c
-+++ b/ssl/statem/extensions_clnt.c
-@@ -1933,6 +1933,18 @@ int tls_parse_stoc_early_data(SSL *s, PACKET *pkt, unsigned int context,
-             return 0;
-         }
- 
-+#ifndef OPENSSL_NO_QUIC
-+        /*
-+         * QUIC server must send 0xFFFFFFFF or it's a PROTOCOL_VIOLATION
-+         * per draft-ietf-quic-tls-24 S4.5
-+         */
-+        if (s->quic_method != NULL && max_early_data != 0xFFFFFFFF) {
-+            SSLfatal(s, SSL_AD_ILLEGAL_PARAMETER, SSL_F_TLS_PARSE_STOC_EARLY_DATA,
-+                     SSL_R_INVALID_MAX_EARLY_DATA);
-+            return 0;
-+        }
-+#endif
-+
-         s->session->ext.max_early_data = max_early_data;
- 
-         return 1;
-diff --git a/ssl/statem/extensions_srvr.c b/ssl/statem/extensions_srvr.c
-index c9e4acfe691..313d6ea87fe 100644
---- a/ssl/statem/extensions_srvr.c
-+++ b/ssl/statem/extensions_srvr.c
-@@ -1946,12 +1946,20 @@ EXT_RETURN tls_construct_stoc_early_data(SSL *s, WPACKET *pkt,
-                                          size_t chainidx)
- {
-     if (context == SSL_EXT_TLS1_3_NEW_SESSION_TICKET) {
--        if (s->max_early_data == 0)
-+        uint32_t max_early_data = s->max_early_data;
-+
-+        if (max_early_data == 0)
-             return EXT_RETURN_NOT_SENT;
- 
-+#ifndef OPENSSL_NO_QUIC
-+        /* QUIC server must always send 0xFFFFFFFF, per draft-ietf-quic-tls-24 S4.5 */
-+        if (s->quic_method != NULL)
-+            max_early_data = 0xFFFFFFFF;
-+#endif
-+
-         if (!WPACKET_put_bytes_u16(pkt, TLSEXT_TYPE_early_data)
-                 || !WPACKET_start_sub_packet_u16(pkt)
--                || !WPACKET_put_bytes_u32(pkt, s->max_early_data)
-+                || !WPACKET_put_bytes_u32(pkt, max_early_data)
-                 || !WPACKET_close(pkt)) {
-             SSLfatal(s, SSL_AD_INTERNAL_ERROR,
-                      SSL_F_TLS_CONSTRUCT_STOC_EARLY_DATA, ERR_R_INTERNAL_ERROR);
-diff --git a/ssl/statem/statem_clnt.c b/ssl/statem/statem_clnt.c
-index 3420ce65c7c..101740e105c 100644
---- a/ssl/statem/statem_clnt.c
-+++ b/ssl/statem/statem_clnt.c
-@@ -909,6 +909,14 @@ int ossl_statem_client_construct_message(SSL *s, WPACKET *pkt,
-         break;
- 
-     case TLS_ST_CW_END_OF_EARLY_DATA:
-+#ifndef OPENSSL_NO_QUIC
-+        /* QUIC does not send EndOfEarlyData, draft-ietf-quic-tls-24 S8.3 */
-+        if (s->quic_method != NULL) {
-+            *confunc = NULL;
-+            *mt = SSL3_MT_DUMMY;
-+            break;
-+        }
-+#endif
-         *confunc = tls_construct_end_of_early_data;
-         *mt = SSL3_MT_END_OF_EARLY_DATA;
-         break;
-diff --git a/ssl/statem/statem_srvr.c b/ssl/statem/statem_srvr.c
-index cf45a40ce4e..41bffc0b9d2 100644
---- a/ssl/statem/statem_srvr.c
-+++ b/ssl/statem/statem_srvr.c
-@@ -74,6 +74,10 @@ static int ossl_statem_server13_read_transition(SSL *s, int mt)
-             break;
-         } else if (s->ext.early_data == SSL_EARLY_DATA_ACCEPTED) {
-             if (mt == SSL3_MT_END_OF_EARLY_DATA) {
-+#ifndef OPENSSL_NO_QUIC
-+                if (s->quic_method != NULL)
-+                    return 0;
-+#endif
-                 st->hand_state = TLS_ST_SR_END_OF_EARLY_DATA;
-                 return 1;
-             }
-
-From 1fe3e022d092034fac8891cd629f7b80a1c31d61 Mon Sep 17 00:00:00 2001
-From: Todd Short <tshort@akamai.com>
-Date: Tue, 7 Jan 2020 10:01:23 -0500
-Subject: [PATCH 04/14] QUIC: Increase HKDF_MAXBUF to 2048
-
----
- crypto/kdf/hkdf.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/crypto/kdf/hkdf.c b/crypto/kdf/hkdf.c
-index 25bf4b729f6..6d1a32c885e 100644
---- a/crypto/kdf/hkdf.c
-+++ b/crypto/kdf/hkdf.c
-@@ -15,7 +15,7 @@
- #include "internal/cryptlib.h"
- #include "crypto/evp.h"
- 
--#define HKDF_MAXBUF 1024
-+#define HKDF_MAXBUF 2048
- 
- static unsigned char *HKDF(const EVP_MD *evp_md,
-                            const unsigned char *salt, size_t salt_len,
-
-From aa4d9c6f4a1d85022f593cc72d89f6c60ed6f767 Mon Sep 17 00:00:00 2001
-From: Todd Short <tshort@akamai.com>
-Date: Tue, 7 Jan 2020 10:59:08 -0500
-Subject: [PATCH 05/14] Fall-through for 0RTT
-
----
- ssl/statem/statem_srvr.c | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
-
-diff --git a/ssl/statem/statem_srvr.c b/ssl/statem/statem_srvr.c
-index 41bffc0b9d2..9f36acf24e3 100644
---- a/ssl/statem/statem_srvr.c
-+++ b/ssl/statem/statem_srvr.c
-@@ -72,12 +72,9 @@ static int ossl_statem_server13_read_transition(SSL *s, int mt)
-                 return 1;
-             }
-             break;
--        } else if (s->ext.early_data == SSL_EARLY_DATA_ACCEPTED) {
-+        } else if (s->ext.early_data == SSL_EARLY_DATA_ACCEPTED
-+                   && !SSL_IS_QUIC(s)) {
-             if (mt == SSL3_MT_END_OF_EARLY_DATA) {
--#ifndef OPENSSL_NO_QUIC
--                if (s->quic_method != NULL)
--                    return 0;
--#endif
-                 st->hand_state = TLS_ST_SR_END_OF_EARLY_DATA;
-                 return 1;
-             }
-
-From 4a03a80c1d989658282db830c8b35b5351c280aa Mon Sep 17 00:00:00 2001
-From: Benjamin Kaduk <bkaduk@akamai.com>
-Date: Wed, 22 Apr 2020 09:12:36 -0700
-Subject: [PATCH 06/14] Some cleanup for the main QUIC changes
-
-Try to reduce unneeded whitespace changes and wrap new code to 80 columns.
-Reword documentation to attempt to improve clarity.
-Add some more sanity checks and clarifying comments to the code.
-Update referenced I-D versions.
----
- doc/man3/SSL_CTX_set_quic_method.pod | 43 +++++++-------
- include/openssl/ssl.h                |  4 +-
- include/openssl/sslerr.h             |  4 +-
- include/openssl/tls1.h               |  2 +-
- ssl/build.info                       |  7 ++-
- ssl/ssl_ciph.c                       |  2 +
- ssl/ssl_lib.c                        |  2 +-
- ssl/ssl_local.h                      |  3 +-
- ssl/ssl_quic.c                       | 45 +++++++--------
- ssl/statem/extensions_clnt.c         |  5 +-
- ssl/statem/extensions_srvr.c         |  8 ++-
- ssl/statem/statem.c                  |  2 +-
- ssl/statem/statem_lib.c              | 27 +++++----
- ssl/statem/statem_local.h            |  2 +
- ssl/statem/statem_quic.c             | 23 ++++----
- ssl/tls13_enc.c                      | 85 +++++++++++++++++++---------
- test/sslapitest.c                    | 11 ++--
- util/libssl.num                      |  2 +-
- 18 files changed, 166 insertions(+), 111 deletions(-)
-
-diff --git a/doc/man3/SSL_CTX_set_quic_method.pod b/doc/man3/SSL_CTX_set_quic_method.pod
-index 60bf704944b..3d7bf7e6821 100644
---- a/doc/man3/SSL_CTX_set_quic_method.pod
-+++ b/doc/man3/SSL_CTX_set_quic_method.pod
-@@ -63,22 +63,25 @@ SSL_quic_max_handshake_flight_len() returns the maximum number of bytes
- that may be received at the given encryption level. This function should be
- used to limit buffering in the QUIC implementation.
- 
--See https://tools.ietf.org/html/draft-ietf-quic-transport-16#section-4.4.
-+See https://tools.ietf.org/html/draft-ietf-quic-transport-27#section-4.
- 
- SSL_quic_read_level() returns the current read encryption level.
- 
- SSL_quic_write_level() returns the current write encryption level.
- 
--SSL_provide_quic_data() provides data from QUIC at a particular encryption
--level B<level>. It is an error to call this function outside of the handshake
--or with an encryption level other than the current read level. It returns one
--on success and zero on error.
-+SSL_provide_quic_data() is used to provide data from QUIC CRYPTO frames to the
-+state machine, at a particular encryption level B<level>. It is an error to
-+call this function outside of the handshake or with an encryption level other
-+than the current read level. The application must buffer and consolidate any
-+frames with less than four bytes of content.  It returns one on success and
-+zero on error.
- 
- SSL_process_quic_post_handshake() processes any data that QUIC has provided
- after the handshake has completed. This includes NewSessionTicket messages
- sent by the server.
- 
--SSL_is_quic() indicates whether a connection uses QUIC.
-+SSL_is_quic() indicates whether a connection uses QUIC.  A given B<SSL>
-+or B<SSL_CTX> can only be used with QUIC or TLS, but not both.
- 
- =head1 NOTES
- 
-@@ -89,11 +92,11 @@ functions allow a QUIC implementation to serve as the underlying transport as
- described in draft-ietf-quic-tls.
- 
- When configured for QUIC, SSL_do_handshake() will drive the handshake as
--before, but it will not use the configured B<BIO>. It will call functions on
--B<SSL_QUIC_METHOD> to configure secrets and send data. If data is needed from
--the peer, it will return B<SSL_ERROR_WANT_READ>. When received, the caller
--should call SSL_provide_quic_data() and then SSL_do_handshake() to continue
--the handshake. After the handshake is complete, the caller should call
-+before, but it will not use the configured B<BIO>. It will call functions from
-+the configured B<SSL_QUIC_METHOD> to configure secrets and send data. If data
-+is needed from the peer, it will return B<SSL_ERROR_WANT_READ>. When received,
-+the caller should call SSL_provide_quic_data() and then SSL_do_handshake() to
-+continue the handshake. After the handshake is complete, the caller should call
- SSL_provide_quic_data() for any post-handshake data, followed by
- SSL_process_quic_post_handshake() to process it. It is an error to call
- SSL_read()/SSL_read_ex() and SSL_write()/SSL_write_ex() in QUIC.
-@@ -105,7 +108,7 @@ pass the active write level to add_handshake_data() when writing data. Callers
- can use SSL_quic_write_level() to query the active write level when
- generating their own errors.
- 
--See https://tools.ietf.org/html/draft-ietf-quic-tls-15#section-4.1 for more
-+See https://tools.ietf.org/html/draft-ietf-quic-tls-27#section-4.1 for more
- details.
- 
- To avoid DoS attacks, the QUIC implementation must limit the amount of data
-@@ -113,11 +116,12 @@ being queued up. The implementation can call
- SSL_quic_max_handshake_flight_len() to get the maximum buffer length at each
- encryption level.
- 
--draft-ietf-quic-tls defines a new TLS extension quic_transport_parameters
-+draft-ietf-quic-tls defines a new TLS extension "quic_transport_parameters"
- used by QUIC for each endpoint to unilaterally declare its supported
--transport parameters. draft-ietf-quic-transport (section 7.4) defines the
--contents of that extension (a TransportParameters struct) and describes how
--to handle it and its semantic meaning.
-+transport parameters. The contents of the extension are specified in
-+https://tools.ietf.org/html/draft-ietf-quic-transport-27#section-18 (as
-+a sequence of tag/length/value parameters) along with the interpretation of the
-+various parameters and the rules for their processing.
- 
- OpenSSL handles this extension as an opaque byte string. The caller is
- responsible for serializing and parsing it.
-@@ -205,10 +209,11 @@ SSL_process_quic_post_handshake()
- return 1 on success, and 0 on error.
- 
- SSL_quic_read_level() and SSL_quic_write_level() return the current
--encryption  level as B<OSSL_ENCRYPTION_LEVEL> (B<enum ssl_encryption_level_t>).
-+encryption level as an B<OSSL_ENCRYPTION_LEVEL>
-+(B<enum ssl_encryption_level_t>).
- 
--SSL_quic_max_handshake_flight_len() returns the maximum length of a flight
--for a given encryption level.
-+SSL_quic_max_handshake_flight_len() returns the maximum length in bytes of a
-+flight for a given encryption level.
- 
- SSL_is_quic() returns 1 if QUIC is being used, 0 if not.
- 
-diff --git a/include/openssl/ssl.h b/include/openssl/ssl.h
-index 8d9b9fb0a36..08d4c74b237 100644
---- a/include/openssl/ssl.h
-+++ b/include/openssl/ssl.h
-@@ -2473,10 +2473,10 @@ __owur int SSL_process_quic_post_handshake(SSL *ssl);
- 
- __owur int SSL_is_quic(SSL *ssl);
- 
--#  endif
--
- int SSL_CIPHER_get_prf_nid(const SSL_CIPHER *c);
- 
-+#  endif
-+
- # ifdef  __cplusplus
- }
- # endif
-diff --git a/include/openssl/sslerr.h b/include/openssl/sslerr.h
-index e3915c0a559..80cc5f379a6 100644
---- a/include/openssl/sslerr.h
-+++ b/include/openssl/sslerr.h
-@@ -11,7 +11,9 @@
- #ifndef HEADER_SSLERR_H
- # define HEADER_SSLERR_H
- 
--# include <openssl/symhacks.h>
-+# ifndef HEADER_SYMHACKS_H
-+#  include <openssl/symhacks.h>
-+# endif
- 
- # ifdef  __cplusplus
- extern "C"
-diff --git a/include/openssl/tls1.h b/include/openssl/tls1.h
-index 6e16c97316d..c11ca1efa30 100644
---- a/include/openssl/tls1.h
-+++ b/include/openssl/tls1.h
-@@ -148,7 +148,7 @@ extern "C" {
- /* Temporary extension type */
- # define TLSEXT_TYPE_renegotiate                 0xff01
- 
--/* ExtensionType value from draft-ietf-quic-tls-13 */
-+/* ExtensionType value from draft-ietf-quic-tls-27 */
- # define TLSEXT_TYPE_quic_transport_parameters   0xffa5
- 
- # ifndef OPENSSL_NO_NEXTPROTONEG
-diff --git a/ssl/build.info b/ssl/build.info
-index eec0d14f2c5..497d943900d 100644
---- a/ssl/build.info
-+++ b/ssl/build.info
-@@ -12,5 +12,8 @@ SOURCE[../libssl]=\
-         ssl_asn1.c ssl_txt.c ssl_init.c ssl_conf.c  ssl_mcnf.c \
-         bio_ssl.c ssl_err.c tls_srp.c t1_trce.c ssl_utst.c \
-         record/ssl3_buffer.c record/ssl3_record.c record/dtls1_bitmap.c \
--        statem/statem.c record/ssl3_record_tls13.c \
--        ssl_quic.c statem/statem_quic.c
-+        statem/statem.c record/ssl3_record_tls13.c
-+
-+IF[{- !$disabled{quic} -}]
-+  SOURCE[../libssl]=ssl_quic.c statem/statem_quic.c
-+ENDIF
-diff --git a/ssl/ssl_ciph.c b/ssl/ssl_ciph.c
-index a3fe97597b5..67514f40b8d 100644
---- a/ssl/ssl_ciph.c
-+++ b/ssl/ssl_ciph.c
-@@ -2163,6 +2163,7 @@ int ssl_cert_is_disabled(size_t idx)
-     return 0;
- }
- 
-+#ifndef OPENSSL_NO_QUIC
- int SSL_CIPHER_get_prf_nid(const SSL_CIPHER *c)
- {
-     switch (c->algorithm2 & (0xFF << TLS1_PRF_DGST_SHIFT)) {
-@@ -2194,3 +2195,4 @@ int SSL_CIPHER_get_prf_nid(const SSL_CIPHER *c)
-     }
-     return NID_undef;
- }
-+#endif
-diff --git a/ssl/ssl_lib.c b/ssl/ssl_lib.c
-index da898d193cc..8d23a72d300 100644
---- a/ssl/ssl_lib.c
-+++ b/ssl/ssl_lib.c
-@@ -3972,7 +3972,7 @@ EVP_PKEY *SSL_CTX_get0_privatekey(const SSL_CTX *ctx)
- 
- const SSL_CIPHER *SSL_get_current_cipher(const SSL *s)
- {
--    if (s->session != NULL)
-+    if ((s->session != NULL) && (s->session->cipher != NULL))
-         return s->session->cipher;
-     return NULL;
- }
-diff --git a/ssl/ssl_local.h b/ssl/ssl_local.h
-index 016b2538587..fa61ec838c1 100644
---- a/ssl/ssl_local.h
-+++ b/ssl/ssl_local.h
-@@ -1086,6 +1086,7 @@ struct quic_data_st {
-     OSSL_ENCRYPTION_LEVEL level;
-     size_t offset;
-     size_t length;
-+    /* char data[]; should be here but C90 VLAs not allowed here */
- };
- typedef struct quic_data_st QUIC_DATA;
- int quic_set_encryption_secrets(SSL *ssl, OSSL_ENCRYPTION_LEVEL level);
-@@ -1561,8 +1562,6 @@ typedef struct tls_group_info_st {
- # define TLS_CURVE_CHAR2         0x1
- # define TLS_CURVE_CUSTOM        0x2
- 
--typedef struct cert_pkey_st CERT_PKEY;
--
- /*
-  * Structure containing table entry of certificate info corresponding to
-  * CERT_PKEY entries
-diff --git a/ssl/ssl_quic.c b/ssl/ssl_quic.c
-index 2d8accbdd18..e0ee8b0824b 100644
---- a/ssl/ssl_quic.c
-+++ b/ssl/ssl_quic.c
-@@ -11,10 +11,6 @@
- #include "internal/cryptlib.h"
- #include "internal/refcount.h"
- 
--#ifdef OPENSSL_NO_QUIC
--NON_EMPTY_TRANSLATION_UNIT
--#else
--
- int SSL_set_quic_transport_params(SSL *ssl, const uint8_t *params,
-                                   size_t params_len)
- {
-@@ -109,10 +105,10 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
-         return 0;
-     }
- 
--    /* Split the QUIC messages up, if necessary */
-+    /* Split on handshake message boundaries, if necessary */
-     while (len > 0) {
-         QUIC_DATA *qd;
--        const uint8_t *p = data + 1;
-+        const uint8_t *p;
- 
-         /* Check for an incomplete block */
-         qd = ssl->quic_input_data_tail;
-@@ -130,6 +126,12 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
-             }
-         }
- 
-+        if (len < SSL3_HM_HEADER_LENGTH) {
-+            SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, SSL_R_BAD_LENGTH);
-+            return 0;
-+        }
-+        /* TLS Handshake message header has 1-byte type and 3-byte length */
-+        p = data + 1;
-         n2l3(p, l);
-         l += SSL3_HM_HEADER_LENGTH;
- 
-@@ -163,15 +165,8 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
- 
- int SSL_CTX_set_quic_method(SSL_CTX *ctx, const SSL_QUIC_METHOD *quic_method)
- {
--    switch (ctx->method->version) {
--    case DTLS1_VERSION:
--    case DTLS1_2_VERSION:
--    case DTLS_ANY_VERSION:
--    case DTLS1_BAD_VER:
-+    if (ctx->method->version != TLS_ANY_VERSION)
-         return 0;
--    default:
--        break;
--    }
-     ctx->quic_method = quic_method;
-     ctx->options &= ~SSL_OP_ENABLE_MIDDLEBOX_COMPAT;
-     return 1;
-@@ -179,15 +174,8 @@ int SSL_CTX_set_quic_method(SSL_CTX *ctx, const SSL_QUIC_METHOD *quic_method)
- 
- int SSL_set_quic_method(SSL *ssl, const SSL_QUIC_METHOD *quic_method)
- {
--    switch (ssl->method->version) {
--    case DTLS1_VERSION:
--    case DTLS1_2_VERSION:
--    case DTLS_ANY_VERSION:
--    case DTLS1_BAD_VER:
-+    if (ssl->method->version != TLS_ANY_VERSION)
-         return 0;
--    default:
--        break;
--    }
-     ssl->quic_method = quic_method;
-     ssl->options &= ~SSL_OP_ENABLE_MIDDLEBOX_COMPAT;
-     return 1;
-@@ -225,6 +213,12 @@ int quic_set_encryption_secrets(SSL *ssl, OSSL_ENCRYPTION_LEVEL level)
-         /* May not have selected cipher, yet */
-         const SSL_CIPHER *c = NULL;
- 
-+        /*
-+         * It probably doesn't make sense to use an (external) PSK session,
-+         * but in theory some kinds of external session caches could be
-+         * implemented using it, so allow psksession to be used as well as
-+         * the regular session.
-+         */
-         if (ssl->session != NULL)
-             c = SSL_SESSION_get0_cipher(ssl->session);
-         else if (ssl->psksession != NULL)
-@@ -268,6 +262,11 @@ int SSL_process_quic_post_handshake(SSL *ssl)
-         return 0;
-     }
- 
-+    /*
-+     * This is always safe (we are sure to be at a record boundary) because
-+     * SSL_read()/SSL_write() are never used for QUIC connections -- the
-+     * application data is handled at the QUIC layer instead.
-+     */
-     ossl_statem_set_in_init(ssl, 1);
-     ret = ssl->handshake_func(ssl);
-     ossl_statem_set_in_init(ssl, 0);
-@@ -281,5 +280,3 @@ int SSL_is_quic(SSL* ssl)
- {
-     return SSL_IS_QUIC(ssl);
- }
--
--#endif
-diff --git a/ssl/statem/extensions_clnt.c b/ssl/statem/extensions_clnt.c
-index a9f73f07dca..a2992b96022 100644
---- a/ssl/statem/extensions_clnt.c
-+++ b/ssl/statem/extensions_clnt.c
-@@ -1936,7 +1936,7 @@ int tls_parse_stoc_early_data(SSL *s, PACKET *pkt, unsigned int context,
- #ifndef OPENSSL_NO_QUIC
-         /*
-          * QUIC server must send 0xFFFFFFFF or it's a PROTOCOL_VIOLATION
--         * per draft-ietf-quic-tls-24 S4.5
-+         * per draft-ietf-quic-tls-27 S4.5
-          */
-         if (s->quic_method != NULL && max_early_data != 0xFFFFFFFF) {
-             SSLfatal(s, SSL_AD_ILLEGAL_PARAMETER, SSL_F_TLS_PARSE_STOC_EARLY_DATA,
-@@ -2045,7 +2045,8 @@ int tls_parse_stoc_quic_transport_params(SSL *s, PACKET *pkt, unsigned int conte
-                        &s->ext.peer_quic_transport_params,
-                        &s->ext.peer_quic_transport_params_len)) {
-         SSLfatal(s, SSL_AD_INTERNAL_ERROR,
--                 SSL_F_TLS_PARSE_STOC_QUIC_TRANSPORT_PARAMS, ERR_R_INTERNAL_ERROR);
-+                 SSL_F_TLS_PARSE_STOC_QUIC_TRANSPORT_PARAMS,
-+                 ERR_R_INTERNAL_ERROR);
-         return 0;
-     }
-     return 1;
-diff --git a/ssl/statem/extensions_srvr.c b/ssl/statem/extensions_srvr.c
-index 313d6ea87fe..6ff2232e467 100644
---- a/ssl/statem/extensions_srvr.c
-+++ b/ssl/statem/extensions_srvr.c
-@@ -1316,7 +1316,8 @@ int tls_parse_ctos_quic_transport_params(SSL *s, PACKET *pkt, unsigned int conte
-                        &s->ext.peer_quic_transport_params,
-                        &s->ext.peer_quic_transport_params_len)) {
-         SSLfatal(s, SSL_AD_INTERNAL_ERROR,
--                 SSL_F_TLS_PARSE_CTOS_QUIC_TRANSPORT_PARAMS, ERR_R_INTERNAL_ERROR);
-+                 SSL_F_TLS_PARSE_CTOS_QUIC_TRANSPORT_PARAMS,
-+                 ERR_R_INTERNAL_ERROR);
-         return 0;
-     }
-     return 1;
-@@ -1952,7 +1953,7 @@ EXT_RETURN tls_construct_stoc_early_data(SSL *s, WPACKET *pkt,
-             return EXT_RETURN_NOT_SENT;
- 
- #ifndef OPENSSL_NO_QUIC
--        /* QUIC server must always send 0xFFFFFFFF, per draft-ietf-quic-tls-24 S4.5 */
-+        /* QUIC server must always send 0xFFFFFFFF, per draft-ietf-quic-tls-27 S4.5 */
-         if (s->quic_method != NULL)
-             max_early_data = 0xFFFFFFFF;
- #endif
-@@ -2016,7 +2017,8 @@ EXT_RETURN tls_construct_stoc_quic_transport_params(SSL *s, WPACKET *pkt,
-         || !WPACKET_sub_memcpy_u16(pkt, s->ext.quic_transport_params,
-                                    s->ext.quic_transport_params_len)) {
-         SSLfatal(s, SSL_AD_INTERNAL_ERROR,
--                 SSL_F_TLS_CONSTRUCT_STOC_QUIC_TRANSPORT_PARAMS, ERR_R_INTERNAL_ERROR);
-+                 SSL_F_TLS_CONSTRUCT_STOC_QUIC_TRANSPORT_PARAMS,
-+                 ERR_R_INTERNAL_ERROR);
-         return EXT_RETURN_FAIL;
-     }
- 
-diff --git a/ssl/statem/statem.c b/ssl/statem/statem.c
-index 0a8acedebfe..d76924da85c 100644
---- a/ssl/statem/statem.c
-+++ b/ssl/statem/statem.c
-@@ -577,6 +577,7 @@ static SUB_STATE_RETURN read_state_machine(SSL *s)
-                 ret = dtls_get_message(s, &mt, &len);
- #ifndef OPENSSL_NO_QUIC
-             } else if (SSL_IS_QUIC(s)) {
-+                /* QUIC behaves like DTLS -- all in one go. */
-                 ret = quic_get_message(s, &mt, &len);
- #endif
-             } else {
-@@ -907,7 +908,6 @@ int statem_flush(SSL *s)
- #ifndef OPENSSL_NO_QUIC
-     if (SSL_IS_QUIC(s)) {
-         if (!s->quic_method->flush_flight(s)) {
--            /* NOTE: BIO_flush() does not generate an error */
-             SSLerr(SSL_F_STATEM_FLUSH, ERR_R_INTERNAL_ERROR);
-             return 0;
-         }
-diff --git a/ssl/statem/statem_lib.c b/ssl/statem/statem_lib.c
-index b22b7f5e935..ac79fa12810 100644
---- a/ssl/statem/statem_lib.c
-+++ b/ssl/statem/statem_lib.c
-@@ -42,23 +42,29 @@ int ssl3_do_write(SSL *s, int type)
- {
-     int ret;
-     size_t written = 0;
-+
- #ifndef OPENSSL_NO_QUIC
--    if (SSL_IS_QUIC(s) && type == SSL3_RT_HANDSHAKE) {
--        ret = s->quic_method->add_handshake_data(s, s->quic_write_level,
--                                                 (const uint8_t*)&s->init_buf->data[s->init_off],
--                                          s->init_num);
--        if (!ret) {
--            ret = -1;
--            /* QUIC can't sent anything out sice the above failed */
--            SSLerr(SSL_F_SSL3_DO_WRITE, SSL_R_INTERNAL_ERROR);
-+    if (SSL_IS_QUIC(s)) {
-+        if (type == SSL3_RT_HANDSHAKE) {
-+            ret = s->quic_method->add_handshake_data(s, s->quic_write_level,
-+                                                     (const uint8_t*)&s->init_buf->data[s->init_off],
-+                                                     s->init_num);
-+            if (!ret) {
-+                ret = -1;
-+                /* QUIC can't sent anything out sice the above failed */
-+                SSLerr(SSL_F_SSL3_DO_WRITE, SSL_R_INTERNAL_ERROR);
-+            } else {
-+                written = s->init_num;
-+            }
-         } else {
--            written = s->init_num;
-+            /* QUIC doesn't use ChangeCipherSpec */
-+            ret = -1;
-+            SSLerr(SSL_F_SSL3_DO_WRITE, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
-         }
-     } else
- #endif
-         ret = ssl3_write_bytes(s, type, &s->init_buf->data[s->init_off],
-                                s->init_num, &written);
--
-     if (ret < 0)
-         return -1;
-     if (type == SSL3_RT_HANDSHAKE)
-@@ -1171,7 +1177,6 @@ int tls_get_message_header(SSL *s, int *mt)
- 
-     do {
-         while (s->init_num < SSL3_HM_HEADER_LENGTH) {
--            /* QUIC: either create a special ssl_read_bytes... or if/else this */
-             i = s->method->ssl_read_bytes(s, SSL3_RT_HANDSHAKE, &recvd_type,
-                                           &p[s->init_num],
-                                           SSL3_HM_HEADER_LENGTH - s->init_num,
-diff --git a/ssl/statem/statem_local.h b/ssl/statem/statem_local.h
-index 1551dac9527..6a7a3e0c5d3 100644
---- a/ssl/statem/statem_local.h
-+++ b/ssl/statem/statem_local.h
-@@ -93,7 +93,9 @@ WORK_STATE ossl_statem_server_post_process_message(SSL *s, WORK_STATE wst);
- __owur int tls_get_message_header(SSL *s, int *mt);
- __owur int tls_get_message_body(SSL *s, size_t *len);
- __owur int dtls_get_message(SSL *s, int *mt, size_t *len);
-+#ifndef OPENSSL_NO_QUIC
- __owur int quic_get_message(SSL *s, int *mt, size_t *len);
-+#endif
- 
- /* Message construction and processing functions */
- __owur int tls_process_initial_server_flight(SSL *s);
-diff --git a/ssl/statem/statem_quic.c b/ssl/statem/statem_quic.c
-index eb1a76ec9d8..a2ba29337c0 100644
---- a/ssl/statem/statem_quic.c
-+++ b/ssl/statem/statem_quic.c
-@@ -11,10 +11,6 @@
- #include "statem_local.h"
- #include "internal/cryptlib.h"
- 
--#ifdef OPENSSL_NO_QUIC
--NON_EMPTY_TRANSLATION_UNIT
--#else
--
- int quic_get_message(SSL *s, int *mt, size_t *len)
- {
-     size_t l;
-@@ -23,7 +19,14 @@ int quic_get_message(SSL *s, int *mt, size_t *len)
- 
-     if (qd == NULL || (qd->length - qd->offset) != 0) {
-         s->rwstate = SSL_READING;
--        *len = 0;
-+        *mt = *len = 0;
-+        return 0;
-+    }
-+
-+    if (!ossl_assert(qd->length >= SSL3_HM_HEADER_LENGTH)) {
-+        SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_QUIC_GET_MESSAGE,
-+                 SSL_R_BAD_LENGTH);
-+        *mt = *len = 0;
-         return 0;
-     }
- 
-@@ -31,14 +34,14 @@ int quic_get_message(SSL *s, int *mt, size_t *len)
-     if (qd->level != s->quic_read_level) {
-         SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_QUIC_GET_MESSAGE,
-                  SSL_R_WRONG_ENCRYPTION_LEVEL_RECEIVED);
--        *len = 0;
-+        *mt = *len = 0;
-         return 0;
-     }
- 
-     if (!BUF_MEM_grow_clean(s->init_buf, (int)qd->length)) {
-         SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_QUIC_GET_MESSAGE,
-                  ERR_R_BUF_LIB);
--        *len = 0;
-+        *mt = *len = 0;
-         return 0;
-     }
- 
-@@ -83,8 +86,8 @@ int quic_get_message(SSL *s, int *mt, size_t *len)
-      */
- #define SERVER_HELLO_RANDOM_OFFSET  (SSL3_HM_HEADER_LENGTH + 2)
-     /* KeyUpdate and NewSessionTicket do not need to be added */
--    if (!SSL_IS_TLS13(s) || (s->s3->tmp.message_type != SSL3_MT_NEWSESSION_TICKET
--                             && s->s3->tmp.message_type != SSL3_MT_KEY_UPDATE)) {
-+    if (s->s3->tmp.message_type != SSL3_MT_NEWSESSION_TICKET
-+            && s->s3->tmp.message_type != SSL3_MT_KEY_UPDATE) {
-         if (s->s3->tmp.message_type != SSL3_MT_SERVER_HELLO
-             || s->init_num < SERVER_HELLO_RANDOM_OFFSET + SSL3_RANDOM_SIZE
-             || memcmp(hrrrandom,
-@@ -105,5 +108,3 @@ int quic_get_message(SSL *s, int *mt, size_t *len)
- 
-     return 1;
- }
--
--#endif
-diff --git a/ssl/tls13_enc.c b/ssl/tls13_enc.c
-index 89678d6c221..f73b97fbe49 100644
---- a/ssl/tls13_enc.c
-+++ b/ssl/tls13_enc.c
-@@ -453,6 +453,7 @@ static const unsigned char exporter_master_secret[] = "exp master";
- static const unsigned char resumption_master_secret[] = "res master";
- static const unsigned char early_exporter_master_secret[] = "e exp master";
- #endif
-+
- #ifndef OPENSSL_NO_QUIC
- static int quic_change_cipher_state(SSL *s, int which)
- {
-@@ -461,7 +462,7 @@ static int quic_change_cipher_state(SSL *s, int which)
-     int hashleni;
-     int ret = 0;
-     const EVP_MD *md = NULL;
--    OSSL_ENCRYPTION_LEVEL level = ssl_encryption_initial;
-+    OSSL_ENCRYPTION_LEVEL level;
-     int is_handshake = ((which & SSL3_CC_HANDSHAKE) == SSL3_CC_HANDSHAKE);
-     int is_client_read = ((which & SSL3_CHANGE_CIPHER_CLIENT_READ) == SSL3_CHANGE_CIPHER_CLIENT_READ);
-     int is_server_write = ((which & SSL3_CHANGE_CIPHER_SERVER_WRITE) == SSL3_CHANGE_CIPHER_SERVER_WRITE);
-@@ -485,34 +486,62 @@ static int quic_change_cipher_state(SSL *s, int which)
- 
-     if (is_client_read || is_server_write) {
-         if (is_handshake) {
-+            /*
-+             * This looks a bit weird, since the condition is basically "the
-+             * server is writing" but we set both the server *and* client
-+             * handshake traffic keys here.  That's because there's only a fixed
-+             * number of change-cipher-state events in the TLS 1.3 handshake,
-+             * and in particular there's not an event in between when the server
-+             * writes encrypted handshake messages and when the client writes
-+             * encrypted handshake messages, so we generate both here.
-+             */
-             level = ssl_encryption_handshake;
- 
--            if (!tls13_hkdf_expand(s, md, s->handshake_secret, client_handshake_traffic,
--                                   sizeof(client_handshake_traffic)-1, hash, hashlen,
--                                   s->client_hand_traffic_secret, hashlen, 1)
--                || !ssl_log_secret(s, CLIENT_HANDSHAKE_LABEL, s->client_hand_traffic_secret, hashlen)
--                || !tls13_derive_finishedkey(s, md, s->client_hand_traffic_secret,
-+            if (!tls13_hkdf_expand(s, md, s->handshake_secret,
-+                                   client_handshake_traffic,
-+                                   sizeof(client_handshake_traffic)-1, hash,
-+                                   hashlen, s->client_hand_traffic_secret,
-+                                   hashlen, 1)
-+                || !ssl_log_secret(s, CLIENT_HANDSHAKE_LABEL,
-+                                   s->client_hand_traffic_secret, hashlen)
-+                || !tls13_derive_finishedkey(s, md,
-+                                             s->client_hand_traffic_secret,
-                                              s->client_finished_secret, hashlen)
--                || !tls13_hkdf_expand(s, md, s->handshake_secret, server_handshake_traffic,
--                                      sizeof(server_handshake_traffic)-1, hash, hashlen,
--                                      s->server_hand_traffic_secret, hashlen, 1)
--                || !ssl_log_secret(s, SERVER_HANDSHAKE_LABEL, s->server_hand_traffic_secret, hashlen)
--                || !tls13_derive_finishedkey(s, md, s->server_hand_traffic_secret,
--                                             s->server_finished_secret, hashlen)) {
-+                || !tls13_hkdf_expand(s, md, s->handshake_secret,
-+                                      server_handshake_traffic,
-+                                      sizeof(server_handshake_traffic)-1, hash,
-+                                      hashlen, s->server_hand_traffic_secret,
-+                                      hashlen, 1)
-+                || !ssl_log_secret(s, SERVER_HANDSHAKE_LABEL,
-+                                   s->server_hand_traffic_secret, hashlen)
-+                || !tls13_derive_finishedkey(s, md,
-+                                             s->server_hand_traffic_secret,
-+                                             s->server_finished_secret,
-+                                             hashlen)) {
-                 /* SSLfatal() already called */
-                 goto err;
-             }
-         } else {
-+            /*
-+             * As above, we generate both sets of application traffic keys at
-+             * the same time.
-+             */
-             level = ssl_encryption_application;
- 
--            if (!tls13_hkdf_expand(s, md, s->master_secret, client_application_traffic,
--                                   sizeof(client_application_traffic)-1, hash, hashlen,
--                                   s->client_app_traffic_secret, hashlen, 1)
--                || !ssl_log_secret(s, CLIENT_APPLICATION_LABEL, s->client_app_traffic_secret, hashlen)
--                || !tls13_hkdf_expand(s, md, s->master_secret, server_application_traffic,
--                                      sizeof(server_application_traffic)-1, hash, hashlen,
-+            if (!tls13_hkdf_expand(s, md, s->master_secret,
-+                                   client_application_traffic,
-+                                   sizeof(client_application_traffic)-1, hash,
-+                                   hashlen, s->client_app_traffic_secret,
-+                                   hashlen, 1)
-+                || !ssl_log_secret(s, CLIENT_APPLICATION_LABEL,
-+                                   s->client_app_traffic_secret, hashlen)
-+                || !tls13_hkdf_expand(s, md, s->master_secret,
-+                                      server_application_traffic,
-+                                      sizeof(server_application_traffic)-1,
-+                                      hash, hashlen,
-                                       s->server_app_traffic_secret, hashlen, 1)
--                || !ssl_log_secret(s, SERVER_APPLICATION_LABEL, s->server_app_traffic_secret, hashlen)) {
-+                || !ssl_log_secret(s, SERVER_APPLICATION_LABEL,
-+                                   s->server_app_traffic_secret, hashlen)) {
-                 /* SSLfatal() already called */
-                 goto err;
-             }
-@@ -532,9 +561,11 @@ static int quic_change_cipher_state(SSL *s, int which)
-             level = ssl_encryption_early_data;
- 
-             if (!tls13_hkdf_expand(s, md, s->early_secret, client_early_traffic,
--                                   sizeof(client_early_traffic)-1, hash, hashlen,
--                                   s->client_early_traffic_secret, hashlen, 1)
--                || !ssl_log_secret(s, CLIENT_EARLY_LABEL, s->client_early_traffic_secret, hashlen)
-+                                   sizeof(client_early_traffic)-1, hash,
-+                                   hashlen, s->client_early_traffic_secret,
-+                                   hashlen, 1)
-+                || !ssl_log_secret(s, CLIENT_EARLY_LABEL,
-+                                   s->client_early_traffic_secret, hashlen)
-                 || !quic_set_encryption_secrets(s, level)) {
-                 /* SSLfatal() already called */
-                 goto err;
-@@ -547,9 +578,11 @@ static int quic_change_cipher_state(SSL *s, int which)
-              * We also create the resumption master secret, but this time use the
-              * hash for the whole handshake including the Client Finished
-              */
--            if (!tls13_hkdf_expand(s, md, s->master_secret, resumption_master_secret,
--                                   sizeof(resumption_master_secret)-1, hash, hashlen,
--                                   s->resumption_master_secret, hashlen, 1)) {
-+            if (!tls13_hkdf_expand(s, md, s->master_secret,
-+                                   resumption_master_secret,
-+                                   sizeof(resumption_master_secret)-1, hash,
-+                                   hashlen, s->resumption_master_secret,
-+                                   hashlen, 1)) {
-                 /* SSLfatal() already called */
-                 goto err;
-             }
-@@ -566,6 +599,7 @@ static int quic_change_cipher_state(SSL *s, int which)
-     return ret;
- }
- #endif /* OPENSSL_NO_QUIC */
-+
- int tls13_change_cipher_state(SSL *s, int which)
- {
-     unsigned char *iv;
-@@ -832,7 +866,6 @@ int tls13_change_cipher_state(SSL *s, int which)
-         s->statem.enc_write_state = ENC_WRITE_STATE_WRITE_PLAIN_ALERTS;
-     else
-         s->statem.enc_write_state = ENC_WRITE_STATE_VALID;
--
-     ret = 1;
-  err:
-     OPENSSL_cleanse(secret, sizeof(secret));
-diff --git a/test/sslapitest.c b/test/sslapitest.c
-index 784a6a911fa..5bebcf2d254 100644
---- a/test/sslapitest.c
-+++ b/test/sslapitest.c
-@@ -6660,9 +6660,11 @@ static int test_ssl_dup(void)
- 
- #ifndef OPENSSL_NO_QUIC
- 
--static int test_quic_set_encryption_secrets(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
-+static int test_quic_set_encryption_secrets(SSL *ssl,
-+                                            OSSL_ENCRYPTION_LEVEL level,
-                                             const uint8_t *read_secret,
--                                            const uint8_t *write_secret, size_t secret_len)
-+                                            const uint8_t *write_secret,
-+                                            size_t secret_len)
- {
-     test_printf_stderr("quic_set_encryption_secrets() %s, lvl=%d, len=%zd\n",
-                        ssl->server ? "server" : "client", level, secret_len);
-@@ -6673,11 +6675,12 @@ static int test_quic_add_handshake_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
- {
-     SSL *peer = (SSL*)SSL_get_app_data(ssl);
- 
--    test_printf_stderr("quic_add_handshake_data() %s, lvl=%d, *data=0x%02X, len=%zd\n",
--                       ssl->server ? "server" : "client", level, (int)*data, len);
-+    TEST_info("quic_add_handshake_data() %s, lvl=%d, *data=0x%02X, len=%zd\n",
-+              ssl->server ? "server" : "client", level, (int)*data, len);
-     if (!TEST_ptr(peer))
-         return 0;
- 
-+    /* We're called with what is locally written; this gives it to the peer */
-     if (!TEST_true(SSL_provide_quic_data(peer, level, data, len))) {
-         ERR_print_errors_fp(stderr);
-         return 0;
-diff --git a/util/libssl.num b/util/libssl.num
-index 15785fe10d0..0452d9cb785 100644
---- a/util/libssl.num
-+++ b/util/libssl.num
-@@ -500,7 +500,7 @@ SSL_CTX_set_post_handshake_auth         500	1_1_1	EXIST::FUNCTION:
- SSL_get_signature_type_nid              501	1_1_1a	EXIST::FUNCTION:
- SSL_quic_read_level                     10094	1_1_1d	EXIST::FUNCTION:QUIC
- SSL_set_quic_transport_params           10095	1_1_1d	EXIST::FUNCTION:QUIC
--SSL_CIPHER_get_prf_nid                  10096	1_1_1d	EXIST::FUNCTION:
-+SSL_CIPHER_get_prf_nid                  10096	1_1_1d	EXIST::FUNCTION:QUIC
- SSL_is_quic                             10097	1_1_1d	EXIST::FUNCTION:QUIC
- SSL_get_peer_quic_transport_params      10098	1_1_1d	EXIST::FUNCTION:QUIC
- SSL_quic_write_level                    10099	1_1_1d	EXIST::FUNCTION:QUIC
-
-From fea9d3bdf12ccb69eaf203799134abec02554839 Mon Sep 17 00:00:00 2001
-From: Benjamin Kaduk <bkaduk@akamai.com>
-Date: Mon, 11 May 2020 13:13:01 -0700
-Subject: [PATCH 07/14] Prevent KeyUpdate for QUIC
-
-QUIC does not use the TLS KeyUpdate message/mechanism, and indeed
-it is an error to generate or receive such a message.  Add the
-necessary checks (noting that the check for receipt should be
-redundant since SSL_provide_quic_data() is the only way to provide
-input to the TLS layer for a QUIC connection).
----
- ssl/ssl_quic.c          |  6 ++++++
- ssl/statem/statem_lib.c | 16 ++++++++++++++++
- 2 files changed, 22 insertions(+)
-
-diff --git a/ssl/ssl_quic.c b/ssl/ssl_quic.c
-index e0ee8b0824b..339414ded02 100644
---- a/ssl/ssl_quic.c
-+++ b/ssl/ssl_quic.c
-@@ -92,6 +92,7 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
-                           const uint8_t *data, size_t len)
- {
-     size_t l;
-+    uint8_t mt;
- 
-     if (!SSL_IS_QUIC(ssl)) {
-         SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
-@@ -131,9 +132,14 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
-             return 0;
-         }
-         /* TLS Handshake message header has 1-byte type and 3-byte length */
-+        mt = *data;
-         p = data + 1;
-         n2l3(p, l);
-         l += SSL3_HM_HEADER_LENGTH;
-+        if (mt == SSL3_MT_KEY_UPDATE) {
-+            SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, SSL_R_UNEXPECTED_MESSAGE);
-+            return 0;
-+        }
- 
-         qd = OPENSSL_zalloc(sizeof(QUIC_DATA) + l);
-         if (qd == NULL) {
-diff --git a/ssl/statem/statem_lib.c b/ssl/statem/statem_lib.c
-index ac79fa12810..b53d1e9634d 100644
---- a/ssl/statem/statem_lib.c
-+++ b/ssl/statem/statem_lib.c
-@@ -630,6 +630,14 @@ int tls_construct_finished(SSL *s, WPACKET *pkt)
- 
- int tls_construct_key_update(SSL *s, WPACKET *pkt)
- {
-+#ifndef OPENSSL_NO_QUIC
-+    if (SSL_is_quic(s)) {
-+        /* TLS KeyUpdate is not used for QUIC, so this is an error. */
-+        SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_CONSTRUCT_KEY_UPDATE,
-+                 ERR_R_INTERNAL_ERROR);
-+        return 0;
-+    }
-+#endif
-     if (!WPACKET_put_bytes_u8(pkt, s->key_update)) {
-         SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_CONSTRUCT_KEY_UPDATE,
-                  ERR_R_INTERNAL_ERROR);
-@@ -654,6 +662,14 @@ MSG_PROCESS_RETURN tls_process_key_update(SSL *s, PACKET *pkt)
-         return MSG_PROCESS_ERROR;
-     }
- 
-+#ifndef OPENSSL_NO_QUIC
-+    if (SSL_is_quic(s)) {
-+        SSLfatal(s, SSL_AD_UNEXPECTED_MESSAGE, SSL_F_TLS_PROCESS_KEY_UPDATE,
-+                 SSL_R_UNEXPECTED_MESSAGE);
-+        return MSG_PROCESS_ERROR;
-+    }
-+#endif
-+
-     if (!PACKET_get_1(pkt, &updatetype)
-             || PACKET_remaining(pkt) != 0) {
-         SSLfatal(s, SSL_AD_DECODE_ERROR, SSL_F_TLS_PROCESS_KEY_UPDATE,
-
-From 67ac3a279919142b198f7bd4c69963fd60de6ecf Mon Sep 17 00:00:00 2001
-From: Benjamin Kaduk <bkaduk@akamai.com>
-Date: Mon, 11 May 2020 13:26:07 -0700
-Subject: [PATCH 08/14] Test KeyUpdate rejection
-
-For now, just test that we don't generate any, since we don't really
-expose the mechanics for encrypting one and the QUIC API is not
-integrated into the TLSProxy setup.
----
- test/sslapitest.c | 11 +++++++++++
- 1 file changed, 11 insertions(+)
-
-diff --git a/test/sslapitest.c b/test/sslapitest.c
-index 5bebcf2d254..82aab49f24f 100644
---- a/test/sslapitest.c
-+++ b/test/sslapitest.c
-@@ -6778,6 +6778,17 @@ static int test_quic_api(void)
-             || !TEST_true(SSL_process_quic_post_handshake(clientssl)))
-         goto end;
- 
-+    /* Dummy handshake call should succeed */
-+    if (!TEST_true(SSL_do_handshake(clientssl)))
-+        goto end;
-+    /* Test that we (correctly) fail to send KeyUpdate */
-+    if (!TEST_true(SSL_key_update(clientssl, SSL_KEY_UPDATE_NOT_REQUESTED))
-+            || !TEST_int_le(SSL_do_handshake(clientssl), 0))
-+        goto end;
-+    if (!TEST_true(SSL_key_update(serverssl, SSL_KEY_UPDATE_NOT_REQUESTED))
-+            || !TEST_int_le(SSL_do_handshake(serverssl), 0))
-+        goto end;
-+
-     testresult = 1;
- 
- end:
-
-From 4a1a98ef9fe0ef4b2d4ee47165bfa51fcc66d543 Mon Sep 17 00:00:00 2001
-From: Tatsuhiro Tsujikawa <tatsuhiro.t@gmail.com>
-Date: Sun, 24 May 2020 13:46:58 +0900
-Subject: [PATCH 09/14] Fix out-of-bounds read when TLS msg is split up into
- multiple chunks
-
-Previously, SSL_provide_quic_data tried to handle this kind of
-situation, but it failed when the length of input data is less than
-SSL3_HM_HEADER_LENGTH.  If that happens, the code might get wrong
-message length by reading value from out-of-bounds region.
----
- ssl/ssl_local.h |   2 +
- ssl/ssl_quic.c  | 104 ++++++++++++++++++++++++++++++++++--------------
- 2 files changed, 76 insertions(+), 30 deletions(-)
-
-diff --git a/ssl/ssl_local.h b/ssl/ssl_local.h
-index fa61ec838c1..6277fa02c8e 100644
---- a/ssl/ssl_local.h
-+++ b/ssl/ssl_local.h
-@@ -1410,6 +1410,8 @@ struct ssl_st {
-     OSSL_ENCRYPTION_LEVEL quic_write_level;
-     QUIC_DATA *quic_input_data_head;
-     QUIC_DATA *quic_input_data_tail;
-+    uint8_t quic_msg_hd[SSL3_HM_HEADER_LENGTH];
-+    size_t quic_msg_hd_offset;
-     const SSL_QUIC_METHOD *quic_method;
- #endif
-     /*
-diff --git a/ssl/ssl_quic.c b/ssl/ssl_quic.c
-index 339414ded02..bcf4657e912 100644
---- a/ssl/ssl_quic.c
-+++ b/ssl/ssl_quic.c
-@@ -93,6 +93,7 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
- {
-     size_t l;
-     uint8_t mt;
-+    QUIC_DATA *qd;
- 
-     if (!SSL_IS_QUIC(ssl)) {
-         SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
-@@ -106,35 +107,65 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
-         return 0;
-     }
- 
--    /* Split on handshake message boundaries, if necessary */
--    while (len > 0) {
--        QUIC_DATA *qd;
--        const uint8_t *p;
-+    if (len == 0) {
-+      return 1;
-+    }
- 
--        /* Check for an incomplete block */
--        qd = ssl->quic_input_data_tail;
--        if (qd != NULL) {
--            l = qd->length - qd->offset;
--            if (l != 0) {
--                /* we still need to copy `l` bytes into the last data block */
--                if (l > len)
--                    l = len;
--                memcpy((char*)(qd+1) + qd->offset, data, l);
--                qd->offset += l;
--                len -= l;
--                data += l;
--                continue;
--            }
-+    /* Check for an incomplete block */
-+    qd = ssl->quic_input_data_tail;
-+    if (qd != NULL) {
-+        l = qd->length - qd->offset;
-+        if (l != 0) {
-+            /* we still need to copy `l` bytes into the last data block */
-+            if (l > len)
-+                l = len;
-+            memcpy((char *)(qd + 1) + qd->offset, data, l);
-+            qd->offset += l;
-+            len -= l;
-+            data += l;
-         }
-+    }
- 
--        if (len < SSL3_HM_HEADER_LENGTH) {
--            SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, SSL_R_BAD_LENGTH);
--            return 0;
-+    /* Split the QUIC messages up, if necessary */
-+    while (len > 0) {
-+        const uint8_t *p;
-+        uint8_t *dst;
-+
-+        if (ssl->quic_msg_hd_offset != 0) {
-+            /* If we have already buffered premature message header,
-+               try to add new data to it to form complete message
-+               header. */
-+            size_t nread =
-+                SSL3_HM_HEADER_LENGTH - ssl->quic_msg_hd_offset;
-+
-+            if (len < nread)
-+                nread = len;
-+            memcpy(ssl->quic_msg_hd + ssl->quic_msg_hd_offset, data, nread);
-+            ssl->quic_msg_hd_offset += nread;
-+
-+            if (ssl->quic_msg_hd_offset < SSL3_HM_HEADER_LENGTH) {
-+                /* We still have premature message header. */
-+                break;
-+            }
-+            data += nread;
-+            len -= nread;
-+            /* TLS Handshake message header has 1-byte type and 3-byte length */
-+            mt = *ssl->quic_msg_hd;
-+            p = ssl->quic_msg_hd + 1;
-+            n2l3(p, l);
-+        } else if (len < SSL3_HM_HEADER_LENGTH) {
-+            /* We don't get complete message header.  Just buffer the
-+               received data and wait for the next data to arrive. */
-+            memcpy(ssl->quic_msg_hd, data, len);
-+            ssl->quic_msg_hd_offset += len;
-+            break;
-+        } else {
-+            /* We have complete message header in data. */
-+            /* TLS Handshake message header has 1-byte type and 3-byte length */
-+            mt = *data;
-+            p = data + 1;
-+            n2l3(p, l);
-         }
--        /* TLS Handshake message header has 1-byte type and 3-byte length */
--        mt = *data;
--        p = data + 1;
--        n2l3(p, l);
-         l += SSL3_HM_HEADER_LENGTH;
-         if (mt == SSL3_MT_KEY_UPDATE) {
-             SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, SSL_R_UNEXPECTED_MESSAGE);
-@@ -150,12 +181,23 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
-         qd->next = NULL;
-         qd->length = l;
-         qd->level = level;
--        /* partial data received? */
--        if (l > len)
--            l = len;
--        qd->offset = l;
- 
--        memcpy((void*)(qd + 1), data, l);
-+        dst = (uint8_t *)(qd + 1);
-+        if (ssl->quic_msg_hd_offset) {
-+            memcpy(dst, ssl->quic_msg_hd, ssl->quic_msg_hd_offset);
-+            dst += ssl->quic_msg_hd_offset;
-+            l -= SSL3_HM_HEADER_LENGTH;
-+            if (l > len)
-+                l = len;
-+            qd->offset = SSL3_HM_HEADER_LENGTH + l;
-+            memcpy(dst, data, l);
-+        } else {
-+            /* partial data received? */
-+            if (l > len)
-+                l = len;
-+            qd->offset = l;
-+            memcpy(dst, data, l);
-+        }
-         if (ssl->quic_input_data_tail != NULL)
-             ssl->quic_input_data_tail->next = qd;
-         else
-@@ -164,6 +206,8 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
- 
-         data += l;
-         len -= l;
-+
-+        ssl->quic_msg_hd_offset = 0;
-     }
- 
-     return 1;
-
-From 3e7fb5ac86ae2c25d4b8c03cae5e2441a5a34199 Mon Sep 17 00:00:00 2001
-From: Todd Short <tshort@akamai.com>
-Date: Thu, 12 Nov 2020 15:58:30 -0500
-Subject: [PATCH 10/14] Revert "Fix out-of-bounds read when TLS msg is split up
- into multiple chunks"
-
-This reverts commit 18f993cbdae498111c94a075fd9b115bd8367574.
----
- ssl/ssl_local.h |   2 -
- ssl/ssl_quic.c  | 104 ++++++++++++++----------------------------------
- 2 files changed, 30 insertions(+), 76 deletions(-)
-
-diff --git a/ssl/ssl_local.h b/ssl/ssl_local.h
-index 6277fa02c8e..fa61ec838c1 100644
---- a/ssl/ssl_local.h
-+++ b/ssl/ssl_local.h
-@@ -1410,8 +1410,6 @@ struct ssl_st {
-     OSSL_ENCRYPTION_LEVEL quic_write_level;
-     QUIC_DATA *quic_input_data_head;
-     QUIC_DATA *quic_input_data_tail;
--    uint8_t quic_msg_hd[SSL3_HM_HEADER_LENGTH];
--    size_t quic_msg_hd_offset;
-     const SSL_QUIC_METHOD *quic_method;
- #endif
-     /*
-diff --git a/ssl/ssl_quic.c b/ssl/ssl_quic.c
-index bcf4657e912..339414ded02 100644
---- a/ssl/ssl_quic.c
-+++ b/ssl/ssl_quic.c
-@@ -93,7 +93,6 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
- {
-     size_t l;
-     uint8_t mt;
--    QUIC_DATA *qd;
- 
-     if (!SSL_IS_QUIC(ssl)) {
-         SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
-@@ -107,65 +106,35 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
-         return 0;
-     }
- 
--    if (len == 0) {
--      return 1;
--    }
--
--    /* Check for an incomplete block */
--    qd = ssl->quic_input_data_tail;
--    if (qd != NULL) {
--        l = qd->length - qd->offset;
--        if (l != 0) {
--            /* we still need to copy `l` bytes into the last data block */
--            if (l > len)
--                l = len;
--            memcpy((char *)(qd + 1) + qd->offset, data, l);
--            qd->offset += l;
--            len -= l;
--            data += l;
--        }
--    }
--
--    /* Split the QUIC messages up, if necessary */
-+    /* Split on handshake message boundaries, if necessary */
-     while (len > 0) {
-+        QUIC_DATA *qd;
-         const uint8_t *p;
--        uint8_t *dst;
--
--        if (ssl->quic_msg_hd_offset != 0) {
--            /* If we have already buffered premature message header,
--               try to add new data to it to form complete message
--               header. */
--            size_t nread =
--                SSL3_HM_HEADER_LENGTH - ssl->quic_msg_hd_offset;
--
--            if (len < nread)
--                nread = len;
--            memcpy(ssl->quic_msg_hd + ssl->quic_msg_hd_offset, data, nread);
--            ssl->quic_msg_hd_offset += nread;
--
--            if (ssl->quic_msg_hd_offset < SSL3_HM_HEADER_LENGTH) {
--                /* We still have premature message header. */
--                break;
-+
-+        /* Check for an incomplete block */
-+        qd = ssl->quic_input_data_tail;
-+        if (qd != NULL) {
-+            l = qd->length - qd->offset;
-+            if (l != 0) {
-+                /* we still need to copy `l` bytes into the last data block */
-+                if (l > len)
-+                    l = len;
-+                memcpy((char*)(qd+1) + qd->offset, data, l);
-+                qd->offset += l;
-+                len -= l;
-+                data += l;
-+                continue;
-             }
--            data += nread;
--            len -= nread;
--            /* TLS Handshake message header has 1-byte type and 3-byte length */
--            mt = *ssl->quic_msg_hd;
--            p = ssl->quic_msg_hd + 1;
--            n2l3(p, l);
--        } else if (len < SSL3_HM_HEADER_LENGTH) {
--            /* We don't get complete message header.  Just buffer the
--               received data and wait for the next data to arrive. */
--            memcpy(ssl->quic_msg_hd, data, len);
--            ssl->quic_msg_hd_offset += len;
--            break;
--        } else {
--            /* We have complete message header in data. */
--            /* TLS Handshake message header has 1-byte type and 3-byte length */
--            mt = *data;
--            p = data + 1;
--            n2l3(p, l);
-         }
-+
-+        if (len < SSL3_HM_HEADER_LENGTH) {
-+            SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, SSL_R_BAD_LENGTH);
-+            return 0;
-+        }
-+        /* TLS Handshake message header has 1-byte type and 3-byte length */
-+        mt = *data;
-+        p = data + 1;
-+        n2l3(p, l);
-         l += SSL3_HM_HEADER_LENGTH;
-         if (mt == SSL3_MT_KEY_UPDATE) {
-             SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, SSL_R_UNEXPECTED_MESSAGE);
-@@ -181,23 +150,12 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
-         qd->next = NULL;
-         qd->length = l;
-         qd->level = level;
-+        /* partial data received? */
-+        if (l > len)
-+            l = len;
-+        qd->offset = l;
- 
--        dst = (uint8_t *)(qd + 1);
--        if (ssl->quic_msg_hd_offset) {
--            memcpy(dst, ssl->quic_msg_hd, ssl->quic_msg_hd_offset);
--            dst += ssl->quic_msg_hd_offset;
--            l -= SSL3_HM_HEADER_LENGTH;
--            if (l > len)
--                l = len;
--            qd->offset = SSL3_HM_HEADER_LENGTH + l;
--            memcpy(dst, data, l);
--        } else {
--            /* partial data received? */
--            if (l > len)
--                l = len;
--            qd->offset = l;
--            memcpy(dst, data, l);
--        }
-+        memcpy((void*)(qd + 1), data, l);
-         if (ssl->quic_input_data_tail != NULL)
-             ssl->quic_input_data_tail->next = qd;
-         else
-@@ -206,8 +164,6 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
- 
-         data += l;
-         len -= l;
--
--        ssl->quic_msg_hd_offset = 0;
-     }
- 
-     return 1;
-
-From 232c9a188cad4bd262af13d66b56fb3c344cd6b7 Mon Sep 17 00:00:00 2001
-From: Benjamin Kaduk <bkaduk@akamai.com>
-Date: Thu, 21 May 2020 12:53:59 -0700
-Subject: [PATCH 11/14] Test HKDF with empty IKM
-
-Add an extra EVP test that provides empty input key material.
-It currently fails, since attempting to set a zero-length key
-on an EVP_PKEY_CTX results in a call to OPENSSL_memdup() with
-length zero, which returns NULL and is detected as failure.
----
- test/evp_extra_test.c | 42 ++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 42 insertions(+)
-
-diff --git a/test/evp_extra_test.c b/test/evp_extra_test.c
-index a74f6332ac9..877b99197be 100644
---- a/test/evp_extra_test.c
-+++ b/test/evp_extra_test.c
-@@ -1039,6 +1039,47 @@ static int test_HKDF(void)
-     return ret;
- }
- 
-+static int test_emptyikm_HKDF(void)
-+{
-+    EVP_PKEY_CTX *pctx;
-+    unsigned char out[20];
-+    size_t outlen;
-+    int ret = 0;
-+    unsigned char salt[] = "9876543210";
-+    unsigned char key[] = "";
-+    unsigned char info[] = "stringinfo";
-+    const unsigned char expected[] = {
-+        0x68, 0x81, 0xa5, 0x3e, 0x5b, 0x9c, 0x7b, 0x6f, 0x2e, 0xec, 0xc8, 0x47,
-+        0x7c, 0xfa, 0x47, 0x35, 0x66, 0x82, 0x15, 0x30
-+    };
-+    size_t expectedlen = sizeof(expected);
-+
-+    if (!TEST_ptr(pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL)))
-+        goto done;
-+
-+    outlen = sizeof(out);
-+    memset(out, 0, outlen);
-+
-+    if (!TEST_int_gt(EVP_PKEY_derive_init(pctx), 0)
-+            || !TEST_int_gt(EVP_PKEY_CTX_set_hkdf_md(pctx, EVP_sha256()), 0)
-+            || !TEST_int_gt(EVP_PKEY_CTX_set1_hkdf_salt(pctx, salt,
-+                                                        sizeof(salt) - 1), 0)
-+            || !TEST_int_gt(EVP_PKEY_CTX_set1_hkdf_key(pctx, key,
-+                                                       sizeof(key) - 1), 0)
-+            || !TEST_int_gt(EVP_PKEY_CTX_add1_hkdf_info(pctx, info,
-+                                                        sizeof(info) - 1), 0)
-+            || !TEST_int_gt(EVP_PKEY_derive(pctx, out, &outlen), 0)
-+            || !TEST_mem_eq(out, outlen, expected, expectedlen))
-+        goto done;
-+
-+    ret = 1;
-+
-+ done:
-+    EVP_PKEY_CTX_free(pctx);
-+
-+    return ret;
-+}
-+
- #ifndef OPENSSL_NO_EC
- static int test_X509_PUBKEY_inplace(void)
- {
-@@ -1197,6 +1238,7 @@ int setup_tests(void)
-         return 0;
-     ADD_ALL_TESTS(test_EVP_PKEY_check, OSSL_NELEM(keycheckdata));
-     ADD_TEST(test_HKDF);
-+    ADD_TEST(test_emptyikm_HKDF);
- #ifndef OPENSSL_NO_EC
-     ADD_TEST(test_X509_PUBKEY_inplace);
-     ADD_ALL_TESTS(test_invalide_ec_char2_pub_range_decode,
-
-From 93f2e101bd73ee6c215b75b50ef96a74372dd44e Mon Sep 17 00:00:00 2001
-From: Benjamin Kaduk <bkaduk@akamai.com>
-Date: Fri, 22 May 2020 13:23:49 -0700
-Subject: [PATCH 12/14] Allow zero-length HKDF keys
-
-When making a copy to keep in the EVP_PKEY_CTX, allocate a single
-byte for the cached key instead of letting memdup return NULL
-and cause the call to fail.  The length still gets set to zero
-properly, so we don't end up inspecting the allocated byte, but
-it's important to have a non-NULL pointer set.
----
- crypto/kdf/hkdf.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
-
-diff --git a/crypto/kdf/hkdf.c b/crypto/kdf/hkdf.c
-index 6d1a32c885e..cab5e231fbe 100644
---- a/crypto/kdf/hkdf.c
-+++ b/crypto/kdf/hkdf.c
-@@ -107,7 +107,10 @@ static int pkey_hkdf_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
-         if (kctx->key != NULL)
-             OPENSSL_clear_free(kctx->key, kctx->key_len);
- 
--        kctx->key = OPENSSL_memdup(p2, p1);
-+        if (p1 == 0)
-+            kctx->key = OPENSSL_zalloc(1);
-+        else
-+            kctx->key = OPENSSL_memdup(p2, p1);
-         if (kctx->key == NULL)
-             return 0;
- 
-
-From 0bbcd60a1e7ff8b88c7cccda23d5ab0a0e423170 Mon Sep 17 00:00:00 2001
-From: Benjamin Kaduk <bkaduk@akamai.com>
-Date: Mon, 31 Aug 2020 12:27:33 -0700
-Subject: [PATCH 13/14] Buffer all provided quic data
-
-Make all data supplied via SSL_provide_quic_data() pass through an
-internal buffer, so that we can handle data supplied with arbitrary
-framing and only parse complete TLS records onto the list of QUIC_DATA
-managed by quic_input_data_head/quic_input_data_tail.
-
-This lets us remove the concept of "incomplete" QUIC_DATA structures,
-and the 'offset' field needed to support them.
-
-However, we've already moved the provided data onto the buffer by
-the time we can check for KeyUpdate messages, so defer that check
-to quic_get_message() (where it is adjacent to the preexisting
-ChangeCipherSpec check).
-
-To avoid extra memory copies, we also make the QUIC_DATA structures
-just store offsets into the consolidated buffer instead of having copies
-of the TLS handshake messages themselves.
----
- ssl/ssl_lib.c            |  1 +
- ssl/ssl_local.h          |  5 +--
- ssl/ssl_quic.c           | 75 +++++++++++++++++++---------------------
- ssl/statem/statem_quic.c | 12 +++++--
- 4 files changed, 50 insertions(+), 43 deletions(-)
-
-diff --git a/ssl/ssl_lib.c b/ssl/ssl_lib.c
-index 8d23a72d300..a46b7563d9c 100644
---- a/ssl/ssl_lib.c
-+++ b/ssl/ssl_lib.c
-@@ -1213,6 +1213,7 @@ void SSL_free(SSL *s)
- #ifndef OPENSSL_NO_QUIC
-     OPENSSL_free(s->ext.quic_transport_params);
-     OPENSSL_free(s->ext.peer_quic_transport_params);
-+    BUF_MEM_free(s->quic_buf);
-     while (s->quic_input_data_head != NULL) {
-         QUIC_DATA *qd;
- 
-diff --git a/ssl/ssl_local.h b/ssl/ssl_local.h
-index fa61ec838c1..04f67ce939d 100644
---- a/ssl/ssl_local.h
-+++ b/ssl/ssl_local.h
-@@ -1084,9 +1084,8 @@ typedef struct cert_pkey_st CERT_PKEY;
- struct quic_data_st {
-     struct quic_data_st *next;
-     OSSL_ENCRYPTION_LEVEL level;
--    size_t offset;
-+    size_t start;       /* offset into quic_buf->data */
-     size_t length;
--    /* char data[]; should be here but C90 VLAs not allowed here */
- };
- typedef struct quic_data_st QUIC_DATA;
- int quic_set_encryption_secrets(SSL *ssl, OSSL_ENCRYPTION_LEVEL level);
-@@ -1408,8 +1407,10 @@ struct ssl_st {
- #ifndef OPENSSL_NO_QUIC
-     OSSL_ENCRYPTION_LEVEL quic_read_level;
-     OSSL_ENCRYPTION_LEVEL quic_write_level;
-+    BUF_MEM *quic_buf;          /* buffer incoming handshake messages */
-     QUIC_DATA *quic_input_data_head;
-     QUIC_DATA *quic_input_data_tail;
-+    size_t quic_next_record_start;
-     const SSL_QUIC_METHOD *quic_method;
- #endif
-     /*
-diff --git a/ssl/ssl_quic.c b/ssl/ssl_quic.c
-index 339414ded02..2427342633a 100644
---- a/ssl/ssl_quic.c
-+++ b/ssl/ssl_quic.c
-@@ -91,8 +91,7 @@ OSSL_ENCRYPTION_LEVEL SSL_quic_write_level(const SSL *ssl)
- int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
-                           const uint8_t *data, size_t len)
- {
--    size_t l;
--    uint8_t mt;
-+    size_t l, offset;
- 
-     if (!SSL_IS_QUIC(ssl)) {
-         SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
-@@ -106,42 +105,46 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
-         return 0;
-     }
- 
--    /* Split on handshake message boundaries, if necessary */
--    while (len > 0) {
--        QUIC_DATA *qd;
--        const uint8_t *p;
--
--        /* Check for an incomplete block */
--        qd = ssl->quic_input_data_tail;
--        if (qd != NULL) {
--            l = qd->length - qd->offset;
--            if (l != 0) {
--                /* we still need to copy `l` bytes into the last data block */
--                if (l > len)
--                    l = len;
--                memcpy((char*)(qd+1) + qd->offset, data, l);
--                qd->offset += l;
--                len -= l;
--                data += l;
--                continue;
--            }
-+    if (ssl->quic_buf == NULL) {
-+        BUF_MEM *buf;
-+        if ((buf = BUF_MEM_new()) == NULL) {
-+            SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, SSL_R_INTERNAL_ERROR);
-+            return 0;
-         }
--
--        if (len < SSL3_HM_HEADER_LENGTH) {
--            SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, SSL_R_BAD_LENGTH);
-+        if (!BUF_MEM_grow(buf, SSL3_RT_MAX_PLAIN_LENGTH)) {
-+            SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, SSL_R_INTERNAL_ERROR);
-+            BUF_MEM_free(buf);
-             return 0;
-         }
-+        ssl->quic_buf = buf;
-+        /* We preallocated storage, but there's still no *data*. */
-+        ssl->quic_buf->length = 0;
-+        buf = NULL;
-+    }
-+
-+    offset = ssl->quic_buf->length;
-+    if (!BUF_MEM_grow(ssl->quic_buf, offset + len)) {
-+        SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, SSL_R_INTERNAL_ERROR);
-+        return 0;
-+    }
-+    memcpy(ssl->quic_buf->data + offset, data, len);
-+
-+    /* Split on handshake message boundaries */
-+    while (ssl->quic_buf->length > ssl->quic_next_record_start
-+                                   + SSL3_HM_HEADER_LENGTH) {
-+        QUIC_DATA *qd;
-+        const uint8_t *p;
-+
-         /* TLS Handshake message header has 1-byte type and 3-byte length */
--        mt = *data;
--        p = data + 1;
-+        p = (const uint8_t *)ssl->quic_buf->data
-+            + ssl->quic_next_record_start + 1;
-         n2l3(p, l);
-         l += SSL3_HM_HEADER_LENGTH;
--        if (mt == SSL3_MT_KEY_UPDATE) {
--            SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, SSL_R_UNEXPECTED_MESSAGE);
--            return 0;
--        }
-+        /* Don't allocate a QUIC_DATA if we don't have a full record */
-+        if (l > ssl->quic_buf->length - ssl->quic_next_record_start)
-+            break;
- 
--        qd = OPENSSL_zalloc(sizeof(QUIC_DATA) + l);
-+        qd = OPENSSL_zalloc(sizeof(*qd));
-         if (qd == NULL) {
-             SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, SSL_R_INTERNAL_ERROR);
-             return 0;
-@@ -149,21 +152,15 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
- 
-         qd->next = NULL;
-         qd->length = l;
-+        qd->start = ssl->quic_next_record_start;
-         qd->level = level;
--        /* partial data received? */
--        if (l > len)
--            l = len;
--        qd->offset = l;
- 
--        memcpy((void*)(qd + 1), data, l);
-         if (ssl->quic_input_data_tail != NULL)
-             ssl->quic_input_data_tail->next = qd;
-         else
-             ssl->quic_input_data_head = qd;
-         ssl->quic_input_data_tail = qd;
--
--        data += l;
--        len -= l;
-+        ssl->quic_next_record_start += l;
-     }
- 
-     return 1;
-diff --git a/ssl/statem/statem_quic.c b/ssl/statem/statem_quic.c
-index a2ba29337c0..2843938ce2e 100644
---- a/ssl/statem/statem_quic.c
-+++ b/ssl/statem/statem_quic.c
-@@ -17,7 +17,7 @@ int quic_get_message(SSL *s, int *mt, size_t *len)
-     QUIC_DATA *qd = s->quic_input_data_head;
-     uint8_t *p;
- 
--    if (qd == NULL || (qd->length - qd->offset) != 0) {
-+    if (qd == NULL) {
-         s->rwstate = SSL_READING;
-         *mt = *len = 0;
-         return 0;
-@@ -46,7 +46,7 @@ int quic_get_message(SSL *s, int *mt, size_t *len)
-     }
- 
-     /* Copy buffered data */
--    memcpy(s->init_buf->data, (void*)(qd + 1), qd->length);
-+    memcpy(s->init_buf->data, s->quic_buf->data + qd->start, qd->length);
-     s->init_buf->length = qd->length;
-     s->quic_input_data_head = qd->next;
-     if (s->quic_input_data_head == NULL)
-@@ -67,6 +67,14 @@ int quic_get_message(SSL *s, int *mt, size_t *len)
-         *len = 0;
-         return 0;
-     }
-+    /* No KeyUpdate in QUIC */
-+    if (*mt == SSL3_MT_KEY_UPDATE) {
-+        SSLfatal(s, SSL_AD_UNEXPECTED_MESSAGE, SSL_F_QUIC_GET_MESSAGE,
-+                 SSL_R_UNEXPECTED_MESSAGE);
-+        *len = 0;
-+        return 0;
-+    }
-+
- 
-     /*
-      * If receiving Finished, record MAC of prior handshake messages for
-
-From 5b76e4fb7bdc2165edcbd335599b79306d8402aa Mon Sep 17 00:00:00 2001
-From: Benjamin Kaduk <bkaduk@akamai.com>
-Date: Tue, 1 Sep 2020 15:10:41 -0700
-Subject: [PATCH 14/14] enforce consistent encryption level for handshake
- messages
-
-The QUIC-TLS spec requires that TLS handshake messages do not cross
-encryption level boundaries, but we were not previously enforcing this.
----
- ssl/ssl_local.h |  1 +
- ssl/ssl_quic.c  | 12 +++++++++++-
- 2 files changed, 12 insertions(+), 1 deletion(-)
-
-diff --git a/ssl/ssl_local.h b/ssl/ssl_local.h
-index 04f67ce939d..5d6a0f1a727 100644
---- a/ssl/ssl_local.h
-+++ b/ssl/ssl_local.h
-@@ -1407,6 +1407,7 @@ struct ssl_st {
- #ifndef OPENSSL_NO_QUIC
-     OSSL_ENCRYPTION_LEVEL quic_read_level;
-     OSSL_ENCRYPTION_LEVEL quic_write_level;
-+    OSSL_ENCRYPTION_LEVEL quic_latest_level_received;
-     BUF_MEM *quic_buf;          /* buffer incoming handshake messages */
-     QUIC_DATA *quic_input_data_head;
-     QUIC_DATA *quic_input_data_tail;
-diff --git a/ssl/ssl_quic.c b/ssl/ssl_quic.c
-index 2427342633a..7e0495fd54a 100644
---- a/ssl/ssl_quic.c
-+++ b/ssl/ssl_quic.c
-@@ -100,7 +100,8 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
- 
-     /* Level can be different than the current read, but not less */
-     if (level < ssl->quic_read_level
--            || (ssl->quic_input_data_tail != NULL && level < ssl->quic_input_data_tail->level)) {
-+            || (ssl->quic_input_data_tail != NULL && level < ssl->quic_input_data_tail->level)
-+            || level < ssl->quic_latest_level_received) {
-         SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, SSL_R_WRONG_ENCRYPTION_LEVEL_RECEIVED);
-         return 0;
-     }
-@@ -122,6 +123,15 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
-         buf = NULL;
-     }
- 
-+    /* A TLS message must not cross an encryption level boundary */
-+    if (ssl->quic_buf->length != ssl->quic_next_record_start
-+            && level != ssl->quic_latest_level_received) {
-+        SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA,
-+               SSL_R_WRONG_ENCRYPTION_LEVEL_RECEIVED);
-+        return 0;
-+    }
-+    ssl->quic_latest_level_received = level;
-+
-     offset = ssl->quic_buf->length;
-     if (!BUF_MEM_grow(ssl->quic_buf, offset + len)) {
-         SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, SSL_R_INTERNAL_ERROR);
