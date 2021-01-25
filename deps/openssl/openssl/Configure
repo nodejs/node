@@ -401,7 +401,6 @@ my @disablables = (
     "poly1305",
     "posix-io",
     "psk",
-    "quic",
     "rc2",
     "rc4",
     "rc5",
@@ -518,8 +517,6 @@ my @disable_cascades = (
     sub { !$disabled{"unit-test"} } => [ "heartbeats" ],
 
     sub { !$disabled{"msan"} } => [ "asm" ],
-
-    "tls1_3"            => [ "quic" ],
     );
 
 # Avoid protocol support holes.  Also disable all versions below N, if version
