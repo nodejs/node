@@ -250,3 +250,15 @@ const {
     assert.strictEqual(e, ecPublicExport);
   }
 }
+
+{
+  // EC keys on the SM2 curve should still allow normal operation.
+
+  // TODO(tniessen): Later versions of OpenSSL allow SM3 here. Test that.
+
+  const data = randomBytes(100);
+
+  const signature = sign('sha256', data, ecdsaPrivateKey);
+  const isValid = verify('sha256', data, ecdsaPublicKey, signature);
+  assert.strictEqual(isValid, true);
+}
