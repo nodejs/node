@@ -14,7 +14,7 @@ env:
   FLAKY_TESTS: dontcare
 
 jobs:
-  test-macOS-with-quic:
+  test-macOS:
     if: github.event.pull_request.draft == false
     runs-on: macos-latest
     steps:
@@ -26,6 +26,6 @@ jobs:
       - name: Environment Information
         run: npx envinfo
       - name: Build
-        run: make build-ci -j2 V=1 CONFIG_FLAGS="--error-on-warn --experimental-quic"
+        run: make build-ci -j2 V=1 CONFIG_FLAGS="--error-on-warn"
       - name: Test
         run: make run-ci -j2 V=1 TEST_CI_ARGS="-p actions"
