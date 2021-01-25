@@ -270,7 +270,7 @@ class NgHeaders {
   MaybeStackBuffer<char, 3000> buf_;
 };
 
-// The ng libraries (nghttp2 and nghttp3) each use nearly identical
+// The ng libraries use nearly identical
 // reference counted structures for retaining header name and value
 // information in memory until the application is done with it.
 // The NgRcBufPointer is an intelligent pointer capable of working
