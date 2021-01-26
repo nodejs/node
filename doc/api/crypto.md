@@ -1379,7 +1379,7 @@ For private keys, the following encoding options can be used:
 
 The result type depends on the selected encoding format, when PEM the
 result is a string, when DER it will be a buffer containing the data
-encoded as DER, when [JWK][] it will be a an object.
+encoded as DER, when [JWK][] it will be an object.
 
 When [JWK][] encoding format was selected, all other encoding options are
 ignored.
