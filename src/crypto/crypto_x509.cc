@@ -15,7 +15,6 @@
 
 namespace node {
 
-using v8::Array;
 using v8::ArrayBufferView;
 using v8::Context;
 using v8::EscapableHandleScope;
@@ -82,6 +81,7 @@ Local<FunctionTemplate> X509Certificate::GetConstructorTemplate(
     env->SetProtoMethod(tmpl, "checkPrivateKey", CheckPrivateKey);
     env->SetProtoMethod(tmpl, "verify", Verify);
     env->SetProtoMethod(tmpl, "toLegacy", ToLegacy);
+    env->SetProtoMethod(tmpl, "getIssuerCert", GetIssuerCert);
     env->set_x509_constructor_template(tmpl);
   }
   return tmpl;
@@ -93,14 +93,16 @@ bool X509Certificate::HasInstance(Environment* env, Local<Object> object) {
 
 MaybeLocal<Object> X509Certificate::New(
     Environment* env,
-    X509Pointer cert) {
+    X509Pointer cert,
+    STACK_OF(X509)* issuer_chain) {
   std::shared_ptr<ManagedX509> mcert(new ManagedX509(std::move(cert)));
-  return New(env, std::move(mcert));
+  return New(env, std::move(mcert), issuer_chain);
 }
 
 MaybeLocal<Object> X509Certificate::New(
     Environment* env,
-    std::shared_ptr<ManagedX509> cert) {
+    std::shared_ptr<ManagedX509> cert,
+    STACK_OF(X509)* issuer_chain) {
   EscapableHandleScope scope(env->isolate());
   Local<Function> ctor;
   if (!GetConstructorTemplate(env)->GetFunction(env->context()).ToLocal(&ctor))
@@ -110,7 +112,7 @@ MaybeLocal<Object> X509Certificate::New(
   if (!ctor->NewInstance(env->context()).ToLocal(&obj))
     return MaybeLocal<Object>();
 
-  new X509Certificate(env, obj, std::move(cert));
+  new X509Certificate(env, obj, std::move(cert), issuer_chain);
   return scope.Escape(obj);
 }
 
@@ -122,7 +124,7 @@ MaybeLocal<Object> X509Certificate::GetCert(
   if (cert == nullptr)
     return MaybeLocal<Object>();
 
-  X509Pointer ptr(cert);
+  X509Pointer ptr(X509_dup(cert));
   return New(env, std::move(ptr));
 }
 
@@ -130,16 +132,12 @@ MaybeLocal<Object> X509Certificate::GetPeerCert(
     Environment* env,
     const SSLPointer& ssl,
     GetPeerCertificateFlag flag) {
-  EscapableHandleScope scope(env->isolate());
   ClearErrorOnReturn clear_error_on_return;
   Local<Object> obj;
   MaybeLocal<Object> maybe_cert;
 
   bool is_server =
       static_cast<int>(flag) & static_cast<int>(GetPeerCertificateFlag::SERVER);
-  bool abbreviated =
-      static_cast<int>(flag)
-      & static_cast<int>(GetPeerCertificateFlag::ABBREVIATED);
 
   X509Pointer cert(is_server ? SSL_get_peer_certificate(ssl.get()) : nullptr);
   STACK_OF(X509)* ssl_certs = SSL_get_peer_cert_chain(ssl.get());
@@ -148,23 +146,14 @@ MaybeLocal<Object> X509Certificate::GetPeerCert(
 
   std::vector<Local<Value>> certs;
 
-  if (!cert) cert.reset(sk_X509_value(ssl_certs, 0));
-  if (!X509Certificate::New(env, std::move(cert)).ToLocal(&obj))
-    return MaybeLocal<Object>();
-
-  certs.push_back(obj);
-
-  int count = sk_X509_num(ssl_certs);
-  if (!abbreviated) {
-    for (int i = 0; i < count; i++) {
-      cert.reset(X509_dup(sk_X509_value(ssl_certs, i)));
-      if (!cert || !X509Certificate::New(env, std::move(cert)).ToLocal(&obj))
-        return MaybeLocal<Object>();
-      certs.push_back(obj);
-    }
+  if (!cert) {
+    cert.reset(sk_X509_value(ssl_certs, 0));
+    sk_X509_delete(ssl_certs, 0);
   }
 
-  return scope.Escape(Array::New(env->isolate(), certs.data(), certs.size()));
+  return sk_X509_num(ssl_certs)
+      ? New(env, std::move(cert), ssl_certs)
+      : New(env, std::move(cert));
 }
 
 void X509Certificate::Parse(const FunctionCallbackInfo<Value>& args) {
@@ -475,13 +464,32 @@ void X509Certificate::ToLegacy(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(ret);
 }
 
+void X509Certificate::GetIssuerCert(const FunctionCallbackInfo<Value>& args) {
+  X509Certificate* cert;
+  ASSIGN_OR_RETURN_UNWRAP(&cert, args.Holder());
+  if (cert->issuer_cert_)
+    args.GetReturnValue().Set(cert->issuer_cert_->object());
+}
+
 X509Certificate::X509Certificate(
     Environment* env,
     Local<Object> object,
-    std::shared_ptr<ManagedX509> cert)
+    std::shared_ptr<ManagedX509> cert,
+    STACK_OF(X509)* issuer_chain)
     : BaseObject(env, object),
       cert_(std::move(cert)) {
   MakeWeak();
+
+  if (issuer_chain != nullptr && sk_X509_num(issuer_chain)) {
+    X509Pointer cert(X509_dup(sk_X509_value(issuer_chain, 0)));
+    sk_X509_delete(issuer_chain, 0);
+    Local<Object> obj = sk_X509_num(issuer_chain)
+        ? X509Certificate::New(env, std::move(cert), issuer_chain)
+            .ToLocalChecked()
+        : X509Certificate::New(env, std::move(cert))
+            .ToLocalChecked();
+    issuer_cert_.reset(Unwrap<X509Certificate>(obj));
+  }
 }
 
 void X509Certificate::MemoryInfo(MemoryTracker* tracker) const {
