@@ -1348,6 +1348,10 @@ keys.
 ### `keyObject.export([options])`
 <!-- YAML
 added: v11.6.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37081
+    description: Added support for `'jwk' format`.
 -->
 
 * `options`: {Object}
