@@ -270,12 +270,11 @@ std::istream *GetTransparentHugePagesConfiguration() {
 }
 
 bool IsTransparentHugePagesEnabledViaConfiguration(std::istream *configuration) {
-  bool enabled = false;
   std::string token;
   while (*configuration >> token) {
-    enabled = enabled || token == "[always]" || token == "[madvise]";
+    if (token == "[always]" || token == "[madvise]") return true;
   }
-  return enabled;
+  return false;
 }
 
 bool IsTransparentHugePagesEnabled() {
