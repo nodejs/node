@@ -355,6 +355,8 @@ For information about the governance of the Node.js project, see
 **Luigi Pinca** &lt;luigipinca@gmail.com&gt; (he/him)
 * [lundibundi](https://github.com/lundibundi) -
 **Denys Otrishko** &lt;shishugi@gmail.com&gt; (he/him)
+* [Lxxyx](https://github.com/Lxxyx) -
+**Zijian Liu** &lt;lxxyxzj@gmail.com&gt; (he/him)
 * [mafintosh](https://github.com/mafintosh) -
 **Mathias Buus** &lt;mathiasbuus@gmail.com&gt; (he/him)
 * [mcollina](https://github.com/mcollina) -
