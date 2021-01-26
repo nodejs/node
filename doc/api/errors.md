@@ -1811,24 +1811,25 @@ would be possible by calling a callback more than once.
 <a id="ERR_NAPI_CONS_FUNCTION"></a>
 ### `ERR_NAPI_CONS_FUNCTION`
 
-While using `N-API`, a constructor passed was not a function.
+While using the Node.js API, a constructor passed was not a function.
 
 <a id="ERR_NAPI_INVALID_DATAVIEW_ARGS"></a>
 ### `ERR_NAPI_INVALID_DATAVIEW_ARGS`
 
-While calling `napi_create_dataview()`, a given `offset` was outside the bounds
-of the dataview or `offset + length` was larger than a length of given `buffer`.
+While calling `node_api_create_dataview()`, a given `offset` was outside the
+bounds of the dataview or `offset + length` was larger than a length of given
+`buffer`.
 
 <a id="ERR_NAPI_INVALID_TYPEDARRAY_ALIGNMENT"></a>
 ### `ERR_NAPI_INVALID_TYPEDARRAY_ALIGNMENT`
 
-While calling `napi_create_typedarray()`, the provided `offset` was not a
+While calling `node_api_create_typedarray()`, the provided `offset` was not a
 multiple of the element size.
 
 <a id="ERR_NAPI_INVALID_TYPEDARRAY_LENGTH"></a>
 ### `ERR_NAPI_INVALID_TYPEDARRAY_LENGTH`
 
-While calling `napi_create_typedarray()`, `(length * size_of_element) +
+While calling `node_api_create_typedarray()`, `(length * size_of_element) +
 byte_offset` was larger than the length of given `buffer`.
 
 <a id="ERR_NAPI_TSFN_CALL_JS"></a>
@@ -2578,7 +2579,7 @@ added: v9.0.0
 removed: v10.0.0
 -->
 
-Used by the `N-API` when `Constructor.prototype` is not an object.
+Used by the Node.js API when `Constructor.prototype` is not an object.
 
 <a id="ERR_NO_LONGER_SUPPORTED"></a>
 ### `ERR_NO_LONGER_SUPPORTED`

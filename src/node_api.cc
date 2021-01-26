@@ -93,10 +93,10 @@ static inline napi_env NewEnv(v8::Local<v8::Context> context) {
   result = new node_napi_env__(context);
   // TODO(addaleax): There was previously code that tried to delete the
   // napi_env when its v8::Context was garbage collected;
-  // However, as long as N-API addons using this napi_env are in place,
-  // the Context needs to be accessible and alive.
+  // However, as long as Node.js API addons using this node_api_env are in
+  // place, the Context needs to be accessible and alive.
   // Ideally, we'd want an on-addon-unload hook that takes care of this
-  // once all N-API addons using this napi_env are unloaded.
+  // once all Node.js API addons using this napi_env are unloaded.
   // For now, a per-Environment cleanup hook is the best we can do.
   result->node_env()->AddCleanupHook(
       [](void* arg) {
@@ -640,7 +640,7 @@ struct napi_async_cleanup_hook_handle__ {
       done_cb_(done_data_);
 
     // Release the `env` handle asynchronously since it would be surprising if
-    // a call to a N-API function would destroy `env` synchronously.
+    // a call to a Node.js API function would destroy `env` synchronously.
     static_cast<node_napi_env>(env_)->node_env()
         ->SetImmediate([env = env_](node::Environment*) { env->Unref(); });
   }

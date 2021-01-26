@@ -26,9 +26,9 @@ NODE_API_MODULE_INIT() {
   NODE_API_CALL(env, node_api_define_properties(
       env, exports, sizeof(properties) / sizeof(*properties), properties));
 
-  // This is a slight variation on the non-N-API test: We create an ArrayBuffer
+  // This is a slight variation on the non-Node.js-API test: We create an ArrayBuffer
   // rather than a Node.js Buffer, since testing the latter would only test
-  // the same code paths and not the ones specific to N-API.
+  // the same code paths and not the ones specific to the Node.js API.
   node_api_value buffer;
 
   char* data = malloc(sizeof(char));

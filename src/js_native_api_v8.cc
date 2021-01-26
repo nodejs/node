@@ -13,8 +13,9 @@
 #define CHECK_MAYBE_NOTHING_WITH_PREAMBLE(env, maybe, status) \
   RETURN_STATUS_IF_FALSE_WITH_PREAMBLE((env), !((maybe).IsNothing()), (status))
 
-#define CHECK_TO_NUMBER(env, context, result, src) \
-  CHECK_TO_TYPE((env), Number, (context), (result), (src), napi_number_expected)
+#define CHECK_TO_NUMBER(env, context, result, src)         \
+  CHECK_TO_TYPE((env), Number, (context), (result), (src), \
+      node_api_number_expected)
 
 // n-api defines NAPI_AUTO_LENGHTH as the indicator that a string
 // is null terminated. For V8 the equivalent is -1. The assert
@@ -26,7 +27,7 @@
                   "Casting NAPI_AUTO_LENGTH to int must result in -1");  \
     RETURN_STATUS_IF_FALSE((env),                                        \
         (len == NAPI_AUTO_LENGTH) || len <= INT_MAX,                     \
-        napi_invalid_arg);                                               \
+        node_api_invalid_arg);                                           \
     RETURN_STATUS_IF_FALSE((env),                                        \
         (str) != nullptr,                                                \
         napi_invalid_arg);                                               \
@@ -347,13 +348,13 @@ class Reference : public RefBase {
   }
 
  private:
-  // The N-API finalizer callback may make calls into the engine. V8's heap is
-  // not in a consistent state during the weak callback, and therefore it does
-  // not support calls back into it. However, it provides a mechanism for adding
-  // a finalizer which may make calls back into the engine by allowing us to
-  // attach such a second-pass finalizer from the first pass finalizer. Thus,
-  // we do that here to ensure that the N-API finalizer callback is free to call
-  // into the engine.
+  // The node_api finalizer callback may make calls into the engine. V8's heap
+  // is not in a consistent state during the weak callback, and therefore it
+  // does not support calls back into it. However, it provides a mechanism for
+  // adding a finalizer which may make calls back into the engine by allowing
+  // us to attach such a second-pass finalizer from the first pass finalizer.
+  // Thus, we do that here to ensure that the node_api finalizer callback is
+  // free to call into the engine.
   static void FinalizeCallback(const v8::WeakCallbackInfo<Reference>& data) {
     Reference* reference = data.GetParameter();
 
@@ -412,10 +413,10 @@ inline static napi_status Unwrap(napi_env env,
 
 //=== Function napi_callback wrapper =================================
 
-// Use this data structure to associate callback data with each N-API function
-// exposed to JavaScript. The structure is stored in a v8::External which gets
-// passed into our callback wrapper. This reduces the performance impact of
-// calling through N-API.
+// Use this data structure to associate callback data with each Node.js API
+// function exposed to JavaScript. The structure is stored in a v8::External
+// which gets passed into our callback wrapper. This reduces the performance
+// impact of calling through the Node.js API.
 // Ref: benchmark/misc/function_call
 // Discussion (incl. perf. data): https://github.com/nodejs/node/pull/21072
 class CallbackBundle {

@@ -143,7 +143,7 @@ out/Makefile: config.gypi common.gypi node.gyp \
 	tools/v8_gypfiles/inspector.gypi tools/v8_gypfiles/v8.gyp
 	$(PYTHON) tools/gyp_node.py -f make
 
-# node_version.h is listed because the N-API version is taken from there
+# node_version.h is listed because the Node.js API version is taken from there
 # and included in config.gypi
 config.gypi: configure configure.py src/node_version.h
 	@if [ -x config.status ]; then \

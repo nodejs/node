@@ -303,8 +303,9 @@ function parseYAML(text) {
               `${removed.description}\n`;
   }
 
-  if (meta.napiVersion) {
-    result += `<span>N-API version: ${meta.napiVersion.join(', ')}</span>\n`;
+  if (meta.nodeAPIVersion) {
+    result += '<span>Node.js API version: ' +
+      `${meta.nodeAPIVersion.join(', ')}</span>\n`;
   }
 
   result += '</div>';

@@ -7,12 +7,14 @@ _Addons_ are dynamically-linked shared objects written in C++. The
 [`require()`][require] function can load addons as ordinary Node.js modules.
 Addons provide an interface between JavaScript and C/C++ libraries.
 
-There are three options for implementing addons: N-API, nan, or direct
-use of internal V8, libuv and Node.js libraries. Unless there is a need for
-direct access to functionality which is not exposed by N-API, use N-API.
-Refer to [C/C++ addons with N-API](n-api.md) for more information on N-API.
+There are three options for implementing addons: the Node.js API, nan, or
+direct use of internal V8, libuv and Node.js libraries. Unless there is a need
+for direct access to functionality which is not exposed by the Node.js API, use
+the Node.js API.
+Refer to [C/C++ addons with the Node.js API](node--api.md) for more information
+on the Node.js API.
 
-When not using N-API, implementing addons is complicated,
+When not using the Node.js API, implementing addons is complicated,
 involving knowledge of several components and APIs:
 
 * V8: the C++ library Node.js uses to provide the
@@ -245,7 +247,7 @@ changes:
 In order to be loaded from multiple Node.js environments,
 such as a main thread and a Worker thread, an add-on needs to either:
 
-* Be an N-API addon, or
+* Be a Node.js API addon, or
 * Be declared as context-aware using `NODE_MODULE_INIT()` as described above
 
 In order to support [`Worker`][] threads, addons need to clean up any resources
@@ -437,11 +439,11 @@ addon developers are recommended to use to keep compatibility between past and
 future releases of V8 and Node.js. See the `nan` [examples][] for an
 illustration of how it can be used.
 
-## N-API
+## The Node.js API
 
 > Stability: 2 - Stable
 
-N-API is an API for building native addons. It is independent from
+The Node.js API is an API for building native addons. It is independent from
 the underlying JavaScript runtime (e.g. V8) and is maintained as part of
 Node.js itself. This API will be Application Binary Interface (ABI) stable
 across versions of Node.js. It is intended to insulate addons from
@@ -451,49 +453,52 @@ recompilation. Addons are built/packaged with the same approach/tools
 outlined in this document (node-gyp, etc.). The only difference is the
 set of APIs that are used by the native code. Instead of using the V8
 or [Native Abstractions for Node.js][] APIs, the functions available
-in the N-API are used.
+in the Node.js API are used.
 
 Creating and maintaining an addon that benefits from the ABI stability
-provided by N-API carries with it certain
-[implementation considerations](n-api.md#n_api_implications_of_abi_stability).
+provided by the Node.js API carries with it certain
+[implementation considerations](node-api.md#n_api_implications_of_abi_stability).
 
-To use N-API in the above "Hello world" example, replace the content of
-`hello.cc` with the following. All other instructions remain the same.
+To use the Node.js API in the above "Hello world" example, replace the content
+of `hello.cc` with the following. All other instructions remain the same.
 
 ```cpp
-// hello.cc using N-API
+// hello.cc using Node.js API
 #include <node_api.h>
 
 namespace demo {
 
-napi_value Method(napi_env env, napi_callback_info args) {
-  napi_value greeting;
-  napi_status status;
+node_api_value Method(node_api_env env, node_api_callback_info args) {
+  node_api_value greeting;
+  node_api_status status;
 
-  status = napi_create_string_utf8(env, "world", NAPI_AUTO_LENGTH, &greeting);
-  if (status != napi_ok) return nullptr;
+  status = node_api_create_string_utf8(env,
+                                       "world",
+                                       NODE_API_AUTO_LENGTH,
+                                       &greeting);
+  if (status != node_api_ok) return nullptr;
   return greeting;
 }
 
-napi_value init(napi_env env, napi_value exports) {
-  napi_status status;
-  napi_value fn;
+node_api_value init(node_api_env env, node_api_value exports) {
+  node_api_status status;
+  node_api_value fn;
 
-  status = napi_create_function(env, nullptr, 0, Method, nullptr, &fn);
-  if (status != napi_ok) return nullptr;
+  status = node_api_create_function(env, nullptr, 0, Method, nullptr, &fn);
+  if (status != node_api_ok) return nullptr;
 
-  status = napi_set_named_property(env, exports, "hello", fn);
-  if (status != napi_ok) return nullptr;
+  status = node_api_set_named_property(env, exports, "hello", fn);
+  if (status != node_api_ok) return nullptr;
   return exports;
 }
 
-NAPI_MODULE(NODE_GYP_MODULE_NAME, init)
+NODE_API_MODULE(NODE_GYP_MODULE_NAME, init)
 
 }  // namespace demo
 ```
 
 The functions available and how to use them are documented in
-[C/C++ addons with N-API](n-api.md).
+[C/C++ addons with the Node.js API](node-api.md).
 
 ## Addon examples
 

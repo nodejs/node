@@ -105,11 +105,11 @@ has been added:
 
 ```cpp
 void* malloc_holder = nullptr;
-napi_value Method(napi_env env, napi_callback_info info) {
-  napi_status status;
-  napi_value world;
-  status = napi_create_string_utf8(env, "world", 5, &world);
-  assert(status == napi_ok);
+node_api_value Method(node_api_env env, node_api_callback_info info) {
+  node_api_status status;
+  node_api_value world;
+  status = node_api_create_string_utf8(env, "world", 5, &world);
+  assert(status == node_api_ok);
 
   // NEW LEAK HERE
   for (int i=0; i < 1024; i++) {
@@ -368,11 +368,11 @@ This new output shows us exactly where the leak is occurring in the file `hello.
 
 ```cpp
   6 void* malloc_holder = nullptr;
-  7 napi_value Method(napi_env env, napi_callback_info info) {
-  8   napi_status status;
-  9   napi_value world;
- 10   status = napi_create_string_utf8(env, "world", 5, &world);
- 11   assert(status == napi_ok);
+  7 node_api_value Method(node_api_env env, node_api_callback_info info) {
+  8   node_api_status status;
+  9   node_api_value world;
+ 10   status = node_api_create_string_utf8(env, "world", 5, &world);
+ 11   assert(status == node_api_ok);
  12   for (int i=0; i< 1000; i++) {
  13     malloc_holder = malloc(1000);  // <<<<<< This is where we are allocating the memory that is not freed
  14   }

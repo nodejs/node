@@ -1519,31 +1519,31 @@ addons. In JavaScript, they are [frozen][`Object.freeze()`] objects with a
 ```c
 #include <js_native_api.h>
 #include <stdlib.h>
-napi_value result;
-static napi_value MyNapi(napi_env env, napi_callback_info info) {
+node_api_value result;
+static node_api_value MyNapi(node_api_env env, node_api_callback_info info) {
   int* raw = (int*) malloc(1024);
-  napi_status status = napi_create_external(env, (void*) raw, NULL, NULL, &result);
-  if (status != napi_ok) {
-    napi_throw_error(env, NULL, "napi_create_external failed");
+  node_api_status status = node_api_create_external(env, (void*) raw, NULL, NULL, &result);
+  if (status != node_api_ok) {
+    node_api_throw_error(env, NULL, "node_api_create_external failed");
     return NULL;
   }
   return result;
 }
 ...
-DECLARE_NAPI_PROPERTY("myNapi", MyNapi)
+DECLARE_NODE_API_PROPERTY("myNapi", MyNapi)
 ...
 ```
 
 ```js
-const native = require('napi_addon.node');
+const native = require('node_api_addon.node');
 const data = native.myNapi();
 util.types.isExternal(data); // returns true
 util.types.isExternal(0); // returns false
 util.types.isExternal(new String('foo')); // returns false
 ```
 
-For further information on `napi_create_external`, refer to
-[`napi_create_external()`][].
+For further information on `node_api_create_external`, refer to
+[`node_api_create_external()`][].
 
 ### `util.types.isFloat32Array(value)`
 <!-- YAML
@@ -2491,7 +2491,7 @@ util.log('Timestamped message.');
 [`WebAssembly.Module`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module
 [`assert.deepStrictEqual()`]: assert.md#assert_assert_deepstrictequal_actual_expected_message
 [`console.error()`]: console.md#console_console_error_data_args
-[`napi_create_external()`]: n-api.md#n_api_napi_create_external
+[`node_api_create_external()`]: n-api.md#node_api_node_api_create_external
 [`target` and `handler`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy#Terminology
 [`tty.hasColors()`]: tty.md#tty_writestream_hascolors_count_env
 [`util.format()`]: #util_util_format_format_args

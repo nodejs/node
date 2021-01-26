@@ -37,7 +37,7 @@ import nodedownload
 # imports in tools/
 sys.path.insert(0, 'tools')
 import getmoduleversion
-import getnapibuildversion
+import getnodeapibuildversion
 from gyp_node import run_gyp
 
 # parse our options
@@ -1339,8 +1339,8 @@ def configure_node(o):
     o['variables']['node_builtin_modules_path'] = options.node_builtin_modules_path
 
 def configure_napi(output):
-  version = getnapibuildversion.get_napi_version()
-  output['variables']['napi_build_version'] = version
+  version = getnodeapibuildversion.get_node_api_version()
+  output['variables']['node_api_build_version'] = version
 
 def configure_library(lib, output, pkgname=None):
   shared_lib = 'shared_' + lib

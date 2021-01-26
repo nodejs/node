@@ -45627,7 +45627,7 @@ var lt_1 = lt$1;
 
 const allowedKeys = [
   "added",
-  "napiVersion",
+  "nodeAPIVersion",
   "deprecated",
   "removed",
   "changes",

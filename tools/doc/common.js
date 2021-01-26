@@ -28,8 +28,8 @@ function extractAndParseYAML(text) {
     meta.added = arrify(meta.added);
   }
 
-  if (meta.napiVersion) {
-    meta.napiVersion = arrify(meta.napiVersion);
+  if (meta.nodeAPIVersion) {
+    meta.nodeAPIVersion = arrify(meta.nodeAPIVersion);
   }
 
   if (meta.deprecated) {

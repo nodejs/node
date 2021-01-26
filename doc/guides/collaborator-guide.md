@@ -22,7 +22,7 @@
     * [Unintended breaking changes](#unintended-breaking-changes)
       * [Reverting commits](#reverting-commits)
   * [Introducing new modules](#introducing-new-modules)
-  * [Additions to N-API](#additions-to-n-api)
+  * [Additions to the Node.js API](#additions-to-node-api)
   * [Deprecations](#deprecations)
   * [Involving the TSC](#involving-the-tsc)
 * [Landing pull requests](#landing-pull-requests)
@@ -362,9 +362,9 @@ Check if the module's name conflicts with an existing ecosystem module. If it
 does, choose a different name unless the module owner has agreed in writing to
 transfer it.
 
-If the new module name is free, register a placeholder in the module registry as
-soon as possible. Link to the pull request that introduces the new core module
-in the placeholder's `README`.
+If the new module name is free, register a placeholder in the module registry
+as soon as possible. Link to the pull request that introduces the new core
+module in the placeholder's `README`.
 
 For pull requests introducing new core modules:
 
@@ -373,12 +373,12 @@ For pull requests introducing new core modules:
 * Land with a [Stability Index][] of Experimental. The module must remain
   Experimental until a semver-major release.
 
-### Additions to N-API
+### Additions to the Node.js API
 
-N-API provides an ABI-stable API guaranteed for future Node.js versions. N-API
-additions call for unusual care and scrutiny. If a change adds to `node_api.h`,
-`js_native_api.h`, `node_api_types.h`, or `js_native_api_types.h`, consult [the relevant
-guide](https://github.com/nodejs/node/blob/master/doc/guides/adding-new-napi-api.md).
+The Node.js API provides an ABI-stable API guaranteed for future Node.js
+versions. Node.js API additions call for unusual care and scrutiny. If a change
+adds to `node_api.h`, `js_native_api.h`, `node_api_types.h`, or
+`js_native_api_types.h`, consult [the relevant guide](https://github.com/nodejs/node/blob/master/doc/guides/adding-new-node-api.md).
 
 ### Deprecations
 
@@ -395,7 +395,8 @@ documentation must state the deprecation status.
 
 * Runtime Deprecation
   * Emits a warning at runtime on first use of the deprecated API.
-  * If used with the [`--throw-deprecation`][] flag, will throw a runtime error.
+  * If used with the [`--throw-deprecation`][] flag, will throw a runtime
+    error.
 
 * End-of-Life
   * The API is no longer subject to the semantic versioning rules.
@@ -422,13 +423,13 @@ example, due to removal of an End-of-Life deprecated API).
 <a id="deprecation-cycle"></a>
 A _deprecation cycle_ is a major release during which an API has been in one of
 the three Deprecation levels. Documentation-Only Deprecations can land in a
-minor release. They can not change to a Runtime Deprecation until the next major
-release.
+minor release. They can not change to a Runtime Deprecation until the next
+major release.
 
 No API can change to End-of-Life without going through a Runtime Deprecation
 cycle. There is no rule that deprecated code must progress to End-of-Life.
-Documentation-Only and Runtime Deprecations can remain in place for an unlimited
-duration.
+Documentation-Only and Runtime Deprecations can remain in place for an
+unlimited duration.
 
 Communicate pending deprecations and associated mitigations with the ecosystem
 as soon as possible. If possible, do it before the pull request adding the

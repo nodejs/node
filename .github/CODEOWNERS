@@ -100,12 +100,12 @@
 /lib/internal/bootstrap/loaders.js @nodejs/modules
 /src/module_wrap* @nodejs/modules @nodejs/vm
 
-# N-API
+# Node.js API 
 
 /src/node_api* @nodejs/n-api
 /src/js_native_api* @nodejs/n-api
-/doc/guides/adding-new-napi-api.md @nodejs/n-api
-/doc/api/n-api.md @nodejs/n-api
+/doc/guides/adding-new-node-api.md @nodejs/n-api
+/doc/api/node-api.md @nodejs/n-api
 
 # WASI
 /deps/uvwasi/ @nodejs/wasi

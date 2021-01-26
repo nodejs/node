@@ -14,7 +14,7 @@
 * [Async hooks](async_hooks.md)
 * [Buffer](buffer.md)
 * [C++ addons](addons.md)
-* [C/C++ addons with N-API](n-api.md)
+* [C/C++ addons with the Node.js API](node-api.md)
 * [C++ embedder API](embedding.md)
 * [Child processes](child_process.md)
 * [Cluster](cluster.md)

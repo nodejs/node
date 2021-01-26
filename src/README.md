@@ -14,7 +14,7 @@ that can be helpful as a reference for stylistic issues.
 A lot of the Node.js codebase is around what the underlying JavaScript engine,
 V8, provides through its API for embedders. Knowledge of this API can also be
 useful when working with native addons for Node.js written in C++, although for
-new projects [N-API][] is typically the better alternative.
+new projects [the Node.js API][] is typically the better alternative.
 
 V8 does not provide much public API documentation beyond what is
 available in its C++ header files, most importantly `v8.h`, which can be
@@ -952,7 +952,7 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [C++ coding style]: ../doc/guides/cpp-style-guide.md
 [Callback scopes]: #callback-scopes
 [JavaScript value handles]: #js-handles
-[N-API]: https://nodejs.org/api/n-api.html
+[the Node.js API]: https://nodejs.org/api/node-api.html
 [`BaseObject`]: #baseobject
 [`Context`]: #context
 [`Environment`]: #environment
