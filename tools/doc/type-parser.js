@@ -72,7 +72,6 @@ const customTypesMap = {
   'ECDH': 'crypto.html#crypto_class_ecdh',
   'Hash': 'crypto.html#crypto_class_hash',
   'Hmac': 'crypto.html#crypto_class_hmac',
-  'JWK': 'https://tools.ietf.org/html/rfc7517',
   'KeyObject': 'crypto.html#crypto_class_keyobject',
   'Sign': 'crypto.html#crypto_class_sign',
   'Verify': 'crypto.html#crypto_class_verify',

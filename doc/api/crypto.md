@@ -1355,7 +1355,7 @@ changes:
 -->
 
 * `options`: {Object}
-* Returns: {string | Buffer | JWK}
+* Returns: {string | Buffer | Object}
 
 For symmetric keys, the following encoding options can be used:
 
@@ -1377,10 +1377,12 @@ For private keys, the following encoding options can be used:
 * `passphrase`: {string | Buffer} The passphrase to use for encryption, see
   `cipher`.
 
-When PEM encoding was selected, the result will be a string, otherwise it will
-be a buffer containing the data encoded as DER.
+The result type depends on the selected encoding format, when PEM the
+result is a string, when DER it will be a buffer containing the data
+encoded as DER, when [JWK][] it will be a an object.
 
-When JWK encoding was selected, all other encoding options are ignored.
+When [JWK][] encoding format was selected, all other encoding options are
+ignored.
 
 PKCS#1, SEC1, and PKCS#8 type keys can be encrypted by using a combination of
 the `cipher` and `format` options. The PKCS#8 `type` can be used with any
@@ -4359,6 +4361,7 @@ See the [list of SSL OP Flags][] for details.
 [Crypto constants]: #crypto_crypto_constants_1
 [HTML 5.2]: https://www.w3.org/TR/html52/changes.html#features-removed
 [HTML5's `keygen` element]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/keygen
+[JWK]: https://tools.ietf.org/html/rfc7517
 [NIST SP 800-131A]: https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar1.pdf
 [NIST SP 800-132]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-132.pdf
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
