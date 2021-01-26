@@ -75,6 +75,14 @@ all: \
   ed448_public.pem \
   x448_private.pem \
   x448_public.pem \
+  ec_p256_private.pem \
+  ec_p256_public.pem \
+  ec_p384_private.pem \
+  ec_p384_public.pem \
+  ec_p521_private.pem \
+  ec_p521_public.pem \
+  ec_secp256k1_private.pem \
+  ec_secp256k1_public.pem \
 
 #
 # Create Certificate Authority: ca1
@@ -663,7 +671,7 @@ rsa_cert_foafssl_b.modulus: rsa_cert_foafssl_b.crt
 
 # Have to parse out the hex exponent
 rsa_cert_foafssl_b.exponent: rsa_cert_foafssl_b.crt
-	openssl x509 -in  rsa_cert_foafssl_b.crt -text | grep -o 'Exponent:.*' | sed 's/\(.*(\|).*\)//g' > rsa_cert_foafssl_b.exponent 
+	openssl x509 -in  rsa_cert_foafssl_b.crt -text | grep -o 'Exponent:.*' | sed 's/\(.*(\|).*\)//g' > rsa_cert_foafssl_b.exponent
 
 # openssl outputs `SPKAC=[SPKAC]`. That prefix needs to be removed to work with node
 rsa_spkac.spkac: rsa_private.pem
@@ -732,6 +740,38 @@ x448_private.pem:
 
 x448_public.pem: x448_private.pem
 	openssl pkey -in x448_private.pem -pubout -out x448_public.pem
+
+ec_p256_private.pem:
+	openssl ecparam -name prime256v1 -genkey -noout -out sec1_ec_p256_private.pem
+	openssl pkcs8 -topk8 -nocrypt -in sec1_ec_p256_private.pem -out ec_p256_private.pem
+	rm sec1_ec_p256_private.pem
+
+ec_p256_public.pem: ec_p256_private.pem
+	openssl ec -in ec_p256_private.pem -pubout -out ec_p256_public.pem
+
+ec_p384_private.pem:
+	openssl ecparam -name secp384r1 -genkey -noout -out sec1_ec_p384_private.pem
+	openssl pkcs8 -topk8 -nocrypt -in sec1_ec_p384_private.pem -out ec_p384_private.pem
+	rm sec1_ec_p384_private.pem
+
+ec_p384_public.pem: ec_p384_private.pem
+	openssl ec -in ec_p384_private.pem -pubout -out ec_p384_public.pem
+
+ec_p521_private.pem:
+	openssl ecparam -name secp521r1 -genkey -noout -out sec1_ec_p521_private.pem
+	openssl pkcs8 -topk8 -nocrypt -in sec1_ec_p521_private.pem -out ec_p521_private.pem
+	rm sec1_ec_p521_private.pem
+
+ec_p521_public.pem: ec_p521_private.pem
+	openssl ec -in ec_p521_private.pem -pubout -out ec_p521_public.pem
+
+ec_secp256k1_private.pem:
+	openssl ecparam -name secp256k1 -genkey -noout -out sec1_ec_secp256k1_private.pem
+	openssl pkcs8 -topk8 -nocrypt -in sec1_ec_secp256k1_private.pem -out ec_secp256k1_private.pem
+	rm sec1_ec_secp256k1_private.pem
+
+ec_secp256k1_public.pem: ec_secp256k1_private.pem
+	openssl ec -in ec_secp256k1_private.pem -pubout -out ec_secp256k1_public.pem
 
 clean:
 	rm -f *.pfx *.pem *.srl ca2-database.txt ca2-serial fake-startcom-root-serial *.print *.old fake-startcom-root-issued-certs/*.pem
