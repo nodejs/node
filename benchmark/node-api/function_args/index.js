@@ -7,7 +7,7 @@
 const common = require('../../common.js');
 
 let v8;
-let napi;
+let node_api;
 
 try {
   v8 = require(`./build/${common.buildType}/binding`);
@@ -17,7 +17,7 @@ try {
 }
 
 try {
-  napi = require(`./build/${common.buildType}/napi_binding`);
+  node_api = require(`./build/${common.buildType}/node_api_binding`);
 } catch {
   console.error(`${__filename}: NAPI-Binding failed to load`);
   process.exit(0);
@@ -76,12 +76,12 @@ const generateArgs = (argType) => {
 
 const bench = common.createBenchmark(main, {
   type: argsTypes,
-  engine: ['v8', 'napi'],
+  engine: ['v8', 'node_api'],
   n: [1, 1e1, 1e2, 1e3, 1e4, 1e5],
 });
 
 function main({ n, engine, type }) {
-  const bindings = engine === 'v8' ? v8 : napi;
+  const bindings = engine === 'v8' ? v8 : node_api;
   const methodName = 'callWith' + type;
   const fn = bindings[methodName];
 

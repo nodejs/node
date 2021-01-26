@@ -1,8 +1,8 @@
 {
   'targets': [
     {
-      'target_name': 'napi_binding',
-      'sources': [ 'napi_binding.c' ]
+      'target_name': 'node_api_binding',
+      'sources': [ 'node_api_binding.c' ]
     },
     {
       'target_name': 'binding',

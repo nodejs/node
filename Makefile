@@ -436,16 +436,16 @@ test/node-api/.buildstamp: $(ADDONS_PREREQS) \
 # TODO(bnoordhuis) Force rebuild after gyp or node-gyp update.
 build-node-api-tests: | $(NODE_EXE) test/node-api/.buildstamp
 
-BENCHMARK_NAPI_BINDING_GYPS := $(wildcard benchmark/napi/*/binding.gyp)
+BENCHMARK_NODE_API_BINDING_GYPS := $(wildcard benchmark/node-api/*/binding.gyp)
 
-BENCHMARK_NAPI_BINDING_SOURCES := \
-	$(wildcard benchmark/napi/*/*.c) \
-	$(wildcard benchmark/napi/*/*.cc) \
-	$(wildcard benchmark/napi/*/*.h)
+BENCHMARK_NODE_API_BINDING_SOURCES := \
+	$(wildcard benchmark/node-api/*/*.c) \
+	$(wildcard benchmark/node-api/*/*.cc) \
+	$(wildcard benchmark/node-api/*/*.h)
 
-benchmark/napi/.buildstamp: $(ADDONS_PREREQS) \
-	$(BENCHMARK_NAPI_BINDING_GYPS) $(BENCHMARK_NAPI_BINDING_SOURCES)
-	@$(call run_build_addons,"$$PWD/benchmark/napi",$@)
+benchmark/node-api/.buildstamp: $(ADDONS_PREREQS) \
+	$(BENCHMARK_NODE_API_BINDING_GYPS) $(BENCHMARK_NODE_API_BINDING_SOURCES)
+	@$(call run_build_addons,"$$PWD/benchmark/node-api",$@)
 
 .PHONY: clear-stalled
 clear-stalled:
@@ -488,7 +488,7 @@ endif
 # Build and test addons without building anything else
 # Related CI job: node-test-commit-arm-fanned
 test-ci-native: LOGLEVEL := info
-test-ci-native: | benchmark/napi/.buildstamp test/addons/.buildstamp test/js-native-api/.buildstamp test/node-api/.buildstamp
+test-ci-native: | benchmark/node-api/.buildstamp test/addons/.buildstamp test/js-native-api/.buildstamp test/node-api/.buildstamp
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_NATIVE_SUITES)
@@ -1157,12 +1157,12 @@ bench bench-all: bench-addons-build
 
 # Build required addons for benchmark before running it.
 .PHONY: bench-addons-build
-bench-addons-build: | $(NODE_EXE) benchmark/napi/.buildstamp
+bench-addons-build: | $(NODE_EXE) benchmark/node-api/.buildstamp
 
 .PHONY: bench-addons-clean
 bench-addons-clean:
-	$(RM) -r benchmark/napi/*/build
-	$(RM) benchmark/napi/.buildstamp
+	$(RM) -r benchmark/node-api/*/build
+	$(RM) benchmark/node-api/.buildstamp
 
 .PHONY: lint-md-rollup
 lint-md-rollup:
@@ -1251,7 +1251,7 @@ LINT_CPP_EXCLUDE += $(wildcard test/js-native-api/??_*/*.cc test/js-native-api/?
 LINT_CPP_EXCLUDE += src/tracing/trace_event.h src/tracing/trace_event_common.h
 
 LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
-	benchmark/napi/*/*.cc \
+	benchmark/node-api/*/*.cc \
 	src/*.c \
 	src/*.cc \
 	src/*.h \

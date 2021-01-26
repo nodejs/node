@@ -20,14 +20,14 @@ try {
 }
 const cxx = binding.hello;
 
-let napi_binding;
+let node_api_binding;
 try {
-  napi_binding = require(`./build/${common.buildType}/napi_binding`);
+  node_api_binding = require(`./build/${common.buildType}/node_api_binding`);
 } catch {
   console.error('misc/function_call/index.js NAPI-Binding failed to load');
   process.exit(0);
 }
-const napi = napi_binding.hello;
+const node_api = node_api_binding.hello;
 
 let c = 0;
 function js() {
@@ -37,12 +37,12 @@ function js() {
 assert(js() === cxx());
 
 const bench = common.createBenchmark(main, {
-  type: ['js', 'cxx', 'napi'],
+  type: ['js', 'cxx', 'node_api'],
   n: [1e6, 1e7, 5e7]
 });
 
 function main({ n, type }) {
-  const fn = type === 'cxx' ? cxx : type === 'napi' ? napi : js;
+  const fn = type === 'cxx' ? cxx : type === 'node_api' ? node_api : js;
   bench.start();
   for (let i = 0; i < n; i++) {
     fn();
