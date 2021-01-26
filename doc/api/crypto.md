@@ -1351,24 +1351,22 @@ added: v11.6.0
 -->
 
 * `options`: {Object}
-* Returns: {string | Buffer}
+* Returns: {string | Buffer | JWK}
 
-For symmetric keys, this function allocates a `Buffer` containing the key
-material and ignores any options.
+For symmetric keys, the following encoding options can be used:
 
-For asymmetric keys, the `options` parameter is used to determine the export
-format.
+* `format`: {string} Must be `'buffer'` (default) or `'jwk'`.
 
 For public keys, the following encoding options can be used:
 
 * `type`: {string} Must be one of `'pkcs1'` (RSA only) or `'spki'`.
-* `format`: {string} Must be `'pem'` or `'der'`.
+* `format`: {string} Must be `'pem'`, `'der'`, or `'jwk'`.
 
 For private keys, the following encoding options can be used:
 
 * `type`: {string} Must be one of `'pkcs1'` (RSA only), `'pkcs8'` or
   `'sec1'` (EC only).
-* `format`: {string} Must be `'pem'` or `'der'`.
+* `format`: {string} Must be `'pem'`, `'der'`, or `'jwk'`.
 * `cipher`: {string} If specified, the private key will be encrypted with
    the given `cipher` and `passphrase` using PKCS#5 v2.0 password based
    encryption.
@@ -1377,6 +1375,8 @@ For private keys, the following encoding options can be used:
 
 When PEM encoding was selected, the result will be a string, otherwise it will
 be a buffer containing the data encoded as DER.
+
+When JWK encoding was selected, all other encoding options are ignored.
 
 PKCS#1, SEC1, and PKCS#8 type keys can be encrypted by using a combination of
 the `cipher` and `format` options. The PKCS#8 `type` can be used with any

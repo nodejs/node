@@ -950,6 +950,18 @@ release binaries but can happen with custom builds, including distro builds.
 
 A signing `key` was not provided to the [`sign.sign()`][] method.
 
+<a id="ERR_JWK_UNSUPPORTED_CURVE"></a>
+### `ERR_JWK_UNSUPPORTED_CURVE`
+
+Key's Elliptic Curve is not registered for use in the
+[JSON Web Key Elliptic Curve Registry][].
+
+<a id="ERR_JWK_UNSUPPORTED_KEY_TYPE"></a>
+### `ERR_JWK_UNSUPPORTED_KEY_TYPE`
+
+Key's Asymmetric Key Type is not registered for use in the
+[JSON Web Key Types Registry][].
+
 <a id="ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH"></a>
 ### `ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH`
 
@@ -2716,6 +2728,8 @@ The native call from `process.cpuUsage` could not be processed.
 
 [ES Module]: esm.md
 [ICU]: intl.md#intl_internationalization_support
+[JSON Web Key Elliptic Curve Registry]: https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
+[JSON Web Key Types Registry]: https://www.iana.org/assignments/jose/jose.xhtml#web-key-types
 [Node.js error codes]: #nodejs-error-codes
 [RFC 7230 Section 3]: https://tools.ietf.org/html/rfc7230#section-3
 [Subresource Integrity specification]: https://www.w3.org/TR/SRI/#the-integrity-attribute
