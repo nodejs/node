@@ -11,7 +11,7 @@ There are three options for implementing addons: the Node.js API, nan, or
 direct use of internal V8, libuv and Node.js libraries. Unless there is a need
 for direct access to functionality which is not exposed by the Node.js API, use
 the Node.js API.
-Refer to [C/C++ addons with the Node.js API](node--api.md) for more information
+Refer to [C/C++ addons with the Node.js API](node-api.md) for more information
 on the Node.js API.
 
 When not using the Node.js API, implementing addons is complicated,
@@ -457,7 +457,7 @@ in the Node.js API are used.
 
 Creating and maintaining an addon that benefits from the ABI stability
 provided by the Node.js API carries with it certain
-[implementation considerations](node-api.md#n_api_implications_of_abi_stability).
+[implementation considerations](node-api.md#node_api_implications_of_abi_stability).
 
 To use the Node.js API in the above "Hello world" example, replace the content
 of `hello.cc` with the following. All other instructions remain the same.

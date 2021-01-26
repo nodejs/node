@@ -2491,7 +2491,7 @@ util.log('Timestamped message.');
 [`WebAssembly.Module`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module
 [`assert.deepStrictEqual()`]: assert.md#assert_assert_deepstrictequal_actual_expected_message
 [`console.error()`]: console.md#console_console_error_data_args
-[`node_api_create_external()`]: n-api.md#node_api_node_api_create_external
+[`node_api_create_external()`]: node-api.md#node_api_node_api_create_external
 [`target` and `handler`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy#Terminology
 [`tty.hasColors()`]: tty.md#tty_writestream_hascolors_count_env
 [`util.format()`]: #util_util_format_format_args

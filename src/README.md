@@ -952,7 +952,6 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [C++ coding style]: ../doc/guides/cpp-style-guide.md
 [Callback scopes]: #callback-scopes
 [JavaScript value handles]: #js-handles
-[the Node.js API]: https://nodejs.org/api/node-api.html
 [`BaseObject`]: #baseobject
 [`Context`]: #context
 [`Environment`]: #environment
@@ -985,3 +984,4 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [libuv requests]: #libuv-handles-and-requests
 [libuv]: https://libuv.org/
 [reference documentation for the libuv API]: http://docs.libuv.org/en/v1.x/
+[the Node.js API]: https://nodejs.org/api/node-api.html
