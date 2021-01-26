@@ -2757,13 +2757,18 @@ Generates a pseudo-random prime of `size` bits.
 If `options.safe` is `true`, the prime will be a safe prime -- that is,
 `(prime - 1) / 2` will also be a prime.
 
-If `options.add` and `options.rem` are set, the prime will satisfy the
-condition that `prime % add = rem`. The `options.rem` is ignored if
-`options.add` is not given. If `options.safe` is `true`, `options.add`
-is given, and `options.rem` is `undefined`, then the prime generated
-will satisfy the condition `prime % add = 3`. Otherwise if `options.safe`
-is `false` and `options.rem` is `undefined`, `options.add` will be
-ignored.
+The `options.add` and `options.rem` parameters can be used to enforce additional
+requirements, e.g., for Diffie-Hellman:
+
+* If `options.add` and `options.rem` are both set, the prime will satisfy the
+  condition that `prime % add = rem`.
+* If only `options.add` is set and `options.safe` is not `true`, the prime will
+  satisfy the condition that `prime % add = 1`.
+* If only `options.add` is set and `options.safe` is set to `true`, the prime
+  will instead satisfy the condition that `prime % add = 3`. This is necessary
+  because `prime % add = 1` for `options.add > 2` would contradict the condition
+  enforced by `options.safe`.
+* `options.rem` is ignored if `options.add` is not given.
 
 Both `options.add` and `options.rem` must be encoded as big-endian sequences
 if given as an `ArrayBuffer`, `SharedArrayBuffer`, `TypedArray`, `Buffer`, or
@@ -2790,15 +2795,20 @@ added: REPLACEME
 Generates a pseudo-random prime of `size` bits.
 
 If `options.safe` is `true`, the prime will be a safe prime -- that is,
-`(prime - 1)` / 2 will also be a prime.
+`(prime - 1) / 2` will also be a prime.
 
-If `options.add` and `options.rem` are set, the prime will satisfy the
-condition that `prime % add = rem`. The `options.rem` is ignored if
-`options.add` is not given. If `options.safe` is `true`, `options.add`
-is given, and `options.rem` is `undefined`, then the prime generated
-will satisfy the condition `prime % add = 3`. Otherwise if `options.safe`
-is `false` and `options.rem` is `undefined`, `options.add` will be
-ignored.
+The `options.add` and `options.rem` parameters can be used to enforce additional
+requirements, e.g., for Diffie-Hellman:
+
+* If `options.add` and `options.rem` are both set, the prime will satisfy the
+  condition that `prime % add = rem`.
+* If only `options.add` is set and `options.safe` is not `true`, the prime will
+  satisfy the condition that `prime % add = 1`.
+* If only `options.add` is set and `options.safe` is set to `true`, the prime
+  will instead satisfy the condition that `prime % add = 3`. This is necessary
+  because `prime % add = 1` for `options.add > 2` would contradict the condition
+  enforced by `options.safe`.
+* `options.rem` is ignored if `options.add` is not given.
 
 Both `options.add` and `options.rem` must be encoded as big-endian sequences
 if given as an `ArrayBuffer`, `SharedArrayBuffer`, `TypedArray`, `Buffer`, or
