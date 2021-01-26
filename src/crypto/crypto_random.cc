@@ -110,8 +110,7 @@ Maybe<bool> RandomPrimeTraits::AdditionalConfig(
       return Nothing<bool>();
     }
     ArrayBufferOrViewContents<unsigned char> add(args[offset + 2]);
-    BN_bin2bn(add.data(), add.size(), params->add.get());
-    if (!params->add) {
+    if (BN_bin2bn(add.data(), add.size(), params->add.get()) == nullptr) {
       THROW_ERR_INVALID_ARG_VALUE(env, "invalid options.add");
       return Nothing<bool>();
     }
@@ -124,8 +123,7 @@ Maybe<bool> RandomPrimeTraits::AdditionalConfig(
       return Nothing<bool>();
     }
     ArrayBufferOrViewContents<unsigned char> rem(args[offset + 3]);
-    BN_bin2bn(rem.data(), rem.size(), params->rem.get());
-    if (!params->rem) {
+    if (BN_bin2bn(rem.data(), rem.size(), params->rem.get()) == nullptr) {
       THROW_ERR_INVALID_ARG_VALUE(env, "invalid options.rem");
       return Nothing<bool>();
     }
