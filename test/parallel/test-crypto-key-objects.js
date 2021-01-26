@@ -19,6 +19,7 @@ const {
   publicEncrypt,
   privateDecrypt,
   privateEncrypt,
+  getCurves,
   generateKeyPairSync
 } = require('crypto');
 
@@ -676,18 +677,22 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
 
 {
   // Exporting a JWK unsupported curve EC key
-  const keyPair = generateKeyPairSync('ec', { namedCurve: 'prime192v1' });
+  const supported = ['prime256v1', 'secp256k1', 'secp384r1', 'secp521r1'];
+  // Find an unsupported curve regardless of whether a FIPS compliant crypto
+  // provider is currently in use.
+  const namedCurve = getCurves().find((curve) => !supported.includes(curve));
+  const keyPair = generateKeyPairSync('ec', { namedCurve });
   const { publicKey, privateKey } = keyPair;
   assert.throws(
     () => publicKey.export({ format: 'jwk' }),
     {
       code: 'ERR_JWK_UNSUPPORTED_CURVE',
-      message: 'Unsupported JWK EC curve: prime192v1.'
+      message: `Unsupported JWK EC curve: ${namedCurve}.`
     });
   assert.throws(
     () => privateKey.export({ format: 'jwk' }),
     {
       code: 'ERR_JWK_UNSUPPORTED_CURVE',
-      message: 'Unsupported JWK EC curve: prime192v1.'
+      message: `Unsupported JWK EC curve: ${namedCurve}.`
     });
 }
