@@ -18,7 +18,9 @@ const {
   publicDecrypt,
   publicEncrypt,
   privateDecrypt,
-  privateEncrypt
+  privateEncrypt,
+  getCurves,
+  generateKeyPairSync
 } = require('crypto');
 
 const fixtures = require('../common/fixtures');
@@ -156,6 +158,56 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     });
   }
 
+  const jwk = {
+    e: 'AQAB',
+    n: 't9xYiIonscC3vz_A2ceR7KhZZlDu_5bye53nCVTcKnWd2seY6UAdKersX6njr83Dd5OVe' +
+       '1BW_wJvp5EjWTAGYbFswlNmeD44edEGM939B6Lq-_8iBkrTi8mGN4YCytivE24YI0D4XZ' +
+       'MPfkLSpab2y_Hy4DjQKBq1ThZ0UBnK-9IhX37Ju_ZoGYSlTIGIhzyaiYBh7wrZBoPczIE' +
+       'u6et_kN2VnnbRUtkYTF97ggcv5h-hDpUQjQW0ZgOMcTc8n-RkGpIt0_iM_bTjI3Tz_gsF' +
+       'di6hHcpZgbopPL630296iByyigQCPJVzdusFrQN5DeC-zT_nGypQkZanLb4ZspSx9Q',
+    d: 'ktnq2LvIMqBj4txP82IEOorIRQGVsw1khbm8A-cEpuEkgM71Yi_0WzupKktucUeevQ5i0' +
+       'Yh8w9e1SJiTLDRAlJz66kdky9uejiWWl6zR4dyNZVMFYRM43ijLC-P8rPne9Fz16IqHFW' +
+       '5VbJqA1xCBhKmuPMsD71RNxZ4Hrsa7Kt_xglQTYsLbdGIwDmcZihId9VGXRzvmCPsDRf2' +
+       'fCkAj7HDeRxpUdEiEDpajADc-PWikra3r3b40tVHKWm8wxJLivOIN7GiYXKQIW6RhZgH-' +
+       'Rk45JIRNKxNagxdeXUqqyhnwhbTo1Hite0iBDexN9tgoZk0XmdYWBn6ElXHRZ7VCDQ',
+    p: '8UovlB4nrBm7xH-u7XXBMbqxADQm5vaEZxw9eluc-tP7cIAI4sglMIvL_FMpbd2pEeP_B' +
+       'kR76NTDzzDuPAZvUGRavgEjy0O9j2NAs_WPK4tZF-vFdunhnSh4EHAF4Ij9kbsUi90NOp' +
+       'bGfVqPdOaHqzgHKoR23Cuusk9wFQ2XTV8',
+    q: 'wxHdEYT9xrpfrHPqSBQPpO0dWGKJEkrWOb-76rSfuL8wGR4OBNmQdhLuU9zTIh22pog-X' +
+       'PnLPAecC-4yu_wtJ2SPCKiKDbJBre0CKPyRfGqzvA3njXwMxXazU4kGs-2Fg-xu_iKbaI' +
+       'jxXrclBLhkxhBtySrwAFhxxOk6fFcPLSs',
+    dp: 'qS_Mdr5CMRGGMH0bKhPUWEtAixUGZhJaunX5wY71Xoc_Gh4cnO-b7BNJ_-5L8WZog0vr' +
+       '6PgiLhrqBaCYm2wjpyoG2o2wDHm-NAlzN_wp3G2EFhrSxdOux-S1c0kpRcyoiAO2n29rN' +
+       'Da-jOzwBBcU8ACEPdLOCQl0IEFFJO33tl8',
+    dq: 'WAziKpxLKL7LnL4dzDcx8JIPIuwnTxh0plCDdCffyLaT8WJ9lXbXHFTjOvt8WfPrlDP_' +
+       'Ylxmfkw5BbGZOP1VLGjZn2DkH9aMiwNmbDXFPdG0G3hzQovx_9fajiRV4DWghLHeT9wzJ' +
+       'fZabRRiI0VQR472300AVEeX4vgbrDBn600',
+    qi: 'k7czBCT9rHn_PNwCa17hlTy88C4vXkwbz83Oa-aX5L4e5gw5lhcR2ZuZHLb2r6oMt9rl' +
+       'D7EIDItSs-u21LOXWPTAlazdnpYUyw_CzogM_PN-qNwMRXn5uXFFhmlP2mVg2EdELTahX' +
+       'ch8kWqHaCSX53yvqCtRKu_j76V31TfQZGM',
+    kty: 'RSA',
+  };
+
+  for (const keyObject of [publicKey, derivedPublicKey]) {
+    assert.deepStrictEqual(
+      keyObject.export({ format: 'jwk' }),
+      { kty: 'RSA', n: jwk.n, e: jwk.e }
+    );
+  }
+  assert.deepStrictEqual(
+    privateKey.export({ format: 'jwk' }),
+    jwk
+  );
+
+  // Exporting the key using JWK should not work since this format does not
+  // support key encryption
+  assert.throws(() => {
+    privateKey.export({ format: 'jwk', passphrase: 'secret' });
+  }, {
+    message: 'The selected key encoding jwk does not support encryption.',
+    code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS'
+  });
+
   const publicDER = publicKey.export({
     format: 'der',
     type: 'pkcs1'
@@ -254,36 +306,150 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
 [
   { private: fixtures.readKey('ed25519_private.pem', 'ascii'),
     public: fixtures.readKey('ed25519_public.pem', 'ascii'),
-    keyType: 'ed25519' },
+    keyType: 'ed25519',
+    jwk: {
+      crv: 'Ed25519',
+      x: 'K1wIouqnuiA04b3WrMa-xKIKIpfHetNZRv3h9fBf768',
+      d: 'wVK6M3SMhQh3NK-7GRrSV-BVWQx1FO5pW8hhQeu_NdA',
+      kty: 'OKP'
+    } },
   { private: fixtures.readKey('ed448_private.pem', 'ascii'),
     public: fixtures.readKey('ed448_public.pem', 'ascii'),
-    keyType: 'ed448' },
+    keyType: 'ed448',
+    jwk: {
+      crv: 'Ed448',
+      x: 'oX_ee5-jlcU53-BbGRsGIzly0V-SZtJ_oGXY0udf84q2hTW2RdstLktvwpkVJOoNb7o' +
+         'Dgc2V5ZUA',
+      d: '060Ke71sN0GpIc01nnGgMDkp0sFNQ09woVo4AM1ffax1-mjnakK0-p-S7-Xf859QewX' +
+         'jcR9mxppY',
+      kty: 'OKP'
+    } },
   { private: fixtures.readKey('x25519_private.pem', 'ascii'),
     public: fixtures.readKey('x25519_public.pem', 'ascii'),
-    keyType: 'x25519' },
+    keyType: 'x25519',
+    jwk: {
+      crv: 'X25519',
+      x: 'aSb8Q-RndwfNnPeOYGYPDUN3uhAPnMLzXyfi-mqfhig',
+      d: 'mL_IWm55RrALUGRfJYzw40gEYWMvtRkesP9mj8o8Omc',
+      kty: 'OKP'
+    } },
   { private: fixtures.readKey('x448_private.pem', 'ascii'),
     public: fixtures.readKey('x448_public.pem', 'ascii'),
-    keyType: 'x448' },
+    keyType: 'x448',
+    jwk: {
+      crv: 'X448',
+      x: 'ioHSHVpTs6hMvghosEJDIR7ceFiE3-Xccxati64oOVJ7NWjfozE7ae31PXIUFq6cVYg' +
+         'vSKsDFPA',
+      d: 'tMNtrO_q8dlY6Y4NDeSTxNQ5CACkHiPvmukidPnNIuX_EkcryLEXt_7i6j6YZMKsrWy' +
+         'S0jlSYJk',
+      kty: 'OKP'
+    } },
 ].forEach((info) => {
   const keyType = info.keyType;
 
   {
-    const exportOptions = { type: 'pkcs8', format: 'pem' };
     const key = createPrivateKey(info.private);
     assert.strictEqual(key.type, 'private');
     assert.strictEqual(key.asymmetricKeyType, keyType);
     assert.strictEqual(key.symmetricKeySize, undefined);
-    assert.strictEqual(key.export(exportOptions), info.private);
+    assert.strictEqual(
+      key.export({ type: 'pkcs8', format: 'pem' }), info.private);
+    assert.deepStrictEqual(
+      key.export({ format: 'jwk' }), info.jwk);
   }
 
   {
-    const exportOptions = { type: 'spki', format: 'pem' };
     [info.private, info.public].forEach((pem) => {
       const key = createPublicKey(pem);
       assert.strictEqual(key.type, 'public');
       assert.strictEqual(key.asymmetricKeyType, keyType);
       assert.strictEqual(key.symmetricKeySize, undefined);
-      assert.strictEqual(key.export(exportOptions), info.public);
+      assert.strictEqual(
+        key.export({ type: 'spki', format: 'pem' }), info.public);
+      const jwk = { ...info.jwk };
+      delete jwk.d;
+      assert.deepStrictEqual(
+        key.export({ format: 'jwk' }), jwk);
+    });
+  }
+});
+
+[
+  { private: fixtures.readKey('ec_p256_private.pem', 'ascii'),
+    public: fixtures.readKey('ec_p256_public.pem', 'ascii'),
+    keyType: 'ec',
+    namedCurve: 'prime256v1',
+    jwk: {
+      crv: 'P-256',
+      d: 'DxBsPQPIgMuMyQbxzbb9toew6Ev6e9O6ZhpxLNgmAEo',
+      kty: 'EC',
+      x: 'X0mMYR_uleZSIPjNztIkAS3_ud5LhNpbiIFp6fNf2Gs',
+      y: 'UbJuPy2Xi0lW7UYTBxPK3yGgDu9EAKYIecjkHX5s2lI'
+    } },
+  { private: fixtures.readKey('ec_secp256k1_private.pem', 'ascii'),
+    public: fixtures.readKey('ec_secp256k1_public.pem', 'ascii'),
+    keyType: 'ec',
+    namedCurve: 'secp256k1',
+    jwk: {
+      crv: 'secp256k1',
+      d: 'c34ocwTwpFa9NZZh3l88qXyrkoYSxvC0FEsU5v1v4IM',
+      kty: 'EC',
+      x: 'cOzhFSpWxhalCbWNdP2H_yUkdC81C9T2deDpfxK7owA',
+      y: '-A3DAZTk9IPppN-f03JydgHaFvL1fAHaoXf4SX4NXyo'
+    } },
+  { private: fixtures.readKey('ec_p384_private.pem', 'ascii'),
+    public: fixtures.readKey('ec_p384_public.pem', 'ascii'),
+    keyType: 'ec',
+    namedCurve: 'secp384r1',
+    jwk: {
+      crv: 'P-384',
+      d: 'dwfuHuAtTlMRn7ZBCBm_0grpc1D_4hPeNAgevgelljuC0--k_LDFosDgBlLLmZsi',
+      kty: 'EC',
+      x: 'hON3nzGJgv-08fdHpQxgRJFZzlK-GZDGa5f3KnvM31cvvjJmsj4UeOgIdy3rDAjV',
+      y: 'fidHhtecNCGCfLqmrLjDena1NSzWzWH1u_oUdMKGo5XSabxzD7-8JZxjpc8sR9cl'
+    } },
+  { private: fixtures.readKey('ec_p521_private.pem', 'ascii'),
+    public: fixtures.readKey('ec_p521_public.pem', 'ascii'),
+    keyType: 'ec',
+    namedCurve: 'secp521r1',
+    jwk: {
+      crv: 'P-521',
+      d: 'ABIIbmn3Gm_Y11uIDkC3g2ijpRxIrJEBY4i_JJYo5OougzTl3BX2ifRluPJMaaHcNer' +
+         'bQH_WdVkLLX86ShlHrRyJ',
+      kty: 'EC',
+      x: 'AaLFgjwZtznM3N7qsfb86awVXe6c6djUYOob1FN-kllekv0KEXV0bwcDjPGQz5f6MxL' +
+         'CbhMeHRavUS6P10rsTtBn',
+      y: 'Ad3flexBeAfXceNzRBH128kFbOWD6W41NjwKRqqIF26vmgW_8COldGKZjFkOSEASxPB' +
+         'cvA2iFJRUyQ3whC00j0Np'
+    } },
+].forEach((info) => {
+  const { keyType, namedCurve } = info;
+
+  {
+    const key = createPrivateKey(info.private);
+    assert.strictEqual(key.type, 'private');
+    assert.strictEqual(key.asymmetricKeyType, keyType);
+    assert.deepStrictEqual(key.asymmetricKeyDetails, { namedCurve });
+    assert.strictEqual(key.symmetricKeySize, undefined);
+    assert.strictEqual(
+      key.export({ type: 'pkcs8', format: 'pem' }), info.private);
+    assert.deepStrictEqual(
+      key.export({ format: 'jwk' }), info.jwk);
+  }
+
+  {
+    [info.private, info.public].forEach((pem) => {
+      const key = createPublicKey(pem);
+      assert.strictEqual(key.type, 'public');
+      assert.strictEqual(key.asymmetricKeyType, keyType);
+      assert.deepStrictEqual(key.asymmetricKeyDetails, { namedCurve });
+      assert.strictEqual(key.symmetricKeySize, undefined);
+      assert.strictEqual(
+        key.export({ type: 'spki', format: 'pem' }), info.public);
+      const jwk = { ...info.jwk };
+      delete jwk.d;
+      assert.deepStrictEqual(
+        key.export({ format: 'jwk' }), jwk);
     });
   }
 });
@@ -321,6 +487,9 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert.strictEqual(publicKey.type, 'public');
   assert.strictEqual(publicKey.asymmetricKeyType, 'dsa');
   assert.strictEqual(publicKey.symmetricKeySize, undefined);
+  assert.throws(
+    () => publicKey.export({ format: 'jwk' }),
+    { code: 'ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE' });
 
   const privateKey = createPrivateKey({
     key: privateDsa,
@@ -330,7 +499,9 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert.strictEqual(privateKey.type, 'private');
   assert.strictEqual(privateKey.asymmetricKeyType, 'dsa');
   assert.strictEqual(privateKey.symmetricKeySize, undefined);
-
+  assert.throws(
+    () => privateKey.export({ format: 'jwk' }),
+    { code: 'ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE' });
 }
 
 {
@@ -349,6 +520,13 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
 
     assert.strictEqual(privateKey.type, 'private');
     assert.strictEqual(privateKey.asymmetricKeyType, 'rsa-pss');
+
+    assert.throws(
+      () => publicKey.export({ format: 'jwk' }),
+      { code: 'ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE' });
+    assert.throws(
+      () => privateKey.export({ format: 'jwk' }),
+      { code: 'ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE' });
 
     for (const key of [privatePem, privateKey]) {
       // Any algorithm should work.
@@ -484,4 +662,47 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     code: 'ERR_INVALID_ARG_VALUE',
     message: "The property 'options.cipher' is invalid. Received undefined"
   });
+}
+
+{
+  // SecretKeyObject export buffer format (default)
+  const buffer = Buffer.from('Hello World');
+  const keyObject = createSecretKey(buffer);
+  assert.deepStrictEqual(keyObject.export(), buffer);
+  assert.deepStrictEqual(keyObject.export({}), buffer);
+  assert.deepStrictEqual(keyObject.export({ format: 'buffer' }), buffer);
+  assert.deepStrictEqual(keyObject.export({ format: undefined }), buffer);
+}
+
+{
+  // Exporting an "oct" JWK from a SecretKeyObject
+  const buffer = Buffer.from('Hello World');
+  const keyObject = createSecretKey(buffer);
+  assert.deepStrictEqual(
+    keyObject.export({ format: 'jwk' }),
+    { kty: 'oct', k: 'SGVsbG8gV29ybGQ' }
+  );
+}
+
+{
+  // Exporting a JWK unsupported curve EC key
+  const supported = ['prime256v1', 'secp256k1', 'secp384r1', 'secp521r1'];
+  // Find an unsupported curve regardless of whether a FIPS compliant crypto
+  // provider is currently in use.
+  const namedCurve = getCurves().find((curve) => !supported.includes(curve));
+  assert(namedCurve);
+  const keyPair = generateKeyPairSync('ec', { namedCurve });
+  const { publicKey, privateKey } = keyPair;
+  assert.throws(
+    () => publicKey.export({ format: 'jwk' }),
+    {
+      code: 'ERR_CRYPTO_JWK_UNSUPPORTED_CURVE',
+      message: `Unsupported JWK EC curve: ${namedCurve}.`
+    });
+  assert.throws(
+    () => privateKey.export({ format: 'jwk' }),
+    {
+      code: 'ERR_CRYPTO_JWK_UNSUPPORTED_CURVE',
+      message: `Unsupported JWK EC curve: ${namedCurve}.`
+    });
 }
