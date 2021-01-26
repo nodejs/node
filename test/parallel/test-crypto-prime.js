@@ -135,6 +135,30 @@ generatePrime(
   assert.strictEqual(val % add, rem);
 }
 
+{
+  // The behavior when specifying only add without rem should depend on the
+  // safe option.
+
+  if (process.versions.openssl >= '1.1.1f') {
+    generatePrime(128, {
+      bigint: true,
+      add: 5n
+    }, common.mustSucceed((prime) => {
+      assert(checkPrimeSync(prime));
+      assert.strictEqual(prime % 5n, 1n);
+    }));
+
+    generatePrime(128, {
+      bigint: true,
+      safe: true,
+      add: 5n
+    }, common.mustSucceed((prime) => {
+      assert(checkPrimeSync(prime));
+      assert.strictEqual(prime % 5n, 3n);
+    }));
+  }
+}
+
 [1, 'hello', {}, []].forEach((i) => {
   assert.throws(() => checkPrime(i), {
     code: 'ERR_INVALID_ARG_TYPE'
