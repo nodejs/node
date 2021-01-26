@@ -9,12 +9,12 @@ static void cleanup(void* arg) {
 static int secret = 42;
 static int wrong_secret = 17;
 
-static napi_value Init(napi_env env, napi_value exports) {
-  napi_add_env_cleanup_hook(env, cleanup, &wrong_secret);
-  napi_add_env_cleanup_hook(env, cleanup, &secret);
-  napi_remove_env_cleanup_hook(env, cleanup, &wrong_secret);
+static node_api_value Init(node_api_env env, node_api_value exports) {
+  node_api_add_env_cleanup_hook(env, cleanup, &wrong_secret);
+  node_api_add_env_cleanup_hook(env, cleanup, &secret);
+  node_api_remove_env_cleanup_hook(env, cleanup, &wrong_secret);
 
   return NULL;
 }
 
-NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)
+NODE_API_MODULE(NODE_GYP_MODULE_NAME, Init)

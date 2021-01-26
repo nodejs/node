@@ -14,7 +14,7 @@ const rebinding = require(bindingPath);
 assert.strictEqual(rebinding.hello(), 'world');
 assert.notStrictEqual(binding.hello, rebinding.hello);
 
-// Test that workers can load addons declared using NAPI_MODULE_INIT().
+// Test that workers can load addons declared using NODE_API_MODULE_INIT().
 new Worker(`
 const { parentPort } = require('worker_threads');
 const msg = require(${JSON.stringify(bindingPath)}).hello();

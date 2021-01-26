@@ -88,18 +88,18 @@ async function runTests() {
 }
 runTests();
 
-// This test creates a napi_ref on an object that has
-// been wrapped by napi_wrap and for which the finalizer
-// for the wrap calls napi_delete_ref on that napi_ref.
+// This test creates a node_api_ref on an object that has
+// been wrapped by node_api_wrap and for which the finalizer
+// for the wrap calls node_api_delete_ref on that node_api_ref.
 //
 // Since both the wrap and the reference use the same
 // object the finalizer for the wrap and reference
 // may run in the same gc and in any order.
 //
-// It does that to validate that napi_delete_ref can be
+// It does that to validate that node_api_delete_ref can be
 // called before the finalizer has been run for the
 // reference (there is a finalizer behind the scenes even
-// though it cannot be passed to napi_create_reference).
+// though it cannot be passed to node_api_create_reference).
 //
 // Since the order is not guarranteed, run the
 // test a number of times maximize the chance that we

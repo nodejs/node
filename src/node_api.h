@@ -121,6 +121,7 @@ typedef struct napi_module {
   NODE_API_MODULE(NODE_GYP_MODULE_NAME, NODE_API_MODULE_INITIALIZER)     \
   node_api_value NODE_API_MODULE_INITIALIZER(node_api_env env,           \
                                              node_api_value exports)
+#define NODE_API_MODULE_INIT NAPI_MODULE_INIT
 
 EXTERN_C_START
 
@@ -174,7 +175,7 @@ napi_create_buffer_copy(node_api_env env,
                         const void* data,
                         void** result_data,
                         node_api_value* result);
-#define node_api_create_buffer napi_create_buffer
+#define node_api_create_buffer_copy napi_create_buffer_copy
 NODE_API_EXTERN node_api_status
 napi_is_buffer(node_api_env env,
                node_api_value value,
@@ -303,7 +304,7 @@ napi_ref_threadsafe_function(node_api_env env,
 
 #endif  // NAPI_VERSION >= 4
 
-#ifdef NAPI_EXPERIMENTAL
+#if defined(NAPI_EXPERIMENTAL) || defined(NODE_API_EXPERIMENTAL)
 
 NODE_API_EXTERN node_api_status napi_add_async_cleanup_hook(
     node_api_env env,
@@ -316,7 +317,7 @@ NODE_API_EXTERN node_api_status napi_remove_async_cleanup_hook(
     node_api_async_cleanup_hook_handle remove_handle);
 #define node_api_remove_async_cleanup_hook napi_remove_async_cleanup_hook
 
-#endif  // NAPI_EXPERIMENTAL
+#endif  // NAPI_EXPERIMENTAL || NODE_API_EXPERIMENTAL
 
 EXTERN_C_END
 

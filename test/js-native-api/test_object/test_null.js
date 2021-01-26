@@ -19,7 +19,7 @@ assert.deepStrictEqual(testNull.hasOwnProperty(), expectedForProperty);
 assert.deepStrictEqual(testNull.deleteProperty(),
                        Object.assign({},
                                      expectedForProperty,
-                                     { valueIsNull: 'napi_ok' }));
+                                     { valueIsNull: 'node_api_ok' }));
 assert.deepStrictEqual(testNull.setNamedProperty(), expectedForProperty);
 assert.deepStrictEqual(testNull.getNamedProperty(), expectedForProperty);
 assert.deepStrictEqual(testNull.hasNamedProperty(), expectedForProperty);
@@ -36,7 +36,7 @@ assert.deepStrictEqual(testNull.hasElement(), expectedForElement);
 assert.deepStrictEqual(testNull.deleteElement(),
                        Object.assign({},
                                      expectedForElement,
-                                     { valueIsNull: 'napi_ok' }));
+                                     { valueIsNull: 'node_api_ok' }));
 
 assert.deepStrictEqual(testNull.defineProperties(), {
   envIsNull: 'Invalid argument',

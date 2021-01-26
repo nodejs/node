@@ -38,7 +38,7 @@ global.gc();
 
 assert.deepStrictEqual(test_function.TestCreateFunctionParameters(), {
   envIsNull: 'Invalid argument',
-  nameIsNull: 'napi_ok',
+  nameIsNull: 'node_api_ok',
   cbIsNull: 'Invalid argument',
   resultIsNull: 'Invalid argument'
 });

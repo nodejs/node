@@ -1,27 +1,29 @@
 #include <node_api.h>
 #include "../../js-native-api/common.h"
 
-static napi_value Test(napi_env env, napi_callback_info info) {
-  napi_fatal_error("test_fatal::Test", NAPI_AUTO_LENGTH,
-                   "fatal message", NAPI_AUTO_LENGTH);
+static node_api_value Test(node_api_env env, node_api_callback_info info) {
+  node_api_fatal_error("test_fatal::Test", NODE_API_AUTO_LENGTH,
+                   "fatal message", NODE_API_AUTO_LENGTH);
   return NULL;
 }
 
-static napi_value TestStringLength(napi_env env, napi_callback_info info) {
-  napi_fatal_error("test_fatal::TestStringLength", 16, "fatal message", 13);
+static node_api_value
+TestStringLength(node_api_env env, node_api_callback_info info) {
+  node_api_fatal_error(
+      "test_fatal::TestStringLength", 16, "fatal message", 13);
   return NULL;
 }
 
-static napi_value Init(napi_env env, napi_value exports) {
-  napi_property_descriptor properties[] = {
-    DECLARE_NAPI_PROPERTY("Test", Test),
-    DECLARE_NAPI_PROPERTY("TestStringLength", TestStringLength),
+static node_api_value Init(node_api_env env, node_api_value exports) {
+  node_api_property_descriptor properties[] = {
+    DECLARE_NODE_API_PROPERTY("Test", Test),
+    DECLARE_NODE_API_PROPERTY("TestStringLength", TestStringLength),
   };
 
-  NAPI_CALL(env, napi_define_properties(
+  NODE_API_CALL(env, node_api_define_properties(
       env, exports, sizeof(properties) / sizeof(*properties), properties));
 
   return exports;
 }
 
-NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)
+NODE_API_MODULE(NODE_GYP_MODULE_NAME, Init)

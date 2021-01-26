@@ -51,7 +51,7 @@ testUint32(17 * 4294967296 + 1, 1);
 testUint32(-1, 0xffffffff);
 
 // Validate documented behavior when value is retrieved as 32-bit integer with
-// `napi_get_value_int32`
+// `node_api_get_value_int32`
 function testInt32(input, expected = input) {
   assert.strictEqual(expected, test_number.TestInt32Truncation(input));
 }
@@ -94,7 +94,7 @@ testInt32(Number.NEGATIVE_INFINITY, 0);
 testInt32(Number.NaN, 0);
 
 // Validate documented behavior when value is retrieved as 64-bit integer with
-// `napi_get_value_int64`
+// `node_api_get_value_int64`
 function testInt64(input, expected = input) {
   assert.strictEqual(expected, test_number.TestInt64Truncation(input));
 }

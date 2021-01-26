@@ -2,9 +2,10 @@
 #include <stdlib.h>
 #include <node_api.h>
 
-napi_value addon_new(napi_env env, napi_value exports, bool ref_first);
+node_api_value
+addon_new(node_api_env env, node_api_value exports, bool ref_first);
 
-// static napi_value
-NAPI_MODULE_INIT(/*napi_env env, napi_value exports */) {
+// static node_api_value
+NODE_API_MODULE_INIT(/*node_api_env env, node_api_value exports */) {
   return addon_new(env, exports, true);
 }

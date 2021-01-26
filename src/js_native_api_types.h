@@ -20,7 +20,7 @@ typedef struct napi_handle_scope__* napi_handle_scope;
 typedef struct napi_escapable_handle_scope__* napi_escapable_handle_scope;
 typedef struct napi_callback_info__* napi_callback_info;
 typedef struct napi_deferred__* napi_deferred;
-#define node_api_env napi_env 
+#define node_api_env napi_env
 #define node_api_value napi_value
 #define node_api_ref napi_ref
 #define node_api_handle_scope napi_handle_scope
@@ -80,9 +80,9 @@ typedef enum {
 #define node_api_symbol napi_symbol
 #define node_api_object napi_object
 #define node_api_function napi_function
-#define napi_external,
-#define napi_bigint,
-#define napi_valuetype;
+#define node_api_external napi_external
+#define node_api_bigint napi_bigint
+#define node_api_valuetype napi_valuetype
 
 typedef enum {
   napi_int8_array,
@@ -232,12 +232,12 @@ typedef enum {
 #define node_api_key_conversion napi_key_conversion
 #endif  // NAPI_VERSION >= 6
 
-#ifdef NAPI_EXPERIMENTAL
+#if defined(NAPI_EXPERIMENTAL) || defined(NODE_API_EXPERIMENTAL)
 typedef struct {
   uint64_t lower;
   uint64_t upper;
 } napi_type_tag;
 #define node_api_type_tag napi_type_tag
-#endif  // NAPI_EXPERIMENTAL
+#endif  // NAPI_EXPERIMENTAL || NODE_API_EXPERIMENTAL
 
 #endif  // SRC_JS_NATIVE_API_TYPES_H_

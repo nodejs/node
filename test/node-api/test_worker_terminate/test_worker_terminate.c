@@ -3,39 +3,39 @@
 #include <assert.h>
 #include "../../js-native-api/common.h"
 
-napi_value Test(napi_env env, napi_callback_info info) {
+node_api_value Test(node_api_env env, node_api_callback_info info) {
   size_t argc = 1;
-  napi_value recv;
-  napi_value argv[1];
-  napi_status status;
+  node_api_value recv;
+  node_api_value argv[1];
+  node_api_status status;
 
-  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, argv, &recv, NULL));
-  NAPI_ASSERT(env, argc >= 1, "Not enough arguments, expected 1.");
+  NODE_API_CALL(env, node_api_get_cb_info(env, info, &argc, argv, &recv, NULL));
+  NODE_API_ASSERT(env, argc >= 1, "Not enough arguments, expected 1.");
 
-  napi_valuetype t;
-  NAPI_CALL(env, napi_typeof(env, argv[0], &t));
-  NAPI_ASSERT(env, t == napi_function,
+  node_api_valuetype t;
+  NODE_API_CALL(env, node_api_typeof(env, argv[0], &t));
+  NODE_API_ASSERT(env, t == node_api_function,
       "Wrong first argument, function expected.");
 
-  status = napi_call_function(env, recv, argv[0], 0, NULL, NULL);
-  assert(status == napi_ok);
-  status = napi_call_function(env, recv, argv[0], 0, NULL, NULL);
-  assert(status == napi_pending_exception);
+  status = node_api_call_function(env, recv, argv[0], 0, NULL, NULL);
+  assert(status == node_api_ok);
+  status = node_api_call_function(env, recv, argv[0], 0, NULL, NULL);
+  assert(status == node_api_pending_exception);
 
   return NULL;
 }
 
-napi_value Init(napi_env env, napi_value exports) {
-  napi_property_descriptor properties[] = {
-    DECLARE_NAPI_PROPERTY("Test", Test)
+node_api_value Init(node_api_env env, node_api_value exports) {
+  node_api_property_descriptor properties[] = {
+    DECLARE_NODE_API_PROPERTY("Test", Test)
   };
 
-  NAPI_CALL(env, napi_define_properties(
+  NODE_API_CALL(env, node_api_define_properties(
       env, exports, sizeof(properties) / sizeof(*properties), properties));
 
   return exports;
 }
 
-// Do not start using NAPI_MODULE_INIT() here, so that we can test
-// compatibility of Workers with NAPI_MODULE().
-NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)
+// Do not start using NODE_API_MODULE_INIT() here, so that we can test
+// compatibility of Workers with NODE_API_MODULE().
+NODE_API_MODULE(NODE_GYP_MODULE_NAME, Init)

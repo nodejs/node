@@ -5,9 +5,9 @@ static int finalize_count = 0;
 
 MyObject::MyObject() : env_(nullptr), wrapper_(nullptr) {}
 
-MyObject::~MyObject() { napi_delete_reference(env_, wrapper_); }
+MyObject::~MyObject() { node_api_delete_reference(env_, wrapper_); }
 
-void MyObject::Destructor(napi_env env,
+void MyObject::Destructor(node_api_env env,
                           void* nativeObject,
                           void* /*finalize_hint*/) {
   ++finalize_count;
@@ -15,89 +15,94 @@ void MyObject::Destructor(napi_env env,
   delete obj;
 }
 
-napi_value MyObject::GetFinalizeCount(napi_env env, napi_callback_info info) {
-  napi_value result;
-  NAPI_CALL(env, napi_create_int32(env, finalize_count, &result));
+node_api_value
+MyObject::GetFinalizeCount(node_api_env env, node_api_callback_info info) {
+  node_api_value result;
+  NODE_API_CALL(env, node_api_create_int32(env, finalize_count, &result));
   return result;
 }
 
-napi_ref MyObject::constructor;
+node_api_ref MyObject::constructor;
 
-napi_status MyObject::Init(napi_env env) {
-  napi_status status;
-  napi_property_descriptor properties[] = {
-    DECLARE_NAPI_PROPERTY("plusOne", PlusOne),
+node_api_status MyObject::Init(node_api_env env) {
+  node_api_status status;
+  node_api_property_descriptor properties[] = {
+    DECLARE_NODE_API_PROPERTY("plusOne", PlusOne),
   };
 
-  napi_value cons;
-  status = napi_define_class(
+  node_api_value cons;
+  status = node_api_define_class(
       env, "MyObject", -1, New, nullptr, 1, properties, &cons);
-  if (status != napi_ok) return status;
+  if (status != node_api_ok) return status;
 
-  status = napi_create_reference(env, cons, 1, &constructor);
-  if (status != napi_ok) return status;
+  status = node_api_create_reference(env, cons, 1, &constructor);
+  if (status != node_api_ok) return status;
 
-  return napi_ok;
+  return node_api_ok;
 }
 
-napi_value MyObject::New(napi_env env, napi_callback_info info) {
+node_api_value MyObject::New(node_api_env env, node_api_callback_info info) {
   size_t argc = 1;
-  napi_value args[1];
-  napi_value _this;
-  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, &_this, nullptr));
+  node_api_value args[1];
+  node_api_value _this;
+  NODE_API_CALL(env,
+      node_api_get_cb_info(env, info, &argc, args, &_this, nullptr));
 
-  napi_valuetype valuetype;
-  NAPI_CALL(env, napi_typeof(env, args[0], &valuetype));
+  node_api_valuetype valuetype;
+  NODE_API_CALL(env, node_api_typeof(env, args[0], &valuetype));
 
   MyObject* obj = new MyObject();
 
-  if (valuetype == napi_undefined) {
+  if (valuetype == node_api_undefined) {
     obj->counter_ = 0;
   } else {
-    NAPI_CALL(env, napi_get_value_uint32(env, args[0], &obj->counter_));
+    NODE_API_CALL(env,
+        node_api_get_value_uint32(env, args[0], &obj->counter_));
   }
 
   obj->env_ = env;
-  NAPI_CALL(env, napi_wrap(env,
-                           _this,
-                           obj,
-                           MyObject::Destructor,
-                           nullptr, /* finalize_hint */
-                           &obj->wrapper_));
+  NODE_API_CALL(env, node_api_wrap(env,
+                                   _this,
+                                   obj,
+                                   MyObject::Destructor,
+                                   nullptr, /* finalize_hint */
+                                   &obj->wrapper_));
 
   return _this;
 }
 
-napi_status MyObject::NewInstance(napi_env env,
-                                  napi_value arg,
-                                  napi_value* instance) {
-  napi_status status;
+node_api_status MyObject::NewInstance(node_api_env env,
+                                      node_api_value arg,
+                                      node_api_value* instance) {
+  node_api_status status;
 
   const int argc = 1;
-  napi_value argv[argc] = {arg};
+  node_api_value argv[argc] = {arg};
 
-  napi_value cons;
-  status = napi_get_reference_value(env, constructor, &cons);
-  if (status != napi_ok) return status;
+  node_api_value cons;
+  status = node_api_get_reference_value(env, constructor, &cons);
+  if (status != node_api_ok) return status;
 
-  status = napi_new_instance(env, cons, argc, argv, instance);
-  if (status != napi_ok) return status;
+  status = node_api_new_instance(env, cons, argc, argv, instance);
+  if (status != node_api_ok) return status;
 
-  return napi_ok;
+  return node_api_ok;
 }
 
-napi_value MyObject::PlusOne(napi_env env, napi_callback_info info) {
-  napi_value _this;
-  NAPI_CALL(env,
-      napi_get_cb_info(env, info, nullptr, nullptr, &_this, nullptr));
+node_api_value
+MyObject::PlusOne(node_api_env env, node_api_callback_info info) {
+  node_api_value _this;
+  NODE_API_CALL(env,
+      node_api_get_cb_info(env, info, nullptr, nullptr, &_this, nullptr));
 
   MyObject* obj;
-  NAPI_CALL(env, napi_unwrap(env, _this, reinterpret_cast<void**>(&obj)));
+  NODE_API_CALL(env,
+      node_api_unwrap(env, _this, reinterpret_cast<void**>(&obj)));
 
   obj->counter_ += 1;
 
-  napi_value num;
-  NAPI_CALL(env, napi_create_uint32(env, obj->counter_, &num));
+  node_api_value num;
+  NODE_API_CALL(env, node_api_create_uint32(env, obj->counter_, &num));
 
   return num;
 }

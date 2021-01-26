@@ -34,7 +34,7 @@ assert.strictEqual(makeCallback(resource, process, common.mustCall(function(x) {
 assert.strictEqual(makeCallback(resource, this,
                                 common.mustCall(myMultiArgFunc), 1, 2, 3), 42);
 
-// TODO(node-api): napi_make_callback needs to support
+// TODO(node-api): node_api_make_callback needs to support
 // strings passed for the func argument
 //
 // const recv = {

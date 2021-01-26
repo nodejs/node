@@ -5,22 +5,25 @@
 
 class MyObject {
  public:
-  static void Init(napi_env env, napi_value exports);
-  static void Destructor(napi_env env, void* nativeObject, void* finalize_hint);
+  static void Init(node_api_env env, node_api_value exports);
+  static void
+  Destructor(node_api_env env, void* nativeObject, void* finalize_hint);
 
  private:
   explicit MyObject(double value_ = 0);
   ~MyObject();
 
-  static napi_value New(napi_env env, napi_callback_info info);
-  static napi_value GetValue(napi_env env, napi_callback_info info);
-  static napi_value SetValue(napi_env env, napi_callback_info info);
-  static napi_value PlusOne(napi_env env, napi_callback_info info);
-  static napi_value Multiply(napi_env env, napi_callback_info info);
-  static napi_ref constructor;
+  static node_api_value New(node_api_env env, node_api_callback_info info);
+  static node_api_value
+  GetValue(node_api_env env, node_api_callback_info info);
+  static node_api_value
+  SetValue(node_api_env env, node_api_callback_info info);
+  static node_api_value PlusOne(node_api_env env, node_api_callback_info info);
+  static node_api_value
+  Multiply(node_api_env env, node_api_callback_info info);
+  static node_api_ref constructor;
   double value_;
-  napi_env env_;
-  napi_ref wrapper_;
+  node_api_env env_;
+  node_api_ref wrapper_;
 };
-
 #endif  // TEST_JS_NATIVE_API_6_OBJECT_WRAP_MYOBJECT_H_

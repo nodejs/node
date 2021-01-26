@@ -21,7 +21,7 @@ assert.throws(() => { test_object.readonlyValue = 3; },
 
 assert.ok(test_object.hiddenValue);
 
-// Properties with napi_enumerable attribute should be enumerable.
+// Properties with node_api_enumerable attribute should be enumerable.
 const propertyNames = [];
 for (const name in test_object) {
   propertyNames.push(name);
@@ -35,7 +35,7 @@ assert.ok(!propertyNames.includes('readwriteAccessor2'));
 assert.ok(!propertyNames.includes('readonlyAccessor1'));
 assert.ok(!propertyNames.includes('readonlyAccessor2'));
 
-// The napi_writable attribute should be ignored for accessors.
+// The node_api_writable attribute should be ignored for accessors.
 test_object.readwriteAccessor1 = 1;
 assert.strictEqual(test_object.readwriteAccessor1, 1);
 assert.strictEqual(test_object.readonlyAccessor1, 1);
@@ -50,13 +50,13 @@ assert.throws(() => { test_object.readonlyAccessor2 = 3; }, getterOnlyErrorRE);
 assert.strictEqual(TestConstructor.staticReadonlyAccessor1, 10);
 assert.strictEqual(test_object.staticReadonlyAccessor1, undefined);
 
-// Verify that passing NULL to napi_define_class() results in the correct
+// Verify that passing NULL to node_api_define_class() results in the correct
 // error.
 assert.deepStrictEqual(TestConstructor.TestDefineClass(), {
   envIsNull: 'Invalid argument',
   nameIsNull: 'Invalid argument',
   cbIsNull: 'Invalid argument',
-  cbDataIsNull: 'napi_ok',
+  cbDataIsNull: 'node_api_ok',
   propertiesIsNull: 'Invalid argument',
   resultIsNull: 'Invalid argument'
 });

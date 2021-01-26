@@ -34,7 +34,7 @@ assert.strictEqual(newObject.test_number, 987654321);
 assert.strictEqual(newObject.test_string, 'test string');
 
 {
-  // Verify that napi_get_property() walks the prototype chain.
+  // Verify that node_api_get_property() walks the prototype chain.
   function MyObject() {
     this.foo = 42;
     this.bar = 43;
@@ -53,7 +53,7 @@ assert.strictEqual(newObject.test_string, 'test string');
 }
 
 {
-  // Verify that napi_has_own_property() fails if property is not a name.
+  // Verify that node_api_has_own_property() fails if property is not a name.
   [true, false, null, undefined, {}, [], 0, 1, () => {}].forEach((value) => {
     assert.throws(() => {
       test_object.HasOwn({}, value);
@@ -62,7 +62,7 @@ assert.strictEqual(newObject.test_string, 'test string');
 }
 
 {
-  // Verify that napi_has_own_property() does not walk the prototype chain.
+  // Verify that node_api_has_own_property() does not walk the prototype chain.
   const symbol1 = Symbol();
   const symbol2 = Symbol();
 
@@ -222,9 +222,9 @@ assert.strictEqual(newObject.test_string, 'test string');
 }
 
 {
-  // Verify that napi_get_property_names gets the right set of property names,
-  // i.e.: includes prototypes, only enumerable properties, skips symbols,
-  // and includes indices and converts them to strings.
+  // Verify that node_api_get_property_names gets the right set of property
+  // names, i.e.: includes prototypes, only enumerable properties, skips
+  // symbols, and includes indices and converts them to strings.
 
   const object = Object.create({
     inherited: 1
@@ -249,7 +249,7 @@ assert.strictEqual(newObject.test_string, 'test string');
                          [fooSymbol]);
 }
 
-// Verify that passing NULL to napi_set_property() results in the correct
+// Verify that passing NULL to node_api_set_property() results in the correct
 // error.
 assert.deepStrictEqual(test_object.TestSetProperty(), {
   envIsNull: 'Invalid argument',
@@ -258,7 +258,7 @@ assert.deepStrictEqual(test_object.TestSetProperty(), {
   valueIsNull: 'Invalid argument'
 });
 
-// Verify that passing NULL to napi_has_property() results in the correct
+// Verify that passing NULL to node_api_has_property() results in the correct
 // error.
 assert.deepStrictEqual(test_object.TestHasProperty(), {
   envIsNull: 'Invalid argument',
@@ -267,7 +267,7 @@ assert.deepStrictEqual(test_object.TestHasProperty(), {
   resultIsNull: 'Invalid argument'
 });
 
-// Verify that passing NULL to napi_get_property() results in the correct
+// Verify that passing NULL to node_api_get_property() results in the correct
 // error.
 assert.deepStrictEqual(test_object.TestGetProperty(), {
   envIsNull: 'Invalid argument',

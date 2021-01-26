@@ -22,7 +22,7 @@ typedef enum {
 #define node_api_tsfn_release napi_tsfn_release
 #define node_api_tsfn_abort napi_tsfn_abort
 #define node_api_threadsafe_function_release_mode \
-  napi_threadsafe_function_release_mode 
+  napi_threadsafe_function_release_mode
 typedef enum {
   napi_tsfn_nonblocking,
   napi_tsfn_blocking
@@ -56,13 +56,13 @@ typedef struct {
 } napi_node_version;
 #define node_api_node_version napi_node_version
 
-#ifdef NAPI_EXPERIMENTAL
+#if defined(NAPI_EXPERIMENTAL) || defined(NODE_API_EXPERIMENTAL)
 typedef struct napi_async_cleanup_hook_handle__* napi_async_cleanup_hook_handle;
 #define node_api_async_cleanup_hook_handle napi_async_cleanup_hook_handle
 typedef void (*napi_async_cleanup_hook)(
     node_api_async_cleanup_hook_handle handle,
     void* data);
 #define node_api_async_cleanup_hook napi_async_cleanup_hook
-#endif  // NAPI_EXPERIMENTAL
+#endif  // NAPI_EXPERIMENTAL || NODE_API_EXPERIMENTAL
 
 #endif  // SRC_NODE_API_TYPES_H_

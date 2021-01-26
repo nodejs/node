@@ -7,7 +7,8 @@ const async_hooks = require('async_hooks');
 const { createAsyncResource } = require(`./build/${common.buildType}/binding`);
 
 // Test for https://github.com/nodejs/node/issues/27218:
-// napi_async_destroy() can be called during a regular garbage collection run.
+// node_api_async_destroy() can be called during a regular garbage collection
+// run.
 
 const hook_result = {
   id: null,
@@ -31,7 +32,7 @@ test_hook.enable();
 createAsyncResource({});
 
 // Trigger GC. This does *not* use global.gc(), because what we want to verify
-// is that `napi_async_destroy()` can be called when there is no JS context
+// is that `node_api_async_destroy()` can be called when there is no JS context
 // on the stack at the time of GC.
 // Currently, using --gc-interval=100 + 1M elements seems to work fine for this.
 const arr = new Array(1024 * 1024);

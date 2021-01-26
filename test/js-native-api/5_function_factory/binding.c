@@ -1,23 +1,30 @@
 #include <js_native_api.h>
 #include "../common.h"
 
-static napi_value MyFunction(napi_env env, napi_callback_info info) {
-  napi_value str;
-  NAPI_CALL(env, napi_create_string_utf8(env, "hello world", -1, &str));
+static node_api_value
+MyFunction(node_api_env env, node_api_callback_info info) {
+  node_api_value str;
+  NODE_API_CALL(env,
+                node_api_create_string_utf8(env, "hello world", -1, &str));
   return str;
 }
 
-static napi_value CreateFunction(napi_env env, napi_callback_info info) {
-  napi_value fn;
-  NAPI_CALL(env,
-    napi_create_function(env, "theFunction", -1, MyFunction, NULL, &fn));
+static node_api_value
+CreateFunction(node_api_env env, node_api_callback_info info) {
+  node_api_value fn;
+  NODE_API_CALL(env,
+      node_api_create_function(env, "theFunction", -1, MyFunction, NULL, &fn));
   return fn;
 }
 
 EXTERN_C_START
-napi_value Init(napi_env env, napi_value exports) {
-  NAPI_CALL(env,
-      napi_create_function(env, "exports", -1, CreateFunction, NULL, &exports));
+node_api_value Init(node_api_env env, node_api_value exports) {
+  NODE_API_CALL(env, node_api_create_function(env,
+                                              "exports",
+                                              NODE_API_AUTO_LENGTH,
+                                              CreateFunction,
+                                              NULL,
+                                              &exports));
   return exports;
 }
 EXTERN_C_END

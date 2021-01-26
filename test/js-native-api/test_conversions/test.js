@@ -179,21 +179,21 @@ assert.deepStrictEqual(test.testNull.coerceToBool(), {
   envIsNull: 'Invalid argument',
   valueIsNull: 'Invalid argument',
   resultIsNull: 'Invalid argument',
-  inputTypeCheck: 'napi_ok'
+  inputTypeCheck: 'node_api_ok'
 });
 
 assert.deepStrictEqual(test.testNull.coerceToObject(), {
   envIsNull: 'Invalid argument',
   valueIsNull: 'Invalid argument',
   resultIsNull: 'Invalid argument',
-  inputTypeCheck: 'napi_ok'
+  inputTypeCheck: 'node_api_ok'
 });
 
 assert.deepStrictEqual(test.testNull.coerceToString(), {
   envIsNull: 'Invalid argument',
   valueIsNull: 'Invalid argument',
   resultIsNull: 'Invalid argument',
-  inputTypeCheck: 'napi_ok'
+  inputTypeCheck: 'node_api_ok'
 });
 
 assert.deepStrictEqual(test.testNull.getValueStringUtf8(), {

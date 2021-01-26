@@ -20,7 +20,7 @@ assert.throws(() => { test_object.readonlyValue = 3; }, readonlyErrorRE);
 
 assert.ok(test_object.hiddenValue);
 
-// Properties with napi_enumerable attribute should be enumerable.
+// Properties with node_api_enumerable attribute should be enumerable.
 const propertyNames = [];
 for (const name in test_object) {
   propertyNames.push(name);
@@ -42,7 +42,7 @@ const symbolDescription =
     String(Object.getOwnPropertySymbols(test_object)[0]).slice(start, end);
 assert.strictEqual(symbolDescription, 'NameKeySymbol');
 
-// The napi_writable attribute should be ignored for accessors.
+// The node_api_writable attribute should be ignored for accessors.
 const readwriteAccessor1Descriptor =
   Object.getOwnPropertyDescriptor(test_object, 'readwriteAccessor1');
 const readonlyAccessor1Descriptor =

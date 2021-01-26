@@ -51,7 +51,7 @@ function testWithJSMarshaller({
     }, !!abort, !!launchSecondary, maxQueueSize);
     if (threadStarter === 'StartThreadNonblocking') {
       // Let's make this thread really busy for a short while to ensure that
-      // the queue fills and the thread receives a napi_queue_full.
+      // the queue fills and the thread receives a node_api_queue_full.
       const start = Date.now();
       while (Date.now() - start < 200);
     }
@@ -104,7 +104,8 @@ new Promise(function testWithoutJSMarshaller(resolve) {
 
 // Start the thread in blocking mode, and assert that all values are passed.
 // Quit after it's done.
-// Doesn't pass the callback js function to napi_create_threadsafe_function.
+// Doesn't pass the callback js function to
+// node_api_create_threadsafe_function.
 // Instead, use an alternative reference to get js function called.
 .then(() => testWithJSMarshaller({
   threadStarter: 'StartThreadNoJsFunc',

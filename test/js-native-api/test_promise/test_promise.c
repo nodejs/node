@@ -1,33 +1,34 @@
 #include <js_native_api.h>
 #include "../common.h"
 
-napi_deferred deferred = NULL;
+node_api_deferred deferred = NULL;
 
-static napi_value createPromise(napi_env env, napi_callback_info info) {
-  napi_value promise;
+static node_api_value
+createPromise(node_api_env env, node_api_callback_info info) {
+  node_api_value promise;
 
   // We do not overwrite an existing deferred.
   if (deferred != NULL) {
     return NULL;
   }
 
-  NAPI_CALL(env, napi_create_promise(env, &deferred, &promise));
+  NODE_API_CALL(env, node_api_create_promise(env, &deferred, &promise));
 
   return promise;
 }
 
-static napi_value
-concludeCurrentPromise(napi_env env, napi_callback_info info) {
-  napi_value argv[2];
+static node_api_value
+concludeCurrentPromise(node_api_env env, node_api_callback_info info) {
+  node_api_value argv[2];
   size_t argc = 2;
   bool resolution;
 
-  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, argv, NULL, NULL));
-  NAPI_CALL(env, napi_get_value_bool(env, argv[1], &resolution));
+  NODE_API_CALL(env, node_api_get_cb_info(env, info, &argc, argv, NULL, NULL));
+  NODE_API_CALL(env, node_api_get_value_bool(env, argv[1], &resolution));
   if (resolution) {
-    NAPI_CALL(env, napi_resolve_deferred(env, deferred, argv[0]));
+    NODE_API_CALL(env, node_api_resolve_deferred(env, deferred, argv[0]));
   } else {
-    NAPI_CALL(env, napi_reject_deferred(env, deferred, argv[0]));
+    NODE_API_CALL(env, node_api_reject_deferred(env, deferred, argv[0]));
   }
 
   deferred = NULL;
@@ -35,27 +36,30 @@ concludeCurrentPromise(napi_env env, napi_callback_info info) {
   return NULL;
 }
 
-static napi_value isPromise(napi_env env, napi_callback_info info) {
-  napi_value promise, result;
+static node_api_value
+isPromise(node_api_env env, node_api_callback_info info) {
+  node_api_value promise, result;
   size_t argc = 1;
   bool is_promise;
 
-  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, &promise, NULL, NULL));
-  NAPI_CALL(env, napi_is_promise(env, promise, &is_promise));
-  NAPI_CALL(env, napi_get_boolean(env, is_promise, &result));
+  NODE_API_CALL(env,
+      node_api_get_cb_info(env, info, &argc, &promise, NULL, NULL));
+  NODE_API_CALL(env, node_api_is_promise(env, promise, &is_promise));
+  NODE_API_CALL(env, node_api_get_boolean(env, is_promise, &result));
 
   return result;
 }
 
 EXTERN_C_START
-napi_value Init(napi_env env, napi_value exports) {
-  napi_property_descriptor descriptors[] = {
-    DECLARE_NAPI_PROPERTY("createPromise", createPromise),
-    DECLARE_NAPI_PROPERTY("concludeCurrentPromise", concludeCurrentPromise),
-    DECLARE_NAPI_PROPERTY("isPromise", isPromise),
+node_api_value Init(node_api_env env, node_api_value exports) {
+  node_api_property_descriptor descriptors[] = {
+    DECLARE_NODE_API_PROPERTY("createPromise", createPromise),
+    DECLARE_NODE_API_PROPERTY("concludeCurrentPromise",
+        concludeCurrentPromise),
+    DECLARE_NODE_API_PROPERTY("isPromise", isPromise),
   };
 
-  NAPI_CALL(env, napi_define_properties(
+  NODE_API_CALL(env, node_api_define_properties(
       env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors));
 
   return exports;

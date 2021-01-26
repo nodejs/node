@@ -5,22 +5,23 @@
 
 class MyObject {
  public:
-  static napi_status Init(napi_env env);
-  static void Destructor(napi_env env, void* nativeObject, void* finalize_hint);
-  static napi_status NewInstance(napi_env env,
-                                 napi_value arg,
-                                 napi_value* instance);
+  static node_api_status Init(node_api_env env);
+  static void
+  Destructor(node_api_env env, void* nativeObject, void* finalize_hint);
+  static node_api_status NewInstance(node_api_env env,
+                                     node_api_value arg,
+                                     node_api_value* instance);
   double Val() const { return val_; }
 
  private:
   MyObject();
   ~MyObject();
 
-  static napi_ref constructor;
-  static napi_value New(napi_env env, napi_callback_info info);
+  static node_api_ref constructor;
+  static node_api_value New(node_api_env env, node_api_callback_info info);
   double val_;
-  napi_env env_;
-  napi_ref wrapper_;
+  node_api_env env_;
+  node_api_ref wrapper_;
 };
 
 #endif  // TEST_JS_NATIVE_API_8_PASSING_WRAPPED_MYOBJECT_H_

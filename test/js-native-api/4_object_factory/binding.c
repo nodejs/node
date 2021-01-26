@@ -1,23 +1,28 @@
 #include <js_native_api.h>
 #include "../common.h"
 
-static napi_value CreateObject(napi_env env, napi_callback_info info) {
+static node_api_value
+CreateObject(node_api_env env, node_api_callback_info info) {
   size_t argc = 1;
-  napi_value args[1];
-  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+  node_api_value args[1];
+  NODE_API_CALL(env, node_api_get_cb_info(env, info, &argc, args, NULL, NULL));
 
-  napi_value obj;
-  NAPI_CALL(env, napi_create_object(env, &obj));
+  node_api_value obj;
+  NODE_API_CALL(env, node_api_create_object(env, &obj));
 
-  NAPI_CALL(env, napi_set_named_property(env, obj, "msg", args[0]));
+  NODE_API_CALL(env, node_api_set_named_property(env, obj, "msg", args[0]));
 
   return obj;
 }
 
 EXTERN_C_START
-napi_value Init(napi_env env, napi_value exports) {
-  NAPI_CALL(env,
-      napi_create_function(env, "exports", -1, CreateObject, NULL, &exports));
+node_api_value Init(node_api_env env, node_api_value exports) {
+  NODE_API_CALL(env, node_api_create_function(env,
+                                              "exports",
+                                              NODE_API_AUTO_LENGTH,
+                                              CreateObject,
+                                              NULL,
+                                              &exports));
   return exports;
 }
 EXTERN_C_END

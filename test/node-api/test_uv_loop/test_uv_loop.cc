@@ -8,14 +8,14 @@
 #include <utility>
 
 template <typename T>
-void* SetImmediate(napi_env env, T&& cb) {
+void* SetImmediate(node_api_env env, T&& cb) {
   T* ptr = new T(std::move(cb));
   uv_loop_t* loop = nullptr;
   uv_check_t* check = new uv_check_t;
   check->data = ptr;
-  NAPI_ASSERT(env,
-              napi_get_uv_event_loop(env, &loop) == napi_ok,
-              "can get event loop");
+  NODE_API_ASSERT(env,
+                  node_api_get_uv_event_loop(env, &loop) == node_api_ok,
+                  "can get event loop");
   uv_check_init(loop, check);
   uv_check_start(check, [](uv_check_t* check) {
     std::unique_ptr<T> ptr {static_cast<T*>(check->data)};
@@ -40,50 +40,51 @@ void* SetImmediate(napi_env env, T&& cb) {
 
 static char dummy;
 
-napi_value SetImmediateBinding(napi_env env, napi_callback_info info) {
+node_api_value
+SetImmediateBinding(node_api_env env, node_api_callback_info info) {
   size_t argc = 1;
-  napi_value argv[1];
-  napi_value _this;
+  node_api_value argv[1];
+  node_api_value _this;
   void* data;
-  NAPI_CALL(env,
-    napi_get_cb_info(env, info, &argc, argv, &_this, &data));
-  NAPI_ASSERT(env, argc >= 1, "Not enough arguments, expected 1.");
+  NODE_API_CALL(env,
+    node_api_get_cb_info(env, info, &argc, argv, &_this, &data));
+  NODE_API_ASSERT(env, argc >= 1, "Not enough arguments, expected 1.");
 
-  napi_valuetype t;
-  NAPI_CALL(env, napi_typeof(env, argv[0], &t));
-  NAPI_ASSERT(env, t == napi_function,
+  node_api_valuetype t;
+  NODE_API_CALL(env, node_api_typeof(env, argv[0], &t));
+  NODE_API_ASSERT(env, t == node_api_function,
       "Wrong first argument, function expected.");
 
-  napi_ref cbref;
-  NAPI_CALL(env,
-    napi_create_reference(env, argv[0], 1, &cbref));
+  node_api_ref cbref;
+  NODE_API_CALL(env,
+    node_api_create_reference(env, argv[0], 1, &cbref));
 
   SetImmediate(env, [=]() -> char* {
-    napi_value undefined;
-    napi_value callback;
-    napi_handle_scope scope;
-    NAPI_CALL(env, napi_open_handle_scope(env, &scope));
-    NAPI_CALL(env, napi_get_undefined(env, &undefined));
-    NAPI_CALL(env, napi_get_reference_value(env, cbref, &callback));
-    NAPI_CALL(env, napi_delete_reference(env, cbref));
-    NAPI_CALL(env,
-        napi_call_function(env, undefined, callback, 0, nullptr, nullptr));
-    NAPI_CALL(env, napi_close_handle_scope(env, scope));
+    node_api_value undefined;
+    node_api_value callback;
+    node_api_handle_scope scope;
+    NODE_API_CALL(env, node_api_open_handle_scope(env, &scope));
+    NODE_API_CALL(env, node_api_get_undefined(env, &undefined));
+    NODE_API_CALL(env, node_api_get_reference_value(env, cbref, &callback));
+    NODE_API_CALL(env, node_api_delete_reference(env, cbref));
+    NODE_API_CALL(env,
+        node_api_call_function(env, undefined, callback, 0, nullptr, nullptr));
+    NODE_API_CALL(env, node_api_close_handle_scope(env, scope));
     return &dummy;
   });
 
   return nullptr;
 }
 
-napi_value Init(napi_env env, napi_value exports) {
-  napi_property_descriptor properties[] = {
-    DECLARE_NAPI_PROPERTY("SetImmediate", SetImmediateBinding)
+node_api_value Init(node_api_env env, node_api_value exports) {
+  node_api_property_descriptor properties[] = {
+    DECLARE_NODE_API_PROPERTY("SetImmediate", SetImmediateBinding)
   };
 
-  NAPI_CALL(env, napi_define_properties(
+  NODE_API_CALL(env, node_api_define_properties(
       env, exports, sizeof(properties) / sizeof(*properties), properties));
 
   return exports;
 }
 
-NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)
+NODE_API_MODULE(NODE_GYP_MODULE_NAME, Init)

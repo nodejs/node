@@ -11,7 +11,8 @@ const {
 } = require(`./build/${common.buildType}/binding`);
 
 // Test for https://github.com/nodejs/node/issues/27218:
-// napi_async_destroy() can be called during a regular garbage collection run.
+// node_api_async_destroy() can be called during a regular garbage collection
+// run.
 
 const hook_result = {
   id: null,
@@ -38,9 +39,10 @@ const asyncResource = createAsyncResource(
 );
 
 // Trigger GC. This does *not* use global.gc(), because what we want to verify
-// is that `napi_async_destroy()` can be called when there is no JS context
+// is that `node_api_async_destroy()` can be called when there is no JS context
 // on the stack at the time of GC.
-// Currently, using --gc-interval=100 + 1M elements seems to work fine for this.
+// Currently, using --gc-interval=100 + 1M elements seems to work fine for
+// this.
 const arr = new Array(1024 * 1024);
 for (let i = 0; i < arr.length; i++)
   arr[i] = {};
@@ -52,7 +54,7 @@ setImmediate(() => {
     const executionAsyncResource = async_hooks.executionAsyncResource();
     // Assuming the executionAsyncResource was created for the absence of the
     // initial `{ foo: 'bar' }`.
-    // This is the worst path of `napi_async_context` related API of
+    // This is the worst path of `node_api_async_context` related API of
     // recovering from the condition and not break the executionAsyncResource
     // shape, although the executionAsyncResource might not be correct.
     assert.strictEqual(typeof executionAsyncResource, 'object');
