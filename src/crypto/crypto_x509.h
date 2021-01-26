@@ -38,7 +38,7 @@ class ManagedX509 : public MemoryRetainer {
 class X509Certificate : public BaseObject {
  public:
   enum class GetPeerCertificateFlag {
-    ABBREVIATED,
+    NONE,
     SERVER
   };
 
@@ -49,11 +49,13 @@ class X509Certificate : public BaseObject {
 
   static v8::MaybeLocal<v8::Object> New(
       Environment* env,
-      X509Pointer cert);
+      X509Pointer cert,
+      STACK_OF(X509)* issuer_chain = nullptr);
 
   static v8::MaybeLocal<v8::Object> New(
       Environment* env,
-      std::shared_ptr<ManagedX509> cert);
+      std::shared_ptr<ManagedX509> cert,
+      STACK_OF(X509)* issuer_chain = nullptr);
 
   static v8::MaybeLocal<v8::Object> GetCert(
       Environment* env,
@@ -91,6 +93,7 @@ class X509Certificate : public BaseObject {
   static void CheckPrivateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Verify(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ToLegacy(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetIssuerCert(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   X509* get() { return cert_->get(); }
 
@@ -124,9 +127,11 @@ class X509Certificate : public BaseObject {
   X509Certificate(
       Environment* env,
       v8::Local<v8::Object> object,
-      std::shared_ptr<ManagedX509> cert);
+      std::shared_ptr<ManagedX509> cert,
+      STACK_OF(X509)* issuer_chain = nullptr);
 
   std::shared_ptr<ManagedX509> cert_;
+  BaseObjectPtr<X509Certificate> issuer_cert_;
 };
 
 }  // namespace crypto

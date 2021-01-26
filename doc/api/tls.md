@@ -904,6 +904,41 @@ added: v0.11.4
 Always returns `true`. This may be used to distinguish TLS sockets from regular
 `net.Socket` instances.
 
+### `tlsSocket.exportKeyingMaterial(length, label[, context])`
+<!-- YAML
+added:
+ - v13.10.0
+ - v12.17.0
+-->
+
+* `length` {number} number of bytes to retrieve from keying material
+* `label` {string} an application specific label, typically this will be a
+  value from the
+  [IANA Exporter Label Registry](https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#exporter-labels).
+* `context` {Buffer} Optionally provide a context.
+
+* Returns: {Buffer} requested bytes of the keying material
+
+Keying material is used for validations to prevent different kind of attacks in
+network protocols, for example in the specifications of IEEE 802.1X.
+
+Example
+
+```js
+const keyingMaterial = tlsSocket.exportKeyingMaterial(
+  128,
+  'client finished');
+
+/**
+ Example return value of keyingMaterial:
+ <Buffer 76 26 af 99 c5 56 8e 42 09 91 ef 9f 93 cb ad 6c 7b 65 f8 53 f1 d8 d9
+    12 5a 33 b8 b5 25 df 7b 37 9f e0 e2 4f b8 67 83 a3 2f cd 5d 41 42 4c 91
+    74 ef 2c ... 78 more bytes>
+*/
+```
+See the OpenSSL [`SSL_export_keying_material`][] documentation for more
+information.
+
 ### `tlsSocket.getCertificate()`
 <!-- YAML
 added: v11.2.0
@@ -1113,6 +1148,18 @@ provided by SSL/TLS is not desired or is not enough.
 Corresponds to the `SSL_get_peer_finished` routine in OpenSSL and may be used
 to implement the `tls-unique` channel binding from [RFC 5929][].
 
+### `tlsSocket.getPeerX509Certificate()`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {X509Certificate}
+
+Returns the peer certificate as an {X509Certificate} object.
+
+If there is no peer certificate, or the socket has been destroyed,
+`undefined` will be returned.
+
 ### `tlsSocket.getProtocol()`
 <!-- YAML
 added: v5.7.0
@@ -1164,41 +1211,6 @@ See
 [SSL_get_shared_sigalgs](https://www.openssl.org/docs/man1.1.1/man3/SSL_get_shared_sigalgs.html)
 for more information.
 
-### `tlsSocket.exportKeyingMaterial(length, label[, context])`
-<!-- YAML
-added:
- - v13.10.0
- - v12.17.0
--->
-
-* `length` {number} number of bytes to retrieve from keying material
-* `label` {string} an application specific label, typically this will be a
-  value from the
-  [IANA Exporter Label Registry](https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#exporter-labels).
-* `context` {Buffer} Optionally provide a context.
-
-* Returns: {Buffer} requested bytes of the keying material
-
-Keying material is used for validations to prevent different kind of attacks in
-network protocols, for example in the specifications of IEEE 802.1X.
-
-Example
-
-```js
-const keyingMaterial = tlsSocket.exportKeyingMaterial(
-  128,
-  'client finished');
-
-/**
- Example return value of keyingMaterial:
- <Buffer 76 26 af 99 c5 56 8e 42 09 91 ef 9f 93 cb ad 6c 7b 65 f8 53 f1 d8 d9
-    12 5a 33 b8 b5 25 df 7b 37 9f e0 e2 4f b8 67 83 a3 2f cd 5d 41 42 4c 91
-    74 ef 2c ... 78 more bytes>
-*/
-```
-See the OpenSSL [`SSL_export_keying_material`][] documentation for more
-information.
-
 ### `tlsSocket.getTLSTicket()`
 <!-- YAML
 added: v0.11.4
@@ -1212,6 +1224,18 @@ For a client, returns the TLS session ticket if one is available, or
 It may be useful for debugging.
 
 See [Session Resumption][] for more information.
+
+### `tlsSocket.getX509Certificate()`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {X509Certificate}
+
+Returns the local certificate as an {X509Certificate} object.
+
+If there is no local certificate, or the socket has been destroyed,
+`undefined` will be returned.
 
 ### `tlsSocket.isSessionReused()`
 <!-- YAML
