@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#14.15.5">14.15.5</a><br/>
 <a href="#14.15.4">14.15.4</a><br/>
 <a href="#14.15.3">14.15.3</a><br/>
 <a href="#14.15.2">14.15.2</a><br/>
@@ -55,6 +56,29 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="14.15.5"></a>
+## 2021-02-09, Version 14.15.5 'Fermium' (LTS), @BethGriggs
+
+### Notable Changes
+
+* **deps**:
+  * upgrade npm to 6.14.11 (Ruy Adorno) [#37173](https://github.com/nodejs/node/pull/37173)
+  * V8: backport dfcf1e86fac0 (Michaël Zasso) [#37245](https://github.com/nodejs/node/pull/37245)
+    * **Note**: Node.js is not believed to be vulnerable to CVE-2021-21148.
+* **stream,zlib**: do not use \_stream\_\* anymore (Matteo Collina) [#36618](https://github.com/nodejs/node/pull/36618)
+
+### Commits
+
+* [[`20b1e6c802`](https://github.com/nodejs/node/commit/20b1e6c802)] - **deps**: V8: backport dfcf1e86fac0 (Michaël Zasso) [#37245](https://github.com/nodejs/node/pull/37245)
+* [[`408c7a65f3`](https://github.com/nodejs/node/commit/408c7a65f3)] - **deps**: upgrade npm to 6.14.11 (Ruy Adorno) [#37173](https://github.com/nodejs/node/pull/37173)
+* [[`017eed665b`](https://github.com/nodejs/node/commit/017eed665b)] - **http**: do not loop over prototype in Agent (Michaël Zasso) [#36410](https://github.com/nodejs/node/pull/36410)
+* [[`25a3204fe2`](https://github.com/nodejs/node/commit/25a3204fe2)] - **http**: don't cork .end when not needed (Dimitris Halatsis) [#36633](https://github.com/nodejs/node/pull/36633)
+* [[`2a1e4e9244`](https://github.com/nodejs/node/commit/2a1e4e9244)] - **stream**: accept iterable as a valid first argument (ZiJian Liu) [#36479](https://github.com/nodejs/node/pull/36479)
+* [[`9ff73fcdbe`](https://github.com/nodejs/node/commit/9ff73fcdbe)] - **stream,zlib**: do not use \_stream\_\* anymore (Matteo Collina) [#36618](https://github.com/nodejs/node/pull/36618)
+* [[`c03cddb46f`](https://github.com/nodejs/node/commit/c03cddb46f)] - **test**: http complete response after socket double end (Dimitris Halatsis) [#36633](https://github.com/nodejs/node/pull/36633)
+* [[`f206505e9d`](https://github.com/nodejs/node/commit/f206505e9d)] - **util**: fix instanceof checks with null prototypes during inspection (Ruben Bridgewater) [#36178](https://github.com/nodejs/node/pull/36178)
+* [[`2f7944b18b`](https://github.com/nodejs/node/commit/2f7944b18b)] - **util**: fix module prefixes during inspection (Ruben Bridgewater) [#36178](https://github.com/nodejs/node/pull/36178)
 
 <a id="14.15.4"></a>
 ## 2021-01-04, Version 14.15.4 'Fermium' (LTS), @BethGriggs
