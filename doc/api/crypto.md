@@ -1804,6 +1804,16 @@ added: v15.6.0
 
 The issuer identification included in this certificate.
 
+### `x509.issuerCertificate`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {X509Certificate}
+
+The issuer certificate or `undefined` if the issuer certificate is not
+available.
+
 ### `x509.keyUsage`
 <!-- YAML
 added: v15.6.0
