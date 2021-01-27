@@ -8,7 +8,6 @@ const filepath = fixtures.path('x.txt');
 const fd = fs.openSync(filepath, 'r');
 const expected = 'xyz\n';
 
-
 // Error must be thrown with string
 assert.throws(
   () => fs.read(fd, expected.length, 0, 'utf-8', common.mustNotCall()),
@@ -89,6 +88,21 @@ assert.throws(() => {
     name: 'TypeError'
   });
 });
+
+{
+  fs.read(fd,
+          Buffer.allocUnsafe(expected.length),
+          0,
+          expected.length,
+          null,
+          common.mustCall());
+  common.expectWarning(
+    'DeprecationWarning',
+    'The provided null is not a valid position, and is supported ' +
+    'in the fs module solely for compatibility.',
+    'DEP01149',
+  );
+}
 
 [0.5, 2 ** 53, 2n ** 63n].forEach((value) => {
   assert.throws(() => {
@@ -209,6 +223,20 @@ assert.throws(() => {
     name: 'TypeError'
   });
 });
+
+{
+  fs.readSync(fd,
+              Buffer.allocUnsafe(expected.length),
+              0,
+              expected.length,
+              null);
+  common.expectWarning(
+    'DeprecationWarning',
+    'The provided null is not a valid position, and is supported ' +
+    'in the fs module solely for compatibility.',
+    'DEP01149',
+  );
+}
 
 [0.5, 2 ** 53, 2n ** 63n].forEach((value) => {
   assert.throws(() => {
