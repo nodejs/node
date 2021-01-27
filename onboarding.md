@@ -204,11 +204,14 @@ needs to be pointed out separately during the onboarding.
 ## Exercise: Make a PR adding yourself to the README
 
 * Example:
-  <https://github.com/nodejs/node/commit/ce986de829457c39257cd205067602e765768fb0>
-  * For raw commit message: `git log ce986de829457c39257cd205067602e765768fb0
-    -1`
+  <https://github.com/nodejs/node/commit/b58fe52692659c0bc25ddbe6afa7f4ae2c7f14a8>
+  * For raw commit message:
+    `git show --format=%Bb58fe52692659c0bc25ddbe6afa7f4ae2c7f14a8`
 * Collaborators are in alphabetical order by GitHub username.
 * Optionally, include your personal pronouns.
+* Add the `Fixes: <collaborator-nomination-issue-url>` to the commit message
+  so that when the commit lands, the nomination issue url will be
+  automatically closed.
 * Label your pull request with the `doc`, `notable-change`, and `fast-track`
   labels.
 * Run CI on the PR. Use the `node-test-pull-request` CI task.
