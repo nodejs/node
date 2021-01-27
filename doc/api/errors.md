@@ -3715,6 +3715,217 @@ removed: v15.0.0
 
 The native call from `process.cpuUsage` could not be processed.
 
+<a id="openssl-error-codes"></a>
+
+## OpenSSL Error Codes
+
+<a id="Time Validity Errors"></a>
+
+### Time Validity Errors
+
+<a id="CERT_NOT_YET_VALID"></a>
+
+#### `CERT_NOT_YET_VALID`
+
+The certificate is not yet valid: the notBefore date is after the current time.
+
+<a id="CERT_HAS_EXPIRED"></a>
+
+#### `CERT_HAS_EXPIRED`
+
+The certificate has expired: the notAfter date is before the current time.
+
+<a id="CRL_NOT_YET_VALID"></a>
+
+#### `CRL_NOT_YET_VALID`
+
+The certificate revocation list (CRL) has a future issue date.
+
+<a id="CRL_HAS_EXPIRED"></a>
+
+#### `CRL_HAS_EXPIRED`
+
+The certificate revocation list (CRL) has expired.
+
+<a id="CERT_REVOKED"></a>
+
+#### `CERT_REVOKED`
+
+The certificate has been revoked; it is on a certificate revocation list (CRL).
+
+<a id="Trust or Chain Related Errors"></a>
+
+### Trust or Chain Related Errors
+
+<a id="UNABLE_TO_GET_ISSUER_CERT"></a>
+
+#### `UNABLE_TO_GET_ISSUER_CERT`
+
+The issuer certificate of a looked up certificate could not be found. This
+normally means the list of trusted certificates is not complete.
+
+<a id="UNABLE_TO_GET_ISSUER_CERT_LOCALLY"></a>
+
+#### `UNABLE_TO_GET_ISSUER_CERT_LOCALLY`
+
+The certificate’s issuer is not known. This is the case if the issuer is not
+included in the trusted certificate list.
+
+<a id="DEPTH_ZERO_SELF_SIGNED_CERT"></a>
+
+#### `DEPTH_ZERO_SELF_SIGNED_CERT`
+
+The passed certificate is self-signed and the same certificate cannot be found
+in the list of trusted certificates.
+
+<a id="SELF_SIGNED_CERT_IN_CHAIN"></a>
+
+#### `SELF_SIGNED_CERT_IN_CHAIN`
+
+The certificate’s issuer is not known. This is the case if the issuer is not
+included in the trusted certificate list.
+
+<a id="CERT_CHAIN_TOO_LONG"></a>
+
+#### `CERT_CHAIN_TOO_LONG`
+
+The certificate chain length is greater than the maximum depth.
+
+<a id="UNABLE_TO_GET_CRL"></a>
+
+#### `UNABLE_TO_GET_CRL`
+
+The CRL reference by the certificate could not be found.
+
+<a id="UNABLE_TO_VERIFY_LEAF_SIGNATURE"></a>
+
+#### `UNABLE_TO_VERIFY_LEAF_SIGNATURE`
+
+No signatures could be verified because the chain contains only one certificate
+and it is not self signed.
+
+<a id="CERT_UNTRUSTED"></a>
+
+#### `CERT_UNTRUSTED`
+
+The root certificate authority (CA) is not marked as trusted for the specified
+purpose.
+
+<a id="Basic Extension Errors"></a>
+
+### Basic Extension Errors
+
+<a id="INVALID_CA"></a>
+
+#### `INVALID_CA`
+
+A CA certificate is invalid. Either it is not a CA or its extensions are not
+consistent with the supplied purpose.
+
+<a id="PATH_LENGTH_EXCEEDED"></a>
+
+#### `PATH_LENGTH_EXCEEDED`
+
+The basicConstraints pathlength parameter has been exceeded.
+
+<a id="Name Related Errors"></a>
+
+### Name Related Errors
+
+<a id="HOSTNAME_MISMATCH"></a>
+
+#### `HOSTNAME_MISMATCH`
+
+Certificate does not match provided name.
+
+<a id="Usage and Policy Errors"></a>
+
+### Usage and Policy Errors
+
+<a id="INVALID_PURPOSE"></a>
+
+#### `INVALID_PURPOSE`
+
+The supplied certificate cannot be used for the specified purpose.
+
+<a id="CERT_REJECTED"></a>
+
+#### `CERT_REJECTED`
+
+The root CA is marked to reject the specified purpose.
+
+<a id="Formatting Errors"></a>
+
+### Formatting Errors
+
+<a id="CERT_SIGNATURE_FAILURE"></a>
+
+#### `CERT_SIGNATURE_FAILURE`
+
+The signature of the certificate is invalid.
+
+<a id="CRL_SIGNATURE_FAILURE"></a>
+
+#### `CRL_SIGNATURE_FAILURE`
+
+The signature of the certificate revocation list (CRL) is invalid.
+
+<a id="ERROR_IN_CERT_NOT_BEFORE_FIELD"></a>
+
+#### `ERROR_IN_CERT_NOT_BEFORE_FIELD`
+
+The certificate notBefore field contains an invalid time.
+
+<a id="ERROR_IN_CERT_NOT_AFTER_FIELD"></a>
+
+#### `ERROR_IN_CERT_NOT_AFTER_FIELD`
+
+The certificate notAfter field contains an invalid time.
+
+<a id="ERROR_IN_CRL_LAST_UPDATE_FIELD"></a>
+
+#### `ERROR_IN_CRL_LAST_UPDATE_FIELD`
+
+The CRL lastUpdate field contains an invalid time.
+
+<a id="ERROR_IN_CRL_NEXT_UPDATE_FIELD"></a>
+
+#### `ERROR_IN_CRL_NEXT_UPDATE_FIELD`
+
+The CRL nextUpdate field contains an invalid time.
+
+<a id="UNABLE_TO_DECRYPT_CERT_SIGNATURE"></a>
+
+#### `UNABLE_TO_DECRYPT_CERT_SIGNATURE`
+
+The certificate signature could not be decrypted. This means that the actual
+signature value could not be determined rather than it not matching the expected
+value, this is only meaningful for RSA keys.
+
+<a id="UNABLE_TO_DECRYPT_CRL_SIGNATURE"></a>
+
+#### `UNABLE_TO_DECRYPT_CRL_SIGNATURE`
+
+The certificate revocation list (CRL) signature could not be decrypted: this
+means that the actual signature value could not be determined rather than it not
+matching the expected value.
+
+<a id="UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY"></a>
+
+#### `UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY`
+
+The public key in the certificate SubjectPublicKeyInfo could not be read.
+
+<a id="Other OpenSSL Errors"></a>
+
+### Other OpenSSL Errors
+
+<a id="OUT_OF_MEM"></a>
+
+#### `OUT_OF_MEM`
+
+An error occurred trying to allocate memory. This should never happen.
+
 [ES Module]: esm.md
 [ICU]: intl.md#internationalization-support
 [JSON Web Key Elliptic Curve Registry]: https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
