@@ -266,16 +266,13 @@ bool IsTransparentHugePagesEnabled() {
     return false;
   }
 
-  bool enabled;
+  std::string always, madvise;
   if (ifs.is_open()) {
-    std::string token;
-    while (ifs >> token) {
-      enabled = enabled || token == "[always]" || token == "[madvise]";
-    }
+    ifs >> always >> madvise;
   }
   ifs.close();
 
-  return enabled;
+  return always == "[always]" || madvise == "[madvise]";
 }
 #elif defined(__FreeBSD__)
 bool IsSuperPagesEnabled() {
