@@ -29,7 +29,7 @@ function collectStability(data) {
   for (const mod of data.modules) {
     if (mod.displayName && mod.stability >= 0) {
       const link = mod.source.replace('doc/api/', '').replace('.md', '.html');
-      // const link = re.exec(toc)[1]
+
       stability.push({
         api: mod.name,
         link: link,
