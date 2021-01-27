@@ -1307,6 +1307,9 @@ API using additional attributes.
 <!-- YAML
 added: v11.6.0
 changes:
+  - version: REPLACEME
+    pr-url: ???
+    description: Added support for `'sm2'`.
   - version:
      - v13.9.0
      - v12.17.0
@@ -1336,6 +1339,7 @@ types are:
 * `'rsa-pss'` (OID 1.2.840.113549.1.1.10)
 * `'dsa'` (OID 1.2.840.10040.4.1)
 * `'ec'` (OID 1.2.840.10045.2.1)
+* `'sm2'` (OID 1.2.840.10045.2.1)
 * `'x25519'` (OID 1.3.101.110)
 * `'x448'` (OID 1.3.101.111)
 * `'ed25519'` (OID 1.3.101.112)
@@ -2398,6 +2402,9 @@ input.on('readable', () => {
 <!-- YAML
 added: v11.6.0
 changes:
+  - version: REPLACEME
+    pr-url: ???
+    description: Add `asymmetricKeyType` option.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
     description: The key can also be an ArrayBuffer. The encoding option was
@@ -2413,6 +2420,7 @@ changes:
      required only if the `format` is `'der'` and ignored if it is `'pem'`.
   * `passphrase`: {string | Buffer} The passphrase to use for decryption.
   * `encoding`: {string} The string encoding to use when `key` is a string.
+  * `asymmetricKeyType` {string} The requested asymmetric key type.
 * Returns: {KeyObject}
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -2423,10 +2431,18 @@ must be an object with the properties described above.
 If the private key is encrypted, a `passphrase` must be specified. The length
 of the passphrase is limited to 1024 bytes.
 
+If the `asymmetricKeyType` is specified, Node.js will attempt to assign the
+given type to the key. This can be used, for example, to distinguish between
+EC keys on the SM2 curve (`'ec'`) and SM2 keys (`'sm2'`). If the given type
+cannot be assigned to the key, the function fails.
+
 ### `crypto.createPublicKey(key)`
 <!-- YAML
 added: v11.6.0
 changes:
+  - version: REPLACEME
+    pr-url: ???
+    description: Add `asymmetricKeyType` option.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
     description: The key can also be an ArrayBuffer. The encoding option was
@@ -2447,6 +2463,7 @@ changes:
   * `type`: {string} Must be `'pkcs1'` or `'spki'`. This option is required
     only if the `format` is `'der'`.
   * `encoding` {string} The string encoding to use when `key` is a string.
+  * `asymmetricKeyType` {string} The requested asymmetric key type.
 * Returns: {KeyObject}
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -2456,6 +2473,11 @@ with type `'private'`, the public key is derived from the given private key;
 otherwise, `key` must be an object with the properties described above.
 
 If the format is `'pem'`, the `'key'` may also be an X.509 certificate.
+
+If the `asymmetricKeyType` is specified, Node.js will attempt to assign the
+given type to the key. This can be used, for example, to distinguish between
+EC keys on the SM2 curve (`'ec'`) and SM2 keys (`'sm2'`). If the given type
+cannot be assigned to the key, the function fails.
 
 Because public keys can be derived from private keys, a private key may be
 passed instead of a public key. In that case, this function behaves as if
@@ -2597,6 +2619,9 @@ console.log(key.export().toString('hex'));  // e89..........41e
 <!-- YAML
 added: v10.12.0
 changes:
+  - version: REPLACEME
+    pr-url: ???
+    description: Add support for SM2.
   - version:
      - v13.9.0
      - v12.17.0
@@ -2615,7 +2640,7 @@ changes:
 -->
 
 * `type`: {string} Must be `'rsa'`, `'dsa'`, `'ec'`, `'ed25519'`, `'ed448'`,
-  `'x25519'`, `'x448'`, or `'dh'`.
+  `'x25519'`, `'x448'`, `'dh'`, or `'sm2'`.
 * `options`: {Object}
   * `modulusLength`: {number} Key size in bits (RSA, DSA).
   * `publicExponent`: {number} Public exponent (RSA). **Default:** `0x10001`.
@@ -2634,7 +2659,7 @@ changes:
   * `privateKey`: {string | Buffer | KeyObject}
 
 Generates a new asymmetric key pair of the given `type`. RSA, DSA, EC, Ed25519,
-Ed448, X25519, X448, and DH are currently supported.
+Ed448, X25519, X448, DH, and SM2 are currently supported.
 
 If a `publicKeyEncoding` or `privateKeyEncoding` was specified, this function
 behaves as if [`keyObject.export()`][] had been called on its result. Otherwise,
@@ -2672,6 +2697,9 @@ a `Promise` for an `Object` with `publicKey` and `privateKey` properties.
 <!-- YAML
 added: v10.12.0
 changes:
+  - version: REPLACEME
+    pr-url: ???
+    description: Add support for SM2.
   - version:
      - v13.9.0
      - v12.17.0
@@ -2687,7 +2715,7 @@ changes:
 -->
 
 * `type`: {string} Must be `'rsa'`, `'dsa'`, `'ec'`, `'ed25519'`, `'ed448'`,
-  `'x25519'`, `'x448'`, or `'dh'`.
+  `'x25519'`, `'x448'`, `'dh'`, or `'sm2'`.
 * `options`: {Object}
   * `modulusLength`: {number} Key size in bits (RSA, DSA).
   * `publicExponent`: {number} Public exponent (RSA). **Default:** `0x10001`.
@@ -2705,7 +2733,7 @@ changes:
   * `privateKey`: {string | Buffer | KeyObject}
 
 Generates a new asymmetric key pair of the given `type`. RSA, DSA, EC, Ed25519,
-Ed448, X25519, X448, and DH are currently supported.
+Ed448, X25519, X448, DH, and SM2 are currently supported.
 
 If a `publicKeyEncoding` or `privateKeyEncoding` was specified, this function
 behaves as if [`keyObject.export()`][] had been called on its result. Otherwise,
@@ -3741,6 +3769,9 @@ Throws an error if FIPS mode is not available.
 <!-- YAML
 added: v12.0.0
 changes:
+  - version: REPLACEME
+    pr-url: ???
+    description: Add support for SM2.
   - version:
      - v13.2.0
      - v12.16.0
@@ -3757,7 +3788,7 @@ changes:
 
 Calculates and returns the signature for `data` using the given private key and
 algorithm. If `algorithm` is `null` or `undefined`, then the algorithm is
-dependent upon the key type (especially Ed25519 and Ed448).
+dependent upon the key type (especially Ed25519, Ed448, and SM2).
 
 If `key` is not a [`KeyObject`][], this function behaves as if `key` had been
 passed to [`crypto.createPrivateKey()`][]. If it is an object, the following
@@ -3778,6 +3809,9 @@ additional properties can be passed:
   `crypto.constants.RSA_PSS_SALTLEN_DIGEST` sets the salt length to the digest
   size, `crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN` (default) sets it to the
   maximum permissible value.
+* `sm2Identifier` {ArrayBuffer|Buffer|TypedArray|DataView} For SM2, this option
+  specifies the SM2 identifier. The same identifier must be specified during
+  verification.
 
 ### `crypto.timingSafeEqual(a, b)`
 <!-- YAML
@@ -3813,6 +3847,9 @@ not introduce timing vulnerabilities.
 <!-- YAML
 added: v12.0.0
 changes:
+  - version: REPLACEME
+    pr-url: ???
+    description: Add support for SM2.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
     description: The data, key, and signature arguments can also be ArrayBuffer.
@@ -3833,7 +3870,7 @@ changes:
 
 Verifies the given signature for `data` using the given key and algorithm. If
 `algorithm` is `null` or `undefined`, then the algorithm is dependent upon the
-key type (especially Ed25519 and Ed448).
+key type (especially Ed25519, Ed448, and SM2).
 
 If `key` is not a [`KeyObject`][], this function behaves as if `key` had been
 passed to [`crypto.createPublicKey()`][]. If it is an object, the following
@@ -3854,6 +3891,8 @@ additional properties can be passed:
   `crypto.constants.RSA_PSS_SALTLEN_DIGEST` sets the salt length to the digest
   size, `crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN` (default) sets it to the
   maximum permissible value.
+* `sm2Identifier` {ArrayBuffer|Buffer|TypedArray|DataView} For SM2, this option
+  specifies the SM2 identifier.
 
 The `signature` argument is the previously calculated signature for the `data`.
 

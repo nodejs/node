@@ -22,7 +22,7 @@ class SignBase : public BaseObject {
  public:
   typedef enum {
     kSignOk,
-    kSignUnknownDigest,
+    kSignInvalidDigest,
     kSignInit,
     kSignNotInitialised,
     kSignUpdate,

@@ -33,6 +33,7 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_BUFFER_TOO_LARGE, Error)                                               \
   V(ERR_CONSTRUCT_CALL_REQUIRED, TypeError)                                    \
   V(ERR_CONSTRUCT_CALL_INVALID, TypeError)                                     \
+  V(ERR_CRYPTO_INCOMPATIBLE_KEY, Error)                                        \
   V(ERR_CRYPTO_INITIALIZATION_FAILED, Error)                                   \
   V(ERR_CRYPTO_INVALID_AUTH_TAG, TypeError)                                    \
   V(ERR_CRYPTO_INVALID_COUNTER, TypeError)                                     \
@@ -64,6 +65,7 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_MEMORY_ALLOCATION_FAILED, Error)                                       \
   V(ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE, Error)                             \
   V(ERR_MISSING_ARGS, TypeError)                                               \
+  V(ERR_MISSING_OPTION, TypeError)                                             \
   V(ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST, TypeError)                      \
   V(ERR_MISSING_PASSPHRASE, TypeError)                                         \
   V(ERR_MISSING_PLATFORM_FOR_WORKER, Error)                                    \
@@ -109,6 +111,8 @@ void OnFatalError(const char* location, const char* message);
     "Buffer is not available for the current Context")                         \
   V(ERR_CONSTRUCT_CALL_INVALID, "Constructor cannot be called")                \
   V(ERR_CONSTRUCT_CALL_REQUIRED, "Cannot call constructor without `new`")      \
+  V(ERR_CRYPTO_INCOMPATIBLE_KEY,                                               \
+    "The requested key type does not match the actual key type")               \
   V(ERR_CRYPTO_INITIALIZATION_FAILED, "Initialization failed")                 \
   V(ERR_CRYPTO_INVALID_AUTH_TAG, "Invalid authentication tag")                 \
   V(ERR_CRYPTO_INVALID_COUNTER, "Invalid counter")                             \

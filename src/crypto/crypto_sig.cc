@@ -184,7 +184,7 @@ void CheckThrow(Environment* env, SignBase::Error error) {
   HandleScope scope(env->isolate());
 
   switch (error) {
-    case SignBase::Error::kSignUnknownDigest:
+    case SignBase::Error::kSignInvalidDigest:
       return THROW_ERR_CRYPTO_INVALID_DIGEST(env);
 
     case SignBase::Error::kSignNotInitialised:
@@ -245,7 +245,7 @@ SignBase::Error SignBase::Init(const char* sign_type) {
   }
   const EVP_MD* md = EVP_get_digestbyname(sign_type);
   if (md == nullptr)
-    return kSignUnknownDigest;
+    return kSignInvalidDigest;
 
   mdctx_.reset(EVP_MD_CTX_new());
   if (!mdctx_ || !EVP_DigestInit_ex(mdctx_.get(), md, nullptr)) {
@@ -513,6 +513,12 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(verify_result);
 }
 
+static bool DigestIsValidForKey(const ManagedEVPPKey& key, const EVP_MD* md) {
+  // OpenSSL 1.1.1 does not enforce this, but future versions will. See
+  // https://github.com/openssl/openssl/commit/ef077ba0d2fa28fd1b481f80335bda723
+  return EVP_PKEY_id(key.get()) != EVP_PKEY_SM2 || EVP_MD_type(md) == NID_sm3;
+}
+
 void Sign::SignSync(const FunctionCallbackInfo<Value>& args) {
   ClearErrorOnReturn clear_error_on_return;
   Environment* env = Environment::GetCurrent(args);
@@ -535,8 +541,8 @@ void Sign::SignSync(const FunctionCallbackInfo<Value>& args) {
   } else {
     const node::Utf8Value sign_type(args.GetIsolate(), args[offset + 1]);
     md = EVP_get_digestbyname(*sign_type);
-    if (md == nullptr)
-      return crypto::CheckThrow(env, SignBase::Error::kSignUnknownDigest);
+    if (md == nullptr || !DigestIsValidForKey(key, md))
+      return crypto::CheckThrow(env, SignBase::Error::kSignInvalidDigest);
   }
 
   int rsa_padding = GetDefaultSignPadding(key);
@@ -555,15 +561,31 @@ void Sign::SignSync(const FunctionCallbackInfo<Value>& args) {
   DSASigEnc dsa_sig_enc =
       static_cast<DSASigEnc>(args[offset + 4].As<Int32>()->Value());
 
-  EVP_PKEY_CTX* pkctx = nullptr;
+  // Usually, we'd only need to allocate the EVP_MD_CTX ourselves and let
+  // OpenSSL take care of the EVP_PKEY_CTX in EVP_DigestSignInit, but to support
+  // SM2, we need to customize the EVP_PKEY_CTX before calling
+  // EVP_DigestSignInit.
   EVPMDPointer mdctx(EVP_MD_CTX_new());
-
-  if (!mdctx ||
-      !EVP_DigestSignInit(mdctx.get(), &pkctx, md, nullptr, key.get())) {
+  EVPKeyCtxPointer pkctx(EVP_PKEY_CTX_new(key.get(), nullptr));
+  if (!mdctx || !pkctx) {
     return crypto::CheckThrow(env, SignBase::Error::kSignInit);
   }
 
-  if (!ApplyRSAOptions(key, pkctx, rsa_padding, rsa_salt_len))
+  if (!args[offset + 5]->IsUndefined()) {
+    ArrayBufferOrViewContents<char> sm2_id(args[offset + 5]);
+    if (EVP_PKEY_CTX_set1_id(pkctx.get(), sm2_id.data(), sm2_id.size()) <= 0)
+      return crypto::CheckThrow(env, SignBase::Error::kSignInit);
+  } else if (EVP_PKEY_id(key.get()) == EVP_PKEY_SM2) {
+    return THROW_ERR_MISSING_OPTION(env, "sm2Identifier is required");
+  }
+
+  EVP_MD_CTX_set_pkey_ctx(mdctx.get(), pkctx.get());
+
+  if (EVP_DigestSignInit(mdctx.get(), nullptr, md, nullptr, key.get()) <= 0) {
+    return crypto::CheckThrow(env, SignBase::Error::kSignInit);
+  }
+
+  if (!ApplyRSAOptions(key, pkctx.get(), rsa_padding, rsa_salt_len))
     return crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
 
   const unsigned char* input =
@@ -614,8 +636,8 @@ void Verify::VerifySync(const FunctionCallbackInfo<Value>& args) {
   } else {
     const node::Utf8Value sign_type(args.GetIsolate(), args[offset + 2]);
     md = EVP_get_digestbyname(*sign_type);
-    if (md == nullptr)
-      return crypto::CheckThrow(env, SignBase::Error::kSignUnknownDigest);
+    if (md == nullptr || !DigestIsValidForKey(key, md))
+      return crypto::CheckThrow(env, SignBase::Error::kSignInvalidDigest);
   }
 
   int rsa_padding = GetDefaultSignPadding(key);
@@ -634,14 +656,31 @@ void Verify::VerifySync(const FunctionCallbackInfo<Value>& args) {
   DSASigEnc dsa_sig_enc =
       static_cast<DSASigEnc>(args[offset + 5].As<Int32>()->Value());
 
-  EVP_PKEY_CTX* pkctx = nullptr;
+  // Usually, we'd only need to allocate the EVP_MD_CTX ourselves and let
+  // OpenSSL take care of the EVP_PKEY_CTX in EVP_DigestSignInit, but to support
+  // SM2, we need to customize the EVP_PKEY_CTX before calling
+  // EVP_DigestSignInit.
   EVPMDPointer mdctx(EVP_MD_CTX_new());
-  if (!mdctx ||
-      !EVP_DigestVerifyInit(mdctx.get(), &pkctx, md, nullptr, key.get())) {
+  EVPKeyCtxPointer pkctx(EVP_PKEY_CTX_new(key.get(), nullptr));
+  if (!mdctx || !pkctx) {
     return crypto::CheckThrow(env, SignBase::Error::kSignInit);
   }
 
-  if (!ApplyRSAOptions(key, pkctx, rsa_padding, rsa_salt_len))
+  if (!args[offset + 6]->IsUndefined()) {
+    ArrayBufferOrViewContents<char> sm2_id(args[offset + 6]);
+    if (EVP_PKEY_CTX_set1_id(pkctx.get(), sm2_id.data(), sm2_id.size()) <= 0)
+      return crypto::CheckThrow(env, SignBase::Error::kSignInit);
+  } else if (EVP_PKEY_id(key.get()) == EVP_PKEY_SM2) {
+    return THROW_ERR_MISSING_OPTION(env, "sm2Identifier is required");
+  }
+
+  EVP_MD_CTX_set_pkey_ctx(mdctx.get(), pkctx.get());
+
+  if (EVP_DigestVerifyInit(mdctx.get(), nullptr, md, nullptr, key.get()) <= 0) {
+    return crypto::CheckThrow(env, SignBase::Error::kSignInit);
+  }
+
+  if (!ApplyRSAOptions(key, pkctx.get(), rsa_padding, rsa_salt_len))
     return crypto::CheckThrow(env, SignBase::Error::kSignPublicKey);
 
   ByteSource sig_bytes = ByteSource::Foreign(sig.data(), sig.size());
