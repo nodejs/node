@@ -266,7 +266,7 @@ bool IsTransparentHugePagesEnabled() {
     return false;
   }
 
-  bool enabled = false;
+  bool enabled;
   if (ifs.is_open()) {
     std::string token;
     while (ifs >> token) {
