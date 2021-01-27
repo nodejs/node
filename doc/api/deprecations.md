@@ -2711,7 +2711,7 @@ Type: Documentation-only.
 
 Prefer [`message.socket`][] over [`message.connection`][].
 
-### DEP0XXX: Changing the value of `process.config`
+### DEP0150: Changing the value of `process.config`
 <!-- YAML
 changes:
   - version: REPLACEME
