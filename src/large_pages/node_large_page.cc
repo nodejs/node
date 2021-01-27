@@ -257,30 +257,24 @@ struct text_region FindNodeTextRegion() {
 }
 
 #if defined(__linux__)
-std::istream *GetTransparentHugePagesConfiguration() {
-  std::ifstream *ifs = new std::ifstream();
-
-  ifs->open("/sys/kernel/mm/transparent_hugepage/enabled");
-  if (!*ifs) {
-    PrintWarning("could not open /sys/kernel/mm/transparent_hugepage/enabled");
-    return nullptr;
-  }
-
-  return ifs;
-}
-
 bool IsTransparentHugePagesEnabled() {
-  std::istream *configuration = GetTransparentHugePagesConfiguration();
-  if (configuration == nullptr) {
+  std::ifstream ifs;
+
+  ifs.open("/sys/kernel/mm/transparent_hugepage/enabled");
+  if (!ifs) {
+    PrintWarning("could not open /sys/kernel/mm/transparent_hugepage/enabled");
     return false;
   }
 
   bool enabled = false;
-  std::string token;
-  while (*configuration >> token) {
-    enabled = enabled || token == "[always]" || token == "[madvise]";
+  if (ifs.is_open()) {
+    std::string token;
+    while (ifs >> token) {
+      enabled = enabled || token == "[always]" || token == "[madvise]";
+    }
   }
-  delete configuration;
+  ifs.close();
+
   return enabled;
 }
 #elif defined(__FreeBSD__)
