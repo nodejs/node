@@ -99,7 +99,7 @@ The character encodings currently supported by Node.js are the following:
 Converting a `Buffer` into a string using one of the above is referred to as
 decoding, and converting a string into a `Buffer` is referred to as encoding.
 
-Node.js also supports the following two binary-to-text encodings. For
+Node.js also supports the following binary-to-text encodings. For
 binary-to-text encodings, the naming convention is reversed: Converting a
 `Buffer` into a string is typically referred to as encoding, and converting a
 string into a `Buffer` as decoding.
