@@ -257,8 +257,8 @@ struct text_region FindNodeTextRegion() {
 }
 
 #if defined(__linux__)
-std::istream* GetTransparentHugePagesConfiguration() {
-  std::ifstream* ifs = new std::ifstream();
+std::istream *GetTransparentHugePagesConfiguration() {
+  std::ifstream *ifs = new std::ifstream();
 
   ifs->open("/sys/kernel/mm/transparent_hugepage/enabled");
   if (!*ifs) {
@@ -269,7 +269,7 @@ std::istream* GetTransparentHugePagesConfiguration() {
   return ifs;
 }
 
-bool IsTransparentHugePagesEnabledViaConfiguration(std::istream* configuration) {
+bool IsTransparentHugePagesEnabledViaConfiguration(std::istream *configuration) {
   std::string token;
   while (*configuration >> token) {
     if (token == "[always]" || token == "[madvise]") return true;
@@ -278,7 +278,7 @@ bool IsTransparentHugePagesEnabledViaConfiguration(std::istream* configuration) 
 }
 
 bool IsTransparentHugePagesEnabled() {
-  std::istream* configuration = GetTransparentHugePagesConfiguration();
+  std::istream *configuration = GetTransparentHugePagesConfiguration();
   if (configuration == nullptr) {
     return false;
   }
