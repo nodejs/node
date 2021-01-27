@@ -279,7 +279,9 @@ bool IsTransparentHugePagesConfigured(std::istream* configuration) {
 
 bool IsTransparentHugePagesEnabled() {
   std::istream* configuration = GetTransparentHugePagesConfiguration();
-  if (configuration == nullptr) return false;
+  if (configuration == nullptr) {
+    return false;
+  }
   bool enabled = IsTransparentHugePagesConfigured(configuration);
   delete configuration;
   return enabled;
