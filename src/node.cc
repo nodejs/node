@@ -415,7 +415,7 @@ MaybeLocal<Value> Environment::RunBootstrapping() {
   CHECK(req_wrap_queue()->IsEmpty());
   CHECK(handle_wrap_queue()->IsEmpty());
 
-  set_has_run_bootstrapping_code(true);
+  DoneBootstrapping();
 
   return scope.Escape(result);
 }

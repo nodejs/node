@@ -209,10 +209,18 @@ NodeMainInstance::CreateMainEnvironment(int* exit_code,
                                     {DeserializeNodeInternalFields, env.get()})
                   .ToLocalChecked();
 
+    CHECK(!context.IsEmpty());
+    Context::Scope context_scope(context);
     InitializeContextRuntime(context);
     SetIsolateErrorHandlers(isolate_, {});
+    env->InitializeMainContext(context, env_info);
+#if HAVE_INSPECTOR
+    env->InitializeInspector({});
+#endif
+    env->DoneBootstrapping();
   } else {
     context = NewContext(isolate_);
+    CHECK(!context.IsEmpty());
     Context::Scope context_scope(context);
     env.reset(new Environment(isolate_data_.get(),
                               context,
@@ -221,24 +229,16 @@ NodeMainInstance::CreateMainEnvironment(int* exit_code,
                               nullptr,
                               EnvironmentFlags::kDefaultFlags,
                               {}));
-  }
-
-  CHECK(!context.IsEmpty());
-  Context::Scope context_scope(context);
-
-  env->InitializeMainContext(context, env_info);
-
 #if HAVE_INSPECTOR
-  env->InitializeInspector({});
+    env->InitializeInspector({});
 #endif
-
-  if (!deserialize_mode_ && env->RunBootstrapping().IsEmpty()) {
-    return nullptr;
+    if (env->RunBootstrapping().IsEmpty()) {
+      return nullptr;
+    }
   }
 
   CHECK(env->req_wrap_queue()->IsEmpty());
   CHECK(env->handle_wrap_queue()->IsEmpty());
-  env->set_has_run_bootstrapping_code(true);
   return env;
 }
 
