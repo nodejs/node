@@ -1,163 +1,53 @@
-npm(1) -- a JavaScript package manager
-==============================
+[![GitHub Workflow Status (branch)](https://img.shields.io/github/workflow/status/npm/cli/Node%20CI/latest)](https://github.com/npm/cli/actions?query=workflow%3A%22Node+CI%22+branch%3Alatest) [![Coveralls github branch](https://img.shields.io/coveralls/github/npm/cli/latest)](https://coveralls.io/github/npm/cli?branch=latest)
 
-[![Build Status](https://img.shields.io/travis/npm/cli/latest.svg)](https://travis-ci.org/npm/cli)
+# npm - a JavaScript package manager
 
-## SYNOPSIS
+### Requirements
 
-This is just enough info to get you up and running.
+* [**Node.js** `v10`](https://nodejs.org/en/download/) or higher must be installed to run this program
 
-Much more info will be available via `npm help` once it's installed.
+### Installation
 
-## IMPORTANT
+**`npm`** comes bundled with [**`node`**](https://nodejs.org/), & most third-party distributions, by default. Officially supported downloads/distributions can be found at: [nodejs.org/en/download](https://nodejs.org/en/download)
 
-**You need node v6 or higher to run this program.**
+#### Direct Download
 
-To install an old **and unsupported** version of npm that works on node v5
-and prior, clone the git repo and dig through the old tags and branches.
+You can download & install **`npm`** directly from [**npmjs**.com](https://npmjs.com/) using our custom `install.sh` script:
 
-**npm is configured to use npm, Inc.'s public registry at
-<https://registry.npmjs.org> by default.** Use of the npm public registry
-is subject to terms of use available at <https://www.npmjs.com/policies/terms>.
-
-You can configure npm to use any compatible registry you
-like, and even run your own registry. Check out the [doc on
-registries](https://docs.npmjs.com/misc/registry).
-
-## Super Easy Install
-
-npm is bundled with [node](https://nodejs.org/en/download/).
-
-### Windows Computers
-
-[Get the MSI](https://nodejs.org/en/download/).  npm is in it.
-
-### Apple Macintosh Computers
-
-[Get the pkg](https://nodejs.org/en/download/).  npm is in it.
-
-### Other Sorts of Unices
-
-Run `make install`.  npm will be installed with node.
-
-If you want a more fancy pants install (a different version, customized
-paths, etc.) then read on.
-
-## Fancy Install (Unix)
-
-There's a pretty robust install script at
-<https://www.npmjs.com/install.sh>.  You can download that and run it.
-
-Here's an example using curl:
-
-```sh
+```bash
 curl -L https://www.npmjs.com/install.sh | sh
 ```
 
-### Slightly Fancier
+#### Node Version Managers
 
-You can set any npm configuration params with that script:
+If you're looking to manage multiple versions of **`node`** &/or **`npm`**, consider using a "Node Version Manager" such as:
 
-```sh
-npm_config_prefix=/some/path sh install.sh
+* [**`nvm`**](https://github.com/nvm-sh/nvm)
+* [**`nvs`**](https://github.com/jasongin/nvs)
+* [**`nave`**](https://github.com/isaacs/nave)
+* [**`n`**](https://github.com/tj/n)
+* [**`volta`**](https://github.com/volta-cli/volta)
+
+### Usage
+
+```bash
+npm <command>
 ```
 
-Or, you can run it in uber-debuggery mode:
+### Links & Resources
 
-```sh
-npm_debug=1 sh install.sh
-```
+* [**Documentation**](https://docs.npmjs.com/) - Official docs & how-tos for all things **npm**
+    * Note: you can also search docs locally with `npm help-search <query>`
+* [**Bug Tracker**](https://github.com/npm/cli/issues) - Search or submit bugs against the CLI
+* [**Roadmap**](https://github.com/npm/roadmap) - Track & follow along with our public roadmap
+* [**Feedback**](https://github.com/npm/feedback) - Contribute ideas & discussion around the npm registry, website & CLI
+* [**RFCs**](https://github.com/npm/rfcs) - Contribute ideas & specifications for the API/design of the npm CLI
+* [**Service Status**](https://status.npmjs.org/) - Monitor the current status & see incident reports for the website & registry
+* [**Project Status**](https://npm.github.io/statusboard/) - See the health of all our maintained OSS projects in one view
+* [**Events Calendar**](https://calendar.google.com/calendar/u/0/embed?src=npmjs.com_oonluqt8oftrt0vmgrfbg6q6go@group.calendar.google.com) - Keep track of our Open RFC calls, releases, meetups, conferences & more
+* [**Support**](https://www.npmjs.com/support) - Experiencing problems with the **npm** [website](https://npmjs.com) or [registry](https://registry.npmjs.org)? File a ticket [here](https://www.npmjs.com/support)
 
-### Even Fancier
+### Acknowledgments
 
-Get the code with git.  Use `make` to build the docs and do other stuff.
-If you plan on hacking on npm, `make link` is your friend.
-
-If you've got the npm source code, you can also semi-permanently set
-arbitrary config keys using the `./configure --key=val ...`, and then
-run npm commands by doing `node bin/npm-cli.js <command> <args>`.  (This is helpful
-for testing, or running stuff without actually installing npm itself.)
-
-## Windows Install or Upgrade
-
-Many improvements for Windows users have been made in npm 3 - you will have a better
-experience if you run a recent version of npm. To upgrade, either use [Microsoft's
-upgrade tool](https://github.com/felixrieseberg/npm-windows-upgrade),
-[download a new version of Node](https://nodejs.org/en/download/),
-or follow the Windows upgrade instructions in the
-[Installing/upgrading npm](https://npm.community/t/installing-upgrading-npm/251/2) post.
-
-If that's not fancy enough for you, then you can fetch the code with
-git, and mess with it directly.
-
-## Installing on Cygwin
-
-No.
-
-## Uninstalling
-
-So sad to see you go.
-
-```sh
-sudo npm uninstall npm -g
-```
-Or, if that fails,
-
-```sh
-sudo make uninstall
-```
-
-## More Severe Uninstalling
-
-Usually, the above instructions are sufficient.  That will remove
-npm, but leave behind anything you've installed.
-
-If you would like to remove all the packages that you have installed,
-then you can use the `npm ls` command to find them, and then `npm rm` to
-remove them.
-
-To remove cruft left behind by npm 0.x, you can use the included
-`clean-old.sh` script file.  You can run it conveniently like this:
-
-```sh
-npm explore npm -g -- sh scripts/clean-old.sh
-```
-
-npm uses two configuration files, one for per-user configs, and another
-for global (every-user) configs.  You can view them by doing:
-
-```sh
-npm config get userconfig   # defaults to ~/.npmrc
-npm config get globalconfig # defaults to /usr/local/etc/npmrc
-```
-
-Uninstalling npm does not remove configuration files by default.  You
-must remove them yourself manually if you want them gone.  Note that
-this means that future npm installs will not remember the settings that
-you have chosen.
-
-## More Docs
-
-Check out the [docs](https://docs.npmjs.com/).
-
-You can use the `npm help` command to read any of them.
-
-If you're a developer, and you want to use npm to publish your program,
-you should [read this](https://docs.npmjs.com/misc/developers).
-
-## BUGS
-
-When you find issues, please report them:
-
-* web:
-  <https://github.com/npm/cli/issues>
-* archived web:
-  <https://npm.community/c/bugs>
-
-Be sure to include *all* of the output from the npm command that didn't work
-as expected.  The `npm-debug.log` file is also helpful to provide.
-
-## SEE ALSO
-
-* npm(1)
-* npm-help(1)
+* `npm` is configured to use the **npm Public Registry** at [https://registry.npmjs.org](https://registry.npmjs.org) by default; Usage of this registry is subject to **Terms of Use** available at [https://npmjs.com/policies/terms](https://npmjs.com/policies/terms)
+* You can configure `npm` to use any other compatible registry you prefer. You can read more about configuring third-party registries [here](https://docs.npmjs.com/cli/v7/using-npm/registry)

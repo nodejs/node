@@ -83,37 +83,37 @@ Take the following example:
     }
 ```
 
-This runs all your tests, and proceeds only if they pass. Then runs your `build` script, and
+This runs all your tests and proceeds only if they pass. Then runs your `build` script, and
 adds everything in the `dist` directory to the commit. After the commit, it pushes the new commit
 and tag up to the server, and deletes the `build/temp` directory.
 
 ### Configuration
 
-#### allow-same-version
+#### `allow-same-version`
 
-* Default: false
+* Default: `false`
 * Type: Boolean
 
-Prevents throwing an error when `npm version` is used to set the new version 
+Prevents throwing an error when `npm version` is used to set the new version
 to the same value as the current version.
 
-#### git-tag-version
+#### `git-tag-version`
 
-* Default: true
+* Default: `true`
 * Type: Boolean
 
 Commit and tag the version change.
 
-#### commit-hooks
+#### `commit-hooks`
 
-* Default: true
+* Default: `true`
 * Type: Boolean
 
 Run git commit hooks when committing the version change.
 
-#### sign-git-tag
+#### `sign-git-tag`
 
-* Default: false
+* Default: `false`
 * Type: Boolean
 
 Pass the `-s` flag to git to sign the tag.
@@ -126,5 +126,4 @@ Note that you must have a default GPG key set up in your git config for this to 
 * [npm run-script](/commands/npm-run-script)
 * [npm scripts](/using-npm/scripts)
 * [package.json](/configuring-npm/package-json)
-* [semver](/using-npm/semver)
 * [config](/using-npm/config)

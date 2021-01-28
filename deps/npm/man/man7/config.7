@@ -498,6 +498,88 @@ only report what it would have done\.  This can be passed into any of the
 commands that modify your local installation, eg, \fBinstall\fP, \fBupdate\fP,
 \fBdedupe\fP, \fBuninstall\fP\|\.  This is NOT currently honored by some network related
 commands, eg \fBdist\-tags\fP, \fBowner\fP, etc\.
+.SS diff
+.RS 0
+.IP \(bu 2
+Default: null
+.IP \(bu 2
+Type: String, Array, null
+
+.RE
+.P
+Define arguments to compare in \fBnpm diff\fP\|\.
+.SS diff\-name\-only
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Prints only filenames when using \fBnpm diff\fP\|\.
+.SS diff\-unified
+.RS 0
+.IP \(bu 2
+Type: number
+.IP \(bu 2
+Default: \fB3\fP
+
+.RE
+.P
+The number of lines of context to print in \fBnpm diff\fP\|\.
+.SS diff\-ignore\-all\-space
+.RS 0
+.IP \(bu 2
+Type: Boolean
+.IP \(bu 2
+Default: false
+
+.RE
+.P
+Ignore whitespace when comparing lines in `npm diff\.
+.SS diff\-no\-prefix
+.RS 0
+.IP \(bu 2
+Type: Boolean
+.IP \(bu 2
+Default: false
+
+.RE
+.P
+Do not show any source or destination prefix in \fBnpm diff\fP output\.
+.SS diff\-src\-prefix
+.RS 0
+.IP \(bu 2
+Type: String
+.IP \(bu 2
+Default: \fB"a/"\fP
+
+.RE
+.P
+Source prefix to be used in \fBnpm diff\fP output\.
+.SS diff\-dst\-prefix
+.RS 0
+.IP \(bu 2
+Type: String
+.IP \(bu 2
+Default: \fB"b/"\fP
+
+.RE
+.P
+Destination prefix to be used in \fBnpm diff\fP output\.
+.SS diff\-text
+.RS 0
+.IP \(bu 2
+Alias: \fB\-a\fP
+.IP \(bu 2
+Type: Boolean
+.IP \(bu 2
+Default: false
+
+.RE
+.P
+Treat all files as text in \fBnpm diff\fP\|\.
 .SS editor
 .RS 0
 .IP \(bu 2

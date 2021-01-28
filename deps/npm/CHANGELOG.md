@@ -1,3 +1,60 @@
+## v7.5.0 (2021-01-28)
+
+### FEATURES
+
+* [`d011266b7`](https://github.com/npm/cli/commit/d011266b733367aad283ccbfb9d2b19442c3405f)
+  [#1319](https://github.com/npm/cli/issues/1319)
+  add npm diff command
+  ([@ruyadorno](https://github.com/ruyadorno))
+
+### BUG FIXES
+
+* [`d2f8af2da`](https://github.com/npm/cli/commit/d2f8af2da64d510d3d363aec10531bebf840d84e)
+  [#2445](https://github.com/npm/cli/issues/2445)
+  publish: don't complain about missing auth until after registry is chosen
+  ([@dr-js](https://github.com/dr-js))
+
+### DOCUMENTATION
+
+* [`8d3fd63aa`](https://github.com/npm/cli/commit/8d3fd63aaa6a5c9b3d2281dd0bd9e1c270b35941)
+  [#2559](https://github.com/npm/cli/issues/2559)
+  updates to readme, removal, contributing and several other docs
+  ([@darcyclarke](https://github.com/darcyclarke))
+* [`7772d9f9f`](https://github.com/npm/cli/commit/7772d9f9f9f853573a7ff8e7fb60c5e46566f596)
+  [#2542](https://github.com/npm/cli/issues/2542)
+  fix grammar on caching docs for search, exec and init
+  ([@wraithgar](https://github.com/wraithgar))
+* [`52e8a1aef`](https://github.com/npm/cli/commit/52e8a1aef4aab3f378c20276a9109bb3f00eccd5)
+  [#2558](https://github.com/npm/cli/issues/2558)
+  refreshed npm updated docs
+  ([@ruyadorno](https://github.com/ruyadorno))
+* [`abae00ca0`](https://github.com/npm/cli/commit/abae00ca05925e521696dd12480853509aab6c0a)
+  [#2565](https://github.com/npm/cli/issues/2565)
+  update npm command docs
+  ([@wraithgar](https://github.com/wraithgar))
+* [`9351cbf9a`](https://github.com/npm/cli/commit/9351cbf9afd2310c56b9953c005505ea5126a5d4)
+  [#2566](https://github.com/npm/cli/issues/2566)
+  refresh npm run-script docs
+  ([@ruyadorno](https://github.com/ruyadorno))
+
+### DEPENDENCIES
+
+* [`56c08863e`](https://github.com/npm/cli/commit/56c08863e15cb9cf8662b99ddc627cfcdff0348d)
+  `hosted-git-info@3.0.8`
+* [`18a93f06b`](https://github.com/npm/cli/commit/18a93f06b632be051b9455e32a85e4e75066f52c)
+  `ssri@8.0.1`
+* [`cb768f671`](https://github.com/npm/cli/commit/cb768f671c4d8d5a09d9a6c5a74227d300e81104)
+  `@npmcli/move-file@1.1.1`
+* [`32cc0a4be`](https://github.com/npm/cli/commit/32cc0a4be76465093e3d0f314215a0ec46dc03c6)
+  `minipass-fetch@1.3.3`
+    * fixes ssl settings passthrough
+* [`530997968`](https://github.com/npm/cli/commit/530997968fbbd9e8bf016689b1d192daa812b4de)
+  `@npmcli/arborist@2.1.0`
+    * added signal handler to rollback when possible
+    * prevent ERESOLVEs caused by loose root dep specs
+    * detect conflicts among nested peerOptional deps
+    * properly buildIdealTree when root is a symlink
+
 ## v7.4.3 (2021-01-21)
 
 ### DOCUMENTATION
