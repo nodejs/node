@@ -14,6 +14,7 @@ extern uintptr_t
     nodedbg_offset_Environment__handle_wrap_queue___Environment_HandleWrapQueue;
 extern int debug_symbols_generated;
 extern int nodedbg_const_ContextEmbedderIndex__kEnvironment__int;
+extern int nodedbg_const_BaseObject__kInternalFieldCount__int;
 extern uintptr_t
     nodedbg_offset_Environment_HandleWrapQueue__head___ListNode_HandleWrap;
 extern uintptr_t
@@ -68,6 +69,12 @@ TEST_F(DebugSymbolsTest, ContextEmbedderEnvironmentIndex) {
             kEnvironmentIndex);
 }
 
+TEST_F(DebugSymbolsTest, BaseObjectkInternalFieldCount) {
+  int kInternalFieldCount = node::BaseObject::kInternalFieldCount;
+  EXPECT_EQ(nodedbg_const_BaseObject__kInternalFieldCount__int,
+            kInternalFieldCount);
+}
+
 TEST_F(DebugSymbolsTest, ExternalStringDataOffset) {
   EXPECT_EQ(nodedbg_offset_ExternalString__data__uintptr_t,
             NODE_OFF_EXTSTR_DATA);
@@ -89,7 +96,8 @@ TEST_F(DebugSymbolsTest, BaseObjectPersistentHandle) {
   Env env{handle_scope, argv};
 
   v8::Local<v8::ObjectTemplate> obj_templ = v8::ObjectTemplate::New(isolate_);
-  obj_templ->SetInternalFieldCount(1);
+  obj_templ->SetInternalFieldCount(
+      nodedbg_const_BaseObject__kInternalFieldCount__int);
 
   v8::Local<v8::Object> object =
       obj_templ->NewInstance(env.context()).ToLocalChecked();
@@ -139,7 +147,8 @@ TEST_F(DebugSymbolsTest, HandleWrapList) {
   uv_tcp_t handle;
 
   auto obj_template = v8::FunctionTemplate::New(isolate_);
-  obj_template->InstanceTemplate()->SetInternalFieldCount(1);
+  obj_template->InstanceTemplate()->SetInternalFieldCount(
+      nodedbg_const_BaseObject__kInternalFieldCount__int);
 
   v8::Local<v8::Object> object = obj_template->GetFunction(env.context())
                                      .ToLocalChecked()
@@ -171,7 +180,8 @@ TEST_F(DebugSymbolsTest, ReqWrapList) {
   tail = *reinterpret_cast<uintptr_t*>(tail);
 
   auto obj_template = v8::FunctionTemplate::New(isolate_);
-  obj_template->InstanceTemplate()->SetInternalFieldCount(1);
+  obj_template->InstanceTemplate()->SetInternalFieldCount(
+      nodedbg_const_BaseObject__kInternalFieldCount__int);
 
   v8::Local<v8::Object> object = obj_template->GetFunction(env.context())
                                      .ToLocalChecked()
