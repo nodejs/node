@@ -36,6 +36,9 @@ var fixture = new Tacks(
         'arm64',
         'mips',
         'ia32',
+        'ppc64',
+        'ppc64el',
+        's390x',
         'x64',
         'sparc'
       ]
