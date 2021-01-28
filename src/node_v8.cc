@@ -95,7 +95,7 @@ class BindingData : public BaseObject {
         heap_code_statistics_buffer(env->isolate(),
                                     kHeapCodeStatisticsPropertiesCount) {}
 
-  static constexpr FastStringKey binding_data_name { "v8" };
+  static constexpr FastStringKey type_name { "v8" };
 
   AliasedFloat64Array heap_statistics_buffer;
   AliasedFloat64Array heap_space_statistics_buffer;
@@ -113,7 +113,7 @@ class BindingData : public BaseObject {
 };
 
 // TODO(addaleax): Remove once we're on C++17.
-constexpr FastStringKey BindingData::binding_data_name;
+constexpr FastStringKey BindingData::type_name;
 
 void CachedDataVersionTag(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
