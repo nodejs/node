@@ -127,7 +127,7 @@ class Http2State : public BaseObject {
   SET_SELF_SIZE(Http2State)
   SET_MEMORY_INFO_NAME(Http2State)
 
-  static constexpr FastStringKey binding_data_name { "http2" };
+  static constexpr FastStringKey type_name { "http2" };
 
  private:
   struct http2_state_internal {
