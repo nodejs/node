@@ -261,7 +261,7 @@ bool IsTransparentHugePagesEnabled() {
   std::ifstream ifs;
 
   // File format reference:
-  // https://github.com/torvalds/linux/blob/13391c60da3308ed9980de0168f74cce6c62ac1d/mm/huge_memory.c#L162-L177
+  // https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/mm/huge_memory.c?id=13391c60da3308ed9980de0168f74cce6c62ac1d#n162
   ifs.open("/sys/kernel/mm/transparent_hugepage/enabled");
   if (!ifs) {
     PrintWarning("could not open /sys/kernel/mm/transparent_hugepage/enabled");
