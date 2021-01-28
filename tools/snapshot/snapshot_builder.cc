@@ -6,6 +6,7 @@
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_main_instance.h"
+#include "node_snapshotable.h"
 #include "node_v8_platform-inl.h"
 
 namespace node {
@@ -14,7 +15,6 @@ using v8::Context;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
-using v8::Object;
 using v8::SnapshotCreator;
 using v8::StartupData;
 
@@ -73,22 +73,6 @@ const EnvSerializeInfo* NodeMainInstance::GetEnvSerializeInfo() {
 )";
 
   return ss.str();
-}
-
-static StartupData SerializeNodeContextInternalFields(Local<Object> holder,
-                                                      int index,
-                                                      void* env) {
-  void* ptr = holder->GetAlignedPointerFromInternalField(index);
-  if (ptr == nullptr || ptr == env) {
-    return StartupData{nullptr, 0};
-  }
-  if (ptr == env && index == ContextEmbedderIndex::kEnvironment) {
-    return StartupData{nullptr, 0};
-  }
-
-  // No embedder objects in the builtin snapshot yet.
-  UNREACHABLE();
-  return StartupData{nullptr, 0};
 }
 
 std::string SnapshotBuilder::Generate(

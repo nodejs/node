@@ -5,6 +5,7 @@
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_options-inl.h"
+#include "node_snapshotable.h"
 #include "node_v8_platform-inl.h"
 #include "util-inl.h"
 #if defined(LEAK_SANITIZER)
@@ -22,7 +23,6 @@ using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::Locker;
-using v8::Object;
 
 std::unique_ptr<ExternalReferenceRegistry> NodeMainInstance::registry_ =
     nullptr;
@@ -165,18 +165,6 @@ int NodeMainInstance::Run(const EnvSerializeInfo* env_info) {
   }
 
   return exit_code;
-}
-
-void DeserializeNodeInternalFields(Local<Object> holder,
-                                   int index,
-                                   v8::StartupData payload,
-                                   void* env) {
-  if (payload.raw_size == 0) {
-    holder->SetAlignedPointerInInternalField(index, nullptr);
-    return;
-  }
-  // No embedder object in the builtin snapshot yet.
-  UNREACHABLE();
 }
 
 DeleteFnPtr<Environment, FreeEnvironment>
