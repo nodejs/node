@@ -63,8 +63,6 @@ Version must be parseable by
 [node-semver](https://github.com/npm/node-semver), which is bundled with
 npm as a dependency.  (`npm install semver` to use it yourself.)
 
-More on version numbers and ranges at [semver](/using-npm/semver).
-
 ### description
 
 Put a description in it.  It's a string.  This helps people discover your
@@ -564,8 +562,8 @@ tarball or git URL.
 **Please do not put test harnesses or transpilers or other "development"
 time tools in your `dependencies` object.**  See `devDependencies`, below.
 
-See [semver](/using-npm/semver) for more details about specifying version
-ranges.
+See [semver]([/using-npm/semver](https://github.com/npm/node-semver#versions))
+for more details about specifying version ranges.
 
 * `version` Must match `version` exactly
 * `>version` Must be greater than `version`
@@ -573,8 +571,8 @@ ranges.
 * `<version`
 * `<=version`
 * `~version` "Approximately equivalent to version"  See
-  [semver](/using-npm/semver)
-* `^version` "Compatible with version"  See [semver](/using-npm/semver)
+  [semver](https://github.com/npm/node-semver#versions)
+* `^version` "Compatible with version"  See [semver](https://github.com/npm/node-semver#versions)
 * `1.2.x` 1.2.0, 1.2.1, etc., but not 1.3.0
 * `http://...` See 'URLs as Dependencies' below
 * `*` Matches any version
@@ -1027,7 +1025,7 @@ npm will default some values based on package contents.
 
 ### SEE ALSO
 
-* [semver](/using-npm/semver)
+* [semver](https://github.com/npm/node-semver#versions)
 * [workspaces](/using-npm/workspaces)
 * [npm init](/commands/npm-init)
 * [npm version](/commands/npm-version)

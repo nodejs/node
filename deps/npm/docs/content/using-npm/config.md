@@ -379,6 +379,63 @@ commands that modify your local installation, eg, `install`, `update`,
 `dedupe`, `uninstall`.  This is NOT currently honored by some network related
 commands, eg `dist-tags`, `owner`, etc.
 
+#### diff
+
+* Default: null
+* Type: String, Array, null
+
+Define arguments to compare in `npm diff`.
+
+#### diff-name-only
+
+* Default: false
+* Type: Boolean
+
+Prints only filenames when using `npm diff`.
+
+#### diff-unified
+
+* Type: number
+* Default: `3`
+
+The number of lines of context to print in `npm diff`.
+
+#### diff-ignore-all-space
+
+* Type: Boolean
+* Default: false
+
+Ignore whitespace when comparing lines in `npm diff.
+
+#### diff-no-prefix
+
+* Type: Boolean
+* Default: false
+
+Do not show any source or destination prefix in `npm diff` output.
+
+#### diff-src-prefix
+
+* Type: String
+* Default: `"a/"`
+
+Source prefix to be used in `npm diff` output.
+
+#### diff-dst-prefix
+
+* Type: String
+* Default: `"b/"`
+
+Destination prefix to be used in `npm diff` output.
+
+#### diff-text
+
+* Alias: `-a`
+* Type: Boolean
+* Default: false
+
+Treat all files as text in `npm diff`.
+
 #### editor
 
 * Default: `EDITOR` environment variable if set, or `"vi"` on Posix,
