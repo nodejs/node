@@ -3,7 +3,7 @@
 const common = require('../common');
 
 if (common.isWindows) {
-  common.skip('vcbuild.bat doesn\'t build the n-api benchmarks yet');
+  common.skip('vcbuild.bat doesn\'t build the Node.js API benchmarks yet');
 }
 
 if (!common.isMainThread) {
@@ -15,4 +15,4 @@ if (process.features.debug) {
 }
 const runBenchmark = require('../common/benchmark');
 
-runBenchmark('napi', { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
+runBenchmark('node-api', { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
