@@ -746,6 +746,7 @@
         'src/node_union_bytes.h',
         'src/node_url.h',
         'src/node_version.h',
+        'src/node_v8.h',
         'src/node_v8_platform-inl.h',
         'src/node_wasi.h',
         'src/node_watchdog.h',
