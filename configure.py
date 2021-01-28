@@ -16,6 +16,8 @@ import io
 
 from distutils.spawn import find_executable as which
 from distutils.version import StrictVersion
+# this is just a test to see how
+# GitHub works. Please ignore
 
 # If not run from node/, cd to node/.
 os.chdir(os.path.dirname(__file__) or '.')
