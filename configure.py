@@ -1338,7 +1338,7 @@ def configure_node(o):
     print('Warning! Loading builtin modules from disk is for development')
     o['variables']['node_builtin_modules_path'] = options.node_builtin_modules_path
 
-def configure_napi(output):
+def configure_node_api(output):
   version = getnodeapibuildversion.get_node_api_version()
   output['variables']['node_api_build_version'] = version
 
@@ -1884,7 +1884,7 @@ if (options.dest_os):
 flavor = GetFlavor(flavor_params)
 
 configure_node(output)
-configure_napi(output)
+configure_node_api(output)
 configure_library('zlib', output)
 configure_library('http_parser', output)
 configure_library('libuv', output)
