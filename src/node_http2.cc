@@ -3001,7 +3001,7 @@ void Http2State::MemoryInfo(MemoryTracker* tracker) const {
 }
 
 // TODO(addaleax): Remove once we're on C++17.
-constexpr FastStringKey Http2State::binding_data_name;
+constexpr FastStringKey Http2State::type_name;
 
 // Set up the process.binding('http2') binding.
 void Initialize(Local<Object> target,
