@@ -173,6 +173,28 @@ This resulted in some shifts in its functionality:
 - The `--shell` option is replaced with `--script-shell`, but maintained
   in the `npx` executable for backwards compatibility.
 
+### A note on caching
+
+The npm cli utilizes its internal package cache when using the package
+name specified.  You can use the following to change how and when the
+cli uses this cache. See [`npm cache`](/commands/npm-cache) for more on
+how the cache works.
+
+#### prefer-online
+
+Forces staleness checks for packages, making the cli look for updates
+immediately even if the package is already in the cache.
+
+#### prefer-offline
+
+Bypasses staleness checks for packages.  Missing data will still be
+requested from the server. To force full offline mode, use `offline`.
+
+#### offline
+
+Forces full offline mode. Any packages not locally cached will result in
+an error.
+
 ### See Also
 
 * [npm run-script](/commands/npm-run-script)

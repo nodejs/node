@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#allow-same-version">allow-same-version</a></li><li><a href="#git-tag-version">git-tag-version</a></li><li><a href="#commit-hooks">commit-hooks</a></li><li><a href="#sign-git-tag">sign-git-tag</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#allow-same-version"><code>allow-same-version</code></a></li><li><a href="#git-tag-version"><code>git-tag-version</code></a></li><li><a href="#commit-hooks"><code>commit-hooks</code></a></li><li><a href="#sign-git-tag"><code>sign-git-tag</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -207,32 +207,32 @@ the commit and/or tag.</li>
       "postversion": "git push &amp;&amp; git push --tags &amp;&amp; rm -rf build/temp"
     }
 </code></pre>
-<p>This runs all your tests, and proceeds only if they pass. Then runs your <code>build</code> script, and
+<p>This runs all your tests and proceeds only if they pass. Then runs your <code>build</code> script, and
 adds everything in the <code>dist</code> directory to the commit. After the commit, it pushes the new commit
 and tag up to the server, and deletes the <code>build/temp</code> directory.</p>
 <h3 id="configuration">Configuration</h3>
-<h4 id="allow-same-version">allow-same-version</h4>
+<h4 id="allow-same-version"><code>allow-same-version</code></h4>
 <ul>
-<li>Default: false</li>
+<li>Default: <code>false</code></li>
 <li>Type: Boolean</li>
 </ul>
 <p>Prevents throwing an error when <code>npm version</code> is used to set the new version
 to the same value as the current version.</p>
-<h4 id="git-tag-version">git-tag-version</h4>
+<h4 id="git-tag-version"><code>git-tag-version</code></h4>
 <ul>
-<li>Default: true</li>
+<li>Default: <code>true</code></li>
 <li>Type: Boolean</li>
 </ul>
 <p>Commit and tag the version change.</p>
-<h4 id="commit-hooks">commit-hooks</h4>
+<h4 id="commit-hooks"><code>commit-hooks</code></h4>
 <ul>
-<li>Default: true</li>
+<li>Default: <code>true</code></li>
 <li>Type: Boolean</li>
 </ul>
 <p>Run git commit hooks when committing the version change.</p>
-<h4 id="sign-git-tag">sign-git-tag</h4>
+<h4 id="sign-git-tag"><code>sign-git-tag</code></h4>
 <ul>
-<li>Default: false</li>
+<li>Default: <code>false</code></li>
 <li>Type: Boolean</li>
 </ul>
 <p>Pass the <code>-s</code> flag to git to sign the tag.</p>
@@ -243,7 +243,6 @@ to the same value as the current version.</p>
 <li><a href="../commands/npm-run-script.html">npm run-script</a></li>
 <li><a href="../using-npm/scripts.html">npm scripts</a></li>
 <li><a href="../configuring-npm/package-json.html">package.json</a></li>
-<li><a href="../using-npm/semver.html">semver</a></li>
 <li><a href="../using-npm/config.html">config</a></li>
 </ul>
 </div>
