@@ -1340,7 +1340,7 @@ def configure_node(o):
 
 def configure_node_api(output):
   version = getnodeapibuildversion.get_node_api_version()
-  output['variables']['node_api_build_version'] = version
+  output['variables']['napi_build_version'] = version
 
 def configure_library(lib, output, pkgname=None):
   shared_lib = 'shared_' + lib
