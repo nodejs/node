@@ -1129,7 +1129,7 @@ class Environment : public MemoryRetainer {
   inline void add_refs(int64_t diff);
 
   inline bool has_run_bootstrapping_code() const;
-  inline void set_has_run_bootstrapping_code(bool has_run_bootstrapping_code);
+  inline void DoneBootstrapping();
 
   inline bool has_serialized_options() const;
   inline void set_has_serialized_options(bool has_serialized_options);
@@ -1315,6 +1315,7 @@ class Environment : public MemoryRetainer {
   // no memory leaks caused by BaseObjects staying alive longer than expected
   // (in particular, no circular BaseObjectPtr references).
   inline void modify_base_object_count(int64_t delta);
+  inline int64_t base_object_created_after_bootstrap() const;
   inline int64_t base_object_count() const;
 
   inline int32_t stack_trace_limit() const { return 10; }
@@ -1508,7 +1509,7 @@ class Environment : public MemoryRetainer {
   bool started_cleanup_ = false;
 
   int64_t base_object_count_ = 0;
-  int64_t initial_base_object_count_ = 0;
+  int64_t base_object_created_by_bootstrap_ = 0;
   std::atomic_bool is_stopping_ { false };
 
   std::unordered_set<int> unmanaged_fds_;

@@ -414,10 +414,6 @@ Environment::Environment(IsolateData* isolate_data,
                                       "args",
                                       std::move(traced_value));
   }
-
-  // This adjusts the return value of base_object_count() so that tests that
-  // check the count do not have to account for internally created BaseObjects.
-  initial_base_object_count_ = base_object_count();
 }
 
 Environment::Environment(IsolateData* isolate_data,
@@ -460,10 +456,6 @@ void Environment::InitializeMainContext(Local<Context> context,
                            per_process::node_start_time);
   performance_state_->Mark(performance::NODE_PERFORMANCE_MILESTONE_V8_START,
                            performance::performance_v8_start);
-
-  // This adjusts the return value of base_object_count() so that tests that
-  // check the count do not have to account for internally created BaseObjects.
-  initial_base_object_count_ = base_object_count();
 }
 
 Environment::~Environment() {
@@ -654,7 +646,6 @@ void Environment::RunCleanup() {
   TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
                               "RunCleanup", this);
   bindings_.clear();
-  initial_base_object_count_ = 0;
   CleanupHandles();
 
   while (!cleanup_hooks_.empty() ||
