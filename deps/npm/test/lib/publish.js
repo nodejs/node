@@ -329,7 +329,6 @@ t.test('throw if no registry', async t => {
     '../../lib/npm.js': {
       flatOptions: {
         json: false,
-        defaultTag: '0.0.13',
         registry: null,
       },
       config,
@@ -350,7 +349,6 @@ t.test('throw if not logged in', async t => {
     '../../lib/npm.js': {
       flatOptions: {
         json: false,
-        defaultTag: '0.0.13',
         registry: 'https://registry.npmjs.org/',
       },
       config: {
@@ -367,5 +365,46 @@ t.test('throw if not logged in', async t => {
       message: 'This command requires you to be logged in.',
       code: 'ENEEDAUTH',
     }, 'throws when not logged in')
+  })
+})
+
+t.test('read registry only from publishConfig', t => {
+  t.plan(3)
+
+  const publishConfig = { registry: 'https://some.registry' }
+  const testDir = t.testdir({
+    'package.json': JSON.stringify({
+      name: 'my-cool-pkg',
+      version: '1.0.0',
+      publishConfig,
+    }, null, 2),
+  })
+
+  const publish = requireInject('../../lib/publish.js', {
+    '../../lib/npm.js': {
+      flatOptions: {
+        json: false,
+      },
+      config,
+    },
+    '../../lib/utils/tar.js': {
+      getContents: () => ({
+        id: 'someid',
+      }),
+      logTar: () => {},
+    },
+    '../../lib/utils/output.js': () => {},
+    libnpmpublish: {
+      publish: (manifest, tarData, opts) => {
+        t.match(manifest, { name: 'my-cool-pkg', version: '1.0.0' }, 'gets manifest')
+        t.same(opts.registry, publishConfig.registry, 'publishConfig is passed through')
+      },
+    },
+  })
+
+  return publish([testDir], (er) => {
+    if (er)
+      throw er
+    t.pass('got to callback')
   })
 })

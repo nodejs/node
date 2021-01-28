@@ -96,45 +96,45 @@ Take the following example:
 .fi
 .RE
 .P
-This runs all your tests, and proceeds only if they pass\. Then runs your \fBbuild\fP script, and
+This runs all your tests and proceeds only if they pass\. Then runs your \fBbuild\fP script, and
 adds everything in the \fBdist\fP directory to the commit\. After the commit, it pushes the new commit
 and tag up to the server, and deletes the \fBbuild/temp\fP directory\.
 .SS Configuration
-.SS allow\-same\-version
+.SS \fBallow\-same\-version\fP
 .RS 0
 .IP \(bu 2
-Default: false
+Default: \fBfalse\fP
 .IP \(bu 2
 Type: Boolean
 
 .RE
 .P
-Prevents throwing an error when \fBnpm version\fP is used to set the new version 
+Prevents throwing an error when \fBnpm version\fP is used to set the new version
 to the same value as the current version\.
-.SS git\-tag\-version
+.SS \fBgit\-tag\-version\fP
 .RS 0
 .IP \(bu 2
-Default: true
+Default: \fBtrue\fP
 .IP \(bu 2
 Type: Boolean
 
 .RE
 .P
 Commit and tag the version change\.
-.SS commit\-hooks
+.SS \fBcommit\-hooks\fP
 .RS 0
 .IP \(bu 2
-Default: true
+Default: \fBtrue\fP
 .IP \(bu 2
 Type: Boolean
 
 .RE
 .P
 Run git commit hooks when committing the version change\.
-.SS sign\-git\-tag
+.SS \fBsign\-git\-tag\fP
 .RS 0
 .IP \(bu 2
-Default: false
+Default: \fBfalse\fP
 .IP \(bu 2
 Type: Boolean
 
@@ -153,8 +153,6 @@ npm help run\-script
 npm help scripts
 .IP \(bu 2
 npm help package\.json
-.IP \(bu 2
-npm help semver
 .IP \(bu 2
 npm help config
 

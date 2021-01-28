@@ -155,6 +155,7 @@ Object {
     "prefix",
     "bin",
     "whoami",
+    "diff",
     "dist-tag",
     "ping",
     "test",

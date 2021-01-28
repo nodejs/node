@@ -35,22 +35,7 @@ const publish = async args => {
   log.verbose('publish', args)
 
   const opts = { ...npm.flatOptions }
-  const { json, defaultTag, registry } = opts
-
-  if (!registry) {
-    throw Object.assign(new Error('No registry specified.'), {
-      code: 'ENOREGISTRY',
-    })
-  }
-
-  if (!opts.dryRun) {
-    const creds = npm.config.getCredentialsByURI(registry)
-    if (!creds.token && !creds.username) {
-      throw Object.assign(new Error('This command requires you to be logged in.'), {
-        code: 'ENEEDAUTH',
-      })
-    }
-  }
+  const { json, defaultTag } = opts
 
   if (semver.validRange(defaultTag))
     throw new Error('Tag name must not be a valid SemVer range: ' + defaultTag.trim())
@@ -90,6 +75,22 @@ const publish_ = async (arg, opts) => {
 
   if (manifest.publishConfig)
     Object.assign(opts, publishConfigToOpts(manifest.publishConfig))
+
+  const { registry } = opts
+  if (!registry) {
+    throw Object.assign(new Error('No registry specified.'), {
+      code: 'ENOREGISTRY',
+    })
+  }
+
+  if (!dryRun) {
+    const creds = npm.config.getCredentialsByURI(registry)
+    if (!creds.token && !creds.username) {
+      throw Object.assign(new Error('This command requires you to be logged in.'), {
+        code: 'ENEEDAUTH',
+      })
+    }
+  }
 
   // only run scripts for directory type publishes
   if (spec.type === 'directory') {

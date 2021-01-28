@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#npx-vs-npm-exec"><code>npx</code> vs <code>npm exec</code></a></li><li><a href="#examples">Examples</a></li><li><a href="#compatibility-with-older-npx-versions">Compatibility with Older npx Versions</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#npx-vs-npm-exec"><code>npx</code> vs <code>npm exec</code></a></li><li><a href="#examples">Examples</a></li><li><a href="#compatibility-with-older-npx-versions">Compatibility with Older npx Versions</a></li><li><a href="#a-note-on-caching">A note on caching</a></li><ul><li><a href="#prefer-online">prefer-online</a></li><li><a href="#prefer-offline">prefer-offline</a></li><li><a href="#offline">offline</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -273,6 +273,20 @@ with.</li>
 <li>The <code>--shell</code> option is replaced with <code>--script-shell</code>, but maintained
 in the <code>npx</code> executable for backwards compatibility.</li>
 </ul>
+<h3 id="a-note-on-caching">A note on caching</h3>
+<p>The npm cli utilizes its internal package cache when using the package
+name specified.  You can use the following to change how and when the
+cli uses this cache. See <a href="../commands/npm-cache.html"><code>npm cache</code></a> for more on
+how the cache works.</p>
+<h4 id="prefer-online">prefer-online</h4>
+<p>Forces staleness checks for packages, making the cli look for updates
+immediately even if the package is already in the cache.</p>
+<h4 id="prefer-offline">prefer-offline</h4>
+<p>Bypasses staleness checks for packages.  Missing data will still be
+requested from the server. To force full offline mode, use <code>offline</code>.</p>
+<h4 id="offline">offline</h4>
+<p>Forces full offline mode. Any packages not locally cached will result in
+an error.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-run-script.html">npm run-script</a></li>

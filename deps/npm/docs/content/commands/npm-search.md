@@ -110,13 +110,13 @@ on how the cache works.
 
 #### prefer-online
 
-Forced staleness checks for cached searches, making the cli look for
+Forces staleness checks for cached searches, making the cli look for
 updates immediately even for fresh search results.
 
 #### prefer-offline
 
-Bypasses staleness checks for cached.  Missing data will still be
-requested from the server. To force full offline mode, use `offline`.
+Bypasses staleness checks for cached searches.  Missing data will still
+be requested from the server. To force full offline mode, use `offline`.
 
 #### offline
 

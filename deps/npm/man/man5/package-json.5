@@ -69,8 +69,6 @@ version fields are optional\.
 Version must be parseable by
 node\-semver \fIhttps://github\.com/npm/node\-semver\fR, which is bundled with
 npm as a dependency\.  (\fBnpm install semver\fP to use it yourself\.)
-.P
-More on version numbers and ranges at npm help semver\.
 .SS description
 .P
 Put a description in it\.  It's a string\.  This helps people discover your
@@ -622,8 +620,8 @@ tarball or git URL\.
 \fBPlease do not put test harnesses or transpilers or other "development"
 time tools in your \fBdependencies\fP object\.\fR  See \fBdevDependencies\fP, below\.
 .P
-See npm help semver for more details about specifying version
-ranges\.
+See semver \fI[/using\-npm/semver](https://github\.com/npm/node\-semver#versions)\fR
+for more details about specifying version ranges\.
 .RS 0
 .IP \(bu 2
 \fBversion\fP Must match \fBversion\fP exactly
@@ -637,9 +635,9 @@ ranges\.
 \fB<=version\fP
 .IP \(bu 2
 \fB~version\fP "Approximately equivalent to version"  See
-npm help semver
+semver \fIhttps://github\.com/npm/node\-semver#versions\fR
 .IP \(bu 2
-\fB^version\fP "Compatible with version"  See npm help semver
+\fB^version\fP "Compatible with version"  See semver \fIhttps://github\.com/npm/node\-semver#versions\fR
 .IP \(bu 2
 \fB1\.2\.x\fP 1\.2\.0, 1\.2\.1, etc\., but not 1\.3\.0
 .IP \(bu 2
@@ -1126,7 +1124,7 @@ optional\.  Lines which start with a \fB#\fP or are blank, will be ignored\.
 .SS SEE ALSO
 .RS 0
 .IP \(bu 2
-npm help semver
+semver \fIhttps://github\.com/npm/node\-semver#versions\fR
 .IP \(bu 2
 npm help workspaces
 .IP \(bu 2

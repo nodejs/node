@@ -32,7 +32,7 @@ npm run test -- --grep="pattern"
 ```
 
 The arguments will only be passed to the script specified after ```npm run```
-and not to any pre or post script.
+and not to any `pre` or `post` script.
 
 The `env` script is a special built-in command that can be used to list
 environment variables that will be available to the script at runtime. If an
@@ -56,7 +56,8 @@ instead of
 ```
 
 The actual shell your script is run within is platform dependent. By default,
-on Unix-like systems it is the `/bin/sh` command, on Windows it is the `cmd.exe`.
+on Unix-like systems it is the `/bin/sh` command, on Windows it is
+`cmd.exe`.
 The actual shell referred to by `/bin/sh` also depends on the system.
 You can customize the shell with the `script-shell` configuration.
 
@@ -73,14 +74,42 @@ If `--scripts-prepend-node-path=auto` is passed (which has been the default
 in `npm` v3), this is only performed when that `node` executable is not
 found in the `PATH`.
 
-If you try to run a script without having a `node_modules` directory and it fails,
-you will be given a warning to run `npm install`, just in case you've forgotten.
+If you try to run a script without having a `node_modules` directory and it
+fails, you will be given a warning to run `npm install`, just in case you've
+forgotten.
 
-You can use the `--silent` flag to prevent showing `npm ERR!` output on error.
+### Configuration
+
+#### if-present
+
+* Type: Boolean
+* Default: false
 
 You can use the `--if-present` flag to avoid exiting with a non-zero exit code
 when the script is undefined. This lets you run potentially undefined scripts
 without breaking the execution chain.
+
+#### ignore-scripts
+
+* Type: Boolean
+* Default: false
+
+Skips running `pre` and `post` scripts.
+
+#### script-shell
+
+* Type: String
+* Default: `null`
+
+Optional custom script to use to execute the command. If not defined defaults
+to `/bin/sh` on Unix, defaults to `env.comspec` or `cmd.exe` on Windows.
+
+#### silent
+
+* Type: Boolean
+* Default: false
+
+You can use the `--silent` flag to prevent showing `npm ERR!` output on error.
 
 ### See Also
 

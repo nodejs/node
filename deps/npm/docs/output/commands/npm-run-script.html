@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#if-present">if-present</a></li><li><a href="#ignore-scripts">ignore-scripts</a></li><li><a href="#script-shell">script-shell</a></li><li><a href="#silent">silent</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -162,7 +162,7 @@ pass <code>-</code>-prefixed flags and options which would otherwise be parsed b
 <pre lang="bash"><code>npm run test -- --grep="pattern"
 </code></pre>
 <p>The arguments will only be passed to the script specified after <code>npm run</code>
-and not to any pre or post script.</p>
+and not to any <code>pre</code> or <code>post</code> script.</p>
 <p>The <code>env</code> script is a special built-in command that can be used to list
 environment variables that will be available to the script at runtime. If an
 “env” command is defined in your package, it will take precedence over the
@@ -178,7 +178,8 @@ provided by locally-installed dependencies can be used without the
 <pre lang="bash"><code>"scripts": {"test": "node_modules/.bin/tap test/*.js"}
 </code></pre>
 <p>The actual shell your script is run within is platform dependent. By default,
-on Unix-like systems it is the <code>/bin/sh</code> command, on Windows it is the <code>cmd.exe</code>.
+on Unix-like systems it is the <code>/bin/sh</code> command, on Windows it is
+<code>cmd.exe</code>.
 The actual shell referred to by <code>/bin/sh</code> also depends on the system.
 You can customize the shell with the <code>script-shell</code> configuration.</p>
 <p>Scripts are run from the root of the package folder, regardless of what the
@@ -192,12 +193,37 @@ passed, the directory within which <code>node</code> resides is added to the <co
 If <code>--scripts-prepend-node-path=auto</code> is passed (which has been the default
 in <code>npm</code> v3), this is only performed when that <code>node</code> executable is not
 found in the <code>PATH</code>.</p>
-<p>If you try to run a script without having a <code>node_modules</code> directory and it fails,
-you will be given a warning to run <code>npm install</code>, just in case you’ve forgotten.</p>
-<p>You can use the <code>--silent</code> flag to prevent showing <code>npm ERR!</code> output on error.</p>
+<p>If you try to run a script without having a <code>node_modules</code> directory and it
+fails, you will be given a warning to run <code>npm install</code>, just in case you’ve
+forgotten.</p>
+<h3 id="configuration">Configuration</h3>
+<h4 id="if-present">if-present</h4>
+<ul>
+<li>Type: Boolean</li>
+<li>Default: false</li>
+</ul>
 <p>You can use the <code>--if-present</code> flag to avoid exiting with a non-zero exit code
 when the script is undefined. This lets you run potentially undefined scripts
 without breaking the execution chain.</p>
+<h4 id="ignore-scripts">ignore-scripts</h4>
+<ul>
+<li>Type: Boolean</li>
+<li>Default: false</li>
+</ul>
+<p>Skips running <code>pre</code> and <code>post</code> scripts.</p>
+<h4 id="script-shell">script-shell</h4>
+<ul>
+<li>Type: String</li>
+<li>Default: <code>null</code></li>
+</ul>
+<p>Optional custom script to use to execute the command. If not defined defaults
+to <code>/bin/sh</code> on Unix, defaults to <code>env.comspec</code> or <code>cmd.exe</code> on Windows.</p>
+<h4 id="silent">silent</h4>
+<ul>
+<li>Type: Boolean</li>
+<li>Default: false</li>
+</ul>
+<p>You can use the <code>--silent</code> flag to prevent showing <code>npm ERR!</code> output on error.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../using-npm/scripts.html">npm scripts</a></li>

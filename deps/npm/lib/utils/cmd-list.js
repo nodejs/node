@@ -119,6 +119,7 @@ const cmdList = [
   'prefix',
   'bin',
   'whoami',
+  'diff',
   'dist-tag',
   'ping',
 

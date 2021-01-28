@@ -80,6 +80,24 @@ Generate it without having it ask any questions:
 $ npm init \-y
 .fi
 .RE
+.SS A note on caching
+.P
+The npm cli utilizes its internal package cache when using the package
+name specified\.  You can use the following to change how and when the
+cli uses this cache\. See npm help \fBcache\fP for more on
+how the cache works\.
+.SS prefer\-online
+.P
+Forces staleness checks for packages, making the cli look for updates
+immediately even if the package is already in the cache\.
+.SS prefer\-offline
+.P
+Bypasses staleness checks for packages\.  Missing data will still be
+requested from the server\. To force full offline mode, use \fBoffline\fP\|\.
+.SS offline
+.P
+Forces full offline mode\. Any packages not locally cached will result in
+an error\.
 .SS See Also
 .RS 0
 .IP \(bu 2
@@ -90,5 +108,7 @@ npm help package\.json
 npm help version
 .IP \(bu 2
 npm help scope
+.IP \(bu 2
+npm help exec
 
 .RE

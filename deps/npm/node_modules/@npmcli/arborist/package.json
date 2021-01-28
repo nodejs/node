@@ -1,6 +1,6 @@
 {
   "name": "@npmcli/arborist",
-  "version": "2.0.6",
+  "version": "2.1.0",
   "description": "Manage node_modules trees",
   "dependencies": {
     "@npmcli/installed-package-contents": "^1.0.5",

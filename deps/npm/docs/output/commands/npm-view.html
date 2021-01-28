@@ -152,34 +152,32 @@ aliases: info, show, v
 <h3 id="description">Description</h3>
 <p>This command shows data about a package and prints it to the stream
 referenced by the <code>outfd</code> config, which defaults to stdout.</p>
-<p>To show the package registry entry for the <code>connect</code> package, you can do
-this:</p>
+<p>As an example, to view information about the <code>connect</code> package from the registry, you would run:</p>
 <pre lang="bash"><code>npm view connect
 </code></pre>
-<p>The default version is “latest” if unspecified.</p>
+<p>The default version is <code>"latest"</code> if unspecified.</p>
 <p>Field names can be specified after the package descriptor.
 For example, to show the dependencies of the <code>ronn</code> package at version
-0.3.5, you could do the following:</p>
+<code>0.3.5</code>, you could do the following:</p>
 <pre lang="bash"><code>npm view ronn@0.3.5 dependencies
 </code></pre>
 <p>You can view child fields by separating them with a period.
-To view the git repository URL for the latest version of npm, you could
-do this:</p>
+To view the git repository URL for the latest version of <code>npm</code>, you would run the following command:</p>
 <pre lang="bash"><code>npm view npm repository.url
 </code></pre>
 <p>This makes it easy to view information about a dependency with a bit of
-shell scripting.  For example, to view all the data about the version of
-opts that ronn depends on, you can do this:</p>
+shell scripting. For example, to view all the data about the version of
+<code>opts</code> that <code>ronn</code> depends on, you could write the following:</p>
 <pre lang="bash"><code>npm view opts@$(npm view ronn dependencies.opts)
 </code></pre>
 <p>For fields that are arrays, requesting a non-numeric field will return
-all of the values from the objects in the list.  For example, to get all
-the contributor names for the “express” project, you can do this:</p>
+all of the values from the objects in the list. For example, to get all
+the contributor names for the <code>express</code> package, you would run:</p>
 <pre lang="bash"><code>npm view express contributors.email
 </code></pre>
 <p>You may also use numeric indices in square braces to specifically select
-an item in an array field.  To just get the email address of the first
-contributor in the list, you can do this:</p>
+an item in an array field. To just get the email address of the first
+contributor in the list, you can run:</p>
 <pre lang="bash"><code>npm view express contributors[0].email
 </code></pre>
 <p>Multiple fields may be specified, and will be printed one after another.
@@ -188,13 +186,13 @@ can do this:</p>
 <pre lang="bash"><code>npm view express contributors.name contributors.email
 </code></pre>
 <p>“Person” fields are shown as a string if they would be shown as an
-object.  So, for example, this will show the list of npm contributors in
+object.  So, for example, this will show the list of <code>npm</code> contributors in
 the shortened string format.  (See <a href="../configuring-npm/package.json.html"><code>package.json</code></a> for more on this.)</p>
 <pre lang="bash"><code>npm view npm contributors
 </code></pre>
 <p>If a version range is provided, then data will be printed for every
-matching version of the package.  This will show which version of jsdom
-was required by each matching version of yui3:</p>
+matching version of the package.  This will show which version of <code>jsdom</code>
+was required by each matching version of <code>yui3</code>:</p>
 <pre lang="bash"><code>npm view yui3@'&gt;0.5.4' dependencies.jsdom
 </code></pre>
 <p>To show the <code>connect</code> package version history, you can do
@@ -203,12 +201,12 @@ this:</p>
 </code></pre>
 <h3 id="output">Output</h3>
 <p>If only a single string field for a single version is output, then it
-will not be colorized or quoted, so as to enable piping the output to
+will not be colorized or quoted, to enable piping the output to
 another command. If the field is an object, it will be output as a JavaScript object literal.</p>
-<p>If the –json flag is given, the outputted fields will be JSON.</p>
-<p>If the version range matches multiple versions, than each printed value
+<p>If the <code>--json</code> flag is given, the outputted fields will be JSON.</p>
+<p>If the version range matches multiple versions then each printed value
 will be prefixed with the version it applies to.</p>
-<p>If multiple fields are requested, than each of them are prefixed with
+<p>If multiple fields are requested, then each of them is prefixed with
 the field name.</p>
 <h3 id="see-also">See Also</h3>
 <ul>

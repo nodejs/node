@@ -141,7 +141,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#examples">Examples</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#examples">Examples</a></li><li><a href="#a-note-on-caching">A note on caching</a></li><ul><li><a href="#prefer-online">prefer-online</a></li><li><a href="#prefer-offline">prefer-offline</a></li><li><a href="#offline">offline</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -189,12 +189,27 @@ $ npm init
 <p>Generate it without having it ask any questions:</p>
 <pre lang="bash"><code>$ npm init -y
 </code></pre>
+<h3 id="a-note-on-caching">A note on caching</h3>
+<p>The npm cli utilizes its internal package cache when using the package
+name specified.  You can use the following to change how and when the
+cli uses this cache. See <a href="../commands/npm-cache.html"><code>npm cache</code></a> for more on
+how the cache works.</p>
+<h4 id="prefer-online">prefer-online</h4>
+<p>Forces staleness checks for packages, making the cli look for updates
+immediately even if the package is already in the cache.</p>
+<h4 id="prefer-offline">prefer-offline</h4>
+<p>Bypasses staleness checks for packages.  Missing data will still be
+requested from the server. To force full offline mode, use <code>offline</code>.</p>
+<h4 id="offline">offline</h4>
+<p>Forces full offline mode. Any packages not locally cached will result in
+an error.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="http://npm.im/init-package-json">init-package-json module</a></li>
 <li><a href="../configuring-npm/package-json.html">package.json</a></li>
 <li><a href="../commands/npm-version.html">npm version</a></li>
 <li><a href="../using-npm/scope.html">npm scope</a></li>
+<li><a href="../commands/npm-exec.html">npm exec</a></li>
 </ul>
 </div>
 

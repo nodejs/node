@@ -39,4 +39,3 @@ on the command line when changing ownership with `--otp`.
 * [npm publish](/commands/npm-publish)
 * [npm registry](/using-npm/registry)
 * [npm adduser](/commands/npm-adduser)
-* [npm disputes](/using-npm/disputes)

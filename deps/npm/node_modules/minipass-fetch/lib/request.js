@@ -32,7 +32,9 @@ class Request extends Body {
       : input && input.href ? Url.parse(input.href)
       : Url.parse(`${input}`)
 
-    if (!isRequest(input))
+    if (isRequest(input))
+      init = { ...input[INTERNALS], ...init }
+    else if (!input || typeof input === 'string')
       input = {}
 
     const method = (init.method || input.method || 'GET').toUpperCase()
@@ -61,7 +63,6 @@ class Request extends Body {
     }
 
     const signal = 'signal' in init ? init.signal
-      : isRequest(input) ? input.signal
       : null
 
     if (signal !== null && signal !== undefined && !isAbortSignal(signal))

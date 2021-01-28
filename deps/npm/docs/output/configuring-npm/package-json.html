@@ -193,7 +193,6 @@ version fields are optional.</p>
 <p>Version must be parseable by
 <a href="https://github.com/npm/node-semver">node-semver</a>, which is bundled with
 npm as a dependency.  (<code>npm install semver</code> to use it yourself.)</p>
-<p>More on version numbers and ranges at <a href="../using-npm/semver.html">semver</a>.</p>
 <h3 id="description2">description</h3>
 <p>Put a description in it.  It’s a string.  This helps people discover your
 package, as it’s listed in <code>npm search</code>.</p>
@@ -566,8 +565,8 @@ space-separated descriptors.  Dependencies can also be identified with a
 tarball or git URL.</p>
 <p><strong>Please do not put test harnesses or transpilers or other “development”
 time tools in your <code>dependencies</code> object.</strong>  See <code>devDependencies</code>, below.</p>
-<p>See <a href="../using-npm/semver.html">semver</a> for more details about specifying version
-ranges.</p>
+<p>See <a href="%5B/using-npm/semver%5D(https://github.com/npm/node-semver#versions)">semver</a>
+for more details about specifying version ranges.</p>
 <ul>
 <li><code>version</code> Must match <code>version</code> exactly</li>
 <li><code>&gt;version</code> Must be greater than <code>version</code></li>
@@ -575,8 +574,8 @@ ranges.</p>
 <li><code>&lt;version</code></li>
 <li><code>&lt;=version</code></li>
 <li><code>~version</code> “Approximately equivalent to version”  See
-<a href="../using-npm/semver.html">semver</a></li>
-<li><code>^version</code> “Compatible with version”  See <a href="../using-npm/semver.html">semver</a></li>
+<a href="https://github.com/npm/node-semver#versions">semver</a></li>
+<li><code>^version</code> “Compatible with version”  See <a href="https://github.com/npm/node-semver#versions">semver</a></li>
 <li><code>1.2.x</code> 1.2.0, 1.2.1, etc., but not 1.3.0</li>
 <li><code>http://...</code> See ‘URLs as Dependencies’ below</li>
 <li><code>*</code> Matches any version</li>
@@ -917,7 +916,7 @@ optional.  Lines which start with a <code>#</code> or are blank, will be ignored
 </ul>
 <h3 id="see-also">SEE ALSO</h3>
 <ul>
-<li><a href="../using-npm/semver.html">semver</a></li>
+<li><a href="https://github.com/npm/node-semver#versions">semver</a></li>
 <li><a href="../using-npm/workspaces.html">workspaces</a></li>
 <li><a href="../commands/npm-init.html">npm init</a></li>
 <li><a href="../commands/npm-version.html">npm version</a></li>

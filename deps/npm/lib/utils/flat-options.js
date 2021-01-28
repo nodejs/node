@@ -102,6 +102,15 @@ const flatten = obj => ({
     staleness: obj.searchstaleness,
   },
 
+  diff: obj.diff,
+  diffUnified: obj['diff-unified'],
+  diffIgnoreAllSpace: obj['diff-ignore-all-space'],
+  diffNameOnly: obj['diff-name-only'],
+  diffNoPrefix: obj['diff-no-prefix'],
+  diffSrcPrefix: obj['diff-src-prefix'],
+  diffDstPrefix: obj['diff-dst-prefix'],
+  diffText: obj['diff-text'],
+
   dryRun: obj['dry-run'],
   engineStrict: obj['engine-strict'],
 
