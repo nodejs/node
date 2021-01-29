@@ -47,6 +47,8 @@ fs.lstat('.', common.mustSucceed(function(stats) {
 fs.open('.', 'r', undefined, common.mustSucceed(function(fd) {
   assert.ok(fd);
 
+  fs.fstat(-0, common.mustSucceed());
+
   fs.fstat(fd, common.mustSucceed(function(stats) {
     assert.ok(stats.mtime instanceof Date);
     fs.close(fd, assert.ifError);
