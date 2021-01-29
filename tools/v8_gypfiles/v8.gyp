@@ -66,22 +66,24 @@
           'outputs': [
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/bit-fields.h",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/builtin-definitions.h",
-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/interface-descriptors.inc",
+            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-debug-readers.cc",
+            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-debug-readers.h",
+            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-forward-declarations.h",
+            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-verifiers.cc",
+            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-verifiers.h",
+            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/csa-types.h",
+            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/debug-macros.cc",
+            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/debug-macros.h",
+            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/enum-verifiers.cc",
+            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/exported-macros-assembler.cc",
+            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/exported-macros-assembler.h",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/factory.cc",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/factory.inc",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/field-offsets.h",
-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-verifiers.cc",
-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-verifiers.h",
-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/enum-verifiers.cc",
-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/objects-printer.cc",
-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/objects-body-descriptors-inl.inc",
-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-debug-readers.cc",
-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-debug-readers.h",
-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/exported-macros-assembler.cc",
-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/exported-macros-assembler.h",
-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/csa-types.h",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/instance-types.h",
-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/class-forward-declarations.h",
+            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/interface-descriptors.inc",
+            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/objects-body-descriptors-inl.inc",
+            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/objects-printer.cc",
             '<@(torque_outputs_csa_cc)',
             '<@(torque_outputs_csa_h)',
             '<@(torque_outputs_inl_inc)',
@@ -455,6 +457,8 @@
           '<(V8_ROOT)/include/v8-cppgc.h',
           '<(V8_ROOT)/include/v8-fast-api-calls.h',
           '<(V8_ROOT)/include/v8-internal.h',
+          '<(V8_ROOT)/include/v8-profiler.h',
+          '<(V8_ROOT)/include/v8-util.h',
           '<(V8_ROOT)/include/v8.h',
           '<(V8_ROOT)/include/v8config.h',
 
@@ -603,6 +607,19 @@
             '<(V8_ROOT)/src/heap/third-party/heap-api-stub.cc',
           ],
         }],
+        ['v8_enable_webassembly==1', {
+          'sources': [
+            '<(V8_ROOT)/src/asmjs/asm-js.cc',
+            '<(V8_ROOT)/src/asmjs/asm-js.h',
+            '<(V8_ROOT)/src/asmjs/asm-names.h',
+            '<(V8_ROOT)/src/asmjs/asm-parser.cc',
+            '<(V8_ROOT)/src/asmjs/asm-parser.h',
+            '<(V8_ROOT)/src/asmjs/asm-scanner.cc',
+            '<(V8_ROOT)/src/asmjs/asm-scanner.h',
+            '<(V8_ROOT)/src/asmjs/asm-types.cc',
+            '<(V8_ROOT)/src/asmjs/asm-types.h',
+          ],
+        }],
         ['want_separate_host_toolset', {
           'toolsets': ['host', 'target'],
         }],
@@ -649,6 +666,13 @@
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"arm64\\".*?sources \+= ")',
           ],
           'conditions': [
+            ['OS=="mac"', {
+              'sources': [
+                "<(V8_ROOT)/src/trap-handler/handler-inside-posix.cc",
+                "<(V8_ROOT)/src/trap-handler/handler-inside-posix.h",
+                "<(V8_ROOT)/src/trap-handler/handler-outside-posix.cc",
+              ],
+            }],
             ['OS=="win"', {
               'sources': [
                 "<(V8_ROOT)/src/diagnostics/unwinding-info-win64.cc",
@@ -1180,6 +1204,7 @@
         "<(V8_ROOT)/src/builtins/generate-bytecodes-builtins-list.cc",
         "<(V8_ROOT)/src/interpreter/bytecode-operands.cc",
         "<(V8_ROOT)/src/interpreter/bytecode-operands.h",
+        "<(V8_ROOT)/src/interpreter/bytecode-traits.h",
         "<(V8_ROOT)/src/interpreter/bytecodes.cc",
         "<(V8_ROOT)/src/interpreter/bytecodes.h",
       ],
@@ -1285,6 +1310,7 @@
       ],
       'sources': [
         "<(V8_ROOT)/src/regexp/gen-regexp-special-case.cc",
+        "<(V8_ROOT)/src/regexp/special-case.h",
       ],
     },  # gen-regexp-special-case
     {
@@ -1489,6 +1515,7 @@
               'v8_enable_verify_csa=<(v8_enable_verify_csa)',
               'v8_enable_lite_mode=<(v8_enable_lite_mode)',
               'v8_enable_pointer_compression=<(v8_enable_pointer_compression)',
+              'v8_enable_webassembly=<(v8_enable_webassembly)',
             ]
           },
           'conditions': [
@@ -1573,6 +1600,7 @@
           '<(V8_ROOT)/src/objects/primitive-heap-object.h',
           '<(V8_ROOT)/src/objects/primitive-heap-object-inl.h',
           '<(V8_ROOT)/src/objects/scope-info.h',
+          '<(V8_ROOT)/src/objects/scope-info-inl.h',
           '<(V8_ROOT)/src/objects/script.h',
           '<(V8_ROOT)/src/objects/script-inl.h',
           '<(V8_ROOT)/src/objects/shared-function-info.cc',
