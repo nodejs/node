@@ -14,7 +14,7 @@ const errTemplate = (specifier, name, namedImports, defaultName) =>
 const expectedMultiLine = errTemplate('./fail.cjs', 'comeOn',
                                       '{ comeOn, everybody }');
 
-const expectedLongMultiLine = errTemplate('./fail.cjs', 'comeOn',
+const expectedLongMultiLine = errTemplate('./fail.cjs', 'one',
                                           '{\n' +
                                           '  comeOn,\n' +
                                           '  one,\n' +
