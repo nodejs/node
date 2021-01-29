@@ -32,13 +32,8 @@ extern uint64_t performance_v8_start;
 
 
 #define NODE_PERFORMANCE_ENTRY_TYPES(V)                                       \
-  V(NODE, "node")                                                             \
-  V(MARK, "mark")                                                             \
-  V(MEASURE, "measure")                                                       \
   V(GC, "gc")                                                                 \
-  V(FUNCTION, "function")                                                     \
-  V(HTTP2, "http2")                                                           \
-  V(HTTP, "http")
+  V(HTTP2, "http2")
 
 enum PerformanceMilestone {
 #define V(name, _) NODE_PERFORMANCE_MILESTONE_##name,

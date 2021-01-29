@@ -7,6 +7,7 @@
 #include <cstdint>
 #include "nghttp2/nghttp2.h"
 
+#include "env.h"
 #include "allocated_buffer.h"
 #include "aliased_struct.h"
 #include "node_http2_state.h"
@@ -456,6 +457,7 @@ class Http2Stream : public AsyncWrap,
     uint64_t first_byte_sent;  // Time first DATA frame byte was sent
     uint64_t sent_bytes;
     uint64_t received_bytes;
+    uint64_t id;
   };
 
   Statistics statistics_ = {};
@@ -761,6 +763,7 @@ class Http2Session : public AsyncWrap,
     int32_t stream_count;
     size_t max_concurrent_streams;
     double stream_average_duration;
+    SessionType session_type;
   };
 
   Statistics statistics_ = {};
@@ -925,95 +928,34 @@ class Http2Session : public AsyncWrap,
   friend class Http2StreamListener;
 };
 
-class Http2SessionPerformanceEntry : public performance::PerformanceEntry {
- public:
-  Http2SessionPerformanceEntry(
-      Http2State* http2_state,
-      const Http2Session::Statistics& stats,
-      SessionType type) :
-          performance::PerformanceEntry(
-              http2_state->env(), "Http2Session", "http2",
-              stats.start_time,
-              stats.end_time),
-          ping_rtt_(stats.ping_rtt),
-          data_sent_(stats.data_sent),
-          data_received_(stats.data_received),
-          frame_count_(stats.frame_count),
-          frame_sent_(stats.frame_sent),
-          stream_count_(stats.stream_count),
-          max_concurrent_streams_(stats.max_concurrent_streams),
-          stream_average_duration_(stats.stream_average_duration),
-          session_type_(type),
-          http2_state_(http2_state) { }
+struct Http2SessionPerformanceEntryTraits {
+  static constexpr performance::PerformanceEntryType kType =
+      performance::NODE_PERFORMANCE_ENTRY_TYPE_HTTP2;
 
-  uint64_t ping_rtt() const { return ping_rtt_; }
-  uint64_t data_sent() const { return data_sent_; }
-  uint64_t data_received() const { return data_received_; }
-  uint32_t frame_count() const { return frame_count_; }
-  uint32_t frame_sent() const { return frame_sent_; }
-  int32_t stream_count() const { return stream_count_; }
-  size_t max_concurrent_streams() const { return max_concurrent_streams_; }
-  double stream_average_duration() const { return stream_average_duration_; }
-  SessionType type() const { return session_type_; }
-  Http2State* http2_state() const { return http2_state_.get(); }
+  using Details = Http2Session::Statistics;
 
-  void Notify(v8::Local<v8::Value> obj) {
-    performance::PerformanceEntry::Notify(env(), kind(), obj);
-  }
-
- private:
-  uint64_t ping_rtt_;
-  uint64_t data_sent_;
-  uint64_t data_received_;
-  uint32_t frame_count_;
-  uint32_t frame_sent_;
-  int32_t stream_count_;
-  size_t max_concurrent_streams_;
-  double stream_average_duration_;
-  SessionType session_type_;
-  BaseObjectPtr<Http2State> http2_state_;
+  static v8::MaybeLocal<v8::Object> GetDetails(
+      Environment* env,
+      const performance::PerformanceEntry<Http2SessionPerformanceEntryTraits>&
+          entry);
 };
 
-class Http2StreamPerformanceEntry
-    : public performance::PerformanceEntry {
- public:
-  Http2StreamPerformanceEntry(
-      Http2State* http2_state,
-      int32_t id,
-      const Http2Stream::Statistics& stats) :
-          performance::PerformanceEntry(
-              http2_state->env(), "Http2Stream", "http2",
-              stats.start_time,
-              stats.end_time),
-          id_(id),
-          first_header_(stats.first_header),
-          first_byte_(stats.first_byte),
-          first_byte_sent_(stats.first_byte_sent),
-          sent_bytes_(stats.sent_bytes),
-          received_bytes_(stats.received_bytes),
-          http2_state_(http2_state) { }
+struct Http2StreamPerformanceEntryTraits {
+  static constexpr performance::PerformanceEntryType kType =
+      performance::NODE_PERFORMANCE_ENTRY_TYPE_HTTP2;
 
-  int32_t id() const { return id_; }
-  uint64_t first_header() const { return first_header_; }
-  uint64_t first_byte() const { return first_byte_; }
-  uint64_t first_byte_sent() const { return first_byte_sent_; }
-  uint64_t sent_bytes() const { return sent_bytes_; }
-  uint64_t received_bytes() const { return received_bytes_; }
-  Http2State* http2_state() const { return http2_state_.get(); }
+  using Details = Http2Stream::Statistics;
 
-  void Notify(v8::Local<v8::Value> obj) {
-    performance::PerformanceEntry::Notify(env(), kind(), obj);
-  }
-
- private:
-  int32_t id_;
-  uint64_t first_header_;
-  uint64_t first_byte_;
-  uint64_t first_byte_sent_;
-  uint64_t sent_bytes_;
-  uint64_t received_bytes_;
-  BaseObjectPtr<Http2State> http2_state_;
+  static v8::MaybeLocal<v8::Object> GetDetails(
+      Environment* env,
+      const performance::PerformanceEntry<Http2StreamPerformanceEntryTraits>&
+          entry);
 };
+
+using Http2SessionPerformanceEntry =
+    performance::PerformanceEntry<Http2SessionPerformanceEntryTraits>;
+using Http2StreamPerformanceEntry =
+    performance::PerformanceEntry<Http2StreamPerformanceEntryTraits>;
 
 class Http2Ping : public AsyncWrap {
  public:

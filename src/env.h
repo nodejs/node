@@ -259,6 +259,8 @@ constexpr size_t kFsStatsBufferLength =
   V(fingerprint_string, "fingerprint")                                         \
   V(flags_string, "flags")                                                     \
   V(fragment_string, "fragment")                                               \
+  V(frames_received_string, "framesReceived")                                  \
+  V(frames_sent_string, "framesSent")                                          \
   V(function_string, "function")                                               \
   V(get_data_clone_error_string, "_getDataCloneError")                         \
   V(get_shared_array_buffer_id_string, "_getSharedArrayBufferId")              \
@@ -270,6 +272,7 @@ constexpr size_t kFsStatsBufferLength =
   V(host_string, "host")                                                       \
   V(hostmaster_string, "hostmaster")                                           \
   V(http_1_1_string, "http/1.1")                                               \
+  V(id_string, "id")                                                           \
   V(identity_string, "identity")                                               \
   V(ignore_string, "ignore")                                                   \
   V(infoaccess_string, "infoAccess")                                           \
@@ -307,6 +310,7 @@ constexpr size_t kFsStatsBufferLength =
   V(library_string, "library")                                                 \
   V(mac_string, "mac")                                                         \
   V(max_buffer_string, "maxBuffer")                                            \
+  V(max_concurrent_streams_string, "maxConcurrentStreams")                     \
   V(message_port_constructor_string, "MessagePort")                            \
   V(message_port_string, "messagePort")                                        \
   V(message_string, "message")                                                 \
@@ -353,6 +357,7 @@ constexpr size_t kFsStatsBufferLength =
   V(path_string, "path")                                                       \
   V(pending_handle_string, "pendingHandle")                                    \
   V(pid_string, "pid")                                                         \
+  V(ping_rtt_string, "pingRTT")                                                \
   V(pipe_source_string, "pipeSource")                                          \
   V(pipe_string, "pipe")                                                       \
   V(pipe_target_string, "pipeTarget")                                          \
@@ -400,6 +405,8 @@ constexpr size_t kFsStatsBufferLength =
   V(stats_string, "stats")                                                     \
   V(status_string, "status")                                                   \
   V(stdio_string, "stdio")                                                     \
+  V(stream_average_duration_string, "streamAverageDuration")                   \
+  V(stream_count_string, "streamCount")                                        \
   V(subject_string, "subject")                                                 \
   V(subjectaltname_string, "subjectaltname")                                   \
   V(syscall_string, "syscall")                                                 \
@@ -407,6 +414,9 @@ constexpr size_t kFsStatsBufferLength =
   V(thread_id_string, "threadId")                                              \
   V(ticketkeycallback_string, "onticketkeycallback")                           \
   V(timeout_string, "timeout")                                                 \
+  V(time_to_first_byte_string, "timeToFirstByte")                              \
+  V(time_to_first_byte_sent_string, "timeToFirstByteSent")                     \
+  V(time_to_first_header_string, "timeToFirstHeader")                          \
   V(tls_ticket_string, "tlsTicket")                                            \
   V(transfer_string, "transfer")                                               \
   V(ttl_string, "ttl")                                                         \
@@ -1128,7 +1138,6 @@ class Environment : public MemoryRetainer {
   EnabledDebugList* enabled_debug_list() { return &enabled_debug_list_; }
 
   inline performance::PerformanceState* performance_state();
-  inline std::unordered_map<std::string, uint64_t>* performance_marks();
 
   void CollectUVExceptionInfo(v8::Local<v8::Value> context,
                               int errorno,
@@ -1465,7 +1474,6 @@ class Environment : public MemoryRetainer {
 
   uint64_t environment_start_time_;
   std::unique_ptr<performance::PerformanceState> performance_state_;
-  std::unordered_map<std::string, uint64_t> performance_marks_;
 
   bool has_run_bootstrapping_code_ = false;
   bool has_serialized_options_ = false;

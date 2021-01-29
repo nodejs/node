@@ -21,8 +21,8 @@ namespace performance {
 
 extern const uint64_t timeOrigin;
 
-static inline const char* GetPerformanceMilestoneName(
-    enum PerformanceMilestone milestone) {
+inline const char* GetPerformanceMilestoneName(
+    PerformanceMilestone milestone) {
   switch (milestone) {
 #define V(name, label) case NODE_PERFORMANCE_MILESTONE_##name: return label;
   NODE_PERFORMANCE_MILESTONES(V)
@@ -32,7 +32,7 @@ static inline const char* GetPerformanceMilestoneName(
   }
 }
 
-static inline PerformanceMilestone ToPerformanceMilestoneEnum(const char* str) {
+inline PerformanceMilestone ToPerformanceMilestoneEnum(const char* str) {
 #define V(name, label)                                                        \
   if (strcmp(str, label) == 0) return NODE_PERFORMANCE_MILESTONE_##name;
   NODE_PERFORMANCE_MILESTONES(V)
@@ -40,7 +40,18 @@ static inline PerformanceMilestone ToPerformanceMilestoneEnum(const char* str) {
   return NODE_PERFORMANCE_MILESTONE_INVALID;
 }
 
-static inline PerformanceEntryType ToPerformanceEntryTypeEnum(
+inline const char* GetPerformanceEntryTypeName(
+    PerformanceEntryType type) {
+  switch (type) {
+#define V(name, label) case NODE_PERFORMANCE_ENTRY_TYPE_##name: return label;
+  NODE_PERFORMANCE_ENTRY_TYPES(V)
+#undef V
+    default:
+      UNREACHABLE();
+  }
+}
+
+inline PerformanceEntryType ToPerformanceEntryTypeEnum(
     const char* type) {
 #define V(name, label)                                                        \
   if (strcmp(type, label) == 0) return NODE_PERFORMANCE_ENTRY_TYPE_##name;
@@ -48,54 +59,6 @@ static inline PerformanceEntryType ToPerformanceEntryTypeEnum(
 #undef V
   return NODE_PERFORMANCE_ENTRY_TYPE_INVALID;
 }
-
-class PerformanceEntry {
- public:
-  static void Notify(Environment* env,
-                     PerformanceEntryType type,
-                     v8::Local<v8::Value> object);
-
-  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  PerformanceEntry(Environment* env,
-                   const char* name,
-                   const char* type,
-                   uint64_t startTime,
-                   uint64_t endTime) : env_(env),
-                                       name_(name),
-                                       type_(type),
-                                       startTime_(startTime),
-                                       endTime_(endTime) { }
-
-  virtual ~PerformanceEntry() = default;
-
-  virtual v8::MaybeLocal<v8::Object> ToObject() const;
-
-  Environment* env() const { return env_; }
-
-  const std::string& name() const { return name_; }
-
-  const std::string& type() const { return type_; }
-
-  PerformanceEntryType kind() {
-    return ToPerformanceEntryTypeEnum(type().c_str());
-  }
-
-  double startTime() const { return startTimeNano() / 1e6; }
-
-  double duration() const { return durationNano() / 1e6; }
-
-  uint64_t startTimeNano() const { return startTime_ - timeOrigin; }
-
-  uint64_t durationNano() const { return endTime_ - startTime_; }
-
- private:
-  Environment* env_;
-  const std::string name_;
-  const std::string type_;
-  const uint64_t startTime_;
-  const uint64_t endTime_;
-};
 
 enum PerformanceGCKind {
   NODE_PERFORMANCE_GC_MAJOR = v8::GCType::kGCTypeMarkSweepCompact,
@@ -121,24 +84,79 @@ enum PerformanceGCFlags {
     v8::GCCallbackFlags::kGCCallbackScheduleIdleGarbageCollection
 };
 
-class GCPerformanceEntry : public PerformanceEntry {
- public:
-  GCPerformanceEntry(Environment* env,
-                     PerformanceGCKind gckind,
-                     PerformanceGCFlags gcflags,
-                     uint64_t startTime,
-                     uint64_t endTime) :
-                         PerformanceEntry(env, "gc", "gc", startTime, endTime),
-                         gckind_(gckind),
-                         gcflags_(gcflags) { }
+template <typename Traits>
+struct PerformanceEntry {
+  using Details = typename Traits::Details;
+  std::string name;
+  double start_time;
+  double duration;
+  Details details;
 
-  PerformanceGCKind gckind() const { return gckind_; }
-  PerformanceGCFlags gcflags() const { return gcflags_; }
+  PerformanceEntry(
+    const std::string& name_,
+    double start_time_,
+    double duration_,
+    const Details& details_)
+    : name(name_),
+      start_time(start_time_),
+      duration(duration_),
+      details(details_) {}
 
- private:
-  PerformanceGCKind gckind_;
-  PerformanceGCFlags gcflags_;
+  static v8::MaybeLocal<v8::Object> GetDetails(
+      Environment* env,
+      const PerformanceEntry<Traits>& entry) {
+    return Traits::GetDetails(env, entry);
+  }
+
+  void Notify(Environment* env) {
+    v8::HandleScope handle_scope(env->isolate());
+    v8::Context::Scope scope(env->context());
+    AliasedUint32Array& observers = env->performance_state()->observers;
+    if (env->performance_entry_callback().IsEmpty() ||
+        !observers[Traits::kType]) {
+      return;
+    }
+
+    v8::Local<v8::Object> detail;
+    if (!Traits::GetDetails(env, *this).ToLocal(&detail)) {
+      // TODO(@jasnell): Handle the error here
+      return;
+    }
+
+    v8::Local<v8::Value> argv[] = {
+      OneByteString(env->isolate(), name.c_str()),
+      OneByteString(env->isolate(), GetPerformanceEntryTypeName(Traits::kType)),
+      v8::Number::New(env->isolate(), start_time),
+      v8::Number::New(env->isolate(), duration),
+      detail
+    };
+
+    node::MakeSyncCallback(
+        env->isolate(),
+        env->context()->Global(),
+        env->performance_entry_callback(),
+        arraysize(argv),
+        argv);
+  }
 };
+
+struct GCPerformanceEntryTraits {
+  static constexpr PerformanceEntryType kType =
+      NODE_PERFORMANCE_ENTRY_TYPE_GC;
+  struct Details {
+    PerformanceGCKind kind;
+    PerformanceGCFlags flags;
+
+    Details(PerformanceGCKind kind_, PerformanceGCFlags flags_)
+        : kind(kind_), flags(flags_) {}
+  };
+
+  static v8::MaybeLocal<v8::Object> GetDetails(
+      Environment* env,
+      const PerformanceEntry<GCPerformanceEntryTraits>& entry);
+};
+
+using GCPerformanceEntry = PerformanceEntry<GCPerformanceEntryTraits>;
 
 class ELDHistogram : public IntervalHistogram {
  public:

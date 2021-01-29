@@ -40,7 +40,6 @@ using v8::Uint8Array;
 using v8::Undefined;
 using v8::Value;
 
-using node::performance::PerformanceEntry;
 namespace http2 {
 
 namespace {
@@ -466,6 +465,7 @@ Http2Session::Http2Session(Http2State* http2_state,
       session_type_(type),
       http2_state_(http2_state) {
   MakeWeak();
+  statistics_.session_type = type;
   statistics_.start_time = uv_hrtime();
 
   // Capture the configuration options for this session
@@ -541,71 +541,121 @@ std::string Http2Session::diagnostic_name() const {
       std::to_string(static_cast<int64_t>(get_async_id())) + ")";
 }
 
+MaybeLocal<Object> Http2StreamPerformanceEntryTraits::GetDetails(
+    Environment* env,
+    const Http2StreamPerformanceEntry& entry) {
+  Local<Object> obj = Object::New(env->isolate());
+
+#define SET(name, val)                                                         \
+  if (!obj->Set(                                                               \
+          env->context(),                                                      \
+          env->name(),                                                         \
+          Number::New(                                                         \
+            env->isolate(),                                                    \
+            static_cast<double>(entry.details.val))).IsJust()) {               \
+    return MaybeLocal<Object>();                                               \
+  }
+
+  SET(bytes_read_string, received_bytes)
+  SET(bytes_written_string, sent_bytes)
+  SET(id_string, id)
+#undef SET
+
+#define SET(name, val)                                                         \
+  if (!obj->Set(                                                               \
+          env->context(),                                                      \
+          env->name(),                                                         \
+          Number::New(                                                         \
+              env->isolate(),                                                  \
+              (entry.details.val - entry.details.start_time) / 1e6))           \
+                  .IsJust()) {                                                 \
+    return MaybeLocal<Object>();                                               \
+  }
+
+  SET(time_to_first_byte_string, first_byte)
+  SET(time_to_first_byte_sent_string, first_byte_sent)
+  SET(time_to_first_header_string, first_header)
+#undef SET
+
+  return obj;
+}
+
+MaybeLocal<Object> Http2SessionPerformanceEntryTraits::GetDetails(
+    Environment* env,
+    const Http2SessionPerformanceEntry& entry) {
+  Local<Object> obj = Object::New(env->isolate());
+
+#define SET(name, val)                                                         \
+  if (!obj->Set(                                                               \
+          env->context(),                                                      \
+          env->name(),                                                         \
+          Number::New(                                                         \
+            env->isolate(),                                                    \
+            static_cast<double>(entry.details.val))).IsJust()) {               \
+    return MaybeLocal<Object>();                                               \
+  }
+
+  SET(bytes_written_string, data_sent)
+  SET(bytes_read_string, data_received)
+  SET(frames_received_string, frame_count)
+  SET(frames_sent_string, frame_sent)
+  SET(max_concurrent_streams_string, max_concurrent_streams)
+  SET(ping_rtt_string, ping_rtt)
+  SET(stream_average_duration_string, stream_average_duration)
+  SET(stream_count_string, stream_count)
+
+  if (!obj->Set(
+          env->context(),
+          env->type_string(),
+          OneByteString(
+              env->isolate(),
+              (entry.details.session_type == NGHTTP2_SESSION_SERVER)
+                  ? "server" : "client")).IsJust()) {
+    return MaybeLocal<Object>();
+  }
+
+#undef SET
+  return obj;
+}
+
 void Http2Stream::EmitStatistics() {
   CHECK_NOT_NULL(session());
-  if (!HasHttp2Observer(env()))
+  if (LIKELY(!HasHttp2Observer(env())))
     return;
-  auto entry =
+
+  double start = statistics_.start_time / 1e6;
+  double duration = (PERFORMANCE_NOW() / 1e6) - start;
+
+  std::unique_ptr<Http2StreamPerformanceEntry> entry =
       std::make_unique<Http2StreamPerformanceEntry>(
-          session()->http2_state(), id_, statistics_);
+          "Http2Stream",
+          start,
+          duration,
+          statistics_);
+
   env()->SetImmediate([entry = move(entry)](Environment* env) {
-    if (!HasHttp2Observer(env))
-      return;
-    HandleScope handle_scope(env->isolate());
-    AliasedFloat64Array& buffer = entry->http2_state()->stream_stats_buffer;
-    buffer[IDX_STREAM_STATS_ID] = entry->id();
-    if (entry->first_byte() != 0) {
-      buffer[IDX_STREAM_STATS_TIMETOFIRSTBYTE] =
-          (entry->first_byte() - entry->startTimeNano()) / 1e6;
-    } else {
-      buffer[IDX_STREAM_STATS_TIMETOFIRSTBYTE] = 0;
-    }
-    if (entry->first_header() != 0) {
-      buffer[IDX_STREAM_STATS_TIMETOFIRSTHEADER] =
-          (entry->first_header() - entry->startTimeNano()) / 1e6;
-    } else {
-      buffer[IDX_STREAM_STATS_TIMETOFIRSTHEADER] = 0;
-    }
-    if (entry->first_byte_sent() != 0) {
-      buffer[IDX_STREAM_STATS_TIMETOFIRSTBYTESENT] =
-          (entry->first_byte_sent() - entry->startTimeNano()) / 1e6;
-    } else {
-      buffer[IDX_STREAM_STATS_TIMETOFIRSTBYTESENT] = 0;
-    }
-    buffer[IDX_STREAM_STATS_SENTBYTES] =
-        static_cast<double>(entry->sent_bytes());
-    buffer[IDX_STREAM_STATS_RECEIVEDBYTES] =
-        static_cast<double>(entry->received_bytes());
-    Local<Object> obj;
-    if (entry->ToObject().ToLocal(&obj)) entry->Notify(obj);
+    if (HasHttp2Observer(env))
+      entry->Notify(env);
   });
 }
 
 void Http2Session::EmitStatistics() {
-  if (!HasHttp2Observer(env()))
+  if (LIKELY(!HasHttp2Observer(env())))
     return;
-  auto entry = std::make_unique<Http2SessionPerformanceEntry>(
-      http2_state(), statistics_, session_type_);
+
+  double start = statistics_.start_time / 1e6;
+  double duration = (PERFORMANCE_NOW() / 1e6) - start;
+
+  std::unique_ptr<Http2SessionPerformanceEntry> entry =
+      std::make_unique<Http2SessionPerformanceEntry>(
+          "Http2Session",
+          start,
+          duration,
+          statistics_);
+
   env()->SetImmediate([entry = std::move(entry)](Environment* env) {
-    if (!HasHttp2Observer(env))
-      return;
-    HandleScope handle_scope(env->isolate());
-    AliasedFloat64Array& buffer = entry->http2_state()->session_stats_buffer;
-    buffer[IDX_SESSION_STATS_TYPE] = entry->type();
-    buffer[IDX_SESSION_STATS_PINGRTT] = entry->ping_rtt() / 1e6;
-    buffer[IDX_SESSION_STATS_FRAMESRECEIVED] = entry->frame_count();
-    buffer[IDX_SESSION_STATS_FRAMESSENT] = entry->frame_sent();
-    buffer[IDX_SESSION_STATS_STREAMCOUNT] = entry->stream_count();
-    buffer[IDX_SESSION_STATS_STREAMAVERAGEDURATION] =
-        entry->stream_average_duration();
-    buffer[IDX_SESSION_STATS_DATA_SENT] =
-        static_cast<double>(entry->data_sent());
-    buffer[IDX_SESSION_STATS_DATA_RECEIVED] =
-        static_cast<double>(entry->data_received());
-    buffer[IDX_SESSION_STATS_MAX_CONCURRENT_STREAMS] =
-        static_cast<double>(entry->max_concurrent_streams());
-    Local<Object> obj;
-    if (entry->ToObject().ToLocal(&obj)) entry->Notify(obj);
+    if (HasHttp2Observer(env))
+      entry->Notify(env);
   });
 }
 
@@ -1884,6 +1934,7 @@ Http2Stream::Http2Stream(Http2Session* session,
       current_headers_category_(category) {
   MakeWeak();
   StreamBase::AttachToObject(GetObject());
+  statistics_.id = id;
   statistics_.start_time = uv_hrtime();
 
   // Limit the number of header pairs

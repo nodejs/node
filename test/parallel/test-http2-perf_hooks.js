@@ -1,3 +1,4 @@
+// Flags: --no-warnings
 'use strict';
 
 const common = require('../common');
@@ -8,7 +9,7 @@ const h2 = require('http2');
 
 const { PerformanceObserver } = require('perf_hooks');
 
-const obs = new PerformanceObserver(common.mustCall((items) => {
+const obs = new PerformanceObserver(common.mustCallAtLeast((items) => {
   const entry = items.getEntries()[0];
   assert.strictEqual(entry.entryType, 'http2');
   assert.strictEqual(typeof entry.startTime, 'number');
@@ -23,14 +24,22 @@ const obs = new PerformanceObserver(common.mustCall((items) => {
       assert.strictEqual(typeof entry.bytesWritten, 'number');
       assert.strictEqual(typeof entry.bytesRead, 'number');
       assert.strictEqual(typeof entry.maxConcurrentStreams, 'number');
+      assert.strictEqual(typeof entry.detail.pingRTT, 'number');
+      assert.strictEqual(typeof entry.detail.streamAverageDuration, 'number');
+      assert.strictEqual(typeof entry.detail.streamCount, 'number');
+      assert.strictEqual(typeof entry.detail.framesReceived, 'number');
+      assert.strictEqual(typeof entry.detail.framesSent, 'number');
+      assert.strictEqual(typeof entry.detail.bytesWritten, 'number');
+      assert.strictEqual(typeof entry.detail.bytesRead, 'number');
+      assert.strictEqual(typeof entry.detail.maxConcurrentStreams, 'number');
       switch (entry.type) {
         case 'server':
-          assert.strictEqual(entry.streamCount, 1);
-          assert(entry.framesReceived >= 3);
+          assert.strictEqual(entry.detail.streamCount, 1);
+          assert(entry.detail.framesReceived >= 3);
           break;
         case 'client':
-          assert.strictEqual(entry.streamCount, 1);
-          assert.strictEqual(entry.framesReceived, 7);
+          assert.strictEqual(entry.detail.streamCount, 1);
+          assert.strictEqual(entry.detail.framesReceived, 7);
           break;
         default:
           assert.fail('invalid Http2Session type');
@@ -42,20 +51,18 @@ const obs = new PerformanceObserver(common.mustCall((items) => {
       assert.strictEqual(typeof entry.timeToFirstHeader, 'number');
       assert.strictEqual(typeof entry.bytesWritten, 'number');
       assert.strictEqual(typeof entry.bytesRead, 'number');
+      assert.strictEqual(typeof entry.detail.timeToFirstByte, 'number');
+      assert.strictEqual(typeof entry.detail.timeToFirstByteSent, 'number');
+      assert.strictEqual(typeof entry.detail.timeToFirstHeader, 'number');
+      assert.strictEqual(typeof entry.detail.bytesWritten, 'number');
+      assert.strictEqual(typeof entry.detail.bytesRead, 'number');
       break;
     default:
       assert.fail('invalid entry name');
   }
-}, 4));
+}));
 
-// Should throw if entryTypes are not valid
-{
-  const expectedError = { code: 'ERR_VALID_PERFORMANCE_ENTRY_TYPE' };
-  const wrongEntryTypes = { entryTypes: ['foo', 'bar', 'baz'] };
-  assert.throws(() => obs.observe(wrongEntryTypes), expectedError);
-}
-
-obs.observe({ entryTypes: ['http2'] });
+obs.observe({ type: 'http2' });
 
 const body =
   '<html><head></head><body><h1>this is some data</h2></body></html>';
