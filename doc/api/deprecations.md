@@ -2748,6 +2748,22 @@ Previously, `index.js` and extension searching lookups would apply to
 With this deprecation, all ES module main entry point resolutions require
 an explicit [`"exports"` or `"main"` entry][] with the exact file extension.
 
+### DEP0XXX: Extension PerformanceEntry properties
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37136
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+The `'gc'`, `'http2'`, and `'http'` {PerformanceEntry} object types have
+additional properties assigned to them that provide additional information.
+These properties are now available within the standard `detail` property
+of the `PerformanceEntry` object. The existing accessors have been
+deprecated and should no longer be used.
+
 [Legacy URL API]: url.md#url_legacy_url_api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3

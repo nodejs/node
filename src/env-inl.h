@@ -887,11 +887,6 @@ inline performance::PerformanceState* Environment::performance_state() {
   return performance_state_.get();
 }
 
-inline std::unordered_map<std::string, uint64_t>*
-    Environment::performance_marks() {
-  return &performance_marks_;
-}
-
 inline IsolateData* Environment::isolate_data() const {
   return isolate_data_;
 }
