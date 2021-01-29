@@ -69,6 +69,8 @@ fs.open('.', 'r', undefined, common.mustCall(function(err, fd) {
   fs.close(fd, common.mustSucceed());
 }));
 
+assert.ok(fs.fstatSync(-0));
+
 fs.stat(__filename, common.mustSucceed((s) => {
   assert.strictEqual(s.isDirectory(), false);
   assert.strictEqual(s.isFile(), true);
