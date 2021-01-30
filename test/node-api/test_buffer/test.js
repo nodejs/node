@@ -1,5 +1,5 @@
 'use strict';
-// Flags: --expose-gc --no-concurrent-array-buffer-freeing --no-concurrent-array-buffer-sweeping
+// Flags: --expose-gc --no-concurrent-array-buffer-sweeping
 
 const common = require('../../common');
 const binding = require(`./build/${common.buildType}/test_buffer`);
