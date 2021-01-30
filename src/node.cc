@@ -26,6 +26,7 @@
 #include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
+#include "histogram-inl.h"
 #include "node_binding.h"
 #include "node_errors.h"
 #include "node_internals.h"

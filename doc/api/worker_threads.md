@@ -381,6 +381,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/37917
     description: Add 'BlockList' to the list of cloneable types.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37155
+    description: Add 'Histogram' types to the list of cloneable types.
   - version: v14.5.0
     pr-url: https://github.com/nodejs/node/pull/33360
     description: Added `KeyObject` to the list of cloneable types.
@@ -406,6 +409,7 @@ In particular, the significant differences to `JSON` are:
 * `value` may contain [`WebAssembly.Module`][] instances.
 * `value` may not contain native (C++-backed) objects other than:
   * {FileHandle}s,
+  * {Histogram}s,
   * {KeyObject}s,
   * {MessagePort}s,
   * {net.BlockList}s,
