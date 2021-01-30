@@ -230,8 +230,7 @@ using AddHistogramSampleCallback = void (*)(void* histogram, int sample);
  * fails (e.g. due to stack overflow), the embedder must propagate
  * that exception by returning an empty MaybeLocal.
  */
-using HostImportModuleDynamicallyCallback V8_DEPRECATED(
-    "Use HostImportModuleDynamicallyWithImportAssertionsCallback instead") =
+using HostImportModuleDynamicallyCallback =
     MaybeLocal<Promise> (*)(Local<Context> context,
                             Local<ScriptOrModule> referrer,
                             Local<String> specifier);
