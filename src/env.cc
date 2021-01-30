@@ -368,7 +368,8 @@ Environment::Environment(IsolateData* isolate_data,
 
   set_env_vars(per_process::system_environment);
   // TODO(joyeecheung): pass Isolate* and env_vars to it instead of the entire
-  // env
+  // env, when the recursive dependency inclusion in "debug-utils.h" is
+  // resolved.
   enabled_debug_list_.Parse(this);
 
   // We create new copies of the per-Environment option sets, so that it is
