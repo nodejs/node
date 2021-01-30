@@ -148,7 +148,7 @@ the `require.resolve()` function.
 Putting together all of the above, here is the high-level algorithm
 in pseudocode of what `require()` does:
 
-```text
+<pre>
 require(X) from module at path Y
 1. If X is a core module,
    a. return the core module
@@ -210,7 +210,7 @@ LOAD_PACKAGE_IMPORTS(X, DIR)
 2. If no scope was found, return.
 3. If the SCOPE/package.json "imports" is null or undefined, return.
 4. let MATCH = PACKAGE_IMPORTS_RESOLVE(X, pathToFileURL(SCOPE),
-  ["node", "require"]) defined in the ESM resolver.
+  ["node", "require"]) <a href="esm.md#resolver-algorithm-specification">defined in the ESM resolver</a>.
 5. RESOLVE_ESM_MATCH(MATCH).
 
 LOAD_PACKAGE_EXPORTS(X, DIR)
@@ -221,7 +221,7 @@ LOAD_PACKAGE_EXPORTS(X, DIR)
 3. Parse DIR/NAME/package.json, and look for "exports" field.
 4. If "exports" is null or undefined, return.
 5. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(DIR/NAME), "." + SUBPATH,
-   `package.json` "exports", ["node", "require"]) defined in the ESM resolver.
+   `package.json` "exports", ["node", "require"]) <a href="esm.md#resolver-algorithm-specification">defined in the ESM resolver</a>.
 6. RESOLVE_ESM_MATCH(MATCH)
 
 LOAD_PACKAGE_SELF(X, DIR)
@@ -231,7 +231,7 @@ LOAD_PACKAGE_SELF(X, DIR)
 4. If the SCOPE/package.json "name" is not the first segment of X, return.
 5. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(SCOPE),
    "." + X.slice("name".length), `package.json` "exports", ["node", "require"])
-   defined in the ESM resolver.
+   <a href="esm.md#resolver-algorithm-specification">defined in the ESM resolver</a>.
 6. RESOLVE_ESM_MATCH(MATCH)
 
 RESOLVE_ESM_MATCH(MATCH)
@@ -244,7 +244,7 @@ RESOLVE_ESM_MATCH(MATCH)
    a. LOAD_AS_FILE(RESOLVED_PATH)
    b. LOAD_AS_DIRECTORY(RESOLVED_PATH)
 5. THROW "not found"
-```
+</pre>
 
 ## Caching
 
