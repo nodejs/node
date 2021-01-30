@@ -2699,7 +2699,7 @@ resolutions not in `node_modules`. This means there will not be deprecation
 warnings for `"exports"` in dependencies. With `--pending-deprecation`, a
 runtime warning results no matter where the `"exports"` usage occurs.
 
-### DEP0XXX: Main index lookup and extension searching
+### DEP0151: Main index lookup and extension searching
 <!-- YAML
 changes:
   - version: REPLACEME
