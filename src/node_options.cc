@@ -945,12 +945,14 @@ void GetOptions(const FunctionCallbackInfo<Value>& args) {
                              *_ppop_instance.Lookup<bool>(field, opts));
         break;
       case kInteger:
-        value = Number::New(isolate,
-                            *_ppop_instance.Lookup<int64_t>(field, opts));
+        value = Number::New(
+            isolate,
+            static_cast<double>(*_ppop_instance.Lookup<int64_t>(field, opts)));
         break;
       case kUInteger:
-        value = Number::New(isolate,
-                            *_ppop_instance.Lookup<uint64_t>(field, opts));
+        value = Number::New(
+            isolate,
+            static_cast<double>(*_ppop_instance.Lookup<uint64_t>(field, opts)));
         break;
       case kString:
         if (!ToV8Value(context,

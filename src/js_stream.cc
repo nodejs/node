@@ -178,7 +178,7 @@ void JSStream::ReadBuffer(const FunctionCallbackInfo<Value>& args) {
 
     memcpy(buf.base, data, avail);
     data += avail;
-    len -= avail;
+    len -= static_cast<int>(avail);
     wrap->EmitRead(avail, buf);
   }
 }

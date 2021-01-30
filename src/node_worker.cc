@@ -99,7 +99,7 @@ void Worker::UpdateResourceConstraints(ResourceConstraints* constraints) {
 
   if (resource_limits_[kMaxYoungGenerationSizeMb] > 0) {
     constraints->set_max_young_generation_size_in_bytes(
-        resource_limits_[kMaxYoungGenerationSizeMb] * kMB);
+        static_cast<size_t>(resource_limits_[kMaxYoungGenerationSizeMb] * kMB));
   } else {
     resource_limits_[kMaxYoungGenerationSizeMb] =
         constraints->max_young_generation_size_in_bytes() / kMB;
@@ -107,7 +107,7 @@ void Worker::UpdateResourceConstraints(ResourceConstraints* constraints) {
 
   if (resource_limits_[kMaxOldGenerationSizeMb] > 0) {
     constraints->set_max_old_generation_size_in_bytes(
-        resource_limits_[kMaxOldGenerationSizeMb] * kMB);
+        static_cast<size_t>(resource_limits_[kMaxOldGenerationSizeMb] * kMB));
   } else {
     resource_limits_[kMaxOldGenerationSizeMb] =
         constraints->max_old_generation_size_in_bytes() / kMB;
@@ -115,7 +115,7 @@ void Worker::UpdateResourceConstraints(ResourceConstraints* constraints) {
 
   if (resource_limits_[kCodeRangeSizeMb] > 0) {
     constraints->set_code_range_size_in_bytes(
-        resource_limits_[kCodeRangeSizeMb] * kMB);
+        static_cast<size_t>(resource_limits_[kCodeRangeSizeMb] * kMB));
   } else {
     resource_limits_[kCodeRangeSizeMb] =
         constraints->code_range_size_in_bytes() / kMB;
@@ -575,7 +575,8 @@ void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
       w->resource_limits_[kStackSizeMb] = kStackBufferSize / kMB;
       w->stack_size_ = kStackBufferSize;
     } else {
-      w->stack_size_ = w->resource_limits_[kStackSizeMb] * kMB;
+      w->stack_size_ =
+          static_cast<size_t>(w->resource_limits_[kStackSizeMb] * kMB);
     }
   } else {
     w->resource_limits_[kStackSizeMb] = w->stack_size_ / kMB;

@@ -1901,7 +1901,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
     Null(env->isolate())
   };
 
-  uint64_t n = 0;
+  uint32_t n = 0;
   const bool verbatim = req_wrap->verbatim();
 
   if (status == 0) {
