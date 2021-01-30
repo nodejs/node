@@ -245,6 +245,12 @@ void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
     s.allow_wasm_code_generation_callback : AllowWasmCodeGenerationCallback;
   isolate->SetAllowWasmCodeGenerationCallback(allow_wasm_codegen_cb);
 
+  if ((s.flags & SHOULD_SET_WASM_STREAMING_CALLBACK)) {
+    auto* wasm_streaming_callback = s.wasm_streaming_callback ?
+      s.wasm_streaming_callback : WasmStreamingCallback;
+    isolate->SetWasmStreamingCallback(wasm_streaming_callback);
+  }
+
   if ((s.flags & SHOULD_NOT_SET_PROMISE_REJECTION_CALLBACK) == 0) {
     auto* promise_reject_cb = s.promise_reject_callback ?
       s.promise_reject_callback : PromiseRejectCallback;

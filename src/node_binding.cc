@@ -91,6 +91,7 @@
   V(uv)                                                                        \
   V(v8)                                                                        \
   V(wasi)                                                                      \
+  V(wasm_streaming)                                                            \
   V(worker)                                                                    \
   V(watchdog)                                                                  \
   V(zlib)

@@ -157,7 +157,10 @@ class WorkerThreadData {
 
     w->platform_->RegisterIsolate(isolate, &loop_);
     Isolate::Initialize(isolate, params);
-    SetIsolateUpForNode(isolate);
+
+    IsolateSettings s;
+    s.flags |= SHOULD_SET_WASM_STREAMING_CALLBACK;
+    SetIsolateUpForNode(isolate, s);
 
     // Be sure it's called before Environment::InitializeDiagnostics()
     // so that this callback stays when the callback of

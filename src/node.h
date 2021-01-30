@@ -317,7 +317,9 @@ enum IsolateSettingsFlags {
   MESSAGE_LISTENER_WITH_ERROR_LEVEL = 1 << 0,
   DETAILED_SOURCE_POSITIONS_FOR_PROFILING = 1 << 1,
   SHOULD_NOT_SET_PROMISE_REJECTION_CALLBACK = 1 << 2,
-  SHOULD_NOT_SET_PREPARE_STACK_TRACE_CALLBACK = 1 << 3
+  SHOULD_NOT_SET_PREPARE_STACK_TRACE_CALLBACK = 1 << 3,
+  SHOULD_SET_WASM_STREAMING_CALLBACK = 1 << 31
+  // TODO(mejedi) remove SHOULD_SET_WASM_... in the next major release
 };
 
 struct IsolateSettings {
@@ -335,7 +337,13 @@ struct IsolateSettings {
   v8::PromiseRejectCallback promise_reject_callback = nullptr;
   v8::AllowWasmCodeGenerationCallback
       allow_wasm_code_generation_callback = nullptr;
+  v8::WasmStreamingCallback wasm_streaming_callback = nullptr;
 };
+
+// If a custom WASM streaming callback is in use, please call this
+// function for objects the custom callback isn't handling.
+NODE_EXTERN
+void WasmStreamingCallback(const v8::FunctionCallbackInfo<v8::Value>&);
 
 // Overriding IsolateSettings may produce unexpected behavior
 // in Node.js core functionality, so proceed at your own risk.
