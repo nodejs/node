@@ -1,4 +1,5 @@
 #include "aliased_buffer.h"
+#include "histogram-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_internals.h"
 #include "node_perf.h"
@@ -19,10 +20,10 @@ using v8::FunctionTemplate;
 using v8::GCCallbackFlags;
 using v8::GCType;
 using v8::HandleScope;
+using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
-using v8::Map;
 using v8::MaybeLocal;
 using v8::Number;
 using v8::Object;
@@ -446,156 +447,45 @@ void LoopIdleTime(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(1.0 * idle_time / 1e6);
 }
 
-
 // Event Loop Timing Histogram
-namespace {
-static void ELDHistogramMin(const FunctionCallbackInfo<Value>& args) {
-  ELDHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  double value = static_cast<double>(histogram->Min());
-  args.GetReturnValue().Set(value);
-}
-
-static void ELDHistogramMax(const FunctionCallbackInfo<Value>& args) {
-  ELDHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  double value = static_cast<double>(histogram->Max());
-  args.GetReturnValue().Set(value);
-}
-
-static void ELDHistogramMean(const FunctionCallbackInfo<Value>& args) {
-  ELDHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  args.GetReturnValue().Set(histogram->Mean());
-}
-
-static void ELDHistogramExceeds(const FunctionCallbackInfo<Value>& args) {
-  ELDHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  double value = static_cast<double>(histogram->Exceeds());
-  args.GetReturnValue().Set(value);
-}
-
-static void ELDHistogramStddev(const FunctionCallbackInfo<Value>& args) {
-  ELDHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  args.GetReturnValue().Set(histogram->Stddev());
-}
-
-static void ELDHistogramPercentile(const FunctionCallbackInfo<Value>& args) {
-  ELDHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  CHECK(args[0]->IsNumber());
-  double percentile = args[0].As<Number>()->Value();
-  args.GetReturnValue().Set(histogram->Percentile(percentile));
-}
-
-static void ELDHistogramPercentiles(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  ELDHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  CHECK(args[0]->IsMap());
-  Local<Map> map = args[0].As<Map>();
-  histogram->Percentiles([&](double key, double value) {
-    map->Set(env->context(),
-             Number::New(env->isolate(), key),
-             Number::New(env->isolate(), value)).IsEmpty();
-  });
-}
-
-static void ELDHistogramEnable(const FunctionCallbackInfo<Value>& args) {
-  ELDHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  args.GetReturnValue().Set(histogram->Enable());
-}
-
-static void ELDHistogramDisable(const FunctionCallbackInfo<Value>& args) {
-  ELDHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  args.GetReturnValue().Set(histogram->Disable());
-}
-
-static void ELDHistogramReset(const FunctionCallbackInfo<Value>& args) {
-  ELDHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  histogram->ResetState();
-}
-
-static void ELDHistogramNew(const FunctionCallbackInfo<Value>& args) {
+void ELDHistogram::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args.IsConstructCall());
-  int32_t resolution = args[0]->IntegerValue(env->context()).FromJust();
+  int32_t resolution = args[0].As<Int32>()->Value();
   CHECK_GT(resolution, 0);
   new ELDHistogram(env, args.This(), resolution);
 }
-}  // namespace
+
+void ELDHistogram::Initialize(Environment* env, Local<Object> target) {
+  Local<FunctionTemplate> tmpl = env->NewFunctionTemplate(New);
+  tmpl->Inherit(IntervalHistogram::GetConstructorTemplate(env));
+  tmpl->InstanceTemplate()->SetInternalFieldCount(
+      ELDHistogram::kInternalFieldCount);
+  env->SetConstructorFunction(target, "ELDHistogram", tmpl);
+}
 
 ELDHistogram::ELDHistogram(
     Environment* env,
     Local<Object> wrap,
-    int32_t resolution) : HandleWrap(env,
-                                     wrap,
-                                     reinterpret_cast<uv_handle_t*>(&timer_),
-                                     AsyncWrap::PROVIDER_ELDHISTOGRAM),
-                          Histogram(1, 3.6e12),
-                          resolution_(resolution) {
-  MakeWeak();
-  uv_timer_init(env->event_loop(), &timer_);
-}
+    int32_t interval)
+    : IntervalHistogram(
+          env,
+          wrap,
+          AsyncWrap::PROVIDER_ELDHISTOGRAM,
+          interval, 1, 3.6e12, 3) {}
 
-void ELDHistogram::DelayIntervalCallback(uv_timer_t* req) {
-  ELDHistogram* histogram = ContainerOf(&ELDHistogram::timer_, req);
-  histogram->RecordDelta();
+void ELDHistogram::OnInterval() {
+  uint64_t delta = histogram()->RecordDelta();
   TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
-                 "min", histogram->Min());
+                  "delay", delta);
   TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
-                 "max", histogram->Max());
+                 "min", histogram()->Min());
   TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
-                 "mean", histogram->Mean());
+                 "max", histogram()->Max());
   TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
-                 "stddev", histogram->Stddev());
-}
-
-bool ELDHistogram::RecordDelta() {
-  uint64_t time = uv_hrtime();
-  bool ret = true;
-  if (prev_ > 0) {
-    int64_t delta = time - prev_;
-    if (delta > 0) {
-      ret = Record(delta);
-      TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
-                     "delay", delta);
-      if (!ret) {
-        if (exceeds_ < 0xFFFFFFFF)
-          exceeds_++;
-        ProcessEmitWarning(
-            env(),
-            "Event loop delay exceeded 1 hour: %" PRId64 " nanoseconds",
-            delta);
-      }
-    }
-  }
-  prev_ = time;
-  return ret;
-}
-
-bool ELDHistogram::Enable() {
-  if (enabled_ || IsHandleClosing()) return false;
-  enabled_ = true;
-  prev_ = 0;
-  uv_timer_start(&timer_,
-                 DelayIntervalCallback,
-                 resolution_,
-                 resolution_);
-  uv_unref(reinterpret_cast<uv_handle_t*>(&timer_));
-  return true;
-}
-
-bool ELDHistogram::Disable() {
-  if (!enabled_ || IsHandleClosing()) return false;
-  enabled_ = false;
-  uv_timer_stop(&timer_);
-  return true;
+                 "mean", histogram()->Mean());
+  TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
+                 "stddev", histogram()->Stddev());
 }
 
 void Initialize(Local<Object> target,
@@ -688,24 +578,8 @@ void Initialize(Local<Object> target,
                             constants,
                             attr).ToChecked();
 
-  Local<String> eldh_classname = FIXED_ONE_BYTE_STRING(isolate, "ELDHistogram");
-  Local<FunctionTemplate> eldh =
-      env->NewFunctionTemplate(ELDHistogramNew);
-  eldh->SetClassName(eldh_classname);
-  eldh->InstanceTemplate()->SetInternalFieldCount(
-      ELDHistogram::kInternalFieldCount);
-  eldh->Inherit(BaseObject::GetConstructorTemplate(env));
-  env->SetProtoMethod(eldh, "exceeds", ELDHistogramExceeds);
-  env->SetProtoMethod(eldh, "min", ELDHistogramMin);
-  env->SetProtoMethod(eldh, "max", ELDHistogramMax);
-  env->SetProtoMethod(eldh, "mean", ELDHistogramMean);
-  env->SetProtoMethod(eldh, "stddev", ELDHistogramStddev);
-  env->SetProtoMethod(eldh, "percentile", ELDHistogramPercentile);
-  env->SetProtoMethod(eldh, "percentiles", ELDHistogramPercentiles);
-  env->SetProtoMethod(eldh, "enable", ELDHistogramEnable);
-  env->SetProtoMethod(eldh, "disable", ELDHistogramDisable);
-  env->SetProtoMethod(eldh, "reset", ELDHistogramReset);
-  env->SetConstructorFunction(target, eldh_classname, eldh);
+  HistogramBase::Initialize(env, target);
+  ELDHistogram::Initialize(env, target);
 }
 
 }  // namespace performance

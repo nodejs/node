@@ -474,6 +474,9 @@ are part of the channel.
 <!-- YAML
 added: v10.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37155
+    description: Add 'Histogram' types to the list of cloneable types.
   - version: v15.6.0
     pr-url: https://github.com/nodejs/node/pull/36804
     description: Added `X509Certificate` to the list of cloneable types.
@@ -507,8 +510,13 @@ In particular, the significant differences to `JSON` are:
 * `value` may contain typed arrays, both using `ArrayBuffer`s
    and `SharedArrayBuffer`s.
 * `value` may contain [`WebAssembly.Module`][] instances.
-* `value` may not contain native (C++-backed) objects other than {MessagePort}s,
-  {FileHandle}s, {KeyObject}s, {CryptoKey}s, and {X509Certificate}s.
+* `value` may not contain native (C++-backed) objects other than:
+  * {CryptoKey}s,
+  * {FileHandle}s,
+  * {Histogram}s,
+  * {KeyObject}s,
+  * {MessagePort}s,
+  * {X509Certificate}s.
 
 ```js
 const { MessageChannel } = require('worker_threads');
