@@ -187,7 +187,8 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
       }
 
       Local<String> source_text = args[2].As<String>();
-      ScriptOrigin origin(url,
+      ScriptOrigin origin(isolate,
+                          url,
                           line_offset,
                           column_offset,
                           true,                             // is cross origin
@@ -539,7 +540,8 @@ MaybeLocal<Module> ModuleWrap::ResolveModuleCallback(
 static MaybeLocal<Promise> ImportModuleDynamically(
     Local<Context> context,
     Local<ScriptOrModule> referrer,
-    Local<String> specifier) {
+    Local<String> specifier,
+    Local<FixedArray> import_assertions) {
   Isolate* isolate = context->GetIsolate();
   Environment* env = Environment::GetCurrent(context);
   if (env == nullptr) {
