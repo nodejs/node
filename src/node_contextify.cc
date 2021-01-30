@@ -47,7 +47,6 @@ using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::IndexedPropertyHandlerConfiguration;
 using v8::Int32;
-using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Maybe;
@@ -678,8 +677,8 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsString());
   Local<String> filename = args[1].As<String>();
 
-  Local<Integer> line_offset;
-  Local<Integer> column_offset;
+  int line_offset = 0;
+  int column_offset = 0;
   Local<ArrayBufferView> cached_data_buf;
   bool produce_cached_data = false;
   Local<Context> parsing_context = context;
@@ -689,9 +688,9 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
     //                      cachedData, produceCachedData, parsingContext)
     CHECK_EQ(argc, 7);
     CHECK(args[2]->IsNumber());
-    line_offset = args[2].As<Integer>();
+    line_offset = args[2].As<Int32>()->Value();
     CHECK(args[3]->IsNumber());
-    column_offset = args[3].As<Integer>();
+    column_offset = args[3].As<Int32>()->Value();
     if (!args[4]->IsUndefined()) {
       CHECK(args[4]->IsArrayBufferView());
       cached_data_buf = args[4].As<ArrayBufferView>();
@@ -706,9 +705,6 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
       CHECK_NOT_NULL(sandbox);
       parsing_context = sandbox->context();
     }
-  } else {
-    line_offset = Integer::New(isolate, 0);
-    column_offset = Integer::New(isolate, 0);
   }
 
   ContextifyScript* contextify_script =
@@ -742,12 +738,12 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
   ScriptOrigin origin(filename,
                       line_offset,                          // line offset
                       column_offset,                        // column offset
-                      True(isolate),                        // is cross origin
-                      Local<Integer>(),                     // script id
+                      true,                                 // is cross origin
+                      -1,                                   // script id
                       Local<Value>(),                       // source map URL
-                      False(isolate),                       // is opaque (?)
-                      False(isolate),                       // is WASM
-                      False(isolate),                       // is ES Module
+                      false,                                // is opaque (?)
+                      false,                                // is WASM
+                      false,                                // is ES Module
                       host_defined_options);
   ScriptCompiler::Source source(code, origin, cached_data);
   ScriptCompiler::CompileOptions compile_options =
@@ -1037,11 +1033,11 @@ void ContextifyContext::CompileFunction(
 
   // Argument 3: line offset
   CHECK(args[2]->IsNumber());
-  Local<Integer> line_offset = args[2].As<Integer>();
+  int line_offset = args[2].As<Int32>()->Value();
 
   // Argument 4: column offset
   CHECK(args[3]->IsNumber());
-  Local<Integer> column_offset = args[3].As<Integer>();
+  int column_offset = args[3].As<Int32>()->Value();
 
   // Argument 5: cached data (optional)
   Local<ArrayBufferView> cached_data_buf;
@@ -1106,12 +1102,12 @@ void ContextifyContext::CompileFunction(
   ScriptOrigin origin(filename,
                       line_offset,       // line offset
                       column_offset,     // column offset
-                      True(isolate),     // is cross origin
-                      Local<Integer>(),  // script id
+                      true,              // is cross origin
+                      -1,                // script id
                       Local<Value>(),    // source map URL
-                      False(isolate),    // is opaque (?)
-                      False(isolate),    // is WASM
-                      False(isolate),    // is ES Module
+                      false,             // is opaque (?)
+                      false,             // is WASM
+                      false,             // is ES Module
                       host_defined_options);
 
   ScriptCompiler::Source source(code, origin, cached_data);
