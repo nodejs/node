@@ -458,7 +458,7 @@ size_t StringSearch<Char>::BoyerMooreHorspoolSearch(
   const size_t subject_length = subject.length();
   const size_t pattern_length = pattern_.length();
   int* char_occurrences = bad_char_shift_table_;
-  int64_t badness = -pattern_length;
+  int64_t badness = -static_cast<int64_t>(pattern_length);
 
   // How bad we are doing without a good-suffix table.
   Char last_char = pattern_[pattern_length - 1];
