@@ -653,6 +653,22 @@ performance.mark('test');
 performance.mark('meow');
 ```
 
+## `perf_hooks.createHistogram([options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `min` {number|bigint} The minimum recordable value. Must be an integer
+    value greater than 0. **Defaults**: `1`.
+  * `max` {number|bigint} The maximum recordable value. Must be an integer
+    value greater than `min`. **Defaults**: `Number.MAX_SAFE_INTEGER`.
+  * `figures` {number} The number of accuracy digits. Must be a number between
+    `1` and `5`. **Defaults**: `3`.
+* Returns {RecordableHistogram}
+
+Returns a {RecordableHistogram}.
+
 ## `perf_hooks.monitorEventLoopDelay([options])`
 <!-- YAML
 added: v11.10.0
@@ -661,12 +677,12 @@ added: v11.10.0
 * `options` {Object}
   * `resolution` {number} The sampling rate in milliseconds. Must be greater
     than zero. **Default:** `10`.
-* Returns: {Histogram}
+* Returns: {IntervalHistogram}
 
 _This property is an extension by Node.js. It is not available in Web browsers._
 
-Creates a `Histogram` object that samples and reports the event loop delay
-over time. The delays will be reported in nanoseconds.
+Creates an `IntervalHistogram` object that samples and reports the event loop
+delay over time. The delays will be reported in nanoseconds.
 
 Using a timer to detect approximate event loop delay works because the
 execution of timers is tied specifically to the lifecycle of the libuv
@@ -689,36 +705,12 @@ console.log(h.percentile(50));
 console.log(h.percentile(99));
 ```
 
-### Class: `Histogram`
-<!-- YAML
-added: v11.10.0
--->
-Tracks the event loop delay at a given sampling rate. The constructor of
-this class not exposed to users.
-
-_This property is an extension by Node.js. It is not available in Web browsers._
-
-#### `histogram.disable()`
+## Class: `Histogram`
 <!-- YAML
 added: v11.10.0
 -->
 
-* Returns: {boolean}
-
-Disables the event loop delay sample timer. Returns `true` if the timer was
-stopped, `false` if it was already stopped.
-
-#### `histogram.enable()`
-<!-- YAML
-added: v11.10.0
--->
-
-* Returns: {boolean}
-
-Enables the event loop delay sample timer. Returns `true` if the timer was
-started, `false` if it was already started.
-
-#### `histogram.exceeds`
+### `histogram.exceeds`
 <!-- YAML
 added: v11.10.0
 -->
@@ -728,7 +720,7 @@ added: v11.10.0
 The number of times the event loop delay exceeded the maximum 1 hour event
 loop delay threshold.
 
-#### `histogram.max`
+### `histogram.max`
 <!-- YAML
 added: v11.10.0
 -->
@@ -737,7 +729,7 @@ added: v11.10.0
 
 The maximum recorded event loop delay.
 
-#### `histogram.mean`
+### `histogram.mean`
 <!-- YAML
 added: v11.10.0
 -->
@@ -746,7 +738,7 @@ added: v11.10.0
 
 The mean of the recorded event loop delays.
 
-#### `histogram.min`
+### `histogram.min`
 <!-- YAML
 added: v11.10.0
 -->
@@ -755,7 +747,7 @@ added: v11.10.0
 
 The minimum recorded event loop delay.
 
-#### `histogram.percentile(percentile)`
+### `histogram.percentile(percentile)`
 <!-- YAML
 added: v11.10.0
 -->
@@ -765,7 +757,7 @@ added: v11.10.0
 
 Returns the value at the given percentile.
 
-#### `histogram.percentiles`
+### `histogram.percentiles`
 <!-- YAML
 added: v11.10.0
 -->
@@ -774,14 +766,14 @@ added: v11.10.0
 
 Returns a `Map` object detailing the accumulated percentile distribution.
 
-#### `histogram.reset()`
+### `histogram.reset()`
 <!-- YAML
 added: v11.10.0
 -->
 
 Resets the collected histogram data.
 
-#### `histogram.stddev`
+### `histogram.stddev`
 <!-- YAML
 added: v11.10.0
 -->
@@ -789,6 +781,56 @@ added: v11.10.0
 * {number}
 
 The standard deviation of the recorded event loop delays.
+
+## Class: `IntervalHistogram extends Histogram`
+
+A `Histogram` that is periodically updated on a given interval.
+
+### `histogram.disable()`
+<!-- YAML
+added: v11.10.0
+-->
+
+* Returns: {boolean}
+
+Disables the update interval timer. Returns `true` if the timer was
+stopped, `false` if it was already stopped.
+
+### `histogram.enable()`
+<!-- YAML
+added: v11.10.0
+-->
+
+* Returns: {boolean}
+
+Enables the update interval timer. Returns `true` if the timer was
+started, `false` if it was already started.
+
+### Cloning an `IntervalHistogram`
+
+{IntervalHistogram} instances can be cloned via {MessagePort}. On the receiving
+end, the histogram is cloned as a plain {Histogram} object that does not
+implement the `enable()` and `disable()` methods.
+
+## Class: `RecordableHistogram extends Histogram`
+<!-- YAML
+added: REPLACEME
+-->
+
+### `histogram.record(val)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `val` {number|bigint} The amount to record in the histogram.
+
+### `histogram.recordDelta()`
+<!-- YAML
+added: REPLACEME
+-->
+
+Calculates the amount of time (in nanoseconds) that has passed since the
+previous call to `recordDelta()` and records that amount in the histogram.
 
 ## Examples
 

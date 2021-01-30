@@ -2,6 +2,7 @@
 #include "allocated_buffer-inl.h"
 #include "aliased_struct-inl.h"
 #include "debug_utils-inl.h"
+#include "histogram-inl.h"
 #include "memory_tracker-inl.h"
 #include "node.h"
 #include "node_buffer.h"
