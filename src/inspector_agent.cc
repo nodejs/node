@@ -497,7 +497,7 @@ class NodeInspectorClient : public V8InspectorClient {
     Isolate* isolate = env_->isolate();
     Local<Context> context = env_->context();
 
-    int script_id = message->GetScriptOrigin().ScriptID()->Value();
+    int script_id = message->GetScriptOrigin().ScriptId();
 
     Local<v8::StackTrace> stack_trace = message->GetStackTrace();
 
