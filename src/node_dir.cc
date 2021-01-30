@@ -217,9 +217,10 @@ static void AfterDirRead(uv_fs_t* req) {
   Local<Array> js_array;
   if (!DirentListToArray(env,
                          dir->dirents,
-                         req->result,
+                         static_cast<int>(req->result),
                          req_wrap->encoding(),
-                         &error).ToLocal(&js_array)) {
+                         &error)
+           .ToLocal(&js_array)) {
     // Clear libuv resources *before* delivering results to JS land because
     // that can schedule another operation on the same uv_dir_t. Ditto below.
     after.Clear();
@@ -244,7 +245,7 @@ void DirHandle::Read(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&dir, args.Holder());
 
   CHECK(args[1]->IsNumber());
-  uint64_t buffer_size = args[1].As<Number>()->Value();
+  uint64_t buffer_size = static_cast<uint64_t>(args[1].As<Number>()->Value());
 
   if (buffer_size != dir->dirents_.size()) {
     dir->dirents_.resize(buffer_size);
@@ -280,9 +281,10 @@ void DirHandle::Read(const FunctionCallbackInfo<Value>& args) {
     Local<Array> js_array;
     if (!DirentListToArray(env,
                            dir->dir()->dirents,
-                           req_wrap_sync.req.result,
+                           static_cast<int>(req_wrap_sync.req.result),
                            encoding,
-                           &error).ToLocal(&js_array)) {
+                           &error)
+             .ToLocal(&js_array)) {
       Local<Object> ctx = args[2].As<Object>();
       USE(ctx->Set(env->context(), env->error_string(), error));
       return;

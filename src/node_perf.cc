@@ -88,7 +88,7 @@ std::ostream& operator<<(std::ostream& o,
 
 void PerformanceState::Mark(enum PerformanceMilestone milestone,
                              uint64_t ts) {
-  this->milestones[milestone] = ts;
+  this->milestones[milestone] = static_cast<double>(ts);
   TRACE_EVENT_INSTANT_WITH_TIMESTAMP0(
       TRACING_CATEGORY_NODE1(bootstrap),
       GetPerformanceMilestoneName(milestone),

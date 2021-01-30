@@ -380,7 +380,7 @@ class Parser : public AsyncWrap, public StreamListener {
       return -1;
     }
 
-    return val;
+    return static_cast<int>(val);
   }
 
 
@@ -403,10 +403,10 @@ class Parser : public AsyncWrap, public StreamListener {
     }
 
     Local<Value> argv[3] = {
-      current_buffer_,
-      Integer::NewFromUnsigned(env()->isolate(), at - current_buffer_data_),
-      Integer::NewFromUnsigned(env()->isolate(), length)
-    };
+        current_buffer_,
+        Integer::NewFromUnsigned(
+            env()->isolate(), static_cast<uint32_t>(at - current_buffer_data_)),
+        Integer::NewFromUnsigned(env()->isolate(), length)};
 
     MaybeLocal<Value> r = MakeCallback(cb.As<Function>(),
                                        arraysize(argv),
@@ -549,7 +549,8 @@ class Parser : public AsyncWrap, public StreamListener {
 
     if (args.Length() > 2) {
       CHECK(args[2]->IsNumber());
-      max_http_header_size = args[2].As<Number>()->Value();
+      max_http_header_size =
+          static_cast<uint64_t>(args[2].As<Number>()->Value());
     }
     if (max_http_header_size == 0) {
       max_http_header_size = env->options()->max_http_header_size;
@@ -557,7 +558,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
     if (args.Length() > 4) {
       CHECK(args[4]->IsInt32());
-      headers_timeout = args[4].As<Number>()->Value();
+      headers_timeout = args[4].As<Int32>()->Value();
     }
 
     llhttp_type_t type =
@@ -683,7 +684,7 @@ class Parser : public AsyncWrap, public StreamListener {
     // check header parsing time
     if (header_parsing_start_time_ != 0 && headers_timeout_ != 0) {
       uint64_t now = uv_hrtime();
-      uint64_t parsing_time = (now - header_parsing_start_time_) / 1e6;
+      uint64_t parsing_time = (now - header_parsing_start_time_) / 1000000;
 
       if (parsing_time > headers_timeout_) {
         Local<Value> cb =
@@ -781,8 +782,9 @@ class Parser : public AsyncWrap, public StreamListener {
       if (err == HPE_USER) {
         const char* colon = strchr(errno_reason, ':');
         CHECK_NOT_NULL(colon);
-        code = OneByteString(env()->isolate(), errno_reason,
-                             colon - errno_reason);
+        code = OneByteString(env()->isolate(),
+                             errno_reason,
+                             static_cast<int>(colon - errno_reason));
         reason = OneByteString(env()->isolate(), colon + 1);
       } else {
         code = OneByteString(env()->isolate(), llhttp_errno_name(err));
