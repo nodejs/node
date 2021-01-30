@@ -98,8 +98,8 @@ static std::string GetErrorSource(Isolate* isolate,
   const char* filename_string = *filename;
   int linenum = message->GetLineNumber(context).FromJust();
 
-  int script_start = (linenum - origin.ResourceLineOffset()->Value()) == 1
-                         ? origin.ResourceColumnOffset()->Value()
+  int script_start = (linenum - origin.LineOffset()) == 1
+                         ? origin.ColumnOffset()
                          : 0;
   int start = message->GetStartColumn(context).FromMaybe(0);
   int end = message->GetEndColumn(context).FromMaybe(0);
