@@ -2726,7 +2726,7 @@ settings set when the Node.js binary was compiled. However, the property has
 been mutable by user code making it impossible to rely on. The ability to
 change the value has been deprecated and will be disabled in the future.
 
-### DEP0XXX: Main index lookup and extension searching
+### DEP0151: Main index lookup and extension searching
 <!-- YAML
 changes:
   - version: REPLACEME
