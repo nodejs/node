@@ -735,7 +735,8 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
   host_defined_options->Set(isolate, loader::HostDefinedOptions::kID,
                             Number::New(isolate, contextify_script->id()));
 
-  ScriptOrigin origin(filename,
+  ScriptOrigin origin(isolate,
+                      filename,
                       line_offset,                          // line offset
                       column_offset,                        // column offset
                       true,                                 // is cross origin
@@ -1099,7 +1100,8 @@ void ContextifyContext::CompileFunction(
   host_defined_options->Set(
       isolate, loader::HostDefinedOptions::kID, Number::New(isolate, id));
 
-  ScriptOrigin origin(filename,
+  ScriptOrigin origin(isolate,
+                      filename,
                       line_offset,       // line offset
                       column_offset,     // column offset
                       true,              // is cross origin
