@@ -6,7 +6,7 @@
 #include "node.h"
 #include "node_perf_common.h"
 #include "base_object-inl.h"
-#include "histogram-inl.h"
+#include "histogram.h"
 
 #include "v8.h"
 #include "uv.h"
@@ -140,37 +140,20 @@ class GCPerformanceEntry : public PerformanceEntry {
   PerformanceGCFlags gcflags_;
 };
 
-class ELDHistogram : public HandleWrap, public Histogram {
+class ELDHistogram : public IntervalHistogram {
  public:
-  ELDHistogram(Environment* env,
-               v8::Local<v8::Object> wrap,
-               int32_t resolution);
+  static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  bool RecordDelta();
-  bool Enable();
-  bool Disable();
-  void ResetState() {
-    Reset();
-    exceeds_ = 0;
-    prev_ = 0;
-  }
-  int64_t Exceeds() const { return exceeds_; }
+  ELDHistogram(
+      Environment* env,
+      v8::Local<v8::Object> wrap,
+      int32_t interval);
 
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackFieldWithSize("histogram", GetMemorySize());
-  }
+  void OnInterval() override;
 
   SET_MEMORY_INFO_NAME(ELDHistogram)
   SET_SELF_SIZE(ELDHistogram)
-
- private:
-  static void DelayIntervalCallback(uv_timer_t* req);
-
-  bool enabled_ = false;
-  int32_t resolution_ = 0;
-  int64_t exceeds_ = 0;
-  uint64_t prev_ = 0;
-  uv_timer_t timer_;
 };
 
 }  // namespace performance
