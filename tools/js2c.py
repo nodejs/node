@@ -140,6 +140,8 @@ def JS2C(source_files, target):
 
   for filename in source_files['.js']:
     AddModule(filename, definitions, initializers)
+  for filename in source_files['.mjs']:
+    AddModule(filename, definitions, initializers)
 
   config_def, config_size = handle_config_gypi(source_files['config.gypi'])
   definitions.append(config_def)
@@ -208,8 +210,8 @@ def main():
   global is_verbose
   is_verbose = options.verbose
   source_files = functools.reduce(SourceFileByExt, options.sources, {})
-  # Should have exactly 2 types: `.js`, and `.gypi`
-  assert len(source_files) == 2
+  # Should have exactly 3 types: `.js`, `.mjs` and `.gypi`
+  assert len(source_files) == 3
   # Currently config.gypi is the only `.gypi` file allowed
   assert source_files['.gypi'] == ['config.gypi']
   source_files['config.gypi'] = source_files.pop('.gypi')[0]
