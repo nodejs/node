@@ -259,7 +259,7 @@ MaybeLocal<Function> NativeModuleLoader::LookupAndCompile(
   std::string filename_s = std::string("node:") + id;
   Local<String> filename =
       OneByteString(isolate, filename_s.c_str(), filename_s.size());
-  ScriptOrigin origin(filename, 0, 0, true);
+  ScriptOrigin origin(isolate, filename, 0, 0, true);
 
   ScriptCompiler::CachedData* cached_data = nullptr;
   {
