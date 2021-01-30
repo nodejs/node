@@ -967,6 +967,14 @@ An unknown cipher was specified.
 An unknown Diffie-Hellman group name was given. See
 [`crypto.getDiffieHellman()`][] for a list of valid group names.
 
+<a id="ERR_CRYPTO_UNSUPPORTED_OPERATION"></a>
+### `ERR_CRYPTO_UNSUPPORTED_OPERATION`
+<!-- YAML
+added: v15.0.0
+-->
+
+An attempt to invoke an unsupported crypto operation was made.
+
 <a id="ERR_DLOPEN_FAILED"></a>
 ### `ERR_DLOPEN_FAILED`
 <!-- YAML
@@ -979,14 +987,6 @@ A call to `process.dlopen()` failed.
 ### `ERR_DIR_CLOSED`
 
 The [`fs.Dir`][] was previously closed.
-
-<a id"ERR_CRYPTO_UNSUPPORTED_OPERATION"></a>
-### `ERR_CRYPTO_UNSUPPORTED_OPERATION`
-<!-- YAML
-added: v15.0.0
--->
-
-An attempt to invoke an unsupported crypto operation was made.
 
 <a id="ERR_DIR_CONCURRENT_OPERATION"></a>
 ### `ERR_DIR_CONCURRENT_OPERATION`
