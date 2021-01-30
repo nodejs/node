@@ -1666,7 +1666,7 @@ class V8_EXPORT Module : public Data {
    */
   int GetIdentityHash() const;
 
-  using ResolveCallback V8_DEPRECATE_SOON("Use ResolveModuleCallback") =
+  using ResolveCallback =
       MaybeLocal<Module> (*)(Local<Context> context, Local<String> specifier,
                              Local<Module> referrer);
   using ResolveModuleCallback = MaybeLocal<Module> (*)(
@@ -7322,8 +7322,7 @@ using CallCompletedCallback = void (*)(Isolate*);
  * fails (e.g. due to stack overflow), the embedder must propagate
  * that exception by returning an empty MaybeLocal.
  */
-using HostImportModuleDynamicallyCallback V8_DEPRECATE_SOON(
-    "Use HostImportModuleDynamicallyWithImportAssertionsCallback instead") =
+using HostImportModuleDynamicallyCallback =
     MaybeLocal<Promise> (*)(Local<Context> context,
                             Local<ScriptOrModule> referrer,
                             Local<String> specifier);
