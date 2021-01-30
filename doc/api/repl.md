@@ -163,30 +163,21 @@ This use of the [`domain`][] module in the REPL has these side effects:
 
 * Uncaught exceptions only emit the [`'uncaughtException'`][] event in the
   standalone REPL. Adding a listener for this event in a REPL within
-  another Node.js program throws [`ERR_INVALID_REPL_INPUT`][].
+  another Node.js program results in [`ERR_INVALID_REPL_INPUT`][].
+
+  ```js
+  const r = repl.start();
+
+  r.write('process.on("uncaughtException", () => console.log("Foobar"));\n');
+  // Output stream includes:
+  //   TypeError [ERR_INVALID_REPL_INPUT]: Listeners for `uncaughtException`
+  //   cannot be used in the REPL
+
+  r.close();
+  ```
+
 * Trying to use [`process.setUncaughtExceptionCaptureCallback()`][] throws
   an [`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`][] error.
-
-As standalone program:
-
-```js
-process.on('uncaughtException', () => console.log('Uncaught'));
-
-throw new Error('foobar');
-// Uncaught
-```
-
-When used in another application:
-
-```js
-process.on('uncaughtException', () => console.log('Uncaught'));
-// TypeError [ERR_INVALID_REPL_INPUT]: Listeners for `uncaughtException`
-// cannot be used in the REPL
-
-throw new Error('foobar');
-// Thrown:
-// Error: foobar
-```
 
 #### Assignment of the `_` (underscore) variable
 <!-- YAML
