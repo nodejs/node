@@ -2653,7 +2653,7 @@ In future versions of Node.js, `fs.rmdir(path, { recursive: true })` will throw
 on nonexistent paths, or when given a file as a target.
 Use `fs.rm(path, { recursive: true, force: true })` instead.
 
-### DEP0XXX: Main index lookup and extension searching
+### DEP0151: Main index lookup and extension searching
 <!-- YAML
 changes:
   - version: REPLACEME
