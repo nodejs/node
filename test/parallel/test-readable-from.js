@@ -4,6 +4,7 @@ const { mustCall } = require('../common');
 const { once } = require('events');
 const { Readable } = require('stream');
 const { strictEqual, throws } = require('assert');
+const common = require('../common');
 
 {
   throws(() => {
@@ -187,6 +188,25 @@ async function endWithError() {
   }
 }
 
+async function destroyingStreamWithErrorThrowsInGenerator() {
+  const validateError = common.mustCall((e) => {
+    strictEqual(e, 'Boum');
+  });
+  async function* generate() {
+    try {
+      yield 1;
+      yield 2;
+      yield 3;
+      throw new Error();
+    } catch (e) {
+      validateError(e);
+    }
+  }
+  const stream = Readable.from(generate());
+  stream.read();
+  stream.once('error', common.mustCall());
+  stream.destroy('Boum');
+}
 
 Promise.all([
   toReadableBasicSupport(),
@@ -198,5 +218,6 @@ Promise.all([
   toReadableOnDataNonObject(),
   destroysTheStreamWhenThrowing(),
   asTransformStream(),
-  endWithError()
+  endWithError(),
+  destroyingStreamWithErrorThrowsInGenerator(),
 ]).then(mustCall());
