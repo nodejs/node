@@ -44,7 +44,8 @@ module.exports = {
         ],
 
         messages: {
-            noShadow: "'{{name}}' is already declared in the upper scope."
+            noShadow: "'{{name}}' is already declared in the upper scope on line {{shadowedLine}} column {{shadowedColumn}}.",
+            noShadowGlobal: "'{{name}}' is already a global variable."
         }
     },
 
@@ -118,6 +119,29 @@ module.exports = {
         }
 
         /**
+         * Get declared line and column of a variable.
+         * @param {eslint-scope.Variable} variable The variable to get.
+         * @returns {Object} The declared line and column of the variable.
+         */
+        function getDeclaredLocation(variable) {
+            const identifier = variable.identifiers[0];
+            let obj;
+
+            if (identifier) {
+                obj = {
+                    global: false,
+                    line: identifier.loc.start.line,
+                    column: identifier.loc.start.column + 1
+                };
+            } else {
+                obj = {
+                    global: true
+                };
+            }
+            return obj;
+        }
+
+        /**
          * Checks if a variable is in TDZ of scopeVar.
          * @param {Object} variable The variable to check.
          * @param {Object} scopeVar The variable of TDZ.
@@ -165,10 +189,18 @@ module.exports = {
                     !isOnInitializer(variable, shadowed) &&
                     !(options.hoist !== "all" && isInTdz(variable, shadowed))
                 ) {
+                    const location = getDeclaredLocation(shadowed);
+                    const messageId = location.global ? "noShadowGlobal" : "noShadow";
+                    const data = { name: variable.name };
+
+                    if (!location.global) {
+                        data.shadowedLine = location.line;
+                        data.shadowedColumn = location.column;
+                    }
                     context.report({
                         node: variable.identifiers[0],
-                        messageId: "noShadow",
-                        data: variable
+                        messageId,
+                        data
                     });
                 }
             }
