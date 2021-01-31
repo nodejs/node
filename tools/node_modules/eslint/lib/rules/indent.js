@@ -1178,6 +1178,7 @@ module.exports = {
                     offsets.setDesiredOffset(colonToken, firstToken, 1);
 
                     offsets.setDesiredOffset(firstConsequentToken, firstToken,
+                        firstConsequentToken.type === "Punctuator" &&
                         options.offsetTernaryExpressions ? 2 : 1);
 
                     /*
