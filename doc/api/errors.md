@@ -919,6 +919,18 @@ added: v15.0.0
 
 Initialization of an asynchronous crypto operation failed.
 
+<a id="ERR_CRYPTO_JWK_UNSUPPORTED_CURVE"></a>
+### `ERR_CRYPTO_JWK_UNSUPPORTED_CURVE`
+
+Key's Elliptic Curve is not registered for use in the
+[JSON Web Key Elliptic Curve Registry][].
+
+<a id="ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE"></a>
+### `ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE`
+
+Key's Asymmetric Key Type is not registered for use in the
+[JSON Web Key Types Registry][].
+
 <a id="ERR_CRYPTO_OPERATION_FAILED"></a>
 ### `ERR_CRYPTO_OPERATION_FAILED`
 <!-- YAML
@@ -949,18 +961,6 @@ release binaries but can happen with custom builds, including distro builds.
 ### `ERR_CRYPTO_SIGN_KEY_REQUIRED`
 
 A signing `key` was not provided to the [`sign.sign()`][] method.
-
-<a id="ERR_JWK_UNSUPPORTED_CURVE"></a>
-### `ERR_JWK_UNSUPPORTED_CURVE`
-
-Key's Elliptic Curve is not registered for use in the
-[JSON Web Key Elliptic Curve Registry][].
-
-<a id="ERR_JWK_UNSUPPORTED_KEY_TYPE"></a>
-### `ERR_JWK_UNSUPPORTED_KEY_TYPE`
-
-Key's Asymmetric Key Type is not registered for use in the
-[JSON Web Key Types Registry][].
 
 <a id="ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH"></a>
 ### `ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH`

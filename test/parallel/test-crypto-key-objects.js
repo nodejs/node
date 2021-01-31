@@ -480,7 +480,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert.strictEqual(publicKey.symmetricKeySize, undefined);
   assert.throws(
     () => publicKey.export({ format: 'jwk' }),
-    { code: 'ERR_JWK_UNSUPPORTED_KEY_TYPE' });
+    { code: 'ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE' });
 
   const privateKey = createPrivateKey({
     key: privateDsa,
@@ -492,7 +492,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert.strictEqual(privateKey.symmetricKeySize, undefined);
   assert.throws(
     () => privateKey.export({ format: 'jwk' }),
-    { code: 'ERR_JWK_UNSUPPORTED_KEY_TYPE' });
+    { code: 'ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE' });
 }
 
 {
@@ -514,10 +514,10 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
 
     assert.throws(
       () => publicKey.export({ format: 'jwk' }),
-      { code: 'ERR_JWK_UNSUPPORTED_KEY_TYPE' });
+      { code: 'ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE' });
     assert.throws(
       () => privateKey.export({ format: 'jwk' }),
-      { code: 'ERR_JWK_UNSUPPORTED_KEY_TYPE' });
+      { code: 'ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE' });
 
     for (const key of [privatePem, privateKey]) {
       // Any algorithm should work.
@@ -686,13 +686,13 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert.throws(
     () => publicKey.export({ format: 'jwk' }),
     {
-      code: 'ERR_JWK_UNSUPPORTED_CURVE',
+      code: 'ERR_CRYPTO_JWK_UNSUPPORTED_CURVE',
       message: `Unsupported JWK EC curve: ${namedCurve}.`
     });
   assert.throws(
     () => privateKey.export({ format: 'jwk' }),
     {
-      code: 'ERR_JWK_UNSUPPORTED_CURVE',
+      code: 'ERR_CRYPTO_JWK_UNSUPPORTED_CURVE',
       message: `Unsupported JWK EC curve: ${namedCurve}.`
     });
 }
