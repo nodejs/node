@@ -1,0 +1,5 @@
+<!--
+ * Font Awesome Free 5.15.2 by @fontawesome - https://fontawesome.com
+ * License - https://fontawesome.com/license/free - CC BY 4.0
+-->
+<svg xmlns="http://www.w3.org/2000/svg" height="384" width="2719"><defs><path d="M-136.321-230.336h2994.365v653.401H-136.321z"/></defs><path d="M1383.326 0h-192c-106 0-192 86-192 192s86 192 192 192h192c106 0 192-86 192-192s-86-192-192-192zm0 320c-70.8 0-128-57.3-128-128 0-70.8 57.3-128 128-128 70.8 0 128 57.3 128 128 0 70.8-57.3 128-128 128z"/><text stroke-width="42" font-family="sans-serif" font-weight="lighter" font-size="490" y="370">CJS</text><text stroke-width="42" font-weight="lighter" font-family="sans-serif" font-size="490" y="370" x="1682">ESM</text></svg>

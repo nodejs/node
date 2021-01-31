@@ -29,6 +29,27 @@ const instance = await WebAssembly.instantiate(wasm, importObject);
 wasi.start(instance);
 ```
 
+```cjs
+'use strict';
+const fs = require('fs');
+const { WASI } = require('wasi');
+const wasi = new WASI({
+  args: process.argv,
+  env: process.env,
+  preopens: {
+    '/sandbox': '/some/real/path/that/wasm/can/access'
+  }
+});
+const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
+
+(async () => {
+  const wasm = await WebAssembly.compile(fs.readFileSync('./demo.wasm'));
+  const instance = await WebAssembly.instantiate(wasm, importObject);
+
+  wasi.start(instance);
+})();
+```
+
 To run the above example, create a new WebAssembly text format file named
 `demo.wat`:
 
