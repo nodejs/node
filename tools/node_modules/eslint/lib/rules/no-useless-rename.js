@@ -6,6 +6,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("./utils/ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -54,11 +60,10 @@ module.exports = {
          * Reports error for unnecessarily renamed assignments
          * @param {ASTNode} node node to report
          * @param {ASTNode} initial node with initial name value
-         * @param {ASTNode} result node with new name value
          * @param {string} type the type of the offending node
          * @returns {void}
          */
-        function reportError(node, initial, result, type) {
+        function reportError(node, initial, type) {
             const name = initial.type === "Identifier" ? initial.name : initial.value;
 
             return context.report({
@@ -69,18 +74,21 @@ module.exports = {
                     type
                 },
                 fix(fixer) {
-                    if (sourceCode.commentsExistBetween(initial, result)) {
+                    const replacementNode = node.type === "Property" ? node.value : node.local;
+
+                    if (sourceCode.getCommentsInside(node).length > sourceCode.getCommentsInside(replacementNode).length) {
                         return null;
                     }
 
-                    const replacementText = result.type === "AssignmentPattern"
-                        ? sourceCode.getText(result)
-                        : name;
+                    // Don't autofix code such as `({foo: (foo) = a} = obj);`, parens are not allowed in shorthand properties.
+                    if (
+                        replacementNode.type === "AssignmentPattern" &&
+                        astUtils.isParenthesised(sourceCode, replacementNode.left)
+                    ) {
+                        return null;
+                    }
 
-                    return fixer.replaceTextRange([
-                        initial.range[0],
-                        result.range[1]
-                    ], replacementText);
+                    return fixer.replaceText(node, sourceCode.getText(replacementNode));
                 }
             });
         }
@@ -97,19 +105,11 @@ module.exports = {
 
             for (const property of node.properties) {
 
-                /*
-                 * TODO: Remove after babel-eslint removes ExperimentalRestProperty
-                 * https://github.com/eslint/eslint/issues/12335
-                 */
-                if (property.type === "ExperimentalRestProperty") {
-                    continue;
-                }
-
                 /**
                  * Properties using shorthand syntax and rest elements can not be renamed.
                  * If the property is computed, we have no idea if a rename is useless or not.
                  */
-                if (property.shorthand || property.type === "RestElement" || property.computed) {
+                if (property.type !== "Property" || property.shorthand || property.computed) {
                     continue;
                 }
 
@@ -117,7 +117,7 @@ module.exports = {
                 const renamedKey = property.value.type === "AssignmentPattern" ? property.value.left.name : property.value.name;
 
                 if (key === renamedKey) {
-                    reportError(property, property.key, property.value, "Destructuring assignment");
+                    reportError(property, property.key, "Destructuring assignment");
                 }
             }
         }
@@ -134,7 +134,7 @@ module.exports = {
 
             if (node.imported.name === node.local.name &&
                     node.imported.range[0] !== node.local.range[0]) {
-                reportError(node, node.imported, node.local, "Import");
+                reportError(node, node.imported, "Import");
             }
         }
 
@@ -150,7 +150,7 @@ module.exports = {
 
             if (node.local.name === node.exported.name &&
                     node.local.range[0] !== node.exported.range[0]) {
-                reportError(node, node.local, node.exported, "Export");
+                reportError(node, node.local, "Export");
             }
 
         }

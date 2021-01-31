@@ -5,6 +5,11 @@
 
 "use strict";
 
+//------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const FixTracker = require("./utils/fix-tracker");
 const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
@@ -451,10 +456,18 @@ module.exports = {
                         messageId: "useConst",
                         data: node,
                         fix: shouldFix
-                            ? fixer => fixer.replaceText(
-                                sourceCode.getFirstToken(varDeclParent, t => t.value === varDeclParent.kind),
-                                "const"
-                            )
+                            ? fixer => {
+                                const letKeywordToken = sourceCode.getFirstToken(varDeclParent, t => t.value === varDeclParent.kind);
+
+                                /**
+                                 * Extend the replacement range to the whole declaration,
+                                 * in order to prevent other fixes in the same pass
+                                 * https://github.com/eslint/eslint/issues/13899
+                                 */
+                                return new FixTracker(fixer, sourceCode)
+                                    .retainRange(varDeclParent.range)
+                                    .replaceTextRange(letKeywordToken.range, "const");
+                            }
                             : null
                     });
                 });

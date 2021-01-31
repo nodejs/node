@@ -132,7 +132,9 @@ module.exports = {
 
             if (nonSpacedConsequentNode) {
                 report(node, nonSpacedConsequentNode);
-            } else if (nonSpacedAlternateNode) {
+            }
+
+            if (nonSpacedAlternateNode) {
                 report(node, nonSpacedAlternateNode);
             }
         }
