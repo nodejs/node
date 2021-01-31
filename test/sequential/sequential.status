@@ -9,8 +9,6 @@ prefix sequential
 test-cpu-prof-dir-worker: PASS, FLAKY
 
 [$system==win32]
-# https://github.com/nodejs/node/issues/22327
-test-http2-large-file: PASS, FLAKY
 # https://github.com/nodejs/node/issues/26401
 test-worker-prof: PASS, FLAKY
 
