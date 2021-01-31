@@ -765,6 +765,33 @@ kbd {
   display: block;
 }
 
+.js-flavor-selector {
+  appearance: none;
+  float: right;
+  background-image: url(./js-flavor-cjs.svg);
+  background-size: contain;
+  background-repeat: no-repeat;
+  width: 142px;
+  height: 20px;
+}
+.js-flavor-selector:checked {
+  background-image: url(./js-flavor-esm.svg);
+}
+.js-flavor-selector:not(:checked) ~ .esm,
+.js-flavor-selector:checked ~ .cjs {
+  display: none;
+}
+.dark-mode .js-flavor-selector {
+  filter: invert(1);
+}
+@supports (aspect-ratio: 1 / 1) {
+  .js-flavor-selector {
+    height: 1.5em;
+    width: auto;
+    aspect-ratio: 2719 / 384;
+  }
+}
+
 @media print {
   html {
     height: auto;
@@ -814,5 +841,25 @@ kbd {
   }
   #apicontent {
     overflow: hidden;
+  }
+  .js-flavor-selector {
+    display: none;
+  }
+  .js-flavor-selector + * {
+    margin-bottom: 2rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--color-text-primary);
+  }
+  .js-flavor-selector ~ * {
+    display: block !important;
+    background-position: top right;
+    background-size: 142px 20px;
+    background-repeat: no-repeat;
+  }
+  .js-flavor-selector ~ .cjs {
+    background-image: url(./js-flavor-cjs.svg);
+  }
+  .js-flavor-selector ~ .mjs {
+    background-image: url(./js-flavor-esm.svg);
   }
 }
