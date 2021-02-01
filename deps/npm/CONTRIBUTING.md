@@ -29,7 +29,7 @@ $ cd ./npm && npm install
 $ npm run test
 ```
 
-**5. Open a [Pull Request](https://github.com/npm/cli/pulls) for your work & become the newest conributor to `npm`! 🎉**
+**5. Open a [Pull Request](https://github.com/npm/cli/pulls) for your work & become the newest contributor to `npm`! 🎉**
 
 ## Test Coverage
 

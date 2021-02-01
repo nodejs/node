@@ -1,3 +1,45 @@
+## v7.5.1 (2021-02-01
+
+### BUG FIXES
+
+* [`0ea134e41`](https://github.com/npm/cli/commit/0ea134e4190f322138299c51672eab5387ec41bb)
+  [#2587](https://github.com/npm/cli/issues/2587)
+  pass all settings through to pacote.packument, fixes #2060
+  ([@nlf](https://github.com/nlf))
+* [`8c5ca2f51`](https://github.com/npm/cli/commit/8c5ca2f516f5ac87f3bbd7f1fd95c0b283a21f14)
+  Add test for npm-usage.js, and fix 'npm --long' output
+  ([@isaacs](https://github.com/isaacs))
+
+### DEPENDENCIES
+
+* [`7e4e88e93`](https://github.com/npm/cli/commit/7e4e88e938323e34a2a41176472d8e43e84bd4dd)
+  `@npmcli/arborist@2.1.1`, `pacote@11.2.4`
+  * Properly raise ERESOLVE errors on root dev dependencies
+  * Ignore ERESOLVE errors when performing git dep 'prepare' scripts
+  * Always reinstall packages that are explicitly requested
+  * fix global update all so it actually updates things
+  * Install bins properly when global root is a link
+  ([@isaacs](https://github.com/isaacs))
+
+### DOCUMENTATION
+
+* [`23dac2fef`](https://github.com/npm/cli/commit/23dac2feff1d02193791c7e39d9e93bc9bf8e624)
+  [#2557](https://github.com/npm/cli/issues/2557)
+  npm team revamp
+  ([@ruyadorno](https://github.com/ruyadorno))
+* [`dd05ba0c0`](https://github.com/npm/cli/commit/dd05ba0c0b2f4c70eb8558c0ecc54889efbe98f5)
+  [#2572](https://github.com/npm/cli/issues/2572)
+  add note about `--force` overriding peer dependencies
+  ([@isaacs](https://github.com/isaacs))
+* [`e27639780`](https://github.com/npm/cli/commit/e276397809aceb01cc468e02a83bc6f2265376d9)
+  [#2584](https://github.com/npm/cli/issues/2584)
+  Fixed the spelling of contributor as it was written as conributor
+  ([@pavanbellamkonda](https://github.com/pavanbellamkonda))
+* [`13a5e3178`](https://github.com/npm/cli/commit/13a5e31781cdaa37d3f007e1c8583c7cb591c62a)
+  [#2502](https://github.com/npm/cli/issues/2502)
+  elaborate that npm help uses browser
+  ([@ariccio](https://github.com/ariccio))
+
 ## v7.5.0 (2021-01-28)
 
 ### FEATURES

@@ -1,4 +1,3 @@
-const validate = require('aproba')
 const log = require('npmlog')
 
 let pulsers = 0
@@ -18,7 +17,6 @@ function pulseStop () {
 }
 
 module.exports = function (prefix, cb) {
-  validate('SF', [prefix, cb])
   if (!prefix)
     prefix = 'network'
   pulseStart(prefix)
