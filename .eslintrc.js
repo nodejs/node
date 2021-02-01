@@ -54,6 +54,7 @@ module.exports = {
     {
       files: [
         'doc/api/esm.md',
+        'doc/api/fs.md',
         'doc/api/module.md',
         'doc/api/modules.md',
         'doc/api/packages.md',
