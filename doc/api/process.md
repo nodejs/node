@@ -575,6 +575,10 @@ This feature is not available in [`Worker`][] threads.
 ## `process.allowedNodeEnvironmentFlags`
 <!-- YAML
 added: v10.10.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37171
+    description: Use a frozen array instead of a subclass of `Set`.
 -->
 
 * {string[]}
