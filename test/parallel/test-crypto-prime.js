@@ -71,6 +71,28 @@ const pCheckPrime = promisify(checkPrime);
   });
 });
 
+{
+  // Negative BigInts should not be converted to 0 silently.
+
+  assert.throws(() => generatePrime(20, { add: -1n }, common.mustNotCall()), {
+    code: 'ERR_OUT_OF_RANGE',
+    message: 'The value of "options.add" is out of range. It must be >= 0. ' +
+             'Received -1n'
+  });
+
+  assert.throws(() => generatePrime(20, { rem: -1n }, common.mustNotCall()), {
+    code: 'ERR_OUT_OF_RANGE',
+    message: 'The value of "options.rem" is out of range. It must be >= 0. ' +
+             'Received -1n'
+  });
+
+  assert.throws(() => checkPrime(-1n, common.mustNotCall()), {
+    code: 'ERR_OUT_OF_RANGE',
+    message: 'The value of "candidate" is out of range. It must be >= 0. ' +
+             'Received -1n'
+  });
+}
+
 generatePrime(80, common.mustSucceed((prime) => {
   assert(checkPrimeSync(prime));
   checkPrime(prime, common.mustSucceed((result) => {
