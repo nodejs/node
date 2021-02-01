@@ -104,27 +104,19 @@ Maybe<bool> RandomPrimeTraits::AdditionalConfig(
   bool safe = args[offset + 1]->IsTrue();
 
   if (!args[offset + 2]->IsUndefined()) {
-    params->add.reset(BN_secure_new());
+    ArrayBufferOrViewContents<unsigned char> add(args[offset + 2]);
+    params->add.reset(BN_bin2bn(add.data(), add.size(), nullptr));
     if (!params->add) {
       THROW_ERR_CRYPTO_OPERATION_FAILED(env, "could not generate prime");
-      return Nothing<bool>();
-    }
-    ArrayBufferOrViewContents<unsigned char> add(args[offset + 2]);
-    if (BN_bin2bn(add.data(), add.size(), params->add.get()) == nullptr) {
-      THROW_ERR_INVALID_ARG_VALUE(env, "invalid options.add");
       return Nothing<bool>();
     }
   }
 
   if (!args[offset + 3]->IsUndefined()) {
-    params->rem.reset(BN_secure_new());
+    ArrayBufferOrViewContents<unsigned char> rem(args[offset + 3]);
+    params->rem.reset(BN_bin2bn(rem.data(), rem.size(), nullptr));
     if (!params->rem) {
       THROW_ERR_CRYPTO_OPERATION_FAILED(env, "could not generate prime");
-      return Nothing<bool>();
-    }
-    ArrayBufferOrViewContents<unsigned char> rem(args[offset + 3]);
-    if (BN_bin2bn(rem.data(), rem.size(), params->rem.get()) == nullptr) {
-      THROW_ERR_INVALID_ARG_VALUE(env, "invalid options.rem");
       return Nothing<bool>();
     }
   }
