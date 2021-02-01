@@ -70,8 +70,15 @@ const assert = require('assert');
   assert.throws(
     () => process.allowedNodeEnvironmentFlags.push('foo'),
     /object is not extensible/);
-  assert.strictEqual(process.allowedNodeEnvironmentFlags.includes('foo'),
-                     false);
+  assert.throws(
+    () => Array.prototype.push.call(process.allowedNodeEnvironmentFlags, 'foo'),
+    /object is not extensible/);
+  assert.strictEqual(
+    process.allowedNodeEnvironmentFlags.includes('foo'),
+    false);
+  assert.strictEqual(
+    Array.prototype.includes.call(process.allowedNodeEnvironmentFlags, 'foo'),
+    false);
 
   const thisArg = {};
   process.allowedNodeEnvironmentFlags.forEach(
