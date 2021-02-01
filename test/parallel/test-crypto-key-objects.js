@@ -659,10 +659,10 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   // SecretKeyObject export buffer format (default)
   const buffer = Buffer.from('Hello World');
   const keyObject = createSecretKey(buffer);
-  assert(buffer.equals(keyObject.export()));
-  assert(buffer.equals(keyObject.export({})));
-  assert(buffer.equals(keyObject.export({ format: 'buffer' })));
-  assert(buffer.equals(keyObject.export({ format: undefined })));
+  assert.deepStrictEqual(keyObject.export(), buffer);
+  assert.deepStrictEqual(keyObject.export({}), buffer);
+  assert.deepStrictEqual(keyObject.export({ format: 'buffer' }), buffer);
+  assert.deepStrictEqual(keyObject.export({ format: undefined }), buffer);
 }
 
 {
@@ -681,6 +681,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   // Find an unsupported curve regardless of whether a FIPS compliant crypto
   // provider is currently in use.
   const namedCurve = getCurves().find((curve) => !supported.includes(curve));
+  assert(namedCurve);
   const keyPair = generateKeyPairSync('ec', { namedCurve });
   const { publicKey, privateKey } = keyPair;
   assert.throws(
