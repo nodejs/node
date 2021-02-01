@@ -62,14 +62,23 @@ const assert = require('assert');
                      true);
 
   process.allowedNodeEnvironmentFlags.add('foo');
+  assert.throws(
+    () => Set.prototype.add.call(process.allowedNodeEnvironmentFlags, 'foo'),
+    /Set\.prototype\.add called on incompatible receiver/);
   assert.strictEqual(process.allowedNodeEnvironmentFlags.has('foo'), false);
+
+  assert.throws(
+    () => process.allowedNodeEnvironmentFlags.push('foo'),
+    /object is not extensible/);
+  assert.strictEqual(process.allowedNodeEnvironmentFlags.includes('foo'),
+                     false);
 
   const thisArg = {};
   process.allowedNodeEnvironmentFlags.forEach(
-    common.mustCallAtLeast(function(flag, _, set) {
+    common.mustCallAtLeast(function(flag, _, arr) {
       assert.notStrictEqual(flag, 'foo');
       assert.strictEqual(this, thisArg);
-      assert.strictEqual(set, process.allowedNodeEnvironmentFlags);
+      assert.strictEqual(arr, process.allowedNodeEnvironmentFlags);
     }),
     thisArg
   );
@@ -88,6 +97,8 @@ const assert = require('assert');
   }
 
   const size = process.allowedNodeEnvironmentFlags.size;
+
+  assert.strictEqual(process.allowedNodeEnvironmentFlags.length, size);
 
   process.allowedNodeEnvironmentFlags.clear();
   assert.strictEqual(process.allowedNodeEnvironmentFlags.size, size);
