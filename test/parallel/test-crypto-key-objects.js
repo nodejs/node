@@ -199,6 +199,15 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     jwk
   );
 
+  // Exporting the key using JWK should not work since this format does not
+  // support key encryption
+  assert.throws(() => {
+    privateKey.export({ format: 'jwk', passphrase: 'secret' });
+  }, {
+    message: 'The selected key encoding jwk does not support encryption.',
+    code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS'
+  });
+
   const publicDER = publicKey.export({
     format: 'der',
     type: 'pkcs1'
