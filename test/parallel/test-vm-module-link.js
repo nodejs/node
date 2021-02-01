@@ -1,6 +1,6 @@
 'use strict';
 
-// Flags: --experimental-vm-modules
+// Flags: --experimental-vm-modules --harmony-import-assertions
 
 const common = require('../common');
 
@@ -124,6 +124,19 @@ async function circular2() {
   await rootModule.evaluate();
 }
 
+async function asserts() {
+  const m = new SourceTextModule(`
+  import "foo" assert { n1: 'v1', n2: 'v2' };
+  `, { identifier: 'm' });
+  await m.link((s, r, p) => {
+    assert.strictEqual(s, 'foo');
+    assert.strictEqual(r.identifier, 'm');
+    assert.strictEqual(p.assert.n1, 'v1');
+    assert.strictEqual(p.assert.n2, 'v2');
+    return new SourceTextModule('');
+  });
+}
+
 const finished = common.mustCall();
 
 (async function main() {
@@ -131,5 +144,6 @@ const finished = common.mustCall();
   await depth();
   await circular();
   await circular2();
+  await asserts();
   finished();
 })().then(common.mustCall());

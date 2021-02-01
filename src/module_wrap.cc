@@ -286,8 +286,20 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
     Utf8Value specifier_utf8(env->isolate(), specifier);
     std::string specifier_std(*specifier_utf8, specifier_utf8.length());
 
+    Local<FixedArray> raw_assertions = module_request->GetImportAssertions();
+    Local<Object> assertions =
+        Object::New(isolate, v8::Null(env->isolate()), nullptr, nullptr, 0);
+    for (int i = 0; i < raw_assertions->Length(); i += 3) {
+      assertions
+          ->Set(env->context(),
+                Local<String>::Cast(raw_assertions->Get(env->context(), i)),
+                Local<Value>::Cast(raw_assertions->Get(env->context(), i + 1)))
+          .ToChecked();
+    }
+
     Local<Value> argv[] = {
-      specifier
+        specifier,
+        assertions,
     };
 
     MaybeLocal<Value> maybe_resolve_return_value =
