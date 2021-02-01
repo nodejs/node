@@ -135,12 +135,11 @@ const searchFiles = async (args, data, files) => {
 
   // coverage is ignored here because the contents of results are
   // nondeterministic due to either glob or readFiles or Object.entries
-  return results.sort((a, b) =>
+  return results.sort(/* istanbul ignore next */ (a, b) =>
     a.found.length > b.found.length ? -1
     : a.found.length < b.found.length ? 1
     : a.totalHits > b.totalHits ? -1
     : a.totalHits < b.totalHits ? 1
-    /* istanbul ignore next */
     : a.lines.length > b.lines.length ? -1
     : a.lines.length < b.lines.length ? 1
     : 0).slice(0, 10)

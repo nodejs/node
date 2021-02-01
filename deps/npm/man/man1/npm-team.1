@@ -1,4 +1,4 @@
-.TH "NPM\-TEAM" "1" "January 2021" "" ""
+.TH "NPM\-TEAM" "1" "February 2021" "" ""
 .SH "NAME"
 \fBnpm-team\fR \- Manage organization teams and team memberships
 .SS Synopsis
@@ -12,8 +12,6 @@ npm team add <scope:team> <user>
 npm team rm <scope:team> <user>
 
 npm team ls <scope>|<scope:team>
-
-npm team edit <scope:team>
 .fi
 .RE
 .SS Description
@@ -22,24 +20,70 @@ Used to manage teams in organizations, and change team memberships\. Does not
 handle permissions for packages\.
 .P
 Teams must always be fully qualified with the organization/scope they belong to
-when operating on them, separated by a colon (\fB:\fP)\. That is, if you have a \fBwombats\fP team in a \fBwisdom\fP organization, you must always refer to that team as \fBwisdom:wombats\fP in these commands\.
+when operating on them, separated by a colon (\fB:\fP)\. That is, if you have a
+\fBnewteam\fP team in an \fBorg\fP organization, you must always refer to that team
+as \fB@org:newteam\fP in these commands\.
 .P
-If you have two\-factor authentication enabled in \fBauth\-and\-writes\fP mode, then you can provide a code from your authenticator with \fB[\-\-otp <otpcode>]\fP\|\. If you don't include this then you will be prompted\.
+If you have two\-factor authentication enabled in \fBauth\-and\-writes\fP mode, then
+you can provide a code from your authenticator with \fB[\-\-otp <otpcode>]\fP\|\.
+If you don't include this then you will be prompted\.
 .RS 0
 .IP \(bu 2
 create / destroy:
-Create a new team, or destroy an existing one\. Note: You cannot remove the \fBdevelopers\fP team, <a href="https://docs\.npmjs\.com/about\-developers\-team" target="_blank">learn more\.</a>
+Create a new team, or destroy an existing one\. Note: You cannot remove the
+\fBdevelopers\fP team, <a href="https://docs\.npmjs\.com/about\-developers\-team" target="_blank">learn more\.</a>
+Here's how to create a new team \fBnewteam\fP under the \fBorg\fP org:
+.P
+.RS 2
+.nf
+npm team create @org:newteam
+.fi
+.RE
+You should see a confirming message such as: \fB+@org:newteam\fP once the new
+team has been created\.
 .IP \(bu 2
-add / rm:
-Add a user to an existing team, or remove a user from a team they belong to\.
+add:
+Add a user to an existing team\.
+Adding a new user \fBusername\fP to a team named \fBnewteam\fP under the \fBorg\fP org:
+.P
+.RS 2
+.nf
+npm team add @org:newteam username
+.fi
+.RE
+On success, you should see a message: \fBusername added to @org:newteam\fP
+.IP \(bu 2
+rm:
+Using \fBnpm team rm\fP you can also remove users from a team they belong to\.
+Here's an example removing user \fBusername\fP from \fBnewteam\fP team
+in \fBorg\fP organization:
+.P
+.RS 2
+.nf
+npm team rm @org:newteam username
+.fi
+.RE
+Once the user is removed a confirmation message is displayed:
+\fBusername removed from @org:newteam\fP
 .IP \(bu 2
 ls:
 If performed on an organization name, will return a list of existing teams
 under that organization\. If performed on a team, it will instead return a list
 of all users belonging to that particular team\.
-.IP \(bu 2
-edit:
-Edit a current team\.
+Here's an example of how to list all teams from an org named \fBorg\fP:
+.P
+.RS 2
+.nf
+npm team ls @org
+.fi
+.RE
+Example listing all members of a team named \fBnewteam\fP:
+.P
+.RS 2
+.nf
+npm team ls @org:newteam
+.fi
+.RE
 
 .RE
 .SS Details
@@ -47,9 +91,9 @@ Edit a current team\.
 \fBnpm team\fP always operates directly on the current registry, configurable from
 the command line using \fB\-\-registry=<registry url>\fP\|\.
 .P
-In order to create teams and manage team membership, you must be a \fIteam admin\fR
-under the given organization\. Listing teams and team memberships may be done by
-any member of the organizations\.
+You must be a \fIteam admin\fR to create teams and manage team membership, under
+the given organization\. Listing teams and team memberships may be done by
+any member of the organization\.
 .P
 Organization creation and management of team admins and \fIorganization\fR members
 is done through the website, not the npm CLI\.
@@ -60,6 +104,8 @@ use the \fBnpm access\fP command to grant or revoke the appropriate permissions\
 .RS 0
 .IP \(bu 2
 npm help access
+.IP \(bu 2
+npm help config
 .IP \(bu 2
 npm help registry
 
