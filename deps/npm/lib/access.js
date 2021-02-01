@@ -8,7 +8,6 @@ const output = require('./utils/output.js')
 const otplease = require('./utils/otplease.js')
 const usageUtil = require('./utils/usage.js')
 const getIdentity = require('./utils/get-identity.js')
-const { prefix } = npm
 
 const usage = usageUtil(
   'npm access',
@@ -165,7 +164,7 @@ const getPackage = async (name, requireScope) => {
     return name.trim()
   else {
     try {
-      const pkg = await readPackageJson(path.resolve(prefix, 'package.json'))
+      const pkg = await readPackageJson(path.resolve(npm.prefix, 'package.json'))
       name = pkg.name
     } catch (err) {
       if (err.code === 'ENOENT') {

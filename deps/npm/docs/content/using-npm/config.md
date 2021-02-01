@@ -472,6 +472,7 @@ mistakes, unnecessary performance degradation, and malicious input.
   range (including SemVer-major changes).
 * Allow a module to be installed as a direct dependency of itself.
 * Allow unpublishing all versions of a published package.
+* Allow conflicting peerDependencies to be installed in the root project.
 
 If you don't have a clear idea of what you want to do, it is strongly
 recommended that you do not use this option!

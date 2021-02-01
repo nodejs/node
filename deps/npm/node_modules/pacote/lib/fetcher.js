@@ -103,7 +103,7 @@ class FetcherBase {
     this.npmBin = opts.npmBin || 'npm'
 
     // command to install deps for preparing
-    this.npmInstallCmd = opts.npmInstallCmd || [ 'install' ]
+    this.npmInstallCmd = opts.npmInstallCmd || [ 'install', '--force' ]
 
     // XXX fill more of this in based on what we know from this.opts
     // we explicitly DO NOT fill in --tag, though, since we are often
