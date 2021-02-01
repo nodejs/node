@@ -108,6 +108,7 @@ async function outdated_ (tree, deps, opts) {
 
   async function getPackument (spec) {
     const packument = await pacote.packument(spec, {
+      ...npm.flatOptions,
       fullMetadata: npm.flatOptions.long,
       preferOnline: true,
     })

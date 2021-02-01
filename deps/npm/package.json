@@ -1,5 +1,5 @@
 {
-  "version": "7.5.0",
+  "version": "7.5.1",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "keywords": [
@@ -42,14 +42,13 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@npmcli/arborist": "^2.1.0",
+    "@npmcli/arborist": "^2.1.1",
     "@npmcli/ci-detect": "^1.2.0",
     "@npmcli/config": "^1.2.8",
     "@npmcli/run-script": "^1.8.1",
     "abbrev": "~1.1.1",
     "ansicolors": "~0.3.2",
     "ansistyles": "~0.1.3",
-    "aproba": "^2.0.0",
     "archy": "~1.0.0",
     "byte-size": "^7.0.0",
     "cacache": "^15.0.5",
@@ -119,7 +118,6 @@
     "abbrev",
     "ansicolors",
     "ansistyles",
-    "aproba",
     "archy",
     "byte-size",
     "cacache",
