@@ -32,7 +32,7 @@ class Vector {
 
   // Returns true if the Vector is front-to-back, false if back-to-front.
   // In the latter case, v[0] corresponds to the *end* of the memory range.
-  size_t forward() const { return is_forward_; }
+  bool forward() const { return is_forward_; }
 
   // Access individual vector elements - checks bounds in debug mode.
   T& operator[](size_t index) const {
