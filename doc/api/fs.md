@@ -1189,6 +1189,55 @@ The `atime` and `mtime` arguments follow these rules:
 * If the value can not be converted to a number, or is `NaN`, `Infinity` or
   `-Infinity`, an `Error` will be thrown.
 
+### `fsPromises.watch(filename[, options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `filename` {string|Buffer|URL}
+* `options` {string|Object}
+  * `persistent` {boolean} Indicates whether the process should continue to run
+    as long as files are being watched. **Default:** `true`.
+  * `recursive` {boolean} Indicates whether all subdirectories should be
+    watched, or only the current directory. This applies when a directory is
+    specified, and only on supported platforms (See [caveats][]). **Default:**
+    `false`.
+  * `encoding` {string} Specifies the character encoding to be used for the
+     filename passed to the listener. **Default:** `'utf8'`.
+  * `signal` {AbortSignal} An {AbortSignal} used to signal when the watcher
+    should stop.
+* Returns: {AsyncIterator} of objects with the properties:
+  * `eventType` {string} The type of change
+  * `filename` {string|Buffer} The name of the file changed.
+
+Returns an async iterator that watches for changes on `filename`, where `filename`
+is either a file or a directory.
+
+```js
+const { watch } = require('fs/promises');
+
+const ac = new AbortController();
+const { signal } = ac;
+setTimeout(() => ac.abort(), 10000);
+
+(async () => {
+  try {
+    const watcher = watch(__filename, { signal });
+    for await (const event of watcher)
+      console.log(event);
+  } catch (err) {
+    if (err.name === 'AbortError')
+      return;
+    throw err;
+  }
+})();
+```
+
+On most platforms, `'rename'` is emitted whenever a filename appears or
+disappears in the directory.
+
+All the [caveats][] for `fs.watch()` also apply to `fsPromises.watch()`.
+
 ### `fsPromises.writeFile(file, data[, options])`
 <!-- YAML
 added: v10.0.0
@@ -3477,7 +3526,7 @@ changes:
     as long as files are being watched. **Default:** `true`.
   * `recursive` {boolean} Indicates whether all subdirectories should be
     watched, or only the current directory. This applies when a directory is
-    specified, and only on supported platforms (See [Caveats][]). **Default:**
+    specified, and only on supported platforms (See [caveats][]). **Default:**
     `false`.
   * `encoding` {string} Specifies the character encoding to be used for the
      filename passed to the listener. **Default:** `'utf8'`.
@@ -6550,7 +6599,6 @@ A call to `fs.ftruncate()` or `filehandle.truncate()` can be used to reset
 the file contents.
 
 [#25741]: https://github.com/nodejs/node/issues/25741
-[Caveats]: #fs_caveats
 [Common System Errors]: errors.md#errors_common_system_errors
 [File access constants]: #fs_file_access_constants
 [MDN-Date]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date
@@ -6560,6 +6608,7 @@ the file contents.
 [Naming Files, Paths, and Namespaces]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file
 [Readable Stream]: stream.md#stream_class_stream_readable
 [Writable Stream]: stream.md#stream_class_stream_writable
+[caveats]: #fs_caveats
 [`AHAFS`]: https://www.ibm.com/developerworks/aix/library/au-aix_event_infrastructure/
 [`Buffer.byteLength`]: buffer.md#buffer_static_method_buffer_bytelength_string_encoding
 [`FSEvents`]: https://developer.apple.com/documentation/coreservices/file_system_events
