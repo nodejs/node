@@ -1618,10 +1618,13 @@ This is the synchronous version of [`fs.chown()`][].
 
 See also: chown(2).
 
-## `fs.close(fd, callback)`
+## `fs.close(fd[, callback])`
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37174
+    description: A default callback is now used if one is not provided.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -1641,6 +1644,9 @@ to the completion callback.
 
 Calling `fs.close()` on any file descriptor (`fd`) that is currently in use
 through any other `fs` operation may lead to undefined behavior.
+
+If the `callback` argument is omitted, a default callback function that rethrows
+any error as an uncaught exception will be used.
 
 ## `fs.closeSync(fd)`
 <!-- YAML
