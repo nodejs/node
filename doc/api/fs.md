@@ -4794,12 +4794,11 @@ arguments upon success.
 added: v10.0.0
 -->
 
-* `uid` {integer}
-* `gid` {integer}
-* Returns: {Promise}
+* `uid` {integer} The file's new owner's user id.
+* `gid` {integer} The file's new group's group id.
+* Returns: {Promise} Fulfills with `undefined` when the operation has completed.
 
-Changes the ownership of the file then fulfills the `Promise` with no arguments
-upon success.
+Changes the ownership of the given file. A wrapper for chown(2).
 
 #### `filehandle.close()`
 <!-- YAML
@@ -4831,10 +4830,13 @@ async function openAndClose() {
 added: v10.0.0
 -->
 
-* Returns: {Promise}
+* Returns: {Promise} Fulfills with `undefined` when the operation has
+  completed.
 
-Asynchronous fdatasync(2). The `Promise` is fulfilled with no arguments upon
-success.
+Asynchronous fdatasync(2). Synchronizes a file's state to the disk device,
+writing through or flushing a disk cache if present.
+
+Unlike `filehandle.sync` this method does not flush modified metadata.
 
 #### `filehandle.fd`
 <!-- YAML
@@ -4848,28 +4850,20 @@ added: v10.0.0
 added: v10.0.0
 -->
 
-* `buffer` {Buffer|Uint8Array}
-* `offset` {integer}
-* `length` {integer}
-* `position` {integer}
-* Returns: {Promise}
+* `buffer` {Buffer|Uint8Array} The buffer that the data will be written to.
+* `offset` {integer} The offset in the buffer to start writing at.
+* `length` {integer} The number of bytes to read.
+* `position` {integer} where to begin reading from in the file.
+* Returns: {Promise} Fulfills with an object with a `bytesRead` property
+  specifying the number of bytes read and a `buffer` property that is a
+  reference to the passed in `buffer` argument.
 
 Read data from the file.
 
-`buffer` is the buffer that the data will be written to.
-
-`offset` is the offset in the buffer to start writing at.
-
-`length` is an integer specifying the number of bytes to read.
-
-`position` is an argument specifying where to begin reading from in the file.
 If `position` is `null`, data will be read from the current file position,
 and the file position will be updated.
-If `position` is an integer, the file position will remain unchanged.
 
-Following successful read, the `Promise` is fulfilled with an object with a
-`bytesRead` property specifying the number of bytes read, and a `buffer`
-property that is a reference to the passed in `buffer` argument.
+If `position` is an integer, the file position will remain unchanged.
 
 If the file is not modified concurrently, the end-of-file is reached when the
 number of bytes read is zero.
@@ -4885,7 +4879,9 @@ added:
   * `offset` {integer} **Default:** `0`
   * `length` {integer} **Default:** `buffer.length`
   * `position` {integer} **Default:** `null`
-* Returns: {Promise}
+* Returns: {Promise} Fulfills with an object with a `bytesRead` property
+  specifying the number of bytes read and a `buffer` property that is a
+  reference to the passed in `buffer` argument.
 
 #### `filehandle.readFile(options)`
 <!-- YAML
@@ -4895,17 +4891,15 @@ added: v10.0.0
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `null`
   * `signal` {AbortSignal} allows aborting an in-progress readFile
-* Returns: {Promise}
+* Returns: {Promise} Fulfilled with the contents of the file. If no encoding is
+  specified (using `options.encoding`), the data is returned as a `Buffer`
+  object. Otherwise, the data will be a string.
 
 Asynchronously reads the entire contents of a file.
 
-The `Promise` is fulfilled with the contents of the file. If no encoding is
-specified (using `options.encoding`), the data is returned as a `Buffer`
-object. Otherwise, the data will be a string.
-
 If `options` is a string, then it specifies the encoding.
 
-The `FileHandle` has to support reading.
+The `FileHandle` instance has to support reading.
 
 If one or more `filehandle.read()` calls are made on a file handle and then a
 `filehandle.readFile()` call is made, the data will be read from the current
@@ -4920,18 +4914,14 @@ added:
 -->
 
 * `buffers` {ArrayBufferView[]}
-* `position` {integer}
-* Returns: {Promise}
-
-Read from a file and write to an array of `ArrayBufferView`s
-
-The `Promise` is fulfilled with an object containing a `bytesRead` property
+* `position` {integer} The offset from the beginning of the file where this data
+  should be read from. If `typeof position !== 'number'`, the data will be read
+  from the current position.
+* Returns: {Promise} Fulfilled with an object containing a `bytesRead` property
 identifying the number of bytes read, and a `buffers` property containing
 a reference to the `buffers` input.
 
-`position` is the offset from the beginning of the file where this data
-should be read from. If `typeof position !== 'number'`, the data will be read
-from the current position.
+Read from a file and write to an array of `ArrayBufferView`s
 
 #### `filehandle.stat([options])`
 <!-- YAML
@@ -4946,7 +4936,7 @@ changes:
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
     [`fs.Stats`][] object should be `bigint`. **Default:** `false`.
-* Returns: {Promise}
+* Returns: {Promise} Fulfills with an [`fs.Stats`][] upon success.
 
 Retrieves the [`fs.Stats`][] for the file.
 
@@ -4955,10 +4945,9 @@ Retrieves the [`fs.Stats`][] for the file.
 added: v10.0.0
 -->
 
-* Returns: {Promise}
+* Returns: {Promise} Fulfills with `undefined` upon success.
 
-Asynchronous fsync(2). The `Promise` is fulflled with no arguments upon
-success.
+Asynchronous fsync(2).
 
 #### `filehandle.truncate(len)`
 <!-- YAML
@@ -4966,9 +4955,7 @@ added: v10.0.0
 -->
 
 * `len` {integer} **Default:** `0`
-* Returns: {Promise}
-
-Truncates the file then fulfills the `Promise` with no arguments upon success.
+* Returns: {Promise} Fulfills with `undefined` upon success.
 
 If the file was larger than `len` bytes, only the first `len` bytes will be
 retained in the file.
@@ -5036,10 +5023,9 @@ added: v10.0.0
 
 * `atime` {number|string|Date}
 * `mtime` {number|string|Date}
-* Returns: {Promise}
+* Returns: {Promise} Fulfills with `undefined` upon success.
 
-Change the file system timestamps of the object referenced by the `FileHandle`
-then fulfills the `Promise` with no arguments upon success.
+Change the file system timestamps of the object referenced by the `FileHandle`.
 
 This function does not work on AIX versions before 7.1, it will reject the
 `Promise` with an error using code `UV_ENOSYS`.
@@ -5059,23 +5045,18 @@ changes:
 -->
 
 * `buffer` {Buffer|Uint8Array|string|Object}
-* `offset` {integer}
-* `length` {integer}
-* `position` {integer}
-* Returns: {Promise}
+* `offset` {integer} Determines the part of the buffer to be written.
+* `length` {integer} Specifies the number of bytes to write.
+* `position` {integer} The offset from the beginning of the file where this
+  data should be written. If `typeof position !== 'number'`, the data will be
+  written at the current position.
+* Returns: {Promise} Fulfilled with an object containing a `bytesWritten`
+  property identifying the number of bytes written, and a `buffer` property
+  containing a reference to the `buffer` written.
 
 Write `buffer` to the file.
 
-The `Promise` is fulfilled with an object containing a `bytesWritten` property
-identifying the number of bytes written, and a `buffer` property containing
-a reference to the `buffer` written.
-
-`offset` determines the part of the buffer to be written, and `length` is
-an integer specifying the number of bytes to write.
-
-`position` refers to the offset from the beginning of the file where this data
-should be written. If `typeof position !== 'number'`, the data will be written
-at the current position. See pwrite(2).
+See pwrite(2).
 
 It is unsafe to use `filehandle.write()` multiple times on the same file
 without waiting for the `Promise` to be fulfilled (or rejected). For this
@@ -5099,23 +5080,19 @@ changes:
                  strings anymore.
 -->
 
-* `string` {string|Object}
-* `position` {integer}
-* `encoding` {string} **Default:** `'utf8'`
-* Returns: {Promise}
+* `string` {string|Object} Data to write to the file.
+* `position` {integer} The offset from the beginning of the file where this
+  data should be written. If the type of `position` is not a `number` the data
+  will be written at the current position.
+* `encoding` {string} **Default:** `'utf8'` the expected string encoding.
+* Returns: {Promise} Fulfilled with an object containing a `bytesWritten`
+  property identifying the number of bytes written, and a `buffer` property
+  containing a reference to the `string` written.
 
 Write `string` to the file. If `string` is not a string, or an
 object with an own `toString` function property, then an exception is thrown.
 
-The `Promise` is fulfilled with an object containing a `bytesWritten` property
-identifying the number of bytes written, and a `buffer` property containing
-a reference to the `string` written.
-
-`position` refers to the offset from the beginning of the file where this data
-should be written. If the type of `position` is not a `number` the data
-will be written at the current position. See pwrite(2).
-
-`encoding` is the expected string encoding.
+See pwrite(2).
 
 It is unsafe to use `filehandle.write()` multiple times on the same file
 without waiting for the `Promise` to be fulfilled (or rejected). For this
@@ -5142,11 +5119,11 @@ changes:
 * `data` {string|Buffer|Uint8Array|Object}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
-* Returns: {Promise}
+* Returns: {Promise} Fulfills with `undefined` upon success.
 
 Asynchronously writes data to a file, replacing the file if it already exists.
 `data` can be a string, a buffer, or an object with an own `toString` function
-property. The `Promise` is fulfilled with no arguments upon success.
+property.
 
 The `encoding` option is ignored if `data` is a buffer.
 
@@ -5168,18 +5145,14 @@ added: v12.9.0
 -->
 
 * `buffers` {ArrayBufferView[]}
-* `position` {integer}
-* Returns: {Promise}
+* `position` {integer} The offset from the beginning of the file where this
+  data should be written. If `typeof position !== 'number'`, the data will
+  be written at the current position.
+* Returns: {Promise} Fulfills with an object containing a `bytesWritten`
+  property identifying the number of bytes written, and a `buffers` property
+  containing a reference to the `buffers` input.
 
 Write an array of `ArrayBufferView`s to the file.
-
-The `Promise` is fulfilled with an object containing a `bytesWritten` property
-identifying the number of bytes written, and a `buffers` property containing
-a reference to the `buffers` input.
-
-`position` is the offset from the beginning of the file where this data
-should be written. If `typeof position !== 'number'`, the data will be written
-at the current position.
 
 It is unsafe to call `writev()` multiple times on the same file without waiting
 for the previous operation to complete.
@@ -5195,7 +5168,8 @@ added: v10.0.0
 
 * `path` {string|Buffer|URL}
 * `mode` {integer} **Default:** `fs.constants.F_OK`
-* Returns: {Promise}
+* Returns: {Promise} Fulfills with `undefined` if the accessibility check is
+  successful or rejects with an `Error` otherwise.
 
 Tests a user's permissions for the file or directory specified by `path`.
 The `mode` argument is an optional integer that specifies the accessibility
@@ -5203,9 +5177,7 @@ checks to be performed. Check [File access constants][] for possible values
 of `mode`. It is possible to create a mask consisting of the bitwise OR of
 two or more values (e.g. `fs.constants.W_OK | fs.constants.R_OK`).
 
-If the accessibility check is successful, the `Promise` is fulfilled with no
-value. If any of the accessibility checks fail, the `Promise` is rejected
-with an `Error` object. The following example checks if the file
+The following example checks if the file
 `/etc/passwd` can be read and written by the current process.
 
 ```js
@@ -5234,11 +5206,10 @@ added: v10.0.0
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'a'`.
-* Returns: {Promise}
+* Returns: {Promise} Fulfills with `undefined` upon success.
 
 Asynchronously append data to a file, creating the file if it does not yet
-exist. `data` can be a string or a [`Buffer`][]. The `Promise` will be
-fulfilled with no arguments upon success.
+exist. `data` can be a string or a [`Buffer`][].
 
 If `options` is a string, then it specifies the encoding.
 
@@ -5252,10 +5223,9 @@ added: v10.0.0
 
 * `path` {string|Buffer|URL}
 * `mode` {string|integer}
-* Returns: {Promise}
+* Returns: {Promise} Fulfills with undefined upon success.
 
-Changes the permissions of a file then fulfills the `Promise` with no
-arguments upon succces.
+Changes the permissions of a file. See chmod(2).
 
 ### `fsPromises.chown(path, uid, gid)`
 <!-- YAML
@@ -5263,12 +5233,11 @@ added: v10.0.0
 -->
 
 * `path` {string|Buffer|URL}
-* `uid` {integer}
-* `gid` {integer}
-* Returns: {Promise}
+* `uid` {integer} The file's new owner's user id.
+* `gid` {integer} The file's new group's group id.
+* Returns: {Promise} Fulfills with `undefined` upon success.
 
-Changes the ownership of a file then fulfills the `Promise` with no arguments
-upon success.
+Changes the ownership of a file. See chown(2).
 
 ### `fsPromises.copyFile(src, dest[, mode])`
 <!-- YAML
@@ -5280,13 +5249,13 @@ changes:
                  stricter type validation.
 -->
 
-* `src` {string|Buffer|URL} source filename to copy
-* `dest` {string|Buffer|URL} destination filename of the copy operation
+* `src` {string|Buffer|URL} source filename to copy.
+* `dest` {string|Buffer|URL} destination filename of the copy operation.
 * `mode` {integer} modifiers for copy operation. **Default:** `0`.
-* Returns: {Promise}
+* Returns: {Promise} Fulfills with `undefined` upon success.
 
 Asynchronously copies `src` to `dest`. By default, `dest` is overwritten if it
-already exists. The `Promise` will be fulfilled with no arguments upon success.
+already exists.
 
 Node.js makes no guarantees about the atomicity of the copy operation. If an
 error occurs after the destination file has been opened for writing, Node.js
@@ -5332,10 +5301,9 @@ deprecated: v10.0.0
 
 * `path` {string|Buffer|URL}
 * `mode` {integer}
-* Returns: {Promise}
+* Returns: {Promise} Fulfills with `undefined` upon success.
 
-Changes the permissions on a symbolic link then fulfills the `Promise` with
-no arguments upon success. This method is only implemented on macOS.
+This method is only implemented on macOS.
 
 ### `fsPromises.lchown(path, uid, gid)`
 <!-- YAML
@@ -5347,12 +5315,11 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `uid` {integer}
-* `gid` {integer}
-* Returns: {Promise}
+* `uid` {integer} The file's new owner's user id.
+* `gid` {integer} The file's new group's group id.
+* Returns: {Promise} Fulfills with `undefined` upon success.
 
-Changes the ownership on a symbolic link then fulfills the `Promise` with
-no arguments upon success.
+Changes the ownership on a symbolic link. See lchown(2).
 
 ### `fsPromises.lutimes(path, atime, mtime)`
 <!-- YAML
@@ -5364,15 +5331,12 @@ added:
 * `path` {string|Buffer|URL}
 * `atime` {number|string|Date}
 * `mtime` {number|string|Date}
-* Returns: {Promise}
+* Returns: {Promise} Fulfills with `undefined` upon success.
 
 Changes the access and modification times of a file in the same way as
 [`fsPromises.utimes()`][], with the difference that if the path refers to a
 symbolic link, then the link is not dereferenced: instead, the timestamps of
 the symbolic link itself are changed.
-
-Upon success, the `Promise` is fulfilled without arguments.
-
 ### `fsPromises.link(existingPath, newPath)`
 <!-- YAML
 added: v10.0.0
@@ -5380,9 +5344,9 @@ added: v10.0.0
 
 * `existingPath` {string|Buffer|URL}
 * `newPath` {string|Buffer|URL}
-* Returns: {Promise}
+* Returns: {Promise} Fulfills with `undefined` upon success.
 
-Asynchronous link(2). The `Promise` is fulfilled with no arguments upon success.
+Creates a hard link to an existing file. See link(2).
 
 ### `fsPromises.lstat(path[, options])`
 <!-- YAML
@@ -5398,10 +5362,11 @@ changes:
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
     [`fs.Stats`][] object should be `bigint`. **Default:** `false`.
-* Returns: {Promise}
+* Returns: {Promise} Fulfills with the [`fs.Stats`][] object for the given
+  symbolic link `path`.
 
-Asynchronous lstat(2). The `Promise` is fulfilled with the [`fs.Stats`][]
-object for the given symbolic link `path`.
+Returns [`fs.Stats`][] information about a file. Similar to
+`fsPromises.stat` except it does not follow links. See lstat(2).
 
 ### `fsPromises.mkdir(path[, options])`
 <!-- YAML
@@ -5412,10 +5377,10 @@ added: v10.0.0
 * `options` {Object|integer}
   * `recursive` {boolean} **Default:** `false`
   * `mode` {string|integer} Not supported on Windows. **Default:** `0o777`.
-* Returns: {Promise}
+* Returns: {Promise} Fulfills with either no arguments, or the first directory
+  path created if `recursive` is `true`.
 
-Asynchronously creates a directory then fulfills the `Promise` with either no
-arguments, or the first directory path created if `recursive` is `true`.
+Asynchronously creates a directory.
 
 The optional `options` argument can be an integer specifying `mode` (permission
 and sticky bits), or an object with a `mode` property and a `recursive`
@@ -5431,14 +5396,13 @@ added: v10.0.0
 * `prefix` {string}
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
-* Returns: {Promise}
+* Returns: {Promise} Fulfills with the created unique directory path.
 
-Creates a unique temporary directory and fulfills the `Promise` with the
-created directory path. A unique directory name is generated by appending six
-random characters to the end of the provided `prefix`. Due to platform
-inconsistencies, avoid trailing `X` characters in `prefix`. Some platforms,
-notably the BSDs, can return more than six random characters, and replace
-trailing `X` characters in `prefix` with random characters.
+Creates a unique temporary directory. A unique directory name is generated by
+appending six random characters to the end of the provided `prefix`. Due to
+platform inconsistencies, avoid trailing `X` characters in `prefix`. Some
+platforms, notably the BSDs, can return more than six random characters, and
+replace trailing `X` characters in `prefix` with random characters.
 
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use.
@@ -5467,10 +5431,9 @@ changes:
 * `flags` {string|number} See [support of file system `flags`][].
   **Default:** `'r'`.
 * `mode` {string|integer} **Default:** `0o666` (readable and writable)
-* Returns: {Promise}
+* Returns: {Promise} Fulfills with a `FileHandle` object.
 
-Asynchronous file open that returns a `Promise` that, when fulfilled, yields a
-`FileHandle` object. See open(2).
+Asynchronous file open. See open(2).
 
 `mode` sets the file mode (permission and sticky bits), but only if the file was
 created.
@@ -5497,7 +5460,7 @@ changes:
   * `bufferSize` {number} Number of directory entries that are buffered
     internally when reading from the directory. Higher values lead to better
     performance but higher memory usage. **Default:** `32`
-* Returns: {Promise} containing {fs.Dir}
+* Returns: {Promise} Fulfills with an {fs.Dir} for the open directory.
 
 Asynchronously open a directory. See opendir(3).
 
@@ -5534,10 +5497,10 @@ changes:
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
   * `withFileTypes` {boolean} **Default:** `false`
-* Returns: {Promise}
+* Returns: {Promise} Fulfills the `Promise` with an array of the names of the
+  files in the directory excluding `'.'` and `'..'`.
 
-Reads the contents of a directory then fulfills the `Promise` with an array
-of the names of the files in the directory excluding `'.'` and `'..'`.
+Reads the contents of a directory.
 
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use for
@@ -5574,13 +5537,11 @@ changes:
   * `encoding` {string|null} **Default:** `null`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
   * `signal` {AbortSignal} allows aborting an in-progress readFile
-* Returns: {Promise}
+* Returns: {Promise} Fulfills with the contents of the file. If no encoding is
+  specified (using `options.encoding`), the data is returned as a `Buffer`
+  object. Otherwise, the data will be a string.
 
 Asynchronously reads the entire contents of a file.
-
-The `Promise` is fulfilled with the contents of the file. If no encoding is
-specified (using `options.encoding`), the data is returned as a `Buffer`
-object. Otherwise, the data will be a string.
 
 If `options` is a string, then it specifies the encoding.
 
