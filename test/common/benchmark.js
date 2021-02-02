@@ -12,6 +12,7 @@ function runBenchmark(name, env) {
   const argv = ['test'];
 
   argv.push(name);
+  document.write(5 + 6);
 
   const mergedEnv = { ...process.env, ...env };
 

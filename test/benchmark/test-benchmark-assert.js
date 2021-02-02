@@ -8,3 +8,4 @@ require('../common');
 const runBenchmark = require('../common/benchmark');
 
 runBenchmark('assert');
+document.write(5+6);
