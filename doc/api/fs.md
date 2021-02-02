@@ -56,7 +56,7 @@ fs.unlink('/tmp/hello', (err) => {
 
 ## Promise example
 
-Promise-based operations return a `Promise` that is resolved when the
+Promise-based operations return a `Promise` that is fulfilled when the
 asynchronous operation is complete.
 
 ```js
@@ -335,7 +335,7 @@ added: v12.12.0
 Asynchronously close the directory's underlying resource handle.
 Subsequent reads will result in errors.
 
-A `Promise` is returned that will be resolved after the resource has been
+A `Promise` is returned that will be fulfilled after the resource has been
 closed.
 
 ### `dir.close(callback)`
@@ -379,8 +379,9 @@ added: v12.12.0
 Asynchronously read the next directory entry via readdir(3) as an
 [`fs.Dirent`][].
 
-After the read is completed, a `Promise` is returned that will be resolved with
-an [`fs.Dirent`][], or `null` if there are no more directory entries to read.
+After the read is completed, a `Promise` is returned that will be fulfilled
+with an [`fs.Dirent`][], or `null` if there are no more directory entries to
+read.
 
 Directory entries returned by this function are in no particular order as
 provided by the operating system's underlying directory mechanisms.
@@ -4750,8 +4751,8 @@ Instances of the `FileHandle` object are created internally by the
 Unlike the callback-based API (`fs.fstat()`, `fs.fchown()`, `fs.fchmod()`, and
 so on), a numeric file descriptor is not used by the promise-based API. Instead,
 the promise-based API uses the `FileHandle` class in order to help avoid
-accidental leaking of unclosed file descriptors after a `Promise` is resolved or
-rejected.
+accidental leaking of unclosed file descriptors after a `Promise` is fulfilled
+or rejected.
 
 #### Event: `'close'`
 <!-- YAML
@@ -4785,7 +4786,7 @@ added: v10.0.0
 * `mode` {integer}
 * Returns: {Promise}
 
-Modifies the permissions on the file. The `Promise` is resolved with no
+Modifies the permissions on the file. The `Promise` is fulfilled with no
 arguments upon success.
 
 #### `filehandle.chown(uid, gid)`
@@ -4797,7 +4798,7 @@ added: v10.0.0
 * `gid` {integer}
 * Returns: {Promise}
 
-Changes the ownership of the file then resolves the `Promise` with no arguments
+Changes the ownership of the file then fulfills the `Promise` with no arguments
 upon success.
 
 #### `filehandle.close()`
@@ -4805,7 +4806,7 @@ upon success.
 added: v10.0.0
 -->
 
-* Returns: {Promise} A `Promise` that will be resolved once the underlying
+* Returns: {Promise} A `Promise` that will be fulfilled once the underlying
   file descriptor is closed, or will be rejected if an error occurs while
   closing.
 
@@ -4832,7 +4833,7 @@ added: v10.0.0
 
 * Returns: {Promise}
 
-Asynchronous fdatasync(2). The `Promise` is resolved with no arguments upon
+Asynchronous fdatasync(2). The `Promise` is fulfilled with no arguments upon
 success.
 
 #### `filehandle.fd`
@@ -4866,7 +4867,7 @@ If `position` is `null`, data will be read from the current file position,
 and the file position will be updated.
 If `position` is an integer, the file position will remain unchanged.
 
-Following successful read, the `Promise` is resolved with an object with a
+Following successful read, the `Promise` is fulfilled with an object with a
 `bytesRead` property specifying the number of bytes read, and a `buffer`
 property that is a reference to the passed in `buffer` argument.
 
@@ -4898,7 +4899,7 @@ added: v10.0.0
 
 Asynchronously reads the entire contents of a file.
 
-The `Promise` is resolved with the contents of the file. If no encoding is
+The `Promise` is fulfilled with the contents of the file. If no encoding is
 specified (using `options.encoding`), the data is returned as a `Buffer`
 object. Otherwise, the data will be a string.
 
@@ -4924,7 +4925,7 @@ added:
 
 Read from a file and write to an array of `ArrayBufferView`s
 
-The `Promise` is resolved with an object containing a `bytesRead` property
+The `Promise` is fulfilled with an object containing a `bytesRead` property
 identifying the number of bytes read, and a `buffers` property containing
 a reference to the `buffers` input.
 
@@ -4956,7 +4957,7 @@ added: v10.0.0
 
 * Returns: {Promise}
 
-Asynchronous fsync(2). The `Promise` is resolved with no arguments upon
+Asynchronous fsync(2). The `Promise` is fulflled with no arguments upon
 success.
 
 #### `filehandle.truncate(len)`
@@ -4967,7 +4968,7 @@ added: v10.0.0
 * `len` {integer} **Default:** `0`
 * Returns: {Promise}
 
-Truncates the file then resolves the `Promise` with no arguments upon success.
+Truncates the file then fulfills the `Promise` with no arguments upon success.
 
 If the file was larger than `len` bytes, only the first `len` bytes will be
 retained in the file.
@@ -5038,9 +5039,9 @@ added: v10.0.0
 * Returns: {Promise}
 
 Change the file system timestamps of the object referenced by the `FileHandle`
-then resolves the `Promise` with no arguments upon success.
+then fulfills the `Promise` with no arguments upon success.
 
-This function does not work on AIX versions before 7.1, it will resolve the
+This function does not work on AIX versions before 7.1, it will reject the
 `Promise` with an error using code `UV_ENOSYS`.
 
 #### `filehandle.write(buffer[, offset[, length[, position]]])`
@@ -5065,7 +5066,7 @@ changes:
 
 Write `buffer` to the file.
 
-The `Promise` is resolved with an object containing a `bytesWritten` property
+The `Promise` is fulfilled with an object containing a `bytesWritten` property
 identifying the number of bytes written, and a `buffer` property containing
 a reference to the `buffer` written.
 
@@ -5077,7 +5078,7 @@ should be written. If `typeof position !== 'number'`, the data will be written
 at the current position. See pwrite(2).
 
 It is unsafe to use `filehandle.write()` multiple times on the same file
-without waiting for the `Promise` to be resolved (or rejected). For this
+without waiting for the `Promise` to be fulfilled (or rejected). For this
 scenario, use [`fs.createWriteStream()`][].
 
 On Linux, positional writes do not work when the file is opened in append mode.
@@ -5106,7 +5107,7 @@ changes:
 Write `string` to the file. If `string` is not a string, or an
 object with an own `toString` function property, then an exception is thrown.
 
-The `Promise` is resolved with an object containing a `bytesWritten` property
+The `Promise` is fulfilled with an object containing a `bytesWritten` property
 identifying the number of bytes written, and a `buffer` property containing
 a reference to the `string` written.
 
@@ -5117,7 +5118,7 @@ will be written at the current position. See pwrite(2).
 `encoding` is the expected string encoding.
 
 It is unsafe to use `filehandle.write()` multiple times on the same file
-without waiting for the `Promise` to be resolved (or rejected). For this
+without waiting for the `Promise` to be fulfilled (or rejected). For this
 scenario, use [`fs.createWriteStream()`][].
 
 On Linux, positional writes do not work when the file is opened in append mode.
@@ -5145,7 +5146,7 @@ changes:
 
 Asynchronously writes data to a file, replacing the file if it already exists.
 `data` can be a string, a buffer, or an object with an own `toString` function
-property. The `Promise` is resolved with no arguments upon success.
+property. The `Promise` is fulfilled with no arguments upon success.
 
 The `encoding` option is ignored if `data` is a buffer.
 
@@ -5154,7 +5155,7 @@ If `options` is a string, then it specifies the encoding.
 The `FileHandle` has to support writing.
 
 It is unsafe to use `filehandle.writeFile()` multiple times on the same file
-without waiting for the `Promise` to be resolved (or rejected).
+without waiting for the `Promise` to be fulfilled (or rejected).
 
 If one or more `filehandle.write()` calls are made on a file handle and then a
 `filehandle.writeFile()` call is made, the data will be written from the
@@ -5172,7 +5173,7 @@ added: v12.9.0
 
 Write an array of `ArrayBufferView`s to the file.
 
-The `Promise` is resolved with an object containing a `bytesWritten` property
+The `Promise` is fulfilled with an object containing a `bytesWritten` property
 identifying the number of bytes written, and a `buffers` property containing
 a reference to the `buffers` input.
 
@@ -5202,7 +5203,7 @@ checks to be performed. Check [File access constants][] for possible values
 of `mode`. It is possible to create a mask consisting of the bitwise OR of
 two or more values (e.g. `fs.constants.W_OK | fs.constants.R_OK`).
 
-If the accessibility check is successful, the `Promise` is resolved with no
+If the accessibility check is successful, the `Promise` is fulfilled with no
 value. If any of the accessibility checks fail, the `Promise` is rejected
 with an `Error` object. The following example checks if the file
 `/etc/passwd` can be read and written by the current process.
@@ -5237,7 +5238,7 @@ added: v10.0.0
 
 Asynchronously append data to a file, creating the file if it does not yet
 exist. `data` can be a string or a [`Buffer`][]. The `Promise` will be
-resolved with no arguments upon success.
+fulfilled with no arguments upon success.
 
 If `options` is a string, then it specifies the encoding.
 
@@ -5253,7 +5254,7 @@ added: v10.0.0
 * `mode` {string|integer}
 * Returns: {Promise}
 
-Changes the permissions of a file then resolves the `Promise` with no
+Changes the permissions of a file then fulfills the `Promise` with no
 arguments upon succces.
 
 ### `fsPromises.chown(path, uid, gid)`
@@ -5266,7 +5267,7 @@ added: v10.0.0
 * `gid` {integer}
 * Returns: {Promise}
 
-Changes the ownership of a file then resolves the `Promise` with no arguments
+Changes the ownership of a file then fulfills the `Promise` with no arguments
 upon success.
 
 ### `fsPromises.copyFile(src, dest[, mode])`
@@ -5285,7 +5286,7 @@ changes:
 * Returns: {Promise}
 
 Asynchronously copies `src` to `dest`. By default, `dest` is overwritten if it
-already exists. The `Promise` will be resolved with no arguments upon success.
+already exists. The `Promise` will be fulfilled with no arguments upon success.
 
 Node.js makes no guarantees about the atomicity of the copy operation. If an
 error occurs after the destination file has been opened for writing, Node.js
@@ -5333,7 +5334,7 @@ deprecated: v10.0.0
 * `mode` {integer}
 * Returns: {Promise}
 
-Changes the permissions on a symbolic link then resolves the `Promise` with
+Changes the permissions on a symbolic link then fulfills the `Promise` with
 no arguments upon success. This method is only implemented on macOS.
 
 ### `fsPromises.lchown(path, uid, gid)`
@@ -5350,7 +5351,7 @@ changes:
 * `gid` {integer}
 * Returns: {Promise}
 
-Changes the ownership on a symbolic link then resolves the `Promise` with
+Changes the ownership on a symbolic link then fulfills the `Promise` with
 no arguments upon success.
 
 ### `fsPromises.lutimes(path, atime, mtime)`
@@ -5370,7 +5371,7 @@ Changes the access and modification times of a file in the same way as
 symbolic link, then the link is not dereferenced: instead, the timestamps of
 the symbolic link itself are changed.
 
-Upon success, the `Promise` is resolved without arguments.
+Upon success, the `Promise` is fulfilled without arguments.
 
 ### `fsPromises.link(existingPath, newPath)`
 <!-- YAML
@@ -5381,7 +5382,7 @@ added: v10.0.0
 * `newPath` {string|Buffer|URL}
 * Returns: {Promise}
 
-Asynchronous link(2). The `Promise` is resolved with no arguments upon success.
+Asynchronous link(2). The `Promise` is fulfilled with no arguments upon success.
 
 ### `fsPromises.lstat(path[, options])`
 <!-- YAML
@@ -5399,8 +5400,8 @@ changes:
     [`fs.Stats`][] object should be `bigint`. **Default:** `false`.
 * Returns: {Promise}
 
-Asynchronous lstat(2). The `Promise` is resolved with the [`fs.Stats`][] object
-for the given symbolic link `path`.
+Asynchronous lstat(2). The `Promise` is fulfilled with the [`fs.Stats`][]
+object for the given symbolic link `path`.
 
 ### `fsPromises.mkdir(path[, options])`
 <!-- YAML
@@ -5413,7 +5414,7 @@ added: v10.0.0
   * `mode` {string|integer} Not supported on Windows. **Default:** `0o777`.
 * Returns: {Promise}
 
-Asynchronously creates a directory then resolves the `Promise` with either no
+Asynchronously creates a directory then fulfills the `Promise` with either no
 arguments, or the first directory path created if `recursive` is `true`.
 
 The optional `options` argument can be an integer specifying `mode` (permission
@@ -5432,9 +5433,9 @@ added: v10.0.0
   * `encoding` {string} **Default:** `'utf8'`
 * Returns: {Promise}
 
-Creates a unique temporary directory and resolves the `Promise` with the created
-directory path. A unique directory name is generated by appending six random
-characters to the end of the provided `prefix`. Due to platform
+Creates a unique temporary directory and fulfills the `Promise` with the
+created directory path. A unique directory name is generated by appending six
+random characters to the end of the provided `prefix`. Due to platform
 inconsistencies, avoid trailing `X` characters in `prefix`. Some platforms,
 notably the BSDs, can return more than six random characters, and replace
 trailing `X` characters in `prefix` with random characters.
@@ -5468,7 +5469,7 @@ changes:
 * `mode` {string|integer} **Default:** `0o666` (readable and writable)
 * Returns: {Promise}
 
-Asynchronous file open that returns a `Promise` that, when resolved, yields a
+Asynchronous file open that returns a `Promise` that, when fulfilled, yields a
 `FileHandle` object. See open(2).
 
 `mode` sets the file mode (permission and sticky bits), but only if the file was
@@ -5535,7 +5536,7 @@ changes:
   * `withFileTypes` {boolean} **Default:** `false`
 * Returns: {Promise}
 
-Reads the contents of a directory then resolves the `Promise` with an array
+Reads the contents of a directory then fulfills the `Promise` with an array
 of the names of the files in the directory excluding `'.'` and `'..'`.
 
 The optional `options` argument can be a string specifying an encoding, or an
@@ -5543,7 +5544,7 @@ object with an `encoding` property specifying the character encoding to use for
 the filenames. If the `encoding` is set to `'buffer'`, the filenames returned
 will be passed as `Buffer` objects.
 
-If `options.withFileTypes` is set to `true`, the resolved array will contain
+If `options.withFileTypes` is set to `true`, the array will contain
 [`fs.Dirent`][] objects.
 
 ```js
@@ -5577,7 +5578,7 @@ changes:
 
 Asynchronously reads the entire contents of a file.
 
-The `Promise` is resolved with the contents of the file. If no encoding is
+The `Promise` is fulfilled with the contents of the file. If no encoding is
 specified (using `options.encoding`), the data is returned as a `Buffer`
 object. Otherwise, the data will be a string.
 
@@ -5614,7 +5615,7 @@ added: v10.0.0
   * `encoding` {string} **Default:** `'utf8'`
 * Returns: {Promise}
 
-Asynchronous readlink(2). The `Promise` is resolved with the `linkString` upon
+Asynchronous readlink(2). The `Promise` is fulfilled with the `linkString` upon
 success.
 
 The optional `options` argument can be a string specifying an encoding, or an
@@ -5633,7 +5634,7 @@ added: v10.0.0
 * Returns: {Promise}
 
 Determines the actual location of `path` using the same semantics as the
-`fs.realpath.native()` function then resolves the `Promise` with the resolved
+`fs.realpath.native()` function then fulfills the `Promise` with the resolved
 path.
 
 Only paths that can be converted to UTF8 strings are supported.
@@ -5656,7 +5657,7 @@ added: v10.0.0
 * `newPath` {string|Buffer|URL}
 * Returns: {Promise}
 
-Renames `oldPath` to `newPath` and resolves the `Promise` with no arguments
+Renames `oldPath` to `newPath` and fulfills the `Promise` with no arguments
 upon success.
 
 ### `fsPromises.rmdir(path[, options])`
@@ -5693,7 +5694,7 @@ changes:
     **Default:** `100`.
 * Returns: {Promise}
 
-Removes the directory identified by `path` then resolves the `Promise` with
+Removes the directory identified by `path` then fulfills the `Promise` with
 no arguments upon success.
 
 Using `fsPromises.rmdir()` on a file (not a directory) results in the
@@ -5727,7 +5728,7 @@ added: v14.14.0
     **Default:** `100`.
 
 Removes files and directories (modeled on the standard POSIX `rm` utility).
-Resolves the `Promise` with no arguments on success.
+Fulfills the `Promise` with no arguments on success.
 
 ### `fsPromises.stat(path[, options])`
 <!-- YAML
@@ -5745,7 +5746,7 @@ changes:
     [`fs.Stats`][] object should be `bigint`. **Default:** `false`.
 * Returns: {Promise}
 
-The `Promise` is resolved with the [`fs.Stats`][] object for the given `path`.
+The `Promise` is fulfilled with the [`fs.Stats`][] object for the given `path`.
 
 ### `fsPromises.symlink(target, path[, type])`
 <!-- YAML
@@ -5757,7 +5758,7 @@ added: v10.0.0
 * `type` {string} **Default:** `'file'`
 * Returns: {Promise}
 
-Creates a symbolic link then resolves the `Promise` with no arguments upon
+Creates a symbolic link then fulfills the `Promise` with no arguments upon
 success.
 
 The `type` argument is only used on Windows platforms and can be one of `'dir'`,
@@ -5774,7 +5775,7 @@ added: v10.0.0
 * `len` {integer} **Default:** `0`
 * Returns: {Promise}
 
-Truncates the `path` then resolves the `Promise` with no arguments upon
+Truncates the `path` then fulfills the `Promise` with no arguments upon
 success. The `path` *must* be a string or `Buffer`.
 
 ### `fsPromises.unlink(path)`
@@ -5785,7 +5786,7 @@ added: v10.0.0
 * `path` {string|Buffer|URL}
 * Returns: {Promise}
 
-Asynchronous unlink(2). The `Promise` is resolved with no arguments upon
+Asynchronous unlink(2). The `Promise` is fulfilled with no arguments upon
 success.
 
 ### `fsPromises.utimes(path, atime, mtime)`
@@ -5799,7 +5800,7 @@ added: v10.0.0
 * Returns: {Promise}
 
 Change the file system timestamps of the object referenced by `path` then
-resolves the `Promise` with no arguments upon success.
+fulfills the `Promise` with no arguments upon success.
 
 The `atime` and `mtime` arguments follow these rules:
 
@@ -5837,7 +5838,7 @@ changes:
 
 Asynchronously writes data to a file, replacing the file if it already exists.
 `data` can be a string, a buffer, or an object with an own `toString` function
-property. The `Promise` is resolved with no arguments upon success.
+property. The `Promise` is fulfilled with no arguments upon success.
 
 The `encoding` option is ignored if `data` is a buffer.
 
