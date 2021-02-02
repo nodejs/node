@@ -1636,24 +1636,24 @@ added: v15.0.0
 
 ### `NODE-ED25519` and `NODE-ED448` Algorithms
 <!-- YAML
-added: REPLACEME
+added: v15.8.0
 -->
 
 #### Class: `NodeEdKeyGenParams`
 <!-- YAML
-added: REPLACEME
+added: v15.8.0
 -->
 
 ##### `nodeEdKeyGenParams.name`
 <!-- YAML
-added: REPLACEME
+added: v15.8.0
 -->
 
 * Type: {string} Must be one of `'NODE-ED25519'`, `'NODE-ED448'` or `'ECDH'`.
 
 ##### `nodeEdKeyGenParams.namedCurve`
 <!-- YAML
-added: REPLACEME
+added: v15.8.0
 -->
 
 * Type: {string} Must be one of `'NODE-ED25519'`, `'NODE-ED448'`,
@@ -1661,12 +1661,12 @@ added: REPLACEME
 
 #### Class: `NodeEdKeyImportParams`
 <!-- YAML
-added: REPLACEME
+added: v15.8.0
 -->
 
 ##### `nodeEdKeyImportParams.name`
 <!-- YAML
-added: REPLACEME
+added: v15.8.0
 -->
 
 * Type: {string} Must be one of `'NODE-ED25519'` or `'NODE-ED448'`
@@ -1675,7 +1675,7 @@ added: REPLACEME
 
 ##### `nodeEdKeyImportParams.namedCurve`
 <!-- YAML
-added: REPLACEME
+added: v15.8.0
 -->
 
 * Type: {string} Must be one of `'NODE-ED25519'`, `'NODE-ED448'`,
@@ -1683,7 +1683,7 @@ added: REPLACEME
 
 ##### `nodeEdKeyImportParams.public`
 <!-- YAML
-added: REPLACEME
+added: v15.8.0
 -->
 
 * Type: {boolean}

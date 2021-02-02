@@ -735,7 +735,7 @@ chained.
 <!-- YAML
 added: v0.11.13
 changes:
-  - version: REPLACEME
+  - version: v15.8.0
     pr-url: https://github.com/nodejs/node/pull/37026
     description: AbortSignal support was added.
   - version: v11.4.0
