@@ -103,6 +103,9 @@ const tests = [
       yield 'require("./';
       yield TABULATION;
       yield SIGINT;
+      yield 'import("./';
+      yield TABULATION;
+      yield SIGINT;
       yield 'Array.proto';
       yield RIGHT;
       yield '.pu';
