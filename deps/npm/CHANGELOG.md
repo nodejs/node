@@ -1,3 +1,23 @@
+## v7.5.2 (2021-02-02
+
+### BUG FIXES
+
+* [`37613e4e6`](https://github.com/npm/cli/commit/37613e4e686e4891210acaabc9c23f41456eda3f)
+[#2395](https://github.com/npm/cli/issues/2395)
+[#2329](https://github.com/npm/cli/issues/2329)
+fix(exec): use latest version when possible
+([@wraithgar](https://github.com/wraithgar))
+* [`567c9bd03`](https://github.com/npm/cli/commit/567c9bd03a7669111fbba6eb6d1f12ed7cad5a1b)
+fix(lib/npm): do not clobber config.execPath
+([@wraithgar](https://github.com/wraithgar))
+
+### DEPENDENCIES
+
+* [`643709706`](https://github.com/npm/cli/commit/64370970653af5c8d7a2be2c2144e355aa6431b0)
+`@npmcli/config@1.2.9` ([@isaacs](https://github.com/isaacs))
+  * [`4c6be4a`](https://github.com/npm/config/commit/4c6be4a66a3e89ae607e08172b8543b588a95fb5) Restore npm v6 behavior with `INIT_CWD`
+  * [`bbebc66`](https://github.com/npm/config/commit/bbebc668888f71dba57959682364b6ff26ff4fac) Do not set the `PREFIX` environment variable
+
 ## v7.5.1 (2021-02-01
 
 ### BUG FIXES
