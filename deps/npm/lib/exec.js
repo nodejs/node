@@ -169,8 +169,12 @@ const exec = async args => {
         return await readPackageJson(pj)
       } catch (er) {}
     }
+    // Force preferOnline to true so we are making sure to pull in the latest
+    // This is especially useful if the user didn't give us a version, and
+    // they expect to be running @latest
     return await pacote.manifest(p, {
       ...npm.flatOptions,
+      preferOnline: true,
     })
   }))
 
@@ -193,9 +197,13 @@ const exec = async args => {
     const arb = new Arborist({ ...npm.flatOptions, path: installDir })
     const tree = await arb.loadActual()
 
-    // any that don't match the manifest we have, install them
-    // add installDir/node_modules/.bin to pathArr
-    const add = manis.filter(mani => manifestMissing(tree, mani))
+    // at this point, we have to ensure that we get the exact same
+    // version, because it's something that has only ever been installed
+    // by npm exec in the cache install directory
+    const add = manis.filter(mani => manifestMissing(tree, {
+      ...mani,
+      _from: `${mani.name}@${mani.version}`,
+    }))
       .map(mani => mani._from)
       .sort((a, b) => a.localeCompare(b))
 

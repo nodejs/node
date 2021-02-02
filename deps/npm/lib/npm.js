@@ -173,8 +173,8 @@ const npm = module.exports = new class extends EventEmitter {
     if (node && node.toUpperCase() !== process.execPath.toUpperCase()) {
       log.verbose('node symlink', node)
       process.execPath = node
+      this.config.execPath = node
     }
-    this.config.execPath = node
 
     await this.config.load()
     this.argv = this.config.parsedArgv.remain
