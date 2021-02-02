@@ -1973,7 +1973,7 @@ This property is deprecated. Please use `crypto.setFips()` and
 
 ### `crypto.checkPrime(candidate[, options, [callback]])`
 <!-- YAML
-added: REPLACEME
+added: v15.8.0
 -->
 
 * `candidate` {ArrayBuffer|SharedArrayBuffer|TypedArray|Buffer|DataView|bigint}
@@ -1995,7 +1995,7 @@ Checks the primality of the `candidate`.
 
 ### `crypto.checkPrimeSync(candidate[, options])`
 <!-- YAML
-added: REPLACEME
+added: v15.8.0
 -->
 
 * `candidate` {ArrayBuffer|SharedArrayBuffer|TypedArray|Buffer|DataView|bigint}
@@ -2748,7 +2748,7 @@ it will be a buffer containing the data encoded as DER.
 
 ### `crypto.generatePrime(size[, options[, callback]])`
 <!-- YAML
-added: REPLACEME
+added: v15.8.0
 -->
 
 * `size` {number} The size (in bits) of the prime to generate.
@@ -2790,7 +2790,7 @@ is provided.
 
 ### `crypto.generatePrimeSync(size[, options])`
 <!-- YAML
-added: REPLACEME
+added: v15.8.0
 -->
 
 * `size` {number} The size (in bits) of the prime to generate.
