@@ -113,34 +113,3 @@ assert.rejects(
     assert.strictEqual(err.name, 'AbortError');
   }
 })().then(common.mustCall());
-
-fs.rmdirSync(tmpdir.path, { recursive: true });
-tmpdir.refresh();
-
-for (const testCase of kCases) {
-  if (testCase.shouldSkip) continue;
-  fs.mkdirSync(testCase.dirPath);
-  // Long content so it's actually flushed.
-  const content1 = Date.now() + testCase.fileName.toLowerCase().repeat(1e4);
-  fs.writeFileSync(testCase.filePath, content1);
-
-  const ac = new AbortController();
-
-  async function test() {
-    const { signal } = ac;
-    const watcher = watch(testCase[testCase.field], { signal });
-    assert.rejects(watcher.next(), {
-      name: 'AbortError'
-    });
-  }
-
-  // Long content so it's actually flushed. toUpperCase so there's real change.
-  const content2 = Date.now() + testCase.fileName.toUpperCase().repeat(1e4);
-  setImmediate(() => {
-    fs.writeFileSync(testCase.filePath, '');
-    fs.writeFileSync(testCase.filePath, content2);
-    ac.abort();
-  });
-
-  test().then(common.mustCall());
-}
