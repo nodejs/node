@@ -2729,7 +2729,7 @@ change the value has been deprecated and will be disabled in the future.
 ### DEP0151: Main index lookup and extension searching
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v15.8.0
     pr-url: https://github.com/nodejs/node/pull/36918
     description: Documentation-only deprecation
                  with `--pending-deprecation` support.
