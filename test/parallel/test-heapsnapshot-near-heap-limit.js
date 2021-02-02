@@ -86,29 +86,3 @@ const env = {
     .filter((file) => file.endsWith('.heapsnapshot'));
   assert(list.length > 0 && list.length <= 3);
 }
-
-
-{
-  console.log('\nTesting worker');
-  tmpdir.refresh();
-  const child = spawnSync(process.execPath, [
-    fixtures.path('workload', 'grow-worker.js')
-  ], {
-    cwd: tmpdir.path,
-    env: {
-      TEST_SNAPSHOTS: 1,
-      TEST_OLD_SPACE_SIZE: 50,
-      ...env
-    }
-  });
-  console.log(child.stdout.toString());
-  const stderr = child.stderr.toString();
-  console.log(stderr);
-  // There should be one snapshot taken and then after the
-  // snapshot heap limit callback is popped, the OOM callback
-  // becomes effective.
-  assert(stderr.includes('ERR_WORKER_OUT_OF_MEMORY'));
-  const list = fs.readdirSync(tmpdir.path)
-    .filter((file) => file.endsWith('.heapsnapshot'));
-  assert.strictEqual(list.length, 1);
-}
