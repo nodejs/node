@@ -4133,6 +4133,9 @@ this API: [`fs.utimes()`][].
 <!-- YAML
 added: v0.5.10
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37190
+    description: Added support for closing the watcher with an AbortSignal.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `filename` parameter can be a WHATWG `URL` object using
@@ -4152,6 +4155,7 @@ changes:
     `false`.
   * `encoding` {string} Specifies the character encoding to be used for the
      filename passed to the listener. **Default:** `'utf8'`.
+  * `signal` {AbortSignal} allows closing the watcher with an AbortSignal.
 * `listener` {Function|undefined} **Default:** `undefined`
   * `eventType` {string}
   * `filename` {string|Buffer}
@@ -4173,6 +4177,9 @@ disappears in the directory.
 The listener callback is attached to the `'change'` event fired by
 [`fs.FSWatcher`][], but it is not the same thing as the `'change'` value of
 `eventType`.
+
+If a `signal` is passed, aborting the corresponding AbortController will close
+the returned [`fs.FSWatcher`][].
 
 ### Caveats
 
