@@ -127,6 +127,26 @@ Maybe<bool> RandomPrimeTraits::AdditionalConfig(
     return Nothing<bool>();
   }
 
+  if (params->add) {
+    if (BN_num_bits(params->add.get()) > bits) {
+      // If we allowed this, the best case would be returning a static prime
+      // that wasn't generated randomly. The worst case would be an infinite
+      // loop within OpenSSL, blocking the main thread or one of the threads
+      // in the thread pool.
+      THROW_ERR_OUT_OF_RANGE(env, "invalid options.add");
+      return Nothing<bool>();
+    }
+
+    if (params->rem) {
+      if (BN_cmp(params->add.get(), params->rem.get()) != 1) {
+        // This would definitely lead to an infinite loop if allowed since
+        // OpenSSL does not check this condition.
+        THROW_ERR_OUT_OF_RANGE(env, "invalid options.rem");
+        return Nothing<bool>();
+      }
+    }
+  }
+
   params->bits = bits;
   params->safe = safe;
   params->prime.reset(BN_secure_new());

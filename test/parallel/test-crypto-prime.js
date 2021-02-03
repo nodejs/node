@@ -181,6 +181,44 @@ generatePrime(
   }
 }
 
+{
+  // This is impossible because it implies (prime % 2**64) == 1 and
+  // prime < 2**64, meaning prime = 1, but 1 is not prime.
+  for (const add of [2n ** 64n, 2n ** 65n]) {
+    assert.throws(() => {
+      generatePrimeSync(64, { add });
+    }, {
+      code: 'ERR_OUT_OF_RANGE',
+      message: 'invalid options.add'
+    });
+  }
+
+  // Any parameters with rem >= add lead to an impossible condition.
+  for (const rem of [7n, 8n, 3000n]) {
+    assert.throws(() => {
+      generatePrimeSync(64, { add: 7n, rem });
+    }, {
+      code: 'ERR_OUT_OF_RANGE',
+      message: 'invalid options.rem'
+    });
+  }
+
+  // This is possible, but not allowed. It implies prime == 7, which means that
+  // we did not actually generate a random prime.
+  assert.throws(() => {
+    generatePrimeSync(3, { add: 8n, rem: 7n });
+  }, {
+    code: 'ERR_OUT_OF_RANGE'
+  });
+
+  // This is possible and allowed (but makes little sense).
+  assert.strictEqual(generatePrimeSync(4, {
+    add: 15n,
+    rem: 13n,
+    bigint: true
+  }), 13n);
+}
+
 [1, 'hello', {}, []].forEach((i) => {
   assert.throws(() => checkPrime(i), {
     code: 'ERR_INVALID_ARG_TYPE'
