@@ -357,7 +357,7 @@ Generating V8 snapshots takes time and memory (both memory managed by the
 V8 heap and native memory outside the V8 heap). The bigger the heap is,
 the more resources it needs. Node.js will adjust the V8 heap to accommondate
 the additional V8 heap memory overhead, and try its best to avoid using up
-all the memory avialable to the process. When the process uses
+all the memory available to the process. When the process uses
 more memory than the system deems appropriate, the process may be terminated
 abruptly by the system, depending on the system configuration.
 
