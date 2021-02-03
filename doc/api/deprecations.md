@@ -2697,24 +2697,22 @@ Use `fs.rm(path, { recursive: true, force: true })`,
 ### DEP0148: Folder mappings in `"exports"` (trailing `"/"`)
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37215
+    description: Runtime deprecation.
   - version: v15.1.0
     pr-url: https://github.com/nodejs/node/pull/35747
-    description: Runtime deprecation.
+    description: Runtime deprecation for self-referencing imports.
   - version: v14.13.0
     pr-url: https://github.com/nodejs/node/pull/34718
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime (supports [`--pending-deprecation`][])
+Type: Runtime
 
-Prior to [subpath patterns][] support, it was possible to define
+Using a trailing `"/"` to define
 [subpath folder mappings][] in the [subpath exports][] or
-[subpath imports][] fields using a trailing `"/"`.
-
-Without `--pending-deprecation`, runtime warnings occur only for exports
-resolutions not in `node_modules`. This means there will not be deprecation
-warnings for `"exports"` in dependencies. With `--pending-deprecation`, a
-runtime warning results no matter where the `"exports"` usage occurs.
+[subpath imports][] fields is deprecated. Use [subpath patterns][] instead.
 
 ### DEP0149: `http.IncomingMessage#connection`
 <!-- YAML
