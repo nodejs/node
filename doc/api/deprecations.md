@@ -2382,6 +2382,9 @@ instead.
 ### DEP0130: `Module.createRequireFromPath()`
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37201
+    description: End-of-life.
   - version: v13.0.0
     pr-url: https://github.com/nodejs/node/pull/27951
     description: Runtime deprecation.
@@ -2390,10 +2393,9 @@ changes:
     description: Documentation-only.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-Module.createRequireFromPath() is deprecated. Please use
-[`module.createRequire()`][] instead.
+Use [`module.createRequire()`][] instead.
 
 ### DEP0131: Legacy HTTP parser
 <!-- YAML
