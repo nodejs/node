@@ -1049,6 +1049,16 @@ Renames `oldPath` to `newPath`.
 added: v10.0.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37216
+    description: "Using `fsPromises.rmdir(path, { recursive: true })` on a `path`
+                 that is a file is no longer permitted and results in an
+                 `ENOENT` error on Windows and an `ENOTDIR` error on POSIX."
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37216
+    description: "Using `fsPromises.rmdir(path, { recursive: true })` on a `path`
+                 that does not exist is no longer permitted and results in a
+                 `ENOENT` error."
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/37302
     description: The `recursive` option is deprecated, using it triggers a
                  deprecation warning.
@@ -1075,8 +1085,8 @@ changes:
     represents the number of retries. This option is ignored if the `recursive`
     option is not `true`. **Default:** `0`.
   * `recursive` {boolean} If `true`, perform a recursive directory removal. In
-    recursive mode, errors are not reported if `path` does not exist, and
-    operations are retried on failure. **Default:** `false`. **Deprecated**.
+    recursive mode, operations are retried on failure. **Default:** `false`.
+    **Deprecated**.
   * `retryDelay` {integer} The amount of time in milliseconds to wait between
     retries. This option is ignored if the `recursive` option is not `true`.
     **Default:** `100`.
@@ -1088,10 +1098,8 @@ Using `fsPromises.rmdir()` on a file (not a directory) results in the
 promise being rejected with an `ENOENT` error on Windows and an `ENOTDIR`
 error on POSIX.
 
-Setting `recursive` to `true` results in behavior similar to the Unix command
-`rm -rf`: an error will not be raised for paths that do not exist, and paths
-that represent files will be deleted. The `recursive` option is deprecated,
-`ENOTDIR` and `ENOENT` will be thrown in the future.
+To get a behavior similar to the `rm -rf` Unix command, use
+[`fsPromises.rm()`][] with options `{ recursive: true, force: true }`.
 
 ### `fsPromises.rm(path[, options])`
 <!-- YAML
@@ -3147,6 +3155,16 @@ rename('oldFile.txt', 'newFile.txt', (err) => {
 added: v0.0.2
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37216
+    description: "Using `fs.rmdir(path, { recursive: true })` on a `path` that is
+                 a file is no longer permitted and results in an `ENOENT` error
+                 on Windows and an `ENOTDIR` error on POSIX."
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37216
+    description: "Using `fs.rmdir(path, { recursive: true })` on a `path` that
+                 does not exist is no longer permitted and results in a `ENOENT`
+                 error."
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/37302
     description: The `recursive` option is deprecated, using it triggers a
                  deprecation warning.
@@ -3185,8 +3203,8 @@ changes:
     represents the number of retries. This option is ignored if the `recursive`
     option is not `true`. **Default:** `0`.
   * `recursive` {boolean} If `true`, perform a recursive directory removal. In
-    recursive mode, errors are not reported if `path` does not exist, and
-    operations are retried on failure. **Default:** `false`. **Deprecated**.
+    recursive mode, operations are retried on failure. **Default:** `false`.
+    **Deprecated**.
   * `retryDelay` {integer} The amount of time in milliseconds to wait between
     retries. This option is ignored if the `recursive` option is not `true`.
     **Default:** `100`.
@@ -3199,10 +3217,8 @@ to the completion callback.
 Using `fs.rmdir()` on a file (not a directory) results in an `ENOENT` error on
 Windows and an `ENOTDIR` error on POSIX.
 
-Setting `recursive` to `true` results in behavior similar to the Unix command
-`rm -rf`: an error will not be raised for paths that do not exist, and paths
-that represent files will be deleted. The `recursive` option is deprecated,
-`ENOTDIR` and `ENOENT` will be thrown in the future.
+To get a behavior similar to the `rm -rf` Unix command, use [`fs.rm()`][]
+with options `{ recursive: true, force: true }`.
 
 ### `fs.rm(path[, options], callback)`
 <!-- YAML
@@ -4778,6 +4794,16 @@ See the POSIX rename(2) documentation for more details.
 added: v0.1.21
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37216
+    description: "Using `fs.rmdirSync(path, { recursive: true })` on a `path`
+                 that is a file is no longer permitted and results in an
+                 `ENOENT` error on Windows and an `ENOTDIR` error on POSIX."
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37216
+    description: "Using `fs.rmdirSync(path, { recursive: true })` on a `path`
+                 that does not exist is no longer permitted and results in a
+                 `ENOENT` error."
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/37302
     description: The `recursive` option is deprecated, using it triggers a
                  deprecation warning.
@@ -4808,8 +4834,8 @@ changes:
     represents the number of retries. This option is ignored if the `recursive`
     option is not `true`. **Default:** `0`.
   * `recursive` {boolean} If `true`, perform a recursive directory removal. In
-    recursive mode, errors are not reported if `path` does not exist, and
-    operations are retried on failure. **Default:** `false`. **Deprecated**.
+    recursive mode, operations are retried on failure. **Default:** `false`.
+    **Deprecated**.
   * `retryDelay` {integer} The amount of time in milliseconds to wait between
     retries. This option is ignored if the `recursive` option is not `true`.
     **Default:** `100`.
@@ -4819,10 +4845,8 @@ Synchronous rmdir(2). Returns `undefined`.
 Using `fs.rmdirSync()` on a file (not a directory) results in an `ENOENT` error
 on Windows and an `ENOTDIR` error on POSIX.
 
-Setting `recursive` to `true` results in behavior similar to the Unix command
-`rm -rf`: an error will not be raised for paths that do not exist, and paths
-that represent files will be deleted. The `recursive` option is deprecated,
-`ENOTDIR` and `ENOENT` will be thrown in the future.
+To get a behavior similar to the `rm -rf` Unix command, use [`fs.rmSync()`][]
+with options `{ recursive: true, force: true }`.
 
 ### `fs.rmSync(path[, options])`
 <!-- YAML
@@ -6670,6 +6694,8 @@ the file contents.
 [`fs.readdirSync()`]: #fs_fs_readdirsync_path_options
 [`fs.readv()`]: #fs_fs_readv_fd_buffers_position_callback
 [`fs.realpath()`]: #fs_fs_realpath_path_options_callback
+[`fs.rm()`]: #fs_fs_rm_path_options_callback
+[`fs.rmSync()`]: #fs_fs_rmsync_path_options
 [`fs.rmdir()`]: #fs_fs_rmdir_path_options_callback
 [`fs.stat()`]: #fs_fs_stat_path_options_callback
 [`fs.symlink()`]: #fs_fs_symlink_target_path_type_callback
@@ -6681,6 +6707,7 @@ the file contents.
 [`fs.writev()`]: #fs_fs_writev_fd_buffers_position_callback
 [`fsPromises.open()`]: #fs_fspromises_open_path_flags_mode
 [`fsPromises.opendir()`]: #fs_fspromises_opendir_path_options
+[`fsPromises.rm()`]: #fs_fspromises_rm_path_options
 [`fsPromises.utimes()`]: #fs_fspromises_utimes_path_atime_mtime
 [`inotify(7)`]: https://man7.org/linux/man-pages/man7/inotify.7.html
 [`kqueue(2)`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
