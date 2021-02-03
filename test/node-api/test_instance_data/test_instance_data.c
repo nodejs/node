@@ -20,21 +20,16 @@ static void call_cb_and_delete_ref(napi_env env, napi_ref* optional_ref) {
 
   if (optional_ref == NULL) {
     AddonData* data;
-    NAPI_CALL_RETURN_VOID(env, napi_get_instance_data(env, (void**)&data));
+    NODE_API_CALL_RETURN_VOID(env, napi_get_instance_data(env, (void**)&data));
     optional_ref = &data->js_cb_ref;
   }
 
-  NAPI_CALL_RETURN_VOID(env, napi_get_reference_value(env,
-                                                      *optional_ref,
-                                                      &js_cb));
-  NAPI_CALL_RETURN_VOID(env, napi_get_undefined(env, &undefined));
-  NAPI_CALL_RETURN_VOID(env, napi_call_function(env,
-                                                undefined,
-                                                js_cb,
-                                                0,
-                                                NULL,
-                                                NULL));
-  NAPI_CALL_RETURN_VOID(env, napi_delete_reference(env, *optional_ref));
+  NODE_API_CALL_RETURN_VOID(env,
+      napi_get_reference_value(env, *optional_ref, &js_cb));
+  NODE_API_CALL_RETURN_VOID(env, napi_get_undefined(env, &undefined));
+  NODE_API_CALL_RETURN_VOID(env,
+      napi_call_function(env, undefined, js_cb, 0, NULL, NULL));
+  NODE_API_CALL_RETURN_VOID(env, napi_delete_reference(env, *optional_ref));
 
   *optional_ref = NULL;
 }
@@ -52,17 +47,13 @@ static bool establish_callback_ref(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value js_cb;
 
-  NAPI_CALL_BASE(env, napi_get_instance_data(env, (void**)&data), false);
-  NAPI_ASSERT_BASE(env,
-                   data->js_cb_ref == NULL,
-                   "reference must be NULL",
-                   false);
-  NAPI_CALL_BASE(env,
-                 napi_get_cb_info(env, info, &argc, &js_cb, NULL, NULL),
-                 false);
-  NAPI_CALL_BASE(env,
-                 napi_create_reference(env, js_cb, 1, &data->js_cb_ref),
-                 false);
+  NODE_API_CALL_BASE(env, napi_get_instance_data(env, (void**)&data), false);
+  NODE_API_ASSERT_BASE(
+      env, data->js_cb_ref == NULL, "reference must be NULL", false);
+  NODE_API_CALL_BASE(
+      env, napi_get_cb_info(env, info, &argc, &js_cb, NULL, NULL), false);
+  NODE_API_CALL_BASE(
+      env, napi_create_reference(env, js_cb, 1, &data->js_cb_ref), false);
 
   return true;
 }
@@ -72,18 +63,14 @@ static napi_value AsyncWorkCallback(napi_env env, napi_callback_info info) {
     napi_value resource_name;
     napi_async_work work;
 
-    NAPI_CALL(env, napi_create_string_utf8(env,
-                                           "AsyncIncrement",
-                                           NAPI_AUTO_LENGTH,
-                                           &resource_name));
-    NAPI_CALL(env, napi_create_async_work(env,
-                                          NULL,
-                                          resource_name,
-                                          AsyncWorkCbExecute,
-                                          AsyncWorkCbComplete,
-                                          NULL,
-                                          &work));
-    NAPI_CALL(env, napi_queue_async_work(env, work));
+    NODE_API_CALL(env,
+        napi_create_string_utf8(
+            env, "AsyncIncrement", NAPI_AUTO_LENGTH, &resource_name));
+    NODE_API_CALL(env,
+        napi_create_async_work(
+            env, NULL, resource_name, AsyncWorkCbExecute, AsyncWorkCbComplete,
+            NULL, &work));
+    NODE_API_CALL(env, napi_queue_async_work(env, work));
   }
 
   return NULL;
@@ -98,12 +85,10 @@ static void TestBufferFinalizerCallback(napi_env env, void* data, void* hint) {
 static napi_value TestBufferFinalizer(napi_env env, napi_callback_info info) {
   napi_value buffer = NULL;
   if (establish_callback_ref(env, info)) {
-    NAPI_CALL(env, napi_create_external_buffer(env,
-                                               sizeof(napi_callback),
-                                               TestBufferFinalizer,
-                                               TestBufferFinalizerCallback,
-                                               NULL,
-                                               &buffer));
+    NODE_API_CALL(env,
+        napi_create_external_buffer(
+            env, sizeof(napi_callback), TestBufferFinalizer,
+            TestBufferFinalizerCallback, NULL, &buffer));
   }
   return buffer;
 }
@@ -147,10 +132,9 @@ static void ThreadsafeFunctionTestThread(void* raw_data) {
 
 static void FinalizeThreadsafeFunction(napi_env env, void* raw, void* hint) {
   AddonData* data;
-  NAPI_CALL_RETURN_VOID(env, napi_get_instance_data(env, (void**)&data));
-  NAPI_ASSERT_RETURN_VOID(env,
-                          uv_thread_join(&data->thread) == 0,
-                          "Failed to join the thread");
+  NODE_API_CALL_RETURN_VOID(env, napi_get_instance_data(env, (void**)&data));
+  NODE_API_ASSERT_RETURN_VOID(env,
+      uv_thread_join(&data->thread) == 0, "Failed to join the thread");
   call_cb_and_delete_ref(env, &data->js_tsfn_finalizer_ref);
   data->tsfn = NULL;
 }
@@ -163,37 +147,26 @@ TestThreadsafeFunction(napi_env env, napi_callback_info info) {
   size_t argc = 2;
   napi_value argv[2], resource_name;
 
-  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, argv, NULL, NULL));
-  NAPI_CALL(env, napi_get_instance_data(env, (void**)&data));
-  NAPI_ASSERT(env, data->js_cb_ref == NULL, "reference must be NULL");
-  NAPI_ASSERT(env,
-              data->js_tsfn_finalizer_ref == NULL,
-              "tsfn finalizer reference must be NULL");
-  NAPI_CALL(env, napi_create_reference(env, argv[0], 1, &data->js_cb_ref));
-  NAPI_CALL(env, napi_create_reference(env,
-                                       argv[1],
-                                       1,
-                                       &data->js_tsfn_finalizer_ref));
-  NAPI_CALL(env, napi_create_string_utf8(env,
-                                         "TSFN instance data test",
-                                         NAPI_AUTO_LENGTH,
-                                         &resource_name));
-  NAPI_CALL(env, napi_create_threadsafe_function(env,
-                                                 NULL,
-                                                 NULL,
-                                                 resource_name,
-                                                 0,
-                                                 1,
-                                                 NULL,
-                                                 FinalizeThreadsafeFunction,
-                                                 NULL,
-                                                 ThreadsafeFunctionCallJS,
-                                                 &data->tsfn));
-  NAPI_ASSERT(env,
-              uv_thread_create(&data->thread,
-                               ThreadsafeFunctionTestThread,
-                               data) == 0,
-              "uv_thread_create failed");
+  NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, argv, NULL, NULL));
+  NODE_API_CALL(env, napi_get_instance_data(env, (void**)&data));
+  NODE_API_ASSERT(env, data->js_cb_ref == NULL, "reference must be NULL");
+  NODE_API_ASSERT(
+      env, data->js_tsfn_finalizer_ref == NULL,
+      "tsfn finalizer reference must be NULL");
+  NODE_API_CALL(env, napi_create_reference(env, argv[0], 1, &data->js_cb_ref));
+  NODE_API_CALL(env,
+      napi_create_reference(env, argv[1], 1, &data->js_tsfn_finalizer_ref));
+  NODE_API_CALL(env,
+      napi_create_string_utf8(
+          env, "TSFN instance data test", NAPI_AUTO_LENGTH, &resource_name));
+  NODE_API_CALL(env,
+      napi_create_threadsafe_function(
+          env, NULL, NULL, resource_name, 0, 1, NULL,
+          FinalizeThreadsafeFunction, NULL, ThreadsafeFunctionCallJS,
+          &data->tsfn));
+  NODE_API_ASSERT(env,
+      uv_thread_create(&data->thread, ThreadsafeFunctionTestThread, data) == 0,
+      "uv_thread_create failed");
 
   return NULL;
 }
@@ -201,12 +174,11 @@ TestThreadsafeFunction(napi_env env, napi_callback_info info) {
 static void DeleteAddonData(napi_env env, void* raw_data, void* hint) {
   AddonData* data = raw_data;
   if (data->js_cb_ref) {
-    NAPI_CALL_RETURN_VOID(env, napi_delete_reference(env, data->js_cb_ref));
+    NODE_API_CALL_RETURN_VOID(env, napi_delete_reference(env, data->js_cb_ref));
   }
   if (data->js_tsfn_finalizer_ref) {
-    NAPI_CALL_RETURN_VOID(env,
-                          napi_delete_reference(env,
-                                                data->js_tsfn_finalizer_ref));
+    NODE_API_CALL_RETURN_VOID(env,
+        napi_delete_reference(env, data->js_tsfn_finalizer_ref));
   }
   free(data);
 }
@@ -216,18 +188,17 @@ static napi_value Init(napi_env env, napi_value exports) {
   data->js_cb_ref = NULL;
   data->js_tsfn_finalizer_ref = NULL;
 
-  NAPI_CALL(env, napi_set_instance_data(env, data, DeleteAddonData, NULL));
+  NODE_API_CALL(env, napi_set_instance_data(env, data, DeleteAddonData, NULL));
 
   napi_property_descriptor props[] = {
-    DECLARE_NAPI_PROPERTY("asyncWorkCallback", AsyncWorkCallback),
-    DECLARE_NAPI_PROPERTY("testBufferFinalizer", TestBufferFinalizer),
-    DECLARE_NAPI_PROPERTY("testThreadsafeFunction", TestThreadsafeFunction),
+    DECLARE_NODE_API_PROPERTY("asyncWorkCallback", AsyncWorkCallback),
+    DECLARE_NODE_API_PROPERTY("testBufferFinalizer", TestBufferFinalizer),
+    DECLARE_NODE_API_PROPERTY("testThreadsafeFunction", TestThreadsafeFunction),
   };
 
-  NAPI_CALL(env, napi_define_properties(env,
-                                        exports,
-                                        sizeof(props) / sizeof(*props),
-                                        props));
+  NODE_API_CALL(env,
+      napi_define_properties(
+          env, exports, sizeof(props) / sizeof(*props), props));
 
   return exports;
 }

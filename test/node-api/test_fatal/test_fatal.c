@@ -14,11 +14,11 @@ static napi_value TestStringLength(napi_env env, napi_callback_info info) {
 
 static napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor properties[] = {
-    DECLARE_NAPI_PROPERTY("Test", Test),
-    DECLARE_NAPI_PROPERTY("TestStringLength", TestStringLength),
+    DECLARE_NODE_API_PROPERTY("Test", Test),
+    DECLARE_NODE_API_PROPERTY("TestStringLength", TestStringLength),
   };
 
-  NAPI_CALL(env, napi_define_properties(
+  NODE_API_CALL(env, napi_define_properties(
       env, exports, sizeof(properties) / sizeof(*properties), properties));
 
   return exports;
