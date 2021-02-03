@@ -1,3 +1,4 @@
+#define NAPI_EXPERIMENTAL
 #include <node_api.h>
 #include <stdlib.h>
 #include "../../js-native-api/common.h"
@@ -21,9 +22,21 @@ static napi_value testGetNodeVersion(napi_env env, napi_callback_info info) {
   return result;
 }
 
+static napi_value GetFilename(napi_env env, napi_callback_info info) {
+  const char* filename;
+  napi_value result;
+
+  NAPI_CALL(env, node_api_get_module_file_name(env, &filename));
+  NAPI_CALL(env,
+      napi_create_string_utf8(env, filename, NAPI_AUTO_LENGTH, &result));
+
+  return result;
+}
+
 static napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("testGetNodeVersion", testGetNodeVersion),
+    DECLARE_NAPI_GETTER("filename", GetFilename),
   };
 
   NAPI_CALL(env, napi_define_properties(
