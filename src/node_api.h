@@ -263,6 +263,13 @@ NAPI_EXTERN napi_status napi_remove_async_cleanup_hook(
 
 #endif  // NAPI_VERSION >= 8
 
+#ifdef NAPI_EXPERIMENTAL
+
+NAPI_EXTERN napi_status
+node_api_get_module_file_name(napi_env env, const char** result);
+
+#endif  // NAPI_EXPERIMENTAL
+
 EXTERN_C_END
 
 #endif  // SRC_NODE_API_H_
