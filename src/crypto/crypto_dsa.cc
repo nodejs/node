@@ -22,7 +22,6 @@ using v8::Maybe;
 using v8::Nothing;
 using v8::Number;
 using v8::Object;
-using v8::String;
 using v8::Uint32;
 using v8::Value;
 
@@ -127,107 +126,6 @@ WebCryptoKeyExportStatus DSAKeyExportTraits::DoExport(
   }
 }
 
-Maybe<bool> ExportJWKDsaKey(
-    Environment* env,
-    std::shared_ptr<KeyObjectData> key,
-    Local<Object> target) {
-  ManagedEVPPKey pkey = key->GetAsymmetricKey();
-  CHECK_EQ(EVP_PKEY_id(pkey.get()), EVP_PKEY_DSA);
-
-  DSA* dsa = EVP_PKEY_get0_DSA(pkey.get());
-  CHECK_NOT_NULL(dsa);
-
-  const BIGNUM* y;
-  const BIGNUM* x;
-  const BIGNUM* p;
-  const BIGNUM* q;
-  const BIGNUM* g;
-
-  DSA_get0_key(dsa, &y, &x);
-  DSA_get0_pqg(dsa, &p, &q, &g);
-
-  if (target->Set(
-          env->context(),
-          env->jwk_kty_string(),
-          env->jwk_dsa_string()).IsNothing()) {
-    return Nothing<bool>();
-  }
-
-  if (SetEncodedValue(env, target, env->jwk_y_string(), y).IsNothing() ||
-      SetEncodedValue(env, target, env->jwk_p_string(), p).IsNothing() ||
-      SetEncodedValue(env, target, env->jwk_q_string(), q).IsNothing() ||
-      SetEncodedValue(env, target, env->jwk_g_string(), g).IsNothing()) {
-    return Nothing<bool>();
-  }
-
-  if (key->GetKeyType() == kKeyTypePrivate &&
-      SetEncodedValue(env, target, env->jwk_x_string(), x).IsNothing()) {
-    return Nothing<bool>();
-  }
-
-  return Just(true);
-}
-
-std::shared_ptr<KeyObjectData> ImportJWKDsaKey(
-    Environment* env,
-    Local<Object> jwk,
-    const FunctionCallbackInfo<Value>& args,
-    unsigned int offset) {
-  Local<Value> y_value;
-  Local<Value> p_value;
-  Local<Value> q_value;
-  Local<Value> g_value;
-  Local<Value> x_value;
-
-  if (!jwk->Get(env->context(), env->jwk_y_string()).ToLocal(&y_value) ||
-      !jwk->Get(env->context(), env->jwk_p_string()).ToLocal(&p_value) ||
-      !jwk->Get(env->context(), env->jwk_q_string()).ToLocal(&q_value) ||
-      !jwk->Get(env->context(), env->jwk_g_string()).ToLocal(&g_value) ||
-      !jwk->Get(env->context(), env->jwk_x_string()).ToLocal(&x_value)) {
-    return std::shared_ptr<KeyObjectData>();
-  }
-
-  if (!y_value->IsString() ||
-      !p_value->IsString() ||
-      !q_value->IsString() ||
-      !q_value->IsString() ||
-      (!x_value->IsUndefined() && !x_value->IsString())) {
-    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK DSA key");
-    return std::shared_ptr<KeyObjectData>();
-  }
-
-  KeyType type = x_value->IsString() ? kKeyTypePrivate : kKeyTypePublic;
-
-  DsaPointer dsa(DSA_new());
-
-  ByteSource y = ByteSource::FromEncodedString(env, y_value.As<String>());
-  ByteSource p = ByteSource::FromEncodedString(env, p_value.As<String>());
-  ByteSource q = ByteSource::FromEncodedString(env, q_value.As<String>());
-  ByteSource g = ByteSource::FromEncodedString(env, g_value.As<String>());
-
-  if (!DSA_set0_key(dsa.get(), y.ToBN().release(), nullptr) ||
-      !DSA_set0_pqg(dsa.get(),
-                    p.ToBN().release(),
-                    q.ToBN().release(),
-                    g.ToBN().release())) {
-    THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK DSA key");
-    return std::shared_ptr<KeyObjectData>();
-  }
-
-  if (type == kKeyTypePrivate) {
-    ByteSource x = ByteSource::FromEncodedString(env, x_value.As<String>());
-    if (!DSA_set0_key(dsa.get(), nullptr, x.ToBN().release())) {
-      THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK DSA key");
-      return std::shared_ptr<KeyObjectData>();
-    }
-  }
-
-  EVPKeyPointer pkey(EVP_PKEY_new());
-  CHECK_EQ(EVP_PKEY_set1_DSA(pkey.get(), dsa.get()), 1);
-
-  return KeyObjectData::CreateAsymmetric(type, ManagedEVPPKey(std::move(pkey)));
-}
-
 Maybe<bool> GetDsaKeyDetail(
     Environment* env,
     std::shared_ptr<KeyObjectData> key,
@@ -269,4 +167,3 @@ void Initialize(Environment* env, Local<Object> target) {
 }  // namespace DSAAlg
 }  // namespace crypto
 }  // namespace node
-

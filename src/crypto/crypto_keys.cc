@@ -490,7 +490,6 @@ Maybe<bool> ExportJWKAsymmetricKey(
     case EVP_PKEY_RSA:
       // Fall through
     case EVP_PKEY_RSA_PSS: return ExportJWKRsaKey(env, key, target);
-    case EVP_PKEY_DSA: return ExportJWKDsaKey(env, key, target);
     case EVP_PKEY_EC: return ExportJWKEcKey(env, key, target);
     case EVP_PKEY_ED25519:
       // Fall through
@@ -512,14 +511,12 @@ std::shared_ptr<KeyObjectData> ImportJWKAsymmetricKey(
     unsigned int offset) {
   if (strcmp(kty, "RSA") == 0) {
     return ImportJWKRsaKey(env, jwk, args, offset);
-  } else if (strcmp(kty, "DSA") == 0) {
-    return ImportJWKDsaKey(env, jwk, args, offset);
   } else if (strcmp(kty, "EC") == 0) {
     return ImportJWKEcKey(env, jwk, args, offset);
   }
 
   char msg[1024];
-  snprintf(msg, sizeof(msg), "%s is not a support JWK key type", kty);
+  snprintf(msg, sizeof(msg), "%s is not a supported JWK key type", kty);
   THROW_ERR_CRYPTO_INVALID_JWK(env, msg);
   return std::shared_ptr<KeyObjectData>();
 }
