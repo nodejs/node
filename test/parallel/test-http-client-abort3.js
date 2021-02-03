@@ -5,15 +5,6 @@ const http = require('http');
 const net = require('net');
 const assert = require('assert');
 
-{
-  const req = http.get('http://[2604:1380:45f1:3f00::1]:4002');
-
-  req.on('error', common.mustCall((err) => {
-    assert(err.code === 'ENETUNREACH' || err.code === 'EHOSTUNREACH');
-  }));
-  req.abort();
-}
-
 function createConnection() {
   const socket = new net.Socket();
 
