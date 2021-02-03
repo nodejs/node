@@ -59,26 +59,6 @@ const require = createRequire(import.meta.url);
 const siblingModule = require('./sibling-module');
 ```
 
-### `module.createRequireFromPath(filename)`
-<!-- YAML
-added: v10.12.0
-deprecated: v12.2.0
--->
-
-> Stability: 0 - Deprecated: Please use [`createRequire()`][] instead.
-
-* `filename` {string} Filename to be used to construct the relative require
-  function.
-* Returns: {require} Require function
-
-```js
-const { createRequireFromPath } = require('module');
-const requireUtil = createRequireFromPath('../src/utils/');
-
-// Require `../src/utils/some-tool`
-requireUtil('./some-tool');
-```
-
 ### `module.syncBuiltinESMExports()`
 <!-- YAML
 added: v12.12.0
@@ -214,7 +194,6 @@ consists of the following keys:
 [`--enable-source-maps`]: cli.md#cli_enable_source_maps
 [`NODE_V8_COVERAGE=dir`]: cli.md#cli_node_v8_coverage_dir
 [`SourceMap`]: #module_class_module_sourcemap
-[`createRequire()`]: #module_module_createrequire_filename
 [`module`]: modules.md#modules_the_module_object
 [module wrapper]: modules.md#modules_the_module_wrapper
 [source map include directives]: https://sourcemaps.info/spec.html#h.lmz475t4mvbx
