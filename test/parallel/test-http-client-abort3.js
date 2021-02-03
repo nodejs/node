@@ -3,7 +3,6 @@
 const common = require('../common');
 const http = require('http');
 const net = require('net');
-const assert = require('assert');
 
 function createConnection() {
   const socket = new net.Socket();
