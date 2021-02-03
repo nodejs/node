@@ -29,8 +29,7 @@ const path = require('path');
 
 const backslash = /\\/g;
 
-if (!process.env.NODE_PENDING_DEPRECATION)
-  process.on('warning', common.mustNotCall());
+process.on('warning', common.mustCall());
 
 console.error('load test-module-loading.js');
 
@@ -107,7 +106,16 @@ const d2 = require('../fixtures/b/d');
 assert.strictEqual(require('../fixtures/packages/index').ok, 'ok');
 assert.strictEqual(require('../fixtures/packages/main').ok, 'ok');
 assert.strictEqual(require('../fixtures/packages/main-index').ok, 'ok');
+
+common.expectWarning(
+  'DeprecationWarning',
+  "Invalid 'main' field in '" +
+  require.resolve('../fixtures/packages/missing-main/package.json') +
+  "' of 'doesnotexist.js'. Please either fix that or report it to the" +
+  ' module author',
+  'DEP0128');
 assert.strictEqual(require('../fixtures/packages/missing-main').ok, 'ok');
+
 assert.throws(
   () => require('../fixtures/packages/missing-main-no-index'),
   {

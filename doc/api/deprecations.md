@@ -2350,12 +2350,15 @@ with no performance impact since Node.js 10.
 ### DEP0128: modules with an invalid `main` entry and an `index.js` file
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37204
+    description: Runtime deprecation.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26823
     description: Documentation-only.
 -->
 
-Type: Documentation-only (supports [`--pending-deprecation`][])
+Type: Runtime
 
 Modules that have an invalid `main` entry (e.g., `./does-not-exist.js`) and
 also have an `index.js` file in the top level directory will resolve the
