@@ -641,7 +641,7 @@ extension that allows converting a {CryptoKey} into a Node.js {KeyObject}.
 | `'RSA-OAEP'`          | ✔ | ✔ | ✔ |   |
 | `'RSA-PSS'`           | ✔ | ✔ | ✔ |   |
 | `'RSASSA-PKCS1-v1_5'` | ✔ | ✔ | ✔ |   |
-| `'NODE-DSA'` <sup>1</sup> | ✔ | ✔ | ✔ |   |
+| `'NODE-DSA'` <sup>1</sup> | ✔ | ✔ |   |   |
 | `'NODE-DH'` <sup>1</sup> | ✔ | ✔ |   |   |
 | `'NODE-SCRYPT'` <sup>1</sup> |   |   |   |   |
 | `'NODE-ED25519'` <sup>1</sup> | ✔ | ✔ | ✔ | ✔ |
@@ -729,7 +729,7 @@ The algorithms currently supported include:
 | `'RSA-OAEP'`          | ✔ | ✔ | ✔ |   |
 | `'RSA-PSS'`           | ✔ | ✔ | ✔ |   |
 | `'RSASSA-PKCS1-v1_5'` | ✔ | ✔ | ✔ |   |
-| `'NODE-DSA'` <sup>1</sup> | ✔ | ✔ | ✔ |   |
+| `'NODE-DSA'` <sup>1</sup> | ✔ | ✔ |   |   |
 | `'NODE-DH'` <sup>1</sup> | ✔ | ✔ |   |   |
 | `'NODE-SCRYPT'` <sup>1</sup> |   |   |   | ✔ |
 | `'NODE-ED25519'` <sup>1</sup> | ✔ | ✔ | ✔ | ✔ |
