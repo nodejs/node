@@ -2743,8 +2743,7 @@ Previously, `index.js` and extension searching lookups would apply to
 With this deprecation, all ES module main entry point resolutions require
 an explicit [`"exports"` or `"main"` entry][] with the exact file extension.
 
-<a id="DEPXXX"></a>
-### DEPXXX: `head` removed from `upgrade` event
+### DEP0XXX: `head` removed from `upgrade` event
 <!-- YAML
 changes:
   - version: REPLACEME

@@ -103,6 +103,8 @@ function test_upgrade_with_listener() {
     } else if (state === 2) {
       buf += data;
       conn.write('kill', 'utf8');
+    } else {
+      buf += data;
     }
   });
 
