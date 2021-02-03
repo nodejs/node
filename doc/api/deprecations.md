@@ -2737,13 +2737,16 @@ change the value has been deprecated and will be disabled in the future.
 ### DEP0151: Main index lookup and extension searching
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37206
+    description: Runtime deprecation.
   - version: v15.8.0
     pr-url: https://github.com/nodejs/node/pull/36918
     description: Documentation-only deprecation
                  with `--pending-deprecation` support.
 -->
 
-Type: Documentation-only (supports [`--pending-deprecation`][])
+Type: Runtime
 
 Previously, `index.js` and extension searching lookups would apply to
 `import 'pkg'` main entry point resolution, even when resolving ES modules.
