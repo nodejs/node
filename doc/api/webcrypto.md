@@ -604,6 +604,10 @@ The algorithms currently supported include:
 ### `subtle.exportKey(format, key)`
 <!-- YAML
 added: v15.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37203
+    description: Removed `'NODE-DSA'` JWK export.
 -->
 
 * `format`: {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, `'jwk'`, or
@@ -691,6 +695,10 @@ The {CryptoKey} (secret key) generating algorithms supported include:
 ### `subtle.importKey(format, keyData, algorithm, extractable, keyUsages)`
 <!-- YAML
 added: v15.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37203
+    description: Removed `'NODE-DSA'` JWK import.
 -->
 
 * `format`: {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, `'jwk'`, or
