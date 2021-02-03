@@ -2348,7 +2348,7 @@ with no performance impact since Node.js 10.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/
+    pr-url: https://github.com/nodejs/node/pull/37204
     description: Runtime deprecation.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26823
