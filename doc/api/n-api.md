@@ -5958,6 +5958,30 @@ idempotent.
 
 This API may only be called from the main thread.
 
+## Miscellaneous utilities
+
+## node_api_get_module_file_name
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+```c
+NAPI_EXTERN napi_status
+node_api_get_module_file_name(napi_env env, const char** result);
+
+```
+
+* `[in] env`: The environment that the API is invoked under.
+* `[out] result`: A null-terminated string containing the absolute path of the
+  file from which the add-on was loaded. The string is owned by `env` and must
+  not be modified or freed.
+
+`result` may be an empty string if the add-on loading process fails to establish
+the add-on's file name during loading.
+
 [ABI Stability]: https://nodejs.org/en/docs/guides/abi-stability/
 [AppVeyor]: https://www.appveyor.com
 [C++ Addons]: addons.md
