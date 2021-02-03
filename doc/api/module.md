@@ -191,7 +191,6 @@ consists of the following keys:
 [`--enable-source-maps`]: cli.md#cli_enable_source_maps
 [`NODE_V8_COVERAGE=dir`]: cli.md#cli_node_v8_coverage_dir
 [`SourceMap`]: #module_class_module_sourcemap
-[`createRequire()`]: #module_module_createrequire_filename
 [`module`]: modules.md#modules_the_module_object
 [module wrapper]: modules.md#modules_the_module_wrapper
 [source map include directives]: https://sourcemaps.info/spec.html#h.lmz475t4mvbx

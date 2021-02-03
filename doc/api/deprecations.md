@@ -2380,7 +2380,7 @@ instead.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/
+    pr-url: https://github.com/nodejs/node/pull/37201
     description: End-of-life.
   - version: v13.0.0
     pr-url: https://github.com/nodejs/node/pull/27951
@@ -2390,7 +2390,7 @@ changes:
     description: Documentation-only.
 -->
 
-Type: End-of-life
+Type: End-of-Life
 
 Use [`module.createRequire()`][] instead.
 
