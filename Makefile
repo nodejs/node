@@ -1012,6 +1012,16 @@ $(PKG): release-only
 # Builds the macOS installer for releases.
 pkg: $(PKG)
 
+yarn-update:
+	rm -rf deps/yarn
+	mkdir -p deps/yarn
+	cd deps/yarn && wget -q https://yarnpkg.com/latest.tar.gz
+	cd deps/yarn && tar xf latest.tar.gz --strip-components=1
+	rm deps/yarn/latest.tar.gz
+	# Those shellscripts are originally meant for Yarn Windows packages; tweaked for Node Windows paths
+	perl -pi -e 's#"\$$basedir/yarn.js"#"\$$basedir/node_modules/yarn/bin/yarn.js"#g' deps/yarn/bin/yarn
+	perl -pi -e 's#"%~dp0\\yarn.js"#"%~dp0\\node_modules\\yarn\\bin\\yarn.js"#g' deps/yarn/bin/yarn.cmd
+
 # Note: this is strictly for release builds on release machines only.
 pkg-upload: pkg
 	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"

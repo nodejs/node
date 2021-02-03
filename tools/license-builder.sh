@@ -70,8 +70,9 @@ addlicense "SipHash" "deps/v8/src/third_party/siphash" \
 addlicense "zlib" "deps/zlib" \
            "$(sed -e '/The data format used by the zlib library/,$d' -e 's/^\/\* *//' -e 's/^ *//' "${rootdir}"/deps/zlib/zlib.h)"
 
-# npm
+# Package managers
 addlicense "npm" "deps/npm" "$(cat "${rootdir}"/deps/npm/LICENSE)"
+addlicense "yarn" "deps/yarn" "$(cat ${rootdir}/deps/yarn/LICENSE)"
 
 # Build tools
 addlicense "GYP" "tools/gyp" "$(cat "${rootdir}"/tools/gyp/LICENSE)"

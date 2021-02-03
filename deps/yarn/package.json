@@ -1,0 +1,24 @@
+{
+  "name": "yarn",
+  "installationMethod": "tar",
+  "version": "1.22.5",
+  "license": "BSD-2-Clause",
+  "preferGlobal": true,
+  "description": "📦🐈 Fast, reliable, and secure dependency management.",
+  "resolutions": {
+    "sshpk": "^1.14.2"
+  },
+  "engines": {
+    "node": ">=4.0.0"
+  },
+  "repository": "yarnpkg/yarn",
+  "bin": {
+    "yarn": "./bin/yarn.js",
+    "yarnpkg": "./bin/yarn.js"
+  },
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog"
+    }
+  }
+}

@@ -18,6 +18,9 @@
     <String Id="npm_Title">npm-Paketmanager</String>
     <String Id="npm_Description">Installiert npm, den empfohlenen Paketmanager für [ProductName].</String>
 
+    <String Id="yarn_Title">Yarn-Paketmanager</String>
+    <String Id="yarn_Description">Installiert Yarn, den empfohlenen Paketmanager für [ProductName].</String>
+
     <String Id="DocumentationShortcuts_Title">Link zur Online-Dokumentation</String>
     <String Id="DocumentationShortcuts_Description">Fügt Startmenü-Einträge zur Online-Dokumentation von [ProductName] [FullVersion] und zur [ProductName]-Website hinzu.</String>
 

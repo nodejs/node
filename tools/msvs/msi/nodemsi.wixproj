@@ -16,33 +16,33 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
     <OutputPath>..\..\..\</OutputPath>
     <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
-    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NoETW=$(NoETW);NpmSourceDir=..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;ProgramFilesFolderId=ProgramFilesFolder</DefineConstants>
+    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NoETW=$(NoETW);NpmSourceDir=..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;YarnSourceDir=..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\yarn\;ProgramFilesFolderId=ProgramFilesFolder</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
     <OutputPath>..\..\..\</OutputPath>
     <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
-    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NoETW=$(NoETW);NpmSourceDir=..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;ProgramFilesFolderId=ProgramFilesFolder</DefineConstants>
+    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NoETW=$(NoETW);NpmSourceDir=..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;YarnSourceDir=..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\yarn\;ProgramFilesFolderId=ProgramFilesFolder</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x64' ">
     <OutputPath>..\..\..\</OutputPath>
     <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
-    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NoETW=$(NoETW);NpmSourceDir=..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
+    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NoETW=$(NoETW);NpmSourceDir=..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;YarnSourceDir=..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\yarn\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
     <Cultures>en-US</Cultures>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
     <OutputPath>..\..\..\</OutputPath>
     <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
-    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NoETW=$(NoETW);NpmSourceDir=..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
+    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NoETW=$(NoETW);NpmSourceDir=..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;YarnSourceDir=..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\yarn\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|arm64' ">
     <OutputPath>..\..\..\</OutputPath>
     <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
-    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NoETW=$(NoETW);NpmSourceDir=..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
+    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NoETW=$(NoETW);NpmSourceDir=..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;YarnSourceDir=..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\yarn\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|arm64' ">
     <OutputPath>..\..\..\</OutputPath>
     <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
-    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NoETW=$(NoETW);NpmSourceDir=..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
+    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NoETW=$(NoETW);NpmSourceDir=..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;YarnSourceDir=..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\yarn\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
   </PropertyGroup>
   <PropertyGroup>
     <EnableProjectHarvesting>True</EnableProjectHarvesting>
@@ -51,6 +51,9 @@
     <Compile Include="product.wxs" />
     <Compile Include="..\..\..\npm.wxs">
       <Link>npm.wxs</Link>
+    </Compile>
+    <Compile Include="..\..\..\yarn.wxs">
+      <Link>yarn.wxs</Link>
     </Compile>
   </ItemGroup>
   <ItemGroup>
@@ -84,6 +87,8 @@
   <Import Project="$(WixTargetsPath)" />
   <Target Name="BeforeBuild">
     <HeatDirectory ToolPath="$(WixToolPath)" Directory="..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm" PreprocessorVariable="var.NpmSourceDir" DirectoryRefId="NodeModulesFolder" ComponentGroupName="NpmSourceFiles" GenerateGuidsNow="true" SuppressFragments="false" OutputFile="..\..\..\npm.wxs" RunAsSeparateProcess="true">
+    </HeatDirectory>
+    <HeatDirectory ToolPath="$(WixToolPath)" Directory="..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\yarn" PreprocessorVariable="var.YarnSourceDir" DirectoryRefId="NodeModulesFolder" ComponentGroupName="YarnSourceFiles" GenerateGuidsNow="true" SuppressFragments="false" OutputFile="..\..\..\yarn.wxs" RunAsSeparateProcess="true">
     </HeatDirectory>
   </Target>
   <PropertyGroup>

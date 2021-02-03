@@ -96,6 +96,15 @@
       <ComponentGroupRef Id="NpmSourceFiles"/>
     </Feature>
 
+    <Feature Id="yarn"
+             Level="1"
+             Title="!(loc.yarn_Title)"
+             Description="!(loc.yarn_Description)">
+      <ComponentRef Id="YarnCmdScript"/>
+      <ComponentRef Id="YarnBashScript"/>
+      <ComponentGroupRef Id="YarnSourceFiles"/>
+    </Feature>
+
     <Feature Level="1"
              Id="DocumentationShortcuts"
              Title="!(loc.DocumentationShortcuts_Title)"
@@ -219,6 +228,14 @@
 
       <Component Id="NpxBashScript">
         <File Id="npx.sh" KeyPath="yes" Source="$(var.NpmSourceDir)\bin\npx"/>
+      </Component>
+
+      <Component Id="YarnCmdScript">
+        <File Id="yarn.cmd" KeyPath="yes" Source="$(var.YarnSourceDir)\bin\yarn.cmd"/>
+      </Component>
+
+      <Component Id="YarnBashScript">
+        <File Id="yarn.sh" KeyPath="yes" Source="$(var.YarnSourceDir)\bin\yarn"/>
       </Component>
 
       <Directory Id="NodeModulesFolder" Name="node_modules">
