@@ -14,12 +14,13 @@ const { subtle } = require('crypto').webcrypto;
 (async function() {
 
   const key = await subtle.generateKey({
-    name: 'hmac',
-    length: 123
+    name: 'HMAC',
+    hash: 'SHA-256',
+    length: 256
   }, true, ['sign', 'verify']);
 
   const digest = await subtle.sign({
-    name: 'hmac'
+    name: 'HMAC'
   }, key, 'I love cupcakes');
 
 })();
