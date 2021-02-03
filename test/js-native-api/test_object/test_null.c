@@ -6,9 +6,9 @@
 static napi_value SetProperty(napi_env env, napi_callback_info info) {
   napi_value return_value, object, key;
 
-  NAPI_CALL(env, napi_create_object(env, &return_value));
-  NAPI_CALL(env, napi_create_object(env, &object));
-  NAPI_CALL(env,
+  NODE_API_CALL(env, napi_create_object(env, &return_value));
+  NODE_API_CALL(env, napi_create_object(env, &object));
+  NODE_API_CALL(env,
       napi_create_string_utf8(env, "someString", NAPI_AUTO_LENGTH, &key));
 
   add_returned_status(env,
@@ -33,9 +33,9 @@ static napi_value SetProperty(napi_env env, napi_callback_info info) {
 static napi_value GetProperty(napi_env env, napi_callback_info info) {
   napi_value return_value, object, key, prop;
 
-  NAPI_CALL(env, napi_create_object(env, &return_value));
-  NAPI_CALL(env, napi_create_object(env, &object));
-  NAPI_CALL(env,
+  NODE_API_CALL(env, napi_create_object(env, &return_value));
+  NODE_API_CALL(env, napi_create_object(env, &object));
+  NODE_API_CALL(env,
       napi_create_string_utf8(env, "someString", NAPI_AUTO_LENGTH, &key));
 
   add_returned_status(env,
@@ -62,9 +62,9 @@ static napi_value TestBoolValuedPropApi(napi_env env,
   napi_value return_value, object, key;
   bool result;
 
-  NAPI_CALL(env, napi_create_object(env, &return_value));
-  NAPI_CALL(env, napi_create_object(env, &object));
-  NAPI_CALL(env,
+  NODE_API_CALL(env, napi_create_object(env, &return_value));
+  NODE_API_CALL(env, napi_create_object(env, &object));
+  NODE_API_CALL(env,
       napi_create_string_utf8(env, "someString", NAPI_AUTO_LENGTH, &key));
 
   add_returned_status(env,
@@ -101,8 +101,8 @@ static napi_value DeleteProperty(napi_env env, napi_callback_info info) {
 static napi_value SetNamedProperty(napi_env env, napi_callback_info info) {
   napi_value return_value, object;
 
-  NAPI_CALL(env, napi_create_object(env, &return_value));
-  NAPI_CALL(env, napi_create_object(env, &object));
+  NODE_API_CALL(env, napi_create_object(env, &return_value));
+  NODE_API_CALL(env, napi_create_object(env, &object));
 
   add_returned_status(env,
                       "envIsNull",
@@ -126,8 +126,8 @@ static napi_value SetNamedProperty(napi_env env, napi_callback_info info) {
 static napi_value GetNamedProperty(napi_env env, napi_callback_info info) {
   napi_value return_value, object, prop;
 
-  NAPI_CALL(env, napi_create_object(env, &return_value));
-  NAPI_CALL(env, napi_create_object(env, &object));
+  NODE_API_CALL(env, napi_create_object(env, &return_value));
+  NODE_API_CALL(env, napi_create_object(env, &object));
 
   add_returned_status(env,
                       "envIsNull",
@@ -152,8 +152,8 @@ static napi_value HasNamedProperty(napi_env env, napi_callback_info info) {
   napi_value return_value, object;
   bool result;
 
-  NAPI_CALL(env, napi_create_object(env, &return_value));
-  NAPI_CALL(env, napi_create_object(env, &object));
+  NODE_API_CALL(env, napi_create_object(env, &return_value));
+  NODE_API_CALL(env, napi_create_object(env, &object));
 
   add_returned_status(env,
                       "envIsNull",
@@ -177,8 +177,8 @@ static napi_value HasNamedProperty(napi_env env, napi_callback_info info) {
 static napi_value SetElement(napi_env env, napi_callback_info info) {
   napi_value return_value, object;
 
-  NAPI_CALL(env, napi_create_object(env, &return_value));
-  NAPI_CALL(env, napi_create_object(env, &object));
+  NODE_API_CALL(env, napi_create_object(env, &return_value));
+  NODE_API_CALL(env, napi_create_object(env, &object));
 
   add_returned_status(env,
                       "envIsNull",
@@ -199,8 +199,8 @@ static napi_value SetElement(napi_env env, napi_callback_info info) {
 static napi_value GetElement(napi_env env, napi_callback_info info) {
   napi_value return_value, object, prop;
 
-  NAPI_CALL(env, napi_create_object(env, &return_value));
-  NAPI_CALL(env, napi_create_object(env, &object));
+  NODE_API_CALL(env, napi_create_object(env, &return_value));
+  NODE_API_CALL(env, napi_create_object(env, &object));
 
   add_returned_status(env,
                       "envIsNull",
@@ -223,8 +223,8 @@ static napi_value TestBoolValuedElementApi(napi_env env,
   napi_value return_value, object;
   bool result;
 
-  NAPI_CALL(env, napi_create_object(env, &return_value));
-  NAPI_CALL(env, napi_create_object(env, &object));
+  NODE_API_CALL(env, napi_create_object(env, &return_value));
+  NODE_API_CALL(env, napi_create_object(env, &object));
 
   add_returned_status(env,
                       "envIsNull",
@@ -257,8 +257,8 @@ static napi_value DefineProperties(napi_env env, napi_callback_info info) {
     "prop", NULL, DefineProperties, NULL, NULL, NULL, napi_enumerable, NULL
   };
 
-  NAPI_CALL(env, napi_create_object(env, &object));
-  NAPI_CALL(env, napi_create_object(env, &return_value));
+  NODE_API_CALL(env, napi_create_object(env, &object));
+  NODE_API_CALL(env, napi_create_object(env, &return_value));
 
   add_returned_status(env,
                       "envIsNull",
@@ -289,7 +289,7 @@ static napi_value DefineProperties(napi_env env, napi_callback_info info) {
 static napi_value GetPropertyNames(napi_env env, napi_callback_info info) {
   napi_value return_value, props;
 
-  NAPI_CALL(env, napi_create_object(env, &return_value));
+  NODE_API_CALL(env, napi_create_object(env, &return_value));
 
   add_returned_status(env,
                       "envIsNull",
@@ -310,7 +310,7 @@ static napi_value GetPropertyNames(napi_env env, napi_callback_info info) {
 static napi_value GetAllPropertyNames(napi_env env, napi_callback_info info) {
   napi_value return_value, props;
 
-  NAPI_CALL(env, napi_create_object(env, &return_value));
+  NODE_API_CALL(env, napi_create_object(env, &return_value));
 
   add_returned_status(env,
                       "envIsNull",
@@ -346,7 +346,7 @@ static napi_value GetAllPropertyNames(napi_env env, napi_callback_info info) {
 static napi_value GetPrototype(napi_env env, napi_callback_info info) {
   napi_value return_value, proto;
 
-  NAPI_CALL(env, napi_create_object(env, &return_value));
+  NODE_API_CALL(env, napi_create_object(env, &return_value));
 
   add_returned_status(env,
                       "envIsNull",
@@ -368,26 +368,26 @@ void init_test_null(napi_env env, napi_value exports) {
   napi_value test_null;
 
   const napi_property_descriptor test_null_props[] = {
-    DECLARE_NAPI_PROPERTY("setProperty", SetProperty),
-    DECLARE_NAPI_PROPERTY("getProperty", GetProperty),
-    DECLARE_NAPI_PROPERTY("hasProperty", HasProperty),
-    DECLARE_NAPI_PROPERTY("hasOwnProperty", HasOwnProperty),
-    DECLARE_NAPI_PROPERTY("deleteProperty", DeleteProperty),
-    DECLARE_NAPI_PROPERTY("setNamedProperty", SetNamedProperty),
-    DECLARE_NAPI_PROPERTY("getNamedProperty", GetNamedProperty),
-    DECLARE_NAPI_PROPERTY("hasNamedProperty", HasNamedProperty),
-    DECLARE_NAPI_PROPERTY("setElement", SetElement),
-    DECLARE_NAPI_PROPERTY("getElement", GetElement),
-    DECLARE_NAPI_PROPERTY("hasElement", HasElement),
-    DECLARE_NAPI_PROPERTY("deleteElement", DeleteElement),
-    DECLARE_NAPI_PROPERTY("defineProperties", DefineProperties),
-    DECLARE_NAPI_PROPERTY("getPropertyNames", GetPropertyNames),
-    DECLARE_NAPI_PROPERTY("getAllPropertyNames", GetAllPropertyNames),
-    DECLARE_NAPI_PROPERTY("getPrototype", GetPrototype),
+    DECLARE_NODE_API_PROPERTY("setProperty", SetProperty),
+    DECLARE_NODE_API_PROPERTY("getProperty", GetProperty),
+    DECLARE_NODE_API_PROPERTY("hasProperty", HasProperty),
+    DECLARE_NODE_API_PROPERTY("hasOwnProperty", HasOwnProperty),
+    DECLARE_NODE_API_PROPERTY("deleteProperty", DeleteProperty),
+    DECLARE_NODE_API_PROPERTY("setNamedProperty", SetNamedProperty),
+    DECLARE_NODE_API_PROPERTY("getNamedProperty", GetNamedProperty),
+    DECLARE_NODE_API_PROPERTY("hasNamedProperty", HasNamedProperty),
+    DECLARE_NODE_API_PROPERTY("setElement", SetElement),
+    DECLARE_NODE_API_PROPERTY("getElement", GetElement),
+    DECLARE_NODE_API_PROPERTY("hasElement", HasElement),
+    DECLARE_NODE_API_PROPERTY("deleteElement", DeleteElement),
+    DECLARE_NODE_API_PROPERTY("defineProperties", DefineProperties),
+    DECLARE_NODE_API_PROPERTY("getPropertyNames", GetPropertyNames),
+    DECLARE_NODE_API_PROPERTY("getAllPropertyNames", GetAllPropertyNames),
+    DECLARE_NODE_API_PROPERTY("getPrototype", GetPrototype),
   };
 
-  NAPI_CALL_RETURN_VOID(env, napi_create_object(env, &test_null));
-  NAPI_CALL_RETURN_VOID(env, napi_define_properties(
+  NODE_API_CALL_RETURN_VOID(env, napi_create_object(env, &test_null));
+  NODE_API_CALL_RETURN_VOID(env, napi_define_properties(
       env, test_null, sizeof(test_null_props) / sizeof(*test_null_props),
       test_null_props));
 
@@ -395,6 +395,6 @@ void init_test_null(napi_env env, napi_value exports) {
     "testNull", NULL, NULL, NULL, NULL, test_null, napi_enumerable, NULL
   };
 
-  NAPI_CALL_RETURN_VOID(env,
+  NODE_API_CALL_RETURN_VOID(env,
       napi_define_properties(env, exports, 1, &test_null_set));
 }

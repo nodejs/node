@@ -19,7 +19,7 @@ static napi_value TestDefineClass(napi_env env,
     napi_enumerable | napi_static,
     NULL};
 
-  NAPI_CALL(env, napi_create_object(env, &return_value));
+  NODE_API_CALL(env, napi_create_object(env, &return_value));
 
   status = napi_define_class(NULL,
                              "TrackedFunction",
@@ -98,12 +98,12 @@ static napi_value TestDefineClass(napi_env env,
 
 static napi_value GetValue(napi_env env, napi_callback_info info) {
   size_t argc = 0;
-  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, NULL, NULL, NULL));
+  NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, NULL, NULL, NULL));
 
-  NAPI_ASSERT(env, argc == 0, "Wrong number of arguments");
+  NODE_API_ASSERT(env, argc == 0, "Wrong number of arguments");
 
   napi_value number;
-  NAPI_CALL(env, napi_create_double(env, value_, &number));
+  NODE_API_CALL(env, napi_create_double(env, value_, &number));
 
   return number;
 }
@@ -111,11 +111,11 @@ static napi_value GetValue(napi_env env, napi_callback_info info) {
 static napi_value SetValue(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
-  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+  NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
 
-  NAPI_ASSERT(env, argc == 1, "Wrong number of arguments");
+  NODE_API_ASSERT(env, argc == 1, "Wrong number of arguments");
 
-  NAPI_CALL(env, napi_get_value_double(env, args[0], &value_));
+  NODE_API_CALL(env, napi_get_value_double(env, args[0], &value_));
 
   return NULL;
 }
@@ -123,28 +123,28 @@ static napi_value SetValue(napi_env env, napi_callback_info info) {
 static napi_value Echo(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
-  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+  NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
 
-  NAPI_ASSERT(env, argc == 1, "Wrong number of arguments");
+  NODE_API_ASSERT(env, argc == 1, "Wrong number of arguments");
 
   return args[0];
 }
 
 static napi_value New(napi_env env, napi_callback_info info) {
   napi_value _this;
-  NAPI_CALL(env, napi_get_cb_info(env, info, NULL, NULL, &_this, NULL));
+  NODE_API_CALL(env, napi_get_cb_info(env, info, NULL, NULL, &_this, NULL));
 
   return _this;
 }
 
 static napi_value GetStaticValue(napi_env env, napi_callback_info info) {
   size_t argc = 0;
-  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, NULL, NULL, NULL));
+  NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, NULL, NULL, NULL));
 
-  NAPI_ASSERT(env, argc == 0, "Wrong number of arguments");
+  NODE_API_ASSERT(env, argc == 0, "Wrong number of arguments");
 
   napi_value number;
-  NAPI_CALL(env, napi_create_double(env, static_value_, &number));
+  NODE_API_CALL(env, napi_create_double(env, static_value_, &number));
 
   return number;
 }
@@ -152,7 +152,7 @@ static napi_value GetStaticValue(napi_env env, napi_callback_info info) {
 
 static napi_value NewExtra(napi_env env, napi_callback_info info) {
   napi_value _this;
-  NAPI_CALL(env, napi_get_cb_info(env, info, NULL, NULL, &_this, NULL));
+  NODE_API_CALL(env, napi_get_cb_info(env, info, NULL, NULL, &_this, NULL));
 
   return _this;
 }
@@ -160,9 +160,9 @@ static napi_value NewExtra(napi_env env, napi_callback_info info) {
 EXTERN_C_START
 napi_value Init(napi_env env, napi_value exports) {
   napi_value number, cons;
-  NAPI_CALL(env, napi_create_double(env, value_, &number));
+  NODE_API_CALL(env, napi_create_double(env, value_, &number));
 
-  NAPI_CALL(env, napi_define_class(
+  NODE_API_CALL(env, napi_define_class(
       env, "MyObject_Extra", 8, NewExtra, NULL, 0, NULL, &cons));
 
   napi_property_descriptor properties[] = {
@@ -188,7 +188,7 @@ napi_value Init(napi_env env, napi_value exports) {
         napi_enumerable | napi_static, NULL },
   };
 
-  NAPI_CALL(env, napi_define_class(env, "MyObject", NAPI_AUTO_LENGTH, New,
+  NODE_API_CALL(env, napi_define_class(env, "MyObject", NAPI_AUTO_LENGTH, New,
       NULL, sizeof(properties)/sizeof(*properties), properties, &cons));
 
   return cons;

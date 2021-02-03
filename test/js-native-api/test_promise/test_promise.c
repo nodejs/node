@@ -11,7 +11,7 @@ static napi_value createPromise(napi_env env, napi_callback_info info) {
     return NULL;
   }
 
-  NAPI_CALL(env, napi_create_promise(env, &deferred, &promise));
+  NODE_API_CALL(env, napi_create_promise(env, &deferred, &promise));
 
   return promise;
 }
@@ -22,12 +22,12 @@ concludeCurrentPromise(napi_env env, napi_callback_info info) {
   size_t argc = 2;
   bool resolution;
 
-  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, argv, NULL, NULL));
-  NAPI_CALL(env, napi_get_value_bool(env, argv[1], &resolution));
+  NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, argv, NULL, NULL));
+  NODE_API_CALL(env, napi_get_value_bool(env, argv[1], &resolution));
   if (resolution) {
-    NAPI_CALL(env, napi_resolve_deferred(env, deferred, argv[0]));
+    NODE_API_CALL(env, napi_resolve_deferred(env, deferred, argv[0]));
   } else {
-    NAPI_CALL(env, napi_reject_deferred(env, deferred, argv[0]));
+    NODE_API_CALL(env, napi_reject_deferred(env, deferred, argv[0]));
   }
 
   deferred = NULL;
@@ -40,9 +40,9 @@ static napi_value isPromise(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   bool is_promise;
 
-  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, &promise, NULL, NULL));
-  NAPI_CALL(env, napi_is_promise(env, promise, &is_promise));
-  NAPI_CALL(env, napi_get_boolean(env, is_promise, &result));
+  NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, &promise, NULL, NULL));
+  NODE_API_CALL(env, napi_is_promise(env, promise, &is_promise));
+  NODE_API_CALL(env, napi_get_boolean(env, is_promise, &result));
 
   return result;
 }
@@ -50,12 +50,12 @@ static napi_value isPromise(napi_env env, napi_callback_info info) {
 EXTERN_C_START
 napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
-    DECLARE_NAPI_PROPERTY("createPromise", createPromise),
-    DECLARE_NAPI_PROPERTY("concludeCurrentPromise", concludeCurrentPromise),
-    DECLARE_NAPI_PROPERTY("isPromise", isPromise),
+    DECLARE_NODE_API_PROPERTY("createPromise", createPromise),
+    DECLARE_NODE_API_PROPERTY("concludeCurrentPromise", concludeCurrentPromise),
+    DECLARE_NODE_API_PROPERTY("isPromise", isPromise),
   };
 
-  NAPI_CALL(env, napi_define_properties(
+  NODE_API_CALL(env, napi_define_properties(
       env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors));
 
   return exports;

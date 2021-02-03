@@ -36,17 +36,17 @@ napi_value MyObject::New(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   napi_value _this;
-  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, &_this, nullptr));
+  NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, args, &_this, nullptr));
 
   MyObject* obj = new MyObject();
 
   napi_valuetype valuetype;
-  NAPI_CALL(env, napi_typeof(env, args[0], &valuetype));
+  NODE_API_CALL(env, napi_typeof(env, args[0], &valuetype));
 
   if (valuetype == napi_undefined) {
     obj->val_ = 0;
   } else {
-    NAPI_CALL(env, napi_get_value_double(env, args[0], &obj->val_));
+    NODE_API_CALL(env, napi_get_value_double(env, args[0], &obj->val_));
   }
 
   obj->env_ = env;
@@ -54,12 +54,9 @@ napi_value MyObject::New(napi_env env, napi_callback_info info) {
   // The below call to napi_wrap() must request a reference to the wrapped
   // object via the out-parameter, because this ensures that we test the code
   // path that deals with a reference that is destroyed from its own finalizer.
-  NAPI_CALL(env, napi_wrap(env,
-                          _this,
-                          obj,
-                          MyObject::Destructor,
-                          nullptr,  // finalize_hint
-                          &obj->wrapper_));
+  NODE_API_CALL(env,
+      napi_wrap(env, _this, obj, MyObject::Destructor,
+          nullptr /* finalize_hint */, &obj->wrapper_));
 
   return _this;
 }
