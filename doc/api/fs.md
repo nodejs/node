@@ -1622,8 +1622,8 @@ See also: chown(2).
 added: v0.0.2
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
-    description: A default callback is now use if one is not provided.
+    pr-url: https://github.com/nodejs/node/pull/37174
+    description: A default callback is now used if one is not provided.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
