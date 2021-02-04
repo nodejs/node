@@ -32,6 +32,8 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
   static size_t AllocatableMemoryInDataPage();
   static size_t ObjectStartOffsetInMemoryChunk(AllocationSpace space);
   static size_t AllocatableMemoryInMemoryChunk(AllocationSpace space);
+
+  static int MaxRegularCodeObjectSize();
 };
 
 // MemoryChunk represents a memory region owned by a specific space.
