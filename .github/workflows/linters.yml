@@ -98,3 +98,12 @@ jobs:
       - uses: mszostok/codeowners-validator@v0.4.0
         with:
           checks: "files,duppatterns"
+  lint-pr-url:
+    if: ${{ github.event.pull_request }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
+      # GH Actions squashes all PR commits, HEAD^ refers to the base branch.
+      - run: git diff HEAD^ HEAD -G"pr-url:" -- "*.md" | ./tools/lint-pr-url.mjs ${{ github.event.pull_request.html_url }}
