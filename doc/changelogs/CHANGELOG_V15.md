@@ -1097,7 +1097,7 @@ With the new `--heapsnapshot-near-heap-limit=max_count` experimental command lin
 
 When generating snapshots, garbage collection may be triggered and bring the heap usage down, therefore multiple snapshots may be written to disk before the Node.js instance finally runs out of memory. These heap snapshots can be compared to determine what objects are being allocated during the time consecutive snapshots are taken.
 
-Generating V8 snapshots takes time and memory (both memory managed by the V8 heap and native memory outside the V8 heap). The bigger the heap is, the more resources it needs. Node.js will adjust the V8 heap to accommondate the additional V8 heap memory overhead, and try its best to avoid using up all the memory avialable to the process.
+Generating V8 snapshots takes time and memory (both memory managed by the V8 heap and native memory outside the V8 heap). The bigger the heap is, the more resources it needs. Node.js will adjust the V8 heap to accommodate the additional V8 heap memory overhead, and try its best to avoid using up all the memory avialable to the process.
 
 ```console
 $ node --max-old-space-size=100 --heapsnapshot-near-heap-limit=3 index.js
