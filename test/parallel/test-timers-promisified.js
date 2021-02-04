@@ -348,6 +348,34 @@ process.on('multipleResolves', common.mustNotCall());
       assert.strictEqual(loopCount, 5);
     }));
   }
+
+  {
+    // Check that if we abort when we have some unresolved callbacks,
+    // we actually call them.
+    const controller = new AbortController();
+    const { signal } = controller;
+    const delay = 10;
+    let totalIterations = 0;
+    const timeoutLoop = runInterval(async (iterationNumber) => {
+      await setTimeout(delay * 4);
+      if (iterationNumber <= 2) {
+        assert.strictEqual(signal.aborted, false);
+      }
+      if (iterationNumber === 2) {
+        controller.abort();
+      }
+      if (iterationNumber > 2) {
+        assert.strictEqual(signal.aborted, true);
+      }
+      if (iterationNumber > totalIterations) {
+        totalIterations = iterationNumber;
+      }
+    }, delay, signal);
+
+    timeoutLoop.catch(common.mustCall(() => {
+      assert.ok(totalIterations >= 3, `iterations was ${totalIterations} < 3`);
+    }));
+  }
 }
 
 {
