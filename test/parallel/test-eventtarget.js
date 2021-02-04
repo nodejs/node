@@ -1,8 +1,11 @@
-// Flags: --expose-internals --no-warnings
+// Flags: --expose-internals --no-warnings --expose-gc
 'use strict';
 
 const common = require('../common');
-const { defineEventHandler } = require('internal/event_target');
+const {
+  defineEventHandler,
+  kWeakHandler,
+} = require('internal/event_target');
 
 const {
   ok,
@@ -569,4 +572,28 @@ let asyncTest = Promise.resolve();
 
   const et = new EventTarget();
   strictEqual(et.constructor.name, 'EventTarget');
+}
+{
+  // Weak event handlers work
+  const et = new EventTarget();
+  const listener = common.mustCall();
+  et.addEventListener('foo', listener, { [kWeakHandler]: et });
+  et.dispatchEvent(new Event('foo'));
+}
+{
+  // Weak event handlers can be removed and weakness is not part of the key
+  const et = new EventTarget();
+  const listener = common.mustNotCall();
+  et.addEventListener('foo', listener, { [kWeakHandler]: et });
+  et.removeEventListener('foo', listener);
+  et.dispatchEvent(new Event('foo'));
+}
+{
+  // Test listeners are held weakly
+  const et = new EventTarget();
+  et.addEventListener('foo', common.mustNotCall(), { [kWeakHandler]: {} });
+  setImmediate(() => {
+    global.gc();
+    et.dispatchEvent(new Event('foo'));
+  });
 }
