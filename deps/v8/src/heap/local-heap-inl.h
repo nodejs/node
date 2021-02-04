@@ -26,7 +26,7 @@ AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
   DCHECK(state == Heap::TEAR_DOWN || state == Heap::NOT_IN_GC);
 #endif
 
-  bool large_object = size_in_bytes > kMaxRegularHeapObjectSize;
+  bool large_object = size_in_bytes > Heap::MaxRegularHeapObjectSize(type);
   CHECK_EQ(type, AllocationType::kOld);
 
   if (large_object)

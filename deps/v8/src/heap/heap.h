@@ -542,7 +542,7 @@ class Heap {
 
   bool IsImmovable(HeapObject object);
 
-  static bool IsLargeObject(HeapObject object);
+  V8_EXPORT_PRIVATE static bool IsLargeObject(HeapObject object);
 
   // This method supports the deserialization allocator.  All allocations
   // are word-aligned.  The method should never fail to allocate since the
@@ -1364,6 +1364,14 @@ class Heap {
   // limit for performace reasons. If the overshoot is too large then we are
   // more eager to finalize incremental marking.
   bool AllocationLimitOvershotByLargeMargin();
+
+  // Return the maximum size objects can be before having to allocate them as
+  // large objects. This takes into account allocating in the code space for
+  // which the size of the allocatable space per V8 page may depend on the OS
+  // page size at runtime. You may use kMaxRegularHeapObjectSize as a constant
+  // instead if you know the allocation isn't in the code spaces.
+  V8_EXPORT_PRIVATE static int MaxRegularHeapObjectSize(
+      AllocationType allocation);
 
   // ===========================================================================
   // Prologue/epilogue callback methods.========================================

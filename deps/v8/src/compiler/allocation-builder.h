@@ -27,7 +27,7 @@ class AllocationBuilder final {
   // Primitive allocation of static size.
   void Allocate(int size, AllocationType allocation = AllocationType::kYoung,
                 Type type = Type::Any()) {
-    DCHECK_LE(size, kMaxRegularHeapObjectSize);
+    DCHECK_LE(size, Heap::MaxRegularHeapObjectSize(allocation));
     effect_ = graph()->NewNode(
         common()->BeginRegion(RegionObservability::kNotObservable), effect_);
     allocation_ =

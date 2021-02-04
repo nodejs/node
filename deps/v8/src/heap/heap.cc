@@ -4907,6 +4907,16 @@ bool Heap::AllocationLimitOvershotByLargeMargin() {
   return v8_overshoot >= v8_margin || global_overshoot >= global_margin;
 }
 
+// static
+int Heap::MaxRegularHeapObjectSize(AllocationType allocation) {
+  if (!V8_ENABLE_THIRD_PARTY_HEAP_BOOL &&
+      (allocation == AllocationType::kCode)) {
+    return MemoryChunkLayout::MaxRegularCodeObjectSize();
+  }
+  return kMaxRegularHeapObjectSize;
+}
+
+
 bool Heap::ShouldOptimizeForLoadTime() {
   return isolate()->rail_mode() == PERFORMANCE_LOAD &&
          !AllocationLimitOvershotByLargeMargin() &&

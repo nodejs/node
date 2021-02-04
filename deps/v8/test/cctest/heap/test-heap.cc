@@ -6575,7 +6575,7 @@ HEAP_TEST(Regress5831) {
 
   // Generate the code.
   Handle<Code> code = GenerateDummyImmovableCode(isolate);
-  CHECK_GE(i::kMaxRegularHeapObjectSize, code->Size());
+  CHECK_GE(MemoryChunkLayout::MaxRegularCodeObjectSize(), code->Size());
   CHECK(!heap->code_space()->first_page()->Contains(code->address()));
 
   // Ensure it's not in large object space.
@@ -7063,7 +7063,7 @@ TEST(CodeObjectRegistry) {
   {
     // Ensure that both code objects end up on the same page.
     CHECK(HeapTester::CodeEnsureLinearAllocationArea(
-        heap, kMaxRegularHeapObjectSize));
+        heap, MemoryChunkLayout::MaxRegularCodeObjectSize()));
     code1 = DummyOptimizedCode(isolate);
     Handle<Code> code2 = DummyOptimizedCode(isolate);
     code2_address = code2->address();
@@ -7232,18 +7232,85 @@ class TestAllocationTracker : public HeapObjectAllocationTracker {
 
 HEAP_TEST(CodeLargeObjectSpace) {
   Heap* heap = CcTest::heap();
-  int size_in_bytes = kMaxRegularHeapObjectSize + kSystemPointerSize;
+  int size_in_bytes =
+      MemoryChunkLayout::MaxRegularCodeObjectSize() + kTaggedSize;
   TestAllocationTracker allocation_tracker{size_in_bytes};
   heap->AddHeapObjectAllocationTracker(&allocation_tracker);
 
-  AllocationResult allocation = heap->AllocateRaw(
-      size_in_bytes, AllocationType::kCode, AllocationOrigin::kGeneratedCode,
-      AllocationAlignment::kCodeAligned);
+  HeapObject obj;
+  {
+    AllocationResult allocation = heap->AllocateRaw(
+        size_in_bytes, AllocationType::kCode, AllocationOrigin::kGeneratedCode,
+        AllocationAlignment::kCodeAligned);
+    CHECK(allocation.To(&obj));
+    CHECK_EQ(allocation.ToAddress(), allocation_tracker.address());
+    heap->CreateFillerObjectAt(obj.address(), size_in_bytes,
+                               ClearRecordedSlots::kNo);
+  }
 
-  CHECK(allocation.ToAddress() == allocation_tracker.address());
-  heap->CreateFillerObjectAt(allocation.ToAddress(), size_in_bytes,
-                             ClearRecordedSlots::kNo);
+  CHECK(Heap::IsLargeObject(obj));
   heap->RemoveHeapObjectAllocationTracker(&allocation_tracker);
+}
+
+UNINITIALIZED_HEAP_TEST(CodeLargeObjectSpace64k) {
+  // Simulate having a system with 64k OS pages.
+  i::FLAG_v8_os_page_size = 64;
+
+  // Initialize the isolate manually to make sure --v8-os-page-size is taken
+  // into account.
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+  Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+
+  // Allocate a regular code object.
+  {
+    int size_in_bytes =
+        MemoryChunkLayout::MaxRegularCodeObjectSize() - kTaggedSize;
+    TestAllocationTracker allocation_tracker{size_in_bytes};
+    heap->AddHeapObjectAllocationTracker(&allocation_tracker);
+
+    HeapObject obj;
+    {
+      AllocationResult allocation = heap->AllocateRaw(
+          size_in_bytes, AllocationType::kCode, AllocationOrigin::kRuntime,
+          AllocationAlignment::kCodeAligned);
+      CHECK(allocation.To(&obj));
+      CHECK_EQ(allocation.ToAddress(), allocation_tracker.address());
+
+      heap->CreateFillerObjectAt(obj.address(), size_in_bytes,
+                                 ClearRecordedSlots::kNo);
+    }
+
+    CHECK(!Heap::IsLargeObject(obj));
+    heap->RemoveHeapObjectAllocationTracker(&allocation_tracker);
+  }
+
+  // Allocate a large code object.
+  {
+    int size_in_bytes =
+        MemoryChunkLayout::MaxRegularCodeObjectSize() + kTaggedSize;
+    TestAllocationTracker allocation_tracker{size_in_bytes};
+    heap->AddHeapObjectAllocationTracker(&allocation_tracker);
+
+    HeapObject obj;
+    {
+      AllocationResult allocation = heap->AllocateRaw(
+          size_in_bytes, AllocationType::kCode, AllocationOrigin::kRuntime,
+          AllocationAlignment::kCodeAligned);
+      CHECK(allocation.To(&obj));
+      CHECK_EQ(allocation.ToAddress(), allocation_tracker.address());
+
+      heap->CreateFillerObjectAt(obj.address(), size_in_bytes,
+                                 ClearRecordedSlots::kNo);
+    }
+
+    CHECK(Heap::IsLargeObject(obj));
+    heap->RemoveHeapObjectAllocationTracker(&allocation_tracker);
+  }
+
+  isolate->Dispose();
 }
 
 TEST(Regress10900) {

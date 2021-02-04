@@ -98,6 +98,10 @@ Reduction MemoryLowering::ReduceAllocateRaw(
   DCHECK_EQ(IrOpcode::kAllocateRaw, node->opcode());
   DCHECK_IMPLIES(allocation_folding_ == AllocationFolding::kDoAllocationFolding,
                  state_ptr != nullptr);
+  // Code objects may have a maximum size smaller than kMaxHeapObjectSize due to
+  // guard pages. If we need to support allocating code here we would need to
+  // call MemoryChunkLayout::MaxRegularCodeObjectSize() at runtime.
+  DCHECK_NE(allocation_type, AllocationType::kCode);
   Node* value;
   Node* size = node->InputAt(0);
   Node* effect = node->InputAt(1);

@@ -12,6 +12,7 @@
 // Those tests need to be defined using HEAP_TEST(Name) { ... }.
 #define HEAP_TEST_METHODS(V)                                \
   V(CodeLargeObjectSpace)                                   \
+  V(CodeLargeObjectSpace64k)                                \
   V(CompactionFullAbortedPage)                              \
   V(CompactionPartiallyAbortedPage)                         \
   V(CompactionPartiallyAbortedPageIntraAbortedPointers)     \
