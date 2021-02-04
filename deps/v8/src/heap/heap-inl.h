@@ -192,7 +192,9 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
   IncrementObjectCounters();
 #endif
 
-  bool large_object = size_in_bytes > kMaxRegularHeapObjectSize;
+  size_t large_object_threshold = MaxRegularHeapObjectSize(type);
+  bool large_object =
+       static_cast<size_t>(size_in_bytes) > large_object_threshold;
 
   HeapObject object;
   AllocationResult allocation;
@@ -279,7 +281,7 @@ HeapObject Heap::AllocateRawWith(int size, AllocationType allocation,
   Address* limit = heap->NewSpaceAllocationLimitAddress();
   if (allocation == AllocationType::kYoung &&
       alignment == AllocationAlignment::kWordAligned &&
-      size <= kMaxRegularHeapObjectSize &&
+      size <= MaxRegularHeapObjectSize(allocation) &&
       (*limit - *top >= static_cast<unsigned>(size)) &&
       V8_LIKELY(!FLAG_single_generation && FLAG_inline_new &&
                 FLAG_gc_interval == 0)) {

@@ -564,7 +564,7 @@ TEST(PCIsInV8_LargeCodeObject_CodePagesAPI) {
 
   // Create a big function that ends up in CODE_LO_SPACE.
   const int instruction_size = Page::kPageSize + 1;
-  STATIC_ASSERT(instruction_size > kMaxRegularHeapObjectSize);
+  CHECK_GT(instruction_size, MemoryChunkLayout::MaxRegularCodeObjectSize());
   std::unique_ptr<byte[]> instructions(new byte[instruction_size]);
 
   CodeDesc desc;

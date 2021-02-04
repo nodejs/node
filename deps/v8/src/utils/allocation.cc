@@ -165,8 +165,7 @@ void* GetRandomMmapAddr() {
 void* AllocatePages(v8::PageAllocator* page_allocator, void* hint, size_t size,
                     size_t alignment, PageAllocator::Permission access) {
   DCHECK_NOT_NULL(page_allocator);
-  DCHECK_EQ(hint, AlignedAddress(hint, alignment));
-  DCHECK(IsAligned(size, page_allocator->AllocatePageSize()));
+  DCHECK(IsAligned(size, page_allocator->CommitPageSize()));
   if (FLAG_randomize_all_allocations) {
     hint = page_allocator->GetRandomMmapAddr();
   }
