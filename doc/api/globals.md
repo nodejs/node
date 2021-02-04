@@ -83,7 +83,7 @@ added: REPLACEME
 
 The `'abort'` event is emitted when the `abortController.abort()` method
 is called. The callback is invoked with a single object argument with a
-single `type` propety set to `'abort'`:
+single `type` property set to `'abort'`:
 
 ```js
 const ac = new AbortController();
