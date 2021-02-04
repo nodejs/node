@@ -348,28 +348,6 @@ process.on('multipleResolves', common.mustNotCall());
       assert.strictEqual(loopCount, 5);
     }));
   }
-
-  {
-    // Check that if we abort when we have some callbacks left,
-    // we actually call them.
-    const controller = new AbortController();
-    const { signal } = controller;
-    const delay = 10;
-    let totalIterations = 0;
-    const timeoutLoop = runInterval(async (iterationNumber) => {
-      if (iterationNumber === 2) {
-        await setTimeout(delay * 2);
-        controller.abort();
-      }
-      if (iterationNumber > totalIterations) {
-        totalIterations = iterationNumber;
-      }
-    }, delay, signal);
-
-    timeoutLoop.catch(common.mustCall(() => {
-      assert.ok(totalIterations >= 3, `iterations was ${totalIterations} < 3`);
-    }));
-  }
 }
 
 {
