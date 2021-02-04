@@ -50,10 +50,16 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
       - name: Environment Information
         run: npx envinfo
+      - name: Get release version numbers
+        id: get-released-versions
+        run: ./tools/node-lint-md-cli-rollup/src/list-released-versions-from-changelogs.mjs
       - name: Lint docs
         run: |
           echo "::add-matcher::.github/workflows/remark-lint-problem-matcher.json"
           NODE=$(command -v node) make lint-md
+        env:
+          NODE_RELEASED_VERSIONS: ${{ steps.get-released-versions.outputs.NODE_RELEASED_VERSIONS }}
+
   lint-js:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
