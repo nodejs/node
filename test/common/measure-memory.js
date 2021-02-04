@@ -45,8 +45,8 @@ function assertSingleDetailedShape(result) {
 
 function expectExperimentalWarning() {
   common.expectWarning('ExperimentalWarning',
-                       'vm.measureMemory is an experimental feature. ' +
-                       'This feature could change at any time');
+                       '[EXP0004] vm.measureMemory is an experimental ' +
+                       'feature. This feature could change at any time');
 }
 
 module.exports = {

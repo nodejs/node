@@ -1,4 +1,5 @@
 'use strict';
+
 const common = require('../common');
 
 if (process.argv[2] === 'wasi-child') {
@@ -8,8 +9,8 @@ if (process.argv[2] === 'wasi-child') {
   const path = require('path');
 
   common.expectWarning('ExperimentalWarning',
-                       'WASI is an experimental feature. This feature could ' +
-                       'change at any time');
+                       '[EXP0006] WASI is an experimental feature. This ' +
+                       'feature could change at any time');
 
   const { WASI } = require('wasi');
   tmpdir.refresh();
