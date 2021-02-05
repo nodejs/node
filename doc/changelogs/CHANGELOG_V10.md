@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#10.23.3">10.23.3</a><br/>
 <a href="#10.23.2">10.23.2</a><br/>
 <a href="#10.23.1">10.23.1</a><br/>
 <a href="#10.23.0">10.23.0</a><br/>
@@ -72,6 +73,20 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="10.23.3"></a>
+## 2021-02-09, Version 10.23.3 'Dubnium' (LTS), @richardlau
+
+### Notable changes
+
+The update to npm 6.14.11 has been relanded so that npm correctly reports its version.
+
+### Commits
+
+* [[`953a85035d`](https://github.com/nodejs/node/commit/953a85035d)] - **crypto**: fix crash when calling digest after piping (Tobias Nießen) [#28251](https://github.com/nodejs/node/pull/28251)
+* [[`fe2c98003e`](https://github.com/nodejs/node/commit/fe2c98003e)] - **deps**: upgrade npm to 6.14.11 (Ruy Adorno) [#37173](https://github.com/nodejs/node/pull/37173)
+* [[`7b7fb43b8a`](https://github.com/nodejs/node/commit/7b7fb43b8a)] - ***Revert*** "**deps**: upgrade npm to 6.14.11" (Richard Lau) [#37278](https://github.com/nodejs/node/pull/37278)
+* [[`1c6fbd6ffe`](https://github.com/nodejs/node/commit/1c6fbd6ffe)] - **test**: add test that verifies crypto stream pipeline (Evan Lucas) [#37009](https://github.com/nodejs/node/pull/37009)
 
 <a id="10.23.2"></a>
 ## 2021-01-26, Version 10.23.2 'Dubnium' (LTS), @richardlau
