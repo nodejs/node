@@ -211,12 +211,14 @@ generatePrime(
     code: 'ERR_OUT_OF_RANGE'
   });
 
-  // This is possible and allowed (but makes little sense).
-  assert.strictEqual(generatePrimeSync(4, {
-    add: 15n,
-    rem: 13n,
-    bigint: true
-  }), 13n);
+  if (process.versions.openssl >= '1.1.1f') {
+    // This is possible and allowed (but makes little sense).
+    assert.strictEqual(generatePrimeSync(4, {
+      add: 15n,
+      rem: 13n,
+      bigint: true
+    }), 13n);
+  }
 }
 
 [1, 'hello', {}, []].forEach((i) => {
