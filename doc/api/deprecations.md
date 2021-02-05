@@ -2747,7 +2747,7 @@ an explicit [`"exports"` or `"main"` entry][] with the exact file extension.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: TODO
+    pr-url: https://github.com/nodejs/node/pull/37240
     description: Documentation-only deprecation.
 -->
 
