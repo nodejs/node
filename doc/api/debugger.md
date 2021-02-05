@@ -142,7 +142,7 @@ debug> c
 break in mod.js:22
  20 // USE OR OTHER DEALINGS IN THE SOFTWARE.
  21
->22 exports.hello = function() {
+>22 exports.hello = () => {
  23   return 'hello from module';
  24 };
 debug>

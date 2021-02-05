@@ -750,7 +750,7 @@ module graphs.
 const vm = require('vm');
 
 const source = '{ "a": 1 }';
-const module = new vm.SyntheticModule(['default'], function() {
+const module = new vm.SyntheticModule(['default'], () => {
   const obj = JSON.parse(source);
   this.setExport('default', obj);
 });

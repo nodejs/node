@@ -80,7 +80,7 @@
           }
           mq.addEventListener('change', mqChangeListener);
           if (themeToggleButton) {
-            themeToggleButton.addEventListener('click', function() {
+            themeToggleButton.addEventListener('click', () => {
               mq.removeEventListener('change', mqChangeListener);
             }, { once: true });
           }
@@ -93,7 +93,7 @@
       }
       if (themeToggleButton) {
         themeToggleButton.hidden = false;
-        themeToggleButton.addEventListener('click', function() {
+        themeToggleButton.addEventListener('click', () => {
           sessionStorage.setItem(
             kCustomPreference,
             document.body.classList.toggle('dark-mode')

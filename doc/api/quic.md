@@ -47,7 +47,7 @@ socket.on('session', async (session) => {
 // Tell the socket to operate as a server using the given
 // key and certificate to secure new connections, using
 // the fictional 'hello' application protocol.
-(async function() {
+(async () => {
   await socket.listen({ key, cert, alpn: 'hello' });
   console.log('The socket is listening for sessions!');
 })();
@@ -106,7 +106,7 @@ const { createQuicSocket } = require('net');
 // Create a QuicSocket associated with localhost and port 1234
 const socket = createQuicSocket({ endpoint: { port: 1234 } });
 
-(async function() {
+(async () => {
   const client = await socket.connect({
     address: 'example.com',
     port: 4567,
@@ -146,7 +146,7 @@ socket.on('session', (session) => {
   });
 });
 
-(async function() {
+(async () => {
   await socket.listen({ key, cert, alpn: 'foo' });
 })();
 ```

@@ -380,7 +380,7 @@ const options = {
   port: 443,
   path: '/',
   method: 'GET',
-  checkServerIdentity: function(host, cert) {
+  checkServerIdentity: (host, cert) => {
     // Make sure the certificate is issued to the host we are connected to
     const err = tls.checkServerIdentity(host, cert);
     if (err) {

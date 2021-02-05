@@ -706,7 +706,7 @@ resolver.resolve4('example.org').then((addresses) => {
 });
 
 // Alternatively, the same code can be written using async-await style.
-(async function() {
+(async () => {
   const addresses = await resolver.resolve4('example.org');
 })();
 ```

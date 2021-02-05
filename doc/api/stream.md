@@ -927,7 +927,7 @@ cause some amount of data to be read into an internal buffer.
 
 ```js
 const readable = getReadableStreamSomehow();
-readable.on('readable', function() {
+readable.on('readable', () => {
   // There is some data to read now.
   let data;
 
@@ -2987,12 +2987,12 @@ argument is passed to the `callback`, it will be forwarded on to the
 `transform.push()` method. In other words, the following are equivalent:
 
 ```js
-transform.prototype._transform = function(data, encoding, callback) {
+transform.prototype._transform = (data, encoding, callback) => {
   this.push(data);
   callback();
 };
 
-transform.prototype._transform = function(data, encoding, callback) {
+transform.prototype._transform = (data, encoding, callback) => {
   callback(null, data);
 };
 ```
@@ -3028,7 +3028,7 @@ and async iterators are provided below.
 #### Consuming readable streams with async iterators
 
 ```js
-(async function() {
+(async () => {
   for await (const chunk of readable) {
     console.log(chunk);
   }

@@ -365,7 +365,7 @@ env->SetMethod(target, "foo", Foo);
 ```
 
 ```js
-exports.foo = function(str) {
+exports.foo = (str) => {
   // Prefer doing the type-checks in JavaScript
   if (typeof str !== 'string') {
     throw new errors.codes.ERR_INVALID_ARG_TYPE('str', 'string');

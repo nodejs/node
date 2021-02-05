@@ -62,7 +62,7 @@ asynchronous operation is complete.
 ```js
 const fs = require('fs/promises');
 
-(async function(path) {
+(async (path) => {
   try {
     await fs.unlink(path);
     console.log(`successfully deleted ${path}`);
@@ -108,7 +108,7 @@ Or, use the promise-based API:
 ```js
 const fs = require('fs/promises');
 
-(async function(from, to) {
+(async (from, to) => {
   try {
     await fs.rename(from, to);
     const stats = await fs.stat(to);
@@ -3793,7 +3793,7 @@ const fs = require('fs');
 const pathsToCheck = ['./txtDir', './txtDir/file.txt'];
 
 for (let i = 0; i < pathsToCheck.length; i++) {
-  fs.stat(pathsToCheck[i], function(err, stats) {
+  fs.stat(pathsToCheck[i], (err, stats) => {
     console.log(stats.isDirectory());
     console.log(stats);
   });

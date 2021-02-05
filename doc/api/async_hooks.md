@@ -228,7 +228,7 @@ closing it before the resource can be used. The following snippet demonstrates
 this.
 
 ```js
-require('net').createServer().listen(function() { this.close(); });
+require('net').createServer().listen(() => { this.close(); });
 // OR
 clearTimeout(setTimeout(() => {}, 10));
 ```
@@ -533,7 +533,7 @@ createHook({
 
 const server = createServer((req, res) => {
   executionAsyncResource()[sym] = { state: req.url };
-  setTimeout(function() {
+  setTimeout(() => {
     res.end(JSON.stringify(executionAsyncResource()[sym]));
   }, 100);
 }).listen(3000);

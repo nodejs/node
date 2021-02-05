@@ -52,7 +52,7 @@ listener is attached.
 
 ```js
 const myEmitter = new MyEmitter();
-myEmitter.on('event', function(a, b) {
+myEmitter.on('event', (a, b) => {
   console.log(a, b, this, this === myEmitter);
   // Prints:
   //   a b MyEmitter {

@@ -11,7 +11,7 @@ Use `require('crypto').webcrypto` to access this module.
 ```js
 const { subtle } = require('crypto').webcrypto;
 
-(async function() {
+(async () => {
 
   const key = await subtle.generateKey({
     name: 'hmac',

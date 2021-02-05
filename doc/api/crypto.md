@@ -3438,7 +3438,7 @@ changes:
 * `offset` {number} **Default:** `0`
 * `size` {number} **Default:** `buffer.length - offset`. The `size` must
   not be larger than `2**31 - 1`.
-* `callback` {Function} `function(err, buf) {}`.
+* `callback` {Function} `(err, buf) => {}`.
 
 This function is similar to [`crypto.randomBytes()`][] but requires the first
 argument to be a [`Buffer`][] that will be filled. It also
@@ -3515,7 +3515,7 @@ added:
 
 * `min` {integer} Start of random range (inclusive). **Default**: `0`.
 * `max` {integer} End of random range (exclusive).
-* `callback` {Function} `function(err, n) {}`.
+* `callback` {Function} `(err, n) => {}`.
 
 Return a random integer `n` such that `min <= n < max`.  This
 implementation avoids [modulo bias][].
