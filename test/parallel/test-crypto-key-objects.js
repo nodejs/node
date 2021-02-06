@@ -118,46 +118,6 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
 }
 
 {
-  const publicKey = createPublicKey(publicPem);
-  assert.strictEqual(publicKey.type, 'public');
-  assert.strictEqual(publicKey.asymmetricKeyType, 'rsa');
-  assert.strictEqual(publicKey.symmetricKeySize, undefined);
-
-  const privateKey = createPrivateKey(privatePem);
-  assert.strictEqual(privateKey.type, 'private');
-  assert.strictEqual(privateKey.asymmetricKeyType, 'rsa');
-  assert.strictEqual(privateKey.symmetricKeySize, undefined);
-
-  // It should be possible to derive a public key from a private key.
-  const derivedPublicKey = createPublicKey(privateKey);
-  assert.strictEqual(derivedPublicKey.type, 'public');
-  assert.strictEqual(derivedPublicKey.asymmetricKeyType, 'rsa');
-  assert.strictEqual(derivedPublicKey.symmetricKeySize, undefined);
-
-  // It should also be possible to import an encrypted private key as a public
-  // key.
-  const decryptedKey = createPublicKey({
-    key: privateKey.export({
-      type: 'pkcs8',
-      format: 'pem',
-      passphrase: '123',
-      cipher: 'aes-128-cbc'
-    }),
-    format: 'pem',
-    passphrase: '123'
-  });
-  assert.strictEqual(decryptedKey.type, 'public');
-  assert.strictEqual(decryptedKey.asymmetricKeyType, 'rsa');
-
-  // Test exporting with an invalid options object, this should throw.
-  for (const opt of [undefined, null, 'foo', 0, NaN]) {
-    assert.throws(() => publicKey.export(opt), {
-      name: 'TypeError',
-      code: 'ERR_INVALID_ARG_TYPE',
-      message: /^The "options" argument must be of type object/
-    });
-  }
-
   const jwk = {
     e: 'AQAB',
     n: 't9xYiIonscC3vz_A2ceR7KhZZlDu_5bye53nCVTcKnWd2seY6UAdKersX6njr83Dd5OVe' +
@@ -187,17 +147,71 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
        'ch8kWqHaCSX53yvqCtRKu_j76V31TfQZGM',
     kty: 'RSA',
   };
+  const publicJwk = { kty: jwk.kty, e: jwk.e, n: jwk.n };
 
-  for (const keyObject of [publicKey, derivedPublicKey]) {
+  const publicKey = createPublicKey(publicPem);
+  assert.strictEqual(publicKey.type, 'public');
+  assert.strictEqual(publicKey.asymmetricKeyType, 'rsa');
+  assert.strictEqual(publicKey.symmetricKeySize, undefined);
+
+  const privateKey = createPrivateKey(privatePem);
+  assert.strictEqual(privateKey.type, 'private');
+  assert.strictEqual(privateKey.asymmetricKeyType, 'rsa');
+  assert.strictEqual(privateKey.symmetricKeySize, undefined);
+
+  // It should be possible to derive a public key from a private key.
+  const derivedPublicKey = createPublicKey(privateKey);
+  assert.strictEqual(derivedPublicKey.type, 'public');
+  assert.strictEqual(derivedPublicKey.asymmetricKeyType, 'rsa');
+  assert.strictEqual(derivedPublicKey.symmetricKeySize, undefined);
+
+  const publicKeyFromJwk = createPublicKey({ key: publicJwk, format: 'jwk' });
+  assert.strictEqual(publicKey.type, 'public');
+  assert.strictEqual(publicKey.asymmetricKeyType, 'rsa');
+  assert.strictEqual(publicKey.symmetricKeySize, undefined);
+
+  const privateKeyFromJwk = createPrivateKey({ key: jwk, format: 'jwk' });
+  assert.strictEqual(privateKey.type, 'private');
+  assert.strictEqual(privateKey.asymmetricKeyType, 'rsa');
+  assert.strictEqual(privateKey.symmetricKeySize, undefined);
+
+  // It should also be possible to import an encrypted private key as a public
+  // key.
+  const decryptedKey = createPublicKey({
+    key: privateKey.export({
+      type: 'pkcs8',
+      format: 'pem',
+      passphrase: '123',
+      cipher: 'aes-128-cbc'
+    }),
+    format: 'pem',
+    passphrase: '123'
+  });
+  assert.strictEqual(decryptedKey.type, 'public');
+  assert.strictEqual(decryptedKey.asymmetricKeyType, 'rsa');
+
+  // Test exporting with an invalid options object, this should throw.
+  for (const opt of [undefined, null, 'foo', 0, NaN]) {
+    assert.throws(() => publicKey.export(opt), {
+      name: 'TypeError',
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /^The "options" argument must be of type object/
+    });
+  }
+
+  for (const keyObject of [publicKey, derivedPublicKey, publicKeyFromJwk]) {
     assert.deepStrictEqual(
       keyObject.export({ format: 'jwk' }),
       { kty: 'RSA', n: jwk.n, e: jwk.e }
     );
   }
-  assert.deepStrictEqual(
-    privateKey.export({ format: 'jwk' }),
-    jwk
-  );
+
+  for (const keyObject of [privateKey, privateKeyFromJwk]) {
+    assert.deepStrictEqual(
+      keyObject.export({ format: 'jwk' }),
+      jwk
+    );
+  }
 
   // Exporting the key using JWK should not work since this format does not
   // support key encryption
@@ -235,10 +249,12 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     // Encrypt using the public key.
     publicEncrypt(publicKey, plaintext),
     publicEncrypt({ key: publicKey }, plaintext),
+    publicEncrypt({ key: publicJwk, format: 'jwk' }, plaintext),
 
     // Encrypt using the private key.
     publicEncrypt(privateKey, plaintext),
     publicEncrypt({ key: privateKey }, plaintext),
+    publicEncrypt({ key: jwk, format: 'jwk' }, plaintext),
 
     // Encrypt using a public key derived from the private key.
     publicEncrypt(derivedPublicKey, plaintext),
@@ -251,7 +267,8 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   ], [
     privateKey,
     { format: 'pem', key: privatePem },
-    { format: 'der', type: 'pkcs1', key: privateDER }
+    { format: 'der', type: 'pkcs1', key: privateDER },
+    { key: jwk, format: 'jwk' }
   ]);
 
   testDecryption(publicDecrypt, [
@@ -261,11 +278,13 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     publicKey,
     { format: 'pem', key: publicPem },
     { format: 'der', type: 'pkcs1', key: publicDER },
+    { key: publicJwk, format: 'jwk' },
 
     // Decrypt using the private key.
     privateKey,
     { format: 'pem', key: privatePem },
-    { format: 'der', type: 'pkcs1', key: privateDER }
+    { format: 'der', type: 'pkcs1', key: privateDER },
+    { key: jwk, format: 'jwk' }
   ]);
 }
 
@@ -359,8 +378,20 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   }
 
   {
-    [info.private, info.public].forEach((pem) => {
-      const key = createPublicKey(pem);
+    const key = createPrivateKey({ key: info.jwk, format: 'jwk' });
+    assert.strictEqual(key.type, 'private');
+    assert.strictEqual(key.asymmetricKeyType, keyType);
+    assert.strictEqual(key.symmetricKeySize, undefined);
+    assert.strictEqual(
+      key.export({ type: 'pkcs8', format: 'pem' }), info.private);
+    assert.deepStrictEqual(
+      key.export({ format: 'jwk' }), info.jwk);
+  }
+
+  {
+    for (const input of [
+      info.private, info.public, { key: info.jwk, format: 'jwk' }]) {
+      const key = createPublicKey(input);
       assert.strictEqual(key.type, 'public');
       assert.strictEqual(key.asymmetricKeyType, keyType);
       assert.strictEqual(key.symmetricKeySize, undefined);
@@ -370,7 +401,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
       delete jwk.d;
       assert.deepStrictEqual(
         key.export({ format: 'jwk' }), jwk);
-    });
+    }
   }
 });
 
@@ -438,8 +469,21 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   }
 
   {
-    [info.private, info.public].forEach((pem) => {
-      const key = createPublicKey(pem);
+    const key = createPrivateKey({ key: info.jwk, format: 'jwk' });
+    assert.strictEqual(key.type, 'private');
+    assert.strictEqual(key.asymmetricKeyType, keyType);
+    assert.deepStrictEqual(key.asymmetricKeyDetails, { namedCurve });
+    assert.strictEqual(key.symmetricKeySize, undefined);
+    assert.strictEqual(
+      key.export({ type: 'pkcs8', format: 'pem' }), info.private);
+    assert.deepStrictEqual(
+      key.export({ format: 'jwk' }), info.jwk);
+  }
+
+  {
+    for (const input of [
+      info.private, info.public, { key: info.jwk, format: 'jwk' }]) {
+      const key = createPublicKey(input);
       assert.strictEqual(key.type, 'public');
       assert.strictEqual(key.asymmetricKeyType, keyType);
       assert.deepStrictEqual(key.asymmetricKeyDetails, { namedCurve });
@@ -450,7 +494,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
       delete jwk.d;
       assert.deepStrictEqual(
         key.export({ format: 'jwk' }), jwk);
-    });
+    }
   }
 });
 
