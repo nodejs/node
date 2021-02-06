@@ -952,7 +952,7 @@ void KeyObjectHandle::Init(const FunctionCallbackInfo<Value>& args) {
     CHECK_EQ(args.Length(), 5);
 
     offset = 1;
-    pkey = ManagedEVPPKey::GetPrivateKeyFromJs(args, &offset, false);
+    pkey = ManagedEVPPKey::GetPrivateKeyFromJs(args, &offset, true);
     if (!pkey)
       return;
     key->data_ = KeyObjectData::CreateAsymmetric(type, pkey);
