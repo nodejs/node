@@ -11,6 +11,13 @@
   assertThrows(() => worker.postMessage(memory), Error);
 })();
 
+(function TestPostMessageUnsharedMemoryBuffer() {
+  let worker = new Worker('', {type: 'string'});
+  let memory = new WebAssembly.Memory({initial: 1, maximum: 2});
+
+  assertThrows(() => worker.postMessage(memory.buffer), Error);
+})();
+
 // Can't use assert in a worker.
 let workerHelpers =
   `function assertTrue(value, msg) {
