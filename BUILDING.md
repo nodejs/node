@@ -8,7 +8,7 @@ If you can reproduce a test failure, search for it in the
 [Node.js issue tracker](https://github.com/nodejs/node/issues) or
 file a new issue.
 
-## Table of Contents
+## Table of contents
 
 * [Supported platforms](#supported-platforms)
   * [Input](#input)
@@ -309,7 +309,7 @@ To install this version of Node.js into a system directory:
 [sudo] make install
 ```
 
-#### Running Tests
+#### Running tests
 
 To verify the build:
 
@@ -379,7 +379,7 @@ You can use
 [node-code-ide-configs](https://github.com/nodejs/node-code-ide-configs)
 to run/debug tests, if your IDE configs are present.
 
-#### Running Coverage
+#### Running coverage
 
 It's good practice to ensure any code you add or change is covered by tests.
 You can do so by running the test suite with coverage enabled:
