@@ -31,6 +31,10 @@ const assert = require('assert');
 const path = require('path');
 const fixtures = require('../common/fixtures');
 const { builtinModules } = require('module');
+const publicModules = builtinModules.filter(
+  (lib) => !lib.startsWith('_') && !lib.includes('/'),
+);
+
 const hasInspector = process.features.inspector;
 
 if (!common.isMainThread)
@@ -239,9 +243,9 @@ putIn.run(['.clear']);
 
 testMe.complete('require(\'', common.mustCall(function(error, data) {
   assert.strictEqual(error, null);
-  builtinModules.forEach((lib) => {
+  publicModules.forEach((lib) => {
     assert(
-      data[0].includes(lib) || lib.startsWith('_') || lib.includes('/'),
+      data[0].includes(lib) && data[0].includes(`node:${lib}`),
       `${lib} not found`
     );
   });
@@ -258,11 +262,15 @@ testMe.complete("require\t( 'n", common.mustCall(function(error, data) {
   assert.strictEqual(error, null);
   assert.strictEqual(data.length, 2);
   assert.strictEqual(data[1], 'n');
+  // require(...) completions include `node:`-prefixed modules:
+  publicModules.forEach((lib, index) =>
+    assert.strictEqual(data[0][index], `node:${lib}`));
+  assert.strictEqual(data[0][publicModules.length], '');
   // There is only one Node.js module that starts with n:
-  assert.strictEqual(data[0][0], 'net');
-  assert.strictEqual(data[0][1], '');
+  assert.strictEqual(data[0][publicModules.length + 1], 'net');
+  assert.strictEqual(data[0][publicModules.length + 2], '');
   // It's possible to pick up non-core modules too
-  data[0].slice(2).forEach((completion) => {
+  data[0].slice(publicModules.length + 3).forEach((completion) => {
     assert.match(completion, /^n/);
   });
 }));
