@@ -3,8 +3,6 @@
         ^
 
 Error: goodbye
-    at *uglify-throw.js:1:43
-        -> at Hello *uglify-throw-original.js:5:9*
-    at Immediate.<anonymous> (*uglify-throw.js:1:60)
-        -> *uglify-throw-original.js:9:3*
+    at Hello *uglify-throw-original.js:5:9*
+    at *uglify-throw-original.js:9:3*
     at processImmediate (node:internal/timers:*)
