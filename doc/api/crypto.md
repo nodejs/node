@@ -537,6 +537,9 @@ of the ciphertext in bytes. See [CCM mode][].
 
 The `decipher.setAAD()` method must be called before [`decipher.update()`][].
 
+When passing a string as the `buffer`, please consider
+[caveats when using strings as inputs to cryptographic APIs][].
+
 ### `decipher.setAuthTag(buffer[, encoding])`
 <!-- YAML
 added: v1.0.0
@@ -568,6 +571,9 @@ is invalid according to [NIST SP 800-38D][] or does not match the value of the
 The `decipher.setAuthTag()` method must be called before [`decipher.update()`][]
 for `CCM` mode or before [`decipher.final()`][] for `GCM` and `OCB` modes.
 `decipher.setAuthTag()` can only be called once.
+
+When passing a string as the authentication tag, please consider
+[caveats when using strings as inputs to cryptographic APIs][].
 
 ### `decipher.setAutoPadding([autoPadding])`
 <!-- YAML
@@ -2161,6 +2167,9 @@ The `key` is the raw key used by the `algorithm` and `iv` is an
 a [`KeyObject`][] of type `secret`. If the cipher does not need
 an initialization vector, `iv` may be `null`.
 
+When passing strings for `key` or `iv`, please consider
+[caveats when using strings as inputs to cryptographic APIs][].
+
 Initialization vectors should be unpredictable and unique; ideally, they will be
 cryptographically random. They do not have to be secret: IVs are typically just
 added to ciphertext messages unencrypted. It may sound contradictory that
@@ -2256,6 +2265,9 @@ The `key` is the raw key used by the `algorithm` and `iv` is an
 [Buffers][`Buffer`], `TypedArray`, or `DataView`s. The `key` may optionally be
 a [`KeyObject`][] of type `secret`. If the cipher does not need
 an initialization vector, `iv` may be `null`.
+
+When passing strings for `key` or `iv`, please consider
+[caveats when using strings as inputs to cryptographic APIs][].
 
 Initialization vectors should be unpredictable and unique; ideally, they will be
 cryptographically random. They do not have to be secret: IVs are typically just
@@ -3097,6 +3109,9 @@ but will take a longer amount of time to complete.
 The `salt` should be as unique as possible. It is recommended that a salt is
 random and at least 16 bytes long. See [NIST SP 800-132][] for details.
 
+When passing strings for `password` or `salt`, please consider
+[caveats when using strings as inputs to cryptographic APIs][].
+
 ```js
 const crypto = require('crypto');
 crypto.pbkdf2('secret', 'salt', 100000, 64, 'sha512', (err, derivedKey) => {
@@ -3167,6 +3182,9 @@ but will take a longer amount of time to complete.
 
 The `salt` should be as unique as possible. It is recommended that a salt is
 random and at least 16 bytes long. See [NIST SP 800-132][] for details.
+
+When passing strings for `password` or `salt`, please consider
+[caveats when using strings as inputs to cryptographic APIs][].
 
 ```js
 const crypto = require('crypto');
@@ -3656,6 +3674,9 @@ memory-wise in order to make brute-force attacks unrewarding.
 The `salt` should be as unique as possible. It is recommended that a salt is
 random and at least 16 bytes long. See [NIST SP 800-132][] for details.
 
+When passing strings for `password` or `salt`, please consider
+[caveats when using strings as inputs to cryptographic APIs][].
+
 The `callback` function is called with two arguments: `err` and `derivedKey`.
 `err` is an exception object when key derivation fails, otherwise `err` is
 `null`. `derivedKey` is passed to the callback as a [`Buffer`][].
@@ -3713,6 +3734,9 @@ memory-wise in order to make brute-force attacks unrewarding.
 
 The `salt` should be as unique as possible. It is recommended that a salt is
 random and at least 16 bytes long. See [NIST SP 800-132][] for details.
+
+When passing strings for `password` or `salt`, please consider
+[caveats when using strings as inputs to cryptographic APIs][].
 
 An exception is thrown when key derivation fails, otherwise the derived key is
 returned as a [`Buffer`][].
@@ -3922,6 +3946,47 @@ Type: {Crypto} An implementation of the Web Crypto API standard.
 See the [Web Crypto API documentation][] for details.
 
 ## Notes
+
+### Using strings as inputs to cryptographic APIs
+
+For historical reasons, many cryptographic APIs provided by Node.js accept
+strings as inputs where the underlying cryptographic algorithm works on byte
+sequences. These instances include plaintexts, ciphertexts, symmetric keys,
+initialization vectors, passphrases, salts, authentication tags,
+and additional authenticated data.
+
+When passing strings to cryptographic APIs, consider the following factors.
+
+* Not all byte sequences are valid UTF-8 strings. Therefore, when a byte
+  sequence of length `n` is derived from a string, its entropy is generally
+  lower than the entropy of a random or pseudo-random `n` byte sequence.
+  For example, no UTF-8 string will result in the byte sequence `c0 af`. Secret
+  keys should almost exclusively be random or pseudo-random byte sequences.
+* Similarly, when converting random or pseudo-random byte sequences to UTF-8
+  strings, subsequences that do not represent valid code points may be replaced
+  by the Unicode replacement character (`U+FFFD`). The byte representation of
+  the resulting Unicode string may, therefore, not be equal to the byte sequence
+  that the string was created from.
+
+  ```js
+  const original = [0xc0, 0xaf];
+  const bytesAsString = Buffer.from(original).toString('utf8');
+  const stringAsBytes = Buffer.from(bytesAsString, 'utf8');
+  console.log(stringAsBytes);
+  // Prints '<Buffer ef bf bd ef bf bd>'.
+  ```
+
+  The outputs of ciphers, hash functions, signature algorithms, and key
+  derivation functions are pseudo-random byte sequences and should not be
+  used as Unicode strings.
+* When strings are obtained from user input, some Unicode characters can be
+  represented in multiple equivalent ways that result in different byte
+  sequences. For example, when passing a user passphrase to a key derivation
+  function, such as PBKDF2 or scrypt, the result of the key derivation function
+  depends on whether the string uses composed or decomposed characters. Node.js
+  does not normalize character representations. Developers should consider using
+  [`String.prototype.normalize()`][] on user inputs before passing them to
+  cryptographic APIs.
 
 ### Legacy streams API (prior to Node.js 0.10)
 
@@ -4384,6 +4449,7 @@ See the [list of SSL OP Flags][] for details.
 [AEAD algorithms]: https://en.wikipedia.org/wiki/Authenticated_encryption
 [CCM mode]: #crypto_ccm_mode
 [Caveats]: #crypto_support_for_weak_or_compromised_algorithms
+[caveats when using strings as inputs to cryptographic APIs]: #crypto_using_strings_as_inputs_to_cryptographic_apis
 [Crypto constants]: #crypto_crypto_constants_1
 [HTML 5.2]: https://www.w3.org/TR/html52/changes.html#features-removed
 [HTML5's `keygen` element]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/keygen
@@ -4406,6 +4472,7 @@ See the [list of SSL OP Flags][] for details.
 [`EVP_BytesToKey`]: https://www.openssl.org/docs/man1.1.0/crypto/EVP_BytesToKey.html
 [`KeyObject`]: #crypto_class_keyobject
 [`Sign`]: #crypto_class_sign
+[`String.prototype.normalize()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/normalize
 [`UV_THREADPOOL_SIZE`]: cli.md#cli_uv_threadpool_size_size
 [`Verify`]: #crypto_class_verify
 [`cipher.final()`]: #crypto_cipher_final_outputencoding
