@@ -1225,7 +1225,7 @@ const subprocess = spawn(
     '-c',
     `node -e "setInterval(() => {
       console.log(process.pid, 'is alive')
-    }, 500);"`
+    }, 500);"`,
   ], {
     stdio: ['inherit', 'inherit', 'inherit']
   }
@@ -1558,7 +1558,7 @@ const subprocess = child_process.spawn('ls', {
   stdio: [
     0, // Use parent's stdin for child.
     'pipe', // Pipe child's stdout to parent.
-    fs.openSync('err.out', 'w') // Direct child's stderr to a file.
+    fs.openSync('err.out', 'w'), // Direct child's stderr to a file.
   ]
 });
 
