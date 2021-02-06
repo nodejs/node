@@ -18,7 +18,7 @@ The Node.js project uses an [open governance model](./GOVERNANCE.md). The
 
 **This project is bound by a [Code of Conduct][].**
 
-# Table of Contents
+# Table of contents
 
 * [Support](#support)
 * [Release Types](#release-types)
@@ -41,7 +41,7 @@ The Node.js project uses an [open governance model](./GOVERNANCE.md). The
 Looking for help? Check out the
 [instructions for getting support](.github/SUPPORT.md).
 
-## Release Types
+## Release types
 
 * **Current**: Under active development. Code for the Current release is in the
   branch for its major version number (for example,
@@ -69,7 +69,7 @@ For more information, see the
 Binaries, installers, and source tarballs are available at
 <https://nodejs.org/en/download/>.
 
-#### Current and LTS Releases
+#### Current and LTS releases
 <https://nodejs.org/download/release/>
 
 The [latest](https://nodejs.org/download/release/latest/) directory is an
@@ -78,20 +78,20 @@ alias for the latest release from an LTS line. For example, the
 [latest-carbon](https://nodejs.org/download/release/latest-carbon/) directory
 contains the latest Carbon (Node.js 8) release.
 
-#### Nightly Releases
+#### Nightly releases
 <https://nodejs.org/download/nightly/>
 
 Each directory name and filename contains a date (in UTC) and the commit
 SHA at the HEAD of the release.
 
-#### API Documentation
+#### API documentation
 
 Documentation for the latest Current release is at <https://nodejs.org/api/>.
 Version-specific documentation is available in each release directory in the
 _docs_ subdirectory. Version-specific documentation is also at
 <https://nodejs.org/download/docs/>.
 
-### Verifying Binaries
+### Verifying binaries
 
 Download directories contain a `SHASUMS256.txt` file with SHA checksums for the
 files.
@@ -147,7 +147,7 @@ For information on reporting security vulnerabilities in Node.js, see
 * [Strategic Initiatives][]
 * [Technical values and prioritization][]
 
-## Current Project Team Members
+## Current project team members
 
 For information about the governance of the Node.js project, see
 [GOVERNANCE.md](./GOVERNANCE.md).
@@ -194,7 +194,7 @@ For information about the governance of the Node.js project, see
 * [Trott](https://github.com/Trott) -
 **Rich Trott** &lt;rtrott@gmail.com&gt; (he/him)
 
-### TSC Emeriti
+### TSC emeriti
 
 * [addaleax](https://github.com/addaleax) -
 **Anna Henningsen** &lt;anna@addaleax.net&gt; (she/her)
@@ -454,7 +454,7 @@ For information about the governance of the Node.js project, see
 * [ZYSzys](https://github.com/ZYSzys) -
 **Yongsheng Zhang** &lt;zyszys98@gmail.com&gt; (he/him)
 
-### Collaborator Emeriti
+### Collaborator emeriti
 
 * [andrasq](https://github.com/andrasq) -
 **Andras** &lt;andras@kinvey.com&gt;
@@ -594,7 +594,7 @@ maintaining the Node.js project.
 * [RaisinTen](https://github.com/RaisinTen) -
 **Darshan Sen** &lt;raisinten@gmail.com&gt;
 
-### Release Keys
+### Release keys
 
 Primary GPG keys for Node.js Releasers (some Releasers sign with subkeys):
 
