@@ -538,7 +538,7 @@ of the ciphertext in bytes. See [CCM mode][].
 The `decipher.setAAD()` method must be called before [`decipher.update()`][].
 
 When passing a string as the `buffer`, please consider
-[Caveats when using strings as inputs to cryptographic APIs][].
+[caveats when using strings as inputs to cryptographic APIs][].
 
 ### `decipher.setAuthTag(buffer[, encoding])`
 <!-- YAML
@@ -573,7 +573,7 @@ for `CCM` mode or before [`decipher.final()`][] for `GCM` and `OCB` modes.
 `decipher.setAuthTag()` can only be called once.
 
 When passing a string as the authentication tag, please consider
-[Caveats when using strings as inputs to cryptographic APIs][].
+[caveats when using strings as inputs to cryptographic APIs][].
 
 ### `decipher.setAutoPadding([autoPadding])`
 <!-- YAML
@@ -2168,7 +2168,7 @@ a [`KeyObject`][] of type `secret`. If the cipher does not need
 an initialization vector, `iv` may be `null`.
 
 When passing strings for `key` or `iv`, please consider
-[Caveats when using strings as inputs to cryptographic APIs][].
+[caveats when using strings as inputs to cryptographic APIs][].
 
 Initialization vectors should be unpredictable and unique; ideally, they will be
 cryptographically random. They do not have to be secret: IVs are typically just
@@ -2267,7 +2267,7 @@ a [`KeyObject`][] of type `secret`. If the cipher does not need
 an initialization vector, `iv` may be `null`.
 
 When passing strings for `key` or `iv`, please consider
-[Caveats when using strings as inputs to cryptographic APIs][].
+[caveats when using strings as inputs to cryptographic APIs][].
 
 Initialization vectors should be unpredictable and unique; ideally, they will be
 cryptographically random. They do not have to be secret: IVs are typically just
@@ -3110,7 +3110,7 @@ The `salt` should be as unique as possible. It is recommended that a salt is
 random and at least 16 bytes long. See [NIST SP 800-132][] for details.
 
 When passing strings for `password` or `salt`, please consider
-[Caveats when using strings as inputs to cryptographic APIs][].
+[caveats when using strings as inputs to cryptographic APIs][].
 
 ```js
 const crypto = require('crypto');
@@ -3184,7 +3184,7 @@ The `salt` should be as unique as possible. It is recommended that a salt is
 random and at least 16 bytes long. See [NIST SP 800-132][] for details.
 
 When passing strings for `password` or `salt`, please consider
-[Caveats when using strings as inputs to cryptographic APIs][].
+[caveats when using strings as inputs to cryptographic APIs][].
 
 ```js
 const crypto = require('crypto');
@@ -3675,7 +3675,7 @@ The `salt` should be as unique as possible. It is recommended that a salt is
 random and at least 16 bytes long. See [NIST SP 800-132][] for details.
 
 When passing strings for `password` or `salt`, please consider
-[Caveats when using strings as inputs to cryptographic APIs][].
+[caveats when using strings as inputs to cryptographic APIs][].
 
 The `callback` function is called with two arguments: `err` and `derivedKey`.
 `err` is an exception object when key derivation fails, otherwise `err` is
@@ -3736,7 +3736,7 @@ The `salt` should be as unique as possible. It is recommended that a salt is
 random and at least 16 bytes long. See [NIST SP 800-132][] for details.
 
 When passing strings for `password` or `salt`, please consider
-[Caveats when using strings as inputs to cryptographic APIs][].
+[caveats when using strings as inputs to cryptographic APIs][].
 
 An exception is thrown when key derivation fails, otherwise the derived key is
 returned as a [`Buffer`][].
@@ -4449,7 +4449,7 @@ See the [list of SSL OP Flags][] for details.
 [AEAD algorithms]: https://en.wikipedia.org/wiki/Authenticated_encryption
 [CCM mode]: #crypto_ccm_mode
 [Caveats]: #crypto_support_for_weak_or_compromised_algorithms
-[Caveats when using strings as inputs to cryptographic APIs]: #crypto_using_strings_as_inputs_to_cryptographic_apis
+[caveats when using strings as inputs to cryptographic APIs]: #crypto_using_strings_as_inputs_to_cryptographic_apis
 [Crypto constants]: #crypto_crypto_constants_1
 [HTML 5.2]: https://www.w3.org/TR/html52/changes.html#features-removed
 [HTML5's `keygen` element]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/keygen
