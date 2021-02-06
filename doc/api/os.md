@@ -115,7 +115,7 @@ The properties included on each object include:
       idle: 1070905480,
       irq: 20
     }
-  }
+  },
 ]
 ```
 
