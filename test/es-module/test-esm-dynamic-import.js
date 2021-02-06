@@ -51,6 +51,8 @@ function expectFsNamespace(result) {
 
   expectModuleError(import('node:unknown'),
                     'ERR_UNKNOWN_BUILTIN_MODULE');
+  expectModuleError(import('node:internal/test/binding'),
+                    'ERR_UNKNOWN_BUILTIN_MODULE');
   expectModuleError(import('./not-an-existing-module.mjs'),
                     'ERR_MODULE_NOT_FOUND');
   expectModuleError(import('http://example.com/foo.js'),
