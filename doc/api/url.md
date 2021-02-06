@@ -566,7 +566,7 @@ with [`JSON.stringify()`][].
 ```js
 const myURLs = [
   new URL('https://www.example.com'),
-  new URL('https://test.example.org')
+  new URL('https://test.example.org'),
 ];
 console.log(JSON.stringify(myURLs));
 // Prints ["https://www.example.com/","https://test.example.org/"]
@@ -703,7 +703,7 @@ let params;
 params = new URLSearchParams([
   ['user', 'abc'],
   ['query', 'first'],
-  ['query', 'second']
+  ['query', 'second'],
 ]);
 console.log(params.toString());
 // Prints 'user=abc&query=first&query=second'
@@ -728,7 +728,7 @@ console.log(params.toString());
 
 // Each key-value pair must have exactly two elements
 new URLSearchParams([
-  ['user', 'abc', 'error']
+  ['user', 'abc', 'error'],
 ]);
 // Throws TypeError [ERR_INVALID_TUPLE]:
 //        Each query pair must be an iterable [name, value] tuple
