@@ -374,6 +374,9 @@ controller.abort();
 <!-- YAML
 added: v0.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37256
+    description: timeout was added.
   - version: v15.11.0
     pr-url: https://github.com/nodejs/node/pull/37325
     description: killSignal for AbortSignal was added.
@@ -410,8 +413,8 @@ changes:
     See [Advanced serialization][] for more details. **Default:** `'json'`.
   * `signal` {AbortSignal} Allows closing the child process using an
     AbortSignal.
-  * `killSignal` {string} The signal value to be used when the spawned
-    process will be killed by the abort signal. **Default:** `'SIGTERM'`.
+  * `killSignal` {string|integer} The signal value to be used when the spawned
+    process will be killed by timeout or abort signal. **Default:** `'SIGTERM'`.
   * `silent` {boolean} If `true`, stdin, stdout, and stderr of the child will be
     piped to the parent, otherwise they will be inherited from the parent, see
     the `'pipe'` and `'inherit'` options for [`child_process.spawn()`][]'s
@@ -423,6 +426,8 @@ changes:
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
     done on Windows. Ignored on Unix. **Default:** `false`.
+  * `timeout` {number} In milliseconds the maximum amount of time the process
+    is allowed to run. **Default:** `undefined`.
 * Returns: {ChildProcess}
 
 The `child_process.fork()` method is a special case of
@@ -478,6 +483,9 @@ if (process.argv[2] === 'child') {
 <!-- YAML
 added: v0.1.90
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37256
+    description: timeout was added.
   - version: v15.11.0
     pr-url: https://github.com/nodejs/node/pull/37325
     description: killSignal for AbortSignal was added.
@@ -528,8 +536,10 @@ changes:
     normally be created on Windows systems. **Default:** `false`.
   * `signal` {AbortSignal} allows aborting the child process using an
     AbortSignal.
-  * `killSignal` {string} The signal value to be used when the spawned
-    process will be killed by the abort signal. **Default:** `'SIGTERM'`.
+  * `timeout` {number} In milliseconds the maximum amount of time the process
+    is allowed to run. **Default:** `undefined`.
+  * `killSignal` {string|integer} The signal value to be used when the spawned
+    process will be killed by timeout or abort signal. **Default:** `'SIGTERM'`.
 
 * Returns: {ChildProcess}
 
