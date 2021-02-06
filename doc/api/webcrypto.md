@@ -187,7 +187,7 @@ const { subtle } = require('crypto').webcrypto;
 async function generateAndWrapHmacKey(format = 'jwk', hash = 'SHA-512') {
   const [
     key,
-    wrappingKey
+    wrappingKey,
   ] = await Promise.all([
     subtle.generateKey({
       name: 'HMAC', hash
@@ -195,7 +195,7 @@ async function generateAndWrapHmacKey(format = 'jwk', hash = 'SHA-512') {
     subtle.generateKey({
       name: 'AES-KW',
       length: 256
-    }, true, ['wrapKey', 'unwrapKey'])
+    }, true, ['wrapKey', 'unwrapKey']),
   ]);
 
   const wrappedKey = await subtle.wrapKey(format, key, wrappingKey, 'AES-KW');
