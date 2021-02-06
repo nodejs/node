@@ -244,3 +244,36 @@ assert.rejects(
   {
     message: /Unsupported named curves for ECDH/
   });
+
+{
+  // Private JWK import
+  subtle.importKey(
+    'jwk',
+    {
+      crv: 'X25519',
+      d: '8CE-XY7cvbR-Pu7mILHq8YZ4hLGAA2-RD01he5q2wUA',
+      x: '42IbTo34ZYANub5o42547vB6OxdEd44ztwZewoRch0Q',
+      kty: 'OKP'
+    },
+    {
+      name: 'ECDH',
+      namedCurve: 'NODE-X25519'
+    },
+    true,
+    ['deriveBits']).then(common.mustCall());
+
+  // Public JWK import
+  subtle.importKey(
+    'jwk',
+    {
+      crv: 'X25519',
+      x: '42IbTo34ZYANub5o42547vB6OxdEd44ztwZewoRch0Q',
+      kty: 'OKP'
+    },
+    {
+      name: 'ECDH',
+      namedCurve: 'NODE-X25519'
+    },
+    true,
+    []).then(common.mustCall());
+}
