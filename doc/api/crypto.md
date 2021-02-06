@@ -2452,6 +2452,9 @@ input.on('readable', () => {
 <!-- YAML
 added: v11.6.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37254
+    description: The key can also be a JWK object.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
     description: The key can also be an ArrayBuffer. The encoding option was
@@ -2460,11 +2463,12 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 * `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView}
-  * `key`: {string|ArrayBuffer|Buffer|TypedArray|DataView} The key material,
-    either in PEM or DER format.
-  * `format`: {string} Must be `'pem'` or `'der'`. **Default:** `'pem'`.
+  * `key`: {string|ArrayBuffer|Buffer|TypedArray|DataView|Object} The key
+    material, either in PEM, DER, or JWK format.
+  * `format`: {string} Must be `'pem'`, `'der'`, or '`'jwk'`.
+    **Default:** `'pem'`.
   * `type`: {string} Must be `'pkcs1'`, `'pkcs8'` or `'sec1'`. This option is
-     required only if the `format` is `'der'` and ignored if it is `'pem'`.
+     required only if the `format` is `'der'` and ignored otherwise.
   * `passphrase`: {string | Buffer} The passphrase to use for decryption.
   * `encoding`: {string} The string encoding to use when `key` is a string.
 * Returns: {KeyObject}
@@ -2481,6 +2485,9 @@ of the passphrase is limited to 1024 bytes.
 <!-- YAML
 added: v11.6.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37254
+    description: The key can also be a JWK object.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
     description: The key can also be an ArrayBuffer. The encoding option was
@@ -2496,10 +2503,12 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 * `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView}
-  * `key`: {string|ArrayBuffer|Buffer|TypedArray|DataView}
-  * `format`: {string} Must be `'pem'` or `'der'`. **Default:** `'pem'`.
-  * `type`: {string} Must be `'pkcs1'` or `'spki'`. This option is required
-    only if the `format` is `'der'`.
+  * `key`: {string|ArrayBuffer|Buffer|TypedArray|DataView|Object} The key
+    material, either in PEM, DER, or JWK format.
+  * `format`: {string} Must be `'pem'`, `'der'`, or '`'jwk'`.
+    **Default:** `'pem'`.
+  * `type`: {string} Must be `'pkcs1'` or `'spki'`. This option is
+     required only if the `format` is `'der'` and ignored otherwise.
   * `encoding` {string} The string encoding to use when `key` is a string.
 * Returns: {KeyObject}
 <!--lint enable maximum-line-length remark-lint-->
