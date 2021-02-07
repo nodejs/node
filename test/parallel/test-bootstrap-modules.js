@@ -102,6 +102,7 @@ const expectedModules = new Set([
   'NativeModule internal/worker/io',
   'NativeModule internal/worker/js_transferable',
   'NativeModule internal/blob',
+  'NativeModule async_hooks',
   'NativeModule path',
   'NativeModule stream',
   'NativeModule timers',
