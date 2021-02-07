@@ -111,7 +111,7 @@ $ grep node-vx.y.z.tar.gz SHASUMS256.txt | sha256sum -c -
 
 For Current and LTS, the GPG detached signature of `SHASUMS256.txt` is in
 `SHASUMS256.txt.sig`. You can use it with `gpg` to verify the integrity of
-`SHASUM256.txt`. You will first need to import
+`SHASUMS256.txt`. You will first need to import
 [the GPG keys of individuals authorized to create releases](#release-keys). To
 import the keys:
 
