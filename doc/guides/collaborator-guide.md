@@ -22,7 +22,7 @@
     * [Unintended breaking changes](#unintended-breaking-changes)
       * [Reverting commits](#reverting-commits)
   * [Introducing new modules](#introducing-new-modules)
-  * [Additions to N-API](#additions-to-n-api)
+  * [Additions to Node-API](#additions-to-n-api)
   * [Deprecations](#deprecations)
   * [Involving the TSC](#involving-the-tsc)
 * [Landing pull requests](#landing-pull-requests)
@@ -373,12 +373,12 @@ For pull requests introducing new core modules:
 * Land with a [Stability Index][] of Experimental. The module must remain
   Experimental until a semver-major release.
 
-### Additions to N-API
+### Additions to Node-API
 
-N-API provides an ABI-stable API guaranteed for future Node.js versions. N-API
-additions call for unusual care and scrutiny. If a change adds to `node_api.h`,
-`js_native_api.h`, `node_api_types.h`, or `js_native_api_types.h`, consult [the relevant
-guide](https://github.com/nodejs/node/blob/master/doc/guides/adding-new-napi-api.md).
+Node-API provides an ABI-stable API guaranteed for future Node.js versions.
+Node-API additions call for unusual care and scrutiny. If a change adds to
+`node_api.h`, `js_native_api.h`, `node_api_types.h`, or `js_native_api_types.h`,
+consult [the relevant guide](https://github.com/nodejs/node/blob/master/doc/guides/adding-new-napi-api.md).
 
 ### Deprecations
 
