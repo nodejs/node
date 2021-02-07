@@ -577,7 +577,12 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
       modobj->Get(context, node_env->filename_string()).ToLocal(&filename_js) &&
       filename_js->IsString()) {
     node::Utf8Value filename(node_env->isolate(), filename_js);  // Cast
-    module_filename = *filename;
+
+    // Turn the absolute path into a URL. Currently the absolute path is always
+    // a file system path.
+    // TODO(gabrielschulhof): Pass the `filename` through unchanged if/when we
+    // receive it as a URL already.
+    module_filename = std::string("file://") + (*filename);
   }
 
   // Create a new napi_env for this specific module.
