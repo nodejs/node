@@ -1,11 +1,11 @@
-# Contributing a new API to N-API
+# Contributing a new API to Node-API
 
-N-API is the next-generation ABI-stable API for native modules.
+Node-API is the next-generation ABI-stable API for native modules.
 While improving the API surface is encouraged and welcomed, the following are
 a set of principles and guidelines to keep in mind while adding a new
-N-API API.
+Node-API.
 
-* A new API **must** adhere to N-API API shape and spirit.
+* A new API **must** adhere to Node-API API shape and spirit.
   * **Must** be a C API.
   * **Must** not throw exceptions.
   * **Must** return `napi_status`.
@@ -14,7 +14,7 @@ N-API API.
     datatypes or opaque handles.
   * **Must** be a necessary API and not a nice to have. Convenience APIs
     belong in node-addon-api.
-  * **Must** not change the signature of an existing N-API API or break
+  * **Must** not change the signature of an existing Node-API API or break
     ABI compatibility with other versions of Node.js.
 * New API **should** be agnostic towards the underlying JavaScript VM.
 * New API PRs **must** have a corresponding documentation update.
@@ -23,9 +23,9 @@ N-API API.
 * There **should** be at least one test case per interesting use of the API.
 * There **should** be a sample provided that operates in a realistic way
   (operating how a real addon would be written).
-* A new API **should** be discussed at the N-API team meeting.
+* A new API **should** be discussed at the Node-API team meeting.
 * A new API addition **must** be signed off by at least two members of
-  the N-API team.
+  the Node-API team.
 * A new API addition **should** be simultaneously implemented in at least
   one other VM implementation of Node.js.
 * A new API **must** be considered experimental for at least one minor
