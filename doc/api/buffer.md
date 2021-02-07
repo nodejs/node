@@ -370,7 +370,7 @@ The content-type of the `Blob`.
 ### `Blob` objects and `MessageChannel`
 
 Once a {Blob} object is created, it can be sent via `MessagePort` to multiple
-destinations without transfering or immediately copying the data. The data
+destinations without transferring or immediately copying the data. The data
 contained by the `Blob` is copied only when the `arrayBuffer()` or `text()`
 methods are called.
 
