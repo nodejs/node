@@ -3961,7 +3961,7 @@ When passing strings to cryptographic APIs, consider the following factors.
   sequence of length `n` is derived from a string, its entropy is generally
   lower than the entropy of a random or pseudo-random `n` byte sequence.
   For example, no UTF-8 string will result in the byte sequence `c0 af`. Secret
-  keys should almost exclusively be random or pseudo-random byte sequencs.
+  keys should almost exclusively be random or pseudo-random byte sequences.
 * Similarly, when converting random or pseudo-random byte sequences to UTF-8
   strings, subsequences that do not represent valid code points may be replaced
   by the Unicode replacement character (`U+FFFD`). The byte representation of
