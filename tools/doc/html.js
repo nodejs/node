@@ -24,7 +24,6 @@
 const common = require('./common.js');
 const fs = require('fs');
 const unified = require('unified');
-const find = require('unist-util-find');
 const visit = require('unist-util-visit');
 const markdown = require('remark-parse');
 const gfm = require('remark-gfm');
@@ -97,7 +96,13 @@ function toHTML({ input, content, filename, nodeVersion, versions }) {
 // Set the section name based on the first header.  Default to 'Index'.
 function firstHeader() {
   return (tree, file) => {
-    const heading = find(tree, { type: 'heading' });
+    let heading;
+    visit(tree, (node) => {
+      if (node.type === 'heading') {
+        heading = node;
+        return false;
+      }
+    });
 
     if (heading && heading.children.length) {
       const recursiveTextContent = (node) =>
