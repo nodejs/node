@@ -575,6 +575,8 @@ namespace internal {
   T(DataCloneErrorOutOfMemory, "Data cannot be cloned, out of memory.")        \
   T(DataCloneErrorDetachedArrayBuffer,                                         \
     "An ArrayBuffer is detached and could not be cloned.")                     \
+  T(DataCloneErrorNonDetachableArrayBuffer,                                    \
+    "ArrayBuffer is not detachable and could not be cloned.")                  \
   T(DataCloneErrorSharedArrayBufferTransferred,                                \
     "A SharedArrayBuffer could not be cloned. SharedArrayBuffer must not be "  \
     "transferred.")                                                            \
