@@ -1,8 +1,9 @@
-#include "node_internals.h"
+#include "base_object-inl.h"
 #include "node_buffer.h"
 #include "node_errors.h"
+#include "node_external_reference.h"
+#include "node_internals.h"
 #include "util-inl.h"
-#include "base_object-inl.h"
 
 namespace node {
 
@@ -26,7 +27,7 @@ using v8::Value;
 using v8::ValueDeserializer;
 using v8::ValueSerializer;
 
-namespace {
+namespace serdes {
 
 class SerializerContext : public BaseObject,
                           public ValueSerializer::Delegate {
@@ -503,7 +504,32 @@ void Initialize(Local<Object> target,
   env->SetConstructorFunction(target, "Deserializer", des);
 }
 
-}  // anonymous namespace
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(SerializerContext::New);
+
+  registry->Register(SerializerContext::WriteHeader);
+  registry->Register(SerializerContext::WriteValue);
+  registry->Register(SerializerContext::ReleaseBuffer);
+  registry->Register(SerializerContext::TransferArrayBuffer);
+  registry->Register(SerializerContext::WriteUint32);
+  registry->Register(SerializerContext::WriteUint64);
+  registry->Register(SerializerContext::WriteDouble);
+  registry->Register(SerializerContext::WriteRawBytes);
+  registry->Register(SerializerContext::SetTreatArrayBufferViewsAsHostObjects);
+
+  registry->Register(DeserializerContext::New);
+  registry->Register(DeserializerContext::ReadHeader);
+  registry->Register(DeserializerContext::ReadValue);
+  registry->Register(DeserializerContext::GetWireFormatVersion);
+  registry->Register(DeserializerContext::TransferArrayBuffer);
+  registry->Register(DeserializerContext::ReadUint32);
+  registry->Register(DeserializerContext::ReadUint64);
+  registry->Register(DeserializerContext::ReadDouble);
+  registry->Register(DeserializerContext::ReadRawBytes);
+}
+
+}  // namespace serdes
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(serdes, node::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(serdes, node::serdes::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(serdes, node::serdes::RegisterExternalReferences)

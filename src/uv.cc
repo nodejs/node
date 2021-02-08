@@ -22,6 +22,7 @@
 #include "uv.h"
 #include "env-inl.h"
 #include "node.h"
+#include "node_external_reference.h"
 #include "node_process.h"
 
 namespace node {
@@ -42,7 +43,7 @@ static const struct UVError uv_errors_map[] = {
 };
 }  // namespace per_process
 
-namespace {
+namespace uv {
 
 using v8::Array;
 using v8::Context;
@@ -130,7 +131,12 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "getErrorMap", GetErrMap);
 }
 
-}  // anonymous namespace
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(ErrName);
+  registry->Register(GetErrMap);
+}
+}  // namespace uv
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(uv, node::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(uv, node::uv::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(uv, node::uv::RegisterExternalReferences)

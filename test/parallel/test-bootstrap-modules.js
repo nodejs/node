@@ -18,12 +18,15 @@ const expectedModules = new Set([
   'Internal Binding fs',
   'Internal Binding fs_dir',
   'Internal Binding fs_event_wrap',
+  'Internal Binding heap_utils',
   'Internal Binding messaging',
   'Internal Binding module_wrap',
   'Internal Binding native_module',
   'Internal Binding options',
   'Internal Binding process_methods',
   'Internal Binding report',
+  'Internal Binding serdes',
+  'Internal Binding stream_wrap',
   'Internal Binding string_decoder',
   'Internal Binding symbols',
   'Internal Binding task_queue',
@@ -33,6 +36,7 @@ const expectedModules = new Set([
   'Internal Binding url',
   'Internal Binding util',
   'Internal Binding uv',
+  'Internal Binding v8',
   'Internal Binding worker',
   'NativeModule buffer',
   'NativeModule events',
@@ -54,6 +58,7 @@ const expectedModules = new Set([
   'NativeModule internal/fs/promises',
   'NativeModule internal/fs/rimraf',
   'NativeModule internal/fs/watchers',
+  'NativeModule internal/heap_utils',
   'NativeModule internal/idna',
   'NativeModule internal/linkedlist',
   'NativeModule internal/modules/run_main',
@@ -81,6 +86,7 @@ const expectedModules = new Set([
   'NativeModule internal/process/warning',
   'NativeModule internal/querystring',
   'NativeModule internal/source_map/source_map_cache',
+  'NativeModule internal/stream_base_commons',
   'NativeModule internal/streams/add-abort-signal',
   'NativeModule internal/streams/buffer_list',
   'NativeModule internal/streams/destroy',
@@ -111,6 +117,7 @@ const expectedModules = new Set([
   'NativeModule timers',
   'NativeModule url',
   'NativeModule util',
+  'NativeModule v8',
   'NativeModule vm',
 ]);
 
@@ -150,6 +157,7 @@ if (process.features.inspector) {
   expectedModules.add('Internal Binding inspector');
   expectedModules.add('NativeModule internal/inspector_async_hook');
   expectedModules.add('NativeModule internal/util/inspector');
+  expectedModules.add('Internal Binding profiler');
 }
 
 if (process.env.NODE_V8_COVERAGE) {

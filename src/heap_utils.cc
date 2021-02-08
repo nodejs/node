@@ -1,6 +1,7 @@
 #include "diagnosticfilename-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
+#include "node_external_reference.h"
 #include "stream_base-inl.h"
 #include "util-inl.h"
 
@@ -399,7 +400,15 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "createHeapSnapshotStream", CreateHeapSnapshotStream);
 }
 
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(BuildEmbedderGraph);
+  registry->Register(TriggerHeapSnapshot);
+  registry->Register(CreateHeapSnapshotStream);
+}
+
 }  // namespace heap
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(heap_utils, node::heap::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(heap_utils,
+                               node::heap::RegisterExternalReferences)

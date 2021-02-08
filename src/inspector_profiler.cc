@@ -3,8 +3,9 @@
 #include "debug_utils-inl.h"
 #include "diagnosticfilename-inl.h"
 #include "memory_tracker-inl.h"
-#include "node_file.h"
 #include "node_errors.h"
+#include "node_external_reference.h"
+#include "node_file.h"
 #include "node_internals.h"
 #include "util-inl.h"
 #include "v8-inspector.h"
@@ -519,7 +520,16 @@ static void Initialize(Local<Object> target,
   env->SetMethod(target, "stopCoverage", StopCoverage);
 }
 
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(SetCoverageDirectory);
+  registry->Register(SetSourceMapCacheGetter);
+  registry->Register(TakeCoverage);
+  registry->Register(StopCoverage);
+}
+
 }  // namespace profiler
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(profiler, node::profiler::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(profiler,
+                               node::profiler::RegisterExternalReferences)

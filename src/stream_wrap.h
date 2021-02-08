@@ -31,6 +31,7 @@
 namespace node {
 
 class Environment;
+class ExternalReferenceRegistry;
 
 class LibuvStreamWrap : public HandleWrap, public StreamBase {
  public:
@@ -38,7 +39,7 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context,
                          void* priv);
-
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
   int GetFD() override;
   bool IsAlive() override;
   bool IsClosing() override;
