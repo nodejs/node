@@ -53,6 +53,8 @@ class ExternalReferenceRegistry {
   V(credentials)                                                               \
   V(env_var)                                                                   \
   V(errors)                                                                    \
+  V(fs)                                                                        \
+  V(fs_dir)                                                                    \
   V(handle_wrap)                                                               \
   V(messaging)                                                                 \
   V(native_module)                                                             \
