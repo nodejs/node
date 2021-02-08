@@ -3274,7 +3274,7 @@ changes:
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING` or
     `crypto.constants.RSA_PKCS1_PADDING`.
   * `encoding` {string} The string encoding to use when `buffer`, `key`,
-    or 'passphrase` are strings.
+    or `passphrase` are strings.
 * `buffer` {string|ArrayBuffer|Buffer|TypedArray|DataView}
 * Returns: {Buffer} A new `Buffer` with the encrypted content.
 <!--lint enable maximum-line-length remark-lint-->
@@ -3310,7 +3310,7 @@ changes:
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING` or
     `crypto.constants.RSA_PKCS1_PADDING`.
   * `encoding` {string} The string encoding to use when `buffer`, `key`,
-    or 'passphrase` are strings.
+    or `passphrase` are strings.
 * `buffer` {string|ArrayBuffer|Buffer|TypedArray|DataView}
 * Returns: {Buffer} A new `Buffer` with the decrypted content.
 <!--lint enable maximum-line-length remark-lint-->
@@ -3362,7 +3362,7 @@ changes:
     `crypto.constants.RSA_PKCS1_PADDING`, or
     `crypto.constants.RSA_PKCS1_OAEP_PADDING`.
   * `encoding` {string} The string encoding to use when `buffer`, `key`,
-    `oaepLabel`, or 'passphrase` are strings.
+    `oaepLabel`, or `passphrase` are strings.
 * `buffer` {string|ArrayBuffer|Buffer|TypedArray|DataView}
 * Returns: {Buffer} A new `Buffer` with the encrypted content.
 <!--lint enable maximum-line-length remark-lint-->
