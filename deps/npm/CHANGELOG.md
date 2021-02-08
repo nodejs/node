@@ -1,4 +1,38 @@
-## v7.5.2 (2021-02-02
+## v7.5.3 (2021-02-08)
+
+### BUG FIXES
+
+* [`df596bf4c`](https://github.com/npm/cli/commit/df596bf4c10d6917672579cc38800f5e846002bc)
+  fix(publish): follow all configs for registry auth check
+  [#2602](https://github.com/npm/cli/issues/2602)
+  ([@wraithgar](https://github.com/wraithgar))
+* [`6d7afb03c`](https://github.com/npm/cli/commit/6d7afb03cd7602b60e709516711a2f94cd61ff25)
+  [#2613](https://github.com/npm/cli/issues/2613)
+  install script: pass -q to curl calls to disable user .curlrc files
+  ([@nlf](https://github.com/nlf))
+
+### DEPENDENCIES
+
+* [`3294fed6f`](https://github.com/npm/cli/commit/3294fed6f18626516978c21fac5f28ecfdb58124)
+  `pacote@11.2.5`
+    * prevent infinite recursion in git dep preparation
+* [`0f7a3a87c`](https://github.com/npm/cli/commit/0f7a3a87c12e30bdd2cdab596ca6511de787c969)
+  `read-package-json-fast@2.0.1`
+    * avoid duplicating optionalDependencies as dependencies in package.json
+* [`6f46b0f7f`](https://github.com/npm/cli/commit/6f46b0f7fef9891e6de4af3547c70a67cb3a7a13)
+  `init-package-json@2.0.2`
+* [`df4f65acc`](https://github.com/npm/cli/commit/df4f65acc4ceaf15db4c227670e80f94584c055c)
+  `@npmcli/arborist@2.2.0`
+* [`7038c2ff4`](https://github.com/npm/cli/commit/7038c2ff49022f8babd495d1b831b5c82d6aed05)
+  `@npmcli/run-script@1.8.2`
+* [`54cd4c87a`](https://github.com/npm/cli/commit/54cd4c87a71c9381519d8ac52e306096066dc92e)
+  `libnpmversion@1.0.8`
+* [`9ab36aae4`](https://github.com/npm/cli/commit/9ab36aae429784df754211d5f086a515012b9bdd)
+  `graceful-fs@4.2.5`
+* [`e1822cf27`](https://github.com/npm/cli/commit/e1822cf277336728f1d5696ffe0db3ea6e700d9e)
+  `@npmcli/installed-package-contents@1.0.7`
+
+## v7.5.2 (2021-02-02)
 
 ### BUG FIXES
 

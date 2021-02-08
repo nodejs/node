@@ -15,7 +15,7 @@ const depTypes = new Set([
   'peerDependencies',
 ])
 
-async function updateRootPackageJson ({ tree }) {
+const updateRootPackageJson = async tree => {
   const filename = resolve(tree.path, 'package.json')
   const originalContent = await readFile(filename, 'utf8')
     .then(data => parseJSON(data))
@@ -24,6 +24,16 @@ async function updateRootPackageJson ({ tree }) {
   const depsData = orderDeps({
     ...tree.package,
   })
+
+  // optionalDependencies don't need to be repeated in two places
+  if (depsData.dependencies) {
+    if (depsData.optionalDependencies) {
+      for (const name of Object.keys(depsData.optionalDependencies))
+        delete depsData.dependencies[name]
+    }
+    if (Object.keys(depsData.dependencies).length === 0)
+      delete depsData.dependencies
+  }
 
   // if there's no package.json, just use internal pkg info as source of truth
   const packageJsonContent = originalContent || depsData
