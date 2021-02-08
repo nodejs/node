@@ -37,6 +37,7 @@
 #include "node_main_instance.h"
 #include "node_options.h"
 #include "node_perf_common.h"
+#include "node_snapshotable.h"
 #include "req_wrap.h"
 #include "util.h"
 #include "uv.h"
@@ -899,7 +900,22 @@ struct PropInfo {
   SnapshotIndex index;  // In the snapshot
 };
 
+typedef void (*DeserializeRequestCallback)(v8::Local<v8::Context> context,
+                                           v8::Local<v8::Object> holder,
+                                           int index,
+                                           InternalFieldInfo* info);
+struct DeserializeRequest {
+  DeserializeRequestCallback cb;
+  v8::Global<v8::Object> holder;
+  int index;
+  InternalFieldInfo* info = nullptr;  // Owned by the request
+
+  // Move constructor
+  DeserializeRequest(DeserializeRequest&& other) = default;
+};
+
 struct EnvSerializeInfo {
+  std::vector<PropInfo> bindings;
   std::vector<std::string> native_modules;
   AsyncHooks::SerializeInfo async_hooks;
   TickInfo::SerializeInfo tick_info;
@@ -934,6 +950,11 @@ class Environment : public MemoryRetainer {
 
   void PrintAllBaseObjects();
   void VerifyNoStrongBaseObjects();
+  void EnqueueDeserializeRequest(DeserializeRequestCallback cb,
+                                 v8::Local<v8::Object> holder,
+                                 int index,
+                                 InternalFieldInfo* info);
+  void RunDeserializeRequests();
   // Should be called before InitializeInspector()
   void InitializeDiagnostics();
 
@@ -1371,6 +1392,9 @@ class Environment : public MemoryRetainer {
   void AddUnmanagedFd(int fd);
   void RemoveUnmanagedFd(int fd);
 
+  template <typename T>
+  void ForEachBindingData(T&& iterator);
+
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
@@ -1458,6 +1482,8 @@ class Environment : public MemoryRetainer {
   std::unique_ptr<inspector::Agent> inspector_agent_;
   bool is_in_inspector_console_call_ = false;
 #endif
+
+  std::list<DeserializeRequest> deserialize_requests_;
 
   // handle_wrap_queue_ and req_wrap_queue_ needs to be at a fixed offset from
   // the start of the class because it is used by
