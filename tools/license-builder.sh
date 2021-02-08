@@ -72,7 +72,7 @@ addlicense "zlib" "deps/zlib" \
 
 # Package managers
 addlicense "npm" "deps/npm" "$(cat "${rootdir}"/deps/npm/LICENSE)"
-addlicense "yarn" "deps/yarn" "$(cat ${rootdir}/deps/yarn/LICENSE)"
+addlicense "yarn" "deps/yarn" "$(cat "${rootdir}"/deps/yarn/LICENSE)"
 
 # Build tools
 addlicense "GYP" "tools/gyp" "$(cat "${rootdir}"/tools/gyp/LICENSE)"

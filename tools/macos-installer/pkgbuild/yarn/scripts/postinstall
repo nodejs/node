@@ -1,0 +1,5 @@
+#!/bin/sh
+
+cd /usr/local/bin || exit 1
+ln -sf ../lib/node_modules/yarn/bin/yarn.js yarn
+ln -sf ../lib/node_modules/yarn/bin/yarn.js yarnpkg

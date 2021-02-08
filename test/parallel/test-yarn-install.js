@@ -12,7 +12,7 @@ const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 const yarnSandbox = path.join(tmpdir.path, 'yarn-sandbox');
-fs.mkdirSync(npmSandbox);
+fs.mkdirSync(yarnSandbox);
 const homeDir = path.join(tmpdir.path, 'home');
 fs.mkdirSync(homeDir);
 const installDir = path.join(tmpdir.path, 'install-dir');

@@ -806,6 +806,7 @@ DISTTYPEDIR ?= $(DISTTYPE)
 RELEASE=$(shell sed -ne 's/\#define NODE_VERSION_IS_RELEASE \([01]\)/\1/p' src/node_version.h)
 PLATFORM=$(shell uname | tr '[:upper:]' '[:lower:]')
 NPMVERSION=v$(shell cat deps/npm/package.json | grep '"version"' | sed 's/^[^:]*: "\([^"]*\)",.*/\1/')
+YARNVERSION=v$(shell cat deps/yarn/package.json | grep '"version"' | sed 's/^[^:]*: "\([^"]*\)",.*/\1/')
 
 UNAME_M=$(shell uname -m)
 ifeq ($(findstring x86_64,$(UNAME_M)),x86_64)
@@ -962,6 +963,7 @@ $(PKG): release-only
 	cat tools/macos-installer/productbuild/distribution.xml.tmpl  \
 		| sed -E "s/\\{nodeversion\\}/$(FULLVERSION)/g" \
 		| sed -E "s/\\{npmversion\\}/$(NPMVERSION)/g" \
+		| sed -E "s/\\{yarnversion\\}/$(YARNVERSION)/g" \
 	>$(MACOSOUTDIR)/installer/productbuild/distribution.xml ; \
 
 	@for dirname in tools/macos-installer/productbuild/Resources/*/; do \
@@ -971,10 +973,12 @@ $(PKG): release-only
 		cat $$dirname/welcome.html.tmpl  \
 			| sed -E "s/\\{nodeversion\\}/$(FULLVERSION)/g" \
 			| sed -E "s/\\{npmversion\\}/$(NPMVERSION)/g"  \
+			| sed -E "s/\\{yarnversion\\}/$(YARNVERSION)/g"  \
 		>$(MACOSOUTDIR)/installer/productbuild/Resources/$$lang/welcome.html ; \
 		cat $$dirname/conclusion.html.tmpl  \
 			| sed -E "s/\\{nodeversion\\}/$(FULLVERSION)/g" \
 			| sed -E "s/\\{npmversion\\}/$(NPMVERSION)/g"  \
+			| sed -E "s/\\{yarnversion\\}/$(YARNVERSION)/g"  \
 		>$(MACOSOUTDIR)/installer/productbuild/Resources/$$lang/conclusion.html ; \
 	done
 	$(PYTHON) ./configure \
@@ -986,11 +990,16 @@ $(PKG): release-only
 	SIGN="$(CODESIGN_CERT)" PKGDIR="$(MACOSOUTDIR)/dist/node/usr/local" sh \
 		tools/osx-codesign.sh
 	mkdir -p $(MACOSOUTDIR)/dist/npm/usr/local/lib/node_modules
+	mkdir -p $(MACOSOUTDIR)/dist/yarn/usr/local/lib/node_modules
 	mkdir -p $(MACOSOUTDIR)/pkgs
 	mv $(MACOSOUTDIR)/dist/node/usr/local/lib/node_modules/npm \
 		$(MACOSOUTDIR)/dist/npm/usr/local/lib/node_modules
+	mv $(MACOSOUTDIR)/dist/node/usr/local/lib/node_modules/yarn \
+		$(MACOSOUTDIR)/dist/yarn/usr/local/lib/node_modules
 	unlink $(MACOSOUTDIR)/dist/node/usr/local/bin/npm
 	unlink $(MACOSOUTDIR)/dist/node/usr/local/bin/npx
+	unlink $(MACOSOUTDIR)/dist/node/usr/local/bin/yarn
+	unlink $(MACOSOUTDIR)/dist/node/usr/local/bin/yarnpkg
 	$(NODE) tools/license2rtf.js < LICENSE > \
 		$(MACOSOUTDIR)/installer/productbuild/Resources/license.rtf
 	cp doc/osx_installer_logo.png $(MACOSOUTDIR)/installer/productbuild/Resources
@@ -1002,11 +1011,16 @@ $(PKG): release-only
 		--root $(MACOSOUTDIR)/dist/npm \
 		--scripts ./tools/macos-installer/pkgbuild/npm/scripts \
 			$(MACOSOUTDIR)/pkgs/npm-$(NPMVERSION).pkg
+	pkgbuild --version $(NPMVERSION) \
+		--identifier org.nodejs.yarn.pkg \
+		--root $(MACOSOUTDIR)/dist/yarn \
+		--scripts ./tools/macos-installer/pkgbuild/yarn/scripts \
+			$(MACOSOUTDIR)/pkgs/yarn-$(YARNVERSION).pkg
 	productbuild --distribution $(MACOSOUTDIR)/installer/productbuild/distribution.xml \
 		--resources $(MACOSOUTDIR)/installer/productbuild/Resources \
 		--package-path $(MACOSOUTDIR)/pkgs ./$(PKG)
-	SIGN="$(PRODUCTSIGN_CERT)" PKG="$(PKG)" sh tools/osx-productsign.sh
-	sh tools/osx-notarize.sh $(FULLVERSION)
+	#SIGN="$(PRODUCTSIGN_CERT)" PKG="$(PKG)" sh tools/osx-productsign.sh
+	#sh tools/osx-notarize.sh $(FULLVERSION)
 
 .PHONY: pkg
 # Builds the macOS installer for releases.

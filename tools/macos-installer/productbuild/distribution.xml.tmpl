@@ -6,11 +6,13 @@
     <background alignment="topleft" file="osx_installer_logo.png"/>
     <pkg-ref id="org.nodejs.node.pkg" auth="root"/>
     <pkg-ref id="org.nodejs.npm.pkg" auth="root"/>
+    <pkg-ref id="org.nodejs.yarn.pkg" auth="root"/>
     <options customize="allow" require-scripts="false"/>
     <license file="license.rtf"/>
     <choices-outline>
       <line choice="org.nodejs.node.pkg" />
       <line choice="org.nodejs.npm.pkg"/>
+      <line choice="org.nodejs.yarn.pkg"/>
     </choices-outline>
     <choice id="org.nodejs.node.pkg" visible="true" title="Node.js {nodeversion}">
         <pkg-ref id="org.nodejs.node.pkg"/>
@@ -20,4 +22,8 @@
         <pkg-ref id="org.nodejs.npm.pkg"/>
     </choice>
     <pkg-ref id="org.nodejs.npm.pkg" version="{npmversion}" onConclusion="none">npm-{npmversion}.pkg</pkg-ref>
+    <choice id="org.nodejs.yarn.pkg" visible="true" title="Yarn {yarnversion}">
+        <pkg-ref id="org.nodejs.yarn.pkg"/>
+    </choice>
+    <pkg-ref id="org.nodejs.yarn.pkg" version="{yarnversion}" onConclusion="none">yarn-{yarnversion}.pkg</pkg-ref>
 </installer-gui-script>
