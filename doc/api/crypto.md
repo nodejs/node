@@ -2019,7 +2019,7 @@ added: v15.8.0
     to the OpenSSL documentation for the [`BN_is_prime_ex`][] function `nchecks`
     options for more details. **Defaults**: `0`
 * `callback` {Function}
-  * `err` {Error} Set to an {Error} object if an error occured during check.
+  * `err` {Error} Set to an {Error} object if an error occurred during check.
   * `result` {boolean} `true` if the candidate is a prime with an error
     probability less than `0.25 ** options.checks`.
 
