@@ -55,12 +55,13 @@ const glob = (p, cb) => {
 
 let spawnBin = null
 let spawnArgs = null
+let spawnCode = 0
 const spawn = (bin, args) => {
   spawnBin = bin
   spawnArgs = args
   const spawnEmitter = new EventEmitter()
   process.nextTick(() => {
-    spawnEmitter.emit('close', 0)
+    spawnEmitter.emit('exit', spawnCode)
   })
   return spawnEmitter
 }
@@ -76,7 +77,9 @@ const help = requireInject('../../lib/help.js', {
   '../../lib/utils/npm-usage.js': npmUsage,
   '../../lib/utils/open-url.js': openUrl,
   '../../lib/utils/output.js': output,
-  '../../lib/utils/spawn.js': spawn,
+  child_process: {
+    spawn,
+  },
   glob,
 })
 
@@ -339,6 +342,29 @@ test('npm help ?(un)star', t => {
   })
 })
 
+test('npm help - woman viewer propagates errors', t => {
+  npmConfig.viewer = 'woman'
+  spawnCode = 1
+  globResult = [
+    '/root/man/man1/npm-star.1',
+    '/root/man/man1/npm-unstar.1',
+  ]
+  t.teardown(() => {
+    npmConfig.viewer = undefined
+    spawnCode = 0
+    globResult = globDefaults
+    spawnBin = null
+    spawnArgs = null
+  })
+
+  return help(['?(un)star'], (err) => {
+    t.match(err, /help process exited with code: 1/, 'received the correct error')
+    t.equal(spawnBin, 'emacsclient', 'maps woman to emacs correctly')
+    t.strictSame(spawnArgs, ['-e', `(woman-find-file '/root/man/man1/npm-unstar.1')`], 'passes the correct arguments')
+    t.end()
+  })
+})
+
 test('npm help un*', t => {
   globResult = [
     '/root/man/man1/npm-unstar.1',
@@ -355,6 +381,28 @@ test('npm help un*', t => {
     if (err)
       throw err
 
+    t.equal(spawnBin, 'man', 'calls man by default')
+    t.strictSame(spawnArgs, ['1', 'npm-unstar'], 'passes the correct arguments')
+    t.end()
+  })
+})
+
+test('npm help - man viewer propagates errors', t => {
+  spawnCode = 1
+  globResult = [
+    '/root/man/man1/npm-unstar.1',
+    '/root/man/man1/npm-uninstall.1',
+    '/root/man/man1/npm-unpublish.1',
+  ]
+  t.teardown(() => {
+    spawnCode = 0
+    globResult = globDefaults
+    spawnBin = null
+    spawnArgs = null
+  })
+
+  return help(['un*'], (err) => {
+    t.match(err, /help process exited with code: 1/, 'received correct error')
     t.equal(spawnBin, 'man', 'calls man by default')
     t.strictSame(spawnArgs, ['1', 'npm-unstar'], 'passes the correct arguments')
     t.end()

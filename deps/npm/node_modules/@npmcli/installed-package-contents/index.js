@@ -22,6 +22,7 @@ const fs = require('fs')
 const readFile = promisify(fs.readFile)
 const readdir = promisify(fs.readdir)
 const stat = promisify(fs.stat)
+const lstat = promisify(fs.lstat)
 const {relative, resolve, basename, dirname} = require('path')
 const normalizePackageBin = require('npm-normalize-package-bin')
 
@@ -130,6 +131,18 @@ const pkgContents = async ({
   }
 
   const recursePromises = []
+
+  // if we didn't get withFileTypes support, tack that on
+  if (typeof dirEntries[0] === 'string') {
+    // use a map so we can return a promise, but we mutate dirEntries in place
+    // this is much slower than getting the entries from the readdir call,
+    // but polyfills support for node versions before 10.10
+    await Promise.all(dirEntries.map(async (name, index) => {
+      const p = resolve(path, name)
+      const st = await lstat(p)
+      dirEntries[index] = Object.assign(st, {name})
+    }))
+  }
 
   for (const entry of dirEntries) {
     const p = resolve(path, entry.name)

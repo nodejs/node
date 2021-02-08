@@ -163,7 +163,10 @@ const getJsonOutputItem = (node, { global, long }) => {
     Object.assign(item, packageInfo)
     item.extraneous = false
     item.path = node.path
-    item._dependencies = node.package.dependencies || {}
+    item._dependencies = {
+      ...node.package.dependencies,
+      ...node.package.optionalDependencies,
+    }
     item.devDependencies = node.package.devDependencies || {}
     item.peerDependencies = node.package.peerDependencies || {}
   }

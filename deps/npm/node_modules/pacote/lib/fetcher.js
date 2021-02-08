@@ -110,7 +110,7 @@ class FetcherBase {
     // going to be packing in the context of a publish, which may set
     // a dist-tag, but certainly wants to keep defaulting to latest.
     this.npmCliConfig = opts.npmCliConfig || [
-      `--cache=${this.cache}`,
+      `--cache=${dirname(this.cache)}`,
       `--prefer-offline=${!!this.preferOffline}`,
       `--prefer-online=${!!this.preferOnline}`,
       `--offline=${!!this.offline}`,

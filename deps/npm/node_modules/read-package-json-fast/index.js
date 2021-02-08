@@ -13,7 +13,7 @@ const normalizePackageBin = require('npm-normalize-package-bin')
 const normalize = data => {
   add_id(data)
   fixBundled(data)
-  foldinOptionalDeps(data)
+  pruneRepeatedOptionals(data)
   fixScripts(data)
   fixFunding(data)
   normalizePackageBin(data)
@@ -28,14 +28,20 @@ const add_id = data => {
   return data
 }
 
-const foldinOptionalDeps = data => {
+// it was once common practice to list deps both in optionalDependencies
+// and in dependencies, to support npm versions that did not know abbout
+// optionalDependencies.  This is no longer a relevant need, so duplicating
+// the deps in two places is unnecessary and excessive.
+const pruneRepeatedOptionals = data => {
   const od = data.optionalDependencies
+  const dd = data.dependencies || {}
   if (od && typeof od === 'object') {
-    data.dependencies = data.dependencies || {}
-    for (const [name, spec] of Object.entries(od)) {
-      data.dependencies[name] = spec
+    for (const name of Object.keys(od)) {
+      delete dd[name]
     }
   }
+  if (Object.keys(dd).length === 0)
+    delete data.dependencies
   return data
 }
 
