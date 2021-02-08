@@ -25,6 +25,7 @@
 #include "env-inl.h"
 #include "handle_wrap.h"
 #include "node_buffer.h"
+#include "node_external_reference.h"
 #include "pipe_wrap.h"
 #include "req_wrap-inl.h"
 #include "tcp_wrap.h"
@@ -51,6 +52,10 @@ using v8::ReadOnly;
 using v8::Signature;
 using v8::Value;
 
+void IsConstructCallCallback(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args.IsConstructCall());
+  StreamReq::ResetObject(args.This());
+}
 
 void LibuvStreamWrap::Initialize(Local<Object> target,
                                  Local<Value> unused,
@@ -58,13 +63,8 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
                                  void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
-  auto is_construct_call_callback =
-      [](const FunctionCallbackInfo<Value>& args) {
-    CHECK(args.IsConstructCall());
-    StreamReq::ResetObject(args.This());
-  };
   Local<FunctionTemplate> sw =
-      FunctionTemplate::New(env->isolate(), is_construct_call_callback);
+      FunctionTemplate::New(env->isolate(), IsConstructCallCallback);
   sw->InstanceTemplate()->SetInternalFieldCount(StreamReq::kInternalFieldCount);
 
   // we need to set handle and callback to null,
@@ -88,7 +88,7 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
   env->set_shutdown_wrap_template(sw->InstanceTemplate());
 
   Local<FunctionTemplate> ww =
-      FunctionTemplate::New(env->isolate(), is_construct_call_callback);
+      FunctionTemplate::New(env->isolate(), IsConstructCallCallback);
   ww->InstanceTemplate()->SetInternalFieldCount(
       StreamReq::kInternalFieldCount);
   ww->Inherit(AsyncWrap::GetConstructorTemplate(env));
@@ -103,6 +103,10 @@ void LibuvStreamWrap::Initialize(Local<Object> target,
               env->stream_base_state().GetJSArray()).Check();
 }
 
+void LibuvStreamWrap::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(IsConstructCallCallback);
+}
 
 LibuvStreamWrap::LibuvStreamWrap(Environment* env,
                                  Local<Object> object,
@@ -396,3 +400,5 @@ void LibuvStreamWrap::AfterUvWrite(uv_write_t* req, int status) {
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(stream_wrap,
                                    node::LibuvStreamWrap::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(
+    stream_wrap, node::LibuvStreamWrap::RegisterExternalReferences)
