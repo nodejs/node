@@ -435,7 +435,7 @@ added: v0.1.104
 changes:
   - version: v13.0.0
     pr-url: https://github.com/nodejs/node/pull/29251
-    description: The elapsed time is diplayed with a suitable time unit.
+    description: The elapsed time is displayed with a suitable time unit.
   - version: v6.0.0
     pr-url: https://github.com/nodejs/node/pull/5901
     description: This method no longer supports multiple calls that don’t map
