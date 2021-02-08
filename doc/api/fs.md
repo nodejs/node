@@ -1048,6 +1048,10 @@ Renames `oldPath` to `newPath`.
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37302
+    description: The `recursive` option is deprecated, using it triggers a
+                 deprecation warning.
   - version:
      - v13.3.0
      - v12.16.0
@@ -1072,7 +1076,7 @@ changes:
     option is not `true`. **Default:** `0`.
   * `recursive` {boolean} If `true`, perform a recursive directory removal. In
     recursive mode, errors are not reported if `path` does not exist, and
-    operations are retried on failure. **Default:** `false`.
+    operations are retried on failure. **Default:** `false`. **Deprecated**.
   * `retryDelay` {integer} The amount of time in milliseconds to wait between
     retries. This option is ignored if the `recursive` option is not `true`.
     **Default:** `100`.
@@ -1086,9 +1090,8 @@ error on POSIX.
 
 Setting `recursive` to `true` results in behavior similar to the Unix command
 `rm -rf`: an error will not be raised for paths that do not exist, and paths
-that represent files will be deleted. The permissive behavior of the
-`recursive` option is deprecated, `ENOTDIR` and `ENOENT` will be thrown in
-the future.
+that represent files will be deleted. The `recursive` option is deprecated,
+`ENOTDIR` and `ENOENT` will be thrown in the future.
 
 ### `fsPromises.rm(path[, options])`
 <!-- YAML
@@ -3135,6 +3138,10 @@ rename('oldFile.txt', 'newFile.txt', (err) => {
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37302
+    description: The `recursive` option is deprecated, using it triggers a
+                 deprecation warning.
   - version:
      - v13.3.0
      - v12.16.0
@@ -3171,7 +3178,7 @@ changes:
     option is not `true`. **Default:** `0`.
   * `recursive` {boolean} If `true`, perform a recursive directory removal. In
     recursive mode, errors are not reported if `path` does not exist, and
-    operations are retried on failure. **Default:** `false`.
+    operations are retried on failure. **Default:** `false`. **Deprecated**.
   * `retryDelay` {integer} The amount of time in milliseconds to wait between
     retries. This option is ignored if the `recursive` option is not `true`.
     **Default:** `100`.
@@ -3186,9 +3193,8 @@ Windows and an `ENOTDIR` error on POSIX.
 
 Setting `recursive` to `true` results in behavior similar to the Unix command
 `rm -rf`: an error will not be raised for paths that do not exist, and paths
-that represent files will be deleted. The permissive behavior of the
-`recursive` option is deprecated, `ENOTDIR` and `ENOENT` will be thrown in
-the future.
+that represent files will be deleted. The `recursive` option is deprecated,
+`ENOTDIR` and `ENOENT` will be thrown in the future.
 
 ### `fs.rm(path[, options], callback)`
 <!-- YAML
@@ -4755,6 +4761,10 @@ See the POSIX rename(2) documentation for more details.
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37302
+    description: The `recursive` option is deprecated, using it triggers a
+                 deprecation warning.
   - version:
      - v13.3.0
      - v12.16.0
@@ -4783,7 +4793,7 @@ changes:
     option is not `true`. **Default:** `0`.
   * `recursive` {boolean} If `true`, perform a recursive directory removal. In
     recursive mode, errors are not reported if `path` does not exist, and
-    operations are retried on failure. **Default:** `false`.
+    operations are retried on failure. **Default:** `false`. **Deprecated**.
   * `retryDelay` {integer} The amount of time in milliseconds to wait between
     retries. This option is ignored if the `recursive` option is not `true`.
     **Default:** `100`.
@@ -4795,9 +4805,8 @@ on Windows and an `ENOTDIR` error on POSIX.
 
 Setting `recursive` to `true` results in behavior similar to the Unix command
 `rm -rf`: an error will not be raised for paths that do not exist, and paths
-that represent files will be deleted. The permissive behavior of the
-`recursive` option is deprecated, `ENOTDIR` and `ENOENT` will be thrown in
-the future.
+that represent files will be deleted. The `recursive` option is deprecated,
+`ENOTDIR` and `ENOENT` will be thrown in the future.
 
 ### `fs.rmSync(path[, options])`
 <!-- YAML

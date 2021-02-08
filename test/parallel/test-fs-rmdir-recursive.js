@@ -7,6 +7,13 @@ const fs = require('fs');
 const path = require('path');
 const { validateRmdirOptions } = require('internal/fs/utils');
 
+common.expectWarning(
+  'DeprecationWarning',
+  'In future versions of Node.js, fs.rmdir(path, { recursive: true }) ' +
+      'will be removed. Use fs.rm(path, { recursive: true }) instead',
+  'DEP0147'
+);
+
 tmpdir.refresh();
 
 let count = 0;
