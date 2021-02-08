@@ -2169,7 +2169,7 @@ user programs.
     be written. The `chunk` will be a string if the `Writable` was created with
     the `decodeStrings` option set to `false` and a string was passed to `write()`.
   * `encoding` {string} The character encoding of the `chunk`. If `chunk` is
-    a `Buffer`, the `encoding` will be `'buffer`.
+    a `Buffer`, the `encoding` will be `'buffer'`.
 * `callback` {Function} A callback function (optionally with an error
   argument) to be invoked when processing is complete for the supplied chunks.
 
