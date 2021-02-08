@@ -1,4 +1,5 @@
 #include "node_dir.h"
+#include "node_external_reference.h"
 #include "node_file-inl.h"
 #include "node_process.h"
 #include "memory_tracker-inl.h"
@@ -364,8 +365,16 @@ void Initialize(Local<Object> target,
   env->set_dir_instance_template(dirt);
 }
 
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(OpenDir);
+  registry->Register(DirHandle::New);
+  registry->Register(DirHandle::Read);
+  registry->Register(DirHandle::Close);
+}
+
 }  // namespace fs_dir
 
 }  // end namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(fs_dir, node::fs_dir::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(fs_dir, node::fs_dir::RegisterExternalReferences)

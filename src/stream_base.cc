@@ -3,11 +3,12 @@
 #include "stream_wrap.h"
 #include "allocated_buffer-inl.h"
 
+#include "env-inl.h"
+#include "js_stream.h"
 #include "node.h"
 #include "node_buffer.h"
 #include "node_errors.h"
-#include "env-inl.h"
-#include "js_stream.h"
+#include "node_external_reference.h"
 #include "string_bytes.h"
 #include "util-inl.h"
 #include "v8.h"
@@ -421,6 +422,29 @@ void StreamBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
       BaseObject::InternalFieldSet<
           StreamBase::kOnReadFunctionField,
           &Value::IsFunction>);
+}
+
+void StreamBase::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(GetFD);
+  registry->Register(GetExternal);
+  registry->Register(GetBytesRead);
+  registry->Register(GetBytesWritten);
+  registry->Register(JSMethod<&StreamBase::ReadStartJS>);
+  registry->Register(JSMethod<&StreamBase::ReadStopJS>);
+  registry->Register(JSMethod<&StreamBase::Shutdown>);
+  registry->Register(JSMethod<&StreamBase::UseUserBuffer>);
+  registry->Register(JSMethod<&StreamBase::Writev>);
+  registry->Register(JSMethod<&StreamBase::WriteBuffer>);
+  registry->Register(JSMethod<&StreamBase::WriteString<ASCII>>);
+  registry->Register(JSMethod<&StreamBase::WriteString<UTF8>>);
+  registry->Register(JSMethod<&StreamBase::WriteString<UCS2>>);
+  registry->Register(JSMethod<&StreamBase::WriteString<LATIN1>>);
+  registry->Register(
+      BaseObject::InternalFieldGet<StreamBase::kOnReadFunctionField>);
+  registry->Register(
+      BaseObject::InternalFieldSet<StreamBase::kOnReadFunctionField,
+                                   &Value::IsFunction>);
 }
 
 void StreamBase::GetFD(const FunctionCallbackInfo<Value>& args) {
