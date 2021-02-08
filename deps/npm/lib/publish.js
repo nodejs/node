@@ -6,6 +6,7 @@ const libpub = require('libnpmpublish').publish
 const runScript = require('@npmcli/run-script')
 const pacote = require('pacote')
 const npa = require('npm-package-arg')
+const npmFetch = require('npm-registry-fetch')
 
 const npm = require('./npm.js')
 const output = require('./utils/output.js')
@@ -71,26 +72,11 @@ const publish_ = async (arg, opts) => {
   // you can publish name@version, ./foo.tgz, etc.
   // even though the default is the 'file:.' cwd.
   const spec = npa(arg)
-  const manifest = await getManifest(spec, opts)
+
+  let manifest = await getManifest(spec, opts)
 
   if (manifest.publishConfig)
     Object.assign(opts, publishConfigToOpts(manifest.publishConfig))
-
-  const { registry } = opts
-  if (!registry) {
-    throw Object.assign(new Error('No registry specified.'), {
-      code: 'ENOREGISTRY',
-    })
-  }
-
-  if (!dryRun) {
-    const creds = npm.config.getCredentialsByURI(registry)
-    if (!creds.token && !creds.username) {
-      throw Object.assign(new Error('This command requires you to be logged in.'), {
-        code: 'ENEEDAUTH',
-      })
-    }
-  }
 
   // only run scripts for directory type publishes
   if (spec.type === 'directory') {
@@ -105,18 +91,27 @@ const publish_ = async (arg, opts) => {
   const tarballData = await pack(spec, opts)
   const pkgContents = await getContents(manifest, tarballData)
 
+  // The purpose of re-reading the manifest is in case it changed,
+  // so that we send the latest and greatest thing to the registry
+  // note that publishConfig might have changed as well!
+  manifest = await getManifest(spec, opts)
+  if (manifest.publishConfig)
+    Object.assign(opts, publishConfigToOpts(manifest.publishConfig))
+
   // note that logTar calls npmlog.notice(), so if we ARE in silent mode,
   // this will do nothing, but we still want it in the debuglog if it fails.
   if (!json)
     logTar(pkgContents, { log, unicode })
 
   if (!dryRun) {
-    // The purpose of re-reading the manifest is in case it changed,
-    // so that we send the latest and greatest thing to the registry
-    // note that publishConfig might have changed as well!
-    const manifest = await getManifest(spec, opts)
-    if (manifest.publishConfig)
-      Object.assign(opts, publishConfigToOpts(manifest.publishConfig))
+    const resolved = npa.resolve(manifest.name, manifest.version)
+    const registry = npmFetch.pickRegistry(resolved, opts)
+    const creds = npm.config.getCredentialsByURI(registry)
+    if (!creds.token && !creds.username) {
+      throw Object.assign(new Error('This command requires you to be logged in.'), {
+        code: 'ENEEDAUTH',
+      })
+    }
     await otplease(opts, opts => libpub(manifest, tarballData, opts))
   }
 

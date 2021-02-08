@@ -18,7 +18,7 @@ if [ "x$0" = "xsh" ]; then
   # which is a bit cuter.  But on others, &1 is already closed,
   # so catting to another script file won't do anything.
   # Follow Location: headers, and fail on errors
-  curl -f -L -s https://www.npmjs.org/install.sh > npm-install-$$.sh
+  curl -q -f -L -s https://www.npmjs.org/install.sh > npm-install-$$.sh
   ret=$?
   if [ $ret -eq 0 ]; then
     (exit 0)
@@ -134,7 +134,7 @@ fi
 
 # need to echo "" after, because Posix sed doesn't treat EOF
 # as an implied end of line.
-url=`(curl -SsL https://registry.npmjs.org/npm/$t; echo "") \
+url=`(curl -qSsL https://registry.npmjs.org/npm/$t; echo "") \
      | sed -e 's/^.*tarball":"//' \
      | sed -e 's/".*$//'`
 
@@ -142,7 +142,7 @@ ret=$?
 if [ "x$url" = "x" ]; then
   ret=125
   # try without the -e arg to sed.
-  url=`(curl -SsL https://registry.npmjs.org/npm/$t; echo "") \
+  url=`(curl -qSsL https://registry.npmjs.org/npm/$t; echo "") \
        | sed 's/^.*tarball":"//' \
        | sed 's/".*$//'`
   ret=$?
@@ -159,7 +159,7 @@ fi
 echo "fetching: $url" >&2
 
 cd "$TMP" \
-  && curl -SsL -o npm.tgz "$url" \
+  && curl -qSsL -o npm.tgz "$url" \
   && $tar -xzf npm.tgz \
   && cd "$TMP"/package \
   && echo "removing existing npm" \
