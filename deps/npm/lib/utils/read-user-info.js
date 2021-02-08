@@ -8,21 +8,21 @@ exports.password = readPassword
 exports.username = readUsername
 exports.email = readEmail
 
+const otpPrompt = `This command requires a one-time password (OTP) from your authenticator app.
+Enter one below. You can also pass one on the command line by appending --otp=123456.
+For more information, see:
+https://docs.npmjs.com/getting-started/using-two-factor-authentication
+Enter OTP: `
+const passwordPrompt = 'npm password: '
+const usernamePrompt = 'npm username: '
+const emailPrompt = 'email (this IS public): '
+
 function read (opts) {
   log.clearProgress()
   return readAsync(opts).finally(() => log.showProgress())
 }
 
-function readOTP (msg, otp, isRetry) {
-  if (!msg) {
-    msg = [
-      'This command requires a one-time password (OTP) from your authenticator app.',
-      'Enter one below. You can also pass one on the command line by appending --otp=123456.',
-      'For more information, see:',
-      'https://docs.npmjs.com/getting-started/using-two-factor-authentication',
-      'Enter OTP: ',
-    ].join('\n')
-  }
+function readOTP (msg = otpPrompt, otp, isRetry) {
   if (isRetry && otp && /^[\d ]+$|^[A-Fa-f0-9]{64,64}$/.test(otp))
     return otp.replace(/\s+/g, '')
 
@@ -30,9 +30,7 @@ function readOTP (msg, otp, isRetry) {
     .then((otp) => readOTP(msg, otp, true))
 }
 
-function readPassword (msg, password, isRetry) {
-  if (!msg)
-    msg = 'npm password: '
+function readPassword (msg = passwordPrompt, password, isRetry) {
   if (isRetry && password)
     return password
 
@@ -40,9 +38,7 @@ function readPassword (msg, password, isRetry) {
     .then((password) => readPassword(msg, password, true))
 }
 
-function readUsername (msg, username, opts, isRetry) {
-  if (!msg)
-    msg = 'npm username: '
+function readUsername (msg = usernamePrompt, username, opts = {}, isRetry) {
   if (isRetry && username) {
     const error = userValidate.username(username)
     if (error)
@@ -55,9 +51,7 @@ function readUsername (msg, username, opts, isRetry) {
     .then((username) => readUsername(msg, username, opts, true))
 }
 
-function readEmail (msg, email, opts, isRetry) {
-  if (!msg)
-    msg = 'email (this IS public): '
+function readEmail (msg = emailPrompt, email, opts = {}, isRetry) {
   if (isRetry && email) {
     const error = userValidate.email(email)
     if (error)

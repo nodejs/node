@@ -15,7 +15,7 @@
 You can download & install **`npm`** directly from [**npmjs**.com](https://npmjs.com/) using our custom `install.sh` script:
 
 ```bash
-curl -L https://www.npmjs.com/install.sh | sh
+curl -qL https://www.npmjs.com/install.sh | sh
 ```
 
 #### Node Version Managers

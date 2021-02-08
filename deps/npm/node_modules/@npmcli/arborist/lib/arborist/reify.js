@@ -907,7 +907,7 @@ module.exports = cls => class Reifier extends cls {
 
     return Promise.all([
       this[_saveLockFile](saveOpt),
-      updateRootPackageJson({ tree: this.idealTree }),
+      updateRootPackageJson(this.idealTree),
     ]).then(() => process.emit('timeEnd', 'reify:save'))
   }
 

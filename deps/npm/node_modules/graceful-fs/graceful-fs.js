@@ -170,6 +170,21 @@ function patch (fs) {
     }
   }
 
+  var fs$copyFile = fs.copyFile
+  if (fs$copyFile)
+    fs.copyFile = copyFile
+  function copyFile (src, dest, cb) {
+    return fs$copyFile(src, dest, function (err) {
+      if (err && (err.code === 'EMFILE' || err.code === 'ENFILE'))
+        enqueue([fs$copyFile, [src, dest, cb]])
+      else {
+        if (typeof cb === 'function')
+          cb.apply(this, arguments)
+        retry()
+      }
+    })
+  }
+
   var fs$readdir = fs.readdir
   fs.readdir = readdir
   function readdir (path, options, cb) {

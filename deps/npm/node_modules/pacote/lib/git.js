@@ -161,12 +161,28 @@ class GitFetcher extends Fetcher {
           scripts.prepare))
         return
 
+      // to avoid cases where we have an cycle of git deps that depend
+      // on one another, we only ever do preparation for one instance
+      // of a given git dep along the chain of installations.
+      // Note that this does mean that a dependency MAY in theory end up
+      // trying to run its prepare script using a dependency that has not
+      // been properly prepared itself, but that edge case is smaller
+      // and less hazardous than a fork bomb of npm and git commands.
+      const noPrepare = !process.env._PACOTE_NO_PREPARE_ ? []
+        : process.env._PACOTE_NO_PREPARE_.split('\n')
+      if (noPrepare.includes(this.resolved)) {
+        this.log.info('prepare', 'skip prepare, already seen', this.resolved)
+        return
+      }
+      noPrepare.push(this.resolved)
+
       // the DirFetcher will do its own preparation to run the prepare scripts
       // All we have to do is put the deps in place so that it can succeed.
       return npm(
         this.npmBin,
         [].concat(this.npmInstallCmd).concat(this.npmCliConfig),
         dir,
+        { ...process.env, _PACOTE_NO_PREPARE_: noPrepare.join('\n') },
         { message: 'git dep preparation failed' }
       )
     })
