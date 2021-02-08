@@ -24,6 +24,7 @@
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node.h"
+#include "node_external_reference.h"
 #include "util-inl.h"
 #include "v8.h"
 
@@ -32,6 +33,7 @@ namespace v8_utils {
 using v8::Array;
 using v8::Context;
 using v8::FunctionCallbackInfo;
+using v8::HandleScope;
 using v8::HeapCodeStatistics;
 using v8::HeapSpaceStatistics;
 using v8::HeapStatistics;
@@ -44,6 +46,7 @@ using v8::String;
 using v8::Uint32;
 using v8::V8;
 using v8::Value;
+
 
 #define HEAP_STATISTICS_PROPERTIES(V)                                         \
   V(0, total_heap_size, kTotalHeapSizeIndex)                                  \
@@ -85,7 +88,7 @@ static const size_t kHeapCodeStatisticsPropertiesCount =
 #undef V
 
 BindingData::BindingData(Environment* env, Local<Object> obj)
-    : BaseObject(env, obj),
+    : SnapshotableObject(env, obj, type_int),
       heap_statistics_buffer(env->isolate(), kHeapStatisticsPropertiesCount),
       heap_space_statistics_buffer(env->isolate(),
                                    kHeapSpaceStatisticsPropertiesCount),
@@ -103,6 +106,32 @@ BindingData::BindingData(Environment* env, Local<Object> obj)
            FIXED_ONE_BYTE_STRING(env->isolate(), "heapSpaceStatisticsBuffer"),
            heap_space_statistics_buffer.GetJSArray())
       .Check();
+}
+
+void BindingData::PrepareForSerialization(Local<Context> context,
+                                          v8::SnapshotCreator* creator) {
+  // We'll just re-initialize the buffers in the constructor since their
+  // contents can be thrown away once consumed in the previous call.
+  heap_statistics_buffer.Release();
+  heap_space_statistics_buffer.Release();
+  heap_code_statistics_buffer.Release();
+}
+
+void BindingData::Deserialize(Local<Context> context,
+                              Local<Object> holder,
+                              int index,
+                              InternalFieldInfo* info) {
+  DCHECK_EQ(index, BaseObject::kSlot);
+  HandleScope scope(context->GetIsolate());
+  Environment* env = Environment::GetCurrent(context);
+  BindingData* binding = env->AddBindingData<BindingData>(context, holder);
+  CHECK_NOT_NULL(binding);
+}
+
+InternalFieldInfo* BindingData::Serialize(int index) {
+  DCHECK_EQ(index, BaseObject::kSlot);
+  InternalFieldInfo* info = InternalFieldInfo::New(type());
+  return info;
 }
 
 void BindingData::MemoryInfo(MemoryTracker* tracker) const {
@@ -168,7 +197,6 @@ void SetFlagsFromString(const FunctionCallbackInfo<Value>& args) {
   V8::SetFlagsFromString(*flags, static_cast<size_t>(flags.length()));
 }
 
-
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -223,7 +251,16 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "setFlagsFromString", SetFlagsFromString);
 }
 
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(CachedDataVersionTag);
+  registry->Register(UpdateHeapStatisticsBuffer);
+  registry->Register(UpdateHeapCodeStatisticsBuffer);
+  registry->Register(UpdateHeapSpaceStatisticsBuffer);
+  registry->Register(SetFlagsFromString);
+}
+
 }  // namespace v8_utils
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(v8, node::v8_utils::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(v8, node::v8_utils::RegisterExternalReferences)
