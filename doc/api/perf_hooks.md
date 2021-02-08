@@ -259,7 +259,7 @@ The type of the performance entry. It may be one of:
 * `'http2'` (Node.js only)
 * `'http'` (Node.js only)
 
-### performanceEntry.flags
+### `performanceEntry.flags`
 <!-- YAML
 added:
  - v13.9.0
