@@ -158,6 +158,9 @@ class BaseObject : public MemoryRetainer {
 
   virtual inline void OnGCCollect();
 
+  bool is_snapshotable() const { return is_snapshotable_; }
+  void set_is_snapshotable(bool val) { is_snapshotable_ = val; }
+
  private:
   v8::Local<v8::Object> WrappedObject() const override;
   bool IsRootNode() const override;
@@ -206,6 +209,7 @@ class BaseObject : public MemoryRetainer {
 
   Environment* env_;
   PointerData* pointer_data_ = nullptr;
+  bool is_snapshotable_ = false;
 };
 
 // Global alias for FromJSObject() to avoid churn.
