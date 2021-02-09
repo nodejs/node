@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#12.20.2">12.20.2</a><br/>
 <a href="#12.20.1">12.20.1</a><br/>
 <a href="#12.20.0">12.20.0</a><br/>
 <a href="#12.19.1">12.19.1</a><br/>
@@ -69,6 +70,21 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="12.20.2"></a>
+## 2021-02-10, Version 12.20.2 'Erbium' (LTS), @ruyadorno
+
+### Notable changes
+
+* **deps**:
+  * upgrade npm to 6.14.11 (Ruy Adorno) [#37173](https://github.com/nodejs/node/pull/37173)
+
+### Commits
+
+* [[`e8a4e560ea`](https://github.com/nodejs/node/commit/e8a4e560ea)] - **async_hooks**: fix leak in AsyncLocalStorage exit (Stephen Belanger) [#35779](https://github.com/nodejs/node/pull/35779)
+* [[`427968d266`](https://github.com/nodejs/node/commit/427968d266)] - **deps**: upgrade npm to 6.14.11 (Ruy Adorno) [#37173](https://github.com/nodejs/node/pull/37173)
+* [[`cd9a8106be`](https://github.com/nodejs/node/commit/cd9a8106be)] - **http**: do not loop over prototype in Agent (Michaël Zasso) [#36410](https://github.com/nodejs/node/pull/36410)
+* [[`4ac8f37800`](https://github.com/nodejs/node/commit/4ac8f37800)] - **http2**: check write not scheduled in scope destructor (David Halls) [#36241](https://github.com/nodejs/node/pull/36241)
 
 <a id="12.20.1"></a>
 ## 2021-01-04, Version 12.20.1 'Erbium' (LTS), @richardlau
