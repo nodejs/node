@@ -8,7 +8,9 @@ changes:
     - v14.13.0
     pr-url: https://github.com/nodejs/node/pull/34718
     description: Add support for `"exports"` patterns.
-  - version: v14.6.0
+  - version:
+    - v14.6.0
+    - v12.19.0
     pr-url: https://github.com/nodejs/node/pull/34117
     description: Add package `"imports"` field.
   - version:
@@ -135,6 +137,9 @@ package:
   `"commonjs"` package).
 
 ### `--input-type` flag
+<!-- YAML
+added: v12.0.0
+-->
 
 Strings passed in as an argument to `--eval` (or `-e`), or piped to `node` via
 `STDIN`, are treated as [ES modules][] when the `--input-type=module` flag
@@ -252,6 +257,9 @@ absolute subpath of the package such as
 `require('/path/to/node_modules/pkg/subpath.js')` will still load `subpath.js`.
 
 ### Subpath exports
+<!-- YAML
+added: v12.7.0
+-->
 
 When using the [`"exports"`][] field, custom subpaths can be defined along
 with the main entry point by treating the main entry point as the
@@ -282,6 +290,11 @@ import submodule from 'es-module-package/private-module.js';
 ```
 
 ### Subpath imports
+<!--YAML
+added:
+  - v14.6.0
+  - v12.19.0
+-->
 
 In addition to the [`"exports"`][] field, it is possible to define internal
 package import maps that only apply to import specifiers from within the package
@@ -319,6 +332,11 @@ The resolution rules for the imports field are otherwise
 analogous to the exports field.
 
 ### Subpath patterns
+<!--YAML
+added:
+  - v14.13.0
+  - v12.19.0
+-->
 
 For packages with a small number of exports or imports, we recommend
 explicitly listing each exports subpath entry. But for packages that have
@@ -404,6 +422,9 @@ The benefit of patterns over folder exports is that packages can always be
 imported by consumers without subpath file extensions being necessary.
 
 ### Exports sugar
+<!--YAML
+added: v12.11.0
+-->
 
 If the `"."` export is the only export, the [`"exports"`][] field provides sugar
 for this case being the direct [`"exports"`][] field value.
@@ -428,6 +449,17 @@ can be written:
 ```
 
 ### Conditional exports
+<!--YAML
+added:
+  - v13.2.0
+  - v12.16.0
+changes:
+  - version:
+    - v13.7.0
+    - v12.16.0
+    pr-url: https://github.com/nodejs/node/pull/31001
+    description: Unflag conditional exports.
+-->
 
 Conditional exports provide a way to map to different paths depending on
 certain conditions. They are supported for both CommonJS and ES module imports.
@@ -526,6 +558,11 @@ the remaining conditions of the parent condition. In this way nested
 conditions behave analogously to nested JavaScript `if` statements.
 
 ### Resolving user conditions
+<!-- YAML
+added:
+  - v14.9.0
+  - v12.19.0
+-->
 
 When running Node.js, custom user conditions can be added with the
 `--conditions` flag:
@@ -587,6 +624,17 @@ The above definitions may be moved to a dedicated conditions registry in due
 course.
 
 ### Self-referencing a package using its name
+<!--YAML
+added:
+  - v13.1.0
+  - v12.16.0
+changes:
+  - version:
+    - v13.6.0
+    - v12.16.0
+    pr-url: https://github.com/nodejs/node/pull/31002
+    description: Unflag self-referencing a package using its name.
+-->
 
 Within a package, the values defined in the package’s
 `package.json` [`"exports"`][] field can be referenced via the package’s name.
