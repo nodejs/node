@@ -1,5 +1,6 @@
 TypeError [ERR_INVALID_MODULE_SPECIFIER]: Invalid module "file:package" is not a valid package name imported from *
     at new NodeError (node:internal/errors:*)
+    at trySelf (node:internal/modules/cjs/loader:*)
     at Function.Module._resolveFilename (node:internal/modules/cjs/loader:*)
     at Function.Module._load (node:internal/modules/cjs/loader:*)
     at Module.require (node:internal/modules/cjs/loader:*)
@@ -7,8 +8,7 @@ TypeError [ERR_INVALID_MODULE_SPECIFIER]: Invalid module "file:package" is not a
     at Object.<anonymous> (*)
     at Module._compile (node:internal/modules/cjs/loader:*)
     at Object.Module._extensions..js (node:internal/modules/cjs/loader:*)
-    at Module.load (node:internal/modules/cjs/loader:*)
-    at Function.Module._load (node:internal/modules/cjs/loader:*) {
+    at Module.load (node:internal/modules/cjs/loader:*) {
   code: 'ERR_INVALID_MODULE_SPECIFIER'
 }
 Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/package' imported from *
