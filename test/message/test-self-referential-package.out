@@ -1,0 +1,44 @@
+Error: Cannot find module 'file:package'
+Require stack:
+- */self_ref_module_with_colon/bin.js
+    at Function.Module._resolveFilename (node:internal/modules/cjs/loader:*)
+    at Function.Module._load (node:internal/modules/cjs/loader:*)
+    at Module.require (node:internal/modules/cjs/loader:*)
+    at require (node:internal/modules/cjs/helpers:*)
+    at Object.<anonymous> (*/self_ref_module_with_colon/bin.js:*)
+    at Module._compile (node:internal/modules/cjs/loader:*)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:*)
+    at Module.load (node:internal/modules/cjs/loader:*)
+    at Function.Module._load (node:internal/modules/cjs/loader:*)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:*) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '*/self_ref_module_with_colon/bin.js'
+  ]
+}
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/package' imported from */self_ref_module_with_colon/bin.js
+    at new NodeError (node:internal/errors:*)
+    at finalizeResolution (node:internal/modules/esm/resolve:*)
+    at moduleResolve (node:internal/modules/esm/resolve:*)
+    at Loader.defaultResolve [as _resolve] (node:internal/modules/esm/resolve:*)
+    at Loader.resolve (node:internal/modules/esm/loader:*)
+    at Loader.getModuleJob (node:internal/modules/esm/loader:*)
+    at Loader.import (node:internal/modules/esm/loader:*)
+    at importModuleDynamically (node:internal/modules/cjs/loader:*)
+    at importModuleDynamicallyWrapper (node:internal/vm/module:*)
+    at importModuleDynamically (node:vm:*) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+TypeError [ERR_INVALID_MODULE_SPECIFIER]: Invalid module "file%3Apackage" is not a valid package name imported from */self_ref_module_with_colon/bin.js
+    at new NodeError (node:internal/errors:*)
+    at parsePackageName (node:internal/modules/esm/resolve:*)
+    at packageResolve (node:internal/modules/esm/resolve:*)
+    at moduleResolve (node:internal/modules/esm/resolve:*)
+    at Loader.defaultResolve [as _resolve] (node:internal/modules/esm/resolve:*)
+    at Loader.resolve (node:internal/modules/esm/loader:*)
+    at Loader.getModuleJob (node:internal/modules/esm/loader:*)
+    at Loader.import (node:internal/modules/esm/loader:*)
+    at importModuleDynamically (node:internal/modules/cjs/loader:*)
+    at importModuleDynamicallyWrapper (node:internal/vm/module:*) {
+  code: 'ERR_INVALID_MODULE_SPECIFIER'
+}

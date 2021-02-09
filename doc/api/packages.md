@@ -613,7 +613,8 @@ Then any module _in that package_ can reference an export in the package itself:
 import { something } from 'a-package'; // Imports "something" from ./main.mjs.
 ```
 
-Self-referencing is available only if `package.json` has [`"exports"`][], and
+Self-referencing is available only if `package.json` has a [`"name"`][] that
+does not contain the character `:`, and a [`"exports"`][] field, and
 will allow importing only what that [`"exports"`][] (in the `package.json`)
 allows. So the code below, given the previous package, will generate a runtime
 error:

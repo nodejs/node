@@ -1,0 +1,4 @@
+{
+  "name": "file:package",
+  "exports": "./index.js"
+}
