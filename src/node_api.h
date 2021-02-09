@@ -261,6 +261,10 @@ NAPI_EXTERN napi_status napi_add_async_cleanup_hook(
 NAPI_EXTERN napi_status napi_remove_async_cleanup_hook(
     napi_async_cleanup_hook_handle remove_handle);
 
+NAPI_EXTERN napi_status napi_should_return_to_caller(
+    napi_env env,
+    bool* result);
+
 #endif  // NAPI_EXPERIMENTAL
 
 EXTERN_C_END

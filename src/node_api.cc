@@ -114,6 +114,10 @@ static inline void trigger_fatal_exception(
   node::errors::TriggerUncaughtException(env->isolate, local_err, local_msg);
 }
 
+static inline bool should_return_to_caller(napi_env env) {
+  return env->isolate->IsExecutionTerminating();
+}
+
 class ThreadSafeFunction : public node::AsyncResource {
  public:
   ThreadSafeFunction(v8::Local<v8::Function> func,
@@ -1256,4 +1260,13 @@ napi_status
 napi_ref_threadsafe_function(napi_env env, napi_threadsafe_function func) {
   CHECK_NOT_NULL(func);
   return reinterpret_cast<v8impl::ThreadSafeFunction*>(func)->Ref();
+}
+
+napi_status napi_should_return_to_caller(napi_env env, bool* result) {
+  // NAPI_PREAMBLE is not used here: this function must execute when there is a
+  // pending exception.
+  CHECK_ENV(env);
+  CHECK_ARG(env, result);
+  *result = v8impl::should_return_to_caller(env);
+  return napi_clear_last_error(env);
 }
