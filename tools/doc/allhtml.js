@@ -36,8 +36,8 @@ for (const link of toc.match(/<a.*?>/g)) {
   contents += data.slice(0, match.index)
     .replace(/[\s\S]*?id="toc"[^>]*>\s*<\w+>.*?<\/\w+>\s*(<ul>\s*)?/, '');
 
-  apicontent += data.slice(match.index + match[0].length)
-    .replace(/<!-- API END -->[\s\S]*/, '')
+  apicontent += '<section>' + data.slice(match.index + match[0].length)
+    .replace(/<!-- API END -->[\s\S]*/, '</section>')
     .replace(/<a href="(\w[^#"]*)#/g, (match, href) => {
       return htmlFiles.includes(href) ? '<a href="#' : match;
     })

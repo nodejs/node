@@ -66,6 +66,18 @@ const gtocHTML = unified()
 const templatePath = path.join(docPath, 'template.html');
 const template = fs.readFileSync(templatePath, 'utf8');
 
+function wrapSections(content) {
+  let firstTime = true;
+  return content.toString()
+    .replace(/<h2/g, (heading) => {
+      if (firstTime) {
+        firstTime = false;
+        return '<section>' + heading;
+      }
+      return '</section><section>' + heading;
+    }) + (firstTime ? '' : '</section>');
+}
+
 function toHTML({ input, content, filename, nodeVersion, versions }) {
   filename = path.basename(filename, '.md');
 
@@ -79,7 +91,7 @@ function toHTML({ input, content, filename, nodeVersion, versions }) {
                      .replace('__GTOC__', gtocHTML.replace(
                        `class="nav-${id}"`, `class="nav-${id} active"`))
                      .replace('__EDIT_ON_GITHUB__', editOnGitHub(filename))
-                     .replace('__CONTENT__', content.toString());
+                     .replace('__CONTENT__', wrapSections(content));
 
   const docCreated = input.match(
     /<!--\s*introduced_in\s*=\s*v([0-9]+)\.([0-9]+)\.[0-9]+\s*-->/);
