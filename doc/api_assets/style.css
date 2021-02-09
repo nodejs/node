@@ -372,6 +372,11 @@ dd + dt.pre {
 #apicontent {
   padding-top: 1rem;
 }
+  
+#apicontent section {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 5000px;
+}
 
 #apicontent .line {
   width: calc(50% - 1rem);
