@@ -13,8 +13,8 @@
   * [Consensus seeking](#consensus-seeking)
   * [Waiting for approvals](#waiting-for-approvals)
   * [Testing and CI](#testing-and-ci)
-    * [Useful CI jobs](#useful-ci-jobs)
-    * [Starting a CI job](#starting-a-ci-job)
+    * [Useful Jenkins CI jobs](#useful-jenkins-ci-jobs)
+    * [Starting a Jenkins CI job](#starting-a-jenkins-ci-job)
   * [Internal vs. public API](#internal-vs-public-api)
   * [Breaking changes](#breaking-changes)
     * [Breaking changes and deprecations](#breaking-changes-and-deprecations)
@@ -209,21 +209,56 @@ the comment anyway to avoid any doubt.
 All fixes must have a test case which demonstrates the defect. The test should
 fail before the change, and pass after the change.
 
-All pull requests must pass continuous integration tests. Code changes must pass
-on [project CI server](https://ci.nodejs.org/). Pull requests that only change
-documentation and comments can use GitHub Actions results.
-
 Do not land any pull requests without a passing (green or yellow) CI run.
-For documentation-only changes, GitHub Actions CI is sufficient.
-For all other code changes, Jenkins CI must pass as well. If there are
-Jenkins CI failures unrelated to the change in the pull request, try "Resume
-Build". It is in the left navigation of the relevant `node-test-pull-request`
-job. It will preserve all the green results from the current job but re-run
-everything else. Start a fresh CI if more than seven days have elapsed since
-the original failing CI as the compiled binaries for the Windows and ARM
-platforms are only kept for seven days.
+A green GitHub Actions CI result is required. A passing
+[Jenkins CI](https://ci.nodejs.org/) is also required if PR contains changes
+that will affect the `node` binary. This is critical as GitHub Actions CI does
+not cover all the environments supported by Node.js.
 
-#### Useful CI jobs
+<details>
+<summary>Changes that affect the `node` binary</summary>
+
+Changes in the following folders (except comment-only changes) are guaranteed to
+affect the `node` binary:
+
+* `deps/`
+* `lib/`
+* `src/`
+* `test/`
+* `tools/code_cache/`
+* `tools/gyp/`
+* `tools/icu/`
+* `tools/inspector-protocol/`
+* `tools/msvs/`
+* `tools/snapshot/`
+* `tools/v8_gypfiles/`
+
+There are some other files that touch the build chain. Changes in the following
+files also qualify as affecting the `node` binary:
+
+* `tools/*.py`
+* `tools/build-addons.js`
+* `*.gyp`
+* `*.gypi`
+* `configure`
+* `configure.py`
+* `Makefile`
+* `vcbuilt.bat`
+
+</details>
+
+If there are GitHub Actions CI failures unrelated to the change in the pull
+request, try "Re-run all jobs". It's under the "🔄 Re-run jobs" button, on the
+right-hand side of "Checks" tab.
+
+If there are Jenkins CI failures unrelated to the change in the pull request,
+try "Resume Build". It is in the left navigation of the relevant
+`node-test-pull-request` job. It will preserve all the green results from the
+current job but re-run everything else. Start a fresh CI if more than seven days
+have elapsed since the original failing CI as the compiled binaries for the
+Windows and ARM platforms are only kept for seven days.
+
+#### Useful Jenkins CI jobs
 
 * [`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)
 is the CI job to test pull requests. It runs the `build-ci` and `test-ci`
@@ -248,7 +283,7 @@ not used in other CI test runs (such as tests in the `internet` or `pummel`
 directories). It can also make sure tests pass when provided with a flag not
 used in other CI test runs (such as `--worker`).
 
-#### Starting a CI job
+#### Starting a Jenkins CI job
 
 From the CI Job page, click "Build with Parameters" on the left side.
 
