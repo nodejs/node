@@ -6,7 +6,11 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { subtle } = require('crypto').webcrypto;
+
+const {
+  generateKeyPairSync,
+  webcrypto: { subtle }
+} = require('crypto');
 
 // X25519 and X448 are ECDH named curves that should work
 // with the existing ECDH mechanisms with no additional
@@ -260,7 +264,7 @@ assert.rejects(
       namedCurve: 'NODE-X25519'
     },
     true,
-    ['deriveBits']).then(common.mustCall());
+    ['deriveBits']).then(common.mustCall(), common.mustNotCall());
 
   // Public JWK import
   subtle.importKey(
@@ -275,5 +279,22 @@ assert.rejects(
       namedCurve: 'NODE-X25519'
     },
     true,
-    []).then(common.mustCall());
+    []).then(common.mustCall(), common.mustNotCall());
+
+  for (const asymmetricKeyType of ['x25519', 'x448']) {
+    const { publicKey, privateKey } = generateKeyPairSync(asymmetricKeyType);
+    for (const keyObject of [publicKey, privateKey]) {
+      const namedCurve = `NODE-${asymmetricKeyType.toUpperCase()}`;
+      subtle.importKey(
+        'node.keyObject',
+        keyObject,
+        { name: 'ECDH', namedCurve },
+        true,
+        keyObject.type === 'private' ? ['deriveBits', 'deriveKey'] : [],
+      ).then((cryptoKey) => {
+        assert.strictEqual(cryptoKey.type, keyObject.type);
+        assert.strictEqual(cryptoKey.algorithm.name, 'ECDH');
+      }, common.mustNotCall());
+    }
+  }
 }
