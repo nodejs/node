@@ -1261,7 +1261,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   }
 }
 
-{
+if (!common.hasOpenSSL3) {
   // Passing an empty passphrase string should not cause OpenSSL's default
   // passphrase prompt in the terminal.
   // See https://github.com/nodejs/node/issues/35898.
