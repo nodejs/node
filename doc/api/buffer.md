@@ -2492,7 +2492,6 @@ buf.writeFloatBE(0xcafebabe, 0);
 
 console.log(buf);
 // Prints: <Buffer 4f 4a fe bb>
-
 ```
 
 ### `buf.writeFloatLE(value[, offset])`
@@ -2701,7 +2700,6 @@ buf.writeIntBE(0x1234567890ab, 0, 6);
 
 console.log(buf);
 // Prints: <Buffer 12 34 56 78 90 ab>
-
 ```
 
 ### `buf.writeIntLE(value, offset, byteLength)`

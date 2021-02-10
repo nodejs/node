@@ -221,7 +221,6 @@ const server = http.createServer(common.mustCall((req, res) => {
     server.close();
   }));
 }));
-
 ```
 
 **Note:** Many functions invoke their callback with an `err` value as the first
