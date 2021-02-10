@@ -105,10 +105,10 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
 
   assert.strictEqual(typeof publicKey, 'string');
   assert(pkcs1PubExp.test(publicKey));
-  assertApproximateSize(publicKey, common.hasOpenSSL3 ? 426 : 162);
+  assertApproximateSize(publicKey, 162);
   assert.strictEqual(typeof privateKey, 'string');
   assert(pkcs8Exp.test(privateKey));
-  assertApproximateSize(privateKey, common.hasOpenSSL3 ? 1704 : 512);
+  assertApproximateSize(privateKey, 512);
 
   testEncryptDecrypt(publicKey, privateKey);
   testSignVerify(publicKey, privateKey);
@@ -179,11 +179,11 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }
   }, common.mustSucceed((publicKeyDER, privateKey) => {
     assert(Buffer.isBuffer(publicKeyDER));
-    assertApproximateSize(publicKeyDER, common.hasOpenSSL3 ? 270 : 74);
+    assertApproximateSize(publicKeyDER, 74);
 
     assert.strictEqual(typeof privateKey, 'string');
     assert(pkcs1PrivExp.test(privateKey));
-    assertApproximateSize(privateKey, common.hasOpenSSL3 ? 1675 : 512);
+    assertApproximateSize(privateKey, 512);
 
     const publicKey = { key: publicKeyDER, ...publicKeyEncoding };
     testEncryptDecrypt(publicKey, privateKey);
@@ -203,7 +203,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }
   }, common.mustSucceed((publicKeyDER, privateKey) => {
     assert(Buffer.isBuffer(publicKeyDER));
-    assertApproximateSize(publicKeyDER, common.hasOpenSSL3 ? 270 : 74);
+    assertApproximateSize(publicKeyDER, 74);
 
     assert.strictEqual(typeof privateKey, 'string');
     assert(pkcs1EncExp('AES-256-CBC').test(privateKey));
@@ -238,7 +238,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }
   }, common.mustSucceed((publicKeyDER, privateKeyDER) => {
     assert(Buffer.isBuffer(publicKeyDER));
-    assertApproximateSize(publicKeyDER, common.hasOpenSSL3 ? 270 : 74);
+    assertApproximateSize(publicKeyDER, 74);
 
     assert(Buffer.isBuffer(privateKeyDER));
 
@@ -279,7 +279,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }
   }, common.mustSucceed((publicKeyDER, privateKeyDER) => {
     assert(Buffer.isBuffer(publicKeyDER));
-    assertApproximateSize(publicKeyDER, common.hasOpenSSL3 ? 270 : 74);
+    assertApproximateSize(publicKeyDER, 74);
 
     assert(Buffer.isBuffer(privateKeyDER));
 
@@ -636,11 +636,11 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     const { publicKey, privateKey } = keys;
     assert.strictEqual(typeof publicKey, 'string');
     assert(pkcs1PubExp.test(publicKey));
-    assertApproximateSize(publicKey, common.hasOpenSSL3 ? 426 : 180);
+    assertApproximateSize(publicKey, 180);
 
     assert.strictEqual(typeof privateKey, 'string');
     assert(pkcs1PrivExp.test(privateKey));
-    assertApproximateSize(privateKey, common.hasOpenSSL3 ? 1675 : 512);
+    assertApproximateSize(privateKey, 512);
 
     testEncryptDecrypt(publicKey, privateKey);
     testSignVerify(publicKey, privateKey);
@@ -1044,7 +1044,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
 // Test classic Diffie-Hellman key generation.
 {
   generateKeyPair('dh', {
-    primeLength: common.hasOpenSSL3 ? 2048 : 1024
+    primeLength: 1024
   }, common.mustSucceed((publicKey, privateKey) => {
     assert.strictEqual(publicKey.type, 'public');
     assert.strictEqual(publicKey.asymmetricKeyType, 'dh');
