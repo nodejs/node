@@ -270,6 +270,10 @@ class RefBase : protected Finalizer, RefTracker {
 
  protected:
   inline void Finalize(bool is_env_teardown = false) override {
+    // Force deferring behavior if the finalizer happens to delete this
+    // reference.
+    if (is_env_teardown && RefCount() > 0) _refcount = 0;
+
     if (_finalize_callback != nullptr) {
       _env->CallFinalizer(_finalize_callback, _finalize_data, _finalize_hint);
     }
