@@ -9,8 +9,10 @@
     at *
     at *
     at *
+    at *
 (node:*) Error: This was rejected
     at * (*test*message*unhandled_promise_trace_warnings.js:*)
+    at *
     at *
     at *
     at *
