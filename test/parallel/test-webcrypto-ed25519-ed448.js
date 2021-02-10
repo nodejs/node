@@ -6,7 +6,10 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { subtle } = require('crypto').webcrypto;
+const {
+  generateKeyPairSync,
+  webcrypto: { subtle }
+} = require('crypto');
 
 async function generateKey(namedCurve) {
   return subtle.generateKey(
@@ -365,3 +368,52 @@ assert.rejects(
   {
     message: /Unsupported named curves for ECDSA/
   });
+
+{
+  for (const asymmetricKeyType of ['ed25519', 'ed448']) {
+    const { publicKey, privateKey } = generateKeyPairSync(asymmetricKeyType);
+    for (const keyObject of [publicKey, privateKey]) {
+      const namedCurve = `NODE-${asymmetricKeyType.toUpperCase()}`;
+      subtle.importKey(
+        'node.keyObject',
+        keyObject,
+        { name: namedCurve, namedCurve },
+        true,
+        keyObject.type === 'private' ? ['sign'] : ['verify'],
+      ).then((cryptoKey) => {
+        assert.strictEqual(cryptoKey.type, keyObject.type);
+        assert.strictEqual(cryptoKey.algorithm.name, namedCurve);
+      }, common.mustNotCall());
+
+      assert.rejects(
+        subtle.importKey(
+          'node.keyObject',
+          keyObject,
+          {
+            name: 'ECDSA',
+            namedCurve,
+          },
+          true,
+          keyObject.type === 'private' ? ['sign'] : ['verify']
+        ),
+        {
+          message: /Invalid algorithm name/
+        });
+
+      assert.rejects(
+        subtle.importKey(
+          'node.keyObject',
+          keyObject,
+          {
+            name: 'ECDH',
+            namedCurve,
+          },
+          true,
+          keyObject.type === 'private' ? ['deriveBits', 'deriveKey'] : [],
+        ),
+        {
+          message: /Invalid algorithm name/
+        });
+    }
+  }
+}
