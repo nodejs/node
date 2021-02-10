@@ -7,4 +7,4 @@ const { buildType } = require('../../common');
 
 const addon = require(`./build/${buildType}/test_reference_double_free`);
 
-{ const obj = new addon.MyObject(); }
+{ new addon.MyObject(); }
