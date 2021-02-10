@@ -2090,7 +2090,6 @@ const myWritable = new Writable({
 });
 // Later, abort the operation closing the stream
 controller.abort();
-
 ```
 #### `writable._construct(callback)`
 <!-- YAML
