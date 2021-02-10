@@ -38,10 +38,10 @@ if (process.argv[2] === 'single-dep-skip') {
   assert.strictEqual(child_single_exp_skip.stdout.toString(), '');
   assert.strictEqual(child_single_exp_skip.stderr.toString(), '');
   const child_dep_exp_skip = cp.spawnSync(process.execPath,
-                                            ['--no-warnings=' +
-                                             'EXP0004,DEP0005',
-                                             __filename,
-                                             'dep-exp-skip']);
+                                          ['--no-warnings=' +
+                                           'EXP0004,DEP0005',
+                                           __filename,
+                                           'dep-exp-skip']);
   assert.strictEqual(child_dep_exp_skip.stdout.toString(), '');
   assert.strictEqual(child_dep_exp_skip.stderr.toString(), '');
 }
