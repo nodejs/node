@@ -62,7 +62,7 @@ Check if there are active subscribers to the named channel. This is helpful if
 the message you want to send might be expensive to prepare.
 
 This API is optional but helpful when trying to publish messages from very
-performance-senstive code.
+performance-sensitive code.
 
 ```js
 const diagnostics_channel = require('diagnostics_channel');
@@ -105,7 +105,7 @@ Check if there are active subscribers to this channel. This is helpful if
 the message you want to send might be expensive to prepare.
 
 This API is optional but helpful when trying to publish messages from very
-performance-senstive code.
+performance-sensitive code.
 
 ```js
 const diagnostics_channel = require('diagnostics_channel');
