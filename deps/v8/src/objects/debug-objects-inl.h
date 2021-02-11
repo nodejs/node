@@ -18,6 +18,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/debug-objects-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(BreakPoint)
 TQ_OBJECT_CONSTRUCTORS_IMPL(BreakPointInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(CoverageInfo)

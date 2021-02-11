@@ -86,6 +86,8 @@ class InterpreterTester {
                     const char* filter = kFunctionName);
 
   virtual ~InterpreterTester();
+  InterpreterTester(const InterpreterTester&) = delete;
+  InterpreterTester& operator=(const InterpreterTester&) = delete;
 
   template <class... A>
   InterpreterCallableUndefinedReceiver<A...> GetCallable() {
@@ -152,7 +154,8 @@ class InterpreterTester {
     }
 
     if (!bytecode_.is_null()) {
-      function->shared().set_function_data(*bytecode_.ToHandleChecked());
+      function->shared().set_function_data(*bytecode_.ToHandleChecked(),
+                                           kReleaseStore);
       is_compiled_scope = function->shared().is_compiled_scope(isolate_);
     }
     if (HasFeedbackMetadata()) {
@@ -165,8 +168,6 @@ class InterpreterTester {
     }
     return function;
   }
-
-  DISALLOW_COPY_AND_ASSIGN(InterpreterTester);
 };
 
 }  // namespace interpreter

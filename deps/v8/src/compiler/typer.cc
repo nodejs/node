@@ -576,6 +576,10 @@ Type Typer::Visitor::ObjectIsCallable(Type type, Typer* t) {
 Type Typer::Visitor::ObjectIsConstructor(Type type, Typer* t) {
   // TODO(turbofan): Introduce a Type::Constructor?
   CHECK(!type.IsNone());
+  if (type.IsHeapConstant() &&
+      type.AsHeapConstant()->Ref().map().is_constructor()) {
+    return t->singleton_true_;
+  }
   if (!type.Maybe(Type::Callable())) return t->singleton_false_;
   return Type::Boolean();
 }
@@ -1434,7 +1438,7 @@ Type Typer::Visitor::JSOrdinaryHasInstanceTyper(Type lhs, Type rhs, Typer* t) {
 }
 
 Type Typer::Visitor::TypeJSGetSuperConstructor(Node* node) {
-  return Type::Callable();
+  return Type::NonInternal();
 }
 
 // JS context operators.

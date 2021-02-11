@@ -51,60 +51,6 @@ Handle<String> PrintFToOneByteString(Isolate* isolate, const char* format,
              : isolate->factory()->NewStringFromOneByte(name).ToHandleChecked();
 }
 
-MaybeHandle<JSObject> CreateFunctionTablesObject(
-    Handle<WasmInstanceObject> instance) {
-  Isolate* isolate = instance->GetIsolate();
-  auto tables = handle(instance->tables(), isolate);
-  if (tables->length() == 0) return MaybeHandle<JSObject>();
-
-  const char* table_label = "table%d";
-  Handle<JSObject> tables_obj = isolate->factory()->NewJSObjectWithNullProto();
-  for (int table_index = 0; table_index < tables->length(); ++table_index) {
-    auto func_table =
-        handle(WasmTableObject::cast(tables->get(table_index)), isolate);
-    if (!IsSubtypeOf(func_table->type(), kWasmFuncRef, instance->module()))
-      continue;
-
-    Handle<String> table_name;
-    if (!WasmInstanceObject::GetTableNameOrNull(isolate, instance, table_index)
-             .ToHandle(&table_name)) {
-      table_name =
-          PrintFToOneByteString<true>(isolate, table_label, table_index);
-    }
-
-    Handle<JSObject> func_table_obj =
-        isolate->factory()->NewJSObjectWithNullProto();
-    JSObject::AddProperty(isolate, tables_obj, table_name, func_table_obj,
-                          NONE);
-    for (int i = 0; i < func_table->current_length(); ++i) {
-      Handle<Object> func = WasmTableObject::Get(isolate, func_table, i);
-      DCHECK(!WasmCapiFunction::IsWasmCapiFunction(*func));
-      if (func->IsNull(isolate)) continue;
-
-      Handle<String> func_name;
-      Handle<JSObject> func_obj =
-          isolate->factory()->NewJSObjectWithNullProto();
-
-      if (WasmExportedFunction::IsWasmExportedFunction(*func)) {
-        auto target_func = Handle<WasmExportedFunction>::cast(func);
-        auto target_instance = handle(target_func->instance(), isolate);
-        auto module = handle(target_instance->module_object(), isolate);
-        func_name = WasmModuleObject::GetFunctionName(
-            isolate, module, target_func->function_index());
-      } else if (WasmJSFunction::IsWasmJSFunction(*func)) {
-        auto target_func = Handle<JSFunction>::cast(func);
-        func_name = JSFunction::GetName(target_func);
-        if (func_name->length() == 0) {
-          func_name = isolate->factory()->InternalizeUtf8String("anonymous");
-        }
-      }
-      JSObject::AddProperty(isolate, func_obj, func_name, func, NONE);
-      JSObject::AddDataElement(func_table_obj, i, func_obj, NONE);
-    }
-  }
-  return tables_obj;
-}
-
 Handle<Object> WasmValueToValueObject(Isolate* isolate, WasmValue value) {
   Handle<ByteArray> bytes;
   switch (value.type().kind()) {
@@ -164,8 +110,8 @@ MaybeHandle<String> GetLocalNameString(Isolate* isolate,
   ModuleWireBytes wire_bytes{native_module->wire_bytes()};
   // Bounds were checked during decoding.
   DCHECK(wire_bytes.BoundsCheck(name_ref));
-  Vector<const char> name = wire_bytes.GetNameOrNull(name_ref);
-  if (name.begin() == nullptr) return {};
+  WasmName name = wire_bytes.GetNameOrNull(name_ref);
+  if (name.size() == 0) return {};
   return isolate->factory()->NewStringFromUtf8(name);
 }
 
@@ -272,14 +218,6 @@ Handle<JSObject> GetModuleScopeObject(Handle<WasmInstanceObject> instance) {
                           NONE);
   }
 
-  Handle<JSObject> function_tables_obj;
-  if (CreateFunctionTablesObject(instance).ToHandle(&function_tables_obj)) {
-    Handle<String> tables_name = isolate->factory()->InternalizeString(
-        StaticCharVector("function tables"));
-    JSObject::AddProperty(isolate, module_scope_object, tables_name,
-                          function_tables_obj, NONE);
-  }
-
   auto& globals = instance->module()->globals;
   if (globals.size() > 0) {
     Handle<JSObject> globals_obj =
@@ -310,6 +248,9 @@ class DebugInfoImpl {
   explicit DebugInfoImpl(NativeModule* native_module)
       : native_module_(native_module) {}
 
+  DebugInfoImpl(const DebugInfoImpl&) = delete;
+  DebugInfoImpl& operator=(const DebugInfoImpl&) = delete;
+
   int GetNumLocals(Address pc) {
     FrameInspectionScope scope(this, pc);
     if (!scope.is_inspectable()) return 0;
@@ -338,6 +279,12 @@ class DebugInfoImpl {
     if (num_locals + index >= value_count) return {};
     return GetValue(scope.debug_side_table_entry, num_locals + index, fp,
                     debug_break_fp);
+  }
+
+  const WasmFunction& GetFunctionAtAddress(Address pc) {
+    FrameInspectionScope scope(this, pc);
+    auto* module = native_module_->module();
+    return module->functions[scope.code->index()];
   }
 
   Handle<JSObject> GetLocalScopeObject(Isolate* isolate, Address pc, Address fp,
@@ -886,8 +833,6 @@ class DebugInfoImpl {
 
   // Isolate-specific data.
   std::unordered_map<Isolate*, PerIsolateDebugData> per_isolate_data_;
-
-  DISALLOW_COPY_AND_ASSIGN(DebugInfoImpl);
 };
 
 DebugInfo::DebugInfo(NativeModule* native_module)
@@ -907,6 +852,10 @@ int DebugInfo::GetStackDepth(Address pc) { return impl_->GetStackDepth(pc); }
 WasmValue DebugInfo::GetStackValue(int index, Address pc, Address fp,
                                    Address debug_break_fp) {
   return impl_->GetStackValue(index, pc, fp, debug_break_fp);
+}
+
+const wasm::WasmFunction& DebugInfo::GetFunctionAtAddress(Address pc) {
+  return impl_->GetFunctionAtAddress(pc);
 }
 
 Handle<JSObject> DebugInfo::GetLocalScopeObject(Isolate* isolate, Address pc,

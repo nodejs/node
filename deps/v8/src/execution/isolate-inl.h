@@ -17,10 +17,6 @@
 namespace v8 {
 namespace internal {
 
-IsolateAllocationMode Isolate::isolate_allocation_mode() {
-  return isolate_allocator_->mode();
-}
-
 void Isolate::set_context(Context context) {
   DCHECK(context.is_null() || context.IsContext());
   thread_local_top()->context_ = context;

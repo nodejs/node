@@ -25,14 +25,13 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
    public:
     BytecodeWriter() = default;
     virtual ~BytecodeWriter() = default;
+    BytecodeWriter(const BytecodeWriter&) = delete;
+    BytecodeWriter& operator=(const BytecodeWriter&) = delete;
 
     // Called to emit a register transfer bytecode.
     virtual void EmitLdar(Register input) = 0;
     virtual void EmitStar(Register output) = 0;
     virtual void EmitMov(Register input, Register output) = 0;
-
-   private:
-    DISALLOW_COPY_AND_ASSIGN(BytecodeWriter);
   };
 
   BytecodeRegisterOptimizer(Zone* zone,
@@ -40,6 +39,9 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
                             int fixed_registers_count, int parameter_count,
                             BytecodeWriter* bytecode_writer);
   ~BytecodeRegisterOptimizer() override = default;
+  BytecodeRegisterOptimizer(const BytecodeRegisterOptimizer&) = delete;
+  BytecodeRegisterOptimizer& operator=(const BytecodeRegisterOptimizer&) =
+      delete;
 
   // Perform explicit register transfer operations.
   void DoLdar(Register input) {
@@ -201,8 +203,6 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
   BytecodeWriter* bytecode_writer_;
   bool flush_required_;
   Zone* zone_;
-
-  DISALLOW_COPY_AND_ASSIGN(BytecodeRegisterOptimizer);
 };
 
 }  // namespace interpreter

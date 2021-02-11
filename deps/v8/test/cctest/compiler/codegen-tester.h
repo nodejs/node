@@ -91,7 +91,7 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
   }
 
  private:
-  CodeKind kind_ = CodeKind::STUB;
+  CodeKind kind_ = CodeKind::FOR_TESTING;
   MaybeHandle<Code> code_;
 };
 

@@ -285,6 +285,9 @@ class Worklist<EntryType, SegmentSize>::Local {
   void Publish();
   void Merge(Worklist<EntryType, SegmentSize>::Local* other);
 
+  bool IsEmpty() const;
+  void Clear();
+
   size_t PushSegmentSize() const { return push_segment_->Size(); }
 
  private:
@@ -443,6 +446,17 @@ bool Worklist<EntryType, SegmentSize>::Local::StealPopSegment() {
     return true;
   }
   return false;
+}
+
+template <typename EntryType, uint16_t SegmentSize>
+bool Worklist<EntryType, SegmentSize>::Local::IsEmpty() const {
+  return push_segment_->IsEmpty() && pop_segment_->IsEmpty();
+}
+
+template <typename EntryType, uint16_t SegmentSize>
+void Worklist<EntryType, SegmentSize>::Local::Clear() {
+  push_segment_->Clear();
+  pop_segment_->Clear();
 }
 
 }  // namespace base

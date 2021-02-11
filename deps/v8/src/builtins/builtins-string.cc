@@ -150,7 +150,7 @@ BUILTIN(StringPrototypeLocaleCompare) {
                    isolate, str1, str2, args.atOrUndefined(isolate, 2),
                    args.atOrUndefined(isolate, 3), method));
 #else
-  DCHECK_EQ(2, args.length());
+  DCHECK_LE(2, args.length());
 
   TO_THIS_STRING(str1, method);
   Handle<String> str2;

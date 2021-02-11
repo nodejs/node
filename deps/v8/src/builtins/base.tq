@@ -28,7 +28,7 @@ type never;
 
 type Tagged generates 'TNode<MaybeObject>' constexpr 'MaybeObject';
 type StrongTagged extends Tagged
-    generates 'TNode<Object>' constexpr 'ObjectPtr';
+    generates 'TNode<Object>' constexpr 'Object';
 type Smi extends StrongTagged generates 'TNode<Smi>' constexpr 'Smi';
 type TaggedIndex extends StrongTagged
     generates 'TNode<TaggedIndex>' constexpr 'TaggedIndex';
@@ -50,10 +50,11 @@ type Zero extends PositiveSmi;
 type Uninitialized extends Tagged;
 
 extern macro MakeWeak(HeapObject): WeakHeapObject;
-extern macro GetHeapObjectAssumeWeak(WeakHeapObject):
-    HeapObject labels ClearedWeakPointer;
+extern macro GetHeapObjectAssumeWeak(MaybeObject): HeapObject labels IfCleared;
+extern macro GetHeapObjectIfStrong(MaybeObject): HeapObject labels IfNotStrong;
 extern macro IsWeakOrCleared(MaybeObject): bool;
 extern macro IsWeakReferenceToObject(MaybeObject, Object): bool;
+extern macro IsStrong(MaybeObject): bool;
 
 macro StrongToWeak<T: type>(x: T): Weak<T> {
   return %RawDownCast<Weak<T>>(MakeWeak(x));
@@ -110,7 +111,7 @@ type bint generates 'TNode<BInt>' constexpr 'BInt';
 type string constexpr 'const char*';
 
 // A Smi value containing a bitfield struct as its integer data.
-type SmiTagged<T : type extends uint31> extends Smi;
+@useParentTypeChecker type SmiTagged<T : type extends uint31> extends Smi;
 
 // WARNING: The memory representation (i.e., in class fields and arrays) of
 // float64_or_hole is just a float64 that may be the hole-representing
@@ -149,7 +150,7 @@ type ObjectHashTable extends HashTable
     generates 'TNode<ObjectHashTable>';
 extern class NumberDictionary extends HashTable;
 
-type RawPtr generates 'TNode<RawPtrT>' constexpr 'void*';
+type RawPtr generates 'TNode<RawPtrT>' constexpr 'Address';
 type ExternalPointer
     generates 'TNode<ExternalPointerT>' constexpr 'ExternalPointer_t';
 extern class Code extends HeapObject;
@@ -165,6 +166,9 @@ extern class ScriptContextTable extends FixedArray;
 type LayoutDescriptor extends ByteArray
     generates 'TNode<LayoutDescriptor>';
 extern class TransitionArray extends WeakFixedArray;
+
+extern operator '.length_intptr' macro LoadAndUntagWeakFixedArrayLength(
+    WeakFixedArray): intptr;
 
 type InstanceType extends uint16 constexpr 'InstanceType';
 
@@ -278,6 +282,7 @@ extern enum MessageTemplate {
   kFirstArgumentNotRegExp,
   kBigIntMixedTypes,
   kTypedArrayTooShort,
+  kTypedArrayTooLargeToSort,
   kInvalidCountValue,
   kConstructorNotFunction,
   kSymbolToString,
@@ -320,7 +325,6 @@ extern enum MessageTemplate {
   kWasmTrapDivUnrepresentable,
   kWasmTrapRemByZero,
   kWasmTrapFloatUnrepresentable,
-  kWasmTrapFuncInvalid,
   kWasmTrapFuncSigMismatch,
   kWasmTrapDataSegmentDropped,
   kWasmTrapElemSegmentDropped,
@@ -330,7 +334,6 @@ extern enum MessageTemplate {
   kWasmTrapNullDereference,
   kWasmTrapIllegalCast,
   kWasmTrapArrayOutOfBounds,
-  kWasmTrapWasmJSFunction,
   kWeakRefsRegisterTargetAndHoldingsMustNotBeSame,
   kWeakRefsRegisterTargetMustBeObject,
   kWeakRefsUnregisterTokenMustBeObject,
@@ -831,6 +834,10 @@ extern operator '==' macro
 ConstexprInt31Equal(constexpr int31, constexpr int31): constexpr bool;
 extern operator '!=' macro
 ConstexprInt31NotEqual(constexpr int31, constexpr int31): constexpr bool;
+extern operator '==' macro
+ConstexprUint32Equal(constexpr uint32, constexpr uint32): constexpr bool;
+extern operator '!=' macro
+ConstexprUint32NotEqual(constexpr uint32, constexpr uint32): constexpr bool;
 extern operator '>=' macro
 ConstexprInt31GreaterThanEqual(
     constexpr int31, constexpr int31): constexpr bool;
@@ -1555,6 +1562,7 @@ namespace runtime {
 extern runtime
 GetDerivedMap(Context, JSFunction, JSReceiver): Map;
 }
+extern macro IsDeprecatedMap(Map): bool;
 
 transitioning builtin FastCreateDataProperty(implicit context: Context)(
     receiver: JSReceiver, key: JSAny, value: JSAny): Object {
@@ -1703,3 +1711,9 @@ struct ConstantIterator<T: type> {
 macro ConstantIterator<T: type>(value: T): ConstantIterator<T> {
   return ConstantIterator{value};
 }
+
+extern macro FeedbackIteratorSizeFor(constexpr int32): intptr;
+extern macro FeedbackIteratorMapIndexForEntry(constexpr int32): intptr;
+extern macro FeedbackIteratorHandlerIndexForEntry(constexpr int32): intptr;
+extern operator '[]' macro LoadWeakFixedArrayElement(
+    WeakFixedArray, intptr): MaybeObject;

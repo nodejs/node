@@ -189,7 +189,7 @@ MaybeHandle<Cell> SourceTextModule::ResolveExport(
     } else if (name_set->count(export_name)) {
       // Cycle detected.
       if (must_resolve) {
-        return isolate->Throw<Cell>(
+        return isolate->ThrowAt<Cell>(
             isolate->factory()->NewSyntaxError(
                 MessageTemplate::kCyclicModuleDependency, export_name,
                 module_specifier),
@@ -234,16 +234,20 @@ MaybeHandle<Cell> SourceTextModule::ResolveExport(
 
 MaybeHandle<Cell> SourceTextModule::ResolveImport(
     Isolate* isolate, Handle<SourceTextModule> module, Handle<String> name,
-    int module_request, MessageLocation loc, bool must_resolve,
+    int module_request_index, MessageLocation loc, bool must_resolve,
     Module::ResolveSet* resolve_set) {
   Handle<Module> requested_module(
-      Module::cast(module->requested_modules().get(module_request)), isolate);
-  Handle<String> specifier(
-      String::cast(module->info().module_requests().get(module_request)),
+      Module::cast(module->requested_modules().get(module_request_index)),
       isolate);
+  Handle<ModuleRequest> module_request(
+      ModuleRequest::cast(
+          module->info().module_requests().get(module_request_index)),
+      isolate);
+  Handle<String> module_specifier(String::cast(module_request->specifier()),
+                                  isolate);
   MaybeHandle<Cell> result =
-      Module::ResolveExport(isolate, requested_module, specifier, name, loc,
-                            must_resolve, resolve_set);
+      Module::ResolveExport(isolate, requested_module, module_specifier, name,
+                            loc, must_resolve, resolve_set);
   DCHECK_IMPLIES(isolate->has_pending_exception(), result.is_null());
   return result;
 }
@@ -274,10 +278,10 @@ MaybeHandle<Cell> SourceTextModule::ResolveExportUsingStarExports(
               .ToHandle(&cell)) {
         if (unique_cell.is_null()) unique_cell = cell;
         if (*unique_cell != *cell) {
-          return isolate->Throw<Cell>(isolate->factory()->NewSyntaxError(
-                                          MessageTemplate::kAmbiguousExport,
-                                          module_specifier, export_name),
-                                      &loc);
+          return isolate->ThrowAt<Cell>(isolate->factory()->NewSyntaxError(
+                                            MessageTemplate::kAmbiguousExport,
+                                            module_specifier, export_name),
+                                        &loc);
         }
       } else if (isolate->has_pending_exception()) {
         return MaybeHandle<Cell>();
@@ -296,7 +300,7 @@ MaybeHandle<Cell> SourceTextModule::ResolveExportUsingStarExports(
 
   // Unresolvable.
   if (must_resolve) {
-    return isolate->Throw<Cell>(
+    return isolate->ThrowAt<Cell>(
         isolate->factory()->NewSyntaxError(MessageTemplate::kUnresolvableExport,
                                            module_specifier, export_name),
         &loc);
@@ -312,7 +316,10 @@ bool SourceTextModule::PrepareInstantiate(
   Handle<FixedArray> module_requests(module_info->module_requests(), isolate);
   Handle<FixedArray> requested_modules(module->requested_modules(), isolate);
   for (int i = 0, length = module_requests->length(); i < length; ++i) {
-    Handle<String> specifier(String::cast(module_requests->get(i)), isolate);
+    Handle<ModuleRequest> module_request(
+        ModuleRequest::cast(module_requests->get(i)), isolate);
+    Handle<String> specifier(module_request->specifier(), isolate);
+    // TODO(v8:10958) Pass import assertions to the callback
     v8::Local<v8::Module> api_requested_module;
     if (!callback(context, v8::Utils::ToLocal(specifier),
                   v8::Utils::ToLocal(Handle<Module>::cast(module)))

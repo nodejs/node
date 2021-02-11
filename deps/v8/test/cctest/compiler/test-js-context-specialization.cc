@@ -74,8 +74,8 @@ void ContextSpecializationTester::CheckChangesToValue(
   Reduction r = spec()->Reduce(node);
   CHECK(r.Changed());
   HeapObjectMatcher match(r.replacement());
-  CHECK(match.HasValue());
-  CHECK_EQ(*match.Value(), *expected_value);
+  CHECK(match.HasResolvedValue());
+  CHECK_EQ(*match.ResolvedValue(), *expected_value);
 }
 
 void ContextSpecializationTester::CheckContextInputAndDepthChanges(
@@ -88,7 +88,7 @@ void ContextSpecializationTester::CheckContextInputAndDepthChanges(
   Node* new_context = NodeProperties::GetContextInput(r.replacement());
   CHECK_EQ(IrOpcode::kHeapConstant, new_context->opcode());
   HeapObjectMatcher match(new_context);
-  CHECK_EQ(Context::cast(*match.Value()), *expected_new_context_object);
+  CHECK_EQ(Context::cast(*match.ResolvedValue()), *expected_new_context_object);
 
   ContextAccess new_access = ContextAccessOf(r.replacement()->op());
   CHECK_EQ(new_access.depth(), expected_new_depth);
@@ -160,7 +160,7 @@ TEST(ReduceJSLoadContext0) {
     Node* new_context_input = NodeProperties::GetContextInput(r.replacement());
     CHECK_EQ(IrOpcode::kHeapConstant, new_context_input->opcode());
     HeapObjectMatcher match(new_context_input);
-    CHECK_EQ(*native, Context::cast(*match.Value()));
+    CHECK_EQ(*native, Context::cast(*match.ResolvedValue()));
     ContextAccess access = ContextAccessOf(r.replacement()->op());
     CHECK_EQ(Context::GLOBAL_EVAL_FUN_INDEX, static_cast<int>(access.index()));
     CHECK_EQ(0, static_cast<int>(access.depth()));
@@ -176,8 +176,8 @@ TEST(ReduceJSLoadContext0) {
     CHECK(r.replacement() != load);
 
     HeapObjectMatcher match(r.replacement());
-    CHECK(match.HasValue());
-    CHECK_EQ(*expected, *match.Value());
+    CHECK(match.HasResolvedValue());
+    CHECK_EQ(*expected, *match.ResolvedValue());
   }
 
   // Clean up so that verifiers don't complain.
@@ -474,7 +474,7 @@ TEST(ReduceJSStoreContext0) {
     Node* new_context_input = NodeProperties::GetContextInput(r.replacement());
     CHECK_EQ(IrOpcode::kHeapConstant, new_context_input->opcode());
     HeapObjectMatcher match(new_context_input);
-    CHECK_EQ(*native, Context::cast(*match.Value()));
+    CHECK_EQ(*native, Context::cast(*match.ResolvedValue()));
     ContextAccess access = ContextAccessOf(r.replacement()->op());
     CHECK_EQ(Context::GLOBAL_EVAL_FUN_INDEX, static_cast<int>(access.index()));
     CHECK_EQ(0, static_cast<int>(access.depth()));

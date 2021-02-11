@@ -267,27 +267,28 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
 class PrintBacktraceOutputHandler : public BacktraceOutputHandler {
  public:
   PrintBacktraceOutputHandler() = default;
+  PrintBacktraceOutputHandler(const PrintBacktraceOutputHandler&) = delete;
+  PrintBacktraceOutputHandler& operator=(const PrintBacktraceOutputHandler&) =
+      delete;
 
   void HandleOutput(const char* output) override {
     // NOTE: This code MUST be async-signal safe (it's used by in-process
     // stack dumping signal handler). NO malloc or stdio is allowed here.
     PrintToStderr(output);
   }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(PrintBacktraceOutputHandler);
 };
 
 class StreamBacktraceOutputHandler : public BacktraceOutputHandler {
  public:
   explicit StreamBacktraceOutputHandler(std::ostream* os) : os_(os) {}
+  StreamBacktraceOutputHandler(const StreamBacktraceOutputHandler&) = delete;
+  StreamBacktraceOutputHandler& operator=(const StreamBacktraceOutputHandler&) =
+      delete;
 
   void HandleOutput(const char* output) override { (*os_) << output; }
 
  private:
   std::ostream* os_;
-
-  DISALLOW_COPY_AND_ASSIGN(StreamBacktraceOutputHandler);
 };
 
 void WarmUpBacktrace() {

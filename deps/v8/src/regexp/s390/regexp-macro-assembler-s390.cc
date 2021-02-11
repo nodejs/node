@@ -137,6 +137,7 @@ RegExpMacroAssemblerS390::~RegExpMacroAssemblerS390() {
   check_preempt_label_.Unuse();
   stack_overflow_label_.Unuse();
   internal_failure_label_.Unuse();
+  fallback_label_.Unuse();
 }
 
 int RegExpMacroAssemblerS390::stack_limit_slack() {
@@ -174,8 +175,13 @@ void RegExpMacroAssemblerS390::Backtrack() {
     __ CmpLogicalP(r2, Operand(backtrack_limit()));
     __ bne(&next);
 
-    // Exceeded limits are treated as a failed match.
-    Fail();
+    // Backtrack limit exceeded.
+    if (can_fallback()) {
+      __ jmp(&fallback_label_);
+    } else {
+      // Can't fallback, so we treat it as a failed match.
+      Fail();
+    }
 
     __ bind(&next);
   }
@@ -946,6 +952,12 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
     __ bind(&exit_with_exception);
     // Exit with Result EXCEPTION(-1) to signal thrown exception.
     __ LoadImmP(r2, Operand(EXCEPTION));
+    __ b(&return_r2);
+  }
+
+  if (fallback_label_.is_linked()) {
+    __ bind(&fallback_label_);
+    __ LoadImmP(r2, Operand(FALLBACK_TO_EXPERIMENTAL));
     __ b(&return_r2);
   }
 

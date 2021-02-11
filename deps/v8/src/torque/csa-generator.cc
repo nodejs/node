@@ -83,7 +83,7 @@ Stack<std::string> CSAGenerator::EmitBlock(const Block* block) {
   out() << "    ca_.Bind(&" << BlockName(block) << phi_names.str() << ");\n";
 
   for (const Instruction& instruction : block->instructions()) {
-    EmitInstruction(instruction, &stack);
+    TorqueCodeGenerator::EmitInstruction(instruction, &stack);
   }
   return stack;
 }
@@ -97,53 +97,6 @@ void CSAGenerator::EmitSourcePosition(SourcePosition pos, bool always_emit) {
           << (pos.start.line + 1) << ");\n";
     previous_position_ = pos;
   }
-}
-
-bool CSAGenerator::IsEmptyInstruction(const Instruction& instruction) {
-  switch (instruction.kind()) {
-    case InstructionKind::kPeekInstruction:
-    case InstructionKind::kPokeInstruction:
-    case InstructionKind::kDeleteRangeInstruction:
-    case InstructionKind::kPushUninitializedInstruction:
-    case InstructionKind::kPushBuiltinPointerInstruction:
-    case InstructionKind::kUnsafeCastInstruction:
-      return true;
-    default:
-      return false;
-  }
-}
-
-void CSAGenerator::EmitInstruction(const Instruction& instruction,
-                                   Stack<std::string>* stack) {
-#ifdef DEBUG
-  if (!IsEmptyInstruction(instruction)) {
-    EmitSourcePosition(instruction->pos);
-  }
-#endif
-
-  switch (instruction.kind()) {
-#define ENUM_ITEM(T)          \
-  case InstructionKind::k##T: \
-    return EmitInstruction(instruction.Cast<T>(), stack);
-    TORQUE_INSTRUCTION_LIST(ENUM_ITEM)
-#undef ENUM_ITEM
-  }
-}
-
-void CSAGenerator::EmitInstruction(const PeekInstruction& instruction,
-                                   Stack<std::string>* stack) {
-  stack->Push(stack->Peek(instruction.slot));
-}
-
-void CSAGenerator::EmitInstruction(const PokeInstruction& instruction,
-                                   Stack<std::string>* stack) {
-  stack->Poke(instruction.slot, stack->Top());
-  stack->Pop();
-}
-
-void CSAGenerator::EmitInstruction(const DeleteRangeInstruction& instruction,
-                                   Stack<std::string>* stack) {
-  stack->DeleteRange(instruction.range);
 }
 
 void CSAGenerator::EmitInstruction(
@@ -198,35 +151,35 @@ void CSAGenerator::EmitInstruction(
   }
 }
 
-void CSAGenerator::ProcessArgumentsCommon(
-    const TypeVector& parameter_types, std::vector<std::string>* args,
-    std::vector<std::string>* constexpr_arguments, Stack<std::string>* stack) {
+std::vector<std::string> CSAGenerator::ProcessArgumentsCommon(
+    const TypeVector& parameter_types,
+    std::vector<std::string> constexpr_arguments, Stack<std::string>* stack) {
+  std::vector<std::string> args;
   for (auto it = parameter_types.rbegin(); it != parameter_types.rend(); ++it) {
     const Type* type = *it;
     VisitResult arg;
     if (type->IsConstexpr()) {
-      args->push_back(std::move(constexpr_arguments->back()));
-      constexpr_arguments->pop_back();
+      args.push_back(std::move(constexpr_arguments.back()));
+      constexpr_arguments.pop_back();
     } else {
       std::stringstream s;
       size_t slot_count = LoweredSlotCount(type);
       VisitResult arg = VisitResult(type, stack->TopRange(slot_count));
       EmitCSAValue(arg, *stack, s);
-      args->push_back(s.str());
+      args.push_back(s.str());
       stack->PopMany(slot_count);
     }
   }
-  std::reverse(args->begin(), args->end());
+  std::reverse(args.begin(), args.end());
+  return args;
 }
 
 void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
                                    Stack<std::string>* stack) {
-  std::vector<std::string> constexpr_arguments =
-      instruction.constexpr_arguments;
-  std::vector<std::string> args;
   TypeVector parameter_types =
       instruction.intrinsic->signature().parameter_types.types;
-  ProcessArgumentsCommon(parameter_types, &args, &constexpr_arguments, stack);
+  std::vector<std::string> args = ProcessArgumentsCommon(
+      parameter_types, instruction.constexpr_arguments, stack);
 
   Stack<std::string> pre_call_stack = *stack;
   const Type* return_type = instruction.intrinsic->signature().return_type;
@@ -355,12 +308,10 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
 
 void CSAGenerator::EmitInstruction(const CallCsaMacroInstruction& instruction,
                                    Stack<std::string>* stack) {
-  std::vector<std::string> constexpr_arguments =
-      instruction.constexpr_arguments;
-  std::vector<std::string> args;
   TypeVector parameter_types =
       instruction.macro->signature().parameter_types.types;
-  ProcessArgumentsCommon(parameter_types, &args, &constexpr_arguments, stack);
+  std::vector<std::string> args = ProcessArgumentsCommon(
+      parameter_types, instruction.constexpr_arguments, stack);
 
   Stack<std::string> pre_call_stack = *stack;
   const Type* return_type = instruction.macro->signature().return_type;
@@ -409,12 +360,10 @@ void CSAGenerator::EmitInstruction(const CallCsaMacroInstruction& instruction,
 void CSAGenerator::EmitInstruction(
     const CallCsaMacroAndBranchInstruction& instruction,
     Stack<std::string>* stack) {
-  std::vector<std::string> constexpr_arguments =
-      instruction.constexpr_arguments;
-  std::vector<std::string> args;
   TypeVector parameter_types =
       instruction.macro->signature().parameter_types.types;
-  ProcessArgumentsCommon(parameter_types, &args, &constexpr_arguments, stack);
+  std::vector<std::string> args = ProcessArgumentsCommon(
+      parameter_types, instruction.constexpr_arguments, stack);
 
   Stack<std::string> pre_call_stack = *stack;
   std::vector<std::string> results;

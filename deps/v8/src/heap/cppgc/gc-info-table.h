@@ -23,9 +23,8 @@ namespace internal {
 struct GCInfo final {
   FinalizationCallback finalize;
   TraceCallback trace;
+  NameCallback name;
   bool has_v_table;
-  // Keep sizeof(GCInfo) a power of 2.
-  size_t padding = 0;
 };
 
 class V8_EXPORT GCInfoTable final {

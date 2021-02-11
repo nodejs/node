@@ -130,6 +130,8 @@ template class PerThreadAssertScope<HANDLE_DEREFERENCE_ASSERT, false>;
 template class PerThreadAssertScope<HANDLE_DEREFERENCE_ASSERT, true>;
 template class PerThreadAssertScope<CODE_DEPENDENCY_CHANGE_ASSERT, false>;
 template class PerThreadAssertScope<CODE_DEPENDENCY_CHANGE_ASSERT, true>;
+template class PerThreadAssertScope<CODE_ALLOCATION_ASSERT, false>;
+template class PerThreadAssertScope<CODE_ALLOCATION_ASSERT, true>;
 
 template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, false>;
 template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, true>;

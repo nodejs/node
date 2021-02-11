@@ -44,6 +44,9 @@ using ControlTransferMap = ZoneMap<pc_t, ControlTransferEntry>;
 // An interpreter capable of executing WebAssembly.
 class WasmInterpreter {
  public:
+  WasmInterpreter(const WasmInterpreter&) = delete;
+  WasmInterpreter& operator=(const WasmInterpreter&) = delete;
+
   // State machine for the interpreter:
   //    +----------------------------------------------------------+
   //    |                    +--------Run()/Step()---------+       |
@@ -104,8 +107,6 @@ class WasmInterpreter {
  private:
   Zone zone_;
   std::unique_ptr<WasmInterpreterInternals> internals_;
-
-  DISALLOW_COPY_AND_ASSIGN(WasmInterpreter);
 };
 
 }  // namespace wasm

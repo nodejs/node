@@ -21,7 +21,6 @@ namespace internal {
 namespace interpreter {
 
 using compiler::CodeAssemblerState;
-using compiler::Node;
 
 InterpreterAssembler::InterpreterAssembler(CodeAssemblerState* state,
                                            Bytecode bytecode,
@@ -30,19 +29,19 @@ InterpreterAssembler::InterpreterAssembler(CodeAssemblerState* state,
       bytecode_(bytecode),
       operand_scale_(operand_scale),
       TVARIABLE_CONSTRUCTOR(interpreted_frame_pointer_),
-      TVARIABLE_CONSTRUCTOR(
-          bytecode_array_,
-          CAST(Parameter(InterpreterDispatchDescriptor::kBytecodeArray))),
+      TVARIABLE_CONSTRUCTOR(bytecode_array_,
+                            Parameter<BytecodeArray>(
+                                InterpreterDispatchDescriptor::kBytecodeArray)),
       TVARIABLE_CONSTRUCTOR(
           bytecode_offset_,
-          UncheckedCast<IntPtrT>(
-              Parameter(InterpreterDispatchDescriptor::kBytecodeOffset))),
-      TVARIABLE_CONSTRUCTOR(
-          dispatch_table_, UncheckedCast<ExternalReference>(Parameter(
-                               InterpreterDispatchDescriptor::kDispatchTable))),
+          UncheckedParameter<IntPtrT>(
+              InterpreterDispatchDescriptor::kBytecodeOffset)),
+      TVARIABLE_CONSTRUCTOR(dispatch_table_,
+                            UncheckedParameter<ExternalReference>(
+                                InterpreterDispatchDescriptor::kDispatchTable)),
       TVARIABLE_CONSTRUCTOR(
           accumulator_,
-          CAST(Parameter(InterpreterDispatchDescriptor::kAccumulator))),
+          Parameter<Object>(InterpreterDispatchDescriptor::kAccumulator)),
       accumulator_use_(AccumulatorUse::kNone),
       made_call_(false),
       reloaded_frame_ptr_(false),
@@ -83,7 +82,8 @@ TNode<RawPtrT> InterpreterAssembler::GetInterpretedFramePointer() {
 TNode<IntPtrT> InterpreterAssembler::BytecodeOffset() {
   if (Bytecodes::MakesCallAlongCriticalPath(bytecode_) && made_call_ &&
       (bytecode_offset_.value() ==
-       Parameter(InterpreterDispatchDescriptor::kBytecodeOffset))) {
+       UncheckedParameter<IntPtrT>(
+           InterpreterDispatchDescriptor::kBytecodeOffset))) {
     bytecode_offset_ = ReloadBytecodeOffset();
   }
   return bytecode_offset_.value();
@@ -140,7 +140,8 @@ TNode<BytecodeArray> InterpreterAssembler::BytecodeArrayTaggedPointer() {
 TNode<ExternalReference> InterpreterAssembler::DispatchTablePointer() {
   if (Bytecodes::MakesCallAlongCriticalPath(bytecode_) && made_call_ &&
       (dispatch_table_.value() ==
-       Parameter(InterpreterDispatchDescriptor::kDispatchTable))) {
+       UncheckedParameter<ExternalReference>(
+           InterpreterDispatchDescriptor::kDispatchTable))) {
     dispatch_table_ = ExternalConstant(
         ExternalReference::interpreter_dispatch_table_address(isolate()));
   }
@@ -772,15 +773,9 @@ void InterpreterAssembler::CallJSAndDispatch(TNode<Object> function,
 
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
     // The first argument parameter (the receiver) is implied to be undefined.
-#ifdef V8_REVERSE_JSARGS
     TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target,
                                      context, function, arg_count, args...,
                                      UndefinedConstant());
-#else
-    TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target,
-                                     context, function, arg_count,
-                                     UndefinedConstant(), args...);
-#endif
   } else {
     TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target,
                                      context, function, arg_count, args...);
@@ -846,10 +841,9 @@ TNode<Object> InterpreterAssembler::Construct(
     Comment("call using Construct builtin");
     Callable callable = CodeFactory::InterpreterPushArgsThenConstruct(
         isolate(), InterpreterPushArgsMode::kOther);
-    TNode<Code> code_target = HeapConstant(callable.code());
-    var_result = CallStub(callable.descriptor(), code_target, context,
-                          args.reg_count(), args.base_reg_location(), target,
-                          new_target, UndefinedConstant());
+    var_result =
+        CallStub(callable, context, args.reg_count(), args.base_reg_location(),
+                 target, new_target, UndefinedConstant());
     Goto(&return_result);
   }
 
@@ -860,10 +854,9 @@ TNode<Object> InterpreterAssembler::Construct(
     Comment("call using ConstructArray builtin");
     Callable callable = CodeFactory::InterpreterPushArgsThenConstruct(
         isolate(), InterpreterPushArgsMode::kArrayFunction);
-    TNode<Code> code_target = HeapConstant(callable.code());
-    var_result = CallStub(callable.descriptor(), code_target, context,
-                          args.reg_count(), args.base_reg_location(), target,
-                          new_target, var_site.value());
+    var_result =
+        CallStub(callable, context, args.reg_count(), args.base_reg_location(),
+                 target, new_target, var_site.value());
     Goto(&return_result);
   }
 
@@ -988,19 +981,18 @@ TNode<Object> InterpreterAssembler::ConstructWithSpread(
   Comment("call using ConstructWithSpread builtin");
   Callable callable = CodeFactory::InterpreterPushArgsThenConstruct(
       isolate(), InterpreterPushArgsMode::kWithFinalSpread);
-  TNode<Code> code_target = HeapConstant(callable.code());
-  return CallStub(callable.descriptor(), code_target, context, args.reg_count(),
-                  args.base_reg_location(), target, new_target,
-                  UndefinedConstant());
+  return CallStub(callable, context, args.reg_count(), args.base_reg_location(),
+                  target, new_target, UndefinedConstant());
 }
 
-Node* InterpreterAssembler::CallRuntimeN(TNode<Uint32T> function_id,
-                                         TNode<Context> context,
-                                         const RegListNodePair& args,
-                                         int result_size) {
+template <class T>
+TNode<T> InterpreterAssembler::CallRuntimeN(TNode<Uint32T> function_id,
+                                            TNode<Context> context,
+                                            const RegListNodePair& args,
+                                            int return_count) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   DCHECK(Bytecodes::IsCallRuntime(bytecode_));
-  Callable callable = CodeFactory::InterpreterCEntry(isolate(), result_size);
+  Callable callable = CodeFactory::InterpreterCEntry(isolate(), return_count);
   TNode<Code> code_target = HeapConstant(callable.code());
 
   // Get the function entry from the function id.
@@ -1013,10 +1005,19 @@ Node* InterpreterAssembler::CallRuntimeN(TNode<Uint32T> function_id,
   TNode<RawPtrT> function_entry = Load<RawPtrT>(
       function, IntPtrConstant(offsetof(Runtime::Function, entry)));
 
-  return CallStubR(StubCallMode::kCallCodeObject, callable.descriptor(),
-                   result_size, code_target, context, args.reg_count(),
-                   args.base_reg_location(), function_entry);
+  return CallStub<T>(callable.descriptor(), code_target, context,
+                     args.reg_count(), args.base_reg_location(),
+                     function_entry);
 }
+
+template V8_EXPORT_PRIVATE TNode<Object> InterpreterAssembler::CallRuntimeN(
+    TNode<Uint32T> function_id, TNode<Context> context,
+    const RegListNodePair& args, int return_count);
+template V8_EXPORT_PRIVATE TNode<PairT<Object, Object>>
+InterpreterAssembler::CallRuntimeN(TNode<Uint32T> function_id,
+                                   TNode<Context> context,
+                                   const RegListNodePair& args,
+                                   int return_count);
 
 void InterpreterAssembler::UpdateInterruptBudget(TNode<Int32T> weight,
                                                  bool backward) {
@@ -1399,14 +1400,8 @@ TNode<FixedArray> InterpreterAssembler::ExportParametersAndRegisterFile(
     // Iterate over parameters and write them into the array.
     Label loop(this, &var_index), done_loop(this);
 
-#ifdef V8_REVERSE_JSARGS
     TNode<IntPtrT> reg_base =
         IntPtrConstant(Register::FromParameterIndex(0, 1).ToOperand() + 1);
-#else
-    TNode<IntPtrT> reg_base = IntPtrAdd(
-        IntPtrConstant(Register::FromParameterIndex(0, 1).ToOperand() - 1),
-        formal_parameter_count_intptr);
-#endif
 
     Goto(&loop);
     BIND(&loop);
@@ -1415,11 +1410,7 @@ TNode<FixedArray> InterpreterAssembler::ExportParametersAndRegisterFile(
       GotoIfNot(UintPtrLessThan(index, formal_parameter_count_intptr),
                 &done_loop);
 
-#ifdef V8_REVERSE_JSARGS
       TNode<IntPtrT> reg_index = IntPtrAdd(reg_base, index);
-#else
-      TNode<IntPtrT> reg_index = IntPtrSub(reg_base, index);
-#endif
       TNode<Object> value = LoadRegister(reg_index);
 
       StoreFixedArrayElement(array, index, value);

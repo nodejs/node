@@ -32,4 +32,7 @@ tools/gcmole/gcmole-test.cc:193:3: warning: Possibly dead variable.
 tools/gcmole/gcmole-test.cc:216:3: warning: Possibly dead variable.
   raw_obj.Print();
   ^
-11 warnings generated.
+tools/gcmole/gcmole-test.cc:229:3: warning: Possibly dead variable.
+  raw_obj.Print();
+  ^
+12 warnings generated.

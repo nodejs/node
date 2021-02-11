@@ -31,5 +31,17 @@ PersistentRegion& WeakPersistentPolicy::GetPersistentRegion(void* object) {
   return heap->GetWeakPersistentRegion();
 }
 
+PersistentRegion& StrongCrossThreadPersistentPolicy::GetPersistentRegion(
+    void* object) {
+  auto* heap = BasePage::FromPayload(object)->heap();
+  return heap->GetStrongCrossThreadPersistentRegion();
+}
+
+PersistentRegion& WeakCrossThreadPersistentPolicy::GetPersistentRegion(
+    void* object) {
+  auto* heap = BasePage::FromPayload(object)->heap();
+  return heap->GetWeakCrossThreadPersistentRegion();
+}
+
 }  // namespace internal
 }  // namespace cppgc

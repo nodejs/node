@@ -137,6 +137,9 @@ class ExpectedOutProc(OutProc):
     self._regenerate_expected_files = regenerate_expected_files
 
   def _is_failure_output(self, output):
+    if output.exit_code != 0:
+        return True
+
     with open(self._expected_filename, 'r') as f:
       expected_lines = f.readlines()
 

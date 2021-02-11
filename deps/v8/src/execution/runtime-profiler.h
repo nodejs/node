@@ -15,7 +15,9 @@ namespace internal {
 class BytecodeArray;
 class Isolate;
 class InterpretedFrame;
+class JavaScriptFrame;
 class JSFunction;
+enum class CodeKind;
 enum class OptimizationReason : uint8_t;
 
 class RuntimeProfiler {
@@ -35,15 +37,16 @@ class RuntimeProfiler {
  private:
   // Make the decision whether to optimize the given function, and mark it for
   // optimization if the decision was 'yes'.
-  void MaybeOptimizeNCIFrame(JSFunction function);
-  void MaybeOptimizeInterpretedFrame(JSFunction function,
-                                     InterpretedFrame* frame);
+  void MaybeOptimizeFrame(JSFunction function, JavaScriptFrame* frame,
+                          CodeKind code_kind);
+
   // Potentially attempts OSR from and returns whether no other
   // optimization attempts should be made.
   bool MaybeOSR(JSFunction function, InterpretedFrame* frame);
   OptimizationReason ShouldOptimize(JSFunction function,
                                     BytecodeArray bytecode_array);
-  void Optimize(JSFunction function, OptimizationReason reason);
+  void Optimize(JSFunction function, OptimizationReason reason,
+                CodeKind code_kind);
   void Baseline(JSFunction function, OptimizationReason reason);
 
   class MarkCandidatesForOptimizationScope final {

@@ -24,7 +24,7 @@ class MemberBase {
   MemberBase() = default;
   explicit MemberBase(void* value) : raw_(value) {}
 
-  void* const* GetRawSlot() const { return &raw_; }
+  void** GetRawSlot() const { return &raw_; }
   void* GetRaw() const { return raw_; }
   void SetRaw(void* value) { raw_ = value; }
 
@@ -176,6 +176,10 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
     T* result = Get();
     Clear();
     return result;
+  }
+
+  const T** GetSlotForTesting() const {
+    return reinterpret_cast<const T**>(const_cast<const void**>(GetRawSlot()));
   }
 
  private:

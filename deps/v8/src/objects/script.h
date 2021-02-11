@@ -20,6 +20,8 @@ namespace v8 {
 
 namespace internal {
 
+#include "torque-generated/src/objects/script-tq.inc"
+
 // Script describes a script which has been added to the VM.
 class Script : public TorqueGeneratedScript<Script, Struct> {
  public:
@@ -172,11 +174,12 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   class V8_EXPORT_PRIVATE Iterator {
    public:
     explicit Iterator(Isolate* isolate);
+    Iterator(const Iterator&) = delete;
+    Iterator& operator=(const Iterator&) = delete;
     Script Next();
 
    private:
     WeakArrayList::Iterator iterator_;
-    DISALLOW_COPY_AND_ASSIGN(Iterator);
   };
 
   // Dispatched behavior.

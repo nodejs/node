@@ -50,10 +50,14 @@ macro IsUninitialized(feedback: MaybeObject): bool {
 }
 
 extern macro LoadFeedbackVectorSlot(FeedbackVector, uintptr): MaybeObject;
+extern operator '[]' macro LoadFeedbackVectorSlot(
+    FeedbackVector, intptr): MaybeObject;
 extern macro StoreFeedbackVectorSlot(
     FeedbackVector, uintptr, MaybeObject): void;
 extern macro StoreWeakReferenceInFeedbackVector(
     FeedbackVector, uintptr, HeapObject): MaybeObject;
 extern macro ReportFeedbackUpdate(FeedbackVector, uintptr, constexpr string);
+extern operator '.length_intptr' macro LoadFeedbackVectorLength(FeedbackVector):
+    intptr;
 
 }  // namespace ic

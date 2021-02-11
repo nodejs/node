@@ -267,7 +267,6 @@ void WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
 
 namespace {
 bool UseGenericWrapper(const FunctionSig* sig) {
-// Work only for int32 parameters and 1 or 0 return value for now.
 #if V8_TARGET_ARCH_X64
   if (sig->returns().size() > 1) {
     return false;
@@ -295,10 +294,11 @@ bool UseGenericWrapper(const FunctionSig* sig) {
 JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(
     Isolate* isolate, WasmEngine* wasm_engine, const FunctionSig* sig,
     const WasmModule* module, bool is_import,
-    const WasmFeatures& enabled_features)
+    const WasmFeatures& enabled_features, AllowGeneric allow_generic)
     : is_import_(is_import),
       sig_(sig),
-      use_generic_wrapper_(UseGenericWrapper(sig) && !is_import),
+      use_generic_wrapper_(allow_generic && UseGenericWrapper(sig) &&
+                           !is_import),
       job_(use_generic_wrapper_ ? nullptr
                                 : compiler::NewJSToWasmCompilationJob(
                                       isolate, wasm_engine, sig, module,
@@ -339,7 +339,21 @@ Handle<Code> JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
   // Run the compilation unit synchronously.
   WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
   JSToWasmWrapperCompilationUnit unit(isolate, isolate->wasm_engine(), sig,
-                                      module, is_import, enabled_features);
+                                      module, is_import, enabled_features,
+                                      kAllowGeneric);
+  unit.Execute();
+  return unit.Finalize(isolate);
+}
+
+// static
+Handle<Code> JSToWasmWrapperCompilationUnit::CompileSpecificJSToWasmWrapper(
+    Isolate* isolate, const FunctionSig* sig, const WasmModule* module) {
+  // Run the compilation unit synchronously.
+  const bool is_import = false;
+  WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
+  JSToWasmWrapperCompilationUnit unit(isolate, isolate->wasm_engine(), sig,
+                                      module, is_import, enabled_features,
+                                      kDontAllowGeneric);
   unit.Execute();
   return unit.Finalize(isolate);
 }

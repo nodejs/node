@@ -149,8 +149,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64FloorWS:
     case kMips64I16x8Add:
     case kMips64I16x8AddHoriz:
-    case kMips64I16x8AddSaturateS:
-    case kMips64I16x8AddSaturateU:
+    case kMips64I16x8AddSatS:
+    case kMips64I16x8AddSatU:
     case kMips64I16x8Eq:
     case kMips64I16x8ExtractLaneU:
     case kMips64I16x8ExtractLaneS:
@@ -175,8 +175,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64I16x8ShrU:
     case kMips64I16x8Splat:
     case kMips64I16x8Sub:
-    case kMips64I16x8SubSaturateS:
-    case kMips64I16x8SubSaturateU:
+    case kMips64I16x8SubSatS:
+    case kMips64I16x8SubSatU:
     case kMips64I8x16UConvertI16x8:
     case kMips64I16x8UConvertI32x4:
     case kMips64I16x8UConvertI8x16High:
@@ -213,9 +213,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64I32x4UConvertI16x8Low:
     case kMips64I32x4Abs:
     case kMips64I32x4BitMask:
+    case kMips64I32x4DotI16x8S:
     case kMips64I8x16Add:
-    case kMips64I8x16AddSaturateS:
-    case kMips64I8x16AddSaturateU:
+    case kMips64I8x16AddSatS:
+    case kMips64I8x16AddSatU:
     case kMips64I8x16Eq:
     case kMips64I8x16ExtractLaneU:
     case kMips64I8x16ExtractLaneS:
@@ -236,8 +237,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64I8x16ShrU:
     case kMips64I8x16Splat:
     case kMips64I8x16Sub:
-    case kMips64I8x16SubSaturateS:
-    case kMips64I8x16SubSaturateU:
+    case kMips64I8x16SubSatS:
+    case kMips64I8x16SubSatU:
     case kMips64I8x16RoundingAverageU:
     case kMips64I8x16Abs:
     case kMips64I8x16BitMask:
@@ -348,16 +349,18 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64Ulw:
     case kMips64Ulwu:
     case kMips64Ulwc1:
-    case kMips64S8x16LoadSplat:
-    case kMips64S16x8LoadSplat:
-    case kMips64S32x4LoadSplat:
-    case kMips64S64x2LoadSplat:
-    case kMips64I16x8Load8x8S:
-    case kMips64I16x8Load8x8U:
-    case kMips64I32x4Load16x4S:
-    case kMips64I32x4Load16x4U:
-    case kMips64I64x2Load32x2S:
-    case kMips64I64x2Load32x2U:
+    case kMips64S128Load8Splat:
+    case kMips64S128Load16Splat:
+    case kMips64S128Load32Splat:
+    case kMips64S128Load64Splat:
+    case kMips64S128Load8x8S:
+    case kMips64S128Load8x8U:
+    case kMips64S128Load16x4S:
+    case kMips64S128Load16x4U:
+    case kMips64S128Load32x2S:
+    case kMips64S128Load32x2U:
+    case kMips64S128Load32Zero:
+    case kMips64S128Load64Zero:
     case kMips64Word64AtomicLoadUint8:
     case kMips64Word64AtomicLoadUint16:
     case kMips64Word64AtomicLoadUint32:

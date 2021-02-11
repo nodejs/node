@@ -2152,37 +2152,21 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             }
           } else if (*data == 0x3A) {
             data++;
-            if (*data == 0x08) {
+            if (*data >= 0x08 && *data <= 0x0B) {
+              const char* const pseudo_op[] = {
+                  "roundps",
+                  "roundpd",
+                  "roundss",
+                  "roundsd",
+              };
+              byte op = *data;
               data++;
               int mod, regop, rm;
               get_modrm(*data, &mod, &regop, &rm);
               int8_t imm8 = static_cast<int8_t>(data[1]);
-              AppendToBuffer("roundps %s,%s,%d", NameOfXMMRegister(regop),
-                             NameOfXMMRegister(rm), static_cast<int>(imm8));
-              data += 2;
-            } else if (*data == 0x09) {
-              data++;
-              int mod, regop, rm;
-              get_modrm(*data, &mod, &regop, &rm);
-              int8_t imm8 = static_cast<int8_t>(data[1]);
-              AppendToBuffer("roundpd %s,%s,%d", NameOfXMMRegister(regop),
-                             NameOfXMMRegister(rm), static_cast<int>(imm8));
-              data += 2;
-            } else if (*data == 0x0A) {
-              data++;
-              int mod, regop, rm;
-              get_modrm(*data, &mod, &regop, &rm);
-              int8_t imm8 = static_cast<int8_t>(data[1]);
-              AppendToBuffer("roundss %s,%s,%d", NameOfXMMRegister(regop),
-                             NameOfXMMRegister(rm), static_cast<int>(imm8));
-              data += 2;
-            } else if (*data == 0x0B) {
-              data++;
-              int mod, regop, rm;
-              get_modrm(*data, &mod, &regop, &rm);
-              int8_t imm8 = static_cast<int8_t>(data[1]);
-              AppendToBuffer("roundsd %s,%s,%d", NameOfXMMRegister(regop),
-                             NameOfXMMRegister(rm), static_cast<int>(imm8));
+              AppendToBuffer("%s %s,%s,%d", pseudo_op[op - 0x08],
+                             NameOfXMMRegister(regop), NameOfXMMRegister(rm),
+                             static_cast<int>(imm8));
               data += 2;
             } else if (*data == 0x0E) {
               data++;

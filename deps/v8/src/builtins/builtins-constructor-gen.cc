@@ -37,14 +37,13 @@ void Builtins::Generate_ConstructFunctionForwardVarargs(MacroAssembler* masm) {
 }
 
 TF_BUILTIN(Construct_WithFeedback, CallOrConstructBuiltinsAssembler) {
-  TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
-  TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
-  TNode<Int32T> argc =
-      UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<HeapObject> maybe_feedback_vector =
-      CAST(Parameter(Descriptor::kMaybeFeedbackVector));
-  TNode<Int32T> slot = UncheckedCast<Int32T>(Parameter(Descriptor::kSlot));
+  auto target = Parameter<Object>(Descriptor::kTarget);
+  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto maybe_feedback_vector =
+      Parameter<HeapObject>(Descriptor::kMaybeFeedbackVector);
+  auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
 
   TVARIABLE(AllocationSite, allocation_site);
   Label if_construct_generic(this), if_construct_array(this);
@@ -62,22 +61,22 @@ TF_BUILTIN(Construct_WithFeedback, CallOrConstructBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ConstructWithArrayLike, CallOrConstructBuiltinsAssembler) {
-  TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
-  TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
-  TNode<Object> arguments_list = CAST(Parameter(Descriptor::kArgumentsList));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto target = Parameter<Object>(Descriptor::kTarget);
+  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto arguments_list = Parameter<Object>(Descriptor::kArgumentsList);
+  auto context = Parameter<Context>(Descriptor::kContext);
   CallOrConstructWithArrayLike(target, new_target, arguments_list, context);
 }
 
 TF_BUILTIN(ConstructWithArrayLike_WithFeedback,
            CallOrConstructBuiltinsAssembler) {
-  TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
-  TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
-  TNode<Object> arguments_list = CAST(Parameter(Descriptor::kArgumentsList));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<HeapObject> maybe_feedback_vector =
-      CAST(Parameter(Descriptor::kMaybeFeedbackVector));
-  TNode<Int32T> slot = UncheckedCast<Int32T>(Parameter(Descriptor::kSlot));
+  auto target = Parameter<Object>(Descriptor::kTarget);
+  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto arguments_list = Parameter<Object>(Descriptor::kArgumentsList);
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto maybe_feedback_vector =
+      Parameter<HeapObject>(Descriptor::kMaybeFeedbackVector);
+  auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
 
   TVARIABLE(AllocationSite, allocation_site);
   Label if_construct_generic(this), if_construct_array(this);
@@ -94,25 +93,25 @@ TF_BUILTIN(ConstructWithArrayLike_WithFeedback,
 }
 
 TF_BUILTIN(ConstructWithSpread, CallOrConstructBuiltinsAssembler) {
-  TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
-  TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
-  TNode<Object> spread = CAST(Parameter(Descriptor::kSpread));
-  TNode<Int32T> args_count =
-      UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto target = Parameter<Object>(Descriptor::kTarget);
+  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto spread = Parameter<Object>(Descriptor::kSpread);
+  auto args_count =
+      UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
+  auto context = Parameter<Context>(Descriptor::kContext);
   CallOrConstructWithSpread(target, new_target, spread, args_count, context);
 }
 
 TF_BUILTIN(ConstructWithSpread_WithFeedback, CallOrConstructBuiltinsAssembler) {
-  TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
-  TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
-  TNode<Object> spread = CAST(Parameter(Descriptor::kSpread));
-  TNode<Int32T> args_count =
-      UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<HeapObject> maybe_feedback_vector =
-      CAST(Parameter(Descriptor::kMaybeFeedbackVector));
-  TNode<Int32T> slot = UncheckedCast<Int32T>(Parameter(Descriptor::kSlot));
+  auto target = Parameter<Object>(Descriptor::kTarget);
+  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto spread = Parameter<Object>(Descriptor::kSpread);
+  auto args_count =
+      UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto maybe_feedback_vector =
+      Parameter<HeapObject>(Descriptor::kMaybeFeedbackVector);
+  auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
 
   TVARIABLE(AllocationSite, allocation_site);
   Label if_construct_generic(this), if_construct_array(this);
@@ -131,11 +130,10 @@ TF_BUILTIN(ConstructWithSpread_WithFeedback, CallOrConstructBuiltinsAssembler) {
 using Node = compiler::Node;
 
 TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
-  TNode<SharedFunctionInfo> shared_function_info =
-      CAST(Parameter(Descriptor::kSharedFunctionInfo));
-  TNode<FeedbackCell> feedback_cell =
-      CAST(Parameter(Descriptor::kFeedbackCell));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto shared_function_info =
+      Parameter<SharedFunctionInfo>(Descriptor::kSharedFunctionInfo);
+  auto feedback_cell = Parameter<FeedbackCell>(Descriptor::kFeedbackCell);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   IncrementCounter(isolate()->counters()->fast_new_closure_total(), 1);
 
@@ -219,9 +217,9 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
 }
 
 TF_BUILTIN(FastNewObject, ConstructorBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<JSFunction> target = CAST(Parameter(Descriptor::kTarget));
-  TNode<JSReceiver> new_target = CAST(Parameter(Descriptor::kNewTarget));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto target = Parameter<JSFunction>(Descriptor::kTarget);
+  auto new_target = Parameter<JSReceiver>(Descriptor::kNewTarget);
 
   Label call_runtime(this);
 

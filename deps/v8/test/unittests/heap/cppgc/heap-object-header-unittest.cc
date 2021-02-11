@@ -40,8 +40,7 @@ TEST(HeapObjectHeaderTest, GetGCInfoIndex) {
   constexpr size_t kSize = kAllocationGranularity;
   HeapObjectHeader header(kSize, kGCInfoIndex);
   EXPECT_EQ(kGCInfoIndex, header.GetGCInfoIndex());
-  EXPECT_EQ(kGCInfoIndex,
-            header.GetGCInfoIndex<HeapObjectHeader::AccessMode::kAtomic>());
+  EXPECT_EQ(kGCInfoIndex, header.GetGCInfoIndex<AccessMode::kAtomic>());
 }
 
 TEST(HeapObjectHeaderTest, GetSize) {
@@ -49,7 +48,7 @@ TEST(HeapObjectHeaderTest, GetSize) {
   constexpr size_t kSize = kAllocationGranularity * 23;
   HeapObjectHeader header(kSize, kGCInfoIndex);
   EXPECT_EQ(kSize, header.GetSize());
-  EXPECT_EQ(kSize, header.GetSize<HeapObjectHeader::AccessMode::kAtomic>());
+  EXPECT_EQ(kSize, header.GetSize<AccessMode::kAtomic>());
 }
 
 TEST(HeapObjectHeaderTest, IsLargeObject) {
@@ -57,13 +56,10 @@ TEST(HeapObjectHeaderTest, IsLargeObject) {
   constexpr size_t kSize = kAllocationGranularity * 23;
   HeapObjectHeader header(kSize, kGCInfoIndex);
   EXPECT_EQ(false, header.IsLargeObject());
-  EXPECT_EQ(false,
-            header.IsLargeObject<HeapObjectHeader::AccessMode::kAtomic>());
+  EXPECT_EQ(false, header.IsLargeObject<AccessMode::kAtomic>());
   HeapObjectHeader large_header(0, kGCInfoIndex + 1);
   EXPECT_EQ(true, large_header.IsLargeObject());
-  EXPECT_EQ(
-      true,
-      large_header.IsLargeObject<HeapObjectHeader::AccessMode::kAtomic>());
+  EXPECT_EQ(true, large_header.IsLargeObject<AccessMode::kAtomic>());
 }
 
 TEST(HeapObjectHeaderTest, MarkObjectAsFullyConstructed) {
@@ -110,7 +106,7 @@ TEST(HeapObjectHeaderTest, Unmark) {
   EXPECT_FALSE(header2.IsMarked());
   EXPECT_TRUE(header2.TryMarkAtomic());
   EXPECT_TRUE(header2.IsMarked());
-  header2.Unmark<HeapObjectHeader::AccessMode::kAtomic>();
+  header2.Unmark<AccessMode::kAtomic>();
   // GCInfoIndex shares the same bitfield and should be unaffected by Unmark.
   EXPECT_EQ(kGCInfoIndex, header2.GetGCInfoIndex());
   EXPECT_FALSE(header2.IsMarked());
@@ -130,7 +126,7 @@ class ConcurrentGCThread final : public v8::base::Thread {
         payload_(payload) {}
 
   void Run() final {
-    while (header_->IsInConstruction<HeapObjectHeader::AccessMode::kAtomic>()) {
+    while (header_->IsInConstruction<AccessMode::kAtomic>()) {
     }
     USE(v8::base::AsAtomicPtr(const_cast<size_t*>(&payload_->value))
             ->load(std::memory_order_relaxed));

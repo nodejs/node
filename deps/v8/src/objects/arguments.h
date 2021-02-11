@@ -16,6 +16,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/arguments-tq.inc"
+
 // Superclass for all objects with instance type {JS_ARGUMENTS_OBJECT_TYPE}
 class JSArgumentsObject
     : public TorqueGeneratedJSArgumentsObject<JSArgumentsObject, JSObject> {

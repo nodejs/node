@@ -47,4 +47,47 @@ builtin BytecodeBudgetInterruptFromCode(implicit context: Context)(
   tail runtime::BytecodeBudgetInterruptFromCode(feedbackCell);
 }
 
+extern transitioning macro ForInPrepareForTorque(
+    Map | FixedArray, uintptr, Undefined | FeedbackVector): FixedArray;
+
+transitioning builtin ForInPrepare(implicit _context: Context)(
+    enumerator: Map|FixedArray, slot: uintptr,
+    maybeFeedbackVector: Undefined|FeedbackVector): FixedArray {
+  return ForInPrepareForTorque(enumerator, slot, maybeFeedbackVector);
+}
+
+extern transitioning builtin ForInFilter(implicit context: Context)(
+    JSAny, HeapObject): JSAny;
+extern enum ForInFeedback extends uint31 { kAny, ...}
+extern macro UpdateFeedback(
+    SmiTagged<ForInFeedback>, Undefined | FeedbackVector, uintptr);
+
+@export
+transitioning macro ForInNextSlow(
+    context: Context, slot: uintptr, receiver: JSAnyNotSmi, key: JSAny,
+    cacheType: Object, maybeFeedbackVector: Undefined|FeedbackVector): JSAny {
+  assert(receiver.map != cacheType);  // Handled on the fast path.
+  UpdateFeedback(
+      SmiTag<ForInFeedback>(ForInFeedback::kAny), maybeFeedbackVector, slot);
+  return ForInFilter(key, receiver);
+}
+
+// Note: the untagged {slot} parameter must be in the first couple of args to
+// guarantee it's allocated in a register.
+transitioning builtin ForInNext(
+    context: Context, slot: uintptr, receiver: JSAnyNotSmi,
+    cacheArray: FixedArray, cacheType: Object, cacheIndex: Smi,
+    maybeFeedbackVector: Undefined|FeedbackVector): JSAny {
+  // Load the next key from the enumeration array.
+  const key = UnsafeCast<JSAny>(cacheArray.objects[cacheIndex]);
+
+  if (receiver.map == cacheType) {
+    // The enum cache is in use for {receiver}, the {key} is definitely valid.
+    return key;
+  }
+
+  return ForInNextSlow(
+      context, slot, receiver, key, cacheType, maybeFeedbackVector);
+}
+
 }  // namespace internal

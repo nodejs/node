@@ -48,6 +48,8 @@ class ValueSerializer {
  public:
   ValueSerializer(Isolate* isolate, v8::ValueSerializer::Delegate* delegate);
   ~ValueSerializer();
+  ValueSerializer(const ValueSerializer&) = delete;
+  ValueSerializer& operator=(const ValueSerializer&) = delete;
 
   /*
    * Writes out a header, which includes the format version.
@@ -168,8 +170,6 @@ class ValueSerializer {
 
   // A similar map, for transferred array buffers.
   IdentityMap<uint32_t, ZoneAllocationPolicy> array_buffer_transfer_map_;
-
-  DISALLOW_COPY_AND_ASSIGN(ValueSerializer);
 };
 
 /*
@@ -181,6 +181,8 @@ class ValueDeserializer {
   ValueDeserializer(Isolate* isolate, Vector<const uint8_t> data,
                     v8::ValueDeserializer::Delegate* delegate);
   ~ValueDeserializer();
+  ValueDeserializer(const ValueDeserializer&) = delete;
+  ValueDeserializer& operator=(const ValueDeserializer&) = delete;
 
   /*
    * Runs version detection logic, which may fail if the format is invalid.
@@ -299,8 +301,6 @@ class ValueDeserializer {
   // Always global handles.
   Handle<FixedArray> id_map_;
   MaybeHandle<SimpleNumberDictionary> array_buffer_transfer_map_;
-
-  DISALLOW_COPY_AND_ASSIGN(ValueDeserializer);
 };
 
 }  // namespace internal

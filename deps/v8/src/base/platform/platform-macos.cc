@@ -94,7 +94,7 @@ void OS::AdjustSchedulingParams() {
 }
 
 // static
-void* Stack::GetStackStart() {
+Stack::StackSlot Stack::GetStackStart() {
   return pthread_get_stackaddr_np(pthread_self());
 }
 

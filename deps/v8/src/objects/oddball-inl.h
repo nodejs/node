@@ -18,6 +18,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/oddball-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(Oddball)
 
 void Oddball::set_to_number_raw_as_bits(uint64_t bits) {

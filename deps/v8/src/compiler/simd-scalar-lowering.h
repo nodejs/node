@@ -119,6 +119,8 @@ class SimdScalarLowering {
   MachineType MachineTypeFrom(SimdType simdType);
   void LowerBitMaskOp(Node* node, SimdType rep_type, int msb_index);
   void LowerAllTrueOp(Node* node, SimdType rep_type);
+  void LowerFloatPseudoMinMax(Node* node, const Operator* op, bool is_max,
+                              SimdType type);
 
   MachineGraph* const mcgraph_;
   NodeMarker<State> state_;

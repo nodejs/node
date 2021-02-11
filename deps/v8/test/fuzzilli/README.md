@@ -2,14 +2,13 @@
 
 ## Source code
 
-On low level fuzzilli communicates with v8 through Swift C API library in `Sources/libreprl/libreprl.c`
+On a low level, Fuzzilli communicates with v8 through the REPRL protocol, implemented on the fuzzer side by the libreprl C library in `Sources/libreprl/`. The main way of using the library is through the following three functions:
 
-`reprl_spawn_child` fucntions spawns child process. It does that by creating pipes, forking itself, then setting filedescriptors, and then transforming itself using `execve` into v8 process. Afterwords it checks for receiving 4 byte string and it sends the exact same string back.
+`reprl_create_context()` this creates a new, empty REPRL context to be used by the following APIs.
 
-`fetch_output` fetches the output from the child and returns its size and pointer to data.
+`reprl_initialize_context(ctx, argv, envp)` this initializes the given context and sets the argv and envp vectors to use for the child processes.
 
-`execute script`
-writes `exec`, and size of script, into the command write pipe and sends script through data write pipe
+`reprl_execute(ctx, code)` this executes the given code and returns the exit status. If necessary, a new child process is created for this. This involves creating pipes, forking itself, then setting filedescriptors, and using `execve` to execute the d8 binary. A child process can be reused for multiple executions, thus increasing fuzzing performance as the overhead of fork and execve are removed.
 
 ## Coverage
 

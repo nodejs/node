@@ -859,7 +859,7 @@ RUNTIME_FUNCTION(Runtime_ProfileCreateSnapshotDataBlob) {
   {
     i::EmbeddedData d = i::EmbeddedData::FromBlob();
     PrintF("Embedded blob is %d bytes\n",
-           static_cast<int>(d.code_size() + d.metadata_size()));
+           static_cast<int>(d.code_size() + d.data_size()));
   }
 
   FreeCurrentEmbeddedBlob();

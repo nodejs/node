@@ -345,6 +345,7 @@ namespace interpreter {
   V(ThrowReferenceErrorIfHole, AccumulatorUse::kRead, OperandType::kIdx)       \
   V(ThrowSuperNotCalledIfHole, AccumulatorUse::kRead)                          \
   V(ThrowSuperAlreadyCalledIfNotHole, AccumulatorUse::kRead)                   \
+  V(ThrowIfNotSuperConstructor, AccumulatorUse::kNone, OperandType::kReg)      \
                                                                                \
   /* Generators */                                                             \
   V(SwitchOnGeneratorState, AccumulatorUse::kNone, OperandType::kReg,          \

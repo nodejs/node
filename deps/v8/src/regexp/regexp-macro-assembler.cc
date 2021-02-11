@@ -315,7 +315,7 @@ int NativeRegExpMacroAssembler::Execute(
   int result =
       fn.Call(input.ptr(), start_offset, input_start, input_end, output,
               output_size, stack_base, call_origin, isolate, regexp.ptr());
-  DCHECK(result >= RETRY);
+  DCHECK_GE(result, SMALLEST_REGEXP_RESULT);
 
   if (result == EXCEPTION && !isolate->has_pending_exception()) {
     // We detected a stack overflow (on the backtrack stack) in RegExp code,

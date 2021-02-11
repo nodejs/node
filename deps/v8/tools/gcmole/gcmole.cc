@@ -1067,6 +1067,8 @@ class FunctionAnalyzer {
     if (callee != NULL) {
       if (KnownToCauseGC(ctx_, callee)) {
         out.setGC();
+        scopes_.back().SetGCCauseLocation(
+            clang::FullSourceLoc(call->getExprLoc(), sm_));
       }
 
       // Support for virtual methods that might be GC suspects.
@@ -1081,6 +1083,8 @@ class FunctionAnalyzer {
           if (target != NULL) {
             if (KnownToCauseGC(ctx_, target)) {
               out.setGC();
+              scopes_.back().SetGCCauseLocation(
+                  clang::FullSourceLoc(call->getExprLoc(), sm_));
             }
           } else {
             // According to the documentation, {getDevirtualizedMethod} might
@@ -1089,6 +1093,8 @@ class FunctionAnalyzer {
             // to increase coverage.
             if (SuspectedToCauseGC(ctx_, method)) {
               out.setGC();
+              scopes_.back().SetGCCauseLocation(
+                  clang::FullSourceLoc(call->getExprLoc(), sm_));
             }
           }
         }
@@ -1244,7 +1250,7 @@ class FunctionAnalyzer {
   }
 
   DECL_VISIT_STMT(CompoundStmt) {
-    scopes_.push_back(GCGuard(stmt, false));
+    scopes_.push_back(GCScope());
     Environment out = env;
     clang::CompoundStmt::body_iterator end = stmt->body_end();
     for (clang::CompoundStmt::body_iterator s = stmt->body_begin();
@@ -1422,7 +1428,8 @@ class FunctionAnalyzer {
         out = out.Define(var->getNameAsString());
       }
       if (IsGCGuard(var->getType())) {
-        scopes_.back().has_guard = true;
+        scopes_.back().guard_location =
+            clang::FullSourceLoc(decl->getLocation(), sm_);
       }
 
       return out;
@@ -1477,7 +1484,7 @@ class FunctionAnalyzer {
 
   bool HasActiveGuard() {
     for (auto s : scopes_) {
-      if (s.has_guard) return true;
+      if (s.IsBeforeGCCause()) return true;
     }
     return false;
   }
@@ -1503,14 +1510,26 @@ class FunctionAnalyzer {
 
   Block* block_;
 
-  struct GCGuard {
-    clang::CompoundStmt* stmt = NULL;
-    bool has_guard = false;
+  struct GCScope {
+    clang::FullSourceLoc guard_location;
+    clang::FullSourceLoc gccause_location;
 
-    GCGuard(clang::CompoundStmt* stmt_, bool has_guard_)
-        : stmt(stmt_), has_guard(has_guard_) {}
+    // We're only interested in guards that are declared before any further GC
+    // causing calls (see TestGuardedDeadVarAnalysisMidFunction for example).
+    bool IsBeforeGCCause() {
+      if (!guard_location.isValid()) return false;
+      if (!gccause_location.isValid()) return true;
+      return guard_location.isBeforeInTranslationUnitThan(gccause_location);
+    }
+
+    // After we set the first GC cause in the scope, we don't need the later
+    // ones.
+    void SetGCCauseLocation(clang::FullSourceLoc gccause_location_) {
+      if (gccause_location.isValid()) return;
+      gccause_location = gccause_location_;
+    }
   };
-  std::vector<GCGuard> scopes_;
+  std::vector<GCScope> scopes_;
 };
 
 class ProblemsFinder : public clang::ASTConsumer,

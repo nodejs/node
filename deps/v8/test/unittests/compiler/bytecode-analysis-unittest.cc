@@ -24,6 +24,8 @@ class BytecodeAnalysisTest : public TestWithIsolateAndZone {
  public:
   BytecodeAnalysisTest() = default;
   ~BytecodeAnalysisTest() override = default;
+  BytecodeAnalysisTest(const BytecodeAnalysisTest&) = delete;
+  BytecodeAnalysisTest& operator=(const BytecodeAnalysisTest&) = delete;
 
   static void SetUpTestCase() {
     CHECK_NULL(save_flags_);
@@ -83,8 +85,6 @@ class BytecodeAnalysisTest : public TestWithIsolateAndZone {
 
  private:
   static SaveFlags* save_flags_;
-
-  DISALLOW_COPY_AND_ASSIGN(BytecodeAnalysisTest);
 };
 
 SaveFlags* BytecodeAnalysisTest::save_flags_ = nullptr;

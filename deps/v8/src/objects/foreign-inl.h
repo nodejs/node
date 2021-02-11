@@ -18,6 +18,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/foreign-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(Foreign)
 
 // static
@@ -27,15 +29,17 @@ bool Foreign::IsNormalized(Object value) {
 }
 
 DEF_GETTER(Foreign, foreign_address, Address) {
-  ExternalPointer_t encoded_value =
-      ReadField<ExternalPointer_t>(kForeignAddressOffset);
-  Address value = DecodeExternalPointer(isolate, encoded_value);
-  return value;
+  return ReadExternalPointerField(kForeignAddressOffset, isolate,
+                                  kForeignForeignAddressTag);
+}
+
+void Foreign::AllocateExternalPointerEntries(Isolate* isolate) {
+  InitExternalPointerField(kForeignAddressOffset, isolate);
 }
 
 void Foreign::set_foreign_address(Isolate* isolate, Address value) {
-  ExternalPointer_t encoded_value = EncodeExternalPointer(isolate, value);
-  WriteField<ExternalPointer_t>(kForeignAddressOffset, encoded_value);
+  WriteExternalPointerField(kForeignAddressOffset, isolate, value,
+                            kForeignForeignAddressTag);
 }
 
 }  // namespace internal

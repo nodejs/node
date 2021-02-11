@@ -12,8 +12,11 @@
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
 #include "src/heap/base/stack.h"
+#include "src/heap/cppgc-js/cpp-snapshot.h"
 #include "src/heap/cppgc-js/unified-heap-marking-state.h"
+#include "src/heap/cppgc-js/unified-heap-marking-verifier.h"
 #include "src/heap/cppgc-js/unified-heap-marking-visitor.h"
+#include "src/heap/cppgc/concurrent-marker.h"
 #include "src/heap/cppgc/gc-info-table.h"
 #include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/heap-object-header.h"
@@ -27,6 +30,7 @@
 #include "src/heap/marking-worklist.h"
 #include "src/heap/sweeper.h"
 #include "src/init/v8.h"
+#include "src/profiler/heap-profiler.h"
 
 namespace v8 {
 namespace internal {
@@ -63,6 +67,33 @@ class CppgcPlatformAdapter final : public cppgc::Platform {
   v8::Isolate* isolate_;
 };
 
+class UnifiedHeapConcurrentMarker
+    : public cppgc::internal::ConcurrentMarkerBase {
+ public:
+  UnifiedHeapConcurrentMarker(
+      cppgc::internal::HeapBase& heap,
+      cppgc::internal::MarkingWorklists& marking_worklists,
+      cppgc::internal::IncrementalMarkingSchedule& incremental_marking_schedule,
+      cppgc::Platform* platform,
+      UnifiedHeapMarkingState& unified_heap_marking_state)
+      : cppgc::internal::ConcurrentMarkerBase(
+            heap, marking_worklists, incremental_marking_schedule, platform),
+        unified_heap_marking_state_(unified_heap_marking_state) {}
+
+  std::unique_ptr<cppgc::Visitor> CreateConcurrentMarkingVisitor(
+      ConcurrentMarkingState&) const final;
+
+ private:
+  UnifiedHeapMarkingState& unified_heap_marking_state_;
+};
+
+std::unique_ptr<cppgc::Visitor>
+UnifiedHeapConcurrentMarker::CreateConcurrentMarkingVisitor(
+    ConcurrentMarkingState& marking_state) const {
+  return std::make_unique<ConcurrentUnifiedHeapMarkingVisitor>(
+      heap(), marking_state, unified_heap_marking_state_);
+}
+
 class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
  public:
   UnifiedHeapMarker(Key, Heap& v8_heap, cppgc::internal::HeapBase& cpp_heap,
@@ -82,8 +113,8 @@ class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
   }
 
  private:
-  UnifiedHeapMarkingState unified_heap_mutator_marking_state_;
-  UnifiedHeapMarkingVisitor marking_visitor_;
+  UnifiedHeapMarkingState unified_heap_marking_state_;
+  MutatorUnifiedHeapMarkingVisitor marking_visitor_;
   cppgc::internal::ConservativeMarkingVisitor conservative_marking_visitor_;
 };
 
@@ -92,11 +123,15 @@ UnifiedHeapMarker::UnifiedHeapMarker(Key key, Heap& v8_heap,
                                      cppgc::Platform* platform,
                                      MarkingConfig config)
     : cppgc::internal::MarkerBase(key, heap, platform, config),
-      unified_heap_mutator_marking_state_(v8_heap),
+      unified_heap_marking_state_(v8_heap),
       marking_visitor_(heap, mutator_marking_state_,
-                       unified_heap_mutator_marking_state_),
+                       unified_heap_marking_state_),
       conservative_marking_visitor_(heap, mutator_marking_state_,
-                                    marking_visitor_) {}
+                                    marking_visitor_) {
+  concurrent_marker_ = std::make_unique<UnifiedHeapConcurrentMarker>(
+      heap_, marking_worklists_, schedule_, platform_,
+      unified_heap_marking_state_);
+}
 
 void UnifiedHeapMarker::AddObject(void* object) {
   mutator_marking_state_.MarkAndPush(
@@ -105,13 +140,22 @@ void UnifiedHeapMarker::AddObject(void* object) {
 
 }  // namespace
 
-CppHeap::CppHeap(v8::Isolate* isolate, size_t custom_spaces)
+CppHeap::CppHeap(
+    v8::Isolate* isolate,
+    const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>& custom_spaces)
     : cppgc::internal::HeapBase(std::make_shared<CppgcPlatformAdapter>(isolate),
                                 custom_spaces,
                                 cppgc::internal::HeapBase::StackSupport::
                                     kSupportsConservativeStackScan),
       isolate_(*reinterpret_cast<Isolate*>(isolate)) {
   CHECK(!FLAG_incremental_marking_wrappers);
+  isolate_.heap_profiler()->AddBuildEmbedderGraphCallback(&CppGraphBuilder::Run,
+                                                          this);
+}
+
+CppHeap::~CppHeap() {
+  isolate_.heap_profiler()->RemoveBuildEmbedderGraphCallback(
+      &CppGraphBuilder::Run, this);
 }
 
 void CppHeap::RegisterV8References(
@@ -126,10 +170,19 @@ void CppHeap::RegisterV8References(
 }
 
 void CppHeap::TracePrologue(TraceFlags flags) {
+  // Finish sweeping in case it is still running.
+  sweeper_.FinishIfRunning();
+
   const UnifiedHeapMarker::MarkingConfig marking_config{
       UnifiedHeapMarker::MarkingConfig::CollectionType::kMajor,
       cppgc::Heap::StackState::kNoHeapPointers,
-      UnifiedHeapMarker::MarkingConfig::MarkingType::kIncremental};
+      UnifiedHeapMarker::MarkingConfig::MarkingType::kIncrementalAndConcurrent};
+  if ((flags == TraceFlags::kReduceMemory) || (flags == TraceFlags::kForced)) {
+    // Only enable compaction when in a memory reduction garbage collection as
+    // it may significantly increase the final garbage collection pause.
+    compactor_.InitializeIfShouldCompact(marking_config.marking_type,
+                                         marking_config.stack_state);
+  }
   marker_ =
       cppgc::internal::MarkerFactory::CreateAndStartMarking<UnifiedHeapMarker>(
           *isolate_.heap(), AsBase(), platform_.get(), marking_config);
@@ -147,27 +200,39 @@ bool CppHeap::AdvanceTracing(double deadline_in_ms) {
 bool CppHeap::IsTracingDone() { return marking_done_; }
 
 void CppHeap::EnterFinalPause(EmbedderStackState stack_state) {
-  marker_->EnterAtomicPause(cppgc::Heap::StackState::kNoHeapPointers);
+  marker_->EnterAtomicPause(stack_state);
+  if (compactor_.CancelIfShouldNotCompact(
+          UnifiedHeapMarker::MarkingConfig::MarkingType::kAtomic,
+          stack_state)) {
+    marker_->NotifyCompactionCancelled();
+  }
 }
 
 void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
   CHECK(marking_done_);
-  marker_->LeaveAtomicPause();
   {
-    // Pre finalizers are forbidden from allocating objects
+    // Weakness callbacks and pre-finalizers are forbidden from allocating
+    // objects.
     cppgc::internal::ObjectAllocator::NoAllocationScope no_allocation_scope_(
         object_allocator_);
-    marker()->ProcessWeakness();
+    marker_->LeaveAtomicPause();
     prefinalizer_handler()->InvokePreFinalizers();
   }
   marker_.reset();
   // TODO(chromium:1056170): replace build flag with dedicated flag.
 #if DEBUG
-  VerifyMarking(cppgc::Heap::StackState::kNoHeapPointers);
+  UnifiedHeapMarkingVerifier verifier(*this);
+  verifier.Run(cppgc::Heap::StackState::kNoHeapPointers);
 #endif
+  cppgc::internal::Sweeper::SweepingConfig::CompactableSpaceHandling
+      compactable_space_handling = compactor_.CompactSpacesIfEnabled();
   {
     NoGCScope no_gc(*this);
-    sweeper().Start(cppgc::internal::Sweeper::Config::kAtomic);
+    const cppgc::internal::Sweeper::SweepingConfig sweeping_config{
+        cppgc::internal::Sweeper::SweepingConfig::SweepingType::
+            kIncrementalAndConcurrent,
+        compactable_space_handling};
+    sweeper().Start(sweeping_config);
   }
 }
 

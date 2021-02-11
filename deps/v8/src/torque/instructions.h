@@ -24,31 +24,39 @@ class Macro;
 class NamespaceConstant;
 class RuntimeFunction;
 
-#define TORQUE_INSTRUCTION_LIST(V)    \
-  V(PeekInstruction)                  \
-  V(PokeInstruction)                  \
-  V(DeleteRangeInstruction)           \
-  V(PushUninitializedInstruction)     \
-  V(PushBuiltinPointerInstruction)    \
-  V(LoadReferenceInstruction)         \
-  V(StoreReferenceInstruction)        \
-  V(LoadBitFieldInstruction)          \
-  V(StoreBitFieldInstruction)         \
-  V(CallCsaMacroInstruction)          \
-  V(CallIntrinsicInstruction)         \
-  V(NamespaceConstantInstruction)     \
-  V(CallCsaMacroAndBranchInstruction) \
-  V(CallBuiltinInstruction)           \
-  V(CallRuntimeInstruction)           \
-  V(CallBuiltinPointerInstruction)    \
-  V(BranchInstruction)                \
-  V(ConstexprBranchInstruction)       \
-  V(GotoInstruction)                  \
-  V(GotoExternalInstruction)          \
-  V(ReturnInstruction)                \
-  V(PrintConstantStringInstruction)   \
-  V(AbortInstruction)                 \
+// Instructions where all backends generate code the same way.
+#define TORQUE_BACKEND_AGNOSTIC_INSTRUCTION_LIST(V) \
+  V(PeekInstruction)                                \
+  V(PokeInstruction)                                \
+  V(DeleteRangeInstruction)
+
+// Instructions where different backends may generate different code.
+#define TORQUE_BACKEND_DEPENDENT_INSTRUCTION_LIST(V) \
+  V(PushUninitializedInstruction)                    \
+  V(PushBuiltinPointerInstruction)                   \
+  V(LoadReferenceInstruction)                        \
+  V(StoreReferenceInstruction)                       \
+  V(LoadBitFieldInstruction)                         \
+  V(StoreBitFieldInstruction)                        \
+  V(CallCsaMacroInstruction)                         \
+  V(CallIntrinsicInstruction)                        \
+  V(NamespaceConstantInstruction)                    \
+  V(CallCsaMacroAndBranchInstruction)                \
+  V(CallBuiltinInstruction)                          \
+  V(CallRuntimeInstruction)                          \
+  V(CallBuiltinPointerInstruction)                   \
+  V(BranchInstruction)                               \
+  V(ConstexprBranchInstruction)                      \
+  V(GotoInstruction)                                 \
+  V(GotoExternalInstruction)                         \
+  V(ReturnInstruction)                               \
+  V(PrintConstantStringInstruction)                  \
+  V(AbortInstruction)                                \
   V(UnsafeCastInstruction)
+
+#define TORQUE_INSTRUCTION_LIST(V)            \
+  TORQUE_BACKEND_AGNOSTIC_INSTRUCTION_LIST(V) \
+  TORQUE_BACKEND_DEPENDENT_INSTRUCTION_LIST(V)
 
 #define TORQUE_INSTRUCTION_BOILERPLATE()                                  \
   static const InstructionKind kKind;                                     \

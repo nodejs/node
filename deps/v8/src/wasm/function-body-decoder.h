@@ -163,7 +163,7 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
 
   WasmOpcode current() {
     return static_cast<WasmOpcode>(
-        read_u8<Decoder::kNoValidate>(pc_, "expected bytecode"));
+        read_u8<Decoder::kNoValidation>(pc_, "expected bytecode"));
   }
 
   void next() {
@@ -176,7 +176,7 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
   bool has_next() { return pc_ < end_; }
 
   WasmOpcode prefixed_opcode() {
-    return read_prefixed_opcode<Decoder::kNoValidate>(pc_);
+    return read_prefixed_opcode<Decoder::kNoValidation>(pc_);
   }
 };
 

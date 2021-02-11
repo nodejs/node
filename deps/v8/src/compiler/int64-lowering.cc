@@ -680,9 +680,9 @@ void Int64Lowering::LowerNode(Node* node) {
                         ? GetReplacementLow(node->InputAt(1))
                         : node->InputAt(1);
       Int32Matcher m(shift);
-      if (m.HasValue()) {
+      if (m.HasResolvedValue()) {
         // Precondition: 0 <= shift < 64.
-        int32_t shift_value = m.Value() & 0x3F;
+        int32_t shift_value = m.ResolvedValue() & 0x3F;
         if (shift_value == 0) {
           ReplaceNode(node, GetReplacementLow(input),
                       GetReplacementHigh(input));

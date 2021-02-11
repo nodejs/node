@@ -20,13 +20,13 @@ bool NativeContextInferrer::Infer(Isolate* isolate, Map map, HeapObject object,
                                   Address* native_context) {
   switch (map.visitor_id()) {
     case kVisitContext:
-      *native_context = Context::cast(object).native_context().ptr();
-      return true;
+      return InferForContext(isolate, Context::cast(object), native_context);
     case kVisitNativeContext:
       *native_context = object.ptr();
       return true;
     case kVisitJSFunction:
-      return InferForJSFunction(JSFunction::cast(object), native_context);
+      return InferForJSFunction(isolate, JSFunction::cast(object),
+                                native_context);
     case kVisitJSApiObject:
     case kVisitJSArrayBuffer:
     case kVisitJSObject:

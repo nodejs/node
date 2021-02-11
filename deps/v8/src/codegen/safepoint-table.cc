@@ -120,7 +120,7 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
   RemoveDuplicates();
 
   // Make sure the safepoint table is properly aligned. Pad with nops.
-  assembler->Align(kIntSize);
+  assembler->Align(Code::kMetadataAlignment);
   assembler->RecordComment(";;; Safepoint table.");
   offset_ = assembler->pc_offset();
 

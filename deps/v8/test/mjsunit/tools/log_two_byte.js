@@ -20,9 +20,6 @@ function testFunctionWithFunnyName(o) {
   for (let i = 0; i < 1000; i++) {
     result += o[twoByteName](object);
   }
-  console.log(result);
-  console.log(twoByteName);
-
 })();
 
 var __v_3 = {};

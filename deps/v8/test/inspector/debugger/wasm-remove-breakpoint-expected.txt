@@ -10,7 +10,7 @@ Setting breakpoint on line 3 of wasm function
     scriptId : <scriptId>
 }
 paused No 1
-Script wasm://wasm/7d022e0e byte offset 39: Wasm opcode 0x6b
+Script wasm://wasm/7d022e0e byte offset 39: Wasm opcode 0x6b (kExprI32Sub)
 Remove breakpoint
 Debugger.resume
 exports.main returned!

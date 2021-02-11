@@ -2,7 +2,5 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-namespace-exports
-
 export let foo = 42;
 export * as foo from "./doesnt-even-matter.mjs";

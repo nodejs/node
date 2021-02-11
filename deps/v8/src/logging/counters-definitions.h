@@ -16,9 +16,9 @@ namespace internal {
   HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)              \
   HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)         \
   HR(debug_feature_usage, V8.DebugFeatureUsage, 1, 7, 7)                       \
-  HR(incremental_marking_reason, V8.GCIncrementalMarkingReason, 0, 22, 23)     \
+  HR(incremental_marking_reason, V8.GCIncrementalMarkingReason, 0, 25, 26)     \
   HR(incremental_marking_sum, V8.GCIncrementalMarkingSum, 0, 10000, 101)       \
-  HR(mark_compact_reason, V8.GCMarkCompactReason, 0, 22, 23)                   \
+  HR(mark_compact_reason, V8.GCMarkCompactReason, 0, 25, 26)                   \
   HR(gc_finalize_clear, V8.GCFinalizeMC.Clear, 0, 10000, 101)                  \
   HR(gc_finalize_epilogue, V8.GCFinalizeMC.Epilogue, 0, 10000, 101)            \
   HR(gc_finalize_evacuate, V8.GCFinalizeMC.Evacuate, 0, 10000, 101)            \
@@ -33,7 +33,7 @@ namespace internal {
   /* Range and bucket matches BlinkGC.MainThreadMarkingThroughput. */          \
   HR(gc_main_thread_marking_throughput, V8.GCMainThreadMarkingThroughput, 0,   \
      100000, 50)                                                               \
-  HR(scavenge_reason, V8.GCScavengeReason, 0, 22, 23)                          \
+  HR(scavenge_reason, V8.GCScavengeReason, 0, 25, 26)                          \
   HR(young_generation_handling, V8.GCYoungGenerationHandling, 0, 2, 3)         \
   /* Asm/Wasm. */                                                              \
   HR(wasm_functions_per_asm_module, V8.WasmFunctionsPerModule.asm, 1, 1000000, \
@@ -138,9 +138,10 @@ namespace internal {
   HT(gc_scavenger, V8.GCScavenger, 10000, MILLISECOND)                         \
   HT(gc_scavenger_background, V8.GCScavengerBackground, 10000, MILLISECOND)    \
   HT(gc_scavenger_foreground, V8.GCScavengerForeground, 10000, MILLISECOND)    \
-  HT(time_to_safepoint, V8.TimeToSafepoint, 10000, MILLISECOND)                \
   HT(measure_memory_delay_ms, V8.MeasureMemoryDelayMilliseconds, 100000,       \
      MILLISECOND)                                                              \
+  HT(stop_the_world, V8.StopTheWorld, 10000, MICROSECOND)                      \
+  HT(time_to_collection, V8.TimeToCollection, 10000, MICROSECOND)              \
   /* TurboFan timers. */                                                       \
   HT(turbofan_optimize_prepare, V8.TurboFanOptimizePrepare, 1000000,           \
      MICROSECOND)                                                              \
@@ -183,8 +184,6 @@ namespace internal {
      1000000, MICROSECOND)                                                     \
   HT(wasm_compile_wasm_function_time, V8.WasmCompileFunctionMicroSeconds.wasm, \
      1000000, MICROSECOND)                                                     \
-  HT(liftoff_compile_time, V8.LiftoffCompileMicroSeconds, 10000000,            \
-     MICROSECOND)                                                              \
   HT(wasm_instantiate_wasm_module_time,                                        \
      V8.WasmInstantiateModuleMicroSeconds.wasm, 10000000, MICROSECOND)         \
   HT(wasm_instantiate_asm_module_time,                                         \

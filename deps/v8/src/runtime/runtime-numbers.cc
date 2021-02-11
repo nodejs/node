@@ -13,15 +13,6 @@
 namespace v8 {
 namespace internal {
 
-RUNTIME_FUNCTION(Runtime_IsValidSmi) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-
-  CONVERT_NUMBER_CHECKED(int32_t, number, Int32, args[0]);
-  return isolate->heap()->ToBoolean(Smi::IsValid(number));
-}
-
-
 RUNTIME_FUNCTION(Runtime_StringToNumber) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(1, args.length());

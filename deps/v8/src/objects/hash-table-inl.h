@@ -110,7 +110,7 @@ int HashTableBase::ComputeCapacity(int at_least_space_for) {
   // Must be kept in sync with CodeStubAssembler::HashTableComputeCapacity().
   int raw_cap = at_least_space_for + (at_least_space_for >> 1);
   int capacity = base::bits::RoundUpToPowerOfTwo32(raw_cap);
-  return Max(capacity, kMinCapacity);
+  return std::max({capacity, kMinCapacity});
 }
 
 void HashTableBase::SetNumberOfElements(int nof) {
@@ -142,8 +142,7 @@ InternalIndex HashTable<Derived, Shape>::FindEntry(LocalIsolate* isolate,
 
 // Find entry for key otherwise return kNotFound.
 template <typename Derived, typename Shape>
-template <typename LocalIsolate>
-InternalIndex HashTable<Derived, Shape>::FindEntry(const LocalIsolate* isolate,
+InternalIndex HashTable<Derived, Shape>::FindEntry(IsolateRoot isolate,
                                                    ReadOnlyRoots roots, Key key,
                                                    int32_t hash) {
   uint32_t capacity = Capacity();
@@ -180,8 +179,8 @@ bool HashTable<Derived, Shape>::ToKey(ReadOnlyRoots roots, InternalIndex entry,
 }
 
 template <typename Derived, typename Shape>
-bool HashTable<Derived, Shape>::ToKey(const Isolate* isolate,
-                                      InternalIndex entry, Object* out_k) {
+bool HashTable<Derived, Shape>::ToKey(IsolateRoot isolate, InternalIndex entry,
+                                      Object* out_k) {
   Object k = KeyAt(isolate, entry);
   if (!IsKey(GetReadOnlyRoots(isolate), k)) return false;
   *out_k = Shape::Unwrap(k);
@@ -190,16 +189,14 @@ bool HashTable<Derived, Shape>::ToKey(const Isolate* isolate,
 
 template <typename Derived, typename Shape>
 Object HashTable<Derived, Shape>::KeyAt(InternalIndex entry) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return KeyAt(isolate, entry);
 }
 
 template <typename Derived, typename Shape>
-template <typename LocalIsolate>
-Object HashTable<Derived, Shape>::KeyAt(const LocalIsolate* isolate,
+Object HashTable<Derived, Shape>::KeyAt(IsolateRoot isolate,
                                         InternalIndex entry) {
-  return get(GetIsolateForPtrCompr(isolate),
-             EntryToIndex(entry) + kEntryKeyIndex);
+  return get(isolate, EntryToIndex(entry) + kEntryKeyIndex);
 }
 
 template <typename Derived, typename Shape>

@@ -16,51 +16,17 @@
 namespace cppgc {
 namespace internal {
 
-#if defined(THREAD_SANITIZER)
-
 namespace {
-
-class GCed : public GarbageCollected<GCed> {
- public:
-  void Trace(cppgc::Visitor* visitor) const { visitor->Trace(child_); }
-
-  Member<GCed> child_;
-};
-
-class GCedWithCallback : public GarbageCollected<GCedWithCallback> {
- public:
-  template <typename Callback>
-  explicit GCedWithCallback(Callback callback) {
-    callback(this);
-  }
-
-  void Trace(cppgc::Visitor* visitor) const { visitor->Trace(child_); }
-
-  Member<GCedWithCallback> child_;
-};
-
-class Mixin : public GarbageCollectedMixin {
- public:
-  void Trace(cppgc::Visitor* visitor) const { visitor->Trace(child_); }
-
-  Member<Mixin> child_;
-};
-
-class GCedWithMixin : public GarbageCollected<GCedWithMixin>, public Mixin {
- public:
-  void Trace(cppgc::Visitor* visitor) const { Mixin::Trace(visitor); }
-};
-
-template <typename T>
-class GCedHolder : public GarbageCollected<GCedHolder<T>> {
- public:
-  void Trace(cppgc::Visitor* visitor) const { visitor->Trace(object_); }
-
-  Member<T> object_;
-};
 
 class ConcurrentMarkingTest : public testing::TestWithHeap {
  public:
+#if defined(THREAD_SANITIZER)
+  // Use more iteration on tsan builds to expose data races.
+  static constexpr int kNumStep = 1000;
+#else
+  static constexpr int kNumStep = 10;
+#endif  // defined(THREAD_SANITIZER)
+
   using Config = Heap::Config;
   static constexpr Config ConcurrentPreciseConfig = {
       Config::CollectionType::kMajor, Config::StackState::kNoHeapPointers,
@@ -95,16 +61,52 @@ class ConcurrentMarkingTest : public testing::TestWithHeap {
 constexpr ConcurrentMarkingTest::Config
     ConcurrentMarkingTest::ConcurrentPreciseConfig;
 
+template <typename T>
+struct GCedHolder : public GarbageCollected<GCedHolder<T>> {
+  void Trace(cppgc::Visitor* visitor) const { visitor->Trace(object); }
+  Member<T> object;
+};
+
+class GCed : public GarbageCollected<GCed> {
+ public:
+  void Trace(cppgc::Visitor* visitor) const { visitor->Trace(child_); }
+
+  Member<GCed> child_;
+};
+
+class GCedWithCallback : public GarbageCollected<GCedWithCallback> {
+ public:
+  template <typename Callback>
+  explicit GCedWithCallback(Callback callback) {
+    callback(this);
+  }
+
+  void Trace(cppgc::Visitor* visitor) const { visitor->Trace(child_); }
+
+  Member<GCedWithCallback> child_;
+};
+
+class Mixin : public GarbageCollectedMixin {
+ public:
+  void Trace(cppgc::Visitor* visitor) const { visitor->Trace(child_); }
+
+  Member<Mixin> child_;
+};
+
+class GCedWithMixin : public GarbageCollected<GCedWithMixin>, public Mixin {
+ public:
+  void Trace(cppgc::Visitor* visitor) const { Mixin::Trace(visitor); }
+};
+
 }  // namespace
 
 // The following tests below check for data races during concurrent marking.
 
 TEST_F(ConcurrentMarkingTest, MarkingObjects) {
-  static constexpr int kNumStep = 1000;
   StartConcurrentGC();
   Persistent<GCedHolder<GCed>> root =
       MakeGarbageCollected<GCedHolder<GCed>>(GetAllocationHandle());
-  Member<GCed>* last_object = &root->object_;
+  Member<GCed>* last_object = &root->object;
   for (int i = 0; i < kNumStep; ++i) {
     for (int j = 0; j < kNumStep; ++j) {
       *last_object = MakeGarbageCollected<GCed>(GetAllocationHandle());
@@ -117,11 +119,10 @@ TEST_F(ConcurrentMarkingTest, MarkingObjects) {
 }
 
 TEST_F(ConcurrentMarkingTest, MarkingInConstructionObjects) {
-  static constexpr int kNumStep = 1000;
   StartConcurrentGC();
   Persistent<GCedHolder<GCedWithCallback>> root =
       MakeGarbageCollected<GCedHolder<GCedWithCallback>>(GetAllocationHandle());
-  Member<GCedWithCallback>* last_object = &root->object_;
+  Member<GCedWithCallback>* last_object = &root->object;
   for (int i = 0; i < kNumStep; ++i) {
     for (int j = 0; j < kNumStep; ++j) {
       MakeGarbageCollected<GCedWithCallback>(
@@ -137,11 +138,10 @@ TEST_F(ConcurrentMarkingTest, MarkingInConstructionObjects) {
 }
 
 TEST_F(ConcurrentMarkingTest, MarkingMixinObjects) {
-  static constexpr int kNumStep = 1000;
   StartConcurrentGC();
   Persistent<GCedHolder<Mixin>> root =
       MakeGarbageCollected<GCedHolder<Mixin>>(GetAllocationHandle());
-  Member<Mixin>* last_object = &root->object_;
+  Member<Mixin>* last_object = &root->object;
   for (int i = 0; i < kNumStep; ++i) {
     for (int j = 0; j < kNumStep; ++j) {
       *last_object = MakeGarbageCollected<GCedWithMixin>(GetAllocationHandle());
@@ -153,7 +153,58 @@ TEST_F(ConcurrentMarkingTest, MarkingMixinObjects) {
   FinishGC();
 }
 
-#endif  // defined(THREAD_SANITIZER)
+namespace {
+
+struct ConcurrentlyTraceable : public GarbageCollected<ConcurrentlyTraceable> {
+  static size_t trace_counter;
+  void Trace(Visitor*) const { ++trace_counter; }
+};
+size_t ConcurrentlyTraceable::trace_counter = 0;
+
+struct NotConcurrentlyTraceable
+    : public GarbageCollected<NotConcurrentlyTraceable> {
+  static size_t trace_counter;
+  void Trace(Visitor* visitor) const {
+    if (visitor->DeferTraceToMutatorThreadIfConcurrent(
+            this,
+            [](Visitor*, const void*) {
+              ++NotConcurrentlyTraceable::trace_counter;
+            },
+            sizeof(NotConcurrentlyTraceable)))
+      return;
+    ++trace_counter;
+  }
+};
+size_t NotConcurrentlyTraceable::trace_counter = 0;
+
+}  // namespace
+
+TEST_F(ConcurrentMarkingTest, ConcurrentlyTraceableObjectIsTracedConcurrently) {
+  Persistent<GCedHolder<ConcurrentlyTraceable>> root =
+      MakeGarbageCollected<GCedHolder<ConcurrentlyTraceable>>(
+          GetAllocationHandle());
+  root->object =
+      MakeGarbageCollected<ConcurrentlyTraceable>(GetAllocationHandle());
+  EXPECT_EQ(0u, ConcurrentlyTraceable::trace_counter);
+  StartConcurrentGC();
+  GetMarkerRef()->WaitForConcurrentMarkingForTesting();
+  EXPECT_NE(0u, ConcurrentlyTraceable::trace_counter);
+  FinishGC();
+}
+
+TEST_F(ConcurrentMarkingTest,
+       NotConcurrentlyTraceableObjectIsNotTracedConcurrently) {
+  Persistent<GCedHolder<NotConcurrentlyTraceable>> root =
+      MakeGarbageCollected<GCedHolder<NotConcurrentlyTraceable>>(
+          GetAllocationHandle());
+  root->object =
+      MakeGarbageCollected<NotConcurrentlyTraceable>(GetAllocationHandle());
+  EXPECT_EQ(0u, NotConcurrentlyTraceable::trace_counter);
+  StartConcurrentGC();
+  GetMarkerRef()->WaitForConcurrentMarkingForTesting();
+  EXPECT_EQ(0u, NotConcurrentlyTraceable::trace_counter);
+  FinishGC();
+}
 
 }  // namespace internal
 }  // namespace cppgc

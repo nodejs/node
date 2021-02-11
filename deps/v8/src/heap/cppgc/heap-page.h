@@ -48,11 +48,9 @@ class V8_EXPORT_PRIVATE BasePage {
   ConstAddress PayloadEnd() const;
 
   // |address| must refer to real object.
-  template <
-      HeapObjectHeader::AccessMode = HeapObjectHeader::AccessMode::kNonAtomic>
+  template <AccessMode = AccessMode::kNonAtomic>
   HeapObjectHeader& ObjectHeaderFromInnerAddress(void* address) const;
-  template <
-      HeapObjectHeader::AccessMode = HeapObjectHeader::AccessMode::kNonAtomic>
+  template <AccessMode = AccessMode::kNonAtomic>
   const HeapObjectHeader& ObjectHeaderFromInnerAddress(
       const void* address) const;
 
@@ -63,8 +61,24 @@ class V8_EXPORT_PRIVATE BasePage {
   const HeapObjectHeader* TryObjectHeaderFromInnerAddress(
       const void* address) const;
 
+  // SynchronizedLoad and SynchronizedStore are used to sync pages after they
+  // are allocated. std::atomic_thread_fence is sufficient in practice but is
+  // not recognized by tsan. Atomic load and store of the |type_| field are
+  // added for tsan builds.
+  void SynchronizedLoad() const {
+#if defined(THREAD_SANITIZER)
+    v8::base::AsAtomicPtr(&type_)->load(std::memory_order_acquire);
+#endif
+  }
+  void SynchronizedStore() {
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+#if defined(THREAD_SANITIZER)
+    v8::base::AsAtomicPtr(&type_)->store(type_, std::memory_order_release);
+#endif
+  }
+
  protected:
-  enum class PageType { kNormal, kLarge };
+  enum class PageType : uint8_t { kNormal, kLarge };
   BasePage(HeapBase*, BaseSpace*, PageType);
 
  private:
@@ -221,8 +235,7 @@ const BasePage* BasePage::FromPayload(const void* payload) {
       kGuardPageSize);
 }
 
-template <HeapObjectHeader::AccessMode mode =
-              HeapObjectHeader::AccessMode::kNonAtomic>
+template <AccessMode mode = AccessMode::kNonAtomic>
 const HeapObjectHeader* ObjectHeaderFromInnerAddressImpl(const BasePage* page,
                                                          const void* address) {
   if (page->is_large()) {
@@ -232,21 +245,27 @@ const HeapObjectHeader* ObjectHeaderFromInnerAddressImpl(const BasePage* page,
       NormalPage::From(page)->object_start_bitmap();
   const HeapObjectHeader* header =
       bitmap.FindHeader<mode>(static_cast<ConstAddress>(address));
-  DCHECK_LT(address,
-            reinterpret_cast<ConstAddress>(header) +
-                header->GetSize<HeapObjectHeader::AccessMode::kAtomic>());
+  DCHECK_LT(address, reinterpret_cast<ConstAddress>(header) +
+                         header->GetSize<AccessMode::kAtomic>());
   return header;
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 HeapObjectHeader& BasePage::ObjectHeaderFromInnerAddress(void* address) const {
   return const_cast<HeapObjectHeader&>(
       ObjectHeaderFromInnerAddress<mode>(const_cast<const void*>(address)));
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 const HeapObjectHeader& BasePage::ObjectHeaderFromInnerAddress(
     const void* address) const {
+  // This method might be called for |address| found via a Trace method of
+  // another object. If |address| is on a newly allocated page , there will
+  // be no sync between the page allocation and a concurrent marking thread,
+  // resulting in a race with page initialization (specifically with writing
+  // the page |type_| field). This can occur when tracing a Member holding a
+  // reference to a mixin type
+  SynchronizedLoad();
   const HeapObjectHeader* header =
       ObjectHeaderFromInnerAddressImpl<mode>(this, address);
   DCHECK_NE(kFreeListGCInfoIndex, header->GetGCInfoIndex());

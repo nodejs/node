@@ -13,14 +13,14 @@ builder.addType(makeSig([kWasmI32, kWasmI32, kWasmI32], [kWasmI32]));
 builder.addFunction(undefined, 0 /* sig */).addBodyWithEnd([
   // signature: i_iii
   // body:
-  kExprI32Const, 0xba, 0x01,       // i32.const
-  kSimdPrefix, kExprI16x8Splat,    // i16x8.splat
-  kExprMemorySize, 0x00,           // memory.size
-  kSimdPrefix, kExprI16x8ShrS,     // i16x8.shr_s
-  kSimdPrefix, kExprV8x16AnyTrue,  // v8x16.any_true
-  kExprMemorySize, 0x00,           // memory.size
-  kExprI32RemS,                    // i32.rem_s
-  kExprEnd,                        // end @15
+  kExprI32Const, 0xba, 0x01,          // i32.const
+  kSimdPrefix, kExprI16x8Splat,       // i16x8.splat
+  kExprMemorySize, 0x00,              // memory.size
+  kSimdPrefix, kExprI16x8ShrS, 0x01,  // i16x8.shr_s
+  kSimdPrefix, kExprV8x16AnyTrue,     // v8x16.any_true
+  kExprMemorySize, 0x00,              // memory.size
+  kExprI32RemS,                       // i32.rem_s
+  kExprEnd,                           // end @15
 ]);
 builder.addExport('main', 0);
 const instance = builder.instantiate();

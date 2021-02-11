@@ -25,6 +25,8 @@ class V8_EXPORT_PRIVATE MachineGraph : public NON_EXPORTED_BASE(ZoneObject) {
   MachineGraph(Graph* graph, CommonOperatorBuilder* common,
                MachineOperatorBuilder* machine)
       : graph_(graph), common_(common), machine_(machine), cache_(zone()) {}
+  MachineGraph(const MachineGraph&) = delete;
+  MachineGraph& operator=(const MachineGraph&) = delete;
 
   // Creates a Int32Constant node, usually canonicalized.
   Node* Int32Constant(int32_t value);
@@ -84,8 +86,6 @@ class V8_EXPORT_PRIVATE MachineGraph : public NON_EXPORTED_BASE(ZoneObject) {
   MachineOperatorBuilder* machine_;
   CommonNodeCache cache_;
   Node* Dead_ = nullptr;
-
-  DISALLOW_COPY_AND_ASSIGN(MachineGraph);
 };
 
 }  // namespace compiler

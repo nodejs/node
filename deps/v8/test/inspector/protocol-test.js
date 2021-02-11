@@ -142,6 +142,10 @@ InspectorTest.ContextGroup = class {
     this.id = utils.createContextGroup();
   }
 
+  createContext(name) {
+    utils.createContext(this.id, name || '');
+  }
+
   schedulePauseOnNextStatement(reason, details) {
     utils.schedulePauseOnNextStatement(this.id, reason, details);
   }
@@ -295,9 +299,14 @@ InspectorTest.Session = class {
       if (location.lineNumber != 0) {
         InspectorTest.log('Unexpected wasm line number: ' + location.lineNumber);
       }
-      let wasm_opcode = script.bytecode[location.columnNumber].toString(16);
-      if (wasm_opcode.length % 2) wasm_opcode = '0' + wasm_opcode;
-      InspectorTest.log(`Script ${script.url} byte offset ${location.columnNumber}: Wasm opcode 0x${wasm_opcode}`);
+      let wasm_opcode = script.bytecode[location.columnNumber];
+      let opcode_str = wasm_opcode.toString(16);
+      if (opcode_str.length % 2) opcode_str = `0${opcode_str}`;
+      if (InspectorTest.getWasmOpcodeName) {
+        opcode_str += ` (${InspectorTest.getWasmOpcodeName(wasm_opcode)})`;
+      }
+      InspectorTest.log(`Script ${script.url} byte offset ${
+          location.columnNumber}: Wasm opcode 0x${opcode_str}`);
     } else {
       var lines = script.scriptSource.split('\n');
       var line = lines[location.lineNumber];

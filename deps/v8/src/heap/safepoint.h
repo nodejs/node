@@ -62,8 +62,36 @@ class GlobalSafepoint {
   void EnterSafepointScope();
   void LeaveSafepointScope();
 
-  void AddLocalHeap(LocalHeap* local_heap);
-  void RemoveLocalHeap(LocalHeap* local_heap);
+  template <typename Callback>
+  void AddLocalHeap(LocalHeap* local_heap, Callback callback) {
+    // Safepoint holds this lock in order to stop threads from starting or
+    // stopping.
+    base::MutexGuard guard(&local_heaps_mutex_);
+
+    // Additional code protected from safepoint
+    callback();
+
+    // Add list to doubly-linked list
+    if (local_heaps_head_) local_heaps_head_->prev_ = local_heap;
+    local_heap->prev_ = nullptr;
+    local_heap->next_ = local_heaps_head_;
+    local_heaps_head_ = local_heap;
+  }
+
+  template <typename Callback>
+  void RemoveLocalHeap(LocalHeap* local_heap, Callback callback) {
+    base::MutexGuard guard(&local_heaps_mutex_);
+
+    // Additional code protected from safepoint
+    callback();
+
+    // Remove list from doubly-linked list
+    if (local_heap->next_) local_heap->next_->prev_ = local_heap->prev_;
+    if (local_heap->prev_)
+      local_heap->prev_->next_ = local_heap->next_;
+    else
+      local_heaps_head_ = local_heap->next_;
+  }
 
   Barrier barrier_;
   Heap* heap_;

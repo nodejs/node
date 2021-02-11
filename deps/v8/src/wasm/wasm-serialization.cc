@@ -208,6 +208,9 @@ constexpr size_t kCodeHeaderSize = sizeof(bool) +  // whether code is present
 // a tag from the Address of an external reference and vice versa.
 class ExternalReferenceList {
  public:
+  ExternalReferenceList(const ExternalReferenceList&) = delete;
+  ExternalReferenceList& operator=(const ExternalReferenceList&) = delete;
+
   uint32_t tag_from_address(Address ext_ref_address) const {
     auto tag_addr_less_than = [this](uint32_t tag, Address searched_addr) {
       return external_reference_by_tag_[tag] < searched_addr;
@@ -263,7 +266,6 @@ class ExternalReferenceList {
 #undef RUNTIME_ADDR
   };
   uint32_t tags_ordered_by_address_[kNumExternalReferences];
-  DISALLOW_COPY_AND_ASSIGN(ExternalReferenceList);
 };
 
 static_assert(std::is_trivially_destructible<ExternalReferenceList>::value,
@@ -273,8 +275,9 @@ static_assert(std::is_trivially_destructible<ExternalReferenceList>::value,
 
 class V8_EXPORT_PRIVATE NativeModuleSerializer {
  public:
-  NativeModuleSerializer() = delete;
   NativeModuleSerializer(const NativeModule*, Vector<WasmCode* const>);
+  NativeModuleSerializer(const NativeModuleSerializer&) = delete;
+  NativeModuleSerializer& operator=(const NativeModuleSerializer&) = delete;
 
   size_t Measure() const;
   bool Write(Writer* writer);
@@ -287,8 +290,6 @@ class V8_EXPORT_PRIVATE NativeModuleSerializer {
   const NativeModule* const native_module_;
   Vector<WasmCode* const> code_table_;
   bool write_called_;
-
-  DISALLOW_COPY_AND_ASSIGN(NativeModuleSerializer);
 };
 
 NativeModuleSerializer::NativeModuleSerializer(
@@ -468,8 +469,9 @@ bool WasmSerializer::SerializeNativeModule(Vector<byte> buffer) const {
 
 class V8_EXPORT_PRIVATE NativeModuleDeserializer {
  public:
-  NativeModuleDeserializer() = delete;
   explicit NativeModuleDeserializer(NativeModule*);
+  NativeModuleDeserializer(const NativeModuleDeserializer&) = delete;
+  NativeModuleDeserializer& operator=(const NativeModuleDeserializer&) = delete;
 
   bool Read(Reader* reader);
 
@@ -479,8 +481,6 @@ class V8_EXPORT_PRIVATE NativeModuleDeserializer {
 
   NativeModule* const native_module_;
   bool read_called_;
-
-  DISALLOW_COPY_AND_ASSIGN(NativeModuleDeserializer);
 };
 
 NativeModuleDeserializer::NativeModuleDeserializer(NativeModule* native_module)

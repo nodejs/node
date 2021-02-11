@@ -171,13 +171,6 @@ uint32_t JSRegExp::BacktrackLimit() const {
 // static
 JSRegExp::Flags JSRegExp::FlagsFromString(Isolate* isolate,
                                           Handle<String> flags, bool* success) {
-  STATIC_ASSERT(*JSRegExp::FlagFromChar('g') == JSRegExp::kGlobal);
-  STATIC_ASSERT(*JSRegExp::FlagFromChar('i') == JSRegExp::kIgnoreCase);
-  STATIC_ASSERT(*JSRegExp::FlagFromChar('m') == JSRegExp::kMultiline);
-  STATIC_ASSERT(*JSRegExp::FlagFromChar('s') == JSRegExp::kDotAll);
-  STATIC_ASSERT(*JSRegExp::FlagFromChar('u') == JSRegExp::kUnicode);
-  STATIC_ASSERT(*JSRegExp::FlagFromChar('y') == JSRegExp::kSticky);
-
   int length = flags->length();
   if (length == 0) {
     *success = true;

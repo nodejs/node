@@ -14,43 +14,60 @@ found in the LICENSE file. -->
     margin: auto;
   }
 
-  #stats table {
+  table {
     flex: 1;
-    padding-right: 50px;
     max-height: 250px;
     display: inline-block;
     overflow-y: scroll;
+    border-collapse: collapse;
+  }
+  table td {
+    padding: 2px;
   }
 
-  #stats table td {
+  table thead td {
+    border-bottom: 1px var(--on-surface-color) dotted;
+  }
+
+  table tbody td {
     cursor: pointer;
   }
 
-  #stats .transitionTable {
-    overflow-y: scroll;
-  }
-
-  #stats .transitionTable tr {
+  #nameTable tr {
     max-width: 200px;
 
   }
 
-  #stats .transitionType {
+  #nameTable tr td:nth-child(1) {
+    text-align: right;
+  }
+
+  #typeTable {
     text-align: right;
     max-width: 380px;
   }
 
-  #stats .transitionType tr td:nth-child(2) {
+  #typeTable tr td:nth-child(2) {
     text-align: left;
-  }
-
-  #stats table thead td {
-    border-bottom: 1px var(--on-surface-color) dotted;
   }
 </style>
 <div class="panel">
-  <h2>Stats Panel</h2>
-  <h3>Stats</h3>
+  <h2>Map Stats</h2>
   <section id="stats">
+    <table id="typeTable" class="statsTable">
+      <thead>
+        <tr><td></td><td>Type</td><td>Count</td><td>Percent</td></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <table id="nameTable">
+      <thead>
+        <tr><td>Count</td><td>Propery Name</td></tr>
+      </thead>
+      <tbody></tbody>
+      <tfoot>
+        <tr><td colspan="2" class="clickable">Show more...</td></tr>
+      </tfoo>
+    </table>
   </section>
 </div>

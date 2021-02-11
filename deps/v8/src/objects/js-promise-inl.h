@@ -16,6 +16,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-promise-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSPromise)
 
 BOOL_ACCESSORS(JSPromise, flags, has_handler, HasHandlerBit::kShift)

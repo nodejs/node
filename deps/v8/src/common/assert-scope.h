@@ -33,6 +33,7 @@ enum PerThreadAssertType {
   HANDLE_ALLOCATION_ASSERT,
   HANDLE_DEREFERENCE_ASSERT,
   CODE_DEPENDENCY_CHANGE_ASSERT,
+  CODE_ALLOCATION_ASSERT,
   LAST_PER_THREAD_ASSERT_TYPE
 };
 
@@ -128,9 +129,17 @@ using AllowHandleAllocation =
     PerThreadAssertScopeDebugOnly<HANDLE_ALLOCATION_ASSERT, true>;
 
 // Scope to document where we do not expect garbage collections. It differs from
-// DisallowHeapAllocation by also forbiding safepoints.
+// DisallowHeapAllocation by also forbidding safepoints.
 using DisallowGarbageCollection =
     PerThreadAssertScopeDebugOnly<GARBAGE_COLLECTION_ASSERT, false>;
+// The DISALLOW_GARBAGE_COLLECTION macro can be used to define a
+// DisallowGarbageCollection field in classes that isn't present in release
+// builds.
+#ifdef DEBUG
+#define DISALLOW_GARBAGE_COLLECTION(name) DisallowGarbageCollection name;
+#else
+#define DISALLOW_GARBAGE_COLLECTION(name)
+#endif
 
 // Scope to introduce an exception to DisallowGarbageCollection.
 using AllowGarbageCollection =
@@ -140,6 +149,9 @@ using AllowGarbageCollection =
 // and will eventually be removed, use DisallowGarbageCollection instead.
 using DisallowHeapAllocation =
     PerThreadAssertScopeDebugOnly<HEAP_ALLOCATION_ASSERT, false>;
+// The DISALLOW_HEAP_ALLOCATION macro can be used to define a
+// DisallowHeapAllocation field in classes that isn't present in release
+// builds.
 #ifdef DEBUG
 #define DISALLOW_HEAP_ALLOCATION(name) DisallowHeapAllocation name;
 #else
@@ -165,6 +177,14 @@ using DisallowCodeDependencyChange =
 // Scope to introduce an exception to DisallowCodeDependencyChange.
 using AllowCodeDependencyChange =
     PerThreadAssertScopeDebugOnly<CODE_DEPENDENCY_CHANGE_ASSERT, true>;
+
+// Scope to document where we do not expect code to be allocated.
+using DisallowCodeAllocation =
+    PerThreadAssertScopeDebugOnly<CODE_ALLOCATION_ASSERT, false>;
+
+// Scope to introduce an exception to DisallowCodeAllocation.
+using AllowCodeAllocation =
+    PerThreadAssertScopeDebugOnly<CODE_ALLOCATION_ASSERT, true>;
 
 class DisallowHeapAccess {
   DisallowCodeDependencyChange no_dependency_change_;
@@ -273,6 +293,8 @@ extern template class PerThreadAssertScope<HANDLE_DEREFERENCE_ASSERT, true>;
 extern template class PerThreadAssertScope<CODE_DEPENDENCY_CHANGE_ASSERT,
                                            false>;
 extern template class PerThreadAssertScope<CODE_DEPENDENCY_CHANGE_ASSERT, true>;
+extern template class PerThreadAssertScope<CODE_ALLOCATION_ASSERT, false>;
+extern template class PerThreadAssertScope<CODE_ALLOCATION_ASSERT, true>;
 
 extern template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, false>;
 extern template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, true>;

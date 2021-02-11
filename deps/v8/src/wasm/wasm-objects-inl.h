@@ -28,6 +28,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/wasm/wasm-objects-tq-inl.inc"
+
 OBJECT_CONSTRUCTORS_IMPL(WasmExceptionObject, JSObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmExceptionTag)
 OBJECT_CONSTRUCTORS_IMPL(WasmExportedFunctionData, Struct)
@@ -58,7 +60,8 @@ CAST_ACCESSOR(WasmArray)
     Object value = TaggedField<Object, offset>::load(isolate, *this); \
     return !value.IsUndefined(GetReadOnlyRoots(isolate));             \
   }                                                                   \
-  ACCESSORS(holder, name, type, offset)
+  ACCESSORS_CHECKED2(holder, name, type, offset,                      \
+                     !value.IsUndefined(GetReadOnlyRoots(isolate)), true)
 
 #define PRIMITIVE_ACCESSORS(holder, name, type, offset)                       \
   type holder::name() const {                                                 \
@@ -329,11 +332,12 @@ ACCESSORS(WasmExportedFunctionData, instance, WasmInstanceObject,
 SMI_ACCESSORS(WasmExportedFunctionData, jump_table_offset,
               kJumpTableOffsetOffset)
 SMI_ACCESSORS(WasmExportedFunctionData, function_index, kFunctionIndexOffset)
+ACCESSORS(WasmExportedFunctionData, signature, Foreign, kSignatureOffset)
+SMI_ACCESSORS(WasmExportedFunctionData, call_count, kCallCountOffset)
 ACCESSORS(WasmExportedFunctionData, c_wrapper_code, Object, kCWrapperCodeOffset)
 ACCESSORS(WasmExportedFunctionData, wasm_call_target, Object,
           kWasmCallTargetOffset)
 SMI_ACCESSORS(WasmExportedFunctionData, packed_args_size, kPackedArgsSizeOffset)
-ACCESSORS(WasmExportedFunctionData, signature, Foreign, kSignatureOffset)
 
 // WasmJSFunction
 WasmJSFunction::WasmJSFunction(Address ptr) : JSFunction(ptr) {
@@ -352,22 +356,14 @@ ACCESSORS(WasmJSFunctionData, serialized_signature, PodArray<wasm::ValueType>,
           kSerializedSignatureOffset)
 ACCESSORS(WasmJSFunctionData, callable, JSReceiver, kCallableOffset)
 ACCESSORS(WasmJSFunctionData, wrapper_code, Code, kWrapperCodeOffset)
+ACCESSORS(WasmJSFunctionData, wasm_to_js_wrapper_code, Code,
+          kWasmToJsWrapperCodeOffset)
 
 // WasmCapiFunction
 WasmCapiFunction::WasmCapiFunction(Address ptr) : JSFunction(ptr) {
   SLOW_DCHECK(IsWasmCapiFunction(*this));
 }
 CAST_ACCESSOR(WasmCapiFunction)
-
-// WasmCapiFunctionData
-OBJECT_CONSTRUCTORS_IMPL(WasmCapiFunctionData, Struct)
-CAST_ACCESSOR(WasmCapiFunctionData)
-PRIMITIVE_ACCESSORS(WasmCapiFunctionData, call_target, Address,
-                    kCallTargetOffset)
-ACCESSORS(WasmCapiFunctionData, embedder_data, Foreign, kEmbedderDataOffset)
-ACCESSORS(WasmCapiFunctionData, wrapper_code, Code, kWrapperCodeOffset)
-ACCESSORS(WasmCapiFunctionData, serialized_signature, PodArray<wasm::ValueType>,
-          kSerializedSignatureOffset)
 
 // WasmExternalFunction
 WasmExternalFunction::WasmExternalFunction(Address ptr) : JSFunction(ptr) {
@@ -451,6 +447,11 @@ int WasmArray::SizeFor(Map map, int length) {
 }
 
 void WasmTypeInfo::clear_foreign_address(Isolate* isolate) {
+#ifdef V8_HEAP_SANDBOX
+  // Due to the type-specific pointer tags for external pointers, we need to
+  // allocate an entry in the table here even though it will just store nullptr.
+  AllocateExternalPointerEntries(isolate);
+#endif
   set_foreign_address(isolate, 0);
 }
 

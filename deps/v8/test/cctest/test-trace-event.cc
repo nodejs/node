@@ -34,6 +34,8 @@ struct MockTraceObject {
 class MockTracingController : public v8::TracingController {
  public:
   MockTracingController() = default;
+  MockTracingController(const MockTracingController&) = delete;
+  MockTracingController& operator=(const MockTracingController&) = delete;
 
   uint64_t AddTraceEvent(
       char phase, const uint8_t* category_enabled_flag, const char* name,
@@ -80,8 +82,6 @@ class MockTracingController : public v8::TracingController {
 
  private:
   std::vector<std::unique_ptr<MockTraceObject>> trace_objects_;
-
-  DISALLOW_COPY_AND_ASSIGN(MockTracingController);
 };
 
 class MockTracingPlatform : public TestPlatform {

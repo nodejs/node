@@ -63,7 +63,75 @@ InspectorTest.runAsyncTestSuite([
     session.Protocol.Runtime.removeBinding({name: 'send'});
     InspectorTest.log('Call binding..');
     await session.Protocol.Runtime.evaluate({expression: `send('payload')`});
+  },
+
+  async function testAddBindingToContextById() {
+    const {contextGroup, sessions: [session]} = setupSessions(1);
+    const contextId1 = (await session.Protocol.Runtime.onceExecutionContextCreated()).params.context.id;
+
+    contextGroup.createContext();
+    const contextId2 = (await session.Protocol.Runtime.onceExecutionContextCreated()).params.context.id;
+
+    await session.Protocol.Runtime.addBinding({name: 'frobnicate', executionContextId: contextId2});
+    const expression = `frobnicate('message')`;
+
+    InspectorTest.log('Call binding in default context (binding should NOT be exposed)');
+    await session.Protocol.Runtime.evaluate({expression});
+
+    InspectorTest.log('Call binding in target context (binding should be exposed)');
+    await session.Protocol.Runtime.evaluate({expression, contextId: contextId2});
+
+    InspectorTest.log('Call binding in newly created context (binding should NOT be exposed)');
+    contextGroup.createContext();
+    const contextId3 = (await session.Protocol.Runtime.onceExecutionContextCreated()).params.context.id;
+    await session.Protocol.Runtime.evaluate({expression, contextId: contextId3});
+  },
+
+  async function testAddBindingToContextByName() {
+    const {contextGroup, sessions: [session]} = setupSessions(1);
+    const defaultContext = (await session.Protocol.Runtime.onceExecutionContextCreated()).params.context.id;
+
+    contextGroup.createContext("foo");
+    const contextFoo = (await session.Protocol.Runtime.onceExecutionContextCreated()).params.context.id;
+
+    contextGroup.createContext("bar");
+    const contextBar = (await session.Protocol.Runtime.onceExecutionContextCreated()).params.context.id;
+
+    await session.Protocol.Runtime.addBinding({name: 'frobnicate', executionContextName: 'foo'});
+    const expression = `frobnicate('message')`;
+
+    InspectorTest.log('Call binding in default context (binding should NOT be exposed)');
+    await session.Protocol.Runtime.evaluate({expression});
+
+    InspectorTest.log('Call binding in Foo (binding should be exposed)');
+    await session.Protocol.Runtime.evaluate({expression, contextId: contextFoo});
+
+    InspectorTest.log('Call binding in Bar (binding should NOT be exposed)');
+    await session.Protocol.Runtime.evaluate({expression, contextId: contextBar});
+
+    contextGroup.createContext("foo");
+    const contextFoo2 = (await session.Protocol.Runtime.onceExecutionContextCreated()).params.context.id;
+
+    InspectorTest.log('Call binding in newly-created Foo (binding should be exposed)');
+    await session.Protocol.Runtime.evaluate({expression, contextId: contextFoo2});
+
+    contextGroup.createContext("bazz");
+    const contextBazz = (await session.Protocol.Runtime.onceExecutionContextCreated()).params.context.id;
+
+    InspectorTest.log('Call binding in newly-created Bazz (binding should NOT be exposed)');
+    await session.Protocol.Runtime.evaluate({expression, contextId: contextBazz});
+  },
+
+  async function testErrors() {
+    const {contextGroup, sessions: [session]} = setupSessions(1);
+    let err = await session.Protocol.Runtime.addBinding({name: 'frobnicate', executionContextName: ''});
+    InspectorTest.logMessage(err);
+    err = await session.Protocol.Runtime.addBinding({name: 'frobnicate', executionContextName: 'foo', executionContextId: 1});
+    InspectorTest.logMessage(err);
+    err = await session.Protocol.Runtime.addBinding({name: 'frobnicate', executionContextId: 2128506});
+    InspectorTest.logMessage(err);
   }
+
 ]);
 
 function setupSessions(num) {

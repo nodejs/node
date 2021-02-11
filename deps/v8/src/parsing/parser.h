@@ -269,7 +269,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     Scanner::Location location;
   };
   ZoneChunkList<ExportClauseData>* ParseExportClause(
-      Scanner::Location* reserved_loc);
+      Scanner::Location* reserved_loc,
+      Scanner::Location* string_literal_local_name_loc);
   struct NamedImport : public ZoneObject {
     const AstRawString* import_name;
     const AstRawString* local_name;
@@ -280,7 +281,12 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
           local_name(local_name),
           location(location) {}
   };
+  const AstRawString* ParseExportSpecifierName();
   ZonePtrList<const NamedImport>* ParseNamedImports(int pos);
+  using ImportAssertions =
+      ZoneMap<const AstRawString*,
+              std::pair<const AstRawString*, Scanner::Location>>;
+  ImportAssertions* ParseImportAssertClause();
   Statement* BuildInitializationBlock(DeclarationParsingResult* parsing_result);
   Expression* RewriteReturn(Expression* return_value, int pos);
   Statement* RewriteSwitchStatement(SwitchStatement* switch_statement,
@@ -995,14 +1001,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     if (source_range_map_ == nullptr) return;
     source_range_map_->Insert(
         node, zone()->New<IterationStatementSourceRanges>(body_range));
-  }
-
-  // Used to record source ranges of expressions associated with optional chain:
-  V8_INLINE void RecordExpressionSourceRange(Expression* node,
-                                             const SourceRange& right_range) {
-    if (source_range_map_ == nullptr) return;
-    source_range_map_->Insert(node,
-                              zone()->New<ExpressionSourceRanges>(right_range));
   }
 
   V8_INLINE void RecordSuspendSourceRange(Expression* node,

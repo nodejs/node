@@ -17,6 +17,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/feedback-cell-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(FeedbackCell)
 
 void FeedbackCell::clear_padding() {
@@ -53,6 +55,17 @@ void FeedbackCell::SetInitialInterruptBudget() {
 
 void FeedbackCell::SetInterruptBudget() {
   set_interrupt_budget(FLAG_interrupt_budget);
+}
+
+void FeedbackCell::IncrementClosureCount(Isolate* isolate) {
+  ReadOnlyRoots r(isolate);
+  if (map() == r.no_closures_cell_map()) {
+    set_map(r.one_closure_cell_map());
+  } else if (map() == r.one_closure_cell_map()) {
+    set_map(r.many_closures_cell_map());
+  } else {
+    DCHECK(map() == r.many_closures_cell_map());
+  }
 }
 
 }  // namespace internal

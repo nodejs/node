@@ -406,7 +406,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
                                 InstructionOperand* op, MachineType type);
   void MarkLazyDeoptSite();
 
-  void PrepareForDeoptimizationExits(int deopt_count);
+  void PrepareForDeoptimizationExits(ZoneDeque<DeoptimizationExit*>* exits);
   DeoptimizationExit* AddDeoptimizationExit(Instruction* instr,
                                             size_t frame_state_offset);
 
@@ -445,6 +445,14 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   TranslationBuffer translations_;
   int handler_table_offset_ = 0;
   int last_lazy_deopt_pc_ = 0;
+
+  // Deoptimization exits must be as small as possible, since their count grows
+  // with function size. {jump_deoptimization_entry_labels_} is an optimization
+  // to that effect, which extracts the (potentially large) instruction
+  // sequence for the final jump to the deoptimization entry into a single spot
+  // per Code object. All deopt exits can then near-call to this label. Note:
+  // not used on all architectures.
+  Label jump_deoptimization_entry_labels_[kDeoptimizeKindCount];
 
   // The maximal combined height of all frames produced upon deoptimization, and
   // the maximal number of pushed arguments for function calls. Applied as an

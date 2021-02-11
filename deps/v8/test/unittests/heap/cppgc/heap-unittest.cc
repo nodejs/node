@@ -117,5 +117,41 @@ TEST_F(GCHeapTest, ObjectPayloadSize) {
   EXPECT_LE(expected_size, Heap::From(GetHeap())->ObjectPayloadSize());
 }
 
+TEST_F(GCHeapTest, AllocateWithAdditionalBytes) {
+  static constexpr size_t kBaseSize = sizeof(HeapObjectHeader) + sizeof(Foo);
+  static constexpr size_t kAdditionalBytes = 10u * kAllocationGranularity;
+  {
+    Foo* object = MakeGarbageCollected<Foo>(GetAllocationHandle());
+    EXPECT_LE(kBaseSize, HeapObjectHeader::FromPayload(object).GetSize());
+  }
+  {
+    Foo* object = MakeGarbageCollected<Foo>(GetAllocationHandle(),
+                                            AdditionalBytes(kAdditionalBytes));
+    EXPECT_LE(kBaseSize + kAdditionalBytes,
+              HeapObjectHeader::FromPayload(object).GetSize());
+  }
+  {
+    Foo* object = MakeGarbageCollected<Foo>(
+        GetAllocationHandle(),
+        AdditionalBytes(kAdditionalBytes * kAdditionalBytes));
+    EXPECT_LE(kBaseSize + kAdditionalBytes * kAdditionalBytes,
+              HeapObjectHeader::FromPayload(object).GetSize());
+  }
+}
+
+TEST_F(GCHeapTest, AllocatedSizeDependOnAdditionalBytes) {
+  static constexpr size_t kAdditionalBytes = 10u * kAllocationGranularity;
+  Foo* object = MakeGarbageCollected<Foo>(GetAllocationHandle());
+  Foo* object_with_bytes = MakeGarbageCollected<Foo>(
+      GetAllocationHandle(), AdditionalBytes(kAdditionalBytes));
+  Foo* object_with_more_bytes = MakeGarbageCollected<Foo>(
+      GetAllocationHandle(),
+      AdditionalBytes(kAdditionalBytes * kAdditionalBytes));
+  EXPECT_LT(HeapObjectHeader::FromPayload(object).GetSize(),
+            HeapObjectHeader::FromPayload(object_with_bytes).GetSize());
+  EXPECT_LT(HeapObjectHeader::FromPayload(object_with_bytes).GetSize(),
+            HeapObjectHeader::FromPayload(object_with_more_bytes).GetSize());
+}
+
 }  // namespace internal
 }  // namespace cppgc

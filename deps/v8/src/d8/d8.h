@@ -608,7 +608,8 @@ class Shell : public i::AllStatic {
       v8::MaybeLocal<Value> global_object);
   static void DisposeRealm(const v8::FunctionCallbackInfo<v8::Value>& args,
                            int index);
-  static MaybeLocal<Module> FetchModuleTree(v8::Local<v8::Context> context,
+  static MaybeLocal<Module> FetchModuleTree(v8::Local<v8::Module> origin_module,
+                                            v8::Local<v8::Context> context,
                                             const std::string& file_name);
   static ScriptCompiler::CachedData* LookupCodeCache(Isolate* isolate,
                                                      Local<Value> name);

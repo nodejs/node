@@ -216,16 +216,41 @@ class JobHandle {
    */
   virtual void Cancel() = 0;
 
+  /*
+   * Forces all existing workers to yield ASAP but doesn’t wait for them.
+   * Warning, this is dangerous if the Job's callback is bound to or has access
+   * to state which may be deleted after this call.
+   * TODO(etiennep): Cleanup once implemented by all embedders.
+   */
+  virtual void CancelAndDetach() { Cancel(); }
+
   /**
-   * Returns true if there's no work pending and no worker running.
+   * Returns true if there's currently no work pending and no worker running.
+   * TODO(etiennep): Deprecate IsCompleted in favor of IsActive once implemented
+   * by all embedders.
    */
   virtual bool IsCompleted() = 0;
+  virtual bool IsActive() { return !IsCompleted(); }
 
   /**
    * Returns true if associated with a Job and other methods may be called.
-   * Returns false after Join() or Cancel() was called.
+   * Returns false after Join() or Cancel() was called. This may return true
+   * even if no workers are running and IsCompleted() returns true
+   * TODO(etiennep): Deprecate IsRunning in favor of IsValid once implemented by
+   * all embedders.
    */
   virtual bool IsRunning() = 0;
+  virtual bool IsValid() { return IsRunning(); }
+
+  /**
+   * Returns true if job priority can be changed.
+   */
+  virtual bool UpdatePriorityEnabled() const { return false; }
+
+  /**
+   *  Update this Job's priority.
+   */
+  virtual void UpdatePriority(TaskPriority new_priority) {}
 };
 
 /**

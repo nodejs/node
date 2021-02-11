@@ -261,15 +261,6 @@ namespace compiler {
   V(S390_I64x2ReplaceLane)                  \
   V(S390_I64x2ExtractLane)                  \
   V(S390_I64x2Eq)                           \
-  V(S390_I64x2Ne)                           \
-  V(S390_I64x2GtS)                          \
-  V(S390_I64x2GeS)                          \
-  V(S390_I64x2GtU)                          \
-  V(S390_I64x2GeU)                          \
-  V(S390_I64x2MinS)                         \
-  V(S390_I64x2MinU)                         \
-  V(S390_I64x2MaxS)                         \
-  V(S390_I64x2MaxU)                         \
   V(S390_I32x4Splat)                        \
   V(S390_I32x4ExtractLane)                  \
   V(S390_I32x4ReplaceLane)                  \
@@ -328,10 +319,10 @@ namespace compiler {
   V(S390_I16x8SConvertI8x16High)            \
   V(S390_I16x8UConvertI8x16Low)             \
   V(S390_I16x8UConvertI8x16High)            \
-  V(S390_I16x8AddSaturateS)                 \
-  V(S390_I16x8SubSaturateS)                 \
-  V(S390_I16x8AddSaturateU)                 \
-  V(S390_I16x8SubSaturateU)                 \
+  V(S390_I16x8AddSatS)                      \
+  V(S390_I16x8SubSatS)                      \
+  V(S390_I16x8AddSatU)                      \
+  V(S390_I16x8SubSatU)                      \
   V(S390_I16x8RoundingAverageU)             \
   V(S390_I16x8Abs)                          \
   V(S390_I16x8BitMask)                      \
@@ -358,20 +349,18 @@ namespace compiler {
   V(S390_I8x16Neg)                          \
   V(S390_I8x16SConvertI16x8)                \
   V(S390_I8x16UConvertI16x8)                \
-  V(S390_I8x16AddSaturateS)                 \
-  V(S390_I8x16SubSaturateS)                 \
-  V(S390_I8x16AddSaturateU)                 \
-  V(S390_I8x16SubSaturateU)                 \
+  V(S390_I8x16AddSatS)                      \
+  V(S390_I8x16SubSatS)                      \
+  V(S390_I8x16AddSatU)                      \
+  V(S390_I8x16SubSatU)                      \
   V(S390_I8x16RoundingAverageU)             \
   V(S390_I8x16Abs)                          \
   V(S390_I8x16BitMask)                      \
   V(S390_I8x16Shuffle)                      \
   V(S390_I8x16Swizzle)                      \
-  V(S390_V64x2AnyTrue)                      \
   V(S390_V32x4AnyTrue)                      \
   V(S390_V16x8AnyTrue)                      \
   V(S390_V8x16AnyTrue)                      \
-  V(S390_V64x2AllTrue)                      \
   V(S390_V32x4AllTrue)                      \
   V(S390_V16x8AllTrue)                      \
   V(S390_V8x16AllTrue)                      \

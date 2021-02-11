@@ -2,20 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { typeToColor } from '../helper.mjs';
-import { Event } from './log.mjs';
+import {LogEntry} from './log.mjs';
 
 // ===========================================================================
 // Map Log Events
 
-const kChunkHeight = 250;
+const kChunkHeight = 200;
 const kChunkWidth = 10;
 
 function define(prototype, name, fn) {
-  Object.defineProperty(prototype, name, { value: fn, enumerable: false });
+  Object.defineProperty(prototype, name, {value: fn, enumerable: false});
 }
 
-define(Array.prototype, 'max', function (fn) {
+define(Array.prototype, 'max', function(fn) {
   if (this.length === 0) return undefined;
   if (fn === undefined) fn = (each) => each;
   let max = fn(this[0]);
@@ -24,22 +23,21 @@ define(Array.prototype, 'max', function (fn) {
   }
   return max;
 })
-define(Array.prototype, 'first', function () {
+define(Array.prototype, 'first', function() {
   return this[0]
 });
-define(Array.prototype, 'last', function () {
+define(Array.prototype, 'last', function() {
   return this[this.length - 1]
 });
 
 // ===========================================================================
 // Map Log Events
 
-class MapLogEvent extends Event {
+class MapLogEntry extends LogEntry {
   edge = void 0;
   children = [];
   depth = 0;
-  // TODO(zcankara): Change this to private class field.
-  #isDeprecated = false;
+  _isDeprecated = false;
   deprecatedTargets = null;
   leftId = 0;
   rightId = 0;
@@ -49,7 +47,7 @@ class MapLogEvent extends Event {
   constructor(id, time) {
     if (!time) throw new Error('Invalid time');
     super(id, time);
-    MapLogEvent.set(id, this);
+    MapLogEntry.set(id, this);
     this.id = id;
   }
 
@@ -58,7 +56,7 @@ class MapLogEvent extends Event {
     while (stack.length > 0) {
       let current = stack.pop();
       if (current.leftId !== 0) {
-        console.error('Skipping potential parent loop between maps:', current)
+        console.warn('Skipping potential parent loop between maps:', current)
         continue;
       }
       current.finalize(id)
@@ -82,11 +80,11 @@ class MapLogEvent extends Event {
   }
 
   isDeprecated() {
-    return this.#isDeprecated;
+    return this._isDeprecated;
   }
 
   deprecate() {
-    this.#isDeprecated = true;
+    this._isDeprecated = true;
   }
 
   isRoot() {
@@ -172,7 +170,7 @@ class MapLogEvent extends Event {
   }
 }
 
-MapLogEvent.cache = new Map();
+MapLogEntry.cache = new Map();
 
 // ===========================================================================
 class Edge {
@@ -185,24 +183,20 @@ class Edge {
     this.to = to;
   }
 
-  getColor() {
-    return typeToColor(this.type);
-  }
-
   finishSetup() {
-    let from = this.from;
+    const from = this.from;
     if (from) from.addEdge(this);
-    let to = this.to;
+    const to = this.to;
     if (to === undefined) return;
     to.edge = this;
     if (from === undefined) return;
     if (to === from) throw 'From and to must be distinct.';
     if (to.time < from.time) {
-      console.error('invalid time order');
+      console.warn('invalid time order');
     }
     let newDepth = from.depth + 1;
     if (to.depth > 0 && to.depth != newDepth) {
-      console.error('Depth has already been initialized');
+      console.warn('Depth has already been initialized');
     }
     to.depth = newDepth;
   }
@@ -288,9 +282,8 @@ class Edge {
       return this.type + ' ' + this.symbol() + this.name;
     }
     return this.type + ' ' + (this.reason ? this.reason : '') + ' ' +
-      (this.name ? this.name : '')
+        (this.name ? this.name : '')
   }
 }
 
-
-export { MapLogEvent, Edge, kChunkWidth, kChunkHeight };
+export {MapLogEntry, Edge, kChunkWidth, kChunkHeight};

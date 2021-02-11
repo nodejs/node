@@ -44,14 +44,7 @@ class HandleBase {
   V8_INLINE explicit HandleBase(Address object, LocalHeap* local_heap);
 
   // Check if this handle refers to the exact same object as the other handle.
-  V8_INLINE bool is_identical_to(const HandleBase that) const {
-    SLOW_DCHECK((this->location_ == nullptr || this->IsDereferenceAllowed()) &&
-                (that.location_ == nullptr || that.IsDereferenceAllowed()));
-    if (this->location_ == that.location_) return true;
-    if (this->location_ == nullptr || that.location_ == nullptr) return false;
-    return *this->location_ == *that.location_;
-  }
-
+  V8_INLINE bool is_identical_to(const HandleBase that) const;
   V8_INLINE bool is_null() const { return location_ == nullptr; }
 
   // Returns the raw address where this handle is stored. This should only be

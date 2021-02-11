@@ -31,6 +31,8 @@ class SimpleDateFormat;
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-date-time-format-tq.inc"
+
 class JSDateTimeFormat
     : public TorqueGeneratedJSDateTimeFormat<JSDateTimeFormat, JSObject> {
  public:

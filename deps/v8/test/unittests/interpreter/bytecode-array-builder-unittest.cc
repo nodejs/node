@@ -277,6 +277,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit GetSuperConstructor.
   builder.GetSuperConstructor(reg);
 
+  // Constructor check for GetSuperConstructor.
+  builder.ThrowIfNotSuperConstructor(reg);
+
   // Hole checks.
   builder.ThrowReferenceErrorIfHole(name)
       .ThrowSuperAlreadyCalledIfNotHole()
@@ -532,11 +535,7 @@ TEST_F(BytecodeArrayBuilderTest, Parameters) {
 
   Register receiver(builder.Receiver());
   Register param8(builder.Parameter(8));
-#ifdef V8_REVERSE_JSARGS
   CHECK_EQ(receiver.index() - param8.index(), 9);
-#else
-  CHECK_EQ(param8.index() - receiver.index(), 9);
-#endif
 }
 
 TEST_F(BytecodeArrayBuilderTest, Constants) {

@@ -236,6 +236,8 @@ class V8_EXPORT_PRIVATE Node final {
   // a node exceeds the maximum inline capacity.
 
   Node(NodeId id, const Operator* op, int inline_count, int inline_capacity);
+  Node(const Node&) = delete;
+  Node& operator=(const Node&) = delete;
 
   inline Address inputs_location() const;
 
@@ -300,8 +302,6 @@ class V8_EXPORT_PRIVATE Node final {
   friend class Edge;
   friend class NodeMarkerBase;
   friend class NodeProperties;
-
-  DISALLOW_COPY_AND_ASSIGN(Node);
 };
 
 Address Node::inputs_location() const {

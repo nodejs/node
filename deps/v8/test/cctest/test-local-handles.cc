@@ -35,7 +35,8 @@ class LocalHandlesThread final : public v8::base::Thread {
         sema_gc_finished_(sema_gc_finished) {}
 
   void Run() override {
-    LocalHeap local_heap(heap_);
+    LocalHeap local_heap(heap_, ThreadKind::kBackground);
+    UnparkedScope unparked_scope(&local_heap);
     LocalHandleScope scope(&local_heap);
 
     static constexpr int kNumHandles =
@@ -102,7 +103,8 @@ TEST(CreateLocalHandlesWithoutLocalHandleScope) {
   Isolate* isolate = CcTest::i_isolate();
 
   {
-    LocalHeap local_heap(isolate->heap());
+    LocalHeap local_heap(isolate->heap(), ThreadKind::kMain);
+    UnparkedScope scope(&local_heap);
     handle(Smi::FromInt(17), &local_heap);
   }
 }
@@ -122,7 +124,8 @@ TEST(DereferenceLocalHandle) {
     ph = phs->NewHandle(number);
   }
   {
-    LocalHeap local_heap(isolate->heap(), std::move(phs));
+    LocalHeap local_heap(isolate->heap(), ThreadKind::kMain, std::move(phs));
+    UnparkedScope unparked_scope(&local_heap);
     LocalHandleScope scope(&local_heap);
     Handle<HeapNumber> local_number = handle(*ph, &local_heap);
     CHECK_EQ(42, local_number->value());

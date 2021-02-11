@@ -877,6 +877,23 @@ RUNTIME_FUNCTION(Runtime_RegExpExec) {
       isolate, RegExp::Exec(isolate, regexp, subject, index, last_match_info));
 }
 
+RUNTIME_FUNCTION(Runtime_RegExpExperimentalOneshotExec) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, subject, 1);
+  CONVERT_INT32_ARG_CHECKED(index, 2);
+  CONVERT_ARG_HANDLE_CHECKED(RegExpMatchInfo, last_match_info, 3);
+  // Due to the way the JS calls are constructed this must be less than the
+  // length of a string, i.e. it is always a Smi.  We check anyway for security.
+  CHECK_LE(0, index);
+  CHECK_GE(subject->length(), index);
+  isolate->counters()->regexp_entry_runtime()->Increment();
+  RETURN_RESULT_OR_FAILURE(
+      isolate, RegExp::ExperimentalOneshotExec(isolate, regexp, subject, index,
+                                               last_match_info));
+}
+
 namespace {
 
 class MatchInfoBackedMatch : public String::Match {

@@ -21,6 +21,8 @@ class V8_EXPORT_PRIVATE ContextSerializer : public Serializer {
                     v8::SerializeEmbedderFieldsCallback callback);
 
   ~ContextSerializer() override;
+  ContextSerializer(const ContextSerializer&) = delete;
+  ContextSerializer& operator=(const ContextSerializer&) = delete;
 
   // Serialize the objects reachable from a single object pointer.
   void Serialize(Context* o, const DisallowGarbageCollection& no_gc);
@@ -28,9 +30,9 @@ class V8_EXPORT_PRIVATE ContextSerializer : public Serializer {
   bool can_be_rehashed() const { return can_be_rehashed_; }
 
  private:
-  void SerializeObject(HeapObject o) override;
+  void SerializeObjectImpl(Handle<HeapObject> o) override;
   bool ShouldBeInTheStartupObjectCache(HeapObject o);
-  bool SerializeJSObjectWithEmbedderFields(Object obj);
+  bool SerializeJSObjectWithEmbedderFields(Handle<HeapObject> obj);
   void CheckRehashability(HeapObject obj);
 
   StartupSerializer* startup_serializer_;
@@ -42,7 +44,6 @@ class V8_EXPORT_PRIVATE ContextSerializer : public Serializer {
 
   // Used to store serialized data for embedder fields.
   SnapshotByteSink embedder_fields_sink_;
-  DISALLOW_COPY_AND_ASSIGN(ContextSerializer);
 };
 
 }  // namespace internal

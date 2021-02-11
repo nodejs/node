@@ -20,13 +20,14 @@
 #include "src/objects/slots.h"
 #include "src/roots/roots-inl.h"
 #include "src/sanitizer/tsan.h"
-#include "torque-generated/class-definitions-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/fixed-array-tq-inl.inc"
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(FixedArrayBase)
 FixedArrayBase::FixedArrayBase(Address ptr,
@@ -69,11 +70,11 @@ bool FixedArray::ContainsOnlySmisOrHoles() {
 }
 
 Object FixedArray::get(int index) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return get(isolate, index);
 }
 
-Object FixedArray::get(const Isolate* isolate, int index) const {
+Object FixedArray::get(IsolateRoot isolate, int index) const {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   return TaggedField<Object>::Relaxed_Load(isolate, *this,
                                            OffsetOfElementAt(index));
@@ -87,7 +88,6 @@ bool FixedArray::is_the_hole(Isolate* isolate, int index) {
   return get(isolate, index).IsTheHole(isolate);
 }
 
-#if !defined(_WIN32) || defined(_WIN64)
 void FixedArray::set(int index, Smi value) {
   DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
@@ -95,7 +95,6 @@ void FixedArray::set(int index, Smi value) {
   int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(*this, offset, value);
 }
-#endif
 
 void FixedArray::set(int index, Object value) {
   DCHECK_NE(GetReadOnlyRoots().fixed_cow_array_map(), map());
@@ -125,11 +124,11 @@ void FixedArray::NoWriteBarrierSet(FixedArray array, int index, Object value) {
 }
 
 Object FixedArray::synchronized_get(int index) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return synchronized_get(isolate, index);
 }
 
-Object FixedArray::synchronized_get(const Isolate* isolate, int index) const {
+Object FixedArray::synchronized_get(IsolateRoot isolate, int index) const {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   return ACQUIRE_READ_FIELD(*this, OffsetOfElementAt(index));
 }
@@ -396,8 +395,7 @@ void FixedDoubleArray::MoveElements(Isolate* isolate, int dst_index,
                                     int src_index, int len,
                                     WriteBarrierMode mode) {
   DCHECK_EQ(SKIP_WRITE_BARRIER, mode);
-  double* data_start =
-      reinterpret_cast<double*>(FIELD_ADDR(*this, kHeaderSize));
+  double* data_start = reinterpret_cast<double*>(field_address(kHeaderSize));
   MemMove(data_start + dst_index, data_start + src_index, len * kDoubleSize);
 }
 
@@ -408,11 +406,11 @@ void FixedDoubleArray::FillWithHoles(int from, int to) {
 }
 
 MaybeObject WeakFixedArray::Get(int index) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return Get(isolate, index);
 }
 
-MaybeObject WeakFixedArray::Get(const Isolate* isolate, int index) const {
+MaybeObject WeakFixedArray::Get(IsolateRoot isolate, int index) const {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   return objects(isolate, index);
 }
@@ -443,11 +441,11 @@ void WeakFixedArray::CopyElements(Isolate* isolate, int dst_index,
 }
 
 MaybeObject WeakArrayList::Get(int index) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return Get(isolate, index);
 }
 
-MaybeObject WeakArrayList::Get(const Isolate* isolate, int index) const {
+MaybeObject WeakArrayList::Get(IsolateRoot isolate, int index) const {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(capacity()));
   return objects(isolate, index);
 }
@@ -498,7 +496,7 @@ Object ArrayList::Get(int index) const {
   return FixedArray::cast(*this).get(kFirstIndex + index);
 }
 
-Object ArrayList::Get(const Isolate* isolate, int index) const {
+Object ArrayList::Get(IsolateRoot isolate, int index) const {
   return FixedArray::cast(*this).get(isolate, kFirstIndex + index);
 }
 
@@ -531,14 +529,14 @@ void ByteArray::set(int index, byte value) {
 void ByteArray::copy_in(int index, const byte* buffer, int length) {
   DCHECK(index >= 0 && length >= 0 && length <= kMaxInt - index &&
          index + length <= this->length());
-  Address dst_addr = FIELD_ADDR(*this, kHeaderSize + index * kCharSize);
+  Address dst_addr = field_address(kHeaderSize + index * kCharSize);
   memcpy(reinterpret_cast<void*>(dst_addr), buffer, length);
 }
 
 void ByteArray::copy_out(int index, byte* buffer, int length) {
   DCHECK(index >= 0 && length >= 0 && length <= kMaxInt - index &&
          index + length <= this->length());
-  Address src_addr = FIELD_ADDR(*this, kHeaderSize + index * kCharSize);
+  Address src_addr = field_address(kHeaderSize + index * kCharSize);
   memcpy(buffer, reinterpret_cast<void*>(src_addr), length);
 }
 
@@ -623,7 +621,7 @@ Object TemplateList::get(int index) const {
   return FixedArray::cast(*this).get(kFirstElementIndex + index);
 }
 
-Object TemplateList::get(const Isolate* isolate, int index) const {
+Object TemplateList::get(IsolateRoot isolate, int index) const {
   return FixedArray::cast(*this).get(isolate, kFirstElementIndex + index);
 }
 

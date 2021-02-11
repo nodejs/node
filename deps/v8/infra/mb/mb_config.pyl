@@ -86,7 +86,6 @@
       'V8 Linux - arm64 - sim - MSAN': 'release_simulate_arm64_msan',
       # Misc.
       'V8 Linux gcc': 'release_x86_gcc',
-      'V8 Linux64 gcc - debug': 'debug_x64_gcc',
       # FYI.
       'V8 iOS - sim': 'release_x64_ios_simulator',
       'V8 Linux64 - debug - perfetto - builder': 'debug_x64_perfetto',
@@ -95,10 +94,10 @@
           'release_x64_pointer_compression_without_dchecks',
       'V8 Linux64 - arm64 - sim - pointer compression - builder':
           'release_simulate_arm64_pointer_compression',
+      'V8 Linux64 gcc - debug': 'debug_x64_gcc',
       'V8 Fuchsia - builder': 'release_x64_fuchsia',
       'V8 Fuchsia - debug builder': 'debug_x64_fuchsia',
       'V8 Linux64 - cfi': 'release_x64_cfi',
-      'V8 Linux64 - reverse jsargs': 'debug_x64_reverse_jsargs',
       'V8 Linux64 UBSan': 'release_x64_ubsan',
       'V8 Linux - vtunejit': 'debug_x86_vtunejit',
       'V8 Linux64 - gcov coverage': 'release_x64_gcc_coverage',
@@ -232,7 +231,6 @@
       'v8_linux64_perfetto_dbg_ng': 'debug_x64_perfetto',
       'v8_linux64_pointer_compression_rel_ng': 'release_x64_pointer_compression',
       'v8_linux64_rel_ng': 'release_x64_test_features_trybot',
-      'v8_linux64_reverse_jsargs_dbg_ng': 'debug_x64_reverse_jsargs',
       'v8_linux64_shared_compile_rel': 'release_x64_shared_verify_heap',
       'v8_linux64_verify_csa_rel_ng': 'release_x64_verify_csa',
       'v8_linux64_asan_rel_ng': 'release_x64_asan_minimal_symbols',
@@ -538,8 +536,6 @@
       'debug_bot', 'x64', 'perfetto'],
     'debug_x64_trybot': [
       'debug_trybot', 'x64'],
-    'debug_x64_reverse_jsargs': [
-      'debug_bot', 'x64', 'reverse_jsargs'],
     'debug_x64_trybot_custom': [
       'debug_trybot', 'x64', 'v8_snapshot_custom'],
     'full_debug_x64': [
@@ -661,7 +657,13 @@
     },
 
     'disable_concurrent_marking': {
-      'gn_args': 'v8_enable_concurrent_marking=false',
+      # Disable concurrent marking and atomic object field writes in order to
+      # increase the TSAN coverage for background tasks. We need to keep the 
+      # atomic marking state enabled because that is needed for the concurrent
+      # write-barrier used by background compilation.
+      'gn_args': 'v8_enable_concurrent_marking=false '
+                 'v8_enable_atomic_object_field_writes=false '
+                 'v8_enable_atomic_marking_state=true ',
     },
 
     'disable_pgo': {
@@ -750,10 +752,6 @@
 
     'release_trybot': {
       'mixins': ['release_bot', 'minimal_symbols', 'dcheck_always_on'],
-    },
-
-    'reverse_jsargs': {
-      'gn_args': 'v8_enable_reverse_jsargs=true',
     },
 
     'official': {

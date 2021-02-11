@@ -34,6 +34,9 @@ class MidTierRegisterAllocationData final : public RegisterAllocationData {
                                 InstructionSequence* code,
                                 TickCounter* tick_counter,
                                 const char* debug_name = nullptr);
+  MidTierRegisterAllocationData(const MidTierRegisterAllocationData&) = delete;
+  MidTierRegisterAllocationData& operator=(
+      const MidTierRegisterAllocationData&) = delete;
 
   static MidTierRegisterAllocationData* cast(RegisterAllocationData* data) {
     DCHECK_EQ(data->type(), Type::kMidTier);
@@ -57,8 +60,8 @@ class MidTierRegisterAllocationData final : public RegisterAllocationData {
   const InstructionBlock* GetBlock(int instr_index);
 
   // Returns a bitvector representing all the blocks that are dominated by the
-  // output of the instruction at |instr_index|.
-  const BitVector* GetBlocksDominatedBy(int instr_index);
+  // output of the instruction in |block|.
+  const BitVector* GetBlocksDominatedBy(const InstructionBlock* block);
 
   // List of all instruction indexs that require a reference map.
   ZoneVector<int>& reference_map_instructions() {
@@ -97,8 +100,6 @@ class MidTierRegisterAllocationData final : public RegisterAllocationData {
   BitVector spilled_virtual_registers_;
 
   TickCounter* const tick_counter_;
-
-  DISALLOW_COPY_AND_ASSIGN(MidTierRegisterAllocationData);
 };
 
 // Phase 1: Process instruction outputs to determine how each virtual register

@@ -39,6 +39,8 @@ class TimeDelta;
 class V8_BASE_EXPORT Semaphore final {
  public:
   explicit Semaphore(int count);
+  Semaphore(const Semaphore&) = delete;
+  Semaphore& operator=(const Semaphore&) = delete;
   ~Semaphore();
 
   // Increments the semaphore counter.
@@ -72,8 +74,6 @@ class V8_BASE_EXPORT Semaphore final {
 
  private:
   NativeHandle native_handle_;
-
-  DISALLOW_COPY_AND_ASSIGN(Semaphore);
 };
 
 

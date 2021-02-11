@@ -186,25 +186,36 @@ int LiftoffAssembler::PrepareStackFrame() {
 void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
                                        int stack_param_delta) {
   UseScratchRegisterScope temps(this);
+  temps.Exclude(x16, x17);
+
+  // This is the previous stack pointer value (before we push the lr and the
+  // fp). We need to keep it to autenticate the lr and adjust the new stack
+  // pointer afterwards.
+  Add(x16, fp, 16);
+
+  // Load the fp and lr of the old frame, they will be pushed in the new frame
+  // during the actual call.
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  Ldp(fp, x17, MemOperand(fp));
+  Autib1716();
+  Mov(lr, x17);
+#else
+  Ldp(fp, lr, MemOperand(fp));
+#endif
+
+  temps.Include(x17);
+
   Register scratch = temps.AcquireX();
 
-  // Push the return address and frame pointer to complete the stack frame.
-  sub(sp, sp, 16);
-  ldr(scratch, MemOperand(fp, 8));
-  Poke(scratch, 8);
-  ldr(scratch, MemOperand(fp, 0));
-  Poke(scratch, 0);
-
-  // Shift the whole frame upwards.
-  int slot_count = num_callee_stack_params + 2;
+  // Shift the whole frame upwards, except for fp and lr.
+  int slot_count = num_callee_stack_params;
   for (int i = slot_count - 1; i >= 0; --i) {
     ldr(scratch, MemOperand(sp, i * 8));
-    str(scratch, MemOperand(fp, (i - stack_param_delta) * 8));
+    str(scratch, MemOperand(x16, (i - stack_param_delta) * 8));
   }
 
-  // Set the new stack and frame pointer.
-  Sub(sp, fp, stack_param_delta * 8);
-  Pop<kAuthLR>(fp, lr);
+  // Set the new stack pointer.
+  Sub(sp, x16, stack_param_delta * 8);
 }
 
 void LiftoffAssembler::PatchPrepareStackFrame(int offset, int frame_size) {
@@ -302,9 +313,8 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
   }
 }
 
-void LiftoffAssembler::LoadFromInstance(Register dst, uint32_t offset,
-                                        int size) {
-  DCHECK_LE(offset, kMaxInt);
+void LiftoffAssembler::LoadFromInstance(Register dst, int offset, int size) {
+  DCHECK_LE(0, offset);
   Ldr(dst, liftoff::GetInstanceOperand());
   DCHECK(size == 4 || size == 8);
   if (size == 4) {
@@ -314,9 +324,8 @@ void LiftoffAssembler::LoadFromInstance(Register dst, uint32_t offset,
   }
 }
 
-void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
-                                                     uint32_t offset) {
-  DCHECK_LE(offset, kMaxInt);
+void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst, int offset) {
+  DCHECK_LE(0, offset);
   Ldr(dst, liftoff::GetInstanceOperand());
   LoadTaggedPointerField(dst, MemOperand(dst, offset));
 }
@@ -676,10 +685,11 @@ void LiftoffAssembler::AtomicCompareExchange(
   }
 
   UseScratchRegisterScope temps(this);
-  Register store_result = temps.AcquireW();
 
   Register actual_addr = liftoff::CalculateActualAddress(
       this, dst_addr, offset_reg, offset_imm, temps.AcquireX());
+
+  Register store_result = temps.AcquireW();
 
   Label retry;
   Label done;
@@ -1495,6 +1505,13 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
       Ldr(dst.fp().D(), src_op);
       Uxtl(dst.fp().V2D(), dst.fp().V2S());
     }
+  } else if (transform == LoadTransformationKind::kZeroExtend) {
+    if (memtype == MachineType::Int32()) {
+      Ldr(dst.fp().S(), src_op);
+    } else {
+      DCHECK_EQ(MachineType::Int64(), memtype);
+      Ldr(dst.fp().D(), src_op);
+    }
   } else {
     // ld1r only allows no offset or post-index, so emit an add.
     DCHECK_EQ(LoadTransformationKind::kSplat, transform);
@@ -2003,6 +2020,17 @@ void LiftoffAssembler::emit_i32x4_max_u(LiftoffRegister dst,
   Umax(dst.fp().V4S(), lhs.fp().V4S(), rhs.fp().V4S());
 }
 
+void LiftoffAssembler::emit_i32x4_dot_i16x8_s(LiftoffRegister dst,
+                                              LiftoffRegister lhs,
+                                              LiftoffRegister rhs) {
+  UseScratchRegisterScope scope(this);
+  VRegister tmp1 = scope.AcquireV(kFormat4S);
+  VRegister tmp2 = scope.AcquireV(kFormat4S);
+  Smull(tmp1, lhs.fp().V4H(), rhs.fp().V4H());
+  Smull2(tmp2, lhs.fp().V8H(), rhs.fp().V8H());
+  Addp(dst.fp().V4S(), tmp1, tmp2);
+}
+
 void LiftoffAssembler::emit_i16x8_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   Dup(dst.fp().V8H(), src.gp().W());
@@ -2105,9 +2133,9 @@ void LiftoffAssembler::emit_i16x8_add(LiftoffRegister dst, LiftoffRegister lhs,
   Add(dst.fp().V8H(), lhs.fp().V8H(), rhs.fp().V8H());
 }
 
-void LiftoffAssembler::emit_i16x8_add_saturate_s(LiftoffRegister dst,
-                                                 LiftoffRegister lhs,
-                                                 LiftoffRegister rhs) {
+void LiftoffAssembler::emit_i16x8_add_sat_s(LiftoffRegister dst,
+                                            LiftoffRegister lhs,
+                                            LiftoffRegister rhs) {
   Sqadd(dst.fp().V8H(), lhs.fp().V8H(), rhs.fp().V8H());
 }
 
@@ -2116,15 +2144,15 @@ void LiftoffAssembler::emit_i16x8_sub(LiftoffRegister dst, LiftoffRegister lhs,
   Sub(dst.fp().V8H(), lhs.fp().V8H(), rhs.fp().V8H());
 }
 
-void LiftoffAssembler::emit_i16x8_sub_saturate_s(LiftoffRegister dst,
-                                                 LiftoffRegister lhs,
-                                                 LiftoffRegister rhs) {
+void LiftoffAssembler::emit_i16x8_sub_sat_s(LiftoffRegister dst,
+                                            LiftoffRegister lhs,
+                                            LiftoffRegister rhs) {
   Sqsub(dst.fp().V8H(), lhs.fp().V8H(), rhs.fp().V8H());
 }
 
-void LiftoffAssembler::emit_i16x8_sub_saturate_u(LiftoffRegister dst,
-                                                 LiftoffRegister lhs,
-                                                 LiftoffRegister rhs) {
+void LiftoffAssembler::emit_i16x8_sub_sat_u(LiftoffRegister dst,
+                                            LiftoffRegister lhs,
+                                            LiftoffRegister rhs) {
   Uqsub(dst.fp().V8H(), lhs.fp().V8H(), rhs.fp().V8H());
 }
 
@@ -2133,9 +2161,9 @@ void LiftoffAssembler::emit_i16x8_mul(LiftoffRegister dst, LiftoffRegister lhs,
   Mul(dst.fp().V8H(), lhs.fp().V8H(), rhs.fp().V8H());
 }
 
-void LiftoffAssembler::emit_i16x8_add_saturate_u(LiftoffRegister dst,
-                                                 LiftoffRegister lhs,
-                                                 LiftoffRegister rhs) {
+void LiftoffAssembler::emit_i16x8_add_sat_u(LiftoffRegister dst,
+                                            LiftoffRegister lhs,
+                                            LiftoffRegister rhs) {
   Uqadd(dst.fp().V8H(), lhs.fp().V8H(), rhs.fp().V8H());
 }
 
@@ -2187,12 +2215,13 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
     Mov(src2.Q(), rhs.fp().Q());
   }
 
-  uint8_t mask = lhs == rhs ? 0x0F : 0x1F;
   int64_t imms[2] = {0, 0};
   for (int i = 7; i >= 0; i--) {
-    imms[0] = (imms[0] << 8) | (shuffle[i] & mask);
-    imms[1] = (imms[1] << 8) | (shuffle[i + 8] & mask);
+    imms[0] = (imms[0] << 8) | (shuffle[i]);
+    imms[1] = (imms[1] << 8) | (shuffle[i + 8]);
   }
+  DCHECK_EQ(0, (imms[0] | imms[1]) &
+                   (lhs == rhs ? 0xF0F0F0F0F0F0F0F0 : 0xE0E0E0E0E0E0E0E0));
 
   Movi(temp.V16B(), imms[1], imms[0]);
 
@@ -2307,9 +2336,9 @@ void LiftoffAssembler::emit_i8x16_add(LiftoffRegister dst, LiftoffRegister lhs,
   Add(dst.fp().V16B(), lhs.fp().V16B(), rhs.fp().V16B());
 }
 
-void LiftoffAssembler::emit_i8x16_add_saturate_s(LiftoffRegister dst,
-                                                 LiftoffRegister lhs,
-                                                 LiftoffRegister rhs) {
+void LiftoffAssembler::emit_i8x16_add_sat_s(LiftoffRegister dst,
+                                            LiftoffRegister lhs,
+                                            LiftoffRegister rhs) {
   Sqadd(dst.fp().V16B(), lhs.fp().V16B(), rhs.fp().V16B());
 }
 
@@ -2318,15 +2347,15 @@ void LiftoffAssembler::emit_i8x16_sub(LiftoffRegister dst, LiftoffRegister lhs,
   Sub(dst.fp().V16B(), lhs.fp().V16B(), rhs.fp().V16B());
 }
 
-void LiftoffAssembler::emit_i8x16_sub_saturate_s(LiftoffRegister dst,
-                                                 LiftoffRegister lhs,
-                                                 LiftoffRegister rhs) {
+void LiftoffAssembler::emit_i8x16_sub_sat_s(LiftoffRegister dst,
+                                            LiftoffRegister lhs,
+                                            LiftoffRegister rhs) {
   Sqsub(dst.fp().V16B(), lhs.fp().V16B(), rhs.fp().V16B());
 }
 
-void LiftoffAssembler::emit_i8x16_sub_saturate_u(LiftoffRegister dst,
-                                                 LiftoffRegister lhs,
-                                                 LiftoffRegister rhs) {
+void LiftoffAssembler::emit_i8x16_sub_sat_u(LiftoffRegister dst,
+                                            LiftoffRegister lhs,
+                                            LiftoffRegister rhs) {
   Uqsub(dst.fp().V16B(), lhs.fp().V16B(), rhs.fp().V16B());
 }
 
@@ -2335,9 +2364,9 @@ void LiftoffAssembler::emit_i8x16_mul(LiftoffRegister dst, LiftoffRegister lhs,
   Mul(dst.fp().V16B(), lhs.fp().V16B(), rhs.fp().V16B());
 }
 
-void LiftoffAssembler::emit_i8x16_add_saturate_u(LiftoffRegister dst,
-                                                 LiftoffRegister lhs,
-                                                 LiftoffRegister rhs) {
+void LiftoffAssembler::emit_i8x16_add_sat_u(LiftoffRegister dst,
+                                            LiftoffRegister lhs,
+                                            LiftoffRegister rhs) {
   Uqadd(dst.fp().V16B(), lhs.fp().V16B(), rhs.fp().V16B());
 }
 

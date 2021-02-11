@@ -14,6 +14,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-regexp-tq.inc"
+
 // Regular expressions
 // The regular expression holds a single reference to a FixedArray in
 // the kDataOffset field.
@@ -40,8 +42,8 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   enum Type { NOT_COMPILED, ATOM, IRREGEXP, EXPERIMENTAL };
   DEFINE_TORQUE_GENERATED_JS_REG_EXP_FLAGS()
 
-  static constexpr base::Optional<Flag> FlagFromChar(char c) {
-    STATIC_ASSERT(kFlagCount == 6);
+  static base::Optional<Flag> FlagFromChar(char c) {
+    STATIC_ASSERT(kFlagCount == 7);
     // clang-format off
     return c == 'g' ? base::Optional<Flag>(kGlobal)
          : c == 'i' ? base::Optional<Flag>(kIgnoreCase)
@@ -49,6 +51,8 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
          : c == 'y' ? base::Optional<Flag>(kSticky)
          : c == 'u' ? base::Optional<Flag>(kUnicode)
          : c == 's' ? base::Optional<Flag>(kDotAll)
+         : (FLAG_enable_experimental_regexp_engine && c == 'l')
+           ? base::Optional<Flag>(kLinear)
          : base::Optional<Flag>();
     // clang-format on
   }
@@ -60,6 +64,7 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   STATIC_ASSERT(static_cast<int>(kSticky) == v8::RegExp::kSticky);
   STATIC_ASSERT(static_cast<int>(kUnicode) == v8::RegExp::kUnicode);
   STATIC_ASSERT(static_cast<int>(kDotAll) == v8::RegExp::kDotAll);
+  STATIC_ASSERT(static_cast<int>(kLinear) == v8::RegExp::kLinear);
   STATIC_ASSERT(kFlagCount == v8::RegExp::kFlagCount);
 
   DECL_ACCESSORS(last_index, Object)

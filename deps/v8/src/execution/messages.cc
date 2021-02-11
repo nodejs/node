@@ -514,26 +514,6 @@ int JSStackFrame::GetColumnNumber() {
   return kNone;
 }
 
-int JSStackFrame::GetEnclosingLineNumber() {
-  if (HasScript()) {
-    Handle<SharedFunctionInfo> shared = handle(function_->shared(), isolate_);
-    return Script::GetLineNumber(GetScript(),
-                                 shared->function_token_position()) + 1;
-  } else {
-    return kNone;
-  }
-}
-
-int JSStackFrame::GetEnclosingColumnNumber() {
-  if (HasScript()) {
-    Handle<SharedFunctionInfo> shared = handle(function_->shared(), isolate_);
-    return Script::GetColumnNumber(GetScript(),
-                                   shared->function_token_position()) + 1;
-  } else {
-    return kNone;
-  }
-}
-
 int JSStackFrame::GetPromiseIndex() const {
   return (is_promise_all_ || is_promise_any_) ? offset_ : kNone;
 }
@@ -622,12 +602,6 @@ int WasmStackFrame::GetPosition() const {
 
 int WasmStackFrame::GetColumnNumber() { return GetModuleOffset(); }
 
-int WasmStackFrame::GetEnclosingColumnNumber() {
-  const int function_offset =
-      GetWasmFunctionOffset(wasm_instance_->module(), wasm_func_index_);
-  return function_offset;
-}
-
 int WasmStackFrame::GetModuleOffset() const {
   const int function_offset =
       GetWasmFunctionOffset(wasm_instance_->module(), wasm_func_index_);
@@ -696,26 +670,6 @@ int AsmJsWasmStackFrame::GetColumnNumber() {
   Handle<Script> script(wasm_instance_->module_object().script(), isolate_);
   DCHECK(script->IsUserJavaScript());
   return Script::GetColumnNumber(script, GetPosition()) + 1;
-}
-
-int AsmJsWasmStackFrame::GetEnclosingLineNumber() {
-  DCHECK_LE(0, GetPosition());
-  Handle<Script> script(wasm_instance_->module_object().script(), isolate_);
-  DCHECK(script->IsUserJavaScript());
-  int byte_offset = GetSourcePosition(wasm_instance_->module(),
-                                      wasm_func_index_, 0,
-                                      is_at_number_conversion_);
-  return Script::GetLineNumber(script, byte_offset) + 1;
-}
-
-int AsmJsWasmStackFrame::GetEnclosingColumnNumber() {
-  DCHECK_LE(0, GetPosition());
-  Handle<Script> script(wasm_instance_->module_object().script(), isolate_);
-  DCHECK(script->IsUserJavaScript());
-  int byte_offset = GetSourcePosition(wasm_instance_->module(),
-                                      wasm_func_index_, 0,
-                                      is_at_number_conversion_);
-  return Script::GetColumnNumber(script, byte_offset) + 1;
 }
 
 FrameArrayIterator::FrameArrayIterator(Isolate* isolate,
@@ -1280,7 +1234,18 @@ Handle<String> BuildDefaultCallSite(Isolate* isolate, Handle<Object> object) {
   builder.AppendString(Object::TypeOf(isolate, object));
   if (object->IsString()) {
     builder.AppendCString(" \"");
-    builder.AppendString(Handle<String>::cast(object));
+    Handle<String> string = Handle<String>::cast(object);
+    // This threshold must be sufficiently far below String::kMaxLength that
+    // the {builder}'s result can never exceed that limit.
+    constexpr int kMaxPrintedStringLength = 100;
+    if (string->length() <= kMaxPrintedStringLength) {
+      builder.AppendString(string);
+    } else {
+      string = isolate->factory()->NewProperSubString(string, 0,
+                                                      kMaxPrintedStringLength);
+      builder.AppendString(string);
+      builder.AppendCString("<...>");
+    }
     builder.AppendCString("\"");
   } else if (object->IsNull(isolate)) {
     builder.AppendCString(" ");
@@ -1337,13 +1302,12 @@ MessageTemplate UpdateErrorTemplate(CallPrinter::ErrorHint hint,
     case CallPrinter::ErrorHint::kNone:
       return default_id;
   }
-  return default_id;
 }
 
 }  // namespace
 
-Handle<Object> ErrorUtils::NewIteratorError(Isolate* isolate,
-                                            Handle<Object> source) {
+Handle<JSObject> ErrorUtils::NewIteratorError(Isolate* isolate,
+                                              Handle<Object> source) {
   MessageLocation location;
   CallPrinter::ErrorHint hint = CallPrinter::kNone;
   Handle<String> callsite = RenderCallSite(isolate, source, &location, &hint);
@@ -1387,13 +1351,13 @@ Object ErrorUtils::ThrowSpreadArgError(Isolate* isolate, MessageTemplate id,
     }
   }
 
-  Handle<Object> exception =
-      isolate->factory()->NewTypeError(id, callsite, object);
-  return isolate->Throw(*exception, &location);
+  isolate->ThrowAt(isolate->factory()->NewTypeError(id, callsite, object),
+                   &location);
+  return ReadOnlyRoots(isolate).exception();
 }
 
-Handle<Object> ErrorUtils::NewCalledNonCallableError(Isolate* isolate,
-                                                     Handle<Object> source) {
+Handle<JSObject> ErrorUtils::NewCalledNonCallableError(Isolate* isolate,
+                                                       Handle<Object> source) {
   MessageLocation location;
   CallPrinter::ErrorHint hint = CallPrinter::kNone;
   Handle<String> callsite = RenderCallSite(isolate, source, &location, &hint);
@@ -1402,7 +1366,7 @@ Handle<Object> ErrorUtils::NewCalledNonCallableError(Isolate* isolate,
   return isolate->factory()->NewTypeError(id, callsite);
 }
 
-Handle<Object> ErrorUtils::NewConstructedNonConstructable(
+Handle<JSObject> ErrorUtils::NewConstructedNonConstructable(
     Isolate* isolate, Handle<Object> source) {
   MessageLocation location;
   CallPrinter::ErrorHint hint = CallPrinter::kNone;
@@ -1411,10 +1375,6 @@ Handle<Object> ErrorUtils::NewConstructedNonConstructable(
   return isolate->factory()->NewTypeError(id, callsite);
 }
 
-Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
-                                                Handle<Object> object) {
-  return ThrowLoadFromNullOrUndefined(isolate, object, MaybeHandle<Object>());
-}
 Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
                                                 Handle<Object> object,
                                                 MaybeHandle<Object> key) {
@@ -1487,7 +1447,7 @@ Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
     callsite = BuildDefaultCallSite(isolate, object);
   }
 
-  Handle<Object> error;
+  Handle<JSObject> error;
   Handle<String> property_name;
   if (is_destructuring) {
     if (maybe_property_name.ToHandle(&property_name)) {
@@ -1511,7 +1471,12 @@ Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
     }
   }
 
-  return isolate->Throw(*error, location_computed ? &location : nullptr);
+  if (location_computed) {
+    isolate->ThrowAt(error, &location);
+  } else {
+    isolate->Throw(*error);
+  }
+  return ReadOnlyRoots(isolate).exception();
 }
 
 }  // namespace internal

@@ -66,20 +66,20 @@ class V8_EXPORT Heap {
 
   /**
    * Options specifying Heap properties (e.g. custom spaces) when initializing a
-   * heap through Heap::Create().
+   * heap through `Heap::Create()`.
    */
   struct HeapOptions {
     /**
      * Creates reasonable defaults for instantiating a Heap.
      *
-     * \returns the HeapOptions that can be passed to Heap::Create().
+     * \returns the HeapOptions that can be passed to `Heap::Create()`.
      */
     static HeapOptions Default() { return {}; }
 
     /**
      * Custom spaces added to heap are required to have indices forming a
-     * numbered sequence starting at 0, i.e., their kSpaceIndex must correspond
-     * to the index they reside in the vector.
+     * numbered sequence starting at 0, i.e., their `kSpaceIndex` must
+     * correspond to the index they reside in the vector.
      */
     std::vector<std::unique_ptr<CustomSpaceBase>> custom_spaces;
 
@@ -89,7 +89,7 @@ class V8_EXPORT Heap {
      * garbage collections using non-nestable task, which are guaranteed to have
      * no interesting stack, through the provided Platform. If such tasks are
      * not supported by the Platform, the embedder must take care of invoking
-     * the GC through ForceGarbageCollectionSlow().
+     * the GC through `ForceGarbageCollectionSlow()`.
      */
     StackSupport stack_support = StackSupport::kSupportsConservativeStackScan;
 
@@ -126,6 +126,10 @@ class V8_EXPORT Heap {
       const char* source, const char* reason,
       StackState stack_state = StackState::kMayContainHeapPointers);
 
+  /**
+   * \returns the opaque handle for allocating objects using
+   * `MakeGarbageCollected()`.
+   */
   AllocationHandle& GetAllocationHandle();
 
  private:

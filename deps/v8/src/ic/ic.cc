@@ -620,17 +620,9 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name,
     DCHECK_LE(i, maps_and_handlers.size());
   }
 
-  // Reorder the deprecated maps to be at the end, so that
-  // minimorphic ICs have the best chance of succeeding as they only
-  // check the first FLAG_max_minimorphic_map_checks maps.
-  if (deprecated_maps_and_handlers.size() > 0) {
-    maps_and_handlers.insert(maps_and_handlers.end(),
-                             deprecated_maps_and_handlers.begin(),
-                             deprecated_maps_and_handlers.end());
-  }
-
-  int number_of_maps = static_cast<int>(maps_and_handlers.size());
   int deprecated_maps = static_cast<int>(deprecated_maps_and_handlers.size());
+  int number_of_maps =
+      static_cast<int>(maps_and_handlers.size()) + deprecated_maps;
   int number_of_valid_maps =
       number_of_maps - deprecated_maps - (handler_to_overwrite != -1);
 
@@ -653,6 +645,15 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name,
       }
     } else {
       maps_and_handlers.push_back(MapAndHandler(map, handler));
+    }
+
+    // Reorder the deprecated maps to be at the end, so that
+    // minimorphic ICs have the best chance of succeeding as they only
+    // check the first FLAG_max_minimorphic_map_checks maps.
+    if (deprecated_maps_and_handlers.size() > 0) {
+      maps_and_handlers.insert(maps_and_handlers.end(),
+                               deprecated_maps_and_handlers.begin(),
+                               deprecated_maps_and_handlers.end());
     }
 
     ConfigureVectorState(name, maps_and_handlers);
@@ -1862,7 +1863,9 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
                                       KeyedAccessStoreMode store_mode,
                                       Handle<Map> new_receiver_map) {
   std::vector<MapAndHandler> target_maps_and_handlers;
-  nexus()->ExtractMapsAndHandlers(&target_maps_and_handlers, true);
+  nexus()->ExtractMapsAndHandlers(
+      &target_maps_and_handlers,
+      [this](Handle<Map> map) { return Map::TryUpdate(isolate(), map); });
   if (target_maps_and_handlers.empty()) {
     Handle<Map> monomorphic_map = receiver_map;
     // If we transitioned to a map that is a more general map than incoming
@@ -2711,7 +2714,7 @@ static bool CanFastCloneObject(Handle<Map> map) {
     return false;
   }
 
-  DescriptorArray descriptors = map->instance_descriptors();
+  DescriptorArray descriptors = map->instance_descriptors(kRelaxedLoad);
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     PropertyDetails details = descriptors.GetDetails(i);
     Name key = descriptors.GetKey(i);
@@ -2760,8 +2763,8 @@ static Handle<Map> FastCloneObjectMap(Isolate* isolate, Handle<Map> source_map,
     map = Map::Copy(isolate, map, "InitializeClonedDescriptors");
   }
 
-  Handle<DescriptorArray> source_descriptors(source_map->instance_descriptors(),
-                                             isolate);
+  Handle<DescriptorArray> source_descriptors(
+      source_map->instance_descriptors(kRelaxedLoad), isolate);
   int size = source_map->NumberOfOwnDescriptors();
   int slack = 0;
   Handle<DescriptorArray> descriptors = DescriptorArray::CopyForFastObjectClone(

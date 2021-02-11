@@ -21,7 +21,7 @@ class LockedQueue final {
  public:
   inline LockedQueue();
   inline ~LockedQueue();
-  inline void Enqueue(const Record& record);
+  inline void Enqueue(Record record);
   inline bool Dequeue(Record* record);
   inline bool IsEmpty() const;
   inline bool Peek(Record* record) const;

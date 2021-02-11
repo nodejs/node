@@ -30,12 +30,12 @@ Dictionary<Derived, Shape>::Dictionary(Address ptr)
 
 template <typename Derived, typename Shape>
 Object Dictionary<Derived, Shape>::ValueAt(InternalIndex entry) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return ValueAt(isolate, entry);
 }
 
 template <typename Derived, typename Shape>
-Object Dictionary<Derived, Shape>::ValueAt(const Isolate* isolate,
+Object Dictionary<Derived, Shape>::ValueAt(IsolateRoot isolate,
                                            InternalIndex entry) {
   return this->get(isolate, DerivedHashTable::EntryToIndex(entry) +
                                 Derived::kEntryValueIndex);
@@ -181,11 +181,11 @@ Handle<Map> GlobalDictionary::GetMap(ReadOnlyRoots roots) {
 }
 
 Name NameDictionary::NameAt(InternalIndex entry) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return NameAt(isolate, entry);
 }
 
-Name NameDictionary::NameAt(const Isolate* isolate, InternalIndex entry) {
+Name NameDictionary::NameAt(IsolateRoot isolate, InternalIndex entry) {
   return Name::cast(KeyAt(isolate, entry));
 }
 
@@ -194,31 +194,31 @@ Handle<Map> NameDictionary::GetMap(ReadOnlyRoots roots) {
 }
 
 PropertyCell GlobalDictionary::CellAt(InternalIndex entry) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return CellAt(isolate, entry);
 }
 
-PropertyCell GlobalDictionary::CellAt(const Isolate* isolate,
+PropertyCell GlobalDictionary::CellAt(IsolateRoot isolate,
                                       InternalIndex entry) {
   DCHECK(KeyAt(isolate, entry).IsPropertyCell(isolate));
   return PropertyCell::cast(KeyAt(isolate, entry));
 }
 
 Name GlobalDictionary::NameAt(InternalIndex entry) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return NameAt(isolate, entry);
 }
 
-Name GlobalDictionary::NameAt(const Isolate* isolate, InternalIndex entry) {
+Name GlobalDictionary::NameAt(IsolateRoot isolate, InternalIndex entry) {
   return CellAt(isolate, entry).name(isolate);
 }
 
 Object GlobalDictionary::ValueAt(InternalIndex entry) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return ValueAt(isolate, entry);
 }
 
-Object GlobalDictionary::ValueAt(const Isolate* isolate, InternalIndex entry) {
+Object GlobalDictionary::ValueAt(IsolateRoot isolate, InternalIndex entry) {
   return CellAt(isolate, entry).value(isolate);
 }
 

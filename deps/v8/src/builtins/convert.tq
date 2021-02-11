@@ -115,6 +115,11 @@ FromConstexpr<IterationKind, constexpr IterationKind>(
   return %RawDownCast<IterationKind>(Unsigned(%FromConstexpr<int32>(c)));
 }
 
+FromConstexpr<string::TrimMode, string::constexpr TrimMode>(
+    c: string::constexpr TrimMode): string::TrimMode {
+  return %RawDownCast<string::TrimMode>(Unsigned(%FromConstexpr<int32>(c)));
+}
+
 macro Convert<To: type, From: type>(i: From): To {
   return i;
 }

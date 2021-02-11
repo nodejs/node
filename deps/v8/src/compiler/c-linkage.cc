@@ -4,9 +4,8 @@
 
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
-
+#include "src/compiler/globals.h"
 #include "src/compiler/linkage.h"
-
 #include "src/zone/zone.h"
 
 namespace v8 {

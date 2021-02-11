@@ -6,7 +6,7 @@
 #define V8_CODEGEN_COMPILATION_CACHE_H_
 
 #include "src/base/hashmap.h"
-#include "src/objects/compilation-cache.h"
+#include "src/objects/compilation-cache-table.h"
 #include "src/utils/allocation.h"
 
 namespace v8 {

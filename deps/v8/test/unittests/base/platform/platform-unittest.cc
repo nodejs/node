@@ -91,9 +91,12 @@ TEST(StackTest, GetCurrentStackPosition) {
 
 TEST(StackTest, StackVariableInBounds) {
   void* dummy;
-  ASSERT_GT(Stack::GetStackStart(), Stack::GetCurrentStackPosition());
-  EXPECT_GT(Stack::GetStackStart(), Stack::GetStackSlot(&dummy));
-  EXPECT_LT(Stack::GetCurrentStackPosition(), Stack::GetStackSlot(&dummy));
+  ASSERT_GT(static_cast<void*>(Stack::GetStackStart()),
+            Stack::GetCurrentStackPosition());
+  EXPECT_GT(static_cast<void*>(Stack::GetStackStart()),
+            Stack::GetRealStackAddressForSlot(&dummy));
+  EXPECT_LT(static_cast<void*>(Stack::GetCurrentStackPosition()),
+            Stack::GetRealStackAddressForSlot(&dummy));
 }
 
 }  // namespace base

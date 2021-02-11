@@ -9,6 +9,7 @@
 #include "src/handles/persistent-handles.h"
 #include "src/heap/concurrent-allocator-inl.h"
 #include "src/heap/local-heap-inl.h"
+#include "src/heap/local-heap.h"
 #include "src/heap/marking.h"
 #include "src/heap/memory-chunk.h"
 
@@ -17,7 +18,8 @@ namespace internal {
 
 void StressConcurrentAllocatorTask::RunInternal() {
   Heap* heap = isolate_->heap();
-  LocalHeap local_heap(heap);
+  LocalHeap local_heap(heap, ThreadKind::kBackground);
+  UnparkedScope unparked_scope(&local_heap);
 
   const int kNumIterations = 2000;
   const int kSmallObjectSize = 10 * kTaggedSize;

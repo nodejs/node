@@ -25,37 +25,49 @@ found in the LICENSE file. -->
     padding: 0.5em 0 0.2em 0;
   }
 
-  .entry-details {}
-
-  .entry-details TD {}
-
-  .details {
-    width: 0.1em;
-  }
-
-  .details span {
-    padding: 0 0.4em 0 0.4em;
-    background-color: var(--on-surface-color);
-    color: var(--surface-color);
-    border-radius: 25px;
+  .toggle {
+    width: 1em;
     text-align: center;
     cursor: -webkit-zoom-in;
+    color: rgba(var(--border-color), 1);
+  }
+  .toggle::before {
+    content: "▶";
+  }
+  .open .toggle::before {
+    content: "▼";
+  }
+
+  .panel {
+    position: relative;
+    min-height: 200px;
   }
 
   #legend {
-    padding-right: 20px;
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    background-color: var(--surface-color);
+    border-radius: 5px;
+    border: 3px solid rgba(var(--border-color), 0.2);
+    padding: 0 10px 0 10px;
   }
 
-  dl {
-    float: right;
-    border-style: solid;
-    border-width: 1px;
-    padding: 20px;
+  #legend dt  {
+    font-family: monospace;
+  }
+  #legend h3 {
+    margin-top: 10px;
+  }
+  .scroller {
+    max-height: 800px;
+    overflow-y: scroll;
   }
 </style>
 <div class="panel">
-  <h2>IC Panel</h2>
+  <h2>IC Panel <span id="count"></span></h2>
   <div id="legend">
+    <h3>Legend</h3>
     <dl>
       <dt>0</dt>
       <dd>uninitialized</dd>
@@ -73,22 +85,14 @@ found in the LICENSE file. -->
       <dd>generic</dd>
     </dl>
   </div>
-  <h3>Data</h3>
-  <p>Trace Count: <span id="count">0</span></p>
-  <h3>Result</h3>
   <p>
-    Group-Key:
+    Group by IC-property: 
     <select id="group-key"></select>
   </p>
-  <p>
-    Filter by Time
-    <input type="search" id="filter-time-start" placeholder="start"></input> :
-    <input type="search" id="filter-time-end" placeholder="end"></input>
-    <button id="filterICTimeBtn">Filter</button>
-  <p>
-  <table id="table" width="100%">
-    <tbody id="table-body">
-    </tbody>
-  </table>
-  </p>
+  <div class="panelBody">
+    <table id="table" width="100%">
+      <tbody id="table-body">
+      </tbody>
+    </table>
+  </div>
 </div>

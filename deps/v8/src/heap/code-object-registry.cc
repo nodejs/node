@@ -12,63 +12,57 @@ namespace v8 {
 namespace internal {
 
 void CodeObjectRegistry::RegisterNewlyAllocatedCodeObject(Address code) {
-  auto result = code_object_registry_newly_allocated_.insert(code);
-  USE(result);
-  DCHECK(result.second);
+  if (is_sorted_) {
+    is_sorted_ =
+        (code_object_registry_.empty() || code_object_registry_.back() < code);
+  }
+  code_object_registry_.push_back(code);
 }
 
 void CodeObjectRegistry::RegisterAlreadyExistingCodeObject(Address code) {
-  code_object_registry_already_existing_.push_back(code);
+  DCHECK(is_sorted_);
+  DCHECK(code_object_registry_.empty() || code_object_registry_.back() < code);
+  code_object_registry_.push_back(code);
 }
 
 void CodeObjectRegistry::Clear() {
-  code_object_registry_already_existing_.clear();
-  code_object_registry_newly_allocated_.clear();
+  code_object_registry_.clear();
+  is_sorted_ = true;
 }
 
 void CodeObjectRegistry::Finalize() {
-  code_object_registry_already_existing_.shrink_to_fit();
+  DCHECK(is_sorted_);
+  code_object_registry_.shrink_to_fit();
 }
 
 bool CodeObjectRegistry::Contains(Address object) const {
-  return (code_object_registry_newly_allocated_.find(object) !=
-          code_object_registry_newly_allocated_.end()) ||
-         (std::binary_search(code_object_registry_already_existing_.begin(),
-                             code_object_registry_already_existing_.end(),
-                             object));
+  if (!is_sorted_) {
+    std::sort(code_object_registry_.begin(), code_object_registry_.end());
+    is_sorted_ = true;
+  }
+  return (std::binary_search(code_object_registry_.begin(),
+                             code_object_registry_.end(), object));
 }
 
 Address CodeObjectRegistry::GetCodeObjectStartFromInnerAddress(
     Address address) const {
-  // Let's first find the object which comes right before address in the vector
-  // of already existing code objects.
-  Address already_existing_set_ = 0;
-  Address newly_allocated_set_ = 0;
-  if (!code_object_registry_already_existing_.empty()) {
-    auto it =
-        std::upper_bound(code_object_registry_already_existing_.begin(),
-                         code_object_registry_already_existing_.end(), address);
-    if (it != code_object_registry_already_existing_.begin()) {
-      already_existing_set_ = *(--it);
-    }
+  if (!is_sorted_) {
+    std::sort(code_object_registry_.begin(), code_object_registry_.end());
+    is_sorted_ = true;
   }
 
-  // Next, let's find the object which comes right before address in the set
-  // of newly allocated code objects.
-  if (!code_object_registry_newly_allocated_.empty()) {
-    auto it = code_object_registry_newly_allocated_.upper_bound(address);
-    if (it != code_object_registry_newly_allocated_.begin()) {
-      newly_allocated_set_ = *(--it);
-    }
-  }
+  // The code registry can't be empty, else the code object can't exist.
+  DCHECK(!code_object_registry_.empty());
 
-  // The code objects which contains address has to be in one of the two
-  // data structures.
-  DCHECK(already_existing_set_ != 0 || newly_allocated_set_ != 0);
-
-  // The address which is closest to the given address is the code object.
-  return already_existing_set_ > newly_allocated_set_ ? already_existing_set_
-                                                      : newly_allocated_set_;
+  // std::upper_bound returns the first code object strictly greater than
+  // address, so the code object containing the address has to be the previous
+  // one.
+  auto it = std::upper_bound(code_object_registry_.begin(),
+                             code_object_registry_.end(), address);
+  // The address has to be contained in a code object, so necessarily the
+  // address can't be smaller than the first code object.
+  DCHECK_NE(it, code_object_registry_.begin());
+  return *(--it);
 }
 
 }  // namespace internal

@@ -9,6 +9,7 @@ bitfield struct JSRegExpFlags extends uint31 {
   sticky: bool: 1 bit;
   unicode: bool: 1 bit;
   dot_all: bool: 1 bit;
+  linear: bool: 1 bit;
 }
 
 @generateCppClass

@@ -32,6 +32,8 @@ class LocalizedNumberFormatter;
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-plural-rules-tq.inc"
+
 class JSPluralRules
     : public TorqueGeneratedJSPluralRules<JSPluralRules, JSObject> {
  public:

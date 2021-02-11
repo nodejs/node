@@ -8,6 +8,7 @@
 #include "src/compiler/opcodes.h"
 #include "src/execution/isolate.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/js-function.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
@@ -151,10 +152,10 @@ TEST(SimpleCallJSFunction0Arg) {
   CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
   CodeAssembler m(asm_tester.state());
   {
-    Node* function = m.Parameter(1);
-    Node* context = m.Parameter(kContextOffset);
+    auto function = m.Parameter<JSFunction>(1);
+    auto context = m.Parameter<Context>(kContextOffset);
 
-    Node* receiver = SmiTag(&m, m.Int32Constant(42));
+    auto receiver = SmiTag(&m, m.Int32Constant(42));
 
     Callable callable = CodeFactory::Call(isolate);
     TNode<Object> result = m.CallJS(callable, context, function, receiver);
@@ -174,8 +175,8 @@ TEST(SimpleCallJSFunction1Arg) {
   CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
   CodeAssembler m(asm_tester.state());
   {
-    Node* function = m.Parameter(1);
-    Node* context = m.Parameter(kContextOffset);
+    auto function = m.Parameter<JSFunction>(1);
+    auto context = m.Parameter<Context>(kContextOffset);
 
     Node* receiver = SmiTag(&m, m.Int32Constant(42));
     Node* a = SmiTag(&m, m.Int32Constant(13));
@@ -198,8 +199,8 @@ TEST(SimpleCallJSFunction2Arg) {
   CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
   CodeAssembler m(asm_tester.state());
   {
-    Node* function = m.Parameter(1);
-    Node* context = m.Parameter(kContextOffset);
+    auto function = m.Parameter<JSFunction>(1);
+    auto context = m.Parameter<Context>(kContextOffset);
 
     Node* receiver = SmiTag(&m, m.Int32Constant(42));
     Node* a = SmiTag(&m, m.Int32Constant(13));
@@ -422,14 +423,12 @@ TEST(TestOutOfScopeVariable) {
   CodeAssemblerLabel block2(&m);
   CodeAssemblerLabel block3(&m);
   CodeAssemblerLabel block4(&m);
-  m.Branch(m.WordEqual(m.UncheckedCast<IntPtrT>(m.Parameter(0)),
-                       m.IntPtrConstant(0)),
+  m.Branch(m.WordEqual(m.UncheckedParameter<IntPtrT>(0), m.IntPtrConstant(0)),
            &block1, &block4);
   m.Bind(&block4);
   {
     TVariable<IntPtrT> var_object(&m);
-    m.Branch(m.WordEqual(m.UncheckedCast<IntPtrT>(m.Parameter(0)),
-                         m.IntPtrConstant(0)),
+    m.Branch(m.WordEqual(m.UncheckedParameter<IntPtrT>(0), m.IntPtrConstant(0)),
              &block2, &block3);
 
     m.Bind(&block2);

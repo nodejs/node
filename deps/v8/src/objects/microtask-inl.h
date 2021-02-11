@@ -18,6 +18,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/microtask-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(Microtask)
 TQ_OBJECT_CONSTRUCTORS_IMPL(CallbackTask)
 TQ_OBJECT_CONSTRUCTORS_IMPL(CallableTask)

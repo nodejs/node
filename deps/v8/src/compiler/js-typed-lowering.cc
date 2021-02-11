@@ -107,11 +107,11 @@ class JSBinopReduction final {
         GetBinaryOperationHint(node_) == BinaryOperationHint::kString) {
       HeapObjectBinopMatcher m(node_);
       JSHeapBroker* broker = lowering_->broker();
-      if (m.right().HasValue() && m.right().Ref(broker).IsString()) {
+      if (m.right().HasResolvedValue() && m.right().Ref(broker).IsString()) {
         StringRef right_string = m.right().Ref(broker).AsString();
         if (right_string.length() >= ConsString::kMinLength) return true;
       }
-      if (m.left().HasValue() && m.left().Ref(broker).IsString()) {
+      if (m.left().HasResolvedValue() && m.left().Ref(broker).IsString()) {
         StringRef left_string = m.left().Ref(broker).AsString();
         if (left_string.length() >= ConsString::kMinLength) {
           // The invariant for ConsString requires the left hand side to be
@@ -989,7 +989,7 @@ Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
 
   if (input_type.Is(Type::String())) {
     HeapObjectMatcher m(input);
-    if (m.HasValue() && m.Ref(broker()).IsString()) {
+    if (m.HasResolvedValue() && m.Ref(broker()).IsString()) {
       StringRef input_value = m.Ref(broker()).AsString();
       double number;
       ASSIGN_RETURN_NO_CHANGE_IF_DATA_MISSING(number, input_value.ToNumber());
@@ -1492,8 +1492,6 @@ namespace {
 void ReduceBuiltin(JSGraph* jsgraph, Node* node, int builtin_index, int arity,
                    CallDescriptor::Flags flags) {
   // Patch {node} to a direct CEntry call.
-  //
-  // When V8_REVERSE_JSARGS is set:
   // ----------- A r g u m e n t s -----------
   // -- 0: CEntry
   // --- Stack args ---
@@ -1506,21 +1504,6 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, int builtin_index, int arity,
   // --- Register args ---
   // -- 6 + n: the C entry point
   // -- 6 + n + 1: argc (Int32)
-  // -----------------------------------
-  //
-  // Otherwise:
-  // ----------- A r g u m e n t s -----------
-  // -- 0: CEntry
-  // --- Stack args ---
-  // -- 1: receiver
-  // -- [2, 2 + n[: the n actual arguments passed to the builtin
-  // -- 2 + n: padding
-  // -- 2 + n + 1: argc, including the receiver and implicit args (Smi)
-  // -- 2 + n + 2: target
-  // -- 2 + n + 3: new_target
-  // --- Register args ---
-  // -- 2 + n + 4: the C entry point
-  // -- 2 + n + 5: argc (Int32)
   // -----------------------------------
 
   // The logic contained here is mirrored in Builtins::Generate_Adaptor.
@@ -1558,19 +1541,11 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, int builtin_index, int arity,
   Node* argc_node = jsgraph->Constant(argc);
 
   static const int kStubAndReceiver = 2;
-#ifdef V8_REVERSE_JSARGS
   node->InsertInput(zone, 1, new_target);
   node->InsertInput(zone, 2, target);
   node->InsertInput(zone, 3, argc_node);
   node->InsertInput(zone, 4, jsgraph->PaddingConstant());
   int cursor = arity + kStubAndReceiver + BuiltinArguments::kNumExtraArgs;
-#else
-  int cursor = arity + kStubAndReceiver;
-  node->InsertInput(zone, cursor++, jsgraph->PaddingConstant());
-  node->InsertInput(zone, cursor++, argc_node);
-  node->InsertInput(zone, cursor++, target);
-  node->InsertInput(zone, cursor++, new_target);
-#endif
 
   Address entry = Builtins::CppEntryOf(builtin_index);
   ExternalReference entry_ref = ExternalReference::Create(entry);
@@ -1803,51 +1778,18 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
 #else
     if (NeedsArgumentAdaptorFrame(*shared, arity)) {
       node->RemoveInput(n.FeedbackVectorIndex());
-
-      // Check if it's safe to skip the arguments adaptor for {shared},
-      // that is whether the target function anyways cannot observe the
-      // actual arguments. Details can be found in this document at
-      // https://bit.ly/v8-faster-calls-with-arguments-mismatch and
-      // on the tracking bug at https://crbug.com/v8/8895
-      if (shared->is_safe_to_skip_arguments_adaptor()) {
-        // Currently we only support skipping arguments adaptor frames
-        // for strict mode functions, since there's Function.arguments
-        // legacy accessor, which is still available in sloppy mode.
-        DCHECK_EQ(LanguageMode::kStrict, shared->language_mode());
-
-        // Massage the arguments to match the expected number of arguments.
-        int expected_argument_count = shared->internal_formal_parameter_count();
-        for (; arity > expected_argument_count; --arity) {
-          node->RemoveInput(arity + 1);
-        }
-        for (; arity < expected_argument_count; ++arity) {
-          node->InsertInput(graph()->zone(), arity + 2,
-                            jsgraph()->UndefinedConstant());
-        }
-
-        // Patch {node} to a direct call.
-        node->InsertInput(graph()->zone(), arity + 2, new_target);
-        node->InsertInput(graph()->zone(), arity + 3,
-                          jsgraph()->Constant(arity));
-        NodeProperties::ChangeOp(node,
-                                 common()->Call(Linkage::GetJSCallDescriptor(
-                                     graph()->zone(), false, 1 + arity,
-                                     flags | CallDescriptor::kCanUseRoots)));
-      } else {
-        // Patch {node} to an indirect call via the ArgumentsAdaptorTrampoline.
-        Callable callable = CodeFactory::ArgumentAdaptor(isolate());
-        node->InsertInput(graph()->zone(), 0,
-                          jsgraph()->HeapConstant(callable.code()));
-        node->InsertInput(graph()->zone(), 2, new_target);
-        node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
-        node->InsertInput(
-            graph()->zone(), 4,
-            jsgraph()->Constant(shared->internal_formal_parameter_count()));
-        NodeProperties::ChangeOp(
-            node,
-            common()->Call(Linkage::GetStubCallDescriptor(
-                graph()->zone(), callable.descriptor(), 1 + arity, flags)));
-      }
+      // Patch {node} to an indirect call via the ArgumentsAdaptorTrampoline.
+      Callable callable = CodeFactory::ArgumentAdaptor(isolate());
+      node->InsertInput(graph()->zone(), 0,
+                        jsgraph()->HeapConstant(callable.code()));
+      node->InsertInput(graph()->zone(), 2, new_target);
+      node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
+      node->InsertInput(
+          graph()->zone(), 4,
+          jsgraph()->Constant(shared->internal_formal_parameter_count()));
+      NodeProperties::ChangeOp(
+          node, common()->Call(Linkage::GetStubCallDescriptor(
+                    graph()->zone(), callable.descriptor(), 1 + arity, flags)));
 #endif
     } else if (shared->HasBuiltinId() &&
                Builtins::IsCpp(shared->builtin_id())) {
@@ -1912,23 +1854,22 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
 }
 
 Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSForInNext, node->opcode());
-  ForInMode const mode = ForInModeOf(node->op());
-  Node* receiver = NodeProperties::GetValueInput(node, 0);
-  Node* cache_array = NodeProperties::GetValueInput(node, 1);
-  Node* cache_type = NodeProperties::GetValueInput(node, 2);
-  Node* index = NodeProperties::GetValueInput(node, 3);
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
+  JSForInNextNode n(node);
+  Node* receiver = n.receiver();
+  Node* cache_array = n.cache_array();
+  Node* cache_type = n.cache_type();
+  Node* index = n.index();
+  Node* context = n.context();
+  FrameState frame_state = n.frame_state();
+  Effect effect = n.effect();
+  Control control = n.control();
 
   // Load the map of the {receiver}.
   Node* receiver_map = effect =
       graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
                        receiver, effect, control);
 
-  switch (mode) {
+  switch (n.Parameters().mode()) {
     case ForInMode::kUseEnumCacheKeys:
     case ForInMode::kUseEnumCacheKeysAndIndices: {
       // Ensure that the expected map still matches that of the {receiver}.
@@ -2025,16 +1966,15 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
 }
 
 Reduction JSTypedLowering::ReduceJSForInPrepare(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSForInPrepare, node->opcode());
-  ForInMode const mode = ForInModeOf(node->op());
-  Node* enumerator = NodeProperties::GetValueInput(node, 0);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
+  JSForInPrepareNode n(node);
+  Node* enumerator = n.enumerator();
+  Effect effect = n.effect();
+  Control control = n.control();
   Node* cache_type = enumerator;
   Node* cache_array = nullptr;
   Node* cache_length = nullptr;
 
-  switch (mode) {
+  switch (n.Parameters().mode()) {
     case ForInMode::kUseEnumCacheKeys:
     case ForInMode::kUseEnumCacheKeysAndIndices: {
       // Check that the {enumerator} is a Map.

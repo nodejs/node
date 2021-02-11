@@ -1853,7 +1853,6 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       return ParseSuperExpression(is_new);
     }
     case Token::IMPORT:
-      if (!flags().allow_harmony_dynamic_import()) break;
       return ParseImportExpressions();
 
     case Token::LBRACK:
@@ -2989,15 +2988,12 @@ ParserBase<Impl>::ParseCoalesceExpression(ExpressionT expression) {
   bool first_nullish = true;
   while (peek() == Token::NULLISH) {
     SourceRange right_range;
-    int pos;
-    ExpressionT y;
-    {
-      SourceRangeScope right_range_scope(scanner(), &right_range);
-      Consume(Token::NULLISH);
-      pos = peek_position();
-      // Parse BitwiseOR or higher.
-      y = ParseBinaryExpression(6);
-    }
+    SourceRangeScope right_range_scope(scanner(), &right_range);
+    Consume(Token::NULLISH);
+    int pos = peek_position();
+
+    // Parse BitwiseOR or higher.
+    ExpressionT y = ParseBinaryExpression(6);
     if (first_nullish) {
       expression =
           factory()->NewBinaryOperation(Token::NULLISH, expression, y, pos);
@@ -3297,7 +3293,6 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
 
   bool optional_chaining = false;
   bool is_optional = false;
-  int optional_link_begin;
   do {
     switch (peek()) {
       case Token::QUESTION_PERIOD: {
@@ -3305,16 +3300,10 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
           ReportUnexpectedToken(peek());
           return impl()->FailureExpression();
         }
-        // Include the ?. in the source range position.
-        optional_link_begin = scanner()->peek_location().beg_pos;
         Consume(Token::QUESTION_PERIOD);
         is_optional = true;
         optional_chaining = true;
-        if (Token::IsPropertyOrCall(peek())) continue;
-        int pos = position();
-        ExpressionT key = ParsePropertyOrPrivatePropertyName();
-        result = factory()->NewProperty(result, key, pos, is_optional);
-        break;
+        continue;
       }
 
       /* Property */
@@ -3394,7 +3383,14 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
       }
 
       default:
-        // Template literals in/after an Optional Chain not supported:
+        /* Optional Property */
+        if (is_optional) {
+          DCHECK_EQ(scanner()->current_token(), Token::QUESTION_PERIOD);
+          int pos = position();
+          ExpressionT key = ParsePropertyOrPrivatePropertyName();
+          result = factory()->NewProperty(result, key, pos, is_optional);
+          break;
+        }
         if (optional_chaining) {
           impl()->ReportMessageAt(scanner()->peek_location(),
                                   MessageTemplate::kOptionalChainingNoTemplate);
@@ -3405,12 +3401,8 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
         result = ParseTemplateLiteral(result, position(), true);
         break;
     }
-    if (is_optional) {
-      SourceRange chain_link_range(optional_link_begin, end_position());
-      impl()->RecordExpressionSourceRange(result, chain_link_range);
-      is_optional = false;
-    }
-  } while (Token::IsPropertyOrCall(peek()));
+    is_optional = false;
+  } while (is_optional || Token::IsPropertyOrCall(peek()));
   if (optional_chaining) return factory()->NewOptionalChain(result);
   return result;
 }
@@ -3446,10 +3438,7 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression() {
   if (peek() == Token::SUPER) {
     const bool is_new = true;
     result = ParseSuperExpression(is_new);
-  } else if (flags().allow_harmony_dynamic_import() &&
-             peek() == Token::IMPORT &&
-             (!flags().allow_harmony_import_meta() ||
-              PeekAhead() == Token::LPAREN)) {
+  } else if (peek() == Token::IMPORT && PeekAhead() == Token::LPAREN) {
     impl()->ReportMessageAt(scanner()->peek_location(),
                             MessageTemplate::kImportCallNotNewExpression);
     return impl()->FailureExpression();
@@ -3547,11 +3536,9 @@ ParserBase<Impl>::ParseMemberExpression() {
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseImportExpressions() {
-  DCHECK(flags().allow_harmony_dynamic_import());
-
   Consume(Token::IMPORT);
   int pos = position();
-  if (flags().allow_harmony_import_meta() && Check(Token::PERIOD)) {
+  if (Check(Token::PERIOD)) {
     ExpectContextualKeyword(ast_value_factory()->meta_string(), "import.meta",
                             pos);
     if (!flags().is_module()) {

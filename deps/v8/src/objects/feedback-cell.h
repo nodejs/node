@@ -13,6 +13,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/feedback-cell-tq.inc"
+
 // This is a special cell used to maintain both the link between a
 // closure and its feedback vector, as well as a way to count the
 // number of closures created for a certain function per native
@@ -33,6 +35,11 @@ class FeedbackCell : public TorqueGeneratedFeedbackCell<FeedbackCell, Struct> {
           gc_notify_updated_slot = base::nullopt);
   inline void SetInitialInterruptBudget();
   inline void SetInterruptBudget();
+
+  // The closure count is encoded in the cell's map, which distinguishes
+  // between zero, one, or many closures. This function records a new closure
+  // creation by updating the map.
+  inline void IncrementClosureCount(Isolate* isolate);
 
   using BodyDescriptor =
       FixedBodyDescriptor<kValueOffset, kInterruptBudgetOffset, kAlignedSize>;

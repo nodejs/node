@@ -10,12 +10,12 @@
 #include <utility>
 #include <vector>
 
-#include "include/v8.h"
 #include "include/v8-profiler.h"
-
-#include "src/utils/utils.h"
+#include "include/v8.h"
 #include "src/handles/handles.h"
+#include "src/heap/heap.h"
 #include "src/objects/objects.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -321,6 +321,52 @@ class EternalHandles final {
   std::vector<int> young_node_indices_;
 
   DISALLOW_COPY_AND_ASSIGN(EternalHandles);
+};
+
+// A vector of global Handles which automatically manages the backing of those
+// Handles as a vector of strong-rooted addresses. Handles returned by the
+// vector are valid as long as they are present in the vector.
+template <typename T>
+class GlobalHandleVector {
+ public:
+  class Iterator {
+   public:
+    explicit Iterator(
+        std::vector<Address, StrongRootBlockAllocator>::iterator it)
+        : it_(it) {}
+    Iterator& operator++() {
+      ++it_;
+      return *this;
+    }
+    Handle<T> operator*() { return Handle<T>(&*it_); }
+    bool operator!=(Iterator& that) { return it_ != that.it_; }
+
+   private:
+    std::vector<Address, StrongRootBlockAllocator>::iterator it_;
+  };
+
+  explicit GlobalHandleVector(Heap* heap)
+      : locations_(StrongRootBlockAllocator(heap)) {}
+
+  Handle<T> operator[](size_t i) { return Handle<T>(&locations_[i]); }
+
+  size_t size() const { return locations_.size(); }
+  bool empty() const { return locations_.empty(); }
+
+  void Push(T val) { locations_.push_back(val.ptr()); }
+  // Handles into the GlobalHandleVector become invalid when they are removed,
+  // so "pop" returns a raw object rather than a handle.
+  T Pop() {
+    T obj = T::cast(Object(locations_.back()));
+    locations_.pop_back();
+    return obj;
+  }
+
+  Iterator begin() { return Iterator(locations_.begin()); }
+  Iterator end() { return Iterator(locations_.end()); }
+
+ private:
+  std::vector<Address, StrongRootBlockAllocator> locations_;
 };
 
 }  // namespace internal

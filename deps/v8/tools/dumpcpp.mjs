@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import { LogReader, parseString } from "./logreader.mjs";
-import { CodeMap } from "./codemap.mjs";
+import { CodeMap, CodeEntry } from "./codemap.mjs";
 export {
     ArgumentsProcessor, UnixCppEntriesProvider, 
     WindowsCppEntriesProvider, MacCppEntriesProvider,
@@ -11,57 +11,58 @@ export {
   import { inherits } from  "./tickprocessor.mjs";
 
 
-export function CppProcessor(cppEntriesProvider, timedRange, pairwiseTimedRange) {
-  LogReader.call(this, {
-      'shared-library': { parsers: [parseString, parseInt, parseInt, parseInt],
+export class CppProcessor extends LogReader {
+  constructor(cppEntriesProvider, timedRange, pairwiseTimedRange) {
+    super({}, timedRange, pairwiseTimedRange);
+    this.dispatchTable_ = {
+        'shared-library': {
+          parsers: [parseString, parseInt, parseInt, parseInt],
           processor: this.processSharedLibrary }
-  }, timedRange, pairwiseTimedRange);
+    };
+    this.cppEntriesProvider_ = cppEntriesProvider;
+    this.codeMap_ = new CodeMap();
+    this.lastLogFileName_ = null;
+  }
 
-  this.cppEntriesProvider_ = cppEntriesProvider;
-  this.codeMap_ = new CodeMap();
-  this.lastLogFileName_ = null;
+  /**
+   * @override
+   */
+  printError(str) {
+    print(str);
+  };
+
+  processLogFile(fileName) {
+    this.lastLogFileName_ = fileName;
+    let line;
+    while (line = readline()) {
+      this.processLogLine(line);
+    }
+  };
+
+  processLogFileInTest(fileName) {
+    // Hack file name to avoid dealing with platform specifics.
+    this.lastLogFileName_ = 'v8.log';
+    const contents = readFile(fileName);
+    this.processLogChunk(contents);
+  };
+
+  processSharedLibrary(name, startAddr, endAddr, aslrSlide) {
+    const self = this;
+    const libFuncs = this.cppEntriesProvider_.parseVmSymbols(
+        name, startAddr, endAddr, aslrSlide, function(fName, fStart, fEnd) {
+      const entry = new CodeEntry(fEnd - fStart, fName, 'CPP');
+      self.codeMap_.addStaticCode(fStart, entry);
+    });
+  };
+
+  dumpCppSymbols() {
+    const staticEntries = this.codeMap_.getAllStaticEntriesWithAddresses();
+    const total = staticEntries.length;
+    for (let i = 0; i < total; ++i) {
+      const entry = staticEntries[i];
+      const printValues = ['cpp', `0x${entry[0].toString(16)}`, entry[1].size,
+                        `"${entry[1].name}"`];
+      print(printValues.join(','));
+    }
+  }
 }
-inherits(CppProcessor, LogReader);
-
-/**
- * @override
- */
-CppProcessor.prototype.printError = function(str) {
-  print(str);
-};
-
-CppProcessor.prototype.processLogFile = function(fileName) {
-  this.lastLogFileName_ = fileName;
-  var line;
-  while (line = readline()) {
-    this.processLogLine(line);
-  }
-};
-
-CppProcessor.prototype.processLogFileInTest = function(fileName) {
-   // Hack file name to avoid dealing with platform specifics.
-  this.lastLogFileName_ = 'v8.log';
-  var contents = readFile(fileName);
-  this.processLogChunk(contents);
-};
-
-CppProcessor.prototype.processSharedLibrary = function(
-    name, startAddr, endAddr, aslrSlide) {
-  var self = this;
-  var libFuncs = this.cppEntriesProvider_.parseVmSymbols(
-      name, startAddr, endAddr, aslrSlide, function(fName, fStart, fEnd) {
-    var entry = new CodeMap.CodeEntry(fEnd - fStart, fName, 'CPP');
-    self.codeMap_.addStaticCode(fStart, entry);
-  });
-};
-
-CppProcessor.prototype.dumpCppSymbols = function() {
-  var staticEntries = this.codeMap_.getAllStaticEntriesWithAddresses();
-  var total = staticEntries.length;
-  for (var i = 0; i < total; ++i) {
-    var entry = staticEntries[i];
-    var printValues = ['cpp', '0x' + entry[0].toString(16), entry[1].size,
-                       '"' + entry[1].name + '"'];
-    print(printValues.join(','));
-  }
-};

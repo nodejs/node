@@ -6,13 +6,14 @@ group("v8_fuzzer") {
   testonly = true
 
   data_deps = [
-    "../../tools:v8_testrunner",
     "../..:v8_fuzzers",
+    "../../tools:v8_testrunner",
   ]
 
   data = [
     "./fuzzer.status",
     "./testcfg.py",
+    "./inspector/",
     "./json/",
     "./parser/",
     "./regexp/",

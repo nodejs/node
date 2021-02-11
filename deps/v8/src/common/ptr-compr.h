@@ -7,7 +7,7 @@
 
 #include "src/common/globals.h"
 
-#if V8_TARGET_ARCH_64_BIT
+#ifdef V8_COMPRESS_POINTERS
 
 namespace v8 {
 namespace internal {
@@ -19,6 +19,6 @@ constexpr size_t kPtrComprIsolateRootAlignment = size_t{4} * GB;
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TARGET_ARCH_64_BIT
+#endif  // V8_COMPRESS_POINTERS
 
 #endif  // V8_COMMON_PTR_COMPR_H_

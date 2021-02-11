@@ -82,7 +82,7 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
   CodeStubAssembler assembler(tester.state());
   std::vector<Node*> params;
   // The first parameter is always the callee.
-  params.push_back(__ Parameter(1));
+  params.push_back(__ Parameter<Object>(1));
   params.push_back(__ HeapConstant(
       BuildTeardownFunction(isolate, call_descriptor, parameters)));
   // First allocate the FixedArray which will hold the final results. Here we
@@ -114,7 +114,7 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
   }
   params.push_back(state_out);
   // Then take each element of the initial state and pass them as arguments.
-  TNode<FixedArray> state_in = __ Cast(__ Parameter(2));
+  auto state_in = __ Parameter<FixedArray>(2);
   for (int i = 0; i < static_cast<int>(parameters.size()); i++) {
     Node* element = __ LoadFixedArrayElement(state_in, __ IntPtrConstant(i));
     // Unbox all elements before passing them as arguments.
@@ -123,10 +123,11 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
       case MachineRepresentation::kTagged:
         break;
       case MachineRepresentation::kFloat32:
-        element = __ TruncateFloat64ToFloat32(__ LoadHeapNumberValue(element));
+        element = __ TruncateFloat64ToFloat32(
+            __ LoadHeapNumberValue(__ CAST(element)));
         break;
       case MachineRepresentation::kFloat64:
-        element = __ LoadHeapNumberValue(element);
+        element = __ LoadHeapNumberValue(__ CAST(element));
         break;
       case MachineRepresentation::kSimd128: {
         Node* vector = tester.raw_assembler_for_testing()->AddNode(
@@ -203,10 +204,10 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate,
                                    std::vector<AllocatedOperand> parameters) {
   CodeAssemblerTester tester(isolate, call_descriptor, "teardown");
   CodeStubAssembler assembler(tester.state());
-  TNode<FixedArray> result_array = __ Cast(__ Parameter(1));
+  auto result_array = __ Parameter<FixedArray>(1);
   for (int i = 0; i < static_cast<int>(parameters.size()); i++) {
     // The first argument is not used and the second is "result_array".
-    Node* param = __ Parameter(i + 2);
+    Node* param = __ UntypedParameter(i + 2);
     switch (parameters[i].representation()) {
       case MachineRepresentation::kTagged:
         __ StoreFixedArrayElement(result_array, i, param,
@@ -964,10 +965,11 @@ class CodeGeneratorTester {
   explicit CodeGeneratorTester(TestEnvironment* environment,
                                int extra_stack_space = 0)
       : zone_(environment->main_zone()),
-        info_(ArrayVector("test"), environment->main_zone(), CodeKind::STUB),
+        info_(ArrayVector("test"), environment->main_zone(),
+              CodeKind::FOR_TESTING),
         linkage_(environment->test_descriptor()),
         frame_(environment->test_descriptor()->CalculateFixedFrameSize(
-            CodeKind::STUB)) {
+            CodeKind::FOR_TESTING)) {
     // Pick half of the stack parameters at random and move them into spill
     // slots, separated by `extra_stack_space` bytes.
     // When testing a move with stack slots using CheckAssembleMove or

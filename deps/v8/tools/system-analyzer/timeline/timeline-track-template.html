@@ -8,11 +8,10 @@ found in the LICENSE file. -->
 <style>
   #timeline {
     position: relative;
-    height: 300px;
+    height: calc(200px + 12px);
     overflow-y: hidden;
     overflow-x: scroll;
     user-select: none;
-    background-color: var(--timeline-background-color);
   }
 
   #timelineLabel {
@@ -20,20 +19,20 @@ found in the LICENSE file. -->
     transform-origin: left bottom 0;
     position: absolute;
     left: 0;
-    width: 250px;
+    width: 200px;
     text-align: center;
     font-size: 10px;
     opacity: 0.5;
   }
 
   #timelineChunks {
-    height: 250px;
+    height: 200px;
     position: absolute;
     margin-right: 100px;
   }
 
   #timelineCanvas {
-    height: 250px;
+    height: 200px;
     position: relative;
     overflow: visible;
     pointer-events: none;
@@ -41,40 +40,54 @@ found in the LICENSE file. -->
 
   .chunk {
     width: 6px;
-    border: 0px var(--timeline-background-color) solid;
-    border-width: 0 2px 0 2px;
     position: absolute;
     background-size: 100% 100%;
     image-rendering: pixelated;
     bottom: 0px;
+    background-color: var(--on-surface-color);
+    cursor: pointer;
+  }
+  .chunk:hover {
+    border-radius: 2px 2px 0 0;
+    margin: 0 0 -2px -2px;
+    border: 2px var(--primary-color) solid;
   }
 
   .timestamp {
-    height: 250px;
+    height: 200px;
     width: 100px;
-    border-left: 1px var(--surface-color) dashed;
+    border-left: 1px var(--on-surface-color) dashed;
     padding-left: 4px;
     position: absolute;
     pointer-events: none;
     font-size: 10px;
-    opacity: 0.5;
   }
 
   #legend {
     position: relative;
     float: right;
-    text-align: center;
     width: 100%;
     max-width: 280px;
     padding-left: 20px;
     padding-top: 10px;
+    border-collapse: collapse;
   }
 
   th,
   td {
     width: 200px;
-    text-align: center;
-    padding: 5px;
+    text-align: left;
+    padding-bottom: 3px;
+  }
+
+  /* right align numbers */
+  #legend td:nth-of-type(4n+3),
+  #legend td:nth-of-type(4n+4) {
+    text-align: right;
+  }
+
+  .legendTypeColumn {
+    width: 100%;
   }
 
   .timeline {
@@ -90,35 +103,36 @@ found in the LICENSE file. -->
     z-index: 3;
     cursor: col-resize;
   }
+  #timeline .leftHandle {
+    border-left: 1px solid var(--on-surface-color);
+  }
+  #timeline .rightHandle {
+    border-right: 1px solid var(--on-surface-color);
+  }
 
   #timeline .selection {
     background-color: rgba(133, 68, 163, 0.5);
     height: 100%;
     position: absolute;
-    z-index: 2;
   }
 </style>
-<div class="timeline">
-  <div id="legend">
-    <table>
-      <thead>
-        <tr>
-          <td>Color</td>
-          <td>Type</td>
-          <td>Count</td>
-          <td>Percent</td>
-        </tr>
-      </thead>
-      <tbody id="legendContent">
-      </tbody>
-    </table>
-  </div>
-  <div id="timeline">
-    <div class="leftHandle"></div>
-    <div class="selection"></div>
-    <div class="rightHandle"></div>
-    <div id="timelineLabel">Frequency</div>
-    <div id="timelineChunks"></div>
-    <canvas id="timelineCanvas"></canvas>
-  </div>
+<table id="legend" class="typeStatsTable">
+  <thead>
+    <tr>
+      <td></td>
+      <td>Type</td>
+      <td>Count</td>
+      <td>Percent</td>
+    </tr>
+  </thead>
+  <tbody id="legendContent">
+  </tbody>
+</table>
+<div id="timeline">
+  <div class="leftHandle"></div>
+  <div class="selection"></div>
+  <div class="rightHandle"></div>
+  <div id="timelineLabel">Frequency</div>
+  <div id="timelineChunks"></div>
+  <canvas id="timelineCanvas"></canvas>
 </div>

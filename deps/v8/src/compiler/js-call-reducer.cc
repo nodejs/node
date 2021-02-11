@@ -157,6 +157,9 @@ class JSCallReducerAssembler : public JSGraphAssembler {
       gasm_->Bind(&merge);
     }
 
+    IfBuilder0(const IfBuilder0&) = delete;
+    IfBuilder0& operator=(const IfBuilder0&) = delete;
+
    private:
     JSGraphAssembler* const gasm_;
     const TNode<Boolean> cond_;
@@ -166,8 +169,6 @@ class JSCallReducerAssembler : public JSGraphAssembler {
     BranchHint hint_ = BranchHint::kNone;
     VoidGenerator0 then_body_;
     VoidGenerator0 else_body_;
-
-    DISALLOW_COPY_AND_ASSIGN(IfBuilder0);
   };
 
   IfBuilder0 If(TNode<Boolean> cond) { return {this, cond, false}; }
@@ -882,14 +883,13 @@ class PromiseBuiltinReducerAssembler : public JSCallReducerAssembler {
 class FastApiCallReducerAssembler : public JSCallReducerAssembler {
  public:
   FastApiCallReducerAssembler(
-      JSCallReducer* reducer, Node* node, Address c_function,
-      const CFunctionInfo* c_signature,
+      JSCallReducer* reducer, Node* node,
       const FunctionTemplateInfoRef function_template_info, Node* receiver,
       Node* holder, const SharedFunctionInfoRef shared, Node* target,
       const int arity, Node* effect)
       : JSCallReducerAssembler(reducer, node),
-        c_function_(c_function),
-        c_signature_(c_signature),
+        c_function_(function_template_info.c_function()),
+        c_signature_(function_template_info.c_signature()),
         function_template_info_(function_template_info),
         receiver_(receiver),
         holder_(holder),
@@ -2640,8 +2640,8 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
     // recomputed even if the actual value of the object changes.
     // This mirrors the checks done in builtins-function-gen.cc at
     // runtime otherwise.
-    int minimum_nof_descriptors = i::Max(JSFunction::kLengthDescriptorIndex,
-                                           JSFunction::kNameDescriptorIndex) +
+    int minimum_nof_descriptors = std::max({JSFunction::kLengthDescriptorIndex,
+                                            JSFunction::kNameDescriptorIndex}) +
                                   1;
     if (receiver_map.NumberOfOwnDescriptors() < minimum_nof_descriptors) {
       return inference.NoChange();
@@ -2725,7 +2725,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
   // to ensure any exception is thrown in the correct context.
   Node* context;
   HeapObjectMatcher m(target);
-  if (m.HasValue()) {
+  if (m.HasResolvedValue() && m.Ref(broker()).IsJSFunction()) {
     JSFunctionRef function = m.Ref(broker()).AsJSFunction();
     if (should_disallow_heap_access() && !function.serialized()) {
       TRACE_BROKER_MISSING(broker(), "Serialize call on function " << function);
@@ -2901,10 +2901,10 @@ Reduction JSCallReducer::ReduceObjectPrototypeHasOwnProperty(Node* node) {
   // Object.prototype.hasOwnProperty does an implicit ToObject anyway, and
   // these operations are not observable.
   if (name->opcode() == IrOpcode::kJSForInNext) {
-    ForInMode const mode = ForInModeOf(name->op());
-    if (mode != ForInMode::kGeneric) {
-      Node* object = NodeProperties::GetValueInput(name, 0);
-      Node* cache_type = NodeProperties::GetValueInput(name, 2);
+    JSForInNextNode n(name);
+    if (n.Parameters().mode() != ForInMode::kGeneric) {
+      Node* object = n.receiver();
+      Node* cache_type = n.cache_type();
       if (object->opcode() == IrOpcode::kJSToObject) {
         object = NodeProperties::GetValueInput(object, 0);
       }
@@ -3453,6 +3453,54 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
   return ReplaceWithSubgraph(&a, subgraph);
 }
 
+#ifndef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+namespace {
+bool HasFPParamsInSignature(const CFunctionInfo* c_signature) {
+  for (unsigned int i = 0; i < c_signature->ArgumentCount(); ++i) {
+    if (c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kFloat32 ||
+        c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kFloat64) {
+      return true;
+    }
+  }
+  return false;
+}
+}  // namespace
+#endif
+
+#ifndef V8_TARGET_ARCH_64_BIT
+namespace {
+bool Has64BitIntegerParamsInSignature(const CFunctionInfo* c_signature) {
+  for (unsigned int i = 0; i < c_signature->ArgumentCount(); ++i) {
+    if (c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kInt64 ||
+        c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kUint64) {
+      return true;
+    }
+  }
+  return false;
+}
+}  // namespace
+#endif
+
+bool CanOptimizeFastCall(
+    const FunctionTemplateInfoRef& function_template_info) {
+  const CFunctionInfo* c_signature = function_template_info.c_signature();
+
+  bool optimize_to_fast_call =
+      FLAG_turbo_fast_api_calls &&
+      function_template_info.c_function() != kNullAddress;
+#ifndef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+  optimize_to_fast_call =
+      optimize_to_fast_call && !HasFPParamsInSignature(c_signature);
+#else
+  USE(c_signature);
+#endif
+#ifndef V8_TARGET_ARCH_64_BIT
+  optimize_to_fast_call =
+      optimize_to_fast_call && !Has64BitIntegerParamsInSignature(c_signature);
+#endif
+  return optimize_to_fast_call;
+}
+
 Reduction JSCallReducer::ReduceCallApiFunction(
     Node* node, const SharedFunctionInfoRef& shared) {
   DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
@@ -3624,13 +3672,9 @@ Reduction JSCallReducer::ReduceCallApiFunction(
     return NoChange();
   }
 
-  Address c_function = function_template_info.c_function();
-
-  if (FLAG_turbo_fast_api_calls && c_function != kNullAddress) {
-    const CFunctionInfo* c_signature = function_template_info.c_signature();
-    FastApiCallReducerAssembler a(this, node, c_function, c_signature,
-                                  function_template_info, receiver, holder,
-                                  shared, target, argc, effect);
+  if (CanOptimizeFastCall(function_template_info)) {
+    FastApiCallReducerAssembler a(this, node, function_template_info, receiver,
+                                  holder, shared, target, argc, effect);
     Node* fast_call_subgraph = a.ReduceFastApiCall();
     ReplaceWithSubgraph(&a, fast_call_subgraph);
 
@@ -3934,7 +3978,7 @@ namespace {
 
 bool ShouldUseCallICFeedback(Node* node) {
   HeapObjectMatcher m(node);
-  if (m.HasValue() || m.IsCheckClosure() || m.IsJSCreateClosure()) {
+  if (m.HasResolvedValue() || m.IsCheckClosure() || m.IsJSCreateClosure()) {
     // Don't use CallIC feedback when we know the function
     // being called, i.e. either know the closure itself or
     // at least the SharedFunctionInfo.
@@ -3970,6 +4014,8 @@ bool JSCallReducer::IsBuiltinOrApiFunction(JSFunctionRef function) const {
 }
 
 Reduction JSCallReducer::ReduceJSCall(Node* node) {
+  if (broker()->StackHasOverflowed()) return NoChange();
+
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
   Node* target = n.target();
@@ -3979,7 +4025,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
 
   // Try to specialize JSCall {node}s with constant {target}s.
   HeapObjectMatcher m(target);
-  if (m.HasValue()) {
+  if (m.HasResolvedValue()) {
     ObjectRef target_ref = m.Ref(broker());
     if (target_ref.IsJSFunction()) {
       JSFunctionRef function = target_ref.AsJSFunction();
@@ -4104,7 +4150,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
   if (feedback_target.has_value() && feedback_target->map().is_callable()) {
     Node* target_function = jsgraph()->Constant(*feedback_target);
 
-    if (FLAG_turboprop) {
+    if (broker()->is_turboprop()) {
       if (!feedback_target->IsJSFunction()) return NoChange();
       if (!IsBuiltinOrApiFunction(feedback_target->AsJSFunction())) {
         return NoChange();
@@ -4138,7 +4184,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
         return NoChange();
       }
 
-      if (FLAG_turboprop &&
+      if (broker()->is_turboprop() &&
           !feedback_vector.shared_function_info().HasBuiltinId()) {
         return NoChange();
       }
@@ -4578,7 +4624,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
                     arity, feedback_target->AsAllocationSite().object()));
       return Changed(node);
     } else if (feedback_target.has_value() &&
-               !HeapObjectMatcher(new_target).HasValue() &&
+               !HeapObjectMatcher(new_target).HasResolvedValue() &&
                feedback_target->map().is_constructor()) {
       Node* new_target_feedback = jsgraph()->Constant(*feedback_target);
 
@@ -4603,7 +4649,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
 
   // Try to specialize JSConstruct {node}s with constant {target}s.
   HeapObjectMatcher m(target);
-  if (m.HasValue()) {
+  if (m.HasResolvedValue()) {
     HeapObjectRef target_ref = m.Ref(broker());
 
     // Raise a TypeError if the {target} is not a constructor.
@@ -4659,7 +4705,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
           // constructor), {value} will be ignored and therefore we can lower
           // to {JSCreate}. See https://tc39.es/ecma262/#sec-object-value.
           HeapObjectMatcher mnew_target(new_target);
-          if (mnew_target.HasValue() &&
+          if (mnew_target.HasResolvedValue() &&
               !mnew_target.Ref(broker()).equals(function)) {
             // Drop the value inputs.
             node->RemoveInput(n.FeedbackVectorIndex());
@@ -4965,7 +5011,7 @@ Reduction JSCallReducer::ReduceForInsufficientFeedback(
   // TODO(mythria): May be add additional flags to specify if we need to deopt
   // on calls / construct rather than checking for TurboProp here. We may need
   // it for NativeContextIndependent code too.
-  if (FLAG_turboprop) return NoChange();
+  if (broker()->is_turboprop()) return NoChange();
 
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -5999,7 +6045,7 @@ Reduction JSCallReducer::ReduceStringPrototypeStartsWith(Node* node) {
   Node* position = n.ArgumentOr(1, jsgraph()->ZeroConstant());
 
   HeapObjectMatcher m(search_string);
-  if (m.HasValue()) {
+  if (m.HasResolvedValue()) {
     ObjectRef target_ref = m.Ref(broker());
     if (target_ref.IsString()) {
       StringRef str = target_ref.AsString();
@@ -7323,7 +7369,7 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
 
   // Check that the {offset} is within range for the {receiver}.
   HeapObjectMatcher m(receiver);
-  if (m.HasValue()) {
+  if (m.HasResolvedValue() && m.Ref(broker()).IsJSDataView()) {
     // We only deal with DataViews here whose [[ByteLength]] is at least
     // {element_size}, as for all other DataViews it'll be out-of-bounds.
     JSDataViewRef dataview = m.Ref(broker()).AsJSDataView();
@@ -7602,7 +7648,7 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
 
     // Add proper dependencies on the {regexp}s [[Prototype]]s.
     dependencies()->DependOnStablePrototypeChains(
-        ai_exec.receiver_maps(), kStartAtPrototype,
+        ai_exec.lookup_start_object_maps(), kStartAtPrototype,
         JSObjectRef(broker(), holder));
   } else {
     return inference.NoChange();
@@ -7688,7 +7734,7 @@ Reduction JSCallReducer::ReduceBigIntAsUintN(Node* node) {
 
   NumberMatcher matcher(bits);
   if (matcher.IsInteger() && matcher.IsInRange(0, 64)) {
-    const int bits_value = static_cast<int>(matcher.Value());
+    const int bits_value = static_cast<int>(matcher.ResolvedValue());
     value = effect = graph()->NewNode(simplified()->CheckBigInt(p.feedback()),
                                       value, effect, control);
     value = graph()->NewNode(simplified()->BigIntAsUintN(bits_value), value);

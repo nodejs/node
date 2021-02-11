@@ -277,6 +277,8 @@ class JSONGraphNodeWriter {
         positions_(positions),
         origins_(origins),
         first_node_(true) {}
+  JSONGraphNodeWriter(const JSONGraphNodeWriter&) = delete;
+  JSONGraphNodeWriter& operator=(const JSONGraphNodeWriter&) = delete;
 
   void Print() {
     for (Node* const node : all_.reachable) PrintNode(node);
@@ -349,8 +351,6 @@ class JSONGraphNodeWriter {
   const SourcePositionTable* positions_;
   const NodeOriginTable* origins_;
   bool first_node_;
-
-  DISALLOW_COPY_AND_ASSIGN(JSONGraphNodeWriter);
 };
 
 
@@ -358,6 +358,8 @@ class JSONGraphEdgeWriter {
  public:
   JSONGraphEdgeWriter(std::ostream& os, Zone* zone, const Graph* graph)
       : os_(os), all_(zone, graph, false), first_edge_(true) {}
+  JSONGraphEdgeWriter(const JSONGraphEdgeWriter&) = delete;
+  JSONGraphEdgeWriter& operator=(const JSONGraphEdgeWriter&) = delete;
 
   void Print() {
     for (Node* const node : all_.reachable) PrintEdges(node);
@@ -400,8 +402,6 @@ class JSONGraphEdgeWriter {
   std::ostream& os_;
   AllNodes all_;
   bool first_edge_;
-
-  DISALLOW_COPY_AND_ASSIGN(JSONGraphEdgeWriter);
 };
 
 std::ostream& operator<<(std::ostream& os, const GraphAsJSON& ad) {
@@ -420,6 +420,8 @@ std::ostream& operator<<(std::ostream& os, const GraphAsJSON& ad) {
 class GraphC1Visualizer {
  public:
   GraphC1Visualizer(std::ostream& os, Zone* zone);  // NOLINT
+  GraphC1Visualizer(const GraphC1Visualizer&) = delete;
+  GraphC1Visualizer& operator=(const GraphC1Visualizer&) = delete;
 
   void PrintCompilation(const OptimizedCompilationInfo* info);
   void PrintSchedule(const char* phase, const Schedule* schedule,
@@ -470,8 +472,6 @@ class GraphC1Visualizer {
   std::ostream& os_;
   int indent_;
   Zone* zone_;
-
-  DISALLOW_COPY_AND_ASSIGN(GraphC1Visualizer);
 };
 
 

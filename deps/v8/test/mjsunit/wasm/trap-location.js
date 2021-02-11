@@ -32,7 +32,7 @@ function testTrapLocations(instance, expected_stack_length) {
   testWasmTrap(0, kTrapDivByZero, 14);
   testWasmTrap(1, kTrapMemOutOfBounds, 15);
   testWasmTrap(2, kTrapUnreachable, 28);
-  testWasmTrap(3, kTrapFuncInvalid, 32);
+  testWasmTrap(3, kTrapTableOutOfBounds, 32);
 }
 
 var builder = new WasmModuleBuilder();

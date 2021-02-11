@@ -3490,6 +3490,29 @@ WASM_EXEC_TEST(IfInsideUnreachable) {
   CHECK_EQ(17, r.Call());
 }
 
+WASM_EXEC_TEST(IndirectNull) {
+  WasmRunner<int32_t> r(execution_tier);
+  FunctionSig sig(1, 0, &kWasmI32);
+  byte sig_index = r.builder().AddSignature(&sig);
+  r.builder().AddIndirectFunctionTable(nullptr, 1);
+
+  BUILD(r, WASM_CALL_INDIRECT(sig_index, WASM_I32V(0)));
+
+  CHECK_TRAP(r.Call());
+}
+
+WASM_EXEC_TEST(IndirectNullTyped) {
+  WasmRunner<int32_t> r(execution_tier);
+  FunctionSig sig(1, 0, &kWasmI32);
+  byte sig_index = r.builder().AddSignature(&sig);
+  r.builder().AddIndirectFunctionTable(nullptr, 1,
+                                       ValueType::Ref(sig_index, kNullable));
+
+  BUILD(r, WASM_CALL_INDIRECT(sig_index, WASM_I32V(0)));
+
+  CHECK_TRAP(r.Call());
+}
+
 // This test targets binops in Liftoff.
 // Initialize a number of local variables to force them into different
 // registers, then perform a binary operation on two of the locals.

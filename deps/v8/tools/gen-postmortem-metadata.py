@@ -101,6 +101,16 @@ consts_misc = [
     { 'name': 'OddballOther',           'value': 'Oddball::kOther' },
     { 'name': 'OddballException',       'value': 'Oddball::kException' },
 
+    { 'name': 'ContextRegister',        'value': 'kContextRegister.code()' },
+    { 'name': 'ReturnRegister0',        'value': 'kReturnRegister0.code()' },
+    { 'name': 'JSFunctionRegister',     'value': 'kJSFunctionRegister.code()' },
+    { 'name': 'InterpreterBytecodeOffsetRegister',
+      'value': 'kInterpreterBytecodeOffsetRegister.code()' },
+    { 'name': 'InterpreterBytecodeArrayRegister',
+      'value': 'kInterpreterBytecodeArrayRegister.code()' },
+    { 'name': 'RuntimeCallFunctionRegister',
+      'value': 'kRuntimeCallFunctionRegister.code()' },
+
     { 'name': 'prop_kind_Data',
         'value': 'kData' },
     { 'name': 'prop_kind_Accessor',
@@ -263,8 +273,6 @@ extras_accessors = [
     'UncompiledData, inferred_name, String, kInferredNameOffset',
     'UncompiledData, start_position, int32_t, kStartPositionOffset',
     'UncompiledData, end_position, int32_t, kEndPositionOffset',
-    'Script, name, Object, kNameOffset',
-    'Script, line_ends, Object, kLineEndsOffset',
     'SharedFunctionInfo, raw_function_token_offset, int16_t, kFunctionTokenOffsetOffset',
     'SharedFunctionInfo, internal_formal_parameter_count, uint16_t, kFormalParameterCountOffset',
     'SharedFunctionInfo, flags, int, kFlagsOffset',
@@ -279,7 +287,6 @@ extras_accessors = [
     'SlicedString, offset, SMI, kOffsetOffset',
     'ThinString, actual, String, kActualOffset',
     'Symbol, name, Object, kDescriptionOffset',
-    'FixedArrayBase, length, SMI, kLengthOffset',
 ];
 
 #
@@ -310,6 +317,7 @@ header = '''
  */
 
 #include "src/init/v8.h"
+#include "src/codegen/register-arch.h"
 #include "src/execution/frames.h"
 #include "src/execution/frames-inl.h" /* for architecture-specific frame constants */
 #include "src/objects/contexts.h"
@@ -325,7 +333,7 @@ extern "C" {
 
 /* stack frame constants */
 #define FRAME_CONST(value, klass)       \
-    int v8dbg_frametype_##klass = StackFrame::value;
+    V8_EXPORT int v8dbg_frametype_##klass = StackFrame::value;
 
 STACK_FRAME_TYPE_LIST(FRAME_CONST)
 
@@ -622,7 +630,7 @@ def load_fields_from_file(filename):
         #
         prefixes = [ 'ACCESSORS', 'ACCESSORS2', 'ACCESSORS_GCSAFE',
                      'SMI_ACCESSORS', 'ACCESSORS_TO_SMI',
-                     'SYNCHRONIZED_ACCESSORS', 'WEAK_ACCESSORS' ];
+                     'RELEASE_ACQUIRE_ACCESSORS', 'WEAK_ACCESSORS' ];
         prefixes += ([ prefix + "_CHECKED" for prefix in prefixes ] +
                      [ prefix + "_CHECKED2" for prefix in prefixes ])
         current = '';
@@ -670,13 +678,18 @@ def load_fields_from_file(filename):
 # Emit a block of constants.
 #
 def emit_set(out, consts):
+        lines = set()  # To remove duplicates.
+
         # Fix up overzealous parses.  This could be done inside the
         # parsers but as there are several, it's easiest to do it here.
         ws = re.compile('\s+')
         for const in consts:
                 name = ws.sub('', const['name'])
                 value = ws.sub('', str(const['value']))  # Can be a number.
-                out.write('int v8dbg_%s = %s;\n' % (name, value))
+                lines.add('V8_EXPORT int v8dbg_%s = %s;\n' % (name, value))
+
+        for line in lines:
+                out.write(line);
         out.write('\n');
 
 #

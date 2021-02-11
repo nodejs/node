@@ -186,7 +186,11 @@ class DoubleRegister : public RegisterBase<DoubleRegister, kDoubleAfterLast> {
   // d14: 0.0
   // d15: scratch register.
   static constexpr int kSizeInBytes = 8;
-  inline static int NumRegisters();
+
+  // This function differs from kNumRegisters by returning the number of double
+  // registers supported by the current CPU, while kNumRegisters always returns
+  // 32.
+  inline static int SupportedRegisterCount();
 
  private:
   friend class RegisterBase;

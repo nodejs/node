@@ -45,6 +45,8 @@ function listener(event, exec_state, event_data, data) {
     success(false, `Object.isFrozen({})`);
     success(false, `Object.isSealed({})`);
     success([1, 2], `Object.values({a:1, b:2})`);
+    success(["a", 1, "b", 2], `Object.entries({a:1, b:2}).flat()`);
+    success(["a", "b"], `Object.keys({a:1, b:2})`);
 
     fail(`Object.assign({}, {})`);
     fail(`Object.defineProperties({}, [{p:{value:3}}])`);

@@ -500,12 +500,13 @@ class Deoptimizer : public Malloced {
 
   static void ComputeOutputFrames(Deoptimizer* deoptimizer);
 
-  static Address GetDeoptimizationEntry(Isolate* isolate, DeoptimizeKind kind);
+  V8_EXPORT_PRIVATE static Builtins::Name GetDeoptimizationEntry(
+      Isolate* isolate, DeoptimizeKind kind);
 
   // Returns true if {addr} is a deoptimization entry and stores its type in
-  // {type}. Returns false if {addr} is not a deoptimization entry.
+  // {type_out}. Returns false if {addr} is not a deoptimization entry.
   static bool IsDeoptimizationEntry(Isolate* isolate, Address addr,
-                                    DeoptimizeKind* type);
+                                    DeoptimizeKind* type_out);
 
   // Code generation support.
   static int input_offset() { return offsetof(Deoptimizer, input_); }
@@ -520,25 +521,26 @@ class Deoptimizer : public Malloced {
 
   V8_EXPORT_PRIVATE static int GetDeoptimizedCodeCount(Isolate* isolate);
 
-  static const int kNotDeoptimizationEntry = -1;
-
-  static void EnsureCodeForDeoptimizationEntry(Isolate* isolate,
-                                               DeoptimizeKind kind);
-  static void EnsureCodeForDeoptimizationEntries(Isolate* isolate);
-
   Isolate* isolate() const { return isolate_; }
 
-  static const int kMaxNumberOfEntries = 16384;
+  static constexpr int kMaxNumberOfEntries = 16384;
+
+  // This marker is passed to Deoptimizer::New as {bailout_id} on platforms
+  // that have fixed deopt sizes (see also kSupportsFixedDeoptExitSizes). The
+  // actual deoptimization id is then calculated from the return address.
+  static constexpr unsigned kFixedExitSizeMarker = kMaxUInt32;
 
   // Set to true when the architecture supports deoptimization exit sequences
   // of a fixed size, that can be sorted so that the deoptimization index is
   // deduced from the address of the deoptimization exit.
-  static const bool kSupportsFixedDeoptExitSizes;
+  // TODO(jgruber): Remove this, and support for variable deopt exit sizes,
+  // once all architectures use fixed exit sizes.
+  V8_EXPORT_PRIVATE static const bool kSupportsFixedDeoptExitSizes;
 
   // Size of deoptimization exit sequence. This is only meaningful when
   // kSupportsFixedDeoptExitSizes is true.
-  static const int kNonLazyDeoptExitSize;
-  static const int kLazyDeoptExitSize;
+  V8_EXPORT_PRIVATE static const int kNonLazyDeoptExitSize;
+  V8_EXPORT_PRIVATE static const int kLazyDeoptExitSize;
 
   // Tracing.
   static void TraceMarkForDeoptimization(Code code, const char* reason);
@@ -554,9 +556,6 @@ class Deoptimizer : public Malloced {
               unsigned bailout_id, Address from, int fp_to_sp_delta);
   Code FindOptimizedCode();
   void DeleteFrameDescriptions();
-
-  static bool IsDeoptimizationEntry(Isolate* isolate, Address addr,
-                                    DeoptimizeKind type);
 
   void DoComputeOutputFrames();
   void DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
@@ -578,10 +577,6 @@ class Deoptimizer : public Malloced {
 
   static unsigned ComputeIncomingArgumentSize(SharedFunctionInfo shared);
   static unsigned ComputeOutgoingArgumentSize(Code code, unsigned bailout_id);
-
-  static void GenerateDeoptimizationEntries(MacroAssembler* masm,
-                                            Isolate* isolate,
-                                            DeoptimizeKind kind);
 
   static void MarkAllCodeForContext(NativeContext native_context);
   static void DeoptimizeMarkedCodeForContext(NativeContext native_context);
@@ -717,15 +712,23 @@ class FrameDescription {
     return *GetFrameSlotPointer(offset);
   }
 
-  unsigned GetLastArgumentSlotOffset() {
+  unsigned GetLastArgumentSlotOffset(bool pad_arguments = true) {
     int parameter_slots = parameter_count();
-    if (ShouldPadArguments(parameter_slots)) parameter_slots++;
+    if (pad_arguments && ShouldPadArguments(parameter_slots)) parameter_slots++;
     return GetFrameSize() - parameter_slots * kSystemPointerSize;
   }
 
   Address GetFramePointerAddress() {
-    int fp_offset =
-        GetLastArgumentSlotOffset() - StandardFrameConstants::kCallerSPOffset;
+#ifdef V8_NO_ARGUMENTS_ADAPTOR
+    // We should not pad arguments in the bottom frame, since this
+    // already contain a padding if necessary and it might contain
+    // extra arguments (actual argument count > parameter count).
+    const bool pad_arguments_bottom_frame = false;
+#else
+    const bool pad_arguments_bottom_frame = true;
+#endif
+    int fp_offset = GetLastArgumentSlotOffset(pad_arguments_bottom_frame) -
+                    StandardFrameConstants::kCallerSPOffset;
     return reinterpret_cast<Address>(GetFrameSlotPointer(fp_offset));
   }
 
@@ -779,7 +782,7 @@ class FrameDescription {
     return offsetof(FrameDescription, register_values_.registers_);
   }
 
-  static int double_registers_offset() {
+  static constexpr int double_registers_offset() {
     return offsetof(FrameDescription, register_values_.double_registers_);
   }
 
@@ -825,36 +828,6 @@ class FrameDescription {
     return reinterpret_cast<intptr_t*>(reinterpret_cast<Address>(this) +
                                        frame_content_offset() + offset);
   }
-};
-
-class DeoptimizerData {
- public:
-  explicit DeoptimizerData(Heap* heap);
-  ~DeoptimizerData();
-
-#ifdef DEBUG
-  bool IsDeoptEntryCode(Code code) const {
-    for (int i = 0; i < kLastDeoptimizeKind + 1; i++) {
-      if (code == deopt_entry_code_[i]) return true;
-    }
-    return false;
-  }
-#endif  // DEBUG
-
- private:
-  Heap* heap_;
-  static const int kLastDeoptimizeKind =
-      static_cast<int>(DeoptimizeKind::kLastDeoptimizeKind);
-  Code deopt_entry_code_[kLastDeoptimizeKind + 1];
-  Code deopt_entry_code(DeoptimizeKind kind);
-  void set_deopt_entry_code(DeoptimizeKind kind, Code code);
-
-  Deoptimizer* current_;
-  StrongRootsEntry* strong_roots_entry_;
-
-  friend class Deoptimizer;
-
-  DISALLOW_COPY_AND_ASSIGN(DeoptimizerData);
 };
 
 class TranslationBuffer {

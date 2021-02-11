@@ -118,12 +118,20 @@ void* ObjectAllocator::AllocateObjectOnSpace(NormalPageSpace* space,
   }
 
   void* raw = current_lab.Allocate(size);
-  SET_MEMORY_ACCESIBLE(raw, size);
+#if !defined(V8_USE_MEMORY_SANITIZER) && !defined(V8_USE_ADDRESS_SANITIZER) && \
+    DEBUG
+  // For debug builds, unzap only the payload.
+  SET_MEMORY_ACCESSIBLE(static_cast<char*>(raw) + sizeof(HeapObjectHeader),
+                        size - sizeof(HeapObjectHeader));
+#else
+  SET_MEMORY_ACCESSIBLE(raw, size);
+#endif
   auto* header = new (raw) HeapObjectHeader(size, gcinfo);
 
+  // The marker needs to find the object start concurrently.
   NormalPage::From(BasePage::FromPayload(header))
       ->object_start_bitmap()
-      .SetBit(reinterpret_cast<ConstAddress>(header));
+      .SetBit<AccessMode::kAtomic>(reinterpret_cast<ConstAddress>(header));
 
   return header->Payload();
 }

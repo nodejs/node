@@ -2600,8 +2600,8 @@ TEST(ManyLocalsInSharedContext) {
   }
 }
 
-
 TEST(AllocationSitesAreVisible) {
+  i::FLAG_lazy_feedback_allocation = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -2623,12 +2623,12 @@ TEST(AllocationSitesAreVisible) {
   CHECK(feedback_cell);
   const v8::HeapGraphNode* vector = GetProperty(
       env->GetIsolate(), feedback_cell, v8::HeapGraphEdge::kInternal, "value");
-  CHECK_EQ(v8::HeapGraphNode::kArray, vector->GetType());
-  CHECK_EQ(3, vector->GetChildrenCount());
+  CHECK_EQ(v8::HeapGraphNode::kHidden, vector->GetType());
+  CHECK_EQ(4, vector->GetChildrenCount());
 
-  // The first value in the feedback vector should be the boilerplate,
-  // after an AllocationSite.
-  const v8::HeapGraphEdge* prop = vector->GetChild(2);
+  // The last value in the feedback vector should be the boilerplate,
+  // found in AllocationSite.transition_info.
+  const v8::HeapGraphEdge* prop = vector->GetChild(3);
   const v8::HeapGraphNode* allocation_site = prop->GetToNode();
   v8::String::Utf8Value name(env->GetIsolate(), allocation_site->GetName());
   CHECK_EQ(0, strcmp("system / AllocationSite", *name));
@@ -4068,10 +4068,15 @@ TEST(WeakReference) {
   i::CodeDesc desc;
   assm.GetCode(i_isolate, &desc);
   i::Handle<i::Code> code =
-      i::Factory::CodeBuilder(i_isolate, desc, i::CodeKind::STUB).Build();
+      i::Factory::CodeBuilder(i_isolate, desc, i::CodeKind::FOR_TESTING)
+          .Build();
   CHECK(code->IsCode());
 
-  fv->set_optimized_code_weak_or_smi(i::HeapObjectReference::Weak(*code));
+  fv->set_maybe_optimized_code(i::HeapObjectReference::Weak(*code));
+  fv->set_flags(i::FeedbackVector::OptimizationTierBits::encode(
+                    i::OptimizationTier::kTopTier) |
+                i::FeedbackVector::OptimizationMarkerBits::encode(
+                    i::OptimizationMarker::kNone));
 
   v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();

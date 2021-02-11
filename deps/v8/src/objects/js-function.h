@@ -7,7 +7,6 @@
 
 #include "src/objects/code-kind.h"
 #include "src/objects/js-objects.h"
-#include "torque-generated/class-definitions.h"
 #include "torque-generated/field-offsets.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -15,6 +14,8 @@
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/js-function-tq.inc"
 
 // An abstract superclass for classes representing JavaScript function values.
 // It doesn't carry any functionality but allows function classes to be
@@ -115,6 +116,8 @@ class JSFunction : public JSFunctionOrBoundFunction {
   V8_EXPORT_PRIVATE bool ActiveTierIsIgnition() const;
   bool ActiveTierIsTurbofan() const;
   bool ActiveTierIsNCI() const;
+  bool ActiveTierIsMidtierTurboprop() const;
+  bool ActiveTierIsToptierTurboprop() const;
 
   CodeKind NextTier() const;
 
@@ -140,9 +143,6 @@ class JSFunction : public JSFunctionOrBoundFunction {
 
   // Tells whether or not the function is on the concurrent recompilation queue.
   inline bool IsInOptimizationQueue();
-
-  // Clears the optimized code slot in the function's feedback vector.
-  inline void ClearOptimizedCodeSlot(const char* reason);
 
   // Sets the optimization marker in the function's feedback vector.
   inline void SetOptimizationMarker(OptimizationMarker marker);

@@ -8,13 +8,14 @@
 #include "src/objects/primitive-heap-object.h"
 
 #include "src/objects/heap-object-inl.h"
-#include "torque-generated/class-definitions-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/primitive-heap-object-tq-inl.inc"
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(PrimitiveHeapObject)
 

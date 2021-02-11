@@ -13,6 +13,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/synthetic-module-tq.inc"
+
 // The runtime representation of a Synthetic Module Record, a module that can be
 // instantiated by an embedder with embedder-defined exports and evaluation
 // steps.

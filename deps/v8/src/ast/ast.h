@@ -2160,18 +2160,6 @@ class FunctionLiteral final : public Expression {
     return false;
   }
 
-  // We can safely skip the arguments adaptor frame setup even
-  // in case of arguments mismatches for strict mode functions,
-  // as long as there's
-  //
-  //   1. no use of the arguments object (either explicitly or
-  //      potentially implicitly via a direct eval() call), and
-  //   2. rest parameters aren't being used in the function.
-  //
-  // See http://bit.ly/v8-faster-calls-with-arguments-mismatch
-  // for the details here (https://crbug.com/v8/8895).
-  bool SafeToSkipArgumentsAdaptor() const;
-
   // Returns either name or inferred name as a cstring.
   std::unique_ptr<char[]> GetDebugName() const;
 

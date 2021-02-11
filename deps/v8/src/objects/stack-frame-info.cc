@@ -196,6 +196,9 @@ Handle<StackFrameInfo> StackTraceFrame::GetFrameInfo(
 
 // static
 void StackTraceFrame::InitializeFrameInfo(Handle<StackTraceFrame> frame) {
+  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"),
+               "SymbolizeStackFrame", "frameIndex", frame->frame_index());
+
   Isolate* isolate = frame->GetIsolate();
   Handle<StackFrameInfo> frame_info = isolate->factory()->NewStackFrameInfo(
       handle(FrameArray::cast(frame->frame_array()), isolate),

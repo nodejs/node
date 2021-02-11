@@ -28,6 +28,8 @@ namespace wasm {
 class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
  public:
   explicit AsyncStreamingDecoder(std::unique_ptr<StreamingProcessor> processor);
+  AsyncStreamingDecoder(const AsyncStreamingDecoder&) = delete;
+  AsyncStreamingDecoder& operator=(const AsyncStreamingDecoder&) = delete;
 
   // The buffer passed into OnBytesReceived is owned by the caller.
   void OnBytesReceived(Vector<const uint8_t> bytes) override;
@@ -218,8 +220,6 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
 
   // We need wire bytes in an array for deserializing cached modules.
   std::vector<uint8_t> wire_bytes_for_deserializing_;
-
-  DISALLOW_COPY_AND_ASSIGN(AsyncStreamingDecoder);
 };
 
 void AsyncStreamingDecoder::OnBytesReceived(Vector<const uint8_t> bytes) {
@@ -517,10 +517,6 @@ size_t AsyncStreamingDecoder::DecodeVarInt32::ReadBytes(
   Decoder decoder(buf,
                   streaming->module_offset() - static_cast<uint32_t>(offset()));
   value_ = decoder.consume_u32v(field_name_);
-  // The number of bytes we actually needed to read.
-  DCHECK_GT(decoder.pc(), buffer().begin());
-  bytes_consumed_ = static_cast<size_t>(decoder.pc() - buf.begin());
-  TRACE_STREAMING("  ==> %zu bytes consumed\n", bytes_consumed_);
 
   if (decoder.failed()) {
     if (new_bytes == remaining_buf.size()) {
@@ -530,6 +526,11 @@ size_t AsyncStreamingDecoder::DecodeVarInt32::ReadBytes(
     set_offset(offset() + new_bytes);
     return new_bytes;
   }
+
+  // The number of bytes we actually needed to read.
+  DCHECK_GT(decoder.pc(), buffer().begin());
+  bytes_consumed_ = static_cast<size_t>(decoder.pc() - buf.begin());
+  TRACE_STREAMING("  ==> %zu bytes consumed\n", bytes_consumed_);
 
   // We read all the bytes we needed.
   DCHECK_GT(bytes_consumed_, offset());

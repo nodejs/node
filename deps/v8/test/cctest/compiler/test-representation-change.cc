@@ -48,26 +48,26 @@ class RepresentationChangerTester : public HandleAndZoneScope,
   // TODO(titzer): use ValueChecker / ValueUtil
   void CheckInt32Constant(Node* n, int32_t expected) {
     Int32Matcher m(n);
-    CHECK(m.HasValue());
-    CHECK_EQ(expected, m.Value());
+    CHECK(m.HasResolvedValue());
+    CHECK_EQ(expected, m.ResolvedValue());
   }
 
   void CheckInt64Constant(Node* n, int64_t expected) {
     Int64Matcher m(n);
-    CHECK(m.HasValue());
-    CHECK_EQ(expected, m.Value());
+    CHECK(m.HasResolvedValue());
+    CHECK_EQ(expected, m.ResolvedValue());
   }
 
   void CheckUint32Constant(Node* n, uint32_t expected) {
     Uint32Matcher m(n);
-    CHECK(m.HasValue());
-    CHECK_EQ(static_cast<int>(expected), static_cast<int>(m.Value()));
+    CHECK(m.HasResolvedValue());
+    CHECK_EQ(static_cast<int>(expected), static_cast<int>(m.ResolvedValue()));
   }
 
   void CheckFloat64Constant(Node* n, double expected) {
     Float64Matcher m(n);
-    CHECK(m.HasValue());
-    CHECK_DOUBLE_EQ(expected, m.Value());
+    CHECK(m.HasResolvedValue());
+    CHECK_DOUBLE_EQ(expected, m.ResolvedValue());
   }
 
   void CheckFloat32Constant(Node* n, float expected) {
@@ -78,15 +78,15 @@ class RepresentationChangerTester : public HandleAndZoneScope,
 
   void CheckHeapConstant(Node* n, HeapObject expected) {
     HeapObjectMatcher m(n);
-    CHECK(m.HasValue());
-    CHECK_EQ(expected, *m.Value());
+    CHECK(m.HasResolvedValue());
+    CHECK_EQ(expected, *m.ResolvedValue());
   }
 
   void CheckNumberConstant(Node* n, double expected) {
     NumberMatcher m(n);
     CHECK_EQ(IrOpcode::kNumberConstant, n->opcode());
-    CHECK(m.HasValue());
-    CHECK_DOUBLE_EQ(expected, m.Value());
+    CHECK(m.HasResolvedValue());
+    CHECK_DOUBLE_EQ(expected, m.ResolvedValue());
   }
 
   Node* Parameter(int index = 0) {

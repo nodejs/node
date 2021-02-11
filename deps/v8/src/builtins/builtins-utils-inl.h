@@ -23,20 +23,12 @@ Handle<Object> BuiltinArguments::atOrUndefined(Isolate* isolate,
 Handle<Object> BuiltinArguments::receiver() const { return at<Object>(0); }
 
 Handle<JSFunction> BuiltinArguments::target() const {
-#ifdef V8_REVERSE_JSARGS
   int index = kTargetOffset;
-#else
-  int index = Arguments::length() - 1 - kTargetOffset;
-#endif
   return Handle<JSFunction>(address_of_arg_at(index));
 }
 
 Handle<HeapObject> BuiltinArguments::new_target() const {
-#ifdef V8_REVERSE_JSARGS
   int index = kNewTargetOffset;
-#else
-  int index = Arguments::length() - 1 - kNewTargetOffset;
-#endif
   return Handle<JSFunction>(address_of_arg_at(index));
 }
 

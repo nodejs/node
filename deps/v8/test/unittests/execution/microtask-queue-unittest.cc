@@ -34,6 +34,9 @@ class WithFinalizationRegistryMixin : public TMixin {
  public:
   WithFinalizationRegistryMixin() = default;
   ~WithFinalizationRegistryMixin() override = default;
+  WithFinalizationRegistryMixin(const WithFinalizationRegistryMixin&) = delete;
+  WithFinalizationRegistryMixin& operator=(
+      const WithFinalizationRegistryMixin&) = delete;
 
   static void SetUpTestCase() {
     CHECK_NULL(save_flags_);
@@ -53,8 +56,6 @@ class WithFinalizationRegistryMixin : public TMixin {
 
  private:
   static SaveFlags* save_flags_;
-
-  DISALLOW_COPY_AND_ASSIGN(WithFinalizationRegistryMixin);
 };
 
 template <typename TMixin>

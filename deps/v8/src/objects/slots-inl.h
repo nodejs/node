@@ -31,7 +31,7 @@ bool FullObjectSlot::contains_value(Address raw_value) const {
 
 Object FullObjectSlot::operator*() const { return Object(*location()); }
 
-Object FullObjectSlot::load(const Isolate* isolate) const { return **this; }
+Object FullObjectSlot::load(IsolateRoot isolate) const { return **this; }
 
 void FullObjectSlot::store(Object value) const { *location() = value.ptr(); }
 
@@ -39,7 +39,7 @@ Object FullObjectSlot::Acquire_Load() const {
   return Object(base::AsAtomicPointer::Acquire_Load(location()));
 }
 
-Object FullObjectSlot::Acquire_Load(const Isolate* isolate) const {
+Object FullObjectSlot::Acquire_Load(IsolateRoot isolate) const {
   return Acquire_Load();
 }
 
@@ -47,7 +47,7 @@ Object FullObjectSlot::Relaxed_Load() const {
   return Object(base::AsAtomicPointer::Relaxed_Load(location()));
 }
 
-Object FullObjectSlot::Relaxed_Load(const Isolate* isolate) const {
+Object FullObjectSlot::Relaxed_Load(IsolateRoot isolate) const {
   return Relaxed_Load();
 }
 
@@ -79,7 +79,7 @@ MaybeObject FullMaybeObjectSlot::operator*() const {
   return MaybeObject(*location());
 }
 
-MaybeObject FullMaybeObjectSlot::load(const Isolate* isolate) const {
+MaybeObject FullMaybeObjectSlot::load(IsolateRoot isolate) const {
   return **this;
 }
 
@@ -91,7 +91,7 @@ MaybeObject FullMaybeObjectSlot::Relaxed_Load() const {
   return MaybeObject(base::AsAtomicPointer::Relaxed_Load(location()));
 }
 
-MaybeObject FullMaybeObjectSlot::Relaxed_Load(const Isolate* isolate) const {
+MaybeObject FullMaybeObjectSlot::Relaxed_Load(IsolateRoot isolate) const {
   return Relaxed_Load();
 }
 
@@ -113,7 +113,7 @@ HeapObjectReference FullHeapObjectSlot::operator*() const {
   return HeapObjectReference(*location());
 }
 
-HeapObjectReference FullHeapObjectSlot::load(const Isolate* isolate) const {
+HeapObjectReference FullHeapObjectSlot::load(IsolateRoot isolate) const {
   return **this;
 }
 

@@ -60,7 +60,8 @@ TEST(Factory_CodeBuilder) {
   HandleScope scope(isolate);
 
   // Create a big function that ends up in CODE_LO_SPACE.
-  const int instruction_size = kMaxRegularHeapObjectSize + 1;
+  const int instruction_size =
+      MemoryChunkLayout::MaxRegularCodeObjectSize() + 1;
   std::unique_ptr<byte[]> instructions(new byte[instruction_size]);
 
   CodeDesc desc;

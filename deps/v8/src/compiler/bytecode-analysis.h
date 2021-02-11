@@ -100,6 +100,8 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis : public ZoneObject {
  public:
   BytecodeAnalysis(Handle<BytecodeArray> bytecode_array, Zone* zone,
                    BailoutId osr_bailout_id, bool analyze_liveness);
+  BytecodeAnalysis(const BytecodeAnalysis&) = delete;
+  BytecodeAnalysis& operator=(const BytecodeAnalysis&) = delete;
 
   // Return true if the given offset is a loop header
   bool IsLoopHeader(int offset) const;
@@ -166,8 +168,6 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis : public ZoneObject {
   ZoneMap<int, LoopInfo> header_to_info_;
   int osr_entry_point_;
   BytecodeLivenessMap liveness_map_;
-
-  DISALLOW_COPY_AND_ASSIGN(BytecodeAnalysis);
 };
 
 }  // namespace compiler

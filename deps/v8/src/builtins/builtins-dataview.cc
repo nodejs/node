@@ -90,6 +90,7 @@ BUILTIN(DataViewConstructor) {
       isolate, result,
       JSObject::New(target, new_target, Handle<AllocationSite>::null()));
   for (int i = 0; i < ArrayBufferView::kEmbedderFieldCount; ++i) {
+    // TODO(v8:10391, saelo): Handle external pointers in EmbedderDataSlot
     Handle<JSDataView>::cast(result)->SetEmbedderField(i, Smi::zero());
   }
 
@@ -101,6 +102,7 @@ BUILTIN(DataViewConstructor) {
 
   // 13. Set O's [[ByteOffset]] internal slot to offset.
   Handle<JSDataView>::cast(result)->set_byte_offset(view_byte_offset);
+  Handle<JSDataView>::cast(result)->AllocateExternalPointerEntries(isolate);
   Handle<JSDataView>::cast(result)->set_data_pointer(
       isolate,
       static_cast<uint8_t*>(array_buffer->backing_store()) + view_byte_offset);

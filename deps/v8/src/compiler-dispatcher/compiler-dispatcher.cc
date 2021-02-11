@@ -114,7 +114,7 @@ void CompilerDispatcher::RegisterSharedFunctionInfo(
   auto job_it = jobs_.find(job_id);
   DCHECK_NE(job_it, jobs_.end());
   Job* job = job_it->second.get();
-  shared_to_unoptimized_job_id_.Set(function_handle, job_id);
+  shared_to_unoptimized_job_id_.Insert(function_handle, job_id);
 
   {
     base::MutexGuard lock(&mutex_);

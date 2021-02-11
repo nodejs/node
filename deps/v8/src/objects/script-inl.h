@@ -17,6 +17,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/script-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(Script)
 
 NEVER_READ_ONLY_SPACE_IMPL(Script)

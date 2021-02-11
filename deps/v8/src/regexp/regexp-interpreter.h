@@ -19,6 +19,7 @@ class V8_EXPORT_PRIVATE IrregexpInterpreter : public AllStatic {
     SUCCESS = RegExp::kInternalRegExpSuccess,
     EXCEPTION = RegExp::kInternalRegExpException,
     RETRY = RegExp::kInternalRegExpRetry,
+    FALLBACK_TO_EXPERIMENTAL = RegExp::kInternalRegExpFallbackToExperimental,
   };
 
   // In case a StackOverflow occurs, a StackOverflowException is created and

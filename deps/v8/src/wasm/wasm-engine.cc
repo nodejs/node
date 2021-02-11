@@ -419,7 +419,7 @@ WasmEngine::~WasmEngine() {
     compile_job_handles = compile_job_handles_;
   }
   for (auto& job_handle : compile_job_handles) {
-    if (job_handle->IsRunning()) job_handle->Cancel();
+    if (job_handle->IsValid()) job_handle->Cancel();
   }
 
   // All AsyncCompileJobs have been canceled.
@@ -1036,8 +1036,7 @@ void WasmEngine::LogOutstandingCodesForIsolate(Isolate* isolate) {
     DCHECK_EQ(1, isolates_.count(isolate));
     code_to_log.swap(isolates_[isolate]->code_to_log);
   }
-  TRACE_EVENT1("v8.wasm", "wasm.LogCode", "num_code_objects",
-               code_to_log.size());
+  TRACE_EVENT1("v8.wasm", "wasm.LogCode", "codeObjects", code_to_log.size());
   if (code_to_log.empty()) return;
   for (WasmCode* code : code_to_log) {
     code->LogCode(isolate);

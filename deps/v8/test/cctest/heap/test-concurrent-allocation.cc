@@ -14,6 +14,7 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
+#include "src/handles/handles.h"
 #include "src/handles/local-handles-inl.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/concurrent-allocator-inl.h"
@@ -28,6 +29,7 @@
 namespace v8 {
 namespace internal {
 
+namespace {
 void CreateFixedArray(Heap* heap, Address start, int size) {
   HeapObject object = HeapObject::FromAddress(start);
   object.set_map_after_allocation(ReadOnlyRoots(heap).fixed_array_map(),
@@ -43,6 +45,23 @@ const int kNumIterations = 2000;
 const int kSmallObjectSize = 10 * kTaggedSize;
 const int kMediumObjectSize = 8 * KB;
 
+void AllocateSomeObjects(LocalHeap* local_heap) {
+  for (int i = 0; i < kNumIterations; i++) {
+    Address address = local_heap->AllocateRawOrFail(
+        kSmallObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
+        AllocationAlignment::kWordAligned);
+    CreateFixedArray(local_heap->heap(), address, kSmallObjectSize);
+    address = local_heap->AllocateRawOrFail(
+        kMediumObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
+        AllocationAlignment::kWordAligned);
+    CreateFixedArray(local_heap->heap(), address, kMediumObjectSize);
+    if (i % 10 == 0) {
+      local_heap->Safepoint();
+    }
+  }
+}
+}  // namespace
+
 class ConcurrentAllocationThread final : public v8::base::Thread {
  public:
   explicit ConcurrentAllocationThread(Heap* heap, std::atomic<int>* pending)
@@ -51,22 +70,9 @@ class ConcurrentAllocationThread final : public v8::base::Thread {
         pending_(pending) {}
 
   void Run() override {
-    LocalHeap local_heap(heap_);
-
-    for (int i = 0; i < kNumIterations; i++) {
-      Address address = local_heap.AllocateRawOrFail(
-          kSmallObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
-          AllocationAlignment::kWordAligned);
-      CreateFixedArray(heap_, address, kSmallObjectSize);
-      address = local_heap.AllocateRawOrFail(
-          kMediumObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
-          AllocationAlignment::kWordAligned);
-      CreateFixedArray(heap_, address, kMediumObjectSize);
-      if (i % 10 == 0) {
-        local_heap.Safepoint();
-      }
-    }
-
+    LocalHeap local_heap(heap_, ThreadKind::kBackground);
+    UnparkedScope unparked_scope(&local_heap);
+    AllocateSomeObjects(&local_heap);
     pending_->fetch_sub(1);
   }
 
@@ -109,6 +115,26 @@ UNINITIALIZED_TEST(ConcurrentAllocationInOldSpace) {
   isolate->Dispose();
 }
 
+UNINITIALIZED_TEST(ConcurrentAllocationInOldSpaceFromMainThread) {
+  FLAG_max_old_space_size = 4;
+  FLAG_concurrent_allocation = true;
+  FLAG_local_heaps = true;
+  FLAG_stress_concurrent_allocation = false;
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+
+  {
+    LocalHeap local_heap(i_isolate->heap(), ThreadKind::kMain);
+    UnparkedScope unparked_scope(&local_heap);
+    AllocateSomeObjects(&local_heap);
+  }
+
+  isolate->Dispose();
+}
+
 class LargeObjectConcurrentAllocationThread final : public v8::base::Thread {
  public:
   explicit LargeObjectConcurrentAllocationThread(Heap* heap,
@@ -118,14 +144,20 @@ class LargeObjectConcurrentAllocationThread final : public v8::base::Thread {
         pending_(pending) {}
 
   void Run() override {
-    LocalHeap local_heap(heap_);
+    LocalHeap local_heap(heap_, ThreadKind::kBackground);
+    UnparkedScope unparked_scope(&local_heap);
     const size_t kLargeObjectSize = kMaxRegularHeapObjectSize * 2;
 
     for (int i = 0; i < kNumIterations; i++) {
-      Address address = local_heap.AllocateRawOrFail(
+      AllocationResult result = local_heap.AllocateRaw(
           kLargeObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
           AllocationAlignment::kWordAligned);
-      CreateFixedArray(heap_, address, kLargeObjectSize);
+      if (result.IsRetry()) {
+        local_heap.PerformCollection();
+      } else {
+        Address address = result.ToAddress();
+        CreateFixedArray(heap_, address, kLargeObjectSize);
+      }
       local_heap.Safepoint();
     }
 
@@ -185,7 +217,8 @@ class ConcurrentBlackAllocationThread final : public v8::base::Thread {
         sema_marking_started_(sema_marking_started) {}
 
   void Run() override {
-    LocalHeap local_heap(heap_);
+    LocalHeap local_heap(heap_, ThreadKind::kBackground);
+    UnparkedScope unparked_scope(&local_heap);
 
     for (int i = 0; i < kNumIterations; i++) {
       if (i == kWhiteIterations) {
@@ -264,7 +297,8 @@ class ConcurrentWriteBarrierThread final : public v8::base::Thread {
         value_(value) {}
 
   void Run() override {
-    LocalHeap local_heap(heap_);
+    LocalHeap local_heap(heap_, ThreadKind::kBackground);
+    UnparkedScope unparked_scope(&local_heap);
     fixed_array_.set(0, value_);
   }
 
@@ -325,7 +359,8 @@ class ConcurrentRecordRelocSlotThread final : public v8::base::Thread {
         value_(value) {}
 
   void Run() override {
-    LocalHeap local_heap(heap_);
+    LocalHeap local_heap(heap_, ThreadKind::kBackground);
+    UnparkedScope unparked_scope(&local_heap);
     int mode_mask = RelocInfo::EmbeddedObjectModeMask();
     for (RelocIterator it(code_, mode_mask); !it.done(); it.next()) {
       DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
@@ -365,7 +400,7 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
     CodeDesc desc;
     masm.GetCode(i_isolate, &desc);
     Handle<Code> code_handle =
-        Factory::CodeBuilder(i_isolate, desc, CodeKind::STUB).Build();
+        Factory::CodeBuilder(i_isolate, desc, CodeKind::FOR_TESTING).Build();
     heap::AbandonCurrentlyFreeMemory(heap->old_space());
     Handle<HeapNumber> value_handle(
         i_isolate->factory()->NewHeapNumber<AllocationType::kOld>(1.1));

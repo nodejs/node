@@ -305,15 +305,25 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   }
 }
 
+void OneTimeEnableStagedWasmFeatures() {
+  struct EnableStagedWasmFeatures {
+    EnableStagedWasmFeatures() {
+#define ENABLE_STAGED_FEATURES(feat, desc, val) \
+  FLAG_experimental_wasm_##feat = true;
+      FOREACH_WASM_STAGING_FEATURE_FLAG(ENABLE_STAGED_FEATURES)
+#undef ENABLE_STAGED_FEATURES
+    }
+  };
+  // The compiler will properly synchronize the constructor call.
+  static EnableStagedWasmFeatures one_time_enable_staged_features;
+}
+
 void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
                                          bool require_valid) {
   // We explicitly enable staged WebAssembly features here to increase fuzzer
   // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
   // the flag by itself.
-#define ENABLE_STAGED_FEATURES(feat, desc, val) \
-  FlagScope<bool> enable_##feat(&FLAG_experimental_wasm_##feat, true);
-  FOREACH_WASM_STAGING_FEATURE_FLAG(ENABLE_STAGED_FEATURES)
-#undef ENABLE_STAGED_FEATURES
+  OneTimeEnableStagedWasmFeatures();
 
   // Strictly enforce the input size limit. Note that setting "max_len" on the
   // fuzzer target is not enough, since different fuzzers are used and not all

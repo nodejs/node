@@ -7,5 +7,3 @@ szuend@chromium.org
 yangguo@chromium.org
 
 per-file PRESUBMIT.py=file:../../INFRA_OWNERS
-
-# COMPONENT: Platform>DevTools>JavaScript

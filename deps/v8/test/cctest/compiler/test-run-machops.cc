@@ -9,6 +9,7 @@
 #include "src/base/bits.h"
 #include "src/base/ieee754.h"
 #include "src/base/overflowing-math.h"
+#include "src/base/safe_conversions.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/objects/objects-inl.h"
@@ -6464,10 +6465,9 @@ TEST(RunChangeFloat64ToInt64) {
   BufferedRawMachineAssemblerTester<int64_t> m(MachineType::Float64());
   m.Return(m.ChangeFloat64ToInt64(m.Parameter(0)));
 
-  FOR_INT64_INPUTS(i) {
-    double input = static_cast<double>(i);
-    if (static_cast<int64_t>(input) == i) {
-      CHECK_EQ(static_cast<int64_t>(input), m.Call(input));
+  FOR_FLOAT64_INPUTS(i) {
+    if (base::IsValueInRangeForNumericType<int64_t>(i)) {
+      CHECK_EQ(static_cast<int64_t>(i), m.Call(i));
     }
   }
 }
@@ -6477,9 +6477,7 @@ TEST(RunChangeInt64ToFloat64) {
   m.Return(m.ChangeInt64ToFloat64(m.Parameter(0)));
   FOR_INT64_INPUTS(i) {
     double output = static_cast<double>(i);
-    if (static_cast<int64_t>(output) == i) {
-      CHECK_EQ(output, m.Call(i));
-    }
+    CHECK_EQ(output, m.Call(i));
   }
 }
 
@@ -6548,9 +6546,11 @@ TEST(RunTryTruncateFloat64ToInt64WithoutCheck) {
   BufferedRawMachineAssemblerTester<int64_t> m(MachineType::Float64());
   m.Return(m.TryTruncateFloat64ToInt64(m.Parameter(0)));
 
-  FOR_INT64_INPUTS(i) {
-    double input = static_cast<double>(i);
-    CHECK_EQ(static_cast<int64_t>(input), m.Call(input));
+  FOR_FLOAT64_INPUTS(i) {
+    if (base::IsValueInRangeForNumericType<int64_t>(i)) {
+      double input = static_cast<double>(i);
+      CHECK_EQ(static_cast<int64_t>(input), m.Call(input));
+    }
   }
 }
 

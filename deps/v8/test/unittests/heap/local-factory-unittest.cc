@@ -62,7 +62,8 @@ class LocalFactoryTest : public TestWithIsolateAndZone {
                 isolate(), true, construct_language_mode(FLAG_use_strict),
                 REPLMode::kNo),
             &state_),
-        local_isolate_(isolate()) {
+        local_isolate_(isolate(), ThreadKind::kMain),
+        unparked_scope_(local_isolate_.heap()) {
     FLAG_concurrent_allocation = true;
   }
 
@@ -114,6 +115,7 @@ class LocalFactoryTest : public TestWithIsolateAndZone {
   UnoptimizedCompileState state_;
   ParseInfo parse_info_;
   LocalIsolate local_isolate_;
+  UnparkedScope unparked_scope_;
   Handle<String> source_string_;
   Handle<Script> script_;
 };

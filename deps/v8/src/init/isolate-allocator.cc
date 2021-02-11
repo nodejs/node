@@ -12,20 +12,16 @@
 namespace v8 {
 namespace internal {
 
-IsolateAllocator::IsolateAllocator(IsolateAllocationMode mode) {
-#if V8_TARGET_ARCH_64_BIT
-  if (mode == IsolateAllocationMode::kInV8Heap) {
-    Address heap_reservation_address = InitReservation();
-    CommitPagesForIsolate(heap_reservation_address);
-    return;
-  }
-#endif  // V8_TARGET_ARCH_64_BIT
-
+IsolateAllocator::IsolateAllocator() {
+#ifdef V8_COMPRESS_POINTERS
+  Address heap_reservation_address = InitReservation();
+  CommitPagesForIsolate(heap_reservation_address);
+#else
   // Allocate Isolate in C++ heap.
-  CHECK_EQ(mode, IsolateAllocationMode::kInCppHeap);
   page_allocator_ = GetPlatformPageAllocator();
   isolate_memory_ = ::operator new(sizeof(Isolate));
   DCHECK(!reservation_.IsReserved());
+#endif  // V8_COMPRESS_POINTERS
 }
 
 IsolateAllocator::~IsolateAllocator() {
@@ -38,7 +34,7 @@ IsolateAllocator::~IsolateAllocator() {
   ::operator delete(isolate_memory_);
 }
 
-#if V8_TARGET_ARCH_64_BIT
+#ifdef V8_COMPRESS_POINTERS
 
 namespace {
 
@@ -192,7 +188,7 @@ void IsolateAllocator::CommitPagesForIsolate(Address heap_reservation_address) {
   }
   isolate_memory_ = reinterpret_cast<void*>(isolate_address);
 }
-#endif  // V8_TARGET_ARCH_64_BIT
+#endif  // V8_COMPRESS_POINTERS
 
 }  // namespace internal
 }  // namespace v8

@@ -49,6 +49,11 @@ extern class JSTypedArray extends JSArrayBufferView {
   base_pointer: ByteArray|Smi;
 }
 
+extern operator '.external_pointer_ptr' macro
+LoadJSTypedArrayExternalPointerPtr(JSTypedArray): RawPtr;
+extern operator '.external_pointer_ptr=' macro
+StoreJSTypedArrayExternalPointerPtr(JSTypedArray, RawPtr);
+
 @generateCppClass
 extern class JSDataView extends JSArrayBufferView {
   data_pointer: ExternalPointer;

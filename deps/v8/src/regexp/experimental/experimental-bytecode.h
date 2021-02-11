@@ -106,21 +106,21 @@ struct RegExpInstruction {
     uc16 max;  // Inclusive.
   };
 
-  static RegExpInstruction ConsumeRange(Uc16Range consume_range) {
+  static RegExpInstruction ConsumeRange(uc16 min, uc16 max) {
     RegExpInstruction result;
     result.opcode = CONSUME_RANGE;
-    result.payload.consume_range = consume_range;
+    result.payload.consume_range = Uc16Range{min, max};
     return result;
   }
 
   static RegExpInstruction ConsumeAnyChar() {
-    return ConsumeRange(Uc16Range{0x0000, 0xFFFF});
+    return ConsumeRange(0x0000, 0xFFFF);
   }
 
   static RegExpInstruction Fail() {
     // This is encoded as the empty CONSUME_RANGE of characters 0xFFFF <= c <=
     // 0x0000.
-    return ConsumeRange(Uc16Range{0xFFFF, 0x0000});
+    return ConsumeRange(0xFFFF, 0x0000);
   }
 
   static RegExpInstruction Fork(int32_t alt_index) {

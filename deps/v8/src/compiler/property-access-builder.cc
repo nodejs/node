@@ -82,30 +82,30 @@ bool PropertyAccessBuilder::TryBuildNumberCheck(
 }
 
 void PropertyAccessBuilder::BuildCheckMaps(
-    Node* receiver, Node** effect, Node* control,
-    ZoneVector<Handle<Map>> const& receiver_maps) {
-  HeapObjectMatcher m(receiver);
-  if (m.HasValue()) {
-    MapRef receiver_map = m.Ref(broker()).map();
-    if (receiver_map.is_stable()) {
-      for (Handle<Map> map : receiver_maps) {
-        if (MapRef(broker(), map).equals(receiver_map)) {
-          dependencies()->DependOnStableMap(receiver_map);
+    Node* object, Node** effect, Node* control,
+    ZoneVector<Handle<Map>> const& maps) {
+  HeapObjectMatcher m(object);
+  if (m.HasResolvedValue()) {
+    MapRef object_map = m.Ref(broker()).map();
+    if (object_map.is_stable()) {
+      for (Handle<Map> map : maps) {
+        if (MapRef(broker(), map).equals(object_map)) {
+          dependencies()->DependOnStableMap(object_map);
           return;
         }
       }
     }
   }
-  ZoneHandleSet<Map> maps;
+  ZoneHandleSet<Map> map_set;
   CheckMapsFlags flags = CheckMapsFlag::kNone;
-  for (Handle<Map> map : receiver_maps) {
-    MapRef receiver_map(broker(), map);
-    maps.insert(receiver_map.object(), graph()->zone());
-    if (receiver_map.is_migration_target()) {
+  for (Handle<Map> map : maps) {
+    MapRef object_map(broker(), map);
+    map_set.insert(object_map.object(), graph()->zone());
+    if (object_map.is_migration_target()) {
       flags |= CheckMapsFlag::kTryMigrateInstance;
     }
   }
-  *effect = graph()->NewNode(simplified()->CheckMaps(flags, maps), receiver,
+  *effect = graph()->NewNode(simplified()->CheckMaps(flags, map_set), object,
                              *effect, control);
 }
 
@@ -124,12 +124,12 @@ Node* PropertyAccessBuilder::BuildCheckValue(Node* receiver, Effect* effect,
 }
 
 Node* PropertyAccessBuilder::ResolveHolder(
-    PropertyAccessInfo const& access_info, Node* receiver) {
+    PropertyAccessInfo const& access_info, Node* lookup_start_object) {
   Handle<JSObject> holder;
   if (access_info.holder().ToHandle(&holder)) {
     return jsgraph()->Constant(ObjectRef(broker(), holder));
   }
-  return receiver;
+  return lookup_start_object;
 }
 
 MachineRepresentation PropertyAccessBuilder::ConvertRepresentation(
@@ -150,25 +150,27 @@ MachineRepresentation PropertyAccessBuilder::ConvertRepresentation(
 
 Node* PropertyAccessBuilder::TryBuildLoadConstantDataField(
     NameRef const& name, PropertyAccessInfo const& access_info,
-    Node* receiver) {
+    Node* lookup_start_object) {
   if (!access_info.IsDataConstant()) return nullptr;
 
   // First, determine if we have a constant holder to load from.
   Handle<JSObject> holder;
   // If {access_info} has a holder, just use it.
   if (!access_info.holder().ToHandle(&holder)) {
-    // Otherwise, try to match the {receiver} as a constant.
-    HeapObjectMatcher m(receiver);
-    if (!m.HasValue() || !m.Ref(broker()).IsJSObject()) return nullptr;
+    // Otherwise, try to match the {lookup_start_object} as a constant.
+    HeapObjectMatcher m(lookup_start_object);
+    if (!m.HasResolvedValue() || !m.Ref(broker()).IsJSObject()) return nullptr;
 
-    // Let us make sure the actual map of the constant receiver is among
-    // the maps in {access_info}.
-    MapRef receiver_map = m.Ref(broker()).map();
-    if (std::find_if(access_info.receiver_maps().begin(),
-                     access_info.receiver_maps().end(), [&](Handle<Map> map) {
-                       return MapRef(broker(), map).equals(receiver_map);
-                     }) == access_info.receiver_maps().end()) {
-      // The map of the receiver is not in the feedback, let us bail out.
+    // Let us make sure the actual map of the constant lookup_start_object is
+    // among the maps in {access_info}.
+    MapRef lookup_start_object_map = m.Ref(broker()).map();
+    if (std::find_if(
+            access_info.lookup_start_object_maps().begin(),
+            access_info.lookup_start_object_maps().end(), [&](Handle<Map> map) {
+              return MapRef(broker(), map).equals(lookup_start_object_map);
+            }) == access_info.lookup_start_object_maps().end()) {
+      // The map of the lookup_start_object is not in the feedback, let us bail
+      // out.
       return nullptr;
     }
     holder = m.Ref(broker()).AsJSObject().object();
@@ -253,7 +255,7 @@ Node* PropertyAccessBuilder::BuildLoadDataField(NameRef const& name,
 
 Node* PropertyAccessBuilder::BuildMinimorphicLoadDataField(
     NameRef const& name, MinimorphicLoadPropertyAccessInfo const& access_info,
-    Node* receiver, Node** effect, Node** control) {
+    Node* lookup_start_object, Node** effect, Node** control) {
   DCHECK_NULL(dependencies());
   MachineRepresentation const field_representation =
       ConvertRepresentation(access_info.field_representation());
@@ -268,22 +270,22 @@ Node* PropertyAccessBuilder::BuildMinimorphicLoadDataField(
       kFullWriteBarrier,
       LoadSensitivity::kCritical,
       ConstFieldInfo::None()};
-  return BuildLoadDataField(name, receiver, field_access,
+  return BuildLoadDataField(name, lookup_start_object, field_access,
                             access_info.is_inobject(), effect, control);
 }
 
 Node* PropertyAccessBuilder::BuildLoadDataField(
-    NameRef const& name, PropertyAccessInfo const& access_info, Node* receiver,
-    Node** effect, Node** control) {
+    NameRef const& name, PropertyAccessInfo const& access_info,
+    Node* lookup_start_object, Node** effect, Node** control) {
   DCHECK(access_info.IsDataField() || access_info.IsDataConstant());
-  if (Node* value =
-          TryBuildLoadConstantDataField(name, access_info, receiver)) {
+  if (Node* value = TryBuildLoadConstantDataField(name, access_info,
+                                                  lookup_start_object)) {
     return value;
   }
 
   MachineRepresentation const field_representation =
       ConvertRepresentation(access_info.field_representation());
-  Node* storage = ResolveHolder(access_info, receiver);
+  Node* storage = ResolveHolder(access_info, lookup_start_object);
 
   FieldAccess field_access = {
       kTaggedBase,

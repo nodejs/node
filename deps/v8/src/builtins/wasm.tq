@@ -282,24 +282,32 @@ builtin WasmUint32ToNumber(value: uint32): Number {
   return ChangeUint32ToTagged(value);
 }
 
+builtin UintPtr53ToNumber(value: uintptr): Number {
+  if (value <= kSmiMaxValue) return Convert<Smi>(Convert<intptr>(value));
+  const valueFloat = ChangeUintPtrToFloat64(value);
+  // Values need to be within [0..2^53], such that they can be represented as
+  // float64.
+  assert(ChangeFloat64ToUintPtr(valueFloat) == value);
+  return AllocateHeapNumberWithValue(valueFloat);
+}
+
 extern builtin I64ToBigInt(intptr): BigInt;
 
-builtin WasmAtomicNotify(address: uint32, count: uint32): uint32 {
+builtin WasmAtomicNotify(offset: uintptr, count: uint32): uint32 {
   const instance: WasmInstanceObject = LoadInstanceFromFrame();
   const result: Smi = runtime::WasmAtomicNotify(
-      LoadContextFromInstance(instance), instance, WasmUint32ToNumber(address),
+      LoadContextFromInstance(instance), instance, UintPtr53ToNumber(offset),
       WasmUint32ToNumber(count));
   return Unsigned(SmiToInt32(result));
 }
 
 builtin WasmI32AtomicWait64(
-    address: uint32, expectedValue: int32, timeout: intptr): uint32 {
+    offset: uintptr, expectedValue: int32, timeout: intptr): uint32 {
   if constexpr (Is64()) {
     const instance: WasmInstanceObject = LoadInstanceFromFrame();
     const result: Smi = runtime::WasmI32AtomicWait(
-        LoadContextFromInstance(instance), instance,
-        WasmUint32ToNumber(address), WasmInt32ToNumber(expectedValue),
-        I64ToBigInt(timeout));
+        LoadContextFromInstance(instance), instance, UintPtr53ToNumber(offset),
+        WasmInt32ToNumber(expectedValue), I64ToBigInt(timeout));
     return Unsigned(SmiToInt32(result));
   } else {
     unreachable;
@@ -307,13 +315,12 @@ builtin WasmI32AtomicWait64(
 }
 
 builtin WasmI64AtomicWait64(
-    address: uint32, expectedValue: intptr, timeout: intptr): uint32 {
+    offset: uintptr, expectedValue: intptr, timeout: intptr): uint32 {
   if constexpr (Is64()) {
     const instance: WasmInstanceObject = LoadInstanceFromFrame();
     const result: Smi = runtime::WasmI64AtomicWait(
-        LoadContextFromInstance(instance), instance,
-        WasmUint32ToNumber(address), I64ToBigInt(expectedValue),
-        I64ToBigInt(timeout));
+        LoadContextFromInstance(instance), instance, UintPtr53ToNumber(offset),
+        I64ToBigInt(expectedValue), I64ToBigInt(timeout));
     return Unsigned(SmiToInt32(result));
   } else {
     unreachable;
@@ -385,10 +392,6 @@ builtin ThrowWasmTrapFloatUnrepresentable(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapFloatUnrepresentable));
 }
 
-builtin ThrowWasmTrapFuncInvalid(): JSAny {
-  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapFuncInvalid));
-}
-
 builtin ThrowWasmTrapFuncSigMismatch(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapFuncSigMismatch));
 }
@@ -423,9 +426,5 @@ builtin ThrowWasmTrapIllegalCast(): JSAny {
 
 builtin ThrowWasmTrapArrayOutOfBounds(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapArrayOutOfBounds));
-}
-
-builtin ThrowWasmTrapWasmJSFunction(): JSAny {
-  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapWasmJSFunction));
 }
 }

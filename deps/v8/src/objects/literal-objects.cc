@@ -119,8 +119,9 @@ constexpr int ComputeEnumerationIndex(int value_index) {
   // We "shift" value indices to ensure that the enumeration index for the value
   // will not overlap with minimum properties set for both class and prototype
   // objects.
-  return value_index + Max(ClassBoilerplate::kMinimumClassPropertiesCount,
-                           ClassBoilerplate::kMinimumPrototypePropertiesCount);
+  return value_index +
+         std::max({ClassBoilerplate::kMinimumClassPropertiesCount,
+                   ClassBoilerplate::kMinimumPrototypePropertiesCount});
 }
 
 inline int GetExistingValueIndex(Object value) {

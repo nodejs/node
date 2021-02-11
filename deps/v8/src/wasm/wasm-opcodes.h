@@ -21,8 +21,9 @@ class WasmFeatures;
 struct WasmModule;
 
 std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
-bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmModule* module,
-                             const WasmFeatures&);
+bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
+                                               const WasmModule* module,
+                                               const WasmFeatures&);
 
 // Control expressions and blocks.
 #define FOREACH_CONTROL_OPCODE(V)                         \
@@ -287,7 +288,9 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmModule* module,
   V(S128Load16Splat, 0xfd08, s_i)  \
   V(S128Load32Splat, 0xfd09, s_i)  \
   V(S128Load64Splat, 0xfd0a, s_i)  \
-  V(S128StoreMem, 0xfd0b, v_is)
+  V(S128StoreMem, 0xfd0b, v_is)    \
+  V(S128Load32Zero, 0xfdfc, s_i)   \
+  V(S128Load64Zero, 0xfdfd, s_i)
 
 #define FOREACH_SIMD_CONST_OPCODE(V) V(S128Const, 0xfd0c, _)
 
@@ -360,11 +363,11 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmModule* module,
   V(I8x16ShrS, 0xfd6c, s_si)                 \
   V(I8x16ShrU, 0xfd6d, s_si)                 \
   V(I8x16Add, 0xfd6e, s_ss)                  \
-  V(I8x16AddSaturateS, 0xfd6f, s_ss)         \
-  V(I8x16AddSaturateU, 0xfd70, s_ss)         \
+  V(I8x16AddSatS, 0xfd6f, s_ss)              \
+  V(I8x16AddSatU, 0xfd70, s_ss)              \
   V(I8x16Sub, 0xfd71, s_ss)                  \
-  V(I8x16SubSaturateS, 0xfd72, s_ss)         \
-  V(I8x16SubSaturateU, 0xfd73, s_ss)         \
+  V(I8x16SubSatS, 0xfd72, s_ss)              \
+  V(I8x16SubSatU, 0xfd73, s_ss)              \
   V(I8x16MinS, 0xfd76, s_ss)                 \
   V(I8x16MinU, 0xfd77, s_ss)                 \
   V(I8x16MaxS, 0xfd78, s_ss)                 \
@@ -385,11 +388,11 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmModule* module,
   V(I16x8ShrS, 0xfd8c, s_si)                 \
   V(I16x8ShrU, 0xfd8d, s_si)                 \
   V(I16x8Add, 0xfd8e, s_ss)                  \
-  V(I16x8AddSaturateS, 0xfd8f, s_ss)         \
-  V(I16x8AddSaturateU, 0xfd90, s_ss)         \
+  V(I16x8AddSatS, 0xfd8f, s_ss)              \
+  V(I16x8AddSatU, 0xfd90, s_ss)              \
   V(I16x8Sub, 0xfd91, s_ss)                  \
-  V(I16x8SubSaturateS, 0xfd92, s_ss)         \
-  V(I16x8SubSaturateU, 0xfd93, s_ss)         \
+  V(I16x8SubSatS, 0xfd92, s_ss)              \
+  V(I16x8SubSatU, 0xfd93, s_ss)              \
   V(I16x8Mul, 0xfd95, s_ss)                  \
   V(I16x8MinS, 0xfd96, s_ss)                 \
   V(I16x8MinU, 0xfd97, s_ss)                 \
@@ -415,6 +418,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmModule* module,
   V(I32x4MinU, 0xfdb7, s_ss)                 \
   V(I32x4MaxS, 0xfdb8, s_ss)                 \
   V(I32x4MaxU, 0xfdb9, s_ss)                 \
+  V(I32x4DotI16x8S, 0xfdba, s_ss)            \
   V(I64x2Neg, 0xfdc1, s_s)                   \
   V(I64x2Shl, 0xfdcb, s_si)                  \
   V(I64x2ShrS, 0xfdcc, s_si)                 \
@@ -458,36 +462,53 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmModule* module,
   V(F64x2NearestInt, 0xfddf, s_s)
 
 #define FOREACH_SIMD_POST_MVP_MEM_OPCODE(V) \
-  V(S128LoadMem32Zero, 0xfdfc, s_i)         \
-  V(S128LoadMem64Zero, 0xfdfd, s_i)
+  V(S128Load8Lane, 0xfd58, s_is)            \
+  V(S128Load16Lane, 0xfd59, s_is)           \
+  V(S128Load32Lane, 0xfd5a, s_is)           \
+  V(S128Load64Lane, 0xfd5b, s_is)           \
+  V(S128Store8Lane, 0xfd5c, v_is)           \
+  V(S128Store16Lane, 0xfd5d, v_is)          \
+  V(S128Store32Lane, 0xfd5e, v_is)          \
+  V(S128Store64Lane, 0xfd5f, v_is)
 
-#define FOREACH_SIMD_POST_MVP_OPCODE(V) \
-  V(I8x16Mul, 0xfd75, s_ss)             \
-  V(V64x2AnyTrue, 0xfdc2, i_s)          \
-  V(V64x2AllTrue, 0xfdc3, i_s)          \
-  V(I64x2Eq, 0xfdc0, s_ss)              \
-  V(I64x2Ne, 0xfdc4, s_ss)              \
-  V(I64x2LtS, 0xfdc5, s_ss)             \
-  V(I64x2LtU, 0xfdc6, s_ss)             \
-  V(I64x2GtS, 0xfdc7, s_ss)             \
-  V(I64x2GtU, 0xfdc8, s_ss)             \
-  V(I64x2LeS, 0xfdc9, s_ss)             \
-  V(I64x2LeU, 0xfdca, s_ss)             \
-  V(I64x2GeS, 0xfdcf, s_ss)             \
-  V(I64x2GeU, 0xfdd0, s_ss)             \
-  V(I64x2MinS, 0xfdd6, s_ss)            \
-  V(I64x2MinU, 0xfdd7, s_ss)            \
-  V(I64x2MaxS, 0xfde2, s_ss)            \
-  V(I64x2MaxU, 0xfdee, s_ss)            \
-  V(F32x4Qfma, 0xfdb4, s_sss)           \
-  V(F32x4Qfms, 0xfdd4, s_sss)           \
-  V(F64x2Qfma, 0xfdfe, s_sss)           \
-  V(F64x2Qfms, 0xfdff, s_sss)           \
-  V(I16x8AddHoriz, 0xfdaf, s_ss)        \
-  V(I32x4AddHoriz, 0xfdb0, s_ss)        \
-  V(I32x4DotI16x8S, 0xfdba, s_ss)       \
-  V(F32x4AddHoriz, 0xfdb2, s_ss)        \
-  V(F32x4RecipApprox, 0xfdb3, s_s)      \
+#define FOREACH_SIMD_POST_MVP_OPCODE(V)     \
+  V(I8x16Mul, 0xfd75, s_ss)                 \
+  V(I8x16Popcnt, 0xfd7c, s_s)               \
+  V(I8x16SignSelect, 0xfd7d, s_sss)         \
+  V(I16x8SignSelect, 0xfd7e, s_sss)         \
+  V(I32x4SignSelect, 0xfd7f, s_sss)         \
+  V(I64x2SignSelect, 0xfd94, s_sss)         \
+  V(I16x8Q15MulRSatS, 0xfd9c, s_ss)         \
+  V(I16x8ExtMulLowI8x16S, 0xfd9a, s_ss)     \
+  V(I16x8ExtMulHighI8x16S, 0xfd9d, s_ss)    \
+  V(I16x8ExtMulLowI8x16U, 0xfd9e, s_ss)     \
+  V(I16x8ExtMulHighI8x16U, 0xfd9f, s_ss)    \
+  V(I32x4ExtMulLowI16x8S, 0xfdbb, s_ss)     \
+  V(I32x4ExtMulHighI16x8S, 0xfdbd, s_ss)    \
+  V(I32x4ExtMulLowI16x8U, 0xfdbe, s_ss)     \
+  V(I32x4ExtMulHighI16x8U, 0xfdbf, s_ss)    \
+  V(I64x2ExtMulLowI32x4S, 0xfdd2, s_ss)     \
+  V(I64x2ExtMulHighI32x4S, 0xfdd3, s_ss)    \
+  V(I64x2ExtMulLowI32x4U, 0xfdd6, s_ss)     \
+  V(I64x2ExtMulHighI32x4U, 0xfdd7, s_ss)    \
+  V(I32x4ExtAddPairwiseI16x8S, 0xfda5, s_s) \
+  V(I32x4ExtAddPairwiseI16x8U, 0xfda6, s_s) \
+  V(I16x8ExtAddPairwiseI8x16S, 0xfdc2, s_s) \
+  V(I16x8ExtAddPairwiseI8x16U, 0xfdc3, s_s) \
+  V(I64x2Eq, 0xfdc0, s_ss)                  \
+  V(F32x4Qfma, 0xfdb4, s_sss)               \
+  V(I64x2BitMask, 0xfdc4, i_s)              \
+  V(I64x2SConvertI32x4Low, 0xfdc7, s_s)     \
+  V(I64x2SConvertI32x4High, 0xfdc8, s_s)    \
+  V(I64x2UConvertI32x4Low, 0xfdc9, s_s)     \
+  V(I64x2UConvertI32x4High, 0xfdca, s_s)    \
+  V(F32x4Qfms, 0xfdd4, s_sss)               \
+  V(F64x2Qfma, 0xfdfe, s_sss)               \
+  V(F64x2Qfms, 0xfdff, s_sss)               \
+  V(I16x8AddHoriz, 0xfdaf, s_ss)            \
+  V(I32x4AddHoriz, 0xfdb0, s_ss)            \
+  V(F32x4AddHoriz, 0xfdb2, s_ss)            \
+  V(F32x4RecipApprox, 0xfdb3, s_s)          \
   V(F32x4RecipSqrtApprox, 0xfdbc, s_s)
 
 #define FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V) \
@@ -700,17 +721,18 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmModule* module,
   V(i_ci, kWasmI32, kWasmFuncRef, kWasmI32)         \
   V(i_qq, kWasmI32, kWasmEqRef, kWasmEqRef)
 
-#define FOREACH_SIMD_SIGNATURE(V)          \
-  V(s_s, kWasmS128, kWasmS128)             \
-  V(s_f, kWasmS128, kWasmF32)              \
-  V(s_d, kWasmS128, kWasmF64)              \
-  V(s_ss, kWasmS128, kWasmS128, kWasmS128) \
-  V(s_i, kWasmS128, kWasmI32)              \
-  V(s_l, kWasmS128, kWasmI64)              \
-  V(s_si, kWasmS128, kWasmS128, kWasmI32)  \
-  V(i_s, kWasmI32, kWasmS128)              \
-  V(v_is, kWasmStmt, kWasmI32, kWasmS128)  \
-  V(s_sss, kWasmS128, kWasmS128, kWasmS128, kWasmS128)
+#define FOREACH_SIMD_SIGNATURE(V)                      \
+  V(s_s, kWasmS128, kWasmS128)                         \
+  V(s_f, kWasmS128, kWasmF32)                          \
+  V(s_d, kWasmS128, kWasmF64)                          \
+  V(s_ss, kWasmS128, kWasmS128, kWasmS128)             \
+  V(s_i, kWasmS128, kWasmI32)                          \
+  V(s_l, kWasmS128, kWasmI64)                          \
+  V(s_si, kWasmS128, kWasmS128, kWasmI32)              \
+  V(i_s, kWasmI32, kWasmS128)                          \
+  V(v_is, kWasmStmt, kWasmI32, kWasmS128)              \
+  V(s_sss, kWasmS128, kWasmS128, kWasmS128, kWasmS128) \
+  V(s_is, kWasmS128, kWasmI32, kWasmS128)
 
 #define FOREACH_PREFIX(V) \
   V(Numeric, 0xfc)        \

@@ -178,38 +178,7 @@ class ValueType {
 #undef DEF_ENUM
   };
 
-  constexpr bool is_reference_type() const {
-    return kind() == kRef || kind() == kOptRef || kind() == kRtt;
-  }
-
-  constexpr bool is_object_reference_type() const {
-    return kind() == kRef || kind() == kOptRef;
-  }
-
-  constexpr bool is_packed() const { return kind() == kI8 || kind() == kI16; }
-
-  constexpr bool is_nullable() const { return kind() == kOptRef; }
-
-  constexpr bool is_reference_to(uint32_t htype) const {
-    return (kind() == kRef || kind() == kOptRef) &&
-           heap_representation() == htype;
-  }
-
-  constexpr bool is_defaultable() const {
-    CONSTEXPR_DCHECK(kind() != kBottom && kind() != kStmt);
-    return kind() != kRef && kind() != kRtt;
-  }
-
-  constexpr ValueType Unpacked() const {
-    return is_packed() ? Primitive(kI32) : *this;
-  }
-
-  constexpr bool has_index() const {
-    return is_reference_type() && heap_type().is_index();
-  }
-  constexpr bool is_rtt() const { return kind() == kRtt; }
-  constexpr bool has_depth() const { return is_rtt(); }
-
+  /******************************* Constructors *******************************/
   constexpr ValueType() : bit_field_(KindField::encode(kStmt)) {}
   static constexpr ValueType Primitive(Kind kind) {
     CONSTEXPR_DCHECK(kind == kBottom || kind <= kI16);
@@ -242,6 +211,43 @@ class ValueType {
     return ValueType(bit_field);
   }
 
+  /******************************** Type checks *******************************/
+  constexpr bool is_reference_type() const {
+    return kind() == kRef || kind() == kOptRef || kind() == kRtt;
+  }
+
+  constexpr bool is_object_reference_type() const {
+    return kind() == kRef || kind() == kOptRef;
+  }
+
+  constexpr bool is_nullable() const { return kind() == kOptRef; }
+
+  constexpr bool is_reference_to(uint32_t htype) const {
+    return (kind() == kRef || kind() == kOptRef) &&
+           heap_representation() == htype;
+  }
+
+  constexpr bool is_rtt() const { return kind() == kRtt; }
+  constexpr bool has_depth() const { return is_rtt(); }
+
+  constexpr bool has_index() const {
+    return is_reference_type() && heap_type().is_index();
+  }
+
+  constexpr bool is_defaultable() const {
+    CONSTEXPR_DCHECK(kind() != kBottom && kind() != kStmt);
+    return kind() != kRef && kind() != kRtt;
+  }
+
+  constexpr bool is_bottom() const { return kind() == kBottom; }
+
+  constexpr bool is_packed() const { return kind() == kI8 || kind() == kI16; }
+
+  constexpr ValueType Unpacked() const {
+    return is_packed() ? Primitive(kI32) : *this;
+  }
+
+  /***************************** Field Accessors ******************************/
   constexpr Kind kind() const { return KindField::decode(bit_field_); }
   constexpr HeapType::Representation heap_representation() const {
     CONSTEXPR_DCHECK(is_reference_type());
@@ -262,6 +268,14 @@ class ValueType {
 
   // Useful when serializing this type to store it into a runtime object.
   constexpr uint32_t raw_bit_field() const { return bit_field_; }
+
+  /*************************** Other utility methods **************************/
+  constexpr bool operator==(ValueType other) const {
+    return bit_field_ == other.bit_field_;
+  }
+  constexpr bool operator!=(ValueType other) const {
+    return bit_field_ != other.bit_field_;
+  }
 
   static constexpr size_t bit_field_offset() {
     return offsetof(ValueType, bit_field_);
@@ -292,13 +306,7 @@ class ValueType {
     return size;
   }
 
-  constexpr bool operator==(ValueType other) const {
-    return bit_field_ == other.bit_field_;
-  }
-  constexpr bool operator!=(ValueType other) const {
-    return bit_field_ != other.bit_field_;
-  }
-
+  /*************************** Machine-type related ***************************/
   constexpr MachineType machine_type() const {
     CONSTEXPR_DCHECK(kBottom != kind());
 
@@ -315,6 +323,29 @@ class ValueType {
   constexpr MachineRepresentation machine_representation() const {
     return machine_type().representation();
   }
+
+  static ValueType For(MachineType type) {
+    switch (type.representation()) {
+      case MachineRepresentation::kWord8:
+      case MachineRepresentation::kWord16:
+      case MachineRepresentation::kWord32:
+        return Primitive(kI32);
+      case MachineRepresentation::kWord64:
+        return Primitive(kI64);
+      case MachineRepresentation::kFloat32:
+        return Primitive(kF32);
+      case MachineRepresentation::kFloat64:
+        return Primitive(kF64);
+      case MachineRepresentation::kTaggedPointer:
+        return Ref(HeapType::kExtern, kNullable);
+      case MachineRepresentation::kSimd128:
+        return Primitive(kS128);
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  /********************************* Encoding *********************************/
 
   // Returns the first byte of this type's representation in the wasm binary
   // format.
@@ -365,27 +396,9 @@ class ValueType {
                                   heap_representation() == HeapType::kI31));
   }
 
-  static ValueType For(MachineType type) {
-    switch (type.representation()) {
-      case MachineRepresentation::kWord8:
-      case MachineRepresentation::kWord16:
-      case MachineRepresentation::kWord32:
-        return Primitive(kI32);
-      case MachineRepresentation::kWord64:
-        return Primitive(kI64);
-      case MachineRepresentation::kFloat32:
-        return Primitive(kF32);
-      case MachineRepresentation::kFloat64:
-        return Primitive(kF64);
-      case MachineRepresentation::kTaggedPointer:
-        return Ref(HeapType::kExtern, kNullable);
-      case MachineRepresentation::kSimd128:
-        return Primitive(kS128);
-      default:
-        UNREACHABLE();
-    }
-  }
+  static constexpr int kLastUsedBit = 30;
 
+  /****************************** Pretty-printing *****************************/
   constexpr char short_name() const {
     constexpr char kShortName[] = {
 #define SHORT_NAME(kind, log2Size, code, machineType, shortName, ...) shortName,
@@ -424,8 +437,6 @@ class ValueType {
     }
     return buf.str();
   }
-
-  static constexpr int kLastUsedBit = 30;
 
  private:
   // We only use 31 bits so ValueType fits in a Smi. This can be changed if

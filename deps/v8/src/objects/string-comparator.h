@@ -55,6 +55,8 @@ class StringComparator {
   class State {
    public:
     State() : is_one_byte_(true), length_(0), buffer8_(nullptr) {}
+    State(const State&) = delete;
+    State& operator=(const State&) = delete;
 
     void Init(String string);
 
@@ -79,13 +81,12 @@ class StringComparator {
       const uint8_t* buffer8_;
       const uint16_t* buffer16_;
     };
-
-   private:
-    DISALLOW_COPY_AND_ASSIGN(State);
   };
 
  public:
   inline StringComparator() = default;
+  StringComparator(const StringComparator&) = delete;
+  StringComparator& operator=(const StringComparator&) = delete;
 
   template <typename Chars1, typename Chars2>
   static inline bool Equals(State* state_1, State* state_2, int to_check) {
@@ -99,8 +100,6 @@ class StringComparator {
  private:
   State state_1_;
   State state_2_;
-
-  DISALLOW_COPY_AND_ASSIGN(StringComparator);
 };
 
 }  // namespace internal

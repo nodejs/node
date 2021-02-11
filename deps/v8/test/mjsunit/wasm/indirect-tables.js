@@ -333,8 +333,8 @@ function js_div(a, b) { return (a / b) | 0; }
 
   assertTraps(kTrapFuncSigMismatch, () => i1.exports.main(2));
   assertTraps(kTrapFuncSigMismatch, () => i2.exports.main(2));
-  assertTraps(kTrapFuncInvalid, () => i1.exports.main(3));
-  assertTraps(kTrapFuncInvalid, () => i2.exports.main(3));
+  assertTraps(kTrapTableOutOfBounds, () => i1.exports.main(3));
+  assertTraps(kTrapTableOutOfBounds, () => i2.exports.main(3));
 })();
 
 (function MismatchedTableSize() {

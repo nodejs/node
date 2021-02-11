@@ -44,12 +44,12 @@ TNode<FixedArray> WasmBuiltinsAssembler::LoadManagedObjectMapsFromInstance(
 }
 
 TF_BUILTIN(WasmFloat32ToNumber, WasmBuiltinsAssembler) {
-  TNode<Float32T> val = UncheckedCast<Float32T>(Parameter(Descriptor::kValue));
+  auto val = UncheckedParameter<Float32T>(Descriptor::kValue);
   Return(ChangeFloat32ToTagged(val));
 }
 
 TF_BUILTIN(WasmFloat64ToNumber, WasmBuiltinsAssembler) {
-  TNode<Float64T> val = UncheckedCast<Float64T>(Parameter(Descriptor::kValue));
+  auto val = UncheckedParameter<Float64T>(Descriptor::kValue);
   Return(ChangeFloat64ToTagged(val));
 }
 
@@ -59,18 +59,14 @@ TF_BUILTIN(WasmI32AtomicWait32, WasmBuiltinsAssembler) {
     return;
   }
 
-  TNode<Uint32T> address =
-      UncheckedCast<Uint32T>(Parameter(Descriptor::kAddress));
+  auto address = UncheckedParameter<Uint32T>(Descriptor::kAddress);
   TNode<Number> address_number = ChangeUint32ToTagged(address);
 
-  TNode<Int32T> expected_value =
-      UncheckedCast<Int32T>(Parameter(Descriptor::kExpectedValue));
+  auto expected_value = UncheckedParameter<Int32T>(Descriptor::kExpectedValue);
   TNode<Number> expected_value_number = ChangeInt32ToTagged(expected_value);
 
-  TNode<IntPtrT> timeout_low =
-      UncheckedCast<IntPtrT>(Parameter(Descriptor::kTimeoutLow));
-  TNode<IntPtrT> timeout_high =
-      UncheckedCast<IntPtrT>(Parameter(Descriptor::kTimeoutHigh));
+  auto timeout_low = UncheckedParameter<IntPtrT>(Descriptor::kTimeoutLow);
+  auto timeout_high = UncheckedParameter<IntPtrT>(Descriptor::kTimeoutHigh);
   TNode<BigInt> timeout = BigIntFromInt32Pair(timeout_low, timeout_high);
 
   TNode<WasmInstanceObject> instance = LoadInstanceFromFrame();
@@ -88,21 +84,18 @@ TF_BUILTIN(WasmI64AtomicWait32, WasmBuiltinsAssembler) {
     return;
   }
 
-  TNode<Uint32T> address =
-      UncheckedCast<Uint32T>(Parameter(Descriptor::kAddress));
+  auto address = UncheckedParameter<Uint32T>(Descriptor::kAddress);
   TNode<Number> address_number = ChangeUint32ToTagged(address);
 
-  TNode<IntPtrT> expected_value_low =
-      UncheckedCast<IntPtrT>(Parameter(Descriptor::kExpectedValueLow));
-  TNode<IntPtrT> expected_value_high =
-      UncheckedCast<IntPtrT>(Parameter(Descriptor::kExpectedValueHigh));
+  auto expected_value_low =
+      UncheckedParameter<IntPtrT>(Descriptor::kExpectedValueLow);
+  auto expected_value_high =
+      UncheckedParameter<IntPtrT>(Descriptor::kExpectedValueHigh);
   TNode<BigInt> expected_value =
       BigIntFromInt32Pair(expected_value_low, expected_value_high);
 
-  TNode<IntPtrT> timeout_low =
-      UncheckedCast<IntPtrT>(Parameter(Descriptor::kTimeoutLow));
-  TNode<IntPtrT> timeout_high =
-      UncheckedCast<IntPtrT>(Parameter(Descriptor::kTimeoutHigh));
+  auto timeout_low = UncheckedParameter<IntPtrT>(Descriptor::kTimeoutLow);
+  auto timeout_high = UncheckedParameter<IntPtrT>(Descriptor::kTimeoutHigh);
   TNode<BigInt> timeout = BigIntFromInt32Pair(timeout_low, timeout_high);
 
   TNode<WasmInstanceObject> instance = LoadInstanceFromFrame();
@@ -115,9 +108,9 @@ TF_BUILTIN(WasmI64AtomicWait32, WasmBuiltinsAssembler) {
 }
 
 TF_BUILTIN(WasmAllocateArrayWithRtt, WasmBuiltinsAssembler) {
-  TNode<Map> map = CAST(Parameter(Descriptor::kMap));
-  TNode<Smi> length = CAST(Parameter(Descriptor::kLength));
-  TNode<Smi> element_size = CAST(Parameter(Descriptor::kElementSize));
+  auto map = Parameter<Map>(Descriptor::kMap);
+  auto length = Parameter<Smi>(Descriptor::kLength);
+  auto element_size = Parameter<Smi>(Descriptor::kElementSize);
   TNode<IntPtrT> untagged_length = SmiUntag(length);
   // instance_size = WasmArray::kHeaderSize
   //               + RoundUp(element_size * length, kObjectAlignment)
@@ -131,6 +124,28 @@ TF_BUILTIN(WasmAllocateArrayWithRtt, WasmBuiltinsAssembler) {
   StoreMap(result, map);
   StoreObjectFieldNoWriteBarrier(result, WasmArray::kLengthOffset,
                                  TruncateIntPtrToInt32(untagged_length));
+  Return(result);
+}
+
+TF_BUILTIN(WasmAllocatePair, WasmBuiltinsAssembler) {
+  TNode<WasmInstanceObject> instance = LoadInstanceFromFrame();
+  TNode<HeapObject> value1 = Parameter<HeapObject>(Descriptor::kValue1);
+  TNode<HeapObject> value2 = Parameter<HeapObject>(Descriptor::kValue2);
+
+  TNode<IntPtrT> roots = LoadObjectField<IntPtrT>(
+      instance, WasmInstanceObject::kIsolateRootOffset);
+  TNode<Map> map = CAST(Load(
+      MachineType::AnyTagged(), roots,
+      IntPtrConstant(IsolateData::root_slot_offset(RootIndex::kTuple2Map))));
+
+  TNode<IntPtrT> instance_size =
+      TimesTaggedSize(LoadMapInstanceSizeInWords(map));
+  TNode<Tuple2> result = UncheckedCast<Tuple2>(Allocate(instance_size));
+
+  StoreMap(result, map);
+  StoreObjectField(result, Tuple2::kValue1Offset, value1);
+  StoreObjectField(result, Tuple2::kValue2Offset, value2);
+
   Return(result);
 }
 

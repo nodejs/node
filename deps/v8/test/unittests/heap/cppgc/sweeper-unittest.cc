@@ -48,7 +48,10 @@ class SweeperTest : public testing::TestWithHeap {
     // methods are called in the right order.
     heap->stats_collector()->NotifyMarkingStarted();
     heap->stats_collector()->NotifyMarkingCompleted(0);
-    sweeper.Start(Sweeper::Config::kAtomic);
+    const Sweeper::SweepingConfig sweeping_config{
+        Sweeper::SweepingConfig::SweepingType::kAtomic,
+        Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep};
+    sweeper.Start(sweeping_config);
     sweeper.FinishIfRunning();
   }
 

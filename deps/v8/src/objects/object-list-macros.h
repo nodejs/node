@@ -104,7 +104,6 @@ class ZoneForwardList;
   V(DataHandler)                               \
   V(DeoptimizationData)                        \
   V(DependentCode)                             \
-  V(DescriptorArray)                           \
   V(EmbedderDataArray)                         \
   V(EphemeronHashTable)                        \
   V(ExternalOneByteString)                     \
@@ -181,7 +180,6 @@ class ZoneForwardList;
   V(NumberWrapper)                             \
   V(ObjectHashSet)                             \
   V(ObjectHashTable)                           \
-  V(Oddball)                                   \
   V(OrderedHashMap)                            \
   V(OrderedHashSet)                            \
   V(OrderedNameDictionary)                     \

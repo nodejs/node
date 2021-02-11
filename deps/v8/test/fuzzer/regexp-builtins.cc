@@ -240,9 +240,12 @@ std::string PickLimitForSplit(FuzzerArgs* args) {
 }
 
 std::string GenerateRandomFlags(FuzzerArgs* args) {
+  // TODO(mbid,v8:10765): Find a way to generate the kLinear flag sometimes,
+  // but only for patterns that are supported by the experimental engine.
   constexpr size_t kFlagCount = JSRegExp::kFlagCount;
-  CHECK_EQ(JSRegExp::kDotAll, 1 << (kFlagCount - 1));
-  STATIC_ASSERT((1 << kFlagCount) - 1 < 0xFF);
+  CHECK_EQ(JSRegExp::kLinear, 1 << (kFlagCount - 1));
+  CHECK_EQ(JSRegExp::kDotAll, 1 << (kFlagCount - 2));
+  STATIC_ASSERT((1 << kFlagCount) - 1 <= 0xFF);
 
   const size_t flags = RandomByte(args) & ((1 << kFlagCount) - 1);
 

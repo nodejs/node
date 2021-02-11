@@ -9,6 +9,7 @@
 #include "../../third_party/inspector_protocol/crdtp/json.h"
 #include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-inspector-impl.h"
+#include "src/tracing/trace-event.h"
 
 using v8_crdtp::SpanFrom;
 using v8_crdtp::json::ConvertCBORToJSON;
@@ -34,6 +35,10 @@ std::vector<std::shared_ptr<StackFrame>> toFramesVector(
     int maxStackSize) {
   DCHECK(debugger->isolate()->InContext());
   int frameCount = std::min(v8StackTrace->GetFrameCount(), maxStackSize);
+
+  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"),
+               "SymbolizeStackTrace", "frameCount", frameCount);
+
   std::vector<std::shared_ptr<StackFrame>> frames(frameCount);
   for (int i = 0; i < frameCount; ++i) {
     frames[i] =
@@ -253,6 +258,10 @@ std::unique_ptr<V8StackTraceImpl> V8StackTraceImpl::create(
 std::unique_ptr<V8StackTraceImpl> V8StackTraceImpl::capture(
     V8Debugger* debugger, int contextGroupId, int maxStackSize) {
   DCHECK(debugger);
+
+  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"),
+               "V8StackTraceImpl::capture", "maxFrameCount", maxStackSize);
+
   v8::Isolate* isolate = debugger->isolate();
   v8::HandleScope handleScope(isolate);
   v8::Local<v8::StackTrace> v8StackTrace;
@@ -403,6 +412,9 @@ std::shared_ptr<AsyncStackTrace> AsyncStackTrace::capture(
     V8Debugger* debugger, int contextGroupId, const String16& description,
     int maxStackSize) {
   DCHECK(debugger);
+
+  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"),
+               "AsyncStackTrace::capture", "maxFrameCount", maxStackSize);
 
   v8::Isolate* isolate = debugger->isolate();
   v8::HandleScope handleScope(isolate);

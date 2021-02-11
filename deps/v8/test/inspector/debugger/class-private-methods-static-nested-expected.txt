@@ -8,7 +8,7 @@ privateProperties on class A
         value : {
             className : Function
             description : #method() {       debugger;     }
-            objectId : {"injectedScriptId":1,"id":39}
+            objectId : <objectId>
             type : function
         }
     }

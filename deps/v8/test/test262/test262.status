@@ -66,8 +66,6 @@
   'language/expressions/postfix-increment/S11.3.1_A5_T1': [FAIL],
   'language/expressions/postfix-increment/S11.3.1_A5_T2': [FAIL],
   'language/expressions/postfix-increment/S11.3.1_A5_T3': [FAIL],
-  'language/expressions/postfix-increment/S11.3.1_A5_T4': [FAIL],
-  'language/expressions/postfix-increment/S11.3.1_A5_T5': [FAIL],
   'language/expressions/postfix-decrement/S11.3.2_A5_*': [FAIL],
   'language/expressions/prefix-decrement/S11.4.5_A5_*': [FAIL],
   'language/expressions/prefix-increment/S11.4.4_A5_*': [FAIL],
@@ -79,34 +77,14 @@
   'language/computed-property-names/class/static/method-symbol': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4895
-  'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/BigInt/detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/detached-buffer-realm': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/BigInt/detached-buffer-realm': [FAIL],
   'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/tonumber-value-detached-buffer': [FAIL],
   'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/BigInt/tonumber-value-detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Get/detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Get/BigInt/detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Get/detached-buffer-realm': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Get/BigInt/detached-buffer-realm': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Get/infinity-detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Get/BigInt/infinity-detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/GetOwnProperty/detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/GetOwnProperty/BigInt/detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/GetOwnProperty/detached-buffer-realm': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/GetOwnProperty/BigInt/detached-buffer-realm': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/GetOwnProperty/enumerate-detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/GetOwnProperty/BigInt/enumerate-detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/HasProperty/detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/HasProperty/BigInt/detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/HasProperty/detached-buffer-realm': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/HasProperty/BigInt/detached-buffer-realm': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/HasProperty/infinity-with-detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/HasProperty/BigInt/infinity-with-detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Set/detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Set/BigInt/detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Set/detached-buffer-realm': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Set/BigInt/detached-buffer-realm': [FAIL],
+  'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/BigInt/key-is-numericindex': [FAIL],
+  'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/BigInt/key-is-numericindex-desc-configurable': [FAIL],
+  'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/key-is-numericindex': [FAIL],
+  'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/key-is-numericindex-desc-configurable': [FAIL],
+  'built-ins/TypedArrayConstructors/internals/GetOwnProperty/BigInt/index-prop-desc': [FAIL],
+  'built-ins/TypedArrayConstructors/internals/GetOwnProperty/index-prop-desc': [FAIL],
   'built-ins/TypedArrayConstructors/internals/Set/tonumber-value-detached-buffer': [FAIL],
   'built-ins/TypedArrayConstructors/internals/Set/BigInt/tonumber-value-detached-buffer': [FAIL],
   # Some TypedArray methods throw due to the same bug, from Get
@@ -129,10 +107,11 @@
   'built-ins/TypedArray/prototype/some/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/some/BigInt/callbackfn-detachbuffer': [FAIL],
   # DataView functions should also throw on detached buffers
-  'built-ins/ArrayBuffer/prototype/byteLength/detached-buffer': [FAIL],
   'built-ins/DataView/detached-buffer': [FAIL],
   'built-ins/DataView/prototype/byteLength/detached-buffer': [FAIL],
   'built-ins/DataView/prototype/byteOffset/detached-buffer': [FAIL],
+  'built-ins/DataView/prototype/byteLength/instance-has-detached-buffer': [FAIL],
+  'built-ins/DataView/custom-proto-access-detaches-buffer': [FAIL],
   # copyWithin should also throw on detached buffers
   'built-ins/TypedArray/prototype/copyWithin/coerced-values-end-detached-prototype': [FAIL],
   'built-ins/TypedArray/prototype/copyWithin/coerced-values-start-detached': [FAIL],
@@ -534,9 +513,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7472
   'intl402/NumberFormat/currency-digits': [FAIL],
 
-  # http://crbug/v8/10844
-  'intl402/NumberFormat/dft-currency-mnfd-range-check-mxfd': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7831
   'language/statements/generators/generator-created-after-decl-inst': [FAIL],
   'language/expressions/generators/generator-created-after-decl-inst': [FAIL],
@@ -595,10 +571,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=9818
   'built-ins/AsyncFunction/proto-from-ctor-realm': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=10111
-  # super() should evaluate arguments before checking IsConstructable
-  'language/expressions/super/call-proto-not-ctor': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=10381
   'built-ins/Array/prototype/concat/arg-length-near-integer-limit': [FAIL],
 
@@ -638,6 +610,44 @@
   # http://crbug/v8/10905
   'language/identifier-resolution/assign-to-global-undefined': [FAIL],
 
+  # http://crbug/v8/10961
+  'built-ins/Array/prototype/item/index-argument-tointeger': [FAIL],
+  'built-ins/Array/prototype/item/index-non-numeric-argument-tointeger': [FAIL],
+  'built-ins/Array/prototype/item/index-non-numeric-argument-tointeger-invalid': [FAIL],
+  'built-ins/Array/prototype/item/length': [FAIL],
+  'built-ins/Array/prototype/item/name': [FAIL],
+  'built-ins/Array/prototype/item/prop-desc': [FAIL],
+  'built-ins/Array/prototype/item/return-abrupt-from-this': [FAIL],
+  'built-ins/Array/prototype/item/returns-item': [FAIL],
+  'built-ins/Array/prototype/item/returns-item-relative-index': [FAIL],
+  'built-ins/Array/prototype/item/returns-undefined-for-holes-in-sparse-arrays': [FAIL],
+  'built-ins/Array/prototype/item/returns-undefined-for-out-of-range-index': [FAIL],
+  'built-ins/String/prototype/item/index-argument-tointeger': [FAIL],
+  'built-ins/String/prototype/item/index-non-numeric-argument-tointeger': [FAIL],
+  'built-ins/String/prototype/item/index-non-numeric-argument-tointeger-invalid': [FAIL],
+  'built-ins/String/prototype/item/length': [FAIL],
+  'built-ins/String/prototype/item/name': [FAIL],
+  'built-ins/String/prototype/item/prop-desc': [FAIL],
+  'built-ins/String/prototype/item/return-abrupt-from-this': [FAIL],
+  'built-ins/String/prototype/item/returns-code-unit': [FAIL],
+  'built-ins/String/prototype/item/returns-item': [FAIL],
+  'built-ins/String/prototype/item/returns-item-relative-index': [FAIL],
+  'built-ins/String/prototype/item/returns-undefined-for-out-of-range-index': [FAIL],
+  'built-ins/TypedArray/prototype/item/index-argument-tointeger': [FAIL],
+  'built-ins/TypedArray/prototype/item/index-non-numeric-argument-tointeger': [FAIL],
+  'built-ins/TypedArray/prototype/item/index-non-numeric-argument-tointeger-invalid': [FAIL],
+  'built-ins/TypedArray/prototype/item/length': [FAIL],
+  'built-ins/TypedArray/prototype/item/name': [FAIL],
+  'built-ins/TypedArray/prototype/item/prop-desc': [FAIL],
+  'built-ins/TypedArray/prototype/item/return-abrupt-from-this': [FAIL],
+  'built-ins/TypedArray/prototype/item/returns-item': [FAIL],
+  'built-ins/TypedArray/prototype/item/returns-item-relative-index': [FAIL],
+  'built-ins/TypedArray/prototype/item/returns-undefined-for-holes-in-sparse-arrays': [FAIL],
+  'built-ins/TypedArray/prototype/item/returns-undefined-for-out-of-range-index': [FAIL],
+
+  # http://crbug/v8/11039
+  'intl402/Locale/reject-duplicate-variants-in-tlang': [FAIL],
+
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
@@ -652,6 +662,11 @@
 
   # https://github.com/tc39/ecma262/pull/889
   'annexB/language/function-code/block-decl-func-skip-arguments': [FAIL],
+
+  # Non-simple assignment targets are runtime errors instead of syntax errors
+  # for web compat. https://crbug.com/358346
+  'language/expressions/assignmenttargettype/direct-callexpression-arguments': [FAIL],
+  'language/expressions/assignmenttargettype/parenthesized-callexpression-arguments': [FAIL],
 
   ############################ INVALID TESTS #############################
 

@@ -60,8 +60,6 @@ class Zone;
   V(might_always_opt, bool, 1, _)                        \
   V(allow_natives_syntax, bool, 1, _)                    \
   V(allow_lazy_compile, bool, 1, _)                      \
-  V(allow_harmony_dynamic_import, bool, 1, _)            \
-  V(allow_harmony_import_meta, bool, 1, _)               \
   V(allow_harmony_private_methods, bool, 1, _)           \
   V(is_oneshot_iife, bool, 1, _)                         \
   V(collect_source_positions, bool, 1, _)                \

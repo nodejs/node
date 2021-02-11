@@ -84,9 +84,9 @@ export class CsvParser {
    * @param {string} line Input line.
    */
   parseLine(line) {
-    var pos = 0;
-    var endPos = line.length;
-    var fields = [];
+    let pos = 0;
+    const endPos = line.length;
+    const fields = [];
     if (endPos == 0) return fields;
     let nextPos = 0;
     while(nextPos !== -1) {

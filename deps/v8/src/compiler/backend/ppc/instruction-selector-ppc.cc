@@ -314,7 +314,7 @@ void InstructionSelector::VisitStore(Node* node) {
     CHECK_EQ(is_atomic, false);
     Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else {
-    ArchOpcode opcode = kArchNop;
+    ArchOpcode opcode;
     ImmediateMode mode = kInt16Imm;
     switch (rep) {
       case MachineRepresentation::kFloat32:
@@ -359,7 +359,6 @@ void InstructionSelector::VisitStore(Node* node) {
         break;
       case MachineRepresentation::kNone:
         UNREACHABLE();
-        return;
     }
 
     if (g.CanBeImmediate(offset, mode)) {
@@ -465,7 +464,8 @@ void InstructionSelector::VisitWord32And(Node* node) {
   Int32BinopMatcher m(node);
   int mb = 0;
   int me = 0;
-  if (m.right().HasValue() && IsContiguousMask32(m.right().Value(), &mb, &me)) {
+  if (m.right().HasResolvedValue() &&
+      IsContiguousMask32(m.right().ResolvedValue(), &mb, &me)) {
     int sh = 0;
     Node* left = m.left().node();
     if ((m.left().IsWord32Shr() || m.left().IsWord32Shl()) &&
@@ -474,7 +474,7 @@ void InstructionSelector::VisitWord32And(Node* node) {
       Int32BinopMatcher mleft(m.left().node());
       if (mleft.right().IsInRange(0, 31)) {
         left = mleft.left().node();
-        sh = mleft.right().Value();
+        sh = mleft.right().ResolvedValue();
         if (m.left().IsWord32Shr()) {
           // Adjust the mask such that it doesn't include any rotated bits.
           if (mb > 31 - sh) mb = 31 - sh;
@@ -503,7 +503,8 @@ void InstructionSelector::VisitWord64And(Node* node) {
   Int64BinopMatcher m(node);
   int mb = 0;
   int me = 0;
-  if (m.right().HasValue() && IsContiguousMask64(m.right().Value(), &mb, &me)) {
+  if (m.right().HasResolvedValue() &&
+      IsContiguousMask64(m.right().ResolvedValue(), &mb, &me)) {
     int sh = 0;
     Node* left = m.left().node();
     if ((m.left().IsWord64Shr() || m.left().IsWord64Shl()) &&
@@ -512,7 +513,7 @@ void InstructionSelector::VisitWord64And(Node* node) {
       Int64BinopMatcher mleft(m.left().node());
       if (mleft.right().IsInRange(0, 63)) {
         left = mleft.left().node();
-        sh = mleft.right().Value();
+        sh = mleft.right().ResolvedValue();
         if (m.left().IsWord64Shr()) {
           // Adjust the mask such that it doesn't include any rotated bits.
           if (mb > 63 - sh) mb = 63 - sh;
@@ -626,11 +627,11 @@ void InstructionSelector::VisitWord32Shl(Node* node) {
   if (m.left().IsWord32And() && m.right().IsInRange(0, 31)) {
     // Try to absorb logical-and into rlwinm
     Int32BinopMatcher mleft(m.left().node());
-    int sh = m.right().Value();
+    int sh = m.right().ResolvedValue();
     int mb;
     int me;
-    if (mleft.right().HasValue() &&
-        IsContiguousMask32(mleft.right().Value() << sh, &mb, &me)) {
+    if (mleft.right().HasResolvedValue() &&
+        IsContiguousMask32(mleft.right().ResolvedValue() << sh, &mb, &me)) {
       // Adjust the mask such that it doesn't include any rotated bits.
       if (me < sh) me = sh;
       if (mb >= me) {
@@ -652,11 +653,11 @@ void InstructionSelector::VisitWord64Shl(Node* node) {
   if (m.left().IsWord64And() && m.right().IsInRange(0, 63)) {
     // Try to absorb logical-and into rldic
     Int64BinopMatcher mleft(m.left().node());
-    int sh = m.right().Value();
+    int sh = m.right().ResolvedValue();
     int mb;
     int me;
-    if (mleft.right().HasValue() &&
-        IsContiguousMask64(mleft.right().Value() << sh, &mb, &me)) {
+    if (mleft.right().HasResolvedValue() &&
+        IsContiguousMask64(mleft.right().ResolvedValue() << sh, &mb, &me)) {
       // Adjust the mask such that it doesn't include any rotated bits.
       if (me < sh) me = sh;
       if (mb >= me) {
@@ -695,11 +696,12 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
   if (m.left().IsWord32And() && m.right().IsInRange(0, 31)) {
     // Try to absorb logical-and into rlwinm
     Int32BinopMatcher mleft(m.left().node());
-    int sh = m.right().Value();
+    int sh = m.right().ResolvedValue();
     int mb;
     int me;
-    if (mleft.right().HasValue() &&
-        IsContiguousMask32((uint32_t)(mleft.right().Value()) >> sh, &mb, &me)) {
+    if (mleft.right().HasResolvedValue() &&
+        IsContiguousMask32((uint32_t)(mleft.right().ResolvedValue()) >> sh, &mb,
+                           &me)) {
       // Adjust the mask such that it doesn't include any rotated bits.
       if (mb > 31 - sh) mb = 31 - sh;
       sh = (32 - sh) & 0x1F;
@@ -721,11 +723,12 @@ void InstructionSelector::VisitWord64Shr(Node* node) {
   if (m.left().IsWord64And() && m.right().IsInRange(0, 63)) {
     // Try to absorb logical-and into rldic
     Int64BinopMatcher mleft(m.left().node());
-    int sh = m.right().Value();
+    int sh = m.right().ResolvedValue();
     int mb;
     int me;
-    if (mleft.right().HasValue() &&
-        IsContiguousMask64((uint64_t)(mleft.right().Value()) >> sh, &mb, &me)) {
+    if (mleft.right().HasResolvedValue() &&
+        IsContiguousMask64((uint64_t)(mleft.right().ResolvedValue()) >> sh, &mb,
+                           &me)) {
       // Adjust the mask such that it doesn't include any rotated bits.
       if (mb > 63 - sh) mb = 63 - sh;
       sh = (64 - sh) & 0x3F;
@@ -842,7 +845,7 @@ void VisitPairShift(InstructionSelector* selector, InstructionCode opcode,
   // no register aliasing of input registers with output registers.
   Int32Matcher m(node->InputAt(2));
   InstructionOperand shift_operand;
-  if (m.HasValue()) {
+  if (m.HasResolvedValue()) {
     shift_operand = g.UseImmediate(m.node());
   } else {
     shift_operand = g.UseUniqueRegister(m.node());
@@ -898,8 +901,8 @@ void InstructionSelector::VisitWord64Sar(Node* node) {
       Node* displacement = mleft.displacement();
       if (displacement != nullptr) {
         Int64Matcher mdisplacement(displacement);
-        DCHECK(mdisplacement.HasValue());
-        offset = mdisplacement.Value();
+        DCHECK(mdisplacement.HasResolvedValue());
+        offset = mdisplacement.ResolvedValue();
       }
       offset = SmiWordOffset(offset);
       if (g.CanBeImmediate(offset, kInt16Imm_4ByteAligned)) {
@@ -1951,7 +1954,7 @@ void VisitAtomicExchange(InstructionSelector* selector, Node* node,
 }
 
 void InstructionSelector::VisitWord32AtomicExchange(Node* node) {
-  ArchOpcode opcode = kArchNop;
+  ArchOpcode opcode;
   MachineType type = AtomicOpType(node->op());
   if (type == MachineType::Int8()) {
     opcode = kWord32AtomicExchangeInt8;
@@ -1965,13 +1968,12 @@ void InstructionSelector::VisitWord32AtomicExchange(Node* node) {
     opcode = kPPC_AtomicExchangeWord32;
   } else {
     UNREACHABLE();
-    return;
   }
   VisitAtomicExchange(this, node, opcode);
 }
 
 void InstructionSelector::VisitWord64AtomicExchange(Node* node) {
-  ArchOpcode opcode = kArchNop;
+  ArchOpcode opcode;
   MachineType type = AtomicOpType(node->op());
   if (type == MachineType::Uint8()) {
     opcode = kPPC_AtomicExchangeUint8;
@@ -1983,7 +1985,6 @@ void InstructionSelector::VisitWord64AtomicExchange(Node* node) {
     opcode = kPPC_AtomicExchangeWord64;
   } else {
     UNREACHABLE();
-    return;
   }
   VisitAtomicExchange(this, node, opcode);
 }
@@ -2015,7 +2016,7 @@ void VisitAtomicCompareExchange(InstructionSelector* selector, Node* node,
 
 void InstructionSelector::VisitWord32AtomicCompareExchange(Node* node) {
   MachineType type = AtomicOpType(node->op());
-  ArchOpcode opcode = kArchNop;
+  ArchOpcode opcode;
   if (type == MachineType::Int8()) {
     opcode = kWord32AtomicCompareExchangeInt8;
   } else if (type == MachineType::Uint8()) {
@@ -2028,14 +2029,13 @@ void InstructionSelector::VisitWord32AtomicCompareExchange(Node* node) {
     opcode = kPPC_AtomicCompareExchangeWord32;
   } else {
     UNREACHABLE();
-    return;
   }
   VisitAtomicCompareExchange(this, node, opcode);
 }
 
 void InstructionSelector::VisitWord64AtomicCompareExchange(Node* node) {
   MachineType type = AtomicOpType(node->op());
-  ArchOpcode opcode = kArchNop;
+  ArchOpcode opcode;
   if (type == MachineType::Uint8()) {
     opcode = kPPC_AtomicCompareExchangeUint8;
   } else if (type == MachineType::Uint16()) {
@@ -2046,7 +2046,6 @@ void InstructionSelector::VisitWord64AtomicCompareExchange(Node* node) {
     opcode = kPPC_AtomicCompareExchangeWord64;
   } else {
     UNREACHABLE();
-    return;
   }
   VisitAtomicCompareExchange(this, node, opcode);
 }
@@ -2062,7 +2061,7 @@ void VisitAtomicBinaryOperation(InstructionSelector* selector, Node* node,
   Node* value = node->InputAt(2);
   MachineType type = AtomicOpType(node->op());
 
-  ArchOpcode opcode = kArchNop;
+  ArchOpcode opcode;
 
   if (type == MachineType::Int8()) {
     opcode = int8_op;
@@ -2082,7 +2081,6 @@ void VisitAtomicBinaryOperation(InstructionSelector* selector, Node* node,
     opcode = uint64_op;
   } else {
     UNREACHABLE();
-    return;
   }
 
   AddressingMode addressing_mode = kMode_MRR;
@@ -2191,6 +2189,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I32x4GeS)              \
   V(I32x4GtU)              \
   V(I32x4GeU)              \
+  V(I32x4DotI16x8S)        \
   V(I16x8Add)              \
   V(I16x8AddHoriz)         \
   V(I16x8Sub)              \
@@ -2207,10 +2206,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8GeU)              \
   V(I16x8SConvertI32x4)    \
   V(I16x8UConvertI32x4)    \
-  V(I16x8AddSaturateS)     \
-  V(I16x8SubSaturateS)     \
-  V(I16x8AddSaturateU)     \
-  V(I16x8SubSaturateU)     \
+  V(I16x8AddSatS)          \
+  V(I16x8SubSatS)          \
+  V(I16x8AddSatU)          \
+  V(I16x8SubSatU)          \
   V(I16x8RoundingAverageU) \
   V(I8x16Add)              \
   V(I8x16Sub)              \
@@ -2227,10 +2226,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16GeU)              \
   V(I8x16SConvertI16x8)    \
   V(I8x16UConvertI16x8)    \
-  V(I8x16AddSaturateS)     \
-  V(I8x16SubSaturateS)     \
-  V(I8x16AddSaturateU)     \
-  V(I8x16SubSaturateU)     \
+  V(I8x16AddSatS)          \
+  V(I8x16SubSatS)          \
+  V(I8x16AddSatU)          \
+  V(I8x16SubSatU)          \
   V(I8x16RoundingAverageU) \
   V(I8x16Swizzle)          \
   V(S128And)               \
@@ -2323,13 +2322,13 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, U)
 SIMD_VISIT_EXTRACT_LANE(I8x16, S)
 #undef SIMD_VISIT_EXTRACT_LANE
 
-#define SIMD_VISIT_REPLACE_LANE(Type)                                 \
-  void InstructionSelector::Visit##Type##ReplaceLane(Node* node) {    \
-    PPCOperandGenerator g(this);                                      \
-    int32_t lane = OpParameter<int32_t>(node->op());                  \
-    Emit(kPPC_##Type##ReplaceLane, g.DefineAsRegister(node),          \
-         g.UseUniqueRegister(node->InputAt(0)), g.UseImmediate(lane), \
-         g.UseUniqueRegister(node->InputAt(1)));                      \
+#define SIMD_VISIT_REPLACE_LANE(Type)                              \
+  void InstructionSelector::Visit##Type##ReplaceLane(Node* node) { \
+    PPCOperandGenerator g(this);                                   \
+    int32_t lane = OpParameter<int32_t>(node->op());               \
+    Emit(kPPC_##Type##ReplaceLane, g.DefineSameAsFirst(node),      \
+         g.UseRegister(node->InputAt(0)), g.UseImmediate(lane),    \
+         g.UseRegister(node->InputAt(1)));                         \
   }
 SIMD_TYPES(SIMD_VISIT_REPLACE_LANE)
 #undef SIMD_VISIT_REPLACE_LANE
@@ -2378,6 +2377,18 @@ SIMD_SHIFT_LIST(SIMD_VISIT_SHIFT)
 SIMD_BOOL_LIST(SIMD_VISIT_BOOL)
 #undef SIMD_VISIT_BOOL
 #undef SIMD_BOOL_LIST
+
+#define SIMD_VISIT_BITMASK(Opcode)                                        \
+  void InstructionSelector::Visit##Opcode(Node* node) {                   \
+    PPCOperandGenerator g(this);                                          \
+    InstructionOperand temps[] = {g.TempRegister()};                      \
+    Emit(kPPC_##Opcode, g.DefineAsRegister(node),                         \
+         g.UseUniqueRegister(node->InputAt(0)), arraysize(temps), temps); \
+  }
+SIMD_VISIT_BITMASK(I8x16BitMask)
+SIMD_VISIT_BITMASK(I16x8BitMask)
+SIMD_VISIT_BITMASK(I32x4BitMask)
+#undef SIMD_VISIT_BITMASK
 #undef SIMD_TYPES
 
 void InstructionSelector::VisitI8x16Shuffle(Node* node) {
@@ -2418,12 +2429,6 @@ void InstructionSelector::VisitS128Select(Node* node) {
 }
 
 void InstructionSelector::VisitS128Const(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI8x16BitMask(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI16x8BitMask(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitI32x4BitMask(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::EmitPrepareResults(
     ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,

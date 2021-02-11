@@ -11,7 +11,7 @@
 namespace v8 {
 namespace internal {
 
-FrameInspector::FrameInspector(StandardFrame* frame, int inlined_frame_index,
+FrameInspector::FrameInspector(CommonFrame* frame, int inlined_frame_index,
                                Isolate* isolate)
     : frame_(frame),
       inlined_frame_index_(inlined_frame_index),
@@ -54,14 +54,10 @@ JavaScriptFrame* FrameInspector::javascript_frame() {
                                         : JavaScriptFrame::cast(frame_);
 }
 
-int FrameInspector::GetParametersCount() {
-  if (is_optimized_) return deoptimized_frame_->parameters_count();
-  return frame_->ComputeParametersCount();
-}
-
 Handle<Object> FrameInspector::GetParameter(int index) {
   if (is_optimized_) return deoptimized_frame_->GetParameter(index);
-  return handle(frame_->GetParameter(index), isolate_);
+  DCHECK(IsJavaScript());
+  return handle(javascript_frame()->GetParameter(index), isolate_);
 }
 
 Handle<Object> FrameInspector::GetExpression(int index) {

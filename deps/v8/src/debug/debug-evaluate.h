@@ -37,6 +37,10 @@ class DebugEvaluate : public AllStatic {
                                    Handle<String> source,
                                    bool throw_on_side_effect);
 
+  static V8_EXPORT MaybeHandle<Object> WebAssembly(
+      Handle<WasmInstanceObject> instance, StackFrameId frame_id,
+      Handle<String> source, bool throw_on_side_effect);
+
   // This is used for break-at-entry for builtins and API functions.
   // Evaluate a piece of JavaScript in the native context, but with the
   // materialized arguments object and receiver of the current call.
@@ -101,7 +105,6 @@ class DebugEvaluate : public AllStatic {
                                       Handle<String> source,
                                       bool throw_on_side_effect);
 };
-
 
 }  // namespace internal
 }  // namespace v8

@@ -289,7 +289,7 @@ let id = (() => {  // identity exported function
       assertInvalidFunction = function(s) {
         assertThrows(
             () => instances[i].exports.main(s), WebAssembly.RuntimeError,
-            kTrapMsgs[kTrapFuncInvalid]);
+            kTrapMsgs[kTrapTableOutOfBounds]);
       }
       assertInvalidFunction(size);
       assertInvalidFunction(size + 1);

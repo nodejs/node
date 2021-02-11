@@ -153,8 +153,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Ret() { b(r14); }
   void Ret(Condition cond) { b(cond, r14); }
 
-  void CallForDeoptimization(Address target, int deopt_id, Label* exit,
-                             DeoptimizeKind kind);
+  void CallForDeoptimization(Builtins::Name target, int deopt_id, Label* exit,
+                             DeoptimizeKind kind,
+                             Label* jump_deoptimization_entry_label);
 
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the sp register.
@@ -1072,21 +1073,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // TODO(victorgomes): Remove this function once we stick with the reversed
   // arguments order.
   void LoadReceiver(Register dest, Register argc) {
-#ifdef V8_REVERSE_JSARGS
     LoadP(dest, MemOperand(sp, 0));
-#else
-    ShiftLeftP(dest, argc, Operand(kSystemPointerSizeLog2));
-    LoadP(dest, MemOperand(sp, dest));
-#endif
   }
 
   void StoreReceiver(Register rec, Register argc, Register scratch) {
-#ifdef V8_REVERSE_JSARGS
     StoreP(rec, MemOperand(sp, 0));
-#else
-    ShiftLeftP(scratch, argc, Operand(kSystemPointerSizeLog2));
-    StoreP(rec, MemOperand(sp, scratch));
-#endif
   }
 
   void CallRuntime(const Runtime::Function* f, int num_arguments,

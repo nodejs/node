@@ -8,5 +8,3 @@ thibaudm@chromium.org
 zhin@chromium.org
 
 per-file wasm-js.*=adamk@chromium.org
-
-# COMPONENT: Blink>JavaScript>WebAssembly

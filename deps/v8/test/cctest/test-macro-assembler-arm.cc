@@ -29,6 +29,7 @@
 
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/simulator.h"
 #include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
@@ -147,7 +148,7 @@ TEST(ExtractLane) {
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   StdoutStream os;
   code->Print(os);
@@ -278,7 +279,7 @@ TEST(ReplaceLane) {
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::STUB).Build();
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   StdoutStream os;
   code->Print(os);
@@ -306,6 +307,29 @@ TEST(ReplaceLane) {
     for (int i = 0; i < 16; i++) {
       CHECK_EQ(-i, t.i8x16_high[i]);
     }
+  }
+}
+
+TEST(DeoptExitSizeIsFixed) {
+  CHECK(Deoptimizer::kSupportsFixedDeoptExitSizes);
+
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
+                      buffer->CreateView());
+
+  STATIC_ASSERT(static_cast<int>(kFirstDeoptimizeKind) == 0);
+  for (int i = 0; i < kDeoptimizeKindCount; i++) {
+    DeoptimizeKind kind = static_cast<DeoptimizeKind>(i);
+    Builtins::Name target = Deoptimizer::GetDeoptimizationEntry(isolate, kind);
+    Label before_exit;
+    masm.bind(&before_exit);
+    masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit);
+    CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
+             kind == DeoptimizeKind::kLazy
+                 ? Deoptimizer::kLazyDeoptExitSize
+                 : Deoptimizer::kNonLazyDeoptExitSize);
   }
 }
 

@@ -9,7 +9,7 @@ Setting breakpoint on offset 54 (on the setlocal before the call), url wasm://wa
     lineNumber : 0
     scriptId : <scriptId>
 }
-Script wasm://wasm/9b4bf87e byte offset 54: Wasm opcode 0x21
+Script wasm://wasm/9b4bf87e byte offset 54: Wasm opcode 0x21 (kExprLocalSet)
 at wasm_B (0:54):
  - scope (module):
    -- skipped
@@ -21,7 +21,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Script wasm://wasm/9b4bf87e byte offset 56: Wasm opcode 0x10
+Script wasm://wasm/9b4bf87e byte offset 56: Wasm opcode 0x10 (kExprCallFunction)
 at wasm_B (0:56):
  - scope (module):
    -- skipped
@@ -33,7 +33,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Script wasm://wasm/9b4bf87e byte offset 38: Wasm opcode 0x01
+Script wasm://wasm/9b4bf87e byte offset 38: Wasm opcode 0x01 (kExprNop)
 at wasm_A (0:38):
  - scope (module):
    -- skipped
@@ -52,7 +52,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOver called
-Script wasm://wasm/9b4bf87e byte offset 39: Wasm opcode 0x01
+Script wasm://wasm/9b4bf87e byte offset 39: Wasm opcode 0x01 (kExprNop)
 at wasm_A (0:39):
  - scope (module):
    -- skipped
@@ -71,7 +71,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOut called
-Script wasm://wasm/9b4bf87e byte offset 58: Wasm opcode 0x0c
+Script wasm://wasm/9b4bf87e byte offset 58: Wasm opcode 0x0c (kExprBr)
 at wasm_B (0:58):
  - scope (module):
    -- skipped
@@ -83,7 +83,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOut called
-Script wasm://wasm/9b4bf87e byte offset 54: Wasm opcode 0x21
+Script wasm://wasm/9b4bf87e byte offset 54: Wasm opcode 0x21 (kExprLocalSet)
 at wasm_B (0:54):
  - scope (module):
    -- skipped
@@ -95,7 +95,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOver called
-Script wasm://wasm/9b4bf87e byte offset 56: Wasm opcode 0x10
+Script wasm://wasm/9b4bf87e byte offset 56: Wasm opcode 0x10 (kExprCallFunction)
 at wasm_B (0:56):
  - scope (module):
    -- skipped
@@ -107,7 +107,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOver called
-Script wasm://wasm/9b4bf87e byte offset 58: Wasm opcode 0x0c
+Script wasm://wasm/9b4bf87e byte offset 58: Wasm opcode 0x0c (kExprBr)
 at wasm_B (0:58):
  - scope (module):
    -- skipped
@@ -119,7 +119,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.resume called
-Script wasm://wasm/9b4bf87e byte offset 54: Wasm opcode 0x21
+Script wasm://wasm/9b4bf87e byte offset 54: Wasm opcode 0x21 (kExprLocalSet)
 at wasm_B (0:54):
  - scope (module):
    -- skipped
@@ -131,7 +131,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Script wasm://wasm/9b4bf87e byte offset 56: Wasm opcode 0x10
+Script wasm://wasm/9b4bf87e byte offset 56: Wasm opcode 0x10 (kExprCallFunction)
 at wasm_B (0:56):
  - scope (module):
    -- skipped
@@ -143,7 +143,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Script wasm://wasm/9b4bf87e byte offset 38: Wasm opcode 0x01
+Script wasm://wasm/9b4bf87e byte offset 38: Wasm opcode 0x01 (kExprNop)
 at wasm_A (0:38):
  - scope (module):
    -- skipped
@@ -162,7 +162,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOut called
-Script wasm://wasm/9b4bf87e byte offset 58: Wasm opcode 0x0c
+Script wasm://wasm/9b4bf87e byte offset 58: Wasm opcode 0x0c (kExprBr)
 at wasm_B (0:58):
  - scope (module):
    -- skipped
@@ -174,7 +174,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Script wasm://wasm/9b4bf87e byte offset 45: Wasm opcode 0x20
+Script wasm://wasm/9b4bf87e byte offset 45: Wasm opcode 0x20 (kExprLocalGet)
 at wasm_B (0:45):
  - scope (module):
    -- skipped
@@ -186,7 +186,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Script wasm://wasm/9b4bf87e byte offset 47: Wasm opcode 0x04
+Script wasm://wasm/9b4bf87e byte offset 47: Wasm opcode 0x04 (kExprIf)
 at wasm_B (0:47):
  - scope (module):
    -- skipped
@@ -198,7 +198,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Script wasm://wasm/9b4bf87e byte offset 49: Wasm opcode 0x20
+Script wasm://wasm/9b4bf87e byte offset 49: Wasm opcode 0x20 (kExprLocalGet)
 at wasm_B (0:49):
  - scope (module):
    -- skipped
@@ -210,7 +210,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Script wasm://wasm/9b4bf87e byte offset 51: Wasm opcode 0x41
+Script wasm://wasm/9b4bf87e byte offset 51: Wasm opcode 0x41 (kExprI32Const)
 at wasm_B (0:51):
  - scope (module):
    -- skipped
@@ -222,7 +222,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Script wasm://wasm/9b4bf87e byte offset 53: Wasm opcode 0x6b
+Script wasm://wasm/9b4bf87e byte offset 53: Wasm opcode 0x6b (kExprI32Sub)
 at wasm_B (0:53):
  - scope (module):
    -- skipped
@@ -234,7 +234,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Script wasm://wasm/9b4bf87e byte offset 54: Wasm opcode 0x21
+Script wasm://wasm/9b4bf87e byte offset 54: Wasm opcode 0x21 (kExprLocalSet)
 at wasm_B (0:54):
  - scope (module):
    -- skipped
@@ -246,7 +246,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Script wasm://wasm/9b4bf87e byte offset 56: Wasm opcode 0x10
+Script wasm://wasm/9b4bf87e byte offset 56: Wasm opcode 0x10 (kExprCallFunction)
 at wasm_B (0:56):
  - scope (module):
    -- skipped
@@ -258,7 +258,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Script wasm://wasm/9b4bf87e byte offset 38: Wasm opcode 0x01
+Script wasm://wasm/9b4bf87e byte offset 38: Wasm opcode 0x01 (kExprNop)
 at wasm_A (0:38):
  - scope (module):
    -- skipped
@@ -277,7 +277,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Script wasm://wasm/9b4bf87e byte offset 39: Wasm opcode 0x01
+Script wasm://wasm/9b4bf87e byte offset 39: Wasm opcode 0x01 (kExprNop)
 at wasm_A (0:39):
  - scope (module):
    -- skipped
@@ -296,7 +296,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Script wasm://wasm/9b4bf87e byte offset 40: Wasm opcode 0x0b
+Script wasm://wasm/9b4bf87e byte offset 40: Wasm opcode 0x0b (kExprEnd)
 at wasm_A (0:40):
  - scope (module):
    -- skipped
@@ -315,7 +315,7 @@ at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Script wasm://wasm/9b4bf87e byte offset 58: Wasm opcode 0x0c
+Script wasm://wasm/9b4bf87e byte offset 58: Wasm opcode 0x0c (kExprBr)
 at wasm_B (0:58):
  - scope (module):
    -- skipped

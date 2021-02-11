@@ -156,6 +156,13 @@ StackFrame* StackFrameIteratorBase::SingletonFor(StackFrame::Type type) {
 
 // -------------------------------------------------------------------------
 
+void TypedFrameWithJSLinkage::Iterate(RootVisitor* v) const {
+  IterateExpressions(v);
+  IteratePc(v, pc_address(), constant_pool_address(), LookupCode());
+}
+
+// -------------------------------------------------------------------------
+
 void JavaScriptFrameIterator::Advance() {
   do {
     iterator_.Advance();
@@ -316,7 +323,7 @@ SafeStackFrameIterator::SafeStackFrameIterator(Isolate* isolate, Address pc,
     state.fp = fp;
     state.sp = sp;
     state.pc_address = StackFrame::ResolveReturnAddressLocation(
-        reinterpret_cast<Address*>(StandardFrame::ComputePCAddress(fp)));
+        reinterpret_cast<Address*>(CommonFrame::ComputePCAddress(fp)));
 
     // If the current PC is in a bytecode handler, the top stack frame isn't
     // the bytecode handler's frame and the top of stack or link register is a
@@ -589,8 +596,9 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
               return OPTIMIZED;
             }
             return BUILTIN;
-          case CodeKind::OPTIMIZED_FUNCTION:
+          case CodeKind::TURBOFAN:
           case CodeKind::NATIVE_CONTEXT_INDEPENDENT:
+          case CodeKind::TURBOPROP:
             return OPTIMIZED;
           case CodeKind::JS_TO_WASM_FUNCTION:
             return JS_TO_WASM;
@@ -598,9 +606,10 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
             return STUB;
           case CodeKind::C_WASM_ENTRY:
             return C_WASM_ENTRY;
+          case CodeKind::WASM_TO_JS_FUNCTION:
+            return WASM_TO_JS;
           case CodeKind::WASM_FUNCTION:
           case CodeKind::WASM_TO_CAPI_FUNCTION:
-          case CodeKind::WASM_TO_JS_FUNCTION:
             // Never appear as on-heap {Code} objects.
             UNREACHABLE();
           default:
@@ -655,9 +664,9 @@ StackFrame::Type StackFrame::GetCallerState(State* state) const {
   return ComputeType(iterator_, state);
 }
 
-Address StackFrame::UnpaddedFP() const { return fp(); }
-
-Code NativeFrame::unchecked_code() const { return Code(); }
+Address CommonFrame::GetCallerStackPointer() const {
+  return fp() + CommonFrameConstants::kCallerSPOffset;
+}
 
 void NativeFrame::ComputeCallerState(State* state) const {
   state->sp = caller_sp();
@@ -692,8 +701,6 @@ Code ConstructEntryFrame::unchecked_code() const {
   return isolate()->heap()->builtin(Builtins::kJSConstructEntry);
 }
 
-Code ExitFrame::unchecked_code() const { return Code(); }
-
 void ExitFrame::ComputeCallerState(State* state) const {
   // Set up the caller state.
   state->sp = caller_sp();
@@ -711,10 +718,6 @@ void ExitFrame::Iterate(RootVisitor* v) const {
   // The arguments are traversed as part of the expression stack of
   // the calling frame.
   IteratePc(v, pc_address(), constant_pool_address(), LookupCode());
-}
-
-Address ExitFrame::GetCallerStackPointer() const {
-  return fp() + ExitFrameConstants::kCallerSPOffset;
 }
 
 StackFrame::Type ExitFrame::GetStateForFramePointer(Address fp, State* state) {
@@ -854,7 +857,7 @@ void BuiltinExitFrame::Print(StringStream* accumulator, PrintMode mode,
   accumulator->Add(")\n\n");
 }
 
-Address StandardFrame::GetExpressionAddress(int n) const {
+Address CommonFrame::GetExpressionAddress(int n) const {
   const int offset = StandardFrameConstants::kExpressionsOffset;
   return fp() + offset - n * kSystemPointerSize;
 }
@@ -864,27 +867,17 @@ Address InterpretedFrame::GetExpressionAddress(int n) const {
   return fp() + offset - n * kSystemPointerSize;
 }
 
-Script StandardFrame::script() const {
-  // This should only be called on frames which override this method.
-  UNREACHABLE();
-  return Script();
-}
-
-Object StandardFrame::receiver() const {
+Object CommonFrame::context() const {
   return ReadOnlyRoots(isolate()).undefined_value();
 }
 
-Object StandardFrame::context() const {
-  return ReadOnlyRoots(isolate()).undefined_value();
-}
-
-int StandardFrame::position() const {
+int CommonFrame::position() const {
   AbstractCode code = AbstractCode::cast(LookupCode());
   int code_offset = static_cast<int>(pc() - code.InstructionStart());
   return code.SourcePosition(code_offset);
 }
 
-int StandardFrame::ComputeExpressionsCount() const {
+int CommonFrame::ComputeExpressionsCount() const {
   Address base = GetExpressionAddress(0);
   Address limit = sp() - kSystemPointerSize;
   DCHECK(base >= limit);  // stack grows downwards
@@ -892,14 +885,7 @@ int StandardFrame::ComputeExpressionsCount() const {
   return static_cast<int>((base - limit) / kSystemPointerSize);
 }
 
-Object StandardFrame::GetParameter(int index) const {
-  // StandardFrame does not define any parameters.
-  UNREACHABLE();
-}
-
-int StandardFrame::ComputeParametersCount() const { return 0; }
-
-void StandardFrame::ComputeCallerState(State* state) const {
+void CommonFrame::ComputeCallerState(State* state) const {
   state->sp = caller_sp();
   state->fp = caller_fp();
   state->pc_address = ResolveReturnAddressLocation(
@@ -910,14 +896,12 @@ void StandardFrame::ComputeCallerState(State* state) const {
       reinterpret_cast<Address*>(ComputeConstantPoolAddress(fp()));
 }
 
-bool StandardFrame::IsConstructor() const { return false; }
-
-void StandardFrame::Summarize(std::vector<FrameSummary>* functions) const {
+void CommonFrame::Summarize(std::vector<FrameSummary>* functions) const {
   // This should only be called on frames which override this method.
   UNREACHABLE();
 }
 
-void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
+void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
   // Make sure that we're not doing "safe" stack frame iteration. We cannot
   // possibly find pointers in optimized frames in that state.
   DCHECK(can_access_heap_objects());
@@ -1080,14 +1064,8 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
                        frame_header_limit);
 }
 
-void StubFrame::Iterate(RootVisitor* v) const { IterateCompiledFrame(v); }
-
 Code StubFrame::unchecked_code() const {
   return isolate()->FindCodeObject(pc());
-}
-
-Address StubFrame::GetCallerStackPointer() const {
-  return fp() + ExitFrameConstants::kCallerSPOffset;
 }
 
 int StubFrame::LookupExceptionHandlerInTable() {
@@ -1120,7 +1098,9 @@ bool JavaScriptFrame::HasInlinedFrames() const {
   return functions.size() > 1;
 }
 
-Code JavaScriptFrame::unchecked_code() const { return function().code(); }
+Code CommonFrameWithJSLinkage::unchecked_code() const {
+  return function().code();
+}
 
 int OptimizedFrame::ComputeParametersCount() const {
   Code code = LookupCode();
@@ -1153,7 +1133,12 @@ void JavaScriptFrame::GetFunctions(
   }
 }
 
-void JavaScriptFrame::Summarize(std::vector<FrameSummary>* functions) const {
+bool CommonFrameWithJSLinkage::IsConstructor() const {
+  return IsConstructFrame(caller_fp());
+}
+
+void CommonFrameWithJSLinkage::Summarize(
+    std::vector<FrameSummary>* functions) const {
   DCHECK(functions->empty());
   Code code = LookupCode();
   int offset = static_cast<int>(pc() - code.InstructionStart());
@@ -1178,7 +1163,7 @@ Object JavaScriptFrame::unchecked_function() const {
   return function_slot_object();
 }
 
-Object JavaScriptFrame::receiver() const { return GetParameter(-1); }
+Object CommonFrameWithJSLinkage::receiver() const { return GetParameter(-1); }
 
 Object JavaScriptFrame::context() const {
   const int offset = StandardFrameConstants::kContextOffset;
@@ -1191,7 +1176,7 @@ Script JavaScriptFrame::script() const {
   return Script::cast(function().shared().script());
 }
 
-int JavaScriptFrame::LookupExceptionHandlerInTable(
+int CommonFrameWithJSLinkage::LookupExceptionHandlerInTable(
     int* stack_depth, HandlerTable::CatchPrediction* prediction) {
   DCHECK(!LookupCode().has_handler_table());
   DCHECK(!LookupCode().is_optimized_code());
@@ -1286,11 +1271,11 @@ void JavaScriptFrame::CollectFunctionAndOffsetForICStats(JSFunction function,
   }
 }
 
-Object JavaScriptFrame::GetParameter(int index) const {
+Object CommonFrameWithJSLinkage::GetParameter(int index) const {
   return Object(Memory<Address>(GetParameterSlot(index)));
 }
 
-int JavaScriptFrame::ComputeParametersCount() const {
+int CommonFrameWithJSLinkage::ComputeParametersCount() const {
   DCHECK(can_access_heap_objects() &&
          isolate()->heap()->gc_state() == Heap::NOT_IN_GC);
   return function().shared().internal_formal_parameter_count();
@@ -1303,7 +1288,7 @@ int JavaScriptFrame::GetActualArgumentCount() const {
 }
 #endif
 
-Handle<FixedArray> JavaScriptFrame::GetParameters() const {
+Handle<FixedArray> CommonFrameWithJSLinkage::GetParameters() const {
   if (V8_LIKELY(!FLAG_detailed_error_stack_trace)) {
     return isolate()->factory()->empty_fixed_array();
   }
@@ -1315,6 +1300,11 @@ Handle<FixedArray> JavaScriptFrame::GetParameters() const {
   }
 
   return parameters;
+}
+
+JSFunction JavaScriptBuiltinContinuationFrame::function() const {
+  const int offset = BuiltinContinuationFrameConstants::kFunctionOffset;
+  return JSFunction::cast(Object(base::Memory<Address>(fp() + offset)));
 }
 
 int JavaScriptBuiltinContinuationFrame::ComputeParametersCount() const {
@@ -1341,16 +1331,10 @@ Object JavaScriptBuiltinContinuationFrame::context() const {
 
 void JavaScriptBuiltinContinuationWithCatchFrame::SetException(
     Object exception) {
-#ifdef V8_REVERSE_JSARGS
   int argc = ComputeParametersCount();
   Address exception_argument_slot =
       fp() + BuiltinContinuationFrameConstants::kFixedFrameSizeAboveFp +
       (argc - 1) * kSystemPointerSize;
-#else
-  Address exception_argument_slot =
-      fp() + BuiltinContinuationFrameConstants::kFixedFrameSizeAboveFp +
-      kSystemPointerSize;  // Skip over return value slot.
-#endif
 
   // Only allow setting exception if previous value was the hole.
   CHECK_EQ(ReadOnlyRoots(isolate()).the_hole_value(),
@@ -1476,25 +1460,25 @@ FrameSummary::~FrameSummary() {
 #undef FRAME_SUMMARY_DESTR
 }
 
-FrameSummary FrameSummary::GetTop(const StandardFrame* frame) {
+FrameSummary FrameSummary::GetTop(const CommonFrame* frame) {
   std::vector<FrameSummary> frames;
   frame->Summarize(&frames);
   DCHECK_LT(0, frames.size());
   return frames.back();
 }
 
-FrameSummary FrameSummary::GetBottom(const StandardFrame* frame) {
+FrameSummary FrameSummary::GetBottom(const CommonFrame* frame) {
   return Get(frame, 0);
 }
 
-FrameSummary FrameSummary::GetSingle(const StandardFrame* frame) {
+FrameSummary FrameSummary::GetSingle(const CommonFrame* frame) {
   std::vector<FrameSummary> frames;
   frame->Summarize(&frames);
   DCHECK_EQ(1, frames.size());
   return frames.front();
 }
 
-FrameSummary FrameSummary::Get(const StandardFrame* frame, int index) {
+FrameSummary FrameSummary::Get(const CommonFrame* frame, int index) {
   DCHECK_LE(0, index);
   std::vector<FrameSummary> frames;
   frame->Summarize(&frames);
@@ -1652,23 +1636,6 @@ DeoptimizationData OptimizedFrame::GetDeoptimizationData(
   return DeoptimizationData();
 }
 
-#ifndef V8_REVERSE_JSARGS
-Object OptimizedFrame::receiver() const {
-  Code code = LookupCode();
-  if (code.kind() == CodeKind::BUILTIN) {
-    intptr_t argc = static_cast<int>(
-        Memory<intptr_t>(fp() + StandardFrameConstants::kArgCOffset));
-    intptr_t args_size =
-        (StandardFrameConstants::kFixedSlotCountAboveFp + argc) *
-        kSystemPointerSize;
-    Address receiver_ptr = fp() + args_size;
-    return *FullObjectSlot(receiver_ptr);
-  } else {
-    return JavaScriptFrame::receiver();
-  }
-}
-#endif
-
 void OptimizedFrame::GetFunctions(
     std::vector<SharedFunctionInfo>* functions) const {
   DCHECK(functions->empty());
@@ -1823,19 +1790,14 @@ Code ArgumentsAdaptorFrame::unchecked_code() const {
   return isolate()->builtins()->builtin(Builtins::kArgumentsAdaptorTrampoline);
 }
 
+JSFunction BuiltinFrame::function() const {
+  const int offset = BuiltinFrameConstants::kFunctionOffset;
+  return JSFunction::cast(Object(base::Memory<Address>(fp() + offset)));
+}
+
 int BuiltinFrame::ComputeParametersCount() const {
   const int offset = BuiltinFrameConstants::kLengthOffset;
   return Smi::ToInt(Object(base::Memory<Address>(fp() + offset)));
-}
-
-void BuiltinFrame::PrintFrameKind(StringStream* accumulator) const {
-  accumulator->Add("builtin frame: ");
-}
-
-Address InternalFrame::GetCallerStackPointer() const {
-  // Internal frames have no arguments. The stack pointer of the
-  // caller is at a fixed offset from the frame pointer.
-  return fp() + StandardFrameConstants::kCallerSPOffset;
 }
 
 Code InternalFrame::unchecked_code() const { return Code(); }
@@ -1870,12 +1832,6 @@ void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
 
 Code WasmFrame::unchecked_code() const {
   return isolate()->FindCodeObject(pc());
-}
-
-void WasmFrame::Iterate(RootVisitor* v) const { IterateCompiledFrame(v); }
-
-Address WasmFrame::GetCallerStackPointer() const {
-  return fp() + ExitFrameConstants::kCallerSPOffset;
 }
 
 wasm::WasmCode* WasmFrame::wasm_code() const {
@@ -1967,19 +1923,11 @@ void WasmDebugBreakFrame::Iterate(RootVisitor* v) const {
   // Liftoff.
 }
 
-Code WasmDebugBreakFrame::unchecked_code() const { return Code(); }
-
 void WasmDebugBreakFrame::Print(StringStream* accumulator, PrintMode mode,
                                 int index) const {
   PrintIndex(accumulator, mode, index);
   accumulator->Add("WASM DEBUG BREAK");
   if (mode != OVERVIEW) accumulator->Add("\n");
-}
-
-Address WasmDebugBreakFrame::GetCallerStackPointer() const {
-  // WasmDebugBreak does not receive any arguments, hence the stack pointer of
-  // the caller is at a fixed offset from the frame pointer.
-  return fp() + WasmDebugBreakFrameConstants::kCallerSPOffset;
 }
 
 void JsToWasmFrame::Iterate(RootVisitor* v) const {
@@ -2016,8 +1964,6 @@ void JsToWasmFrame::Iterate(RootVisitor* v) const {
   v->VisitRootPointers(Root::kTop, nullptr, spill_slot_base, spill_slot_limit);
 }
 
-Code WasmCompileLazyFrame::unchecked_code() const { return Code(); }
-
 WasmInstanceObject WasmCompileLazyFrame::wasm_instance() const {
   return WasmInstanceObject::cast(*wasm_instance_slot());
 }
@@ -2033,10 +1979,6 @@ void WasmCompileLazyFrame::Iterate(RootVisitor* v) const {
   FullObjectSlot limit(&Memory<Address>(fp() - header_size));
   v->VisitRootPointers(Root::kTop, nullptr, base, limit);
   v->VisitRootPointer(Root::kTop, nullptr, wasm_instance_slot());
-}
-
-Address WasmCompileLazyFrame::GetCallerStackPointer() const {
-  return fp() + WasmCompileLazyFrameConstants::kCallerSPOffset;
 }
 
 namespace {
@@ -2201,7 +2143,7 @@ void EntryFrame::Iterate(RootVisitor* v) const {
   IteratePc(v, pc_address(), constant_pool_address(), LookupCode());
 }
 
-void StandardFrame::IterateExpressions(RootVisitor* v) const {
+void CommonFrame::IterateExpressions(RootVisitor* v) const {
   const int last_object_offset = StandardFrameConstants::kLastObjectOffset;
   intptr_t marker =
       Memory<intptr_t>(fp() + CommonFrameConstants::kContextOrFrameTypeOffset);
@@ -2304,7 +2246,7 @@ bool BuiltinContinuationModeIsWithCatch(BuiltinContinuationMode mode) {
 
 InterpretedFrameInfo::InterpretedFrameInfo(int parameters_count_with_receiver,
                                            int translation_height,
-                                           bool is_topmost,
+                                           bool is_topmost, bool pad_arguments,
                                            FrameInfoKind frame_info_kind) {
   const int locals_count = translation_height;
 
@@ -2325,7 +2267,7 @@ InterpretedFrameInfo::InterpretedFrameInfo(int parameters_count_with_receiver,
   // the part described by InterpreterFrameConstants. This will include
   // argument padding, when needed.
   const int parameter_padding_slots =
-      ArgumentPaddingSlots(parameters_count_with_receiver);
+      pad_arguments ? ArgumentPaddingSlots(parameters_count_with_receiver) : 0;
   const int fixed_frame_size =
       InterpreterFrameConstants::kFixedFrameSize +
       (parameters_count_with_receiver + parameter_padding_slots) *

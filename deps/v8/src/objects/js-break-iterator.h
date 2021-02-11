@@ -27,6 +27,8 @@ class BreakIterator;
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-break-iterator-tq.inc"
+
 class JSV8BreakIterator
     : public TorqueGeneratedJSV8BreakIterator<JSV8BreakIterator, JSObject> {
  public:

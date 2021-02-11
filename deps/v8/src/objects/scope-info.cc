@@ -1044,6 +1044,24 @@ std::ostream& operator<<(std::ostream& os, VariableAllocationInfo var_info) {
 }
 
 template <typename LocalIsolate>
+Handle<ModuleRequest> ModuleRequest::New(LocalIsolate* isolate,
+                                         Handle<String> specifier,
+                                         Handle<FixedArray> import_assertions) {
+  Handle<ModuleRequest> result = Handle<ModuleRequest>::cast(
+      isolate->factory()->NewStruct(MODULE_REQUEST_TYPE, AllocationType::kOld));
+  result->set_specifier(*specifier);
+  result->set_import_assertions(*import_assertions);
+  return result;
+}
+
+template Handle<ModuleRequest> ModuleRequest::New(
+    Isolate* isolate, Handle<String> specifier,
+    Handle<FixedArray> import_assertions);
+template Handle<ModuleRequest> ModuleRequest::New(
+    LocalIsolate* isolate, Handle<String> specifier,
+    Handle<FixedArray> import_assertions);
+
+template <typename LocalIsolate>
 Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
     LocalIsolate* isolate, Handle<PrimitiveHeapObject> export_name,
     Handle<PrimitiveHeapObject> local_name,
@@ -1082,7 +1100,9 @@ Handle<SourceTextModuleInfo> SourceTextModuleInfo::New(
   Handle<FixedArray> module_request_positions =
       isolate->factory()->NewFixedArray(size);
   for (const auto& elem : descr->module_requests()) {
-    module_requests->set(elem.second.index, *elem.first->string());
+    Handle<ModuleRequest> serialized_module_request =
+        elem.first->Serialize(isolate);
+    module_requests->set(elem.second.index, *serialized_module_request);
     module_request_positions->set(elem.second.index,
                                   Smi::FromInt(elem.second.position));
   }

@@ -14,6 +14,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-regexp-string-iterator-tq.inc"
+
 class JSRegExpStringIterator
     : public TorqueGeneratedJSRegExpStringIterator<JSRegExpStringIterator,
                                                    JSObject> {

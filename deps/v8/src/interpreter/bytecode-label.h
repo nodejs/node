@@ -84,6 +84,8 @@ class V8_EXPORT_PRIVATE BytecodeLabel final {
 class V8_EXPORT_PRIVATE BytecodeLabels {
  public:
   explicit BytecodeLabels(Zone* zone) : labels_(zone), is_bound_(false) {}
+  BytecodeLabels(const BytecodeLabels&) = delete;
+  BytecodeLabels& operator=(const BytecodeLabels&) = delete;
 
   BytecodeLabel* New();
 
@@ -103,8 +105,6 @@ class V8_EXPORT_PRIVATE BytecodeLabels {
  private:
   ZoneLinkedList<BytecodeLabel> labels_;
   bool is_bound_;
-
-  DISALLOW_COPY_AND_ASSIGN(BytecodeLabels);
 };
 
 }  // namespace interpreter

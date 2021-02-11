@@ -1508,10 +1508,15 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
     callable = resolved.second;  // Update to ultimate target.
     DCHECK_NE(compiler::WasmImportCallKind::kLinkError, kind);
     wasm::CompilationEnv env = native_module->CreateCompilationEnv();
-    SharedFunctionInfo shared = js_function->shared();
+    // {expected_arity} should only be used if kind != kJSFunctionArityMismatch.
+    int expected_arity = -1;
+    if (kind == compiler::WasmImportCallKind ::kJSFunctionArityMismatch) {
+      expected_arity = Handle<JSFunction>::cast(callable)
+                           ->shared()
+                           .internal_formal_parameter_count();
+    }
     wasm::WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
-        isolate->wasm_engine(), &env, kind, sig, false,
-        shared.internal_formal_parameter_count());
+        isolate->wasm_engine(), &env, kind, sig, false, expected_arity);
     std::unique_ptr<wasm::WasmCode> wasm_code = native_module->AddCode(
         result.func_index, result.code_desc, result.frame_slot_count,
         result.tagged_parameter_slots,
@@ -1674,6 +1679,7 @@ Handle<WasmExceptionObject> WasmExceptionObject::New(
   return exception;
 }
 
+// TODO(9495): Update this if function type variance is introduced.
 bool WasmExceptionObject::MatchesSignature(const wasm::FunctionSig* sig) {
   DCHECK_EQ(0, sig->return_count());
   DCHECK_LE(sig->parameter_count(), std::numeric_limits<int>::max());
@@ -1687,6 +1693,7 @@ bool WasmExceptionObject::MatchesSignature(const wasm::FunctionSig* sig) {
   return true;
 }
 
+// TODO(9495): Update this if function type variance is introduced.
 bool WasmCapiFunction::MatchesSignature(const wasm::FunctionSig* sig) const {
   // TODO(jkummerow): Unify with "SignatureHelper" in c-api.cc.
   int param_count = static_cast<int>(sig->parameter_count());
@@ -1833,16 +1840,14 @@ bool WasmCapiFunction::IsWasmCapiFunction(Object object) {
 Handle<WasmCapiFunction> WasmCapiFunction::New(
     Isolate* isolate, Address call_target, Handle<Foreign> embedder_data,
     Handle<PodArray<wasm::ValueType>> serialized_signature) {
-  Handle<WasmCapiFunctionData> fun_data =
-      Handle<WasmCapiFunctionData>::cast(isolate->factory()->NewStruct(
-          WASM_CAPI_FUNCTION_DATA_TYPE, AllocationType::kOld));
-  fun_data->set_call_target(call_target);
-  fun_data->set_embedder_data(*embedder_data);
-  fun_data->set_serialized_signature(*serialized_signature);
   // TODO(jkummerow): Install a JavaScript wrapper. For now, calling
   // these functions directly is unsupported; they can only be called
   // from Wasm code.
-  fun_data->set_wrapper_code(isolate->builtins()->builtin(Builtins::kIllegal));
+  Handle<WasmCapiFunctionData> fun_data =
+      isolate->factory()->NewWasmCapiFunctionData(
+          call_target, embedder_data,
+          isolate->builtins()->builtin_handle(Builtins::kIllegal),
+          serialized_signature, AllocationType::kOld);
   Handle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForWasmCapiFunction(fun_data);
   return Handle<WasmCapiFunction>::cast(
@@ -1884,10 +1889,11 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   function_data->set_instance(*instance);
   function_data->set_jump_table_offset(jump_table_offset);
   function_data->set_function_index(func_index);
+  function_data->set_signature(*sig_foreign);
+  function_data->set_call_count(0);
   function_data->set_c_wrapper_code(Smi::zero(), SKIP_WRITE_BARRIER);
   function_data->set_wasm_call_target(Smi::zero(), SKIP_WRITE_BARRIER);
   function_data->set_packed_args_size(0);
-  function_data->set_signature(*sig_foreign);
 
   MaybeHandle<String> maybe_name;
   bool is_asm_js_module = instance->module_object().is_asm_js();
@@ -1948,6 +1954,23 @@ const wasm::FunctionSig* WasmExportedFunction::sig() {
   return instance().module()->functions[function_index()].sig;
 }
 
+bool WasmExportedFunction::MatchesSignature(
+    const WasmModule* other_module, const wasm::FunctionSig* other_sig) {
+  const wasm::FunctionSig* sig = this->sig();
+  if (sig->parameter_count() != other_sig->parameter_count() ||
+      sig->return_count() != other_sig->return_count()) {
+    return false;
+  }
+
+  for (int i = 0; i < sig->all().size(); i++) {
+    if (!wasm::EquivalentTypes(sig->all()[i], other_sig->all()[i],
+                               this->instance().module(), other_module)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 // static
 bool WasmJSFunction::IsWasmJSFunction(Object object) {
   if (!object.IsJSFunction()) return false;
@@ -1955,8 +1978,6 @@ bool WasmJSFunction::IsWasmJSFunction(Object object) {
   return js_function.shared().HasWasmJSFunctionData();
 }
 
-// TODO(7748): WasmJSFunctions should compile/find and store an import wrapper
-// in case they are called from within wasm.
 Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
                                            const wasm::FunctionSig* sig,
                                            Handle<JSReceiver> callable) {
@@ -1973,6 +1994,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   // signature instead of compiling a new one for every instantiation.
   Handle<Code> wrapper_code =
       compiler::CompileJSToJSWrapper(isolate, sig, nullptr).ToHandleChecked();
+
   Handle<WasmJSFunctionData> function_data =
       Handle<WasmJSFunctionData>::cast(isolate->factory()->NewStruct(
           WASM_JS_FUNCTION_DATA_TYPE, AllocationType::kOld));
@@ -1981,6 +2003,30 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   function_data->set_serialized_signature(*serialized_sig);
   function_data->set_callable(*callable);
   function_data->set_wrapper_code(*wrapper_code);
+  // Use Abort() as a default value (it will never be called if not overwritten
+  // below).
+  function_data->set_wasm_to_js_wrapper_code(
+      isolate->heap()->builtin(Builtins::kAbort));
+
+  if (wasm::WasmFeatures::FromIsolate(isolate).has_typed_funcref()) {
+    using CK = compiler::WasmImportCallKind;
+    int expected_arity = parameter_count;
+    CK kind = compiler::kDefaultImportCallKind;
+    if (callable->IsJSFunction()) {
+      SharedFunctionInfo shared = Handle<JSFunction>::cast(callable)->shared();
+      expected_arity = shared.internal_formal_parameter_count();
+      if (expected_arity != parameter_count) {
+        kind = CK::kJSFunctionArityMismatch;
+      }
+    }
+    // TODO(wasm): Think about caching and sharing the wasm-to-JS wrappers per
+    // signature instead of compiling a new one for every instantiation.
+    Handle<Code> wasm_to_js_wrapper_code =
+        compiler::CompileWasmToJSWrapper(isolate, sig, kind, expected_arity)
+            .ToHandleChecked();
+    function_data->set_wasm_to_js_wrapper_code(*wasm_to_js_wrapper_code);
+  }
+
   Handle<String> name = isolate->factory()->Function_string();
   if (callable->IsJSFunction()) {
     name = JSFunction::GetName(Handle<JSFunction>::cast(callable));
@@ -2012,6 +2058,7 @@ const wasm::FunctionSig* WasmJSFunction::GetSignature(Zone* zone) {
   return zone->New<wasm::FunctionSig>(return_count, parameter_count, types);
 }
 
+// TODO(9495): Update this if function type variance is introduced.
 bool WasmJSFunction::MatchesSignature(const wasm::FunctionSig* sig) {
   DCHECK_LE(sig->all().size(), kMaxInt);
   int sig_size = static_cast<int>(sig->all().size());

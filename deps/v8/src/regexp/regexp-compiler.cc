@@ -1777,10 +1777,11 @@ class LoopInitializationMarker {
     DCHECK(node_->traversed_loop_initialization_node_);
     node_->traversed_loop_initialization_node_ = false;
   }
+  LoopInitializationMarker(const LoopInitializationMarker&) = delete;
+  LoopInitializationMarker& operator=(const LoopInitializationMarker&) = delete;
 
  private:
   LoopChoiceNode* node_;
-  DISALLOW_COPY_AND_ASSIGN(LoopInitializationMarker);
 };
 
 // Temporarily decrements min_loop_iterations_.
@@ -1791,10 +1792,11 @@ class IterationDecrementer {
     --node_->min_loop_iterations_;
   }
   ~IterationDecrementer() { ++node_->min_loop_iterations_; }
+  IterationDecrementer(const IterationDecrementer&) = delete;
+  IterationDecrementer& operator=(const IterationDecrementer&) = delete;
 
  private:
   LoopChoiceNode* node_;
-  DISALLOW_COPY_AND_ASSIGN(IterationDecrementer);
 };
 
 RegExpNode* SeqRegExpNode::FilterOneByte(int depth) {

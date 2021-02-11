@@ -62,6 +62,9 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   struct PerFileStreams {
     std::stringstream csa_headerfile;
     std::stringstream csa_ccfile;
+    std::stringstream class_definition_headerfile;
+    std::stringstream class_definition_inline_headerfile;
+    std::stringstream class_definition_ccfile;
   };
   static PerFileStreams& GeneratedPerFile(SourceId file) {
     return Get().generated_per_file_[file];
@@ -74,6 +77,15 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   static bool IsInstanceTypesInitialized() {
     return Get().instance_types_initialized_;
   }
+  static void EnsureInCCOutputList(TorqueMacro* macro) {
+    GlobalContext& c = Get();
+    if (c.macros_for_cc_output_set_.insert(macro).second) {
+      c.macros_for_cc_output_.push_back(macro);
+    }
+  }
+  static const std::vector<TorqueMacro*>& AllMacrosForCCOutput() {
+    return Get().macros_for_cc_output_;
+  }
 
  private:
   bool collect_language_server_data_;
@@ -84,6 +96,8 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   std::set<std::string> cpp_includes_;
   std::map<SourceId, PerFileStreams> generated_per_file_;
   std::map<std::string, size_t> fresh_ids_;
+  std::vector<TorqueMacro*> macros_for_cc_output_;
+  std::unordered_set<TorqueMacro*> macros_for_cc_output_set_;
   bool instance_types_initialized_ = false;
 
   friend class LanguageServerData;

@@ -218,9 +218,9 @@ void Node::InsertInputs(Zone* zone, int index, int count) {
   DCHECK_LT(0, count);
   DCHECK_LT(index, InputCount());
   for (int i = 0; i < count; i++) {
-    AppendInput(zone, InputAt(Max(InputCount() - count, 0)));
+    AppendInput(zone, InputAt(std::max(InputCount() - count, 0)));
   }
-  for (int i = InputCount() - count - 1; i >= Max(index, count); --i) {
+  for (int i = InputCount() - count - 1; i >= std::max(index, count); --i) {
     ReplaceInput(i, InputAt(i - count));
   }
   for (int i = 0; i < count; i++) {

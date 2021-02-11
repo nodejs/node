@@ -158,6 +158,7 @@ macro Cast<A : type extends Object>(implicit context: Context)(o: Object): A
       otherwise CastError;
 }
 
+// This is required for casting MaybeObject to Object.
 Cast<Smi>(o: Object): Smi
     labels CastError {
   return TaggedToSmi(o) otherwise CastError;
@@ -667,7 +668,19 @@ UnsafeCast<RegExpMatchInfo>(implicit context: Context)(o: Object):
   return %RawDownCast<RegExpMatchInfo>(o);
 }
 
-macro CastOrDefault<T: type, Arg: type, Default: type>(
-    implicit context: Context)(x: Arg, default: Default): T|Default {
+macro UnsafeCast<A : type extends WeakHeapObject>(o: A|Object): A {
+  assert(IsWeakOrCleared(o));
+  return %RawDownCast<A>(o);
+}
+
+macro
+CastOrDefault<T: type, Arg: type, Default: type>(implicit context: Context)(
+    x: Arg, default: Default): T|Default {
   return Cast<T>(x) otherwise return default;
+}
+
+// This is required for casting MaybeObject to Object.
+Cast<Object>(o: Object): Object
+labels _CastError {
+  return o;
 }

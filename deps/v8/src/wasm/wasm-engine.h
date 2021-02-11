@@ -137,6 +137,8 @@ class NativeModuleCache {
 class V8_EXPORT_PRIVATE WasmEngine {
  public:
   WasmEngine();
+  WasmEngine(const WasmEngine&) = delete;
+  WasmEngine& operator=(const WasmEngine&) = delete;
   ~WasmEngine();
 
   // Synchronously validates the given bytes that represent an encoded Wasm
@@ -413,8 +415,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   // End of fields protected by {mutex_}.
   //////////////////////////////////////////////////////////////////////////////
-
-  DISALLOW_COPY_AND_ASSIGN(WasmEngine);
 };
 
 }  // namespace wasm

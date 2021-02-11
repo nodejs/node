@@ -34,6 +34,7 @@ class NativeModule;
 class WasmCode;
 class WireBytesRef;
 class WasmValue;
+struct WasmFunction;
 
 // Side table storing information used to inspect Liftoff frames at runtime.
 // This table is only created on demand for debugging, so it is not optimized
@@ -153,6 +154,9 @@ class V8_EXPORT_PRIVATE DebugInfo {
   WasmValue GetLocalValue(int local, Address pc, Address fp,
                           Address debug_break_fp);
   int GetStackDepth(Address pc);
+
+  const wasm::WasmFunction& GetFunctionAtAddress(Address pc);
+
   WasmValue GetStackValue(int index, Address pc, Address fp,
                           Address debug_break_fp);
 

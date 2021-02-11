@@ -900,10 +900,25 @@ void Simulator::SetFpResult(const double& result) {
 }
 
 void Simulator::TrashCallerSaveRegisters() {
-  // We don't trash the registers with the return value.
+  // Return registers.
+  registers_[0] = 0x50BAD4U;
+  registers_[1] = 0x50BAD4U;
+  // Caller-saved registers.
   registers_[2] = 0x50BAD4U;
   registers_[3] = 0x50BAD4U;
   registers_[12] = 0x50BAD4U;
+  // This value is a NaN in both 32-bit and 64-bit FP.
+  static const uint64_t v = 0x7ff000007f801000UL;
+  // d0 - d7 are caller-saved.
+  for (int i = 0; i < 8; i++) {
+    set_d_register(i, &v);
+  }
+  if (DoubleRegister::SupportedRegisterCount() > 16) {
+    // d16 - d31 (if supported) are caller-saved.
+    for (int i = 16; i < 32; i++) {
+      set_d_register(i, &v);
+    }
+  }
 }
 
 int Simulator::ReadW(int32_t addr) {
@@ -1673,6 +1688,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
             SimulatorRuntimeCompareCall target =
                 reinterpret_cast<SimulatorRuntimeCompareCall>(external);
             iresult = target(dval0, dval1);
+#ifdef DEBUG
+            TrashCallerSaveRegisters();
+#endif
             set_register(r0, static_cast<int32_t>(iresult));
             set_register(r1, static_cast<int32_t>(iresult >> 32));
             break;
@@ -1681,6 +1699,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
             SimulatorRuntimeFPFPCall target =
                 reinterpret_cast<SimulatorRuntimeFPFPCall>(external);
             dresult = target(dval0, dval1);
+#ifdef DEBUG
+            TrashCallerSaveRegisters();
+#endif
             SetFpResult(dresult);
             break;
           }
@@ -1688,6 +1709,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
             SimulatorRuntimeFPCall target =
                 reinterpret_cast<SimulatorRuntimeFPCall>(external);
             dresult = target(dval0);
+#ifdef DEBUG
+            TrashCallerSaveRegisters();
+#endif
             SetFpResult(dresult);
             break;
           }
@@ -1695,6 +1719,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
             SimulatorRuntimeFPIntCall target =
                 reinterpret_cast<SimulatorRuntimeFPIntCall>(external);
             dresult = target(dval0, ival);
+#ifdef DEBUG
+            TrashCallerSaveRegisters();
+#endif
             SetFpResult(dresult);
             break;
           }
@@ -1728,6 +1755,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         }
         CHECK(stack_aligned);
         UnsafeDirectApiCall(external, arg0);
+#ifdef DEBUG
+        TrashCallerSaveRegisters();
+#endif
       } else if (redirection->type() == ExternalReference::PROFILING_API_CALL) {
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
           PrintF("Call to host function at %p args %08x %08x",
@@ -1739,6 +1769,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         }
         CHECK(stack_aligned);
         UnsafeProfilingApiCall(external, arg0, arg1);
+#ifdef DEBUG
+        TrashCallerSaveRegisters();
+#endif
       } else if (redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
           PrintF("Call to host function at %p args %08x %08x",
@@ -1750,6 +1783,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         }
         CHECK(stack_aligned);
         UnsafeDirectGetterCall(external, arg0, arg1);
+#ifdef DEBUG
+        TrashCallerSaveRegisters();
+#endif
       } else if (redirection->type() ==
                  ExternalReference::PROFILING_GETTER_CALL) {
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
@@ -1764,6 +1800,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         SimulatorRuntimeProfilingGetterCall target =
             reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(external);
         target(arg0, arg1, Redirection::ReverseRedirection(arg2));
+#ifdef DEBUG
+        TrashCallerSaveRegisters();
+#endif
       } else {
         // builtin call.
         DCHECK(redirection->type() == ExternalReference::BUILTIN_CALL ||
@@ -1783,6 +1822,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         int64_t result =
             UnsafeGenericFunctionCall(external, arg0, arg1, arg2, arg3, arg4,
                                       arg5, arg6, arg7, arg8, arg9);
+#ifdef DEBUG
+        TrashCallerSaveRegisters();
+#endif
         int32_t lo_res = static_cast<int32_t>(result);
         int32_t hi_res = static_cast<int32_t>(result >> 32);
         if (::v8::internal::FLAG_trace_sim) {
@@ -3836,6 +3878,32 @@ void Simulator::DecodeType6CoprocessorIns(Instruction* instr) {
   }
 }
 
+// Helper functions for implementing NEON ops. Unop applies a unary op to each
+// lane. Binop applies a binary operation to matching input lanes.
+template <typename T>
+void Unop(Simulator* simulator, int Vd, int Vm, std::function<T(T)> unop) {
+  static const int kLanes = 16 / sizeof(T);
+  T src[kLanes];
+  simulator->get_neon_register(Vm, src);
+  for (int i = 0; i < kLanes; i++) {
+    src[i] = unop(src[i]);
+  }
+  simulator->set_neon_register(Vd, src);
+}
+
+template <typename T>
+void Binop(Simulator* simulator, int Vd, int Vm, int Vn,
+           std::function<T(T, T)> binop) {
+  static const int kLanes = 16 / sizeof(T);
+  T src1[kLanes], src2[kLanes];
+  simulator->get_neon_register(Vn, src1);
+  simulator->get_neon_register(Vm, src2);
+  for (int i = 0; i < kLanes; i++) {
+    src1[i] = binop(src1[i], src2[i]);
+  }
+  simulator->set_neon_register(Vd, src1);
+}
+
 // Templated operations for NEON instructions.
 template <typename T, typename U>
 U Widen(T value) {
@@ -3857,15 +3925,6 @@ U Narrow(T value) {
   return static_cast<U>(value);
 }
 
-template <typename T>
-T Clamp(int64_t value) {
-  static_assert(sizeof(int64_t) > sizeof(T), "T must be int32_t or smaller");
-  int64_t min = static_cast<int64_t>(std::numeric_limits<T>::min());
-  int64_t max = static_cast<int64_t>(std::numeric_limits<T>::max());
-  int64_t clamped = std::max(min, std::min(max, value));
-  return static_cast<T>(clamped);
-}
-
 template <typename T, typename U>
 void Widen(Simulator* simulator, int Vd, int Vm) {
   static const int kLanes = 8 / sizeof(T);
@@ -3880,28 +3939,15 @@ void Widen(Simulator* simulator, int Vd, int Vm) {
 
 template <typename T, int SIZE>
 void Abs(Simulator* simulator, int Vd, int Vm) {
-  static const int kElems = SIZE / sizeof(T);
-  T src[kElems];
-  simulator->get_neon_register<T, SIZE>(Vm, src);
-  for (int i = 0; i < kElems; i++) {
-    src[i] = std::abs(src[i]);
-  }
-  simulator->set_neon_register<T, SIZE>(Vd, src);
+  Unop<T>(simulator, Vd, Vm, [](T x) { return std::abs(x); });
 }
 
 template <typename T, int SIZE>
 void Neg(Simulator* simulator, int Vd, int Vm) {
-  static const int kElems = SIZE / sizeof(T);
-  T src[kElems];
-  simulator->get_neon_register<T, SIZE>(Vm, src);
-  for (int i = 0; i < kElems; i++) {
-    if (src[i] != std::numeric_limits<T>::min()) {
-      src[i] = -src[i];
-    } else {
-      // The respective minimum (negative) value maps to itself.
-    }
-  }
-  simulator->set_neon_register<T, SIZE>(Vd, src);
+  Unop<T>(simulator, Vd, Vm, [](T x) {
+    // The respective minimum (negative) value maps to itself.
+    return x == std::numeric_limits<T>::min() ? x : -x;
+  });
 }
 
 template <typename T, typename U>
@@ -3911,7 +3957,7 @@ void SaturatingNarrow(Simulator* simulator, int Vd, int Vm) {
   U dst[kLanes];
   simulator->get_neon_register(Vm, src);
   for (int i = 0; i < kLanes; i++) {
-    dst[i] = Narrow<T, U>(Clamp<U>(src[i]));
+    dst[i] = Narrow<T, U>(Saturate<U>(src[i]));
   }
   simulator->set_neon_register<U, kDoubleSize>(Vd, dst);
 }
@@ -3923,33 +3969,19 @@ void SaturatingUnsignedNarrow(Simulator* simulator, int Vd, int Vm) {
   U dst[kLanes];
   simulator->get_neon_register(Vm, src);
   for (int i = 0; i < kLanes; i++) {
-    dst[i] = Clamp<U>(src[i]);
+    dst[i] = Saturate<U>(src[i]);
   }
   simulator->set_neon_register<U, kDoubleSize>(Vd, dst);
 }
 
 template <typename T>
-void AddSaturate(Simulator* simulator, int Vd, int Vm, int Vn) {
-  static const int kLanes = 16 / sizeof(T);
-  T src1[kLanes], src2[kLanes];
-  simulator->get_neon_register(Vn, src1);
-  simulator->get_neon_register(Vm, src2);
-  for (int i = 0; i < kLanes; i++) {
-    src1[i] = Clamp<T>(Widen<T, int64_t>(src1[i]) + Widen<T, int64_t>(src2[i]));
-  }
-  simulator->set_neon_register(Vd, src1);
+void AddSat(Simulator* simulator, int Vd, int Vm, int Vn) {
+  Binop<T>(simulator, Vd, Vm, Vn, SaturateAdd<T>);
 }
 
 template <typename T>
-void SubSaturate(Simulator* simulator, int Vd, int Vm, int Vn) {
-  static const int kLanes = 16 / sizeof(T);
-  T src1[kLanes], src2[kLanes];
-  simulator->get_neon_register(Vn, src1);
-  simulator->get_neon_register(Vm, src2);
-  for (int i = 0; i < kLanes; i++) {
-    src1[i] = SaturateSub<T>(src1[i], src2[i]);
-  }
-  simulator->set_neon_register(Vd, src1);
+void SubSat(Simulator* simulator, int Vd, int Vm, int Vn) {
+  Binop<T>(simulator, Vd, Vm, Vn, SaturateSub<T>);
 }
 
 template <typename T, int SIZE>
@@ -4002,38 +4034,18 @@ void Transpose(Simulator* simulator, int Vd, int Vm) {
 
 template <typename T, int SIZE>
 void Test(Simulator* simulator, int Vd, int Vm, int Vn) {
-  static const int kElems = SIZE / sizeof(T);
-  T src1[kElems], src2[kElems];
-  simulator->get_neon_register<T, SIZE>(Vn, src1);
-  simulator->get_neon_register<T, SIZE>(Vm, src2);
-  for (int i = 0; i < kElems; i++) {
-    src1[i] = (src1[i] & src2[i]) != 0 ? -1 : 0;
-  }
-  simulator->set_neon_register<T, SIZE>(Vd, src1);
+  auto test = [](T x, T y) { return (x & y) ? -1 : 0; };
+  Binop<T>(simulator, Vd, Vm, Vn, test);
 }
 
 template <typename T, int SIZE>
 void Add(Simulator* simulator, int Vd, int Vm, int Vn) {
-  static const int kElems = SIZE / sizeof(T);
-  T src1[kElems], src2[kElems];
-  simulator->get_neon_register<T, SIZE>(Vn, src1);
-  simulator->get_neon_register<T, SIZE>(Vm, src2);
-  for (int i = 0; i < kElems; i++) {
-    src1[i] += src2[i];
-  }
-  simulator->set_neon_register<T, SIZE>(Vd, src1);
+  Binop<T>(simulator, Vd, Vm, Vn, std::plus<T>());
 }
 
 template <typename T, int SIZE>
 void Sub(Simulator* simulator, int Vd, int Vm, int Vn) {
-  static const int kElems = SIZE / sizeof(T);
-  T src1[kElems], src2[kElems];
-  simulator->get_neon_register<T, SIZE>(Vn, src1);
-  simulator->get_neon_register<T, SIZE>(Vm, src2);
-  for (int i = 0; i < kElems; i++) {
-    src1[i] -= src2[i];
-  }
-  simulator->set_neon_register<T, SIZE>(Vd, src1);
+  Binop<T>(simulator, Vd, Vm, Vn, std::minus<T>());
 }
 
 namespace {
@@ -4048,7 +4060,9 @@ uint16_t Multiply(uint16_t a, uint16_t b) {
 
 void VmovImmediate(Simulator* simulator, Instruction* instr) {
   byte cmode = instr->Bits(11, 8);
-  int vd = instr->VFPDRegValue(kSimd128Precision);
+  int vd = instr->VFPDRegValue(kDoublePrecision);
+  int q = instr->Bit(6);
+  int regs = q ? 2 : 1;
   uint8_t imm = instr->Bit(24) << 7;  // i
   imm |= instr->Bits(18, 16) << 4;    // imm3
   imm |= instr->Bits(3, 0);           // imm4
@@ -4056,14 +4070,20 @@ void VmovImmediate(Simulator* simulator, Instruction* instr) {
     case 0: {
       // Set the LSB of each 64-bit halves.
       uint64_t imm64 = imm;
-      simulator->set_neon_register(vd, {imm64, imm64});
+      for (int r = 0; r < regs; r++) {
+        simulator->set_d_register(vd + r, &imm64);
+      }
       break;
     }
     case 0xe: {
       uint8_t imms[kSimd128Size];
       // Set all bytes of register.
       std::fill_n(imms, kSimd128Size, imm);
-      simulator->set_neon_register(vd, imms);
+      uint64_t imm64;
+      memcpy(&imm64, imms, 8);
+      for (int r = 0; r < regs; r++) {
+        simulator->set_d_register(vd + r, &imm64);
+      }
       break;
     }
     default: {
@@ -4087,35 +4107,19 @@ void Mul(Simulator* simulator, int Vd, int Vm, int Vn) {
 
 template <typename T, int SIZE>
 void ShiftLeft(Simulator* simulator, int Vd, int Vm, int shift) {
-  static const int kElems = SIZE / sizeof(T);
-  T src[kElems];
-  simulator->get_neon_register<T, SIZE>(Vm, src);
-  for (int i = 0; i < kElems; i++) {
-    src[i] <<= shift;
-  }
-  simulator->set_neon_register<T, SIZE>(Vd, src);
+  Unop<T>(simulator, Vd, Vm, [shift](T x) { return x << shift; });
 }
 
 template <typename T, int SIZE>
 void ShiftRight(Simulator* simulator, int Vd, int Vm, int shift) {
-  static const int kElems = SIZE / sizeof(T);
-  T src[kElems];
-  simulator->get_neon_register<T, SIZE>(Vm, src);
-  for (int i = 0; i < kElems; i++) {
-    src[i] >>= shift;
-  }
-  simulator->set_neon_register<T, SIZE>(Vd, src);
+  Unop<T>(simulator, Vd, Vm, [shift](T x) { return x >> shift; });
 }
 
 template <typename T, int SIZE>
 void ArithmeticShiftRight(Simulator* simulator, int Vd, int Vm, int shift) {
-  static const int kElems = SIZE / sizeof(T);
-  T src[kElems];
-  simulator->get_neon_register<T, SIZE>(Vm, src);
-  for (int i = 0; i < kElems; i++) {
-    src[i] = ArithmeticShiftRight(src[i], shift);
-  }
-  simulator->set_neon_register<T, SIZE>(Vd, src);
+  auto shift_fn =
+      std::bind(ArithmeticShiftRight<T>, std::placeholders::_1, shift);
+  Unop<T>(simulator, Vd, Vm, shift_fn);
 }
 
 template <typename T, int SIZE>
@@ -4182,29 +4186,16 @@ void ShiftByRegister(Simulator* simulator, int Vd, int Vm, int Vn) {
 
 template <typename T, int SIZE>
 void CompareEqual(Simulator* simulator, int Vd, int Vm, int Vn) {
-  static const int kElems = SIZE / sizeof(T);
-  T src1[kElems], src2[kElems];
-  simulator->get_neon_register<T, SIZE>(Vn, src1);
-  simulator->get_neon_register<T, SIZE>(Vm, src2);
-  for (int i = 0; i < kElems; i++) {
-    src1[i] = src1[i] == src2[i] ? -1 : 0;
-  }
-  simulator->set_neon_register<T, SIZE>(Vd, src1);
+  Binop<T>(simulator, Vd, Vm, Vn, [](T x, T y) { return x == y ? -1 : 0; });
 }
 
 template <typename T, int SIZE>
 void CompareGreater(Simulator* simulator, int Vd, int Vm, int Vn, bool ge) {
-  static const int kElems = SIZE / sizeof(T);
-  T src1[kElems], src2[kElems];
-  simulator->get_neon_register<T, SIZE>(Vn, src1);
-  simulator->get_neon_register<T, SIZE>(Vm, src2);
-  for (int i = 0; i < kElems; i++) {
-    if (ge)
-      src1[i] = src1[i] >= src2[i] ? -1 : 0;
-    else
-      src1[i] = src1[i] > src2[i] ? -1 : 0;
+  if (ge) {
+    Binop<T>(simulator, Vd, Vm, Vn, [](T x, T y) { return x >= y ? -1 : 0; });
+  } else {
+    Binop<T>(simulator, Vd, Vm, Vn, [](T x, T y) { return x > y ? -1 : 0; });
   }
-  simulator->set_neon_register<T, SIZE>(Vd, src1);
 }
 
 float MinMax(float a, float b, bool is_min) {
@@ -4217,14 +4208,13 @@ T MinMax(T a, T b, bool is_min) {
 
 template <typename T, int SIZE>
 void MinMax(Simulator* simulator, int Vd, int Vm, int Vn, bool min) {
-  static const int kElems = SIZE / sizeof(T);
-  T src1[kElems], src2[kElems];
-  simulator->get_neon_register<T, SIZE>(Vn, src1);
-  simulator->get_neon_register<T, SIZE>(Vm, src2);
-  for (int i = 0; i < kElems; i++) {
-    src1[i] = MinMax(src1[i], src2[i], min);
+  if (min) {
+    Binop<T>(simulator, Vd, Vm, Vn,
+             [](auto x, auto y) { return std::min<T>(x, y); });
+  } else {
+    Binop<T>(simulator, Vd, Vm, Vn,
+             [](auto x, auto y) { return std::max<T>(x, y); });
   }
-  simulator->set_neon_register<T, SIZE>(Vd, src1);
 }
 
 template <typename T>
@@ -4259,14 +4249,7 @@ template <typename T, int SIZE = kSimd128Size>
 void RoundingAverageUnsigned(Simulator* simulator, int Vd, int Vm, int Vn) {
   static_assert(std::is_unsigned<T>::value,
                 "Implemented only for unsigned types.");
-  static const int kElems = SIZE / sizeof(T);
-  T src1[kElems], src2[kElems];
-  simulator->get_neon_register<T, SIZE>(Vn, src1);
-  simulator->get_neon_register<T, SIZE>(Vm, src2);
-  for (int i = 0; i < kElems; i++) {
-    src1[i] = base::RoundingAverageUnsigned(src1[i], src2[i]);
-  }
-  simulator->set_neon_register<T, SIZE>(Vd, src1);
+  Binop<T>(simulator, Vd, Vm, Vn, base::RoundingAverageUnsigned<T>);
 }
 
 template <typename NarrowType, typename WideType>
@@ -4291,338 +4274,378 @@ void MultiplyLong(Simulator* simulator, int Vd, int Vn, int Vm) {
   simulator->set_neon_register<WideType>(Vd, dst);
 }
 
-void Simulator::DecodeSpecialCondition(Instruction* instr) {
-  switch (instr->SpecialValue()) {
-    case 4: {
-      int Vd, Vm, Vn;
-      if (instr->Bit(6) == 0) {
-        Vd = instr->VFPDRegValue(kDoublePrecision);
-        Vm = instr->VFPMRegValue(kDoublePrecision);
-        Vn = instr->VFPNRegValue(kDoublePrecision);
-      } else {
-        Vd = instr->VFPDRegValue(kSimd128Precision);
-        Vm = instr->VFPMRegValue(kSimd128Precision);
-        Vn = instr->VFPNRegValue(kSimd128Precision);
+void Simulator::DecodeUnconditional(Instruction* instr) {
+  // This follows the decoding in F4.1.18 Unconditional instructions.
+  int op0 = instr->Bits(26, 25);
+  int op1 = instr->Bit(20);
+
+  // Four classes of decoding:
+  // - Miscellaneous (omitted, no instructions used in V8).
+  // - Advanced SIMD data-processing.
+  // - Memory hints and barriers.
+  // - Advanced SIMD element or structure load/store.
+  if (op0 == 0b01) {
+    DecodeAdvancedSIMDDataProcessing(instr);
+  } else if ((op0 & 0b10) == 0b10 && op1) {
+    DecodeMemoryHintsAndBarriers(instr);
+  } else if (op0 == 0b10 && !op1) {
+    DecodeAdvancedSIMDElementOrStructureLoadStore(instr);
+  } else {
+    UNIMPLEMENTED();
+  }
+}
+
+void Simulator::DecodeAdvancedSIMDTwoOrThreeRegisters(Instruction* instr) {
+  // Advanced SIMD two registers, or three registers of different lengths.
+  int op0 = instr->Bit(24);
+  int op1 = instr->Bits(21, 20);
+  int op2 = instr->Bits(11, 10);
+  int op3 = instr->Bit(6);
+  if (!op0 && op1 == 0b11) {
+    // vext.8 Qd, Qm, Qn, imm4
+    int imm4 = instr->Bits(11, 8);
+    int Vd = instr->VFPDRegValue(kSimd128Precision);
+    int Vm = instr->VFPMRegValue(kSimd128Precision);
+    int Vn = instr->VFPNRegValue(kSimd128Precision);
+    uint8_t src1[16], src2[16], dst[16];
+    get_neon_register(Vn, src1);
+    get_neon_register(Vm, src2);
+    int boundary = kSimd128Size - imm4;
+    int i = 0;
+    for (; i < boundary; i++) {
+      dst[i] = src1[i + imm4];
+    }
+    for (; i < 16; i++) {
+      dst[i] = src2[i - boundary];
+    }
+    set_neon_register(Vd, dst);
+  } else if (op0 && op1 == 0b11 && ((op2 >> 1) == 0)) {
+    // Advanced SIMD two registers misc
+    int size = instr->Bits(19, 18);
+    int opc1 = instr->Bits(17, 16);
+    int opc2 = instr->Bits(10, 7);
+    int q = instr->Bit(6);
+
+    if (opc1 == 0 && (opc2 >> 2) == 0) {
+      // vrev<op>.size Qd, Qm
+      int Vd = instr->VFPDRegValue(kSimd128Precision);
+      int Vm = instr->VFPMRegValue(kSimd128Precision);
+      NeonSize size = static_cast<NeonSize>(instr->Bits(19, 18));
+      NeonSize op =
+          static_cast<NeonSize>(static_cast<int>(Neon64) - instr->Bits(8, 7));
+      switch (op) {
+        case Neon16: {
+          DCHECK_EQ(Neon8, size);
+          uint8_t src[16];
+          get_neon_register(Vm, src);
+          for (int i = 0; i < 16; i += 2) {
+            std::swap(src[i], src[i + 1]);
+          }
+          set_neon_register(Vd, src);
+          break;
+        }
+        case Neon32: {
+          switch (size) {
+            case Neon16: {
+              uint16_t src[8];
+              get_neon_register(Vm, src);
+              for (int i = 0; i < 8; i += 2) {
+                std::swap(src[i], src[i + 1]);
+              }
+              set_neon_register(Vd, src);
+              break;
+            }
+            case Neon8: {
+              uint8_t src[16];
+              get_neon_register(Vm, src);
+              for (int i = 0; i < 4; i++) {
+                std::swap(src[i * 4], src[i * 4 + 3]);
+                std::swap(src[i * 4 + 1], src[i * 4 + 2]);
+              }
+              set_neon_register(Vd, src);
+              break;
+            }
+            default:
+              UNREACHABLE();
+              break;
+          }
+          break;
+        }
+        case Neon64: {
+          switch (size) {
+            case Neon32: {
+              uint32_t src[4];
+              get_neon_register(Vm, src);
+              std::swap(src[0], src[1]);
+              std::swap(src[2], src[3]);
+              set_neon_register(Vd, src);
+              break;
+            }
+            case Neon16: {
+              uint16_t src[8];
+              get_neon_register(Vm, src);
+              for (int i = 0; i < 2; i++) {
+                std::swap(src[i * 4], src[i * 4 + 3]);
+                std::swap(src[i * 4 + 1], src[i * 4 + 2]);
+              }
+              set_neon_register(Vd, src);
+              break;
+            }
+            case Neon8: {
+              uint8_t src[16];
+              get_neon_register(Vm, src);
+              for (int i = 0; i < 4; i++) {
+                std::swap(src[i], src[7 - i]);
+                std::swap(src[i + 8], src[15 - i]);
+              }
+              set_neon_register(Vd, src);
+              break;
+            }
+            default:
+              UNREACHABLE();
+              break;
+          }
+          break;
+        }
+        default:
+          UNREACHABLE();
+          break;
       }
-      switch (instr->Bits(11, 8)) {
-        case 0x0: {
-          if (instr->Bit(4) == 1) {
-            // vqadd.s<size> Qd, Qm, Qn.
-            NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
-            switch (size) {
-              case Neon8:
-                AddSaturate<int8_t>(this, Vd, Vm, Vn);
-                break;
-              case Neon16:
-                AddSaturate<int16_t>(this, Vd, Vm, Vn);
-                break;
-              case Neon32:
-                AddSaturate<int32_t>(this, Vd, Vm, Vn);
-                break;
-              default:
-                UNREACHABLE();
-                break;
-            }
-          } else {
-            UNIMPLEMENTED();
-          }
-          break;
+    } else if (size == 0 && opc1 == 0b10 && opc2 == 0) {
+      if (instr->Bit(6) == 0) {
+        // vswp Dd, Dm.
+        uint64_t dval, mval;
+        int vd = instr->VFPDRegValue(kDoublePrecision);
+        int vm = instr->VFPMRegValue(kDoublePrecision);
+        get_d_register(vd, &dval);
+        get_d_register(vm, &mval);
+        set_d_register(vm, &dval);
+        set_d_register(vd, &mval);
+      } else {
+        // vswp Qd, Qm.
+        uint32_t dval[4], mval[4];
+        int vd = instr->VFPDRegValue(kSimd128Precision);
+        int vm = instr->VFPMRegValue(kSimd128Precision);
+        get_neon_register(vd, dval);
+        get_neon_register(vm, mval);
+        set_neon_register(vm, dval);
+        set_neon_register(vd, mval);
+      }
+    } else if (opc1 == 0 && opc2 == 0b1011) {
+      // vmvn Qd, Qm.
+      int vd = instr->VFPDRegValue(kSimd128Precision);
+      int vm = instr->VFPMRegValue(kSimd128Precision);
+      uint32_t q_data[4];
+      get_neon_register(vm, q_data);
+      for (int i = 0; i < 4; i++) q_data[i] = ~q_data[i];
+      set_neon_register(vd, q_data);
+    } else if (opc1 == 0b01 && (opc2 & 0b0111) == 0b110) {
+      // vabs<type>.<size> Qd, Qm
+      int Vd = instr->VFPDRegValue(kSimd128Precision);
+      int Vm = instr->VFPMRegValue(kSimd128Precision);
+      if (instr->Bit(10) != 0) {
+        // floating point (clear sign bits)
+        uint32_t src[4];
+        get_neon_register(Vm, src);
+        for (int i = 0; i < 4; i++) {
+          src[i] &= ~0x80000000;
         }
-        case 0x1: {
-          if (instr->Bits(21, 20) == 2 && instr->Bit(6) == 1 &&
-              instr->Bit(4) == 1) {
-            // vmov Qd, Qm.
-            // vorr, Qd, Qm, Qn.
-            uint32_t src1[4];
-            get_neon_register(Vm, src1);
-            if (Vm != Vn) {
-              uint32_t src2[4];
-              get_neon_register(Vn, src2);
-              for (int i = 0; i < 4; i++) {
-                src1[i] = src1[i] | src2[i];
-              }
-            }
-            set_neon_register(Vd, src1);
-          } else if (instr->Bits(21, 20) == 0 && instr->Bit(6) == 1 &&
-                     instr->Bit(4) == 1) {
-            // vand Qd, Qm, Qn.
-            uint32_t src1[4], src2[4];
-            get_neon_register(Vn, src1);
-            get_neon_register(Vm, src2);
-            for (int i = 0; i < 4; i++) {
-              src1[i] = src1[i] & src2[i];
-            }
-            set_neon_register(Vd, src1);
-          } else if (instr->Bits(21, 20) == 1 && instr->Bit(6) == 1 &&
-                     instr->Bit(4) == 1) {
-            // vbic Qd, Qm, Qn.
-            uint32_t src1[4], src2[4];
-            get_neon_register(Vn, src1);
-            get_neon_register(Vm, src2);
-            for (int i = 0; i < 4; i++) {
-              src1[i] = src1[i] & ~src2[i];
-            }
-            set_neon_register(Vd, src1);
-          } else {
+        set_neon_register(Vd, src);
+      } else {
+        // signed integer
+        switch (size) {
+          case Neon8:
+            Abs<int8_t, kSimd128Size>(this, Vd, Vm);
+            break;
+          case Neon16:
+            Abs<int16_t, kSimd128Size>(this, Vd, Vm);
+            break;
+          case Neon32:
+            Abs<int32_t, kSimd128Size>(this, Vd, Vm);
+            break;
+          default:
             UNIMPLEMENTED();
-          }
-          break;
+            break;
         }
-        case 0x2: {
-          if (instr->Bit(4) == 1) {
-            // vqsub.s<size> Qd, Qm, Qn.
-            NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
-            switch (size) {
-              case Neon8:
-                SubSaturate<int8_t>(this, Vd, Vm, Vn);
-                break;
-              case Neon16:
-                SubSaturate<int16_t>(this, Vd, Vm, Vn);
-                break;
-              case Neon32:
-                SubSaturate<int32_t>(this, Vd, Vm, Vn);
-                break;
-              case Neon64:
-                SubSaturate<int64_t>(this, Vd, Vm, Vn);
-                break;
-              default:
-                UNREACHABLE();
-                break;
-            }
-          } else {
+      }
+    } else if (opc1 == 0b01 && (opc2 & 0b0111) == 0b111) {
+      int Vd = instr->VFPDRegValue(kSimd128Precision);
+      int Vm = instr->VFPMRegValue(kSimd128Precision);
+      // vneg<type>.<size> Qd, Qm (signed integer)
+      if (instr->Bit(10) != 0) {
+        // floating point (toggle sign bits)
+        uint32_t src[4];
+        get_neon_register(Vm, src);
+        for (int i = 0; i < 4; i++) {
+          src[i] ^= 0x80000000;
+        }
+        set_neon_register(Vd, src);
+      } else {
+        // signed integer
+        switch (size) {
+          case Neon8:
+            Neg<int8_t, kSimd128Size>(this, Vd, Vm);
+            break;
+          case Neon16:
+            Neg<int16_t, kSimd128Size>(this, Vd, Vm);
+            break;
+          case Neon32:
+            Neg<int32_t, kSimd128Size>(this, Vd, Vm);
+            break;
+          default:
             UNIMPLEMENTED();
-          }
-          break;
+            break;
         }
-        case 0x3: {
-          // vcge/vcgt.s<size> Qd, Qm, Qn.
-          bool ge = instr->Bit(4) == 1;
-          NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+      }
+    } else if (opc1 == 0b10 && opc2 == 0b0001) {
+      if (q) {
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        // vtrn.<size> Qd, Qm.
+        switch (size) {
+          case Neon8:
+            Transpose<uint8_t, kSimd128Size>(this, Vd, Vm);
+            break;
+          case Neon16:
+            Transpose<uint16_t, kSimd128Size>(this, Vd, Vm);
+            break;
+          case Neon32:
+            Transpose<uint32_t, kSimd128Size>(this, Vd, Vm);
+            break;
+          default:
+            UNREACHABLE();
+            break;
+        }
+      } else {
+        int Vd = instr->VFPDRegValue(kDoublePrecision);
+        int Vm = instr->VFPMRegValue(kDoublePrecision);
+        // vtrn.<size> Dd, Dm.
+        switch (size) {
+          case Neon8:
+            Transpose<uint8_t, kDoubleSize>(this, Vd, Vm);
+            break;
+          case Neon16:
+            Transpose<uint16_t, kDoubleSize>(this, Vd, Vm);
+            break;
+          case Neon32:
+            Transpose<uint32_t, kDoubleSize>(this, Vd, Vm);
+            break;
+          default:
+            UNREACHABLE();
+            break;
+        }
+      }
+    } else if (opc1 == 0b10 && (opc2 & 0b1110) == 0b0010) {
+      NeonSize size = static_cast<NeonSize>(instr->Bits(19, 18));
+      if (q) {
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        if (instr->Bit(7) == 1) {
+          // vzip.<size> Qd, Qm.
           switch (size) {
             case Neon8:
-              CompareGreater<int8_t, kSimd128Size>(this, Vd, Vm, Vn, ge);
+              Zip<uint8_t, kSimd128Size>(this, Vd, Vm);
               break;
             case Neon16:
-              CompareGreater<int16_t, kSimd128Size>(this, Vd, Vm, Vn, ge);
+              Zip<uint16_t, kSimd128Size>(this, Vd, Vm);
               break;
             case Neon32:
-              CompareGreater<int32_t, kSimd128Size>(this, Vd, Vm, Vn, ge);
+              Zip<uint32_t, kSimd128Size>(this, Vd, Vm);
               break;
             default:
               UNREACHABLE();
               break;
           }
-          break;
-        }
-        case 0x4: {
-          // vshl s<size> Qd, Qm, Qn.
-          NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+        } else {
+          // vuzp.<size> Qd, Qm.
           switch (size) {
             case Neon8:
-              ShiftByRegister<int8_t, int8_t, kSimd128Size>(this, Vd, Vm, Vn);
+              Unzip<uint8_t, kSimd128Size>(this, Vd, Vm);
               break;
             case Neon16:
-              ShiftByRegister<int16_t, int16_t, kSimd128Size>(this, Vd, Vm, Vn);
+              Unzip<uint16_t, kSimd128Size>(this, Vd, Vm);
               break;
             case Neon32:
-              ShiftByRegister<int32_t, int32_t, kSimd128Size>(this, Vd, Vm, Vn);
-              break;
-            case Neon64:
-              ShiftByRegister<int64_t, int64_t, kSimd128Size>(this, Vd, Vm, Vn);
+              Unzip<uint32_t, kSimd128Size>(this, Vd, Vm);
               break;
             default:
               UNREACHABLE();
               break;
           }
-          break;
         }
-        case 0x6: {
-          // vmin/vmax.s<size> Qd, Qm, Qn.
-          NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
-          bool min = instr->Bit(4) != 0;
+      } else {
+        int Vd = instr->VFPDRegValue(kDoublePrecision);
+        int Vm = instr->VFPMRegValue(kDoublePrecision);
+        if (instr->Bit(7) == 1) {
+          // vzip.<size> Dd, Dm.
           switch (size) {
             case Neon8:
-              MinMax<int8_t, kSimd128Size>(this, Vd, Vm, Vn, min);
+              Zip<uint8_t, kDoubleSize>(this, Vd, Vm);
               break;
             case Neon16:
-              MinMax<int16_t, kSimd128Size>(this, Vd, Vm, Vn, min);
+              Zip<uint16_t, kDoubleSize>(this, Vd, Vm);
               break;
             case Neon32:
-              MinMax<int32_t, kSimd128Size>(this, Vd, Vm, Vn, min);
+              UNIMPLEMENTED();
               break;
             default:
               UNREACHABLE();
               break;
           }
-          break;
-        }
-        case 0x8: {
-          // vadd/vtst
-          NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
-          if (instr->Bit(4) == 0) {
-            // vadd.i<size> Qd, Qm, Qn.
-            switch (size) {
-              case Neon8:
-                Add<uint8_t, kSimd128Size>(this, Vd, Vm, Vn);
-                break;
-              case Neon16:
-                Add<uint16_t, kSimd128Size>(this, Vd, Vm, Vn);
-                break;
-              case Neon32:
-                Add<uint32_t, kSimd128Size>(this, Vd, Vm, Vn);
-                break;
-              case Neon64:
-                Add<uint64_t, kSimd128Size>(this, Vd, Vm, Vn);
-                break;
-            }
-          } else {
-            // vtst.i<size> Qd, Qm, Qn.
-            switch (size) {
-              case Neon8:
-                Test<uint8_t, kSimd128Size>(this, Vd, Vm, Vn);
-                break;
-              case Neon16:
-                Test<uint16_t, kSimd128Size>(this, Vd, Vm, Vn);
-                break;
-              case Neon32:
-                Test<uint32_t, kSimd128Size>(this, Vd, Vm, Vn);
-                break;
-              default:
-                UNREACHABLE();
-                break;
-            }
-          }
-          break;
-        }
-        case 0x9: {
-          if (instr->Bit(6) == 1 && instr->Bit(4) == 1) {
-            // vmul.i<size> Qd, Qm, Qn.
-            NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
-            switch (size) {
-              case Neon8:
-                Mul<uint8_t, kSimd128Size>(this, Vd, Vm, Vn);
-                break;
-              case Neon16:
-                Mul<uint16_t, kSimd128Size>(this, Vd, Vm, Vn);
-                break;
-              case Neon32:
-                Mul<uint32_t, kSimd128Size>(this, Vd, Vm, Vn);
-                break;
-              default:
-                UNREACHABLE();
-                break;
-            }
-          } else {
-            UNIMPLEMENTED();
-          }
-          break;
-        }
-        case 0xA: {
-          // vpmin/vpmax.s<size> Dd, Dm, Dn.
-          NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
-          bool min = instr->Bit(4) != 0;
+        } else {
+          // vuzp.<size> Dd, Dm.
           switch (size) {
             case Neon8:
-              PairwiseMinMax<int8_t>(this, Vd, Vm, Vn, min);
+              Unzip<uint8_t, kDoubleSize>(this, Vd, Vm);
               break;
             case Neon16:
-              PairwiseMinMax<int16_t>(this, Vd, Vm, Vn, min);
+              Unzip<uint16_t, kDoubleSize>(this, Vd, Vm);
               break;
             case Neon32:
-              PairwiseMinMax<int32_t>(this, Vd, Vm, Vn, min);
+              UNIMPLEMENTED();
               break;
             default:
               UNREACHABLE();
               break;
           }
-          break;
         }
-        case 0xB: {
-          // vpadd.i<size> Dd, Dm, Dn.
-          NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
-          switch (size) {
-            case Neon8:
-              PairwiseAdd<int8_t>(this, Vd, Vm, Vn);
-              break;
-            case Neon16:
-              PairwiseAdd<int16_t>(this, Vd, Vm, Vn);
-              break;
-            case Neon32:
-              PairwiseAdd<int32_t>(this, Vd, Vm, Vn);
-              break;
-            default:
-              UNREACHABLE();
-              break;
+      }
+    } else if (opc1 == 0b10 && (opc2 & 0b1110) == 0b0100) {
+      // vqmovn.<type><size> Dd, Qm.
+      int Vd = instr->VFPDRegValue(kDoublePrecision);
+      int Vm = instr->VFPMRegValue(kSimd128Precision);
+      NeonSize size = static_cast<NeonSize>(instr->Bits(19, 18));
+      bool dst_unsigned = instr->Bit(6) != 0;
+      bool src_unsigned = instr->Bits(7, 6) == 0b11;
+      DCHECK_IMPLIES(src_unsigned, dst_unsigned);
+      switch (size) {
+        case Neon8: {
+          if (src_unsigned) {
+            SaturatingNarrow<uint16_t, uint8_t>(this, Vd, Vm);
+          } else if (dst_unsigned) {
+            SaturatingUnsignedNarrow<int16_t, uint8_t>(this, Vd, Vm);
+          } else {
+            SaturatingNarrow<int16_t, int8_t>(this, Vd, Vm);
           }
           break;
         }
-        case 0xD: {
-          if (instr->Bit(4) == 0) {
-            float src1[4], src2[4];
-            get_neon_register(Vn, src1);
-            get_neon_register(Vm, src2);
-            for (int i = 0; i < 4; i++) {
-              if (instr->Bit(21) == 0) {
-                // vadd.f32 Qd, Qm, Qn.
-                src1[i] = src1[i] + src2[i];
-              } else {
-                // vsub.f32 Qd, Qm, Qn.
-                src1[i] = src1[i] - src2[i];
-              }
-            }
-            set_neon_register(Vd, src1);
+        case Neon16: {
+          if (src_unsigned) {
+            SaturatingNarrow<uint32_t, uint16_t>(this, Vd, Vm);
+          } else if (dst_unsigned) {
+            SaturatingUnsignedNarrow<int32_t, uint16_t>(this, Vd, Vm);
           } else {
-            UNIMPLEMENTED();
+            SaturatingNarrow<int32_t, int16_t>(this, Vd, Vm);
           }
           break;
         }
-        case 0xE: {
-          if (instr->Bits(21, 20) == 0 && instr->Bit(4) == 0) {
-            // vceq.f32.
-            float src1[4], src2[4];
-            get_neon_register(Vn, src1);
-            get_neon_register(Vm, src2);
-            uint32_t dst[4];
-            for (int i = 0; i < 4; i++) {
-              dst[i] = (src1[i] == src2[i]) ? 0xFFFFFFFF : 0;
-            }
-            set_neon_register(Vd, dst);
+        case Neon32: {
+          if (src_unsigned) {
+            SaturatingNarrow<uint64_t, uint32_t>(this, Vd, Vm);
+          } else if (dst_unsigned) {
+            SaturatingUnsignedNarrow<int64_t, uint32_t>(this, Vd, Vm);
           } else {
-            UNIMPLEMENTED();
-          }
-          break;
-        }
-        case 0xF: {
-          if (instr->Bit(20) == 0 && instr->Bit(6) == 1) {
-            float src1[4], src2[4];
-            get_neon_register(Vn, src1);
-            get_neon_register(Vm, src2);
-            if (instr->Bit(4) == 1) {
-              if (instr->Bit(21) == 0) {
-                // vrecps.f32 Qd, Qm, Qn.
-                for (int i = 0; i < 4; i++) {
-                  src1[i] = 2.0f - src1[i] * src2[i];
-                }
-              } else {
-                // vrsqrts.f32 Qd, Qm, Qn.
-                for (int i = 0; i < 4; i++) {
-                  src1[i] = (3.0f - src1[i] * src2[i]) * 0.5f;
-                }
-              }
-            } else {
-              // vmin/vmax.f32 Qd, Qm, Qn.
-              bool min = instr->Bit(21) == 1;
-              bool saved = FPSCR_default_NaN_mode_;
-              FPSCR_default_NaN_mode_ = true;
-              for (int i = 0; i < 4; i++) {
-                // vmin returns default NaN if any input is NaN.
-                src1[i] = canonicalizeNaN(MinMax(src1[i], src2[i], min));
-              }
-              FPSCR_default_NaN_mode_ = saved;
-            }
-            set_neon_register(Vd, src1);
-          } else {
-            UNIMPLEMENTED();
+            SaturatingNarrow<int64_t, int32_t>(this, Vd, Vm);
           }
           break;
         }
@@ -4630,55 +4653,819 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           UNIMPLEMENTED();
           break;
       }
-      break;
-    }
-    case 5:
-      if (instr->Bit(23) == 1 && instr->Bits(21, 19) == 0 &&
-          instr->Bit(7) == 0 && instr->Bit(4) == 1) {
-        // One register and a modified immediate value, see ARM DDI 0406C.d
-        // A7.4.6. Handles vmov, vorr, vmvn, vbic.
-        // Only handle vmov.i32 for now.
-        VmovImmediate(this, instr);
-      } else if ((instr->Bits(18, 16) == 0) && (instr->Bits(11, 6) == 0x28) &&
-                 (instr->Bit(4) == 1)) {
-        // vmovl signed
-        if ((instr->VdValue() & 1) != 0) UNIMPLEMENTED();
-        int Vd = instr->VFPDRegValue(kSimd128Precision);
-        int Vm = instr->VFPMRegValue(kDoublePrecision);
-        int imm3 = instr->Bits(21, 19);
-        switch (imm3) {
+    } else if (opc1 == 0b10 && instr->Bit(10) == 1) {
+      // vrint<q>.<dt> <Dd>, <Dm>
+      // vrint<q>.<dt> <Qd>, <Qm>
+      // See F6.1.205
+      int regs = instr->Bit(6) + 1;
+      int rounding_mode = instr->Bits(9, 7);
+      float (*fproundint)(float) = nullptr;
+      switch (rounding_mode) {
+        case 0:
+          fproundint = &nearbyintf;
+          break;
+        case 3:
+          fproundint = &truncf;
+          break;
+        case 5:
+          fproundint = &floorf;
+          break;
+        case 7:
+          fproundint = &ceilf;
+          break;
+        default:
+          UNIMPLEMENTED();
+      }
+      int vm = instr->VFPMRegValue(kDoublePrecision);
+      int vd = instr->VFPDRegValue(kDoublePrecision);
+
+      float floats[2];
+      for (int r = 0; r < regs; r++) {
+        // We cannot simply use GetVFPSingleValue since our Q registers
+        // might not map to any S registers at all.
+        get_neon_register<float, kDoubleSize>(vm + r, floats);
+        for (int e = 0; e < 2; e++) {
+          floats[e] = canonicalizeNaN(fproundint(floats[e]));
+        }
+        set_neon_register<float, kDoubleSize>(vd + r, floats);
+      }
+    } else if (opc1 == 0b11 && (opc2 & 0b1100) == 0b1000) {
+      // vrecpe/vrsqrte.f32 Qd, Qm.
+      int Vd = instr->VFPDRegValue(kSimd128Precision);
+      int Vm = instr->VFPMRegValue(kSimd128Precision);
+      uint32_t src[4];
+      get_neon_register(Vm, src);
+      if (instr->Bit(7) == 0) {
+        for (int i = 0; i < 4; i++) {
+          float denom = bit_cast<float>(src[i]);
+          div_zero_vfp_flag_ = (denom == 0);
+          float result = 1.0f / denom;
+          result = canonicalizeNaN(result);
+          src[i] = bit_cast<uint32_t>(result);
+        }
+      } else {
+        for (int i = 0; i < 4; i++) {
+          float radicand = bit_cast<float>(src[i]);
+          float result = 1.0f / std::sqrt(radicand);
+          result = canonicalizeNaN(result);
+          src[i] = bit_cast<uint32_t>(result);
+        }
+      }
+      set_neon_register(Vd, src);
+    } else if (opc1 == 0b11 && (opc2 & 0b1100) == 0b1100) {
+      // vcvt.<Td>.<Tm> Qd, Qm.
+      int Vd = instr->VFPDRegValue(kSimd128Precision);
+      int Vm = instr->VFPMRegValue(kSimd128Precision);
+      uint32_t q_data[4];
+      get_neon_register(Vm, q_data);
+      int op = instr->Bits(8, 7);
+      for (int i = 0; i < 4; i++) {
+        switch (op) {
+          case 0:
+            // f32 <- s32, round towards nearest.
+            q_data[i] = bit_cast<uint32_t>(
+                std::round(static_cast<float>(bit_cast<int32_t>(q_data[i]))));
+            break;
           case 1:
-            Widen<int8_t, int16_t>(this, Vd, Vm);
+            // f32 <- u32, round towards nearest.
+            q_data[i] =
+                bit_cast<uint32_t>(std::round(static_cast<float>(q_data[i])));
             break;
           case 2:
-            Widen<int16_t, int32_t>(this, Vd, Vm);
+            // s32 <- f32, round to zero.
+            q_data[i] = static_cast<uint32_t>(
+                ConvertDoubleToInt(bit_cast<float>(q_data[i]), false, RZ));
             break;
-          case 4:
-            Widen<int32_t, int64_t>(this, Vd, Vm);
+          case 3:
+            // u32 <- f32, round to zero.
+            q_data[i] = static_cast<uint32_t>(
+                ConvertDoubleToInt(bit_cast<float>(q_data[i]), true, RZ));
             break;
+        }
+      }
+      set_neon_register(Vd, q_data);
+    }
+  } else if (op0 && op1 == 0b11 && op2 == 0b10) {
+    // vtb[l,x] Dd, <list>, Dm.
+    int vd = instr->VFPDRegValue(kDoublePrecision);
+    int vn = instr->VFPNRegValue(kDoublePrecision);
+    int vm = instr->VFPMRegValue(kDoublePrecision);
+    int table_len = (instr->Bits(9, 8) + 1) * kDoubleSize;
+    bool vtbx = instr->Bit(6) != 0;  // vtbl / vtbx
+    uint64_t destination = 0, indices = 0, result = 0;
+    get_d_register(vd, &destination);
+    get_d_register(vm, &indices);
+    for (int i = 0; i < kDoubleSize; i++) {
+      int shift = i * kBitsPerByte;
+      int index = (indices >> shift) & 0xFF;
+      if (index < table_len) {
+        uint64_t table;
+        get_d_register(vn + index / kDoubleSize, &table);
+        result |= ((table >> ((index % kDoubleSize) * kBitsPerByte)) & 0xFF)
+                  << shift;
+      } else if (vtbx) {
+        result |= destination & (0xFFull << shift);
+      }
+    }
+    set_d_register(vd, &result);
+  } else if (op0 && op1 == 0b11 && op2 == 0b11) {
+    // Advanced SIMD duplicate (scalar)
+    if (instr->Bits(9, 7) == 0) {
+      // vdup.<size> Dd, Dm[index].
+      // vdup.<size> Qd, Dm[index].
+      int vm = instr->VFPMRegValue(kDoublePrecision);
+      int imm4 = instr->Bits(19, 16);
+      int size = 0, index = 0, mask = 0;
+      if ((imm4 & 0x1) != 0) {
+        size = 8;
+        index = imm4 >> 1;
+        mask = 0xFFu;
+      } else if ((imm4 & 0x2) != 0) {
+        size = 16;
+        index = imm4 >> 2;
+        mask = 0xFFFFu;
+      } else {
+        size = 32;
+        index = imm4 >> 3;
+        mask = 0xFFFFFFFFu;
+      }
+      uint64_t d_data;
+      get_d_register(vm, &d_data);
+      uint32_t scalar = (d_data >> (size * index)) & mask;
+      uint32_t duped = scalar;
+      for (int i = 1; i < 32 / size; i++) {
+        scalar <<= size;
+        duped |= scalar;
+      }
+      uint32_t result[4] = {duped, duped, duped, duped};
+      if (instr->Bit(6) == 0) {
+        int vd = instr->VFPDRegValue(kDoublePrecision);
+        set_d_register(vd, result);
+      } else {
+        int vd = instr->VFPDRegValue(kSimd128Precision);
+        set_neon_register(vd, result);
+      }
+    } else {
+      UNIMPLEMENTED();
+    }
+  } else if (op1 != 0b11 && !op3) {
+    // Advanced SIMD three registers of different lengths.
+    int u = instr->Bit(24);
+    int opc = instr->Bits(11, 8);
+    if (opc == 0b1000) {
+      // vmlal.u<size> Qd, Dn, Dm
+      NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+      if (size != Neon32) UNIMPLEMENTED();
+
+      int Vd = instr->VFPDRegValue(kSimd128Precision);
+      int Vn = instr->VFPNRegValue(kDoublePrecision);
+      int Vm = instr->VFPMRegValue(kDoublePrecision);
+      uint64_t src1, src2, dst[2];
+
+      get_neon_register<uint64_t>(Vd, dst);
+      get_d_register(Vn, &src1);
+      get_d_register(Vm, &src2);
+      dst[0] += (src1 & 0xFFFFFFFFULL) * (src2 & 0xFFFFFFFFULL);
+      dst[1] += (src1 >> 32) * (src2 >> 32);
+      set_neon_register<uint64_t>(Vd, dst);
+    } else if (opc == 0b1100) {
+      if (u) {
+        // vmull.u<size> Qd, Dn, Dm
+        NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kDoublePrecision);
+        int Vm = instr->VFPMRegValue(kDoublePrecision);
+        switch (size) {
+          case Neon32: {
+            MultiplyLong<uint32_t, uint64_t>(this, Vd, Vn, Vm);
+            break;
+          }
           default:
             UNIMPLEMENTED();
-            break;
         }
-      } else if (instr->Bits(21, 20) == 3 && instr->Bit(4) == 0) {
-        // vext.
-        int imm4 = instr->Bits(11, 8);
+      } else {
+        // vmull.s<size> Qd, Dn, Dm
+        NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kDoublePrecision);
+        int Vm = instr->VFPMRegValue(kDoublePrecision);
+        switch (size) {
+          case Neon16: {
+            MultiplyLong<int16_t, int32_t>(this, Vd, Vn, Vm);
+            break;
+          }
+          default:
+            UNIMPLEMENTED();
+        }
+      }
+    }
+  } else if (op1 != 0b11 && op3) {
+    // The instructions specified by this encoding are not used in V8.
+    UNIMPLEMENTED();
+  } else {
+    UNIMPLEMENTED();
+  }
+}
+
+void Simulator::DecodeAdvancedSIMDDataProcessing(Instruction* instr) {
+  int op0 = instr->Bit(23);
+  int op1 = instr->Bit(4);
+
+  if (op0 == 0) {
+    // Advanced SIMD three registers of same length.
+    int u = instr->Bit(24);
+    int opc = instr->Bits(11, 8);
+    int q = instr->Bit(6);
+    int sz = instr->Bits(21, 20);
+    int Vd, Vm, Vn;
+    if (q) {
+      Vd = instr->VFPDRegValue(kSimd128Precision);
+      Vm = instr->VFPMRegValue(kSimd128Precision);
+      Vn = instr->VFPNRegValue(kSimd128Precision);
+    } else {
+      Vd = instr->VFPDRegValue(kDoublePrecision);
+      Vm = instr->VFPMRegValue(kDoublePrecision);
+      Vn = instr->VFPNRegValue(kDoublePrecision);
+    }
+
+    if (!u && opc == 0 && op1) {
+      // vqadd.s<size> Qd, Qm, Qn.
+      NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+      switch (size) {
+        case Neon8:
+          AddSat<int8_t>(this, Vd, Vm, Vn);
+          break;
+        case Neon16:
+          AddSat<int16_t>(this, Vd, Vm, Vn);
+          break;
+        case Neon32:
+          AddSat<int32_t>(this, Vd, Vm, Vn);
+          break;
+        default:
+          UNREACHABLE();
+          break;
+      }
+    } else if (!u && opc == 1 && sz == 2 && q && op1) {
+      // vmov Qd, Qm.
+      // vorr, Qd, Qm, Qn.
+      uint32_t src1[4];
+      get_neon_register(Vm, src1);
+      if (Vm != Vn) {
+        uint32_t src2[4];
+        get_neon_register(Vn, src2);
+        for (int i = 0; i < 4; i++) {
+          src1[i] = src1[i] | src2[i];
+        }
+      }
+      set_neon_register(Vd, src1);
+    } else if (!u && opc == 1 && sz == 0 && q && op1) {
+      // vand Qd, Qm, Qn.
+      uint32_t src1[4], src2[4];
+      get_neon_register(Vn, src1);
+      get_neon_register(Vm, src2);
+      for (int i = 0; i < 4; i++) {
+        src1[i] = src1[i] & src2[i];
+      }
+      set_neon_register(Vd, src1);
+    } else if (!u && opc == 1 && sz == 1 && q && op1) {
+      // vbic Qd, Qm, Qn.
+      uint32_t src1[4], src2[4];
+      get_neon_register(Vn, src1);
+      get_neon_register(Vm, src2);
+      for (int i = 0; i < 4; i++) {
+        src1[i] = src1[i] & ~src2[i];
+      }
+      set_neon_register(Vd, src1);
+    } else if (!u && opc == 2 && op1) {
+      // vqsub.s<size> Qd, Qm, Qn.
+      NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+      switch (size) {
+        case Neon8:
+          SubSat<int8_t>(this, Vd, Vm, Vn);
+          break;
+        case Neon16:
+          SubSat<int16_t>(this, Vd, Vm, Vn);
+          break;
+        case Neon32:
+          SubSat<int32_t>(this, Vd, Vm, Vn);
+          break;
+        case Neon64:
+          SubSat<int64_t>(this, Vd, Vm, Vn);
+          break;
+        default:
+          UNREACHABLE();
+          break;
+      }
+    } else if (!u && opc == 3) {
+      // vcge/vcgt.s<size> Qd, Qm, Qn.
+      bool ge = instr->Bit(4) == 1;
+      NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+      switch (size) {
+        case Neon8:
+          CompareGreater<int8_t, kSimd128Size>(this, Vd, Vm, Vn, ge);
+          break;
+        case Neon16:
+          CompareGreater<int16_t, kSimd128Size>(this, Vd, Vm, Vn, ge);
+          break;
+        case Neon32:
+          CompareGreater<int32_t, kSimd128Size>(this, Vd, Vm, Vn, ge);
+          break;
+        default:
+          UNREACHABLE();
+          break;
+      }
+    } else if (!u && opc == 4 && !op1) {
+      // vshl s<size> Qd, Qm, Qn.
+      NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+      switch (size) {
+        case Neon8:
+          ShiftByRegister<int8_t, int8_t, kSimd128Size>(this, Vd, Vm, Vn);
+          break;
+        case Neon16:
+          ShiftByRegister<int16_t, int16_t, kSimd128Size>(this, Vd, Vm, Vn);
+          break;
+        case Neon32:
+          ShiftByRegister<int32_t, int32_t, kSimd128Size>(this, Vd, Vm, Vn);
+          break;
+        case Neon64:
+          ShiftByRegister<int64_t, int64_t, kSimd128Size>(this, Vd, Vm, Vn);
+          break;
+        default:
+          UNREACHABLE();
+          break;
+      }
+    } else if (!u && opc == 6) {
+      // vmin/vmax.s<size> Qd, Qm, Qn.
+      NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+      bool min = instr->Bit(4) != 0;
+      switch (size) {
+        case Neon8:
+          MinMax<int8_t, kSimd128Size>(this, Vd, Vm, Vn, min);
+          break;
+        case Neon16:
+          MinMax<int16_t, kSimd128Size>(this, Vd, Vm, Vn, min);
+          break;
+        case Neon32:
+          MinMax<int32_t, kSimd128Size>(this, Vd, Vm, Vn, min);
+          break;
+        default:
+          UNREACHABLE();
+          break;
+      }
+    } else if (!u && opc == 8 && op1) {
+      // vtst.i<size> Qd, Qm, Qn.
+      NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+      switch (size) {
+        case Neon8:
+          Test<uint8_t, kSimd128Size>(this, Vd, Vm, Vn);
+          break;
+        case Neon16:
+          Test<uint16_t, kSimd128Size>(this, Vd, Vm, Vn);
+          break;
+        case Neon32:
+          Test<uint32_t, kSimd128Size>(this, Vd, Vm, Vn);
+          break;
+        default:
+          UNREACHABLE();
+          break;
+      }
+    } else if (!u && opc == 8 && !op1) {
+      // vadd.i<size> Qd, Qm, Qn.
+      NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+      switch (size) {
+        case Neon8:
+          Add<uint8_t, kSimd128Size>(this, Vd, Vm, Vn);
+          break;
+        case Neon16:
+          Add<uint16_t, kSimd128Size>(this, Vd, Vm, Vn);
+          break;
+        case Neon32:
+          Add<uint32_t, kSimd128Size>(this, Vd, Vm, Vn);
+          break;
+        case Neon64:
+          Add<uint64_t, kSimd128Size>(this, Vd, Vm, Vn);
+          break;
+      }
+    } else if (opc == 9 && op1) {
+      // vmul.i<size> Qd, Qm, Qn.
+      NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+      switch (size) {
+        case Neon8:
+          Mul<uint8_t, kSimd128Size>(this, Vd, Vm, Vn);
+          break;
+        case Neon16:
+          Mul<uint16_t, kSimd128Size>(this, Vd, Vm, Vn);
+          break;
+        case Neon32:
+          Mul<uint32_t, kSimd128Size>(this, Vd, Vm, Vn);
+          break;
+        default:
+          UNREACHABLE();
+          break;
+      }
+    } else if (!u && opc == 0xA) {
+      // vpmin/vpmax.s<size> Dd, Dm, Dn.
+      NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+      bool min = instr->Bit(4) != 0;
+      switch (size) {
+        case Neon8:
+          PairwiseMinMax<int8_t>(this, Vd, Vm, Vn, min);
+          break;
+        case Neon16:
+          PairwiseMinMax<int16_t>(this, Vd, Vm, Vn, min);
+          break;
+        case Neon32:
+          PairwiseMinMax<int32_t>(this, Vd, Vm, Vn, min);
+          break;
+        default:
+          UNREACHABLE();
+          break;
+      }
+    } else if (!u && opc == 0xB) {
+      // vpadd.i<size> Dd, Dm, Dn.
+      NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+      switch (size) {
+        case Neon8:
+          PairwiseAdd<int8_t>(this, Vd, Vm, Vn);
+          break;
+        case Neon16:
+          PairwiseAdd<int16_t>(this, Vd, Vm, Vn);
+          break;
+        case Neon32:
+          PairwiseAdd<int32_t>(this, Vd, Vm, Vn);
+          break;
+        default:
+          UNREACHABLE();
+          break;
+      }
+    } else if (!u && opc == 0xD && !op1) {
+      float src1[4], src2[4];
+      get_neon_register(Vn, src1);
+      get_neon_register(Vm, src2);
+      for (int i = 0; i < 4; i++) {
+        if (instr->Bit(21) == 0) {
+          // vadd.f32 Qd, Qm, Qn.
+          src1[i] = src1[i] + src2[i];
+        } else {
+          // vsub.f32 Qd, Qm, Qn.
+          src1[i] = src1[i] - src2[i];
+        }
+      }
+      set_neon_register(Vd, src1);
+    } else if (!u && opc == 0xE && !sz && !op1) {
+      // vceq.f32.
+      float src1[4], src2[4];
+      get_neon_register(Vn, src1);
+      get_neon_register(Vm, src2);
+      uint32_t dst[4];
+      for (int i = 0; i < 4; i++) {
+        dst[i] = (src1[i] == src2[i]) ? 0xFFFFFFFF : 0;
+      }
+      set_neon_register(Vd, dst);
+    } else if (!u && opc == 0xF && op1) {
+      float src1[4], src2[4];
+      get_neon_register(Vn, src1);
+      get_neon_register(Vm, src2);
+      if (instr->Bit(21) == 0) {
+        // vrecps.f32 Qd, Qm, Qn.
+        for (int i = 0; i < 4; i++) {
+          src1[i] = 2.0f - src1[i] * src2[i];
+        }
+      } else {
+        // vrsqrts.f32 Qd, Qm, Qn.
+        for (int i = 0; i < 4; i++) {
+          src1[i] = (3.0f - src1[i] * src2[i]) * 0.5f;
+        }
+      }
+      set_neon_register(Vd, src1);
+    } else if (!u && opc == 0xF && !op1) {
+      float src1[4], src2[4];
+      get_neon_register(Vn, src1);
+      get_neon_register(Vm, src2);
+      // vmin/vmax.f32 Qd, Qm, Qn.
+      bool min = instr->Bit(21) == 1;
+      bool saved = FPSCR_default_NaN_mode_;
+      FPSCR_default_NaN_mode_ = true;
+      for (int i = 0; i < 4; i++) {
+        // vmin returns default NaN if any input is NaN.
+        src1[i] = canonicalizeNaN(MinMax(src1[i], src2[i], min));
+      }
+      FPSCR_default_NaN_mode_ = saved;
+      set_neon_register(Vd, src1);
+    } else if (u && opc == 0 && op1) {
+      // vqadd.u<size> Qd, Qm, Qn.
+      NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+      switch (size) {
+        case Neon8:
+          AddSat<uint8_t>(this, Vd, Vm, Vn);
+          break;
+        case Neon16:
+          AddSat<uint16_t>(this, Vd, Vm, Vn);
+          break;
+        case Neon32:
+          AddSat<uint32_t>(this, Vd, Vm, Vn);
+          break;
+        default:
+          UNREACHABLE();
+          break;
+      }
+    } else if (u && opc == 1 && sz == 1 && op1) {
+      // vbsl.size Qd, Qm, Qn.
+      uint32_t dst[4], src1[4], src2[4];
+      get_neon_register(Vd, dst);
+      get_neon_register(Vn, src1);
+      get_neon_register(Vm, src2);
+      for (int i = 0; i < 4; i++) {
+        dst[i] = (dst[i] & src1[i]) | (~dst[i] & src2[i]);
+      }
+      set_neon_register(Vd, dst);
+    } else if (u && opc == 1 && sz == 0 && !q && op1) {
+      // veor Dd, Dn, Dm
+      uint64_t src1, src2;
+      get_d_register(Vn, &src1);
+      get_d_register(Vm, &src2);
+      src1 ^= src2;
+      set_d_register(Vd, &src1);
+    } else if (u && opc == 1 && sz == 0 && q && op1) {
+      // veor Qd, Qn, Qm
+      uint32_t src1[4], src2[4];
+      get_neon_register(Vn, src1);
+      get_neon_register(Vm, src2);
+      for (int i = 0; i < 4; i++) src1[i] ^= src2[i];
+      set_neon_register(Vd, src1);
+    } else if (u && opc == 1 && !op1) {
+      // vrhadd.u<size> Qd, Qm, Qn.
+      NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+      switch (size) {
+        case Neon8:
+          RoundingAverageUnsigned<uint8_t>(this, Vd, Vm, Vn);
+          break;
+        case Neon16:
+          RoundingAverageUnsigned<uint16_t>(this, Vd, Vm, Vn);
+          break;
+        case Neon32:
+          RoundingAverageUnsigned<uint32_t>(this, Vd, Vm, Vn);
+          break;
+        default:
+          UNREACHABLE();
+          break;
+      }
+    } else if (u && opc == 2 && op1) {
+      // vqsub.u<size> Qd, Qm, Qn.
+      NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+      switch (size) {
+        case Neon8:
+          SubSat<uint8_t>(this, Vd, Vm, Vn);
+          break;
+        case Neon16:
+          SubSat<uint16_t>(this, Vd, Vm, Vn);
+          break;
+        case Neon32:
+          SubSat<uint32_t>(this, Vd, Vm, Vn);
+          break;
+        default:
+          UNREACHABLE();
+          break;
+      }
+    } else if (u && opc == 3) {
+      // vcge/vcgt.u<size> Qd, Qm, Qn.
+      bool ge = instr->Bit(4) == 1;
+      NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+      switch (size) {
+        case Neon8:
+          CompareGreater<uint8_t, kSimd128Size>(this, Vd, Vm, Vn, ge);
+          break;
+        case Neon16:
+          CompareGreater<uint16_t, kSimd128Size>(this, Vd, Vm, Vn, ge);
+          break;
+        case Neon32:
+          CompareGreater<uint32_t, kSimd128Size>(this, Vd, Vm, Vn, ge);
+          break;
+        default:
+          UNREACHABLE();
+          break;
+      }
+    } else if (u && opc == 4 && !op1) {
+      // vshl u<size> Qd, Qm, Qn.
+      NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+      switch (size) {
+        case Neon8:
+          ShiftByRegister<uint8_t, int8_t, kSimd128Size>(this, Vd, Vm, Vn);
+          break;
+        case Neon16:
+          ShiftByRegister<uint16_t, int16_t, kSimd128Size>(this, Vd, Vm, Vn);
+          break;
+        case Neon32:
+          ShiftByRegister<uint32_t, int32_t, kSimd128Size>(this, Vd, Vm, Vn);
+          break;
+        case Neon64:
+          ShiftByRegister<uint64_t, int64_t, kSimd128Size>(this, Vd, Vm, Vn);
+          break;
+        default:
+          UNREACHABLE();
+          break;
+      }
+    } else if (u && opc == 6) {
+      // vmin/vmax.u<size> Qd, Qm, Qn.
+      NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+      bool min = instr->Bit(4) != 0;
+      switch (size) {
+        case Neon8:
+          MinMax<uint8_t, kSimd128Size>(this, Vd, Vm, Vn, min);
+          break;
+        case Neon16:
+          MinMax<uint16_t, kSimd128Size>(this, Vd, Vm, Vn, min);
+          break;
+        case Neon32:
+          MinMax<uint32_t, kSimd128Size>(this, Vd, Vm, Vn, min);
+          break;
+        default:
+          UNREACHABLE();
+          break;
+      }
+    } else if (u && opc == 8 && !op1) {
+      // vsub.size Qd, Qm, Qn.
+      NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+      switch (size) {
+        case Neon8:
+          Sub<uint8_t, kSimd128Size>(this, Vd, Vm, Vn);
+          break;
+        case Neon16:
+          Sub<uint16_t, kSimd128Size>(this, Vd, Vm, Vn);
+          break;
+        case Neon32:
+          Sub<uint32_t, kSimd128Size>(this, Vd, Vm, Vn);
+          break;
+        case Neon64:
+          Sub<uint64_t, kSimd128Size>(this, Vd, Vm, Vn);
+          break;
+      }
+    } else if (u && opc == 8 && op1) {
+      // vceq.size Qd, Qm, Qn.
+      NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+      switch (size) {
+        case Neon8:
+          CompareEqual<uint8_t, kSimd128Size>(this, Vd, Vm, Vn);
+          break;
+        case Neon16:
+          CompareEqual<uint16_t, kSimd128Size>(this, Vd, Vm, Vn);
+          break;
+        case Neon32:
+          CompareEqual<uint32_t, kSimd128Size>(this, Vd, Vm, Vn);
+          break;
+        default:
+          UNREACHABLE();
+          break;
+      }
+    } else if (u && opc == 0xA) {
+      // vpmin/vpmax.u<size> Dd, Dm, Dn.
+      NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+      bool min = instr->Bit(4) != 0;
+      switch (size) {
+        case Neon8:
+          PairwiseMinMax<uint8_t>(this, Vd, Vm, Vn, min);
+          break;
+        case Neon16:
+          PairwiseMinMax<uint16_t>(this, Vd, Vm, Vn, min);
+          break;
+        case Neon32:
+          PairwiseMinMax<uint32_t>(this, Vd, Vm, Vn, min);
+          break;
+        default:
+          UNREACHABLE();
+          break;
+      }
+    } else if (u && opc == 0xD && sz == 0 && q && op1) {
+      // vmul.f32 Qd, Qn, Qm
+      float src1[4], src2[4];
+      get_neon_register(Vn, src1);
+      get_neon_register(Vm, src2);
+      for (int i = 0; i < 4; i++) {
+        src1[i] = src1[i] * src2[i];
+      }
+      set_neon_register(Vd, src1);
+    } else if (u && opc == 0xD && sz == 0 && !q && !op1) {
+      // vpadd.f32 Dd, Dn, Dm
+      PairwiseAdd<float>(this, Vd, Vm, Vn);
+    } else if (u && opc == 0xE && !op1) {
+      // vcge/vcgt.f32 Qd, Qm, Qn
+      bool ge = instr->Bit(21) == 0;
+      float src1[4], src2[4];
+      get_neon_register(Vn, src1);
+      get_neon_register(Vm, src2);
+      uint32_t dst[4];
+      for (int i = 0; i < 4; i++) {
+        if (ge) {
+          dst[i] = src1[i] >= src2[i] ? 0xFFFFFFFFu : 0;
+        } else {
+          dst[i] = src1[i] > src2[i] ? 0xFFFFFFFFu : 0;
+        }
+      }
+      set_neon_register(Vd, dst);
+    } else {
+      UNIMPLEMENTED();
+    }
+    return;
+  } else if (op0 == 1 && op1 == 0) {
+    DecodeAdvancedSIMDTwoOrThreeRegisters(instr);
+  } else if (op0 == 1 && op1 == 1) {
+    // Advanced SIMD shifts and immediate generation.
+    if (instr->Bits(21, 19) == 0 && instr->Bit(7) == 0) {
+      VmovImmediate(this, instr);
+    } else {
+      // Advanced SIMD two registers and shift amount.
+      int u = instr->Bit(24);
+      int imm3H = instr->Bits(21, 19);
+      int imm3L = instr->Bits(18, 16);
+      int opc = instr->Bits(11, 8);
+      int l = instr->Bit(7);
+      int q = instr->Bit(6);
+      int imm3H_L = imm3H << 1 | l;
+
+      if (imm3H_L != 0 && opc == 0) {
+        // vshr.s<size> Qd, Qm, shift
+        int imm7 = instr->Bits(21, 16);
+        if (instr->Bit(7) != 0) imm7 += 64;
+        int size = base::bits::RoundDownToPowerOfTwo32(imm7);
+        int shift = 2 * size - imm7;
         int Vd = instr->VFPDRegValue(kSimd128Precision);
         int Vm = instr->VFPMRegValue(kSimd128Precision);
-        int Vn = instr->VFPNRegValue(kSimd128Precision);
-        uint8_t src1[16], src2[16], dst[16];
-        get_neon_register(Vn, src1);
-        get_neon_register(Vm, src2);
-        int boundary = kSimd128Size - imm4;
-        int i = 0;
-        for (; i < boundary; i++) {
-          dst[i] = src1[i + imm4];
+        NeonSize ns =
+            static_cast<NeonSize>(base::bits::WhichPowerOfTwo(size >> 3));
+        if (u) {
+          switch (ns) {
+            case Neon8:
+              ShiftRight<uint8_t, kSimd128Size>(this, Vd, Vm, shift);
+              break;
+            case Neon16:
+              ShiftRight<uint16_t, kSimd128Size>(this, Vd, Vm, shift);
+              break;
+            case Neon32:
+              ShiftRight<uint32_t, kSimd128Size>(this, Vd, Vm, shift);
+              break;
+            case Neon64:
+              ShiftRight<uint64_t, kSimd128Size>(this, Vd, Vm, shift);
+              break;
+          }
+        } else {
+          switch (ns) {
+            case Neon8:
+              ArithmeticShiftRight<int8_t, kSimd128Size>(this, Vd, Vm, shift);
+              break;
+            case Neon16:
+              ArithmeticShiftRight<int16_t, kSimd128Size>(this, Vd, Vm, shift);
+              break;
+            case Neon32:
+              ArithmeticShiftRight<int32_t, kSimd128Size>(this, Vd, Vm, shift);
+              break;
+            case Neon64:
+              ArithmeticShiftRight<int64_t, kSimd128Size>(this, Vd, Vm, shift);
+              break;
+          }
         }
-        for (; i < 16; i++) {
-          dst[i] = src2[i - boundary];
+      } else if (imm3H_L != 0 && imm3L == 0 && opc == 0b1010 && !q) {
+        if (u) {
+          // vmovl unsigned
+          if ((instr->VdValue() & 1) != 0) UNIMPLEMENTED();
+          int Vd = instr->VFPDRegValue(kSimd128Precision);
+          int Vm = instr->VFPMRegValue(kDoublePrecision);
+          int imm3 = instr->Bits(21, 19);
+          switch (imm3) {
+            case 1:
+              Widen<uint8_t, uint16_t>(this, Vd, Vm);
+              break;
+            case 2:
+              Widen<uint16_t, uint32_t>(this, Vd, Vm);
+              break;
+            case 4:
+              Widen<uint32_t, uint64_t>(this, Vd, Vm);
+              break;
+            default:
+              UNIMPLEMENTED();
+              break;
+          }
+        } else {
+          // vmovl signed
+          if ((instr->VdValue() & 1) != 0) UNIMPLEMENTED();
+          int Vd = instr->VFPDRegValue(kSimd128Precision);
+          int Vm = instr->VFPMRegValue(kDoublePrecision);
+          int imm3 = instr->Bits(21, 19);
+          switch (imm3) {
+            case 1:
+              Widen<int8_t, int16_t>(this, Vd, Vm);
+              break;
+            case 2:
+              Widen<int16_t, int32_t>(this, Vd, Vm);
+              break;
+            case 4:
+              Widen<int32_t, int64_t>(this, Vd, Vm);
+              break;
+            default:
+              UNIMPLEMENTED();
+              break;
+          }
         }
-        set_neon_register(Vd, dst);
-      } else if (instr->Bits(11, 8) == 5 && instr->Bit(4) == 1) {
+      } else if (!u && imm3H_L != 0 && opc == 0b0101) {
         // vshl.i<size> Qd, Qm, shift
         int imm7 = instr->Bits(21, 16);
         if (instr->Bit(7) != 0) imm7 += 64;
@@ -4702,893 +5489,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
             ShiftLeft<uint64_t, kSimd128Size>(this, Vd, Vm, shift);
             break;
         }
-      } else if (instr->Bits(11, 8) == 0 && instr->Bit(4) == 1) {
-        // vshr.s<size> Qd, Qm, shift
-        int imm7 = instr->Bits(21, 16);
-        if (instr->Bit(7) != 0) imm7 += 64;
-        int size = base::bits::RoundDownToPowerOfTwo32(imm7);
-        int shift = 2 * size - imm7;
-        int Vd = instr->VFPDRegValue(kSimd128Precision);
-        int Vm = instr->VFPMRegValue(kSimd128Precision);
-        NeonSize ns =
-            static_cast<NeonSize>(base::bits::WhichPowerOfTwo(size >> 3));
-        switch (ns) {
-          case Neon8:
-            ArithmeticShiftRight<int8_t, kSimd128Size>(this, Vd, Vm, shift);
-            break;
-          case Neon16:
-            ArithmeticShiftRight<int16_t, kSimd128Size>(this, Vd, Vm, shift);
-            break;
-          case Neon32:
-            ArithmeticShiftRight<int32_t, kSimd128Size>(this, Vd, Vm, shift);
-            break;
-          case Neon64:
-            ArithmeticShiftRight<int64_t, kSimd128Size>(this, Vd, Vm, shift);
-            break;
-        }
-      } else if (instr->Bits(11, 8) == 0xC && instr->Bit(6) == 0 &&
-                 instr->Bit(4) == 0) {
-        // vmull.s<size> Qd, Dn, Dm
-        NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
-        int Vd = instr->VFPDRegValue(kSimd128Precision);
-        int Vn = instr->VFPNRegValue(kDoublePrecision);
-        int Vm = instr->VFPMRegValue(kDoublePrecision);
-        switch (size) {
-          case Neon16: {
-            MultiplyLong<int16_t, int32_t>(this, Vd, Vn, Vm);
-            break;
-          }
-          default:
-            UNIMPLEMENTED();
-        }
-      } else {
-        UNIMPLEMENTED();
-      }
-      break;
-    case 6: {
-      int Vd, Vm, Vn;
-      if (instr->Bit(6) == 0) {
-        Vd = instr->VFPDRegValue(kDoublePrecision);
-        Vm = instr->VFPMRegValue(kDoublePrecision);
-        Vn = instr->VFPNRegValue(kDoublePrecision);
-      } else {
-        Vd = instr->VFPDRegValue(kSimd128Precision);
-        Vm = instr->VFPMRegValue(kSimd128Precision);
-        Vn = instr->VFPNRegValue(kSimd128Precision);
-      }
-      switch (instr->Bits(11, 8)) {
-        case 0x0: {
-          if (instr->Bit(4) == 1) {
-            // vqadd.u<size> Qd, Qm, Qn.
-            NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
-            switch (size) {
-              case Neon8:
-                AddSaturate<uint8_t>(this, Vd, Vm, Vn);
-                break;
-              case Neon16:
-                AddSaturate<uint16_t>(this, Vd, Vm, Vn);
-                break;
-              case Neon32:
-                AddSaturate<uint32_t>(this, Vd, Vm, Vn);
-                break;
-              default:
-                UNREACHABLE();
-                break;
-            }
-          } else {
-            UNIMPLEMENTED();
-          }
-          break;
-        }
-        case 0x1: {
-          if (instr->Bits(21, 20) == 1 && instr->Bit(4) == 1) {
-            // vbsl.size Qd, Qm, Qn.
-            uint32_t dst[4], src1[4], src2[4];
-            get_neon_register(Vd, dst);
-            get_neon_register(Vn, src1);
-            get_neon_register(Vm, src2);
-            for (int i = 0; i < 4; i++) {
-              dst[i] = (dst[i] & src1[i]) | (~dst[i] & src2[i]);
-            }
-            set_neon_register(Vd, dst);
-          } else if (instr->Bits(21, 20) == 0 && instr->Bit(4) == 1) {
-            if (instr->Bit(6) == 0) {
-              // veor Dd, Dn, Dm
-              uint64_t src1, src2;
-              get_d_register(Vn, &src1);
-              get_d_register(Vm, &src2);
-              src1 ^= src2;
-              set_d_register(Vd, &src1);
-
-            } else {
-              // veor Qd, Qn, Qm
-              uint32_t src1[4], src2[4];
-              get_neon_register(Vn, src1);
-              get_neon_register(Vm, src2);
-              for (int i = 0; i < 4; i++) src1[i] ^= src2[i];
-              set_neon_register(Vd, src1);
-            }
-          } else if (instr->Bit(4) == 0) {
-            if (instr->Bit(6) == 0) {
-              // vrhadd.u<size> Dd, Dm, Dn.
-              UNIMPLEMENTED();
-            }
-            // vrhadd.u<size> Qd, Qm, Qn.
-            NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
-            switch (size) {
-              case Neon8:
-                RoundingAverageUnsigned<uint8_t>(this, Vd, Vm, Vn);
-                break;
-              case Neon16:
-                RoundingAverageUnsigned<uint16_t>(this, Vd, Vm, Vn);
-                break;
-              case Neon32:
-                RoundingAverageUnsigned<uint32_t>(this, Vd, Vm, Vn);
-                break;
-              default:
-                UNREACHABLE();
-                break;
-            }
-          } else {
-            UNIMPLEMENTED();
-          }
-          break;
-        }
-        case 0x2: {
-          if (instr->Bit(4) == 1) {
-            // vqsub.u<size> Qd, Qm, Qn.
-            NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
-            switch (size) {
-              case Neon8:
-                SubSaturate<uint8_t>(this, Vd, Vm, Vn);
-                break;
-              case Neon16:
-                SubSaturate<uint16_t>(this, Vd, Vm, Vn);
-                break;
-              case Neon32:
-                SubSaturate<uint32_t>(this, Vd, Vm, Vn);
-                break;
-              default:
-                UNREACHABLE();
-                break;
-            }
-          } else {
-            UNIMPLEMENTED();
-          }
-          break;
-        }
-        case 0x3: {
-          // vcge/vcgt.u<size> Qd, Qm, Qn.
-          bool ge = instr->Bit(4) == 1;
-          NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
-          switch (size) {
-            case Neon8:
-              CompareGreater<uint8_t, kSimd128Size>(this, Vd, Vm, Vn, ge);
-              break;
-            case Neon16:
-              CompareGreater<uint16_t, kSimd128Size>(this, Vd, Vm, Vn, ge);
-              break;
-            case Neon32:
-              CompareGreater<uint32_t, kSimd128Size>(this, Vd, Vm, Vn, ge);
-              break;
-            default:
-              UNREACHABLE();
-              break;
-          }
-          break;
-        }
-        case 0x4: {
-          // vshl s<size> Qd, Qm, Qn.
-          NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
-          switch (size) {
-            case Neon8:
-              ShiftByRegister<uint8_t, int8_t, kSimd128Size>(this, Vd, Vm, Vn);
-              break;
-            case Neon16:
-              ShiftByRegister<uint16_t, int16_t, kSimd128Size>(this, Vd, Vm,
-                                                               Vn);
-              break;
-            case Neon32:
-              ShiftByRegister<uint32_t, int32_t, kSimd128Size>(this, Vd, Vm,
-                                                               Vn);
-              break;
-            case Neon64:
-              ShiftByRegister<uint64_t, int64_t, kSimd128Size>(this, Vd, Vm,
-                                                               Vn);
-              break;
-            default:
-              UNREACHABLE();
-              break;
-          }
-          break;
-        }
-        case 0x6: {
-          // vmin/vmax.u<size> Qd, Qm, Qn.
-          NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
-          bool min = instr->Bit(4) != 0;
-          switch (size) {
-            case Neon8:
-              MinMax<uint8_t, kSimd128Size>(this, Vd, Vm, Vn, min);
-              break;
-            case Neon16:
-              MinMax<uint16_t, kSimd128Size>(this, Vd, Vm, Vn, min);
-              break;
-            case Neon32:
-              MinMax<uint32_t, kSimd128Size>(this, Vd, Vm, Vn, min);
-              break;
-            default:
-              UNREACHABLE();
-              break;
-          }
-          break;
-        }
-        case 0x8: {
-          if (instr->Bit(4) == 0) {
-            // vsub.size Qd, Qm, Qn.
-            NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
-            switch (size) {
-              case Neon8:
-                Sub<uint8_t, kSimd128Size>(this, Vd, Vm, Vn);
-                break;
-              case Neon16:
-                Sub<uint16_t, kSimd128Size>(this, Vd, Vm, Vn);
-                break;
-              case Neon32:
-                Sub<uint32_t, kSimd128Size>(this, Vd, Vm, Vn);
-                break;
-              case Neon64:
-                Sub<uint64_t, kSimd128Size>(this, Vd, Vm, Vn);
-                break;
-            }
-          } else {
-            // vceq.size Qd, Qm, Qn.
-            NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
-            switch (size) {
-              case Neon8:
-                CompareEqual<uint8_t, kSimd128Size>(this, Vd, Vm, Vn);
-                break;
-              case Neon16:
-                CompareEqual<uint16_t, kSimd128Size>(this, Vd, Vm, Vn);
-                break;
-              case Neon32:
-                CompareEqual<uint32_t, kSimd128Size>(this, Vd, Vm, Vn);
-                break;
-              default:
-                UNREACHABLE();
-                break;
-            }
-          }
-          break;
-        }
-        case 0xA: {
-          // vpmin/vpmax.u<size> Dd, Dm, Dn.
-          NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
-          bool min = instr->Bit(4) != 0;
-          switch (size) {
-            case Neon8:
-              PairwiseMinMax<uint8_t>(this, Vd, Vm, Vn, min);
-              break;
-            case Neon16:
-              PairwiseMinMax<uint16_t>(this, Vd, Vm, Vn, min);
-              break;
-            case Neon32:
-              PairwiseMinMax<uint32_t>(this, Vd, Vm, Vn, min);
-              break;
-            default:
-              UNREACHABLE();
-              break;
-          }
-          break;
-        }
-        case 0xD: {
-          if (instr->Bits(21, 20) == 0 && instr->Bit(6) == 1 &&
-              instr->Bit(4) == 1) {
-            // vmul.f32 Qd, Qn, Qm
-            float src1[4], src2[4];
-            get_neon_register(Vn, src1);
-            get_neon_register(Vm, src2);
-            for (int i = 0; i < 4; i++) {
-              src1[i] = src1[i] * src2[i];
-            }
-            set_neon_register(Vd, src1);
-          } else if (instr->Bits(21, 20) == 0 && instr->Bit(6) == 0 &&
-                     instr->Bit(4) == 0) {
-            // vpadd.f32 Dd, Dn, Dm
-            PairwiseAdd<float>(this, Vd, Vm, Vn);
-          } else {
-            UNIMPLEMENTED();
-          }
-          break;
-        }
-        case 0xE: {
-          if (instr->Bit(20) == 0 && instr->Bit(4) == 0) {
-            // vcge/vcgt.f32 Qd, Qm, Qn
-            bool ge = instr->Bit(21) == 0;
-            float src1[4], src2[4];
-            get_neon_register(Vn, src1);
-            get_neon_register(Vm, src2);
-            uint32_t dst[4];
-            for (int i = 0; i < 4; i++) {
-              if (ge) {
-                dst[i] = src1[i] >= src2[i] ? 0xFFFFFFFFu : 0;
-              } else {
-                dst[i] = src1[i] > src2[i] ? 0xFFFFFFFFu : 0;
-              }
-            }
-            set_neon_register(Vd, dst);
-          } else {
-            UNIMPLEMENTED();
-          }
-          break;
-        }
-        default:
-          UNREACHABLE();
-          break;
-      }
-      break;
-    }
-    case 7:
-      if ((instr->Bits(18, 16) == 0) && (instr->Bits(11, 6) == 0x28) &&
-          (instr->Bit(4) == 1)) {
-        // vmovl unsigned
-        if ((instr->VdValue() & 1) != 0) UNIMPLEMENTED();
-        int Vd = instr->VFPDRegValue(kSimd128Precision);
-        int Vm = instr->VFPMRegValue(kDoublePrecision);
-        int imm3 = instr->Bits(21, 19);
-        switch (imm3) {
-          case 1:
-            Widen<uint8_t, uint16_t>(this, Vd, Vm);
-            break;
-          case 2:
-            Widen<uint16_t, uint32_t>(this, Vd, Vm);
-            break;
-          case 4:
-            Widen<uint32_t, uint64_t>(this, Vd, Vm);
-            break;
-          default:
-            UNIMPLEMENTED();
-            break;
-        }
-      } else if (instr->Opc1Value() == 7 && instr->Bit(4) == 0) {
-        if (instr->Bits(19, 16) == 0xB && instr->Bits(11, 9) == 0x3 &&
-            instr->Bit(6) == 1) {
-          // vcvt.<Td>.<Tm> Qd, Qm.
-          int Vd = instr->VFPDRegValue(kSimd128Precision);
-          int Vm = instr->VFPMRegValue(kSimd128Precision);
-          uint32_t q_data[4];
-          get_neon_register(Vm, q_data);
-          int op = instr->Bits(8, 7);
-          for (int i = 0; i < 4; i++) {
-            switch (op) {
-              case 0:
-                // f32 <- s32, round towards nearest.
-                q_data[i] = bit_cast<uint32_t>(std::round(
-                    static_cast<float>(bit_cast<int32_t>(q_data[i]))));
-                break;
-              case 1:
-                // f32 <- u32, round towards nearest.
-                q_data[i] = bit_cast<uint32_t>(
-                    std::round(static_cast<float>(q_data[i])));
-                break;
-              case 2:
-                // s32 <- f32, round to zero.
-                q_data[i] = static_cast<uint32_t>(
-                    ConvertDoubleToInt(bit_cast<float>(q_data[i]), false, RZ));
-                break;
-              case 3:
-                // u32 <- f32, round to zero.
-                q_data[i] = static_cast<uint32_t>(
-                    ConvertDoubleToInt(bit_cast<float>(q_data[i]), true, RZ));
-                break;
-            }
-          }
-          set_neon_register(Vd, q_data);
-        } else if (instr->Bits(17, 16) == 0x2 && instr->Bits(11, 7) == 0) {
-          if (instr->Bit(6) == 0) {
-            // vswp Dd, Dm.
-            uint64_t dval, mval;
-            int vd = instr->VFPDRegValue(kDoublePrecision);
-            int vm = instr->VFPMRegValue(kDoublePrecision);
-            get_d_register(vd, &dval);
-            get_d_register(vm, &mval);
-            set_d_register(vm, &dval);
-            set_d_register(vd, &mval);
-          } else {
-            // vswp Qd, Qm.
-            uint32_t dval[4], mval[4];
-            int vd = instr->VFPDRegValue(kSimd128Precision);
-            int vm = instr->VFPMRegValue(kSimd128Precision);
-            get_neon_register(vd, dval);
-            get_neon_register(vm, mval);
-            set_neon_register(vm, dval);
-            set_neon_register(vd, mval);
-          }
-        } else if (instr->Bits(11, 7) == 0x18) {
-          // vdup.<size> Dd, Dm[index].
-          // vdup.<size> Qd, Dm[index].
-          int vm = instr->VFPMRegValue(kDoublePrecision);
-          int imm4 = instr->Bits(19, 16);
-          int size = 0, index = 0, mask = 0;
-          if ((imm4 & 0x1) != 0) {
-            size = 8;
-            index = imm4 >> 1;
-            mask = 0xFFu;
-          } else if ((imm4 & 0x2) != 0) {
-            size = 16;
-            index = imm4 >> 2;
-            mask = 0xFFFFu;
-          } else {
-            size = 32;
-            index = imm4 >> 3;
-            mask = 0xFFFFFFFFu;
-          }
-          uint64_t d_data;
-          get_d_register(vm, &d_data);
-          uint32_t scalar = (d_data >> (size * index)) & mask;
-          uint32_t duped = scalar;
-          for (int i = 1; i < 32 / size; i++) {
-            scalar <<= size;
-            duped |= scalar;
-          }
-          uint32_t result[4] = {duped, duped, duped, duped};
-          if (instr->Bit(6) == 0) {
-            int vd = instr->VFPDRegValue(kDoublePrecision);
-            set_d_register(vd, result);
-          } else {
-            int vd = instr->VFPDRegValue(kSimd128Precision);
-            set_neon_register(vd, result);
-          }
-        } else if (instr->Bits(19, 16) == 0 && instr->Bits(11, 6) == 0x17) {
-          // vmvn Qd, Qm.
-          int vd = instr->VFPDRegValue(kSimd128Precision);
-          int vm = instr->VFPMRegValue(kSimd128Precision);
-          uint32_t q_data[4];
-          get_neon_register(vm, q_data);
-          for (int i = 0; i < 4; i++) q_data[i] = ~q_data[i];
-          set_neon_register(vd, q_data);
-        } else if (instr->Bits(11, 10) == 0x2) {
-          // vtb[l,x] Dd, <list>, Dm.
-          int vd = instr->VFPDRegValue(kDoublePrecision);
-          int vn = instr->VFPNRegValue(kDoublePrecision);
-          int vm = instr->VFPMRegValue(kDoublePrecision);
-          int table_len = (instr->Bits(9, 8) + 1) * kDoubleSize;
-          bool vtbx = instr->Bit(6) != 0;  // vtbl / vtbx
-          uint64_t destination = 0, indices = 0, result = 0;
-          get_d_register(vd, &destination);
-          get_d_register(vm, &indices);
-          for (int i = 0; i < kDoubleSize; i++) {
-            int shift = i * kBitsPerByte;
-            int index = (indices >> shift) & 0xFF;
-            if (index < table_len) {
-              uint64_t table;
-              get_d_register(vn + index / kDoubleSize, &table);
-              result |=
-                  ((table >> ((index % kDoubleSize) * kBitsPerByte)) & 0xFF)
-                  << shift;
-            } else if (vtbx) {
-              result |= destination & (0xFFull << shift);
-            }
-          }
-          set_d_register(vd, &result);
-        } else if (instr->Bits(17, 16) == 0x2 && instr->Bits(11, 8) == 0x1) {
-          NeonSize size = static_cast<NeonSize>(instr->Bits(19, 18));
-          if (instr->Bit(6) == 0) {
-            int Vd = instr->VFPDRegValue(kDoublePrecision);
-            int Vm = instr->VFPMRegValue(kDoublePrecision);
-            if (instr->Bit(7) == 1) {
-              // vzip.<size> Dd, Dm.
-              switch (size) {
-                case Neon8:
-                  Zip<uint8_t, kDoubleSize>(this, Vd, Vm);
-                  break;
-                case Neon16:
-                  Zip<uint16_t, kDoubleSize>(this, Vd, Vm);
-                  break;
-                case Neon32:
-                  UNIMPLEMENTED();
-                  break;
-                default:
-                  UNREACHABLE();
-                  break;
-              }
-            } else {
-              // vuzp.<size> Dd, Dm.
-              switch (size) {
-                case Neon8:
-                  Unzip<uint8_t, kDoubleSize>(this, Vd, Vm);
-                  break;
-                case Neon16:
-                  Unzip<uint16_t, kDoubleSize>(this, Vd, Vm);
-                  break;
-                case Neon32:
-                  UNIMPLEMENTED();
-                  break;
-                default:
-                  UNREACHABLE();
-                  break;
-              }
-            }
-          } else {
-            int Vd = instr->VFPDRegValue(kSimd128Precision);
-            int Vm = instr->VFPMRegValue(kSimd128Precision);
-            if (instr->Bit(7) == 1) {
-              // vzip.<size> Qd, Qm.
-              switch (size) {
-                case Neon8:
-                  Zip<uint8_t, kSimd128Size>(this, Vd, Vm);
-                  break;
-                case Neon16:
-                  Zip<uint16_t, kSimd128Size>(this, Vd, Vm);
-                  break;
-                case Neon32:
-                  Zip<uint32_t, kSimd128Size>(this, Vd, Vm);
-                  break;
-                default:
-                  UNREACHABLE();
-                  break;
-              }
-            } else {
-              // vuzp.<size> Qd, Qm.
-              switch (size) {
-                case Neon8:
-                  Unzip<uint8_t, kSimd128Size>(this, Vd, Vm);
-                  break;
-                case Neon16:
-                  Unzip<uint16_t, kSimd128Size>(this, Vd, Vm);
-                  break;
-                case Neon32:
-                  Unzip<uint32_t, kSimd128Size>(this, Vd, Vm);
-                  break;
-                default:
-                  UNREACHABLE();
-                  break;
-              }
-            }
-          }
-        } else if (instr->Bits(17, 16) == 0 && instr->Bits(11, 9) == 0) {
-          // vrev<op>.size Qd, Qm
-          int Vd = instr->VFPDRegValue(kSimd128Precision);
-          int Vm = instr->VFPMRegValue(kSimd128Precision);
-          NeonSize size = static_cast<NeonSize>(instr->Bits(19, 18));
-          NeonSize op = static_cast<NeonSize>(static_cast<int>(Neon64) -
-                                              instr->Bits(8, 7));
-          switch (op) {
-            case Neon16: {
-              DCHECK_EQ(Neon8, size);
-              uint8_t src[16];
-              get_neon_register(Vm, src);
-              for (int i = 0; i < 16; i += 2) {
-                std::swap(src[i], src[i + 1]);
-              }
-              set_neon_register(Vd, src);
-              break;
-            }
-            case Neon32: {
-              switch (size) {
-                case Neon16: {
-                  uint16_t src[8];
-                  get_neon_register(Vm, src);
-                  for (int i = 0; i < 8; i += 2) {
-                    std::swap(src[i], src[i + 1]);
-                  }
-                  set_neon_register(Vd, src);
-                  break;
-                }
-                case Neon8: {
-                  uint8_t src[16];
-                  get_neon_register(Vm, src);
-                  for (int i = 0; i < 4; i++) {
-                    std::swap(src[i * 4], src[i * 4 + 3]);
-                    std::swap(src[i * 4 + 1], src[i * 4 + 2]);
-                  }
-                  set_neon_register(Vd, src);
-                  break;
-                }
-                default:
-                  UNREACHABLE();
-                  break;
-              }
-              break;
-            }
-            case Neon64: {
-              switch (size) {
-                case Neon32: {
-                  uint32_t src[4];
-                  get_neon_register(Vm, src);
-                  std::swap(src[0], src[1]);
-                  std::swap(src[2], src[3]);
-                  set_neon_register(Vd, src);
-                  break;
-                }
-                case Neon16: {
-                  uint16_t src[8];
-                  get_neon_register(Vm, src);
-                  for (int i = 0; i < 2; i++) {
-                    std::swap(src[i * 4], src[i * 4 + 3]);
-                    std::swap(src[i * 4 + 1], src[i * 4 + 2]);
-                  }
-                  set_neon_register(Vd, src);
-                  break;
-                }
-                case Neon8: {
-                  uint8_t src[16];
-                  get_neon_register(Vm, src);
-                  for (int i = 0; i < 4; i++) {
-                    std::swap(src[i], src[7 - i]);
-                    std::swap(src[i + 8], src[15 - i]);
-                  }
-                  set_neon_register(Vd, src);
-                  break;
-                }
-                default:
-                  UNREACHABLE();
-                  break;
-              }
-              break;
-            }
-            default:
-              UNREACHABLE();
-              break;
-          }
-        } else if (instr->Bits(17, 16) == 0x2 && instr->Bits(11, 7) == 0x1) {
-          NeonSize size = static_cast<NeonSize>(instr->Bits(19, 18));
-          if (instr->Bit(6) == 0) {
-            int Vd = instr->VFPDRegValue(kDoublePrecision);
-            int Vm = instr->VFPMRegValue(kDoublePrecision);
-            // vtrn.<size> Dd, Dm.
-            switch (size) {
-              case Neon8:
-                Transpose<uint8_t, kDoubleSize>(this, Vd, Vm);
-                break;
-              case Neon16:
-                Transpose<uint16_t, kDoubleSize>(this, Vd, Vm);
-                break;
-              case Neon32:
-                Transpose<uint32_t, kDoubleSize>(this, Vd, Vm);
-                break;
-              default:
-                UNREACHABLE();
-                break;
-            }
-          } else {
-            int Vd = instr->VFPDRegValue(kSimd128Precision);
-            int Vm = instr->VFPMRegValue(kSimd128Precision);
-            // vtrn.<size> Qd, Qm.
-            switch (size) {
-              case Neon8:
-                Transpose<uint8_t, kSimd128Size>(this, Vd, Vm);
-                break;
-              case Neon16:
-                Transpose<uint16_t, kSimd128Size>(this, Vd, Vm);
-                break;
-              case Neon32:
-                Transpose<uint32_t, kSimd128Size>(this, Vd, Vm);
-                break;
-              default:
-                UNREACHABLE();
-                break;
-            }
-          }
-        } else if (instr->Bits(17, 16) == 0x1 && instr->Bit(11) == 0) {
-          int Vd = instr->VFPDRegValue(kSimd128Precision);
-          int Vm = instr->VFPMRegValue(kSimd128Precision);
-          NeonSize size = static_cast<NeonSize>(instr->Bits(19, 18));
-          if (instr->Bits(9, 6) == 0xD) {
-            // vabs<type>.<size> Qd, Qm
-            if (instr->Bit(10) != 0) {
-              // floating point (clear sign bits)
-              uint32_t src[4];
-              get_neon_register(Vm, src);
-              for (int i = 0; i < 4; i++) {
-                src[i] &= ~0x80000000;
-              }
-              set_neon_register(Vd, src);
-            } else {
-              // signed integer
-              switch (size) {
-                case Neon8:
-                  Abs<int8_t, kSimd128Size>(this, Vd, Vm);
-                  break;
-                case Neon16:
-                  Abs<int16_t, kSimd128Size>(this, Vd, Vm);
-                  break;
-                case Neon32:
-                  Abs<int32_t, kSimd128Size>(this, Vd, Vm);
-                  break;
-                default:
-                  UNIMPLEMENTED();
-                  break;
-              }
-            }
-          } else if (instr->Bits(9, 6) == 0xF) {
-            // vneg<type>.<size> Qd, Qm (signed integer)
-            if (instr->Bit(10) != 0) {
-              // floating point (toggle sign bits)
-              uint32_t src[4];
-              get_neon_register(Vm, src);
-              for (int i = 0; i < 4; i++) {
-                src[i] ^= 0x80000000;
-              }
-              set_neon_register(Vd, src);
-            } else {
-              // signed integer
-              switch (size) {
-                case Neon8:
-                  Neg<int8_t, kSimd128Size>(this, Vd, Vm);
-                  break;
-                case Neon16:
-                  Neg<int16_t, kSimd128Size>(this, Vd, Vm);
-                  break;
-                case Neon32:
-                  Neg<int32_t, kSimd128Size>(this, Vd, Vm);
-                  break;
-                default:
-                  UNIMPLEMENTED();
-                  break;
-              }
-            }
-          } else {
-            UNIMPLEMENTED();
-          }
-        } else if (instr->Bits(19, 18) == 0x2 && instr->Bits(17, 16) == 0x3 &&
-                   instr->Bits(11, 8) == 0x5) {
-          // vrecpe/vrsqrte.f32 Qd, Qm.
-          int Vd = instr->VFPDRegValue(kSimd128Precision);
-          int Vm = instr->VFPMRegValue(kSimd128Precision);
-          uint32_t src[4];
-          get_neon_register(Vm, src);
-          if (instr->Bit(7) == 0) {
-            for (int i = 0; i < 4; i++) {
-              float denom = bit_cast<float>(src[i]);
-              div_zero_vfp_flag_ = (denom == 0);
-              float result = 1.0f / denom;
-              result = canonicalizeNaN(result);
-              src[i] = bit_cast<uint32_t>(result);
-            }
-          } else {
-            for (int i = 0; i < 4; i++) {
-              float radicand = bit_cast<float>(src[i]);
-              float result = 1.0f / std::sqrt(radicand);
-              result = canonicalizeNaN(result);
-              src[i] = bit_cast<uint32_t>(result);
-            }
-          }
-          set_neon_register(Vd, src);
-        } else if (instr->Bits(17, 16) == 0x2 && instr->Bits(11, 8) == 0x2 &&
-                   instr->Bits(7, 6) != 0) {
-          // vqmovn.<type><size> Dd, Qm.
-          int Vd = instr->VFPDRegValue(kDoublePrecision);
-          int Vm = instr->VFPMRegValue(kSimd128Precision);
-          NeonSize size = static_cast<NeonSize>(instr->Bits(19, 18));
-          bool dst_unsigned = instr->Bit(6) != 0;
-          bool src_unsigned = instr->Bits(7, 6) == 0b11;
-          DCHECK_IMPLIES(src_unsigned, dst_unsigned);
-          switch (size) {
-            case Neon8: {
-              if (src_unsigned) {
-                SaturatingNarrow<uint16_t, uint8_t>(this, Vd, Vm);
-              } else if (dst_unsigned) {
-                SaturatingUnsignedNarrow<int16_t, uint8_t>(this, Vd, Vm);
-              } else {
-                SaturatingNarrow<int16_t, int8_t>(this, Vd, Vm);
-              }
-              break;
-            }
-            case Neon16: {
-              if (src_unsigned) {
-                SaturatingNarrow<uint32_t, uint16_t>(this, Vd, Vm);
-              } else if (dst_unsigned) {
-                SaturatingUnsignedNarrow<int32_t, uint16_t>(this, Vd, Vm);
-              } else {
-                SaturatingNarrow<int32_t, int16_t>(this, Vd, Vm);
-              }
-              break;
-            }
-            case Neon32: {
-              if (src_unsigned) {
-                SaturatingNarrow<uint64_t, uint32_t>(this, Vd, Vm);
-              } else if (dst_unsigned) {
-                SaturatingUnsignedNarrow<int64_t, uint32_t>(this, Vd, Vm);
-              } else {
-                SaturatingNarrow<int64_t, int32_t>(this, Vd, Vm);
-              }
-              break;
-            }
-            default:
-              UNIMPLEMENTED();
-              break;
-          }
-        } else if (instr->Bits(17, 16) == 0x2 && instr->Bit(10) == 1) {
-          // vrint<q>.<dt> <Dd>, <Dm>
-          // vrint<q>.<dt> <Qd>, <Qm>
-          // See F6.1.205
-          int regs = instr->Bit(6) + 1;
-          int rounding_mode = instr->Bits(9, 7);
-          float (*fproundint)(float) = nullptr;
-          switch (rounding_mode) {
-            case 0:
-              fproundint = &nearbyintf;
-              break;
-            case 3:
-              fproundint = &truncf;
-              break;
-            case 5:
-              fproundint = &floorf;
-              break;
-            case 7:
-              fproundint = &ceilf;
-              break;
-            default:
-              UNIMPLEMENTED();
-          }
-          int vm = instr->VFPMRegValue(kDoublePrecision);
-          int vd = instr->VFPDRegValue(kDoublePrecision);
-
-          float floats[2];
-          for (int r = 0; r < regs; r++) {
-            // We cannot simply use GetVFPSingleValue since our Q registers
-            // might not map to any S registers at all.
-            get_neon_register<float, kDoubleSize>(vm + r, floats);
-            for (int e = 0; e < 2; e++) {
-              floats[e] = canonicalizeNaN(fproundint(floats[e]));
-            }
-            set_neon_register<float, kDoubleSize>(vd + r, floats);
-          }
-        } else {
-          UNIMPLEMENTED();
-        }
-      } else if (instr->Bits(11, 8) == 0 && instr->Bit(4) == 1) {
-        // vshr.u<size> Qd, Qm, shift
-        int imm7 = instr->Bits(21, 16);
-        if (instr->Bit(7) != 0) imm7 += 64;
-        int size = base::bits::RoundDownToPowerOfTwo32(imm7);
-        int shift = 2 * size - imm7;
-        int Vd = instr->VFPDRegValue(kSimd128Precision);
-        int Vm = instr->VFPMRegValue(kSimd128Precision);
-        NeonSize ns =
-            static_cast<NeonSize>(base::bits::WhichPowerOfTwo(size >> 3));
-        switch (ns) {
-          case Neon8:
-            ShiftRight<uint8_t, kSimd128Size>(this, Vd, Vm, shift);
-            break;
-          case Neon16:
-            ShiftRight<uint16_t, kSimd128Size>(this, Vd, Vm, shift);
-            break;
-          case Neon32:
-            ShiftRight<uint32_t, kSimd128Size>(this, Vd, Vm, shift);
-            break;
-          case Neon64:
-            ShiftRight<uint64_t, kSimd128Size>(this, Vd, Vm, shift);
-            break;
-        }
-      } else if (instr->Bits(11, 8) == 0x5 && instr->Bit(6) == 0 &&
-                 instr->Bit(4) == 1) {
-        // vsli.<size> Dd, Dm, shift
-        int imm7 = instr->Bits(21, 16);
-        if (instr->Bit(7) != 0) imm7 += 64;
-        int size = base::bits::RoundDownToPowerOfTwo32(imm7);
-        int shift = imm7 - size;
-        int Vd = instr->VFPDRegValue(kDoublePrecision);
-        int Vm = instr->VFPMRegValue(kDoublePrecision);
-        switch (size) {
-          case 8:
-            ShiftLeftAndInsert<uint8_t, kDoubleSize>(this, Vd, Vm, shift);
-            break;
-          case 16:
-            ShiftLeftAndInsert<uint16_t, kDoubleSize>(this, Vd, Vm, shift);
-            break;
-          case 32:
-            ShiftLeftAndInsert<uint32_t, kDoubleSize>(this, Vd, Vm, shift);
-            break;
-          case 64:
-            ShiftLeftAndInsert<uint64_t, kDoubleSize>(this, Vd, Vm, shift);
-            break;
-          default:
-            UNREACHABLE();
-            break;
-        }
-      } else if (instr->Bits(11, 8) == 0x4 && instr->Bit(6) == 0 &&
-                 instr->Bit(4) == 1) {
+      } else if (u && imm3H_L != 0 && opc == 0b0100) {
         // vsri.<size> Dd, Dm, shift
         int imm7 = instr->Bits(21, 16);
         if (instr->Bit(7) != 0) imm7 += 64;
@@ -5613,48 +5514,59 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
             UNREACHABLE();
             break;
         }
-      } else if (instr->Bits(11, 8) == 0x8 && instr->Bit(6) == 0 &&
-                 instr->Bit(4) == 0) {
-        // vmlal.u<size> Qd, Dn, Dm
-        NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
-        if (size != Neon32) UNIMPLEMENTED();
-
-        int Vd = instr->VFPDRegValue(kSimd128Precision);
-        int Vn = instr->VFPNRegValue(kDoublePrecision);
-        int Vm = instr->VFPMRegValue(kDoublePrecision);
-        uint64_t src1, src2, dst[2];
-
-        get_neon_register<uint64_t>(Vd, dst);
-        get_d_register(Vn, &src1);
-        get_d_register(Vm, &src2);
-        dst[0] += (src1 & 0xFFFFFFFFULL) * (src2 & 0xFFFFFFFFULL);
-        dst[1] += (src1 >> 32) * (src2 >> 32);
-        set_neon_register<uint64_t>(Vd, dst);
-      } else if (instr->Bits(11, 8) == 0xC && instr->Bit(6) == 0 &&
-                 instr->Bit(4) == 0) {
-        // vmull.u<size> Qd, Dn, Dm
-        NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
-        int Vd = instr->VFPDRegValue(kSimd128Precision);
-        int Vn = instr->VFPNRegValue(kDoublePrecision);
+      } else if (u && imm3H_L != 0 && opc == 0b0101) {
+        // vsli.<size> Dd, Dm, shift
+        int imm7 = instr->Bits(21, 16);
+        if (instr->Bit(7) != 0) imm7 += 64;
+        int size = base::bits::RoundDownToPowerOfTwo32(imm7);
+        int shift = imm7 - size;
+        int Vd = instr->VFPDRegValue(kDoublePrecision);
         int Vm = instr->VFPMRegValue(kDoublePrecision);
         switch (size) {
-          case Neon32: {
-            MultiplyLong<uint32_t, uint64_t>(this, Vd, Vn, Vm);
+          case 8:
+            ShiftLeftAndInsert<uint8_t, kDoubleSize>(this, Vd, Vm, shift);
             break;
-          }
+          case 16:
+            ShiftLeftAndInsert<uint16_t, kDoubleSize>(this, Vd, Vm, shift);
+            break;
+          case 32:
+            ShiftLeftAndInsert<uint32_t, kDoubleSize>(this, Vd, Vm, shift);
+            break;
+          case 64:
+            ShiftLeftAndInsert<uint64_t, kDoubleSize>(this, Vd, Vm, shift);
+            break;
           default:
-            UNIMPLEMENTED();
+            UNREACHABLE();
+            break;
         }
-      } else if (instr->Bits(21, 19) == 0 && instr->Bit(7) == 0 &&
-                 instr->Bit(4) == 1) {
-        // vmov (immediate), see ARM DDI 0487F.b F6.1.134, decoding A4.
-        // Similar to vmov (immediate above), but when high bit of immediate is
-        // set.
-        VmovImmediate(this, instr);
+      }
+    }
+    return;
+  }
+}
+
+void Simulator::DecodeMemoryHintsAndBarriers(Instruction* instr) {
+  switch (instr->SpecialValue()) {
+    case 0xA:
+    case 0xB:
+      if ((instr->Bits(22, 20) == 5) && (instr->Bits(15, 12) == 0xF)) {
+        // pld: ignore instruction.
+      } else if (instr->SpecialValue() == 0xA && instr->Bits(22, 20) == 7) {
+        // dsb, dmb, isb: ignore instruction for now.
+        // TODO(binji): implement
+        // Also refer to the ARMv6 CP15 equivalents in DecodeTypeCP15.
       } else {
         UNIMPLEMENTED();
       }
       break;
+    default:
+      UNIMPLEMENTED();
+  }
+}
+
+void Simulator::DecodeAdvancedSIMDElementOrStructureLoadStore(
+    Instruction* instr) {
+  switch (instr->SpecialValue()) {
     case 8:
       if (instr->Bits(21, 20) == 0) {
         // vst1
@@ -5745,7 +5657,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
     case 9: {
       if (instr->Bits(21, 20) == 2) {
         // Bits(11, 8) is the B field in A7.7 Advanced SIMD element or structure
-        // load/store instructions.
+        // load/store instructions. See table A7-21.
         if (instr->Bits(11, 8) == 0xC) {
           // vld1 (single element to all lanes).
           DCHECK_EQ(instr->Bits(11, 8), 0b1100);  // Type field.
@@ -5791,6 +5703,53 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
               set_register(Rn, get_register(Rn) + get_register(Rm));
             }
           }
+        } else if (instr->Bits(11, 8) == 8 ||
+                   ((instr->Bits(11, 8) & 0b1011) == 0)) {
+          // vld1 (single element to one lane)
+          int Vd = (instr->Bit(22) << 4) | instr->VdValue();
+          int Rn = instr->VnValue();
+          int Rm = instr->VmValue();
+          int32_t address = get_register(Rn);
+          int size = instr->Bits(11, 10);
+          uint64_t dreg;
+          get_d_register(Vd, &dreg);
+          switch (size) {
+            case Neon8: {
+              uint64_t data = ReadBU(address);
+              DCHECK_EQ(0, instr->Bit(4));
+              int i = instr->Bits(7, 5) * 8;
+              dreg = (dreg & ~(uint64_t{0xff} << i)) | (data << i);
+              break;
+            }
+            case Neon16: {
+              DCHECK_EQ(0, instr->Bits(5, 4));  // Alignment not supported.
+              uint64_t data = ReadHU(address);
+              int i = instr->Bits(7, 6) * 16;
+              dreg = (dreg & ~(uint64_t{0xffff} << i)) | (data << i);
+              break;
+            }
+            case Neon32: {
+              DCHECK_EQ(0, instr->Bits(6, 4));  // Alignment not supported.
+              uint64_t data = static_cast<unsigned>(ReadW(address));
+              int i = instr->Bit(7) * 32;
+              dreg = (dreg & ~(uint64_t{0xffffffff} << i)) | (data << i);
+              break;
+            }
+            case Neon64: {
+              // Should have been handled by vld1 (single element to all lanes).
+              UNREACHABLE();
+            }
+          }
+          set_d_register(Vd, &dreg);
+
+          // write back
+          if (Rm != 15) {
+            if (Rm == 13) {
+              set_register(Rn, address);
+            } else {
+              set_register(Rn, get_register(Rn) + get_register(Rm));
+            }
+          }
         } else {
           UNIMPLEMENTED();
         }
@@ -5799,18 +5758,13 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
       }
       break;
     }
-    case 0xA:
-    case 0xB:
-      if ((instr->Bits(22, 20) == 5) && (instr->Bits(15, 12) == 0xF)) {
-        // pld: ignore instruction.
-      } else if (instr->SpecialValue() == 0xA && instr->Bits(22, 20) == 7) {
-        // dsb, dmb, isb: ignore instruction for now.
-        // TODO(binji): implement
-        // Also refer to the ARMv6 CP15 equivalents in DecodeTypeCP15.
-      } else {
-        UNIMPLEMENTED();
-      }
-      break;
+    default:
+      UNIMPLEMENTED();
+  }
+}
+
+void Simulator::DecodeFloatingPointDataProcessing(Instruction* instr) {
+  switch (instr->SpecialValue()) {
     case 0x1D:
       if (instr->Opc1Value() == 0x7 && instr->Opc3Value() == 0x1 &&
           instr->Bits(11, 9) == 0x5 && instr->Bits(19, 18) == 0x2) {
@@ -5976,6 +5930,21 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
     default:
       UNIMPLEMENTED();
       break;
+  }
+}
+
+void Simulator::DecodeSpecialCondition(Instruction* instr) {
+  int op0 = instr->Bits(25, 24);
+  int op1 = instr->Bits(11, 9);
+  int op2 = instr->Bit(4);
+
+  if (instr->Bit(27) == 0) {
+    DecodeUnconditional(instr);
+  } else if ((instr->Bits(27, 26) == 0b11) && (op0 == 0b10) &&
+             ((op1 >> 1) == 0b10) && !op2) {
+    DecodeFloatingPointDataProcessing(instr);
+  } else {
+    UNIMPLEMENTED();
   }
 }
 

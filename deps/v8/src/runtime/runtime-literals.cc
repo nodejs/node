@@ -30,7 +30,7 @@ bool HasBoilerplate(Handle<Object> literal_site) {
 
 void PreInitializeLiteralSite(Handle<FeedbackVector> vector,
                               FeedbackSlot slot) {
-  vector->Set(slot, Smi::FromInt(1));
+  vector->SynchronizedSet(slot, Smi::FromInt(1));
 }
 
 enum DeepCopyHints { kNoHints = 0, kObjectIsShallow = 1 };
@@ -110,7 +110,8 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
   if (!copy->IsJSArray(isolate)) {
     if (copy->HasFastProperties(isolate)) {
       Handle<DescriptorArray> descriptors(
-          copy->map(isolate).instance_descriptors(isolate), isolate);
+          copy->map(isolate).instance_descriptors(isolate, kRelaxedLoad),
+          isolate);
       for (InternalIndex i : copy->map(isolate).IterateOwnDescriptors()) {
         PropertyDetails details = descriptors->GetDetails(i);
         DCHECK_EQ(kField, details.location());
@@ -567,7 +568,7 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
                         JSObject);
     creation_context.ExitScope(site, boilerplate);
 
-    vector->Set(literals_slot, *site);
+    vector->SynchronizedSet(literals_slot, *site);
   }
 
   STATIC_ASSERT(static_cast<int>(ObjectLiteral::kDisableMementos) ==
@@ -677,7 +678,7 @@ RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
     PreInitializeLiteralSite(vector, literal_slot);
     return *boilerplate;
   }
-  vector->Set(literal_slot, *boilerplate);
+  vector->SynchronizedSet(literal_slot, *boilerplate);
   return *JSRegExp::Copy(boilerplate);
 }
 

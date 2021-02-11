@@ -90,6 +90,7 @@ async function instantiateWasm() {
     .addLocals(kWasmI64, 1, ['i64_local'])
     .addLocals(kWasmF64, 3, ['unicode☼f64', '0', '0'])
     .addLocals(kWasmS128, 1)
+    .addLocals(kWasmF32, 1, [''])
     .addBody([
       // Set param 0 to 11.
       kExprI32Const, 11, kExprLocalSet, 0,
@@ -108,6 +109,9 @@ async function instantiateWasm() {
       kExprI32Const, 23,
       kSimdPrefix, kExprI32x4Splat,
       kExprLocalSet, 6,
+      // Set local 7 to 21
+      kExprI32Const, 21, kExprF32UConvertI32,
+      kExprLocalSet, 7,
 
       // Set global 0 to 15
       kExprI32Const, 15, kExprGlobalSet, 0,

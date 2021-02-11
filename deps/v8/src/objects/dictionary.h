@@ -32,7 +32,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   using Key = typename Shape::Key;
   // Returns the value at entry.
   inline Object ValueAt(InternalIndex entry);
-  inline Object ValueAt(const Isolate* isolate, InternalIndex entry);
+  inline Object ValueAt(IsolateRoot isolate, InternalIndex entry);
 
   // Set the value for entry.
   inline void ValueAtPut(InternalIndex entry, Object value);
@@ -131,6 +131,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) BaseNameDictionary
   static const int kObjectHashIndex = kNextEnumerationIndexIndex + 1;
   static const int kEntryValueIndex = 1;
 
+  static const bool kIsOrderedDictionaryType = false;
+
   inline void SetHash(int hash);
   inline int Hash() const;
 
@@ -140,11 +142,6 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) BaseNameDictionary
       LocalIsolate* isolate, int at_least_space_for,
       AllocationType allocation = AllocationType::kYoung,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
-
-  // Collect the keys into the given KeyAccumulator, in ascending chronological
-  // order of property creation.
-  V8_WARN_UNUSED_RESULT static ExceptionStatus CollectKeysTo(
-      Handle<Derived> dictionary, KeyAccumulator* keys);
 
   // Allocate the next enumeration index. Possibly updates all enumeration
   // indices in the table.
@@ -156,13 +153,6 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) BaseNameDictionary
   // Return the key indices sorted by its enumeration index.
   static Handle<FixedArray> IterationIndices(Isolate* isolate,
                                              Handle<Derived> dictionary);
-
-  // Copies enumerable keys to preallocated fixed array.
-  // Does not throw for uninitialized exports in module namespace objects, so
-  // this has to be checked separately.
-  static void CopyEnumKeysTo(Isolate* isolate, Handle<Derived> dictionary,
-                             Handle<FixedArray> storage, KeyCollectionMode mode,
-                             KeyAccumulator* accumulator);
 
   template <typename LocalIsolate>
   V8_WARN_UNUSED_RESULT static Handle<Derived> AddNoUpdateNextEnumerationIndex(
@@ -197,7 +187,7 @@ class V8_EXPORT_PRIVATE NameDictionary
   static const int kInitialCapacity = 2;
 
   inline Name NameAt(InternalIndex entry);
-  inline Name NameAt(const Isolate* isolate, InternalIndex entry);
+  inline Name NameAt(IsolateRoot isolate, InternalIndex entry);
 
   inline void set_hash(int hash);
   inline int hash() const;
@@ -234,14 +224,14 @@ class V8_EXPORT_PRIVATE GlobalDictionary
   DECL_CAST(GlobalDictionary)
 
   inline Object ValueAt(InternalIndex entry);
-  inline Object ValueAt(const Isolate* isolate, InternalIndex entry);
+  inline Object ValueAt(IsolateRoot isolate, InternalIndex entry);
   inline PropertyCell CellAt(InternalIndex entry);
-  inline PropertyCell CellAt(const Isolate* isolate, InternalIndex entry);
+  inline PropertyCell CellAt(IsolateRoot isolate, InternalIndex entry);
   inline void SetEntry(InternalIndex entry, Object key, Object value,
                        PropertyDetails details);
   inline void ClearEntry(InternalIndex entry);
   inline Name NameAt(InternalIndex entry);
-  inline Name NameAt(const Isolate* isolate, InternalIndex entry);
+  inline Name NameAt(IsolateRoot isolate, InternalIndex entry);
   inline void ValueAtPut(InternalIndex entry, Object value);
 
   OBJECT_CONSTRUCTORS(
@@ -359,6 +349,22 @@ class NumberDictionary
 
   OBJECT_CONSTRUCTORS(NumberDictionary,
                       Dictionary<NumberDictionary, NumberDictionaryShape>);
+};
+
+// The comparator is passed two indices |a| and |b|, and it returns < 0 when the
+// property at index |a| comes before the property at index |b| in the
+// enumeration order.
+template <typename Dictionary>
+struct EnumIndexComparator {
+  explicit EnumIndexComparator(Dictionary dict) : dict(dict) {}
+  bool operator()(Tagged_t a, Tagged_t b) {
+    PropertyDetails da(
+        dict.DetailsAt(InternalIndex(Smi(static_cast<Address>(a)).value())));
+    PropertyDetails db(
+        dict.DetailsAt(InternalIndex(Smi(static_cast<Address>(b)).value())));
+    return da.dictionary_index() < db.dictionary_index();
+  }
+  Dictionary dict;
 };
 
 }  // namespace internal

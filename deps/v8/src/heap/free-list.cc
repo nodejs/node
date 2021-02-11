@@ -418,50 +418,6 @@ FreeSpace FreeListManyCachedOrigin::Allocate(size_t size_in_bytes,
 }
 
 // ------------------------------------------------
-// FreeListMap implementation
-
-FreeListMap::FreeListMap() {
-  // Initializing base (FreeList) fields
-  number_of_categories_ = 1;
-  last_category_ = kOnlyCategory;
-  min_block_size_ = kMinBlockSize;
-  categories_ = new FreeListCategory*[number_of_categories_]();
-
-  Reset();
-}
-
-size_t FreeListMap::GuaranteedAllocatable(size_t maximum_freed) {
-  return maximum_freed;
-}
-
-Page* FreeListMap::GetPageForSize(size_t size_in_bytes) {
-  return GetPageForCategoryType(kOnlyCategory);
-}
-
-FreeListMap::~FreeListMap() { delete[] categories_; }
-
-FreeSpace FreeListMap::Allocate(size_t size_in_bytes, size_t* node_size,
-                                AllocationOrigin origin) {
-  DCHECK_GE(kMaxBlockSize, size_in_bytes);
-
-  // The following DCHECK ensures that maps are allocated one by one (ie,
-  // without folding). This assumption currently holds. However, if it were to
-  // become untrue in the future, you'll get an error here. To fix it, I would
-  // suggest removing the DCHECK, and replacing TryFindNodeIn by
-  // SearchForNodeInList below.
-  DCHECK_EQ(size_in_bytes, Map::kSize);
-
-  FreeSpace node = TryFindNodeIn(kOnlyCategory, size_in_bytes, node_size);
-
-  if (!node.is_null()) {
-    Page::FromHeapObject(node)->IncreaseAllocatedBytes(*node_size);
-  }
-
-  DCHECK_IMPLIES(node.is_null(), IsEmpty());
-  return node;
-}
-
-// ------------------------------------------------
 // Generic FreeList methods (non alloc/free related)
 
 void FreeList::Reset() {

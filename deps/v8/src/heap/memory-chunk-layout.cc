@@ -37,7 +37,6 @@ intptr_t MemoryChunkLayout::ObjectEndOffsetInCodePage() {
 
 size_t MemoryChunkLayout::AllocatableMemoryInCodePage() {
   size_t memory = ObjectEndOffsetInCodePage() - ObjectStartOffsetInCodePage();
-  DCHECK_LE(kMaxRegularHeapObjectSize, memory);
   return memory;
 }
 
@@ -65,6 +64,12 @@ size_t MemoryChunkLayout::AllocatableMemoryInMemoryChunk(
     return AllocatableMemoryInCodePage();
   }
   return AllocatableMemoryInDataPage();
+}
+
+int MemoryChunkLayout::MaxRegularCodeObjectSize() {
+  int size = static_cast<int>(AllocatableMemoryInCodePage() / 2);
+  DCHECK_LE(size, kMaxRegularHeapObjectSize);
+  return size;
 }
 
 }  // namespace internal

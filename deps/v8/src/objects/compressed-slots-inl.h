@@ -33,7 +33,7 @@ Object CompressedObjectSlot::operator*() const {
   return Object(DecompressTaggedAny(address(), value));
 }
 
-Object CompressedObjectSlot::load(const Isolate* isolate) const {
+Object CompressedObjectSlot::load(IsolateRoot isolate) const {
   Tagged_t value = *location();
   return Object(DecompressTaggedAny(isolate, value));
 }
@@ -52,7 +52,7 @@ Object CompressedObjectSlot::Relaxed_Load() const {
   return Object(DecompressTaggedAny(address(), value));
 }
 
-Object CompressedObjectSlot::Relaxed_Load(const Isolate* isolate) const {
+Object CompressedObjectSlot::Relaxed_Load(IsolateRoot isolate) const {
   AtomicTagged_t value = AsAtomicTagged::Relaxed_Load(location());
   return Object(DecompressTaggedAny(isolate, value));
 }
@@ -85,7 +85,7 @@ MaybeObject CompressedMaybeObjectSlot::operator*() const {
   return MaybeObject(DecompressTaggedAny(address(), value));
 }
 
-MaybeObject CompressedMaybeObjectSlot::load(const Isolate* isolate) const {
+MaybeObject CompressedMaybeObjectSlot::load(IsolateRoot isolate) const {
   Tagged_t value = *location();
   return MaybeObject(DecompressTaggedAny(isolate, value));
 }
@@ -99,8 +99,7 @@ MaybeObject CompressedMaybeObjectSlot::Relaxed_Load() const {
   return MaybeObject(DecompressTaggedAny(address(), value));
 }
 
-MaybeObject CompressedMaybeObjectSlot::Relaxed_Load(
-    const Isolate* isolate) const {
+MaybeObject CompressedMaybeObjectSlot::Relaxed_Load(IsolateRoot isolate) const {
   AtomicTagged_t value = AsAtomicTagged::Relaxed_Load(location());
   return MaybeObject(DecompressTaggedAny(isolate, value));
 }
@@ -126,8 +125,7 @@ HeapObjectReference CompressedHeapObjectSlot::operator*() const {
   return HeapObjectReference(DecompressTaggedPointer(address(), value));
 }
 
-HeapObjectReference CompressedHeapObjectSlot::load(
-    const Isolate* isolate) const {
+HeapObjectReference CompressedHeapObjectSlot::load(IsolateRoot isolate) const {
   Tagged_t value = *location();
   return HeapObjectReference(DecompressTaggedPointer(isolate, value));
 }
@@ -150,7 +148,7 @@ void CompressedHeapObjectSlot::StoreHeapObject(HeapObject value) const {
 // OffHeapCompressedObjectSlot implementation.
 //
 
-Object OffHeapCompressedObjectSlot::load(const Isolate* isolate) const {
+Object OffHeapCompressedObjectSlot::load(IsolateRoot isolate) const {
   Tagged_t value = *location();
   return Object(DecompressTaggedAny(isolate, value));
 }
@@ -159,12 +157,12 @@ void OffHeapCompressedObjectSlot::store(Object value) const {
   *location() = CompressTagged(value.ptr());
 }
 
-Object OffHeapCompressedObjectSlot::Relaxed_Load(const Isolate* isolate) const {
+Object OffHeapCompressedObjectSlot::Relaxed_Load(IsolateRoot isolate) const {
   AtomicTagged_t value = AsAtomicTagged::Relaxed_Load(location());
   return Object(DecompressTaggedAny(isolate, value));
 }
 
-Object OffHeapCompressedObjectSlot::Acquire_Load(const Isolate* isolate) const {
+Object OffHeapCompressedObjectSlot::Acquire_Load(IsolateRoot isolate) const {
   AtomicTagged_t value = AsAtomicTagged::Acquire_Load(location());
   return Object(DecompressTaggedAny(isolate, value));
 }

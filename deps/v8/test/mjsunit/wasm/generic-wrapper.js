@@ -730,6 +730,23 @@ let kSig_f_iiliiiffddlifffdi = makeSig([kWasmI32, kWasmI32, kWasmI64, kWasmI32,
   assertEquals(360, x);
 })();
 
+(function testCallFromOptimizedFunction() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  builder.addFunction('wasm_fn', kSig_v_v).addBody([
+      kExprNop,
+  ]).exportFunc();
+
+  instance = builder.instantiate();
+  function js_caller() {
+    return instance.exports.wasm_fn();
+  }
+  %PrepareFunctionForOptimization(js_caller);
+  js_caller();
+  %OptimizeFunctionOnNextCall(js_caller);
+  js_caller();
+})();
+
 (function Regression1130385() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();

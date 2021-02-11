@@ -1,0 +1,23 @@
+// Copyright 2020 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/objects/js-date-time-format.h'
+
+type DateTimeStyle extends int32 constexpr 'JSDateTimeFormat::DateTimeStyle';
+type HourCycle extends int32 constexpr 'JSDateTimeFormat::HourCycle';
+bitfield struct JSDateTimeFormatFlags extends uint31 {
+  hour_cycle: HourCycle: 3 bit;
+  date_style: DateTimeStyle: 3 bit;
+  time_style: DateTimeStyle: 3 bit;
+}
+
+@generateCppClass
+extern class JSDateTimeFormat extends JSObject {
+  locale: String;
+  icu_locale: Foreign;                // Managed<icu::Locale>
+  icu_simple_date_format: Foreign;    // Managed<icu::SimpleDateFormat>
+  icu_date_interval_format: Foreign;  // Managed<icu::DateIntervalFormat>
+  bound_format: JSFunction|Undefined;
+  flags: SmiTagged<JSDateTimeFormatFlags>;
+}

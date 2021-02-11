@@ -72,7 +72,7 @@ ConsArray.prototype.atEnd = function() {
  * Returns the current item, moves to the next one.
  */
 ConsArray.prototype.next = function() {
-  var result = this.currCell_.data[this.currCellPos_++];
+  const result = this.currCell_.data[this.currCellPos_++];
   if (this.currCellPos_ >= this.currCell_.data.length) {
     this.currCell_ = this.currCell_.next;
     this.currCellPos_ = 0;

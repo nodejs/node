@@ -42,6 +42,8 @@ STATIC_ASSERT(RegisterConfiguration::kMaxFPRegisters >=
 STATIC_ASSERT(RegisterConfiguration::kMaxFPRegisters >=
               Simd128Register::kNumRegisters);
 
+// Callers on architectures other than Arm expect this to be be constant
+// between build and runtime. Avoid adding variability on other platforms.
 static int get_num_allocatable_double_registers() {
   return
 #if V8_TARGET_ARCH_IA32
@@ -71,6 +73,8 @@ static int get_num_allocatable_double_registers() {
 
 #undef REGISTER_COUNT
 
+// Callers on architectures other than Arm expect this to be be constant
+// between build and runtime. Avoid adding variability on other platforms.
 static const int* get_allocatable_double_codes() {
   return
 #if V8_TARGET_ARCH_ARM

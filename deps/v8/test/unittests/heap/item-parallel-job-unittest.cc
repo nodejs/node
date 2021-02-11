@@ -13,12 +13,13 @@ namespace internal {
 class ItemParallelJobTest : public TestWithIsolate {
  public:
   ItemParallelJobTest() : parallel_job_semaphore_(0) {}
+  ItemParallelJobTest(const ItemParallelJobTest&) = delete;
+  ItemParallelJobTest& operator=(const ItemParallelJobTest&) = delete;
 
   base::Semaphore* parallel_job_semaphore() { return &parallel_job_semaphore_; }
 
  private:
   base::Semaphore parallel_job_semaphore_;
-  DISALLOW_COPY_AND_ASSIGN(ItemParallelJobTest);
 };
 
 namespace {

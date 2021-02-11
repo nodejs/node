@@ -56,11 +56,11 @@ SMI_ACCESSORS(Context, length, kLengthOffset)
 CAST_ACCESSOR(NativeContext)
 
 Object Context::get(int index) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return get(isolate, index);
 }
 
-Object Context::get(const Isolate* isolate, int index) const {
+Object Context::get(IsolateRoot isolate, int index) const {
   DCHECK_LT(static_cast<unsigned>(index),
             static_cast<unsigned>(this->length()));
   return TaggedField<Object>::Relaxed_Load(isolate, *this,
@@ -88,11 +88,11 @@ void Context::set_scope_info(ScopeInfo scope_info) {
 }
 
 Object Context::synchronized_get(int index) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return synchronized_get(isolate, index);
 }
 
-Object Context::synchronized_get(const Isolate* isolate, int index) const {
+Object Context::synchronized_get(IsolateRoot isolate, int index) const {
   DCHECK_LT(static_cast<unsigned int>(index),
             static_cast<unsigned int>(this->length()));
   return ACQUIRE_READ_FIELD(*this, OffsetOfElementAt(index));
@@ -268,17 +268,19 @@ Map Context::GetInitialJSArrayMap(ElementsKind kind) const {
 }
 
 DEF_GETTER(NativeContext, microtask_queue, MicrotaskQueue*) {
-  ExternalPointer_t encoded_value =
-      ReadField<ExternalPointer_t>(kMicrotaskQueueOffset);
-  return reinterpret_cast<MicrotaskQueue*>(
-      DecodeExternalPointer(isolate, encoded_value));
+  return reinterpret_cast<MicrotaskQueue*>(ReadExternalPointerField(
+      kMicrotaskQueueOffset, isolate, kNativeContextMicrotaskQueueTag));
+}
+
+void NativeContext::AllocateExternalPointerEntries(Isolate* isolate) {
+  InitExternalPointerField(kMicrotaskQueueOffset, isolate);
 }
 
 void NativeContext::set_microtask_queue(Isolate* isolate,
                                         MicrotaskQueue* microtask_queue) {
-  ExternalPointer_t encoded_value = EncodeExternalPointer(
-      isolate, reinterpret_cast<Address>(microtask_queue));
-  WriteField<ExternalPointer_t>(kMicrotaskQueueOffset, encoded_value);
+  WriteExternalPointerField(kMicrotaskQueueOffset, isolate,
+                            reinterpret_cast<Address>(microtask_queue),
+                            kNativeContextMicrotaskQueueTag);
 }
 
 void NativeContext::synchronized_set_script_context_table(

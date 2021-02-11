@@ -10,22 +10,22 @@
 
 extern "C" const uint8_t* v8_Default_embedded_blob_code_;
 extern "C" uint32_t v8_Default_embedded_blob_code_size_;
-extern "C" const uint8_t* v8_Default_embedded_blob_metadata_;
-extern "C" uint32_t v8_Default_embedded_blob_metadata_size_;
+extern "C" const uint8_t* v8_Default_embedded_blob_data_;
+extern "C" uint32_t v8_Default_embedded_blob_data_size_;
 
 const uint8_t* v8_Default_embedded_blob_code_ = nullptr;
 uint32_t v8_Default_embedded_blob_code_size_ = 0;
-const uint8_t* v8_Default_embedded_blob_metadata_ = nullptr;
-uint32_t v8_Default_embedded_blob_metadata_size_ = 0;
+const uint8_t* v8_Default_embedded_blob_data_ = nullptr;
+uint32_t v8_Default_embedded_blob_data_size_ = 0;
 
 #ifdef V8_MULTI_SNAPSHOTS
 extern "C" const uint8_t* v8_Trusted_embedded_blob_code_;
 extern "C" uint32_t v8_Trusted_embedded_blob_code_size_;
-extern "C" const uint8_t* v8_Trusted_embedded_blob_metadata_;
-extern "C" uint32_t v8_Trusted_embedded_blob_metadata_size_;
+extern "C" const uint8_t* v8_Trusted_embedded_blob_data_;
+extern "C" uint32_t v8_Trusted_embedded_blob_data_size_;
 
 const uint8_t* v8_Trusted_embedded_blob_code_ = nullptr;
 uint32_t v8_Trusted_embedded_blob_code_size_ = 0;
-const uint8_t* v8_Trusted_embedded_blob_metadata_ = nullptr;
-uint32_t v8_Trusted_embedded_blob_metadata_size_ = 0;
+const uint8_t* v8_Trusted_embedded_blob_data_ = nullptr;
+uint32_t v8_Trusted_embedded_blob_data_size_ = 0;
 #endif

@@ -157,6 +157,8 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
         globally_registered_(false),
         custom_deleter_(custom_deleter),
         empty_deleter_(empty_deleter) {}
+  BackingStore(const BackingStore&) = delete;
+  BackingStore& operator=(const BackingStore&) = delete;
   void SetAllocatorFromIsolate(Isolate* isolate);
 
   void* buffer_start_ = nullptr;
@@ -209,8 +211,6 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   static std::unique_ptr<BackingStore> TryAllocateWasmMemory(
       Isolate* isolate, size_t initial_pages, size_t maximum_pages,
       SharedFlag shared);
-
-  DISALLOW_COPY_AND_ASSIGN(BackingStore);
 };
 
 // A global, per-process mapping from buffer addresses to backing stores.

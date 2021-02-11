@@ -351,6 +351,10 @@ Node* GraphAssembler::IntPtrConstant(intptr_t value) {
   return AddClonedNode(mcgraph()->IntPtrConstant(value));
 }
 
+Node* GraphAssembler::UintPtrConstant(uintptr_t value) {
+  return AddClonedNode(mcgraph()->UintPtrConstant(value));
+}
+
 Node* GraphAssembler::Int32Constant(int32_t value) {
   return AddClonedNode(mcgraph()->Int32Constant(value));
 }
@@ -707,6 +711,18 @@ Node* GraphAssembler::LoadUnaligned(MachineType type, Node* object,
           ? machine()->Load(type)
           : machine()->UnalignedLoad(type);
   return AddNode(graph()->NewNode(op, object, offset, effect(), control()));
+}
+
+Node* GraphAssembler::ProtectedStore(MachineRepresentation rep, Node* object,
+                                     Node* offset, Node* value) {
+  return AddNode(graph()->NewNode(machine()->ProtectedStore(rep), object,
+                                  offset, value, effect(), control()));
+}
+
+Node* GraphAssembler::ProtectedLoad(MachineType type, Node* object,
+                                    Node* offset) {
+  return AddNode(graph()->NewNode(machine()->ProtectedLoad(type), object,
+                                  offset, effect(), control()));
 }
 
 Node* GraphAssembler::Retain(Node* buffer) {

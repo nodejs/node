@@ -14,6 +14,7 @@
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
 #include "test/common/wasm/wasm-interpreter.h"
 
@@ -136,6 +137,13 @@ WasmInterpretationResult InterpretWasmModule(
   Zone zone(isolate->allocator(), ZONE_NAME);
   v8::internal::HandleScope scope(isolate);
   const WasmFunction* func = &instance->module()->functions[function_index];
+
+  CHECK(func->exported);
+  // This would normally be handled by export wrappers.
+  if (!IsJSCompatibleSignature(func->sig, instance->module(),
+                               WasmFeatures::FromIsolate(isolate))) {
+    return WasmInterpretationResult::Trapped(false);
+  }
 
   WasmInterpreter interpreter{
       isolate, instance->module(),

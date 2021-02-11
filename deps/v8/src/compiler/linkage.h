@@ -276,6 +276,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
         stack_order_(stack_order),
         debug_name_(debug_name) {}
 
+  CallDescriptor(const CallDescriptor&) = delete;
+  CallDescriptor& operator=(const CallDescriptor&) = delete;
+
   // Returns the kind of this call.
   Kind kind() const { return kind_; }
 
@@ -317,16 +320,12 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   }
 
   int GetStackIndexFromSlot(int slot_index) const {
-#ifdef V8_REVERSE_JSARGS
     switch (GetStackArgumentOrder()) {
       case StackArgumentOrder::kDefault:
         return -slot_index - 1;
       case StackArgumentOrder::kJS:
         return slot_index + static_cast<int>(StackParameterCount());
     }
-#else
-    return -slot_index - 1;
-#endif
   }
 
   // The total number of inputs to this call, which includes the target,
@@ -433,8 +432,6 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   const StackArgumentOrder stack_order_;
   const char* const debug_name_;
   const CFunctionInfo* c_function_info_ = nullptr;
-
-  DISALLOW_COPY_AND_ASSIGN(CallDescriptor);
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(CallDescriptor::Flags)
@@ -460,6 +457,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   explicit Linkage(CallDescriptor* incoming) : incoming_(incoming) {}
+  Linkage(const Linkage&) = delete;
+  Linkage& operator=(const Linkage&) = delete;
 
   static CallDescriptor* ComputeIncoming(Zone* zone,
                                          OptimizedCompilationInfo* info);
@@ -558,8 +557,6 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
 
  private:
   CallDescriptor* const incoming_;
-
-  DISALLOW_COPY_AND_ASSIGN(Linkage);
 };
 
 }  // namespace compiler

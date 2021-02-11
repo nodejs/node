@@ -17,7 +17,6 @@ struct FeedbackSource {
   V8_EXPORT_PRIVATE FeedbackSource(Handle<FeedbackVector> vector_,
                                    FeedbackSlot slot_);
   FeedbackSource(FeedbackVectorRef vector_, FeedbackSlot slot_);
-  explicit FeedbackSource(FeedbackNexus const& nexus);
 
   bool IsValid() const { return !vector.is_null() && !slot.IsInvalid(); }
   int index() const;

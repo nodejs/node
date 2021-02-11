@@ -109,12 +109,12 @@ void EmitUnwindData(PlatformEmbeddedFileWriterWin* w,
   w->Comment("    UnwindInfoAddress");
   w->StartPdataSection();
   {
+    STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
     Address prev_builtin_end_offset = 0;
     for (int i = 0; i < Builtins::builtin_count; i++) {
       // Some builtins are leaf functions from the point of view of Win64 stack
       // walking: they do not move the stack pointer and do not require a PDATA
       // entry because the return address can be retrieved from [rsp].
-      if (!blob->ContainsBuiltin(i)) continue;
       if (unwind_infos[i].is_leaf_function()) continue;
 
       uint64_t builtin_start_offset = blob->InstructionStartOfBuiltin(i) -
@@ -193,8 +193,8 @@ void EmitUnwindData(PlatformEmbeddedFileWriterWin* w,
   std::vector<int> code_chunks;
   std::vector<win64_unwindinfo::FrameOffsets> fp_adjustments;
 
+  STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (int i = 0; i < Builtins::builtin_count; i++) {
-    if (!blob->ContainsBuiltin(i)) continue;
     if (unwind_infos[i].is_leaf_function()) continue;
 
     uint64_t builtin_start_offset = blob->InstructionStartOfBuiltin(i) -

@@ -29,6 +29,9 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorReducer final
   SimplifiedOperatorReducer(Editor* editor, JSGraph* jsgraph,
                             JSHeapBroker* broker);
   ~SimplifiedOperatorReducer() final;
+  SimplifiedOperatorReducer(const SimplifiedOperatorReducer&) = delete;
+  SimplifiedOperatorReducer& operator=(const SimplifiedOperatorReducer&) =
+      delete;
 
   const char* reducer_name() const override {
     return "SimplifiedOperatorReducer";
@@ -57,8 +60,6 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorReducer final
 
   JSGraph* const jsgraph_;
   JSHeapBroker* const broker_;
-
-  DISALLOW_COPY_AND_ASSIGN(SimplifiedOperatorReducer);
 };
 
 }  // namespace compiler

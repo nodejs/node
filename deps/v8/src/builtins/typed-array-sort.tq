@@ -114,6 +114,14 @@ transitioning javascript builtin TypedArrayPrototypeSort(
     return TypedArraySortFast(context, obj);
   }
 
+  // Throw rather than crash if the TypedArray's size exceeds max FixedArray
+  // size (which we need below).
+  // TODO(4153): Consider redesigning the sort implementation such that we
+  // don't have such a limit.
+  if (len > kFixedArrayMaxLength) {
+    ThrowTypeError(MessageTemplate::kTypedArrayTooLargeToSort);
+  }
+
   const comparefn: Callable =
       Cast<Callable>(comparefnObj) otherwise unreachable;
   const accessor: TypedArrayAccessor =

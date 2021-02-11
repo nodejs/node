@@ -311,6 +311,7 @@ enum ContextLookupFlags {
   V(FINALIZATION_REGISTRY_CLEANUP_SOME, JSFunction,                            \
     finalization_registry_cleanup_some)                                        \
   V(FUNCTION_HAS_INSTANCE_INDEX, JSFunction, function_has_instance)            \
+  V(FUNCTION_TO_STRING_INDEX, JSFunction, function_to_string)                  \
   V(OBJECT_TO_STRING, JSFunction, object_to_string)                            \
   V(OBJECT_VALUE_OF_FUNCTION_INDEX, JSFunction, object_value_of_function)      \
   V(PROMISE_ALL_INDEX, JSFunction, promise_all)                                \
@@ -438,13 +439,13 @@ class Context : public HeapObject {
 
   // Setter and getter for elements.
   V8_INLINE Object get(int index) const;
-  V8_INLINE Object get(const Isolate* isolate, int index) const;
+  V8_INLINE Object get(IsolateRoot isolate, int index) const;
   V8_INLINE void set(int index, Object value);
   // Setter with explicit barrier mode.
   V8_INLINE void set(int index, Object value, WriteBarrierMode mode);
   // Setter and getter with synchronization semantics.
   V8_INLINE Object synchronized_get(int index) const;
-  V8_INLINE Object synchronized_get(const Isolate* isolate, int index) const;
+  V8_INLINE Object synchronized_get(IsolateRoot isolate, int index) const;
   V8_INLINE void synchronized_set(int index, Object value);
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
@@ -661,6 +662,8 @@ class NativeContext : public Context {
  public:
   DECL_CAST(NativeContext)
   // TODO(neis): Move some stuff from Context here.
+
+  inline void AllocateExternalPointerEntries(Isolate* isolate);
 
   // [microtask_queue]: pointer to the MicrotaskQueue object.
   DECL_GETTER(microtask_queue, MicrotaskQueue*)

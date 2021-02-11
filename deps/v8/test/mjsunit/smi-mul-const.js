@@ -73,16 +73,14 @@ assertUnoptimized(mul_by_2);
 
 // Deopt on overflow.
 
-// 2^30 is a smi boundary on arm and ia32.
+// -2^30 is in Smi range on most configurations, +2^30 is not.
 var two_30 = 1 << 30;
-// 2^31 is a smi boundary on arm64 and x64.
-var two_31 = 2 * two_30;
+assertEquals(two_30, mul_by_neg_1(-two_30));
 
-// TODO(rmcilroy): replace after r16361 with:  if (%IsValidSmi(two_31)) {
-if (true) {
-  assertEquals(two_31, mul_by_neg_1(-two_31));
-  assertUnoptimized(mul_by_neg_1);
-} else {
-  assertEquals(two_30, mul_by_neg_1(-two_30));
-  assertUnoptimized(mul_by_neg_1);
-}
+// For good measure, check that overflowing int32 range (or Smi range
+// without pointer compression) works too.
+var two_31 = two_30 * 2;
+assertEquals(two_31, mul_by_neg_1(-two_31));
+
+// One of the two situations deoptimized the code.
+assertUnoptimized(mul_by_neg_1);

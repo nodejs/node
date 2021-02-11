@@ -25,6 +25,8 @@ namespace interpreter {
 class V8_EXPORT_PRIVATE HandlerTableBuilder final {
  public:
   explicit HandlerTableBuilder(Zone* zone);
+  HandlerTableBuilder(const HandlerTableBuilder&) = delete;
+  HandlerTableBuilder& operator=(const HandlerTableBuilder&) = delete;
 
   // Builds the actual handler table by copying the current values into a heap
   // object. Any further mutations to the builder won't be reflected.
@@ -55,8 +57,6 @@ class V8_EXPORT_PRIVATE HandlerTableBuilder final {
   };
 
   ZoneVector<Entry> entries_;
-
-  DISALLOW_COPY_AND_ASSIGN(HandlerTableBuilder);
 };
 
 }  // namespace interpreter

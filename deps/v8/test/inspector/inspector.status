@@ -22,11 +22,12 @@
 }],  # ALWAYS
 
 ##############################################################################
-['arch == x64 and mode == debug', {
-  # Flaky tests: https://crbug.com/v8/10876
-  'debugger/pause-on-oom-extrawide': [PASS, FAIL],
-  'debugger/pause-on-oom-wide': [PASS, FAIL],
-}],  # 'arch == x64 and mode == debug'
+['mode != debug or dcheck_always_on', {
+  # Investigating flaky tests: https://crbug.com/v8/10876. Enable only on pure debug.
+  'debugger/pause-on-oom': [SKIP],
+  'debugger/pause-on-oom-wide': [SKIP],
+  'debugger/pause-on-oom-extrawide': [SKIP],
+}],  # 'mode != debug or dcheck_always_on'
 
 ##############################################################################
 ['system == android', {
@@ -76,6 +77,12 @@
 }],  # (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
+['(arch == ppc64) and simulator_run', {
+  # Slow test: https://crbug.com/v8/10965
+  'runtime/console-messages-limits': [PASS, SLOW],
+}],  # (arch == ppc64) and simulator_run
+
+##############################################################################
 ['variant == no_wasm_traps', {
   '*': [SKIP],
 }],  # variant == no_wasm_traps
@@ -93,6 +100,12 @@
   # Liftoff needs to be enabled before running these tests.
   'debugger/wasm-*': [SKIP],
 }],  # 'arch == s390 or arch == s390x'
+
+##############################################################################
+['(arch == mipsel or arch == mips64el) and not simd_mips', {
+  # Skip tests that fail on MIPS architectures that don't support SIMD.
+  'debugger/wasm-scope-info*': [SKIP],
+}],  # '(arch == mipsel or arch == mips64el) and not simd_mips'
 
 ################################################################################
 ['variant == stress_snapshot', {
@@ -142,5 +155,21 @@
   'debugger/wasm-source': [SKIP],
   'debugger/wasm-stepping-with-skiplist': [SKIP],
 }], # stress_js_bg_compile_wasm_code_gc
+
+##############################################################################
+['variant == stress_concurrent_allocation', {
+  # TODO(dinfuehr): Fix tests such that we can remove these lines.
+  'cpu-profiler/coverage': [SKIP],
+  'cpu-profiler/coverage-block': [SKIP],
+  'runtime/internal-properties-entries': [SKIP],
+  'runtime-call-stats/collection': [SKIP],
+}], # stress_concurrent_allocation
+
+##############################################################################
+['asan == True', {
+  # There are still memory leaks in some inspector tests
+  # (https://crbug.com/v8/11107).
+  'runtime/evaluate-async': [SKIP],
+}], # asan == True
 
 ]

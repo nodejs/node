@@ -38,8 +38,7 @@ AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate,
   CHECK(!options.use_pc_relative_calls_and_jumps);
   CHECK(!options.collect_win64_unwind_info);
 
-  if (!isolate->IsGeneratingEmbeddedBuiltins() ||
-      !Builtins::IsIsolateIndependent(builtin_index)) {
+  if (!isolate->IsGeneratingEmbeddedBuiltins()) {
     return options;
   }
 

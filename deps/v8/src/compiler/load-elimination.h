@@ -33,6 +33,8 @@ class V8_EXPORT_PRIVATE LoadElimination final
   LoadElimination(Editor* editor, JSGraph* jsgraph, Zone* zone)
       : AdvancedReducer(editor), node_states_(zone), jsgraph_(jsgraph) {}
   ~LoadElimination() final = default;
+  LoadElimination(const LoadElimination&) = delete;
+  LoadElimination& operator=(const LoadElimination&) = delete;
 
   const char* reducer_name() const override { return "LoadElimination"; }
 
@@ -335,8 +337,6 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
   AbstractStateForEffectNodes node_states_;
   JSGraph* const jsgraph_;
-
-  DISALLOW_COPY_AND_ASSIGN(LoadElimination);
 };
 
 }  // namespace compiler

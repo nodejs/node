@@ -53,17 +53,14 @@ mul2(-1, 2);
 mul2(-1, 2);
 %OptimizeFunctionOnNextCall(mul2);
 
-// 2^30 is a smi boundary on arm and ia32.
+// -2^30 is in Smi range on most configurations, +2^30 is not.
 var two_30 = 1 << 30;
-// 2^31 is a smi boundary on x64.
-var two_31 = 2 * two_30;
+assertEquals(two_30, mul2(-two_30, -1));
 
-if (%IsValidSmi(two_31)) {
-  // Deopt on two_31 on x64.
-  assertEquals(two_31, mul2(-two_31, -1));
-  assertUnoptimized(mul2);
-} else {
-  // Deopt on two_30 on ia32.
-  assertEquals(two_30, mul2(-two_30, -1));
-  assertUnoptimized(mul2);
-}
+// For good measure, check that overflowing int32 range (or Smi range
+// without pointer compression) works too.
+var two_31 = two_30 * 2;
+assertEquals(two_31, mul2(-two_31, -1));
+
+// One of the two situations deoptimized the code.
+assertUnoptimized(mul2);

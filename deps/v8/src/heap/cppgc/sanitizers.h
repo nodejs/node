@@ -47,27 +47,32 @@
 
 // API for newly allocated or reclaimed memory.
 #if defined(V8_USE_MEMORY_SANITIZER)
-#define SET_MEMORY_ACCESIBLE(address, size) \
-  MSAN_UNPOISON(address, size);             \
-  memset((address), 0, (size))
-#define SET_MEMORY_INACCESIBLE(address, size) MSAN_POISON((address), (size))
-#elif DEBUG || defined(V8_USE_ADDRESS_SANITIZER)
-#define SET_MEMORY_ACCESIBLE(address, size)   \
-  ASAN_UNPOISON_MEMORY_REGION(address, size); \
-  memset((address), 0, (size))
-#define SET_MEMORY_INACCESIBLE(address, size)      \
-  ::cppgc::internal::ZapMemory((address), (size)); \
+#define SET_MEMORY_ACCESSIBLE(address, size) MSAN_UNPOISON(address, size);
+#define SET_MEMORY_INACCESSIBLE(address, size) \
+  memset((address), 0, (size));                \
+  MSAN_POISON((address), (size))
+#elif defined(V8_USE_ADDRESS_SANITIZER)
+#define SET_MEMORY_ACCESSIBLE(address, size) \
+  ASAN_UNPOISON_MEMORY_REGION(address, size);
+#define SET_MEMORY_INACCESSIBLE(address, size) \
+  memset((address), 0, (size));                \
   ASAN_POISON_MEMORY_REGION(address, size)
+#elif DEBUG
+#define SET_MEMORY_ACCESSIBLE(address, size) memset((address), 0, (size))
+#define SET_MEMORY_INACCESSIBLE(address, size) \
+  ::cppgc::internal::ZapMemory((address), (size));
 #else
-#define SET_MEMORY_ACCESIBLE(address, size) memset((address), 0, (size))
-#define SET_MEMORY_INACCESIBLE(address, size) ((void)(address), (void)(size))
+#define SET_MEMORY_ACCESSIBLE(address, size) ((void)(address), (void)(size))
+#define SET_MEMORY_INACCESSIBLE(address, size) memset((address), 0, (size))
 #endif
 
 namespace cppgc {
 namespace internal {
 
 inline void ZapMemory(void* address, size_t size) {
-  static constexpr uint8_t kZappedValue = 0xcd;
+  // The lowest bit of the zapped value should be 0 so that zapped object
+  // are never viewed as fully constructed objects.
+  static constexpr uint8_t kZappedValue = 0xdc;
   memset(address, kZappedValue, size);
 }
 
