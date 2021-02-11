@@ -565,7 +565,7 @@ MessagePort::MessagePort(Environment* env,
   auto onmessage = [](uv_async_t* handle) {
     // Called when data has been put into the queue.
     MessagePort* channel = ContainerOf(&MessagePort::async_, handle);
-    channel->OnMessage();
+    channel->OnMessage(MessageProcessingMode::kNormalOperation);
   };
 
   CHECK_EQ(uv_async_init(env->event_loop(),
@@ -664,7 +664,7 @@ MessagePort* MessagePort::New(
 }
 
 MaybeLocal<Value> MessagePort::ReceiveMessage(Local<Context> context,
-                                              bool only_if_receiving) {
+                                              MessageProcessingMode mode) {
   std::shared_ptr<Message> received;
   {
     // Get the head of the message queue.
@@ -672,7 +672,9 @@ MaybeLocal<Value> MessagePort::ReceiveMessage(Local<Context> context,
 
     Debug(this, "MessagePort has message");
 
-    bool wants_message = receiving_messages_ || !only_if_receiving;
+    bool wants_message =
+        receiving_messages_ ||
+        mode == MessageProcessingMode::kForceReadMessages;
     // We have nothing to do if:
     // - There are no pending messages
     // - We are not intending to receive messages, and the message we would
@@ -697,16 +699,18 @@ MaybeLocal<Value> MessagePort::ReceiveMessage(Local<Context> context,
   return received->Deserialize(env(), context);
 }
 
-void MessagePort::OnMessage() {
+void MessagePort::OnMessage(MessageProcessingMode mode) {
   Debug(this, "Running MessagePort::OnMessage()");
   HandleScope handle_scope(env()->isolate());
   Local<Context> context = object(env()->isolate())->CreationContext();
 
   size_t processing_limit;
-  {
+  if (mode == MessageProcessingMode::kNormalOperation) {
     Mutex::ScopedLock(data_->mutex_);
     processing_limit = std::max(data_->incoming_messages_.size(),
                                 static_cast<size_t>(1000));
+  } else {
+    processing_limit = std::numeric_limits<size_t>::max();
   }
 
   // data_ can only ever be modified by the owner thread, so no need to lock.
@@ -738,7 +742,7 @@ void MessagePort::OnMessage() {
       // Catch any exceptions from parsing the message itself (not from
       // emitting it) as 'messageeror' events.
       TryCatchScope try_catch(env());
-      if (!ReceiveMessage(context, true).ToLocal(&payload)) {
+      if (!ReceiveMessage(context, mode).ToLocal(&payload)) {
         if (try_catch.HasCaught() && !try_catch.HasTerminated())
           message_error = try_catch.Exception();
         goto reschedule;
@@ -999,7 +1003,7 @@ void MessagePort::CheckType(const FunctionCallbackInfo<Value>& args) {
 void MessagePort::Drain(const FunctionCallbackInfo<Value>& args) {
   MessagePort* port;
   ASSIGN_OR_RETURN_UNWRAP(&port, args[0].As<Object>());
-  port->OnMessage();
+  port->OnMessage(MessageProcessingMode::kForceReadMessages);
 }
 
 void MessagePort::ReceiveMessage(const FunctionCallbackInfo<Value>& args) {
@@ -1018,7 +1022,8 @@ void MessagePort::ReceiveMessage(const FunctionCallbackInfo<Value>& args) {
   }
 
   MaybeLocal<Value> payload =
-      port->ReceiveMessage(port->object()->CreationContext(), false);
+      port->ReceiveMessage(port->object()->CreationContext(),
+                           MessageProcessingMode::kForceReadMessages);
   if (!payload.IsEmpty())
     args.GetReturnValue().Set(payload.ToLocalChecked());
 }
