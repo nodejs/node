@@ -45,7 +45,7 @@ Looking for help? Check out the
 
 * **Current**: Under active development. Code for the Current release is in the
   branch for its major version number (for example,
-  [v10.x](https://github.com/nodejs/node/tree/v10.x)). Node.js releases a new
+  [v15.x](https://github.com/nodejs/node/tree/v15.x)). Node.js releases a new
   major version every 6 months, allowing for breaking changes. This happens in
   April and October every year. Releases appearing each October have a support
   life of 8 months. Releases appearing each April convert to LTS (see below)
@@ -75,8 +75,8 @@ Binaries, installers, and source tarballs are available at
 The [latest](https://nodejs.org/download/release/latest/) directory is an
 alias for the latest Current release. The latest-_codename_ directory is an
 alias for the latest release from an LTS line. For example, the
-[latest-carbon](https://nodejs.org/download/release/latest-carbon/) directory
-contains the latest Carbon (Node.js 8) release.
+[latest-fermium](https://nodejs.org/download/release/latest-fermium/) directory
+contains the latest Fermium (Node.js 14) release.
 
 #### Nightly releases
 <https://nodejs.org/download/nightly/>
