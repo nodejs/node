@@ -8,6 +8,7 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/constants-arch.h"
 #include "src/codegen/external-reference-table.h"
+#include "src/execution/external-pointer-table.h"
 #include "src/execution/stack-guard.h"
 #include "src/execution/thread-local-top.h"
 #include "src/roots/roots.h"
@@ -55,6 +56,10 @@ class IsolateData final {
   // Root-register-relative offset of the builtin entry table.
   static constexpr int builtin_entry_table_offset() {
     return kBuiltinEntryTableOffset - kIsolateRootBias;
+  }
+  static constexpr int builtin_entry_slot_offset(Builtins::Name builtin_index) {
+    CONSTEXPR_DCHECK(Builtins::IsBuiltinId(builtin_index));
+    return builtin_entry_table_offset() + builtin_index * kSystemPointerSize;
   }
 
   // Root-register-relative offset of the builtins table.
@@ -131,12 +136,20 @@ class IsolateData final {
   V(kThreadLocalTopOffset, ThreadLocalTop::kSizeInBytes)                      \
   V(kBuiltinEntryTableOffset, Builtins::builtin_count* kSystemPointerSize)    \
   V(kBuiltinsTableOffset, Builtins::builtin_count* kSystemPointerSize)        \
+  FIELDS_HEAP_SANDBOX(V)                                                      \
   V(kStackIsIterableOffset, kUInt8Size)                                       \
   /* This padding aligns IsolateData size by 8 bytes. */                      \
   V(kPaddingOffset,                                                           \
     8 + RoundUp<8>(static_cast<int>(kPaddingOffset)) - kPaddingOffset)        \
   /* Total size. */                                                           \
   V(kSize, 0)
+
+#ifdef V8_HEAP_SANDBOX
+#define FIELDS_HEAP_SANDBOX(V) \
+  V(kExternalPointerTableOffset, kSystemPointerSize * 3)
+#else
+#define FIELDS_HEAP_SANDBOX(V)
+#endif  // V8_HEAP_SANDBOX
 
   DEFINE_FIELD_OFFSET_CONSTANTS(0, FIELDS)
 #undef FIELDS
@@ -171,6 +184,11 @@ class IsolateData final {
 
   // The entries in this array are tagged pointers to Code objects.
   Address builtins_[Builtins::builtin_count] = {};
+
+  // Table containing pointers to external objects.
+#ifdef V8_HEAP_SANDBOX
+  ExternalPointerTable external_pointer_table_;
+#endif
 
   // Whether the SafeStackFrameIterator can successfully iterate the current
   // stack. Only valid values are 0 or 1.
@@ -215,6 +233,10 @@ void IsolateData::AssertPredictableLayout() {
   STATIC_ASSERT(offsetof(IsolateData, fast_c_call_caller_pc_) ==
                 kFastCCallCallerPCOffset);
   STATIC_ASSERT(offsetof(IsolateData, stack_guard_) == kStackGuardOffset);
+#ifdef V8_HEAP_SANDBOX
+  STATIC_ASSERT(offsetof(IsolateData, external_pointer_table_) ==
+                kExternalPointerTableOffset);
+#endif
   STATIC_ASSERT(offsetof(IsolateData, stack_is_iterable_) ==
                 kStackIsIterableOffset);
   STATIC_ASSERT(sizeof(IsolateData) == IsolateData::kSize);

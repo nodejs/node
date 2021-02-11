@@ -258,6 +258,7 @@ void CallPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
   Print("/");
   if (node->flags() & RegExp::kGlobal) Print("g");
   if (node->flags() & RegExp::kIgnoreCase) Print("i");
+  if (node->flags() & RegExp::kLinear) Print("l");
   if (node->flags() & RegExp::kMultiline) Print("m");
   if (node->flags() & RegExp::kUnicode) Print("u");
   if (node->flags() & RegExp::kSticky) Print("y");
@@ -1163,6 +1164,7 @@ void AstPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
   EmbeddedVector<char, 128> buf;
   if (node->flags() & RegExp::kGlobal) buf[i++] = 'g';
   if (node->flags() & RegExp::kIgnoreCase) buf[i++] = 'i';
+  if (node->flags() & RegExp::kLinear) buf[i++] = 'l';
   if (node->flags() & RegExp::kMultiline) buf[i++] = 'm';
   if (node->flags() & RegExp::kUnicode) buf[i++] = 'u';
   if (node->flags() & RegExp::kSticky) buf[i++] = 'y';

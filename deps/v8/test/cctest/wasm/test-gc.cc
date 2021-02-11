@@ -88,6 +88,10 @@ class WasmGCTester {
 
   byte DefineSignature(FunctionSig* sig) { return builder_.AddSignature(sig); }
 
+  byte DefineTable(ValueType type, uint32_t min_size, uint32_t max_size) {
+    return builder_.AddTable(type, min_size, max_size);
+  }
+
   void CompileModule() {
     ZoneBuffer buffer(&zone);
     builder_.WriteTo(&buffer);
@@ -1046,6 +1050,21 @@ TEST(GlobalInitReferencingGlobal) {
   tester.CompileModule();
 
   tester.CheckResult(func, 42);
+}
+
+TEST(IndirectNullSetManually) {
+  WasmGCTester tester;
+  byte sig_index = tester.DefineSignature(tester.sigs.i_i());
+  tester.DefineTable(ValueType::Ref(sig_index, kNullable), 1, 1);
+  byte func_index = tester.DefineFunction(
+      tester.sigs.i_i(), {},
+      {WASM_TABLE_SET(0, WASM_I32V(0), WASM_REF_NULL(sig_index)),
+       WASM_CALL_INDIRECT(sig_index, WASM_I32V(0), WASM_GET_LOCAL(0)),
+       kExprEnd});
+
+  tester.CompileModule();
+
+  tester.CheckHasThrown(func_index, 42);
 }
 
 TEST(JsAccess) {

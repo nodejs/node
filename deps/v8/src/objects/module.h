@@ -27,6 +27,8 @@ class SourceTextModuleInfoEntry;
 class String;
 class Zone;
 
+#include "torque-generated/src/objects/module-tq.inc"
+
 // Module is the base class for ECMAScript module types, roughly corresponding
 // to Abstract Module Record.
 // https://tc39.github.io/ecma262/#sec-abstract-module-records
@@ -63,6 +65,10 @@ class Module : public HeapObject {
   Object GetException();
   DECL_ACCESSORS(exception, Object)
 
+  // Returns if this module or any transitively requested module is [[Async]],
+  // i.e. has a top-level await.
+  V8_WARN_UNUSED_RESULT bool IsGraphAsync(Isolate* isolate) const;
+
   // Implementation of spec operation ModuleDeclarationInstantiation.
   // Returns false if an exception occurred during instantiation, true
   // otherwise. (In the case where the callback throws an exception, that
@@ -86,6 +92,8 @@ class Module : public HeapObject {
 
   using BodyDescriptor =
       FixedBodyDescriptor<kExportsOffset, kHeaderSize, kHeaderSize>;
+
+  struct Hash;
 
  protected:
   friend class Factory;

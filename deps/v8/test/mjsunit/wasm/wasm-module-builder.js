@@ -75,8 +75,10 @@ let kLocalNamesCode = 2;
 let kWasmFunctionTypeForm = 0x60;
 let kWasmAnyFunctionTypeForm = 0x70;
 
-let kHasMaximumFlag = 1;
-let kSharedHasMaximumFlag = 3;
+let kLimitsNoMaximum = 0
+let kLimitsHasMaximum = 1;
+let kLimitsSharedNoMaximum = 2;
+let kLimitsSharedHasMaximum = 3;
 
 // Segment flags
 let kActiveNoIndex = 0;
@@ -197,204 +199,226 @@ function makeSig_r_xx(r, x) {
 }
 
 // Opcodes
-let kExprUnreachable = 0x00;
-let kExprNop = 0x01;
-let kExprBlock = 0x02;
-let kExprLoop = 0x03;
-let kExprIf = 0x04;
-let kExprElse = 0x05;
-let kExprTry = 0x06;
-let kExprCatch = 0x07;
-let kExprThrow = 0x08;
-let kExprRethrow = 0x09;
-let kExprBrOnExn = 0x0a;
-let kExprEnd = 0x0b;
-let kExprBr = 0x0c;
-let kExprBrIf = 0x0d;
-let kExprBrTable = 0x0e;
-let kExprReturn = 0x0f;
-let kExprCallFunction = 0x10;
-let kExprCallIndirect = 0x11;
-let kExprReturnCall = 0x12;
-let kExprReturnCallIndirect = 0x13;
-let kExprCallRef = 0x14;
-let kExprReturnCallRef = 0x15;
-let kExprDrop = 0x1a;
-let kExprSelect = 0x1b;
-let kExprSelectWithType = 0x1c;
-let kExprLocalGet = 0x20;
-let kExprLocalSet = 0x21;
-let kExprLocalTee = 0x22;
-let kExprGlobalGet = 0x23;
-let kExprGlobalSet = 0x24;
-let kExprTableGet = 0x25;
-let kExprTableSet = 0x26;
-let kExprI32LoadMem = 0x28;
-let kExprI64LoadMem = 0x29;
-let kExprF32LoadMem = 0x2a;
-let kExprF64LoadMem = 0x2b;
-let kExprI32LoadMem8S = 0x2c;
-let kExprI32LoadMem8U = 0x2d;
-let kExprI32LoadMem16S = 0x2e;
-let kExprI32LoadMem16U = 0x2f;
-let kExprI64LoadMem8S = 0x30;
-let kExprI64LoadMem8U = 0x31;
-let kExprI64LoadMem16S = 0x32;
-let kExprI64LoadMem16U = 0x33;
-let kExprI64LoadMem32S = 0x34;
-let kExprI64LoadMem32U = 0x35;
-let kExprI32StoreMem = 0x36;
-let kExprI64StoreMem = 0x37;
-let kExprF32StoreMem = 0x38;
-let kExprF64StoreMem = 0x39;
-let kExprI32StoreMem8 = 0x3a;
-let kExprI32StoreMem16 = 0x3b;
-let kExprI64StoreMem8 = 0x3c;
-let kExprI64StoreMem16 = 0x3d;
-let kExprI64StoreMem32 = 0x3e;
-let kExprMemorySize = 0x3f;
-let kExprMemoryGrow = 0x40;
-let kExprI32Const = 0x41;
-let kExprI64Const = 0x42;
-let kExprF32Const = 0x43;
-let kExprF64Const = 0x44;
-let kExprI32Eqz = 0x45;
-let kExprI32Eq = 0x46;
-let kExprI32Ne = 0x47;
-let kExprI32LtS = 0x48;
-let kExprI32LtU = 0x49;
-let kExprI32GtS = 0x4a;
-let kExprI32GtU = 0x4b;
-let kExprI32LeS = 0x4c;
-let kExprI32LeU = 0x4d;
-let kExprI32GeS = 0x4e;
-let kExprI32GeU = 0x4f;
-let kExprI64Eqz = 0x50;
-let kExprI64Eq = 0x51;
-let kExprI64Ne = 0x52;
-let kExprI64LtS = 0x53;
-let kExprI64LtU = 0x54;
-let kExprI64GtS = 0x55;
-let kExprI64GtU = 0x56;
-let kExprI64LeS = 0x57;
-let kExprI64LeU = 0x58;
-let kExprI64GeS = 0x59;
-let kExprI64GeU = 0x5a;
-let kExprF32Eq = 0x5b;
-let kExprF32Ne = 0x5c;
-let kExprF32Lt = 0x5d;
-let kExprF32Gt = 0x5e;
-let kExprF32Le = 0x5f;
-let kExprF32Ge = 0x60;
-let kExprF64Eq = 0x61;
-let kExprF64Ne = 0x62;
-let kExprF64Lt = 0x63;
-let kExprF64Gt = 0x64;
-let kExprF64Le = 0x65;
-let kExprF64Ge = 0x66;
-let kExprI32Clz = 0x67;
-let kExprI32Ctz = 0x68;
-let kExprI32Popcnt = 0x69;
-let kExprI32Add = 0x6a;
-let kExprI32Sub = 0x6b;
-let kExprI32Mul = 0x6c;
-let kExprI32DivS = 0x6d;
-let kExprI32DivU = 0x6e;
-let kExprI32RemS = 0x6f;
-let kExprI32RemU = 0x70;
-let kExprI32And = 0x71;
-let kExprI32Ior = 0x72;
-let kExprI32Xor = 0x73;
-let kExprI32Shl = 0x74;
-let kExprI32ShrS = 0x75;
-let kExprI32ShrU = 0x76;
-let kExprI32Rol = 0x77;
-let kExprI32Ror = 0x78;
-let kExprI64Clz = 0x79;
-let kExprI64Ctz = 0x7a;
-let kExprI64Popcnt = 0x7b;
-let kExprI64Add = 0x7c;
-let kExprI64Sub = 0x7d;
-let kExprI64Mul = 0x7e;
-let kExprI64DivS = 0x7f;
-let kExprI64DivU = 0x80;
-let kExprI64RemS = 0x81;
-let kExprI64RemU = 0x82;
-let kExprI64And = 0x83;
-let kExprI64Ior = 0x84;
-let kExprI64Xor = 0x85;
-let kExprI64Shl = 0x86;
-let kExprI64ShrS = 0x87;
-let kExprI64ShrU = 0x88;
-let kExprI64Rol = 0x89;
-let kExprI64Ror = 0x8a;
-let kExprF32Abs = 0x8b;
-let kExprF32Neg = 0x8c;
-let kExprF32Ceil = 0x8d;
-let kExprF32Floor = 0x8e;
-let kExprF32Trunc = 0x8f;
-let kExprF32NearestInt = 0x90;
-let kExprF32Sqrt = 0x91;
-let kExprF32Add = 0x92;
-let kExprF32Sub = 0x93;
-let kExprF32Mul = 0x94;
-let kExprF32Div = 0x95;
-let kExprF32Min = 0x96;
-let kExprF32Max = 0x97;
-let kExprF32CopySign = 0x98;
-let kExprF64Abs = 0x99;
-let kExprF64Neg = 0x9a;
-let kExprF64Ceil = 0x9b;
-let kExprF64Floor = 0x9c;
-let kExprF64Trunc = 0x9d;
-let kExprF64NearestInt = 0x9e;
-let kExprF64Sqrt = 0x9f;
-let kExprF64Add = 0xa0;
-let kExprF64Sub = 0xa1;
-let kExprF64Mul = 0xa2;
-let kExprF64Div = 0xa3;
-let kExprF64Min = 0xa4;
-let kExprF64Max = 0xa5;
-let kExprF64CopySign = 0xa6;
-let kExprI32ConvertI64 = 0xa7;
-let kExprI32SConvertF32 = 0xa8;
-let kExprI32UConvertF32 = 0xa9;
-let kExprI32SConvertF64 = 0xaa;
-let kExprI32UConvertF64 = 0xab;
-let kExprI64SConvertI32 = 0xac;
-let kExprI64UConvertI32 = 0xad;
-let kExprI64SConvertF32 = 0xae;
-let kExprI64UConvertF32 = 0xaf;
-let kExprI64SConvertF64 = 0xb0;
-let kExprI64UConvertF64 = 0xb1;
-let kExprF32SConvertI32 = 0xb2;
-let kExprF32UConvertI32 = 0xb3;
-let kExprF32SConvertI64 = 0xb4;
-let kExprF32UConvertI64 = 0xb5;
-let kExprF32ConvertF64 = 0xb6;
-let kExprF64SConvertI32 = 0xb7;
-let kExprF64UConvertI32 = 0xb8;
-let kExprF64SConvertI64 = 0xb9;
-let kExprF64UConvertI64 = 0xba;
-let kExprF64ConvertF32 = 0xbb;
-let kExprI32ReinterpretF32 = 0xbc;
-let kExprI64ReinterpretF64 = 0xbd;
-let kExprF32ReinterpretI32 = 0xbe;
-let kExprF64ReinterpretI64 = 0xbf;
-let kExprI32SExtendI8 = 0xc0;
-let kExprI32SExtendI16 = 0xc1;
-let kExprI64SExtendI8 = 0xc2;
-let kExprI64SExtendI16 = 0xc3;
-let kExprI64SExtendI32 = 0xc4;
-let kExprRefNull = 0xd0;
-let kExprRefIsNull = 0xd1;
-let kExprRefFunc = 0xd2;
+const kWasmOpcodes = {
+  'Unreachable': 0x00,
+  'Nop': 0x01,
+  'Block': 0x02,
+  'Loop': 0x03,
+  'If': 0x04,
+  'Else': 0x05,
+  'Try': 0x06,
+  'Catch': 0x07,
+  'Throw': 0x08,
+  'Rethrow': 0x09,
+  'BrOnExn': 0x0a,
+  'End': 0x0b,
+  'Br': 0x0c,
+  'BrIf': 0x0d,
+  'BrTable': 0x0e,
+  'Return': 0x0f,
+  'CallFunction': 0x10,
+  'CallIndirect': 0x11,
+  'ReturnCall': 0x12,
+  'ReturnCallIndirect': 0x13,
+  'CallRef': 0x14,
+  'ReturnCallRef': 0x15,
+  'Drop': 0x1a,
+  'Select': 0x1b,
+  'SelectWithType': 0x1c,
+  'LocalGet': 0x20,
+  'LocalSet': 0x21,
+  'LocalTee': 0x22,
+  'GlobalGet': 0x23,
+  'GlobalSet': 0x24,
+  'TableGet': 0x25,
+  'TableSet': 0x26,
+  'I32LoadMem': 0x28,
+  'I64LoadMem': 0x29,
+  'F32LoadMem': 0x2a,
+  'F64LoadMem': 0x2b,
+  'I32LoadMem8S': 0x2c,
+  'I32LoadMem8U': 0x2d,
+  'I32LoadMem16S': 0x2e,
+  'I32LoadMem16U': 0x2f,
+  'I64LoadMem8S': 0x30,
+  'I64LoadMem8U': 0x31,
+  'I64LoadMem16S': 0x32,
+  'I64LoadMem16U': 0x33,
+  'I64LoadMem32S': 0x34,
+  'I64LoadMem32U': 0x35,
+  'I32StoreMem': 0x36,
+  'I64StoreMem': 0x37,
+  'F32StoreMem': 0x38,
+  'F64StoreMem': 0x39,
+  'I32StoreMem8': 0x3a,
+  'I32StoreMem16': 0x3b,
+  'I64StoreMem8': 0x3c,
+  'I64StoreMem16': 0x3d,
+  'I64StoreMem32': 0x3e,
+  'MemorySize': 0x3f,
+  'MemoryGrow': 0x40,
+  'I32Const': 0x41,
+  'I64Const': 0x42,
+  'F32Const': 0x43,
+  'F64Const': 0x44,
+  'I32Eqz': 0x45,
+  'I32Eq': 0x46,
+  'I32Ne': 0x47,
+  'I32LtS': 0x48,
+  'I32LtU': 0x49,
+  'I32GtS': 0x4a,
+  'I32GtU': 0x4b,
+  'I32LeS': 0x4c,
+  'I32LeU': 0x4d,
+  'I32GeS': 0x4e,
+  'I32GeU': 0x4f,
+  'I64Eqz': 0x50,
+  'I64Eq': 0x51,
+  'I64Ne': 0x52,
+  'I64LtS': 0x53,
+  'I64LtU': 0x54,
+  'I64GtS': 0x55,
+  'I64GtU': 0x56,
+  'I64LeS': 0x57,
+  'I64LeU': 0x58,
+  'I64GeS': 0x59,
+  'I64GeU': 0x5a,
+  'F32Eq': 0x5b,
+  'F32Ne': 0x5c,
+  'F32Lt': 0x5d,
+  'F32Gt': 0x5e,
+  'F32Le': 0x5f,
+  'F32Ge': 0x60,
+  'F64Eq': 0x61,
+  'F64Ne': 0x62,
+  'F64Lt': 0x63,
+  'F64Gt': 0x64,
+  'F64Le': 0x65,
+  'F64Ge': 0x66,
+  'I32Clz': 0x67,
+  'I32Ctz': 0x68,
+  'I32Popcnt': 0x69,
+  'I32Add': 0x6a,
+  'I32Sub': 0x6b,
+  'I32Mul': 0x6c,
+  'I32DivS': 0x6d,
+  'I32DivU': 0x6e,
+  'I32RemS': 0x6f,
+  'I32RemU': 0x70,
+  'I32And': 0x71,
+  'I32Ior': 0x72,
+  'I32Xor': 0x73,
+  'I32Shl': 0x74,
+  'I32ShrS': 0x75,
+  'I32ShrU': 0x76,
+  'I32Rol': 0x77,
+  'I32Ror': 0x78,
+  'I64Clz': 0x79,
+  'I64Ctz': 0x7a,
+  'I64Popcnt': 0x7b,
+  'I64Add': 0x7c,
+  'I64Sub': 0x7d,
+  'I64Mul': 0x7e,
+  'I64DivS': 0x7f,
+  'I64DivU': 0x80,
+  'I64RemS': 0x81,
+  'I64RemU': 0x82,
+  'I64And': 0x83,
+  'I64Ior': 0x84,
+  'I64Xor': 0x85,
+  'I64Shl': 0x86,
+  'I64ShrS': 0x87,
+  'I64ShrU': 0x88,
+  'I64Rol': 0x89,
+  'I64Ror': 0x8a,
+  'F32Abs': 0x8b,
+  'F32Neg': 0x8c,
+  'F32Ceil': 0x8d,
+  'F32Floor': 0x8e,
+  'F32Trunc': 0x8f,
+  'F32NearestInt': 0x90,
+  'F32Sqrt': 0x91,
+  'F32Add': 0x92,
+  'F32Sub': 0x93,
+  'F32Mul': 0x94,
+  'F32Div': 0x95,
+  'F32Min': 0x96,
+  'F32Max': 0x97,
+  'F32CopySign': 0x98,
+  'F64Abs': 0x99,
+  'F64Neg': 0x9a,
+  'F64Ceil': 0x9b,
+  'F64Floor': 0x9c,
+  'F64Trunc': 0x9d,
+  'F64NearestInt': 0x9e,
+  'F64Sqrt': 0x9f,
+  'F64Add': 0xa0,
+  'F64Sub': 0xa1,
+  'F64Mul': 0xa2,
+  'F64Div': 0xa3,
+  'F64Min': 0xa4,
+  'F64Max': 0xa5,
+  'F64CopySign': 0xa6,
+  'I32ConvertI64': 0xa7,
+  'I32SConvertF32': 0xa8,
+  'I32UConvertF32': 0xa9,
+  'I32SConvertF64': 0xaa,
+  'I32UConvertF64': 0xab,
+  'I64SConvertI32': 0xac,
+  'I64UConvertI32': 0xad,
+  'I64SConvertF32': 0xae,
+  'I64UConvertF32': 0xaf,
+  'I64SConvertF64': 0xb0,
+  'I64UConvertF64': 0xb1,
+  'F32SConvertI32': 0xb2,
+  'F32UConvertI32': 0xb3,
+  'F32SConvertI64': 0xb4,
+  'F32UConvertI64': 0xb5,
+  'F32ConvertF64': 0xb6,
+  'F64SConvertI32': 0xb7,
+  'F64UConvertI32': 0xb8,
+  'F64SConvertI64': 0xb9,
+  'F64UConvertI64': 0xba,
+  'F64ConvertF32': 0xbb,
+  'I32ReinterpretF32': 0xbc,
+  'I64ReinterpretF64': 0xbd,
+  'F32ReinterpretI32': 0xbe,
+  'F64ReinterpretI64': 0xbf,
+  'I32SExtendI8': 0xc0,
+  'I32SExtendI16': 0xc1,
+  'I64SExtendI8': 0xc2,
+  'I64SExtendI16': 0xc3,
+  'I64SExtendI32': 0xc4,
+  'RefNull': 0xd0,
+  'RefIsNull': 0xd1,
+  'RefFunc': 0xd2
+};
+
+function defineWasmOpcode(name, value) {
+  if (globalThis.kWasmOpcodeNames === undefined) {
+    globalThis.kWasmOpcodeNames = {};
+  }
+  Object.defineProperty(globalThis, name, {value: value});
+  if (globalThis.kWasmOpcodeNames[value] !== undefined) {
+    throw new Error(`Duplicate wasm opcode: ${value}. Previous name: ${
+        globalThis.kWasmOpcodeNames[value]}, new name: ${name}`);
+  }
+  globalThis.kWasmOpcodeNames[value] = name;
+}
+for (let name in kWasmOpcodes) {
+  defineWasmOpcode(`kExpr${name}`, kWasmOpcodes[name]);
+}
 
 // Prefix opcodes
-let kGCPrefix = 0xfb;
-let kNumericPrefix = 0xfc;
-let kSimdPrefix = 0xfd;
-let kAtomicPrefix = 0xfe;
+const kPrefixOpcodes = {
+  'GC': 0xfb,
+  'Numeric': 0xfc,
+  'Simd': 0xfd,
+  'Atomic': 0xfe
+};
+for (let prefix in kPrefixOpcodes) {
+  defineWasmOpcode(`k${prefix}Prefix`, kPrefixOpcodes[prefix]);
+}
 
 // GC opcodes
 let kExprRttCanon = 0x30;
@@ -402,6 +426,14 @@ let kExprRefCast = 0x41;
 let kExprI31New = 0x20;
 
 // Numeric opcodes.
+let kExprI32SConvertSatF32 = 0x00;
+let kExprI32UConvertSatF32 = 0x01;
+let kExprI32SConvertSatF64 = 0x02;
+let kExprI32UConvertSatF64 = 0x03;
+let kExprI64SConvertSatF32 = 0x04;
+let kExprI64UConvertSatF32 = 0x05;
+let kExprI64SConvertSatF64 = 0x06;
+let kExprI64UConvertSatF64 = 0x07;
 let kExprMemoryInit = 0x08;
 let kExprDataDrop = 0x09;
 let kExprMemoryCopy = 0x0a;
@@ -572,11 +604,11 @@ let kExprI8x16Shl = 0x6b;
 let kExprI8x16ShrS = 0x6c;
 let kExprI8x16ShrU = 0x6d;
 let kExprI8x16Add = 0x6e;
-let kExprI8x16AddSaturateS = 0x6f;
-let kExprI8x16AddSaturateU = 0x70;
+let kExprI8x16AddSatS = 0x6f;
+let kExprI8x16AddSatU = 0x70;
 let kExprI8x16Sub = 0x71;
-let kExprI8x16SubSaturateS = 0x72;
-let kExprI8x16SubSaturateU = 0x73;
+let kExprI8x16SubSatS = 0x72;
+let kExprI8x16SubSatU = 0x73;
 let kExprI8x16MinS = 0x76;
 let kExprI8x16MinU = 0x77;
 let kExprI8x16MaxS = 0x78;
@@ -596,11 +628,11 @@ let kExprI16x8Shl = 0x8b;
 let kExprI16x8ShrS = 0x8c;
 let kExprI16x8ShrU = 0x8d;
 let kExprI16x8Add = 0x8e;
-let kExprI16x8AddSaturateS = 0x8f;
-let kExprI16x8AddSaturateU = 0x90;
+let kExprI16x8AddSatS = 0x8f;
+let kExprI16x8AddSatU = 0x90;
 let kExprI16x8Sub = 0x91;
-let kExprI16x8SubSaturateS = 0x92;
-let kExprI16x8SubSaturateU = 0x93;
+let kExprI16x8SubSatS = 0x92;
+let kExprI16x8SubSatU = 0x93;
 let kExprI16x8Mul = 0x95;
 let kExprI16x8MinS = 0x96;
 let kExprI16x8MinU = 0x97;
@@ -670,15 +702,13 @@ let kTrapDivByZero            = 2;
 let kTrapDivUnrepresentable   = 3;
 let kTrapRemByZero            = 4;
 let kTrapFloatUnrepresentable = 5;
-let kTrapFuncInvalid          = 6;
+let kTrapTableOutOfBounds     = 6;
 let kTrapFuncSigMismatch      = 7;
-let kTrapTypeError            = 8;
-let kTrapUnalignedAccess      = 9;
-let kTrapDataSegmentDropped   = 10;
-let kTrapElemSegmentDropped   = 11;
-let kTrapTableOutOfBounds     = 12;
-let kTrapBrOnExnNull          = 13;
-let kTrapRethrowNull          = 14;
+let kTrapUnalignedAccess      = 8;
+let kTrapDataSegmentDropped   = 9;
+let kTrapElemSegmentDropped   = 10;
+let kTrapBrOnExnNull          = 11;
+let kTrapRethrowNull          = 12;
 
 let kTrapMsgs = [
   "unreachable",
@@ -687,13 +717,11 @@ let kTrapMsgs = [
   "divide result unrepresentable",
   "remainder by zero",
   "float unrepresentable in integer range",
-  "invalid index into function table",
+  "table index is out of bounds",
   "function signature mismatch",
-  "wasm function signature contains illegal type",
   "operation does not support unaligned accesses",
   "data segment has been dropped",
   "element segment has been dropped",
-  "table access out of bounds",
   "br_on_exn on null value",
   "rethrowing null value"
 ];
@@ -948,8 +976,8 @@ class WasmModuleBuilder {
     return this;
   }
 
-  addMemory(min, max, exp, shared) {
-    this.memory = {min: min, max: max, exp: exp, shared: shared};
+  addMemory(min, max, exported, shared) {
+    this.memory = {min: min, max: max, exported: exported, shared: shared};
     return this;
   }
 
@@ -1124,13 +1152,13 @@ class WasmModuleBuilder {
     return this;
   }
 
-  addPassiveElementSegment(array, is_import = false) {
+  addPassiveElementSegment(array) {
     this.element_segments.push(
         {array: array, is_active: false, is_declarative: false});
     return this;
   }
 
-  addDeclarativeElementSegment(array, is_import = false) {
+  addDeclarativeElementSegment(array) {
     this.element_segments.push(
         {array: array, is_active: false, is_declarative: true});
     return this;
@@ -1266,12 +1294,9 @@ class WasmModuleBuilder {
         section.emit_u8(1);  // one memory entry
         const has_max = wasm.memory.max !== undefined;
         const is_shared = wasm.memory.shared !== undefined;
-        // Emit flags (bit 0: reszeable max, bit 1: shared memory)
-        if (is_shared) {
-          section.emit_u8(has_max ? kSharedHasMaximumFlag : 2);
-        } else {
-          section.emit_u8(has_max ? kHasMaximumFlag : 0);
-        }
+        section.emit_u8(is_shared
+          ? (has_max ? kLimitsSharedHasMaximum : kLimitsSharedNoMaximum)
+          : (has_max ? kLimitsHasMaximum : kLimitsNoMaximum));
         section.emit_u32v(wasm.memory.min);
         if (has_max) section.emit_u32v(wasm.memory.max);
       });
@@ -1356,7 +1381,7 @@ class WasmModuleBuilder {
     }
 
     // Add export table.
-    var mem_export = (wasm.memory !== undefined && wasm.memory.exp);
+    var mem_export = (wasm.memory !== undefined && wasm.memory.exported);
     var exports_count = wasm.exports.length + (mem_export ? 1 : 0);
     if (exports_count > 0) {
       if (debug) print("emitting exports @ " + binary.length);
@@ -1665,4 +1690,8 @@ function wasmF64Const(f) {
 function wasmS128Const(f) {
   // Write in little-endian order at offset 0.
   return [kSimdPrefix, kExprS128Const, ...f];
+}
+
+function getOpcodeName(opcode) {
+  return globalThis.kWasmOpcodeNames?.[opcode] ?? 'unknown';
 }

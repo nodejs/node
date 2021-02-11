@@ -72,6 +72,14 @@ class HeapProfiler : public HeapObjectAllocationTracker {
     return !build_embedder_graph_callbacks_.empty();
   }
 
+  void SetGetDetachednessCallback(
+      v8::HeapProfiler::GetDetachednessCallback callback, void* data);
+  bool HasGetDetachednessCallback() const {
+    return get_detachedness_callback_.first != nullptr;
+  }
+  v8::EmbedderGraph::Node::Detachedness GetDetachedness(
+      const v8::Local<v8::Value> v8_value, uint16_t class_id);
+
   bool is_tracking_object_moves() const { return is_tracking_object_moves_; }
 
   Handle<HeapObject> FindHeapObjectById(SnapshotObjectId id);
@@ -99,6 +107,8 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   std::unique_ptr<SamplingHeapProfiler> sampling_heap_profiler_;
   std::vector<std::pair<v8::HeapProfiler::BuildEmbedderGraphCallback, void*>>
       build_embedder_graph_callbacks_;
+  std::pair<v8::HeapProfiler::GetDetachednessCallback, void*>
+      get_detachedness_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(HeapProfiler);
 };

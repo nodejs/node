@@ -1264,6 +1264,41 @@ TEST_F(WasmModuleVerifyTest, MultipleSignatures) {
   EXPECT_OFF_END_FAILURE(data, 1);
 }
 
+TEST_F(WasmModuleVerifyTest, CanonicalTypeIds) {
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+  WASM_FEATURE_SCOPE(reftypes);
+
+  static const byte data[] = {
+      SECTION(Type,                               // --
+              ENTRY_COUNT(5),                     // --
+              WASM_STRUCT_DEF(                    // Struct definition
+                  FIELD_COUNT(1),                 // --
+                  STRUCT_FIELD(kI32Code, true)),  // --
+              SIG_ENTRY_x_x(kI32Code, kF32Code),  // f32 -> i32
+              SIG_ENTRY_x_x(kI32Code, kF64Code),  // f64 -> i32
+              SIG_ENTRY_x_x(kI32Code, kF32Code),  // f32 -> i32 (again)
+              WASM_ARRAY_DEF(kI32Code, true))     // Array definition
+  };
+
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_OK(result);
+  const WasmModule* module = result.value().get();
+
+  EXPECT_EQ(5u, module->types.size());
+  EXPECT_EQ(5u, module->type_kinds.size());
+  EXPECT_EQ(5u, module->canonicalized_type_ids.size());
+  EXPECT_EQ(2u, module->signature_map.size());
+
+  // No canonicalization for structs.
+  EXPECT_EQ(0u, module->canonicalized_type_ids[0]);
+  EXPECT_EQ(0u, module->canonicalized_type_ids[1]);
+  EXPECT_EQ(1u, module->canonicalized_type_ids[2]);
+  EXPECT_EQ(0u, module->canonicalized_type_ids[3]);
+  // No canonicalization for arrays.
+  EXPECT_EQ(0u, module->canonicalized_type_ids[4]);
+}
+
 TEST_F(WasmModuleVerifyTest, DataSegmentWithImmutableImportedGlobal) {
   // Import 2 globals so that we can initialize data with a global index != 0.
   const byte data[] = {
@@ -1417,6 +1452,15 @@ TEST_F(WasmModuleVerifyTest, MaxMaximumMemorySize) {
     const byte data[] = {
         SECTION(Memory, ENTRY_COUNT(1), kWithMaximum, 0, U32V_3(65537))};
     EXPECT_FAILURE(data);
+  }
+}
+
+TEST_F(WasmModuleVerifyTest, InvalidMemoryLimits) {
+  {
+    const byte kInvalidLimits = 0x15;
+    const byte data[] = {
+        SECTION(Memory, ENTRY_COUNT(1), kInvalidLimits, 0, 10)};
+    EXPECT_FAILURE_WITH_MSG(data, "invalid memory limits flags 0x15");
   }
 }
 

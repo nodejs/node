@@ -16,6 +16,8 @@ namespace internal {
 
 enum InstanceType : uint16_t;
 
+#include "torque-generated/src/objects/allocation-site-tq.inc"
+
 class AllocationSite : public Struct {
  public:
   NEVER_READ_ONLY_SPACE

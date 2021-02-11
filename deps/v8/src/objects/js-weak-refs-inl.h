@@ -17,6 +17,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-weak-refs-tq-inl.inc"
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakCell)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSWeakRef)
 OBJECT_CONSTRUCTORS_IMPL(JSFinalizationRegistry, JSObject)

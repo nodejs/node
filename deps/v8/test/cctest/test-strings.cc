@@ -222,6 +222,8 @@ static void InitializeBuildingBlocks(Handle<String>* building_blocks,
 class ConsStringStats {
  public:
   ConsStringStats() { Reset(); }
+  ConsStringStats(const ConsStringStats&) = delete;
+  ConsStringStats& operator=(const ConsStringStats&) = delete;
   void Reset();
   void VerifyEqual(const ConsStringStats& that) const;
   int leaves_;
@@ -231,7 +233,6 @@ class ConsStringStats {
   int right_traversals_;
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(ConsStringStats);
 };
 
 void ConsStringStats::Reset() {
@@ -254,6 +255,8 @@ class ConsStringGenerationData {
  public:
   static const int kNumberOfBuildingBlocks = 256;
   explicit ConsStringGenerationData(bool long_blocks);
+  ConsStringGenerationData(const ConsStringGenerationData&) = delete;
+  ConsStringGenerationData& operator=(const ConsStringGenerationData&) = delete;
   void Reset();
   inline Handle<String> block(int offset);
   inline Handle<String> block(uint32_t offset);
@@ -270,9 +273,6 @@ class ConsStringGenerationData {
   // Stats.
   ConsStringStats stats_;
   int early_terminations_;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(ConsStringGenerationData);
 };
 
 ConsStringGenerationData::ConsStringGenerationData(bool long_blocks) {

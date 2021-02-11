@@ -33,13 +33,9 @@ constexpr int kJumpTableSlotCount = 128;
 constexpr uint32_t kJumpTableSize =
     JumpTableAssembler::SizeForNumberOfSlots(kJumpTableSlotCount);
 
-// Must be a safe commit page size.
-#if V8_OS_MACOSX && V8_HOST_ARCH_ARM64
-// See kAppleArmPageSize in platform-posix.cc.
-constexpr size_t kThunkBufferSize = 1 << 14;
-#else
-constexpr size_t kThunkBufferSize = 4 * KB;
-#endif
+// This must be a safe commit page size so we pick the largest OS page size that
+// V8 is known to support. Arm64 linux can support up to 64k at runtime.
+constexpr size_t kThunkBufferSize = 64 * KB;
 
 #if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
 // We need the branches (from CompileJumpTableThunk) to be within near-call

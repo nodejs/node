@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Tests of profiles generator and utilities.
+// Tests of the CPU profiler and utilities.
 
 #include <limits>
 #include <memory>
@@ -45,6 +45,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/profiler/cpu-profiler-inl.h"
 #include "src/profiler/profiler-listener.h"
+#include "src/profiler/symbolizer.h"
 #include "src/profiler/tracing-cpu-profiler.h"
 #include "src/tracing/trace-event.h"
 #include "src/utils/utils.h"
@@ -86,11 +87,11 @@ TEST(StartStop) {
   i::Isolate* isolate = CcTest::i_isolate();
   CpuProfilesCollection profiles(isolate);
   ProfilerCodeObserver code_observer(isolate);
-  ProfileGenerator generator(&profiles, code_observer.code_map());
+  Symbolizer symbolizer(code_observer.code_map());
   std::unique_ptr<ProfilerEventsProcessor> processor(
-      new SamplingEventsProcessor(isolate, &generator, &code_observer,
-                                  v8::base::TimeDelta::FromMicroseconds(100),
-                                  true));
+      new SamplingEventsProcessor(
+          isolate, &symbolizer, &code_observer, &profiles,
+          v8::base::TimeDelta::FromMicroseconds(100), true));
   CHECK(processor->Start());
   processor->StopSynchronously();
 }
@@ -169,10 +170,9 @@ TEST(CodeEvents) {
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfilerCodeObserver code_observer(isolate);
-  ProfileGenerator* generator =
-      new ProfileGenerator(profiles, code_observer.code_map());
+  Symbolizer* symbolizer = new Symbolizer(code_observer.code_map());
   ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
-      isolate, generator, &code_observer,
+      isolate, symbolizer, &code_observer, profiles,
       v8::base::TimeDelta::FromMicroseconds(100), true);
   CHECK(processor->Start());
   ProfilerListener profiler_listener(isolate, processor);
@@ -195,21 +195,21 @@ TEST(CodeEvents) {
   isolate->logger()->RemoveCodeEventListener(&profiler_listener);
   processor->StopSynchronously();
 
-  // Check the state of profile generator.
+  // Check the state of the symbolizer.
   CodeEntry* aaa =
-      generator->code_map()->FindEntry(aaa_code->InstructionStart());
+      symbolizer->code_map()->FindEntry(aaa_code->InstructionStart());
   CHECK(aaa);
   CHECK_EQ(0, strcmp(aaa_str, aaa->name()));
 
   CodeEntry* comment =
-      generator->code_map()->FindEntry(comment_code->InstructionStart());
+      symbolizer->code_map()->FindEntry(comment_code->InstructionStart());
   CHECK(comment);
   CHECK_EQ(0, strcmp("comment", comment->name()));
 
-  CHECK(!generator->code_map()->FindEntry(comment2_code->InstructionStart()));
+  CHECK(!symbolizer->code_map()->FindEntry(comment2_code->InstructionStart()));
 
   CodeEntry* comment2 =
-      generator->code_map()->FindEntry(moved_code->InstructionStart());
+      symbolizer->code_map()->FindEntry(moved_code->InstructionStart());
   CHECK(comment2);
   CHECK_EQ(0, strcmp("comment2", comment2->name()));
 }
@@ -231,13 +231,12 @@ TEST(TickEvents) {
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfilerCodeObserver code_observer(isolate);
-  ProfileGenerator* generator =
-      new ProfileGenerator(profiles, code_observer.code_map());
+  Symbolizer* symbolizer = new Symbolizer(code_observer.code_map());
   ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
-      CcTest::i_isolate(), generator, &code_observer,
+      CcTest::i_isolate(), symbolizer, &code_observer, profiles,
       v8::base::TimeDelta::FromMicroseconds(100), true);
-  CpuProfiler profiler(isolate, kDebugNaming, kLazyLogging, profiles, generator,
-                       processor);
+  CpuProfiler profiler(isolate, kDebugNaming, kLazyLogging, profiles,
+                       symbolizer, processor);
   profiles->StartProfiling("");
   CHECK(processor->Start());
   ProfilerListener profiler_listener(isolate, processor);
@@ -248,10 +247,11 @@ TEST(TickEvents) {
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, frame3_code, "ddd");
 
   EnqueueTickSampleEvent(processor, frame1_code->raw_instruction_start());
-  EnqueueTickSampleEvent(
-      processor,
-      frame2_code->raw_instruction_start() + frame2_code->ExecutableSize() / 2,
-      frame1_code->raw_instruction_start() + frame1_code->ExecutableSize() / 2);
+  EnqueueTickSampleEvent(processor,
+                         frame2_code->raw_instruction_start() +
+                             frame2_code->raw_instruction_size() / 2,
+                         frame1_code->raw_instruction_start() +
+                             frame1_code->raw_instruction_size() / 2);
   EnqueueTickSampleEvent(processor, frame3_code->raw_instruction_end() - 1,
                          frame2_code->raw_instruction_end() - 1,
                          frame1_code->raw_instruction_end() - 1);
@@ -279,6 +279,94 @@ TEST(TickEvents) {
   CHECK(top_down_ddd_children->empty());
 }
 
+TEST(CodeMapClearedBetweenProfilesWithLazyLogging) {
+  TestSetup test_setup;
+  LocalContext env;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+
+  // This gets logged when the profiler starts up and scans the heap.
+  i::Handle<i::AbstractCode> code1(CreateCode(&env), isolate);
+
+  CpuProfiler profiler(isolate, kDebugNaming, kLazyLogging);
+  profiler.StartProfiling("");
+
+  CpuProfile* profile = profiler.StopProfiling("");
+  CHECK(profile);
+
+  // Check that our code is still in the code map.
+  CodeMap* code_map = profiler.code_map_for_test();
+  CodeEntry* code1_entry = code_map->FindEntry(code1->InstructionStart());
+  CHECK(code1_entry);
+  CHECK_EQ(0, strcmp("function_1", code1_entry->name()));
+
+  profiler.DeleteProfile(profile);
+
+  // Check that the code map is emptied once the last profile is deleted.
+  CHECK(!code_map->FindEntry(code1->InstructionStart()));
+
+  // Create code between profiles. This should not be logged yet.
+  i::Handle<i::AbstractCode> code2(CreateCode(&env), isolate);
+
+  CHECK(!code_map->FindEntry(code2->InstructionStart()));
+}
+
+TEST(CodeMapNotClearedBetweenProfilesWithEagerLogging) {
+  TestSetup test_setup;
+  LocalContext env;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+
+  // This gets logged when the profiler starts up and scans the heap.
+  i::Handle<i::AbstractCode> code1(CreateCode(&env), isolate);
+
+  CpuProfiler profiler(isolate, kDebugNaming, kEagerLogging);
+  profiler.StartProfiling("");
+
+  CpuProfile* profile = profiler.StopProfiling("");
+  CHECK(profile);
+
+  // Check that our code is still in the code map.
+  CodeMap* code_map = profiler.code_map_for_test();
+  CodeEntry* code1_entry = code_map->FindEntry(code1->InstructionStart());
+  CHECK(code1_entry);
+  CHECK_EQ(0, strcmp("function_1", code1_entry->name()));
+
+  profiler.DeleteProfile(profile);
+
+  // We should still have an entry in kEagerLogging mode.
+  code1_entry = code_map->FindEntry(code1->InstructionStart());
+  CHECK(code1_entry);
+  CHECK_EQ(0, strcmp("function_1", code1_entry->name()));
+
+  // Create code between profiles. This should be logged too.
+  i::Handle<i::AbstractCode> code2(CreateCode(&env), isolate);
+  CHECK(code_map->FindEntry(code2->InstructionStart()));
+
+  profiler.StartProfiling("");
+  CpuProfile* profile2 = profiler.StopProfiling("");
+  CHECK(profile2);
+
+  // Check that we still have code map entries for both code objects.
+  code1_entry = code_map->FindEntry(code1->InstructionStart());
+  CHECK(code1_entry);
+  CHECK_EQ(0, strcmp("function_1", code1_entry->name()));
+  CodeEntry* code2_entry = code_map->FindEntry(code2->InstructionStart());
+  CHECK(code2_entry);
+  CHECK_EQ(0, strcmp("function_2", code2_entry->name()));
+
+  profiler.DeleteProfile(profile2);
+
+  // Check that we still have code map entries for both code objects, even after
+  // the last profile is deleted.
+  code1_entry = code_map->FindEntry(code1->InstructionStart());
+  CHECK(code1_entry);
+  CHECK_EQ(0, strcmp("function_1", code1_entry->name()));
+  code2_entry = code_map->FindEntry(code2->InstructionStart());
+  CHECK(code2_entry);
+  CHECK_EQ(0, strcmp("function_2", code2_entry->name()));
+}
+
 // http://crbug/51594
 // This test must not crash.
 TEST(CrashIfStoppingLastNonExistentProfile) {
@@ -303,13 +391,12 @@ TEST(Issue1398) {
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfilerCodeObserver code_observer(isolate);
-  ProfileGenerator* generator =
-      new ProfileGenerator(profiles, code_observer.code_map());
+  Symbolizer* symbolizer = new Symbolizer(code_observer.code_map());
   ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
-      CcTest::i_isolate(), generator, &code_observer,
+      CcTest::i_isolate(), symbolizer, &code_observer, profiles,
       v8::base::TimeDelta::FromMicroseconds(100), true);
-  CpuProfiler profiler(isolate, kDebugNaming, kLazyLogging, profiles, generator,
-                       processor);
+  CpuProfiler profiler(isolate, kDebugNaming, kLazyLogging, profiles,
+                       symbolizer, processor);
   profiles->StartProfiling("");
   CHECK(processor->Start());
   ProfilerListener profiler_listener(isolate, processor);
@@ -1157,18 +1244,17 @@ static void TickLines(bool optimize) {
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfilerCodeObserver code_observer(isolate);
-  ProfileGenerator* generator =
-      new ProfileGenerator(profiles, code_observer.code_map());
+  Symbolizer* symbolizer = new Symbolizer(code_observer.code_map());
   ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
-      CcTest::i_isolate(), generator, &code_observer,
+      CcTest::i_isolate(), symbolizer, &code_observer, profiles,
       v8::base::TimeDelta::FromMicroseconds(100), true);
-  CpuProfiler profiler(isolate, kDebugNaming, kLazyLogging, profiles, generator,
-                       processor);
+  CpuProfiler profiler(isolate, kDebugNaming, kLazyLogging, profiles,
+                       symbolizer, processor);
   profiles->StartProfiling("");
   // TODO(delphick): Stop using the CpuProfiler internals here: This forces
   // LogCompiledFunctions so that source positions are collected everywhere.
   // This would normally happen automatically with CpuProfiler::StartProfiling
-  // but doesn't because it's constructed with a generator and a processor.
+  // but doesn't because it's constructed with a symbolizer and a processor.
   isolate->logger()->LogCompiledFunctions();
   CHECK(processor->Start());
   ProfilerListener profiler_listener(isolate, processor);
@@ -1189,8 +1275,8 @@ static void TickLines(bool optimize) {
   CpuProfile* profile = profiles->StopProfiling("");
   CHECK(profile);
 
-  // Check the state of profile generator.
-  CodeEntry* func_entry = generator->code_map()->FindEntry(code_address);
+  // Check the state of the symbolizer.
+  CodeEntry* func_entry = symbolizer->code_map()->FindEntry(code_address);
   CHECK(func_entry);
   CHECK_EQ(0, strcmp(func_name, func_entry->name()));
   const i::SourcePositionTable* line_info = func_entry->line_info();
@@ -2213,24 +2299,24 @@ TEST(FunctionDetailsInlining) {
 }
 
 static const char* pre_profiling_osr_script = R"(
+    const kMinIterationDurationMs = 1;
     function whenPass(pass, optDuration) {
       if (pass == 5) startProfiling();
     }
     function hot(optDuration, deoptDuration) {
-      const startTime = Date.now();
       %PrepareFunctionForOptimization(hot);
       for (let pass = 0; pass <= optDuration + deoptDuration; pass++) {
+        const startTime = Date.now();
         // Let a few passes go by to ensure we have enough feeback info
         if (pass == 3) %OptimizeOsr();
         // Force deoptimization. %DeoptimizeNow and %DeoptimizeFunction don't
         // doptimize OSRs.
         if (pass == optDuration) whenPass = () => {};
         whenPass(pass, optDuration);
-        for (let i = 0; i < 1e5; i++) {
+        while (Date.now() - startTime < kMinIterationDurationMs) {
           for (let j = 0; j < 1000; j++) {
             x = Math.random() * j;
           }
-          if ((Date.now() - startTime) > pass) break;
         }
       }
     }
@@ -2268,10 +2354,11 @@ TEST(StartProfilingAfterOsr) {
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
   ProfilerHelper helper(env);
+  helper.profiler()->SetSamplingInterval(100);
   CompileRun(pre_profiling_osr_script);
   v8::Local<v8::Function> function = GetFunction(env, "notHot");
 
-  int32_t profiling_optimized_ms = 80;
+  int32_t profiling_optimized_ms = 120;
   int32_t profiling_deoptimized_ms = 40;
   v8::Local<v8::Value> args[] = {
       v8::Integer::New(env->GetIsolate(), profiling_optimized_ms),
@@ -3279,15 +3366,63 @@ TEST(FastStopProfiling) {
   CHECK_LT(duration, kWaitThreshold.InMillisecondsF());
 }
 
+// Tests that when current_profiles->size() is greater than the max allowable
+// number of concurrent profiles (100), we don't allow a new Profile to be
+// profiled
+TEST(MaxSimultaneousProfiles) {
+  LocalContext env;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+
+  v8::CpuProfiler* profiler = v8::CpuProfiler::New(env->GetIsolate());
+
+  // Spin up first profiler. Verify that status is kStarted
+  CpuProfilingStatus firstStatus = profiler->StartProfiling(
+      v8_str("1us"), {v8::CpuProfilingMode::kLeafNodeLineNumbers,
+                      v8::CpuProfilingOptions::kNoSampleLimit, 1});
+
+  CHECK_EQ(firstStatus, CpuProfilingStatus::kStarted);
+
+  // Spin up profiler with same title. Verify that status is kAlreadyStarted
+  CpuProfilingStatus startedStatus = profiler->StartProfiling(
+      v8_str("1us"), {v8::CpuProfilingMode::kLeafNodeLineNumbers,
+                      v8::CpuProfilingOptions::kNoSampleLimit, 1});
+
+  CHECK_EQ(startedStatus, CpuProfilingStatus::kAlreadyStarted);
+
+  // Spin up 99 more profilers, maxing out CpuProfilersCollection.
+  // Check they all return status of kStarted
+  for (int i = 2; i <= CpuProfilesCollection::kMaxSimultaneousProfiles; i++) {
+    CpuProfilingStatus status =
+        profiler->StartProfiling(v8_str((std::to_string(i) + "us").c_str()),
+                                 {v8::CpuProfilingMode::kLeafNodeLineNumbers,
+                                  v8::CpuProfilingOptions::kNoSampleLimit, i});
+    CHECK_EQ(status, CpuProfilingStatus::kStarted);
+  }
+
+  // Spin up 101st profiler. Verify status is kErrorTooManyProfilers
+  CpuProfilingStatus errorStatus = profiler->StartProfiling(
+      v8_str("101us"), {v8::CpuProfilingMode::kLeafNodeLineNumbers,
+                        v8::CpuProfilingOptions::kNoSampleLimit, 2});
+
+  CHECK_EQ(errorStatus, CpuProfilingStatus::kErrorTooManyProfilers);
+
+  // Clean up, otherwise will show a crash.
+  for (int i = 1; i <= CpuProfilesCollection::kMaxSimultaneousProfiles + 1;
+       i++) {
+    profiler->StopProfiling(v8_str((std::to_string(i) + "us").c_str()));
+  }
+}
+
 TEST(LowPrecisionSamplingStartStopInternal) {
   i::Isolate* isolate = CcTest::i_isolate();
   CpuProfilesCollection profiles(isolate);
   ProfilerCodeObserver code_observer(isolate);
-  ProfileGenerator generator(&profiles, code_observer.code_map());
+  Symbolizer symbolizer(code_observer.code_map());
   std::unique_ptr<ProfilerEventsProcessor> processor(
-      new SamplingEventsProcessor(isolate, &generator, &code_observer,
-                                  v8::base::TimeDelta::FromMicroseconds(100),
-                                  false));
+      new SamplingEventsProcessor(
+          isolate, &symbolizer, &code_observer, &profiles,
+          v8::base::TimeDelta::FromMicroseconds(100), false));
   CHECK(processor->Start());
   processor->StopSynchronously();
 }
@@ -3409,14 +3544,13 @@ TEST(ProflilerSubsampling) {
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfilerCodeObserver code_observer(isolate);
-  ProfileGenerator* generator =
-      new ProfileGenerator(profiles, code_observer.code_map());
+  Symbolizer* symbolizer = new Symbolizer(code_observer.code_map());
   ProfilerEventsProcessor* processor =
-      new SamplingEventsProcessor(isolate, generator, &code_observer,
+      new SamplingEventsProcessor(isolate, symbolizer, &code_observer, profiles,
                                   v8::base::TimeDelta::FromMicroseconds(1),
                                   /* use_precise_sampling */ true);
-  CpuProfiler profiler(isolate, kDebugNaming, kLazyLogging, profiles, generator,
-                       processor);
+  CpuProfiler profiler(isolate, kDebugNaming, kLazyLogging, profiles,
+                       symbolizer, processor);
 
   // Create a new CpuProfile that wants samples at 8us.
   CpuProfile profile(&profiler, "",
@@ -3454,14 +3588,13 @@ TEST(DynamicResampling) {
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfilerCodeObserver code_observer(isolate);
-  ProfileGenerator* generator =
-      new ProfileGenerator(profiles, code_observer.code_map());
+  Symbolizer* symbolizer = new Symbolizer(code_observer.code_map());
   ProfilerEventsProcessor* processor =
-      new SamplingEventsProcessor(isolate, generator, &code_observer,
+      new SamplingEventsProcessor(isolate, symbolizer, &code_observer, profiles,
                                   v8::base::TimeDelta::FromMicroseconds(1),
                                   /* use_precise_sampling */ true);
-  CpuProfiler profiler(isolate, kDebugNaming, kLazyLogging, profiles, generator,
-                       processor);
+  CpuProfiler profiler(isolate, kDebugNaming, kLazyLogging, profiles,
+                       symbolizer, processor);
 
   // Set a 1us base sampling rate, dividing all possible intervals.
   profiler.set_sampling_interval(base::TimeDelta::FromMicroseconds(1));
@@ -3516,14 +3649,13 @@ TEST(DynamicResamplingWithBaseInterval) {
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfilerCodeObserver code_observer(isolate);
-  ProfileGenerator* generator =
-      new ProfileGenerator(profiles, code_observer.code_map());
+  Symbolizer* symbolizer = new Symbolizer(code_observer.code_map());
   ProfilerEventsProcessor* processor =
-      new SamplingEventsProcessor(isolate, generator, &code_observer,
+      new SamplingEventsProcessor(isolate, symbolizer, &code_observer, profiles,
                                   v8::base::TimeDelta::FromMicroseconds(1),
                                   /* use_precise_sampling */ true);
-  CpuProfiler profiler(isolate, kDebugNaming, kLazyLogging, profiles, generator,
-                       processor);
+  CpuProfiler profiler(isolate, kDebugNaming, kLazyLogging, profiles,
+                       symbolizer, processor);
 
   profiler.set_sampling_interval(base::TimeDelta::FromMicroseconds(7));
 

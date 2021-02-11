@@ -242,8 +242,6 @@ DEFINE_BOOL(es_staging, false,
 DEFINE_BOOL(harmony, false, "enable all completed harmony features")
 DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 DEFINE_IMPLICATION(es_staging, harmony)
-// Enabling import.meta requires to also enable import()
-DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
 // Enabling FinalizationRegistry#cleanupSome also enables weak refs
 DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
 
@@ -254,7 +252,8 @@ DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
   V(harmony_regexp_sequence, "RegExp Unicode sequence properties")             \
   V(harmony_weak_refs_with_cleanup_some,                                       \
     "harmony weak references with FinalizationRegistry.prototype.cleanupSome") \
-  V(harmony_regexp_match_indices, "harmony regexp match indices")
+  V(harmony_regexp_match_indices, "harmony regexp match indices")              \
+  V(harmony_import_assertions, "harmony import assertions")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_INPROGRESS(V)                       \
@@ -279,13 +278,8 @@ DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING_BASE(V)                                          \
-  V(harmony_namespace_exports,                                            \
-    "harmony namespace exports (export * as foo from 'bar')")             \
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")               \
   V(harmony_atomics, "harmony atomics")                                   \
-  V(harmony_import_meta, "harmony import.meta property")                  \
-  V(harmony_dynamic_import, "harmony dynamic import")                     \
-  V(harmony_promise_all_settled, "harmony Promise.allSettled")            \
   V(harmony_promise_any, "harmony Promise.any")                           \
   V(harmony_private_methods, "harmony private methods in class literals") \
   V(harmony_weak_refs, "harmony weak references")                         \
@@ -365,6 +359,10 @@ DEFINE_IMPLICATION(lite_mode, optimize_for_size)
 #define V8_ENABLE_THIRD_PARTY_HEAP_BOOL false
 #endif
 
+DEFINE_NEG_IMPLICATION(enable_third_party_heap, inline_new)
+DEFINE_NEG_IMPLICATION(enable_third_party_heap, allocation_site_pretenuring)
+DEFINE_NEG_IMPLICATION(enable_third_party_heap, turbo_allocation_folding)
+
 DEFINE_BOOL_READONLY(enable_third_party_heap, V8_ENABLE_THIRD_PARTY_HEAP_BOOL,
                      "Use third-party heap")
 
@@ -425,6 +423,7 @@ DEFINE_BOOL(future, FUTURE_BOOL,
 
 DEFINE_WEAK_IMPLICATION(future, write_protect_code_memory)
 DEFINE_WEAK_IMPLICATION(future, finalize_streaming_on_background)
+DEFINE_WEAK_IMPLICATION(future, super_ic)
 
 // Flags for jitless
 DEFINE_BOOL(jitless, V8_LITE_BOOL,
@@ -448,6 +447,10 @@ DEFINE_NEG_IMPLICATION(jitless, interpreted_frames_native_stack)
 
 DEFINE_BOOL(assert_types, false,
             "generate runtime type assertions to test the typer")
+
+DEFINE_BOOL(trace_code_dependencies, false, "trace code dependencies")
+// Depend on --trace-deopt-verbose for reporting dependency invalidations.
+DEFINE_IMPLICATION(trace_code_dependencies, trace_deopt_verbose)
 
 // Flags for experimental implementation features.
 DEFINE_BOOL(allocation_site_pretenuring, true,
@@ -548,15 +551,24 @@ DEFINE_BOOL(trace_generalization, false, "trace map generalization")
 
 // Flags for TurboProp.
 DEFINE_BOOL(turboprop, false, "enable experimental turboprop mid-tier compiler")
-DEFINE_BOOL(turboprop_mid_tier_reg_alloc, false,
-            "enable experimental mid-tier register allocator")
-DEFINE_NEG_IMPLICATION(turboprop, turbo_inlining)
+DEFINE_BOOL(turboprop_mid_tier_reg_alloc, true,
+            "enable mid-tier register allocator for turboprop")
+DEFINE_BOOL(turboprop_dynamic_map_checks, false,
+            "use dynamic map checks when generating code for property accesses "
+            "if all handlers in an IC are the same for turboprop")
+DEFINE_BOOL(turboprop_as_midtier, false,
+            "enable experimental turboprop mid-tier compiler")
+DEFINE_IMPLICATION(turboprop_as_midtier, turboprop)
 DEFINE_IMPLICATION(turboprop, concurrent_inlining)
 DEFINE_VALUE_IMPLICATION(turboprop, interrupt_budget, 15 * KB)
 DEFINE_VALUE_IMPLICATION(turboprop, reuse_opt_code_count, 2)
-DEFINE_IMPLICATION(turboprop, dynamic_map_checks)
 DEFINE_UINT_READONLY(max_minimorphic_map_checks, 4,
                      "max number of map checks to perform in minimorphic state")
+// Since Turboprop uses much lower value for interrupt budget, we need to wait
+// for a higher number of ticks to tierup to Turbofan roughly match the default.
+// The default of 10 is approximately the ration of TP to TF interrupt budget.
+DEFINE_INT(ticks_scale_factor_for_top_tier, 10,
+           "scale factor for profiler ticks when tiering up from midtier")
 
 // Flags for concurrent recompilation.
 DEFINE_BOOL(concurrent_recompilation, true,
@@ -723,9 +735,6 @@ DEFINE_BOOL(
 DEFINE_BOOL(turbo_fast_api_calls, false, "enable fast API calls from TurboFan")
 DEFINE_INT(reuse_opt_code_count, 0,
            "don't discard optimized code for the specified number of deopts.")
-DEFINE_BOOL(dynamic_map_checks, false,
-            "use dynamic map checks when generating code for property accesses "
-            "if all handlers in an IC are the same")
 
 // Native context independent (NCI) code.
 DEFINE_BOOL(turbo_nci, false,
@@ -739,6 +748,18 @@ DEFINE_BOOL(print_nci_code, false, "print native context independent code.")
 DEFINE_BOOL(trace_turbo_nci, false, "trace native context independent code.")
 DEFINE_BOOL(turbo_collect_feedback_in_generic_lowering, true,
             "enable experimental feedback collection in generic lowering.")
+// TODO(jgruber,v8:8888): Remove this flag once we've settled on a codegen
+// strategy.
+DEFINE_BOOL(turbo_nci_delayed_codegen, true,
+            "delay NCI codegen to reduce useless compilation work.")
+// TODO(jgruber,v8:8888): Remove this flag once we've settled on an ageing
+// strategy.
+DEFINE_BOOL(turbo_nci_cache_ageing, false,
+            "enable ageing of the NCI code cache.")
+// TODO(jgruber,v8:8888): Remove this flag once we've settled on an ageing
+// strategy.
+DEFINE_BOOL(isolate_script_cache_ageing, true,
+            "enable ageing of the isolate script cache.")
 
 // Favor memory over execution speed.
 DEFINE_BOOL(optimize_for_size, false,
@@ -793,7 +814,7 @@ DEFINE_INT(trace_wasm_ast_start, 0,
 DEFINE_INT(trace_wasm_ast_end, 0, "end function for wasm AST trace (exclusive)")
 DEFINE_BOOL(liftoff, true,
             "enable Liftoff, the baseline compiler for WebAssembly")
-DEFINE_BOOL(liftoff_extern_ref, false,
+DEFINE_BOOL(experimental_liftoff_extern_ref, false,
             "enable support for externref in Liftoff")
 // We can't tier up (from Liftoff to TurboFan) in single-threaded mode, hence
 // disable Liftoff in that configuration for now. The alternative is disabling
@@ -846,7 +867,7 @@ DEFINE_BOOL(wasm_staging, false, "enable staged wasm features")
 FOREACH_WASM_STAGING_FEATURE_FLAG(WASM_STAGING_IMPLICATION)
 #undef WASM_STAGING_IMPLICATION
 
-DEFINE_BOOL(wasm_opt, false, "enable wasm optimization")
+DEFINE_BOOL(wasm_opt, true, "enable wasm optimization")
 DEFINE_BOOL(
     wasm_bounds_checks, true,
     "enable bounds checks (disable for performance testing only)")
@@ -861,8 +882,10 @@ DEFINE_BOOL(wasm_trap_handler, true,
 DEFINE_BOOL(wasm_fuzzer_gen_test, false,
             "generate a test case when running a wasm fuzzer")
 DEFINE_IMPLICATION(wasm_fuzzer_gen_test, single_threaded)
-DEFINE_BOOL(print_wasm_code, false, "Print WebAssembly code")
-DEFINE_BOOL(print_wasm_stub_code, false, "Print WebAssembly stub code")
+DEFINE_BOOL(print_wasm_code, false, "print WebAssembly code")
+DEFINE_INT(print_wasm_code_function_index, -1,
+           "print WebAssembly code for function at index")
+DEFINE_BOOL(print_wasm_stub_code, false, "print WebAssembly stub code")
 DEFINE_BOOL(asm_wasm_lazy_compilation, false,
             "enable lazy compilation for asm-wasm modules")
 DEFINE_IMPLICATION(validate_asm, asm_wasm_lazy_compilation)
@@ -873,10 +896,6 @@ DEFINE_DEBUG_BOOL(trace_wasm_lazy_compilation, false,
 DEFINE_BOOL(wasm_lazy_validation, false,
             "enable lazy validation for lazily compiled wasm functions")
 
-// Flags for wasm prototyping that are not strictly features i.e., part of
-// an existing proposal that may be conditionally enabled.
-DEFINE_BOOL(wasm_atomics_on_non_shared_memory, true,
-            "allow atomic operations on non-shared WebAssembly memory")
 DEFINE_BOOL(wasm_grow_shared_memory, true,
             "allow growing shared WebAssembly memory objects")
 DEFINE_BOOL(wasm_simd_post_mvp, false,
@@ -990,7 +1009,7 @@ DEFINE_BOOL(scavenge_separate_stack_scanning, false,
             "use a separate phase for stack scanning in scavenge")
 DEFINE_BOOL(trace_parallel_scavenge, false, "trace parallel scavenge")
 DEFINE_BOOL(write_protect_code_memory, true, "write protect code memory")
-#ifdef V8_CONCURRENT_MARKING
+#if defined(V8_ATOMIC_MARKING_STATE) && defined(V8_ATOMIC_OBJECT_FIELD_WRITES)
 #define V8_CONCURRENT_MARKING_BOOL true
 #else
 #define V8_CONCURRENT_MARKING_BOOL false
@@ -1388,6 +1407,13 @@ DEFINE_BOOL(log_colour, ENABLE_LOG_COLOUR,
 DEFINE_BOOL(trace_sim_messages, false,
             "Trace simulator debug messages. Implied by --trace-sim.")
 
+#if defined V8_TARGET_ARCH_ARM64
+// pointer-auth-arm64.cc
+DEFINE_DEBUG_BOOL(sim_abort_on_bad_auth, false,
+                  "Stop execution when a pointer authentication fails in the "
+                  "ARM64 simulator.")
+#endif
+
 // isolate.cc
 DEFINE_BOOL(async_stack_traces, true,
             "include async stack traces in Error.stack")
@@ -1443,13 +1469,6 @@ DEFINE_BOOL(profile_deserialization, false,
             "Print the time it takes to deserialize the snapshot.")
 DEFINE_BOOL(serialization_statistics, false,
             "Collect statistics on serialized objects.")
-#ifdef V8_ENABLE_THIRD_PARTY_HEAP
-DEFINE_UINT_READONLY(serialization_chunk_size, 1,
-                     "Custom size for serialization chunks")
-#else
-DEFINE_UINT(serialization_chunk_size, 4096,
-            "Custom size for serialization chunks")
-#endif
 // Regexp
 DEFINE_BOOL(regexp_optimization, true, "generate optimized regexp code")
 DEFINE_BOOL(regexp_mode_modifiers, false, "enable inline flags in regexp.")
@@ -1476,9 +1495,21 @@ DEFINE_BOOL(trace_regexp_parser, false, "trace regexp parsing")
 DEFINE_BOOL(trace_regexp_tier_up, false, "trace regexp tiering up execution")
 
 DEFINE_BOOL(enable_experimental_regexp_engine, false,
-            "enable experimental linear time regexp engine")
+            "recognize regexps with 'l' flag, run them on experimental engine")
+DEFINE_BOOL(default_to_experimental_regexp_engine, false,
+            "run regexps with the experimental engine where possible")
+DEFINE_IMPLICATION(default_to_experimental_regexp_engine,
+                   enable_experimental_regexp_engine)
 DEFINE_BOOL(trace_experimental_regexp_engine, false,
             "trace execution of experimental regexp engine")
+
+DEFINE_BOOL(enable_experimental_regexp_engine_on_excessive_backtracks, false,
+            "fall back to a breadth-first regexp engine on excessive "
+            "backtracking")
+DEFINE_UINT(regexp_backtracks_before_fallback, 50000,
+            "number of backtracks during regexp execution before fall back "
+            "to experimental engine if "
+            "enable_experimental_regexp_engine_on_excessive_backtracks is set")
 
 // Testing flags test/cctest/test-{flags,api,serialization}.cc
 DEFINE_BOOL(testing_bool_flag, true, "testing_bool_flag")
@@ -1519,6 +1550,11 @@ DEFINE_BOOL(target_is_simulator, false,
 DEFINE_STRING(turbo_profiling_log_file, nullptr,
               "Path of the input file containing basic block counters for "
               "builtins. (mksnapshot only)")
+
+// On some platforms, the .text section only has execute permissions.
+DEFINE_BOOL(text_is_readable, true,
+            "Whether the .text section of binary can be read")
+DEFINE_NEG_NEG_IMPLICATION(text_is_readable, partial_constant_pool)
 
 //
 // Minor mark compact collector flags.

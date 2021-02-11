@@ -4,6 +4,7 @@
 
 #include <zircon/process.h>
 #include <zircon/syscalls.h>
+#include <zircon/threads.h>
 
 #include "src/base/macros.h"
 #include "src/base/platform/platform-posix-time.h"
@@ -151,17 +152,18 @@ void OS::SignalCodeMovingGC() {
 int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
   const auto kNanosPerMicrosecond = 1000ULL;
   const auto kMicrosPerSecond = 1000000ULL;
-  zx_time_t nanos_since_thread_started;
-  zx_status_t status =
-      zx_clock_get(ZX_CLOCK_THREAD, &nanos_since_thread_started);
+
+  zx_info_thread_stats_t info = {};
+  zx_status_t status = zx_object_get_info(thrd_get_zx_handle(thrd_current()),
+                                          ZX_INFO_THREAD_STATS, &info,
+                                          sizeof(info), nullptr, nullptr);
   if (status != ZX_OK) {
     return -1;
   }
 
   // First convert to microseconds, rounding up.
   const uint64_t micros_since_thread_started =
-      (nanos_since_thread_started + kNanosPerMicrosecond - 1ULL) /
-      kNanosPerMicrosecond;
+      (info.total_runtime + kNanosPerMicrosecond - 1ULL) / kNanosPerMicrosecond;
 
   *secs = static_cast<uint32_t>(micros_since_thread_started / kMicrosPerSecond);
   *usecs =

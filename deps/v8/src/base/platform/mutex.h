@@ -43,6 +43,8 @@ namespace base {
 class V8_BASE_EXPORT Mutex final {
  public:
   Mutex();
+  Mutex(const Mutex&) = delete;
+  Mutex& operator=(const Mutex&) = delete;
   ~Mutex();
 
   // Locks the given mutex. If the mutex is currently unlocked, it becomes
@@ -99,8 +101,6 @@ class V8_BASE_EXPORT Mutex final {
   }
 
   friend class ConditionVariable;
-
-  DISALLOW_COPY_AND_ASSIGN(Mutex);
 };
 
 // POD Mutex initialized lazily (i.e. the first time Pointer() is called).
@@ -140,6 +140,8 @@ using LazyMutex = LazyStaticInstance<Mutex, DefaultConstructTrait<Mutex>,
 class V8_BASE_EXPORT RecursiveMutex final {
  public:
   RecursiveMutex();
+  RecursiveMutex(const RecursiveMutex&) = delete;
+  RecursiveMutex& operator=(const RecursiveMutex&) = delete;
   ~RecursiveMutex();
 
   // Locks the mutex. If another thread has already locked the mutex, a call to
@@ -175,8 +177,6 @@ class V8_BASE_EXPORT RecursiveMutex final {
 #ifdef DEBUG
   int level_;
 #endif
-
-  DISALLOW_COPY_AND_ASSIGN(RecursiveMutex);
 };
 
 
@@ -213,6 +213,8 @@ using LazyRecursiveMutex =
 class V8_BASE_EXPORT SharedMutex final {
  public:
   SharedMutex();
+  SharedMutex(const SharedMutex&) = delete;
+  SharedMutex& operator=(const SharedMutex&) = delete;
   ~SharedMutex();
 
   // Acquires shared ownership of the {SharedMutex}. If another thread is
@@ -262,8 +264,6 @@ class V8_BASE_EXPORT SharedMutex final {
 #endif
 
   NativeHandle native_handle_;
-
-  DISALLOW_COPY_AND_ASSIGN(SharedMutex);
 };
 
 // -----------------------------------------------------------------------------
@@ -286,6 +286,8 @@ class LockGuard final {
   explicit LockGuard(Mutex* mutex) : mutex_(mutex) {
     if (has_mutex()) mutex_->Lock();
   }
+  LockGuard(const LockGuard&) = delete;
+  LockGuard& operator=(const LockGuard&) = delete;
   ~LockGuard() {
     if (has_mutex()) mutex_->Unlock();
   }
@@ -298,8 +300,6 @@ class LockGuard final {
                    mutex_ != nullptr);
     return Behavior == NullBehavior::kRequireNotNull || mutex_ != nullptr;
   }
-
-  DISALLOW_COPY_AND_ASSIGN(LockGuard);
 };
 
 using MutexGuard = LockGuard<Mutex>;
@@ -319,6 +319,8 @@ class SharedMutexGuard final {
       mutex_->LockExclusive();
     }
   }
+  SharedMutexGuard(const SharedMutexGuard&) = delete;
+  SharedMutexGuard& operator=(const SharedMutexGuard&) = delete;
   ~SharedMutexGuard() {
     if (!has_mutex()) return;
     if (kIsShared) {
@@ -336,8 +338,6 @@ class SharedMutexGuard final {
                    mutex_ != nullptr);
     return Behavior == NullBehavior::kRequireNotNull || mutex_ != nullptr;
   }
-
-  DISALLOW_COPY_AND_ASSIGN(SharedMutexGuard);
 };
 
 }  // namespace base

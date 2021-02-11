@@ -70,12 +70,13 @@ std::ostream& operator<<(std::ostream& os, AccessMode access_mode) {
   UNREACHABLE();
 }
 
-ElementAccessInfo::ElementAccessInfo(ZoneVector<Handle<Map>>&& receiver_maps,
-                                     ElementsKind elements_kind, Zone* zone)
+ElementAccessInfo::ElementAccessInfo(
+    ZoneVector<Handle<Map>>&& lookup_start_object_maps,
+    ElementsKind elements_kind, Zone* zone)
     : elements_kind_(elements_kind),
-      receiver_maps_(receiver_maps),
+      lookup_start_object_maps_(lookup_start_object_maps),
       transition_sources_(zone) {
-  CHECK(!receiver_maps.empty());
+  CHECK(!lookup_start_object_maps.empty());
 }
 
 // static
@@ -158,27 +159,26 @@ MinimorphicLoadPropertyAccessInfo MinimorphicLoadPropertyAccessInfo::Invalid() {
 
 PropertyAccessInfo::PropertyAccessInfo(Zone* zone)
     : kind_(kInvalid),
-      receiver_maps_(zone),
+      lookup_start_object_maps_(zone),
       unrecorded_dependencies_(zone),
       field_representation_(Representation::None()),
       field_type_(Type::None()) {}
 
-PropertyAccessInfo::PropertyAccessInfo(Zone* zone, Kind kind,
-                                       MaybeHandle<JSObject> holder,
-                                       ZoneVector<Handle<Map>>&& receiver_maps)
+PropertyAccessInfo::PropertyAccessInfo(
+    Zone* zone, Kind kind, MaybeHandle<JSObject> holder,
+    ZoneVector<Handle<Map>>&& lookup_start_object_maps)
     : kind_(kind),
-      receiver_maps_(receiver_maps),
+      lookup_start_object_maps_(lookup_start_object_maps),
       unrecorded_dependencies_(zone),
       holder_(holder),
       field_representation_(Representation::None()),
       field_type_(Type::None()) {}
 
-PropertyAccessInfo::PropertyAccessInfo(Zone* zone, Kind kind,
-                                       MaybeHandle<JSObject> holder,
-                                       Handle<Object> constant,
-                                       ZoneVector<Handle<Map>>&& receiver_maps)
+PropertyAccessInfo::PropertyAccessInfo(
+    Zone* zone, Kind kind, MaybeHandle<JSObject> holder,
+    Handle<Object> constant, ZoneVector<Handle<Map>>&& lookup_start_object_maps)
     : kind_(kind),
-      receiver_maps_(receiver_maps),
+      lookup_start_object_maps_(lookup_start_object_maps),
       unrecorded_dependencies_(zone),
       constant_(constant),
       holder_(holder),
@@ -189,10 +189,10 @@ PropertyAccessInfo::PropertyAccessInfo(
     Kind kind, MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map,
     FieldIndex field_index, Representation field_representation,
     Type field_type, Handle<Map> field_owner_map, MaybeHandle<Map> field_map,
-    ZoneVector<Handle<Map>>&& receiver_maps,
+    ZoneVector<Handle<Map>>&& lookup_start_object_maps,
     ZoneVector<CompilationDependency const*>&& unrecorded_dependencies)
     : kind_(kind),
-      receiver_maps_(receiver_maps),
+      lookup_start_object_maps_(lookup_start_object_maps),
       unrecorded_dependencies_(std::move(unrecorded_dependencies)),
       transition_map_(transition_map),
       holder_(holder),
@@ -265,9 +265,10 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
         }
         this->field_type_ =
             Type::Union(this->field_type_, that->field_type_, zone);
-        this->receiver_maps_.insert(this->receiver_maps_.end(),
-                                    that->receiver_maps_.begin(),
-                                    that->receiver_maps_.end());
+        this->lookup_start_object_maps_.insert(
+            this->lookup_start_object_maps_.end(),
+            that->lookup_start_object_maps_.begin(),
+            that->lookup_start_object_maps_.end());
         this->unrecorded_dependencies_.insert(
             this->unrecorded_dependencies_.end(),
             that->unrecorded_dependencies_.begin(),
@@ -282,9 +283,10 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
       if (this->constant_.address() == that->constant_.address()) {
         DCHECK(this->unrecorded_dependencies_.empty());
         DCHECK(that->unrecorded_dependencies_.empty());
-        this->receiver_maps_.insert(this->receiver_maps_.end(),
-                                    that->receiver_maps_.begin(),
-                                    that->receiver_maps_.end());
+        this->lookup_start_object_maps_.insert(
+            this->lookup_start_object_maps_.end(),
+            that->lookup_start_object_maps_.begin(),
+            that->lookup_start_object_maps_.end());
         return true;
       }
       return false;
@@ -294,9 +296,10 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
     case kStringLength: {
       DCHECK(this->unrecorded_dependencies_.empty());
       DCHECK(that->unrecorded_dependencies_.empty());
-      this->receiver_maps_.insert(this->receiver_maps_.end(),
-                                  that->receiver_maps_.begin(),
-                                  that->receiver_maps_.end());
+      this->lookup_start_object_maps_.insert(
+          this->lookup_start_object_maps_.end(),
+          that->lookup_start_object_maps_.begin(),
+          that->lookup_start_object_maps_.end());
       return true;
     }
     case kModuleExport:
@@ -364,7 +367,8 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
     Handle<Map> receiver_map, Handle<Map> map, MaybeHandle<JSObject> holder,
     InternalIndex descriptor, AccessMode access_mode) const {
   DCHECK(descriptor.is_found());
-  Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate());
+  Handle<DescriptorArray> descriptors(map->instance_descriptors(kRelaxedLoad),
+                                      isolate());
   PropertyDetails const details = descriptors->GetDetails(descriptor);
   int index = descriptors->GetFieldIndex(descriptor);
   Representation details_representation = details.representation();
@@ -429,7 +433,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   PropertyConstness constness;
   if (details.IsReadOnly() && !details.IsConfigurable()) {
     constness = PropertyConstness::kConst;
-  } else if (FLAG_turboprop && !map->is_prototype_map()) {
+  } else if (broker()->is_turboprop() && !map->is_prototype_map()) {
     // The constness feedback is too unstable for the aggresive compilation
     // of turboprop.
     constness = PropertyConstness::kMutable;
@@ -459,7 +463,8 @@ PropertyAccessInfo AccessInfoFactory::ComputeAccessorDescriptorAccessInfo(
     MaybeHandle<JSObject> holder, InternalIndex descriptor,
     AccessMode access_mode) const {
   DCHECK(descriptor.is_found());
-  Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate());
+  Handle<DescriptorArray> descriptors(map->instance_descriptors(kRelaxedLoad),
+                                      isolate());
   SLOW_DCHECK(descriptor == descriptors->Search(*name, *map));
   if (map->instance_type() == JS_MODULE_NAMESPACE_TYPE) {
     DCHECK(map->is_prototype_map());
@@ -557,8 +562,8 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
   MaybeHandle<JSObject> holder;
   while (true) {
     // Lookup the named property on the {map}.
-    Handle<DescriptorArray> descriptors(
-        map->synchronized_instance_descriptors(), isolate());
+    Handle<DescriptorArray> descriptors(map->instance_descriptors(kAcquireLoad),
+                                        isolate());
     InternalIndex const number =
         descriptors->Search(*name, *map, broker()->is_concurrent_inlining());
     if (number.is_found()) {
@@ -830,7 +835,7 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   Handle<Map> transition_map(transition, isolate());
   InternalIndex const number = transition_map->LastAdded();
   Handle<DescriptorArray> descriptors(
-      transition_map->synchronized_instance_descriptors(), isolate());
+      transition_map->instance_descriptors(kAcquireLoad), isolate());
   PropertyDetails const details = descriptors->GetDetails(number);
   // Don't bother optimizing stores to read-only properties.
   if (details.IsReadOnly()) {

@@ -552,6 +552,15 @@ Assembler::~Assembler() { DCHECK_EQ(const_pool_blocked_nesting_, 0); }
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
                         SafepointTableBuilder* safepoint_table_builder,
                         int handler_table_offset) {
+  // As a crutch to avoid having to add manual Align calls wherever we use a
+  // raw workflow to create Code objects (mostly in tests), add another Align
+  // call here. It does no harm - the end of the Code object is aligned to the
+  // (larger) kCodeAlignment anyways.
+  // TODO(jgruber): Consider moving responsibility for proper alignment to
+  // metadata table builders (safepoint, handler, constant pool, code
+  // comments).
+  DataAlign(Code::kMetadataAlignment);
+
   // Emit constant pool if necessary.
   CheckConstPool(true, false);
   DCHECK(pending_32_bit_constants_.empty());
@@ -2649,12 +2658,30 @@ static bool FitsVmovIntImm(uint64_t imm, uint32_t* encoding, uint8_t* cmode) {
   return false;
 }
 
+void Assembler::vmov(const DwVfpRegister dst, uint64_t imm) {
+  uint32_t enc;
+  uint8_t cmode;
+  uint8_t op = 0;
+  if (CpuFeatures::IsSupported(NEON) && FitsVmovIntImm(imm, &enc, &cmode)) {
+    CpuFeatureScope scope(this, NEON);
+    // Instruction details available in ARM DDI 0406C.b, A8-937.
+    // 001i1(27-23) | D(22) | 000(21-19) | imm3(18-16) | Vd(15-12) | cmode(11-8)
+    // | 0(7) | 0(6) | op(5) | 4(1) | imm4(3-0)
+    int vd, d;
+    dst.split_code(&vd, &d);
+    emit(kSpecialCondition | 0x05 * B23 | d * B22 | vd * B12 | cmode * B8 |
+         op * B5 | 0x1 * B4 | enc);
+  } else {
+    UNIMPLEMENTED();
+  }
+}
+
 void Assembler::vmov(const QwNeonRegister dst, uint64_t imm) {
   uint32_t enc;
   uint8_t cmode;
   uint8_t op = 0;
-  if (CpuFeatures::IsSupported(VFPv3) && FitsVmovIntImm(imm, &enc, &cmode)) {
-    CpuFeatureScope scope(this, VFPv3);
+  if (CpuFeatures::IsSupported(NEON) && FitsVmovIntImm(imm, &enc, &cmode)) {
+    CpuFeatureScope scope(this, NEON);
     // Instruction details available in ARM DDI 0406C.b, A8-937.
     // 001i1(27-23) | D(22) | 000(21-19) | imm3(18-16) | Vd(15-12) | cmode(11-8)
     // | 0(7) | Q(6) | op(5) | 4(1) | imm4(3-0)
@@ -3674,6 +3701,28 @@ void Assembler::vld1(NeonSize size, const NeonListOperand& dst,
   dst.base().split_code(&vd, &d);
   emit(0xFU * B28 | 4 * B24 | d * B22 | 2 * B20 | src.rn().code() * B16 |
        vd * B12 | dst.type() * B8 | size * B6 | src.align() * B4 |
+       src.rm().code());
+}
+
+// vld1s(ingle element to one lane).
+void Assembler::vld1s(NeonSize size, const NeonListOperand& dst, uint8_t index,
+                      const NeonMemOperand& src) {
+  // Instruction details available in ARM DDI 0406C.b, A8.8.322.
+  // 1111(31-28) | 01001(27-23) | D(22) | 10(21-20) | Rn(19-16) |
+  // Vd(15-12) | size(11-10) | index_align(7-4) | Rm(3-0)
+  // See vld1 (single element to all lanes) if size == 0x3, implemented as
+  // vld1r(eplicate).
+  DCHECK_NE(size, 0x3);
+  // Check for valid lane indices.
+  DCHECK_GT(1 << (3 - size), index);
+  // Specifying alignment not supported, use standard alignment.
+  uint8_t index_align = index << (size + 1);
+
+  DCHECK(IsEnabled(NEON));
+  int vd, d;
+  dst.base().split_code(&vd, &d);
+  emit(0xFU * B28 | 4 * B24 | 1 * B23 | d * B22 | 2 * B20 |
+       src.rn().code() * B16 | vd * B12 | size * B10 | index_align * B4 |
        src.rm().code());
 }
 

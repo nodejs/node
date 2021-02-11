@@ -10,6 +10,7 @@
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/marker.h"
+#include "src/heap/cppgc/marking-verifier.h"
 #include "src/heap/cppgc/prefinalizer-handler.h"
 
 namespace cppgc {
@@ -77,7 +78,7 @@ void CheckConfig(Heap::Config config) {
 
 Heap::Heap(std::shared_ptr<cppgc::Platform> platform,
            cppgc::Heap::HeapOptions options)
-    : HeapBase(platform, options.custom_spaces.size(), options.stack_support),
+    : HeapBase(platform, options.custom_spaces, options.stack_support),
       gc_invoker_(this, platform_.get(), options.stack_support),
       growing_(&gc_invoker_, stats_collector_.get(),
                options.resource_constraints) {}
@@ -151,21 +152,26 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
   DCHECK(!in_no_gc_scope());
   config_.stack_state = stack_state;
   DCHECK(marker_);
-  marker_->FinishMarking(stack_state);
   {
-    // Pre finalizers are forbidden from allocating objects.
+    // Pre finalizers are forbidden from allocating objects. Note that this also
+    // guard atomic pause marking below, meaning that no internal method or
+    // external callbacks are allowed to allocate new objects.
     ObjectAllocator::NoAllocationScope no_allocation_scope_(object_allocator_);
-    marker_->ProcessWeakness();
+    marker_->FinishMarking(stack_state);
     prefinalizer_handler_->InvokePreFinalizers();
   }
   marker_.reset();
   // TODO(chromium:1056170): replace build flag with dedicated flag.
 #if DEBUG
-  VerifyMarking(stack_state);
+  MarkingVerifier verifier(*this);
+  verifier.Run(stack_state);
 #endif
   {
     NoGCScope no_gc(*this);
-    sweeper_.Start(config_.sweeping_type);
+    const Sweeper::SweepingConfig sweeping_config{
+        config_.sweeping_type,
+        Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep};
+    sweeper_.Start(sweeping_config);
   }
   gc_in_progress_ = false;
 }

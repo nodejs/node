@@ -22,6 +22,8 @@ namespace internal {
 class BreakPoint;
 class BytecodeArray;
 
+#include "torque-generated/src/objects/debug-objects-tq.inc"
+
 // The DebugInfo class holds additional information for a function being
 // debugged.
 class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {

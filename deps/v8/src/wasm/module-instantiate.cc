@@ -58,25 +58,32 @@ uint32_t EvalUint32InitExpr(Handle<WasmInstanceObject> instance,
 using ImportWrapperQueue = WrapperQueue<WasmImportWrapperCache::CacheKey,
                                         WasmImportWrapperCache::CacheKeyHash>;
 
-class CompileImportWrapperTask final : public CancelableTask {
+class CompileImportWrapperJob final : public JobTask {
  public:
-  CompileImportWrapperTask(
-      CancelableTaskManager* task_manager, WasmEngine* engine,
-      Counters* counters, NativeModule* native_module,
+  CompileImportWrapperJob(
+      WasmEngine* engine, Counters* counters, NativeModule* native_module,
       ImportWrapperQueue* queue,
       WasmImportWrapperCache::ModificationScope* cache_scope)
-      : CancelableTask(task_manager),
-        engine_(engine),
+      : engine_(engine),
         counters_(counters),
         native_module_(native_module),
         queue_(queue),
         cache_scope_(cache_scope) {}
 
-  void RunInternal() override {
+  size_t GetMaxConcurrency(size_t worker_count) const override {
+    size_t flag_limit =
+        static_cast<size_t>(std::max(1, FLAG_wasm_num_compilation_tasks));
+    // Add {worker_count} to the queue size because workers might still be
+    // processing units that have already been popped from the queue.
+    return std::min(flag_limit, worker_count + queue_->size());
+  }
+
+  void Run(JobDelegate* delegate) override {
     while (base::Optional<WasmImportWrapperCache::CacheKey> key =
                queue_->pop()) {
       CompileImportWrapper(engine_, native_module_, counters_, key->kind,
                            key->signature, key->expected_arity, cache_scope_);
+      if (delegate->ShouldYield()) return;
     }
   }
 
@@ -410,10 +417,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   TimedHistogramScope wasm_instantiate_module_time_scope(SELECT_WASM_COUNTER(
       isolate_->counters(), module_->origin, wasm_instantiate, module_time));
   v8::metrics::WasmModuleInstantiated wasm_module_instantiated;
-  metrics::TimedScope<v8::metrics::WasmModuleInstantiated>
-      wasm_module_instantiated_timed_scope(
-          &wasm_module_instantiated,
-          &v8::metrics::WasmModuleInstantiated::wall_clock_time_in_us);
+  base::ElapsedTimer timer;
+  timer.Start();
   NativeModule* native_module = module_object_->native_module();
 
   //--------------------------------------------------------------------------
@@ -745,7 +750,9 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   TRACE("Successfully built instance for module %p\n",
         module_object_->native_module());
   wasm_module_instantiated.success = true;
-  wasm_module_instantiated_timed_scope.Stop();
+  wasm_module_instantiated.wall_clock_duration_in_us =
+      timer.Elapsed().InMicroseconds();
+  timer.Stop();
   isolate_->metrics_recorder()->DelayMainThreadEvent(wasm_module_instantiated,
                                                      context_id_);
   return instance;
@@ -1074,8 +1081,7 @@ bool InstanceBuilder::ProcessImportedFunction(
       // The imported function is a callable.
 
       int expected_arity = static_cast<int>(expected_sig->parameter_count());
-      if (kind ==
-          compiler::WasmImportCallKind::kJSFunctionArityMismatchSkipAdaptor) {
+      if (kind == compiler::WasmImportCallKind::kJSFunctionArityMismatch) {
         Handle<JSFunction> function = Handle<JSFunction>::cast(js_receiver);
         SharedFunctionInfo shared = function->shared();
         expected_arity = shared.internal_formal_parameter_count();
@@ -1450,7 +1456,7 @@ void InstanceBuilder::CompileImportWrappers(
 
     int expected_arity = static_cast<int>(sig->parameter_count());
     if (resolved.first ==
-        compiler::WasmImportCallKind::kJSFunctionArityMismatchSkipAdaptor) {
+        compiler::WasmImportCallKind::kJSFunctionArityMismatch) {
       Handle<JSFunction> function = Handle<JSFunction>::cast(resolved.second);
       SharedFunctionInfo shared = function->shared();
       expected_arity = shared.internal_formal_parameter_count();
@@ -1464,24 +1470,14 @@ void InstanceBuilder::CompileImportWrappers(
     import_wrapper_queue.insert(key);
   }
 
-  CancelableTaskManager task_manager;
-  // TODO(wasm): Switch this to the Jobs API.
-  const int max_background_tasks = GetMaxCompileConcurrency();
-  for (int i = 0; i < max_background_tasks; ++i) {
-    auto task = std::make_unique<CompileImportWrapperTask>(
-        &task_manager, isolate_->wasm_engine(), isolate_->counters(),
-        native_module, &import_wrapper_queue, &cache_scope);
-    V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
-  }
+  auto compile_job_task = std::make_unique<CompileImportWrapperJob>(
+      isolate_->wasm_engine(), isolate_->counters(), native_module,
+      &import_wrapper_queue, &cache_scope);
+  auto compile_job = V8::GetCurrentPlatform()->PostJob(
+      TaskPriority::kUserVisible, std::move(compile_job_task));
 
-  // Also compile in the current thread, in case there are no worker threads.
-  while (base::Optional<WasmImportWrapperCache::CacheKey> key =
-             import_wrapper_queue.pop()) {
-    CompileImportWrapper(isolate_->wasm_engine(), native_module,
-                         isolate_->counters(), key->kind, key->signature,
-                         key->expected_arity, &cache_scope);
-  }
-  task_manager.CancelAndWait();
+  // Wait for the job to finish, while contributing in this thread.
+  compile_job->Join();
 }
 
 // Process the imports, including functions, tables, globals, and memory, in
@@ -1947,7 +1943,7 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
 
     // Update the local dispatch table first if necessary.
     if (IsSubtypeOf(table_object->type(), kWasmFuncRef, module)) {
-      uint32_t sig_id = module->signature_ids[function->sig_index];
+      uint32_t sig_id = module->canonicalized_type_ids[function->sig_index];
       IndirectFunctionTableEntry(instance, table_index, entry_index)
           .Set(sig_id, instance, func_index);
     }

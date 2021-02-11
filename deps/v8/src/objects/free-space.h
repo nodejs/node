@@ -6,13 +6,14 @@
 #define V8_OBJECTS_FREE_SPACE_H_
 
 #include "src/objects/heap-object.h"
-#include "torque-generated/class-definitions.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/free-space-tq.inc"
 
 // FreeSpace are fixed-size free memory blocks used by the heap and GC.
 // They look like heap objects (are heap object tagged and have a map) so that

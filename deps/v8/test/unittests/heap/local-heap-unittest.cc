@@ -19,7 +19,7 @@ TEST_F(LocalHeapTest, Initialize) {
   CHECK(!heap->safepoint()->ContainsAnyLocalHeap());
 
   {
-    LocalHeap lh(heap);
+    LocalHeap lh(heap, ThreadKind::kMain);
     CHECK(heap->safepoint()->ContainsLocalHeap(&lh));
   }
 
@@ -32,14 +32,14 @@ TEST_F(LocalHeapTest, Current) {
   CHECK_NULL(LocalHeap::Current());
 
   {
-    LocalHeap lh(heap);
+    LocalHeap lh(heap, ThreadKind::kMain);
     CHECK_EQ(&lh, LocalHeap::Current());
   }
 
   CHECK_NULL(LocalHeap::Current());
 
   {
-    LocalHeap lh(heap);
+    LocalHeap lh(heap, ThreadKind::kMain);
     CHECK_EQ(&lh, LocalHeap::Current());
   }
 
@@ -56,7 +56,7 @@ class BackgroundThread final : public v8::base::Thread {
   void Run() override {
     CHECK_NULL(LocalHeap::Current());
     {
-      LocalHeap lh(heap_);
+      LocalHeap lh(heap_, ThreadKind::kBackground);
       CHECK_EQ(&lh, LocalHeap::Current());
     }
     CHECK_NULL(LocalHeap::Current());
@@ -70,7 +70,7 @@ TEST_F(LocalHeapTest, CurrentBackground) {
   Heap* heap = i_isolate()->heap();
   CHECK_NULL(LocalHeap::Current());
   {
-    LocalHeap lh(heap);
+    LocalHeap lh(heap, ThreadKind::kMain);
     auto thread = std::make_unique<BackgroundThread>(heap);
     CHECK(thread->Start());
     CHECK_EQ(&lh, LocalHeap::Current());

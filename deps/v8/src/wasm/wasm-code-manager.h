@@ -57,6 +57,7 @@ struct WasmModule;
   V(WasmFloat64ToNumber)                 \
   V(WasmTaggedToFloat64)                 \
   V(WasmAllocateJSArray)                 \
+  V(WasmAllocatePair)                    \
   V(WasmAtomicNotify)                    \
   V(WasmI32AtomicWait32)                 \
   V(WasmI32AtomicWait64)                 \
@@ -200,6 +201,8 @@ class V8_EXPORT_PRIVATE WasmCode final {
   static bool ShouldBeLogged(Isolate* isolate);
   void LogCode(Isolate* isolate) const;
 
+  WasmCode(const WasmCode&) = delete;
+  WasmCode& operator=(const WasmCode&) = delete;
   ~WasmCode();
 
   void IncRef() {
@@ -348,8 +351,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
   // from (3) and all (2)), the code object is deleted and the memory for the
   // machine code is freed.
   std::atomic<int> ref_count_{1};
-
-  DISALLOW_COPY_AND_ASSIGN(WasmCode);
 };
 
 // Check that {WasmCode} objects are sufficiently small. We create many of them,
@@ -475,6 +476,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
 #else
   static constexpr bool kNeedsFarJumpsBetweenCodeSpaces = false;
 #endif
+
+  NativeModule(const NativeModule&) = delete;
+  NativeModule& operator=(const NativeModule&) = delete;
+  ~NativeModule();
 
   // {AddCode} is thread safe w.r.t. other calls to {AddCode} or methods adding
   // code below, i.e. it can be called concurrently from background threads.
@@ -611,8 +616,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   WasmImportWrapperCache* import_wrapper_cache() const {
     return import_wrapper_cache_.get();
   }
-
-  ~NativeModule();
 
   const WasmFeatures& enabled_features() const { return enabled_features_; }
 
@@ -794,13 +797,13 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::atomic<size_t> liftoff_bailout_count_{0};
   std::atomic<size_t> liftoff_code_size_{0};
   std::atomic<size_t> turbofan_code_size_{0};
-
-  DISALLOW_COPY_AND_ASSIGN(NativeModule);
 };
 
 class V8_EXPORT_PRIVATE WasmCodeManager final {
  public:
   explicit WasmCodeManager(size_t max_committed);
+  WasmCodeManager(const WasmCodeManager&) = delete;
+  WasmCodeManager& operator=(const WasmCodeManager&) = delete;
 
 #ifdef DEBUG
   ~WasmCodeManager() {
@@ -872,8 +875,6 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
 
   // End of fields protected by {native_modules_mutex_}.
   //////////////////////////////////////////////////////////////////////////////
-
-  DISALLOW_COPY_AND_ASSIGN(WasmCodeManager);
 };
 
 // Within the scope, the native_module is writable and not executable.
@@ -901,6 +902,8 @@ class NativeModuleModificationScope final {
 class V8_EXPORT_PRIVATE WasmCodeRefScope {
  public:
   WasmCodeRefScope();
+  WasmCodeRefScope(const WasmCodeRefScope&) = delete;
+  WasmCodeRefScope& operator=(const WasmCodeRefScope&) = delete;
   ~WasmCodeRefScope();
 
   // Register a {WasmCode} reference in the current {WasmCodeRefScope}. Fails if
@@ -910,8 +913,6 @@ class V8_EXPORT_PRIVATE WasmCodeRefScope {
  private:
   WasmCodeRefScope* const previous_scope_;
   std::unordered_set<WasmCode*> code_ptrs_;
-
-  DISALLOW_COPY_AND_ASSIGN(WasmCodeRefScope);
 };
 
 // Similarly to a global handle, a {GlobalWasmCodeRef} stores a single
@@ -924,6 +925,9 @@ class GlobalWasmCodeRef {
     code_->IncRef();
   }
 
+  GlobalWasmCodeRef(const GlobalWasmCodeRef&) = delete;
+  GlobalWasmCodeRef& operator=(const GlobalWasmCodeRef&) = delete;
+
   ~GlobalWasmCodeRef() { WasmCode::DecrementRefCount({&code_, 1}); }
 
   // Get a pointer to the contained {WasmCode} object. This is only guaranteed
@@ -934,7 +938,6 @@ class GlobalWasmCodeRef {
   WasmCode* const code_;
   // Also keep the {NativeModule} alive.
   const std::shared_ptr<NativeModule> native_module_;
-  DISALLOW_COPY_AND_ASSIGN(GlobalWasmCodeRef);
 };
 
 const char* GetRuntimeStubName(WasmCode::RuntimeStubId);

@@ -569,7 +569,7 @@ IfValueParameters const& IfValueParametersOf(const Operator* op) {
   V(TrapDivUnrepresentable)        \
   V(TrapRemByZero)                 \
   V(TrapFloatUnrepresentable)      \
-  V(TrapFuncInvalid)               \
+  V(TrapTableOutOfBounds)          \
   V(TrapFuncSigMismatch)
 
 #define CACHED_PARAMETER_LIST(V) \

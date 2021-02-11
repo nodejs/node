@@ -363,6 +363,8 @@ class JoinableThread {
   }
 
   virtual ~JoinableThread() = default;
+  JoinableThread(const JoinableThread&) = delete;
+  JoinableThread& operator=(const JoinableThread&) = delete;
 
   void Start() { CHECK(thread_.Start()); }
 
@@ -394,8 +396,6 @@ class JoinableThread {
   ThreadWithSemaphore thread_;
 
   friend class ThreadWithSemaphore;
-
-  DISALLOW_COPY_AND_ASSIGN(JoinableThread);
 };
 
 

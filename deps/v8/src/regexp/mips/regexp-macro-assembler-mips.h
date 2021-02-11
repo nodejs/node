@@ -211,6 +211,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
   Label check_preempt_label_;
   Label stack_overflow_label_;
   Label internal_failure_label_;
+  Label fallback_label_;
 };
 
 }  // namespace internal

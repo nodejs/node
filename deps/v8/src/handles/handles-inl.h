@@ -9,6 +9,7 @@
 #include "src/execution/local-isolate.h"
 #include "src/handles/handles.h"
 #include "src/handles/local-handles-inl.h"
+#include "src/objects/objects.h"
 #include "src/sanitizer/msan.h"
 
 namespace v8 {
@@ -25,8 +26,15 @@ HandleBase::HandleBase(Address object, LocalIsolate* isolate)
 HandleBase::HandleBase(Address object, LocalHeap* local_heap)
     : location_(LocalHandleScope::GetHandle(local_heap, object)) {}
 
-// Allocate a new handle for the object, do not canonicalize.
+bool HandleBase::is_identical_to(const HandleBase that) const {
+  SLOW_DCHECK((this->location_ == nullptr || this->IsDereferenceAllowed()) &&
+              (that.location_ == nullptr || that.IsDereferenceAllowed()));
+  if (this->location_ == that.location_) return true;
+  if (this->location_ == nullptr || that.location_ == nullptr) return false;
+  return Object(*this->location_) == Object(*that.location_);
+}
 
+// Allocate a new handle for the object, do not canonicalize.
 template <typename T>
 Handle<T> Handle<T>::New(T object, Isolate* isolate) {
   return Handle(HandleScope::CreateHandle(isolate, object.ptr()));

@@ -104,6 +104,7 @@ async function instantiateWasm() {
   // A third function which will be stepped through.
   let func = builder.addFunction('C (interpreted)', kSig_v_i, ['i32_arg'])
       .addLocals(kWasmI32, 1, ['i32_local'])
+      .addLocals(kWasmF32, 1, [''])
       .addBody([
         // Set global 0 to param 0.
         kExprLocalGet, 0, kExprGlobalSet, 0,

@@ -808,30 +808,6 @@ TEST(InvocationCount) {
   CHECK_EQ(4, foo->feedback_vector().invocation_count());
 }
 
-TEST(SafeToSkipArgumentsAdaptor) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  CompileRun(
-      "function a() { \"use strict\"; }; a();"
-      "function b() { }; b();"
-      "function c() { \"use strict\"; return arguments; }; c();"
-      "function d(...args) { return args; }; d();"
-      "function e() { \"use strict\"; return eval(\"\"); }; e();"
-      "function f(x, y) { \"use strict\"; return x + y; }; f(1, 2);");
-  Handle<JSFunction> a = Handle<JSFunction>::cast(GetGlobalProperty("a"));
-  CHECK(a->shared().is_safe_to_skip_arguments_adaptor());
-  Handle<JSFunction> b = Handle<JSFunction>::cast(GetGlobalProperty("b"));
-  CHECK(!b->shared().is_safe_to_skip_arguments_adaptor());
-  Handle<JSFunction> c = Handle<JSFunction>::cast(GetGlobalProperty("c"));
-  CHECK(!c->shared().is_safe_to_skip_arguments_adaptor());
-  Handle<JSFunction> d = Handle<JSFunction>::cast(GetGlobalProperty("d"));
-  CHECK(!d->shared().is_safe_to_skip_arguments_adaptor());
-  Handle<JSFunction> e = Handle<JSFunction>::cast(GetGlobalProperty("e"));
-  CHECK(!e->shared().is_safe_to_skip_arguments_adaptor());
-  Handle<JSFunction> f = Handle<JSFunction>::cast(GetGlobalProperty("f"));
-  CHECK(f->shared().is_safe_to_skip_arguments_adaptor());
-}
-
 TEST(ShallowEagerCompilation) {
   i::FLAG_always_opt = false;
   CcTest::InitializeVM();
@@ -981,6 +957,9 @@ TEST(DecideToPretenureDuringCompilation) {
   FLAG_allow_natives_syntax = true;
   FLAG_allocation_site_pretenuring = true;
   FLAG_flush_bytecode = false;
+  // Turn on lazy feedback allocation, so we create exactly one allocation site.
+  // Without lazy feedback allocation, we create two allocation sites.
+  FLAG_lazy_feedback_allocation = true;
 
   // We want to trigger exactly 1 optimization.
   FLAG_use_osr = false;
@@ -1105,7 +1084,7 @@ TEST(ProfilerEnabledDuringBackgroundCompile) {
       std::make_unique<DummySourceStream>(source),
       v8::ScriptCompiler::StreamedSource::UTF8);
   std::unique_ptr<v8::ScriptCompiler::ScriptStreamingTask> task(
-      v8::ScriptCompiler::StartStreamingScript(isolate, &streamed_source));
+      v8::ScriptCompiler::StartStreaming(isolate, &streamed_source));
 
   // Run the background compilation task on the main thread.
   task->Run();

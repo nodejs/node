@@ -51,7 +51,7 @@ int ComputeStringTableCapacity(int at_least_space_for) {
   // See matching computation in StringTableHasSufficientCapacityToAdd().
   int raw_capacity = at_least_space_for + (at_least_space_for >> 1);
   int capacity = base::bits::RoundUpToPowerOfTwo32(raw_capacity);
-  return Max(capacity, kStringTableMinCapacity);
+  return std::max(capacity, kStringTableMinCapacity);
 }
 
 int ComputeStringTableCapacityWithShrink(int current_capacity,
@@ -91,14 +91,14 @@ bool KeyIsMatch(StringTableKey* key, String string) {
 class StringTable::Data {
  public:
   static std::unique_ptr<Data> New(int capacity);
-  static std::unique_ptr<Data> Resize(const Isolate* isolate,
+  static std::unique_ptr<Data> Resize(IsolateRoot isolate,
                                       std::unique_ptr<Data> data, int capacity);
 
   OffHeapObjectSlot slot(InternalIndex index) const {
     return OffHeapObjectSlot(&elements_[index.as_uint32()]);
   }
 
-  Object Get(const Isolate* isolate, InternalIndex index) const {
+  Object Get(IsolateRoot isolate, InternalIndex index) const {
     return slot(index).Acquire_Load(isolate);
   }
 
@@ -136,13 +136,13 @@ class StringTable::Data {
   int number_of_deleted_elements() const { return number_of_deleted_elements_; }
 
   template <typename StringTableKey>
-  InternalIndex FindEntry(const Isolate* isolate, StringTableKey* key,
+  InternalIndex FindEntry(IsolateRoot isolate, StringTableKey* key,
                           uint32_t hash) const;
 
-  InternalIndex FindInsertionEntry(const Isolate* isolate, uint32_t hash) const;
+  InternalIndex FindInsertionEntry(IsolateRoot isolate, uint32_t hash) const;
 
   template <typename StringTableKey>
-  InternalIndex FindEntryOrInsertionEntry(const Isolate* isolate,
+  InternalIndex FindEntryOrInsertionEntry(IsolateRoot isolate,
                                           StringTableKey* key,
                                           uint32_t hash) const;
 
@@ -157,7 +157,7 @@ class StringTable::Data {
   Data* PreviousData() { return previous_data_.get(); }
   void DropPreviousData() { previous_data_.reset(); }
 
-  void Print(const Isolate* isolate) const;
+  void Print(IsolateRoot isolate) const;
   size_t GetCurrentMemoryUsage() const;
 
  private:
@@ -224,7 +224,7 @@ std::unique_ptr<StringTable::Data> StringTable::Data::New(int capacity) {
 }
 
 std::unique_ptr<StringTable::Data> StringTable::Data::Resize(
-    const Isolate* isolate, std::unique_ptr<Data> data, int capacity) {
+    IsolateRoot isolate, std::unique_ptr<Data> data, int capacity) {
   std::unique_ptr<Data> new_data(new (capacity) Data(capacity));
 
   DCHECK_LT(data->number_of_elements(), new_data->capacity());
@@ -248,7 +248,7 @@ std::unique_ptr<StringTable::Data> StringTable::Data::Resize(
 }
 
 template <typename StringTableKey>
-InternalIndex StringTable::Data::FindEntry(const Isolate* isolate,
+InternalIndex StringTable::Data::FindEntry(IsolateRoot isolate,
                                            StringTableKey* key,
                                            uint32_t hash) const {
   uint32_t count = 1;
@@ -266,7 +266,7 @@ InternalIndex StringTable::Data::FindEntry(const Isolate* isolate,
   }
 }
 
-InternalIndex StringTable::Data::FindInsertionEntry(const Isolate* isolate,
+InternalIndex StringTable::Data::FindInsertionEntry(IsolateRoot isolate,
                                                     uint32_t hash) const {
   uint32_t count = 1;
   // EnsureCapacity will guarantee the hash table is never full.
@@ -283,7 +283,7 @@ InternalIndex StringTable::Data::FindInsertionEntry(const Isolate* isolate,
 
 template <typename StringTableKey>
 InternalIndex StringTable::Data::FindEntryOrInsertionEntry(
-    const Isolate* isolate, StringTableKey* key, uint32_t hash) const {
+    IsolateRoot isolate, StringTableKey* key, uint32_t hash) const {
   InternalIndex insertion_entry = InternalIndex::NotFound();
   uint32_t count = 1;
   // EnsureCapacity will guarantee the hash table is never full.
@@ -317,7 +317,7 @@ void StringTable::Data::IterateElements(RootVisitor* visitor) {
   visitor->VisitRootPointers(Root::kStringTable, nullptr, first_slot, end_slot);
 }
 
-void StringTable::Data::Print(const Isolate* isolate) const {
+void StringTable::Data::Print(IsolateRoot isolate) const {
   OFStream os(stdout);
   os << "StringTable {" << std::endl;
   for (InternalIndex i : InternalIndex::Range(capacity_)) {
@@ -358,7 +358,10 @@ class InternalizedStringKey final : public StringTableKey {
     set_hash_field(string->hash_field());
   }
 
-  bool IsMatch(String string) override { return string_->SlowEquals(string); }
+  bool IsMatch(String string) override {
+    DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(string));
+    return string_->SlowEquals(string);
+  }
 
   Handle<String> AsHandle(Isolate* isolate) {
     // Internalize the string if possible.
@@ -461,8 +464,6 @@ Handle<String> StringTable::LookupKey(LocalIsolate* isolate,
   // allocation if another write also did an allocation. This assumes that
   // writes are rarer than reads.
 
-  const Isolate* ptr_cmp_isolate = GetIsolateForPtrCompr(isolate);
-
   Handle<String> new_string;
   while (true) {
     // Load the current string table data, in case another thread updates the
@@ -474,9 +475,9 @@ Handle<String> StringTable::LookupKey(LocalIsolate* isolate,
     // because the new table won't delete it's corresponding entry until the
     // string is dead, in which case it will die in this table too and worst
     // case we'll have a false miss.
-    InternalIndex entry = data->FindEntry(ptr_cmp_isolate, key, key->hash());
+    InternalIndex entry = data->FindEntry(isolate, key, key->hash());
     if (entry.is_found()) {
-      return handle(String::cast(data->Get(ptr_cmp_isolate, entry)), isolate);
+      return handle(String::cast(data->Get(isolate, entry)), isolate);
     }
 
     // No entry found, so adding new string.
@@ -490,14 +491,14 @@ Handle<String> StringTable::LookupKey(LocalIsolate* isolate,
     {
       base::MutexGuard table_write_guard(&write_mutex_);
 
-      Data* data = EnsureCapacity(ptr_cmp_isolate, 1);
+      Data* data = EnsureCapacity(isolate, 1);
 
       // Check one last time if the key is present in the table, in case it was
       // added after the check.
       InternalIndex entry =
-          data->FindEntryOrInsertionEntry(ptr_cmp_isolate, key, key->hash());
+          data->FindEntryOrInsertionEntry(isolate, key, key->hash());
 
-      Object element = data->Get(ptr_cmp_isolate, entry);
+      Object element = data->Get(isolate, entry);
       if (element == empty_element()) {
         // This entry is empty, so write it and register that we added an
         // element.
@@ -539,7 +540,7 @@ template Handle<String> StringTable::LookupKey(LocalIsolate* isolate,
 template Handle<String> StringTable::LookupKey(Isolate* isolate,
                                                StringTableInsertionKey* key);
 
-StringTable::Data* StringTable::EnsureCapacity(const Isolate* isolate,
+StringTable::Data* StringTable::EnsureCapacity(IsolateRoot isolate,
                                                int additional_elements) {
   // This call is only allowed while the write mutex is held.
   write_mutex_.AssertHeld();
@@ -677,7 +678,7 @@ Address StringTable::TryStringToIndexOrLookupExisting(Isolate* isolate,
       isolate, string, source, start);
 }
 
-void StringTable::Print(const Isolate* isolate) const {
+void StringTable::Print(IsolateRoot isolate) const {
   data_.load(std::memory_order_acquire)->Print(isolate);
 }
 

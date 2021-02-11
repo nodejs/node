@@ -36,14 +36,15 @@ void SharedFunctionInfo::Init(ReadOnlyRoots ro_roots, int unique_id) {
 
   // Set the name to the no-name sentinel, this can be updated later.
   set_name_or_scope_info(SharedFunctionInfo::kNoSharedNameSentinel,
-                         SKIP_WRITE_BARRIER);
+                         kReleaseStore, SKIP_WRITE_BARRIER);
 
   // Generally functions won't have feedback, unless they have been created
   // from a FunctionLiteral. Those can just reset this field to keep the
   // SharedFunctionInfo in a consistent state.
   set_raw_outer_scope_info_or_feedback_metadata(ro_roots.the_hole_value(),
                                                 SKIP_WRITE_BARRIER);
-  set_script_or_debug_info(ro_roots.undefined_value(), SKIP_WRITE_BARRIER);
+  set_script_or_debug_info(ro_roots.undefined_value(), kReleaseStore,
+                           SKIP_WRITE_BARRIER);
   set_function_literal_id(kFunctionLiteralIdInvalid);
 #if V8_SFI_HAS_UNIQUE_ID
   set_unique_id(unique_id);
@@ -72,7 +73,7 @@ Code SharedFunctionInfo::GetCode() const {
   // ======
 
   Isolate* isolate = GetIsolate();
-  Object data = function_data();
+  Object data = function_data(kAcquireLoad);
   if (data.IsSmi()) {
     // Holding a Smi means we are a builtin.
     DCHECK(HasBuiltinId());
@@ -113,17 +114,17 @@ Code SharedFunctionInfo::GetCode() const {
 WasmExportedFunctionData SharedFunctionInfo::wasm_exported_function_data()
     const {
   DCHECK(HasWasmExportedFunctionData());
-  return WasmExportedFunctionData::cast(function_data());
+  return WasmExportedFunctionData::cast(function_data(kAcquireLoad));
 }
 
 WasmJSFunctionData SharedFunctionInfo::wasm_js_function_data() const {
   DCHECK(HasWasmJSFunctionData());
-  return WasmJSFunctionData::cast(function_data());
+  return WasmJSFunctionData::cast(function_data(kAcquireLoad));
 }
 
 WasmCapiFunctionData SharedFunctionInfo::wasm_capi_function_data() const {
   DCHECK(HasWasmCapiFunctionData());
-  return WasmCapiFunctionData::cast(function_data());
+  return WasmCapiFunctionData::cast(function_data(kAcquireLoad));
 }
 
 SharedFunctionInfo::ScriptIterator::ScriptIterator(Isolate* isolate,
@@ -310,7 +311,7 @@ void SharedFunctionInfo::DiscardCompiled(
     Handle<UncompiledData> data =
         isolate->factory()->NewUncompiledDataWithoutPreparseData(
             inferred_name_val, start_position, end_position);
-    shared_info->set_function_data(*data);
+    shared_info->set_function_data(*data, kReleaseStore);
   }
 }
 
@@ -450,7 +451,7 @@ template <typename LocalIsolate>
 void SharedFunctionInfo::InitFromFunctionLiteral(
     LocalIsolate* isolate, Handle<SharedFunctionInfo> shared_info,
     FunctionLiteral* lit, bool is_toplevel) {
-  DCHECK(!shared_info->name_or_scope_info().IsScopeInfo());
+  DCHECK(!shared_info->name_or_scope_info(kAcquireLoad).IsScopeInfo());
 
   // When adding fields here, make sure DeclarationScope::AnalyzePartially is
   // updated accordingly.
@@ -497,8 +498,6 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   if (lit->ShouldEagerCompile()) {
     shared_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
     shared_info->UpdateAndFinalizeExpectedNofPropertiesFromEstimate(lit);
-    shared_info->set_is_safe_to_skip_arguments_adaptor(
-        lit->SafeToSkipArgumentsAdaptor());
     DCHECK_NULL(lit->produced_preparse_data());
 
     // If we're about to eager compile, we'll have the function literal
@@ -506,7 +505,6 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
     return;
   }
 
-  shared_info->set_is_safe_to_skip_arguments_adaptor(false);
   shared_info->UpdateExpectedNofPropertiesFromEstimate(lit);
 
   Handle<UncompiledData> data;
@@ -593,7 +591,7 @@ void SharedFunctionInfo::SetFunctionTokenPosition(int function_token_position,
 }
 
 int SharedFunctionInfo::StartPosition() const {
-  Object maybe_scope_info = name_or_scope_info();
+  Object maybe_scope_info = name_or_scope_info(kAcquireLoad);
   if (maybe_scope_info.IsScopeInfo()) {
     ScopeInfo info = ScopeInfo::cast(maybe_scope_info);
     if (info.HasPositionInfo()) {
@@ -618,7 +616,7 @@ int SharedFunctionInfo::StartPosition() const {
 }
 
 int SharedFunctionInfo::EndPosition() const {
-  Object maybe_scope_info = name_or_scope_info();
+  Object maybe_scope_info = name_or_scope_info(kAcquireLoad);
   if (maybe_scope_info.IsScopeInfo()) {
     ScopeInfo info = ScopeInfo::cast(maybe_scope_info);
     if (info.HasPositionInfo()) {
@@ -643,7 +641,7 @@ int SharedFunctionInfo::EndPosition() const {
 }
 
 void SharedFunctionInfo::SetPosition(int start_position, int end_position) {
-  Object maybe_scope_info = name_or_scope_info();
+  Object maybe_scope_info = name_or_scope_info(kAcquireLoad);
   if (maybe_scope_info.IsScopeInfo()) {
     ScopeInfo info = ScopeInfo::cast(maybe_scope_info);
     if (info.HasPositionInfo()) {

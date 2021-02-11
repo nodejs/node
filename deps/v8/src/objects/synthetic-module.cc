@@ -10,6 +10,7 @@
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/synthetic-module-inl.h"
 #include "src/utils/ostreams.h"
 
 namespace v8 {
@@ -59,7 +60,7 @@ MaybeHandle<Cell> SyntheticModule::ResolveExport(
 
   if (!must_resolve) return MaybeHandle<Cell>();
 
-  return isolate->Throw<Cell>(
+  return isolate->ThrowAt<Cell>(
       isolate->factory()->NewSyntaxError(MessageTemplate::kUnresolvableExport,
                                          module_specifier, export_name),
       &loc);

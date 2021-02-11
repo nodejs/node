@@ -17,6 +17,8 @@ namespace internal {
 
 class ClassLiteral;
 
+#include "torque-generated/src/objects/literal-objects-tq.inc"
+
 // ObjectBoilerplateDescription is a list of properties consisting of name value
 // pairs. In addition to the properties, it provides the projected number
 // of properties in the backing store. This number includes properties with
@@ -26,10 +28,10 @@ class ClassLiteral;
 class ObjectBoilerplateDescription : public FixedArray {
  public:
   inline Object name(int index) const;
-  inline Object name(const Isolate* isolate, int index) const;
+  inline Object name(IsolateRoot isolate, int index) const;
 
   inline Object value(int index) const;
-  inline Object value(const Isolate* isolate, int index) const;
+  inline Object value(IsolateRoot isolate, int index) const;
 
   inline void set_key_value(int index, Object key, Object value);
 

@@ -59,7 +59,6 @@ class MemoryChunk : public BasicMemoryChunk {
 
   // Only works if the object is in the first kPageSize of the MemoryChunk.
   static MemoryChunk* FromHeapObject(HeapObject o) {
-    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
     return cast(BasicMemoryChunk::FromHeapObject(o));
   }
 

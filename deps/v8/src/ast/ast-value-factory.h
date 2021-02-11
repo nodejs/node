@@ -48,6 +48,8 @@ class Isolate;
 
 class AstRawString final : public ZoneObject {
  public:
+  static bool Compare(const AstRawString* a, const AstRawString* b);
+
   bool IsEmpty() const { return literal_bytes_.length() == 0; }
   int length() const {
     return is_one_byte() ? literal_bytes_.length()
@@ -85,7 +87,6 @@ class AstRawString final : public ZoneObject {
   friend Zone;
 
   // Members accessed only by the AstValueFactory & related classes:
-  static bool Compare(void* a, void* b);
   AstRawString(bool is_one_byte, const Vector<const byte>& literal_bytes,
                uint32_t hash_field)
       : next_(nullptr),
@@ -205,12 +206,26 @@ class AstBigInt {
   const char* bigint_;
 };
 
+struct AstRawStringMapMatcher {
+  bool operator()(uint32_t hash1, uint32_t hash2,
+                  const AstRawString* lookup_key,
+                  const AstRawString* entry_key) const {
+    return hash1 == hash2 && AstRawString::Compare(lookup_key, entry_key);
+  }
+};
+
+using AstRawStringMap =
+    base::TemplateHashMapImpl<const AstRawString*, base::NoHashMapValue,
+                              AstRawStringMapMatcher,
+                              base::DefaultAllocationPolicy>;
+
 // For generating constants.
 #define AST_STRING_CONSTANTS(F)                 \
   F(anonymous, "anonymous")                     \
   F(anonymous_function, "(anonymous function)") \
   F(arguments, "arguments")                     \
   F(as, "as")                                   \
+  F(assert, "assert")                           \
   F(async, "async")                             \
   F(await, "await")                             \
   F(bigint, "bigint")                           \
@@ -269,13 +284,11 @@ class AstStringConstants final {
 #undef F
 
   uint64_t hash_seed() const { return hash_seed_; }
-  const base::CustomMatcherHashMap* string_table() const {
-    return &string_table_;
-  }
+  const AstRawStringMap* string_table() const { return &string_table_; }
 
  private:
   Zone zone_;
-  base::CustomMatcherHashMap string_table_;
+  AstRawStringMap string_table_;
   uint64_t hash_seed_;
 
 #define F(name, str) AstRawString* name##_string_;
@@ -353,14 +366,14 @@ class AstValueFactory {
     strings_ = nullptr;
     strings_end_ = &strings_;
   }
-  V8_EXPORT_PRIVATE AstRawString* GetOneByteStringInternal(
+  V8_EXPORT_PRIVATE const AstRawString* GetOneByteStringInternal(
       Vector<const uint8_t> literal);
-  AstRawString* GetTwoByteStringInternal(Vector<const uint16_t> literal);
-  AstRawString* GetString(uint32_t hash, bool is_one_byte,
-                          Vector<const byte> literal_bytes);
+  const AstRawString* GetTwoByteStringInternal(Vector<const uint16_t> literal);
+  const AstRawString* GetString(uint32_t hash, bool is_one_byte,
+                                Vector<const byte> literal_bytes);
 
-  // All strings are copied here, one after another (no zeroes inbetween).
-  base::CustomMatcherHashMap string_table_;
+  // All strings are copied here.
+  AstRawStringMap string_table_;
 
   AstRawString* strings_;
   AstRawString** strings_end_;
@@ -372,7 +385,7 @@ class AstValueFactory {
 
   // Caches one character lowercase strings (for minified code).
   static const int kMaxOneCharStringValue = 128;
-  AstRawString* one_character_strings_[kMaxOneCharStringValue];
+  const AstRawString* one_character_strings_[kMaxOneCharStringValue];
 
   Zone* zone_;
 

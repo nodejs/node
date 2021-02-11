@@ -23,6 +23,10 @@ class V8_EXPORT_PRIVATE BytecodeArrayRandomIterator final
 
   BytecodeArrayRandomIterator(Handle<BytecodeArray> bytecode_array, Zone* zone);
 
+  BytecodeArrayRandomIterator(const BytecodeArrayRandomIterator&) = delete;
+  BytecodeArrayRandomIterator& operator=(const BytecodeArrayRandomIterator&) =
+      delete;
+
   BytecodeArrayRandomIterator& operator++() {
     ++current_index_;
     UpdateOffsetFromIndex();
@@ -72,8 +76,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayRandomIterator final
 
   void Initialize();
   void UpdateOffsetFromIndex();
-
-  DISALLOW_COPY_AND_ASSIGN(BytecodeArrayRandomIterator);
 };
 
 }  // namespace interpreter

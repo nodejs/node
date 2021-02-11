@@ -14,10 +14,12 @@
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
-#include "torque-generated/exported-class-definitions.h"
+#include "src/objects/shared-function-info.h"
 
 namespace v8 {
 namespace internal {
+
+class OnHeapBasicBlockProfilerData;
 
 class BasicBlockProfilerData {
  public:

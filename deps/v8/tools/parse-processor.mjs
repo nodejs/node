@@ -1,8 +1,6 @@
 // Copyright 2017 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-"use strict";
-
 import { LogReader, parseString } from "./logreader.mjs";
 import { BaseArgumentsProcessor } from "./arguments.mjs";
 
@@ -339,7 +337,7 @@ class Script extends CompilationUnit {
 
   calculateMetrics(printSummary) {
     let log = (str) => this.summary += str + '\n';
-    log("SCRIPT: " + this.id);
+    log(`SCRIPT: ${this.id}`);
     let all = this.funktions;
     if (all.length === 0) return;
 
@@ -354,7 +352,7 @@ class Script extends CompilationUnit {
       let value = (funktions.length + "").padStart(6) +
         (nofPercent + "%").padStart(5) +
         BYTES(ownBytes, this.bytesTotal).padStart(10);
-      log(("  - " + name).padEnd(20) + value);
+      log((`  - ${name}`).padEnd(20) + value);
       this.metrics.set(name + "-bytes", ownBytes);
       this.metrics.set(name + "-count", funktions.length);
       this.metrics.set(name + "-count-percent", nofPercent);
@@ -362,7 +360,7 @@ class Script extends CompilationUnit {
         Math.round(ownBytes / this.bytesTotal * 100));
     };
 
-    log("  - file:         " + this.file);
+    log(`  - file:         ${this.file}`);
     log('  - details:      ' +
         'isEval=' + this.isEval + ' deserialized=' + this.isDeserialized +
         ' streamed=' + this.isStreamingCompiled);
@@ -409,7 +407,7 @@ class Script extends CompilationUnit {
     //   [start+delta*2, acc(metric0, start, start+delta*2), ...],
     //   ...
     // ]
-    if (end <= start) throw 'Invalid ranges [' + start + ',' + end + ']';
+    if (end <= start) throw `Invalid ranges [${start},${end}]`;
     const timespan = end - start;
     const kSteps = Math.ceil(timespan / delta);
     // To reduce the time spent iterating over the funktions of this script
@@ -607,8 +605,8 @@ class ExecutionCost {
   }
 
   toString() {
-    return ('  - ' + this.prefix + '-time:').padEnd(24) +
-      (" executed=" + formatNumber(this.executedCost) + 'ms').padEnd(20) +
+    return (`  - ${this.prefix}-time:`).padEnd(24) +
+      (` executed=${formatNumber(this.executedCost)}ms`).padEnd(20) +
       " non-executed=" + formatNumber(this.nonExecutedCost) + 'ms';
   }
 
@@ -623,11 +621,11 @@ class ExecutionCost {
 class Funktion extends CompilationUnit {
   constructor(name, start, end, script) {
     super();
-    if (start < 0) throw "invalid start position: " + start;
+    if (start < 0) throw `invalid start position: ${start}`;
     if (script.isEval) {
       if (end < start) throw 'invalid start end positions';
     } else {
-      if (end <= 0) throw 'invalid end position: ' + end;
+      if (end <= 0) throw `invalid end position: ${end}`;
       if (end <= start) throw 'invalid start end positions';
     }
 
@@ -722,7 +720,7 @@ class Funktion extends CompilationUnit {
   }
 
   toString(details = true) {
-    let result = 'function' + (this.name ? ' ' + this.name : '') +
+    let result = `function${this.name ? ` ${this.name}` : ''}` +
         `() range=${this.start}-${this.end}`;
     if (details) result += ` script=${this.script ? this.script.id : 'X'}`;
     return result;
@@ -841,7 +839,7 @@ export class ParseProcessor extends LogReader {
   processLogFile(fileName) {
     this.collectEntries = true
     this.lastLogFileName_ = fileName;
-    var line;
+    let line;
     while (line = readline()) {
       this.processLogLine(line);
     }
@@ -886,7 +884,7 @@ export class ParseProcessor extends LogReader {
       functionName) {
     let handlerFn = this.functionEventDispatchTable_[eventName];
     if (handlerFn === undefined) {
-      console.error('Couldn\'t find handler for function event:' + eventName);
+      console.error(`Couldn't find handler for function event:${eventName}`);
     }
     handlerFn(
         scriptId, startPosition, endPosition, duration, timestamp,
@@ -965,7 +963,7 @@ export class ParseProcessor extends LogReader {
         script.preparseTimestamp = toTimestamp(timestamp);
         return;
       default:
-        console.error('Unhandled script event: ' + eventName);
+        console.error(`Unhandled script event: ${eventName}`);
     }
   }
 

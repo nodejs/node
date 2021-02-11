@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
 #include <stdlib.h>
+
 #include <limits>
 
 #include "src/builtins/accessors.h"
 #include "src/common/message-template.h"
 #include "src/debug/debug.h"
 #include "src/execution/arguments-inl.h"
+#include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
@@ -20,6 +20,7 @@
 #include "src/objects/lookup-inl.h"
 #include "src/objects/smi.h"
 #include "src/objects/struct-inl.h"
+#include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -138,8 +139,9 @@ inline void SetHomeObject(Isolate* isolate, JSFunction method,
   if (method.shared().needs_home_object()) {
     const InternalIndex kPropertyIndex(
         JSFunction::kMaybeHomeObjectDescriptorIndex);
-    CHECK_EQ(method.map().instance_descriptors().GetKey(kPropertyIndex),
-             ReadOnlyRoots(isolate).home_object_symbol());
+    CHECK_EQ(
+        method.map().instance_descriptors(kRelaxedLoad).GetKey(kPropertyIndex),
+        ReadOnlyRoots(isolate).home_object_symbol());
 
     FieldIndex field_index =
         FieldIndex::ForDescriptor(method.map(), kPropertyIndex);

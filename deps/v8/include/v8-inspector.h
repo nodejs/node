@@ -181,6 +181,10 @@ class V8_EXPORT V8InspectorClient {
   virtual std::unique_ptr<StringBuffer> valueSubtype(v8::Local<v8::Value>) {
     return nullptr;
   }
+  virtual std::unique_ptr<StringBuffer> descriptionForValueSubtype(
+      v8::Local<v8::Context>, v8::Local<v8::Value>) {
+    return nullptr;
+  }
   virtual bool formatAccessorsAsProperties(v8::Local<v8::Value>) {
     return false;
   }

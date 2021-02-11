@@ -576,7 +576,6 @@ void GCTracer::PrintNVP() const {
           "fast_promote=%.2f "
           "complete.sweep_array_buffers=%.2f "
           "scavenge=%.2f "
-          "scavenge.process_array_buffers=%.2f "
           "scavenge.free_remembered_set=%.2f "
           "scavenge.roots=%.2f "
           "scavenge.weak=%.2f "
@@ -617,10 +616,9 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::HEAP_EXTERNAL_PROLOGUE],
           current_.scopes[Scope::HEAP_EXTERNAL_EPILOGUE],
           current_.scopes[Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES],
-          current_.scopes[Scope::SCAVENGER_SWEEP_ARRAY_BUFFERS],
           current_.scopes[Scope::SCAVENGER_FAST_PROMOTE],
+          current_.scopes[Scope::SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS],
           current_.scopes[Scope::SCAVENGER_SCAVENGE],
-          current_.scopes[Scope::SCAVENGER_PROCESS_ARRAY_BUFFERS],
           current_.scopes[Scope::SCAVENGER_FREE_REMEMBERED_SET],
           current_.scopes[Scope::SCAVENGER_SCAVENGE_ROOTS],
           current_.scopes[Scope::SCAVENGER_SCAVENGE_WEAK],
@@ -1229,22 +1227,27 @@ void GCTracer::RecordGCPhasesHistograms(TimedHistogram* gc_timer) {
     heap_->isolate()->counters()->gc_marking_sum()->AddSample(
         static_cast<int>(overall_marking_time));
 
+    // Filter out samples where
+    // - we don't have high-resolution timers;
+    // - size of marked objects is very small;
+    // - marking time is rounded to 0;
     constexpr size_t kMinObjectSizeForReportingThroughput = 1024 * 1024;
     if (base::TimeTicks::IsHighResolution() &&
-        heap_->SizeOfObjects() > kMinObjectSizeForReportingThroughput) {
-      DCHECK_GT(overall_marking_time, 0.0);
+        heap_->SizeOfObjects() > kMinObjectSizeForReportingThroughput &&
+        overall_marking_time > 0) {
       const double overall_v8_marking_time =
           overall_marking_time -
           current_.scopes[Scope::MC_MARK_EMBEDDER_TRACING];
-      DCHECK_GT(overall_v8_marking_time, 0.0);
-      const int main_thread_marking_throughput_mb_per_s =
-          static_cast<int>(static_cast<double>(heap_->SizeOfObjects()) /
-                           overall_v8_marking_time * 1000 / 1024 / 1024);
-      heap_->isolate()
-          ->counters()
-          ->gc_main_thread_marking_throughput()
-          ->AddSample(
-              static_cast<int>(main_thread_marking_throughput_mb_per_s));
+      if (overall_v8_marking_time > 0) {
+        const int main_thread_marking_throughput_mb_per_s =
+            static_cast<int>(static_cast<double>(heap_->SizeOfObjects()) /
+                             overall_v8_marking_time * 1000 / 1024 / 1024);
+        heap_->isolate()
+            ->counters()
+            ->gc_main_thread_marking_throughput()
+            ->AddSample(
+                static_cast<int>(main_thread_marking_throughput_mb_per_s));
+      }
     }
 
     DCHECK_EQ(Scope::LAST_TOP_MC_SCOPE, Scope::MC_SWEEP);

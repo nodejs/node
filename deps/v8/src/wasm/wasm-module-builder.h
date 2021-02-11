@@ -236,6 +236,8 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
 class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
  public:
   explicit WasmModuleBuilder(Zone* zone);
+  WasmModuleBuilder(const WasmModuleBuilder&) = delete;
+  WasmModuleBuilder& operator=(const WasmModuleBuilder&) = delete;
 
   // Building methods.
   uint32_t AddImport(Vector<const char> name, FunctionSig* sig,
@@ -361,8 +363,6 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   // Indirect functions must be allocated before adding extra tables.
   bool allocating_indirect_functions_allowed_ = true;
 #endif
-
-  DISALLOW_COPY_AND_ASSIGN(WasmModuleBuilder);
 };
 
 inline FunctionSig* WasmFunctionBuilder::signature() {

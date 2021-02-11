@@ -70,16 +70,16 @@
   # Enable once serializing a running isolate is fully implemented.
   'serialize-deserialize-now': [SKIP],
 
-  # https://crbug.com/v8/issues/10486
-  # Enable once multi-byte prefixed opcodes are correctly handled
-  'regress/wasm/regress-1065599': [SKIP],
-
   # BUG(v8:9506): times out.
   'wasm/shared-memory-worker-explicit-gc-stress': [PASS, SLOW],
   'wasm/shared-memory-worker-gc-stress': [PASS, SLOW],
 
   # https://crbug.com/1129854
   'tools/log': ['arch == arm or arch == arm64', SKIP],
+
+  # crbug.com/1161357
+  # TODO(solanes): Remove this entry once the underlying issue is fixed.
+  'regress/regress-1161357': [PASS, FAIL],
 
   ##############################################################################
   # Tests where variants make no sense.
@@ -150,11 +150,8 @@
   'regress/wasm/regress-810973': [PASS, SLOW],
   'sealed-array-reduce': [PASS, SLOW],
   'string-replace-gc': [PASS, SLOW],
-  'wasm/asm-wasm-f32': [PASS, SLOW],
-  'wasm/asm-wasm-f64': [PASS, SLOW],
   'wasm/embenchen/*': [PASS, SLOW],
   'wasm/futex': [PASS, SLOW],
-  'wasm/grow-memory': [PASS, SLOW],
   'wasm/unreachable-validation': [PASS, SLOW],
   'wasm/atomics-stress': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['tsan', SKIP]],
   'wasm/atomics64-stress': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['tsan', SKIP]],
@@ -273,6 +270,8 @@
   'regress/regress-1122': [SKIP],
   'regress/regress-331444': [SKIP],
   'regress/regress-353551': [SKIP],
+  'regress/regress-1138075': [SKIP],
+  'regress/regress-1138611': [SKIP],
   'regress/regress-crbug-119926': [SKIP],
   'regress/short-circuit': [SKIP],
   'stack-traces-overflow': [SKIP],
@@ -498,7 +497,6 @@
   'compiler/regress-9017': [SKIP],
 
   # Slow tests.
-  'array-concat': [PASS, SLOW],
   'array-indexing': [PASS, SLOW],
   'array-reduce': [PASS, SLOW],
   'array-sort': [PASS, SLOW],
@@ -625,6 +623,7 @@
   'es6/large-classes-properties': [SKIP],
 
   # Slow tests.
+  'compiler/regress-1125145': [SKIP],
   'es6/block-conflicts-sloppy': [PASS, SLOW],
   'math-floor-part1': [PASS, SLOW],
   'regress/regress-430201': [SKIP],
@@ -808,10 +807,17 @@
 ##############################################################################
 ['system == android', {
   # Tests consistently failing on Android.
-  # Setting the locale with environment variables unavailable
+  # Setting the timezone and locale with environment variables unavailable
   'icu-date-to-string': [SKIP],
   'icu-date-lord-howe': [SKIP],
   'regress/regress-6288': [SKIP],
+  'tzoffset-transition-apia': [SKIP],
+  'tzoffset-transition-lord-howe': [SKIP],
+  'tzoffset-transition-moscow': [SKIP],
+  'tzoffset-transition-new-york': [SKIP],
+  'tzoffset-transition-new-york-noi18n': [SKIP],
+  'tzoffset-seoul': [SKIP],
+  'tzoffset-seoul-noi18n': [SKIP],
   # OOM:
   'regress/regress-752764': [FAIL],
   # Flaky OOM:
@@ -1059,16 +1065,12 @@
   'es6/large-classes-properties': [SKIP],
   'generated-transition-stub': [SKIP],
   'regress/regress-336820': [SKIP],
-  'wasm/grow-memory': [SKIP],
 }],  # variant == stress and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
 ['variant in (nooptimization, jitless) and arch in (arm, arm64) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
   'regress/regress-crbug-319860': [SKIP],
-  'wasm/asm-wasm-f32': [SKIP],
-  'wasm/asm-wasm-f64': [SKIP],
-  'wasm/grow-memory': [SKIP],
 }],  # variant == nooptimization and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
@@ -1153,6 +1155,7 @@
   'compiler/number-comparison-truncations': [SKIP],
   'compiler/redundancy-elimination': [SKIP],
   'compiler/regress-9945-*': [SKIP],
+  'es6/super-ic-opt-no-turboprop': [SKIP],
 
   # Static asserts for optimizations don't hold due to removed optimization
   # phases.
@@ -1196,7 +1199,12 @@
   # fixed in a later cl.
   # TODO(mythria): Reenable this when the cl that migrates deprecated maps
   # lands
-  'regress/regress-932953': [FAIL],
+  'regress/regress-932953': [PASS],
+
+  # Tests failing for the lack of function context specialization in Turboprop.
+  'compiler/abstract-equal-receiver': [FAIL],
+  'compiler/constant-fold-cow-array': [FAIL],
+  'compiler/promise-resolve-stable-maps': [FAIL],
 
   # https://crbug.com/v8/10894
   'math-floor-of-div': [SLOW],
@@ -1275,6 +1283,8 @@
   # Investigate (IsScript).
   'harmony/import-from-compilation-errored': [SKIP],
   'harmony/private-fields-special-object': [SKIP],
+  # Skip, since import errors since they refer to the script via debug symbols
+  'harmony/import-from-instantiation-errored': [SKIP],
   # Investigate (JSFunction in startup serializer).
   'regress/regress-1034394': [SKIP],
   'regress/regress-863810': [SKIP],
@@ -1291,6 +1301,9 @@
   'regress/regress-813440': [SKIP],
   # Investigate (segfault).
   'regress/regress-crbug-397662': [SKIP],
+  # Script referenced only through context-dependent SourceTextModule
+  # https://bugs.chromium.org/p/v8/issues/detail?id=11073
+  'tools/processor': [SKIP],
 }],  # variant == stress_snapshot and arch == x64
 
 ##############################################################################
@@ -1318,10 +1331,6 @@
   'compiler/test-dynamic-map-*': [SKIP],
   'es6/collections-constructor-iterator-side-effect': [SKIP],
   'es6/collections-constructor-with-modified-protoype': [SKIP],
-  # Deopts due to different behavior in BytecodeGraphBuilder::GetForInMode.  In
-  # default TF, the ForInHint is kAny, in NCI mode kNone (because we currently
-  # don't use feedback).
-  'regress/regress-3650-3': [SKIP],
   # assertUnoptimized: assumes full turbofan pipeline.
   'allocation-site-info': [SKIP],
   'array-bounds-check-removal': [SKIP],
@@ -1435,6 +1444,8 @@
   'compiler/serializer-feedback-propagation-1': [SKIP],
   'compiler/serializer-feedback-propagation-2': [SKIP],
   'compiler/serializer-transition-propagation': [SKIP],
+  # crbug.com/v8/11110
+  'es6/super-ic-opt*': [SKIP],
 }],  # variant == nci or variant == nci_as_midtier
 
 ['((arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips) or (arch in [ppc64, s390x])', {

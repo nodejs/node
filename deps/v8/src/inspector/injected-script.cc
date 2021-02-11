@@ -34,6 +34,8 @@
 #include <unordered_set>
 
 #include "../../third_party/inspector_protocol/crdtp/json.h"
+#include "include/v8-inspector.h"
+#include "src/debug/debug-interface.h"
 #include "src/inspector/custom-preview.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Protocol.h"
@@ -45,8 +47,6 @@
 #include "src/inspector/v8-stack-trace-impl.h"
 #include "src/inspector/v8-value-utils.h"
 #include "src/inspector/value-mirror.h"
-
-#include "include/v8-inspector.h"
 
 namespace v8_inspector {
 
@@ -518,19 +518,9 @@ Response InjectedScript::getInternalAndPrivateProperties(
 }
 
 void InjectedScript::releaseObject(const String16& objectId) {
-  std::vector<uint8_t> cbor;
-  v8_crdtp::json::ConvertJSONToCBOR(
-      v8_crdtp::span<uint16_t>(objectId.characters16(), objectId.length()),
-      &cbor);
-  std::unique_ptr<protocol::Value> parsedObjectId =
-      protocol::Value::parseBinary(cbor.data(), cbor.size());
-  if (!parsedObjectId) return;
-  protocol::DictionaryValue* object =
-      protocol::DictionaryValue::cast(parsedObjectId.get());
-  if (!object) return;
-  int boundId = 0;
-  if (!object->getInteger("id", &boundId)) return;
-  unbindObject(boundId);
+  std::unique_ptr<RemoteObjectId> remoteId;
+  Response response = RemoteObjectId::parse(objectId, &remoteId);
+  if (response.IsSuccess()) unbindObject(remoteId->id());
 }
 
 Response InjectedScript::wrapObject(
@@ -722,10 +712,12 @@ Response InjectedScript::resolveCallArgument(
     Response response =
         RemoteObjectId::parse(callArgument->getObjectId(""), &remoteObjectId);
     if (!response.IsSuccess()) return response;
-    if (remoteObjectId->contextId() != m_context->contextId())
+    if (remoteObjectId->contextId() != m_context->contextId() ||
+        remoteObjectId->isolateId() != m_context->inspector()->isolateId()) {
       return Response::ServerError(
           "Argument should belong to the same JavaScript world as target "
           "object");
+    }
     return findObject(*remoteObjectId, result);
   }
   if (callArgument->hasValue() || callArgument->hasUnserializableValue()) {
@@ -861,6 +853,7 @@ Response InjectedScript::wrapEvaluateResult(
 
 v8::Local<v8::Object> InjectedScript::commandLineAPI() {
   if (m_commandLineAPI.IsEmpty()) {
+    v8::debug::DisableBreakScope disable_break(m_context->isolate());
     m_commandLineAPI.Reset(
         m_context->isolate(),
         m_context->inspector()->console()->createCommandLineAPI(
@@ -1011,10 +1004,8 @@ String16 InjectedScript::bindObject(v8::Local<v8::Value> value,
     m_idToObjectGroupName[id] = groupName;
     m_nameToObjectGroup[groupName].push_back(id);
   }
-  // TODO(dgozman): get rid of "injectedScript" notion.
-  return String16::concat(
-      "{\"injectedScriptId\":", String16::fromInteger(m_context->contextId()),
-      ",\"id\":", String16::fromInteger(id), "}");
+  return RemoteObjectId::serialize(m_context->inspector()->isolateId(),
+                                   m_context->contextId(), id);
 }
 
 // static

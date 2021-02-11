@@ -459,6 +459,8 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
     : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   explicit CommonOperatorBuilder(Zone* zone);
+  CommonOperatorBuilder(const CommonOperatorBuilder&) = delete;
+  CommonOperatorBuilder& operator=(const CommonOperatorBuilder&) = delete;
 
   const Operator* Dead();
   const Operator* DeadValue(MachineRepresentation rep);
@@ -563,8 +565,6 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
 
   const CommonOperatorGlobalCache& cache_;
   Zone* const zone_;
-
-  DISALLOW_COPY_AND_ASSIGN(CommonOperatorBuilder);
 };
 
 // Node wrappers.

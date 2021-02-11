@@ -269,7 +269,7 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(
   StoreObjectFieldNoWriteBarrier(function, JSFunction::kContextOffset, context);
 
   // For the native closures that are initialized here (for `await`)
-  // we know that their SharedFunctionInfo::function_data() slot
+  // we know that their SharedFunctionInfo::function_data(kAcquireLoad) slot
   // contains a builtin index (as Smi), so there's no need to use
   // CodeStubAssembler::GetSharedFunctionInfoCode() helper here,
   // which almost doubles the size of `await` builtins (unnecessarily).
@@ -303,8 +303,8 @@ TNode<Context> AsyncBuiltinsAssembler::AllocateAsyncIteratorValueUnwrapContext(
 }
 
 TF_BUILTIN(AsyncIteratorValueUnwrap, AsyncBuiltinsAssembler) {
-  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   const TNode<Object> done =
       LoadContextElement(context, ValueUnwrapContext::kDoneSlot);

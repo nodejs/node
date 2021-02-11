@@ -11,13 +11,14 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 #include "src/roots/roots-inl.h"
-#include "torque-generated/class-definitions-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/struct-tq-inl.inc"
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(Struct)
 TQ_OBJECT_CONSTRUCTORS_IMPL(Tuple2)

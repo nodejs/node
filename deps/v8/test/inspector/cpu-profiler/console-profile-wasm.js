@@ -63,9 +63,17 @@ function checkError(message) {
     // InspectorTest.log(function_names.join(', '));
     // Check for at least one full cycle of
     // fib -> wasm-to-js -> imp -> js-to-wasm -> fib.
-    const expected = ['fib', 'wasm-to-js:i:i', 'imp', 'js-to-wasm:i:i', 'fib'];
-    for (let i = 0; i <= function_names.length - expected.length; ++i) {
-      if (expected.every((val, idx) => val == function_names[i + idx])) {
+    // There are two different kinds of js-to-wasm-wrappers, so there are two
+    // possible positive traces.
+    const expected_generic =
+        ['fib', 'wasm-to-js:i:i', 'imp', 'GenericJSToWasmWrapper', 'fib'];
+    const expected_optimized =
+        ['fib', 'wasm-to-js:i:i', 'imp', 'js-to-wasm:i:i', 'fib'];
+    for (let i = 0; i <= function_names.length - expected_generic.length; ++i) {
+      if (expected_generic.every(
+              (val, idx) => val == function_names[i + idx]) ||
+          expected_optimized.every(
+              (val, idx) => val == function_names[i + idx])) {
         found_good_profile = true;
       }
     }

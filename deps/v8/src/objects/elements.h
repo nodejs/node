@@ -22,6 +22,8 @@ class ElementsAccessor {
  public:
   ElementsAccessor() = default;
   virtual ~ElementsAccessor() = default;
+  ElementsAccessor(const ElementsAccessor&) = delete;
+  ElementsAccessor& operator=(const ElementsAccessor&) = delete;
 
   // Returns a shared ElementsAccessor for the specified ElementsKind.
   static ElementsAccessor* ForKind(ElementsKind elements_kind) {
@@ -202,8 +204,6 @@ class ElementsAccessor {
 
  private:
   V8_EXPORT_PRIVATE static ElementsAccessor** elements_accessors_;
-
-  DISALLOW_COPY_AND_ASSIGN(ElementsAccessor);
 };
 
 V8_WARN_UNUSED_RESULT MaybeHandle<Object> ArrayConstructInitializeElements(

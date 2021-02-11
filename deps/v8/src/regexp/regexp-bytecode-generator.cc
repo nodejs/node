@@ -132,7 +132,11 @@ void RegExpBytecodeGenerator::PopCurrentPosition() { Emit(BC_POP_CP, 0); }
 
 void RegExpBytecodeGenerator::PushCurrentPosition() { Emit(BC_PUSH_CP, 0); }
 
-void RegExpBytecodeGenerator::Backtrack() { Emit(BC_POP_BT, 0); }
+void RegExpBytecodeGenerator::Backtrack() {
+  int error_code =
+      can_fallback() ? RegExp::RE_FALLBACK_TO_EXPERIMENTAL : RegExp::RE_FAILURE;
+  Emit(BC_POP_BT, error_code);
+}
 
 void RegExpBytecodeGenerator::GoTo(Label* l) {
   if (advance_current_end_ == pc_) {
@@ -368,7 +372,7 @@ void RegExpBytecodeGenerator::IfRegisterEqPos(int register_index,
 
 Handle<HeapObject> RegExpBytecodeGenerator::GetCode(Handle<String> source) {
   Bind(&backtrack_);
-  Emit(BC_POP_BT, 0);
+  Backtrack();
 
   Handle<ByteArray> array;
   if (FLAG_regexp_peephole_optimization) {

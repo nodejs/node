@@ -221,10 +221,9 @@ void ArrayBuiltinsAssembler::VisitAllTypedArrayElements(
 }
 
 TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
-  TNode<Int32T> argc =
-      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  CSA_ASSERT(this, IsUndefined(Parameter(Descriptor::kJSNewTarget)));
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount);
+  auto context = Parameter<Context>(Descriptor::kContext);
+  CSA_ASSERT(this, IsUndefined(Parameter<Object>(Descriptor::kJSNewTarget)));
 
   CodeStubArguments args(this, argc);
   TNode<Object> receiver = args.GetReceiver();
@@ -246,10 +245,11 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
     TNode<JSArray> array_receiver = CAST(receiver);
     TNode<IntPtrT> length = SmiUntag(LoadFastJSArrayLength(array_receiver));
     Label return_undefined(this), fast_elements(this);
-    GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &return_undefined);
 
     // 2) Ensure that the length is writable.
     EnsureArrayLengthWritable(context, LoadMap(array_receiver), &runtime);
+
+    GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &return_undefined);
 
     // 3) Check that the elements backing store isn't copy-on-write.
     TNode<FixedArrayBase> elements = LoadElements(array_receiver);
@@ -321,10 +321,9 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
   Label double_transition(this);
   Label runtime(this, Label::kDeferred);
 
-  TNode<Int32T> argc =
-      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  CSA_ASSERT(this, IsUndefined(Parameter(Descriptor::kJSNewTarget)));
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount);
+  auto context = Parameter<Context>(Descriptor::kContext);
+  CSA_ASSERT(this, IsUndefined(Parameter<Object>(Descriptor::kJSNewTarget)));
 
   CodeStubArguments args(this, argc);
   TNode<Object> receiver = args.GetReceiver();
@@ -438,10 +437,10 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
 }
 
 TF_BUILTIN(ExtractFastJSArray, ArrayBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<JSArray> array = CAST(Parameter(Descriptor::kSource));
-  TNode<BInt> begin = SmiToBInt(CAST(Parameter(Descriptor::kBegin)));
-  TNode<BInt> count = SmiToBInt(CAST(Parameter(Descriptor::kCount)));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto array = Parameter<JSArray>(Descriptor::kSource);
+  TNode<BInt> begin = SmiToBInt(Parameter<Smi>(Descriptor::kBegin));
+  TNode<BInt> count = SmiToBInt(Parameter<Smi>(Descriptor::kCount));
 
   CSA_ASSERT(this, Word32BinaryNot(IsNoElementsProtectorCellInvalid()));
 
@@ -449,8 +448,8 @@ TF_BUILTIN(ExtractFastJSArray, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(CloneFastJSArray, ArrayBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<JSArray> array = CAST(Parameter(Descriptor::kSource));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto array = Parameter<JSArray>(Descriptor::kSource);
 
   CSA_ASSERT(this,
              Word32Or(Word32BinaryNot(IsHoleyFastElementsKindForRead(
@@ -468,8 +467,8 @@ TF_BUILTIN(CloneFastJSArray, ArrayBuiltinsAssembler) {
 // - If there are holes in the source, the ElementsKind of the "copy" will be
 // PACKED_ELEMENTS (such that undefined can be stored).
 TF_BUILTIN(CloneFastJSArrayFillingHoles, ArrayBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<JSArray> array = CAST(Parameter(Descriptor::kSource));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto array = Parameter<JSArray>(Descriptor::kSource);
 
   CSA_ASSERT(this,
              Word32Or(Word32BinaryNot(IsHoleyFastElementsKindForRead(
@@ -543,9 +542,9 @@ class ArrayPopulatorAssembler : public CodeStubAssembler {
 
 TF_BUILTIN(TypedArrayPrototypeMap, ArrayBuiltinsAssembler) {
   TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
-      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
+      UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto context = Parameter<Context>(Descriptor::kContext);
   TNode<Object> receiver = args.GetReceiver();
   TNode<Object> callbackfn = args.GetOptionalArgumentValue(0);
   TNode<Object> this_arg = args.GetOptionalArgumentValue(1);
@@ -1068,28 +1067,28 @@ void ArrayIncludesIndexofAssembler::GenerateHoleyDoubles(
 
 TF_BUILTIN(ArrayIncludes, ArrayIncludesIndexofAssembler) {
   TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
-      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+      UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount));
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   Generate(kIncludes, argc, context);
 }
 
 TF_BUILTIN(ArrayIncludesSmiOrObject, ArrayIncludesIndexofAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<FixedArray> elements = CAST(Parameter(Descriptor::kElements));
-  TNode<Object> search_element = CAST(Parameter(Descriptor::kSearchElement));
-  TNode<Smi> array_length = CAST(Parameter(Descriptor::kLength));
-  TNode<Smi> from_index = CAST(Parameter(Descriptor::kFromIndex));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto elements = Parameter<FixedArray>(Descriptor::kElements);
+  auto search_element = Parameter<Object>(Descriptor::kSearchElement);
+  auto array_length = Parameter<Smi>(Descriptor::kLength);
+  auto from_index = Parameter<Smi>(Descriptor::kFromIndex);
 
   GenerateSmiOrObject(kIncludes, context, elements, search_element,
                       array_length, from_index);
 }
 
 TF_BUILTIN(ArrayIncludesPackedDoubles, ArrayIncludesIndexofAssembler) {
-  TNode<FixedArrayBase> elements = CAST(Parameter(Descriptor::kElements));
-  TNode<Object> search_element = CAST(Parameter(Descriptor::kSearchElement));
-  TNode<Smi> array_length = CAST(Parameter(Descriptor::kLength));
-  TNode<Smi> from_index = CAST(Parameter(Descriptor::kFromIndex));
+  auto elements = Parameter<FixedArrayBase>(Descriptor::kElements);
+  auto search_element = Parameter<Object>(Descriptor::kSearchElement);
+  auto array_length = Parameter<Smi>(Descriptor::kLength);
+  auto from_index = Parameter<Smi>(Descriptor::kFromIndex);
 
   ReturnIfEmpty(array_length, FalseConstant());
   GeneratePackedDoubles(kIncludes, CAST(elements), search_element, array_length,
@@ -1097,10 +1096,10 @@ TF_BUILTIN(ArrayIncludesPackedDoubles, ArrayIncludesIndexofAssembler) {
 }
 
 TF_BUILTIN(ArrayIncludesHoleyDoubles, ArrayIncludesIndexofAssembler) {
-  TNode<FixedArrayBase> elements = CAST(Parameter(Descriptor::kElements));
-  TNode<Object> search_element = CAST(Parameter(Descriptor::kSearchElement));
-  TNode<Smi> array_length = CAST(Parameter(Descriptor::kLength));
-  TNode<Smi> from_index = CAST(Parameter(Descriptor::kFromIndex));
+  auto elements = Parameter<FixedArrayBase>(Descriptor::kElements);
+  auto search_element = Parameter<Object>(Descriptor::kSearchElement);
+  auto array_length = Parameter<Smi>(Descriptor::kLength);
+  auto from_index = Parameter<Smi>(Descriptor::kFromIndex);
 
   ReturnIfEmpty(array_length, FalseConstant());
   GenerateHoleyDoubles(kIncludes, CAST(elements), search_element, array_length,
@@ -1109,28 +1108,28 @@ TF_BUILTIN(ArrayIncludesHoleyDoubles, ArrayIncludesIndexofAssembler) {
 
 TF_BUILTIN(ArrayIndexOf, ArrayIncludesIndexofAssembler) {
   TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
-      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+      UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount));
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   Generate(kIndexOf, argc, context);
 }
 
 TF_BUILTIN(ArrayIndexOfSmiOrObject, ArrayIncludesIndexofAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<FixedArray> elements = CAST(Parameter(Descriptor::kElements));
-  TNode<Object> search_element = CAST(Parameter(Descriptor::kSearchElement));
-  TNode<Smi> array_length = CAST(Parameter(Descriptor::kLength));
-  TNode<Smi> from_index = CAST(Parameter(Descriptor::kFromIndex));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto elements = Parameter<FixedArray>(Descriptor::kElements);
+  auto search_element = Parameter<Object>(Descriptor::kSearchElement);
+  auto array_length = Parameter<Smi>(Descriptor::kLength);
+  auto from_index = Parameter<Smi>(Descriptor::kFromIndex);
 
   GenerateSmiOrObject(kIndexOf, context, elements, search_element, array_length,
                       from_index);
 }
 
 TF_BUILTIN(ArrayIndexOfPackedDoubles, ArrayIncludesIndexofAssembler) {
-  TNode<FixedArrayBase> elements = CAST(Parameter(Descriptor::kElements));
-  TNode<Object> search_element = CAST(Parameter(Descriptor::kSearchElement));
-  TNode<Smi> array_length = CAST(Parameter(Descriptor::kLength));
-  TNode<Smi> from_index = CAST(Parameter(Descriptor::kFromIndex));
+  auto elements = Parameter<FixedArrayBase>(Descriptor::kElements);
+  auto search_element = Parameter<Object>(Descriptor::kSearchElement);
+  auto array_length = Parameter<Smi>(Descriptor::kLength);
+  auto from_index = Parameter<Smi>(Descriptor::kFromIndex);
 
   ReturnIfEmpty(array_length, NumberConstant(-1));
   GeneratePackedDoubles(kIndexOf, CAST(elements), search_element, array_length,
@@ -1138,10 +1137,10 @@ TF_BUILTIN(ArrayIndexOfPackedDoubles, ArrayIncludesIndexofAssembler) {
 }
 
 TF_BUILTIN(ArrayIndexOfHoleyDoubles, ArrayIncludesIndexofAssembler) {
-  TNode<FixedArrayBase> elements = CAST(Parameter(Descriptor::kElements));
-  TNode<Object> search_element = CAST(Parameter(Descriptor::kSearchElement));
-  TNode<Smi> array_length = CAST(Parameter(Descriptor::kLength));
-  TNode<Smi> from_index = CAST(Parameter(Descriptor::kFromIndex));
+  auto elements = Parameter<FixedArrayBase>(Descriptor::kElements);
+  auto search_element = Parameter<Object>(Descriptor::kSearchElement);
+  auto array_length = Parameter<Smi>(Descriptor::kLength);
+  auto from_index = Parameter<Smi>(Descriptor::kFromIndex);
 
   ReturnIfEmpty(array_length, NumberConstant(-1));
   GenerateHoleyDoubles(kIndexOf, CAST(elements), search_element, array_length,
@@ -1150,24 +1149,24 @@ TF_BUILTIN(ArrayIndexOfHoleyDoubles, ArrayIncludesIndexofAssembler) {
 
 // ES #sec-array.prototype.values
 TF_BUILTIN(ArrayPrototypeValues, CodeStubAssembler) {
-  TNode<NativeContext> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  auto context = Parameter<NativeContext>(Descriptor::kContext);
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
   Return(CreateArrayIterator(context, ToObject_Inline(context, receiver),
                              IterationKind::kValues));
 }
 
 // ES #sec-array.prototype.entries
 TF_BUILTIN(ArrayPrototypeEntries, CodeStubAssembler) {
-  TNode<NativeContext> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  auto context = Parameter<NativeContext>(Descriptor::kContext);
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
   Return(CreateArrayIterator(context, ToObject_Inline(context, receiver),
                              IterationKind::kEntries));
 }
 
 // ES #sec-array.prototype.keys
 TF_BUILTIN(ArrayPrototypeKeys, CodeStubAssembler) {
-  TNode<NativeContext> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  auto context = Parameter<NativeContext>(Descriptor::kContext);
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
   Return(CreateArrayIterator(context, ToObject_Inline(context, receiver),
                              IterationKind::kKeys));
 }
@@ -1176,8 +1175,8 @@ TF_BUILTIN(ArrayPrototypeKeys, CodeStubAssembler) {
 TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
   const char* method_name = "Array Iterator.prototype.next";
 
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> maybe_iterator = CAST(Parameter(Descriptor::kReceiver));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto maybe_iterator = Parameter<Object>(Descriptor::kReceiver);
 
   TVARIABLE(Oddball, var_done, TrueConstant());
   TVARIABLE(Object, var_value, UndefinedConstant());
@@ -1504,12 +1503,12 @@ class ArrayFlattenAssembler : public CodeStubAssembler {
 
 // https://tc39.github.io/proposal-flatMap/#sec-FlattenIntoArray
 TF_BUILTIN(FlattenIntoArray, ArrayFlattenAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<JSReceiver> target = CAST(Parameter(Descriptor::kTarget));
-  TNode<JSReceiver> source = CAST(Parameter(Descriptor::kSource));
-  TNode<Number> source_length = CAST(Parameter(Descriptor::kSourceLength));
-  TNode<Number> start = CAST(Parameter(Descriptor::kStart));
-  TNode<Number> depth = CAST(Parameter(Descriptor::kDepth));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto target = Parameter<JSReceiver>(Descriptor::kTarget);
+  auto source = Parameter<JSReceiver>(Descriptor::kSource);
+  auto source_length = Parameter<Number>(Descriptor::kSourceLength);
+  auto start = Parameter<Number>(Descriptor::kStart);
+  auto depth = Parameter<Number>(Descriptor::kDepth);
 
   // FlattenIntoArray might get called recursively, check stack for overflow
   // manually as it has stub linkage.
@@ -1521,15 +1520,14 @@ TF_BUILTIN(FlattenIntoArray, ArrayFlattenAssembler) {
 
 // https://tc39.github.io/proposal-flatMap/#sec-FlattenIntoArray
 TF_BUILTIN(FlatMapIntoArray, ArrayFlattenAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<JSReceiver> target = CAST(Parameter(Descriptor::kTarget));
-  TNode<JSReceiver> source = CAST(Parameter(Descriptor::kSource));
-  TNode<Number> source_length = CAST(Parameter(Descriptor::kSourceLength));
-  TNode<Number> start = CAST(Parameter(Descriptor::kStart));
-  TNode<Number> depth = CAST(Parameter(Descriptor::kDepth));
-  TNode<HeapObject> mapper_function =
-      CAST(Parameter(Descriptor::kMapperFunction));
-  TNode<Object> this_arg = CAST(Parameter(Descriptor::kThisArg));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto target = Parameter<JSReceiver>(Descriptor::kTarget);
+  auto source = Parameter<JSReceiver>(Descriptor::kSource);
+  auto source_length = Parameter<Number>(Descriptor::kSourceLength);
+  auto start = Parameter<Number>(Descriptor::kStart);
+  auto depth = Parameter<Number>(Descriptor::kDepth);
+  auto mapper_function = Parameter<HeapObject>(Descriptor::kMapperFunction);
+  auto this_arg = Parameter<Object>(Descriptor::kThisArg);
 
   Return(FlattenIntoArray(context, target, source, source_length, start, depth,
                           mapper_function, this_arg));
@@ -1538,9 +1536,9 @@ TF_BUILTIN(FlatMapIntoArray, ArrayFlattenAssembler) {
 // https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flat
 TF_BUILTIN(ArrayPrototypeFlat, CodeStubAssembler) {
   const TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
-      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
+      UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  const auto context = Parameter<Context>(Descriptor::kContext);
   const TNode<Object> receiver = args.GetReceiver();
   const TNode<Object> depth = args.GetOptionalArgumentValue(0);
 
@@ -1580,9 +1578,9 @@ TF_BUILTIN(ArrayPrototypeFlat, CodeStubAssembler) {
 // https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flatMap
 TF_BUILTIN(ArrayPrototypeFlatMap, CodeStubAssembler) {
   const TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
-      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
+      UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  const auto context = Parameter<Context>(Descriptor::kContext);
   const TNode<Object> receiver = args.GetReceiver();
   const TNode<Object> mapper_function = args.GetOptionalArgumentValue(0);
 
@@ -1620,11 +1618,10 @@ TF_BUILTIN(ArrayPrototypeFlatMap, CodeStubAssembler) {
 TF_BUILTIN(ArrayConstructor, ArrayBuiltinsAssembler) {
   // This is a trampoline to ArrayConstructorImpl which just adds
   // allocation_site parameter value and sets new_target if necessary.
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<JSFunction> function = CAST(Parameter(Descriptor::kTarget));
-  TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
-  TNode<Int32T> argc =
-      UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto function = Parameter<JSFunction>(Descriptor::kTarget);
+  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
 
   // If new_target is undefined, then this is the 'Call' case, so set new_target
   // to function.
@@ -1785,12 +1782,11 @@ void ArrayBuiltinsAssembler::GenerateDispatchToArrayStub(
 }
 
 TF_BUILTIN(ArrayConstructorImpl, ArrayBuiltinsAssembler) {
-  TNode<JSFunction> target = CAST(Parameter(Descriptor::kTarget));
-  TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
-  TNode<Int32T> argc =
-      UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
-  TNode<HeapObject> maybe_allocation_site =
-      CAST(Parameter(Descriptor::kAllocationSite));
+  auto target = Parameter<JSFunction>(Descriptor::kTarget);
+  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
+  auto maybe_allocation_site =
+      Parameter<HeapObject>(Descriptor::kAllocationSite);
 
   // Initial map for the builtin Array functions should be Map.
   CSA_ASSERT(this, IsMap(CAST(LoadObjectField(
@@ -1877,12 +1873,12 @@ void ArrayBuiltinsAssembler::GenerateArrayNoArgumentConstructor(
     ElementsKind kind, AllocationSiteOverrideMode mode) {
   using Descriptor = ArrayNoArgumentConstructorDescriptor;
   TNode<NativeContext> native_context = LoadObjectField<NativeContext>(
-      CAST(Parameter(Descriptor::kFunction)), JSFunction::kContextOffset);
+      Parameter<HeapObject>(Descriptor::kFunction), JSFunction::kContextOffset);
   bool track_allocation_site =
       AllocationSite::ShouldTrack(kind) && mode != DISABLE_ALLOCATION_SITES;
   base::Optional<TNode<AllocationSite>> allocation_site =
       track_allocation_site
-          ? CAST(Parameter(Descriptor::kAllocationSite))
+          ? Parameter<AllocationSite>(Descriptor::kAllocationSite)
           : base::Optional<TNode<AllocationSite>>(base::nullopt);
   TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
   TNode<JSArray> array = AllocateJSArray(
@@ -1894,8 +1890,8 @@ void ArrayBuiltinsAssembler::GenerateArrayNoArgumentConstructor(
 void ArrayBuiltinsAssembler::GenerateArraySingleArgumentConstructor(
     ElementsKind kind, AllocationSiteOverrideMode mode) {
   using Descriptor = ArraySingleArgumentConstructorDescriptor;
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<HeapObject> function = CAST(Parameter(Descriptor::kFunction));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto function = Parameter<HeapObject>(Descriptor::kFunction);
   TNode<NativeContext> native_context =
       CAST(LoadObjectField(function, JSFunction::kContextOffset));
   TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
@@ -1907,11 +1903,9 @@ void ArrayBuiltinsAssembler::GenerateArraySingleArgumentConstructor(
                                : DONT_TRACK_ALLOCATION_SITE;
   }
 
-  TNode<Object> array_size =
-      CAST(Parameter(Descriptor::kArraySizeSmiParameter));
+  auto array_size = Parameter<Object>(Descriptor::kArraySizeSmiParameter);
   // allocation_site can be Undefined or an AllocationSite
-  TNode<HeapObject> allocation_site =
-      CAST(Parameter(Descriptor::kAllocationSite));
+  auto allocation_site = Parameter<HeapObject>(Descriptor::kAllocationSite);
 
   GenerateConstructor(context, function, array_map, array_size, allocation_site,
                       kind, allocation_site_mode);
@@ -1934,12 +1928,11 @@ void ArrayBuiltinsAssembler::GenerateArrayNArgumentsConstructor(
 }
 
 TF_BUILTIN(ArrayNArgumentsConstructor, ArrayBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<JSFunction> target = CAST(Parameter(Descriptor::kFunction));
-  TNode<Int32T> argc =
-      UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
-  TNode<HeapObject> maybe_allocation_site =
-      CAST(Parameter(Descriptor::kAllocationSite));
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto target = Parameter<JSFunction>(Descriptor::kFunction);
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
+  auto maybe_allocation_site =
+      Parameter<HeapObject>(Descriptor::kAllocationSite);
 
   GenerateArrayNArgumentsConstructor(context, target, target, argc,
                                      maybe_allocation_site);

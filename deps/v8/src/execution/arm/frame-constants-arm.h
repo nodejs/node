@@ -43,12 +43,14 @@ class EntryFrameConstants : public AllStatic {
   static constexpr int kArgvOffset = +1 * kSystemPointerSize;
 
   // These offsets refer to the immediate caller (i.e a native frame).
-  static constexpr int kDirectCallerFPOffset =
+  static constexpr int kDirectCallerRRegistersOffset =
       /* bad frame pointer (-1) */
       kPointerSize +
       /* d8...d15 */
-      kNumDoubleCalleeSaved * kDoubleSize +
-      /* r4...r10 (i.e callee saved without fp) */
+      kNumDoubleCalleeSaved * kDoubleSize;
+  static constexpr int kDirectCallerFPOffset =
+      kDirectCallerRRegistersOffset +
+      /* r4...r10 (i.e. callee saved without fp) */
       (kNumCalleeSaved - 1) * kPointerSize;
   static constexpr int kDirectCallerPCOffset =
       kDirectCallerFPOffset + 1 * kSystemPointerSize;

@@ -7,6 +7,7 @@
 
 #include <unordered_set>
 
+#include "src/base/hashmap.h"
 #include "src/snapshot/roots-serializer.h"
 
 namespace v8 {
@@ -19,6 +20,8 @@ class V8_EXPORT_PRIVATE ReadOnlySerializer : public RootsSerializer {
  public:
   ReadOnlySerializer(Isolate* isolate, Snapshot::SerializerFlags flags);
   ~ReadOnlySerializer() override;
+  ReadOnlySerializer(const ReadOnlySerializer&) = delete;
+  ReadOnlySerializer& operator=(const ReadOnlySerializer&) = delete;
 
   void SerializeReadOnlyRoots();
 
@@ -31,16 +34,16 @@ class V8_EXPORT_PRIVATE ReadOnlySerializer : public RootsSerializer {
   // ReadOnlyObjectCache bytecode into |sink|. Returns whether this was
   // successful.
   bool SerializeUsingReadOnlyObjectCache(SnapshotByteSink* sink,
-                                         HeapObject obj);
+                                         Handle<HeapObject> obj);
 
  private:
-  void SerializeObject(HeapObject o) override;
+  void SerializeObjectImpl(Handle<HeapObject> o) override;
   bool MustBeDeferred(HeapObject object) override;
 
 #ifdef DEBUG
-  std::unordered_set<HeapObject, Object::Hasher> serialized_objects_;
+  IdentityMap<int, base::DefaultAllocationPolicy> serialized_objects_;
+  bool did_serialize_not_mapped_symbol_;
 #endif
-  DISALLOW_COPY_AND_ASSIGN(ReadOnlySerializer);
 };
 
 }  // namespace internal

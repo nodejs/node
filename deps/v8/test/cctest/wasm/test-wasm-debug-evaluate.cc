@@ -38,6 +38,10 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+static Handle<String> V8String(Isolate* isolate, const char* str) {
+  return isolate->factory()->NewStringFromAsciiChecked(str);
+}
+
 namespace {
 template <typename... FunctionArgsT>
 class TestCode {
@@ -246,6 +250,71 @@ class WasmBreakHandler : public debug::DebugDelegate {
   }
 };
 
+class WasmJSBreakHandler : public debug::DebugDelegate {
+ public:
+  struct EvaluationResult {
+    Maybe<std::string> result = Nothing<std::string>();
+    Maybe<std::string> error = Nothing<std::string>();
+  };
+
+  WasmJSBreakHandler(Isolate* isolate, Handle<String> snippet)
+      : isolate_(isolate),
+        snippet_(snippet),
+        result_(Nothing<EvaluationResult>()) {
+    v8::debug::SetDebugDelegate(reinterpret_cast<v8::Isolate*>(isolate_), this);
+  }
+
+  ~WasmJSBreakHandler() override {
+    v8::debug::SetDebugDelegate(reinterpret_cast<v8::Isolate*>(isolate_),
+                                nullptr);
+  }
+
+  const Maybe<EvaluationResult>& result() const { return result_; }
+
+ private:
+  Isolate* isolate_;
+  Handle<String> snippet_;
+  Maybe<EvaluationResult> result_;
+
+  Maybe<std::string> GetPendingExceptionAsString() const {
+    if (!isolate_->has_pending_exception()) return Nothing<std::string>();
+    Handle<Object> exception(isolate_->pending_exception(), isolate_);
+    isolate_->clear_pending_exception();
+
+    Handle<String> exception_string;
+    if (!Object::ToString(isolate_, exception).ToHandle(&exception_string)) {
+      return Just<std::string>("");
+    }
+    return Just<std::string>(exception_string->ToCString().get());
+  }
+
+  Maybe<std::string> GetResultAsString(MaybeHandle<Object> result) const {
+    Handle<Object> just_result;
+    if (!result.ToHandle(&just_result)) return Nothing<std::string>();
+    MaybeHandle<String> maybe_string = Object::ToString(isolate_, just_result);
+    Handle<String> just_string;
+    if (!maybe_string.ToHandle(&just_string)) return Nothing<std::string>();
+    return Just<std::string>(just_string->ToCString().get());
+  }
+
+  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
+                             const std::vector<int>&) override {
+    StackTraceFrameIterator frame_it(isolate_);
+
+    WasmFrame* frame = WasmFrame::cast(frame_it.frame());
+    Handle<WasmInstanceObject> instance{frame->wasm_instance(), isolate_};
+
+    MaybeHandle<Object> result_handle = DebugEvaluate::WebAssembly(
+        instance, frame_it.frame()->id(), snippet_, false);
+
+    Maybe<std::string> error_message = GetPendingExceptionAsString();
+    Maybe<std::string> result_message = GetResultAsString(result_handle);
+
+    isolate_->clear_pending_exception();
+    result_ = Just<EvaluationResult>({result_message, error_message});
+  }
+};
+
 WASM_COMPILED_EXEC_TEST(WasmDebugEvaluate_CompileFailed) {
   WasmRunner<int> runner(execution_tier);
 
@@ -447,6 +516,57 @@ WASM_COMPILED_EXEC_TEST(WasmDebugEvaluate_Operands) {
       break_handler.result().ToChecked();
   CHECK(result.error.IsNothing());
   CHECK_EQ(result.result.ToChecked(), "45");
+}
+
+WASM_COMPILED_EXEC_TEST(WasmDebugEvaluate_JavaScript) {
+  WasmRunner<int> runner(execution_tier);
+  runner.builder().AddGlobal<int32_t>();
+  runner.builder().AddMemoryElems<int32_t>(64);
+  uint16_t index = 0;
+  runner.builder().AddIndirectFunctionTable(&index, 1);
+
+  TestCode<int64_t> code(
+      &runner,
+      {WASM_SET_GLOBAL(0, WASM_I32V_2('B')),
+       WASM_SET_LOCAL(0, WASM_I64V_2('A')), WASM_RETURN1(WASM_GET_LOCAL(0))},
+      {ValueType::kI64});
+  code.BreakOnReturn(&runner);
+
+  Isolate* isolate = runner.main_isolate();
+  Handle<String> snippet =
+      V8String(isolate,
+               "JSON.stringify(["
+               "$global0, "
+               "$table0, "
+               "$var0, "
+               "$main, "
+               "$memory0, "
+               "globals[0], "
+               "tables[0], "
+               "locals[0], "
+               "functions[0], "
+               "memories[0], "
+               "memories, "
+               "tables, "
+               "stack, "
+               "imports, "
+               "exports, "
+               "globals, "
+               "locals, "
+               "functions, "
+               "], (k, v) => k === 'at' || typeof v === 'undefined' || typeof "
+               "v === 'object' ? v : v.toString())");
+
+  WasmJSBreakHandler break_handler(isolate, snippet);
+  CHECK(!code.Run(&runner).is_null());
+
+  WasmJSBreakHandler::EvaluationResult result =
+      break_handler.result().ToChecked();
+  CHECK_WITH_MSG(result.error.IsNothing(), result.error.ToChecked().c_str());
+  CHECK_EQ(result.result.ToChecked(),
+           "[\"66\",{},\"65\",\"function 0() { [native code] }\",{},"
+           "\"66\",{},\"65\",\"function 0() { [native code] }\",{},"
+           "{},{},{\"0\":\"65\"},{},{},{},{},{}]");
 }
 
 }  // namespace

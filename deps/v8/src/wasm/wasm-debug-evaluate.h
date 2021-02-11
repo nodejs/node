@@ -13,9 +13,9 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-MaybeHandle<String> V8_EXPORT_PRIVATE DebugEvaluate(
-    Vector<const byte> snippet, Handle<WasmInstanceObject> debuggee_instance,
-    StandardFrame* frame);
+MaybeHandle<String> V8_EXPORT_PRIVATE
+DebugEvaluate(Vector<const byte> snippet,
+              Handle<WasmInstanceObject> debuggee_instance, CommonFrame* frame);
 
 }  // namespace wasm
 }  // namespace internal

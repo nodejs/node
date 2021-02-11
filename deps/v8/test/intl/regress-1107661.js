@@ -11,11 +11,16 @@ const algorithmicNumberingSystems = [
 
 algorithmicNumberingSystems.forEach(function(numberingSystem) {
   let df = new Intl.DateTimeFormat("en", {dateStyle: "full", numberingSystem});
-  assertEquals("latn", df.resolvedOptions().numberingSystem);
+  if (df.resolvedOptions().numberingSystem != numberingSystem) {
+    assertEquals("latn", df.resolvedOptions().numberingSystem);
+  }
 
   let df2 = new Intl.DateTimeFormat("en-u-nu-" + numberingSystem,
       {dateStyle: "full"});
-  assertEquals("latn", df2.resolvedOptions().numberingSystem);
+
+  if (df2.resolvedOptions().numberingSystem != numberingSystem) {
+    assertEquals("latn", df2.resolvedOptions().numberingSystem);
+  }
 
   // Just verify it won't crash
   (new Date()).toLocaleString("en-u-nu-" + numberingSystem, {dateStyle: "full"});

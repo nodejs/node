@@ -18,7 +18,9 @@
 #include "src/objects/dictionary.h"
 #include "src/objects/js-array.h"
 #include "src/objects/js-regexp.h"
+#include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
+#include "torque-generated/class-forward-declarations.h"
 
 namespace v8 {
 namespace internal {
@@ -69,6 +71,11 @@ class WasmCapiFunctionData;
 class WasmExportedFunctionData;
 class WasmJSFunctionData;
 class WeakCell;
+
+namespace wasm {
+class ValueType;
+}  // namespace wasm
+
 enum class SharedFlag : uint8_t;
 enum class InitializedFlag : uint8_t;
 
@@ -114,6 +121,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
 #include "torque-generated/factory.inc"
 
+  // Avoid the Torque-generated factory function to shadow the one from
+  // FactoryBase.
+  using FactoryBase::NewDescriptorArray;
+
   Handle<Oddball> NewOddball(Handle<Map> map, const char* to_string,
                              Handle<Object> to_number, const char* type_of,
                              byte kind);
@@ -157,10 +168,17 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<FrameArray> NewFrameArray(int number_of_frames);
 
+  // Allocates a |NameDictionary| with an internal capacity calculated such that
+  // |at_least_space_for| entries can be added without reallocating.
+  Handle<NameDictionary> NewNameDictionary(int at_least_space_for);
+
+  // Allocates an |OrderedNameDictionary| of the given capacity. This guarantees
+  // that |capacity| entries can be added without reallocating.
+  Handle<OrderedNameDictionary> NewOrderedNameDictionary(
+      int capacity = OrderedNameDictionary::kInitialCapacity);
+
   Handle<OrderedHashSet> NewOrderedHashSet();
   Handle<OrderedHashMap> NewOrderedHashMap();
-  Handle<OrderedNameDictionary> NewOrderedNameDictionary();
-
   Handle<SmallOrderedHashSet> NewSmallOrderedHashSet(
       int capacity = kSmallOrderedHashSetMinCapacity,
       AllocationType allocation = AllocationType::kYoung);
@@ -614,11 +632,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Function creation from SharedFunctionInfo.
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
-      Handle<Map> initial_map, Handle<SharedFunctionInfo> function_info,
-      Handle<Context> context, Handle<FeedbackCell> feedback_cell,
-      AllocationType allocation = AllocationType::kOld);
-
-  Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
       Handle<SharedFunctionInfo> function_info, Handle<Context> context,
       Handle<FeedbackCell> feedback_cell,
       AllocationType allocation = AllocationType::kOld);
@@ -792,6 +805,43 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     return New(map, allocation);
   }
 
+  // Helper class for creating JSFunction objects.
+  class JSFunctionBuilder final {
+   public:
+    JSFunctionBuilder(Isolate* isolate, Handle<SharedFunctionInfo> sfi,
+                      Handle<Context> context);
+
+    V8_WARN_UNUSED_RESULT Handle<JSFunction> Build();
+
+    JSFunctionBuilder& set_map(Handle<Map> v) {
+      maybe_map_ = v;
+      return *this;
+    }
+    JSFunctionBuilder& set_allocation_type(AllocationType v) {
+      allocation_type_ = v;
+      return *this;
+    }
+    JSFunctionBuilder& set_feedback_cell(Handle<FeedbackCell> v) {
+      maybe_feedback_cell_ = v;
+      return *this;
+    }
+
+   private:
+    void PrepareMap();
+    void PrepareFeedbackCell();
+
+    V8_WARN_UNUSED_RESULT Handle<JSFunction> BuildRaw(Handle<Code> code);
+
+    Isolate* const isolate_;
+    Handle<SharedFunctionInfo> sfi_;
+    Handle<Context> context_;
+    MaybeHandle<Map> maybe_map_;
+    MaybeHandle<FeedbackCell> maybe_feedback_cell_;
+    AllocationType allocation_type_ = AllocationType::kOld;
+
+    friend class Factory;
+  };
+
   // Allows creation of Code objects. It provides two build methods, one of
   // which tries to gracefully handle allocation failure.
   class V8_EXPORT_PRIVATE CodeBuilder final {
@@ -834,11 +884,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
         Handle<DeoptimizationData> deopt_data) {
       DCHECK(!deopt_data.is_null());
       deoptimization_data_ = deopt_data;
-      return *this;
-    }
-
-    CodeBuilder& set_immovable() {
-      is_movable_ = false;
       return *this;
     }
 
@@ -888,7 +933,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     BasicBlockProfilerData* profiler_data_ = nullptr;
     bool is_executable_ = true;
     bool read_only_data_container_ = false;
-    bool is_movable_ = true;
     bool is_turbofanned_ = false;
     int stack_slots_ = 0;
   };

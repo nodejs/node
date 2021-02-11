@@ -11,7 +11,7 @@ namespace v8 {
 namespace internal {
 
 #ifdef DEBUG
-void BitVector::Print() {
+void BitVector::Print() const {
   bool first = true;
   PrintF("{");
   for (int i = 0; i < length(); i++) {

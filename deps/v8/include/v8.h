@@ -83,6 +83,7 @@ class String;
 class StringObject;
 class Symbol;
 class SymbolObject;
+class TracedReferenceBase;
 class PrimitiveArray;
 class Private;
 class Uint32;
@@ -104,7 +105,7 @@ class TracedGlobal;
 template <class T>
 class TracedReference;
 template <class T>
-class TracedReferenceBase;
+class BasicTracedReference;
 template<class K, class V, class T> class PersistentValueMap;
 template <class K, class V, class T>
 class PersistentValueMapBase;
@@ -127,6 +128,7 @@ namespace internal {
 enum class ArgumentsType;
 template <ArgumentsType>
 class Arguments;
+class BasicTracedReferenceExtractor;
 template <typename T>
 class CustomArguments;
 class FunctionCallbackArguments;
@@ -301,9 +303,10 @@ class Local {
   V8_INLINE static Local<T> New(Isolate* isolate,
                                 const PersistentBase<T>& that);
   V8_INLINE static Local<T> New(Isolate* isolate,
-                                const TracedReferenceBase<T>& that);
+                                const BasicTracedReference<T>& that);
 
  private:
+  friend class TracedReferenceBase;
   friend class Utils;
   template<class F> friend class Eternal;
   template<class F> friend class PersistentBase;
@@ -335,7 +338,7 @@ class Local {
   template <class F>
   friend class TracedGlobal;
   template <class F>
-  friend class TracedReferenceBase;
+  friend class BasicTracedReference;
   template <class F>
   friend class TracedReference;
 
@@ -825,27 +828,11 @@ using UniquePersistent = Global<T>;
 template <typename T>
 struct TracedGlobalTrait {};
 
-/**
- * A traced handle with copy and move semantics. The handle is to be used
- * together with |v8::EmbedderHeapTracer| and specifies edges from the embedder
- * into V8's heap.
- *
- * The exact semantics are:
- * - Tracing garbage collections use |v8::EmbedderHeapTracer|.
- * - Non-tracing garbage collections refer to
- *   |v8::EmbedderHeapTracer::IsRootForNonTracingGC()| whether the handle should
- *   be treated as root or not.
- *
- * Note that the base class cannot be instantiated itself. Choose from
- * - TracedGlobal
- * - TracedReference
- */
-template <typename T>
 class TracedReferenceBase {
  public:
   /**
-   * Returns true if this TracedReferenceBase is empty, i.e., has not been
-   * assigned an object.
+   * Returns true if the reference is empty, i.e., has not been assigned
+   * object.
    */
   bool IsEmpty() const { return val_ == nullptr; }
 
@@ -856,36 +843,16 @@ class TracedReferenceBase {
   V8_INLINE void Reset();
 
   /**
-   * Construct a Local<T> from this handle.
+   * Construct a Local<Value> from this handle.
    */
-  Local<T> Get(Isolate* isolate) const { return Local<T>::New(isolate, *this); }
+  V8_INLINE v8::Local<v8::Value> Get(v8::Isolate* isolate) const;
 
-  template <class S>
-  V8_INLINE bool operator==(const TracedReferenceBase<S>& that) const {
-    internal::Address* a = reinterpret_cast<internal::Address*>(val_);
-    internal::Address* b = reinterpret_cast<internal::Address*>(that.val_);
-    if (a == nullptr) return b == nullptr;
-    if (b == nullptr) return false;
-    return *a == *b;
-  }
-
-  template <class S>
-  V8_INLINE bool operator==(const Local<S>& that) const {
-    internal::Address* a = reinterpret_cast<internal::Address*>(val_);
-    internal::Address* b = reinterpret_cast<internal::Address*>(that.val_);
-    if (a == nullptr) return b == nullptr;
-    if (b == nullptr) return false;
-    return *a == *b;
-  }
-
-  template <class S>
-  V8_INLINE bool operator!=(const TracedReferenceBase<S>& that) const {
-    return !operator==(that);
-  }
-
-  template <class S>
-  V8_INLINE bool operator!=(const Local<S>& that) const {
-    return !operator==(that);
+  /**
+   * Returns true if this TracedReference is empty, i.e., has not been
+   * assigned an object. This version of IsEmpty is thread-safe.
+   */
+  bool IsEmptyThreadSafe() const {
+    return this->GetSlotThreadSafe() == nullptr;
   }
 
   /**
@@ -899,41 +866,77 @@ class TracedReferenceBase {
    */
   V8_INLINE uint16_t WrapperClassId() const;
 
-  template <class S>
-  V8_INLINE TracedReferenceBase<S>& As() const {
-    return reinterpret_cast<TracedReferenceBase<S>&>(
-        const_cast<TracedReferenceBase<T>&>(*this));
-  }
-
  protected:
   /**
-   * Update this reference in a thread-safe way
+   * Update this reference in a thread-safe way.
    */
-  void SetSlotThreadSafe(T* new_val) {
-    reinterpret_cast<std::atomic<T*>*>(&val_)->store(new_val,
-                                                     std::memory_order_relaxed);
+  void SetSlotThreadSafe(void* new_val) {
+    reinterpret_cast<std::atomic<void*>*>(&val_)->store(
+        new_val, std::memory_order_relaxed);
   }
 
   /**
    * Get this reference in a thread-safe way
    */
-  const T* GetSlotThreadSafe() const {
-    return reinterpret_cast<std::atomic<const T*> const*>(&val_)->load(
+  const void* GetSlotThreadSafe() const {
+    return reinterpret_cast<std::atomic<const void*> const*>(&val_)->load(
         std::memory_order_relaxed);
   }
+
+  // val_ points to a GlobalHandles node.
+  internal::Address* val_ = nullptr;
+
+  friend class internal::BasicTracedReferenceExtractor;
+  template <typename F>
+  friend class Local;
+  template <typename U>
+  friend bool operator==(const TracedReferenceBase&, const Local<U>&);
+  friend bool operator==(const TracedReferenceBase&,
+                         const TracedReferenceBase&);
+};
+
+/**
+ * A traced handle with copy and move semantics. The handle is to be used
+ * together with |v8::EmbedderHeapTracer| or as part of GarbageCollected objects
+ * (see v8-cppgc.h) and specifies edges from C++ objects to JavaScript.
+ *
+ * The exact semantics are:
+ * - Tracing garbage collections use |v8::EmbedderHeapTracer| or cppgc.
+ * - Non-tracing garbage collections refer to
+ *   |v8::EmbedderHeapTracer::IsRootForNonTracingGC()| whether the handle should
+ *   be treated as root or not.
+ *
+ * Note that the base class cannot be instantiated itself. Choose from
+ * - TracedGlobal
+ * - TracedReference
+ */
+template <typename T>
+class BasicTracedReference : public TracedReferenceBase {
+ public:
+  /**
+   * Construct a Local<T> from this handle.
+   */
+  Local<T> Get(Isolate* isolate) const { return Local<T>::New(isolate, *this); }
+
+  template <class S>
+  V8_INLINE BasicTracedReference<S>& As() const {
+    return reinterpret_cast<BasicTracedReference<S>&>(
+        const_cast<BasicTracedReference<T>&>(*this));
+  }
+
+  T* operator->() const { return reinterpret_cast<T*>(val_); }
+  T* operator*() const { return reinterpret_cast<T*>(val_); }
 
  private:
   enum DestructionMode { kWithDestructor, kWithoutDestructor };
 
   /**
-   * An empty TracedReferenceBase without storage cell.
+   * An empty BasicTracedReference without storage cell.
    */
-  TracedReferenceBase() = default;
+  BasicTracedReference() = default;
 
-  V8_INLINE static T* New(Isolate* isolate, T* that, void* slot,
-                          DestructionMode destruction_mode);
-
-  T* val_ = nullptr;
+  V8_INLINE static internal::Address* New(Isolate* isolate, T* that, void* slot,
+                                          DestructionMode destruction_mode);
 
   friend class EmbedderHeapTracer;
   template <typename F>
@@ -944,27 +947,29 @@ class TracedReferenceBase {
   template <typename F>
   friend class TracedReference;
   template <typename F>
+  friend class BasicTracedReference;
+  template <typename F>
   friend class ReturnValue;
 };
 
 /**
  * A traced handle with destructor that clears the handle. For more details see
- * TracedReferenceBase.
+ * BasicTracedReference.
  */
 template <typename T>
-class TracedGlobal : public TracedReferenceBase<T> {
+class TracedGlobal : public BasicTracedReference<T> {
  public:
-  using TracedReferenceBase<T>::Reset;
+  using BasicTracedReference<T>::Reset;
 
   /**
-   * Destructor resetting the handle.
+   * Destructor resetting the handle.Is
    */
   ~TracedGlobal() { this->Reset(); }
 
   /**
    * An empty TracedGlobal without storage cell.
    */
-  TracedGlobal() : TracedReferenceBase<T>() {}
+  TracedGlobal() : BasicTracedReference<T>() {}
 
   /**
    * Construct a TracedGlobal from a Local.
@@ -973,9 +978,9 @@ class TracedGlobal : public TracedReferenceBase<T> {
    * pointing to the same object.
    */
   template <class S>
-  TracedGlobal(Isolate* isolate, Local<S> that) : TracedReferenceBase<T>() {
+  TracedGlobal(Isolate* isolate, Local<S> that) : BasicTracedReference<T>() {
     this->val_ = this->New(isolate, that.val_, &this->val_,
-                           TracedReferenceBase<T>::kWithDestructor);
+                           BasicTracedReference<T>::kWithDestructor);
     static_assert(std::is_base_of<T, S>::value, "type check");
   }
 
@@ -1072,7 +1077,7 @@ class TracedGlobal : public TracedReferenceBase<T> {
  * A traced handle without destructor that clears the handle. The embedder needs
  * to ensure that the handle is not accessed once the V8 object has been
  * reclaimed. This can happen when the handle is not passed through the
- * EmbedderHeapTracer. For more details see TracedReferenceBase.
+ * EmbedderHeapTracer. For more details see BasicTracedReference.
  *
  * The reference assumes the embedder has precise knowledge about references at
  * all times. In case V8 needs to separately handle on-stack references, the
@@ -1080,14 +1085,14 @@ class TracedGlobal : public TracedReferenceBase<T> {
  * |EmbedderHeapTracer::SetStackStart|.
  */
 template <typename T>
-class TracedReference : public TracedReferenceBase<T> {
+class TracedReference : public BasicTracedReference<T> {
  public:
-  using TracedReferenceBase<T>::Reset;
+  using BasicTracedReference<T>::Reset;
 
   /**
    * An empty TracedReference without storage cell.
    */
-  TracedReference() : TracedReferenceBase<T>() {}
+  TracedReference() : BasicTracedReference<T>() {}
 
   /**
    * Construct a TracedReference from a Local.
@@ -1096,9 +1101,9 @@ class TracedReference : public TracedReferenceBase<T> {
    * pointing to the same object.
    */
   template <class S>
-  TracedReference(Isolate* isolate, Local<S> that) : TracedReferenceBase<T>() {
+  TracedReference(Isolate* isolate, Local<S> that) : BasicTracedReference<T>() {
     this->val_ = this->New(isolate, that.val_, &this->val_,
-                           TracedReferenceBase<T>::kWithoutDestructor);
+                           BasicTracedReference<T>::kWithoutDestructor);
     static_assert(std::is_base_of<T, S>::value, "type check");
   }
 
@@ -1173,14 +1178,6 @@ class TracedReference : public TracedReferenceBase<T> {
   V8_INLINE TracedReference<S>& As() const {
     return reinterpret_cast<TracedReference<S>&>(
         const_cast<TracedReference<T>&>(*this));
-  }
-
-  /**
-   * Returns true if this TracedReference is empty, i.e., has not been
-   * assigned an object. This version of IsEmpty is thread-safe.
-   */
-  bool IsEmptyThreadSafe() const {
-    return this->GetSlotThreadSafe() == nullptr;
   }
 };
 
@@ -1609,6 +1606,14 @@ class V8_EXPORT Module : public Data {
   int ScriptId();
 
   /**
+   * Returns whether this module or any of its requested modules is async,
+   * i.e. contains top-level await.
+   *
+   * The module's status must be at least kInstantiated.
+   */
+  bool IsGraphAsync() const;
+
+  /**
    * Returns whether the module is a SourceTextModule.
    */
   bool IsSourceTextModule() const;
@@ -1834,11 +1839,9 @@ class V8_EXPORT ScriptCompiler {
    public:
     enum Encoding { ONE_BYTE, TWO_BYTE, UTF8 };
 
-#if defined(_MSC_VER) && _MSC_VER >= 1910 /* Disable on VS2015 */
     V8_DEPRECATE_SOON(
         "This class takes ownership of source_stream, so use the constructor "
         "taking a unique_ptr to make these semantics clearer")
-#endif
     StreamedSource(ExternalSourceStream* source_stream, Encoding encoding);
     StreamedSource(std::unique_ptr<ExternalSourceStream> source_stream,
                    Encoding encoding);
@@ -1856,7 +1859,7 @@ class V8_EXPORT ScriptCompiler {
 
   /**
    * A streaming task which the embedder must run on a background thread to
-   * stream scripts into V8. Returned by ScriptCompiler::StartStreamingScript.
+   * stream scripts into V8. Returned by ScriptCompiler::StartStreaming.
    */
   class V8_EXPORT ScriptStreamingTask final {
    public:
@@ -1943,9 +1946,12 @@ class V8_EXPORT ScriptCompiler {
    * This API allows to start the streaming with as little data as possible, and
    * the remaining data (for example, the ScriptOrigin) is passed to Compile.
    */
+  V8_DEPRECATE_SOON("Use ScriptCompiler::StartStreamingScript instead.")
   static ScriptStreamingTask* StartStreamingScript(
       Isolate* isolate, StreamedSource* source,
       CompileOptions options = kNoCompileOptions);
+  static ScriptStreamingTask* StartStreaming(Isolate* isolate,
+                                             StreamedSource* source);
 
   /**
    * Compiles a streamed script (bound to current context).
@@ -2266,14 +2272,25 @@ enum StateTag {
   IDLE
 };
 
+// Holds the callee saved registers needed for the stack unwinder. It is the
+// empty struct if no registers are required. Implemented in
+// include/v8-unwinder-state.h.
+struct CalleeSavedRegisters;
+
 // A RegisterState represents the current state of registers used
 // by the sampling profiler API.
-struct RegisterState {
-  RegisterState() : pc(nullptr), sp(nullptr), fp(nullptr), lr(nullptr) {}
+struct V8_EXPORT RegisterState {
+  RegisterState();
+  ~RegisterState();
+  RegisterState(const RegisterState& other);
+  RegisterState& operator=(const RegisterState& other);
+
   void* pc;  // Instruction pointer.
   void* sp;  // Stack pointer.
   void* fp;  // Frame pointer.
   void* lr;  // Link register (or nullptr on platforms without a link register).
+  // Callee saved registers (or null if no callee saved registers were stored)
+  std::unique_ptr<CalleeSavedRegisters> callee_saved;
 };
 
 // The output structure filled up by GetStackSample API function.
@@ -3118,7 +3135,7 @@ class V8_EXPORT String : public Name {
    * Returns true if the string is external two-byte.
    *
    */
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Use String::IsExternalTwoByte() or String::IsExternalOneByte()")
   bool IsExternal() const;
 
@@ -3975,10 +3992,10 @@ class V8_EXPORT Object : public Value {
     return object.val_->InternalFieldCount();
   }
 
-  /** Same as above, but works for TracedReferenceBase. */
+  /** Same as above, but works for BasicTracedReference. */
   V8_INLINE static int InternalFieldCount(
-      const TracedReferenceBase<Object>& object) {
-    return object.val_->InternalFieldCount();
+      const BasicTracedReference<Object>& object) {
+    return object->InternalFieldCount();
   }
 
   /** Gets the value from an internal field. */
@@ -4002,8 +4019,8 @@ class V8_EXPORT Object : public Value {
 
   /** Same as above, but works for TracedGlobal. */
   V8_INLINE static void* GetAlignedPointerFromInternalField(
-      const TracedReferenceBase<Object>& object, int index) {
-    return object.val_->GetAlignedPointerFromInternalField(index);
+      const BasicTracedReference<Object>& object, int index) {
+    return object->GetAlignedPointerFromInternalField(index);
   }
 
   /**
@@ -4186,6 +4203,16 @@ class V8_EXPORT Object : public Value {
 
   V8_INLINE static Object* Cast(Value* obj);
 
+  /**
+   * Support for TC39 "dynamic code brand checks" proposal.
+   *
+   * This API allows to query whether an object was constructed from a
+   * "code like" ObjectTemplate.
+   *
+   * See also: v8::ObjectTemplate::SetCodeLike
+   */
+  bool IsCodeLike(Isolate* isolate);
+
  private:
   Object();
   static void CheckCast(Value* obj);
@@ -4299,7 +4326,7 @@ class ReturnValue {
   template <typename S>
   V8_INLINE void Set(const Global<S>& handle);
   template <typename S>
-  V8_INLINE void Set(const TracedReferenceBase<S>& handle);
+  V8_INLINE void Set(const BasicTracedReference<S>& handle);
   template <typename S>
   V8_INLINE void Set(const Local<S> handle);
   // Fast primitive setters
@@ -4593,6 +4620,15 @@ class V8_EXPORT Function : public Object {
    * v8::Undefined.
    */
   Local<Value> GetBoundFunction() const;
+
+  /**
+   * Calls builtin Function.prototype.toString on this function.
+   * This is different from Value::ToString() that may call a user-defined
+   * toString() function, and different than Object::ObjectProtoToString() which
+   * always serializes "[object Function]".
+   */
+  V8_WARN_UNUSED_RESULT MaybeLocal<String> FunctionProtoToString(
+      Local<Context> context);
 
   ScriptOrigin GetScriptOrigin() const;
   V8_INLINE static Function* Cast(Value* obj);
@@ -5966,6 +6002,10 @@ class V8_EXPORT RegExp : public Object {
   /**
    * Regular expression flag bits. They can be or'ed to enable a set
    * of flags.
+   * The kLinear value ('l') is experimental and can only be used with
+   * --enable-experimental-regexp-engine.  RegExps with kLinear flag are
+   *  guaranteed to be executed in asymptotic linear time wrt. the length of
+   *  the subject string.
    */
   enum Flags {
     kNone = 0,
@@ -5975,9 +6015,10 @@ class V8_EXPORT RegExp : public Object {
     kSticky = 1 << 3,
     kUnicode = 1 << 4,
     kDotAll = 1 << 5,
+    kLinear = 1 << 6,
   };
 
-  static constexpr int kFlagCount = 6;
+  static constexpr int kFlagCount = 7;
 
   /**
    * Creates a regular expression from the given pattern string and
@@ -6119,7 +6160,6 @@ class V8_EXPORT Template : public Data {
   void SetNativeDataProperty(
       Local<String> name, AccessorGetterCallback getter,
       AccessorSetterCallback setter = nullptr,
-      // TODO(dcarney): gcc can't handle Local below
       Local<Value> data = Local<Value>(), PropertyAttribute attribute = None,
       Local<AccessorSignature> signature = Local<AccessorSignature>(),
       AccessControl settings = DEFAULT,
@@ -6128,7 +6168,6 @@ class V8_EXPORT Template : public Data {
   void SetNativeDataProperty(
       Local<Name> name, AccessorNameGetterCallback getter,
       AccessorNameSetterCallback setter = nullptr,
-      // TODO(dcarney): gcc can't handle Local below
       Local<Value> data = Local<Value>(), PropertyAttribute attribute = None,
       Local<AccessorSignature> signature = Local<AccessorSignature>(),
       AccessControl settings = DEFAULT,
@@ -6974,6 +7013,18 @@ class V8_EXPORT ObjectTemplate : public Template {
    */
   void SetImmutableProto();
 
+  /**
+   * Support for TC39 "dynamic code brand checks" proposal.
+   *
+   * This API allows to mark (& query) objects as "code like", which causes
+   * them to be treated like Strings in the context of eval and function
+   * constructor.
+   *
+   * Reference: https://github.com/tc39/proposal-dynamic-code-brand-checks
+   */
+  void SetCodeLike();
+  bool IsCodeLike();
+
   V8_INLINE static ObjectTemplate* Cast(Data* data);
 
  private:
@@ -7180,25 +7231,25 @@ class V8_EXPORT ResourceConstraints {
   /**
    * Deprecated functions. Do not use in new code.
    */
-  V8_DEPRECATE_SOON("Use code_range_size_in_bytes.")
+  V8_DEPRECATED("Use code_range_size_in_bytes.")
   size_t code_range_size() const { return code_range_size_ / kMB; }
-  V8_DEPRECATE_SOON("Use set_code_range_size_in_bytes.")
+  V8_DEPRECATED("Use set_code_range_size_in_bytes.")
   void set_code_range_size(size_t limit_in_mb) {
     code_range_size_ = limit_in_mb * kMB;
   }
-  V8_DEPRECATE_SOON("Use max_young_generation_size_in_bytes.")
+  V8_DEPRECATED("Use max_young_generation_size_in_bytes.")
   size_t max_semi_space_size_in_kb() const;
-  V8_DEPRECATE_SOON("Use set_max_young_generation_size_in_bytes.")
+  V8_DEPRECATED("Use set_max_young_generation_size_in_bytes.")
   void set_max_semi_space_size_in_kb(size_t limit_in_kb);
-  V8_DEPRECATE_SOON("Use max_old_generation_size_in_bytes.")
+  V8_DEPRECATED("Use max_old_generation_size_in_bytes.")
   size_t max_old_space_size() const { return max_old_generation_size_ / kMB; }
-  V8_DEPRECATE_SOON("Use set_max_old_generation_size_in_bytes.")
+  V8_DEPRECATED("Use set_max_old_generation_size_in_bytes.")
   void set_max_old_space_size(size_t limit_in_mb) {
     max_old_generation_size_ = limit_in_mb * kMB;
   }
-  V8_DEPRECATE_SOON("Zone does not pool memory any more.")
+  V8_DEPRECATED("Zone does not pool memory any more.")
   size_t max_zone_pool_size() const { return max_zone_pool_size_; }
-  V8_DEPRECATE_SOON("Zone does not pool memory any more.")
+  V8_DEPRECATED("Zone does not pool memory any more.")
   void set_max_zone_pool_size(size_t bytes) { max_zone_pool_size_ = bytes; }
 
  private:
@@ -7382,6 +7433,7 @@ class PromiseRejectMessage {
 typedef void (*PromiseRejectCallback)(PromiseRejectMessage message);
 
 // --- Microtasks Callbacks ---
+V8_DEPRECATED("Use *WithData version.")
 typedef void (*MicrotasksCompletedCallback)(Isolate*);
 typedef void (*MicrotasksCompletedCallbackWithData)(Isolate*, void*);
 typedef void (*MicrotaskCallback)(void* data);
@@ -7547,11 +7599,15 @@ struct ModifyCodeGenerationFromStringsResult {
 
 /**
  * Callback to check if codegen is allowed from a source object, and convert
- * the source to string if necessary.See  ModifyCodeGenerationFromStrings.
+ * the source to string if necessary. See: ModifyCodeGenerationFromStrings.
  */
 typedef ModifyCodeGenerationFromStringsResult (
     *ModifyCodeGenerationFromStringsCallback)(Local<Context> context,
                                               Local<Value> source);
+typedef ModifyCodeGenerationFromStringsResult (
+    *ModifyCodeGenerationFromStringsCallback2)(Local<Context> context,
+                                               Local<Value> source,
+                                               bool is_code_like);
 
 // --- WebAssembly compilation callbacks ---
 typedef bool (*ExtensionCallback)(const FunctionCallbackInfo<Value>&);
@@ -7997,7 +8053,7 @@ class V8_EXPORT EmbedderHeapTracer {
   virtual void RegisterV8References(
       const std::vector<std::pair<void*, void*> >& embedder_fields) = 0;
 
-  void RegisterEmbedderReference(const TracedReferenceBase<v8::Data>& ref);
+  void RegisterEmbedderReference(const BasicTracedReference<v8::Data>& ref);
 
   /**
    * Called at the beginning of a GC cycle.
@@ -9135,7 +9191,7 @@ class V8_EXPORT Isolate {
   /**
    * An alias for PerformMicrotaskCheckpoint.
    */
-  V8_DEPRECATE_SOON("Use PerformMicrotaskCheckpoint.")
+  V8_DEPRECATED("Use PerformMicrotaskCheckpoint.")
   void RunMicrotasks() { PerformMicrotaskCheckpoint(); }
 
   /**
@@ -9179,7 +9235,7 @@ class V8_EXPORT Isolate {
    * Executing scripts inside the callback will not re-trigger microtasks and
    * the callback.
    */
-  V8_DEPRECATE_SOON("Use *WithData version.")
+  V8_DEPRECATED("Use *WithData version.")
   void AddMicrotasksCompletedCallback(MicrotasksCompletedCallback callback);
   void AddMicrotasksCompletedCallback(
       MicrotasksCompletedCallbackWithData callback, void* data = nullptr);
@@ -9187,7 +9243,7 @@ class V8_EXPORT Isolate {
   /**
    * Removes callback that was installed by AddMicrotasksCompletedCallback.
    */
-  V8_DEPRECATE_SOON("Use *WithData version.")
+  V8_DEPRECATED("Use *WithData version.")
   void RemoveMicrotasksCompletedCallback(MicrotasksCompletedCallback callback);
   void RemoveMicrotasksCompletedCallback(
       MicrotasksCompletedCallbackWithData callback, void* data = nullptr);
@@ -9368,6 +9424,12 @@ class V8_EXPORT Isolate {
   void GetCodeRange(void** start, size_t* length_in_bytes);
 
   /**
+   * As GetCodeRange, but for embedded builtins (these live in a distinct
+   * memory region from other V8 Code objects).
+   */
+  void GetEmbeddedCodeRange(const void** start, size_t* length_in_bytes);
+
+  /**
    * Returns the JSEntryStubs necessary for use with the Unwinder API.
    */
   JSEntryStubs GetJSEntryStubs();
@@ -9429,8 +9491,15 @@ class V8_EXPORT Isolate {
       "See http://crbug.com/v8/10096.")
   void SetAllowCodeGenerationFromStringsCallback(
       AllowCodeGenerationFromStringsCallback callback);
+  V8_DEPRECATE_SOON(
+      "Use Isolate::SetModifyCodeGenerationFromStringsCallback with "
+      "ModifyCodeGenerationFromStringsCallback2 instead. See "
+      "http://crbug.com/1096017 and TC39 Dynamic Code Brand Checks proposal "
+      "at https://github.com/tc39/proposal-dynamic-code-brand-checks.")
   void SetModifyCodeGenerationFromStringsCallback(
       ModifyCodeGenerationFromStringsCallback callback);
+  void SetModifyCodeGenerationFromStringsCallback(
+      ModifyCodeGenerationFromStringsCallback2 callback);
 
   /**
    * Set the callback to invoke to check if wasm code generation should
@@ -9818,6 +9887,12 @@ class V8_EXPORT V8 {
    */
   static void GetSharedMemoryStatistics(SharedMemoryStatistics* statistics);
 
+  /**
+   * Notifies V8 that the process is cross-origin-isolated, which enables
+   * defining the SharedArrayBuffer function on the global object of Contexts.
+   */
+  static void SetIsCrossOriginIsolated();
+
  private:
   V8();
 
@@ -9867,6 +9942,8 @@ class V8_EXPORT V8 {
   static void ToLocalEmpty();
   static void InternalFieldOutOfBounds(int index);
   template <class T>
+  friend class BasicTracedReference;
+  template <class T>
   friend class Global;
   template <class T> friend class Local;
   template <class T>
@@ -9874,9 +9951,8 @@ class V8_EXPORT V8 {
   template <class T>
   friend class Maybe;
   template <class T>
-  friend class TracedReferenceBase;
-  template <class T>
   friend class TracedGlobal;
+  friend class TracedReferenceBase;
   template <class T>
   friend class TracedReference;
   template <class T>
@@ -10417,11 +10493,8 @@ class V8_EXPORT Context {
    */
   void Exit();
 
-  /** Returns the isolate associated with a current context. */
+  /** Returns an isolate associated with a current context. */
   Isolate* GetIsolate();
-
-  /** Returns the microtask queue associated with a current context. */
-  MicrotaskQueue* GetMicrotaskQueue();
 
   /**
    * The field at kDebugIdIndex used to be reserved for the inspector.
@@ -10777,8 +10850,8 @@ Local<T> Local<T>::New(Isolate* isolate, const PersistentBase<T>& that) {
 }
 
 template <class T>
-Local<T> Local<T>::New(Isolate* isolate, const TracedReferenceBase<T>& that) {
-  return New(isolate, that.val_);
+Local<T> Local<T>::New(Isolate* isolate, const BasicTracedReference<T>& that) {
+  return New(isolate, *that);
 }
 
 template <class T>
@@ -10965,21 +11038,67 @@ Global<T>& Global<T>::operator=(Global<S>&& rhs) {
 }
 
 template <class T>
-T* TracedReferenceBase<T>::New(Isolate* isolate, T* that, void* slot,
-                               DestructionMode destruction_mode) {
+internal::Address* BasicTracedReference<T>::New(
+    Isolate* isolate, T* that, void* slot, DestructionMode destruction_mode) {
   if (that == nullptr) return nullptr;
   internal::Address* p = reinterpret_cast<internal::Address*>(that);
-  return reinterpret_cast<T*>(V8::GlobalizeTracedReference(
+  return V8::GlobalizeTracedReference(
       reinterpret_cast<internal::Isolate*>(isolate), p,
       reinterpret_cast<internal::Address*>(slot),
-      destruction_mode == kWithDestructor));
+      destruction_mode == kWithDestructor);
 }
 
-template <class T>
-void TracedReferenceBase<T>::Reset() {
+void TracedReferenceBase::Reset() {
   if (IsEmpty()) return;
   V8::DisposeTracedGlobal(reinterpret_cast<internal::Address*>(val_));
   SetSlotThreadSafe(nullptr);
+}
+
+v8::Local<v8::Value> TracedReferenceBase::Get(v8::Isolate* isolate) const {
+  if (IsEmpty()) return Local<Value>();
+  return Local<Value>::New(isolate, reinterpret_cast<Value*>(val_));
+}
+
+V8_INLINE bool operator==(const TracedReferenceBase& lhs,
+                          const TracedReferenceBase& rhs) {
+  v8::internal::Address* a = reinterpret_cast<v8::internal::Address*>(lhs.val_);
+  v8::internal::Address* b = reinterpret_cast<v8::internal::Address*>(rhs.val_);
+  if (a == nullptr) return b == nullptr;
+  if (b == nullptr) return false;
+  return *a == *b;
+}
+
+template <typename U>
+V8_INLINE bool operator==(const TracedReferenceBase& lhs,
+                          const v8::Local<U>& rhs) {
+  v8::internal::Address* a = reinterpret_cast<v8::internal::Address*>(lhs.val_);
+  v8::internal::Address* b = reinterpret_cast<v8::internal::Address*>(*rhs);
+  if (a == nullptr) return b == nullptr;
+  if (b == nullptr) return false;
+  return *a == *b;
+}
+
+template <typename U>
+V8_INLINE bool operator==(const v8::Local<U>& lhs,
+                          const TracedReferenceBase& rhs) {
+  return rhs == lhs;
+}
+
+V8_INLINE bool operator!=(const TracedReferenceBase& lhs,
+                          const TracedReferenceBase& rhs) {
+  return !(lhs == rhs);
+}
+
+template <typename U>
+V8_INLINE bool operator!=(const TracedReferenceBase& lhs,
+                          const v8::Local<U>& rhs) {
+  return !(lhs == rhs);
+}
+
+template <typename U>
+V8_INLINE bool operator!=(const v8::Local<U>& lhs,
+                          const TracedReferenceBase& rhs) {
+  return !(rhs == lhs);
 }
 
 template <class T>
@@ -10989,7 +11108,7 @@ void TracedGlobal<T>::Reset(Isolate* isolate, const Local<S>& other) {
   Reset();
   if (other.IsEmpty()) return;
   this->val_ = this->New(isolate, other.val_, &this->val_,
-                         TracedReferenceBase<T>::kWithDestructor);
+                         BasicTracedReference<T>::kWithDestructor);
 }
 
 template <class T>
@@ -11039,7 +11158,7 @@ void TracedReference<T>::Reset(Isolate* isolate, const Local<S>& other) {
   if (other.IsEmpty()) return;
   this->SetSlotThreadSafe(
       this->New(isolate, other.val_, &this->val_,
-                TracedReferenceBase<T>::kWithoutDestructor));
+                BasicTracedReference<T>::kWithoutDestructor));
 }
 
 template <class T>
@@ -11082,8 +11201,7 @@ TracedReference<T>& TracedReference<T>::operator=(const TracedReference& rhs) {
   return *this;
 }
 
-template <class T>
-void TracedReferenceBase<T>::SetWrapperClassId(uint16_t class_id) {
+void TracedReferenceBase::SetWrapperClassId(uint16_t class_id) {
   typedef internal::Internals I;
   if (IsEmpty()) return;
   internal::Address* obj = reinterpret_cast<internal::Address*>(val_);
@@ -11091,8 +11209,7 @@ void TracedReferenceBase<T>::SetWrapperClassId(uint16_t class_id) {
   *reinterpret_cast<uint16_t*>(addr) = class_id;
 }
 
-template <class T>
-uint16_t TracedReferenceBase<T>::WrapperClassId() const {
+uint16_t TracedReferenceBase::WrapperClassId() const {
   typedef internal::Internals I;
   if (IsEmpty()) return 0;
   internal::Address* obj = reinterpret_cast<internal::Address*>(val_);
@@ -11123,7 +11240,7 @@ void ReturnValue<T>::Set(const Global<S>& handle) {
 
 template <typename T>
 template <typename S>
-void ReturnValue<T>::Set(const TracedReferenceBase<S>& handle) {
+void ReturnValue<T>::Set(const BasicTracedReference<S>& handle) {
   static_assert(std::is_base_of<T, S>::value, "type check");
   if (V8_UNLIKELY(handle.IsEmpty())) {
     *value_ = GetDefaultValue();
@@ -11243,22 +11360,14 @@ template<typename T>
 Local<Value> FunctionCallbackInfo<T>::operator[](int i) const {
   // values_ points to the first argument (not the receiver).
   if (i < 0 || length_ <= i) return Local<Value>(*Undefined(GetIsolate()));
-#ifdef V8_REVERSE_JSARGS
   return Local<Value>(reinterpret_cast<Value*>(values_ + i));
-#else
-  return Local<Value>(reinterpret_cast<Value*>(values_ - i));
-#endif
 }
 
 
 template<typename T>
 Local<Object> FunctionCallbackInfo<T>::This() const {
   // values_ points to the first argument (not the receiver).
-#ifdef V8_REVERSE_JSARGS
   return Local<Object>(reinterpret_cast<Object*>(values_ - 1));
-#else
-  return Local<Object>(reinterpret_cast<Object*>(values_ + 1));
-#endif
 }
 
 
@@ -11453,8 +11562,12 @@ void* Object::GetAlignedPointerFromInternalField(int index) {
                 instance_type == I::kJSApiObjectType ||
                 instance_type == I::kJSSpecialApiObjectType)) {
     int offset = I::kJSObjectHeaderSize + (I::kEmbedderDataSlotSize * index);
+#ifdef V8_HEAP_SANDBOX
+    offset += I::kEmbedderDataSlotRawPayloadOffset;
+#endif
     internal::Isolate* isolate = I::GetIsolateForHeapSandbox(obj);
-    A value = I::ReadExternalPointerField(isolate, obj, offset);
+    A value = I::ReadExternalPointerField(
+        isolate, obj, offset, internal::kEmbedderDataSlotPayloadTag);
     return reinterpret_cast<void*>(value);
   }
 #endif
@@ -11487,7 +11600,8 @@ String::ExternalStringResource* String::GetExternalStringResource() const {
   if (I::IsExternalTwoByteString(I::GetInstanceType(obj))) {
     internal::Isolate* isolate = I::GetIsolateForHeapSandbox(obj);
     A value =
-        I::ReadExternalPointerField(isolate, obj, I::kStringResourceOffset);
+        I::ReadExternalPointerField(isolate, obj, I::kStringResourceOffset,
+                                    internal::kExternalStringResourceTag);
     result = reinterpret_cast<String::ExternalStringResource*>(value);
   } else {
     result = GetExternalStringResourceSlow();
@@ -11511,7 +11625,8 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBase(
       type == I::kExternalTwoByteRepresentationTag) {
     internal::Isolate* isolate = I::GetIsolateForHeapSandbox(obj);
     A value =
-        I::ReadExternalPointerField(isolate, obj, I::kStringResourceOffset);
+        I::ReadExternalPointerField(isolate, obj, I::kStringResourceOffset,
+                                    internal::kExternalStringResourceTag);
     resource = reinterpret_cast<ExternalStringResourceBase*>(value);
   } else {
     resource = GetExternalStringResourceBaseSlow(encoding_out);
@@ -12073,9 +12188,13 @@ void* Context::GetAlignedPointerFromEmbedderData(int index) {
       I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
   int value_offset =
       I::kEmbedderDataArrayHeaderSize + (I::kEmbedderDataSlotSize * index);
+#ifdef V8_HEAP_SANDBOX
+  value_offset += I::kEmbedderDataSlotRawPayloadOffset;
+#endif
   internal::Isolate* isolate = I::GetIsolateForHeapSandbox(ctx);
   return reinterpret_cast<void*>(
-      I::ReadExternalPointerField(isolate, embedder_data, value_offset));
+      I::ReadExternalPointerField(isolate, embedder_data, value_offset,
+                                  internal::kEmbedderDataSlotPayloadTag));
 #else
   return SlowGetAlignedPointerFromEmbedderData(index);
 #endif

@@ -195,9 +195,12 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
     }
   }
 
-  icu::DecimalFormat* decimal_format =
-      static_cast<icu::DecimalFormat*>(number_format);
-  decimal_format->setMinimumGroupingDigits(-2);
+  if (number_format->getDynamicClassID() ==
+      icu::DecimalFormat::getStaticClassID()) {
+    icu::DecimalFormat* decimal_format =
+        static_cast<icu::DecimalFormat*>(number_format);
+    decimal_format->setMinimumGroupingDigits(-2);
+  }
 
   // Change UDISPCTX_CAPITALIZATION_NONE to other values if
   // ECMA402 later include option to change capitalization.

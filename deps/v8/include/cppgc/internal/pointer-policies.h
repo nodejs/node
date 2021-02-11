@@ -62,6 +62,7 @@ class KeepLocationPolicy {
   constexpr const SourceLocation& Location() const { return location_; }
 
  protected:
+  constexpr KeepLocationPolicy() = default;
   constexpr explicit KeepLocationPolicy(const SourceLocation& location)
       : location_(location) {}
 
@@ -82,6 +83,7 @@ class IgnoreLocationPolicy {
   constexpr SourceLocation Location() const { return {}; }
 
  protected:
+  constexpr IgnoreLocationPolicy() = default;
   constexpr explicit IgnoreLocationPolicy(const SourceLocation&) {}
 };
 
@@ -93,17 +95,29 @@ using DefaultLocationPolicy = IgnoreLocationPolicy;
 
 struct StrongPersistentPolicy {
   using IsStrongPersistent = std::true_type;
-
   static V8_EXPORT PersistentRegion& GetPersistentRegion(void* object);
 };
 
 struct WeakPersistentPolicy {
   using IsStrongPersistent = std::false_type;
-
   static V8_EXPORT PersistentRegion& GetPersistentRegion(void* object);
 };
 
-// Persistent/Member forward declarations.
+struct StrongCrossThreadPersistentPolicy {
+  using IsStrongPersistent = std::true_type;
+  static V8_EXPORT PersistentRegion& GetPersistentRegion(void* object);
+};
+
+struct WeakCrossThreadPersistentPolicy {
+  using IsStrongPersistent = std::false_type;
+  static V8_EXPORT PersistentRegion& GetPersistentRegion(void* object);
+};
+
+// Forward declarations setting up the default policies.
+template <typename T, typename WeaknessPolicy,
+          typename LocationPolicy = DefaultLocationPolicy,
+          typename CheckingPolicy = DisabledCheckingPolicy>
+class BasicCrossThreadPersistent;
 template <typename T, typename WeaknessPolicy,
           typename LocationPolicy = DefaultLocationPolicy,
           typename CheckingPolicy = DefaultCheckingPolicy>

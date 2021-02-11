@@ -45,11 +45,15 @@ class InternalIndex {
     return static_cast<int>(entry_);
   }
 
-  bool operator==(const InternalIndex& other) { return entry_ == other.entry_; }
+  bool operator==(const InternalIndex& other) const {
+    return entry_ == other.entry_;
+  }
 
   // Iteration support.
   InternalIndex operator*() { return *this; }
-  bool operator!=(const InternalIndex& other) { return entry_ != other.entry_; }
+  bool operator!=(const InternalIndex& other) const {
+    return entry_ != other.entry_;
+  }
   InternalIndex& operator++() {
     entry_++;
     return *this;

@@ -13,7 +13,6 @@
 #include "src/base/memory.h"
 #include "src/codegen/signature.h"
 #include "src/flags/flags.h"
-#include "src/utils/utils.h"
 #include "src/utils/vector.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
@@ -39,9 +38,12 @@ using DecodeResult = VoidResult;
 // a buffer of bytes.
 class Decoder {
  public:
-  enum ValidateFlag : bool { kValidate = true, kNoValidate = false };
-
-  enum AdvancePCFlag : bool { kAdvancePc = true, kNoAdvancePc = false };
+  // {ValidateFlag} can be used in a boolean manner ({if (!validate) ...}).
+  enum ValidateFlag : int8_t {
+    kNoValidation = 0,   // Don't run validation, assume valid input.
+    kBooleanValidation,  // Run validation but only store a generic error.
+    kFullValidation      // Run full validation with error message and location.
+  };
 
   enum TraceFlag : bool { kTrace = true, kNoTrace = false };
 
@@ -59,7 +61,7 @@ class Decoder {
 
   virtual ~Decoder() = default;
 
-  inline bool validate_size(const byte* pc, uint32_t length, const char* msg) {
+  bool validate_size(const byte* pc, uint32_t length, const char* msg) {
     DCHECK_LE(start_, pc);
     if (V8_UNLIKELY(pc > end_ || length > static_cast<uint32_t>(end_ - pc))) {
       error(pc, msg);
@@ -70,28 +72,25 @@ class Decoder {
 
   // Reads an 8-bit unsigned integer.
   template <ValidateFlag validate>
-  inline uint8_t read_u8(const byte* pc, const char* msg = "expected 1 byte") {
+  uint8_t read_u8(const byte* pc, const char* msg = "expected 1 byte") {
     return read_little_endian<uint8_t, validate>(pc, msg);
   }
 
   // Reads a 16-bit unsigned integer (little endian).
   template <ValidateFlag validate>
-  inline uint16_t read_u16(const byte* pc,
-                           const char* msg = "expected 2 bytes") {
+  uint16_t read_u16(const byte* pc, const char* msg = "expected 2 bytes") {
     return read_little_endian<uint16_t, validate>(pc, msg);
   }
 
   // Reads a 32-bit unsigned integer (little endian).
   template <ValidateFlag validate>
-  inline uint32_t read_u32(const byte* pc,
-                           const char* msg = "expected 4 bytes") {
+  uint32_t read_u32(const byte* pc, const char* msg = "expected 4 bytes") {
     return read_little_endian<uint32_t, validate>(pc, msg);
   }
 
   // Reads a 64-bit unsigned integer (little endian).
   template <ValidateFlag validate>
-  inline uint64_t read_u64(const byte* pc,
-                           const char* msg = "expected 8 bytes") {
+  uint64_t read_u64(const byte* pc, const char* msg = "expected 8 bytes") {
     return read_little_endian<uint64_t, validate>(pc, msg);
   }
 
@@ -99,72 +98,64 @@ class Decoder {
   template <ValidateFlag validate>
   uint32_t read_u32v(const byte* pc, uint32_t* length,
                      const char* name = "LEB32") {
-    return read_leb<uint32_t, validate, kNoAdvancePc, kNoTrace>(pc, length,
-                                                                name);
+    return read_leb<uint32_t, validate, kNoTrace>(pc, length, name);
   }
 
   // Reads a variable-length signed integer (little endian).
   template <ValidateFlag validate>
   int32_t read_i32v(const byte* pc, uint32_t* length,
                     const char* name = "signed LEB32") {
-    return read_leb<int32_t, validate, kNoAdvancePc, kNoTrace>(pc, length,
-                                                               name);
+    return read_leb<int32_t, validate, kNoTrace>(pc, length, name);
   }
 
   // Reads a variable-length unsigned integer (little endian).
   template <ValidateFlag validate>
   uint64_t read_u64v(const byte* pc, uint32_t* length,
                      const char* name = "LEB64") {
-    return read_leb<uint64_t, validate, kNoAdvancePc, kNoTrace>(pc, length,
-                                                                name);
+    return read_leb<uint64_t, validate, kNoTrace>(pc, length, name);
   }
 
   // Reads a variable-length signed integer (little endian).
   template <ValidateFlag validate>
   int64_t read_i64v(const byte* pc, uint32_t* length,
                     const char* name = "signed LEB64") {
-    return read_leb<int64_t, validate, kNoAdvancePc, kNoTrace>(pc, length,
-                                                               name);
+    return read_leb<int64_t, validate, kNoTrace>(pc, length, name);
   }
 
   // Reads a variable-length 33-bit signed integer (little endian).
   template <ValidateFlag validate>
   int64_t read_i33v(const byte* pc, uint32_t* length,
                     const char* name = "signed LEB33") {
-    return read_leb<int64_t, validate, kNoAdvancePc, kNoTrace, 33>(pc, length,
-                                                                   name);
+    return read_leb<int64_t, validate, kNoTrace, 33>(pc, length, name);
+  }
+
+  // Convenient overload for callers who don't care about length.
+  template <ValidateFlag validate>
+  WasmOpcode read_prefixed_opcode(const byte* pc) {
+    uint32_t len;
+    return read_prefixed_opcode<validate>(pc, &len);
   }
 
   // Reads a prefixed-opcode, possibly with variable-length index.
-  // The length param is set to the number of bytes this index is encoded with.
-  // For most cases (non variable-length), it will be 1.
+  // `length` is set to the number of bytes that make up this opcode,
+  // *including* the prefix byte. For most opcodes, it will be 2.
   template <ValidateFlag validate>
-  WasmOpcode read_prefixed_opcode(const byte* pc, uint32_t* length = nullptr,
+  WasmOpcode read_prefixed_opcode(const byte* pc, uint32_t* length,
                                   const char* name = "prefixed opcode") {
-    uint32_t unused_length;
-    if (length == nullptr) {
-      length = &unused_length;
-    }
     uint32_t index;
-    if (*pc == WasmOpcode::kSimdPrefix) {
-      // SIMD opcodes can be multiple bytes (when LEB128 encoded).
-      index = read_u32v<validate>(pc + 1, length, "prefixed opcode index");
-      // Only support SIMD opcodes that go up to 0xFF (when decoded). Anything
-      // bigger will need 1 more byte, and the '<< 8' below will be wrong.
-      if (validate && V8_UNLIKELY(index > 0xff)) {
-        errorf(pc, "Invalid SIMD opcode %d", index);
-      }
-    } else {
-      if (!validate || validate_size(pc, 2, "expected 2 bytes")) {
-        DCHECK(validate_size(pc, 2, "expected 2 bytes"));
-        index = *(pc + 1);
-        *length = 1;
-      } else {
-        // If kValidate and size validation fails.
-        index = 0;
-        *length = 0;
-      }
+
+    // Prefixed opcodes all use LEB128 encoding.
+    index = read_u32v<validate>(pc + 1, length, "prefixed opcode index");
+    *length += 1;  // Prefix byte.
+    // Only support opcodes that go up to 0xFF (when decoded). Anything
+    // bigger will need 1 more byte, and the '<< 8' below will be wrong.
+    if (validate && V8_UNLIKELY(index > 0xff)) {
+      errorf(pc, "Invalid prefixed opcode %d", index);
+      // If size validation fails.
+      index = 0;
+      *length = 0;
     }
+
     return static_cast<WasmOpcode>((*pc) << 8 | index);
   }
 
@@ -186,21 +177,28 @@ class Decoder {
   // Reads a LEB128 variable-length unsigned 32-bit integer and advances {pc_}.
   uint32_t consume_u32v(const char* name = nullptr) {
     uint32_t length = 0;
-    return read_leb<uint32_t, kValidate, kAdvancePc, kTrace>(pc_, &length,
-                                                             name);
+    uint32_t result =
+        read_leb<uint32_t, kFullValidation, kTrace>(pc_, &length, name);
+    pc_ += length;
+    return result;
   }
 
   // Reads a LEB128 variable-length signed 32-bit integer and advances {pc_}.
   int32_t consume_i32v(const char* name = nullptr) {
     uint32_t length = 0;
-    return read_leb<int32_t, kValidate, kAdvancePc, kTrace>(pc_, &length, name);
+    int32_t result =
+        read_leb<int32_t, kFullValidation, kTrace>(pc_, &length, name);
+    pc_ += length;
+    return result;
   }
 
   // Reads a LEB128 variable-length unsigned 64-bit integer and advances {pc_}.
   uint64_t consume_u64v(const char* name = nullptr) {
     uint32_t length = 0;
-    return read_leb<uint64_t, kValidate, kAdvancePc, kTrace>(pc_, &length,
-                                                             name);
+    uint64_t result =
+        read_leb<uint64_t, kFullValidation, kTrace>(pc_, &length, name);
+    pc_ += length;
+    return result;
   }
 
   // Consume {size} bytes and send them to the bit bucket, advancing {pc_}.
@@ -224,6 +222,14 @@ class Decoder {
     return true;
   }
 
+  // Use this for "boolean validation", i.e. if the error message is not used
+  // anyway.
+  void V8_NOINLINE MarkError() {
+    if (!ok()) return;
+    error_ = {0, "validation failed"};
+    onFirstError();
+  }
+
   // Do not inline error methods. This has measurable impact on validation time,
   // see https://crbug.com/910432.
   void V8_NOINLINE error(const char* msg) { errorf(pc_offset(), "%s", msg); }
@@ -232,6 +238,13 @@ class Decoder {
   }
   void V8_NOINLINE error(uint32_t offset, const char* msg) {
     errorf(offset, "%s", msg);
+  }
+
+  void V8_NOINLINE PRINTF_FORMAT(2, 3) errorf(const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    verrorf(pc_offset(), format, args);
+    va_end(args);
   }
 
   void V8_NOINLINE PRINTF_FORMAT(3, 4)
@@ -343,8 +356,8 @@ class Decoder {
     onFirstError();
   }
 
-  template <typename IntType, bool validate>
-  inline IntType read_little_endian(const byte* pc, const char* msg) {
+  template <typename IntType, ValidateFlag validate>
+  IntType read_little_endian(const byte* pc, const char* msg) {
     if (!validate) {
       DCHECK(validate_size(pc, sizeof(IntType), msg));
     } else if (!validate_size(pc, sizeof(IntType), msg)) {
@@ -354,36 +367,59 @@ class Decoder {
   }
 
   template <typename IntType>
-  inline IntType consume_little_endian(const char* name) {
+  IntType consume_little_endian(const char* name) {
     TRACE("  +%u  %-20s: ", pc_offset(), name);
     if (!checkAvailable(sizeof(IntType))) {
       traceOffEnd();
       pc_ = end_;
       return IntType{0};
     }
-    IntType val = read_little_endian<IntType, false>(pc_, name);
+    IntType val = read_little_endian<IntType, kNoValidation>(pc_, name);
     traceByteRange(pc_, pc_ + sizeof(IntType));
     TRACE("= %d\n", val);
     pc_ += sizeof(IntType);
     return val;
   }
 
-  template <typename IntType, ValidateFlag validate, AdvancePCFlag advance_pc,
-            TraceFlag trace, size_t size_in_bits = 8 * sizeof(IntType)>
-  inline IntType read_leb(const byte* pc, uint32_t* length,
-                          const char* name = "varint") {
-    DCHECK_IMPLIES(advance_pc, pc == pc_);
+  template <typename IntType, ValidateFlag validate, TraceFlag trace,
+            size_t size_in_bits = 8 * sizeof(IntType)>
+  V8_INLINE IntType read_leb(const byte* pc, uint32_t* length,
+                             const char* name = "varint") {
     static_assert(size_in_bits <= 8 * sizeof(IntType),
                   "leb does not fit in type");
     TRACE_IF(trace, "  +%u  %-20s: ", pc_offset(), name);
-    return read_leb_tail<IntType, validate, advance_pc, trace, size_in_bits, 0>(
-        pc, length, name, 0);
+    // Fast path for single-byte integers.
+    if ((!validate || V8_LIKELY(pc < end_)) && !(*pc & 0x80)) {
+      TRACE_IF(trace, "%02x ", *pc);
+      *length = 1;
+      IntType result = *pc;
+      if (std::is_signed<IntType>::value) {
+        // Perform sign extension.
+        constexpr int sign_ext_shift = int{8 * sizeof(IntType)} - 7;
+        result = (result << sign_ext_shift) >> sign_ext_shift;
+        TRACE_IF(trace, "= %" PRIi64 "\n", static_cast<int64_t>(result));
+      } else {
+        TRACE_IF(trace, "= %" PRIu64 "\n", static_cast<uint64_t>(result));
+      }
+      return result;
+    }
+    return read_leb_slowpath<IntType, validate, trace, size_in_bits>(pc, length,
+                                                                     name);
   }
 
-  template <typename IntType, ValidateFlag validate, AdvancePCFlag advance_pc,
-            TraceFlag trace, size_t size_in_bits, int byte_index>
-  IntType read_leb_tail(const byte* pc, uint32_t* length, const char* name,
-                        IntType result) {
+  template <typename IntType, ValidateFlag validate, TraceFlag trace,
+            size_t size_in_bits = 8 * sizeof(IntType)>
+  V8_NOINLINE IntType read_leb_slowpath(const byte* pc, uint32_t* length,
+                                        const char* name) {
+    // Create an unrolled LEB decoding function per integer type.
+    return read_leb_tail<IntType, validate, trace, size_in_bits, 0>(pc, length,
+                                                                    name, 0);
+  }
+
+  template <typename IntType, ValidateFlag validate, TraceFlag trace,
+            size_t size_in_bits, int byte_index>
+  V8_INLINE IntType read_leb_tail(const byte* pc, uint32_t* length,
+                                  const char* name, IntType result) {
     constexpr bool is_signed = std::is_signed<IntType>::value;
     constexpr int kMaxLength = (size_in_bits + 6) / 7;
     static_assert(byte_index < kMaxLength, "invalid template instantiation");
@@ -404,15 +440,19 @@ class Decoder {
       // Compilers are not smart enough to figure out statically that the
       // following call is unreachable if is_last_byte is false.
       constexpr int next_byte_index = byte_index + (is_last_byte ? 0 : 1);
-      return read_leb_tail<IntType, validate, advance_pc, trace, size_in_bits,
+      return read_leb_tail<IntType, validate, trace, size_in_bits,
                            next_byte_index>(pc + 1, length, name, result);
     }
-    if (advance_pc) pc_ = pc + (at_end ? 0 : 1);
     *length = byte_index + (at_end ? 0 : 1);
     if (validate && V8_UNLIKELY(at_end || (b & 0x80))) {
       TRACE_IF(trace, at_end ? "<end> " : "<length overflow> ");
-      errorf(pc, "expected %s", name);
+      if (validate == kFullValidation) {
+        errorf(pc, "expected %s", name);
+      } else {
+        MarkError();
+      }
       result = 0;
+      *length = 0;
     }
     if (is_last_byte) {
       // A signed-LEB128 must sign-extend the final byte, excluding its
@@ -431,12 +471,17 @@ class Decoder {
       if (!validate) {
         DCHECK(valid_extra_bits);
       } else if (V8_UNLIKELY(!valid_extra_bits)) {
-        error(pc, "extra bits in varint");
+        if (validate == kFullValidation) {
+          error(pc, "extra bits in varint");
+        } else {
+          MarkError();
+        }
         result = 0;
+        *length = 0;
       }
     }
     constexpr int sign_ext_shift =
-        is_signed ? Max(0, int{8 * sizeof(IntType)} - shift - 7) : 0;
+        is_signed ? std::max(0, int{8 * sizeof(IntType)} - shift - 7) : 0;
     // Perform sign extension.
     result = (result << sign_ext_shift) >> sign_ext_shift;
     if (trace && is_signed) {

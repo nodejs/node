@@ -87,8 +87,7 @@ Handle<Object> HeapTester::TestAllocateAfterFailures() {
   heap::SimulateFullSpace(heap->code_space());
   size = CcTest::i_isolate()->builtins()->builtin(Builtins::kIllegal).Size();
   obj =
-      heap->AllocateRaw(size, AllocationType::kCode, AllocationOrigin::kRuntime,
-                        AllocationAlignment::kCodeAligned)
+      heap->AllocateRaw(size, AllocationType::kCode, AllocationOrigin::kRuntime)
           .ToObjectChecked();
   heap->CreateFillerObjectAt(obj.address(), size, ClearRecordedSlots::kNo);
   return CcTest::i_isolate()->factory()->true_value();
@@ -149,8 +148,8 @@ TEST(StressJS) {
 
   // Patch the map to have an accessor for "get".
   Handle<Map> map(function->initial_map(), isolate);
-  Handle<DescriptorArray> instance_descriptors(map->instance_descriptors(),
-                                               isolate);
+  Handle<DescriptorArray> instance_descriptors(
+      map->instance_descriptors(kRelaxedLoad), isolate);
   CHECK_EQ(0, instance_descriptors->number_of_descriptors());
 
   PropertyAttributes attrs = NONE;

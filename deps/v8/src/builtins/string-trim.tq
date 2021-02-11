@@ -1,0 +1,168 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-string-gen.h'
+
+namespace string {
+
+extern enum TrimMode extends uint31 constexpr 'String::TrimMode' {
+  kTrim,
+  kTrimStart,
+  kTrimEnd
+}
+
+@export
+macro IsWhiteSpaceOrLineTerminator(charCode: int32): bool {
+  // 0x0020 - SPACE (Intentionally out of order to fast path a commmon case)
+  if (charCode == Int32Constant(0x0020)) {
+    return true;
+  }
+
+  // 0x0009 - HORIZONTAL TAB
+  if (charCode < Int32Constant(0x0009)) {
+    return false;
+  }
+  // 0x000A - LINE FEED OR NEW LINE
+  // 0x000B - VERTICAL TAB
+  // 0x000C - FORMFEED
+  // 0x000D - HORIZONTAL TAB
+  if (charCode <= Int32Constant(0x000D)) {
+    return true;
+  }
+
+  // Common Non-whitespace characters
+  if (charCode < Int32Constant(0x00A0)) {
+    return false;
+  }
+
+  // 0x00A0 - NO-BREAK SPACE
+  if (charCode == Int32Constant(0x00A0)) {
+    return true;
+  }
+
+  // 0x1680 - Ogham Space Mark
+  if (charCode == Int32Constant(0x1680)) {
+    return true;
+  }
+
+  // 0x2000 - EN QUAD
+  if (charCode < Int32Constant(0x2000)) {
+    return false;
+  }
+  // 0x2001 - EM QUAD
+  // 0x2002 - EN SPACE
+  // 0x2003 - EM SPACE
+  // 0x2004 - THREE-PER-EM SPACE
+  // 0x2005 - FOUR-PER-EM SPACE
+  // 0x2006 - SIX-PER-EM SPACE
+  // 0x2007 - FIGURE SPACE
+  // 0x2008 - PUNCTUATION SPACE
+  // 0x2009 - THIN SPACE
+  // 0x200A - HAIR SPACE
+  if (charCode <= Int32Constant(0x200A)) {
+    return true;
+  }
+
+  // 0x2028 - LINE SEPARATOR
+  if (charCode == Int32Constant(0x2028)) {
+    return true;
+  }
+  // 0x2029 - PARAGRAPH SEPARATOR
+  if (charCode == Int32Constant(0x2029)) {
+    return true;
+  }
+  // 0x202F - NARROW NO-BREAK SPACE
+  if (charCode == Int32Constant(0x202F)) {
+    return true;
+  }
+  // 0x205F - MEDIUM MATHEMATICAL SPACE
+  if (charCode == Int32Constant(0x205F)) {
+    return true;
+  }
+  // 0xFEFF - BYTE ORDER MARK
+  if (charCode == Int32Constant(0xFEFF)) {
+    return true;
+  }
+  // 0x3000 - IDEOGRAPHIC SPACE
+  if (charCode == Int32Constant(0x3000)) {
+    return true;
+  }
+
+  return false;
+}
+
+transitioning macro StringTrim(implicit context: Context)(
+    receiver: JSAny, _arguments: Arguments, methodName: constexpr string,
+    variant: constexpr TrimMode): String {
+  const receiverString: String = ToThisString(receiver, methodName);
+  const stringLength: intptr = receiverString.length_intptr;
+
+  const directString = Cast<DirectString>(receiverString)
+      otherwise return runtime::StringTrim(
+      receiverString, SmiTag<TrimMode>(variant));
+
+  let startIndex: intptr = 0;
+  let endIndex: intptr = stringLength - 1;
+
+  // TODO(duongn): It would probably be more efficient to turn StringTrim into a
+  // tempalate for the different string types and specialize the loop for them.
+  if (variant == TrimMode::kTrim || variant == TrimMode::kTrimStart) {
+    while (true) {
+      if (startIndex == stringLength) {
+        return EmptyStringConstant();
+      }
+      if (!IsWhiteSpaceOrLineTerminator(
+              StringCharCodeAt(directString, Unsigned(startIndex)))) {
+        break;
+      }
+      startIndex++;
+    }
+  }
+
+  if (variant == TrimMode::kTrim || variant == TrimMode::kTrimEnd) {
+    while (true) {
+      if (endIndex == -1) {
+        return EmptyStringConstant();
+      }
+      if (!IsWhiteSpaceOrLineTerminator(
+              StringCharCodeAt(directString, Unsigned(endIndex)))) {
+        break;
+      }
+      endIndex--;
+    }
+  }
+
+  return SubString(
+      receiverString, Unsigned(startIndex), Unsigned(endIndex + 1));
+}
+
+// ES6 #sec-string.prototype.trim
+transitioning javascript builtin
+StringPrototypeTrim(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): String {
+  const methodName: constexpr string = 'String.prototype.trim';
+  return StringTrim(receiver, arguments, methodName, TrimMode::kTrim);
+}
+
+// https://github.com/tc39/proposal-string-left-right-trim
+transitioning javascript builtin
+StringPrototypeTrimStart(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): String {
+  const methodName: constexpr string = 'String.prototype.trimLeft';
+  return StringTrim(receiver, arguments, methodName, TrimMode::kTrimStart);
+}
+
+// https://github.com/tc39/proposal-string-left-right-trim
+transitioning javascript builtin
+StringPrototypeTrimEnd(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): String {
+  const methodName: constexpr string = 'String.prototype.trimRight';
+  return StringTrim(receiver, arguments, methodName, TrimMode::kTrimEnd);
+}
+}
+
+namespace runtime {
+extern runtime StringTrim(implicit context: Context)(
+    String, SmiTagged<string::TrimMode>): String;
+}

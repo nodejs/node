@@ -39,9 +39,21 @@ class ExperimentalRegExp final : public AllStatic {
   static MaybeHandle<Object> Exec(Isolate* isolate, Handle<JSRegExp> regexp,
                                   Handle<String> subject, int index,
                                   Handle<RegExpMatchInfo> last_match_info);
-  static int32_t ExecRaw(Isolate* isolate, JSRegExp regexp, String subject,
+  static int32_t ExecRaw(Isolate* isolate, RegExp::CallOrigin call_origin,
+                         JSRegExp regexp, String subject,
                          int32_t* output_registers,
                          int32_t output_register_count, int32_t subject_index);
+
+  // Compile and execute a regexp with the experimental engine, regardless of
+  // its type tag.  The regexp itself is not changed (apart from lastIndex).
+  static MaybeHandle<Object> OneshotExec(
+      Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
+      int index, Handle<RegExpMatchInfo> last_match_info);
+  static int32_t OneshotExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
+                                Handle<String> subject,
+                                int32_t* output_registers,
+                                int32_t output_register_count,
+                                int32_t subject_index);
 
   static constexpr bool kSupportsUnicode = false;
 };

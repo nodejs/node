@@ -137,8 +137,8 @@ static_assert(2 * kBitsPerGpRegCode >= kBitsPerFpRegCode,
 
 class LiftoffRegister {
   static constexpr int needed_bits =
-      Max(kNeedI64RegPair || kNeedS128RegPair ? kBitsPerRegPair : 0,
-          kBitsPerLiftoffRegCode);
+      std::max(kNeedI64RegPair || kNeedS128RegPair ? kBitsPerRegPair : 0,
+               kBitsPerLiftoffRegCode);
   using storage_t = std::conditional<
       needed_bits <= 8, uint8_t,
       std::conditional<needed_bits <= 16, uint16_t, uint32_t>::type>::type;

@@ -82,7 +82,7 @@ void InvokeGC(v8::Isolate* isolate, v8::Isolate::GarbageCollectionType type,
                            kGCCallbackFlagForced);
       break;
     case v8::Isolate::GarbageCollectionType::kFullGarbageCollection:
-      heap->SetEmbedderStackStateForNextFinalizaton(embedder_stack_state);
+      heap->SetEmbedderStackStateForNextFinalization(embedder_stack_state);
       heap->PreciseCollectAllGarbage(i::Heap::kNoGCFlags,
                                      i::GarbageCollectionReason::kTesting,
                                      kGCCallbackFlagForced);

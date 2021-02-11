@@ -7,26 +7,26 @@ found in the LICENSE file. -->
 </head>
 <style>
   #fileReader {
-    width: 100%;
     height: 100px;
     line-height: 100px;
     text-align: center;
-    border-radius: 5px;
     cursor: pointer;
     transition: all 0.5s ease-in-out;
-    border: 2px solid var(--primary-color);
     background-color: var(--surface-color);
   }
-
-  #fileReader.done {
-    height: 20px;
-    line-height: 20px;
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23);
-  }
-
+  
   #fileReader:hover {
     background-color: var(--primary-color);
     color: var(--on-primary-color);
+  }
+
+  .done #fileReader{
+    height: 20px;
+    line-height: 20px;
+  }
+
+  .fail #fileReader {
+    background-color: var(--error-color);
   }
 
   .loading #fileReader {
@@ -50,7 +50,6 @@ found in the LICENSE file. -->
     height: 100%;
     background-color: var(--file-reader-background-color);
   }
-
   #spinner {
     position: absolute;
     width: 100px;
@@ -74,9 +73,8 @@ found in the LICENSE file. -->
     }
   }
 </style>
-
-<section id="fileReaderSection">
-  <div id="fileReader" tabindex=1>
+<div id="root">
+  <div id="fileReader" class="panel" tabindex=1>
     <span id="label">
       Drag and drop a v8.log file into this area, or click to choose from disk.
     </span>
@@ -85,4 +83,4 @@ found in the LICENSE file. -->
   <div id="loader">
     <div id="spinner"></div>
   </div>
-</section>
+</div>

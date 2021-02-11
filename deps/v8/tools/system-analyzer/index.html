@@ -2,34 +2,29 @@
 <!-- Copyright 2020 the V8 project authors. All rights reserved.
 Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file. -->
-
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
   <title>Indicium</title>
-  <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
   <!-- <link rel="icon" type="image/png" href="/images/favicon.png"/> -->
-  <script type="module" src="index.mjs"></script>
+
+  <link rel="modulepreload" href="./log-file-reader.mjs" >
+  <link rel="modulepreload" href="./helper.mjs" >
+  <link rel="preload" href="./log-file-reader-template.html" as="fetch" crossorigin="anonymous">
+  <script type="module">
+    // Force instatiating the log-reader before anything else.
+    import "./log-file-reader.mjs";
+    // Delay loading of the main App
+    (async function() {
+      let module = await import('./index.mjs');
+      globalThis.app = new module.App("#log-file-reader", "#map-panel", "#map-stats-panel",
+        "#timeline-panel", "#ic-panel", "#map-track", "#ic-track", "#deopt-track",
+        "#source-panel");
+    })();
+  </script>
+
   <link rel="stylesheet" type="text/css" href="./index.css">
   <style>
-    #instructions {
-      padding: 10px 10px 60px 10px;
-      margin: auto;
-    }
-
-    kbd {
-      background-color: var(--primary-color);
-      color: var(--on-primary-color);
-      border-radius: 3px;
-      border: 1px solid var(--on-primary-color);
-      display: inline-block;
-      font-size: .9em;
-      font-weight: bold;
-      padding: 0px 4px 2px 4px;
-      white-space: nowrap;
-    }
-
     .theme-switch-wrapper {
       display: inline-block;
       align-items: center;
@@ -37,9 +32,9 @@ found in the LICENSE file. -->
 
     .theme-switch {
       display: inline-block;
-      height: 34px;
+      height: 16px;
       position: relative;
-      width: 60px;
+      width: 38px;
     }
 
     .theme-switch input {
@@ -54,150 +49,138 @@ found in the LICENSE file. -->
       position: absolute;
       right: 0;
       top: 0;
-      transition: .4s;
+      border-radius: 34px;
     }
 
     .slider:before {
       background-color: var(--surface-color);
-      bottom: 4px;
-      content: "";
-      height: 26px;
-      left: 4px;
       position: absolute;
-      transition: .4s;
-      width: 26px;
-    }
-
-    input:checked+.slider {
-      background-color: var(--primary-color);
+      height: 10px;
+      width: 10px;
+      bottom: 3px;
+      content: "";
+      left: 4px;
+      border-radius: 50%;
     }
 
     input:checked+.slider:before {
-      transform: translateX(26px);
-    }
-
-    .slider.round {
-      border-radius: 34px;
-    }
-
-    .slider.round:before {
-      border-radius: 50%;
+      transform: translateX(20px);
     }
 
     #container.initial {
       display: none;
     }
 
-    #container.loaded {
+    #timeline-panel {
+      width: 100%;
+    }
+
+    .panels{
       display: grid;
       align-content: center;
-      grid-template-columns: repeat(auto-fit, minmax(400px, 800px));
-      grid-template-rows: repeat(auto-fit, minmax(400px, 800px));
-      grid-auto-flow: dense;
+      grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+      grid-auto-flow: row dense;
+      grid-gap: 10px;
+      margin-top: 10px;
     }
 
-    #container.loaded>#timeline-panel {
-      grid-column: span 2;
-      overflow: scroll;
-    }
-
-    a {
-      color: var(--primary-color);
-    }
-
-    a:hover {
-      color: var(--secondary-color);
+    dt::after  {
+      content: ":";
     }
   </style>
-  <script type="module">
-    import { App } from './index.mjs';
-
-    globalThis.app = new App("#log-file-reader", "#map-panel",
-      "#timeline-panel", "#ic-panel", "#map-track", "#ic-track",
-      "#source-panel");
-  </script>
 </head>
 
 <body>
-  <div id="content">
-    <section id="file-reader">
-      <log-file-reader id="log-file-reader"></log-file-reader>
-    </section>
-    <div class="theme-switch-wrapper">
-      <label class="theme-switch" for="checkbox">
-        <input type="checkbox" id="checkbox" />
-        <div class="slider round"></div>
-      </label>
-    </div>
-    <div id="container" class="initial">
-      <timeline-panel id="timeline-panel">
-        <timeline-track id="map-track"></timeline-track>
-        <timeline-track id="ic-track"></timeline-track>
-      </timeline-panel>
+  <section id="file-reader">
+    <log-file-reader id="log-file-reader"></log-file-reader>
+  </section>
+
+  <section id="container" class="initial">
+    <timeline-panel id="timeline-panel">
+      <timeline-track id="map-track"></timeline-track>
+      <timeline-track id="ic-track"></timeline-track>
+      <timeline-track id="deopt-track"></timeline-track>
+    </timeline-panel>
+    <div class="panels">
       <map-panel id="map-panel"></map-panel>
+      <stats-panel id="map-stats-panel"></stats-panel>
       <ic-panel id="ic-panel" onchange="app.handleSelectIc(event)"></ic-panel>
       <source-panel id="source-panel"></source-panel>
     </div>
-  </div>
-  <div id="instructions">
-    <h2>Instructions</h2>
-    <p>
-      Unified web interface to analyse runtime information stored in the v8 log.
-    </p>
-    For generating log file from
-    <a href="https://v8.dev/docs/build" target="_blank">d8</a>:
-    <p>
-      Log Options:
-    </p>
-    <dl>
-      <dt>--trace-maps:</dt>
-      <dd>Log<a href="https://v8.dev/blog/fast-properties" target="_blank">
-          Maps</a></dd>
-      <dt>--trace_ic:</dt>
-      <dd>Log
-        <a href="https://mathiasbynens.be/notes/shapes-ics" target="_blank">
-          ICs</a></dd>
-      <dt>--log-source-code:</dt>
-      <dd>Log source code</dd>
-    </dl>
-    Usage:
-    <ul>
-      <li><code>/path/do/d8 --trace-maps --trace_ic --log-source-code $FILE
-      </code></li>
-    </ul>
-    For generating a log file from Chrome:
-    <ul>
-      <li><code>/path/to/chrome --user-data-dir=/var/tmp/chr1 --no-sandbox
-        --js-flags='--trace-ic --trace-maps --log-source-code’
-        $WEBSITE_URL</code></li>
-    </ul>
-    <h3>Keyboard Shortcuts for Navigation</h3>
-    <dl>
-      <dt><kbd>SHIFT</kbd> + <kbd>Arrow Up</kbd></dt>
-      <dd>Follow Map transition forward (first child)</dd>
+  </section>
 
-      <dt><kbd>SHIFT</kbd> + <kbd>Arrow Down</kbd></dt>
-      <dd>Follow Map transition backwards</dd>
+  <div class="panels">
+    <section id="settings" class="panel">
+      <h2>Settings</h2>
+      <span>Theme:</span>
+      <div class="theme-switch-wrapper">
+        <label class="theme-switch" for="theme-switch-input">
+          <input type="checkbox" id="theme-switch-input" />
+          <div class="slider"></div>
+        </label>
+      </div>
+    </section>
 
-      <dt><kbd>Arrow Up</kbd></dt>
-      <dd>Go to previous Map chunk</dd>
+    <section id="instructions" class="panel">
+      <h2>Instructions</h2>
+      <p>
+        Unified web interface to analyse runtime information stored in the v8 log.
+      </p>
+      For generating a v8.log file from <a href="https://v8.dev/docs/build">d8</a>:
+      <ul>
+        <li>
+          <code>/path/do/d8 --trace-maps --trace_ic --log-source-code $FILE</code>
+        </li>
+      </ul>
+      For generating a v8.log file from Chrome:
+      <ul>
+        <li>
+          <code>/path/to/chrome --user-data-dir=/var/tmp/chr$RANDOM --no-sandbox
+          --js-flags='--trace-ic --trace-maps --log-source-code’
+          $WEBSITE_URL</code>
+        </li>
+      </ul>
 
-      <dt><kbd>Arrow Down</kbd></dt>
-      <dd>Go to next Map in chunk</dd>
+      <h3>Log Options:</h3>
+      <dl class="d8-options">
+        <dt><code>--trace-maps</code></dt>
+        <dd>Log<a href="https://v8.dev/blog/fast-properties" target="_blank">
+            Maps</a></dd>
+        <dt><code>--trace-ic</code></dt>
+        <dd>Log
+          <a href="https://mathiasbynens.be/notes/shapes-ics" target="_blank">
+            ICs</a></dd>
+        <dt><code>--log-source-code</code></dt>
+        <dd>Log source code</dd>
+      </dl>
 
-      <dt><kbd>Arrow Left</kbd></dt>
-      <dd>Go to previous chunk</dd>
+      <h3>Keyboard Shortcuts for Navigation</h3>
+      <dl>
+        <dt><kbd>SHIFT</kbd> + <kbd>Arrow Up</kbd></dt>
+        <dd>Follow Map transition forward (first child)</dd>
 
-      <dt><kbd>Arrow Right</kbd></dt>
-      <dd>Go to next chunk</dd>
+        <dt><kbd>SHIFT</kbd> + <kbd>Arrow Down</kbd></dt>
+        <dd>Follow Map transition backwards</dd>
 
-      <dt><kbd>+</kbd></dt>
-      <dd>Timeline zoom in</dd>
+        <dt><kbd>Arrow Up</kbd></dt>
+        <dd>Go to previous Map chunk</dd>
 
-      <dt><kbd>-</kbd></dt>
-      <dd>Timeline zoom out</dd>
-    </dl>
+        <dt><kbd>Arrow Down</kbd></dt>
+        <dd>Go to next Map in chunk</dd>
+
+        <dt><kbd>Arrow Left</kbd></dt>
+        <dd>Go to previous chunk</dd>
+
+        <dt><kbd>Arrow Right</kbd></dt>
+        <dd>Go to next chunk</dd>
+
+        <dt><kbd>+</kbd></dt>
+        <dd>Timeline zoom in</dd>
+
+        <dt><kbd>-</kbd></dt>
+        <dd>Timeline zoom out</dd>
+      </dl>
+    </section>
   </div>
 </body>
-
 </html>

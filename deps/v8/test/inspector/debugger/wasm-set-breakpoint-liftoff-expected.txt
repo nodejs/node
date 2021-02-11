@@ -4,7 +4,7 @@ Waiting for wasm script (ignoring first non-wasm script).
 Setting breakpoint at offset 38 on script wasm://wasm/0c10a5fe
 Calling main(4)
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 38: Wasm opcode 0x01
+Script wasm://wasm/0c10a5fe byte offset 38: Wasm opcode 0x01 (kExprNop)
 Scope:
 at wasm_A (0:38):
  - scope (module):
@@ -29,7 +29,7 @@ Setting breakpoint at offset 49 on script v8://test/runWasm
 Setting breakpoint at offset 45 on script v8://test/runWasm
 Setting breakpoint at offset 47 on script v8://test/runWasm
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 39: Wasm opcode 0x01
+Script wasm://wasm/0c10a5fe byte offset 39: Wasm opcode 0x01 (kExprNop)
 Scope:
 at wasm_A (0:39):
  - scope (module):
@@ -45,7 +45,7 @@ at wasm_B (0:56):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 45: Wasm opcode 0x20
+Script wasm://wasm/0c10a5fe byte offset 45: Wasm opcode 0x20 (kExprLocalGet)
 Scope:
 at wasm_B (0:45):
  - scope (module):
@@ -56,7 +56,7 @@ at wasm_B (0:45):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 47: Wasm opcode 0x04
+Script wasm://wasm/0c10a5fe byte offset 47: Wasm opcode 0x04 (kExprIf)
 Scope:
 at wasm_B (0:47):
  - scope (module):
@@ -68,7 +68,7 @@ at wasm_B (0:47):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 49: Wasm opcode 0x20
+Script wasm://wasm/0c10a5fe byte offset 49: Wasm opcode 0x20 (kExprLocalGet)
 Scope:
 at wasm_B (0:49):
  - scope (module):
@@ -79,7 +79,7 @@ at wasm_B (0:49):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 51: Wasm opcode 0x41
+Script wasm://wasm/0c10a5fe byte offset 51: Wasm opcode 0x41 (kExprI32Const)
 Scope:
 at wasm_B (0:51):
  - scope (module):
@@ -91,7 +91,7 @@ at wasm_B (0:51):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 53: Wasm opcode 0x6b
+Script wasm://wasm/0c10a5fe byte offset 53: Wasm opcode 0x6b (kExprI32Sub)
 Scope:
 at wasm_B (0:53):
  - scope (module):
@@ -104,7 +104,7 @@ at wasm_B (0:53):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 54: Wasm opcode 0x21
+Script wasm://wasm/0c10a5fe byte offset 54: Wasm opcode 0x21 (kExprLocalSet)
 Scope:
 at wasm_B (0:54):
  - scope (module):
@@ -116,7 +116,7 @@ at wasm_B (0:54):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 38: Wasm opcode 0x01
+Script wasm://wasm/0c10a5fe byte offset 38: Wasm opcode 0x01 (kExprNop)
 Scope:
 at wasm_A (0:38):
  - scope (module):
@@ -132,7 +132,7 @@ at wasm_B (0:56):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 39: Wasm opcode 0x01
+Script wasm://wasm/0c10a5fe byte offset 39: Wasm opcode 0x01 (kExprNop)
 Scope:
 at wasm_A (0:39):
  - scope (module):
@@ -148,7 +148,7 @@ at wasm_B (0:56):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 45: Wasm opcode 0x20
+Script wasm://wasm/0c10a5fe byte offset 45: Wasm opcode 0x20 (kExprLocalGet)
 Scope:
 at wasm_B (0:45):
  - scope (module):
@@ -159,7 +159,7 @@ at wasm_B (0:45):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 47: Wasm opcode 0x04
+Script wasm://wasm/0c10a5fe byte offset 47: Wasm opcode 0x04 (kExprIf)
 Scope:
 at wasm_B (0:47):
  - scope (module):
@@ -171,7 +171,7 @@ at wasm_B (0:47):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 49: Wasm opcode 0x20
+Script wasm://wasm/0c10a5fe byte offset 49: Wasm opcode 0x20 (kExprLocalGet)
 Scope:
 at wasm_B (0:49):
  - scope (module):
@@ -182,7 +182,7 @@ at wasm_B (0:49):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 51: Wasm opcode 0x41
+Script wasm://wasm/0c10a5fe byte offset 51: Wasm opcode 0x41 (kExprI32Const)
 Scope:
 at wasm_B (0:51):
  - scope (module):
@@ -194,7 +194,7 @@ at wasm_B (0:51):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 53: Wasm opcode 0x6b
+Script wasm://wasm/0c10a5fe byte offset 53: Wasm opcode 0x6b (kExprI32Sub)
 Scope:
 at wasm_B (0:53):
  - scope (module):
@@ -207,7 +207,7 @@ at wasm_B (0:53):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 54: Wasm opcode 0x21
+Script wasm://wasm/0c10a5fe byte offset 54: Wasm opcode 0x21 (kExprLocalSet)
 Scope:
 at wasm_B (0:54):
  - scope (module):
@@ -219,7 +219,7 @@ at wasm_B (0:54):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 38: Wasm opcode 0x01
+Script wasm://wasm/0c10a5fe byte offset 38: Wasm opcode 0x01 (kExprNop)
 Scope:
 at wasm_A (0:38):
  - scope (module):
@@ -235,7 +235,7 @@ at wasm_B (0:56):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 39: Wasm opcode 0x01
+Script wasm://wasm/0c10a5fe byte offset 39: Wasm opcode 0x01 (kExprNop)
 Scope:
 at wasm_A (0:39):
  - scope (module):
@@ -251,7 +251,7 @@ at wasm_B (0:56):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 45: Wasm opcode 0x20
+Script wasm://wasm/0c10a5fe byte offset 45: Wasm opcode 0x20 (kExprLocalGet)
 Scope:
 at wasm_B (0:45):
  - scope (module):
@@ -262,7 +262,7 @@ at wasm_B (0:45):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 47: Wasm opcode 0x04
+Script wasm://wasm/0c10a5fe byte offset 47: Wasm opcode 0x04 (kExprIf)
 Scope:
 at wasm_B (0:47):
  - scope (module):
@@ -274,7 +274,7 @@ at wasm_B (0:47):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 49: Wasm opcode 0x20
+Script wasm://wasm/0c10a5fe byte offset 49: Wasm opcode 0x20 (kExprLocalGet)
 Scope:
 at wasm_B (0:49):
  - scope (module):
@@ -285,7 +285,7 @@ at wasm_B (0:49):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 51: Wasm opcode 0x41
+Script wasm://wasm/0c10a5fe byte offset 51: Wasm opcode 0x41 (kExprI32Const)
 Scope:
 at wasm_B (0:51):
  - scope (module):
@@ -297,7 +297,7 @@ at wasm_B (0:51):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 53: Wasm opcode 0x6b
+Script wasm://wasm/0c10a5fe byte offset 53: Wasm opcode 0x6b (kExprI32Sub)
 Scope:
 at wasm_B (0:53):
  - scope (module):
@@ -310,7 +310,7 @@ at wasm_B (0:53):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 54: Wasm opcode 0x21
+Script wasm://wasm/0c10a5fe byte offset 54: Wasm opcode 0x21 (kExprLocalSet)
 Scope:
 at wasm_B (0:54):
  - scope (module):
@@ -322,7 +322,7 @@ at wasm_B (0:54):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 38: Wasm opcode 0x01
+Script wasm://wasm/0c10a5fe byte offset 38: Wasm opcode 0x01 (kExprNop)
 Scope:
 at wasm_A (0:38):
  - scope (module):
@@ -338,7 +338,7 @@ at wasm_B (0:56):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 39: Wasm opcode 0x01
+Script wasm://wasm/0c10a5fe byte offset 39: Wasm opcode 0x01 (kExprNop)
 Scope:
 at wasm_A (0:39):
  - scope (module):
@@ -354,7 +354,7 @@ at wasm_B (0:56):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 45: Wasm opcode 0x20
+Script wasm://wasm/0c10a5fe byte offset 45: Wasm opcode 0x20 (kExprLocalGet)
 Scope:
 at wasm_B (0:45):
  - scope (module):
@@ -365,7 +365,7 @@ at wasm_B (0:45):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 47: Wasm opcode 0x04
+Script wasm://wasm/0c10a5fe byte offset 47: Wasm opcode 0x04 (kExprIf)
 Scope:
 at wasm_B (0:47):
  - scope (module):
@@ -377,7 +377,7 @@ at wasm_B (0:47):
 at (anonymous) (0:17):
    -- skipped
 Paused:
-Script wasm://wasm/0c10a5fe byte offset 61: Wasm opcode 0x0b
+Script wasm://wasm/0c10a5fe byte offset 61: Wasm opcode 0x0b (kExprEnd)
 Scope:
 at wasm_B (0:61):
  - scope (module):

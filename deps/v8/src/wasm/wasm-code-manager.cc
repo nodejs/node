@@ -323,8 +323,12 @@ void WasmCode::Validate() const {
 
 void WasmCode::MaybePrint(const char* name) const {
   // Determines whether flags want this code to be printed.
-  if ((FLAG_print_wasm_code && kind() == kFunction) ||
-      (FLAG_print_wasm_stub_code && kind() != kFunction) || FLAG_print_code) {
+  bool function_index_matches =
+      (!IsAnonymous() &&
+       FLAG_print_wasm_code_function_index == static_cast<int>(index()));
+  if (FLAG_print_code ||
+      (kind() == kFunction ? (FLAG_print_wasm_code || function_index_matches)
+                           : FLAG_print_wasm_stub_code)) {
     Print(name);
   }
 }
@@ -854,7 +858,7 @@ void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
 void NativeModule::LogWasmCodes(Isolate* isolate) {
   if (!WasmCode::ShouldBeLogged(isolate)) return;
 
-  TRACE_EVENT1("v8.wasm", "wasm.LogWasmCodes", "num_functions",
+  TRACE_EVENT1("v8.wasm", "wasm.LogWasmCodes", "functions",
                module_->num_declared_functions);
 
   // TODO(titzer): we skip the logging of the import wrappers
@@ -874,11 +878,7 @@ CompilationEnv NativeModule::CreateCompilationEnv() const {
 
 WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
   CODE_SPACE_WRITE_SCOPE
-  // For off-heap builtins, we create a copy of the off-heap instruction stream
-  // instead of the on-heap code object containing the trampoline. Ensure that
-  // we do not apply the on-heap reloc info to the off-heap instructions.
-  const size_t relocation_size =
-      code->is_off_heap_trampoline() ? 0 : code->relocation_size();
+  const size_t relocation_size = code->relocation_size();
   OwnedVector<byte> reloc_info;
   if (relocation_size > 0) {
     reloc_info = OwnedVector<byte>::Of(
@@ -892,19 +892,25 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
     source_pos_table->copy_out(0, source_pos.start(),
                                source_pos_table->length());
   }
+  CHECK(!code->is_off_heap_trampoline());
+  STATIC_ASSERT(Code::kOnHeapBodyIsContiguous);
   Vector<const byte> instructions(
-      reinterpret_cast<byte*>(code->InstructionStart()),
-      static_cast<size_t>(code->InstructionSize()));
+      reinterpret_cast<byte*>(code->raw_body_start()),
+      static_cast<size_t>(code->raw_body_size()));
   const int stack_slots = code->has_safepoint_info() ? code->stack_slots() : 0;
 
+  // Metadata offsets in Code objects are relative to the start of the metadata
+  // section, whereas WasmCode expects offsets relative to InstructionStart.
+  const int base_offset = code->raw_instruction_size();
   // TODO(jgruber,v8:8758): Remove this translation. It exists only because
   // Code objects contains real offsets but WasmCode expects an offset of 0 to
   // mean 'empty'.
   const int safepoint_table_offset =
-      code->has_safepoint_table() ? code->safepoint_table_offset() : 0;
-  const int handler_table_offset = code->handler_table_offset();
-  const int constant_pool_offset = code->constant_pool_offset();
-  const int code_comments_offset = code->code_comments_offset();
+      code->has_safepoint_table() ? base_offset + code->safepoint_table_offset()
+                                  : 0;
+  const int handler_table_offset = base_offset + code->handler_table_offset();
+  const int constant_pool_offset = base_offset + code->constant_pool_offset();
+  const int code_comments_offset = base_offset + code->code_comments_offset();
 
   Vector<uint8_t> dst_code_bytes =
       code_allocator_.AllocateForCode(this, instructions.size());
@@ -912,7 +918,7 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
 
   // Apply the relocation delta by iterating over the RelocInfo.
   intptr_t delta = reinterpret_cast<Address>(dst_code_bytes.begin()) -
-                   code->InstructionStart();
+                   code->raw_instruction_start();
   int mode_mask =
       RelocInfo::kApplyMask | RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL);
   auto jump_tables_ref =
@@ -1081,12 +1087,16 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
 }
 
 WasmCode* NativeModule::PublishCode(std::unique_ptr<WasmCode> code) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+               "wasm.PublishCode");
   base::MutexGuard lock(&allocation_mutex_);
   return PublishCodeLocked(std::move(code));
 }
 
 std::vector<WasmCode*> NativeModule::PublishCode(
     Vector<std::unique_ptr<WasmCode>> codes) {
+  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+               "wasm.PublishCode", "number", codes.size());
   std::vector<WasmCode*> published_code;
   published_code.reserve(codes.size());
   base::MutexGuard lock(&allocation_mutex_);
@@ -1362,10 +1372,10 @@ void NativeModule::AddCodeSpace(
         WASM_RUNTIME_STUB_LIST(RUNTIME_STUB, RUNTIME_STUB_TRAP)};
 #undef RUNTIME_STUB
 #undef RUNTIME_STUB_TRAP
+    STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
     Address builtin_addresses[WasmCode::kRuntimeStubCount];
     for (int i = 0; i < WasmCode::kRuntimeStubCount; ++i) {
       Builtins::Name builtin = stub_names[i];
-      CHECK(embedded_data.ContainsBuiltin(builtin));
       builtin_addresses[i] = embedded_data.InstructionStartOfBuiltin(builtin);
     }
     JumpTableAssembler::GenerateFarJumpTable(
@@ -1468,7 +1478,11 @@ NativeModule::JumpTablesRef NativeModule::FindJumpTablesForRegion(
     size_t max_distance = std::max(
         code_region.end() > table_start ? code_region.end() - table_start : 0,
         table_end > code_region.begin() ? table_end - code_region.begin() : 0);
-    return max_distance < WasmCodeAllocator::kMaxCodeSpaceSize;
+    // We can allow a max_distance that is equal to kMaxCodeSpaceSize, because
+    // every call or jump will target an address *within* the region, but never
+    // exactly the end of the region. So all occuring offsets are actually
+    // smaller than max_distance.
+    return max_distance <= WasmCodeAllocator::kMaxCodeSpaceSize;
   };
 
   // Fast path: Try to use {main_jump_table_} and {main_far_jump_table_}.
@@ -1881,6 +1895,8 @@ std::unique_ptr<WasmCode> NativeModule::AddCompiledCode(
 
 std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
     Vector<WasmCompilationResult> results) {
+  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+               "wasm.AddCompiledCode", "num", results.size());
   DCHECK(!results.empty());
   // First, allocate code space for all the results.
   size_t total_code_space = 0;

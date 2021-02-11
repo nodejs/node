@@ -222,10 +222,10 @@ namespace compiler {
   V(ArmI16x8ShrS)                  \
   V(ArmI16x8SConvertI32x4)         \
   V(ArmI16x8Add)                   \
-  V(ArmI16x8AddSaturateS)          \
+  V(ArmI16x8AddSatS)               \
   V(ArmI16x8AddHoriz)              \
   V(ArmI16x8Sub)                   \
-  V(ArmI16x8SubSaturateS)          \
+  V(ArmI16x8SubSatS)               \
   V(ArmI16x8Mul)                   \
   V(ArmI16x8MinS)                  \
   V(ArmI16x8MaxS)                  \
@@ -238,8 +238,8 @@ namespace compiler {
   V(ArmI16x8UConvertI8x16High)     \
   V(ArmI16x8ShrU)                  \
   V(ArmI16x8UConvertI32x4)         \
-  V(ArmI16x8AddSaturateU)          \
-  V(ArmI16x8SubSaturateU)          \
+  V(ArmI16x8AddSatU)               \
+  V(ArmI16x8SubSatU)               \
   V(ArmI16x8MinU)                  \
   V(ArmI16x8MaxU)                  \
   V(ArmI16x8GtU)                   \
@@ -255,9 +255,9 @@ namespace compiler {
   V(ArmI8x16ShrS)                  \
   V(ArmI8x16SConvertI16x8)         \
   V(ArmI8x16Add)                   \
-  V(ArmI8x16AddSaturateS)          \
+  V(ArmI8x16AddSatS)               \
   V(ArmI8x16Sub)                   \
-  V(ArmI8x16SubSaturateS)          \
+  V(ArmI8x16SubSatS)               \
   V(ArmI8x16Mul)                   \
   V(ArmI8x16MinS)                  \
   V(ArmI8x16MaxS)                  \
@@ -268,8 +268,8 @@ namespace compiler {
   V(ArmI8x16ExtractLaneU)          \
   V(ArmI8x16ShrU)                  \
   V(ArmI8x16UConvertI16x8)         \
-  V(ArmI8x16AddSaturateU)          \
-  V(ArmI8x16SubSaturateU)          \
+  V(ArmI8x16AddSatU)               \
+  V(ArmI8x16SubSatU)               \
   V(ArmI8x16MinU)                  \
   V(ArmI8x16MaxU)                  \
   V(ArmI8x16GtU)                   \
@@ -321,16 +321,18 @@ namespace compiler {
   V(ArmV16x8AllTrue)               \
   V(ArmV8x16AnyTrue)               \
   V(ArmV8x16AllTrue)               \
-  V(ArmS8x16LoadSplat)             \
-  V(ArmS16x8LoadSplat)             \
-  V(ArmS32x4LoadSplat)             \
-  V(ArmS64x2LoadSplat)             \
-  V(ArmI16x8Load8x8S)              \
-  V(ArmI16x8Load8x8U)              \
-  V(ArmI32x4Load16x4S)             \
-  V(ArmI32x4Load16x4U)             \
-  V(ArmI64x2Load32x2S)             \
-  V(ArmI64x2Load32x2U)             \
+  V(ArmS128Load8Splat)             \
+  V(ArmS128Load16Splat)            \
+  V(ArmS128Load32Splat)            \
+  V(ArmS128Load64Splat)            \
+  V(ArmS128Load8x8S)               \
+  V(ArmS128Load8x8U)               \
+  V(ArmS128Load16x4S)              \
+  V(ArmS128Load16x4U)              \
+  V(ArmS128Load32x2S)              \
+  V(ArmS128Load32x2U)              \
+  V(ArmS128Load32Zero)             \
+  V(ArmS128Load64Zero)             \
   V(ArmWord32AtomicPairLoad)       \
   V(ArmWord32AtomicPairStore)      \
   V(ArmWord32AtomicPairAdd)        \

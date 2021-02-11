@@ -87,8 +87,11 @@ namespace {
 // otherwise returns true and sets highest_tier.
 bool HighestTierOf(CodeKinds kinds, CodeKind* highest_tier) {
   DCHECK_EQ((kinds & ~kJSFunctionCodeKindsMask), 0);
-  if ((kinds & CodeKindFlag::OPTIMIZED_FUNCTION) != 0) {
-    *highest_tier = CodeKind::OPTIMIZED_FUNCTION;
+  if ((kinds & CodeKindFlag::TURBOFAN) != 0) {
+    *highest_tier = CodeKind::TURBOFAN;
+    return true;
+  } else if ((kinds & CodeKindFlag::TURBOPROP) != 0) {
+    *highest_tier = CodeKind::TURBOPROP;
     return true;
   } else if ((kinds & CodeKindFlag::NATIVE_CONTEXT_INDEPENDENT) != 0) {
     *highest_tier = CodeKind::NATIVE_CONTEXT_INDEPENDENT;
@@ -119,7 +122,7 @@ bool JSFunction::ActiveTierIsIgnition() const {
 bool JSFunction::ActiveTierIsTurbofan() const {
   CodeKind highest_tier;
   if (!HighestTierOf(GetAvailableCodeKinds(), &highest_tier)) return false;
-  return highest_tier == CodeKind::OPTIMIZED_FUNCTION;
+  return highest_tier == CodeKind::TURBOFAN;
 }
 
 bool JSFunction::ActiveTierIsNCI() const {
@@ -128,10 +131,30 @@ bool JSFunction::ActiveTierIsNCI() const {
   return highest_tier == CodeKind::NATIVE_CONTEXT_INDEPENDENT;
 }
 
+bool JSFunction::ActiveTierIsToptierTurboprop() const {
+  CodeKind highest_tier;
+  if (!FLAG_turboprop) return false;
+  if (!HighestTierOf(GetAvailableCodeKinds(), &highest_tier)) return false;
+  return highest_tier == CodeKind::TURBOPROP && !FLAG_turboprop_as_midtier;
+}
+
+bool JSFunction::ActiveTierIsMidtierTurboprop() const {
+  CodeKind highest_tier;
+  if (!FLAG_turboprop_as_midtier) return false;
+  if (!HighestTierOf(GetAvailableCodeKinds(), &highest_tier)) return false;
+  return highest_tier == CodeKind::TURBOPROP && FLAG_turboprop_as_midtier;
+}
+
 CodeKind JSFunction::NextTier() const {
-  return (FLAG_turbo_nci_as_midtier && ActiveTierIsIgnition())
-             ? CodeKind::NATIVE_CONTEXT_INDEPENDENT
-             : CodeKind::OPTIMIZED_FUNCTION;
+  if (V8_UNLIKELY(FLAG_turbo_nci_as_midtier && ActiveTierIsIgnition())) {
+    return CodeKind::NATIVE_CONTEXT_INDEPENDENT;
+  } else if (V8_UNLIKELY(FLAG_turboprop) && ActiveTierIsMidtierTurboprop()) {
+    return CodeKind::TURBOFAN;
+  } else if (V8_UNLIKELY(FLAG_turboprop)) {
+    DCHECK(ActiveTierIsIgnition());
+    return CodeKind::TURBOPROP;
+  }
+  return CodeKind::TURBOFAN;
 }
 
 bool JSFunction::CanDiscardCompiled() const {
@@ -144,7 +167,7 @@ bool JSFunction::CanDiscardCompiled() const {
   //
   // Note that when the function has not yet been compiled we also return
   // false; that's fine, since nothing must be discarded in that case.
-  if (code().kind() == CodeKind::OPTIMIZED_FUNCTION) return true;
+  if (CodeKindIsOptimizedJSFunction(code().kind())) return true;
   CodeKinds result = GetAvailableCodeKinds();
   return (result & kJSFunctionCodeKindsMask) != 0;
 }
@@ -205,7 +228,7 @@ Maybe<int> JSBoundFunction::GetLength(Isolate* isolate,
                             isolate);
   int target_length = target->length();
 
-  int length = Max(0, target_length - nof_bound_arguments);
+  int length = std::max(0, target_length - nof_bound_arguments);
   return Just(length);
 }
 
@@ -411,8 +434,9 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
 
 void JSFunction::SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
                                Handle<HeapObject> prototype) {
-  if (map->prototype() != *prototype)
+  if (map->prototype() != *prototype) {
     Map::SetPrototype(function->GetIsolate(), map, prototype);
+  }
   function->set_prototype_or_initial_map(*map);
   map->SetConstructor(*function);
   if (FLAG_trace_maps) {
@@ -604,9 +628,9 @@ bool FastInitializeDerivedMap(Isolate* isolate, Handle<JSFunction> new_target,
   // 2) the prototype chain is modified during iteration, or 3) compilation
   // failure occur during prototype chain iteration.
   // So we take the maximum of two values.
-  int expected_nof_properties =
-      Max(static_cast<int>(constructor->shared().expected_nof_properties()),
-          JSFunction::CalculateExpectedNofProperties(isolate, new_target));
+  int expected_nof_properties = std::max(
+      static_cast<int>(constructor->shared().expected_nof_properties()),
+      JSFunction::CalculateExpectedNofProperties(isolate, new_target));
   JSFunction::CalculateInstanceSizeHelper(
       instance_type, true, embedder_fields, expected_nof_properties,
       &instance_size, &in_object_properties);
@@ -894,8 +918,8 @@ void JSFunction::CalculateInstanceSizeHelper(InstanceType instance_type,
   CHECK_LE(max_nof_fields, JSObject::kMaxInObjectProperties);
   CHECK_LE(static_cast<unsigned>(requested_embedder_fields),
            static_cast<unsigned>(max_nof_fields));
-  *in_object_properties = Min(requested_in_object_properties,
-                              max_nof_fields - requested_embedder_fields);
+  *in_object_properties = std::min(requested_in_object_properties,
+                                   max_nof_fields - requested_embedder_fields);
   *instance_size =
       header_size +
       ((requested_embedder_fields + *in_object_properties) << kTaggedSizeLog2);

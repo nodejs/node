@@ -513,9 +513,9 @@ JSTypeHintLowering::ReduceGetIteratorOperation(const Operator* op,
 }
 
 JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceLoadNamedOperation(
-    const Operator* op, Node* receiver, Node* effect, Node* control,
-    FeedbackSlot slot) const {
-  DCHECK_EQ(IrOpcode::kJSLoadNamed, op->opcode());
+    const Operator* op, Node* effect, Node* control, FeedbackSlot slot) const {
+  DCHECK(op->opcode() == IrOpcode::kJSLoadNamed ||
+         op->opcode() == IrOpcode::kJSLoadNamedFromSuper);
   if (Node* node = TryBuildSoftDeopt(
           slot, effect, control,
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess)) {
@@ -574,8 +574,8 @@ Node* JSTypeHintLowering::TryBuildSoftDeopt(FeedbackSlot slot, Node* effect,
 
   FeedbackSource source(feedback_vector(), slot);
   // TODO(mythria): Think of adding flags to specify if we need a soft deopt for
-  // calls instead of using FLAG_turboprop here.
-  if (FLAG_turboprop &&
+  // calls instead of using broker()->is_turboprop() here.
+  if (broker()->is_turboprop() &&
       broker()->GetFeedbackSlotKind(source) == FeedbackSlotKind::kCall) {
     return nullptr;
   }

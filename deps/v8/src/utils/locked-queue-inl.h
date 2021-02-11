@@ -38,10 +38,10 @@ inline LockedQueue<Record>::~LockedQueue() {
 }
 
 template <typename Record>
-inline void LockedQueue<Record>::Enqueue(const Record& record) {
+inline void LockedQueue<Record>::Enqueue(Record record) {
   Node* n = new Node();
   CHECK_NOT_NULL(n);
-  n->value = record;
+  n->value = std::move(record);
   {
     base::MutexGuard guard(&tail_mutex_);
     tail_->next.SetValue(n);
@@ -57,7 +57,7 @@ inline bool LockedQueue<Record>::Dequeue(Record* record) {
     old_head = head_;
     Node* const next_node = head_->next.Value();
     if (next_node == nullptr) return false;
-    *record = next_node->value;
+    *record = std::move(next_node->value);
     head_ = next_node;
   }
   delete old_head;

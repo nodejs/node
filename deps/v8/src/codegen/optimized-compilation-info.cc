@@ -80,11 +80,12 @@ void OptimizedCompilationInfo::ConfigureFlags() {
   if (FLAG_untrusted_code_mitigations) set_untrusted_code_mitigations();
 
   switch (code_kind_) {
-    case CodeKind::OPTIMIZED_FUNCTION:
+    case CodeKind::TURBOFAN:
       if (FLAG_function_context_specialization) {
         set_function_context_specializing();
       }
       V8_FALLTHROUGH;
+    case CodeKind::TURBOPROP:
     case CodeKind::NATIVE_CONTEXT_INDEPENDENT:
       set_called_with_code_start_register();
       set_switch_jump_table();
@@ -98,7 +99,7 @@ void OptimizedCompilationInfo::ConfigureFlags() {
       if (FLAG_turbo_splitting) set_splitting();
       break;
     case CodeKind::BUILTIN:
-    case CodeKind::STUB:
+    case CodeKind::FOR_TESTING:
       if (FLAG_turbo_splitting) set_splitting();
 #if ENABLE_GDB_JIT_INTERFACE && DEBUG
       set_source_positions();
@@ -160,7 +161,7 @@ std::unique_ptr<char[]> OptimizedCompilationInfo::GetDebugName() const {
 
 StackFrame::Type OptimizedCompilationInfo::GetOutputStackFrameType() const {
   switch (code_kind()) {
-    case CodeKind::STUB:
+    case CodeKind::FOR_TESTING:
     case CodeKind::BYTECODE_HANDLER:
     case CodeKind::BUILTIN:
       return StackFrame::STUB;

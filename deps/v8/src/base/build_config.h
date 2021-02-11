@@ -207,6 +207,10 @@ constexpr int kReturnAddressStackSlotCount =
 // PPC has large (64KB) physical pages.
 const int kPageSizeBits = 19;
 #else
+// Arm64 supports up to 64k OS pages on Linux, however 4k pages are more common
+// so we keep the V8 page size at 256k. Nonetheless, we need to make sure we
+// don't decrease it further in the future due to reserving 3 OS pages for every
+// executable V8 page.
 const int kPageSizeBits = 18;
 #endif
 

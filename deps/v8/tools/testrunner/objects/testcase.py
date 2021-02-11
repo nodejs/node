@@ -49,13 +49,21 @@ RESOURCES_PATTERN = re.compile(r"//\s+Resources:(.*)")
 LOAD_PATTERN = re.compile(
     r"(?:load|readbuffer|read)\((?:'|\")([^'\"]+)(?:'|\")\)")
 # Pattern to auto-detect files to push on Android for statements like:
-# import "path/to/file.js"
-MODULE_RESOURCES_PATTERN_1 = re.compile(
-    r"(?:import|export)(?:\(| )(?:'|\")([^'\"]+)(?:'|\")")
-# Pattern to auto-detect files to push on Android for statements like:
 # import foobar from "path/to/file.js"
-MODULE_RESOURCES_PATTERN_2 = re.compile(
-    r"(?:import|export).*from (?:'|\")([^'\"]+)(?:'|\")")
+# import {foo, bar} from "path/to/file.js"
+# export {"foo" as "bar"} from "path/to/file.js"
+MODULE_FROM_RESOURCES_PATTERN = re.compile(
+    r"(?:import|export).*?from\s*\(?['\"]([^'\"]+)['\"]",
+    re.MULTILINE | re.DOTALL)
+# Pattern to detect files to push on Android for statements like:
+# import "path/to/file.js"
+# import("module.mjs").catch()...
+MODULE_IMPORT_RESOURCES_PATTERN = re.compile(
+    r"import\s*\(?['\"]([^'\"]+)['\"]",
+    re.MULTILINE | re.DOTALL)
+# Pattern to detect and strip test262 frontmatter from tests to prevent false
+# positives for MODULE_RESOURCES_PATTERN above.
+TEST262_FRONTMATTER_PATTERN = re.compile(r"/\*---.*?---\*/", re.DOTALL)
 
 TIMEOUT_LONG = "long"
 
@@ -402,19 +410,26 @@ class D8TestCase(TestCase):
     result = []
     def add_path(path):
       result.append(os.path.abspath(path.replace('/', os.path.sep)))
+    def add_import_path(import_path):
+      add_path(os.path.normpath(
+        os.path.join(os.path.dirname(file), import_path)))
+    def strip_test262_frontmatter(input):
+      return TEST262_FRONTMATTER_PATTERN.sub('', input)
     for match in RESOURCES_PATTERN.finditer(source):
       # There are several resources per line. Relative to base dir.
       for path in match.group(1).strip().split():
         add_path(path)
+    # Strip test262 frontmatter before looking for load() and import/export
+    # statements.
+    source = strip_test262_frontmatter(source)
     for match in LOAD_PATTERN.finditer(source):
       # Files in load statements are relative to base dir.
       add_path(match.group(1))
-    for match in MODULE_RESOURCES_PATTERN_1.finditer(source):
-      # Imported files are relative to the file importing them.
-      add_path(os.path.join(os.path.dirname(file), match.group(1)))
-    for match in MODULE_RESOURCES_PATTERN_2.finditer(source):
-      # Imported files are relative to the file importing them.
-      add_path(os.path.join(os.path.dirname(file), match.group(1)))
+    # Imported files are relative to the file importing them.
+    for match in MODULE_FROM_RESOURCES_PATTERN.finditer(source):
+      add_import_path(match.group(1))
+    for match in MODULE_IMPORT_RESOURCES_PATTERN.finditer(source):
+      add_import_path(match.group(1))
     return result
 
   def _get_resources(self):

@@ -273,8 +273,7 @@ void JsonParser<Char>::ReportUnexpectedToken(JsonToken token) {
   // separated source file.
   isolate()->debug()->OnCompileError(script);
   MessageLocation location(script, pos, pos + 1);
-  Handle<Object> error = factory->NewSyntaxError(message, arg1, arg2);
-  isolate()->Throw(*error, &location);
+  isolate()->ThrowAt(factory->NewSyntaxError(message, arg1, arg2), &location);
 
   // Move the cursor to the end so we won't be able to proceed parsing.
   cursor_ = end_;
@@ -464,9 +463,10 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     Handle<Map> target;
     InternalIndex descriptor_index(descriptor);
     if (descriptor < feedback_descriptors) {
-      expected = handle(String::cast(feedback->instance_descriptors().GetKey(
-                            descriptor_index)),
-                        isolate_);
+      expected =
+          handle(String::cast(feedback->instance_descriptors(kRelaxedLoad)
+                                  .GetKey(descriptor_index)),
+                 isolate_);
     } else {
       DisallowHeapAllocation no_gc;
       TransitionsAccessor transitions(isolate(), *map, &no_gc);
@@ -497,7 +497,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     Handle<Object> value = property.value;
 
     PropertyDetails details =
-        target->instance_descriptors().GetDetails(descriptor_index);
+        target->instance_descriptors(kRelaxedLoad).GetDetails(descriptor_index);
     Representation expected_representation = details.representation();
 
     if (!value->FitsRepresentation(expected_representation)) {
@@ -512,7 +512,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       Map::GeneralizeField(isolate(), target, descriptor_index,
                            details.constness(), representation, value_type);
     } else if (expected_representation.IsHeapObject() &&
-               !target->instance_descriptors()
+               !target->instance_descriptors(kRelaxedLoad)
                     .GetFieldType(descriptor_index)
                     .NowContains(value)) {
       Handle<FieldType> value_type =
@@ -525,7 +525,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       new_mutable_double++;
     }
 
-    DCHECK(target->instance_descriptors()
+    DCHECK(target->instance_descriptors(kRelaxedLoad)
                .GetFieldType(descriptor_index)
                .NowContains(value));
     map = target;
@@ -575,7 +575,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       if (property.string.is_index()) continue;
       InternalIndex descriptor_index(descriptor);
       PropertyDetails details =
-          map->instance_descriptors().GetDetails(descriptor_index);
+          map->instance_descriptors(kRelaxedLoad).GetDetails(descriptor_index);
       Object value = *property.value;
       FieldIndex index = FieldIndex::ForDescriptor(*map, descriptor_index);
       descriptor++;

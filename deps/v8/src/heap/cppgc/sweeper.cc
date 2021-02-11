@@ -114,7 +114,7 @@ using SpaceStates = std::vector<SpaceState>;
 void StickyUnmark(HeapObjectHeader* header) {
   // Young generation in Oilpan uses sticky mark bits.
 #if !defined(CPPGC_YOUNG_GENERATION)
-  header->Unmark<HeapObjectHeader::AccessMode::kAtomic>();
+  header->Unmark<AccessMode::kAtomic>();
 #endif
 }
 
@@ -127,7 +127,7 @@ class InlinedFinalizationBuilder final {
 
   void AddFinalizer(HeapObjectHeader* header, size_t size) {
     header->Finalize();
-    SET_MEMORY_INACCESIBLE(header, size);
+    SET_MEMORY_INACCESSIBLE(header, size);
   }
 
   void AddFreeListEntry(Address start, size_t size) {
@@ -153,7 +153,7 @@ class DeferredFinalizationBuilder final {
       result_.unfinalized_objects.push_back({header});
       found_finalizer_ = true;
     } else {
-      SET_MEMORY_INACCESIBLE(header, size);
+      SET_MEMORY_INACCESSIBLE(header, size);
     }
   }
 
@@ -178,7 +178,7 @@ class DeferredFinalizationBuilder final {
 
 template <typename FinalizationBuilder>
 typename FinalizationBuilder::ResultType SweepNormalPage(NormalPage* page) {
-  constexpr auto kAtomicAccess = HeapObjectHeader::AccessMode::kAtomic;
+  constexpr auto kAtomicAccess = AccessMode::kAtomic;
   FinalizationBuilder builder(page);
 
   PlatformAwareObjectStartBitmap& bitmap = page->object_start_bitmap();
@@ -191,7 +191,7 @@ typename FinalizationBuilder::ResultType SweepNormalPage(NormalPage* page) {
     const size_t size = header->GetSize();
     // Check if this is a free list entry.
     if (header->IsFree<kAtomicAccess>()) {
-      SET_MEMORY_INACCESIBLE(header, std::min(kFreeListEntrySize, size));
+      SET_MEMORY_INACCESSIBLE(header, std::min(kFreeListEntrySize, size));
       begin += size;
       continue;
     }
@@ -273,7 +273,9 @@ class SweepFinalizer final {
 
     // Call finalizers.
     for (HeapObjectHeader* object : page_state->unfinalized_objects) {
+      const size_t size = object->GetSize();
       object->Finalize();
+      SET_MEMORY_INACCESSIBLE(object, size);
     }
 
     // Unmap page if empty.
@@ -444,10 +446,19 @@ class ConcurrentSweepTask final : public cppgc::JobTask,
 // - moves all Heap pages to local Sweeper's state (SpaceStates).
 class PrepareForSweepVisitor final
     : public HeapVisitor<PrepareForSweepVisitor> {
+  using CompactableSpaceHandling =
+      Sweeper::SweepingConfig::CompactableSpaceHandling;
+
  public:
-  explicit PrepareForSweepVisitor(SpaceStates* states) : states_(states) {}
+  PrepareForSweepVisitor(SpaceStates* states,
+                         CompactableSpaceHandling compactable_space_handling)
+      : states_(states),
+        compactable_space_handling_(compactable_space_handling) {}
 
   bool VisitNormalPageSpace(NormalPageSpace* space) {
+    if ((compactable_space_handling_ == CompactableSpaceHandling::kIgnore) &&
+        space->is_compactable())
+      return true;
     DCHECK(!space->linear_allocation_buffer().size());
     space->free_list().Clear();
     ExtractPages(space);
@@ -467,6 +478,7 @@ class PrepareForSweepVisitor final
   }
 
   SpaceStates* states_;
+  CompactableSpaceHandling compactable_space_handling_;
 };
 
 }  // namespace
@@ -483,17 +495,20 @@ class Sweeper::SweeperImpl final {
 
   ~SweeperImpl() { CancelSweepers(); }
 
-  void Start(Config config) {
+  void Start(SweepingConfig config) {
     is_in_progress_ = true;
 #if DEBUG
+    // Verify bitmap for all spaces regardless of |compactable_space_handling|.
     ObjectStartBitmapVerifier().Verify(heap_);
 #endif
-    PrepareForSweepVisitor(&space_states_).Traverse(heap_);
+    PrepareForSweepVisitor(&space_states_, config.compactable_space_handling)
+        .Traverse(heap_);
 
-    if (config == Config::kAtomic) {
+    if (config.sweeping_type == SweepingConfig::SweepingType::kAtomic) {
       Finish();
     } else {
-      DCHECK_EQ(Config::kIncrementalAndConcurrent, config);
+      DCHECK_EQ(SweepingConfig::SweepingType::kIncrementalAndConcurrent,
+                config.sweeping_type);
       ScheduleIncrementalSweeping();
       ScheduleConcurrentSweeping();
     }
@@ -502,6 +517,11 @@ class Sweeper::SweeperImpl final {
   void FinishIfRunning() {
     if (!is_in_progress_) return;
 
+    if (concurrent_sweeper_handle_ && concurrent_sweeper_handle_->IsValid() &&
+        concurrent_sweeper_handle_->UpdatePriorityEnabled()) {
+      concurrent_sweeper_handle_->UpdatePriority(
+          cppgc::TaskPriority::kUserBlocking);
+    }
     Finish();
   }
 
@@ -522,6 +542,10 @@ class Sweeper::SweeperImpl final {
     is_in_progress_ = false;
 
     stats_collector_->NotifySweepingCompleted();
+  }
+
+  void WaitForConcurrentSweepingForTesting() {
+    if (concurrent_sweeper_handle_) concurrent_sweeper_handle_->Join();
   }
 
  private:
@@ -563,14 +587,17 @@ class Sweeper::SweeperImpl final {
   };
 
   void ScheduleIncrementalSweeping() {
-    if (!platform_ || !foreground_task_runner_) return;
+    DCHECK(platform_);
+    if (!foreground_task_runner_ ||
+        !foreground_task_runner_->IdleTasksEnabled())
+      return;
 
     incremental_sweeper_handle_ =
         IncrementalSweepTask::Post(this, foreground_task_runner_.get());
   }
 
   void ScheduleConcurrentSweeping() {
-    if (!platform_) return;
+    DCHECK(platform_);
 
     concurrent_sweeper_handle_ = platform_->PostJob(
         cppgc::TaskPriority::kUserVisible,
@@ -579,7 +606,8 @@ class Sweeper::SweeperImpl final {
 
   void CancelSweepers() {
     if (incremental_sweeper_handle_) incremental_sweeper_handle_.Cancel();
-    if (concurrent_sweeper_handle_) concurrent_sweeper_handle_->Cancel();
+    if (concurrent_sweeper_handle_ && concurrent_sweeper_handle_->IsValid())
+      concurrent_sweeper_handle_->Cancel();
   }
 
   void SynchronizeAndFinalizeConcurrentSweeping() {
@@ -605,8 +633,11 @@ Sweeper::Sweeper(RawHeap* heap, cppgc::Platform* platform,
 
 Sweeper::~Sweeper() = default;
 
-void Sweeper::Start(Config config) { impl_->Start(config); }
+void Sweeper::Start(SweepingConfig config) { impl_->Start(config); }
 void Sweeper::FinishIfRunning() { impl_->FinishIfRunning(); }
+void Sweeper::WaitForConcurrentSweepingForTesting() {
+  impl_->WaitForConcurrentSweepingForTesting();
+}
 
 }  // namespace internal
 }  // namespace cppgc

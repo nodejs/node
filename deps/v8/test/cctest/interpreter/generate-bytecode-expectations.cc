@@ -103,6 +103,8 @@ class V8InitializationScope final {
  public:
   explicit V8InitializationScope(const char* exec_path);
   ~V8InitializationScope();
+  V8InitializationScope(const V8InitializationScope&) = delete;
+  V8InitializationScope& operator=(const V8InitializationScope&) = delete;
 
   v8::Platform* platform() const { return platform_.get(); }
   v8::Isolate* isolate() const { return isolate_; }
@@ -111,8 +113,6 @@ class V8InitializationScope final {
   std::unique_ptr<v8::Platform> platform_;
   std::unique_ptr<v8::ArrayBuffer::Allocator> allocator_;
   v8::Isolate* isolate_;
-
-  DISALLOW_COPY_AND_ASSIGN(V8InitializationScope);
 };
 
 bool ParseBoolean(const char* string) {

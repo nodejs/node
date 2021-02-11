@@ -23,8 +23,9 @@ namespace internal {
 CodeStubAssemblerTestState::CodeStubAssemblerTestState(
     CodeStubAssemblerTest* test)
     : compiler::CodeAssemblerState(
-          test->isolate(), test->zone(), VoidDescriptor{}, CodeKind::STUB,
-          "test", PoisoningMitigationLevel::kPoisonCriticalOnly) {}
+          test->isolate(), test->zone(), VoidDescriptor{},
+          CodeKind::FOR_TESTING, "test",
+          PoisoningMitigationLevel::kPoisonCriticalOnly) {}
 
 TARGET_TEST_F(CodeStubAssemblerTest, SmiTag) {
   CodeStubAssemblerTestState state(this);

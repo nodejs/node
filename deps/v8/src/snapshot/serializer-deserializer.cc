@@ -30,35 +30,26 @@ void SerializerDeserializer::Iterate(Isolate* isolate, RootVisitor* visitor) {
 }
 
 bool SerializerDeserializer::CanBeDeferred(HeapObject o) {
-  // 1. Maps cannot be deferred as objects are expected to have a valid map
-  // immediately.
-  // 2. Internalized strings cannot be deferred as they might be
+  // Maps cannot be deferred as objects are expected to have a valid map
+  // immediately. Internalized strings cannot be deferred as they might be
   // converted to thin strings during post processing, at which point forward
   // references to the now-thin string will already have been written.
-  // 3. JS objects with embedder fields cannot be deferred because the
-  // serialize/deserialize callbacks need the back reference immediately to
-  // identify the object.
   // TODO(leszeks): Could we defer string serialization if forward references
   // were resolved after object post processing?
-  return !o.IsMap() && !o.IsInternalizedString() &&
-         !(o.IsJSObject() && JSObject::cast(o).GetEmbedderFieldCount() > 0);
+  return !o.IsMap() && !o.IsInternalizedString();
 }
 
-void SerializerDeserializer::RestoreExternalReferenceRedirectors(
-    Isolate* isolate, const std::vector<AccessorInfo>& accessor_infos) {
+void SerializerDeserializer::RestoreExternalReferenceRedirector(
+    Isolate* isolate, Handle<AccessorInfo> accessor_info) {
   // Restore wiped accessor infos.
-  for (AccessorInfo info : accessor_infos) {
-    Foreign::cast(info.js_getter())
-        .set_foreign_address(isolate, info.redirected_getter());
-  }
+  Foreign::cast(accessor_info->js_getter())
+      .set_foreign_address(isolate, accessor_info->redirected_getter());
 }
 
-void SerializerDeserializer::RestoreExternalReferenceRedirectors(
-    Isolate* isolate, const std::vector<CallHandlerInfo>& call_handler_infos) {
-  for (CallHandlerInfo info : call_handler_infos) {
-    Foreign::cast(info.js_callback())
-        .set_foreign_address(isolate, info.redirected_callback());
-  }
+void SerializerDeserializer::RestoreExternalReferenceRedirector(
+    Isolate* isolate, Handle<CallHandlerInfo> call_handler_info) {
+  Foreign::cast(call_handler_info->js_callback())
+      .set_foreign_address(isolate, call_handler_info->redirected_callback());
 }
 
 }  // namespace internal

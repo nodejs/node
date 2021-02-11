@@ -772,11 +772,13 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
     Indent();
     bool comma = false;
     for (InternalIndex i : map->IterateOwnDescriptors()) {
-      Handle<Name> name(map->instance_descriptors().GetKey(i), isolate_);
+      Handle<Name> name(map->instance_descriptors(kRelaxedLoad).GetKey(i),
+                        isolate_);
       // TODO(rossberg): Should this throw?
       if (!name->IsString()) continue;
       Handle<String> key = Handle<String>::cast(name);
-      PropertyDetails details = map->instance_descriptors().GetDetails(i);
+      PropertyDetails details =
+          map->instance_descriptors(kRelaxedLoad).GetDetails(i);
       if (details.IsDontEnum()) continue;
       Handle<Object> property;
       if (details.location() == kField && *map == object->map()) {

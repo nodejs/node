@@ -5,6 +5,7 @@
 utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
 WasmInspectorTest = {}
+InspectorTest.getWasmOpcodeName = getOpcodeName;
 
 WasmInspectorTest.evalWithUrl = (code, url) =>
     Protocol.Runtime

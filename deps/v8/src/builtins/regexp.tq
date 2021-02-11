@@ -184,7 +184,8 @@ extern enum Flag constexpr 'JSRegExp::Flag' {
   kMultiline,
   kSticky,
   kUnicode,
-  kDotAll
+  kDotAll,
+  kLinear
 }
 
 const kRegExpPrototypeOldFlagGetter: constexpr int31
@@ -242,6 +243,13 @@ transitioning javascript builtin RegExpPrototypeMultilineGetter(
   return FlagGetter(
       receiver, Flag::kMultiline, kRegExpPrototypeOldFlagGetter,
       'RegExp.prototype.multiline');
+}
+
+transitioning javascript builtin RegExpPrototypeLinearGetter(
+    js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
+  return FlagGetter(
+      receiver, Flag::kLinear, kRegExpPrototypeOldFlagGetter,
+      'RegExp.prototype.linear');
 }
 
 // ES #sec-get-regexp.prototype.dotAll

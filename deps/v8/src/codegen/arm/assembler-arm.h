@@ -839,6 +839,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // All these APIs support D0 to D31 and Q0 to Q15.
   void vld1(NeonSize size, const NeonListOperand& dst,
             const NeonMemOperand& src);
+  // vld1s(ingle element to one lane).
+  void vld1s(NeonSize size, const NeonListOperand& dst, uint8_t index,
+             const NeonMemOperand& src);
   void vld1r(NeonSize size, const NeonListOperand& dst,
              const NeonMemOperand& src);
   void vst1(NeonSize size, const NeonListOperand& src,
@@ -853,6 +856,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vmov(NeonDataType dt, DwVfpRegister dst, int index, Register src);
   void vmov(NeonDataType dt, Register dst, DwVfpRegister src, int index);
 
+  void vmov(DwVfpRegister dst, uint64_t imm);
   void vmov(QwNeonRegister dst, uint64_t imm);
   void vmov(QwNeonRegister dst, QwNeonRegister src);
   void vdup(NeonSize size, QwNeonRegister dst, Register src);

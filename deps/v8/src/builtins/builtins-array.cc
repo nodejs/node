@@ -457,11 +457,11 @@ BUILTIN(ArrayPop) {
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
 
   uint32_t len = static_cast<uint32_t>(array->length().Number());
-  if (len == 0) return ReadOnlyRoots(isolate).undefined_value();
 
   if (JSArray::HasReadOnlyLength(array)) {
     return GenericArrayPop(isolate, &args);
   }
+  if (len == 0) return ReadOnlyRoots(isolate).undefined_value();
 
   Handle<Object> result;
   if (IsJSArrayFastElementMovingAllowed(isolate, JSArray::cast(*receiver))) {
@@ -988,7 +988,7 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
       Handle<String> string(String::cast(js_value->value()), isolate);
       uint32_t length = static_cast<uint32_t>(string->length());
       uint32_t i = 0;
-      uint32_t limit = Min(length, range);
+      uint32_t limit = std::min(length, range);
       for (; i < limit; i++) {
         indices->push_back(i);
       }

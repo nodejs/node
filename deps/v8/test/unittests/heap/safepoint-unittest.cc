@@ -40,10 +40,9 @@ class ParkedThread final : public v8::base::Thread {
         mutex_(mutex) {}
 
   void Run() override {
-    LocalHeap local_heap(heap_);
+    LocalHeap local_heap(heap_, ThreadKind::kBackground);
 
     if (mutex_) {
-      ParkedScope scope(&local_heap);
       base::MutexGuard guard(mutex_);
     }
   }
@@ -99,7 +98,8 @@ class RunningThread final : public v8::base::Thread {
         counter_(counter) {}
 
   void Run() override {
-    LocalHeap local_heap(heap_);
+    LocalHeap local_heap(heap_, ThreadKind::kBackground);
+    UnparkedScope unparked_scope(&local_heap);
 
     for (int i = 0; i < kRuns; i++) {
       counter_->fetch_add(1);
@@ -147,7 +147,8 @@ TEST_F(SafepointTest, StopRunningThreads) {
 TEST_F(SafepointTest, SkipLocalHeapOfThisThread) {
   EnsureFlagLocalHeapsEnabled();
   Heap* heap = i_isolate()->heap();
-  LocalHeap local_heap(heap);
+  LocalHeap local_heap(heap, ThreadKind::kMain);
+  UnparkedScope unparked_scope(&local_heap);
   {
     SafepointScope scope(heap);
     local_heap.Safepoint();

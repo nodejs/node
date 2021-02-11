@@ -54,10 +54,10 @@ void AstFunctionLiteralIdReindexer::VisitClassLiteral(ClassLiteral* expr) {
     // Private fields have their key and value present in
     // instance_members_initializer_function, so they will
     // already have been visited.
-    if (prop->value()->IsFunctionLiteral()) {
-      Visit(prop->value());
-    } else {
+    if (prop->kind() == ClassLiteralProperty::Kind::FIELD) {
       CheckVisited(prop->value());
+    } else {
+      Visit(prop->value());
     }
   }
   ZonePtrList<ClassLiteral::Property>* props = expr->public_members();
@@ -67,7 +67,8 @@ void AstFunctionLiteralIdReindexer::VisitClassLiteral(ClassLiteral* expr) {
     // Public fields with computed names have their key
     // and value present in instance_members_initializer_function, so they will
     // already have been visited.
-    if (prop->is_computed_name() && !prop->value()->IsFunctionLiteral()) {
+    if (prop->is_computed_name() &&
+        prop->kind() == ClassLiteralProperty::Kind::FIELD) {
       if (!prop->key()->IsLiteral()) {
         CheckVisited(prop->key());
       }

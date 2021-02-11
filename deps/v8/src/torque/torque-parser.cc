@@ -580,17 +580,22 @@ base::Optional<ParseResult> MakeIntrinsicDeclaration(
 }
 
 namespace {
-bool HasExportAnnotation(ParseResultIterator* child_results,
-                         const char* declaration) {
+bool HasAnnotation(ParseResultIterator* child_results, const char* annotation,
+                   const char* declaration) {
   auto annotations = child_results->NextAs<std::vector<Annotation>>();
   if (annotations.size()) {
-    if (annotations.size() > 1 || annotations[0].name->value != "@export") {
-      Error(declaration,
-            " declarations only support a single @export annotation");
+    if (annotations.size() > 1 || annotations[0].name->value != annotation) {
+      Error(declaration, " declarations only support a single ", annotation,
+            " annotation");
     }
     return true;
   }
   return false;
+}
+
+bool HasExportAnnotation(ParseResultIterator* child_results,
+                         const char* declaration) {
+  return HasAnnotation(child_results, ANNOTATION_EXPORT, declaration);
 }
 }  // namespace
 
@@ -685,6 +690,8 @@ base::Optional<ParseResult> MakeTypeAliasDeclaration(
 
 base::Optional<ParseResult> MakeAbstractTypeDeclaration(
     ParseResultIterator* child_results) {
+  bool use_parent_type_checker = HasAnnotation(
+      child_results, ANNOTATION_USE_PARENT_TYPE_CHECKER, "abstract type");
   auto transient = child_results->NextAs<bool>();
   auto name = child_results->NextAs<Identifier*>();
   if (!IsValidTypeName(name->value)) {
@@ -693,8 +700,11 @@ base::Optional<ParseResult> MakeAbstractTypeDeclaration(
   auto generic_parameters = child_results->NextAs<GenericParameters>();
   auto extends = child_results->NextAs<base::Optional<TypeExpression*>>();
   auto generates = child_results->NextAs<base::Optional<std::string>>();
+  AbstractTypeFlags flags(AbstractTypeFlag::kNone);
+  if (transient) flags |= AbstractTypeFlag::kTransient;
+  if (use_parent_type_checker) flags |= AbstractTypeFlag::kUseParentTypeChecker;
   TypeDeclaration* type_decl = MakeNode<AbstractTypeDeclaration>(
-      name, transient, extends, std::move(generates));
+      name, flags, extends, std::move(generates));
   Declaration* decl = type_decl;
   if (!generic_parameters.empty()) {
     decl = MakeNode<GenericTypeDeclaration>(generic_parameters, type_decl);
@@ -715,7 +725,8 @@ base::Optional<ParseResult> MakeAbstractTypeDeclaration(
       constexpr_extends = AddConstexpr(*extends);
     }
     TypeDeclaration* constexpr_decl = MakeNode<AbstractTypeDeclaration>(
-        constexpr_name, transient, constexpr_extends, constexpr_generates);
+        constexpr_name, flags | AbstractTypeFlag::kConstexpr, constexpr_extends,
+        constexpr_generates);
     constexpr_decl->pos = name->pos;
     Declaration* decl = constexpr_decl;
     if (!generic_parameters.empty()) {
@@ -878,8 +889,9 @@ base::Optional<ParseResult> MakeClassDeclaration(
       child_results,
       {ANNOTATION_GENERATE_PRINT, ANNOTATION_NO_VERIFIER, ANNOTATION_ABSTRACT,
        ANNOTATION_HAS_SAME_INSTANCE_TYPE_AS_PARENT,
-       ANNOTATION_GENERATE_CPP_CLASS, ANNOTATION_GENERATE_BODY_DESCRIPTOR,
-       ANNOTATION_EXPORT_CPP_CLASS, ANNOTATION_DO_NOT_GENERATE_CAST,
+       ANNOTATION_GENERATE_CPP_CLASS, ANNOTATION_CUSTOM_CPP_CLASS,
+       ANNOTATION_CUSTOM_MAP, ANNOTATION_GENERATE_BODY_DESCRIPTOR,
+       ANNOTATION_EXPORT, ANNOTATION_DO_NOT_GENERATE_CAST,
        ANNOTATION_HIGHEST_INSTANCE_TYPE_WITHIN_PARENT,
        ANNOTATION_LOWEST_INSTANCE_TYPE_WITHIN_PARENT},
       {ANNOTATION_RESERVE_BITS_IN_INSTANCE_TYPE,
@@ -898,13 +910,19 @@ base::Optional<ParseResult> MakeClassDeclaration(
   if (annotations.Contains(ANNOTATION_GENERATE_CPP_CLASS)) {
     flags |= ClassFlag::kGenerateCppClassDefinitions;
   }
+  if (annotations.Contains(ANNOTATION_CUSTOM_CPP_CLASS)) {
+    flags |= ClassFlag::kCustomCppClass;
+  }
+  if (annotations.Contains(ANNOTATION_CUSTOM_MAP)) {
+    flags |= ClassFlag::kCustomMap;
+  }
   if (annotations.Contains(ANNOTATION_DO_NOT_GENERATE_CAST)) {
     flags |= ClassFlag::kDoNotGenerateCast;
   }
   if (annotations.Contains(ANNOTATION_GENERATE_BODY_DESCRIPTOR)) {
     flags |= ClassFlag::kGenerateBodyDescriptor;
   }
-  if (annotations.Contains(ANNOTATION_EXPORT_CPP_CLASS)) {
+  if (annotations.Contains(ANNOTATION_EXPORT)) {
     flags |= ClassFlag::kExport;
   }
   if (annotations.Contains(ANNOTATION_HIGHEST_INSTANCE_TYPE_WITHIN_PARENT)) {
@@ -972,8 +990,10 @@ base::Optional<ParseResult> MakeClassDeclaration(
       MakeNode<Identifier>(CONSTEXPR_TYPE_PREFIX + name->value);
   constexpr_name->pos = name->pos;
   TypeExpression* constexpr_extends = AddConstexpr(extends);
+  AbstractTypeFlags abstract_type_flags(AbstractTypeFlag::kConstexpr);
+  if (transient) abstract_type_flags |= AbstractTypeFlag::kTransient;
   TypeDeclaration* constexpr_decl = MakeNode<AbstractTypeDeclaration>(
-      constexpr_name, transient, constexpr_extends, name->value);
+      constexpr_name, abstract_type_flags, constexpr_extends, name->value);
   constexpr_decl->pos = name->pos;
   result.push_back(constexpr_decl);
 
@@ -1280,7 +1300,8 @@ base::Optional<ParseResult> MakeEnumDeclaration(
       //     type kEntryN extends Enum;
       //   }
       auto type_decl = MakeNode<AbstractTypeDeclaration>(
-          name_identifier, false, base_type_expression, base::nullopt);
+          name_identifier, AbstractTypeFlag::kNone, base_type_expression,
+          base::nullopt);
 
       TypeExpression* name_type_expression =
           MakeNode<BasicTypeExpression>(name_identifier->value);
@@ -1289,8 +1310,8 @@ base::Optional<ParseResult> MakeEnumDeclaration(
       std::vector<Declaration*> entry_decls;
       for (const auto& entry : entries) {
         entry_decls.push_back(MakeNode<AbstractTypeDeclaration>(
-            entry.name, false, entry.type.value_or(name_type_expression),
-            base::nullopt));
+            entry.name, AbstractTypeFlag::kNone,
+            entry.type.value_or(name_type_expression), base::nullopt));
       }
 
       result.push_back(type_decl);
@@ -1309,8 +1330,8 @@ base::Optional<ParseResult> MakeEnumDeclaration(
       std::vector<Declaration*> entry_decls;
       for (const auto& entry : entries) {
         entry_decls.push_back(MakeNode<AbstractTypeDeclaration>(
-            entry.name, false, entry.type.value_or(*base_type_expression),
-            base::nullopt));
+            entry.name, AbstractTypeFlag::kNone,
+            entry.type.value_or(*base_type_expression), base::nullopt));
 
         auto entry_type = MakeNode<BasicTypeExpression>(
             std::vector<std::string>{name}, entry.name->value,
@@ -1348,8 +1369,8 @@ base::Optional<ParseResult> MakeEnumDeclaration(
       base_constexpr_type_expression = AddConstexpr(*base_type_expression);
     }
     result.push_back(MakeNode<AbstractTypeDeclaration>(
-        constexpr_type_identifier, false, base_constexpr_type_expression,
-        constexpr_generates));
+        constexpr_type_identifier, AbstractTypeFlag::kConstexpr,
+        base_constexpr_type_expression, constexpr_generates));
 
     TypeExpression* type_expr = nullptr;
     Identifier* fromconstexpr_identifier = nullptr;
@@ -1386,8 +1407,9 @@ base::Optional<ParseResult> MakeEnumDeclaration(
                                          "::" + entry_name);
 
       entry_decls.push_back(MakeNode<AbstractTypeDeclaration>(
-          MakeNode<Identifier>(entry_constexpr_type), false,
-          constexpr_type_expression, constexpr_generates));
+          MakeNode<Identifier>(entry_constexpr_type),
+          AbstractTypeFlag::kConstexpr, constexpr_type_expression,
+          constexpr_generates));
 
       bool generate_typed_constant = entry.type.has_value();
       if (generate_typed_constant) {
@@ -2535,7 +2557,7 @@ struct TorqueGrammar : Grammar {
             Token("{"), List<BitFieldDeclaration>(&bitFieldDeclaration),
             Token("}")},
            AsSingletonVector<Declaration*, MakeBitFieldStructDeclaration>()),
-      Rule({CheckIf(Token("transient")), Token("type"), &name,
+      Rule({annotations, CheckIf(Token("transient")), Token("type"), &name,
             TryOrDefault<GenericParameters>(&genericParameters),
             Optional<TypeExpression*>(Sequence({Token("extends"), &type})),
             Optional<std::string>(

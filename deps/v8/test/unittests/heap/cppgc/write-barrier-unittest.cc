@@ -43,9 +43,10 @@ class ExpectWriteBarrierFires final : private IncrementalMarkingScope {
   ExpectWriteBarrierFires(MarkerBase* marker,
                           std::initializer_list<void*> objects)
       : IncrementalMarkingScope(marker),
-        marking_worklist_(marker->MarkingStateForTesting().marking_worklist()),
+        marking_worklist_(
+            marker->MutatorMarkingStateForTesting().marking_worklist()),
         write_barrier_worklist_(
-            marker->MarkingStateForTesting().write_barrier_worklist()),
+            marker->MutatorMarkingStateForTesting().write_barrier_worklist()),
         objects_(objects) {
     EXPECT_TRUE(marking_worklist_.IsGlobalEmpty());
     EXPECT_TRUE(write_barrier_worklist_.IsGlobalEmpty());
@@ -92,9 +93,10 @@ class ExpectNoWriteBarrierFires final : private IncrementalMarkingScope {
   ExpectNoWriteBarrierFires(MarkerBase* marker,
                             std::initializer_list<void*> objects)
       : IncrementalMarkingScope(marker),
-        marking_worklist_(marker->MarkingStateForTesting().marking_worklist()),
+        marking_worklist_(
+            marker->MutatorMarkingStateForTesting().marking_worklist()),
         write_barrier_worklist_(
-            marker->MarkingStateForTesting().write_barrier_worklist()) {
+            marker->MutatorMarkingStateForTesting().write_barrier_worklist()) {
     EXPECT_TRUE(marking_worklist_.IsGlobalEmpty());
     EXPECT_TRUE(write_barrier_worklist_.IsGlobalEmpty());
     for (void* object : objects) {

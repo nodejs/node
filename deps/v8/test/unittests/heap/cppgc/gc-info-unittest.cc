@@ -14,6 +14,12 @@
 namespace cppgc {
 namespace internal {
 
+namespace {
+
+constexpr GCInfo GetEmptyGCInfo() { return {nullptr, nullptr, nullptr, false}; }
+
+}  // namespace
+
 TEST(GCInfoTableTest, InitialEmpty) {
   v8::base::PageAllocator page_allocator;
   GCInfoTable table(&page_allocator);
@@ -23,7 +29,7 @@ TEST(GCInfoTableTest, InitialEmpty) {
 TEST(GCInfoTableTest, ResizeToMaxIndex) {
   v8::base::PageAllocator page_allocator;
   GCInfoTable table(&page_allocator);
-  GCInfo info = {nullptr, nullptr, false};
+  GCInfo info = GetEmptyGCInfo();
   for (GCInfoIndex i = GCInfoTable::kMinIndex; i < GCInfoTable::kMaxIndex;
        i++) {
     GCInfoIndex index = table.RegisterNewGCInfo(info);
@@ -34,7 +40,7 @@ TEST(GCInfoTableTest, ResizeToMaxIndex) {
 TEST(GCInfoTableDeathTest, MoreThanMaxIndexInfos) {
   v8::base::PageAllocator page_allocator;
   GCInfoTable table(&page_allocator);
-  GCInfo info = {nullptr, nullptr, false};
+  GCInfo info = GetEmptyGCInfo();
   // Create GCInfoTable::kMaxIndex entries.
   for (GCInfoIndex i = GCInfoTable::kMinIndex; i < GCInfoTable::kMaxIndex;
        i++) {
@@ -46,7 +52,7 @@ TEST(GCInfoTableDeathTest, MoreThanMaxIndexInfos) {
 TEST(GCInfoTableDeathTest, OldTableAreaIsReadOnly) {
   v8::base::PageAllocator page_allocator;
   GCInfoTable table(&page_allocator);
-  GCInfo info = {nullptr, nullptr, false};
+  GCInfo info = GetEmptyGCInfo();
   // Use up all slots until limit.
   GCInfoIndex limit = table.LimitForTesting();
   // Bail out if initial limit is already the maximum because of large committed
@@ -76,7 +82,7 @@ class ThreadRegisteringGCInfoObjects final : public v8::base::Thread {
         num_registrations_(num_registrations) {}
 
   void Run() final {
-    GCInfo info = {nullptr, nullptr, false};
+    GCInfo info = GetEmptyGCInfo();
     for (GCInfoIndex i = 0; i < num_registrations_; i++) {
       table_->RegisterNewGCInfo(info);
     }
@@ -101,7 +107,7 @@ TEST(GCInfoTableTest, MultiThreadedResizeToMaxIndex) {
 
   v8::base::PageAllocator page_allocator;
   GCInfoTable table(&page_allocator);
-  GCInfo info = {nullptr, nullptr, false};
+  GCInfo info = GetEmptyGCInfo();
   for (size_t i = 0; i < main_thread_initialized; i++) {
     table.RegisterNewGCInfo(info);
   }

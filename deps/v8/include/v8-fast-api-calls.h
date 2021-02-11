@@ -18,6 +18,38 @@
  *                              &v8::CFunction::Make(FastMethod));
  * \endcode
  *
+ * By design, fast calls are limited by the following requirements, which
+ * the embedder should enforce themselves:
+ *   - they should not allocate on the JS heap;
+ *   - they should not trigger JS execution.
+ * To enforce them, the embedder could use the existing
+ * v8::Isolate::DisallowJavascriptExecutionScope and a utility similar to
+ * Blink's NoAllocationScope:
+ * https://source.chromium.org/chromium/chromium/src/+/master:third_party/blink/renderer/platform/heap/thread_state_scopes.h;l=16
+ *
+ * Due to these limitations, it's not directly possible to report errors by
+ * throwing a JS exception or to otherwise do an allocation. There is an
+ * alternative way of creating fast calls that supports falling back to the
+ * slow call and then performing the necessary allocation. When one creates
+ * the fast method by using CFunction::MakeWithFallbackSupport instead of
+ * CFunction::Make, the fast callback gets as last parameter an output variable,
+ * through which it can request falling back to the slow call. So one might
+ * declare their method like:
+ *
+ * \code
+ *    void FastMethodWithFallback(int param, FastApiCallbackOptions& options);
+ * \endcode
+ *
+ * If the callback wants to signal an error condition or to perform an
+ * allocation, it must set options.fallback to true and do an early return from
+ * the fast method. Then V8 checks the value of options.fallback and if it's
+ * true, falls back to executing the SlowCallback, which is capable of reporting
+ * the error (either by throwing a JS exception or logging to the console) or
+ * doing the allocation. It's the embedder's responsibility to ensure that the
+ * fast callback is idempotent up to the point where error and fallback
+ * conditions are checked, because otherwise executing the slow callback might
+ * produce visible side-effects twice.
+ *
  * An example for custom embedder type support might employ a way to wrap/
  * unwrap various C++ types in JSObject instances, e.g:
  *
@@ -124,13 +156,21 @@
  *  - uint32_t
  *  - int64_t
  *  - uint64_t
+ *  - float32_t
+ *  - float64_t
+ *
  * The 64-bit integer types currently have the IDL (unsigned) long long
  * semantics: https://heycam.github.io/webidl/#abstract-opdef-converttoint
  * In the future we'll extend the API to also provide conversions from/to
  * BigInt to preserve full precision.
+ * The floating point types currently have the IDL (unrestricted) semantics,
+ * which is the only one used by WebGL. We plan to add support also for
+ * restricted floats/doubles, similarly to the BigInt conversion policies.
+ * We also differ from the specific NaN bit pattern that WebIDL prescribes
+ * (https://heycam.github.io/webidl/#es-unrestricted-float) in that Blink
+ * passes NaN values as-is, i.e. doesn't normalize them.
+ *
  * To be supported types:
- *  - float32_t
- *  - float64_t
  *  - arrays of C types
  *  - arrays of embedder types
  */
@@ -291,14 +331,14 @@ struct GetCType<T*> : public GetCTypePointerImpl<T> {};
 template <typename R, bool RaisesException, typename... Args>
 class CFunctionInfoImpl : public CFunctionInfo {
  public:
-  static constexpr int kHasErrorArgCount = (RaisesException ? 1 : 0);
+  static constexpr int kFallbackArgCount = (RaisesException ? 1 : 0);
   static constexpr int kReceiverCount = 1;
   CFunctionInfoImpl()
       : return_info_(internal::GetCType<R>::Get()),
-        arg_count_(sizeof...(Args) - kHasErrorArgCount),
+        arg_count_(sizeof...(Args) - kFallbackArgCount),
         arg_info_{internal::GetCType<Args>::Get()...} {
-    static_assert(sizeof...(Args) >= kHasErrorArgCount + kReceiverCount,
-                  "The receiver or the has_error argument is missing.");
+    static_assert(sizeof...(Args) >= kFallbackArgCount + kReceiverCount,
+                  "The receiver or the fallback argument is missing.");
     static_assert(
         internal::GetCType<R>::Get().GetType() == CTypeInfo::Type::kVoid,
         "Only void return types are currently supported.");
@@ -342,8 +382,8 @@ class V8_EXPORT CFunction {
   }
 
   template <typename F>
-  static CFunction MakeWithErrorSupport(F* func) {
-    return ArgUnwrap<F*>::MakeWithErrorSupport(func);
+  static CFunction MakeWithFallbackSupport(F* func) {
+    return ArgUnwrap<F*>::MakeWithFallbackSupport(func);
   }
 
   template <typename F>
@@ -376,11 +416,15 @@ class V8_EXPORT CFunction {
       return CFunction(reinterpret_cast<const void*>(func),
                        GetCFunctionInfo<R, false, Args...>());
     }
-    static CFunction MakeWithErrorSupport(R (*func)(Args...)) {
+    static CFunction MakeWithFallbackSupport(R (*func)(Args...)) {
       return CFunction(reinterpret_cast<const void*>(func),
                        GetCFunctionInfo<R, true, Args...>());
     }
   };
+};
+
+struct FastApiCallbackOptions {
+  bool fallback;
 };
 
 }  // namespace v8

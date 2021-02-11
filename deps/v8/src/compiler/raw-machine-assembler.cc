@@ -632,6 +632,21 @@ void RawMachineAssembler::Return(int count, Node* vs[]) {
 }
 
 void RawMachineAssembler::PopAndReturn(Node* pop, Node* value) {
+  // PopAndReturn is supposed to be using ONLY in CSA/Torque builtins for
+  // dropping ALL JS arguments that are currently located on the stack.
+  // The check below ensures that there are no directly accessible stack
+  // parameters from current builtin, which implies that the builtin with
+  // JS calling convention (TFJ) was created with kDontAdaptArgumentsSentinel.
+  // This simplifies semantics of this instruction because in case of presence
+  // of directly accessible stack parameters it's impossible to distinguish
+  // the following cases:
+  // 1) stack parameter is included in JS arguments (and therefore it will be
+  //    dropped as a part of 'pop' number of arguments),
+  // 2) stack parameter is NOT included in JS arguments (and therefore it should
+  //    be dropped in ADDITION to the 'pop' number of arguments).
+  // Additionally, in order to simplify assembly code, PopAndReturn is also
+  // not allowed in builtins with stub linkage and parameters on stack.
+  CHECK_EQ(call_descriptor()->StackParameterCount(), 0);
   Node* values[] = {pop, value};
   Node* ret = MakeNode(common()->Return(1), 2, values);
   schedule()->AddReturn(CurrentBlock(), ret);

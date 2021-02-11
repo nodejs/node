@@ -162,8 +162,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   DeoptimizeKind deopt_kind = exit->kind();
 
   DeoptimizeReason deoptimization_reason = exit->reason();
-  Address deopt_entry =
+  Builtins::Name deopt_entry =
       Deoptimizer::GetDeoptimizationEntry(tasm()->isolate(), deopt_kind);
+  Label* jump_deoptimization_entry_label =
+      &jump_deoptimization_entry_labels_[static_cast<int>(deopt_kind)];
   if (info()->source_positions()) {
     tasm()->RecordDeoptReason(deoptimization_reason, exit->pos(),
                               deoptimization_id);
@@ -177,7 +179,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   }
 
   tasm()->CallForDeoptimization(deopt_entry, deoptimization_id, exit->label(),
-                                deopt_kind);
+                                deopt_kind, jump_deoptimization_entry_label);
   exit->set_emitted();
   return kSuccess;
 }
@@ -324,7 +326,7 @@ void CodeGenerator::AssembleCode() {
 
   // For some targets, we must make sure that constant and veneer pools are
   // emitted before emitting the deoptimization exits.
-  PrepareForDeoptimizationExits(static_cast<int>(deoptimization_exits_.size()));
+  PrepareForDeoptimizationExits(&deoptimization_exits_);
 
   if (Deoptimizer::kSupportsFixedDeoptExitSizes) {
     deopt_exit_start_offset_ = tasm()->pc_offset();
@@ -338,7 +340,7 @@ void CodeGenerator::AssembleCode() {
   // Deoptimizer::kSupportsFixedDeoptExitSizes is true, lazy deopts
   // might need additional instructions.
   auto cmp = [](const DeoptimizationExit* a, const DeoptimizationExit* b) {
-    static_assert(DeoptimizeKind::kLazy == DeoptimizeKind::kLastDeoptimizeKind,
+    static_assert(DeoptimizeKind::kLazy == kLastDeoptimizeKind,
                   "lazy deopts are expected to be emitted last");
     if (a->kind() != b->kind()) {
       return a->kind() < b->kind();
@@ -390,6 +392,9 @@ void CodeGenerator::AssembleCode() {
   // table. Resolve the unwinding info now so it is aware of the same code
   // size as reported by perf.
   unwinding_info_writer_.Finish(tasm()->pc_offset());
+
+  // Final alignment before starting on the metadata section.
+  tasm()->Align(Code::kMetadataAlignment);
 
   safepoints()->Emit(tasm(), frame()->GetTotalFrameSlotCount());
 
@@ -517,8 +522,9 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
   CHECK_IMPLIES(info()->IsNativeContextIndependent(),
                 code->IsNativeContextIndependent(isolate()));
 
+  // Counts both compiled code and metadata.
   isolate()->counters()->total_compiled_code_size()->Increment(
-      code->raw_instruction_size());
+      code->raw_body_size());
 
   LOG_CODE_EVENT(isolate(),
                  CodeLinePosInfoRecordEvent(code->raw_instruction_start(),
@@ -974,12 +980,12 @@ Label* CodeGenerator::AddJumpTable(Label** targets, size_t target_count) {
 
 void CodeGenerator::RecordCallPosition(Instruction* instr) {
   const bool needs_frame_state =
-      HasCallDescriptorFlag(instr, CallDescriptor::kNeedsFrameState);
+      instr->HasCallDescriptorFlag(CallDescriptor::kNeedsFrameState);
   RecordSafepoint(instr->reference_map(), needs_frame_state
                                               ? Safepoint::kLazyDeopt
                                               : Safepoint::kNoLazyDeopt);
 
-  if (HasCallDescriptorFlag(instr, CallDescriptor::kHasExceptionHandler)) {
+  if (instr->HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler)) {
     InstructionOperandConverter i(this, instr);
     RpoNumber handler_rpo = i.InputRpo(instr->InputCount() - 1);
     DCHECK(instructions()->InstructionBlockAt(handler_rpo)->IsHandler());

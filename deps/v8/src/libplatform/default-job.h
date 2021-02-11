@@ -54,7 +54,8 @@ class V8_PLATFORM_EXPORT DefaultJobState
 
   void Join();
   void CancelAndWait();
-  bool IsCompleted();
+  void CancelAndDetach();
+  bool IsActive();
 
   // Must be called before running |job_task_| for the first time. If it returns
   // true, then the worker thread must contribute and must call DidRunTask(), or
@@ -63,6 +64,8 @@ class V8_PLATFORM_EXPORT DefaultJobState
   // Must be called after running |job_task_|. Returns true if the worker thread
   // must contribute again, or false if it should return.
   bool DidRunTask();
+
+  void UpdatePriority(TaskPriority);
 
  private:
   // Called from the joining thread. Waits for the worker count to be below or
@@ -109,8 +112,15 @@ class V8_PLATFORM_EXPORT DefaultJobHandle : public JobHandle {
 
   void Join() override;
   void Cancel() override;
-  bool IsCompleted() override;
-  bool IsRunning() override { return state_ != nullptr; }
+  void CancelAndDetach() override;
+  bool IsCompleted() override { return !IsActive(); }
+  bool IsActive() override;
+  bool IsRunning() override { return IsValid(); }
+  bool IsValid() override { return state_ != nullptr; }
+
+  bool UpdatePriorityEnabled() const override { return true; }
+
+  void UpdatePriority(TaskPriority) override;
 
  private:
   std::shared_ptr<DefaultJobState> state_;
@@ -127,9 +137,11 @@ class DefaultJobWorker : public Task {
   void Run() override {
     auto shared_state = state_.lock();
     if (!shared_state) return;
-    DefaultJobState::JobDelegate delegate(shared_state.get());
     if (!shared_state->CanRunFirstTask()) return;
     do {
+      // Scope of |delegate| must not outlive DidRunTask() so that associated
+      // state is freed before the worker becomes inactive.
+      DefaultJobState::JobDelegate delegate(shared_state.get());
       job_task_->Run(&delegate);
     } while (shared_state->DidRunTask());
   }

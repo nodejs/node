@@ -45,13 +45,13 @@ class PropertyAccessBuilder {
 
   // TODO(jgruber): Remove the untyped version once all uses are
   // updated.
-  void BuildCheckMaps(Node* receiver, Node** effect, Node* control,
-                      ZoneVector<Handle<Map>> const& receiver_maps);
-  void BuildCheckMaps(Node* receiver, Effect* effect, Control control,
-                      ZoneVector<Handle<Map>> const& receiver_maps) {
+  void BuildCheckMaps(Node* object, Node** effect, Node* control,
+                      ZoneVector<Handle<Map>> const& maps);
+  void BuildCheckMaps(Node* object, Effect* effect, Control control,
+                      ZoneVector<Handle<Map>> const& maps) {
     Node* e = *effect;
     Node* c = control;
-    BuildCheckMaps(receiver, &e, c, receiver_maps);
+    BuildCheckMaps(object, &e, c, maps);
     *effect = e;
   }
   Node* BuildCheckValue(Node* receiver, Effect* effect, Control control,
@@ -61,13 +61,14 @@ class PropertyAccessBuilder {
   // properties (without heap-object or map checks).
   Node* BuildLoadDataField(NameRef const& name,
                            PropertyAccessInfo const& access_info,
-                           Node* receiver, Node** effect, Node** control);
+                           Node* lookup_start_object, Node** effect,
+                           Node** control);
 
   // Builds the load for data-field access for minimorphic loads that use
   // dynamic map checks. These cannot depend on any information from the maps.
   Node* BuildMinimorphicLoadDataField(
       NameRef const& name, MinimorphicLoadPropertyAccessInfo const& access_info,
-      Node* receiver, Node** effect, Node** control);
+      Node* lookup_start_object, Node** effect, Node** control);
 
   static MachineRepresentation ConvertRepresentation(
       Representation representation);
@@ -83,10 +84,11 @@ class PropertyAccessBuilder {
 
   Node* TryBuildLoadConstantDataField(NameRef const& name,
                                       PropertyAccessInfo const& access_info,
-                                      Node* receiver);
+                                      Node* lookup_start_object);
   // Returns a node with the holder for the property access described by
   // {access_info}.
-  Node* ResolveHolder(PropertyAccessInfo const& access_info, Node* receiver);
+  Node* ResolveHolder(PropertyAccessInfo const& access_info,
+                      Node* lookup_start_object);
 
   Node* BuildLoadDataField(NameRef const& name, Node* holder,
                            FieldAccess& field_access, bool is_inobject,

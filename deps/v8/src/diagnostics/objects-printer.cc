@@ -5,73 +5,22 @@
 #include <iomanip>
 #include <memory>
 
+#include "src/common/globals.h"
+#include "src/compiler/node.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/heap/heap-inl.h"                // For InOldSpace.
 #include "src/heap/heap-write-barrier-inl.h"  // For GetIsolateFromWritableObj.
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/bytecodes.h"
-#include "src/objects/arguments-inl.h"
-#include "src/objects/cell-inl.h"
-#include "src/objects/data-handler-inl.h"
-#include "src/objects/debug-objects-inl.h"
-#include "src/objects/embedder-data-array-inl.h"
-#include "src/objects/embedder-data-slot-inl.h"
-#include "src/objects/feedback-cell-inl.h"
-#include "src/objects/foreign-inl.h"
-#include "src/objects/free-space-inl.h"
-#include "src/objects/hash-table-inl.h"
-#include "src/objects/heap-number-inl.h"
-#include "src/objects/js-array-buffer-inl.h"
-#include "src/objects/js-array-inl.h"
-#include "src/objects/objects-inl.h"
-#include "src/objects/objects.h"
-#include "src/snapshot/embedded/embedded-data.h"
-#ifdef V8_INTL_SUPPORT
-#include "src/objects/js-break-iterator-inl.h"
-#include "src/objects/js-collator-inl.h"
-#endif  // V8_INTL_SUPPORT
-#include "src/objects/js-collection-inl.h"
-#ifdef V8_INTL_SUPPORT
-#include "src/objects/js-date-time-format-inl.h"
-#include "src/objects/js-display-names-inl.h"
-#endif  // V8_INTL_SUPPORT
-#include "src/objects/js-generator-inl.h"
-#ifdef V8_INTL_SUPPORT
-#include "src/objects/js-list-format-inl.h"
-#include "src/objects/js-locale-inl.h"
-#include "src/objects/js-number-format-inl.h"
-#include "src/objects/js-plural-rules-inl.h"
-#endif  // V8_INTL_SUPPORT
-#include "src/objects/js-regexp-inl.h"
-#include "src/objects/js-regexp-string-iterator-inl.h"
-#ifdef V8_INTL_SUPPORT
-#include "src/objects/js-relative-time-format-inl.h"
-#include "src/objects/js-segment-iterator-inl.h"
-#include "src/objects/js-segmenter-inl.h"
-#include "src/objects/js-segments-inl.h"
-#endif  // V8_INTL_SUPPORT
-#include "src/compiler/node.h"
-#include "src/objects/js-weak-refs-inl.h"
-#include "src/objects/literal-objects-inl.h"
-#include "src/objects/microtask-inl.h"
-#include "src/objects/module-inl.h"
-#include "src/objects/oddball-inl.h"
-#include "src/objects/promise-inl.h"
-#include "src/objects/property-descriptor-object-inl.h"
-#include "src/objects/stack-frame-info-inl.h"
-#include "src/objects/string-set-inl.h"
-#include "src/objects/struct-inl.h"
-#include "src/objects/template-objects-inl.h"
-#include "src/objects/transitions-inl.h"
+#include "src/objects/all-objects-inl.h"
+#include "src/objects/code-kind.h"
 #include "src/regexp/regexp.h"
+#include "src/snapshot/embedded/embedded-data.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
-#include "torque-generated/class-definitions-inl.h"
-#include "torque-generated/exported-class-definitions-inl.h"
-#include "torque-generated/internal-class-definitions-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -284,7 +233,7 @@ void FreeSpace::FreeSpacePrint(std::ostream& os) {  // NOLINT
 
 bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
   if (HasFastProperties()) {
-    DescriptorArray descs = map().instance_descriptors();
+    DescriptorArray descs = map().instance_descriptors(kRelaxedLoad);
     int nof_inobject_properties = map().GetInObjectProperties();
     for (InternalIndex i : map().IterateOwnDescriptors()) {
       os << "\n    ";
@@ -307,16 +256,23 @@ bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
       }
       os << " ";
       details.PrintAsFastTo(os, PropertyDetails::kForProperties);
-      if (details.location() != kField) continue;
-      int field_index = details.field_index();
-      if (nof_inobject_properties <= field_index) {
-        field_index -= nof_inobject_properties;
-        os << " properties[" << field_index << "]";
+      if (details.location() == kField) {
+        int field_index = details.field_index();
+        if (field_index < nof_inobject_properties) {
+          os << ", location: in-object";
+        } else {
+          field_index -= nof_inobject_properties;
+          os << ", location: properties[" << field_index << "]";
+        }
+      } else {
+        os << ", location: descriptor";
       }
     }
     return map().NumberOfOwnDescriptors() > 0;
   } else if (IsJSGlobalObject()) {
     JSGlobalObject::cast(*this).global_dictionary().Print(os);
+  } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    property_dictionary_ordered().Print(os);
   } else {
     property_dictionary().Print(os);
   }
@@ -468,7 +424,7 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
   }
 }
 
-void PrintEmbedderData(const Isolate* isolate, std::ostream& os,
+void PrintEmbedderData(IsolateRoot isolate, std::ostream& os,
                        EmbedderDataSlot slot) {
   DisallowHeapAllocation no_gc;
   Object value = slot.load_tagged();
@@ -568,9 +524,10 @@ static void JSObjectPrintBody(std::ostream& os,
   if (!properties_or_hash.IsSmi()) {
     os << Brief(properties_or_hash);
   }
-  os << " {";
+  os << "\n - All own properties (excluding elements): {";
   if (obj.PrintProperties(os)) os << "\n ";
   os << "}\n";
+
   if (print_elements) {
     size_t length = obj.IsJSTypedArray() ? JSTypedArray::cast(obj).length()
                                          : obj.elements().length();
@@ -578,7 +535,7 @@ static void JSObjectPrintBody(std::ostream& os,
   }
   int embedder_fields = obj.GetEmbedderFieldCount();
   if (embedder_fields > 0) {
-    const Isolate* isolate = GetIsolateForPtrCompr(obj);
+    IsolateRoot isolate = GetIsolateForPtrCompr(obj);
     os << " - embedder fields = {";
     for (int i = 0; i < embedder_fields; i++) {
       os << "\n    ";
@@ -772,7 +729,7 @@ void PrintWeakArrayElements(std::ostream& os, T* array) {
 }  // namespace
 
 void EmbedderDataArray::EmbedderDataArrayPrint(std::ostream& os) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   PrintHeader(os, "EmbedderDataArray");
   os << "\n - length: " << length();
   EmbedderDataSlot start(*this, 0);
@@ -888,14 +845,13 @@ void FeedbackVectorSpec::Print() {
 }
 
 void FeedbackVectorSpec::FeedbackVectorSpecPrint(std::ostream& os) {  // NOLINT
-  int slot_count = slots();
-  os << " - slot_count: " << slot_count;
-  if (slot_count == 0) {
+  os << " - slot_count: " << slot_count();
+  if (slot_count() == 0) {
     os << " (empty)\n";
     return;
   }
 
-  for (int slot = 0; slot < slot_count;) {
+  for (int slot = 0; slot < slot_count();) {
     FeedbackSlotKind kind = GetKind(FeedbackSlot(slot));
     int entry_size = FeedbackMetadata::GetSlotSize(kind);
     DCHECK_LT(0, entry_size);
@@ -908,6 +864,7 @@ void FeedbackVectorSpec::FeedbackVectorSpecPrint(std::ostream& os) {  // NOLINT
 void FeedbackMetadata::FeedbackMetadataPrint(std::ostream& os) {
   PrintHeader(os, "FeedbackMetadata");
   os << "\n - slot_count: " << slot_count();
+  os << "\n - create_closure_slot_count: " << create_closure_slot_count();
 
   FeedbackMetadataIterator iter(*this);
   while (iter.HasNext()) {
@@ -931,12 +888,13 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
   }
 
   os << "\n - shared function info: " << Brief(shared_function_info());
-  os << "\n - optimized code/marker: ";
   if (has_optimized_code()) {
-    os << Brief(optimized_code());
+    os << "\n - optimized code: " << Brief(optimized_code());
   } else {
-    os << optimization_marker();
+    os << "\n - no optimized code";
   }
+  os << "\n - optimization marker: " << optimization_marker();
+  os << "\n - optimization tier: " << optimization_tier();
   os << "\n - invocation count: " << invocation_count();
   os << "\n - profiler ticks: " << profiler_ticks();
 
@@ -1279,13 +1237,12 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
 
   os << "\n - formal_parameter_count: "
      << shared().internal_formal_parameter_count();
-  if (shared().is_safe_to_skip_arguments_adaptor()) {
-    os << "\n - safe_to_skip_arguments_adaptor";
-  }
   os << "\n - kind: " << shared().kind();
   os << "\n - context: " << Brief(context());
   os << "\n - code: " << Brief(code());
-  if (ActiveTierIsIgnition()) {
+  if (code().kind() == CodeKind::FOR_TESTING) {
+    os << "\n - FOR_TESTING";
+  } else if (ActiveTierIsIgnition()) {
     os << "\n - interpreted";
     if (shared().HasBytecodeArray()) {
       os << "\n - bytecode: " << shared().GetBytecodeArray();
@@ -1364,12 +1321,9 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   }
   os << "\n - function_map_index: " << function_map_index();
   os << "\n - formal_parameter_count: " << internal_formal_parameter_count();
-  if (is_safe_to_skip_arguments_adaptor()) {
-    os << "\n - safe_to_skip_arguments_adaptor";
-  }
   os << "\n - expected_nof_properties: " << expected_nof_properties();
   os << "\n - language_mode: " << language_mode();
-  os << "\n - data: " << Brief(function_data());
+  os << "\n - data: " << Brief(function_data(kAcquireLoad));
   os << "\n - code (from data): ";
     os << Brief(GetCode());
   PrintSourceCode(os);
@@ -1913,7 +1867,7 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(
   os << "\n - tag: " << tag();
   os << "\n - serial_number: " << serial_number();
   os << "\n - property_list: " << Brief(property_list());
-  os << "\n - call_code: " << Brief(call_code());
+  os << "\n - call_code: " << Brief(call_code(kAcquireLoad));
   os << "\n - property_accessors: " << Brief(property_accessors());
   os << "\n - signature: " << Brief(signature());
   os << "\n - cached_property_name: " << Brief(cached_property_name());
@@ -1921,16 +1875,6 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(
   os << "\n - need_access_check: " << (needs_access_check() ? "true" : "false");
   os << "\n - instantiated: " << (instantiated() ? "true" : "false");
   os << "\n - rare_data: " << Brief(rare_data());
-  os << "\n";
-}
-
-void WasmCapiFunctionData::WasmCapiFunctionDataPrint(
-    std::ostream& os) {  // NOLINT
-  PrintHeader(os, "WasmCapiFunctionData");
-  os << "\n - call_target: " << call_target();
-  os << "\n - embedder_data: " << Brief(embedder_data());
-  os << "\n - wrapper_code: " << Brief(wrapper_code());
-  os << "\n - serialized_signature: " << Brief(serialized_signature());
   os << "\n";
 }
 
@@ -2393,7 +2337,7 @@ int Name::NameShortPrint(Vector<char> str) {
 void Map::PrintMapDetails(std::ostream& os) {
   DisallowHeapAllocation no_gc;
   this->MapPrint(os);
-  instance_descriptors().PrintDescriptors(os);
+  instance_descriptors(kRelaxedLoad).PrintDescriptors(os);
 }
 
 void Map::MapPrint(std::ostream& os) {  // NOLINT
@@ -2447,10 +2391,10 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   os << "\n - prototype_validity cell: " << Brief(prototype_validity_cell());
   os << "\n - instance descriptors " << (owns_descriptors() ? "(own) " : "")
      << "#" << NumberOfOwnDescriptors() << ": "
-     << Brief(instance_descriptors());
+     << Brief(instance_descriptors(kRelaxedLoad));
   if (FLAG_unbox_double_fields) {
     os << "\n - layout descriptor: ";
-    layout_descriptor().ShortPrint(os);
+    layout_descriptor(kAcquireLoad).ShortPrint(os);
   }
 
   // Read-only maps can't have transitions, which is fortunate because we need
@@ -2563,7 +2507,7 @@ void TransitionsAccessor::PrintOneTransition(std::ostream& os, Name key,
     DCHECK(!IsSpecialTransition(roots, key));
     os << "(transition to ";
     InternalIndex descriptor = target.LastAdded();
-    DescriptorArray descriptors = target.instance_descriptors();
+    DescriptorArray descriptors = target.instance_descriptors(kRelaxedLoad);
     descriptors.PrintDescriptorDetails(os, descriptor,
                                        PropertyDetails::kForTransitions);
     os << ")";
@@ -2641,7 +2585,7 @@ void TransitionsAccessor::PrintTransitionTree(std::ostream& os, int level,
       DCHECK(!IsSpecialTransition(ReadOnlyRoots(isolate_), key));
       os << "to ";
       InternalIndex descriptor = target.LastAdded();
-      DescriptorArray descriptors = target.instance_descriptors();
+      DescriptorArray descriptors = target.instance_descriptors(kRelaxedLoad);
       descriptors.PrintDescriptorDetails(os, descriptor,
                                          PropertyDetails::kForTransitions);
     }

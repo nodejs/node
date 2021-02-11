@@ -808,9 +808,7 @@ v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackReject(
 
 TEST(ModuleEvaluationTopLevelAwaitDynamicImport) {
   bool previous_top_level_await_flag_value = i::FLAG_harmony_top_level_await;
-  bool previous_dynamic_import_flag_value = i::FLAG_harmony_dynamic_import;
   i::FLAG_harmony_top_level_await = true;
-  i::FLAG_harmony_dynamic_import = true;
   Isolate* isolate = CcTest::isolate();
   HandleScope scope(isolate);
   isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
@@ -847,14 +845,11 @@ TEST(ModuleEvaluationTopLevelAwaitDynamicImport) {
     CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
   }
   i::FLAG_harmony_top_level_await = previous_top_level_await_flag_value;
-  i::FLAG_harmony_dynamic_import = previous_dynamic_import_flag_value;
 }
 
 TEST(ModuleEvaluationTopLevelAwaitDynamicImportError) {
   bool previous_top_level_await_flag_value = i::FLAG_harmony_top_level_await;
-  bool previous_dynamic_import_flag_value = i::FLAG_harmony_dynamic_import;
   i::FLAG_harmony_top_level_await = true;
-  i::FLAG_harmony_dynamic_import = true;
   Isolate* isolate = CcTest::isolate();
   HandleScope scope(isolate);
   isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
@@ -895,7 +890,6 @@ TEST(ModuleEvaluationTopLevelAwaitDynamicImportError) {
     CHECK(!try_catch.HasCaught());
   }
   i::FLAG_harmony_top_level_await = previous_top_level_await_flag_value;
-  i::FLAG_harmony_dynamic_import = previous_dynamic_import_flag_value;
 }
 
 TEST(TerminateExecutionTopLevelAwaitSync) {
@@ -989,6 +983,133 @@ TEST(TerminateExecutionTopLevelAwaitAsync) {
   // The termination exception doesn't trigger the module's
   // catch handler, so the module isn't transitioned to kErrored.
   CHECK_EQ(module->GetStatus(), Module::kEvaluated);
+
+  i::FLAG_harmony_top_level_await = previous_top_level_await_flag_value;
+}
+
+static Local<Module> async_leaf_module;
+static Local<Module> sync_leaf_module;
+static Local<Module> cycle_self_module;
+static Local<Module> cycle_one_module;
+static Local<Module> cycle_two_module;
+MaybeLocal<Module> ResolveCallbackForIsGraphAsyncTopLevelAwait(
+    Local<Context> context, Local<String> specifier, Local<Module> referrer) {
+  if (specifier->StrictEquals(v8_str("./async_leaf.js"))) {
+    return async_leaf_module;
+  } else if (specifier->StrictEquals(v8_str("./sync_leaf.js"))) {
+    return sync_leaf_module;
+  } else if (specifier->StrictEquals(v8_str("./cycle_self.js"))) {
+    return cycle_self_module;
+  } else if (specifier->StrictEquals(v8_str("./cycle_one.js"))) {
+    return cycle_one_module;
+  } else {
+    CHECK(specifier->StrictEquals(v8_str("./cycle_two.js")));
+    return cycle_two_module;
+  }
+}
+
+TEST(IsGraphAsyncTopLevelAwait) {
+  bool previous_top_level_await_flag_value = i::FLAG_harmony_top_level_await;
+  i::FLAG_harmony_top_level_await = true;
+
+  Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+  LocalContext env;
+
+  {
+    Local<String> source_text = v8_str("await notExecuted();");
+    ScriptOrigin origin =
+        ModuleOrigin(v8_str("async_leaf.js"), CcTest::isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    async_leaf_module =
+        ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+    CHECK(async_leaf_module
+              ->InstantiateModule(env.local(),
+                                  ResolveCallbackForIsGraphAsyncTopLevelAwait)
+              .FromJust());
+    CHECK(async_leaf_module->IsGraphAsync());
+  }
+
+  {
+    Local<String> source_text = v8_str("notExecuted();");
+    ScriptOrigin origin =
+        ModuleOrigin(v8_str("sync_leaf.js"), CcTest::isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    sync_leaf_module =
+        ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+    CHECK(sync_leaf_module
+              ->InstantiateModule(env.local(),
+                                  ResolveCallbackForIsGraphAsyncTopLevelAwait)
+              .FromJust());
+    CHECK(!sync_leaf_module->IsGraphAsync());
+  }
+
+  {
+    Local<String> source_text = v8_str("import './async_leaf.js'");
+    ScriptOrigin origin =
+        ModuleOrigin(v8_str("import_async.js"), CcTest::isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    Local<Module> module =
+        ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+    CHECK(module
+              ->InstantiateModule(env.local(),
+                                  ResolveCallbackForIsGraphAsyncTopLevelAwait)
+              .FromJust());
+    CHECK(module->IsGraphAsync());
+  }
+
+  {
+    Local<String> source_text = v8_str("import './sync_leaf.js'");
+    ScriptOrigin origin =
+        ModuleOrigin(v8_str("import_sync.js"), CcTest::isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    Local<Module> module =
+        ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+    CHECK(module
+              ->InstantiateModule(env.local(),
+                                  ResolveCallbackForIsGraphAsyncTopLevelAwait)
+              .FromJust());
+    CHECK(!module->IsGraphAsync());
+  }
+
+  {
+    Local<String> source_text = v8_str(
+        "import './cycle_self.js'\n"
+        "import './async_leaf.js'");
+    ScriptOrigin origin =
+        ModuleOrigin(v8_str("cycle_self.js"), CcTest::isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    cycle_self_module =
+        ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+    CHECK(cycle_self_module
+              ->InstantiateModule(env.local(),
+                                  ResolveCallbackForIsGraphAsyncTopLevelAwait)
+              .FromJust());
+    CHECK(cycle_self_module->IsGraphAsync());
+  }
+
+  {
+    Local<String> source_text1 = v8_str("import './cycle_two.js'");
+    ScriptOrigin origin1 =
+        ModuleOrigin(v8_str("cycle_one.js"), CcTest::isolate());
+    ScriptCompiler::Source source1(source_text1, origin1);
+    cycle_one_module =
+        ScriptCompiler::CompileModule(isolate, &source1).ToLocalChecked();
+    Local<String> source_text2 = v8_str(
+        "import './cycle_one.js'\n"
+        "import './async_leaf.js'");
+    ScriptOrigin origin2 =
+        ModuleOrigin(v8_str("cycle_two.js"), CcTest::isolate());
+    ScriptCompiler::Source source2(source_text2, origin2);
+    cycle_two_module =
+        ScriptCompiler::CompileModule(isolate, &source2).ToLocalChecked();
+    CHECK(cycle_one_module
+              ->InstantiateModule(env.local(),
+                                  ResolveCallbackForIsGraphAsyncTopLevelAwait)
+              .FromJust());
+    CHECK(cycle_one_module->IsGraphAsync());
+    CHECK(cycle_two_module->IsGraphAsync());
+  }
 
   i::FLAG_harmony_top_level_await = previous_top_level_await_flag_value;
 }

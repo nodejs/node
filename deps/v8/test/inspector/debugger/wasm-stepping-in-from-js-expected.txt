@@ -22,10 +22,10 @@ paused
 
 Debugger.stepInto
 paused
-Script wasm://wasm/7d022e0e byte offset 35: Wasm opcode 0x20
+Script wasm://wasm/7d022e0e byte offset 35: Wasm opcode 0x20 (kExprLocalGet)
 Debugger.resume
 paused
-Script wasm://wasm/7d022e0e byte offset 37: Wasm opcode 0x41
+Script wasm://wasm/7d022e0e byte offset 37: Wasm opcode 0x41 (kExprI32Const)
 Debugger.resume
 exports.main returned!
 Finished!

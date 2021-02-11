@@ -101,8 +101,10 @@ class SemiSpace;
 #define DCHECK_OBJECT_SIZE(size) \
   DCHECK((0 < size) && (size <= kMaxRegularHeapObjectSize))
 
-#define DCHECK_CODEOBJECT_SIZE(size, code_space) \
-  DCHECK((0 < size) && (size <= code_space->AreaSize()))
+#define DCHECK_CODEOBJECT_SIZE(size, code_space)                          \
+  DCHECK((0 < size) &&                                                    \
+         (size <= std::min(MemoryChunkLayout::MaxRegularCodeObjectSize(), \
+                           code_space->AreaSize())))
 
 // ----------------------------------------------------------------------------
 // Space is the abstract superclass for all allocation spaces that are not

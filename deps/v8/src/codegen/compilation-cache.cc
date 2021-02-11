@@ -8,7 +8,7 @@
 #include "src/heap/factory.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
-#include "src/objects/compilation-cache-inl.h"
+#include "src/objects/compilation-cache-table-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/objects/visitors.h"
@@ -72,12 +72,16 @@ void CompilationSubCache::AgeCustom(CompilationSubCache* c) {
   CompilationCacheTable::cast(c->tables_[0]).Age();
 }
 
-void CompilationCacheScript::Age() { AgeCustom(this); }
+void CompilationCacheScript::Age() {
+  if (FLAG_isolate_script_cache_ageing) AgeCustom(this);
+}
 void CompilationCacheEval::Age() { AgeCustom(this); }
 void CompilationCacheRegExp::Age() { AgeByGeneration(this); }
 void CompilationCacheCode::Age() {
-  if (FLAG_trace_turbo_nci) CompilationCacheCode::TraceAgeing();
-  AgeByGeneration(this);
+  if (FLAG_turbo_nci_cache_ageing) {
+    if (FLAG_trace_turbo_nci) CompilationCacheCode::TraceAgeing();
+    AgeByGeneration(this);
+  }
 }
 
 void CompilationSubCache::Iterate(RootVisitor* v) {

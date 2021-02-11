@@ -170,8 +170,9 @@ class FieldRepresentationDependency final : public CompilationDependency {
   bool IsValid() const override {
     DisallowHeapAllocation no_heap_allocation;
     Handle<Map> owner = owner_.object();
-    return representation_.Equals(
-        owner->instance_descriptors().GetDetails(descriptor_).representation());
+    return representation_.Equals(owner->instance_descriptors(kRelaxedLoad)
+                                      .GetDetails(descriptor_)
+                                      .representation());
   }
 
   void Install(const MaybeObjectHandle& code) const override {
@@ -208,7 +209,8 @@ class FieldTypeDependency final : public CompilationDependency {
     DisallowHeapAllocation no_heap_allocation;
     Handle<Map> owner = owner_.object();
     Handle<Object> type = type_.object();
-    return *type == owner->instance_descriptors().GetFieldType(descriptor_);
+    return *type ==
+           owner->instance_descriptors(kRelaxedLoad).GetFieldType(descriptor_);
   }
 
   void Install(const MaybeObjectHandle& code) const override {
@@ -236,7 +238,9 @@ class FieldConstnessDependency final : public CompilationDependency {
     DisallowHeapAllocation no_heap_allocation;
     Handle<Map> owner = owner_.object();
     return PropertyConstness::kConst ==
-           owner->instance_descriptors().GetDetails(descriptor_).constness();
+           owner->instance_descriptors(kRelaxedLoad)
+               .GetDetails(descriptor_)
+               .constness();
   }
 
   void Install(const MaybeObjectHandle& code) const override {

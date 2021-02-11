@@ -415,16 +415,6 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
 
   int prot = GetProtectionFromMemoryPermission(access);
   int ret = mprotect(address, size, prot);
-
-  // MacOS 11.2 on Apple Silicon refuses to switch permissions from
-  // rwx to none. Just use madvise instead.
-#if defined(V8_OS_MACOSX)
-  if (ret != 0 && access == OS::MemoryPermission::kNoAccess) {
-    ret = madvise(address, size, MADV_FREE_REUSABLE);
-    return ret == 0;
-  }
-#endif
-
   if (ret == 0 && access == OS::MemoryPermission::kNoAccess) {
     // This is advisory; ignore errors and continue execution.
     USE(DiscardSystemPages(address, size));
@@ -1013,7 +1003,7 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
     !defined(V8_OS_SOLARIS)
 
 // static
-void* Stack::GetStackStart() {
+Stack::StackSlot Stack::GetStackStart() {
   pthread_attr_t attr;
   int error = pthread_getattr_np(pthread_self(), &attr);
   if (!error) {
@@ -1039,7 +1029,9 @@ void* Stack::GetStackStart() {
         // !defined(_AIX) && !defined(V8_OS_SOLARIS)
 
 // static
-void* Stack::GetCurrentStackPosition() { return __builtin_frame_address(0); }
+Stack::StackSlot Stack::GetCurrentStackPosition() {
+  return __builtin_frame_address(0);
+}
 
 #undef LOG_TAG
 #undef MAP_ANONYMOUS

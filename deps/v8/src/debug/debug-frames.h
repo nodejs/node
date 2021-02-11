@@ -16,17 +16,15 @@ namespace v8 {
 namespace internal {
 
 class JavaScriptFrame;
-class StandardFrame;
+class CommonFrame;
 class WasmFrame;
 
 class FrameInspector {
  public:
-  FrameInspector(StandardFrame* frame, int inlined_frame_index,
-                 Isolate* isolate);
+  FrameInspector(CommonFrame* frame, int inlined_frame_index, Isolate* isolate);
 
   ~FrameInspector();
 
-  int GetParametersCount();
   Handle<JSFunction> GetFunction() const { return function_; }
   Handle<Script> GetScript() { return script_; }
   Handle<Object> GetParameter(int index);
@@ -49,7 +47,7 @@ class FrameInspector {
   bool ParameterIsShadowedByContextLocal(Handle<ScopeInfo> info,
                                          Handle<String> parameter_name);
 
-  StandardFrame* frame_;
+  CommonFrame* frame_;
   int inlined_frame_index_;
   std::unique_ptr<DeoptimizedFrameInfo> deoptimized_frame_;
   Isolate* isolate_;

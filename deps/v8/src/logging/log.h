@@ -314,6 +314,8 @@ class Logger : public CodeEventListener {
   // each script is logged only once.
   bool EnsureLogScriptSource(Script script);
 
+  int64_t Time();
+
   Isolate* isolate_;
 
   // The sampler used by the profiler and the sliding state window.

@@ -111,8 +111,7 @@ enum class StackArgumentOrder {
   kJS,  // Arguments in the stack are pushed in the same order as the one used
         // by JS-to-JS function calls. This should be used if calling a
         // JSFunction or if the builtin is expected to be called directly from a
-        // JSFunction. When V8_REVERSE_JSARGS is set, this order is reversed
-        // compared to kDefault.
+        // JSFunction. This order is reversed compared to kDefault.
 };
 
 class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
@@ -506,9 +505,7 @@ STATIC_ASSERT(kMaxTFSBuiltinRegisterParams <= kMaxBuiltinRegisterParams);
                                     ##__VA_ARGS__)
 
 // When the extra arguments described here are located in the stack, they are
-// just above the return address in the frame. Therefore, they are either the
-// first arguments when V8_REVERSE_JSARGS is enabled, or otherwise the last
-// arguments.
+// just above the return address in the frame (first arguments).
 #define DEFINE_JS_PARAMETERS(...)                           \
   static constexpr int kDescriptorFlags =                   \
       CallInterfaceDescriptorData::kAllowVarArgs;           \
@@ -595,6 +592,12 @@ using DummyDescriptor = VoidDescriptor;
 
 // Dummy descriptor that marks builtins with C calling convention.
 using CCallDescriptor = VoidDescriptor;
+
+// Marks deoptimization entry builtins. Precise calling conventions currently
+// differ based on the platform.
+// TODO(jgruber): Once this is unified, we could create a better description
+// here.
+using DeoptimizationEntryDescriptor = VoidDescriptor;
 
 class AllocateDescriptor : public CallInterfaceDescriptor {
  public:
@@ -1156,7 +1159,6 @@ class ArrayNoArgumentConstructorDescriptor
                      ArrayNArgumentsConstructorDescriptor)
 };
 
-#ifdef V8_REVERSE_JSARGS
 class ArraySingleArgumentConstructorDescriptor
     : public ArrayNArgumentsConstructorDescriptor {
  public:
@@ -1174,25 +1176,6 @@ class ArraySingleArgumentConstructorDescriptor
   DECLARE_DESCRIPTOR(ArraySingleArgumentConstructorDescriptor,
                      ArrayNArgumentsConstructorDescriptor)
 };
-#else
-class ArraySingleArgumentConstructorDescriptor
-    : public ArrayNArgumentsConstructorDescriptor {
- public:
-  // This descriptor declares same register arguments as the parent
-  // ArrayNArgumentsConstructorDescriptor and it declares indices for
-  // JS arguments passed on the expression stack.
-  DEFINE_PARAMETERS(kFunction, kAllocationSite, kActualArgumentsCount,
-                    kReceiverParameter, kArraySizeSmiParameter)
-  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kFunction
-                         MachineType::AnyTagged(),  // kAllocationSite
-                         MachineType::Int32(),      // kActualArgumentsCount
-                         // JS arguments on the stack
-                         MachineType::AnyTagged(),  // kReceiverParameter
-                         MachineType::AnyTagged())  // kArraySizeSmiParameter
-  DECLARE_DESCRIPTOR(ArraySingleArgumentConstructorDescriptor,
-                     ArrayNArgumentsConstructorDescriptor)
-};
-#endif
 
 class CompareDescriptor : public CallInterfaceDescriptor {
  public:

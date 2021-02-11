@@ -283,13 +283,11 @@ class BasicMemoryChunk {
 
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
   static BasicMemoryChunk* FromAddress(Address a) {
-    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
     return reinterpret_cast<BasicMemoryChunk*>(BaseAddress(a));
   }
 
   // Only works if the object is in the first kPageSize of the MemoryChunk.
   static BasicMemoryChunk* FromHeapObject(HeapObject o) {
-    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
     return reinterpret_cast<BasicMemoryChunk*>(BaseAddress(o.ptr()));
   }
 

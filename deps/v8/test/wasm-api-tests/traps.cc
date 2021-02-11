@@ -40,10 +40,13 @@ TEST_F(WasmCapiTest, Traps) {
   uint32_t callback_index = builder()->AddImport(CStrVector("callback"), &sig);
   byte code[] = {WASM_CALL_FUNCTION0(callback_index)};
   AddExportedFunction(CStrVector("callback"), code, sizeof(code), &sig);
-  // The first constant is a 4-byte dummy so that the {unreachable} trap
-  // has a more interesting offset.
-  byte code2[] = {WASM_I32V_3(0), WASM_UNREACHABLE, WASM_I32V_1(1)};
+
+  byte code2[] = {WASM_CALL_FUNCTION0(3)};
   AddExportedFunction(CStrVector("unreachable"), code2, sizeof(code2), &sig);
+  // The first constant is a 4-byte dummy so that the {unreachable} trap
+  // has a more interesting offset. This is called by code2.
+  byte code3[] = {WASM_I32V_3(0), WASM_UNREACHABLE, WASM_I32V_1(1)};
+  AddFunction(code3, sizeof(code3), &sig);
 
   own<FuncType> func_type =
       FuncType::make(ownvec<ValType>::make(),
@@ -65,8 +68,10 @@ TEST_F(WasmCapiTest, Traps) {
   ASSERT_TRUE(result.ok());
   const WasmFunction* func1 = &result.value()->functions[1];
   const WasmFunction* func2 = &result.value()->functions[2];
+  const WasmFunction* func3 = &result.value()->functions[3];
   const uint32_t func1_offset = func1->code.offset();
   const uint32_t func2_offset = func2->code.offset();
+  const uint32_t func3_offset = func3->code.offset();
 
   Func* cpp_trapping_func = GetExportedFunction(0);
   own<Trap> cpp_trap = cpp_trapping_func->call();
@@ -91,15 +96,22 @@ TEST_F(WasmCapiTest, Traps) {
   ExpectMessage("Uncaught RuntimeError: unreachable", wasm_trap->message());
   frame = wasm_trap->origin();
   EXPECT_TRUE(frame->instance()->same(instance()));
-  EXPECT_EQ(2u, frame->func_index());
+  EXPECT_EQ(3u, frame->func_index());
   EXPECT_EQ(5u, frame->func_offset());
-  EXPECT_EQ(func2_offset + frame->func_offset(), frame->module_offset());
+  EXPECT_EQ(func3_offset + frame->func_offset(), frame->module_offset());
   trace = wasm_trap->trace();
-  EXPECT_EQ(1u, trace.size());
+  EXPECT_EQ(2u, trace.size());
+
   frame.reset(trace[0].release());
   EXPECT_TRUE(frame->instance()->same(instance()));
-  EXPECT_EQ(2u, frame->func_index());
+  EXPECT_EQ(3u, frame->func_index());
   EXPECT_EQ(5u, frame->func_offset());
+  EXPECT_EQ(func3_offset + frame->func_offset(), frame->module_offset());
+
+  frame.reset(trace[1].release());
+  EXPECT_TRUE(frame->instance()->same(instance()));
+  EXPECT_EQ(2u, frame->func_index());
+  EXPECT_EQ(1u, frame->func_offset());
   EXPECT_EQ(func2_offset + frame->func_offset(), frame->module_offset());
 }
 

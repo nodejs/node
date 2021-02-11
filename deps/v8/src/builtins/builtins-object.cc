@@ -38,7 +38,7 @@ BUILTIN(ObjectPrototypePropertyIsEnumerable) {
 // ES6 section 19.1.2.3 Object.defineProperties
 BUILTIN(ObjectDefineProperties) {
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
+  DCHECK_LE(3, args.length());
   Handle<Object> target = args.at(1);
   Handle<Object> properties = args.at(2);
 
@@ -49,7 +49,7 @@ BUILTIN(ObjectDefineProperties) {
 // ES6 section 19.1.2.4 Object.defineProperty
 BUILTIN(ObjectDefineProperty) {
   HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
+  DCHECK_LE(4, args.length());
   Handle<Object> target = args.at(1);
   Handle<Object> key = args.at(2);
   Handle<Object> attributes = args.at(3);

@@ -14,7 +14,11 @@ template <typename T>
 class RingBuffer {
  public:
   RingBuffer() { Reset(); }
+  RingBuffer(const RingBuffer&) = delete;
+  RingBuffer& operator=(const RingBuffer&) = delete;
+
   static const int kSize = 10;
+
   void Push(const T& value) {
     if (count_ == kSize) {
       elements_[start_++] = value;
@@ -45,7 +49,6 @@ class RingBuffer {
   T elements_[kSize];
   int start_;
   int count_;
-  DISALLOW_COPY_AND_ASSIGN(RingBuffer);
 };
 
 }  // namespace base

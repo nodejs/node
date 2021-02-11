@@ -68,9 +68,6 @@ bool CompileLazy(Isolate*, NativeModule*, int func_index);
 
 void TriggerTierUp(Isolate*, NativeModule*, int func_index);
 
-// Get the maximum concurrency for parallel compilation.
-int GetMaxCompileConcurrency();
-
 template <typename Key, typename Hash>
 class WrapperQueue {
  public:

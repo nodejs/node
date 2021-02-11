@@ -98,7 +98,7 @@ std::vector<wasm_addr_t> WasmModuleDebug::GetCallStack(
       case StackFrame::WASM: {
         // A standard frame may include many summarized frames, due to inlining.
         std::vector<FrameSummary> frames;
-        StandardFrame::cast(frame)->Summarize(&frames);
+        CommonFrame::cast(frame)->Summarize(&frames);
         for (size_t i = frames.size(); i-- != 0;) {
           int offset = 0;
           Handle<Script> script;
@@ -156,7 +156,7 @@ std::vector<FrameSummary> WasmModuleDebug::FindWasmFrame(
       case StackFrame::WASM: {
         // A standard frame may include many summarized frames, due to inlining.
         std::vector<FrameSummary> frames;
-        StandardFrame::cast(frame)->Summarize(&frames);
+        CommonFrame::cast(frame)->Summarize(&frames);
         const size_t frame_count = frames.size();
         DCHECK_GT(frame_count, 0);
 

@@ -10,7 +10,9 @@
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/execution/isolate.h"
+#include "src/execution/local-isolate.h"
 #include "src/handles/handles.h"
+#include "src/heap/local-heap.h"
 #include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "test/unittests/test-helpers.h"
@@ -31,10 +33,12 @@ class BlockingCompilationJob : public OptimizedCompilationJob {
                                 State::kReadyToExecute),
         shared_(function->shared(), isolate),
         zone_(isolate->allocator(), ZONE_NAME),
-        info_(&zone_, isolate, shared_, function, CodeKind::OPTIMIZED_FUNCTION),
+        info_(&zone_, isolate, shared_, function, CodeKind::TURBOFAN),
         blocking_(false),
         semaphore_(0) {}
   ~BlockingCompilationJob() override = default;
+  BlockingCompilationJob(const BlockingCompilationJob&) = delete;
+  BlockingCompilationJob& operator=(const BlockingCompilationJob&) = delete;
 
   bool IsBlocking() const { return blocking_.Value(); }
   void Signal() { semaphore_.Signal(); }
@@ -42,7 +46,8 @@ class BlockingCompilationJob : public OptimizedCompilationJob {
   // OptimiziedCompilationJob implementation.
   Status PrepareJobImpl(Isolate* isolate) override { UNREACHABLE(); }
 
-  Status ExecuteJobImpl(RuntimeCallStats* stats) override {
+  Status ExecuteJobImpl(RuntimeCallStats* stats,
+                        LocalIsolate* local_isolate) override {
     blocking_.SetValue(true);
     semaphore_.Wait();
     blocking_.SetValue(false);
@@ -57,8 +62,6 @@ class BlockingCompilationJob : public OptimizedCompilationJob {
   OptimizedCompilationInfo info_;
   base::AtomicValue<bool> blocking_;
   base::Semaphore semaphore_;
-
-  DISALLOW_COPY_AND_ASSIGN(BlockingCompilationJob);
 };
 
 }  // namespace

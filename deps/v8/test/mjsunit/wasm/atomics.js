@@ -47,7 +47,7 @@ function GetAtomicCmpExchangeFunction(wasmExpression, alignment, offset) {
       kExprLocalGet, 1,
       kExprLocalGet, 2,
       kAtomicPrefix,
-      wasmExpression, alignment, offset])
+      wasmExpression, alignment, ...wasmSignedLeb(offset, 5)])
     .exportAs("main");
 
   // Instantiate module, get function exports
@@ -251,15 +251,15 @@ function Test8Op(operation, func) {
   Test8Op(Exchange, wasmExchange);
 })();
 
-function TestCmpExchange(func, buffer, params, size) {
-  for (let i = 0; i < buffer.length; i = inc(i)) {
+function TestCmpExchange(func, buffer, params, size, offset = 0) {
+  for (let i = 0; i + (offset / size) < buffer.length; i = inc(i)) {
     for (let j = 0; j < params.length; j++) {
       for (let k = 0; k < params.length; k++) {
-        buffer[i] = params[j];
+        buffer[i + (offset / size)] = params[j];
         let loaded = func(i * size, params[k], params[j]) >>> 0;
         let expected = (params[k] == loaded) ? params[j] : loaded;
         assertEquals(loaded, params[j]);
-        assertEquals(expected, buffer[i]);
+        assertEquals(expected, buffer[i + (offset / size)]);
       }
     }
   }
@@ -268,11 +268,14 @@ function TestCmpExchange(func, buffer, params, size) {
 
 (function TestAtomicCompareExchange() {
   print(arguments.callee.name);
+  // Offset is big enough to not fit in a 12-bit immediate on arm64, but small
+  // enough to fit in the maxSize wasm pages.
+  const offset = 0x1234;
   let wasmCmpExchange =
-      GetAtomicCmpExchangeFunction(kExprI32AtomicCompareExchange, 2, 0);
+      GetAtomicCmpExchangeFunction(kExprI32AtomicCompareExchange, 2, offset);
   let i32 = new Uint32Array(memory.buffer);
   let params = [0x00000001, 0x00000555, 0x00099999, 0xffffffff];
-  TestCmpExchange(wasmCmpExchange, i32, params, kMemtypeSize32);
+  TestCmpExchange(wasmCmpExchange, i32, params, kMemtypeSize32, offset);
 })();
 
 (function TestAtomicCompareExchange16U() {

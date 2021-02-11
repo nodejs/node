@@ -77,7 +77,7 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
   out.node = node;
 
   HeapObjectMatcher m(callee);
-  if (m.HasValue() && m.Ref(broker()).IsJSFunction()) {
+  if (m.HasResolvedValue() && m.Ref(broker()).IsJSFunction()) {
     out.functions[0] = m.Ref(broker()).AsJSFunction();
     JSFunctionRef function = out.functions[0].value();
     if (CanConsiderForInlining(broker(), function)) {
@@ -94,7 +94,7 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
     }
     for (int n = 0; n < value_input_count; ++n) {
       HeapObjectMatcher m(callee->InputAt(n));
-      if (!m.HasValue() || !m.Ref(broker()).IsJSFunction()) {
+      if (!m.HasResolvedValue() || !m.Ref(broker()).IsJSFunction()) {
         out.num_functions = 0;
         return out;
       }

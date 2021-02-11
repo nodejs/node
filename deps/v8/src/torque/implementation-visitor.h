@@ -552,8 +552,12 @@ class ImplementationVisitor {
   const Type* Visit(DebugStatement* stmt);
   const Type* Visit(AssertStatement* stmt);
 
-  void BeginCSAFiles();
-  void EndCSAFiles();
+  void BeginGeneratedFiles();
+  void EndGeneratedFiles();
+  // TODO(tebbi): Switch to per-file generation for runtime macros and merge
+  // these functions into {Begin,End}GeneratedFiles().
+  void BeginRuntimeMacrosFile();
+  void EndRuntimeMacrosFile();
 
   void GenerateImplementation(const std::string& dir);
 
@@ -727,7 +731,6 @@ class ImplementationVisitor {
                                 Block* false_block);
 
   void GenerateMacroFunctionDeclaration(std::ostream& o,
-                                        const std::string& macro_prefix,
                                         Macro* macro);
   std::vector<std::string> GenerateFunctionDeclaration(
       std::ostream& o, const std::string& macro_prefix, const std::string& name,
@@ -760,18 +763,39 @@ class ImplementationVisitor {
                                          size_t i);
   std::string ExternalParameterName(const std::string& name);
 
-  std::ostream& source_out() {
+  std::ostream& csa_ccfile() {
     if (auto* streams = CurrentFileStreams::Get()) {
-      return streams->csa_ccfile;
+      return output_type_ == OutputType::kCSA ? streams->csa_ccfile
+                                              : runtime_macros_cc_;
     }
     return null_stream_;
   }
-  std::ostream& header_out() {
+  std::ostream& csa_headerfile() {
     if (auto* streams = CurrentFileStreams::Get()) {
-      return streams->csa_headerfile;
+      return output_type_ == OutputType::kCSA ? streams->csa_headerfile
+                                              : runtime_macros_h_;
     }
     return null_stream_;
   }
+  std::ostream& class_definition_headerfile() {
+    if (auto* streams = CurrentFileStreams::Get()) {
+      return streams->class_definition_headerfile;
+    }
+    return null_stream_;
+  }
+  std::ostream& class_definition_inline_headerfile() {
+    if (auto* streams = CurrentFileStreams::Get()) {
+      return streams->class_definition_inline_headerfile;
+    }
+    return null_stream_;
+  }
+  std::ostream& class_definition_ccfile() {
+    if (auto* streams = CurrentFileStreams::Get()) {
+      return streams->class_definition_ccfile;
+    }
+    return null_stream_;
+  }
+
   CfgAssembler& assembler() { return *assembler_; }
 
   void SetReturnValue(VisitResult return_value) {
@@ -818,6 +842,16 @@ class ImplementationVisitor {
   // the value to load.
   std::unordered_map<const Expression*, const Identifier*>
       bitfield_expressions_;
+
+  // The contents of the runtime macros output files. These contain all Torque
+  // macros that have been generated using the C++ backend. They're not yet
+  // split per source file like CSA macros, but eventually we should change them
+  // to generate -inl.inc files so that callers can easily inline their
+  // contents.
+  std::stringstream runtime_macros_cc_;
+  std::stringstream runtime_macros_h_;
+
+  OutputType output_type_ = OutputType::kCSA;
 };
 
 void ReportAllUnusedMacros();

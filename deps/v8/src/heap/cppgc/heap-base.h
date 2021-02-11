@@ -12,6 +12,7 @@
 #include "include/cppgc/internal/persistent-node.h"
 #include "include/cppgc/macros.h"
 #include "src/base/macros.h"
+#include "src/heap/cppgc/compactor.h"
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/object-allocator.h"
 #include "src/heap/cppgc/raw-heap.h"
@@ -62,7 +63,8 @@ class V8_EXPORT_PRIVATE HeapBase {
     HeapBase& heap_;
   };
 
-  HeapBase(std::shared_ptr<cppgc::Platform> platform, size_t custom_spaces,
+  HeapBase(std::shared_ptr<cppgc::Platform> platform,
+           const std::vector<std::unique_ptr<CustomSpaceBase>>& custom_spaces,
            StackSupport stack_support);
   virtual ~HeapBase();
 
@@ -96,6 +98,8 @@ class V8_EXPORT_PRIVATE HeapBase {
 
   MarkerBase* marker() const { return marker_.get(); }
 
+  Compactor& compactor() { return compactor_; }
+
   ObjectAllocator& object_allocator() { return object_allocator_; }
 
   Sweeper& sweeper() { return sweeper_; }
@@ -112,6 +116,18 @@ class V8_EXPORT_PRIVATE HeapBase {
   const PersistentRegion& GetWeakPersistentRegion() const {
     return weak_persistent_region_;
   }
+  PersistentRegion& GetStrongCrossThreadPersistentRegion() {
+    return strong_cross_thread_persistent_region_;
+  }
+  const PersistentRegion& GetStrongCrossThreadPersistentRegion() const {
+    return strong_cross_thread_persistent_region_;
+  }
+  PersistentRegion& GetWeakCrossThreadPersistentRegion() {
+    return weak_cross_thread_persistent_region_;
+  }
+  const PersistentRegion& GetWeakCrossThreadPersistentRegion() const {
+    return weak_cross_thread_persistent_region_;
+  }
 
 #if defined(CPPGC_YOUNG_GENERATION)
   std::set<void*>& remembered_slots() { return remembered_slots_; }
@@ -124,8 +140,6 @@ class V8_EXPORT_PRIVATE HeapBase {
   void AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded();
 
  protected:
-  void VerifyMarking(cppgc::Heap::StackState);
-
   virtual void FinalizeIncrementalGarbageCollectionIfNeeded(
       cppgc::Heap::StackState) = 0;
 
@@ -143,11 +157,14 @@ class V8_EXPORT_PRIVATE HeapBase {
   std::unique_ptr<PreFinalizerHandler> prefinalizer_handler_;
   std::unique_ptr<MarkerBase> marker_;
 
+  Compactor compactor_;
   ObjectAllocator object_allocator_;
   Sweeper sweeper_;
 
   PersistentRegion strong_persistent_region_;
   PersistentRegion weak_persistent_region_;
+  PersistentRegion strong_cross_thread_persistent_region_;
+  PersistentRegion weak_cross_thread_persistent_region_;
 
 #if defined(CPPGC_YOUNG_GENERATION)
   std::set<void*> remembered_slots_;

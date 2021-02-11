@@ -166,7 +166,7 @@ v8::Local<v8::Function> DebugStackTraceIterator::GetFunction() const {
 std::unique_ptr<v8::debug::ScopeIterator>
 DebugStackTraceIterator::GetScopeIterator() const {
   DCHECK(!Done());
-  StandardFrame* frame = iterator_.frame();
+  CommonFrame* frame = iterator_.frame();
   if (frame->is_wasm()) {
     return std::make_unique<DebugWasmScopeIterator>(isolate_,
                                                     WasmFrame::cast(frame));
@@ -184,11 +184,25 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::Evaluate(
     v8::Local<v8::String> source, bool throw_on_side_effect) {
   DCHECK(!Done());
   Handle<Object> value;
+
   i::SafeForInterruptsScope safe_for_interrupt_scope(isolate_);
-  if (!DebugEvaluate::Local(isolate_, iterator_.frame()->id(),
-                            inlined_frame_index_, Utils::OpenHandle(*source),
-                            throw_on_side_effect)
-           .ToHandle(&value)) {
+  bool success = false;
+  if (iterator_.is_wasm()) {
+    FrameSummary summary = FrameSummary::Get(iterator_.frame(), 0);
+    const FrameSummary::WasmFrameSummary& wasmSummary = summary.AsWasm();
+    Handle<WasmInstanceObject> instance = wasmSummary.wasm_instance();
+
+    success = DebugEvaluate::WebAssembly(instance, iterator_.frame()->id(),
+                                         Utils::OpenHandle(*source),
+                                         throw_on_side_effect)
+                  .ToHandle(&value);
+  } else {
+    success = DebugEvaluate::Local(
+                  isolate_, iterator_.frame()->id(), inlined_frame_index_,
+                  Utils::OpenHandle(*source), throw_on_side_effect)
+                  .ToHandle(&value);
+  }
+  if (!success) {
     isolate_->OptionalRescheduleException(false);
     return v8::MaybeLocal<v8::Value>();
   }

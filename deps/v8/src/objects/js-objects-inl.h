@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_JS_OBJECTS_INL_H_
 #define V8_OBJECTS_JS_OBJECTS_INL_H_
 
+#include "src/common/globals.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/objects/elements.h"
 #include "src/objects/embedder-data-slot-inl.h"
@@ -26,6 +27,8 @@
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/js-objects-tq-inl.inc"
 
 OBJECT_CONSTRUCTORS_IMPL(JSReceiver, HeapObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSObject)
@@ -283,6 +286,10 @@ int JSObject::GetEmbedderFieldOffset(int index) {
   return GetEmbedderFieldsStartOffset() + (kEmbedderDataSlotSize * index);
 }
 
+void JSObject::InitializeEmbedderField(Isolate* isolate, int index) {
+  EmbedderDataSlot(*this, index).AllocateExternalPointerEntry(isolate);
+}
+
 Object JSObject::GetEmbedderField(int index) {
   return EmbedderDataSlot(*this, index).load_tagged();
 }
@@ -296,11 +303,11 @@ void JSObject::SetEmbedderField(int index, Smi value) {
 }
 
 bool JSObject::IsUnboxedDoubleField(FieldIndex index) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return IsUnboxedDoubleField(isolate, index);
 }
 
-bool JSObject::IsUnboxedDoubleField(const Isolate* isolate,
+bool JSObject::IsUnboxedDoubleField(IsolateRoot isolate,
                                     FieldIndex index) const {
   if (!FLAG_unbox_double_fields) return false;
   return map(isolate).IsUnboxedDoubleField(isolate, index);
@@ -310,11 +317,11 @@ bool JSObject::IsUnboxedDoubleField(const Isolate* isolate,
 // is needed to correctly distinguish between properties stored in-object and
 // properties stored in the properties array.
 Object JSObject::RawFastPropertyAt(FieldIndex index) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
   return RawFastPropertyAt(isolate, index);
 }
 
-Object JSObject::RawFastPropertyAt(const Isolate* isolate,
+Object JSObject::RawFastPropertyAt(IsolateRoot isolate,
                                    FieldIndex index) const {
   DCHECK(!IsUnboxedDoubleField(isolate, index));
   if (index.is_inobject()) {
@@ -357,7 +364,7 @@ void JSObject::RawFastDoublePropertyAsBitsAtPut(FieldIndex index,
   // Double unboxing is enabled only on 64-bit platforms without pointer
   // compression.
   DCHECK_EQ(kDoubleSize, kTaggedSize);
-  Address field_addr = FIELD_ADDR(*this, index.offset());
+  Address field_addr = field_address(index.offset());
   base::Relaxed_Store(reinterpret_cast<base::AtomicWord*>(field_addr),
                       static_cast<base::AtomicWord>(bits));
 }
@@ -633,9 +640,15 @@ void JSReceiver::initialize_properties(Isolate* isolate) {
   ReadOnlyRoots roots(isolate);
   DCHECK(!ObjectInYoungGeneration(roots.empty_fixed_array()));
   DCHECK(!ObjectInYoungGeneration(roots.empty_property_dictionary()));
+  DCHECK(!ObjectInYoungGeneration(roots.empty_ordered_property_dictionary()));
   if (map(isolate).is_dictionary_map()) {
-    WRITE_FIELD(*this, kPropertiesOrHashOffset,
-                roots.empty_property_dictionary());
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      WRITE_FIELD(*this, kPropertiesOrHashOffset,
+                  roots.empty_ordered_property_dictionary());
+    } else {
+      WRITE_FIELD(*this, kPropertiesOrHashOffset,
+                  roots.empty_property_dictionary());
+    }
   } else {
     WRITE_FIELD(*this, kPropertiesOrHashOffset, roots.empty_fixed_array());
   }
@@ -644,7 +657,8 @@ void JSReceiver::initialize_properties(Isolate* isolate) {
 DEF_GETTER(JSReceiver, HasFastProperties, bool) {
   DCHECK(raw_properties_or_hash(isolate).IsSmi() ||
          ((raw_properties_or_hash(isolate).IsGlobalDictionary(isolate) ||
-           raw_properties_or_hash(isolate).IsNameDictionary(isolate)) ==
+           raw_properties_or_hash(isolate).IsNameDictionary(isolate) ||
+           raw_properties_or_hash(isolate).IsOrderedNameDictionary(isolate)) ==
           map(isolate).is_dictionary_map()));
   return !map(isolate).is_dictionary_map();
 }
@@ -652,6 +666,8 @@ DEF_GETTER(JSReceiver, HasFastProperties, bool) {
 DEF_GETTER(JSReceiver, property_dictionary, NameDictionary) {
   DCHECK(!IsJSGlobalObject(isolate));
   DCHECK(!HasFastProperties(isolate));
+  DCHECK(!V8_DICT_MODE_PROTOTYPES_BOOL);
+
   // Can't use ReadOnlyRoots(isolate) as this isolate could be produced by
   // i::GetIsolateForPtrCompr(HeapObject).
   Object prop = raw_properties_or_hash(isolate);
@@ -659,6 +675,20 @@ DEF_GETTER(JSReceiver, property_dictionary, NameDictionary) {
     return GetReadOnlyRoots(isolate).empty_property_dictionary();
   }
   return NameDictionary::cast(prop);
+}
+
+DEF_GETTER(JSReceiver, property_dictionary_ordered, OrderedNameDictionary) {
+  DCHECK(!IsJSGlobalObject(isolate));
+  DCHECK(!HasFastProperties(isolate));
+  DCHECK(V8_DICT_MODE_PROTOTYPES_BOOL);
+
+  // Can't use ReadOnlyRoots(isolate) as this isolate could be produced by
+  // i::GetIsolateForPtrCompr(HeapObject).
+  Object prop = raw_properties_or_hash(isolate);
+  if (prop.IsSmi()) {
+    return GetReadOnlyRoots(isolate).empty_ordered_property_dictionary();
+  }
+  return OrderedNameDictionary::cast(prop);
 }
 
 // TODO(gsathya): Pass isolate directly to this function and access

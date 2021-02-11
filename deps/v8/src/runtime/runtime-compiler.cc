@@ -60,8 +60,29 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
 
 namespace {
 
-inline bool MaybeSpawnNativeContextIndependentCompilationJob() {
-  return FLAG_turbo_nci && !FLAG_turbo_nci_as_midtier;
+// Returns false iff an exception was thrown.
+bool MaybeSpawnNativeContextIndependentCompilationJob(
+    Handle<JSFunction> function, ConcurrencyMode mode) {
+  if (!FLAG_turbo_nci || FLAG_turbo_nci_as_midtier) {
+    return true;  // Nothing to do.
+  }
+
+  // If delayed codegen is enabled, the first optimization request does not
+  // trigger NCI compilation, since we try to avoid compiling Code that
+  // remains unused in the future.  Repeated optimization (possibly in
+  // different native contexts) is taken as a signal that this SFI will
+  // continue to be used in the future, thus we trigger NCI compilation.
+  if (!FLAG_turbo_nci_delayed_codegen ||
+      function->shared().has_optimized_at_least_once()) {
+    if (!Compiler::CompileOptimized(function, mode,
+                                    CodeKind::NATIVE_CONTEXT_INDEPENDENT)) {
+      return false;
+    }
+  } else {
+    function->shared().set_has_optimized_at_least_once(true);
+  }
+
+  return true;
 }
 
 Object CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
@@ -77,20 +98,8 @@ Object CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
   }
 
   // Possibly compile for NCI caching.
-  if (MaybeSpawnNativeContextIndependentCompilationJob()) {
-    // The first optimization request does not trigger NCI compilation,
-    // since we try to avoid compiling Code that remains unused in the future.
-    // Repeated optimization (possibly in different native contexts) is taken
-    // as a signal that this SFI will continue to be used in the future, thus
-    // we trigger NCI compilation.
-    if (function->shared().has_optimized_at_least_once()) {
-      if (!Compiler::CompileOptimized(function, mode,
-                                      CodeKind::NATIVE_CONTEXT_INDEPENDENT)) {
-        return ReadOnlyRoots(isolate).exception();
-      }
-    } else {
-      function->shared().set_has_optimized_at_least_once(true);
-    }
+  if (!MaybeSpawnNativeContextIndependentCompilationJob(function, mode)) {
+    return ReadOnlyRoots(isolate).exception();
   }
 
   DCHECK(function->is_compiled());
@@ -132,7 +141,7 @@ RUNTIME_FUNCTION(Runtime_FunctionFirstExecution) {
   return function->code();
 }
 
-RUNTIME_FUNCTION(Runtime_EvictOptimizedCodeSlot) {
+RUNTIME_FUNCTION(Runtime_HealOptimizedCodeSlot) {
   SealHandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
@@ -140,7 +149,7 @@ RUNTIME_FUNCTION(Runtime_EvictOptimizedCodeSlot) {
   DCHECK(function->shared().is_compiled());
 
   function->feedback_vector().EvictOptimizedCodeMarkedForDeoptimization(
-      function->shared(), "Runtime_EvictOptimizedCodeSlot");
+      function->shared(), "Runtime_HealOptimizedCodeSlot");
   return function->code();
 }
 
@@ -299,6 +308,14 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
       PrintF(scope.file(), " at AST id %d]\n", ast_id.ToInt());
     }
     maybe_result = Compiler::GetOptimizedCodeForOSR(function, ast_id, frame);
+
+    // Possibly compile for NCI caching.
+    if (!MaybeSpawnNativeContextIndependentCompilationJob(
+            function, FLAG_concurrent_recompilation
+                          ? ConcurrencyMode::kConcurrent
+                          : ConcurrencyMode::kNotConcurrent)) {
+      return Object();
+    }
   }
 
   // Check whether we ended up with usable optimized code.

@@ -21,5 +21,3 @@ per-file js_protocol.pdl=pfeldman@chromium.org
 per-file v8-version.h=file:../INFRA_OWNERS
 per-file v8-version.h=hablich@chromium.org
 per-file v8-version.h=vahl@chromium.org
-
-# COMPONENT: Blink>JavaScript>API

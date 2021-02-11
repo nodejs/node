@@ -30,7 +30,6 @@ namespace internal {
   V(kInvalidJumpTableIndex, "Invalid jump table index")                       \
   V(kInvalidParametersAndRegistersInGenerator,                                \
     "invalid parameters and registers in generator")                          \
-  V(kInvalidNumberOfJsArgs, "Invalid number of JS arguments")                 \
   V(kMissingBytecodeArray, "Missing bytecode array from function")            \
   V(kObjectNotTagged, "The object is not tagged")                             \
   V(kObjectTagged, "The object is tagged")                                    \
@@ -58,6 +57,7 @@ namespace internal {
   V(kStackAccessBelowStackPointer, "Stack access below stack pointer")        \
   V(kStackFrameTypesMustMatch, "Stack frame types must match")                \
   V(kUnalignedCellInWriteBarrier, "Unaligned cell in write barrier")          \
+  V(kUnexpectedAdditionalPopValue, "Unexpected additional pop value")         \
   V(kUnexpectedElementsKindInArrayConstructor,                                \
     "Unexpected ElementsKind in array constructor")                           \
   V(kUnexpectedFPCRMode, "Unexpected FPCR mode.")                             \

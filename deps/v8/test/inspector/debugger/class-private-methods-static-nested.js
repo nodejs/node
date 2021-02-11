@@ -43,7 +43,7 @@ InspectorTest.runAsyncTestSuite([
     let { result } = await Protocol.Runtime.getProperties({
       objectId: frame.this.objectId
     });
-    InspectorTest.logObject(result.privateProperties);
+    InspectorTest.logMessage(result.privateProperties);
     Protocol.Debugger.resume();
 
     ({ params: { callFrames } } = await Protocol.Debugger.oncePaused());  // B.test();

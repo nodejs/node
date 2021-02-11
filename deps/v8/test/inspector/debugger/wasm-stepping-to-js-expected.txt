@@ -17,7 +17,7 @@ function test() {
 
 Debugger.resume
 paused
-Script wasm://wasm/242f4a16 byte offset 33: Wasm opcode 0x01
+Script wasm://wasm/242f4a16 byte offset 33: Wasm opcode 0x01 (kExprNop)
 Debugger.stepOut
 paused
   instance.exports.main();
@@ -36,10 +36,10 @@ function test() {
 
 Debugger.resume
 paused
-Script wasm://wasm/242f4a16 byte offset 33: Wasm opcode 0x01
+Script wasm://wasm/242f4a16 byte offset 33: Wasm opcode 0x01 (kExprNop)
 Debugger.stepOver
 paused
-Script wasm://wasm/242f4a16 byte offset 34: Wasm opcode 0x0b
+Script wasm://wasm/242f4a16 byte offset 34: Wasm opcode 0x0b (kExprEnd)
 Debugger.resume
 exports.main returned!
 Finished run 2!
@@ -52,10 +52,10 @@ function test() {
 
 Debugger.resume
 paused
-Script wasm://wasm/242f4a16 byte offset 33: Wasm opcode 0x01
+Script wasm://wasm/242f4a16 byte offset 33: Wasm opcode 0x01 (kExprNop)
 Debugger.stepInto
 paused
-Script wasm://wasm/242f4a16 byte offset 34: Wasm opcode 0x0b
+Script wasm://wasm/242f4a16 byte offset 34: Wasm opcode 0x0b (kExprEnd)
 Debugger.resume
 exports.main returned!
 Finished run 3!

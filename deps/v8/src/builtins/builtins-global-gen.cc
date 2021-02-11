@@ -11,14 +11,14 @@ namespace internal {
 
 // ES #sec-isfinite-number
 TF_BUILTIN(GlobalIsFinite, CodeStubAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   Label return_true(this), return_false(this);
 
   // We might need to loop once for ToNumber conversion.
   TVARIABLE(Object, var_num);
   Label loop(this, &var_num);
-  var_num = CAST(Parameter(Descriptor::kNumber));
+  var_num = Parameter<Object>(Descriptor::kNumber);
   Goto(&loop);
   BIND(&loop);
   {
@@ -60,14 +60,14 @@ TF_BUILTIN(GlobalIsFinite, CodeStubAssembler) {
 
 // ES6 #sec-isnan-number
 TF_BUILTIN(GlobalIsNaN, CodeStubAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   Label return_true(this), return_false(this);
 
   // We might need to loop once for ToNumber conversion.
   TVARIABLE(Object, var_num);
   Label loop(this, &var_num);
-  var_num = CAST(Parameter(Descriptor::kNumber));
+  var_num = Parameter<Object>(Descriptor::kNumber);
   Goto(&loop);
   BIND(&loop);
   {

@@ -32,14 +32,15 @@
 
   ##############################################################################
 
-  # This test is so detailed in it's look at the literals array, I can't
-  # maintain it until the CL is done.
-  'test-heap-profiler/AllocationSitesAreVisible': [FAIL, ['lite_mode == True', SKIP]],
-
   # These tests always fail.  They are here to test test.py.  If
   # they don't fail then test.py has failed.
   'test-serialize/TestThatAlwaysFails': [FAIL],
   'test-api/SealHandleScope': [FAIL],
+
+  # These tests are expected to hit a CHECK (i.e. a FAIL result actually means
+  # the test passed).
+  'test-api/RegExpInterruptAndReenterIrregexp': [FAIL, CRASH],
+  'test-verifiers/Fail*': [FAIL, CRASH],
 
   # This test always fails.  It tests that LiveEdit causes abort when turned off.
   'test-debug/LiveEditDisabled': [FAIL],
@@ -111,6 +112,10 @@
 
   # https://crbug.com/v8/8919
   'test-platform/StackAlignment': [PASS, ['not is_clang', SKIP]],
+
+  # Test that misuse of PopAndReturn does not compile.
+  'test-code-stub-assembler/PopAndReturnFromJSBuiltinWithStackParameters' : [FAIL],
+  'test-code-stub-assembler/PopAndReturnFromTFCBuiltinWithStackParameters' : [FAIL],
 
   ############################################################################
   # Slow tests.
@@ -193,12 +198,6 @@
 }],  # variant == nooptimization
 
 ##############################################################################
-['variant == no_lfa', {
-  # https://crbug.com/v8/10219
-  'test-compiler/DecideToPretenureDuringCompilation': [SKIP],
-}],  # variant == no_lfa
-
-##############################################################################
 ['asan == True', {
   # Skip tests not suitable for ASAN.
   'test-assembler-x64/AssemblerX64XchglOperations': [SKIP],
@@ -249,9 +248,6 @@
 
   # BUG(v8:8744).
   'test-cpu-profiler/FunctionCallSample': [SKIP],
-
-  # BUG(5920): Flaky crash.
-  'test-serialize/ContextSerializerContext': [PASS, ['arch == x64 and mode == debug', SKIP]],
 
   # BUG(10107): Failing flakily
   'test-cpu-profiler/Inlining2': ['arch == ia32 and mode == debug', SKIP],
@@ -387,13 +383,6 @@
   # TODO(ppc): Implement load/store reverse byte instructions
   'test-run-wasm-simd/RunWasm_SimdLoadStoreLoad': [SKIP],
   'test-run-wasm-simd/RunWasm_SimdLoadStoreLoad_turbofan': [SKIP],
-  # TODO(miladfarca): remove once aix gcc bug is fixed.
-  # gcc on aix has a bug when using ceilf or truncf:
-  # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=97086
-  'test-run-wasm-simd/RunWasm_F32x4Ceil_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_F32x4Trunc_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_F64x2Ceil_interpreter': [SKIP],
-  'test-run-wasm-simd/RunWasm_F64x2Trunc_interpreter': [SKIP],
 
 }],  # 'system == aix or (arch == ppc64 and byteorder == big)'
 
@@ -475,18 +464,6 @@
   'test-unwinder-code-pages/*': [SKIP]
 }],
 
-# TODO(solanes, v8:10833): Re-enable these tests or create specific ones for
-# Arm. They are disabled because the stack is not being set up the way it does
-# in the wild.
-['arch == arm64 or arch == arm', {
-  'test-unwinder-code-pages/Unwind_CodeObjectPCInMiddle_Success_CodePagesAPI': [SKIP],
-  'test-unwinder-code-pages/Unwind_JSEntryBeforeFrame_Fail_CodePagesAPI': [SKIP],
-  'test-unwinder-code-pages/Unwind_OneJSFrame_Success_CodePagesAPI': [SKIP],
-  'test-unwinder-code-pages/Unwind_TwoJSFrames_Success_CodePagesAPI': [SKIP],
-  'test-unwinder-code-pages/Unwind_StackBounds_Basic_CodePagesAPI': [SKIP],
-  'test-unwinder-code-pages/Unwind_StackBounds_WithUnwinding_CodePagesAPI': [SKIP],
-}],
-
 ##############################################################################
 ['lite_mode or variant == jitless', {
 
@@ -518,6 +495,7 @@
   'test-run-wasm-simd-liftoff/*': [SKIP],
   'test-run-wasm-simd-scalar-lowering/*': [SKIP],
   'test-run-wasm-simd/*': [SKIP],
+  'test-run-wasm-wrappers/*': [SKIP],
   'test-streaming-compilation/*': [SKIP],
   'test-wasm-breakpoints/*': [SKIP],
   'test-wasm-codegen/*': [SKIP],

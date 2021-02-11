@@ -386,6 +386,9 @@ class V8_EXPORT_PRIVATE PagedSpace
                                       AllocationAlignment alignment,
                                       AllocationOrigin origin);
 
+  V8_WARN_UNUSED_RESULT bool TryExpand(int size_in_bytes,
+                                       AllocationOrigin origin);
+
   Executability executable_;
 
   LocalSpaceKind local_space_kind_;
@@ -512,7 +515,8 @@ class MapSpace : public PagedSpace {
  public:
   // Creates a map space object.
   explicit MapSpace(Heap* heap)
-      : PagedSpace(heap, MAP_SPACE, NOT_EXECUTABLE, new FreeListMap()) {}
+      : PagedSpace(heap, MAP_SPACE, NOT_EXECUTABLE,
+                   FreeList::CreateFreeList()) {}
 
   int RoundSizeDownToObjectAlignment(int size) override {
     if (base::bits::IsPowerOfTwo(Map::kSize)) {

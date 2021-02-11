@@ -105,7 +105,7 @@ TEST(GCInvokerTest, ConservativeGCIsInvokedAsPreciseGCViaPlatform) {
   EXPECT_CALL(gc, epoch).WillRepeatedly(::testing::Return(0));
   EXPECT_CALL(gc, CollectGarbage);
   invoker.CollectGarbage(GarbageCollector::Config::ConservativeAtomicConfig());
-  platform.WaitAllForegroundTasks();
+  platform.RunAllForegroundTasks();
 }
 
 TEST(GCInvokerTest, IncrementalGCIsStarted) {

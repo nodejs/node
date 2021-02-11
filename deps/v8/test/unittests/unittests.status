@@ -58,8 +58,6 @@
   # BUG(992783).
   'Torque.ConditionalFields': [SKIP],
   'Torque.UsingUnderscorePrefixedIdentifierError': [SKIP],
-  # BUG(10658).
-  'GCStackTest.IteratePointersFindsParameterNesting8': [SKIP],
 }],  # system == windows and arch == x64 and mode == release
 
 ['tsan == True', {
@@ -78,5 +76,4 @@
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
-
 ]

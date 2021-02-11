@@ -16,36 +16,71 @@ namespace internal {
 class HeapBase;
 class HeapObjectHeader;
 class Marker;
-class MarkingState;
+class MarkingStateBase;
+class MutatorMarkingState;
+class ConcurrentMarkingState;
 
-class V8_EXPORT_PRIVATE MarkingVisitor : public VisitorBase {
+class V8_EXPORT_PRIVATE MarkingVisitorBase : public VisitorBase {
  public:
-  MarkingVisitor(HeapBase&, MarkingState&);
-  ~MarkingVisitor() override = default;
+  MarkingVisitorBase(HeapBase&, MarkingStateBase&);
+  ~MarkingVisitorBase() override = default;
 
  protected:
   void Visit(const void*, TraceDescriptor) final;
   void VisitWeak(const void*, TraceDescriptor, WeakCallback, const void*) final;
-  void VisitRoot(const void*, TraceDescriptor) final;
-  void VisitWeakRoot(const void*, TraceDescriptor, WeakCallback,
-                     const void*) final;
+  void VisitEphemeron(const void*, TraceDescriptor) final;
+  void VisitWeakContainer(const void* self, TraceDescriptor strong_desc,
+                          TraceDescriptor weak_desc, WeakCallback callback,
+                          const void* data) final;
   void RegisterWeakCallback(WeakCallback, const void*) final;
+  void HandleMovableReference(const void**) final;
 
-  MarkingState& marking_state_;
+  MarkingStateBase& marking_state_;
+};
+
+class V8_EXPORT_PRIVATE MutatorMarkingVisitor : public MarkingVisitorBase {
+ public:
+  MutatorMarkingVisitor(HeapBase&, MutatorMarkingState&);
+  ~MutatorMarkingVisitor() override = default;
+
+ protected:
+  void VisitRoot(const void*, TraceDescriptor, const SourceLocation&) final;
+  void VisitWeakRoot(const void*, TraceDescriptor, WeakCallback, const void*,
+                     const SourceLocation&) final;
+};
+
+class V8_EXPORT_PRIVATE ConcurrentMarkingVisitor final
+    : public MarkingVisitorBase {
+ public:
+  ConcurrentMarkingVisitor(HeapBase&, ConcurrentMarkingState&);
+  ~ConcurrentMarkingVisitor() override = default;
+
+ protected:
+  void VisitRoot(const void*, TraceDescriptor, const SourceLocation&) final {
+    UNREACHABLE();
+  }
+  void VisitWeakRoot(const void*, TraceDescriptor, WeakCallback, const void*,
+                     const SourceLocation&) final {
+    UNREACHABLE();
+  }
+
+  bool DeferTraceToMutatorThreadIfConcurrent(const void*, TraceCallback,
+                                             size_t) final;
 };
 
 class ConservativeMarkingVisitor : public ConservativeTracingVisitor,
                                    public heap::base::StackVisitor {
  public:
-  ConservativeMarkingVisitor(HeapBase&, MarkingState&, cppgc::Visitor&);
+  ConservativeMarkingVisitor(HeapBase&, MutatorMarkingState&, cppgc::Visitor&);
   ~ConservativeMarkingVisitor() override = default;
 
  private:
-  void VisitConservatively(HeapObjectHeader&,
-                           TraceConservativelyCallback) final;
+  void VisitFullyConstructedConservatively(HeapObjectHeader&) final;
+  void VisitInConstructionConservatively(HeapObjectHeader&,
+                                         TraceConservativelyCallback) final;
   void VisitPointer(const void*) final;
 
-  MarkingState& marking_state_;
+  MutatorMarkingState& marking_state_;
 };
 
 }  // namespace internal

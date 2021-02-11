@@ -62,11 +62,9 @@ class Arguments {
   inline Address* address_of_arg_at(int index) const {
     DCHECK_LE(static_cast<uint32_t>(index), static_cast<uint32_t>(length_));
     uintptr_t offset = index * kSystemPointerSize;
-#ifdef V8_REVERSE_JSARGS
     if (arguments_type == ArgumentsType::kJS) {
       offset = (length_ - index - 1) * kSystemPointerSize;
     }
-#endif
     return reinterpret_cast<Address*>(reinterpret_cast<Address>(arguments_) -
                                       offset);
   }
@@ -77,17 +75,13 @@ class Arguments {
   // Arguments on the stack are in reverse order (compared to an array).
   FullObjectSlot first_slot() const {
     int index = length() - 1;
-#ifdef V8_REVERSE_JSARGS
     if (arguments_type == ArgumentsType::kJS) index = 0;
-#endif
     return slot_at(index);
   }
 
   FullObjectSlot last_slot() const {
     int index = 0;
-#ifdef V8_REVERSE_JSARGS
     if (arguments_type == ArgumentsType::kJS) index = length() - 1;
-#endif
     return slot_at(index);
   }
 

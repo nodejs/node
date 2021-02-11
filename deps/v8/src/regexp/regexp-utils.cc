@@ -173,9 +173,10 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
   // with the init order in the bootstrapper).
   InternalIndex kExecIndex(JSRegExp::kExecFunctionDescriptorIndex);
   DCHECK_EQ(*(isolate->factory()->exec_string()),
-            proto_map.instance_descriptors().GetKey(kExecIndex));
-  if (proto_map.instance_descriptors().GetDetails(kExecIndex).constness() !=
-      PropertyConstness::kConst) {
+            proto_map.instance_descriptors(kRelaxedLoad).GetKey(kExecIndex));
+  if (proto_map.instance_descriptors(kRelaxedLoad)
+          .GetDetails(kExecIndex)
+          .constness() != PropertyConstness::kConst) {
     return false;
   }
 

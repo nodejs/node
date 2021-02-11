@@ -86,19 +86,33 @@ LocalEmbedderHeapTracer::ProcessingScope::~ProcessingScope() {
   }
 }
 
+// static
+LocalEmbedderHeapTracer::WrapperInfo
+LocalEmbedderHeapTracer::ExtractWrapperInfo(Isolate* isolate,
+                                            JSObject js_object) {
+  DCHECK_GE(js_object.GetEmbedderFieldCount(), 2);
+  DCHECK(js_object.IsApiWrapper());
+
+  WrapperInfo info;
+  if (EmbedderDataSlot(js_object, 0)
+          .ToAlignedPointerSafe(isolate, &info.first) &&
+      info.first &&
+      EmbedderDataSlot(js_object, 1)
+          .ToAlignedPointerSafe(isolate, &info.second)) {
+    return info;
+  }
+  return {nullptr, nullptr};
+}
+
 void LocalEmbedderHeapTracer::ProcessingScope::TracePossibleWrapper(
     JSObject js_object) {
   DCHECK(js_object.IsApiWrapper());
   if (js_object.GetEmbedderFieldCount() < 2) return;
 
-  void* pointer0;
-  void* pointer1;
-  if (EmbedderDataSlot(js_object, 0)
-          .ToAlignedPointer(tracer_->isolate_, &pointer0) &&
-      pointer0 &&
-      EmbedderDataSlot(js_object, 1)
-          .ToAlignedPointer(tracer_->isolate_, &pointer1)) {
-    wrapper_cache_.push_back({pointer0, pointer1});
+  WrapperInfo info =
+      LocalEmbedderHeapTracer::ExtractWrapperInfo(tracer_->isolate_, js_object);
+  if (VerboseWrapperInfo(info).is_valid()) {
+    wrapper_cache_.push_back(std::move(info));
   }
   FlushWrapperCacheIfFull();
 }

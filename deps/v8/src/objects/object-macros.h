@@ -82,25 +82,47 @@
 // parameter.
 #define DECL_GETTER(name, type) \
   inline type name() const;     \
-  inline type name(const Isolate* isolate) const;
+  inline type name(IsolateRoot isolate) const;
 
-#define DEF_GETTER(holder, name, type)                     \
-  type holder::name() const {                              \
-    const Isolate* isolate = GetIsolateForPtrCompr(*this); \
-    return holder::name(isolate);                          \
-  }                                                        \
-  type holder::name(const Isolate* isolate) const
+#define DEF_GETTER(holder, name, type)                  \
+  type holder::name() const {                           \
+    IsolateRoot isolate = GetIsolateForPtrCompr(*this); \
+    return holder::name(isolate);                       \
+  }                                                     \
+  type holder::name(IsolateRoot isolate) const
 
 #define DECL_ACCESSORS(name, type)   \
   DECL_GETTER(name, type)            \
   inline void set_##name(type value, \
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-// TODO(solanes, neis): Unify naming for synchronized accessor uses.
-#define DECL_SYNCHRONIZED_ACCESSORS(name, type) \
-  DECL_GETTER(synchronized_##name, type)        \
-  inline void set_synchronized_##name(          \
-      type value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+#define DECL_ACCESSORS_LOAD_TAG(name, type, tag_type) \
+  inline type name(tag_type tag) const;               \
+  inline type name(IsolateRoot isolate, tag_type) const;
+
+#define DECL_ACCESSORS_STORE_TAG(name, type, tag_type) \
+  inline void set_##name(type value, tag_type,         \
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+#define DECL_RELAXED_GETTER(name, type) \
+  DECL_ACCESSORS_LOAD_TAG(name, type, RelaxedLoadTag)
+
+#define DECL_RELAXED_SETTER(name, type) \
+  DECL_ACCESSORS_STORE_TAG(name, type, RelaxedStoreTag)
+
+#define DECL_RELAXED_ACCESSORS(name, type) \
+  DECL_RELAXED_GETTER(name, type)          \
+  DECL_RELAXED_SETTER(name, type)
+
+#define DECL_ACQUIRE_GETTER(name, type) \
+  DECL_ACCESSORS_LOAD_TAG(name, type, AcquireLoadTag)
+
+#define DECL_RELEASE_SETTER(name, type) \
+  DECL_ACCESSORS_STORE_TAG(name, type, ReleaseStoreTag)
+
+#define DECL_RELEASE_ACQUIRE_ACCESSORS(name, type) \
+  DECL_ACQUIRE_GETTER(name, type)                  \
+  DECL_RELEASE_SETTER(name, type)
 
 #define DECL_CAST(Type)                                 \
   V8_INLINE static Type cast(Object object);            \
@@ -162,25 +184,55 @@
 #define ACCESSORS(holder, name, type, offset) \
   ACCESSORS_CHECKED(holder, name, type, offset, true)
 
-#define SYNCHRONIZED_ACCESSORS_CHECKED2(holder, name, type, offset,       \
-                                        get_condition, set_condition)     \
-  DEF_GETTER(holder, name, type) {                                        \
+#define RELAXED_ACCESSORS_CHECKED2(holder, name, type, offset, get_condition, \
+                                   set_condition)                             \
+  type holder::name(RelaxedLoadTag tag) const {                               \
+    IsolateRoot isolate = GetIsolateForPtrCompr(*this);                       \
+    return holder::name(isolate, tag);                                        \
+  }                                                                           \
+  type holder::name(IsolateRoot isolate, RelaxedLoadTag) const {              \
+    type value = TaggedField<type, offset>::load(isolate, *this);             \
+    DCHECK(get_condition);                                                    \
+    return value;                                                             \
+  }                                                                           \
+  void holder::set_##name(type value, RelaxedStoreTag,                        \
+                          WriteBarrierMode mode) {                            \
+    DCHECK(set_condition);                                                    \
+    TaggedField<type, offset>::store(*this, value);                           \
+    CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);                    \
+  }
+
+#define RELAXED_ACCESSORS_CHECKED(holder, name, type, offset, condition) \
+  RELAXED_ACCESSORS_CHECKED2(holder, name, type, offset, condition, condition)
+
+#define RELAXED_ACCESSORS(holder, name, type, offset) \
+  RELAXED_ACCESSORS_CHECKED(holder, name, type, offset, true)
+
+#define RELEASE_ACQUIRE_ACCESSORS_CHECKED2(holder, name, type, offset,    \
+                                           get_condition, set_condition)  \
+  type holder::name(AcquireLoadTag tag) const {                           \
+    IsolateRoot isolate = GetIsolateForPtrCompr(*this);                   \
+    return holder::name(isolate, tag);                                    \
+  }                                                                       \
+  type holder::name(IsolateRoot isolate, AcquireLoadTag) const {          \
     type value = TaggedField<type, offset>::Acquire_Load(isolate, *this); \
     DCHECK(get_condition);                                                \
     return value;                                                         \
   }                                                                       \
-  void holder::set_##name(type value, WriteBarrierMode mode) {            \
+  void holder::set_##name(type value, ReleaseStoreTag,                    \
+                          WriteBarrierMode mode) {                        \
     DCHECK(set_condition);                                                \
     TaggedField<type, offset>::Release_Store(*this, value);               \
     CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);                \
   }
 
-#define SYNCHRONIZED_ACCESSORS_CHECKED(holder, name, type, offset, condition) \
-  SYNCHRONIZED_ACCESSORS_CHECKED2(holder, name, type, offset, condition,      \
-                                  condition)
+#define RELEASE_ACQUIRE_ACCESSORS_CHECKED(holder, name, type, offset,       \
+                                          condition)                        \
+  RELEASE_ACQUIRE_ACCESSORS_CHECKED2(holder, name, type, offset, condition, \
+                                     condition)
 
-#define SYNCHRONIZED_ACCESSORS(holder, name, type, offset) \
-  SYNCHRONIZED_ACCESSORS_CHECKED(holder, name, type, offset, true)
+#define RELEASE_ACQUIRE_ACCESSORS(holder, name, type, offset) \
+  RELEASE_ACQUIRE_ACCESSORS_CHECKED(holder, name, type, offset, true)
 
 #define WEAK_ACCESSORS_CHECKED2(holder, name, offset, get_condition,  \
                                 set_condition)                        \

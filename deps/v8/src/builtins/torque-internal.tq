@@ -226,6 +226,11 @@ macro DownCastForTorqueClass<T : type extends HeapObject>(o: HeapObject):
 
 extern macro StaticAssert(bool, constexpr string);
 
+// This is for the implementation of the dot operator. In any context where the
+// dot operator is available, the correct way to get the length of an indexed
+// field x from object o is `(&o.x).length`.
+intrinsic %IndexedFieldLength<T: type>(o: T, f: constexpr string);
+
 }  // namespace torque_internal
 
 // Indicates that an array-field should not be initialized.

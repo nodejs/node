@@ -23,7 +23,6 @@ extern class SmallOrderedHashTable extends HeapObject
 extern macro SmallOrderedHashSetMapConstant(): Map;
 const kSmallOrderedHashSetMap: Map = SmallOrderedHashSetMapConstant();
 
-@noVerifier
 extern class SmallOrderedHashSet extends SmallOrderedHashTable {
   number_of_elements: uint8;
   number_of_deleted_elements: uint8;
@@ -62,7 +61,6 @@ struct HashMapEntry {
 extern macro SmallOrderedHashMapMapConstant(): Map;
 const kSmallOrderedHashMapMap: Map = SmallOrderedHashMapMapConstant();
 
-@noVerifier
 extern class SmallOrderedHashMap extends SmallOrderedHashTable {
   number_of_elements: uint8;
   number_of_deleted_elements: uint8;
@@ -99,7 +97,6 @@ struct NameDictionaryEntry {
   property_details: Smi|TheHole;
 }
 
-@noVerifier
 extern class SmallOrderedNameDictionary extends SmallOrderedHashTable {
   hash: int32;
   number_of_elements: uint8;

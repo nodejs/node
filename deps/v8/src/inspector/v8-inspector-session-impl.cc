@@ -239,6 +239,8 @@ Response V8InspectorSessionImpl::findInjectedScript(
 
 Response V8InspectorSessionImpl::findInjectedScript(
     RemoteObjectIdBase* objectId, InjectedScript*& injectedScript) {
+  if (objectId->isolateId() != m_inspector->isolateId())
+    return Response::ServerError("Cannot find context with specified id");
   return findInjectedScript(objectId->contextId(), injectedScript);
 }
 

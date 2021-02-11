@@ -872,7 +872,6 @@ V8Console::CommandLineAPIScope::~CommandLineAPIScope() {
                          ->GetOwnPropertyDescriptor(
                              m_context, v8::Local<v8::String>::Cast(name))
                          .ToLocal(&descriptor);
-      DCHECK(success);
       USE(success);
     }
   }

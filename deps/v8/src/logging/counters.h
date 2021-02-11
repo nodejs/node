@@ -276,6 +276,9 @@ class TimedHistogram : public Histogram {
   // that never got to run in a given scenario. Log if isolate non-null.
   void RecordAbandon(base::ElapsedTimer* timer, Isolate* isolate);
 
+  // Add a single sample to this histogram.
+  void AddTimedSample(base::TimeDelta sample);
+
  protected:
   friend class Counters;
   HistogramTimerResolution resolution_;
@@ -736,6 +739,7 @@ class RuntimeCallTimer final {
   V(Float64Array_New)                                      \
   V(Function_Call)                                         \
   V(Function_New)                                          \
+  V(Function_FunctionProtoToString)                        \
   V(Function_NewInstance)                                  \
   V(FunctionTemplate_GetFunction)                          \
   V(FunctionTemplate_New)                                  \
@@ -747,7 +751,6 @@ class RuntimeCallTimer final {
   V(Int8Array_New)                                         \
   V(Isolate_DateTimeConfigurationChangeNotification)       \
   V(Isolate_LocaleConfigurationChangeNotification)         \
-  V(JSMemberBase_New)                                      \
   V(JSON_Parse)                                            \
   V(JSON_Stringify)                                        \
   V(Map_AsArray)                                           \
@@ -788,6 +791,7 @@ class RuntimeCallTimer final {
   V(Object_HasRealIndexedProperty)                         \
   V(Object_HasRealNamedCallbackProperty)                   \
   V(Object_HasRealNamedProperty)                           \
+  V(Object_IsCodeLike)                                     \
   V(Object_New)                                            \
   V(Object_ObjectProtoToString)                            \
   V(Object_Set)                                            \

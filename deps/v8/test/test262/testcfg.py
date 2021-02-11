@@ -49,8 +49,6 @@ FEATURE_FLAGS = {
   'Intl.DateTimeFormat-quarter': '--harmony-intl-dateformat-quarter',
   'String.prototype.replaceAll': '--harmony_string_replaceall',
   'Symbol.prototype.description': '--harmony-symbol-description',
-  'export-star-as-namespace-from-module': '--harmony-namespace-exports',
-  'Promise.allSettled': '--harmony-promise-all-settled',
   'FinalizationRegistry': '--harmony-weak-refs-with-cleanup-some',
   'WeakRef': '--harmony-weak-refs-with-cleanup-some',
   'host-gc-required': '--expose-gc-as=v8GC',

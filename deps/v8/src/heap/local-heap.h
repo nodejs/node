@@ -22,10 +22,19 @@ class Heap;
 class Safepoint;
 class LocalHandles;
 
+// LocalHeap is used by the GC to track all threads with heap access in order to
+// stop them before performing a collection. LocalHeaps can be either Parked or
+// Running and are in Parked mode when initialized.
+//   Running: Thread is allowed to access the heap but needs to give the GC the
+//            chance to run regularly by manually invoking Safepoint(). The
+//            thread can be parked using ParkedScope.
+//   Parked:  Heap access is not allowed, so the GC will not stop this thread
+//            for a collection. Useful when threads do not need heap access for
+//            some time or for blocking operations like locking a mutex.
 class V8_EXPORT_PRIVATE LocalHeap {
  public:
   explicit LocalHeap(
-      Heap* heap,
+      Heap* heap, ThreadKind kind,
       std::unique_ptr<PersistentHandles> persistent_handles = nullptr);
   ~LocalHeap();
 
@@ -70,6 +79,8 @@ class V8_EXPORT_PRIVATE LocalHeap {
     return kNullMaybeHandle;
   }
 
+  void AttachPersistentHandles(
+      std::unique_ptr<PersistentHandles> persistent_handles);
   std::unique_ptr<PersistentHandles> DetachPersistentHandles();
 #ifdef DEBUG
   bool ContainsPersistentHandle(Address* location);
@@ -115,6 +126,11 @@ class V8_EXPORT_PRIVATE LocalHeap {
       AllocationOrigin origin = AllocationOrigin::kRuntime,
       AllocationAlignment alignment = kWordAligned);
 
+  bool is_main_thread() const { return is_main_thread_; }
+
+  // Requests GC and blocks until the collection finishes.
+  void PerformCollection();
+
  private:
   enum class ThreadState {
     // Threads in this state need to be stopped in a safepoint.
@@ -147,6 +163,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   void EnterSafepoint();
 
   Heap* heap_;
+  bool is_main_thread_;
 
   base::Mutex state_mutex_;
   base::ConditionVariable state_change_;

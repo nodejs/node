@@ -1446,8 +1446,8 @@ Response V8DebuggerAgentImpl::currentCallFrames(
     int contextId = iterator->GetContextId();
     InjectedScript* injectedScript = nullptr;
     if (contextId) m_session->findInjectedScript(contextId, injectedScript);
-    String16 callFrameId =
-        RemoteCallFrameId::serialize(contextId, frameOrdinal);
+    String16 callFrameId = RemoteCallFrameId::serialize(
+        m_inspector->isolateId(), contextId, frameOrdinal);
 
     v8::debug::Location loc = iterator->GetSourceLocation();
 

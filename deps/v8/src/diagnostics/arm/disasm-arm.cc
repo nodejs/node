@@ -111,6 +111,20 @@ class Decoder {
 
   void DecodeSpecialCondition(Instruction* instr);
 
+  // F4.1.14 Floating-point data-processing.
+  void DecodeFloatingPointDataProcessing(Instruction* instr);
+  // F4.1.18 Unconditional instructions.
+  void DecodeUnconditional(Instruction* instr);
+  // F4.1.20 Advanced SIMD data-processing.
+  void DecodeAdvancedSIMDDataProcessing(Instruction* instr);
+  // F4.1.21 Advanced SIMD two registers, or three registers of different
+  // lengths.
+  void DecodeAdvancedSIMDTwoOrThreeRegisters(Instruction* instr);
+  // F4.1.23 Memory hints and barriers.
+  void DecodeMemoryHintsAndBarriers(Instruction* instr);
+  // F4.1.24 Advanced SIMD element or structure load/store.
+  void DecodeAdvancedSIMDElementOrStructureLoadStore(Instruction* instr);
+
   void DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(Instruction* instr);
   void DecodeVCMP(Instruction* instr);
   void DecodeVCVTBetweenDoubleAndSingle(Instruction* instr);
@@ -565,11 +579,18 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
         PrintSoftwareInterrupt(instr->SvcValue());
         return 3;
       } else if (format[1] == 'i') {  // 'sign: signed extra loads and stores
-        DCHECK(STRING_STARTS_WITH(format, "sign"));
-        if (instr->HasSign()) {
-          Print("s");
+        if (format[2] == 'g') {
+          DCHECK(STRING_STARTS_WITH(format, "sign"));
+          if (instr->HasSign()) {
+            Print("s");
+          }
+          return 4;
+        } else {  // 'size, for Advanced SIMD instructions
+          DCHECK(STRING_STARTS_WITH(format, "size"));
+          int sz = 8 << instr->Bits(21, 20);
+          out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", sz);
+          return 4;
         }
-        return 4;
       } else if (format[1] == 'p') {
         if (format[8] == '_') {  // 'spec_reg_fields
           DCHECK(STRING_STARTS_WITH(format, "spec_reg_fields"));
@@ -1859,205 +1880,296 @@ static const char* const barrier_option_names[] = {
 };
 
 void Decoder::DecodeSpecialCondition(Instruction* instr) {
-  switch (instr->SpecialValue()) {
-    case 4: {
-      int Vd, Vm, Vn;
-      if (instr->Bit(6) == 0) {
-        Vd = instr->VFPDRegValue(kDoublePrecision);
-        Vm = instr->VFPMRegValue(kDoublePrecision);
-        Vn = instr->VFPNRegValue(kDoublePrecision);
-      } else {
-        Vd = instr->VFPDRegValue(kSimd128Precision);
-        Vm = instr->VFPMRegValue(kSimd128Precision);
-        Vn = instr->VFPNRegValue(kSimd128Precision);
-      }
-      int size = kBitsPerByte * (1 << instr->Bits(21, 20));
-      switch (instr->Bits(11, 8)) {
-        case 0x0: {
-          if (instr->Bit(4) == 1) {
-            // vqadd.s<size> Qd, Qm, Qn.
-            out_buffer_pos_ +=
-                SNPrintF(out_buffer_ + out_buffer_pos_,
-                         "vqadd.s%d q%d, q%d, q%d", size, Vd, Vn, Vm);
-          } else {
-            Unknown(instr);
-          }
-          break;
+  int op0 = instr->Bits(25, 24);
+  int op1 = instr->Bits(11, 9);
+  int op2 = instr->Bit(4);
+
+  if (instr->Bit(27) == 0) {
+    DecodeUnconditional(instr);
+  } else if ((instr->Bits(27, 26) == 0b11) && (op0 == 0b10) &&
+             ((op1 >> 1) == 0b10) && !op2) {
+    DecodeFloatingPointDataProcessing(instr);
+  } else {
+    Unknown(instr);
+  }
+}
+
+void Decoder::DecodeFloatingPointDataProcessing(Instruction* instr) {
+  // Floating-point data processing, F4.1.14.
+  int op0 = instr->Bits(23, 20);
+  int op1 = instr->Bits(19, 16);
+  int op2 = instr->Bits(9, 8);
+  int op3 = instr->Bit(6);
+  if (((op0 & 0b1000) == 0) && op2 && !op3) {
+    // Floating-point conditional select.
+    // VSEL* (floating-point)
+    bool dp_operation = (instr->SzValue() == 1);
+    switch (instr->Bits(21, 20)) {
+      case 0x0:
+        if (dp_operation) {
+          Format(instr, "vseleq.f64 'Dd, 'Dn, 'Dm");
+        } else {
+          Format(instr, "vseleq.f32 'Sd, 'Sn, 'Sm");
         }
-        case 0x1: {
-          if (instr->Bits(21, 20) == 2 && instr->Bit(6) == 1 &&
-              instr->Bit(4) == 1) {
-            if (Vm == Vn) {
-              // vmov Qd, Qm
-              out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                          "vmov q%d, q%d", Vd, Vm);
-            } else {
-              // vorr Qd, Qm, Qn.
-              out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                          "vorr q%d, q%d, q%d", Vd, Vn, Vm);
-            }
-          } else if (instr->Bits(21, 20) == 1 && instr->Bit(6) == 1 &&
-                     instr->Bit(4) == 1) {
-            // vbic Qd, Qn, Qm
-            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                        "vbic q%d, q%d, q%d", Vd, Vn, Vm);
-          } else if (instr->Bits(21, 20) == 0 && instr->Bit(6) == 1 &&
-                     instr->Bit(4) == 1) {
-            // vand Qd, Qm, Qn.
-            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                        "vand q%d, q%d, q%d", Vd, Vn, Vm);
-          } else {
-            Unknown(instr);
-          }
-          break;
+        break;
+      case 0x1:
+        if (dp_operation) {
+          Format(instr, "vselvs.f64 'Dd, 'Dn, 'Dm");
+        } else {
+          Format(instr, "vselvs.f32 'Sd, 'Sn, 'Sm");
         }
-        case 0x2: {
-          if (instr->Bit(4) == 1) {
-            // vqsub.s<size> Qd, Qm, Qn.
-            out_buffer_pos_ +=
-                SNPrintF(out_buffer_ + out_buffer_pos_,
-                         "vqsub.s%d q%d, q%d, q%d", size, Vd, Vn, Vm);
-          } else {
-            Unknown(instr);
-          }
-          break;
+        break;
+      case 0x2:
+        if (dp_operation) {
+          Format(instr, "vselge.f64 'Dd, 'Dn, 'Dm");
+        } else {
+          Format(instr, "vselge.f32 'Sd, 'Sn, 'Sm");
         }
-        case 0x3: {
-          const char* op = (instr->Bit(4) == 1) ? "vcge" : "vcgt";
-          // vcge/vcgt.s<size> Qd, Qm, Qn.
-          out_buffer_pos_ +=
-              SNPrintF(out_buffer_ + out_buffer_pos_, "%s.s%d q%d, q%d, q%d",
-                       op, size, Vd, Vn, Vm);
-          break;
+        break;
+      case 0x3:
+        if (dp_operation) {
+          Format(instr, "vselgt.f64 'Dd, 'Dn, 'Dm");
+        } else {
+          Format(instr, "vselgt.f32 'Sd, 'Sn, 'Sm");
         }
-        case 0x4: {
-          if (instr->Bit(4) == 0) {
-            // vshl.s<size> Qd, Qm, Qn.
-            out_buffer_pos_ +=
-                SNPrintF(out_buffer_ + out_buffer_pos_,
-                         "vshl.s%d q%d, q%d, q%d", size, Vd, Vm, Vn);
-          } else {
-            Unknown(instr);
-          }
-          break;
-        }
-        case 0x6: {
-          // vmin/vmax.s<size> Qd, Qm, Qn.
-          const char* op = instr->Bit(4) == 1 ? "vmin" : "vmax";
-          out_buffer_pos_ +=
-              SNPrintF(out_buffer_ + out_buffer_pos_, "%s.s%d q%d, q%d, q%d",
-                       op, size, Vd, Vn, Vm);
-          break;
-        }
-        case 0x8: {
-          const char* op = (instr->Bit(4) == 0) ? "vadd" : "vtst";
-          // vadd/vtst.i<size> Qd, Qm, Qn.
-          out_buffer_pos_ +=
-              SNPrintF(out_buffer_ + out_buffer_pos_, "%s.i%d q%d, q%d, q%d",
-                       op, size, Vd, Vn, Vm);
-          break;
-        }
-        case 0x9: {
-          if (instr->Bit(6) == 1 && instr->Bit(4) == 1) {
-            // vmul.i<size> Qd, Qm, Qn.
-            out_buffer_pos_ +=
-                SNPrintF(out_buffer_ + out_buffer_pos_,
-                         "vmul.i%d q%d, q%d, q%d", size, Vd, Vn, Vm);
-          } else {
-            Unknown(instr);
-          }
-          break;
-        }
-        case 0xA: {
-          // vpmin/vpmax.s<size> Dd, Dm, Dn.
-          const char* op = instr->Bit(4) == 1 ? "vpmin" : "vpmax";
-          out_buffer_pos_ +=
-              SNPrintF(out_buffer_ + out_buffer_pos_, "%s.s%d d%d, d%d, d%d",
-                       op, size, Vd, Vn, Vm);
-          break;
-        }
-        case 0xB: {
-          // vpadd.i<size> Dd, Dm, Dn.
-          out_buffer_pos_ +=
-              SNPrintF(out_buffer_ + out_buffer_pos_, "vpadd.i%d d%d, d%d, d%d",
-                       size, Vd, Vn, Vm);
-          break;
-        }
-        case 0xD: {
-          if (instr->Bit(4) == 0) {
-            const char* op = (instr->Bits(21, 20) == 0) ? "vadd" : "vsub";
-            // vadd/vsub.f32 Qd, Qm, Qn.
-            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                        "%s.f32 q%d, q%d, q%d", op, Vd, Vn, Vm);
-          } else {
-            Unknown(instr);
-          }
-          break;
-        }
-        case 0xE: {
-          if (instr->Bits(21, 20) == 0 && instr->Bit(4) == 0) {
-            // vceq.f32 Qd, Qm, Qn.
-            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                        "vceq.f32 q%d, q%d, q%d", Vd, Vn, Vm);
-          } else {
-            Unknown(instr);
-          }
-          break;
-        }
-        case 0xF: {
-          if (instr->Bit(20) == 0 && instr->Bit(6) == 1) {
-            if (instr->Bit(4) == 1) {
-              // vrecps/vrsqrts.f32 Qd, Qm, Qn.
-              const char* op = instr->Bit(21) == 0 ? "vrecps" : "vrsqrts";
-              out_buffer_pos_ +=
-                  SNPrintF(out_buffer_ + out_buffer_pos_,
-                           "%s.f32 q%d, q%d, q%d", op, Vd, Vn, Vm);
-            } else {
-              // vmin/max.f32 Qd, Qm, Qn.
-              const char* op = instr->Bit(21) == 1 ? "vmin" : "vmax";
-              out_buffer_pos_ +=
-                  SNPrintF(out_buffer_ + out_buffer_pos_,
-                           "%s.f32 q%d, q%d, q%d", op, Vd, Vn, Vm);
-            }
-          } else {
-            Unknown(instr);
-          }
-          break;
-        }
-        default:
-          Unknown(instr);
-          break;
-      }
-      break;
+        break;
+      default:
+        UNREACHABLE();  // Case analysis is exhaustive.
+        break;
     }
-    case 5:
-      if (instr->Bit(23) == 1 && instr->Bits(21, 19) == 0 &&
-          instr->Bit(7) == 0 && instr->Bit(4) == 1) {
-        // One register and a modified immediate value, see ARM DDI 0406C.d
-        // A7.4.6.
-        DecodeVmovImmediate(instr);
-      } else if ((instr->Bits(18, 16) == 0) && (instr->Bits(11, 6) == 0x28) &&
-                 (instr->Bit(4) == 1)) {
-        // vmovl signed
-        if ((instr->VdValue() & 1) != 0) Unknown(instr);
-        int Vd = (instr->Bit(22) << 3) | (instr->VdValue() >> 1);
-        int Vm = (instr->Bit(5) << 4) | instr->VmValue();
-        int imm3 = instr->Bits(21, 19);
-        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                    "vmovl.s%d q%d, d%d", imm3 * 8, Vd, Vm);
-      } else if (instr->Bits(21, 20) == 3 && instr->Bit(4) == 0) {
-        // vext.8 Qd, Qm, Qn, imm4
-        int imm4 = instr->Bits(11, 8);
+  } else if (instr->Opc1Value() == 0x4 && op2) {
+    // Floating-point minNum/maxNum.
+    // VMAXNM, VMINNM (floating-point)
+    if (instr->SzValue() == 0x1) {
+      if (instr->Bit(6) == 0x1) {
+        Format(instr, "vminnm.f64 'Dd, 'Dn, 'Dm");
+      } else {
+        Format(instr, "vmaxnm.f64 'Dd, 'Dn, 'Dm");
+      }
+    } else {
+      if (instr->Bit(6) == 0x1) {
+        Format(instr, "vminnm.f32 'Sd, 'Sn, 'Sm");
+      } else {
+        Format(instr, "vmaxnm.f32 'Sd, 'Sn, 'Sm");
+      }
+    }
+  } else if (instr->Opc1Value() == 0x7 && (op1 >> 3) && op2 && op3) {
+    // Floating-point directed convert to integer.
+    // VRINTA, VRINTN, VRINTP, VRINTM (floating-point)
+    bool dp_operation = (instr->SzValue() == 1);
+    int rounding_mode = instr->Bits(17, 16);
+    switch (rounding_mode) {
+      case 0x0:
+        if (dp_operation) {
+          Format(instr, "vrinta.f64.f64 'Dd, 'Dm");
+        } else {
+          Format(instr, "vrinta.f32.f32 'Sd, 'Sm");
+        }
+        break;
+      case 0x1:
+        if (dp_operation) {
+          Format(instr, "vrintn.f64.f64 'Dd, 'Dm");
+        } else {
+          Format(instr, "vrintn.f32.f32 'Sd, 'Sm");
+        }
+        break;
+      case 0x2:
+        if (dp_operation) {
+          Format(instr, "vrintp.f64.f64 'Dd, 'Dm");
+        } else {
+          Format(instr, "vrintp.f32.f32 'Sd, 'Sm");
+        }
+        break;
+      case 0x3:
+        if (dp_operation) {
+          Format(instr, "vrintm.f64.f64 'Dd, 'Dm");
+        } else {
+          Format(instr, "vrintm.f32.f32 'Sd, 'Sm");
+        }
+        break;
+      default:
+        UNREACHABLE();  // Case analysis is exhaustive.
+        break;
+    }
+  } else {
+    Unknown(instr);
+  }
+  // One class of decoding is missing here: Floating-point extraction and
+  // insertion, but it is not used in V8 now, and thus omitted.
+}
+
+void Decoder::DecodeUnconditional(Instruction* instr) {
+  // This follows the decoding in F4.1.18 Unconditional instructions.
+  int op0 = instr->Bits(26, 25);
+  int op1 = instr->Bit(20);
+
+  // Four classes of decoding:
+  // - Miscellaneous (omitted, no instructions used in V8).
+  // - Advanced SIMD data-processing.
+  // - Memory hints and barriers.
+  // - Advanced SIMD element or structure load/store.
+  if (op0 == 0b01) {
+    DecodeAdvancedSIMDDataProcessing(instr);
+  } else if ((op0 & 0b10) == 0b10 && op1) {
+    DecodeMemoryHintsAndBarriers(instr);
+  } else if (op0 == 0b10 && !op1) {
+    DecodeAdvancedSIMDElementOrStructureLoadStore(instr);
+  } else {
+    Unknown(instr);
+  }
+}
+
+void Decoder::DecodeAdvancedSIMDDataProcessing(Instruction* instr) {
+  int op0 = instr->Bit(23);
+  int op1 = instr->Bit(4);
+  if (op0 == 0) {
+    // Advanced SIMD three registers of same length.
+    int Vd, Vm, Vn;
+    if (instr->Bit(6) == 0) {
+      Vd = instr->VFPDRegValue(kDoublePrecision);
+      Vm = instr->VFPMRegValue(kDoublePrecision);
+      Vn = instr->VFPNRegValue(kDoublePrecision);
+    } else {
+      Vd = instr->VFPDRegValue(kSimd128Precision);
+      Vm = instr->VFPMRegValue(kSimd128Precision);
+      Vn = instr->VFPNRegValue(kSimd128Precision);
+    }
+
+    int u = instr->Bit(24);
+    int opc = instr->Bits(11, 8);
+    int q = instr->Bit(6);
+    int sz = instr->Bits(21, 20);
+
+    if (!u && opc == 0 && op1) {
+      Format(instr, "vqadd.s'size 'Qd, 'Qn, 'Qm");
+    } else if (!u && opc == 1 && sz == 2 && q && op1) {
+      if (Vm == Vn) {
+        Format(instr, "vmov 'Qd, 'Qm");
+      } else {
+        Format(instr, "vorr 'Qd, 'Qn, 'Qm");
+      }
+    } else if (!u && opc == 1 && sz == 1 && q && op1) {
+      Format(instr, "vbic 'Qd, 'Qn, 'Qm");
+    } else if (!u && opc == 1 && sz == 0 && q && op1) {
+      Format(instr, "vand 'Qd, 'Qn, 'Qm");
+    } else if (!u && opc == 2 && op1) {
+      Format(instr, "vqsub.s'size 'Qd, 'Qn, 'Qm");
+    } else if (!u && opc == 3 && op1) {
+      Format(instr, "vcge.s'size 'Qd, 'Qn, 'Qm");
+    } else if (!u && opc == 3 && !op1) {
+      Format(instr, "vcgt.s'size 'Qd, 'Qn, 'Qm");
+    } else if (!u && opc == 4 && !op1) {
+      Format(instr, "vshl.s'size 'Qd, 'Qm, 'Qn");
+    } else if (!u && opc == 6 && op1) {
+      Format(instr, "vmin.s'size 'Qd, 'Qn, 'Qm");
+    } else if (!u && opc == 6 && !op1) {
+      Format(instr, "vmax.s'size 'Qd, 'Qn, 'Qm");
+    } else if (!u && opc == 8 && op1) {
+      Format(instr, "vtst.i'size 'Qd, 'Qn, 'Qm");
+    } else if (!u && opc == 8 && !op1) {
+      Format(instr, "vadd.i'size 'Qd, 'Qn, 'Qm");
+    } else if (opc == 9 && op1) {
+      Format(instr, "vmul.i'size 'Qd, 'Qn, 'Qm");
+    } else if (!u && opc == 0xA && op1) {
+      Format(instr, "vpmin.s'size 'Dd, 'Dn, 'Dm");
+    } else if (!u && opc == 0xA && !op1) {
+      Format(instr, "vpmax.s'size 'Dd, 'Dn, 'Dm");
+    } else if (!u && opc == 0xB) {
+      Format(instr, "vpadd.i'size 'Dd, 'Dn, 'Dm");
+    } else if (!u && !(sz >> 1) && opc == 0xD && !op1) {
+      Format(instr, "vadd.f32 'Qd, 'Qn, 'Qm");
+    } else if (!u && (sz >> 1) && opc == 0xD && !op1) {
+      Format(instr, "vsub.f32 'Qd, 'Qn, 'Qm");
+    } else if (!u && opc == 0xE && !sz && !op1) {
+      Format(instr, "vceq.f32 'Qd, 'Qn, 'Qm");
+    } else if (!u && !(sz >> 1) && opc == 0xF && op1) {
+      Format(instr, "vrecps.f32 'Qd, 'Qn, 'Qm");
+    } else if (!u && (sz >> 1) && opc == 0xF && op1) {
+      Format(instr, "vrsqrts.f32 'Qd, 'Qn, 'Qm");
+    } else if (!u && !(sz >> 1) && opc == 0xF && !op1) {
+      Format(instr, "vmax.f32 'Qd, 'Qn, 'Qm");
+    } else if (!u && (sz >> 1) && opc == 0xF && !op1) {
+      Format(instr, "vmin.f32 'Qd, 'Qn, 'Qm");
+    } else if (u && opc == 0 && op1) {
+      Format(instr, "vqadd.u'size 'Qd, 'Qn, 'Qm");
+    } else if (u && opc == 1 && sz == 1 && op1) {
+      Format(instr, "vbsl 'Qd, 'Qn, 'Qm");
+    } else if (u && opc == 1 && sz == 0 && q && op1) {
+      Format(instr, "veor 'Qd, 'Qn, 'Qm");
+    } else if (u && opc == 1 && sz == 0 && !q && op1) {
+      Format(instr, "veor 'Dd, 'Dn, 'Dm");
+    } else if (u && opc == 1 && !op1) {
+      Format(instr, "vrhadd.u'size 'Qd, 'Qn, 'Qm");
+    } else if (u && opc == 2 && op1) {
+      Format(instr, "vqsub.u'size 'Qd, 'Qn, 'Qm");
+    } else if (u && opc == 3 && op1) {
+      Format(instr, "vcge.u'size 'Qd, 'Qn, 'Qm");
+    } else if (u && opc == 3 && !op1) {
+      Format(instr, "vcgt.u'size 'Qd, 'Qn, 'Qm");
+    } else if (u && opc == 4 && !op1) {
+      Format(instr, "vshl.u'size 'Qd, 'Qm, 'Qn");
+    } else if (u && opc == 6 && op1) {
+      Format(instr, "vmin.u'size 'Qd, 'Qn, 'Qm");
+    } else if (u && opc == 6 && !op1) {
+      Format(instr, "vmax.u'size 'Qd, 'Qn, 'Qm");
+    } else if (u && opc == 8 && op1) {
+      Format(instr, "vceq.i'size 'Qd, 'Qn, 'Qm");
+    } else if (u && opc == 8 && !op1) {
+      Format(instr, "vsub.i'size 'Qd, 'Qn, 'Qm");
+    } else if (u && opc == 0xA && op1) {
+      Format(instr, "vpmin.u'size 'Dd, 'Dn, 'Dm");
+    } else if (u && opc == 0xA && !op1) {
+      Format(instr, "vpmax.u'size 'Dd, 'Dn, 'Dm");
+    } else if (u && opc == 0xD && sz == 0 && q && op1) {
+      Format(instr, "vmul.f32 'Qd, 'Qn, 'Qm");
+    } else if (u && opc == 0xD && sz == 0 && !q && !op1) {
+      Format(instr, "vpadd.f32 'Dd, 'Dn, 'Dm");
+    } else if (u && opc == 0xE && !(sz >> 1) && !op1) {
+      Format(instr, "vcge.f32 'Qd, 'Qn, 'Qm");
+    } else if (u && opc == 0xE && (sz >> 1) && !op1) {
+      Format(instr, "vcgt.f32 'Qd, 'Qn, 'Qm");
+    } else {
+      Unknown(instr);
+    }
+  } else if (op0 == 1 && op1 == 0) {
+    DecodeAdvancedSIMDTwoOrThreeRegisters(instr);
+  } else if (op0 == 1 && op1 == 1) {
+    // Advanced SIMD shifts and immediate generation.
+    if (instr->Bits(21, 19) == 0 && instr->Bit(7) == 0) {
+      // Advanced SIMD one register and modified immediate.
+      DecodeVmovImmediate(instr);
+    } else {
+      // Advanced SIMD two registers and shift amount.
+      int u = instr->Bit(24);
+      int imm3H = instr->Bits(21, 19);
+      int imm3L = instr->Bits(18, 16);
+      int opc = instr->Bits(11, 8);
+      int l = instr->Bit(7);
+      int q = instr->Bit(6);
+      int imm3H_L = imm3H << 1 | l;
+
+      if (imm3H_L != 0 && opc == 0) {
+        // vshr.s<size> Qd, Qm, shift
+        int imm7 = (l << 6) | instr->Bits(21, 16);
+        int size = base::bits::RoundDownToPowerOfTwo32(imm7);
+        int shift = 2 * size - imm7;
         int Vd = instr->VFPDRegValue(kSimd128Precision);
         int Vm = instr->VFPMRegValue(kSimd128Precision);
-        int Vn = instr->VFPNRegValue(kSimd128Precision);
         out_buffer_pos_ +=
-            SNPrintF(out_buffer_ + out_buffer_pos_, "vext.8 q%d, q%d, q%d, #%d",
-                     Vd, Vn, Vm, imm4);
-      } else if (instr->Bits(11, 8) == 5 && instr->Bit(4) == 1) {
+            SNPrintF(out_buffer_ + out_buffer_pos_, "vshr.%s%d q%d, q%d, #%d",
+                     u ? "u" : "s", size, Vd, Vm, shift);
+      } else if (imm3H_L != 0 && imm3L == 0 && opc == 0b1010 && !q) {
+        // vmovl
+        if ((instr->VdValue() & 1) != 0) Unknown(instr);
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kDoublePrecision);
+        int imm3H = instr->Bits(21, 19);
+        out_buffer_pos_ +=
+            SNPrintF(out_buffer_ + out_buffer_pos_, "vmovl.%s%d q%d, d%d",
+                     u ? "u" : "s", imm3H * 8, Vd, Vm);
+      } else if (!u && imm3H_L != 0 && opc == 0b0101) {
         // vshl.i<size> Qd, Qm, shift
-        int imm7 = instr->Bits(21, 16);
-        if (instr->Bit(7) != 0) imm7 += 64;
+        int imm7 = (l << 6) | instr->Bits(21, 16);
         int size = base::bits::RoundDownToPowerOfTwo32(imm7);
         int shift = imm7 - size;
         int Vd = instr->VFPDRegValue(kSimd128Precision);
@@ -2065,388 +2177,10 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         out_buffer_pos_ +=
             SNPrintF(out_buffer_ + out_buffer_pos_, "vshl.i%d q%d, q%d, #%d",
                      size, Vd, Vm, shift);
-      } else if (instr->Bits(11, 8) == 0 && instr->Bit(4) == 1) {
-        // vshr.s<size> Qd, Qm, shift
-        int imm7 = instr->Bits(21, 16);
-        if (instr->Bit(7) != 0) imm7 += 64;
-        int size = base::bits::RoundDownToPowerOfTwo32(imm7);
-        int shift = 2 * size - imm7;
-        int Vd = instr->VFPDRegValue(kSimd128Precision);
-        int Vm = instr->VFPMRegValue(kSimd128Precision);
-        out_buffer_pos_ +=
-            SNPrintF(out_buffer_ + out_buffer_pos_, "vshr.s%d q%d, q%d, #%d",
-                     size, Vd, Vm, shift);
-      } else if (instr->Bits(11, 8) == 0xC && instr->Bit(6) == 0 &&
-                 instr->Bit(4) == 0) {
-        // vmull.s<size> Qd, Dn, Dm
-        int Vd = instr->VFPDRegValue(kSimd128Precision);
-        int Vn = instr->VFPNRegValue(kDoublePrecision);
-        int Vm = instr->VFPMRegValue(kDoublePrecision);
-        int size = 8 << instr->Bits(21, 20);
-        out_buffer_pos_ +=
-            SNPrintF(out_buffer_ + out_buffer_pos_, "vmull.s%d q%d, d%d, d%d",
-                     size, Vd, Vn, Vm);
-      } else {
-        Unknown(instr);
-      }
-      break;
-    case 6: {
-      int Vd, Vm, Vn;
-      if (instr->Bit(6) == 0) {
-        Vd = instr->VFPDRegValue(kDoublePrecision);
-        Vm = instr->VFPMRegValue(kDoublePrecision);
-        Vn = instr->VFPNRegValue(kDoublePrecision);
-      } else {
-        Vd = instr->VFPDRegValue(kSimd128Precision);
-        Vm = instr->VFPMRegValue(kSimd128Precision);
-        Vn = instr->VFPNRegValue(kSimd128Precision);
-      }
-      int size = kBitsPerByte * (1 << instr->Bits(21, 20));
-      switch (instr->Bits(11, 8)) {
-        case 0x0: {
-          if (instr->Bit(4) == 1) {
-            // vqadd.u<size> Qd, Qm, Qn.
-            out_buffer_pos_ +=
-                SNPrintF(out_buffer_ + out_buffer_pos_,
-                         "vqadd.u%d q%d, q%d, q%d", size, Vd, Vn, Vm);
-          } else {
-            Unknown(instr);
-          }
-          break;
-        }
-        case 0x1: {
-          if (instr->Bits(21, 20) == 1 && instr->Bit(4) == 1) {
-            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                        "vbsl q%d, q%d, q%d", Vd, Vn, Vm);
-          } else if (instr->Bits(21, 20) == 0 && instr->Bit(4) == 1) {
-            if (instr->Bit(6) == 0) {
-              // veor Dd, Dn, Dm
-              out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                          "veor d%d, d%d, d%d", Vd, Vn, Vm);
-
-            } else {
-              // veor Qd, Qn, Qm
-              out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                          "veor q%d, q%d, q%d", Vd, Vn, Vm);
-            }
-          } else if (instr->Bit(4) == 0) {
-            if (instr->Bit(6) == 1) {
-              // vrhadd.u<size> Qd, Qm, Qn.
-              out_buffer_pos_ +=
-                  SNPrintF(out_buffer_ + out_buffer_pos_,
-                           "vrhadd.u%d q%d, q%d, q%d", size, Vd, Vn, Vm);
-            } else {
-              // vrhadd.u<size> Dd, Dm, Dn.
-              Unknown(instr);
-            }
-          } else {
-            Unknown(instr);
-          }
-          break;
-        }
-        case 0x2: {
-          if (instr->Bit(4) == 1) {
-            // vqsub.u<size> Qd, Qm, Qn.
-            out_buffer_pos_ +=
-                SNPrintF(out_buffer_ + out_buffer_pos_,
-                         "vqsub.u%d q%d, q%d, q%d", size, Vd, Vn, Vm);
-          } else {
-            Unknown(instr);
-          }
-          break;
-        }
-        case 0x3: {
-          const char* op = (instr->Bit(4) == 1) ? "vcge" : "vcgt";
-          // vcge/vcgt.u<size> Qd, Qm, Qn.
-          out_buffer_pos_ +=
-              SNPrintF(out_buffer_ + out_buffer_pos_, "%s.u%d q%d, q%d, q%d",
-                       op, size, Vd, Vn, Vm);
-          break;
-        }
-        case 0x4: {
-          if (instr->Bit(4) == 0) {
-            // vshl.u<size> Qd, Qm, Qn.
-            out_buffer_pos_ +=
-                SNPrintF(out_buffer_ + out_buffer_pos_,
-                         "vshl.u%d q%d, q%d, q%d", size, Vd, Vm, Vn);
-          } else {
-            Unknown(instr);
-          }
-          break;
-        }
-        case 0x6: {
-          // vmin/vmax.u<size> Qd, Qm, Qn.
-          const char* op = instr->Bit(4) == 1 ? "vmin" : "vmax";
-          out_buffer_pos_ +=
-              SNPrintF(out_buffer_ + out_buffer_pos_, "%s.u%d q%d, q%d, q%d",
-                       op, size, Vd, Vn, Vm);
-          break;
-        }
-        case 0x8: {
-          if (instr->Bit(4) == 0) {
-            out_buffer_pos_ +=
-                SNPrintF(out_buffer_ + out_buffer_pos_,
-                         "vsub.i%d q%d, q%d, q%d", size, Vd, Vn, Vm);
-          } else {
-            out_buffer_pos_ +=
-                SNPrintF(out_buffer_ + out_buffer_pos_,
-                         "vceq.i%d q%d, q%d, q%d", size, Vd, Vn, Vm);
-          }
-          break;
-        }
-        case 0xA: {
-          // vpmin/vpmax.u<size> Dd, Dm, Dn.
-          const char* op = instr->Bit(4) == 1 ? "vpmin" : "vpmax";
-          out_buffer_pos_ +=
-              SNPrintF(out_buffer_ + out_buffer_pos_, "%s.u%d d%d, d%d, d%d",
-                       op, size, Vd, Vn, Vm);
-          break;
-        }
-        case 0xD: {
-          if (instr->Bits(21, 20) == 0 && instr->Bit(6) == 1 &&
-              instr->Bit(4) == 1) {
-            // vmul.f32 Qd, Qm, Qn
-            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                        "vmul.f32 q%d, q%d, q%d", Vd, Vn, Vm);
-          } else if (instr->Bits(21, 20) == 0 && instr->Bit(6) == 0 &&
-                     instr->Bit(4) == 0) {
-            // vpadd.f32 Dd, Dm, Dn.
-            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                        "vpadd.f32 d%d, d%d, d%d", Vd, Vn, Vm);
-          } else {
-            Unknown(instr);
-          }
-          break;
-        }
-        case 0xE: {
-          if (instr->Bit(20) == 0 && instr->Bit(4) == 0) {
-            const char* op = (instr->Bit(21) == 0) ? "vcge" : "vcgt";
-            // vcge/vcgt.f32 Qd, Qm, Qn.
-            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                        "%s.f32 q%d, q%d, q%d", op, Vd, Vn, Vm);
-          } else {
-            Unknown(instr);
-          }
-          break;
-        }
-        default:
-          Unknown(instr);
-          break;
-      }
-      break;
-    }
-    case 7:
-      if ((instr->Bits(18, 16) == 0) && (instr->Bits(11, 6) == 0x28) &&
-          (instr->Bit(4) == 1)) {
-        // vmovl unsigned
-        if ((instr->VdValue() & 1) != 0) Unknown(instr);
-        int Vd = (instr->Bit(22) << 3) | (instr->VdValue() >> 1);
-        int Vm = (instr->Bit(5) << 4) | instr->VmValue();
-        int imm3 = instr->Bits(21, 19);
-        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                    "vmovl.u%d q%d, d%d", imm3 * 8, Vd, Vm);
-      } else if (instr->Opc1Value() == 7 && instr->Bit(4) == 0) {
-        if (instr->Bits(11, 7) == 0x18) {
-          int Vm = instr->VFPMRegValue(kDoublePrecision);
-          int imm4 = instr->Bits(19, 16);
-          int size = 0, index = 0;
-          if ((imm4 & 0x1) != 0) {
-            size = 8;
-            index = imm4 >> 1;
-          } else if ((imm4 & 0x2) != 0) {
-            size = 16;
-            index = imm4 >> 2;
-          } else {
-            size = 32;
-            index = imm4 >> 3;
-          }
-          if (instr->Bit(6) == 0) {
-            int Vd = instr->VFPDRegValue(kDoublePrecision);
-            out_buffer_pos_ +=
-                SNPrintF(out_buffer_ + out_buffer_pos_, "vdup.%i d%d, d%d[%d]",
-                         size, Vd, Vm, index);
-          } else {
-            int Vd = instr->VFPDRegValue(kSimd128Precision);
-            out_buffer_pos_ +=
-                SNPrintF(out_buffer_ + out_buffer_pos_, "vdup.%i q%d, d%d[%d]",
-                         size, Vd, Vm, index);
-          }
-        } else if (instr->Bits(11, 10) == 0x2) {
-          int Vd = instr->VFPDRegValue(kDoublePrecision);
-          int Vn = instr->VFPNRegValue(kDoublePrecision);
-          int Vm = instr->VFPMRegValue(kDoublePrecision);
-          int len = instr->Bits(9, 8);
-          NeonListOperand list(DwVfpRegister::from_code(Vn), len + 1);
-          out_buffer_pos_ +=
-              SNPrintF(out_buffer_ + out_buffer_pos_, "%s d%d, ",
-                       instr->Bit(6) == 0 ? "vtbl.8" : "vtbx.8", Vd);
-          FormatNeonList(Vn, list.type());
-          Print(", ");
-          PrintDRegister(Vm);
-        } else if (instr->Bits(17, 16) == 0x2 && instr->Bits(11, 8) == 0x2 &&
-                   instr->Bits(7, 6) != 0) {
-          // vqmov{u}n.<type><size> Dd, Qm.
-          int Vd = instr->VFPDRegValue(kDoublePrecision);
-          int Vm = instr->VFPMRegValue(kSimd128Precision);
-          int op = instr->Bits(7, 6);
-          const char* name = op == 0b01 ? "vqmovun" : "vqmovn";
-          char type = op == 0b11 ? 'u' : 's';
-          int size = 2 * kBitsPerByte * (1 << instr->Bits(19, 18));
-          out_buffer_pos_ +=
-              SNPrintF(out_buffer_ + out_buffer_pos_, "%s.%c%i d%d, q%d", name,
-                       type, size, Vd, Vm);
-        } else if (instr->Bits(17, 16) == 0x2 && instr->Bit(10) == 1) {
-          // NEON vrintm, vrintn, vrintp, vrintz.
-          bool dp_op = instr->Bit(6) == 0;
-          int rounding_mode = instr->Bits(9, 7);
-          switch (rounding_mode) {
-            case 0:
-              if (dp_op) {
-                Format(instr, "vrintn.f32 'Dd, 'Dm");
-              } else {
-                Format(instr, "vrintn.f32 'Qd, 'Qm");
-              }
-              break;
-            case 3:
-              if (dp_op) {
-                Format(instr, "vrintz.f32 'Dd, 'Dm");
-              } else {
-                Format(instr, "vrintz.f32 'Qd, 'Qm");
-              }
-              break;
-            case 5:
-              if (dp_op) {
-                Format(instr, "vrintm.f32 'Dd, 'Dm");
-              } else {
-                Format(instr, "vrintm.f32 'Qd, 'Qm");
-              }
-              break;
-            case 7:
-              if (dp_op) {
-                Format(instr, "vrintp.f32 'Dd, 'Dm");
-              } else {
-                Format(instr, "vrintp.f32 'Qd, 'Qm");
-              }
-              break;
-            default:
-              UNIMPLEMENTED();
-          }
-        } else {
-          int Vd, Vm;
-          if (instr->Bit(6) == 0) {
-            Vd = instr->VFPDRegValue(kDoublePrecision);
-            Vm = instr->VFPMRegValue(kDoublePrecision);
-          } else {
-            Vd = instr->VFPDRegValue(kSimd128Precision);
-            Vm = instr->VFPMRegValue(kSimd128Precision);
-          }
-          if (instr->Bits(17, 16) == 0x2 && instr->Bits(11, 7) == 0) {
-            if (instr->Bit(6) == 0) {
-              out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                          "vswp d%d, d%d", Vd, Vm);
-            } else {
-              out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                          "vswp q%d, q%d", Vd, Vm);
-            }
-          } else if (instr->Bits(19, 16) == 0 && instr->Bits(11, 6) == 0x17) {
-            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                        "vmvn q%d, q%d", Vd, Vm);
-          } else if (instr->Bits(19, 16) == 0xB && instr->Bits(11, 9) == 0x3 &&
-                     instr->Bit(6) == 1) {
-            const char* suffix = nullptr;
-            int op = instr->Bits(8, 7);
-            switch (op) {
-              case 0:
-                suffix = "f32.s32";
-                break;
-              case 1:
-                suffix = "f32.u32";
-                break;
-              case 2:
-                suffix = "s32.f32";
-                break;
-              case 3:
-                suffix = "u32.f32";
-                break;
-            }
-            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                        "vcvt.%s q%d, q%d", suffix, Vd, Vm);
-          } else if (instr->Bits(17, 16) == 0x2 && instr->Bits(11, 8) == 0x1) {
-            int size = kBitsPerByte * (1 << instr->Bits(19, 18));
-            const char* op = instr->Bit(7) != 0 ? "vzip" : "vuzp";
-            if (instr->Bit(6) == 0) {
-              // vzip/vuzp.<size> Dd, Dm.
-              out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                          "%s.%d d%d, d%d", op, size, Vd, Vm);
-            } else {
-              // vzip/vuzp.<size> Qd, Qm.
-              out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                          "%s.%d q%d, q%d", op, size, Vd, Vm);
-            }
-          } else if (instr->Bits(17, 16) == 0 && instr->Bits(11, 9) == 0 &&
-                     instr->Bit(6) == 1) {
-            int size = kBitsPerByte * (1 << instr->Bits(19, 18));
-            int op = kBitsPerByte
-                     << (static_cast<int>(Neon64) - instr->Bits(8, 7));
-            // vrev<op>.<size> Qd, Qm.
-            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                        "vrev%d.%d q%d, q%d", op, size, Vd, Vm);
-          } else if (instr->Bits(17, 16) == 0x2 && instr->Bits(11, 7) == 0x1) {
-            int size = kBitsPerByte * (1 << instr->Bits(19, 18));
-            if (instr->Bit(6) == 0) {
-              // vtrn.<size> Dd, Dm.
-              out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                          "vtrn.%d d%d, d%d", size, Vd, Vm);
-            } else {
-              // vtrn.<size> Qd, Qm.
-              out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                          "vtrn.%d q%d, q%d", size, Vd, Vm);
-            }
-          } else if (instr->Bits(17, 16) == 0x1 && instr->Bit(11) == 0 &&
-                     instr->Bit(6) == 1) {
-            int size = kBitsPerByte * (1 << instr->Bits(19, 18));
-            char type = instr->Bit(10) != 0 ? 'f' : 's';
-            if (instr->Bits(9, 6) == 0xD) {
-              // vabs<type>.<size> Qd, Qm.
-              out_buffer_pos_ +=
-                  SNPrintF(out_buffer_ + out_buffer_pos_, "vabs.%c%d q%d, q%d",
-                           type, size, Vd, Vm);
-            } else if (instr->Bits(9, 6) == 0xF) {
-              // vneg<type>.<size> Qd, Qm.
-              out_buffer_pos_ +=
-                  SNPrintF(out_buffer_ + out_buffer_pos_, "vneg.%c%d q%d, q%d",
-                           type, size, Vd, Vm);
-            } else {
-              Unknown(instr);
-            }
-          } else if (instr->Bits(19, 18) == 0x2 && instr->Bits(11, 8) == 0x5 &&
-                     instr->Bit(6) == 1) {
-            // vrecpe/vrsqrte.f32 Qd, Qm.
-            const char* op = instr->Bit(7) == 0 ? "vrecpe" : "vrsqrte";
-            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                        "%s.f32 q%d, q%d", op, Vd, Vm);
-          } else {
-            Unknown(instr);
-          }
-        }
-      } else if (instr->Bits(11, 8) == 0 && instr->Bit(4) == 1 &&
-                 instr->Bit(6) == 1) {
-        // vshr.u<size> Qd, Qm, shift
-        int imm7 = instr->Bits(21, 16);
-        if (instr->Bit(7) != 0) imm7 += 64;
-        int size = base::bits::RoundDownToPowerOfTwo32(imm7);
-        int shift = 2 * size - imm7;
-        int Vd = instr->VFPDRegValue(kSimd128Precision);
-        int Vm = instr->VFPMRegValue(kSimd128Precision);
-        out_buffer_pos_ +=
-            SNPrintF(out_buffer_ + out_buffer_pos_, "vshr.u%d q%d, q%d, #%d",
-                     size, Vd, Vm, shift);
-      } else if (instr->Bit(10) == 1 && instr->Bit(6) == 0 &&
-                 instr->Bit(4) == 1) {
+      } else if (u && imm3H_L != 0 && (opc & 0b1110) == 0b0100) {
         // vsli.<size> Dd, Dm, shift
         // vsri.<size> Dd, Dm, shift
-        int imm7 = instr->Bits(21, 16);
-        if (instr->Bit(7) != 0) imm7 += 64;
+        int imm7 = (l << 6) | instr->Bits(21, 16);
         int size = base::bits::RoundDownToPowerOfTwo32(imm7);
         int shift;
         char direction;
@@ -2462,208 +2196,299 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         out_buffer_pos_ +=
             SNPrintF(out_buffer_ + out_buffer_pos_, "vs%ci.%d d%d, d%d, #%d",
                      direction, size, Vd, Vm, shift);
-      } else if (instr->Bits(11, 8) == 0x8 && instr->Bit(6) == 0 &&
-                 instr->Bit(4) == 0) {
-        // vmlal.u<size> <Qd>, <Dn>, <Dm>
-        int Vd = instr->VFPDRegValue(kSimd128Precision);
-        int Vn = instr->VFPNRegValue(kDoublePrecision);
-        int Vm = instr->VFPMRegValue(kDoublePrecision);
-        int size = 8 << instr->Bits(21, 20);
+      }
+    }
+  } else {
+    Unknown(instr);
+  }
+}
+
+void Decoder::DecodeAdvancedSIMDTwoOrThreeRegisters(Instruction* instr) {
+  // Advanced SIMD two registers, or three registers of different lengths.
+  int op0 = instr->Bit(24);
+  int op1 = instr->Bits(21, 20);
+  int op2 = instr->Bits(11, 10);
+  int op3 = instr->Bit(6);
+  if (!op0 && op1 == 0b11) {
+    // vext.8 Qd, Qm, Qn, imm4
+    int imm4 = instr->Bits(11, 8);
+    int Vd = instr->VFPDRegValue(kSimd128Precision);
+    int Vm = instr->VFPMRegValue(kSimd128Precision);
+    int Vn = instr->VFPNRegValue(kSimd128Precision);
+    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                "vext.8 q%d, q%d, q%d, #%d", Vd, Vn, Vm, imm4);
+  } else if (op0 && op1 == 0b11 && ((op2 >> 1) == 0)) {
+    // Advanced SIMD two registers misc
+    int size = instr->Bits(19, 18);
+    int opc1 = instr->Bits(17, 16);
+    int opc2 = instr->Bits(10, 7);
+    int q = instr->Bit(6);
+
+    int Vd, Vm;
+    if (q) {
+      Vd = instr->VFPDRegValue(kSimd128Precision);
+      Vm = instr->VFPMRegValue(kSimd128Precision);
+    } else {
+      Vd = instr->VFPDRegValue(kDoublePrecision);
+      Vm = instr->VFPMRegValue(kDoublePrecision);
+    }
+
+    int esize = kBitsPerByte * (1 << size);
+    if (opc1 == 0 && (opc2 >> 2) == 0) {
+      int op = kBitsPerByte << (static_cast<int>(Neon64) - instr->Bits(8, 7));
+      // vrev<op>.<esize> Qd, Qm.
+      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                  "vrev%d.%d q%d, q%d", op, esize, Vd, Vm);
+    } else if (size == 0 && opc1 == 0b10 && opc2 == 0) {
+      Format(instr, q ? "vswp 'Qd, 'Qm" : "vswp 'Dd, 'Dm");
+    } else if (opc1 == 0 && opc2 == 0b1011) {
+      Format(instr, "vmvn 'Qd, 'Qm");
+    } else if (opc1 == 0b01 && (opc2 & 0b0111) == 0b110) {
+      // vabs<type>.<esize> Qd, Qm.
+      char type = instr->Bit(10) != 0 ? 'f' : 's';
+      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                  "vabs.%c%d q%d, q%d", type, esize, Vd, Vm);
+    } else if (opc1 == 0b01 && (opc2 & 0b0111) == 0b111) {
+      // vneg<type>.<esize> Qd, Qm.
+      char type = instr->Bit(10) != 0 ? 'f' : 's';
+      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                  "vneg.%c%d q%d, q%d", type, esize, Vd, Vm);
+    } else if (opc1 == 0b10 && opc2 == 0b0001) {
+      if (q) {
+        // vtrn.<esize> Qd, Qm.
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "vtrn.%d q%d, q%d", esize, Vd, Vm);
+      } else {
+        // vtrn.<esize> Dd, Dm.
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "vtrn.%d d%d, d%d", esize, Vd, Vm);
+      }
+    } else if (opc1 == 0b10 && (opc2 & 0b1110) == 0b0010) {
+      const char* op = instr->Bit(7) != 0 ? "vzip" : "vuzp";
+      if (q) {
+        // vzip/vuzp.<esize> Qd, Qm.
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "%s.%d q%d, q%d", op, esize, Vd, Vm);
+      } else {
+        // vzip/vuzp.<esize> Dd, Dm.
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "%s.%d d%d, d%d", op, esize, Vd, Vm);
+      }
+    } else if (opc1 == 0b10 && (opc2 & 0b1110) == 0b0100) {
+      // vqmov{u}n.<type><esize> Dd, Qm.
+      int Vd = instr->VFPDRegValue(kDoublePrecision);
+      int Vm = instr->VFPMRegValue(kSimd128Precision);
+      int op = instr->Bits(7, 6);
+      const char* name = op == 0b01 ? "vqmovun" : "vqmovn";
+      char type = op == 0b11 ? 'u' : 's';
+      out_buffer_pos_ +=
+          SNPrintF(out_buffer_ + out_buffer_pos_, "%s.%c%i d%d, q%d", name,
+                   type, esize << 1, Vd, Vm);
+    } else if (opc1 == 0b10 && opc2 == 0b1000) {
+      Format(instr, q ? "vrintn.f32 'Qd, 'Qm" : "vrintn.f32 'Dd, 'Dm");
+    } else if (opc1 == 0b10 && opc2 == 0b1011) {
+      Format(instr, q ? "vrintz.f32 'Qd, 'Qm" : "vrintz.f32 'Dd, 'Dm");
+    } else if (opc1 == 0b10 && opc2 == 0b1101) {
+      Format(instr, q ? "vrintm.f32 'Qd, 'Qm" : "vrintm.f32 'Qd, 'Qm");
+    } else if (opc1 == 0b10 && opc2 == 0b1111) {
+      Format(instr, q ? "vrintp.f32 'Qd, 'Qm" : "vrintp.f32 'Qd, 'Qm");
+    } else if (opc1 == 0b11 && (opc2 & 0b1101) == 0b1000) {
+      Format(instr, "vrecpe.f32 'Qd, 'Qm");
+    } else if (opc1 == 0b11 && (opc2 & 0b1101) == 0b1001) {
+      Format(instr, "vrsqrte.f32 'Qd, 'Qm");
+    } else if (opc1 == 0b11 && (opc2 & 0b1100) == 0b1100) {
+      const char* suffix = nullptr;
+      int op = instr->Bits(8, 7);
+      switch (op) {
+        case 0:
+          suffix = "f32.s32";
+          break;
+        case 1:
+          suffix = "f32.u32";
+          break;
+        case 2:
+          suffix = "s32.f32";
+          break;
+        case 3:
+          suffix = "u32.f32";
+          break;
+      }
+      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                  "vcvt.%s q%d, q%d", suffix, Vd, Vm);
+    }
+  } else if (op0 && op1 == 0b11 && op2 == 0b10) {
+    // VTBL, VTBX
+    int Vd = instr->VFPDRegValue(kDoublePrecision);
+    int Vn = instr->VFPNRegValue(kDoublePrecision);
+    int Vm = instr->VFPMRegValue(kDoublePrecision);
+    int len = instr->Bits(9, 8);
+    NeonListOperand list(DwVfpRegister::from_code(Vn), len + 1);
+    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%s d%d, ",
+                                instr->Bit(6) == 0 ? "vtbl.8" : "vtbx.8", Vd);
+    FormatNeonList(Vn, list.type());
+    Print(", ");
+    PrintDRegister(Vm);
+  } else if (op0 && op1 == 0b11 && op2 == 0b11) {
+    // Advanced SIMD duplicate (scalar)
+    if (instr->Bits(9, 7) == 0) {
+      // VDUP (scalar)
+      int Vm = instr->VFPMRegValue(kDoublePrecision);
+      int imm4 = instr->Bits(19, 16);
+      int esize = 0, index = 0;
+      if ((imm4 & 0x1) != 0) {
+        esize = 8;
+        index = imm4 >> 1;
+      } else if ((imm4 & 0x2) != 0) {
+        esize = 16;
+        index = imm4 >> 2;
+      } else {
+        esize = 32;
+        index = imm4 >> 3;
+      }
+      if (instr->Bit(6) == 0) {
+        int Vd = instr->VFPDRegValue(kDoublePrecision);
         out_buffer_pos_ +=
-            SNPrintF(out_buffer_ + out_buffer_pos_, "vmlal.u%d q%d, d%d, d%d",
-                     size, Vd, Vn, Vm);
-      } else if (instr->Bits(11, 8) == 0xC && instr->Bit(6) == 0 &&
-                 instr->Bit(4) == 0) {
-        // vmull.u<size> <Qd>, <Dn>, <Dm>
+            SNPrintF(out_buffer_ + out_buffer_pos_, "vdup.%i d%d, d%d[%d]",
+                     esize, Vd, Vm, index);
+      } else {
         int Vd = instr->VFPDRegValue(kSimd128Precision);
-        int Vn = instr->VFPNRegValue(kDoublePrecision);
-        int Vm = instr->VFPMRegValue(kDoublePrecision);
-        int size = 8 << instr->Bits(21, 20);
         out_buffer_pos_ +=
-            SNPrintF(out_buffer_ + out_buffer_pos_, "vmull.u%d q%d, d%d, d%d",
-                     size, Vd, Vn, Vm);
-      } else if (instr->Bits(21, 19) == 0 && instr->Bit(7) == 0 &&
-                 instr->Bit(4) == 1) {
-        // One register and a modified immediate value, see ARM DDI 0406C.d
-        // A7.4.6.
-        DecodeVmovImmediate(instr);
-      } else {
-        Unknown(instr);
+            SNPrintF(out_buffer_ + out_buffer_pos_, "vdup.%i q%d, d%d[%d]",
+                     esize, Vd, Vm, index);
       }
-      break;
-    case 8:
-      if (instr->Bits(21, 20) == 0) {
-        // vst1
-        int Vd = (instr->Bit(22) << 4) | instr->VdValue();
-        int Rn = instr->VnValue();
-        int type = instr->Bits(11, 8);
-        int size = instr->Bits(7, 6);
-        int align = instr->Bits(5, 4);
-        int Rm = instr->VmValue();
-        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "vst1.%d ",
-                                    (1 << size) << 3);
-        FormatNeonList(Vd, type);
-        Print(", ");
-        FormatNeonMemory(Rn, align, Rm);
-      } else if (instr->Bits(21, 20) == 2) {
-        // vld1
-        int Vd = (instr->Bit(22) << 4) | instr->VdValue();
-        int Rn = instr->VnValue();
-        int type = instr->Bits(11, 8);
-        int size = instr->Bits(7, 6);
-        int align = instr->Bits(5, 4);
-        int Rm = instr->VmValue();
-        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "vld1.%d ",
-                                    (1 << size) << 3);
-        FormatNeonList(Vd, type);
-        Print(", ");
-        FormatNeonMemory(Rn, align, Rm);
-      } else {
-        Unknown(instr);
-      }
-      break;
-    case 0xA:
-    case 0xB:
-      if ((instr->Bits(22, 20) == 5) && (instr->Bits(15, 12) == 0xF)) {
-        const char* rn_name = converter_.NameOfCPURegister(instr->Bits(19, 16));
-        int offset = instr->Bits(11, 0);
-        if (offset == 0) {
-          out_buffer_pos_ +=
-              SNPrintF(out_buffer_ + out_buffer_pos_, "pld [%s]", rn_name);
-        } else if (instr->Bit(23) == 0) {
-          out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                      "pld [%s, #-%d]", rn_name, offset);
-        } else {
-          out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                      "pld [%s, #+%d]", rn_name, offset);
-        }
-      } else if (instr->SpecialValue() == 0xA && instr->Bits(22, 20) == 7) {
-        int option = instr->Bits(3, 0);
-        switch (instr->Bits(7, 4)) {
-          case 4:
-            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "dsb %s",
-                                        barrier_option_names[option]);
-            break;
-          case 5:
-            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "dmb %s",
-                                        barrier_option_names[option]);
-            break;
-          case 6:
-            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "isb %s",
-                                        barrier_option_names[option]);
-            break;
-          default:
-            Unknown(instr);
-        }
-      } else {
-        Unknown(instr);
-      }
-      break;
-    case 0x1D:
-      if (instr->Opc1Value() == 0x7 && instr->Bits(19, 18) == 0x2 &&
-          instr->Bits(11, 9) == 0x5 && instr->Bits(7, 6) == 0x1 &&
-          instr->Bit(4) == 0x0) {
-        // VRINTA, VRINTN, VRINTP, VRINTM (floating-point)
-        bool dp_operation = (instr->SzValue() == 1);
-        int rounding_mode = instr->Bits(17, 16);
-        switch (rounding_mode) {
-          case 0x0:
-            if (dp_operation) {
-              Format(instr, "vrinta.f64.f64 'Dd, 'Dm");
-            } else {
-              Format(instr, "vrinta.f32.f32 'Sd, 'Sm");
-            }
-            break;
-          case 0x1:
-            if (dp_operation) {
-              Format(instr, "vrintn.f64.f64 'Dd, 'Dm");
-            } else {
-              Format(instr, "vrintn.f32.f32 'Sd, 'Sm");
-            }
-            break;
-          case 0x2:
-            if (dp_operation) {
-              Format(instr, "vrintp.f64.f64 'Dd, 'Dm");
-            } else {
-              Format(instr, "vrintp.f32.f32 'Sd, 'Sm");
-            }
-            break;
-          case 0x3:
-            if (dp_operation) {
-              Format(instr, "vrintm.f64.f64 'Dd, 'Dm");
-            } else {
-              Format(instr, "vrintm.f32.f32 'Sd, 'Sm");
-            }
-            break;
-          default:
-            UNREACHABLE();  // Case analysis is exhaustive.
-            break;
-        }
-      } else if ((instr->Opc1Value() == 0x4) && (instr->Bits(11, 9) == 0x5) &&
-                 (instr->Bit(4) == 0x0)) {
-        // VMAXNM, VMINNM (floating-point)
-        if (instr->SzValue() == 0x1) {
-          if (instr->Bit(6) == 0x1) {
-            Format(instr, "vminnm.f64 'Dd, 'Dn, 'Dm");
-          } else {
-            Format(instr, "vmaxnm.f64 'Dd, 'Dn, 'Dm");
-          }
-        } else {
-          if (instr->Bit(6) == 0x1) {
-            Format(instr, "vminnm.f32 'Sd, 'Sn, 'Sm");
-          } else {
-            Format(instr, "vmaxnm.f32 'Sd, 'Sn, 'Sm");
-          }
-        }
-      } else {
-        Unknown(instr);
-      }
-      break;
-    case 0x1C:
-      if ((instr->Bits(11, 9) == 0x5) && (instr->Bit(6) == 0) &&
-          (instr->Bit(4) == 0)) {
-        // VSEL* (floating-point)
-        bool dp_operation = (instr->SzValue() == 1);
-        switch (instr->Bits(21, 20)) {
-          case 0x0:
-            if (dp_operation) {
-              Format(instr, "vseleq.f64 'Dd, 'Dn, 'Dm");
-            } else {
-              Format(instr, "vseleq.f32 'Sd, 'Sn, 'Sm");
-            }
-            break;
-          case 0x1:
-            if (dp_operation) {
-              Format(instr, "vselvs.f64 'Dd, 'Dn, 'Dm");
-            } else {
-              Format(instr, "vselvs.f32 'Sd, 'Sn, 'Sm");
-            }
-            break;
-          case 0x2:
-            if (dp_operation) {
-              Format(instr, "vselge.f64 'Dd, 'Dn, 'Dm");
-            } else {
-              Format(instr, "vselge.f32 'Sd, 'Sn, 'Sm");
-            }
-            break;
-          case 0x3:
-            if (dp_operation) {
-              Format(instr, "vselgt.f64 'Dd, 'Dn, 'Dm");
-            } else {
-              Format(instr, "vselgt.f32 'Sd, 'Sn, 'Sm");
-            }
-            break;
-          default:
-            UNREACHABLE();  // Case analysis is exhaustive.
-            break;
-        }
-      } else {
-        Unknown(instr);
-      }
-      break;
-    default:
+    } else {
       Unknown(instr);
-      break;
+    }
+  } else if (op1 != 0b11 && !op3) {
+    // Advanced SIMD three registers of different lengths.
+    int u = instr->Bit(24);
+    int opc = instr->Bits(11, 8);
+    if (opc == 0b1000) {
+      // vmlal.u<esize> <Qd>, <Dn>, <Dm>
+      int Vd = instr->VFPDRegValue(kSimd128Precision);
+      int Vn = instr->VFPNRegValue(kDoublePrecision);
+      int Vm = instr->VFPMRegValue(kDoublePrecision);
+      int esize = 8 << instr->Bits(21, 20);
+      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                  "vmlal.u%d q%d, d%d, d%d", esize, Vd, Vn, Vm);
+    } else if (opc == 0b1100) {
+      // vmull.s/u<esize> Qd, Dn, Dm
+      int Vd = instr->VFPDRegValue(kSimd128Precision);
+      int Vn = instr->VFPNRegValue(kDoublePrecision);
+      int Vm = instr->VFPMRegValue(kDoublePrecision);
+      int esize = 8 << instr->Bits(21, 20);
+      out_buffer_pos_ +=
+          SNPrintF(out_buffer_ + out_buffer_pos_, "vmull.%s%d q%d, d%d, d%d",
+                   u ? "u" : "s", esize, Vd, Vn, Vm);
+    }
+  } else if (op1 != 0b11 && op3) {
+    // The instructions specified by this encoding are not used in V8.
+    Unknown(instr);
+  } else {
+    Unknown(instr);
+  }
+}
+
+void Decoder::DecodeMemoryHintsAndBarriers(Instruction* instr) {
+  int op0 = instr->Bits(25, 21);
+  if (op0 == 0b01011) {
+    // Barriers.
+    int option = instr->Bits(3, 0);
+    switch (instr->Bits(7, 4)) {
+      case 4:
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "dsb %s",
+                                    barrier_option_names[option]);
+        break;
+      case 5:
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "dmb %s",
+                                    barrier_option_names[option]);
+        break;
+      case 6:
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "isb %s",
+                                    barrier_option_names[option]);
+        break;
+      default:
+        Unknown(instr);
+    }
+  } else if ((op0 & 0b10001) == 0b00000 && !instr->Bit(4)) {
+    // Preload (immediate).
+    const char* rn_name = converter_.NameOfCPURegister(instr->Bits(19, 16));
+    int offset = instr->Bits(11, 0);
+    if (offset == 0) {
+      out_buffer_pos_ +=
+          SNPrintF(out_buffer_ + out_buffer_pos_, "pld [%s]", rn_name);
+    } else if (instr->Bit(23) == 0) {
+      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                  "pld [%s, #-%d]", rn_name, offset);
+    } else {
+      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                  "pld [%s, #+%d]", rn_name, offset);
+    }
+  } else {
+    Unknown(instr);
+  }
+}
+
+void Decoder::DecodeAdvancedSIMDElementOrStructureLoadStore(
+    Instruction* instr) {
+  int op0 = instr->Bit(23);
+  int op1 = instr->Bits(11, 10);
+  int l = instr->Bit(21);
+  int n = instr->Bits(9, 8);
+  int Vd = instr->VFPDRegValue(kDoublePrecision);
+  int Rn = instr->VnValue();
+  int Rm = instr->VmValue();
+
+  if (op0 == 0) {
+    // Advanced SIMD load/store multiple structures.
+    int itype = instr->Bits(11, 8);
+    if (itype == 0b0010) {
+      // vld1/vst1
+      int size = instr->Bits(7, 6);
+      int align = instr->Bits(5, 4);
+      const char* op = l ? "vld1.%d " : "vst1.%d ";
+      out_buffer_pos_ +=
+          SNPrintF(out_buffer_ + out_buffer_pos_, op, (1 << size) << 3);
+      FormatNeonList(Vd, itype);
+      Print(", ");
+      FormatNeonMemory(Rn, align, Rm);
+    } else {
+      Unknown(instr);
+    }
+  } else if (op1 == 0b11) {
+    // Advanced SIMD load single structure to all lanes.
+    if (l && n == 0b00) {
+      // vld1r(replicate) single element to all lanes.
+      int size = instr->Bits(7, 6);
+      DCHECK_NE(0b11, size);
+      int type = instr->Bit(5) ? nlt_2 : nlt_1;
+      out_buffer_pos_ +=
+          SNPrintF(out_buffer_ + out_buffer_pos_, "vld1.%d ", (1 << size) << 3);
+      FormatNeonList(Vd, type);
+      DCHECK_EQ(0, instr->Bit(4));  // Alignment not supported.
+      Print(", ");
+      FormatNeonMemory(Rn, 0, Rm);
+    } else {
+      Unknown(instr);
+    }
+  } else if (op1 != 0b11) {
+    // Advanced SIMD load/store single structure to one lane.
+    int size = op1;  // size and op1 occupy the same bits in decoding.
+    if (l && n == 0b00) {
+      // VLD1 (single element to one lane) - A1, A2, A3
+      int index_align = instr->Bits(7, 4);
+      int index = index_align >> (size + 1);
+      // Omit alignment.
+      out_buffer_pos_ +=
+          SNPrintF(out_buffer_ + out_buffer_pos_, "vld1.%d {d%d[%d]}",
+                   (1 << size) << 3, Vd, index);
+      Print(", ");
+      FormatNeonMemory(Rn, 0, Rm);
+    } else {
+      Unknown(instr);
+    }
+  } else {
+    Unknown(instr);
   }
 }
 

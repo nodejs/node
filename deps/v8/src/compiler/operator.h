@@ -65,6 +65,8 @@ class V8_EXPORT_PRIVATE Operator : public NON_EXPORTED_BASE(ZoneObject) {
   Operator(Opcode opcode, Properties properties, const char* mnemonic,
            size_t value_in, size_t effect_in, size_t control_in,
            size_t value_out, size_t effect_out, size_t control_out);
+  Operator(const Operator&) = delete;
+  Operator& operator=(const Operator&) = delete;
 
   // A small integer unique to all instances of a particular kind of operator,
   // useful for quick matching for specific kinds of operators. For fast access
@@ -141,8 +143,6 @@ class V8_EXPORT_PRIVATE Operator : public NON_EXPORTED_BASE(ZoneObject) {
   uint32_t value_out_;
   uint8_t effect_out_;
   uint32_t control_out_;
-
-  DISALLOW_COPY_AND_ASSIGN(Operator);
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(Operator::Properties)

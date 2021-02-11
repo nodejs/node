@@ -133,6 +133,7 @@
   V(_, ArrayBuffer_string, "ArrayBuffer")                            \
   V(_, ArrayIterator_string, "Array Iterator")                       \
   V(_, as_string, "as")                                              \
+  V(_, assert_string, "assert")                                      \
   V(_, async_string, "async")                                        \
   V(_, auto_string, "auto")                                          \
   V(_, await_string, "await")                                        \
@@ -225,6 +226,7 @@
   V(_, length_string, "length")                                      \
   V(_, let_string, "let")                                            \
   V(_, line_string, "line")                                          \
+  V(_, linear_string, "linear")                                      \
   V(_, LinkError_string, "LinkError")                                \
   V(_, long_string, "long")                                          \
   V(_, Map_string, "Map")                                            \
@@ -344,7 +346,6 @@
   V(_, error_script_symbol)                           \
   V(_, error_start_pos_symbol)                        \
   V(_, frozen_symbol)                                 \
-  V(_, generic_symbol)                                \
   V(_, home_object_symbol)                            \
   V(_, interpreter_trampoline_symbol)                 \
   V(_, megamorphic_symbol)                            \
@@ -495,7 +496,6 @@
   F(SCAVENGER_FAST_PROMOTE)                          \
   F(SCAVENGER_FREE_REMEMBERED_SET)                   \
   F(SCAVENGER_SCAVENGE)                              \
-  F(SCAVENGER_PROCESS_ARRAY_BUFFERS)                 \
   F(SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY) \
   F(SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS)  \
   F(SCAVENGER_SCAVENGE_PARALLEL)                     \
@@ -510,6 +510,7 @@
 #define TRACER_BACKGROUND_SCOPES(F)               \
   F(BACKGROUND_ARRAY_BUFFER_FREE)                 \
   F(BACKGROUND_ARRAY_BUFFER_SWEEP)                \
+  F(BACKGROUND_COLLECTION)                        \
   F(BACKGROUND_STORE_BUFFER)                      \
   F(BACKGROUND_UNMAPPER)                          \
   F(MC_BACKGROUND_EVACUATE_COPY)                  \

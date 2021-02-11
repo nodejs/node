@@ -20,6 +20,23 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   using WrapperInfo = std::pair<void*, void*>;
   using WrapperCache = std::vector<WrapperInfo>;
 
+  // WrapperInfo is passed over the API. Use VerboseWrapperInfo to access pair
+  // internals in a named way. See ProcessingScope::TracePossibleJSWrapper()
+  // below on how a V8 object is parsed to gather the information.
+  struct VerboseWrapperInfo {
+    explicit VerboseWrapperInfo(const WrapperInfo& raw_info)
+        : raw_info(raw_info) {}
+
+    // Information describing the type pointed to via instance().
+    void* type_info() const { return raw_info.first; }
+    // Direct pointer to an instance described by type_info().
+    void* instance() const { return raw_info.second; }
+
+    bool is_valid() const { return type_info(); }
+
+    const WrapperInfo& raw_info;
+  };
+
   class V8_EXPORT_PRIVATE ProcessingScope {
    public:
     explicit ProcessingScope(LocalEmbedderHeapTracer* tracer);
@@ -37,6 +54,8 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
     LocalEmbedderHeapTracer* const tracer_;
     WrapperCache wrapper_cache_;
   };
+
+  static WrapperInfo ExtractWrapperInfo(Isolate* isolate, JSObject js_object);
 
   explicit LocalEmbedderHeapTracer(Isolate* isolate) : isolate_(isolate) {}
 

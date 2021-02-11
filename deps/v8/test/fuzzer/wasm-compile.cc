@@ -39,6 +39,8 @@ class DataRange {
 
  public:
   explicit DataRange(Vector<const uint8_t> data) : data_(data) {}
+  DataRange(const DataRange&) = delete;
+  DataRange& operator=(const DataRange&) = delete;
 
   // Don't accidentally pass DataRange by value. This will reuse bytes and might
   // lead to OOM because the end might not be reached.
@@ -83,8 +85,6 @@ class DataRange {
     data_ += num_bytes;
     return result;
   }
-
-  DISALLOW_COPY_AND_ASSIGN(DataRange);
 };
 
 ValueType GetValueType(DataRange* data) {
@@ -281,6 +281,7 @@ class WasmGenerator {
       case kExprS128Load32x2S:
       case kExprS128Load32x2U:
       case kExprS128Load64Splat:
+      case kExprS128Load64Zero:
         return 3;
       case kExprI32LoadMem:
       case kExprI64LoadMem32S:
@@ -308,6 +309,7 @@ class WasmGenerator {
       case kExprI64AtomicExchange32U:
       case kExprI64AtomicCompareExchange32U:
       case kExprS128Load32Splat:
+      case kExprS128Load32Zero:
         return 2;
       case kExprI32LoadMem16S:
       case kExprI32LoadMem16U:
@@ -1280,15 +1282,15 @@ void WasmGenerator::Generate<ValueType::kS128>(DataRange* data) {
                                      ValueType::kI32>,
       &WasmGenerator::op_with_prefix<kExprI8x16Add, ValueType::kS128,
                                      ValueType::kS128>,
-      &WasmGenerator::op_with_prefix<kExprI8x16AddSaturateS, ValueType::kS128,
+      &WasmGenerator::op_with_prefix<kExprI8x16AddSatS, ValueType::kS128,
                                      ValueType::kS128>,
-      &WasmGenerator::op_with_prefix<kExprI8x16AddSaturateU, ValueType::kS128,
+      &WasmGenerator::op_with_prefix<kExprI8x16AddSatU, ValueType::kS128,
                                      ValueType::kS128>,
       &WasmGenerator::op_with_prefix<kExprI8x16Sub, ValueType::kS128,
                                      ValueType::kS128>,
-      &WasmGenerator::op_with_prefix<kExprI8x16SubSaturateS, ValueType::kS128,
+      &WasmGenerator::op_with_prefix<kExprI8x16SubSatS, ValueType::kS128,
                                      ValueType::kS128>,
-      &WasmGenerator::op_with_prefix<kExprI8x16SubSaturateU, ValueType::kS128,
+      &WasmGenerator::op_with_prefix<kExprI8x16SubSatU, ValueType::kS128,
                                      ValueType::kS128>,
       &WasmGenerator::op_with_prefix<kExprI8x16MinS, ValueType::kS128,
                                      ValueType::kS128>,
@@ -1333,15 +1335,15 @@ void WasmGenerator::Generate<ValueType::kS128>(DataRange* data) {
                                      ValueType::kI32>,
       &WasmGenerator::op_with_prefix<kExprI16x8Add, ValueType::kS128,
                                      ValueType::kS128>,
-      &WasmGenerator::op_with_prefix<kExprI16x8AddSaturateS, ValueType::kS128,
+      &WasmGenerator::op_with_prefix<kExprI16x8AddSatS, ValueType::kS128,
                                      ValueType::kS128>,
-      &WasmGenerator::op_with_prefix<kExprI16x8AddSaturateU, ValueType::kS128,
+      &WasmGenerator::op_with_prefix<kExprI16x8AddSatU, ValueType::kS128,
                                      ValueType::kS128>,
       &WasmGenerator::op_with_prefix<kExprI16x8Sub, ValueType::kS128,
                                      ValueType::kS128>,
-      &WasmGenerator::op_with_prefix<kExprI16x8SubSaturateS, ValueType::kS128,
+      &WasmGenerator::op_with_prefix<kExprI16x8SubSatS, ValueType::kS128,
                                      ValueType::kS128>,
-      &WasmGenerator::op_with_prefix<kExprI16x8SubSaturateU, ValueType::kS128,
+      &WasmGenerator::op_with_prefix<kExprI16x8SubSatU, ValueType::kS128,
                                      ValueType::kS128>,
       &WasmGenerator::op_with_prefix<kExprI16x8Mul, ValueType::kS128,
                                      ValueType::kS128>,
@@ -1398,6 +1400,8 @@ void WasmGenerator::Generate<ValueType::kS128>(DataRange* data) {
       &WasmGenerator::op_with_prefix<kExprI32x4MaxS, ValueType::kS128,
                                      ValueType::kS128>,
       &WasmGenerator::op_with_prefix<kExprI32x4MaxU, ValueType::kS128,
+                                     ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprI32x4DotI16x8S, ValueType::kS128,
                                      ValueType::kS128>,
 
       &WasmGenerator::op_with_prefix<kExprI64x2Splat, ValueType::kI64>,
@@ -1546,7 +1550,10 @@ void WasmGenerator::Generate<ValueType::kS128>(DataRange* data) {
       &WasmGenerator::memop<kExprS128Load8Splat>,
       &WasmGenerator::memop<kExprS128Load16Splat>,
       &WasmGenerator::memop<kExprS128Load32Splat>,
-      &WasmGenerator::memop<kExprS128Load64Splat>};
+      &WasmGenerator::memop<kExprS128Load64Splat>,
+      &WasmGenerator::memop<kExprS128Load32Zero>,
+      &WasmGenerator::memop<kExprS128Load64Zero>,
+  };
 
   GenerateOneOf(alternatives, data);
 }

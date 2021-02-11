@@ -14,6 +14,7 @@
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/graph-assembler.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-origin-table.h"
@@ -37,7 +38,8 @@ class EffectControlLinearizer {
                           SourcePositionTable* source_positions,
                           NodeOriginTable* node_origins,
                           MaskArrayIndexEnable mask_array_index,
-                          MaintainSchedule maintain_schedule)
+                          MaintainSchedule maintain_schedule,
+                          JSHeapBroker* broker)
       : js_graph_(js_graph),
         schedule_(schedule),
         temp_zone_(temp_zone),
@@ -45,9 +47,11 @@ class EffectControlLinearizer {
         maintain_schedule_(maintain_schedule),
         source_positions_(source_positions),
         node_origins_(node_origins),
+        broker_(broker),
         graph_assembler_(js_graph, temp_zone, base::nullopt,
                          should_maintain_schedule() ? schedule : nullptr),
-        frame_state_zapper_(nullptr) {}
+        frame_state_zapper_(nullptr),
+        fast_api_call_stack_slot_(nullptr) {}
 
   void Run();
 
@@ -284,17 +288,11 @@ class EffectControlLinearizer {
                               DeoptimizeReason reason);
 
   // Helper functions used in LowerDynamicCheckMaps
-  void CheckPolymorphic(Node* expected_polymorphic_array, Node* actual_map,
-                        Node* actual_handler, GraphAssemblerLabel<0>* done,
-                        Node* frame_state);
-  void ProcessMonomorphic(Node* handler, GraphAssemblerLabel<0>* done,
-                          Node* frame_state, int slot, Node* vector);
-  void BranchOnICState(int slot_index, Node* vector, Node* value_map,
-                       Node* frame_state, GraphAssemblerLabel<0>* monomorphic,
-                       GraphAssemblerLabel<0>* maybe_poly,
-                       GraphAssemblerLabel<0>* migrate, Node** strong_feedback,
-                       Node** poly_array);
-
+  void BuildCallDynamicMapChecksBuiltin(Node* actual_value,
+                                        Node* actual_handler,
+                                        int feedback_slot_index,
+                                        GraphAssemblerLabel<0>* done,
+                                        Node* frame_state);
   bool should_maintain_schedule() const {
     return maintain_schedule_ == MaintainSchedule::kMaintain;
   }
@@ -311,6 +309,7 @@ class EffectControlLinearizer {
   }
   MachineOperatorBuilder* machine() const { return js_graph_->machine(); }
   JSGraphAssembler* gasm() { return &graph_assembler_; }
+  JSHeapBroker* broker() const { return broker_; }
 
   JSGraph* js_graph_;
   Schedule* schedule_;
@@ -320,8 +319,11 @@ class EffectControlLinearizer {
   RegionObservability region_observability_ = RegionObservability::kObservable;
   SourcePositionTable* source_positions_;
   NodeOriginTable* node_origins_;
+  JSHeapBroker* broker_;
   JSGraphAssembler graph_assembler_;
   Node* frame_state_zapper_;  // For tracking down compiler::Node::New crashes.
+  Node* fast_api_call_stack_slot_;  // For caching the stack slot allocated for
+  // fast API calls.
 };
 
 namespace {
@@ -1887,230 +1889,65 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
   }
 }
 
-void EffectControlLinearizer::CheckPolymorphic(Node* expected_polymorphic_array,
-                                               Node* actual_map,
-                                               Node* actual_handler,
-                                               GraphAssemblerLabel<0>* done,
-                                               Node* frame_state) {
-  Node* expected_polymorphic_array_map =
-      __ LoadField(AccessBuilder::ForMap(), expected_polymorphic_array);
-  Node* is_weak_fixed_array = __ TaggedEqual(expected_polymorphic_array_map,
-                                             __ WeakFixedArrayMapConstant());
-  __ DeoptimizeIfNot(DeoptimizeReason::kTransitionedToMegamorphicIC,
-                     FeedbackSource(), is_weak_fixed_array, frame_state,
-                     IsSafetyCheck::kCriticalSafetyCheck);
-
-  Node* polymorphic_array = expected_polymorphic_array;
-
-  // This is now a weak pointer that we're holding in the register, we
-  // need to be careful about spilling and reloading it (as it could
-  // get cleared in between). There's no runtime call here that could
-  // cause a spill so we should be safe.
-  Node* weak_actual_map = MakeWeakForComparison(actual_map);
-  Node* length = ChangeSmiToInt32(__ LoadField(
-      AccessBuilder::ForWeakFixedArrayLength(), polymorphic_array));
-  auto do_handler_check = __ MakeLabel(MachineRepresentation::kWord32);
-
-  GraphAssemblerLabel<0> labels[] = {__ MakeLabel(), __ MakeLabel(),
-                                     __ MakeLabel(), __ MakeLabel()};
-
-  STATIC_ASSERT(FLAG_max_minimorphic_map_checks == arraysize(labels));
-  DCHECK_GE(FLAG_max_minimorphic_map_checks,
-            FLAG_max_valid_polymorphic_map_count);
-
-  // The following generates a switch based on the length of the
-  // array:
-  //
-  // if length >= 4: goto labels[3]
-  // if length == 3: goto labels[2]
-  // if length == 2: goto labels[1]
-  // if length == 1: goto labels[0]
-  __ GotoIf(__ Int32LessThanOrEqual(
-                __ Int32Constant(FeedbackIterator::SizeFor(4)), length),
-            &labels[3]);
-  __ GotoIf(
-      __ Word32Equal(length, __ Int32Constant(FeedbackIterator::SizeFor(3))),
-      &labels[2]);
-  __ GotoIf(
-      __ Word32Equal(length, __ Int32Constant(FeedbackIterator::SizeFor(2))),
-      &labels[1]);
-  __ GotoIf(
-      __ Word32Equal(length, __ Int32Constant(FeedbackIterator::SizeFor(1))),
-      &labels[0]);
-
-  // We should never have an polymorphic feedback array of size 0.
+void EffectControlLinearizer::BuildCallDynamicMapChecksBuiltin(
+    Node* actual_value, Node* actual_handler, int feedback_slot_index,
+    GraphAssemblerLabel<0>* done, Node* frame_state) {
+  Node* slot_index = __ IntPtrConstant(feedback_slot_index);
+  Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
+  auto builtin = Builtins::kDynamicMapChecks;
+  Node* result = CallBuiltin(builtin, properties, slot_index, actual_value,
+                             actual_handler);
+  __ GotoIf(__ WordEqual(result, __ IntPtrConstant(static_cast<int>(
+                                     DynamicMapChecksStatus::kSuccess))),
+            done);
+  __ DeoptimizeIf(DeoptimizeKind::kBailout, DeoptimizeReason::kMissingMap,
+                  FeedbackSource(),
+                  __ WordEqual(result, __ IntPtrConstant(static_cast<int>(
+                                           DynamicMapChecksStatus::kBailout))),
+                  frame_state, IsSafetyCheck::kCriticalSafetyCheck);
+  __ DeoptimizeIf(DeoptimizeReason::kWrongHandler, FeedbackSource(),
+                  __ WordEqual(result, __ IntPtrConstant(static_cast<int>(
+                                           DynamicMapChecksStatus::kDeopt))),
+                  frame_state, IsSafetyCheck::kCriticalSafetyCheck);
   __ Unreachable(done);
-
-  // This loop generates code like this to do the dynamic map check:
-  //
-  // labels[3]:
-  //   maybe_map = load(polymorphic_array, i)
-  //   if weak_actual_map == maybe_map goto handler_check
-  //   goto labels[2]
-  // labels[2]:
-  //   maybe_map = load(polymorphic_array, i - 1)
-  //   if weak_actual_map == maybe_map goto handler_check
-  //   goto labels[1]
-  // labels[1]:
-  //   maybe_map = load(polymorphic_array, i - 2)
-  //   if weak_actual_map == maybe_map goto handler_check
-  //   goto labels[0]
-  // labels[0]:
-  //   maybe_map = load(polymorphic_array, i - 3)
-  //   if weak_actual_map == maybe_map goto handler_check
-  //   bailout
-  for (int i = arraysize(labels) - 1; i >= 0; i--) {
-    __ Bind(&labels[i]);
-    Node* maybe_map = __ LoadField(AccessBuilder::ForWeakFixedArraySlot(
-                                       FeedbackIterator::MapIndexForEntry(i)),
-                                   polymorphic_array);
-    Node* map_check = __ TaggedEqual(maybe_map, weak_actual_map);
-
-    int handler_index = FeedbackIterator::HandlerIndexForEntry(i);
-    __ GotoIf(map_check, &do_handler_check, __ Int32Constant(handler_index));
-    if (i > 0) {
-      __ Goto(&labels[i - 1]);
-    } else {
-      // TODO(turbofan): Add support for gasm->Deoptimize.
-      __ DeoptimizeIf(DeoptimizeKind::kBailout, DeoptimizeReason::kMissingMap,
-                      FeedbackSource(), __ IntPtrConstant(1),
-                      FrameState(frame_state));
-      __ Unreachable(done);
-    }
-  }
-
-  __ Bind(&do_handler_check);
-  Node* handler_index = do_handler_check.PhiAt(0);
-  Node* maybe_handler =
-      __ LoadElement(AccessBuilder::ForWeakFixedArrayElement(),
-                     polymorphic_array, handler_index);
-  __ DeoptimizeIfNot(DeoptimizeReason::kWrongHandler, FeedbackSource(),
-                     __ TaggedEqual(maybe_handler, actual_handler), frame_state,
-                     IsSafetyCheck::kCriticalSafetyCheck);
-  __ Goto(done);
-}
-
-void EffectControlLinearizer::ProcessMonomorphic(Node* handler,
-                                                 GraphAssemblerLabel<0>* done,
-                                                 Node* frame_state, int slot,
-                                                 Node* vector) {
-  Node* feedback_slot_handler =
-      __ LoadField(AccessBuilder::ForFeedbackVectorSlot(slot + 1), vector);
-  Node* handler_check = __ TaggedEqual(handler, feedback_slot_handler);
-  __ DeoptimizeIfNot(DeoptimizeReason::kWrongHandler, FeedbackSource(),
-                     handler_check, frame_state,
-                     IsSafetyCheck::kCriticalSafetyCheck);
-  __ Goto(done);
-}
-
-void EffectControlLinearizer::BranchOnICState(
-    int slot_index, Node* vector, Node* value_map, Node* frame_state,
-    GraphAssemblerLabel<0>* monomorphic, GraphAssemblerLabel<0>* maybe_poly,
-    GraphAssemblerLabel<0>* migrate, Node** strong_feedback,
-    Node** poly_array) {
-  Node* feedback =
-      __ LoadField(AccessBuilder::ForFeedbackVectorSlot(slot_index), vector);
-
-  Node* mono_check = BuildIsWeakReferenceTo(feedback, value_map);
-  __ GotoIf(mono_check, monomorphic);
-
-  Node* is_strong_ref = BuildIsStrongReference(feedback);
-  if (migrate != nullptr) {
-    auto check_poly = __ MakeLabel();
-
-    __ GotoIf(is_strong_ref, &check_poly);
-    Node* is_cleared = BuildIsClearedWeakReference(feedback);
-    __ DeoptimizeIf(DeoptimizeKind::kBailout, DeoptimizeReason::kMissingMap,
-                    FeedbackSource(), is_cleared, frame_state,
-                    IsSafetyCheck::kCriticalSafetyCheck);
-    *strong_feedback = BuildStrongReferenceFromWeakReference(feedback);
-    __ Goto(migrate);
-
-    __ Bind(&check_poly);
-  } else {
-    __ DeoptimizeIfNot(DeoptimizeKind::kBailout, DeoptimizeReason::kMissingMap,
-                       FeedbackSource(), is_strong_ref, frame_state,
-                       IsSafetyCheck::kCriticalSafetyCheck);
-  }
-
-  *poly_array = feedback;
-  __ Goto(maybe_poly);
 }
 
 void EffectControlLinearizer::LowerDynamicCheckMaps(Node* node,
                                                     Node* frame_state) {
   DynamicCheckMapsParameters const& p =
       DynamicCheckMapsParametersOf(node->op());
-  Node* value = node->InputAt(0);
+  Node* actual_value = node->InputAt(0);
 
   FeedbackSource const& feedback = p.feedback();
-  Node* vector = __ HeapConstant(feedback.vector);
-  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
-  Node* handler = p.handler()->IsSmi()
-                      ? __ SmiConstant(Smi::ToInt(*p.handler()))
-                      : __ HeapConstant(Handle<HeapObject>::cast(p.handler()));
+  Node* actual_value_map = __ LoadField(AccessBuilder::ForMap(), actual_value);
+  Node* actual_handler =
+      p.handler()->IsSmi()
+          ? __ SmiConstant(Smi::ToInt(*p.handler()))
+          : __ HeapConstant(Handle<HeapObject>::cast(p.handler()));
 
   auto done = __ MakeLabel();
+  auto call_builtin = __ MakeDeferredLabel();
 
-  // Emit monomorphic checks only if current state is monomorphic. In
-  // case the current state is polymorphic, and if we ever go back to
-  // monomorphic start, we will deopt and reoptimize the code.
-  if (p.state() == DynamicCheckMapsParameters::kMonomorphic) {
-    auto monomorphic_map_match = __ MakeLabel();
-    auto maybe_poly = __ MakeLabel();
-    Node* strong_feedback;
-    Node* poly_array;
-
-    if (p.flags() & CheckMapsFlag::kTryMigrateInstance) {
-      auto map_check_failed = __ MakeDeferredLabel();
-      BranchOnICState(feedback.index(), vector, value_map, frame_state,
-                      &monomorphic_map_match, &maybe_poly, &map_check_failed,
-                      &strong_feedback, &poly_array);
-
-      __ Bind(&map_check_failed);
-      {
-        MigrateInstanceOrDeopt(value, value_map, frame_state, FeedbackSource(),
-                               DeoptimizeReason::kMissingMap);
-
-        // Check if new map matches.
-        Node* new_value_map = __ LoadField(AccessBuilder::ForMap(), value);
-        Node* mono_check = __ TaggedEqual(strong_feedback, new_value_map);
-        __ DeoptimizeIfNot(DeoptimizeKind::kBailout,
-                           DeoptimizeReason::kMissingMap, FeedbackSource(),
-                           mono_check, frame_state,
-                           IsSafetyCheck::kCriticalSafetyCheck);
-        ProcessMonomorphic(handler, &done, frame_state, feedback.index(),
-                           vector);
-      }
+  ZoneHandleSet<Map> maps = p.maps();
+  size_t const map_count = maps.size();
+  for (size_t i = 0; i < map_count; ++i) {
+    Node* map = __ HeapConstant(maps[i]);
+    Node* check = __ TaggedEqual(actual_value_map, map);
+    if (i == map_count - 1) {
+      __ BranchWithCriticalSafetyCheck(check, &done, &call_builtin);
     } else {
-      BranchOnICState(feedback.index(), vector, value_map, frame_state,
-                      &monomorphic_map_match, &maybe_poly, nullptr,
-                      &strong_feedback, &poly_array);
+      auto next_map = __ MakeLabel();
+      __ BranchWithCriticalSafetyCheck(check, &done, &next_map);
+      __ Bind(&next_map);
     }
-
-    __ Bind(&monomorphic_map_match);
-    ProcessMonomorphic(handler, &done, frame_state, feedback.index(), vector);
-
-    __ Bind(&maybe_poly);
-    // TODO(mythria): ICs don't drop deprecated maps from feedback vector.
-    // So it is not equired to migrate the instance for polymorphic case.
-    // When we change dynamic map checks to check only four maps re-evaluate
-    // if this is required.
-    CheckPolymorphic(poly_array, value_map, handler, &done, frame_state);
-  } else {
-    DCHECK_EQ(p.state(), DynamicCheckMapsParameters::kPolymorphic);
-    Node* feedback_slot = __ LoadField(
-        AccessBuilder::ForFeedbackVectorSlot(feedback.index()), vector);
-    // If the IC state at code generation time is not monomorphic, we don't
-    // handle monomorphic states and just deoptimize if IC transitions to
-    // monomorphic. For polymorphic ICs it is not required to migrate deprecated
-    // maps since ICs don't discard deprecated maps from feedback.
-    Node* is_poly_or_megamorphic = BuildIsStrongReference(feedback_slot);
-    __ DeoptimizeIfNot(DeoptimizeReason::kTransitionedToMonomorphicIC,
-                       FeedbackSource(), is_poly_or_megamorphic, frame_state,
-                       IsSafetyCheck::kCriticalSafetyCheck);
-    CheckPolymorphic(feedback_slot, value_map, handler, &done, frame_state);
   }
+
+  __ Bind(&call_builtin);
+  {
+    BuildCallDynamicMapChecksBuiltin(actual_value, actual_handler,
+                                     feedback.index(), &done, frame_state);
+  }
+
   __ Bind(&done);
 }
 
@@ -2310,7 +2147,7 @@ Node* EffectControlLinearizer::LowerCheckedInt32Div(Node* node,
     // are all zero, and if so we know that we can perform a division
     // safely (and fast by doing an arithmetic - aka sign preserving -
     // right shift on {lhs}).
-    int32_t divisor = m.Value();
+    int32_t divisor = m.ResolvedValue();
     Node* mask = __ Int32Constant(divisor - 1);
     Node* shift = __ Int32Constant(base::bits::WhichPowerOfTwo(divisor));
     Node* check = __ Word32Equal(__ Word32And(lhs, mask), zero);
@@ -2532,7 +2369,7 @@ Node* EffectControlLinearizer::LowerCheckedUint32Div(Node* node,
     // are all zero, and if so we know that we can perform a division
     // safely (and fast by doing a logical - aka zero extending - right
     // shift on {lhs}).
-    uint32_t divisor = m.Value();
+    uint32_t divisor = m.ResolvedValue();
     Node* mask = __ Uint32Constant(divisor - 1);
     Node* shift = __ Uint32Constant(base::bits::WhichPowerOfTwo(divisor));
     Node* check = __ Word32Equal(__ Word32And(lhs, mask), zero);
@@ -3742,36 +3579,26 @@ void EffectControlLinearizer::LowerTierUpCheck(Node* node) {
   TierUpCheckNode n(node);
   TNode<FeedbackVector> vector = n.feedback_vector();
 
-  Node* optimization_marker = __ LoadField(
-      AccessBuilder::ForFeedbackVectorOptimizedCodeWeakOrSmi(), vector);
+  Node* optimization_state =
+      __ LoadField(AccessBuilder::ForFeedbackVectorFlags(), vector);
 
   // TODO(jgruber): The branch introduces a sequence of spills before the
   // branch (and restores at `fallthrough`) that are completely unnecessary
   // since the IfFalse continuation ends in a tail call. Investigate how to
   // avoid these and fix it.
 
-  // TODO(jgruber): Combine the checks below for none/queued, e.g. by
-  // reorganizing OptimizationMarker values such that the least significant bit
-  // says whether the value is interesting or not. Also update the related
-  // check in the InterpreterEntryTrampoline.
-
   auto fallthrough = __ MakeLabel();
-  auto optimization_marker_is_not_none = __ MakeDeferredLabel();
-  auto optimization_marker_is_neither_none_nor_queued = __ MakeDeferredLabel();
+  auto has_optimized_code_or_marker = __ MakeDeferredLabel();
   __ BranchWithHint(
-      __ TaggedEqual(optimization_marker, __ SmiConstant(static_cast<int>(
-                                              OptimizationMarker::kNone))),
-      &fallthrough, &optimization_marker_is_not_none, BranchHint::kTrue);
+      __ Word32Equal(
+          __ Word32And(optimization_state,
+                       __ Uint32Constant(
+                           FeedbackVector::
+                               kHasNoTopTierCodeOrCompileOptimizedMarkerMask)),
+          __ Int32Constant(0)),
+      &fallthrough, &has_optimized_code_or_marker, BranchHint::kTrue);
 
-  __ Bind(&optimization_marker_is_not_none);
-  __ BranchWithHint(
-      __ TaggedEqual(optimization_marker,
-                     __ SmiConstant(static_cast<int>(
-                         OptimizationMarker::kInOptimizationQueue))),
-      &fallthrough, &optimization_marker_is_neither_none_nor_queued,
-      BranchHint::kNone);
-
-  __ Bind(&optimization_marker_is_neither_none_nor_queued);
+  __ Bind(&has_optimized_code_or_marker);
 
   // The optimization marker field contains a non-trivial value, and some
   // action has to be taken. For example, perhaps tier-up has been requested
@@ -3781,17 +3608,8 @@ void EffectControlLinearizer::LowerTierUpCheck(Node* node) {
   // Currently we delegate these tasks to the InterpreterEntryTrampoline.
   // TODO(jgruber,v8:8888): Consider a dedicated builtin instead.
 
-  const int parameter_count =
-      StartNode{graph()->start()}.FormalParameterCount();
   TNode<HeapObject> code =
       __ HeapConstant(BUILTIN_CODE(isolate(), InterpreterEntryTrampoline));
-  Node* target = __ Parameter(Linkage::kJSCallClosureParamIndex);
-  Node* new_target =
-      __ Parameter(Linkage::GetJSCallNewTargetParamIndex(parameter_count));
-  Node* argc =
-      __ Parameter(Linkage::GetJSCallArgCountParamIndex(parameter_count));
-  Node* context =
-      __ Parameter(Linkage::GetJSCallContextParamIndex(parameter_count));
 
   JSTrampolineDescriptor descriptor;
   CallDescriptor::Flags flags = CallDescriptor::kFixedTargetRegister |
@@ -3799,8 +3617,8 @@ void EffectControlLinearizer::LowerTierUpCheck(Node* node) {
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       graph()->zone(), descriptor, descriptor.GetStackParameterCount(), flags,
       Operator::kNoProperties);
-  Node* nodes[] = {code,    target,      new_target,  argc,
-                   context, __ effect(), __ control()};
+  Node* nodes[] = {code,        n.target(),  n.new_target(), n.input_count(),
+                   n.context(), __ effect(), __ control()};
 
 #ifdef DEBUG
   static constexpr int kCodeContextEffectControl = 4;
@@ -5235,13 +5053,21 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
   CHECK_EQ(FastApiCallNode::ArityForArgc(c_arg_count, js_arg_count),
            value_input_count);
 
-  // Add the { has_error } output parameter.
-  int kAlign = 4;
-  int kSize = 4;
-  Node* has_error = __ StackSlot(kSize, kAlign);
-  // Generate the store to `has_error`.
+  if (fast_api_call_stack_slot_ == nullptr) {
+    // Add the { fallback } output parameter.
+    int kAlign = 4;
+    int kSize = sizeof(v8::FastApiCallbackOptions);
+    // If this check fails, probably you've added new fields to
+    // v8::FastApiCallbackOptions, which means you'll need to write code
+    // that initializes and reads from them too (see the Store and Load to
+    // fast_api_call_stack_slot_ below).
+    CHECK_EQ(kSize, 1);
+    fast_api_call_stack_slot_ = __ StackSlot(kSize, kAlign);
+  }
+
+  // Generate the store to `fast_api_call_stack_slot_`.
   __ Store(StoreRepresentation(MachineRepresentation::kWord32, kNoWriteBarrier),
-           has_error, 0, jsgraph()->ZeroConstant());
+           fast_api_call_stack_slot_, 0, jsgraph()->ZeroConstant());
 
   MachineSignature::Builder builder(
       graph()->zone(), 1, c_arg_count + FastApiCallNode::kHasErrorInputCount);
@@ -5252,7 +5078,7 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
         MachineTypeFor(c_signature->ArgumentInfo(i).GetType());
     builder.AddParam(machine_type);
   }
-  builder.AddParam(MachineType::Pointer());  // has_error
+  builder.AddParam(MachineType::Pointer());  // fast_api_call_stack_slot_
 
   CallDescriptor* call_descriptor =
       Linkage::GetSimplifiedCDescriptor(graph()->zone(), builder.Build());
@@ -5261,19 +5087,26 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
 
   Node** const inputs = graph()->zone()->NewArray<Node*>(
       c_arg_count + FastApiCallNode::kFastCallExtraInputCount);
-  for (int i = 0; i < c_arg_count + FastApiCallNode::kFastTargetInputCount;
-       ++i) {
-    inputs[i] = NodeProperties::GetValueInput(node, i);
+  inputs[0] = NodeProperties::GetValueInput(node, 0);  // the target
+  for (int i = FastApiCallNode::kFastTargetInputCount;
+       i < c_arg_count + FastApiCallNode::kFastTargetInputCount; ++i) {
+    if (c_signature->ArgumentInfo(i - 1).GetType() ==
+        CTypeInfo::Type::kFloat32) {
+      inputs[i] =
+          __ TruncateFloat64ToFloat32(NodeProperties::GetValueInput(node, i));
+    } else {
+      inputs[i] = NodeProperties::GetValueInput(node, i);
+    }
   }
-  inputs[c_arg_count + 1] = has_error;
+  inputs[c_arg_count + 1] = fast_api_call_stack_slot_;
   inputs[c_arg_count + 2] = __ effect();
   inputs[c_arg_count + 3] = __ control();
 
   __ Call(call_descriptor,
           c_arg_count + FastApiCallNode::kFastCallExtraInputCount, inputs);
 
-  // Generate the load from `has_error`.
-  Node* load = __ Load(MachineType::Int32(), has_error, 0);
+  // Generate the load from `fast_api_call_stack_slot_`.
+  Node* load = __ Load(MachineType::Int32(), fast_api_call_stack_slot_, 0);
 
   TNode<Boolean> cond =
       TNode<Boolean>::UncheckedCast(__ Word32Equal(load, __ Int32Constant(0)));
@@ -6527,9 +6360,9 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntryForInt32Key(
     auto if_match = __ MakeLabel();
     auto if_notmatch = __ MakeLabel();
     auto if_notsmi = __ MakeDeferredLabel();
-      __ GotoIfNot(ObjectIsSmi(candidate_key), &if_notsmi);
-      __ Branch(__ Word32Equal(ChangeSmiToInt32(candidate_key), key), &if_match,
-                &if_notmatch);
+    __ GotoIfNot(ObjectIsSmi(candidate_key), &if_notsmi);
+    __ Branch(__ Word32Equal(ChangeSmiToInt32(candidate_key), key), &if_match,
+              &if_notmatch);
 
     __ Bind(&if_notsmi);
     __ GotoIfNot(
@@ -6627,10 +6460,11 @@ void LinearizeEffectControl(JSGraph* graph, Schedule* schedule, Zone* temp_zone,
                             SourcePositionTable* source_positions,
                             NodeOriginTable* node_origins,
                             MaskArrayIndexEnable mask_array_index,
-                            MaintainSchedule maintain_schedule) {
-  EffectControlLinearizer linearizer(graph, schedule, temp_zone,
-                                     source_positions, node_origins,
-                                     mask_array_index, maintain_schedule);
+                            MaintainSchedule maintain_schedule,
+                            JSHeapBroker* broker) {
+  EffectControlLinearizer linearizer(
+      graph, schedule, temp_zone, source_positions, node_origins,
+      mask_array_index, maintain_schedule, broker);
   linearizer.Run();
 }
 

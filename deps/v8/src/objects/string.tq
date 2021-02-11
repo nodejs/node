@@ -25,6 +25,11 @@ extern class ExternalString extends String {
   resource_data: ExternalPointer;
 }
 
+extern operator '.resource_ptr' macro LoadExternalStringResourcePtr(
+    ExternalString): RawPtr;
+extern operator '.resource_data_ptr' macro LoadExternalStringResourceDataPtr(
+    ExternalString): RawPtr;
+
 @doNotGenerateCast
 extern class ExternalOneByteString extends ExternalString {
 }

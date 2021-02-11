@@ -46,6 +46,7 @@ PERFETTO_DEFINE_CATEGORIES(
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.runtime")),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats")),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats_sampling")),
+    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace")),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.turbofan")),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed")),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.zone_stats")),
