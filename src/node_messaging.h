@@ -285,11 +285,16 @@ class MessagePort : public HandleWrap {
   SET_SELF_SIZE(MessagePort)
 
  private:
+  enum class MessageProcessingMode {
+    kNormalOperation,
+    kForceReadMessages
+  };
+
   void OnClose() override;
-  void OnMessage();
+  void OnMessage(MessageProcessingMode mode);
   void TriggerAsync();
   v8::MaybeLocal<v8::Value> ReceiveMessage(v8::Local<v8::Context> context,
-                                           bool only_if_receiving);
+                                           MessageProcessingMode mode);
 
   std::unique_ptr<MessagePortData> data_ = nullptr;
   bool receiving_messages_ = false;
