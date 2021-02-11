@@ -281,10 +281,10 @@ class RefBase : protected Finalizer, RefTracker {
     // this is safe because if a request to delete the reference
     // is made in the finalize_callback it will defer deletion
     // to this block and set _delete_self to true
+    _finalize_ran = true;
+
     if (_delete_self || is_env_teardown) {
       Delete(this);
-    } else {
-      _finalize_ran = true;
     }
   }
 
