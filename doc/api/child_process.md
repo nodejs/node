@@ -351,6 +351,9 @@ controller.abort();
 <!-- YAML
 added: v0.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37325
+    description: killSignal for AbortSignal was added.
   - version: v15.6.0
     pr-url: https://github.com/nodejs/node/pull/36603
     description: AbortSignal support was added.
@@ -383,6 +386,8 @@ changes:
     messages between processes. Possible values are `'json'` and `'advanced'`.
     See [Advanced serialization][] for more details. **Default:** `'json'`.
   * `signal` {AbortSignal} Allows closing the subprocess using an AbortSignal.
+  * `killSignal` {string} The signal value to be used when the spawned
+    process will be killed by the abort signal. **Default:** `'SIGTERM'`.
   * `silent` {boolean} If `true`, stdin, stdout, and stderr of the child will be
     piped to the parent, otherwise they will be inherited from the parent, see
     the `'pipe'` and `'inherit'` options for [`child_process.spawn()`][]'s
@@ -431,6 +436,9 @@ The `signal` option works exactly the same way it does in
 <!-- YAML
 added: v0.1.90
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37325
+    description: killSignal for AbortSignal was added.
   - version: v15.5.0
     pr-url: https://github.com/nodejs/node/pull/36432
     description: AbortSignal support was added.
@@ -477,6 +485,8 @@ changes:
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
   * `signal` {AbortSignal} allows aborting the execFile using an AbortSignal.
+  * `killSignal` {string} The signal value to be used when the spawned
+    process will be killed by the abort signal. **Default:** `'SIGTERM'`.
 
 * Returns: {ChildProcess}
 
