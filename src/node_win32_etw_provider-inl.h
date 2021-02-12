@@ -118,8 +118,6 @@ extern int events_enabled;
   DWORD status = event_write(node_provider, &eventDescriptor, 0, NULL_NOLINT); \
   CHECK_EQ(status, ERROR_SUCCESS);
 
-#undef NULL_NOLINT
-
 void NODE_HTTP_SERVER_REQUEST(node_dtrace_http_server_request_t* req,
     node_dtrace_connection_t* conn, const char* remote, int port,
     const char* method, const char* url, int fd) {
@@ -271,6 +269,8 @@ void NODE_V8SYMBOL_ADD(LPCSTR symbol,
   }
 }
 #undef SETSYMBUF
+
+#undef NULL_NOLINT
 
 
 bool NODE_HTTP_SERVER_REQUEST_ENABLED() { return events_enabled > 0; }
