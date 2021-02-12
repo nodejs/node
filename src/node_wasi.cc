@@ -279,7 +279,8 @@ void WASI::ArgsGet(const FunctionCallbackInfo<Value>& args) {
 
   if (err == UVWASI_ESUCCESS) {
     for (size_t i = 0; i < wasi->uvw_.argc; i++) {
-      uint32_t offset = argv_buf_offset + (argv[i] - argv[0]);
+      uint32_t offset =
+          static_cast<uint32_t>(argv_buf_offset + (argv[i] - argv[0]));
       uvwasi_serdes_write_uint32_t(memory,
                                    argv_offset +
                                    (i * UVWASI_SERDES_SIZE_uint32_t),
@@ -410,7 +411,8 @@ void WASI::EnvironGet(const FunctionCallbackInfo<Value>& args) {
 
   if (err == UVWASI_ESUCCESS) {
     for (size_t i = 0; i < wasi->uvw_.envc; i++) {
-      uint32_t offset = environ_buf_offset + (environment[i] - environment[0]);
+      uint32_t offset = static_cast<uint32_t>(
+          environ_buf_offset + (environment[i] - environment[0]));
 
       uvwasi_serdes_write_uint32_t(memory,
                                    environ_offset +
