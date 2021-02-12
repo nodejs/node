@@ -50,6 +50,10 @@ module.exports = {
                     allowTaggedTemplates: {
                         type: "boolean",
                         default: false
+                    },
+                    enforceForJSX: {
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false
@@ -65,7 +69,8 @@ module.exports = {
         const config = context.options[0] || {},
             allowShortCircuit = config.allowShortCircuit || false,
             allowTernary = config.allowTernary || false,
-            allowTaggedTemplates = config.allowTaggedTemplates || false;
+            allowTaggedTemplates = config.allowTaggedTemplates || false,
+            enforceForJSX = config.enforceForJSX || false;
 
         // eslint-disable-next-line jsdoc/require-description
         /**
@@ -140,6 +145,12 @@ module.exports = {
             },
             FunctionExpression: alwaysTrue,
             Identifier: alwaysTrue,
+            JSXElement() {
+                return enforceForJSX;
+            },
+            JSXFragment() {
+                return enforceForJSX;
+            },
             Literal: alwaysTrue,
             LogicalExpression(node) {
                 if (allowShortCircuit) {
