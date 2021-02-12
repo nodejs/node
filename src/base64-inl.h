@@ -23,6 +23,11 @@ inline uint32_t ReadUint32BE(const unsigned char* p) {
          static_cast<uint32_t>(p[3]);
 }
 
+#ifdef _MSC_VER
+#pragma warning(push)
+// MSVC C4003: not enough actual parameters for macro 'identifier'
+#pragma warning(disable : 4003)
+#endif
 
 template <typename TypeName>
 bool base64_decode_group_slow(char* const dst, const size_t dstlen,
@@ -50,6 +55,9 @@ bool base64_decode_group_slow(char* const dst, const size_t dstlen,
   return true;  // Continue decoding.
 }
 
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 template <typename TypeName>
 size_t base64_decode_fast(char* const dst, const size_t dstlen,
