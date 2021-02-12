@@ -270,21 +270,26 @@ class RefBase : protected Finalizer, RefTracker {
 
  protected:
   inline void Finalize(bool is_env_teardown = false) override {
-    // Force deferring behavior if the finalizer happens to delete this
-    // reference.
+    // During environment teardown we have to convert a strong reference to
+    // a weak reference to force the deferring behavior if the user's finalizer
+    // happens to delete this reference so that the code in this function that
+    // follows the call to the user's finalizer may safely access variables from
+    // this instance.
     if (is_env_teardown && RefCount() > 0) _refcount = 0;
 
     if (_finalize_callback != nullptr) {
       _env->CallFinalizer(_finalize_callback, _finalize_data, _finalize_hint);
+      // This ensures that we never call the finalizer twice.
+      _finalize_callback = nullptr;
     }
 
     // this is safe because if a request to delete the reference
     // is made in the finalize_callback it will defer deletion
     // to this block and set _delete_self to true
-    _finalize_ran = true;
-
     if (_delete_self || is_env_teardown) {
       Delete(this);
+    } else {
+      _finalize_ran = true;
     }
   }
 
