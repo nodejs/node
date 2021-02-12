@@ -153,7 +153,7 @@ class SignalWrap : public HandleWrap {
 
 void DecreaseSignalHandlerCount(int signum) {
   Mutex::ScopedLock lock(handled_signals_mutex);
-  int new_handler_count = --handled_signals[signum];
+  int64_t new_handler_count = --handled_signals[signum];
   CHECK_GE(new_handler_count, 0);
   if (new_handler_count == 0)
     handled_signals.erase(signum);

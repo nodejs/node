@@ -338,7 +338,7 @@ MaybeLocal<Value> StreamBase::CallJSOnreadMethod(ssize_t nread,
     }
   }
 
-  env->stream_base_state()[kReadBytesOrError] = nread;
+  env->stream_base_state()[kReadBytesOrError] = static_cast<int32_t>(nread);
   env->stream_base_state()[kArrayBufferOffset] = offset;
 
   Local<Value> argv[] = {

@@ -896,7 +896,7 @@ void URLHost::ParseIPv6Host(const char* input, size_t length) {
   }
 
   if (compress_pointer != nullptr) {
-    unsigned swaps = piece_pointer - compress_pointer;
+    int64_t swaps = piece_pointer - compress_pointer;
     piece_pointer = buffer_end - 1;
     while (piece_pointer != &value_.ipv6[0] && swaps > 0) {
       uint16_t temp = *piece_pointer;
@@ -963,7 +963,7 @@ void URLHost::ParseIPv4Host(const char* input, size_t length, bool* is_ipv4) {
 
   while (pointer <= end) {
     const char ch = pointer < end ? pointer[0] : kEOL;
-    int remaining = end - pointer - 1;
+    int64_t remaining = end - pointer - 1;
     if (ch == '.' || ch == kEOL) {
       if (++parts > static_cast<int>(arraysize(numbers)))
         return;
@@ -996,10 +996,11 @@ void URLHost::ParseIPv4Host(const char* input, size_t length, bool* is_ipv4) {
   }
 
   type_ = HostType::H_IPV4;
-  val = numbers[parts - 1];
+  val = static_cast<uint32_t>(numbers[parts - 1]);
   for (int n = 0; n < parts - 1; n++) {
     double b = 3 - n;
-    val += numbers[n] * pow(256, b);
+    val +=
+        static_cast<uint32_t>(numbers[n]) * static_cast<uint32_t>(pow(256, b));
   }
 
   value_.ipv4 = val;

@@ -532,10 +532,12 @@ Maybe<bool> GetRsaKeyDetail(
 
   size_t modulus_length = BN_num_bytes(n) * CHAR_BIT;
 
-  if (target->Set(
-          env->context(),
-          env->modulus_length_string(),
-          Number::New(env->isolate(), modulus_length)).IsNothing()) {
+  if (target
+          ->Set(
+              env->context(),
+              env->modulus_length_string(),
+              Number::New(env->isolate(), static_cast<double>(modulus_length)))
+          .IsNothing()) {
     return Nothing<bool>();
   }
 
