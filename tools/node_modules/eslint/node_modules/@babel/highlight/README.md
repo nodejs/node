@@ -2,7 +2,7 @@
 
 > Syntax highlight JavaScript strings for output in terminals.
 
-See our website [@babel/highlight](https://babeljs.io/docs/en/next/babel-highlight.html) for more information.
+See our website [@babel/highlight](https://babeljs.io/docs/en/babel-highlight) for more information.
 
 ## Install
 
