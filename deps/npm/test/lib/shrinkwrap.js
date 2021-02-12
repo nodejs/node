@@ -1,4 +1,5 @@
 const t = require('tap')
+const fs = require('fs')
 const requireInject = require('require-inject')
 
 const npm = {
@@ -326,4 +327,11 @@ t.test('shrinkwrap --global', t => {
     t.equal(err.code, 'ESHRINKWRAPGLOBAL', 'should throw expected error code')
     t.end()
   })
+})
+
+t.test('works without fs.promises', async t => {
+  t.doesNotThrow(() => requireInject('../../lib/shrinkwrap.js', {
+    ...mocks,
+    fs: { ...fs, promises: null },
+  }))
 })

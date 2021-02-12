@@ -442,7 +442,8 @@ module.exports = cls => class Reifier extends cls {
     if (this[_trashList].has(node.path))
       return node
 
-    process.emit('time', `reifyNode:${node.location}`)
+    const timer = `reifyNode:${node.location}`
+    process.emit('time', timer)
     this.addTracker('reify', node.name, node.location)
 
     const p = Promise.resolve()
@@ -454,7 +455,7 @@ module.exports = cls => class Reifier extends cls {
     return this[_handleOptionalFailure](node, p)
       .then(() => {
         this.finishTracker('reify', node.name, node.location)
-        process.emit('timeEnd', `reifyNode:${node.location}`)
+        process.emit('timeEnd', timer)
         return node
       })
   }
@@ -474,9 +475,14 @@ module.exports = cls => class Reifier extends cls {
 
     // no idea what this thing is.  remove it from the tree.
     if (!res) {
-      node.parent = null
+      const warning = 'invalid or damaged lockfile detected\n' +
+        'please re-try this operation once it completes\n' +
+        'so that the damage can be corrected, or perform\n' +
+        'a fresh install with no lockfile if the problem persists.'
+      this.log.warn('reify', warning)
       this.log.verbose('reify', 'unrecognized node in tree', node.path)
       node.parent = null
+      node.fsParent = null
       this[_addNodeToTrashList](node)
       return
     }

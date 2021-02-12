@@ -1,5 +1,7 @@
 const { resolve, basename } = require('path')
-const { promises: { unlink } } = require('fs')
+const util = require('util')
+const fs = require('fs')
+const { unlink } = fs.promises || util.promisify(fs.unlink)
 const Arborist = require('@npmcli/arborist')
 const log = require('npmlog')
 

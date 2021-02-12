@@ -41,7 +41,7 @@ const runScript = async (args) => {
 
   if (event === 'restart' && !scripts.restart)
     scripts.restart = 'npm stop --if-present && npm start'
-  else if (event === 'env')
+  else if (event === 'env' && !scripts.env)
     scripts.env = isWindowsShell ? 'SET' : 'env'
 
   pkg.scripts = scripts

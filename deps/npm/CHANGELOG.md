@@ -1,3 +1,71 @@
+## v7.5.4 (2021-02-12)
+
+### BUG FIXES
+
+* [`ef687f545`](https://github.com/npm/cli/commit/ef687f545b177d0496ce74faacf1bf738978355a)
+  [#2655](https://github.com/npm/cli/issues/2655)
+  fix(env): Do not clobber defined 'env' script
+  ([@isaacs](https://github.com/isaacs))
+* [`868954a72`](https://github.com/npm/cli/commit/868954a72c06ff2210b35e1e75571f4ec3357c43)
+  [#2654](https://github.com/npm/cli/issues/2654)
+  [fix] node v10.0 lacks `fs.promises`
+  ([@ljharb](https://github.com/ljharb))
+
+
+### DEPENDENCIES
+
+* [`14dd93853`](https://github.com/npm/cli/commit/14dd9385358b3815c2285526f7c2e53ed3c5e8da)
+  fix(package.json): resetdeps
+  ([@wraithgar](https://github.com/wraithgar))
+* [`39e4a6401`](https://github.com/npm/cli/commit/39e4a640130b85d62199a33cc2026b04390520ee)
+  `graceful-fs@4.2.6`
+* [`96dffab98`](https://github.com/npm/cli/commit/96dffab988048164516d8cf73c1fbf66781f86df)
+  `eslint-plugin-promise@4.3.1`
+* [`9a6e9d38a`](https://github.com/npm/cli/commit/9a6e9d38abccec793b6ac14871c2b639d62a6c41)
+  `@npmcli/run-script@1.8.3`
+    * fix fs.promises reference to run in node v10.0
+* [`584b746a2`](https://github.com/npm/cli/commit/584b746a2c8cdc697629298be27dd23d19de1231)
+  `@npmcli/git@2.0.5`
+* [`6305ebde4`](https://github.com/npm/cli/commit/6305ebde43796737014aedbe019db8cd81dcbbec)
+  `make-fetch-happen@8.0.14`
+* [`e99881117`](https://github.com/npm/cli/commit/e998811170ce5df00a725b2d683b4bff124c6792)
+  `libnpmversion@1.0.10`
+* [`554d91cdf`](https://github.com/npm/cli/commit/554d91cdf82e9c92c2ac3752ed91e7081c2271e5)
+  chore(package-lock): rebuild package-lock
+  ([@wraithgar](https://github.com/wraithgar))
+* [`37e8cc507`](https://github.com/npm/cli/commit/37e8cc507b2ce0b89f92e7e77b1d909d1bf5513f)
+  `@npmcli/arborist@2.2.2`
+    * [#2505](https://github.com/npm/cli/issues/2505) properly install
+      dependenciess of linked dependencies
+      ([@ruyadorno](https://github.com/ruyadorno))
+    * [#2504](https://github.com/npm/cli/issues/2504) Allow `--force` to
+      override conflicted optional peerDependencies
+      ([@isaacs](https://github.com/isaacs))
+    * Ensure correct flags on shrinkwrapped module deps
+      ([@isaacs](https://github.com/isaacs))
+    * Correct relative paths for global packages installed from tarball files
+      ([nlf](https://github.com/nlf))
+* [`7788ce47b`](https://github.com/npm/cli/commit/7788ce47bc264d9d951055da85f2b695eb8b3f15)
+  `@npmcli/map-workspaces@1.0.3`
+
+### TESTS
+
+* [`3a159d27e`](https://github.com/npm/cli/commit/3a159d27e976933098ec18fa9c3e474c85b5b332)
+  [#2681](https://github.com/npm/cli/issues/2681)
+  fix(tests): rewrite doctor tests
+  ([@ljharb](https://github.com/ljharb))
+* [`abcc96a20`](https://github.com/npm/cli/commit/abcc96a204ed581fc7cd603f47cdca0afe299530)
+  [#2682](https://github.com/npm/cli/issues/2682)
+  [tests] separate tests from linting and license validation
+  ([@ljharb](https://github.com/ljharb))
+
+### DOCUMENTATION
+
+* [`7e1e84181`](https://github.com/npm/cli/commit/7e1e84181ccaca8a8b499a21b1aa7d731a14d5b7)
+  [#2662](https://github.com/npm/cli/issues/2662)
+  fix(docs): fix angle brackets in npm diff docs
+  ([@ethomson](https://github.com/ethomson))
+
 ## v7.5.3 (2021-02-08)
 
 ### BUG FIXES

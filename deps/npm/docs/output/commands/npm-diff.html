@@ -206,11 +206,11 @@ published version of that package.</p>
 <p>When using a single package name (with no version or tag specifier) as an
 argument, <code>npm diff</code> will work in a similar way to
 <a href="npm-outdated"><code>npm-outdated</code></a> and reach for the registry to figure out
-what current published version of the package named <!-- raw HTML omitted --> will satisfy
-its dependent declared semver-range. Once that specific version is known
-<code>npm diff</code> will print diff patches comparing the current version of
-<!-- raw HTML omitted --> found in the local file system with that specific version
-returned by the registry.</p>
+what current published version of the package named <code>&lt;pkg-name&gt;</code>
+will satisfy its dependent declared semver-range. Once that specific
+version is known <code>npm diff</code> will print diff patches comparing the
+current version of <code>&lt;pkg-name&gt;</code> found in the local file system with
+that specific version returned by the registry.</p>
 <p>Given a package named <code>abbrev</code> that is currently installed:</p>
 <pre lang="bash"><code>npm diff --diff=abbrev
 </code></pre>
@@ -260,7 +260,7 @@ located within the folder <code>./lib/</code> and changed lines of code within t
 <h3 id="configuration">Configuration</h3>
 <h4 id="diff">diff</h4>
 <ul>
-<li>Type: Array<!-- raw HTML omitted --></li>
+<li>Type: Array</li>
 <li>Default: null</li>
 </ul>
 <p>Defines npm package specifiers to compare using the <code>npm diff</code> command.</p>
