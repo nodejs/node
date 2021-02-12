@@ -111,13 +111,14 @@ extern int events_enabled;
                              dataDescriptors);                                \
   CHECK_EQ(status, ERROR_SUCCESS);
 
-#define ETW_WRITE_EMPTY_EVENT(eventDescriptor)                                \
-  DWORD status = event_write(node_provider,                                   \
-                             &eventDescriptor,                                \
-                             0,                                               \
-                             NULL);  // NOLINT (readability/null_usage)       \
+// NOLINTNEXTLINE (readability/null_usage)
+#define NULL_NOLINT NULL
+
+#define ETW_WRITE_EMPTY_EVENT(eventDescriptor)                                 \
+  DWORD status = event_write(node_provider, &eventDescriptor, 0, NULL_NOLINT); \
   CHECK_EQ(status, ERROR_SUCCESS);
 
+#undef NULL_NOLINT
 
 void NODE_HTTP_SERVER_REQUEST(node_dtrace_http_server_request_t* req,
     node_dtrace_connection_t* conn, const char* remote, int port,
