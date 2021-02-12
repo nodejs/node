@@ -527,7 +527,7 @@ class NodeInspectorClient : public V8InspectorClient {
         timers_.emplace(std::piecewise_construct, std::make_tuple(data),
                         std::make_tuple(env_, [=]() { callback(data); }));
     CHECK(result.second);
-    uint64_t interval = 1000 * interval_s;
+    uint64_t interval = static_cast<uint64_t>(1000 * interval_s);
     result.first->second.Update(interval, interval);
   }
 
@@ -917,7 +917,7 @@ void Agent::SetParentHandle(
 }
 
 std::unique_ptr<ParentInspectorHandle> Agent::GetParentHandle(
-    int thread_id, const std::string& url) {
+    uint64_t thread_id, const std::string& url) {
   if (!parent_handle_) {
     return client_->getWorkerManager()->NewParentHandle(thread_id, url);
   } else {
