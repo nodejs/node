@@ -146,14 +146,18 @@ Maybe<bool> GetDsaKeyDetail(
   size_t modulus_length = BN_num_bytes(p) * CHAR_BIT;
   size_t divisor_length = BN_num_bytes(q) * CHAR_BIT;
 
-  if (target->Set(
-          env->context(),
-          env->modulus_length_string(),
-          Number::New(env->isolate(), modulus_length)).IsNothing() ||
-      target->Set(
-          env->context(),
-          env->divisor_length_string(),
-          Number::New(env->isolate(), divisor_length)).IsNothing()) {
+  if (target
+          ->Set(
+              env->context(),
+              env->modulus_length_string(),
+              Number::New(env->isolate(), static_cast<double>(modulus_length)))
+          .IsNothing() ||
+      target
+          ->Set(
+              env->context(),
+              env->divisor_length_string(),
+              Number::New(env->isolate(), static_cast<double>(divisor_length)))
+          .IsNothing()) {
     return Nothing<bool>();
   }
 
