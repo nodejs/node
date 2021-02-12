@@ -184,3 +184,14 @@ assert.throws(() => new Blob(['test', 1]), {
   const b = new Blob(['hello'], { type: '\x01' });
   assert.strictEqual(b.type, '');
 }
+
+{
+  const descriptor =
+      Object.getOwnPropertyDescriptor(Blob.prototype, Symbol.toStringTag);
+  assert.deepStrictEqual(descriptor, {
+    configurable: true,
+    enumerable: false,
+    value: 'Blob',
+    writable: false
+  });
+}
