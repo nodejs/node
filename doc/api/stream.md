@@ -1578,6 +1578,9 @@ further errors except from `_destroy()` may be emitted as `'error'`.
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37354
+    description: The `signal` option was added.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/32158
     description: The `finished(stream, cb)` will wait for the `'close'` event
@@ -1604,6 +1607,10 @@ changes:
   * `writable` {boolean} When set to `false`, the callback will be called when
     the stream ends even though the stream might still be writable.
     **Default:** `true`.
+  * `signal` {AbortSignal} allows aborting the wait for the stream finish. The
+    underlying stream will *not* be aborted if the signal is aborted. The
+    callback will get called with an `AbortError`. All registered
+    listeners added by this function will also be removed.
 * `callback` {Function} A callback function that takes an optional error
   argument.
 * Returns: {Function} A cleanup function which removes all registered
