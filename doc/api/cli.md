@@ -194,12 +194,15 @@ Enable FIPS-compliant crypto at startup. (Requires Node.js to be built with
 added: v12.12.0
 -->
 
-> Stability: 1 - Experimental
+Enable [Source Map v3][] support for stack traces.
 
-Enable experimental Source Map v3 support for stack traces.
+When using a transpiler, such as TypeScript, strack traces thrown by an
+application reference the transpiled code, not the original source position.
+`--enable-source-maps` enables caching of [Source Maps][] and makes a best
+effort to report stack traces relative to the original source file.
 
-Currently, overriding `Error.prepareStackTrace` is ignored when the
-`--enable-source-maps` flag is set.
+Overriding `Error.prepareStackTrace` prevents `--enable-source-maps` from
+modifiying the stack trace.
 
 ### `--experimental-abortcontroller`
 <!-- YAML
@@ -1699,6 +1702,8 @@ $ node --max-old-space-size=1536 index.js
 [`NODE_OPTIONS`]: #cli_node_options_options
 [`SlowBuffer`]: buffer.md#buffer_class_slowbuffer
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#process_process_setuncaughtexceptioncapturecallback_fn
+[Source Maps]: https://sourcemaps.info/spec.html
+[Source Map v3]: https://sourcemaps.info/spec.html
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tls_tls_default_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.md#tls_tls_default_min_version
 [`unhandledRejection`]: process.md#process_event_unhandledrejection
