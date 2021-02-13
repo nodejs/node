@@ -2622,31 +2622,6 @@ generateKey('hmac', { length: 64 }, (err, key) => {
 });
 ```
 
-### `crypto.generateKeySync(type, options)`
-<!-- YAML
-added: v15.0.0
--->
-
-* `type`: {string} The intended use of the generated secret key. Currently
-  accepted values are `'hmac'` and `'aes'`.
-* `options`: {Object}
-  * `length`: {number} The bit length of the key to generate.
-    * If `type` is `'hmac'`, the minimum is 1, and the maximum length is
-      2<sup>31</sup>-1. If the value is not a multiple of 8, the generated
-      key will be truncated to `Math.floor(length / 8)`.
-    * If `type` is `'aes'`, the length must be one of `128`, `192`, or `256`.
-* Returns: {KeyObject}
-
-Synchronously generates a new random secret key of the given `length`. The
-`type` will determine which validations will be performed on the `length`.
-
-```js
-const { generateKeySync } = require('crypto');
-
-const key = generateKeySync('hmac', 64);
-console.log(key.export().toString('hex'));  // e89..........41e
-```
-
 ### `crypto.generateKeyPair(type, options, callback)`
 <!-- YAML
 added: v10.12.0
@@ -2790,6 +2765,31 @@ The return value `{ publicKey, privateKey }` represents the generated key pair.
 When PEM encoding was selected, the respective key will be a string, otherwise
 it will be a buffer containing the data encoded as DER.
 
+### `crypto.generateKeySync(type, options)`
+<!-- YAML
+added: v15.0.0
+-->
+
+* `type`: {string} The intended use of the generated secret key. Currently
+  accepted values are `'hmac'` and `'aes'`.
+* `options`: {Object}
+  * `length`: {number} The bit length of the key to generate.
+    * If `type` is `'hmac'`, the minimum is 1, and the maximum length is
+      2<sup>31</sup>-1. If the value is not a multiple of 8, the generated
+      key will be truncated to `Math.floor(length / 8)`.
+    * If `type` is `'aes'`, the length must be one of `128`, `192`, or `256`.
+* Returns: {KeyObject}
+
+Synchronously generates a new random secret key of the given `length`. The
+`type` will determine which validations will be performed on the `length`.
+
+```js
+const { generateKeySync } = require('crypto');
+
+const key = generateKeySync('hmac', 64);
+console.log(key.export().toString('hex'));  // e89..........41e
+```
+
 ### `crypto.generatePrime(size[, options[, callback]])`
 <!-- YAML
 added: v15.8.0
@@ -2872,19 +2872,6 @@ By default, the prime is encoded as a big-endian sequence of octets
 in an {ArrayBuffer}. If the `bigint` option is `true`, then a {bigint}
 is provided.
 
-### `crypto.getCiphers()`
-<!-- YAML
-added: v0.9.3
--->
-
-* Returns: {string[]} An array with the names of the supported cipher
-  algorithms.
-
-```js
-const ciphers = crypto.getCiphers();
-console.log(ciphers); // ['aes-128-cbc', 'aes-128-ccm', ...]
-```
-
 ### `crypto.getCipherInfo(nameOrNid[, options])`
 <!-- YAML
 added: v15.0.0
@@ -2913,6 +2900,19 @@ the `crypto.getCipherInfo()` method will return the default values for these
 ciphers. To test if a given key length or iv length is acceptable for given
 cipher, use the `keyLenth` and `ivLenth` options. If the given values are
 unacceptable, `undefined` will be returned.
+
+### `crypto.getCiphers()`
+<!-- YAML
+added: v0.9.3
+-->
+
+* Returns: {string[]} An array with the names of the supported cipher
+  algorithms.
+
+```js
+const ciphers = crypto.getCiphers();
+console.log(ciphers); // ['aes-128-cbc', 'aes-128-ccm', ...]
+```
 
 ### `crypto.getCurves()`
 <!-- YAML
