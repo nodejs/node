@@ -111,68 +111,6 @@ static void uv__chld(uv_signal_t* handle, int signum) {
   assert(QUEUE_EMPTY(&pending));
 }
 
-
-static int uv__make_socketpair(int fds[2]) {
-#if defined(__FreeBSD__) || defined(__linux__)
-  if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, fds))
-    return UV__ERR(errno);
-
-  return 0;
-#else
-  int err;
-
-  if (socketpair(AF_UNIX, SOCK_STREAM, 0, fds))
-    return UV__ERR(errno);
-
-  err = uv__cloexec(fds[0], 1);
-  if (err == 0)
-    err = uv__cloexec(fds[1], 1);
-
-  if (err != 0) {
-    uv__close(fds[0]);
-    uv__close(fds[1]);
-    return UV__ERR(errno);
-  }
-
-  return 0;
-#endif
-}
-
-
-int uv__make_pipe(int fds[2], int flags) {
-#if defined(__FreeBSD__) || defined(__linux__)
-  if (pipe2(fds, flags | O_CLOEXEC))
-    return UV__ERR(errno);
-
-  return 0;
-#else
-  if (pipe(fds))
-    return UV__ERR(errno);
-
-  if (uv__cloexec(fds[0], 1))
-    goto fail;
-
-  if (uv__cloexec(fds[1], 1))
-    goto fail;
-
-  if (flags & UV__F_NONBLOCK) {
-    if (uv__nonblock(fds[0], 1))
-      goto fail;
-
-    if (uv__nonblock(fds[1], 1))
-      goto fail;
-  }
-
-  return 0;
-
-fail:
-  uv__close(fds[0]);
-  uv__close(fds[1]);
-  return UV__ERR(errno);
-#endif
-}
-
-
 /*
  * Used for initializing stdio streams like options.stdin_stream. Returns
  * zero on success. See also the cleanup section in uv_spawn().
@@ -192,7 +130,7 @@ static int uv__process_init_stdio(uv_stdio_container_t* container, int fds[2]) {
     if (container->data.stream->type != UV_NAMED_PIPE)
       return UV_EINVAL;
     else
-      return uv__make_socketpair(fds);
+      return uv_socketpair(SOCK_STREAM, 0, fds, 0, 0);
 
   case UV_INHERIT_FD:
   case UV_INHERIT_STREAM:

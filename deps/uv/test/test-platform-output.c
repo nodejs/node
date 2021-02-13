@@ -155,6 +155,7 @@ TEST_IMPL(platform_output) {
   printf("  username: %s\n", pwd.username);
   printf("  shell: %s\n", pwd.shell);
   printf("  home directory: %s\n", pwd.homedir);
+  uv_os_free_passwd(&pwd);
 
   pid = uv_os_getpid();
   ASSERT(pid > 0);

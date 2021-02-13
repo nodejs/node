@@ -925,13 +925,12 @@ void uv__io_stop(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
   if (w->pevents == 0) {
     QUEUE_REMOVE(&w->watcher_queue);
     QUEUE_INIT(&w->watcher_queue);
+    w->events = 0;
 
-    if (loop->watchers[w->fd] != NULL) {
-      assert(loop->watchers[w->fd] == w);
+    if (w == loop->watchers[w->fd]) {
       assert(loop->nfds > 0);
       loop->watchers[w->fd] = NULL;
       loop->nfds--;
-      w->events = 0;
     }
   }
   else if (QUEUE_EMPTY(&w->watcher_queue))

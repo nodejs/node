@@ -115,8 +115,8 @@ void uv_udp_endgame(uv_loop_t* loop, uv_udp_t* handle);
 /*
  * Pipes
  */
-int uv_stdio_pipe_server(uv_loop_t* loop, uv_pipe_t* handle, DWORD access,
-    char* name, size_t nameSize);
+int uv__create_stdio_pipe_pair(uv_loop_t* loop,
+    uv_pipe_t* parent_pipe, HANDLE* child_pipe_ptr, unsigned int flags);
 
 int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb);
 int uv_pipe_accept(uv_pipe_t* server, uv_stream_t* client);

@@ -214,13 +214,14 @@ int uv__tcp_connect(uv_connect_t* req,
   if (handle->connect_req != NULL)
     return UV_EALREADY;  /* FIXME(bnoordhuis) UV_EINVAL or maybe UV_EBUSY. */
 
+  if (handle->delayed_error != 0)
+    goto out;
+
   err = maybe_new_socket(handle,
                          addr->sa_family,
                          UV_HANDLE_READABLE | UV_HANDLE_WRITABLE);
   if (err)
     return err;
-
-  handle->delayed_error = 0;
 
   do {
     errno = 0;
@@ -248,6 +249,8 @@ int uv__tcp_connect(uv_connect_t* req,
     else
       return UV__ERR(errno);
   }
+
+out:
 
   uv__req_init(handle->loop, req, UV_CONNECT);
   req->cb = cb;
@@ -458,4 +461,50 @@ int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable) {
 
 void uv__tcp_close(uv_tcp_t* handle) {
   uv__stream_close((uv_stream_t*)handle);
+}
+
+
+int uv_socketpair(int type, int protocol, uv_os_sock_t fds[2], int flags0, int flags1) {
+  uv_os_sock_t temp[2];
+  int err;
+#if defined(__FreeBSD__) || defined(__linux__)
+  int flags;
+
+  flags = type | SOCK_CLOEXEC;
+  if ((flags0 & UV_NONBLOCK_PIPE) && (flags1 & UV_NONBLOCK_PIPE))
+    flags |= SOCK_NONBLOCK;
+
+  if (socketpair(AF_UNIX, flags, protocol, temp))
+    return UV__ERR(errno);
+
+  if (flags & UV_FS_O_NONBLOCK) {
+    fds[0] = temp[0];
+    fds[1] = temp[1];
+    return 0;
+  }
+#else
+  if (socketpair(AF_UNIX, type, protocol, temp))
+    return UV__ERR(errno);
+
+  if ((err = uv__cloexec(temp[0], 1)))
+    goto fail;
+  if ((err = uv__cloexec(temp[1], 1)))
+    goto fail;
+#endif
+
+  if (flags0 & UV_NONBLOCK_PIPE)
+    if ((err = uv__nonblock(temp[0], 1)))
+        goto fail;
+  if (flags1 & UV_NONBLOCK_PIPE)
+    if ((err = uv__nonblock(temp[1], 1)))
+      goto fail;
+
+  fds[0] = temp[0];
+  fds[1] = temp[1];
+  return 0;
+
+fail:
+  uv__close(temp[0]);
+  uv__close(temp[1]);
+  return err;
 }

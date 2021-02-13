@@ -286,6 +286,16 @@ listed in `test/benchmark-list.h`.
 
 Check the [SUPPORTED_PLATFORMS file](SUPPORTED_PLATFORMS.md).
 
+### `-fno-strict-aliasing`
+
+It is recommended to turn on the `-fno-strict-aliasing` compiler flag in
+projects that use libuv. The use of ad hoc "inheritance" in the libuv API
+may not be safe in the presence of compiler optimizations that depend on
+strict aliasing.
+
+MSVC does not have an equivalent flag but it also does not appear to need it
+at the time of writing (December 2019.)
+
 ### AIX Notes
 
 AIX compilation using IBM XL C/C++ requires version 12.1 or greater.

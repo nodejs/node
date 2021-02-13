@@ -214,7 +214,7 @@ static int uv__async_start(uv_loop_t* loop) {
   pipefd[0] = err;
   pipefd[1] = -1;
 #else
-  err = uv__make_pipe(pipefd, UV__F_NONBLOCK);
+  err = uv__make_pipe(pipefd, UV_NONBLOCK_PIPE);
   if (err < 0)
     return err;
 #endif

@@ -65,17 +65,10 @@ int uv_accept(uv_stream_t* server, uv_stream_t* client) {
 }
 
 
-int uv_read_start(uv_stream_t* handle, uv_alloc_cb alloc_cb,
-    uv_read_cb read_cb) {
+int uv__read_start(uv_stream_t* handle,
+                   uv_alloc_cb alloc_cb,
+                   uv_read_cb read_cb) {
   int err;
-
-  if (handle->flags & UV_HANDLE_READING) {
-    return UV_EALREADY;
-  }
-
-  if (!(handle->flags & UV_HANDLE_READABLE)) {
-    return UV_ENOTCONN;
-  }
 
   err = ERROR_INVALID_PARAMETER;
   switch (handle->type) {
