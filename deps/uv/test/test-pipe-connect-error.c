@@ -76,6 +76,9 @@ TEST_IMPL(pipe_connect_bad_name) {
 
 
 TEST_IMPL(pipe_connect_to_file) {
+#if defined(__ASAN__)
+  RETURN_SKIP("Test does not currently work in ASAN");
+#endif
   const char* path = "test/fixtures/empty_file";
   uv_pipe_t client;
   uv_connect_t req;
