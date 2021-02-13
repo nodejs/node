@@ -20,7 +20,7 @@ Last update:
 - hr-time: https://github.com/web-platform-tests/wpt/tree/a5d1774ecf/hr-time
 - common: https://github.com/web-platform-tests/wpt/tree/841a51412f/common
 - dom/abort: https://github.com/web-platform-tests/wpt/tree/7caa3de747/dom/abort
-- FileAPI: https://github.com/web-platform-tests/wpt/tree/d9d921b8f9/FileAPI
+- FileAPI: https://github.com/web-platform-tests/wpt/tree/3b279420d4/FileAPI
 
 [Web Platform Tests]: https://github.com/web-platform-tests/wpt
 [`git node wpt`]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md#git-node-wpt
