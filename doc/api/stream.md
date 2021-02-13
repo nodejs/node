@@ -1719,7 +1719,11 @@ pipeline(
 );
 ```
 
-The `pipeline` API provides promise version:
+The `pipeline` API provides a promise version, which can also
+receive an options argument as the last parameter with a
+`signal` {AbortSignal} property. When the signal is aborted,
+`destroy` will be called on the underlying pipeline, with an
+`AbortError`.
 
 ```js
 const { pipeline } = require('stream/promises');
@@ -1734,6 +1738,30 @@ async function run() {
 }
 
 run().catch(console.error);
+```
+
+To use an `AbortSignal`, pass it inside an options object,
+as the last argument:
+
+```js
+const { pipeline } = require('stream/promises');
+
+async function run() {
+  const ac = new AbortController();
+  const options = {
+    signal: ac.signal,
+  };
+
+  setTimeout(() => ac.abort(), 1);
+  await pipeline(
+    fs.createReadStream('archive.tar'),
+    zlib.createGzip(),
+    fs.createWriteStream('archive.tar.gz'),
+    options,
+  );
+}
+
+run().catch(console.error); // AbortError
 ```
 
 The `pipeline` API also supports async generators:
