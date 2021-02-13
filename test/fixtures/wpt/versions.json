@@ -40,7 +40,7 @@
     "path": "dom/abort"
   },
   "FileAPI": {
-    "commit": "d9d921b8f9235e0d2ec92672040c0ccfc8262e21",
+    "commit": "3b279420d40afea32506e823f9ac005448f4f3d8",
     "path": "FileAPI"
   }
 }
