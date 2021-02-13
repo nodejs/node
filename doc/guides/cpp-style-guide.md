@@ -1,11 +1,11 @@
-# C++ Style Guide
+# C++ style guide
 
 See also the [C++ codebase README](../../src/README.md) for C++ idioms in the
 Node.js codebase not related to stylistic issues.
 
-## Table of Contents
+## Table of contents
 
-* [Guides and References](#guides-and-references)
+* [Guides and references](#guides-and-references)
 * [Formatting](#formatting)
   * [Left-leaning (C++ style) asterisks for pointer declarations](#left-leaning-c-style-asterisks-for-pointer-declarations)
   * [C++ style comments](#c-style-comments)
@@ -18,11 +18,11 @@ Node.js codebase not related to stylistic issues.
   * [`snake_case_` for private class fields](#snake_case_-for-private-class-fields)
   * [`snake_case` for C-like structs](#snake_case-for-c-like-structs)
   * [Space after `template`](#space-after-template)
-* [Memory Management](#memory-management)
+* [Memory management](#memory-management)
   * [Memory allocation](#memory-allocation)
   * [Use `nullptr` instead of `NULL` or `0`](#use-nullptr-instead-of-null-or-0)
   * [Use explicit pointer comparisons](#use-explicit-pointer-comparisons)
-  * [Ownership and Smart Pointers](#ownership-and-smart-pointers)
+  * [Ownership and smart pointers](#ownership-and-smart-pointers)
   * [Avoid non-const references](#avoid-non-const-references)
   * [Use AliasedBuffers to manipulate TypedArrays](#use-aliasedbuffers-to-manipulate-typedarrays)
 * [Others](#others)
@@ -32,7 +32,7 @@ Node.js codebase not related to stylistic issues.
   * [Avoid throwing JavaScript errors in C++ methods](#avoid-throwing-javascript-errors-in-c)
     * [Avoid throwing JavaScript errors in nested C++ methods](#avoid-throwing-javascript-errors-in-nested-c-methods)
 
-## Guides and References
+## Guides and references
 
 The Node.js C++ codebase strives to be consistent in its use of language
 features and idioms, as well as have some specific guidelines for the use of
@@ -191,7 +191,7 @@ class FancyContainer {
 }
 ```
 
-## Memory Management
+## Memory management
 
 ### Memory allocation
 
@@ -208,7 +208,7 @@ Use explicit comparisons to `nullptr` when testing pointers, i.e.
 `if (foo == nullptr)` instead of `if (foo)` and
 `foo != nullptr` instead of `!foo`.
 
-### Ownership and Smart Pointers
+### Ownership and smart pointers
 
 * [R.20][]: Use `std::unique_ptr` or `std::shared_ptr` to represent ownership
 * [R.21][]: Prefer `unique_ptr` over `shared_ptr` unless you need to share
