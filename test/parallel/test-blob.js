@@ -22,10 +22,6 @@ assert.throws(() => new Blob({}), {
   code: 'ERR_INVALID_ARG_TYPE'
 });
 
-assert.throws(() => new Blob(['test', 1]), {
-  code: 'ERR_INVALID_ARG_TYPE'
-});
-
 {
   const b = new Blob([]);
   assert(b);
@@ -43,15 +39,9 @@ assert.throws(() => new Blob(['test', 1]), {
 }
 
 {
-  assert.throws(() => new Blob([], { type: 1 }), {
-    code: 'ERR_INVALID_ARG_TYPE'
-  });
-  assert.throws(() => new Blob([], { type: false }), {
-    code: 'ERR_INVALID_ARG_TYPE'
-  });
-  assert.throws(() => new Blob([], { type: {} }), {
-    code: 'ERR_INVALID_ARG_TYPE'
-  });
+  assert.strictEqual(new Blob([], { type: 1 }).type, '1');
+  assert.strictEqual(new Blob([], { type: false }).type, 'false');
+  assert.strictEqual(new Blob([], { type: {} }).type, '[object object]');
 }
 
 {
@@ -192,4 +182,11 @@ assert.throws(() => new Blob(['test', 1]), {
     value: 'Blob',
     writable: false
   });
+}
+
+{
+  const b = new Blob(['test', 42]);
+  b.text().then(common.mustCall((text) => {
+    assert.strictEqual(text, 'test42');
+  }));
 }
