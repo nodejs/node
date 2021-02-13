@@ -1,19 +1,19 @@
-# How to Write and Run Benchmarks in Node.js Core
+# How to write and run benchmarks in Node.js core
 
-## Table of Contents
+## Table of contents
 
 * [Prerequisites](#prerequisites)
-  * [HTTP Benchmark Requirements](#http-benchmark-requirements)
-  * [HTTPS Benchmark Requirements](#https-benchmark-requirements)
-  * [HTTP/2 Benchmark Requirements](#http2-benchmark-requirements)
-  * [Benchmark Analysis Requirements](#benchmark-analysis-requirements)
+  * [HTTP benchmark requirements](#http-benchmark-requirements)
+  * [HTTPS benchmark requirements](#https-benchmark-requirements)
+  * [HTTP/2 benchmark requirements](#http2-benchmark-requirements)
+  * [Benchmark analysis requirements](#benchmark-analysis-requirements)
 * [Running benchmarks](#running-benchmarks)
   * [Running individual benchmarks](#running-individual-benchmarks)
   * [Running all benchmarks](#running-all-benchmarks)
   * [Filtering benchmarks](#filtering-benchmarks)
   * [Comparing Node.js versions](#comparing-nodejs-versions)
   * [Comparing parameters](#comparing-parameters)
-  * [Running Benchmarks on the CI](#running-benchmarks-on-the-ci)
+  * [Running benchmarks on the CI](#running-benchmarks-on-the-ci)
 * [Creating a benchmark](#creating-a-benchmark)
   * [Basics of a benchmark](#basics-of-a-benchmark)
   * [Creating an HTTP benchmark](#creating-an-http-benchmark)
@@ -24,7 +24,7 @@ Basic Unix tools are required for some benchmarks.
 [Git for Windows][git-for-windows] includes Git Bash and the necessary tools,
 which need to be included in the global Windows `PATH`.
 
-### HTTP Benchmark Requirements
+### HTTP benchmark requirements
 
 Most of the HTTP benchmarks require a benchmarker to be installed. This can be
 either [`wrk`][wrk] or [`autocannon`][autocannon].
@@ -45,14 +45,14 @@ benchmarker to be used should be specified by providing it as an argument:
 
 `node benchmark/http/simple.js benchmarker=autocannon`
 
-#### HTTPS Benchmark Requirements
+#### HTTPS benchmark requirements
 
 To run the `https` benchmarks, one of `autocannon` or `wrk` benchmarkers must
 be used.
 
 `node benchmark/https/simple.js benchmarker=autocannon`
 
-#### HTTP/2 Benchmark Requirements
+#### HTTP/2 benchmark requirements
 
 To run the `http2` benchmarks, the `h2load` benchmarker must be used. The
 `h2load` tool is a component of the `nghttp2` project and may be installed
@@ -60,7 +60,7 @@ from [nghttp2.org][] or built from source.
 
 `node benchmark/http2/simple.js benchmarker=h2load`
 
-### Benchmark Analysis Requirements
+### Benchmark analysis requirements
 
 To analyze the results, `R` should be installed. Use one of the available
 package managers or download it from <https://www.r-project.org/>.
@@ -423,7 +423,7 @@ chunkLen     encoding      rate confidence.interval
 
 ![compare tool boxplot](doc_img/scatter-plot.png)
 
-### Running Benchmarks on the CI
+### Running benchmarks on the CI
 
 To see the performance impact of a Pull Request by running benchmarks on
 the CI, check out [How to: Running core benchmarks on Node.js CI][benchmark-ci].
