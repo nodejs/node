@@ -470,6 +470,78 @@ const net = require('net');
 }
 
 {
+  // Check aborted signal without values
+  const pipelinePromise = promisify(pipeline);
+  async function run() {
+    const ac = new AbortController();
+    const { signal } = ac;
+    async function* producer() {
+      ac.abort();
+      await Promise.resolve();
+      yield '8';
+    }
+
+    const w = new Writable({
+      write(chunk, encoding, callback) {
+        callback();
+      }
+    });
+    await pipelinePromise(producer, w, { signal });
+  }
+
+  assert.rejects(run, { name: 'AbortError' }).then(common.mustCall());
+}
+
+{
+  // Check aborted signal after init.
+  const pipelinePromise = promisify(pipeline);
+  async function run() {
+    const ac = new AbortController();
+    const { signal } = ac;
+    async function* producer() {
+      yield '5';
+      await Promise.resolve();
+      ac.abort();
+      await Promise.resolve();
+      yield '8';
+    }
+
+    const w = new Writable({
+      write(chunk, encoding, callback) {
+        callback();
+      }
+    });
+    await pipelinePromise(producer, w, { signal });
+  }
+
+  assert.rejects(run, { name: 'AbortError' }).then(common.mustCall());
+}
+
+{
+  // Check pre-aborted signal
+  const pipelinePromise = promisify(pipeline);
+  async function run() {
+    const ac = new AbortController();
+    const { signal } = ac;
+    ac.abort();
+    async function* producer() {
+      yield '5';
+      await Promise.resolve();
+      yield '8';
+    }
+
+    const w = new Writable({
+      write(chunk, encoding, callback) {
+        callback();
+      }
+    });
+    await pipelinePromise(producer, w, { signal });
+  }
+
+  assert.rejects(run, { name: 'AbortError' }).then(common.mustCall());
+}
+
+{
   const read = new Readable({
     read() {}
   });
