@@ -192,6 +192,10 @@ Enable FIPS-compliant crypto at startup. (Requires Node.js to be built with
 ### `--enable-source-maps`
 <!-- YAML
 added: v12.12.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37362
+    description: remove note about experimental status.
 -->
 
 Enable [Source Map v3][] support for stack traces.
