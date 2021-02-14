@@ -13,13 +13,13 @@ const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const tmpDir = tmpdir.path;
 
-async function read(fileHandle, buffer, offset, length, position) {
-  return useConf ?
+async function read(fileHandle, buffer, offset, length, position, options) {
+  return options.useConf ?
     fileHandle.read({ buffer, offset, length, position }) :
     fileHandle.read(buffer, offset, length, position);
 }
 
-async function validateRead(data, file) {
+async function validateRead(data, file, options) {
   const filePath = path.resolve(tmpDir, file);
   const buffer = Buffer.from(data, 'utf8');
 
@@ -31,7 +31,8 @@ async function validateRead(data, file) {
   fs.closeSync(fd);
 
   fileHandle.on('close', common.mustCall());
-  const readAsyncHandle = await read(fileHandle, Buffer.alloc(11), 0, 11, 0);
+  const readAsyncHandle =
+    await read(fileHandle, Buffer.alloc(11), 0, 11, 0, options);
   assert.deepStrictEqual(data.length, readAsyncHandle.bytesRead);
   if (data.length)
     assert.deepStrictEqual(buffer, readAsyncHandle.buffer);
@@ -47,28 +48,26 @@ async function validateRead(data, file) {
   await streamFileHandle.close();
 }
 
-async function validateLargeRead() {
+async function validateLargeRead(options) {
   // Reading beyond file length (3 in this case) should return no data.
   // This is a test for a bug where reads > uint32 would return data
   // from the current position in the file.
   const filePath = fixtures.path('x.txt');
   const fileHandle = await open(filePath, 'r');
   const pos = 0xffffffff + 1; // max-uint32 + 1
-  const readHandle = await read(fileHandle, Buffer.alloc(1), 0, 1, pos);
+  const readHandle =
+    await read(fileHandle, Buffer.alloc(1), 0, 1, pos, options);
 
   assert.strictEqual(readHandle.bytesRead, 0);
 }
 
-let useConf = false;
 
 (async function() {
-  for (const value of [false, true]) {
-    tmpdir.refresh();
-    useConf = value;
-
-    await validateRead('Hello world', 'tmp-read-file.txt')
-      .then(validateRead('', 'tmp-read-empty-file.txt'))
-      .then(validateLargeRead)
-      .then(common.mustCall());
-  }
+  tmpdir.refresh();
+  await validateRead('Hello world', 'read-file', { useConf: false });
+  await validateRead('', 'read-empty-file', { useConf: false });
+  await validateRead('Hello world', 'read-file-conf', { useConf: true });
+  await validateRead('', 'read-empty-file-conf', { useConf: true });
+  await validateLargeRead({ useConf: false });
+  await validateLargeRead({ useConf: true });
 })().then(common.mustCall());
