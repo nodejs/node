@@ -1705,9 +1705,9 @@ $ node --max-old-space-size=1536 index.js
 [`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man1.1.0/man3/CRYPTO_secure_malloc_init.html
 [`NODE_OPTIONS`]: #cli_node_options_options
 [`SlowBuffer`]: buffer.md#buffer_class_slowbuffer
-[`process.setUncaughtExceptionCaptureCallback()`]: process.md#process_process_setuncaughtexceptioncapturecallback_fn
-[Source Maps]: https://sourcemaps.info/spec.html
 [Source Map v3]: https://sourcemaps.info/spec.html
+[Source Maps]: https://sourcemaps.info/spec.html
+[`process.setUncaughtExceptionCaptureCallback()`]: process.md#process_process_setuncaughtexceptioncapturecallback_fn
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tls_tls_default_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.md#tls_tls_default_min_version
 [`unhandledRejection`]: process.md#process_event_unhandledrejection
