@@ -202,7 +202,7 @@ Enable [Source Map v3][] support for stack traces.
 
 When using a transpiler, such as TypeScript, strack traces thrown by an
 application reference the transpiled code, not the original source position.
-`--enable-source-maps` enables caching of [Source Maps][] and makes a best
+`--enable-source-maps` enables caching of Source Maps and makes a best
 effort to report stack traces relative to the original source file.
 
 Overriding `Error.prepareStackTrace` prevents `--enable-source-maps` from
@@ -1697,6 +1697,7 @@ $ node --max-old-space-size=1536 index.js
 [REPL]: repl.md
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
 [Source Map]: https://sourcemaps.info/spec.html
+[Source Map v3]: https://sourcemaps.info/spec.html
 [Subresource Integrity]: https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
 [`--openssl-config`]: #cli_openssl_config_file
@@ -1705,8 +1706,6 @@ $ node --max-old-space-size=1536 index.js
 [`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man1.1.0/man3/CRYPTO_secure_malloc_init.html
 [`NODE_OPTIONS`]: #cli_node_options_options
 [`SlowBuffer`]: buffer.md#buffer_class_slowbuffer
-[Source Map v3]: https://sourcemaps.info/spec.html
-[Source Maps]: https://sourcemaps.info/spec.html
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#process_process_setuncaughtexceptioncapturecallback_fn
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tls_tls_default_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.md#tls_tls_default_min_version
