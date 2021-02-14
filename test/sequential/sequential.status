@@ -9,8 +9,6 @@ prefix sequential
 test-cpu-prof-dir-worker: PASS, FLAKY
 
 [$system==win32]
-# https://github.com/nodejs/node/issues/26401
-test-worker-prof: PASS, FLAKY
 
 [$system==linux]
 
@@ -31,5 +29,3 @@ test-buffer-creation-regression: SKIP
 test-perf-hooks: SKIP
 
 [$arch==arm]
-# https://github.com/nodejs/node/issues/26401#issuecomment-613095719
-test-worker-prof: PASS, FLAKY
