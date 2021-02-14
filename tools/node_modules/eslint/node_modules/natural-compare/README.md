@@ -75,7 +75,7 @@ a.sort(function(a, b){
 // it is best for performance to keep
 // transformed key in that object.
 // There are no need to do text transformation
-// on each comparision when sorting.
+// on each comparison when sorting.
 var a = [ {"make":"Audi", "model":"A6"}
         , {"make":"Kia",  "model":"Rio"} ];
 
