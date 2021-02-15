@@ -197,7 +197,7 @@ added: v0.0.1
 
 * `callback` {Function} The function to call when the timer elapses.
 * `delay` {number} The number of milliseconds to wait before calling the
-  `callback`. **Default**: `1`.
+  `callback`. **Default:** `1`.
 * `...args` {any} Optional arguments to pass when the `callback` is called.
 * Returns: {Timeout} for use with [`clearInterval()`][]
 
@@ -215,7 +215,7 @@ added: v0.0.1
 
 * `callback` {Function} The function to call when the timer elapses.
 * `delay` {number} The number of milliseconds to wait before calling the
-  `callback`. **Default**: `1`.
+  `callback`. **Default:** `1`.
 * `...args` {any} Optional arguments to pass when the `callback` is called.
 * Returns: {Timeout} for use with [`clearTimeout()`][]
 
@@ -341,12 +341,12 @@ added: v15.0.0
 -->
 
 * `delay` {number} The number of milliseconds to wait before resolving the
-  `Promise`. **Default**: `1`.
+  `Promise`. **Default:** `1`.
 * `value` {any} A value with which the `Promise` is resolved.
 * `options` {Object}
   * `ref` {boolean} Set to `false` to indicate that the scheduled `Timeout`
     should not require the Node.js event loop to remain active.
-    **Default**: `true`.
+    **Default:** `true`.
   * `signal` {AbortSignal} An optional `AbortSignal` that can be used to
     cancel the scheduled `Timeout`.
 
@@ -359,7 +359,7 @@ added: v15.0.0
 * `options` {Object}
   * `ref` {boolean} Set to `false` to indicate that the scheduled `Immediate`
     should not require the Node.js event loop to remain active.
-    **Default**: `true`.
+    **Default:** `true`.
   * `signal` {AbortSignal} An optional `AbortSignal` that can be used to
     cancel the scheduled `Immediate`.
 
@@ -371,13 +371,13 @@ added: REPLACEME
 Returns an async iterator that generates values in an interval of `delay` ms.
 
 * `delay` {number} The number of milliseconds to wait between iterations.
-   **Default**: `1`.
+   **Default:** `1`.
 * `value` {any} A value with which the iterator returns.
 * `options` {Object}
   * `ref` {boolean} Set to `false` to indicate that the scheduled `Timeout`
     between iterations should not require the Node.js event loop to
     remain active.
-    **Default**: `true`.
+    **Default:** `true`.
   * `signal` {AbortSignal} An optional `AbortSignal` that can be used to
     cancel the scheduled `Timeout` between operations.
 
