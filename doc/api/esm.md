@@ -460,7 +460,7 @@ separate cache.
 
 ## JSON modules
 <!--YAML
-added: v12.9.0
+added: v12.0.0
 changes:
   - version: REPLACEME
     pr-url: https://githubcom/nodejs/node/pull/00000
