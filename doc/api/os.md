@@ -149,7 +149,7 @@ added: v10.10.0
 -->
 
 * `pid` {integer} The process ID to retrieve scheduling priority for.
-  **Default** `0`.
+  **Default:** `0`.
 * Returns: {integer}
 
 Returns the scheduling priority for the process specified by `pid`. If `pid` is
@@ -300,7 +300,7 @@ added: v10.10.0
 -->
 
 * `pid` {integer} The process ID to set scheduling priority for.
-  **Default** `0`.
+  **Default:** `0`.
 * `priority` {integer} The scheduling priority to assign to the process.
 
 Attempts to set the scheduling priority for the process specified by `pid`. If
