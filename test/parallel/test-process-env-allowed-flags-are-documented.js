@@ -51,6 +51,8 @@ const conditionalOpts = [
         '--use-openssl-ca',
         '--secure-heap',
         '--secure-heap-min',
+        '--enable-fips',
+        '--force-fips',
       ].includes(opt);
     }
   }, {
