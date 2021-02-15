@@ -8,7 +8,6 @@ const common = require('../common');
 
 const assert = require('assert');
 const { exec } = require('child_process');
-const { internalBinding } = require('internal/test/binding');
 let stdOut;
 
 
