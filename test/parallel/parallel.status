@@ -27,8 +27,6 @@ test-worker-memory: PASS,FLAKY
 test-worker-message-port-transfer-terminate: PASS,FLAKY
 
 [$system==linux]
-# https://github.com/nodejs/node/issues/35586
-test-webcrypto-encrypt-decrypt-aes: PASS,FLAKY
 
 [$system==macos]
 
