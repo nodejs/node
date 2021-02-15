@@ -96,10 +96,12 @@ async function testDecrypt({ keyBuffer, algorithm, result }) {
     const variations = [];
 
     passing.forEach((vector) => {
-      variations.push(testEncrypt(vector));
-      variations.push(testEncryptNoEncrypt(vector));
-      variations.push(testEncryptNoDecrypt(vector));
-      variations.push(testEncryptWrongAlg(vector, 'AES-CTR'));
+      variations.push(testEncrypt(Object.assign({}, vector)));
+      variations.push(testEncryptNoEncrypt(Object.assign({}, vector)));
+      variations.push(testEncryptNoDecrypt(Object.assign({}, vector)));
+      variations.push(
+        testEncryptWrongAlg(Object.assign({}, vector), 'AES-CTR')
+      );
     });
 
     failing.forEach((vector) => {
