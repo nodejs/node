@@ -5,6 +5,9 @@
 <!-- YAML
 added: v8.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://githubcom/nodejs/node/pull/00000
+    description: Loading JSON modules no longer requires a command-line flag.
   - version:
     - v15.3.0
     pr-url: https://github.com/nodejs/node/pull/35781
@@ -422,21 +425,6 @@ These CommonJS variables are not available in ES modules.
 `__filename` and `__dirname` use cases can be replicated via
 [`import.meta.url`][].
 
-#### No JSON Module Loading
-
-JSON imports are still experimental and only supported via the
-`--experimental-json-modules` flag.
-
-Local JSON files can be loaded relative to `import.meta.url` with `fs` directly:
-
-<!-- eslint-skip -->
-```js
-import { readFile } from 'fs/promises';
-const json = JSON.parse(await readFile(new URL('./dat.json', import.meta.url)));
-```
-
-Alterantively `module.createRequire()` can be used.
-
 #### No Native Module Loading
 
 Native modules are not currently supported with ES module imports.
@@ -471,35 +459,35 @@ separate cache.
 <i id="esm_experimental_json_modules"></i>
 
 ## JSON modules
+<!--YAML
+added: v12.9.0
+changes:
+  - version: REPLACEME
+    pr-url: https://githubcom/nodejs/node/pull/00000
+    description: Loading JSON modules no longer requires a command-line flag.
+-->
 
 > Stability: 1 - Experimental
 
-Currently importing JSON modules are only supported in the `commonjs` mode
-and are loaded using the CJS loader. [WHATWG JSON modules specification][] are
-still being standardized, and are experimentally supported by including the
-additional flag `--experimental-json-modules` when running Node.js.
-
-When the `--experimental-json-modules` flag is included, both the
-`commonjs` and `module` mode use the new experimental JSON
-loader. The imported JSON only exposes a `default`. There is no
+The imported JSON only exposes a `default` export. There is no
 support for named exports. A cache entry is created in the CommonJS
 cache to avoid duplication. The same object is returned in
 CommonJS if the JSON module has already been imported from the
 same path.
 
-Assuming an `index.mjs` with
-
-<!-- eslint-skip -->
-```js
+```js esm
 import packageConfig from './package.json';
+const { version, name } = packageConfig;
+
+console.log(version);
 ```
 
-The `--experimental-json-modules` flag is needed for the module
-to work.
+```js cjs
+(async () => {
+  const { default: { version, name } } = await import('./package.json');
 
-```bash
-node index.mjs # fails
-node --experimental-json-modules index.mjs # works
+  console.log(version);
+})().catch(console.error);
 ```
 
 <i id="esm_experimental_wasm_modules"></i>
