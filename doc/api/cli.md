@@ -198,7 +198,7 @@ changes:
     description: remove note about experimental status.
 -->
 
-Enable [Source Map v3][] support for stack traces.
+Enable [Source Map v3][Source Map] support for stack traces.
 
 When using a transpiler, such as TypeScript, strack traces thrown by an
 application reference the transpiled code, not the original source position.
@@ -1697,7 +1697,6 @@ $ node --max-old-space-size=1536 index.js
 [REPL]: repl.md
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
 [Source Map]: https://sourcemaps.info/spec.html
-[Source Map v3]: https://sourcemaps.info/spec.html
 [Subresource Integrity]: https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
 [`--openssl-config`]: #cli_openssl_config_file
