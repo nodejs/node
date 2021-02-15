@@ -129,6 +129,10 @@ class MyAddedCallbacks extends MyAsyncCallbacks {
 const asyncHook = async_hooks.createHook(new MyAddedCallbacks());
 ```
 
+Because promises are asynchronous resources whose lifecycle is tracked
+via the async hooks mechanism, the `init()`, `before()`, `after()`, and
+`destroy()` callbacks *must not* be async functions that return promises.
+
 ##### Error handling
 
 If any `AsyncHook` callbacks throw, the application will print the stack trace
