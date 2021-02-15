@@ -423,7 +423,7 @@ added: v0.9.12
 -->
 
 * `signal` {string} Name of the kill signal to send to the worker
-  process. **Default**: `'SIGTERM'`
+  process. **Default:** `'SIGTERM'`
 
 This function will kill the worker. In the master, it does this by disconnecting
 the `worker.process`, and once disconnected, killing with `signal`. In the

@@ -1741,11 +1741,11 @@ added: v15.6.0
 
 * `email` {string}
 * `options` {Object}
-  * `subject` {string} `'always'` or `'never'`. **Defaults**: `'always'`.
-  * `wildcards` {boolean} **Defaults**: `true`.
-  * `partialWildcards` {boolean} **Defaults**: `true`.
-  * `multiLabelWildcards` {boolean} **Defaults**: `false`.
-  * `singleLabelSubdomains` {boolean} **Defaults**: `false`.
+  * `subject` {string} `'always'` or `'never'`. **Default:** `'always'`.
+  * `wildcards` {boolean} **Default:** `true`.
+  * `partialWildcards` {boolean} **Default:** `true`.
+  * `multiLabelWildcards` {boolean} **Default:** `false`.
+  * `singleLabelSubdomains` {boolean} **Default:** `false`.
 * Returns: {string|undefined} Returns `email` if the certificate matches,
   `undefined` if it does not.
 
@@ -1758,11 +1758,11 @@ added: v15.6.0
 
 * `name` {string}
 * `options` {Object}
-  * `subject` {string} `'always'` or `'never'`. **Defaults**: `'always'`.
-  * `wildcards` {boolean} **Defaults**: `true`.
-  * `partialWildcards` {boolean} **Defaults**: `true`.
-  * `multiLabelWildcards` {boolean} **Defaults**: `false`.
-  * `singleLabelSubdomains` {boolean} **Defaults**: `false`.
+  * `subject` {string} `'always'` or `'never'`. **Default:** `'always'`.
+  * `wildcards` {boolean} **Default:** `true`.
+  * `partialWildcards` {boolean} **Default:** `true`.
+  * `multiLabelWildcards` {boolean} **Default:** `false`.
+  * `singleLabelSubdomains` {boolean} **Default:** `false`.
 * Returns: {string|undefined} Returns `name` if the certificate matches,
   `undefined` if it does not.
 
@@ -1775,11 +1775,11 @@ added: v15.6.0
 
 * `ip` {string}
 * `options` {Object}
-  * `subject` {string} `'always'` or `'never'`. **Defaults**: `'always'`.
-  * `wildcards` {boolean} **Defaults**: `true`.
-  * `partialWildcards` {boolean} **Defaults**: `true`.
-  * `multiLabelWildcards` {boolean} **Defaults**: `false`.
-  * `singleLabelSubdomains` {boolean} **Defaults**: `false`.
+  * `subject` {string} `'always'` or `'never'`. **Default:** `'always'`.
+  * `wildcards` {boolean} **Default:** `true`.
+  * `partialWildcards` {boolean} **Default:** `true`.
+  * `multiLabelWildcards` {boolean} **Default:** `false`.
+  * `singleLabelSubdomains` {boolean} **Default:** `false`.
 * Returns: {string|undefined} Returns `ip` if the certificate matches,
   `undefined` if it does not.
 
@@ -2023,7 +2023,7 @@ added: v15.8.0
     is used that yields a false positive rate of at most 2<sup>-64</sup> for
     random input. Care must be used when selecting a number of checks. Refer
     to the OpenSSL documentation for the [`BN_is_prime_ex`][] function `nchecks`
-    options for more details. **Defaults**: `0`
+    options for more details. **Default:** `0`
 * `callback` {Function}
   * `err` {Error} Set to an {Error} object if an error occurred during check.
   * `result` {boolean} `true` if the candidate is a prime with an error
@@ -2045,7 +2045,7 @@ added: v15.8.0
     is used that yields a false positive rate of at most 2<sup>-64</sup> for
     random input. Care must be used when selecting a number of checks. Refer
     to the OpenSSL documentation for the [`BN_is_prime_ex`][] function `nchecks`
-    options for more details. **Defaults**: `0`
+    options for more details. **Default:** `0`
 * Returns: {boolean} `true` if the candidate is a prime with an error
   probability less than `0.25 ** options.checks`.
 
@@ -2799,7 +2799,7 @@ added: v15.8.0
 * `options` {Object}
   * `add` {ArrayBuffer|SharedArrayBuffer|TypedArray|Buffer|DataView|bigint}
   * `rem` {ArrayBuffer|SharedArrayBuffer|TypedArray|Buffer|DataView|bigint}
-  * `safe` {boolean} **Defaults**: `false`.
+  * `safe` {boolean} **Default:** `false`.
   * `bigint` {boolean} When `true`, the generated prime is returned
     as a `bigint`.
 * `callback` {Function}
@@ -2841,7 +2841,7 @@ added: v15.8.0
 * `options` {Object}
   * `add` {ArrayBuffer|SharedArrayBuffer|TypedArray|Buffer|DataView|bigint}
   * `rem` {ArrayBuffer|SharedArrayBuffer|TypedArray|Buffer|DataView|bigint}
-  * `safe` {boolean} **Defaults**: `false`.
+  * `safe` {boolean} **Default:** `false`.
   * `bigint` {boolean} When `true`, the generated prime is returned
     as a `bigint`.
 * Returns: {ArrayBuffer|bigint}
@@ -3583,7 +3583,7 @@ added:
   - v12.19.0
 -->
 
-* `min` {integer} Start of random range (inclusive). **Default**: `0`.
+* `min` {integer} Start of random range (inclusive). **Default:** `0`.
 * `max` {integer} End of random range (exclusive).
 * `callback` {Function} `function(err, n) {}`.
 
@@ -3626,7 +3626,7 @@ added: v15.6.0
     Node.js generates and caches enough
     random data to generate up to 128 random UUIDs. To generate a UUID
     without using the cache, set `disableEntropyCache` to `true`.
-    **Defaults**: `false`.
+    **Default:** `false`.
 * Returns: {string}
 
 Generates a random [RFC 4122][] Version 4 UUID.

@@ -207,8 +207,8 @@ added:
   - v12.19.0
 -->
 
-* `fn` {Function} **Default** A no-op function.
-* `exact` {number} **Default** `1`.
+* `fn` {Function} **Default:** A no-op function.
+* `exact` {number} **Default:** `1`.
 * Returns: {Function} that wraps `fn`.
 
 The wrapper function is expected to be called exactly `exact` times. If the
