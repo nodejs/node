@@ -9,7 +9,7 @@ const assert = require('assert');
 const { getRandomValues, subtle } = require('crypto').webcrypto;
 
 async function testEncrypt({ keyBuffer, algorithm, plaintext, result }) {
-  // using a copy of plaintext to prevent tampering of the original
+  // Using a copy of plaintext to prevent tampering of the original
   plaintext = Buffer.from(plaintext);
 
   const key = await subtle.importKey(
@@ -26,7 +26,7 @@ async function testEncrypt({ keyBuffer, algorithm, plaintext, result }) {
     Buffer.from(output).toString('hex'),
     Buffer.from(result).toString('hex'));
 
-  // converting the returned ArrayBuffer into a Buffer right away,
+  // Converting the returned ArrayBuffer into a Buffer right away,
   // so that the next line works
   const check = Buffer.from(await subtle.decrypt(algorithm, key, output));
   check[0] = 255 - check[0];
