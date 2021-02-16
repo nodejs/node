@@ -72,10 +72,11 @@ const testData = [
     html: '<h1>Sample Markdown with YAML info' +
       '<span><a class="mark" href="#foo_sample_markdown_with_yaml_info" ' +
       ' id="foo_sample_markdown_with_yaml_info">#</a></span></h1>' +
-      '<h2>Foobar<span><a class="mark" href="#foo_foobar" ' +
+      '<section><h2>Foobar<span><a class="mark" href="#foo_foobar" ' +
       'id="foo_foobar">#</a></span></h2>' +
       '<div class="api_metadata"><span>Added in: v1.0.0</span></div> ' +
       '<p>Describe <code>Foobar</code> in more detail here.</p>' +
+      '</section><section>' +
       '<h2>Foobar II<span><a class="mark" href="#foo_foobar_ii" ' +
       'id="foo_foobar_ii">#</a></span></h2><div class="api_metadata">' +
       '<details class="changelog"><summary>History</summary>' +
@@ -86,16 +87,18 @@ const testData = [
       'an arrow function.</p></td></tr></tbody></table></details></div> ' +
       '<p>Describe <code>Foobar II</code> in more detail here.' +
       '<a href="http://man7.org/linux/man-pages/man1/fg.1.html"><code>fg(1)' +
-      '</code></a></p><h2>Deprecated thingy<span><a class="mark" ' +
+      '</code></a></p></section><section>' +
+      '<h2>Deprecated thingy<span><a class="mark" ' +
       'href="#foo_deprecated_thingy" id="foo_deprecated_thingy">#</a>' +
       '</span></h2><div class="api_metadata"><span>Added in: v1.0.0</span>' +
       '<span>Deprecated since: v2.0.0</span></div><p>Describe ' +
       '<code>Deprecated thingy</code> in more detail here.' +
       '<a href="http://man7.org/linux/man-pages/man1/fg.1p.html"><code>fg(1p)' +
-      '</code></a></p><h2>Something<span><a class="mark" href="#foo_something' +
+      '</code></a></p></section><section>' +
+      '<h2>Something<span><a class="mark" href="#foo_something' +
       '" id="foo_something">#</a></span></h2> ' +
       '<!-- This is not a metadata comment --> ' +
-      '<p>Describe <code>Something</code> in more detail here. </p>'
+      '<p>Describe <code>Something</code> in more detail here. </p></section>'
   },
   {
     file: fixtures.path('sample_document.md'),
@@ -110,16 +113,18 @@ const testData = [
     file: fixtures.path('document_with_links.md'),
     html: '<h1>Usage and Example<span><a class="mark"' +
     'href="#foo_usage_and_example" id="foo_usage_and_example">#</a>' +
-    '</span></h1><h2>Usage<span><a class="mark" href="#foo_usage"' +
+    '</span></h1><section><h2>Usage<span><a class="mark" href="#foo_usage"' +
     'id="foo_usage">#</a></span></h2><p><code>node \\[options\\] index.js' +
     '</code></p><p>Please see the<a href="cli.html#cli-options">' +
-    'Command Line Options</a>document for more information.</p><h2>' +
+    'Command Line Options</a>document for more information.</p>' +
+    '</section><section><h2>' +
     'Example<span><a class="mark" href="#foo_example" id="foo_example">' +
     '#</a></span></h2><p>An example of a<a href="example.html">' +
     'webserver</a>written with Node.js which responds with<code>' +
-    '\'Hello, World!\'</code>:</p><h2>See also<span><a class="mark"' +
+    '\'Hello, World!\'</code>:</p></section><section>' +
+    '<h2>See also<span><a class="mark"' +
     'href="#foo_see_also" id="foo_see_also">#</a></span></h2><p>Check' +
-    'out also<a href="https://nodejs.org/">this guide</a></p>'
+    'out also<a href="https://nodejs.org/">this guide</a></p></section>'
   },
   {
     file: fixtures.path('document_with_special_heading.md'),
