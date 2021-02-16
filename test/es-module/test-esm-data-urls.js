@@ -102,4 +102,9 @@ function createBase64URL(mime, body) {
       assert.strictEqual(e.code, 'ERR_INVALID_RETURN_PROPERTY_VALUE');
     }
   }
+  {
+    const plainESMURL = 'data:text/javascript,export%20default%202';
+    const module = await import(plainESMURL);
+    assert.strictEqual(module.default, 2);
+  }
 })().then(common.mustCall());
