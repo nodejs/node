@@ -998,7 +998,7 @@ added: v10.0.0
   * `encoding` {string} **Default:** `'utf8'`
 * Returns: {Promise} Fulfills with the `linkString` upon success.
 
-Reads the contents of the symbolic link refered to by `path`. See the POSIX
+Reads the contents of the symbolic link referred to by `path`. See the POSIX
 readlink(2) documentation for more etail. The promise is resolved with the
 `linkString` upon success.
 
@@ -2459,7 +2459,7 @@ changes:
   * `err` {Error}
   * `stats` {fs.Stats}
 
-Retrieves the {fs.Stats} for the symbolic link refered to by the path.
+Retrieves the {fs.Stats} for the symbolic link referred to by the path.
 The callback gets two arguments `(err, stats)` where `stats` is a {`fs.Stats}
 object. `lstat()` is identical to `stat()`, except that if `path` is a symbolic
 link, then the link itself is stat-ed, not the file that it refers to.
@@ -2960,7 +2960,7 @@ changes:
   * `err` {Error}
   * `linkString` {string|Buffer}
 
-Reads the contents of the symbolic link refered to by `path`. The callback gets
+Reads the contents of the symbolic link referred to by `path`. The callback gets
 two arguments `(err, linkString)`.
 
 See the POSIX readlink(2) documentation for more details.
@@ -4403,7 +4403,7 @@ changes:
     **Default:** `true`.
 * Returns: {fs.Stats}
 
-Retrieves the {fs.Stats} for the symbolic link refered to by `path`.
+Retrieves the {fs.Stats} for the symbolic link referred to by `path`.
 
 See the POSIX lstat(2) documentation for more details.
 
