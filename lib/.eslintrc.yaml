@@ -38,6 +38,10 @@ rules:
     - name: Boolean
     - name: DataView
     - name: Date
+    - name: decodeURI
+    - name: decodeURIComponent
+    - name: encodeURI
+    - name: encodeURIComponent
     - name: Error
       ignore:
         - prepareStackTrace
