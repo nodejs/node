@@ -51,7 +51,7 @@ standard output is used.
 =item B<-passout arg>
 
 The output file password source. For more information about the format
-of B<arg> see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)>.
+of B<arg> see L<openssl(1)/Pass Phrase Options>.
 
 =item B<-aes128>, B<-aes192>, B<-aes256>, B<-aria128>, B<-aria192>, B<-aria256>, B<-camellia128>, B<-camellia192>, B<-camellia256>, B<-des>, B<-des3>, B<-idea>
 
@@ -118,7 +118,7 @@ L<gendsa(1)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
