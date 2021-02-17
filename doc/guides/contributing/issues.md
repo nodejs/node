@@ -53,7 +53,7 @@ project's GitHub organization plus a few contributions to the project
 (commenting on issues or PRs) can apply for and become a triager. Open a PR
 on the README.md of this project with: i) a request to be added as a triager,
 ii) the motivation for becoming a triager, and iii) agreement on reading,
-understanding, and adhering to the project's [Code Of Conduct](https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md).
+understanding, and adhering to the project's [Code Of Conduct](https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md).
 
 The triage role enables the ability to carry out the most common triage
 activities, such as applying labels and closing/reopening/assigning issues.
