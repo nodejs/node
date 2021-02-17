@@ -55,7 +55,7 @@ int RSA_padding_add_SSLv23(unsigned char *to, int tlen,
 
 /*
  * Copy of RSA_padding_check_PKCS1_type_2 with a twist that rejects padding
- * if nul delimiter is not preceded by 8 consecutive 0x03 bytes. It also
+ * if nul delimiter is preceded by 8 consecutive 0x03 bytes. It also
  * preserves error code reporting for backward compatibility.
  */
 int RSA_padding_check_SSLv23(unsigned char *to, int tlen,
@@ -122,7 +122,13 @@ int RSA_padding_check_SSLv23(unsigned char *to, int tlen,
                                    RSA_R_NULL_BEFORE_BLOCK_MISSING);
     mask = ~good;
 
-    good &= constant_time_ge(threes_in_row, 8);
+    /*
+     * Reject if nul delimiter is preceded by 8 consecutive 0x03 bytes. Note
+     * that RFC5246 incorrectly states this the other way around, i.e. reject
+     * if it is not preceded by 8 consecutive 0x03 bytes. However this is
+     * corrected in subsequent errata for that RFC.
+     */
+    good &= constant_time_lt(threes_in_row, 8);
     err = constant_time_select_int(mask | good, err,
                                    RSA_R_SSLV3_ROLLBACK_ATTACK);
     mask = ~good;

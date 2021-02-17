@@ -5,6 +5,16 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.1.1i and OpenSSL 1.1.1j [16 Feb 2021]
+
+      o Fixed a NULL pointer deref in the X509_issuer_and_serial_hash()
+        function (CVE-2021-23841)
+      o Fixed the RSA_padding_check_SSLv23() function and the RSA_SSLV23_PADDING
+        padding mode to correctly check for rollback attacks
+      o Fixed an overflow in the EVP_CipherUpdate, EVP_EncryptUpdate and
+        EVP_DecryptUpdate functions (CVE-2021-23840)
+      o Fixed SRP_Calc_client_key so that it runs in constant time
+
   Major changes between OpenSSL 1.1.1h and OpenSSL 1.1.1i [8 Dec 2020]
 
       o Fixed NULL pointer deref in GENERAL_NAME_cmp (CVE-2020-1971)

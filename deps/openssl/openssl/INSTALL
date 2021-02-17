@@ -106,8 +106,7 @@
  This will build and install OpenSSL in the default location, which is:
 
   Unix:    normal installation directories under /usr/local
-  OpenVMS: SYS$COMMON:[OPENSSL-'version'...], where 'version' is the
-           OpenSSL version number with underscores instead of periods.
+  OpenVMS: SYS$COMMON:[OPENSSL]
   Windows: C:\Program Files\OpenSSL or C:\Program Files (x86)\OpenSSL
 
  The installation directory should be appropriately protected to ensure
@@ -116,7 +115,9 @@
  your Operating System it is recommended that you do not overwrite the system
  version and instead install to somewhere else.
 
- If you want to install it anywhere else, run config like this:
+ If you want to install it anywhere else, run config like this (the options
+ --prefix and --openssldir are explained further down, and the values shown
+ here are mere examples):
 
   On Unix:
 
@@ -198,7 +199,7 @@
                    Unix:           /usr/local
                    Windows:        C:\Program Files\OpenSSL
                                 or C:\Program Files (x86)\OpenSSL
-                   OpenVMS:        SYS$COMMON:[OPENSSL-'version']
+                   OpenVMS:        SYS$COMMON:[OPENSSL]
 
   --release
                    Build OpenSSL without debugging symbols. This is the default.
@@ -961,9 +962,9 @@
          share/doc/openssl/html/man7
                         Contains the HTML rendition of the man-pages.
 
-       OpenVMS ('arch' is replaced with the architecture name, "Alpha"
-       or "ia64", 'sover' is replaced with the shared library version
-       (0101 for 1.1), and 'pz' is replaced with the pointer size
+       OpenVMS ('arch' is replaced with the architecture name, "ALPHA"
+       or "IA64", 'sover' is replaced with the shared library version
+       (0101 for 1.1.x), and 'pz' is replaced with the pointer size
        OpenSSL was built with):
 
          [.EXE.'arch']  Contains the openssl binary.
