@@ -57,11 +57,11 @@ information described.
 
 ## Release day
 
-* [ ] [Lock CI](https://github.com/nodejs/build/blob/master/doc/jenkins-guide.md#before-the-release)
+* [ ] [Lock CI](https://github.com/nodejs/build/blob/HEAD/doc/jenkins-guide.md#before-the-release)
 
 * [ ] The releaser(s) run the release process to completion.
 
-* [ ] [Unlock CI](https://github.com/nodejs/build/blob/master/doc/jenkins-guide.md#after-the-release)
+* [ ] [Unlock CI](https://github.com/nodejs/build/blob/HEAD/doc/jenkins-guide.md#after-the-release)
 
 * [ ] Post-release announcement in reply [email][]: ***LINK TO EMAIL***
 
@@ -84,7 +84,7 @@ information described.
       links to the release blogs in the "Public Reference" section)
 
 * [ ] PR machine-readable JSON descriptions of the vulnerabilities to the
-  [core](https://github.com/nodejs/security-wg/tree/master/vuln/core)
+  [core](https://github.com/nodejs/security-wg/tree/HEAD/vuln/core)
   vulnerability DB. ***LINK TO PR***
 
 * [ ] Close this issue

@@ -194,7 +194,7 @@ When cherry-picking commits, if there are simple conflicts you can resolve
 them. Otherwise, add the `backport-requested-vN.x` label to the original PR
 and post a comment stating that it does not land cleanly and will require a
 backport PR. You can refer the owner of the PR to the "[Backporting to Release
- Lines](https://github.com/nodejs/node/blob/master/doc/guides/backporting-to-release-lines.md)" guide.
+ Lines](https://github.com/nodejs/node/blob/HEAD/doc/guides/backporting-to-release-lines.md)" guide.
 
 If commits were cherry-picked in this step, check that the test still pass and
 push to the staging branch to keep it up-to-date.
@@ -249,7 +249,7 @@ defined, so if in doubt, please confer with someone that will have a more
 informed perspective, such as a member of the NAN team.
 
 A registry of currently used `NODE_MODULE_VERSION` values is maintained at
-<https://github.com/nodejs/node/blob/master/doc/abi_version_registry.json>.
+<https://github.com/nodejs/node/blob/HEAD/doc/abi_version_registry.json>.
 When bumping `NODE_MODULE_VERSION`, you should choose a new value not listed
 in the registry. Also include a change to the registry in your commit to
 reflect the newly used value.
@@ -882,8 +882,8 @@ commits may be listed as notable changes on a case-by-case basis. Use your
 judgment there.
 
 [Build issue tracker]: https://github.com/nodejs/build/issues/new
-[CI lockdown procedure]: https://github.com/nodejs/build/blob/master/doc/jenkins-guide.md#restricting-access-for-security-releases
-[Partner Communities]: https://github.com/nodejs/community-committee/blob/master/governance/PARTNER_COMMUNITIES.md
-[nodejs.org release-post.js script]: https://github.com/nodejs/nodejs.org/blob/master/scripts/release-post.js
+[CI lockdown procedure]: https://github.com/nodejs/build/blob/HEAD/doc/jenkins-guide.md#restricting-access-for-security-releases
+[Partner Communities]: https://github.com/nodejs/community-committee/blob/HEAD/governance/PARTNER_COMMUNITIES.md
+[nodejs.org release-post.js script]: https://github.com/nodejs/nodejs.org/blob/HEAD/scripts/release-post.js
 [nodejs.org repository]: https://github.com/nodejs/nodejs.org
 [webchat.freenode.net]: https://webchat.freenode.net/
