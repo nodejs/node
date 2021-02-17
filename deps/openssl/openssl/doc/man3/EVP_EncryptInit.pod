@@ -427,7 +427,7 @@ Sets the CCM B<L> value. If not set a default is used (8 for AES).
 
 =item EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, ivlen, NULL)
 
-Sets the CCM nonce (IV) length. This call can only be made before specifying
+Sets the CCM nonce (IV) length. This call can only be made before specifying 
 a nonce value. The nonce length is given by B<15 - L> so it is 7 by default for
 AES.
 

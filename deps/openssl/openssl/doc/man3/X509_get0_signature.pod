@@ -3,8 +3,8 @@
 =head1 NAME
 
 X509_get0_signature, X509_REQ_set0_signature, X509_REQ_set1_signature_algo,
-X509_get_signature_nid, X509_get0_tbs_sigalg, X509_REQ_get0_signature,
-X509_REQ_get_signature_nid, X509_CRL_get0_signature, X509_CRL_get_signature_nid,
+X509_get_signature_nid, X509_get0_tbs_sigalg, X509_REQ_get0_signature, 
+X509_REQ_get_signature_nid, X509_CRL_get0_signature, X509_CRL_get_signature_nid, 
 X509_get_signature_info, X509_SIG_INFO_get, X509_SIG_INFO_set - signature information
 
 =head1 SYNOPSIS

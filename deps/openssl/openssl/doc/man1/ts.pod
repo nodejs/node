@@ -113,7 +113,7 @@ value that it had sent to the TSA.
 
 =back
 
-There is one DER encoded protocol data unit defined for transporting
+There is one DER encoded protocol data unit defined for transporting 
 a timestamp request to the TSA and one for sending the timestamp response
 back to the client. The B<ts> command has three main functions:
 creating a timestamp request based on a data file,
@@ -242,7 +242,7 @@ The name of the file containing a DER encoded timestamp request. (Optional)
 =item B<-passin> password_src
 
 Specifies the password source for the private key of the TSA. See
-B<PASS PHRASE ARGUMENTS> in L<openssl(1)>. (Optional)
+L<openssl(1)/Pass Phrase Options>. (Optional)
 
 =item B<-signer> tsa_cert.pem
 
@@ -323,7 +323,7 @@ for all available algorithms. Default is builtin. (Optional)
 
 =head2 Time Stamp Response verification
 
-The B<-verify> command is for verifying if a timestamp response or
+The B<-verify> command is for verifying if a timestamp response or 
 timestamp token is valid and matches a particular timestamp request or
 data file. The B<-verify> command does not use the configuration file.
 
@@ -665,7 +665,7 @@ L<config(5)>
 
 =head1 COPYRIGHT
 
-Copyright 2006-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
