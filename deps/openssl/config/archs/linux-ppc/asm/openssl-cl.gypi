@@ -3,6 +3,7 @@
     'openssl_defines_linux-ppc': [
       'NDEBUG',
       'OPENSSL_USE_NODELETE',
+      'B_ENDIAN',
       'OPENSSL_PIC',
       'OPENSSL_CPUID_OBJ',
       'OPENSSL_BN_ASM_MONT',
