@@ -441,7 +441,7 @@ Alterantively `module.createRequire()` can be used.
 
 Native modules are not currently supported with ES module imports.
 
-The can instead be loaded with [`module.createRequire()`][] or
+They can instead be loaded with [`module.createRequire()`][] or
 [`process.dlopen`][].
 
 #### No `require.resolve`
