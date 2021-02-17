@@ -11,7 +11,7 @@
  */
 
 #define PLATFORM "platform: linux-ppc"
-#define DATE "built on: Mon Jan 25 19:02:06 2021 UTC"
+#define DATE "built on: Wed Feb 17 12:04:01 2021 UTC"
 
 /*
  * Generate compiler_flags as an array of individual characters. This is a
@@ -23,6 +23,6 @@ static const char compiler_flags[] = {
     'P','I','C',' ','-','p','t','h','r','e','a','d',' ','-','W','a',
     'l','l',' ','-','O','3',' ','-','D','O','P','E','N','S','S','L',
     '_','U','S','E','_','N','O','D','E','L','E','T','E',' ','-','D',
-    'O','P','E','N','S','S','L','_','P','I','C',' ','-','D','N','D',
-    'E','B','U','G','\0'
+    'B','_','E','N','D','I','A','N',' ','-','D','O','P','E','N','S',
+    'S','L','_','P','I','C',' ','-','D','N','D','E','B','U','G','\0'
 };
