@@ -62,6 +62,7 @@ const assert = require('assert');
                      true);
 
   process.allowedNodeEnvironmentFlags.add('foo');
+  assert.strictEqual(process.allowedNodeEnvironmentFlags.has('foo'), false);
   Set.prototype.add.call(process.allowedNodeEnvironmentFlags, 'foo');
   assert.strictEqual(process.allowedNodeEnvironmentFlags.has('foo'), false);
 
