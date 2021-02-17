@@ -61,9 +61,9 @@ our %config = (
   openssl_thread_defines => [ "OPENSSL_THREADS" ],
   openssldir => "",
   options => "enable-ssl-trace no-afalgeng no-asan no-buildtest-c++ no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-devcryptoeng no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fuzz-afl no-fuzz-libfuzzer no-heartbeats no-md2 no-msan no-rc5 no-sctp no-shared no-ssl3 no-ssl3-method no-ubsan no-unit-test no-weak-ssl-ciphers no-zlib no-zlib-dynamic",
-  perl_archname => "x86_64-linux-gnu-thread-multi",
+  perl_archname => "x86_64-linux-thread-multi",
   perl_cmd => "/usr/bin/perl",
-  perl_version => "5.30.0",
+  perl_version => "5.30.3",
   perlargv => [ "no-comp", "no-shared", "no-afalgeng", "enable-ssl-trace", "linux-x86_64" ],
   perlenv => {
       "AR" => undef,
@@ -112,8 +112,8 @@ our %config = (
   sourcedir => ".",
   target => "linux-x86_64",
   tdirs => [ "ossl_shim" ],
-  version => "1.1.1i",
-  version_num => "0x1010109fL",
+  version => "1.1.1j",
+  version_num => "0x101010afL",
 );
 
 our %target = (
@@ -9092,7 +9092,6 @@ our %unified_info = (
             "test/cmactest.o" =>
                 [
                     "include",
-                    "apps/include",
                 ],
             "test/cmsapitest.o" =>
                 [
@@ -15424,19 +15423,22 @@ _____
         }
         print "\nEnabled features:\n\n";
         foreach my $what (@disablables) {
-            print "    $what\n" unless $disabled{$what};
+            print "    $what\n"
+                unless grep { $_ =~ /^${what}$/ } keys %disabled;
         }
         print "\nDisabled features:\n\n";
         foreach my $what (@disablables) {
-            if ($disabled{$what}) {
-                print "    $what", ' ' x ($longest - length($what) + 1),
-                    "[$disabled{$what}]", ' ' x ($longest2 - length($disabled{$what}) + 1);
-                print $disabled_info{$what}->{macro}
-                    if $disabled_info{$what}->{macro};
+            my @what2 = grep { $_ =~ /^${what}$/ } keys %disabled;
+            my $what3 = $what2[0];
+            if ($what3) {
+                print "    $what3", ' ' x ($longest - length($what3) + 1),
+                    "[$disabled{$what3}]", ' ' x ($longest2 - length($disabled{$what3}) + 1);
+                print $disabled_info{$what3}->{macro}
+                    if $disabled_info{$what3}->{macro};
                 print ' (skip ',
-                    join(', ', @{$disabled_info{$what}->{skipped}}),
+                    join(', ', @{$disabled_info{$what3}->{skipped}}),
                     ')'
-                    if $disabled_info{$what}->{skipped};
+                    if $disabled_info{$what3}->{skipped};
                 print "\n";
             }
         }

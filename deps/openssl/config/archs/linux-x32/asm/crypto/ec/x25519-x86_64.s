@@ -400,14 +400,14 @@ x25519_fe51_mul121666:
 .type	x25519_fe64_eligible,@function
 .align	32
 x25519_fe64_eligible:
-.cfi_startproc
+.cfi_startproc	
 	movl	OPENSSL_ia32cap_P+8(%rip),%ecx
 	xorl	%eax,%eax
 	andl	$0x80100,%ecx
 	cmpl	$0x80100,%ecx
 	cmovel	%ecx,%eax
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	x25519_fe64_eligible,.-x25519_fe64_eligible
 
 .globl	x25519_fe64_mul
@@ -650,7 +650,7 @@ x25519_fe64_sqr:
 .align	32
 x25519_fe64_mul121666:
 .Lfe64_mul121666_body:
-.cfi_startproc
+.cfi_startproc	
 	movl	$121666,%edx
 	mulxq	0(%rsi),%r8,%rcx
 	mulxq	8(%rsi),%r9,%rax
@@ -679,7 +679,7 @@ x25519_fe64_mul121666:
 
 .Lfe64_mul121666_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	x25519_fe64_mul121666,.-x25519_fe64_mul121666
 
 .globl	x25519_fe64_add
@@ -687,7 +687,7 @@ x25519_fe64_mul121666:
 .align	32
 x25519_fe64_add:
 .Lfe64_add_body:
-.cfi_startproc
+.cfi_startproc	
 	movq	0(%rsi),%r8
 	movq	8(%rsi),%r9
 	movq	16(%rsi),%r10
@@ -716,7 +716,7 @@ x25519_fe64_add:
 
 .Lfe64_add_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	x25519_fe64_add,.-x25519_fe64_add
 
 .globl	x25519_fe64_sub
@@ -724,7 +724,7 @@ x25519_fe64_add:
 .align	32
 x25519_fe64_sub:
 .Lfe64_sub_body:
-.cfi_startproc
+.cfi_startproc	
 	movq	0(%rsi),%r8
 	movq	8(%rsi),%r9
 	movq	16(%rsi),%r10
@@ -753,7 +753,7 @@ x25519_fe64_sub:
 
 .Lfe64_sub_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	x25519_fe64_sub,.-x25519_fe64_sub
 
 .globl	x25519_fe64_tobytes
@@ -761,7 +761,7 @@ x25519_fe64_sub:
 .align	32
 x25519_fe64_tobytes:
 .Lfe64_to_body:
-.cfi_startproc
+.cfi_startproc	
 	movq	0(%rsi),%r8
 	movq	8(%rsi),%r9
 	movq	16(%rsi),%r10
@@ -797,6 +797,6 @@ x25519_fe64_tobytes:
 
 .Lfe64_to_epilogue:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	x25519_fe64_tobytes,.-x25519_fe64_tobytes
 .byte	88,50,53,53,49,57,32,112,114,105,109,105,116,105,118,101,115,32,102,111,114,32,120,56,54,95,54,52,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
