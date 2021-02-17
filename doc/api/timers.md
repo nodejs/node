@@ -365,7 +365,7 @@ added: v15.0.0
 
 ### `timersPromises.setInterval([delay[, value[, options]]])`
 <!-- YAML
-added: REPLACEME
+added: v15.9.0
 -->
 
 Returns an async iterator that generates values in an interval of `delay` ms.

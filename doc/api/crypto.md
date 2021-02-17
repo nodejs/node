@@ -1381,7 +1381,7 @@ keys.
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: REPLACEME
+  - version: v15.9.0
     pr-url: https://github.com/nodejs/node/pull/37081
     description: Added support for `'jwk'` format.
 -->
@@ -1844,7 +1844,7 @@ The issuer identification included in this certificate.
 
 ### `x509.issuerCertificate`
 <!-- YAML
-added: REPLACEME
+added: v15.9.0
 -->
 
 * Type: {X509Certificate}

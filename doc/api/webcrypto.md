@@ -606,7 +606,7 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v15.9.0
     pr-url: https://github.com/nodejs/node/pull/37203
     description: Removed `'NODE-DSA'` JWK export.
 -->
@@ -697,7 +697,7 @@ The {CryptoKey} (secret key) generating algorithms supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v15.9.0
     pr-url: https://github.com/nodejs/node/pull/37203
     description: Removed `'NODE-DSA'` JWK import.
 -->

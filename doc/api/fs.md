@@ -1191,7 +1191,7 @@ The `atime` and `mtime` arguments follow these rules:
 
 ### `fsPromises.watch(filename[, options])`
 <!-- YAML
-added: REPLACEME
+added: v15.9.0
 -->
 
 * `filename` {string|Buffer|URL}
@@ -1699,7 +1699,7 @@ See the POSIX chown(2) documentation for more detail.
 <!-- YAML
 added: v0.0.2
 changes:
-  - version: REPLACEME
+  - version: v15.9.0
     pr-url: https://github.com/nodejs/node/pull/37174
     description: A default callback is now used if one is not provided.
   - version: v10.0.0
@@ -3508,7 +3508,7 @@ The `atime` and `mtime` arguments follow these rules:
 <!-- YAML
 added: v0.5.10
 changes:
-  - version: REPLACEME
+  - version: v15.9.0
     pr-url: https://github.com/nodejs/node/pull/37190
     description: Added support for closing the watcher with an AbortSignal.
   - version: v7.6.0
