@@ -2013,7 +2013,7 @@ int s_client_main(int argc, char **argv)
 
     if (!noservername && (servername != NULL || dane_tlsa_domain == NULL)) {
         if (servername == NULL) {
-            if(host == NULL || is_dNS_name(host))
+            if(host == NULL || is_dNS_name(host)) 
                 servername = (host == NULL) ? "localhost" : host;
         }
         if (servername != NULL && !SSL_set_tlsext_host_name(con, servername)) {
@@ -3497,7 +3497,7 @@ static int ldap_ExtendedResponse_parse(const char *buf, long rem)
 }
 
 /*
- * Host dNS Name verifier: used for checking that the hostname is in dNS format
+ * Host dNS Name verifier: used for checking that the hostname is in dNS format 
  * before setting it as SNI
  */
 static int is_dNS_name(const char *host)

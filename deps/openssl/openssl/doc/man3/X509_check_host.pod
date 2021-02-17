@@ -24,7 +24,7 @@ The validity of the certificate and its trust level has to be checked by
 other means.
 
 X509_check_host() checks if the certificate Subject Alternative
-Name (SAN) or Subject CommonName (CN) matches the specified hostname,
+Name (SAN) or Subject CommonName (CN) matches the specified hostname, 
 which must be encoded in the preferred name syntax described
 in section 3.5 of RFC 1034.  By default, wildcards are supported
 and they match  only in the left-most label; but they may match

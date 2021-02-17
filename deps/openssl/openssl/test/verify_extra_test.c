@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -18,6 +18,21 @@
 static const char *roots_f;
 static const char *untrusted_f;
 static const char *bad_f;
+static const char *good_f;
+
+static X509 *load_cert_pem(const char *file)
+{
+    X509 *cert = NULL;
+    BIO *bio = NULL;
+
+    if (!TEST_ptr(bio = BIO_new(BIO_s_file())))
+        return NULL;
+    if (TEST_int_gt(BIO_read_filename(bio, file), 0))
+        (void)TEST_ptr(cert = PEM_read_bio_X509(bio, NULL, NULL, NULL));
+
+    BIO_free(bio);
+    return cert;
+}
 
 static STACK_OF(X509) *load_certs_from_file(const char *filename)
 {
@@ -58,7 +73,7 @@ static STACK_OF(X509) *load_certs_from_file(const char *filename)
     return certs;
 }
 
-/*
+/*-
  * Test for CVE-2015-1793 (Alternate Chains Certificate Forgery)
  *
  * Chain is as follows:
@@ -175,16 +190,48 @@ static int test_store_ctx(void)
     return testresult;
 }
 
+static int test_self_signed(const char *filename, int expected)
+{
+    X509 *cert = load_cert_pem(filename);
+    STACK_OF(X509) *trusted = sk_X509_new_null();
+    X509_STORE_CTX *ctx = X509_STORE_CTX_new();
+    int ret;
+
+    ret = TEST_ptr(cert)
+        && TEST_true(sk_X509_push(trusted, cert))
+        && TEST_true(X509_STORE_CTX_init(ctx, NULL, cert, NULL));
+    X509_STORE_CTX_set0_trusted_stack(ctx, trusted);
+    ret = ret && TEST_int_eq(X509_verify_cert(ctx), expected);
+
+    X509_STORE_CTX_free(ctx);
+    sk_X509_free(trusted);
+    X509_free(cert);
+    return ret;
+}
+
+static int test_self_signed_good(void)
+{
+    return test_self_signed(good_f, 1);
+}
+
+static int test_self_signed_bad(void)
+{
+    return test_self_signed(bad_f, 0);
+}
+
 int setup_tests(void)
 {
     if (!TEST_ptr(roots_f = test_get_argument(0))
             || !TEST_ptr(untrusted_f = test_get_argument(1))
-            || !TEST_ptr(bad_f = test_get_argument(2))) {
-        TEST_error("usage: verify_extra_test roots.pem untrusted.pem bad.pem\n");
+            || !TEST_ptr(bad_f = test_get_argument(2))
+            || !TEST_ptr(good_f = test_get_argument(3))) {
+        TEST_error("usage: verify_extra_test roots.pem untrusted.pem bad.pem good.pem\n");
         return 0;
     }
 
     ADD_TEST(test_alt_chains_cert_forgery);
     ADD_TEST(test_store_ctx);
+    ADD_TEST(test_self_signed_good);
+    ADD_TEST(test_self_signed_bad);
     return 1;
 }

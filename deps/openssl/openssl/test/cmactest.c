@@ -207,3 +207,4 @@ int setup_tests(void)
     ADD_TEST(test_cmac_copy);
     return 1;
 }
+

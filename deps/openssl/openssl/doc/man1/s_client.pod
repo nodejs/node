@@ -191,14 +191,14 @@ Use IPv6 only.
 =item B<-servername name>
 
 Set the TLS SNI (Server Name Indication) extension in the ClientHello message to
-the given value.
-If B<-servername> is not provided, the TLS SNI extension will be populated with
-the name given to B<-connect> if it follows a DNS name format. If B<-connect> is
+the given value. 
+If B<-servername> is not provided, the TLS SNI extension will be populated with 
+the name given to B<-connect> if it follows a DNS name format. If B<-connect> is 
 not provided either, the SNI is set to "localhost".
 This is the default since OpenSSL 1.1.1.
 
-Even though SNI should normally be a DNS name and not an IP address, if
-B<-servername> is provided then that name will be sent, regardless of whether
+Even though SNI should normally be a DNS name and not an IP address, if 
+B<-servername> is provided then that name will be sent, regardless of whether 
 it is a DNS name or not.
 
 This option cannot be used in conjunction with B<-noservername>.
@@ -258,7 +258,7 @@ Extra certificate and private key format respectively.
 =item B<-pass arg>
 
 the private key password source. For more information about the format of B<arg>
-see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)>.
+see L<openssl(1)/Pass Phrase Options>.
 
 =item B<-verify depth>
 
@@ -828,7 +828,7 @@ The B<-name> option was added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

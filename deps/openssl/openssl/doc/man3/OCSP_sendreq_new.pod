@@ -2,9 +2,15 @@
 
 =head1 NAME
 
-OCSP_sendreq_new, OCSP_sendreq_nbio, OCSP_REQ_CTX_free,
-OCSP_set_max_response_length, OCSP_REQ_CTX_add1_header,
-OCSP_REQ_CTX_set1_req, OCSP_sendreq_bio - OCSP responder query functions
+OCSP_sendreq_new,
+OCSP_sendreq_nbio,
+OCSP_REQ_CTX_free,
+OCSP_set_max_response_length,
+OCSP_REQ_CTX_add1_header,
+OCSP_REQ_CTX_set1_req,
+OCSP_sendreq_bio,
+OCSP_REQ_CTX_i2d
+- OCSP responder query functions
 
 =head1 SYNOPSIS
 
@@ -25,6 +31,9 @@ OCSP_REQ_CTX_set1_req, OCSP_sendreq_bio - OCSP responder query functions
  int OCSP_REQ_CTX_set1_req(OCSP_REQ_CTX *rctx, OCSP_REQUEST *req);
 
  OCSP_RESPONSE *OCSP_sendreq_bio(BIO *io, const char *path, OCSP_REQUEST *req);
+
+ int OCSP_REQ_CTX_i2d(OCSP_REQ_CTX *rctx, const char *content_type,
+                      const ASN1_ITEM *it, ASN1_VALUE *req);
 
 =head1 DESCRIPTION
 
@@ -51,6 +60,15 @@ additional headers are set.
 
 OCSP_REQ_CTX_set1_req() sets the OCSP request in B<rctx> to B<req>. This
 function should be called after any calls to OCSP_REQ_CTX_add1_header().
+OCSP_REQ_CTX_set1_req(rctx, req) is equivalent to the following:
+
+ OCSP_REQ_CTX_i2d(rctx, "application/ocsp-request",
+                        ASN1_ITEM_rptr(OCSP_REQUEST), (ASN1_VALUE *)req)
+
+OCSP_REQ_CTX_i2d() sets the request context B<rctx> to have the request
+B<req>, which has the ASN.1 type B<it>.
+The B<content_type>, if not NULL, will be included in the HTTP request.
+The function should be called after all other headers have already been added.
 
 OCSP_sendreq_bio() performs an OCSP request using the responder B<io>, the URL
 path B<path>, and the OCSP request B<req> with a response header maximum line
@@ -64,8 +82,8 @@ an error occurred.
 OCSP_sendreq_nbio() returns B<1> if the operation was completed successfully,
 B<-1> if the operation should be retried and B<0> if an error occurred.
 
-OCSP_REQ_CTX_add1_header() and OCSP_REQ_CTX_set1_req() return B<1> for success
-and B<0> for failure.
+OCSP_REQ_CTX_add1_header(), OCSP_REQ_CTX_set1_req(), and OCSP_REQ_CTX_i2d()
+return B<1> for success and B<0> for failure.
 
 OCSP_sendreq_bio() returns the B<OCSP_RESPONSE> structure sent by the
 responder or B<NULL> if an error occurred.
