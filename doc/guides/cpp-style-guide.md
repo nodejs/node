@@ -400,7 +400,7 @@ even `try` and `catch` **will** break.
 [R.20]: https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#Rr-owner
 [R.21]: https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#Rr-unique
 [Run Time Type Information]: https://en.wikipedia.org/wiki/Run-time_type_information
-[aliased_buffer.h]: https://github.com/nodejs/node/blob/master/src/aliased_buffer.h#L12
+[aliased_buffer.h]: https://github.com/nodejs/node/blob/HEAD/src/aliased_buffer.h#L12
 [cppref_auto_ptr]: https://en.cppreference.com/w/cpp/memory/auto_ptr
-[errors]: https://github.com/nodejs/node/blob/master/doc/guides/using-internal-errors.md
+[errors]: https://github.com/nodejs/node/blob/HEAD/doc/guides/using-internal-errors.md
 [without C++ exception handling]: https://gcc.gnu.org/onlinedocs/libstdc++/manual/using_exceptions.html#intro.using.exception.no

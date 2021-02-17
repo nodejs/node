@@ -161,7 +161,7 @@ platforms.
 ### The *common* API
 
 Make use of the helpers from the `common` module as much as possible. Please
-refer to the [common file documentation](https://github.com/nodejs/node/tree/master/test/common)
+refer to the [common file documentation](https://github.com/nodejs/node/tree/HEAD/test/common)
 for the full details of the helpers.
 
 #### common.mustCall
@@ -231,7 +231,7 @@ instead.
 
 #### Countdown Module
 
-The common [Countdown module](https://github.com/nodejs/node/tree/master/test/common#countdown-module)
+The common [Countdown module](https://github.com/nodejs/node/tree/HEAD/test/common#countdown-module)
 provides a simple countdown mechanism for tests that require a particular
 action to be taken after a given number of completed tasks (for instance,
 shutting down an HTTP server after a specific number of requests).
@@ -454,9 +454,9 @@ Nightly coverage reports for the Node.js master branch are available at
 
 [ASCII]: https://man7.org/linux/man-pages/man7/ascii.7.html
 [Google Test]: https://github.com/google/googletest
-[Test Coverage section of the Building guide]: https://github.com/nodejs/node/blob/master/BUILDING.md#running-coverage
-[`common` module]: https://github.com/nodejs/node/blob/master/test/common/README.md
+[Test Coverage section of the Building guide]: https://github.com/nodejs/node/blob/HEAD/BUILDING.md#running-coverage
+[`common` module]: https://github.com/nodejs/node/blob/HEAD/test/common/README.md
 [all maintained branches]: https://github.com/nodejs/lts
-[directory structure overview]: https://github.com/nodejs/node/blob/master/test/README.md#test-directories
+[directory structure overview]: https://github.com/nodejs/node/blob/HEAD/test/README.md#test-directories
 [node.green]: https://node.green/
-[test fixture]: https://github.com/google/googletest/blob/master/googletest/docs/primer.md#test-fixtures-using-the-same-data-configuration-for-multiple-tests-same-data-multiple-tests
+[test fixture]: https://github.com/google/googletest/blob/HEAD/googletest/docs/primer.md#test-fixtures-using-the-same-data-configuration-for-multiple-tests-same-data-multiple-tests

@@ -44,7 +44,7 @@ and announces them on the [`tz-announce`](https://mm.icann.org/pipermail/tz-anno
 mailing list.
 
 The Unicode project takes new releases and publishes
-[updated time zone data files](https://github.com/unicode-org/icu-data/tree/master/tzdata/icunew)
+[updated time zone data files](https://github.com/unicode-org/icu-data/tree/HEAD/tzdata/icunew)
 in the icu/icu-data repository.
 
 All modern versions of Node.js use the version 44 ABI of the time zone data

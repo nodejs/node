@@ -378,7 +378,7 @@ For pull requests introducing new core modules:
 Node-API provides an ABI-stable API guaranteed for future Node.js versions.
 Node-API additions call for unusual care and scrutiny. If a change adds to
 `node_api.h`, `js_native_api.h`, `node_api_types.h`, or `js_native_api_types.h`,
-consult [the relevant guide](https://github.com/nodejs/node/blob/master/doc/guides/adding-new-napi-api.md).
+consult [the relevant guide](https://github.com/nodejs/node/blob/HEAD/doc/guides/adding-new-napi-api.md).
 
 ### Deprecations
 
@@ -815,8 +815,8 @@ If you cannot find who to cc for a file, `git shortlog -n -s <file>` can help.
 [commit message guidelines]: contributing/pull-requests.md#commit-message-guidelines
 [commit-example]: https://github.com/nodejs/node/commit/b636ba8186
 [git-email]: https://help.github.com/articles/setting-your-commit-email-address-in-git/
-[git-node]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md
-[git-node-metadata]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md#git-node-metadata
+[git-node]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md
+[git-node-metadata]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md#git-node-metadata
 [git-username]: https://help.github.com/articles/setting-your-username-in-git/
 [node-core-utils-credentials]: https://github.com/nodejs/node-core-utils#setting-up-credentials
 [node-core-utils-issues]: https://github.com/nodejs/node-core-utils/issues

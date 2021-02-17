@@ -431,4 +431,4 @@ as their support has ended.
 [V8MergingPatching]: https://github.com/v8/v8/wiki/Merging%20&%20Patching
 [V8TemplateMergeRequest]: https://bugs.chromium.org/p/v8/issues/entry?template=Node.js%20merge%20request
 [V8TemplateUpstreamBug]: https://bugs.chromium.org/p/v8/issues/entry?template=Node.js%20upstream%20bug
-[`git-node`]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md#git-node-v8
+[`git-node`]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md#git-node-v8
