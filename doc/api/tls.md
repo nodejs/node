@@ -1150,7 +1150,7 @@ to implement the `tls-unique` channel binding from [RFC 5929][].
 
 ### `tlsSocket.getPeerX509Certificate()`
 <!-- YAML
-added: REPLACEME
+added: v15.9.0
 -->
 
 * Returns: {X509Certificate}
@@ -1227,7 +1227,7 @@ See [Session Resumption][] for more information.
 
 ### `tlsSocket.getX509Certificate()`
 <!-- YAML
-added: REPLACEME
+added: v15.9.0
 -->
 
 * Returns: {X509Certificate}

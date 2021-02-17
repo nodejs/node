@@ -474,7 +474,7 @@ are part of the channel.
 <!-- YAML
 added: v10.5.0
 changes:
-  - version: REPLACEME
+  - version: v15.9.0
     pr-url: https://github.com/nodejs/node/pull/37155
     description: Add 'Histogram' types to the list of cloneable types.
   - version: v15.6.0

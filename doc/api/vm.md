@@ -813,7 +813,7 @@ const vm = require('vm');
 <!-- YAML
 added: v10.10.0
 changes:
-  - version: REPLACEME
+  - version: v15.9.0
     pr-url: https://github.com/nodejs/node/pull/35431
     description: Added `importModuleDynamically` option again.
   - version: v14.3.0

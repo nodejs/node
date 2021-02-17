@@ -655,7 +655,7 @@ performance.mark('meow');
 
 ## `perf_hooks.createHistogram([options])`
 <!-- YAML
-added: REPLACEME
+added: v15.9.0
 -->
 
 * `options` {Object}
@@ -814,19 +814,19 @@ implement the `enable()` and `disable()` methods.
 
 ## Class: `RecordableHistogram extends Histogram`
 <!-- YAML
-added: REPLACEME
+added: v15.9.0
 -->
 
 ### `histogram.record(val)`
 <!-- YAML
-added: REPLACEME
+added: v15.9.0
 -->
 
 * `val` {number|bigint} The amount to record in the histogram.
 
 ### `histogram.recordDelta()`
 <!-- YAML
-added: REPLACEME
+added: v15.9.0
 -->
 
 Calculates the amount of time (in nanoseconds) that has passed since the
