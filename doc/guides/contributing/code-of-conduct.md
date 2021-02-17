@@ -40,4 +40,4 @@ that you *might* be wrong is critical for any successful open collaboration.
 
 Don't be a bad actor.
 
-[Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
+[Code of Conduct]: https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md
