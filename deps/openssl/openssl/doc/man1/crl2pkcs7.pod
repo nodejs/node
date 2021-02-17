@@ -56,7 +56,7 @@ output by default.
 
 Specifies a filename containing one or more certificates in B<PEM> format.
 All certificates in the file will be added to the PKCS#7 structure. This
-option can be used more than once to read certificates form multiple
+option can be used more than once to read certificates from multiple
 files.
 
 =item B<-nocrl>
@@ -96,7 +96,7 @@ L<pkcs7(1)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

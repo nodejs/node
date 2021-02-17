@@ -1,4 +1,4 @@
-# Copyright 1999-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -2283,6 +2283,7 @@ EVP_R_ONLY_ONESHOT_SUPPORTED:177:only oneshot supported
 EVP_R_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE:150:\
 	operation not supported for this keytype
 EVP_R_OPERATON_NOT_INITIALIZED:151:operaton not initialized
+EVP_R_OUTPUT_WOULD_OVERFLOW:184:output would overflow
 EVP_R_PARTIALLY_OVERLAPPING:162:partially overlapping buffers
 EVP_R_PBKDF2_ERROR:181:pbkdf2 error
 EVP_R_PKEY_APPLICATION_ASN1_METHOD_ALREADY_REGISTERED:179:\

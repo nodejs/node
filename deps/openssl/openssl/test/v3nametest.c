@@ -359,7 +359,7 @@ static int call_run_cert(int i)
     return failed == 0;
 }
 
-struct gennamedata {
+static struct gennamedata {
     const unsigned char der[22];
     size_t derlen;
 } gennames[] = {

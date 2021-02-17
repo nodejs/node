@@ -42,7 +42,8 @@ int setup_tests(void)
                         BN_bin2bn(dmp1, sizeof(dmp1)-1, NULL),  \
                         BN_bin2bn(dmq1, sizeof(dmq1)-1, NULL),  \
                         BN_bin2bn(iqmp, sizeof(iqmp)-1, NULL)); \
-    memcpy(c, ctext_ex, sizeof(ctext_ex) - 1);                  \
+    if (c != NULL)                                              \
+        memcpy(c, ctext_ex, sizeof(ctext_ex) - 1);              \
     return sizeof(ctext_ex) - 1;
 
 static int key1(RSA *key, unsigned char *c)
@@ -211,16 +212,7 @@ static int key3(RSA *key, unsigned char *c)
     SetKey;
 }
 
-static int pad_unknown(void)
-{
-    unsigned long l;
-    while ((l = ERR_get_error()) != 0)
-        if (ERR_GET_REASON(l) == RSA_R_UNKNOWN_PADDING_TYPE)
-            return 1;
-    return 0;
-}
-
-static int rsa_setkey(RSA** key, unsigned char* ctext, int idx)
+static int rsa_setkey(RSA** key, unsigned char *ctext, int idx)
 {
     int clen = 0;
 
@@ -240,63 +232,72 @@ static int rsa_setkey(RSA** key, unsigned char* ctext, int idx)
     return clen;
 }
 
-static int test_rsa_pkcs1(int idx)
+static int test_rsa_simple(int idx, int en_pad_type, int de_pad_type,
+                           int success, unsigned char *ctext_ex, int *clen,
+                           RSA **retkey)
 {
     int ret = 0;
     RSA *key;
     unsigned char ptext[256];
     unsigned char ctext[256];
     static unsigned char ptext_ex[] = "\x54\x85\x9b\x34\x2c\x49\xea\x2a";
-    unsigned char ctext_ex[256];
     int plen;
-    int clen = 0;
+    int clentmp = 0;
     int num;
 
     plen = sizeof(ptext_ex) - 1;
-    clen = rsa_setkey(&key, ctext_ex, idx);
+    clentmp = rsa_setkey(&key, ctext_ex, idx);
+    if (clen != NULL)
+        *clen = clentmp;
 
-    num = RSA_public_encrypt(plen, ptext_ex, ctext, key,
-                             RSA_PKCS1_PADDING);
-    if (!TEST_int_eq(num, clen))
+    num = RSA_public_encrypt(plen, ptext_ex, ctext, key, en_pad_type);
+    if (!TEST_int_eq(num, clentmp))
         goto err;
 
-    num = RSA_private_decrypt(num, ctext, ptext, key, RSA_PKCS1_PADDING);
-    if (!TEST_mem_eq(ptext, num, ptext_ex, plen))
-        goto err;
+    num = RSA_private_decrypt(num, ctext, ptext, key, de_pad_type);
+    if (success) {
+        if (!TEST_int_gt(num, 0) || !TEST_mem_eq(ptext, num, ptext_ex, plen))
+            goto err;
+    } else {
+        if (!TEST_int_lt(num, 0))
+            goto err;
+    }
 
     ret = 1;
+    if (retkey != NULL) {
+        *retkey = key;
+        key = NULL;
+    }
 err:
     RSA_free(key);
     return ret;
 }
 
+static int test_rsa_pkcs1(int idx)
+{
+    return test_rsa_simple(idx, RSA_PKCS1_PADDING, RSA_PKCS1_PADDING, 1, NULL,
+                           NULL, NULL);
+}
+
 static int test_rsa_sslv23(int idx)
 {
-    int ret = 0;
-    RSA *key;
-    unsigned char ptext[256];
-    unsigned char ctext[256];
-    static unsigned char ptext_ex[] = "\x54\x85\x9b\x34\x2c\x49\xea\x2a";
-    unsigned char ctext_ex[256];
-    int plen;
-    int clen = 0;
-    int num;
+    int ret;
 
-    plen = sizeof(ptext_ex) - 1;
-    clen = rsa_setkey(&key, ctext_ex, idx);
+    /* Simulate an SSLv2 only client talking to a TLS capable server */
+    ret = test_rsa_simple(idx, RSA_PKCS1_PADDING, RSA_SSLV23_PADDING, 1, NULL,
+                          NULL, NULL);
 
-    num = RSA_public_encrypt(plen, ptext_ex, ctext, key,
-                             RSA_SSLV23_PADDING);
-    if (!TEST_int_eq(num, clen))
-        goto err;
+    /* Simulate a TLS capable client talking to an SSLv2 only server */
+    ret &= test_rsa_simple(idx, RSA_SSLV23_PADDING, RSA_PKCS1_PADDING, 1, NULL,
+                           NULL, NULL);
 
-    num = RSA_private_decrypt(num, ctext, ptext, key, RSA_SSLV23_PADDING);
-    if (!TEST_mem_eq(ptext, num, ptext_ex, plen))
-        goto err;
+    /*
+     * Simulate a TLS capable client talking to a TLS capable server. Should
+     * fail due to detecting a rollback attack.
+     */
+    ret &= test_rsa_simple(idx, RSA_SSLV23_PADDING, RSA_SSLV23_PADDING, 0, NULL,
+                           NULL, NULL);
 
-    ret = 1;
-err:
-    RSA_free(key);
     return ret;
 }
 
@@ -313,28 +314,16 @@ static int test_rsa_oaep(int idx)
     int num;
     int n;
 
+    if (!test_rsa_simple(idx, RSA_PKCS1_OAEP_PADDING, RSA_PKCS1_OAEP_PADDING, 1,
+                         ctext_ex, &clen, &key))
+        goto err;
+
     plen = sizeof(ptext_ex) - 1;
-    clen = rsa_setkey(&key, ctext_ex, idx);
-
-    num = RSA_public_encrypt(plen, ptext_ex, ctext, key,
-                             RSA_PKCS1_OAEP_PADDING);
-    if (num == -1 && pad_unknown()) {
-        TEST_info("Skipping: No OAEP support");
-        ret = 1;
-        goto err;
-    }
-    if (!TEST_int_eq(num, clen))
-        goto err;
-
-    num = RSA_private_decrypt(num, ctext, ptext, key,
-                              RSA_PKCS1_OAEP_PADDING);
-    if (!TEST_mem_eq(ptext, num, ptext_ex, plen))
-        goto err;
 
     /* Different ciphertexts. Try decrypting ctext_ex */
     num = RSA_private_decrypt(clen, ctext_ex, ptext, key,
                               RSA_PKCS1_OAEP_PADDING);
-    if (!TEST_mem_eq(ptext, num, ptext_ex, plen))
+    if (num <= 0 || !TEST_mem_eq(ptext, num, ptext_ex, plen))
         goto err;
 
     /* Try decrypting corrupted ciphertexts. */

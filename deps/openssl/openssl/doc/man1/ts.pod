@@ -242,7 +242,7 @@ The name of the file containing a DER encoded timestamp request. (Optional)
 =item B<-passin> password_src
 
 Specifies the password source for the private key of the TSA. See
-B<PASS PHRASE ARGUMENTS> in L<openssl(1)>. (Optional)
+L<openssl(1)/Pass Phrase Options>. (Optional)
 
 =item B<-signer> tsa_cert.pem
 
@@ -665,7 +665,7 @@ L<config(5)>
 
 =head1 COPYRIGHT
 
-Copyright 2006-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

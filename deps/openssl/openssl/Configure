@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
 # -*- mode: perl; -*-
-# Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -1201,6 +1201,10 @@ foreach (keys %useradd) {
 # At this point, we can forget everything about %user and %useradd,
 # because it's now all been merged into the corresponding $config entry
 
+if (grep { $_ eq '-static' } @{$config{LDFLAGS}}) {
+    disable('static', 'pic', 'threads');
+}
+
 # Allow overriding the build file name
 $config{build_file} = env('BUILDFILE') || $target{build_file} || "Makefile";
 
@@ -1520,10 +1524,6 @@ if ($strict_warnings)
                 warn "WARNING --strict-warnings requires gcc[>=4] or gcc-alike, or MSVC"
                 }
         }
-
-if (grep { $_ eq '-static' } @{$config{LDFLAGS}}) {
-    disable('static', 'pic', 'threads');
-}
 
 $config{CFLAGS} = [ map { $_ eq '--ossl-strict-warnings'
                               ? @strict_warnings_collection
@@ -2611,19 +2611,22 @@ _____
         }
         print "\nEnabled features:\n\n";
         foreach my $what (@disablables) {
-            print "    $what\n" unless $disabled{$what};
+            print "    $what\n"
+                unless grep { $_ =~ /^${what}$/ } keys %disabled;
         }
         print "\nDisabled features:\n\n";
         foreach my $what (@disablables) {
-            if ($disabled{$what}) {
-                print "    $what", ' ' x ($longest - length($what) + 1),
-                    "[$disabled{$what}]", ' ' x ($longest2 - length($disabled{$what}) + 1);
-                print $disabled_info{$what}->{macro}
-                    if $disabled_info{$what}->{macro};
+            my @what2 = grep { $_ =~ /^${what}$/ } keys %disabled;
+            my $what3 = $what2[0];
+            if ($what3) {
+                print "    $what3", ' ' x ($longest - length($what3) + 1),
+                    "[$disabled{$what3}]", ' ' x ($longest2 - length($disabled{$what3}) + 1);
+                print $disabled_info{$what3}->{macro}
+                    if $disabled_info{$what3}->{macro};
                 print ' (skip ',
-                    join(', ', @{$disabled_info{$what}->{skipped}}),
+                    join(', ', @{$disabled_info{$what3}->{skipped}}),
                     ')'
-                    if $disabled_info{$what}->{skipped};
+                    if $disabled_info{$what3}->{skipped};
                 print "\n";
             }
         }

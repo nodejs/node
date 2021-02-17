@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -46,6 +46,9 @@ int DTLS_RECORD_LAYER_new(RECORD_LAYER *rl)
 
 void DTLS_RECORD_LAYER_free(RECORD_LAYER *rl)
 {
+    if (rl->d == NULL)
+        return;
+
     DTLS_RECORD_LAYER_clear(rl);
     pqueue_free(rl->d->unprocessed_rcds.q);
     pqueue_free(rl->d->processed_rcds.q);
