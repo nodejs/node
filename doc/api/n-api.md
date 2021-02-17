@@ -5963,7 +5963,7 @@ This API may only be called from the main thread.
 ## node_api_get_module_file_name
 
 <!-- YAML
-added: REPLACEME
+added: v15.9.0
 -->
 
 > Stability: 1 - Experimental
