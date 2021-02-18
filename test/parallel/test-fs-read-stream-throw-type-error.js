@@ -75,3 +75,6 @@ const NOT_SAFE_INTEGER = 2 ** 53;
 ].forEach((opts) =>
   createReadStreamErr(example, opts, rangeError)
 );
+
+// Case 8: Should throw RangeError if mode is out of range
+createReadStreamErr(example, { mode: 2176057344 }, rangeError);
