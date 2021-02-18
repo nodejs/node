@@ -394,9 +394,9 @@ process.on('multipleResolves', common.mustNotCall());
   let post = false;
 
   Promise.all([
-    setPromiseTimeout(100).then(() => pre = true),
+    setPromiseTimeout(1).then(() => pre = true),
     new Promise((res) => {
-      const iterable = setInterval(() => {}, 200);
+      const iterable = timerPromises.setInterval(() => {}, 200);
       const iterator = iterable[Symbol.asyncIterator]();
 
       iterator.next().then(common.mustCall(() => {
