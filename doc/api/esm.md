@@ -890,7 +890,7 @@ prints the current version of CoffeeScript per the module at the URL in
 
 #### Transpiler loader
 
-Sources that are in formats Node.js doesn’t understand can be converted into
+Sources that are in formats Node.js doesn't understand can be converted into
 JavaScript using the [`transformSource` hook][]. Before that hook gets called,
 however, other hooks need to tell Node.js not to throw an error on unknown file
 types; and to tell Node.js how to load this new file type.
