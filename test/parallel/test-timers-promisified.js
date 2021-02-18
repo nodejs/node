@@ -395,7 +395,7 @@ process.on('multipleResolves', common.mustNotCall());
 
   Promise.all([
     setPromiseTimeout(10).then(() => pre = true),
-    new Promise(res => {
+    new Promise((res) => {
       const iterable = setInterval(() => {}, 20);
       const iterator = iterable[Symbol.asyncIterator]();
 
