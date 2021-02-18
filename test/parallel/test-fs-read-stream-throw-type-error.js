@@ -76,5 +76,5 @@ const NOT_SAFE_INTEGER = 2 ** 53;
   createReadStreamErr(example, opts, rangeError)
 );
 
-// Case 8: Should throw RangeError if mode is out of range
-createReadStreamErr(example, { mode: 2176057344 }, rangeError);
+// Case 8: Should not throw any error even if mode is a huge unsigned int32
+fs.createReadStream(example, { mode: 2176057344 });
