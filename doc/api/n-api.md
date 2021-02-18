@@ -1275,9 +1275,9 @@ napiVersion: 1
 
 ```c
 NAPI_NO_RETURN void napi_fatal_error(const char* location,
-                                                 size_t location_len,
-                                                 const char* message,
-                                                 size_t message_len);
+                                     size_t location_len,
+                                     const char* message,
+                                     size_t message_len);
 ```
 
 * `[in] location`: Optional location at which the error occurred.
