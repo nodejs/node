@@ -64,6 +64,6 @@ be unavoidable.
 
 [Semantic Versioning]: https://semver.org/
 [V8 JavaScript engine]: https://v8.dev/
-[the contributing guide]: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
+[the contributing guide]: https://github.com/nodejs/node/blob/HEAD/CONTRIBUTING.md
 [the issue tracker]: https://github.com/nodejs/node/issues/new
 [warning]: process.md#process_event_warning
