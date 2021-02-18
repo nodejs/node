@@ -1367,7 +1367,7 @@ console.log(result);
 [`Worker`]: worker_threads.md#worker_threads_class_worker
 [bindings]: https://github.com/TooTallNate/node-bindings
 [download]: https://github.com/nodejs/node-addon-examples
-[examples]: https://github.com/nodejs/nan/tree/master/examples/
+[examples]: https://github.com/nodejs/nan/tree/HEAD/examples/
 [installation instructions]: https://github.com/nodejs/node-gyp#installation
 [libuv]: https://github.com/libuv/libuv
 [node-gyp]: https://github.com/nodejs/node-gyp

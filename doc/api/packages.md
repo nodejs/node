@@ -1146,7 +1146,7 @@ This field defines [subpath imports][] for the current package.
 [CommonJS]: modules.md
 [ES module]: esm.md
 [ES modules]: esm.md
-[Node.js documentation for this section]: https://github.com/nodejs/node/blob/master/doc/api/packages.md#conditions-definitions
+[Node.js documentation for this section]: https://github.com/nodejs/node/blob/HEAD/doc/api/packages.md#conditions-definitions
 [`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.md#errors_err_package_path_not_exported
 [`esm`]: https://github.com/standard-things/esm#readme
 [`"exports"`]: #packages_exports
