@@ -403,7 +403,7 @@ process.on('multipleResolves', common.mustNotCall());
         assert.ok(pre, 'interval ran too early');
         assert.ok(!post, 'interval ran too late');
         return iterator.next();
-      })).then(common.mustCall(() => {
+      }).then(() => {
         assert.ok(post, 'second interval ran too early');
         return iterator.return();
       }).then(res);
