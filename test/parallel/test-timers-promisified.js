@@ -392,18 +392,23 @@ process.on('multipleResolves', common.mustNotCall());
   // Check that the timing is correct
   let pre = false;
   let post = false;
-  setPromiseTimeout(1).then(() => pre = true);
-  const iterable = setInterval(() => {}, 2);
-  const iterator = iterable[Symbol.asyncIterator]();
 
-  iterator.next().then(common.mustCall(() => {
-    assert.ok(pre, 'interval ran too early');
-    assert.ok(!post, 'interval ran too late');
-    return iterator.next();
-  })).then(common.mustCall(() => {
-    assert.ok(post, 'second interval ran too early');
-    return iterator.return();
-  }));
+  const time_unit = 50;
+  Promise.all([
+    setPromiseTimeout(1).then(() => pre = true),
+    new Promise((res) => {
+      const iterable = timerPromises.setInterval(time_unit * 2);
+      const iterator = iterable[Symbol.asyncIterator]();
 
-  setPromiseTimeout(3).then(() => post = true);
+      iterator.next().then(() => {
+        assert.ok(pre, 'interval ran too early');
+        assert.ok(!post, 'interval ran too late');
+        return iterator.next();
+      }).then(() => {
+        assert.ok(post, 'second interval ran too early');
+        return iterator.return();
+      }).then(res);
+    }),
+    setPromiseTimeout(time_unit * 3).then(() => post = true)
+  ]).then(common.mustCall());
 }
