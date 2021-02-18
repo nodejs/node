@@ -405,9 +405,8 @@ process.on('multipleResolves', common.mustNotCall());
         return iterator.next();
       })).then(common.mustCall(() => {
         assert.ok(post, 'second interval ran too early');
-        res();
         return iterator.return();
-      }));
+      }).then(res);
     }),
     setPromiseTimeout(300).then(() => post = true)
   ]).then(common.mustCall());
