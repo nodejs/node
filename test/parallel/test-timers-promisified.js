@@ -399,7 +399,7 @@ process.on('multipleResolves', common.mustNotCall());
       const iterable = timerPromises.setInterval(200);
       const iterator = iterable[Symbol.asyncIterator]();
 
-      iterator.next().then(common.mustCall(() => {
+      iterator.next().then(() => {
         assert.ok(pre, 'interval ran too early');
         assert.ok(!post, 'interval ran too late');
         return iterator.next();
