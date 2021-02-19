@@ -1159,6 +1159,7 @@ class Environment : public MemoryRetainer {
 
   inline bool is_main_thread() const;
   inline bool should_not_register_esm_loader() const;
+  inline bool should_create_inspector() const;
   inline bool owns_process_state() const;
   inline bool owns_inspector() const;
   inline bool tracks_unmanaged_fds() const;
