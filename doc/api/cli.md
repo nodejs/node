@@ -195,7 +195,7 @@ added: v12.12.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/37362
-    description: remove note about experimental status.
+    description: This API is no longer experimental.
 -->
 
 Enable [Source Map v3][Source Map] support for stack traces.
