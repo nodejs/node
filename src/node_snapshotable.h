@@ -48,7 +48,7 @@ struct InternalFieldInfo {
 
   static InternalFieldInfo* New(EmbedderObjectType type, size_t length) {
     InternalFieldInfo* result =
-        reinterpret_cast<InternalFieldInfo*>(::operator new(length));
+        reinterpret_cast<InternalFieldInfo*>(::operator new[](length));
     result->type = type;
     result->length = length;
     return result;
@@ -56,12 +56,12 @@ struct InternalFieldInfo {
 
   InternalFieldInfo* Copy() const {
     InternalFieldInfo* result =
-        reinterpret_cast<InternalFieldInfo*>(::operator new(length));
+        reinterpret_cast<InternalFieldInfo*>(::operator new[](length));
     memcpy(result, this, length);
     return result;
   }
 
-  void Delete() { ::operator delete(this); }
+  void Delete() { ::operator delete[](this); }
 };
 
 // An interface for snapshotable native objects to inherit from.
