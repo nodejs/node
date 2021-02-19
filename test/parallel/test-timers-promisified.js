@@ -393,10 +393,11 @@ process.on('multipleResolves', common.mustNotCall());
   let pre = false;
   let post = false;
 
+  const time_unit = common.platformTimeout(50);
   Promise.all([
     setPromiseTimeout(1).then(() => pre = true),
     new Promise((res) => {
-      const iterable = timerPromises.setInterval(200);
+      const iterable = timerPromises.setInterval(time_unit * 2);
       const iterator = iterable[Symbol.asyncIterator]();
 
       iterator.next().then(() => {
@@ -408,6 +409,6 @@ process.on('multipleResolves', common.mustNotCall());
         return iterator.return();
       }).then(res);
     }),
-    setPromiseTimeout(300).then(() => post = true)
+    setPromiseTimeout(time_unit * 3).then(() => post = true)
   ]).then(common.mustCall());
 }
