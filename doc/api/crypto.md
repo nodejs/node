@@ -313,6 +313,19 @@ Once the `cipher.final()` method has been called, the `Cipher` object can no
 longer be used to encrypt data. Attempts to call `cipher.final()` more than
 once will result in an error being thrown.
 
+### `cipher.getAuthTag()`
+<!-- YAML
+added: v1.0.0
+-->
+
+* Returns: {Buffer} When using an authenticated encryption mode (`GCM`, `CCM`
+  and `OCB` are currently supported), the `cipher.getAuthTag()` method returns a
+  [`Buffer`][] containing the _authentication tag_ that has been computed from
+  the given data.
+
+The `cipher.getAuthTag()` method should only be called after encryption has
+been completed using the [`cipher.final()`][] method.
+
 ### `cipher.setAAD(buffer[, options])`
 <!-- YAML
 added: v1.0.0
@@ -333,19 +346,6 @@ the `plaintextLength` option must be specified and its value must match the
 length of the plaintext in bytes. See [CCM mode][].
 
 The `cipher.setAAD()` method must be called before [`cipher.update()`][].
-
-### `cipher.getAuthTag()`
-<!-- YAML
-added: v1.0.0
--->
-
-* Returns: {Buffer} When using an authenticated encryption mode (`GCM`, `CCM`
-  and `OCB` are currently supported), the `cipher.getAuthTag()` method returns a
-  [`Buffer`][] containing the _authentication tag_ that has been computed from
-  the given data.
-
-The `cipher.getAuthTag()` method should only be called after encryption has
-been completed using the [`cipher.final()`][] method.
 
 ### `cipher.setAutoPadding([autoPadding])`
 <!-- YAML
