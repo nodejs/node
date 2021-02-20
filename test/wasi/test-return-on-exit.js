@@ -1,6 +1,11 @@
 // Flags: --experimental-wasi-unstable-preview1
 'use strict';
 const common = require('../common');
+
+if (!common.enoughTestMem) {
+  common.skip('Insufficient memory');
+}
+
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
