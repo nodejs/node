@@ -7,8 +7,6 @@ prefix parallel
 [true] # This section applies to all platforms
 
 [$system==win32]
-# https://github.com/nodejs/node/issues/20750
-test-http2-client-upload-reject: PASS,FLAKY
 # https://github.com/nodejs/node/issues/30847
 test-http2-compat-client-upload-reject: PASS,FLAKY
 # https://github.com/nodejs/node/issues/30845
