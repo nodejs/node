@@ -393,7 +393,7 @@ process.on('multipleResolves', common.mustNotCall());
   let pre = false;
   let post = false;
 
-  const time_unit = common.platformTimeout(50);
+  const time_unit = 50;
   Promise.all([
     setPromiseTimeout(1).then(() => pre = true),
     new Promise((res) => {
