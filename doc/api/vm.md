@@ -532,6 +532,12 @@ This method cannot be called while the module is being evaluated
 Corresponds to the [Evaluate() concrete method][] field of [Cyclic Module
 Record][]s in the ECMAScript specification.
 
+### `module.identifier`
+
+* {string}
+
+The identifier of the current module, as set in the constructor.
+
 ### `module.link(linker)`
 
 * `linker` {Function}
@@ -615,12 +621,6 @@ Other than `'errored'`, this status string corresponds to the specification's
 [Cyclic Module Record][]'s `[[Status]]` field. `'errored'` corresponds to
 `'evaluated'` in the specification, but with `[[EvaluationError]]` set to a
 value that is not `undefined`.
-
-### `module.identifier`
-
-* {string}
-
-The identifier of the current module, as set in the constructor.
 
 ## Class: `vm.SourceTextModule`
 <!-- YAML
