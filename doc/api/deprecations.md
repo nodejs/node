@@ -2748,6 +2748,18 @@ Previously, `index.js` and extension searching lookups would apply to
 With this deprecation, all ES module main entry point resolutions require
 an explicit [`"exports"` or `"main"` entry][] with the exact file extension.
 
+### DEP0XXX: `KeyObject.from`
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37240
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only.
+
+Use `KeyObject.fromCryptoKey` instead.
+
 [Legacy URL API]: url.md#url_legacy_url_api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
