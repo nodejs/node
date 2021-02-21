@@ -118,7 +118,8 @@ class StatusRuleSet {
       if (key.includes('*')) {
         this.patternMatch.push(new StatusRule(key, rules[key], key));
       } else {
-        this.exactMatch[key] = new StatusRule(key, rules[key]);
+        const normalizedPath = path.normalize(key);
+        this.exactMatch[normalizedPath] = new StatusRule(key, rules[key]);
       }
     }
   }
