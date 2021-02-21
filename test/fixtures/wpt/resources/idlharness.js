@@ -3483,6 +3483,22 @@ IdlNamespace.prototype.test_self = function ()
     subsetTestByKey(this.name, test, () => {
         assert_equals(typeof namespaceObject, "object");
     }, `${this.name} namespace: typeof is "object"`);
+
+    subsetTestByKey(this.name, test, () => {
+        assert_equals(
+            Object.getOwnPropertyDescriptor(namespaceObject, "length"),
+            undefined,
+            "length property must be undefined"
+        );
+    }, `${this.name} namespace: has no length property`);
+
+    subsetTestByKey(this.name, test, () => {
+        assert_equals(
+            Object.getOwnPropertyDescriptor(namespaceObject, "name"),
+            undefined,
+            "name property must be undefined"
+        );
+    }, `${this.name} namespace: has no name property`);
 };
 
 IdlNamespace.prototype.test = function ()
@@ -3527,8 +3543,6 @@ IdlNamespace.prototype.test = function ()
 function idl_test(srcs, deps, idl_setup_func) {
     return promise_test(function (t) {
         var idl_array = new IdlArray();
-        srcs = (srcs instanceof Array) ? srcs : [srcs] || [];
-        deps = (deps instanceof Array) ? deps : [deps] || [];
         var setup_error = null;
         const validationIgnored = [
             "constructor-member",

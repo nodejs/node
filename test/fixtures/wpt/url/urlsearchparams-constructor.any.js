@@ -29,7 +29,7 @@ test(() => {
 test(() => {
     var params = new URLSearchParams('');
     assert_true(params != null, 'constructor returned non-null value.');
-    assert_equals(params.__proto__, URLSearchParams.prototype, 'expected URLSearchParams.prototype as prototype.');
+    assert_equals(Object.getPrototypeOf(params), URLSearchParams.prototype, 'expected URLSearchParams.prototype as prototype.');
 }, "URLSearchParams constructor, empty string as argument")
 
 test(() => {
