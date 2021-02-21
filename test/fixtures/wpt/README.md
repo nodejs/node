@@ -10,17 +10,17 @@ See [test/wpt](../../wpt/README.md) for information on how these tests are run.
 
 Last update:
 
+- common: https://github.com/web-platform-tests/wpt/tree/3586ff740b/common
 - console: https://github.com/web-platform-tests/wpt/tree/3b1f72e99a/console
-- encoding: https://github.com/web-platform-tests/wpt/tree/3c9820d1cc/encoding
-- url: https://github.com/web-platform-tests/wpt/tree/1783c9bccf/url
-- resources: https://github.com/web-platform-tests/wpt/tree/351a99782b/resources
-- interfaces: https://github.com/web-platform-tests/wpt/tree/b4be9a3fdf/interfaces
-- html/webappapis/microtask-queuing: https://github.com/web-platform-tests/wpt/tree/2c5c3c4c27/html/webappapis/microtask-queuing
-- html/webappapis/timers: https://github.com/web-platform-tests/wpt/tree/264f12bc7b/html/webappapis/timers
-- hr-time: https://github.com/web-platform-tests/wpt/tree/a5d1774ecf/hr-time
-- common: https://github.com/web-platform-tests/wpt/tree/841a51412f/common
-- dom/abort: https://github.com/web-platform-tests/wpt/tree/7caa3de747/dom/abort
+- dom/abort: https://github.com/web-platform-tests/wpt/tree/625e1310ce/dom/abort
+- encoding: https://github.com/web-platform-tests/wpt/tree/35f70910d3/encoding
 - FileAPI: https://github.com/web-platform-tests/wpt/tree/3b279420d4/FileAPI
+- hr-time: https://github.com/web-platform-tests/wpt/tree/9910784394/hr-time
+- html/webappapis/microtask-queuing: https://github.com/web-platform-tests/wpt/tree/2c5c3c4c27/html/webappapis/microtask-queuing
+- html/webappapis/timers: https://github.com/web-platform-tests/wpt/tree/5873f2d8f1/html/webappapis/timers
+- interfaces: https://github.com/web-platform-tests/wpt/tree/8602e9c9a1/interfaces
+- resources: https://github.com/web-platform-tests/wpt/tree/e366371a19/resources
+- url: https://github.com/web-platform-tests/wpt/tree/59d28c8f2d/url
 
 [Web Platform Tests]: https://github.com/web-platform-tests/wpt
 [`git node wpt`]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md#git-node-wpt

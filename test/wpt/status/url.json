@@ -18,5 +18,11 @@
   },
   "urlsearchparams-constructor.any.js": {
     "fail": "FormData is not defined"
+  },
+  "url-constructor.any.js": {
+    "fail": "TODO: support relative fetch()"
+  },
+  "url-origin.any.js": {
+    "fail": "TODO: support relative fetch()"
   }
 }
