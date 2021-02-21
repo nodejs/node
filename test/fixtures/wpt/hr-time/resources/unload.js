@@ -48,3 +48,4 @@ const setupListeners = (docName, nextDocument) => {
     if (docName !== "c") { syncDelay(1000); }
   });
 };
+
