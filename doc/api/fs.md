@@ -406,6 +406,8 @@ try {
 If the file previously was shorter than `len` bytes, it is extended, and the
 extended part is filled with null bytes (`'\0'`):
 
+If `len` is negative then `0` will be used.
+
 #### `filehandle.utimes(atime, mtime)`
 <!-- YAML
 added: v10.0.0
@@ -2294,6 +2296,8 @@ open('temp.txt', 'r+', (err, fd) => {
 
 If the file previously was shorter than `len` bytes, it is extended, and the
 extended part is filled with null bytes (`'\0'`):
+
+If `len` is negative then `0` will be used.
 
 ### `fs.futimes(fd, atime, mtime, callback)`
 <!-- YAML
