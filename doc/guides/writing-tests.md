@@ -229,7 +229,7 @@ argument. It is not a good idea to simply pass `common.mustCall()` to those
 because `common.mustCall()` will ignore the error. Use `common.mustSucceed()`
 instead.
 
-#### Countdown Module
+#### Countdown module
 
 The common [Countdown module](https://github.com/nodejs/node/tree/HEAD/test/common#countdown-module)
 provides a simple countdown mechanism for tests that require a particular
@@ -345,7 +345,7 @@ in each release, such as:
 * Template literals over string concatenation
 * Arrow functions when appropriate
 
-## Naming Test Files
+## Naming test files
 
 Test files are named using kebab casing. The first component of the name is
 `test`. The second is the module or subsystem being tested. The third is usually
@@ -357,13 +357,13 @@ named `test-process-before-exit.js`. If the test specifically checked that arrow
 functions worked correctly with the `beforeExit` event, then it might be named
 `test-process-before-exit-arrow-functions.js`.
 
-## Imported Tests
+## Imported tests
 
-### Web Platform Tests
+### Web platform tests
 
 See [`test/wpt`](../../test/wpt/README.md) for more information.
 
-## C++ Unit test
+## C++ unit test
 
 C++ code can be tested using [Google Test][]. Most features in Node.js can be
 tested using the methods described previously in this document. But there are
@@ -444,7 +444,7 @@ and tearing it down after the tests have finished.
 It also contains a helper to create arguments to be passed into Node.js. It
 will depend on what is being tested if this is required or not.
 
-### Test Coverage
+### Test coverage
 
 To generate a test coverage report, see the
 [Test Coverage section of the Building guide][].
