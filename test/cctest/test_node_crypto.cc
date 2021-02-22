@@ -1,5 +1,5 @@
 // This simulates specifying the configuration option --openssl-system-ca-path
-// and settting it to a file that does not exist.
+// and setting it to a file that does not exist.
 #define NODE_OPENSSL_SYSTEM_CERT_PATH "/missing/ca.pem"
 
 #include "crypto/crypto_context.h"
