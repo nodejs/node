@@ -102,22 +102,19 @@ for (const extra of [[], ['r'], ['r', 0], ['r', 0, 'bad callback']]) {
   assert.throws(
     () => fs.open(__filename, 'r', mode, common.mustNotCall()),
     {
-      message: /'mode' must be a 32-bit/,
-      code: 'ERR_INVALID_ARG_VALUE'
+      code: 'ERR_INVALID_ARG_TYPE'
     }
   );
   assert.throws(
     () => fs.openSync(__filename, 'r', mode, common.mustNotCall()),
     {
-      message: /'mode' must be a 32-bit/,
-      code: 'ERR_INVALID_ARG_VALUE'
+      code: 'ERR_INVALID_ARG_TYPE'
     }
   );
   assert.rejects(
     fs.promises.open(__filename, 'r', mode),
     {
-      message: /'mode' must be a 32-bit/,
-      code: 'ERR_INVALID_ARG_VALUE'
+      code: 'ERR_INVALID_ARG_TYPE'
     }
   );
 });
