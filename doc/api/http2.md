@@ -2012,7 +2012,7 @@ error will be thrown.
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v12.21.0
     pr-url: https://github.com/nodejs-private/node-private/pull/250
     description: Added `unknownProtocolTimeout` option with a default of 10000.
   - version:
@@ -2157,7 +2157,7 @@ server.listen(80);
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v12.21.0
     pr-url: https://github.com/nodejs-private/node-private/pull/250
     description: Added `unknownProtocolTimeout` option with a default of 10000.
   - version:
@@ -2289,7 +2289,7 @@ server.listen(80);
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v12.21.0
     pr-url: https://github.com/nodejs-private/node-private/pull/250
     description: Added `unknownProtocolTimeout` option with a default of 10000.
   - version:
