@@ -114,7 +114,8 @@ release.
 <a href="doc/changelogs/CHANGELOG_V12.md#12.0.0">12.0.0</a><br/>
     </td>
     <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V10.md#10.23.3">10.23.3</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V10.md#10.24.0">10.24.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V10.md#10.23.3">10.23.3</a><br/>
 <a href="doc/changelogs/CHANGELOG_V10.md#10.23.2">10.23.2</a><br/>
 <a href="doc/changelogs/CHANGELOG_V10.md#10.23.1">10.23.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V10.md#10.23.0">10.23.0</a><br/>

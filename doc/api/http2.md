@@ -2126,6 +2126,7 @@ changes:
       - v15.10.0
       - v14.16.0
       - v12.21.0
+      - v10.24.0
     pr-url: https://github.com/nodejs-private/node-private/pull/246
     description: Added `unknownProtocolTimeout` option with a default of 10000.
   - version:
@@ -2278,6 +2279,7 @@ changes:
       - v15.10.0
       - v14.16.0
       - v12.21.0
+      - v10.24.0
     pr-url: https://github.com/nodejs-private/node-private/pull/246
     description: Added `unknownProtocolTimeout` option with a default of 10000.
   - version:
@@ -2417,6 +2419,7 @@ changes:
       - v15.10.0
       - v14.16.0
       - v12.21.0
+      - v10.24.0
     pr-url: https://github.com/nodejs-private/node-private/pull/246
     description: Added `unknownProtocolTimeout` option with a default of 10000.
   - version:
