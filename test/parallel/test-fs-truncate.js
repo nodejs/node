@@ -280,3 +280,10 @@ function testFtruncate(cb) {
     );
   });
 });
+
+{
+  const file1 = path.resolve(tmp, 'truncate-file-1.txt');
+  fs.writeFileSync(file1, 'Hi');
+  fs.truncateSync(file1, -1);  // Negative cooerced to 0, No error.
+  assert(fs.readFileSync(file1).equals(Buffer.alloc(0)));
+}
