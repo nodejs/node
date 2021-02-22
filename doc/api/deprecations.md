@@ -2084,6 +2084,9 @@ The `produceCachedData` option is deprecated. Use
 ### DEP0111: `process.binding()`
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Upgraded to a runtime deprecation.
   - version: v11.12.0
     pr-url: https://github.com/nodejs/node/pull/26500
     description: Added support for `--pending-deprecation`.
@@ -2092,7 +2095,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only (supports [`--pending-deprecation`][])
+Type: Runtime
 
 `process.binding()` is for use by Node.js internal code only.
 
