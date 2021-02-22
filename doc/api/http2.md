@@ -2122,7 +2122,9 @@ Throws `ERR_INVALID_ARG_TYPE` for invalid `settings` argument.
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: v15.10.0
+  - version:
+      - v15.10.0
+      - v14.16.0
     pr-url: https://github.com/nodejs-private/node-private/pull/246
     description: Added `unknownProtocolTimeout` option with a default of 10000.
   - version:
@@ -2271,7 +2273,9 @@ server.listen(80);
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: v15.10.0
+  - version:
+      - v15.10.0
+      - v14.16.0
     pr-url: https://github.com/nodejs-private/node-private/pull/246
     description: Added `unknownProtocolTimeout` option with a default of 10000.
   - version:
@@ -2407,7 +2411,9 @@ server.listen(80);
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: v15.10.0
+  - version:
+      - v15.10.0
+      - v14.16.0
     pr-url: https://github.com/nodejs-private/node-private/pull/246
     description: Added `unknownProtocolTimeout` option with a default of 10000.
   - version:
