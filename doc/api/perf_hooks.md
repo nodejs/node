@@ -210,10 +210,13 @@ added: v8.5.0
 The [`timeOrigin`][] specifies the high resolution millisecond timestamp at
 which the current `node` process began, measured in Unix time.
 
-### `performance.timerify(fn)`
+### `performance.timerify(fn[, options])`
 <!-- YAML
 added: v8.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37475
+    description: Added the histogram option.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/37136
     description: Re-implemented to use pure-JavaScript and the ability
@@ -221,6 +224,10 @@ changes:
 -->
 
 * `fn` {Function}
+* `options` {Object}
+  * `histogram` {RecordableHistogram} A histogram object created using
+    `perf_hooks.createHistogram()` that will record runtime durations in
+    nanoseconds.
 
 _This property is an extension by Node.js. It is not available in Web browsers._
 
