@@ -530,6 +530,26 @@ Print node's version.
 .\" =====================================================================
 .Sh ENVIRONMENT
 .Bl -tag -width 6n
+.It Ev FORCE_COLOR
+Used to enable ANSI colorized output. The value may be one of:
+.Ar 1
+,
+.Ar true
+, or
+.Ar an empty string
+to
+indicate 16-color support,
+.Ar 2
+to indicate 256-color support, or
+.Ar 3
+to indicate 16 million-color support. When used and set to a supported
+value, both the NO_COLOR and NODE_DISABLE_COLORS environment variables
+are ignored. Any other value will result in colorized output being
+disabled.
+.
+.It Ev NO_COLOR
+Alias for NODE_DISABLE_COLORS
+.
 .It Ev NODE_DEBUG Ar modules...
 Comma-separated list of core modules that should print debug information.
 .
