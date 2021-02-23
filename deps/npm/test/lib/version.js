@@ -6,6 +6,7 @@ let result = []
 const noop = () => null
 const npm = {
   flatOptions: {
+    tagVersionPrefix: 'v',
     json: false,
   },
   prefix: '',
@@ -144,17 +145,20 @@ t.test('with one arg', t => {
       t.deepEqual(
         opts,
         {
+          tagVersionPrefix: 'v',
           json: false,
           path: '',
         },
         'should forward expected options'
       )
-      t.end()
+      return '4.0.0'
     },
   })
 
   version(['major'], err => {
     if (err)
       throw err
+    t.same(result, ['v4.0.0'], 'outputs the new version prefixed by the tagVersionPrefix')
+    t.end()
   })
 })

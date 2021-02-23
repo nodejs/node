@@ -126,12 +126,14 @@ t.test('default env, start, and restart scripts', async t => {
         scriptShell: undefined,
         stdio: 'inherit',
         stdioString: true,
-        pkg: { name: 'x',
+        pkg: {
+          name: 'x',
           version: '1.2.3',
           _id: 'x@1.2.3',
           scripts: {
             env: 'env',
-          } },
+          },
+        },
         event: 'env',
       },
     ])
@@ -179,6 +181,67 @@ t.test('default env, start, and restart scripts', async t => {
             restart: 'npm stop --if-present && npm start',
           } },
         event: 'restart',
+      },
+    ])
+  })
+  RUN_SCRIPTS.length = 0
+})
+
+t.test('non-default env script', async t => {
+  npm.localPrefix = t.testdir({
+    'package.json': JSON.stringify({
+      name: 'x',
+      version: '1.2.3',
+      scripts: {
+        env: 'hello',
+      },
+    }),
+  })
+
+  await runScript(['env'], er => {
+    if (er)
+      throw er
+
+    t.match(RUN_SCRIPTS, [
+      {
+        path: npm.localPrefix,
+        args: [],
+        scriptShell: undefined,
+        stdio: 'inherit',
+        stdioString: true,
+        pkg: {
+          name: 'x',
+          version: '1.2.3',
+          _id: 'x@1.2.3',
+          scripts: {
+            env: 'hello',
+          },
+        },
+        event: 'env',
+      },
+    ])
+  })
+  RUN_SCRIPTS.length = 0
+
+  await runScriptWin(['env'], er => {
+    if (er)
+      throw er
+
+    t.match(RUN_SCRIPTS, [
+      {
+        path: npm.localPrefix,
+        args: [],
+        scriptShell: undefined,
+        stdio: 'inherit',
+        stdioString: true,
+        pkg: { name: 'x',
+          version: '1.2.3',
+          _id: 'x@1.2.3',
+          scripts: {
+            env: 'hello',
+          },
+        },
+        event: 'env',
       },
     ])
   })

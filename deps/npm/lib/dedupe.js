@@ -10,6 +10,12 @@ const completion = require('./utils/completion/none.js')
 const cmd = (args, cb) => dedupe(args).then(() => cb()).catch(cb)
 
 const dedupe = async (args) => {
+  if (npm.flatOptions.global) {
+    const er = new Error('`npm dedupe` does not work in global mode.')
+    er.code = 'EDEDUPEGLOBAL'
+    throw er
+  }
+
   const dryRun = (args && args.dryRun) || npm.flatOptions.dryRun
   const where = npm.prefix
   const arb = new Arborist({

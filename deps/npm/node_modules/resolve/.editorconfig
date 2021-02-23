@@ -20,6 +20,9 @@ indent_size = 1
 [package.json]
 indent_style = tab
 
+[lib/core.json]
+indent_style = tab
+
 [CHANGELOG.md]
 indent_style = space
 indent_size = 2

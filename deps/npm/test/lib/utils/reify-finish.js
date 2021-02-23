@@ -20,7 +20,7 @@ let expectWrite = false
 const realFs = require('fs')
 const fs = {
   ...realFs,
-  promises: {
+  promises: realFs.promises && {
     ...realFs.promises,
     writeFile: async (path, data) => {
       if (!expectWrite)
@@ -77,4 +77,12 @@ t.test('should write if everything above passes', async t => {
   // windowwwwwwssss!!!!!
   const data = fs.readFileSync(`${path}/npmrc`, 'utf8').replace(/\r\n/g, '\n')
   t.matchSnapshot(data, 'written config')
+})
+
+t.test('works without fs.promises', async t => {
+  t.doesNotThrow(() => requireInject('../../../lib/utils/reify-finish.js', {
+    fs: { ...fs, promises: null },
+    '../../../lib/npm.js': npm,
+    '../../../lib/utils/reify-output.js': reifyOutput,
+  }))
 })

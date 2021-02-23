@@ -24,6 +24,7 @@ const loadWorkspacesVirtual = Symbol.for('loadWorkspacesVirtual')
 const flagsSuspect = Symbol.for('flagsSuspect')
 const reCalcDepFlags = Symbol('reCalcDepFlags')
 const checkRootEdges = Symbol('checkRootEdges')
+const rootOptionProvided = Symbol('rootOptionProvided')
 
 const depsToEdges = (type, deps) =>
   Object.entries(deps).map(d => [type, ...d])
@@ -63,6 +64,8 @@ module.exports = cls => class VirtualLoader extends cls {
       root = await this[loadRoot](s),
     } = options
 
+    this[rootOptionProvided] = options.root
+
     await this[loadFromShrinkwrap](s, root)
     return treeCheck(this.virtualTree)
   }
@@ -74,13 +77,17 @@ module.exports = cls => class VirtualLoader extends cls {
   }
 
   async [loadFromShrinkwrap] (s, root) {
-    // root is never any of these things, but might be a brand new
-    // baby Node object that never had its dep flags calculated.
-    root.extraneous = false
-    root.dev = false
-    root.optional = false
-    root.devOptional = false
-    root.peer = false
+    if (!this[rootOptionProvided]) {
+      // root is never any of these things, but might be a brand new
+      // baby Node object that never had its dep flags calculated.
+      root.extraneous = false
+      root.dev = false
+      root.optional = false
+      root.devOptional = false
+      root.peer = false
+    } else
+      this[flagsSuspect] = true
+
     this[checkRootEdges](s, root)
     root.meta = s
     this.virtualTree = root
@@ -88,20 +95,23 @@ module.exports = cls => class VirtualLoader extends cls {
     await this[resolveLinks](links, nodes)
     this[assignBundles](nodes)
     if (this[flagsSuspect])
-      this[reCalcDepFlags]()
+      this[reCalcDepFlags](nodes.values())
     return root
   }
 
-  [reCalcDepFlags] () {
+  [reCalcDepFlags] (nodes) {
     // reset all dep flags
-    for (const node of this.virtualTree.inventory.values()) {
+    // can't use inventory here, because virtualTree might not be root
+    for (const node of nodes) {
+      if (node.isRoot || node === this[rootOptionProvided])
+        continue
       node.extraneous = true
       node.dev = true
       node.optional = true
       node.devOptional = true
       node.peer = true
     }
-    calcDepFlags(this.virtualTree, true)
+    calcDepFlags(this.virtualTree, !this[rootOptionProvided])
   }
 
   // check the lockfile deps, and see if they match.  if they do not
@@ -237,6 +247,12 @@ module.exports = cls => class VirtualLoader extends cls {
     // shrinkwrap doesn't include package name unless necessary
     if (!sw.name)
       sw.name = nameFromFolder(path)
+
+    const dev = sw.dev
+    const optional = sw.optional
+    const devOptional = dev || optional || sw.devOptional
+    const peer = sw.peer
+
     const node = new Node({
       legacyPeerDeps: this.legacyPeerDeps,
       root: this.virtualTree,
@@ -246,6 +262,10 @@ module.exports = cls => class VirtualLoader extends cls {
       resolved: consistentResolve(sw.resolved, this.path, path),
       pkg: sw,
       hasShrinkwrap: sw.hasShrinkwrap,
+      dev,
+      optional,
+      devOptional,
+      peer,
     })
     // cast to boolean because they're undefined in the lock file when false
     node.extraneous = !!sw.extraneous

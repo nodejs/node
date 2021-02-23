@@ -1,6 +1,21 @@
 const { test } = require('tap')
 const requireInject = require('require-inject')
 
+test('should throw in global mode', (t) => {
+  const dedupe = requireInject('../../lib/dedupe.js', {
+    '../../lib/npm.js': {
+      flatOptions: {
+        global: true,
+      },
+    },
+  })
+
+  dedupe([], er => {
+    t.match(er, { code: 'EDEDUPEGLOBAL' }, 'throws EDEDUPEGLOBAL')
+    t.end()
+  })
+})
+
 test('should remove dupes using Arborist', (t) => {
   const dedupe = requireInject('../../lib/dedupe.js', {
     '../../lib/npm.js': {

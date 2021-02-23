@@ -68,6 +68,7 @@ const ci = async () => {
         scriptShell,
         stdio: 'inherit',
         stdioString: true,
+        banner: log.level !== 'silent',
         event,
       })
     }

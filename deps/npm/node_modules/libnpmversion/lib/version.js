@@ -10,11 +10,6 @@ const commit = require('./commit.js')
 const tag = require('./tag.js')
 
 const runScript = require('@npmcli/run-script')
-const runner = opts => event => runScript({
-  ...opts,
-  stdio: 'inherit',
-  event,
-})
 
 module.exports = async (newversion, opts) => {
   const {
@@ -64,17 +59,19 @@ module.exports = async (newversion, opts) => {
   // returns false if we should not keep doing git stuff
   const doGit = gitTagVersion && isGitDir && await enforceClean(opts)
 
-  const runScript = ignoreScripts ? () => {} : runner({
-    ...opts,
-    pkg,
-    env: {
-      npm_old_version: current,
-      npm_new_version: newV,
-    },
-  })
-
-
-  await runScript('preversion')
+  if (!ignoreScripts) {
+    await runScript({
+      ...opts,
+      pkg,
+      stdio: 'inherit',
+      event: 'preversion',
+      banner: log.level !== 'silent',
+      env: {
+        npm_old_version: current,
+        npm_new_version: newV,
+      },
+    })
+  }
 
   // - update the files
   pkg.version = newV
@@ -96,7 +93,19 @@ module.exports = async (newversion, opts) => {
     } catch (er) {}
   }
 
-  await runScript('version')
+  if (!ignoreScripts) {
+    await runScript({
+      ...opts,
+      pkg,
+      stdio: 'inherit',
+      event: 'version',
+      banner: log.level !== 'silent',
+      env: {
+        npm_old_version: current,
+        npm_new_version: newV,
+      },
+    })
+  }
 
   if (doGit) {
     // - git add, git commit, git tag
@@ -110,7 +119,19 @@ module.exports = async (newversion, opts) => {
   } else
     log.verbose('version', 'Not tagging: not in a git repo or no git cmd')
 
-  await runScript('postversion')
+  if (!ignoreScripts) {
+    await runScript({
+      ...opts,
+      pkg,
+      stdio: 'inherit',
+      event: 'postversion',
+      banner: log.level !== 'silent',
+      env: {
+        npm_old_version: current,
+        npm_new_version: newV,
+      },
+    })
+  }
 
   return newV
 }

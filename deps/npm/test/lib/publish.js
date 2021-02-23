@@ -1,40 +1,28 @@
 const t = require('tap')
 const requireInject = require('require-inject')
+const fs = require('fs')
+
+// The way we set loglevel is kind of convoluted, and there is no way to affect
+// it from these tests, which only interact with lib/publish.js, which assumes
+// that the code that is requiring and calling lib/publish.js has already
+// taken care of the loglevel
+const log = require('npmlog')
+log.level = 'silent'
 
 // mock config
 const {defaults} = require('../../lib/utils/config.js')
-const credentials = {
-  'https://unauthed.registry': {
-    email: 'me@example.com',
-  },
-  'https://scope.specific.registry': {
-    token: 'some.registry.token',
-    alwaysAuth: false,
-  },
-  'https://some.registry': {
-    token: 'some.registry.token',
-    alwaysAuth: false,
-  },
-  'https://registry.npmjs.org/': {
-    token: 'npmjs.registry.token',
-    alwaysAuth: false,
-  },
-}
+
 const config = {
   list: [defaults],
 }
 
-const registryCredentials = (t, registry) => {
-  return (uri) => {
-    t.same(uri, registry, 'gets credentials for expected registry')
-    return credentials[uri]
-  }
-}
+t.afterEach(cb => {
+  log.level = 'silent'
+  cb()
+})
 
-const fs = require('fs')
-
-t.test('should publish with libnpmpublish, respecting publishConfig', (t) => {
-  t.plan(6)
+t.test('should publish with libnpmpublish, passing through flatOptions and respecting publishConfig.registry', (t) => {
+  t.plan(7)
 
   const registry = 'https://some.registry'
   const publishConfig = { registry }
@@ -49,24 +37,15 @@ t.test('should publish with libnpmpublish, respecting publishConfig', (t) => {
   const publish = requireInject('../../lib/publish.js', {
     '../../lib/npm.js': {
       flatOptions: {
-        json: true,
-        defaultTag: 'latest',
-        registry,
+        customValue: true,
       },
       config: {
         ...config,
-        getCredentialsByURI: registryCredentials(t, registry),
+        getCredentialsByURI: (uri) => {
+          t.same(uri, registry, 'gets credentials for expected registry')
+          return { token: 'some.registry.token' }
+        },
       },
-    },
-    '../../lib/utils/tar.js': {
-      getContents: () => ({
-        id: 'someid',
-      }),
-      logTar: () => {},
-    },
-    '../../lib/utils/output.js': () => {},
-    '../../lib/utils/otplease.js': (opts, fn) => {
-      return Promise.resolve().then(() => fn(opts))
     },
     // verify that we do NOT remove publishConfig if it was there originally
     // and then removed during the script/pack process
@@ -82,7 +61,8 @@ t.test('should publish with libnpmpublish, respecting publishConfig', (t) => {
         t.match(manifest, { name: 'my-cool-pkg', version: '1.0.0' }, 'gets manifest')
         t.isa(tarData, Buffer, 'tarData is a buffer')
         t.ok(opts, 'gets opts object')
-        t.same(opts.registry, publishConfig.registry, 'publishConfig is passed through')
+        t.same(opts.customValue, true, 'flatOptions values are passed through')
+        t.same(opts.registry, registry, 'publishConfig.registry is passed through')
       },
     },
   })
@@ -94,7 +74,7 @@ t.test('should publish with libnpmpublish, respecting publishConfig', (t) => {
   })
 })
 
-t.test('re-loads publishConfig if added during script process', (t) => {
+t.test('re-loads publishConfig.registry if added during script process', (t) => {
   t.plan(6)
   const registry = 'https://some.registry'
   const publishConfig = { registry }
@@ -107,25 +87,13 @@ t.test('re-loads publishConfig if added during script process', (t) => {
 
   const publish = requireInject('../../lib/publish.js', {
     '../../lib/npm.js': {
-      flatOptions: {
-        json: true,
-        defaultTag: 'latest',
-        registry: 'https://registry.npmjs.org/',
-      },
       config: {
         ...config,
-        getCredentialsByURI: registryCredentials(t, registry),
+        getCredentialsByURI: (uri) => {
+          t.same(uri, registry, 'gets credentials for expected registry')
+          return { token: 'some.registry.token' }
+        },
       },
-    },
-    '../../lib/utils/tar.js': {
-      getContents: () => ({
-        id: 'someid',
-      }),
-      logTar: () => {},
-    },
-    '../../lib/utils/output.js': () => {},
-    '../../lib/utils/otplease.js': (opts, fn) => {
-      return Promise.resolve().then(() => fn(opts))
     },
     libnpmpack: async () => {
       fs.writeFileSync(`${testDir}/package.json`, JSON.stringify({
@@ -140,7 +108,7 @@ t.test('re-loads publishConfig if added during script process', (t) => {
         t.match(manifest, { name: 'my-cool-pkg', version: '1.0.0' }, 'gets manifest')
         t.isa(tarData, Buffer, 'tarData is a buffer')
         t.ok(opts, 'gets opts object')
-        t.same(opts.registry, registry, 'publishConfig is passed through')
+        t.same(opts.registry, registry, 'publishConfig.registry is passed through')
       },
     },
   })
@@ -152,10 +120,9 @@ t.test('re-loads publishConfig if added during script process', (t) => {
   })
 })
 
-t.test('should not log if silent (dry run)', (t) => {
-  t.plan(2)
+t.test('if loglevel=info and json, should not output package contents', (t) => {
+  t.plan(4)
 
-  const registry = 'https://registry.npmjs.org'
   const testDir = t.testdir({
     'package.json': JSON.stringify({
       name: 'my-cool-pkg',
@@ -163,13 +130,60 @@ t.test('should not log if silent (dry run)', (t) => {
     }, null, 2),
   })
 
+  log.level = 'info'
   const publish = requireInject('../../lib/publish.js', {
     '../../lib/npm.js': {
       flatOptions: {
-        json: false,
-        defaultTag: 'latest',
+        json: true,
+      },
+      config: {
+        ...config,
+        getCredentialsByURI: (uri) => {
+          t.same(uri, defaults.registry, 'gets credentials for expected registry')
+          return { token: 'some.registry.token' }
+        },
+      },
+    },
+    '../../lib/utils/output.js': () => {
+      t.pass('output is called')
+    },
+    '../../lib/utils/tar.js': {
+      getContents: () => ({
+        id: 'someid',
+      }),
+      logTar: () => {
+        t.pass('logTar is called')
+      },
+    },
+    libnpmpublish: {
+      publish: () => {
+        t.pass('publish called')
+      },
+    },
+  })
+
+  return publish([testDir], (er) => {
+    if (er)
+      throw er
+    t.pass('got to callback')
+  })
+})
+
+t.test('if loglevel=silent and dry-run, should not output package contents or publish or validate credentials, should log tarball contents', (t) => {
+  t.plan(2)
+
+  const testDir = t.testdir({
+    'package.json': JSON.stringify({
+      name: 'my-cool-pkg',
+      version: '1.0.0',
+    }, null, 2),
+  })
+
+  log.level = 'silent'
+  const publish = requireInject('../../lib/publish.js', {
+    '../../lib/npm.js': {
+      flatOptions: {
         dryRun: true,
-        registry,
       },
       config: {
         ...config,
@@ -178,26 +192,19 @@ t.test('should not log if silent (dry run)', (t) => {
         },
       },
     },
+    '../../lib/utils/output.js': () => {
+      throw new Error('should not output in dry run mode')
+    },
     '../../lib/utils/tar.js': {
-      getContents: () => ({}),
+      getContents: () => ({
+        id: 'someid',
+      }),
       logTar: () => {
-        t.pass('called logTar (but nothing actually printed)')
+        t.pass('logTar is called')
       },
     },
-    '../../lib/utils/otplease.js': (opts, fn) => {
-      return Promise.resolve().then(() => fn(opts))
-    },
-    '../../lib/utils/output.js': () => {
-      throw new Error('should not output in silent mode')
-    },
-    npmlog: {
-      verbose: () => {},
-      notice: () => {},
-      level: 'silent',
-    },
-    libnpmpack: async () => '',
     libnpmpublish: {
-      publish: (manifest, tarData, opts) => {
+      publish: () => {
         throw new Error('should not call libnpmpublish in dry run')
       },
     },
@@ -210,10 +217,9 @@ t.test('should not log if silent (dry run)', (t) => {
   })
 })
 
-t.test('should log tarball contents (dry run)', (t) => {
+t.test('if loglevel=info and dry-run, should not publish, should log package contents and log tarball contents', (t) => {
   t.plan(3)
 
-  const registry = 'https://registry.npmjs.org'
   const testDir = t.testdir({
     'package.json': JSON.stringify({
       name: 'my-cool-pkg',
@@ -221,13 +227,11 @@ t.test('should log tarball contents (dry run)', (t) => {
     }, null, 2),
   })
 
+  log.level = 'info'
   const publish = requireInject('../../lib/publish.js', {
     '../../lib/npm.js': {
       flatOptions: {
-        json: false,
-        defaultTag: 'latest',
         dryRun: true,
-        registry,
       },
       config: {
         ...config,
@@ -246,10 +250,6 @@ t.test('should log tarball contents (dry run)', (t) => {
     '../../lib/utils/output.js': () => {
       t.pass('output fn is called')
     },
-    '../../lib/utils/otplease.js': (opts, fn) => {
-      return Promise.resolve().then(() => fn(opts))
-    },
-    libnpmpack: async () => '',
     libnpmpublish: {
       publish: () => {
         throw new Error('should not call libnpmpublish in dry run')
@@ -266,16 +266,7 @@ t.test('should log tarball contents (dry run)', (t) => {
 
 t.test('shows usage with wrong set of arguments', (t) => {
   t.plan(1)
-  const publish = requireInject('../../lib/publish.js', {
-    '../../lib/npm.js': {
-      flatOptions: {
-        json: false,
-        defaultTag: '0.0.13',
-        registry: 'https://registry.npmjs.org/',
-      },
-      config,
-    },
-  })
+  const publish = requireInject('../../lib/publish.js')
 
   return publish(['a', 'b', 'c'], (er) => t.matchSnapshot(er, 'should print usage'))
 })
@@ -283,14 +274,10 @@ t.test('shows usage with wrong set of arguments', (t) => {
 t.test('throws when invalid tag', (t) => {
   t.plan(1)
 
-  const registry = 'https://registry.npmjs.org'
-
   const publish = requireInject('../../lib/publish.js', {
     '../../lib/npm.js': {
       flatOptions: {
-        json: false,
         defaultTag: '0.0.13',
-        registry,
       },
       config,
     },
@@ -306,8 +293,8 @@ t.test('throws when invalid tag', (t) => {
 t.test('can publish a tarball', t => {
   t.plan(4)
 
-  const registry = 'https://registry.npmjs.org/'
   const testDir = t.testdir({
+    tarball: {},
     package: {
       'package.json': JSON.stringify({
         name: 'my-cool-tarball',
@@ -318,36 +305,20 @@ t.test('can publish a tarball', t => {
   const tar = require('tar')
   tar.c({
     cwd: testDir,
-    file: `${testDir}/package.tgz`,
+    file: `${testDir}/tarball/package.tgz`,
     sync: true,
   }, ['package'])
 
-  // no cheating!  read it from the tarball.
-  fs.unlinkSync(`${testDir}/package/package.json`)
-  fs.rmdirSync(`${testDir}/package`)
-
-  const tarFile = fs.readFileSync(`${testDir}/package.tgz`)
+  const tarFile = fs.readFileSync(`${testDir}/tarball/package.tgz`)
   const publish = requireInject('../../lib/publish.js', {
     '../../lib/npm.js': {
-      flatOptions: {
-        json: true,
-        defaultTag: 'latest',
-        registry,
-      },
       config: {
         ...config,
-        getCredentialsByURI: registryCredentials(t, registry),
+        getCredentialsByURI: (uri) => {
+          t.same(uri, defaults.registry, 'gets credentials for expected registry')
+          return { token: 'some.registry.token' }
+        },
       },
-    },
-    '../../lib/utils/tar.js': {
-      getContents: () => ({
-        id: 'someid',
-      }),
-      logTar: () => {},
-    },
-    '../../lib/utils/output.js': () => {},
-    '../../lib/utils/otplease.js': (opts, fn) => {
-      return Promise.resolve().then(() => fn(opts))
     },
     libnpmpublish: {
       publish: (manifest, tarData, opts) => {
@@ -360,32 +331,23 @@ t.test('can publish a tarball', t => {
     },
   })
 
-  return publish([`${testDir}/package.tgz`], (er) => {
+  return publish([`${testDir}/tarball/package.tgz`], (er) => {
     if (er)
       throw er
     t.pass('got to callback')
   })
 })
 
-t.test('throw if not logged in', async t => {
+t.test('should check auth for default registry', async t => {
   t.plan(2)
-  const registry = 'https://unauthed.registry'
-
   const publish = requireInject('../../lib/publish.js', {
-    '../../lib/utils/tar.js': {
-      getContents: () => ({
-        id: 'someid',
-      }),
-      logTar: () => {},
-    },
     '../../lib/npm.js': {
-      flatOptions: {
-        json: false,
-        registry,
-      },
       config: {
         ...config,
-        getCredentialsByURI: registryCredentials(t, registry),
+        getCredentialsByURI: (uri) => {
+          t.same(uri, defaults.registry, 'gets credentials for expected registry')
+          return {}
+        },
       },
     },
   })
@@ -395,6 +357,102 @@ t.test('throw if not logged in', async t => {
       message: 'This command requires you to be logged in.',
       code: 'ENEEDAUTH',
     }, 'throws when not logged in')
+  })
+})
+
+t.test('should check auth for configured registry', async t => {
+  t.plan(2)
+  const registry = 'https://some.registry'
+  const publish = requireInject('../../lib/publish.js', {
+    '../../lib/npm.js': {
+      flatOptions: {
+        registry,
+      },
+      config: {
+        ...config,
+        getCredentialsByURI: (uri) => {
+          t.same(uri, registry, 'gets credentials for expected registry')
+          return {}
+        },
+      },
+    },
+  })
+
+  return publish([], (err) => {
+    t.match(err, {
+      message: 'This command requires you to be logged in.',
+      code: 'ENEEDAUTH',
+    }, 'throws when not logged in')
+  })
+})
+
+t.test('should check auth for scope specific registry', async t => {
+  t.plan(2)
+  const registry = 'https://some.registry'
+  const testDir = t.testdir({
+    'package.json': JSON.stringify({
+      name: '@npm/my-cool-pkg',
+      version: '1.0.0',
+    }, null, 2),
+  })
+
+  const publish = requireInject('../../lib/publish.js', {
+    '../../lib/npm.js': {
+      flatOptions: {
+        '@npm:registry': registry,
+      },
+      config: {
+        ...config,
+        getCredentialsByURI: (uri) => {
+          t.same(uri, registry, 'gets credentials for expected registry')
+          return {}
+        },
+      },
+    },
+  })
+
+  return publish([testDir], (err) => {
+    t.match(err, {
+      message: 'This command requires you to be logged in.',
+      code: 'ENEEDAUTH',
+    }, 'throws when not logged in')
+  })
+})
+
+t.test('should use auth for scope specific registry', t => {
+  t.plan(4)
+  const registry = 'https://some.registry'
+  const testDir = t.testdir({
+    'package.json': JSON.stringify({
+      name: '@npm/my-cool-pkg',
+      version: '1.0.0',
+    }, null, 2),
+  })
+
+  const publish = requireInject('../../lib/publish.js', {
+    '../../lib/npm.js': {
+      flatOptions: {
+        '@npm:registry': registry,
+      },
+      config: {
+        ...config,
+        getCredentialsByURI: (uri) => {
+          t.same(uri, registry, 'gets credentials for expected registry')
+          return { token: 'some.registry.token' }
+        },
+      },
+    },
+    libnpmpublish: {
+      publish: (manifest, tarData, opts) => {
+        t.ok(opts, 'gets opts object')
+        t.same(opts['@npm:registry'], registry, 'scope specific registry is passed through')
+      },
+    },
+  })
+  return publish([testDir], (er) => {
+    if (er)
+      throw er
+    t.pass('got to callback')
   })
 })
 
@@ -413,21 +471,14 @@ t.test('read registry only from publishConfig', t => {
 
   const publish = requireInject('../../lib/publish.js', {
     '../../lib/npm.js': {
-      flatOptions: {
-        json: false,
-      },
       config: {
         ...config,
-        getCredentialsByURI: registryCredentials(t, registry),
+        getCredentialsByURI: (uri) => {
+          t.same(uri, registry, 'gets credentials for expected registry')
+          return { token: 'some.registry.token' }
+        },
       },
     },
-    '../../lib/utils/tar.js': {
-      getContents: () => ({
-        id: 'someid',
-      }),
-      logTar: () => {},
-    },
-    '../../lib/utils/output.js': () => {},
     libnpmpublish: {
       publish: (manifest, tarData, opts) => {
         t.match(manifest, { name: 'my-cool-pkg', version: '1.0.0' }, 'gets manifest')
@@ -436,47 +487,6 @@ t.test('read registry only from publishConfig', t => {
     },
   })
 
-  return publish([testDir], (er) => {
-    if (er)
-      throw er
-    t.pass('got to callback')
-  })
-})
-
-t.test('should check auth for scope specific registry', t => {
-  const testDir = t.testdir({
-    'package.json': JSON.stringify({
-      name: '@npm/my-cool-pkg',
-      version: '1.0.0',
-    }, null, 2),
-  })
-
-  const registry = 'https://scope.specific.registry'
-  const publish = requireInject('../../lib/publish.js', {
-    '../../lib/npm.js': {
-      flatOptions: {
-        json: false,
-        '@npm:registry': registry,
-      },
-      config: {
-        ...config,
-        getCredentialsByURI: registryCredentials(t, registry),
-      },
-    },
-    '../../lib/utils/tar.js': {
-      getContents: () => ({
-        id: 'someid',
-      }),
-      logTar: () => {},
-    },
-    '../../lib/utils/output.js': () => {},
-    '../../lib/utils/otplease.js': (opts, fn) => {
-      return Promise.resolve().then(() => fn(opts))
-    },
-    libnpmpublish: {
-      publish: () => '',
-    },
-  })
   return publish([testDir], (er) => {
     if (er)
       throw er

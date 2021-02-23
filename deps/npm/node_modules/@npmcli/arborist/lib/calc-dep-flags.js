@@ -11,7 +11,7 @@ const calcDepFlags = (tree, resetRoot = true) => {
     tree,
     visit: node => calcDepFlagsStep(node),
     filter: node => node,
-    getChildren: node => [...node.edgesOut.values()].map(edge => edge.to),
+    getChildren: (node, tree) => [...tree.edgesOut.values()].map(edge => edge.to),
   })
   return ret
 }

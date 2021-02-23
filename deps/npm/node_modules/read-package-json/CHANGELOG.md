@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="3.0.1"></a>
+## [3.0.1](https://github.com/npm/read-package-json/compare/v3.0.0...v3.0.1) (2021-02-22)
+
+
+### Bug Fixes
+
+* Strip underscore prefixed fields from file contents ([ac771d8](https://github.com/npm/read-package-json/commit/ac771d8))
+
+
+
 <a name="3.0.0"></a>
 # [3.0.0](https://github.com/npm/read-package-json/compare/v2.1.2...v3.0.0) (2020-10-13)
 

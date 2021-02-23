@@ -1,4 +1,5 @@
-const testCmd = require('./utils/lifecycle-cmd.js')('test')
+const npm = require('./npm.js')
+const testCmd = require('./utils/lifecycle-cmd.js')(npm, 'test')
 const { completion, usage } = testCmd
 const cmd = (args, cb) => testCmd(args, er => {
   if (er && er.code === 'ELIFECYCLE') {

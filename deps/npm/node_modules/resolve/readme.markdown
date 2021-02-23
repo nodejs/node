@@ -71,6 +71,11 @@ options are:
 
 * opts.realpath - function to asynchronously resolve a potential symlink to its real path
 
+* `opts.readPackage(readFile, pkgfile, cb)` - function to asynchronously read and parse a package.json file
+  * readFile - the passed `opts.readFile` or `fs.readFile` if not specified
+  * pkgfile - path to package.json
+  * cb - callback
+
 * `opts.packageFilter(pkg, pkgfile, dir)` - transform the parsed package.json contents before looking at the "main" field
   * pkg - package data
   * pkgfile - path to package.json
@@ -137,6 +142,19 @@ default `opts` values:
             else cb(null, realPathErr ? file : realPath);
         });
     },
+    readPackage: function defaultReadPackage(readFile, pkgfile, cb) {
+        readFile(pkgfile, function (readFileErr, body) {
+            if (readFileErr) cb(readFileErr);
+            else {
+                try {
+                    var pkg = JSON.parse(body);
+                    cb(null, pkg);
+                } catch (jsonErr) {
+                    cb(null);
+                }
+            }
+        });
+    },
     moduleDirectory: 'node_modules',
     preserveSymlinks: true
 }
@@ -155,13 +173,17 @@ options are:
 
 * opts.includeCoreModules - set to `false` to exclude node core modules (e.g. `fs`) from the search
 
-* opts.readFile - how to read files synchronously
+* opts.readFileSync - how to read files synchronously
 
 * opts.isFile - function to synchronously test whether a file exists
 
 * opts.isDirectory - function to synchronously test whether a directory exists
 
 * opts.realpathSync - function to synchronously resolve a potential symlink to its real path
+
+* `opts.readPackageSync(readFileSync, pkgfile)` - function to synchronously read and parse a package.json file
+  * readFileSync - the passed `opts.readFileSync` or `fs.readFileSync` if not specified
+  * pkgfile - path to package.json
 
 * `opts.packageFilter(pkg, dir)` - transform the parsed package.json contents before looking at the "main" field
   * pkg - package data
@@ -231,6 +253,13 @@ default `opts` values:
             }
         }
         return file;
+    },
+    readPackageSync: function defaultReadPackageSync(readFileSync, pkgfile) {
+        var body = readFileSync(pkgfile);
+        try {
+            var pkg = JSON.parse(body);
+            return pkg;
+        } catch (jsonErr) {}
     },
     moduleDirectory: 'node_modules',
     preserveSymlinks: true

@@ -731,7 +731,6 @@ class Node {
     // Note the subtle breaking change from v6: it is no longer possible
     // to have a different spec for a devDep than production dep.
     this[_loadDepType](this.package.optionalDependencies, 'optional')
-    this[_loadDepType](this.package.dependencies, 'prod')
 
     // Linked targets that are disconnected from the tree are tops,
     // but don't have a 'path' field, only a 'realpath', because we
@@ -755,6 +754,8 @@ class Node {
       this[_loadDepType](peerDependencies, 'peer')
       this[_loadDepType](peerOptional, 'peerOptional')
     }
+
+    this[_loadDepType](this.package.dependencies, 'prod')
   }
 
   [_loadDepType] (obj, type) {
@@ -763,8 +764,10 @@ class Node {
     for (const [name, spec] of Object.entries(obj || {})) {
       const accept = ad[name]
       // if it's already set, then we keep the existing edge
+      // Prod deps should not be marked as dev, however.
       // NB: the Edge ctor adds itself to from.edgesOut
-      if (!this.edgesOut.get(name))
+      const current = this.edgesOut.get(name)
+      if (!current || current.dev && type === 'prod')
         new Edge({ from, name, spec, accept, type })
     }
   }

@@ -105,8 +105,7 @@ const exit = (code, noLog) => {
 
   if (code && !noLog)
     writeLogFile()
-  else
-    reallyExit()
+  reallyExit()
 }
 
 const errorHandler = (er) => {
@@ -130,7 +129,16 @@ const errorHandler = (er) => {
   cbCalled = true
   if (!er)
     return exit(0)
-  if (typeof er === 'string') {
+
+  // if we got a command that just shells out to something else, then it
+  // will presumably print its own errors and exit with a proper status
+  // code if there's a problem.  If we got an error with a code=0, then...
+  // something else went wrong along the way, so maybe an npm problem?
+  const isShellout = npm.shelloutCommands.includes(npm.command)
+  const quietShellout = isShellout && typeof er.code === 'number' && er.code
+  if (quietShellout)
+    return exit(er.code, true)
+  else if (typeof er === 'string') {
     log.error('', er)
     return exit(1, true)
   } else if (!(er instanceof Error)) {

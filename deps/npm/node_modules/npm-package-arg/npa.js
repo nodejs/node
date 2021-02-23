@@ -17,6 +17,7 @@ let os
 const isWindows = process.platform === 'win32' || global.FAKE_WINDOWS
 const hasSlashes = isWindows ? /\\|[/]/ : /[/]/
 const isURL = /^(?:git[+])?[a-z]+:/i
+const isGit = /^[^@]+@[^:.]+\.[^:]+:.+$/i
 const isFilename = /[.](?:tgz|tar.gz|tar)$/i
 
 function npa (arg, where) {
@@ -35,6 +36,8 @@ function npa (arg, where) {
   const namePart = nameEndsAt > 0 ? arg.slice(0, nameEndsAt) : arg
   if (isURL.test(arg)) {
     spec = arg
+  } else if (isGit.test(arg)) {
+    spec = `git+ssh://${arg}`
   } else if (namePart[0] !== '@' && (hasSlashes.test(namePart) || isFilename.test(namePart))) {
     spec = arg
   } else if (nameEndsAt > 0) {

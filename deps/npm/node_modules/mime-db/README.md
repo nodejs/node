@@ -61,11 +61,11 @@ If unknown, every property could be `undefined`.
 
 ## Contributing
 
-To edit the database, only make PRs against `src/custom.json` or
+To edit the database, only make PRs against `src/custom-types.json` or
 `src/custom-suffix.json`.
 
-The `src/custom.json` file is a JSON object with the MIME type as the keys
-and the values being an object with the following keys:
+The `src/custom-types.json` file is a JSON object with the MIME type as the
+keys and the values being an object with the following keys:
 
 - `compressible` - leave out if you don't know, otherwise `true`/`false` to
   indicate whether the data represented by the type is typically compressible.

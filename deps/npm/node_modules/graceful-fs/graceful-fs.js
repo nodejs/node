@@ -173,10 +173,14 @@ function patch (fs) {
   var fs$copyFile = fs.copyFile
   if (fs$copyFile)
     fs.copyFile = copyFile
-  function copyFile (src, dest, cb) {
-    return fs$copyFile(src, dest, function (err) {
+  function copyFile (src, dest, flags, cb) {
+    if (typeof flags === 'function') {
+      cb = flags
+      flags = 0
+    }
+    return fs$copyFile(src, dest, flags, function (err) {
       if (err && (err.code === 'EMFILE' || err.code === 'ENFILE'))
-        enqueue([fs$copyFile, [src, dest, cb]])
+        enqueue([fs$copyFile, [src, dest, flags, cb]])
       else {
         if (typeof cb === 'function')
           cb.apply(this, arguments)

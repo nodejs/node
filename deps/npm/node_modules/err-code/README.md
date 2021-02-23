@@ -1,6 +1,6 @@
 # err-code
 
-[![NPM version][npm-image]][npm-url] [![Downloads][downloads-image]][npm-url] [![Build Status][travis-image]][travis-url] [![Dependency status][david-dm-image]][david-dm-url] [![Dev Dependency status][david-dm-dev-image]][david-dm-dev-url]
+[![NPM version][npm-image]][npm-url] [![Downloads][downloads-image]][npm-url] [![Build Status][travis-image]][travis-url] [![Dependency status][david-dm-image]][david-dm-url] [![Dev Dependency status][david-dm-dev-image]][david-dm-dev-url] [![Greenkeeper badge][greenkeeper-image]][greenkeeper-url]
 
 [npm-url]:https://npmjs.org/package/err-code
 [downloads-image]:http://img.shields.io/npm/dm/err-code.svg
@@ -9,16 +9,21 @@
 [travis-image]:http://img.shields.io/travis/IndigoUnited/js-err-code/master.svg
 [david-dm-url]:https://david-dm.org/IndigoUnited/js-err-code
 [david-dm-image]:https://img.shields.io/david/IndigoUnited/js-err-code.svg
-[david-dm-dev-url]:https://david-dm.org/IndigoUnited/js-err-code#info=devDependencies
+[david-dm-dev-url]:https://david-dm.org/IndigoUnited/js-err-code?type=dev
 [david-dm-dev-image]:https://img.shields.io/david/dev/IndigoUnited/js-err-code.svg
+[greenkeeper-image]:https://badges.greenkeeper.io/IndigoUnited/js-err-code.svg
+[greenkeeper-url]:https://greenkeeper.io/
 
 Create new error instances with a code and additional properties.
 
 
 ## Installation
 
-`$ npm install err-code` - `NPM`   
-`$ bower install err-code` - `bower`
+```console
+$ npm install err-code
+// or
+$ bower install err-code
+```
 
 The browser file is named index.umd.js which supports CommonJS, AMD and globals (errCode).
 
@@ -48,18 +53,11 @@ throw errcode(new Error('My message'), 'ESOMECODE');
 throw errcode(new Error('My message'), 'ESOMECODE', { detail: 'Additional information about the error' });
 // fill error with message + props
 throw errcode(new Error('My message'), { detail: 'Additional information about the error' });
-
-
-// You may also pass a string in the first argument and an error will be automatically created
-// for you, though the stack trace will contain err-code in it.
-
-// create error with message + code
-throw errcode('My message', 'ESOMECODE');
-// create error with message + code + props
-throw errcode('My message', 'ESOMECODE', { detail: 'Additional information about the error' });
-// create error with message + props
-throw errcode('My message', { detail: 'Additional information about the error' });
 ```
+
+## Pre-existing fields
+
+If the passed `Error` already has a `.code` field, or fields specified in the third argument to `errcode` they will be overwritten, unless the fields are read only or otherwise throw during assignment in which case a new object will be created that shares a prototype chain with the original `Error`. The `.stack` and `.message` properties will be carried over from the original error and `.code` or any passed properties will be set on it.
 
 
 ## Tests

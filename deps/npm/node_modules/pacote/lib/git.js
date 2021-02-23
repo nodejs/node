@@ -18,6 +18,7 @@ const _resolvedFromHosted = Symbol('_resolvedFromHosted')
 const _resolvedFromClone = Symbol('_resolvedFromClone')
 const _tarballFromResolved = Symbol.for('pacote.Fetcher._tarballFromResolved')
 const _addGitSha = Symbol('_addGitSha')
+const addGitSha = require('./util/add-git-sha.js')
 const _clone = Symbol('_clone')
 const _cloneHosted = Symbol('_cloneHosted')
 const _cloneRepo = Symbol('_cloneRepo')
@@ -131,16 +132,7 @@ class GitFetcher extends Fetcher {
   // when we get the git sha, we affix it to our spec to build up
   // either a git url with a hash, or a tarball download URL
   [_addGitSha] (sha) {
-    if (this.spec.hosted) {
-      const h = this.spec.hosted
-      const opt = { noCommittish: true }
-      const base = h.https && h.auth ? h.https(opt) : h.shortcut(opt)
-
-      this[_setResolvedWithSha](`${base}#${sha}`)
-    } else {
-      const u = url.format(new url.URL(`#${sha}`, this.spec.rawSpec))
-      this[_setResolvedWithSha](url.format(u))
-    }
+    this[_setResolvedWithSha](addGitSha(this.spec, sha))
   }
 
   [_resolvedFromClone] () {

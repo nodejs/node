@@ -79,6 +79,7 @@ t.test('not yet loaded', t => {
       set: Function,
     },
     version: String,
+    shelloutCommands: Array,
   })
   t.throws(() => npm.config.set('foo', 'bar'))
   t.throws(() => npm.config.get('foo'))
