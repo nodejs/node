@@ -8,7 +8,7 @@
 ## [Code of Conduct](./doc/guides/contributing/code-of-conduct.md)
 
 The Node.js project has a
-[Code of Conduct](https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md)
+[Code of Conduct](https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md)
 to which all contributors must adhere.
 
 See [details on our policy on Code of Conduct](./doc/guides/contributing/code-of-conduct.md).
