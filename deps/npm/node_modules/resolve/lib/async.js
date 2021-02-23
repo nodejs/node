@@ -42,6 +42,20 @@ var maybeRealpath = function maybeRealpath(realpath, x, opts, cb) {
     }
 };
 
+var defaultReadPackage = function defaultReadPackage(readFile, pkgfile, cb) {
+    readFile(pkgfile, function (readFileErr, body) {
+        if (readFileErr) cb(readFileErr);
+        else {
+            try {
+                var pkg = JSON.parse(body);
+                cb(null, pkg);
+            } catch (jsonErr) {
+                cb(null);
+            }
+        }
+    });
+};
+
 var getPackageCandidates = function getPackageCandidates(x, start, opts) {
     var dirs = nodeModulesPaths(start, opts, x);
     for (var i = 0; i < dirs.length; i++) {
@@ -70,6 +84,13 @@ module.exports = function resolve(x, options, callback) {
     var isDirectory = opts.isDirectory || defaultIsDir;
     var readFile = opts.readFile || fs.readFile;
     var realpath = opts.realpath || defaultRealpath;
+    var readPackage = opts.readPackage || defaultReadPackage;
+    if (opts.readFile && opts.readPackage) {
+        var conflictErr = new TypeError('`readFile` and `readPackage` are mutually exclusive.');
+        return process.nextTick(function () {
+            cb(conflictErr);
+        });
+    }
     var packageIterator = opts.packageIterator;
 
     var extensions = opts.extensions || ['.js'];
@@ -197,9 +218,10 @@ module.exports = function resolve(x, options, callback) {
                 // on err, ex is false
                 if (!ex) return loadpkg(path.dirname(dir), cb);
 
-                readFile(pkgfile, function (err, body) {
+                readPackage(readFile, pkgfile, function (err, pkgParam) {
                     if (err) cb(err);
-                    try { var pkg = JSON.parse(body); } catch (jsonErr) {}
+
+                    var pkg = pkgParam;
 
                     if (pkg && opts.packageFilter) {
                         pkg = opts.packageFilter(pkg, pkgfile);
@@ -225,11 +247,10 @@ module.exports = function resolve(x, options, callback) {
                 if (err) return cb(err);
                 if (!ex) return loadAsFile(path.join(x, 'index'), fpkg, cb);
 
-                readFile(pkgfile, function (err, body) {
+                readPackage(readFile, pkgfile, function (err, pkgParam) {
                     if (err) return cb(err);
-                    try {
-                        var pkg = JSON.parse(body);
-                    } catch (jsonErr) {}
+
+                    var pkg = pkgParam;
 
                     if (pkg && opts.packageFilter) {
                         pkg = opts.packageFilter(pkg, pkgfile);

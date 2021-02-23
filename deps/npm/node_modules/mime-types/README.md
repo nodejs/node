@@ -3,7 +3,7 @@
 [![NPM Version][npm-version-image]][npm-url]
 [![NPM Downloads][npm-downloads-image]][npm-url]
 [![Node.js Version][node-version-image]][node-version-url]
-[![Build Status][travis-image]][travis-url]
+[![Build Status][ci-image]][ci-url]
 [![Test Coverage][coveralls-image]][coveralls-url]
 
 The ultimate javascript content-type utility.
@@ -112,6 +112,8 @@ A map of extensions by content-type.
 
 [MIT](LICENSE)
 
+[ci-image]: https://badgen.net/github/checks/jshttp/mime-types/master?label=ci
+[ci-url]: https://github.com/jshttp/mime-types/actions?query=workflow%3Aci
 [coveralls-image]: https://badgen.net/coveralls/c/github/jshttp/mime-types/master
 [coveralls-url]: https://coveralls.io/r/jshttp/mime-types?branch=master
 [node-version-image]: https://badgen.net/npm/node/mime-types
@@ -119,5 +121,3 @@ A map of extensions by content-type.
 [npm-downloads-image]: https://badgen.net/npm/dm/mime-types
 [npm-url]: https://npmjs.org/package/mime-types
 [npm-version-image]: https://badgen.net/npm/v/mime-types
-[travis-image]: https://badgen.net/travis/jshttp/mime-types/master
-[travis-url]: https://travis-ci.org/jshttp/mime-types

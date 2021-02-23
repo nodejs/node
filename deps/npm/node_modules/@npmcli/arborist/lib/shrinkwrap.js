@@ -59,6 +59,10 @@ const swKeyOrder = [
   'dependencies',
 ]
 
+// used to rewrite from yarn registry to npm registry
+const yarnRegRe = /^https?:\/\/registry.yarnpkg.com\//
+const npmRegRe = /^https?:\/\/registry.npmjs.org\//
+
 // sometimes resolved: is weird or broken, or something npa can't handle
 const specFromResolved = resolved => {
   try {
@@ -291,8 +295,6 @@ class Shrinkwrap {
     if (fromYarn && fromYarn.version) {
       // if it's the yarn or npm default registry, use the version as
       // our effective spec.  if it's any other kind of thing, use that.
-      const yarnRegRe = /^https?:\/\/registry.yarnpkg.com\//
-      const npmRegRe = /^https?:\/\/registry.npmjs.org\//
       const {resolved, version, integrity} = fromYarn
       const isYarnReg = spec.registry && yarnRegRe.test(resolved)
       const isnpmReg = spec.registry && !isYarnReg && npmRegRe.test(resolved)
@@ -733,6 +735,7 @@ class Shrinkwrap {
       : !/file:/.test(node.resolved) ? node.resolved
       : consistentResolve(node.resolved, node.path, this.path, true)
 
+    const spec = npa(`${node.name}@${edge.spec}`)
     const entry = this.yarnLock.entries.get(`${node.name}@${edge.spec}`)
 
     if (!entry ||
@@ -740,6 +743,9 @@ class Shrinkwrap {
         mismatch(node.integrity, entry.integrity) ||
         mismatch(pathFixed, entry.resolved))
       return
+
+    if (entry.resolved && yarnRegRe.test(entry.resolved) && spec.registry)
+      entry.resolved = entry.resolved.replace(yarnRegRe, 'https://registry.npmjs.org/')
 
     node.integrity = node.integrity || entry.integrity || null
     node.resolved = node.resolved ||

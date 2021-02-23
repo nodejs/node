@@ -37,13 +37,19 @@ const version = async args => {
     case 0:
       return list()
     case 1:
-      return output(await libversion(args[0], {
-        ...npm.flatOptions,
-        path: npm.prefix,
-      }))
+      return version_(args)
     default:
       throw usage
   }
+}
+
+const version_ = async (args) => {
+  const prefix = npm.flatOptions.tagVersionPrefix
+  const version = await libversion(args[0], {
+    ...npm.flatOptions,
+    path: npm.prefix,
+  })
+  return output(`${prefix}${version}`)
 }
 
 const list = async () => {

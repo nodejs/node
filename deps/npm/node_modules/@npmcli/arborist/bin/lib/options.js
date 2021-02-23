@@ -31,7 +31,9 @@ for (const arg of process.argv.slice(2)) {
   } else if (/^--omit=/.test(arg)) {
     options.omit = options.omit || []
     options.omit.push(arg.substr('--omit='.length))
-  } else if (/^--[^=]+=/.test(arg)) {
+  } else if (/^--before=/.test(arg))
+    options.before = new Date(arg.substr('--before='.length))
+  else if (/^--[^=]+=/.test(arg)) {
     const [key, ...v] = arg.replace(/^--/, '').split('=')
     const val = v.join('=')
     options[key] = val === 'false' ? false : val === 'true' ? true : val
