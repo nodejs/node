@@ -26,7 +26,6 @@ async function doIt() {
 const obs = new PerformanceObserver(common.mustCall((list) => {
   const entry = list.getEntries()[0];
   assert.strictEqual(entry.name, 'doIt');
-  assert(entry.duration > 100);
   assert(check);
   obs.disconnect();
 }));
