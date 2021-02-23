@@ -20,7 +20,7 @@ These are man pages.  If you install npm, you should be able to
 then do `man npm-thing` to get the documentation on a particular
 topic, or `npm help thing` to see the same information.
 
-### What is a package
+### What is a Package
 
 A package is:
 

@@ -1,5 +1,5 @@
-const run = require('@npmcli/run-script')
-const { isServerPackage } = run
+const runScript = require('@npmcli/run-script')
+const { isServerPackage } = runScript
 const npm = require('./npm.js')
 const readJson = require('read-package-json-fast')
 const { resolve } = require('path')
@@ -27,11 +27,11 @@ const completion = async (opts, cb) => {
 }
 
 const cmd = (args, cb) => {
-  const fn = args.length ? runScript : list
+  const fn = args.length ? doRun : list
   return fn(args).then(() => cb()).catch(cb)
 }
 
-const runScript = async (args) => {
+const doRun = async (args) => {
   const path = npm.localPrefix
   const event = args.shift()
   const { scriptShell } = npm.flatOptions
@@ -41,7 +41,7 @@ const runScript = async (args) => {
 
   if (event === 'restart' && !scripts.restart)
     scripts.restart = 'npm stop --if-present && npm start'
-  else if (event === 'env')
+  else if (event === 'env' && !scripts.env)
     scripts.env = isWindowsShell ? 'SET' : 'env'
 
   pkg.scripts = scripts
@@ -76,7 +76,7 @@ const runScript = async (args) => {
   }
 
   for (const [event, args] of events) {
-    await run({
+    await runScript({
       ...opts,
       event,
       args,

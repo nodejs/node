@@ -57,6 +57,7 @@ const install = async args => {
         scriptShell,
         stdio: 'inherit',
         stdioString: true,
+        banner: log.level !== 'silent',
         event,
       })
     }

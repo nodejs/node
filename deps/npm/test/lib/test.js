@@ -3,7 +3,7 @@ const requireInject = require('require-inject')
 let RUN_ARGS = null
 const npmock = {
   commands: {
-    run: (args, cb) => {
+    'run-script': (args, cb) => {
       RUN_ARGS = args
       cb()
     },
@@ -26,12 +26,12 @@ t.test('run a test', t => {
   })
   const otherErr = new Error('should see this')
 
-  npmock.commands.run = (args, cb) => cb(lcErr)
+  npmock.commands['run-script'] = (args, cb) => cb(lcErr)
   test([], (er) => {
     t.equal(er, 'Test failed.  See above for more details.')
   })
 
-  npmock.commands.run = (args, cb) => cb(otherErr)
+  npmock.commands['run-script'] = (args, cb) => cb(otherErr)
   test([], (er) => {
     t.match(er, { message: 'should see this' })
   })

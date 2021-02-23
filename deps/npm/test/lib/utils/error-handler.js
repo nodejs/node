@@ -43,6 +43,7 @@ const config = {
 const npm = {
   version: '1.0.0',
   config,
+  shelloutCommands: ['exec', 'run-script'],
 }
 
 const npmlog = {
@@ -524,4 +525,65 @@ t.test('use exitCode when emitting exit event', (t) => {
   })
 
   process.emit('exit')
+})
+
+t.test('do no fancy handling for shellouts', t => {
+  const { exit } = process
+  const { command } = npm
+  const { log } = npmlog
+  const LOG_RECORD = []
+  t.teardown(() => {
+    npmlog.log = log
+    process.exit = exit
+    npm.command = command
+  })
+
+  npmlog.log = function (level, ...args) {
+    log.call(this, level, ...args)
+    LOG_RECORD.push(npmlog.record[npmlog.record.length - 1])
+  }
+
+  npm.command = 'exec'
+
+  let EXPECT_EXIT = 0
+  process.exit = code => {
+    t.equal(code, EXPECT_EXIT, 'got expected exit code')
+    EXPECT_EXIT = 0
+  }
+  t.beforeEach((cb) => {
+    LOG_RECORD.length = 0
+    cb()
+  })
+
+  const loudNoises = () => LOG_RECORD
+    .filter(({ level }) => ['warn', 'error'].includes(level))
+
+  t.test('shellout with a numeric error code', t => {
+    EXPECT_EXIT = 5
+    errorHandler(Object.assign(new Error(), { code: 5 }))
+    t.equal(EXPECT_EXIT, 0, 'called process.exit')
+    // should log no warnings or errors, verbose/silly is fine.
+    t.strictSame(loudNoises(), [], 'no noisy warnings')
+    t.end()
+  })
+
+  t.test('shellout without a numeric error code (something in npm)', t => {
+    EXPECT_EXIT = 1
+    errorHandler(Object.assign(new Error(), { code: 'banana stand' }))
+    t.equal(EXPECT_EXIT, 0, 'called process.exit')
+    // should log some warnings and errors, because something weird happened
+    t.strictNotSame(loudNoises(), [], 'bring the noise')
+    t.end()
+  })
+
+  t.test('shellout with code=0 (extra weird?)', t => {
+    EXPECT_EXIT = 1
+    errorHandler(Object.assign(new Error(), { code: 0 }))
+    t.equal(EXPECT_EXIT, 0, 'called process.exit')
+    // should log some warnings and errors, because something weird happened
+    t.strictNotSame(loudNoises(), [], 'bring the noise')
+    t.end()
+  })
+
+  t.end()
 })

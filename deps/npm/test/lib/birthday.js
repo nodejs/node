@@ -1,116 +1,26 @@
-const { test } = require('tap')
+const t = require('tap')
 const requireInject = require('require-inject')
+const npm = {
+  flatOptions: {
+    yes: false,
+    package: [],
+  },
+  commands: {
+    exec: (args, cb) => {
+      t.equal(npm.flatOptions.yes, true, 'should say yes')
+      t.strictSame(npm.flatOptions.package, ['@npmcli/npm-birthday'],
+        'uses correct package')
+      t.strictSame(args, ['npm-birthday'], 'called with correct args')
+      t.match(cb, Function, 'callback is a function')
+      cb()
+    },
+  },
+}
 
-test('birthday (nope)', (t) => {
-  t.plan(1)
-  const B = global[Buffer.from([66, 117, 102, 102, 101, 114])]
-  const f = B.from([102, 114, 111, 109])
-  const D = global[B[f]([68, 97, 116, 101])]
-  const _6 = B[f]([98, 97, 115, 101, 54, 52]) + ''
-  const l = B[f]('dG9TdHJpbmc=', _6)
-  class FD extends D {
-    [B[f]('Z2V0VVRDTW9udGg=', _6)[l]()] () {
-      return 7
-    }
-  }
-  global[B[f]([68, 97, 116, 101])] = FD
-  const consoleLog = console.log
-  console.log = () => undefined
-  t.tearDown(() => {
-    global[B[f]([68, 97, 116, 101])] = D
-    console.log = consoleLog
-  })
-  const birthday = requireInject('../../lib/birthday', {})
-  birthday([], (err) => {
-    t.match(err, 'try again', 'not telling you the secret that easily are we?')
-  })
+const birthday = requireInject('../../lib/birthday.js', {
+  '../../lib/npm.js': npm,
 })
 
-test('birthday (nope again)', (t) => {
-  t.plan(1)
-  const B = global[Buffer.from([66, 117, 102, 102, 101, 114])]
-  const f = B.from([102, 114, 111, 109])
-  const D = global[B[f]([68, 97, 116, 101])]
-  const _6 = B[f]([98, 97, 115, 101, 54, 52]) + ''
-  const l = B[f]('dG9TdHJpbmc=', _6)
-  class FD extends D {
-    [B[f]('Z2V0RnVsbFllYXI=', _6)[l]()] () {
-      const d = new D()
-      return d[B[f]('Z2V0RnVsbFllYXI=', _6)[l]()]() + 1
-    }
-
-    [B[f]('Z2V0VVRDTW9udGg=', _6)[l]()] () {
-      return 9
-    }
-  }
-  global[B[f]([68, 97, 116, 101])] = FD
-  const consoleLog = console.log
-  console.log = () => undefined
-  t.tearDown(() => {
-    global[B[f]([68, 97, 116, 101])] = D
-    console.log = consoleLog
-  })
-  const birthday = requireInject('../../lib/birthday', {})
-  birthday([], (err) => {
-    t.match(err, 'try again', 'not telling you the secret that easily are we?')
-  })
-})
-
-test('birthday (strike 3)', (t) => {
-  t.plan(1)
-  const B = global[Buffer.from([66, 117, 102, 102, 101, 114])]
-  const f = B.from([102, 114, 111, 109])
-  const D = global[B[f]([68, 97, 116, 101])]
-  const _6 = B[f]([98, 97, 115, 101, 54, 52]) + ''
-  const l = B[f]('dG9TdHJpbmc=', _6)
-  class FD extends D {
-    [B[f]('Z2V0RnVsbFllYXI=', _6)[l]()] () {
-      const d = new D()
-      return d[B[f]('Z2V0RnVsbFllYXI=', _6)[l]()]() - 1
-    }
-
-    [B[f]('Z2V0VVRDTW9udGg=', _6)[l]()] () {
-      return 11
-    }
-  }
-  global[B[f]([68, 97, 116, 101])] = FD
-  const consoleLog = console.log
-  console.log = () => undefined
-  t.tearDown(() => {
-    global[B[f]([68, 97, 116, 101])] = D
-    console.log = consoleLog
-  })
-  const birthday = requireInject('../../lib/birthday', {})
-  birthday([], (err) => {
-    t.match(err, 'try again', 'not telling you the secret that easily are we?')
-  })
-})
-
-test('birthday (yup)', (t) => {
-  t.plan(1)
-  const B = global[Buffer.from([66, 117, 102, 102, 101, 114])]
-  const f = B.from([102, 114, 111, 109])
-  const D = global[B[f]([68, 97, 116, 101])]
-  const _6 = B[f]([98, 97, 115, 101, 54, 52]) + ''
-  const l = B[f]('dG9TdHJpbmc=', _6)
-  class FD extends D {
-    [B[f]('Z2V0VVRDTW9udGg=', _6)[l]()] () {
-      return 8
-    }
-
-    [B[f]('Z2V0VVRDRGF0ZQ==', _6)[l]()] () {
-      return 29
-    }
-  }
-  global[B[f]([68, 97, 116, 101])] = FD
-  const consoleLog = console.log
-  console.log = () => undefined
-  t.tearDown(() => {
-    global[B[f]([68, 97, 116, 101])] = D
-    console.log = consoleLog
-  })
-  const birthday = requireInject('../../lib/birthday', {})
-  birthday([], (err) => {
-    t.ifError(err, 'npm birthday')
-  })
-})
+let calledCb = false
+birthday([], () => calledCb = true)
+t.equal(calledCb, true, 'called the callback')

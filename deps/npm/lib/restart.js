@@ -1,1 +1,2 @@
-module.exports = require('./utils/lifecycle-cmd.js')('restart')
+const npm = require('./npm.js')
+module.exports = require('./utils/lifecycle-cmd.js')(npm, 'restart')

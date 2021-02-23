@@ -49,6 +49,7 @@ const makeCmd = cmd => {
 }
 
 const { types, defaults, shorthands } = require('./utils/config.js')
+const { shellouts } = require('./utils/cmd-list.js')
 
 let warnedNonDashArg = false
 const _runCmd = Symbol('_runCmd')
@@ -79,6 +80,10 @@ const npm = module.exports = new class extends EventEmitter {
     })
     this[_title] = process.title
     this.updateNotification = null
+  }
+
+  get shelloutCommands () {
+    return shellouts
   }
 
   deref (c) {

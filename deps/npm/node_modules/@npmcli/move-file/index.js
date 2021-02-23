@@ -73,7 +73,7 @@ const moveFile = async (source, destination, options = {}, root = true, symlinks
   try {
     await rename(source, destination)
   } catch (error) {
-    if (error.code === 'EXDEV') {
+    if (error.code === 'EXDEV' || error.code === 'EPERM') {
       const sourceStat = await lstat(source)
       if (sourceStat.isDirectory()) {
         const files = await readdir(source)
@@ -124,7 +124,7 @@ const moveFileSync = (source, destination, options = {}, root = true, symlinks =
   try {
     renameSync(source, destination)
   } catch (error) {
-    if (error.code === 'EXDEV') {
+    if (error.code === 'EXDEV' || error.code === 'EPERM') {
       const sourceStat = lstatSync(source)
       if (sourceStat.isDirectory()) {
         const files = readdirSync(source)
