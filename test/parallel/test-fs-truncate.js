@@ -287,3 +287,12 @@ function testFtruncate(cb) {
   fs.truncateSync(file1, -1);  // Negative cooerced to 0, No error.
   assert(fs.readFileSync(file1).equals(Buffer.alloc(0)));
 }
+
+{
+  const file1 = path.resolve(tmp, 'truncate-file-2.txt');
+  fs.writeFileSync(file1, 'Hi');
+  // Negative cooerced to 0, No error.
+  fs.truncate(file1, -1, common.mustSucceed(() => {
+    assert(fs.readFileSync(file1).equals(Buffer.alloc(0)));
+  }));
+}
