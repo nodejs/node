@@ -50,7 +50,7 @@ declare namespace AgentKeepAlive {
   export interface HttpsOptions extends https.AgentOptions, CommonHttpOption { }
 
   export class HttpsAgent extends https.Agent {
-    constructor(opts?: HttpOptions);
+    constructor(opts?: HttpsOptions);
     readonly statusChanged: boolean;
     createSocket(req: http.IncomingMessage, options: http.RequestOptions, cb: Function): void;
     getCurrentStatus(): AgentStatus;

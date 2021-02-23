@@ -82,11 +82,11 @@ of files for packages published to the npm registry.
     When using a single package name (with no version or tag specifier) as an
     argument, `npm diff` will work in a similar way to
     [`npm-outdated`](npm-outdated) and reach for the registry to figure out
-    what current published version of the package named <pkg-name> will satisfy
-    its dependent declared semver-range. Once that specific version is known
-    `npm diff` will print diff patches comparing the current version of
-    <pkg-name> found in the local file system with that specific version
-    returned by the registry.
+    what current published version of the package named `<pkg-name>`
+    will satisfy its dependent declared semver-range. Once that specific
+    version is known `npm diff` will print diff patches comparing the
+    current version of `<pkg-name>` found in the local file system with
+    that specific version returned by the registry.
 
     Given a package named `abbrev` that is currently installed:
 
@@ -155,7 +155,7 @@ located within the folder `./lib/` and changed lines of code within the
 
 #### diff
 
-* Type: Array<String>
+* Type: Array
 * Default: null
 
 Defines npm package specifiers to compare using the `npm diff` command.

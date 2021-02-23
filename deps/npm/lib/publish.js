@@ -85,6 +85,7 @@ const publish_ = async (arg, opts) => {
       path: spec.fetchSpec,
       stdio: 'inherit',
       pkg: manifest,
+      banner: log.level !== 'silent',
     })
   }
 
@@ -121,6 +122,7 @@ const publish_ = async (arg, opts) => {
       path: spec.fetchSpec,
       stdio: 'inherit',
       pkg: manifest,
+      banner: log.level !== 'silent',
     })
 
     await runScript({
@@ -128,6 +130,7 @@ const publish_ = async (arg, opts) => {
       path: spec.fetchSpec,
       stdio: 'inherit',
       pkg: manifest,
+      banner: log.level !== 'silent',
     })
   }
 

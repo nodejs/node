@@ -78,11 +78,11 @@ of files for packages published to the npm registry\.
   When using a single package name (with no version or tag specifier) as an
   argument, \fBnpm diff\fP will work in a similar way to
   \fBnpm\-outdated\fP \fInpm\-outdated\fR and reach for the registry to figure out
-  what current published version of the package named <pkg\-name> will satisfy
-  its dependent declared semver\-range\. Once that specific version is known
-  \fBnpm diff\fP will print diff patches comparing the current version of
-  <pkg\-name> found in the local file system with that specific version
-  returned by the registry\.
+  what current published version of the package named \fB<pkg\-name>\fP
+  will satisfy its dependent declared semver\-range\. Once that specific
+  version is known \fBnpm diff\fP will print diff patches comparing the
+  current version of \fB<pkg\-name>\fP found in the local file system with
+  that specific version returned by the registry\.
   Given a package named \fBabbrev\fP that is currently installed:
 .P
 .RS 2
@@ -150,7 +150,7 @@ located within the folder \fB\|\./lib/\fP and changed lines of code within the
 .SS diff
 .RS 0
 .IP \(bu 2
-Type: Array<String>
+Type: Array
 .IP \(bu 2
 Default: null
 

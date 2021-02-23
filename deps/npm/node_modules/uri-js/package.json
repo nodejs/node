@@ -1,6 +1,6 @@
 {
   "name": "uri-js",
-  "version": "4.4.0",
+  "version": "4.4.1",
   "description": "An RFC 3986/3987 compliant, scheme extendable URI/IRI parsing/validating/resolving library for JavaScript.",
   "main": "dist/es5/uri.all.js",
   "types": "dist/es5/uri.all.d.ts",
@@ -62,7 +62,7 @@
     "babel-cli": "^6.26.0",
     "babel-plugin-external-helpers": "^6.22.0",
     "babel-preset-latest": "^6.24.1",
-    "mocha": "^3.2.0",
+    "mocha": "^8.2.1",
     "mocha-qunit-ui": "^0.1.3",
     "rollup": "^0.41.6",
     "rollup-plugin-babel": "^2.7.1",

@@ -3,12 +3,19 @@ const fs = require('fs')
 const readFile = promisify(fs.readFile)
 const parse = require('json-parse-even-better-errors')
 const rpj = path => readFile(path, 'utf8')
-  .then(data => normalize(parse(data)))
+  .then(data => normalize(stripUnderscores(parse(data))))
   .catch(er => {
     er.path = path
     throw er
   })
 const normalizePackageBin = require('npm-normalize-package-bin')
+
+// do not preserve _fields set in files, they are sus
+const stripUnderscores = data => {
+  for (const key of Object.keys(data).filter(k => /^_/.test(k)))
+    delete data[key]
+  return data
+}
 
 const normalize = data => {
   add_id(data)

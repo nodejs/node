@@ -237,3 +237,79 @@ test('symlinked', function (t) {
         t.equal(pkg, undefined);
     });
 });
+
+test('readPackage', function (t) {
+    t.plan(3);
+
+    var files = {};
+    files[path.resolve('/foo/node_modules/bar/something-else.js')] = 'beep';
+    files[path.resolve('/foo/node_modules/bar/package.json')] = JSON.stringify({
+        main: './baz.js'
+    });
+    files[path.resolve('/foo/node_modules/bar/baz.js')] = 'boop';
+
+    var dirs = {};
+    dirs[path.resolve('/foo')] = true;
+    dirs[path.resolve('/foo/node_modules')] = true;
+
+    function opts(basedir) {
+        return {
+            basedir: path.resolve(basedir),
+            isFile: function (file, cb) {
+                cb(null, Object.prototype.hasOwnProperty.call(files, path.resolve(file)));
+            },
+            isDirectory: function (dir, cb) {
+                cb(null, !!dirs[path.resolve(dir)]);
+            },
+            'package': { main: 'bar' },
+            readFile: function (file, cb) {
+                cb(null, files[path.resolve(file)]);
+            },
+            realpath: function (file, cb) {
+                cb(null, file);
+            }
+        };
+    }
+
+    t.test('with readFile', function (st) {
+        st.plan(3);
+
+        resolve('bar', opts('/foo'), function (err, res, pkg) {
+            st.error(err);
+            st.equal(res, path.resolve('/foo/node_modules/bar/baz.js'));
+            st.equal(pkg && pkg.main, './baz.js');
+        });
+    });
+
+    var readPackage = function (readFile, file, cb) {
+        var barPackage = path.join('bar', 'package.json');
+        if (file.slice(-barPackage.length) === barPackage) {
+            cb(null, { main: './something-else.js' });
+        } else {
+            cb(null, JSON.parse(files[path.resolve(file)]));
+        }
+    };
+
+    t.test('with readPackage', function (st) {
+        st.plan(3);
+
+        var options = opts('/foo');
+        delete options.readFile;
+        options.readPackage = readPackage;
+        resolve('bar', options, function (err, res, pkg) {
+            st.error(err);
+            st.equal(res, path.resolve('/foo/node_modules/bar/something-else.js'));
+            st.equal(pkg && pkg.main, './something-else.js');
+        });
+    });
+
+    t.test('with readFile and readPackage', function (st) {
+        st.plan(1);
+
+        var options = opts('/foo');
+        options.readPackage = readPackage;
+        resolve('bar', options, function (err) {
+            st.throws(function () { throw err; }, TypeError, 'errors when both readFile and readPackage are provided');
+        });
+    });
+});

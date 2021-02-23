@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const yaml = require('yaml');
 const cmark = require('cmark-gfm');
+const mdx = require('@mdx-js/mdx');
 const mkdirp = require('mkdirp');
 const jsdom = require('jsdom');
 const npm = require('../lib/npm.js')
@@ -16,25 +17,35 @@ const outputRoot = path.join(docsRoot, 'output');
 
 const template = fs.readFileSync('template.html').toString();
 
-walk(inputRoot);
+const run = async function() {
+    try {
+        await walk(inputRoot);
+    }
+    catch (error) {
+        console.error(error);
+    }
+}
 
-function walk(root, dirRelative) {
+run();
+
+async function walk(root, dirRelative) {
     const dirPath = dirRelative ? path.join(root, dirRelative) : root;
+    const children = fs.readdirSync(dirPath);
 
-    fs.readdirSync(dirPath).forEach((childFilename) => {
+    for (const childFilename of children) {
         const childRelative = dirRelative ? path.join(dirRelative, childFilename) : childFilename;
         const childPath = path.join(root, childRelative);
 
         if (fs.lstatSync(childPath).isDirectory()) {
-            walk(root, childRelative);
+            await walk(root, childRelative);
         }
         else {
-            translate(childRelative);
+            await translate(childRelative);
         }
-    });
+    }
 }
 
-function translate(childPath) {
+async function translate(childPath) {
     const inputPath = path.join(inputRoot, childPath);
 
     if (!inputPath.match(/\.md$/)) {
@@ -69,6 +80,16 @@ function translate(childPath) {
             'autolink': true
         }
     });
+
+    // Test that mdx can parse this markdown file.  We don't actually
+    // use the output, it's just to ensure that the upstream docs
+    // site (docs.npmjs.com) can parse it when this file gets there.
+    try {
+        await mdx(md, { skipExport: true });
+    }
+    catch (error) {
+        throw new MarkdownError(childPath, error);
+    }
 
     // Inject this data into the template, using a mustache-like
     // replacement scheme.
@@ -224,4 +245,12 @@ function headerLevel(node) {
 
 function debug(str) {
     console.log(str);
+}
+
+class MarkdownError extends Error {
+    constructor(file, inner) {
+        super(`failed to parse ${file}`);
+        this.file = file;
+        this.inner = inner;
+    }
 }

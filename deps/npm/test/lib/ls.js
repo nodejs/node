@@ -1160,6 +1160,19 @@ t.test('ls', (t) => {
         },
       }),
       node_modules: {
+        '.package-lock.json': JSON.stringify({
+          packages: {
+            'node_modules/a': {
+              name: 'b',
+              version: '1.0.0',
+              from: 'a@npm:b',
+              resolved: 'https://localhost:8080/abbrev/-/abbrev-1.1.1.tgz',
+              requested: {
+                type: 'alias',
+              },
+            },
+          },
+        }),
         a: {
           'package.json': JSON.stringify({
             name: 'b',
@@ -1189,6 +1202,16 @@ t.test('ls', (t) => {
         },
       }),
       node_modules: {
+        '.package-lock.json': JSON.stringify({
+          packages: {
+            'node_modules/abbrev': {
+              name: 'abbrev',
+              version: '1.1.1',
+              from: 'git+https://github.com/isaacs/abbrev-js.git',
+              resolved: 'git+https://github.com/isaacs/abbrev-js.git#b8f3a2fc0c3bb8ffd8b0d0072cc6b5a3667e963c',
+            },
+          },
+        }),
         abbrev: {
           'package.json': JSON.stringify({
             name: 'abbrev',
@@ -1269,6 +1292,16 @@ t.test('ls', (t) => {
         },
       }),
       node_modules: {
+        '.package-lock.json': JSON.stringify({
+          packages: {
+            'node_modules/simple-output': {
+              name: 'simple-output',
+              version: '2.1.1',
+              resolved: 'https://registry.npmjs.org/simple-output/-/simple-output-2.1.1.tgz',
+              shasum: '3c07708ec9ef3e3c985cf0ddd67df09ab8ec2abc',
+            },
+          },
+        }),
         'simple-output': {
           'package.json': JSON.stringify({
             name: 'simple-output',
@@ -2173,6 +2206,15 @@ t.test('ls --parseable', (t) => {
         },
       }),
       node_modules: {
+        '.package-lock.json': JSON.stringify({
+          packages: {
+            'node_modules/a': {
+              name: 'b',
+              version: '1.0.0',
+              resolved: 'https://localhost:8080/abbrev/-/abbrev-1.1.1.tgz',
+            },
+          },
+        }),
         a: {
           'package.json': JSON.stringify({
             name: 'b',
@@ -2202,6 +2244,15 @@ t.test('ls --parseable', (t) => {
         },
       }),
       node_modules: {
+        '.package-lock.json': JSON.stringify({
+          packages: {
+            'node_modules/abbrev': {
+              name: 'abbrev',
+              version: '1.1.1',
+              resolved: 'git+https://github.com/isaacs/abbrev-js.git#b8f3a2fc0c3bb8ffd8b0d0072cc6b5a3667e963c',
+            },
+          },
+        }),
         abbrev: {
           'package.json': JSON.stringify({
             name: 'abbrev',
@@ -2237,6 +2288,16 @@ t.test('ls --parseable', (t) => {
         },
       }),
       node_modules: {
+        '.package-lock.json': JSON.stringify({
+          packages: {
+            'node_modules/simple-output': {
+              name: 'simple-output',
+              version: '2.1.1',
+              resolved: 'https://registry.npmjs.org/simple-output/-/simple-output-2.1.1.tgz',
+              shasum: '3c07708ec9ef3e3c985cf0ddd67df09ab8ec2abc',
+            },
+          },
+        }),
         'simple-output': {
           'package.json': JSON.stringify({
             name: 'simple-output',
@@ -3606,15 +3667,23 @@ t.test('ls --json', (t) => {
         },
       }),
       node_modules: {
+        '.package-lock.json': JSON.stringify({
+          packages: {
+            'node_modules/a': {
+              name: 'b',
+              version: '1.0.0',
+              from: 'a@npm:b',
+              resolved: 'https://localhost:8080/abbrev/-/abbrev-1.1.1.tgz',
+              requested: {
+                type: 'alias',
+              },
+            },
+          },
+        }),
         a: {
           'package.json': JSON.stringify({
             name: 'b',
             version: '1.0.0',
-            _from: 'a@npm:b',
-            _resolved: 'https://localhost:8080/abbrev/-/abbrev-1.1.1.tgz',
-            _requested: {
-              type: 'alias',
-            },
           }),
         },
       },
@@ -3648,6 +3717,17 @@ t.test('ls --json', (t) => {
         },
       }),
       node_modules: {
+        '.package-lock.json': JSON.stringify({
+          packages: {
+            'node_modules/abbrev': {
+              name: 'abbrev',
+              version: '1.1.1',
+              id: 'abbrev@1.1.1',
+              from: 'git+https://github.com/isaacs/abbrev-js.git',
+              resolved: 'git+https://github.com/isaacs/abbrev-js.git#b8f3a2fc0c3bb8ffd8b0d0072cc6b5a3667e963c',
+            },
+          },
+        }),
         abbrev: {
           'package.json': JSON.stringify({
             name: 'abbrev',
@@ -3696,6 +3776,33 @@ t.test('ls --json', (t) => {
         },
       }),
       node_modules: {
+        '.package-lock.json': JSON.stringify({
+          packages: {
+            'node_modules/simple-output': {
+              name: 'simple-output',
+              version: '2.1.1',
+              _from: 'simple-output',
+              _id: 'simple-output@2.1.1',
+              _resolved: 'https://registry.npmjs.org/simple-output/-/simple-output-2.1.1.tgz',
+              _requested: {
+                type: 'tag',
+                registry: true,
+                raw: 'simple-output',
+                name: 'simple-output',
+                escapedName: 'simple-output',
+                rawSpec: '',
+                saveSpec: null,
+                fetchSpec: 'latest',
+              },
+              _requiredBy: [
+                '#USER',
+                '/',
+              ],
+              _shasum: '3c07708ec9ef3e3c985cf0ddd67df09ab8ec2abc',
+              _spec: 'simple-output',
+            },
+          },
+        }),
         'simple-output': {
           'package.json': JSON.stringify({
             name: 'simple-output',

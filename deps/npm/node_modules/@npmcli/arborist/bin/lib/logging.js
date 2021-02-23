@@ -26,7 +26,7 @@ if (loglevel !== 'silent') {
       return
     const pref = `${process.pid} ${level} `
     if (level === 'warn' && args[0] === 'ERESOLVE')
-      args[2] = inspect(args[2], { depth: Infinity })
+      args[2] = inspect(args[2], { depth: 10 })
     const msg = pref + format(...args).trim().split('\n').join(`\n${pref}`)
     console.error(msg)
   })
