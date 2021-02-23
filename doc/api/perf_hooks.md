@@ -215,7 +215,7 @@ which the current `node` process began, measured in Unix time.
 added: v8.5.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/37475
     description: Added the histogram option.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/37136
