@@ -1,4 +1,4 @@
-# Diagnostic Tooling Support Tiers
+# Diagnostic tooling support tiers
 
 Diagnostic tooling is important to the consumers of Node.js. It is used both
 in development and in production in order to investigate problems.  The failure

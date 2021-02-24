@@ -1,4 +1,4 @@
-# Commit Queue
+# Commit queue
 
 > Stability: 1 - Experimental
 
@@ -37,7 +37,7 @@ From a high-level, the Commit Queue works as follow:
       3. Close the PR
       4. Go to next PR in the queue
 
-## Current Limitations
+## Current limitations
 
 The Commit Queue feature is still in early stages, and as such it might not
 work for more complex Pull Requests. These are the currently known limitations
@@ -106,7 +106,7 @@ If no errors happen during `git node land`, the script will use the
 `Landed in ...` comment in the PR, and then will close it. Iteration continues
 until all PRs have done the steps above.
 
-## Reverting Broken Commits
+## Reverting broken commits
 
 Reverting broken commits is done manually by Collaborators, just like when
 commits are landed manually via `git node land`. An easy way to revert is a

@@ -1,4 +1,4 @@
-# Maintaining the Root Certificates
+# Maintaining the root certificates
 
 Node.js contains a compiled-in set of root certificates used as trust anchors
 for TLS certificate validation.
