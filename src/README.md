@@ -427,6 +427,9 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 }  // namespace util
 }  // namespace node
 
+// The first argument passed to `NODE_MODULE_EXTERNAL_REFERENCE`,
+// which is `util` here, needs to be added to the
+// `EXTERNAL_REFERENCE_BINDING_LIST_BASE` list in node_external_reference.h
 NODE_MODULE_EXTERNAL_REFERENCE(util, node::util::RegisterExternalReferences)
 ```
 
