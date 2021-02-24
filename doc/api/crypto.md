@@ -3827,7 +3827,7 @@ Throws an error if FIPS mode is not available.
 added: v12.0.0
 changes:
   - version: REPLACEME
-    pr-url: TODO
+    pr-url: https://github.com/nodejs/node/pull/37500
     description: Optional callback argument added.
   - version:
      - v13.2.0
@@ -3907,7 +3907,7 @@ not introduce timing vulnerabilities.
 added: v12.0.0
 changes:
   - version: REPLACEME
-    pr-url: TODO
+    pr-url: https://github.com/nodejs/node/pull/37500
     description: Optional callback argument added.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
