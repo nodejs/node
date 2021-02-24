@@ -48,7 +48,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install Ninja
-        run: sudo apt install ninja-build
+        run: sudo apt-get install ninja-build
       - name: Environment Information
         run: npx envinfo
       - name: Download tarball
