@@ -75,7 +75,7 @@ using HMACCtxPointer = DeleteFnPtr<HMAC_CTX, HMAC_CTX_free>;
 using CipherCtxPointer = DeleteFnPtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free>;
 using RsaPointer = DeleteFnPtr<RSA, RSA_free>;
 using DsaPointer = DeleteFnPtr<DSA, DSA_free>;
-using EcdsaSigPointer = DeleteFnPtr<ECDSA_SIG, ECDSA_SIG_free>;
+using DsaSigPointer = DeleteFnPtr<DSA_SIG, DSA_SIG_free>;
 
 // Our custom implementation of the certificate verify callback
 // used when establishing a TLS handshake. Because we cannot perform

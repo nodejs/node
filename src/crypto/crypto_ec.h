@@ -164,11 +164,11 @@ v8::Maybe<bool> GetEcKeyDetail(
     v8::Local<v8::Object> target);
 
 ByteSource ConvertToWebCryptoSignature(
-  ManagedEVPPKey key,
+  const ManagedEVPPKey& key,
   const ByteSource& signature);
 
 ByteSource ConvertFromWebCryptoSignature(
-    ManagedEVPPKey key,
+    const ManagedEVPPKey& key,
     const ByteSource& signature);
 
 }  // namespace crypto

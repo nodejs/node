@@ -3822,10 +3822,13 @@ added: v10.0.0
 Enables the FIPS compliant crypto provider in a FIPS-enabled Node.js build.
 Throws an error if FIPS mode is not available.
 
-### `crypto.sign(algorithm, data, key)`
+### `crypto.sign(algorithm, data, key[, callback])`
 <!-- YAML
 added: v12.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37500
+    description: Optional callback argument added.
   - version:
      - v13.2.0
      - v12.16.0
@@ -3837,7 +3840,10 @@ changes:
 * `algorithm` {string | null | undefined}
 * `data` {ArrayBuffer|Buffer|TypedArray|DataView}
 * `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
-* Returns: {Buffer}
+* `callback` {Function}
+  * `err` {Error}
+  * `signature` {Buffer}
+* Returns: {Buffer} if the `callback` function is not provided.
 <!--lint enable maximum-line-length remark-lint-->
 
 Calculates and returns the signature for `data` using the given private key and
@@ -3863,6 +3869,8 @@ additional properties can be passed:
   `crypto.constants.RSA_PSS_SALTLEN_DIGEST` sets the salt length to the digest
   size, `crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN` (default) sets it to the
   maximum permissible value.
+
+If the `callback` function is provided this function uses libuv's threadpool.
 
 ### `crypto.timingSafeEqual(a, b)`
 <!-- YAML
@@ -3894,10 +3902,13 @@ Use of `crypto.timingSafeEqual` does not guarantee that the *surrounding* code
 is timing-safe. Care should be taken to ensure that the surrounding code does
 not introduce timing vulnerabilities.
 
-### `crypto.verify(algorithm, data, key, signature)`
+### `crypto.verify(algorithm, data, key, signature[, callback])`
 <!-- YAML
 added: v12.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37500
+    description: Optional callback argument added.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
     description: The data, key, and signature arguments can also be ArrayBuffer.
@@ -3913,7 +3924,12 @@ changes:
 * `data` {ArrayBuffer| Buffer|TypedArray|DataView}
 * `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
 * `signature` {ArrayBuffer|Buffer|TypedArray|DataView}
-* Returns: {boolean}
+* `callback` {Function}
+  * `err` {Error}
+  * `result` {boolean}
+* Returns: {boolean} `true` or `false` depending on the validity of the
+  signature for the data and public key if the `callback` function is not
+  provided.
 <!--lint enable maximum-line-length remark-lint-->
 
 Verifies the given signature for `data` using the given key and algorithm. If
@@ -3944,6 +3960,8 @@ The `signature` argument is the previously calculated signature for the `data`.
 
 Because public keys can be derived from private keys, a private key or a public
 key may be passed for `key`.
+
+If the `callback` function is provided this function uses libuv's threadpool.
 
 ### `crypto.webcrypto`
 <!-- YAML
