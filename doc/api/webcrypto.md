@@ -773,7 +773,7 @@ The algorithms currently supported include:
 * `'NODE-ED25519'`<sup>1</sup>
 * `'NODE-ED448'`<sup>1</sup>
 
-<sup>1</sup> Non-standadrd Node.js extension
+<sup>1</sup> Non-standard Node.js extension
 
 ### `subtle.unwrapKey(format, wrappedKey, unwrappingKey, unwrapAlgo, unwrappedKeyAlgo, extractable, keyUsages)`
 <!-- YAML
