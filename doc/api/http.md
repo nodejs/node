@@ -2256,7 +2256,7 @@ Emitted when the buffer of the message is free again.
 added: v0.1.17
 -->
 
-Emitted when transmission is finished successfully.
+Emitted when the transmission is finished successfully.
 
 ### Event: `prefinish`
 <!-- YAML
@@ -2277,9 +2277,9 @@ added: v0.3.0
 Adds HTTP trailers (headers but at the end of the message) to the message.
 
 Trailers are **only** be emitted if the message is chunked encoded. If not,
-trailer will be silently discarded.
+the trailer will be silently discarded.
 
-HTTP requires the  `Trailer` header to be sent in order to emit trailers,
+HTTP requires the  `Trailer` header to be sent to emit trailers,
 with a list of header fields in its value, e.g.
 
 ```js
@@ -2368,8 +2368,8 @@ added: v0.4.0
 * `name` {string} Name of header
 * Returns {string | undefined}
 
-Gets value of HTTP header with given name. If such name doesn't exist in
-message, it will be `undefined`.
+Gets the value of HTTP header with the given name. If such a name doesn't
+exist in message, it will be `undefined`.
 
 ### `outgoingMessage.getHeaderNames()`
 <!-- YAML
@@ -2390,7 +2390,7 @@ added:  v8.0.0
 
 Returns a shallow copy of the current outgoing headers. Since a shallow
 copy is used, array values may be mutated without additional calls to
-various header-related http module methods. The keys of the returned
+various header-related HTTP module methods. The keys of the returned
 object are the header names and the values are the respective header
 values. All header names are lowercase.
 
@@ -2443,7 +2443,7 @@ Since `OutgoingMessage` should be a write-only stream,
 call this function will throw an `Error`. Thus, it disabled the pipe method
 it inherits from `Stream`.
 
-User should not call this function directly.
+The User should not call this function directly.
 
 ### `outgoingMessage.removeHeader()`
 <!-- YAML
@@ -2465,7 +2465,7 @@ added: v0.4.0
 * `value` {string} Header value
 * Returns: {this}
 
-Sets a single header value for header object.
+Sets a single header value for the header object.
 
 ### `outgoingMessage.setTimeout(msesc[, callback])`
 <!-- YAML
@@ -2487,7 +2487,7 @@ added: v0.3.0
 
 * {stream.Duplex}
 
-Reference to the underlying socket. Usually users will not want to access
+Reference to the underlying socket. Usually, users will not want to access
 this property.
 
 After calling `outgoingMessage.end()`, this property will be nulled.
@@ -2540,8 +2540,8 @@ This `outgoingMessage.writableHighWaterMark` will be the `highWaterMark` of
 underlying socket if socket exists. Else, it would be the default
 `highWaterMark`.
 
-`highWaterMark` is the maximum amount of data which can be potentially
-buffered by socket.
+`highWaterMark` is the maximum amount of data that can be potentially
+buffered by the socket.
 
 ### `outgoingMessage.writableLength`
 <!-- YAML
@@ -2575,11 +2575,11 @@ changes:
 * `callback` {Function}
 * Returns {boolean}
 
-If this method is called and header is not sent, it will call
+If this method is called and the header is not sent, it will call
 `this._implicitHeader` to flush implicit header.
 If the message should not have a body (indicated by `this._hasBody`),
 the call is ignored and `chunk` will not be sent. It could be useful
-when handling particular message which must not include a body.
+when handling a particular message which must not include a body.
 e.g. response to `HEAD` request, `204` and `304` response.
 
 `chunk` can be a string or a buffer. When `chunk` is a string, the
@@ -2588,21 +2588,21 @@ e.g. response to `HEAD` request, `204` and `304` response.
 
 If the message is transferred in chucked encoding
 (indicated by `this.chunkedEncoding`), `chunk` will be flushed as
-one chunk among a stream of chunks. Otherwise, it will be flushed as body
-of message.
+one chunk among a stream of chunks. Otherwise, it will be flushed as the
+body of message.
 
-This method handles the raw body of HTTP message and has nothing to do with
-higher-level multi-part body encodings that may be used.
+This method handles the raw body of the HTTP message and has nothing to do
+with higher-level multi-part body encodings that may be used.
 
 If it is the first call to this method of a message, it will send the
 buffered header first, then flush the the `chunk` as described above.
 
-The second and successive calls to this method, it will assume the data
-will streamed and send the new data separately. It means that the response
+The second and successive calls to this method will assume the data
+will be streamed and send the new data separately. It means that the response
 is buffered up to the first chunk of the body.
 
 Returns `true` if the entire data was flushed successfully to the kernel
-buffer. Returns `false` if all or part of the data was queued in user
+buffer. Returns `false` if all or part of the data was queued in the user
 memory. Event `drain` will be emitted when the buffer is free again.
 
 ## `http.METHODS`
