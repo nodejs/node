@@ -22,7 +22,7 @@ currently need to generate three PRs as follows:
 * `nasm` (<https://www.nasm.us/>) Version 2.11 or higher is needed.
 * GNU `as` in binutils. Version 2.26 or higher is needed.
 
-## 0. Check Requirements
+## 0. Check requirements
 
 ```console
 % perl -v
