@@ -19,6 +19,7 @@ on:
 env:
   PYTHON_VERSION: 3.9
   FLAKY_TESTS: dontcare
+  CONFIG_FLAGS: --error-on-warn --coverage --ninja
 
 jobs:
   coverage-linux:
@@ -30,12 +31,14 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install Ninja
+        run: sudo apt-get install ninja-build
       - name: Environment Information
         run: npx envinfo
       - name: Install gcovr
         run: pip install gcovr==4.2
       - name: Build
-        run: make build-ci -j2 V=1 CONFIG_FLAGS="--error-on-warn --coverage"
+        run: make build-ci -j2 V=1
       # TODO(bcoe): fix the couple tests that fail with the inspector enabled.
       # The cause is most likely coverage's use of the inspector.
       - name: Test
