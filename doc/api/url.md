@@ -1362,6 +1362,24 @@ url.resolve('http://example.com/', '/one');    // 'http://example.com/one'
 url.resolve('http://example.com/one', '/two'); // 'http://example.com/two'
 ```
 
+You can achieve the same result using the WHATWG URL API:
+
+```js
+function resolve(from, to) {
+  const resolvedUrl = new URL(to, new URL(from, 'resolve://'));
+  if (resolvedUrl.protocol === 'resolve:') {
+    // `from` is a relative URL.
+    const { pathname, search, hash } = resolvedUrl;
+    return pathname + search + hash;
+  }
+  return resolvedUrl.toString();
+}
+
+resolve('/one/two/three', 'four');         // '/one/two/four'
+resolve('http://example.com/', '/one');    // 'http://example.com/one'
+resolve('http://example.com/one', '/two'); // 'http://example.com/two'
+```
+
 <a id="whatwg-percent-encoding"></a>
 ## Percent-encoding in URLs
 
