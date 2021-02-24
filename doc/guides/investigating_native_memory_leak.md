@@ -1,4 +1,4 @@
-# Investigating Memory Leaks with valgrind
+# Investigating memory leaks with valgrind
 
 A Node.js process may run out of memory due to excessive consumption of
 native memory. Native Memory is memory which is not managed by the
