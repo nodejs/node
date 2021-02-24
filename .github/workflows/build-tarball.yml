@@ -9,13 +9,13 @@ on:
       - v[0-9]+.x
 
 env:
+  PYTHON_VERSION: 3.9
   FLAKY_TESTS: dontcare
+  CONFIG_FLAGS: --ninja
 
 jobs:
   build-tarball:
     if: github.event.pull_request.draft == false
-    env:
-      PYTHON_VERSION: 3.9
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -39,8 +39,6 @@ jobs:
           name: tarballs
           path: tarballs
   test-tarball-linux:
-    env:
-      PYTHON_VERSION: 3.9
     needs: build-tarball
     runs-on: ubuntu-latest
     steps:
@@ -68,7 +66,7 @@ jobs:
       - name: Build
         run: |
           cd $TAR_DIR
-          make build-ci -j2 V=1 CONFIG_FLAGS="--ninja"
+          make build-ci -j2 V=1
       - name: Test
         run: |
           cd $TAR_DIR

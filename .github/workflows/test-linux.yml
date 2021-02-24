@@ -12,6 +12,7 @@ on:
 env:
   PYTHON_VERSION: 3.9
   FLAKY_TESTS: dontcare
+  CONFIG_FLAGS: --error-on-warn --ninja
 
 jobs:
   test-linux:
@@ -28,6 +29,6 @@ jobs:
       - name: Environment Information
         run: npx envinfo
       - name: Build
-        run: make build-ci -j2 V=1 CONFIG_FLAGS="--error-on-warn --ninja"
+        run: make build-ci -j2 V=1
       - name: Test
         run: make run-ci -j2 V=1 TEST_CI_ARGS="-p actions"
