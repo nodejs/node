@@ -51,7 +51,7 @@
 * [REPL](repl.md)
 * [Report](report.md)
 * [Stream](stream.md)
-* [String decoder](string_decoder.md)
+* [String decoder](string_decoder.md) mi
 * [Timers](timers.md)
 * [TLS/SSL](tls.md)
 * [Trace events](tracing.md)
