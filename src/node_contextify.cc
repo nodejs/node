@@ -211,7 +211,7 @@ MaybeLocal<Context> ContextifyContext::CreateV8Context(
     return MaybeLocal<Context>();
   }
 
-  auto context = env->context();
+  Local<Context> context = env->context();
   ctx->SetSecurityToken(context->GetSecurityToken());
 
   // We need to tie the lifetime of the sandbox object with the lifetime of
@@ -782,7 +782,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
   }
   contextify_script->script_.Reset(isolate, v8_script.ToLocalChecked());
 
-  auto env_context = env->context();
+  Local<Context> env_context = env->context();
   if (compile_options == ScriptCompiler::kConsumeCodeCache) {
     args.This()->Set(
         env_context,
@@ -892,7 +892,7 @@ void ContextifyScript::RunInContext(const FunctionCallbackInfo<Value>& args) {
       ContextifyContext::ContextFromContextifiedSandbox(env, sandbox);
   CHECK_NOT_NULL(contextify_context);
 
-  auto context = contextify_context->context();
+  Local<Context> context = contextify_context->context();
   if (context.IsEmpty())
     return;
 
