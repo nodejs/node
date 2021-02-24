@@ -12,7 +12,7 @@ This document attempts to outline the current maintenance processes, proposes
 a workflow for maintaining the V8 branches in both Node.js LTS and current
 releases, and discusses how the Node.js and V8 teams at Google can help.
 
-## V8 Release Schedule
+## V8 release schedule
 
 V8 and Chromium follow a
 [roughly 6-week release cadence][ChromiumReleaseCalendar]. At any given time
@@ -30,7 +30,7 @@ For example, at the time of this writing:
 
 All older branches are abandoned and are not maintained by the V8 team.
 
-### V8 Merge Process Overview
+### V8 merge process overview
 
 The process for backporting bug fixes to active branches is officially
 documented [on the V8 wiki][V8MergingPatching]. The summary of the process is:
@@ -48,7 +48,7 @@ documented [on the V8 wiki][V8MergingPatching]. The summary of the process is:
 * Merge requests to an abandoned branch will be rejected.
 * Only bug fixes are accepted for backporting.
 
-## Node.js Support Requirements
+## Node.js support requirements
 
 At any given time Node.js needs to be maintaining a few different V8 branches
 for the various Current, LTS, and nightly releases. At present this list
@@ -146,7 +146,7 @@ abandoned by upstream V8. However, Node.js needs to continue supporting
 these branches for many months (Current branches) or several
 years (LTS branches).
 
-## Maintenance Process
+## Maintenance process
 
 Once a bug in Node.js has been identified to be caused by V8, the first step is
 to identify the versions of Node.js and V8 affected. The bug may be present in
@@ -160,7 +160,7 @@ process.
 * Backports identified by the V8 team. Bugs identified by upstream V8 that we
   haven't encountered in Node.js yet.
 
-### Unfixed Upstream Bugs
+### Unfixed upstream bugs
 
 If the bug can be reproduced on the [Node.js `canary` branch][], Chromium
 canary, or V8 tip-of-tree, and the test case is valid, then the bug needs to be
@@ -176,7 +176,7 @@ fixed upstream first.
   branches that are still active or are branches that Node.js cares about.
   Follow the process for backporting below.
 
-### Backporting to Active Branches
+### Backporting to active branches
 
 If the bug exists in any of the active V8 branches, we may need to get the fix
 backported. At any given time there are [two active branches][V8ActiveBranches]
@@ -205,7 +205,7 @@ backport the fix:
 * Once the fix has been merged upstream, it can be picked up during an update of
   the V8 branch (see below).
 
-### Backporting to Abandoned Branches
+### Backporting to abandoned branches
 
 Abandoned V8 branches are supported in the Node.js repository. The fix needs
 to be cherry-picked in the Node.js repository and V8-CI must test the change.
@@ -278,7 +278,7 @@ PR-URL: https://github.com/nodejs/node/pull/7833
   normal and [V8 CI][] using the Node.js CI system. We only needed to backport
   to `v6.x` as the other LTS branches weren't affected by this bug.
 
-### Backports Identified by the V8 Team
+### Backports identified by the V8 team
 
 For bugs found through the browser or other channels, the V8 team marks bugs
 that might be applicable to the abandoned branches in use by Node.js. This is
@@ -317,7 +317,7 @@ V8 builds against the version of ICU supplied by Node.js,
 see [maintaining-icu.md](./maintaining-icu.md) for special considerations.
 Specifically, a V8 update may necessitate an ICU update.
 
-### Minor Updates (Patch Level)
+### Minor updates (patch level)
 
 Because there may be floating patches on the version of V8 in Node.js, it is
 safest to apply the patch level updates as a patch. For example, imagine that
@@ -347,7 +347,7 @@ Revision* from the 5.4 branch that can be useful in the update process above.
 The [`git-node`][] tool can be used to simplify this task. Run `git node v8 minor`
 to apply a minor update.
 
-### Major Updates
+### Major updates
 
 We upgrade the version of V8 in Node.js master whenever a V8 release goes stable
 upstream, that is, whenever a new release of Chrome comes out.
@@ -382,7 +382,7 @@ git node v8 major --branch=5.1-lkgr
 
 This should be followed up with manual refloating of all relevant patches.
 
-## Proposal: Using a Fork Repo to Track Upstream V8
+## Proposal: using a fork repo to track upstream V8
 
 The fact that Node.js keeps a vendored, potentially edited copy of V8 in deps/
 makes the above processes a bit complicated. An alternative proposal would be to
