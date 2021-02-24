@@ -13,6 +13,7 @@
 #include "src/codegen/code-stub-assembler.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/common/globals.h"
 #include "src/logging/counters.h"
 #include "src/objects/objects-inl.h"
 
@@ -281,7 +282,12 @@ TNode<JSObject> ConstructorBuiltinsAssembler::FastNewObject(
   }
   BIND(&allocate_properties);
   {
-    properties = AllocateNameDictionary(NameDictionary::kInitialCapacity);
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      properties = AllocateOrderedNameDictionary(
+          OrderedNameDictionary::kInitialCapacity);
+    } else {
+      properties = AllocateNameDictionary(NameDictionary::kInitialCapacity);
+    }
     Goto(&instantiate_map);
   }
 
@@ -462,6 +468,11 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
            &if_dictionary, &if_fast);
     BIND(&if_dictionary);
     {
+      if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+        // TODO(v8:11167) remove once OrderedNameDictionary supported.
+        GotoIf(Int32TrueConstant(), call_runtime);
+      }
+
       Comment("Copy dictionary properties");
       var_properties = CopyNameDictionary(CAST(LoadSlowProperties(boilerplate)),
                                           call_runtime);

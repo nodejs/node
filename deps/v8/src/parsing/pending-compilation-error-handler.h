@@ -28,6 +28,11 @@ class PendingCompilationErrorHandler {
   PendingCompilationErrorHandler()
       : has_pending_error_(false), stack_overflow_(false) {}
 
+  PendingCompilationErrorHandler(const PendingCompilationErrorHandler&) =
+      delete;
+  PendingCompilationErrorHandler& operator=(
+      const PendingCompilationErrorHandler&) = delete;
+
   void ReportMessageAt(int start_position, int end_position,
                        MessageTemplate message, const char* arg = nullptr);
 
@@ -130,8 +135,6 @@ class PendingCompilationErrorHandler {
   MessageDetails error_details_;
 
   std::forward_list<MessageDetails> warning_messages_;
-
-  DISALLOW_COPY_AND_ASSIGN(PendingCompilationErrorHandler);
 };
 
 extern template void PendingCompilationErrorHandler::PrepareErrors(

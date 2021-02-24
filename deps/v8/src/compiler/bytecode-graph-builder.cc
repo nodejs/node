@@ -5,8 +5,10 @@
 #include "src/compiler/bytecode-graph-builder.h"
 
 #include "src/ast/ast.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/source-position-table.h"
 #include "src/codegen/tick-counter.h"
+#include "src/common/assert-scope.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/compiler-source-position-table.h"
@@ -411,10 +413,6 @@ class BytecodeGraphBuilder {
   NativeContextRef native_context() const { return native_context_; }
   SharedFunctionInfoRef shared_info() const { return shared_info_; }
 
-  bool should_disallow_heap_access() const {
-    return broker_->is_concurrent_inlining();
-  }
-
 #define DECLARE_VISIT_BYTECODE(name, ...) void Visit##name();
   BYTECODE_LIST(DECLARE_VISIT_BYTECODE)
 #undef DECLARE_VISIT_BYTECODE
@@ -432,7 +430,7 @@ class BytecodeGraphBuilder {
   const FrameStateFunctionInfo* const frame_state_function_info_;
   std::unique_ptr<SourcePositionTableIterator> source_position_iterator_;
   interpreter::BytecodeArrayIterator bytecode_iterator_;
-  BytecodeAnalysis const& bytecode_analysis_;
+  BytecodeAnalysis const bytecode_analysis_;
   Environment* environment_;
   bool const osr_;
   int currently_peeled_loop_offset_;
@@ -912,28 +910,32 @@ void BytecodeGraphBuilder::Environment::PrepareForLoopExit(
   // live after exiting the loop.
   for (int i = 0; i < parameter_count(); i++) {
     if (assignments.ContainsParameter(i)) {
-      Node* rename =
-          graph()->NewNode(common()->LoopExitValue(), values_[i], loop_exit);
+      Node* rename = graph()->NewNode(
+          common()->LoopExitValue(MachineRepresentation::kTagged), values_[i],
+          loop_exit);
       values_[i] = rename;
     }
   }
   for (int i = 0; i < register_count(); i++) {
     if (assignments.ContainsLocal(i) &&
         (liveness == nullptr || liveness->RegisterIsLive(i))) {
-      Node* rename = graph()->NewNode(common()->LoopExitValue(),
-                                      values_[register_base() + i], loop_exit);
+      Node* rename = graph()->NewNode(
+          common()->LoopExitValue(MachineRepresentation::kTagged),
+          values_[register_base() + i], loop_exit);
       values_[register_base() + i] = rename;
     }
   }
   if (liveness == nullptr || liveness->AccumulatorIsLive()) {
-    Node* rename = graph()->NewNode(common()->LoopExitValue(),
-                                    values_[accumulator_base()], loop_exit);
+    Node* rename = graph()->NewNode(
+        common()->LoopExitValue(MachineRepresentation::kTagged),
+        values_[accumulator_base()], loop_exit);
     values_[accumulator_base()] = rename;
   }
 
   if (generator_state_ != nullptr) {
-    generator_state_ = graph()->NewNode(common()->LoopExitValue(),
-                                        generator_state_, loop_exit);
+    generator_state_ = graph()->NewNode(
+        common()->LoopExitValue(MachineRepresentation::kTagged),
+        generator_state_, loop_exit);
   }
 }
 
@@ -1014,12 +1016,9 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
           bytecode_array().SourcePositionTable())),
       bytecode_iterator_(
           std::make_unique<OffHeapBytecodeArray>(bytecode_array())),
-      bytecode_analysis_(broker_->GetBytecodeAnalysis(
-          bytecode_array().object(), osr_offset,
-          flags & BytecodeGraphBuilderFlag::kAnalyzeEnvironmentLiveness,
-          should_disallow_heap_access()
-              ? SerializationPolicy::kAssumeSerialized
-              : SerializationPolicy::kSerializeIfNeeded)),
+      bytecode_analysis_(
+          bytecode_array().object(), local_zone, osr_offset,
+          flags & BytecodeGraphBuilderFlag::kAnalyzeEnvironmentLiveness),
       environment_(nullptr),
       osr_(!osr_offset.IsNone()),
       currently_peeled_loop_offset_(-1),
@@ -1174,7 +1173,6 @@ FeedbackSource BytecodeGraphBuilder::CreateFeedbackSource(FeedbackSlot slot) {
 }
 
 void BytecodeGraphBuilder::CreateGraph() {
-  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
   SourcePositionTable::Scope pos_scope(source_positions_, start_position_);
 
   // Set up the basic structure of the graph. Outputs for {Start} are the formal
@@ -1507,7 +1505,8 @@ void BytecodeGraphBuilder::VisitBytecodes() {
     VisitSingleBytecode();
   }
 
-  if (!should_disallow_heap_access() && has_one_shot_bytecode) {
+  // TODO(leszeks): Increment usage counter on BG thread.
+  if (!FLAG_concurrent_inlining && has_one_shot_bytecode) {
     // (For concurrent inlining this is done in the serializer instead.)
     isolate()->CountUsage(
         v8::Isolate::UseCounterFeature::kOptimizedFunctionWithOneShotBytecode);
@@ -2245,7 +2244,6 @@ void BytecodeGraphBuilder::VisitCreateClosure() {
 }
 
 void BytecodeGraphBuilder::VisitCreateBlockContext() {
-  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
   ScopeInfoRef scope_info(
       broker(), bytecode_iterator().GetConstantForIndexOperand(0, isolate()));
   const Operator* op = javascript()->CreateBlockContext(scope_info.object());
@@ -2254,7 +2252,6 @@ void BytecodeGraphBuilder::VisitCreateBlockContext() {
 }
 
 void BytecodeGraphBuilder::VisitCreateFunctionContext() {
-  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
   ScopeInfoRef scope_info(
       broker(), bytecode_iterator().GetConstantForIndexOperand(0, isolate()));
   uint32_t slots = bytecode_iterator().GetUnsignedImmediateOperand(1);
@@ -2265,7 +2262,6 @@ void BytecodeGraphBuilder::VisitCreateFunctionContext() {
 }
 
 void BytecodeGraphBuilder::VisitCreateEvalContext() {
-  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
   ScopeInfoRef scope_info(
       broker(), bytecode_iterator().GetConstantForIndexOperand(0, isolate()));
   uint32_t slots = bytecode_iterator().GetUnsignedImmediateOperand(1);
@@ -2276,7 +2272,6 @@ void BytecodeGraphBuilder::VisitCreateEvalContext() {
 }
 
 void BytecodeGraphBuilder::VisitCreateCatchContext() {
-  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
   interpreter::Register reg = bytecode_iterator().GetRegisterOperand(0);
   Node* exception = environment()->LookupRegister(reg);
   ScopeInfoRef scope_info(
@@ -2288,7 +2283,6 @@ void BytecodeGraphBuilder::VisitCreateCatchContext() {
 }
 
 void BytecodeGraphBuilder::VisitCreateWithContext() {
-  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
   Node* object =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   ScopeInfoRef scope_info(
@@ -2408,7 +2402,6 @@ void BytecodeGraphBuilder::VisitCloneObject() {
 }
 
 void BytecodeGraphBuilder::VisitGetTemplateObject() {
-  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
   FeedbackSource source =
       CreateFeedbackSource(bytecode_iterator().GetIndexOperand(1));
   TemplateObjectDescriptionRef description(
@@ -4314,7 +4307,7 @@ Node** BytecodeGraphBuilder::EnsureInputBufferSize(int size) {
 }
 
 void BytecodeGraphBuilder::ExitThenEnterExceptionHandlers(int current_offset) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   HandlerTable table(bytecode_array().handler_table_address(),
                      bytecode_array().handler_table_size(),
                      HandlerTable::kRangeBasedEncoding);
@@ -4365,7 +4358,8 @@ Node* BytecodeGraphBuilder::MakeNode(const Operator* op, int value_input_count,
     if (has_effect) ++input_count_with_deps;
     Node** buffer = EnsureInputBufferSize(input_count_with_deps);
     if (value_input_count > 0) {
-      memcpy(buffer, value_inputs, kSystemPointerSize * value_input_count);
+      base::Memcpy(buffer, value_inputs,
+                   kSystemPointerSize * value_input_count);
     }
     Node** current_input = buffer + value_input_count;
     if (has_context) {

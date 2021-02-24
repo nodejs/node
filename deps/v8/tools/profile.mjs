@@ -28,6 +28,7 @@
 import { CodeMap, CodeEntry } from "./codemap.mjs";
 import { ConsArray } from "./consarray.mjs";
 
+// Used to associate log entries with source positions in scripts.
 // TODO: move to separate modules
 export class SourcePosition {
   constructor(script, line, column) {
@@ -36,19 +37,43 @@ export class SourcePosition {
     this.column = column;
     this.entries = [];
   }
+
   addEntry(entry) {
     this.entries.push(entry);
+  }
+
+  toString() {
+   return `${this.script.name}:${this.line}:${this.column}`;
+  }
+
+  toStringLong() {
+    return this.toString();
   }
 }
 
 export class Script {
-  constructor(id, name, source) {
+  name;
+  source;
+  // Map<line, Map<column, SourcePosition>>
+  lineToColumn = new Map();
+  _entries = [];
+
+  constructor(id) {
     this.id = id;
+    this.sourcePositions = [];
+  }
+
+  update(name, source) {
     this.name = name;
     this.source = source;
-    this.sourcePositions = [];
-    // Map<line, Map<column, SourcePosition>>
-    this.lineToColumn = new Map();
+  }
+
+  get length() {
+    return this.source.length;
+  }
+
+  get entries() {
+    return this._entries;
   }
 
   addSourcePosition(line, column, entry) {
@@ -58,6 +83,7 @@ export class Script {
       this._addSourcePosition(line, column, sourcePosition);
     }
     sourcePosition.addEntry(entry);
+    this._entries.push(entry);
     return sourcePosition;
   }
 
@@ -71,6 +97,42 @@ export class Script {
     }
     this.sourcePositions.push(sourcePosition);
     columnToSourcePosition.set(column, sourcePosition);
+  }
+
+  toString() {
+    return `Script(${this.id}): ${this.name}`;
+  }
+
+  toStringLong() {
+    return this.source;
+  }
+}
+
+
+class SourceInfo {
+   script;
+   start;
+   end;
+   positions;
+   inlined ;
+   fns;
+   disassemble;
+
+  setSourcePositionInfo(script, startPos, endPos, sourcePositionTable, inliningPositions, inlinedFunctions) {
+    this.script = script;
+    this.start = startPos;
+    this.end = endPos;
+    this.positions = sourcePositionTable;
+    this.inlined = inliningPositions;
+    this.fns = inlinedFunctions;
+  }
+
+  setDisassemble(code) {
+    this.disassemble = code;
+  }
+
+  getSourceCode() {
+    return this.script.source?.substring(this.start, this.end);
   }
 }
 
@@ -118,8 +180,44 @@ export class Profile {
    */
   static CodeState = {
     COMPILED: 0,
-    OPTIMIZABLE: 1,
-    OPTIMIZED: 2
+    IGNITION: 1,
+    NATIVE_CONTEXT_INDEPENDENT: 2,
+    TURBOPROP: 3,
+    TURBOFAN: 4,
+  }
+
+  /**
+   * Parser for dynamic code optimization state.
+   */
+  static parseState(s) {
+    switch (s) {
+      case '':
+        return this.CodeState.COMPILED;
+      case '~':
+        return this.CodeState.IGNITION;
+      case '-':
+        return this.CodeState.NATIVE_CONTEXT_INDEPENDENT;
+      case '+':
+        return this.CodeState.TURBOPROP;
+      case '*':
+        return this.CodeState.TURBOFAN;
+    }
+    throw new Error(`unknown code state: ${s}`);
+  }
+
+  static getKindFromState(state) {
+    if (state === this.CodeState.COMPILED) {
+      return "Builtin";
+    } else if (state === this.CodeState.IGNITION) {
+      return "Unopt";
+    } else if (state === this.CodeState.NATIVE_CONTEXT_INDEPENDENT) {
+      return "NCI";
+    } else if (state === this.CodeState.TURBOPROP) {
+      return "Turboprop";
+    } else if (state === this.CodeState.TURBOFAN) {
+      return "Opt";
+    }
+    throw new Error(`unknown code state: ${state}`);
   }
 
   /**
@@ -228,7 +326,7 @@ export class Profile {
     }
   }
 
-  deoptCode(  timestamp, code, inliningId, scriptOffset, bailoutType,
+  deoptCode(timestamp, code, inliningId, scriptOffset, bailoutType,
     sourcePositionText, deoptReasonText) {
   }
 
@@ -248,23 +346,59 @@ export class Profile {
   /**
    * Adds source positions for given code.
    */
-  addSourcePositions(start, script, startPos, endPos, sourcePositions,
+  addSourcePositions(start, scriptId, startPos, endPos, sourcePositionTable,
         inliningPositions, inlinedFunctions) {
-    // CLI does not need source code => ignore.
+    const script = this.getOrCreateScript(scriptId);
+    const entry = this.codeMap_.findDynamicEntryByStartAddress(start);
+    if (!entry) return;
+    // Resolve the inlined functions list.
+    if (inlinedFunctions.length > 0) {
+      inlinedFunctions = inlinedFunctions.substring(1).split("S");
+      for (let i = 0; i < inlinedFunctions.length; i++) {
+        const funcAddr = parseInt(inlinedFunctions[i]);
+        const func = this.codeMap_.findDynamicEntryByStartAddress(funcAddr);
+        if (!func || func.funcId === undefined) {
+          // TODO: fix
+          console.warn(`Could not find function ${inlinedFunctions[i]}`);
+          inlinedFunctions[i] = null;
+        } else {
+          inlinedFunctions[i] = func.funcId;
+        }
+      }
+    } else {
+      inlinedFunctions = [];
+    }
+
+    this.getOrCreateSourceInfo(entry).setSourcePositionInfo(
+          script, startPos, endPos, sourcePositionTable, inliningPositions,
+          inlinedFunctions);
   }
 
-  /**
-   * Adds script source code.
-   */
+  addDisassemble(start, kind, disassemble) {
+    const entry = this.codeMap_.findDynamicEntryByStartAddress(start);
+    if (!entry) return;
+    this.getOrCreateSourceInfo(entry).setDisassemble(disassemble);
+  }
+
+  getOrCreateSourceInfo(entry) {
+    return entry.source ?? (entry.source = new SourceInfo());
+  }
+
   addScriptSource(id, url, source) {
-    const script = new Script(id, url, source);
-    this.scripts_[id] = script;
+    const script = this.getOrCreateScript(id);
+    script.update(url, source);
     this.urlToScript_.set(url, script);
   }
 
-  /**
-   * Adds script source code.
-   */
+  getOrCreateScript(id) {
+    let script = this.scripts_[id];
+    if (!script) {
+      script = new Script(id);
+      this.scripts_[id] = script;
+    }
+    return script;
+  }
+
   getScript(url) {
     return this.urlToScript_.get(url);
   }
@@ -547,10 +681,19 @@ class DynamicFuncCodeEntry extends CodeEntry {
   constructor(size, type, func, state) {
     super(size, '', type);
     this.func = func;
+    func.addDynamicCode(this);
     this.state = state;
   }
 
-  static STATE_PREFIX = ["", "~", "*"];
+  get functionName() {
+    return this.func.functionName;
+  }
+
+  getSourceCode() {
+    return this.source?.getSourceCode();
+  }
+
+  static STATE_PREFIX = ["", "~", "-", "+", "*"];
   getState() {
     return DynamicFuncCodeEntry.STATE_PREFIX[this.state];
   }
@@ -583,8 +726,26 @@ class DynamicFuncCodeEntry extends CodeEntry {
  * @constructor
  */
 class FunctionEntry extends CodeEntry {
+  
+  // Contains the list of generated code for this function.
+  _codeEntries = new Set();
+
   constructor(name) {
     super(0, name);
+    const index = name.lastIndexOf(' ');
+    this.functionName = 1 <= index ? name.substring(0, index) : '<anonymous>';
+  }
+
+  addDynamicCode(code) {
+    if (code.func != this) {
+      throw new Error("Adding dynamic code to wrong function");
+    }
+    this._codeEntries.add(code);
+  }
+
+  getSourceCode() {
+    // All code entries should map to the same source positions.
+    return this._codeEntries.values().next().value.getSourceCode();
   }
 
   /**
@@ -593,10 +754,10 @@ class FunctionEntry extends CodeEntry {
   getName() {
     let name = this.name;
     if (name.length == 0) {
-      name = '<anonymous>';
+       return '<anonymous>';
     } else if (name.charAt(0) == ' ') {
       // An anonymous function with location: " aaa.js:10".
-      name = `<anonymous>${name}`;
+      return `<anonymous>${name}`;
     }
     return name;
   }
@@ -947,13 +1108,7 @@ JsonProfile.prototype.addFuncCode = function (
 
     this.functionEntries_[func.funcId].codes.push(entry.codeId);
 
-    if (state === 0) {
-      kind = "Builtin";
-    } else if (state === 1) {
-      kind = "Unopt";
-    } else if (state === 2) {
-      kind = "Opt";
-    }
+    kind = Profile.getKindFromState(state);
 
     this.codeEntries_.push({
       name: entry.name,

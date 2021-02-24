@@ -6,6 +6,7 @@
 #define V8_EXECUTION_LOCAL_ISOLATE_H_
 
 #include "src/base/macros.h"
+#include "src/execution/shared-mutex-guard-if-off-thread.h"
 #include "src/execution/thread-id.h"
 #include "src/handles/handles.h"
 #include "src/handles/local-handles.h"
@@ -52,6 +53,7 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   inline Object root(RootIndex index) const;
 
   StringTable* string_table() const { return isolate_->string_table(); }
+  base::SharedMutex* string_access() { return isolate_->string_access(); }
 
   v8::internal::LocalFactory* factory() {
     // Upcast to the privately inherited base-class using c-style casts to avoid
@@ -81,6 +83,12 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   ThreadId thread_id() const { return thread_id_; }
   Address stack_limit() const { return stack_limit_; }
 
+  bool is_main_thread() const { return heap_.is_main_thread(); }
+
+  const std::vector<std::string>& supported_import_assertions() const {
+    return supported_import_assertions_;
+  }
+
  private:
   friend class v8::internal::LocalFactory;
 
@@ -93,6 +101,25 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   std::unique_ptr<LocalLogger> logger_;
   ThreadId const thread_id_;
   Address const stack_limit_;
+  std::vector<std::string> supported_import_assertions_;
+};
+
+template <base::MutexSharedType kIsShared>
+class V8_NODISCARD SharedMutexGuardIfOffThread<LocalIsolate, kIsShared> final {
+ public:
+  SharedMutexGuardIfOffThread(base::SharedMutex* mutex, LocalIsolate* isolate) {
+    DCHECK_NOT_NULL(mutex);
+    DCHECK_NOT_NULL(isolate);
+    DCHECK(!isolate->is_main_thread());
+    mutex_guard_.emplace(mutex);
+  }
+
+  SharedMutexGuardIfOffThread(const SharedMutexGuardIfOffThread&) = delete;
+  SharedMutexGuardIfOffThread& operator=(const SharedMutexGuardIfOffThread&) =
+      delete;
+
+ private:
+  base::Optional<base::SharedMutexGuard<kIsShared>> mutex_guard_;
 };
 
 }  // namespace internal

@@ -30,15 +30,19 @@ class GCInvoker::GCInvokerImpl final : public GarbageCollector {
    public:
     using Handle = SingleThreadedHandle;
 
-    static Handle Post(GarbageCollector* collector, cppgc::TaskRunner* runner) {
-      auto task = std::make_unique<GCInvoker::GCInvokerImpl::GCTask>(collector);
+    static Handle Post(GarbageCollector* collector, cppgc::TaskRunner* runner,
+                       GarbageCollector::Config config) {
+      auto task =
+          std::make_unique<GCInvoker::GCInvokerImpl::GCTask>(collector, config);
       auto handle = task->GetHandle();
       runner->PostNonNestableTask(std::move(task));
       return handle;
     }
 
-    explicit GCTask(GarbageCollector* collector)
+    explicit GCTask(GarbageCollector* collector,
+                    GarbageCollector::Config config)
         : collector_(collector),
+          config_(config),
           handle_(Handle::NonEmptyTag{}),
           saved_epoch_(collector->epoch()) {}
 
@@ -46,14 +50,14 @@ class GCInvoker::GCInvokerImpl final : public GarbageCollector {
     void Run() final {
       if (handle_.IsCanceled() || (collector_->epoch() != saved_epoch_)) return;
 
-      collector_->CollectGarbage(
-          GarbageCollector::Config::PreciseAtomicConfig());
+      collector_->CollectGarbage(config_);
       handle_.Cancel();
     }
 
     Handle GetHandle() { return handle_; }
 
     GarbageCollector* collector_;
+    GarbageCollector::Config config_;
     Handle handle_;
     size_t saved_epoch_;
   };
@@ -78,21 +82,27 @@ GCInvoker::GCInvokerImpl::~GCInvokerImpl() {
 }
 
 void GCInvoker::GCInvokerImpl::CollectGarbage(GarbageCollector::Config config) {
+  DCHECK_EQ(config.marking_type, cppgc::Heap::MarkingType::kAtomic);
   if ((config.stack_state ==
        GarbageCollector::Config::StackState::kNoHeapPointers) ||
       (stack_support_ ==
        cppgc::Heap::StackSupport::kSupportsConservativeStackScan)) {
     collector_->CollectGarbage(config);
-  } else if (platform_->GetForegroundTaskRunner()->NonNestableTasksEnabled()) {
+  } else if (platform_->GetForegroundTaskRunner() &&
+             platform_->GetForegroundTaskRunner()->NonNestableTasksEnabled()) {
     if (!gc_task_handle_) {
-      gc_task_handle_ =
-          GCTask::Post(collector_, platform_->GetForegroundTaskRunner().get());
+      // Force a precise GC since it will run in a non-nestable task.
+      config.stack_state =
+          GarbageCollector::Config::StackState::kNoHeapPointers;
+      gc_task_handle_ = GCTask::Post(
+          collector_, platform_->GetForegroundTaskRunner().get(), config);
     }
   }
 }
 
 void GCInvoker::GCInvokerImpl::StartIncrementalGarbageCollection(
     GarbageCollector::Config config) {
+  DCHECK_NE(config.marking_type, cppgc::Heap::MarkingType::kAtomic);
   if ((stack_support_ !=
        cppgc::Heap::StackSupport::kSupportsConservativeStackScan) &&
       (!platform_->GetForegroundTaskRunner() ||

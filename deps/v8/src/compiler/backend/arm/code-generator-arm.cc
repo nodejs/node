@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/codegen/arm/constants-arm.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
@@ -961,7 +962,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchDeoptimize: {
       DeoptimizationExit* exit =
-          BuildTranslation(instr, -1, 0, OutputFrameStateCombine::Ignore());
+          BuildTranslation(instr, -1, 0, 0, OutputFrameStateCombine::Ignore());
       __ b(exit->label());
       break;
     }
@@ -1638,6 +1639,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputDoubleRegister(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
+    case kArmVcnt: {
+      __ vcnt(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
     case kArmLdrb:
       __ ldrb(i.OutputRegister(), i.InputOffset());
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -1861,6 +1866,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ and_(i.OutputRegister(0), i.InputRegister(0),
               Operand(kSpeculationPoisonRegister));
       break;
+    case kArmVmullLow: {
+      auto dt = static_cast<NeonDataType>(MiscField::decode(instr->opcode()));
+      __ vmull(dt, i.OutputSimd128Register(), i.InputSimd128Register(0).low(),
+               i.InputSimd128Register(1).low());
+      break;
+    }
+    case kArmVmullHigh: {
+      auto dt = static_cast<NeonDataType>(MiscField::decode(instr->opcode()));
+      __ vmull(dt, i.OutputSimd128Register(), i.InputSimd128Register(0).high(),
+               i.InputSimd128Register(1).high());
+      break;
+    }
+    case kArmVpaddl: {
+      auto dt = static_cast<NeonDataType>(MiscField::decode(instr->opcode()));
+      __ vpaddl(dt, i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
     case kArmF64x2Splat: {
       Simd128Register dst = i.OutputSimd128Register();
       DoubleRegister src = i.InputDoubleRegister(0);
@@ -2167,6 +2189,39 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SIMD_SHIFT_RIGHT(vshr, 6, Neon32, NeonU64);
       break;
     }
+    case kArmI64x2BitMask: {
+      UseScratchRegisterScope temps(tasm());
+      Register dst = i.OutputRegister();
+      Simd128Register src = i.InputSimd128Register(0);
+      QwNeonRegister tmp1 = temps.AcquireQ();
+      Register tmp = temps.Acquire();
+
+      __ vshr(NeonU64, tmp1, src, 63);
+      __ vmov(NeonU32, dst, tmp1.low(), 0);
+      __ vmov(NeonU32, tmp, tmp1.high(), 0);
+      __ add(dst, dst, Operand(tmp, LSL, 1));
+      break;
+    }
+    case kArmI64x2SConvertI32x4Low: {
+      __ vmovl(NeonS32, i.OutputSimd128Register(),
+               i.InputSimd128Register(0).low());
+      break;
+    }
+    case kArmI64x2SConvertI32x4High: {
+      __ vmovl(NeonS32, i.OutputSimd128Register(),
+               i.InputSimd128Register(0).high());
+      break;
+    }
+    case kArmI64x2UConvertI32x4Low: {
+      __ vmovl(NeonU32, i.OutputSimd128Register(),
+               i.InputSimd128Register(0).low());
+      break;
+    }
+    case kArmI64x2UConvertI32x4High: {
+      __ vmovl(NeonU32, i.OutputSimd128Register(),
+               i.InputSimd128Register(0).high());
+      break;
+    }
     case kArmF32x4Splat: {
       int src_code = i.InputFloatRegister(0).code();
       __ vdup(Neon32, i.OutputSimd128Register(),
@@ -2392,6 +2447,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmI32x4MaxS: {
       __ vmax(NeonS32, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
+      break;
+    }
+    case kArmI64x2Eq: {
+      Simd128Register dst = i.OutputSimd128Register();
+      UseScratchRegisterScope temps(tasm());
+      Simd128Register scratch = temps.AcquireQ();
+      __ vceq(Neon32, dst, i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      __ vrev64(Neon32, scratch, dst);
+      __ vand(dst, dst, scratch);
       break;
     }
     case kArmI32x4Eq: {
@@ -2666,6 +2731,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmov(NeonU16, dst, tmp2.low(), 0);
       break;
     }
+    case kArmI16x8Q15MulRSatS: {
+      __ vqrdmulh(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      break;
+    }
     case kArmI8x16Splat: {
       __ vdup(Neon8, i.OutputSimd128Register(), i.InputRegister(0));
       break;
@@ -2820,6 +2890,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vpadd(Neon16, tmp2.low(), tmp2.low(), tmp2.low());
       __ vpadd(Neon16, tmp2.low(), tmp2.low(), tmp2.low());
       __ vmov(NeonU16, dst, tmp2.low(), 0);
+      break;
+    }
+    case kArmSignSelect: {
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register mask = i.InputSimd128Register(2);
+      auto sz = static_cast<NeonSize>(MiscField::decode(instr->opcode()));
+      if (Neon64 == sz) {
+        // vclt does not support Neon64.
+        __ vshr(NeonS64, dst, mask, 63);
+      } else {
+        __ vclt(sz, dst, mask, 0);
+      }
+      __ vbsl(dst, i.InputSimd128Register(0), i.InputSimd128Register(1));
       break;
     }
     case kArmS128Const: {
@@ -3274,6 +3357,36 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register dst = i.OutputSimd128Register();
       __ vmov(dst.high(), 0);
       __ vld1(Neon64, NeonListOperand(dst.low()), i.NeonInputOperand(0));
+      break;
+    }
+    case kArmS128LoadLaneLow: {
+      Simd128Register dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      auto sz = static_cast<NeonSize>(MiscField::decode(instr->opcode()));
+      NeonListOperand dst_list = NeonListOperand(dst.low());
+      __ LoadLane(sz, dst_list, i.InputUint8(1), i.NeonInputOperand(2));
+      break;
+    }
+    case kArmS128LoadLaneHigh: {
+      Simd128Register dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      auto sz = static_cast<NeonSize>(MiscField::decode(instr->opcode()));
+      NeonListOperand dst_list = NeonListOperand(dst.high());
+      __ LoadLane(sz, dst_list, i.InputUint8(1), i.NeonInputOperand(2));
+      break;
+    }
+    case kArmS128StoreLaneLow: {
+      Simd128Register src = i.InputSimd128Register(0);
+      NeonListOperand src_list = NeonListOperand(src.low());
+      auto sz = static_cast<NeonSize>(MiscField::decode(instr->opcode()));
+      __ StoreLane(sz, src_list, i.InputUint8(1), i.NeonInputOperand(2));
+      break;
+    }
+    case kArmS128StoreLaneHigh: {
+      Simd128Register src = i.InputSimd128Register(0);
+      NeonListOperand src_list = NeonListOperand(src.high());
+      auto sz = static_cast<NeonSize>(MiscField::decode(instr->opcode()));
+      __ StoreLane(sz, src_list, i.InputUint8(1), i.NeonInputOperand(2));
       break;
     }
     case kWord32AtomicLoadInt8:

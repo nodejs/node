@@ -76,6 +76,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmVabsF64:
     case kArmVnegF64:
     case kArmVsqrtF64:
+    case kArmVmullLow:
+    case kArmVmullHigh:
     case kArmVrintmF32:
     case kArmVrintmF64:
     case kArmVrintpF32:
@@ -103,6 +105,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmVmovHighF64U32:
     case kArmVmovF64U32U32:
     case kArmVmovU32U32F64:
+    case kArmVcnt:
+    case kArmVpaddl:
     case kArmFloat32Max:
     case kArmFloat64Max:
     case kArmFloat32Min:
@@ -162,6 +166,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmI64x2Sub:
     case kArmI64x2Mul:
     case kArmI64x2ShrU:
+    case kArmI64x2BitMask:
+    case kArmI64x2Eq:
+    case kArmI64x2SConvertI32x4Low:
+    case kArmI64x2SConvertI32x4High:
+    case kArmI64x2UConvertI32x4Low:
+    case kArmI64x2UConvertI32x4High:
     case kArmI32x4Splat:
     case kArmI32x4ExtractLane:
     case kArmI32x4ReplaceLane:
@@ -227,6 +237,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmI16x8RoundingAverageU:
     case kArmI16x8Abs:
     case kArmI16x8BitMask:
+    case kArmI16x8Q15MulRSatS:
     case kArmI8x16Splat:
     case kArmI8x16ExtractLaneS:
     case kArmI8x16ReplaceLane:
@@ -257,6 +268,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmI8x16RoundingAverageU:
     case kArmI8x16Abs:
     case kArmI8x16BitMask:
+    case kArmSignSelect:
     case kArmS128Const:
     case kArmS128Zero:
     case kArmS128AllOnes:
@@ -326,6 +338,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmS128Load32x2U:
     case kArmS128Load32Zero:
     case kArmS128Load64Zero:
+    case kArmS128LoadLaneLow:
+    case kArmS128LoadLaneHigh:
       return kIsLoadOperation;
 
     case kArmVstrF32:
@@ -347,6 +361,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmWord32AtomicPairXor:
     case kArmWord32AtomicPairExchange:
     case kArmWord32AtomicPairCompareExchange:
+    case kArmS128StoreLaneLow:
+    case kArmS128StoreLaneHigh:
       return kHasSideEffect;
 
 #define CASE(Name) case k##Name:

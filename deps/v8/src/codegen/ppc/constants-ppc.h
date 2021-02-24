@@ -526,7 +526,9 @@ using Instr = uint32_t;
   /* VSX Vector Test for software Square Root Double-Precision */            \
   V(xvtsqrtdp, XVTSQRTDP, 0xF00003A8)                                        \
   /* VSX Vector Test for software Square Root Single-Precision */            \
-  V(xvtsqrtsp, XVTSQRTSP, 0xF00002A8)
+  V(xvtsqrtsp, XVTSQRTSP, 0xF00002A8)                                        \
+  /* Vector Splat Immediate Byte */                                          \
+  V(xxspltib, XXSPLTIB, 0xF00002D0)
 
 #define PPC_XX2_OPCODE_LIST(V)  \
   PPC_XX2_OPCODE_A_FORM_LIST(V) \
@@ -1926,15 +1928,17 @@ using Instr = uint32_t;
   /* Floating Reciprocal Square Root Estimate Single */ \
   V(frsqrtes, FRSQRTES, 0xEC000034)
 
-#define PPC_VA_OPCODE_A_FORM_LIST(V)                     \
-  /* Vector Permute */                                   \
-  V(vperm, VPERM, 0x1000002B)                            \
-  /* Vector Multiply-Low-Add Unsigned Halfword Modulo */ \
-  V(vmladduhm, VMLADDUHM, 0x10000022)                    \
-  /* Vector Select */                                    \
-  V(vsel, VSEL, 0x1000002A)                              \
-  /* Vector Multiply-Sum Signed Halfword Modulo */       \
-  V(vmsumshm, VMSUMSHM, 0x10000028)
+#define PPC_VA_OPCODE_A_FORM_LIST(V)                            \
+  /* Vector Permute */                                          \
+  V(vperm, VPERM, 0x1000002B)                                   \
+  /* Vector Multiply-Low-Add Unsigned Halfword Modulo */        \
+  V(vmladduhm, VMLADDUHM, 0x10000022)                           \
+  /* Vector Select */                                           \
+  V(vsel, VSEL, 0x1000002A)                                     \
+  /* Vector Multiply-Sum Signed Halfword Modulo */              \
+  V(vmsumshm, VMSUMSHM, 0x10000028)                             \
+  /* Vector Multiply-High-Round-Add Signed Halfword Saturate */ \
+  V(vmhraddshs, VMHRADDSHS, 0x10000021)
 
 #define PPC_VA_OPCODE_UNUSED_LIST(V)                             \
   /* Vector Add Extended & write Carry Unsigned Quadword */      \
@@ -1945,8 +1949,6 @@ using Instr = uint32_t;
   V(vmaddfp, VMADDFP, 0x1000002E)                                \
   /* Vector Multiply-High-Add Signed Halfword Saturate */        \
   V(vmhaddshs, VMHADDSHS, 0x10000020)                            \
-  /* Vector Multiply-High-Round-Add Signed Halfword Saturate */  \
-  V(vmhraddshs, VMHRADDSHS, 0x10000021)                          \
   /* Vector Multiply-Sum Mixed Byte Modulo */                    \
   V(vmsummbm, VMSUMMBM, 0x10000025)                              \
   /* Vector Multiply-Sum Signed Halfword Saturate */             \
@@ -1972,37 +1974,43 @@ using Instr = uint32_t;
   PPC_VA_OPCODE_A_FORM_LIST(V) \
   PPC_VA_OPCODE_UNUSED_LIST(V)
 
-#define PPC_XX1_OPCODE_LIST(V)                            \
-  /* Load VSR Scalar Doubleword Indexed */                \
-  V(lxsdx, LXSDX, 0x7C000498)                             \
-  /* Load VSX Scalar as Integer Word Algebraic Indexed */ \
-  V(lxsiwax, LXSIWAX, 0x7C000098)                         \
-  /* Load VSX Scalar as Integer Word and Zero Indexed */  \
-  V(lxsiwzx, LXSIWZX, 0x7C000018)                         \
-  /* Load VSX Scalar Single-Precision Indexed */          \
-  V(lxsspx, LXSSPX, 0x7C000418)                           \
-  /* Load VSR Vector Doubleword*2 Indexed */              \
-  V(lxvd, LXVD, 0x7C000698)                               \
-  /* Load VSR Vector Doubleword & Splat Indexed */        \
-  V(lxvdsx, LXVDSX, 0x7C000298)                           \
-  /* Load VSR Vector Word*4 Indexed */                    \
-  V(lxvw, LXVW, 0x7C000618)                               \
-  /* Move From VSR Doubleword */                          \
-  V(mfvsrd, MFVSRD, 0x7C000066)                           \
-  /* Move From VSR Word and Zero */                       \
-  V(mfvsrwz, MFVSRWZ, 0x7C0000E6)                         \
-  /* Store VSR Scalar Doubleword Indexed */               \
-  V(stxsdx, STXSDX, 0x7C000598)                           \
-  /* Store VSX Scalar as Integer Word Indexed */          \
-  V(stxsiwx, STXSIWX, 0x7C000118)                         \
-  /* Store VSR Scalar Word Indexed */                     \
-  V(stxsspx, STXSSPX, 0x7C000518)                         \
-  /* Store VSR Vector Doubleword*2 Indexed */             \
-  V(stxvd, STXVD, 0x7C000798)                             \
-  /* Store VSR Vector Word*4 Indexed */                   \
-  V(stxvw, STXVW, 0x7C000718)                             \
-  /* Vector Splat Immediate Byte */                       \
-  V(xxspltib, XXSPLTIB, 0xF00002D1)
+#define PPC_XX1_OPCODE_LIST(V)                             \
+  /* Load VSR Scalar Doubleword Indexed */                 \
+  V(lxsdx, LXSDX, 0x7C000498)                              \
+  /* Load VSX Scalar as Integer Word Algebraic Indexed */  \
+  V(lxsiwax, LXSIWAX, 0x7C000098)                          \
+  /* Load VSX Scalar as Integer Byte & Zero Indexed */     \
+  V(lxsibzx, LXSIBZX, 0x7C00061A)                          \
+  /* Load VSX Scalar as Integer Halfword & Zero Indexed */ \
+  V(lxsihzx, LXSIHZX, 0x7C00065A)                          \
+  /* Load VSX Scalar as Integer Word and Zero Indexed */   \
+  V(lxsiwzx, LXSIWZX, 0x7C000018)                          \
+  /* Load VSX Scalar Single-Precision Indexed */           \
+  V(lxsspx, LXSSPX, 0x7C000418)                            \
+  /* Load VSR Vector Doubleword*2 Indexed */               \
+  V(lxvd, LXVD, 0x7C000698)                                \
+  /* Load VSR Vector Doubleword & Splat Indexed */         \
+  V(lxvdsx, LXVDSX, 0x7C000298)                            \
+  /* Load VSR Vector Word*4 Indexed */                     \
+  V(lxvw, LXVW, 0x7C000618)                                \
+  /* Move From VSR Doubleword */                           \
+  V(mfvsrd, MFVSRD, 0x7C000066)                            \
+  /* Move From VSR Word and Zero */                        \
+  V(mfvsrwz, MFVSRWZ, 0x7C0000E6)                          \
+  /* Store VSR Scalar Doubleword Indexed */                \
+  V(stxsdx, STXSDX, 0x7C000598)                            \
+  /* Store VSX Scalar as Integer Word Indexed */           \
+  V(stxsiwx, STXSIWX, 0x7C000118)                          \
+  /* Store VSX Scalar as Integer Halfword Indexed */       \
+  V(stxsihx, STXSIHX, 0x7C00075A)                          \
+  /* Store VSX Scalar as Integer Byte Indexed */           \
+  V(stxsibx, STXSIBX, 0x7C00071A)                          \
+  /* Store VSR Scalar Word Indexed */                      \
+  V(stxsspx, STXSSPX, 0x7C000518)                          \
+  /* Store VSR Vector Doubleword*2 Indexed */              \
+  V(stxvd, STXVD, 0x7C000798)                              \
+  /* Store VSR Vector Word*4 Indexed */                    \
+  V(stxvw, STXVW, 0x7C000718)
 
 #define PPC_B_OPCODE_LIST(V) \
   /* Branch Conditional */   \
@@ -2265,10 +2273,22 @@ using Instr = uint32_t;
   V(vmuluwm, VMULUWM, 0x10000089)                          \
   /* Vector Pack Unsigned Halfword Unsigned Modulo */      \
   V(vpkuhum, VPKUHUM, 0x1000000E)                          \
+  /* Vector Multiply Even Signed Byte */                   \
+  V(vmulesb, VMULESB, 0x10000308)                          \
   /* Vector Multiply Even Unsigned Byte */                 \
   V(vmuleub, VMULEUB, 0x10000208)                          \
+  /* Vector Multiply Odd Signed Byte */                    \
+  V(vmulosb, VMULOSB, 0x10000108)                          \
   /* Vector Multiply Odd Unsigned Byte */                  \
   V(vmuloub, VMULOUB, 0x10000008)                          \
+  /* Vector Multiply Even Unsigned Halfword */             \
+  V(vmuleuh, VMULEUH, 0x10000248)                          \
+  /* Vector Multiply Even Signed Halfword */               \
+  V(vmulesh, VMULESH, 0x10000348)                          \
+  /* Vector Multiply Odd Unsigned Halfword */              \
+  V(vmulouh, VMULOUH, 0x10000048)                          \
+  /* Vector Multiply Odd Signed Halfword */                \
+  V(vmulosh, VMULOSH, 0x10000148)                          \
   /* Vector Sum across Quarter Signed Halfword Saturate */ \
   V(vsum4shs, VSUM4SHS, 0x10000648)                        \
   /* Vector Pack Unsigned Word Unsigned Saturate */        \
@@ -2373,6 +2393,8 @@ using Instr = uint32_t;
   V(vbpermq, VBPERMQ, 0x1000054C)
 
 #define PPC_VX_OPCODE_C_FORM_LIST(V)       \
+  /* Vector Unpack High Signed Word */     \
+  V(vupkhsw, VUPKHSW, 0x1000064E)          \
   /* Vector Unpack Low Signed Halfword */  \
   V(vupklsh, VUPKLSH, 0x100002CE)          \
   /* Vector Unpack High Signed Halfword */ \
@@ -2447,24 +2469,12 @@ using Instr = uint32_t;
   V(vmrglh, VMRGLH, 0x1000014C)                                           \
   /* Vector Merge Low Word */                                             \
   V(vmrglw, VMRGLW, 0x1000018C)                                           \
-  /* Vector Multiply Even Signed Byte */                                  \
-  V(vmulesb, VMULESB, 0x10000308)                                         \
-  /* Vector Multiply Even Signed Halfword */                              \
-  V(vmulesh, VMULESH, 0x10000348)                                         \
   /* Vector Multiply Even Signed Word */                                  \
   V(vmulesw, VMULESW, 0x10000388)                                         \
-  /* Vector Multiply Even Unsigned Halfword */                            \
-  V(vmuleuh, VMULEUH, 0x10000248)                                         \
   /* Vector Multiply Even Unsigned Word */                                \
   V(vmuleuw, VMULEUW, 0x10000288)                                         \
-  /* Vector Multiply Odd Signed Byte */                                   \
-  V(vmulosb, VMULOSB, 0x10000108)                                         \
-  /* Vector Multiply Odd Signed Halfword */                               \
-  V(vmulosh, VMULOSH, 0x10000148)                                         \
   /* Vector Multiply Odd Signed Word */                                   \
   V(vmulosw, VMULOSW, 0x10000188)                                         \
-  /* Vector Multiply Odd Unsigned Halfword */                             \
-  V(vmulouh, VMULOUH, 0x10000048)                                         \
   /* Vector Multiply Odd Unsigned Word */                                 \
   V(vmulouw, VMULOUW, 0x10000088)                                         \
   /* Vector NAND */                                                       \
@@ -2547,8 +2557,6 @@ using Instr = uint32_t;
   V(vsumsws, VSUMSWS, 0x10000788)                                         \
   /* Vector Unpack High Pixel */                                          \
   V(vupkhpx, VUPKHPX, 0x1000034E)                                         \
-  /* Vector Unpack High Signed Word */                                    \
-  V(vupkhsw, VUPKHSW, 0x1000064E)                                         \
   /* Vector Unpack Low Pixel */                                           \
   V(vupklpx, VUPKLPX, 0x100003CE)                                         \
   /* Vector Unpack Low Signed Word */                                     \

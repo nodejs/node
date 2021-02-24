@@ -27,6 +27,7 @@
 #endif
 
 #if defined(V8_OS_WIN)
+#include "src/base/platform/wrappers.h"
 #include "src/diagnostics/unwinding-info-win64.h"
 #endif  // V8_OS_WIN
 
@@ -878,6 +879,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Store-release exclusive half-word.
   void stlxrh(const Register& rs, const Register& rt, const Register& rn);
+
+  void prfm(int prfop, const MemOperand& addr);
+  void prfm(PrefetchOperation prfop, const MemOperand& addr);
 
   // Move instructions. The default shift of -1 indicates that the move
   // instruction will calculate an appropriate 16-bit immediate and left shift
@@ -2062,10 +2066,31 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void debug(const char* message, uint32_t code, Instr params = BREAK);
 
   // Required by V8.
-  void dd(uint32_t data) { dc32(data); }
   void db(uint8_t data) { dc8(data); }
-  void dq(uint64_t data) { dc64(data); }
-  void dp(uintptr_t data) { dc64(data); }
+  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
+    BlockPoolsScope no_pool_scope(this);
+    if (!RelocInfo::IsNone(rmode)) {
+      DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+      RecordRelocInfo(rmode);
+    }
+    dc32(data);
+  }
+  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
+    BlockPoolsScope no_pool_scope(this);
+    if (!RelocInfo::IsNone(rmode)) {
+      DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+      RecordRelocInfo(rmode);
+    }
+    dc64(data);
+  }
+  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
+    BlockPoolsScope no_pool_scope(this);
+    if (!RelocInfo::IsNone(rmode)) {
+      DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+      RecordRelocInfo(rmode);
+    }
+    dc64(data);
+  }
 
   // Code generation helpers --------------------------------------------------
 
@@ -2394,7 +2419,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   using BlockConstPoolScope = ConstantPool::BlockScope;
 
-  class BlockPoolsScope {
+  class V8_NODISCARD BlockPoolsScope {
    public:
     // Block veneer and constant pool. Emits pools if necessary to ensure that
     // {margin} more bytes can be emitted without triggering pool emission.
@@ -2589,7 +2614,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     STATIC_ASSERT(sizeof(instruction) == kInstrSize);
     DCHECK_LE(pc_ + sizeof(instruction), buffer_start_ + buffer_->size());
 
-    memcpy(pc_, &instruction, sizeof(instruction));
+    base::Memcpy(pc_, &instruction, sizeof(instruction));
     pc_ += sizeof(instruction);
     CheckBuffer();
   }
@@ -2601,7 +2626,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
     // TODO(all): Somehow register we have some data here. Then we can
     // disassemble it correctly.
-    memcpy(pc_, data, size);
+    base::Memcpy(pc_, data, size);
     pc_ += size;
     CheckBuffer();
   }

@@ -5,6 +5,7 @@
 #include "src/regexp/experimental/experimental-interpreter.h"
 
 #include "src/base/optional.h"
+#include "src/common/assert-scope.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/string-inl.h"
 #include "src/regexp/experimental/experimental.h"
@@ -53,7 +54,7 @@ bool SatisfiesAssertion(RegExpAssertion::AssertionType type,
 }
 
 Vector<RegExpInstruction> ToInstructionVector(
-    ByteArray raw_bytes, const DisallowHeapAllocation& no_gc) {
+    ByteArray raw_bytes, const DisallowGarbageCollection& no_gc) {
   RegExpInstruction* inst_begin =
       reinterpret_cast<RegExpInstruction*>(raw_bytes.GetDataStartAddress());
   int inst_num = raw_bytes.length() / sizeof(RegExpInstruction);
@@ -62,12 +63,12 @@ Vector<RegExpInstruction> ToInstructionVector(
 }
 
 template <class Character>
-Vector<const Character> ToCharacterVector(String str,
-                                          const DisallowHeapAllocation& no_gc);
+Vector<const Character> ToCharacterVector(
+    String str, const DisallowGarbageCollection& no_gc);
 
 template <>
 Vector<const uint8_t> ToCharacterVector<uint8_t>(
-    String str, const DisallowHeapAllocation& no_gc) {
+    String str, const DisallowGarbageCollection& no_gc) {
   DCHECK(str.IsFlat());
   String::FlatContent content = str.GetFlatContent(no_gc);
   DCHECK(content.IsOneByte());
@@ -76,7 +77,7 @@ Vector<const uint8_t> ToCharacterVector<uint8_t>(
 
 template <>
 Vector<const uc16> ToCharacterVector<uc16>(
-    String str, const DisallowHeapAllocation& no_gc) {
+    String str, const DisallowGarbageCollection& no_gc) {
   DCHECK(str.IsFlat());
   String::FlatContent content = str.GetFlatContent(no_gc);
   DCHECK(content.IsTwoByte());
@@ -242,7 +243,7 @@ class NfaInterpreter {
       if (check.JsHasOverflowed()) {
         // We abort the interpreter now anyway, so gc can't invalidate any
         // pointers.
-        AllowHeapAllocation yes_gc;
+        AllowGarbageCollection yes_gc;
         isolate_->StackOverflow();
         return RegExp::kInternalRegExpException;
       } else if (check.InterruptRequested()) {
@@ -255,7 +256,7 @@ class NfaInterpreter {
 
         Object result;
         {
-          AllowHeapAllocation yes_gc;
+          AllowGarbageCollection yes_gc;
           result = isolate_->stack_guard()->HandleInterrupts();
         }
         if (result.IsException(isolate_)) {
@@ -511,7 +512,7 @@ class NfaInterpreter {
 
   const RegExp::CallOrigin call_origin_;
 
-  const DisallowHeapAllocation no_gc_;
+  DisallowGarbageCollection no_gc_;
 
   ByteArray bytecode_object_;
   Vector<const RegExpInstruction> bytecode_;
@@ -558,7 +559,7 @@ int ExperimentalRegExpInterpreter::FindMatches(
     int register_count_per_match, String input, int start_index,
     int32_t* output_registers, int output_register_count, Zone* zone) {
   DCHECK(input.IsFlat());
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   if (input.GetFlatContent(no_gc).IsOneByte()) {
     NfaInterpreter<uint8_t> interpreter(isolate, call_origin, bytecode,

@@ -271,7 +271,6 @@ ShiftKind ShiftKindOf(Operator const* op) {
   V(ChangeFloat64ToInt64, Operator::kNoProperties, 1, 0, 1)                \
   V(ChangeFloat64ToUint32, Operator::kNoProperties, 1, 0, 1)               \
   V(ChangeFloat64ToUint64, Operator::kNoProperties, 1, 0, 1)               \
-  V(TruncateFloat64ToInt64, Operator::kNoProperties, 1, 0, 1)              \
   V(TruncateFloat64ToUint32, Operator::kNoProperties, 1, 0, 1)             \
   V(TryTruncateFloat32ToInt64, Operator::kNoProperties, 1, 0, 2)           \
   V(TryTruncateFloat64ToInt64, Operator::kNoProperties, 1, 0, 2)           \
@@ -1138,6 +1137,25 @@ const Operator* MachineOperatorBuilder::TruncateFloat32ToInt32(
   }
 }
 
+template <TruncateKind kind>
+struct TruncateFloat64ToInt64Operator : Operator1<TruncateKind> {
+  TruncateFloat64ToInt64Operator()
+      : Operator1(IrOpcode::kTruncateFloat64ToInt64, Operator::kPure,
+                  "TruncateFloat64ToInt64", 1, 0, 0, 1, 0, 0, kind) {}
+};
+
+const Operator* MachineOperatorBuilder::TruncateFloat64ToInt64(
+    TruncateKind kind) {
+  switch (kind) {
+    case TruncateKind::kArchitectureDefault:
+      return GetCachedOperator<
+          TruncateFloat64ToInt64Operator<TruncateKind::kArchitectureDefault>>();
+    case TruncateKind::kSetOverflowToMin:
+      return GetCachedOperator<
+          TruncateFloat64ToInt64Operator<TruncateKind::kSetOverflowToMin>>();
+  }
+}
+
 size_t hash_value(TruncateKind kind) { return static_cast<size_t>(kind); }
 
 std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
@@ -1159,6 +1177,18 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   }
 MACHINE_PURE_OP_LIST(PURE)
 #undef PURE
+
+const Operator* MachineOperatorBuilder::PrefetchTemporal() {
+  return GetCachedOperator<
+      CachedOperator<IrOpcode::kPrefetchTemporal, 2, 1, 1, 0, 1, 0>>(
+      Operator::kNoDeopt | Operator::kNoThrow, "PrefetchTemporal");
+}
+
+const Operator* MachineOperatorBuilder::PrefetchNonTemporal() {
+  return GetCachedOperator<
+      CachedOperator<IrOpcode::kPrefetchNonTemporal, 2, 1, 1, 0, 1, 0>>(
+      Operator::kNoDeopt | Operator::kNoThrow, "PrefetchNonTemporal");
+}
 
 const Operator* MachineOperatorBuilder::Load(LoadRepresentation rep) {
 #define LOAD(Type)                                         \
@@ -1671,13 +1701,13 @@ const Operator* MachineOperatorBuilder::Word64PoisonOnSpeculation() {
   return GetCachedOperator<Word64PoisonOnSpeculationOperator>();
 }
 
-#define EXTRACT_LANE_OP(Type, Sign, lane_count)                                \
-  const Operator* MachineOperatorBuilder::Type##ExtractLane##Sign(             \
-      int32_t lane_index) {                                                    \
-    DCHECK(0 <= lane_index && lane_index < lane_count);                        \
-    return zone_->New<Operator1<int32_t>>(                                     \
-        IrOpcode::k##Type##ExtractLane##Sign, Operator::kPure, "Extract lane", \
-        1, 0, 0, 1, 0, 0, lane_index);                                         \
+#define EXTRACT_LANE_OP(Type, Sign, lane_count)                      \
+  const Operator* MachineOperatorBuilder::Type##ExtractLane##Sign(   \
+      int32_t lane_index) {                                          \
+    DCHECK(0 <= lane_index && lane_index < lane_count);              \
+    return zone_->New<Operator1<int32_t>>(                           \
+        IrOpcode::k##Type##ExtractLane##Sign, Operator::kPure,       \
+        "" #Type "ExtractLane" #Sign, 1, 0, 0, 1, 0, 0, lane_index); \
   }
 EXTRACT_LANE_OP(F64x2, , 2)
 EXTRACT_LANE_OP(F32x4, , 4)

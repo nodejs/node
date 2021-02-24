@@ -429,14 +429,14 @@ void TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromNumeric(
   }
 }
 
-void TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromTagged(
+template <typename TValue>
+void TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromPreparedValue(
     TNode<Context> context, TNode<JSTypedArray> typed_array,
-    TNode<UintPtrT> index, TNode<Object> value, ElementsKind elements_kind,
-    Label* if_detached) {
-  // |prepared_value| is Word32T or Float64T or Float32T or BigInt.
-  Node* prepared_value =
-      PrepareValueForWriteToTypedArray(value, elements_kind, context);
-
+    TNode<UintPtrT> index, TNode<TValue> prepared_value,
+    ElementsKind elements_kind, Label* if_detached) {
+  static_assert(std::is_same<TValue, UntaggedT>::value ||
+                    std::is_same<TValue, BigInt>::value,
+                "Only UntaggedT or BigInt values are allowed");
   // ToNumber/ToBigInt may execute JavaScript code, which could detach
   // the array's buffer.
   TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(typed_array);
@@ -444,6 +444,27 @@ void TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromTagged(
 
   TNode<RawPtrT> data_ptr = LoadJSTypedArrayDataPtr(typed_array);
   StoreElement(data_ptr, elements_kind, index, prepared_value);
+}
+
+void TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromTagged(
+    TNode<Context> context, TNode<JSTypedArray> typed_array,
+    TNode<UintPtrT> index, TNode<Object> value, ElementsKind elements_kind,
+    Label* if_detached) {
+  if (elements_kind == BIGINT64_ELEMENTS ||
+      elements_kind == BIGUINT64_ELEMENTS) {
+    TNode<BigInt> prepared_value =
+        PrepareValueForWriteToTypedArray<BigInt>(value, elements_kind, context);
+    StoreJSTypedArrayElementFromPreparedValue(context, typed_array, index,
+                                              prepared_value, elements_kind,
+                                              if_detached);
+  } else {
+    TNode<UntaggedT> prepared_value =
+        PrepareValueForWriteToTypedArray<UntaggedT>(value, elements_kind,
+                                                    context);
+    StoreJSTypedArrayElementFromPreparedValue(context, typed_array, index,
+                                              prepared_value, elements_kind,
+                                              if_detached);
+  }
 }
 
 // ES #sec-get-%typedarray%.prototype-@@tostringtag

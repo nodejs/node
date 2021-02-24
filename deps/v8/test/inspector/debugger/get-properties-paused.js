@@ -98,7 +98,11 @@ let { Protocol } = InspectorTest.start('Checks Runtime.getProperties method whil
       for (var i = 0; i < internalPropertyArray.length; i++) {
         var p = internalPropertyArray[i];
         var v = p.value;
-        InspectorTest.log(`  ${p.name} ${v.type} ${v.value}`);
+        if (p.name === "[[ArrayBufferData]]")
+          // Hex value for pointer is non-deterministic
+          InspectorTest.log(`  ${p.name} ${v.type} ${v.value.substr(0, 2)}...`);
+        else
+          InspectorTest.log(`  ${p.name} ${v.type} ${v.value}`);
       }
     }
 

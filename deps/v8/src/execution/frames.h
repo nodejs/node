@@ -1175,6 +1175,9 @@ class JavaScriptBuiltinContinuationWithCatchFrame
 
 class StackFrameIteratorBase {
  public:
+  StackFrameIteratorBase(const StackFrameIteratorBase&) = delete;
+  StackFrameIteratorBase& operator=(const StackFrameIteratorBase&) = delete;
+
   Isolate* isolate() const { return isolate_; }
 
   bool done() const { return frame_ == nullptr; }
@@ -1203,7 +1206,6 @@ class StackFrameIteratorBase {
 
  private:
   friend class StackFrame;
-  DISALLOW_COPY_AND_ASSIGN(StackFrameIteratorBase);
 };
 
 class StackFrameIterator : public StackFrameIteratorBase {
@@ -1212,6 +1214,9 @@ class StackFrameIterator : public StackFrameIteratorBase {
   V8_EXPORT_PRIVATE explicit StackFrameIterator(Isolate* isolate);
   // An iterator that iterates over a given thread's stack.
   V8_EXPORT_PRIVATE StackFrameIterator(Isolate* isolate, ThreadLocalTop* t);
+
+  StackFrameIterator(const StackFrameIterator&) = delete;
+  StackFrameIterator& operator=(const StackFrameIterator&) = delete;
 
   StackFrame* frame() const {
     DCHECK(!done());
@@ -1222,8 +1227,6 @@ class StackFrameIterator : public StackFrameIteratorBase {
  private:
   // Go back to the first frame.
   void Reset(ThreadLocalTop* top);
-
-  DISALLOW_COPY_AND_ASSIGN(StackFrameIterator);
 };
 
 // Iterator that supports iterating through all JavaScript frames.

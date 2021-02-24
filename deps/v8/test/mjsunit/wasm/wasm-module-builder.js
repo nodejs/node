@@ -73,7 +73,8 @@ let kFunctionNamesCode = 1;
 let kLocalNamesCode = 2;
 
 let kWasmFunctionTypeForm = 0x60;
-let kWasmAnyFunctionTypeForm = 0x70;
+let kWasmStructTypeForm = 0x5f;
+let kWasmArrayTypeForm = 0x5e;
 
 let kLimitsNoMaximum = 0
 let kLimitsHasMaximum = 1;
@@ -94,21 +95,28 @@ let kDeclFunctionImport = 0x02;
 let kDeclFunctionLocals = 0x04;
 let kDeclFunctionExport = 0x08;
 
-// Local types
+// Value types and related
 let kWasmStmt = 0x40;
 let kWasmI32 = 0x7f;
 let kWasmI64 = 0x7e;
 let kWasmF32 = 0x7d;
 let kWasmF64 = 0x7c;
 let kWasmS128 = 0x7b;
+let kWasmI8 = 0x7a;
+let kWasmI16 = 0x79;
 let kWasmFuncRef = 0x70;
 let kWasmAnyFunc = kWasmFuncRef; // Alias named as in the JS API spec
 let kWasmExternRef = 0x6f;
-function wasmOptRefType(index) { return {opcode: 0x6c, index: index}; }
-function wasmRefType(index) { return {opcode: 0x6b, index: index}; }
+let kWasmAnyRef = 0x6e;
+let kWasmEqRef = 0x6d;
+let kWasmOptRef = 0x6c;
+let kWasmRef = 0x6b;
+function wasmOptRefType(index) { return {opcode: kWasmOptRef, index: index}; }
+function wasmRefType(index) { return {opcode: kWasmRef, index: index}; }
 let kWasmI31Ref = 0x6a;
+let kWasmRtt = 0x69;
 function wasmRtt(index, depth) {
-  return {opcode: 0x69, index: index, depth: depth};
+  return {opcode: kWasmRtt, index: index, depth: depth};
 }
 let kWasmExnRef = 0x68;
 
@@ -210,7 +218,8 @@ const kWasmOpcodes = {
   'Catch': 0x07,
   'Throw': 0x08,
   'Rethrow': 0x09,
-  'BrOnExn': 0x0a,
+  'CatchAll': 0x19,
+  'Unwind': 0x0a,
   'End': 0x0b,
   'Br': 0x0c,
   'BrIf': 0x0d,
@@ -222,6 +231,8 @@ const kWasmOpcodes = {
   'ReturnCallIndirect': 0x13,
   'CallRef': 0x14,
   'ReturnCallRef': 0x15,
+  'Let': 0x17,
+  'Delegate': 0x18,
   'Drop': 0x1a,
   'Select': 0x1b,
   'SelectWithType': 0x1c,
@@ -421,9 +432,27 @@ for (let prefix in kPrefixOpcodes) {
 }
 
 // GC opcodes
-let kExprRttCanon = 0x30;
-let kExprRefCast = 0x41;
+let kExprStructNewWithRtt = 0x01;
+let kExprStructNewDefault = 0x02;
+let kExprStructGet = 0x03;
+let kExprStructGetS = 0x04;
+let kExprStructGetU = 0x05;
+let kExprStructSet = 0x06;
+let kExprArrayNewWithRtt = 0x11;
+let kExprArrayNewDefault = 0x12;
+let kExprArrayGet = 0x13;
+let kExprArrayGetS = 0x14;
+let kExprArrayGetU = 0x15;
+let kExprArraySet = 0x16;
+let kExprArrayLen = 0x17;
 let kExprI31New = 0x20;
+let kExprI31GetS = 0x21;
+let kExprI31GetU = 0x22;
+let kExprRttCanon = 0x30;
+let kExprRttSub = 0x31;
+let kExprRefTest = 0x40;
+let kExprRefCast = 0x41;
+let kExprBrOnCast = 0x42;
 
 // Numeric opcodes.
 let kExprI32SConvertSatF32 = 0x00;
@@ -545,6 +574,7 @@ let kExprI32x4ExtractLane = 0x1b;
 let kExprI32x4ReplaceLane = 0x1c;
 let kExprI64x2ReplaceLane = 0x1e;
 let kExprF32x4ReplaceLane = 0x20;
+let kExprF64x2ExtractLane = 0x21;
 let kExprF64x2ReplaceLane = 0x22;
 let kExprI8x16Eq = 0x23;
 let kExprI8x16Ne = 0x24;
@@ -664,6 +694,7 @@ let kExprI64x2ShrU = 0xcd;
 let kExprI64x2Add = 0xce;
 let kExprI64x2Sub = 0xd1;
 let kExprI64x2Mul = 0xd5;
+let kExprI64x2ExtMulHighI32x4U = 0xd7;
 let kExprF32x4Abs = 0xe0;
 let kExprF32x4Neg = 0xe1;
 let kExprF32x4Sqrt = 0xe3;
@@ -707,8 +738,7 @@ let kTrapFuncSigMismatch      = 7;
 let kTrapUnalignedAccess      = 8;
 let kTrapDataSegmentDropped   = 9;
 let kTrapElemSegmentDropped   = 10;
-let kTrapBrOnExnNull          = 11;
-let kTrapRethrowNull          = 12;
+let kTrapRethrowNull          = 11;
 
 let kTrapMsgs = [
   "unreachable",
@@ -722,7 +752,6 @@ let kTrapMsgs = [
   "operation does not support unaligned accesses",
   "data segment has been dropped",
   "element segment has been dropped",
-  "br_on_exn on null value",
   "rethrowing null value"
 ];
 
@@ -951,6 +980,25 @@ class WasmTableBuilder {
   }
 }
 
+function makeField(type, mutability) {
+  assertEquals("boolean", typeof mutability,
+               "field mutability must be boolean");
+  return {type: type, mutability: mutability};
+}
+
+class WasmStruct {
+  constructor(fields) {
+    assertTrue(Array.isArray(fields), "struct fields must be an array");
+    this.fields = fields;
+  }
+}
+
+class WasmArray {
+  constructor(type) {
+    this.type = type;
+  }
+}
+
 class WasmModuleBuilder {
   constructor() {
     this.types = [];
@@ -1013,6 +1061,16 @@ class WasmModuleBuilder {
     this.types.push(type);
     var pl = type.params.length;  // should have params
     var rl = type.results.length; // should have results
+    return this.types.length - 1;
+  }
+
+  addStruct(fields) {
+    this.types.push(new WasmStruct(fields));
+    return this.types.length - 1;
+  }
+
+  addArray(type) {
+    this.types.push(new WasmArray(type));
     return this.types.length - 1;
   }
 
@@ -1085,7 +1143,7 @@ class WasmModuleBuilder {
       throw new Error('Imported tables must be declared before local ones');
     }
     let o = {module: module, name: name, kind: kExternalTable, initial: initial,
-             maximum: maximum, type: type || kWasmAnyFunctionTypeForm};
+             maximum: maximum, type: type || kWasmFuncRef};
     this.imports.push(o);
     return this.num_imported_tables++;
   }
@@ -1209,14 +1267,27 @@ class WasmModuleBuilder {
       binary.emit_section(kTypeSectionCode, section => {
         section.emit_u32v(wasm.types.length);
         for (let type of wasm.types) {
-          section.emit_u8(kWasmFunctionTypeForm);
-          section.emit_u32v(type.params.length);
-          for (let param of type.params) {
-            section.emit_type(param);
-          }
-          section.emit_u32v(type.results.length);
-          for (let result of type.results) {
-            section.emit_type(result);
+          if (type instanceof WasmStruct) {
+            section.emit_u8(kWasmStructTypeForm);
+            section.emit_u32v(type.fields.length);
+            for (let field of type.fields) {
+              section.emit_type(field.type);
+              section.emit_u8(field.mutability ? 1 : 0);
+            }
+          } else if (type instanceof WasmArray) {
+            section.emit_u8(kWasmArrayTypeForm);
+            section.emit_type(type.type);
+            section.emit_u8(1); // Only mutable arrays supported currently.
+          } else {
+            section.emit_u8(kWasmFunctionTypeForm);
+            section.emit_u32v(type.params.length);
+            for (let param of type.params) {
+              section.emit_type(param);
+            }
+            section.emit_u32v(type.results.length);
+            for (let result of type.results) {
+              section.emit_type(result);
+            }
           }
         }
       });

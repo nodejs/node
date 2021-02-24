@@ -163,9 +163,11 @@ function main() {
     app_name = app_name.substr(0, app_name.length - 4);
   }
 
-  if (app_name === 'd8' || app_name === 'v8_foozzie.py') {
-    // V8 supports running the raw d8 executable or the differential fuzzing
-    // harness 'foozzie'.
+  if (app_name === 'd8' ||
+      app_name === 'v8_simple_inspector_fuzzer' ||
+      app_name === 'v8_foozzie.py') {
+    // V8 supports running the raw d8 executable, the inspector fuzzer or
+    // the differential fuzzing harness 'foozzie'.
     settings.engine = 'V8';
   } else if (app_name === 'ch') {
     settings.engine = 'chakra';

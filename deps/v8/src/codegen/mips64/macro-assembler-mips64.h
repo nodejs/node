@@ -261,7 +261,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void StoreReturnAddressAndCall(Register target);
 
   void CallForDeoptimization(Builtins::Name target, int deopt_id, Label* exit,
-                             DeoptimizeKind kind,
+                             DeoptimizeKind kind, Label* ret,
                              Label* jump_deoptimization_entry_label);
 
   void Ret(COND_ARGS);
@@ -741,6 +741,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadRoot(Register destination, RootIndex index, Condition cond,
                 Register src1, const Operand& src2);
 
+  void LoadMap(Register destination, Register object);
+
   // If the value is a NaN, canonicalize the value else, do nothing.
   void FPUCanonicalizeNaN(const DoubleRegister dst, const DoubleRegister src);
 
@@ -791,6 +793,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Floor_s_s(FPURegister fd, FPURegister fs);
   void Ceil_s_s(FPURegister fd, FPURegister fs);
 
+  void LoadLane(MSASize sz, MSARegister dst, uint8_t laneidx, MemOperand src);
+  void StoreLane(MSASize sz, MSARegister src, uint8_t laneidx, MemOperand dst);
+  void ExtMulLow(MSADataType type, MSARegister dst, MSARegister src1,
+                 MSARegister src2);
+  void ExtMulHigh(MSADataType type, MSARegister dst, MSARegister src1,
+                  MSARegister src2);
   void MSARoundW(MSARegister dst, MSARegister src, FPURoundingMode mode);
   void MSARoundD(MSARegister dst, MSARegister src, FPURoundingMode mode);
 
@@ -907,7 +915,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void CallRecordWriteStub(Register object, Register address,
                            RememberedSetAction remembered_set_action,
-                           SaveFPRegsMode fp_mode, Handle<Code> code_target,
+                           SaveFPRegsMode fp_mode, int builtin_index,
                            Address wasm_target);
 };
 
@@ -1018,17 +1026,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void BranchShortMSA(MSABranchDF df, Label* target, MSABranchCondition cond,
                       MSARegister wt, BranchDelaySlot bd = PROTECT);
 
-  // Truncates a double using a specific rounding mode, and writes the value
-  // to the result register.
-  // The except_flag will contain any exceptions caused by the instruction.
-  // If check_inexact is kDontCheckForInexactConversion, then the inexact
-  // exception is masked.
-  void EmitFPUTruncate(
-      FPURoundingMode rounding_mode, Register result,
-      DoubleRegister double_input, Register scratch,
-      DoubleRegister double_scratch, Register except_flag,
-      CheckForInexactConversion check_inexact = kDontCheckForInexactConversion);
-
   // Enter exit frame.
   // argc - argument count to be dropped by LeaveExitFrame.
   // save_doubles - saves FPU registers on stack, currently disabled.
@@ -1040,8 +1037,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void LeaveExitFrame(bool save_doubles, Register arg_count,
                       bool do_return = NO_EMIT_RETURN,
                       bool argument_count_is_length = false);
-
-  void LoadMap(Register destination, Register object);
 
   // Make sure the stack is aligned. Only emits code in debug mode.
   void AssertStackIsAligned();

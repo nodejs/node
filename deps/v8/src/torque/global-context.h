@@ -60,14 +60,28 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   }
 
   struct PerFileStreams {
+    PerFileStreams() : file(SourceId::Invalid()) {}
+    SourceId file;
     std::stringstream csa_headerfile;
     std::stringstream csa_ccfile;
     std::stringstream class_definition_headerfile;
+
+    // The beginning of the generated -inl.inc file, which includes declarations
+    // for functions corresponding to Torque macros.
+    std::stringstream class_definition_inline_headerfile_macro_declarations;
+    // The second part of the generated -inl.inc file, which includes
+    // definitions for functions declared in the first part.
+    std::stringstream class_definition_inline_headerfile_macro_definitions;
+    // The portion of the generated -inl.inc file containing member function
+    // definitions for the generated class.
     std::stringstream class_definition_inline_headerfile;
+
     std::stringstream class_definition_ccfile;
   };
   static PerFileStreams& GeneratedPerFile(SourceId file) {
-    return Get().generated_per_file_[file];
+    PerFileStreams& result = Get().generated_per_file_[file];
+    result.file = file;
+    return result;
   }
 
   static void SetInstanceTypesInitialized() {
@@ -77,13 +91,15 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   static bool IsInstanceTypesInitialized() {
     return Get().instance_types_initialized_;
   }
-  static void EnsureInCCOutputList(TorqueMacro* macro) {
+  static void EnsureInCCOutputList(TorqueMacro* macro, SourceId source) {
     GlobalContext& c = Get();
-    if (c.macros_for_cc_output_set_.insert(macro).second) {
-      c.macros_for_cc_output_.push_back(macro);
+    auto item = std::make_pair(macro, source);
+    if (c.macros_for_cc_output_set_.insert(item).second) {
+      c.macros_for_cc_output_.push_back(item);
     }
   }
-  static const std::vector<TorqueMacro*>& AllMacrosForCCOutput() {
+  static const std::vector<std::pair<TorqueMacro*, SourceId>>&
+  AllMacrosForCCOutput() {
     return Get().macros_for_cc_output_;
   }
 
@@ -96,8 +112,8 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   std::set<std::string> cpp_includes_;
   std::map<SourceId, PerFileStreams> generated_per_file_;
   std::map<std::string, size_t> fresh_ids_;
-  std::vector<TorqueMacro*> macros_for_cc_output_;
-  std::unordered_set<TorqueMacro*> macros_for_cc_output_set_;
+  std::vector<std::pair<TorqueMacro*, SourceId>> macros_for_cc_output_;
+  std::set<std::pair<TorqueMacro*, SourceId>> macros_for_cc_output_set_;
   bool instance_types_initialized_ = false;
 
   friend class LanguageServerData;

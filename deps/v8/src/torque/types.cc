@@ -128,6 +128,15 @@ base::Optional<const StructType*> Type::StructSupertype() const {
   return base::nullopt;
 }
 
+base::Optional<const AggregateType*> Type::AggregateSupertype() const {
+  for (const Type* t = this; t != nullptr; t = t->parent()) {
+    if (auto* aggregate_type = AggregateType::DynamicCast(t)) {
+      return aggregate_type;
+    }
+  }
+  return base::nullopt;
+}
+
 // static
 const Type* Type::CommonSupertype(const Type* a, const Type* b) {
   int diff = a->Depth() - b->Depth();
@@ -462,6 +471,11 @@ std::vector<Method*> AggregateType::Methods(const std::string& name) const {
   std::vector<Method*> result;
   std::copy_if(methods_.begin(), methods_.end(), std::back_inserter(result),
                [name](Macro* macro) { return macro->ReadableName() == name; });
+  if (result.empty() && parent() != nullptr) {
+    if (auto aggregate_parent = parent()->AggregateSupertype()) {
+      return (*aggregate_parent)->Methods(name);
+    }
+  }
   return result;
 }
 
@@ -511,16 +525,6 @@ void ClassType::Finalize() const {
   TypeVisitor::VisitClassFieldsAndMethods(const_cast<ClassType*>(this),
                                           this->decl_);
   is_finalized_ = true;
-  if (GenerateCppClassDefinitions() || !IsExtern()) {
-    for (const Field& f : fields()) {
-      if (f.is_weak) {
-        Error("Generation of C++ class for Torque class ", name(),
-              " is not supported yet, because field ", f.name_and_type.name,
-              ": ", *f.name_and_type.type, " is a weak field.")
-            .Position(f.pos);
-      }
-    }
-  }
   CheckForDuplicateFields();
 }
 
@@ -785,26 +789,24 @@ void ClassType::GenerateSliceAccessor(size_t field_index) {
   //
   // If the field has a known offset (in this example, 16):
   // FieldSliceClassNameFieldName(o: ClassName) {
-  //   return torque_internal::Slice<FieldType> {
+  //     return torque_internal::unsafe::New{Const,Mutable}Slice<FieldType>(
   //     object: o,
   //     offset: 16,
   //     length: torque_internal::%IndexedFieldLength<ClassName>(
-  //                 o, "field_name")),
-  //     unsafeMarker: torque_internal::Unsafe {}
-  //   };
+  //                 o, "field_name")
+  //   );
   // }
   //
   // If the field has an unknown offset, and the previous field is named p, and
   // an item in the previous field has size 4:
   // FieldSliceClassNameFieldName(o: ClassName) {
   //   const previous = &o.p;
-  //   return torque_internal::Slice<FieldType> {
+  //     return torque_internal::unsafe::New{Const,Mutable}Slice<FieldType>(
   //     object: o,
   //     offset: previous.offset + 4 * previous.length,
   //     length: torque_internal::%IndexedFieldLength<ClassName>(
-  //                 o, "field_name")),
-  //     unsafeMarker: torque_internal::Unsafe {}
-  //   };
+  //                 o, "field_name")
+  //   );
   // }
   const Field& field = fields_[field_index];
   std::string macro_name = GetSliceMacroName(field);
@@ -813,7 +815,10 @@ void ClassType::GenerateSliceAccessor(size_t field_index) {
   signature.parameter_names.push_back(parameter_identifier);
   signature.parameter_types.types.push_back(this);
   signature.parameter_types.var_args = false;
-  signature.return_type = TypeOracle::GetSliceType(field.name_and_type.type);
+  signature.return_type =
+      field.const_qualified
+          ? TypeOracle::GetConstSliceType(field.name_and_type.type)
+          : TypeOracle::GetMutableSliceType(field.name_and_type.type);
 
   std::vector<Statement*> statements;
   Expression* offset_expression = nullptr;
@@ -873,25 +878,18 @@ void ClassType::GenerateSliceAccessor(size_t field_index) {
       {parameter, MakeNode<StringLiteralExpression>(
                       StringLiteralQuote(field.name_and_type.name))});
 
-  // torque_internal::Unsafe {}
-  Expression* unsafe_expression = MakeStructExpression(
-      MakeBasicTypeExpression({"torque_internal"}, "Unsafe"), {});
-
-  // torque_internal::Slice<FieldType> {
+  // torque_internal::unsafe::New{Const,Mutable}Slice<FieldType>(
   //   object: o,
   //   offset: <<offset_expression>>,
   //   length: torque_internal::%IndexedFieldLength<ClassName>(
-  //               o, "field_name")),
-  //   unsafeMarker: torque_internal::Unsafe {}
-  // }
-  Expression* slice_expression = MakeStructExpression(
-      MakeBasicTypeExpression(
-          {"torque_internal"}, "Slice",
-          {MakeNode<PrecomputedTypeExpression>(field.name_and_type.type)}),
-      {{MakeNode<Identifier>("object"), parameter},
-       {MakeNode<Identifier>("offset"), offset_expression},
-       {MakeNode<Identifier>("length"), length_expression},
-       {MakeNode<Identifier>("unsafeMarker"), unsafe_expression}});
+  //               o, "field_name")
+  // )
+  IdentifierExpression* new_struct = MakeIdentifierExpression(
+      {"torque_internal", "unsafe"},
+      field.const_qualified ? "NewConstSlice" : "NewMutableSlice",
+      {MakeNode<PrecomputedTypeExpression>(field.name_and_type.type)});
+  Expression* slice_expression = MakeCallExpression(
+      new_struct, {parameter, offset_expression, length_expression});
 
   statements.push_back(MakeNode<ReturnStatement>(slice_expression));
   Statement* block =
@@ -899,13 +897,11 @@ void ClassType::GenerateSliceAccessor(size_t field_index) {
 
   Macro* macro = Declarations::DeclareMacro(macro_name, true, base::nullopt,
                                             signature, block, base::nullopt);
-  GlobalContext::EnsureInCCOutputList(TorqueMacro::cast(macro));
+  GlobalContext::EnsureInCCOutputList(TorqueMacro::cast(macro),
+                                      macro->Position().source);
 }
 
 bool ClassType::HasStaticSize() const {
-  // Abstract classes don't have instances directly, so asking this question
-  // doesn't make sense.
-  DCHECK(!IsAbstract());
   if (IsSubtypeOf(TypeOracle::GetJSObjectType()) && !IsShape()) return false;
   return size().SingleValue().has_value();
 }

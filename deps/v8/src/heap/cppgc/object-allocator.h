@@ -33,7 +33,7 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
  public:
   // NoAllocationScope is used in debug mode to catch unwanted allocations. E.g.
   // allocations during GC.
-  class V8_EXPORT_PRIVATE NoAllocationScope final {
+  class V8_EXPORT_PRIVATE V8_NODISCARD NoAllocationScope final {
     CPPGC_STACK_ALLOCATED();
 
    public:

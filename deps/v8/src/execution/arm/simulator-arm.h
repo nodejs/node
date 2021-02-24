@@ -332,6 +332,10 @@ class Simulator : public SimulatorBase {
   void SoftwareInterrupt(Instruction* instr);
   void DebugAtNextPC();
 
+  // Helper to write back values to register.
+  void AdvancedSIMDElementOrStructureLoadStoreWriteback(int Rn, int Rm,
+                                                        int ebytes);
+
   // Stop helper functions.
   inline bool isWatchedStop(uint32_t bkpt_code);
   inline bool isEnabledStop(uint32_t bkpt_code);
@@ -391,6 +395,9 @@ class Simulator : public SimulatorBase {
   void DecodeAdvancedSIMDDataProcessing(Instruction* instr);
   void DecodeMemoryHintsAndBarriers(Instruction* instr);
   void DecodeAdvancedSIMDElementOrStructureLoadStore(Instruction* instr);
+  void DecodeAdvancedSIMDLoadStoreMultipleStructures(Instruction* instr);
+  void DecodeAdvancedSIMDLoadSingleStructureToAllLanes(Instruction* instr);
+  void DecodeAdvancedSIMDLoadStoreSingleStructureToOneLane(Instruction* instr);
   void DecodeAdvancedSIMDTwoOrThreeRegisters(Instruction* instr);
 
   void DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(Instruction* instr);

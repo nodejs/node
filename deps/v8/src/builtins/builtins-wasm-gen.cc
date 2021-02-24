@@ -107,26 +107,6 @@ TF_BUILTIN(WasmI64AtomicWait32, WasmBuiltinsAssembler) {
   Return(Unsigned(SmiToInt32(result_smi)));
 }
 
-TF_BUILTIN(WasmAllocateArrayWithRtt, WasmBuiltinsAssembler) {
-  auto map = Parameter<Map>(Descriptor::kMap);
-  auto length = Parameter<Smi>(Descriptor::kLength);
-  auto element_size = Parameter<Smi>(Descriptor::kElementSize);
-  TNode<IntPtrT> untagged_length = SmiUntag(length);
-  // instance_size = WasmArray::kHeaderSize
-  //               + RoundUp(element_size * length, kObjectAlignment)
-  TNode<IntPtrT> raw_size = IntPtrMul(SmiUntag(element_size), untagged_length);
-  TNode<IntPtrT> rounded_size =
-      WordAnd(IntPtrAdd(raw_size, IntPtrConstant(kObjectAlignmentMask)),
-              IntPtrConstant(~kObjectAlignmentMask));
-  TNode<IntPtrT> instance_size =
-      IntPtrAdd(IntPtrConstant(WasmArray::kHeaderSize), rounded_size);
-  TNode<WasmArray> result = UncheckedCast<WasmArray>(Allocate(instance_size));
-  StoreMap(result, map);
-  StoreObjectFieldNoWriteBarrier(result, WasmArray::kLengthOffset,
-                                 TruncateIntPtrToInt32(untagged_length));
-  Return(result);
-}
-
 TF_BUILTIN(WasmAllocatePair, WasmBuiltinsAssembler) {
   TNode<WasmInstanceObject> instance = LoadInstanceFromFrame();
   TNode<HeapObject> value1 = Parameter<HeapObject>(Descriptor::kValue1);

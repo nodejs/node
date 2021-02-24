@@ -39,9 +39,8 @@ class V8_EXPORT MakeGarbageCollectedTraitInternal {
             const_cast<uint16_t*>(reinterpret_cast<const uint16_t*>(
                 reinterpret_cast<const uint8_t*>(payload) -
                 api_constants::kFullyConstructedBitFieldOffsetFromPayload)));
-    uint16_t value = atomic_mutable_bitfield->load(std::memory_order_relaxed);
-    value = value | api_constants::kFullyConstructedBitMask;
-    atomic_mutable_bitfield->store(value, std::memory_order_release);
+    atomic_mutable_bitfield->fetch_or(api_constants::kFullyConstructedBitMask,
+                                      std::memory_order_release);
   }
 
   static void* Allocate(cppgc::AllocationHandle& handle, size_t size,
@@ -113,11 +112,29 @@ class MakeGarbageCollectedTraitBase
 };
 
 /**
- * struct used specify to MakeGarbageCollected how many bytes should be
- * appended to the allocated object.
+ * Passed to MakeGarbageCollected to specify how many bytes should be appended
+ * to the allocated object.
+ *
+ * Example:
+ * \code
+ * class InlinedArray final : public GarbageCollected<InlinedArray> {
+ *  public:
+ *   explicit InlinedArray(size_t bytes) : size(bytes), byte_array(this + 1) {}
+ *   void Trace(Visitor*) const {}
+
+ *   size_t size;
+ *   char* byte_array;
+ * };
+ *
+ * auto* inlined_array = MakeGarbageCollected<InlinedArray(
+ *    GetAllocationHandle(), AdditionalBytes(4), 4);
+ * for (size_t i = 0; i < 4; i++) {
+ *   Process(inlined_array->byte_array[i]);
+ * }
+ * \endcode
  */
 struct AdditionalBytes {
-  explicit AdditionalBytes(size_t bytes) : value(bytes) {}
+  constexpr explicit AdditionalBytes(size_t bytes) : value(bytes) {}
   const size_t value;
 };
 

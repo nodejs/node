@@ -416,7 +416,7 @@ void f32x4_nearest_int_wrapper(Address data) {
 }
 
 namespace {
-class ThreadNotInWasmScope {
+class V8_NODISCARD ThreadNotInWasmScope {
 // Asan on Windows triggers exceptions to allocate shadow memory lazily. When
 // this function is called from WebAssembly, these exceptions would be handled
 // by the trap handler before they get handled by Asan, and thereby confuse the
@@ -485,7 +485,7 @@ int32_t memory_init_wrapper(Address data) {
   constexpr int32_t kSuccess = 1;
   constexpr int32_t kOutOfBounds = 0;
   ThreadNotInWasmScope thread_not_in_wasm_scope;
-  DisallowHeapAllocation disallow_heap_allocation;
+  DisallowGarbageCollection no_gc;
   size_t offset = 0;
   Object raw_instance = ReadAndIncrementOffset<Object>(data, &offset);
   WasmInstanceObject instance = WasmInstanceObject::cast(raw_instance);
@@ -511,7 +511,7 @@ int32_t memory_copy_wrapper(Address data) {
   constexpr int32_t kSuccess = 1;
   constexpr int32_t kOutOfBounds = 0;
   ThreadNotInWasmScope thread_not_in_wasm_scope;
-  DisallowHeapAllocation disallow_heap_allocation;
+  DisallowGarbageCollection no_gc;
   size_t offset = 0;
   Object raw_instance = ReadAndIncrementOffset<Object>(data, &offset);
   WasmInstanceObject instance = WasmInstanceObject::cast(raw_instance);
@@ -534,7 +534,7 @@ int32_t memory_fill_wrapper(Address data) {
   constexpr int32_t kOutOfBounds = 0;
 
   ThreadNotInWasmScope thread_not_in_wasm_scope;
-  DisallowHeapAllocation disallow_heap_allocation;
+  DisallowGarbageCollection no_gc;
 
   size_t offset = 0;
   Object raw_instance = ReadAndIncrementOffset<Object>(data, &offset);

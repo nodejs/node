@@ -44,9 +44,7 @@ from testrunner.outproc import test262
 
 # TODO(littledan): move the flag mapping into the status file
 FEATURE_FLAGS = {
-  'Intl.Segmenter': '--harmony-intl-segmenter',
   'Intl.DateTimeFormat-dayPeriod': '--harmony-intl-dateformat-day-period',
-  'Intl.DateTimeFormat-quarter': '--harmony-intl-dateformat-quarter',
   'String.prototype.replaceAll': '--harmony_string_replaceall',
   'Symbol.prototype.description': '--harmony-symbol-description',
   'FinalizationRegistry': '--harmony-weak-refs-with-cleanup-some',
@@ -57,11 +55,7 @@ FEATURE_FLAGS = {
   'regexp-match-indices': '--harmony-regexp-match-indices',
   # https://github.com/tc39/test262/pull/2395
   'regexp-named-groups': '--harmony-regexp-match-indices',
-  'class-methods-private': '--harmony-private-methods',
-  'class-static-methods-private': '--harmony-private-methods',
-  'AggregateError': '--harmony-promise-any',
   'logical-assignment-operators': '--harmony-logical-assignment',
-  'Promise.any': '--harmony-promise-any',
   'Atomics.waitAsync': '--harmony-atomics-waitasync',
 }
 

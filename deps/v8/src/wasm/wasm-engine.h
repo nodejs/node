@@ -14,6 +14,7 @@
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/tasks/cancelable-task.h"
+#include "src/tasks/operations-barrier.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-tier.h"
 #include "src/zone/accounting-allocator.h"
@@ -332,11 +333,11 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   Handle<Script> GetOrCreateScript(Isolate*,
                                    const std::shared_ptr<NativeModule>&,
-                                   Vector<const char> source_url = {});
+                                   Vector<const char> source_url);
 
-  // Take shared ownership of a compile job handle, such that we can synchronize
-  // on that before the engine dies.
-  void ShepherdCompileJobHandle(std::shared_ptr<JobHandle>);
+  // Returns a barrier allowing background compile operations if valid and
+  // preventing this object from being destroyed.
+  std::shared_ptr<OperationsBarrier> GetBarrierForBackgroundCompile();
 
   // Call on process start and exit.
   static void InitializeOncePerProcess();
@@ -399,9 +400,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
   std::unordered_map<NativeModule*, std::unique_ptr<NativeModuleInfo>>
       native_modules_;
 
-  // Background compile jobs that are still running. We need to join them before
-  // the engine gets deleted. Otherwise we don't care when exactly they finish.
-  std::vector<std::shared_ptr<JobHandle>> compile_job_handles_;
+  std::shared_ptr<OperationsBarrier> operations_barrier_{
+      std::make_shared<OperationsBarrier>()};
 
   // Size of code that became dead since the last GC. If this exceeds a certain
   // threshold, a new GC is triggered.

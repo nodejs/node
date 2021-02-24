@@ -46,7 +46,8 @@ class MockTaskRunner : public cppgc::TaskRunner {
 class MockPlatform : public cppgc::Platform {
  public:
   explicit MockPlatform(std::shared_ptr<TaskRunner> runner)
-      : runner_(std::move(runner)) {}
+      : runner_(std::move(runner)),
+        tracing_controller_(std::make_unique<TracingController>()) {}
 
   PageAllocator* GetPageAllocator() override { return nullptr; }
   double MonotonicallyIncreasingTime() override { return 0.0; }
@@ -55,8 +56,13 @@ class MockPlatform : public cppgc::Platform {
     return runner_;
   }
 
+  TracingController* GetTracingController() override {
+    return tracing_controller_.get();
+  }
+
  private:
   std::shared_ptr<TaskRunner> runner_;
+  std::unique_ptr<TracingController> tracing_controller_;
 };
 
 }  // namespace

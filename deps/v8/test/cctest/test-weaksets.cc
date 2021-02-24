@@ -172,7 +172,7 @@ TEST(WeakSet_Regress2060a) {
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
   Handle<JSFunction> function =
-      factory->NewFunctionForTest(factory->function_string());
+      factory->NewFunctionForTesting(factory->function_string());
   Handle<JSObject> key = factory->NewJSObject(function);
   Handle<JSWeakSet> weakset = AllocateJSWeakSet(isolate);
 
@@ -215,7 +215,7 @@ TEST(WeakSet_Regress2060b) {
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
   Handle<JSFunction> function =
-      factory->NewFunctionForTest(factory->function_string());
+      factory->NewFunctionForTesting(factory->function_string());
 
   // Start second old-space page so that keys land on evacuation candidate.
   Page* first_page = heap->old_space()->first_page();

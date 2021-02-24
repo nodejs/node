@@ -495,6 +495,11 @@ Node* GraphAssembler::Float64RoundTruncate(Node* value) {
       graph()->NewNode(machine()->Float64RoundTruncate().op(), value));
 }
 
+Node* GraphAssembler::TruncateFloat64ToInt64(Node* value, TruncateKind kind) {
+  return AddNode(
+      graph()->NewNode(machine()->TruncateFloat64ToInt64(kind), value));
+}
+
 Node* GraphAssembler::Projection(int index, Node* value) {
   return AddNode(
       graph()->NewNode(common()->Projection(index), value, control()));
@@ -805,6 +810,15 @@ Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeReason reason,
                                       IsSafetyCheck is_safety_check) {
   return DeoptimizeIfNot(DeoptimizeKind::kEager, reason, feedback, condition,
                          frame_state, is_safety_check);
+}
+
+Node* GraphAssembler::DynamicCheckMapsWithDeoptUnless(Node* condition,
+                                                      Node* slot_index,
+                                                      Node* value, Node* map,
+                                                      Node* frame_state) {
+  return AddNode(graph()->NewNode(common()->DynamicCheckMapsWithDeoptUnless(),
+                                  condition, slot_index, value, map,
+                                  frame_state, effect(), control()));
 }
 
 TNode<Object> GraphAssembler::Call(const CallDescriptor* call_descriptor,

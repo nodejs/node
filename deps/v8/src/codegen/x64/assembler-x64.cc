@@ -17,6 +17,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/string-constants.h"
@@ -91,6 +92,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
       OSHasAVXSupport()) {
     supported_ |= 1u << AVX;
   }
+  if (cpu.has_avx2() && FLAG_enable_avx2 && IsSupported(AVX)) {
+    supported_ |= 1u << AVX2;
+  }
   if (cpu.has_fma3() && FLAG_enable_fma3 && cpu.has_osxsave() &&
       OSHasAVXSupport()) {
     supported_ |= 1u << FMA3;
@@ -109,16 +113,18 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 void CpuFeatures::PrintTarget() {}
 void CpuFeatures::PrintFeatures() {
   printf(
-      "SSE3=%d SSSE3=%d SSE4_1=%d SSE4_2=%d SAHF=%d AVX=%d FMA3=%d BMI1=%d "
+      "SSE3=%d SSSE3=%d SSE4_1=%d SSE4_2=%d SAHF=%d AVX=%d AVX2=%d FMA3=%d "
+      "BMI1=%d "
       "BMI2=%d "
       "LZCNT=%d "
       "POPCNT=%d ATOM=%d\n",
       CpuFeatures::IsSupported(SSE3), CpuFeatures::IsSupported(SSSE3),
       CpuFeatures::IsSupported(SSE4_1), CpuFeatures::IsSupported(SSE4_2),
       CpuFeatures::IsSupported(SAHF), CpuFeatures::IsSupported(AVX),
-      CpuFeatures::IsSupported(FMA3), CpuFeatures::IsSupported(BMI1),
-      CpuFeatures::IsSupported(BMI2), CpuFeatures::IsSupported(LZCNT),
-      CpuFeatures::IsSupported(POPCNT), CpuFeatures::IsSupported(ATOM));
+      CpuFeatures::IsSupported(AVX2), CpuFeatures::IsSupported(FMA3),
+      CpuFeatures::IsSupported(BMI1), CpuFeatures::IsSupported(BMI2),
+      CpuFeatures::IsSupported(LZCNT), CpuFeatures::IsSupported(POPCNT),
+      CpuFeatures::IsSupported(ATOM));
 }
 
 // -----------------------------------------------------------------------------
@@ -2002,7 +2008,7 @@ void Assembler::Nop(int n) {
     EnsureSpace ensure_space(this);
     int nop_bytes = std::min(n, 9);
     const char* sequence = kNopSequences + kNopOffsets[nop_bytes];
-    memcpy(pc_, sequence, nop_bytes);
+    base::Memcpy(pc_, sequence, nop_bytes);
     pc_ += nop_bytes;
     n -= nop_bytes;
   } while (n);
@@ -2744,6 +2750,15 @@ void Assembler::movdqa(XMMRegister dst, Operand src) {
   emit_sse_operand(dst, src);
 }
 
+void Assembler::movdqa(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_rex_64(src, dst);
+  emit(0x0F);
+  emit(0x7F);
+  emit_sse_operand(src, dst);
+}
+
 void Assembler::movdqu(Operand dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   emit(0xF3);
@@ -3310,26 +3325,6 @@ void Assembler::haddps(XMMRegister dst, Operand src) {
   emit_sse_operand(dst, src);
 }
 
-void Assembler::ucomisd(XMMRegister dst, XMMRegister src) {
-  DCHECK(!IsEnabled(AVX));
-  EnsureSpace ensure_space(this);
-  emit(0x66);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x2E);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::ucomisd(XMMRegister dst, Operand src) {
-  DCHECK(!IsEnabled(AVX));
-  EnsureSpace ensure_space(this);
-  emit(0x66);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x2E);
-  emit_sse_operand(dst, src);
-}
-
 void Assembler::cmpltsd(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   emit(0xF2);
@@ -3412,8 +3407,24 @@ void Assembler::vmovddup(XMMRegister dst, Operand src) {
   emit_sse_operand(dst, src);
 }
 
+void Assembler::vmovshdup(XMMRegister dst, XMMRegister src) {
+  DCHECK(IsEnabled(AVX));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(dst, xmm0, src, kL128, kF3, k0F, kWIG);
+  emit(0x16);
+  emit_sse_operand(dst, src);
+}
+
 void Assembler::vbroadcastss(XMMRegister dst, Operand src) {
   DCHECK(IsEnabled(AVX));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(dst, xmm0, src, kL128, k66, k0F38, kW0);
+  emit(0x18);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::vbroadcastss(XMMRegister dst, XMMRegister src) {
+  DCHECK(IsEnabled(AVX2));
   EnsureSpace ensure_space(this);
   emit_vex_prefix(dst, xmm0, src, kL128, k66, k0F38, kW0);
   emit(0x18);
@@ -3492,6 +3503,14 @@ void Assembler::vmovq(Register dst, XMMRegister src) {
   emit_sse_operand(src, dst);
 }
 
+void Assembler::vmovdqa(XMMRegister dst, XMMRegister src) {
+  DCHECK(IsEnabled(AVX));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(dst, xmm0, src, kL128, k66, k0F, kWIG);
+  emit(0x6F);
+  emit_sse_operand(dst, src);
+}
+
 void Assembler::vmovdqu(XMMRegister dst, Operand src) {
   DCHECK(IsEnabled(AVX));
   EnsureSpace ensure_space(this);
@@ -3501,6 +3520,14 @@ void Assembler::vmovdqu(XMMRegister dst, Operand src) {
 }
 
 void Assembler::vmovdqu(Operand dst, XMMRegister src) {
+  DCHECK(IsEnabled(AVX));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(src, xmm0, dst, kL128, kF3, k0F, kWIG);
+  emit(0x7F);
+  emit_sse_operand(src, dst);
+}
+
+void Assembler::vmovdqu(XMMRegister dst, XMMRegister src) {
   DCHECK(IsEnabled(AVX));
   EnsureSpace ensure_space(this);
   emit_vex_prefix(src, xmm0, dst, kL128, kF3, k0F, kWIG);
@@ -3541,9 +3568,10 @@ void Assembler::vmovhps(Operand dst, XMMRegister src) {
 }
 
 void Assembler::vinstr(byte op, XMMRegister dst, XMMRegister src1,
-                       XMMRegister src2, SIMDPrefix pp, LeadingOpcode m,
-                       VexW w) {
-  DCHECK(IsEnabled(AVX));
+                       XMMRegister src2, SIMDPrefix pp, LeadingOpcode m, VexW w,
+                       CpuFeature feature) {
+  DCHECK(IsEnabled(feature));
+  DCHECK(feature == AVX || feature == AVX2);
   EnsureSpace ensure_space(this);
   emit_vex_prefix(dst, src1, src2, kLIG, pp, m, w);
   emit(op);
@@ -3551,8 +3579,10 @@ void Assembler::vinstr(byte op, XMMRegister dst, XMMRegister src1,
 }
 
 void Assembler::vinstr(byte op, XMMRegister dst, XMMRegister src1, Operand src2,
-                       SIMDPrefix pp, LeadingOpcode m, VexW w) {
-  DCHECK(IsEnabled(AVX));
+                       SIMDPrefix pp, LeadingOpcode m, VexW w,
+                       CpuFeature feature) {
+  DCHECK(IsEnabled(feature));
+  DCHECK(feature == AVX || feature == AVX2);
   EnsureSpace ensure_space(this);
   emit_vex_prefix(dst, src1, src2, kLIG, pp, m, w);
   emit(op);
@@ -4099,6 +4129,16 @@ void Assembler::movddup(XMMRegister dst, Operand src) {
   emit_sse_operand(dst, src);
 }
 
+void Assembler::movshdup(XMMRegister dst, XMMRegister src) {
+  DCHECK(IsEnabled(SSE3));
+  EnsureSpace ensure_space(this);
+  emit(0xF3);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x16);
+  emit_sse_operand(dst, src);
+}
+
 void Assembler::psrldq(XMMRegister dst, uint8_t shift) {
   EnsureSpace ensure_space(this);
   emit(0x66);
@@ -4199,13 +4239,21 @@ void Assembler::db(uint8_t data) {
   emit(data);
 }
 
-void Assembler::dd(uint32_t data) {
+void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
+  if (!RelocInfo::IsNone(rmode)) {
+    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+    RecordRelocInfo(rmode);
+  }
   emitl(data);
 }
 
-void Assembler::dq(uint64_t data) {
+void Assembler::dq(uint64_t data, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
+  if (!RelocInfo::IsNone(rmode)) {
+    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+    RecordRelocInfo(rmode);
+  }
   emitq(data);
 }
 

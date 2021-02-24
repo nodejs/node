@@ -6,6 +6,7 @@
 #define V8_WASM_WASM_MODULE_BUILDER_H_
 
 #include "src/base/memory.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/signature.h"
 #include "src/utils/vector.h"
 #include "src/wasm/leb-helper.h"
@@ -88,7 +89,7 @@ class ZoneBuffer : public ZoneObject {
   void write(const byte* data, size_t size) {
     if (size == 0) return;
     EnsureSpace(size);
-    memcpy(pos_, data, size);
+    base::Memcpy(pos_, data, size);
     pos_ += size;
   }
 
@@ -134,7 +135,7 @@ class ZoneBuffer : public ZoneObject {
     if ((pos_ + size) > end_) {
       size_t new_size = size + (end_ - buffer_) * 2;
       byte* new_buffer = zone_->NewArray<byte, Buffer>(new_size);
-      memcpy(new_buffer, buffer_, (pos_ - buffer_));
+      base::Memcpy(new_buffer, buffer_, (pos_ - buffer_));
       pos_ = new_buffer + (pos_ - buffer_);
       buffer_ = new_buffer;
       end_ = new_buffer + new_size;

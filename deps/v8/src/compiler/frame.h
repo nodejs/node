@@ -146,7 +146,7 @@ class V8_EXPORT_PRIVATE Frame : public ZoneObject {
     }
   }
 
-  int AlignFrame(int alignment = kDoubleSize);
+  void AlignFrame(int alignment = kDoubleSize);
 
   int ReserveSpillSlots(size_t slot_count) {
     DCHECK_EQ(0, spill_slot_count_);

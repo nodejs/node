@@ -279,6 +279,8 @@ static_assert(ArchOpcodeField::is_valid(kLastArchOpcode),
 using AddressingModeField = base::BitField<AddressingMode, 9, 5>;
 using FlagsModeField = base::BitField<FlagsMode, 14, 3>;
 using FlagsConditionField = base::BitField<FlagsCondition, 17, 5>;
+using DeoptImmedArgsCountField = base::BitField<int, 22, 2>;
+using DeoptFrameStateOffsetField = base::BitField<int, 24, 8>;
 using MiscField = base::BitField<int, 22, 10>;
 
 }  // namespace compiler

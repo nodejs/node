@@ -22,8 +22,6 @@ class MarkingWorklists {
     template <AccessMode = AccessMode::kNonAtomic>
     void Push(HeapObjectHeader*);
     template <AccessMode = AccessMode::kNonAtomic>
-    void Erase(HeapObjectHeader*);
-    template <AccessMode = AccessMode::kNonAtomic>
     bool Contains(HeapObjectHeader*);
     template <AccessMode = AccessMode::kNonAtomic>
     std::unordered_set<HeapObjectHeader*> Extract();
@@ -148,14 +146,6 @@ void MarkingWorklists::ExternalMarkingWorklist::Push(HeapObjectHeader* object) {
   DCHECK_NOT_NULL(object);
   ConditionalMutexGuard<mode> guard(&lock_);
   objects_.insert(object);
-}
-
-template <AccessMode mode>
-void MarkingWorklists::ExternalMarkingWorklist::Erase(
-    HeapObjectHeader* object) {
-  DCHECK_NOT_NULL(object);
-  ConditionalMutexGuard<mode> guard(&lock_);
-  objects_.erase(object);
 }
 
 template <AccessMode mode>

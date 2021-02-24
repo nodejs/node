@@ -197,6 +197,7 @@ class DeoptimizationExit : public ZoneObject {
         pc_offset_(pc_offset),
         kind_(kind),
         reason_(reason),
+        immediate_args_(nullptr),
         emitted_(false) {}
 
   bool has_deoptimization_id() const {
@@ -210,12 +211,21 @@ class DeoptimizationExit : public ZoneObject {
     deoptimization_id_ = deoptimization_id;
   }
   SourcePosition pos() const { return pos_; }
+  // The label for the deoptimization call.
   Label* label() { return &label_; }
+  // The label after the deoptimization check, which will resume execution.
+  Label* continue_label() { return &continue_label_; }
   BailoutId bailout_id() const { return bailout_id_; }
   int translation_id() const { return translation_id_; }
   int pc_offset() const { return pc_offset_; }
   DeoptimizeKind kind() const { return kind_; }
   DeoptimizeReason reason() const { return reason_; }
+  const ZoneVector<ImmediateOperand*>* immediate_args() const {
+    return immediate_args_;
+  }
+  void set_immediate_args(ZoneVector<ImmediateOperand*>* immediate_args) {
+    immediate_args_ = immediate_args;
+  }
   // Returns whether the deopt exit has already been emitted. Most deopt exits
   // are emitted contiguously at the end of the code, but unconditional deopt
   // exits (kArchDeoptimize) may be inlined where they are encountered.
@@ -227,11 +237,13 @@ class DeoptimizationExit : public ZoneObject {
   int deoptimization_id_;
   const SourcePosition pos_;
   Label label_;
+  Label continue_label_;
   const BailoutId bailout_id_;
   const int translation_id_;
   const int pc_offset_;
   const DeoptimizeKind kind_;
   const DeoptimizeReason reason_;
+  ZoneVector<ImmediateOperand*>* immediate_args_;
   bool emitted_;
 };
 

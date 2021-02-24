@@ -55,7 +55,7 @@ MaybeHandle<JSSegmentIterator> JSSegmentIterator::Create(
 
   // Now all properties are ready, so we can allocate the result object.
   Handle<JSObject> result = isolate->factory()->NewJSObjectFromMap(map);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Handle<JSSegmentIterator> segment_iterator =
       Handle<JSSegmentIterator>::cast(result);
 

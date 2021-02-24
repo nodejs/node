@@ -184,6 +184,9 @@ class CompilationCacheCode : public CompilationSubCache {
 // compilation data is cached.
 class V8_EXPORT_PRIVATE CompilationCache {
  public:
+  CompilationCache(const CompilationCache&) = delete;
+  CompilationCache& operator=(const CompilationCache&) = delete;
+
   // Finds the script shared function info for a source
   // string. Returns an empty handle if the cache doesn't contain a
   // script for the given source string with the right origin.
@@ -278,8 +281,6 @@ class V8_EXPORT_PRIVATE CompilationCache {
   bool enabled_script_and_eval_;
 
   friend class Isolate;
-
-  DISALLOW_COPY_AND_ASSIGN(CompilationCache);
 };
 
 }  // namespace internal

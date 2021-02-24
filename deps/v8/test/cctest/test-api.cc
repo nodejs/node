@@ -66,6 +66,7 @@
 #include "src/objects/string-inl.h"
 #include "src/objects/synthetic-module-inl.h"
 #include "src/profiler/cpu-profiler.h"
+#include "src/profiler/symbolizer.h"
 #include "src/strings/unicode-inl.h"
 #include "src/utils/utils.h"
 #include "test/cctest/heap/heap-tester.h"
@@ -81,6 +82,7 @@ using ::v8::Boolean;
 using ::v8::BooleanObject;
 using ::v8::Context;
 using ::v8::Extension;
+using ::v8::FixedArray;
 using ::v8::Function;
 using ::v8::FunctionTemplate;
 using ::v8::HandleScope;
@@ -2275,12 +2277,11 @@ THREADED_TEST(TestDataTypeChecks) {
     CHECK(!x->IsObjectTemplate());
     CHECK(!x->IsFunctionTemplate());
     v8::Local<v8::Value>::Cast(x);
+    x.As<v8::Value>();
   }
 
-  v8::ScriptOrigin origin(
-      v8_str(""), Local<v8::Integer>(), Local<v8::Integer>(),
-      Local<v8::Boolean>(), Local<v8::Integer>(), Local<v8::Value>(),
-      Local<v8::Boolean>(), Local<v8::Boolean>(), True(isolate));
+  v8::ScriptOrigin origin(v8_str(""), 0, 0, false, -1, Local<v8::Value>(),
+                          false, false, true);
   v8::ScriptCompiler::Source source(v8::String::NewFromUtf8Literal(isolate, ""),
                                     origin);
   v8::Local<v8::Data> module =
@@ -2291,6 +2292,7 @@ THREADED_TEST(TestDataTypeChecks) {
   CHECK(!module->IsObjectTemplate());
   CHECK(!module->IsFunctionTemplate());
   v8::Local<v8::Module>::Cast(module);
+  module.As<v8::Module>();
 
   v8::Local<v8::Data> p = v8::Private::New(isolate);
   CHECK(!p->IsModule());
@@ -2605,7 +2607,7 @@ THREADED_TEST(DescriptorInheritance2) {
 
 void SimpleAccessorGetter(Local<String> name,
                           const v8::PropertyCallbackInfo<v8::Value>& info) {
-  Local<Object> self = Local<Object>::Cast(info.This());
+  Local<Object> self = info.This().As<Object>();
   info.GetReturnValue().Set(
       self->Get(info.GetIsolate()->GetCurrentContext(),
                 String::Concat(info.GetIsolate(), v8_str("accessor_"), name))
@@ -2614,7 +2616,7 @@ void SimpleAccessorGetter(Local<String> name,
 
 void SimpleAccessorSetter(Local<String> name, Local<Value> value,
                           const v8::PropertyCallbackInfo<void>& info) {
-  Local<Object> self = Local<Object>::Cast(info.This());
+  Local<Object> self = info.This().As<Object>();
   CHECK(self->Set(info.GetIsolate()->GetCurrentContext(),
                   String::Concat(info.GetIsolate(), v8_str("accessor_"), name),
                   value)
@@ -2624,7 +2626,7 @@ void SimpleAccessorSetter(Local<String> name, Local<Value> value,
 void SymbolAccessorGetter(Local<Name> name,
                           const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(name->IsSymbol());
-  Local<Symbol> sym = Local<Symbol>::Cast(name);
+  Local<Symbol> sym = name.As<Symbol>();
   if (sym->Description()->IsUndefined()) return;
   SimpleAccessorGetter(Local<String>::Cast(sym->Description()), info);
 }
@@ -2632,7 +2634,7 @@ void SymbolAccessorGetter(Local<Name> name,
 void SymbolAccessorSetter(Local<Name> name, Local<Value> value,
                           const v8::PropertyCallbackInfo<void>& info) {
   CHECK(name->IsSymbol());
-  Local<Symbol> sym = Local<Symbol>::Cast(name);
+  Local<Symbol> sym = name.As<Symbol>();
   if (sym->Description()->IsUndefined()) return;
   SimpleAccessorSetter(Local<String>::Cast(sym->Description()), value, info);
 }
@@ -2640,7 +2642,7 @@ void SymbolAccessorSetter(Local<Name> name, Local<Value> value,
 void SymbolAccessorGetterReturnsDefault(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(name->IsSymbol());
-  Local<Symbol> sym = Local<Symbol>::Cast(name);
+  Local<Symbol> sym = name.As<Symbol>();
   if (sym->Description()->IsUndefined()) return;
   info.GetReturnValue().Set(info.Data());
 }
@@ -4628,9 +4630,7 @@ TEST(MessageHandler3) {
   isolate->AddMessageListener(check_message_3);
   LocalContext context;
   v8::ScriptOrigin origin =
-      v8::ScriptOrigin(v8_str("6.75"), v8::Integer::New(isolate, 1),
-                       v8::Integer::New(isolate, 2), v8::True(isolate),
-                       Local<v8::Integer>(), v8_str("7.40"), v8::True(isolate));
+      v8::ScriptOrigin(v8_str("6.75"), 1, 2, true, -1, v8_str("7.40"), true);
   v8::Local<v8::Script> script =
       Script::Compile(context.local(), v8_str("throw 'error'"), &origin)
           .ToLocalChecked();
@@ -4659,9 +4659,7 @@ TEST(MessageHandler4) {
   CHECK(!message_received);
   isolate->AddMessageListener(check_message_4);
   LocalContext context;
-  v8::ScriptOrigin origin =
-      v8::ScriptOrigin(v8_str("6.75"), v8::Integer::New(isolate, 1),
-                       v8::Integer::New(isolate, 2), v8::False(isolate));
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8_str("6.75"), 1, 2, false);
   v8::Local<v8::Script> script =
       Script::Compile(context.local(), v8_str("throw 'error'"), &origin)
           .ToLocalChecked();
@@ -4701,9 +4699,7 @@ TEST(MessageHandler5) {
   CHECK(!message_received);
   isolate->AddMessageListener(check_message_5a);
   LocalContext context;
-  v8::ScriptOrigin origin1 =
-      v8::ScriptOrigin(v8_str("6.75"), v8::Integer::New(isolate, 1),
-                       v8::Integer::New(isolate, 2), v8::True(isolate));
+  v8::ScriptOrigin origin1 = v8::ScriptOrigin(v8_str("6.75"), 1, 2, true);
   v8::Local<v8::Script> script =
       Script::Compile(context.local(), v8_str("throw 'error'"), &origin1)
           .ToLocalChecked();
@@ -4714,9 +4710,7 @@ TEST(MessageHandler5) {
 
   message_received = false;
   isolate->AddMessageListener(check_message_5b);
-  v8::ScriptOrigin origin2 =
-      v8::ScriptOrigin(v8_str("6.75"), v8::Integer::New(isolate, 1),
-                       v8::Integer::New(isolate, 2), v8::False(isolate));
+  v8::ScriptOrigin origin2 = v8::ScriptOrigin(v8_str("6.75"), 1, 2, false);
   script = Script::Compile(context.local(), v8_str("throw 'error'"), &origin2)
                .ToLocalChecked();
   CHECK(script->Run(context.local()).IsEmpty());
@@ -8837,7 +8831,7 @@ static void YGetter(Local<String> name,
 static void YSetter(Local<String> name,
                     Local<Value> value,
                     const v8::PropertyCallbackInfo<void>& info) {
-  Local<Object> this_obj = Local<Object>::Cast(info.This());
+  Local<Object> this_obj = info.This().As<Object>();
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
   if (this_obj->Has(context, name).FromJust())
     this_obj->Delete(context, name).FromJust();
@@ -13395,7 +13389,7 @@ static int GetGlobalObjectsCount() {
     if (object.IsJSGlobalObject()) {
       i::JSGlobalObject g = i::JSGlobalObject::cast(object);
       // Skip dummy global object.
-      if (g.global_dictionary().NumberOfElements() != 0) {
+      if (g.global_dictionary(v8::kAcquireLoad).NumberOfElements() != 0) {
         count++;
       }
     }
@@ -13871,9 +13865,9 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
                                      .ToLocalChecked())));
 
       i::PagedSpace* foo_owning_space = reinterpret_cast<i::PagedSpace*>(
-          i::Page::FromHeapObject(foo->abstract_code())->owner());
+          i::Page::FromHeapObject(foo->abstract_code(i_isolate))->owner());
       i::PagedSpace* bar_owning_space = reinterpret_cast<i::PagedSpace*>(
-          i::Page::FromHeapObject(bar->abstract_code())->owner());
+          i::Page::FromHeapObject(bar->abstract_code(i_isolate))->owner());
       CHECK_EQ(foo_owning_space, bar_owning_space);
       i::heap::SimulateFullSpace(foo_owning_space);
 
@@ -14049,14 +14043,13 @@ THREADED_TEST(TryCatchSourceInfo) {
   CheckTryCatchSourceInfo(script, resource_name, 0);
 
   resource_name = "test1.js";
-  v8::ScriptOrigin origin1(v8_str(resource_name));
+  v8::ScriptOrigin origin1(v8_str(resource_name), 0, 0);
   script =
       v8::Script::Compile(context.local(), source, &origin1).ToLocalChecked();
   CheckTryCatchSourceInfo(script, resource_name, 0);
 
   resource_name = "test2.js";
-  v8::ScriptOrigin origin2(v8_str(resource_name),
-                           v8::Integer::New(context->GetIsolate(), 7));
+  v8::ScriptOrigin origin2(v8_str(resource_name), 7, 0);
   script =
       v8::Script::Compile(context.local(), source, &origin2).ToLocalChecked();
   CheckTryCatchSourceInfo(script, resource_name, 7);
@@ -16880,7 +16873,7 @@ TEST(VisitExternalStrings) {
   v8::Isolate* isolate = CcTest::isolate();
   LocalContext env;
   v8::HandleScope scope(isolate);
-  const char string[] = "Some string";
+  const char string[] = "Some string that's long";
   uint16_t* two_byte_string = AsciiToTwoByteString(string);
   TestResource* resource[4];
   resource[0] = new TestResource(two_byte_string);
@@ -16960,7 +16953,7 @@ TEST(ExternalInternalizedStringCollectedAtTearDown) {
     v8::Local<v8::String> ring =
         CompileRun("ring")->ToString(env.local()).ToLocalChecked();
     CHECK(v8::Utils::OpenHandle(*ring)->IsInternalizedString());
-    ring->MakeExternal(inscription);
+    CHECK(ring->MakeExternal(inscription));
     // Ring is still alive.  Orcs are roaming freely across our lands.
     CHECK_EQ(0, destroyed);
     USE(ring);
@@ -16982,7 +16975,7 @@ TEST(ExternalInternalizedStringCollectedAtGC) {
         new TestOneByteResource(i::StrDup(s), &destroyed);
     v8::Local<v8::String> ring = CompileRun("ring").As<v8::String>();
     CHECK(v8::Utils::OpenHandle(*ring)->IsInternalizedString());
-    ring->MakeExternal(inscription);
+    CHECK(ring->MakeExternal(inscription));
     // Ring is still alive.  Orcs are roaming freely across our lands.
     CHECK_EQ(0, destroyed);
     USE(ring);
@@ -17259,12 +17252,9 @@ THREADED_TEST(ScriptOrigin) {
   Local<v8::Symbol> symbol(v8::Symbol::New(isolate));
   array->Set(isolate, 0, symbol);
 
-  v8::ScriptOrigin origin = v8::ScriptOrigin(
-      v8_str("test"), v8::Integer::New(env->GetIsolate(), 1),
-      v8::Integer::New(env->GetIsolate(), 1), v8::True(env->GetIsolate()),
-      v8::Local<v8::Integer>(), v8_str("http://sourceMapUrl"),
-      v8::True(env->GetIsolate()), v8::False(env->GetIsolate()),
-      v8::False(env->GetIsolate()), array);
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8_str("test"), 1, 1, true, -1,
+                                             v8_str("http://sourceMapUrl"),
+                                             true, false, false, array);
   v8::Local<v8::String> script = v8_str("function f() {}\n\nfunction g() {}");
   v8::Script::Compile(env.local(), script, &origin)
       .ToLocalChecked()
@@ -17279,9 +17269,7 @@ THREADED_TEST(ScriptOrigin) {
   CHECK_EQ(0, strcmp("test",
                      *v8::String::Utf8Value(env->GetIsolate(),
                                             script_origin_f.ResourceName())));
-  CHECK_EQ(
-      1,
-      script_origin_f.ResourceLineOffset()->Int32Value(env.local()).FromJust());
+  CHECK_EQ(1, script_origin_f.LineOffset());
   CHECK(script_origin_f.Options().IsSharedCrossOrigin());
   CHECK(script_origin_f.Options().IsOpaque());
   printf("is name = %d\n", script_origin_f.SourceMapUrl()->IsUndefined());
@@ -17295,9 +17283,7 @@ THREADED_TEST(ScriptOrigin) {
   CHECK_EQ(0, strcmp("test",
                      *v8::String::Utf8Value(env->GetIsolate(),
                                             script_origin_g.ResourceName())));
-  CHECK_EQ(
-      1,
-      script_origin_g.ResourceLineOffset()->Int32Value(env.local()).FromJust());
+  CHECK_EQ(1, script_origin_g.LineOffset());
   CHECK(script_origin_g.Options().IsSharedCrossOrigin());
   CHECK(script_origin_g.Options().IsOpaque());
   CHECK_EQ(0, strcmp("http://sourceMapUrl",
@@ -17310,7 +17296,7 @@ THREADED_TEST(ScriptOrigin) {
 THREADED_TEST(FunctionGetInferredName) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  v8::ScriptOrigin origin = v8::ScriptOrigin(v8_str("test"));
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8_str("test"), 0, 0);
   v8::Local<v8::String> script =
       v8_str("var foo = { bar : { baz : function() {}}}; var f = foo.bar.baz;");
   v8::Script::Compile(env.local(), script, &origin)
@@ -17372,7 +17358,7 @@ THREADED_TEST(FunctionGetDebugName) {
       "Object.defineProperty(j, 'name', { value: 'function.name' });"
       "var foo = { bar : { baz : (0, function() {})}}; var k = foo.bar.baz;"
       "var foo = { bar : { baz : function() {} }}; var l = foo.bar.baz;";
-  v8::ScriptOrigin origin = v8::ScriptOrigin(v8_str("test"));
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8_str("test"), 0, 0);
   v8::Script::Compile(env.local(), v8_str(code), &origin)
       .ToLocalChecked()
       ->Run(env.local())
@@ -17441,7 +17427,7 @@ THREADED_TEST(FunctionGetDisplayName) {
                      "var g = function() {"
                      "  arguments.callee.displayName = 'set_in_runtime';"
                      "}; g();";
-  v8::ScriptOrigin origin = v8::ScriptOrigin(v8_str("test"));
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8_str("test"), 0, 0);
   v8::Script::Compile(env.local(), v8_str(code), &origin)
       .ToLocalChecked()
       ->Run(env.local())
@@ -17479,7 +17465,7 @@ THREADED_TEST(FunctionGetDisplayName) {
 THREADED_TEST(ScriptLineNumber) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  v8::ScriptOrigin origin = v8::ScriptOrigin(v8_str("test"));
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8_str("test"), 0, 0);
   v8::Local<v8::String> script = v8_str("function f() {}\n\nfunction g() {}");
   v8::Script::Compile(env.local(), script, &origin)
       .ToLocalChecked()
@@ -17498,9 +17484,7 @@ THREADED_TEST(ScriptColumnNumber) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
-  v8::ScriptOrigin origin =
-      v8::ScriptOrigin(v8_str("test"), v8::Integer::New(isolate, 3),
-                       v8::Integer::New(isolate, 2));
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8_str("test"), 3, 2);
   v8::Local<v8::String> script =
       v8_str("function foo() {}\n\n     function bar() {}");
   v8::Script::Compile(env.local(), script, &origin)
@@ -17520,9 +17504,7 @@ THREADED_TEST(FunctionGetScriptId) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
-  v8::ScriptOrigin origin =
-      v8::ScriptOrigin(v8_str("test"), v8::Integer::New(isolate, 3),
-                       v8::Integer::New(isolate, 2));
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8_str("test"), 3, 2);
   v8::Local<v8::String> scriptSource =
       v8_str("function foo() {}\n\n     function bar() {}");
   v8::Local<v8::Script> script(
@@ -17609,7 +17591,8 @@ static void SetterWhichSetsYOnThisTo23(
     const v8::PropertyCallbackInfo<void>& info) {
   CHECK(v8::Utils::OpenHandle(*info.This())->IsJSObject());
   CHECK(v8::Utils::OpenHandle(*info.Holder())->IsJSObject());
-  Local<Object>::Cast(info.This())
+  info.This()
+      .As<Object>()
       ->Set(info.GetIsolate()->GetCurrentContext(), v8_str("y"), v8_num(23))
       .FromJust();
 }
@@ -17635,7 +17618,8 @@ void FooSetInterceptor(Local<Name> name, Local<Value> value,
            .FromJust()) {
     return;
   }
-  Local<Object>::Cast(info.This())
+  info.This()
+      .As<Object>()
       ->Set(info.GetIsolate()->GetCurrentContext(), v8_str("y"), v8_num(23))
       .FromJust();
   info.GetReturnValue().Set(v8_num(23));
@@ -17699,7 +17683,8 @@ static void NamedPropertySetterWhichSetsYOnThisTo23(
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   if (name->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("x"))
           .FromJust()) {
-    Local<Object>::Cast(info.This())
+    info.This()
+        .As<Object>()
         ->Set(info.GetIsolate()->GetCurrentContext(), v8_str("y"), v8_num(23))
         .FromJust();
   }
@@ -18099,7 +18084,7 @@ THREADED_TEST(TwoByteStringInOneByteCons) {
 
   TestResource resource(uc16_buffer);
 
-  flat_string->MakeExternal(&resource);
+  CHECK(flat_string->MakeExternal(&resource));
 
   CHECK(flat_string->IsTwoByteRepresentation());
 
@@ -21450,7 +21435,7 @@ class RegExpInterruptTest {
     v8::Local<v8::String> string =
         v8::Local<v8::String>::New(isolate, instance->string_handle_);
     CHECK(string->CanMakeExternal());
-    string->MakeExternal(&one_byte_string_resource);
+    CHECK(string->MakeExternal(&one_byte_string_resource));
   }
 
   static void MakeSubjectTwoByteExternal(v8::Isolate* isolate, void* data) {
@@ -21460,7 +21445,7 @@ class RegExpInterruptTest {
     v8::Local<v8::String> string =
         v8::Local<v8::String>::New(isolate, instance->string_handle_);
     CHECK(string->CanMakeExternal());
-    string->MakeExternal(&two_byte_string_resource);
+    CHECK(string->MakeExternal(&two_byte_string_resource));
   }
 
   static void ReenterIrregexp(v8::Isolate* isolate, void* data) {
@@ -22965,6 +22950,34 @@ TEST(PromiseThen2) {
                     .FromJust());
 }
 
+TEST(PromiseCatchCallsBuiltin) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  Local<Object> global = context->Global();
+
+  v8::Local<v8::Promise::Resolver> resolver =
+      v8::Promise::Resolver::New(context.local()).ToLocalChecked();
+  v8::Local<v8::Promise> promise = resolver->GetPromise();
+
+  resolver->Reject(context.local(), v8::Integer::New(isolate, 1)).FromJust();
+
+  CompileRun(
+      "var x1 = 0;\n"
+      "function f(x) { x1 = x; }\n"
+      "Promise.prototype.then = function () { throw 'unreachable'; };\n");
+  Local<Function> f = Local<Function>::Cast(
+      global->Get(context.local(), v8_str("f")).ToLocalChecked());
+
+  // Catch should not call monkey-patched Promise.prototype.then.
+  promise->Catch(context.local(), f).ToLocalChecked();
+  isolate->PerformMicrotaskCheckpoint();
+  CHECK_EQ(1, global->Get(context.local(), v8_str("x1"))
+                  .ToLocalChecked()
+                  ->Int32Value(context.local())
+                  .FromJust());
+}
+
 TEST(PromiseStateAndValue) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
@@ -23171,7 +23184,7 @@ TEST(ScriptNameAndLineNumber) {
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
   const char* url = "http://www.foo.com/foo.js";
-  v8::ScriptOrigin origin(v8_str(url), v8::Integer::New(isolate, 13));
+  v8::ScriptOrigin origin(v8_str(url), 13, 0);
   v8::ScriptCompiler::Source script_source(v8_str("var foo;"), origin);
 
   Local<Script> script =
@@ -23189,7 +23202,7 @@ TEST(ScriptPositionInfo) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   v8::HandleScope scope(isolate);
   const char* url = "http://www.foo.com/foo.js";
-  v8::ScriptOrigin origin(v8_str(url), v8::Integer::New(isolate, 13));
+  v8::ScriptOrigin origin(v8_str(url), 13, 0);
   v8::ScriptCompiler::Source script_source(v8_str("var foo;\n"
                                                   "var bar;\n"
                                                   "var fisk = foo + bar;\n"),
@@ -23365,16 +23378,6 @@ TEST(ScriptSourceURLAndSourceMappingURL) {
                   "//# sourceURL=bar15\t.js   \n"
                   "//# sourceMappingURL=bar16\t.js \n",
                   nullptr, nullptr);
-  SourceURLHelper(isolate,
-                  "function foo() {}\n"
-                  "//# sourceURL=bar17'.js   \n"
-                  "//# sourceMappingURL=bar18'.js \n",
-                  nullptr, nullptr);
-  SourceURLHelper(isolate,
-                  "function foo() {}\n"
-                  "//# sourceURL=bar19\".js   \n"
-                  "//# sourceMappingURL=bar20\".js \n",
-                  nullptr, nullptr);
 
   // Not too much whitespace.
   SourceURLHelper(isolate,
@@ -23382,6 +23385,25 @@ TEST(ScriptSourceURLAndSourceMappingURL) {
                   "//# sourceURL=  bar21.js   \n"
                   "//# sourceMappingURL=  bar22.js \n",
                   "bar21.js", "bar22.js");
+
+  // Comments in eval'd script should be ignored.
+  SourceURLHelper(isolate,
+                  "function foo() {}\n"
+                  "eval(\"\\\n//# sourceURL=bar23.js\");\n"
+                  "eval(\"\\\n//# sourceMappingURL=bar24.js\");\n",
+                  nullptr, nullptr);
+  SourceURLHelper(isolate,
+                  "function foo() {}\n"
+                  "eval('\\\n//# sourceURL=bar23.js');\n"
+                  "eval('\\\n//# sourceMappingURL=bar24.js');\n",
+                  nullptr, nullptr);
+
+  // Inline data: URLs are allowed.
+  SourceURLHelper(
+      isolate,
+      "function foo() {}\n"
+      "//# sourceMappingURL=  data:application/json,{\"version\":3}  \n",
+      nullptr, "data:application/json,{\"version\":3}");
 }
 
 
@@ -23541,9 +23563,14 @@ class TestSourceStream : public v8::ScriptCompiler::ExternalSourceStream {
   unsigned index_;
 };
 
+v8::MaybeLocal<Module> UnexpectedModuleResolveCallback(
+    Local<Context> context, Local<String> specifier,
+    Local<FixedArray> import_assertions, Local<Module> referrer) {
+  CHECK_WITH_MSG(false, "Unexpected call to resolve callback");
+}
 
 // Helper function for running streaming tests.
-void RunStreamingTest(const char** chunks,
+void RunStreamingTest(const char** chunks, v8::ScriptType type,
                       v8::ScriptCompiler::StreamedSource::Encoding encoding =
                           v8::ScriptCompiler::StreamedSource::ONE_BYTE,
                       bool expected_success = true,
@@ -23557,7 +23584,7 @@ void RunStreamingTest(const char** chunks,
   v8::ScriptCompiler::StreamedSource source(
       std::make_unique<TestSourceStream>(chunks), encoding);
   v8::ScriptCompiler::ScriptStreamingTask* task =
-      v8::ScriptCompiler::StartStreaming(isolate, &source);
+      v8::ScriptCompiler::StartStreaming(isolate, &source, type);
 
   // TestSourceStream::GetMoreData won't block, so it's OK to just run the
   // task here in the main thread.
@@ -23567,23 +23594,63 @@ void RunStreamingTest(const char** chunks,
   // Possible errors are only produced while compiling.
   CHECK(!try_catch.HasCaught());
 
-  v8::ScriptOrigin origin(v8_str("http://foo.com"));
+  v8::ScriptOrigin origin(v8_str("http://foo.com"), 0, 0, false, -1,
+                          v8::Local<v8::Value>(), false, false,
+                          type == v8::ScriptType::kModule);
+
   char* full_source = TestSourceStream::FullSourceString(chunks);
-  v8::MaybeLocal<Script> script = v8::ScriptCompiler::Compile(
-      env.local(), &source, v8_str(full_source), origin);
-  if (expected_success) {
-    CHECK(!script.IsEmpty());
-    v8::Local<Value> result(
-        script.ToLocalChecked()->Run(env.local()).ToLocalChecked());
-    // All scripts are supposed to return the fixed value 13 when ran.
-    CHECK_EQ(13, result->Int32Value(env.local()).FromJust());
-    CheckMagicComments(isolate, script.ToLocalChecked(), expected_source_url,
-                       expected_source_mapping_url);
+  if (type == v8::ScriptType::kClassic) {
+    v8::MaybeLocal<Script> script = v8::ScriptCompiler::Compile(
+        env.local(), &source, v8_str(full_source), origin);
+    if (expected_success) {
+      CHECK(!script.IsEmpty());
+      v8::Local<Value> result(
+          script.ToLocalChecked()->Run(env.local()).ToLocalChecked());
+      // All scripts are supposed to return the fixed value 13 when ran.
+      CHECK_EQ(13, result->Int32Value(env.local()).FromJust());
+      CheckMagicComments(isolate, script.ToLocalChecked(), expected_source_url,
+                         expected_source_mapping_url);
+    } else {
+      CHECK(script.IsEmpty());
+    }
   } else {
-    CHECK(script.IsEmpty());
-    CHECK(try_catch.HasCaught());
+    v8::MaybeLocal<Module> maybe_module = v8::ScriptCompiler::CompileModule(
+        env.local(), &source, v8_str(full_source), origin);
+    if (expected_success) {
+      v8::Local<v8::Module> module = maybe_module.ToLocalChecked();
+      CHECK(
+          module
+              ->InstantiateModule(env.local(), UnexpectedModuleResolveCallback)
+              .FromJust());
+      CHECK_EQ(Module::kInstantiated, module->GetStatus());
+      v8::Local<Value> result = module->Evaluate(env.local()).ToLocalChecked();
+      CHECK_EQ(Module::kEvaluated, module->GetStatus());
+      if (i::FLAG_harmony_top_level_await) {
+        v8::Local<v8::Promise> promise = result.As<v8::Promise>();
+        CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+        CHECK_EQ(13, promise->Result()->Int32Value(env.local()).FromJust());
+      } else {
+        CHECK(!result.IsEmpty());
+        CHECK_EQ(13, result->Int32Value(env.local()).FromJust());
+      }
+    } else {
+      CHECK(maybe_module.IsEmpty());
+    }
   }
+  if (!expected_success) CHECK(try_catch.HasCaught());
   delete[] full_source;
+}
+
+void RunStreamingTest(const char** chunks,
+                      v8::ScriptCompiler::StreamedSource::Encoding encoding =
+                          v8::ScriptCompiler::StreamedSource::ONE_BYTE,
+                      bool expected_success = true,
+                      const char* expected_source_url = nullptr,
+                      const char* expected_source_mapping_url = nullptr) {
+  RunStreamingTest(chunks, v8::ScriptType::kClassic, encoding, expected_success,
+                   expected_source_url, expected_source_mapping_url);
+  RunStreamingTest(chunks, v8::ScriptType::kModule, encoding, expected_success,
+                   expected_source_url, expected_source_mapping_url);
 }
 
 TEST(StreamingSimpleScript) {
@@ -23618,7 +23685,8 @@ TEST(StreamingScriptEvalShadowing) {
       "  })()\n"
       "})()\n";
   const char* chunks[] = {chunk1, nullptr};
-  RunStreamingTest(chunks);
+  // Only run the script version of this test.
+  RunStreamingTest(chunks, v8::ScriptType::kClassic);
 }
 
 TEST(StreamingBiggerScript) {
@@ -24014,12 +24082,6 @@ TEST(CodeCache) {
   isolate2->Dispose();
 }
 
-v8::MaybeLocal<Module> UnexpectedModuleResolveCallback(Local<Context> context,
-                                                       Local<String> specifier,
-                                                       Local<Module> referrer) {
-  CHECK_WITH_MSG(false, "Unexpected call to resolve callback");
-}
-
 v8::MaybeLocal<Value> UnexpectedSyntheticModuleEvaluationStepsCallback(
     Local<Context> context, Local<Module> module) {
   CHECK_WITH_MSG(false, "Unexpected call to synthetic module re callback");
@@ -24056,10 +24118,8 @@ Local<Module> CompileAndInstantiateModule(v8::Isolate* isolate,
                                           const char* resource_name,
                                           const char* source) {
   Local<String> source_string = v8_str(source);
-  v8::ScriptOrigin script_origin(
-      v8_str(resource_name), Local<v8::Integer>(), Local<v8::Integer>(),
-      Local<v8::Boolean>(), Local<v8::Integer>(), Local<v8::Value>(),
-      Local<v8::Boolean>(), Local<v8::Boolean>(), True(isolate));
+  v8::ScriptOrigin script_origin(v8_str(resource_name), 0, 0, false, -1,
+                                 Local<v8::Value>(), false, false, true);
   v8::ScriptCompiler::Source script_compiler_source(source_string,
                                                     script_origin);
   Local<Module> module =
@@ -24087,10 +24147,8 @@ Local<Module> CompileAndInstantiateModuleFromCache(
     v8::Isolate* isolate, Local<Context> context, const char* resource_name,
     const char* source, v8::ScriptCompiler::CachedData* cache) {
   Local<String> source_string = v8_str(source);
-  v8::ScriptOrigin script_origin(
-      v8_str(resource_name), Local<v8::Integer>(), Local<v8::Integer>(),
-      Local<v8::Boolean>(), Local<v8::Integer>(), Local<v8::Value>(),
-      Local<v8::Boolean>(), Local<v8::Boolean>(), True(isolate));
+  v8::ScriptOrigin script_origin(v8_str(resource_name), 0, 0, false, -1,
+                                 Local<v8::Value>(), false, false, true);
   v8::ScriptCompiler::Source script_compiler_source(source_string,
                                                     script_origin, cache);
 
@@ -24106,9 +24164,9 @@ Local<Module> CompileAndInstantiateModuleFromCache(
 
 }  // namespace
 
-v8::MaybeLocal<Module> SyntheticModuleResolveCallback(Local<Context> context,
-                                                      Local<String> specifier,
-                                                      Local<Module> referrer) {
+v8::MaybeLocal<Module> SyntheticModuleResolveCallback(
+    Local<Context> context, Local<String> specifier,
+    Local<FixedArray> import_assertions, Local<Module> referrer) {
   std::vector<v8::Local<v8::String>> export_names{v8_str("test_export")};
   Local<Module> module = CreateAndInstantiateSyntheticModule(
       context->GetIsolate(),
@@ -24118,7 +24176,8 @@ v8::MaybeLocal<Module> SyntheticModuleResolveCallback(Local<Context> context,
 }
 
 v8::MaybeLocal<Module> SyntheticModuleThatThrowsDuringEvaluateResolveCallback(
-    Local<Context> context, Local<String> specifier, Local<Module> referrer) {
+    Local<Context> context, Local<String> specifier,
+    Local<FixedArray> import_assertions, Local<Module> referrer) {
   std::vector<v8::Local<v8::String>> export_names{v8_str("test_export")};
   Local<Module> module = CreateAndInstantiateSyntheticModule(
       context->GetIsolate(),
@@ -24236,6 +24295,7 @@ TEST(CreateSyntheticModule) {
   CHECK_EQ(i_module->status(), i::Module::kInstantiated);
   CHECK(module->IsSyntheticModule());
   CHECK(!module->IsSourceTextModule());
+  CHECK_EQ(module->GetModuleRequests()->Length(), 0);
 }
 
 TEST(CreateSyntheticModuleGC) {
@@ -24452,10 +24512,8 @@ TEST(ImportFromSyntheticModule) {
   Local<String> source_text = v8_str(
       "import {test_export} from './synthetic.module';"
       "(function() { return test_export; })();");
-  v8::ScriptOrigin origin(url, Local<v8::Integer>(), Local<v8::Integer>(),
-                          Local<v8::Boolean>(), Local<v8::Integer>(),
-                          Local<v8::Value>(), Local<v8::Boolean>(),
-                          Local<v8::Boolean>(), True(isolate));
+  v8::ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false,
+                          false, true);
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
@@ -24484,10 +24542,8 @@ TEST(ImportFromSyntheticModuleThrow) {
   Local<String> source_text = v8_str(
       "import {test_export} from './synthetic.module';"
       "(function() { return test_export; })();");
-  v8::ScriptOrigin origin(url, Local<v8::Integer>(), Local<v8::Integer>(),
-                          Local<v8::Boolean>(), Local<v8::Integer>(),
-                          Local<v8::Value>(), Local<v8::Boolean>(),
-                          Local<v8::Boolean>(), True(isolate));
+  v8::ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false,
+                          false, true);
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
@@ -24624,10 +24680,8 @@ TEST(CodeCacheScriptModuleMismatch) {
       v8::Local<v8::Context> context = v8::Context::New(isolate);
       v8::Context::Scope cscope(context);
 
-      v8::ScriptOrigin script_origin(
-          v8_str(origin), Local<v8::Integer>(), Local<v8::Integer>(),
-          Local<v8::Boolean>(), Local<v8::Integer>(), Local<v8::Value>(),
-          Local<v8::Boolean>(), Local<v8::Boolean>(), True(isolate));
+      v8::ScriptOrigin script_origin(v8_str(origin), 0, 0, false, -1,
+                                     Local<v8::Value>(), false, false, true);
       v8::ScriptCompiler::Source script_compiler_source(v8_str(source),
                                                         script_origin, cache);
 
@@ -24669,10 +24723,8 @@ TEST(InvalidCodeCacheDataInCompileModule) {
       new v8::ScriptCompiler::CachedData(data, length);
   CHECK(!cached_data->rejected);
 
-  v8::ScriptOrigin script_origin(
-      origin, Local<v8::Integer>(), Local<v8::Integer>(), Local<v8::Boolean>(),
-      Local<v8::Integer>(), Local<v8::Value>(), Local<v8::Boolean>(),
-      Local<v8::Boolean>(), True(isolate));
+  v8::ScriptOrigin script_origin(origin, 0, 0, false, -1, Local<v8::Value>(),
+                                 false, false, true);
   v8::ScriptCompiler::Source source(v8_str("42"), script_origin, cached_data);
   v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
 
@@ -26107,10 +26159,8 @@ TEST(ImportMeta) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   Local<String> url = v8_str("www.google.com");
   Local<String> source_text = v8_str("import.meta;");
-  v8::ScriptOrigin origin(url, Local<v8::Integer>(), Local<v8::Integer>(),
-                          Local<v8::Boolean>(), Local<v8::Integer>(),
-                          Local<v8::Value>(), Local<v8::Boolean>(),
-                          Local<v8::Boolean>(), True(isolate));
+  v8::ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false,
+                          false, true);
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
@@ -26157,10 +26207,8 @@ TEST(ImportMetaThrowUnhandled) {
   Local<String> url = v8_str("www.google.com");
   Local<String> source_text =
       v8_str("export default function() { return import.meta }");
-  v8::ScriptOrigin origin(url, Local<v8::Integer>(), Local<v8::Integer>(),
-                          Local<v8::Boolean>(), Local<v8::Integer>(),
-                          Local<v8::Value>(), Local<v8::Boolean>(),
-                          Local<v8::Boolean>(), True(isolate));
+  v8::ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false,
+                          false, true);
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
@@ -26204,10 +26252,8 @@ TEST(ImportMetaThrowHandled) {
         return false;
       }
       )javascript");
-  v8::ScriptOrigin origin(url, Local<v8::Integer>(), Local<v8::Integer>(),
-                          Local<v8::Boolean>(), Local<v8::Integer>(),
-                          Local<v8::Value>(), Local<v8::Boolean>(),
-                          Local<v8::Boolean>(), True(isolate));
+  v8::ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false,
+                          false, true);
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
@@ -26239,10 +26285,8 @@ TEST(GetModuleNamespace) {
 
   Local<String> url = v8_str("www.google.com");
   Local<String> source_text = v8_str("export default 5; export const a = 10;");
-  v8::ScriptOrigin origin(url, Local<v8::Integer>(), Local<v8::Integer>(),
-                          Local<v8::Boolean>(), Local<v8::Integer>(),
-                          Local<v8::Value>(), Local<v8::Boolean>(),
-                          Local<v8::Boolean>(), True(isolate));
+  v8::ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false,
+                          false, true);
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
@@ -26268,10 +26312,8 @@ TEST(ModuleGetUnboundModuleScript) {
 
   Local<String> url = v8_str("www.google.com");
   Local<String> source_text = v8_str("export default 5; export const a = 10;");
-  v8::ScriptOrigin origin(url, Local<v8::Integer>(), Local<v8::Integer>(),
-                          Local<v8::Boolean>(), Local<v8::Integer>(),
-                          Local<v8::Value>(), Local<v8::Boolean>(),
-                          Local<v8::Boolean>(), True(isolate));
+  v8::ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false,
+                          false, true);
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
@@ -26297,10 +26339,8 @@ TEST(ModuleScriptId) {
 
   Local<String> url = v8_str("www.google.com");
   Local<String> source_text = v8_str("export default 5; export const a = 10;");
-  v8::ScriptOrigin origin(url, Local<v8::Integer>(), Local<v8::Integer>(),
-                          Local<v8::Boolean>(), Local<v8::Integer>(),
-                          Local<v8::Value>(), Local<v8::Boolean>(),
-                          Local<v8::Boolean>(), True(isolate));
+  v8::ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false,
+                          false, true);
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
@@ -26320,10 +26360,8 @@ TEST(ModuleIsSourceTextModule) {
 
   Local<String> url = v8_str("www.google.com");
   Local<String> source_text = v8_str("export default 5; export const a = 10;");
-  v8::ScriptOrigin origin(url, Local<v8::Integer>(), Local<v8::Integer>(),
-                          Local<v8::Boolean>(), Local<v8::Integer>(),
-                          Local<v8::Value>(), Local<v8::Boolean>(),
-                          Local<v8::Boolean>(), True(isolate));
+  v8::ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false,
+                          false, true);
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
@@ -26642,9 +26680,9 @@ TEST(WasmI32AtomicWaitCallback) {
   WasmRunner<int32_t, int32_t, int32_t, double> r(TestExecutionTier::kTurbofan);
   r.builder().AddMemory(kWasmPageSize, SharedFlag::kShared);
   r.builder().SetHasSharedMemory();
-  BUILD(r, WASM_ATOMICS_WAIT(kExprI32AtomicWait, WASM_GET_LOCAL(0),
-                             WASM_GET_LOCAL(1),
-                             WASM_I64_SCONVERT_F64(WASM_GET_LOCAL(2)), 4));
+  BUILD(r, WASM_ATOMICS_WAIT(kExprI32AtomicWait, WASM_LOCAL_GET(0),
+                             WASM_LOCAL_GET(1),
+                             WASM_I64_SCONVERT_F64(WASM_LOCAL_GET(2)), 4));
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -26678,9 +26716,9 @@ TEST(WasmI64AtomicWaitCallback) {
   WasmRunner<int32_t, int32_t, double, double> r(TestExecutionTier::kTurbofan);
   r.builder().AddMemory(kWasmPageSize, SharedFlag::kShared);
   r.builder().SetHasSharedMemory();
-  BUILD(r, WASM_ATOMICS_WAIT(kExprI64AtomicWait, WASM_GET_LOCAL(0),
-                             WASM_I64_SCONVERT_F64(WASM_GET_LOCAL(1)),
-                             WASM_I64_SCONVERT_F64(WASM_GET_LOCAL(2)), 8));
+  BUILD(r, WASM_ATOMICS_WAIT(kExprI64AtomicWait, WASM_LOCAL_GET(0),
+                             WASM_I64_SCONVERT_F64(WASM_LOCAL_GET(1)),
+                             WASM_I64_SCONVERT_F64(WASM_LOCAL_GET(2)), 8));
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -27454,10 +27492,6 @@ UNINITIALIZED_TEST(NestedIsolates) {
 
 #ifndef V8_LITE_MODE
 namespace {
-// The following should correspond to Chromium's kV8DOMWrapperObjectIndex.
-static const int kV8WrapperTypeIndex = 0;
-static const int kV8WrapperObjectIndex = 1;
-
 template <typename T>
 struct ConvertJSValue {
   static Maybe<T> Get(v8::Local<v8::Value> value,
@@ -27578,14 +27612,6 @@ struct ConvertJSValue<bool> {
   }
 };
 
-enum class ApiCheckerResult : uint8_t {
-  kNotCalled = 0,
-  kSlowCalled = 1 << 0,
-  kFastCalled = 1 << 1,
-};
-using ApiCheckerResultFlags = v8::base::Flags<ApiCheckerResult>;
-DEFINE_OPERATORS_FOR_FLAGS(ApiCheckerResultFlags)
-
 template <typename Value, typename Impl>
 struct BasicApiChecker {
   static void FastCallback(v8::ApiObject receiver, Value argument,
@@ -27605,22 +27631,6 @@ struct BasicApiChecker {
 
   ApiCheckerResultFlags result_ = ApiCheckerResult::kNotCalled;
 };
-
-bool IsValidUnwrapObject(v8::Object* object) {
-  v8::internal::Address addr =
-      *reinterpret_cast<v8::internal::Address*>(object);
-  auto instance_type = v8::internal::Internals::GetInstanceType(addr);
-  return (instance_type == v8::internal::Internals::kJSObjectType ||
-          instance_type == v8::internal::Internals::kJSApiObjectType ||
-          instance_type == v8::internal::Internals::kJSSpecialApiObjectType);
-}
-
-template <typename T, int offset>
-T* GetInternalField(v8::Object* wrapper) {
-  assert(offset < wrapper->InternalFieldCount());
-  return reinterpret_cast<T*>(
-      wrapper->GetAlignedPointerFromInternalField(offset));
-}
 
 enum class Behavior {
   kNoException,
@@ -28285,7 +28295,6 @@ TEST(FastApiCalls) {
   CallAndCheck<uint64_t>(0, Behavior::kNoException,
                          expected_path_for_64bit_test, v8_num(-0.0));
 
-#ifndef V8_TARGET_ARCH_ARM64
   // TODO(mslekova): We deopt for unsafe integers, but ultimately we want to
   // stay on the fast path.
   CallAndCheck<int64_t>(std::numeric_limits<int64_t>::min(),
@@ -28304,13 +28313,6 @@ TEST(FastApiCalls) {
   CallAndCheck<uint64_t>(1ull << 63, Behavior::kNoException,
                          ApiCheckerResult::kSlowCalled,
                          v8_num(static_cast<double>(1ull << 63)));
-#else
-  // TODO(v8:11121): Currently the tests above are executed for non-arm64
-  // because they fall down the fast path due to incorrect behaviour of
-  // CheckedFloat64ToInt64 on arm64 (see the linked issue for details).
-  // Eventually we want to remove the conditional compilation and ensure
-  // consistent behaviour on all platforms.
-#endif  // V8_TARGET_ARCH_ARM64
 
   // Corner cases - float and double
 #ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
@@ -28803,6 +28805,38 @@ TEST(CodeLikeFunction) {
       });
   CHECK(CompileRun("new Function(new Other())()").IsEmpty());
   ExpectInt32("new Function(new CodeLike())()", 7);
+}
+
+UNINITIALIZED_TEST(SingleThreadedDefaultPlatform) {
+  v8::V8::SetFlagsFromString("--single-threaded");
+  auto old_platform = i::V8::GetCurrentPlatform();
+  std::unique_ptr<v8::Platform> new_platform(
+      v8::platform::NewSingleThreadedDefaultPlatform());
+  i::V8::SetPlatformForTesting(new_platform.get());
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  isolate->Enter();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  {
+    i::HandleScope scope(i_isolate);
+    v8::Local<Context> env = Context::New(isolate);
+    env->Enter();
+
+    CompileRunChecked(isolate,
+                      "function f() {"
+                      "  for (let i = 0; i < 10; i++)"
+                      "    (new Array(10)).fill(0);"
+                      "  return 0;"
+                      "}"
+                      "f();");
+    env->Exit();
+  }
+  CcTest::CollectGarbage(i::NEW_SPACE, i_isolate);
+  CcTest::CollectAllAvailableGarbage(i_isolate);
+  isolate->Exit();
+  isolate->Dispose();
+  i::V8::SetPlatformForTesting(old_platform);
 }
 
 THREADED_TEST(MicrotaskQueueOfContext) {

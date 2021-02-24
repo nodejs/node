@@ -49,7 +49,7 @@ void Context::Initialize(Isolate* isolate) {
 
 bool ScriptContextTable::Lookup(Isolate* isolate, ScriptContextTable table,
                                 String name, LookupResult* result) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   // Static variables cannot be in script contexts.
   IsStaticFlag is_static_flag;
   for (int i = 0; i < table.synchronized_used(); i++) {
@@ -216,7 +216,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       Handle<JSReceiver> object(context->extension_receiver(), isolate);
 
       if (context->IsNativeContext()) {
-        DisallowHeapAllocation no_gc;
+        DisallowGarbageCollection no_gc;
         if (FLAG_trace_contexts) {
           PrintF(" - trying other script contexts\n");
         }
@@ -287,7 +287,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
     if (context->IsFunctionContext() || context->IsBlockContext() ||
         context->IsScriptContext() || context->IsEvalContext() ||
         context->IsModuleContext() || context->IsCatchContext()) {
-      DisallowHeapAllocation no_gc;
+      DisallowGarbageCollection no_gc;
       // Use serialized scope information of functions and blocks to search
       // for the context index.
       ScopeInfo scope_info = context->scope_info();

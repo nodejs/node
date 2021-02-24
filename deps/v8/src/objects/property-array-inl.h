@@ -80,7 +80,7 @@ void PropertyArray::CopyElements(Isolate* isolate, int dst_index,
                                  PropertyArray src, int src_index, int len,
                                  WriteBarrierMode mode) {
   if (len == 0) return;
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   ObjectSlot dst_slot(data_start() + dst_index);
   ObjectSlot src_slot(src.data_start() + src_index);

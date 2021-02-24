@@ -21,7 +21,7 @@ namespace compiler {
 bool RangeType::Limits::IsEmpty() { return this->min > this->max; }
 
 RangeType::Limits RangeType::Limits::Intersect(Limits lhs, Limits rhs) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   Limits result(lhs);
   if (lhs.min < rhs.min) result.min = rhs.min;
   if (lhs.max > rhs.max) result.max = rhs.max;
@@ -29,7 +29,7 @@ RangeType::Limits RangeType::Limits::Intersect(Limits lhs, Limits rhs) {
 }
 
 RangeType::Limits RangeType::Limits::Union(Limits lhs, Limits rhs) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   if (lhs.IsEmpty()) return rhs;
   if (rhs.IsEmpty()) return lhs;
   Limits result(lhs);
@@ -39,14 +39,14 @@ RangeType::Limits RangeType::Limits::Union(Limits lhs, Limits rhs) {
 }
 
 bool Type::Overlap(const RangeType* lhs, const RangeType* rhs) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   return !RangeType::Limits::Intersect(RangeType::Limits(lhs),
                                        RangeType::Limits(rhs))
               .IsEmpty();
 }
 
 bool Type::Contains(const RangeType* lhs, const RangeType* rhs) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   return lhs->Min() <= rhs->Min() && rhs->Max() <= lhs->Max();
 }
 
@@ -94,7 +94,7 @@ double Type::Max() const {
 
 // The largest bitset subsumed by this type.
 Type::bitset Type::BitsetGlb() const {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   // Fast case.
   if (IsBitset()) {
     return AsBitset();
@@ -112,7 +112,7 @@ Type::bitset Type::BitsetGlb() const {
 
 // The smallest bitset subsuming this type, possibly not a proper one.
 Type::bitset Type::BitsetLub() const {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   if (IsBitset()) return AsBitset();
   if (IsUnion()) {
     // Take the representation from the first element, which is always
@@ -153,8 +153,6 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
       return kString;
     case EXTERNAL_INTERNALIZED_STRING_TYPE:
     case EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
-    case UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE:
-    case UNCACHED_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
     case INTERNALIZED_STRING_TYPE:
     case ONE_BYTE_INTERNALIZED_STRING_TYPE:
       return kInternalizedString;
@@ -182,13 +180,23 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
       UNREACHABLE();
     case HEAP_NUMBER_TYPE:
       return kNumber;
+    case JS_ARRAY_ITERATOR_PROTOTYPE_TYPE:
+    case JS_ITERATOR_PROTOTYPE_TYPE:
+    case JS_MAP_ITERATOR_PROTOTYPE_TYPE:
+    case JS_OBJECT_PROTOTYPE_TYPE:
     case JS_OBJECT_TYPE:
+    case JS_PROMISE_PROTOTYPE_TYPE:
+    case JS_REG_EXP_PROTOTYPE_TYPE:
+    case JS_SET_ITERATOR_PROTOTYPE_TYPE:
+    case JS_SET_PROTOTYPE_TYPE:
+    case JS_STRING_ITERATOR_PROTOTYPE_TYPE:
     case JS_ARGUMENTS_OBJECT_TYPE:
     case JS_ERROR_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
+    case JS_TYPED_ARRAY_PROTOTYPE_TYPE:
       if (map.is_undetectable()) {
         // Currently we assume that every undetectable receiver is also
         // callable, which is what we need to support document.all.  We
@@ -339,7 +347,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
 template Type::bitset BitsetType::Lub<MapRef>(const MapRef& map);
 
 Type::bitset BitsetType::Lub(double value) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   if (IsMinusZero(value)) return kMinusZero;
   if (std::isnan(value)) return kNaN;
   if (IsUint32Double(value) || IsInt32Double(value)) return Lub(value, value);
@@ -366,7 +374,7 @@ size_t BitsetType::BoundariesSize() {
 
 Type::bitset BitsetType::ExpandInternals(Type::bitset bits) {
   DCHECK_IMPLIES(bits & kOtherString, (bits & kString) == kString);
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   if (!(bits & kPlainNumber)) return bits;  // Shortcut.
   const Boundary* boundaries = Boundaries();
   for (size_t i = 0; i < BoundariesSize(); ++i) {
@@ -377,7 +385,7 @@ Type::bitset BitsetType::ExpandInternals(Type::bitset bits) {
 }
 
 Type::bitset BitsetType::Lub(double min, double max) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   int lub = kNone;
   const Boundary* mins = Boundaries();
 
@@ -393,7 +401,7 @@ Type::bitset BitsetType::Lub(double min, double max) {
 Type::bitset BitsetType::NumberBits(bitset bits) { return bits & kPlainNumber; }
 
 Type::bitset BitsetType::Glb(double min, double max) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   int glb = kNone;
   const Boundary* mins = Boundaries();
 
@@ -412,7 +420,7 @@ Type::bitset BitsetType::Glb(double min, double max) {
 }
 
 double BitsetType::Min(bitset bits) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   DCHECK(Is(bits, kNumber));
   DCHECK(!Is(bits, kNaN));
   const Boundary* mins = Boundaries();
@@ -427,7 +435,7 @@ double BitsetType::Min(bitset bits) {
 }
 
 double BitsetType::Max(bitset bits) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   DCHECK(Is(bits, kNumber));
   DCHECK(!Is(bits, kNaN));
   const Boundary* mins = Boundaries();
@@ -463,7 +471,7 @@ Handle<HeapObject> HeapConstantType::Value() const {
 // Predicates.
 
 bool Type::SimplyEquals(Type that) const {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   if (this->IsHeapConstant()) {
     return that.IsHeapConstant() &&
            this->AsHeapConstant()->Value().address() ==
@@ -494,7 +502,7 @@ bool Type::SimplyEquals(Type that) const {
 
 // Check if [this] <= [that].
 bool Type::SlowIs(Type that) const {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
 
   // Fast bitset cases
   if (that.IsBitset()) {
@@ -532,7 +540,7 @@ bool Type::SlowIs(Type that) const {
 
 // Check if [this] and [that] overlap.
 bool Type::Maybe(Type that) const {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
 
   if (BitsetType::IsNone(this->BitsetLub() & that.BitsetLub())) return false;
 
@@ -579,7 +587,7 @@ bool Type::Maybe(Type that) const {
 
 // Return the range in [this], or [nullptr].
 Type Type::GetRange() const {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   if (this->IsRange()) return *this;
   if (this->IsUnion() && this->AsUnion()->Get(1).IsRange()) {
     return this->AsUnion()->Get(1);
@@ -588,7 +596,7 @@ Type Type::GetRange() const {
 }
 
 bool UnionType::Wellformed() const {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   // This checks the invariants of the union representation:
   // 1. There are at least two elements.
   // 2. The first element is a bitset, no other element is a bitset.
@@ -915,7 +923,7 @@ Type Type::NormalizeUnion(UnionType* unioned, int size, Zone* zone) {
 }
 
 int Type::NumConstants() const {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   if (this->IsHeapConstant() || this->IsOtherNumberConstant()) {
     return 1;
   } else if (this->IsUnion()) {
@@ -948,7 +956,7 @@ const char* BitsetType::Name(bitset bits) {
 
 void BitsetType::Print(std::ostream& os,  // NOLINT
                        bitset bits) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   const char* name = Name(bits);
   if (name != nullptr) {
     os << name;
@@ -980,7 +988,7 @@ void BitsetType::Print(std::ostream& os,  // NOLINT
 }
 
 void Type::PrintTo(std::ostream& os) const {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   if (this->IsBitset()) {
     BitsetType::Print(os, this->AsBitset());
   } else if (this->IsHeapConstant()) {

@@ -865,6 +865,22 @@ TEST(TestWord8Phi) {
   ft.Call();
 }
 
+TEST(TestOffHeapSlice) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  CodeAssemblerTester asm_tester(isolate, 1);
+  TestTorqueAssembler m(asm_tester.state());
+  std::string data = "Hello World!";
+  {
+    m.TestOffHeapSlice(m.PointerConstant(const_cast<char*>(data.data())),
+                       m.IntPtrConstant(data.size()));
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

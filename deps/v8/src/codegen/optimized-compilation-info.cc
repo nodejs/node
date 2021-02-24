@@ -5,6 +5,7 @@
 #include "src/codegen/optimized-compilation-info.h"
 
 #include "src/api/api.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/source-position.h"
 #include "src/debug/debug.h"
 #include "src/execution/isolate.h"
@@ -25,7 +26,7 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
       optimization_id_(isolate->NextOptimizationId()) {
   DCHECK_EQ(*shared, closure->shared());
   DCHECK(shared->is_compiled());
-  bytecode_array_ = handle(shared->GetBytecodeArray(), isolate);
+  bytecode_array_ = handle(shared->GetBytecodeArray(isolate), isolate);
   shared_info_ = shared;
   closure_ = closure;
 
@@ -149,12 +150,12 @@ void OptimizedCompilationInfo::RetryOptimization(BailoutReason reason) {
 
 std::unique_ptr<char[]> OptimizedCompilationInfo::GetDebugName() const {
   if (!shared_info().is_null()) {
-    return shared_info()->DebugName().ToCString();
+    return shared_info()->DebugNameCStr();
   }
   Vector<const char> name_vec = debug_name_;
   if (name_vec.empty()) name_vec = ArrayVector("unknown");
   std::unique_ptr<char[]> name(new char[name_vec.length() + 1]);
-  memcpy(name.get(), name_vec.begin(), name_vec.length());
+  base::Memcpy(name.get(), name_vec.begin(), name_vec.length());
   name[name_vec.length()] = '\0';
   return name;
 }

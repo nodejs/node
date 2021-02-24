@@ -74,8 +74,7 @@ class PipelineStatistics : public Malloced {
   CommonStats phase_stats_;
 };
 
-
-class PhaseScope {
+class V8_NODISCARD PhaseScope {
  public:
   PhaseScope(PipelineStatistics* pipeline_stats, const char* name)
       : pipeline_stats_(pipeline_stats) {

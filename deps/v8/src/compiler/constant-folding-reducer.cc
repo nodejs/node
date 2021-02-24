@@ -63,7 +63,7 @@ ConstantFoldingReducer::ConstantFoldingReducer(Editor* editor, JSGraph* jsgraph,
 ConstantFoldingReducer::~ConstantFoldingReducer() = default;
 
 Reduction ConstantFoldingReducer::Reduce(Node* node) {
-  DisallowHeapAccess no_heap_access;
+  DisallowHeapAccessIf no_heap_access(!FLAG_turbo_direct_heap_access);
   if (!NodeProperties::IsConstant(node) && NodeProperties::IsTyped(node) &&
       node->op()->HasProperty(Operator::kEliminatable) &&
       node->opcode() != IrOpcode::kFinishRegion) {

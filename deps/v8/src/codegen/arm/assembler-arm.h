@@ -846,6 +846,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
              const NeonMemOperand& src);
   void vst1(NeonSize size, const NeonListOperand& src,
             const NeonMemOperand& dst);
+  // vst1s(single element from one lane).
+  void vst1s(NeonSize size, const NeonListOperand& src, uint8_t index,
+             const NeonMemOperand& dst);
   // dt represents the narrower type
   void vmovl(NeonDataType dt, QwNeonRegister dst, DwVfpRegister src);
   // dst_dt represents the narrower type, src_dt represents the src type.
@@ -913,6 +916,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vpmax(NeonDataType dt, DwVfpRegister dst, DwVfpRegister src1,
              DwVfpRegister src2);
 
+  void vpaddl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src);
+  void vqrdmulh(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
+                QwNeonRegister src2);
+
   // ARMv8 rounding instructions (NEON).
   void vrintm(NeonDataType dt, const QwNeonRegister dst,
               const QwNeonRegister src);
@@ -926,9 +933,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vshl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src, int shift);
   void vshl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src,
             QwNeonRegister shift);
+  void vshr(NeonDataType dt, DwVfpRegister dst, DwVfpRegister src, int shift);
   void vshr(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src, int shift);
   void vsli(NeonSize size, DwVfpRegister dst, DwVfpRegister src, int shift);
   void vsri(NeonSize size, DwVfpRegister dst, DwVfpRegister src, int shift);
+  void vsra(NeonDataType size, DwVfpRegister dst, DwVfpRegister src, int imm);
+
   // vrecpe and vrsqrte only support floating point lanes.
   void vrecpe(QwNeonRegister dst, QwNeonRegister src);
   void vrsqrte(QwNeonRegister dst, QwNeonRegister src);
@@ -945,6 +955,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vcgt(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vcgt(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
             QwNeonRegister src2);
+  void vclt(NeonSize size, QwNeonRegister dst, QwNeonRegister src, int value);
   void vrhadd(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
               QwNeonRegister src2);
   void vext(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2,
@@ -962,6 +973,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
             DwVfpRegister index);
   void vtbx(DwVfpRegister dst, const NeonListOperand& list,
             DwVfpRegister index);
+
+  void vcnt(QwNeonRegister dst, QwNeonRegister src);
 
   // Pseudo instructions
 
@@ -1027,7 +1040,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   bool ImmediateFitsAddrMode2Instruction(int32_t imm32);
 
   // Class for scoping postponing the constant pool generation.
-  class BlockConstPoolScope {
+  class V8_NODISCARD BlockConstPoolScope {
    public:
     explicit BlockConstPoolScope(Assembler* assem) : assem_(assem) {
       assem_->StartBlockConstPool();
@@ -1072,9 +1085,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // called before any use of db/dd/dq/dp to ensure that constant pools
   // are not emitted as part of the tables generated.
   void db(uint8_t data);
-  void dd(uint32_t data);
-  void dq(uint64_t data);
-  void dp(uintptr_t data) { dd(data); }
+  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
+  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
+  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
+    dd(data, rmode);
+  }
 
   // Read/patch instructions
   Instr instr_at(int pos) {
@@ -1339,7 +1354,7 @@ class PatchingAssembler : public Assembler {
 // state, even if the list is modified by some other means. Note that this scope
 // can be nested but the destructors need to run in the opposite order as the
 // constructors. We do not have assertions for this.
-class V8_EXPORT_PRIVATE UseScratchRegisterScope {
+class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
  public:
   explicit UseScratchRegisterScope(Assembler* assembler);
   ~UseScratchRegisterScope();

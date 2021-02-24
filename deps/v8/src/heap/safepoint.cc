@@ -4,6 +4,7 @@
 
 #include "src/heap/safepoint.h"
 
+#include "src/base/logging.h"
 #include "src/handles/local-handles.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/gc-tracer.h"
@@ -25,13 +26,13 @@ void GlobalSafepoint::EnterSafepointScope() {
   TRACE_GC(heap_->tracer(), GCTracer::Scope::STOP_THE_WORLD);
 
   local_heaps_mutex_.Lock();
-  local_heap_of_this_thread_ = LocalHeap::Current();
 
   barrier_.Arm();
+  DCHECK_NULL(LocalHeap::Current());
 
   for (LocalHeap* current = local_heaps_head_; current;
        current = current->next_) {
-    if (current == local_heap_of_this_thread_) {
+    if (current->is_main_thread()) {
       continue;
     }
     current->RequestSafepoint();
@@ -39,8 +40,7 @@ void GlobalSafepoint::EnterSafepointScope() {
 
   for (LocalHeap* current = local_heaps_head_; current;
        current = current->next_) {
-    if (current == local_heap_of_this_thread_) {
-      DCHECK(current->is_main_thread());
+    if (current->is_main_thread()) {
       continue;
     }
     DCHECK(!current->is_main_thread());
@@ -58,11 +58,11 @@ void GlobalSafepoint::LeaveSafepointScope() {
   DCHECK_GT(active_safepoint_scopes_, 0);
   if (--active_safepoint_scopes_ > 0) return;
 
-  DCHECK_EQ(local_heap_of_this_thread_, LocalHeap::Current());
+  DCHECK_NULL(LocalHeap::Current());
 
   for (LocalHeap* current = local_heaps_head_; current;
        current = current->next_) {
-    if (current == local_heap_of_this_thread_) {
+    if (current->is_main_thread()) {
       continue;
     }
     current->state_mutex_.Unlock();
@@ -70,7 +70,6 @@ void GlobalSafepoint::LeaveSafepointScope() {
 
   barrier_.Disarm();
 
-  local_heap_of_this_thread_ = nullptr;
   local_heaps_mutex_.Unlock();
 }
 

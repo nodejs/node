@@ -20,6 +20,7 @@ enum CpuFeature {
   SSE3,
   SAHF,
   AVX,
+  AVX2,
   FMA3,
   BMI1,
   BMI2,
@@ -83,6 +84,9 @@ enum CpuFeature {
 //   }
 class V8_EXPORT_PRIVATE CpuFeatures : public AllStatic {
  public:
+  CpuFeatures(const CpuFeatures&) = delete;
+  CpuFeatures& operator=(const CpuFeatures&) = delete;
+
   static void Probe(bool cross_compile) {
     STATIC_ASSERT(NUMBER_OF_CPU_FEATURES <= kBitsPerInt);
     if (initialized_) return;
@@ -129,7 +133,6 @@ class V8_EXPORT_PRIVATE CpuFeatures : public AllStatic {
   static unsigned icache_line_size_;
   static unsigned dcache_line_size_;
   static bool initialized_;
-  DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
 };
 
 }  // namespace internal

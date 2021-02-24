@@ -214,7 +214,7 @@ TEST(GetObjectProperties) {
   CHECK(props->type == std::string("v8::internal::SeqOneByteString"));
   CHECK_EQ(props->num_properties, 4);
   CheckProp(*props->properties[0], "v8::internal::Map", "map");
-  CheckProp(*props->properties[1], "uint32_t", "hash_field");
+  CheckProp(*props->properties[1], "uint32_t", "raw_hash_field");
   CheckProp(*props->properties[2], "int32_t", "length", 2);
   CheckProp(*props->properties[3], "char", "chars",
             d::PropertyKind::kArrayOfKnownSize, 2);
@@ -261,7 +261,7 @@ TEST(GetObjectProperties) {
     }
     CheckProp(*props2->properties[0], "v8::internal::Map", "map",
               *reinterpret_cast<i::Tagged_t*>(props->properties[0]->address));
-    CheckProp(*props2->properties[1], "uint32_t", "hash_field",
+    CheckProp(*props2->properties[1], "uint32_t", "raw_hash_field",
               *reinterpret_cast<int32_t*>(props->properties[1]->address));
     CheckProp(*props2->properties[2], "int32_t", "length", 2);
   }
@@ -276,7 +276,7 @@ TEST(GetObjectProperties) {
   CHECK_EQ(props2->num_properties, 4);
   CheckProp(*props2->properties[0], "v8::internal::Map", "map",
             *reinterpret_cast<i::Tagged_t*>(props->properties[0]->address));
-  CheckProp(*props2->properties[1], "uint32_t", "hash_field",
+  CheckProp(*props2->properties[1], "uint32_t", "raw_hash_field",
             *reinterpret_cast<i::Tagged_t*>(props->properties[1]->address));
   CheckProp(*props2->properties[2], "int32_t", "length", 2);
 

@@ -137,7 +137,7 @@ MaybeHandle<JSListFormat> JSListFormat::New(Isolate* isolate, Handle<Map> map,
   // Now all properties are ready, so we can allocate the result object.
   Handle<JSListFormat> list_format = Handle<JSListFormat>::cast(
       isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   list_format->set_flags(0);
   list_format->set_icu_formatter(*managed_formatter);
 

@@ -51,6 +51,12 @@ class V8_EXPORT_PRIVATE SimdShuffle {
     return true;
   }
 
+  // Tries to match a 32x4 rotate, only makes sense if the inputs are equal
+  // (is_swizzle). A rotation is a shuffle like [1, 2, 3, 0]. This will always
+  // match a Concat, but can have better codegen.
+  static bool TryMatch32x4Rotate(const uint8_t* shuffle, uint8_t* shuffle32x4,
+                                 bool is_swizzle);
+
   // Tries to match an 8x16 byte shuffle to an equivalent 32x4 shuffle. If
   // successful, it writes the 32x4 shuffle word indices. E.g.
   // [0 1 2 3 8 9 10 11 4 5 6 7 12 13 14 15] == [0 2 1 3]

@@ -23,6 +23,9 @@ class PredictablePlatform final : public Platform {
     DCHECK_NOT_NULL(platform_);
   }
 
+  PredictablePlatform(const PredictablePlatform&) = delete;
+  PredictablePlatform& operator=(const PredictablePlatform&) = delete;
+
   PageAllocator* GetPageAllocator() override {
     return platform_->GetPageAllocator();
   }
@@ -85,8 +88,6 @@ class PredictablePlatform final : public Platform {
  private:
   double synthetic_time_in_sec_ = 0.0;
   std::unique_ptr<Platform> platform_;
-
-  DISALLOW_COPY_AND_ASSIGN(PredictablePlatform);
 };
 
 std::unique_ptr<Platform> MakePredictablePlatform(
@@ -106,6 +107,9 @@ class DelayedTasksPlatform final : public Platform {
       : platform_(std::move(platform)), rng_(random_seed) {
     DCHECK_NOT_NULL(platform_);
   }
+
+  DelayedTasksPlatform(const DelayedTasksPlatform&) = delete;
+  DelayedTasksPlatform& operator=(const DelayedTasksPlatform&) = delete;
 
   ~DelayedTasksPlatform() override {
     // When the platform shuts down, all task runners must be freed.
@@ -318,8 +322,6 @@ class DelayedTasksPlatform final : public Platform {
     return std::make_unique<DelayedJob>(std::move(task),
                                         GetRandomDelayInMilliseconds());
   }
-
-  DISALLOW_COPY_AND_ASSIGN(DelayedTasksPlatform);
 };
 
 std::unique_ptr<Platform> MakeDelayedTasksPlatform(

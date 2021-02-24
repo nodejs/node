@@ -28,9 +28,9 @@ class BasicBlockProfilerTest : public RawMachineAssemblerTester<int32_t> {
     CHECK_NE(0, static_cast<int>(l->size()));
     const BasicBlockProfilerData* data = l->back().get();
     CHECK_EQ(static_cast<int>(size), static_cast<int>(data->n_blocks()));
-    const uint32_t* counts = data->counts();
+    const double* counts = data->counts();
     for (size_t i = 0; i < size; ++i) {
-      CHECK_EQ(static_cast<int>(expected[i]), static_cast<int>(counts[i]));
+      CHECK_EQ(static_cast<double>(expected[i]), counts[i]);
     }
   }
 };

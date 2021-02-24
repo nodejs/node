@@ -60,7 +60,6 @@ class Zone;
   V(might_always_opt, bool, 1, _)                        \
   V(allow_natives_syntax, bool, 1, _)                    \
   V(allow_lazy_compile, bool, 1, _)                      \
-  V(allow_harmony_private_methods, bool, 1, _)           \
   V(is_oneshot_iife, bool, 1, _)                         \
   V(collect_source_positions, bool, 1, _)                \
   V(allow_harmony_top_level_await, bool, 1, _)           \
@@ -70,10 +69,9 @@ class Zone;
 class V8_EXPORT_PRIVATE UnoptimizedCompileFlags {
  public:
   // Set-up flags for a toplevel compilation.
-  static UnoptimizedCompileFlags ForToplevelCompile(Isolate* isolate,
-                                                    bool is_user_javascript,
-                                                    LanguageMode language_mode,
-                                                    REPLMode repl_mode);
+  static UnoptimizedCompileFlags ForToplevelCompile(
+      Isolate* isolate, bool is_user_javascript, LanguageMode language_mode,
+      REPLMode repl_mode, ScriptType type = ScriptType::kClassic);
 
   // Set-up flags for a compiling a particular function (either a lazy compile
   // or a recompile).
@@ -136,7 +134,7 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileFlags {
   void SetFlagsForToplevelCompile(bool is_collecting_type_profile,
                                   bool is_user_javascript,
                                   LanguageMode language_mode,
-                                  REPLMode repl_mode);
+                                  REPLMode repl_mode, ScriptType type);
   void SetFlagsForFunctionFromScript(Script script);
 
   uint32_t flags_;

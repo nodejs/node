@@ -38,8 +38,6 @@ class BackgroundCompileTaskTest : public TestWithNativeContext {
   static void SetUpTestCase() {
     CHECK_NULL(save_flags_);
     save_flags_ = new SaveFlags();
-    // TODO(leszeks): Support background finalization in compiler dispatcher.
-    FLAG_finalize_streaming_on_background = false;
     TestWithNativeContext::SetUpTestCase();
   }
 
@@ -85,6 +83,15 @@ class BackgroundCompileTaskTest : public TestWithNativeContext {
         outer_parse_info.get(), function_name, function_literal,
         isolate->counters()->worker_thread_runtime_call_stats(),
         isolate->counters()->compile_function_on_background(), FLAG_stack_size);
+  }
+
+ protected:
+  void SetUp() override {
+    // TODO(leszeks): Support background finalization in compiler dispatcher.
+    if (FLAG_finalize_streaming_on_background) {
+      GTEST_SKIP_(
+          "Parallel compile tasks don't yet support background finalization");
+    }
   }
 
  private:

@@ -103,20 +103,31 @@ TEST(DeoptExitSizeIsFixed) {
   STATIC_ASSERT(static_cast<int>(kFirstDeoptimizeKind) == 0);
   for (int i = 0; i < kDeoptimizeKindCount; i++) {
     DeoptimizeKind kind = static_cast<DeoptimizeKind>(i);
-    Builtins::Name target = Deoptimizer::GetDeoptimizationEntry(isolate, kind);
     Label before_exit;
-    // Mirroring logic in code-generator.cc.
-    if (kind == DeoptimizeKind::kLazy) {
-      // CFI emits an extra instruction here.
-      masm.BindExceptionHandler(&before_exit);
-    } else {
+    if (kind == DeoptimizeKind::kEagerWithResume) {
       masm.bind(&before_exit);
+      Builtins::Name target = Deoptimizer::GetDeoptWithResumeBuiltin(
+          DeoptimizeReason::kDynamicCheckMaps);
+      masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
+                                 &before_exit);
+      CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
+               Deoptimizer::kEagerWithResumeBeforeArgsSize);
+    } else {
+      Builtins::Name target = Deoptimizer::GetDeoptimizationEntry(kind);
+      // Mirroring logic in code-generator.cc.
+      if (kind == DeoptimizeKind::kLazy) {
+        // CFI emits an extra instruction here.
+        masm.BindExceptionHandler(&before_exit);
+      } else {
+        masm.bind(&before_exit);
+      }
+      masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
+                                 &before_exit);
+      CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
+               kind == DeoptimizeKind::kLazy
+                   ? Deoptimizer::kLazyDeoptExitSize
+                   : Deoptimizer::kNonLazyDeoptExitSize);
     }
-    masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit);
-    CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
-             kind == DeoptimizeKind::kLazy
-                 ? Deoptimizer::kLazyDeoptExitSize
-                 : Deoptimizer::kNonLazyDeoptExitSize);
   }
 }
 

@@ -109,10 +109,6 @@ class Symbol;
   V(Map, small_ordered_name_dictionary_map, SmallOrderedNameDictionaryMap)     \
   V(Map, source_text_module_map, SourceTextModuleMap)                          \
   V(Map, synthetic_module_map, SyntheticModuleMap)                             \
-  V(Map, uncompiled_data_without_preparse_data_map,                            \
-    UncompiledDataWithoutPreparseDataMap)                                      \
-  V(Map, uncompiled_data_with_preparse_data_map,                               \
-    UncompiledDataWithPreparseDataMap)                                         \
   V(Map, wasm_type_info_map, WasmTypeInfoMap)                                  \
   V(Map, weak_fixed_array_map, WeakFixedArrayMap)                              \
   V(Map, weak_array_list_map, WeakArrayListMap)                                \
@@ -133,10 +129,6 @@ class Symbol;
   V(Map, external_internalized_string_map, ExternalInternalizedStringMap)      \
   V(Map, external_one_byte_internalized_string_map,                            \
     ExternalOneByteInternalizedStringMap)                                      \
-  V(Map, uncached_external_internalized_string_map,                            \
-    UncachedExternalInternalizedStringMap)                                     \
-  V(Map, uncached_external_one_byte_internalized_string_map,                   \
-    UncachedExternalOneByteInternalizedStringMap)                              \
   V(Map, uncached_external_one_byte_string_map,                                \
     UncachedExternalOneByteStringMap)                                          \
   /* Oddball maps */                                                           \
@@ -209,6 +201,7 @@ class Symbol;
   V(Map, wasm_rttcanon_externref_map, WasmRttExternrefMap)                     \
   V(Map, wasm_rttcanon_funcref_map, WasmRttFuncrefMap)                         \
   V(Map, wasm_rttcanon_i31ref_map, WasmRttI31refMap)                           \
+  V(Map, wasm_rttcanon_anyref_map, WasmRttAnyrefMap)                           \
   /* Canonical empty values */                                                 \
   V(Script, empty_script, EmptyScript)                                         \
   V(FeedbackCell, many_closures_cell, ManyClosuresCell)                        \

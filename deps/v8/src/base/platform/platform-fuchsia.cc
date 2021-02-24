@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <zircon/process.h>
-#include <zircon/syscalls.h>
-#include <zircon/threads.h>
+#include <lib/zx/resource.h>
+#include <lib/zx/thread.h>
+#include <lib/zx/vmar.h>
+#include <lib/zx/vmo.h>
 
 #include "src/base/macros.h"
 #include "src/base/platform/platform-posix-time.h"
@@ -49,30 +50,26 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
   // Add the maximum misalignment so we are guaranteed an aligned base address.
   size_t request_size = size + (alignment - page_size);
 
-  zx_handle_t vmo;
-  if (zx_vmo_create(request_size, 0, &vmo) != ZX_OK) {
+  zx::vmo vmo;
+  if (zx::vmo::create(request_size, 0, &vmo) != ZX_OK) {
     return nullptr;
   }
   static const char kVirtualMemoryName[] = "v8-virtualmem";
-  zx_object_set_property(vmo, ZX_PROP_NAME, kVirtualMemoryName,
-                         strlen(kVirtualMemoryName));
+  vmo.set_property(ZX_PROP_NAME, kVirtualMemoryName,
+                   strlen(kVirtualMemoryName));
 
   // Always call zx_vmo_replace_as_executable() in case the memory will need
   // to be marked as executable in the future.
   // TOOD(https://crbug.com/v8/8899): Only call this when we know that the
   // region will need to be marked as executable in the future.
-  if (zx_vmo_replace_as_executable(vmo, ZX_HANDLE_INVALID, &vmo) != ZX_OK) {
+  if (vmo.replace_as_executable(zx::resource(), &vmo) != ZX_OK) {
     return nullptr;
   }
 
-  uintptr_t reservation;
+  zx_vaddr_t reservation;
   uint32_t prot = GetProtectionFromMemoryPermission(access);
-  zx_status_t status = zx_vmar_map(zx_vmar_root_self(), prot, 0, vmo, 0,
-                                   request_size, &reservation);
-  // Either the vmo is now referenced by the vmar, or we failed and are bailing,
-  // so close the vmo either way.
-  zx_handle_close(vmo);
-  if (status != ZX_OK) {
+  if (zx::vmar::root_self()->map(prot, 0, vmo, 0, request_size, &reservation) !=
+      ZX_OK) {
     return nullptr;
   }
 
@@ -84,8 +81,8 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
   if (aligned_base != base) {
     DCHECK_LT(base, aligned_base);
     size_t prefix_size = static_cast<size_t>(aligned_base - base);
-    zx_vmar_unmap(zx_vmar_root_self(), reinterpret_cast<uintptr_t>(base),
-                  prefix_size);
+    zx::vmar::root_self()->unmap(reinterpret_cast<uintptr_t>(base),
+                                 prefix_size);
     request_size -= prefix_size;
   }
 
@@ -94,9 +91,8 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
   if (aligned_size != request_size) {
     DCHECK_LT(aligned_size, request_size);
     size_t suffix_size = request_size - aligned_size;
-    zx_vmar_unmap(zx_vmar_root_self(),
-                  reinterpret_cast<uintptr_t>(aligned_base + aligned_size),
-                  suffix_size);
+    zx::vmar::root_self()->unmap(
+        reinterpret_cast<uintptr_t>(aligned_base + aligned_size), suffix_size);
     request_size -= suffix_size;
   }
 
@@ -108,16 +104,16 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
 bool OS::Free(void* address, const size_t size) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % AllocatePageSize());
   DCHECK_EQ(0, size % AllocatePageSize());
-  return zx_vmar_unmap(zx_vmar_root_self(),
-                       reinterpret_cast<uintptr_t>(address), size) == ZX_OK;
+  return zx::vmar::root_self()->unmap(reinterpret_cast<uintptr_t>(address),
+                                      size) == ZX_OK;
 }
 
 // static
 bool OS::Release(void* address, size_t size) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
   DCHECK_EQ(0, size % CommitPageSize());
-  return zx_vmar_unmap(zx_vmar_root_self(),
-                       reinterpret_cast<uintptr_t>(address), size) == ZX_OK;
+  return zx::vmar::root_self()->unmap(reinterpret_cast<uintptr_t>(address),
+                                      size) == ZX_OK;
 }
 
 // static
@@ -125,8 +121,8 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
   DCHECK_EQ(0, size % CommitPageSize());
   uint32_t prot = GetProtectionFromMemoryPermission(access);
-  return zx_vmar_protect(zx_vmar_root_self(), prot,
-                         reinterpret_cast<uintptr_t>(address), size) == ZX_OK;
+  return zx::vmar::root_self()->protect2(
+             prot, reinterpret_cast<uintptr_t>(address), size) == ZX_OK;
 }
 
 // static
@@ -154,10 +150,8 @@ int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
   const auto kMicrosPerSecond = 1000000ULL;
 
   zx_info_thread_stats_t info = {};
-  zx_status_t status = zx_object_get_info(thrd_get_zx_handle(thrd_current()),
-                                          ZX_INFO_THREAD_STATS, &info,
-                                          sizeof(info), nullptr, nullptr);
-  if (status != ZX_OK) {
+  if (zx::thread::self()->get_info(ZX_INFO_THREAD_STATS, &info, sizeof(info),
+                                   nullptr, nullptr) != ZX_OK) {
     return -1;
   }
 

@@ -7,6 +7,7 @@
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
+#include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
 #include "src/heap/heap-inl.h"
@@ -32,7 +33,6 @@ UnoptimizedCompileFlags::UnoptimizedCompileFlags(Isolate* isolate,
   set_might_always_opt(FLAG_always_opt || FLAG_prepare_always_opt);
   set_allow_natives_syntax(FLAG_allow_natives_syntax);
   set_allow_lazy_compile(FLAG_lazy);
-  set_allow_harmony_private_methods(FLAG_harmony_private_methods);
   set_collect_source_positions(!FLAG_enable_lazy_source_positions ||
                                isolate->NeedsDetailedOptimizedCodeLineInfo());
   set_allow_harmony_top_level_await(FLAG_harmony_top_level_await);
@@ -76,7 +76,9 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForScriptCompile(
   flags.SetFlagsForFunctionFromScript(script);
   flags.SetFlagsForToplevelCompile(
       isolate->is_collecting_type_profile(), script.IsUserJavaScript(),
-      flags.outer_language_mode(), construct_repl_mode(script.is_repl_mode()));
+      flags.outer_language_mode(), construct_repl_mode(script.is_repl_mode()),
+      script.origin_options().IsModule() ? ScriptType::kModule
+                                         : ScriptType::kClassic);
   if (script.is_wrapped()) {
     flags.set_function_syntax_kind(FunctionSyntaxKind::kWrapped);
   }
@@ -87,11 +89,11 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForScriptCompile(
 // static
 UnoptimizedCompileFlags UnoptimizedCompileFlags::ForToplevelCompile(
     Isolate* isolate, bool is_user_javascript, LanguageMode language_mode,
-    REPLMode repl_mode) {
+    REPLMode repl_mode, ScriptType type) {
   UnoptimizedCompileFlags flags(isolate, isolate->GetNextScriptId());
   flags.SetFlagsForToplevelCompile(isolate->is_collecting_type_profile(),
-                                   is_user_javascript, language_mode,
-                                   repl_mode);
+                                   is_user_javascript, language_mode, repl_mode,
+                                   type);
 
   LOG(isolate,
       ScriptEvent(Logger::ScriptEventType::kReserveId, flags.script_id()));
@@ -133,13 +135,15 @@ void UnoptimizedCompileFlags::SetFlagsFromFunction(T function) {
 
 void UnoptimizedCompileFlags::SetFlagsForToplevelCompile(
     bool is_collecting_type_profile, bool is_user_javascript,
-    LanguageMode language_mode, REPLMode repl_mode) {
+    LanguageMode language_mode, REPLMode repl_mode, ScriptType type) {
   set_allow_lazy_parsing(true);
   set_is_toplevel(true);
   set_collect_type_profile(is_user_javascript && is_collecting_type_profile);
   set_outer_language_mode(
       stricter_language_mode(outer_language_mode(), language_mode));
   set_is_repl_mode((repl_mode == REPLMode::kYes));
+  set_is_module(type == ScriptType::kModule);
+  DCHECK_IMPLIES(is_eval(), !is_module());
 
   set_block_coverage_enabled(block_coverage_enabled() && is_user_javascript);
 }
@@ -149,7 +153,7 @@ void UnoptimizedCompileFlags::SetFlagsForFunctionFromScript(Script script) {
 
   set_is_eval(script.compilation_type() == Script::COMPILATION_TYPE_EVAL);
   set_is_module(script.origin_options().IsModule());
-  DCHECK(!(is_eval() && is_module()));
+  DCHECK_IMPLIES(is_eval(), !is_module());
 
   set_block_coverage_enabled(block_coverage_enabled() &&
                              script.IsUserJavaScript());

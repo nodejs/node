@@ -265,6 +265,10 @@ struct is_subtype<UnionT<T1, T2>, UnionT<U1, U2>> {
       (is_subtype<T1, U1>::value || is_subtype<T1, U2>::value) &&
       (is_subtype<T2, U1>::value || is_subtype<T2, U2>::value);
 };
+template <>
+struct is_subtype<ExternalReference, RawPtrT> {
+  static const bool value = true;
+};
 
 template <class T, class U>
 struct types_have_common_values {

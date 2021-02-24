@@ -716,23 +716,22 @@ void TurboAssembler::CallEphemeronKeyBarrier(Register object, Operand offset,
 void TurboAssembler::CallRecordWriteStub(
     Register object, Operand offset, RememberedSetAction remembered_set_action,
     SaveFPRegsMode fp_mode) {
-  CallRecordWriteStub(
-      object, offset, remembered_set_action, fp_mode,
-      isolate()->builtins()->builtin_handle(Builtins::kRecordWrite),
-      kNullAddress);
+  CallRecordWriteStub(object, offset, remembered_set_action, fp_mode,
+                      Builtins::kRecordWrite, kNullAddress);
 }
 
 void TurboAssembler::CallRecordWriteStub(
     Register object, Operand offset, RememberedSetAction remembered_set_action,
     SaveFPRegsMode fp_mode, Address wasm_target) {
   CallRecordWriteStub(object, offset, remembered_set_action, fp_mode,
-                      Handle<Code>::null(), wasm_target);
+                      Builtins::kNoBuiltinId, wasm_target);
 }
 
 void TurboAssembler::CallRecordWriteStub(
     Register object, Operand offset, RememberedSetAction remembered_set_action,
-    SaveFPRegsMode fp_mode, Handle<Code> code_target, Address wasm_target) {
-  DCHECK_NE(code_target.is_null(), wasm_target == kNullAddress);
+    SaveFPRegsMode fp_mode, int builtin_index, Address wasm_target) {
+  DCHECK_NE(builtin_index == Builtins::kNoBuiltinId,
+            wasm_target == kNullAddress);
   // TODO(albertnetymk): For now we ignore remembered_set_action and fp_mode,
   // i.e. always emit remember set and save FP registers in RecordWriteStub. If
   // large performance regression is observed, we should use these values to
@@ -756,9 +755,13 @@ void TurboAssembler::CallRecordWriteStub(
 
   Move(remembered_set_parameter, Smi::FromEnum(remembered_set_action));
   Move(fp_mode_parameter, Smi::FromEnum(fp_mode));
-  if (code_target.is_null()) {
+  if (builtin_index == Builtins::kNoBuiltinId) {
     Call(wasm_target, RelocInfo::WASM_STUB_CALL);
+  } else if (options().inline_offheap_trampolines) {
+    CallBuiltin(builtin_index);
   } else {
+    Handle<Code> code_target =
+        isolate()->builtins()->builtin_handle(Builtins::kRecordWrite);
     Call(code_target, RelocInfo::CODE_TARGET);
   }
 
@@ -1160,6 +1163,26 @@ void TurboAssembler::ReplaceLane(QwNeonRegister dst, QwNeonRegister src,
   Move(dst, src);
   DwVfpRegister double_dst = DwVfpRegister::from_code(dst.code() * 2 + lane);
   vmov(double_dst, src_lane);
+}
+
+void TurboAssembler::LoadLane(NeonSize sz, NeonListOperand dst_list,
+                              uint8_t lane, NeonMemOperand src) {
+  if (sz == Neon64) {
+    // vld1s is not valid for Neon64.
+    vld1(Neon64, dst_list, src);
+  } else {
+    vld1s(sz, dst_list, lane, src);
+  }
+}
+
+void TurboAssembler::StoreLane(NeonSize sz, NeonListOperand src_list,
+                               uint8_t lane, NeonMemOperand dst) {
+  if (sz == Neon64) {
+    // vst1s is not valid for Neon64.
+    vst1(Neon64, src_list, dst);
+  } else {
+    vst1s(sz, src_list, lane, dst);
+  }
 }
 
 void TurboAssembler::LslPair(Register dst_low, Register dst_high,
@@ -2044,7 +2067,7 @@ void TurboAssembler::Abort(AbortReason reason) {
   // will not return here
 }
 
-void MacroAssembler::LoadMap(Register destination, Register object) {
+void TurboAssembler::LoadMap(Register destination, Register object) {
   ldr(destination, FieldMemOperand(object, HeapObject::kMapOffset));
 }
 
@@ -2587,7 +2610,7 @@ void TurboAssembler::ResetSpeculationPoisonRegister() {
 
 void TurboAssembler::CallForDeoptimization(Builtins::Name target, int,
                                            Label* exit, DeoptimizeKind kind,
-                                           Label*) {
+                                           Label* ret, Label*) {
   BlockConstPoolScope block_const_pool(this);
   ldr(ip, MemOperand(kRootRegister,
                      IsolateData::builtin_entry_slot_offset(target)));
@@ -2596,7 +2619,12 @@ void TurboAssembler::CallForDeoptimization(Builtins::Name target, int,
             (kind == DeoptimizeKind::kLazy)
                 ? Deoptimizer::kLazyDeoptExitSize
                 : Deoptimizer::kNonLazyDeoptExitSize);
-  USE(exit, kind);
+
+  if (kind == DeoptimizeKind::kEagerWithResume) {
+    b(ret);
+    DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
+              Deoptimizer::kEagerWithResumeBeforeArgsSize);
+  }
 }
 
 void TurboAssembler::Trap() { stop(); }

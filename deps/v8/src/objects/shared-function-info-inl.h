@@ -6,6 +6,7 @@
 #define V8_OBJECTS_SHARED_FUNCTION_INFO_INL_H_
 
 #include "src/base/macros.h"
+#include "src/base/platform/mutex.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/local-heap-inl.h"
@@ -60,7 +61,7 @@ void PreparseData::copy_in(int index, const byte* buffer, int length) {
   DCHECK(index >= 0 && length >= 0 && length <= kMaxInt - index &&
          index + length <= this->data_length());
   Address dst_addr = field_address(kDataStartOffset + index * kByteSize);
-  memcpy(reinterpret_cast<void*>(dst_addr), buffer, length);
+  base::Memcpy(reinterpret_cast<void*>(dst_addr), buffer, length);
 }
 
 PreparseData PreparseData::get_child(int index) const {
@@ -94,9 +95,8 @@ ACCESSORS(InterpreterData, bytecode_array, BytecodeArray, kBytecodeArrayOffset)
 ACCESSORS(InterpreterData, interpreter_trampoline, Code,
           kInterpreterTrampolineOffset)
 
-OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfo, HeapObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfo)
 NEVER_READ_ONLY_SPACE_IMPL(SharedFunctionInfo)
-CAST_ACCESSOR(SharedFunctionInfo)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
 
 RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, function_data, Object,
@@ -106,19 +106,15 @@ RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, name_or_scope_info, Object,
 RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, script_or_debug_info, HeapObject,
                           kScriptOrDebugInfoOffset)
 
-INT32_ACCESSORS(SharedFunctionInfo, function_literal_id,
-                kFunctionLiteralIdOffset)
+RENAME_TORQUE_ACCESSORS(SharedFunctionInfo,
+                        raw_outer_scope_info_or_feedback_metadata,
+                        outer_scope_info_or_feedback_metadata, HeapObject)
+RENAME_UINT16_TORQUE_ACCESSORS(SharedFunctionInfo,
+                               internal_formal_parameter_count,
+                               formal_parameter_count)
+RENAME_UINT16_TORQUE_ACCESSORS(SharedFunctionInfo, raw_function_token_offset,
+                               function_token_offset)
 
-#if V8_SFI_HAS_UNIQUE_ID
-INT_ACCESSORS(SharedFunctionInfo, unique_id, kUniqueIdOffset)
-#endif
-UINT16_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
-UINT16_ACCESSORS(SharedFunctionInfo, internal_formal_parameter_count,
-                 kFormalParameterCountOffset)
-UINT8_ACCESSORS(SharedFunctionInfo, expected_nof_properties,
-                kExpectedNofPropertiesOffset)
-UINT16_ACCESSORS(SharedFunctionInfo, raw_function_token_offset,
-                 kFunctionTokenOffsetOffset)
 RELAXED_INT32_ACCESSORS(SharedFunctionInfo, flags, kFlagsOffset)
 UINT8_ACCESSORS(SharedFunctionInfo, flags2, kFlags2Offset)
 
@@ -164,9 +160,10 @@ bool SharedFunctionInfo::needs_script_context() const {
   return is_script() && scope_info().ContextLocalCount() > 0;
 }
 
-AbstractCode SharedFunctionInfo::abstract_code() {
+template <typename LocalIsolate>
+AbstractCode SharedFunctionInfo::abstract_code(LocalIsolate* isolate) {
   if (HasBytecodeArray()) {
-    return AbstractCode::cast(GetBytecodeArray());
+    return AbstractCode::cast(GetBytecodeArray(isolate));
   } else {
     return AbstractCode::cast(GetCode());
   }
@@ -179,6 +176,48 @@ int SharedFunctionInfo::function_token_position() const {
   } else {
     return StartPosition() - offset;
   }
+}
+
+template <typename LocalIsolate>
+bool SharedFunctionInfo::AreSourcePositionsAvailable(
+    LocalIsolate* isolate) const {
+  if (FLAG_enable_lazy_source_positions) {
+    return !HasBytecodeArray() ||
+           GetBytecodeArray(isolate).HasSourcePositionTable();
+  }
+  return true;
+}
+
+template <typename LocalIsolate>
+SharedFunctionInfo::Inlineability SharedFunctionInfo::GetInlineability(
+    LocalIsolate* isolate) const {
+  if (!script().IsScript()) return kHasNoScript;
+
+  if (GetIsolate()->is_precise_binary_code_coverage() &&
+      !has_reported_binary_coverage()) {
+    // We may miss invocations if this function is inlined.
+    return kNeedsBinaryCoverage;
+  }
+
+  if (optimization_disabled()) return kHasOptimizationDisabled;
+
+  // Built-in functions are handled by the JSCallReducer.
+  if (HasBuiltinId()) return kIsBuiltin;
+
+  if (!IsUserJavaScript()) return kIsNotUserCode;
+
+  // If there is no bytecode array, it is either not compiled or it is compiled
+  // with WebAssembly for the asm.js pipeline. In either case we don't want to
+  // inline.
+  if (!HasBytecodeArray()) return kHasNoBytecode;
+
+  if (GetBytecodeArray(isolate).length() > FLAG_max_inlined_bytecode_size) {
+    return kExceedsBytecodeLimit;
+  }
+
+  if (HasBreakInfo()) return kMayContainBreakPoints;
+
+  return kIsInlineable;
 }
 
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2, class_scope_has_private_brand,
@@ -362,9 +401,6 @@ void SharedFunctionInfo::set_raw_scope_info(ScopeInfo scope_info,
   CONDITIONAL_WRITE_BARRIER(*this, kNameOrScopeInfoOffset, scope_info, mode);
 }
 
-ACCESSORS(SharedFunctionInfo, raw_outer_scope_info_or_feedback_metadata,
-          HeapObject, kOuterScopeInfoOrFeedbackMetadataOffset)
-
 HeapObject SharedFunctionInfo::outer_scope_info() const {
   DCHECK(!is_compiled());
   DCHECK(!HasFeedbackMetadata());
@@ -380,7 +416,7 @@ bool SharedFunctionInfo::HasOuterScopeInfo() const {
     if (!scope_info().HasOuterScopeInfo()) return false;
     outer_info = scope_info().OuterScopeInfo();
   }
-  return outer_info.length() > 0;
+  return !outer_info.IsEmpty();
 }
 
 ScopeInfo SharedFunctionInfo::GetOuterScopeInfo() const {
@@ -428,7 +464,7 @@ IsCompiledScope SharedFunctionInfo::is_compiled_scope(
 IsCompiledScope::IsCompiledScope(const SharedFunctionInfo shared,
                                  Isolate* isolate)
     : retain_bytecode_(shared.HasBytecodeArray()
-                           ? handle(shared.GetBytecodeArray(), isolate)
+                           ? handle(shared.GetBytecodeArray(isolate), isolate)
                            : MaybeHandle<BytecodeArray>()),
       is_compiled_(shared.is_compiled()) {
   DCHECK_IMPLIES(!retain_bytecode_.is_null(), is_compiled());
@@ -436,10 +472,10 @@ IsCompiledScope::IsCompiledScope(const SharedFunctionInfo shared,
 
 IsCompiledScope::IsCompiledScope(const SharedFunctionInfo shared,
                                  LocalIsolate* isolate)
-    : retain_bytecode_(
-          shared.HasBytecodeArray()
-              ? isolate->heap()->NewPersistentHandle(shared.GetBytecodeArray())
-              : MaybeHandle<BytecodeArray>()),
+    : retain_bytecode_(shared.HasBytecodeArray()
+                           ? isolate->heap()->NewPersistentHandle(
+                                 shared.GetBytecodeArray(isolate))
+                           : MaybeHandle<BytecodeArray>()),
       is_compiled_(shared.is_compiled()) {
   DCHECK_IMPLIES(!retain_bytecode_.is_null(), is_compiled());
 }
@@ -462,7 +498,12 @@ bool SharedFunctionInfo::HasBytecodeArray() const {
   return data.IsBytecodeArray() || data.IsInterpreterData();
 }
 
-BytecodeArray SharedFunctionInfo::GetBytecodeArray() const {
+template <typename LocalIsolate>
+BytecodeArray SharedFunctionInfo::GetBytecodeArray(
+    LocalIsolate* isolate) const {
+  SharedMutexGuardIfOffThread<LocalIsolate, base::kShared> mutex_guard(
+      GetIsolate()->shared_function_info_access(), isolate);
+
   DCHECK(HasBytecodeArray());
   if (HasDebugInfo() && GetDebugInfo().HasInstrumentedBytecodeArray()) {
     return GetDebugInfo().OriginalBytecodeArray();
@@ -477,9 +518,7 @@ BytecodeArray SharedFunctionInfo::GetBytecodeArray() const {
   }
 }
 
-BytecodeArray SharedFunctionInfo::GetDebugBytecodeArray() const {
-  DCHECK(HasDebugInfo() && GetDebugInfo().HasInstrumentedBytecodeArray());
-
+BytecodeArray SharedFunctionInfo::GetActiveBytecodeArray() const {
   Object data = function_data(kAcquireLoad);
   if (data.IsBytecodeArray()) {
     return BytecodeArray::cast(data);
@@ -489,7 +528,7 @@ BytecodeArray SharedFunctionInfo::GetDebugBytecodeArray() const {
   }
 }
 
-void SharedFunctionInfo::SetDebugBytecodeArray(BytecodeArray bytecode) {
+void SharedFunctionInfo::SetActiveBytecodeArray(BytecodeArray bytecode) {
   Object data = function_data(kAcquireLoad);
   if (data.IsBytecodeArray()) {
     set_function_data(bytecode, kReleaseStore);
@@ -621,7 +660,7 @@ void SharedFunctionInfo::ClearPreparseData() {
 
   // Trim off the pre-parsed scope data from the uncompiled data by swapping the
   // map, leaving only an uncompiled data without pre-parsed scope.
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Heap* heap = GetHeapFromWritableObject(data);
 
   // Swap the map.
@@ -644,14 +683,6 @@ void SharedFunctionInfo::ClearPreparseData() {
   DCHECK(HasUncompiledDataWithoutPreparseData());
 }
 
-template <typename LocalIsolate>
-void UncompiledData::Init(LocalIsolate* isolate, String inferred_name,
-                          int start_position, int end_position) {
-  set_inferred_name(inferred_name);
-  set_start_position(start_position);
-  set_end_position(end_position);
-}
-
 void UncompiledData::InitAfterBytecodeFlush(
     String inferred_name, int start_position, int end_position,
     std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
@@ -661,16 +692,6 @@ void UncompiledData::InitAfterBytecodeFlush(
                          inferred_name);
   set_start_position(start_position);
   set_end_position(end_position);
-}
-
-template <typename LocalIsolate>
-void UncompiledDataWithPreparseData::Init(LocalIsolate* isolate,
-                                          String inferred_name,
-                                          int start_position, int end_position,
-                                          PreparseData scope_data) {
-  this->UncompiledData::Init(isolate, inferred_name, start_position,
-                             end_position);
-  set_preparse_data(scope_data);
 }
 
 bool SharedFunctionInfo::HasWasmExportedFunctionData() const {
@@ -791,6 +812,7 @@ bool SharedFunctionInfo::are_properties_final() const {
 }  // namespace internal
 }  // namespace v8
 
+#include "src/base/platform/wrappers.h"
 #include "src/objects/object-macros-undef.h"
 
 #endif  // V8_OBJECTS_SHARED_FUNCTION_INFO_INL_H_

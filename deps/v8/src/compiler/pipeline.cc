@@ -744,7 +744,7 @@ class NodeOriginsWrapper final : public Reducer {
   NodeOriginTable* const table_;
 };
 
-class PipelineRunScope {
+class V8_NODISCARD PipelineRunScope {
  public:
   PipelineRunScope(
       PipelineData* data, const char* phase_name,
@@ -769,7 +769,7 @@ class PipelineRunScope {
 
 // LocalIsolateScope encapsulates the phase where persistent handles are
 // attached to the LocalHeap inside {local_isolate}.
-class LocalIsolateScope {
+class V8_NODISCARD LocalIsolateScope {
  public:
   explicit LocalIsolateScope(JSHeapBroker* broker,
                              OptimizedCompilationInfo* info,
@@ -802,15 +802,15 @@ void PrintFunctionSource(OptimizedCompilationInfo* info, Isolate* isolate,
       if (source_name.IsString()) {
         os << String::cast(source_name).ToCString().get() << ":";
       }
-      os << shared->DebugName().ToCString().get() << ") id{";
+      os << shared->DebugNameCStr().get() << ") id{";
       os << info->optimization_id() << "," << source_id << "} start{";
       os << shared->StartPosition() << "} ---\n";
       {
-        DisallowHeapAllocation no_allocation;
+        DisallowGarbageCollection no_gc;
         int start = shared->StartPosition();
         int len = shared->EndPosition() - start;
-        SubStringRange source(String::cast(script->source()), no_allocation,
-                              start, len);
+        SubStringRange source(String::cast(script->source()), no_gc, start,
+                              len);
         for (const auto& c : source) {
           os << AsReversiblyEscapedUC16(c);
         }
@@ -828,7 +828,7 @@ void PrintInlinedFunctionInfo(
     int inlining_id, const OptimizedCompilationInfo::InlinedFunctionHolder& h) {
   CodeTracer::StreamScope tracing_scope(isolate->GetCodeTracer());
   auto& os = tracing_scope.stream();
-  os << "INLINE (" << h.shared_info->DebugName().ToCString().get() << ") id{"
+  os << "INLINE (" << h.shared_info->DebugNameCStr().get() << ") id{"
      << info->optimization_id() << "," << source_id << "} AS " << inlining_id
      << " AT ";
   const SourcePosition position = h.position.position;
@@ -989,7 +989,7 @@ PipelineStatistics* CreatePipelineStatistics(
 
   bool tracing_enabled;
   TRACE_EVENT_CATEGORY_GROUP_ENABLED(
-      TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"), &tracing_enabled);
+      TRACE_DISABLED_BY_DEFAULT("v8.wasm.turbofan"), &tracing_enabled);
   if (tracing_enabled || FLAG_turbo_stats_wasm) {
     pipeline_statistics = new PipelineStatistics(
         info, wasm_engine->GetOrCreateTurboStatistics(), zone_stats);
@@ -1056,6 +1056,15 @@ class PipelineCompilationJob final : public OptimizedCompilationJob {
   Linkage* linkage_;
 };
 
+namespace {
+
+bool ShouldUseConcurrentInlining(CodeKind code_kind, bool is_osr) {
+  if (is_osr) return false;
+  return code_kind == CodeKind::TURBOPROP || FLAG_concurrent_inlining;
+}
+
+}  // namespace
+
 PipelineCompilationJob::PipelineCompilationJob(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
     Handle<JSFunction> function, BailoutId osr_offset,
@@ -1074,7 +1083,7 @@ PipelineCompilationJob::PipelineCompilationJob(
           compilation_info(), function->GetIsolate(), &zone_stats_)),
       data_(&zone_stats_, function->GetIsolate(), compilation_info(),
             pipeline_statistics_.get(),
-            FLAG_concurrent_inlining && osr_offset.IsNone()),
+            ShouldUseConcurrentInlining(code_kind, !osr_offset.IsNone())),
       pipeline_(&data_),
       linkage_(nullptr) {
   compilation_info_.SetOptimizingForOsr(osr_offset, osr_frame);
@@ -1087,7 +1096,7 @@ namespace {
 // duration of the job phase and unset immediately afterwards. Each job
 // needs to set the correct RuntimeCallStats table depending on whether it
 // is running on a background or foreground thread.
-class PipelineJobScope {
+class V8_NODISCARD PipelineJobScope {
  public:
   PipelineJobScope(PipelineData* data, RuntimeCallStats* stats) : data_(data) {
     data_->set_runtime_call_stats(stats);
@@ -1236,7 +1245,7 @@ void PipelineCompilationJob::RegisterWeakObjectsInOptimizedCode(
   std::vector<Handle<Map>> maps;
   DCHECK(code->is_optimized_code());
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     int const mode_mask = RelocInfo::EmbeddedObjectModeMask();
     for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
       DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
@@ -1723,6 +1732,10 @@ struct GenericLoweringPhase {
     JSGenericLowering generic_lowering(data->jsgraph(), &graph_reducer,
                                        data->broker());
     AddReducer(data, &graph_reducer, &generic_lowering);
+
+    // JSGEnericLowering accesses the heap due to ObjectRef's type checks.
+    UnparkedScopeIfNeeded scope(data->broker());
+
     graph_reducer.ReduceGraph();
   }
 };
@@ -3030,8 +3043,8 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
   }
 
   {
-    LocalIsolate local_isolate(isolate, ThreadKind::kMain);
-    LocalIsolateScope local_isolate_scope(data.broker(), info, &local_isolate);
+    LocalIsolateScope local_isolate_scope(data.broker(), info,
+                                          isolate->main_thread_local_isolate());
     if (data.broker()->is_concurrent_inlining()) {
       if (!pipeline.CreateGraph()) return MaybeHandle<Code>();
     }
@@ -3282,6 +3295,7 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
   DCHECK_NOT_NULL(data->schedule());
 
   if (FLAG_turbo_profiling) {
+    UnparkedScopeIfNeeded unparked_scope(data->broker());
     data->info()->set_profiler_data(BasicBlockInstrumentor::Instrument(
         info(), data->graph(), data->schedule(), data->isolate()));
   }

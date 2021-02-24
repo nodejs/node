@@ -115,13 +115,6 @@ const char* ElementsKindToString(ElementsKind kind) {
   }
 }
 
-const char* CompactElementsKindToString(CompactElementsKind kind) {
-  if (kind == CompactElementsKind::NON_COMPACT_ELEMENTS_KIND) {
-    return "NON_COMPACT_ELEMENTS_KIND";
-  }
-  return ElementsKindToString(static_cast<ElementsKind>(kind));
-}
-
 const ElementsKind kFastElementsKindSequence[kFastElementsKindCount] = {
     PACKED_SMI_ELEMENTS,     // 0
     HOLEY_SMI_ELEMENTS,      // 1

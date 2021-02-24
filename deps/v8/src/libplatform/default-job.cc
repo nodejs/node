@@ -123,7 +123,6 @@ void DefaultJobState::CancelAndWait() {
 }
 
 void DefaultJobState::CancelAndDetach() {
-  base::MutexGuard guard(&mutex_);
   is_canceled_.store(true, std::memory_order_relaxed);
 }
 

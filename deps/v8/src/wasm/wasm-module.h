@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "src/base/optional.h"
+#include "src/base/platform/wrappers.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/utils/vector.h"
@@ -282,6 +283,8 @@ struct V8_EXPORT_PRIVATE WasmModule {
   uint32_t num_declared_functions = 0;  // excluding imported
   uint32_t num_exported_functions = 0;
   uint32_t num_declared_data_segments = 0;  // From the DataCount section.
+  // Position and size of the code section (payload only, i.e. without section
+  // ID and length).
   WireBytesRef code = {0, 0};
   WireBytesRef name = {0, 0};
   std::vector<TypeDefinition> types;  // by type index
@@ -492,6 +495,14 @@ inline int declared_function_index(const WasmModule* module, int func_index) {
   return declared_idx;
 }
 
+inline bool is_data_ref_type(ValueType type, const WasmModule* module) {
+  // TODO(7748): When we implement dataref (=any struct or array), support
+  // that here.
+  if (!type.has_index()) return false;
+  uint32_t index = type.ref_index();
+  return module->has_struct(index) || module->has_array(index);
+}
+
 // TruncatedUserString makes it easy to output names up to a certain length, and
 // output a truncation followed by '...' if they exceed a limit.
 // Use like this:
@@ -512,7 +523,7 @@ class TruncatedUserString {
   TruncatedUserString(const char* start, size_t len)
       : start_(start), length_(std::min(kMaxLen, static_cast<int>(len))) {
     if (len > static_cast<size_t>(kMaxLen)) {
-      memcpy(buffer_, start, kMaxLen - 3);
+      base::Memcpy(buffer_, start, kMaxLen - 3);
       memset(buffer_ + kMaxLen - 3, '.', 3);
       start_ = buffer_;
     }

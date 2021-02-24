@@ -44,7 +44,7 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   // When the scope is entered, the concurrent marking tasks
   // are preempted and are not looking at the heap objects, concurrent marking
   // is resumed when the scope is exited.
-  class PauseScope {
+  class V8_NODISCARD PauseScope {
    public:
     explicit PauseScope(ConcurrentMarking* concurrent_marking);
     ~PauseScope();

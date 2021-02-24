@@ -18,7 +18,7 @@ extern class WasmExportedFunctionData extends Struct {
   jump_table_offset: Smi;
   function_index: Smi;
   signature: Foreign;
-  call_count: Smi;
+  wrapper_budget: Smi;
   // The remaining fields are for fast calling from C++. The contract is
   // that they are lazily populated, and either all will be present or none.
   c_wrapper_code: Object;
@@ -107,6 +107,7 @@ extern class AsmWasmData extends Struct {
 @generateCppClass
 extern class WasmTypeInfo extends Foreign {
   parent: Map;
+  supertypes: FixedArray;
   subtypes: ArrayList;
 }
 

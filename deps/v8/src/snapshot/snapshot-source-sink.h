@@ -9,6 +9,7 @@
 
 #include "src/base/atomicops.h"
 #include "src/base/logging.h"
+#include "src/base/platform/wrappers.h"
 #include "src/common/globals.h"
 #include "src/snapshot/snapshot-utils.h"
 #include "src/utils/utils.h"
@@ -51,7 +52,7 @@ class SnapshotByteSource final {
   void Advance(int by) { position_ += by; }
 
   void CopyRaw(void* to, int number_of_bytes) {
-    memcpy(to, data_ + position_, number_of_bytes);
+    base::Memcpy(to, data_ + position_, number_of_bytes);
     position_ += number_of_bytes;
   }
 
@@ -61,7 +62,7 @@ class SnapshotByteSource final {
     for (base::AtomicWord* p = start; p < end;
          ++p, position_ += sizeof(base::AtomicWord)) {
       base::AtomicWord val;
-      memcpy(&val, data_ + position_, sizeof(base::AtomicWord));
+      base::Memcpy(&val, data_ + position_, sizeof(base::AtomicWord));
       base::Relaxed_Store(p, val);
     }
   }
@@ -73,7 +74,7 @@ class SnapshotByteSource final {
     for (AtomicTagged_t* p = start; p < end;
          ++p, position_ += sizeof(AtomicTagged_t)) {
       AtomicTagged_t val;
-      memcpy(&val, data_ + position_, sizeof(AtomicTagged_t));
+      base::Memcpy(&val, data_ + position_, sizeof(AtomicTagged_t));
       base::Relaxed_Store(p, val);
     }
   }

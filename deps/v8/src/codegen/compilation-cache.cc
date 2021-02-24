@@ -69,7 +69,7 @@ void CompilationSubCache::AgeByGeneration(CompilationSubCache* c) {
 void CompilationSubCache::AgeCustom(CompilationSubCache* c) {
   DCHECK_EQ(c->generations(), 1);
   if (c->tables_[0].IsUndefined(c->isolate())) return;
-  CompilationCacheTable::cast(c->tables_[0]).Age();
+  CompilationCacheTable::cast(c->tables_[0]).Age(c->isolate());
 }
 
 void CompilationCacheScript::Age() {

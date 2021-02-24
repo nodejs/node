@@ -8,6 +8,7 @@
 
 #include "src/ast/scopes.h"
 #include "src/ast/variables.h"
+#include "src/base/platform/wrappers.h"
 #include "src/handles/handles.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
@@ -133,7 +134,7 @@ struct RawPreparseData {};
 
 void PreparseDataBuilder::ByteData::Finalize(Zone* zone) {
   uint8_t* raw_zone_data = zone->NewArray<uint8_t, RawPreparseData>(index_);
-  memcpy(raw_zone_data, byte_data_->data(), index_);
+  base::Memcpy(raw_zone_data, byte_data_->data(), index_);
   byte_data_->resize(0);
   zone_byte_data_ = Vector<uint8_t>(raw_zone_data, index_);
 #ifdef DEBUG
@@ -760,7 +761,7 @@ PreparseData OnHeapConsumedPreparseData::GetScopeData() { return *data_; }
 
 ProducedPreparseData* OnHeapConsumedPreparseData::GetChildData(Zone* zone,
                                                                int index) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Handle<PreparseData> child_data_handle(data_->get_child(index), isolate_);
   return ProducedPreparseData::For(child_data_handle, zone);
 }

@@ -20,12 +20,24 @@ namespace cppgc {
  */
 class V8_EXPORT DefaultPlatform : public Platform {
  public:
+  /**
+   * Use this method instead of 'cppgc::InitializeProcess' when using
+   * 'cppgc::DefaultPlatform'. 'cppgc::DefaultPlatform::InitializeProcess'
+   * will initialize cppgc and v8 if needed (for non-standalone builds).
+   *
+   * \param platform DefaultPlatform instance used to initialize cppgc/v8.
+   */
+  static void InitializeProcess(DefaultPlatform* platform);
+
   using IdleTaskSupport = v8::platform::IdleTaskSupport;
   explicit DefaultPlatform(
       int thread_pool_size = 0,
-      IdleTaskSupport idle_task_support = IdleTaskSupport::kDisabled)
-      : v8_platform_(v8::platform::NewDefaultPlatform(thread_pool_size,
-                                                      idle_task_support)) {}
+      IdleTaskSupport idle_task_support = IdleTaskSupport::kDisabled,
+      std::unique_ptr<TracingController> tracing_controller = {})
+      : v8_platform_(v8::platform::NewDefaultPlatform(
+            thread_pool_size, idle_task_support,
+            v8::platform::InProcessStackDumping::kDisabled,
+            std::move(tracing_controller))) {}
 
   cppgc::PageAllocator* GetPageAllocator() override {
     return v8_platform_->GetPageAllocator();
@@ -46,6 +58,10 @@ class V8_EXPORT DefaultPlatform : public Platform {
       cppgc::TaskPriority priority,
       std::unique_ptr<cppgc::JobTask> job_task) override {
     return v8_platform_->PostJob(priority, std::move(job_task));
+  }
+
+  TracingController* GetTracingController() override {
+    return v8_platform_->GetTracingController();
   }
 
  protected:

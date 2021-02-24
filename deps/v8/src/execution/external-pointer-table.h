@@ -5,6 +5,7 @@
 #ifndef V8_EXECUTION_EXTERNAL_POINTER_TABLE_H_
 #define V8_EXECUTION_EXTERNAL_POINTER_TABLE_H_
 
+#include "src/base/platform/wrappers.h"
 #include "src/common/external-pointer.h"
 #include "src/utils/utils.h"
 
@@ -16,8 +17,8 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   static const int kExternalPointerTableInitialCapacity = 1024;
 
   ExternalPointerTable()
-      : buffer_(reinterpret_cast<Address*>(
-            calloc(kExternalPointerTableInitialCapacity, sizeof(Address)))),
+      : buffer_(reinterpret_cast<Address*>(base::Calloc(
+            kExternalPointerTableInitialCapacity, sizeof(Address)))),
         length_(1),
         capacity_(kExternalPointerTableInitialCapacity),
         freelist_head_(0) {

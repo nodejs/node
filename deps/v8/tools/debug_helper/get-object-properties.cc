@@ -413,6 +413,8 @@ class ReadStringVisitor : public TqObjectVisitor {
       that_->index_ += index_adjust_;
       that_->limit_ += limit_adjust_;
     }
+    IndexModifier(const IndexModifier&) = delete;
+    IndexModifier& operator=(const IndexModifier&) = delete;
     ~IndexModifier() {
       that_->index_ -= index_adjust_;
       that_->limit_ -= limit_adjust_;
@@ -422,7 +424,6 @@ class ReadStringVisitor : public TqObjectVisitor {
     ReadStringVisitor* that_;
     int32_t index_adjust_;
     int32_t limit_adjust_;
-    DISALLOW_COPY_AND_ASSIGN(IndexModifier);
   };
 
   static constexpr int kMaxCharacters = 80;  // How many characters to print.

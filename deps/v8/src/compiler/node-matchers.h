@@ -8,6 +8,7 @@
 #include <cmath>
 #include <limits>
 
+#include "src/base/bounds.h"
 #include "src/base/compiler-specific.h"
 #include "src/codegen/external-reference.h"
 #include "src/common/globals.h"
@@ -144,8 +145,8 @@ struct IntMatcher final : public ValueMatcher<T, kOpcode> {
     return this->HasResolvedValue() && this->ResolvedValue() == value;
   }
   bool IsInRange(const T& low, const T& high) const {
-    return this->HasResolvedValue() && low <= this->ResolvedValue() &&
-           this->ResolvedValue() <= high;
+    return this->HasResolvedValue() &&
+           base::IsInRange(this->ResolvedValue(), low, high);
   }
   bool IsMultipleOf(T n) const {
     return this->HasResolvedValue() && (this->ResolvedValue() % n) == 0;

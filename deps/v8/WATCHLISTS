@@ -87,6 +87,11 @@
     'tracing': {
       'filepath': 'src/tracing/',
     },
+    'ieee754': {
+      'filepath': 'src/base/ieee754\.(cc|h)' \
+                  '|src/base/overflowing-math.h' \
+                  '|LICENSE.fdlibm',
+    }
   },
 
   'WATCHLISTS': {
@@ -132,6 +137,10 @@
       'alph+watch@chromium.org',
       'lpy+v8tracing@chromium.org',
       'fmeawad@chromium.org',
+    ],
+    'ieee754': [
+      'rtoy+watch@chromium.org',
+      'hongchan+watch@chromium.org'
     ],
   },
 }

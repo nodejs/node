@@ -62,16 +62,16 @@ function call_div() {
 
 contextGroup.addScript(call_div.toString());
 
-(async function test() {
-  await Protocol.Debugger.enable();
-  await Protocol.Debugger.setPauseOnExceptions({state: 'all'});
-  InspectorTest.log('Instantiating.');
-  await WasmInspectorTest.instantiate(module_bytes);
-  InspectorTest.log('Calling div function.');
-  await Protocol.Runtime.evaluate({'expression': 'call_div()'});
-  InspectorTest.log('Finished.');
-  InspectorTest.completeTest();
-})();
+InspectorTest.runAsyncTestSuite([
+  async function test() {
+    await Protocol.Debugger.enable();
+    await Protocol.Debugger.setPauseOnExceptions({state: 'all'});
+    InspectorTest.log('Instantiating.');
+    await WasmInspectorTest.instantiate(module_bytes);
+    InspectorTest.log('Calling div function.');
+    await Protocol.Runtime.evaluate({'expression': 'call_div()'});
+  }
+]);
 
 async function printLocalScope(frame) {
   InspectorTest.log(`scope at ${frame.functionName} (${

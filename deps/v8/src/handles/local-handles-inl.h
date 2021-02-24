@@ -5,6 +5,7 @@
 #ifndef V8_HANDLES_LOCAL_HANDLES_INL_H_
 #define V8_HANDLES_LOCAL_HANDLES_INL_H_
 
+#include "src/execution/isolate.h"
 #include "src/execution/local-isolate.h"
 #include "src/handles/local-handles.h"
 #include "src/sanitizer/msan.h"
@@ -15,6 +16,9 @@ namespace internal {
 // static
 V8_INLINE Address* LocalHandleScope::GetHandle(LocalHeap* local_heap,
                                                Address value) {
+  if (local_heap->is_main_thread())
+    return LocalHandleScope::GetMainThreadHandle(local_heap, value);
+
   LocalHandles* handles = local_heap->handles();
   Address* result = handles->scope_.next;
   if (result == handles->scope_.limit) {
@@ -30,16 +34,23 @@ LocalHandleScope::LocalHandleScope(LocalIsolate* local_isolate)
     : LocalHandleScope(local_isolate->heap()) {}
 
 LocalHandleScope::LocalHandleScope(LocalHeap* local_heap) {
-  LocalHandles* handles = local_heap->handles();
-  local_heap_ = local_heap;
-  prev_next_ = handles->scope_.next;
-  prev_limit_ = handles->scope_.limit;
-  handles->scope_.level++;
+  if (local_heap->is_main_thread()) {
+    OpenMainThreadScope(local_heap);
+  } else {
+    LocalHandles* handles = local_heap->handles();
+    local_heap_ = local_heap;
+    prev_next_ = handles->scope_.next;
+    prev_limit_ = handles->scope_.limit;
+    handles->scope_.level++;
+  }
 }
 
 LocalHandleScope::~LocalHandleScope() {
-  if (local_heap_ == nullptr) return;
-  CloseScope(local_heap_, prev_next_, prev_limit_);
+  if (local_heap_->is_main_thread()) {
+    CloseMainThreadScope(local_heap_, prev_next_, prev_limit_);
+  } else {
+    CloseScope(local_heap_, prev_next_, prev_limit_);
+  }
 }
 
 template <typename T>

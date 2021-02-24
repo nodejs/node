@@ -105,7 +105,7 @@ void RedirectActiveFunctions::VisitThread(Isolate* isolate,
         reinterpret_cast<InterpretedFrame*>(frame);
     BytecodeArray bytecode = mode_ == Mode::kUseDebugBytecode
                                  ? shared_.GetDebugInfo().DebugBytecodeArray()
-                                 : shared_.GetBytecodeArray();
+                                 : shared_.GetBytecodeArray(isolate);
     interpreted_frame->PatchBytecodeArray(bytecode);
   }
 }

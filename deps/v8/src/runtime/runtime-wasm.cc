@@ -64,7 +64,7 @@ Context GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
   return GetWasmInstanceOnStackTop(isolate).native_context();
 }
 
-class ClearThreadInWasmScope {
+class V8_NODISCARD ClearThreadInWasmScope {
  public:
   ClearThreadInWasmScope() {
     DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
@@ -90,7 +90,8 @@ Object ThrowWasmError(Isolate* isolate, MessageTemplate message) {
 
 RUNTIME_FUNCTION(Runtime_WasmIsValidRefValue) {
   // This code is called from wrappers, so the "thread is wasm" flag is not set.
-  DCHECK(!trap_handler::IsThreadInWasm());
+  DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
+                 !trap_handler::IsThreadInWasm());
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0)
@@ -201,17 +202,32 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
 
   DCHECK(isolate->context().is_null());
   isolate->set_context(instance->native_context());
-  auto* native_module = instance->module_object().native_module();
-  bool success = wasm::CompileLazy(isolate, native_module, func_index);
+  Handle<WasmModuleObject> module_object{instance->module_object(), isolate};
+  bool success = wasm::CompileLazy(isolate, module_object, func_index);
   if (!success) {
     DCHECK(isolate->has_pending_exception());
     return ReadOnlyRoots(isolate).exception();
   }
 
-  Address entrypoint = native_module->GetCallTargetForFunction(func_index);
+  Address entrypoint =
+      module_object->native_module()->GetCallTargetForFunction(func_index);
 
   return Object(entrypoint);
 }
+
+namespace {
+void ReplaceWrapper(Isolate* isolate, Handle<WasmInstanceObject> instance,
+                    int function_index, Handle<Code> wrapper_code) {
+  Handle<WasmExternalFunction> exported_function =
+      WasmInstanceObject::GetWasmExternalFunction(isolate, instance,
+                                                  function_index)
+          .ToHandleChecked();
+  exported_function->set_code(*wrapper_code);
+  WasmExportedFunctionData function_data =
+      exported_function->shared().wasm_exported_function_data();
+  function_data.set_wrapper_code(*wrapper_code);
+}
+}  // namespace
 
 RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
   HandleScope scope(isolate);
@@ -226,25 +242,40 @@ RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
   const wasm::WasmFunction function = module->functions[function_index];
   const wasm::FunctionSig* sig = function.sig;
 
-  MaybeHandle<WasmExternalFunction> maybe_result =
+  // The start function is not guaranteed to be registered as
+  // an exported function (although it is called as one).
+  // If there is no entry for the start function,
+  // the tier-up is abandoned.
+  MaybeHandle<WasmExternalFunction> maybe_exported_function =
       WasmInstanceObject::GetWasmExternalFunction(isolate, instance,
                                                   function_index);
-
-  Handle<WasmExternalFunction> result;
-  if (!maybe_result.ToHandle(&result)) {
-    // We expect the result to be empty in the case of the start function,
-    // which is not an exported function to begin with.
+  Handle<WasmExternalFunction> exported_function;
+  if (!maybe_exported_function.ToHandle(&exported_function)) {
     DCHECK_EQ(function_index, module->start_function_index);
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  Handle<Code> wrapper =
+  Handle<Code> wrapper_code =
       wasm::JSToWasmWrapperCompilationUnit::CompileSpecificJSToWasmWrapper(
           isolate, sig, module);
 
-  result->set_code(*wrapper);
+  // Replace the wrapper for the function that triggered the tier-up.
+  // This is to verify that the wrapper is replaced, even if the function
+  // is implicitly exported and is not part of the export_table.
+  ReplaceWrapper(isolate, instance, function_index, wrapper_code);
 
-  function_data->set_wrapper_code(*wrapper);
+  // Iterate over all exports to replace eagerly the wrapper for all functions
+  // that share the signature of the function that tiered up.
+  for (wasm::WasmExport exp : module->export_table) {
+    if (exp.kind != wasm::kExternalFunction) {
+      continue;
+    }
+    int index = static_cast<int>(exp.index);
+    wasm::WasmFunction function = module->functions[index];
+    if (function.sig == sig && index != function_index) {
+      ReplaceWrapper(isolate, instance, index, wrapper_code);
+    }
+  }
 
   return ReadOnlyRoots(isolate).undefined_value();
 }
