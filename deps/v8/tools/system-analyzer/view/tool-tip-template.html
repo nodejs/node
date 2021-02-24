@@ -1,0 +1,81 @@
+<!-- Copyright 2020 the V8 project authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file. -->
+<head>
+  <link href="./index.css" rel="stylesheet">
+</head>
+<style>
+  :host {
+    position: absolute;
+    z-index: 100;
+  }
+
+  #content {
+    background-color: var(--surface-color);
+    border: 3px var(--primary-color) solid;
+    border-radius: 10px;
+    min-width: 100px;
+    min-height: 100px;
+    padding: 10px;
+    box-shadow: 0px 0px 10px rgba(0,0,0,0.5);
+    width: auto;
+  }
+
+  .textContent {
+    font-family: monospace;
+    white-space: pre;
+    overflow-x: hidden;
+    max-width: 500px;
+  }
+
+  #body {
+    display: none;
+    position: absolute;
+    --tip-offset: 10px;
+    --tip-width: 10px;
+    --tip-height: 15px;
+  }
+
+  #body.top {
+    bottom: var(--tip-height);
+  }
+  #body.bottom {
+    top: var(--tip-height);
+  }
+  #body.left {
+    right: calc(var(--tip-offset) * -1 - var(--tip-width));
+  }
+  #body.right {
+    left: calc(var(--tip-offset) * -1 - var(--tip-width));
+  }
+
+  .tip {
+    width: 0;
+    height: 0;
+    border-style: solid;
+    position: absolute;
+    border-width: var(--tip-height) var(--tip-width) 0 var(--tip-width);
+    border-color:  var(--primary-color) transparent transparent transparent;
+    pointer-events: none;
+  }
+
+  .top > .tip {
+    bottom: calc(var(--tip-height) * -1);
+  }
+  .bottom > .tip {
+    top: calc(var(--tip-height) * -1);
+    transform: scaleY(-1);
+  }
+  .left > .tip {
+    right: var(--tip-offset);
+  }
+  .right > .tip {
+    left: var(--tip-offset);
+  }
+</style>
+
+<div id="body">
+  <div id="content">
+  </div>
+  <div class="tip"></div>
+</div>

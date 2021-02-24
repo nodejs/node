@@ -59,7 +59,8 @@ class RelocInfo {
     CODE_TARGET,
     RELATIVE_CODE_TARGET,  // LAST_CODE_TARGET_MODE
     COMPRESSED_EMBEDDED_OBJECT,
-    FULL_EMBEDDED_OBJECT,  // LAST_GCED_ENUM
+    FULL_EMBEDDED_OBJECT,
+    DATA_EMBEDDED_OBJECT,  // LAST_GCED_ENUM
 
     WASM_CALL,  // FIRST_SHAREABLE_RELOC_MODE
     WASM_STUB_CALL,
@@ -96,7 +97,7 @@ class RelocInfo {
     FIRST_REAL_RELOC_MODE = CODE_TARGET,
     LAST_REAL_RELOC_MODE = VENEER_POOL,
     FIRST_EMBEDDED_OBJECT_RELOC_MODE = COMPRESSED_EMBEDDED_OBJECT,
-    LAST_EMBEDDED_OBJECT_RELOC_MODE = FULL_EMBEDDED_OBJECT,
+    LAST_EMBEDDED_OBJECT_RELOC_MODE = DATA_EMBEDDED_OBJECT,
     LAST_GCED_ENUM = LAST_EMBEDDED_OBJECT_RELOC_MODE,
     FIRST_SHAREABLE_RELOC_MODE = WASM_CALL,
   };
@@ -139,6 +140,9 @@ class RelocInfo {
   }
   static constexpr bool IsCompressedEmbeddedObject(Mode mode) {
     return COMPRESS_POINTERS_BOOL && mode == COMPRESSED_EMBEDDED_OBJECT;
+  }
+  static constexpr bool IsDataEmbeddedObject(Mode mode) {
+    return mode == DATA_EMBEDDED_OBJECT;
   }
   static constexpr bool IsEmbeddedObjectMode(Mode mode) {
     return base::IsInRange(mode, FIRST_EMBEDDED_OBJECT_RELOC_MODE,
@@ -337,7 +341,8 @@ class RelocInfo {
 
   static int EmbeddedObjectModeMask() {
     return ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
-           ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT);
+           ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT) |
+           ModeMask(RelocInfo::DATA_EMBEDDED_OBJECT);
   }
 
   // In addition to modes covered by the apply mask (which is applied at GC
@@ -347,6 +352,7 @@ class RelocInfo {
     return ModeMask(RelocInfo::CODE_TARGET) |
            ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT) |
            ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
+           ModeMask(RelocInfo::DATA_EMBEDDED_OBJECT) |
            ModeMask(RelocInfo::RUNTIME_ENTRY) |
            ModeMask(RelocInfo::RELATIVE_CODE_TARGET) | kApplyMask;
   }
@@ -367,6 +373,9 @@ class RelocInfo {
 class RelocInfoWriter {
  public:
   RelocInfoWriter() : pos_(nullptr), last_pc_(nullptr) {}
+
+  RelocInfoWriter(const RelocInfoWriter&) = delete;
+  RelocInfoWriter& operator=(const RelocInfoWriter&) = delete;
 
   byte* pos() const { return pos_; }
   byte* last_pc() const { return last_pc_; }
@@ -397,8 +406,6 @@ class RelocInfoWriter {
 
   byte* pos_;
   byte* last_pc_;
-
-  DISALLOW_COPY_AND_ASSIGN(RelocInfoWriter);
 };
 
 // A RelocIterator iterates over relocation information.
@@ -425,6 +432,9 @@ class V8_EXPORT_PRIVATE RelocIterator : public Malloced {
                          Vector<const byte> reloc_info, Address const_pool,
                          int mode_mask = -1);
   RelocIterator(RelocIterator&&) V8_NOEXCEPT = default;
+
+  RelocIterator(const RelocIterator&) = delete;
+  RelocIterator& operator=(const RelocIterator&) = delete;
 
   // Iteration
   bool done() const { return done_; }
@@ -467,8 +477,6 @@ class V8_EXPORT_PRIVATE RelocIterator : public Malloced {
   RelocInfo rinfo_;
   bool done_ = false;
   const int mode_mask_;
-
-  DISALLOW_COPY_AND_ASSIGN(RelocIterator);
 };
 
 }  // namespace internal

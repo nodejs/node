@@ -16,6 +16,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "src/base/platform/wrappers.h"
 #include "src/d8/d8.h"
 
 namespace v8 {
@@ -316,7 +317,7 @@ static Local<Value> GetStdout(Isolate* isolate, int child_fd,
               .ToLocalChecked();
       accumulator = String::Concat(isolate, accumulator, addition);
       fullness = bytes_read + fullness - length;
-      memcpy(buffer, buffer + length, fullness);
+      base::Memcpy(buffer, buffer + length, fullness);
     }
   } while (bytes_read != 0);
   return accumulator;
@@ -422,7 +423,7 @@ void Shell::System(const v8::FunctionCallbackInfo<v8::Value>& args) {
           args.GetIsolate(), "system: Argument 2 must be an array"));
       return;
     }
-    command_args = Local<Array>::Cast(args[1]);
+    command_args = args[1].As<Array>();
   } else {
     command_args = Array::New(args.GetIsolate(), 0);
   }

@@ -84,7 +84,8 @@ class CodeEventListener {
                                Handle<Name> script_name, int line,
                                int column) = 0;
   virtual void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
-                               wasm::WasmName name) = 0;
+                               wasm::WasmName name, const char* source_url,
+                               int code_offset, int script_id) = 0;
 
   virtual void CallbackEvent(Handle<Name> name, Address entry_point) = 0;
   virtual void GetterCallbackEvent(Handle<Name> name, Address entry_point) = 0;
@@ -115,6 +116,8 @@ class CodeEventDispatcher : public CodeEventListener {
   using LogEventsAndTags = CodeEventListener::LogEventsAndTags;
 
   CodeEventDispatcher() = default;
+  CodeEventDispatcher(const CodeEventDispatcher&) = delete;
+  CodeEventDispatcher& operator=(const CodeEventDispatcher&) = delete;
 
   bool AddListener(CodeEventListener* listener) {
     base::MutexGuard guard(&mutex_);
@@ -168,9 +171,11 @@ class CodeEventDispatcher : public CodeEventListener {
     });
   }
   void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
-                       wasm::WasmName name) override {
+                       wasm::WasmName name, const char* source_url,
+                       int code_offset, int script_id) override {
     DispatchEventToListeners([=](CodeEventListener* listener) {
-      listener->CodeCreateEvent(tag, code, name);
+      listener->CodeCreateEvent(tag, code, name, source_url, code_offset,
+                                script_id);
     });
   }
   void CallbackEvent(Handle<Name> name, Address entry_point) override {
@@ -231,8 +236,6 @@ class CodeEventDispatcher : public CodeEventListener {
  private:
   std::unordered_set<CodeEventListener*> listeners_;
   base::Mutex mutex_;
-
-  DISALLOW_COPY_AND_ASSIGN(CodeEventDispatcher);
 };
 
 }  // namespace internal

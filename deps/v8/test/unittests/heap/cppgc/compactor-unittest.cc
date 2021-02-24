@@ -7,6 +7,7 @@
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/custom-space.h"
 #include "include/cppgc/persistent.h"
+#include "src/heap/cppgc/garbage-collector.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/marker.h"
@@ -125,7 +126,12 @@ namespace internal {
 
 TEST_F(CompactorTest, NothingToCompact) {
   StartCompaction();
+  heap()->stats_collector()->NotifyMarkingStarted(
+      GarbageCollector::Config::CollectionType::kMajor,
+      GarbageCollector::Config::IsForcedGC::kNotForced);
+  heap()->stats_collector()->NotifyMarkingCompleted(0);
   FinishCompaction();
+  heap()->stats_collector()->NotifySweepingCompleted();
 }
 
 TEST_F(CompactorTest, CancelledNothingToCompact) {

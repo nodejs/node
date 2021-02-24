@@ -37,8 +37,11 @@ RUN_ONE = os.path.join(BASE_PATH, 'tools', 'run_one.py')
 
 os.chdir(BASE_PATH)
 
-assert not os.path.exists(TEST_CASES)
-os.makedirs(TEST_CASES)
+if os.path.exists(TEST_CASES):
+  if not os.path.isdir(TEST_CASES) or os.listdir(TEST_CASES):
+    sys.exit("'output' must be an empty directory")
+else:
+  os.mkdir(TEST_CASES)
 
 # Use ~40000 for 24 hours of fuzzing on a modern work station.
 RUNS = 8

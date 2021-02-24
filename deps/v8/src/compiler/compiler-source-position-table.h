@@ -17,7 +17,7 @@ namespace compiler {
 class V8_EXPORT_PRIVATE SourcePositionTable final
     : public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  class Scope final {
+  class V8_NODISCARD Scope final {
    public:
     Scope(SourcePositionTable* source_positions, SourcePosition position)
         : source_positions_(source_positions),

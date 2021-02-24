@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax --super-ic --opt
 // Flags: --no-always-opt --no-stress-opt --turboprop
-// Flags: --turboprop-dynamic-map-checks --deopt-every-n-times=0
+// Flags: --turbo-dynamic-map-checks --deopt-every-n-times=0
 
 // This file contains tests which require --dynamic-map-chekcs.
 

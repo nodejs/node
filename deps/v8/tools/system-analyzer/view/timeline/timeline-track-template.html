@@ -1,0 +1,205 @@
+<!-- Copyright 2020 the V8 project authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file. -->
+
+<head>
+  <link href="./index.css" rel="stylesheet">
+</head>
+<style>
+  #timeline {
+    position: relative;
+    height: calc(200px + 12px);
+    overflow-y: hidden;
+    overflow-x: scroll;
+    user-select: none;
+  }
+
+  #timelineLabel {
+    transform: rotate(90deg);
+    transform-origin: left bottom 0;
+    position: absolute;
+    left: 0;
+    width: 200px;
+    text-align: center;
+    font-size: 10px;
+    opacity: 0.5;
+  }
+
+  #timelineChunks {
+    height: 200px;
+    position: absolute;
+    margin-right: 100px;
+  }
+
+  #timelineCanvas {
+    height: 200px;
+    position: relative;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .chunk {
+    width: 6px;
+    position: absolute;
+    background-size: 100% 100%;
+    image-rendering: pixelated;
+    bottom: 0px;
+    background-color: var(--on-surface-color);
+    cursor: pointer;
+  }
+  .chunk:hover {
+    border-radius: 2px 2px 0 0;
+    margin: 0 0 -2px -2px;
+    border: 2px var(--primary-color) solid;
+  }
+
+  .timestamp {
+    height: 200px;
+    width: 100px;
+    border-left: 1px var(--on-surface-color) dashed;
+    padding-left: 4px;
+    position: absolute;
+    pointer-events: none;
+    font-size: 10px;
+  }
+
+  .title {
+    position: relative;
+    float: left;
+    width: 20px;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    margin: 20px 0 0 -10px;
+    padding: 5px 5px 0px 5px;
+    overflow: hidden;
+    border-radius: 7px;
+    font-weight: 400;
+  }
+
+  .panelCloserInput:checked ~ h3 { 
+    display: inherit;
+    flex: 1;
+    writing-mode: unset;
+    text-orientation: unset;
+    background-color: var(--border-color);
+    border-radius: 0px;
+    padding: 5px;
+    margin: 0 -10px 0 20px;
+  }
+
+  .timelineLegend {
+    position: relative;
+    float: right;
+    height: calc(200px + 12px);
+    overflow-y: scroll;
+    margin-right: -10px;
+    padding-right: 2px;
+  }
+
+  #legendTable {
+    width: 280px;
+    border-collapse: collapse;
+  }
+
+  th,
+  td {
+    padding: 1px 3px 2px 3px;
+  }
+
+  /* Center colors */
+  #legendTable td:nth-of-type(4n+1) {
+    text-align: center;
+    padding-top: 3px;
+  }
+  /* Left align text*/
+  #legendTable td:nth-of-type(4n+2) {
+    text-align: left;
+    width: 100%;
+  }
+  /* right align numbers */
+  #legendTable td:nth-of-type(4n+3),
+  #legendTable td:nth-of-type(4n+4) {
+    text-align: right;
+  }
+
+  .timeline {
+    background-color: var(--timeline-background-color);
+  }
+
+  #selection {
+    display: none;
+  }
+
+  #rightHandle,
+  #leftHandle {
+    background-color: rgba(200, 200, 200, 0.5);
+    height: 100%;
+    width: 5px;
+    position: absolute;
+    z-index: 3;
+    cursor: col-resize;
+  }
+  #leftHandle {
+    border-left: 1px solid var(--on-surface-color);
+  }
+  #rightHandle {
+    border-right: 1px solid var(--on-surface-color);
+  }
+
+  #selectionBackground {
+    background-color: rgba(133, 68, 163, 0.5);
+    height: 100%;
+    position: absolute;
+  }
+
+
+  .content {
+    display: flex;
+    position: relative;
+  }
+  .panelCloserLabel {
+    position: absolute;
+    top: 5px;
+    left: 0px;
+  }
+  .title {
+    flex: initial;
+  }
+  #timeline {
+    flex: 1;
+  }
+  .legend {
+    flex: initial;
+  }
+
+</style>
+
+<div class="content">
+  <input type="checkbox" id="closer" class="panelCloserInput">
+  <label class="panelCloserLabel" for="closer">▼</label>
+  <h3 class="title" id="title"></h3>
+
+  <div id="timeline">
+    <div id="selection">
+      <div id="leftHandle"></div>
+      <div id="selectionBackground"></div>
+      <div id="rightHandle"></div>
+    </div>
+    <div id="timelineLabel">Frequency</div>
+    <div id="timelineChunks"></div>
+    <canvas id="timelineCanvas"></canvas>
+  </div>
+
+  <div class="timelineLegend">
+    <table id="legendTable">
+      <thead>
+        <tr>
+          <td>Type</td>
+          <td>Count</td>
+          <td>Percent</td>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>

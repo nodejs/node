@@ -10,6 +10,7 @@
 #include "src/execution/isolate.h"
 #include "src/execution/local-isolate.h"
 #include "src/heap/local-heap.h"
+#include "src/heap/parked-scope.h"
 #include "src/init/v8.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
@@ -53,15 +54,16 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
     ++dispatcher_->ref_count_;
   }
 
+  CompileTask(const CompileTask&) = delete;
+  CompileTask& operator=(const CompileTask&) = delete;
+
   ~CompileTask() override = default;
 
  private:
   // v8::Task overrides.
   void RunInternal() override {
     LocalIsolate local_isolate(isolate_, ThreadKind::kBackground);
-    DisallowHeapAllocation no_allocation;
-    DisallowHandleAllocation no_handles;
-    DisallowHandleDereference no_deref;
+    DCHECK(local_isolate.heap()->IsParked());
 
     {
       WorkerThreadRuntimeCallStatsScope runtime_call_stats_scope(
@@ -93,8 +95,6 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
   Isolate* isolate_;
   WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats_;
   OptimizingCompileDispatcher* dispatcher_;
-
-  DISALLOW_COPY_AND_ASSIGN(CompileTask);
 };
 
 OptimizingCompileDispatcher::~OptimizingCompileDispatcher() {
@@ -119,8 +119,10 @@ OptimizedCompilationJob* OptimizingCompileDispatcher::NextInput(
   if (check_if_flushing) {
     if (mode_ == FLUSH) {
       UnparkedScope scope(local_isolate->heap());
-      AllowHandleDereference allow_handle_dereference;
+      local_isolate->heap()->AttachPersistentHandles(
+          job->compilation_info()->DetachPersistentHandles());
       DisposeCompilationJob(job, true);
+      local_isolate->heap()->DetachPersistentHandles();
       return nullptr;
     }
   }

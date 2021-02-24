@@ -8,10 +8,12 @@ namespace array {
 transitioning javascript builtin
 ArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
     JSReceiver {
+  const c = HasBuiltinSubclassingFlag() ? receiver : GetArrayFunction();
+
   // Use fast path if:
   // * |items| is the only argument, and
   // * the receiver is the Array function.
-  if (arguments.length == 1 && receiver == GetArrayFunction()) {
+  if (arguments.length == 1 && c == GetArrayFunction()) {
     try {
       return iterator::FastIterableToList(arguments[0]) otherwise Slow;
     } label Slow {
@@ -24,7 +26,7 @@ ArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
   const thisArg = arguments[2];
 
   // 1. Let C be the this value.
-  const c = receiver;
+  // (Done above.)
 
   let mapping: bool;
   // 2. If mapfn is undefined, let mapping be false.

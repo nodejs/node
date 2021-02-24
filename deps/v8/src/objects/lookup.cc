@@ -61,7 +61,7 @@ void LookupIterator::Start() {
   holder_ = GetRoot(isolate_, lookup_start_object_, index_);
 
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
 
     has_property_ = false;
     state_ = NOT_FOUND;
@@ -82,7 +82,7 @@ template void LookupIterator::Start<false>();
 void LookupIterator::Next() {
   DCHECK_NE(JSPROXY, state_);
   DCHECK_NE(TRANSITION, state_);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   has_property_ = false;
 
   JSReceiver holder = *holder_;
@@ -231,55 +231,43 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
       return;
     }
     if (receiver->map(isolate).is_prototype_map()) {
-      DisallowHeapAllocation no_gc;
+      DisallowGarbageCollection no_gc;
       // Setting the constructor of any prototype with the @@species protector
       // (of any realm) also needs to invalidate the protector.
-      // For typed arrays, we check a prototype of this receiver since
-      // TypedArrays have different prototypes for each type, and their parent
-      // prototype is pointing the same TYPED_ARRAY_PROTOTYPE.
       if (isolate->IsInAnyContext(*receiver,
                                   Context::INITIAL_ARRAY_PROTOTYPE_INDEX)) {
         if (!Protectors::IsArraySpeciesLookupChainIntact(isolate)) return;
         isolate->CountUsage(
             v8::Isolate::UseCounterFeature::kArrayPrototypeConstructorModified);
         Protectors::InvalidateArraySpeciesLookupChain(isolate);
-      } else if (isolate->IsInAnyContext(*receiver,
-                                         Context::PROMISE_PROTOTYPE_INDEX)) {
+      } else if (receiver->IsJSPromisePrototype()) {
         if (!Protectors::IsPromiseSpeciesLookupChainIntact(isolate)) return;
         Protectors::InvalidatePromiseSpeciesLookupChain(isolate);
-      } else if (isolate->IsInAnyContext(*receiver,
-                                         Context::REGEXP_PROTOTYPE_INDEX)) {
+      } else if (receiver->IsJSRegExpPrototype()) {
         if (!Protectors::IsRegExpSpeciesLookupChainIntact(isolate)) return;
         Protectors::InvalidateRegExpSpeciesLookupChain(isolate);
-      } else if (isolate->IsInAnyContext(
-                     receiver->map(isolate).prototype(isolate),
-                     Context::TYPED_ARRAY_PROTOTYPE_INDEX)) {
+      } else if (receiver->IsJSTypedArrayPrototype()) {
         if (!Protectors::IsTypedArraySpeciesLookupChainIntact(isolate)) return;
         Protectors::InvalidateTypedArraySpeciesLookupChain(isolate);
       }
     }
   } else if (*name == roots.next_string()) {
     if (receiver->IsJSArrayIterator() ||
-        isolate->IsInAnyContext(
-            *receiver, Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_INDEX)) {
+        receiver->IsJSArrayIteratorPrototype()) {
       // Setting the next property of %ArrayIteratorPrototype% also needs to
       // invalidate the array iterator protector.
       if (!Protectors::IsArrayIteratorLookupChainIntact(isolate)) return;
       Protectors::InvalidateArrayIteratorLookupChain(isolate);
     } else if (receiver->IsJSMapIterator() ||
-               isolate->IsInAnyContext(
-                   *receiver, Context::INITIAL_MAP_ITERATOR_PROTOTYPE_INDEX)) {
+               receiver->IsJSMapIteratorPrototype()) {
       if (!Protectors::IsMapIteratorLookupChainIntact(isolate)) return;
       Protectors::InvalidateMapIteratorLookupChain(isolate);
     } else if (receiver->IsJSSetIterator() ||
-               isolate->IsInAnyContext(
-                   *receiver, Context::INITIAL_SET_ITERATOR_PROTOTYPE_INDEX)) {
+               receiver->IsJSSetIteratorPrototype()) {
       if (!Protectors::IsSetIteratorLookupChainIntact(isolate)) return;
       Protectors::InvalidateSetIteratorLookupChain(isolate);
     } else if (receiver->IsJSStringIterator() ||
-               isolate->IsInAnyContext(
-                   *receiver,
-                   Context::INITIAL_STRING_ITERATOR_PROTOTYPE_INDEX)) {
+               receiver->IsJSStringIteratorPrototype()) {
       // Setting the next property of %StringIteratorPrototype% invalidates the
       // string iterator protector.
       if (!Protectors::IsStringIteratorLookupChainIntact(isolate)) return;
@@ -319,21 +307,17 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
       if (!Protectors::IsArrayIteratorLookupChainIntact(isolate)) return;
       Protectors::InvalidateArrayIteratorLookupChain(isolate);
     } else if (receiver->IsJSSet(isolate) || receiver->IsJSSetIterator() ||
-               isolate->IsInAnyContext(
-                   *receiver, Context::INITIAL_SET_ITERATOR_PROTOTYPE_INDEX) ||
-               isolate->IsInAnyContext(*receiver,
-                                       Context::INITIAL_SET_PROTOTYPE_INDEX)) {
+               receiver->IsJSSetIteratorPrototype() ||
+               receiver->IsJSSetPrototype()) {
       if (Protectors::IsSetIteratorLookupChainIntact(isolate)) {
         Protectors::InvalidateSetIteratorLookupChain(isolate);
       }
     } else if (receiver->IsJSMapIterator() ||
-               isolate->IsInAnyContext(
-                   *receiver, Context::INITIAL_MAP_ITERATOR_PROTOTYPE_INDEX)) {
+               receiver->IsJSMapIteratorPrototype()) {
       if (Protectors::IsMapIteratorLookupChainIntact(isolate)) {
         Protectors::InvalidateMapIteratorLookupChain(isolate);
       }
-    } else if (isolate->IsInAnyContext(
-                   *receiver, Context::INITIAL_ITERATOR_PROTOTYPE_INDEX)) {
+    } else if (receiver->IsJSIteratorPrototype()) {
       if (Protectors::IsMapIteratorLookupChainIntact(isolate)) {
         Protectors::InvalidateMapIteratorLookupChain(isolate);
       }
@@ -365,10 +349,8 @@ void LookupIterator::InternalUpdateProtector(Isolate* isolate,
     // to guard the fast-path in AsyncGeneratorResolve, where we can skip
     // the ResolvePromise step and go directly to FulfillPromise if we
     // know that the Object.prototype doesn't contain a "then" method.
-    if (receiver->IsJSPromise(isolate) ||
-        isolate->IsInAnyContext(*receiver,
-                                Context::INITIAL_OBJECT_PROTOTYPE_INDEX) ||
-        isolate->IsInAnyContext(*receiver, Context::PROMISE_PROTOTYPE_INDEX)) {
+    if (receiver->IsJSPromise(isolate) || receiver->IsJSObjectPrototype() ||
+        receiver->IsJSPromisePrototype()) {
       Protectors::InvalidatePromiseThenLookupChain(isolate);
     }
   }
@@ -407,7 +389,8 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
 
   if (holder_obj->IsJSGlobalObject(isolate_)) {
     Handle<GlobalDictionary> dictionary(
-        JSGlobalObject::cast(*holder_obj).global_dictionary(isolate_),
+        JSGlobalObject::cast(*holder_obj)
+            .global_dictionary(isolate_, kAcquireLoad),
         isolate());
     Handle<PropertyCell> cell(dictionary->CellAt(isolate_, dictionary_entry()),
                               isolate());
@@ -504,7 +487,8 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
     }
     if (holder_obj->IsJSGlobalObject(isolate_)) {
       Handle<GlobalDictionary> dictionary(
-          JSGlobalObject::cast(*holder_obj).global_dictionary(isolate_),
+          JSGlobalObject::cast(*holder_obj)
+              .global_dictionary(isolate_, kAcquireLoad),
           isolate());
 
       Handle<PropertyCell> cell = PropertyCell::PrepareForValue(
@@ -573,9 +557,7 @@ void LookupIterator::PrepareTransitionToDataProperty(
       DCHECK(!value->IsTheHole(isolate_));
       // Don't set enumeration index (it will be set during value store).
       property_details_ = PropertyDetails(
-          kData, attributes,
-          PropertyCell::TypeForUninitializedCell(isolate_, value));
-
+          kData, attributes, PropertyCell::InitialType(isolate_, value));
       transition_ = cell;
       has_property_ = true;
     } else {
@@ -615,13 +597,13 @@ void LookupIterator::ApplyTransitionToDataProperty(
     // Install a property cell.
     Handle<JSGlobalObject> global = Handle<JSGlobalObject>::cast(receiver);
     DCHECK(!global->HasFastProperties());
-    Handle<GlobalDictionary> dictionary(global->global_dictionary(isolate_),
-                                        isolate_);
+    Handle<GlobalDictionary> dictionary(
+        global->global_dictionary(isolate_, kAcquireLoad), isolate_);
 
     dictionary =
         GlobalDictionary::Add(isolate_, dictionary, name(), transition_cell(),
                               property_details_, &number_);
-    global->set_global_dictionary(*dictionary);
+    global->set_global_dictionary(*dictionary, kReleaseStore);
 
     // Reload details containing proper enumeration index value.
     property_details_ = transition_cell()->property_details();
@@ -862,8 +844,8 @@ Handle<Object> LookupIterator::FetchValue(
     return accessor->Get(holder, number_);
   } else if (holder_->IsJSGlobalObject(isolate_)) {
     Handle<JSGlobalObject> holder = GetHolder<JSGlobalObject>();
-    result = holder->global_dictionary(isolate_).ValueAt(isolate_,
-                                                         dictionary_entry());
+    result = holder->global_dictionary(isolate_, kAcquireLoad)
+                 .ValueAt(isolate_, dictionary_entry());
   } else if (!holder_->HasFastProperties(isolate_)) {
     if (V8_DICT_MODE_PROTOTYPES_BOOL) {
       result = holder_->property_dictionary_ordered(isolate_).ValueAt(
@@ -983,9 +965,9 @@ Handle<FieldType> LookupIterator::GetFieldType() const {
 Handle<PropertyCell> LookupIterator::GetPropertyCell() const {
   DCHECK(!IsElement(*holder_));
   Handle<JSGlobalObject> holder = GetHolder<JSGlobalObject>();
-  return handle(
-      holder->global_dictionary(isolate_).CellAt(isolate_, dictionary_entry()),
-      isolate_);
+  return handle(holder->global_dictionary(isolate_, kAcquireLoad)
+                    .CellAt(isolate_, dictionary_entry()),
+                isolate_);
 }
 
 Handle<Object> LookupIterator::GetAccessors() const {
@@ -1023,7 +1005,7 @@ void LookupIterator::WriteDataValue(Handle<Object> value,
     }
   } else if (holder->IsJSGlobalObject(isolate_)) {
     GlobalDictionary dictionary =
-        JSGlobalObject::cast(*holder).global_dictionary(isolate_);
+        JSGlobalObject::cast(*holder).global_dictionary(isolate_, kAcquireLoad);
     dictionary.CellAt(isolate_, dictionary_entry()).set_value(*value);
   } else {
     DCHECK_IMPLIES(holder->IsJSProxy(isolate_), name()->IsPrivate(isolate_));
@@ -1060,7 +1042,7 @@ bool LookupIterator::SkipInterceptor(JSObject holder) {
 }
 
 JSReceiver LookupIterator::NextHolder(Map map) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   if (map.prototype(isolate_) == ReadOnlyRoots(isolate_).null_value()) {
     return JSReceiver();
   }
@@ -1118,8 +1100,8 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
       V8_FALLTHROUGH;
     case INTERCEPTOR:
       if (map.IsJSGlobalObjectMap() && !is_js_array_element(is_element)) {
-        GlobalDictionary dict =
-            JSGlobalObject::cast(holder).global_dictionary(isolate_);
+        GlobalDictionary dict = JSGlobalObject::cast(holder).global_dictionary(
+            isolate_, kAcquireLoad);
         number_ = dict.FindEntry(isolate(), name_);
         if (number_.is_not_found()) return NOT_FOUND;
         PropertyCell cell = dict.CellAt(isolate_, number_);
@@ -1148,7 +1130,7 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
 template <bool is_element>
 LookupIterator::State LookupIterator::LookupInRegularHolder(
     Map const map, JSReceiver const holder) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   if (interceptor_state_ == InterceptorState::kProcessNonMasking) {
     return NOT_FOUND;
   }
@@ -1203,7 +1185,7 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
 Handle<InterceptorInfo> LookupIterator::GetInterceptorForFailedAccessCheck()
     const {
   DCHECK_EQ(ACCESS_CHECK, state_);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   AccessCheckInfo access_check_info =
       AccessCheckInfo::Get(isolate_, Handle<JSObject>::cast(holder_));
   if (!access_check_info.is_null()) {

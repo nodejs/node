@@ -106,6 +106,7 @@ class V8_EXPORT V8StackTrace {
   virtual int topLineNumber() const = 0;
   virtual int topColumnNumber() const = 0;
   virtual StringView topScriptId() const = 0;
+  virtual int topScriptIdAsInteger() const = 0;
   virtual StringView topFunctionName() const = 0;
 
   virtual ~V8StackTrace() = default;
@@ -228,6 +229,10 @@ class V8_EXPORT V8InspectorClient {
       const StringView& resourceName) {
     return nullptr;
   }
+
+  // The caller would defer to generating a random 64 bit integer if
+  // this method returns 0.
+  virtual int64_t generateUniqueId() { return 0; }
 };
 
 // These stack trace ids are intended to be passed between debuggers and be

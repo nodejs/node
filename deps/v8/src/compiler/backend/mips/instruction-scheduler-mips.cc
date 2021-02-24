@@ -70,6 +70,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsI64x2Shl:
     case kMipsI64x2ShrS:
     case kMipsI64x2ShrU:
+    case kMipsI64x2BitMask:
+    case kMipsI64x2Eq:
+    case kMipsI64x2ExtMulLowI32x4S:
+    case kMipsI64x2ExtMulHighI32x4S:
+    case kMipsI64x2ExtMulLowI32x4U:
+    case kMipsI64x2ExtMulHighI32x4U:
     case kMipsF32x4Abs:
     case kMipsF32x4Add:
     case kMipsF32x4AddHoriz:
@@ -151,6 +157,11 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsI16x8UConvertI8x16Low:
     case kMipsI16x8Abs:
     case kMipsI16x8BitMask:
+    case kMipsI16x8Q15MulRSatS:
+    case kMipsI16x8ExtMulLowI8x16S:
+    case kMipsI16x8ExtMulHighI8x16S:
+    case kMipsI16x8ExtMulLowI8x16U:
+    case kMipsI16x8ExtMulHighI8x16U:
     case kMipsI32x4Add:
     case kMipsI32x4AddHoriz:
     case kMipsI32x4Eq:
@@ -181,6 +192,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsI32x4Abs:
     case kMipsI32x4BitMask:
     case kMipsI32x4DotI16x8S:
+    case kMipsI32x4ExtMulLowI16x8S:
+    case kMipsI32x4ExtMulHighI16x8S:
+    case kMipsI32x4ExtMulLowI16x8U:
+    case kMipsI32x4ExtMulHighI16x8U:
     case kMipsI8x16Add:
     case kMipsI8x16AddSatS:
     case kMipsI8x16AddSatU:
@@ -330,7 +345,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
       return kIsLoadOperation;
 
     case kMipsModD:
-    case kMipsModS:
     case kMipsMsaSt:
     case kMipsPush:
     case kMipsSb:
@@ -1530,7 +1544,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return RorLatency(instr->InputAt(1)->IsRegister());
     case kMipsLsa:
       return LsaLatency();
-    case kMipsModS:
     case kMipsModD:
       return PrepareCallCFunctionLatency() + MovToFloatParametersLatency() +
              CallCFunctionLatency() + MovFromFloatResultLatency();

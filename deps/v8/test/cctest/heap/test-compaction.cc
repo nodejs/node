@@ -100,7 +100,7 @@ int GetObjectSize(int objects_per_page) {
   // Make sure that object_size is a multiple of kTaggedSize.
   int object_size =
       ((allocatable / kTaggedSize) / objects_per_page) * kTaggedSize;
-  return Min(kMaxRegularHeapObjectSize, object_size);
+  return std::min(kMaxRegularHeapObjectSize, object_size);
 }
 
 }  // namespace

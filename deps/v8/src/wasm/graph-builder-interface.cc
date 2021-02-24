@@ -39,9 +39,10 @@ struct SsaEnv : public ZoneObject {
 
   SsaEnv(Zone* zone, State state, TFNode* control, TFNode* effect,
          uint32_t locals_size)
-      : state(state), control(control), effect(effect), locals(zone) {
-    if (locals_size > 0) locals.resize(locals_size);
-  }
+      : state(state),
+        control(control),
+        effect(effect),
+        locals(locals_size, zone) {}
 
   SsaEnv(const SsaEnv& other) V8_NOEXCEPT = default;
   SsaEnv(SsaEnv&& other) V8_NOEXCEPT : state(other.state),
@@ -54,7 +55,9 @@ struct SsaEnv : public ZoneObject {
 
   void Kill(State new_state = kControlEnd) {
     state = new_state;
-    locals.clear();
+    for (TFNode*& local : locals) {
+      local = nullptr;
+    }
     control = nullptr;
     effect = nullptr;
     instance_cache = {};
@@ -121,10 +124,8 @@ class WasmGraphBuildingInterface {
     uint32_t num_locals = decoder->num_locals();
     SsaEnv* ssa_env = decoder->zone()->New<SsaEnv>(
         decoder->zone(), SsaEnv::kReached, start, start, num_locals);
+    SetEnv(ssa_env);
 
-    // Initialize effect and control before initializing the locals default
-    // values (which might require instance loads) or loading the context.
-    builder_->SetEffectControl(start);
     // Initialize the instance parameter (index 0).
     builder_->set_instance_node(builder_->Param(kWasmInstanceParameterIndex));
     // Initialize local variables. Parameters are shifted by 1 because of the
@@ -141,7 +142,6 @@ class WasmGraphBuildingInterface {
         ssa_env->locals[index++] = node;
       }
     }
-    SetEnv(ssa_env);
     LoadContextIntoSsa(ssa_env);
 
     if (FLAG_trace_wasm) BUILD(TraceFunctionEntry, decoder->position());
@@ -280,7 +280,7 @@ class WasmGraphBuildingInterface {
     result->node = BUILD(RefAsNonNull, arg.node, decoder->position());
   }
 
-  void Drop(FullDecoder* decoder, const Value& value) {}
+  void Drop(FullDecoder* decoder) {}
 
   void DoReturn(FullDecoder* decoder, Vector<Value> values) {
     base::SmallVector<TFNode*, 8> nodes(values.size());
@@ -362,14 +362,14 @@ class WasmGraphBuildingInterface {
       if (ret_count > 0) {
         GetNodes(values.begin(), decoder->stack_value(ret_count), ret_count);
       }
+      if (FLAG_trace_wasm) {
+        BUILD(TraceFunctionExit, VectorOf(values), decoder->position());
+      }
       BUILD(Return, VectorOf(values));
     } else {
-      Br(decoder, decoder->control_at(depth));
+      Control* target = decoder->control_at(depth);
+      MergeValuesInto(decoder, target, target->br_merge());
     }
-  }
-
-  void Br(FullDecoder* decoder, Control* target) {
-    MergeValuesInto(decoder, target, target->br_merge());
   }
 
   void BrIf(FullDecoder* decoder, const Value& cond, uint32_t depth) {
@@ -419,6 +419,12 @@ class WasmGraphBuildingInterface {
     SetEnv(if_block->false_env);
   }
 
+  void Prefetch(FullDecoder* decoder,
+                const MemoryAccessImmediate<validate>& imm, const Value& index,
+                bool temporal) {
+    BUILD(Prefetch, index.node, imm.offset, imm.alignment, temporal);
+  }
+
   void LoadMem(FullDecoder* decoder, LoadType type,
                const MemoryAccessImmediate<validate>& imm, const Value& index,
                Value* result) {
@@ -439,8 +445,9 @@ class WasmGraphBuildingInterface {
   void LoadLane(FullDecoder* decoder, LoadType type, const Value& value,
                 const Value& index, const MemoryAccessImmediate<validate>& imm,
                 const uint8_t laneidx, Value* result) {
-    result->node = BUILD(LoadLane, type.mem_type(), value.node, index.node,
-                         imm.offset, laneidx, decoder->position());
+    result->node = BUILD(LoadLane, type.value_type(), type.mem_type(),
+                         value.node, index.node, imm.offset, imm.alignment,
+                         laneidx, decoder->position());
   }
 
   void StoreMem(FullDecoder* decoder, StoreType type,
@@ -565,45 +572,94 @@ class WasmGraphBuildingInterface {
     builder_->TerminateThrow(effect(), control());
   }
 
-  void Rethrow(FullDecoder* decoder, const Value& exception) {
-    BUILD(Rethrow, exception.node);
+  void Rethrow(FullDecoder* decoder, Control* block) {
+    DCHECK(block->is_try_catchall() || block->is_try_catch() ||
+           block->is_try_unwind());
+    TFNode* exception = block->try_info->exception;
+    DCHECK_NOT_NULL(exception);
+    BUILD(Rethrow, exception);
     builder_->TerminateThrow(effect(), control());
   }
 
-  void BrOnException(FullDecoder* decoder, const Value& exception,
-                     const ExceptionIndexImmediate<validate>& imm,
-                     uint32_t depth, Vector<Value> values) {
-    TFNode* if_match = nullptr;
-    TFNode* if_no_match = nullptr;
+  void CatchException(FullDecoder* decoder,
+                      const ExceptionIndexImmediate<validate>& imm,
+                      Control* block, Vector<Value> values) {
+    DCHECK(block->is_try_catch());
+
+    current_catch_ = block->previous_catch;  // Pop try scope.
+
+    // The catch block is unreachable if no possible throws in the try block
+    // exist. We only build a landing pad if some node in the try block can
+    // (possibly) throw. Otherwise the catch environments remain empty.
+    if (!block->try_info->might_throw()) {
+      block->reachability = kSpecOnlyReachable;
+      return;
+    }
+
+    TFNode* exception = block->try_info->exception;
+    SetEnv(block->try_info->catch_env);
+
+    TFNode* if_catch = nullptr;
+    TFNode* if_no_catch = nullptr;
 
     // Get the exception tag and see if it matches the expected one.
-    TFNode* caught_tag =
-        BUILD(GetExceptionTag, exception.node, decoder->position());
+    TFNode* caught_tag = BUILD(GetExceptionTag, exception);
     TFNode* exception_tag = BUILD(LoadExceptionTagFromTable, imm.index);
     TFNode* compare = BUILD(ExceptionTagEqual, caught_tag, exception_tag);
-    BUILD(BranchNoHint, compare, &if_match, &if_no_match);
-    SsaEnv* if_no_match_env = Split(decoder->zone(), ssa_env_);
-    SsaEnv* if_match_env = Steal(decoder->zone(), ssa_env_);
-    if_no_match_env->control = if_no_match;
-    if_match_env->control = if_match;
+    BUILD(BranchNoHint, compare, &if_catch, &if_no_catch);
+
+    // If the tags don't match we continue with the next tag by setting the
+    // false environment as the new {TryInfo::catch_env} here.
+    SsaEnv* if_no_catch_env = Split(decoder->zone(), ssa_env_);
+    if_no_catch_env->control = if_no_catch;
+    SsaEnv* if_catch_env = Steal(decoder->zone(), ssa_env_);
+    if_catch_env->control = if_catch;
+    block->try_info->catch_env = if_no_catch_env;
 
     // If the tags match we extract the values from the exception object and
     // push them onto the operand stack using the passed {values} vector.
-    SetEnv(if_match_env);
+    SetEnv(if_catch_env);
     base::SmallVector<TFNode*, 8> caught_values(values.size());
     Vector<TFNode*> caught_vector = VectorOf(caught_values);
-    BUILD(GetExceptionValues, exception.node, imm.exception, caught_vector);
+    BUILD(GetExceptionValues, exception, imm.exception, caught_vector);
     for (size_t i = 0, e = values.size(); i < e; ++i) {
-      values[i].node = caught_vector[i];
+      values[i].node = caught_values[i];
     }
-    BrOrRet(decoder, depth);
-
-    // If the tags don't match we fall-through here.
-    SetEnv(if_no_match_env);
   }
 
-  void Catch(FullDecoder* decoder, Control* block, Value* exception) {
-    DCHECK(block->is_try_catch());
+  void Delegate(FullDecoder* decoder, uint32_t depth, Control* block) {
+    DCHECK_EQ(decoder->control_at(0), block);
+    DCHECK(block->is_incomplete_try());
+
+    if (block->try_info->might_throw()) {
+      // Merge the current env into the target handler's env.
+      SetEnv(block->try_info->catch_env);
+      if (depth == decoder->control_depth() - 1) {
+        builder_->Rethrow(block->try_info->exception);
+        builder_->TerminateThrow(effect(), control());
+        current_catch_ = block->previous_catch;
+        return;
+      }
+      DCHECK(decoder->control_at(depth)->is_try());
+      TryInfo* target_try = decoder->control_at(depth)->try_info;
+      Goto(decoder, target_try->catch_env);
+
+      // Create or merge the exception.
+      if (target_try->catch_env->state == SsaEnv::kReached) {
+        target_try->exception = block->try_info->exception;
+      } else {
+        DCHECK_EQ(target_try->catch_env->state, SsaEnv::kMerged);
+        target_try->exception = builder_->CreateOrMergeIntoPhi(
+            MachineRepresentation::kTagged, target_try->catch_env->control,
+            target_try->exception, block->try_info->exception);
+      }
+    }
+    current_catch_ = block->previous_catch;
+  }
+
+  void CatchAll(FullDecoder* decoder, Control* block) {
+    DCHECK(block->is_try_catchall() || block->is_try_catch() ||
+           block->is_try_unwind());
     DCHECK_EQ(decoder->control_at(0), block);
 
     current_catch_ = block->previous_catch;  // Pop try scope.
@@ -617,8 +673,6 @@ class WasmGraphBuildingInterface {
     }
 
     SetEnv(block->try_info->catch_env);
-    DCHECK_NOT_NULL(block->try_info->exception);
-    exception->node = block->try_info->exception;
   }
 
   void AtomicOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
@@ -734,16 +788,18 @@ class WasmGraphBuildingInterface {
                        const ArrayIndexImmediate<validate>& imm,
                        const Value& length, const Value& initial_value,
                        const Value& rtt, Value* result) {
-    result->node = BUILD(ArrayNewWithRtt, imm.index, imm.array_type,
-                         length.node, initial_value.node, rtt.node);
+    result->node =
+        BUILD(ArrayNewWithRtt, imm.index, imm.array_type, length.node,
+              initial_value.node, rtt.node, decoder->position());
   }
 
   void ArrayNewDefault(FullDecoder* decoder,
                        const ArrayIndexImmediate<validate>& imm,
                        const Value& length, const Value& rtt, Value* result) {
     TFNode* initial_value = DefaultValue(imm.array_type->element_type());
-    result->node = BUILD(ArrayNewWithRtt, imm.index, imm.array_type,
-                         length.node, initial_value, rtt.node);
+    result->node =
+        BUILD(ArrayNewWithRtt, imm.index, imm.array_type, length.node,
+              initial_value, rtt.node, decoder->position());
   }
 
   void ArrayGet(FullDecoder* decoder, const Value& array_obj,
@@ -767,7 +823,11 @@ class WasmGraphBuildingInterface {
   }
 
   void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
-    result->node = BUILD(ArrayLen, array_obj.node, decoder->position());
+    CheckForNull null_check = array_obj.type.is_nullable()
+                                  ? CheckForNull::kWithNullCheck
+                                  : CheckForNull::kWithoutNullCheck;
+    result->node =
+        BUILD(ArrayLen, array_obj.node, null_check, decoder->position());
   }
 
   void I31New(FullDecoder* decoder, const Value& input, Value* result) {
@@ -792,70 +852,53 @@ class WasmGraphBuildingInterface {
     result->node = BUILD(RttSub, imm.type, parent.node);
   }
 
+  using StaticKnowledge = compiler::WasmGraphBuilder::ObjectReferenceKnowledge;
+
+  StaticKnowledge ComputeStaticKnowledge(ValueType object_type,
+                                         ValueType rtt_type,
+                                         const WasmModule* module) {
+    StaticKnowledge result;
+    result.object_can_be_null = object_type.is_nullable();
+    DCHECK(object_type.is_object_reference_type());  // Checked by validation.
+    result.object_must_be_data_ref = is_data_ref_type(object_type, module);
+    result.object_can_be_i31 = IsSubtypeOf(kWasmI31Ref, object_type, module);
+    result.rtt_is_i31 = rtt_type.heap_representation() == HeapType::kI31;
+    result.rtt_depth = rtt_type.depth();
+    return result;
+  }
+
   void RefTest(FullDecoder* decoder, const Value& object, const Value& rtt,
                Value* result) {
-    using CheckForI31 = compiler::WasmGraphBuilder::CheckForI31;
-    using RttIsI31 = compiler::WasmGraphBuilder::RttIsI31;
-    CheckForNull null_check = object.type.is_nullable()
-                                  ? CheckForNull::kWithNullCheck
-                                  : CheckForNull::kWithoutNullCheck;
-    CheckForI31 i31_check =
-        IsSubtypeOf(kWasmI31Ref, object.type, decoder->module_)
-            ? CheckForI31::kWithI31Check
-            : CheckForI31::kNoI31Check;
-    RttIsI31 rtt_is_i31 = rtt.type.heap_representation() == HeapType::kI31
-                              ? RttIsI31::kRttIsI31
-                              : RttIsI31::kRttIsNotI31;
-    result->node = BUILD(RefTest, object.node, rtt.node, null_check, i31_check,
-                         rtt_is_i31);
+    StaticKnowledge config =
+        ComputeStaticKnowledge(object.type, rtt.type, decoder->module_);
+    result->node = BUILD(RefTest, object.node, rtt.node, config);
   }
 
   void RefCast(FullDecoder* decoder, const Value& object, const Value& rtt,
                Value* result) {
-    using CheckForI31 = compiler::WasmGraphBuilder::CheckForI31;
-    using RttIsI31 = compiler::WasmGraphBuilder::RttIsI31;
-    CheckForNull null_check = object.type.is_nullable()
-                                  ? CheckForNull::kWithNullCheck
-                                  : CheckForNull::kWithoutNullCheck;
-    CheckForI31 i31_check =
-        IsSubtypeOf(kWasmI31Ref, object.type, decoder->module_)
-            ? CheckForI31::kWithI31Check
-            : CheckForI31::kNoI31Check;
-    RttIsI31 rtt_is_i31 = rtt.type.heap_representation() == HeapType::kI31
-                              ? RttIsI31::kRttIsI31
-                              : RttIsI31::kRttIsNotI31;
-    result->node = BUILD(RefCast, object.node, rtt.node, null_check, i31_check,
-                         rtt_is_i31, decoder->position());
+    StaticKnowledge config =
+        ComputeStaticKnowledge(object.type, rtt.type, decoder->module_);
+    result->node =
+        BUILD(RefCast, object.node, rtt.node, config, decoder->position());
   }
 
   void BrOnCast(FullDecoder* decoder, const Value& object, const Value& rtt,
-                Value* value_on_branch, uint32_t depth) {
-    using CheckForI31 = compiler::WasmGraphBuilder::CheckForI31;
-    using RttIsI31 = compiler::WasmGraphBuilder::RttIsI31;
-    CheckForNull null_check = object.type.is_nullable()
-                                  ? CheckForNull::kWithNullCheck
-                                  : CheckForNull::kWithoutNullCheck;
-    CheckForI31 i31_check =
-        IsSubtypeOf(kWasmI31Ref, object.type, decoder->module_)
-            ? CheckForI31::kWithI31Check
-            : CheckForI31::kNoI31Check;
-    RttIsI31 rtt_is_i31 = rtt.type.heap_representation() == HeapType::kI31
-                              ? RttIsI31::kRttIsI31
-                              : RttIsI31::kRttIsNotI31;
+                Value* value_on_branch, uint32_t br_depth) {
+    StaticKnowledge config =
+        ComputeStaticKnowledge(object.type, rtt.type, decoder->module_);
     SsaEnv* match_env = Split(decoder->zone(), ssa_env_);
     SsaEnv* no_match_env = Steal(decoder->zone(), ssa_env_);
     no_match_env->SetNotMerged();
-    BUILD(BrOnCast, object.node, rtt.node, null_check, i31_check, rtt_is_i31,
-          &match_env->control, &match_env->effect, &no_match_env->control,
-          &no_match_env->effect);
+    BUILD(BrOnCast, object.node, rtt.node, config, &match_env->control,
+          &match_env->effect, &no_match_env->control, &no_match_env->effect);
     builder_->SetControl(no_match_env->control);
     SetEnv(match_env);
     value_on_branch->node = object.node;
-    BrOrRet(decoder, depth);
+    BrOrRet(decoder, br_depth);
     SetEnv(no_match_env);
   }
 
-  void PassThrough(FullDecoder* decoder, const Value& from, Value* to) {
+  void Forward(FullDecoder* decoder, const Value& from, Value* to) {
     to->node = from.node;
   }
 
@@ -869,6 +912,7 @@ class WasmGraphBuildingInterface {
   TFNode* control() { return builder_->control(); }
 
   TryInfo* current_try_info(FullDecoder* decoder) {
+    DCHECK_LT(current_catch_, decoder->control_depth());
     return decoder->control_at(decoder->control_depth() - 1 - current_catch_)
         ->try_info;
   }
@@ -1018,7 +1062,14 @@ class WasmGraphBuildingInterface {
     switch (to->state) {
       case SsaEnv::kUnreachable: {  // Overwrite destination.
         to->state = SsaEnv::kReached;
+        // There might be an offset in the locals due to a 'let'.
+        DCHECK_EQ(ssa_env_->locals.size(), decoder->num_locals());
+        DCHECK_GE(ssa_env_->locals.size(), to->locals.size());
+        uint32_t local_count_diff =
+            static_cast<uint32_t>(ssa_env_->locals.size() - to->locals.size());
         to->locals = ssa_env_->locals;
+        to->locals.erase(to->locals.begin(),
+                         to->locals.begin() + local_count_diff);
         to->control = control();
         to->effect = effect();
         to->instance_cache = ssa_env_->instance_cache;
@@ -1036,13 +1087,19 @@ class WasmGraphBuildingInterface {
           TFNode* inputs[] = {to->effect, old_effect, merge};
           to->effect = builder_->EffectPhi(2, inputs);
         }
-        // Merge SSA values.
-        for (int i = decoder->num_locals() - 1; i >= 0; i--) {
+        // Merge locals.
+        // There might be an offset in the locals due to a 'let'.
+        DCHECK_EQ(ssa_env_->locals.size(), decoder->num_locals());
+        DCHECK_GE(ssa_env_->locals.size(), to->locals.size());
+        uint32_t local_count_diff =
+            static_cast<uint32_t>(ssa_env_->locals.size() - to->locals.size());
+        for (uint32_t i = 0; i < to->locals.size(); i++) {
           TFNode* a = to->locals[i];
-          TFNode* b = ssa_env_->locals[i];
+          TFNode* b = ssa_env_->locals[i + local_count_diff];
           if (a != b) {
             TFNode* inputs[] = {a, b, merge};
-            to->locals[i] = builder_->Phi(decoder->local_type(i), 2, inputs);
+            to->locals[i] = builder_->Phi(
+                decoder->local_type(i + local_count_diff), 2, inputs);
           }
         }
         // Start a new merge from the instance cache.
@@ -1058,10 +1115,16 @@ class WasmGraphBuildingInterface {
         to->effect =
             builder_->CreateOrMergeIntoEffectPhi(merge, to->effect, effect());
         // Merge locals.
-        for (int i = decoder->num_locals() - 1; i >= 0; i--) {
+        // There might be an offset in the locals due to a 'let'.
+        DCHECK_EQ(ssa_env_->locals.size(), decoder->num_locals());
+        DCHECK_GE(ssa_env_->locals.size(), to->locals.size());
+        uint32_t local_count_diff =
+            static_cast<uint32_t>(ssa_env_->locals.size() - to->locals.size());
+        for (uint32_t i = 0; i < to->locals.size(); i++) {
           to->locals[i] = builder_->CreateOrMergeIntoPhi(
-              decoder->local_type(i).machine_representation(), merge,
-              to->locals[i], ssa_env_->locals[i]);
+              decoder->local_type(i + local_count_diff)
+                  .machine_representation(),
+              merge, to->locals[i], ssa_env_->locals[i + local_count_diff]);
         }
         // Merge the instance caches.
         builder_->MergeInstanceCacheInto(&to->instance_cache,
@@ -1081,9 +1144,10 @@ class WasmGraphBuildingInterface {
     TFNode* effect_inputs[] = {effect(), control()};
     builder_->SetEffect(builder_->EffectPhi(1, effect_inputs));
     builder_->TerminateLoop(effect(), control());
-    // The '+ 1' here is to be able to set the instance cache as assigned.
+    // Doing a preprocessing pass to analyze loop assignments seems to pay off
+    // compared to reallocating Nodes when rearranging Phis in Goto.
     BitVector* assigned = WasmDecoder<validate>::AnalyzeLoopAssignment(
-        decoder, decoder->pc(), decoder->num_locals() + 1, decoder->zone());
+        decoder, decoder->pc(), decoder->num_locals(), decoder->zone());
     if (decoder->failed()) return;
     DCHECK_NOT_NULL(assigned);
 
@@ -1125,6 +1189,8 @@ class WasmGraphBuildingInterface {
       ssa_env_->effect = effect();
     }
     SsaEnv* result = zone->New<SsaEnv>(std::move(*from));
+    // Restore the length of {from->locals} after applying move-constructor.
+    from->locals.resize(result->locals.size());
     result->state = SsaEnv::kReached;
     return result;
   }

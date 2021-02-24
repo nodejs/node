@@ -38,7 +38,9 @@ class ThreadLocalTop {
 
   // Does early low-level initialization that does not depend on the
   // isolate being present.
-  ThreadLocalTop() = default;
+  ThreadLocalTop() { Clear(); }
+
+  void Clear();
 
   // Initialize the thread data.
   void Initialize(Isolate*);
@@ -48,7 +50,7 @@ class ThreadLocalTop {
   // This field is not guaranteed to hold an address that can be
   // used for comparison with addresses into the JS stack. If such
   // an address is needed, use try_catch_handler_address.
-  v8::TryCatch* try_catch_handler_ = nullptr;
+  v8::TryCatch* try_catch_handler_;
 
   // Get the address of the top C++ try catch handler or nullptr if
   // none are registered.
@@ -92,7 +94,7 @@ class ThreadLocalTop {
 
   void Free();
 
-  Isolate* isolate_ = nullptr;
+  Isolate* isolate_;
   // The context where the current execution method is created and for variable
   // lookups.
   // TODO(3770): This field is read/written from generated code, so it would
@@ -101,58 +103,58 @@ class ThreadLocalTop {
   // meantime, assert that the memory layout is the same.
   STATIC_ASSERT(sizeof(Context) == kSystemPointerSize);
   Context context_;
-  ThreadId thread_id_ = ThreadId::Invalid();
+  std::atomic<ThreadId> thread_id_;
   Object pending_exception_;
 
   // Communication channel between Isolate::FindHandler and the CEntry.
   Context pending_handler_context_;
-  Address pending_handler_entrypoint_ = kNullAddress;
-  Address pending_handler_constant_pool_ = kNullAddress;
-  Address pending_handler_fp_ = kNullAddress;
-  Address pending_handler_sp_ = kNullAddress;
+  Address pending_handler_entrypoint_;
+  Address pending_handler_constant_pool_;
+  Address pending_handler_fp_;
+  Address pending_handler_sp_;
 
-  Address last_api_entry_ = kNullAddress;
+  Address last_api_entry_;
 
   // Communication channel between Isolate::Throw and message consumers.
   Object pending_message_obj_;
-  bool rethrowing_message_ = false;
+  bool rethrowing_message_;
 
   // Use a separate value for scheduled exceptions to preserve the
   // invariants that hold about pending_exception.  We may want to
   // unify them later.
-  bool external_caught_exception_ = false;
+  bool external_caught_exception_;
   Object scheduled_exception_;
 
   // Stack.
   // The frame pointer of the top c entry frame.
-  Address c_entry_fp_ = kNullAddress;
+  Address c_entry_fp_;
   // Try-blocks are chained through the stack.
-  Address handler_ = kNullAddress;
+  Address handler_;
   // C function that was called at c entry.
-  Address c_function_ = kNullAddress;
+  Address c_function_;
 
   // Throwing an exception may cause a Promise rejection.  For this purpose
   // we keep track of a stack of nested promises and the corresponding
   // try-catch handlers.
-  PromiseOnStack* promise_on_stack_ = nullptr;
+  PromiseOnStack* promise_on_stack_;
 
   // Simulator field is always present to get predictable layout.
-  Simulator* simulator_ = nullptr;
+  Simulator* simulator_;
 
   // The stack pointer of the bottom JS entry frame.
-  Address js_entry_sp_ = kNullAddress;
+  Address js_entry_sp_;
   // The external callback we're currently in.
-  ExternalCallbackScope* external_callback_scope_ = nullptr;
-  StateTag current_vm_state_ = EXTERNAL;
+  ExternalCallbackScope* external_callback_scope_;
+  StateTag current_vm_state_;
 
   // Call back function to report unsafe JS accesses.
-  v8::FailedAccessCheckCallback failed_access_check_callback_ = nullptr;
+  v8::FailedAccessCheckCallback failed_access_check_callback_;
 
   // Address of the thread-local "thread in wasm" flag.
-  Address thread_in_wasm_flag_address_ = kNullAddress;
+  Address thread_in_wasm_flag_address_;
 
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  ::heap::base::Stack stack_ = ::heap::base::Stack(nullptr);
+  ::heap::base::Stack stack_;
 #endif
 };
 

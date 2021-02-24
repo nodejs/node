@@ -193,7 +193,7 @@ namespace {
 constexpr uint32_t kFloat32SignBitMask = uint32_t{1} << 31;
 constexpr uint64_t kFloat64SignBitMask = uint64_t{1} << 63;
 
-inline int32_t ExecuteI32DivS(int32_t a, int32_t b, TrapReason* trap) {
+int32_t ExecuteI32DivS(int32_t a, int32_t b, TrapReason* trap) {
   if (b == 0) {
     *trap = kTrapDivByZero;
     return 0;
@@ -205,7 +205,7 @@ inline int32_t ExecuteI32DivS(int32_t a, int32_t b, TrapReason* trap) {
   return a / b;
 }
 
-inline uint32_t ExecuteI32DivU(uint32_t a, uint32_t b, TrapReason* trap) {
+uint32_t ExecuteI32DivU(uint32_t a, uint32_t b, TrapReason* trap) {
   if (b == 0) {
     *trap = kTrapDivByZero;
     return 0;
@@ -213,7 +213,7 @@ inline uint32_t ExecuteI32DivU(uint32_t a, uint32_t b, TrapReason* trap) {
   return a / b;
 }
 
-inline int32_t ExecuteI32RemS(int32_t a, int32_t b, TrapReason* trap) {
+int32_t ExecuteI32RemS(int32_t a, int32_t b, TrapReason* trap) {
   if (b == 0) {
     *trap = kTrapRemByZero;
     return 0;
@@ -222,7 +222,7 @@ inline int32_t ExecuteI32RemS(int32_t a, int32_t b, TrapReason* trap) {
   return a % b;
 }
 
-inline uint32_t ExecuteI32RemU(uint32_t a, uint32_t b, TrapReason* trap) {
+uint32_t ExecuteI32RemU(uint32_t a, uint32_t b, TrapReason* trap) {
   if (b == 0) {
     *trap = kTrapRemByZero;
     return 0;
@@ -230,19 +230,19 @@ inline uint32_t ExecuteI32RemU(uint32_t a, uint32_t b, TrapReason* trap) {
   return a % b;
 }
 
-inline uint32_t ExecuteI32Shl(uint32_t a, uint32_t b, TrapReason* trap) {
+uint32_t ExecuteI32Shl(uint32_t a, uint32_t b, TrapReason* trap) {
   return a << (b & 0x1F);
 }
 
-inline uint32_t ExecuteI32ShrU(uint32_t a, uint32_t b, TrapReason* trap) {
+uint32_t ExecuteI32ShrU(uint32_t a, uint32_t b, TrapReason* trap) {
   return a >> (b & 0x1F);
 }
 
-inline int32_t ExecuteI32ShrS(int32_t a, int32_t b, TrapReason* trap) {
+int32_t ExecuteI32ShrS(int32_t a, int32_t b, TrapReason* trap) {
   return a >> (b & 0x1F);
 }
 
-inline int64_t ExecuteI64DivS(int64_t a, int64_t b, TrapReason* trap) {
+int64_t ExecuteI64DivS(int64_t a, int64_t b, TrapReason* trap) {
   if (b == 0) {
     *trap = kTrapDivByZero;
     return 0;
@@ -254,7 +254,7 @@ inline int64_t ExecuteI64DivS(int64_t a, int64_t b, TrapReason* trap) {
   return a / b;
 }
 
-inline uint64_t ExecuteI64DivU(uint64_t a, uint64_t b, TrapReason* trap) {
+uint64_t ExecuteI64DivU(uint64_t a, uint64_t b, TrapReason* trap) {
   if (b == 0) {
     *trap = kTrapDivByZero;
     return 0;
@@ -262,7 +262,7 @@ inline uint64_t ExecuteI64DivU(uint64_t a, uint64_t b, TrapReason* trap) {
   return a / b;
 }
 
-inline int64_t ExecuteI64RemS(int64_t a, int64_t b, TrapReason* trap) {
+int64_t ExecuteI64RemS(int64_t a, int64_t b, TrapReason* trap) {
   if (b == 0) {
     *trap = kTrapRemByZero;
     return 0;
@@ -271,7 +271,7 @@ inline int64_t ExecuteI64RemS(int64_t a, int64_t b, TrapReason* trap) {
   return a % b;
 }
 
-inline uint64_t ExecuteI64RemU(uint64_t a, uint64_t b, TrapReason* trap) {
+uint64_t ExecuteI64RemU(uint64_t a, uint64_t b, TrapReason* trap) {
   if (b == 0) {
     *trap = kTrapRemByZero;
     return 0;
@@ -279,61 +279,57 @@ inline uint64_t ExecuteI64RemU(uint64_t a, uint64_t b, TrapReason* trap) {
   return a % b;
 }
 
-inline uint64_t ExecuteI64Shl(uint64_t a, uint64_t b, TrapReason* trap) {
+uint64_t ExecuteI64Shl(uint64_t a, uint64_t b, TrapReason* trap) {
   return a << (b & 0x3F);
 }
 
-inline uint64_t ExecuteI64ShrU(uint64_t a, uint64_t b, TrapReason* trap) {
+uint64_t ExecuteI64ShrU(uint64_t a, uint64_t b, TrapReason* trap) {
   return a >> (b & 0x3F);
 }
 
-inline int64_t ExecuteI64ShrS(int64_t a, int64_t b, TrapReason* trap) {
+int64_t ExecuteI64ShrS(int64_t a, int64_t b, TrapReason* trap) {
   return a >> (b & 0x3F);
 }
 
-inline uint32_t ExecuteI32Ror(uint32_t a, uint32_t b, TrapReason* trap) {
+uint32_t ExecuteI32Ror(uint32_t a, uint32_t b, TrapReason* trap) {
   return (a >> (b & 0x1F)) | (a << ((32 - b) & 0x1F));
 }
 
-inline uint32_t ExecuteI32Rol(uint32_t a, uint32_t b, TrapReason* trap) {
+uint32_t ExecuteI32Rol(uint32_t a, uint32_t b, TrapReason* trap) {
   return (a << (b & 0x1F)) | (a >> ((32 - b) & 0x1F));
 }
 
-inline uint64_t ExecuteI64Ror(uint64_t a, uint64_t b, TrapReason* trap) {
+uint64_t ExecuteI64Ror(uint64_t a, uint64_t b, TrapReason* trap) {
   return (a >> (b & 0x3F)) | (a << ((64 - b) & 0x3F));
 }
 
-inline uint64_t ExecuteI64Rol(uint64_t a, uint64_t b, TrapReason* trap) {
+uint64_t ExecuteI64Rol(uint64_t a, uint64_t b, TrapReason* trap) {
   return (a << (b & 0x3F)) | (a >> ((64 - b) & 0x3F));
 }
 
-inline float ExecuteF32Min(float a, float b, TrapReason* trap) {
-  return JSMin(a, b);
-}
+float ExecuteF32Min(float a, float b, TrapReason* trap) { return JSMin(a, b); }
 
-inline float ExecuteF32Max(float a, float b, TrapReason* trap) {
-  return JSMax(a, b);
-}
+float ExecuteF32Max(float a, float b, TrapReason* trap) { return JSMax(a, b); }
 
-inline Float32 ExecuteF32CopySign(Float32 a, Float32 b, TrapReason* trap) {
+Float32 ExecuteF32CopySign(Float32 a, Float32 b, TrapReason* trap) {
   return Float32::FromBits((a.get_bits() & ~kFloat32SignBitMask) |
                            (b.get_bits() & kFloat32SignBitMask));
 }
 
-inline double ExecuteF64Min(double a, double b, TrapReason* trap) {
+double ExecuteF64Min(double a, double b, TrapReason* trap) {
   return JSMin(a, b);
 }
 
-inline double ExecuteF64Max(double a, double b, TrapReason* trap) {
+double ExecuteF64Max(double a, double b, TrapReason* trap) {
   return JSMax(a, b);
 }
 
-inline Float64 ExecuteF64CopySign(Float64 a, Float64 b, TrapReason* trap) {
+Float64 ExecuteF64CopySign(Float64 a, Float64 b, TrapReason* trap) {
   return Float64::FromBits((a.get_bits() & ~kFloat64SignBitMask) |
                            (b.get_bits() & kFloat64SignBitMask));
 }
 
-inline int32_t ExecuteI32AsmjsDivS(int32_t a, int32_t b, TrapReason* trap) {
+int32_t ExecuteI32AsmjsDivS(int32_t a, int32_t b, TrapReason* trap) {
   if (b == 0) return 0;
   if (b == -1 && a == std::numeric_limits<int32_t>::min()) {
     return std::numeric_limits<int32_t>::min();
@@ -341,35 +337,35 @@ inline int32_t ExecuteI32AsmjsDivS(int32_t a, int32_t b, TrapReason* trap) {
   return a / b;
 }
 
-inline uint32_t ExecuteI32AsmjsDivU(uint32_t a, uint32_t b, TrapReason* trap) {
+uint32_t ExecuteI32AsmjsDivU(uint32_t a, uint32_t b, TrapReason* trap) {
   if (b == 0) return 0;
   return a / b;
 }
 
-inline int32_t ExecuteI32AsmjsRemS(int32_t a, int32_t b, TrapReason* trap) {
+int32_t ExecuteI32AsmjsRemS(int32_t a, int32_t b, TrapReason* trap) {
   if (b == 0) return 0;
   if (b == -1) return 0;
   return a % b;
 }
 
-inline uint32_t ExecuteI32AsmjsRemU(uint32_t a, uint32_t b, TrapReason* trap) {
+uint32_t ExecuteI32AsmjsRemU(uint32_t a, uint32_t b, TrapReason* trap) {
   if (b == 0) return 0;
   return a % b;
 }
 
-inline int32_t ExecuteI32AsmjsSConvertF32(float a, TrapReason* trap) {
+int32_t ExecuteI32AsmjsSConvertF32(float a, TrapReason* trap) {
   return DoubleToInt32(a);
 }
 
-inline uint32_t ExecuteI32AsmjsUConvertF32(float a, TrapReason* trap) {
+uint32_t ExecuteI32AsmjsUConvertF32(float a, TrapReason* trap) {
   return DoubleToUint32(a);
 }
 
-inline int32_t ExecuteI32AsmjsSConvertF64(double a, TrapReason* trap) {
+int32_t ExecuteI32AsmjsSConvertF64(double a, TrapReason* trap) {
   return DoubleToInt32(a);
 }
 
-inline uint32_t ExecuteI32AsmjsUConvertF64(double a, TrapReason* trap) {
+uint32_t ExecuteI32AsmjsUConvertF64(double a, TrapReason* trap) {
   return DoubleToUint32(a);
 }
 
@@ -385,7 +381,7 @@ uint32_t ExecuteI32Popcnt(uint32_t val, TrapReason* trap) {
   return base::bits::CountPopulation(val);
 }
 
-inline uint32_t ExecuteI32Eqz(uint32_t val, TrapReason* trap) {
+uint32_t ExecuteI32Eqz(uint32_t val, TrapReason* trap) {
   return val == 0 ? 1 : 0;
 }
 
@@ -393,60 +389,56 @@ int64_t ExecuteI64Clz(uint64_t val, TrapReason* trap) {
   return base::bits::CountLeadingZeros(val);
 }
 
-inline uint64_t ExecuteI64Ctz(uint64_t val, TrapReason* trap) {
+uint64_t ExecuteI64Ctz(uint64_t val, TrapReason* trap) {
   return base::bits::CountTrailingZeros(val);
 }
 
-inline int64_t ExecuteI64Popcnt(uint64_t val, TrapReason* trap) {
+int64_t ExecuteI64Popcnt(uint64_t val, TrapReason* trap) {
   return base::bits::CountPopulation(val);
 }
 
-inline int32_t ExecuteI64Eqz(uint64_t val, TrapReason* trap) {
+int32_t ExecuteI64Eqz(uint64_t val, TrapReason* trap) {
   return val == 0 ? 1 : 0;
 }
 
-inline Float32 ExecuteF32Abs(Float32 a, TrapReason* trap) {
+Float32 ExecuteF32Abs(Float32 a, TrapReason* trap) {
   return Float32::FromBits(a.get_bits() & ~kFloat32SignBitMask);
 }
 
-inline Float32 ExecuteF32Neg(Float32 a, TrapReason* trap) {
+Float32 ExecuteF32Neg(Float32 a, TrapReason* trap) {
   return Float32::FromBits(a.get_bits() ^ kFloat32SignBitMask);
 }
 
-inline float ExecuteF32Ceil(float a, TrapReason* trap) { return ceilf(a); }
+float ExecuteF32Ceil(float a, TrapReason* trap) { return ceilf(a); }
 
-inline float ExecuteF32Floor(float a, TrapReason* trap) { return floorf(a); }
+float ExecuteF32Floor(float a, TrapReason* trap) { return floorf(a); }
 
-inline float ExecuteF32Trunc(float a, TrapReason* trap) { return truncf(a); }
+float ExecuteF32Trunc(float a, TrapReason* trap) { return truncf(a); }
 
-inline float ExecuteF32NearestInt(float a, TrapReason* trap) {
-  return nearbyintf(a);
-}
+float ExecuteF32NearestInt(float a, TrapReason* trap) { return nearbyintf(a); }
 
-inline float ExecuteF32Sqrt(float a, TrapReason* trap) {
+float ExecuteF32Sqrt(float a, TrapReason* trap) {
   float result = sqrtf(a);
   return result;
 }
 
-inline Float64 ExecuteF64Abs(Float64 a, TrapReason* trap) {
+Float64 ExecuteF64Abs(Float64 a, TrapReason* trap) {
   return Float64::FromBits(a.get_bits() & ~kFloat64SignBitMask);
 }
 
-inline Float64 ExecuteF64Neg(Float64 a, TrapReason* trap) {
+Float64 ExecuteF64Neg(Float64 a, TrapReason* trap) {
   return Float64::FromBits(a.get_bits() ^ kFloat64SignBitMask);
 }
 
-inline double ExecuteF64Ceil(double a, TrapReason* trap) { return ceil(a); }
+double ExecuteF64Ceil(double a, TrapReason* trap) { return ceil(a); }
 
-inline double ExecuteF64Floor(double a, TrapReason* trap) { return floor(a); }
+double ExecuteF64Floor(double a, TrapReason* trap) { return floor(a); }
 
-inline double ExecuteF64Trunc(double a, TrapReason* trap) { return trunc(a); }
+double ExecuteF64Trunc(double a, TrapReason* trap) { return trunc(a); }
 
-inline double ExecuteF64NearestInt(double a, TrapReason* trap) {
-  return nearbyint(a);
-}
+double ExecuteF64NearestInt(double a, TrapReason* trap) { return nearbyint(a); }
 
-inline double ExecuteF64Sqrt(double a, TrapReason* trap) { return sqrt(a); }
+double ExecuteF64Sqrt(double a, TrapReason* trap) { return sqrt(a); }
 
 template <typename int_type, typename float_type>
 int_type ExecuteConvert(float_type a, TrapReason* trap) {
@@ -471,7 +463,7 @@ int_type ExecuteConvertSaturate(float_type a) {
 }
 
 template <typename dst_type, typename src_type, void (*fn)(Address)>
-inline dst_type CallExternalIntToFloatFunction(src_type input) {
+dst_type CallExternalIntToFloatFunction(src_type input) {
   uint8_t data[std::max(sizeof(dst_type), sizeof(src_type))];
   Address data_addr = reinterpret_cast<Address>(data);
   WriteUnalignedValue<src_type>(data_addr, input);
@@ -480,8 +472,7 @@ inline dst_type CallExternalIntToFloatFunction(src_type input) {
 }
 
 template <typename dst_type, typename src_type, int32_t (*fn)(Address)>
-inline dst_type CallExternalFloatToIntFunction(src_type input,
-                                               TrapReason* trap) {
+dst_type CallExternalFloatToIntFunction(src_type input, TrapReason* trap) {
   uint8_t data[std::max(sizeof(dst_type), sizeof(src_type))];
   Address data_addr = reinterpret_cast<Address>(data);
   WriteUnalignedValue<src_type>(data_addr, input);
@@ -489,7 +480,7 @@ inline dst_type CallExternalFloatToIntFunction(src_type input,
   return ReadUnalignedValue<dst_type>(data_addr);
 }
 
-inline uint32_t ExecuteI32ConvertI64(int64_t a, TrapReason* trap) {
+uint32_t ExecuteI32ConvertI64(int64_t a, TrapReason* trap) {
   return static_cast<uint32_t>(a & 0xFFFFFFFF);
 }
 
@@ -557,69 +548,69 @@ uint64_t ExecuteI64UConvertSatF64(double a) {
                                   : std::numeric_limits<uint64_t>::max());
 }
 
-inline int64_t ExecuteI64SConvertI32(int32_t a, TrapReason* trap) {
+int64_t ExecuteI64SConvertI32(int32_t a, TrapReason* trap) {
   return static_cast<int64_t>(a);
 }
 
-inline int64_t ExecuteI64UConvertI32(uint32_t a, TrapReason* trap) {
+int64_t ExecuteI64UConvertI32(uint32_t a, TrapReason* trap) {
   return static_cast<uint64_t>(a);
 }
 
-inline float ExecuteF32SConvertI32(int32_t a, TrapReason* trap) {
+float ExecuteF32SConvertI32(int32_t a, TrapReason* trap) {
   return static_cast<float>(a);
 }
 
-inline float ExecuteF32UConvertI32(uint32_t a, TrapReason* trap) {
+float ExecuteF32UConvertI32(uint32_t a, TrapReason* trap) {
   return static_cast<float>(a);
 }
 
-inline float ExecuteF32SConvertI64(int64_t a, TrapReason* trap) {
+float ExecuteF32SConvertI64(int64_t a, TrapReason* trap) {
   return static_cast<float>(a);
 }
 
-inline float ExecuteF32UConvertI64(uint64_t a, TrapReason* trap) {
+float ExecuteF32UConvertI64(uint64_t a, TrapReason* trap) {
   return CallExternalIntToFloatFunction<float, uint64_t,
                                         uint64_to_float32_wrapper>(a);
 }
 
-inline float ExecuteF32ConvertF64(double a, TrapReason* trap) {
+float ExecuteF32ConvertF64(double a, TrapReason* trap) {
   return DoubleToFloat32(a);
 }
 
-inline Float32 ExecuteF32ReinterpretI32(int32_t a, TrapReason* trap) {
+Float32 ExecuteF32ReinterpretI32(int32_t a, TrapReason* trap) {
   return Float32::FromBits(a);
 }
 
-inline double ExecuteF64SConvertI32(int32_t a, TrapReason* trap) {
+double ExecuteF64SConvertI32(int32_t a, TrapReason* trap) {
   return static_cast<double>(a);
 }
 
-inline double ExecuteF64UConvertI32(uint32_t a, TrapReason* trap) {
+double ExecuteF64UConvertI32(uint32_t a, TrapReason* trap) {
   return static_cast<double>(a);
 }
 
-inline double ExecuteF64SConvertI64(int64_t a, TrapReason* trap) {
+double ExecuteF64SConvertI64(int64_t a, TrapReason* trap) {
   return static_cast<double>(a);
 }
 
-inline double ExecuteF64UConvertI64(uint64_t a, TrapReason* trap) {
+double ExecuteF64UConvertI64(uint64_t a, TrapReason* trap) {
   return CallExternalIntToFloatFunction<double, uint64_t,
                                         uint64_to_float64_wrapper>(a);
 }
 
-inline double ExecuteF64ConvertF32(float a, TrapReason* trap) {
+double ExecuteF64ConvertF32(float a, TrapReason* trap) {
   return static_cast<double>(a);
 }
 
-inline Float64 ExecuteF64ReinterpretI64(int64_t a, TrapReason* trap) {
+Float64 ExecuteF64ReinterpretI64(int64_t a, TrapReason* trap) {
   return Float64::FromBits(a);
 }
 
-inline int32_t ExecuteI32ReinterpretF32(WasmValue a) {
+int32_t ExecuteI32ReinterpretF32(WasmValue a) {
   return a.to_f32_boxed().get_bits();
 }
 
-inline int64_t ExecuteI64ReinterpretF64(WasmValue a) {
+int64_t ExecuteI64ReinterpretF64(WasmValue a) {
   return a.to_f64_boxed().get_bits();
 }
 
@@ -799,8 +790,8 @@ class SideTable : public ZoneObject {
         case kExprBlock:
         case kExprLoop: {
           bool is_loop = opcode == kExprLoop;
-          BlockTypeImmediate<Decoder::kNoValidation> imm(WasmFeatures::All(),
-                                                         &i, i.pc() + 1);
+          BlockTypeImmediate<Decoder::kNoValidation> imm(
+              WasmFeatures::All(), &i, i.pc() + 1, module);
           if (imm.type == kWasmBottom) {
             imm.sig = module->signature(imm.sig_index);
           }
@@ -821,8 +812,8 @@ class SideTable : public ZoneObject {
           break;
         }
         case kExprIf: {
-          BlockTypeImmediate<Decoder::kNoValidation> imm(WasmFeatures::All(),
-                                                         &i, i.pc() + 1);
+          BlockTypeImmediate<Decoder::kNoValidation> imm(
+              WasmFeatures::All(), &i, i.pc() + 1, module);
           if (imm.type == kWasmBottom) {
             imm.sig = module->signature(imm.sig_index);
           }
@@ -861,8 +852,8 @@ class SideTable : public ZoneObject {
           break;
         }
         case kExprTry: {
-          BlockTypeImmediate<Decoder::kNoValidation> imm(WasmFeatures::All(),
-                                                         &i, i.pc() + 1);
+          BlockTypeImmediate<Decoder::kNoValidation> imm(
+              WasmFeatures::All(), &i, i.pc() + 1, module);
           if (imm.type == kWasmBottom) {
             imm.sig = module->signature(imm.sig_index);
           }
@@ -894,20 +885,6 @@ class SideTable : public ZoneObject {
           DCHECK_IMPLIES(!unreachable,
                          stack_height >= c->end_label->target_stack_height);
           stack_height = c->end_label->target_stack_height + kCatchInArity;
-          break;
-        }
-        case kExprBrOnExn: {
-          BranchOnExceptionImmediate<Decoder::kNoValidation> imm(&i,
-                                                                 i.pc() + 1);
-          uint32_t depth = imm.depth.depth;  // Extracted for convenience.
-          imm.index.exception = &module->exceptions[imm.index.index];
-          DCHECK_EQ(0, imm.index.exception->sig->return_count());
-          size_t params = imm.index.exception->sig->parameter_count();
-          // Taken branches pop the exception and push the encoded values.
-          int32_t height = stack_height - 1 + static_cast<int32_t>(params);
-          TRACE("control @%u: BrOnExn[depth=%u]\n", i.pc_offset(), depth);
-          Control* c = &control_stack[control_stack.size() - depth - 1];
-          if (!unreachable) c->end_label->Ref(i.pc(), height);
           break;
         }
         case kExprEnd: {
@@ -1495,7 +1472,10 @@ class WasmInterpreterInternals {
     ResetStack(dest + arity);
   }
 
-  inline Address EffectiveAddress(uint32_t index) {
+  Address EffectiveAddress(uint64_t index) {
+    DCHECK_GE(std::numeric_limits<uintptr_t>::max(),
+              instance_object_->memory_size());
+    DCHECK_GE(instance_object_->memory_size(), index);
     // Compute the effective address of the access, making sure to condition
     // the index even in the in-bounds case.
     return reinterpret_cast<Address>(instance_object_->memory_start()) +
@@ -1503,8 +1483,8 @@ class WasmInterpreterInternals {
   }
 
   template <typename mtype>
-  inline Address BoundsCheckMem(uint32_t offset, uint32_t index) {
-    uint32_t effective_index = offset + index;
+  Address BoundsCheckMem(uint64_t offset, uint64_t index) {
+    uint64_t effective_index = offset + index;
     if (effective_index < index) {
       return kNullAddress;  // wraparound => oob
     }
@@ -1515,12 +1495,20 @@ class WasmInterpreterInternals {
     return EffectiveAddress(effective_index);
   }
 
-  inline bool BoundsCheckMemRange(uint32_t index, uint32_t* size,
-                                  Address* out_address) {
-    bool ok = base::ClampToBounds(
-        index, size, static_cast<uint32_t>(instance_object_->memory_size()));
+  bool BoundsCheckMemRange(uint64_t index, uint64_t* size,
+                           Address* out_address) {
+    DCHECK_GE(std::numeric_limits<uintptr_t>::max(),
+              instance_object_->memory_size());
+    if (!base::ClampToBounds<uint64_t>(index, size,
+                                       instance_object_->memory_size())) {
+      return false;
+    }
     *out_address = EffectiveAddress(index);
-    return ok;
+    return true;
+  }
+
+  uint64_t ToMemType(WasmValue value) {
+    return module()->is_memory64 ? value.to<uint64_t>() : value.to<uint32_t>();
   }
 
   template <typename ctype, typename mtype>
@@ -1532,8 +1520,9 @@ class WasmInterpreterInternals {
     // the operation to keep trap reporting and tracing accurate, otherwise
     // those will report at the middle of an opcode.
     MemoryAccessImmediate<Decoder::kNoValidation> imm(
-        decoder, code->at(pc + prefix_len), sizeof(ctype));
-    uint32_t index = Pop().to<uint32_t>();
+        decoder, code->at(pc + prefix_len), sizeof(ctype),
+        module()->is_memory64);
+    uint64_t index = ToMemType(Pop());
     Address addr = BoundsCheckMem<mtype>(imm.offset, index);
     if (!addr) {
       DoTrap(kTrapMemOutOfBounds, pc);
@@ -1564,10 +1553,11 @@ class WasmInterpreterInternals {
     // the operation to keep trap reporting and tracing accurate, otherwise
     // those will report at the middle of an opcode.
     MemoryAccessImmediate<Decoder::kNoValidation> imm(
-        decoder, code->at(pc + prefix_len), sizeof(ctype));
+        decoder, code->at(pc + prefix_len), sizeof(ctype),
+        module()->is_memory64);
     ctype val = Pop().to<ctype>();
 
-    uint32_t index = Pop().to<uint32_t>();
+    uint64_t index = ToMemType(Pop());
     Address addr = BoundsCheckMem<mtype>(imm.offset, index);
     if (!addr) {
       DoTrap(kTrapMemOutOfBounds, pc);
@@ -1591,10 +1581,10 @@ class WasmInterpreterInternals {
                              Address* address, pc_t pc, int* const len,
                              type* val = nullptr, type* val2 = nullptr) {
     MemoryAccessImmediate<Decoder::kNoValidation> imm(
-        decoder, code->at(pc + *len), sizeof(type));
+        decoder, code->at(pc + *len), sizeof(type), module()->is_memory64);
     if (val2) *val2 = static_cast<type>(Pop().to<op_type>());
     if (val) *val = static_cast<type>(Pop().to<op_type>());
-    uint32_t index = Pop().to<uint32_t>();
+    uint64_t index = ToMemType(Pop());
     *address = BoundsCheckMem<type>(imm.offset, index);
     if (!*address) {
       DoTrap(kTrapMemOutOfBounds, pc);
@@ -1611,18 +1601,18 @@ class WasmInterpreterInternals {
   template <typename type>
   bool ExtractAtomicWaitNotifyParams(Decoder* decoder, InterpreterCode* code,
                                      pc_t pc, int* const len,
-                                     uint32_t* buffer_offset, type* val,
+                                     uint64_t* buffer_offset, type* val,
                                      int64_t* timeout = nullptr) {
     // TODO(manoskouk): Introduce test which exposes wrong pc offset below.
     MemoryAccessImmediate<Decoder::kFullValidation> imm(
-        decoder, code->at(pc + *len), sizeof(type));
+        decoder, code->at(pc + *len), sizeof(type), module()->is_memory64);
     if (timeout) {
       *timeout = Pop().to<int64_t>();
     }
     *val = Pop().to<type>();
-    auto index = Pop().to<uint32_t>();
+    uint64_t index = ToMemType(Pop());
     // Check bounds.
-    Address address = BoundsCheckMem<uint32_t>(imm.offset, index);
+    Address address = BoundsCheckMem<uint64_t>(imm.offset, index);
     *buffer_offset = index + imm.offset;
     if (!address) {
       DoTrap(kTrapMemOutOfBounds, pc);
@@ -1672,11 +1662,11 @@ class WasmInterpreterInternals {
         // validation.
         DCHECK_LT(imm.data_segment_index, module()->num_declared_data_segments);
         *len += imm.length;
-        auto size = Pop().to<uint32_t>();
-        auto src = Pop().to<uint32_t>();
-        auto dst = Pop().to<uint32_t>();
+        uint64_t size = ToMemType(Pop());
+        uint64_t src = ToMemType(Pop());
+        uint64_t dst = ToMemType(Pop());
         Address dst_addr;
-        auto src_max =
+        uint64_t src_max =
             instance_object_->data_segment_sizes()[imm.data_segment_index];
         if (!BoundsCheckMemRange(dst, &size, &dst_addr) ||
             !base::IsInBounds(src, size, src_max)) {
@@ -1704,9 +1694,9 @@ class WasmInterpreterInternals {
         MemoryCopyImmediate<Decoder::kNoValidation> imm(decoder,
                                                         code->at(pc + 2));
         *len += imm.length;
-        auto size = Pop().to<uint32_t>();
-        auto src = Pop().to<uint32_t>();
-        auto dst = Pop().to<uint32_t>();
+        uint64_t size = ToMemType(Pop());
+        uint64_t src = ToMemType(Pop());
+        uint64_t dst = ToMemType(Pop());
         Address dst_addr;
         Address src_addr;
         if (!BoundsCheckMemRange(dst, &size, &dst_addr) ||
@@ -1723,12 +1713,11 @@ class WasmInterpreterInternals {
         MemoryIndexImmediate<Decoder::kNoValidation> imm(decoder,
                                                          code->at(pc + 2));
         *len += imm.length;
-        auto size = Pop().to<uint32_t>();
-        auto value = Pop().to<uint32_t>();
-        auto dst = Pop().to<uint32_t>();
+        uint64_t size = ToMemType(Pop());
+        uint32_t value = Pop().to<uint32_t>();
+        uint64_t dst = ToMemType(Pop());
         Address dst_addr;
-        bool ok = BoundsCheckMemRange(dst, &size, &dst_addr);
-        if (!ok) {
+        if (!BoundsCheckMemRange(dst, &size, &dst_addr)) {
           DoTrap(kTrapMemOutOfBounds, pc);
           return false;
         }
@@ -2040,7 +2029,7 @@ class WasmInterpreterInternals {
         }
         int32_t val;
         int64_t timeout;
-        uint32_t buffer_offset;
+        uint64_t buffer_offset;
         if (!ExtractAtomicWaitNotifyParams<int32_t>(
                 decoder, code, pc, len, &buffer_offset, &val, &timeout)) {
           return false;
@@ -2060,7 +2049,7 @@ class WasmInterpreterInternals {
         }
         int64_t val;
         int64_t timeout;
-        uint32_t buffer_offset;
+        uint64_t buffer_offset;
         if (!ExtractAtomicWaitNotifyParams<int64_t>(
                 decoder, code, pc, len, &buffer_offset, &val, &timeout)) {
           return false;
@@ -2075,7 +2064,7 @@ class WasmInterpreterInternals {
       }
       case kExprAtomicNotify: {
         int32_t val;
-        uint32_t buffer_offset;
+        uint64_t buffer_offset;
         if (!ExtractAtomicWaitNotifyParams<int32_t>(decoder, code, pc, len,
                                                     &buffer_offset, &val)) {
           return false;
@@ -2801,6 +2790,16 @@ class WasmInterpreterInternals {
       case kExprI16x8ExtAddPairwiseI8x16U: {
         return DoSimdExtAddPairwise<int8, int16, uint16_t, uint8_t>();
       }
+      case kExprPrefetchT:
+      case kExprPrefetchNT: {
+        // Max alignment doesn't matter, use an arbitrary value.
+        MemoryAccessImmediate<Decoder::kNoValidation> imm(
+            decoder, code->at(pc + *len), 4, module()->is_memory64);
+        // Pop address and do nothing.
+        Pop().to<uint32_t>();
+        *len += imm.length;
+        return true;
+      }
       default:
         return false;
     }
@@ -2886,7 +2885,7 @@ class WasmInterpreterInternals {
     s_type value = Pop().to_s128().to<s_type>();
 
     MemoryAccessImmediate<Decoder::kNoValidation> imm(
-        decoder, code->at(pc + *len), sizeof(load_type));
+        decoder, code->at(pc + *len), sizeof(load_type), module()->is_memory64);
 
     SimdLaneImmediate<Decoder::kNoValidation> lane_imm(
         decoder, code->at(pc + *len + imm.length));
@@ -3045,7 +3044,8 @@ class WasmInterpreterInternals {
           switch (sig->GetParam(i).heap_representation()) {
             case HeapType::kExtern:
             case HeapType::kExn:
-            case HeapType::kFunc: {
+            case HeapType::kFunc:
+            case HeapType::kAny: {
               Handle<Object> externref = value.to_externref();
               encoded_values->set(encoded_index++, *externref);
               break;
@@ -3162,7 +3162,8 @@ class WasmInterpreterInternals {
           switch (sig->GetParam(i).heap_representation()) {
             case HeapType::kExtern:
             case HeapType::kExn:
-            case HeapType::kFunc: {
+            case HeapType::kFunc:
+            case HeapType::kAny: {
               Handle<Object> externref(encoded_values->get(encoded_index++),
                                        isolate_);
               value = WasmValue(externref);
@@ -3247,13 +3248,13 @@ class WasmInterpreterInternals {
         case kExprLoop:
         case kExprTry: {
           BlockTypeImmediate<Decoder::kNoValidation> imm(
-              WasmFeatures::All(), &decoder, code->at(pc + 1));
+              WasmFeatures::All(), &decoder, code->at(pc + 1), module());
           len = 1 + imm.length;
           break;
         }
         case kExprIf: {
           BlockTypeImmediate<Decoder::kNoValidation> imm(
-              WasmFeatures::All(), &decoder, code->at(pc + 1));
+              WasmFeatures::All(), &decoder, code->at(pc + 1), module());
           WasmValue cond = Pop();
           bool is_true = cond.to<uint32_t>() != 0;
           if (is_true) {
@@ -3292,28 +3293,9 @@ class WasmInterpreterInternals {
           ReloadFromFrameOnException(&decoder, &code, &pc, &limit);
           continue;  // Do not bump pc.
         }
-        case kExprBrOnExn: {
-          BranchOnExceptionImmediate<Decoder::kNoValidation> imm(
-              &decoder, code->at(pc + 1));
-          HandleScope handle_scope(isolate_);  // Avoid leaking handles.
-          WasmValue ex = Pop();
-          Handle<Object> exception = ex.to_externref();
-          if (exception->IsNull()) return DoTrap(kTrapBrOnExnNull, pc);
-          if (MatchingExceptionTag(exception, imm.index.index)) {
-            imm.index.exception = &module()->exceptions[imm.index.index];
-            DoUnpackException(imm.index.exception, exception);
-            len = DoBreak(code, pc, imm.depth.depth);
-            TRACE("  match => @%zu\n", pc + len);
-          } else {
-            Push(ex);  // Exception remains on stack.
-            TRACE("  false => fallthrough\n");
-            len = 1 + imm.length;
-          }
-          break;
-        }
         case kExprSelectWithType: {
           SelectTypeImmediate<Decoder::kNoValidation> imm(
-              WasmFeatures::All(), &decoder, code->at(pc + 1));
+              WasmFeatures::All(), &decoder, code->at(pc + 1), module());
           len = 1 + imm.length;
           V8_FALLTHROUGH;
         }
@@ -3402,7 +3384,7 @@ class WasmInterpreterInternals {
         }
         case kExprRefNull: {
           HeapTypeImmediate<Decoder::kNoValidation> imm(
-              WasmFeatures::All(), &decoder, code->at(pc + 1));
+              WasmFeatures::All(), &decoder, code->at(pc + 1), module());
           len = 1 + imm.length;
           Push(WasmValue(isolate_->factory()->null_value()));
           break;
@@ -3699,6 +3681,7 @@ class WasmInterpreterInternals {
         case kExprMemoryGrow: {
           MemoryIndexImmediate<Decoder::kNoValidation> imm(&decoder,
                                                            code->at(pc + 1));
+          // TODO(clemensb): Fix this for memory64.
           uint32_t delta_pages = Pop().to<uint32_t>();
           HandleScope handle_scope(isolate_);  // Avoid leaking handles.
           Handle<WasmMemoryObject> memory(instance_object_->memory_object(),
@@ -3715,8 +3698,10 @@ class WasmInterpreterInternals {
         case kExprMemorySize: {
           MemoryIndexImmediate<Decoder::kNoValidation> imm(&decoder,
                                                            code->at(pc + 1));
-          Push(WasmValue(static_cast<uint32_t>(instance_object_->memory_size() /
-                                               kWasmPageSize)));
+          uint64_t num_pages = instance_object_->memory_size() / kWasmPageSize;
+          Push(module()->is_memory64
+                   ? WasmValue(num_pages)
+                   : WasmValue(static_cast<uint32_t>(num_pages)));
           len = 1 + imm.length;
           break;
         }

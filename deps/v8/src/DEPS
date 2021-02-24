@@ -8,6 +8,7 @@ include_rules = [
   "+src/compiler/code-assembler.h",
   "+src/compiler/wasm-compiler.h",
   "-src/heap",
+  "+src/heap/basic-memory-chunk.h",
   "+src/heap/combined-heap.h",
   "+src/heap/embedder-tracing.h",
   "+src/heap/factory.h",
@@ -25,6 +26,7 @@ include_rules = [
   # TODO(v8:10496): Don't expose memory chunk outside of heap/.
   "+src/heap/memory-chunk.h",
   "+src/heap/memory-chunk-inl.h",
+  "+src/heap/parked-scope.h",
   "+src/heap/read-only-heap-inl.h",
   "+src/heap/read-only-heap.h",
   "+src/heap/safepoint.h",

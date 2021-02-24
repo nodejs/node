@@ -128,7 +128,7 @@ class CompilationCacheTable
       Handle<SharedFunctionInfo> key, Handle<Code> value);
 
   void Remove(Object value);
-  void Age();
+  void Age(Isolate* isolate);
 
   DECL_CAST(CompilationCacheTable)
 

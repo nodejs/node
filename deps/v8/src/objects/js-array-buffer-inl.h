@@ -274,7 +274,7 @@ void JSTypedArray::SetOnHeapDataPtr(Isolate* isolate, HeapObject base,
 }
 
 bool JSTypedArray::is_on_heap() const {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   // Checking that buffer()->backing_store() is not nullptr is not sufficient;
   // it will be nullptr when byte_length is 0 as well.
   return base_pointer() == elements();

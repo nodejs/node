@@ -13,6 +13,8 @@ namespace internal {
 template <typename T>
 class Vector;
 
+// Helper class for incrementally calculating string hashes in a form suitable
+// for storing into Name::raw_hash_field.
 class V8_EXPORT_PRIVATE StringHasher final {
  public:
   StringHasher() = delete;

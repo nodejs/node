@@ -36,7 +36,7 @@ class ChunkSource : public v8::ScriptCompiler::ExternalSourceStream {
     // aligned to char-size though.
     size_t chunk_size = extra_chunky ? char_size : len;
     for (size_t i = 0; i < len; i += chunk_size, chunk_size += char_size) {
-      chunks_.push_back({data + i, i::Min(chunk_size, len - i)});
+      chunks_.push_back({data + i, std::min(chunk_size, len - i)});
     }
     chunks_.push_back({nullptr, 0});
   }

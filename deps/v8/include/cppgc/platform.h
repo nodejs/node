@@ -20,6 +20,7 @@ using PageAllocator = v8::PageAllocator;
 using Task = v8::Task;
 using TaskPriority = v8::TaskPriority;
 using TaskRunner = v8::TaskRunner;
+using TracingController = v8::TracingController;
 
 /**
  * Platform interface used by Heap. Contains allocators and executors.
@@ -113,6 +114,13 @@ class V8_EXPORT Platform {
       TaskPriority priority, std::unique_ptr<JobTask> job_task) {
     return nullptr;
   }
+
+  /**
+   * Returns an instance of a `TracingController`. This must be non-nullptr. The
+   * default implementation returns an empty `TracingController` that consumes
+   * trace data without effect.
+   */
+  virtual TracingController* GetTracingController();
 };
 
 /**

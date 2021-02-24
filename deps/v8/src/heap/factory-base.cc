@@ -206,13 +206,15 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
 }
 
 template <typename Impl>
-Handle<Script> FactoryBase<Impl>::NewScript(Handle<String> source) {
+Handle<Script> FactoryBase<Impl>::NewScript(
+    Handle<PrimitiveHeapObject> source) {
   return NewScriptWithId(source, isolate()->GetNextScriptId());
 }
 
 template <typename Impl>
-Handle<Script> FactoryBase<Impl>::NewScriptWithId(Handle<String> source,
-                                                  int script_id) {
+Handle<Script> FactoryBase<Impl>::NewScriptWithId(
+    Handle<PrimitiveHeapObject> source, int script_id) {
+  DCHECK(source->IsString() || source->IsUndefined());
   // Create and initialize script object.
   ReadOnlyRoots roots = read_only_roots();
   Handle<Script> script =
@@ -275,14 +277,8 @@ Handle<UncompiledDataWithoutPreparseData>
 FactoryBase<Impl>::NewUncompiledDataWithoutPreparseData(
     Handle<String> inferred_name, int32_t start_position,
     int32_t end_position) {
-  Handle<UncompiledDataWithoutPreparseData> result = handle(
-      UncompiledDataWithoutPreparseData::cast(NewWithImmortalMap(
-          impl()->read_only_roots().uncompiled_data_without_preparse_data_map(),
-          AllocationType::kOld)),
-      isolate());
-
-  result->Init(impl(), *inferred_name, start_position, end_position);
-  return result;
+  return TorqueGeneratedFactory<Impl>::NewUncompiledDataWithoutPreparseData(
+      inferred_name, start_position, end_position, AllocationType::kOld);
 }
 
 template <typename Impl>
@@ -290,16 +286,9 @@ Handle<UncompiledDataWithPreparseData>
 FactoryBase<Impl>::NewUncompiledDataWithPreparseData(
     Handle<String> inferred_name, int32_t start_position, int32_t end_position,
     Handle<PreparseData> preparse_data) {
-  Handle<UncompiledDataWithPreparseData> result = handle(
-      UncompiledDataWithPreparseData::cast(NewWithImmortalMap(
-          impl()->read_only_roots().uncompiled_data_with_preparse_data_map(),
-          AllocationType::kOld)),
-      isolate());
-
-  result->Init(impl(), *inferred_name, start_position, end_position,
-               *preparse_data);
-
-  return result;
+  return TorqueGeneratedFactory<Impl>::NewUncompiledDataWithPreparseData(
+      inferred_name, start_position, end_position, preparse_data,
+      AllocationType::kOld);
 }
 
 template <typename Impl>
@@ -505,10 +494,10 @@ Handle<String> FactoryBase<Impl>::InternalizeString(
 
 template <typename Impl>
 Handle<SeqOneByteString> FactoryBase<Impl>::NewOneByteInternalizedString(
-    const Vector<const uint8_t>& str, uint32_t hash_field) {
+    const Vector<const uint8_t>& str, uint32_t raw_hash_field) {
   Handle<SeqOneByteString> result =
-      AllocateRawOneByteInternalizedString(str.length(), hash_field);
-  DisallowHeapAllocation no_gc;
+      AllocateRawOneByteInternalizedString(str.length(), raw_hash_field);
+  DisallowGarbageCollection no_gc;
   MemCopy(result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded()),
           str.begin(), str.length());
   return result;
@@ -516,10 +505,10 @@ Handle<SeqOneByteString> FactoryBase<Impl>::NewOneByteInternalizedString(
 
 template <typename Impl>
 Handle<SeqTwoByteString> FactoryBase<Impl>::NewTwoByteInternalizedString(
-    const Vector<const uc16>& str, uint32_t hash_field) {
+    const Vector<const uc16>& str, uint32_t raw_hash_field) {
   Handle<SeqTwoByteString> result =
-      AllocateRawTwoByteInternalizedString(str.length(), hash_field);
-  DisallowHeapAllocation no_gc;
+      AllocateRawTwoByteInternalizedString(str.length(), raw_hash_field);
+  DisallowGarbageCollection no_gc;
   MemCopy(result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded()),
           str.begin(), str.length() * kUC16Size);
   return result;
@@ -540,7 +529,7 @@ MaybeHandle<SeqOneByteString> FactoryBase<Impl>::NewRawOneByteString(
   Handle<SeqOneByteString> string =
       handle(SeqOneByteString::cast(result), isolate());
   string->set_length(length);
-  string->set_hash_field(String::kEmptyHashField);
+  string->set_raw_hash_field(String::kEmptyHashField);
   DCHECK_EQ(size, string->Size());
   return string;
 }
@@ -560,7 +549,7 @@ MaybeHandle<SeqTwoByteString> FactoryBase<Impl>::NewRawTwoByteString(
   Handle<SeqTwoByteString> string =
       handle(SeqTwoByteString::cast(result), isolate());
   string->set_length(length);
-  string->set_hash_field(String::kEmptyHashField);
+  string->set_raw_hash_field(String::kEmptyHashField);
   DCHECK_EQ(size, string->Size());
   return string;
 }
@@ -582,8 +571,8 @@ MaybeHandle<String> FactoryBase<Impl>::NewConsString(
   int length = left_length + right_length;
 
   if (length == 2) {
-    uint16_t c1 = left->Get(0);
-    uint16_t c2 = right->Get(0);
+    uint16_t c1 = left->Get(0, isolate());
+    uint16_t c2 = right->Get(0, isolate());
     return MakeOrFindTwoCharacterString(c1, c2);
   }
 
@@ -608,19 +597,17 @@ MaybeHandle<String> FactoryBase<Impl>::NewConsString(
     if (is_one_byte) {
       Handle<SeqOneByteString> result =
           NewRawOneByteString(length, allocation).ToHandleChecked();
-      DisallowHeapAllocation no_gc;
-      uint8_t* dest =
-          result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded());
+      DisallowGarbageCollection no_gc;
+      SharedStringAccessGuardIfNeeded access_guard(isolate());
+      uint8_t* dest = result->GetChars(no_gc, access_guard);
       // Copy left part.
       {
-        SharedStringAccessGuardIfNeeded access_guard(*left);
         const uint8_t* src =
             left->template GetChars<uint8_t>(no_gc, access_guard);
         CopyChars(dest, src, left_length);
       }
       // Copy right part.
       {
-        SharedStringAccessGuardIfNeeded access_guard(*right);
         const uint8_t* src =
             right->template GetChars<uint8_t>(no_gc, access_guard);
         CopyChars(dest + left_length, src, right_length);
@@ -631,11 +618,12 @@ MaybeHandle<String> FactoryBase<Impl>::NewConsString(
     Handle<SeqTwoByteString> result =
         NewRawTwoByteString(length, allocation).ToHandleChecked();
 
-    DisallowHeapAllocation no_gc;
-    uc16* sink =
-        result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded());
-    String::WriteToFlat(*left, sink, 0, left->length());
-    String::WriteToFlat(*right, sink + left->length(), 0, right->length());
+    DisallowGarbageCollection no_gc;
+    SharedStringAccessGuardIfNeeded access_guard(isolate());
+    uc16* sink = result->GetChars(no_gc, access_guard);
+    String::WriteToFlat(*left, sink, 0, left->length(), access_guard);
+    String::WriteToFlat(*right, sink + left->length(), 0, right->length(),
+                        access_guard);
     return result;
   }
 
@@ -661,10 +649,10 @@ Handle<String> FactoryBase<Impl>::NewConsString(Handle<String> left,
                                    allocation)),
       isolate());
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
 
-  result->set_hash_field(String::kEmptyHashField);
+  result->set_raw_hash_field(String::kEmptyHashField);
   result->set_length(length);
   result->set_first(*left, mode);
   result->set_second(*right, mode);
@@ -747,8 +735,8 @@ Handle<ClassPositions> FactoryBase<Impl>::NewClassPositions(int start,
 
 template <typename Impl>
 Handle<SeqOneByteString>
-FactoryBase<Impl>::AllocateRawOneByteInternalizedString(int length,
-                                                        uint32_t hash_field) {
+FactoryBase<Impl>::AllocateRawOneByteInternalizedString(
+    int length, uint32_t raw_hash_field) {
   CHECK_GE(String::kMaxLength, length);
   // The canonical empty_string is the only zero-length string we allow.
   DCHECK_IMPLIES(length == 0, !impl()->EmptyStringRootIsInitialized());
@@ -763,15 +751,15 @@ FactoryBase<Impl>::AllocateRawOneByteInternalizedString(int length,
   Handle<SeqOneByteString> answer =
       handle(SeqOneByteString::cast(result), isolate());
   answer->set_length(length);
-  answer->set_hash_field(hash_field);
+  answer->set_raw_hash_field(raw_hash_field);
   DCHECK_EQ(size, answer->Size());
   return answer;
 }
 
 template <typename Impl>
 Handle<SeqTwoByteString>
-FactoryBase<Impl>::AllocateRawTwoByteInternalizedString(int length,
-                                                        uint32_t hash_field) {
+FactoryBase<Impl>::AllocateRawTwoByteInternalizedString(
+    int length, uint32_t raw_hash_field) {
   CHECK_GE(String::kMaxLength, length);
   DCHECK_NE(0, length);  // Use Heap::empty_string() instead.
 
@@ -782,7 +770,7 @@ FactoryBase<Impl>::AllocateRawTwoByteInternalizedString(int length,
   Handle<SeqTwoByteString> answer =
       handle(SeqTwoByteString::cast(result), isolate());
   answer->set_length(length);
-  answer->set_hash_field(hash_field);
+  answer->set_raw_hash_field(raw_hash_field);
   DCHECK_EQ(size, result.Size());
   return answer;
 }

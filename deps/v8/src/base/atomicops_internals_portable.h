@@ -124,6 +124,10 @@ inline void Relaxed_Store(volatile Atomic32* ptr, Atomic32 value) {
   __atomic_store_n(ptr, value, __ATOMIC_RELAXED);
 }
 
+inline void Release_Store(volatile Atomic8* ptr, Atomic8 value) {
+  __atomic_store_n(ptr, value, __ATOMIC_RELEASE);
+}
+
 inline void Release_Store(volatile Atomic32* ptr, Atomic32 value) {
   __atomic_store_n(ptr, value, __ATOMIC_RELEASE);
 }
@@ -138,6 +142,10 @@ inline Atomic16 Relaxed_Load(volatile const Atomic16* ptr) {
 
 inline Atomic32 Relaxed_Load(volatile const Atomic32* ptr) {
   return __atomic_load_n(ptr, __ATOMIC_RELAXED);
+}
+
+inline Atomic8 Acquire_Load(volatile const Atomic8* ptr) {
+  return __atomic_load_n(ptr, __ATOMIC_ACQUIRE);
 }
 
 inline Atomic32 Acquire_Load(volatile const Atomic32* ptr) {

@@ -20,7 +20,7 @@ namespace {
 // During serialization, puts the native context into a state understood by the
 // serializer (e.g. by clearing lists of Code objects).  After serialization,
 // the original state is restored.
-class SanitizeNativeContextScope final {
+class V8_NODISCARD SanitizeNativeContextScope final {
  public:
   SanitizeNativeContextScope(Isolate* isolate, NativeContext native_context,
                              bool allow_active_isolate_for_testing,

@@ -20,26 +20,21 @@ namespace internal {
 class StringTableKey {
  public:
   virtual ~StringTableKey() = default;
-  inline StringTableKey(uint32_t hash_field, int length);
+  inline StringTableKey(uint32_t raw_hash_field, int length);
 
-  // The individual keys will have their own AsHandle, we shouldn't call the
-  // base version.
-  Handle<String> AsHandle(Isolate* isolate) = delete;
-
-  uint32_t hash_field() const {
-    DCHECK_NE(0, hash_field_);
-    return hash_field_;
+  uint32_t raw_hash_field() const {
+    DCHECK_NE(0, raw_hash_field_);
+    return raw_hash_field_;
   }
 
-  virtual bool IsMatch(String string) = 0;
   inline uint32_t hash() const;
   int length() const { return length_; }
 
  protected:
-  inline void set_hash_field(uint32_t hash_field);
+  inline void set_raw_hash_field(uint32_t raw_hash_field);
 
  private:
-  uint32_t hash_field_ = 0;
+  uint32_t raw_hash_field_ = 0;
   int length_;
 };
 

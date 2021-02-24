@@ -37,6 +37,8 @@ class V8_EXPORT_PRIVATE IsolateAllocator final {
  public:
   IsolateAllocator();
   ~IsolateAllocator();
+  IsolateAllocator(const IsolateAllocator&) = delete;
+  IsolateAllocator& operator=(const IsolateAllocator&) = delete;
 
   void* isolate_memory() const { return isolate_memory_; }
 
@@ -51,8 +53,6 @@ class V8_EXPORT_PRIVATE IsolateAllocator final {
   v8::PageAllocator* page_allocator_ = nullptr;
   std::unique_ptr<base::BoundedPageAllocator> page_allocator_instance_;
   VirtualMemory reservation_;
-
-  DISALLOW_COPY_AND_ASSIGN(IsolateAllocator);
 };
 
 }  // namespace internal

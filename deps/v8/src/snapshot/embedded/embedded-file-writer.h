@@ -15,6 +15,7 @@
 #include "src/snapshot/embedded/platform-embedded-file-writer-base.h"
 
 #if defined(V8_OS_WIN64)
+#include "src/base/platform/wrappers.h"
 #include "src/diagnostics/unwinding-info-win64.h"
 #endif  // V8_OS_WIN64
 
@@ -113,7 +114,7 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
     WriteCodeSection(writer.get(), blob);
     WriteFileEpilogue(writer.get(), blob);
 
-    fclose(fp);
+    base::Fclose(fp);
   }
 
   static FILE* GetFileDescriptorOrDie(const char* filename) {

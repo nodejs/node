@@ -11,6 +11,7 @@
 #include "src/codegen/code-factory.h"
 #include "src/codegen/code-stub-assembler.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/common/globals.h"
 #include "src/execution/protectors.h"
 #include "src/heap/factory-inl.h"
 #include "src/logging/counters.h"
@@ -97,7 +98,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
   const ElementsKind elements_kind = PACKED_ELEMENTS;
   TNode<Map> map = CAST(LoadContextElement(LoadNativeContext(context),
                                            Context::REGEXP_RESULT_MAP_INDEX));
-  base::Optional<TNode<AllocationSite>> no_allocation_site = base::nullopt;
+  base::Optional<TNode<AllocationSite>> no_gc_site = base::nullopt;
   TNode<IntPtrT> length_intptr = SmiUntag(length);
 
   // Note: The returned `elements` may be in young large object space, but
@@ -106,7 +107,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
   TNode<JSArray> array;
   TNode<FixedArrayBase> elements;
   std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
-      elements_kind, map, length, no_allocation_site, length_intptr,
+      elements_kind, map, length, no_gc_site, length_intptr,
       kAllowLargeObjectAllocation, JSRegExpResult::kSize);
 
   // Finish result initialization.
@@ -289,8 +290,14 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     TNode<IntPtrT> num_properties = WordSar(names_length, 1);
     TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<Map> map = LoadSlowObjectWithNullPrototypeMap(native_context);
-    TNode<NameDictionary> properties =
-        AllocateNameDictionary(num_properties, kAllowLargeObjectAllocation);
+    TNode<HeapObject> properties;
+    if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      // AllocateOrderedNameDictionary always uses kAllowLargeObjectAllocation.
+      properties = AllocateOrderedNameDictionary(num_properties);
+    } else {
+      properties =
+          AllocateNameDictionary(num_properties, kAllowLargeObjectAllocation);
+    }
 
     TNode<JSObject> group_object = AllocateJSObjectFromMap(map, properties);
     StoreObjectField(result, JSRegExpResult::kGroupsOffset, group_object);
@@ -325,18 +332,28 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
       // - Receiver is extensible
       // - Receiver has no interceptors
       Label add_dictionary_property_slow(this, Label::kDeferred);
-      Add<NameDictionary>(properties, name, capture,
-                          &add_dictionary_property_slow);
+      if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+        // TODO(v8:11167) remove once OrderedNameDictionary supported.
+        CallRuntime(Runtime::kAddDictionaryProperty, context, group_object,
+                    name, capture);
+      } else {
+        Add<NameDictionary>(CAST(properties), name, capture,
+                            &add_dictionary_property_slow);
+      }
 
       var_i = i_plus_2;
       Branch(IntPtrGreaterThanOrEqual(var_i.value(), names_length), &out,
              &loop);
 
-      BIND(&add_dictionary_property_slow);
-      // If the dictionary needs resizing, the above Add call will jump here
-      // before making any changes. This shouldn't happen because we allocated
-      // the dictionary with enough space above.
-      Unreachable();
+      if (!V8_DICT_MODE_PROTOTYPES_BOOL) {
+        // TODO(v8:11167) make unconditional  once OrderedNameDictionary
+        // supported.
+        BIND(&add_dictionary_property_slow);
+        // If the dictionary needs resizing, the above Add call will jump here
+        // before making any changes. This shouldn't happen because we allocated
+        // the dictionary with enough space above.
+        Unreachable();
+      }
     }
   }
 

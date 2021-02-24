@@ -121,6 +121,9 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
         0;
   }
 
+  Space(const Space&) = delete;
+  Space& operator=(const Space&) = delete;
+
   static inline void MoveExternalBackingStoreBytes(
       ExternalBackingStoreType type, Space* from, Space* to, size_t amount);
 
@@ -194,8 +197,6 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
   std::atomic<size_t>* external_backing_store_bytes_;
 
   std::unique_ptr<FreeList> free_list_;
-
-  DISALLOW_COPY_AND_ASSIGN(Space);
 };
 
 STATIC_ASSERT(sizeof(std::atomic<intptr_t>) == kSystemPointerSize);

@@ -297,7 +297,7 @@ static void TestLayoutDescriptorQueries(int layout_descriptor_length,
                                           : (layout_desc.capacity() - i);
       }
       expected_sequence_length =
-          Min(expected_sequence_length, max_sequence_length);
+          std::min(expected_sequence_length, max_sequence_length);
       int sequence_length;
       CHECK_EQ(tagged,
                layout_desc.IsTagged(i, max_sequence_length, &sequence_length));
@@ -1254,7 +1254,7 @@ static void TestLayoutDescriptorHelper(Isolate* isolate,
     bool expected_tagged = !index.is_double();
     if (!expected_tagged) {
       first_non_tagged_field_offset =
-          Min(first_non_tagged_field_offset, index.offset());
+          std::min(first_non_tagged_field_offset, index.offset());
     }
 
     int end_of_region_offset;

@@ -34,274 +34,250 @@
  *
  * @constructor
  */
-export function SplayTree() {
-};
+export class SplayTree {
+
+  /**
+   * Pointer to the root node of the tree.
+   *
+   * @type {SplayTreeNode}
+   * @private
+   */
+  root_ = null;
 
 
-/**
- * Pointer to the root node of the tree.
- *
- * @type {SplayTree.Node}
- * @private
- */
-SplayTree.prototype.root_ = null;
-
-
-/**
- * @return {boolean} Whether the tree is empty.
- */
-SplayTree.prototype.isEmpty = function() {
-  return !this.root_;
-};
-
-
-
-/**
- * Inserts a node into the tree with the specified key and value if
- * the tree does not already contain a node with the specified key. If
- * the value is inserted, it becomes the root of the tree.
- *
- * @param {number} key Key to insert into the tree.
- * @param {*} value Value to insert into the tree.
- */
-SplayTree.prototype.insert = function(key, value) {
-  if (this.isEmpty()) {
-    this.root_ = new SplayTree.Node(key, value);
-    return;
+  /**
+   * @return {boolean} Whether the tree is empty.
+   */
+  isEmpty() {
+    return !this.root_;
   }
-  // Splay on the key to move the last node on the search path for
-  // the key to the root of the tree.
-  this.splay_(key);
-  if (this.root_.key == key) {
-    return;
-  }
-  const node = new SplayTree.Node(key, value);
-  if (key > this.root_.key) {
-    node.left = this.root_;
-    node.right = this.root_.right;
-    this.root_.right = null;
-  } else {
-    node.right = this.root_;
-    node.left = this.root_.left;
-    this.root_.left = null;
-  }
-  this.root_ = node;
-};
 
-
-/**
- * Removes a node with the specified key from the tree if the tree
- * contains a node with this key. The removed node is returned. If the
- * key is not found, an exception is thrown.
- *
- * @param {number} key Key to find and remove from the tree.
- * @return {SplayTree.Node} The removed node.
- */
-SplayTree.prototype.remove = function(key) {
-  if (this.isEmpty()) {
-    throw Error(`Key not found: ${key}`);
-  }
-  this.splay_(key);
-  if (this.root_.key != key) {
-    throw Error(`Key not found: ${key}`);
-  }
-  const removed = this.root_;
-  if (!this.root_.left) {
-    this.root_ = this.root_.right;
-  } else {
-    const { right } = this.root_;
-    this.root_ = this.root_.left;
-    // Splay to make sure that the new root has an empty right child.
+  /**
+   * Inserts a node into the tree with the specified key and value if
+   * the tree does not already contain a node with the specified key. If
+   * the value is inserted, it becomes the root of the tree.
+   *
+   * @param {number} key Key to insert into the tree.
+   * @param {*} value Value to insert into the tree.
+   */
+  insert(key, value) {
+    if (this.isEmpty()) {
+      this.root_ = new SplayTreeNode(key, value);
+      return;
+    }
+    // Splay on the key to move the last node on the search path for
+    // the key to the root of the tree.
     this.splay_(key);
-    // Insert the original right child as the right child of the new
-    // root.
-    this.root_.right = right;
+    if (this.root_.key == key) return;
+
+    const node = new SplayTreeNode(key, value);
+    if (key > this.root_.key) {
+      node.left = this.root_;
+      node.right = this.root_.right;
+      this.root_.right = null;
+    } else {
+      node.right = this.root_;
+      node.left = this.root_.left;
+      this.root_.left = null;
+    }
+    this.root_ = node;
   }
-  return removed;
-};
 
-
-/**
- * Returns the node having the specified key or null if the tree doesn't contain
- * a node with the specified key.
- *
- * @param {number} key Key to find in the tree.
- * @return {SplayTree.Node} Node having the specified key.
- */
-SplayTree.prototype.find = function(key) {
-  if (this.isEmpty()) {
-    return null;
+  /**
+   * Removes a node with the specified key from the tree if the tree
+   * contains a node with this key. The removed node is returned. If the
+   * key is not found, an exception is thrown.
+   *
+   * @param {number} key Key to find and remove from the tree.
+   * @return {SplayTreeNode} The removed node.
+   */
+  remove(key) {
+    if (this.isEmpty()) {
+      throw Error(`Key not found: ${key}`);
+    }
+    this.splay_(key);
+    if (this.root_.key != key) {
+      throw Error(`Key not found: ${key}`);
+    }
+    const removed = this.root_;
+    if (!this.root_.left) {
+      this.root_ = this.root_.right;
+    } else {
+      const { right } = this.root_;
+      this.root_ = this.root_.left;
+      // Splay to make sure that the new root has an empty right child.
+      this.splay_(key);
+      // Insert the original right child as the right child of the new
+      // root.
+      this.root_.right = right;
+    }
+    return removed;
   }
-  this.splay_(key);
-  return this.root_.key == key ? this.root_ : null;
-};
 
-
-/**
- * @return {SplayTree.Node} Node having the minimum key value.
- */
-SplayTree.prototype.findMin = function() {
-  if (this.isEmpty()) {
-    return null;
+  /**
+   * Returns the node having the specified key or null if the tree doesn't contain
+   * a node with the specified key.
+   *
+   * @param {number} key Key to find in the tree.
+   * @return {SplayTreeNode} Node having the specified key.
+   */
+  find(key) {
+    if (this.isEmpty()) return null;
+    this.splay_(key);
+    return this.root_.key == key ? this.root_ : null;
   }
-  let current = this.root_;
-  while (current.left) {
-    current = current.left;
+
+  /**
+   * @return {SplayTreeNode} Node having the minimum key value.
+   */
+  findMin() {
+    if (this.isEmpty()) return null;
+    let current = this.root_;
+    while (current.left) {
+      current = current.left;
+    }
+    return current;
   }
-  return current;
-};
 
-
-/**
- * @return {SplayTree.Node} Node having the maximum key value.
- */
-SplayTree.prototype.findMax = function(opt_startNode) {
-  if (this.isEmpty()) {
-    return null;
+  /**
+   * @return {SplayTreeNode} Node having the maximum key value.
+   */
+  findMax(opt_startNode) {
+    if (this.isEmpty()) return null;
+    let current = opt_startNode || this.root_;
+    while (current.right) {
+      current = current.right;
+    }
+    return current;
   }
-  let current = opt_startNode || this.root_;
-  while (current.right) {
-    current = current.right;
+
+  /**
+   * @return {SplayTreeNode} Node having the maximum key value that
+   *     is less or equal to the specified key value.
+   */
+  findGreatestLessThan(key) {
+    if (this.isEmpty()) return null;
+    // Splay on the key to move the node with the given key or the last
+    // node on the search path to the top of the tree.
+    this.splay_(key);
+    // Now the result is either the root node or the greatest node in
+    // the left subtree.
+    if (this.root_.key <= key) {
+      return this.root_;
+    } else if (this.root_.left) {
+      return this.findMax(this.root_.left);
+    } else {
+      return null;
+    }
   }
-  return current;
-};
 
-
-/**
- * @return {SplayTree.Node} Node having the maximum key value that
- *     is less or equal to the specified key value.
- */
-SplayTree.prototype.findGreatestLessThan = function(key) {
-  if (this.isEmpty()) {
-    return null;
+  /**
+   * @return {Array<*>} An array containing all the values of tree's nodes paired
+   *     with keys.
+   */
+  exportKeysAndValues() {
+    const result = [];
+    this.traverse_(function(node) { result.push([node.key, node.value]); });
+    return result;
   }
-  // Splay on the key to move the node with the given key or the last
-  // node on the search path to the top of the tree.
-  this.splay_(key);
-  // Now the result is either the root node or the greatest node in
-  // the left subtree.
-  if (this.root_.key <= key) {
-    return this.root_;
-  } else if (this.root_.left) {
-    return this.findMax(this.root_.left);
-  } else {
-    return null;
+
+  /**
+   * @return {Array<*>} An array containing all the values of tree's nodes.
+   */
+  exportValues() {
+    const result = [];
+    this.traverse_(function(node) { result.push(node.value); });
+    return result;
   }
-};
 
-
-/**
- * @return {Array<*>} An array containing all the values of tree's nodes paired
- *     with keys.
- */
-SplayTree.prototype.exportKeysAndValues = function() {
-  const result = [];
-  this.traverse_(function(node) { result.push([node.key, node.value]); });
-  return result;
-};
-
-
-/**
- * @return {Array<*>} An array containing all the values of tree's nodes.
- */
-SplayTree.prototype.exportValues = function() {
-  const result = [];
-  this.traverse_(function(node) { result.push(node.value); });
-  return result;
-};
-
-
-/**
- * Perform the splay operation for the given key. Moves the node with
- * the given key to the top of the tree.  If no node has the given
- * key, the last node on the search path is moved to the top of the
- * tree. This is the simplified top-down splaying algorithm from:
- * "Self-adjusting Binary Search Trees" by Sleator and Tarjan
- *
- * @param {number} key Key to splay the tree on.
- * @private
- */
-SplayTree.prototype.splay_ = function(key) {
-  if (this.isEmpty()) {
-    return;
-  }
-  // Create a dummy node.  The use of the dummy node is a bit
-  // counter-intuitive: The right child of the dummy node will hold
-  // the L tree of the algorithm.  The left child of the dummy node
-  // will hold the R tree of the algorithm.  Using a dummy node, left
-  // and right will always be nodes and we avoid special cases.
-  let dummy, left, right;
-  dummy = left = right = new SplayTree.Node(null, null);
-  let current = this.root_;
-  while (true) {
-    if (key < current.key) {
-      if (!current.left) {
-        break;
-      }
-      if (key < current.left.key) {
-        // Rotate right.
-        const tmp = current.left;
-        current.left = tmp.right;
-        tmp.right = current;
-        current = tmp;
+  /**
+   * Perform the splay operation for the given key. Moves the node with
+   * the given key to the top of the tree.  If no node has the given
+   * key, the last node on the search path is moved to the top of the
+   * tree. This is the simplified top-down splaying algorithm from:
+   * "Self-adjusting Binary Search Trees" by Sleator and Tarjan
+   *
+   * @param {number} key Key to splay the tree on.
+   * @private
+   */
+  splay_(key) {
+    if (this.isEmpty()) return;
+    // Create a dummy node.  The use of the dummy node is a bit
+    // counter-intuitive: The right child of the dummy node will hold
+    // the L tree of the algorithm.  The left child of the dummy node
+    // will hold the R tree of the algorithm.  Using a dummy node, left
+    // and right will always be nodes and we avoid special cases.
+    let dummy, left, right;
+    dummy = left = right = new SplayTreeNode(null, null);
+    let current = this.root_;
+    while (true) {
+      if (key < current.key) {
         if (!current.left) {
           break;
         }
-      }
-      // Link right.
-      right.left = current;
-      right = current;
-      current = current.left;
-    } else if (key > current.key) {
-      if (!current.right) {
-        break;
-      }
-      if (key > current.right.key) {
-        // Rotate left.
-        const tmp = current.right;
-        current.right = tmp.left;
-        tmp.left = current;
-        current = tmp;
+        if (key < current.left.key) {
+          // Rotate right.
+          const tmp = current.left;
+          current.left = tmp.right;
+          tmp.right = current;
+          current = tmp;
+          if (!current.left) {
+            break;
+          }
+        }
+        // Link right.
+        right.left = current;
+        right = current;
+        current = current.left;
+      } else if (key > current.key) {
         if (!current.right) {
           break;
         }
+        if (key > current.right.key) {
+          // Rotate left.
+          const tmp = current.right;
+          current.right = tmp.left;
+          tmp.left = current;
+          current = tmp;
+          if (!current.right) {
+            break;
+          }
+        }
+        // Link left.
+        left.right = current;
+        left = current;
+        current = current.right;
+      } else {
+        break;
       }
-      // Link left.
-      left.right = current;
-      left = current;
-      current = current.right;
-    } else {
-      break;
+    }
+    // Assemble.
+    left.right = current.left;
+    right.left = current.right;
+    current.left = dummy.right;
+    current.right = dummy.left;
+    this.root_ = current;
+  }
+
+  /**
+   * Performs a preorder traversal of the tree.
+   *
+   * @param {function(SplayTreeNode)} f Visitor function.
+   * @private
+   */
+  traverse_(f) {
+    const nodesToVisit = [this.root_];
+    while (nodesToVisit.length > 0) {
+      const node = nodesToVisit.shift();
+      if (node == null) {
+        continue;
+      }
+      f(node);
+      nodesToVisit.push(node.left);
+      nodesToVisit.push(node.right);
     }
   }
-  // Assemble.
-  left.right = current.left;
-  right.left = current.right;
-  current.left = dummy.right;
-  current.right = dummy.left;
-  this.root_ = current;
-};
-
-
-/**
- * Performs a preorder traversal of the tree.
- *
- * @param {function(SplayTree.Node)} f Visitor function.
- * @private
- */
-SplayTree.prototype.traverse_ = function(f) {
-  const nodesToVisit = [this.root_];
-  while (nodesToVisit.length > 0) {
-    const node = nodesToVisit.shift();
-    if (node == null) {
-      continue;
-    }
-    f(node);
-    nodesToVisit.push(node.left);
-    nodesToVisit.push(node.right);
-  }
-};
-
+}
 
 /**
  * Constructs a Splay tree node.
@@ -309,19 +285,17 @@ SplayTree.prototype.traverse_ = function(f) {
  * @param {number} key Key.
  * @param {*} value Value.
  */
-SplayTree.Node = function(key, value) {
-  this.key = key;
-  this.value = value;
+class SplayTreeNode {
+  constructor(key, value) {
+    this.key = key;
+    this.value = value;
+    /**
+     * @type {SplayTreeNode}
+     */
+    this.left = null;
+    /**
+     * @type {SplayTreeNode}
+     */
+    this.right = null;
+  }
 };
-
-
-/**
- * @type {SplayTree.Node}
- */
-SplayTree.Node.prototype.left = null;
-
-
-/**
- * @type {SplayTree.Node}
- */
-SplayTree.Node.prototype.right = null;

@@ -52,9 +52,9 @@ TEST_F(WasmMacroGenTest, Statements) {
   EXPECT_SIZE(1, WASM_NOP);
   EXPECT_SIZE(1, WASM_END);
 
-  EXPECT_SIZE(4, WASM_SET_LOCAL(0, WASM_ZERO));
+  EXPECT_SIZE(4, WASM_LOCAL_SET(0, WASM_ZERO));
 
-  EXPECT_SIZE(4, WASM_SET_GLOBAL(0, WASM_ZERO));
+  EXPECT_SIZE(4, WASM_GLOBAL_SET(0, WASM_ZERO));
 
   EXPECT_SIZE(7, WASM_STORE_MEM(MachineType::Int32(), WASM_ZERO, WASM_ZERO));
 
@@ -99,12 +99,12 @@ TEST_F(WasmMacroGenTest, BrTable) {
 }
 
 TEST_F(WasmMacroGenTest, Expressions) {
-  EXPECT_SIZE(2, WASM_GET_LOCAL(0));
-  EXPECT_SIZE(2, WASM_GET_LOCAL(1));
-  EXPECT_SIZE(2, WASM_GET_LOCAL(12));
-  EXPECT_SIZE(2, WASM_GET_GLOBAL(0));
-  EXPECT_SIZE(2, WASM_GET_GLOBAL(1));
-  EXPECT_SIZE(2, WASM_GET_GLOBAL(12));
+  EXPECT_SIZE(2, WASM_LOCAL_GET(0));
+  EXPECT_SIZE(2, WASM_LOCAL_GET(1));
+  EXPECT_SIZE(2, WASM_LOCAL_GET(12));
+  EXPECT_SIZE(2, WASM_GLOBAL_GET(0));
+  EXPECT_SIZE(2, WASM_GLOBAL_GET(1));
+  EXPECT_SIZE(2, WASM_GLOBAL_GET(12));
   EXPECT_SIZE(5, WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO));
   EXPECT_SIZE(5, WASM_LOAD_MEM(MachineType::Float64(), WASM_ZERO));
   EXPECT_SIZE(5, WASM_LOAD_MEM(MachineType::Float32(), WASM_ZERO));
@@ -296,7 +296,7 @@ TEST_F(WasmMacroGenTest, LoadsAndStores) {
     EXPECT_SIZE(5, WASM_LOAD_MEM(kMemTypes[i], WASM_ZERO));
   }
   for (size_t i = 0; i < arraysize(kMemTypes); i++) {
-    EXPECT_SIZE(7, WASM_STORE_MEM(kMemTypes[i], WASM_ZERO, WASM_GET_LOCAL(0)));
+    EXPECT_SIZE(7, WASM_STORE_MEM(kMemTypes[i], WASM_ZERO, WASM_LOCAL_GET(0)));
   }
 }
 
@@ -306,7 +306,7 @@ TEST_F(WasmMacroGenTest, LoadsAndStoresWithOffset) {
   }
   for (size_t i = 0; i < arraysize(kMemTypes); i++) {
     EXPECT_SIZE(7, WASM_STORE_MEM_OFFSET(kMemTypes[i], 13, WASM_ZERO,
-                                         WASM_GET_LOCAL(0)));
+                                         WASM_LOCAL_GET(0)));
   }
 }
 

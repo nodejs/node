@@ -94,7 +94,11 @@ Address RelocInfo::constant_pool_entry_address() {
 int RelocInfo::target_address_size() { return kPointerSize; }
 
 HeapObject RelocInfo::target_object() {
-  DCHECK(IsCodeTarget(rmode_) || rmode_ == FULL_EMBEDDED_OBJECT);
+  DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_) ||
+         IsDataEmbeddedObject(rmode_));
+  if (IsDataEmbeddedObject(rmode_)) {
+    return HeapObject::cast(Object(ReadUnalignedValue<Address>(pc_)));
+  }
   return HeapObject::cast(
       Object(Assembler::target_address_at(pc_, constant_pool_)));
 }
@@ -104,9 +108,11 @@ HeapObject RelocInfo::target_object_no_host(Isolate* isolate) {
 }
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
-  if (IsCodeTarget(rmode_) || rmode_ == FULL_EMBEDDED_OBJECT) {
+  if (IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_)) {
     return Handle<HeapObject>(reinterpret_cast<Address*>(
         Assembler::target_address_at(pc_, constant_pool_)));
+  } else if (IsDataEmbeddedObject(rmode_)) {
+    return Handle<HeapObject>::cast(ReadUnalignedValue<Handle<Object>>(pc_));
   }
   DCHECK(IsRelativeCodeTarget(rmode_));
   return origin->relative_code_target_object_handle_at(pc_);
@@ -115,9 +121,15 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
 void RelocInfo::set_target_object(Heap* heap, HeapObject target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsCodeTarget(rmode_) || rmode_ == FULL_EMBEDDED_OBJECT);
-  Assembler::set_target_address_at(pc_, constant_pool_, target.ptr(),
-                                   icache_flush_mode);
+  DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_) ||
+         IsDataEmbeddedObject(rmode_));
+  if (IsDataEmbeddedObject(rmode_)) {
+    WriteUnalignedValue(pc_, target.ptr());
+    // No need to flush icache since no instructions were changed.
+  } else {
+    Assembler::set_target_address_at(pc_, constant_pool_, target.ptr(),
+                                     icache_flush_mode);
+  }
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null() &&
       !FLAG_disable_write_barriers) {
     WriteBarrierForCode(host(), this, target);

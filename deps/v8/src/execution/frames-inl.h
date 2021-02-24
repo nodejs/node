@@ -27,6 +27,9 @@ class InnerPointerToCodeCache {
     Flush();
   }
 
+  InnerPointerToCodeCache(const InnerPointerToCodeCache&) = delete;
+  InnerPointerToCodeCache& operator=(const InnerPointerToCodeCache&) = delete;
+
   void Flush() { memset(static_cast<void*>(&cache_[0]), 0, sizeof(cache_)); }
 
   InnerPointerToCodeCacheEntry* GetCacheEntry(Address inner_pointer);
@@ -38,8 +41,6 @@ class InnerPointerToCodeCache {
 
   static const int kInnerPointerToCodeCacheSize = 1024;
   InnerPointerToCodeCacheEntry cache_[kInnerPointerToCodeCacheSize];
-
-  DISALLOW_COPY_AND_ASSIGN(InnerPointerToCodeCache);
 };
 
 inline Address StackHandler::address() const {

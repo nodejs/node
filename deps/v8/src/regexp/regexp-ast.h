@@ -59,7 +59,7 @@ class Interval {
     else if (from_ == kNone)
       return that;
     else
-      return Interval(Min(from_, that.from_), Max(to_, that.to_));
+      return Interval(std::min(from_, that.from_), std::max(to_, that.to_));
   }
 
   bool Contains(int value) { return (from_ <= value) && (value <= to_); }

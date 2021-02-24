@@ -31,6 +31,9 @@ class IsolateData final {
  public:
   explicit IsolateData(Isolate* isolate) : stack_guard_(isolate) {}
 
+  IsolateData(const IsolateData&) = delete;
+  IsolateData& operator=(const IsolateData&) = delete;
+
   static constexpr intptr_t kIsolateRootBias = kRootRegisterBias;
 
   // The value of the kRootRegister.
@@ -75,6 +78,10 @@ class IsolateData final {
     return kFastCCallCallerPCOffset - kIsolateRootBias;
   }
 
+  static constexpr int fast_api_call_target_offset() {
+    return kFastApiCallTargetOffset - kIsolateRootBias;
+  }
+
   // Root-register-relative offset of the given builtin table entry.
   // TODO(ishell): remove in favour of typified id version.
   static int builtin_slot_offset(int builtin_index) {
@@ -90,10 +97,14 @@ class IsolateData final {
   // The FP and PC that are saved right before TurboAssembler::CallCFunction.
   Address* fast_c_call_caller_fp_address() { return &fast_c_call_caller_fp_; }
   Address* fast_c_call_caller_pc_address() { return &fast_c_call_caller_pc_; }
+  // The address of the fast API callback right before it's executed from
+  // generated code.
+  Address* fast_api_call_target_address() { return &fast_api_call_target_; }
   StackGuard* stack_guard() { return &stack_guard_; }
   uint8_t* stack_is_iterable_address() { return &stack_is_iterable_; }
   Address fast_c_call_caller_fp() { return fast_c_call_caller_fp_; }
   Address fast_c_call_caller_pc() { return fast_c_call_caller_pc_; }
+  Address fast_api_call_target() { return fast_api_call_target_; }
   uint8_t stack_is_iterable() { return stack_is_iterable_; }
 
   // Returns true if this address points to data stored in this instance.
@@ -130,6 +141,7 @@ class IsolateData final {
   V(kEmbedderDataOffset, Internals::kNumIsolateDataSlots* kSystemPointerSize) \
   V(kFastCCallCallerFPOffset, kSystemPointerSize)                             \
   V(kFastCCallCallerPCOffset, kSystemPointerSize)                             \
+  V(kFastApiCallTargetOffset, kSystemPointerSize)                             \
   V(kStackGuardOffset, StackGuard::kSizeInBytes)                              \
   V(kRootsTableOffset, RootsTable::kEntriesCount* kSystemPointerSize)         \
   V(kExternalReferenceTableOffset, ExternalReferenceTable::kSizeInBytes)      \
@@ -166,9 +178,10 @@ class IsolateData final {
   // instruction in compiled code.
   Address fast_c_call_caller_fp_ = kNullAddress;
   Address fast_c_call_caller_pc_ = kNullAddress;
+  Address fast_api_call_target_ = kNullAddress;
 
-  // Fields related to the system and JS stack. In particular, this contains the
-  // stack limit used by stack checks in generated code.
+  // Fields related to the system and JS stack. In particular, this contains
+  // the stack limit used by stack checks in generated code.
   StackGuard stack_guard_;
 
   RootsTable roots_;
@@ -209,8 +222,6 @@ class IsolateData final {
   friend class Heap;
   FRIEND_TEST(HeapTest, ExternalLimitDefault);
   FRIEND_TEST(HeapTest, ExternalLimitStaysAboveDefaultForExplicitHandling);
-
-  DISALLOW_COPY_AND_ASSIGN(IsolateData);
 };
 
 // IsolateData object must have "predictable" layout which does not change when
@@ -232,6 +243,8 @@ void IsolateData::AssertPredictableLayout() {
                 kFastCCallCallerFPOffset);
   STATIC_ASSERT(offsetof(IsolateData, fast_c_call_caller_pc_) ==
                 kFastCCallCallerPCOffset);
+  STATIC_ASSERT(offsetof(IsolateData, fast_api_call_target_) ==
+                kFastApiCallTargetOffset);
   STATIC_ASSERT(offsetof(IsolateData, stack_guard_) == kStackGuardOffset);
 #ifdef V8_HEAP_SANDBOX
   STATIC_ASSERT(offsetof(IsolateData, external_pointer_table_) ==

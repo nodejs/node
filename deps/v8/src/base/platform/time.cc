@@ -760,6 +760,9 @@ bool ThreadTicks::IsSupported() {
 #else
   return false;
 #endif
+#elif defined(__PASE__)
+  // Thread CPU time accounting is unavailable in PASE
+  return false;
 #elif(defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
     defined(V8_OS_MACOSX) || defined(V8_OS_ANDROID) || defined(V8_OS_SOLARIS)
   return true;

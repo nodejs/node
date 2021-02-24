@@ -200,7 +200,7 @@ void AllocationTracker::PrepareForSerialization() {
 
 
 void AllocationTracker::AllocationEvent(Address addr, int size) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   Heap* heap = ids_->heap();
 
   // Mark the new block as FreeSpace to make sure the heap is iterable
@@ -242,7 +242,7 @@ unsigned AllocationTracker::AddFunctionInfo(SharedFunctionInfo shared,
       reinterpret_cast<void*>(id), SnapshotObjectIdHash(id));
   if (entry->value == nullptr) {
     FunctionInfo* info = new FunctionInfo();
-    info->name = names_->GetName(shared.DebugName());
+    info->name = names_->GetCopy(shared.DebugNameCStr().get());
     info->function_id = id;
     if (shared.script().IsScript()) {
       Script script = Script::cast(shared.script());

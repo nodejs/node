@@ -4,6 +4,7 @@
 
 #include <memory>
 
+#include "include/libplatform/libplatform.h"
 #include "include/v8-metrics.h"
 #include "src/api/api-inl.h"
 #include "src/wasm/wasm-module-builder.h"
@@ -33,7 +34,8 @@ class MockPlatform final : public TestPlatform {
   std::unique_ptr<v8::JobHandle> PostJob(
       v8::TaskPriority priority,
       std::unique_ptr<v8::JobTask> job_task) override {
-    auto orig_job_handle = TestPlatform::PostJob(priority, std::move(job_task));
+    auto orig_job_handle = v8::platform::NewDefaultJobHandle(
+        this, priority, std::move(job_task), 1);
     auto job_handle =
         std::make_unique<MockJobHandle>(std::move(orig_job_handle), this);
     job_handles_.insert(job_handle.get());
@@ -52,9 +54,6 @@ class MockPlatform final : public TestPlatform {
   bool IdleTasksEnabled(v8::Isolate* isolate) override { return false; }
 
   void ExecuteTasks() {
-    for (auto* job_handle : job_handles_) {
-      if (job_handle->IsValid()) job_handle->Join();
-    }
     task_runner_->ExecuteTasks();
   }
 
@@ -90,14 +89,17 @@ class MockPlatform final : public TestPlatform {
 
     void ExecuteTasks() {
       std::queue<std::unique_ptr<v8::Task>> tasks;
-      {
-        base::MutexGuard lock_scope(&tasks_lock_);
-        tasks.swap(tasks_);
-      }
-      while (!tasks.empty()) {
-        std::unique_ptr<Task> task = std::move(tasks.front());
-        tasks.pop();
-        task->Run();
+      while (true) {
+        {
+          base::MutexGuard lock_scope(&tasks_lock_);
+          tasks.swap(tasks_);
+        }
+        if (tasks.empty()) break;
+        while (!tasks.empty()) {
+          std::unique_ptr<Task> task = std::move(tasks.front());
+          tasks.pop();
+          task->Run();
+        }
       }
     }
 
@@ -125,9 +127,7 @@ class MockPlatform final : public TestPlatform {
     void Join() override { orig_handle_->Join(); }
     void Cancel() override { orig_handle_->Cancel(); }
     void CancelAndDetach() override { orig_handle_->CancelAndDetach(); }
-    bool IsRunning() override { return orig_handle_->IsRunning(); }
     bool IsValid() override { return orig_handle_->IsValid(); }
-    bool IsCompleted() override { return orig_handle_->IsCompleted(); }
     bool IsActive() override { return orig_handle_->IsActive(); }
 
    private:

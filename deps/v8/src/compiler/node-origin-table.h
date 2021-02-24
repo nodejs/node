@@ -67,7 +67,7 @@ inline bool operator!=(const NodeOrigin& lhs, const NodeOrigin& rhs) {
 class V8_EXPORT_PRIVATE NodeOriginTable final
     : public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  class Scope final {
+  class V8_NODISCARD Scope final {
    public:
     Scope(NodeOriginTable* origins, const char* reducer_name, Node* node)
         : origins_(origins), prev_origin_(NodeOrigin::Unknown()) {
@@ -90,7 +90,7 @@ class V8_EXPORT_PRIVATE NodeOriginTable final
     NodeOrigin prev_origin_;
   };
 
-  class PhaseScope final {
+  class V8_NODISCARD PhaseScope final {
    public:
     PhaseScope(NodeOriginTable* origins, const char* phase_name)
         : origins_(origins) {

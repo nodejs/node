@@ -38,6 +38,8 @@ class V8InspectorSessionImpl : public V8InspectorSession,
                                                         V8Inspector::Channel*,
                                                         StringView state);
   ~V8InspectorSessionImpl() override;
+  V8InspectorSessionImpl(const V8InspectorSessionImpl&) = delete;
+  V8InspectorSessionImpl& operator=(const V8InspectorSessionImpl&) = delete;
 
   V8InspectorImpl* inspector() const { return m_inspector; }
   V8ConsoleAgentImpl* consoleAgent() { return m_consoleAgent.get(); }
@@ -129,8 +131,6 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   std::vector<std::unique_ptr<V8InspectorSession::Inspectable>>
       m_inspectedObjects;
   bool use_binary_protocol_ = false;
-
-  DISALLOW_COPY_AND_ASSIGN(V8InspectorSessionImpl);
 };
 
 }  // namespace v8_inspector

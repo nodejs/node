@@ -23,6 +23,8 @@ class TracingCpuProfilerImpl final
  public:
   explicit TracingCpuProfilerImpl(Isolate*);
   ~TracingCpuProfilerImpl() override;
+  TracingCpuProfilerImpl(const TracingCpuProfilerImpl&) = delete;
+  TracingCpuProfilerImpl& operator=(const TracingCpuProfilerImpl&) = delete;
 
   // v8::TracingController::TraceStateObserver
   void OnTraceEnabled() final;
@@ -36,8 +38,6 @@ class TracingCpuProfilerImpl final
   std::unique_ptr<CpuProfiler> profiler_;
   bool profiling_enabled_;
   base::Mutex mutex_;
-
-  DISALLOW_COPY_AND_ASSIGN(TracingCpuProfilerImpl);
 };
 
 }  // namespace internal

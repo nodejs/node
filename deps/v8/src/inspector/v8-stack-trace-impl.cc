@@ -176,7 +176,8 @@ std::unique_ptr<StringBuffer> V8StackTraceId::ToString() {
 
 StackFrame::StackFrame(v8::Isolate* isolate, v8::Local<v8::StackFrame> v8Frame)
     : m_functionName(toProtocolString(isolate, v8Frame->GetFunctionName())),
-      m_scriptId(String16::fromInteger(v8Frame->GetScriptId())),
+      m_scriptId(v8Frame->GetScriptId()),
+      m_scriptIdAsString(String16::fromInteger(v8Frame->GetScriptId())),
       m_sourceURL(
           toProtocolString(isolate, v8Frame->GetScriptNameOrSourceURL())),
       m_lineNumber(v8Frame->GetLineNumber() - 1),
@@ -189,7 +190,11 @@ StackFrame::StackFrame(v8::Isolate* isolate, v8::Local<v8::StackFrame> v8Frame)
 
 const String16& StackFrame::functionName() const { return m_functionName; }
 
-const String16& StackFrame::scriptId() const { return m_scriptId; }
+int StackFrame::scriptId() const { return m_scriptId; }
+
+const String16& StackFrame::scriptIdAsString() const {
+  return m_scriptIdAsString;
+}
 
 const String16& StackFrame::sourceURL() const { return m_sourceURL; }
 
@@ -209,7 +214,7 @@ std::unique_ptr<protocol::Runtime::CallFrame> StackFrame::buildInspectorObject(
   }
   return protocol::Runtime::CallFrame::create()
       .setFunctionName(m_functionName)
-      .setScriptId(m_scriptId)
+      .setScriptId(String16::fromInteger(m_scriptId))
       .setUrl(frameUrl)
       .setLineNumber(m_lineNumber)
       .setColumnNumber(m_columnNumber)
@@ -315,7 +320,11 @@ int V8StackTraceImpl::topColumnNumber() const {
 }
 
 StringView V8StackTraceImpl::topScriptId() const {
-  return toStringView(m_frames[0]->scriptId());
+  return toStringView(m_frames[0]->scriptIdAsString());
+}
+
+int V8StackTraceImpl::topScriptIdAsInteger() const {
+  return m_frames[0]->scriptId();
 }
 
 StringView V8StackTraceImpl::topFunctionName() const {

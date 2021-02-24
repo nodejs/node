@@ -53,10 +53,6 @@ bool HasOnlyJSArrayMaps(JSHeapBroker* broker,
 
 }  // namespace
 
-bool JSNativeContextSpecialization::should_disallow_heap_access() const {
-  return broker()->is_concurrent_inlining();
-}
-
 JSNativeContextSpecialization::JSNativeContextSpecialization(
     Editor* editor, JSGraph* jsgraph, JSHeapBroker* broker, Flags flags,
     CompilationDependencies* dependencies, Zone* zone, Zone* shared_zone)
@@ -73,8 +69,6 @@ JSNativeContextSpecialization::JSNativeContextSpecialization(
       type_cache_(TypeCache::Get()) {}
 
 Reduction JSNativeContextSpecialization::Reduce(Node* node) {
-  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
-
   switch (node->opcode()) {
     case IrOpcode::kJSAdd:
       return ReduceJSAdd(node);
@@ -182,7 +176,7 @@ Reduction JSNativeContextSpecialization::ReduceJSToString(Node* node) {
   return NoChange();
 }
 
-const StringConstantBase*
+base::Optional<const StringConstantBase*>
 JSNativeContextSpecialization::CreateDelayedStringConstant(Node* node) {
   if (node->opcode() == IrOpcode::kDelayedStringConstant) {
     return StringConstantBaseOf(node->op());
@@ -195,8 +189,9 @@ JSNativeContextSpecialization::CreateDelayedStringConstant(Node* node) {
       HeapObjectMatcher matcher(node);
       if (matcher.HasResolvedValue() && matcher.Ref(broker()).IsString()) {
         StringRef s = matcher.Ref(broker()).AsString();
+        if (!s.length().has_value()) return base::nullopt;
         return shared_zone()->New<StringLiteral>(
-            s.object(), static_cast<size_t>(s.length()));
+            s.object(), static_cast<size_t>(s.length().value()));
       } else {
         UNREACHABLE();
       }
@@ -335,10 +330,14 @@ Reduction JSNativeContextSpecialization::ReduceJSAdd(Node* node) {
   // string constant and the addition won't throw due to too long result.
   if (*lhs_len + *rhs_len <= String::kMaxLength &&
       (IsStringConstant(broker(), lhs) || IsStringConstant(broker(), rhs))) {
-    const StringConstantBase* left = CreateDelayedStringConstant(lhs);
-    const StringConstantBase* right = CreateDelayedStringConstant(rhs);
+    base::Optional<const StringConstantBase*> left =
+        CreateDelayedStringConstant(lhs);
+    if (!left.has_value()) return NoChange();
+    base::Optional<const StringConstantBase*> right =
+        CreateDelayedStringConstant(rhs);
+    if (!right.has_value()) return NoChange();
     const StringConstantBase* cons =
-        shared_zone()->New<StringCons>(left, right);
+        shared_zone()->New<StringCons>(left.value(), right.value());
 
     Node* reduced = graph()->NewNode(common()->DelayedStringConstant(cons));
     ReplaceWithValue(node, reduced);
@@ -360,7 +359,8 @@ Reduction JSNativeContextSpecialization::ReduceJSGetSuperConstructor(
   }
   JSFunctionRef function = m.Ref(broker()).AsJSFunction();
   MapRef function_map = function.map();
-  if (should_disallow_heap_access() && !function_map.serialized_prototype()) {
+  if (function_map.ShouldHaveBeenSerialized() &&
+      !function_map.serialized_prototype()) {
     TRACE_BROKER_MISSING(broker(), "data for map " << function_map);
     return NoChange();
   }
@@ -411,7 +411,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
   MapRef receiver_map = receiver_ref.map();
 
   PropertyAccessInfo access_info = PropertyAccessInfo::Invalid(graph()->zone());
-  if (should_disallow_heap_access()) {
+  if (broker()->is_concurrent_inlining()) {
     access_info = broker()->GetPropertyAccessInfo(
         receiver_map,
         NameRef(broker(), isolate()->factory()->has_instance_symbol()),
@@ -545,7 +545,7 @@ JSNativeContextSpecialization::InferHasInPrototypeChain(
         all = false;
         break;
       }
-      if (should_disallow_heap_access() && !map.serialized_prototype()) {
+      if (map.ShouldHaveBeenSerialized() && !map.serialized_prototype()) {
         TRACE_BROKER_MISSING(broker(), "prototype data for map " << map);
         return kMayBeInPrototypeChain;
       }
@@ -624,7 +624,7 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
     // OrdinaryHasInstance on bound functions turns into a recursive invocation
     // of the instanceof operator again.
     JSBoundFunctionRef function = m.Ref(broker()).AsJSBoundFunction();
-    if (should_disallow_heap_access() && !function.serialized()) {
+    if (function.ShouldHaveBeenSerialized() && !function.serialized()) {
       TRACE_BROKER_MISSING(broker(), "data for JSBoundFunction " << function);
       return NoChange();
     }
@@ -647,7 +647,7 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
     // Optimize if we currently know the "prototype" property.
 
     JSFunctionRef function = m.Ref(broker()).AsJSFunction();
-    if (should_disallow_heap_access() && !function.serialized()) {
+    if (function.ShouldHaveBeenSerialized() && !function.serialized()) {
       TRACE_BROKER_MISSING(broker(), "data for JSFunction " << function);
       return NoChange();
     }
@@ -725,7 +725,7 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
   ZoneVector<PropertyAccessInfo> access_infos(graph()->zone());
   AccessInfoFactory access_info_factory(broker(), dependencies(),
                                         graph()->zone());
-  if (!should_disallow_heap_access()) {
+  if (!broker()->is_concurrent_inlining()) {
     access_info_factory.ComputePropertyAccessInfos(
         resolution_maps, factory()->then_string(), AccessMode::kLoad,
         &access_infos);
@@ -824,17 +824,11 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
     DCHECK_EQ(receiver, lookup_start_object);
     if (property_details.IsReadOnly()) {
       // Don't even bother trying to lower stores to read-only data properties.
+      // TODO(neis): We could generate code that checks if the new value equals
+      // the old one and then does nothing or deopts, respectively.
       return NoChange();
     } else if (property_cell_type == PropertyCellType::kUndefined) {
-      // There's no fast-path for dealing with undefined property cells.
       return NoChange();
-    } else if (property_cell_type == PropertyCellType::kConstantType) {
-      // There's also no fast-path to store to a global cell which pretended
-      // to be stable, but is no longer stable now.
-      if (property_cell_value.IsHeapObject() &&
-          !property_cell_value.AsHeapObject().map().is_stable()) {
-        return NoChange();
-      }
     }
   } else if (access_mode == AccessMode::kHas) {
     DCHECK_EQ(receiver, lookup_start_object);
@@ -947,23 +941,30 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
       }
       case PropertyCellType::kConstantType: {
         // Record a code dependency on the cell, and just deoptimize if the new
-        // values' type doesn't match the type of the previous value in the
+        // value's type doesn't match the type of the previous value in the
         // cell.
         dependencies()->DependOnGlobalProperty(property_cell);
         Type property_cell_value_type;
         MachineRepresentation representation = MachineRepresentation::kTagged;
         if (property_cell_value.IsHeapObject()) {
-          // We cannot do anything if the {property_cell_value}s map is no
-          // longer stable.
           MapRef property_cell_value_map =
               property_cell_value.AsHeapObject().map();
-          dependencies()->DependOnStableMap(property_cell_value_map);
+          if (property_cell_value_map.is_stable()) {
+            dependencies()->DependOnStableMap(property_cell_value_map);
+          } else {
+            // The value's map is already unstable. If this store were to go
+            // through the C++ runtime, it would transition the PropertyCell to
+            // kMutable. We don't want to change the cell type from generated
+            // code (to simplify concurrent heap access), however, so we keep
+            // it as kConstantType and do the store anyways (if the new value's
+            // map matches). This is safe because it merely prolongs the limbo
+            // state that we are in already.
+          }
 
           // Check that the {value} is a HeapObject.
           value = effect = graph()->NewNode(simplified()->CheckHeapObject(),
                                             value, effect, control);
-
-          // Check {value} map against the {property_cell} map.
+          // Check {value} map against the {property_cell_value} map.
           effect = graph()->NewNode(
               simplified()->CheckMaps(
                   CheckMapsFlag::kNone,
@@ -1090,7 +1091,7 @@ Reduction JSNativeContextSpecialization::ReduceMinimorphicPropertyAccess(
   MinimorphicLoadPropertyAccessInfo access_info =
       broker()->GetPropertyAccessInfo(
           feedback, source,
-          should_disallow_heap_access()
+          broker()->is_concurrent_inlining()
               ? SerializationPolicy::kAssumeSerialized
               : SerializationPolicy::kSerializeIfNeeded);
   if (access_info.IsInvalid()) return NoChange();
@@ -1194,7 +1195,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       if (map.is_deprecated()) continue;
       PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
           map, feedback.name(), access_mode, dependencies(),
-          should_disallow_heap_access()
+          broker()->is_concurrent_inlining()
               ? SerializationPolicy::kAssumeSerialized
               : SerializationPolicy::kSerializeIfNeeded);
       access_infos_for_feedback.push_back(access_info);
@@ -1467,7 +1468,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
         name.equals(ObjectRef(broker(), factory()->prototype_string()))) {
       // Optimize "prototype" property of functions.
       JSFunctionRef function = object.AsJSFunction();
-      if (should_disallow_heap_access() && !function.serialized()) {
+      if (function.ShouldHaveBeenSerialized() && !function.serialized()) {
         TRACE_BROKER_MISSING(broker(), "data for function " << function);
         return NoChange();
       }
@@ -1484,7 +1485,8 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
     } else if (object.IsString() &&
                name.equals(ObjectRef(broker(), factory()->length_string()))) {
       // Constant-fold "length" property on constant strings.
-      Node* value = jsgraph()->Constant(object.AsString().length());
+      if (!object.AsString().length().has_value()) return NoChange();
+      Node* value = jsgraph()->Constant(object.AsString().length().value());
       ReplaceWithValue(node, value);
       return Replace(value);
     }
@@ -1779,7 +1781,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     base::Optional<JSTypedArrayRef> typed_array =
         GetTypedArrayConstant(broker(), receiver);
     if (typed_array.has_value()) {
-      if (should_disallow_heap_access() && !typed_array->serialized()) {
+      if (typed_array->ShouldHaveBeenSerialized() &&
+          !typed_array->serialized()) {
         TRACE_BROKER_MISSING(broker(), "data for typed array " << *typed_array);
         return NoChange();
       }
@@ -1981,7 +1984,9 @@ Reduction JSNativeContextSpecialization::ReduceElementLoadFromHeapConstant(
   if (receiver_ref.IsString()) {
     DCHECK_NE(access_mode, AccessMode::kHas);
     // Ensure that {key} is less than {receiver} length.
-    Node* length = jsgraph()->Constant(receiver_ref.AsString().length());
+    if (!receiver_ref.AsString().length().has_value()) return NoChange();
+    Node* length =
+        jsgraph()->Constant(receiver_ref.AsString().length().value());
 
     // Load the single character string from {receiver} or yield
     // undefined if the {key} is out of bounds (depending on the
@@ -1998,8 +2003,6 @@ Reduction JSNativeContextSpecialization::ReduceElementLoadFromHeapConstant(
 Reduction JSNativeContextSpecialization::ReducePropertyAccess(
     Node* node, Node* key, base::Optional<NameRef> static_name, Node* value,
     FeedbackSource const& source, AccessMode access_mode) {
-  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
-
   DCHECK_EQ(key == nullptr, static_name.has_value());
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
          node->opcode() == IrOpcode::kJSStoreProperty ||
@@ -2195,9 +2198,9 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreProperty(Node* node) {
 }
 
 Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
-    Node* receiver, Node* context, Node* frame_state, Node** effect,
-    Node** control, ZoneVector<Node*>* if_exceptions,
-    PropertyAccessInfo const& access_info) {
+    Node* receiver, ConvertReceiverMode receiver_mode, Node* context,
+    Node* frame_state, Node** effect, Node** control,
+    ZoneVector<Node*>* if_exceptions, PropertyAccessInfo const& access_info) {
   ObjectRef constant(broker(), access_info.constant());
   Node* target = jsgraph()->Constant(constant);
   FrameStateInfo const& frame_info = FrameStateInfoOf(frame_state->op());
@@ -2208,7 +2211,7 @@ Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
     value = *effect = *control = graph()->NewNode(
         jsgraph()->javascript()->Call(JSCallNode::ArityForArgc(0),
                                       CallFrequency(), FeedbackSource(),
-                                      ConvertReceiverMode::kNotNullOrUndefined),
+                                      receiver_mode),
         target, receiver, feedback, context, frame_state, *effect, *control);
   } else {
     Node* holder = access_info.holder().is_null()
@@ -2343,8 +2346,13 @@ JSNativeContextSpecialization::BuildPropertyLoad(
   if (access_info.IsNotFound()) {
     value = jsgraph()->UndefinedConstant();
   } else if (access_info.IsAccessorConstant()) {
-    value = InlinePropertyGetterCall(receiver, context, frame_state, &effect,
-                                     &control, if_exceptions, access_info);
+    ConvertReceiverMode receiver_mode =
+        receiver == lookup_start_object
+            ? ConvertReceiverMode::kNotNullOrUndefined
+            : ConvertReceiverMode::kAny;
+    value =
+        InlinePropertyGetterCall(receiver, receiver_mode, context, frame_state,
+                                 &effect, &control, if_exceptions, access_info);
   } else if (access_info.IsModuleExport()) {
     Node* cell = jsgraph()->Constant(
         ObjectRef(broker(), access_info.constant()).AsCell());

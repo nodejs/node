@@ -53,7 +53,7 @@ function test() {
     assertEquals('B', charat_str[i].charAt(3*16 + 11));
   }
 
-  charat_short = "01234";
+  charat_short = "0123456789ABC";
   try {  // String can only be externalized once
     externalizeString(charat_short, true);
   } catch (ex) { }

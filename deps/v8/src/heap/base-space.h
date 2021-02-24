@@ -21,6 +21,9 @@ class Heap;
 // BaseSpace is the abstract superclass for all allocation spaces.
 class V8_EXPORT_PRIVATE BaseSpace : public Malloced {
  public:
+  BaseSpace(const BaseSpace&) = delete;
+  BaseSpace& operator=(const BaseSpace&) = delete;
+
   Heap* heap() const {
     DCHECK_NOT_NULL(heap_);
     return heap_;
@@ -71,8 +74,6 @@ class V8_EXPORT_PRIVATE BaseSpace : public Malloced {
   // Keeps track of committed memory in a space.
   std::atomic<size_t> committed_;
   size_t max_committed_;
-
-  DISALLOW_COPY_AND_ASSIGN(BaseSpace);
 };
 
 }  // namespace internal

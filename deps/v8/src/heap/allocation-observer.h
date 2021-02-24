@@ -87,6 +87,8 @@ class AllocationObserver {
     DCHECK_LE(kTaggedSize, step_size);
   }
   virtual ~AllocationObserver() = default;
+  AllocationObserver(const AllocationObserver&) = delete;
+  AllocationObserver& operator=(const AllocationObserver&) = delete;
 
  protected:
   // Pure virtual method provided by the subclasses that gets called when at
@@ -110,17 +112,18 @@ class AllocationObserver {
   intptr_t step_size_;
 
   friend class AllocationCounter;
-  DISALLOW_COPY_AND_ASSIGN(AllocationObserver);
 };
 
-class V8_EXPORT_PRIVATE PauseAllocationObserversScope {
+class V8_EXPORT_PRIVATE V8_NODISCARD PauseAllocationObserversScope {
  public:
   explicit PauseAllocationObserversScope(Heap* heap);
   ~PauseAllocationObserversScope();
+  PauseAllocationObserversScope(const PauseAllocationObserversScope&) = delete;
+  PauseAllocationObserversScope& operator=(
+      const PauseAllocationObserversScope&) = delete;
 
  private:
   Heap* heap_;
-  DISALLOW_COPY_AND_ASSIGN(PauseAllocationObserversScope);
 };
 
 }  // namespace internal

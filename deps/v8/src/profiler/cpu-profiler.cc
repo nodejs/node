@@ -321,12 +321,17 @@ void* SamplingEventsProcessor::operator new(size_t size) {
 void SamplingEventsProcessor::operator delete(void* ptr) { AlignedFree(ptr); }
 
 ProfilerCodeObserver::ProfilerCodeObserver(Isolate* isolate)
-    : isolate_(isolate), processor_(nullptr) {
+    : isolate_(isolate), code_map_(strings_), processor_(nullptr) {
   CreateEntriesForRuntimeCallStats();
   LogBuiltins();
 }
 
-void ProfilerCodeObserver::ClearCodeMap() { code_map_.Clear(); }
+void ProfilerCodeObserver::ClearCodeMap() {
+  code_map_.Clear();
+  // We don't currently expect any references to refcounted strings to be
+  // maintained with zero profiles after the code map is cleared.
+  DCHECK(strings_.empty());
+}
 
 void ProfilerCodeObserver::CodeEventHandler(
     const CodeEventsContainer& evt_rec) {
@@ -445,22 +450,24 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(CpuProfilersManager, GetProfilersManager)
 CpuProfiler::CpuProfiler(Isolate* isolate, CpuProfilingNamingMode naming_mode,
                          CpuProfilingLoggingMode logging_mode)
     : CpuProfiler(isolate, naming_mode, logging_mode,
-                  new CpuProfilesCollection(isolate), nullptr, nullptr) {}
+                  new CpuProfilesCollection(isolate), nullptr, nullptr,
+                  new ProfilerCodeObserver(isolate)) {}
 
 CpuProfiler::CpuProfiler(Isolate* isolate, CpuProfilingNamingMode naming_mode,
                          CpuProfilingLoggingMode logging_mode,
                          CpuProfilesCollection* test_profiles,
                          Symbolizer* test_symbolizer,
-                         ProfilerEventsProcessor* test_processor)
+                         ProfilerEventsProcessor* test_processor,
+                         ProfilerCodeObserver* test_code_observer)
     : isolate_(isolate),
       naming_mode_(naming_mode),
       logging_mode_(logging_mode),
       base_sampling_interval_(base::TimeDelta::FromMicroseconds(
           FLAG_cpu_profiler_sampling_interval)),
+      code_observer_(test_code_observer),
       profiles_(test_profiles),
       symbolizer_(test_symbolizer),
       processor_(test_processor),
-      code_observer_(isolate),
       is_profiling_(false) {
   profiles_->set_cpu_profiler(this);
   GetProfilersManager()->AddProfiler(isolate, this);
@@ -491,7 +498,7 @@ void CpuProfiler::ResetProfiles() {
   symbolizer_.reset();
   if (!profiling_scope_) {
     profiler_listener_.reset();
-    code_observer_.ClearCodeMap();
+    code_observer_->ClearCodeMap();
   }
 }
 
@@ -500,7 +507,8 @@ void CpuProfiler::EnableLogging() {
 
   if (!profiler_listener_) {
     profiler_listener_.reset(
-        new ProfilerListener(isolate_, &code_observer_, naming_mode_));
+        new ProfilerListener(isolate_, code_observer_.get(),
+                             *code_observer_->strings(), naming_mode_));
   }
   profiling_scope_.reset(
       new ProfilingScope(isolate_, profiler_listener_.get()));
@@ -568,12 +576,12 @@ void CpuProfiler::StartProcessorIfNotStarted() {
   }
 
   if (!symbolizer_) {
-    symbolizer_ = std::make_unique<Symbolizer>(code_observer_.code_map());
+    symbolizer_ = std::make_unique<Symbolizer>(code_observer_->code_map());
   }
 
   base::TimeDelta sampling_interval = ComputeSamplingInterval();
   processor_.reset(new SamplingEventsProcessor(
-      isolate_, symbolizer_.get(), &code_observer_, profiles_.get(),
+      isolate_, symbolizer_.get(), code_observer_.get(), profiles_.get(),
       sampling_interval, use_precise_sampling_));
   is_profiling_ = true;
 

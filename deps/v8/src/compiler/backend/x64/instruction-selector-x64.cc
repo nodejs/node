@@ -7,6 +7,8 @@
 #include "src/base/iterator.h"
 #include "src/base/logging.h"
 #include "src/base/overflowing-math.h"
+#include "src/base/platform/wrappers.h"
+#include "src/codegen/cpu-features.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/machine-operator.h"
@@ -479,8 +481,7 @@ void InstructionSelector::VisitStore(Node* node) {
     write_barrier_kind = kFullWriteBarrier;
   }
 
-  if (write_barrier_kind != kNoWriteBarrier &&
-      V8_LIKELY(!FLAG_disable_write_barriers)) {
+  if (write_barrier_kind != kNoWriteBarrier && !FLAG_disable_write_barriers) {
     DCHECK(CanBeTaggedOrCompressedPointer(store_rep.representation()));
     AddressingMode addressing_mode;
     InstructionOperand inputs[] = {
@@ -1826,8 +1827,6 @@ void InstructionSelector::EmitPrepareResults(
     ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,
     Node* node) {
   X64OperandGenerator g(this);
-
-  int reverse_slot = 1;
   for (PushParameter output : *results) {
     if (!output.location.IsCallerFrameSlot()) continue;
     // Skip any alignment holes in nodes.
@@ -1841,10 +1840,11 @@ void InstructionSelector::EmitPrepareResults(
         MarkAsSimd128(output.node);
       }
       InstructionOperand result = g.DefineAsRegister(output.node);
+      int offset = call_descriptor->GetOffsetToReturns();
+      int reverse_slot = -output.location.GetLocation() - offset;
       InstructionOperand slot = g.UseImmediate(reverse_slot);
       Emit(kX64Peek, 1, &result, 1, &slot);
     }
-    reverse_slot += output.location.GetSizeInPointers();
   }
 }
 
@@ -2820,6 +2820,10 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I64x2Add)                      \
   V(I64x2Sub)                      \
   V(I64x2Eq)                       \
+  V(I64x2ExtMulLowI32x4S)          \
+  V(I64x2ExtMulHighI32x4S)         \
+  V(I64x2ExtMulLowI32x4U)          \
+  V(I64x2ExtMulHighI32x4U)         \
   V(I32x4Add)                      \
   V(I32x4AddHoriz)                 \
   V(I32x4Sub)                      \
@@ -2831,6 +2835,10 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I32x4MinU)                     \
   V(I32x4MaxU)                     \
   V(I32x4DotI16x8S)                \
+  V(I32x4ExtMulLowI16x8S)          \
+  V(I32x4ExtMulHighI16x8S)         \
+  V(I32x4ExtMulLowI16x8U)          \
+  V(I32x4ExtMulHighI16x8U)         \
   V(I16x8SConvertI32x4)            \
   V(I16x8UConvertI32x4)            \
   V(I16x8Add)                      \
@@ -2848,6 +2856,11 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8MinU)                     \
   V(I16x8MaxU)                     \
   V(I16x8RoundingAverageU)         \
+  V(I16x8ExtMulLowI8x16S)          \
+  V(I16x8ExtMulHighI8x16S)         \
+  V(I16x8ExtMulLowI8x16U)          \
+  V(I16x8ExtMulHighI8x16U)         \
+  V(I16x8Q15MulRSatS)              \
   V(I8x16SConvertI16x8)            \
   V(I8x16UConvertI16x8)            \
   V(I8x16Add)                      \
@@ -2898,6 +2911,10 @@ VISIT_ATOMIC_BINOP(Xor)
   V(F32x4RecipSqrtApprox)   \
   V(I64x2Neg)               \
   V(I64x2BitMask)           \
+  V(I64x2SConvertI32x4Low)  \
+  V(I64x2SConvertI32x4High) \
+  V(I64x2UConvertI32x4Low)  \
+  V(I64x2UConvertI32x4High) \
   V(I32x4SConvertI16x8Low)  \
   V(I32x4SConvertI16x8High) \
   V(I32x4Neg)               \
@@ -2944,7 +2961,7 @@ void InstructionSelector::VisitS128Const(Node* node) {
   X64OperandGenerator g(this);
   static const int kUint32Immediates = kSimd128Size / sizeof(uint32_t);
   uint32_t val[kUint32Immediates];
-  memcpy(val, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
+  base::Memcpy(val, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
   // If all bytes are zeros or ones, avoid emitting code for generic constants
   bool all_zeros = !(val[0] || val[1] || val[2] || val[3]);
   bool all_ones = val[0] == UINT32_MAX && val[1] == UINT32_MAX &&
@@ -2993,9 +3010,8 @@ void InstructionSelector::VisitF64x2Splat(Node* node) {
 
 void InstructionSelector::VisitF32x4Splat(Node* node) {
   X64OperandGenerator g(this);
-  InstructionOperand dst =
-      IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
-  Emit(kX64F32x4Splat, dst, g.UseRegister(node->InputAt(0)));
+  Emit(kX64F32x4Splat, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
 }
 
 #define SIMD_VISIT_EXTRACT_LANE(Type, Sign, Op)                               \
@@ -3149,9 +3165,10 @@ SIMD_ALLTRUE_LIST(VISIT_SIMD_ALLTRUE)
 
 void InstructionSelector::VisitS128Select(Node* node) {
   X64OperandGenerator g(this);
-  Emit(kX64S128Select, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
-       g.UseRegister(node->InputAt(2)));
+  InstructionOperand dst =
+      IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
+  Emit(kX64S128Select, dst, g.UseRegister(node->InputAt(0)),
+       g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(2)));
 }
 
 namespace {
@@ -3197,16 +3214,14 @@ void InstructionSelector::VisitS128AndNot(Node* node) {
 
 void InstructionSelector::VisitF64x2Abs(Node* node) {
   X64OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempDoubleRegister()};
-  Emit(kX64F64x2Abs, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
-       arraysize(temps), temps);
+  Emit(kX64F64x2Abs, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)));
 }
 
 void InstructionSelector::VisitF64x2Neg(Node* node) {
   X64OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempDoubleRegister()};
-  Emit(kX64F64x2Neg, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
-       arraysize(temps), temps);
+  Emit(kX64F64x2Neg, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)));
 }
 
 void InstructionSelector::VisitF32x4UConvertI32x4(Node* node) {
@@ -3324,6 +3339,10 @@ struct ShuffleEntry {
   ArchOpcode opcode;
   bool src0_needs_reg;
   bool src1_needs_reg;
+  // If AVX is supported, this shuffle can use AVX's three-operand encoding, so
+  // does not require same as first. We conservatively set this to false
+  // (original behavior), and selectively enable for specific arch shuffles.
+  bool no_same_as_first_if_avx = false;
 };
 
 // Shuffles that map to architecture-specific instruction sequences. These are
@@ -3335,33 +3354,41 @@ static const ShuffleEntry arch_shuffles[] = {
     {{0, 1, 2, 3, 4, 5, 6, 7, 16, 17, 18, 19, 20, 21, 22, 23},
      kX64S64x2UnpackLow,
      true,
+     true,
      true},
     {{8, 9, 10, 11, 12, 13, 14, 15, 24, 25, 26, 27, 28, 29, 30, 31},
      kX64S64x2UnpackHigh,
+     true,
      true,
      true},
     {{0, 1, 2, 3, 16, 17, 18, 19, 4, 5, 6, 7, 20, 21, 22, 23},
      kX64S32x4UnpackLow,
      true,
+     true,
      true},
     {{8, 9, 10, 11, 24, 25, 26, 27, 12, 13, 14, 15, 28, 29, 30, 31},
      kX64S32x4UnpackHigh,
+     true,
      true,
      true},
     {{0, 1, 16, 17, 2, 3, 18, 19, 4, 5, 20, 21, 6, 7, 22, 23},
      kX64S16x8UnpackLow,
      true,
+     true,
      true},
     {{8, 9, 24, 25, 10, 11, 26, 27, 12, 13, 28, 29, 14, 15, 30, 31},
      kX64S16x8UnpackHigh,
+     true,
      true,
      true},
     {{0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23},
      kX64S8x16UnpackLow,
      true,
+     true,
      true},
     {{8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15, 31},
      kX64S8x16UnpackHigh,
+     true,
      true,
      true},
 
@@ -3422,6 +3449,15 @@ bool TryMatchArchShuffle(const uint8_t* shuffle, const ShuffleEntry* table,
   return false;
 }
 
+bool TryMatchShufps(const uint8_t* shuffle32x4) {
+  DCHECK_GT(8, shuffle32x4[2]);
+  DCHECK_GT(8, shuffle32x4[3]);
+  // shufps can be used if the first 2 indices select the first input [0-3], and
+  // the other 2 indices select the second input [4-7].
+  return shuffle32x4[0] < 4 && shuffle32x4[1] < 4 && shuffle32x4[2] > 3 &&
+         shuffle32x4[3] > 3;
+}
+
 }  // namespace
 
 void InstructionSelector::VisitI8x16Shuffle(Node* node) {
@@ -3453,15 +3489,22 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
   int index;
   const ShuffleEntry* arch_shuffle;
   if (wasm::SimdShuffle::TryMatchConcat(shuffle, &offset)) {
-    // Swap inputs from the normal order for (v)palignr.
-    SwapShuffleInputs(node);
-    is_swizzle = false;        // It's simpler to just handle the general case.
-    no_same_as_first = false;  // SSE requires same-as-first.
-    // TODO(v8:9608): also see v8:9083
-    src1_needs_reg = true;
-    opcode = kX64S8x16Alignr;
-    // palignr takes a single imm8 offset.
-    imms[imm_count++] = offset;
+    if (wasm::SimdShuffle::TryMatch32x4Rotate(shuffle, shuffle32x4,
+                                              is_swizzle)) {
+      uint8_t shuffle_mask = wasm::SimdShuffle::PackShuffle4(shuffle32x4);
+      opcode = kX64S32x4Rotate;
+      imms[imm_count++] = shuffle_mask;
+    } else {
+      // Swap inputs from the normal order for (v)palignr.
+      SwapShuffleInputs(node);
+      is_swizzle = false;  // It's simpler to just handle the general case.
+      no_same_as_first = CpuFeatures::IsSupported(AVX);
+      // TODO(v8:9608): also see v8:9083
+      src1_needs_reg = true;
+      opcode = kX64S8x16Alignr;
+      // palignr takes a single imm8 offset.
+      imms[imm_count++] = offset;
+    }
   } else if (TryMatchArchShuffle(shuffle, arch_shuffles,
                                  arraysize(arch_shuffles), is_swizzle,
                                  &arch_shuffle)) {
@@ -3470,7 +3513,8 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
     // SSE can't take advantage of both operands in registers and needs
     // same-as-first.
     src1_needs_reg = arch_shuffle->src1_needs_reg;
-    no_same_as_first = false;
+    no_same_as_first =
+        IsSupported(AVX) && arch_shuffle->no_same_as_first_if_avx;
   } else if (wasm::SimdShuffle::TryMatch32x4Shuffle(shuffle, shuffle32x4)) {
     uint8_t shuffle_mask = wasm::SimdShuffle::PackShuffle4(shuffle32x4);
     if (is_swizzle) {
@@ -3495,6 +3539,13 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
         opcode = kX64S16x8Blend;
         uint8_t blend_mask = wasm::SimdShuffle::PackBlend4(shuffle32x4);
         imms[imm_count++] = blend_mask;
+        no_same_as_first = CpuFeatures::IsSupported(AVX);
+      } else if (TryMatchShufps(shuffle32x4)) {
+        opcode = kX64Shufps;
+        uint8_t mask = wasm::SimdShuffle::PackShuffle4(shuffle32x4);
+        imms[imm_count++] = mask;
+        src1_needs_reg = true;
+        no_same_as_first = IsSupported(AVX);
       } else {
         opcode = kX64S32x4Shuffle;
         no_same_as_first = true;
@@ -3514,6 +3565,7 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
       opcode = kX64S16x8Blend;
       blend_mask = wasm::SimdShuffle::PackBlend8(shuffle16x8);
       imms[imm_count++] = blend_mask;
+      no_same_as_first = CpuFeatures::IsSupported(AVX);
     } else if (wasm::SimdShuffle::TryMatchSplat<8>(shuffle, &index)) {
       opcode = kX64S16x8Dup;
       src0_needs_reg = false;
@@ -3552,7 +3604,9 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
   InstructionOperand dst =
       no_same_as_first ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
   // TODO(v8:9198): Use src0_needs_reg when we have memory alignment for SIMD.
-  InstructionOperand src0 = g.UseUniqueRegister(input0);
+  // We only need a unique register for input0 if we use temp registers.
+  InstructionOperand src0 =
+      temp_count ? g.UseUniqueRegister(input0) : g.UseRegister(input0);
   USE(src0_needs_reg);
 
   int input_count = 0;
@@ -3561,7 +3615,9 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
   if (!is_swizzle) {
     Node* input1 = node->InputAt(1);
     // TODO(v8:9198): Use src1_needs_reg when we have memory alignment for SIMD.
-    inputs[input_count++] = g.UseUniqueRegister(input1);
+    // We only need a unique register for input1 if we use temp registers.
+    inputs[input_count++] =
+        temp_count ? g.UseUniqueRegister(input1) : g.UseRegister(input1);
     USE(src1_needs_reg);
   }
   for (int i = 0; i < imm_count; ++i) {
@@ -3604,6 +3660,37 @@ void InstructionSelector::VisitF64x2Pmin(Node* node) {
 
 void InstructionSelector::VisitF64x2Pmax(Node* node) {
   VisitPminOrPmax(this, node, kX64F64x2Pmax);
+}
+
+void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8S(Node* node) {
+  X64OperandGenerator g(this);
+  InstructionOperand dst = CpuFeatures::IsSupported(AVX)
+                               ? g.DefineAsRegister(node)
+                               : g.DefineSameAsFirst(node);
+  Emit(kX64I32x4ExtAddPairwiseI16x8S, dst, g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8U(Node* node) {
+  X64OperandGenerator g(this);
+  InstructionOperand dst = CpuFeatures::IsSupported(AVX)
+                               ? g.DefineAsRegister(node)
+                               : g.DefineSameAsFirst(node);
+  Emit(kX64I32x4ExtAddPairwiseI16x8U, dst, g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16S(Node* node) {
+  X64OperandGenerator g(this);
+  // Codegen depends on dst != src.
+  Emit(kX64I16x8ExtAddPairwiseI8x16S, g.DefineAsRegister(node),
+       g.UseUniqueRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16U(Node* node) {
+  X64OperandGenerator g(this);
+  InstructionOperand dst = CpuFeatures::IsSupported(AVX)
+                               ? g.DefineAsRegister(node)
+                               : g.DefineSameAsFirst(node);
+  Emit(kX64I16x8ExtAddPairwiseI8x16U, dst, g.UseRegister(node->InputAt(0)));
 }
 
 // static

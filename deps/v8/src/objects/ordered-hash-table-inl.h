@@ -20,6 +20,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/ordered-hash-table-tq-inl.inc"
+
 CAST_ACCESSOR(OrderedNameDictionary)
 CAST_ACCESSOR(SmallOrderedNameDictionary)
 CAST_ACCESSOR(OrderedHashMap)
@@ -115,6 +117,17 @@ inline Object OrderedNameDictionary::ValueAt(InternalIndex entry) {
 
 Name OrderedNameDictionary::NameAt(InternalIndex entry) {
   return Name::cast(KeyAt(entry));
+}
+
+// Parameter |roots| only here for compatibility with HashTable<...>::ToKey.
+template <class Derived, int entrysize>
+bool OrderedHashTable<Derived, entrysize>::ToKey(ReadOnlyRoots roots,
+                                                 InternalIndex entry,
+                                                 Object* out_key) {
+  Object k = KeyAt(entry);
+  if (!IsKey(roots, k)) return false;
+  *out_key = k;
+  return true;
 }
 
 // Set the value for entry.
@@ -221,11 +234,11 @@ inline int SmallOrderedNameDictionary::Hash() {
 
 inline void OrderedNameDictionary::SetHash(int hash) {
   DCHECK(PropertyArray::HashField::is_valid(hash));
-  this->set(PrefixIndex(), Smi::FromInt(hash));
+  this->set(HashIndex(), Smi::FromInt(hash));
 }
 
 inline int OrderedNameDictionary::Hash() {
-  Object hash_obj = this->get(PrefixIndex());
+  Object hash_obj = this->get(HashIndex());
   int hash = Smi::ToInt(hash_obj);
   DCHECK(PropertyArray::HashField::is_valid(hash));
   return hash;

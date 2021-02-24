@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/logging.h"
+#include "src/compiler/backend/instruction-codes.h"
 #include "src/compiler/backend/instruction-scheduler.h"
+#include "src/compiler/backend/instruction.h"
 
 namespace v8 {
 namespace internal {
@@ -98,8 +101,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXFloat32Neg:
     case kIA32BitcastFI:
     case kIA32BitcastIF:
-    case kSSEF64x2Splat:
-    case kAVXF64x2Splat:
+    case kIA32F64x2Splat:
     case kSSEF64x2ExtractLane:
     case kAVXF64x2ExtractLane:
     case kSSEF64x2ReplaceLane:
@@ -127,33 +129,34 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I64x2Sub:
     case kIA32I64x2Mul:
     case kIA32I64x2ShrU:
-    case kSSEF32x4Splat:
-    case kAVXF32x4Splat:
-    case kSSEF32x4ExtractLane:
-    case kAVXF32x4ExtractLane:
-    case kSSEF32x4ReplaceLane:
-    case kAVXF32x4ReplaceLane:
+    case kIA32I64x2BitMask:
+    case kIA32I64x2Eq:
+    case kIA32I64x2SignSelect:
+    case kIA32I64x2ExtMulLowI32x4S:
+    case kIA32I64x2ExtMulHighI32x4S:
+    case kIA32I64x2ExtMulLowI32x4U:
+    case kIA32I64x2ExtMulHighI32x4U:
+    case kIA32I64x2SConvertI32x4Low:
+    case kIA32I64x2SConvertI32x4High:
+    case kIA32I64x2UConvertI32x4Low:
+    case kIA32I64x2UConvertI32x4High:
+    case kIA32F32x4Splat:
+    case kIA32F32x4ExtractLane:
+    case kIA32Insertps:
     case kIA32F32x4SConvertI32x4:
-    case kSSEF32x4UConvertI32x4:
-    case kAVXF32x4UConvertI32x4:
+    case kIA32F32x4UConvertI32x4:
     case kSSEF32x4Abs:
     case kAVXF32x4Abs:
     case kSSEF32x4Neg:
     case kAVXF32x4Neg:
-    case kSSEF32x4Sqrt:
-    case kAVXF32x4Sqrt:
+    case kIA32F32x4Sqrt:
     case kIA32F32x4RecipApprox:
     case kIA32F32x4RecipSqrtApprox:
-    case kSSEF32x4Add:
-    case kAVXF32x4Add:
-    case kSSEF32x4AddHoriz:
-    case kAVXF32x4AddHoriz:
-    case kSSEF32x4Sub:
-    case kAVXF32x4Sub:
-    case kSSEF32x4Mul:
-    case kAVXF32x4Mul:
-    case kSSEF32x4Div:
-    case kAVXF32x4Div:
+    case kIA32F32x4Add:
+    case kIA32F32x4AddHoriz:
+    case kIA32F32x4Sub:
+    case kIA32F32x4Mul:
+    case kIA32F32x4Div:
     case kSSEF32x4Min:
     case kAVXF32x4Min:
     case kSSEF32x4Max:
@@ -171,10 +174,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32F32x4Round:
     case kIA32I32x4Splat:
     case kIA32I32x4ExtractLane:
-    case kSSEI32x4ReplaceLane:
-    case kAVXI32x4ReplaceLane:
-    case kSSEI32x4SConvertF32x4:
-    case kAVXI32x4SConvertF32x4:
+    case kIA32I32x4SConvertF32x4:
     case kIA32I32x4SConvertI16x8Low:
     case kIA32I32x4SConvertI16x8High:
     case kIA32I32x4Neg:
@@ -216,11 +216,15 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I32x4Abs:
     case kIA32I32x4BitMask:
     case kIA32I32x4DotI16x8S:
+    case kIA32I32x4SignSelect:
+    case kIA32I32x4ExtMulLowI16x8S:
+    case kIA32I32x4ExtMulHighI16x8S:
+    case kIA32I32x4ExtMulLowI16x8U:
+    case kIA32I32x4ExtMulHighI16x8U:
+    case kIA32I32x4ExtAddPairwiseI16x8S:
+    case kIA32I32x4ExtAddPairwiseI16x8U:
     case kIA32I16x8Splat:
-    case kIA32I16x8ExtractLaneU:
     case kIA32I16x8ExtractLaneS:
-    case kSSEI16x8ReplaceLane:
-    case kAVXI16x8ReplaceLane:
     case kIA32I16x8SConvertI8x16Low:
     case kIA32I16x8SConvertI8x16High:
     case kIA32I16x8Neg:
@@ -272,11 +276,22 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I16x8RoundingAverageU:
     case kIA32I16x8Abs:
     case kIA32I16x8BitMask:
+    case kIA32I16x8SignSelect:
+    case kIA32I16x8ExtMulLowI8x16S:
+    case kIA32I16x8ExtMulHighI8x16S:
+    case kIA32I16x8ExtMulLowI8x16U:
+    case kIA32I16x8ExtMulHighI8x16U:
+    case kIA32I16x8ExtAddPairwiseI8x16S:
+    case kIA32I16x8ExtAddPairwiseI8x16U:
+    case kIA32I16x8Q15MulRSatS:
     case kIA32I8x16Splat:
-    case kIA32I8x16ExtractLaneU:
     case kIA32I8x16ExtractLaneS:
-    case kSSEI8x16ReplaceLane:
-    case kAVXI8x16ReplaceLane:
+    case kIA32Pinsrb:
+    case kIA32Pinsrw:
+    case kIA32Pinsrd:
+    case kIA32Pextrb:
+    case kIA32Pextrw:
+    case kIA32S128Store32Lane:
     case kSSEI8x16SConvertI16x8:
     case kAVXI8x16SConvertI16x8:
     case kIA32I8x16Neg:
@@ -322,6 +337,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I8x16RoundingAverageU:
     case kIA32I8x16Abs:
     case kIA32I8x16BitMask:
+    case kIA32I8x16SignSelect:
     case kIA32S128Const:
     case kIA32S128Zero:
     case kIA32S128AllOnes:
@@ -333,11 +349,11 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXS128Or:
     case kSSES128Xor:
     case kAVXS128Xor:
-    case kSSES128Select:
-    case kAVXS128Select:
+    case kIA32S128Select:
     case kIA32S128AndNot:
     case kIA32I8x16Swizzle:
     case kIA32I8x16Shuffle:
+    case kIA32S32x4Rotate:
     case kIA32S32x4Swizzle:
     case kIA32S32x4Shuffle:
     case kIA32S16x8Blend:
@@ -372,11 +388,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXS8x4Reverse:
     case kSSES8x2Reverse:
     case kAVXS8x2Reverse:
-    case kIA32V32x4AnyTrue:
+    case kIA32S128AnyTrue:
     case kIA32V32x4AllTrue:
-    case kIA32V16x8AnyTrue:
     case kIA32V16x8AllTrue:
-    case kIA32V8x16AnyTrue:
     case kIA32V8x16AllTrue:
       return (instr->addressing_mode() == kMode_None)
                  ? kNoOpcodeFlags
@@ -398,6 +412,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32Movss:
     case kIA32Movsd:
     case kIA32Movdqu:
+    case kIA32Movlps:
+    case kIA32Movhps:
     // Moves are used for memory load/store operations.
     case kIA32S128Load8Splat:
     case kIA32S128Load16Splat:

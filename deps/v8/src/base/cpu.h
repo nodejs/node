@@ -93,6 +93,7 @@ class V8_BASE_EXPORT CPU final {
   bool has_sse42() const { return has_sse42_; }
   bool has_osxsave() const { return has_osxsave_; }
   bool has_avx() const { return has_avx_; }
+  bool has_avx2() const { return has_avx2_; }
   bool has_fma3() const { return has_fma3_; }
   bool has_bmi1() const { return has_bmi1_; }
   bool has_bmi2() const { return has_bmi2_; }
@@ -143,6 +144,7 @@ class V8_BASE_EXPORT CPU final {
   bool is_atom_;
   bool has_osxsave_;
   bool has_avx_;
+  bool has_avx2_;
   bool has_fma3_;
   bool has_bmi1_;
   bool has_bmi2_;

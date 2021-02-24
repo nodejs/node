@@ -5,8 +5,10 @@
 #include "test/unittests/heap/unified-heap-utils.h"
 
 #include "include/cppgc/platform.h"
+#include "include/v8-cppgc.h"
 #include "src/api/api-inl.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
+#include "src/heap/heap.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -15,16 +17,11 @@ namespace internal {
 UnifiedHeapTest::UnifiedHeapTest()
     : saved_incremental_marking_wrappers_(FLAG_incremental_marking_wrappers) {
   FLAG_incremental_marking_wrappers = false;
-  cppgc::InitializeProcess(V8::GetCurrentPlatform()->GetPageAllocator());
-  cpp_heap_ = std::make_unique<CppHeap>(
-      v8_isolate(), std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>());
-  heap()->SetEmbedderHeapTracer(&cpp_heap());
+  isolate()->heap()->ConfigureCppHeap(std::make_unique<CppHeapCreateParams>());
 }
 
 UnifiedHeapTest::~UnifiedHeapTest() {
-  heap()->SetEmbedderHeapTracer(nullptr);
   FLAG_incremental_marking_wrappers = saved_incremental_marking_wrappers_;
-  cppgc::ShutdownProcess();
 }
 
 void UnifiedHeapTest::CollectGarbageWithEmbedderStack() {
@@ -39,7 +36,9 @@ void UnifiedHeapTest::CollectGarbageWithoutEmbedderStack() {
   CollectGarbage(OLD_SPACE);
 }
 
-CppHeap& UnifiedHeapTest::cpp_heap() const { return *cpp_heap_.get(); }
+CppHeap& UnifiedHeapTest::cpp_heap() const {
+  return *CppHeap::From(isolate()->heap()->cpp_heap());
+}
 
 cppgc::AllocationHandle& UnifiedHeapTest::allocation_handle() {
   return cpp_heap().object_allocator();

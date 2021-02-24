@@ -9,7 +9,10 @@
   'binary': [FAIL],
   'proposals/bulk-memory-operations/binary': [FAIL],
   # TODO(v8:10994): Failing spec test after update.
-  'proposals/reference-types/br_table': [FAIL],
+  'proposals/simd/binary': [FAIL],
+  'proposals/simd/data': [FAIL],
+  'proposals/js-types/data': [FAIL],
+  'proposals/reference-types/binary': [FAIL],
 
   # TODO(v8:9144): The MVP behavior when bounds-checking segments changed in
   # the bulk-memory proposal. Since we've enabled bulk-memory by default, we
@@ -32,6 +35,7 @@
   'proposals/tail-call/imports': [FAIL],
   'proposals/tail-call/linking': [FAIL],
   'proposals/tail-call/type': [FAIL],
+  'proposals/tail-call/unreached-invalid': [FAIL],
 
   # This test requires the reftypes flag to be disabled.
   'proposals/bulk-memory-operations/imports': [FAIL],

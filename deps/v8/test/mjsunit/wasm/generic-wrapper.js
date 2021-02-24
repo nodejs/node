@@ -762,3 +762,28 @@ let kSig_f_iiliiiffddlifffdi = makeSig([kWasmI32, kWasmI32, kWasmI64, kWasmI32,
   let instance = builder.instantiate();
   assertEquals(15, instance.exports.f1());
 })();
+
+(function testDeoptWithIncorrectNumberOfParams() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  let sig_index = builder.addType(kSig_v_ii);
+  let imp = builder.addImport('q', 'func', sig_index);
+  builder.addFunction('main', sig_index)
+      .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprCallFunction, imp])
+      .exportAs('main');
+
+  function deopt() {
+    %DeoptimizeFunction(caller);
+  }
+
+  let main = builder.instantiate({q: {func: deopt}}).exports.main;
+  function caller() {
+    main(1, 2, 3, 4, 5);
+    main(1, 2, 3, 4);
+    main(1, 2, 3);
+    main(1, 2);
+    main(1);
+    main();
+  }
+  caller();
+})();

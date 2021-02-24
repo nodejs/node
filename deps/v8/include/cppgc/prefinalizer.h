@@ -34,7 +34,7 @@ class PrefinalizerRegistration final {
  public:                                                                       \
   static bool InvokePreFinalizer(const cppgc::LivenessBroker& liveness_broker, \
                                  void* object) {                               \
-    static_assert(cppgc::internal::IsGarbageCollectedTypeV<Class>,             \
+    static_assert(cppgc::IsGarbageCollectedTypeV<Class>,                       \
                   "Only garbage collected objects can have prefinalizers");    \
     Class* self = static_cast<Class*>(object);                                 \
     if (liveness_broker.IsHeapObjectAlive(self)) return false;                 \

@@ -5,6 +5,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-stub-assembler.h"
+#include "src/common/globals.h"
 #include "src/heap/factory-inl.h"
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/keyed-store-generic.h"
@@ -27,10 +28,13 @@ class ObjectBuiltinsAssembler : public CodeStubAssembler {
 
  protected:
   void ReturnToStringFormat(TNode<Context> context, TNode<String> string);
-  void AddToDictionaryIf(TNode<BoolT> condition,
-                         TNode<NameDictionary> name_dictionary,
-                         Handle<Name> name, TNode<Object> value,
-                         Label* bailout);
+
+  // TODO(v8:11167) remove |context| and |object| once OrderedNameDictionary
+  // supported.
+  void AddToDictionaryIf(TNode<BoolT> condition, TNode<Context> context,
+                         TNode<Object> object,
+                         TNode<HeapObject> name_dictionary, Handle<Name> name,
+                         TNode<Object> value, Label* bailout);
   TNode<JSObject> FromPropertyDescriptor(TNode<Context> context,
                                          TNode<PropertyDescriptorObject> desc);
   TNode<JSObject> FromPropertyDetails(TNode<Context> context,
@@ -432,7 +436,7 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
 
   Label done(this);
   // 2. If only one argument was passed, return to.
-  GotoIf(UintPtrLessThanOrEqual(argc, IntPtrConstant(1)), &done);
+  GotoIf(UintPtrLessThanOrEqual(args.GetLength(), IntPtrConstant(1)), &done);
 
   // 3. Let sources be the List of argument values starting with the
   //    second argument.
@@ -1029,6 +1033,12 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
 
   Label call_runtime(this, Label::kDeferred), prototype_valid(this),
       no_properties(this);
+
+  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    // TODO(v8:11167) remove once OrderedNameDictionary supported.
+    GotoIf(Int32TrueConstant(), &call_runtime);
+  }
+
   {
     Comment("Argument 1 check: prototype");
     GotoIf(IsNull(prototype), &prototype_valid);
@@ -1068,7 +1078,12 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     BIND(&null_proto);
     {
       map = LoadSlowObjectWithNullPrototypeMap(native_context);
-      properties = AllocateNameDictionary(NameDictionary::kInitialCapacity);
+      if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+        properties = AllocateOrderedNameDictionary(
+            OrderedNameDictionary::kInitialCapacity);
+      } else {
+        properties = AllocateNameDictionary(NameDictionary::kInitialCapacity);
+      }
       Goto(&instantiate_map);
     }
 
@@ -1260,6 +1275,12 @@ TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
   Label if_keyisindex(this), if_iskeyunique(this),
       call_runtime(this, Label::kDeferred),
       return_undefined(this, Label::kDeferred), if_notunique_name(this);
+
+  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    // TODO(v8:11167) remove once OrderedNameDictionary supported.
+    GotoIf(Int32TrueConstant(), &call_runtime);
+  }
+
   TNode<Map> map = LoadMap(object);
   TNode<Uint16T> instance_type = LoadMapInstanceType(map);
   GotoIf(IsSpecialReceiverInstanceType(instance_type), &call_runtime);
@@ -1333,13 +1354,23 @@ TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
   args.PopAndReturn(UndefinedConstant());
 }
 
+// TODO(v8:11167) remove remove |context| and |object| parameters once
+// OrderedNameDictionary supported.
 void ObjectBuiltinsAssembler::AddToDictionaryIf(
-    TNode<BoolT> condition, TNode<NameDictionary> name_dictionary,
-    Handle<Name> name, TNode<Object> value, Label* bailout) {
+    TNode<BoolT> condition, TNode<Context> context, TNode<Object> object,
+    TNode<HeapObject> name_dictionary, Handle<Name> name, TNode<Object> value,
+    Label* bailout) {
   Label done(this);
   GotoIfNot(condition, &done);
 
-  Add<NameDictionary>(name_dictionary, HeapConstant(name), value, bailout);
+  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+    // TODO(v8:11167) remove once OrderedNameDictionary supported.
+    CallRuntime(Runtime::kAddDictionaryProperty, context, object,
+                HeapConstant(name), value);
+  } else {
+    Add<NameDictionary>(CAST(name_dictionary), HeapConstant(name), value,
+                        bailout);
+  }
   Goto(&done);
 
   BIND(&done);
@@ -1395,7 +1426,10 @@ TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDescriptor(
         native_context, Context::SLOW_OBJECT_WITH_OBJECT_PROTOTYPE_MAP));
     // We want to preallocate the slots for value, writable, get, set,
     // enumerable and configurable - a total of 6
-    TNode<NameDictionary> properties = AllocateNameDictionary(6);
+    TNode<HeapObject> properties =
+        V8_DICT_MODE_PROTOTYPES_BOOL
+            ? TNode<HeapObject>(AllocateOrderedNameDictionary(6))
+            : AllocateNameDictionary(6);
     TNode<JSObject> js_desc = AllocateJSObjectFromMap(map, properties);
 
     Label bailout(this, Label::kDeferred);
@@ -1403,33 +1437,33 @@ TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDescriptor(
     Factory* factory = isolate()->factory();
     TNode<Object> value =
         LoadObjectField(desc, PropertyDescriptorObject::kValueOffset);
-    AddToDictionaryIf(IsNotTheHole(value), properties, factory->value_string(),
-                      value, &bailout);
+    AddToDictionaryIf(IsNotTheHole(value), context, js_desc, properties,
+                      factory->value_string(), value, &bailout);
     AddToDictionaryIf(
-        IsSetWord32<PropertyDescriptorObject::HasWritableBit>(flags),
-        properties, factory->writable_string(),
+        IsSetWord32<PropertyDescriptorObject::HasWritableBit>(flags), context,
+        js_desc, properties, factory->writable_string(),
         SelectBooleanConstant(
             IsSetWord32<PropertyDescriptorObject::IsWritableBit>(flags)),
         &bailout);
 
     TNode<Object> get =
         LoadObjectField(desc, PropertyDescriptorObject::kGetOffset);
-    AddToDictionaryIf(IsNotTheHole(get), properties, factory->get_string(), get,
-                      &bailout);
+    AddToDictionaryIf(IsNotTheHole(get), context, js_desc, properties,
+                      factory->get_string(), get, &bailout);
     TNode<Object> set =
         LoadObjectField(desc, PropertyDescriptorObject::kSetOffset);
-    AddToDictionaryIf(IsNotTheHole(set), properties, factory->set_string(), set,
-                      &bailout);
+    AddToDictionaryIf(IsNotTheHole(set), context, js_desc, properties,
+                      factory->set_string(), set, &bailout);
 
     AddToDictionaryIf(
-        IsSetWord32<PropertyDescriptorObject::HasEnumerableBit>(flags),
-        properties, factory->enumerable_string(),
+        IsSetWord32<PropertyDescriptorObject::HasEnumerableBit>(flags), context,
+        js_desc, properties, factory->enumerable_string(),
         SelectBooleanConstant(
             IsSetWord32<PropertyDescriptorObject::IsEnumerableBit>(flags)),
         &bailout);
     AddToDictionaryIf(
         IsSetWord32<PropertyDescriptorObject::HasConfigurableBit>(flags),
-        properties, factory->configurable_string(),
+        context, js_desc, properties, factory->configurable_string(),
         SelectBooleanConstant(
             IsSetWord32<PropertyDescriptorObject::IsConfigurableBit>(flags)),
         &bailout);
@@ -1437,9 +1471,12 @@ TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDescriptor(
     js_descriptor = js_desc;
     Goto(&return_desc);
 
-    BIND(&bailout);
-    CSA_ASSERT(this, Int32Constant(0));
-    Unreachable();
+    if (!V8_DICT_MODE_PROTOTYPES_BOOL) {
+      // TODO(v8:11167) make unconditional once OrderedNameDictionary supported.
+      BIND(&bailout);
+      CSA_ASSERT(this, Int32Constant(0));
+      Unreachable();
+    }
   }
 
   BIND(&return_desc);

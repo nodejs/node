@@ -161,7 +161,7 @@ class V8_EXPORT_PRIVATE RegExpParser {
                           JSRegExp::Flags flags, RegExpCompileData* result);
 
  private:
-  bool Parse(RegExpCompileData* result, const DisallowHeapAllocation&);
+  bool Parse(RegExpCompileData* result, const DisallowGarbageCollection&);
 
   RegExpTree* ParsePattern();
   RegExpTree* ParseDisjunction();

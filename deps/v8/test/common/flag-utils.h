@@ -9,7 +9,7 @@ namespace v8 {
 namespace internal {
 
 template <typename T>
-class FlagScope {
+class V8_NODISCARD FlagScope {
  public:
   FlagScope(T* flag, T new_value) : flag_(flag), previous_value_(*flag) {
     *flag = new_value;

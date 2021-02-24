@@ -36,7 +36,7 @@ Handle<Name> NewNameWithHash(Isolate* isolate, const char* str, uint32_t hash,
   }
   Handle<Name> name = isolate->factory()->NewOneByteInternalizedString(
       OneByteVector(str), hash_field);
-  name->set_hash_field(hash_field);
+  name->set_raw_hash_field(hash_field);
   CHECK(name->IsUniqueName());
   return name;
 }
@@ -55,7 +55,7 @@ void CheckDescriptorArrayLookups(Isolate* isolate, Handle<Map> map,
                                  Handle<JSFunction> csa_lookup) {
   // Test C++ implementation.
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     DescriptorArray descriptors = map->instance_descriptors(kRelaxedLoad);
     DCHECK(descriptors.IsSortedNoDuplicates());
     int nof_descriptors = descriptors.number_of_descriptors();
@@ -86,7 +86,7 @@ void CheckTransitionArrayLookups(Isolate* isolate,
                                  Handle<JSFunction> csa_lookup) {
   // Test C++ implementation.
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     DCHECK(transitions->IsSortedNoDuplicates());
 
     for (size_t i = 0; i < maps.size(); ++i) {

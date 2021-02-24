@@ -11,6 +11,7 @@
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/liveness-broker.h"
+#include "src/heap/cppgc/stats-collector.h"
 
 namespace cppgc {
 namespace internal {
@@ -29,9 +30,11 @@ bool PreFinalizerRegistrationDispatcher::PreFinalizer::operator==(
   return (object == other.object) && (callback == other.callback);
 }
 
-PreFinalizerHandler::PreFinalizerHandler()
+PreFinalizerHandler::PreFinalizerHandler(HeapBase& heap)
+    : heap_(heap)
 #ifdef DEBUG
-    : creation_thread_id_(v8::base::OS::GetCurrentThreadId())
+      ,
+      creation_thread_id_(v8::base::OS::GetCurrentThreadId())
 #endif
 {
 }
@@ -45,6 +48,9 @@ void PreFinalizerHandler::RegisterPrefinalizer(PreFinalizer pre_finalizer) {
 }
 
 void PreFinalizerHandler::InvokePreFinalizers() {
+  StatsCollector::DisabledScope stats_scope(
+      heap_, StatsCollector::kSweepInvokePreFinalizers);
+
   DCHECK(CurrentThreadIsCreationThread());
   LivenessBroker liveness_broker = LivenessBrokerFactory::Create();
   ordered_pre_finalizers_.erase(

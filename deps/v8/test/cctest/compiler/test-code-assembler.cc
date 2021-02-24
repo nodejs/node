@@ -22,9 +22,9 @@ namespace {
 template <class T>
 using TVariable = TypedCodeAssemblerVariable<T>;
 
-TNode<Smi> SmiTag(CodeAssembler* m, Node* value) {
+TNode<Smi> SmiTag(CodeAssembler* m, TNode<IntPtrT> value) {
   int32_t constant_value;
-  if (m->ToInt32Constant(value, &constant_value) &&
+  if (m->TryToInt32Constant(value, &constant_value) &&
       Smi::IsValid(constant_value)) {
     return m->SmiConstant(Smi::FromInt(constant_value));
   }
@@ -51,7 +51,7 @@ TEST(SimpleSmiReturn) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeAssemblerTester asm_tester(isolate);
   CodeAssembler m(asm_tester.state());
-  m.Return(SmiTag(&m, m.Int32Constant(37)));
+  m.Return(SmiTag(&m, m.IntPtrConstant(37)));
   FunctionTester ft(asm_tester.GenerateCode());
   CHECK_EQ(37, ft.CallChecked<Smi>()->value());
 }
@@ -83,7 +83,7 @@ TEST(SimpleCallRuntime1Arg) {
   CodeAssembler m(asm_tester.state());
   TNode<Context> context =
       m.HeapConstant(Handle<Context>(isolate->native_context()));
-  TNode<Smi> b = SmiTag(&m, m.Int32Constant(0));
+  TNode<Smi> b = SmiTag(&m, m.IntPtrConstant(0));
   m.Return(m.CallRuntime(Runtime::kIsSmi, context, b));
   FunctionTester ft(asm_tester.GenerateCode());
   CHECK(ft.CallChecked<Oddball>().is_identical_to(
@@ -96,7 +96,7 @@ TEST(SimpleTailCallRuntime1Arg) {
   CodeAssembler m(asm_tester.state());
   TNode<Context> context =
       m.HeapConstant(Handle<Context>(isolate->native_context()));
-  TNode<Smi> b = SmiTag(&m, m.Int32Constant(0));
+  TNode<Smi> b = SmiTag(&m, m.IntPtrConstant(0));
   m.TailCallRuntime(Runtime::kIsSmi, context, b);
   FunctionTester ft(asm_tester.GenerateCode());
   CHECK(ft.CallChecked<Oddball>().is_identical_to(
@@ -109,8 +109,8 @@ TEST(SimpleCallRuntime2Arg) {
   CodeAssembler m(asm_tester.state());
   TNode<Context> context =
       m.HeapConstant(Handle<Context>(isolate->native_context()));
-  TNode<Smi> a = SmiTag(&m, m.Int32Constant(2));
-  TNode<Smi> b = SmiTag(&m, m.Int32Constant(4));
+  TNode<Smi> a = SmiTag(&m, m.IntPtrConstant(2));
+  TNode<Smi> b = SmiTag(&m, m.IntPtrConstant(4));
   m.Return(m.CallRuntime(Runtime::kAdd, context, a, b));
   FunctionTester ft(asm_tester.GenerateCode());
   CHECK_EQ(6, ft.CallChecked<Smi>()->value());
@@ -122,8 +122,8 @@ TEST(SimpleTailCallRuntime2Arg) {
   CodeAssembler m(asm_tester.state());
   TNode<Context> context =
       m.HeapConstant(Handle<Context>(isolate->native_context()));
-  TNode<Smi> a = SmiTag(&m, m.Int32Constant(2));
-  TNode<Smi> b = SmiTag(&m, m.Int32Constant(4));
+  TNode<Smi> a = SmiTag(&m, m.IntPtrConstant(2));
+  TNode<Smi> b = SmiTag(&m, m.IntPtrConstant(4));
   m.TailCallRuntime(Runtime::kAdd, context, a, b);
   FunctionTester ft(asm_tester.GenerateCode());
   CHECK_EQ(6, ft.CallChecked<Smi>()->value());
@@ -155,7 +155,7 @@ TEST(SimpleCallJSFunction0Arg) {
     auto function = m.Parameter<JSFunction>(1);
     auto context = m.Parameter<Context>(kContextOffset);
 
-    auto receiver = SmiTag(&m, m.Int32Constant(42));
+    auto receiver = SmiTag(&m, m.IntPtrConstant(42));
 
     Callable callable = CodeFactory::Call(isolate);
     TNode<Object> result = m.CallJS(callable, context, function, receiver);
@@ -178,8 +178,8 @@ TEST(SimpleCallJSFunction1Arg) {
     auto function = m.Parameter<JSFunction>(1);
     auto context = m.Parameter<Context>(kContextOffset);
 
-    Node* receiver = SmiTag(&m, m.Int32Constant(42));
-    Node* a = SmiTag(&m, m.Int32Constant(13));
+    Node* receiver = SmiTag(&m, m.IntPtrConstant(42));
+    Node* a = SmiTag(&m, m.IntPtrConstant(13));
 
     Callable callable = CodeFactory::Call(isolate);
     TNode<Object> result = m.CallJS(callable, context, function, receiver, a);
@@ -202,9 +202,9 @@ TEST(SimpleCallJSFunction2Arg) {
     auto function = m.Parameter<JSFunction>(1);
     auto context = m.Parameter<Context>(kContextOffset);
 
-    Node* receiver = SmiTag(&m, m.Int32Constant(42));
-    Node* a = SmiTag(&m, m.Int32Constant(13));
-    Node* b = SmiTag(&m, m.Int32Constant(153));
+    Node* receiver = SmiTag(&m, m.IntPtrConstant(42));
+    Node* a = SmiTag(&m, m.IntPtrConstant(13));
+    Node* b = SmiTag(&m, m.IntPtrConstant(153));
 
     Callable callable = CodeFactory::Call(isolate);
     TNode<Object> result =
@@ -372,25 +372,25 @@ TEST(TestToConstant) {
   CodeAssembler m(asm_tester.state());
   int32_t value32;
   int64_t value64;
-  Node* a = m.Int32Constant(5);
-  CHECK(m.ToInt32Constant(a, &value32));
-  CHECK(m.ToInt64Constant(a, &value64));
+  TNode<Int32T> a = m.Int32Constant(5);
+  CHECK(m.TryToInt32Constant(a, &value32));
+  CHECK(m.TryToInt64Constant(a, &value64));
 
-  a = m.Int64Constant(static_cast<int64_t>(1) << 32);
-  CHECK(!m.ToInt32Constant(a, &value32));
-  CHECK(m.ToInt64Constant(a, &value64));
+  TNode<Int64T> b = m.Int64Constant(static_cast<int64_t>(1) << 32);
+  CHECK(!m.TryToInt32Constant(b, &value32));
+  CHECK(m.TryToInt64Constant(b, &value64));
 
-  a = m.Int64Constant(13);
-  CHECK(m.ToInt32Constant(a, &value32));
-  CHECK(m.ToInt64Constant(a, &value64));
+  b = m.Int64Constant(13);
+  CHECK(m.TryToInt32Constant(b, &value32));
+  CHECK(m.TryToInt64Constant(b, &value64));
 
-  a = UndefinedConstant(&m);
-  CHECK(!m.ToInt32Constant(a, &value32));
-  CHECK(!m.ToInt64Constant(a, &value64));
+  TNode<Int32T> c = m.Word32Shl(m.Int32Constant(13), m.Int32Constant(14));
+  CHECK(!m.TryToInt32Constant(c, &value32));
+  CHECK(!m.TryToInt64Constant(c, &value64));
 
-  a = UndefinedConstant(&m);
-  CHECK(!m.ToInt32Constant(a, &value32));
-  CHECK(!m.ToInt64Constant(a, &value64));
+  TNode<IntPtrT> d = m.ReinterpretCast<IntPtrT>(UndefinedConstant(&m));
+  CHECK(!m.TryToInt32Constant(d, &value32));
+  CHECK(!m.TryToInt64Constant(d, &value64));
 }
 
 TEST(DeferredCodePhiHints) {

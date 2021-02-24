@@ -23,7 +23,7 @@ void BytecodeArrayIterator::Advance() {
 }
 
 bool BytecodeArrayIterator::done() const {
-  return current_offset() >= bytecode_array()->length();
+  return current_offset() >= bytecode_length();
 }
 
 }  // namespace interpreter

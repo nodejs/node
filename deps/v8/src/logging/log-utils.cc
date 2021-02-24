@@ -105,7 +105,7 @@ void Log::MessageBuilder::AppendString(String str,
                                        base::Optional<int> length_limit) {
   if (str.is_null()) return;
 
-  DisallowHeapAllocation no_gc;  // Ensure string stays valid.
+  DisallowGarbageCollection no_gc;  // Ensure string stays valid.
   int length = str.length();
   if (length_limit) length = std::min(length, *length_limit);
   for (int i = 0; i < length; i++) {
@@ -192,14 +192,14 @@ void Log::MessageBuilder::AppendSymbolName(Symbol symbol) {
     AppendSymbolNameDetails(String::cast(symbol.description()), false);
     os << "\" ";
   }
-  os << "hash " << std::hex << symbol.Hash() << std::dec << ")";
+  os << "hash " << std::hex << symbol.hash() << std::dec << ")";
 }
 
 void Log::MessageBuilder::AppendSymbolNameDetails(String str,
                                                   bool show_impl_info) {
   if (str.is_null()) return;
 
-  DisallowHeapAllocation no_gc;  // Ensure string stays valid.
+  DisallowGarbageCollection no_gc;  // Ensure string stays valid.
   OFStream& os = log_->os_;
   int limit = str.length();
   if (limit > 0x1000) limit = 0x1000;

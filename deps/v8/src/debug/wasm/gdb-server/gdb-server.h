@@ -24,6 +24,9 @@ class TaskRunner;
 // the Wasm engine.
 class GdbServer {
  public:
+  GdbServer(const GdbServer&) = delete;
+  GdbServer& operator=(const GdbServer&) = delete;
+
   // Factory method: creates and returns a GdbServer. Spawns a "GDB-remote"
   // thread that will be used to communicate with the debugger.
   // May return null on failure.
@@ -41,7 +44,10 @@ class GdbServer {
     uint32_t module_id;
     std::string module_name;
   };
-  std::vector<WasmModuleInfo> GetLoadedModules();
+  std::vector<WasmModuleInfo> GetLoadedModules(
+      bool clear_module_list_changed_flag = false);
+
+  bool HasModuleListChanged() const { return has_module_list_changed_; }
 
   // Queries the value of the {index} global value in the Wasm module identified
   // by {frame_index}.
@@ -61,12 +67,20 @@ class GdbServer {
                          uint32_t buffer_size, uint32_t* size);
 
   // Reads {size} bytes, starting from {offset}, from the Memory instance
-  // associated to the Wasm module identified by {frame_index}.
+  // associated to the Wasm module identified by {module_id}.
   // Returns the number of bytes copied to {buffer}, or 0 is case of error.
   // Note: only one Memory for Module is currently supported.
   //
-  uint32_t GetWasmMemory(uint32_t frame_index, uint32_t offset, uint8_t* buffer,
+  uint32_t GetWasmMemory(uint32_t module_id, uint32_t offset, uint8_t* buffer,
                          uint32_t size);
+
+  // Reads {size} bytes, starting from {offset}, from the first Data segment
+  // in the Wasm module identified by {module_id}.
+  // Returns the number of bytes copied to {buffer}, or 0 is case of error.
+  // Note: only one Memory for Module is currently supported.
+  //
+  uint32_t GetWasmData(uint32_t module_id, uint32_t offset, uint8_t* buffer,
+                       uint32_t size);
 
   // Reads {size} bytes, starting from the low dword of {address}, from the Code
   // space of th Wasm module identified by high dword of {address}.
@@ -173,6 +187,8 @@ class GdbServer {
   // tasks executed in the main (isolate) thread.
   std::unique_ptr<TaskRunner> task_runner_;
 
+  std::atomic<bool> has_module_list_changed_;
+
   //////////////////////////////////////////////////////////////////////////////
   // Always accessed in the isolate thread.
 
@@ -189,8 +205,6 @@ class GdbServer {
 
   // End of fields always accessed in the isolate thread.
   //////////////////////////////////////////////////////////////////////////////
-
-  DISALLOW_COPY_AND_ASSIGN(GdbServer);
 };
 
 }  // namespace gdb_server

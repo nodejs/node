@@ -47,6 +47,8 @@ static constexpr int kCodeKindCount = CODE_KIND_LIST(V);
 
 const char* CodeKindToString(CodeKind kind);
 
+const char* CodeKindToMarker(CodeKind kind);
+
 inline constexpr bool CodeKindIsInterpretedJSFunction(CodeKind kind) {
   return kind == CodeKind::INTERPRETED_FUNCTION;
 }

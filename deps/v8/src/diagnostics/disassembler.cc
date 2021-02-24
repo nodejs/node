@@ -431,7 +431,7 @@ int Disassembler::Decode(Isolate* isolate, std::ostream* os, byte* begin,
   if (isolate) {
     // We have an isolate, so support external reference names.
     SealHandleScope shs(isolate);
-    DisallowHeapAllocation no_alloc;
+    DisallowGarbageCollection no_alloc;
     ExternalReferenceEncoder ref_encoder(isolate);
     return DecodeIt(isolate, &ref_encoder, os, code, v8NameConverter, begin,
                     end, current_pc);

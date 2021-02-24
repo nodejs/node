@@ -35,7 +35,7 @@ extern runtime WasmAllocateRtt(Context, Smi, Map): Map;
 
 namespace unsafe {
 extern macro TimesTaggedSize(intptr): intptr;
-extern macro Allocate(intptr): HeapObject;
+extern macro Allocate(intptr, constexpr AllocationFlag): HeapObject;
 }
 
 namespace wasm {
@@ -231,34 +231,33 @@ builtin WasmAllocateJSArray(implicit context: Context)(size: Smi): JSArray {
   return AllocateJSArray(ElementsKind::PACKED_ELEMENTS, map, size, size);
 }
 
-builtin WasmAllocateRtt(implicit context: Context)(
-    typeIndex: Smi, parent: Map): Map {
-  tail runtime::WasmAllocateRtt(context, typeIndex, parent);
+builtin WasmAllocateRtt(typeIndex: intptr, parent: Map): Map {
+  tail runtime::WasmAllocateRtt(
+      LoadContextFromFrame(), SmiTag(typeIndex), parent);
 }
 
-builtin WasmAllocateStructWithRtt(implicit context: Context)(rtt: Map):
-    HeapObject {
+builtin WasmAllocateStructWithRtt(rtt: Map): HeapObject {
   const instanceSize: intptr =
       unsafe::TimesTaggedSize(Convert<intptr>(rtt.instance_size_in_words));
-  const result: HeapObject = unsafe::Allocate(instanceSize);
+  const result: HeapObject = unsafe::Allocate(
+      instanceSize, AllocationFlag::kAllowLargeObjectAllocation);
   *UnsafeConstCast(&result.map) = rtt;
   return result;
 }
 
-builtin WasmIsRttSubtype(implicit context: Context)(sub: Map, super: Map): Smi {
-  let map = sub;
-  while (true) {
-    if (map == super) return SmiConstant(1);  // "true"
-    // This code relies on the fact that we use a non-WasmObject map as the
-    // end of the chain, e.g. for "rtt any", which then doesn't have a
-    // WasmTypeInfo.
-    // TODO(7748): Use a more explicit sentinel mechanism?
-    const maybeTypeInfo = map.constructor_or_back_pointer_or_native_context;
-    if (!Is<WasmTypeInfo>(maybeTypeInfo)) return SmiConstant(0);  // "false"
-    const typeInfo = %RawDownCast<WasmTypeInfo>(maybeTypeInfo);
-    map = typeInfo.parent;
-  }
-  unreachable;
+builtin WasmAllocateArrayWithRtt(
+    rtt: Map, length: uint32, elementSize: uint32): HeapObject {
+  // instanceSize = RoundUp(elementSize * length, kObjectAlignment)
+  //              + WasmArray::kHeaderSize
+  const instanceSize: intptr =
+      torque_internal::AlignTagged(
+          Convert<intptr>(length) * Convert<intptr>(elementSize)) +
+      Convert<intptr>(kWasmArrayHeaderSize);
+  const result: HeapObject = unsafe::Allocate(
+      instanceSize, AllocationFlag::kAllowLargeObjectAllocation);
+  *UnsafeConstCast(&result.map) = rtt;
+  %RawDownCast<WasmArray>(result).length = length;
+  return result;
 }
 
 // Redeclaration with different typing (value is an Object, not JSAny).
@@ -406,10 +405,6 @@ builtin ThrowWasmTrapElemSegmentDropped(): JSAny {
 
 builtin ThrowWasmTrapTableOutOfBounds(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapTableOutOfBounds));
-}
-
-builtin ThrowWasmTrapBrOnExnNull(): JSAny {
-  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapBrOnExnNull));
 }
 
 builtin ThrowWasmTrapRethrowNull(): JSAny {

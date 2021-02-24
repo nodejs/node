@@ -124,6 +124,8 @@ v8_source_set("inspector") {
     "v8-console.h",
     "v8-debugger-agent-impl.cc",
     "v8-debugger-agent-impl.h",
+    "v8-debugger-id.cc",
+    "v8-debugger-id.h",
     "v8-debugger-script.cc",
     "v8-debugger-script.h",
     "v8-debugger.cc",

@@ -7,7 +7,6 @@
 
 #include "include/v8.h"
 #include "src/utils/allocation.h"
-// TODO(bmeurer): Remove once FLAG_modify_field_representation_inplace is gone.
 #include "src/base/bit-field.h"
 #include "src/flags/flags.h"
 
@@ -104,24 +103,41 @@ class Representation {
     return Equals(other);
   }
 
+  // Returns true if a change from this representation to a more general one
+  // might cause a map deprecation.
+  bool MightCauseMapDeprecation() const {
+    // HeapObject to tagged representation change can be done in-place.
+    if (IsTagged() || IsHeapObject()) return false;
+    // When double fields unboxing is enabled, there must be a map deprecation.
+    // Boxed double to tagged transition is always done in-place.
+    if (IsDouble()) return FLAG_unbox_double_fields;
+    // None to double and smi to double representation changes require
+    // deprecation, because doubles might require box allocation, see
+    // CanBeInPlaceChangedTo().
+    DCHECK(IsNone() || IsSmi());
+    return true;
+  }
+
   bool CanBeInPlaceChangedTo(const Representation& other) const {
+    if (Equals(other)) return true;
     // If it's just a representation generalization case (i.e. property kind and
     // attributes stays unchanged) it's fine to transition from None to anything
     // but double without any modification to the object, because the default
     // uninitialized value for representation None can be overwritten by both
     // smi and tagged values. Doubles, however, would require a box allocation.
     if (IsNone()) return !other.IsDouble();
-    if (!FLAG_modify_field_representation_inplace) return false;
-    return (IsSmi() || (!FLAG_unbox_double_fields && IsDouble()) ||
-            IsHeapObject()) &&
-           other.IsTagged();
+    if (!other.IsTagged()) return false;
+    // Everything but unboxed doubles can be in-place changed to Tagged.
+    if (FLAG_unbox_double_fields && IsDouble()) return false;
+    DCHECK(IsSmi() || (!FLAG_unbox_double_fields && IsDouble()) ||
+           IsHeapObject());
+    return true;
   }
 
   // Return the most generic representation that this representation can be
-  // changed to in-place. If in-place representation changes are disabled, then
-  // this will return the current representation.
+  // changed to in-place. If an in-place representation change is not allowed,
+  // then this will return the current representation.
   Representation MostGenericInPlaceChange() const {
-    if (!FLAG_modify_field_representation_inplace) return *this;
     // Everything but unboxed doubles can be in-place changed to Tagged.
     if (FLAG_unbox_double_fields && IsDouble()) return Representation::Double();
     return Representation::Tagged();
@@ -191,26 +207,18 @@ static const int kMaxNumberOfDescriptors = (1 << kDescriptorIndexBitCount) - 4;
 static const int kInvalidEnumCacheSentinel =
     (1 << kDescriptorIndexBitCount) - 1;
 
+// A PropertyCell's property details contains a cell type that is meaningful if
+// the cell is still valid (does not hold the hole).
 enum class PropertyCellType {
-  // Meaningful when a property cell does not contain the hole.
   kUndefined,     // The PREMONOMORPHIC of property cells.
   kConstant,      // Cell has been assigned only once.
   kConstantType,  // Cell has been assigned only one type.
   kMutable,       // Cell will no longer be tracked as constant.
-
-  // Meaningful when a property cell contains the hole.
-  kUninitialized = kUndefined,  // Cell has never been initialized.
-  kInvalidated = kConstant,     // Cell has been deleted, invalidated or never
-                                // existed.
-
-  // For dictionaries not holding cells.
+  // Arbitrary choice for dictionaries not holding cells.
   kNoCell = kMutable,
 };
 
-enum class PropertyCellConstantType {
-  kSmi,
-  kStableMap,
-};
+std::ostream& operator<<(std::ostream& os, PropertyCellType type);
 
 // PropertyDetails captures type and attributes for a property.
 // They are used both in property dictionaries and instance descriptors.
@@ -365,7 +373,7 @@ class PropertyDetails {
     kForTransitions = kPrintAttributes,
     kPrintFull = -1,
   };
-  void PrintAsSlowTo(std::ostream& out);
+  void PrintAsSlowTo(std::ostream& out, bool print_dict_index);
   void PrintAsFastTo(std::ostream& out, PrintMode mode = kPrintFull);
 
  private:

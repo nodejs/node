@@ -101,8 +101,6 @@ UseInfo CheckedUseInfoAsWord32FromHint(
     case NumberOperationHint::kSignedSmall:
     case NumberOperationHint::kSignedSmallInputs:
       return UseInfo::CheckedSignedSmallAsWord32(identify_zeros, feedback);
-    case NumberOperationHint::kSigned32:
-      return UseInfo::CheckedSigned32AsWord32(identify_zeros, feedback);
     case NumberOperationHint::kNumber:
       return UseInfo::CheckedNumberAsWord32(feedback);
     case NumberOperationHint::kNumberOrBoolean:
@@ -120,7 +118,6 @@ UseInfo CheckedUseInfoAsFloat64FromHint(
   switch (hint) {
     case NumberOperationHint::kSignedSmall:
     case NumberOperationHint::kSignedSmallInputs:
-    case NumberOperationHint::kSigned32:
       // Not used currently.
       UNREACHABLE();
     case NumberOperationHint::kNumber:
@@ -1447,8 +1444,7 @@ class RepresentationSelector {
 
     // Try to use type feedback.
     NumberOperationHint hint = NumberOperationHintOf(node->op());
-    DCHECK(hint == NumberOperationHint::kSignedSmall ||
-           hint == NumberOperationHint::kSigned32);
+    DCHECK_EQ(hint, NumberOperationHint::kSignedSmall);
 
     Type left_feedback_type = TypeOf(node->InputAt(0));
     Type right_feedback_type = TypeOf(node->InputAt(1));
@@ -1559,8 +1555,7 @@ class RepresentationSelector {
     // Handle the case when no uint32 checks on inputs are necessary
     // (but an overflow check is needed on the output).
     if (BothInputsAreUnsigned32(node)) {
-      if (hint == NumberOperationHint::kSignedSmall ||
-          hint == NumberOperationHint::kSigned32) {
+      if (hint == NumberOperationHint::kSignedSmall) {
         VisitBinop<T>(node, UseInfo::TruncatingWord32(),
                       MachineRepresentation::kWord32, Type::Unsigned32());
         if (lower<T>()) ChangeToUint32OverflowOp(node);
@@ -1572,8 +1567,7 @@ class RepresentationSelector {
     // (but an overflow check is needed on the output).
     if (BothInputsAre(node, Type::Signed32())) {
       // If both the inputs the feedback are int32, use the overflow op.
-      if (hint == NumberOperationHint::kSignedSmall ||
-          hint == NumberOperationHint::kSigned32) {
+      if (hint == NumberOperationHint::kSignedSmall) {
         VisitBinop<T>(node, UseInfo::TruncatingWord32(),
                       MachineRepresentation::kWord32, Type::Signed32());
         if (lower<T>()) ChangeToInt32OverflowOp(node);
@@ -1581,8 +1575,7 @@ class RepresentationSelector {
       }
     }
 
-    if (hint == NumberOperationHint::kSignedSmall ||
-        hint == NumberOperationHint::kSigned32) {
+    if (hint == NumberOperationHint::kSignedSmall) {
       // If the result is truncated, we only need to check the inputs.
       // For the left hand side we just propagate the identify zeros
       // mode of the {truncation}; and for modulus the sign of the
@@ -2057,7 +2050,6 @@ class RepresentationSelector {
         // Try to use type feedback.
         NumberOperationHint hint = NumberOperationHintOf(node->op());
         switch (hint) {
-          case NumberOperationHint::kSigned32:
           case NumberOperationHint::kSignedSmall:
             if (propagate<T>()) {
               VisitBinop<T>(node,
@@ -2160,8 +2152,7 @@ class RepresentationSelector {
         // (but an overflow check is needed on the output).
         if (BothInputsAre(node, Type::Signed32())) {
           // If both inputs and feedback are int32, use the overflow op.
-          if (hint == NumberOperationHint::kSignedSmall ||
-              hint == NumberOperationHint::kSigned32) {
+          if (hint == NumberOperationHint::kSignedSmall) {
             VisitBinop<T>(node, UseInfo::TruncatingWord32(),
                           MachineRepresentation::kWord32, Type::Signed32());
             if (lower<T>()) {
@@ -2172,8 +2163,7 @@ class RepresentationSelector {
           }
         }
 
-        if (hint == NumberOperationHint::kSignedSmall ||
-            hint == NumberOperationHint::kSigned32) {
+        if (hint == NumberOperationHint::kSignedSmall) {
           VisitBinop<T>(node, CheckedUseInfoAsWord32FromHint(hint),
                         MachineRepresentation::kWord32, Type::Signed32());
           if (lower<T>()) {
@@ -2239,8 +2229,7 @@ class RepresentationSelector {
         // Handle the case when no uint32 checks on inputs are necessary
         // (but an overflow check is needed on the output).
         if (BothInputsAreUnsigned32(node)) {
-          if (hint == NumberOperationHint::kSignedSmall ||
-              hint == NumberOperationHint::kSigned32) {
+          if (hint == NumberOperationHint::kSignedSmall) {
             VisitBinop<T>(node, UseInfo::TruncatingWord32(),
                           MachineRepresentation::kWord32, Type::Unsigned32());
             if (lower<T>()) ChangeToUint32OverflowOp(node);
@@ -2252,8 +2241,7 @@ class RepresentationSelector {
         // (but an overflow check is needed on the output).
         if (BothInputsAreSigned32(node)) {
           // If both the inputs the feedback are int32, use the overflow op.
-          if (hint == NumberOperationHint::kSignedSmall ||
-              hint == NumberOperationHint::kSigned32) {
+          if (hint == NumberOperationHint::kSignedSmall) {
             VisitBinop<T>(node, UseInfo::TruncatingWord32(),
                           MachineRepresentation::kWord32, Type::Signed32());
             if (lower<T>()) ChangeToInt32OverflowOp(node);
@@ -2261,8 +2249,7 @@ class RepresentationSelector {
           }
         }
 
-        if (hint == NumberOperationHint::kSigned32 ||
-            hint == NumberOperationHint::kSignedSmall ||
+        if (hint == NumberOperationHint::kSignedSmall ||
             hint == NumberOperationHint::kSignedSmallInputs) {
           // If the result is truncated, we only need to check the inputs.
           if (truncation.IsUsedAsWord32()) {
@@ -2442,8 +2429,7 @@ class RepresentationSelector {
         NumberOperationHint hint = NumberOperationHintOf(node->op());
         Type rhs_type = GetUpperBound(node->InputAt(1));
         if (rhs_type.Is(type_cache_->kZeroish) &&
-            (hint == NumberOperationHint::kSignedSmall ||
-             hint == NumberOperationHint::kSigned32) &&
+            hint == NumberOperationHint::kSignedSmall &&
             !truncation.IsUsedAsWord32()) {
           // The SignedSmall or Signed32 feedback means that the results that we
           // have seen so far were of type Unsigned31.  We speculate that this
@@ -3330,7 +3316,6 @@ class RepresentationSelector {
         NumberOperationParameters const& p =
             NumberOperationParametersOf(node->op());
         switch (p.hint()) {
-          case NumberOperationHint::kSigned32:
           case NumberOperationHint::kSignedSmall:
           case NumberOperationHint::kSignedSmallInputs:
             VisitUnop<T>(node,

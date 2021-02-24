@@ -17,6 +17,12 @@ namespace internal {
 
 // Common base class for platform-specific TurboAssemblers containing
 // platform-independent bits.
+// You will encounter two subclasses, TurboAssembler (derives from
+// TurboAssemblerBase), and MacroAssembler (derives from TurboAssembler). The
+// main difference is that MacroAssembler is allowed to access the isolate, and
+// TurboAssembler accesses the isolate in a very limited way. TurboAssembler
+// contains all the functionality that is used by Turbofan, and does not expect
+// to be running on the main thread.
 class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
  public:
   // Constructors are declared public to inherit them in derived classes
@@ -139,7 +145,7 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
 // Avoids emitting calls to the {Builtins::kAbort} builtin when emitting debug
 // code during the lifetime of this scope object. For disabling debug code
 // entirely use the {DontEmitDebugCodeScope} instead.
-class HardAbortScope {
+class V8_NODISCARD HardAbortScope {
  public:
   explicit HardAbortScope(TurboAssemblerBase* assembler)
       : assembler_(assembler), old_value_(assembler->should_abort_hard()) {

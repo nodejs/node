@@ -41,7 +41,7 @@ class WasmSerializationTest {
     TestSignatures sigs;
 
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
-    byte code[] = {WASM_GET_LOCAL(0), kExprI32Const, 1, kExprI32Add, kExprEnd};
+    byte code[] = {WASM_LOCAL_GET(0), kExprI32Const, 1, kExprI32Add, kExprEnd};
     f->EmitCode(code, sizeof(code));
     builder->AddExport(CStrVector(kFunctionName), f);
 
@@ -81,7 +81,7 @@ class WasmSerializationTest {
     Handle<WasmModuleObject> module_object;
     CHECK(Deserialize().ToHandle(&module_object));
     {
-      DisallowHeapAllocation assume_no_gc;
+      DisallowGarbageCollection assume_no_gc;
       Vector<const byte> deserialized_module_wire_bytes =
           module_object->native_module()->wire_bytes();
       CHECK_EQ(deserialized_module_wire_bytes.size(), wire_bytes_.size());
@@ -341,6 +341,7 @@ TEST(TierDownAfterDeserialization) {
   CHECK_EQ(1, native_module->module()->functions.size());
   WasmCodeRefScope code_ref_scope;
   auto* turbofan_code = native_module->GetCode(0);
+  CHECK_NOT_NULL(turbofan_code);
   CHECK_EQ(ExecutionTier::kTurbofan, turbofan_code->tier());
 
   isolate->wasm_engine()->TierDownAllModulesPerIsolate(isolate);

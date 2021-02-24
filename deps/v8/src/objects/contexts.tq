@@ -3,12 +3,17 @@
 // found in the LICENSE file.
 
 @abstract
-extern class Context extends HeapObject {
+@export
+@customCppClass
+// We normally don't generate a BodyDescriptor for an abstact class, but here we
+// do since all context classes share the same BodyDescriptor.
+@generateBodyDescriptor
+class Context extends HeapObject {
   macro GetScopeInfo(): ScopeInfo {
     return *ContextSlot(this, ContextSlot::SCOPE_INFO_INDEX);
   }
   const length: Smi;
-  elements[length]: Object;
+  @relaxedWrite elements[length]: Object;
 }
 
 extern class AwaitContext extends Context generates 'TNode<Context>';

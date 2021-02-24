@@ -5,6 +5,8 @@
 #ifndef INCLUDE_CPPGC_TYPE_TRAITS_H_
 #define INCLUDE_CPPGC_TYPE_TRAITS_H_
 
+// This file should stay with minimal dependencies to allow embedder to check
+// against Oilpan types without including any other parts.
 #include <type_traits>
 
 namespace cppgc {
@@ -12,6 +14,14 @@ namespace cppgc {
 class Visitor;
 
 namespace internal {
+template <typename T, typename WeaknessTag, typename WriteBarrierPolicy,
+          typename CheckingPolicy>
+class BasicMember;
+struct DijkstraWriteBarrierPolicy;
+struct NoWriteBarrierPolicy;
+class StrongMemberTag;
+class UntracedMemberTag;
+class WeakMemberTag;
 
 // Pre-C++17 custom implementation of std::void_t.
 template <typename... Ts>
@@ -24,18 +34,6 @@ using void_t = typename make_void<Ts...>::type;
 // Not supposed to be specialized by the user.
 template <typename T>
 struct IsWeak : std::false_type {};
-
-template <typename T, template <typename... V> class U>
-struct IsSubclassOfTemplate {
- private:
-  template <typename... W>
-  static std::true_type SubclassCheck(U<W...>*);
-  static std::false_type SubclassCheck(...);
-
- public:
-  static constexpr bool value =
-      decltype(SubclassCheck(std::declval<T*>()))::value;
-};
 
 // IsTraceMethodConst is used to verify that all Trace methods are marked as
 // const. It is equivalent to IsTraceable but for a non-const object.
@@ -91,16 +89,56 @@ struct IsGarbageCollectedType<
   static_assert(sizeof(T), "T must be fully defined");
 };
 
+template <typename BasicMemberCandidate, typename WeaknessTag,
+          typename WriteBarrierPolicy>
+struct IsSubclassOfBasicMemberTemplate {
+ private:
+  template <typename T, typename CheckingPolicy>
+  static std::true_type SubclassCheck(
+      BasicMember<T, WeaknessTag, WriteBarrierPolicy, CheckingPolicy>*);
+  static std::false_type SubclassCheck(...);
+
+ public:
+  static constexpr bool value =
+      decltype(SubclassCheck(std::declval<BasicMemberCandidate*>()))::value;
+};
+
+template <typename T,
+          bool = IsSubclassOfBasicMemberTemplate<
+              T, StrongMemberTag, DijkstraWriteBarrierPolicy>::value>
+struct IsMemberType : std::false_type {};
+
 template <typename T>
-constexpr bool IsGarbageCollectedTypeV =
-    internal::IsGarbageCollectedType<T>::value;
+struct IsMemberType<T, true> : std::true_type {};
+
+template <typename T, bool = IsSubclassOfBasicMemberTemplate<
+                          T, WeakMemberTag, DijkstraWriteBarrierPolicy>::value>
+struct IsWeakMemberType : std::false_type {};
+
+template <typename T>
+struct IsWeakMemberType<T, true> : std::true_type {};
+
+template <typename T, bool = IsSubclassOfBasicMemberTemplate<
+                          T, UntracedMemberTag, NoWriteBarrierPolicy>::value>
+struct IsUntracedMemberType : std::false_type {};
+
+template <typename T>
+struct IsUntracedMemberType<T, true> : std::true_type {};
+
+}  // namespace internal
 
 template <typename T>
 constexpr bool IsGarbageCollectedMixinTypeV =
     internal::IsGarbageCollectedMixinType<T>::value;
-
-}  // namespace internal
-
+template <typename T>
+constexpr bool IsGarbageCollectedTypeV =
+    internal::IsGarbageCollectedType<T>::value;
+template <typename T>
+constexpr bool IsMemberTypeV = internal::IsMemberType<T>::value;
+template <typename T>
+constexpr bool IsUntracedMemberTypeV = internal::IsUntracedMemberType<T>::value;
+template <typename T>
+constexpr bool IsWeakMemberTypeV = internal::IsWeakMemberType<T>::value;
 template <typename T>
 constexpr bool IsWeakV = internal::IsWeak<T>::value;
 

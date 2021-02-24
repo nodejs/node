@@ -210,7 +210,9 @@ class ModuleDecoder {
   void DecodeSection(SectionCode section_code, Vector<const uint8_t> bytes,
                      uint32_t offset, bool verify_functions = true);
 
-  bool CheckFunctionsCount(uint32_t functions_count, uint32_t offset);
+  void StartCodeSection();
+
+  bool CheckFunctionsCount(uint32_t functions_count, uint32_t error_offset);
 
   void DecodeFunctionBody(uint32_t index, uint32_t size, uint32_t offset,
                           bool verify_functions = true);
@@ -220,6 +222,7 @@ class ModuleDecoder {
   void set_code_section(uint32_t offset, uint32_t size);
 
   const std::shared_ptr<WasmModule>& shared_module() const;
+
   WasmModule* module() const { return shared_module().get(); }
 
   bool ok();

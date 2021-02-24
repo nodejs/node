@@ -6,6 +6,7 @@
 
 #include <cstring>
 
+#include "src/base/platform/wrappers.h"
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/logging/counters.h"
@@ -464,7 +465,8 @@ std::unique_ptr<BackingStore> BackingStore::CopyWasmMemory(Isolate* isolate,
     // If the allocation was successful, then the new buffer must be at least
     // as big as the old one.
     DCHECK_GE(new_pages * wasm::kWasmPageSize, byte_length_);
-    memcpy(new_backing_store->buffer_start(), buffer_start_, byte_length_);
+    base::Memcpy(new_backing_store->buffer_start(), buffer_start_,
+                 byte_length_);
   }
 
   return new_backing_store;

@@ -835,7 +835,7 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
       cache != this,
       cache->outer_scope()->deserialized_scope_uses_external_cache());
   DCHECK_NULL(cache->variables_.Lookup(name));
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   String name_handle = *name->string();
   ScopeInfo scope_info = *scope_info_;
@@ -2669,7 +2669,7 @@ void ClassScope::MigrateUnresolvedPrivateNameTail(
 Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
   DCHECK(!scope_info_.is_null());
   DCHECK_NULL(LookupLocalPrivateName(name));
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   String name_handle = *name->string();
   VariableMode mode;

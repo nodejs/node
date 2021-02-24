@@ -22,7 +22,7 @@ namespace internal {
 
 // Number of times a function has to be seen on the stack before it is
 // optimized.
-static const int kProfilerTicksBeforeOptimization = 2;
+static const int kProfilerTicksBeforeOptimization = 3;
 
 // The number of ticks required for optimizing a function increases with
 // the size of the bytecode. This is in addition to the
@@ -30,7 +30,7 @@ static const int kProfilerTicksBeforeOptimization = 2;
 static const int kBytecodeSizeAllowancePerTick = 1200;
 
 // Maximum size in bytes of generate code for a function to allow OSR.
-static const int kOSRBytecodeSizeAllowanceBase = 180;
+static const int kOSRBytecodeSizeAllowanceBase = 132;
 
 static const int kOSRBytecodeSizeAllowancePerTick = 48;
 
@@ -42,9 +42,11 @@ static const int kMaxBytecodeSizeForEarlyOpt = 90;
 // OSRed in TurboProp
 // This value is chosen so TurboProp OSRs at similar time as TurboFan. The
 // current interrupt budger of TurboFan is approximately 10 times that of
-// TurboProp and we wait for 3 ticks (2 for marking for optimization and an
-// additional tick to mark it for OSR) and hence this is set to 3 * 10.
-static const int kProfilerTicksForTurboPropOSR = 3 * 10;
+// TurboProp and we wait for 4 ticks (3 for marking for optimization and an
+// additional tick to mark it for OSR) and hence this is set to 4 * 10.
+// TODO(mythria): This value should be based on
+// FLAG_ticks_scale_factor_for_top_tier.
+static const int kProfilerTicksForTurboPropOSR = 4 * 10;
 
 #define OPTIMIZATION_REASON_LIST(V)   \
   V(DoNotOptimize, "do not optimize") \
@@ -151,8 +153,8 @@ void RuntimeProfiler::AttemptOnStackReplacement(InterpretedFrame* frame,
 
   DCHECK_EQ(StackFrame::INTERPRETED, frame->type());
   int level = frame->GetBytecodeArray().osr_loop_nesting_level();
-  frame->GetBytecodeArray().set_osr_loop_nesting_level(
-      Min(level + loop_nesting_levels, AbstractCode::kMaxLoopNestingMarker));
+  frame->GetBytecodeArray().set_osr_loop_nesting_level(std::min(
+      {level + loop_nesting_levels, AbstractCode::kMaxLoopNestingMarker}));
 }
 
 void RuntimeProfiler::MaybeOptimizeFrame(JSFunction function,
@@ -187,7 +189,7 @@ void RuntimeProfiler::MaybeOptimizeFrame(JSFunction function,
   }
 
   OptimizationReason reason =
-      ShouldOptimize(function, function.shared().GetBytecodeArray());
+      ShouldOptimize(function, function.shared().GetBytecodeArray(isolate_));
 
   if (reason != OptimizationReason::kDoNotOptimize) {
     Optimize(function, reason, code_kind);
@@ -201,6 +203,11 @@ bool RuntimeProfiler::MaybeOSR(JSFunction function, InterpretedFrame* frame) {
 
   // Turboprop optimizes quite early. So don't attempt to OSR if the loop isn't
   // hot enough.
+  // TODO(mythria): We should decide when to OSR based on number of ticks
+  // instead of checking if it has been marked for optimization. That will allow
+  // us to unify OSR decisions from different tiers and we can remove this
+  // special case here for Turboprop. If we do that also remove the code to
+  // reset the marker in Runtime_CompileForOnStackReplacement.
   if (FLAG_turboprop && ticks < kProfilerTicksForTurboPropOSR) {
     return false;
   }
@@ -210,19 +217,41 @@ bool RuntimeProfiler::MaybeOSR(JSFunction function, InterpretedFrame* frame) {
       function.HasAvailableOptimizedCode()) {
     // Attempt OSR if we are still running interpreted code even though the
     // the function has long been marked or even already been optimized.
-    // TODO(turboprop, mythria): Currently we don't tier up from Turboprop code
-    // to Turbofan OSR code. When we start supporting this, the ticks have to be
-    // scaled accordingly
-    int64_t allowance =
-        kOSRBytecodeSizeAllowanceBase +
-        static_cast<int64_t>(ticks) * kOSRBytecodeSizeAllowancePerTick;
-    if (function.shared().GetBytecodeArray().length() <= allowance) {
+    // OSR should happen roughly at the same with or without FLAG_turboprop.
+    // Turboprop has much lower interrupt budget so scale the ticks accordingly.
+    int scale_factor =
+        FLAG_turboprop ? FLAG_ticks_scale_factor_for_top_tier : 1;
+    int64_t scaled_ticks = static_cast<int64_t>(ticks) / scale_factor;
+    int64_t allowance = kOSRBytecodeSizeAllowanceBase +
+                        scaled_ticks * kOSRBytecodeSizeAllowancePerTick;
+    if (function.shared().GetBytecodeArray(isolate_).length() <= allowance) {
       AttemptOnStackReplacement(frame);
     }
     return true;
   }
   return false;
 }
+
+namespace {
+
+bool ShouldOptimizeAsSmallFunction(int bytecode_size, int ticks,
+                                   bool any_ic_changed,
+                                   bool active_tier_is_turboprop) {
+  if (any_ic_changed || bytecode_size >= kMaxBytecodeSizeForEarlyOpt)
+    return false;
+  // Without turboprop we always allow early optimizations for small functions
+  if (!FLAG_turboprop) return true;
+  // For turboprop, we only do small function optimizations when tiering up from
+  // TP-> TF. We should also scale the ticks, so we optimize small functions
+  // when reaching one tick for top tier.
+  // TODO(turboprop, mythria): Investigate if small function optimization is
+  // required at all and avoid this if possible by changing the heuristics to
+  // take function size into account.
+  return active_tier_is_turboprop &&
+         ticks > FLAG_ticks_scale_factor_for_top_tier;
+}
+
+}  // namespace
 
 OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction function,
                                                    BytecodeArray bytecode) {
@@ -233,20 +262,18 @@ OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction function,
     return OptimizationReason::kDoNotOptimize;
   }
   int ticks = function.feedback_vector().profiler_ticks();
-  int scale_factor = function.ActiveTierIsMidtierTurboprop()
-                         ? FLAG_ticks_scale_factor_for_top_tier
-                         : 1;
+  bool active_tier_is_turboprop = function.ActiveTierIsMidtierTurboprop();
+  int scale_factor =
+      active_tier_is_turboprop ? FLAG_ticks_scale_factor_for_top_tier : 1;
   int ticks_for_optimization =
       kProfilerTicksBeforeOptimization +
       (bytecode.length() / kBytecodeSizeAllowancePerTick);
   ticks_for_optimization *= scale_factor;
   if (ticks >= ticks_for_optimization) {
     return OptimizationReason::kHotAndStable;
-  } else if (!any_ic_changed_ &&
-             bytecode.length() < kMaxBytecodeSizeForEarlyOpt) {
-    // TODO(turboprop, mythria): Do we need to support small function
-    // optimization for TP->TF tier up. If so, do we want to scale the bytecode
-    // size?
+  } else if (ShouldOptimizeAsSmallFunction(bytecode.length(), ticks,
+                                           any_ic_changed_,
+                                           active_tier_is_turboprop)) {
     // If no IC was patched since the last tick and this function is very
     // small, optimistically optimize it now.
     return OptimizationReason::kSmallFunction;
@@ -276,51 +303,35 @@ RuntimeProfiler::MarkCandidatesForOptimizationScope::
   profiler_->any_ic_changed_ = false;
 }
 
-void RuntimeProfiler::MarkCandidatesForOptimizationFromBytecode() {
+void RuntimeProfiler::MarkCandidatesForOptimization(JavaScriptFrame* frame) {
   if (!isolate_->use_optimizer()) return;
   MarkCandidatesForOptimizationScope scope(this);
-  int i = 0;
-  for (JavaScriptFrameIterator it(isolate_); i < FLAG_frame_count && !it.done();
-       i++, it.Advance()) {
-    JavaScriptFrame* frame = it.frame();
-    if (!frame->is_interpreted()) continue;
 
-    JSFunction function = frame->function();
-    DCHECK(function.shared().is_compiled());
-    if (!function.shared().IsInterpreted()) continue;
+  JSFunction function = frame->function();
+  CodeKind code_kind = frame->is_interpreted() ? CodeKind::INTERPRETED_FUNCTION
+                                               : function.code().kind();
 
-    if (!function.has_feedback_vector()) continue;
+  DCHECK(function.shared().is_compiled());
+  DCHECK(function.shared().IsInterpreted());
 
-    MaybeOptimizeFrame(function, frame, CodeKind::INTERPRETED_FUNCTION);
+  DCHECK_IMPLIES(CodeKindIsOptimizedJSFunction(code_kind),
+                 function.has_feedback_vector());
+  if (!function.has_feedback_vector()) return;
 
-    // TODO(leszeks): Move this increment to before the maybe optimize checks,
-    // and update the tests to assume the increment has already happened.
-    function.feedback_vector().SaturatingIncrementProfilerTicks();
-  }
+  function.feedback_vector().SaturatingIncrementProfilerTicks();
+  MaybeOptimizeFrame(function, frame, code_kind);
+}
+
+void RuntimeProfiler::MarkCandidatesForOptimizationFromBytecode() {
+  JavaScriptFrameIterator it(isolate_);
+  DCHECK(it.frame()->is_interpreted());
+  MarkCandidatesForOptimization(it.frame());
 }
 
 void RuntimeProfiler::MarkCandidatesForOptimizationFromCode() {
-  if (!isolate_->use_optimizer()) return;
-  MarkCandidatesForOptimizationScope scope(this);
-  int i = 0;
-  for (JavaScriptFrameIterator it(isolate_); i < FLAG_frame_count && !it.done();
-       i++, it.Advance()) {
-    JavaScriptFrame* frame = it.frame();
-    if (!frame->is_optimized()) continue;
-
-    JSFunction function = frame->function();
-    auto code_kind = function.code().kind();
-    if (!CodeKindIsOptimizedAndCanTierUp(code_kind)) {
-      continue;
-    }
-
-    DCHECK(function.shared().is_compiled());
-    DCHECK(function.has_feedback_vector());
-
-    function.feedback_vector().SaturatingIncrementProfilerTicks();
-
-    MaybeOptimizeFrame(function, frame, code_kind);
-  }
+  JavaScriptFrameIterator it(isolate_);
+  DCHECK(it.frame()->is_optimized());
+  MarkCandidatesForOptimization(it.frame());
 }
 
 }  // namespace internal

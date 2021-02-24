@@ -68,18 +68,17 @@ void TaskRunner::RunMessageLoop(bool only_protocol) {
     std::unique_ptr<TaskRunner::Task> task = GetNext(only_protocol);
     if (!task) return;
     v8::Isolate::Scope isolate_scope(isolate());
-    if (catch_exceptions_) {
-      v8::TryCatch try_catch(isolate());
-      task->Run(data_.get());
-      if (try_catch.HasCaught()) {
-        ReportUncaughtException(isolate(), try_catch);
-        fflush(stdout);
-        fflush(stderr);
-        _exit(0);
-      }
-    } else {
-      task->Run(data_.get());
+    v8::TryCatch try_catch(isolate());
+    if (catch_exceptions_ == kStandardPropagateUncaughtExceptions) {
+      try_catch.SetVerbose(true);
     }
+    task->Run(data_.get());
+    if (catch_exceptions_ == kFailOnUncaughtExceptions &&
+        try_catch.HasCaught()) {
+      ReportUncaughtException(isolate(), try_catch);
+      base::OS::ExitProcess(0);
+    }
+    try_catch.Reset();
     task.reset();
     // Also pump isolate's foreground task queue to ensure progress.
     // This can be removed once https://crbug.com/v8/10747 is fixed.
@@ -87,10 +86,22 @@ void TaskRunner::RunMessageLoop(bool only_protocol) {
     // tests are fixed.
     if (!i::FLAG_stress_incremental_marking) {
       while (v8::platform::PumpMessageLoop(
-          v8::internal::V8::GetCurrentPlatform(), isolate())) {
+          v8::internal::V8::GetCurrentPlatform(), isolate(),
+          isolate()->HasPendingBackgroundTasks()
+              ? platform::MessageLoopBehavior::kWaitForWork
+              : platform::MessageLoopBehavior::kDoNotWait)) {
       }
     }
   }
+}
+
+static void RunMessageLoopInInterrupt(v8::Isolate* isolate, void* task_runner) {
+  TaskRunner* runner = reinterpret_cast<TaskRunner*>(task_runner);
+  runner->RunMessageLoop(true);
+}
+
+void TaskRunner::InterruptForMessages() {
+  isolate()->RequestInterrupt(&RunMessageLoopInInterrupt, this);
 }
 
 void TaskRunner::QuitMessageLoop() {
@@ -105,6 +116,7 @@ void TaskRunner::Append(std::unique_ptr<Task> task) {
 
 void TaskRunner::Terminate() {
   is_terminated_++;
+  isolate()->TerminateExecution();
   process_queue_semaphore_.Signal();
 }
 

@@ -17,24 +17,22 @@ namespace internal {
 class PropertyCell : public HeapObject {
  public:
   // [name]: the name of the global property.
-  DECL_ACCESSORS(name, Name)
+  DECL_GETTER(name, Name)
+
   // [property_details]: details of the global property.
   DECL_ACCESSORS(property_details_raw, Smi)
+
   // [value]: value of the global property.
   DECL_ACCESSORS(value, Object)
-  // [dependent_code]: dependent code that depends on the type of the global
-  // property.
+
+  // [dependent_code]: code that depends on the type of the global property.
   DECL_ACCESSORS(dependent_code, DependentCode)
 
   inline PropertyDetails property_details() const;
   inline void set_property_details(PropertyDetails details);
 
-  PropertyCellConstantType GetConstantType();
+  static PropertyCellType InitialType(Isolate* isolate, Handle<Object> value);
 
-  // Computes the new type of a previously uninitialized cell for the given
-  // value.
-  static PropertyCellType TypeForUninitializedCell(Isolate* isolate,
-                                                   Handle<Object> value);
   // Computes the new type of the cell's contents for the given value, but
   // without actually modifying the details.
   static PropertyCellType UpdatedType(Isolate* isolate,
@@ -59,8 +57,6 @@ class PropertyCell : public HeapObject {
                                        Handle<Object> new_value);
 
   DECL_CAST(PropertyCell)
-
-  // Dispatched behavior.
   DECL_PRINTER(PropertyCell)
   DECL_VERIFIER(PropertyCell)
 
@@ -70,6 +66,11 @@ class PropertyCell : public HeapObject {
   using BodyDescriptor = FixedBodyDescriptor<kNameOffset, kSize, kSize>;
 
   OBJECT_CONSTRUCTORS(PropertyCell, HeapObject);
+
+ private:
+  friend class Factory;
+
+  DECL_SETTER(name, Name)
 };
 
 }  // namespace internal

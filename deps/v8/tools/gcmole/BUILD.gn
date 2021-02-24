@@ -8,12 +8,10 @@ group("v8_run_gcmole") {
   testonly = true
 
   data = [
-    "gccause.lua",
     "GCMOLE.gn",
-    "gcmole.lua",
+    "gcmole.py",
     "gcmole-test.cc",
     "gcmole-tools/",
-    "parallel.py",
     "run-gcmole.py",
     "suspects.whitelist",
     "ignored_files",

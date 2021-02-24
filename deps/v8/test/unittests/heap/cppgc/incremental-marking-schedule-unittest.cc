@@ -14,7 +14,7 @@ namespace internal {
 
 namespace {
 
-class IncrementalMarkingScheduleTest : public testing::Test {
+class IncrementalMarkingScheduleTest : public ::testing::Test {
  public:
   static const size_t kObjectSize;
 };

@@ -3,7 +3,10 @@
 // found in the LICENSE file.
 
 #include "src/debug/wasm/gdb-server/transport.h"
+
 #include <fcntl.h>
+
+#include "src/base/platform/wrappers.h"
 
 #ifndef SD_BOTH
 #define SD_BOTH 2
@@ -116,7 +119,7 @@ Transport::~Transport() {
 
 void Transport::CopyFromBuffer(char** dst, int32_t* len) {
   int32_t copy_bytes = std::min(*len, size_ - pos_);
-  memcpy(*dst, buf_.get() + pos_, copy_bytes);
+  base::Memcpy(*dst, buf_.get() + pos_, copy_bytes);
   pos_ += copy_bytes;
   *len -= copy_bytes;
   *dst += copy_bytes;

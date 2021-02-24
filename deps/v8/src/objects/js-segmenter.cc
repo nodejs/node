@@ -112,7 +112,7 @@ MaybeHandle<JSSegmenter> JSSegmenter::New(Isolate* isolate, Handle<Map> map,
   // Now all properties are ready, so we can allocate the result object.
   Handle<JSSegmenter> segmenter = Handle<JSSegmenter>::cast(
       isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   segmenter->set_flags(0);
 
   // 12. Set segmenter.[[Locale]] to the value of r.[[Locale]].

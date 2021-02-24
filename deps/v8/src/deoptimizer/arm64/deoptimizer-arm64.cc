@@ -16,6 +16,12 @@ const int Deoptimizer::kLazyDeoptExitSize = 2 * kInstrSize;
 #else
 const int Deoptimizer::kLazyDeoptExitSize = 1 * kInstrSize;
 #endif
+const int Deoptimizer::kEagerWithResumeBeforeArgsSize = 2 * kInstrSize;
+const int Deoptimizer::kEagerWithResumeDeoptExitSize =
+    kEagerWithResumeBeforeArgsSize + 2 * kSystemPointerSize;
+const int Deoptimizer::kEagerWithResumeImmedArgs1PcOffset = kInstrSize;
+const int Deoptimizer::kEagerWithResumeImmedArgs2PcOffset =
+    kInstrSize + kSystemPointerSize;
 
 Float32 RegisterValues::GetFloatRegister(unsigned n) const {
   return Float32::FromBits(

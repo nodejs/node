@@ -158,7 +158,7 @@ class V8_EXPORT_PRIVATE SourcePositionTableIterator {
   PositionTableEntry current_;
   IterationFilter iteration_filter_;
   FunctionEntryFilter function_entry_filter_;
-  DISALLOW_HEAP_ALLOCATION(no_gc)
+  DISALLOW_GARBAGE_COLLECTION(no_gc)
 };
 
 }  // namespace internal

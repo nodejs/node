@@ -190,7 +190,7 @@ class V8_EXPORT Visitor {
     static_assert(internal::IsAllocatedOnCompactableSpace<T>::value,
                   "Only references to objects allocated on compactable spaces "
                   "should be registered as movable slots.");
-    static_assert(!internal::IsGarbageCollectedMixinTypeV<T>,
+    static_assert(!IsGarbageCollectedMixinTypeV<T>,
                   "Mixin types do not support compaction.");
     HandleMovableReference(reinterpret_cast<const void**>(slot));
   }

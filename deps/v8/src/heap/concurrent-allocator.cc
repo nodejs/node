@@ -12,6 +12,7 @@
 #include "src/heap/local-heap.h"
 #include "src/heap/marking.h"
 #include "src/heap/memory-chunk.h"
+#include "src/heap/parked-scope.h"
 
 namespace v8 {
 namespace internal {

@@ -428,12 +428,17 @@ if (build_with_chromium) {
       "contrib/tests/infcover.h",
       "contrib/tests/run_all_unittests.cc",
       "contrib/tests/utils_unittest.cc",
-      "google/compression_utils_portable.cc",
-      "google/compression_utils_portable.h",
+      "google/compression_utils_unittest.cc",
+      "google/zip_reader_unittest.cc",
+      "google/zip_unittest.cc",
     ]
+
+    data = [ "google/test/data/" ]
 
     deps = [
       ":zlib",
+      "google:compression_utils",
+      "google:zip",
       "//base/test:test_support",
       "//testing/gtest",
     ]

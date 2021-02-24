@@ -40,6 +40,9 @@ class Builtins {
  public:
   explicit Builtins(Isolate* isolate) : isolate_(isolate) {}
 
+  Builtins(const Builtins&) = delete;
+  Builtins& operator=(const Builtins&) = delete;
+
   void TearDown();
 
   // Disassembler support.
@@ -250,8 +253,6 @@ class Builtins {
   int js_entry_handler_offset_ = 0;
 
   friend class SetupIsolateDelegate;
-
-  DISALLOW_COPY_AND_ASSIGN(Builtins);
 };
 
 Builtins::Name ExampleBuiltinForTorqueFunctionPointerType(

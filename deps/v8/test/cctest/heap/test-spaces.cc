@@ -50,7 +50,7 @@ namespace internal {
 namespace heap {
 
 // Temporarily sets a given allocator in an isolate.
-class TestMemoryAllocatorScope {
+class V8_NODISCARD TestMemoryAllocatorScope {
  public:
   TestMemoryAllocatorScope(Isolate* isolate, size_t max_capacity,
                            size_t code_range_size,
@@ -85,7 +85,7 @@ class TestMemoryAllocatorScope {
 };
 
 // Temporarily sets a given code page allocator in an isolate.
-class TestCodePageAllocatorScope {
+class V8_NODISCARD TestCodePageAllocatorScope {
  public:
   TestCodePageAllocatorScope(Isolate* isolate,
                              v8::PageAllocator* code_page_allocator)
@@ -799,7 +799,7 @@ namespace {
 // cannot take an argument. Since these tests create ReadOnlySpaces not attached
 // to the Heap directly, they need to be destroyed to ensure the
 // MemoryAllocator's stats are all 0 at exit.
-class ReadOnlySpaceScope {
+class V8_NODISCARD ReadOnlySpaceScope {
  public:
   explicit ReadOnlySpaceScope(Heap* heap) : ro_space_(heap) {}
   ~ReadOnlySpaceScope() {

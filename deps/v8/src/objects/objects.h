@@ -182,7 +182,6 @@
 //         - SourceTextModule
 //         - SyntheticModule
 //       - SourceTextModuleInfoEntry
-//       - WasmValue
 //     - FeedbackCell
 //     - FeedbackVector
 //     - PreparseData

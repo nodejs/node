@@ -466,7 +466,7 @@ int32_t EhFrameIterator::DecodeSLeb128(const byte* encoded, int* encoded_size) {
 
 namespace {
 
-class StreamModifiersScope final {
+class V8_NODISCARD StreamModifiersScope final {
  public:
   explicit StreamModifiersScope(std::ostream* stream)
       : stream_(stream), flags_(stream->flags()) {}

@@ -61,13 +61,17 @@ enum class OddballType : uint8_t {
   /* Subtypes of FixedArray */                      \
   V(ObjectBoilerplateDescription)                   \
   V(ScopeInfo)                                      \
+  /* Subtypes of String */                          \
+  V(InternalizedString)                             \
   /* Subtypes of Name */                            \
+  V(String)                                         \
   V(Symbol)                                         \
   /* Subtypes of HeapObject */                      \
   V(AccessorInfo)                                   \
   V(ArrayBoilerplateDescription)                    \
   V(CallHandlerInfo)                                \
   V(Cell)                                           \
+  V(Name)                                           \
   V(TemplateObjectDescription)
 
 // This list is sorted such that subtypes appear before their supertypes.
@@ -91,9 +95,6 @@ enum class OddballType : uint8_t {
   V(BytecodeArray)                            \
   V(FixedArray)                               \
   V(FixedDoubleArray)                         \
-  /* Subtypes of Name */                      \
-  V(InternalizedString)                       \
-  V(String)                                   \
   /* Subtypes of JSReceiver */                \
   V(JSObject)                                 \
   /* Subtypes of HeapObject */                \
@@ -108,7 +109,6 @@ enum class OddballType : uint8_t {
   V(HeapNumber)                               \
   V(JSReceiver)                               \
   V(Map)                                      \
-  V(Name)                                     \
   V(PropertyCell)                             \
   V(SharedFunctionInfo)                       \
   V(SourceTextModule)                         \
@@ -138,6 +138,7 @@ class V8_EXPORT_PRIVATE ObjectRef {
   Handle<Object> object() const;
 
   bool equals(const ObjectRef& other) const;
+  bool ShouldHaveBeenSerialized() const;
 
   bool IsSmi() const;
   int AsSmi() const;
@@ -176,6 +177,10 @@ class V8_EXPORT_PRIVATE ObjectRef {
       return lhs.equals(rhs);
     }
   };
+
+#ifdef DEBUG
+  bool IsNeverSerializedHeapObject() const;
+#endif  // DEBUG
 
  protected:
   JSHeapBroker* broker() const;
@@ -592,7 +597,6 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   int UnusedPropertyFields() const;
   ElementsKind elements_kind() const;
   bool is_stable() const;
-  bool is_extensible() const;
   bool is_constructor() const;
   bool has_prototype_slot() const;
   bool is_access_check_needed() const;
@@ -631,7 +635,6 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
       ZoneVector<MapRef>* prototype_maps);
 
   // Concerning the underlying instance_descriptors:
-  void SerializeOwnDescriptors();
   void SerializeOwnDescriptor(InternalIndex descriptor_index);
   bool serialized_own_descriptor(InternalIndex descriptor_index) const;
   MapRef FindFieldOwner(InternalIndex descriptor_index) const;
@@ -817,13 +820,6 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
     return GetInlineability() == SharedFunctionInfo::kIsInlineable;
   }
 
-  // Template objects may not be created at compilation time. This method
-  // wraps the retrieval of the template object and creates it if
-  // necessary.
-  JSArrayRef GetTemplateObject(
-      TemplateObjectDescriptionRef description, FeedbackSource const& source,
-      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
-
   void SerializeFunctionTemplateInfo();
   base::Optional<FunctionTemplateInfoRef> function_template_info() const;
 
@@ -837,8 +833,8 @@ class StringRef : public NameRef {
 
   Handle<String> object() const;
 
-  int length() const;
-  uint16_t GetFirstChar();
+  base::Optional<int> length() const;
+  base::Optional<uint16_t> GetFirstChar();
   base::Optional<double> ToNumber();
   bool IsSeqString() const;
   bool IsExternalString() const;

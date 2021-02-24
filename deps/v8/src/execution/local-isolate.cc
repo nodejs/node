@@ -20,7 +20,8 @@ LocalIsolate::LocalIsolate(Isolate* isolate, ThreadKind kind)
       thread_id_(ThreadId::Current()),
       stack_limit_(kind == ThreadKind::kMain
                        ? isolate->stack_guard()->real_climit()
-                       : GetCurrentStackPosition() - FLAG_stack_size * KB) {}
+                       : GetCurrentStackPosition() - FLAG_stack_size * KB),
+      supported_import_assertions_(isolate->supported_import_assertions()) {}
 
 LocalIsolate::~LocalIsolate() = default;
 

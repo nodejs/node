@@ -43,6 +43,7 @@
 #include <vector>
 
 #include "src/codegen/assembler.h"
+#include "src/codegen/cpu-features.h"
 #include "src/codegen/label.h"
 #include "src/codegen/x64/constants-x64.h"
 #include "src/codegen/x64/fma-instr.h"
@@ -945,9 +946,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void movmskps(Register dst, XMMRegister src);
 
   void vinstr(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2,
-              SIMDPrefix pp, LeadingOpcode m, VexW w);
+              SIMDPrefix pp, LeadingOpcode m, VexW w, CpuFeature feature = AVX);
   void vinstr(byte op, XMMRegister dst, XMMRegister src1, Operand src2,
-              SIMDPrefix pp, LeadingOpcode m, VexW w);
+              SIMDPrefix pp, LeadingOpcode m, VexW w, CpuFeature feature = AVX);
 
   // SSE instructions
   void sse_instr(XMMRegister dst, XMMRegister src, byte escape, byte opcode);
@@ -1024,6 +1025,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void lddqu(XMMRegister dst, Operand src);
   void movddup(XMMRegister dst, Operand src);
   void movddup(XMMRegister dst, XMMRegister src);
+  void movshdup(XMMRegister dst, XMMRegister src);
 
   // SSSE3
   void ssse3_instr(XMMRegister dst, XMMRegister src, byte prefix, byte escape1,
@@ -1193,6 +1195,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void movdqa(Operand dst, XMMRegister src);
   void movdqa(XMMRegister dst, Operand src);
+  void movdqa(XMMRegister dst, XMMRegister src);
 
   void movdqu(Operand dst, XMMRegister src);
   void movdqu(XMMRegister dst, Operand src);
@@ -1229,8 +1232,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void haddps(XMMRegister dst, XMMRegister src);
   void haddps(XMMRegister dst, Operand src);
 
-  void ucomisd(XMMRegister dst, XMMRegister src);
-  void ucomisd(XMMRegister dst, Operand src);
   void cmpltsd(XMMRegister dst, XMMRegister src);
 
   void movmskpd(Register dst, XMMRegister src);
@@ -1286,6 +1287,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void pshuflw(XMMRegister dst, XMMRegister src, uint8_t shuffle);
   void pshuflw(XMMRegister dst, Operand src, uint8_t shuffle);
 
+  void movhlps(XMMRegister dst, XMMRegister src) {
+    sse_instr(dst, src, 0x0F, 0x12);
+  }
   void movlhps(XMMRegister dst, XMMRegister src) {
     sse_instr(dst, src, 0x0F, 0x16);
   }
@@ -1293,7 +1297,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // AVX instruction
   void vmovddup(XMMRegister dst, XMMRegister src);
   void vmovddup(XMMRegister dst, Operand src);
+  void vmovshdup(XMMRegister dst, XMMRegister src);
   void vbroadcastss(XMMRegister dst, Operand src);
+  void vbroadcastss(XMMRegister dst, XMMRegister src);
 
   void fma_instr(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2,
                  VectorLength l, SIMDPrefix pp, LeadingOpcode m, VexW w);
@@ -1324,8 +1330,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
   void vmovsd(XMMRegister dst, Operand src) { vsd(0x10, dst, xmm0, src); }
   void vmovsd(Operand dst, XMMRegister src) { vsd(0x11, src, xmm0, dst); }
+  void vmovdqa(XMMRegister dst, XMMRegister src);
   void vmovdqu(XMMRegister dst, Operand src);
   void vmovdqu(Operand dst, XMMRegister src);
+  void vmovdqu(XMMRegister dst, XMMRegister src);
 
   void vmovlps(XMMRegister dst, XMMRegister src1, Operand src2);
   void vmovlps(Operand dst, XMMRegister src);
@@ -1387,6 +1395,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void vmovlhps(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
     vinstr(0x16, dst, src1, src2, kNone, k0F, kWIG);
+  }
+  void vmovhlps(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vinstr(0x12, dst, src1, src2, kNone, k0F, kWIG);
   }
   void vcvtss2sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
     vinstr(0x5a, dst, src1, src2, kF3, k0F, kWIG);
@@ -1460,12 +1471,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vcvtsd2si(Register dst, XMMRegister src) {
     XMMRegister idst = XMMRegister::from_code(dst.code());
     vinstr(0x2d, idst, xmm0, src, kF2, k0F, kW0);
-  }
-  void vucomisd(XMMRegister dst, XMMRegister src) {
-    vinstr(0x2e, dst, xmm0, src, k66, k0F, kWIG);
-  }
-  void vucomisd(XMMRegister dst, Operand src) {
-    vinstr(0x2e, dst, xmm0, src, k66, k0F, kWIG);
   }
   void vroundss(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                 RoundingMode mode) {
@@ -1669,6 +1674,19 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vpd(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);
   void vpd(byte op, XMMRegister dst, XMMRegister src1, Operand src2);
 
+  // AVX2 instructions
+#define AVX2_INSTRUCTION(instr, prefix, escape1, escape2, opcode)           \
+  void instr(XMMRegister dst, XMMRegister src) {                            \
+    vinstr(0x##opcode, dst, xmm0, src, k##prefix, k##escape1##escape2, kW0, \
+           AVX2);                                                           \
+  }                                                                         \
+  void instr(XMMRegister dst, Operand src) {                                \
+    vinstr(0x##opcode, dst, xmm0, src, k##prefix, k##escape1##escape2, kW0, \
+           AVX2);                                                           \
+  }
+  AVX2_BROADCAST_LIST(AVX2_INSTRUCTION)
+#undef AVX2_INSTRUCTION
+
   // BMI instruction
   void andnq(Register dst, Register src1, Register src2) {
     bmi1q(0xf2, dst, src1, src2);
@@ -1827,9 +1845,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Writes a single word of data in the code stream.
   // Used for inline tables, e.g., jump-tables.
   void db(uint8_t data);
-  void dd(uint32_t data);
-  void dq(uint64_t data);
-  void dp(uintptr_t data) { dq(data); }
+  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
+  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
+  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
+    dq(data, rmode);
+  }
   void dq(Label* label);
 
   // Patch entries for partial constant pool.

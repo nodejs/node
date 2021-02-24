@@ -60,6 +60,8 @@ class ConcurrentMarkingState final
 class SlotSnapshot {
  public:
   SlotSnapshot() : number_of_slots_(0) {}
+  SlotSnapshot(const SlotSnapshot&) = delete;
+  SlotSnapshot& operator=(const SlotSnapshot&) = delete;
   int number_of_slots() const { return number_of_slots_; }
   ObjectSlot slot(int i) const { return snapshot_[i].first; }
   Object value(int i) const { return snapshot_[i].second; }
@@ -72,7 +74,6 @@ class SlotSnapshot {
   static const int kMaxSnapshotSize = JSObject::kMaxInstanceSize / kTaggedSize;
   int number_of_slots_;
   std::pair<ObjectSlot, Object> snapshot_[kMaxSnapshotSize];
-  DISALLOW_COPY_AND_ASSIGN(SlotSnapshot);
 };
 
 class ConcurrentMarkingVisitor final
@@ -363,6 +364,8 @@ class ConcurrentMarking::JobTask : public v8::JobTask {
         is_forced_gc_(is_forced_gc) {}
 
   ~JobTask() override = default;
+  JobTask(const JobTask&) = delete;
+  JobTask& operator=(const JobTask&) = delete;
 
   // v8::JobTask overrides.
   void Run(JobDelegate* delegate) override {
@@ -377,7 +380,6 @@ class ConcurrentMarking::JobTask : public v8::JobTask {
   ConcurrentMarking* concurrent_marking_;
   const unsigned mark_compact_epoch_;
   const bool is_forced_gc_;
-  DISALLOW_COPY_AND_ASSIGN(JobTask);
 };
 
 ConcurrentMarking::ConcurrentMarking(Heap* heap,
@@ -398,8 +400,8 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap,
 
 void ConcurrentMarking::Run(JobDelegate* delegate, unsigned mark_compact_epoch,
                             bool is_forced_gc) {
-  TRACE_BACKGROUND_GC(heap_->tracer(),
-                      GCTracer::BackgroundScope::MC_BACKGROUND_MARKING);
+  TRACE_GC_EPOCH(heap_->tracer(), GCTracer::Scope::MC_BACKGROUND_MARKING,
+                 ThreadKind::kBackground);
   size_t kBytesUntilInterruptCheck = 64 * KB;
   int kObjectsUntilInterrupCheck = 1000;
   uint8_t task_id = delegate->GetTaskId() + 1;

@@ -378,10 +378,11 @@ void CompileRunAndVerify(FuzzerArgs* args, const std::string& source) {
   }
 
   if (!ResultsAreIdentical(args)) {
-    uint32_t hash = StringHasher::HashSequentialString(
+    uint32_t raw_hash_field = StringHasher::HashSequentialString(
         args->input_data, static_cast<int>(args->input_length),
         kRegExpBuiltinsFuzzerHashSeed);
-    FATAL("!ResultAreIdentical(args); RegExpBuiltinsFuzzerHash=%x", hash);
+    FATAL("!ResultAreIdentical(args); RegExpBuiltinsFuzzerHash=%x",
+          raw_hash_field);
   }
 }
 

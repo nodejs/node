@@ -17,6 +17,8 @@ class CodeMap;
 class V8_EXPORT_PRIVATE Symbolizer {
  public:
   explicit Symbolizer(CodeMap* code_map);
+  Symbolizer(const Symbolizer&) = delete;
+  Symbolizer& operator=(const Symbolizer&) = delete;
 
   struct SymbolizedSample {
     ProfileStackTrace stack_trace;
@@ -34,8 +36,6 @@ class V8_EXPORT_PRIVATE Symbolizer {
                        Address* out_instruction_start = nullptr);
 
   CodeMap* const code_map_;
-
-  DISALLOW_COPY_AND_ASSIGN(Symbolizer);
 };
 
 }  // namespace internal

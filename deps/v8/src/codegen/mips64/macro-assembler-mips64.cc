@@ -256,10 +256,8 @@ void TurboAssembler::CallEphemeronKeyBarrier(Register object, Register address,
 void TurboAssembler::CallRecordWriteStub(
     Register object, Register address,
     RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode) {
-  CallRecordWriteStub(
-      object, address, remembered_set_action, fp_mode,
-      isolate()->builtins()->builtin_handle(Builtins::kRecordWrite),
-      kNullAddress);
+  CallRecordWriteStub(object, address, remembered_set_action, fp_mode,
+                      Builtins::kRecordWrite, kNullAddress);
 }
 
 void TurboAssembler::CallRecordWriteStub(
@@ -267,14 +265,15 @@ void TurboAssembler::CallRecordWriteStub(
     RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
     Address wasm_target) {
   CallRecordWriteStub(object, address, remembered_set_action, fp_mode,
-                      Handle<Code>::null(), wasm_target);
+                      Builtins::kNoBuiltinId, wasm_target);
 }
 
 void TurboAssembler::CallRecordWriteStub(
     Register object, Register address,
     RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
-    Handle<Code> code_target, Address wasm_target) {
-  DCHECK_NE(code_target.is_null(), wasm_target == kNullAddress);
+    int builtin_index, Address wasm_target) {
+  DCHECK_NE(builtin_index == Builtins::kNoBuiltinId,
+            wasm_target == kNullAddress);
   // TODO(albertnetymk): For now we ignore remembered_set_action and fp_mode,
   // i.e. always emit remember set and save FP registers in RecordWriteStub. If
   // large performance regression is observed, we should use these values to
@@ -301,9 +300,20 @@ void TurboAssembler::CallRecordWriteStub(
 
   Move(remembered_set_parameter, Smi::FromEnum(remembered_set_action));
   Move(fp_mode_parameter, Smi::FromEnum(fp_mode));
-  if (code_target.is_null()) {
+  if (builtin_index == Builtins::kNoBuiltinId) {
     Call(wasm_target, RelocInfo::WASM_STUB_CALL);
+  } else if (options().inline_offheap_trampolines) {
+    // Inline the trampoline.
+    DCHECK(Builtins::IsBuiltinId(builtin_index));
+    RecordCommentForOffHeapTrampoline(builtin_index);
+    CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+    EmbeddedData d = EmbeddedData::FromBlob();
+    Address entry = d.InstructionStartOfBuiltin(builtin_index);
+    li(t9, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+    Call(t9);
   } else {
+    Handle<Code> code_target =
+        isolate()->builtins()->builtin_handle(Builtins::kRecordWrite);
     Call(code_target, RelocInfo::CODE_TARGET);
   }
 
@@ -2621,6 +2631,101 @@ void TurboAssembler::Round_s_s(FPURegister dst, FPURegister src) {
              });
 }
 
+void TurboAssembler::LoadLane(MSASize sz, MSARegister dst, uint8_t laneidx,
+                              MemOperand src) {
+  switch (sz) {
+    case MSA_B:
+      Lbu(kScratchReg, src);
+      insert_b(dst, laneidx, kScratchReg);
+      break;
+    case MSA_H:
+      Lhu(kScratchReg, src);
+      insert_h(dst, laneidx, kScratchReg);
+      break;
+    case MSA_W:
+      Lwu(kScratchReg, src);
+      insert_w(dst, laneidx, kScratchReg);
+      break;
+    case MSA_D:
+      Ld(kScratchReg, src);
+      insert_d(dst, laneidx, kScratchReg);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+void TurboAssembler::StoreLane(MSASize sz, MSARegister src, uint8_t laneidx,
+                               MemOperand dst) {
+  switch (sz) {
+    case MSA_B:
+      copy_u_b(kScratchReg, src, laneidx);
+      Sb(kScratchReg, dst);
+      break;
+    case MSA_H:
+      copy_u_h(kScratchReg, src, laneidx);
+      Sh(kScratchReg, dst);
+      break;
+    case MSA_W:
+      if (laneidx == 0) {
+        FPURegister src_reg = FPURegister::from_code(src.code());
+        Swc1(src_reg, dst);
+      } else {
+        copy_u_w(kScratchReg, src, laneidx);
+        Sw(kScratchReg, dst);
+      }
+      break;
+    case MSA_D:
+      if (laneidx == 0) {
+        FPURegister src_reg = FPURegister::from_code(src.code());
+        Sdc1(src_reg, dst);
+      } else {
+        copy_s_d(kScratchReg, src, laneidx);
+        Sd(kScratchReg, dst);
+      }
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+#define EXT_MUL_BINOP(type, ilv_instr, dotp_instr)            \
+  case type:                                                  \
+    xor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero); \
+    ilv_instr(kSimd128ScratchReg, kSimd128RegZero, src1);     \
+    ilv_instr(kSimd128RegZero, kSimd128RegZero, src2);        \
+    dotp_instr(dst, kSimd128ScratchReg, kSimd128RegZero);     \
+    break;
+
+void TurboAssembler::ExtMulLow(MSADataType type, MSARegister dst,
+                               MSARegister src1, MSARegister src2) {
+  switch (type) {
+    EXT_MUL_BINOP(MSAS8, ilvr_b, dotp_s_h)
+    EXT_MUL_BINOP(MSAS16, ilvr_h, dotp_s_w)
+    EXT_MUL_BINOP(MSAS32, ilvr_w, dotp_s_d)
+    EXT_MUL_BINOP(MSAU8, ilvr_b, dotp_u_h)
+    EXT_MUL_BINOP(MSAU16, ilvr_h, dotp_u_w)
+    EXT_MUL_BINOP(MSAU32, ilvr_w, dotp_u_d)
+    default:
+      UNREACHABLE();
+  }
+}
+
+void TurboAssembler::ExtMulHigh(MSADataType type, MSARegister dst,
+                                MSARegister src1, MSARegister src2) {
+  switch (type) {
+    EXT_MUL_BINOP(MSAS8, ilvl_b, dotp_s_h)
+    EXT_MUL_BINOP(MSAS16, ilvl_h, dotp_s_w)
+    EXT_MUL_BINOP(MSAS32, ilvl_w, dotp_s_d)
+    EXT_MUL_BINOP(MSAU8, ilvl_b, dotp_u_h)
+    EXT_MUL_BINOP(MSAU16, ilvl_h, dotp_u_w)
+    EXT_MUL_BINOP(MSAU32, ilvl_w, dotp_u_d)
+    default:
+      UNREACHABLE();
+  }
+}
+#undef EXT_MUL_BINOP
+
 void TurboAssembler::MSARoundW(MSARegister dst, MSARegister src,
                                FPURoundingMode mode) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
@@ -3167,88 +3272,22 @@ void TurboAssembler::Dpopcnt(Register rd, Register rs) {
   dsrl32(rd, rd, shift);
 }
 
-void MacroAssembler::EmitFPUTruncate(
-    FPURoundingMode rounding_mode, Register result, DoubleRegister double_input,
-    Register scratch, DoubleRegister double_scratch, Register except_flag,
-    CheckForInexactConversion check_inexact) {
-  DCHECK(result != scratch);
-  DCHECK(double_input != double_scratch);
-  DCHECK(except_flag != scratch);
-
-  Label done;
-
-  // Clear the except flag (0 = no exception)
-  mov(except_flag, zero_reg);
-
-  // Test for values that can be exactly represented as a signed 32-bit integer.
-  cvt_w_d(double_scratch, double_input);
-  mfc1(result, double_scratch);
-  cvt_d_w(double_scratch, double_scratch);
-  CompareF64(EQ, double_input, double_scratch);
-  BranchTrueShortF(&done);
-
-  int32_t except_mask = kFCSRFlagMask;  // Assume interested in all exceptions.
-
-  if (check_inexact == kDontCheckForInexactConversion) {
-    // Ignore inexact exceptions.
-    except_mask &= ~kFCSRInexactFlagMask;
-  }
-
-  // Save FCSR.
-  cfc1(scratch, FCSR);
-  // Disable FPU exceptions.
-  ctc1(zero_reg, FCSR);
-
-  // Do operation based on rounding mode.
-  switch (rounding_mode) {
-    case kRoundToNearest:
-      Round_w_d(double_scratch, double_input);
-      break;
-    case kRoundToZero:
-      Trunc_w_d(double_scratch, double_input);
-      break;
-    case kRoundToPlusInf:
-      Ceil_w_d(double_scratch, double_input);
-      break;
-    case kRoundToMinusInf:
-      Floor_w_d(double_scratch, double_input);
-      break;
-  }  // End of switch-statement.
-
-  // Retrieve FCSR.
-  cfc1(except_flag, FCSR);
-  // Restore FCSR.
-  ctc1(scratch, FCSR);
-  // Move the converted value into the result register.
-  mfc1(result, double_scratch);
-
-  // Check for fpu exceptions.
-  And(except_flag, except_flag, Operand(except_mask));
-
-  bind(&done);
-}
-
 void TurboAssembler::TryInlineTruncateDoubleToI(Register result,
                                                 DoubleRegister double_input,
                                                 Label* done) {
   DoubleRegister single_scratch = kScratchDoubleReg.low();
-  UseScratchRegisterScope temps(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  Register scratch = temps.Acquire();
-  Register scratch2 = t9;
+  Register scratch = t9;
 
-  // Clear cumulative exception flags and save the FCSR.
-  cfc1(scratch2, FCSR);
-  ctc1(zero_reg, FCSR);
   // Try a conversion to a signed integer.
   trunc_w_d(single_scratch, double_input);
   mfc1(result, single_scratch);
-  // Retrieve and restore the FCSR.
+  // Retrieve the FCSR.
   cfc1(scratch, FCSR);
-  ctc1(scratch2, FCSR);
   // Check for overflow and NaNs.
   And(scratch, scratch,
-      kFCSROverflowFlagMask | kFCSRUnderflowFlagMask | kFCSRInvalidOpFlagMask);
+      kFCSROverflowCauseMask | kFCSRUnderflowCauseMask |
+          kFCSRInvalidOpCauseMask);
   // If we had no exceptions we are done.
   Branch(done, eq, scratch, Operand(zero_reg));
 }
@@ -5217,7 +5256,7 @@ void TurboAssembler::Abort(AbortReason reason) {
   }
 }
 
-void MacroAssembler::LoadMap(Register destination, Register object) {
+void TurboAssembler::LoadMap(Register destination, Register object) {
   Ld(destination, FieldMemOperand(object, HeapObject::kMapOffset));
 }
 
@@ -5969,7 +6008,7 @@ void TurboAssembler::ResetSpeculationPoisonRegister() {
 
 void TurboAssembler::CallForDeoptimization(Builtins::Name target, int,
                                            Label* exit, DeoptimizeKind kind,
-                                           Label*) {
+                                           Label* ret, Label*) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   Ld(t9,
      MemOperand(kRootRegister, IsolateData::builtin_entry_slot_offset(target)));
@@ -5978,7 +6017,12 @@ void TurboAssembler::CallForDeoptimization(Builtins::Name target, int,
             (kind == DeoptimizeKind::kLazy)
                 ? Deoptimizer::kLazyDeoptExitSize
                 : Deoptimizer::kNonLazyDeoptExitSize);
-  USE(exit, kind);
+
+  if (kind == DeoptimizeKind::kEagerWithResume) {
+    Branch(ret);
+    DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
+              Deoptimizer::kEagerWithResumeBeforeArgsSize);
+  }
 }
 
 }  // namespace internal

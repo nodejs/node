@@ -28,9 +28,9 @@ TEST_F(WasmCapiTest, MultiReturn) {
                       kWasmI32, kWasmI64, kWasmI64, kWasmI32};
   FunctionSig sig(4, 4, reps);
   uint32_t func_index = builder()->AddImport(CStrVector("f"), &sig);
-  byte code[] = {WASM_CALL_FUNCTION(func_index, WASM_GET_LOCAL(0),
-                                    WASM_GET_LOCAL(2), WASM_GET_LOCAL(1),
-                                    WASM_GET_LOCAL(3))};
+  byte code[] = {WASM_CALL_FUNCTION(func_index, WASM_LOCAL_GET(0),
+                                    WASM_LOCAL_GET(2), WASM_LOCAL_GET(1),
+                                    WASM_LOCAL_GET(3))};
   AddExportedFunction(CStrVector("g"), code, sizeof(code), &sig);
 
   ownvec<ValType> types =

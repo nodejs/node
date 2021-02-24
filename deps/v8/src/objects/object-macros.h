@@ -91,10 +91,13 @@
   }                                                     \
   type holder::name(IsolateRoot isolate) const
 
-#define DECL_ACCESSORS(name, type)   \
-  DECL_GETTER(name, type)            \
+#define DECL_SETTER(name, type)      \
   inline void set_##name(type value, \
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+#define DECL_ACCESSORS(name, type) \
+  DECL_GETTER(name, type)          \
+  DECL_SETTER(name, type)
 
 #define DECL_ACCESSORS_LOAD_TAG(name, type, tag_type) \
   inline type name(tag_type tag) const;               \
@@ -183,6 +186,23 @@
 
 #define ACCESSORS(holder, name, type, offset) \
   ACCESSORS_CHECKED(holder, name, type, offset, true)
+
+#define RENAME_TORQUE_ACCESSORS(holder, name, torque_name, type)      \
+  inline type holder::name() const {                                  \
+    return TorqueGeneratedClass::torque_name();                       \
+  }                                                                   \
+  inline void holder::set_##name(type value, WriteBarrierMode mode) { \
+    TorqueGeneratedClass::set_##torque_name(value, mode);             \
+  }
+
+#define RENAME_UINT16_TORQUE_ACCESSORS(holder, name, torque_name) \
+  uint16_t holder::name() const {                                 \
+    return TorqueGeneratedClass::torque_name();                   \
+  }                                                               \
+  void holder::set_##name(int value) {                            \
+    DCHECK_EQ(value, static_cast<uint16_t>(value));               \
+    TorqueGeneratedClass::set_##torque_name(value);               \
+  }
 
 #define RELAXED_ACCESSORS_CHECKED2(holder, name, type, offset, get_condition, \
                                    set_condition)                             \
@@ -484,8 +504,17 @@
   static_cast<uint32_t>(base::Relaxed_Load(  \
       reinterpret_cast<const base::Atomic32*>(FIELD_ADDR(p, offset))))
 
+#define ACQUIRE_READ_UINT32_FIELD(p, offset) \
+  static_cast<uint32_t>(base::Acquire_Load(  \
+      reinterpret_cast<const base::Atomic32*>(FIELD_ADDR(p, offset))))
+
 #define RELAXED_WRITE_UINT32_FIELD(p, offset, value)            \
   base::Relaxed_Store(                                          \
+      reinterpret_cast<base::Atomic32*>(FIELD_ADDR(p, offset)), \
+      static_cast<base::Atomic32>(value));
+
+#define RELEASE_WRITE_UINT32_FIELD(p, offset, value)            \
+  base::Release_Store(                                          \
       reinterpret_cast<base::Atomic32*>(FIELD_ADDR(p, offset)), \
       static_cast<base::Atomic32>(value));
 
@@ -507,8 +536,16 @@
   static_cast<byte>(base::Relaxed_Load(    \
       reinterpret_cast<const base::Atomic8*>(FIELD_ADDR(p, offset))))
 
+#define ACQUIRE_READ_BYTE_FIELD(p, offset) \
+  static_cast<byte>(base::Acquire_Load(    \
+      reinterpret_cast<const base::Atomic8*>(FIELD_ADDR(p, offset))))
+
 #define RELAXED_WRITE_BYTE_FIELD(p, offset, value)                             \
   base::Relaxed_Store(reinterpret_cast<base::Atomic8*>(FIELD_ADDR(p, offset)), \
+                      static_cast<base::Atomic8>(value));
+
+#define RELEASE_WRITE_BYTE_FIELD(p, offset, value)                             \
+  base::Release_Store(reinterpret_cast<base::Atomic8*>(FIELD_ADDR(p, offset)), \
                       static_cast<base::Atomic8>(value));
 
 #ifdef OBJECT_PRINT

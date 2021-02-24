@@ -101,16 +101,20 @@ class V8_EXPORT_PRIVATE PreparseDataBuilder : public ZoneObject,
   explicit PreparseDataBuilder(Zone* zone, PreparseDataBuilder* parent_builder,
                                std::vector<void*>* children_buffer);
   ~PreparseDataBuilder() {}
+  PreparseDataBuilder(const PreparseDataBuilder&) = delete;
+  PreparseDataBuilder& operator=(const PreparseDataBuilder&) = delete;
 
   PreparseDataBuilder* parent() const { return parent_; }
 
   // For gathering the inner function data and splitting it up according to the
   // laziness boundaries. Each lazy function gets its own
   // ProducedPreparseData, and so do all lazy functions inside it.
-  class DataGatheringScope {
+  class V8_NODISCARD DataGatheringScope {
    public:
     explicit DataGatheringScope(PreParser* preparser)
         : preparser_(preparser), builder_(nullptr) {}
+    DataGatheringScope(const DataGatheringScope&) = delete;
+    DataGatheringScope& operator=(const DataGatheringScope&) = delete;
 
     void Start(DeclarationScope* function_scope);
     void SetSkippableFunction(DeclarationScope* function_scope,
@@ -125,8 +129,6 @@ class V8_EXPORT_PRIVATE PreparseDataBuilder : public ZoneObject,
 
     PreParser* preparser_;
     PreparseDataBuilder* builder_;
-
-    DISALLOW_COPY_AND_ASSIGN(DataGatheringScope);
   };
 
   class V8_EXPORT_PRIVATE ByteData : public ZoneObject,
@@ -241,8 +243,6 @@ class V8_EXPORT_PRIVATE PreparseDataBuilder : public ZoneObject,
 #ifdef DEBUG
   bool finalized_children_ = false;
 #endif
-
-  DISALLOW_COPY_AND_ASSIGN(PreparseDataBuilder);
 };
 
 class ProducedPreparseData : public ZoneObject {
@@ -289,6 +289,9 @@ class ConsumedPreparseData {
 
   virtual ~ConsumedPreparseData() = default;
 
+  ConsumedPreparseData(const ConsumedPreparseData&) = delete;
+  ConsumedPreparseData& operator=(const ConsumedPreparseData&) = delete;
+
   virtual ProducedPreparseData* GetDataForSkippableFunction(
       Zone* zone, int start_position, int* end_position, int* num_parameters,
       int* function_length, int* num_inner_functions, bool* uses_super_property,
@@ -302,9 +305,6 @@ class ConsumedPreparseData {
 
  protected:
   ConsumedPreparseData() = default;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(ConsumedPreparseData);
 };
 
 }  // namespace internal

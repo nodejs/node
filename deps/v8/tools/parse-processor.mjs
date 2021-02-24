@@ -40,7 +40,7 @@ function BYTES(bytes, total) {
     unitIndex++;
   }
   let result = formatNumber(value).padStart(10) + ' ' + units[unitIndex];
-  if (total !== void 0 && total != 0) {
+  if (total !== undefined && total != 0) {
     result += PERCENT(bytes, total).padStart(5);
   }
   return result;
@@ -161,7 +161,7 @@ class CompilationUnit {
 class Script extends CompilationUnit {
   constructor(id) {
     super();
-    if (id === void 0 || id <= 0) {
+    if (id === undefined || id <= 0) {
       throw new Error(`Invalid id=${id} for script`);
     }
     this.file = '';
@@ -214,7 +214,7 @@ class Script extends CompilationUnit {
   addMissingFunktions(list) {
     if (this.finalized) throw 'script is finalized!';
     list.forEach(fn => {
-      if (this.funktions[fn.start] === void 0) {
+      if (this.funktions[fn.start] === undefined) {
         this.addFunktion(fn);
       }
     });
@@ -222,8 +222,8 @@ class Script extends CompilationUnit {
 
   addFunktion(fn) {
     if (this.finalized) throw 'script is finalized!';
-    if (fn.start === void 0) throw "Funktion has no start position";
-    if (this.funktions[fn.start] !== void 0) {
+    if (fn.start === undefined) throw "Funktion has no start position";
+    if (this.funktions[fn.start] !== undefined) {
       fn.print();
       throw "adding same function twice to script";
     }
@@ -441,7 +441,7 @@ class Script extends CompilationUnit {
       for (let i = 1; i < metricProperties.length; i += kMetricIncrement) {
         let timestampPropertyName = metricProperties[i];
         let timestamp = funktionOrScript[timestampPropertyName];
-        if (timestamp === void 0) continue;
+        if (timestamp === undefined) continue;
         if (timestamp < start || end < timestamp) continue;
         timestamp -= start;
         let index = Math.floor(timestamp / delta);
@@ -906,7 +906,7 @@ export class ParseProcessor extends LogReader {
     }
     let script = this.lookupScript(scriptId);
     let funktion = script.getFunktionAtStartPosition(startPosition);
-    if (funktion === void 0) {
+    if (funktion === undefined) {
       funktion = new Funktion(functionName, startPosition, endPosition, script);
     }
     return funktion;

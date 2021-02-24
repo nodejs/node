@@ -1,0 +1,29 @@
+<!-- Copyright 2020 the V8 project authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file. -->
+
+<head>
+  <link href="./index.css" rel="stylesheet">
+  <style>
+    .panel {
+      padding-bottom: 0px;
+      position: relative;
+    }
+    .titleBackground {
+      position: absolute;
+      left: 0px;
+      top: 34px;
+      border-radius: 0 0 0 7px;
+      height: calc(100% - 34px);
+      width: 30px;
+      background-color: var(--border-color);
+    }
+  </style>
+</head>
+<div class="panel">
+  <h2>Timeline Panel</h2>
+  <div class="titleBackground"></div>
+  <div>
+    <slot></slot>
+  </div>
+</div>

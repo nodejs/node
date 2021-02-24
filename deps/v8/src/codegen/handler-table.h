@@ -123,7 +123,7 @@ class V8_EXPORT_PRIVATE HandlerTable {
   // objects on the GC heap (either {ByteArray} or {Code}) and could become
   // stale during a collection. Hence we disallow any allocation.
   const Address raw_encoded_data_;
-  DISALLOW_HEAP_ALLOCATION(no_gc_)
+  DISALLOW_GARBAGE_COLLECTION(no_gc_)
 
   // Layout description for handler table based on ranges.
   static const int kRangeStartIndex = 0;

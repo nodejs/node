@@ -149,10 +149,12 @@ void ArrayBufferSweeper::RequestSweep(SweepingScope scope) {
       FLAG_concurrent_array_buffer_sweeping) {
     Prepare(scope);
 
-    auto task = MakeCancelableTask(heap_->isolate(), [this] {
-      TRACE_BACKGROUND_GC(
-          heap_->tracer(),
-          GCTracer::BackgroundScope::BACKGROUND_ARRAY_BUFFER_SWEEP);
+    auto task = MakeCancelableTask(heap_->isolate(), [this, scope] {
+      GCTracer::Scope::ScopeId scope_id =
+          scope == SweepingScope::kYoung
+              ? GCTracer::Scope::BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP
+              : GCTracer::Scope::BACKGROUND_FULL_ARRAY_BUFFER_SWEEP;
+      TRACE_GC_EPOCH(heap_->tracer(), scope_id, ThreadKind::kBackground);
       base::MutexGuard guard(&sweeping_mutex_);
       job_->Sweep();
       job_finished_.NotifyAll();

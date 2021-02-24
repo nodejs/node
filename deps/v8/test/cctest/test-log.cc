@@ -65,7 +65,7 @@ static std::vector<std::string> Split(const std::string& s, char delimiter) {
   return result;
 }
 
-class ScopedLoggerInitializer {
+class V8_NODISCARD ScopedLoggerInitializer {
  public:
   explicit ScopedLoggerInitializer(v8::Isolate* isolate)
       : temp_file_(nullptr),
@@ -299,8 +299,7 @@ TEST(Issue23768) {
   // Script needs to have a name in order to trigger InitLineEnds execution.
   v8::Local<v8::String> origin =
       v8::String::NewFromUtf8Literal(CcTest::isolate(), "issue-23768-test");
-  v8::Local<v8::Script> evil_script =
-      CompileWithOrigin(source, origin, v8_bool(false));
+  v8::Local<v8::Script> evil_script = CompileWithOrigin(source, origin, false);
   CHECK(!evil_script.IsEmpty());
   CHECK(!evil_script->Run(env).IsEmpty());
   i::Handle<i::ExternalTwoByteString> i_source(
@@ -856,7 +855,7 @@ void ValidateMapDetailsLogging(v8::Isolate* isolate,
   // Iterate over all maps on the heap.
   i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
   i::HeapObjectIterator iterator(heap);
-  i::DisallowHeapAllocation no_gc;
+  i::DisallowGarbageCollection no_gc;
   size_t i = 0;
   for (i::HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {

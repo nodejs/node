@@ -9,6 +9,7 @@
 
 #include <cmath>
 
+#include "src/base/platform/wrappers.h"
 #include "src/common/assert-scope.h"
 #include "src/handles/handles.h"
 #include "src/heap/factory.h"
@@ -16,6 +17,7 @@
 #include "src/numbers/strtod.h"
 #include "src/objects/bigint.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/string-inl.h"
 #include "src/strings/char-predicates-inl.h"
 #include "src/utils/allocation.h"
 #include "src/utils/utils.h"
@@ -228,12 +230,12 @@ class StringToIntHelper {
     if (raw_one_byte_subject_ != nullptr) {
       return Vector<const uint8_t>(raw_one_byte_subject_, length_);
     }
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     return subject_->GetFlatContent(no_gc).ToOneByteVector();
   }
 
   Vector<const uc16> GetTwoByteVector() {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     return subject_->GetFlatContent(no_gc).ToUC16Vector();
   }
 
@@ -268,7 +270,7 @@ class StringToIntHelper {
 template <typename LocalIsolate>
 void StringToIntHelper<LocalIsolate>::ParseInt() {
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     if (IsOneByte()) {
       Vector<const uint8_t> vector = GetOneByteVector();
       DetectRadixInternal(vector.begin(), vector.length());
@@ -283,7 +285,7 @@ void StringToIntHelper<LocalIsolate>::ParseInt() {
   if (state_ != State::kRunning) return;
   do {
     {
-      DisallowHeapAllocation no_gc;
+      DisallowGarbageCollection no_gc;
       if (IsOneByte()) {
         Vector<const uint8_t> vector = GetOneByteVector();
         DCHECK_EQ(length_, vector.length());
@@ -497,7 +499,7 @@ class NumberParseIntHelper : public StringToIntHelper<Isolate> {
   void HandleSpecialCases() override {
     bool is_power_of_two = base::bits::IsPowerOfTwo(radix());
     if (!is_power_of_two && radix() != 10) return;
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     if (IsOneByte()) {
       Vector<const uint8_t> vector = GetOneByteVector();
       DCHECK_EQ(length(), vector.length());
@@ -1242,7 +1244,7 @@ char* DoubleToPrecisionCString(double value, int p) {
       builder.AddString(decimal_rep);
       builder.AddPadding('0', p - decimal_rep_length);
     } else {
-      const int m = Min(decimal_rep_length, decimal_point);
+      const int m = std::min(decimal_rep_length, decimal_point);
       builder.AddSubstring(decimal_rep, m);
       builder.AddPadding('0', decimal_point - decimal_rep_length);
       if (decimal_point < p) {
@@ -1252,7 +1254,7 @@ char* DoubleToPrecisionCString(double value, int p) {
           const size_t len = strlen(decimal_rep + decimal_point);
           DCHECK_GE(kMaxInt, len);
           const int n =
-              Min(static_cast<int>(len), p - (builder.position() - extra));
+              std::min(static_cast<int>(len), p - (builder.position() - extra));
           builder.AddSubstring(decimal_rep + decimal_point, n);
         }
         builder.AddPadding('0', extra + (p - builder.position()));
@@ -1347,7 +1349,8 @@ char* DoubleToRadixCString(double value, int radix) {
   DCHECK_LE(0, integer_cursor);
   // Allocate new string as return value.
   char* result = NewArray<char>(fraction_cursor - integer_cursor);
-  memcpy(result, buffer + integer_cursor, fraction_cursor - integer_cursor);
+  base::Memcpy(result, buffer + integer_cursor,
+               fraction_cursor - integer_cursor);
   return result;
 }
 
@@ -1356,7 +1359,7 @@ double StringToDouble(Isolate* isolate, Handle<String> string, int flags,
                       double empty_string_val) {
   Handle<String> flattened = String::Flatten(isolate, string);
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     String::FlatContent flat = flattened->GetFlatContent(no_gc);
     DCHECK(flat.IsFlat());
     if (flat.IsOneByte()) {
@@ -1365,6 +1368,23 @@ double StringToDouble(Isolate* isolate, Handle<String> string, int flags,
       return StringToDouble(flat.ToUC16Vector(), flags, empty_string_val);
     }
   }
+}
+
+base::Optional<double> TryStringToDouble(LocalIsolate* isolate,
+                                         Handle<String> object,
+                                         int max_length_for_conversion) {
+  DisallowGarbageCollection no_gc;
+  int length = object->length();
+  if (length > max_length_for_conversion) {
+    return base::nullopt;
+  }
+
+  const int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
+  auto buffer = std::make_unique<uc16[]>(max_length_for_conversion);
+  SharedStringAccessGuardIfNeeded access_guard(isolate);
+  String::WriteToFlat(*object, buffer.get(), 0, length, access_guard);
+  Vector<const uc16> v(buffer.get(), length);
+  return StringToDouble(v, flags);
 }
 
 bool IsSpecialIndex(String string) {

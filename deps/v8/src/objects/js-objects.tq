@@ -73,9 +73,15 @@ macro GetDerivedMap(implicit context: Context)(
 
 macro AllocateFastOrSlowJSObjectFromMap(implicit context: Context)(map: Map):
     JSObject {
-  let properties: EmptyFixedArray|NameDictionary = kEmptyFixedArray;
+  let properties: EmptyFixedArray|NameDictionary|OrderedNameDictionary =
+      kEmptyFixedArray;
   if (IsDictionaryMap(map)) {
-    properties = AllocateNameDictionary(kNameDictionaryInitialCapacity);
+    if (kDictModePrototypes) {
+      properties =
+          AllocateOrderedNameDictionary(kOrderedNameDictionaryInitialCapacity);
+    } else {
+      properties = AllocateNameDictionary(kNameDictionaryInitialCapacity);
+    }
   }
   return AllocateJSObjectFromMap(
       map, properties, kEmptyFixedArray, AllocationFlag::kNone,
@@ -154,7 +160,11 @@ extern class JSStringIterator extends JSObject {
 
 extern macro AllocateJSObjectFromMap(Map): JSObject;
 extern macro AllocateJSObjectFromMap(
-    Map, NameDictionary | EmptyFixedArray | PropertyArray): JSObject;
+    Map,
+    NameDictionary | OrderedNameDictionary | EmptyFixedArray |
+        PropertyArray): JSObject;
 extern macro AllocateJSObjectFromMap(
-    Map, NameDictionary | EmptyFixedArray | PropertyArray, FixedArray,
-    constexpr AllocationFlag, constexpr SlackTrackingMode): JSObject;
+    Map,
+    NameDictionary | OrderedNameDictionary | EmptyFixedArray | PropertyArray,
+    FixedArray, constexpr AllocationFlag,
+    constexpr SlackTrackingMode): JSObject;

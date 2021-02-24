@@ -227,7 +227,7 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
       Handle<JSRelativeTimeFormat>::cast(
           isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   relative_time_format_holder->set_flags(0);
   relative_time_format_holder->set_locale(*locale_str);
   relative_time_format_holder->set_numberingSystem(*numbering_system_string);

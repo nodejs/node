@@ -98,7 +98,6 @@ class ZoneForwardList;
   V(CompilationCacheTable)                     \
   V(ConsString)                                \
   V(Constructor)                               \
-  V(Context)                                   \
   V(CoverageInfo)                              \
   V(ClosureFeedbackCellArray)                  \
   V(DataHandler)                               \
@@ -196,7 +195,6 @@ class ZoneForwardList;
   V(SeqOneByteString)                          \
   V(SeqString)                                 \
   V(SeqTwoByteString)                          \
-  V(SharedFunctionInfo)                        \
   V(SimpleNumberDictionary)                    \
   V(SlicedString)                              \
   V(SmallOrderedHashMap)                       \
@@ -216,9 +214,6 @@ class ZoneForwardList;
   V(TemplateList)                              \
   V(ThinString)                                \
   V(TransitionArray)                           \
-  V(UncompiledData)                            \
-  V(UncompiledDataWithPreparseData)            \
-  V(UncompiledDataWithoutPreparseData)         \
   V(Undetectable)                              \
   V(UniqueName)                                \
   V(WasmArray)                                 \
@@ -279,7 +274,18 @@ class ZoneForwardList;
   V(ModuleContext)                           \
   V(NonNullForeign)                          \
   V(ScriptContext)                           \
-  V(WithContext)
+  V(WithContext)                             \
+  V(JSPrototype)                             \
+  V(JSObjectPrototype)                       \
+  V(JSRegExpPrototype)                       \
+  V(JSPromisePrototype)                      \
+  V(JSSetPrototype)                          \
+  V(JSIteratorPrototype)                     \
+  V(JSArrayIteratorPrototype)                \
+  V(JSMapIteratorPrototype)                  \
+  V(JSTypedArrayPrototype)                   \
+  V(JSSetIteratorPrototype)                  \
+  V(JSStringIteratorPrototype)
 
 #define HEAP_OBJECT_TYPE_LIST(V)    \
   HEAP_OBJECT_ORDINARY_TYPE_LIST(V) \

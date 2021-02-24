@@ -42,6 +42,8 @@ class V8_EXPORT_PRIVATE ItemParallelJob {
    public:
     Item() = default;
     virtual ~Item() = default;
+    Item(const Item&) = delete;
+    Item& operator=(const Item&) = delete;
 
     // Marks an item as being finished.
     void MarkFinished() { CHECK_EQ(kProcessing, state_.exchange(kFinished)); }
@@ -59,8 +61,6 @@ class V8_EXPORT_PRIVATE ItemParallelJob {
 
     friend class ItemParallelJob;
     friend class ItemParallelJob::Task;
-
-    DISALLOW_COPY_AND_ASSIGN(Item);
   };
 
   class V8_EXPORT_PRIVATE Task : public CancelableTask {
@@ -68,6 +68,8 @@ class V8_EXPORT_PRIVATE ItemParallelJob {
     enum class Runner { kForeground, kBackground };
     explicit Task(Isolate* isolate);
     ~Task() override = default;
+    Task(const Task&) = delete;
+    Task& operator=(const Task&) = delete;
 
     virtual void RunInParallel(Runner runner) = 0;
 
@@ -109,14 +111,15 @@ class V8_EXPORT_PRIVATE ItemParallelJob {
     size_t items_considered_ = 0;
     Runner runner_ = Runner::kBackground;
     base::Semaphore* on_finish_ = nullptr;
-
-    DISALLOW_COPY_AND_ASSIGN(Task);
   };
 
   ItemParallelJob(CancelableTaskManager* cancelable_task_manager,
                   base::Semaphore* pending_tasks);
 
   ~ItemParallelJob();
+
+  ItemParallelJob(const ItemParallelJob&) = delete;
+  ItemParallelJob& operator=(const ItemParallelJob&) = delete;
 
   // Adds a task to the job. Transfers ownership to the job.
   void AddTask(Task* task) { tasks_.push_back(std::unique_ptr<Task>(task)); }
@@ -135,8 +138,6 @@ class V8_EXPORT_PRIVATE ItemParallelJob {
   std::vector<std::unique_ptr<Task>> tasks_;
   CancelableTaskManager* cancelable_task_manager_;
   base::Semaphore* pending_tasks_;
-
-  DISALLOW_COPY_AND_ASSIGN(ItemParallelJob);
 };
 
 }  // namespace internal

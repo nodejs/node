@@ -29,7 +29,7 @@ enum class StepResult {
 
 class V8_EXPORT_PRIVATE IncrementalMarking final {
  public:
-  enum State : uint8_t { STOPPED, SWEEPING, MARKING, COMPLETE };
+  enum State : uint8_t { STOPPED, MARKING, COMPLETE };
 
   enum CompletionAction { GC_VIA_STACK_GUARD, NO_GC_VIA_STACK_GUARD };
 
@@ -39,7 +39,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   using AtomicMarkingState = MarkCompactCollector::AtomicMarkingState;
   using NonAtomicMarkingState = MarkCompactCollector::NonAtomicMarkingState;
 
-  class PauseBlackAllocationScope {
+  class V8_NODISCARD PauseBlackAllocationScope {
    public:
     explicit PauseBlackAllocationScope(IncrementalMarking* marking)
         : marking_(marking), paused_(false) {
@@ -115,8 +115,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   }
 
   inline bool IsStopped() const { return state() == STOPPED; }
-
-  inline bool IsSweeping() const { return state() == SWEEPING; }
 
   inline bool IsMarking() const { return state() >= MARKING; }
 

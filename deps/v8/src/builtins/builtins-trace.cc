@@ -12,6 +12,7 @@
 
 #if defined(V8_USE_PERFETTO)
 #include "protos/perfetto/trace/track_event/debug_annotation.pbzero.h"
+#include "src/base/platform/wrappers.h"
 #endif
 
 namespace v8 {
@@ -39,9 +40,9 @@ class MaybeUtf8 {
         // Why copy? Well, the trace event mechanism requires null-terminated
         // strings, the bytes we get from SeqOneByteString are not. buf_ is
         // guaranteed to be null terminated.
-        DisallowHeapAllocation no_gc;
-        memcpy(buf_, Handle<SeqOneByteString>::cast(string)->GetChars(no_gc),
-               len);
+        DisallowGarbageCollection no_gc;
+        base::Memcpy(
+            buf_, Handle<SeqOneByteString>::cast(string)->GetChars(no_gc), len);
       }
     } else {
       Local<v8::String> local = Utils::ToLocal(string);

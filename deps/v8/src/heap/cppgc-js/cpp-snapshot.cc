@@ -34,11 +34,12 @@ using cppgc::internal::HeapObjectHeader;
 // Node representing a C++ object on the heap.
 class EmbedderNode : public v8::EmbedderGraph::Node {
  public:
-  explicit EmbedderNode(const char* name) : name_(name) {}
+  explicit EmbedderNode(const char* name, size_t size)
+      : name_(name), size_(size) {}
   ~EmbedderNode() override = default;
 
   const char* Name() final { return name_; }
-  size_t SizeInBytes() override { return 0; }
+  size_t SizeInBytes() final { return size_; }
 
   void SetWrapperNode(v8::EmbedderGraph::Node* wrapper_node) {
     wrapper_node_ = wrapper_node;
@@ -52,6 +53,7 @@ class EmbedderNode : public v8::EmbedderGraph::Node {
 
  private:
   const char* name_;
+  size_t size_;
   Node* wrapper_node_ = nullptr;
   Detachedness detachedness_ = Detachedness::kUnknown;
 };
@@ -59,11 +61,10 @@ class EmbedderNode : public v8::EmbedderGraph::Node {
 // Node representing an artificial root group, e.g., set of Persistent handles.
 class EmbedderRootNode final : public EmbedderNode {
  public:
-  explicit EmbedderRootNode(const char* name) : EmbedderNode(name) {}
+  explicit EmbedderRootNode(const char* name) : EmbedderNode(name, 0) {}
   ~EmbedderRootNode() final = default;
 
   bool IsRootNode() final { return true; }
-  size_t SizeInBytes() final { return 0; }
 };
 
 // Canonical state representing real and artificial (e.g. root) objects.
@@ -373,7 +374,7 @@ class CppGraphBuilderImpl final {
   EmbedderNode* AddNode(const HeapObjectHeader& header) {
     return static_cast<EmbedderNode*>(
         graph_.AddNode(std::unique_ptr<v8::EmbedderGraph::Node>{
-            new EmbedderNode(header.GetName().value)}));
+            new EmbedderNode(header.GetName().value, header.GetSize())}));
   }
 
   void AddEdge(State& parent, const HeapObjectHeader& header) {

@@ -16,6 +16,7 @@
 
 #include "src/base/once.h"
 #include "src/base/platform/time.h"
+#include "src/base/platform/wrappers.h"
 #include "src/d8/async-hooks-wrapper.h"
 #include "src/strings/string-hasher.h"
 #include "src/utils/allocation.h"
@@ -28,6 +29,8 @@ class D8Console;
 namespace internal {
 class CancelableTaskManager;
 }  // namespace internal
+
+struct DynamicImportData;
 
 // A single counter in a counter collection.
 class Counter {
@@ -119,7 +122,9 @@ class SourceGroup {
 
 class SerializationData {
  public:
-  SerializationData() : size_(0) {}
+  SerializationData() = default;
+  SerializationData(const SerializationData&) = delete;
+  SerializationData& operator=(const SerializationData&) = delete;
 
   uint8_t* data() { return data_.get(); }
   size_t size() { return size_; }
@@ -135,19 +140,17 @@ class SerializationData {
 
  private:
   struct DataDeleter {
-    void operator()(uint8_t* p) const { free(p); }
+    void operator()(uint8_t* p) const { base::Free(p); }
   };
 
   std::unique_ptr<uint8_t, DataDeleter> data_;
-  size_t size_;
+  size_t size_ = 0;
   std::vector<std::shared_ptr<v8::BackingStore>> backing_stores_;
   std::vector<std::shared_ptr<v8::BackingStore>> sab_backing_stores_;
   std::vector<CompiledWasmModule> compiled_wasm_modules_;
 
  private:
   friend class Serializer;
-
-  DISALLOW_COPY_AND_ASSIGN(SerializationData);
 };
 
 class SerializationDataQueue {
@@ -241,7 +244,7 @@ class PerIsolateData {
     return reinterpret_cast<PerIsolateData*>(isolate->GetData(0));
   }
 
-  class RealmScope {
+  class V8_NODISCARD RealmScope {
    public:
     explicit RealmScope(PerIsolateData* data);
     ~RealmScope();
@@ -261,6 +264,11 @@ class PerIsolateData {
                            Local<Value> exception);
   int HandleUnhandledPromiseRejections();
 
+  // Keep track of DynamicImportData so we can properly free it on shutdown
+  // when LEAK_SANITIZER is active.
+  void AddDynamicImportData(DynamicImportData*);
+  void DeleteDynamicImportData(DynamicImportData*);
+
  private:
   friend class Shell;
   friend class RealmScope;
@@ -276,6 +284,9 @@ class PerIsolateData {
   std::vector<std::tuple<Global<Promise>, Global<Message>, Global<Value>>>
       unhandled_promises_;
   AsyncHooks* async_hooks_wrapper_;
+#if defined(LEAK_SANITIZER)
+  std::unordered_set<DynamicImportData*> import_data_;
+#endif
 
   int RealmIndexOrThrow(const v8::FunctionCallbackInfo<v8::Value>& args,
                         int arg_offset);
@@ -342,6 +353,7 @@ class ShellOptions {
   DisallowReassignment<bool> omit_quit = {"omit-quit", false};
   DisallowReassignment<bool> wait_for_background_tasks = {
       "wait-for-background-tasks", true};
+  DisallowReassignment<bool> simulate_errors = {"simulate-errors", false};
   DisallowReassignment<bool> stress_opt = {"stress-opt", false};
   DisallowReassignment<int> stress_runs = {"stress-runs", 1};
   DisallowReassignment<bool> stress_snapshot = {"stress-snapshot", false};
@@ -385,6 +397,8 @@ class ShellOptions {
   DisallowReassignment<bool> cpu_profiler_print = {"cpu-profiler-print", false};
   DisallowReassignment<bool> fuzzy_module_file_extensions = {
       "fuzzy-module-file-extensions", true};
+  DisallowReassignment<bool> enable_system_instrumentation = {
+      "enable-system-instrumentation", false};
 };
 
 class Shell : public i::AllStatic {
@@ -556,6 +570,11 @@ class Shell : public i::AllStatic {
            !options.test_shell;
   }
 
+  static void update_script_size(int size) {
+    if (size > 0) valid_fuzz_script_.store(true);
+  }
+  static bool is_valid_fuzz_script() { return valid_fuzz_script_.load(); }
+
   static void WaitForRunningWorkers();
   static void AddRunningWorker(std::shared_ptr<Worker> worker);
   static void RemoveRunningWorker(const std::shared_ptr<Worker>& worker);
@@ -583,8 +602,9 @@ class Shell : public i::AllStatic {
   static bool allow_new_workers_;
   static std::unordered_set<std::shared_ptr<Worker>> running_workers_;
 
-  // Multiple isolates may update this flag concurrently.
+  // Multiple isolates may update these flags concurrently.
   static std::atomic<bool> script_executed_;
+  static std::atomic<bool> valid_fuzz_script_;
 
   static void WriteIgnitionDispatchCountersFile(v8::Isolate* isolate);
   // Append LCOV coverage data to file.
@@ -611,6 +631,12 @@ class Shell : public i::AllStatic {
   static MaybeLocal<Module> FetchModuleTree(v8::Local<v8::Module> origin_module,
                                             v8::Local<v8::Context> context,
                                             const std::string& file_name);
+
+  template <class T>
+  static MaybeLocal<T> CompileString(Isolate* isolate, Local<Context> context,
+                                     Local<String> source,
+                                     const ScriptOrigin& origin);
+
   static ScriptCompiler::CachedData* LookupCodeCache(Isolate* isolate,
                                                      Local<Value> name);
   static void StoreInCodeCache(Isolate* isolate, Local<Value> name,
@@ -625,6 +651,20 @@ class Shell : public i::AllStatic {
   static std::map<std::string, std::unique_ptr<ScriptCompiler::CachedData>>
       cached_code_map_;
   static std::atomic<int> unhandled_promise_rejections_;
+};
+
+class FuzzerMonitor : public i::AllStatic {
+ public:
+  static void SimulateErrors();
+
+ private:
+  static void ControlFlowViolation();
+  static void DCheck();
+  static void Fatal();
+  static void ObservableDifference();
+  static void UndefinedBehavior();
+  static void UseAfterFree();
+  static void UseOfUninitializedValue();
 };
 
 }  // namespace v8

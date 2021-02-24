@@ -4,6 +4,7 @@
 
 #include "src/regexp/experimental/experimental.h"
 
+#include "src/common/assert-scope.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/regexp/experimental/experimental-compiler.h"
 #include "src/regexp/experimental/experimental-interpreter.h"
@@ -50,7 +51,7 @@ Handle<ByteArray> VectorToByteArray(Isolate* isolate, Vector<T> data) {
 
   int byte_length = sizeof(T) * data.length();
   Handle<ByteArray> byte_array = isolate->factory()->NewByteArray(byte_length);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   MemCopy(byte_array->GetDataStartAddress(), data.begin(), byte_length);
   return byte_array;
 }
@@ -144,7 +145,9 @@ int32_t ExecRawImpl(Isolate* isolate, RegExp::CallOrigin call_origin,
                     ByteArray bytecode, String subject, int capture_count,
                     int32_t* output_registers, int32_t output_register_count,
                     int32_t subject_index) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
+  // TODO(cbruni): remove once gcmole is fixed.
+  DisableGCMole no_gc_mole;
 
   int register_count_per_match =
       JSRegExp::RegistersForCaptureCount(capture_count);
@@ -171,7 +174,7 @@ int32_t ExperimentalRegExp::ExecRaw(Isolate* isolate,
                                     int32_t output_register_count,
                                     int32_t subject_index) {
   DCHECK(FLAG_enable_experimental_regexp_engine);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   if (FLAG_trace_experimental_regexp_engine) {
     String source = String::cast(regexp.DataAt(JSRegExp::kSourceIndex));
@@ -196,7 +199,7 @@ int32_t ExperimentalRegExp::MatchForCallFromJs(
   DCHECK_NOT_NULL(output_registers);
   DCHECK(call_origin == RegExp::CallOrigin::kFromJs);
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   DisallowJavascriptExecution no_js(isolate);
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
@@ -273,7 +276,7 @@ int32_t ExperimentalRegExp::OneshotExecRaw(Isolate* isolate,
       CompileImpl(isolate, regexp);
   if (!compilation_result.has_value()) return RegExp::kInternalRegExpException;
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   return ExecRawImpl(isolate, RegExp::kFromRuntime,
                      *compilation_result->bytecode, *subject,
                      regexp->CaptureCount(), output_registers,

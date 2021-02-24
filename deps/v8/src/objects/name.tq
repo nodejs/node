@@ -5,7 +5,7 @@
 @abstract
 @generateCppClass
 extern class Name extends PrimitiveHeapObject {
-  hash_field: NameHash;
+  raw_hash_field: NameHash;
 }
 
 bitfield struct NameHash extends uint32 {

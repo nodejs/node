@@ -111,7 +111,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
     std::memcpy(data_copy_ptr, static_cast<void*>(array->DataPtr()), bytes);
   }
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   switch (array->type()) {
 #define TYPED_ARRAY_SORT(Type, type, TYPE, ctype)                          \

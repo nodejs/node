@@ -39,10 +39,7 @@ enum StepAction : int8_t {
 };
 
 // Type of exception break. NOTE: These values are in macros.py as well.
-enum ExceptionBreakType {
-  BreakException = 0,
-  BreakUncaughtException = 1
-};
+enum ExceptionBreakType { BreakException = 0, BreakUncaughtException = 1 };
 
 enum DebugBreakType {
   NOT_DEBUG_BREAK,
@@ -129,6 +126,8 @@ class BreakLocation {
 class V8_EXPORT_PRIVATE BreakIterator {
  public:
   explicit BreakIterator(Handle<DebugInfo> debug_info);
+  BreakIterator(const BreakIterator&) = delete;
+  BreakIterator& operator=(const BreakIterator&) = delete;
 
   BreakLocation GetBreakLocation();
   bool Done() const { return source_position_iterator_.done(); }
@@ -159,9 +158,7 @@ class V8_EXPORT_PRIVATE BreakIterator {
   int position_;
   int statement_position_;
   SourcePositionTableIterator source_position_iterator_;
-  DisallowHeapAllocation no_gc_;
-
-  DISALLOW_COPY_AND_ASSIGN(BreakIterator);
+  DISALLOW_GARBAGE_COLLECTION(no_gc_)
 };
 
 // Linked list holding debug info objects. The debug info objects are kept as
@@ -204,7 +201,6 @@ class DebugFeatureTracker {
   uint32_t bitfield_;
 };
 
-
 // This class contains the debugger support. The main purpose is to handle
 // setting break points in the code.
 //
@@ -214,6 +210,9 @@ class DebugFeatureTracker {
 // DebugInfo.
 class V8_EXPORT_PRIVATE Debug {
  public:
+  Debug(const Debug&) = delete;
+  Debug& operator=(const Debug&) = delete;
+
   // Debug event triggers.
   void OnDebugBreak(Handle<FixedArray> break_points_hit, StepAction stepAction);
 
@@ -317,7 +316,7 @@ class V8_EXPORT_PRIVATE Debug {
   char* ArchiveDebug(char* to);
   char* RestoreDebug(char* from);
   static int ArchiveSpacePerThread();
-  void FreeThreadResources() { }
+  void FreeThreadResources() {}
   void Iterate(RootVisitor* v);
   void InitThread(const ExecutionAccess& lock) { ThreadInit(); }
 
@@ -358,9 +357,7 @@ class V8_EXPORT_PRIVATE Debug {
   void set_return_value(Object value) { thread_local_.return_value_ = value; }
 
   // Support for embedding into generated code.
-  Address is_active_address() {
-    return reinterpret_cast<Address>(&is_active_);
-  }
+  Address is_active_address() { return reinterpret_cast<Address>(&is_active_); }
 
   Address hook_on_function_call_address() {
     return reinterpret_cast<Address>(&hook_on_function_call_);
@@ -391,6 +388,8 @@ class V8_EXPORT_PRIVATE Debug {
   static const int kBreakAtEntryPosition = 0;
 
   void RemoveBreakInfoAndMaybeFree(Handle<DebugInfo> debug_info);
+
+  static char* Iterate(RootVisitor* v, char* thread_storage);
 
  private:
   explicit Debug(Isolate* isolate);
@@ -449,9 +448,7 @@ class V8_EXPORT_PRIVATE Debug {
   // on whether this is a regular break location or a break at function entry.
   bool CheckBreakPoint(Handle<BreakPoint> break_point, bool is_break_at_entry);
 
-  inline void AssertDebugContext() {
-    DCHECK(in_debug_scope());
-  }
+  inline void AssertDebugContext() { DCHECK(in_debug_scope()); }
 
   void ThreadInit();
 
@@ -466,6 +463,9 @@ class V8_EXPORT_PRIVATE Debug {
   void FindDebugInfo(Handle<DebugInfo> debug_info, DebugInfoListNode** prev,
                      DebugInfoListNode** curr);
   void FreeDebugInfoListNode(DebugInfoListNode* prev, DebugInfoListNode* node);
+
+  void SetTemporaryObjectTrackingDisabled(bool disabled);
+  bool GetTemporaryObjectTrackingDisabled() const;
 
   debug::DebugDelegate* debug_delegate_ = nullptr;
 
@@ -546,6 +546,8 @@ class V8_EXPORT_PRIVATE Debug {
     bool break_on_next_function_call_;
   };
 
+  static void Iterate(RootVisitor* v, ThreadLocal* thread_local_data);
+
   // Storage location for registers when handling debug break calls
   ThreadLocal thread_local_;
 
@@ -557,18 +559,17 @@ class V8_EXPORT_PRIVATE Debug {
   friend class Isolate;
   friend class DebugScope;
   friend class DisableBreak;
+  friend class DisableTemporaryObjectTracking;
   friend class LiveEdit;
   friend class SuppressDebug;
 
   friend Handle<FixedArray> GetDebuggedFunctions();  // In test-debug.cc
   friend void CheckDebuggerUnloaded();               // In test-debug.cc
-
-  DISALLOW_COPY_AND_ASSIGN(Debug);
 };
 
 // This scope is used to load and enter the debug context and create a new
 // break state.  Leaving the scope will restore the previous state.
-class DebugScope {
+class V8_NODISCARD DebugScope {
  public:
   explicit DebugScope(Debug* debug);
   ~DebugScope();
@@ -579,8 +580,8 @@ class DebugScope {
   Isolate* isolate() { return debug_->isolate_; }
 
   Debug* debug_;
-  DebugScope* prev_;               // Previous scope if entered recursively.
-  StackFrameId break_frame_id_;    // Previous break frame id.
+  DebugScope* prev_;             // Previous scope if entered recursively.
+  StackFrameId break_frame_id_;  // Previous break frame id.
   PostponeInterruptsScope no_interrupts_;
   // This is used as a boolean.
   bool terminate_on_resume_ = false;
@@ -590,7 +591,7 @@ class DebugScope {
 // When there are nested debug breaks, we use this to restore the return
 // value to the previous state. This is not merged with DebugScope because
 // return_value_ will not be cleared when we use DebugScope.
-class ReturnValueScope {
+class V8_NODISCARD ReturnValueScope {
  public:
   explicit ReturnValueScope(Debug* debug);
   ~ReturnValueScope();
@@ -607,14 +608,35 @@ class DisableBreak {
       : debug_(debug), previous_break_disabled_(debug->break_disabled_) {
     debug_->break_disabled_ = disable;
   }
-  ~DisableBreak() {
-    debug_->break_disabled_ = previous_break_disabled_;
-  }
+  ~DisableBreak() { debug_->break_disabled_ = previous_break_disabled_; }
+  DisableBreak(const DisableBreak&) = delete;
+  DisableBreak& operator=(const DisableBreak&) = delete;
 
  private:
   Debug* debug_;
   bool previous_break_disabled_;
-  DISALLOW_COPY_AND_ASSIGN(DisableBreak);
+};
+
+// Stack allocated class for disabling temporary object tracking.
+class DisableTemporaryObjectTracking {
+ public:
+  explicit DisableTemporaryObjectTracking(Debug* debug)
+      : debug_(debug),
+        previous_tracking_disabled_(
+            debug->GetTemporaryObjectTrackingDisabled()) {
+    debug_->SetTemporaryObjectTrackingDisabled(true);
+  }
+  ~DisableTemporaryObjectTracking() {
+    debug_->SetTemporaryObjectTrackingDisabled(previous_tracking_disabled_);
+  }
+  DisableTemporaryObjectTracking(const DisableTemporaryObjectTracking&) =
+      delete;
+  DisableTemporaryObjectTracking& operator=(
+      const DisableTemporaryObjectTracking&) = delete;
+
+ private:
+  Debug* debug_;
+  bool previous_tracking_disabled_;
 };
 
 class SuppressDebug {
@@ -624,11 +646,12 @@ class SuppressDebug {
     debug_->is_suppressed_ = true;
   }
   ~SuppressDebug() { debug_->is_suppressed_ = old_state_; }
+  SuppressDebug(const SuppressDebug&) = delete;
+  SuppressDebug& operator=(const SuppressDebug&) = delete;
 
  private:
   Debug* debug_;
   bool old_state_;
-  DISALLOW_COPY_AND_ASSIGN(SuppressDebug);
 };
 
 // Code generator routines.
@@ -649,7 +672,6 @@ class DebugCodegen : public AllStatic {
   // Builtin to trigger a debug break before entering the function.
   static void GenerateDebugBreakTrampoline(MacroAssembler* masm);
 };
-
 
 }  // namespace internal
 }  // namespace v8

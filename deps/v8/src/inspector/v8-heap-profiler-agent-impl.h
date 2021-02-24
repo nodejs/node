@@ -25,6 +25,8 @@ class V8HeapProfilerAgentImpl : public protocol::HeapProfiler::Backend {
   V8HeapProfilerAgentImpl(V8InspectorSessionImpl*, protocol::FrontendChannel*,
                           protocol::DictionaryValue* state);
   ~V8HeapProfilerAgentImpl() override;
+  V8HeapProfilerAgentImpl(const V8HeapProfilerAgentImpl&) = delete;
+  V8HeapProfilerAgentImpl& operator=(const V8HeapProfilerAgentImpl&) = delete;
   void restore();
 
   void collectGarbage(
@@ -70,8 +72,6 @@ class V8HeapProfilerAgentImpl : public protocol::HeapProfiler::Backend {
   protocol::DictionaryValue* m_state;
   bool m_hasTimer;
   std::shared_ptr<AsyncGC> m_async_gc;
-
-  DISALLOW_COPY_AND_ASSIGN(V8HeapProfilerAgentImpl);
 };
 
 }  // namespace v8_inspector

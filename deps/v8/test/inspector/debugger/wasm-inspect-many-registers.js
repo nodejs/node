@@ -88,11 +88,11 @@ async function testConfig(config) {
   InspectorTest.log('main returned.');
 }
 
-(async function test() {
-  await Protocol.Debugger.enable();
-  for (let config in configs) {
-    await testConfig(config);
+InspectorTest.runAsyncTestSuite([
+  async function test() {
+    await Protocol.Debugger.enable();
+    for (let config in configs) {
+      await testConfig(config);
+    }
   }
-  InspectorTest.log('Finished!');
-  InspectorTest.completeTest();
-})();
+]);

@@ -66,18 +66,6 @@ static T ArithmeticShiftRight(T x, int shift) {
   }
 }
 
-// Returns the maximum of the two parameters.
-template <typename T>
-constexpr T Max(T a, T b) {
-  return std::max(a, b);
-}
-
-// Returns the minimum of the two parameters.
-template <typename T>
-constexpr T Min(T a, T b) {
-  return std::min(a, b);
-}
-
 // Returns the maximum of the two parameters according to JavaScript semantics.
 template <typename T>
 T JSMax(T x, T y) {
@@ -349,46 +337,54 @@ class SetOncePointer {
 
 // Compare 8bit/16bit chars to 8bit/16bit chars.
 template <typename lchar, typename rchar>
+inline bool CompareCharsEqualUnsigned(const lchar* lhs, const rchar* rhs,
+                                      size_t chars) {
+  STATIC_ASSERT(std::is_unsigned<lchar>::value);
+  STATIC_ASSERT(std::is_unsigned<rchar>::value);
+  if (sizeof(*lhs) == sizeof(*rhs)) {
+    // memcmp compares byte-by-byte, but for equality it doesn't matter whether
+    // two-byte char comparison is little- or big-endian.
+    return memcmp(lhs, rhs, chars * sizeof(*lhs)) == 0;
+  }
+  for (const lchar* limit = lhs + chars; lhs < limit; ++lhs, ++rhs) {
+    if (*lhs != *rhs) return false;
+  }
+  return true;
+}
+
+template <typename lchar, typename rchar>
+inline bool CompareCharsEqual(const lchar* lhs, const rchar* rhs,
+                              size_t chars) {
+  using ulchar = typename std::make_unsigned<lchar>::type;
+  using urchar = typename std::make_unsigned<rchar>::type;
+  return CompareCharsEqualUnsigned(reinterpret_cast<const ulchar*>(lhs),
+                                   reinterpret_cast<const urchar*>(rhs), chars);
+}
+
+// Compare 8bit/16bit chars to 8bit/16bit chars.
+template <typename lchar, typename rchar>
 inline int CompareCharsUnsigned(const lchar* lhs, const rchar* rhs,
                                 size_t chars) {
-  const lchar* limit = lhs + chars;
+  STATIC_ASSERT(std::is_unsigned<lchar>::value);
+  STATIC_ASSERT(std::is_unsigned<rchar>::value);
   if (sizeof(*lhs) == sizeof(char) && sizeof(*rhs) == sizeof(char)) {
     // memcmp compares byte-by-byte, yielding wrong results for two-byte
     // strings on little-endian systems.
     return memcmp(lhs, rhs, chars);
   }
-  while (lhs < limit) {
+  for (const lchar* limit = lhs + chars; lhs < limit; ++lhs, ++rhs) {
     int r = static_cast<int>(*lhs) - static_cast<int>(*rhs);
     if (r != 0) return r;
-    ++lhs;
-    ++rhs;
   }
   return 0;
 }
 
 template <typename lchar, typename rchar>
 inline int CompareChars(const lchar* lhs, const rchar* rhs, size_t chars) {
-  DCHECK_LE(sizeof(lchar), 2);
-  DCHECK_LE(sizeof(rchar), 2);
-  if (sizeof(lchar) == 1) {
-    if (sizeof(rchar) == 1) {
-      return CompareCharsUnsigned(reinterpret_cast<const uint8_t*>(lhs),
-                                  reinterpret_cast<const uint8_t*>(rhs), chars);
-    } else {
-      return CompareCharsUnsigned(reinterpret_cast<const uint8_t*>(lhs),
-                                  reinterpret_cast<const uint16_t*>(rhs),
-                                  chars);
-    }
-  } else {
-    if (sizeof(rchar) == 1) {
-      return CompareCharsUnsigned(reinterpret_cast<const uint16_t*>(lhs),
-                                  reinterpret_cast<const uint8_t*>(rhs), chars);
-    } else {
-      return CompareCharsUnsigned(reinterpret_cast<const uint16_t*>(lhs),
-                                  reinterpret_cast<const uint16_t*>(rhs),
-                                  chars);
-    }
-  }
+  using ulchar = typename std::make_unsigned<lchar>::type;
+  using urchar = typename std::make_unsigned<rchar>::type;
+  return CompareCharsUnsigned(reinterpret_cast<const ulchar*>(lhs),
+                              reinterpret_cast<const urchar*>(rhs), chars);
 }
 
 // Calculate 10^exponent.

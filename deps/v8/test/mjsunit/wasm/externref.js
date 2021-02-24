@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --expose-wasm --experimental-wasm-reftypes --expose-gc
+// Flags: --allow-natives-syntax
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -12,7 +13,6 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction('main', kSig_r_r)
       .addBody([kExprLocalGet, 0])
       .exportFunc();
-
 
   const instance = builder.instantiate();
 
@@ -239,4 +239,49 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   const main = builder.instantiate().exports.main;
   assertEquals(null, main());
+})();
+
+(function testGCInStackCheck() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+
+  const gc_sig = builder.addType(kSig_v_v);
+  const mysig = makeSig(
+      [
+        kWasmExternRef, kWasmI32, kWasmExternRef, kWasmExternRef, kWasmExternRef
+      ],
+      []);
+  const func_sig = builder.addType(mysig);
+  const triggerGC_index = builder.addImport('q', 'triggerGC', gc_sig);
+  const func_index = builder.addImport('q', 'func', func_sig);
+
+  const foo = builder.addFunction('foo', func_sig).addBody([
+    kExprLocalGet, 0, // --
+    kExprLocalGet, 1, // --
+    kExprLocalGet, 2, // --
+    kExprLocalGet, 3, // --
+    kExprLocalGet, 4, // --
+    kExprCallFunction, func_index
+  ]);
+
+  builder.addFunction('main', func_sig)
+      .addBody([
+        kExprCallFunction, triggerGC_index,  // --
+        kExprLocalGet, 0,                    // --
+        kExprLocalGet, 1,                    // --
+        kExprLocalGet, 2,                    // --
+        kExprLocalGet, 3,                    // --
+        kExprLocalGet, 4,                    // --
+        kExprCallFunction, foo.index
+      ])
+      .exportFunc();
+
+  const instance = builder.instantiate({
+    q: {
+      triggerGC: () => %ScheduleGCInStackCheck(),
+      func: (ref) => assertEquals(ref.hello, 4)
+    }
+  });
+
+  instance.exports.main({hello: 4}, 5, {world: 6}, null, {bar: 7});
 })();

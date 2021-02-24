@@ -23,8 +23,9 @@ AllocationResult ConcurrentAllocator::AllocateRaw(int object_size,
   // TODO(dinfuehr): Add support for allocation observers
   CHECK(FLAG_concurrent_allocation);
 
-  // Ensure that we are on the right thread
-  DCHECK_EQ(LocalHeap::Current(), local_heap_);
+#ifdef DEBUG
+  local_heap_->VerifyCurrent();
+#endif
 
   if (object_size > kMaxLabObjectSize) {
     return AllocateOutsideLab(object_size, alignment, origin);

@@ -51,9 +51,7 @@ struct Module::Hash {
 };
 
 SourceTextModuleInfo SourceTextModule::info() const {
-  return status() == kErrored
-             ? SourceTextModuleInfo::cast(code())
-             : GetSharedFunctionInfo().scope_info().ModuleDescriptorInfo();
+  return GetSharedFunctionInfo().scope_info().ModuleDescriptorInfo();
 }
 
 OBJECT_CONSTRUCTORS_IMPL(SourceTextModuleInfo, FixedArray)
@@ -79,18 +77,13 @@ FixedArray SourceTextModuleInfo::namespace_imports() const {
   return FixedArray::cast(get(kNamespaceImportsIndex));
 }
 
-FixedArray SourceTextModuleInfo::module_request_positions() const {
-  return FixedArray::cast(get(kModuleRequestPositionsIndex));
-}
-
 #ifdef DEBUG
 bool SourceTextModuleInfo::Equals(SourceTextModuleInfo other) const {
   return regular_exports() == other.regular_exports() &&
          regular_imports() == other.regular_imports() &&
          special_exports() == other.special_exports() &&
          namespace_imports() == other.namespace_imports() &&
-         module_requests() == other.module_requests() &&
-         module_request_positions() == other.module_request_positions();
+         module_requests() == other.module_requests();
 }
 #endif
 
@@ -117,6 +110,14 @@ class UnorderedModuleSet
             2 /* bucket count */, ModuleHandleHash(), ModuleHandleEqual(),
             ZoneAllocator<Handle<Module>>(zone)) {}
 };
+
+Handle<SourceTextModule> SourceTextModule::GetCycleRoot(
+    Isolate* isolate) const {
+  CHECK_GE(status(), kEvaluated);
+  DCHECK(!cycle_root().IsTheHole(isolate));
+  Handle<SourceTextModule> root(SourceTextModule::cast(cycle_root()), isolate);
+  return root;
+}
 
 void SourceTextModule::AddAsyncParentModule(Isolate* isolate,
                                             Handle<SourceTextModule> module,

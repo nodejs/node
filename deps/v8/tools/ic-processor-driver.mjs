@@ -78,11 +78,7 @@ const accumulator = {
   StoreInArrayLiteralIC: 0, 
 }
 for (const ic of processor.icTimeline.all) {
-  print(
-      ic.type + ' (' + ic.oldState + '->' + ic.newState + ic.modifier + ') at ' +
-      ic.filePosition + ' ' + ic.key +
-      ' (map 0x' + ic.map.toString(16) + ')' +
-      (ic.reason ? ` ${ic.reason}` : '') + ' time: ' + ic.time);
+  print(Object.values(ic));
   accumulator[ic.type]++;
 }
 

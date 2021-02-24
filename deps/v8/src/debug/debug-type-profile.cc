@@ -52,7 +52,6 @@ std::unique_ptr<TypeProfile> TypeProfile::Collect(Isolate* isolate) {
       }
       FeedbackSlot slot = vector.GetTypeProfileSlot();
       FeedbackNexus nexus(vector, slot);
-      Handle<String> name(info.DebugName(), isolate);
       std::vector<int> source_positions = nexus.GetSourcePositions();
       for (int position : source_positions) {
         DCHECK_GE(position, 0);

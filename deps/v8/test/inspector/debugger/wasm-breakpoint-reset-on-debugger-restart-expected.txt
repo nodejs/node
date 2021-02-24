@@ -1,4 +1,6 @@
 Test that breakpoints do not survive a restart of the debugger.
+
+Running test: test
 Instantiating.
 Waiting for wasm script (ignoring first non-wasm script).
 Setting breakpoint.
@@ -8,4 +10,3 @@ func returned.
 Restarting debugger.
 Calling func.
 func returned.
-Finished.

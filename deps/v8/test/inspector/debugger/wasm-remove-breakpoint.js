@@ -46,24 +46,24 @@ function test() {
 }
 //# sourceURL=test.js`);
 
-(async function Test() {
-  await Protocol.Debugger.enable();
-  InspectorTest.log('Calling instantiate function.');
-  WasmInspectorTest.instantiate(module_bytes);
-  const scriptId = await waitForWasmScript();
-  InspectorTest.log(
-      'Setting breakpoint on line 3 of wasm function');
-  let msg = await Protocol.Debugger.setBreakpoint(
-      {'location': {'scriptId': scriptId, 'lineNumber': 0, 'columnNumber': func.body_offset + 4}});
-  printFailure(msg);
-  InspectorTest.logMessage(msg.result.actualLocation);
-  breakpointId = msg.result.breakpointId;
-  await Protocol.Runtime.evaluate({ expression: 'test()' });
-  await Protocol.Runtime.evaluate({ expression: 'test()' });
-  InspectorTest.log('exports.main returned!');
-  InspectorTest.log('Finished!');
-  InspectorTest.completeTest();
-})();
+InspectorTest.runAsyncTestSuite([
+  async function Test() {
+    await Protocol.Debugger.enable();
+    InspectorTest.log('Calling instantiate function.');
+    WasmInspectorTest.instantiate(module_bytes);
+    const scriptId = await waitForWasmScript();
+    InspectorTest.log(
+        'Setting breakpoint on line 3 of wasm function');
+    let msg = await Protocol.Debugger.setBreakpoint(
+        {'location': {'scriptId': scriptId, 'lineNumber': 0, 'columnNumber': func.body_offset + 4}});
+    printFailure(msg);
+    InspectorTest.logMessage(msg.result.actualLocation);
+    breakpointId = msg.result.breakpointId;
+    await Protocol.Runtime.evaluate({ expression: 'test()' });
+    await Protocol.Runtime.evaluate({ expression: 'test()' });
+    InspectorTest.log('exports.main returned!');
+  }
+]);
 
 function printFailure(message) {
   if (!message.result) {

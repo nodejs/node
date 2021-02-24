@@ -1372,7 +1372,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   // Class for scoping postponing the trampoline pool generation.
-  class BlockTrampolinePoolScope {
+  class V8_NODISCARD BlockTrampolinePoolScope {
    public:
     explicit BlockTrampolinePoolScope(Assembler* assem) : assem_(assem) {
       assem_->StartBlockTrampolinePool();
@@ -1389,7 +1389,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // sequences of instructions that must be emitted as a unit, before
   // buffer growth (and relocation) can occur.
   // This blocking scope is not nestable.
-  class BlockGrowBufferScope {
+  class V8_NODISCARD BlockGrowBufferScope {
    public:
     explicit BlockGrowBufferScope(Assembler* assem) : assem_(assem) {
       assem_->StartBlockGrowBuffer();
@@ -1416,9 +1416,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Writes a single byte or word of data in the code stream.  Used for
   // inline tables, e.g., jump-tables.
   void db(uint8_t data);
-  void dd(uint32_t data);
-  void dq(uint64_t data);
-  void dp(uintptr_t data) { dd(data); }
+  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
+  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
+  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
+    dd(data, rmode);
+  }
   void dd(Label* label);
 
   // Postpone the generation of the trampoline pool for the specified number of
@@ -1908,7 +1910,7 @@ class EnsureSpace {
   explicit inline EnsureSpace(Assembler* assembler);
 };
 
-class V8_EXPORT_PRIVATE UseScratchRegisterScope {
+class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
  public:
   explicit UseScratchRegisterScope(Assembler* assembler);
   ~UseScratchRegisterScope();

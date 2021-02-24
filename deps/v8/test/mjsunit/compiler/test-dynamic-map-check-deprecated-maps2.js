@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turboprop --turboprop-dynamic-map-checks
+// Flags: --allow-natives-syntax --turboprop --turbo-dynamic-map-checks
 // Flags: --opt --no-always-opt --deopt-every-n-times=0
 
 function b(a) { return a; }
@@ -37,7 +37,9 @@ o1.c = 20.23;
 f(o1, true);
 assertOptimized(f);
 
-// We should migrates o's map without bailing out.
+// We should migrates o's map with a bailout, but then should not bailout after
+// migrating.
+f(o, true);
 f(o, false);
 f(o1, false);
 f(o2, false);

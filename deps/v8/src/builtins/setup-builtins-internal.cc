@@ -221,7 +221,7 @@ void SetupIsolateDelegate::PopulateWithPlaceholders(Isolate* isolate) {
 void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
   // Replace references from all code objects to placeholders.
   Builtins* builtins = isolate->builtins();
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   static const int kRelocMask =
       RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |

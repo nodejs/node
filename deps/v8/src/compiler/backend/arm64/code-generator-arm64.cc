@@ -902,7 +902,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchDeoptimize: {
       DeoptimizationExit* exit =
-          BuildTranslation(instr, -1, 0, OutputFrameStateCombine::Ignore());
+          BuildTranslation(instr, -1, 0, 0, OutputFrameStateCombine::Ignore());
       __ B(exit->label());
       break;
     }
@@ -1442,6 +1442,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+    case kArm64Prfm: {
+      __ prfm(MiscField::decode(opcode), i.MemoryOperand(0));
+      break;
+    }
     case kArm64Clz:
       __ Clz(i.OutputRegister64(), i.InputRegister64(0));
       break;
@@ -1641,15 +1645,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Cset(i.OutputRegister(1), vc);
       }
       break;
-    case kArm64Float64ToInt64:
+    case kArm64Float64ToInt64: {
       __ Fcvtzs(i.OutputRegister(0), i.InputDoubleRegister(0));
-      if (i.OutputCount() > 1) {
+      bool set_overflow_to_min_i64 = MiscField::decode(instr->opcode());
+      DCHECK_IMPLIES(set_overflow_to_min_i64, i.OutputCount() == 1);
+      if (set_overflow_to_min_i64) {
+        // Avoid INT64_MAX as an overflow indicator and use INT64_MIN instead,
+        // because INT64_MIN allows easier out-of-bounds detection.
+        __ Cmn(i.OutputRegister64(), 1);
+        __ Csinc(i.OutputRegister64(), i.OutputRegister64(),
+                 i.OutputRegister64(), vc);
+      } else if (i.OutputCount() > 1) {
         // See kArm64Float32ToInt64 for a detailed description.
         __ Fcmp(i.InputDoubleRegister(0), static_cast<double>(INT64_MIN));
         __ Ccmp(i.OutputRegister(0), -1, VFlag, ge);
         __ Cset(i.OutputRegister(1), vc);
       }
       break;
+    }
     case kArm64Float32ToUint64:
       __ Fcvtzu(i.OutputRegister64(), i.InputFloat32Register(0));
       if (i.OutputCount() > 1) {
@@ -2208,6 +2221,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SIMD_SHIFT_RIGHT(Ushr, 6, V2D, Ushl, X);
       break;
     }
+    case kArm64I64x2BitMask: {
+      UseScratchRegisterScope scope(tasm());
+      Register dst = i.OutputRegister32();
+      VRegister src = i.InputSimd128Register(0);
+      VRegister tmp1 = scope.AcquireV(kFormat2D);
+      Register tmp2 = scope.AcquireX();
+      __ Ushr(tmp1.V2D(), src.V2D(), 63);
+      __ Mov(dst.X(), tmp1.D(), 0);
+      __ Mov(tmp2.X(), tmp1.D(), 1);
+      __ Add(dst.W(), dst.W(), Operand(tmp2.W(), LSL, 1));
+      break;
+    }
     case kArm64I32x4Splat: {
       __ Dup(i.OutputSimd128Register().V4S(), i.InputRegister32(0));
       break;
@@ -2265,10 +2290,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_CASE(kArm64I32x4GeU, Cmhs, 4S);
       SIMD_UNOP_CASE(kArm64I32x4Abs, Abs, 4S);
     case kArm64I32x4BitMask: {
+      UseScratchRegisterScope scope(tasm());
       Register dst = i.OutputRegister32();
       VRegister src = i.InputSimd128Register(0);
-      VRegister tmp = i.TempSimd128Register(0);
-      VRegister mask = i.TempSimd128Register(1);
+      VRegister tmp = scope.AcquireQ();
+      VRegister mask = scope.AcquireQ();
 
       __ Sshr(tmp.V4S(), src.V4S(), 31);
       // Set i-th bit of each lane i. When AND with tmp, the lanes that
@@ -2384,10 +2410,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_CASE(kArm64I16x8Q15MulRSatS, Sqrdmulh, 8H);
       SIMD_UNOP_CASE(kArm64I16x8Abs, Abs, 8H);
     case kArm64I16x8BitMask: {
+      UseScratchRegisterScope scope(tasm());
       Register dst = i.OutputRegister32();
       VRegister src = i.InputSimd128Register(0);
-      VRegister tmp = i.TempSimd128Register(0);
-      VRegister mask = i.TempSimd128Register(1);
+      VRegister tmp = scope.AcquireQ();
+      VRegister mask = scope.AcquireQ();
 
       __ Sshr(tmp.V8H(), src.V8H(), 15);
       // Set i-th bit of each lane i. When AND with tmp, the lanes that
@@ -2490,10 +2517,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_CASE(kArm64I8x16RoundingAverageU, Urhadd, 16B);
       SIMD_UNOP_CASE(kArm64I8x16Abs, Abs, 16B);
     case kArm64I8x16BitMask: {
+      UseScratchRegisterScope scope(tasm());
       Register dst = i.OutputRegister32();
       VRegister src = i.InputSimd128Register(0);
-      VRegister tmp = i.TempSimd128Register(0);
-      VRegister mask = i.TempSimd128Register(1);
+      VRegister tmp = scope.AcquireQ();
+      VRegister mask = scope.AcquireQ();
 
       // Set i-th bit of each lane i. When AND with tmp, the lanes that
       // are signed will have i-th bit set, unsigned will be 0.
@@ -2504,6 +2532,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Zip1(tmp.V16B(), tmp.V16B(), mask.V16B());
       __ Addv(tmp.H(), tmp.V8H());
       __ Mov(dst.W(), tmp.V8H(), 0);
+      break;
+    }
+    case kArm64SignSelect: {
+      VectorFormat f = VectorFormatFillQ(MiscField::decode(opcode));
+      __ Cmlt(i.OutputSimd128Register().Format(f),
+              i.InputSimd128Register(2).Format(f), 0);
+      __ Bsl(i.OutputSimd128Register().V16B(), i.InputSimd128Register(0).V16B(),
+             i.InputSimd128Register(1).V16B());
       break;
     }
     case kArm64S128Const: {
@@ -2636,6 +2672,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64LoadSplat: {
       VectorFormat f = VectorFormatFillQ(MiscField::decode(opcode));
       __ ld1r(i.OutputSimd128Register().Format(f), i.MemoryOperand(0));
+      break;
+    }
+    case kArm64LoadLane: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      VectorFormat f = VectorFormatFillQ(MiscField::decode(opcode));
+      int laneidx = i.InputInt8(1);
+      __ ld1(i.OutputSimd128Register().Format(f), laneidx, i.MemoryOperand(2));
+      break;
+    }
+    case kArm64StoreLane: {
+      VectorFormat f = VectorFormatFillQ(MiscField::decode(opcode));
+      int laneidx = i.InputInt8(1);
+      __ st1(i.InputSimd128Register(0).Format(f), laneidx, i.MemoryOperand(2));
       break;
     }
     case kArm64S128Load8x8S: {
@@ -3194,17 +3243,24 @@ void CodeGenerator::FinishCode() { __ ForceConstantPoolEmissionWithoutJump(); }
 void CodeGenerator::PrepareForDeoptimizationExits(
     ZoneDeque<DeoptimizationExit*>* exits) {
   __ ForceConstantPoolEmissionWithoutJump();
-  // We are conservative here, assuming all deopts are lazy deopts.
+  // We are conservative here, assuming all deopts are eager with resume deopts.
+  DCHECK_GE(Deoptimizer::kEagerWithResumeDeoptExitSize,
+            Deoptimizer::kLazyDeoptExitSize);
   DCHECK_GE(Deoptimizer::kLazyDeoptExitSize,
             Deoptimizer::kNonLazyDeoptExitSize);
-  __ CheckVeneerPool(
-      false, false,
-      static_cast<int>(exits->size()) * Deoptimizer::kLazyDeoptExitSize);
+  __ CheckVeneerPool(false, false,
+                     static_cast<int>(exits->size()) *
+                         Deoptimizer::kEagerWithResumeDeoptExitSize);
 
   // Check which deopt kinds exist in this Code object, to avoid emitting jumps
   // to unused entries.
   bool saw_deopt_kind[kDeoptimizeKindCount] = {false};
+  constexpr auto eager_with_resume_reason = DeoptimizeReason::kDynamicCheckMaps;
   for (auto exit : *exits) {
+    // TODO(rmcilroy): If we add any other kinds of kEagerWithResume deoptimize
+    // we will need to create a seperate array for each kEagerWithResume builtin
+    DCHECK_IMPLIES(exit->kind() == DeoptimizeKind::kEagerWithResume,
+                   exit->reason() == eager_with_resume_reason);
     saw_deopt_kind[static_cast<int>(exit->kind())] = true;
   }
 
@@ -3215,9 +3271,15 @@ void CodeGenerator::PrepareForDeoptimizationExits(
   for (int i = 0; i < kDeoptimizeKindCount; i++) {
     if (!saw_deopt_kind[i]) continue;
     __ bind(&jump_deoptimization_entry_labels_[i]);
-    __ LoadEntryFromBuiltinIndex(Deoptimizer::GetDeoptimizationEntry(
-                                     isolate(), static_cast<DeoptimizeKind>(i)),
-                                 scratch);
+    DeoptimizeKind kind = static_cast<DeoptimizeKind>(i);
+    if (kind == DeoptimizeKind::kEagerWithResume) {
+      __ LoadEntryFromBuiltinIndex(
+          Deoptimizer::GetDeoptWithResumeBuiltin(eager_with_resume_reason),
+          scratch);
+    } else {
+      __ LoadEntryFromBuiltinIndex(Deoptimizer::GetDeoptimizationEntry(kind),
+                                   scratch);
+    }
     __ Jump(scratch);
   }
 }

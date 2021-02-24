@@ -37,6 +37,8 @@ class V8_EXPORT_PRIVATE CancelableTaskManager {
   CancelableTaskManager();
 
   ~CancelableTaskManager();
+  CancelableTaskManager(const CancelableTaskManager&) = delete;
+  CancelableTaskManager& operator=(const CancelableTaskManager&) = delete;
 
   // Registers a new cancelable {task}. Returns the unique {id} of the task that
   // can be used to try to abort a task by calling {Abort}.
@@ -87,8 +89,6 @@ class V8_EXPORT_PRIVATE CancelableTaskManager {
   bool canceled_;
 
   friend class Cancelable;
-
-  DISALLOW_COPY_AND_ASSIGN(CancelableTaskManager);
 };
 
 class V8_EXPORT_PRIVATE Cancelable {
@@ -97,6 +97,8 @@ class V8_EXPORT_PRIVATE Cancelable {
       : parent_(parent), id_(parent->Register(this)) {}
 
   virtual ~Cancelable();
+  Cancelable(const Cancelable&) = delete;
+  Cancelable& operator=(const Cancelable&) = delete;
 
   // Never invoke after handing over the task to the platform! The reason is
   // that {Cancelable} is used in combination with {v8::Task} and handed to
@@ -137,8 +139,6 @@ class V8_EXPORT_PRIVATE Cancelable {
   CancelableTaskManager* const parent_;
   std::atomic<Status> status_{kWaiting};
   const CancelableTaskManager::Id id_;
-
-  DISALLOW_COPY_AND_ASSIGN(Cancelable);
 };
 
 // Multiple inheritance can be used because Task is a pure interface.
@@ -147,6 +147,8 @@ class V8_EXPORT_PRIVATE CancelableTask : public Cancelable,
  public:
   explicit CancelableTask(Isolate* isolate);
   explicit CancelableTask(CancelableTaskManager* manager);
+  CancelableTask(const CancelableTask&) = delete;
+  CancelableTask& operator=(const CancelableTask&) = delete;
 
   // Task overrides.
   void Run() final {
@@ -156,9 +158,6 @@ class V8_EXPORT_PRIVATE CancelableTask : public Cancelable,
   }
 
   virtual void RunInternal() = 0;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(CancelableTask);
 };
 
 // Multiple inheritance can be used because IdleTask is a pure interface.
@@ -166,6 +165,8 @@ class CancelableIdleTask : public Cancelable, public IdleTask {
  public:
   explicit CancelableIdleTask(Isolate* isolate);
   explicit CancelableIdleTask(CancelableTaskManager* manager);
+  CancelableIdleTask(const CancelableIdleTask&) = delete;
+  CancelableIdleTask& operator=(const CancelableIdleTask&) = delete;
 
   // IdleTask overrides.
   void Run(double deadline_in_seconds) final {
@@ -175,9 +176,6 @@ class CancelableIdleTask : public Cancelable, public IdleTask {
   }
 
   virtual void RunInternal(double deadline_in_seconds) = 0;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(CancelableIdleTask);
 };
 
 }  // namespace internal

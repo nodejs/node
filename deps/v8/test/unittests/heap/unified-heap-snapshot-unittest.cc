@@ -14,7 +14,9 @@
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
+#include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/object-allocator.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/objects-inl.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
 #include "src/profiler/heap-snapshot-generator.h"
@@ -285,7 +287,7 @@ class GCedWithJSRef : public cppgc::GarbageCollected<GCedWithJSRef> {
 };
 constexpr const char GCedWithJSRef::kExpectedName[];
 
-class JsTestingScope {
+class V8_NODISCARD JsTestingScope {
  public:
   explicit JsTestingScope(v8::Isolate* isolate)
       : isolate_(isolate),
@@ -314,6 +316,18 @@ cppgc::Persistent<GCedWithJSRef> SetupWrapperWrappablePair(
   return std::move(gc_w_js_ref);
 }
 
+template <typename Callback>
+void ForEachEntryWithName(const v8::HeapSnapshot* snapshot, const char* needle,
+                          Callback callback) {
+  const HeapSnapshot* heap_snapshot =
+      reinterpret_cast<const HeapSnapshot*>(snapshot);
+  for (const HeapEntry& entry : heap_snapshot->entries()) {
+    if (strcmp(entry.name(), needle) == 0) {
+      callback(entry);
+    }
+  }
+}
+
 }  // namespace
 
 TEST_F(UnifiedHeapSnapshotTest, JSReferenceForcesVisibleObject) {
@@ -335,8 +349,8 @@ TEST_F(UnifiedHeapSnapshotTest, JSReferenceForcesVisibleObject) {
 
 TEST_F(UnifiedHeapSnapshotTest, MergedWrapperNode) {
   // Test ensures that the snapshot sets a wrapper node for C++->JS references
-  // that have a class id set and that object nodes are merged into the C++
-  // node, i.e., the directly reachable JS object is merged into the C++ object.
+  // that have a class id set and that object nodes are merged. In practice, the
+  // C++ node is merged into the existing JS node.
   JsTestingScope testing_scope(v8_isolate());
   cppgc::Persistent<GCedWithJSRef> gc_w_js_ref = SetupWrapperWrappablePair(
       testing_scope, allocation_handle(), "MergedObject");
@@ -356,14 +370,22 @@ TEST_F(UnifiedHeapSnapshotTest, MergedWrapperNode) {
       .ToChecked();
   const v8::HeapSnapshot* snapshot = TakeHeapSnapshot();
   EXPECT_TRUE(IsValidSnapshot(snapshot));
-  EXPECT_TRUE(
-      ContainsRetainingPath(*snapshot,
-                            {
-                                kExpectedCppRootsName,             // NOLINT
-                                GetExpectedName<GCedWithJSRef>(),  // NOLINT
-                                // MergedObject is merged into GCedWithJSRef.
-                                "NextObject"  // NOLINT
-                            }));
+  EXPECT_TRUE(ContainsRetainingPath(
+      *snapshot,
+      {
+          kExpectedCppRootsName,             // NOLINT
+          GetExpectedName<GCedWithJSRef>(),  // NOLINT
+          // GCedWithJSRef is merged into MergedObject, replacing its name.
+          "NextObject"  // NOLINT
+      }));
+  const size_t cpp_size =
+      cppgc::internal::HeapObjectHeader::FromPayload(gc_w_js_ref.Get())
+          .GetSize();
+  const size_t js_size = Utils::OpenHandle(*wrapper_object)->Size();
+  ForEachEntryWithName(snapshot, GetExpectedName<GCedWithJSRef>(),
+                       [cpp_size, js_size](const HeapEntry& entry) {
+                         EXPECT_EQ(cpp_size + js_size, entry.self_size());
+                       });
 }
 
 namespace {
@@ -387,18 +409,6 @@ class DetachednessHandler {
 };
 // static
 size_t DetachednessHandler::callback_count = 0;
-
-template <typename Callback>
-void ForEachEntryWithName(const v8::HeapSnapshot* snapshot, const char* needle,
-                          Callback callback) {
-  const HeapSnapshot* heap_snapshot =
-      reinterpret_cast<const HeapSnapshot*>(snapshot);
-  for (const HeapEntry& entry : heap_snapshot->entries()) {
-    if (strcmp(entry.name(), needle) == 0) {
-      callback(entry);
-    }
-  }
-}
 
 constexpr uint8_t kExpectedDetachedValueForUnknown =
     static_cast<uint8_t>(v8::EmbedderGraph::Node::Detachedness::kUnknown);

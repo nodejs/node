@@ -2543,16 +2543,26 @@ class SuperCallReference final : public Expression {
 // import(argument).
 class ImportCallExpression final : public Expression {
  public:
-  Expression* argument() const { return argument_; }
+  Expression* specifier() const { return specifier_; }
+  Expression* import_assertions() const { return import_assertions_; }
 
  private:
   friend class AstNodeFactory;
   friend Zone;
 
-  ImportCallExpression(Expression* argument, int pos)
-      : Expression(pos, kImportCallExpression), argument_(argument) {}
+  ImportCallExpression(Expression* specifier, int pos)
+      : Expression(pos, kImportCallExpression),
+        specifier_(specifier),
+        import_assertions_(nullptr) {}
 
-  Expression* argument_;
+  ImportCallExpression(Expression* specifier, Expression* import_assertions,
+                       int pos)
+      : Expression(pos, kImportCallExpression),
+        specifier_(specifier),
+        import_assertions_(import_assertions) {}
+
+  Expression* specifier_;
+  Expression* import_assertions_;
 };
 
 // This class is produced when parsing the () in arrow functions without any
@@ -3227,8 +3237,15 @@ class AstNodeFactory final {
     return zone_->New<TemplateLiteral>(string_parts, substitutions, pos);
   }
 
-  ImportCallExpression* NewImportCallExpression(Expression* args, int pos) {
-    return zone_->New<ImportCallExpression>(args, pos);
+  ImportCallExpression* NewImportCallExpression(Expression* specifier,
+                                                int pos) {
+    return zone_->New<ImportCallExpression>(specifier, pos);
+  }
+
+  ImportCallExpression* NewImportCallExpression(Expression* specifier,
+                                                Expression* import_assertions,
+                                                int pos) {
+    return zone_->New<ImportCallExpression>(specifier, import_assertions, pos);
   }
 
   InitializeClassMembersStatement* NewInitializeClassMembersStatement(

@@ -157,8 +157,9 @@ RUNTIME_FUNCTION(Runtime_DeclareModuleExports) {
       index = Smi::ToInt(declarations->get(++i));
       Handle<FeedbackCell> feedback_cell =
           closure_feedback_cell_array->GetFeedbackCell(feedback_index);
-      value = *isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          sfi, context, feedback_cell, AllocationType::kOld);
+      value = *Factory::JSFunctionBuilder(isolate, sfi, context)
+                   .set_feedback_cell(feedback_cell)
+                   .Build();
     }
 
     Cell::cast(exports->get(index - 1)).set_value(value);
@@ -204,8 +205,9 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
       int index = Smi::ToInt(declarations->get(++i));
       Handle<FeedbackCell> feedback_cell =
           closure_feedback_cell_array->GetFeedbackCell(index);
-      value = isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          sfi, context, feedback_cell, AllocationType::kOld);
+      value = Factory::JSFunctionBuilder(isolate, sfi, context)
+                  .set_feedback_cell(feedback_cell)
+                  .Build();
     }
 
     // Compute the property attributes. According to ECMA-262,
@@ -412,7 +414,7 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
   int parameter_count = callee->shared().internal_formal_parameter_count();
   if (argument_count > 0) {
     if (parameter_count > 0) {
-      int mapped_count = Min(argument_count, parameter_count);
+      int mapped_count = std::min(argument_count, parameter_count);
 
       // Store the context and the arguments array at the beginning of the
       // parameter map.
@@ -519,7 +521,7 @@ RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
   if (argument_count) {
     Handle<FixedArray> array =
         isolate->factory()->NewUninitializedFixedArray(argument_count);
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     WriteBarrierMode mode = array->GetWriteBarrierMode(no_gc);
     for (int i = 0; i < argument_count; i++) {
       array->set(i, *arguments[i], mode);
@@ -545,7 +547,7 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
       PACKED_ELEMENTS, num_elements, num_elements,
       DONT_INITIALIZE_ARRAY_ELEMENTS);
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     FixedArray elements = FixedArray::cast(result->elements());
     WriteBarrierMode mode = elements.GetWriteBarrierMode(no_gc);
     for (int i = 0; i < num_elements; i++) {
@@ -561,10 +563,10 @@ RUNTIME_FUNCTION(Runtime_NewClosure) {
   CONVERT_ARG_HANDLE_CHECKED(SharedFunctionInfo, shared, 0);
   CONVERT_ARG_HANDLE_CHECKED(FeedbackCell, feedback_cell, 1);
   Handle<Context> context(isolate->context(), isolate);
-  Handle<JSFunction> function =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          shared, context, feedback_cell, AllocationType::kYoung);
-  return *function;
+  return *Factory::JSFunctionBuilder{isolate, shared, context}
+              .set_feedback_cell(feedback_cell)
+              .set_allocation_type(AllocationType::kYoung)
+              .Build();
 }
 
 RUNTIME_FUNCTION(Runtime_NewClosure_Tenured) {
@@ -575,10 +577,10 @@ RUNTIME_FUNCTION(Runtime_NewClosure_Tenured) {
   Handle<Context> context(isolate->context(), isolate);
   // The caller ensures that we pretenure closures that are assigned
   // directly to properties.
-  Handle<JSFunction> function =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          shared, context, feedback_cell, AllocationType::kOld);
-  return *function;
+  return *Factory::JSFunctionBuilder{isolate, shared, context}
+              .set_feedback_cell(feedback_cell)
+              .set_allocation_type(AllocationType::kOld)
+              .Build();
 }
 
 RUNTIME_FUNCTION(Runtime_NewFunctionContext) {

@@ -4,7 +4,6 @@
 
 #include 'src/builtins/builtins-string-gen.h'
 
-namespace string {
 extern macro ReplaceSymbolConstant(): Symbol;
 
 extern macro StringBuiltinsAssembler::GetSubstitution(
@@ -13,28 +12,27 @@ extern macro StringBuiltinsAssembler::GetSubstitution(
 extern builtin
 StringIndexOf(implicit context: Context)(String, String, Smi): Smi;
 
-macro TryFastAbstractStringIndexOf(implicit context: Context)(
-    string: String, searchString: String, fromIndex: Smi): Smi labels Slow {
-  const stringLen = string.length_uintptr;
-  const searchLen = searchString.length_uintptr;
-  const directString = Cast<DirectString>(string) otherwise Slow;
-  const directSearchStr = Cast<DirectString>(searchString) otherwise Slow;
-  const fromIndexUint = Unsigned(SmiUntag(fromIndex));
-
-  for (let i: uintptr = fromIndexUint; i < stringLen; i++) {
-    let j = i;
-    let k: uintptr = 0;
-    while (j < stringLen && k < searchLen &&
-           StringCharCodeAt(directString, j) ==
-               StringCharCodeAt(directSearchStr, k)) {
-      j++;
-      k++;
-    }
-    if (k == searchLen) {
-      return SmiTag(Signed(i));
+// TODO(tebbi): This could be replaced with a fast C-call to StringSearchRaw.
+macro AbstractStringIndexOf<A: type, B: type>(
+    string: ConstSlice<A>, searchString: ConstSlice<B>, fromIndex: Smi): Smi {
+  for (let i: intptr = SmiUntag(fromIndex);
+       i <= string.length - searchString.length; i++) {
+    if (IsSubstringAt(string, searchString, i)) {
+      return SmiTag(i);
     }
   }
   return -1;
+}
+
+struct AbstractStringIndexOfFunctor {
+  fromIndex: Smi;
+}
+// Ideally, this would be a method of AbstractStringIndexOfFunctor, but
+// currently methods don't support templates.
+macro Call<A: type, B: type>(
+    self: AbstractStringIndexOfFunctor, string: ConstSlice<A>,
+    searchStr: ConstSlice<B>): Smi {
+  return AbstractStringIndexOf(string, searchStr, self.fromIndex);
 }
 
 macro AbstractStringIndexOf(implicit context: Context)(
@@ -53,20 +51,8 @@ macro AbstractStringIndexOf(implicit context: Context)(
     return -1;
   }
 
-  try {
-    return TryFastAbstractStringIndexOf(string, searchString, fromIndex)
-        otherwise Slow;
-  } label Slow {
-    for (let i: intptr = SmiUntag(fromIndex);
-         i + searchStringLength <= stringLength; i++) {
-      if (StringCompareSequence(
-              context, string, searchString, Convert<Number>(SmiTag(i))) ==
-          True) {
-        return SmiTag(i);
-      }
-    }
-    return -1;
-  }
+  return TwoStringsToSlices<Smi>(
+      string, searchString, AbstractStringIndexOfFunctor{fromIndex: fromIndex});
 }
 
 transitioning macro
@@ -216,5 +202,4 @@ transitioning javascript builtin StringPrototypeReplaceAll(
 
   // 16. Return result.
   return result;
-}
 }

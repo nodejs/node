@@ -57,7 +57,7 @@ class StringSearch : private StringSearchBase {
   StringSearch(Isolate* isolate, Vector<const PatternChar> pattern)
       : isolate_(isolate),
         pattern_(pattern),
-        start_(Max(0, pattern.length() - kBMMaxShift)) {
+        start_(std::max(0, pattern.length() - kBMMaxShift)) {
     if (sizeof(PatternChar) > sizeof(SubjectChar)) {
       if (!IsOneByteString(pattern_)) {
         strategy_ = &FailSearch;
@@ -173,7 +173,7 @@ class StringSearch : private StringSearchBase {
   Vector<const PatternChar> pattern_;
   // Pointer to implementation of the search.
   SearchFunction strategy_;
-  // Cache value of Max(0, pattern_length() - kBMMaxShift)
+  // Cache value of max(0, pattern_length() - kBMMaxShift)
   int start_;
 };
 
@@ -184,8 +184,8 @@ inline T AlignDown(T value, U alignment) {
 }
 
 inline uint8_t GetHighestValueByte(uc16 character) {
-  return Max(static_cast<uint8_t>(character & 0xFF),
-             static_cast<uint8_t>(character >> 8));
+  return std::max(static_cast<uint8_t>(character & 0xFF),
+                  static_cast<uint8_t>(character >> 8));
 }
 
 inline uint8_t GetHighestValueByte(uint8_t character) { return character; }
@@ -545,7 +545,7 @@ template <typename SubjectChar, typename PatternChar>
 intptr_t SearchStringRaw(Isolate* isolate, const SubjectChar* subject_ptr,
                          int subject_length, const PatternChar* pattern_ptr,
                          int pattern_length, int start_index) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Vector<const SubjectChar> subject(subject_ptr, subject_length);
   Vector<const PatternChar> pattern(pattern_ptr, pattern_length);
   return SearchString(isolate, subject, pattern, start_index);

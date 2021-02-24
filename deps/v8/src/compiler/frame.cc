@@ -18,8 +18,11 @@ Frame::Frame(int fixed_frame_size_in_slots)
       allocated_registers_(nullptr),
       allocated_double_registers_(nullptr) {}
 
-int Frame::AlignFrame(int alignment) {
+void Frame::AlignFrame(int alignment) {
   int alignment_slots = alignment / kSystemPointerSize;
+  // In the calculations below we assume that alignment_slots is a power of 2.
+  DCHECK(base::bits::IsPowerOfTwo(alignment_slots));
+
   // We have to align return slots separately, because they are claimed
   // separately on the stack.
   int return_delta =
@@ -34,7 +37,6 @@ int Frame::AlignFrame(int alignment) {
       spill_slot_count_ += delta;
     }
   }
-  return delta;
 }
 
 void FrameAccessState::MarkHasFrame(bool state) {

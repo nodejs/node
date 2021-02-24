@@ -42,6 +42,9 @@ enum WeaknessType {
 // callbacks and finalizers attached to them.
 class V8_EXPORT_PRIVATE GlobalHandles final {
  public:
+  GlobalHandles(const GlobalHandles&) = delete;
+  GlobalHandles& operator=(const GlobalHandles&) = delete;
+
   template <class NodeType>
   class NodeBlock;
 
@@ -252,8 +255,6 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
 
   // Counter for recursive garbage collections during callback processing.
   unsigned post_gc_processing_count_ = 0;
-
-  DISALLOW_COPY_AND_ASSIGN(GlobalHandles);
 };
 
 class GlobalHandles::PendingPhantomCallback final {
@@ -285,6 +286,8 @@ class EternalHandles final {
  public:
   EternalHandles() = default;
   ~EternalHandles();
+  EternalHandles(const EternalHandles&) = delete;
+  EternalHandles& operator=(const EternalHandles&) = delete;
 
   // Create an EternalHandle, overwriting the index.
   V8_EXPORT_PRIVATE void Create(Isolate* isolate, Object object, int* index);
@@ -319,8 +322,6 @@ class EternalHandles final {
   int size_ = 0;
   std::vector<Address*> blocks_;
   std::vector<int> young_node_indices_;
-
-  DISALLOW_COPY_AND_ASSIGN(EternalHandles);
 };
 
 // A vector of global Handles which automatically manages the backing of those

@@ -217,6 +217,14 @@ MapUpdater::State MapUpdater::TryReconfigureToDataFieldInplace() {
 
   PropertyDetails old_details =
       old_descriptors_->GetDetails(modified_descriptor_);
+
+  if (old_details.attributes() != new_attributes_ ||
+      old_details.kind() != new_kind_ ||
+      old_details.location() != new_location_) {
+    // These changes can't be done in-place.
+    return state_;  // Not done yet.
+  }
+
   Representation old_representation = old_details.representation();
   if (!old_representation.CanBeInPlaceChangedTo(new_representation_)) {
     return state_;  // Not done yet.
@@ -667,7 +675,7 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
 }
 
 Handle<Map> MapUpdater::FindSplitMap(Handle<DescriptorArray> descriptors) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
 
   int root_nof = root_map_->NumberOfOwnDescriptors();
   Map current = *root_map_;
@@ -675,7 +683,7 @@ Handle<Map> MapUpdater::FindSplitMap(Handle<DescriptorArray> descriptors) {
     Name name = descriptors->GetKey(i);
     PropertyDetails details = descriptors->GetDetails(i);
     Map next =
-        TransitionsAccessor(isolate_, current, &no_allocation)
+        TransitionsAccessor(isolate_, current, &no_gc)
             .SearchTransition(name, details.kind(), details.attributes());
     if (next.is_null()) break;
     DescriptorArray next_descriptors = next.instance_descriptors(kRelaxedLoad);

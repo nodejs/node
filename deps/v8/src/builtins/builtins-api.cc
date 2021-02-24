@@ -23,6 +23,8 @@ namespace {
 // TODO(dcarney): CallOptimization duplicates this logic, merge.
 JSReceiver GetCompatibleReceiver(Isolate* isolate, FunctionTemplateInfo info,
                                  JSReceiver receiver) {
+  RuntimeCallTimerScope timer(isolate,
+                              RuntimeCallCounterId::kGetCompatibleReceiver);
   Object recv_type = info.signature();
   // No signature, return holder.
   if (!recv_type.IsFunctionTemplateInfo()) return receiver;
@@ -151,14 +153,14 @@ class RelocatableArguments : public BuiltinArguments, public Relocatable {
   RelocatableArguments(Isolate* isolate, int length, Address* arguments)
       : BuiltinArguments(length, arguments), Relocatable(isolate) {}
 
+  RelocatableArguments(const RelocatableArguments&) = delete;
+  RelocatableArguments& operator=(const RelocatableArguments&) = delete;
+
   inline void IterateInstance(RootVisitor* v) override {
     if (length() == 0) return;
     v->VisitRootPointers(Root::kRelocatable, nullptr, first_slot(),
                          last_slot() + 1);
   }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(RelocatableArguments);
 };
 
 }  // namespace

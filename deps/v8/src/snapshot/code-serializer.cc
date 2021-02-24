@@ -169,7 +169,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
       debug_info = sfi->GetDebugInfo();
       if (debug_info.HasInstrumentedBytecodeArray()) {
         debug_bytecode_array = debug_info.DebugBytecodeArray();
-        sfi->SetDebugBytecodeArray(debug_info.OriginalBytecodeArray());
+        sfi->SetActiveBytecodeArray(debug_info.OriginalBytecodeArray());
       }
       sfi->set_script_or_debug_info(debug_info.script(), kReleaseStore);
     }
@@ -181,7 +181,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
     if (!debug_info.is_null()) {
       sfi->set_script_or_debug_info(debug_info, kReleaseStore);
       if (!debug_bytecode_array.is_null()) {
-        sfi->SetDebugBytecodeArray(debug_bytecode_array);
+        sfi->SetActiveBytecodeArray(debug_bytecode_array);
       }
     }
     return;
@@ -242,7 +242,7 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
         Handle<InterpreterData>::cast(isolate->factory()->NewStruct(
             INTERPRETER_DATA_TYPE, AllocationType::kOld));
 
-    interpreter_data->set_bytecode_array(info->GetBytecodeArray());
+    interpreter_data->set_bytecode_array(info->GetBytecodeArray(isolate));
     interpreter_data->set_interpreter_trampoline(*code);
 
     info->set_interpreter_data(*interpreter_data);
@@ -386,9 +386,10 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
           int column_num =
               script->GetColumnNumber(shared_info->StartPosition()) + 1;
           PROFILE(isolate,
-                  CodeCreateEvent(CodeEventListener::SCRIPT_TAG,
-                                  handle(shared_info->abstract_code(), isolate),
-                                  shared_info, name, line_num, column_num));
+                  CodeCreateEvent(
+                      CodeEventListener::SCRIPT_TAG,
+                      handle(shared_info->abstract_code(isolate), isolate),
+                      shared_info, name, line_num, column_num));
         }
       }
     }

@@ -36,10 +36,9 @@ class CompilerDispatcherTestFlags {
     CHECK_NULL(save_flags_);
     save_flags_ = new SaveFlags();
     FLAG_single_threaded = true;
-    // TODO(leszeks): Support background finalization in compiler dispatcher.
-    FLAG_finalize_streaming_on_background = false;
     FlagList::EnforceFlagImplications();
     FLAG_compiler_dispatcher = true;
+    FLAG_finalize_streaming_on_background = false;
   }
 
   static void RestoreFlags() {
@@ -104,6 +103,15 @@ class CompilerDispatcherTest : public TestWithNativeContext {
 
     return dispatcher->Enqueue(outer_parse_info.get(), function_name,
                                function_literal);
+  }
+
+ protected:
+  void SetUp() override {
+    // TODO(leszeks): Support background finalization in compiler dispatcher.
+    if (FLAG_finalize_streaming_on_background) {
+      GTEST_SKIP_(
+          "Parallel compile tasks don't yet support background finalization");
+    }
   }
 };
 

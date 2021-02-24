@@ -396,6 +396,8 @@ inline SlotType SlotTypeForRelocInfoMode(RelocInfo::Mode rmode) {
     return FULL_EMBEDDED_OBJECT_SLOT;
   } else if (RelocInfo::IsCompressedEmbeddedObject(rmode)) {
     return COMPRESSED_EMBEDDED_OBJECT_SLOT;
+  } else if (RelocInfo::IsDataEmbeddedObject(rmode)) {
+    return DATA_EMBEDDED_OBJECT_SLOT;
   }
   UNREACHABLE();
 }

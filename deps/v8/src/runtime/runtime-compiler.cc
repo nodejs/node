@@ -21,43 +21,6 @@
 namespace v8 {
 namespace internal {
 
-RUNTIME_FUNCTION(Runtime_CompileLazy) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-
-  Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
-
-#ifdef DEBUG
-  if (FLAG_trace_lazy && !sfi->is_compiled()) {
-    PrintF("[unoptimized: ");
-    function->PrintName();
-    PrintF("]\n");
-  }
-#endif
-
-  StackLimitCheck check(isolate);
-  if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
-    return isolate->StackOverflow();
-  }
-  IsCompiledScope is_compiled_scope;
-  if (!Compiler::Compile(function, Compiler::KEEP_EXCEPTION,
-                         &is_compiled_scope)) {
-    return ReadOnlyRoots(isolate).exception();
-  }
-  if (sfi->may_have_cached_code()) {
-    Handle<Code> code;
-    if (sfi->TryGetCachedCode(isolate).ToHandle(&code)) {
-      function->set_code(*code);
-      JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
-      if (FLAG_trace_turbo_nci) CompilationCacheCode::TraceHit(sfi, code);
-      return *code;
-    }
-  }
-  DCHECK(function->is_compiled());
-  return function->code();
-}
-
 namespace {
 
 // Returns false iff an exception was thrown.
@@ -102,11 +65,72 @@ Object CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
     return ReadOnlyRoots(isolate).exception();
   }
 
+  // As a post-condition of CompileOptimized, the function *must* be compiled,
+  // i.e. the installed Code object must not be the CompileLazy builtin.
   DCHECK(function->is_compiled());
   return function->code();
 }
 
+void TryInstallNCICode(Isolate* isolate, Handle<JSFunction> function,
+                       Handle<SharedFunctionInfo> sfi,
+                       IsCompiledScope* is_compiled_scope) {
+  // This function should only be called if there's a possibility that cached
+  // code exists.
+  DCHECK(sfi->may_have_cached_code());
+  DCHECK_EQ(function->shared(), *sfi);
+
+  Handle<Code> code;
+  if (sfi->TryGetCachedCode(isolate).ToHandle(&code)) {
+    function->set_code(*code);
+    JSFunction::EnsureFeedbackVector(function, is_compiled_scope);
+    if (FLAG_trace_turbo_nci) CompilationCacheCode::TraceHit(sfi, code);
+  }
+}
+
 }  // namespace
+
+RUNTIME_FUNCTION(Runtime_CompileLazy) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+
+  Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
+
+#ifdef DEBUG
+  if (FLAG_trace_lazy && !sfi->is_compiled()) {
+    PrintF("[unoptimized: ");
+    function->PrintName();
+    PrintF("]\n");
+  }
+#endif
+
+  StackLimitCheck check(isolate);
+  if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
+    return isolate->StackOverflow();
+  }
+  IsCompiledScope is_compiled_scope;
+  if (!Compiler::Compile(function, Compiler::KEEP_EXCEPTION,
+                         &is_compiled_scope)) {
+    return ReadOnlyRoots(isolate).exception();
+  }
+  if (sfi->may_have_cached_code()) {
+    TryInstallNCICode(isolate, function, sfi, &is_compiled_scope);
+  }
+  DCHECK(function->is_compiled());
+  return function->code();
+}
+
+RUNTIME_FUNCTION(Runtime_TryInstallNCICode) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  DCHECK(function->is_compiled());
+  Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
+  IsCompiledScope is_compiled_scope(*sfi, isolate);
+  TryInstallNCICode(isolate, function, sfi, &is_compiled_scope);
+  DCHECK(function->is_compiled());
+  return function->code();
+}
 
 RUNTIME_FUNCTION(Runtime_CompileOptimized_Concurrent) {
   HandleScope scope(isolate);
@@ -132,9 +156,10 @@ RUNTIME_FUNCTION(Runtime_FunctionFirstExecution) {
             OptimizationMarker::kLogFirstExecution);
   DCHECK(FLAG_log_function_events);
   Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
-  LOG(isolate, FunctionEvent(
-                   "first-execution", Script::cast(sfi->script()).id(), 0,
-                   sfi->StartPosition(), sfi->EndPosition(), sfi->DebugName()));
+  Handle<String> name = SharedFunctionInfo::DebugName(sfi);
+  LOG(isolate,
+      FunctionEvent("first-execution", Script::cast(sfi->script()).id(), 0,
+                    sfi->StartPosition(), sfi->EndPosition(), *name));
   function->feedback_vector().ClearOptimizationMarker();
   // Return the code to continue execution, we don't care at this point whether
   // this is for lazy compilation or has been eagerly complied.
@@ -194,7 +219,6 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
   DCHECK(CodeKindCanDeoptimize(deoptimizer->compiled_code()->kind()));
   DCHECK(deoptimizer->compiled_code()->is_turbofanned());
-  DCHECK(AllowHeapAllocation::IsAllowed());
   DCHECK(AllowGarbageCollection::IsAllowed());
   DCHECK(isolate->context().is_null());
 
@@ -311,7 +335,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
 
     // Possibly compile for NCI caching.
     if (!MaybeSpawnNativeContextIndependentCompilationJob(
-            function, FLAG_concurrent_recompilation
+            function, isolate->concurrent_recompilation_enabled()
                           ? ConcurrencyMode::kConcurrent
                           : ConcurrencyMode::kNotConcurrent)) {
       return Object();

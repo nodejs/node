@@ -20,13 +20,14 @@ namespace internal {
 namespace wasm {
 
 bool DecodeLocalDecls(const WasmFeatures& enabled, BodyLocalDecls* decls,
-                      const byte* start, const byte* end) {
+                      const WasmModule* module, const byte* start,
+                      const byte* end) {
   WasmFeatures no_features = WasmFeatures::None();
   Zone* zone = decls->type_list.get_allocator().zone();
   WasmDecoder<Decoder::kFullValidation> decoder(
-      zone, nullptr, enabled, &no_features, nullptr, start, end, 0);
+      zone, module, enabled, &no_features, nullptr, start, end, 0);
   uint32_t length;
-  if (!decoder.DecodeLocals(decoder.pc(), &length, 0)) {
+  if (decoder.DecodeLocals(decoder.pc(), &length, 0) < 0) {
     decls->encoded_size = 0;
     return false;
   }
@@ -42,7 +43,7 @@ BytecodeIterator::BytecodeIterator(const byte* start, const byte* end,
                                    BodyLocalDecls* decls)
     : Decoder(start, end) {
   if (decls != nullptr) {
-    if (DecodeLocalDecls(WasmFeatures::All(), decls, start, end)) {
+    if (DecodeLocalDecls(WasmFeatures::All(), decls, nullptr, start, end)) {
       pc_ += decls->encoded_size;
       if (pc_ > end_) pc_ = end_;
     }
@@ -186,7 +187,8 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
       offset = 2;
     }
     if (line_numbers) line_numbers->push_back(i.position());
-    if (opcode == kExprElse || opcode == kExprCatch) {
+    if (opcode == kExprElse || opcode == kExprCatch ||
+        opcode == kExprCatchAll || opcode == kExprUnwind) {
       control_depth--;
     }
 
@@ -236,6 +238,8 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
     switch (opcode) {
       case kExprElse:
       case kExprCatch:
+      case kExprCatchAll:
+      case kExprUnwind:
         os << " @" << i.pc_offset();
         control_depth++;
         break;
@@ -244,7 +248,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
       case kExprBlock:
       case kExprTry: {
         BlockTypeImmediate<Decoder::kNoValidation> imm(WasmFeatures::All(), &i,
-                                                       i.pc() + 1);
+                                                       i.pc() + 1, module);
         os << " @" << i.pc_offset();
         if (decoder.Complete(imm)) {
           for (uint32_t i = 0; i < imm.out_arity(); i++) {
@@ -301,13 +305,13 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
   return decoder.ok();
 }
 
-BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, size_t num_locals,
+BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, uint32_t num_locals,
                                            const byte* start, const byte* end) {
   WasmFeatures no_features = WasmFeatures::None();
   WasmDecoder<Decoder::kFullValidation> decoder(
       zone, nullptr, no_features, &no_features, nullptr, start, end, 0);
   return WasmDecoder<Decoder::kFullValidation>::AnalyzeLoopAssignment(
-      &decoder, start, static_cast<uint32_t>(num_locals), zone);
+      &decoder, start, num_locals, zone);
 }
 
 }  // namespace wasm

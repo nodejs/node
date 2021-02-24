@@ -10,14 +10,12 @@
 namespace v8 {
 namespace metrics {
 
-// TODO(sartang@microsoft.com): Remove wall_clock_time_in_us.
 struct WasmModuleDecoded {
   bool async = false;
   bool streamed = false;
   bool success = false;
   size_t module_size_in_bytes = 0;
   size_t function_count = 0;
-  int64_t wall_clock_time_in_us = -1;
   int64_t wall_clock_duration_in_us = -1;
 };
 
@@ -30,7 +28,6 @@ struct WasmModuleCompiled {
   bool success = false;
   size_t code_size_in_bytes = 0;
   size_t liftoff_bailout_count = 0;
-  int64_t wall_clock_time_in_us = -1;
   int64_t wall_clock_duration_in_us = -1;
 };
 
@@ -38,14 +35,12 @@ struct WasmModuleInstantiated {
   bool async = false;
   bool success = false;
   size_t imported_function_count = 0;
-  int64_t wall_clock_time_in_us = -1;
   int64_t wall_clock_duration_in_us = -1;
 };
 
 struct WasmModuleTieredUp {
   bool lazy = false;
   size_t code_size_in_bytes = 0;
-  int64_t wall_clock_time_in_us = -1;
   int64_t wall_clock_duration_in_us = -1;
 };
 

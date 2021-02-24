@@ -124,9 +124,7 @@ void PlatformEmbeddedFileWriterGeneric::DeclareFunctionBegin(const char* name,
 
 void PlatformEmbeddedFileWriterGeneric::DeclareFunctionEnd(const char* name) {}
 
-void PlatformEmbeddedFileWriterGeneric::FilePrologue() {
-  // TODO(v8:10026): Add ELF note required for BTI.
-}
+void PlatformEmbeddedFileWriterGeneric::FilePrologue() {}
 
 void PlatformEmbeddedFileWriterGeneric::DeclareExternalFilename(
     int fileid, const char* filename) {

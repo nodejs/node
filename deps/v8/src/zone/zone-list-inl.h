@@ -7,6 +7,7 @@
 
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
+#include "src/base/platform/wrappers.h"
 #include "src/utils/memcopy.h"
 #include "src/zone/zone-list.h"
 
@@ -35,7 +36,7 @@ void ZoneList<T>::AddAll(const Vector<const T>& other, Zone* zone) {
   int result_length = length_ + length;
   if (capacity_ < result_length) Resize(result_length, zone);
   if (std::is_trivially_copyable<T>::value) {
-    memcpy(&data_[length_], other.begin(), sizeof(T) * length);
+    base::Memcpy(&data_[length_], other.begin(), sizeof(T) * length);
   } else {
     std::copy(other.begin(), other.end(), &data_[length_]);
   }

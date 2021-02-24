@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include "src/base/bits.h"
+#include "src/base/platform/wrappers.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/objects-inl.h"
 
@@ -52,7 +53,7 @@ Handle<LayoutDescriptor> LayoutDescriptor::ShareAppend(
   layout_descriptor = LayoutDescriptor::EnsureCapacity(
       isolate, layout_descriptor, field_index + details.field_width_in_words());
 
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   LayoutDescriptor layout_desc = *layout_descriptor;
   layout_desc = layout_desc.SetRawData(field_index);
   if (details.field_width_in_words() > 1) {
@@ -64,7 +65,7 @@ Handle<LayoutDescriptor> LayoutDescriptor::ShareAppend(
 Handle<LayoutDescriptor> LayoutDescriptor::AppendIfFastOrUseFull(
     Isolate* isolate, Handle<Map> map, PropertyDetails details,
     Handle<LayoutDescriptor> full_layout_descriptor) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   LayoutDescriptor layout_descriptor = map->layout_descriptor(kAcquireLoad);
   if (layout_descriptor.IsSlowLayout()) {
     return full_layout_descriptor;
@@ -101,9 +102,9 @@ Handle<LayoutDescriptor> LayoutDescriptor::EnsureCapacity(
   DCHECK(new_layout_descriptor->IsSlowLayout());
 
   if (layout_descriptor->IsSlowLayout()) {
-    memcpy(new_layout_descriptor->GetDataStartAddress(),
-           layout_descriptor->GetDataStartAddress(),
-           layout_descriptor->DataSize());
+    base::Memcpy(new_layout_descriptor->GetDataStartAddress(),
+                 layout_descriptor->GetDataStartAddress(),
+                 layout_descriptor->DataSize());
     return new_layout_descriptor;
   } else {
     // Fast layout.
@@ -228,7 +229,7 @@ bool LayoutDescriptorHelper::IsTagged(
 LayoutDescriptor LayoutDescriptor::Trim(Heap* heap, Map map,
                                         DescriptorArray descriptors,
                                         int num_descriptors) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   // Fast mode descriptors are never shared and therefore always fully
   // correspond to their map.
   if (!IsSlowLayout()) return *this;

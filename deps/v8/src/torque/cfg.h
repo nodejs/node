@@ -212,7 +212,7 @@ class CfgAssembler {
   Block* current_block_ = cfg_.start();
 };
 
-class CfgAssemblerScopedTemporaryBlock {
+class V8_NODISCARD CfgAssemblerScopedTemporaryBlock {
  public:
   CfgAssemblerScopedTemporaryBlock(CfgAssembler* assembler, Block* block)
       : assembler_(assembler), saved_block_(block) {

@@ -179,7 +179,7 @@ bool AsmJsParser::Run() {
   return !failed_;
 }
 
-class AsmJsParser::TemporaryVariableScope {
+class V8_NODISCARD AsmJsParser::TemporaryVariableScope {
  public:
   explicit TemporaryVariableScope(AsmJsParser* parser) : parser_(parser) {
     local_depth_ = parser_->function_temp_locals_depth_;

@@ -210,7 +210,7 @@ class Utf16CharacterStream {
 class V8_EXPORT_PRIVATE Scanner {
  public:
   // Scoped helper for a re-settable bookmark.
-  class V8_EXPORT_PRIVATE BookmarkScope {
+  class V8_EXPORT_PRIVATE V8_NODISCARD BookmarkScope {
    public:
     explicit BookmarkScope(Scanner* scanner)
         : scanner_(scanner),
@@ -219,6 +219,8 @@ class V8_EXPORT_PRIVATE Scanner {
       DCHECK_NOT_NULL(scanner_);
     }
     ~BookmarkScope() = default;
+    BookmarkScope(const BookmarkScope&) = delete;
+    BookmarkScope& operator=(const BookmarkScope&) = delete;
 
     void Set(size_t bookmark);
     void Apply();
@@ -232,8 +234,6 @@ class V8_EXPORT_PRIVATE Scanner {
     Scanner* scanner_;
     size_t bookmark_;
     bool had_parser_error_;
-
-    DISALLOW_COPY_AND_ASSIGN(BookmarkScope);
   };
 
   // Sets the Scanner into an error state to stop further scanning and terminate

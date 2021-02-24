@@ -82,7 +82,7 @@ void OSROptimizedCodeCache::Compact(Handle<NativeContext> native_context) {
           CapacityForLength(curr_valid_index), AllocationType::kOld));
   DCHECK_LT(new_osr_cache->length(), osr_cache->length());
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     new_osr_cache->CopyElements(native_context->GetIsolate(), 0, *osr_cache, 0,
                                 new_osr_cache->length(),
                                 new_osr_cache->GetWriteBarrierMode(no_gc));
@@ -93,7 +93,7 @@ void OSROptimizedCodeCache::Compact(Handle<NativeContext> native_context) {
 Code OSROptimizedCodeCache::GetOptimizedCode(Handle<SharedFunctionInfo> shared,
                                              BailoutId osr_offset,
                                              Isolate* isolate) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   int index = FindEntry(shared, osr_offset);
   if (index == -1) return Code();
   Code code = GetCodeFromEntry(index);
@@ -107,8 +107,8 @@ Code OSROptimizedCodeCache::GetOptimizedCode(Handle<SharedFunctionInfo> shared,
 
 void OSROptimizedCodeCache::EvictMarkedCode(Isolate* isolate) {
   // This is called from DeoptimizeMarkedCodeForContext that uses raw pointers
-  // and hence the DisallowHeapAllocation scope here.
-  DisallowHeapAllocation no_gc;
+  // and hence the DisallowGarbageCollection scope here.
+  DisallowGarbageCollection no_gc;
   for (int index = 0; index < length(); index += kEntryLength) {
     MaybeObject code_entry = Get(index + kCachedCodeOffset);
     HeapObject heap_object;
@@ -167,7 +167,7 @@ BailoutId OSROptimizedCodeCache::GetBailoutIdFromEntry(int index) {
 
 int OSROptimizedCodeCache::FindEntry(Handle<SharedFunctionInfo> shared,
                                      BailoutId osr_offset) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   DCHECK(!osr_offset.IsNone());
   for (int index = 0; index < length(); index += kEntryLength) {
     if (GetSFIFromEntry(index) != *shared) continue;

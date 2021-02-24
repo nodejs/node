@@ -65,7 +65,7 @@ int FastAsciiConvert(char* dst, const char* src, int length,
   char* saved_dst = dst;
 #endif
   const char* saved_src = src;
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   // We rely on the distance between upper and lower case letters
   // being a known power of 2.
   DCHECK_EQ('a' - 'A', 1 << 5);

@@ -37,27 +37,6 @@ class DebugScopeIterator final : public debug::ScopeIterator {
   v8::internal::ScopeIterator iterator_;
 };
 
-class DebugWasmScopeIterator final : public debug::ScopeIterator {
- public:
-  DebugWasmScopeIterator(Isolate* isolate, WasmFrame* frame);
-
-  bool Done() override;
-  void Advance() override;
-  ScopeType GetType() override;
-  v8::Local<v8::Object> GetObject() override;
-  v8::Local<v8::Value> GetFunctionDebugName() override;
-  int GetScriptId() override;
-  bool HasLocationInfo() override;
-  debug::Location GetStartLocation() override;
-  debug::Location GetEndLocation() override;
-
-  bool SetVariableValue(v8::Local<v8::String> name,
-                        v8::Local<v8::Value> value) override;
- private:
-  Isolate* isolate_;
-  WasmFrame* frame_;
-  ScopeType type_;
-};
 }  // namespace internal
 }  // namespace v8
 

@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_CPPGC_MARKING_STATE_H_
 #define V8_HEAP_CPPGC_MARKING_STATE_H_
 
+#include <algorithm>
+
 #include "include/cppgc/trace-trait.h"
 #include "src/heap/cppgc/compaction-worklists.h"
 #include "src/heap/cppgc/globals.h"
@@ -118,9 +120,7 @@ class MarkingStateBase {
     return movable_slots_worklist_.get();
   }
 
-#ifdef DEBUG
   HeapBase& heap_;
-#endif  // DEBUG
 
   MarkingWorklists::MarkingWorklist::Local marking_worklist_;
   MarkingWorklists::NotFullyConstructedWorklist&
@@ -148,9 +148,7 @@ MarkingStateBase::MarkingStateBase(HeapBase& heap,
                                    MarkingWorklists& marking_worklists,
                                    CompactionWorklists* compaction_worklists)
     :
-#ifdef DEBUG
       heap_(heap),
-#endif  // DEBUG
       marking_worklist_(marking_worklists.marking_worklist()),
       not_fully_constructed_worklist_(
           *marking_worklists.not_fully_constructed_worklist()),
@@ -317,11 +315,28 @@ class MutatorMarkingState : public MarkingStateBase {
                                               WeakCallback, const void*);
 
   inline bool IsMarkedWeakContainer(HeapObjectHeader&);
+
+ private:
+  // Weak containers are strongly retraced during conservative stack scanning.
+  // Stack scanning happens once per GC at the start of the atomic pause.
+  // Because the visitor is not retained between GCs, there is no need to clear
+  // the set at the end of GC.
+  class RecentlyRetracedWeakContainers {
+    static constexpr size_t kMaxCacheSize = 8;
+
+   public:
+    inline bool Contains(const HeapObjectHeader*);
+    inline void Insert(const HeapObjectHeader*);
+
+   private:
+    std::vector<const HeapObjectHeader*> recently_retraced_cache_;
+    size_t last_used_index_ = -1;
+  } recently_retraced_weak_containers_;
 };
 
 void MutatorMarkingState::PushMarkedWeakContainer(HeapObjectHeader& header) {
   DCHECK(weak_containers_worklist_.Contains(&header));
-  weak_containers_worklist_.Erase(&header);
+  recently_retraced_weak_containers_.Insert(&header);
   PushMarked(
       header,
       {header.Payload(),
@@ -354,9 +369,27 @@ void MutatorMarkingState::InvokeWeakRootsCallbackIfNeeded(
 }
 
 bool MutatorMarkingState::IsMarkedWeakContainer(HeapObjectHeader& header) {
-  const bool result = weak_containers_worklist_.Contains(&header);
+  const bool result = weak_containers_worklist_.Contains(&header) &&
+                      !recently_retraced_weak_containers_.Contains(&header);
   DCHECK_IMPLIES(result, header.IsMarked());
+  DCHECK_IMPLIES(result, !header.IsInConstruction());
   return result;
+}
+
+bool MutatorMarkingState::RecentlyRetracedWeakContainers::Contains(
+    const HeapObjectHeader* header) {
+  return std::find(recently_retraced_cache_.begin(),
+                   recently_retraced_cache_.end(),
+                   header) != recently_retraced_cache_.end();
+}
+
+void MutatorMarkingState::RecentlyRetracedWeakContainers::Insert(
+    const HeapObjectHeader* header) {
+  last_used_index_ = (last_used_index_ + 1) % kMaxCacheSize;
+  if (recently_retraced_cache_.size() <= last_used_index_)
+    recently_retraced_cache_.push_back(header);
+  else
+    recently_retraced_cache_[last_used_index_] = header;
 }
 
 class ConcurrentMarkingState : public MarkingStateBase {

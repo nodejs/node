@@ -217,13 +217,13 @@ void DescriptorArray::Set(InternalIndex descriptor_number, Descriptor* desc) {
 }
 
 void DescriptorArray::Append(Descriptor* desc) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   int descriptor_number = number_of_descriptors();
   DCHECK_LE(descriptor_number + 1, number_of_all_descriptors());
   set_number_of_descriptors(descriptor_number + 1);
   Set(InternalIndex(descriptor_number), desc);
 
-  uint32_t hash = desc->GetKey()->Hash();
+  uint32_t hash = desc->GetKey()->hash();
 
   int insertion;
 

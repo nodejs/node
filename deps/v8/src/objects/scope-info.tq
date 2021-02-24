@@ -21,7 +21,7 @@ type VariableAllocationInfo extends uint32
 constexpr 'VariableAllocationInfo';
 
 // Properties of scopes.
-bitfield struct ScopeFlags extends uint32 {
+bitfield struct ScopeFlags extends uint31 {
   scope_type: ScopeType: 4 bit;
   sloppy_eval_can_extend_vars: bool: 1 bit;
   language_mode: LanguageMode: 1 bit;
@@ -44,4 +44,5 @@ bitfield struct ScopeFlags extends uint32 {
   has_context_extension_slot: bool: 1 bit;
   is_repl_mode_scope: bool: 1 bit;
   has_locals_block_list: bool: 1 bit;
+  is_empty: bool: 1 bit;
 }

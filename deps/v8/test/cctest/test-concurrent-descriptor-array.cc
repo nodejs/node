@@ -10,6 +10,7 @@
 #include "src/heap/heap.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/local-heap.h"
+#include "src/heap/parked-scope.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
@@ -80,7 +81,7 @@ TEST(LinearSearchFlatObject) {
   HandleScope handle_scope(isolate);
 
   Handle<JSFunction> function =
-      factory->NewFunctionForTest(factory->empty_string());
+      factory->NewFunctionForTesting(factory->empty_string());
   Handle<JSObject> js_object = factory->NewJSObject(function);
   Handle<String> name = CcTest::MakeString("property");
   Handle<Object> value = CcTest::MakeString("dummy_value");
@@ -132,7 +133,7 @@ TEST(LinearSearchFlatObject_ManyElements) {
   HandleScope handle_scope(isolate);
 
   Handle<JSFunction> function =
-      factory->NewFunctionForTest(factory->empty_string());
+      factory->NewFunctionForTesting(factory->empty_string());
   Handle<JSObject> js_object = factory->NewJSObject(function);
   Handle<String> name = CcTest::MakeString("property");
   Handle<Object> value = CcTest::MakeString("dummy_value");

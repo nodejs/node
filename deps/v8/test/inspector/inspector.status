@@ -80,6 +80,7 @@
 ['(arch == ppc64) and simulator_run', {
   # Slow test: https://crbug.com/v8/10965
   'runtime/console-messages-limits': [PASS, SLOW],
+  'debugger/regress-1125934': [PASS, SLOW],
 }],  # (arch == ppc64) and simulator_run
 
 ##############################################################################
@@ -151,7 +152,7 @@
   # Skip tests that fail with GC stress: https://crbug.com/v8/10748
   'debugger/wasm-debug-command': [SKIP],
   'debugger/wasm-global-names': [SKIP],
-  'debugger/wasm-set-breakpoint-liftoff': [SKIP],
+  'debugger/wasm-set-breakpoint': [SKIP],
   'debugger/wasm-source': [SKIP],
   'debugger/wasm-stepping-with-skiplist': [SKIP],
 }], # stress_js_bg_compile_wasm_code_gc
@@ -163,6 +164,9 @@
   'cpu-profiler/coverage-block': [SKIP],
   'runtime/internal-properties-entries': [SKIP],
   'runtime-call-stats/collection': [SKIP],
+
+  # Skip tests that might fail with concurrent allocation
+  'debugger/pause-on-oom-wide': [SKIP],
 }], # stress_concurrent_allocation
 
 ##############################################################################

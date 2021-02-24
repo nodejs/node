@@ -18,7 +18,8 @@
   --blue: #6e77dc;
   --orange: #dc9b6e;
   --violet: #d26edc;
-  --border-color: 128, 128, 128;
+  --border-color-rgb: 128, 128, 128;
+  --border-color: rgba(var(--border-color-rgb), 0.2);
 }
 
 [data-theme="light"] {
@@ -110,19 +111,62 @@ dd {
 .panel {
   background-color: var(--surface-color);
   color: var(--on-surface-color);
-  padding: 10px 10px 10px 10px;
+  padding: 10px;
   border-radius: 10px;
-  border: 3px solid rgba(var(--border-color), 0.2);
+  border: 3px solid var(--border-color);
+  overflow: hidden;
 }
 
 .panelBody {
+  position: relative;
   max-height: 800px;
   overflow-y: scroll;
   margin: 0 -10px -10px 0;
 }
 
-.panel > h2 {
-  margin-top: 5px;
+.panel > h2, .panelTitle {
+  margin: -10px -10px 0 -10px;
+  padding: 5px 10px 5px 10px;
+  background-color: var(--border-color);
+  border-radius: 7px 7px 0 0;
+  font-weight: 400;
+}
+
+.panel > select{
+  width: calc(100% + 20px);
+  margin: 0 -10px 10px -10px;
+}
+
+.panel > .selection {
+  display: flex;
+  margin: 0 -10px 0 -10px;
+}
+.panel > .selection input {
+  display: none;
+}
+
+.panel > .selection label {
+  flex: 1;
+  padding: 5px;
+  cursor: pointer;
+  background-color: var( --surface-color);
+  font-weight: normal;
+  text-align: center;
+}
+.panel > .selection label ~ label {
+  border-left: 2px var(--border-color) solid;
+}
+
+.panel > .selection label:hover {
+  background-color: var(--primary-color);
+}
+.panel > .selection [type=radio]:checked + label {
+  background-color: var(--border-color);
+}
+
+.panel > .selection  select {
+  flex: 1;
+  width: 50%;
 }
 
 button {
@@ -133,17 +177,18 @@ select,
 button {
   background-color: var(--surface-color);
   color: var(--on-surface-color);
-  border: 2px solid rgba(var(--border-color), 0.4);
+  border: 2px solid rgba(var(--border-color-rgb), 0.4);
   border-radius: 5px;
   padding: 2px;
 }
 input:hover,
 select:hover,
 button:hover {
-  border: 2px solid rgba(var(--border-color), 0.6);
+  border: 2px solid rgba(var(--border-color-rgb), 0.6);
 }
 
 .colorbox {
+  display: inline-block;
   width: 10px;
   height: 10px;
   border: 1px var(--background-color) solid;
@@ -192,6 +237,8 @@ button:hover {
   background-color: var(--primary-color);
   color: var(--on-primary-color);
 }
+
+button:hover,
 .clickable:hover,
 .mark:hover,
 .clickable:active,
@@ -199,4 +246,48 @@ button:hover {
   background-color: var(--primary-color);
   color: var(--on-primary-color);
   cursor: pointer;
+}
+
+
+.legend {
+  position: absolute;
+  right: 0px;
+  top: 0px;
+  background-color: var(--surface-color);
+  border-radius: 5px;
+  border: 3px solid var(--border-color);
+  padding: 0 10px 0 10px;
+}
+.legend dt  {
+  font-family: monospace;
+}
+.legend h3 {
+  margin-top: 10px;
+}
+
+
+.panelCloserLabel {
+  float: left;
+  cursor: zoom-out;
+  margin: 0 10px 0 0;
+  transition: transform 0.2s ease-out;
+  user-select: none;
+}
+.panelCloserInput {
+  display: none;
+}
+.panel .panelCloserInput:checked ~ .panelCloserLabel,
+.panelCloserInput:checked ~ .panelCloserLabel {
+  cursor: zoom-in;
+  transform: rotate(-90deg);
+  display: inherit;
+}
+.panel .panelCloserInput:checked ~ h2 {
+  display: inherit;
+  border-radius: 7px;
+  margin-bottom: -20px;
+  padding-bottom: 10px;
+}
+.panelCloserInput:checked ~ * {
+  display: none;
 }

@@ -1414,9 +1414,6 @@ class JSLoadNamedFromSuperNode final : public JSNodeWrapperBase {
 
   const NamedAccess& Parameters() const { return NamedAccessOf(node()->op()); }
 
-  // TODO(marja, v8:9237): A more intuitive order would be (home_object,
-  // receiver, feedback_vector). The order can be changed once we no longer
-  // delegate to Runtime_LoadFromSuper.
 #define INPUTS(V)                       \
   V(Receiver, receiver, 0, Object)      \
   V(HomeObject, home_object, 1, Object) \

@@ -206,12 +206,12 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
   // Load function index to r7. 6 bytes
   lgfi(kWasmCompileLazyFuncIndexRegister, Operand(func_index));
   // Jump to {lazy_compile_target}. 6 bytes or 12 bytes
-  mov(r1, Operand(lazy_compile_target));
+  mov(r1, Operand(lazy_compile_target, RelocInfo::CODE_TARGET));
   b(r1);  // 2 bytes
 }
 
 bool JumpTableAssembler::EmitJumpSlot(Address target) {
-  mov(r1, Operand(target));
+  mov(r1, Operand(target, RelocInfo::CODE_TARGET));
   b(r1);
   return true;
 }

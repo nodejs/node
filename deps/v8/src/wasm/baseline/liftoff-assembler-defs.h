@@ -69,66 +69,19 @@ constexpr RegList kLiftoffAssemblerFpCacheRegs = CPURegister::ListOf(
     d0, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12, d13, d14, d16, d17,
     d18, d19, d20, d21, d22, d23, d24, d25, d26, d27, d28, d29);
 
+#elif V8_TARGET_ARCH_S390X
+
+constexpr RegList kLiftoffAssemblerGpCacheRegs =
+    Register::ListOf(r2, r3, r4, r5, r6, r7, r8);
+
+constexpr RegList kLiftoffAssemblerFpCacheRegs = DoubleRegister::ListOf(
+    d0, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12);
+
 #else
 
 constexpr RegList kLiftoffAssemblerGpCacheRegs = 0xff;
 
 constexpr RegList kLiftoffAssemblerFpCacheRegs = 0xff;
-
-#endif
-
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
-
-constexpr Condition kEqual = equal;
-constexpr Condition kUnequal = not_equal;
-constexpr Condition kSignedLessThan = less;
-constexpr Condition kSignedLessEqual = less_equal;
-constexpr Condition kSignedGreaterThan = greater;
-constexpr Condition kSignedGreaterEqual = greater_equal;
-constexpr Condition kUnsignedLessThan = below;
-constexpr Condition kUnsignedLessEqual = below_equal;
-constexpr Condition kUnsignedGreaterThan = above;
-constexpr Condition kUnsignedGreaterEqual = above_equal;
-
-#elif V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
-
-constexpr Condition kEqual = eq;
-constexpr Condition kUnequal = ne;
-constexpr Condition kSignedLessThan = lt;
-constexpr Condition kSignedLessEqual = le;
-constexpr Condition kSignedGreaterThan = gt;
-constexpr Condition kSignedGreaterEqual = ge;
-constexpr Condition kUnsignedLessThan = ult;
-constexpr Condition kUnsignedLessEqual = ule;
-constexpr Condition kUnsignedGreaterThan = ugt;
-constexpr Condition kUnsignedGreaterEqual = uge;
-
-#elif V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64
-
-constexpr Condition kEqual = eq;
-constexpr Condition kUnequal = ne;
-constexpr Condition kSignedLessThan = lt;
-constexpr Condition kSignedLessEqual = le;
-constexpr Condition kSignedGreaterThan = gt;
-constexpr Condition kSignedGreaterEqual = ge;
-constexpr Condition kUnsignedLessThan = lo;
-constexpr Condition kUnsignedLessEqual = ls;
-constexpr Condition kUnsignedGreaterThan = hi;
-constexpr Condition kUnsignedGreaterEqual = hs;
-
-#else
-
-// On unimplemented platforms, just make this compile.
-constexpr Condition kEqual = static_cast<Condition>(0);
-constexpr Condition kUnequal = static_cast<Condition>(0);
-constexpr Condition kSignedLessThan = static_cast<Condition>(0);
-constexpr Condition kSignedLessEqual = static_cast<Condition>(0);
-constexpr Condition kSignedGreaterThan = static_cast<Condition>(0);
-constexpr Condition kSignedGreaterEqual = static_cast<Condition>(0);
-constexpr Condition kUnsignedLessThan = static_cast<Condition>(0);
-constexpr Condition kUnsignedLessEqual = static_cast<Condition>(0);
-constexpr Condition kUnsignedGreaterThan = static_cast<Condition>(0);
-constexpr Condition kUnsignedGreaterEqual = static_cast<Condition>(0);
 
 #endif
 

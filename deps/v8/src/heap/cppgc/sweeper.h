@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "include/cppgc/heap.h"
 #include "src/base/macros.h"
 
 namespace cppgc {
@@ -22,7 +23,7 @@ class ConcurrentSweeperTest;
 class V8_EXPORT_PRIVATE Sweeper final {
  public:
   struct SweepingConfig {
-    enum class SweepingType : uint8_t { kAtomic, kIncrementalAndConcurrent };
+    using SweepingType = cppgc::Heap::SweepingType;
     enum class CompactableSpaceHandling { kSweep, kIgnore };
 
     SweepingType sweeping_type = SweepingType::kIncrementalAndConcurrent;
@@ -39,6 +40,7 @@ class V8_EXPORT_PRIVATE Sweeper final {
   // Sweeper::Start assumes the heap holds no linear allocation buffers.
   void Start(SweepingConfig);
   void FinishIfRunning();
+  void NotifyDoneIfNeeded();
 
  private:
   void WaitForConcurrentSweepingForTesting();

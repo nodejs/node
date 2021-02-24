@@ -3,10 +3,12 @@
 // found in the LICENSE file.
 
 #include "src/heap/safepoint.h"
+
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/heap/heap.h"
 #include "src/heap/local-heap.h"
+#include "src/heap/parked-scope.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -142,26 +144,6 @@ TEST_F(SafepointTest, StopRunningThreads) {
   }
 
   CHECK_EQ(safepoint_count, kRuns * kSafepoints);
-}
-
-TEST_F(SafepointTest, SkipLocalHeapOfThisThread) {
-  EnsureFlagLocalHeapsEnabled();
-  Heap* heap = i_isolate()->heap();
-  LocalHeap local_heap(heap, ThreadKind::kMain);
-  UnparkedScope unparked_scope(&local_heap);
-  {
-    SafepointScope scope(heap);
-    local_heap.Safepoint();
-  }
-  {
-    ParkedScope parked_scope(&local_heap);
-    SafepointScope scope(heap);
-    local_heap.Safepoint();
-  }
-  {
-    SafepointScope scope(heap);
-    local_heap.Safepoint();
-  }
 }
 
 }  // namespace internal

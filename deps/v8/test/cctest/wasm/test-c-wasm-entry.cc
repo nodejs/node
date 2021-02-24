@@ -91,7 +91,7 @@ class CWasmEntryArgTester {
 TEST(TestCWasmEntryArgPassing_int32) {
   CWasmEntryArgTester<int32_t, int32_t> tester(
       {// Return 2*<0> + 1.
-       WASM_I32_ADD(WASM_I32_MUL(WASM_I32V_1(2), WASM_GET_LOCAL(0)), WASM_ONE)},
+       WASM_I32_ADD(WASM_I32_MUL(WASM_I32V_1(2), WASM_LOCAL_GET(0)), WASM_ONE)},
       [](int32_t a) {
         return base::AddWithWraparound(base::MulWithWraparound(2, a), 1);
       });
@@ -103,7 +103,7 @@ TEST(TestCWasmEntryArgPassing_int32) {
 TEST(TestCWasmEntryArgPassing_double_int64) {
   CWasmEntryArgTester<double, int64_t> tester(
       {// Return (double)<0>.
-       WASM_F64_SCONVERT_I64(WASM_GET_LOCAL(0))},
+       WASM_F64_SCONVERT_I64(WASM_LOCAL_GET(0))},
       [](int64_t a) { return static_cast<double>(a); });
 
   FOR_INT64_INPUTS(v) { tester.CheckCall(v); }
@@ -113,7 +113,7 @@ TEST(TestCWasmEntryArgPassing_double_int64) {
 TEST(TestCWasmEntryArgPassing_int64_double) {
   CWasmEntryArgTester<int64_t, double> tester(
       {// Return (int64_t)<0>.
-       WASM_I64_SCONVERT_F64(WASM_GET_LOCAL(0))},
+       WASM_I64_SCONVERT_F64(WASM_LOCAL_GET(0))},
       [](double d) { return static_cast<int64_t>(d); });
 
   FOR_FLOAT64_INPUTS(d) {
@@ -128,7 +128,7 @@ TEST(TestCWasmEntryArgPassing_float_double) {
   CWasmEntryArgTester<double, float> tester(
       {// Return 2*(double)<0> + 1.
        WASM_F64_ADD(
-           WASM_F64_MUL(WASM_F64(2), WASM_F64_CONVERT_F32(WASM_GET_LOCAL(0))),
+           WASM_F64_MUL(WASM_F64(2), WASM_F64_CONVERT_F32(WASM_LOCAL_GET(0))),
            WASM_F64(1))},
       [](float f) { return 2. * static_cast<double>(f) + 1.; });
 
@@ -139,7 +139,7 @@ TEST(TestCWasmEntryArgPassing_float_double) {
 TEST(TestCWasmEntryArgPassing_double_double) {
   CWasmEntryArgTester<double, double, double> tester(
       {// Return <0> + <1>.
-       WASM_F64_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))},
+       WASM_F64_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
       [](double a, double b) { return a + b; });
 
   FOR_FLOAT64_INPUTS(d1) {
@@ -156,11 +156,11 @@ TEST(TestCWasmEntryArgPassing_AllTypes) {
               WASM_F64_ADD(      // <0+1> + <2>
                   WASM_F64_ADD(  // <0> + <1>
                       WASM_F64_SCONVERT_I32(
-                          WASM_GET_LOCAL(0)),  // <0> to double
+                          WASM_LOCAL_GET(0)),  // <0> to double
                       WASM_F64_SCONVERT_I64(
-                          WASM_GET_LOCAL(1))),               // <1> to double
-                  WASM_F64_CONVERT_F32(WASM_GET_LOCAL(2))),  // <2> to double
-              WASM_GET_LOCAL(3))                             // <3>
+                          WASM_LOCAL_GET(1))),               // <1> to double
+                  WASM_F64_CONVERT_F32(WASM_LOCAL_GET(2))),  // <2> to double
+              WASM_LOCAL_GET(3))                             // <3>
       },
       [](int32_t a, int64_t b, float c, double d) {
         return 0. + a + b + c + d;

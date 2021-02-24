@@ -259,7 +259,6 @@ RUNTIME_FUNCTION(Runtime_ResolvePromise) {
 // A helper function to be called when constructing AggregateError objects. This
 // takes care of the Error-related construction, e.g., stack traces.
 RUNTIME_FUNCTION(Runtime_ConstructAggregateErrorHelper) {
-  DCHECK(FLAG_harmony_promise_any);
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, target, 0);
@@ -278,7 +277,6 @@ RUNTIME_FUNCTION(Runtime_ConstructAggregateErrorHelper) {
 // A helper function to be called when constructing AggregateError objects. This
 // takes care of the Error-related construction, e.g., stack traces.
 RUNTIME_FUNCTION(Runtime_ConstructInternalAggregateErrorHelper) {
-  DCHECK(FLAG_harmony_promise_any);
   HandleScope scope(isolate);
   DCHECK_GE(args.length(), 1);
   CONVERT_ARG_HANDLE_CHECKED(Smi, message, 0);

@@ -92,7 +92,7 @@ BasicBlockProfilerData* BasicBlockInstrumentor::Instrument(
   } else {
     counters_array = graph->NewNode(PointerConstant(&common, data->counts()));
   }
-  Node* one = graph->NewNode(common.Int32Constant(1));
+  Node* one = graph->NewNode(common.Float64Constant(1));
   BasicBlockVector* blocks = schedule->rpo_order();
   size_t block_number = 0;
   for (BasicBlockVector::iterator it = blocks->begin(); block_number < n_blocks;
@@ -104,18 +104,18 @@ BasicBlockProfilerData* BasicBlockInstrumentor::Instrument(
     // It is unnecessary to wire effect and control deps for load and store
     // since this happens after scheduling.
     // Construct increment operation.
-    int offset_to_counter_value = static_cast<int>(block_number) * kInt32Size;
+    int offset_to_counter_value = static_cast<int>(block_number) * kDoubleSize;
     if (on_heap_counters) {
       offset_to_counter_value += ByteArray::kHeaderSize - kHeapObjectTag;
     }
     Node* offset_to_counter =
         graph->NewNode(IntPtrConstant(&common, offset_to_counter_value));
     Node* load =
-        graph->NewNode(machine.Load(MachineType::Uint32()), counters_array,
+        graph->NewNode(machine.Load(MachineType::Float64()), counters_array,
                        offset_to_counter, graph->start(), graph->start());
-    Node* inc = graph->NewNode(machine.Int32Add(), load, one);
+    Node* inc = graph->NewNode(machine.Float64Add(), load, one);
     Node* store = graph->NewNode(
-        machine.Store(StoreRepresentation(MachineRepresentation::kWord32,
+        machine.Store(StoreRepresentation(MachineRepresentation::kFloat64,
                                           kNoWriteBarrier)),
         counters_array, offset_to_counter, inc, graph->start(), graph->start());
     // Insert the new nodes.

@@ -18,6 +18,7 @@
 #include "src/handles/handles.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/local-heap.h"
+#include "src/heap/parked-scope.h"
 #include "src/interpreter/bytecode-array-accessor.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/feedback-vector.h"
@@ -32,7 +33,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class BytecodeAnalysis;
 class ObjectRef;
 
 std::ostream& operator<<(std::ostream& os, const ObjectRef& ref);
@@ -166,10 +166,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   ElementAccessFeedback const& ProcessFeedbackMapsForElementAccess(
       MapHandles const& maps, KeyedAccessMode const& keyed_mode,
       FeedbackSlotKind slot_kind);
-  BytecodeAnalysis const& GetBytecodeAnalysis(
-      Handle<BytecodeArray> bytecode_array, BailoutId osr_offset,
-      bool analyze_liveness,
-      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
 
   // Binary, comparison and for-in hints can be fully expressed via
   // an enum. Insufficient feedback is signaled by <Hint enum>::kNone.
@@ -382,7 +378,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   ZoneUnorderedMap<FeedbackSource, ProcessedFeedback const*,
                    FeedbackSource::Hash, FeedbackSource::Equal>
       feedback_;
-  ZoneUnorderedMap<ObjectData*, BytecodeAnalysis*> bytecode_analyses_;
   ZoneUnorderedMap<PropertyAccessTarget, PropertyAccessInfo,
                    PropertyAccessTarget::Hash, PropertyAccessTarget::Equal>
       property_access_infos_;
@@ -413,7 +408,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   static const uint32_t kInitialRefsBucketCount = 1024;  // must be power of 2
 };
 
-class TraceScope {
+class V8_NODISCARD TraceScope {
  public:
   TraceScope(JSHeapBroker* broker, const char* label)
       : TraceScope(broker, static_cast<void*>(broker), label) {}
@@ -472,7 +467,7 @@ class OffHeapBytecodeArray final : public interpreter::AbstractBytecodeArray {
 //   d) The given condition evaluates to true.
 // Used, for example, when printing the graph with --trace-turbo with a
 // previously parked LocalHeap.
-class UnparkedScopeIfNeeded {
+class V8_NODISCARD UnparkedScopeIfNeeded {
  public:
   explicit UnparkedScopeIfNeeded(JSHeapBroker* broker,
                                  bool extra_condition = true) {

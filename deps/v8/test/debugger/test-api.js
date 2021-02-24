@@ -715,6 +715,7 @@ class DebugWrapper {
       case "EventListener":
       case "assert":
       case "debugCommand":
+      case "CSPViolation":
         assertUnreachable();
       default:
         assertUnreachable();

@@ -26,7 +26,7 @@ class VMState {
   StateTag previous_tag_;
 };
 
-class ExternalCallbackScope {
+class V8_NODISCARD ExternalCallbackScope {
  public:
   inline ExternalCallbackScope(Isolate* isolate, Address callback);
   inline ~ExternalCallbackScope();

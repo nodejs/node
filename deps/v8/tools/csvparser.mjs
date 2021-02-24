@@ -62,7 +62,11 @@ export class CsvParser {
         }
         // Convert the selected escape sequence to a single character.
         let escapeChars = string.substring(pos, nextPos);
-        result += String.fromCharCode(parseInt(escapeChars, 16));
+        if (escapeChars === '2C') {
+            result += ',';
+        } else {
+          result += String.fromCharCode(parseInt(escapeChars, 16));
+        }
       }
 
       // Continue looking for the next escape sequence.

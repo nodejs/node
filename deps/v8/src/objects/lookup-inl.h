@@ -9,6 +9,7 @@
 
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory-inl.h"
+#include "src/logging/counters.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/map-inl.h"
@@ -205,6 +206,8 @@ bool LookupIterator::IsCacheableTransition() {
 // static
 void LookupIterator::UpdateProtector(Isolate* isolate, Handle<Object> receiver,
                                      Handle<Name> name) {
+  RuntimeCallTimerScope scope(isolate, RuntimeCallCounterId::kUpdateProtector);
+
   // This list must be kept in sync with
   // CodeStubAssembler::CheckForAssociatedProtector!
   ReadOnlyRoots roots(isolate);

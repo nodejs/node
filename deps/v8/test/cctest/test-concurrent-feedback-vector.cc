@@ -12,6 +12,7 @@
 #include "src/handles/persistent-handles.h"
 #include "src/heap/heap.h"
 #include "src/heap/local-heap.h"
+#include "src/heap/parked-scope.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
@@ -155,8 +156,8 @@ static void CheckedWait(base::Semaphore& semaphore) {
 // Verify that a LoadIC can be cycled through different states and safely
 // read on a background thread.
 TEST(CheckLoadICStates) {
+  heap::EnsureFlagLocalHeapsEnabled();
   CcTest::InitializeVM();
-  FLAG_local_heaps = true;
   FLAG_lazy_feedback_allocation = false;
   Isolate* isolate = CcTest::i_isolate();
 

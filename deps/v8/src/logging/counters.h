@@ -36,6 +36,9 @@ class Counters;
 
 class StatsTable {
  public:
+  StatsTable(const StatsTable&) = delete;
+  StatsTable& operator=(const StatsTable&) = delete;
+
   // Register an application-defined function for recording
   // subsequent counter statistics.
   void SetCounterFunction(CounterLookupCallback f);
@@ -90,8 +93,6 @@ class StatsTable {
   CounterLookupCallback lookup_function_;
   CreateHistogramCallback create_histogram_function_;
   AddHistogramSampleCallback add_histogram_sample_function_;
-
-  DISALLOW_COPY_AND_ASSIGN(StatsTable);
 };
 
 // Base class for stats counters.
@@ -293,7 +294,7 @@ class TimedHistogram : public Histogram {
 };
 
 // Helper class for scoping a TimedHistogram.
-class TimedHistogramScope {
+class V8_NODISCARD TimedHistogramScope {
  public:
   explicit TimedHistogramScope(TimedHistogram* histogram,
                                Isolate* isolate = nullptr)
@@ -315,7 +316,7 @@ enum class OptionalTimedHistogramScopeMode { TAKE_TIME, DONT_TAKE_TIME };
 
 // Helper class for scoping a TimedHistogram.
 // It will not take time for mode = DONT_TAKE_TIME.
-class OptionalTimedHistogramScope {
+class V8_NODISCARD OptionalTimedHistogramScope {
  public:
   OptionalTimedHistogramScope(TimedHistogram* histogram, Isolate* isolate,
                               OptionalTimedHistogramScopeMode mode)
@@ -375,7 +376,7 @@ class AsyncTimedHistogram {
 // correctly even if Start() was not called. This happens to be true iff Stop()
 // is passed a null isolate, but that's an implementation detail of
 // TimedHistogram, and we shouldn't rely on it.
-class LazyTimedHistogramScope {
+class V8_NODISCARD LazyTimedHistogramScope {
  public:
   LazyTimedHistogramScope() : histogram_(nullptr) { timer_.Start(); }
   ~LazyTimedHistogramScope() {
@@ -426,7 +427,7 @@ class HistogramTimer : public TimedHistogram {
 // Parser is currently reentrant (when it throws an error, we call back
 // into JavaScript and all bets are off), but ElapsedTimer is not
 // reentry-safe. Fix this properly and remove |allow_nesting|.
-class HistogramTimerScope {
+class V8_NODISCARD HistogramTimerScope {
  public:
   explicit HistogramTimerScope(HistogramTimer* timer,
                                bool allow_nesting = false)
@@ -502,7 +503,7 @@ class AggregatableHistogramTimer : public Histogram {
 // A helper class for use with AggregatableHistogramTimer. This is the
 // // outer-most timer scope used with an AggregatableHistogramTimer. It will
 // // aggregate the information from the inner AggregatedHistogramTimerScope.
-class AggregatingHistogramTimerScope {
+class V8_NODISCARD AggregatingHistogramTimerScope {
  public:
   explicit AggregatingHistogramTimerScope(AggregatableHistogramTimer* histogram)
       : histogram_(histogram) {
@@ -516,7 +517,7 @@ class AggregatingHistogramTimerScope {
 
 // A helper class for use with AggregatableHistogramTimer, the "inner" scope
 // // which defines the events to be timed.
-class AggregatedHistogramTimerScope {
+class V8_NODISCARD AggregatedHistogramTimerScope {
  public:
   explicit AggregatedHistogramTimerScope(AggregatableHistogramTimer* histogram)
       : histogram_(histogram) {
@@ -868,6 +869,7 @@ class RuntimeCallTimer final {
   V(ValueDeserializer_ReadHeader)                          \
   V(ValueDeserializer_ReadValue)                           \
   V(ValueSerializer_WriteValue)                            \
+  V(Value_Equals)                                          \
   V(Value_InstanceOf)                                      \
   V(Value_Int32Value)                                      \
   V(Value_IntegerValue)                                    \
@@ -975,6 +977,8 @@ class RuntimeCallTimer final {
   V(CompilePublishBackgroundFinalization)      \
   V(CompileSerialize)                          \
   V(CompileWaitForDispatcher)                  \
+  V(ConfigureInstance)                         \
+  V(CreateApiFunction)                         \
   V(DeoptimizeCode)                            \
   V(DeserializeContext)                        \
   V(DeserializeIsolate)                        \
@@ -989,6 +993,7 @@ class RuntimeCallTimer final {
   V(GCEpilogueCallback)                        \
   V(GCPrologueCallback)                        \
   V(Genesis)                                   \
+  V(GetCompatibleReceiver)                     \
   V(GetMoreDataCallback)                       \
   V(IndexedDefinerCallback)                    \
   V(IndexedDeleterCallback)                    \
@@ -997,9 +1002,14 @@ class RuntimeCallTimer final {
   V(IndexedGetterCallback)                     \
   V(IndexedQueryCallback)                      \
   V(IndexedSetterCallback)                     \
+  V(InstantiateFunction)                       \
+  V(InstantiateObject)                         \
   V(Invoke)                                    \
   V(InvokeApiFunction)                         \
   V(InvokeApiInterruptCallbacks)               \
+  V(IsCompatibleReceiver)                      \
+  V(IsCompatibleReceiverMap)                   \
+  V(IsTemplateFor)                             \
   V(JS_Execution)                              \
   V(Map_SetPrototype)                          \
   V(Map_TransitionToAccessorProperty)          \
@@ -1016,8 +1026,8 @@ class RuntimeCallTimer final {
   V(ObjectVerify)                              \
   V(OptimizeBackgroundDispatcherJob)           \
   V(OptimizeCode)                              \
-  V(OptimizeConcurrentPrepare)                 \
   V(OptimizeConcurrentFinalize)                \
+  V(OptimizeConcurrentPrepare)                 \
   V(OptimizeFinalizePipelineJob)               \
   V(OptimizeHeapBrokerInitialization)          \
   V(OptimizeNonConcurrent)                     \
@@ -1030,6 +1040,7 @@ class RuntimeCallTimer final {
   V(PrototypeMap_TransitionToDataProperty)     \
   V(PrototypeObject_DeleteProperty)            \
   V(ReconfigureToDataProperty)                 \
+  V(UpdateProtector)                           \
   V(StringLengthGetter)                        \
   V(TestCounter1)                              \
   V(TestCounter2)                              \
@@ -1233,7 +1244,7 @@ class WorkerThreadRuntimeCallStats final {
 // Creating a WorkerThreadRuntimeCallStatsScope will provide a thread-local
 // runtime call stats table, and will dump the table to an immediate trace event
 // when it is destroyed.
-class WorkerThreadRuntimeCallStatsScope final {
+class V8_NODISCARD WorkerThreadRuntimeCallStatsScope final {
  public:
   explicit WorkerThreadRuntimeCallStatsScope(
       WorkerThreadRuntimeCallStats* off_thread_stats);
@@ -1260,7 +1271,7 @@ class WorkerThreadRuntimeCallStatsScope final {
 
 // A RuntimeCallTimerScopes wraps around a RuntimeCallTimer to measure the
 // the time of C++ scope.
-class RuntimeCallTimerScope {
+class V8_NODISCARD RuntimeCallTimerScope {
  public:
   inline RuntimeCallTimerScope(Isolate* isolate,
                                RuntimeCallCounterId counter_id);
@@ -1287,11 +1298,12 @@ class RuntimeCallTimerScope {
     }
   }
 
+  RuntimeCallTimerScope(const RuntimeCallTimerScope&) = delete;
+  RuntimeCallTimerScope& operator=(const RuntimeCallTimerScope&) = delete;
+
  private:
   RuntimeCallStats* stats_ = nullptr;
   RuntimeCallTimer timer_;
-
-  DISALLOW_COPY_AND_ASSIGN(RuntimeCallTimerScope);
 };
 
 // This file contains all the v8 counters that are in use.

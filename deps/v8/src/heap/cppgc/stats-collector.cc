@@ -71,8 +71,16 @@ void StatsCollector::AllocatedObjectSizeSafepointImpl() {
   explicitly_freed_bytes_since_safepoint_ = 0;
 }
 
-void StatsCollector::NotifyMarkingStarted() {
+StatsCollector::Event::Event() {
+  static std::atomic<size_t> epoch_counter{0};
+  epoch = epoch_counter.fetch_add(1);
+}
+
+void StatsCollector::NotifyMarkingStarted(CollectionType collection_type,
+                                          IsForcedGC is_forced_gc) {
   DCHECK_EQ(GarbageCollectionState::kNotRunning, gc_state_);
+  current_.collection_type = collection_type;
+  current_.is_forced_gc = is_forced_gc;
   gc_state_ = GarbageCollectionState::kMarking;
 }
 
@@ -101,12 +109,11 @@ double StatsCollector::GetRecentAllocationSpeedInBytesPerMs() const {
          (current_time - time_of_last_end_of_marking_).InMillisecondsF();
 }
 
-const StatsCollector::Event& StatsCollector::NotifySweepingCompleted() {
+void StatsCollector::NotifySweepingCompleted() {
   DCHECK_EQ(GarbageCollectionState::kSweeping, gc_state_);
   gc_state_ = GarbageCollectionState::kNotRunning;
   previous_ = std::move(current_);
   current_ = Event();
-  return previous_;
 }
 
 size_t StatsCollector::allocated_object_size() const {

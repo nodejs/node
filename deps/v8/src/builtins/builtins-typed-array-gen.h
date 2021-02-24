@@ -95,6 +95,11 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                                           TNode<Object> value,
                                           ElementsKind elements_kind,
                                           Label* if_detached);
+  template <typename TValue>
+  void StoreJSTypedArrayElementFromPreparedValue(
+      TNode<Context> context, TNode<JSTypedArray> typed_array,
+      TNode<UintPtrT> index_node, TNode<TValue> value,
+      ElementsKind elements_kind, Label* if_detached);
 };
 
 }  // namespace internal

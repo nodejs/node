@@ -200,8 +200,7 @@ class MarkCompactCollectorBase {
   inline Isolate* isolate();
 
  protected:
-  explicit MarkCompactCollectorBase(Heap* heap)
-      : heap_(heap), old_to_new_slots_(0) {}
+  explicit MarkCompactCollectorBase(Heap* heap) : heap_(heap) {}
 
   // Marking operations for objects reachable from roots.
   virtual void MarkLiveObjects() = 0;
@@ -240,8 +239,7 @@ class MarkCompactCollectorBase {
 
   Heap* heap_;
   // Number of old to new slots. Should be computed during MarkLiveObjects.
-  // -1 indicates that the value couldn't be computed.
-  int old_to_new_slots_;
+  base::Optional<size_t> old_to_new_slots_;
 };
 
 class MinorMarkingState final
@@ -361,7 +359,7 @@ class MainMarkingVisitor final
                                 MarkingState> {
  public:
   // This is used for revisiting objects that were black allocated.
-  class RevisitScope {
+  class V8_NODISCARD RevisitScope {
    public:
     explicit RevisitScope(MainMarkingVisitor* visitor) : visitor_(visitor) {
       DCHECK(!visitor->revisiting_object_);
@@ -790,7 +788,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   friend class RecordMigratedSlotVisitor;
 };
 
-class EvacuationScope {
+class V8_NODISCARD EvacuationScope {
  public:
   explicit EvacuationScope(MarkCompactCollector* collector)
       : collector_(collector) {

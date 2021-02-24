@@ -377,14 +377,14 @@ WASM_COMPILED_EXEC_TEST(WasmStepInAndOut) {
   // functions in the code section matches the function indexes.
 
   // return arg0
-  BUILD(runner, WASM_RETURN1(WASM_GET_LOCAL(0)));
+  BUILD(runner, WASM_RETURN1(WASM_LOCAL_GET(0)));
   // for (int i = 0; i < 10; ++i) { f2(i); }
   BUILD(f2, WASM_LOOP(
-                WASM_BR_IF(0, WASM_BINOP(kExprI32GeU, WASM_GET_LOCAL(0),
+                WASM_BR_IF(0, WASM_BINOP(kExprI32GeU, WASM_LOCAL_GET(0),
                                          WASM_I32V_1(10))),
-                WASM_SET_LOCAL(
-                    0, WASM_BINOP(kExprI32Sub, WASM_GET_LOCAL(0), WASM_ONE)),
-                WASM_CALL_FUNCTION(runner.function_index(), WASM_GET_LOCAL(0)),
+                WASM_LOCAL_SET(
+                    0, WASM_BINOP(kExprI32Sub, WASM_LOCAL_GET(0), WASM_ONE)),
+                WASM_CALL_FUNCTION(runner.function_index(), WASM_LOCAL_GET(0)),
                 WASM_DROP, WASM_BR(1)));
 
   Isolate* isolate = runner.main_isolate();
@@ -415,11 +415,11 @@ WASM_COMPILED_EXEC_TEST(WasmGetLocalsAndStack) {
 
   BUILD(runner,
         // set [1] to 17
-        WASM_SET_LOCAL(1, WASM_I64V_1(17)),
+        WASM_LOCAL_SET(1, WASM_I64V_1(17)),
         // set [2] to <arg0> = 7
-        WASM_SET_LOCAL(2, WASM_F32_SCONVERT_I32(WASM_GET_LOCAL(0))),
+        WASM_LOCAL_SET(2, WASM_F32_SCONVERT_I32(WASM_LOCAL_GET(0))),
         // set [3] to <arg1>/2 = 8.5
-        WASM_SET_LOCAL(3, WASM_F64_DIV(WASM_F64_SCONVERT_I64(WASM_GET_LOCAL(1)),
+        WASM_LOCAL_SET(3, WASM_F64_DIV(WASM_F64_SCONVERT_I64(WASM_LOCAL_GET(1)),
                                        WASM_F64(2))));
 
   Isolate* isolate = runner.main_isolate();

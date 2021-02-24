@@ -36,7 +36,7 @@ InspectorTest.logMessage = function(originalMessage) {
   const nonStableFields = new Set([
     'objectId', 'scriptId', 'exceptionId', 'timestamp', 'executionContextId',
     'callFrameId', 'breakpointId', 'bindRemoteObjectFunctionId',
-    'formatterObjectId', 'debuggerId', 'bodyGetterId'
+    'formatterObjectId', 'debuggerId', 'bodyGetterId', 'uniqueId'
   ]);
   const message = JSON.parse(JSON.stringify(originalMessage, replacer.bind(null, Symbol(), nonStableFields)));
   if (message.id)

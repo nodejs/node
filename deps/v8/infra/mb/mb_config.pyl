@@ -68,11 +68,14 @@
       # TODO(machenbach): Remove after switching to x64 on infra side.
       'V8 Win64 ASAN': 'release_x64_asan_no_lsan',
       'V8 Win64': 'release_x64_minimal_symbols',
+      'V8 Win64 - dev image': 'release_x64_minimal_symbols',
       'V8 Win64 - debug': 'debug_x64_minimal_symbols',
       'V8 Win64 - msvc': 'release_x64_msvc',
       # Mac.
       'V8 Mac64': 'release_x64',
       'V8 Mac64 - debug': 'debug_x64',
+      'V8 Official Mac ARM64': 'release_arm64',
+      'V8 Official Mac ARM64 Debug': 'debug_arm64',
       'V8 Mac64 GC Stress': 'debug_x64',
       'V8 Mac64 ASAN': 'release_x64_asan_no_lsan',
       'V8 Mac - arm64 - release builder': 'release_arm64',
@@ -169,6 +172,8 @@
       # IBM.
       'V8 Linux - ppc64 - sim': 'release_simulate_ppc64',
       'V8 Linux - s390x - sim': 'release_simulate_s390x',
+      # RISC-V
+      'V8 Linux - riscv64 - sim - builder': 'release_simulate_riscv64',
     },
     'client.v8.branches': {
       'V8 Linux - previous branch': 'release_x86',
@@ -237,6 +242,7 @@
       'v8_linux64_cfi_rel_ng': 'release_x64_cfi',
       'v8_linux64_fuzzilli_ng': 'release_x64_fuzzilli',
       'v8_linux64_msan_rel_ng': 'release_simulate_arm64_msan_minimal_symbols',
+      'v8_linux64_riscv64_rel_ng': 'release_simulate_riscv64',
       'v8_linux64_tsan_rel_ng': 'release_x64_tsan_minimal_symbols',
       'v8_linux64_tsan_no_cm_rel_ng': 'release_x64_tsan_no_cm',
       'v8_linux64_tsan_isolates_rel_ng':
@@ -401,6 +407,8 @@
       'release_bot', 'simulate_mips64el'],
     'release_simulate_ppc64': [
       'release_bot', 'simulate_ppc64'],
+    'release_simulate_riscv64': [
+      'release_bot', 'simulate_riscv64'],
     'release_simulate_s390x': [
       'release_bot', 'simulate_s390x'],
 
@@ -696,7 +704,7 @@
     },
 
     'ios_simulator': {
-      'gn_args': 'target_cpu="x64" target_os="ios" ios_use_goma_rbe=true',
+      'gn_args': 'target_cpu="x64" target_os="ios"',
     },
 
     'lsan': {
@@ -781,6 +789,10 @@
 
     'simulate_ppc64': {
       'gn_args': 'target_cpu="x64" v8_target_cpu="ppc64"',
+    },
+
+    'simulate_riscv64': {
+      'gn_args': 'target_cpu="x64" v8_target_cpu="riscv64"',
     },
 
     'simulate_s390x': {

@@ -71,6 +71,8 @@ declare_args() {
   v8_enable_conservative_stack_scanning = false
 
   v8_enable_google_benchmark = checkout_google_benchmark
+
+  cppgc_is_standalone = false
 }
 
 if (v8_use_external_startup_data == "") {

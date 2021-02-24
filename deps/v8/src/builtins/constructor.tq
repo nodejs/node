@@ -17,7 +17,7 @@ namespace constructor {
 
 extern builtin FastNewObject(Context, JSFunction, JSReceiver): JSObject;
 
-extern enum AllocationSiteMode constexpr 'AllocationSiteMode' {
+extern enum AllocationSiteMode {
   DONT_TRACK_ALLOCATION_SITE,
   TRACK_ALLOCATION_SITE
 }

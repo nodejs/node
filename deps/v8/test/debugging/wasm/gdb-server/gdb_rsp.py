@@ -178,7 +178,7 @@ def AssertReplySignal(reply, signal):
   AssertEquals(ParseThreadStopReply(reply)['signal'], signal)
 
 def ParseThreadStopReply(reply):
-  match = re.match('T([0-9a-f]{2})thread-pcs:([0-9a-f]+);thread:([0-9a-f]+);$', reply)
+  match = re.match('T([0-9a-f]{2})thread-pcs:([0-9a-f]+);thread:([0-9a-f]+);(library:([0-9a-f]*);)?$', reply)
   if not match:
     raise AssertionError('Bad thread stop reply: %r' % reply)
   return {'signal': int(match.group(1), 16),

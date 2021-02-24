@@ -680,8 +680,8 @@ FieldAccess AccessBuilder::ForModuleRegularImports() {
 }
 
 // static
-FieldAccess AccessBuilder::ForNameHashField() {
-  FieldAccess access = {kTaggedBase,        Name::kHashFieldOffset,
+FieldAccess AccessBuilder::ForNameRawHashField() {
+  FieldAccess access = {kTaggedBase,        Name::kRawHashFieldOffset,
                         Handle<Name>(),     MaybeHandle<Map>(),
                         Type::Unsigned32(), MachineType::Uint32(),
                         kNoWriteBarrier};

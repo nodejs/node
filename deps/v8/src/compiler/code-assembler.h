@@ -178,6 +178,20 @@ HEAP_OBJECT_TEMPLATE_TYPE_LIST(OBJECT_TYPE_TEMPLATE_CASE)
 #undef OBJECT_TYPE_STRUCT_CASE
 #undef OBJECT_TYPE_TEMPLATE_CASE
 
+#if defined(V8_HOST_ARCH_32_BIT)
+#define BINT_IS_SMI
+using BInt = Smi;
+using AtomicInt64 = PairT<IntPtrT, IntPtrT>;
+using AtomicUint64 = PairT<UintPtrT, UintPtrT>;
+#elif defined(V8_HOST_ARCH_64_BIT)
+#define BINT_IS_INTPTR
+using BInt = IntPtrT;
+using AtomicInt64 = IntPtrT;
+using AtomicUint64 = UintPtrT;
+#else
+#error Unknown architecture.
+#endif
+
 // {raw_value} must be a tagged Object.
 // {raw_type} must be a tagged Smi.
 // {raw_location} must be a tagged String.
@@ -551,10 +565,12 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return value ? Int32TrueConstant() : Int32FalseConstant();
   }
 
-  bool ToInt32Constant(Node* node, int32_t* out_value);
-  bool ToInt64Constant(Node* node, int64_t* out_value);
-  bool ToIntPtrConstant(Node* node, intptr_t* out_value);
-  bool ToSmiConstant(Node* node, Smi* out_value);
+  bool TryToInt32Constant(TNode<IntegralT> node, int32_t* out_value);
+  bool TryToInt64Constant(TNode<IntegralT> node, int64_t* out_value);
+  bool TryToIntPtrConstant(TNode<IntegralT> node, intptr_t* out_value);
+  bool TryToIntPtrConstant(TNode<Smi> tnode, intptr_t* out_value);
+  bool TryToSmiConstant(TNode<IntegralT> node, Smi* out_value);
+  bool TryToSmiConstant(TNode<Smi> node, Smi* out_value);
 
   bool IsUndefinedConstant(TNode<Object> node);
   bool IsNullConstant(TNode<Object> node);
@@ -633,7 +649,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void SetSourcePosition(const char* file, int line);
   void PushSourcePosition();
   void PopSourcePosition();
-  class SourcePositionScope {
+  class V8_NODISCARD SourcePositionScope {
    public:
     explicit SourcePositionScope(CodeAssembler* ca) : ca_(ca) {
       ca->PushSourcePosition();
@@ -731,7 +747,13 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return UncheckedCast<Type>(
         Load(MachineTypeOf<Type>::value, base, offset, needs_poisoning));
   }
-  Node* AtomicLoad(MachineType type, Node* base, Node* offset);
+  template <class Type>
+  TNode<Type> AtomicLoad(TNode<RawPtrT> base, TNode<WordT> offset) {
+    return UncheckedCast<Type>(
+        AtomicLoad(MachineTypeOf<Type>::value, base, offset));
+  }
+  template <class Type>
+  TNode<Type> AtomicLoad64(TNode<RawPtrT> base, TNode<WordT> offset);
   // Load uncompressed tagged value from (most likely off JS heap) memory
   // location.
   TNode<Object> LoadFullTagged(
@@ -740,35 +762,36 @@ class V8_EXPORT_PRIVATE CodeAssembler {
       Node* base, Node* offset,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
 
-  Node* LoadFromObject(MachineType type, TNode<HeapObject> object,
+  Node* LoadFromObject(MachineType type, TNode<Object> object,
                        TNode<IntPtrT> offset);
 
   // Load a value from the root array.
   TNode<Object> LoadRoot(RootIndex root_index);
 
   // Store value to raw memory location.
-  Node* Store(Node* base, Node* value);
-  Node* Store(Node* base, Node* offset, Node* value);
-  Node* StoreEphemeronKey(Node* base, Node* offset, Node* value);
-  Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* value);
-  Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* offset,
-                            Node* value);
-  Node* UnsafeStoreNoWriteBarrier(MachineRepresentation rep, Node* base,
-                                  Node* value);
-  Node* UnsafeStoreNoWriteBarrier(MachineRepresentation rep, Node* base,
-                                  Node* offset, Node* value);
+  void Store(Node* base, Node* value);
+  void Store(Node* base, Node* offset, Node* value);
+  void StoreEphemeronKey(Node* base, Node* offset, Node* value);
+  void StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* value);
+  void StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* offset,
+                           Node* value);
+  void UnsafeStoreNoWriteBarrier(MachineRepresentation rep, Node* base,
+                                 Node* value);
+  void UnsafeStoreNoWriteBarrier(MachineRepresentation rep, Node* base,
+                                 Node* offset, Node* value);
 
   // Stores uncompressed tagged value to (most likely off JS heap) memory
   // location without write barrier.
-  Node* StoreFullTaggedNoWriteBarrier(Node* base, Node* tagged_value);
-  Node* StoreFullTaggedNoWriteBarrier(Node* base, Node* offset,
-                                      Node* tagged_value);
+  void StoreFullTaggedNoWriteBarrier(TNode<RawPtrT> base,
+                                     TNode<Object> tagged_value);
+  void StoreFullTaggedNoWriteBarrier(TNode<RawPtrT> base, TNode<IntPtrT> offset,
+                                     TNode<Object> tagged_value);
 
   // Optimized memory operations that map to Turbofan simplified nodes.
   TNode<HeapObject> OptimizedAllocate(TNode<IntPtrT> size,
                                       AllocationType allocation,
                                       AllowLargeObjects allow_large_objects);
-  void StoreToObject(MachineRepresentation rep, TNode<HeapObject> object,
+  void StoreToObject(MachineRepresentation rep, TNode<Object> object,
                      TNode<IntPtrT> offset, Node* value,
                      StoreToObjectWriteBarrier write_barrier);
   void OptimizedStoreField(MachineRepresentation rep, TNode<HeapObject> object,
@@ -780,38 +803,66 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                                                TNode<HeapObject> object,
                                                int offset, Node* value);
   void OptimizedStoreMap(TNode<HeapObject> object, TNode<Map>);
+  void AtomicStore(MachineRepresentation rep, TNode<RawPtrT> base,
+                   TNode<WordT> offset, TNode<Word32T> value);
   // {value_high} is used for 64-bit stores on 32-bit platforms, must be
   // nullptr in other cases.
-  Node* AtomicStore(MachineRepresentation rep, Node* base, Node* offset,
-                    Node* value, Node* value_high = nullptr);
+  void AtomicStore64(TNode<RawPtrT> base, TNode<WordT> offset,
+                     TNode<UintPtrT> value, TNode<UintPtrT> value_high);
 
-  Node* AtomicAdd(MachineType type, TNode<RawPtrT> base, TNode<UintPtrT> offset,
-                  Node* value, base::Optional<TNode<UintPtrT>> value_high);
+  TNode<Word32T> AtomicAdd(MachineType type, TNode<RawPtrT> base,
+                           TNode<UintPtrT> offset, TNode<Word32T> value);
+  template <class Type>
+  TNode<Type> AtomicAdd64(TNode<RawPtrT> base, TNode<UintPtrT> offset,
+                          TNode<UintPtrT> value, TNode<UintPtrT> value_high);
 
-  Node* AtomicSub(MachineType type, TNode<RawPtrT> base, TNode<UintPtrT> offset,
-                  Node* value, base::Optional<TNode<UintPtrT>> value_high);
+  TNode<Word32T> AtomicSub(MachineType type, TNode<RawPtrT> base,
+                           TNode<UintPtrT> offset, TNode<Word32T> value);
+  template <class Type>
+  TNode<Type> AtomicSub64(TNode<RawPtrT> base, TNode<UintPtrT> offset,
+                          TNode<UintPtrT> value, TNode<UintPtrT> value_high);
 
-  Node* AtomicAnd(MachineType type, TNode<RawPtrT> base, TNode<UintPtrT> offset,
-                  Node* value, base::Optional<TNode<UintPtrT>> value_high);
+  TNode<Word32T> AtomicAnd(MachineType type, TNode<RawPtrT> base,
+                           TNode<UintPtrT> offset, TNode<Word32T> value);
+  template <class Type>
+  TNode<Type> AtomicAnd64(TNode<RawPtrT> base, TNode<UintPtrT> offset,
+                          TNode<UintPtrT> value, TNode<UintPtrT> value_high);
 
-  Node* AtomicOr(MachineType type, TNode<RawPtrT> base, TNode<UintPtrT> offset,
-                 Node* value, base::Optional<TNode<UintPtrT>> value_high);
+  TNode<Word32T> AtomicOr(MachineType type, TNode<RawPtrT> base,
+                          TNode<UintPtrT> offset, TNode<Word32T> value);
+  template <class Type>
+  TNode<Type> AtomicOr64(TNode<RawPtrT> base, TNode<UintPtrT> offset,
+                         TNode<UintPtrT> value, TNode<UintPtrT> value_high);
 
-  Node* AtomicXor(MachineType type, TNode<RawPtrT> base, TNode<UintPtrT> offset,
-                  Node* value, base::Optional<TNode<UintPtrT>> value_high);
+  TNode<Word32T> AtomicXor(MachineType type, TNode<RawPtrT> base,
+                           TNode<UintPtrT> offset, TNode<Word32T> value);
+  template <class Type>
+  TNode<Type> AtomicXor64(TNode<RawPtrT> base, TNode<UintPtrT> offset,
+                          TNode<UintPtrT> value, TNode<UintPtrT> value_high);
 
   // Exchange value at raw memory location
-  Node* AtomicExchange(MachineType type, TNode<RawPtrT> base,
-                       TNode<UintPtrT> offset, Node* value,
-                       base::Optional<TNode<UintPtrT>> value_high);
+  TNode<Word32T> AtomicExchange(MachineType type, TNode<RawPtrT> base,
+                                TNode<UintPtrT> offset, TNode<Word32T> value);
+  template <class Type>
+  TNode<Type> AtomicExchange64(TNode<RawPtrT> base, TNode<UintPtrT> offset,
+                               TNode<UintPtrT> value,
+                               TNode<UintPtrT> value_high);
 
   // Compare and Exchange value at raw memory location
-  Node* AtomicCompareExchange(MachineType type, Node* base, Node* offset,
-                              Node* old_value, Node* new_value,
-                              Node* old_value_high = nullptr,
-                              Node* new_value_high = nullptr);
+  TNode<Word32T> AtomicCompareExchange(MachineType type, TNode<RawPtrT> base,
+                                       TNode<WordT> offset,
+                                       TNode<Word32T> old_value,
+                                       TNode<Word32T> new_value);
+
+  template <class Type>
+  TNode<Type> AtomicCompareExchange64(TNode<RawPtrT> base, TNode<WordT> offset,
+                                      TNode<UintPtrT> old_value,
+                                      TNode<UintPtrT> new_value,
+                                      TNode<UintPtrT> old_value_high,
+                                      TNode<UintPtrT> new_value_high);
+
   // Store a value to the root array.
-  Node* StoreRoot(RootIndex root_index, Node* value);
+  void StoreRoot(RootIndex root_index, TNode<Object> value);
 
 // Basic arithmetic operations.
 #define DECLARE_CODE_ASSEMBLER_BINARY_OP(name, ResType, Arg1Type, Arg2Type) \
@@ -992,8 +1043,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<Int32T> TruncateFloat32ToInt32(SloppyTNode<Float32T> value);
 
   // Projections
-  Node* Projection(int index, Node* value);
-
   template <int index, class T1, class T2>
   TNode<typename std::tuple_element<index, std::tuple<T1, T2>>::type>
   Projection(TNode<PairT<T1, T2>> value) {
@@ -1125,7 +1174,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   // Call to a C function.
   template <class... CArgs>
-  Node* CallCFunction(Node* function, MachineType return_type, CArgs... cargs) {
+  Node* CallCFunction(Node* function, base::Optional<MachineType> return_type,
+                      CArgs... cargs) {
     static_assert(v8::internal::conjunction<
                       std::is_convertible<CArgs, CFunctionArg>...>::value,
                   "invalid argument types");
@@ -1185,7 +1235,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
  private:
   void HandleException(Node* result);
 
-  Node* CallCFunction(Node* function, MachineType return_type,
+  Node* CallCFunction(Node* function, base::Optional<MachineType> return_type,
                       std::initializer_list<CFunctionArg> args);
 
   Node* CallCFunctionWithoutFunctionDescriptor(
@@ -1232,10 +1282,14 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                   const CallInterfaceDescriptor& descriptor, int input_count,
                   Node* const* inputs);
 
+  Node* AtomicLoad(MachineType type, TNode<RawPtrT> base, TNode<WordT> offset);
+
   // These two don't have definitions and are here only for catching use cases
   // where the cast is not necessary.
   TNode<Int32T> Signed(TNode<Int32T> x);
   TNode<Uint32T> Unsigned(TNode<Uint32T> x);
+
+  Node* Projection(int index, Node* value);
 
   RawMachineAssembler* raw_assembler() const;
   JSGraph* jsgraph() const;
@@ -1512,7 +1566,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   VariableId NextVariableId() { return next_variable_id_++; }
 };
 
-class V8_EXPORT_PRIVATE ScopedExceptionHandler {
+class V8_EXPORT_PRIVATE V8_NODISCARD ScopedExceptionHandler {
  public:
   ScopedExceptionHandler(CodeAssembler* assembler,
                          CodeAssemblerExceptionHandlerLabel* label);
@@ -1533,17 +1587,6 @@ class V8_EXPORT_PRIVATE ScopedExceptionHandler {
 };
 
 }  // namespace compiler
-
-#if defined(V8_HOST_ARCH_32_BIT)
-#define BINT_IS_SMI
-using BInt = Smi;
-#elif defined(V8_HOST_ARCH_64_BIT)
-#define BINT_IS_INTPTR
-using BInt = IntPtrT;
-#else
-#error Unknown architecture.
-#endif
-
 }  // namespace internal
 }  // namespace v8
 

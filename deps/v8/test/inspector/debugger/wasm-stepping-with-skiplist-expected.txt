@@ -1,4 +1,6 @@
 Tests stepping through wasm scripts by byte offsets
+
+Running test: test
 Setting up global instance variable
 Got wasm script: wasm://wasm/befe41aa
 {
@@ -114,4 +116,3 @@ Input positions array is not sorted or contains duplicate values.
 Test: skip list is not sorted
 Testing stepInto with skipList: [{"scriptId":"4","start":{"lineNumber":0,"columnNumber":50},"end":{"lineNumber":0,"columnNumber":62}},{"scriptId":"4","start":{"lineNumber":0,"columnNumber":48},"end":{"lineNumber":0,"columnNumber":62}}]
 Input positions array is not sorted or contains duplicate values.
-Finished!

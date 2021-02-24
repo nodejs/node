@@ -15,15 +15,7 @@ using LocalHeapTest = TestWithIsolate;
 
 TEST_F(LocalHeapTest, Initialize) {
   Heap* heap = i_isolate()->heap();
-
-  CHECK(!heap->safepoint()->ContainsAnyLocalHeap());
-
-  {
-    LocalHeap lh(heap, ThreadKind::kMain);
-    CHECK(heap->safepoint()->ContainsLocalHeap(&lh));
-  }
-
-  CHECK(!heap->safepoint()->ContainsAnyLocalHeap());
+  CHECK(heap->safepoint()->ContainsAnyLocalHeap());
 }
 
 TEST_F(LocalHeapTest, Current) {
@@ -33,14 +25,14 @@ TEST_F(LocalHeapTest, Current) {
 
   {
     LocalHeap lh(heap, ThreadKind::kMain);
-    CHECK_EQ(&lh, LocalHeap::Current());
+    CHECK_NULL(LocalHeap::Current());
   }
 
   CHECK_NULL(LocalHeap::Current());
 
   {
     LocalHeap lh(heap, ThreadKind::kMain);
-    CHECK_EQ(&lh, LocalHeap::Current());
+    CHECK_NULL(LocalHeap::Current());
   }
 
   CHECK_NULL(LocalHeap::Current());
@@ -73,9 +65,9 @@ TEST_F(LocalHeapTest, CurrentBackground) {
     LocalHeap lh(heap, ThreadKind::kMain);
     auto thread = std::make_unique<BackgroundThread>(heap);
     CHECK(thread->Start());
-    CHECK_EQ(&lh, LocalHeap::Current());
+    CHECK_NULL(LocalHeap::Current());
     thread->Join();
-    CHECK_EQ(&lh, LocalHeap::Current());
+    CHECK_NULL(LocalHeap::Current());
   }
   CHECK_NULL(LocalHeap::Current());
 }

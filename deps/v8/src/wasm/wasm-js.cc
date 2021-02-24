@@ -12,6 +12,7 @@
 #include "src/ast/ast.h"
 #include "src/base/logging.h"
 #include "src/base/overflowing-math.h"
+#include "src/base/platform/wrappers.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
@@ -19,7 +20,6 @@
 #include "src/handles/handles.h"
 #include "src/heap/factory.h"
 #include "src/init/v8.h"
-#include "src/objects/js-collection-inl.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/templates.h"
@@ -637,7 +637,7 @@ void WebAssemblyValidate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (is_shared) {
     // Make a copy of the wire bytes to avoid concurrent modification.
     std::unique_ptr<uint8_t[]> copy(new uint8_t[bytes.length()]);
-    memcpy(copy.get(), bytes.start(), bytes.length());
+    base::Memcpy(copy.get(), bytes.start(), bytes.length());
     i::wasm::ModuleWireBytes bytes_copy(copy.get(),
                                         copy.get() + bytes.length());
     validated = i_isolate->wasm_engine()->SyncValidate(
@@ -680,7 +680,7 @@ void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (is_shared) {
     // Make a copy of the wire bytes to avoid concurrent modification.
     std::unique_ptr<uint8_t[]> copy(new uint8_t[bytes.length()]);
-    memcpy(copy.get(), bytes.start(), bytes.length());
+    base::Memcpy(copy.get(), bytes.start(), bytes.length());
     i::wasm::ModuleWireBytes bytes_copy(copy.get(),
                                         copy.get() + bytes.length());
     module_obj = i_isolate->wasm_engine()->SyncCompile(
@@ -1312,11 +1312,6 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
     case i::wasm::ValueType::kI64: {
       int64_t i64_value = 0;
       if (!value->IsUndefined()) {
-        if (!enabled_features.has_bigint()) {
-          thrower.TypeError("Can't set the value of i64 WebAssembly.Global");
-          return;
-        }
-
         v8::Local<v8::BigInt> bigint_value;
         if (!value->ToBigInt(context).ToLocal(&bigint_value)) return;
         i64_value = bigint_value->Int64Value();
@@ -1350,7 +1345,8 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
     case i::wasm::ValueType::kOptRef: {
       switch (type.heap_representation()) {
         case i::wasm::HeapType::kExtern:
-        case i::wasm::HeapType::kExn: {
+        case i::wasm::HeapType::kExn:
+        case i::wasm::HeapType::kAny: {
           if (args.Length() < 2) {
             // When no initial value is provided, we have to use the WebAssembly
             // default value 'null', and not the JS default value 'undefined'.
@@ -1826,13 +1822,8 @@ void WebAssemblyGlobalGetValueCommon(
       return_value.Set(receiver->GetI32());
       break;
     case i::wasm::ValueType::kI64: {
-      auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
-      if (enabled_features.has_bigint()) {
-        Local<BigInt> value = BigInt::New(isolate, receiver->GetI64());
-        return_value.Set(value);
-      } else {
-        thrower.TypeError("Can't get the value of i64 WebAssembly.Global");
-      }
+      Local<BigInt> value = BigInt::New(isolate, receiver->GetI64());
+      return_value.Set(value);
       break;
     }
     case i::wasm::ValueType::kF32:
@@ -1850,6 +1841,7 @@ void WebAssemblyGlobalGetValueCommon(
         case i::wasm::HeapType::kExtern:
         case i::wasm::HeapType::kFunc:
         case i::wasm::HeapType::kExn:
+        case i::wasm::HeapType::kAny:
           return_value.Set(Utils::ToLocal(receiver->GetRef()));
           break;
         case i::wasm::HeapType::kEq:
@@ -1908,14 +1900,9 @@ void WebAssemblyGlobalSetValue(
       break;
     }
     case i::wasm::ValueType::kI64: {
-      auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
-      if (enabled_features.has_bigint()) {
-        v8::Local<v8::BigInt> bigint_value;
-        if (!args[0]->ToBigInt(context).ToLocal(&bigint_value)) return;
-        receiver->SetI64(bigint_value->Int64Value());
-      } else {
-        thrower.TypeError("Can't set the value of i64 WebAssembly.Global");
-      }
+      v8::Local<v8::BigInt> bigint_value;
+      if (!args[0]->ToBigInt(context).ToLocal(&bigint_value)) return;
+      receiver->SetI64(bigint_value->Int64Value());
       break;
     }
     case i::wasm::ValueType::kF32: {
@@ -1938,6 +1925,7 @@ void WebAssemblyGlobalSetValue(
       switch (receiver->type().heap_representation()) {
         case i::wasm::HeapType::kExtern:
         case i::wasm::HeapType::kExn:
+        case i::wasm::HeapType::kAny:
           receiver->SetExternRef(Utils::OpenHandle(*args[0]));
           break;
         case i::wasm::HeapType::kFunc: {
@@ -1988,10 +1976,14 @@ void WebAssemblyGlobalType(const v8::FunctionCallbackInfo<v8::Value>& args) {
 // TODO(titzer): we use the API to create the function template because the
 // internal guts are too ugly to replicate here.
 static i::Handle<i::FunctionTemplateInfo> NewFunctionTemplate(
-    i::Isolate* i_isolate, FunctionCallback func, bool has_prototype) {
+    i::Isolate* i_isolate, FunctionCallback func, bool has_prototype,
+    SideEffectType side_effect_type = SideEffectType::kHasSideEffect) {
   Isolate* isolate = reinterpret_cast<Isolate*>(i_isolate);
-  Local<FunctionTemplate> templ = FunctionTemplate::New(isolate, func);
-  has_prototype ? templ->ReadOnlyPrototype() : templ->RemovePrototype();
+  ConstructorBehavior behavior =
+      has_prototype ? ConstructorBehavior::kAllow : ConstructorBehavior::kThrow;
+  Local<FunctionTemplate> templ = FunctionTemplate::New(
+      isolate, func, {}, {}, 0, behavior, side_effect_type);
+  if (has_prototype) templ->ReadOnlyPrototype();
   return v8::Utils::OpenHandle(*templ);
 }
 
@@ -2004,22 +1996,26 @@ static i::Handle<i::ObjectTemplateInfo> NewObjectTemplate(
 
 namespace internal {
 
-Handle<JSFunction> CreateFunc(Isolate* isolate, Handle<String> name,
-                              FunctionCallback func, bool has_prototype) {
+Handle<JSFunction> CreateFunc(
+    Isolate* isolate, Handle<String> name, FunctionCallback func,
+    bool has_prototype,
+    SideEffectType side_effect_type = SideEffectType::kHasSideEffect) {
   Handle<FunctionTemplateInfo> temp =
-      NewFunctionTemplate(isolate, func, has_prototype);
+      NewFunctionTemplate(isolate, func, has_prototype, side_effect_type);
   Handle<JSFunction> function =
       ApiNatives::InstantiateFunction(temp, name).ToHandleChecked();
   DCHECK(function->shared().HasSharedName());
   return function;
 }
 
-Handle<JSFunction> InstallFunc(Isolate* isolate, Handle<JSObject> object,
-                               const char* str, FunctionCallback func,
-                               int length, bool has_prototype = false,
-                               PropertyAttributes attributes = NONE) {
+Handle<JSFunction> InstallFunc(
+    Isolate* isolate, Handle<JSObject> object, const char* str,
+    FunctionCallback func, int length, bool has_prototype = false,
+    PropertyAttributes attributes = NONE,
+    SideEffectType side_effect_type = SideEffectType::kHasSideEffect) {
   Handle<String> name = v8_str(isolate, str);
-  Handle<JSFunction> function = CreateFunc(isolate, name, func, has_prototype);
+  Handle<JSFunction> function =
+      CreateFunc(isolate, name, func, has_prototype, side_effect_type);
   function->shared().set_length(length);
   JSObject::AddProperty(isolate, object, name, function, attributes);
   return function;
@@ -2041,7 +2037,8 @@ void InstallGetter(Isolate* isolate, Handle<JSObject> object, const char* str,
                    FunctionCallback func) {
   Handle<String> name = v8_str(isolate, str);
   Handle<JSFunction> function =
-      CreateFunc(isolate, GetterName(isolate, name), func, false);
+      CreateFunc(isolate, GetterName(isolate, name), func, false,
+                 SideEffectType::kHasNoSideEffect);
 
   Utils::ToLocal(object)->SetAccessorProperty(Utils::ToLocal(name),
                                               Utils::ToLocal(function),
@@ -2094,9 +2091,13 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
 
   // Setup WebAssembly
   Handle<String> name = v8_str(isolate, "WebAssembly");
-  NewFunctionArgs args = NewFunctionArgs::ForFunctionWithoutCode(
-      name, isolate->strict_function_map(), LanguageMode::kStrict);
-  Handle<JSFunction> cons = factory->NewFunction(args);
+  // Not supposed to be called, hence using the kIllegal builtin as code.
+  Handle<SharedFunctionInfo> info =
+      factory->NewSharedFunctionInfoForBuiltin(name, Builtins::kIllegal);
+  info->set_language_mode(LanguageMode::kStrict);
+
+  Handle<JSFunction> cons =
+      Factory::JSFunctionBuilder{isolate, info, context}.Build();
   JSFunction::SetPrototype(cons, isolate->initial_object_prototype());
   Handle<JSObject> webassembly =
       factory->NewJSObject(cons, AllocationType::kOld);
@@ -2285,775 +2286,6 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   JSObject::AddProperty(isolate, webassembly,
                         isolate->factory()->RuntimeError_string(),
                         runtime_error, DONT_ENUM);
-}
-
-namespace {
-void SetMapValue(Isolate* isolate, Handle<JSMap> map, Handle<Object> key,
-                 Handle<Object> value) {
-  DCHECK(!map.is_null() && !key.is_null() && !value.is_null());
-  Handle<Object> argv[] = {key, value};
-  Execution::CallBuiltin(isolate, isolate->map_set(), map, arraysize(argv),
-                         argv)
-      .Check();
-}
-
-Handle<Object> GetMapValue(Isolate* isolate, Handle<JSMap> map,
-                           Handle<Object> key) {
-  DCHECK(!map.is_null() && !key.is_null());
-  Handle<Object> argv[] = {key};
-  return Execution::CallBuiltin(isolate, isolate->map_get(), map,
-                                arraysize(argv), argv)
-      .ToHandleChecked();
-}
-
-// Look up a name in a name table. Name tables are stored under the "names"
-// property of the handler and map names to index.
-base::Optional<int> ResolveValueSelector(Isolate* isolate,
-                                         Handle<Name> property,
-                                         Handle<JSObject> handler,
-                                         bool enable_index_lookup) {
-  size_t index = 0;
-  if (enable_index_lookup && property->AsIntegerIndex(&index) &&
-      index < kMaxInt) {
-    return static_cast<int>(index);
-  }
-
-  Handle<Object> name_table =
-      JSObject::GetProperty(isolate, handler, "names").ToHandleChecked();
-  DCHECK(name_table->IsJSMap());
-
-  Handle<Object> object =
-      GetMapValue(isolate, Handle<JSMap>::cast(name_table), property);
-  if (object->IsUndefined()) return {};
-  DCHECK(object->IsNumeric());
-  return NumberToInt32(*object);
-}
-
-// Helper for unpacking a maybe name that makes a default with an index if
-// the name is empty. If the name is not empty, it's prefixed with a $.
-Handle<String> GetNameOrDefault(Isolate* isolate,
-                                MaybeHandle<String> maybe_name,
-                                const char* default_name_prefix, int index) {
-  Handle<String> name;
-  if (maybe_name.ToHandle(&name)) {
-    return isolate->factory()
-        ->NewConsString(isolate->factory()->NewStringFromAsciiChecked("$"),
-                        name)
-        .ToHandleChecked();
-  }
-
-  // Maximum length of the default names: $memory-2147483648\0
-  static constexpr int kMaxStrLen = 19;
-  EmbeddedVector<char, kMaxStrLen> value;
-  DCHECK_LT(strlen(default_name_prefix) + /*strlen(kMinInt)*/ 11, kMaxStrLen);
-  int len = SNPrintF(value, "%s%d", default_name_prefix, index);
-  return isolate->factory()->InternalizeString(value.SubVector(0, len));
-}
-
-// Generate names for the locals. Names either come from the name table,
-// otherwise the default $varX is used.
-std::vector<Handle<String>> GetLocalNames(Handle<WasmInstanceObject> instance,
-                                          Address pc) {
-  wasm::NativeModule* native_module = instance->module_object().native_module();
-  wasm::DebugInfo* debug_info = native_module->GetDebugInfo();
-  int num_locals = debug_info->GetNumLocals(pc);
-  auto* isolate = instance->GetIsolate();
-
-  wasm::ModuleWireBytes module_wire_bytes(
-      instance->module_object().native_module()->wire_bytes());
-  const wasm::WasmFunction& function = debug_info->GetFunctionAtAddress(pc);
-
-  std::vector<Handle<String>> names;
-  for (int i = 0; i < num_locals; ++i) {
-    wasm::WireBytesRef local_name_ref =
-        debug_info->GetLocalName(function.func_index, i);
-    DCHECK(module_wire_bytes.BoundsCheck(local_name_ref));
-    Vector<const char> name_vec =
-        module_wire_bytes.GetNameOrNull(local_name_ref);
-    names.emplace_back(GetNameOrDefault(
-        isolate,
-        name_vec.empty() ? MaybeHandle<String>()
-                         : isolate->factory()->NewStringFromUtf8(name_vec),
-        "$var", i));
-  }
-
-  return names;
-}
-
-// Generate names for the globals. Names either come from the name table,
-// otherwise the default $globalX is used.
-std::vector<Handle<String>> GetGlobalNames(
-    Handle<WasmInstanceObject> instance) {
-  Isolate* isolate = instance->GetIsolate();
-  auto& globals = instance->module()->globals;
-  std::vector<Handle<String>> names;
-  for (uint32_t i = 0; i < globals.size(); ++i) {
-    names.emplace_back(GetNameOrDefault(
-        isolate, WasmInstanceObject::GetGlobalNameOrNull(isolate, instance, i),
-        "$global", i));
-  }
-  return names;
-}
-
-// Generate names for the functions.
-std::vector<Handle<String>> GetFunctionNames(
-    Handle<WasmInstanceObject> instance) {
-  Isolate* isolate = instance->GetIsolate();
-  auto* module = instance->module();
-
-  wasm::ModuleWireBytes wire_bytes(
-      instance->module_object().native_module()->wire_bytes());
-
-  std::vector<Handle<String>> names;
-  for (auto& function : module->functions) {
-    DCHECK_EQ(function.func_index, names.size());
-    wasm::WireBytesRef name_ref =
-        module->lazily_generated_names.LookupFunctionName(
-            wire_bytes, function.func_index, VectorOf(module->export_table));
-    DCHECK(wire_bytes.BoundsCheck(name_ref));
-    Vector<const char> name_vec = wire_bytes.GetNameOrNull(name_ref);
-    names.emplace_back(GetNameOrDefault(
-        isolate,
-        name_vec.empty() ? MaybeHandle<String>()
-                         : isolate->factory()->NewStringFromUtf8(name_vec),
-        "$func", function.func_index));
-  }
-
-  return names;
-}
-
-// Generate names for the imports.
-std::vector<Handle<String>> GetImportNames(
-    Handle<WasmInstanceObject> instance) {
-  Isolate* isolate = instance->GetIsolate();
-  const wasm::WasmModule* module = instance->module();
-  Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
-  int num_imports = static_cast<int>(module->import_table.size());
-
-  std::vector<Handle<String>> names;
-  for (int index = 0; index < num_imports; ++index) {
-    const wasm::WasmImport& import = module->import_table[index];
-
-    names.emplace_back(WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-        isolate, module_object, import.field_name, kInternalize));
-  }
-
-  return names;
-}
-
-// Generate names for the memories.
-std::vector<Handle<String>> GetMemoryNames(
-    Handle<WasmInstanceObject> instance) {
-  Isolate* isolate = instance->GetIsolate();
-
-  std::vector<Handle<String>> names;
-  uint32_t memory_count = instance->has_memory_object() ? 1 : 0;
-  for (uint32_t memory_index = 0; memory_index < memory_count; ++memory_index) {
-    names.emplace_back(GetNameOrDefault(isolate,
-                                        WasmInstanceObject::GetMemoryNameOrNull(
-                                            isolate, instance, memory_index),
-                                        "$memory", memory_index));
-  }
-
-  return names;
-}
-
-// Generate names for the tables.
-std::vector<Handle<String>> GetTableNames(Handle<WasmInstanceObject> instance) {
-  Isolate* isolate = instance->GetIsolate();
-  auto tables = handle(instance->tables(), isolate);
-
-  std::vector<Handle<String>> names;
-  for (int table_index = 0; table_index < tables->length(); ++table_index) {
-    auto func_table =
-        handle(WasmTableObject::cast(tables->get(table_index)), isolate);
-    if (!func_table->type().is_reference_to(wasm::HeapType::kFunc)) continue;
-
-    names.emplace_back(GetNameOrDefault(
-        isolate,
-        WasmInstanceObject::GetTableNameOrNull(isolate, instance, table_index),
-        "$table", table_index));
-  }
-  return names;
-}
-
-// Generate names for the exports
-std::vector<Handle<String>> GetExportNames(
-    Handle<WasmInstanceObject> instance) {
-  Isolate* isolate = instance->GetIsolate();
-  const wasm::WasmModule* module = instance->module();
-  Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
-  int num_exports = static_cast<int>(module->export_table.size());
-
-  std::vector<Handle<String>> names;
-
-  for (int index = 0; index < num_exports; ++index) {
-    const wasm::WasmExport& exp = module->export_table[index];
-
-    names.emplace_back(WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-        isolate, module_object, exp.name, kInternalize));
-  }
-  return names;
-}
-
-Handle<WasmInstanceObject> GetInstance(Isolate* isolate,
-                                       Handle<JSObject> handler) {
-  Handle<Object> instance =
-      JSObject::GetProperty(isolate, handler, "instance").ToHandleChecked();
-  DCHECK(instance->IsWasmInstanceObject());
-  return Handle<WasmInstanceObject>::cast(instance);
-}
-
-Address GetPC(Isolate* isolate, Handle<JSObject> handler) {
-  Handle<Object> pc =
-      JSObject::GetProperty(isolate, handler, "pc").ToHandleChecked();
-  DCHECK(pc->IsBigInt());
-  return Handle<BigInt>::cast(pc)->AsUint64();
-}
-
-Address GetFP(Isolate* isolate, Handle<JSObject> handler) {
-  Handle<Object> fp =
-      JSObject::GetProperty(isolate, handler, "fp").ToHandleChecked();
-  DCHECK(fp->IsBigInt());
-  return Handle<BigInt>::cast(fp)->AsUint64();
-}
-
-Address GetCalleeFP(Isolate* isolate, Handle<JSObject> handler) {
-  Handle<Object> callee_fp =
-      JSObject::GetProperty(isolate, handler, "callee_fp").ToHandleChecked();
-  DCHECK(callee_fp->IsBigInt());
-  return Handle<BigInt>::cast(callee_fp)->AsUint64();
-}
-
-// Convert a WasmValue to an appropriate JS representation.
-static Handle<Object> WasmValueToObject(Isolate* isolate,
-                                        wasm::WasmValue value) {
-  auto* factory = isolate->factory();
-  switch (value.type().kind()) {
-    case wasm::ValueType::kI32:
-      return factory->NewNumberFromInt(value.to_i32());
-    case wasm::ValueType::kI64:
-      return BigInt::FromInt64(isolate, value.to_i64());
-    case wasm::ValueType::kF32:
-      return factory->NewNumber(value.to_f32());
-    case wasm::ValueType::kF64:
-      return factory->NewNumber(value.to_f64());
-    case wasm::ValueType::kS128: {
-      wasm::Simd128 s128 = value.to_s128();
-      Handle<JSArrayBuffer> buffer;
-      if (!isolate->factory()
-               ->NewJSArrayBufferAndBackingStore(
-                   kSimd128Size, InitializedFlag::kUninitialized)
-               .ToHandle(&buffer)) {
-        isolate->FatalProcessOutOfHeapMemory(
-            "failed to allocate backing store");
-      }
-
-      memcpy(buffer->allocation_base(), s128.bytes(), buffer->byte_length());
-      return isolate->factory()->NewJSTypedArray(kExternalUint8Array, buffer, 0,
-                                                 buffer->byte_length());
-    }
-    case wasm::ValueType::kRef:
-      return value.to_externref();
-    default:
-      break;
-  }
-  return factory->undefined_value();
-}
-
-base::Optional<int> HasLocalImpl(Isolate* isolate, Handle<Name> property,
-                                 Handle<JSObject> handler,
-                                 bool enable_index_lookup) {
-  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
-
-  base::Optional<int> index =
-      ResolveValueSelector(isolate, property, handler, enable_index_lookup);
-  if (!index) return index;
-  Address pc = GetPC(isolate, handler);
-
-  wasm::DebugInfo* debug_info =
-      instance->module_object().native_module()->GetDebugInfo();
-  int num_locals = debug_info->GetNumLocals(pc);
-  if (0 <= index && index < num_locals) return index;
-  return {};
-}
-
-Handle<Object> GetLocalImpl(Isolate* isolate, Handle<Name> property,
-                            Handle<JSObject> handler,
-                            bool enable_index_lookup) {
-  Factory* factory = isolate->factory();
-  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
-
-  base::Optional<int> index =
-      HasLocalImpl(isolate, property, handler, enable_index_lookup);
-  if (!index) return factory->undefined_value();
-  Address pc = GetPC(isolate, handler);
-  Address fp = GetFP(isolate, handler);
-  Address callee_fp = GetCalleeFP(isolate, handler);
-
-  wasm::DebugInfo* debug_info =
-      instance->module_object().native_module()->GetDebugInfo();
-  wasm::WasmValue value = debug_info->GetLocalValue(*index, pc, fp, callee_fp);
-  return WasmValueToObject(isolate, value);
-}
-
-base::Optional<int> HasGlobalImpl(Isolate* isolate, Handle<Name> property,
-                                  Handle<JSObject> handler,
-                                  bool enable_index_lookup) {
-  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
-  base::Optional<int> index =
-      ResolveValueSelector(isolate, property, handler, enable_index_lookup);
-  if (!index) return index;
-
-  const std::vector<wasm::WasmGlobal>& globals = instance->module()->globals;
-  if (globals.size() <= kMaxInt && 0 <= *index &&
-      *index < static_cast<int>(globals.size())) {
-    return index;
-  }
-  return {};
-}
-
-Handle<Object> GetGlobalImpl(Isolate* isolate, Handle<Name> property,
-                             Handle<JSObject> handler,
-                             bool enable_index_lookup) {
-  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
-  base::Optional<int> index =
-      HasGlobalImpl(isolate, property, handler, enable_index_lookup);
-  if (!index) return isolate->factory()->undefined_value();
-
-  const std::vector<wasm::WasmGlobal>& globals = instance->module()->globals;
-  return WasmValueToObject(
-      isolate, WasmInstanceObject::GetGlobalValue(instance, globals[*index]));
-}
-
-base::Optional<int> HasMemoryImpl(Isolate* isolate, Handle<Name> property,
-                                  Handle<JSObject> handler,
-                                  bool enable_index_lookup) {
-  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
-  base::Optional<int> index =
-      ResolveValueSelector(isolate, property, handler, enable_index_lookup);
-  if (index && *index == 0 && instance->has_memory_object()) return index;
-  return {};
-}
-
-Handle<Object> GetMemoryImpl(Isolate* isolate, Handle<Name> property,
-                             Handle<JSObject> handler,
-                             bool enable_index_lookup) {
-  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
-  base::Optional<int> index =
-      HasMemoryImpl(isolate, property, handler, enable_index_lookup);
-  if (index) return handle(instance->memory_object(), isolate);
-  return isolate->factory()->undefined_value();
-}
-
-base::Optional<int> HasFunctionImpl(Isolate* isolate, Handle<Name> property,
-                                    Handle<JSObject> handler,
-                                    bool enable_index_lookup) {
-  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
-  base::Optional<int> index =
-      ResolveValueSelector(isolate, property, handler, enable_index_lookup);
-  if (!index) return index;
-  const std::vector<wasm::WasmFunction>& functions =
-      instance->module()->functions;
-  if (functions.size() <= kMaxInt && 0 <= *index &&
-      *index < static_cast<int>(functions.size())) {
-    return index;
-  }
-  return {};
-}
-
-Handle<Object> GetFunctionImpl(Isolate* isolate, Handle<Name> property,
-                               Handle<JSObject> handler,
-                               bool enable_index_lookup) {
-  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
-  base::Optional<int> index =
-      HasFunctionImpl(isolate, property, handler, enable_index_lookup);
-  if (!index) return isolate->factory()->undefined_value();
-
-  return WasmInstanceObject::GetOrCreateWasmExternalFunction(isolate, instance,
-                                                             *index);
-}
-
-base::Optional<int> HasTableImpl(Isolate* isolate, Handle<Name> property,
-                                 Handle<JSObject> handler,
-                                 bool enable_index_lookup) {
-  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
-  base::Optional<int> index =
-      ResolveValueSelector(isolate, property, handler, enable_index_lookup);
-  if (!index) return index;
-  Handle<FixedArray> tables(instance->tables(), isolate);
-  int num_tables = tables->length();
-  if (*index < 0 || *index >= num_tables) return {};
-
-  Handle<WasmTableObject> func_table(WasmTableObject::cast(tables->get(*index)),
-                                     isolate);
-  if (func_table->type().is_reference_to(wasm::HeapType::kFunc)) return index;
-  return {};
-}
-
-Handle<Object> GetTableImpl(Isolate* isolate, Handle<Name> property,
-                            Handle<JSObject> handler,
-                            bool enable_index_lookup) {
-  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
-  base::Optional<int> index =
-      HasTableImpl(isolate, property, handler, enable_index_lookup);
-  if (!index) return isolate->factory()->undefined_value();
-
-  Handle<WasmTableObject> func_table(
-      WasmTableObject::cast(instance->tables().get(*index)), isolate);
-  return func_table;
-}
-
-base::Optional<int> HasImportImpl(Isolate* isolate, Handle<Name> property,
-                                  Handle<JSObject> handler,
-                                  bool enable_index_lookup) {
-  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
-  base::Optional<int> index =
-      ResolveValueSelector(isolate, property, handler, enable_index_lookup);
-  if (!index) return index;
-  const wasm::WasmModule* module = instance->module();
-  Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
-  int num_imports = static_cast<int>(module->import_table.size());
-  if (0 <= *index && *index < num_imports) return index;
-  return {};
-}
-
-Handle<JSObject> GetExternalObject(Isolate* isolate,
-                                   wasm::ImportExportKindCode kind,
-                                   uint32_t index) {
-  Handle<JSObject> result = isolate->factory()->NewJSObjectWithNullProto();
-  Handle<Object> value = isolate->factory()->NewNumberFromUint(index);
-  switch (kind) {
-    case wasm::kExternalFunction:
-      JSObject::AddProperty(isolate, result, "func", value, NONE);
-      break;
-    case wasm::kExternalGlobal:
-      JSObject::AddProperty(isolate, result, "global", value, NONE);
-      break;
-    case wasm::kExternalTable:
-      JSObject::AddProperty(isolate, result, "table", value, NONE);
-      break;
-    case wasm::kExternalMemory:
-      JSObject::AddProperty(isolate, result, "mem", value, NONE);
-      break;
-    case wasm::kExternalException:
-      JSObject::AddProperty(isolate, result, "exn", value, NONE);
-      break;
-  }
-  return result;
-}
-
-Handle<Object> GetImportImpl(Isolate* isolate, Handle<Name> property,
-                             Handle<JSObject> handler,
-                             bool enable_index_lookup) {
-  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
-  base::Optional<int> index =
-      HasImportImpl(isolate, property, handler, enable_index_lookup);
-  if (!index) return isolate->factory()->undefined_value();
-
-  const wasm::WasmImport& imp = instance->module()->import_table[*index];
-  return GetExternalObject(isolate, imp.kind, imp.index);
-}
-
-base::Optional<int> HasExportImpl(Isolate* isolate, Handle<Name> property,
-                                  Handle<JSObject> handler,
-                                  bool enable_index_lookup) {
-  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
-  base::Optional<int> index =
-      ResolveValueSelector(isolate, property, handler, enable_index_lookup);
-  if (!index) return index;
-
-  const wasm::WasmModule* module = instance->module();
-  Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
-  int num_exports = static_cast<int>(module->export_table.size());
-  if (0 <= *index && *index < num_exports) return index;
-  return {};
-}
-
-Handle<Object> GetExportImpl(Isolate* isolate, Handle<Name> property,
-                             Handle<JSObject> handler,
-                             bool enable_index_lookup) {
-  Handle<WasmInstanceObject> instance = GetInstance(isolate, handler);
-  base::Optional<int> index =
-      HasExportImpl(isolate, property, handler, enable_index_lookup);
-  if (!index) return isolate->factory()->undefined_value();
-
-  const wasm::WasmExport& exp = instance->module()->export_table[*index];
-  return GetExternalObject(isolate, exp.kind, exp.index);
-}
-
-// Generic has trap callback for the index space proxies.
-template <base::Optional<int> Impl(Isolate*, Handle<Name>, Handle<JSObject>,
-                                   bool)>
-void HasTrapCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  DCHECK_GE(args.Length(), 2);
-  Isolate* isolate = reinterpret_cast<Isolate*>(args.GetIsolate());
-  DCHECK(args.This()->IsObject());
-  Handle<JSObject> handler =
-      Handle<JSObject>::cast(Utils::OpenHandle(*args.This()));
-
-  DCHECK(args[1]->IsName());
-  Handle<Name> property = Handle<Name>::cast(Utils::OpenHandle(*args[1]));
-  args.GetReturnValue().Set(Impl(isolate, property, handler, true).has_value());
-}
-
-// Generic get trap callback for the index space proxies.
-template <Handle<Object> Impl(Isolate*, Handle<Name>, Handle<JSObject>, bool)>
-void GetTrapCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  DCHECK_GE(args.Length(), 2);
-  Isolate* isolate = reinterpret_cast<Isolate*>(args.GetIsolate());
-  DCHECK(args.This()->IsObject());
-  Handle<JSObject> handler =
-      Handle<JSObject>::cast(Utils::OpenHandle(*args.This()));
-
-  DCHECK(args[1]->IsName());
-  Handle<Name> property = Handle<Name>::cast(Utils::OpenHandle(*args[1]));
-  args.GetReturnValue().Set(
-      Utils::ToLocal(Impl(isolate, property, handler, true)));
-}
-
-template <typename ReturnT>
-ReturnT DelegateToplevelCall(Isolate* isolate, Handle<JSObject> target,
-                             Handle<Name> property, const char* index_space,
-                             ReturnT (*impl)(Isolate*, Handle<Name>,
-                                             Handle<JSObject>, bool)) {
-  Handle<Object> namespace_proxy =
-      JSObject::GetProperty(isolate, target, index_space).ToHandleChecked();
-  DCHECK(namespace_proxy->IsJSProxy());
-  Handle<JSObject> namespace_handler(
-      JSObject::cast(Handle<JSProxy>::cast(namespace_proxy)->handler()),
-      isolate);
-  return impl(isolate, property, namespace_handler, false);
-}
-
-template <typename ReturnT>
-using DelegateCallback = ReturnT (*)(Isolate*, Handle<Name>, Handle<JSObject>,
-                                     bool);
-
-// Has trap callback for the top-level proxy.
-void ToplevelHasTrapCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  DCHECK_GE(args.Length(), 2);
-  Isolate* isolate = reinterpret_cast<Isolate*>(args.GetIsolate());
-  DCHECK(args[0]->IsObject());
-  Handle<JSObject> target = Handle<JSObject>::cast(Utils::OpenHandle(*args[0]));
-
-  DCHECK(args[1]->IsName());
-  Handle<Name> property = Handle<Name>::cast(Utils::OpenHandle(*args[1]));
-
-  // First check if the property exists on the target.
-  if (JSObject::HasProperty(target, property).FromMaybe(false)) {
-    args.GetReturnValue().Set(true);
-    return;
-  }
-
-  // Now check the index space proxies in order if they know the property.
-  constexpr std::pair<const char*, DelegateCallback<base::Optional<int>>>
-      kDelegates[] = {{"memories", HasMemoryImpl},
-                      {"locals", HasLocalImpl},
-                      {"tables", HasTableImpl},
-                      {"functions", HasFunctionImpl},
-                      {"globals", HasGlobalImpl}};
-  for (auto& delegate : kDelegates) {
-    if (DelegateToplevelCall(isolate, target, property, delegate.first,
-                             delegate.second)) {
-      args.GetReturnValue().Set(true);
-      return;
-    }
-    args.GetReturnValue().Set(false);
-  }
-}
-
-// Get trap callback for the top-level proxy.
-void ToplevelGetTrapCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  DCHECK_GE(args.Length(), 2);
-  Isolate* isolate = reinterpret_cast<Isolate*>(args.GetIsolate());
-  DCHECK(args[0]->IsObject());
-  Handle<JSObject> target = Handle<JSObject>::cast(Utils::OpenHandle(*args[0]));
-
-  DCHECK(args[1]->IsName());
-  Handle<Name> property = Handle<Name>::cast(Utils::OpenHandle(*args[1]));
-
-  // First, check if the property is a proper property on the target. If so,
-  // return its value.
-  Handle<Object> value =
-      JSObject::GetProperty(isolate, target, property).ToHandleChecked();
-  if (!value->IsUndefined()) {
-    args.GetReturnValue().Set(Utils::ToLocal(value));
-    return;
-  }
-
-  // Try the index space proxies in the correct disambiguation order.
-  constexpr std::pair<const char*, DelegateCallback<Handle<Object>>>
-      kDelegates[] = {{"memories", GetMemoryImpl},
-                      {"locals", GetLocalImpl},
-                      {"tables", GetTableImpl},
-                      {"functions", GetFunctionImpl},
-                      {"globals", GetGlobalImpl}};
-  for (auto& delegate : kDelegates) {
-    value = DelegateToplevelCall(isolate, target, property, delegate.first,
-                                 delegate.second);
-    if (!value->IsUndefined()) {
-      args.GetReturnValue().Set(Utils::ToLocal(value));
-      return;
-    }
-  }
-}
-
-// Populate a JSMap with name->index mappings from an ordered list of names.
-Handle<JSMap> GetNameTable(Isolate* isolate,
-                           const std::vector<Handle<String>>& names) {
-  Factory* factory = isolate->factory();
-  Handle<JSMap> name_table = factory->NewJSMap();
-
-  for (size_t i = 0; i < names.size(); ++i) {
-    SetMapValue(isolate, name_table, names[i], factory->NewNumberFromInt64(i));
-  }
-  return name_table;
-}
-
-// Produce a JSProxy with a given name table and get and has trap handlers.
-Handle<JSProxy> GetJSProxy(
-    WasmFrame* frame, Handle<JSMap> name_table,
-    void (*get_callback)(const v8::FunctionCallbackInfo<v8::Value>&),
-    void (*has_callback)(const v8::FunctionCallbackInfo<v8::Value>&)) {
-  Isolate* isolate = frame->isolate();
-  Factory* factory = isolate->factory();
-  Handle<JSObject> target = factory->NewJSObjectWithNullProto();
-  Handle<JSObject> handler = factory->NewJSObjectWithNullProto();
-
-  // Besides the name table, the get and has traps need access to the instance
-  // and frame information.
-  JSObject::AddProperty(isolate, handler, "names", name_table, DONT_ENUM);
-  Handle<WasmInstanceObject> instance(frame->wasm_instance(), isolate);
-  JSObject::AddProperty(isolate, handler, "instance", instance, DONT_ENUM);
-  Handle<BigInt> pc = BigInt::FromInt64(isolate, frame->pc());
-  JSObject::AddProperty(isolate, handler, "pc", pc, DONT_ENUM);
-  Handle<BigInt> fp = BigInt::FromInt64(isolate, frame->fp());
-  JSObject::AddProperty(isolate, handler, "fp", fp, DONT_ENUM);
-  Handle<BigInt> callee_fp = BigInt::FromInt64(isolate, frame->callee_fp());
-  JSObject::AddProperty(isolate, handler, "callee_fp", callee_fp, DONT_ENUM);
-
-  InstallFunc(isolate, handler, "get", get_callback, 3, false, READ_ONLY);
-  InstallFunc(isolate, handler, "has", has_callback, 2, false, READ_ONLY);
-
-  return factory->NewJSProxy(target, handler);
-}
-
-Handle<JSObject> GetStackObject(WasmFrame* frame) {
-  Isolate* isolate = frame->isolate();
-  Handle<JSObject> object = isolate->factory()->NewJSObjectWithNullProto();
-  wasm::DebugInfo* debug_info =
-      frame->wasm_instance().module_object().native_module()->GetDebugInfo();
-  int num_values = debug_info->GetStackDepth(frame->pc());
-  for (int i = 0; i < num_values; ++i) {
-    wasm::WasmValue value = debug_info->GetStackValue(
-        i, frame->pc(), frame->fp(), frame->callee_fp());
-    JSObject::AddDataElement(object, i, WasmValueToObject(isolate, value),
-                             NONE);
-  }
-  return object;
-}
-}  // namespace
-
-// This function generates the JS debug proxy for a given Wasm frame. The debug
-// proxy is used when evaluating debug JS expressions on a wasm frame and let's
-// the developer inspect the engine state from JS. The proxy provides the
-// following interface:
-//
-// type WasmSimdValue = Uint8Array;
-// type WasmValue = number | bigint | object | WasmSimdValue;
-// type WasmFunction = (... args : WasmValue[]) = > WasmValue;
-// type WasmExport = {name : string} & ({func : number} | {table : number} |
-//                                      {mem : number} | {global : number});
-// type WasmImport = {name : string, module : string} &
-//                   ({func : number} | {table : number} | {mem : number} |
-//                    {global : number});
-// interface WasmInterface {
-//   $globalX: WasmValue;
-//   $varX: WasmValue;
-//   $funcX(a : WasmValue /*, ...*/) : WasmValue;
-//   readonly $memoryX : WebAssembly.Memory;
-//   readonly $tableX : WebAssembly.Table;
-//   readonly memories : {[nameOrIndex:string | number] : WebAssembly.Memory};
-//   readonly tables : {[nameOrIndex:string | number] : WebAssembly.Table};
-//   readonly stack : WasmValue[];
-//   readonly imports : {[nameOrIndex:string | number] : WasmImport};
-//   readonly exports : {[nameOrIndex:string | number] : WasmExport};
-//   readonly globals : {[nameOrIndex:string | number] : WasmValue};
-//   readonly locals : {[nameOrIndex:string | number] : WasmValue};
-//   readonly functions : {[nameOrIndex:string | number] : WasmFunction};
-// }
-//
-// The wasm index spaces memories, tables, imports, exports, globals, locals
-// functions are JSProxies that lazily produce values either by index or by
-// name. A top level JSProxy is wrapped around those for top-level lookup of
-// names in the disambiguation order  memory, local, table, function, global.
-// Import and export names are not globally resolved.
-
-Handle<JSProxy> WasmJs::GetJSDebugProxy(WasmFrame* frame) {
-  Isolate* isolate = frame->isolate();
-  Factory* factory = isolate->factory();
-  Handle<WasmInstanceObject> instance(frame->wasm_instance(), isolate);
-
-  // The top level proxy delegates lookups to the index space proxies.
-  Handle<JSObject> handler = factory->NewJSObjectWithNullProto();
-  InstallFunc(isolate, handler, "get", ToplevelGetTrapCallback, 3, false,
-              READ_ONLY);
-  InstallFunc(isolate, handler, "has", ToplevelHasTrapCallback, 2, false,
-              READ_ONLY);
-
-  Handle<JSObject> target = factory->NewJSObjectWithNullProto();
-
-  // Generate JSMaps per index space for name->index lookup. Every index space
-  // proxy is associated with its table for local name lookup.
-
-  auto local_name_table =
-      GetNameTable(isolate, GetLocalNames(instance, frame->pc()));
-  auto locals =
-      GetJSProxy(frame, local_name_table, GetTrapCallback<GetLocalImpl>,
-                 HasTrapCallback<HasLocalImpl>);
-  JSObject::AddProperty(isolate, target, "locals", locals, READ_ONLY);
-
-  auto global_name_table = GetNameTable(isolate, GetGlobalNames(instance));
-  auto globals =
-      GetJSProxy(frame, global_name_table, GetTrapCallback<GetGlobalImpl>,
-                 HasTrapCallback<HasGlobalImpl>);
-  JSObject::AddProperty(isolate, target, "globals", globals, READ_ONLY);
-
-  auto function_name_table = GetNameTable(isolate, GetFunctionNames(instance));
-  auto functions =
-      GetJSProxy(frame, function_name_table, GetTrapCallback<GetFunctionImpl>,
-                 HasTrapCallback<HasFunctionImpl>);
-  JSObject::AddProperty(isolate, target, "functions", functions, READ_ONLY);
-
-  auto memory_name_table = GetNameTable(isolate, GetMemoryNames(instance));
-  auto memories =
-      GetJSProxy(frame, memory_name_table, GetTrapCallback<GetMemoryImpl>,
-                 HasTrapCallback<HasMemoryImpl>);
-  JSObject::AddProperty(isolate, target, "memories", memories, READ_ONLY);
-
-  auto table_name_table = GetNameTable(isolate, GetTableNames(instance));
-  auto tables =
-      GetJSProxy(frame, table_name_table, GetTrapCallback<GetTableImpl>,
-                 HasTrapCallback<HasTableImpl>);
-  JSObject::AddProperty(isolate, target, "tables", tables, READ_ONLY);
-
-  auto import_name_table = GetNameTable(isolate, GetImportNames(instance));
-  auto imports =
-      GetJSProxy(frame, import_name_table, GetTrapCallback<GetImportImpl>,
-                 HasTrapCallback<HasImportImpl>);
-  JSObject::AddProperty(isolate, target, "imports", imports, READ_ONLY);
-
-  auto export_name_table = GetNameTable(isolate, GetExportNames(instance));
-  auto exports =
-      GetJSProxy(frame, export_name_table, GetTrapCallback<GetExportImpl>,
-                 HasTrapCallback<HasExportImpl>);
-  JSObject::AddProperty(isolate, target, "exports", exports, READ_ONLY);
-
-  auto stack = GetStackObject(frame);
-  JSObject::AddProperty(isolate, target, "stack", stack, READ_ONLY);
-
-  return factory->NewJSProxy(target, handler);
 }
 
 #undef ASSIGN

@@ -168,7 +168,7 @@ class FieldRepresentationDependency final : public CompilationDependency {
   }
 
   bool IsValid() const override {
-    DisallowHeapAllocation no_heap_allocation;
+    DisallowGarbageCollection no_heap_allocation;
     Handle<Map> owner = owner_.object();
     return representation_.Equals(owner->instance_descriptors(kRelaxedLoad)
                                       .GetDetails(descriptor_)
@@ -206,7 +206,7 @@ class FieldTypeDependency final : public CompilationDependency {
   }
 
   bool IsValid() const override {
-    DisallowHeapAllocation no_heap_allocation;
+    DisallowGarbageCollection no_heap_allocation;
     Handle<Map> owner = owner_.object();
     Handle<Object> type = type_.object();
     return *type ==
@@ -235,7 +235,7 @@ class FieldConstnessDependency final : public CompilationDependency {
   }
 
   bool IsValid() const override {
-    DisallowHeapAllocation no_heap_allocation;
+    DisallowGarbageCollection no_heap_allocation;
     Handle<Map> owner = owner_.object();
     return PropertyConstness::kConst ==
            owner->instance_descriptors(kRelaxedLoad)
@@ -270,10 +270,6 @@ class GlobalPropertyDependency final : public CompilationDependency {
     // The dependency is never valid if the cell is 'invalidated'. This is
     // marked by setting the value to the hole.
     if (cell->value() == *(cell_.isolate()->factory()->the_hole_value())) {
-      DCHECK(cell->property_details().cell_type() ==
-                 PropertyCellType::kInvalidated ||
-             cell->property_details().cell_type() ==
-                 PropertyCellType::kUninitialized);
       return false;
     }
     return type_ == cell->property_details().cell_type() &&
@@ -384,6 +380,7 @@ void CompilationDependencies::RecordDependency(
 
 MapRef CompilationDependencies::DependOnInitialMap(
     const JSFunctionRef& function) {
+  DCHECK(!function.IsNeverSerializedHeapObject());
   MapRef map = function.initial_map();
   RecordDependency(zone_->New<InitialMapDependency>(function, map));
   return map;
@@ -391,6 +388,7 @@ MapRef CompilationDependencies::DependOnInitialMap(
 
 ObjectRef CompilationDependencies::DependOnPrototypeProperty(
     const JSFunctionRef& function) {
+  DCHECK(!function.IsNeverSerializedHeapObject());
   ObjectRef prototype = function.prototype();
   RecordDependency(
       zone_->New<PrototypePropertyDependency>(function, prototype));
@@ -398,6 +396,7 @@ ObjectRef CompilationDependencies::DependOnPrototypeProperty(
 }
 
 void CompilationDependencies::DependOnStableMap(const MapRef& map) {
+  DCHECK(!map.IsNeverSerializedHeapObject());
   if (map.CanTransition()) {
     RecordDependency(zone_->New<StableMapDependency>(map));
   } else {
@@ -411,6 +410,7 @@ void CompilationDependencies::DependOnTransition(const MapRef& target_map) {
 
 AllocationType CompilationDependencies::DependOnPretenureMode(
     const AllocationSiteRef& site) {
+  DCHECK(!site.IsNeverSerializedHeapObject());
   AllocationType allocation = site.GetAllocationType();
   RecordDependency(zone_->New<PretenureModeDependency>(site, allocation));
   return allocation;
@@ -418,7 +418,9 @@ AllocationType CompilationDependencies::DependOnPretenureMode(
 
 PropertyConstness CompilationDependencies::DependOnFieldConstness(
     const MapRef& map, InternalIndex descriptor) {
+  DCHECK(!map.IsNeverSerializedHeapObject());
   MapRef owner = map.FindFieldOwner(descriptor);
+  DCHECK(!owner.IsNeverSerializedHeapObject());
   PropertyConstness constness =
       owner.GetPropertyDetails(descriptor).constness();
   if (constness == PropertyConstness::kMutable) return constness;
@@ -451,12 +453,14 @@ void CompilationDependencies::DependOnFieldType(const MapRef& map,
 
 void CompilationDependencies::DependOnGlobalProperty(
     const PropertyCellRef& cell) {
+  DCHECK(!cell.IsNeverSerializedHeapObject());
   PropertyCellType type = cell.property_details().cell_type();
   bool read_only = cell.property_details().IsReadOnly();
   RecordDependency(zone_->New<GlobalPropertyDependency>(cell, type, read_only));
 }
 
 bool CompilationDependencies::DependOnProtector(const PropertyCellRef& cell) {
+  DCHECK(!cell.IsNeverSerializedHeapObject());
   if (cell.value().AsSmi() != Protectors::kProtectorValid) return false;
   RecordDependency(zone_->New<ProtectorDependency>(cell));
   return true;
@@ -500,6 +504,7 @@ bool CompilationDependencies::DependOnPromiseThenProtector() {
 
 void CompilationDependencies::DependOnElementsKind(
     const AllocationSiteRef& site) {
+  DCHECK(!site.IsNeverSerializedHeapObject());
   // Do nothing if the object doesn't have any useful element transitions left.
   ElementsKind kind = site.PointsToLiteral()
                           ? site.boilerplate().value().GetElementsKind()
@@ -640,6 +645,7 @@ CompilationDependencies::DependOnInitialMapInstanceSizePrediction(
 CompilationDependency const*
 CompilationDependencies::TransitionDependencyOffTheRecord(
     const MapRef& target_map) const {
+  DCHECK(!target_map.IsNeverSerializedHeapObject());
   if (target_map.CanBeDeprecated()) {
     return zone_->New<TransitionDependency>(target_map);
   } else {
@@ -651,7 +657,9 @@ CompilationDependencies::TransitionDependencyOffTheRecord(
 CompilationDependency const*
 CompilationDependencies::FieldRepresentationDependencyOffTheRecord(
     const MapRef& map, InternalIndex descriptor) const {
+  DCHECK(!map.IsNeverSerializedHeapObject());
   MapRef owner = map.FindFieldOwner(descriptor);
+  DCHECK(!owner.IsNeverSerializedHeapObject());
   PropertyDetails details = owner.GetPropertyDetails(descriptor);
   DCHECK(details.representation().Equals(
       map.GetPropertyDetails(descriptor).representation()));
@@ -662,7 +670,9 @@ CompilationDependencies::FieldRepresentationDependencyOffTheRecord(
 CompilationDependency const*
 CompilationDependencies::FieldTypeDependencyOffTheRecord(
     const MapRef& map, InternalIndex descriptor) const {
+  DCHECK(!map.IsNeverSerializedHeapObject());
   MapRef owner = map.FindFieldOwner(descriptor);
+  DCHECK(!owner.IsNeverSerializedHeapObject());
   ObjectRef type = owner.GetFieldType(descriptor);
   DCHECK(type.equals(map.GetFieldType(descriptor)));
   return zone_->New<FieldTypeDependency>(owner, descriptor, type);

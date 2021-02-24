@@ -32,6 +32,12 @@ namespace cppgc {
 
 class Platform;
 
+class V8_EXPORT HeapHandle {
+ private:
+  HeapHandle() = default;
+  friend class internal::HeapBase;
+};
+
 namespace internal {
 
 namespace testing {
@@ -43,13 +49,13 @@ class PreFinalizerHandler;
 class StatsCollector;
 
 // Base class for heap implementations.
-class V8_EXPORT_PRIVATE HeapBase {
+class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
  public:
   using StackSupport = cppgc::Heap::StackSupport;
 
   // NoGCScope allows going over limits and avoids triggering garbage
   // collection triggered through allocations or even explicitly.
-  class V8_EXPORT_PRIVATE NoGCScope final {
+  class V8_EXPORT_PRIVATE V8_NODISCARD NoGCScope final {
     CPPGC_STACK_ALLOCATED();
 
    public:
@@ -62,6 +68,13 @@ class V8_EXPORT_PRIVATE HeapBase {
    private:
     HeapBase& heap_;
   };
+
+  static HeapBase& From(cppgc::HeapHandle& heap_handle) {
+    return static_cast<HeapBase&>(heap_handle);
+  }
+  static const HeapBase& From(const cppgc::HeapHandle& heap_handle) {
+    return static_cast<const HeapBase&>(heap_handle);
+  }
 
   HeapBase(std::shared_ptr<cppgc::Platform> platform,
            const std::vector<std::unique_ptr<CustomSpaceBase>>& custom_spaces,
@@ -138,6 +151,9 @@ class V8_EXPORT_PRIVATE HeapBase {
   StackSupport stack_support() const { return stack_support_; }
 
   void AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded();
+
+  // Notifies the heap that a GC is done.
+  virtual void PostGarbageCollection() = 0;
 
  protected:
   virtual void FinalizeIncrementalGarbageCollectionIfNeeded(

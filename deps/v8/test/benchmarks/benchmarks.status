@@ -36,6 +36,9 @@
   'kraken/imaging-gaussian-blur': [PASS, SLOW],
   'octane/typescript': [PASS, SLOW],
   'octane/box2d': [PASS, SLOW],
+
+  # https://crbug.com/v8/11222
+  'octane/raytrace': [PASS, SLOW],
 }],  # ALWAYS
 
 # Slow variants.
@@ -59,6 +62,7 @@
   'kraken/imaging-gaussian-blur' : [PASS, ['mode == debug', SKIP]],
   'octane/mandreel': [SKIP],
   'octane/typescript': [SKIP],
+  'octane/raytrace': [PASS, SLOW, ['tsan', SKIP]],
 
   # Too memory hungry on Odroid devices: https://crbug.com/v8/8963
   'kraken/stanford-crypto-ccm': [PASS, ['arch == arm and not simulator_run', SKIP]],

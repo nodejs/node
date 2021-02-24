@@ -20,9 +20,10 @@
 namespace v8 {
 namespace internal {
 
-enum CatchExceptions : bool {
-  kDoCatchExceptions = true,
-  kDontCatchExceptions = false
+enum CatchExceptions {
+  kFailOnUncaughtExceptions,
+  kStandardPropagateUncaughtExceptions,
+  kSuppressUncaughtExceptions
 };
 
 class TaskRunner : public v8::base::Thread {
@@ -51,7 +52,7 @@ class TaskRunner : public v8::base::Thread {
   void QuitMessageLoop();
 
   void Append(std::unique_ptr<Task>);
-
+  void InterruptForMessages();
   void Terminate();
 
  private:
@@ -73,7 +74,6 @@ class TaskRunner : public v8::base::Thread {
   v8::base::Semaphore process_queue_semaphore_;
 
   int nested_loop_count_;
-
   std::atomic<int> is_terminated_;
 };
 

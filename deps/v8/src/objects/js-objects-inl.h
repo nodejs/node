@@ -102,7 +102,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<FixedArray> JSReceiver::OwnPropertyKeys(
 }
 
 bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject object) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   HeapObject prototype = HeapObject::cast(object.map().prototype());
   ReadOnlyRoots roots(isolate);
   HeapObject null = roots.null_value();
@@ -146,7 +146,7 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object, TSlot objects,
   ElementsKind current_kind = object->GetElementsKind();
   ElementsKind target_kind = current_kind;
   {
-    DisallowHeapAllocation no_allocation;
+    DisallowGarbageCollection no_gc;
     DCHECK(mode != ALLOW_COPIED_DOUBLE_ELEMENTS);
     bool is_holey = IsHoleyElementsKind(current_kind);
     if (current_kind == HOLEY_ELEMENTS) return;
@@ -384,7 +384,7 @@ void JSObject::WriteToField(InternalIndex descriptor, PropertyDetails details,
                             Object value) {
   DCHECK_EQ(kField, details.location());
   DCHECK_EQ(kData, details.kind());
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   FieldIndex index = FieldIndex::ForDescriptor(map(), descriptor);
   if (details.representation().IsDouble()) {
     // Manipulating the signaling NaN used for the hole and uninitialized
@@ -619,16 +619,9 @@ DEF_GETTER(JSObject, HasIndexedInterceptor, bool) {
   return map(isolate).has_indexed_interceptor();
 }
 
-DEF_GETTER(JSGlobalObject, global_dictionary, GlobalDictionary) {
-  DCHECK(!HasFastProperties(isolate));
-  DCHECK(IsJSGlobalObject(isolate));
-  return GlobalDictionary::cast(raw_properties_or_hash(isolate));
-}
-
-void JSGlobalObject::set_global_dictionary(GlobalDictionary dictionary) {
-  DCHECK(IsJSGlobalObject());
-  set_raw_properties_or_hash(dictionary);
-}
+RELEASE_ACQUIRE_ACCESSORS_CHECKED2(JSGlobalObject, global_dictionary,
+                                   GlobalDictionary, kPropertiesOrHashOffset,
+                                   !HasFastProperties(isolate), true)
 
 DEF_GETTER(JSObject, element_dictionary, NumberDictionary) {
   DCHECK(HasDictionaryElements(isolate) ||

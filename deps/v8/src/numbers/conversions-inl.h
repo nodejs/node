@@ -16,6 +16,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/platform/platform.h"
+#include "src/base/platform/wrappers.h"
 #include "src/numbers/conversions.h"
 #include "src/numbers/double.h"
 #include "src/objects/heap-number-inl.h"
@@ -50,7 +51,7 @@ inline unsigned int FastD2UI(double x) {
         reinterpret_cast<void*>(reinterpret_cast<Address>(&x) + kInt32Size);
 #endif
     // Copy least significant 32 bits of mantissa.
-    memcpy(&result, mantissa_ptr, sizeof(result));
+    base::Memcpy(&result, mantissa_ptr, sizeof(result));
     return negative ? ~result + 1 : result;
   }
   // Large number (outside uint32 range), Infinity or NaN.

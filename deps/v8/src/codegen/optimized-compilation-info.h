@@ -103,6 +103,9 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   OptimizedCompilationInfo(Vector<const char> debug_name, Zone* zone,
                            CodeKind code_kind);
 
+  OptimizedCompilationInfo(const OptimizedCompilationInfo&) = delete;
+  OptimizedCompilationInfo& operator=(const OptimizedCompilationInfo&) = delete;
+
   ~OptimizedCompilationInfo();
 
   Zone* zone() { return zone_; }
@@ -312,8 +315,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   // handles above. The only difference is that is created in the
   // CanonicalHandleScope(i.e step 1) is different).
   std::unique_ptr<CanonicalHandlesMap> canonical_handles_;
-
-  DISALLOW_COPY_AND_ASSIGN(OptimizedCompilationInfo);
 };
 
 }  // namespace internal

@@ -367,19 +367,20 @@
   V(_, wasm_exception_values_symbol)                  \
   V(_, wasm_uncatchable_symbol)                       \
   V(_, wasm_wrapped_object_symbol)                    \
+  V(_, wasm_debug_proxy_cache_symbol)                 \
   V(_, uninitialized_symbol)
 
-#define PUBLIC_SYMBOL_LIST_GENERATOR(V, _)          \
-  V(_, async_iterator_symbol, Symbol.asyncIterator) \
-  V(_, iterator_symbol, Symbol.iterator)            \
-  V(_, intl_fallback_symbol, IntlFallback)          \
-  V(_, match_all_symbol, Symbol.matchAll)           \
-  V(_, match_symbol, Symbol.match)                  \
-  V(_, replace_symbol, Symbol.replace)              \
-  V(_, search_symbol, Symbol.search)                \
-  V(_, species_symbol, Symbol.species)              \
-  V(_, split_symbol, Symbol.split)                  \
-  V(_, to_primitive_symbol, Symbol.toPrimitive)     \
+#define PUBLIC_SYMBOL_LIST_GENERATOR(V, _)                \
+  V(_, async_iterator_symbol, Symbol.asyncIterator)       \
+  V(_, iterator_symbol, Symbol.iterator)                  \
+  V(_, intl_fallback_symbol, IntlLegacyConstructedSymbol) \
+  V(_, match_all_symbol, Symbol.matchAll)                 \
+  V(_, match_symbol, Symbol.match)                        \
+  V(_, replace_symbol, Symbol.replace)                    \
+  V(_, search_symbol, Symbol.search)                      \
+  V(_, species_symbol, Symbol.species)                    \
+  V(_, split_symbol, Symbol.split)                        \
+  V(_, to_primitive_symbol, Symbol.toPrimitive)           \
   V(_, unscopables_symbol, Symbol.unscopables)
 
 // Well-Known Symbols are "Public" symbols, which have a bit set which causes
@@ -402,7 +403,6 @@
   F(MC_INCREMENTAL_FINALIZE_BODY)                                  \
   F(MC_INCREMENTAL_LAYOUT_CHANGE)                                  \
   F(MC_INCREMENTAL_START)                                          \
-  F(MC_INCREMENTAL_SWEEP_ARRAY_BUFFERS)                            \
   F(MC_INCREMENTAL_SWEEPING)
 
 #define TOP_MC_SCOPES(F) \
@@ -425,18 +425,19 @@
   F(HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES)               \
   F(HEAP_PROLOGUE)                                   \
   F(HEAP_PROLOGUE_SAFEPOINT)                         \
+  F(MARK_COMPACTOR)                                  \
   TOP_MC_SCOPES(F)                                   \
   F(MC_CLEAR_DEPENDENT_CODE)                         \
   F(MC_CLEAR_FLUSHABLE_BYTECODE)                     \
   F(MC_CLEAR_FLUSHED_JS_FUNCTIONS)                   \
   F(MC_CLEAR_MAPS)                                   \
   F(MC_CLEAR_SLOTS_BUFFER)                           \
-  F(MC_CLEAR_STORE_BUFFER)                           \
   F(MC_CLEAR_STRING_TABLE)                           \
   F(MC_CLEAR_WEAK_COLLECTIONS)                       \
   F(MC_CLEAR_WEAK_LISTS)                             \
   F(MC_CLEAR_WEAK_REFERENCES)                        \
   F(MC_COMPLETE_SWEEP_ARRAY_BUFFERS)                 \
+  F(MC_COMPLETE_SWEEPING)                            \
   F(MC_EVACUATE_CANDIDATES)                          \
   F(MC_EVACUATE_CLEAN_UP)                            \
   F(MC_EVACUATE_COPY)                                \
@@ -467,10 +468,12 @@
   F(MC_SWEEP_CODE)                                   \
   F(MC_SWEEP_MAP)                                    \
   F(MC_SWEEP_OLD)                                    \
+  F(MINOR_MARK_COMPACTOR)                            \
   F(MINOR_MC)                                        \
   F(MINOR_MC_CLEAR)                                  \
   F(MINOR_MC_CLEAR_STRING_TABLE)                     \
   F(MINOR_MC_CLEAR_WEAK_LISTS)                       \
+  F(MINOR_MC_COMPLETE_SWEEP_ARRAY_BUFFERS)           \
   F(MINOR_MC_EVACUATE)                               \
   F(MINOR_MC_EVACUATE_CLEAN_UP)                      \
   F(MINOR_MC_EVACUATE_COPY)                          \
@@ -492,6 +495,7 @@
   F(MINOR_MC_MARKING_DEQUE)                          \
   F(MINOR_MC_RESET_LIVENESS)                         \
   F(MINOR_MC_SWEEPING)                               \
+  F(SCAVENGER)                                       \
   F(SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS)          \
   F(SCAVENGER_FAST_PROMOTE)                          \
   F(SCAVENGER_FREE_REMEMBERED_SET)                   \
@@ -508,10 +512,9 @@
   F(STOP_THE_WORLD)
 
 #define TRACER_BACKGROUND_SCOPES(F)               \
-  F(BACKGROUND_ARRAY_BUFFER_FREE)                 \
-  F(BACKGROUND_ARRAY_BUFFER_SWEEP)                \
+  F(BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP)          \
+  F(BACKGROUND_FULL_ARRAY_BUFFER_SWEEP)           \
   F(BACKGROUND_COLLECTION)                        \
-  F(BACKGROUND_STORE_BUFFER)                      \
   F(BACKGROUND_UNMAPPER)                          \
   F(MC_BACKGROUND_EVACUATE_COPY)                  \
   F(MC_BACKGROUND_EVACUATE_UPDATE_POINTERS)       \
@@ -521,5 +524,13 @@
   F(MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS) \
   F(MINOR_MC_BACKGROUND_MARKING)                  \
   F(SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL)
+
+#define TRACER_YOUNG_EPOCH_SCOPES(F)        \
+  F(BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP)    \
+  F(MINOR_MARK_COMPACTOR)                   \
+  F(MINOR_MC_COMPLETE_SWEEP_ARRAY_BUFFERS)  \
+  F(SCAVENGER)                              \
+  F(SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL) \
+  F(SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS)
 
 #endif  // V8_INIT_HEAP_SYMBOLS_H_

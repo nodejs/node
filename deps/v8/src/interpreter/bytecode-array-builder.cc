@@ -110,7 +110,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
 
 #ifdef DEBUG
 int BytecodeArrayBuilder::CheckBytecodeMatches(BytecodeArray bytecode) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   return bytecode_array_writer_.CheckBytecodeMatches(bytecode);
 }
 #endif
@@ -615,8 +615,14 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(Smi smi) {
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(double value) {
-  size_t entry = GetConstantPoolEntry(value);
-  OutputLdaConstant(entry);
+  // If we can encode the value as a Smi, we should.
+  int smi;
+  if (DoubleToSmiInteger(value, &smi)) {
+    LoadLiteral(Smi::FromInt(smi));
+  } else {
+    size_t entry = GetConstantPoolEntry(value);
+    OutputLdaConstant(entry);
+  }
   return *this;
 }
 

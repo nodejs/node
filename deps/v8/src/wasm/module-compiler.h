@@ -64,7 +64,7 @@ WasmCode* CompileImportWrapper(
 // Triggered by the WasmCompileLazy builtin. The return value indicates whether
 // compilation was successful. Lazy compilation can fail only if validation is
 // also lazy.
-bool CompileLazy(Isolate*, NativeModule*, int func_index);
+bool CompileLazy(Isolate*, Handle<WasmModuleObject>, int func_index);
 
 void TriggerTierUp(Isolate*, NativeModule*, int func_index);
 

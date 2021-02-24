@@ -27,14 +27,14 @@ NEVER_READ_ONLY_SPACE_IMPL(CompilationCacheTable)
 CAST_ACCESSOR(CompilationCacheTable)
 
 uint32_t CompilationCacheShape::RegExpHash(String string, Smi flags) {
-  return string.Hash() + flags.value();
+  return string.EnsureHash() + flags.value();
 }
 
 uint32_t CompilationCacheShape::StringSharedHash(String source,
                                                  SharedFunctionInfo shared,
                                                  LanguageMode language_mode,
                                                  int position) {
-  uint32_t hash = source.Hash();
+  uint32_t hash = source.EnsureHash();
   if (shared.HasSourceCode()) {
     // Instead of using the SharedFunctionInfo pointer in the hash
     // code computation, we use a combination of the hash of the
@@ -42,7 +42,7 @@ uint32_t CompilationCacheShape::StringSharedHash(String source,
     // We do this to ensure that the cache entries can survive garbage
     // collection.
     Script script(Script::cast(shared.script()));
-    hash ^= String::cast(script.source()).Hash();
+    hash ^= String::cast(script.source()).EnsureHash();
     STATIC_ASSERT(LanguageModeSize == 2);
     if (is_strict(language_mode)) hash ^= 0x8000;
     hash += position;

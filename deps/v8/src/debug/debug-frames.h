@@ -22,6 +22,8 @@ class WasmFrame;
 class FrameInspector {
  public:
   FrameInspector(CommonFrame* frame, int inlined_frame_index, Isolate* isolate);
+  FrameInspector(const FrameInspector&) = delete;
+  FrameInspector& operator=(const FrameInspector&) = delete;
 
   ~FrameInspector();
 
@@ -60,8 +62,6 @@ class FrameInspector {
   bool is_interpreted_ = false;
   bool has_adapted_arguments_ = false;
   bool is_constructor_ = false;
-
-  DISALLOW_COPY_AND_ASSIGN(FrameInspector);
 };
 
 class RedirectActiveFunctions : public ThreadVisitor {
@@ -78,7 +78,7 @@ class RedirectActiveFunctions : public ThreadVisitor {
  private:
   SharedFunctionInfo shared_;
   Mode mode_;
-  DisallowHeapAllocation no_gc_;
+  DISALLOW_GARBAGE_COLLECTION(no_gc_)
 };
 
 }  // namespace internal

@@ -231,7 +231,7 @@ TEST_F(MarkerTest, InConstructionObjectIsEventuallyMarkedEmptyStack) {
   GCedWithCallback* object = MakeGarbageCollected<GCedWithCallback>(
       GetAllocationHandle(), [marker = marker()](GCedWithCallback* obj) {
         Member<GCedWithCallback> member(obj);
-        marker->VisitorForTesting().Trace(member);
+        marker->Visitor().Trace(member);
       });
   EXPECT_FALSE(HeapObjectHeader::FromPayload(object).IsMarked());
   marker()->FinishMarking(MarkingConfig::StackState::kMayContainHeapPointers);
@@ -246,7 +246,7 @@ TEST_F(MarkerTest, InConstructionObjectIsEventuallyMarkedNonEmptyStack) {
   MakeGarbageCollected<GCedWithCallback>(
       GetAllocationHandle(), [marker = marker()](GCedWithCallback* obj) {
         Member<GCedWithCallback> member(obj);
-        marker->VisitorForTesting().Trace(member);
+        marker->Visitor().Trace(member);
         EXPECT_FALSE(HeapObjectHeader::FromPayload(obj).IsMarked());
         marker->FinishMarking(
             MarkingConfig::StackState::kMayContainHeapPointers);

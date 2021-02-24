@@ -32,7 +32,7 @@ void StubCache::Initialize() {
 int StubCache::PrimaryOffset(Name name, Map map) {
   // Compute the hash of the name (use entire hash field).
   DCHECK(name.HasHashCode());
-  uint32_t field = name.hash_field();
+  uint32_t field = name.raw_hash_field();
   // Using only the low bits in 64-bit mode is unlikely to increase the
   // risk of collision even if the heap is spread over an area larger than
   // 4Gb (and not at all if it isn't).
@@ -71,7 +71,6 @@ bool CommonStubCacheChecks(StubCache* stub_cache, Name name, Map map,
   DCHECK(!Heap::InYoungGeneration(name));
   DCHECK(!Heap::InYoungGeneration(handler));
   DCHECK(name.IsUniqueName());
-  DCHECK(name.HasHashCode());
   if (handler->ptr() != kNullAddress) DCHECK(IC::IsHandler(handler));
   return true;
 }

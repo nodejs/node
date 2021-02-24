@@ -10,6 +10,7 @@
 #include "include/v8.h"
 #include "src/api/api-inl.h"
 #include "src/base/logging.h"
+#include "src/base/platform/wrappers.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
@@ -246,7 +247,7 @@ ValueSerializer::~ValueSerializer() {
     if (delegate_) {
       delegate_->FreeBufferMemory(buffer_);
     } else {
-      free(buffer_);
+      base::Free(buffer_);
     }
   }
 }
@@ -326,7 +327,7 @@ void ValueSerializer::WriteBigIntContents(BigInt bigint) {
 void ValueSerializer::WriteRawBytes(const void* source, size_t length) {
   uint8_t* dest;
   if (ReserveRawBytes(length).To(&dest) && length > 0) {
-    memcpy(dest, source, length);
+    base::Memcpy(dest, source, length);
   }
 }
 
@@ -353,7 +354,7 @@ Maybe<bool> ValueSerializer::ExpandBuffer(size_t required_capacity) {
     new_buffer = delegate_->ReallocateBufferMemory(buffer_, requested_capacity,
                                                    &provided_capacity);
   } else {
-    new_buffer = realloc(buffer_, requested_capacity);
+    new_buffer = base::Realloc(buffer_, requested_capacity);
     provided_capacity = requested_capacity;
   }
   if (new_buffer) {
@@ -481,7 +482,7 @@ void ValueSerializer::WriteBigInt(BigInt bigint) {
 
 void ValueSerializer::WriteString(Handle<String> string) {
   string = String::Flatten(isolate_, string);
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   String::FlatContent flat = string->GetFlatContent(no_gc);
   DCHECK(flat.IsFlat());
   if (flat.IsOneByte()) {
@@ -529,7 +530,17 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
   switch (instance_type) {
     case JS_ARRAY_TYPE:
       return WriteJSArray(Handle<JSArray>::cast(receiver));
+    case JS_ARRAY_ITERATOR_PROTOTYPE_TYPE:
+    case JS_ITERATOR_PROTOTYPE_TYPE:
+    case JS_MAP_ITERATOR_PROTOTYPE_TYPE:
+    case JS_OBJECT_PROTOTYPE_TYPE:
     case JS_OBJECT_TYPE:
+    case JS_PROMISE_PROTOTYPE_TYPE:
+    case JS_REG_EXP_PROTOTYPE_TYPE:
+    case JS_SET_ITERATOR_PROTOTYPE_TYPE:
+    case JS_SET_PROTOTYPE_TYPE:
+    case JS_STRING_ITERATOR_PROTOTYPE_TYPE:
+    case JS_TYPED_ARRAY_PROTOTYPE_TYPE:
     case JS_API_OBJECT_TYPE: {
       Handle<JSObject> js_object = Handle<JSObject>::cast(receiver);
       if (JSObject::GetEmbedderFieldCount(js_object->map())) {
@@ -794,7 +805,7 @@ Maybe<bool> ValueSerializer::WriteJSMap(Handle<JSMap> map) {
   int length = table->NumberOfElements() * 2;
   Handle<FixedArray> entries = isolate_->factory()->NewFixedArray(length);
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     Oddball the_hole = ReadOnlyRoots(isolate_).the_hole_value();
     int result_index = 0;
     for (InternalIndex entry : table->IterateEntries()) {
@@ -824,7 +835,7 @@ Maybe<bool> ValueSerializer::WriteJSSet(Handle<JSSet> set) {
   int length = table->NumberOfElements();
   Handle<FixedArray> entries = isolate_->factory()->NewFixedArray(length);
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     Oddball the_hole = ReadOnlyRoots(isolate_).the_hole_value();
     int result_index = 0;
     for (InternalIndex entry : table->IterateEntries()) {
@@ -1181,7 +1192,7 @@ Maybe<double> ValueDeserializer::ReadDouble() {
   // Warning: this uses host endianness.
   if (position_ > end_ - sizeof(double)) return Nothing<double>();
   double value;
-  memcpy(&value, position_, sizeof(double));
+  base::Memcpy(&value, position_, sizeof(double));
   position_ += sizeof(double);
   if (std::isnan(value)) value = std::numeric_limits<double>::quiet_NaN();
   return Just(value);
@@ -1417,13 +1428,13 @@ MaybeHandle<String> ValueDeserializer::ReadTwoByteString() {
 
   // Copy the bytes directly into the new string.
   // Warning: this uses host endianness.
-  DisallowHeapAllocation no_gc;
-  memcpy(string->GetChars(no_gc), bytes.begin(), bytes.length());
+  DisallowGarbageCollection no_gc;
+  base::Memcpy(string->GetChars(no_gc), bytes.begin(), bytes.length());
   return string;
 }
 
 bool ValueDeserializer::ReadExpectedString(Handle<String> expected) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   // In the case of failure, the position in the stream is reset.
   const uint8_t* original_position = position_;
 
@@ -1776,7 +1787,7 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
   if (!result.ToHandle(&array_buffer)) return result;
 
   if (byte_length > 0) {
-    memcpy(array_buffer->backing_store(), position_, byte_length);
+    base::Memcpy(array_buffer->backing_store(), position_, byte_length);
   }
   position_ += byte_length;
   AddObjectWithID(id, array_buffer);
@@ -1987,7 +1998,7 @@ static void CommitProperties(Handle<JSObject> object, Handle<Map> map,
   JSObject::AllocateStorageForMap(object, map);
   DCHECK(!object->map().is_dictionary_map());
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   DescriptorArray descriptors =
       object->map().instance_descriptors(kRelaxedLoad);
   for (InternalIndex i : InternalIndex::Range(properties.size())) {

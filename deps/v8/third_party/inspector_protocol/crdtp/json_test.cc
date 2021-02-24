@@ -118,6 +118,30 @@ TEST(JsonEncoder, EscapesFFFF) {
   EXPECT_EQ("\"abc\\uffffd\"", out);
 }
 
+TEST(JsonEncoder, Passes0x7FString8) {
+  std::vector<uint8_t> chars = {'a', 0x7f, 'b'};
+  std::string out;
+  Status status;
+  std::unique_ptr<ParserHandler> writer = NewJSONEncoder(&out, &status);
+  writer->HandleString8(span<uint8_t>(chars.data(), chars.size()));
+  EXPECT_EQ(
+      "\"a\x7f"
+      "b\"",
+      out);
+}
+
+TEST(JsonEncoder, Passes0x7FString16) {
+  std::vector<uint16_t> chars16 = {'a', 0x7f, 'b'};
+  std::string out;
+  Status status;
+  std::unique_ptr<ParserHandler> writer = NewJSONEncoder(&out, &status);
+  writer->HandleString16(span<uint16_t>(chars16.data(), chars16.size()));
+  EXPECT_EQ(
+      "\"a\x7f"
+      "b\"",
+      out);
+}
+
 TEST(JsonEncoder, IncompleteUtf8Sequence) {
   std::string out;
   Status status;

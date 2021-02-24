@@ -3924,6 +3924,77 @@ void Builtins::Generate_DeoptimizationEntry_Lazy(MacroAssembler* masm) {
   Generate_DeoptimizationEntry(masm, DeoptimizeKind::kLazy);
 }
 
+void Builtins::Generate_DynamicCheckMapsTrampoline(MacroAssembler* masm) {
+  FrameScope scope(masm, StackFrame::MANUAL);
+  __ EnterFrame(StackFrame::INTERNAL);
+
+  // Only save the registers that the DynamicCheckMaps builtin can clobber.
+  DynamicCheckMapsDescriptor descriptor;
+  RegList registers = descriptor.allocatable_registers();
+  // FLAG_debug_code is enabled CSA checks will call C function and so we need
+  // to save all CallerSaved registers too.
+  if (FLAG_debug_code) registers |= kCallerSaved.list();
+  __ SaveRegisters(registers);
+
+  // Load the immediate arguments from the deopt exit to pass to the builtin.
+  Register slot_arg =
+      descriptor.GetRegisterParameter(DynamicCheckMapsDescriptor::kSlot);
+  Register handler_arg =
+      descriptor.GetRegisterParameter(DynamicCheckMapsDescriptor::kHandler);
+
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  // Make sure we can use x16 and x17, and add slot_arg as a temp reg if needed.
+  UseScratchRegisterScope temps(masm);
+  temps.Exclude(x16, x17);
+  temps.Include(slot_arg);
+  // Load return address into x17 and decode into handler_arg.
+  __ Add(x16, fp, CommonFrameConstants::kCallerSPOffset);
+  __ Ldr(x17, MemOperand(fp, CommonFrameConstants::kCallerPCOffset));
+  __ Autib1716();
+  __ Mov(handler_arg, x17);
+#else
+  __ Ldr(handler_arg, MemOperand(fp, CommonFrameConstants::kCallerPCOffset));
+#endif
+
+  __ Ldr(slot_arg, MemOperand(handler_arg,
+                              Deoptimizer::kEagerWithResumeImmedArgs1PcOffset));
+  __ Ldr(
+      handler_arg,
+      MemOperand(handler_arg, Deoptimizer::kEagerWithResumeImmedArgs2PcOffset));
+
+  __ Call(BUILTIN_CODE(masm->isolate(), DynamicCheckMaps),
+          RelocInfo::CODE_TARGET);
+
+  Label deopt, bailout;
+  __ CompareAndBranch(
+      x0, static_cast<int32_t>(DynamicCheckMapsStatus::kSuccess), ne, &deopt);
+
+  __ RestoreRegisters(registers);
+  __ LeaveFrame(StackFrame::INTERNAL);
+  __ Ret();
+
+  __ Bind(&deopt);
+  __ CompareAndBranch(
+      x0, static_cast<int32_t>(DynamicCheckMapsStatus::kBailout), eq, &bailout);
+
+  if (FLAG_debug_code) {
+    __ Cmp(x0, Operand(static_cast<int>(DynamicCheckMapsStatus::kDeopt)));
+    __ Assert(eq, AbortReason::kUnexpectedDynamicCheckMapsStatus);
+  }
+  __ RestoreRegisters(registers);
+  __ LeaveFrame(StackFrame::INTERNAL);
+  Handle<Code> deopt_eager = masm->isolate()->builtins()->builtin_handle(
+      Deoptimizer::GetDeoptimizationEntry(DeoptimizeKind::kEager));
+  __ Jump(deopt_eager, RelocInfo::CODE_TARGET);
+
+  __ Bind(&bailout);
+  __ RestoreRegisters(registers);
+  __ LeaveFrame(StackFrame::INTERNAL);
+  Handle<Code> deopt_bailout = masm->isolate()->builtins()->builtin_handle(
+      Deoptimizer::GetDeoptimizationEntry(DeoptimizeKind::kBailout));
+  __ Jump(deopt_bailout, RelocInfo::CODE_TARGET);
+}
+
 #undef __
 
 }  // namespace internal

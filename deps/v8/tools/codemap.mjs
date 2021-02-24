@@ -266,6 +266,7 @@ export class CodeMap {
  * @param {number} size Code entry size in bytes.
  * @param {string} opt_name Code entry name.
  * @param {string} opt_type Code entry type, e.g. SHARED_LIB, CPP.
+ * @param {object} source Optional source position information
  * @constructor
  */
 export class CodeEntry {
@@ -274,6 +275,7 @@ export class CodeEntry {
     this.name = opt_name || '';
     this.type = opt_type || '';
     this.nameUpdated_ = false;
+    this.source = undefined;
   }
 
   getName() {
@@ -282,6 +284,10 @@ export class CodeEntry {
 
   toString() {
     return this.name + ': ' + this.size.toString(16);
+  }
+
+  getSourceCode() {
+    return '';
   }
 }
 

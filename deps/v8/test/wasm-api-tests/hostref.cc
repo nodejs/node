@@ -39,20 +39,20 @@ TEST_F(WasmCapiTest, HostRef) {
       CStrVector("global"));
   uint32_t table_index = builder()->AddTable(kWasmExternRef, 10);
   builder()->AddExport(CStrVector("table"), kExternalTable, table_index);
-  byte global_set_code[] = {WASM_SET_GLOBAL(global_index, WASM_GET_LOCAL(0))};
+  byte global_set_code[] = {WASM_GLOBAL_SET(global_index, WASM_LOCAL_GET(0))};
   AddExportedFunction(CStrVector("global.set"), global_set_code,
                       sizeof(global_set_code), &v_r_sig);
-  byte global_get_code[] = {WASM_GET_GLOBAL(global_index)};
+  byte global_get_code[] = {WASM_GLOBAL_GET(global_index)};
   AddExportedFunction(CStrVector("global.get"), global_get_code,
                       sizeof(global_get_code), &r_v_sig);
   byte table_set_code[] = {
-      WASM_TABLE_SET(table_index, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))};
+      WASM_TABLE_SET(table_index, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))};
   AddExportedFunction(CStrVector("table.set"), table_set_code,
                       sizeof(table_set_code), &v_ir_sig);
-  byte table_get_code[] = {WASM_TABLE_GET(table_index, WASM_GET_LOCAL(0))};
+  byte table_get_code[] = {WASM_TABLE_GET(table_index, WASM_LOCAL_GET(0))};
   AddExportedFunction(CStrVector("table.get"), table_get_code,
                       sizeof(table_get_code), &r_i_sig);
-  byte func_call_code[] = {WASM_CALL_FUNCTION(func_index, WASM_GET_LOCAL(0))};
+  byte func_call_code[] = {WASM_CALL_FUNCTION(func_index, WASM_LOCAL_GET(0))};
   AddExportedFunction(CStrVector("func.call"), func_call_code,
                       sizeof(func_call_code), &r_r_sig);
 

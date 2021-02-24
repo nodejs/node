@@ -330,15 +330,15 @@ class OptimizedCompilationJob : public CompilationJob {
         compiler_name_(compiler_name) {}
 
   // Prepare the compile job. Must be called on the main thread.
-  V8_WARN_UNUSED_RESULT Status PrepareJob(Isolate* isolate);
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Status PrepareJob(Isolate* isolate);
 
   // Executes the compile job. Can be called on a background thread if
   // can_execute_on_background_thread() returns true.
-  V8_WARN_UNUSED_RESULT Status
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Status
   ExecuteJob(RuntimeCallStats* stats, LocalIsolate* local_isolate = nullptr);
 
   // Finalizes the compile job. Must be called on the main thread.
-  V8_WARN_UNUSED_RESULT Status FinalizeJob(Isolate* isolate);
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Status FinalizeJob(Isolate* isolate);
 
   // Report a transient failure, try again next time. Should only be called on
   // optimization compilation jobs.
@@ -438,12 +438,12 @@ class DeferredFinalizationJobData {
 // A wrapper around a OptimizedCompilationInfo that detaches the Handles from
 // the underlying PersistentHandlesScope and stores them in info_ on
 // destruction.
-class CompilationHandleScope final {
+class V8_NODISCARD CompilationHandleScope final {
  public:
   explicit CompilationHandleScope(Isolate* isolate,
                                   OptimizedCompilationInfo* info)
       : persistent_(isolate), info_(info) {}
-  ~CompilationHandleScope();
+  V8_EXPORT_PRIVATE ~CompilationHandleScope();
 
  private:
   PersistentHandlesScope persistent_;
@@ -459,7 +459,10 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   // script associated with |data| and can be finalized with
   // Compiler::GetSharedFunctionInfoForStreamedScript.
   // Note: does not take ownership of |data|.
-  BackgroundCompileTask(ScriptStreamingData* data, Isolate* isolate);
+  BackgroundCompileTask(ScriptStreamingData* data, Isolate* isolate,
+                        v8::ScriptType type);
+  BackgroundCompileTask(const BackgroundCompileTask&) = delete;
+  BackgroundCompileTask& operator=(const BackgroundCompileTask&) = delete;
   ~BackgroundCompileTask();
 
   // Creates a new task that when run will parse and compile the
@@ -533,8 +536,6 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats_;
   TimedHistogram* timer_;
   LanguageMode language_mode_;
-
-  DISALLOW_COPY_AND_ASSIGN(BackgroundCompileTask);
 };
 
 // Contains all data which needs to be transmitted between threads for
@@ -543,6 +544,8 @@ struct ScriptStreamingData {
   ScriptStreamingData(
       std::unique_ptr<ScriptCompiler::ExternalSourceStream> source_stream,
       ScriptCompiler::StreamedSource::Encoding encoding);
+  ScriptStreamingData(const ScriptStreamingData&) = delete;
+  ScriptStreamingData& operator=(const ScriptStreamingData&) = delete;
   ~ScriptStreamingData();
 
   void Release();
@@ -553,8 +556,6 @@ struct ScriptStreamingData {
 
   // Task that performs background parsing and compilation.
   std::unique_ptr<BackgroundCompileTask> task;
-
-  DISALLOW_COPY_AND_ASSIGN(ScriptStreamingData);
 };
 
 }  // namespace internal

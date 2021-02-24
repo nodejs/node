@@ -6,7 +6,7 @@ import {LogEntry} from './log.mjs';
 export class IcLogEntry extends LogEntry {
   constructor(
       type, fn_file, time, line, column, key, oldState, newState, map, reason,
-      script, modifier, additional) {
+      modifier, additional) {
     super(type, time);
     this.category = 'other';
     if (this.type.indexOf('Store') !== -1) {
@@ -14,11 +14,10 @@ export class IcLogEntry extends LogEntry {
     } else if (this.type.indexOf('Load') !== -1) {
       this.category = 'Load';
     }
-    let parts = fn_file.split(' ');
+    const parts = fn_file.split(' ');
     this.functionName = parts[0];
     this.file = parts[1];
     let position = line + ':' + column;
-    this.filePosition = this.file + ':' + position;
     this.oldState = oldState;
     this.newState = newState;
     this.state = this.oldState + ' → ' + this.newState;
@@ -26,8 +25,15 @@ export class IcLogEntry extends LogEntry {
     this.map = map;
     this.reason = reason;
     this.additional = additional;
-    this.script = script;
     this.modifier = modifier;
+  }
+
+  toString() {
+    return `IC(${this.type})`;
+  }
+
+  toStringLong() {
+    return `IC(${this.type}):\n${this.state}`;
   }
 
   parseMapProperties(parts, offset) {
@@ -58,8 +64,8 @@ export class IcLogEntry extends LogEntry {
 
   static get propertyNames() {
     return [
-      'type', 'category', 'functionName', 'filePosition', 'state', 'key', 'map',
-      'reason', 'file'
+      'type', 'category', 'functionName', 'script', 'sourcePosition', 'state',
+      'key', 'map', 'reason', 'file'
     ];
   }
 }

@@ -267,7 +267,7 @@ Node* JSInliner::CreateArtificialFrameState(Node* node, Node* outer_frame_state,
 namespace {
 
 bool NeedsImplicitReceiver(SharedFunctionInfoRef shared_info) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   return !shared_info.construct_as_builtin() &&
          !IsDerivedConstructor(shared_info.kind());
 }

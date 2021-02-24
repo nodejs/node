@@ -1,4 +1,6 @@
 Tests stepping to javascript from wasm
+
+Running test: test
 Calling instantiate function.
 Waiting for wasm scripts to be parsed.
 Ignoring script with url v8://test/instantiate

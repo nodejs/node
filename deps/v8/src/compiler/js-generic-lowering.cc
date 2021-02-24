@@ -234,8 +234,19 @@ void JSGenericLowering::LowerJSStrictEqual(Node* node) {
 }
 
 namespace {
+
+// The megamorphic load builtin can be used as a performance optimization in
+// some cases - unlike the full builtin, the megamorphic builtin does fewer
+// checks and does not collect feedback.
 bool ShouldUseMegamorphicLoadBuiltin(FeedbackSource const& source,
                                      JSHeapBroker* broker) {
+  if (broker->is_native_context_independent()) {
+    // The decision to use the megamorphic load builtin is made based on
+    // current feedback, and is thus context-dependent. It cannot be used when
+    // generating NCI code.
+    return false;
+  }
+
   ProcessedFeedback const& feedback = broker->GetFeedback(source);
 
   if (feedback.kind() == ProcessedFeedback::kElementAccess) {
@@ -318,12 +329,30 @@ void JSGenericLowering::LowerJSLoadNamed(Node* node) {
 }
 
 void JSGenericLowering::LowerJSLoadNamedFromSuper(Node* node) {
-  // TODO(marja, v8:9237): Call a builtin which collects feedback.
   JSLoadNamedFromSuperNode n(node);
   NamedAccess const& p = n.Parameters();
-  node->RemoveInput(2);  // Feedback vector
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  // Node inputs: receiver, home object, FeedbackVector.
+  // LoadSuperIC expects: receiver, lookup start object, name, slot,
+  // FeedbackVector.
+  Node* home_object_map = effect = graph()->NewNode(
+      jsgraph()->simplified()->LoadField(AccessBuilder::ForMap()),
+      n.home_object(), effect, control);
+  Node* home_object_proto = effect = graph()->NewNode(
+      jsgraph()->simplified()->LoadField(AccessBuilder::ForMapPrototype()),
+      home_object_map, effect, control);
+  n->ReplaceInput(n.HomeObjectIndex(), home_object_proto);
+  NodeProperties::ReplaceEffectInput(node, effect);
+  STATIC_ASSERT(n.FeedbackVectorIndex() == 2);
+  // If the code below will be used for the invalid feedback case, it needs to
+  // be double-checked that the FeedbackVector parameter will be the
+  // UndefinedConstant.
+  DCHECK(p.feedback().IsValid());
   node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.name()));
-  ReplaceWithRuntimeCall(node, Runtime::kLoadFromSuper);
+  node->InsertInput(zone(), 3,
+                    jsgraph()->TaggedIndexConstant(p.feedback().index()));
+  ReplaceWithBuiltinCall(node, Builtins::kLoadSuperIC);
 }
 
 void JSGenericLowering::LowerJSLoadGlobal(Node* node) {
@@ -985,10 +1014,14 @@ void JSGenericLowering::LowerJSConstructWithSpread(Node* node) {
     node->InsertInput(zone(), 0, stub_code);
     node->InsertInput(zone(), 3, stub_arity);
     node->InsertInput(zone(), 4, slot);
-    node->InsertInput(zone(), 5, spread);
-    node->InsertInput(zone(), 6, feedback_vector);
+    // Arguments in the stack should be inserted in reversed order, ie, the last
+    // arguments defined in the interface descriptor should be inserted first.
+    DCHECK_EQ(callable.descriptor().GetStackArgumentOrder(),
+              StackArgumentOrder::kJS);
+    node->InsertInput(zone(), 5, feedback_vector);
+    node->InsertInput(zone(), 6, spread);
     node->InsertInput(zone(), 7, receiver);
-    // After: {code, target, new_target, arity, slot, spread, vector, receiver,
+    // After: {code, target, new_target, arity, slot, vector, spread, receiver,
     // ...args}.
 
     NodeProperties::ChangeOp(node, common()->Call(call_descriptor));

@@ -45,6 +45,9 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
   ExecutionMode DebugExecutionMode() const;
   void SetDebugExecutionMode(ExecutionMode value);
 
+  DECL_RELEASE_ACQUIRE_ACCESSORS(debug_bytecode_array, HeapObject)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(original_bytecode_array, HeapObject)
+
   // Specifies whether the associated function has an instrumented bytecode
   // array. If so, OriginalBytecodeArray returns the non-instrumented bytecode,
   // and DebugBytecodeArray returns the instrumented bytecode.
@@ -59,7 +62,7 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
   bool HasBreakInfo() const;
 
   // Clears all fields related to break points.
-  void ClearBreakInfo(Isolate* isolate);
+  V8_EXPORT_PRIVATE void ClearBreakInfo(Isolate* isolate);
 
   // Accessors to flag whether to break before entering the function.
   // This is used to break for functions with no source, e.g. builtins.
@@ -198,14 +201,6 @@ class CoverageInfo
 class BreakPoint : public TorqueGeneratedBreakPoint<BreakPoint, Struct> {
  public:
   TQ_OBJECT_CONSTRUCTORS(BreakPoint)
-};
-
-// Holds Wasm values. This is used by the inspector.
-class WasmValue : public TorqueGeneratedWasmValue<WasmValue, Struct> {
- public:
-  NEVER_READ_ONLY_SPACE
-
-  TQ_OBJECT_CONSTRUCTORS(WasmValue)
 };
 
 }  // namespace internal

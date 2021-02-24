@@ -1,4 +1,6 @@
 Tests breakable locations in wasm
+
+Running test: test
 Running testFunction...
 Script nr 0 parsed. URL: v8://test/instantiate
 Script nr 1 parsed. URL: wasm://wasm/354ada0e
@@ -73,4 +75,3 @@ Stopped at wasm://wasm/354ada0e:0:57
 Missing breakpoints: 1
 Stopped at wasm://wasm/354ada0e:0:58
 Missing breakpoints: 0
-Finished!

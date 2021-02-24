@@ -104,7 +104,7 @@ TEST(ConstantPoolMixedReach) {
   const int ptrReach = 1 << ptrReachBits;
   const int dblReachBits = kReachBits;
   const int dblReach = kReach;
-  const int dblRegularCount = Min(
+  const int dblRegularCount = std::min(
       dblReach / kDoubleSize, ptrReach / (kDoubleSize + kSystemPointerSize));
   const int ptrRegularCount =
       ((ptrReach - (dblRegularCount * (kDoubleSize + kSystemPointerSize))) /
