@@ -32,6 +32,8 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install Ninja
+        run: sudo apt install ninja-build
       - name: Environment Information
         run: npx envinfo
       - name: Build
