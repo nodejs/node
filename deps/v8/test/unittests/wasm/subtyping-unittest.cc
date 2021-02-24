@@ -57,9 +57,9 @@ TEST_F(WasmSubtypingTest, Subtyping) {
 
   ValueType numeric_types[] = {kWasmI32, kWasmI64, kWasmF32, kWasmF64,
                                kWasmS128};
-  ValueType ref_types[] = {kWasmExternRef, kWasmFuncRef, kWasmExnRef,
-                           kWasmEqRef,     kWasmI31Ref,  optRef(0),
-                           ref(0),         optRef(2),    ref(2)};
+  ValueType ref_types[] = {
+      kWasmExternRef, kWasmFuncRef, kWasmExnRef, kWasmEqRef, kWasmI31Ref,
+      kWasmAnyRef,    optRef(0),    ref(0),      optRef(2),  ref(2)};
 
   // Type judgements across modules should work the same as within one module.
   for (WasmModule* module : {module1, module2}) {
@@ -81,12 +81,17 @@ TEST_F(WasmSubtypingTest, Subtyping) {
 
     for (ValueType ref_type : ref_types) {
       // Concrete reference types and i31ref are subtypes of eqref,
-      // exnref/externref/funcref are not.
+      // exnref/externref/funcref/anyref are not.
       CHECK_EQ(IsSubtypeOf(ref_type, kWasmEqRef, module1, module),
                ref_type != kWasmFuncRef && ref_type != kWasmExternRef &&
-                   ref_type != kWasmExnRef);
+                   ref_type != kWasmExnRef && ref_type != kWasmAnyRef);
       // Each reference type is a subtype of itself.
       CHECK(IsSubtypeOf(ref_type, ref_type, module1, module));
+      // Each reference type is a subtype of anyref.
+      CHECK(IsSubtypeOf(ref_type, kWasmAnyRef, module1, module));
+      // Only anyref is a subtype of anyref.
+      CHECK_EQ(IsSubtypeOf(kWasmAnyRef, ref_type, module1, module),
+               ref_type == kWasmAnyRef);
     }
 
     // The rest of ref. types are unrelated.

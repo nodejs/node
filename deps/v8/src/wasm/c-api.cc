@@ -19,15 +19,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "src/wasm/c-api.h"
+
 #include <cstring>
 #include <iostream>
 
-#include "src/wasm/c-api.h"
-
-#include "third_party/wasm-api/wasm.h"
-
 #include "include/libplatform/libplatform.h"
 #include "src/api/api-inl.h"
+#include "src/base/platform/wrappers.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/managed.h"
@@ -39,6 +38,7 @@
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-serialization.h"
+#include "third_party/wasm-api/wasm.h"
 
 #ifdef WASM_API_DEBUG
 #error "WASM_API_DEBUG is unsupported"
@@ -256,7 +256,6 @@ void Engine::operator delete(void* p) { ::operator delete(p); }
 auto Engine::make(own<Config>&& config) -> own<Engine> {
   i::FLAG_expose_gc = true;
   i::FLAG_experimental_wasm_reftypes = true;
-  i::FLAG_experimental_wasm_bigint = true;
   i::FLAG_experimental_wasm_mv = true;
   auto engine = new (std::nothrow) EngineImpl;
   if (!engine) return own<Engine>();
@@ -2212,22 +2211,22 @@ struct borrowed_vec {
   }
 
 // Vectors with no ownership management of elements
-#define WASM_DEFINE_VEC_PLAIN(name, Name)                           \
-  WASM_DEFINE_VEC_BASE(name, Name,                                  \
-                       wasm::vec, ) /* NOLINT(whitespace/parens) */ \
-                                                                    \
-  void wasm_##name##_vec_new(wasm_##name##_vec_t* out, size_t size, \
-                             const wasm_##name##_t data[]) {        \
-    auto v2 = wasm::vec<Name>::make_uninitialized(size);            \
-    if (v2.size() != 0) {                                           \
-      memcpy(v2.get(), data, size * sizeof(wasm_##name##_t));       \
-    }                                                               \
-    *out = release_##name##_vec(std::move(v2));                     \
-  }                                                                 \
-                                                                    \
-  void wasm_##name##_vec_copy(wasm_##name##_vec_t* out,             \
-                              wasm_##name##_vec_t* v) {             \
-    wasm_##name##_vec_new(out, v->size, v->data);                   \
+#define WASM_DEFINE_VEC_PLAIN(name, Name)                               \
+  WASM_DEFINE_VEC_BASE(name, Name,                                      \
+                       wasm::vec, ) /* NOLINT(whitespace/parens) */     \
+                                                                        \
+  void wasm_##name##_vec_new(wasm_##name##_vec_t* out, size_t size,     \
+                             const wasm_##name##_t data[]) {            \
+    auto v2 = wasm::vec<Name>::make_uninitialized(size);                \
+    if (v2.size() != 0) {                                               \
+      v8::base::Memcpy(v2.get(), data, size * sizeof(wasm_##name##_t)); \
+    }                                                                   \
+    *out = release_##name##_vec(std::move(v2));                         \
+  }                                                                     \
+                                                                        \
+  void wasm_##name##_vec_copy(wasm_##name##_vec_t* out,                 \
+                              wasm_##name##_vec_t* v) {                 \
+    wasm_##name##_vec_new(out, v->size, v->data);                       \
   }
 
 // Vectors that own their elements

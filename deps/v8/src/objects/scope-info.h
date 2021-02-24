@@ -270,6 +270,8 @@ class ScopeInfo : public FixedArray {
   STATIC_ASSERT(LanguageModeSize == 1 << LanguageModeBit::kSize);
   STATIC_ASSERT(kLastFunctionKind <= FunctionKindBits::kMax);
 
+  bool IsEmpty() const;
+
  private:
   // The layout of the variable part of a ScopeInfo is as follows:
   // 1. ContextLocalNames:
@@ -342,6 +344,10 @@ class ScopeInfo : public FixedArray {
 
   static const int kFunctionNameEntries = 2;
   static const int kPositionInfoEntries = 2;
+
+  // Hide an inherited member function to ensure that callers have been updated
+  // to use IsEmpty instead.
+  using FixedArray::length;
 
   // Properties of variables.
   using VariableModeField = base::BitField<VariableMode, 0, 4>;

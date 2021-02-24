@@ -100,6 +100,9 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
     utils->Set(isolate, "sendMessageToBackend",
                v8::FunctionTemplate::New(
                    isolate, &UtilsExtension::SendMessageToBackend));
+    utils->Set(isolate, "interruptForMessages",
+               v8::FunctionTemplate::New(
+                   isolate, &UtilsExtension::InterruptForMessages));
     global->Set(isolate, "utils", utils);
   }
 
@@ -386,6 +389,11 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
     backend_runner_->Append(std::make_unique<SendMessageToBackendTask>(
         args[0].As<v8::Int32>()->Value(),
         ToVector(args.GetIsolate(), args[1].As<v8::String>())));
+  }
+
+  static void InterruptForMessages(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    backend_runner_->InterruptForMessages();
   }
 
   static std::map<int, std::unique_ptr<FrontendChannelImpl>> channels_;
@@ -753,9 +761,10 @@ int InspectorTestMain(int argc, char* argv[]) {
   {
     IsolateData::SetupGlobalTasks frontend_extensions;
     frontend_extensions.emplace_back(new UtilsExtension());
-    TaskRunner frontend_runner(
-        std::move(frontend_extensions), kDoCatchExceptions, &ready_semaphore,
-        startup_data.data ? &startup_data : nullptr, kNoInspector);
+    TaskRunner frontend_runner(std::move(frontend_extensions),
+                               kFailOnUncaughtExceptions, &ready_semaphore,
+                               startup_data.data ? &startup_data : nullptr,
+                               kNoInspector);
     ready_semaphore.Wait();
 
     int frontend_context_group_id = 0;
@@ -768,8 +777,9 @@ int InspectorTestMain(int argc, char* argv[]) {
     backend_extensions.emplace_back(new SetTimeoutExtension());
     backend_extensions.emplace_back(new InspectorExtension());
     TaskRunner backend_runner(
-        std::move(backend_extensions), kDontCatchExceptions, &ready_semaphore,
-        startup_data.data ? &startup_data : nullptr, kWithInspector);
+        std::move(backend_extensions), kStandardPropagateUncaughtExceptions,
+        &ready_semaphore, startup_data.data ? &startup_data : nullptr,
+        kWithInspector);
     ready_semaphore.Wait();
     UtilsExtension::set_backend_task_runner(&backend_runner);
 

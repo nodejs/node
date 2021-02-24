@@ -44,10 +44,10 @@ class V8_EXPORT_PRIVATE MarkerBase {
       kMajor,
     };
     using StackState = cppgc::Heap::StackState;
-    enum MarkingType : uint8_t {
-      kAtomic,
-      kIncremental,
-      kIncrementalAndConcurrent
+    using MarkingType = cppgc::Heap::MarkingType;
+    enum class IsForcedGC : uint8_t {
+      kNotForced,
+      kForced,
     };
 
     static constexpr MarkingConfig Default() { return {}; }
@@ -55,6 +55,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
     const CollectionType collection_type = CollectionType::kMajor;
     StackState stack_state = StackState::kMayContainHeapPointers;
     MarkingType marking_type = MarkingType::kIncremental;
+    IsForcedGC is_forced_gc = IsForcedGC::kNotForced;
   };
 
   virtual ~MarkerBase();
@@ -98,7 +99,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
   MutatorMarkingState& MutatorMarkingStateForTesting() {
     return mutator_marking_state_;
   }
-  cppgc::Visitor& VisitorForTesting() { return visitor(); }
+  cppgc::Visitor& Visitor() { return visitor(); }
   void ClearAllWorklistsForTesting();
 
   bool IncrementalMarkingStepForTesting(MarkingConfig::StackState);

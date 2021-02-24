@@ -106,6 +106,9 @@ class V8_PLATFORM_EXPORT DefaultJobHandle : public JobHandle {
   explicit DefaultJobHandle(std::shared_ptr<DefaultJobState> state);
   ~DefaultJobHandle() override;
 
+  DefaultJobHandle(const DefaultJobHandle&) = delete;
+  DefaultJobHandle& operator=(const DefaultJobHandle&) = delete;
+
   void NotifyConcurrencyIncrease() override {
     state_->NotifyConcurrencyIncrease();
   }
@@ -113,9 +116,7 @@ class V8_PLATFORM_EXPORT DefaultJobHandle : public JobHandle {
   void Join() override;
   void Cancel() override;
   void CancelAndDetach() override;
-  bool IsCompleted() override { return !IsActive(); }
   bool IsActive() override;
-  bool IsRunning() override { return IsValid(); }
   bool IsValid() override { return state_ != nullptr; }
 
   bool UpdatePriorityEnabled() const override { return true; }
@@ -124,8 +125,6 @@ class V8_PLATFORM_EXPORT DefaultJobHandle : public JobHandle {
 
  private:
   std::shared_ptr<DefaultJobState> state_;
-
-  DISALLOW_COPY_AND_ASSIGN(DefaultJobHandle);
 };
 
 class DefaultJobWorker : public Task {
@@ -133,6 +132,9 @@ class DefaultJobWorker : public Task {
   DefaultJobWorker(std::weak_ptr<DefaultJobState> state, JobTask* job_task)
       : state_(std::move(state)), job_task_(job_task) {}
   ~DefaultJobWorker() override = default;
+
+  DefaultJobWorker(const DefaultJobWorker&) = delete;
+  DefaultJobWorker& operator=(const DefaultJobWorker&) = delete;
 
   void Run() override {
     auto shared_state = state_.lock();
@@ -151,8 +153,6 @@ class DefaultJobWorker : public Task {
 
   std::weak_ptr<DefaultJobState> state_;
   JobTask* job_task_;
-
-  DISALLOW_COPY_AND_ASSIGN(DefaultJobWorker);
 };
 
 }  // namespace platform

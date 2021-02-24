@@ -45,6 +45,8 @@ type Smi extends StrongTagged generates 'TNode<Smi>' constexpr 'Smi';
 type WeakHeapObject extends Tagged;
 type Weak<T : type extends HeapObject> extends WeakHeapObject;
 type Uninitialized extends Tagged;
+type TaggedIndex extends StrongTagged;
+type TaggedZeroPattern extends TaggedIndex;
 
 @abstract
 extern class HeapObject extends StrongTagged {

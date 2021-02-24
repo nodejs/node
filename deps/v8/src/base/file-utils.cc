@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include "src/base/platform/platform.h"
+#include "src/base/platform/wrappers.h"
 
 namespace v8 {
 namespace base {
@@ -21,8 +22,8 @@ std::unique_ptr<char[]> RelativePath(const char* exec_path, const char* name) {
   }
   size_t name_length = strlen(name);
   auto buffer = std::make_unique<char[]>(basename_start + name_length + 1);
-  if (basename_start > 0) memcpy(buffer.get(), exec_path, basename_start);
-  memcpy(buffer.get() + basename_start, name, name_length);
+  if (basename_start > 0) base::Memcpy(buffer.get(), exec_path, basename_start);
+  base::Memcpy(buffer.get() + basename_start, name, name_length);
   return buffer;
 }
 

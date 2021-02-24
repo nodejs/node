@@ -269,29 +269,26 @@ bool FunctionIsSubtypeOf(uint32_t subtype_index, uint32_t supertype_index,
 
 }  // namespace
 
-// TODO(7748): Extend this with any-heap subtyping.
 V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
     ValueType subtype, ValueType supertype, const WasmModule* sub_module,
     const WasmModule* super_module) {
   DCHECK(subtype != supertype || sub_module != super_module);
 
-  // This function checks for subtyping based on the kind of subtype.
-
   if (!subtype.is_reference_type()) return subtype == supertype;
 
-  if (subtype.kind() == ValueType::kRtt) {
+  if (subtype.is_rtt()) {
     return subtype.heap_type().is_generic()
                ? subtype == supertype
-               : (supertype.kind() == ValueType::kRtt &&
-                  subtype.depth() == supertype.depth() &&
+               : (supertype.is_rtt() && subtype.depth() == supertype.depth() &&
+                  supertype.has_index() &&
                   EquivalentIndices(subtype.ref_index(), supertype.ref_index(),
                                     sub_module, super_module));
   }
 
   DCHECK(subtype.is_object_reference_type());
 
-  bool compatible_references = subtype.kind() == ValueType::kOptRef
-                                   ? supertype.kind() == ValueType::kOptRef
+  bool compatible_references = subtype.is_nullable()
+                                   ? supertype.is_nullable()
                                    : supertype.is_object_reference_type();
   if (!compatible_references) return false;
 
@@ -302,23 +299,43 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
   HeapType sub_heap = subtype.heap_type();
   HeapType super_heap = supertype.heap_type();
 
-  if (sub_heap.representation() == HeapType::kI31 &&
-      super_heap.representation() == HeapType::kEq) {
-    return true;
+  switch (sub_heap.representation()) {
+    case HeapType::kFunc:
+    case HeapType::kExtern:
+    case HeapType::kEq:
+    case HeapType::kExn:
+      return sub_heap == super_heap || super_heap == HeapType::kAny;
+    case HeapType::kAny:
+      return super_heap == HeapType::kAny;
+    case HeapType::kI31:
+      return super_heap == HeapType::kI31 || super_heap == HeapType::kEq ||
+             super_heap == HeapType::kAny;
+    case HeapType::kBottom:
+      UNREACHABLE();
+    default:
+      break;
   }
-  if (sub_heap.is_generic()) return sub_heap == super_heap;
 
   DCHECK(sub_heap.is_index());
   uint32_t sub_index = sub_heap.ref_index();
   DCHECK(sub_module->has_type(sub_index));
 
-  if (super_heap.representation() == HeapType::kEq) {
-    return !sub_module->has_signature(sub_heap.ref_index());
+  switch (super_heap.representation()) {
+    case HeapType::kFunc:
+      return sub_module->has_signature(sub_index);
+    case HeapType::kEq:
+      return !sub_module->has_signature(sub_index);
+    case HeapType::kExtern:
+    case HeapType::kExn:
+    case HeapType::kI31:
+      return false;
+    case HeapType::kAny:
+      return true;
+    case HeapType::kBottom:
+      UNREACHABLE();
+    default:
+      break;
   }
-  if (super_heap.representation() == HeapType::kFunc) {
-    return sub_module->has_signature(sub_heap.ref_index());
-  }
-  if (super_heap.is_generic()) return false;
 
   DCHECK(super_heap.is_index());
   uint32_t super_index = super_heap.ref_index();
@@ -358,7 +375,7 @@ V8_NOINLINE bool EquivalentTypes(ValueType type1, ValueType type2,
   DCHECK(type1.has_index() && type2.has_index() &&
          (type1 != type2 || module1 != module2));
 
-  DCHECK_IMPLIES(type1.has_depth(), type2.has_depth());  // Due to 'if' above
+  DCHECK_IMPLIES(type1.has_depth(), type2.has_depth());  // Due to 'if' above.
   if (type1.has_depth() && type1.depth() != type2.depth()) return false;
 
   DCHECK(type1.has_index() && module1->has_type(type1.ref_index()) &&

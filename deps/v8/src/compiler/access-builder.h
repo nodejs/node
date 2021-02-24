@@ -221,8 +221,8 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to Module::regular_imports() field.
   static FieldAccess ForModuleRegularImports();
 
-  // Provides access to Name::hash_field() field.
-  static FieldAccess ForNameHashField();
+  // Provides access to Name::raw_hash_field() field.
+  static FieldAccess ForNameRawHashField();
 
   // Provides access to String::length() field.
   static FieldAccess ForStringLength();

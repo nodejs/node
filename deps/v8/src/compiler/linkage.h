@@ -307,10 +307,10 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   // The number of C parameters to this call.
   size_t ParameterCount() const { return location_sig_->parameter_count(); }
 
-  // The number of stack parameters to the call.
+  // The number of stack parameter slots to the call.
   size_t StackParameterCount() const { return stack_param_count_; }
 
-  // The number of stack return values from the call.
+  // The number of stack return value slots from the call.
   size_t StackReturnCount() const { return stack_return_count_; }
 
   // The number of parameters to the JS function call.
@@ -393,6 +393,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   int GetFirstUnusedStackSlot() const;
 
   int GetStackParameterDelta(const CallDescriptor* tail_caller) const;
+
+  // Returns the number of slots to the first return value slot.
+  int GetOffsetToReturns() const;
 
   int GetTaggedParameterSlots() const;
 

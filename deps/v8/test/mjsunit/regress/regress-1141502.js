@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --no-lazy-feedback-allocation
-// Flags: --turboprop-dynamic-map-checks
+// Flags: --turbo-dynamic-map-checks
 
 function bar(a) {
   return a.x;

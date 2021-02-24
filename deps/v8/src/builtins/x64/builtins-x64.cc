@@ -2995,7 +2995,11 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   constexpr int kFrameMarkerOffset = -kSystemPointerSize;
   constexpr int kGCScanSlotCountOffset =
       kFrameMarkerOffset - kSystemPointerSize;
-  constexpr int kParamCountOffset = kGCScanSlotCountOffset - kSystemPointerSize;
+  // The number of parameters passed to this function.
+  constexpr int kInParamCountOffset =
+      kGCScanSlotCountOffset - kSystemPointerSize;
+  // The number of parameters according to the signature.
+  constexpr int kParamCountOffset = kInParamCountOffset - kSystemPointerSize;
   constexpr int kReturnCountOffset = kParamCountOffset - kSystemPointerSize;
   constexpr int kValueTypesArrayStartOffset =
       kReturnCountOffset - kSystemPointerSize;
@@ -3004,8 +3008,13 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   constexpr int kFunctionDataOffset =
       kValueTypesArrayStartOffset - kSystemPointerSize;
   constexpr int kLastSpillOffset = kFunctionDataOffset;
-  constexpr int kNumSpillSlots = 5;
+  constexpr int kNumSpillSlots = 6;
   __ subq(rsp, Immediate(kNumSpillSlots * kSystemPointerSize));
+  // Put the in_parameter count on the stack, we only  need it at the very end
+  // when we pop the parameters off the stack.
+  Register in_param_count = rax;
+  __ movq(MemOperand(rbp, kInParamCountOffset), in_param_count);
+  in_param_count = no_reg;
 
   // -------------------------------------------
   // Load the Wasm exported function data and the Wasm instance.
@@ -3032,22 +3041,20 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
                  WasmExportedFunctionData::kInstanceOffset - kHeapObjectTag));
 
   // -------------------------------------------
-  // Increment the call count in function data.
+  // Decrement the budget of the generic wrapper in function data.
   // -------------------------------------------
   __ SmiAddConstant(
-      MemOperand(function_data,
-                 WasmExportedFunctionData::kCallCountOffset - kHeapObjectTag),
-      Smi::FromInt(1));
+      MemOperand(function_data, WasmExportedFunctionData::kWrapperBudgetOffset -
+                                    kHeapObjectTag),
+      Smi::FromInt(-1));
 
   // -------------------------------------------
-  // Check if the call count reached the threshold.
+  // Check if the budget of the generic wrapper reached 0 (zero).
   // -------------------------------------------
+  // Instead of a specific comparison, we can directly use the flags set
+  // from the previous addition.
   Label compile_wrapper, compile_wrapper_done;
-  __ SmiCompare(
-      MemOperand(function_data,
-                 WasmExportedFunctionData::kCallCountOffset - kHeapObjectTag),
-      Smi::FromInt(wasm::kGenericWrapperThreshold));
-  __ j(greater_equal, &compile_wrapper);
+  __ j(less_equal, &compile_wrapper);
   __ bind(&compile_wrapper_done);
 
   // -------------------------------------------
@@ -3160,20 +3167,19 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // We will loop through the params starting with the 1st param.
   // The order of processing the params is important. We have to evaluate them
   // in an increasing order.
-  //      Not reversed                Reversed
-  //   +-----------------+------+-----------------+---------------
-  //   |    receiver     |      |     param n     |
-  //   |- - - - - - - - -|      |- - - - - - - - -|
-  //   |      param 1    |      |    param n-1    |   Caller
-  //   |       ...       |      |       ...       | frame slots
-  //   |    param n-1    |      |     param 1     |
-  //   |- - - - - - - - -|      |- - - - - - - - -|
-  //   |     param n     |      |    receiver     |
-  //  -+-----------------+------+-----------------+---------------
-  //   |  return addr    |      |  return addr    |
-  //   |- - - - - - - - -|<-FP->|- - - - - - - - -|
-  //   |      rbp        |      |      rbp        |   Spill slots
-  //   |- - - - - - - - -|      |- - - - - - - - -|
+  //       +-----------------+---------------
+  //       |     param n     |
+  //       |- - - - - - - - -|
+  //       |    param n-1    |   Caller
+  //       |       ...       | frame slots
+  //       |     param 1     |
+  //       |- - - - - - - - -|
+  //       |    receiver     |
+  //       +-----------------+---------------
+  //       |  return addr    |
+  //   FP->|- - - - - - - - -|
+  //       |      rbp        |   Spill slots
+  //       |- - - - - - - - -|
   //
   // [rbp + current_param] gives us the parameter we are processing.
   // We iterate through half-open interval <1st param, [rbp + param_limit]).
@@ -3458,6 +3464,13 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ bind(&return_done);
   __ movq(param_count, MemOperand(rbp, kParamCountOffset));
 
+  // Calculate the number of parameters we have to pop off the stack. This
+  // number is max(in_param_count, param_count).
+  in_param_count = rdx;
+  __ movq(in_param_count, MemOperand(rbp, kInParamCountOffset));
+  __ cmpq(param_count, in_param_count);
+  __ cmovq(less, param_count, in_param_count);
+
   // -------------------------------------------
   // Deconstrunct the stack frame.
   // -------------------------------------------
@@ -3473,6 +3486,9 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   Register return_addr = rbx;
   __ popq(return_addr);
   Register caller_frame_slots_count = param_count;
+  // Add one to also pop the receiver. The receiver is passed to a JSFunction
+  // over the stack but is neither included in the number of parameters passed
+  // to this function nor in the number of parameters expected in this function.
   __ addq(caller_frame_slots_count, Immediate(1));
   __ shlq(caller_frame_slots_count, Immediate(kSystemPointerSizeLog2));
   __ addq(rsp, caller_frame_slots_count);
@@ -4245,6 +4261,63 @@ void Builtins::Generate_DeoptimizationEntry_Bailout(MacroAssembler* masm) {
 
 void Builtins::Generate_DeoptimizationEntry_Lazy(MacroAssembler* masm) {
   Generate_DeoptimizationEntry(masm, DeoptimizeKind::kLazy);
+}
+
+void Builtins::Generate_DynamicCheckMapsTrampoline(MacroAssembler* masm) {
+  FrameScope scope(masm, StackFrame::MANUAL);
+  __ EnterFrame(StackFrame::INTERNAL);
+
+  // Only save the registers that the DynamicCheckMaps builtin can clobber.
+  DynamicCheckMapsDescriptor descriptor;
+  RegList registers = descriptor.allocatable_registers();
+  // FLAG_debug_code is enabled CSA checks will call C function and so we need
+  // to save all CallerSaved registers too.
+  if (FLAG_debug_code) registers |= kCallerSaved;
+  __ SaveRegisters(registers);
+
+  // Load the immediate arguments from the deopt exit to pass to the builtin.
+  Register slot_arg =
+      descriptor.GetRegisterParameter(DynamicCheckMapsDescriptor::kSlot);
+  Register handler_arg =
+      descriptor.GetRegisterParameter(DynamicCheckMapsDescriptor::kHandler);
+  __ movq(handler_arg, Operand(rbp, CommonFrameConstants::kCallerPCOffset));
+  __ movq(slot_arg, Operand(handler_arg,
+                            Deoptimizer::kEagerWithResumeImmedArgs1PcOffset));
+  __ movq(
+      handler_arg,
+      Operand(handler_arg, Deoptimizer::kEagerWithResumeImmedArgs2PcOffset));
+
+  __ Call(BUILTIN_CODE(masm->isolate(), DynamicCheckMaps),
+          RelocInfo::CODE_TARGET);
+
+  Label deopt, bailout;
+  __ cmpq(rax, Immediate(static_cast<int>(DynamicCheckMapsStatus::kSuccess)));
+  __ j(not_equal, &deopt);
+
+  __ RestoreRegisters(registers);
+  __ LeaveFrame(StackFrame::INTERNAL);
+  __ Ret();
+
+  __ bind(&deopt);
+  __ cmpq(rax, Immediate(static_cast<int>(DynamicCheckMapsStatus::kBailout)));
+  __ j(equal, &bailout);
+
+  if (FLAG_debug_code) {
+    __ cmpq(rax, Immediate(static_cast<int>(DynamicCheckMapsStatus::kDeopt)));
+    __ Assert(equal, AbortReason::kUnexpectedDynamicCheckMapsStatus);
+  }
+  __ RestoreRegisters(registers);
+  __ LeaveFrame(StackFrame::INTERNAL);
+  Handle<Code> deopt_eager = masm->isolate()->builtins()->builtin_handle(
+      Deoptimizer::GetDeoptimizationEntry(DeoptimizeKind::kEager));
+  __ Jump(deopt_eager, RelocInfo::CODE_TARGET);
+
+  __ bind(&bailout);
+  __ RestoreRegisters(registers);
+  __ LeaveFrame(StackFrame::INTERNAL);
+  Handle<Code> deopt_bailout = masm->isolate()->builtins()->builtin_handle(
+      Deoptimizer::GetDeoptimizationEntry(DeoptimizeKind::kBailout));
+  __ Jump(deopt_bailout, RelocInfo::CODE_TARGET);
 }
 
 #undef __

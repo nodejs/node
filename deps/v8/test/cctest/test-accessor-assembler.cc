@@ -208,7 +208,7 @@ TEST(TryProbeStubCache) {
 
   // Ensure that GC does happen because from now on we are going to fill our
   // own stub cache instance with raw values.
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   // Populate {stub_cache}.
   const int N = StubCache::kPrimaryTableSize + StubCache::kSecondaryTableSize;

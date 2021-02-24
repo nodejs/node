@@ -1,4 +1,6 @@
 Step into a function that starts with a non-breakable opcode (i.e. block), then step from there. See https://crbug.com/1137710.
+
+Running test: test
 Setting up global instance variable.
 Got wasm script: wasm://wasm/4658c40e
 Setting breakpoint on offset 44

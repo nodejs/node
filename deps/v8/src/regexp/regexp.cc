@@ -127,7 +127,7 @@ bool RegExp::IsUnmodifiedRegExp(Isolate* isolate, Handle<JSRegExp> regexp) {
 // Identifies the sort of regexps where the regexp engine is faster
 // than the code used for atom matches.
 static bool HasFewDifferentCharacters(Handle<String> pattern) {
-  int length = Min(kMaxLookaheadForBoyerMoore, pattern->length());
+  int length = std::min(kMaxLookaheadForBoyerMoore, pattern->length());
   if (length <= kPatternTooShortForBoyerMoore) return false;
   const int kMod = 128;
   bool character_found[kMod];
@@ -318,7 +318,7 @@ int RegExpImpl::AtomExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
   DCHECK_LE(index, subject->length());
 
   subject = String::Flatten(isolate, subject);
-  DisallowHeapAllocation no_gc;  // ensure vectors stay valid
+  DisallowGarbageCollection no_gc;  // ensure vectors stay valid
 
   String needle = String::cast(regexp->DataAt(JSRegExp::kAtomPatternIndex));
   int needle_len = needle.length();
@@ -728,7 +728,7 @@ Handle<RegExpMatchInfo> RegExp::SetLastMatchInfo(
 
   int capture_register_count =
       JSRegExp::RegistersForCaptureCount(capture_count);
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   if (match != nullptr) {
     for (int i = 0; i < capture_register_count; i += 2) {
       result->SetCapture(i, match[i]);
@@ -799,7 +799,7 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
   sample_subject = String::Flatten(isolate, sample_subject);
   int chars_sampled = 0;
   int half_way = (sample_subject->length() - kSampleSize) / 2;
-  for (int i = Max(0, half_way);
+  for (int i = std::max(0, half_way);
        i < sample_subject->length() && chars_sampled < kSampleSize;
        i++, chars_sampled++) {
     compiler.frequency_collator()->CountCharacter(sample_subject->Get(i));
@@ -975,8 +975,8 @@ RegExpGlobalCache::RegExpGlobalCache(Handle<JSRegExp> regexp,
         register_array_size_ = registers_per_match_;
         max_matches_ = 1;
       } else {
-        register_array_size_ = Max(registers_per_match_,
-                                   Isolate::kJSRegexpStaticOffsetsVectorSize);
+        register_array_size_ = std::max(
+            {registers_per_match_, Isolate::kJSRegexpStaticOffsetsVectorSize});
       }
       break;
     }
@@ -989,8 +989,8 @@ RegExpGlobalCache::RegExpGlobalCache(Handle<JSRegExp> regexp,
       }
       registers_per_match_ =
           JSRegExp::RegistersForCaptureCount(regexp->CaptureCount());
-      register_array_size_ =
-          Max(registers_per_match_, Isolate::kJSRegexpStaticOffsetsVectorSize);
+      register_array_size_ = std::max(
+          {registers_per_match_, Isolate::kJSRegexpStaticOffsetsVectorSize});
       break;
     }
   }
@@ -1058,7 +1058,7 @@ int32_t* RegExpGlobalCache::FetchNext() {
         break;
       case JSRegExp::EXPERIMENTAL: {
         DCHECK(ExperimentalRegExp::IsCompiled(regexp_, isolate_));
-        DisallowHeapAllocation no_gc;
+        DisallowGarbageCollection no_gc;
         num_matches_ = ExperimentalRegExp::ExecRaw(
             isolate_, RegExp::kFromRuntime, *regexp_, *subject_,
             register_array_, register_array_size_, last_end_index);
@@ -1123,7 +1123,7 @@ Object RegExpResultsCache::Lookup(Heap* heap, String key_string,
     cache = heap->regexp_multiple_cache();
   }
 
-  uint32_t hash = key_string.Hash();
+  uint32_t hash = key_string.hash();
   uint32_t index = ((hash & (kRegExpResultsCacheSize - 1)) &
                     ~(kArrayEntriesPerCacheEntry - 1));
   if (cache.get(index + kStringOffset) != key_string ||
@@ -1158,7 +1158,7 @@ void RegExpResultsCache::Enter(Isolate* isolate, Handle<String> key_string,
     cache = factory->regexp_multiple_cache();
   }
 
-  uint32_t hash = key_string->Hash();
+  uint32_t hash = key_string->hash();
   uint32_t index = ((hash & (kRegExpResultsCacheSize - 1)) &
                     ~(kArrayEntriesPerCacheEntry - 1));
   if (cache->get(index + kStringOffset) == Smi::zero()) {

@@ -33,6 +33,21 @@
 #include "src/profiler/heap-profiler.h"
 
 namespace v8 {
+
+cppgc::AllocationHandle& CppHeap::GetAllocationHandle() {
+  return internal::CppHeap::From(this)->object_allocator();
+}
+
+cppgc::HeapHandle& CppHeap::GetHeapHandle() {
+  return *internal::CppHeap::From(this);
+}
+
+void JSHeapConsistency::DijkstraMarkingBarrierSlow(
+    cppgc::HeapHandle& heap_handle, const TracedReferenceBase& ref) {
+  auto& heap_base = cppgc::internal::HeapBase::From(heap_handle);
+  static_cast<JSVisitor*>(&heap_base.marker()->Visitor())->Trace(ref);
+}
+
 namespace internal {
 
 namespace {
@@ -60,6 +75,10 @@ class CppgcPlatformAdapter final : public cppgc::Platform {
   std::unique_ptr<JobHandle> PostJob(TaskPriority priority,
                                      std::unique_ptr<JobTask> job_task) final {
     return platform_->PostJob(priority, std::move(job_task));
+  }
+
+  TracingController* GetTracingController() override {
+    return platform_->GetTracingController();
   }
 
  private:
@@ -149,13 +168,17 @@ CppHeap::CppHeap(
                                     kSupportsConservativeStackScan),
       isolate_(*reinterpret_cast<Isolate*>(isolate)) {
   CHECK(!FLAG_incremental_marking_wrappers);
-  isolate_.heap_profiler()->AddBuildEmbedderGraphCallback(&CppGraphBuilder::Run,
-                                                          this);
+  if (isolate_.heap_profiler()) {
+    isolate_.heap_profiler()->AddBuildEmbedderGraphCallback(
+        &CppGraphBuilder::Run, this);
+  }
 }
 
 CppHeap::~CppHeap() {
-  isolate_.heap_profiler()->RemoveBuildEmbedderGraphCallback(
-      &CppGraphBuilder::Run, this);
+  if (isolate_.heap_profiler()) {
+    isolate_.heap_profiler()->RemoveBuildEmbedderGraphCallback(
+        &CppGraphBuilder::Run, this);
+  }
 }
 
 void CppHeap::RegisterV8References(
@@ -176,7 +199,10 @@ void CppHeap::TracePrologue(TraceFlags flags) {
   const UnifiedHeapMarker::MarkingConfig marking_config{
       UnifiedHeapMarker::MarkingConfig::CollectionType::kMajor,
       cppgc::Heap::StackState::kNoHeapPointers,
-      UnifiedHeapMarker::MarkingConfig::MarkingType::kIncrementalAndConcurrent};
+      cppgc::Heap::MarkingType::kIncrementalAndConcurrent,
+      flags == TraceFlags::kForced
+          ? UnifiedHeapMarker::MarkingConfig::IsForcedGC::kForced
+          : UnifiedHeapMarker::MarkingConfig::IsForcedGC::kNotForced};
   if ((flags == TraceFlags::kReduceMemory) || (flags == TraceFlags::kForced)) {
     // Only enable compaction when in a memory reduction garbage collection as
     // it may significantly increase the final garbage collection pause.
@@ -190,32 +216,44 @@ void CppHeap::TracePrologue(TraceFlags flags) {
 }
 
 bool CppHeap::AdvanceTracing(double deadline_in_ms) {
-  // TODO(chromium:1056170): Replace std::numeric_limits<size_t>::max() with a
-  // proper deadline when unified heap transitions to bytes-based deadline.
-  marking_done_ = marker_->AdvanceMarkingWithMaxDuration(
-      v8::base::TimeDelta::FromMillisecondsD(deadline_in_ms));
+  v8::base::TimeDelta deadline =
+      is_in_final_pause_
+          ? v8::base::TimeDelta::Max()
+          : v8::base::TimeDelta::FromMillisecondsD(deadline_in_ms);
+  // TODO(chromium:1056170): Replace when unified heap transitions to
+  // bytes-based deadline.
+  marking_done_ = marker_->AdvanceMarkingWithMaxDuration(deadline);
+  DCHECK_IMPLIES(is_in_final_pause_, marking_done_);
   return marking_done_;
 }
 
 bool CppHeap::IsTracingDone() { return marking_done_; }
 
 void CppHeap::EnterFinalPause(EmbedderStackState stack_state) {
+  cppgc::internal::StatsCollector::EnabledScope stats_scope(
+      AsBase(), cppgc::internal::StatsCollector::kAtomicMark);
+  is_in_final_pause_ = true;
   marker_->EnterAtomicPause(stack_state);
-  if (compactor_.CancelIfShouldNotCompact(
-          UnifiedHeapMarker::MarkingConfig::MarkingType::kAtomic,
-          stack_state)) {
+  if (compactor_.CancelIfShouldNotCompact(cppgc::Heap::MarkingType::kAtomic,
+                                          stack_state)) {
     marker_->NotifyCompactionCancelled();
   }
 }
 
 void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
+  CHECK(is_in_final_pause_);
   CHECK(marking_done_);
   {
-    // Weakness callbacks and pre-finalizers are forbidden from allocating
-    // objects.
+    cppgc::internal::StatsCollector::EnabledScope stats_scope(
+        AsBase(), cppgc::internal::StatsCollector::kAtomicMark);
     cppgc::internal::ObjectAllocator::NoAllocationScope no_allocation_scope_(
         object_allocator_);
     marker_->LeaveAtomicPause();
+    is_in_final_pause_ = false;
+  }
+  {
+    cppgc::internal::ObjectAllocator::NoAllocationScope no_allocation_scope_(
+        object_allocator_);
     prefinalizer_handler()->InvokePreFinalizers();
   }
   marker_.reset();
@@ -224,16 +262,18 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
   UnifiedHeapMarkingVerifier verifier(*this);
   verifier.Run(cppgc::Heap::StackState::kNoHeapPointers);
 #endif
-  cppgc::internal::Sweeper::SweepingConfig::CompactableSpaceHandling
-      compactable_space_handling = compactor_.CompactSpacesIfEnabled();
+
   {
     NoGCScope no_gc(*this);
+    cppgc::internal::Sweeper::SweepingConfig::CompactableSpaceHandling
+        compactable_space_handling = compactor_.CompactSpacesIfEnabled();
     const cppgc::internal::Sweeper::SweepingConfig sweeping_config{
         cppgc::internal::Sweeper::SweepingConfig::SweepingType::
             kIncrementalAndConcurrent,
         compactable_space_handling};
     sweeper().Start(sweeping_config);
   }
+  sweeper().NotifyDoneIfNeeded();
 }
 
 }  // namespace internal

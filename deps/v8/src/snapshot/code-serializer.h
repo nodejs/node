@@ -71,7 +71,7 @@ class CodeSerializer : public Serializer {
 
   bool SerializeReadOnlyObject(Handle<HeapObject> obj);
 
-  DISALLOW_HEAP_ALLOCATION(no_gc_)
+  DISALLOW_GARBAGE_COLLECTION(no_gc_)
   uint32_t source_hash_;
 };
 

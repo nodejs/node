@@ -69,13 +69,24 @@ class Module : public HeapObject {
   // i.e. has a top-level await.
   V8_WARN_UNUSED_RESULT bool IsGraphAsync(Isolate* isolate) const;
 
+  // While deprecating v8::ResolveCallback in v8.h we still need to support the
+  // version of the API that uses it, but we can't directly reference the
+  // deprecated version because of the enusing build warnings.  So, we declare
+  // this matching typedef for temporary internal use.
+  // TODO(v8:10958) Delete this typedef and all references to it once
+  // v8::ResolveCallback is removed.
+  typedef MaybeLocal<v8::Module> (*DeprecatedResolveCallback)(
+      Local<v8::Context> context, Local<v8::String> specifier,
+      Local<v8::Module> referrer);
+
   // Implementation of spec operation ModuleDeclarationInstantiation.
   // Returns false if an exception occurred during instantiation, true
   // otherwise. (In the case where the callback throws an exception, that
   // exception is propagated.)
   static V8_WARN_UNUSED_RESULT bool Instantiate(
       Isolate* isolate, Handle<Module> module, v8::Local<v8::Context> context,
-      v8::Module::ResolveCallback callback);
+      v8::Module::ResolveModuleCallback callback,
+      DeprecatedResolveCallback callback_without_import_assertions);
 
   // Implementation of spec operation ModuleEvaluation.
   static V8_WARN_UNUSED_RESULT MaybeHandle<Object> Evaluate(
@@ -114,7 +125,8 @@ class Module : public HeapObject {
 
   static V8_WARN_UNUSED_RESULT bool PrepareInstantiate(
       Isolate* isolate, Handle<Module> module, v8::Local<v8::Context> context,
-      v8::Module::ResolveCallback callback);
+      v8::Module::ResolveModuleCallback callback,
+      DeprecatedResolveCallback callback_without_import_assertions);
   static V8_WARN_UNUSED_RESULT bool FinishInstantiate(
       Isolate* isolate, Handle<Module> module,
       ZoneForwardList<Handle<SourceTextModule>>* stack, unsigned* dfs_index,

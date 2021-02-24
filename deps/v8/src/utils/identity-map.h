@@ -28,6 +28,8 @@ struct IdentityMapFindResult {
 // instantions.
 class V8_EXPORT_PRIVATE IdentityMapBase {
  public:
+  IdentityMapBase(const IdentityMapBase&) = delete;
+  IdentityMapBase& operator=(const IdentityMapBase&) = delete;
   bool empty() const { return size_ == 0; }
   int size() const { return size_; }
   int capacity() const { return capacity_; }
@@ -90,8 +92,6 @@ class V8_EXPORT_PRIVATE IdentityMapBase {
   StrongRootsEntry* strong_roots_entry_;
   uintptr_t* values_;
   bool is_iterable_;
-
-  DISALLOW_COPY_AND_ASSIGN(IdentityMapBase);
 };
 
 // Implements an identity map from object addresses to a given value type {V}.
@@ -110,6 +110,8 @@ class IdentityMap : public IdentityMapBase {
   explicit IdentityMap(Heap* heap,
                        AllocationPolicy allocator = AllocationPolicy())
       : IdentityMapBase(heap), allocator_(allocator) {}
+  IdentityMap(const IdentityMap&) = delete;
+  IdentityMap& operator=(const IdentityMap&) = delete;
   ~IdentityMap() override { Clear(); }
 
   // Searches this map for the given key using the object's address
@@ -182,12 +184,14 @@ class IdentityMap : public IdentityMapBase {
     friend class IdentityMap;
   };
 
-  class IteratableScope {
+  class V8_NODISCARD IteratableScope {
    public:
     explicit IteratableScope(IdentityMap* map) : map_(map) {
       CHECK(!map_->is_iterable());
       map_->EnableIteration();
     }
+    IteratableScope(const IteratableScope&) = delete;
+    IteratableScope& operator=(const IteratableScope&) = delete;
     ~IteratableScope() {
       CHECK(map_->is_iterable());
       map_->DisableIteration();
@@ -198,7 +202,6 @@ class IdentityMap : public IdentityMapBase {
 
    private:
     IdentityMap* map_;
-    DISALLOW_COPY_AND_ASSIGN(IteratableScope);
   };
 
  protected:
@@ -217,7 +220,6 @@ class IdentityMap : public IdentityMapBase {
 
  private:
   AllocationPolicy allocator_;
-  DISALLOW_COPY_AND_ASSIGN(IdentityMap);
 };
 
 }  // namespace internal

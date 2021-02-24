@@ -2269,7 +2269,7 @@ TEST(InterpreterInstanceOf) {
   Zone* zone = handles.main_zone();
   Factory* factory = isolate->factory();
   Handle<i::String> name = factory->NewStringFromAsciiChecked("cons");
-  Handle<i::JSFunction> func = factory->NewFunctionForTest(name);
+  Handle<i::JSFunction> func = factory->NewFunctionForTesting(name);
   Handle<i::JSObject> instance = factory->NewJSObject(func);
   Handle<i::Object> other = factory->NewNumber(3.3333);
   Handle<i::Object> cases[] = {Handle<i::Object>::cast(instance), other};
@@ -5120,7 +5120,7 @@ TEST(InterpreterCollectSourcePositions) {
 
   Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
   Handle<BytecodeArray> bytecode_array =
-      handle(sfi->GetBytecodeArray(), isolate);
+      handle(sfi->GetBytecodeArray(isolate), isolate);
   CHECK(!bytecode_array->HasSourcePositionTable());
 
   Compiler::CollectSourcePositions(isolate, sfi);
@@ -5146,7 +5146,7 @@ TEST(InterpreterCollectSourcePositions_StackOverflow) {
 
   Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
   Handle<BytecodeArray> bytecode_array =
-      handle(sfi->GetBytecodeArray(), isolate);
+      handle(sfi->GetBytecodeArray(isolate), isolate);
   CHECK(!bytecode_array->HasSourcePositionTable());
 
   // Make the stack limit the same as the current position so recompilation
@@ -5186,7 +5186,7 @@ TEST(InterpreterCollectSourcePositions_ThrowFrom1stFrame) {
   Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
   // This is the bytecode for the top-level iife.
   Handle<BytecodeArray> bytecode_array =
-      handle(sfi->GetBytecodeArray(), isolate);
+      handle(sfi->GetBytecodeArray(isolate), isolate);
   CHECK(!bytecode_array->HasSourcePositionTable());
 
   {
@@ -5224,7 +5224,7 @@ TEST(InterpreterCollectSourcePositions_ThrowFrom2ndFrame) {
   Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
   // This is the bytecode for the top-level iife.
   Handle<BytecodeArray> bytecode_array =
-      handle(sfi->GetBytecodeArray(), isolate);
+      handle(sfi->GetBytecodeArray(isolate), isolate);
   CHECK(!bytecode_array->HasSourcePositionTable());
 
   {
@@ -5282,7 +5282,7 @@ TEST(InterpreterCollectSourcePositions_GenerateStackTrace) {
 
   Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
   Handle<BytecodeArray> bytecode_array =
-      handle(sfi->GetBytecodeArray(), isolate);
+      handle(sfi->GetBytecodeArray(isolate), isolate);
   CHECK(!bytecode_array->HasSourcePositionTable());
 
   {

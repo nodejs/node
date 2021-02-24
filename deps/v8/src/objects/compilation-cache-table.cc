@@ -4,6 +4,7 @@
 
 #include "src/objects/compilation-cache-table.h"
 
+#include "src/common/assert-scope.h"
 #include "src/objects/compilation-cache-table-inl.h"
 
 namespace v8 {
@@ -21,7 +22,7 @@ const int kHashGenerations = 10;
 
 int SearchLiteralsMapEntry(CompilationCacheTable cache, int cache_entry,
                            Context native_context) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   DCHECK(native_context.IsNativeContext());
   Object obj = cache.get(cache_entry);
 
@@ -151,7 +152,7 @@ class StringSharedKey : public HashTableKey {
         position_(position) {}
 
   bool IsMatch(Object other) override {
-    DisallowHeapAllocation no_allocation;
+    DisallowGarbageCollection no_gc;
     if (!other.IsFixedArray()) {
       DCHECK(other.IsNumber());
       uint32_t other_hash = static_cast<uint32_t>(other.Number());
@@ -275,7 +276,7 @@ InfoCellPair CompilationCacheTable::LookupEval(
 Handle<Object> CompilationCacheTable::LookupRegExp(Handle<String> src,
                                                    JSRegExp::Flags flags) {
   Isolate* isolate = GetIsolate();
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   RegExpKey key(src, flags);
   InternalIndex entry = FindEntry(isolate, &key);
   if (entry.is_not_found()) return isolate->factory()->undefined_value();
@@ -285,7 +286,7 @@ Handle<Object> CompilationCacheTable::LookupRegExp(Handle<String> src,
 MaybeHandle<Code> CompilationCacheTable::LookupCode(
     Handle<SharedFunctionInfo> key) {
   Isolate* isolate = GetIsolate();
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   CodeKey k(key);
   InternalIndex entry = FindEntry(isolate, &k);
   if (entry.is_not_found()) return {};
@@ -391,8 +392,8 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutCode(
   return cache;
 }
 
-void CompilationCacheTable::Age() {
-  DisallowHeapAllocation no_allocation;
+void CompilationCacheTable::Age(Isolate* isolate) {
+  DisallowGarbageCollection no_gc;
   for (InternalIndex entry : IterateEntries()) {
     const int entry_index = EntryToIndex(entry);
     const int value_index = entry_index + 1;
@@ -417,7 +418,7 @@ void CompilationCacheTable::Age() {
     } else if (key.IsFixedArray()) {
       // The ageing mechanism for script and eval caches.
       SharedFunctionInfo info = SharedFunctionInfo::cast(get(value_index));
-      if (info.IsInterpreted() && info.GetBytecodeArray().IsOld()) {
+      if (info.IsInterpreted() && info.GetBytecodeArray(isolate).IsOld()) {
         RemoveEntry(entry_index);
       }
     }
@@ -425,7 +426,7 @@ void CompilationCacheTable::Age() {
 }
 
 void CompilationCacheTable::Remove(Object value) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   for (InternalIndex entry : IterateEntries()) {
     int entry_index = EntryToIndex(entry);
     int value_index = entry_index + 1;

@@ -10,13 +10,21 @@
 
 THIS_DIR="$(readlink -f "$(dirname "${0}")")"
 
-PACKAGE_DIR="${THIS_DIR}/../../tools/gcmole/gcmole-tools"
-PACKAGE_FILE="${THIS_DIR}/../../tools/gcmole/gcmole-tools.tar.gz"
-PACKAGE_SUM="${THIS_DIR}/../../tools/gcmole/gcmole-tools.tar.gz.sha1"
-BUILD_DIR="${THIS_DIR}/../../third_party/llvm+clang-build"
+PACKAGE_DIR="${THIS_DIR}/gcmole-tools"
+PACKAGE_FILE="${THIS_DIR}/gcmole-tools.tar.gz"
+PACKAGE_SUM="${THIS_DIR}/gcmole-tools.tar.gz.sha1"
+BUILD_DIR="${THIS_DIR}/bootstrap/build"
 
 # Echo all commands
 set -x
+
+# Clean out any old files
+if [ -e "${PACKAGE_DIR:?}/bin" ] ; then
+  rm -rf "${PACKAGE_DIR:?}/bin"
+fi
+if [ -e "${PACKAGE_DIR:?}/lib" ] ; then
+  rm -rf "${PACKAGE_DIR:?}/lib"
+fi
 
 # Copy all required files
 mkdir -p "${PACKAGE_DIR}/bin"
@@ -39,7 +47,22 @@ echo You can find a packaged version of gcmole here:
 echo
 echo $(readlink -f "${PACKAGE_FILE}")
 echo
+echo Upload the update package to the chrome infra:
+echo
+echo 'gsutil.py cp tools/gcmole/gcmole-tools.tar.gz gs://chrome-v8-gcmole/$(cat tools/gcmole/gcmole-tools.tar.gz.sha1)'
+echo
+echo Run bootstrap.sh in chroot if glibc versions mismatch with bots:
+echo '# Create chroot'
+echo 'mkdir -p $CHROOT_DIR'
+echo 'sudo debootstrap $DEBIAN_VERSION $CHROOT_DIR'
+echo 'sudo chroot $CHROOT_DIR apt install g++ cmake python git'
+echo '# Mount ./depot_tools and ./v8 dirs in the chroot:'
+echo 'sudo chroot $CHROOT_DIR mkdir /docs'
+echo 'sudo mount --bind /path/to/workspace /docs'
+echo '# Build gcmole'
+echo "sudo chroot \$CHROOT_DIR bash -c 'PATH=/docs/depot_tools:\$PATH; /docs/v8/v8/tools/gcmole/bootstrap.sh'"
+echo
 echo You can now run gcmole using this command:
 echo
-echo CLANG_BIN="tools/gcmole/gcmole-tools/bin" lua tools/gcmole/gcmole.lua
+echo CLANG_BIN=\"tools/gcmole/gcmole-tools/bin\" python tools/gcmole/gcmole.py
 echo

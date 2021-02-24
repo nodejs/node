@@ -49,7 +49,6 @@ namespace compiler {
   V(MipsSubS)                      \
   V(MipsMulS)                      \
   V(MipsDivS)                      \
-  V(MipsModS)                      \
   V(MipsAbsS)                      \
   V(MipsSqrtS)                     \
   V(MipsMaxS)                      \
@@ -168,6 +167,12 @@ namespace compiler {
   V(MipsI64x2Shl)                  \
   V(MipsI64x2ShrS)                 \
   V(MipsI64x2ShrU)                 \
+  V(MipsI64x2BitMask)              \
+  V(MipsI64x2Eq)                   \
+  V(MipsI64x2ExtMulLowI32x4S)      \
+  V(MipsI64x2ExtMulHighI32x4S)     \
+  V(MipsI64x2ExtMulLowI32x4U)      \
+  V(MipsI64x2ExtMulHighI32x4U)     \
   V(MipsF32x4Splat)                \
   V(MipsF32x4ExtractLane)          \
   V(MipsF32x4ReplaceLane)          \
@@ -218,6 +223,10 @@ namespace compiler {
   V(MipsI32x4Abs)                  \
   V(MipsI32x4BitMask)              \
   V(MipsI32x4DotI16x8S)            \
+  V(MipsI32x4ExtMulLowI16x8S)      \
+  V(MipsI32x4ExtMulHighI16x8S)     \
+  V(MipsI32x4ExtMulLowI16x8U)      \
+  V(MipsI32x4ExtMulHighI16x8U)     \
   V(MipsI16x8Splat)                \
   V(MipsI16x8ExtractLaneU)         \
   V(MipsI16x8ExtractLaneS)         \
@@ -247,6 +256,11 @@ namespace compiler {
   V(MipsI16x8RoundingAverageU)     \
   V(MipsI16x8Abs)                  \
   V(MipsI16x8BitMask)              \
+  V(MipsI16x8Q15MulRSatS)          \
+  V(MipsI16x8ExtMulLowI8x16S)      \
+  V(MipsI16x8ExtMulHighI8x16S)     \
+  V(MipsI16x8ExtMulLowI8x16U)      \
+  V(MipsI16x8ExtMulHighI8x16U)     \
   V(MipsI8x16Splat)                \
   V(MipsI8x16ExtractLaneU)         \
   V(MipsI8x16ExtractLaneS)         \

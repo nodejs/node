@@ -35,6 +35,7 @@
 #include "src/wasm/wasm-objects.h"
 
 #if defined(V8_OS_WIN64)
+#include "src/base/platform/wrappers.h"
 #include "src/diagnostics/unwinding-info-win64.h"
 #endif  // V8_OS_WIN64
 
@@ -182,7 +183,7 @@ std::unique_ptr<const byte[]> WasmCode::ConcatenateBytes(
   byte* ptr = result.get();
   for (auto& vec : vectors) {
     if (vec.empty()) continue;  // Avoid nullptr in {memcpy}.
-    memcpy(ptr, vec.begin(), vec.size());
+    base::Memcpy(ptr, vec.begin(), vec.size());
     ptr += vec.size();
   }
   return result;
@@ -216,21 +217,20 @@ bool WasmCode::ShouldBeLogged(Isolate* isolate) {
          isolate->is_profiling();
 }
 
-void WasmCode::LogCode(Isolate* isolate) const {
+void WasmCode::LogCode(Isolate* isolate, const char* source_url,
+                       int script_id) const {
   DCHECK(ShouldBeLogged(isolate));
   if (IsAnonymous()) return;
 
-  ModuleWireBytes wire_bytes(native_module()->wire_bytes());
-  WireBytesRef name_ref =
-      native_module()->module()->lazily_generated_names.LookupFunctionName(
-          wire_bytes, index(),
-          VectorOf(native_module()->module()->export_table));
+  ModuleWireBytes wire_bytes(native_module_->wire_bytes());
+  const WasmModule* module = native_module_->module();
+  WireBytesRef name_ref = module->lazily_generated_names.LookupFunctionName(
+      wire_bytes, index(), VectorOf(module->export_table));
   WasmName name = wire_bytes.GetNameOrNull(name_ref);
 
-  const WasmDebugSymbols& debug_symbols =
-      native_module()->module()->debug_symbols;
+  const WasmDebugSymbols& debug_symbols = module->debug_symbols;
   auto load_wasm_source_map = isolate->wasm_load_source_map_callback();
-  auto source_map = native_module()->GetWasmSourceMap();
+  auto source_map = native_module_->GetWasmSourceMap();
   if (!source_map && debug_symbols.type == WasmDebugSymbols::Type::SourceMap &&
       !debug_symbols.external_url.is_empty() && load_wasm_source_map) {
     WasmName external_url =
@@ -240,7 +240,7 @@ void WasmCode::LogCode(Isolate* isolate) const {
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
     Local<v8::String> source_map_str =
         load_wasm_source_map(v8_isolate, external_url_string.c_str());
-    native_module()->SetWasmSourceMap(
+    native_module_->SetWasmSourceMap(
         std::make_unique<WasmModuleSourceMap>(v8_isolate, source_map_str));
   }
 
@@ -250,7 +250,7 @@ void WasmCode::LogCode(Isolate* isolate) const {
     size_t prefix_len = name_buffer.size();
     constexpr size_t kMaxSigLength = 128;
     name_buffer.resize(prefix_len + kMaxSigLength);
-    const FunctionSig* sig = native_module()->module()->functions[index_].sig;
+    const FunctionSig* sig = module->functions[index_].sig;
     size_t sig_length =
         PrintSignature(VectorOf(&name_buffer[prefix_len], kMaxSigLength), sig);
     name_buffer.resize(prefix_len + sig_length);
@@ -267,8 +267,9 @@ void WasmCode::LogCode(Isolate* isolate) const {
                  "wasm-function[%d]", index()));
     name = VectorOf(name_buffer);
   }
-  PROFILE(isolate,
-          CodeCreateEvent(CodeEventListener::FUNCTION_TAG, this, name));
+  int code_offset = module->functions[index_].code.offset();
+  PROFILE(isolate, CodeCreateEvent(CodeEventListener::FUNCTION_TAG, this, name,
+                                   source_url, code_offset, script_id));
 
   if (!source_positions().empty()) {
     LOG_CODE_EVENT(isolate, CodeLinePosInfoRecordEvent(instruction_start(),
@@ -412,7 +413,7 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
       table.PrintEntry(i, os);
       os << " (sp -> fp)";
       SafepointEntry entry = table.GetEntry(i);
-      if (entry.trampoline_pc() != -1) {
+      if (entry.trampoline_pc() != SafepointEntry::kNoTrampolinePC) {
         os << " trampoline: " << std::hex << entry.trampoline_pc() << std::dec;
       }
       if (entry.has_deoptimization_index()) {
@@ -800,15 +801,17 @@ NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
                            std::shared_ptr<const WasmModule> module,
                            std::shared_ptr<Counters> async_counters,
                            std::shared_ptr<NativeModule>* shared_this)
-    : code_allocator_(engine->code_manager(), std::move(code_space),
+    : engine_(engine),
+      engine_scope_(engine->GetBarrierForBackgroundCompile()->TryLock()),
+      code_allocator_(engine->code_manager(), std::move(code_space),
                       async_counters),
       enabled_features_(enabled),
       module_(std::move(module)),
       import_wrapper_cache_(std::unique_ptr<WasmImportWrapperCache>(
           new WasmImportWrapperCache())),
-      engine_(engine),
       use_trap_handler_(trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler
                                                              : kNoTrapHandler) {
+  DCHECK(engine_scope_);
   // We receive a pointer to an empty {std::shared_ptr}, and install ourselve
   // there.
   DCHECK_NOT_NULL(shared_this);
@@ -816,6 +819,7 @@ NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
   shared_this->reset(this);
   compilation_state_ =
       CompilationState::New(*shared_this, std::move(async_counters));
+  compilation_state_->InitCompileJob(engine);
   DCHECK_NOT_NULL(module_);
   if (module_->num_declared_functions > 0) {
     code_table_ =
@@ -836,8 +840,8 @@ void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
   DCHECK_LE(module_->num_declared_functions, max_functions);
   auto new_table = std::make_unique<WasmCode*[]>(max_functions);
   if (module_->num_declared_functions > 0) {
-    memcpy(new_table.get(), code_table_.get(),
-           module_->num_declared_functions * sizeof(WasmCode*));
+    base::Memcpy(new_table.get(), code_table_.get(),
+                 module_->num_declared_functions * sizeof(WasmCode*));
   }
   code_table_ = std::move(new_table);
 
@@ -855,19 +859,25 @@ void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
   code_space_data_[0].jump_table = main_jump_table_;
 }
 
-void NativeModule::LogWasmCodes(Isolate* isolate) {
+void NativeModule::LogWasmCodes(Isolate* isolate, Script script) {
+  DisallowGarbageCollection no_gc;
   if (!WasmCode::ShouldBeLogged(isolate)) return;
 
   TRACE_EVENT1("v8.wasm", "wasm.LogWasmCodes", "functions",
                module_->num_declared_functions);
 
-  // TODO(titzer): we skip the logging of the import wrappers
-  // here, but they should be included somehow.
-  int start = module_->num_imported_functions;
-  int end = start + module_->num_declared_functions;
+  Object source_url_obj = script.source_url();
+  DCHECK(source_url_obj.IsString() || source_url_obj.IsUndefined());
+  std::unique_ptr<char[]> source_url =
+      source_url_obj.IsString() ? String::cast(source_url_obj).ToCString()
+                                : nullptr;
+
+  // Log all owned code, not just the current entries in the code table. This
+  // will also include import wrappers.
   WasmCodeRefScope code_ref_scope;
-  for (int func_index = start; func_index < end; ++func_index) {
-    if (WasmCode* code = GetCode(func_index)) code->LogCode(isolate);
+  base::MutexGuard lock(&allocation_mutex_);
+  for (auto& owned_entry : owned_code_) {
+    owned_entry.second->LogCode(isolate, source_url.get(), script.id());
   }
 }
 
@@ -914,7 +924,8 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
 
   Vector<uint8_t> dst_code_bytes =
       code_allocator_.AllocateForCode(this, instructions.size());
-  memcpy(dst_code_bytes.begin(), instructions.begin(), instructions.size());
+  base::Memcpy(dst_code_bytes.begin(), instructions.begin(),
+               instructions.size());
 
   // Apply the relocation delta by iterating over the RelocInfo.
   intptr_t delta = reinterpret_cast<Address>(dst_code_bytes.begin()) -
@@ -1039,8 +1050,8 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
   const int instr_size = desc.instr_size;
 
   CODE_SPACE_WRITE_SCOPE
-  memcpy(dst_code_bytes.begin(), desc.buffer,
-         static_cast<size_t>(desc.instr_size));
+  base::Memcpy(dst_code_bytes.begin(), desc.buffer,
+               static_cast<size_t>(desc.instr_size));
 
   // Apply the relocation delta by iterating over the RelocInfo.
   intptr_t delta = dst_code_bytes.begin() - desc.buffer;
@@ -1174,7 +1185,7 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
   return result;
 }
 
-WasmCode* NativeModule::AddDeserializedCode(
+std::unique_ptr<WasmCode> NativeModule::AllocateDeserializedCode(
     int index, Vector<const byte> instructions, int stack_slots,
     int tagged_parameter_slots, int safepoint_table_offset,
     int handler_table_offset, int constant_pool_offset,
@@ -1182,22 +1193,15 @@ WasmCode* NativeModule::AddDeserializedCode(
     Vector<const byte> protected_instructions_data,
     Vector<const byte> reloc_info, Vector<const byte> source_position_table,
     WasmCode::Kind kind, ExecutionTier tier) {
-  // CodeSpaceWriteScope is provided by the caller.
   Vector<uint8_t> dst_code_bytes =
       code_allocator_.AllocateForCode(this, instructions.size());
   UpdateCodeSize(dst_code_bytes.size(), tier, kNoDebugging);
-  memcpy(dst_code_bytes.begin(), instructions.begin(), instructions.size());
 
-  std::unique_ptr<WasmCode> code{new WasmCode{
+  return std::unique_ptr<WasmCode>{new WasmCode{
       this, index, dst_code_bytes, stack_slots, tagged_parameter_slots,
       safepoint_table_offset, handler_table_offset, constant_pool_offset,
       code_comments_offset, unpadded_binary_size, protected_instructions_data,
       reloc_info, source_position_table, kind, tier, kNoDebugging}};
-
-  // Note: we do not flush the i-cache here, since the code needs to be
-  // relocated anyway. The caller is responsible for flushing the i-cache later.
-
-  return PublishCode(std::move(code));
 }
 
 std::vector<WasmCode*> NativeModule::SnapshotCodeTable() const {

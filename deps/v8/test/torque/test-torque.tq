@@ -860,7 +860,7 @@ macro TestSlices() {
   const firstRef:&Object = &a.objects[0];
   check(TaggedEqual(*firstRef, oneTwoThree));
 
-  const slice: torque_internal::Slice<Object> = &a.objects;
+  const slice: MutableSlice<Object> = &a.objects;
   const firstRefAgain:&Object = slice.TryAtIndex(0) otherwise unreachable;
   check(TaggedEqual(*firstRefAgain, oneTwoThree));
 
@@ -873,7 +873,7 @@ macro TestSlices() {
   // a.objects = slice;  // error, not allowed
 
   // TODO(gsps): Currently errors, but should be allowed:
-  // const _sameSlice: torque_internal::Slice<Object> = &(*slice);
+  // const _sameSlice: MutableSlice<Object> = &(*slice);
   // (*slice)[0] : Smi
 }
 
@@ -1338,6 +1338,19 @@ macro TestWord8Phi() {
       x = Convert<int8>(i);
     }
     check(x == Convert<int8>(i));
+  }
+}
+
+@export
+macro TestOffHeapSlice(ptr: RawPtr<char8>, length: intptr) {
+  const string = UnsafeCast<SeqOneByteString>(Convert<String>('Hello World!'));
+
+  check(*torque_internal::unsafe::NewOffHeapReference(ptr) == string.chars[0]);
+
+  let offHeapSlice = torque_internal::unsafe::NewOffHeapConstSlice(ptr, length);
+  let onHeapSlice = &string.chars;
+  for (let i: intptr = 0; i < onHeapSlice.length; ++i) {
+    check(*onHeapSlice.AtIndex(i) == *offHeapSlice.AtIndex(i));
   }
 }
 }

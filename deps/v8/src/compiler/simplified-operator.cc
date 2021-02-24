@@ -561,8 +561,6 @@ std::ostream& operator<<(std::ostream& os, NumberOperationHint hint) {
       return os << "SignedSmall";
     case NumberOperationHint::kSignedSmallInputs:
       return os << "SignedSmallInputs";
-    case NumberOperationHint::kSigned32:
-      return os << "Signed32";
     case NumberOperationHint::kNumber:
       return os << "Number";
     case NumberOperationHint::kNumberOrBoolean:
@@ -1188,7 +1186,6 @@ struct SimplifiedOperatorGlobalCache final {
       k##Name##SignedSmallOperator;                                         \
   Name##Operator<NumberOperationHint::kSignedSmallInputs>                   \
       k##Name##SignedSmallInputsOperator;                                   \
-  Name##Operator<NumberOperationHint::kSigned32> k##Name##Signed32Operator; \
   Name##Operator<NumberOperationHint::kNumber> k##Name##NumberOperator;     \
   Name##Operator<NumberOperationHint::kNumberOrOddball>                     \
       k##Name##NumberOrOddballOperator;
@@ -1209,8 +1206,6 @@ struct SimplifiedOperatorGlobalCache final {
   };
   SpeculativeToNumberOperator<NumberOperationHint::kSignedSmall>
       kSpeculativeToNumberSignedSmallOperator;
-  SpeculativeToNumberOperator<NumberOperationHint::kSigned32>
-      kSpeculativeToNumberSigned32Operator;
   SpeculativeToNumberOperator<NumberOperationHint::kNumber>
       kSpeculativeToNumberNumberOperator;
   SpeculativeToNumberOperator<NumberOperationHint::kNumberOrOddball>
@@ -1595,8 +1590,6 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeToNumber(
         return &cache_.kSpeculativeToNumberSignedSmallOperator;
       case NumberOperationHint::kSignedSmallInputs:
         break;
-      case NumberOperationHint::kSigned32:
-        return &cache_.kSpeculativeToNumberSigned32Operator;
       case NumberOperationHint::kNumber:
         return &cache_.kSpeculativeToNumberNumberOperator;
       case NumberOperationHint::kNumberOrBoolean:
@@ -1837,8 +1830,6 @@ const Operator* SimplifiedOperatorBuilder::AllocateRaw(
         return &cache_.k##Name##SignedSmallOperator;                          \
       case NumberOperationHint::kSignedSmallInputs:                           \
         return &cache_.k##Name##SignedSmallInputsOperator;                    \
-      case NumberOperationHint::kSigned32:                                    \
-        return &cache_.k##Name##Signed32Operator;                             \
       case NumberOperationHint::kNumber:                                      \
         return &cache_.k##Name##NumberOperator;                               \
       case NumberOperationHint::kNumberOrBoolean:                             \
@@ -1861,8 +1852,6 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeNumberEqual(
       return &cache_.kSpeculativeNumberEqualSignedSmallOperator;
     case NumberOperationHint::kSignedSmallInputs:
       return &cache_.kSpeculativeNumberEqualSignedSmallInputsOperator;
-    case NumberOperationHint::kSigned32:
-      return &cache_.kSpeculativeNumberEqualSigned32Operator;
     case NumberOperationHint::kNumber:
       return &cache_.kSpeculativeNumberEqualNumberOperator;
     case NumberOperationHint::kNumberOrBoolean:

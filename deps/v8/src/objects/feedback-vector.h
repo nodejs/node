@@ -875,12 +875,13 @@ class V8_EXPORT_PRIVATE FeedbackIterator final {
     return (entry * kEntrySize) + kHandlerOffset;
   }
 
+  static constexpr int kEntrySize = 2;
+  static constexpr int kHandlerOffset = 1;
+
  private:
   void AdvancePolymorphic();
   enum State { kMonomorphic, kPolymorphic, kOther };
 
-  static constexpr int kEntrySize = 2;
-  static constexpr int kHandlerOffset = 1;
   Handle<WeakFixedArray> polymorphic_feedback_;
   Map map_;
   MaybeObject handler_;

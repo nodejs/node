@@ -37,7 +37,7 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
     const WrapperInfo& raw_info;
   };
 
-  class V8_EXPORT_PRIVATE ProcessingScope {
+  class V8_EXPORT_PRIVATE V8_NODISCARD ProcessingScope {
    public:
     explicit ProcessingScope(LocalEmbedderHeapTracer* tracer);
     ~ProcessingScope();
@@ -150,7 +150,7 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   friend class EmbedderStackStateScope;
 };
 
-class V8_EXPORT_PRIVATE EmbedderStackStateScope final {
+class V8_EXPORT_PRIVATE V8_NODISCARD EmbedderStackStateScope final {
  public:
   EmbedderStackStateScope(LocalEmbedderHeapTracer* local_tracer,
                           EmbedderHeapTracer::EmbedderStackState stack_state)

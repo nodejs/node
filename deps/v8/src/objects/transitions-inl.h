@@ -188,15 +188,12 @@ int TransitionArray::SearchSpecial(Symbol symbol, int* out_insertion_index) {
 
 int TransitionArray::SearchName(Name name, int* out_insertion_index) {
   DCHECK(name.IsUniqueName());
-  // The name is taken from DescriptorArray, so it must already has a computed
-  // hash.
-  DCHECK(name.HasHashCode());
   return internal::Search<ALL_ENTRIES>(this, name, number_of_entries(),
                                        out_insertion_index);
 }
 
 TransitionsAccessor::TransitionsAccessor(Isolate* isolate, Map map,
-                                         DisallowHeapAllocation* no_gc)
+                                         DisallowGarbageCollection* no_gc)
     : isolate_(isolate), map_(map), concurrent_access_(false) {
   Initialize();
   USE(no_gc);
@@ -312,7 +309,7 @@ void TransitionArray::SetNumberOfTransitions(int number_of_transitions) {
 }
 
 Handle<String> TransitionsAccessor::ExpectedTransitionKey() {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   switch (encoding()) {
     case kPrototypeInfo:
     case kUninitialized:

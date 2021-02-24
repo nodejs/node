@@ -112,7 +112,8 @@ std::ostream& operator<<(std::ostream& os, DeoptimizeParameters p) {
 DeoptimizeParameters const& DeoptimizeParametersOf(Operator const* const op) {
   DCHECK(op->opcode() == IrOpcode::kDeoptimize ||
          op->opcode() == IrOpcode::kDeoptimizeIf ||
-         op->opcode() == IrOpcode::kDeoptimizeUnless);
+         op->opcode() == IrOpcode::kDeoptimizeUnless ||
+         op->opcode() == IrOpcode::kDynamicCheckMapsWithDeoptUnless);
   return OpParameter<DeoptimizeParameters>(op);
 }
 
@@ -192,6 +193,10 @@ MachineRepresentation PhiRepresentationOf(const Operator* const op) {
   return OpParameter<MachineRepresentation>(op);
 }
 
+MachineRepresentation LoopExitValueRepresentationOf(const Operator* const op) {
+  DCHECK_EQ(IrOpcode::kLoopExitValue, op->opcode());
+  return OpParameter<MachineRepresentation>(op);
+}
 
 int ParameterIndexOf(const Operator* const op) {
   DCHECK_EQ(IrOpcode::kParameter, op->opcode());
@@ -436,7 +441,7 @@ ZoneVector<MachineType> const* MachineTypesOf(Operator const* op) {
 V8_EXPORT_PRIVATE bool operator==(IfValueParameters const& l,
                                   IfValueParameters const& r) {
   return l.value() == r.value() &&
-         r.comparison_order() == r.comparison_order() && l.hint() == r.hint();
+         l.comparison_order() == r.comparison_order() && l.hint() == r.hint();
 }
 
 size_t hash_value(IfValueParameters const& p) {
@@ -465,11 +470,12 @@ IfValueParameters const& IfValueParametersOf(const Operator* op) {
   V(Throw, Operator::kKontrol, 0, 1, 1, 0, 0, 1)          \
   V(Terminate, Operator::kKontrol, 0, 1, 1, 0, 0, 1)      \
   V(LoopExit, Operator::kKontrol, 0, 0, 2, 0, 0, 1)       \
-  V(LoopExitValue, Operator::kPure, 1, 0, 1, 1, 0, 0)     \
   V(LoopExitEffect, Operator::kNoThrow, 0, 1, 1, 0, 1, 0) \
   V(Checkpoint, Operator::kKontrol, 0, 1, 1, 0, 1, 0)     \
   V(FinishRegion, Operator::kKontrol, 1, 1, 0, 1, 1, 0)   \
   V(Retain, Operator::kKontrol, 1, 1, 0, 0, 1, 0)
+
+#define CACHED_LOOP_EXIT_VALUE_LIST(V) V(kTagged)
 
 #define CACHED_BRANCH_LIST(V)   \
   V(None, CriticalSafetyCheck)  \
@@ -725,6 +731,19 @@ struct CommonOperatorGlobalCache final {
   CACHED_MERGE_LIST(CACHED_MERGE)
 #undef CACHED_MERGE
 
+  template <MachineRepresentation kRep>
+  struct LoopExitValueOperator final : public Operator1<MachineRepresentation> {
+    LoopExitValueOperator()
+        : Operator1<MachineRepresentation>(IrOpcode::kLoopExitValue,
+                                           Operator::kPure, "LoopExitValue", 1,
+                                           0, 1, 1, 0, 0, kRep) {}
+  };
+#define CACHED_LOOP_EXIT_VALUE(rep)                 \
+  LoopExitValueOperator<MachineRepresentation::rep> \
+      kLoopExitValue##rep##Operator;
+  CACHED_LOOP_EXIT_VALUE_LIST(CACHED_LOOP_EXIT_VALUE)
+#undef CACHED_LOOP_EXIT_VALUE
+
   template <DeoptimizeKind kKind, DeoptimizeReason kReason>
   struct DeoptimizeOperator final : public Operator1<DeoptimizeParameters> {
     DeoptimizeOperator()
@@ -781,6 +800,20 @@ struct CommonOperatorGlobalCache final {
       kDeoptimizeUnless##Kind##Reason##IsCheck##Operator;
   CACHED_DEOPTIMIZE_UNLESS_LIST(CACHED_DEOPTIMIZE_UNLESS)
 #undef CACHED_DEOPTIMIZE_UNLESS
+
+  struct DynamicMapCheckOperator final : Operator1<DeoptimizeParameters> {
+    DynamicMapCheckOperator()
+        : Operator1<DeoptimizeParameters>(                 // --
+              IrOpcode::kDynamicCheckMapsWithDeoptUnless,  // opcode
+              Operator::kFoldable | Operator::kNoThrow,    // properties
+              "DynamicCheckMapsWithDeoptUnless",           // name
+              5, 1, 1, 0, 1, 1,                            // counts
+              DeoptimizeParameters(DeoptimizeKind::kEagerWithResume,
+                                   DeoptimizeReason::kDynamicCheckMaps,
+                                   FeedbackSource(),
+                                   IsSafetyCheck::kCriticalSafetyCheck)) {}
+  };
+  DynamicMapCheckOperator kDynamicCheckMapsWithDeoptUnless;
 
   template <TrapId trap_id>
   struct TrapIfOperator final : public Operator1<TrapId> {
@@ -1019,6 +1052,10 @@ const Operator* CommonOperatorBuilder::DeoptimizeUnless(
       parameter);                                       // parameter
 }
 
+const Operator* CommonOperatorBuilder::DynamicCheckMapsWithDeoptUnless() {
+  return &cache_.kDynamicCheckMapsWithDeoptUnless;
+}
+
 const Operator* CommonOperatorBuilder::TrapIf(TrapId trap_id) {
   switch (trap_id) {
 #define CACHED_TRAP_IF(Trap) \
@@ -1125,6 +1162,24 @@ const Operator* CommonOperatorBuilder::Merge(int control_input_count) {
       0, 0, control_input_count, 0, 0, 1);   // counts
 }
 
+const Operator* CommonOperatorBuilder::LoopExitValue(
+    MachineRepresentation rep) {
+  switch (rep) {
+#define CACHED_LOOP_EXIT_VALUE(kRep) \
+  case MachineRepresentation::kRep:  \
+    return &cache_.kLoopExitValue##kRep##Operator;
+
+    CACHED_LOOP_EXIT_VALUE_LIST(CACHED_LOOP_EXIT_VALUE)
+#undef CACHED_LOOP_EXIT_VALUE
+    default:
+      // Uncached.
+      return zone()->New<Operator1<MachineRepresentation>>(  // --
+          IrOpcode::kLoopExitValue, Operator::kPure,         // opcode
+          "LoopExitValue",                                   // name
+          1, 0, 1, 1, 0, 0,                                  // counts
+          rep);                                              // parameter
+  }
+}
 
 const Operator* CommonOperatorBuilder::Parameter(int index,
                                                  const char* debug_name) {

@@ -727,7 +727,7 @@ struct LiveRangeOrdering {
 };
 class LiveRangeBundle : public ZoneObject {
  public:
-  void MergeSpillRanges();
+  void MergeSpillRangesAndClear();
 
   int id() { return id_; }
 
@@ -782,7 +782,11 @@ class LiveRangeBundle : public ZoneObject {
       : ranges_(zone), uses_(zone), id_(id) {}
 
   bool TryAddRange(LiveRange* range);
-  bool TryMerge(LiveRangeBundle* other, bool trace_alloc);
+
+  // If merging is possible, merge either {lhs} into {rhs} or {rhs} into
+  // {lhs}, clear the source and return the result. Otherwise return nullptr.
+  static LiveRangeBundle* TryMerge(LiveRangeBundle* lhs, LiveRangeBundle* rhs,
+                                   bool trace_alloc);
 
   ZoneSet<LiveRange*, LiveRangeOrdering> ranges_;
   ZoneSet<Range, RangeOrdering> uses_;

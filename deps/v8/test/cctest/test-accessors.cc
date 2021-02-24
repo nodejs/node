@@ -27,8 +27,6 @@
 
 #include <stdlib.h>
 
-#include "src/init/v8.h"
-
 #include "src/api/api-inl.h"
 #include "src/execution/frames-inl.h"
 #include "src/strings/string-stream.h"
@@ -149,8 +147,7 @@ THREADED_TEST(PropertyHandler) {
 static void GetIntValue(Local<String> property,
                         const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
-  int* value =
-      static_cast<int*>(v8::Local<v8::External>::Cast(info.Data())->Value());
+  int* value = static_cast<int*>(info.Data().As<v8::External>()->Value());
   info.GetReturnValue().Set(v8_num(*value));
 }
 
@@ -158,8 +155,7 @@ static void GetIntValue(Local<String> property,
 static void SetIntValue(Local<String> property,
                         Local<Value> value,
                         const v8::PropertyCallbackInfo<void>& info) {
-  int* field =
-      static_cast<int*>(v8::Local<v8::External>::Cast(info.Data())->Value());
+  int* field = static_cast<int*>(info.Data().As<v8::External>()->Value());
   *field = value->Int32Value(info.GetIsolate()->GetCurrentContext()).FromJust();
 }
 

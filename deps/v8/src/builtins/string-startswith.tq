@@ -47,14 +47,6 @@ transitioning javascript builtin StringPrototypeStartsWith(
   // searchLength is the same as the full code unit sequence of searchStr,
   // return true.
   // 13. Otherwise, return false.
-  try {
-    // Fast Path: If both strings are direct and relevant indices are Smis.
-    return TryFastStringCompareSequence(string, searchStr, start, searchLength)
-        otherwise Slow;
-  } label Slow {
-    // Slow Path: If either of the string is indirect, bail into runtime.
-    return StringCompareSequence(
-        context, string, searchStr, Convert<Number>(start));
-  }
+  return Convert<Boolean>(IsSubstringAt(string, searchStr, Signed(start)));
 }
 }

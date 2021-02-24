@@ -43,17 +43,17 @@ function test() {
 }
 //# sourceURL=test.js`);
 
-(async function Test() {
-  breakCount = 0;
-  breakpointId = 0;
-  await Protocol.Debugger.enable();
-  WasmInspectorTest.instantiate(module_bytes);
-  await waitForWasmScript();
-  await Protocol.Runtime.evaluate({ expression: 'test()', includeCommandLineAPI: true});
-  InspectorTest.log('exports.main returned!');
-  InspectorTest.log('Finished!');
-  InspectorTest.completeTest();
-})();
+InspectorTest.runAsyncTestSuite([
+  async function test() {
+    breakCount = 0;
+    breakpointId = 0;
+    await Protocol.Debugger.enable();
+    WasmInspectorTest.instantiate(module_bytes);
+    await waitForWasmScript();
+    await Protocol.Runtime.evaluate({ expression: 'test()', includeCommandLineAPI: true});
+    InspectorTest.log('exports.main returned!');
+  }
+]);
 
 function printFailure(message) {
   if (!message.result) {

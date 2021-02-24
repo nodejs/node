@@ -41,10 +41,6 @@
   ##############################################################################
   # Open bugs.
 
-  # https://crbug.com/v8/10929
-  'wasm/externref-liftoff' : [SKIP],
-  'wasm/externref-globals-liftoff' : [SKIP],
-
   # BUG(v8:2989).
   'regress/regress-2989': [FAIL, NO_VARIANTS, ['lite_mode == True', SKIP]],
 
@@ -76,10 +72,6 @@
 
   # https://crbug.com/1129854
   'tools/log': ['arch == arm or arch == arm64', SKIP],
-
-  # crbug.com/1161357
-  # TODO(solanes): Remove this entry once the underlying issue is fixed.
-  'regress/regress-1161357': [PASS, FAIL],
 
   ##############################################################################
   # Tests where variants make no sense.
@@ -159,7 +151,8 @@
   'wasm/compare-exchange64-stress': [PASS, SLOW, NO_VARIANTS],
 
   # Very slow on ARM and MIPS, contains no architecture dependent code.
-  'unicode-case-overoptimization': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips64, mips)', SKIP]],
+  'unicode-case-overoptimization0': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips64, mips)', SKIP]],
+  'unicode-case-overoptimization1': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips64, mips)', SKIP]],
   'regress/regress-3976': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips64, mips)', SKIP]],
   'regress/regress-crbug-482998': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips)', SKIP]],
   'regress/regress-740784': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips)', SKIP]],
@@ -188,6 +181,7 @@
   # Skip slow tests in debug mode.
   'array-functions-prototype-misc': [SKIP],
   'compiler/regress-808472': [SKIP],
+  'compiler/regress-1161357': [SKIP],
   'es6/promise-all-overflow-2': [SKIP],
   'generated-transition-stub': [SKIP],
   'regress/regress-524': [SKIP],
@@ -323,6 +317,9 @@
 
   # BUG(v8:10035)
   'compiler/deopt-array-builtins': [SKIP],
+
+  # BUG(v8:11240)
+  'regress/regress-v8-9267-1': [SKIP],
 }],  # 'gc_stress'
 
 ##############################################################################
@@ -628,6 +625,7 @@
   'math-floor-part1': [PASS, SLOW],
   'regress/regress-430201': [SKIP],
   'regress/regress-500980': [PASS, SLOW],
+  'wasm/shared-memory-worker-stress': [PASS, SLOW],
 
   # BUG(v8:9506): times out.
   'wasm/shared-memory-worker-explicit-gc-stress': [SKIP],
@@ -1018,6 +1016,9 @@
 ['system == aix', {
   # stack overflow
   'regress/regress-crbug-178790': [PASS, ['mode == debug', SKIP]],
+  # PASE environment currently ships with no tzdata database
+  'tzoffset-transition-new-york-noi18n': [SKIP],
+  'tzoffset-seoul-noi18n': [SKIP],
 }],  # 'system == aix'
 
 ##############################################################################
@@ -1199,15 +1200,12 @@
   # fixed in a later cl.
   # TODO(mythria): Reenable this when the cl that migrates deprecated maps
   # lands
-  'regress/regress-932953': [PASS],
+  'regress/regress-932953': [FAIL],
 
   # Tests failing for the lack of function context specialization in Turboprop.
   'compiler/abstract-equal-receiver': [FAIL],
   'compiler/constant-fold-cow-array': [FAIL],
   'compiler/promise-resolve-stable-maps': [FAIL],
-
-  # https://crbug.com/v8/10894
-  'math-floor-of-div': [SLOW],
 }],  # variant == turboprop
 
 ##############################################################################
@@ -1357,6 +1355,8 @@
   'compiler/dataview-set': [SKIP],
   'compiler/deopt-inlined-from-call': [SKIP],
   'compiler/field-representation-tracking': [SKIP],
+  'compiler/globals-change-writable': [SKIP],
+  'compiler/globals-freeze-*': [SKIP],
   'compiler/manual-concurrent-recompile': [SKIP],
   'compiler/native-context-specialization-hole-check': [SKIP],
   'compiler/number-divide': [SKIP],
@@ -1465,5 +1465,10 @@
   'regress/regress-crbug-1041232': [SKIP],
   'regress/regress-set-flags-stress-compact': [SKIP],
 }],  # variant == stress_sampling
+
+##############################################################################
+['variant == stress_incremental_marking', {
+  'wasm/shared-memory-worker-stress': [PASS, SLOW, ['tsan', SKIP]],
+}],  # variant == stress_incremental_marking
 
 ]

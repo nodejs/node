@@ -79,17 +79,12 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=4895
   'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/tonumber-value-detached-buffer': [FAIL],
   'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/BigInt/tonumber-value-detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/BigInt/key-is-numericindex': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/BigInt/key-is-numericindex-desc-configurable': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/key-is-numericindex': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/key-is-numericindex-desc-configurable': [FAIL],
   'built-ins/TypedArrayConstructors/internals/GetOwnProperty/BigInt/index-prop-desc': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/GetOwnProperty/index-prop-desc': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Set/tonumber-value-detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Set/BigInt/tonumber-value-detached-buffer': [FAIL],
   # Some TypedArray methods throw due to the same bug, from Get
   'built-ins/TypedArray/prototype/every/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/every/BigInt/callbackfn-detachbuffer': [FAIL],
+  'built-ins/TypedArray/prototype/filter/callbackfn-detachbuffer': [FAIL],
+  'built-ins/TypedArray/prototype/filter/BigInt/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/find/predicate-may-detach-buffer': [FAIL],
   'built-ins/TypedArray/prototype/find/BigInt/predicate-may-detach-buffer': [FAIL],
   'built-ins/TypedArray/prototype/findIndex/predicate-may-detach-buffer': [FAIL],
@@ -120,8 +115,8 @@
   'built-ins/TypedArray/prototype/fill/coerced-value-detach': [FAIL],
   'built-ins/TypedArray/prototype/fill/coerced-end-detach': [FAIL],
   'built-ins/TypedArray/prototype/fill/coerced-start-detach': [FAIL],
-  # includes should also throw on detached buffers
-  'built-ins/TypedArray/prototype/includes/detached-buffer-tointeger': [FAIL],
+  'built-ins/TypedArray/prototype/includes/detached-buffer-during-fromIndex-returns-true-for-undefined': [FAIL],
+  'built-ins/TypedArray/prototype/includes/BigInt/detached-buffer-during-fromIndex-returns-true-for-undefined': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4951
   'language/expressions/assignment/destructuring/iterator-destructuring-property-reference-target-evaluation-order': [FAIL],
@@ -493,14 +488,6 @@
   'language/statements/try/tco-finally': [SKIP],
   'language/statements/while/tco-body': [SKIP],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5327
-  'built-ins/TypedArrayConstructors/internals/Set/key-is-minus-zero': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Set/BigInt/key-is-minus-zero': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Set/key-is-not-integer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Set/BigInt/key-is-not-integer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Set/key-is-out-of-bounds': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/Set/BigInt/key-is-out-of-bounds': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=6049
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-caller': [FAIL_SLOPPY],
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-arguments': [FAIL_SLOPPY],
@@ -544,29 +531,8 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=9049
   'language/comments/hashbang/use-strict': [SKIP],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9613
-  'intl402/Intl/getCanonicalLocales/canonicalized-tags': [FAIL],
-  'intl402/Intl/getCanonicalLocales/grandfathered': [FAIL],
-  'intl402/Intl/getCanonicalLocales/preferred-grandfathered': [FAIL],
-  'intl402/Intl/getCanonicalLocales/preferred-variant': [FAIL],
-  'intl402/Locale/constructor-apply-options-canonicalizes-twice': [FAIL],
-  'intl402/Locale/likely-subtags-grandfathered': [FAIL],
-
   # http://crbug/v8/10447
-  'intl402/Intl/getCanonicalLocales/complex-language-subtag-replacement': [FAIL],
-  'intl402/Intl/getCanonicalLocales/complex-region-subtag-replacement': [FAIL],
-  'intl402/Intl/getCanonicalLocales/transformed-ext-canonical': [FAIL],
-  'intl402/Intl/getCanonicalLocales/transformed-ext-invalid': [FAIL],
-  'intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-region': [FAIL],
-  'intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-subdivision': [FAIL],
   'intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-yes-to-true': [FAIL],
-  'intl402/Intl/getCanonicalLocales/unicode-ext-key-with-digit': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9742
-  'intl402/Locale/getters': [FAIL],
-
-  # https://github.com/tc39/test262/pull/2349
-  'intl402/Locale/constructor-options-region-valid': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=9818
   'built-ins/AsyncFunction/proto-from-ctor-realm': [FAIL],
@@ -610,43 +576,10 @@
   # http://crbug/v8/10905
   'language/identifier-resolution/assign-to-global-undefined': [FAIL],
 
-  # http://crbug/v8/10961
-  'built-ins/Array/prototype/item/index-argument-tointeger': [FAIL],
-  'built-ins/Array/prototype/item/index-non-numeric-argument-tointeger': [FAIL],
-  'built-ins/Array/prototype/item/index-non-numeric-argument-tointeger-invalid': [FAIL],
-  'built-ins/Array/prototype/item/length': [FAIL],
-  'built-ins/Array/prototype/item/name': [FAIL],
-  'built-ins/Array/prototype/item/prop-desc': [FAIL],
-  'built-ins/Array/prototype/item/return-abrupt-from-this': [FAIL],
-  'built-ins/Array/prototype/item/returns-item': [FAIL],
-  'built-ins/Array/prototype/item/returns-item-relative-index': [FAIL],
-  'built-ins/Array/prototype/item/returns-undefined-for-holes-in-sparse-arrays': [FAIL],
-  'built-ins/Array/prototype/item/returns-undefined-for-out-of-range-index': [FAIL],
-  'built-ins/String/prototype/item/index-argument-tointeger': [FAIL],
-  'built-ins/String/prototype/item/index-non-numeric-argument-tointeger': [FAIL],
-  'built-ins/String/prototype/item/index-non-numeric-argument-tointeger-invalid': [FAIL],
-  'built-ins/String/prototype/item/length': [FAIL],
-  'built-ins/String/prototype/item/name': [FAIL],
-  'built-ins/String/prototype/item/prop-desc': [FAIL],
-  'built-ins/String/prototype/item/return-abrupt-from-this': [FAIL],
-  'built-ins/String/prototype/item/returns-code-unit': [FAIL],
-  'built-ins/String/prototype/item/returns-item': [FAIL],
-  'built-ins/String/prototype/item/returns-item-relative-index': [FAIL],
-  'built-ins/String/prototype/item/returns-undefined-for-out-of-range-index': [FAIL],
-  'built-ins/TypedArray/prototype/item/index-argument-tointeger': [FAIL],
-  'built-ins/TypedArray/prototype/item/index-non-numeric-argument-tointeger': [FAIL],
-  'built-ins/TypedArray/prototype/item/index-non-numeric-argument-tointeger-invalid': [FAIL],
-  'built-ins/TypedArray/prototype/item/length': [FAIL],
-  'built-ins/TypedArray/prototype/item/name': [FAIL],
-  'built-ins/TypedArray/prototype/item/prop-desc': [FAIL],
-  'built-ins/TypedArray/prototype/item/return-abrupt-from-this': [FAIL],
-  'built-ins/TypedArray/prototype/item/returns-item': [FAIL],
-  'built-ins/TypedArray/prototype/item/returns-item-relative-index': [FAIL],
-  'built-ins/TypedArray/prototype/item/returns-undefined-for-holes-in-sparse-arrays': [FAIL],
-  'built-ins/TypedArray/prototype/item/returns-undefined-for-out-of-range-index': [FAIL],
-
-  # http://crbug/v8/11039
-  'intl402/Locale/reject-duplicate-variants-in-tlang': [FAIL],
+  # https://bugs.chromium.org/p/chromium/issues/detail?id=1159764
+  'built-ins/Array/prototype/at/*': [FAIL],
+  'built-ins/String/prototype/at/*': [FAIL],
+  'built-ins/TypedArray/prototype/at/*': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 

@@ -7,7 +7,9 @@
 #include <cstdarg>
 
 #include "src/base/atomic-utils.h"
+#include "src/common/globals.h"
 #include "src/execution/isolate.h"
+#include "src/execution/thread-id.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/spaces.h"
@@ -37,45 +39,51 @@ RuntimeCallCounterId GCTracer::RCSCounterFromScope(Scope::ScopeId id) {
       static_cast<int>(id));
 }
 
-RuntimeCallCounterId GCTracer::RCSCounterFromBackgroundScope(
-    BackgroundScope::ScopeId id) {
-  STATIC_ASSERT(Scope::FIRST_BACKGROUND_SCOPE ==
-                Scope::BACKGROUND_ARRAY_BUFFER_FREE);
-  STATIC_ASSERT(
-      0 == static_cast<int>(BackgroundScope::BACKGROUND_ARRAY_BUFFER_FREE));
-  return static_cast<RuntimeCallCounterId>(
-      static_cast<int>(RCSCounterFromScope(Scope::FIRST_BACKGROUND_SCOPE)) +
-      static_cast<int>(id));
+double GCTracer::MonotonicallyIncreasingTimeInMs() {
+  if (V8_UNLIKELY(FLAG_predictable)) {
+    return heap_->MonotonicallyIncreasingTimeInMs();
+  } else {
+    return base::TimeTicks::Now().ToInternalValue() /
+           static_cast<double>(base::Time::kMicrosecondsPerMillisecond);
+  }
 }
 
-GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope)
-    : tracer_(tracer), scope_(scope) {
-  start_time_ = tracer_->heap_->MonotonicallyIncreasingTimeInMs();
+CollectionEpoch GCTracer::CurrentEpoch(Scope::ScopeId scope_id) {
+  if (Scope::NeedsYoungEpoch(scope_id)) {
+    return heap_->epoch_young();
+  } else {
+    return heap_->epoch_full();
+  }
+}
+
+GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope, ThreadKind thread_kind)
+    : tracer_(tracer), scope_(scope), thread_kind_(thread_kind) {
+  start_time_ = tracer_->MonotonicallyIncreasingTimeInMs();
   if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
-  runtime_stats_ = tracer_->heap_->isolate()->counters()->runtime_call_stats();
-  runtime_stats_->Enter(&timer_, GCTracer::RCSCounterFromScope(scope));
+
+  if (thread_kind_ == ThreadKind::kMain) {
+    DCHECK_EQ(tracer_->heap_->isolate()->thread_id(), ThreadId::Current());
+    runtime_stats_ =
+        tracer_->heap_->isolate()->counters()->runtime_call_stats();
+    runtime_stats_->Enter(&timer_, GCTracer::RCSCounterFromScope(scope));
+  } else {
+    runtime_call_stats_scope_.emplace(
+        tracer->worker_thread_runtime_call_stats());
+    runtime_stats_ = runtime_call_stats_scope_->Get();
+    runtime_stats_->Enter(&timer_, GCTracer::RCSCounterFromScope(scope));
+  }
 }
 
 GCTracer::Scope::~Scope() {
-  tracer_->AddScopeSample(
-      scope_, tracer_->heap_->MonotonicallyIncreasingTimeInMs() - start_time_);
-  if (V8_LIKELY(runtime_stats_ == nullptr)) return;
-  runtime_stats_->Leave(&timer_);
-}
+  double duration_ms = tracer_->MonotonicallyIncreasingTimeInMs() - start_time_;
 
-GCTracer::BackgroundScope::BackgroundScope(GCTracer* tracer, ScopeId scope,
-                                           RuntimeCallStats* runtime_stats)
-    : tracer_(tracer), scope_(scope), runtime_stats_(runtime_stats) {
-  start_time_ = tracer_->heap_->MonotonicallyIncreasingTimeInMs();
-  if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
-  runtime_stats_->Enter(&timer_,
-                        GCTracer::RCSCounterFromBackgroundScope(scope));
-}
+  if (thread_kind_ == ThreadKind::kMain) {
+    DCHECK_EQ(tracer_->heap_->isolate()->thread_id(), ThreadId::Current());
+    tracer_->AddScopeSample(scope_, duration_ms);
+  } else {
+    tracer_->AddScopeSampleBackground(scope_, duration_ms);
+  }
 
-GCTracer::BackgroundScope::~BackgroundScope() {
-  double duration_ms =
-      tracer_->heap_->MonotonicallyIncreasingTimeInMs() - start_time_;
-  tracer_->AddBackgroundScopeSample(scope_, duration_ms);
   if (V8_LIKELY(runtime_stats_ == nullptr)) return;
   runtime_stats_->Leave(&timer_);
 }
@@ -95,18 +103,17 @@ const char* GCTracer::Scope::Name(ScopeId id) {
   return nullptr;
 }
 
-const char* GCTracer::BackgroundScope::Name(ScopeId id) {
-#define CASE(scope)            \
-  case BackgroundScope::scope: \
-    return "V8.GC_" #scope;
+bool GCTracer::Scope::NeedsYoungEpoch(ScopeId id) {
+#define CASE(scope)  \
+  case Scope::scope: \
+    return true;
   switch (id) {
-    TRACER_BACKGROUND_SCOPES(CASE)
-    case BackgroundScope::NUMBER_OF_SCOPES:
-      break;
+    TRACER_YOUNG_EPOCH_SCOPES(CASE)
+    default:
+      return false;
   }
 #undef CASE
   UNREACHABLE();
-  return nullptr;
 }
 
 GCTracer::Event::Event(Type type, GarbageCollectionReason gc_reason,
@@ -175,15 +182,15 @@ GCTracer::GCTracer(Heap* heap)
   // We assume that MC_INCREMENTAL is the first scope so that we can properly
   // map it to RuntimeCallStats.
   STATIC_ASSERT(0 == Scope::MC_INCREMENTAL);
-  current_.end_time = heap_->MonotonicallyIncreasingTimeInMs();
-  for (int i = 0; i < BackgroundScope::NUMBER_OF_SCOPES; i++) {
+  current_.end_time = MonotonicallyIncreasingTimeInMs();
+  for (int i = 0; i < Scope::NUMBER_OF_SCOPES; i++) {
     background_counter_[i].total_duration_ms = 0;
   }
 }
 
 void GCTracer::ResetForTesting() {
   current_ = Event(Event::START, GarbageCollectionReason::kTesting, nullptr);
-  current_.end_time = heap_->MonotonicallyIncreasingTimeInMs();
+  current_.end_time = MonotonicallyIncreasingTimeInMs();
   previous_ = current_;
   ResetIncrementalMarkingCounters();
   allocation_time_ms_ = 0.0;
@@ -209,7 +216,7 @@ void GCTracer::ResetForTesting() {
   current_mark_compact_mutator_utilization_ = 1.0;
   previous_mark_compact_end_time_ = 0;
   base::MutexGuard guard(&background_counter_mutex_);
-  for (int i = 0; i < BackgroundScope::NUMBER_OF_SCOPES; i++) {
+  for (int i = 0; i < Scope::NUMBER_OF_SCOPES; i++) {
     background_counter_[i].total_duration_ms = 0;
   }
 }
@@ -248,7 +255,7 @@ void GCTracer::Start(GarbageCollector collector,
   }
 
   current_.reduce_memory = heap_->ShouldReduceMemory();
-  current_.start_time = heap_->MonotonicallyIncreasingTimeInMs();
+  current_.start_time = MonotonicallyIncreasingTimeInMs();
   current_.start_object_size = 0;
   current_.start_memory_size = 0;
   current_.start_holes_size = 0;
@@ -322,7 +329,7 @@ void GCTracer::Stop(GarbageCollector collector) {
           (current_.type == Event::MARK_COMPACTOR ||
            current_.type == Event::INCREMENTAL_MARK_COMPACTOR)));
 
-  current_.end_time = heap_->MonotonicallyIncreasingTimeInMs();
+  current_.end_time = MonotonicallyIncreasingTimeInMs();
 
   AddAllocation(current_.end_time);
 
@@ -585,8 +592,6 @@ void GCTracer::PrintNVP() const {
           "scavenge.update_refs=%.2f "
           "scavenge.sweep_array_buffers=%.2f "
           "background.scavenge.parallel=%.2f "
-          "background.array_buffer_free=%.2f "
-          "background.store_buffer=%.2f "
           "background.unmapper=%.2f "
           "incremental.steps_count=%d "
           "incremental.steps_took=%.1f "
@@ -630,8 +635,6 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::SCAVENGER_SCAVENGE_UPDATE_REFS],
           current_.scopes[Scope::SCAVENGER_SWEEP_ARRAY_BUFFERS],
           current_.scopes[Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL],
-          current_.scopes[Scope::BACKGROUND_ARRAY_BUFFER_FREE],
-          current_.scopes[Scope::BACKGROUND_STORE_BUFFER],
           current_.scopes[Scope::BACKGROUND_UNMAPPER],
           current_.incremental_marking_scopes[GCTracer::Scope::MC_INCREMENTAL]
               .steps,
@@ -674,8 +677,6 @@ void GCTracer::PrintNVP() const {
           "background.mark=%.2f "
           "background.evacuate.copy=%.2f "
           "background.evacuate.update_pointers=%.2f "
-          "background.array_buffer_free=%.2f "
-          "background.store_buffer=%.2f "
           "background.unmapper=%.2f "
           "update_marking_deque=%.2f "
           "reset_liveness=%.2f\n",
@@ -700,8 +701,6 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MINOR_MC_BACKGROUND_MARKING],
           current_.scopes[Scope::MINOR_MC_BACKGROUND_EVACUATE_COPY],
           current_.scopes[Scope::MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS],
-          current_.scopes[Scope::BACKGROUND_ARRAY_BUFFER_FREE],
-          current_.scopes[Scope::BACKGROUND_STORE_BUFFER],
           current_.scopes[Scope::BACKGROUND_UNMAPPER],
           current_.scopes[Scope::MINOR_MC_MARKING_DEQUE],
           current_.scopes[Scope::MINOR_MC_RESET_LIVENESS]);
@@ -725,7 +724,6 @@ void GCTracer::PrintNVP() const {
           "clear.dependent_code=%.1f "
           "clear.maps=%.1f "
           "clear.slots_buffer=%.1f "
-          "clear.store_buffer=%.1f "
           "clear.string_table=%.1f "
           "clear.weak_collections=%.1f "
           "clear.weak_lists=%.1f "
@@ -770,7 +768,6 @@ void GCTracer::PrintNVP() const {
           "incremental.finalize.external.prologue=%.1f "
           "incremental.finalize.external.epilogue=%.1f "
           "incremental.layout_change=%.1f "
-          "incremental.start=%.1f "
           "incremental.sweep_array_buffers=%.1f "
           "incremental.sweeping=%.1f "
           "incremental.embedder_prologue=%.1f "
@@ -786,8 +783,6 @@ void GCTracer::PrintNVP() const {
           "background.sweep=%.1f "
           "background.evacuate.copy=%.1f "
           "background.evacuate.update_pointers=%.1f "
-          "background.array_buffer_free=%.2f "
-          "background.store_buffer=%.2f "
           "background.unmapper=%.1f "
           "total_size_before=%zu "
           "total_size_after=%zu "
@@ -820,7 +815,6 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_CLEAR_DEPENDENT_CODE],
           current_.scopes[Scope::MC_CLEAR_MAPS],
           current_.scopes[Scope::MC_CLEAR_SLOTS_BUFFER],
-          current_.scopes[Scope::MC_CLEAR_STORE_BUFFER],
           current_.scopes[Scope::MC_CLEAR_STRING_TABLE],
           current_.scopes[Scope::MC_CLEAR_WEAK_COLLECTIONS],
           current_.scopes[Scope::MC_CLEAR_WEAK_LISTS],
@@ -865,7 +859,6 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE],
           current_.scopes[Scope::MC_INCREMENTAL_LAYOUT_CHANGE],
           current_.scopes[Scope::MC_INCREMENTAL_START],
-          current_.scopes[Scope::MC_INCREMENTAL_SWEEP_ARRAY_BUFFERS],
           current_.scopes[Scope::MC_INCREMENTAL_SWEEPING],
           current_.scopes[Scope::MC_INCREMENTAL_EMBEDDER_PROLOGUE],
           current_.scopes[Scope::MC_INCREMENTAL_EMBEDDER_TRACING],
@@ -888,8 +881,6 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_BACKGROUND_SWEEPING],
           current_.scopes[Scope::MC_BACKGROUND_EVACUATE_COPY],
           current_.scopes[Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS],
-          current_.scopes[Scope::BACKGROUND_ARRAY_BUFFER_FREE],
-          current_.scopes[Scope::BACKGROUND_STORE_BUFFER],
           current_.scopes[Scope::BACKGROUND_UNMAPPER],
           current_.start_object_size, current_.end_object_size,
           current_.start_holes_size, current_.end_holes_size,
@@ -1152,9 +1143,7 @@ void GCTracer::NotifyIncrementalMarkingStart() {
 
 void GCTracer::FetchBackgroundMarkCompactCounters() {
   FetchBackgroundCounters(Scope::FIRST_MC_BACKGROUND_SCOPE,
-                          Scope::LAST_MC_BACKGROUND_SCOPE,
-                          BackgroundScope::FIRST_MC_BACKGROUND_SCOPE,
-                          BackgroundScope::LAST_MC_BACKGROUND_SCOPE);
+                          Scope::LAST_MC_BACKGROUND_SCOPE);
   heap_->isolate()->counters()->background_marking()->AddSample(
       static_cast<int>(current_.scopes[Scope::MC_BACKGROUND_MARKING]));
   heap_->isolate()->counters()->background_sweeping()->AddSample(
@@ -1163,9 +1152,7 @@ void GCTracer::FetchBackgroundMarkCompactCounters() {
 
 void GCTracer::FetchBackgroundMinorGCCounters() {
   FetchBackgroundCounters(Scope::FIRST_MINOR_GC_BACKGROUND_SCOPE,
-                          Scope::LAST_MINOR_GC_BACKGROUND_SCOPE,
-                          BackgroundScope::FIRST_MINOR_GC_BACKGROUND_SCOPE,
-                          BackgroundScope::LAST_MINOR_GC_BACKGROUND_SCOPE);
+                          Scope::LAST_MINOR_GC_BACKGROUND_SCOPE);
   heap_->isolate()->counters()->background_scavenger()->AddSample(
       static_cast<int>(
           current_.scopes[Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL]));
@@ -1173,28 +1160,18 @@ void GCTracer::FetchBackgroundMinorGCCounters() {
 
 void GCTracer::FetchBackgroundGeneralCounters() {
   FetchBackgroundCounters(Scope::FIRST_GENERAL_BACKGROUND_SCOPE,
-                          Scope::LAST_GENERAL_BACKGROUND_SCOPE,
-                          BackgroundScope::FIRST_GENERAL_BACKGROUND_SCOPE,
-                          BackgroundScope::LAST_GENERAL_BACKGROUND_SCOPE);
+                          Scope::LAST_GENERAL_BACKGROUND_SCOPE);
 }
 
-void GCTracer::FetchBackgroundCounters(int first_global_scope,
-                                       int last_global_scope,
-                                       int first_background_scope,
-                                       int last_background_scope) {
-  DCHECK_EQ(last_global_scope - first_global_scope,
-            last_background_scope - first_background_scope);
+void GCTracer::FetchBackgroundCounters(int first_scope, int last_scope) {
   base::MutexGuard guard(&background_counter_mutex_);
-  int background_mc_scopes = last_background_scope - first_background_scope + 1;
-  for (int i = 0; i < background_mc_scopes; i++) {
-    current_.scopes[first_global_scope + i] +=
-        background_counter_[first_background_scope + i].total_duration_ms;
-    background_counter_[first_background_scope + i].total_duration_ms = 0;
+  for (int i = first_scope; i <= last_scope; i++) {
+    current_.scopes[i] += background_counter_[i].total_duration_ms;
+    background_counter_[i].total_duration_ms = 0;
   }
 }
 
-void GCTracer::AddBackgroundScopeSample(BackgroundScope::ScopeId scope,
-                                        double duration) {
+void GCTracer::AddScopeSampleBackground(Scope::ScopeId scope, double duration) {
   base::MutexGuard guard(&background_counter_mutex_);
   BackgroundCounter& counter = background_counter_[scope];
   counter.total_duration_ms += duration;
@@ -1274,15 +1251,12 @@ void GCTracer::RecordGCSumCounters(double atomic_pause_duration) {
           .duration +
       atomic_pause_duration;
   const double background_duration =
-      background_counter_[BackgroundScope::MC_BACKGROUND_EVACUATE_COPY]
+      background_counter_[Scope::MC_BACKGROUND_EVACUATE_COPY]
           .total_duration_ms +
-      background_counter_
-          [BackgroundScope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS]
-              .total_duration_ms +
-      background_counter_[BackgroundScope::MC_BACKGROUND_MARKING]
+      background_counter_[Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS]
           .total_duration_ms +
-      background_counter_[BackgroundScope::MC_BACKGROUND_SWEEPING]
-          .total_duration_ms;
+      background_counter_[Scope::MC_BACKGROUND_MARKING].total_duration_ms +
+      background_counter_[Scope::MC_BACKGROUND_SWEEPING].total_duration_ms;
 
   const double marking_duration =
       current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_LAYOUT_CHANGE]
@@ -1294,8 +1268,7 @@ void GCTracer::RecordGCSumCounters(double atomic_pause_duration) {
           .duration +
       current_.scopes[Scope::MC_MARK];
   const double marking_background_duration =
-      background_counter_[BackgroundScope::MC_BACKGROUND_MARKING]
-          .total_duration_ms;
+      background_counter_[Scope::MC_BACKGROUND_MARKING].total_duration_ms;
 
   // UMA.
   heap_->isolate()->counters()->gc_mark_compactor()->AddSample(

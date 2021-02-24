@@ -12,6 +12,7 @@
 #include "include/cppgc/platform.h"
 #include "src/base/bits.h"
 #include "src/base/lazy-instance.h"
+#include "src/base/page-allocator.h"
 
 namespace cppgc {
 namespace internal {
@@ -36,6 +37,13 @@ constexpr GCInfoIndex GCInfoTable::kMinIndex;
 constexpr GCInfoIndex GCInfoTable::kInitialWantedLimit;
 
 void GlobalGCInfoTable::Create(PageAllocator* page_allocator) {
+  if (!page_allocator) {
+    static v8::base::LeakyObject<v8::base::PageAllocator>
+        default_page_allocator;
+    page_allocator = default_page_allocator.get();
+  }
+  // TODO(chromium:1056170): Wrap page_allocator into LsanPageAllocator when
+  // running with LEAK_SANITIZER.
   static v8::base::LeakyObject<GCInfoTable> table(page_allocator);
   if (!global_table_) {
     global_table_ = table.get();

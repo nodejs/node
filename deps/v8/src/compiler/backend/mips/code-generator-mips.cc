@@ -525,6 +525,15 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
           i.InputSimd128Register(1));                           \
   } while (0)
 
+#define ASSEMBLE_SIMD_EXTENDED_MULTIPLY(op0, op1)                           \
+  do {                                                                      \
+    CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);                           \
+    __ xor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);            \
+    __ op0(kSimd128ScratchReg, kSimd128RegZero, i.InputSimd128Register(0)); \
+    __ op0(kSimd128RegZero, kSimd128RegZero, i.InputSimd128Register(1));    \
+    __ op1(i.OutputSimd128Register(), kSimd128ScratchReg, kSimd128RegZero); \
+  } while (0)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   __ mov(sp, fp);
   __ Pop(ra, fp);
@@ -867,7 +876,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchDeoptimize: {
       DeoptimizationExit* exit =
-          BuildTranslation(instr, -1, 0, OutputFrameStateCombine::Ignore());
+          BuildTranslation(instr, -1, 0, 0, OutputFrameStateCombine::Ignore());
       __ Branch(exit->label());
       break;
     }
@@ -1224,19 +1233,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ div_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                i.InputDoubleRegister(1));
       break;
-    case kMipsModS: {
-      // TODO(bmeurer): We should really get rid of this special instruction,
-      // and generate a CallAddress instruction instead.
-      FrameScope scope(tasm(), StackFrame::MANUAL);
-      __ PrepareCallCFunction(0, 2, kScratchReg);
-      __ MovToFloatParameters(i.InputDoubleRegister(0),
-                              i.InputDoubleRegister(1));
-      // TODO(balazs.kilvady): implement mod_two_floats_operation(isolate())
-      __ CallCFunction(ExternalReference::mod_two_doubles_operation(), 0, 2);
-      // Move the result in the double result register.
-      __ MovFromFloatResult(i.OutputSingleRegister());
-      break;
-    }
     case kMipsAbsS:
       if (IsMipsArchVariant(kMips32r6)) {
         __ abs_s(i.OutputSingleRegister(), i.InputSingleRegister(0));
@@ -1514,9 +1510,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ mfc1(i.OutputRegister(), scratch);
       // Avoid INT32_MAX as an overflow indicator and use INT32_MIN instead,
       // because INT32_MIN allows easier out-of-bounds detection.
-      __ Addu(kScratchReg, i.OutputRegister(), 1);
-      __ Slt(kScratchReg2, kScratchReg, i.OutputRegister());
-      __ Movn(i.OutputRegister(), kScratchReg, kScratchReg2);
+      bool set_overflow_to_min_i32 = MiscField::decode(instr->opcode());
+      if (set_overflow_to_min_i32) {
+        __ Addu(kScratchReg, i.OutputRegister(), 1);
+        __ Slt(kScratchReg2, kScratchReg, i.OutputRegister());
+        __ Movn(i.OutputRegister(), kScratchReg, kScratchReg2);
+      }
       break;
     }
     case kMipsTruncUwD: {
@@ -1529,8 +1528,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Trunc_uw_s(i.OutputRegister(), i.InputDoubleRegister(0), scratch);
       // Avoid UINT32_MAX as an overflow indicator and use 0 instead,
       // because 0 allows easier out-of-bounds detection.
-      __ Addu(kScratchReg, i.OutputRegister(), 1);
-      __ Movz(i.OutputRegister(), zero_reg, kScratchReg);
+      bool set_overflow_to_min_i32 = MiscField::decode(instr->opcode());
+      if (set_overflow_to_min_i32) {
+        __ Addu(kScratchReg, i.OutputRegister(), 1);
+        __ Movz(i.OutputRegister(), zero_reg, kScratchReg);
+      }
       break;
     }
     case kMipsFloat64ExtractLowWord32:
@@ -1684,17 +1686,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kMipsPeek: {
-      // The incoming value is 0-based, but we need a 1-based value.
-      int reverse_slot = i.InputInt32(0) + 1;
+      int reverse_slot = i.InputInt32(0);
       int offset =
           FrameSlotToFPOffset(frame()->GetTotalFrameSlotCount() - reverse_slot);
       if (instr->OutputAt(0)->IsFPRegister()) {
         LocationOperand* op = LocationOperand::cast(instr->OutputAt(0));
         if (op->representation() == MachineRepresentation::kFloat64) {
           __ Ldc1(i.OutputDoubleRegister(), MemOperand(fp, offset));
-        } else {
-          DCHECK_EQ(op->representation(), MachineRepresentation::kFloat32);
+        } else if (op->representation() == MachineRepresentation::kFloat32) {
           __ lwc1(i.OutputSingleRegister(0), MemOperand(fp, offset));
+        } else {
+          DCHECK_EQ(op->representation(), MachineRepresentation::kSimd128);
+          __ ld_b(i.OutputSimd128Register(), MemOperand(fp, offset));
         }
       } else {
         __ lw(i.OutputRegister(0), MemOperand(fp, offset));
@@ -2273,6 +2276,61 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 i.InputInt6(1));
       break;
     }
+    case kMipsI64x2BitMask: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Register dst = i.OutputRegister();
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register scratch0 = kSimd128RegZero;
+      Simd128Register scratch1 = kSimd128ScratchReg;
+      __ srli_d(scratch0, src, 63);
+      __ shf_w(scratch1, scratch0, 0x02);
+      __ slli_d(scratch1, scratch1, 1);
+      __ or_v(scratch0, scratch0, scratch1);
+      __ copy_u_b(dst, scratch0, 0);
+      break;
+    }
+    case kMipsI64x2Eq: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ ceq_d(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1));
+      break;
+    }
+    case kMipsI64x2ExtMulLowI32x4S:
+      ASSEMBLE_SIMD_EXTENDED_MULTIPLY(ilvr_w, dotp_s_d);
+      break;
+    case kMipsI64x2ExtMulHighI32x4S:
+      ASSEMBLE_SIMD_EXTENDED_MULTIPLY(ilvl_w, dotp_s_d);
+      break;
+    case kMipsI64x2ExtMulLowI32x4U:
+      ASSEMBLE_SIMD_EXTENDED_MULTIPLY(ilvr_w, dotp_u_d);
+      break;
+    case kMipsI64x2ExtMulHighI32x4U:
+      ASSEMBLE_SIMD_EXTENDED_MULTIPLY(ilvl_w, dotp_u_d);
+      break;
+    case kMipsI32x4ExtMulLowI16x8S:
+      ASSEMBLE_SIMD_EXTENDED_MULTIPLY(ilvr_h, dotp_s_w);
+      break;
+    case kMipsI32x4ExtMulHighI16x8S:
+      ASSEMBLE_SIMD_EXTENDED_MULTIPLY(ilvl_h, dotp_s_w);
+      break;
+    case kMipsI32x4ExtMulLowI16x8U:
+      ASSEMBLE_SIMD_EXTENDED_MULTIPLY(ilvr_h, dotp_u_w);
+      break;
+    case kMipsI32x4ExtMulHighI16x8U:
+      ASSEMBLE_SIMD_EXTENDED_MULTIPLY(ilvl_h, dotp_u_w);
+      break;
+    case kMipsI16x8ExtMulLowI8x16S:
+      ASSEMBLE_SIMD_EXTENDED_MULTIPLY(ilvr_b, dotp_s_h);
+      break;
+    case kMipsI16x8ExtMulHighI8x16S:
+      ASSEMBLE_SIMD_EXTENDED_MULTIPLY(ilvl_b, dotp_s_h);
+      break;
+    case kMipsI16x8ExtMulLowI8x16U:
+      ASSEMBLE_SIMD_EXTENDED_MULTIPLY(ilvr_b, dotp_u_h);
+      break;
+    case kMipsI16x8ExtMulHighI8x16U:
+      ASSEMBLE_SIMD_EXTENDED_MULTIPLY(ilvl_b, dotp_u_h);
+      break;
     case kMipsF32x4Splat: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ FmoveLow(kScratchReg, i.InputSingleRegister(0));
@@ -2772,6 +2830,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ slli_d(scratch1, scratch1, 4);
       __ or_v(scratch0, scratch0, scratch1);
       __ copy_u_b(dst, scratch0, 0);
+      break;
+    }
+    case kMipsI16x8Q15MulRSatS: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ mulr_q_h(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
       break;
     }
     case kMipsI8x16Splat: {
@@ -4417,6 +4481,8 @@ void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
 }
 
 #undef __
+#undef ASSEMBLE_F64X2_ARITHMETIC_BINOP
+#undef ASSEMBLE_SIMD_EXTENDED_MULTIPLY
 
 }  // namespace compiler
 }  // namespace internal

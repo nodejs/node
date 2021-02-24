@@ -7,6 +7,7 @@
 #include <limits>
 
 #include "src/base/iterator.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
@@ -784,7 +785,22 @@ Instruction* InstructionSelector::EmitWithContinuation(
     continuation_inputs_.push_back(g.Label(cont->true_block()));
     continuation_inputs_.push_back(g.Label(cont->false_block()));
   } else if (cont->IsDeoptimize()) {
-    opcode |= MiscField::encode(static_cast<int>(input_count));
+    int immediate_args_count = 0;
+    if (cont->has_extra_args()) {
+      for (int i = 0; i < cont->extra_args_count(); i++) {
+        InstructionOperand op = cont->extra_args()[i];
+        continuation_inputs_.push_back(op);
+        input_count++;
+        if (op.IsImmediate()) {
+          immediate_args_count++;
+        } else {
+          // All immediate args should be added last.
+          DCHECK_EQ(immediate_args_count, 0);
+        }
+      }
+    }
+    opcode |= DeoptImmedArgsCountField::encode(immediate_args_count) |
+              DeoptFrameStateOffsetField::encode(static_cast<int>(input_count));
     AppendDeoptimizeArguments(&continuation_inputs_, cont->kind(),
                               cont->reason(), cont->feedback(),
                               cont->frame_state());
@@ -882,13 +898,9 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
       buffer->output_nodes.push_back(result);
     } else {
       buffer->output_nodes.resize(ret_count);
-      int stack_count = 0;
       for (size_t i = 0; i < ret_count; ++i) {
         LinkageLocation location = buffer->descriptor->GetReturnLocation(i);
         buffer->output_nodes[i] = PushParameter(nullptr, location);
-        if (location.IsCallerFrameSlot()) {
-          stack_count += location.GetSizeInPointers();
-        }
       }
       for (Edge const edge : call->use_edges()) {
         if (!NodeProperties::IsValueEdge(edge)) continue;
@@ -900,7 +912,9 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
         DCHECK(!buffer->output_nodes[index].node);
         buffer->output_nodes[index].node = node;
       }
-      frame_->EnsureReturnSlots(stack_count);
+
+      frame_->EnsureReturnSlots(
+          static_cast<int>(buffer->descriptor->StackReturnCount()));
     }
 
     // Filter out the outputs that aren't live because no projection uses them.
@@ -1377,6 +1391,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitDeoptimizeIf(node);
     case IrOpcode::kDeoptimizeUnless:
       return VisitDeoptimizeUnless(node);
+    case IrOpcode::kDynamicCheckMapsWithDeoptUnless:
+      return VisitDynamicCheckMapsWithDeoptUnless(node);
     case IrOpcode::kTrapIf:
       return VisitTrapIf(node, TrapIdOf(node->op()));
     case IrOpcode::kTrapUnless:
@@ -1414,6 +1430,12 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kLoadTransform: {
       MarkAsRepresentation(MachineRepresentation::kSimd128, node);
       return VisitLoadTransform(node);
+    }
+    case IrOpcode::kPrefetchTemporal: {
+      return VisitPrefetchTemporal(node);
+    }
+    case IrOpcode::kPrefetchNonTemporal: {
+      return VisitPrefetchNonTemporal(node);
     }
     case IrOpcode::kLoadLane: {
       MarkAsRepresentation(MachineRepresentation::kSimd128, node);
@@ -2711,7 +2733,6 @@ void InstructionSelector::VisitI64x2Splat(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2ExtractLane(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_MIPS64
-void InstructionSelector::VisitI64x2Eq(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Qfma(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Qfms(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Qfma(Node* node) { UNIMPLEMENTED(); }
@@ -2719,10 +2740,16 @@ void InstructionSelector::VisitF32x4Qfms(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM64
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X
 
-#if !V8_TARGET_ARCH_ARM64
-// TODO(v8:10971) Prototype i16x8.q15mulr_sat_s
-void InstructionSelector::VisitI16x8Q15MulRSatS(Node* node) { UNIMPLEMENTED(); }
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_ARM64 && \
+    !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS64 && \
+    !V8_TARGET_ARCH_MIPS
+void InstructionSelector::VisitI64x2Eq(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_ARM64
+        // && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM
+        // && !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_MIPS
 
+#if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && \
+    !V8_TARGET_ARCH_ARM
 // TODO(v8:10972) Prototype i64x2 widen i32x4.
 void InstructionSelector::VisitI64x2SConvertI32x4Low(Node* node) {
   UNIMPLEMENTED();
@@ -2739,48 +2766,24 @@ void InstructionSelector::VisitI64x2UConvertI32x4Low(Node* node) {
 void InstructionSelector::VisitI64x2UConvertI32x4High(Node* node) {
   UNIMPLEMENTED();
 }
+#endif  // !V8_TARGET_ARCH_ARM64 || !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32
+        // && !V8_TARGET_ARCH_ARM
 
+#if !V8_TARGET_ARCH_ARM64
+// TODO(v8:11168): Prototyping prefetch.
+void InstructionSelector::VisitPrefetchTemporal(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitPrefetchNonTemporal(Node* node) {
+  UNIMPLEMENTED();
+}
+#endif  // !V8_TARGET_ARCH_ARM64
+
+#if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM
 // TODO(v8:11002) Prototype i8x16.popcnt.
 void InstructionSelector::VisitI8x16Popcnt(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM
 
-// TODO(v8:11008) Prototype extended multiplication.
-void InstructionSelector::VisitI64x2ExtMulLowI32x4S(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI64x2ExtMulHighI32x4S(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI64x2ExtMulLowI32x4U(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI64x2ExtMulHighI32x4U(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI32x4ExtMulLowI16x8S(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI32x4ExtMulHighI16x8S(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI32x4ExtMulLowI16x8U(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI32x4ExtMulHighI16x8U(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI16x8ExtMulLowI8x16S(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI16x8ExtMulHighI8x16S(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI16x8ExtMulLowI8x16U(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI16x8ExtMulHighI8x16U(Node* node) {
-  UNIMPLEMENTED();
-}
-
+#if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_X64 && \
+    !V8_TARGET_ARCH_IA32
 // TODO(v8:11086) Prototype extended pairwise add.
 void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8S(Node* node) {
   UNIMPLEMENTED();
@@ -2794,22 +2797,26 @@ void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16S(Node* node) {
 void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16U(Node* node) {
   UNIMPLEMENTED();
 }
-#endif  // !V8_TARGET_ARCH_ARM64
+#endif  // !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_X64
+        // && !V8_TARGET_ARCH_IA32
 
-#if !V8_TARGET_ARCH_X64
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64 && \
+    !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS64
 // TODO(v8:10975): Prototyping load lane and store lane.
 void InstructionSelector::VisitLoadLane(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitStoreLane(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64
+        // && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS64
 
-// TODO(v8:10997) Prototype i64x2.bitmask.
-void InstructionSelector::VisitI64x2BitMask(Node* node) { UNIMPLEMENTED(); }
-
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64 && \
+    !V8_TARGET_ARCH_ARM
 // TODO(v8:10983) Prototyping sign select.
 void InstructionSelector::VisitI8x16SignSelect(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI16x8SignSelect(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI32x4SignSelect(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2SignSelect(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_X64
+#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64
+        // && !V8_TARGET_ARCH_ARM
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 
@@ -3146,6 +3153,35 @@ void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
   }
 }
 
+void InstructionSelector::VisitDynamicCheckMapsWithDeoptUnless(Node* node) {
+  OperandGenerator g(this);
+  DynamicCheckMapsWithDeoptUnlessNode n(node);
+  DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
+
+  DynamicCheckMapsDescriptor descriptor;
+  // Note: We use Operator::kNoDeopt here because this builtin does not lazy
+  // deoptimize (which is the meaning of Operator::kNoDeopt), even though it can
+  // eagerly deoptimize.
+  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+      zone(), descriptor, descriptor.GetStackParameterCount(),
+      CallDescriptor::kNoFlags, Operator::kNoDeopt | Operator::kNoThrow);
+  InstructionOperand dynamic_check_args[] = {
+      g.UseLocation(n.map(), call_descriptor->GetInputLocation(1)),
+      g.UseImmediate(n.slot()), g.UseImmediate(n.handler())};
+
+  if (NeedsPoisoning(IsSafetyCheck::kCriticalSafetyCheck)) {
+    FlagsContinuation cont = FlagsContinuation::ForDeoptimizeAndPoison(
+        kEqual, p.kind(), p.reason(), p.feedback(), n.frame_state(),
+        dynamic_check_args, 3);
+    VisitWordCompareZero(node, n.condition(), &cont);
+  } else {
+    FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
+        kEqual, p.kind(), p.reason(), p.feedback(), n.frame_state(),
+        dynamic_check_args, 3);
+    VisitWordCompareZero(node, n.condition(), &cont);
+  }
+}
+
 void InstructionSelector::VisitTrapIf(Node* node, TrapId trap_id) {
   FlagsContinuation cont =
       FlagsContinuation::ForTrap(kNotEqual, trap_id, node->InputAt(1));
@@ -3316,7 +3352,8 @@ FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
 void InstructionSelector::CanonicalizeShuffle(Node* node, uint8_t* shuffle,
                                               bool* is_swizzle) {
   // Get raw shuffle indices.
-  memcpy(shuffle, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
+  base::Memcpy(shuffle, S128ImmediateParameterOf(node->op()).data(),
+               kSimd128Size);
   bool needs_swap;
   bool inputs_equal = GetVirtualRegister(node->InputAt(0)) ==
                       GetVirtualRegister(node->InputAt(1));

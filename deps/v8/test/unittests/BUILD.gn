@@ -57,23 +57,25 @@ v8_source_set("v8_cppgc_shared_unittests_sources") {
 # Stand-alone target for C++ GC unittests. This is used to ensure that it
 # builds without V8 as well. They are also included in the regular unittests
 # target for simplicity.
-v8_executable("cppgc_unittests") {
-  testonly = true
+if (cppgc_is_standalone) {
+  v8_executable("cppgc_unittests") {
+    testonly = true
 
-  configs = [
-    "../..:external_config",
-    "../..:internal_config_base",
-  ]
+    configs = [
+      "../..:external_config",
+      "../..:internal_config_base",
+    ]
 
-  sources = [ "heap/cppgc/run-all-unittests.cc" ]
+    sources = [ "heap/cppgc/run-all-unittests.cc" ]
 
-  deps = [
-    ":cppgc_unittests_sources",
-    ":v8_cppgc_shared_unittests_sources",
-    "../..:cppgc_for_testing",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
+    deps = [
+      ":cppgc_unittests_sources",
+      ":v8_cppgc_shared_unittests_sources",
+      "../..:cppgc_for_testing",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+  }
 }
 
 v8_source_set("cppgc_unittests_sources") {
@@ -109,6 +111,7 @@ v8_source_set("cppgc_unittests_sources") {
     "heap/cppgc/prefinalizer-unittest.cc",
     "heap/cppgc/source-location-unittest.cc",
     "heap/cppgc/stack-unittest.cc",
+    "heap/cppgc/stats-collector-scopes-unittest.cc",
     "heap/cppgc/stats-collector-unittest.cc",
     "heap/cppgc/sweeper-unittest.cc",
     "heap/cppgc/test-platform.cc",
@@ -130,6 +133,10 @@ v8_source_set("cppgc_unittests_sources") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+
+  if (!cppgc_is_standalone) {
+    deps += [ "../..:v8_tracing" ]
+  }
 }
 
 v8_executable("unittests") {
@@ -141,7 +148,6 @@ v8_executable("unittests") {
   #}],
 
   deps = [
-    ":cppgc_unittests_sources",
     ":unittests_sources",
     ":v8_cppgc_shared_unittests_sources",
     "../..:v8_for_testing",
@@ -151,6 +157,10 @@ v8_executable("unittests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+
+  if (!cppgc_is_standalone) {
+    deps += [ ":cppgc_unittests_sources" ]
+  }
 
   data_deps = [ "../../tools:v8_testrunner" ]
 
@@ -449,6 +459,7 @@ v8_source_set("unittests_sources") {
     "../..:v8_for_testing",
     "../..:v8_libbase",
     "../..:v8_libplatform",
+    "../..:v8_wrappers",
     "../..:wasm_test_common",
     "../../third_party/inspector_protocol:crdtp_test",
     "//build/win:default_exe_manifest",

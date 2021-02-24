@@ -5,7 +5,6 @@
 #ifndef V8_HEAP_CPPGC_VISITOR_H_
 #define V8_HEAP_CPPGC_VISITOR_H_
 
-#include "include/cppgc/persistent.h"
 #include "include/cppgc/visitor.h"
 #include "src/heap/cppgc/heap-object-header.h"
 

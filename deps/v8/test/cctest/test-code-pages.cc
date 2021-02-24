@@ -141,7 +141,7 @@ TEST(OptimizedCodeWithCodeRange) {
   Handle<JSFunction> foo =
       Handle<JSFunction>::cast(v8::Utils::OpenHandle(*local_foo));
 
-  AbstractCode abstract_code = foo->abstract_code();
+  AbstractCode abstract_code = foo->abstract_code(i_isolate);
   // We don't produce optimized code when run with --no-opt.
   if (!abstract_code.IsCode() && FLAG_opt == false) return;
   CHECK(abstract_code.IsCode());
@@ -187,7 +187,7 @@ TEST(OptimizedCodeWithCodePages) {
       Handle<JSFunction> foo =
           Handle<JSFunction>::cast(v8::Utils::OpenHandle(*local_foo));
 
-      AbstractCode abstract_code = foo->abstract_code();
+      AbstractCode abstract_code = foo->abstract_code(i_isolate);
       // We don't produce optimized code when run with --no-opt.
       if (!abstract_code.IsCode() && FLAG_opt == false) return;
       CHECK(abstract_code.IsCode());

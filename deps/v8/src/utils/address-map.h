@@ -56,6 +56,8 @@ class HeapObjectToIndexHashMap : public PointerToIndexHashMap<HeapObject> {};
 class RootIndexMap {
  public:
   explicit RootIndexMap(Isolate* isolate);
+  RootIndexMap(const RootIndexMap&) = delete;
+  RootIndexMap& operator=(const RootIndexMap&) = delete;
 
   // Returns true on successful lookup and sets *|out_root_list|.
   bool Lookup(HeapObject obj, RootIndex* out_root_list) const {
@@ -70,8 +72,6 @@ class RootIndexMap {
 
  private:
   HeapObjectToIndexHashMap* map_;
-
-  DISALLOW_COPY_AND_ASSIGN(RootIndexMap);
 };
 
 }  // namespace internal

@@ -4,10 +4,16 @@
 
 #include "include/cppgc/platform.h"
 
+#include "src/base/lazy-instance.h"
 #include "src/base/platform/platform.h"
 #include "src/heap/cppgc/gc-info-table.h"
 
 namespace cppgc {
+
+TracingController* Platform::GetTracingController() {
+  static v8::base::LeakyObject<TracingController> tracing_controller;
+  return tracing_controller.get();
+}
 
 void InitializeProcess(PageAllocator* page_allocator) {
   internal::GlobalGCInfoTable::Create(page_allocator);

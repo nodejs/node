@@ -89,6 +89,7 @@ macro IsSimpleObjectMap(map: Map): bool {
     return false;
   }
   const bitField = map.bit_field;
+  // Using & instead of && enables Turbofan to merge the two checks into one.
   return !bitField.has_named_interceptor & !bitField.is_access_check_needed;
 }
 

@@ -10,27 +10,28 @@
 #include "src/common/globals.h"
 
 // Opcodes for control operators.
-#define CONTROL_OP_LIST(V) \
-  V(Start)                 \
-  V(Loop)                  \
-  V(Branch)                \
-  V(Switch)                \
-  V(IfTrue)                \
-  V(IfFalse)               \
-  V(IfSuccess)             \
-  V(IfException)           \
-  V(IfValue)               \
-  V(IfDefault)             \
-  V(Merge)                 \
-  V(Deoptimize)            \
-  V(DeoptimizeIf)          \
-  V(DeoptimizeUnless)      \
-  V(TrapIf)                \
-  V(TrapUnless)            \
-  V(Return)                \
-  V(TailCall)              \
-  V(Terminate)             \
-  V(Throw)                 \
+#define CONTROL_OP_LIST(V)           \
+  V(Start)                           \
+  V(Loop)                            \
+  V(Branch)                          \
+  V(Switch)                          \
+  V(IfTrue)                          \
+  V(IfFalse)                         \
+  V(IfSuccess)                       \
+  V(IfException)                     \
+  V(IfValue)                         \
+  V(IfDefault)                       \
+  V(Merge)                           \
+  V(Deoptimize)                      \
+  V(DeoptimizeIf)                    \
+  V(DeoptimizeUnless)                \
+  V(DynamicCheckMapsWithDeoptUnless) \
+  V(TrapIf)                          \
+  V(TrapUnless)                      \
+  V(Return)                          \
+  V(TailCall)                        \
+  V(Terminate)                       \
+  V(Throw)                           \
   V(End)
 
 // Opcodes for constant operators.
@@ -979,6 +980,8 @@
   V(V8x16AnyTrue)               \
   V(V8x16AllTrue)               \
   V(LoadTransform)              \
+  V(PrefetchTemporal)           \
+  V(PrefetchNonTemporal)        \
   V(LoadLane)                   \
   V(StoreLane)
 

@@ -28,7 +28,7 @@ class V8_EXPORT_PRIVATE ConcurrentMarkerBase {
 
   void JoinForTesting();
 
-  bool NotifyIncrementalMutatorStepCompleted();
+  void NotifyIncrementalMutatorStepCompleted();
 
   bool IsActive() const;
 

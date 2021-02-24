@@ -154,6 +154,14 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis : public ZoneObject {
 
   Zone* zone() const { return zone_; }
   Handle<BytecodeArray> bytecode_array() const { return bytecode_array_; }
+  BytecodeLivenessMap& liveness_map() {
+    DCHECK(analyze_liveness_);
+    return *liveness_map_;
+  }
+  const BytecodeLivenessMap& liveness_map() const {
+    DCHECK(analyze_liveness_);
+    return *liveness_map_;
+  }
 
   std::ostream& PrintLivenessTo(std::ostream& os) const;
 
@@ -167,7 +175,7 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis : public ZoneObject {
   ZoneMap<int, int> end_to_header_;
   ZoneMap<int, LoopInfo> header_to_info_;
   int osr_entry_point_;
-  BytecodeLivenessMap liveness_map_;
+  base::Optional<BytecodeLivenessMap> liveness_map_;
 };
 
 }  // namespace compiler

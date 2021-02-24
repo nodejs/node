@@ -75,7 +75,7 @@ class KeyAccumulator final {
   void set_skip_indices(bool value) { skip_indices_ = value; }
   // Shadowing keys are used to filter keys. This happens when non-enumerable
   // keys appear again on the prototype chain.
-  void AddShadowingKey(Object key, AllowHeapAllocation* allow_gc);
+  void AddShadowingKey(Object key, AllowGarbageCollection* allow_gc);
   void AddShadowingKey(Handle<Object> key);
 
  private:

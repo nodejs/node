@@ -55,7 +55,6 @@ const int kBlockContextAllocationLimit = 16;
 }  // namespace
 
 Reduction JSCreateLowering::Reduce(Node* node) {
-  DisallowHeapAccess disallow_heap_access;
   switch (node->opcode()) {
     case IrOpcode::kJSCreate:
       return ReduceJSCreate(node);
@@ -1201,10 +1200,15 @@ Reduction JSCreateLowering::ReduceJSCreateLiteralRegExp(Node* node) {
 Reduction JSCreateLowering::ReduceJSGetTemplateObject(Node* node) {
   JSGetTemplateObjectNode n(node);
   GetTemplateObjectParameters const& parameters = n.Parameters();
-  SharedFunctionInfoRef shared(broker(), parameters.shared());
-  JSArrayRef template_object = shared.GetTemplateObject(
-      TemplateObjectDescriptionRef(broker(), parameters.description()),
-      parameters.feedback());
+
+  const ProcessedFeedback& feedback =
+      broker()->GetFeedbackForTemplateObject(parameters.feedback());
+  // TODO(v8:7790): Consider not generating JSGetTemplateObject operator
+  // in the BytecodeGraphBuilder in the first place, if template_object is not
+  // available.
+  if (feedback.IsInsufficient()) return NoChange();
+
+  JSArrayRef template_object = feedback.AsTemplateObject().value();
   Node* value = jsgraph()->Constant(template_object);
   ReplaceWithValue(node, value);
   return Replace(value);

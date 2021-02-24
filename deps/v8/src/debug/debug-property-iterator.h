@@ -21,6 +21,8 @@ class DebugPropertyIterator final : public debug::PropertyIterator {
  public:
   DebugPropertyIterator(Isolate* isolate, Handle<JSReceiver> receiver);
   ~DebugPropertyIterator() override = default;
+  DebugPropertyIterator(const DebugPropertyIterator&) = delete;
+  DebugPropertyIterator& operator=(const DebugPropertyIterator&) = delete;
 
   bool Done() const override;
   void Advance() override;
@@ -53,8 +55,6 @@ class DebugPropertyIterator final : public debug::PropertyIterator {
   bool calculated_native_accessor_flags_ = false;
   int native_accessor_flags_ = 0;
   bool is_own_ = true;
-
-  DISALLOW_COPY_AND_ASSIGN(DebugPropertyIterator);
 };
 }  // namespace internal
 }  // namespace v8

@@ -836,7 +836,7 @@ MaybeHandle<Object> AppendErrorString(Isolate* isolate, Handle<Object> error,
   return error;
 }
 
-class PrepareStackTraceScope {
+class V8_NODISCARD PrepareStackTraceScope {
  public:
   explicit PrepareStackTraceScope(Isolate* isolate) : isolate_(isolate) {
     DCHECK(!isolate_->formatting_stack_trace());
@@ -845,10 +845,11 @@ class PrepareStackTraceScope {
 
   ~PrepareStackTraceScope() { isolate_->set_formatting_stack_trace(false); }
 
+  PrepareStackTraceScope(const PrepareStackTraceScope&) = delete;
+  PrepareStackTraceScope& operator=(const PrepareStackTraceScope&) = delete;
+
  private:
   Isolate* isolate_;
-
-  DISALLOW_COPY_AND_ASSIGN(PrepareStackTraceScope);
 };
 
 }  // namespace

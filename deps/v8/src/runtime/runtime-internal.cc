@@ -526,7 +526,7 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
     if (args[0].IsString()) {
       // With a string argument, the results are appended to that file.
       CONVERT_ARG_HANDLE_CHECKED(String, arg0, 0);
-      DisallowHeapAllocation no_gc;
+      DisallowGarbageCollection no_gc;
       String::FlatContent flat = arg0->GetFlatContent(no_gc);
       const char* filename =
           reinterpret_cast<const char*>(&(flat.ToOneByteVector()[0]));

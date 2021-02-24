@@ -10,6 +10,7 @@ bitfield struct JSDateTimeFormatFlags extends uint31 {
   hour_cycle: HourCycle: 3 bit;
   date_style: DateTimeStyle: 3 bit;
   time_style: DateTimeStyle: 3 bit;
+  iso8601: bool: 1bit;
 }
 
 @generateCppClass

@@ -25,6 +25,11 @@ class Label {
 
   Label() = default;
 
+  // Disallow copy construction and assignment, but allow move construction and
+  // move assignment on selected platforms (see below).
+  Label(const Label&) = delete;
+  Label& operator=(const Label&) = delete;
+
 // On ARM64, the Assembler keeps track of pointers to Labels to resolve
 // branches to distant targets. Copying labels would confuse the Assembler.
 // On other platforms, allow move construction.
@@ -100,10 +105,6 @@ class Label {
   friend class Assembler;
   friend class Displacement;
   friend class RegExpBytecodeGenerator;
-
-  // Disallow copy construction and assignment, but allow move construction and
-  // move assignment on selected platforms (see above).
-  DISALLOW_COPY_AND_ASSIGN(Label);
 };
 
 }  // namespace internal

@@ -20,7 +20,7 @@ namespace {
 
 // Loads a named extension library upon construction and unloads it upon
 // destruction.
-class LoadExtensionScope {
+class V8_NODISCARD LoadExtensionScope {
  public:
   LoadExtensionScope(WRL::ComPtr<IDebugControl4> p_debug_control,
                      std::wstring extension_path)
@@ -49,7 +49,7 @@ class LoadExtensionScope {
 };
 
 // Initializes COM upon construction and uninitializes it upon destruction.
-class ComScope {
+class V8_NODISCARD ComScope {
  public:
   ComScope() { hr_ = CoInitializeEx(nullptr, COINIT_MULTITHREADED); }
   ~ComScope() {

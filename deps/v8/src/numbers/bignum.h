@@ -18,6 +18,8 @@ class V8_EXPORT_PRIVATE Bignum {
   static const int kMaxSignificantBits = 3584;
 
   Bignum();
+  Bignum(const Bignum&) = delete;
+  Bignum& operator=(const Bignum&) = delete;
   void AssignUInt16(uint16_t value);
   void AssignUInt64(uint64_t value);
   void AssignBignum(const Bignum& other);
@@ -111,8 +113,6 @@ class V8_EXPORT_PRIVATE Bignum {
   int used_digits_;
   // The Bignum's value equals value(bigits_) * 2^(exponent_ * kBigitSize).
   int exponent_;
-
-  DISALLOW_COPY_AND_ASSIGN(Bignum);
 };
 
 }  // namespace internal

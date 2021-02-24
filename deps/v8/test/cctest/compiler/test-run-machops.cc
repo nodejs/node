@@ -4189,12 +4189,16 @@ TEST(RunTruncateFloat32ToInt32) {
       if (i < upper_bound && i >= lower_bound) {
         CHECK_FLOAT_EQ(static_cast<int32_t>(i), m.Call(i));
       } else if (i < lower_bound) {
+#if (V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64) && !_MIPS_ARCH_MIPS32R6 && \
+    !_MIPS_ARCH_MIPS64R6
+        CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::max(), m.Call(i));
+#else
         CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
+#endif
       } else if (i >= upper_bound) {
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
         CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
-#elif V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_S390X || \
-    V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+#else
         CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::max(), m.Call(i));
 #endif
       } else {

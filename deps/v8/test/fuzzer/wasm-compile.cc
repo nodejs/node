@@ -111,7 +111,7 @@ class WasmGenerator {
     builder_->Emit(Op);
   }
 
-  class BlockScope {
+  class V8_NODISCARD BlockScope {
    public:
     BlockScope(WasmGenerator* gen, WasmOpcode block_type,
                Vector<const ValueType> param_types,
@@ -1357,6 +1357,14 @@ void WasmGenerator::Generate<ValueType::kS128>(DataRange* data) {
                                      ValueType::kS128>,
       &WasmGenerator::op_with_prefix<kExprI16x8RoundingAverageU,
                                      ValueType::kS128, ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprI16x8ExtMulLowI8x16S,
+                                     ValueType::kS128, ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprI16x8ExtMulLowI8x16U,
+                                     ValueType::kS128, ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprI16x8ExtMulHighI8x16S,
+                                     ValueType::kS128, ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprI16x8ExtMulHighI8x16U,
+                                     ValueType::kS128, ValueType::kS128>,
 
       &WasmGenerator::op_with_prefix<kExprI32x4Splat, ValueType::kI32>,
       &WasmGenerator::op_with_prefix<kExprI32x4Eq, ValueType::kS128,
@@ -1403,6 +1411,14 @@ void WasmGenerator::Generate<ValueType::kS128>(DataRange* data) {
                                      ValueType::kS128>,
       &WasmGenerator::op_with_prefix<kExprI32x4DotI16x8S, ValueType::kS128,
                                      ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprI32x4ExtMulLowI16x8S,
+                                     ValueType::kS128, ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprI32x4ExtMulLowI16x8U,
+                                     ValueType::kS128, ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprI32x4ExtMulHighI16x8S,
+                                     ValueType::kS128, ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprI32x4ExtMulHighI16x8U,
+                                     ValueType::kS128, ValueType::kS128>,
 
       &WasmGenerator::op_with_prefix<kExprI64x2Splat, ValueType::kI64>,
       &WasmGenerator::op_with_prefix<kExprI64x2Neg, ValueType::kS128>,
@@ -1418,6 +1434,14 @@ void WasmGenerator::Generate<ValueType::kS128>(DataRange* data) {
                                      ValueType::kS128>,
       &WasmGenerator::op_with_prefix<kExprI64x2Mul, ValueType::kS128,
                                      ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprI64x2ExtMulLowI32x4S,
+                                     ValueType::kS128, ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprI64x2ExtMulLowI32x4U,
+                                     ValueType::kS128, ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprI64x2ExtMulHighI32x4S,
+                                     ValueType::kS128, ValueType::kS128>,
+      &WasmGenerator::op_with_prefix<kExprI64x2ExtMulHighI32x4U,
+                                     ValueType::kS128, ValueType::kS128>,
 
       &WasmGenerator::op_with_prefix<kExprF32x4Splat, ValueType::kF32>,
       &WasmGenerator::op_with_prefix<kExprF32x4Eq, ValueType::kS128,

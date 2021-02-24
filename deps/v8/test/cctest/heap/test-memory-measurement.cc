@@ -233,8 +233,8 @@ TEST(PartiallyInitializedJSFunction) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
-  Handle<JSFunction> js_function =
-      factory->NewFunctionForTest(factory->NewStringFromAsciiChecked("test"));
+  Handle<JSFunction> js_function = factory->NewFunctionForTesting(
+      factory->NewStringFromAsciiChecked("test"));
   Handle<Context> context = handle(js_function->context(), isolate);
 
   // 1. Start simulating deserializaiton.

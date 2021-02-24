@@ -12,8 +12,10 @@ namespace cppgc {
 namespace internal {
 namespace testing {
 
-TestPlatform::TestPlatform()
-    : DefaultPlatform(0, DefaultPlatform::IdleTaskSupport::kEnabled) {}
+TestPlatform::TestPlatform(
+    std::unique_ptr<v8::TracingController> tracing_controller)
+    : DefaultPlatform(0 /* thread_pool_size */, IdleTaskSupport::kEnabled,
+                      std::move(tracing_controller)) {}
 
 std::unique_ptr<cppgc::JobHandle> TestPlatform::PostJob(
     cppgc::TaskPriority priority, std::unique_ptr<cppgc::JobTask> job_task) {

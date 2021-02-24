@@ -39,6 +39,8 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   V8DebuggerAgentImpl(V8InspectorSessionImpl*, protocol::FrontendChannel*,
                       protocol::DictionaryValue* state);
   ~V8DebuggerAgentImpl() override;
+  V8DebuggerAgentImpl(const V8DebuggerAgentImpl&) = delete;
+  V8DebuggerAgentImpl& operator=(const V8DebuggerAgentImpl&) = delete;
   void restore();
 
   // Part of the protocol.
@@ -116,11 +118,6 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
       Maybe<double> timeout,
       std::unique_ptr<protocol::Runtime::RemoteObject>* result,
       Maybe<protocol::Runtime::ExceptionDetails>*) override;
-  Response executeWasmEvaluator(
-      const String16& callFrameId, const protocol::Binary& evaluator,
-      Maybe<double> timeout,
-      std::unique_ptr<protocol::Runtime::RemoteObject>* result,
-      Maybe<protocol::Runtime::ExceptionDetails>* exceptionDetails) override;
   Response setVariableValue(
       int scopeNumber, const String16& variableName,
       std::unique_ptr<protocol::Runtime::CallArgument> newValue,
@@ -244,8 +241,6 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   std::unordered_map<String16, std::vector<std::pair<int, int>>>
       m_blackboxedPositions;
   std::unordered_map<String16, std::vector<std::pair<int, int>>> m_skipList;
-
-  DISALLOW_COPY_AND_ASSIGN(V8DebuggerAgentImpl);
 };
 
 }  // namespace v8_inspector

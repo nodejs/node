@@ -21,34 +21,35 @@ var main = builder.addFunction('main', kSig_v_i)
 
 var module_bytes = builder.toArray();
 
-(async function test() {
-  InspectorTest.logProtocolCommandCalls('Debugger.stepInto');
-  InspectorTest.logProtocolCommandCalls('Debugger.resume');
+InspectorTest.runAsyncTestSuite([
+  async function test() {
+    InspectorTest.logProtocolCommandCalls('Debugger.stepInto');
+    InspectorTest.logProtocolCommandCalls('Debugger.resume');
 
-  await Protocol.Debugger.enable();
-  InspectorTest.log('Setting up global instance variable.');
-  WasmInspectorTest.instantiate(module_bytes);
-  const [, {params: wasmScript}] = await Protocol.Debugger.onceScriptParsed(2);
+    await Protocol.Debugger.enable();
+    InspectorTest.log('Setting up global instance variable.');
+    WasmInspectorTest.instantiate(module_bytes);
+    const [, {params: wasmScript}] = await Protocol.Debugger.onceScriptParsed(2);
 
-  InspectorTest.log(`Got wasm script: ${wasmScript.url}`);
+    InspectorTest.log(`Got wasm script: ${wasmScript.url}`);
 
-  // Set a breakpoint in 'main', at the call.
-  InspectorTest.log(`Setting breakpoint on offset ${main.body_offset}`);
-  await Protocol.Debugger.setBreakpoint({
-    location: {
-      scriptId: wasmScript.scriptId,
-      lineNumber: 0,
-      columnNumber: main.body_offset
+    // Set a breakpoint in 'main', at the call.
+    InspectorTest.log(`Setting breakpoint on offset ${main.body_offset}`);
+    await Protocol.Debugger.setBreakpoint({
+      location: {
+        scriptId: wasmScript.scriptId,
+        lineNumber: 0,
+        columnNumber: main.body_offset
+      }
+    });
+
+    InspectorTest.log('Running main function.');
+    Protocol.Runtime.evaluate({ expression: 'instance.exports.main()' });
+    for (let action of ['stepInto', 'stepInto', 'resume']) {
+      const {params: {callFrames}} = await Protocol.Debugger.oncePaused();
+      await session.logSourceLocation(callFrames[0].location);
+      Protocol.Debugger[action]();
     }
-  });
-
-  InspectorTest.log('Running main function.');
-  Protocol.Runtime.evaluate({ expression: 'instance.exports.main()' });
-  for (let action of ['stepInto', 'stepInto', 'resume']) {
-    const {params: {callFrames}} = await Protocol.Debugger.oncePaused();
-    await session.logSourceLocation(callFrames[0].location);
-    Protocol.Debugger[action]();
+    InspectorTest.log('exports.main returned.');
   }
-  InspectorTest.log('exports.main returned.');
-})().catch(reason => InspectorTest.log(`Failed: ${reason}`))
-    .finally(InspectorTest.completeTest);
+]);

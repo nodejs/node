@@ -11,6 +11,8 @@ namespace v8 {
 namespace platform {
 namespace tracing {
 
+class Recorder;
+
 class JSONTraceWriter : public TraceWriter {
  public:
   explicit JSONTraceWriter(std::ostream& stream);
@@ -25,6 +27,17 @@ class JSONTraceWriter : public TraceWriter {
 
   std::ostream& stream_;
   bool append_comma_ = false;
+};
+
+class SystemInstrumentationTraceWriter : public TraceWriter {
+ public:
+  SystemInstrumentationTraceWriter();
+  ~SystemInstrumentationTraceWriter() override;
+  void AppendTraceEvent(TraceObject* trace_event) override;
+  void Flush() override;
+
+ private:
+  std::unique_ptr<Recorder> recorder_;
 };
 
 }  // namespace tracing

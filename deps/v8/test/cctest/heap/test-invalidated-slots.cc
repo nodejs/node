@@ -323,7 +323,7 @@ HEAP_TEST(InvalidatedSlotsFastToSlow) {
   Handle<JSObject> obj;
   {
     AlwaysAllocateScopeForTesting always_allocate(heap);
-    Handle<JSFunction> function = factory->NewFunctionForTest(name);
+    Handle<JSFunction> function = factory->NewFunctionForTesting(name);
     function->shared().set_expected_nof_properties(3);
     obj = factory->NewJSObject(function, AllocationType::kOld);
   }

@@ -237,6 +237,13 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate,
     return -1;
   }
   Handle<Object> result = retval.ToHandleChecked();
+
+  // Multi-value returns, get the first return value (see InterpretWasmModule).
+  if (result->IsJSArray()) {
+    auto receiver = Handle<JSReceiver>::cast(result);
+    result = JSObject::GetElement(isolate, receiver, 0).ToHandleChecked();
+  }
+
   if (result->IsSmi()) {
     return Smi::ToInt(*result);
   }

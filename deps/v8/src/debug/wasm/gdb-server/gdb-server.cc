@@ -51,6 +51,9 @@ class TaskRunner {
         nested_loop_count_(0),
         is_terminated_(false) {}
 
+  TaskRunner(const TaskRunner&) = delete;
+  TaskRunner& operator=(const TaskRunner&) = delete;
+
   // Starts the task runner. All tasks posted are run, in order, in the thread
   // that calls this function.
   void Run() {
@@ -100,11 +103,11 @@ class TaskRunner {
   v8::base::Semaphore process_queue_semaphore_;
   int nested_loop_count_;
   std::atomic<bool> is_terminated_;
-
-  DISALLOW_COPY_AND_ASSIGN(TaskRunner);
 };
 
-GdbServer::GdbServer() { task_runner_ = std::make_unique<TaskRunner>(); }
+GdbServer::GdbServer() : has_module_list_changed_(false) {
+  task_runner_ = std::make_unique<TaskRunner>();
+}
 
 template <typename Functor>
 auto GdbServer::RunSyncTask(Functor&& callback) const {
@@ -146,17 +149,20 @@ void GdbServer::RunMessageLoopOnPause() { task_runner_->Run(); }
 
 void GdbServer::QuitMessageLoopOnPause() { task_runner_->Terminate(); }
 
-std::vector<GdbServer::WasmModuleInfo> GdbServer::GetLoadedModules() {
+std::vector<GdbServer::WasmModuleInfo> GdbServer::GetLoadedModules(
+    bool clear_module_list_changed_flag) {
   // Executed in the GDBServerThread.
   std::vector<GdbServer::WasmModuleInfo> modules;
 
-  RunSyncTask([this, &modules]() {
+  RunSyncTask([this, &modules, clear_module_list_changed_flag]() {
     // Executed in the isolate thread.
     for (const auto& pair : scripts_) {
       uint32_t module_id = pair.first;
       const WasmModuleDebug& module_debug = pair.second;
       modules.push_back({module_id, module_debug.GetModuleName()});
     }
+
+    if (clear_module_list_changed_flag) has_module_list_changed_ = false;
   });
   return modules;
 }
@@ -215,14 +221,32 @@ bool GdbServer::GetWasmStackValue(uint32_t frame_index, uint32_t index,
   return result;
 }
 
-uint32_t GdbServer::GetWasmMemory(uint32_t frame_index, uint32_t offset,
+uint32_t GdbServer::GetWasmMemory(uint32_t module_id, uint32_t offset,
                                   uint8_t* buffer, uint32_t size) {
   // Executed in the GDBServerThread.
   uint32_t bytes_read = 0;
-  RunSyncTask([this, &bytes_read, frame_index, offset, buffer, size]() {
+  RunSyncTask([this, &bytes_read, module_id, offset, buffer, size]() {
     // Executed in the isolate thread.
-    bytes_read = WasmModuleDebug::GetWasmMemory(
-        GetTarget().GetCurrentIsolate(), frame_index, offset, buffer, size);
+    WasmModuleDebug* module_debug = nullptr;
+    if (GetModuleDebugHandler(module_id, &module_debug)) {
+      bytes_read = module_debug->GetWasmMemory(GetTarget().GetCurrentIsolate(),
+                                               offset, buffer, size);
+    }
+  });
+  return bytes_read;
+}
+
+uint32_t GdbServer::GetWasmData(uint32_t module_id, uint32_t offset,
+                                uint8_t* buffer, uint32_t size) {
+  // Executed in the GDBServerThread.
+  uint32_t bytes_read = 0;
+  RunSyncTask([this, &bytes_read, module_id, offset, buffer, size]() {
+    // Executed in the isolate thread.
+    WasmModuleDebug* module_debug = nullptr;
+    if (GetModuleDebugHandler(module_id, &module_debug)) {
+      bytes_read = module_debug->GetWasmData(GetTarget().GetCurrentIsolate(),
+                                             offset, buffer, size);
+    }
   });
   return bytes_read;
 }
@@ -304,6 +328,7 @@ void GdbServer::RemoveIsolate(Isolate* isolate) {
     for (auto it = scripts_.begin(); it != scripts_.end();) {
       if (it->second.GetIsolate() == isolate) {
         it = scripts_.erase(it);
+        has_module_list_changed_ = true;
       } else {
         ++it;
       }
@@ -350,6 +375,7 @@ void GdbServer::AddWasmModule(uint32_t module_id,
   v8::Isolate* isolate = wasm_script->GetIsolate();
   scripts_.insert(
       std::make_pair(module_id, WasmModuleDebug(isolate, wasm_script)));
+  has_module_list_changed_ = true;
 
   if (FLAG_wasm_pause_waiting_for_debugger && scripts_.size() == 1) {
     TRACE_GDB_REMOTE("Paused, waiting for a debugger to attach...\n");

@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_CPPGC_JS_CPP_HEAP_H_
 #define V8_HEAP_CPPGC_JS_CPP_HEAP_H_
 
+#include "include/v8-cppgc.h"
 #include "include/v8.h"
 #include "src/base/macros.h"
 #include "src/heap/cppgc/heap-base.h"
@@ -17,8 +18,16 @@ namespace internal {
 
 // A C++ heap implementation used with V8 to implement unified heap.
 class V8_EXPORT_PRIVATE CppHeap final : public cppgc::internal::HeapBase,
+                                        public v8::CppHeap,
                                         public v8::EmbedderHeapTracer {
  public:
+  static CppHeap* From(v8::CppHeap* heap) {
+    return static_cast<CppHeap*>(heap);
+  }
+  static const CppHeap* From(const v8::CppHeap* heap) {
+    return static_cast<const CppHeap*>(heap);
+  }
+
   CppHeap(v8::Isolate* isolate,
           const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>&
               custom_spaces);
@@ -45,8 +54,11 @@ class V8_EXPORT_PRIVATE CppHeap final : public cppgc::internal::HeapBase,
     // finalization is not needed) thus this method is left empty.
   }
 
+  void PostGarbageCollection() final {}
+
   Isolate& isolate_;
   bool marking_done_ = false;
+  bool is_in_final_pause_ = false;
 };
 
 }  // namespace internal

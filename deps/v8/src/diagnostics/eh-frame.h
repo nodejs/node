@@ -72,6 +72,8 @@ class V8_EXPORT_PRIVATE EhFrameConstants final
 class V8_EXPORT_PRIVATE EhFrameWriter {
  public:
   explicit EhFrameWriter(Zone* zone);
+  EhFrameWriter(const EhFrameWriter&) = delete;
+  EhFrameWriter& operator=(const EhFrameWriter&) = delete;
 
   // The empty frame is a hack to trigger fp-based unwinding in Linux perf
   // compiled with libunwind support when processing DWARF-based call graphs.
@@ -206,8 +208,6 @@ class V8_EXPORT_PRIVATE EhFrameWriter {
   Register base_register_;
   int base_offset_;
   ZoneVector<byte> eh_frame_buffer_;
-
-  DISALLOW_COPY_AND_ASSIGN(EhFrameWriter);
 };
 
 class V8_EXPORT_PRIVATE EhFrameIterator {
@@ -290,6 +290,8 @@ class EhFrameDisassembler final {
       : start_(start), end_(end) {
     DCHECK_LT(start, end);
   }
+  EhFrameDisassembler(const EhFrameDisassembler&) = delete;
+  EhFrameDisassembler& operator=(const EhFrameDisassembler&) = delete;
 
   void DisassembleToStream(std::ostream& stream);  // NOLINT
 
@@ -301,8 +303,6 @@ class EhFrameDisassembler final {
 
   const byte* start_;
   const byte* end_;
-
-  DISALLOW_COPY_AND_ASSIGN(EhFrameDisassembler);
 };
 
 #endif

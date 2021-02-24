@@ -71,17 +71,20 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
     supported_ |= (1u << MODULO);
   }
 #if V8_TARGET_ARCH_PPC64
-  if (cpu.part() == base::CPU::PPC_POWER8) {
+  if (cpu.part() == base::CPU::PPC_POWER8 ||
+      cpu.part() == base::CPU::PPC_POWER9) {
     supported_ |= (1u << FPR_GPR_MOV);
   }
 #endif
   if (cpu.part() == base::CPU::PPC_POWER6 ||
       cpu.part() == base::CPU::PPC_POWER7 ||
-      cpu.part() == base::CPU::PPC_POWER8) {
+      cpu.part() == base::CPU::PPC_POWER8 ||
+      cpu.part() == base::CPU::PPC_POWER9) {
     supported_ |= (1u << LWSYNC);
   }
   if (cpu.part() == base::CPU::PPC_POWER7 ||
-      cpu.part() == base::CPU::PPC_POWER8) {
+      cpu.part() == base::CPU::PPC_POWER8 ||
+      cpu.part() == base::CPU::PPC_POWER9) {
     supported_ |= (1u << ISELECT);
     supported_ |= (1u << VSX);
   }
@@ -1466,6 +1469,9 @@ void Assembler::mcrfs(CRegister cr, FPSCRBit bit) {
 
 void Assembler::mfcr(Register dst) { emit(EXT2 | MFCR | dst.code() * B21); }
 
+void Assembler::mtcrf(unsigned char FXM, Register src) {
+  emit(MTCRF | src.code() * B21 | FXM * B12);
+}
 #if V8_TARGET_ARCH_PPC64
 void Assembler::mffprd(Register dst, DoubleRegister src) {
   emit(EXT2 | MFVSRD | src.code() * B21 | dst.code() * B16);
@@ -1798,6 +1804,54 @@ void Assembler::lxvd(const Simd128Register rt, const MemOperand& src) {
        TX);
 }
 
+void Assembler::lxsdx(const Simd128Register rt, const MemOperand& src) {
+  int TX = 1;
+  emit(LXSDX | rt.code() * B21 | src.ra().code() * B16 | src.rb().code() * B11 |
+       TX);
+}
+
+void Assembler::lxsibzx(const Simd128Register rt, const MemOperand& src) {
+  int TX = 1;
+  emit(LXSIBZX | rt.code() * B21 | src.ra().code() * B16 |
+       src.rb().code() * B11 | TX);
+}
+
+void Assembler::lxsihzx(const Simd128Register rt, const MemOperand& src) {
+  int TX = 1;
+  emit(LXSIHZX | rt.code() * B21 | src.ra().code() * B16 |
+       src.rb().code() * B11 | TX);
+}
+
+void Assembler::lxsiwzx(const Simd128Register rt, const MemOperand& src) {
+  int TX = 1;
+  emit(LXSIWZX | rt.code() * B21 | src.ra().code() * B16 |
+       src.rb().code() * B11 | TX);
+}
+
+void Assembler::stxsdx(const Simd128Register rs, const MemOperand& src) {
+  int SX = 1;
+  emit(STXSDX | rs.code() * B21 | src.ra().code() * B16 |
+       src.rb().code() * B11 | SX);
+}
+
+void Assembler::stxsibx(const Simd128Register rs, const MemOperand& src) {
+  int SX = 1;
+  emit(STXSIBX | rs.code() * B21 | src.ra().code() * B16 |
+       src.rb().code() * B11 | SX);
+}
+
+void Assembler::stxsihx(const Simd128Register rs, const MemOperand& src) {
+  int SX = 1;
+  emit(STXSIHX | rs.code() * B21 | src.ra().code() * B16 |
+       src.rb().code() * B11 | SX);
+}
+
+void Assembler::stxsiwx(const Simd128Register rs, const MemOperand& src) {
+  int SX = 1;
+  emit(STXSIWX | rs.code() * B21 | src.ra().code() * B16 |
+       src.rb().code() * B11 | SX);
+}
+
 void Assembler::stxvd(const Simd128Register rt, const MemOperand& dst) {
   int SX = 1;
   emit(STXVD | rt.code() * B21 | dst.ra().code() * B16 | dst.rb().code() * B11 |
@@ -1806,6 +1860,7 @@ void Assembler::stxvd(const Simd128Register rt, const MemOperand& dst) {
 
 void Assembler::xxspltib(const Simd128Register rt, const Operand& imm) {
   int TX = 1;
+  CHECK(is_uint8(imm.immediate()));
   emit(XXSPLTIB | rt.code() * B21 | imm.immediate() * B11 | TX);
 }
 
@@ -1893,20 +1948,32 @@ void Assembler::db(uint8_t data) {
   pc_ += sizeof(uint8_t);
 }
 
-void Assembler::dd(uint32_t data) {
+void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
   CheckBuffer();
+  if (!RelocInfo::IsNone(rmode)) {
+    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+    RecordRelocInfo(rmode);
+  }
   *reinterpret_cast<uint32_t*>(pc_) = data;
   pc_ += sizeof(uint32_t);
 }
 
-void Assembler::dq(uint64_t value) {
+void Assembler::dq(uint64_t value, RelocInfo::Mode rmode) {
   CheckBuffer();
+  if (!RelocInfo::IsNone(rmode)) {
+    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+    RecordRelocInfo(rmode);
+  }
   *reinterpret_cast<uint64_t*>(pc_) = value;
   pc_ += sizeof(uint64_t);
 }
 
-void Assembler::dp(uintptr_t data) {
+void Assembler::dp(uintptr_t data, RelocInfo::Mode rmode) {
   CheckBuffer();
+  if (!RelocInfo::IsNone(rmode)) {
+    DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+    RecordRelocInfo(rmode);
+  }
   *reinterpret_cast<uintptr_t*>(pc_) = data;
   pc_ += sizeof(uintptr_t);
 }

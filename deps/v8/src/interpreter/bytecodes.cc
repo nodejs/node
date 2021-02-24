@@ -274,7 +274,9 @@ bool Bytecodes::IsStarLookahead(Bytecode bytecode, OperandScale operand_scale) {
       case Bytecode::kLdaNamedProperty:
       case Bytecode::kLdaKeyedProperty:
       case Bytecode::kLdaContextSlot:
+      case Bytecode::kLdaImmutableContextSlot:
       case Bytecode::kLdaCurrentContextSlot:
+      case Bytecode::kLdaImmutableCurrentContextSlot:
       case Bytecode::kAdd:
       case Bytecode::kSub:
       case Bytecode::kMul:
@@ -295,6 +297,10 @@ bool Bytecodes::IsStarLookahead(Bytecode bytecode, OperandScale operand_scale) {
       case Bytecode::kCallUndefinedReceiver2:
       case Bytecode::kConstruct:
       case Bytecode::kConstructWithSpread:
+      case Bytecode::kCreateObjectLiteral:
+      case Bytecode::kCreateArrayLiteral:
+      case Bytecode::kThrowReferenceErrorIfHole:
+      case Bytecode::kGetTemplateObject:
         return true;
       default:
         return false;

@@ -311,7 +311,8 @@ static inline i::Address ToAddress(int n) { return static_cast<i::Address>(n); }
 static inline void* ToPointer(int n) { return reinterpret_cast<void*>(n); }
 
 TEST(CodeMapAddCode) {
-  CodeMap code_map;
+  StringsStorage strings;
+  CodeMap code_map(strings);
   CodeEntry* entry1 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
   CodeEntry* entry2 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "bbb");
   CodeEntry* entry3 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "ccc");
@@ -340,7 +341,8 @@ TEST(CodeMapAddCode) {
 }
 
 TEST(CodeMapMoveAndDeleteCode) {
-  CodeMap code_map;
+  StringsStorage strings;
+  CodeMap code_map(strings);
   CodeEntry* entry1 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
   CodeEntry* entry2 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "bbb");
   code_map.AddCode(ToAddress(0x1500), entry1, 0x200);
@@ -357,7 +359,8 @@ TEST(CodeMapMoveAndDeleteCode) {
 }
 
 TEST(CodeMapClear) {
-  CodeMap code_map;
+  StringsStorage strings;
+  CodeMap code_map(strings);
   CodeEntry* entry1 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
   CodeEntry* entry2 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "bbb");
   code_map.AddCode(ToAddress(0x1500), entry1, 0x200);
@@ -392,7 +395,8 @@ class TestSetup {
 
 TEST(SymbolizeTickSample) {
   TestSetup test_setup;
-  CodeMap code_map;
+  StringsStorage strings;
+  CodeMap code_map(strings);
   Symbolizer symbolizer(&code_map);
   CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   CodeEntry* entry2 = new CodeEntry(i::Logger::FUNCTION_TAG, "bbb");
@@ -460,7 +464,8 @@ TEST(SampleIds) {
   CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
   profiles.StartProfiling("", {CpuProfilingMode::kLeafNodeLineNumbers});
-  CodeMap code_map;
+  StringsStorage strings;
+  CodeMap code_map(strings);
   Symbolizer symbolizer(&code_map);
   CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   CodeEntry* entry2 = new CodeEntry(i::Logger::FUNCTION_TAG, "bbb");
@@ -525,7 +530,8 @@ TEST(NoSamples) {
   CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
   profiles.StartProfiling("");
-  CodeMap code_map;
+  StringsStorage strings;
+  CodeMap code_map(strings);
   Symbolizer symbolizer(&code_map);
   CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   symbolizer.code_map()->AddCode(ToAddress(0x1500), entry1, 0x200);
@@ -697,13 +703,13 @@ static const char* line_number_test_source_profile_time_functions =
 "function lazy_func_at_6th_line() {}";
 
 int GetFunctionLineNumber(CpuProfiler* profiler, LocalContext* env,
-                          const char* name) {
+                          i::Isolate* isolate, const char* name) {
   CodeMap* code_map = profiler->symbolizer()->code_map();
   i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           (*env)->Global()->Get(env->local(), v8_str(name)).ToLocalChecked())));
   CodeEntry* func_entry =
-      code_map->FindEntry(func->abstract_code().InstructionStart());
+      code_map->FindEntry(func->abstract_code(isolate).InstructionStart());
   if (!func_entry) FATAL("%s", name);
   return func_entry->line_number();
 }
@@ -726,12 +732,14 @@ TEST(LineNumber) {
   profiler.processor()->StopSynchronously();
 
   bool is_lazy = i::FLAG_lazy;
-  CHECK_EQ(1, GetFunctionLineNumber(&profiler, &env, "foo_at_the_first_line"));
-  CHECK_EQ(is_lazy ? 0 : 4,
-           GetFunctionLineNumber(&profiler, &env, "lazy_func_at_forth_line"));
-  CHECK_EQ(2, GetFunctionLineNumber(&profiler, &env, "bar_at_the_second_line"));
-  CHECK_EQ(is_lazy ? 0 : 6,
-           GetFunctionLineNumber(&profiler, &env, "lazy_func_at_6th_line"));
+  CHECK_EQ(1, GetFunctionLineNumber(&profiler, &env, isolate,
+                                    "foo_at_the_first_line"));
+  CHECK_EQ(is_lazy ? 0 : 4, GetFunctionLineNumber(&profiler, &env, isolate,
+                                                  "lazy_func_at_forth_line"));
+  CHECK_EQ(2, GetFunctionLineNumber(&profiler, &env, isolate,
+                                    "bar_at_the_second_line"));
+  CHECK_EQ(is_lazy ? 0 : 6, GetFunctionLineNumber(&profiler, &env, isolate,
+                                                  "lazy_func_at_6th_line"));
 
   profiler.StopProfiling("LineNumber");
 }

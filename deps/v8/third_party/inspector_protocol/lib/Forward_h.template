@@ -64,6 +64,10 @@ struct ArrayTypedef<double> { typedef std::vector<double> type; };
 
 template <>
 struct ArrayTypedef<bool> { typedef std::vector<bool> type; };
+
+template <>
+struct ArrayTypedef<Binary> { typedef std::vector<Binary> type; };
+
 }  // namespace detail
 
 template <typename T>

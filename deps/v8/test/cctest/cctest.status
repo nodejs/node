@@ -71,8 +71,6 @@
   'test-heap/OutOfMemory': [SKIP],
 
   # BUG(5193). The cpu profiler tests are notoriously flaky.
-  'test-profile-generator/RecordStackTraceAtStartProfiling': [SKIP],
-  'test-cpu-profiler/CollectDeoptEvents': [SKIP],
   'test-cpu-profiler/CollectCpuProfile': [SKIP],
   'test-cpu-profiler/JsNative1JsNative2JsSample': [SKIP],
   'test-cpu-profiler/JsNativeJsRuntimeJsSample': [SKIP],
@@ -117,7 +115,11 @@
   'test-code-stub-assembler/PopAndReturnFromJSBuiltinWithStackParameters' : [FAIL],
   'test-code-stub-assembler/PopAndReturnFromTFCBuiltinWithStackParameters' : [FAIL],
 
-  ############################################################################
+  # These tests are supposed to fail in a slow DCHECK, skip them otherwise.
+  'test-local-handles/DereferenceLocalHandleFailsWhenDisallowed': [SKIP, ['mode == debug', FAIL]],
+  'test-persistent-handles/DereferencePersistentHandleFailsWhenDisallowed': [SKIP, ['mode == debug', FAIL]],
+
+############################################################################
   # Slow tests.
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, SLOW],
@@ -129,7 +131,6 @@
 
 ##############################################################################
 ['mode == debug', {
-  # These tests are supposed to fail in a DCHECK.
   'test-persistent-handles/NewPersistentHandleFailsWhenParked': [FAIL],
   'test-persistent-handles/NewPersistentHandleFailsWhenParkedExplicit': [FAIL],
 }],
@@ -251,7 +252,11 @@
 
   # BUG(10107): Failing flakily
   'test-cpu-profiler/Inlining2': ['arch == ia32 and mode == debug', SKIP],
+  'test-cpu-profiler/CrossScriptInliningCallerLineNumbers': ['arch == ia32 and mode == debug', SKIP],
   'test-cpu-profiler/CrossScriptInliningCallerLineNumbers2': ['arch == ia32 and mode == debug', SKIP],
+
+  # BUG(v8:10996): Flaky on Win32
+  'test-cpu-profiler/StartProfilingAfterOsr': ['arch == ia32', SKIP],
 }],  # 'system == windows'
 
 ##############################################################################
@@ -370,6 +375,9 @@
 ['system != android and arch in [arm, arm64] and not simulator_run', {
   # Consumes too much memory on ODROIDs in debug mode and optimize_for_size.
   'test-code-generator/FuzzAssemble*': [PASS, ['(mode == debug) and optimize_for_size', SKIP]],
+
+  # BUG(chromium:1163847): Seems to break on ODROIDs with recent Clang rolls.
+  'test-loop-analysis/LaEdgeMatrix2_0': [PASS, FAIL]
 }],  # 'system != android and arch in [arm, arm64] and not simulator_run'
 
 ##############################################################################
@@ -383,7 +391,9 @@
   # TODO(ppc): Implement load/store reverse byte instructions
   'test-run-wasm-simd/RunWasm_SimdLoadStoreLoad': [SKIP],
   'test-run-wasm-simd/RunWasm_SimdLoadStoreLoad_turbofan': [SKIP],
-
+  # slow in PASE emulator
+  'test-cpu-profiler/Inlining2': [PASS, SLOW],
+  'test-cpu-profiler/CollectCpuProfileCallerLineNumbers': [PASS, SLOW],
 }],  # 'system == aix or (arch == ppc64 and byteorder == big)'
 
 ##############################################################################
@@ -404,9 +414,9 @@
   # Liftoff is not currently supported on ppc and s390
   'test-liftoff-*': [SKIP],
   'test-wasm-breakpoints/*' : [SKIP],
-  'test-wasm-debug-evaluate/*': [SKIP],
   'test-run-wasm-module/Run_WasmModule_CompilationHintsNoTiering': [SKIP],
   'test-wasm-serialization/TierDownAfterDeserialization': [SKIP],
+  'test-gc/RunWasmLiftoff*': [SKIP],
 
   # SIMD not fully implemented yet
   'test-run-wasm-simd-liftoff/*': [SKIP],
@@ -481,25 +491,10 @@
   'test-gc/*': [SKIP],
   'test-grow-memory/*': [SKIP],
   'test-liftoff-inspection/*': [SKIP],
-  'test-run-wasm-64/*': [SKIP],
-  'test-run-wasm-asmjs/*': [SKIP],
-  'test-run-wasm-atomics64/*': [SKIP],
-  'test-run-wasm-atomics/*': [SKIP],
-  'test-run-wasm-bulk-memory/*': [SKIP],
-  'test-run-wasm/*': [SKIP],
-  'test-run-wasm-exceptions/*': [SKIP],
-  'test-run-wasm-interpreter/*': [SKIP],
-  'test-run-wasm-js/*': [SKIP],
-  'test-run-wasm-module/*': [SKIP],
-  'test-run-wasm-sign-extension/*': [SKIP],
-  'test-run-wasm-simd-liftoff/*': [SKIP],
-  'test-run-wasm-simd-scalar-lowering/*': [SKIP],
-  'test-run-wasm-simd/*': [SKIP],
-  'test-run-wasm-wrappers/*': [SKIP],
+  'test-run-wasm*': [SKIP],
   'test-streaming-compilation/*': [SKIP],
   'test-wasm-breakpoints/*': [SKIP],
   'test-wasm-codegen/*': [SKIP],
-  'test-wasm-debug-evaluate/*': [SKIP],
   'test-wasm-import-wrapper-cache/*': [SKIP],
   'test-wasm-metrics/*': [SKIP],
   'test-wasm-serialization/*': [SKIP],

@@ -564,7 +564,6 @@ namespace internal {
   T(WasmTrapJSTypeError, "type incompatibility when transforming from/to JS")  \
   T(WasmTrapDataSegmentDropped, "data segment has been dropped")               \
   T(WasmTrapElemSegmentDropped, "element segment has been dropped")            \
-  T(WasmTrapBrOnExnNull, "br_on_exn on null value")                            \
   T(WasmTrapRethrowNull, "rethrowing null value")                              \
   T(WasmTrapNullDereference, "dereferencing a null pointer")                   \
   T(WasmTrapIllegalCast, "illegal cast")                                       \

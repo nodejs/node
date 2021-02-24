@@ -16,7 +16,7 @@ namespace d = v8::debug_helper;
 
 // We need a plain C function pointer for interop with v8_debug_helper. We can
 // use this to get one as long as we never need two at once.
-class MemReaderScope {
+class V8_NODISCARD MemReaderScope {
  public:
   explicit MemReaderScope(WRL::ComPtr<IDebugHostContext> sp_context)
       : sp_context_(sp_context) {

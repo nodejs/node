@@ -7,6 +7,8 @@
 #include "src/api/api.h"
 #include "src/base/logging.h"
 #include "src/codegen/optimized-compilation-info.h"
+#include "src/execution/isolate.h"
+#include "src/execution/thread-id.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/objects-inl.h"
 #include "src/roots/roots-inl.h"
@@ -42,20 +44,34 @@ bool HandleBase::IsDereferenceAllowed() const {
     return true;
   }
   if (isolate->IsBuiltinsTableHandleLocation(location_)) return true;
+  if (!AllowHandleDereference::IsAllowed()) return false;
 
-  LocalHeap* local_heap = LocalHeap::Current();
-  if (FLAG_local_heaps && local_heap) {
+  if (FLAG_local_heaps) {
+    LocalHeap* local_heap = isolate->CurrentLocalHeap();
+
     // Local heap can't access handles when parked
-    if (!local_heap->IsHandleDereferenceAllowed()) return false;
+    if (!local_heap->IsHandleDereferenceAllowed()) {
+      StdoutStream{} << "Cannot dereference handle owned by "
+                     << "non-running local heap\n";
+      return false;
+    }
 
-    if (local_heap->ContainsPersistentHandle(location_) ||
-        local_heap->ContainsLocalHandle(location_)) {
+    // We are pretty strict with handle dereferences on background threads: A
+    // background local heap is only allowed to dereference its own local or
+    // persistent handles.
+    if (!local_heap->is_main_thread()) {
       // The current thread owns the handle and thus can dereference it.
-      return true;
+      return local_heap->ContainsPersistentHandle(location_) ||
+             local_heap->ContainsLocalHandle(location_);
     }
   }
+  // If LocalHeap::Current() is null, we're on the main thread -- if we were to
+  // check main thread HandleScopes here, we should additionally check the
+  // main-thread LocalHeap.
+  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
 
-  return AllowHandleDereference::IsAllowed();
+  // TODO(leszeks): Check if the main thread owns this handle.
+  return true;
 }
 #endif
 

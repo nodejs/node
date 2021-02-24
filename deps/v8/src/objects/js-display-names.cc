@@ -672,7 +672,7 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
   display_names->set_style(style_enum);
   display_names->set_fallback(fallback_enum);
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   display_names->set_internal(*managed_internal);
 
   // Return displayNames.

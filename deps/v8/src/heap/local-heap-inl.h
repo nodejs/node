@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_LOCAL_HEAP_INL_H_
 #define V8_HEAP_LOCAL_HEAP_INL_H_
 
+#include "src/common/assert-scope.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/concurrent-allocator-inl.h"
 #include "src/heap/local-heap.h"
@@ -16,10 +17,9 @@ AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
                                         AllocationOrigin origin,
                                         AllocationAlignment alignment) {
 #if DEBUG
-  DCHECK_EQ(LocalHeap::Current(), this);
+  VerifyCurrent();
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
-  DCHECK(AllowGarbageCollection::IsAllowed());
   DCHECK_IMPLIES(type == AllocationType::kCode || type == AllocationType::kMap,
                  alignment == AllocationAlignment::kWordAligned);
   Heap::HeapState state = heap()->gc_state();

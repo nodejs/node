@@ -199,6 +199,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64I64x2Mul:
     case kArm64I64x2Eq:
     case kArm64I64x2ShrU:
+    case kArm64I64x2BitMask:
     case kArm64I32x4Splat:
     case kArm64I32x4ExtractLane:
     case kArm64I32x4ReplaceLane:
@@ -297,6 +298,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64I8x16RoundingAverageU:
     case kArm64I8x16Abs:
     case kArm64I8x16BitMask:
+    case kArm64SignSelect:
     case kArm64S128Const:
     case kArm64S128Zero:
     case kArm64S128Dup:
@@ -359,6 +361,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64LdrDecompressAnyTagged:
     case kArm64Peek:
     case kArm64LoadSplat:
+    case kArm64LoadLane:
     case kArm64S128Load8x8S:
     case kArm64S128Load8x8U:
     case kArm64S128Load16x4S:
@@ -382,6 +385,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64StrCompressTagged:
     case kArm64DmbIsh:
     case kArm64DsbIsb:
+    case kArm64Prfm:
+    case kArm64StoreLane:
       return kHasSideEffect;
 
     case kArm64Word64AtomicLoadUint8:
