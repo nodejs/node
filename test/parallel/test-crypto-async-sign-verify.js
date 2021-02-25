@@ -45,19 +45,19 @@ async function test(
     crypto.sign(algorithm, data, key, common.mustSucceed((actual) => {
       if (deterministic) {
         assert.deepStrictEqual(actual, signature);
-      } else {
-        assert.strictEqual(
-          crypto.verify(algorithm, data, key, signature), true);
       }
+
+      assert.strictEqual(
+        crypto.verify(algorithm, data, key, actual), true);
     }));
   }
 
   for (const key of [publicPem, publicKey, publicDer]) {
     crypto.verify(algorithm, data, key, signature, common.mustSucceed(
-      (actual) => assert.strictEqual(actual, true)));
+      (verified) => assert.strictEqual(verified, true)));
 
     crypto.verify(algorithm, data, key, Buffer.from(''), common.mustSucceed(
-      (actual) => assert.strictEqual(actual, false)));
+      (verified) => assert.strictEqual(verified, false)));
   }
 }
 
@@ -88,12 +88,11 @@ Promise.all([
   // ED448
   test('ed448_public.pem', 'ed448_private.pem', undefined, true),
 
-  // TODO: add dsaSigEnc to SignJob
   // ECDSA w/ der signature encoding
-  // test('ec_secp256k1_public.pem', 'ec_secp256k1_private.pem', 'sha384',
-  //      false),
-  // test('ec_secp256k1_public.pem', 'ec_secp256k1_private.pem', 'sha384',
-  //      false, { dsaEncoding: 'der' }),
+  test('ec_secp256k1_public.pem', 'ec_secp256k1_private.pem', 'sha384',
+       false),
+  test('ec_secp256k1_public.pem', 'ec_secp256k1_private.pem', 'sha384',
+       false, { dsaEncoding: 'der' }),
 
   // ECDSA w/ ieee-p1363 signature encoding
   test('ec_secp256k1_public.pem', 'ec_secp256k1_private.pem', 'sha384', false,
