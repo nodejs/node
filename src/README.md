@@ -433,7 +433,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 NODE_MODULE_EXTERNAL_REFERENCE(util, node::util::RegisterExternalReferences)
 ```
 
-Otherwise you might see an error message like this when building the
+Otherwise, you might see an error message like this when building the
 executables:
 
 ```console
