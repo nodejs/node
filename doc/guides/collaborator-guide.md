@@ -154,21 +154,21 @@ requirements. If a pull request meets all requirements except the
 
 #### Objections
 
-**Collaborators can object to a pull request by using the "Request
-Changes" GitHub feature**. Dissent comments alone don't constitute an
-objection. **Any PR objection must include a clear reason for that objection,
-and the objector must remain responsive for further discussion towards
-consensus about the direction of the pull request**. Providing a set of
-actionable steps alongside the objection is recommended.
+Collaborators can object to a pull request by using the "Request
+Changes" GitHub feature. Dissent comments alone don't constitute an
+objection. Any pull request objection must include a clear reason for that
+objection, and the objector must remain responsive for further discussion
+towards consensus about the direction of the pull request. Where possible,
+provide a set of actionable steps alongside the objection.
 
 If the objection is not clear to others, another collaborator can ask an
 objecting collaborator to explain their objection or to provide actionable
-steps to resolve the objection. **If the objector is unresponsive for seven
-days after a collaborator asks for clarification, another collaborator can
-dismiss the objection**.
+steps to resolve the objection. If the objector is unresponsive for seven
+days after a collaborator asks for clarification, a collaborator may
+dismiss the objection.
 
-**Pull requests with outstanding objections must remain open until all
-objections are satisfied**. If reaching consensus is not possible, a
+Pull requests with outstanding objections must remain open until all
+objections are satisfied. If reaching consensus is not possible, a
 collaborator can escalate the issue to the TSC by pinging `@nodejs/tsc` and
 adding the `tsc-agenda` label to the issue.
 
