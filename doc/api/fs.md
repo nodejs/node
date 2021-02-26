@@ -4533,7 +4533,7 @@ changes:
   * `withFileTypes` {boolean} **Default:** `false`
 * Returns: {string[]|Buffer[]|fs.Dirent[]}
 
-Reads the contents of the director.
+Reads the contents of the directory.
 
 See the POSIX readdir(3) documentation for more details.
 
