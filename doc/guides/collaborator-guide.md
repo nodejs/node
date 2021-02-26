@@ -210,11 +210,11 @@ the comment anyway to avoid any doubt.
 All fixes must have a test case which demonstrates the defect. The test should
 fail before the change, and pass after the change.
 
-Do not land any pull requests without a passing (green or yellow) CI run.
-A green GitHub Actions CI result is required. A passing
-[Jenkins CI](https://ci.nodejs.org/) is also required if PR contains changes
-that will affect the `node` binary. This is critical as GitHub Actions CI does
-not cover all the environments supported by Node.js.
+Do not land any pull requests without the necessary passing CI runs.
+A passing (green) GitHub Actions CI result is required. A passing (green or
+yellow) [Jenkins CI](https://ci.nodejs.org/) is also required if the pull
+request contains changes that will affect the `node` binary. This is because
+GitHub Actions CI does not cover all the environments supported by Node.js.
 
 <details>
 <summary>Changes that affect the `node` binary</summary>
@@ -295,7 +295,7 @@ in the form:
 To specify the branch this way, `refs/heads/BRANCH` is used
 (e.g. for `master` -> `refs/heads/master`).
 For pull requests, it will look like `refs/pull/PR_NUMBER/head`
-(e.g. for PR#42 -> `refs/pull/42/head`).
+(e.g. for pull request #42 -> `refs/pull/42/head`).
 * `REBASE_ONTO`: Change that to `origin/master` so the pull request gets rebased
 onto master. This can especially be important for pull requests that have been
 open a while.
