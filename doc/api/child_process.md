@@ -146,6 +146,9 @@ exec('"my script.cmd" a b', (err, stdout, stderr) => {
 <!-- YAML
 added: v0.1.90
 changes:
+  - version: v15.4.0
+    pr-url: https://github.com/nodejs/node/pull/36308
+    description: AbortSignal support was added.
   - version: v8.8.0
     pr-url: https://github.com/nodejs/node/pull/15380
     description: The `windowsHide` option is supported now.
@@ -160,6 +163,8 @@ changes:
   * `shell` {string} Shell to execute the command with. See
     [Shell requirements][] and [Default Windows shell][]. **Default:**
     `'/bin/sh'` on Unix, `process.env.ComSpec` on Windows.
+  * `signal` {AbortSignal} allows aborting the child process using an
+    AbortSignal.
   * `timeout` {number} **Default:** `0`
   * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
     stderr. If exceeded, the child process is terminated and any output is
@@ -183,6 +188,8 @@ directly by the shell and special characters (vary based on
 need to be dealt with accordingly:
 
 ```js
+const { exec } = require('child_process');
+
 exec('"/path/to/test file/test.sh" arg1 arg2');
 // Double quotes are used so that the space in the path is not interpreted as
 // a delimiter of multiple arguments.
@@ -246,6 +253,20 @@ async function lsExample() {
 lsExample();
 ```
 
+If the `signal` option is enabled, calling `.abort()` on the corresponding
+`AbortController` is similar to calling `.kill()` on the child process except
+the error passed to the callback will be an `AbortError`:
+
+```js
+const { exec } = require('child_process');
+const controller = new AbortController();
+const { signal } = controller;
+const child = exec('grep ssh', { signal }, (error) => {
+  console.log(error); // an AbortError
+});
+controller.abort();
+```
+
 ### `child_process.execFile(file[, args][, options][, callback])`
 <!-- YAML
 added: v0.1.91
@@ -280,7 +301,8 @@ changes:
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
     shell can be specified as a string. See [Shell requirements][] and
     [Default Windows shell][]. **Default:** `false` (no shell).
-  * `signal` {AbortSignal} allows aborting the execFile using an AbortSignal.
+  * `signal` {AbortSignal} allows aborting the child process using an
+    AbortSignal.
 * `callback` {Function} Called with the output when process terminates.
   * `error` {Error}
   * `stdout` {string|Buffer}
@@ -339,6 +361,7 @@ If the `signal` option is enabled, calling `.abort()` on the corresponding
 the error passed to the callback will be an `AbortError`:
 
 ```js
+const { execFile } = require('child_process');
 const controller = new AbortController();
 const { signal } = controller;
 const child = execFile('node', ['--version'], { signal }, (error) => {
@@ -385,7 +408,8 @@ changes:
   * `serialization` {string} Specify the kind of serialization used for sending
     messages between processes. Possible values are `'json'` and `'advanced'`.
     See [Advanced serialization][] for more details. **Default:** `'json'`.
-  * `signal` {AbortSignal} Allows closing the subprocess using an AbortSignal.
+  * `signal` {AbortSignal} Allows closing the child process using an
+    AbortSignal.
   * `killSignal` {string} The signal value to be used when the spawned
     process will be killed by the abort signal. **Default:** `'SIGTERM'`.
   * `silent` {boolean} If `true`, stdin, stdout, and stderr of the child will be
@@ -429,8 +453,26 @@ current process.
 The `shell` option available in [`child_process.spawn()`][] is not supported by
 `child_process.fork()` and will be ignored if set.
 
-The `signal` option works exactly the same way it does in
-[`child_process.spawn()`][].
+If the `signal` option is enabled, calling `.abort()` on the corresponding
+`AbortController` is similar to calling `.kill()` on the child process except
+the error passed to the callback will be an `AbortError`:
+
+```js
+if (process.argv[2] === 'child') {
+  setTimeout(() => {
+    console.log(`Hello from ${process.argv[2]}!`);
+  }, 1_000);
+} else {
+  const { fork } = require('child_process');
+  const controller = new AbortController();
+  const { signal } = controller;
+  const child = fork(__filename, ['child'], { signal });
+  child.on('error', (err) => {
+    // This will be called with err being an AbortError if the controller aborts
+  });
+  controller.abort(); // Stops the child process
+}
+```
 
 ### `child_process.spawn(command[, args][, options])`
 <!-- YAML
@@ -484,7 +526,8 @@ changes:
     when `shell` is specified and is CMD. **Default:** `false`.
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
-  * `signal` {AbortSignal} allows aborting the execFile using an AbortSignal.
+  * `signal` {AbortSignal} allows aborting the child process using an
+    AbortSignal.
   * `killSignal` {string} The signal value to be used when the spawned
     process will be killed by the abort signal. **Default:** `'SIGTERM'`.
 
@@ -599,13 +642,14 @@ If the `signal` option is enabled, calling `.abort()` on the corresponding
 the error passed to the callback will be an `AbortError`:
 
 ```js
+const { spawn } = require('child_process');
 const controller = new AbortController();
 const { signal } = controller;
 const grep = spawn('grep', ['ssh'], { signal });
 grep.on('error', (err) => {
   // This will be called with err being an AbortError if the controller aborts
 });
-controller.abort(); // stops the process
+controller.abort(); // Stops the child process
 ```
 
 #### `options.detached`
