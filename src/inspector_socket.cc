@@ -318,7 +318,7 @@ class WsHandler : public ProtocolHandler {
   WsHandler(InspectorSocket* inspector, TcpHolder::Pointer tcp)
             : ProtocolHandler(inspector, std::move(tcp)),
               OnCloseSent(&WsHandler::WaitForCloseReply),
-              OnCloseRecieved(&WsHandler::CloseFrameReceived),
+              OnCloseReceived(&WsHandler::CloseFrameReceived),
               dispose_(false) { }
 
   void AcceptUpgrade(const std::string& accept_key) override { }
@@ -369,7 +369,7 @@ class WsHandler : public ProtocolHandler {
   }
 
   void WaitForCloseReply() {
-    OnCloseRecieved = &WsHandler::OnEof;
+    OnCloseReceived = &WsHandler::OnEof;
   }
 
   void SendClose() {
@@ -396,7 +396,7 @@ class WsHandler : public ProtocolHandler {
       OnEof();
       bytes_consumed = 0;
     } else if (r == FRAME_CLOSE) {
-      (this->*OnCloseRecieved)();
+      (this->*OnCloseReceived)();
       bytes_consumed = 0;
     } else if (r == FRAME_OK) {
       delegate()->OnWsFrame(output);
@@ -406,7 +406,7 @@ class WsHandler : public ProtocolHandler {
 
 
   Callback OnCloseSent;
-  Callback OnCloseRecieved;
+  Callback OnCloseReceived;
   bool dispose_;
 };
 
