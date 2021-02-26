@@ -101,16 +101,17 @@ describing a security issue, take the following steps:
   [SECURITY.md][security reporting].
 * Move the issue to the private repo called
   [premature-disclosures](https://github.com/nodejs/premature-disclosures).
-* For any related pull requests create an associated issue in the
-  `premature-disclosures` repo and add a copy of the patch for the
-  pull request, and screenshots of discussion on the PR to the issue.
-* Open a ticket with GitHub asking that the PRs be deleted through
+* For any related pull requests, create an associated issue in the
+  `premature-disclosures` repository.  Add a copy of the patch for the
+  pull request to the issue. Add screenshots of discussion from the pull request
+  to the issue.
+* Open a ticket with GitHub asking that the pull requests be deleted through
   [GitHub suppport](https://support.github.com/contact)
   using Node.js(team) as the account organization.
 * Open a new issue in the repository in which the issue was originally
-  reported with a brief FYI to the originator. `FYI @xxxx we asked github
-  to delete your PR while we work on releases in private.` with the title
-  `FYI - PR deleted #YYYY`.
+  reported with a brief FYI to the originator: "FYI @xxxx we asked GitHub
+  to delete your pull request while we work on releases in private." with the
+  title `FYI - pull request deleted #YYYY`.
 * Email `tsc@iojs.org` with the link to the issues in the
   `premature-disclosures` repo so that the TSC is aware that they
   may need to expedite handling of the issue due to premature
