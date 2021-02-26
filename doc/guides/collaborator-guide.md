@@ -760,10 +760,10 @@ Each LTS release has a corresponding branch (v10.x, v8.x, etc.). Each also has a
 corresponding staging branch (v10.x-staging, v8.x-staging, etc.).
 
 Commits that land on master are cherry-picked to each staging branch as
-appropriate. If a change applies only to the LTS branch, open the PR against the
-*staging* branch. Commits from the staging branch land on the LTS branch only
-when a release is being prepared. They can land on the LTS branch in a different
-order than they were in staging.
+appropriate. If a change applies only to the LTS branch, open the pull request
+against the *staging* branch. Commits from the staging branch land on the LTS
+branch only when a release is being prepared. They might land on the LTS branch
+in a different order than they do in staging.
 
 Only members of @nodejs/backporters should land commits onto LTS staging
 branches.
