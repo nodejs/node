@@ -613,7 +613,7 @@ New conditions definitions may be added to this list by creating a PR to the
 [Node.js documentation for this section][]. The requirements for listing a
 new condition definition here are that:
 
-* The definition should be clear and unambigious for all implementers.
+* The definition should be clear and unambiguous for all implementers.
 * The use case for why the condition is needed should be clearly justified.
 * There should exist sufficient existing implementation usage.
 * The condition name should not conflict with another condition definition or
