@@ -4,6 +4,7 @@ const common = require('../common');
 const {
   BroadcastChannel,
   Worker,
+  receiveMessageOnPort
 } = require('worker_threads');
 const assert = require('assert');
 
@@ -139,4 +140,14 @@ assert.throws(() => new BroadcastChannel(), {
   assert.throws(() => bc1.postMessage(Symbol()), {
     message: /BroadcastChannel is closed/
   });
+}
+
+{
+  const bc1 = new BroadcastChannel('channel4');
+  const bc2 = new BroadcastChannel('channel4');
+  bc1.postMessage('some data');
+  assert.strictEqual(receiveMessageOnPort(bc2).message, 'some data');
+  assert.strictEqual(receiveMessageOnPort(bc2), undefined);
+  bc1.close();
+  bc2.close();
 }

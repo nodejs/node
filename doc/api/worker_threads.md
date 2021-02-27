@@ -179,9 +179,13 @@ if (isMainThread) {
 ## `worker.receiveMessageOnPort(port)`
 <!-- YAML
 added: v12.3.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37535
+    description: The port argument can also refer to a `BroadcastChannel` now.
 -->
 
-* `port` {MessagePort}
+* `port` {MessagePort|BroadcastChannel}
 
 * Returns: {Object|undefined}
 
