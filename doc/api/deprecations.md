@@ -2751,7 +2751,7 @@ Previously, `index.js` and extension searching lookups would apply to
 With this deprecation, all ES module main entry point resolutions require
 an explicit [`"exports"` or `"main"` entry][] with the exact file extension.
 
-### DEP0XXX: Extension PerformanceEntry properties
+### DEP0152: Extension PerformanceEntry properties
 <!-- YAML
 changes:
   - version: REPLACEME
