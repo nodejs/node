@@ -90,6 +90,7 @@ class SnapshotableObject : public BaseObject {
   virtual void PrepareForSerialization(v8::Local<v8::Context> context,
                                        v8::SnapshotCreator* creator) = 0;
   virtual InternalFieldInfo* Serialize(int index) = 0;
+  bool is_snapshotable() const override { return true; }
   // We'll make sure that the type is set in the constructor
   EmbedderObjectType type() { return type_; }
 

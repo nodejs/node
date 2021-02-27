@@ -16,7 +16,6 @@ SnapshotableObject::SnapshotableObject(Environment* env,
                                        Local<Object> wrap,
                                        EmbedderObjectType type)
     : BaseObject(env, wrap), type_(type) {
-  set_is_snapshotable(true);
 }
 
 const char* SnapshotableObject::GetTypeNameChars() const {
