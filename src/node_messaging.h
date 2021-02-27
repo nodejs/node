@@ -62,8 +62,10 @@ class Message : public MemoryRetainer {
 
   // Deserialize the contained JS value. May only be called once, and only
   // after Serialize() has been called (e.g. by another thread).
-  v8::MaybeLocal<v8::Value> Deserialize(Environment* env,
-                                        v8::Local<v8::Context> context);
+  v8::MaybeLocal<v8::Value> Deserialize(
+      Environment* env,
+      v8::Local<v8::Context> context,
+      v8::Local<v8::Value>* port_list = nullptr);
 
   // Serialize a JS value, and optionally transfer objects, into this message.
   // The Message object retains ownership of all transferred objects until
@@ -293,8 +295,10 @@ class MessagePort : public HandleWrap {
   void OnClose() override;
   void OnMessage(MessageProcessingMode mode);
   void TriggerAsync();
-  v8::MaybeLocal<v8::Value> ReceiveMessage(v8::Local<v8::Context> context,
-                                           MessageProcessingMode mode);
+  v8::MaybeLocal<v8::Value> ReceiveMessage(
+      v8::Local<v8::Context> context,
+      MessageProcessingMode mode,
+      v8::Local<v8::Value>* port_list = nullptr);
 
   std::unique_ptr<MessagePortData> data_ = nullptr;
   bool receiving_messages_ = false;

@@ -126,11 +126,18 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
 }  // anonymous namespace
 
 MaybeLocal<Value> Message::Deserialize(Environment* env,
-                                       Local<Context> context) {
+                                       Local<Context> context,
+                                       Local<Value>* port_list) {
+  Context::Scope context_scope(context);
+
   CHECK(!IsCloseMessage());
+  if (port_list != nullptr && !transferables_.empty()) {
+    // Need to create this outside of the EscapableHandleScope, but inside
+    // the Context::Scope.
+    *port_list = Array::New(env->isolate());
+  }
 
   EscapableHandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(context);
 
   // Create all necessary objects for transferables, e.g. MessagePort handles.
   std::vector<BaseObjectPtr<BaseObject>> host_objects(transferables_.size());
@@ -146,10 +153,27 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
   });
 
   for (uint32_t i = 0; i < transferables_.size(); ++i) {
+    HandleScope handle_scope(env->isolate());
     TransferData* data = transferables_[i].get();
     host_objects[i] = data->Deserialize(
         env, context, std::move(transferables_[i]));
     if (!host_objects[i]) return {};
+    if (port_list != nullptr) {
+      // If we gather a list of all message ports, and this transferred object
+      // is a message port, add it to that list. This is a bit of an odd case
+      // of special handling for MessagePorts (as opposed to applying to all
+      // transferables), but it's required for spec compliancy.
+      DCHECK((*port_list)->IsArray());
+      Local<Array> port_list_array = port_list->As<Array>();
+      Local<Object> obj = host_objects[i]->object();
+      if (env->message_port_constructor_template()->HasInstance(obj)) {
+        if (port_list_array->Set(context,
+                                 port_list_array->Length(),
+                                 obj).IsNothing()) {
+          return {};
+        }
+      }
+    }
   }
   transferables_.clear();
 
@@ -664,7 +688,8 @@ MessagePort* MessagePort::New(
 }
 
 MaybeLocal<Value> MessagePort::ReceiveMessage(Local<Context> context,
-                                              MessageProcessingMode mode) {
+                                              MessageProcessingMode mode,
+                                              Local<Value>* port_list) {
   std::shared_ptr<Message> received;
   {
     // Get the head of the message queue.
@@ -696,7 +721,7 @@ MaybeLocal<Value> MessagePort::ReceiveMessage(Local<Context> context,
 
   if (!env()->can_call_into_js()) return MaybeLocal<Value>();
 
-  return received->Deserialize(env(), context);
+  return received->Deserialize(env(), context, port_list);
 }
 
 void MessagePort::OnMessage(MessageProcessingMode mode) {
@@ -735,14 +760,15 @@ void MessagePort::OnMessage(MessageProcessingMode mode) {
     Local<Function> emit_message = PersistentToLocal::Strong(emit_message_fn_);
 
     Local<Value> payload;
+    Local<Value> port_list = Undefined(env()->isolate());
     Local<Value> message_error;
-    Local<Value> argv[2];
+    Local<Value> argv[3];
 
     {
       // Catch any exceptions from parsing the message itself (not from
       // emitting it) as 'messageeror' events.
       TryCatchScope try_catch(env());
-      if (!ReceiveMessage(context, mode).ToLocal(&payload)) {
+      if (!ReceiveMessage(context, mode, &port_list).ToLocal(&payload)) {
         if (try_catch.HasCaught() && !try_catch.HasTerminated())
           message_error = try_catch.Exception();
         goto reschedule;
@@ -757,13 +783,15 @@ void MessagePort::OnMessage(MessageProcessingMode mode) {
     }
 
     argv[0] = payload;
-    argv[1] = env()->message_string();
+    argv[1] = port_list;
+    argv[2] = env()->message_string();
 
     if (MakeCallback(emit_message, arraysize(argv), argv).IsEmpty()) {
     reschedule:
       if (!message_error.IsEmpty()) {
         argv[0] = message_error;
-        argv[1] = env()->messageerror_string();
+        argv[1] = Undefined(env()->isolate());
+        argv[2] = env()->messageerror_string();
         USE(MakeCallback(emit_message, arraysize(argv), argv));
       }
 
