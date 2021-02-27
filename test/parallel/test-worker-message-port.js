@@ -34,6 +34,7 @@ const { MessageChannel, MessagePort } = require('worker_threads');
   port1.onmessage = common.mustCall((message) => {
     assert.strictEqual(message.data, 4);
     assert.strictEqual(message.target, port1);
+    assert.deepStrictEqual(message.ports, []);
     port2.close(common.mustCall());
   });
 
@@ -159,6 +160,19 @@ const { MessageChannel, MessagePort } = require('worker_threads');
   }
 
   port1.close();
+}
+
+{
+  // Test MessageEvent#ports
+  const c1 = new MessageChannel();
+  const c2 = new MessageChannel();
+  c1.port1.postMessage({ port: c2.port2 }, [ c2.port2 ]);
+  c1.port2.addEventListener('message', common.mustCall((ev) => {
+    assert.strictEqual(ev.ports.length, 1);
+    assert.strictEqual(ev.ports[0].constructor, MessagePort);
+    c1.port1.close();
+    c2.port1.close();
+  }));
 }
 
 {
