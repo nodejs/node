@@ -7,8 +7,6 @@ prefix parallel
 [true] # This section applies to all platforms
 
 [$system==win32]
-# https://github.com/nodejs/node/issues/30845
-test-http2-multistream-destroy-on-read-tls: PASS,FLAKY
 # https://github.com/nodejs/node/issues/20750
 test-http2-pipe: PASS,FLAKY
 # https://github.com/nodejs/node/issues/20750
