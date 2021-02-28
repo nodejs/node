@@ -9,7 +9,7 @@ const inspector = require('inspector');
 
 process.on('warning', common.mustCall((warning) => {
   assert.strictEqual(warning.code, 'DEP0097');
-  assert.match(warning.message, /Triggered by calling <anonymous> on process/);
+  assert.match(warning.message, /Triggered by calling emit on process/);
 }));
 
 domain.create().run(() => {
