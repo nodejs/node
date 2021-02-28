@@ -83,7 +83,7 @@ ModuleWrap::~ModuleWrap() {
 Local<Context> ModuleWrap::context() const {
   Local<Value> obj = object()->GetInternalField(kContextObjectSlot);
   if (obj.IsEmpty()) return {};
-  return obj.As<Object>()->CreationContext();
+  return obj.As<Object>()->GetCreationContext().ToLocalChecked();
 }
 
 ModuleWrap* ModuleWrap::GetFromModule(Environment* env,
@@ -122,7 +122,7 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context;
   ContextifyContext* contextify_context = nullptr;
   if (args[1]->IsUndefined()) {
-    context = that->CreationContext();
+    context = that->GetCreationContext().ToLocalChecked();
   } else {
     CHECK(args[1]->IsObject());
     contextify_context = ContextifyContext::ContextFromContextifiedSandbox(
@@ -237,7 +237,7 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
     obj->object()->SetInternalField(kSyntheticEvaluationStepsSlot, args[3]);
   }
 
-  // Use the extras object as an object whose CreationContext() will be the
+  // Use the extras object as an object whose GetCreationContext() will be the
   // original `context`, since the `Context` itself strictly speaking cannot
   // be stored in an internal field.
   obj->object()->SetInternalField(kContextObjectSlot,
