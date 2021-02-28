@@ -4,9 +4,13 @@ const isFullwidthCodePoint = require('is-fullwidth-code-point');
 const emojiRegex = require('emoji-regex');
 
 const stringWidth = string => {
+	if (typeof string !== 'string' || string.length === 0) {
+		return 0;
+	}
+
 	string = string.replace(emojiRegex(), '  ');
 
-	if (typeof string !== 'string' || string.length === 0) {
+	if (string.length === 0) {
 		return 0;
 	}
 

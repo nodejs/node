@@ -215,6 +215,14 @@ module.exports = optionator({
             description: "Path to the cache file or directory"
         },
         {
+            option: "cache-strategy",
+            dependsOn: ["cache"],
+            type: "String",
+            default: "metadata",
+            enum: ["metadata", "content"],
+            description: "Strategy to use for detecting changed files in the cache"
+        },
+        {
             heading: "Miscellaneous"
         },
         {

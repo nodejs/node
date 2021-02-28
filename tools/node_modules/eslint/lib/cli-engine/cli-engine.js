@@ -589,7 +589,7 @@ class CLIEngine {
             ignore: options.ignore
         });
         const lintResultCache =
-            options.cache ? new LintResultCache(cacheFilePath) : null;
+            options.cache ? new LintResultCache(cacheFilePath, options.cacheStrategy) : null;
         const linter = new Linter({ cwd: options.cwd });
 
         /** @type {ConfigArray[]} */
