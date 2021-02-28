@@ -43,6 +43,7 @@ const { version } = require("../../package.json");
  * @property {ConfigData} [baseConfig] Base config object, extended by all configs used with this instance
  * @property {boolean} [cache] Enable result caching.
  * @property {string} [cacheLocation] The cache file to use instead of .eslintcache.
+ * @property {"metadata" | "content"} [cacheStrategy] The strategy used to detect changed files.
  * @property {string} [cwd] The value to use for the current working directory.
  * @property {boolean} [errorOnUnmatchedPattern] If `false` then `ESLint#lintFiles()` doesn't throw even if no target files found. Defaults to `true`.
  * @property {string[]} [extensions] An array of file extensions to check.
@@ -157,6 +158,7 @@ function processOptions({
     baseConfig = null,
     cache = false,
     cacheLocation = ".eslintcache",
+    cacheStrategy = "metadata",
     cwd = process.cwd(),
     errorOnUnmatchedPattern = true,
     extensions = null, // ← should be null by default because if it's an array then it suppresses RFC20 feature.
@@ -215,6 +217,12 @@ function processOptions({
     }
     if (!isNonEmptyString(cacheLocation)) {
         errors.push("'cacheLocation' must be a non-empty string.");
+    }
+    if (
+        cacheStrategy !== "metadata" &&
+        cacheStrategy !== "content"
+    ) {
+        errors.push("'cacheStrategy' must be any of \"metadata\", \"content\".");
     }
     if (!isNonEmptyString(cwd) || !path.isAbsolute(cwd)) {
         errors.push("'cwd' must be an absolute path.");
@@ -284,6 +292,7 @@ function processOptions({
         baseConfig,
         cache,
         cacheLocation,
+        cacheStrategy,
         configFile: overrideConfigFile,
         cwd,
         errorOnUnmatchedPattern,
