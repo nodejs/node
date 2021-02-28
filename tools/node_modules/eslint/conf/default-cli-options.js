@@ -24,6 +24,7 @@ module.exports = {
      */
     cacheLocation: "",
     cacheFile: ".eslintcache",
+    cacheStrategy: "metadata",
     fix: false,
     allowInlineConfig: true,
     reportUnusedDisableDirectives: void 0,

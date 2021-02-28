@@ -101,7 +101,7 @@ module.exports = {
         }
 
         /**
-         * Checks the the given `CallExpression` node for `.indexOf(NaN)` and `.lastIndexOf(NaN)`.
+         * Checks the given `CallExpression` node for `.indexOf(NaN)` and `.lastIndexOf(NaN)`.
          * @param {ASTNode} node The node to check.
          * @returns {void}
          */

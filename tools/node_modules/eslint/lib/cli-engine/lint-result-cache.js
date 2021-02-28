@@ -15,12 +15,30 @@ const stringify = require("json-stable-stringify-without-jsonify");
 const pkg = require("../../package.json");
 const hash = require("./hash");
 
+const debug = require("debug")("eslint:lint-result-cache");
+
 //-----------------------------------------------------------------------------
 // Helpers
 //-----------------------------------------------------------------------------
 
 const configHashCache = new WeakMap();
 const nodeVersion = process && process.version;
+
+const validCacheStrategies = ["metadata", "content"];
+const invalidCacheStrategyErrorMessage = `Cache strategy must be one of: ${validCacheStrategies
+    .map(strategy => `"${strategy}"`)
+    .join(", ")}`;
+
+/**
+ * Tests whether a provided cacheStrategy is valid
+ * @param {string} cacheStrategy The cache strategy to use
+ * @returns {boolean} true if `cacheStrategy` is one of `validCacheStrategies`; false otherwise
+ */
+function isValidCacheStrategy(cacheStrategy) {
+    return (
+        validCacheStrategies.indexOf(cacheStrategy) !== -1
+    );
+}
 
 /**
  * Calculates the hash of the config
@@ -50,11 +68,30 @@ class LintResultCache {
      * Creates a new LintResultCache instance.
      * @param {string} cacheFileLocation The cache file location.
      *   configuration lookup by file path).
+     * @param {"metadata" | "content"} cacheStrategy The cache strategy to use.
      */
-    constructor(cacheFileLocation) {
+    constructor(cacheFileLocation, cacheStrategy) {
         assert(cacheFileLocation, "Cache file location is required");
+        assert(cacheStrategy, "Cache strategy is required");
+        assert(
+            isValidCacheStrategy(cacheStrategy),
+            invalidCacheStrategyErrorMessage
+        );
 
-        this.fileEntryCache = fileEntryCache.create(cacheFileLocation);
+        debug(`Caching results to ${cacheFileLocation}`);
+
+        const useChecksum = cacheStrategy === "content";
+
+        debug(
+            `Using "${cacheStrategy}" strategy to detect changes`
+        );
+
+        this.fileEntryCache = fileEntryCache.create(
+            cacheFileLocation,
+            void 0,
+            useChecksum
+        );
+        this.cacheFileLocation = cacheFileLocation;
     }
 
     /**
@@ -76,17 +113,28 @@ class LintResultCache {
          *    was previously linted
          * If any of these are not true, we will not reuse the lint results.
          */
-
         const fileDescriptor = this.fileEntryCache.getFileDescriptor(filePath);
         const hashOfConfig = hashOfConfigFor(config);
-        const changed = fileDescriptor.changed || fileDescriptor.meta.hashOfConfig !== hashOfConfig;
+        const changed =
+            fileDescriptor.changed ||
+            fileDescriptor.meta.hashOfConfig !== hashOfConfig;
 
-        if (fileDescriptor.notFound || changed) {
+        if (fileDescriptor.notFound) {
+            debug(`File not found on the file system: ${filePath}`);
+            return null;
+        }
+
+        if (changed) {
+            debug(`Cache entry not found or no longer valid: ${filePath}`);
             return null;
         }
 
         // If source is present but null, need to reread the file from the filesystem.
-        if (fileDescriptor.meta.results && fileDescriptor.meta.results.source === null) {
+        if (
+            fileDescriptor.meta.results &&
+            fileDescriptor.meta.results.source === null
+        ) {
+            debug(`Rereading cached result source from filesystem: ${filePath}`);
             fileDescriptor.meta.results.source = fs.readFileSync(filePath, "utf-8");
         }
 
@@ -112,6 +160,7 @@ class LintResultCache {
         const fileDescriptor = this.fileEntryCache.getFileDescriptor(filePath);
 
         if (fileDescriptor && !fileDescriptor.notFound) {
+            debug(`Updating cached result: ${filePath}`);
 
             // Serialize the result, except that we want to remove the file source if present.
             const resultToSerialize = Object.assign({}, result);
@@ -135,6 +184,7 @@ class LintResultCache {
      * @returns {void}
      */
     reconcile() {
+        debug(`Persisting cached results: ${this.cacheFileLocation}`);
         this.fileEntryCache.reconcile();
     }
 }

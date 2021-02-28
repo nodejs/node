@@ -1,7 +1,7 @@
 var root = require('./_root'),
     toString = require('./toString');
 
-/** Used to match leading and trailing whitespace. */
+/** Used to match leading whitespace. */
 var reTrimStart = /^\s+/;
 
 /* Built-in method references for those with the same name as other `lodash` methods. */

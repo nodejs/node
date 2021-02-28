@@ -105,9 +105,9 @@ module.exports = {
         }
 
         /**
-         * Converts an integer to to an object containing the the integer's coefficient and order of magnitude
+         * Converts an integer to to an object containing the integer's coefficient and order of magnitude
          * @param {string} stringInteger the string representation of the integer being converted
-         * @returns {Object} the object containing the the integer's coefficient and order of magnitude
+         * @returns {Object} the object containing the integer's coefficient and order of magnitude
          */
         function normalizeInteger(stringInteger) {
             const significantDigits = removeTrailingZeros(removeLeadingZeros(stringInteger));
@@ -120,9 +120,9 @@ module.exports = {
 
         /**
          *
-         * Converts a float to to an object containing the the floats's coefficient and order of magnitude
+         * Converts a float to to an object containing the floats's coefficient and order of magnitude
          * @param {string} stringFloat the string representation of the float being converted
-         * @returns {Object} the object containing the the integer's coefficient and order of magnitude
+         * @returns {Object} the object containing the integer's coefficient and order of magnitude
          */
         function normalizeFloat(stringFloat) {
             const trimmedFloat = removeLeadingZeros(stringFloat);

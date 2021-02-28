@@ -45,6 +45,7 @@ const newGlobals2020 = {
 };
 
 const newGlobals2021 = {
+    AggregateError: false,
     FinalizationRegistry: false,
     WeakRef: false
 };
