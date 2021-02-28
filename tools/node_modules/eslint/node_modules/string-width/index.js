@@ -8,13 +8,13 @@ const stringWidth = string => {
 		return 0;
 	}
 
-	string = string.replace(emojiRegex(), '  ');
+	string = stripAnsi(string);
 
 	if (string.length === 0) {
 		return 0;
 	}
 
-	string = stripAnsi(string);
+	string = string.replace(emojiRegex(), '  ');
 
 	let width = 0;
 
