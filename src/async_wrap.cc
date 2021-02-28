@@ -298,7 +298,7 @@ static uint16_t ToAsyncHooksType(PromiseHookType type) {
 // Simplified JavaScript hook fast-path for when there is no destroy hook
 static void FastPromiseHook(PromiseHookType type, Local<Promise> promise,
                             Local<Value> parent) {
-  Local<Context> context = promise->CreationContext();
+  Local<Context> context = promise->GetCreationContext().ToLocalChecked();
   Environment* env = Environment::GetCurrent(context);
   if (env == nullptr) return;
 
@@ -357,7 +357,7 @@ static void FastPromiseHook(PromiseHookType type, Local<Promise> promise,
 
 static void FullPromiseHook(PromiseHookType type, Local<Promise> promise,
                             Local<Value> parent) {
-  Local<Context> context = promise->CreationContext();
+  Local<Context> context = promise->GetCreationContext().ToLocalChecked();
 
   Environment* env = Environment::GetCurrent(context);
   if (env == nullptr) return;
