@@ -23,6 +23,7 @@ const { OverrideTester } = require("./config-array/override-tester");
 const ConfigOps = require("./shared/config-ops");
 const ConfigValidator = require("./shared/config-validator");
 const naming = require("./shared/naming");
+const { FlatCompat } = require("./flat-compat");
 
 //-----------------------------------------------------------------------------
 // Exports
@@ -46,6 +47,8 @@ module.exports = {
         ConfigValidator,
         ModuleResolver,
         naming
-    }
+    },
+
+    FlatCompat
 
 };
