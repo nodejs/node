@@ -954,7 +954,7 @@ module.exports = {
         }
 
         /**
-         * Checks wether a return statement is wrapped in ()
+         * Checks whether a return statement is wrapped in ()
          * @param {ASTNode} node node to examine
          * @returns {boolean} the result
          */
