@@ -234,6 +234,8 @@ module.exports = {
         var contentBuffer = fs.readFileSync(cacheEntry.key);
         var hash = this.getHash(contentBuffer);
         var meta = Object.assign(cacheEntry.meta, { hash: hash });
+        delete meta.size;
+        delete meta.mtime;
         return meta;
       },
 
@@ -243,6 +245,7 @@ module.exports = {
           size: stat.size,
           mtime: stat.mtime.getTime(),
         });
+        delete meta.hash;
         return meta;
       },
 
