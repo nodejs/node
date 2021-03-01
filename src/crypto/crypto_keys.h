@@ -351,6 +351,9 @@ class KeyExportJob final : public CryptoJob<KeyExportTraits> {
     errors->Capture();
     if (errors->empty()) {
       switch (status) {
+        case WebCryptoKeyExportStatus::OK:
+          UNREACHABLE();
+          break;
         case WebCryptoKeyExportStatus::INVALID_KEY_TYPE:
           errors->emplace_back("Invalid key type.");
           break;

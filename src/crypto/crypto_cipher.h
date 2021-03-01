@@ -231,6 +231,9 @@ class CipherJob final : public CryptoJob<CipherTraits> {
     errors->Capture();
     if (errors->empty()) {
       switch (status) {
+        case WebCryptoCipherStatus::OK:
+          UNREACHABLE();
+          break;
         case WebCryptoCipherStatus::INVALID_KEY_TYPE:
           errors->emplace_back("Invalid key type.");
           break;
