@@ -215,24 +215,31 @@ class CipherJob final : public CryptoJob<CipherTraits> {
   WebCryptoCipherMode cipher_mode() const { return cipher_mode_; }
 
   void DoThreadPoolWork() override {
-    switch (CipherTraits::DoCipher(
-                AsyncWrap::env(),
-                key(),
-                cipher_mode_,
-                *CryptoJob<CipherTraits>::params(),
-                in_,
-                &out_)) {
-      case WebCryptoCipherStatus::OK:
-        // Success!
-        break;
-      case WebCryptoCipherStatus::INVALID_KEY_TYPE:
-        // Fall through
-        // TODO(@jasnell): Separate error for this
-      case WebCryptoCipherStatus::FAILED: {
-        CryptoErrorVector* errors = CryptoJob<CipherTraits>::errors();
-        errors->Capture();
-        if (errors->empty())
-          errors->push_back(std::string("Cipher job failed."));
+    const WebCryptoCipherStatus status =
+        CipherTraits::DoCipher(
+            AsyncWrap::env(),
+            key(),
+            cipher_mode_,
+            *CryptoJob<CipherTraits>::params(),
+            in_,
+            &out_);
+    if (status == WebCryptoCipherStatus::OK) {
+      // Success!
+      return;
+    }
+    CryptoErrorVector* errors = CryptoJob<CipherTraits>::errors();
+    errors->Capture();
+    if (errors->empty()) {
+      switch (status) {
+        case WebCryptoCipherStatus::OK:
+          UNREACHABLE();
+          break;
+        case WebCryptoCipherStatus::INVALID_KEY_TYPE:
+          errors->emplace_back("Invalid key type.");
+          break;
+        case WebCryptoCipherStatus::FAILED:
+          errors->emplace_back("Cipher job failed.");
+          break;
       }
     }
   }
