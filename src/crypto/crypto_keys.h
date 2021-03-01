@@ -337,22 +337,29 @@ class KeyExportJob final : public CryptoJob<KeyExportTraits> {
   WebCryptoKeyFormat format() const { return format_; }
 
   void DoThreadPoolWork() override {
-    switch (KeyExportTraits::DoExport(
-                key_,
-                format_,
-                *CryptoJob<KeyExportTraits>::params(),
-                &out_)) {
-      case WebCryptoKeyExportStatus::OK:
-        // Success!
-        break;
-      case WebCryptoKeyExportStatus::INVALID_KEY_TYPE:
-        // Fall through
-        // TODO(@jasnell): Separate error for this
-      case WebCryptoKeyExportStatus::FAILED: {
-        CryptoErrorVector* errors = CryptoJob<KeyExportTraits>::errors();
-        errors->Capture();
-        if (errors->empty())
-          errors->push_back("Key export failed.");
+    const WebCryptoKeyExportStatus status =
+        KeyExportTraits::DoExport(
+            key_,
+            format_,
+            *CryptoJob<KeyExportTraits>::params(),
+            &out_);
+    if (status == WebCryptoKeyExportStatus::OK) {
+      // Success!
+      return;
+    }
+    CryptoErrorVector* errors = CryptoJob<KeyExportTraits>::errors();
+    errors->Capture();
+    if (errors->empty()) {
+      switch (status) {
+        case WebCryptoKeyExportStatus::OK:
+          UNREACHABLE();
+          break;
+        case WebCryptoKeyExportStatus::INVALID_KEY_TYPE:
+          errors->emplace_back("Invalid key type.");
+          break;
+        case WebCryptoKeyExportStatus::FAILED:
+          errors->emplace_back("Cipher job failed.");
+          break;
       }
     }
   }
