@@ -1398,17 +1398,16 @@ t.test('unknown subcommand', t => {
 t.test('completion', t => {
   const { completion } = profile
 
-  const testComp = ({ t, argv, expect, title }) => {
-    completion({ conf: { argv: { remain: argv } } }, (err, res) => {
-      if (err)
-        throw err
-
-      t.strictSame(res, expect, title)
-    })
+  const testComp = async ({ t, argv, expect, title }) => {
+    t.resolveMatch(
+      completion({ conf: { argv: { remain: argv } } }),
+      expect,
+      title
+    )
   }
 
-  t.test('npm profile autocomplete', t => {
-    testComp({
+  t.test('npm profile autocomplete', async t => {
+    await testComp({
       t,
       argv: ['npm', 'profile'],
       expect: ['enable-2fa', 'disable-2fa', 'get', 'set'],
@@ -1418,8 +1417,8 @@ t.test('completion', t => {
     t.end()
   })
 
-  t.test('npm profile enable autocomplete', t => {
-    testComp({
+  t.test('npm profile enable autocomplete', async t => {
+    await testComp({
       t,
       argv: ['npm', 'profile', 'enable-2fa'],
       expect: ['auth-and-writes', 'auth-only'],
@@ -1429,10 +1428,10 @@ t.test('completion', t => {
     t.end()
   })
 
-  t.test('npm profile <subcmd> no autocomplete', t => {
+  t.test('npm profile <subcmd> no autocomplete', async t => {
     const noAutocompleteCmds = ['disable-2fa', 'disable-tfa', 'get', 'set']
     for (const subcmd of noAutocompleteCmds) {
-      testComp({
+      await testComp({
         t,
         argv: ['npm', 'profile', subcmd],
         expect: [],
@@ -1443,22 +1442,12 @@ t.test('completion', t => {
     t.end()
   })
 
-  t.test('npm profile unknown subcommand autocomplete', t => {
-    completion({
-      conf: {
-        argv: {
-          remain: ['npm', 'profile', 'asdf'],
-        },
-      },
-    }, (err, res) => {
-      t.match(
-        err,
-        /asdf not recognized/,
-        'should throw unknown cmd error'
-      )
-
-      t.end()
-    })
+  t.test('npm profile unknown subcommand autocomplete', async t => {
+    t.rejects(
+      completion({ conf: { argv: { remain: ['npm', 'profile', 'asdf'] } } }),
+      { message: 'asdf not recognized' }, 'should throw unknown cmd error'
+    )
+    t.end()
   })
 
   t.end()

@@ -7,7 +7,6 @@ const npm = require('./npm.js')
 const hostedFromMani = require('./utils/hosted-git-info-from-manifest.js')
 
 const usage = usageUtil('bugs', 'npm bugs [<pkgname>]')
-const completion = require('./utils/completion/none.js')
 
 const cmd = (args, cb) => bugs(args).then(() => cb()).catch(cb)
 
@@ -44,4 +43,4 @@ const getBugs = async pkg => {
   await openUrl(url, `${mani.name} bug list available at the following URL`)
 }
 
-module.exports = Object.assign(cmd, { usage, completion })
+module.exports = Object.assign(cmd, { usage })

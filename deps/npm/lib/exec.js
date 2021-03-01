@@ -21,8 +21,6 @@ const usage = usageUtil('exec',
   '-c <cmd> --call=<cmd> (may not be mixed with positional arguments)'
 )
 
-const completion = require('./utils/completion/installed-shallow.js')
-
 const { promisify } = require('util')
 const read = promisify(require('read'))
 
@@ -284,4 +282,4 @@ const getHash = packages =>
     .digest('hex')
     .slice(0, 16)
 
-module.exports = Object.assign(cmd, { completion, usage })
+module.exports = Object.assign(cmd, { usage })

@@ -49,13 +49,8 @@ const org = requireInject('../../lib/org.js', {
 })
 
 test('completion', async t => {
-  const completion = (argv) => new Promise((resolve, reject) => {
-    org.completion({ conf: { argv: { remain: argv } } }, (err, res) => {
-      if (err)
-        return reject(err)
-      return resolve(res)
-    })
-  })
+  const completion = (argv) =>
+    org.completion({ conf: { argv: { remain: argv } } })
 
   const assertions = [
     [['npm', 'org'], ['set', 'rm', 'ls']],
@@ -66,7 +61,7 @@ test('completion', async t => {
   ]
 
   for (const [argv, expected] of assertions)
-    t.strictSame(await completion(argv), expected, `completion for: ${argv.join(', ')}`)
+    t.resolveMatch(completion(argv), expected, `completion for: ${argv.join(', ')}`)
 
   t.rejects(completion(['npm', 'org', 'flurb']), /flurb not recognized/, 'errors for unknown subcommand')
 })

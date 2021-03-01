@@ -14,16 +14,14 @@ const usage = usageUtil(
   'npm run-script <command> [-- <args>]'
 )
 
-const completion = async (opts, cb) => {
+const completion = async (opts) => {
   const argv = opts.conf.argv.remain
   if (argv.length === 2) {
     // find the script name
     const json = resolve(npm.localPrefix, 'package.json')
     const { scripts = {} } = await readJson(json).catch(er => ({}))
-    return cb(null, Object.keys(scripts))
+    return Object.keys(scripts)
   }
-  // otherwise nothing to do, just let the system handle it
-  return cb()
 }
 
 const cmd = (args, cb) => {

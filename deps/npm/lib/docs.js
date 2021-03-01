@@ -7,7 +7,6 @@ const npm = require('./npm.js')
 const hostedFromMani = require('./utils/hosted-git-info-from-manifest.js')
 
 const usage = usageUtil('docs', 'npm docs [<pkgname> [<pkgname> ...]]')
-const completion = require('./utils/completion/none.js')
 
 const cmd = (args, cb) => docs(args).then(() => cb()).catch(cb)
 
@@ -37,4 +36,4 @@ const getDocs = async pkg => {
   await openUrl(url, `${mani.name} docs available at the following URL`)
 }
 
-module.exports = Object.assign(cmd, { usage, completion })
+module.exports = Object.assign(cmd, { usage })

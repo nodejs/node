@@ -17,11 +17,7 @@ const usage = usageUtil('unpublish', 'npm unpublish [<@scope>/]<pkg>[@<version>]
 
 const cmd = (args, cb) => unpublish(args).then(() => cb()).catch(cb)
 
-const completion = (args, cb) => completionFn(args)
-  .then((res) => cb(null, res))
-  .catch(cb)
-
-const completionFn = async (args) => {
+const completion = async (args) => {
   const { partialWord, conf } = args
 
   if (conf.argv.remain.length >= 3)

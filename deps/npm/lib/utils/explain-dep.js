@@ -6,6 +6,7 @@ const nocolor = {
   yellow: s => s,
   cyan: s => s,
   magenta: s => s,
+  blue: s => s,
 }
 
 const explainNode = (node, depth, color) =>
@@ -13,11 +14,12 @@ const explainNode = (node, depth, color) =>
   explainDependents(node, depth, color)
 
 const colorType = (type, color) => {
-  const { red, yellow, cyan, magenta } = color ? chalk : nocolor
+  const { red, yellow, cyan, magenta, blue } = color ? chalk : nocolor
   const style = type === 'extraneous' ? red
     : type === 'dev' ? yellow
     : type === 'optional' ? cyan
     : type === 'peer' ? magenta
+    : type === 'bundled' ? blue
     : /* istanbul ignore next */ s => s
   return style(type)
 }
@@ -31,6 +33,7 @@ const printNode = (node, color) => {
     dev,
     optional,
     peer,
+    bundled,
   } = node
   const { bold, dim } = color ? chalk : nocolor
   const extra = []
@@ -45,6 +48,9 @@ const printNode = (node, color) => {
 
   if (peer)
     extra.push(' ' + bold(colorType('peer', color)))
+
+  if (bundled)
+    extra.push(' ' + bold(colorType('bundled', color)))
 
   return `${bold(name)}@${bold(version)}${extra.join('')}` +
     (location ? dim(`\n${location}`) : '')

@@ -1,35 +1,24 @@
 const { test } = require('tap')
 const requireInject = require('require-inject')
 
-const emptyMock = requireInject('../../lib/access.js', {
+const access = requireInject('../../lib/access.js', {
   '../../lib/npm.js': {
     flatOptions: {},
   },
 })
 
 test('completion', t => {
-  const { completion } = emptyMock
+  const { completion } = access
 
   const testComp = (argv, expect) => {
-    completion({conf: {argv: {remain: argv}}}, (er, res) => {
-      if (er)
-        throw er
-      t.strictSame(res, expect, argv.join(' '))
-    })
+    const res = completion({conf: {argv: {remain: argv}}})
+    t.resolves(res, expect, argv.join(' '))
   }
 
   testComp(['npm', 'access'], [
-    'public',
-    'restricted',
-    'grant',
-    'revoke',
-    'ls-packages',
-    'ls-collaborators',
-    'edit',
-    '2fa-required',
-    '2fa-not-required',
+    'public', 'restricted', 'grant', 'revoke', 'ls-packages',
+    'ls-collaborators', 'edit', '2fa-required', '2fa-not-required',
   ])
-
   testComp(['npm', 'access', 'grant'], ['read-only', 'read-write'])
   testComp(['npm', 'access', 'grant', 'read-only'], [])
   testComp(['npm', 'access', 'public'], [])
@@ -42,15 +31,15 @@ test('completion', t => {
   testComp(['npm', 'access', '2fa-not-required'], [])
   testComp(['npm', 'access', 'revoke'], [])
 
-  completion({conf: {argv: {remain: ['npm', 'access', 'foobar']}}}, (er) => {
-    t.match(er, { message: 'foobar not recognized' })
-  })
+  t.rejects(
+    completion({conf: {argv: {remain: ['npm', 'access', 'foobar']}}}),
+    { message: 'foobar not recognized' }
+  )
 
   t.end()
 })
 
 test('subcommand required', t => {
-  const access = emptyMock
   access([], (err) => {
     t.equal(err, '\nUsage: Subcommand is required.\n\n' + access.usage)
     t.end()
@@ -58,8 +47,6 @@ test('subcommand required', t => {
 })
 
 test('unrecognized subcommand', (t) => {
-  const access = emptyMock
-
   access(['blerg'], (err) => {
     t.match(
       err,
@@ -71,8 +58,6 @@ test('unrecognized subcommand', (t) => {
 })
 
 test('edit', (t) => {
-  const access = emptyMock
-
   access([
     'edit',
     '@scoped/another',
@@ -349,8 +334,6 @@ test('access grant current cwd', (t) => {
 })
 
 test('access grant others', (t) => {
-  const access = emptyMock
-
   access([
     'grant',
     'rerere',
@@ -367,8 +350,6 @@ test('access grant others', (t) => {
 })
 
 test('access grant missing team args', (t) => {
-  const access = emptyMock
-
   access([
     'grant',
     'read-only',
@@ -385,8 +366,6 @@ test('access grant missing team args', (t) => {
 })
 
 test('access grant malformed team arg', (t) => {
-  const access = emptyMock
-
   access([
     'grant',
     'read-only',
@@ -452,8 +431,6 @@ test('access revoke', (t) => {
 })
 
 test('access revoke missing team args', (t) => {
-  const access = emptyMock
-
   access([
     'revoke',
     undefined,
@@ -469,8 +446,6 @@ test('access revoke missing team args', (t) => {
 })
 
 test('access revoke malformed team arg', (t) => {
-  const access = emptyMock
-
   access([
     'revoke',
     'foo',
