@@ -13,19 +13,19 @@ org.usage =
   'npm org rm orgname username\n' +
   'npm org ls orgname [<username>]'
 
-org.completion = function (opts, cb) {
+org.completion = async (opts) => {
   var argv = opts.conf.argv.remain
   if (argv.length === 2)
-    return cb(null, org.subcommands)
+    return org.subcommands
 
   switch (argv[2]) {
     case 'ls':
     case 'add':
     case 'rm':
     case 'set':
-      return cb(null, [])
+      return []
     default:
-      return cb(new Error(argv[2] + ' not recognized'))
+      throw new Error(argv[2] + ' not recognized')
   }
 }
 

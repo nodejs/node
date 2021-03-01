@@ -5,7 +5,6 @@ const npm = require('./npm.js')
 const output = require('./utils/output.js')
 const getIdentity = require('./utils/get-identity.js')
 const usageUtil = require('./utils/usage.js')
-const completion = require('./utils/completion/none.js')
 
 const usage = usageUtil('stars', 'npm stars [<user>]')
 
@@ -33,4 +32,4 @@ const stars_ = async ([user = getIdentity(npm.flatOptions)]) => {
     output(row.value)
 }
 
-module.exports = Object.assign(cmd, { usage, completion })
+module.exports = Object.assign(cmd, { usage })

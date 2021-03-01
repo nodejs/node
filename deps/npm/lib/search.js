@@ -8,7 +8,6 @@ const packageFilter = require('./search/package-filter.js')
 const npm = require('./npm.js')
 const output = require('./utils/output.js')
 const usageUtil = require('./utils/usage.js')
-const completion = require('./utils/completion/none.js')
 
 const usage = usageUtil(
   'search',
@@ -86,4 +85,4 @@ function prepareExcludes (searchexclude) {
     .filter(s => s)
 }
 
-module.exports = Object.assign(cmd, { completion, usage })
+module.exports = Object.assign(cmd, { usage })

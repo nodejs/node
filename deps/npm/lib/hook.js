@@ -13,8 +13,6 @@ const usage = usageUtil('hook', [
   'npm hook update <id> <url> <secret>',
 ].join('\n'))
 
-const completion = require('./utils/completion/none.js')
-
 const cmd = (args, cb) => hook(args).then(() => cb()).catch(cb)
 
 const hook = async (args) => otplease(npm.flatOptions, opts => {
@@ -127,4 +125,4 @@ const hookName = (hook) => {
   return target
 }
 
-module.exports = Object.assign(cmd, { usage, completion })
+module.exports = Object.assign(cmd, { usage })

@@ -1,5 +1,5 @@
 {
-  "version": "7.5.6",
+  "version": "7.6.0",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "keywords": [
@@ -42,7 +42,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@npmcli/arborist": "^2.2.4",
+    "@npmcli/arborist": "^2.2.5",
     "@npmcli/ci-detect": "^1.2.0",
     "@npmcli/config": "^1.2.9",
     "@npmcli/run-script": "^1.8.3",

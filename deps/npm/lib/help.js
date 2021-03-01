@@ -1,10 +1,24 @@
 
 module.exports = help
 
-help.completion = function (opts, cb) {
+help.completion = async (opts) => {
   if (opts.conf.argv.remain.length > 2)
-    return cb(null, [])
-  getSections(cb)
+    return []
+  const g = path.resolve(__dirname, '../man/man[0-9]/*.[0-9]')
+  const files = await new Promise((resolve, reject) => {
+    glob(g, function (er, files) {
+      if (er)
+        return reject(er)
+      resolve(files)
+    })
+  })
+
+  return Object.keys(files.reduce(function (acc, file) {
+    file = path.basename(file).replace(/\.[0-9]+$/, '')
+    file = file.replace(/^npm-/, '')
+    acc[file] = true
+    return acc
+  }, { help: true }))
 }
 
 const npmUsage = require('./utils/npm-usage.js')
@@ -174,19 +188,4 @@ function htmlMan (man) {
       throw new Error('invalid man section: ' + sect)
   }
   return 'file://' + path.resolve(__dirname, '..', 'docs', 'output', sect, f + '.html')
-}
-
-function getSections (cb) {
-  const g = path.resolve(__dirname, '../man/man[0-9]/*.[0-9]')
-  glob(g, function (er, files) {
-    if (er)
-      return cb(er)
-
-    cb(null, Object.keys(files.reduce(function (acc, file) {
-      file = path.basename(file).replace(/\.[0-9]+$/, '')
-      file = file.replace(/^npm-/, '')
-      acc[file] = true
-      return acc
-    }, { help: true })))
-  })
 }

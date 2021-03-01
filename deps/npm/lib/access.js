@@ -59,17 +59,17 @@ const access = async ([cmd, ...args], cb) => {
   return fn(args, { ...npm.flatOptions })
 }
 
-const completion = function (opts, cb) {
-  var argv = opts.conf.argv.remain
+const completion = async (opts) => {
+  const argv = opts.conf.argv.remain
   if (argv.length === 2)
-    return cb(null, subcommands)
+    return subcommands
 
   switch (argv[2]) {
     case 'grant':
       if (argv.length === 3)
-        return cb(null, ['read-only', 'read-write'])
+        return ['read-only', 'read-write']
       else
-        return cb(null, [])
+        return []
 
     case 'public':
     case 'restricted':
@@ -79,9 +79,9 @@ const completion = function (opts, cb) {
     case '2fa-required':
     case '2fa-not-required':
     case 'revoke':
-      return cb(null, [])
+      return []
     default:
-      return cb(new Error(argv[2] + ' not recognized'))
+      throw new Error(argv[2] + ' not recognized')
   }
 }
 

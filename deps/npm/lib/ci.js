@@ -11,7 +11,6 @@ const npm = require('./npm.js')
 const usageUtil = require('./utils/usage.js')
 
 const usage = usageUtil('ci', 'npm ci')
-const completion = require('./utils/completion/none.js')
 
 const cmd = (args, cb) => ci().then(() => cb()).catch(cb)
 
@@ -76,4 +75,4 @@ const ci = async () => {
   await reifyFinish(arb)
 }
 
-module.exports = Object.assign(cmd, { completion, usage })
+module.exports = Object.assign(cmd, {usage})

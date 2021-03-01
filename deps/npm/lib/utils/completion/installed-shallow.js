@@ -4,7 +4,7 @@ const readdir = promisify(require('readdir-scoped-modules'))
 
 const names = global => readdir(global ? npm.globalDir : npm.localDir)
 
-const installedShallow = async opts => {
+const installedShallow = async (opts) => {
   const { conf: { argv: { remain } } } = opts
   if (remain.length > 3)
     return null
@@ -15,5 +15,4 @@ const installedShallow = async opts => {
   return [...locals, ...globals]
 }
 
-module.exports = (opts, cb) =>
-  installedShallow(opts).then(list => cb(null, list)).catch(cb)
+module.exports = installedShallow

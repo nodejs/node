@@ -101,20 +101,13 @@ test('npm help completion', async t => {
   t.teardown(() => {
     globErr = null
   })
-  const completion = (opts) => new Promise((resolve, reject) => {
-    help.completion(opts, (err, res) => {
-      if (err)
-        return reject(err)
-      return resolve(res)
-    })
-  })
 
-  const noArgs = await completion({ conf: { argv: { remain: [] } } })
+  const noArgs = await help.completion({ conf: { argv: { remain: [] } } })
   t.strictSame(noArgs, ['help', 'whoami', 'npmrc', 'disputes'], 'outputs available help pages')
-  const threeArgs = await completion({ conf: { argv: { remain: ['one', 'two', 'three'] } } })
+  const threeArgs = await help.completion({ conf: { argv: { remain: ['one', 'two', 'three'] } } })
   t.strictSame(threeArgs, [], 'outputs no results when more than 2 args are provided')
   globErr = new Error('glob failed')
-  t.rejects(completion({ conf: { argv: { remain: [] } } }), /glob failed/, 'glob errors propagate')
+  t.rejects(help.completion({ conf: { argv: { remain: [] } } }), /glob failed/, 'glob errors propagate')
 })
 
 test('npm help -h', t => {

@@ -17,19 +17,17 @@ const usage = usageUtil(
   'npm deprecate <pkg>[@<version>] <message>'
 )
 
-const completion = (opts, cb) => {
+const completion = async (opts) => {
   if (opts.conf.argv.remain.length > 1)
-    return cb(null, [])
+    return []
 
-  return getIdentity(npm.flatOptions).then((username) => {
-    return libaccess.lsPackages(username, npm.flatOptions).then((packages) => {
-      return Object.keys(packages)
-        .filter((name) => packages[name] === 'write' &&
-          (opts.conf.argv.remain.length === 0 ||
-            name.startsWith(opts.conf.argv.remain[0]))
-        )
-    })
-  }).then((list) => cb(null, list), (err) => cb(err))
+  const username = await getIdentity(npm.flatOptions)
+  const packages = await libaccess.lsPackages(username, npm.flatOptions)
+  return Object.keys(packages)
+    .filter((name) =>
+      packages[name] === 'write' &&
+      (opts.conf.argv.remain.length === 0 ||
+        name.startsWith(opts.conf.argv.remain[0])))
 }
 
 const cmd = (args, cb) =>
