@@ -21,7 +21,8 @@ const buffer = fs.readFileSync(modulePath);
   // Verify that if a WASI application throws an exception, Node rethrows it
   // properly.
   const wasi = new WASI({ returnOnExit: true });
-  wasi.wasiImport.proc_exit = () => { throw new Error('test error'); };
+  const patchedExit = () => { throw new Error('test error'); };
+  wasi.wasiImport.proc_exit = patchedExit.bind(wasi.wasiImport);
   const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
   const { instance } = await WebAssembly.instantiate(buffer, importObject);
 
