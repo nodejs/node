@@ -163,7 +163,7 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
       // is a message port, add it to that list. This is a bit of an odd case
       // of special handling for MessagePorts (as opposed to applying to all
       // transferables), but it's required for spec compliancy.
-      DCHECK(port_list->IsArray());
+      DCHECK((*port_list)->IsArray());
       Local<Array> port_list_array = port_list->As<Array>();
       Local<Object> obj = host_objects[i]->object();
       if (env->message_port_constructor_template()->HasInstance(obj)) {
