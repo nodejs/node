@@ -576,6 +576,13 @@ but any errors are otherwise ignored.
 .Pp
 This environment variable is ignored when `node` runs as setuid root or
 has Linux file capabilities set.
+.Pp
+The
+.Ar NODE_EXTRA_CA_CERTS
+environment variable is only read when the Node.js process is first launched.
+Changing the value at runtime using
+.Ar process.env.NODE_EXTRA_CA_CERTS
+has no effect on the current process.
 .
 .It Ev NODE_ICU_DATA Ar file
 Data path for ICU (Intl object) data.

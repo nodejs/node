@@ -1312,6 +1312,10 @@ options property is explicitly specified for a TLS or HTTPS client or server.
 This environment variable is ignored when `node` runs as setuid root or
 has Linux file capabilities set.
 
+The `NODE_EXTRA_CA_CERTS` environment variable is only read when the Node.js
+process is first launched. Changing the value at runtime using
+`process.env.NODE_EXTRA_CA_CERTS` has no effect on the current process.
+
 ### `NODE_ICU_DATA=file`
 <!-- YAML
 added: v0.11.15
