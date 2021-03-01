@@ -1,4 +1,4 @@
-# Security
+Security
 
 ## Reporting a bug in Node.js
 
