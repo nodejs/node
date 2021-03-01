@@ -6,7 +6,6 @@ const Arborist = require('@npmcli/arborist')
 const log = require('npmlog')
 
 const npm = require('./npm.js')
-const completion = require('./utils/completion/none.js')
 const usageUtil = require('./utils/usage.js')
 const usage = usageUtil('shrinkwrap', 'npm shrinkwrap')
 
@@ -50,4 +49,4 @@ const shrinkwrap = async () => {
     log.notice('', 'npm-shrinkwrap.json up to date')
 }
 
-module.exports = Object.assign(cmd, { usage, completion })
+module.exports = Object.assign(cmd, { usage })

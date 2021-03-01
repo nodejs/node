@@ -38,29 +38,24 @@ test('completion', async t => {
 
   const { completion } = deprecate
 
-  const testComp = (argv, expect) => {
-    return new Promise((resolve, reject) => {
-      completion({ conf: { argv: { remain: argv } } }, (err, res) => {
-        if (err)
-          return reject(err)
-
-        t.strictSame(res, expect, `completion: ${argv}`)
-        resolve()
-      })
-    })
+  const testComp = async (argv, expect) => {
+    const res = await completion({ conf: { argv: { remain: argv } } })
+    t.strictSame(res, expect, `completion: ${argv}`)
   }
 
-  await testComp([], ['foo', 'bar', 'baz'])
-  await testComp(['b'], ['bar', 'baz'])
-  await testComp(['fo'], ['foo'])
-  await testComp(['g'], [])
-  await testComp(['foo', 'something'], [])
+  await Promise.all([
+    testComp([], ['foo', 'bar', 'baz']),
+    testComp(['b'], ['bar', 'baz']),
+    testComp(['fo'], ['foo']),
+    testComp(['g'], []),
+    testComp(['foo', 'something'], []),
+  ])
 
   getIdentityImpl = () => {
-    throw new Error('unknown failure')
+    throw new Error('deprecate test failure')
   }
 
-  t.rejects(testComp([], []), /unknown failure/)
+  t.rejects(testComp([], []), { message: 'deprecate test failure' })
 })
 
 test('no args', t => {

@@ -1,4 +1,37 @@
-## v7.5.6 (2021-02-22
+## v7.6.0 (2021-02-25)
+
+### FEATURES
+
+* [`983d218f7`](https://github.com/npm/cli/commit/983d218f7e68e3c7866f2efa23ea2aff7ff3881e)
+  [#2750](https://github.com/npm/cli/issues/2750)
+  feat(explain): mark when dependency is bundled
+  ([@kumavis](https://github.com/kumavis))
+
+### DEPENDENCIES
+
+* [`b9fa7e32a`](https://github.com/npm/cli/commit/b9fa7e32a63a3dc3a4865865c4ca737c862b9cf2)
+  chore(package-lock): resetdeps and `eslint@7.20.0`
+  ([@wraithgar](https://github.com/wraithgar))
+* [`28d036ae9`](https://github.com/npm/cli/commit/28d036ae9179f742bd0518e558a54f014a7a895e)
+  `arborist@2.2.5`
+    * fix: hidden lockfiles were not respected on Node v10.0-10.12
+
+### DOCUMENTATION
+
+* [`ba1adef42`](https://github.com/npm/cli/commit/ba1adef4292123e87e26b59e0c6fd6f5ff1fe775)
+  [#2760](https://github.com/npm/cli/issues/2760)
+  chore(docs): capitalize all Instaces of "package"
+  ([@MrBrain295](https://github.com/MrBrain295))
+* [`8bfa05fa1`](https://github.com/npm/cli/commit/8bfa05fa1dfd4a64381c7ec750df6d174724e8c1)
+  [#2775](https://github.com/npm/cli/issues/2775)
+  chore(docs): add navigation configuration
+  ([@ethomson](https://github.com/ethomson))
+* [`238e474a4`](https://github.com/npm/cli/commit/238e474a48ddecc33c76eb3d2c4d0642cfe8829a)
+  [#2778](https://github.com/npm/cli/issues/2778)
+  chore(docs):update unpublish cooldown
+  ([@christoflemke](https://github.com/christoflemke))
+
+## v7.5.6 (2021-02-22)
 
 ### BUG FIXES
 

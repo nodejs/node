@@ -4,7 +4,6 @@ const getAuth = require('npm-registry-fetch/auth.js')
 const npmFetch = require('npm-registry-fetch')
 const npm = require('./npm.js')
 const usageUtil = require('./utils/usage.js')
-const completion = require('./utils/completion/none.js')
 
 const usage = usageUtil(
   'logout',
@@ -42,4 +41,4 @@ const logout = async (args) => {
   await npm.config.save('user')
 }
 
-module.exports = Object.assign(cmd, { completion, usage })
+module.exports = Object.assign(cmd, { usage })

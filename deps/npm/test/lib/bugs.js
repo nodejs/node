@@ -54,14 +54,6 @@ const bugs = requireInject('../../lib/bugs.js', {
   '../../lib/utils/open-url.js': openUrl,
 })
 
-t.test('completion', t => {
-  bugs.completion({}, (er, res) => {
-    t.equal(er, null)
-    t.same(res, [])
-    t.end()
-  })
-})
-
 t.test('open bugs urls', t => {
   const expect = {
     nobugs: 'https://www.npmjs.com/package/nobugs',

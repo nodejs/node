@@ -1,13 +1,12 @@
-const procLog = require('./proc-log.js')
-
 const _progress = Symbol('_progress')
 const _onError = Symbol('_onError')
+const procLog = require('./proc-log.js')
 
 module.exports = cls => class Tracker extends cls {
   constructor (options = {}) {
     super(options)
-    this[_progress] = new Map()
     this.log = options.log || procLog
+    this[_progress] = new Map()
   }
 
   addTracker (section, subsection = null, key = null) {

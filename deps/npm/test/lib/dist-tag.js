@@ -294,35 +294,13 @@ test('remove missing pkg name', (t) => {
 
 test('completion', t => {
   const { completion } = distTag
-  t.plan(3)
+  t.plan(2)
 
-  completion({
-    conf: {
-      argv: {
-        remain: ['npm', 'dist-tag'],
-      },
-    },
-  }, (err, res) => {
-    t.ifError(err, 'npm dist-tags completion')
+  const match = completion({ conf: { argv: { remain: ['npm', 'dist-tag'] } } })
+  t.resolveMatch(match, ['add', 'rm', 'ls'],
+    'should list npm dist-tag commands for completion')
 
-    t.strictSame(
-      res,
-      [
-        'add',
-        'rm',
-        'ls',
-      ],
-      'should list npm dist-tag commands for completion'
-    )
-  })
-
-  completion({
-    conf: {
-      argv: {
-        remain: ['npm', 'dist-tag', 'foobar'],
-      },
-    },
-  }, (err) => {
-    t.notOk(err, 'should ignore any unknown name')
-  })
+  const noMatch = completion({ conf: { argv: { remain: ['npm', 'dist-tag', 'foobar'] } } })
+  t.resolveMatch(noMatch, [])
+  t.end()
 })

@@ -4,7 +4,6 @@ const output = require('./utils/output.js')
 const usageUtil = require('./utils/usage.js')
 
 const usage = usageUtil('ping', 'npm ping\nping registry')
-const completion = require('./utils/completion/none.js')
 
 const cmd = (args, cb) => ping(args).then(() => cb()).catch(cb)
 const pingUtil = require('./utils/ping.js')
@@ -25,4 +24,4 @@ const ping = async args => {
     log.notice('PONG', `${JSON.stringify(details, null, 2)}`)
 }
 
-module.exports = Object.assign(cmd, { completion, usage })
+module.exports = Object.assign(cmd, { usage })

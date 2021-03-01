@@ -3,7 +3,6 @@ const usageUtil = require('./utils/usage.js')
 const { localPrefix } = require('./npm.js')
 const fs = require('fs')
 const usage = usageUtil('set-script', 'npm set-script [<script>] [<command>]')
-const completion = require('./utils/completion/none.js')
 const parseJSON = require('json-parse-even-better-errors')
 const rpj = require('read-package-json-fast')
 
@@ -50,4 +49,4 @@ const set = async function (args) {
     log.warn('set-script', `Script "${args[0]}" was overwritten`)
 }
 
-module.exports = Object.assign(cmd, { usage, completion })
+module.exports = Object.assign(cmd, { usage })

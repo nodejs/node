@@ -1,4 +1,4 @@
-const { usage, completion } = require('./star.js')
+const { usage } = require('./star.js')
 const npm = require('./npm.js')
 
 const unstar = (args, cb) => {
@@ -6,4 +6,4 @@ const unstar = (args, cb) => {
   return npm.commands.star(args, cb)
 }
 
-module.exports = Object.assign(unstar, { usage, completion })
+module.exports = Object.assign(unstar, { usage })

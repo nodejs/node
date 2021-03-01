@@ -12,11 +12,14 @@ t.test('load each command', t => {
   t.plan(cmdList.length)
   for (const cmd of cmdList.sort((a, b) => a.localeCompare(b))) {
     t.test(cmd, t => {
-      t.plan(3)
       const impl = npm.commands[cmd]
+      if (impl.completion) {
+        t.plan(3)
+        t.isa(impl.completion, 'function', 'completion, if present, is a function')
+      } else
+        t.plan(2)
       t.isa(impl, 'function', 'implementation is a function')
       t.isa(impl.usage, 'string', 'usage is a string')
-      t.isa(impl.completion, 'function', 'completion is a function')
     })
   }
 })

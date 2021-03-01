@@ -8,7 +8,6 @@ const reifyFinish = require('./utils/reify-finish.js')
 const usage = usageUtil('prune',
   'npm prune [[<@scope>/]<pkg>...] [--production]'
 )
-const completion = require('./utils/completion/none.js')
 
 const cmd = (args, cb) => prune().then(() => cb()).catch(cb)
 
@@ -22,4 +21,4 @@ const prune = async () => {
   await reifyFinish(arb)
 }
 
-module.exports = Object.assign(cmd, { usage, completion })
+module.exports = Object.assign(cmd, { usage })

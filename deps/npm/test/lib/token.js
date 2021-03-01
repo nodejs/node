@@ -48,27 +48,18 @@ test('completion', (t) => {
   t.plan(5)
 
   const testComp = (argv, expect) => {
-    tokenMock.completion({ conf: { argv: { remain: argv } } }, (err, res) => {
-      if (err)
-        throw err
-
-      t.strictSame(res, expect, argv.join(' '))
-    })
+    t.resolveMatch(tokenMock.completion({ conf: { argv: { remain: argv } } }), expect, argv.join(' '))
   }
 
-  testComp(['npm', 'token'], [
-    'list',
-    'revoke',
-    'create',
-  ])
-
+  testComp(['npm', 'token'], ['list', 'revoke', 'create'])
   testComp(['npm', 'token', 'list'], [])
   testComp(['npm', 'token', 'revoke'], [])
   testComp(['npm', 'token', 'create'], [])
 
-  tokenMock.completion({ conf: { argv: { remain: ['npm', 'token', 'foobar'] } } }, (err) => {
-    t.match(err, { message: 'foobar not recognized' })
-  })
+  t.rejects(
+    tokenMock.completion({ conf: { argv: { remain: ['npm', 'token', 'foobar'] } } }),
+    { message: 'foobar not recognize' }
+  )
 })
 
 test('token foobar', (t) => {

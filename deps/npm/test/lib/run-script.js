@@ -42,45 +42,29 @@ const { writeFileSync } = require('fs')
 t.test('completion', t => {
   const dir = t.testdir()
   npm.localPrefix = dir
-  t.test('already have a script name', t => {
-    runScript.completion({conf: {argv: {remain: ['npm', 'run', 'x']}}}, (er, results) => {
-      if (er)
-        throw er
-
-      t.equal(results, undefined)
-      t.end()
-    })
+  t.test('already have a script name', async t => {
+    const res = await runScript.completion({conf: {argv: {remain: ['npm', 'run', 'x']}}})
+    t.equal(res, undefined)
+    t.end()
   })
-  t.test('no package.json', t => {
-    runScript.completion({conf: {argv: {remain: ['npm', 'run']}}}, (er, results) => {
-      if (er)
-        throw er
-
-      t.strictSame(results, [])
-      t.end()
-    })
+  t.test('no package.json', async t => {
+    const res = await runScript.completion({conf: {argv: {remain: ['npm', 'run']}}})
+    t.strictSame(res, [])
+    t.end()
   })
-  t.test('has package.json, no scripts', t => {
+  t.test('has package.json, no scripts', async t => {
     writeFileSync(`${dir}/package.json`, JSON.stringify({}))
-    runScript.completion({conf: {argv: {remain: ['npm', 'run']}}}, (er, results) => {
-      if (er)
-        throw er
-
-      t.strictSame(results, [])
-      t.end()
-    })
+    const res = await runScript.completion({conf: {argv: {remain: ['npm', 'run']}}})
+    t.strictSame(res, [])
+    t.end()
   })
-  t.test('has package.json, with scripts', t => {
+  t.test('has package.json, with scripts', async t => {
     writeFileSync(`${dir}/package.json`, JSON.stringify({
       scripts: { hello: 'echo hello', world: 'echo world' },
     }))
-    runScript.completion({conf: {argv: {remain: ['npm', 'run']}}}, (er, results) => {
-      if (er)
-        throw er
-
-      t.strictSame(results, ['hello', 'world'])
-      t.end()
-    })
+    const res = await runScript.completion({conf: {argv: {remain: ['npm', 'run']}}})
+    t.strictSame(res, ['hello', 'world'])
+    t.end()
   })
   t.end()
 })

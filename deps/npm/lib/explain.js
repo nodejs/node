@@ -30,7 +30,7 @@ const explain = async (args) => {
 
   const expls = []
   for (const node of nodes) {
-    const { extraneous, dev, optional, devOptional, peer } = node
+    const { extraneous, dev, optional, devOptional, peer, inBundle } = node
     const expl = node.explain()
     if (extraneous)
       expl.extraneous = true
@@ -39,6 +39,7 @@ const explain = async (args) => {
       expl.optional = optional
       expl.devOptional = devOptional
       expl.peer = peer
+      expl.bundled = inBundle
     }
     expls.push(expl)
   }

@@ -26,11 +26,11 @@ const usage = usageUtil(
 
 const cmd = (args, cb) => view(args).then(() => cb()).catch(cb)
 
-const completion = async (opts, cb) => {
+const completion = async (opts) => {
   if (opts.conf.argv.remain.length <= 2) {
     // There used to be registry completion here, but it stopped
     // making sense somewhere around 50,000 packages on the registry
-    return cb()
+    return
   }
   // have the package, get the fields
   const config = { ...npm.flatOptions, fullMetadata: true, preferOnline: true }
@@ -39,8 +39,8 @@ const completion = async (opts, cb) => {
   const pckmnt = await packument(spec, config)
   const dv = pckmnt.versions[pckmnt['dist-tags'][defaultTag]]
   pckmnt.versions = Object.keys(pckmnt.versions).sort(semver.compareLoose)
-  const fields = getFields(pckmnt).concat(getFields(dv))
-  return cb(null, fields)
+
+  return getFields(pckmnt).concat(getFields(dv))
 
   function getFields (d, f, pref) {
     f = f || []

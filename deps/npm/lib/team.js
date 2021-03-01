@@ -17,10 +17,10 @@ const usage = usageUtil(
   'npm team ls <scope>|<scope:team>\n'
 )
 
-const completion = (opts, cb) => {
+const completion = async (opts) => {
   const { conf: { argv: { remain: argv } } } = opts
   if (argv.length === 2)
-    return cb(null, subcommands)
+    return subcommands
 
   switch (argv[2]) {
     case 'ls':
@@ -28,9 +28,9 @@ const completion = (opts, cb) => {
     case 'destroy':
     case 'add':
     case 'rm':
-      return cb(null, [])
+      return []
     default:
-      return cb(new Error(argv[2] + ' not recognized'))
+      throw new Error(argv[2] + ' not recognized')
   }
 }
 

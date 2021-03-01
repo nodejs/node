@@ -11,7 +11,6 @@ const pickManifest = require('npm-pick-manifest')
 const npm = require('./npm.js')
 const usageUtil = require('./utils/usage.js')
 const output = require('./utils/output.js')
-const completion = require('./utils/completion/none.js')
 const readLocalPkg = require('./utils/read-local-package.js')
 
 const usage = usageUtil(
@@ -263,4 +262,4 @@ const findVersionsByPackageName = async (specs) => {
   })
 }
 
-module.exports = Object.assign(cmd, { completion, usage })
+module.exports = Object.assign(cmd, { usage })

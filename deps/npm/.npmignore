@@ -16,6 +16,7 @@ node_modules/npm-registry-mock
 
 # don't need these in the npm package.
 html/*.png
+docs/nav.yml
 
 # don't ignore .npmignore files
 # these are used in some tests.

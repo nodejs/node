@@ -26,7 +26,7 @@ const usage = usageUtil(
 
 const cmd = (args, cb) => config(args).then(() => cb()).catch(cb)
 
-const completion = (opts, cb) => {
+const completion = async (opts) => {
   const argv = opts.conf.argv.remain
   if (argv[1] !== 'config')
     argv.unshift('config')
@@ -36,7 +36,7 @@ const completion = (opts, cb) => {
     if (opts.partialWord !== 'l')
       cmds.push('list')
 
-    return cb(null, cmds)
+    return cmds
   }
 
   const action = argv[2]
@@ -44,19 +44,19 @@ const completion = (opts, cb) => {
     case 'set':
       // todo: complete with valid values, if possible.
       if (argv.length > 3)
-        return cb(null, [])
+        return []
 
       // fallthrough
       /* eslint no-fallthrough:0 */
     case 'get':
     case 'delete':
     case 'rm':
-      return cb(null, Object.keys(types))
+      return Object.keys(types)
     case 'edit':
     case 'list':
     case 'ls':
     default:
-      return cb(null, [])
+      return []
   }
 }
 

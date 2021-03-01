@@ -3,13 +3,12 @@ const npm = require('./npm.js')
 const output = require('./utils/output.js')
 const usageUtil = require('./utils/usage.js')
 
-const completion = (opts, cb) => {
-  const none = require('./utils/completion/none.js')
+const completion = async (opts) => {
   const { conf: { argv: { remain } } } = opts
   if (remain.length > 2)
-    return none(opts, cb)
+    return []
 
-  return cb(null, [
+  return [
     'major',
     'minor',
     'patch',
@@ -18,7 +17,7 @@ const completion = (opts, cb) => {
     'prepatch',
     'prerelease',
     'from-git',
-  ])
+  ]
 }
 
 const usage = usageUtil('version',

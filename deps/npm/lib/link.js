@@ -1,4 +1,6 @@
-const { readdir } = require('fs')
+const fs = require('fs')
+const util = require('util')
+const readdir = util.promisify(fs.readdir)
 const { resolve } = require('path')
 
 const Arborist = require('@npmcli/arborist')
@@ -10,9 +12,10 @@ const npm = require('./npm.js')
 const usageUtil = require('./utils/usage.js')
 const reifyFinish = require('./utils/reify-finish.js')
 
-const completion = (opts, cb) => {
+const completion = async (opts) => {
   const dir = npm.globalDir
-  readdir(dir, (er, files) => cb(er, files.filter(f => !/^[._-]/.test(f))))
+  const files = await readdir(dir)
+  return files.filter(f => !/^[._-]/.test(f))
 }
 
 const usage = usageUtil(

@@ -3,7 +3,6 @@ const npa = require('npm-package-arg')
 
 const npm = require('./npm.js')
 const usageUtil = require('./utils/usage.js')
-const completion = require('./utils/completion/none.js')
 const output = require('./utils/output.js')
 
 const usage = usageUtil(
@@ -86,4 +85,4 @@ const init = async args => {
   })
 }
 
-module.exports = Object.assign(cmd, { completion, usage })
+module.exports = Object.assign(cmd, { usage })

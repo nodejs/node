@@ -1,14 +1,14 @@
+const npm = require('./npm.js')
+const config = require('./config.js')
 
-module.exports = set
+const usage = 'npm set <key>=<value> [<key>=<value> ...] (See `npm config`)'
 
-set.usage = 'npm set <key>=<value> [<key>=<value> ...] (See `npm config`)'
+const completion = config.completion
 
-var npm = require('./npm.js')
-
-set.completion = npm.commands.config.completion
-
-function set (args, cb) {
+const cmd = (args, cb) => {
   if (!args.length)
-    return cb(set.usage)
+    return cb(usage)
   npm.commands.config(['set'].concat(args), cb)
 }
+
+module.exports = Object.assign(cmd, { usage, completion })

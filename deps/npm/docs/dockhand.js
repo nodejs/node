@@ -19,7 +19,12 @@ const template = fs.readFileSync('template.html').toString();
 
 const run = async function() {
     try {
-        await walk(inputRoot);
+        const navPaths = await getNavigationPaths();
+        const fsPaths = await renderFilesystemPaths();
+
+        if (!ensureNavigationComplete(navPaths, fsPaths)) {
+            process.exit(1);
+        }
     }
     catch (error) {
         console.error(error);
@@ -28,7 +33,85 @@ const run = async function() {
 
 run();
 
-async function walk(root, dirRelative) {
+function ensureNavigationComplete(navPaths, fsPaths) {
+    const unmatchedNav = { }, unmatchedFs = { };
+
+    for (const navPath of navPaths) {
+        unmatchedNav[navPath] = true;
+    }
+
+    for (let fsPath of fsPaths) {
+        fsPath = '/' + fsPath.replace(/\.md$/, "");
+
+        if (unmatchedNav[fsPath]) {
+            delete unmatchedNav[fsPath];
+        }
+        else {
+            unmatchedFs[fsPath] = true;
+        }
+    }
+
+    const missingNav = Object.keys(unmatchedNav).sort();
+    const missingFs = Object.keys(unmatchedFs).sort()
+
+    if (missingNav.length > 0 || missingFs.length > 0) {
+        let message = "Error: documentation navigation (nav.yml) does not match filesystem.\n";
+
+        if (missingNav.length > 0) {
+            message += "\nThe following path(s) exist on disk but are not present in nav.yml:\n\n";
+
+            for (const nav of missingNav) {
+                message += `  ${nav}\n`;
+            }
+        }
+
+        if (missingNav.length > 0 && missingFs.length > 0) {
+            message += "\nThe following path(s) exist in nav.yml but are not present on disk:\n\n";
+
+            for (const fs of missingFs) {
+                message += `  ${fs}\n`;
+            }
+        }
+
+        message += "\nUpdate nav.yml to ensure that all files are listed in the appropriate place.";
+
+        console.error(message);
+
+        return false;
+    }
+
+    return true;
+}
+
+function getNavigationPaths() {
+    const navFilename = path.join(docsRoot, 'nav.yml');
+    const nav = yaml.parse(fs.readFileSync(navFilename).toString(), 'utf8');
+
+    return walkNavigation(nav);
+}
+
+function walkNavigation(entries) {
+    const paths = [ ]
+
+    for (const entry of entries) {
+        if (entry.children) {
+            paths.push(... walkNavigation(entry.children));
+        }
+        else {
+            paths.push(entry.url);
+        }
+    }
+
+    return paths;
+}
+
+async function renderFilesystemPaths() {
+    return await walkFilesystem(inputRoot);
+}
+
+async function walkFilesystem(root, dirRelative) {
+    const paths = [ ]
+
     const dirPath = dirRelative ? path.join(root, dirRelative) : root;
     const children = fs.readdirSync(dirPath);
 
@@ -37,15 +120,18 @@ async function walk(root, dirRelative) {
         const childPath = path.join(root, childRelative);
 
         if (fs.lstatSync(childPath).isDirectory()) {
-            await walk(root, childRelative);
+            paths.push(... await walkFilesystem(root, childRelative));
         }
         else {
-            await translate(childRelative);
+            await renderFile(childRelative);
+            paths.push(childRelative);
         }
     }
+
+    return paths;
 }
 
-async function translate(childPath) {
+async function renderFile(childPath) {
     const inputPath = path.join(inputRoot, childPath);
 
     if (!inputPath.match(/\.md$/)) {
@@ -119,7 +205,6 @@ async function translate(childPath) {
                 console.log(`warning: unknown token '${token}' in ${inputPath}`);
                 return '';
         }
-        console.log(key);
         return key;
     });
 

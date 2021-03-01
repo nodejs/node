@@ -38,17 +38,17 @@ const usage = usageUtil(
   '[--force|--package-lock-only|--dry-run|--production|--only=(dev|prod)]'
 )
 
-const completion = (opts, cb) => {
+const completion = async (opts) => {
   const argv = opts.conf.argv.remain
 
   if (argv.length === 2)
-    return cb(null, ['fix'])
+    return ['fix']
 
   switch (argv[2]) {
     case 'fix':
-      return cb(null, [])
+      return []
     default:
-      return cb(new Error(argv[2] + ' not recognized'))
+      throw new Error(argv[2] + ' not recognized')
   }
 }
 

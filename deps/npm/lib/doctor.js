@@ -4,7 +4,6 @@ const chalk = require('chalk')
 const ansiTrim = require('./utils/ansi-trim.js')
 const table = require('text-table')
 const output = require('./utils/output.js')
-const completion = require('./utils/completion/none.js')
 const usageUtil = require('./utils/usage.js')
 const usage = usageUtil('doctor', 'npm doctor')
 const { resolve } = require('path')
@@ -285,4 +284,4 @@ const doctor = async args => {
     throw 'Some problems found. See above for recommendations.'
 }
 
-module.exports = Object.assign(cmd, { completion, usage })
+module.exports = Object.assign(cmd, { usage })

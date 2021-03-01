@@ -28,8 +28,6 @@
 // one per line for the shell completion method to consume in IFS=$'\n' mode
 // as an array.
 //
-// TODO: make all the implementation completion methods promise-returning
-// instead of callback-taking.
 
 const npm = require('./npm.js')
 const { types, shorthands } = require('./utils/config.js')
@@ -52,9 +50,9 @@ const { promisify } = require('util')
 const cmd = (args, cb) => compl(args).then(() => cb()).catch(cb)
 
 // completion for the completion command
-const completion = async (opts, cb) => {
+const completion = async (opts) => {
   if (opts.w > 2)
-    return cb()
+    return
 
   const { resolve } = require('path')
   const [bashExists, zshExists] = await Promise.all([
@@ -68,7 +66,7 @@ const completion = async (opts, cb) => {
   if (bashExists)
     out.push(['>>', '~/.bashrc'])
 
-  cb(null, out)
+  return out
 }
 
 const compl = async args => {
@@ -121,18 +119,16 @@ const compl = async args => {
     raw: args,
   }
 
-  const wrap = getWrap(opts)
-
   if (partialWords.slice(0, -1).indexOf('--') === -1) {
     if (word.charAt(0) === '-')
-      return wrap(configCompl(opts))
+      return wrap(opts, configCompl(opts))
 
     if (words[w - 1] &&
         words[w - 1].charAt(0) === '-' &&
         !isFlag(words[w - 1])) {
       // awaiting a value for a non-bool config.
       // don't even try to do this for now
-      return wrap(configValueCompl(opts))
+      return wrap(opts, configValueCompl(opts))
     }
   }
 
@@ -146,7 +142,7 @@ const compl = async args => {
   // check if there's a command already.
   const cmd = parsed.argv.remain[1]
   if (!cmd)
-    return wrap(cmdCompl(opts))
+    return wrap(opts, cmdCompl(opts))
 
   Object.keys(parsed).forEach(k => npm.config.set(k, parsed[k]))
 
@@ -155,10 +151,8 @@ const compl = async args => {
   // otherwise, do nothing
   const impl = npm.commands[cmd]
   if (impl && impl.completion) {
-    // XXX promisify all the cmd.completion functions
-    return await new Promise((res, rej) => {
-      impl.completion(opts, (er, comps) => er ? rej(er) : res(wrap(comps)))
-    })
+    const comps = await impl.completion(opts)
+    return wrap(opts, comps)
   }
 }
 
@@ -215,7 +209,7 @@ const escape = w => !/\s+/.test(w) ? w
 // If any of the items are arrays, then join them with a space.
 // Ie, returning ['a', 'b c', ['d', 'e']] would allow it to expand
 // to: 'a', 'b c', or 'd' 'e'
-const getWrap = opts => compls => {
+const wrap = (opts, compls) => {
   if (!Array.isArray(compls))
     compls = compls ? [compls] : []
 

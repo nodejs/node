@@ -8,7 +8,6 @@ const hostedFromMani = require('./utils/hosted-git-info-from-manifest.js')
 const { URL } = require('url')
 
 const usage = usageUtil('repo', 'npm repo [<pkgname> [<pkgname> ...]]')
-const completion = require('./utils/completion/none.js')
 
 const cmd = (args, cb) => repo(args).then(() => cb()).catch(cb)
 
@@ -69,4 +68,4 @@ const unknownHostedUrl = url => {
   }
 }
 
-module.exports = Object.assign(cmd, { usage, completion })
+module.exports = Object.assign(cmd, { usage })

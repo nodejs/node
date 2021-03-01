@@ -44,14 +44,6 @@ const docs = requireInject('../../lib/docs.js', {
   '../../lib/utils/open-url.js': openUrl,
 })
 
-t.test('completion', t => {
-  docs.completion({}, (er, res) => {
-    t.equal(er, null)
-    t.same(res, [])
-    t.end()
-  })
-})
-
 t.test('open docs urls', t => {
   const expect = {
     nodocs: 'https://www.npmjs.com/package/nodocs',

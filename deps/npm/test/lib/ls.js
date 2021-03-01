@@ -3,6 +3,12 @@ const { resolve } = require('path')
 const t = require('tap')
 const requireInject = require('require-inject')
 
+const { utimesSync } = require('fs')
+const touchHiddenPackageLock = prefix => {
+  const later = new Date(Date.now() + 10000)
+  utimesSync(`${prefix}/node_modules/.package-lock.json`, later, later)
+}
+
 t.cleanSnapshot = str => str.split(/\r\n/).join('\n')
 
 const simpleNmFixture = {
@@ -1186,6 +1192,7 @@ t.test('ls', (t) => {
         },
       },
     })
+    touchHiddenPackageLock(prefix)
     ls([], () => {
       t.matchSnapshot(redactCwd(result), 'should output tree containing aliases')
       t.end()
@@ -1231,6 +1238,7 @@ t.test('ls', (t) => {
         },
       },
     })
+    touchHiddenPackageLock(prefix)
     ls([], (err) => {
       t.ifError(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should output tree containing git refs')
@@ -1329,6 +1337,7 @@ t.test('ls', (t) => {
         },
       },
     })
+    touchHiddenPackageLock(prefix)
     ls([], () => {
       t.matchSnapshot(redactCwd(result), 'should not be printed in tree output')
       t.end()
@@ -2228,6 +2237,7 @@ t.test('ls --parseable', (t) => {
         },
       },
     })
+    touchHiddenPackageLock(prefix)
     ls([], () => {
       t.matchSnapshot(redactCwd(result), 'should output tree containing aliases')
       t.end()
@@ -2272,6 +2282,7 @@ t.test('ls --parseable', (t) => {
         },
       },
     })
+    touchHiddenPackageLock(prefix)
     ls([], () => {
       t.matchSnapshot(redactCwd(result), 'should output tree containing git refs')
       t.end()
@@ -2325,6 +2336,7 @@ t.test('ls --parseable', (t) => {
         },
       },
     })
+    touchHiddenPackageLock(prefix)
     ls([], () => {
       t.matchSnapshot(redactCwd(result), 'should not be printed in tree output')
       t.end()
@@ -3688,6 +3700,7 @@ t.test('ls --json', (t) => {
         },
       },
     })
+    touchHiddenPackageLock(prefix)
     ls([], () => {
       t.deepEqual(
         jsonParse(result),
@@ -3747,6 +3760,7 @@ t.test('ls --json', (t) => {
         },
       },
     })
+    touchHiddenPackageLock(prefix)
     ls([], () => {
       t.deepEqual(
         jsonParse(result),
@@ -3830,6 +3844,7 @@ t.test('ls --json', (t) => {
         },
       },
     })
+    touchHiddenPackageLock(prefix)
     ls([], () => {
       t.deepEqual(
         jsonParse(result),

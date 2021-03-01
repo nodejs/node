@@ -310,16 +310,12 @@ t.test('silent', t => {
   })
 })
 
-t.test('completion', t => {
-  const testComp = (t, { completion, argv, partialWord, expect, title }) =>
-    new Promise((resolve, rej) => {
-      completion({conf: {argv: {remain: argv}}, partialWord}, (er, res) => {
-        if (er)
-          rej(er)
-        t.strictSame(res, expect, title || argv.join(' '))
-        resolve()
-      })
-    })
+t.test('completion', async t => {
+  const testComp =
+    async (t, { completion, argv, partialWord, expect, title }) => {
+      const res = await completion({conf: {argv: {remain: argv}}, partialWord})
+      t.strictSame(res, expect, title || argv.join(' '))
+    }
 
   t.test('completing with multiple versions from the registry', async t => {
     const { completion } = requireInject('../../lib/unpublish.js', {

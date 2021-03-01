@@ -97,6 +97,23 @@ const cases = {
     ],
   },
 
+  bundled: {
+    name: 'bundle-of-joy',
+    version: '1.0.0',
+    location: 'node_modules/bundle-of-joy',
+    bundled: true,
+    dependents: [
+      {
+        type: 'prod',
+        name: 'prod-dep',
+        spec: '1.x',
+        from: {
+          location: '/path/to/project',
+        },
+      },
+    ],
+  },
+
   extraneous: {
     name: 'extra-neos',
     version: '1337.420.69-lol',

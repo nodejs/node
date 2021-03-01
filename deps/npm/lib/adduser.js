@@ -15,8 +15,6 @@ const usage = usageUtil(
   'npm adduser [--registry=url] [--scope=@orgname] [--always-auth]'
 )
 
-const completion = require('./utils/completion/none.js')
-
 const cmd = (args, cb) => adduser(args).then(() => cb()).catch(cb)
 
 const getRegistry = ({ scope, registry }) => {
@@ -74,4 +72,4 @@ const adduser = async (args) => {
   output(message)
 }
 
-module.exports = Object.assign(cmd, { completion, usage })
+module.exports = Object.assign(cmd, { usage })

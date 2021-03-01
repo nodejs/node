@@ -32,6 +32,7 @@ const mismatch = (a, b) => a && b && a !== b
 // After calling this.commit(), any nodes not present in the tree will have
 // been removed from the shrinkwrap data as well.
 
+const procLog = require('./proc-log.js')
 const YarnLock = require('./yarn-lock.js')
 const {promisify} = require('util')
 const rimraf = promisify(require('rimraf'))
@@ -39,7 +40,23 @@ const fs = require('fs')
 const readFile = promisify(fs.readFile)
 const writeFile = promisify(fs.writeFile)
 const stat = promisify(fs.stat)
-const readdir = promisify(fs.readdir)
+const readdir_ = promisify(fs.readdir)
+
+// XXX remove when drop support for node v10
+const lstat = promisify(fs.lstat)
+/* istanbul ignore next - version specific polyfill */
+const readdir = async (path, opt) => {
+  if (!opt || !opt.withFileTypes)
+    return readdir_(path, opt)
+  const ents = await readdir_(path, opt)
+  if (typeof ents[0] === 'string') {
+    return Promise.all(ents.map(async ent => {
+      return Object.assign(await lstat(path + '/' + ent), { name: ent })
+    }))
+  }
+  return ents
+}
+
 const { resolve, basename } = require('path')
 const specFromLock = require('./spec-from-lock.js')
 const versionFromTgz = require('./version-from-tgz.js')
@@ -265,7 +282,10 @@ class Shrinkwrap {
       newline = '\n',
       shrinkwrapOnly = false,
       hiddenLockfile = false,
+      log = procLog,
     } = options
+
+    this.log = log
     this[_awaitingUpdate] = new Map()
     this.tree = null
     this.path = resolve(path || '.')
@@ -398,6 +418,8 @@ class Shrinkwrap {
       // all good!  hidden lockfile is the newest thing in here.
       return data
     }).catch(er => {
+      const rel = relpath(this.path, this.filename)
+      this.log.verbose('shrinkwrap', `failed to load ${rel}`, er)
       this.loadingError = er
       this.loadedFromDisk = false
       this.ancientLockfile = false

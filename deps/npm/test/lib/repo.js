@@ -119,14 +119,6 @@ const repo = requireInject('../../lib/repo.js', {
   '../../lib/utils/open-url.js': openUrl,
 })
 
-t.test('completion', t => {
-  repo.completion({}, (er, res) => {
-    t.equal(er, null)
-    t.same(res, [])
-    t.end()
-  })
-})
-
 t.test('open repo urls', t => {
   const expect = {
     hostedgit: 'https://github.com/foo/hostedgit',

@@ -168,35 +168,22 @@ t.test('report endpoint error', t => {
 })
 
 t.test('completion', t => {
-  t.test('fix', t => {
-    audit.completion({
-      conf: { argv: { remain: ['npm', 'audit'] } },
-    }, (err, res) => {
-      if (err)
-        throw err
-      const subcmd = res.pop()
-      t.equals('fix', subcmd, 'completes to fix')
-      t.end()
-    })
+  t.test('fix', async t => {
+    t.resolveMatch(audit.completion({ conf: { argv: { remain: ['npm', 'audit'] } } }), ['fix'], 'completes to fix')
+    t.end()
   })
 
   t.test('subcommand fix', t => {
-    audit.completion({
-      conf: { argv: { remain: ['npm', 'audit', 'fix'] } },
-    }, (err) => {
-      if (err)
-        throw err
-      t.end()
-    })
+    t.resolveMatch(audit.completion({ conf: { argv: { remain: ['npm', 'audit', 'fix'] } } }), [], 'resolves to ?')
+    t.end()
   })
 
   t.test('subcommand not recognized', t => {
-    audit.completion({
-      conf: { argv: { remain: ['npm', 'audit', 'repare'] } },
-    }, (err) => {
-      t.ok(err, 'not recognized')
-      t.end()
-    })
+    t.rejects(
+      audit.completion({ conf: { argv: { remain: ['npm', 'audit', 'repare'] } } }),
+      { message: 'repare not recognized' }
+    )
+    t.end()
   })
 
   t.end()

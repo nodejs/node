@@ -699,29 +699,25 @@ t.test('owner rm <user> no cwd package', t => {
   })
 })
 
-t.test('completion', t => {
+t.test('completion', async t => {
   const { completion } = owner
 
-  const testComp = (argv, expect) => {
-    completion({ conf: { argv: { remain: argv } } }, (err, res) => {
-      t.ifError(err)
-      t.strictSame(res, expect, argv.join(' '))
-    })
+  const testComp = async (argv, expect) => {
+    const res = await completion({ conf: { argv: { remain: argv } } })
+    t.strictSame(res, expect, argv.join(' '))
   }
 
-  testComp(['npm', 'foo'], [])
-  testComp(['npm', 'owner'], [
-    'add',
-    'rm',
-    'ls',
+  await Promise.all([
+    testComp(['npm', 'foo'], []),
+    testComp(['npm', 'owner'], ['add', 'rm', 'ls']),
+    testComp(['npm', 'owner', 'add'], []),
+    testComp(['npm', 'owner', 'ls'], []),
+    testComp(['npm', 'owner', 'rm', 'foo'], []),
   ])
-  testComp(['npm', 'owner', 'add'], [])
-  testComp(['npm', 'owner', 'ls'], [])
-  testComp(['npm', 'owner', 'rm', 'foo'], [])
 
   // npm owner rm completion is async
-  t.test('completion npm owner rm', t => {
-    t.plan(3)
+  t.test('completion npm owner rm', async t => {
+    t.plan(2)
     readLocalPkgResponse = '@npmcli/map-workspaces'
     pacote.packument = async spec => {
       t.equal(spec.name, readLocalPkgResponse, 'should use package spec')
@@ -734,31 +730,21 @@ t.test('completion', t => {
       pacote.packument = noop
     })
 
-    completion({ conf: { argv: { remain: ['npm', 'owner', 'rm'] } } }, (err, res) => {
-      t.ifError(err, 'npm owner rm completion')
-      t.strictSame(
-        res,
-        [
-          'nlf',
-          'ruyadorno',
-          'darcyclarke',
-          'isaacs',
-        ],
-        'should return list of current owners'
-      )
-    })
+    const res = await completion({ conf: { argv: { remain: ['npm', 'owner', 'rm'] } } })
+    t.strictSame(res,
+      ['nlf', 'ruyadorno', 'darcyclarke', 'isaacs'],
+      'should return list of current owners'
+    )
   })
 
-  t.test('completion npm owner rm no cwd package', t => {
-    completion({ conf: { argv: { remain: ['npm', 'owner', 'rm'] } } }, (err, res) => {
-      t.ifError(err, 'npm owner rm completion')
-      t.strictSame(res, [], 'should have no owners to autocomplete if not cwd package')
-      t.end()
-    })
+  t.test('completion npm owner rm no cwd package', async t => {
+    const res = await completion({ conf: { argv: { remain: ['npm', 'owner', 'rm'] } } })
+    t.strictSame(res, [], 'should have no owners to autocomplete if not cwd package')
+    t.end()
   })
 
-  t.test('completion npm owner rm no owners found', t => {
-    t.plan(3)
+  t.test('completion npm owner rm no owners found', async t => {
+    t.plan(2)
     readLocalPkgResponse = '@npmcli/map-workspaces'
     pacote.packument = async spec => {
       t.equal(spec.name, readLocalPkgResponse, 'should use package spec')
@@ -771,10 +757,8 @@ t.test('completion', t => {
       pacote.packument = noop
     })
 
-    completion({ conf: { argv: { remain: ['npm', 'owner', 'rm'] } } }, (err, res) => {
-      t.ifError(err, 'npm owner rm completion')
-      t.strictSame(res, [], 'should return no owners if not found')
-    })
+    const res = await completion({ conf: { argv: { remain: ['npm', 'owner', 'rm'] } } })
+    t.strictSame(res, [], 'should return no owners if not found')
   })
 
   t.end()

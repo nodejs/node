@@ -6,7 +6,6 @@ const npm = require('./npm.js')
 const output = require('./utils/output.js')
 const usageUtil = require('./utils/usage.js')
 const getIdentity = require('./utils/get-identity')
-const completion = require('./utils/completion/none.js')
 
 const usage = usageUtil(
   'star',
@@ -72,4 +71,4 @@ const star = async args => {
   }
 }
 
-module.exports = Object.assign(cmd, { completion, usage })
+module.exports = Object.assign(cmd, { usage })

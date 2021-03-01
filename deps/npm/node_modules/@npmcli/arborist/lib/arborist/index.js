@@ -28,6 +28,7 @@
 
 const {resolve} = require('path')
 const {homedir} = require('os')
+const procLog = require('../proc-log.js')
 
 const mixins = [
   require('../tracker.js'),
@@ -54,6 +55,7 @@ class Arborist extends Base {
       path: options.path || '.',
       cache: options.cache || `${homedir()}/.npm/_cacache`,
       packumentCache: new Map(),
+      log: options.log || procLog,
     }
     this.cache = resolve(this.options.cache)
     this.path = resolve(this.options.path)

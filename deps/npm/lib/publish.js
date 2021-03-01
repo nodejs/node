@@ -18,7 +18,6 @@ const { getContents, logTar } = require('./utils/tar.js')
 // defaults and metadata, like git sha's and default scripts and all that.
 const readJson = util.promisify(require('read-package-json'))
 
-const completion = require('./utils/completion/none.js')
 const usageUtil = require('./utils/usage.js')
 const usage = usageUtil('publish',
   'npm publish [<folder>] [--tag <tag>] [--access <public|restricted>] [--dry-run]' +
@@ -137,4 +136,4 @@ const publish_ = async (arg, opts) => {
   return pkgContents
 }
 
-module.exports = Object.assign(cmd, { usage, completion })
+module.exports = Object.assign(cmd, { usage })

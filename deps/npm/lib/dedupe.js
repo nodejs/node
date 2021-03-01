@@ -5,7 +5,6 @@ const usageUtil = require('./utils/usage.js')
 const reifyFinish = require('./utils/reify-finish.js')
 
 const usage = usageUtil('dedupe', 'npm dedupe')
-const completion = require('./utils/completion/none.js')
 
 const cmd = (args, cb) => dedupe(args).then(() => cb()).catch(cb)
 
@@ -27,4 +26,4 @@ const dedupe = async (args) => {
   await reifyFinish(arb)
 }
 
-module.exports = Object.assign(cmd, { usage, completion })
+module.exports = Object.assign(cmd, { usage })

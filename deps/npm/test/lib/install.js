@@ -130,7 +130,7 @@ test('should install globally using Arborist', (t) => {
   })
 })
 
-test('completion to folder', (t) => {
+test('completion to folder', async t => {
   const install = requireInject('../../lib/install.js', {
     '../../lib/utils/reify-finish.js': async () => {},
     util: {
@@ -145,17 +145,13 @@ test('completion to folder', (t) => {
       },
     },
   })
-  install.completion({
-    partialWord: '/ar',
-  }, (er, res) => {
-    t.equal(er, null)
-    const expect = process.platform === 'win32' ? '\\arborist' : '/arborist'
-    t.strictSame(res, [expect], 'package dir match')
-    t.end()
-  })
+  const res = await install.completion({ partialWord: '/ar' })
+  const expect = process.platform === 'win32' ? '\\arborist' : '/arborist'
+  t.strictSame(res, [expect], 'package dir match')
+  t.end()
 })
 
-test('completion to folder - invalid dir', (t) => {
+test('completion to folder - invalid dir', async t => {
   const install = requireInject('../../lib/install.js', {
     '../../lib/utils/reify-finish.js': async () => {},
     util: {
@@ -167,16 +163,12 @@ test('completion to folder - invalid dir', (t) => {
       },
     },
   })
-  install.completion({
-    partialWord: 'path/to/folder',
-  }, (er, res) => {
-    t.equal(er, null)
-    t.strictSame(res, [], 'invalid dir: no matching')
-    t.end()
-  })
+  const res = await install.completion({ partialWord: 'path/to/folder' })
+  t.strictSame(res, [], 'invalid dir: no matching')
+  t.end()
 })
 
-test('completion to folder - no matches', (t) => {
+test('completion to folder - no matches', async t => {
   const install = requireInject('../../lib/install.js', {
     '../../lib/utils/reify-finish.js': async () => {},
     util: {
@@ -188,16 +180,12 @@ test('completion to folder - no matches', (t) => {
       },
     },
   })
-  install.completion({
-    partialWord: '/pa',
-  }, (er, res) => {
-    t.equal(er, null)
-    t.strictSame(res, [], 'no name match')
-    t.end()
-  })
+  const res = await install.completion({ partialWord: '/pa' })
+  t.strictSame(res, [], 'no name match')
+  t.end()
 })
 
-test('completion to folder - match is not a package', (t) => {
+test('completion to folder - match is not a package', async t => {
   const install = requireInject('../../lib/install.js', {
     '../../lib/utils/reify-finish.js': async () => {},
     util: {
@@ -212,31 +200,19 @@ test('completion to folder - match is not a package', (t) => {
       },
     },
   })
-  install.completion({
-    partialWord: '/ar',
-  }, (er, res) => {
-    t.equal(er, null)
-    t.strictSame(res, [], 'no name match')
-    t.end()
-  })
+  const res = await install.completion({ partialWord: '/ar' })
+  t.strictSame(res, [], 'no name match')
+  t.end()
 })
 
-test('completion to url', (t) => {
-  install.completion({
-    partialWord: 'http://path/to/url',
-  }, (er, res) => {
-    t.equal(er, null)
-    t.strictSame(res, [])
-    t.end()
-  })
+test('completion to url', async t => {
+  const res = await install.completion({ partialWord: 'http://path/to/url' })
+  t.strictSame(res, [])
+  t.end()
 })
 
-test('completion', (t) => {
-  install.completion({
-    partialWord: 'toto',
-  }, (er, res) => {
-    t.notOk(er)
-    t.notOk(res)
-    t.end()
-  })
+test('completion', async t => {
+  const res = await install.completion({ partialWord: 'toto' })
+  t.notOk(res)
+  t.end()
 })

@@ -317,7 +317,7 @@ t.test('link pkg already in global space when prefix is a symlink', (t) => {
   })
 })
 
-t.test('completion', (t) => {
+t.test('completion', async t => {
   const testdir = t.testdir({
     'global-prefix': {
       lib: {
@@ -332,31 +332,30 @@ t.test('completion', (t) => {
   })
   npm.globalDir = resolve(testdir, 'global-prefix', 'lib', 'node_modules')
 
-  link.completion({}, (err, words) => {
-    t.ifError(err, 'should not error out')
-    t.deepEqual(
-      words,
-      ['bar', 'foo', 'ipsum', 'lorem'],
-      'should list all package names available in globalDir'
-    )
-    t.end()
-  })
+  const words = await link.completion({})
+  t.deepEqual(
+    words,
+    ['bar', 'foo', 'ipsum', 'lorem'],
+    'should list all package names available in globalDir'
+  )
+  t.end()
 })
 
-t.test('--global option', (t) => {
+t.test('--global option', async t => {
   const _config = npm.config
   npm.config = { get () {
     return true
   } }
-  link([], (err) => {
+  try {
+    await link([])
+    t.fail('should not get here')
+  } catch (err) {
     npm.config = _config
-
     t.match(
       err.message,
       /link should never be --global/,
       'should throw an useful error'
     )
-
-    t.end()
-  })
+  }
+  t.end()
 })
