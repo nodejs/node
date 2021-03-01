@@ -5,7 +5,3 @@ prefix wasi
 # sample-test                        : PASS,FLAKY
 
 [true] # This section applies to all platforms
-
-[$system==win32]
-# https://github.com/nodejs/node/pull/36139
-test-return-on-exit: PASS,FLAKY
