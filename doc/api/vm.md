@@ -70,8 +70,8 @@ changes:
     by this script. **Default:** `'evalmachine.<anonymous>'`.
   * `lineOffset` {number} Specifies the line number offset that is displayed
     in stack traces produced by this script. **Default:** `0`.
-  * `columnOffset` {number} Specifies the column number offset that is displayed
-    in stack traces produced by this script. **Default:** `0`.
+  * `columnOffset` {number} Specifies the first-line column number offset that
+    is displayed in stack traces produced by this script. **Default:** `0`.
   * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
     `TypedArray`, or `DataView` with V8's code cache data for the supplied
      source. When supplied, the `cachedDataRejected` value will be set to
@@ -652,8 +652,8 @@ defined in the ECMAScript specification.
     `vm.createContext()` method, to compile and evaluate this `Module` in.
   * `lineOffset` {integer} Specifies the line number offset that is displayed
     in stack traces produced by this `Module`. **Default:** `0`.
-  * `columnOffset` {integer} Specifies the column number offset that is
-    displayed in stack traces produced by this `Module`. **Default:** `0`.
+  * `columnOffset` {integer} Specifies the first-line column number offset that
+    is displayed in stack traces produced by this `Module`. **Default:** `0`.
   * `initializeImportMeta` {Function} Called during evaluation of this `Module`
     to initialize the `import.meta`.
     * `meta` {import.meta}
@@ -835,8 +835,8 @@ changes:
     by this script. **Default:** `''`.
   * `lineOffset` {number} Specifies the line number offset that is displayed
     in stack traces produced by this script. **Default:** `0`.
-  * `columnOffset` {number} Specifies the column number offset that is displayed
-    in stack traces produced by this script. **Default:** `0`.
+  * `columnOffset` {number} Specifies the first-line column number offset that
+    is displayed in stack traces produced by this script. **Default:** `0`.
   * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
     `TypedArray`, or `DataView` with V8's code cache data for the supplied
      source.
@@ -966,8 +966,8 @@ changes:
     by this script. **Default:** `'evalmachine.<anonymous>'`.
   * `lineOffset` {number} Specifies the line number offset that is displayed
     in stack traces produced by this script. **Default:** `0`.
-  * `columnOffset` {number} Specifies the column number offset that is displayed
-    in stack traces produced by this script. **Default:** `0`.
+  * `columnOffset` {number} Specifies the first-line column number offset that
+    is displayed in stack traces produced by this script. **Default:** `0`.
   * `displayErrors` {boolean} When `true`, if an [`Error`][] occurs
     while compiling the `code`, the line of code causing the error is attached
     to the stack trace. **Default:** `true`.
@@ -1049,8 +1049,8 @@ changes:
     by this script. **Default:** `'evalmachine.<anonymous>'`.
   * `lineOffset` {number} Specifies the line number offset that is displayed
     in stack traces produced by this script. **Default:** `0`.
-  * `columnOffset` {number} Specifies the column number offset that is displayed
-    in stack traces produced by this script. **Default:** `0`.
+  * `columnOffset` {number} Specifies the first-line column number offset that
+    is displayed in stack traces produced by this script. **Default:** `0`.
   * `displayErrors` {boolean} When `true`, if an [`Error`][] occurs
     while compiling the `code`, the line of code causing the error is attached
     to the stack trace. **Default:** `true`.
@@ -1143,8 +1143,8 @@ changes:
     by this script. **Default:** `'evalmachine.<anonymous>'`.
   * `lineOffset` {number} Specifies the line number offset that is displayed
     in stack traces produced by this script. **Default:** `0`.
-  * `columnOffset` {number} Specifies the column number offset that is displayed
-    in stack traces produced by this script. **Default:** `0`.
+  * `columnOffset` {number} Specifies the first-line column number offset that
+    is displayed in stack traces produced by this script. **Default:** `0`.
   * `displayErrors` {boolean} When `true`, if an [`Error`][] occurs
     while compiling the `code`, the line of code causing the error is attached
     to the stack trace. **Default:** `true`.
