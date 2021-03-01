@@ -350,14 +350,13 @@ class KeyExportJob final : public CryptoJob<KeyExportTraits> {
     CryptoErrorVector* errors = CryptoJob<KeyExportTraits>::errors();
     errors->Capture();
     if (errors->empty()) {
-      switch(status) {
+      switch (status) {
         case WebCryptoKeyExportStatus::INVALID_KEY_TYPE:
           errors->emplace_back("Invalid key type.");
           break;
         case WebCryptoKeyExportStatus::FAILED:
           errors->emplace_back("Cipher job failed.");
           break;
-        }
       }
     }
   }

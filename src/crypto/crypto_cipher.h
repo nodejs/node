@@ -230,14 +230,13 @@ class CipherJob final : public CryptoJob<CipherTraits> {
     CryptoErrorVector* errors = CryptoJob<CipherTraits>::errors();
     errors->Capture();
     if (errors->empty()) {
-      switch(status) {
+      switch (status) {
         case WebCryptoCipherStatus::INVALID_KEY_TYPE:
           errors->emplace_back("Invalid key type.");
           break;
         case WebCryptoCipherStatus::FAILED:
           errors->emplace_back("Cipher job failed.");
           break;
-        }
       }
     }
   }
