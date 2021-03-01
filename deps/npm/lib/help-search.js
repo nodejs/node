@@ -11,7 +11,6 @@ const didYouMean = require('./utils/did-you-mean.js')
 const { cmdList } = require('./utils/cmd-list.js')
 
 const usage = usageUtil('help-search', 'npm help-search <text>')
-const completion = require('./utils/completion/none.js')
 
 const npmUsage = require('./utils/npm-usage.js')
 
@@ -201,4 +200,4 @@ const formatResults = (args, results) => {
   return finalOut.trim()
 }
 
-module.exports = Object.assign(cmd, { usage, completion })
+module.exports = Object.assign(cmd, { usage })

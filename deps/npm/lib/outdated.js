@@ -17,7 +17,6 @@ const ansiTrim = require('./utils/ansi-trim.js')
 const usage = usageUtil('outdated',
   'npm outdated [[<@scope>/]<pkg> ...]'
 )
-const completion = require('./utils/completion/none.js')
 
 function cmd (args, cb) {
   outdated(args)
@@ -287,4 +286,4 @@ function makeJSON (list, opts) {
   return JSON.stringify(out, null, 2)
 }
 
-module.exports = Object.assign(cmd, { completion, usage })
+module.exports = Object.assign(cmd, { usage })

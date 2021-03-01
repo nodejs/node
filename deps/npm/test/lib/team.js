@@ -506,66 +506,45 @@ t.test('team rm <scope:team> <user>', t => {
 t.test('completion', t => {
   const { completion } = team
 
-  t.test('npm team autocomplete', t => {
-    completion({
+  t.test('npm team autocomplete', async t => {
+    const res = await completion({
       conf: {
         argv: {
           remain: ['npm', 'team'],
         },
       },
-    }, (err, res) => {
-      if (err)
-        throw err
-
-      t.strictSame(
-        res,
-        ['create', 'destroy', 'add', 'rm', 'ls'],
-        'should auto complete with subcommands'
-      )
-
-      t.end()
     })
+    t.strictSame(
+      res,
+      ['create', 'destroy', 'add', 'rm', 'ls'],
+      'should auto complete with subcommands'
+    )
+    t.end()
   })
 
   t.test('npm team <subcommand> autocomplete', async t => {
-    const check = (subcmd) => new Promise((res, rej) =>
-      completion({
+    for (const subcmd of ['create', 'destroy', 'add', 'rm', 'ls']) {
+      const res = await completion({
         conf: {
           argv: {
             remain: ['npm', 'team', subcmd],
           },
         },
-      }, (err, response) => {
-        if (err)
-          rej(err)
-
-        t.strictSame(
-          response,
-          [],
-          `should not autocomplete ${subcmd} subcommand`
-        )
-        res()
-      }))
-
-    await ['create', 'destroy', 'add', 'rm', 'ls'].map(check)
+      })
+      t.strictSame(
+        res,
+        [],
+        `should not autocomplete ${subcmd} subcommand`
+      )
+    }
   })
 
-  t.test('npm team unknown subcommand autocomplete', t => {
-    completion({
-      conf: {
-        argv: {
-          remain: ['npm', 'team', 'missing-subcommand'],
-        },
-      },
-    }, (err, res) => {
-      t.match(
-        err,
-        /missing-subcommand not recognized/,
-        'should throw a a not recognized error'
-      )
+  t.test('npm team unknown subcommand autocomplete', async t => {
+    t.rejects(completion({conf: {argv: {remain: ['npm', 'team', 'missing-subcommand'] } } }),
+      {message: 'missing-subcommand not recognized'}, 'should throw a a not recognized error'
+    )
 
-      t.end()
-    })
+    t.end()
   })
 
   t.end()

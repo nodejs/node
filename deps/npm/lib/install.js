@@ -81,14 +81,14 @@ const usage = usageUtil(
   '[--save-prod|--save-dev|--save-optional|--save-peer] [--save-exact] [--no-save]'
 )
 
-const completion = async (opts, cb) => {
+const completion = async (opts) => {
   const { partialWord } = opts
   // install can complete to a folder with a package.json, or any package.
   // if it has a slash, then it's gotta be a folder
   // if it starts with https?://, then just give up, because it's a url
   if (/^https?:\/\//.test(partialWord)) {
     // do not complete to URLs
-    return cb(null, [])
+    return []
   }
 
   if (/\//.test(partialWord)) {
@@ -126,19 +126,18 @@ const completion = async (opts, cb) => {
       const match = matches.filter(el => !el || el.isPackage).pop()
       if (match) {
         // Success - only one match and it is a package dir
-        return cb(null, [match.fullPath])
+        return [match.fullPath]
       } else {
         // no matches
-        return cb(null, [])
+        return []
       }
     } catch (er) {
-      return cb(null, []) // invalid dir: no matching
+      return [] // invalid dir: no matching
     }
   }
   // Note: there used to be registry completion here,
   // but it stopped making sense somewhere around
   // 50,000 packages on the registry
-  cb()
 }
 
 module.exports = Object.assign(cmd, { usage, completion })

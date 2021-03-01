@@ -30,18 +30,18 @@ const InvalidCIDRError = (msg) =>
 
 token.subcommands = ['list', 'revoke', 'create']
 
-token.completion = function (opts, cb) {
+token.completion = async (opts) => {
   var argv = opts.conf.argv.remain
   if (argv.length === 2)
-    return cb(null, token.subcommands)
+    return token.subcommands
 
   switch (argv[2]) {
     case 'list':
     case 'revoke':
     case 'create':
-      return cb(null, [])
+      return []
     default:
-      return cb(new Error(argv[2] + ' not recognized'))
+      throw new Error(argv[2] + ' not recognized')
   }
 }
 

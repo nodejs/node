@@ -19,17 +19,17 @@ const usage = usageUtil('cache',
   '\nnpm cache verify'
 )
 
-const completion = (opts, cb) => {
+const completion = async (opts) => {
   const argv = opts.conf.argv.remain
   if (argv.length === 2)
-    return cb(null, ['add', 'clean', 'verify'])
+    return ['add', 'clean', 'verify']
 
   // TODO - eventually...
   switch (argv[2]) {
     case 'verify':
     case 'clean':
     case 'add':
-      return cb(null, [])
+      return []
   }
 }
 

@@ -4,7 +4,6 @@ const setScriptDefault = require('../../lib/set-script.js')
 const parseJSON = require('json-parse-even-better-errors')
 
 test.type(setScriptDefault, 'function', 'command is function')
-test.equal(setScriptDefault.completion, require('../../lib/utils/completion/none.js'), 'empty completion')
 test.equal(setScriptDefault.usage, 'npm set-script [<script>] [<command>]', 'usage matches')
 test.test('fails on invalid arguments', (t) => {
   const setScript = requireInject('../../lib/set-script.js', {

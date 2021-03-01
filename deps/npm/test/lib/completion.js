@@ -21,28 +21,28 @@ const npm = {
   },
   commands: {
     completion: {
-      completion: (opts, cb) => {
-        return cb(null, [['>>', '~/.bashrc']])
-      },
+      completion: () => [['>>', '~/.bashrc']],
     },
     adduser: {},
     access: {
-      completion: (opts, cb) => {
+      completion: () => {
         if (accessCompletionError)
-          return cb(new Error('access completion failed'))
+          throw new Error('access completion failed')
 
-        return cb(null, ['public', 'restricted'])
+        return ['public', 'restricted']
       },
     },
+    promise: {
+      completion: () => Promise.resolve(['resolved_completion_promise']),
+    },
     donothing: {
-      completion: (opts, cb) => {
-        return cb(null, null)
+      completion: () => {
+        return null
       },
     },
     driveaboat: {
-      completion: (opts, cb) => {
-        // the leading space here is to exercise the escape method
-        return cb(null, ' fast')
+      completion: () => {
+        return ' fast'
       },
     },
   },
@@ -86,7 +86,7 @@ const completion = requireInject('../../lib/completion.js', {
   },
 })
 
-test('completion completion', t => {
+test('completion completion', async t => {
   const home = process.env.HOME
   t.teardown(() => {
     process.env.HOME = home
@@ -97,19 +97,15 @@ test('completion completion', t => {
     '.zshrc': '',
   })
 
-  completion.completion({ w: 2 }, (err, res) => {
-    if (err)
-      throw err
-
-    t.strictSame(res, [
-      ['>>', '~/.zshrc'],
-      ['>>', '~/.bashrc'],
-    ], 'identifies both shells')
-    t.end()
-  })
+  const res = await completion.completion({ w: 2 })
+  t.strictSame(res, [
+    ['>>', '~/.zshrc'],
+    ['>>', '~/.bashrc'],
+  ], 'identifies both shells')
+  t.end()
 })
 
-test('completion completion no known shells', t => {
+test('completion completion no known shells', async t => {
   const home = process.env.HOME
   t.teardown(() => {
     process.env.HOME = home
@@ -117,23 +113,15 @@ test('completion completion no known shells', t => {
 
   process.env.HOME = t.testdir()
 
-  completion.completion({ w: 2 }, (err, res) => {
-    if (err)
-      throw err
-
-    t.strictSame(res, [], 'no responses')
-    t.end()
-  })
+  const res = await completion.completion({ w: 2 })
+  t.strictSame(res, [], 'no responses')
+  t.end()
 })
 
-test('completion completion wrong word count', t => {
-  completion.completion({ w: 3 }, (err, res) => {
-    if (err)
-      throw err
-
-    t.strictSame(res, undefined, 'no responses')
-    t.end()
-  })
+test('completion completion wrong word count', async t => {
+  const res = await completion.completion({ w: 3 })
+  t.strictSame(res, undefined, 'no responses')
+  t.end()
 })
 
 test('completion errors in windows without bash', t => {
@@ -309,6 +297,35 @@ test('completion of invalid command name does nothing', t => {
       throw err
 
     t.strictSame(output, [], 'returns no results')
+    t.end()
+  })
+})
+
+test('handles async completion function', t => {
+  process.env.COMP_CWORD = 2
+  process.env.COMP_LINE = 'npm promise'
+  process.env.COMP_POINT = process.env.COMP_LINE.length
+
+  t.teardown(() => {
+    delete process.env.COMP_CWORD
+    delete process.env.COMP_LINE
+    delete process.env.COMP_POINT
+    npm.config.clear()
+    output.length = 0
+  })
+
+  completion(['npm', 'promise', ''], (err, res) => {
+    if (err)
+      throw err
+
+    t.strictSame(npmConfig, {
+      argv: {
+        remain: ['npm', 'promise'],
+        cooked: ['npm', 'promise'],
+        original: ['npm', 'promise'],
+      },
+    }, 'applies command config appropriately')
+    t.strictSame(output, ['resolved_completion_promise'], 'resolves async completion results')
     t.end()
   })
 })

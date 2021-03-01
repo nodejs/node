@@ -2,7 +2,6 @@ const npm = require('./npm.js')
 const output = require('./utils/output.js')
 const getIdentity = require('./utils/get-identity.js')
 const usageUtil = require('./utils/usage.js')
-const completion = require('./utils/completion/none.js')
 
 const cmd = (args, cb) => whoami(args).then(() => cb()).catch(cb)
 
@@ -14,4 +13,4 @@ const whoami = async ([spec]) => {
   output(opts.json ? JSON.stringify(username) : username)
 }
 
-module.exports = Object.assign(cmd, { completion, usage })
+module.exports = Object.assign(cmd, { usage })

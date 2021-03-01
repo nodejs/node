@@ -73,17 +73,15 @@ t.test('too many args', t => {
   })
 })
 
-t.test('completion', t => {
+t.test('completion', async t => {
   const { completion } = version
 
-  const testComp = (argv, expect) => {
-    completion({ conf: { argv: { remain: argv } } }, (err, res) => {
-      t.ifError(err)
-      t.strictSame(res, expect, argv.join(' '))
-    })
+  const testComp = async (argv, expect) => {
+    const res = await completion({ conf: { argv: { remain: argv } } })
+    t.strictSame(res, expect, argv.join(' '))
   }
 
-  testComp(['npm', 'version'], [
+  await testComp(['npm', 'version'], [
     'major',
     'minor',
     'patch',
@@ -93,7 +91,7 @@ t.test('completion', t => {
     'prerelease',
     'from-git',
   ])
-  testComp(['npm', 'version', 'major'], [])
+  await testComp(['npm', 'version', 'major'], [])
 
   t.end()
 })

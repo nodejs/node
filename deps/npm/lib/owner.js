@@ -16,18 +16,16 @@ const usage = usageUtil(
   '\nnpm owner ls [<@scope>/]<pkg>'
 )
 
-const completion = function (opts, cb) {
+const completion = async (opts) => {
   const argv = opts.conf.argv.remain
   if (argv.length > 3)
-    return cb(null, [])
+    return []
 
   if (argv[1] !== 'owner')
     argv.unshift('owner')
 
-  if (argv.length === 2) {
-    var subs = ['add', 'rm', 'ls']
-    return cb(null, subs)
-  }
+  if (argv.length === 2)
+    return ['add', 'rm', 'ls']
 
   // reaches registry in order to autocomplete rm
   if (argv[2] === 'rm') {
@@ -35,25 +33,16 @@ const completion = function (opts, cb) {
       ...npm.flatOptions,
       fullMetadata: true,
     }
-    readLocalPkg()
-      .then(pkgName => {
-        if (!pkgName)
-          return null
+    const pkgName = await readLocalPkg()
+    if (!pkgName)
+      return []
 
-        const spec = npa(pkgName)
-        return pacote.packument(spec, opts)
-      })
-      .then(data => {
-        if (data && data.maintainers && data.maintainers.length)
-          return data.maintainers.map(m => m.name)
-
-        return []
-      })
-      .then(owners => {
-        return cb(null, owners)
-      })
-  } else
-    cb(null, [])
+    const spec = npa(pkgName)
+    const data = await pacote.packument(spec, opts)
+    if (data && data.maintainers && data.maintainers.length)
+      return data.maintainers.map(m => m.name)
+  }
+  return []
 }
 
 const UsageError = () =>

@@ -10,7 +10,6 @@ const { getContents, logTar } = require('./utils/tar.js')
 const writeFile = util.promisify(require('fs').writeFile)
 const output = require('./utils/output.js')
 
-const completion = require('./utils/completion/none.js')
 const usageUtil = require('./utils/usage.js')
 const usage = usageUtil('pack', 'npm pack [[<@scope>/]<pkg>...] [--dry-run]')
 
@@ -47,4 +46,4 @@ const pack_ = async (arg, opts) => {
   return pkgContents
 }
 
-module.exports = Object.assign(cmd, { usage, completion })
+module.exports = Object.assign(cmd, { usage })

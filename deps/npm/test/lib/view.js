@@ -553,7 +553,7 @@ t.test('throws when unpublished', (t) => {
   })
 })
 
-t.test('completion', (t) => {
+t.test('completion', async t => {
   const view = requireInject('../../lib/view.js', {
     '../../lib/npm.js': {
       flatOptions: {
@@ -565,17 +565,14 @@ t.test('completion', (t) => {
       packument,
     },
   })
-  view.completion({
+  const res = await view.completion({
     conf: { argv: { remain: ['npm', 'view', 'green@1.0.0'] } },
-  }, (err, res) => {
-    if (err)
-      throw err
-    t.ok(res, 'returns back fields')
-    t.end()
   })
+  t.ok(res, 'returns back fields')
+  t.end()
 })
 
-t.test('no registry completion', (t) => {
+t.test('no registry completion', async t => {
   const view = requireInject('../../lib/view.js', {
     '../../lib/npm.js': {
       flatOptions: {
@@ -583,10 +580,7 @@ t.test('no registry completion', (t) => {
       },
     },
   })
-  view.completion({
-    conf: { argv: { remain: ['npm', 'view'] } },
-  }, (err) => {
-    t.notOk(err, 'there is no package completion')
-    t.end()
-  })
+  const res = await view.completion({conf: { argv: { remain: ['npm', 'view'] } } })
+  t.notOk(res, 'there is no package completion')
+  t.end()
 })

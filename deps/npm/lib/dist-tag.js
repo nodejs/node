@@ -16,14 +16,14 @@ const usage = usageUtil(
   '\nnpm dist-tag ls [<pkg>]'
 )
 
-const completion = function (opts, cb) {
+const completion = async (opts) => {
   const argv = opts.conf.argv.remain
   if (argv.length === 2)
-    return cb(null, ['add', 'rm', 'ls'])
+    return ['add', 'rm', 'ls']
 
   switch (argv[2]) {
     default:
-      return cb()
+      return []
   }
 }
 

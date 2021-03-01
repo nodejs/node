@@ -20,25 +20,25 @@ const usage = usageUtil(
   'npm profile set <key> <value>'
 )
 
-const completion = (opts, cb) => {
+const completion = async (opts) => {
   var argv = opts.conf.argv.remain
   const subcommands = ['enable-2fa', 'disable-2fa', 'get', 'set']
 
   if (!argv[2])
-    return cb(null, subcommands)
+    return subcommands
 
   switch (argv[2]) {
     case 'enable-2fa':
     case 'enable-tfa':
-      return cb(null, ['auth-and-writes', 'auth-only'])
+      return ['auth-and-writes', 'auth-only']
 
     case 'disable-2fa':
     case 'disable-tfa':
     case 'get':
     case 'set':
-      return cb(null, [])
+      return []
     default:
-      return cb(new Error(argv[2] + ' not recognized'))
+      throw new Error(argv[2] + ' not recognized')
   }
 }
 
