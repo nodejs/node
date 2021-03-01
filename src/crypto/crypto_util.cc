@@ -137,7 +137,12 @@ void InitCryptoOnce() {
   unsigned long err = 0;  // NOLINT(runtime/int)
   if (per_process::cli_options->enable_fips_crypto ||
       per_process::cli_options->force_fips_crypto) {
+#if OPENSSL_VERSION_MAJOR >= 3
+    if (0 == EVP_default_properties_is_fips_enabled(nullptr) &&
+        !EVP_default_properties_enable_fips(nullptr, 1)) {
+#else
     if (0 == FIPS_mode() && !FIPS_mode_set(1)) {
+#endif
       err = ERR_get_error();
     }
   }
@@ -160,7 +165,12 @@ void InitCryptoOnce() {
 }
 
 void GetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
+#if OPENSSL_VERSION_MAJOR >= 3
+  args.GetReturnValue().Set(EVP_default_properties_is_fips_enabled(nullptr) ?
+      1 : 0);
+#else
   args.GetReturnValue().Set(FIPS_mode() ? 1 : 0);
+#endif
 }
 
 void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
@@ -168,10 +178,18 @@ void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   bool enable = args[0]->BooleanValue(env->isolate());
 
+#if OPENSSL_VERSION_MAJOR >= 3
+  if (enable == EVP_default_properties_is_fips_enabled(nullptr))
+#else
   if (enable == FIPS_mode())
+#endif
     return;  // No action needed.
 
+#if OPENSSL_VERSION_MAJOR >= 3
+  if (!EVP_default_properties_enable_fips(nullptr, enable)) {
+#else
   if (!FIPS_mode_set(enable)) {
+#endif
     unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
     return ThrowCryptoError(env, err);
   }

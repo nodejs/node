@@ -28,7 +28,12 @@ namespace crypto {
 namespace {
 bool ValidateDSAParameters(EVP_PKEY* key) {
   /* Validate DSA2 parameters from FIPS 186-4 */
+#if OPENSSL_VERSION_MAJOR >= 3
+  if (EVP_default_properties_is_fips_enabled(nullptr) &&
+      EVP_PKEY_DSA == EVP_PKEY_base_id(key)) {
+#else
   if (FIPS_mode() && EVP_PKEY_DSA == EVP_PKEY_base_id(key)) {
+#endif
     DSA* dsa = EVP_PKEY_get0_DSA(key);
     const BIGNUM* p;
     DSA_get0_pqg(dsa, &p, nullptr, nullptr);
