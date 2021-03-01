@@ -1,4 +1,4 @@
-# Node.js Project Governance
+ Node.js Project Governance
 
 <!-- TOC -->
 
