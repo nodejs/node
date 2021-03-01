@@ -382,7 +382,7 @@ added: v10.0.0
 -->
 
 * `len` {integer} **Default:** `0`
-* Returns: {Promise} Fulfills with `undefined` upo nsuccess.
+* Returns: {Promise} Fulfills with `undefined` upon success.
 
 Truncates the file.
 
@@ -847,7 +847,7 @@ changes:
   **Default:** `'r'`.
 * `mode` {string|integer} Sets the file mode (permission and sticky bits)
   if the file is created. **Default:** `0o666` (readable and writable)
-* Returns: {Promise} Fullfils with a {FileHandle} object.
+* Returns: {Promise} Fulfills with a {FileHandle} object.
 
 Opens a {FileHandle}.
 
@@ -1001,7 +1001,7 @@ added: v10.0.0
 * Returns: {Promise} Fulfills with the `linkString` upon success.
 
 Reads the contents of the symbolic link referred to by `path`. See the POSIX
-readlink(2) documentation for more etail. The promise is resolved with the
+readlink(2) documentation for more detail. The promise is resolved with the
 `linkString` upon success.
 
 The optional `options` argument can be a string specifying an encoding, or an
