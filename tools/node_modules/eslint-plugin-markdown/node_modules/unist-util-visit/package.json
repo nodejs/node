@@ -1,0 +1,79 @@
+{
+  "name": "unist-util-visit",
+  "version": "1.4.1",
+  "description": "Recursively walk over unist nodes",
+  "license": "MIT",
+  "keywords": [
+    "unist",
+    "remark",
+    "markdown",
+    "retext",
+    "natural",
+    "language",
+    "node",
+    "visit",
+    "walk",
+    "util",
+    "utility"
+  ],
+  "repository": "syntax-tree/unist-util-visit",
+  "bugs": "https://github.com/syntax-tree/unist-util-visit/issues",
+  "author": "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)",
+  "contributors": [
+    "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)",
+    "Eugene Sharygin <eush77@gmail.com>",
+    "Richard Gibson <richard.gibson@gmail.com>"
+  ],
+  "files": [
+    "index.js"
+  ],
+  "dependencies": {
+    "unist-util-visit-parents": "^2.0.0"
+  },
+  "devDependencies": {
+    "browserify": "^16.0.0",
+    "nyc": "^14.0.0",
+    "prettier": "^1.0.0",
+    "remark": "^10.0.0",
+    "remark-cli": "^6.0.0",
+    "remark-preset-wooorm": "^5.0.0",
+    "tape": "^4.0.0",
+    "tinyify": "^2.0.0",
+    "xo": "^0.24.0"
+  },
+  "scripts": {
+    "format": "remark . -qfo && prettier --write \"**/*.js\" && xo --fix",
+    "build-bundle": "browserify . -s unistUtilVisit > unist-util-visit.js",
+    "build-mangle": "browserify . -s unistUtilVisit -p tinyify > unist-util-visit.min.js",
+    "build": "npm run build-bundle && npm run build-mangle",
+    "test-api": "node test",
+    "test-coverage": "nyc --reporter lcov tape test.js",
+    "test": "npm run format && npm run build && npm run test-coverage"
+  },
+  "nyc": {
+    "check-coverage": true,
+    "lines": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "prettier": {
+    "tabWidth": 2,
+    "useTabs": false,
+    "singleQuote": true,
+    "bracketSpacing": false,
+    "semi": false,
+    "trailingComma": "none"
+  },
+  "xo": {
+    "prettier": true,
+    "esnext": false,
+    "ignores": [
+      "unist-util-visit.js"
+    ]
+  },
+  "remarkConfig": {
+    "plugins": [
+      "preset-wooorm"
+    ]
+  }
+}

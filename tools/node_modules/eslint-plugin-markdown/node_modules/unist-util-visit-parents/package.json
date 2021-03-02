@@ -1,0 +1,70 @@
+{
+  "name": "unist-util-visit-parents",
+  "version": "2.1.2",
+  "description": "Recursively walk over unist nodes, with ancestral information",
+  "license": "MIT",
+  "keywords": [
+    "unist",
+    "walk",
+    "util",
+    "utility"
+  ],
+  "repository": "syntax-tree/unist-util-visit-parents",
+  "bugs": "https://github.com/syntax-tree/unist-util-visit-parents/issues",
+  "author": "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)",
+  "contributors": [
+    "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)"
+  ],
+  "files": [
+    "index.js"
+  ],
+  "dependencies": {
+    "unist-util-is": "^3.0.0"
+  },
+  "devDependencies": {
+    "browserify": "^16.0.0",
+    "nyc": "^14.0.0",
+    "prettier": "^1.0.0",
+    "remark": "^10.0.0",
+    "remark-cli": "^6.0.0",
+    "remark-preset-wooorm": "^5.0.0",
+    "tape": "^4.0.0",
+    "tinyify": "^2.0.0",
+    "xo": "^0.24.0"
+  },
+  "scripts": {
+    "format": "remark . -qfo && prettier --write \"**/*.js\" && xo --fix",
+    "build-bundle": "browserify index.js -s unistUtilVisitParents > unist-util-visit-parents.js",
+    "build-mangle": "browserify index.js -s unistUtilVisitParents -p tinyify > unist-util-visit-parents.min.js",
+    "build": "npm run build-bundle && npm run build-mangle",
+    "test-api": "node test",
+    "test-coverage": "nyc --reporter lcov tape test.js",
+    "test": "npm run format && npm run build && npm run test-coverage"
+  },
+  "nyc": {
+    "check-coverage": true,
+    "lines": 100,
+    "functions": 100,
+    "branches": 100
+  },
+  "prettier": {
+    "tabWidth": 2,
+    "useTabs": false,
+    "singleQuote": true,
+    "bracketSpacing": false,
+    "semi": false,
+    "trailingComma": "none"
+  },
+  "xo": {
+    "prettier": true,
+    "esnext": false,
+    "ignores": [
+      "unist-util-visit-parents.js"
+    ]
+  },
+  "remarkConfig": {
+    "plugins": [
+      "preset-wooorm"
+    ]
+  }
+}
