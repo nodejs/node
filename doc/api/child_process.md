@@ -351,7 +351,7 @@ controller.abort();
 <!-- YAML
 added: v0.5.0
 changes:
-  - version: REPLACEME
+  - version: v15.11.0
     pr-url: https://github.com/nodejs/node/pull/37325
     description: killSignal for AbortSignal was added.
   - version: v15.6.0
@@ -436,7 +436,7 @@ The `signal` option works exactly the same way it does in
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
+  - version: v15.11.0
     pr-url: https://github.com/nodejs/node/pull/37325
     description: killSignal for AbortSignal was added.
   - version: v15.5.0
