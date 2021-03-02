@@ -10,12 +10,9 @@ const invalidArgTypeError = {
   name: 'TypeError'
 };
 
-let waitCommand = '';
-if (common.isWindows) {
-  waitCommand = 'TIMEOUT 120';
-} else {
-  waitCommand = 'sleep 2m';
-}
+const waitCommand = common.isLinux ?
+  'sleep 2m' :
+  `${process.execPath} -e "setInterval(()=>{}, 99)"`;
 
 {
   const ac = new AbortController();
