@@ -4,24 +4,18 @@
 
 # Depends on npm, npx, and node being in $PATH.
 
-# This script must be be in the tools directory when it runs because it uses
-# $BASH_SOURCE[0] to determine directories to work in.
+# This script must be in the tools directory when it runs because it uses the
+# script source file path to determine directories to work in.
 
 cd "$( dirname "$0" )" || exit
-rm -rf node_modules/eslint
+rm -rf node_modules/eslint node_modules/eslint-plugin-markdown
 (
     mkdir eslint-tmp
     cd eslint-tmp || exit
     npm init --yes
 
     npm install --global-style --no-bin-links --production --no-package-lock eslint@latest
-
-    (
-        cd node_modules/eslint || exit
-
-        npm install --no-bin-links --production --no-package-lock eslint-plugin-markdown@latest
-    )
-
+    npm install --global-style --no-bin-links --production --no-package-lock eslint-plugin-markdown@latest
 
     # Use dmn to remove some unneeded files.
     npx dmn@2.2.2 -f clean
@@ -31,4 +25,5 @@ rm -rf node_modules/eslint
 )
 
 mv eslint-tmp/node_modules/eslint node_modules/eslint
+mv eslint-tmp/node_modules/eslint-plugin-markdown node_modules/eslint-plugin-markdown
 rm -rf eslint-tmp/
