@@ -26,6 +26,53 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
         code: 'ERR_INVALID_ARG_TYPE'
       });
   });
+  assert.rejects(
+    subtle.importKey('raw', keyData, {
+      name: 'HMAC'
+    }, false, ['sign', 'verify']), {
+      code: 'ERR_MISSING_OPTION'
+    }).then(common.mustCall());
+  assert.rejects(
+    subtle.importKey('raw', keyData, {
+      name: 'HMAC',
+      hash: 'SHA-256'
+    }, false, ['deriveBits']), {
+      name: 'SyntaxError',
+      message: 'Unsupported key usage for an HMAC key'
+    }).then(common.mustCall());
+  assert.rejects(
+    subtle.importKey('node.keyObject', '', {
+      name: 'HMAC',
+      hash: 'SHA-256'
+    }, false, ['sign', 'verify']), {
+      code: 'ERR_INVALID_ARG_TYPE'
+    }).then(common.mustCall());
+  assert.rejects(
+    subtle.importKey('raw', keyData, {
+      name: 'HMAC',
+      hash: 'SHA-256',
+      length: 0
+    }, false, ['sign', 'verify']), {
+      name: 'DataError',
+      message: 'Zero-length key is not supported'
+    }).then(common.mustCall());
+  assert.rejects(
+    subtle.importKey('raw', keyData, {
+      name: 'HMAC',
+      hash: 'SHA-256',
+      length: 1
+    }, false, ['sign', 'verify']), {
+      name: 'DataError',
+      message: 'Invalid key length'
+    }).then(common.mustCall());
+  assert.rejects(
+    subtle.importKey('jwk', null, {
+      name: 'HMAC',
+      hash: 'SHA-256',
+    }, false, ['sign', 'verify']), {
+      name: 'DataError',
+      message: 'Invalid JWK keyData'
+    }).then(common.mustCall());
 }
 
 // Import/Export HMAC Secret Key
