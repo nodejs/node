@@ -193,7 +193,7 @@ against FIPS-compatible OpenSSL.)
 <!-- YAML
 added: v12.12.0
 changes:
-  - version: REPLACEME
+  - version: v15.11.0
     pr-url: https://github.com/nodejs/node/pull/37362
     description: This API is no longer experimental.
 -->

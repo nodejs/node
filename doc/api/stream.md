@@ -1578,7 +1578,7 @@ further errors except from `_destroy()` may be emitted as `'error'`.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v15.11.0
     pr-url: https://github.com/nodejs/node/pull/37354
     description: The `signal` option was added.
   - version: v14.0.0
