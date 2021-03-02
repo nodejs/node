@@ -831,8 +831,9 @@ void CBORTokenizer::ReadNextToken(bool enter_envelope) {
           // inspector_protocol, it's not a CBOR limitation), so we check
           // against the signed max, so that the allowable values are
           // 0, 1, 2, ... 2^31 - 1.
-          if (!bytes_read || std::numeric_limits<int32_t>::max() <
-                                 token_start_internal_value_) {
+          if (!bytes_read ||
+                static_cast<int64_t>(std::numeric_limits<int32_t>::max()) <
+                  static_cast<int64_t>(token_start_internal_value_)) {
             SetError(Error::CBOR_INVALID_INT32);
             return;
           }
