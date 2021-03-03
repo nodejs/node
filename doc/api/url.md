@@ -909,7 +909,7 @@ It performs the inverse operation to [`url.domainToUnicode()`][].
 ```js
 const url = require('url');
 console.log(url.domainToASCII('español.com'));
-// Prints xn--espaol-zwa.com
+// Prints xn--español-zwa.com
 console.log(url.domainToASCII('中文.com'));
 // Prints xn--fiq228c.com
 console.log(url.domainToASCII('xn--iñvalid.com'));
@@ -933,7 +933,7 @@ It performs the inverse operation to [`url.domainToASCII()`][].
 
 ```js
 const url = require('url');
-console.log(url.domainToUnicode('xn--espaol-zwa.com'));
+console.log(url.domainToUnicode('xn--español-zwa.com'));
 // Prints español.com
 console.log(url.domainToUnicode('xn--fiq228c.com'));
 // Prints 中文.com
