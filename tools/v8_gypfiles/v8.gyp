@@ -23,9 +23,17 @@
     'torque_outputs_inc': ['<!@pymod_do_main(ForEachFormat "<(SHARED_INTERMEDIATE_DIR)/torque-generated/%s.inc" <@(torque_files_replaced))'],
     'v8_compiler_sources': ['<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_compiler_sources = ")'],
     'conditions': [
-      ['v8_enable_i18n_support', {
+      ['v8_enable_i18n_support==1', {
         'torque_files': [
-          '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "torque_files \\+= ")',
+          '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "torque_files =.*?v8_enable_i18n_support.*?torque_files \\+= ")',
+        ],
+      }],
+      ['v8_enable_webassembly==1', {
+        'torque_files': [
+          '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "torque_files =.*?v8_enable_webassembly.*?torque_files \\+= ")',
+        ],
+        'v8_compiler_sources': [
+          '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_compiler_sources =.*?v8_enable_webassembly.*?v8_compiler_sources \\+= ")',
         ],
       }],
     ],
@@ -107,7 +115,7 @@
         ['want_separate_host_toolset', {
           'toolsets': ['host', 'target'],
         }],
-        ['v8_enable_i18n_support', {
+        ['v8_enable_i18n_support==1', {
           'dependencies': [
             '<(icu_gyp_path):icui18n',
             '<(icu_gyp_path):icuuc',
@@ -120,6 +128,20 @@
       ],
     },  # v8_maybe_icu
     {
+      'target_name': 'torque_runtime_support',
+      'type': 'none',
+      'conditions': [
+        ['want_separate_host_toolset', {
+          'toolsets': ['host', 'target'],
+        }],
+      ],
+      'direct_dependent_settings': {
+        'sources': [
+          '<(V8_ROOT)/src/torque/runtime-support.h',
+        ],
+      },
+    },  # torque_runtime_support
+    {
       'target_name': 'torque_generated_initializers',
       'type': 'none',
       'hard_dependency': 1,
@@ -131,6 +153,8 @@
       'dependencies': [
         'generate_bytecode_builtins_list',
         'run_torque',
+        'v8_base_without_compiler',
+        'torque_runtime_support',
         'v8_maybe_icu',
       ],
       'direct_dependent_settings': {
@@ -139,7 +163,6 @@
           '<(SHARED_INTERMEDIATE_DIR)/torque-generated/enum-verifiers.cc',
           '<(SHARED_INTERMEDIATE_DIR)/torque-generated/exported-macros-assembler.cc',
           '<(SHARED_INTERMEDIATE_DIR)/torque-generated/exported-macros-assembler.h',
-          '<(V8_ROOT)/src/torque/runtime-support.h',
           '<@(torque_outputs_csa_cc)',
           '<@(torque_outputs_csa_h)',
         ],
@@ -157,6 +180,8 @@
       'dependencies': [
         'generate_bytecode_builtins_list',
         'run_torque',
+        'v8_internal_headers',
+        'v8_libbase',
         'v8_maybe_icu',
       ],
       'direct_dependent_settings': {
@@ -222,14 +247,12 @@
       'dependencies': [
         'generate_bytecode_builtins_list',
         'run_torque',
+        'v8_base_without_compiler',
         'v8_initializers',
         'v8_maybe_icu',
       ],
       'sources': [
-        ### gcmole(all) ###
         '<(V8_ROOT)/src/init/setup-isolate-full.cc',
-
-        # '<(generate_bytecode_builtins_list_output)',
       ],
     },  # v8_init
     {
@@ -237,6 +260,8 @@
       'type': 'static_library',
       'dependencies': [
         'torque_generated_initializers',
+        'v8_base_without_compiler',
+        'v8_shared_internal_headers',
       ],
       'include_dirs': [
         '<(SHARED_INTERMEDIATE_DIR)',
@@ -248,6 +273,11 @@
       'conditions': [
         ['want_separate_host_toolset', {
           'toolsets': ['host', 'target'],
+        }],
+        ['v8_enable_webassembly==1', {
+          'sources': [
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_initializers.*?v8_enable_webassembly.*?sources \\+= ")',
+          ],
         }],
         ['v8_target_arch=="ia32"', {
           'sources': [
@@ -447,6 +477,21 @@
       },
     },  # v8_version
     {
+      'target_name': 'v8_config_headers',
+      'type': 'none',
+      'conditions': [
+        ['want_separate_host_toolset', {
+          'toolsets': ['host', 'target'],
+        }],
+      ],
+      'direct_dependent_settings': {
+        'sources': [
+          '<(V8_ROOT)/include/v8-platform.h',
+          '<(V8_ROOT)/include/v8config.h',
+        ],
+      },
+    },  # v8_config_headers
+    {
       'target_name': 'v8_headers',
       'type': 'none',
       'conditions': [
@@ -455,6 +500,8 @@
         }],
       ],
       'dependencies': [
+        'v8_config_headers',
+        'cppgc_headers',
         'v8_version',
       ],
       'direct_dependent_settings': {
@@ -465,11 +512,7 @@
           '<(V8_ROOT)/include/v8-profiler.h',
           '<(V8_ROOT)/include/v8-util.h',
           '<(V8_ROOT)/include/v8.h',
-          '<(V8_ROOT)/include/v8config.h',
 
-          # The following headers cannot be platform-specific. The include validation
-          # of `gn gen $dir --check` requires all header files to be available on all
-          # platforms.
           '<(V8_ROOT)/include/v8-wasm-trap-handler-posix.h',
           '<(V8_ROOT)/include/v8-wasm-trap-handler-win.h',
         ],
@@ -485,13 +528,149 @@
       ],
       'dependencies': [
         'v8_headers',
+        'v8_libbase',
       ],
       'direct_dependent_settings': {
         'sources': [
           '<(V8_ROOT)/src/common/globals.h',
+          '<(V8_ROOT)/src/wasm/wasm-constants.h',
+          '<(V8_ROOT)/src/wasm/wasm-limits.h',
         ],
       },
     },  # v8_shared_internal_headers
+    {
+      'target_name': 'v8_flags',
+      'type': 'none',
+      'conditions': [
+        ['want_separate_host_toolset', {
+          'toolsets': ['host', 'target'],
+        }],
+      ],
+      'dependencies': [
+        'v8_shared_internal_headers',
+      ],
+      'direct_dependent_settings': {
+        'sources': [
+          '<(V8_ROOT)/src/flags/flag-definitions.h',
+          '<(V8_ROOT)/src/flags/flags.h',
+        ],
+      },
+    },  # v8_flags
+    {
+      'target_name': 'v8_internal_headers',
+      'type': 'none',
+      'conditions': [
+        ['want_separate_host_toolset', {
+          'toolsets': ['host', 'target'],
+        }],
+      ],
+      'dependencies': [
+        'torque_runtime_support',
+        'v8_flags',
+        'v8_headers',
+        'v8_maybe_icu',
+        'v8_shared_internal_headers',
+        'cppgc_headers',
+        'generate_bytecode_builtins_list',
+        'run_torque',
+        'v8_libbase',
+      ],
+      'direct_dependent_settings': {
+        'sources': [
+          '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?sources = ")',
+        ],
+        'conditions': [
+          ['v8_enable_webassembly==1', {
+            'sources': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?v8_enable_webassembly.*?sources \\+= ")',
+            ],
+          }],
+          ['v8_enable_i18n_support==1', {
+            'sources': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?v8_enable_i18n_support.*?sources \\+= ")',
+            ],
+          }],
+          ['v8_control_flow_integrity==1', {
+            'sources': [
+              '<(V8_ROOT)/src/execution/arm64/pointer-authentication-arm64.h',
+            ],
+          }, {
+            'sources': [
+              '<(V8_ROOT)/src/execution/pointer-authentication-dummy.h',
+            ],
+          }],
+          ['v8_target_arch=="ia32"', {
+            'sources': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?v8_current_cpu == \\"x86.*?sources \\+= ")',
+            ],
+          }],
+          ['v8_target_arch=="x64"', {
+            'sources': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?v8_current_cpu == \\"x64.*?sources \\+= ")',
+            ],
+            'conditions': [
+              ['OS=="linux" or OS=="mac" or OS=="ios" or OS=="freebsd"', {
+                'sources': [
+                  '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?is_linux.*?sources \\+= ")',
+                ],
+              }],
+              ['OS=="win"', {
+                'sources': [
+                  '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?is_win.*?sources \\+= ")',
+                ],
+              }],
+            ],
+          }],
+          ['v8_target_arch=="arm"', {
+            'sources': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?v8_current_cpu == \\"arm.*?sources \\+= ")',
+            ],
+          }],
+          ['v8_target_arch=="arm64"', {
+            'sources': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?v8_current_cpu == \\"arm64.*?sources \\+= ")',
+            ],
+            'conditions': [
+              ['OS=="mac"', {
+                'sources': [
+                  "<(V8_ROOT)/src/trap-handler/handler-inside-posix.h",
+                ],
+              }],
+              ['OS=="win"', {
+                'sources': [
+                  "<(V8_ROOT)/src/diagnostics/unwinding-info-win64.h"
+                ],
+              }],
+            ],
+          }],
+          ['v8_target_arch=="mips" or v8_target_arch=="mipsel"', {
+            'sources': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?v8_current_cpu == \\"mips\\".*?sources \\+= ")',
+            ],
+          }],
+          ['v8_target_arch=="mips64" or v8_target_arch=="mips64el"', {
+            'sources': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?v8_current_cpu == \\"mips64\\".*?sources \\+= ")',
+            ],
+          }],
+          ['v8_target_arch=="ppc"', {
+            'sources': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?v8_current_cpu == \\"ppc\\".*?sources \\+= ")',
+            ],
+          }],
+          ['v8_target_arch=="ppc64"', {
+            'sources': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?v8_current_cpu == \\"ppc64\\".*?sources \\+= ")',
+            ],
+          }],
+          ['v8_target_arch=="s390x"', {
+            'sources': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_internal_headers.*?v8_current_cpu == \\"s390\\".*?sources \\+= ")',
+            ],
+          }],
+        ],
+      },
+    },  # v8_internal_headers
     {
       'target_name': 'v8_compiler_opt',
       'type': 'static_library',
@@ -499,6 +678,10 @@
         'generate_bytecode_builtins_list',
         'run_torque',
         'v8_maybe_icu',
+        'v8_base_without_compiler',
+        'v8_internal_headers',
+        'v8_libbase',
+        'v8_shared_internal_headers',
       ],
       'sources': ['<@(v8_compiler_sources)'],
       'conditions': [
@@ -521,7 +704,11 @@
       'dependencies': [
         'generate_bytecode_builtins_list',
         'run_torque',
+        'v8_internal_headers',
         'v8_maybe_icu',
+        'v8_base_without_compiler',
+        'v8_libbase',
+        'v8_shared_internal_headers',
       ],
       'sources': ['<@(v8_compiler_sources)'],
       'conditions': [
@@ -572,18 +759,17 @@
       'target_name': 'v8_base_without_compiler',
       'type': 'static_library',
       'dependencies': [
-        # Code generators that only need to be build for the host.
-        'cppgc_base',
         'torque_generated_definitions',
+        'v8_bigint',
+        'v8_cppgc_shared',
         'v8_headers',
         'v8_libbase',
-        'v8_libsampler',
         'v8_shared_internal_headers',
         'v8_version',
-        # BUILD.gn public_deps
+        'cppgc_base',
         'generate_bytecode_builtins_list',
         'run_torque',
-        'v8_cppgc_shared',
+        'v8_internal_headers',
         'v8_maybe_icu',
         'v8_zlib',
       ],
@@ -595,9 +781,6 @@
         ],
       },
       'sources': [
-        # "//base/trace_event/common/trace_event_common.h",
-
-        ### gcmole(all) ###
         '<(generate_bytecode_builtins_list_output)',
 
         '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?sources = ")',
@@ -614,81 +797,60 @@
         }],
         ['v8_enable_webassembly==1', {
           'sources': [
-            '<(V8_ROOT)/src/asmjs/asm-js.cc',
-            '<(V8_ROOT)/src/asmjs/asm-js.h',
-            '<(V8_ROOT)/src/asmjs/asm-names.h',
-            '<(V8_ROOT)/src/asmjs/asm-parser.cc',
-            '<(V8_ROOT)/src/asmjs/asm-parser.h',
-            '<(V8_ROOT)/src/asmjs/asm-scanner.cc',
-            '<(V8_ROOT)/src/asmjs/asm-scanner.h',
-            '<(V8_ROOT)/src/asmjs/asm-types.cc',
-            '<(V8_ROOT)/src/asmjs/asm-types.h',
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_webassembly.*?sources \\+= ")',
           ],
         }],
         ['want_separate_host_toolset', {
           'toolsets': ['host', 'target'],
         }],
-        ['v8_control_flow_integrity==1', {
-          'sources': [
-            '<(V8_ROOT)/src/execution/arm64/pointer-authentication-arm64.h',
-          ],
-        }, {
-          'sources': [
-            '<(V8_ROOT)/src/execution/pointer-authentication-dummy.h',
-          ],
-        }],
         ['v8_target_arch=="ia32"', {
-          'sources': [  ### gcmole(arch:ia32) ###
-            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"x86.*?sources \+= ")',
+          'sources': [
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"x86.*?sources \\+= ")',
           ],
         }],
         ['v8_target_arch=="x64"', {
-          'sources': [  ### gcmole(arch:x64) ###
-            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"x64.*?sources \+= ")',
+          'sources': [
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"x64.*?sources \\+= ")',
           ],
           'conditions': [
-            # iOS Xcode simulator builds run on an x64 target. iOS and macOS are both
-            # based on Darwin and thus POSIX-compliant to a similar degree.
             ['OS=="linux" or OS=="mac" or OS=="ios" or OS=="freebsd"', {
               'sources': [
-                '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?is_linux.*?sources \+= ")',
+                '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?is_linux.*?sources \\+= ")',
               ],
             }],
             ['OS=="win"', {
               'sources': [
-                '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?is_win.*?sources \+= ")',
+                '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?is_win.*?sources \\+= ")',
               ],
             }],
           ],
         }],
         ['v8_target_arch=="arm"', {
-          'sources': [  ### gcmole(arch:arm) ###
-            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"arm\\".*?sources \+= ")',
+          'sources': [
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"arm\\".*?sources \\+= ")',
           ],
         }],
         ['v8_target_arch=="arm64"', {
-          'sources': [  ### gcmole(arch:arm64) ###
-            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"arm64\\".*?sources \+= ")',
+          'sources': [
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"arm64\\".*?sources \\+= ")',
           ],
           'conditions': [
             ['OS=="mac"', {
               'sources': [
                 "<(V8_ROOT)/src/trap-handler/handler-inside-posix.cc",
-                "<(V8_ROOT)/src/trap-handler/handler-inside-posix.h",
                 "<(V8_ROOT)/src/trap-handler/handler-outside-posix.cc",
               ],
             }],
             ['OS=="win"', {
               'sources': [
                 "<(V8_ROOT)/src/diagnostics/unwinding-info-win64.cc",
-                "<(V8_ROOT)/src/diagnostics/unwinding-info-win64.h"
               ],
             }],
           ],
         }],
         ['v8_target_arch=="mips" or v8_target_arch=="mipsel"', {
-          'sources': [  ### gcmole(arch:mipsel) ###
-            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"mips\\".*?sources \+= ")',
+          'sources': [
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"mips\\".*?sources \\+= ")',
           ],
         }],
         ['v8_target_arch=="riscv64"', {
@@ -697,23 +859,23 @@
           ],
         }],        
         ['v8_target_arch=="mips64" or v8_target_arch=="mips64el"', {
-          'sources': [  ### gcmole(arch:mips64el) ###
-            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"mips64\\".*?sources \+= ")',
+          'sources': [
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"mips64\\".*?sources \\+= ")',
           ],
         }],
         ['v8_target_arch=="ppc"', {
-          'sources': [  ### gcmole(arch:ppc) ###
-            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"ppc\\".*?sources \+= ")',
+          'sources': [
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"ppc\\".*?sources \\+= ")',
           ],
         }],
         ['v8_target_arch=="ppc64"', {
-          'sources': [  ### gcmole(arch:ppc64) ###
-            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"ppc64\\".*?sources \+= ")',
+          'sources': [
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"ppc64\\".*?sources \\+= ")',
           ],
         }],
         ['v8_target_arch=="s390x"', {
-          'sources': [  ### gcmole(arch:s390) ###
-            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"s390\\".*?sources \+= ")',
+          'sources': [
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"s390\\".*?sources \\+= ")',
           ],
         }],
         ['OS=="win"', {
@@ -736,7 +898,7 @@
             'BUILDING_V8_SHARED',
           ],
         }],
-        ['v8_enable_i18n_support', {
+        ['v8_enable_i18n_support==1', {
           'dependencies': [
             'run_gen-regexp-special-case',
           ],
@@ -1353,6 +1515,20 @@
       ],
     },  # run_gen-regexp-special-case
     {
+      'target_name': 'cppgc_headers',
+      'type': 'none',
+      'conditions': [
+        ['want_separate_host_toolset', {
+          'toolsets': ['host', 'target'],
+        }],
+      ],
+      'direct_dependent_settings': {
+        'sources': [
+          '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"cppgc_headers.*?sources = ")',
+        ],
+      },
+    },  # cppgc_headers
+    {
       'target_name': 'cppgc_base',
       'type': 'none',
       'conditions': [
@@ -1366,6 +1542,20 @@
         ],
       },
     },  # cppgc_base
+    {
+      'target_name': 'v8_bigint',
+      'type': 'none',
+      'conditions': [
+        ['want_separate_host_toolset', {
+          'toolsets': ['host', 'target'],
+        }],
+      ],
+      'direct_dependent_settings': {
+        'sources': [
+          '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_source_set.\\"v8_bigint.*?sources = ")',
+        ],
+      },
+    },  # v8_bigint
     {
       'target_name': 'v8_cppgc_shared',
       'type': 'none',
