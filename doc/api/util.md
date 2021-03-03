@@ -378,7 +378,7 @@ fs.access('file/that/does/not/exist', (err) => {
 
 ## `util.getSystemErrorMap()`
 <!-- YAML
-added: REPLACEME
+added: v16.0.0
 -->
 
 * Returns: {Map}

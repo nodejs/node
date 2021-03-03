@@ -272,7 +272,7 @@ terminates them.
 <!-- YAML
 added: v0.11.4
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/36409
     description: The property now has a `null` prototype.
 -->
@@ -342,7 +342,7 @@ can have open. Unlike `maxSockets`, this parameter applies across all origins.
 <!-- YAML
 added: v0.5.9
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/36409
     description: The property now has a `null` prototype.
 -->
@@ -356,7 +356,7 @@ sockets. Do not modify.
 <!-- YAML
 added: v0.3.6
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/36409
     description: The property now has a `null` prototype.
 -->
@@ -2020,7 +2020,7 @@ const req = http.request({
 ### `message.connection`
 <!-- YAML
 added: v0.1.90
-deprecated: REPLACEME
+deprecated: v16.0.0
  -->
 
 > Stability: 0 - Deprecated. Use [`message.socket`][].

@@ -119,7 +119,7 @@ are not guaranteed to reflect any correct state of the event loop.
 <!-- YAML
 added: v8.5.0
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37136
     description: Updated to conform to the User Timing Level 3 specification.
 -->
@@ -140,7 +140,7 @@ to mark specific significant moments in the Performance Timeline.
 <!-- YAML
 added: v8.5.0
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37136
     description: Updated to conform to the User Timing Level 3 specification.
   - version:
@@ -214,10 +214,10 @@ which the current `node` process began, measured in Unix time.
 <!-- YAML
 added: v8.5.0
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37475
     description: Added the histogram option.
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37136
     description: Re-implemented to use pure-JavaScript and the ability
                  to time async functions.
@@ -268,7 +268,7 @@ added: v8.5.0
 
 ### `performanceEntry.details`
 <!-- YAML
-added: REPLACEME
+added: v16.0.0
 -->
 
 * {any}
@@ -308,7 +308,7 @@ added:
  - v13.9.0
  - v12.17.0
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37136
     description: Runtime deprecated. Now moved to the detail property
                  when entryType is 'gc'.
@@ -343,7 +343,7 @@ The name of the performance entry.
 <!-- YAML
 added: v8.5.0
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37136
     description: Runtime deprecated. Now moved to the detail property
                  when entryType is 'gc'.
@@ -577,7 +577,7 @@ Disconnects the `PerformanceObserver` instance from all notifications.
 <!-- YAML
 added: v8.5.0
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37136
     description: Updated to conform to User Timing Level 3. The
                  buffered option has been removed.
