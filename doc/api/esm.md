@@ -206,7 +206,7 @@ added:
   - v14.13.1
   - v12.20.0
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37246
     description: Added `node:` import support to `require(...)`.
 -->
