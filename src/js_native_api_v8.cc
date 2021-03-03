@@ -278,9 +278,10 @@ class RefBase : protected Finalizer, RefTracker {
     if (is_env_teardown && RefCount() > 0) _refcount = 0;
 
     if (_finalize_callback != nullptr) {
-      _env->CallFinalizer(_finalize_callback, _finalize_data, _finalize_hint);
       // This ensures that we never call the finalizer twice.
+      napi_finalize fini = _finalize_callback;
       _finalize_callback = nullptr;
+      _env->CallFinalizer(fini, _finalize_data, _finalize_hint);
     }
 
     // this is safe because if a request to delete the reference
@@ -353,6 +354,17 @@ class Reference : public RefBase {
     } else {
       return v8::Local<v8::Value>::New(_env->isolate, _persistent);
     }
+  }
+
+ protected:
+  inline void Finalize(bool is_env_teardown = false) override {
+    // During env teardown, `~napi_env()` alone is responsible for finalizing.
+    // Thus, we don't want any stray gc passes to trigger a second call to
+    // `Finalize()`, so let's reset the persistent here.
+    if (is_env_teardown) _persistent.ClearWeak();
+
+    // Chain up to perform the rest of the finalization.
+    RefBase::Finalize(is_env_teardown);
   }
 
  private:
