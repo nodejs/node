@@ -9,9 +9,19 @@
 The `crypto` module provides cryptographic functionality that includes a set of
 wrappers for OpenSSL's hash, HMAC, cipher, decipher, sign, and verify functions.
 
-Use `require('crypto')` to access this module.
+```mjs
+import { createHmac } from 'crypto';
 
-```js
+const secret = 'abcdefg';
+const hash = createHmac('sha256', secret)
+               .update('I love cupcakes')
+               .digest('hex');
+console.log(hash);
+// Prints:
+//   c0fa1bc00531bd78ef38c628449c5102aeabd49b5dc3a2a516ea6ea959d6658e
+```
+
+```cjs
 const crypto = require('crypto');
 
 const secret = 'abcdefg';
@@ -26,13 +36,33 @@ console.log(hash);
 ## Determining if crypto support is unavailable
 
 It is possible for Node.js to be built without including support for the
-`crypto` module. In such cases, calling `require('crypto')` will result in an
-error being thrown.
+`crypto` module. In such cases, attempting to `import` from `crypto` or
+calling `require('crypto')` will result in an error being thrown.
 
-```js
+When using CommonJS, the error thrown can be caught using try/catch:
+
+```cjs
 let crypto;
 try {
   crypto = require('crypto');
+} catch (err) {
+  console.log('crypto support is disabled!');
+}
+```
+
+When using the lexical ESM `import` keyword, the error can only be
+caught if a handler for `process.on('uncaughtException')` is registered
+*before* any attempt to load the module is made -- using, for instance,
+a preload module.
+
+When using ESM, if there is a chance that the code may be run on a build
+of Node.js where crypto support is not enabled, consider using the
+`import()` function instead of the lexical `import` keyword:
+
+```mjs
+let crypto;
+try {
+  crypto = await import('crypto');
 } catch (err) {
   console.log('crypto support is disabled!');
 }
@@ -68,7 +98,15 @@ changes:
 * Returns: {Buffer} The challenge component of the `spkac` data structure, which
   includes a public key and a challenge.
 
-```js
+```mjs
+const { Certificate } = await import('crypto');
+const spkac = getSpkacSomehow();
+const challenge = Certificate.exportChallenge(spkac);
+console.log(challenge.toString('utf8'));
+// Prints: the challenge as a UTF8 string
+```
+
+```cjs
 const { Certificate } = require('crypto');
 const spkac = getSpkacSomehow();
 const challenge = Certificate.exportChallenge(spkac);
@@ -91,7 +129,15 @@ changes:
 * Returns: {Buffer} The public key component of the `spkac` data structure,
   which includes a public key and a challenge.
 
-```js
+```mjs
+const { Certificate } = await import('crypto');
+const spkac = getSpkacSomehow();
+const publicKey = Certificate.exportPublicKey(spkac);
+console.log(publicKey);
+// Prints: the public key as <Buffer ...>
+```
+
+```cjs
 const { Certificate } = require('crypto');
 const spkac = getSpkacSomehow();
 const publicKey = Certificate.exportPublicKey(spkac);
@@ -115,7 +161,14 @@ changes:
 * Returns: {boolean} `true` if the given `spkac` data structure is valid,
   `false` otherwise.
 
-```js
+```mjs
+const { Certificate } = await import('crypto');
+const spkac = getSpkacSomehow();
+console.log(Certificate.verifySpkac(Buffer.from(spkac)));
+// Prints: true or false
+```
+
+```cjs
 const { Certificate } = require('crypto');
 const spkac = getSpkacSomehow();
 console.log(Certificate.verifySpkac(Buffer.from(spkac)));
@@ -134,11 +187,18 @@ the `crypto.Certificate` class as illustrated in the examples below.
 Instances of the `Certificate` class can be created using the `new` keyword
 or by calling `crypto.Certificate()` as a function:
 
-```js
-const crypto = require('crypto');
+```mjs
+const { Certificate } = await import('crypto');
 
-const cert1 = new crypto.Certificate();
-const cert2 = crypto.Certificate();
+const cert1 = new Certificate();
+const cert2 = Certificate();
+```
+
+```cjs
+const { Certificate } = require('crypto');
+
+const cert1 = new Certificate();
+const cert2 = Certificate();
 ```
 
 #### `certificate.exportChallenge(spkac[, encoding])`
@@ -151,8 +211,18 @@ added: v0.11.8
 * Returns: {Buffer} The challenge component of the `spkac` data structure, which
   includes a public key and a challenge.
 
-```js
-const cert = require('crypto').Certificate();
+```mjs
+const { Certificate } = await import('crypto');
+const cert = Certificate();
+const spkac = getSpkacSomehow();
+const challenge = cert.exportChallenge(spkac);
+console.log(challenge.toString('utf8'));
+// Prints: the challenge as a UTF8 string
+```
+
+```cjs
+const { Certificate } = require('crypto');
+const cert = Certificate();
 const spkac = getSpkacSomehow();
 const challenge = cert.exportChallenge(spkac);
 console.log(challenge.toString('utf8'));
@@ -169,8 +239,18 @@ added: v0.11.8
 * Returns: {Buffer} The public key component of the `spkac` data structure,
   which includes a public key and a challenge.
 
-```js
-const cert = require('crypto').Certificate();
+```mjs
+const { Certificate } = await import('crypto');
+const cert = Certificate();
+const spkac = getSpkacSomehow();
+const publicKey = cert.exportPublicKey(spkac);
+console.log(publicKey);
+// Prints: the public key as <Buffer ...>
+```
+
+```cjs
+const { Certificate } = require('crypto');
+const cert = Certificate();
 const spkac = getSpkacSomehow();
 const publicKey = cert.exportPublicKey(spkac);
 console.log(publicKey);
@@ -187,8 +267,17 @@ added: v0.11.8
 * Returns: {boolean} `true` if the given `spkac` data structure is valid,
   `false` otherwise.
 
-```js
-const cert = require('crypto').Certificate();
+```mjs
+const { Certificate } = await import('crypto');
+const cert = Certificate();
+const spkac = getSpkacSomehow();
+console.log(cert.verifySpkac(Buffer.from(spkac)));
+// Prints: true or false
+```
+
+```cjs
+const { Certificate } = require('crypto');
+const cert = Certificate();
 const spkac = getSpkacSomehow();
 console.log(cert.verifySpkac(Buffer.from(spkac)));
 // Prints: true or false
@@ -215,22 +304,59 @@ directly using the `new` keyword.
 
 Example: Using `Cipher` objects as streams:
 
-```js
-const crypto = require('crypto');
+```mjs
+const {
+  scrypt,
+  randomFill,
+  createCipheriv
+} = await import('crypto');
 
 const algorithm = 'aes-192-cbc';
 const password = 'Password used to generate key';
 
 // First, we'll generate the key. The key length is dependent on the algorithm.
 // In this case for aes192, it is 24 bytes (192 bits).
-crypto.scrypt(password, 'salt', 24, (err, key) => {
+scrypt(password, 'salt', 24, (err, key) => {
   if (err) throw err;
   // Then, we'll generate a random initialization vector
-  crypto.randomFill(new Uint8Array(16), (err, iv) => {
+  randomFill(new Uint8Array(16), (err, iv) => {
     if (err) throw err;
 
     // Once we have the key and iv, we can create and use the cipher...
-    const cipher = crypto.createCipheriv(algorithm, key, iv);
+    const cipher = createCipheriv(algorithm, key, iv);
+
+    let encrypted = '';
+    cipher.setEncoding('hex');
+
+    cipher.on('data', (chunk) => encrypted += chunk);
+    cipher.on('end', () => console.log(encrypted));
+
+    cipher.write('some clear text data');
+    cipher.end();
+  });
+});
+```
+
+```cjs
+const {
+  scrypt,
+  randomFill,
+  createCipheriv
+} = require('crypto');
+
+const algorithm = 'aes-192-cbc';
+const password = 'Password used to generate key';
+
+// First, we'll generate the key. The key length is dependent on the algorithm.
+// In this case for aes192, it is 24 bytes (192 bits).
+scrypt(password, 'salt', 24, (err, key) => {
+  if (err) throw err;
+  // Then, we'll generate a random initialization vector
+  randomFill(new Uint8Array(16), (err, iv) => {
+    if (err) throw err;
+
+    // Once we have the key and iv, we can create and use the cipher...
+    const cipher = createCipheriv(algorithm, key, iv);
 
     let encrypted = '';
     cipher.setEncoding('hex');
@@ -246,26 +372,76 @@ crypto.scrypt(password, 'salt', 24, (err, key) => {
 
 Example: Using `Cipher` and piped streams:
 
-```js
-const crypto = require('crypto');
-const fs = require('fs');
-const { pipeline } = require('stream');
+```mjs
+import {
+  createReadStream,
+  createWriteStream,
+} from 'fs';
+
+import {
+  pipeline
+} from 'stream';
+
+const {
+  scrypt,
+  randomFill,
+  createCipheriv,
+} = await import('crypto');
 
 const algorithm = 'aes-192-cbc';
 const password = 'Password used to generate key';
 
 // First, we'll generate the key. The key length is dependent on the algorithm.
 // In this case for aes192, it is 24 bytes (192 bits).
-crypto.scrypt(password, 'salt', 24, (err, key) => {
+scrypt(password, 'salt', 24, (err, key) => {
   if (err) throw err;
   // Then, we'll generate a random initialization vector
-  crypto.randomFill(new Uint8Array(16), (err, iv) => {
+  randomFill(new Uint8Array(16), (err, iv) => {
     if (err) throw err;
 
-    const cipher = crypto.createCipheriv(algorithm, key, iv);
+    const cipher = createCipheriv(algorithm, key, iv);
 
-    const input = fs.createReadStream('test.js');
-    const output = fs.createWriteStream('test.enc');
+    const input = createReadStream('test.js');
+    const output = createWriteStream('test.enc');
+
+    pipeline(input, cipher, output, (err) => {
+      if (err) throw err;
+    });
+  });
+});
+```
+
+```cjs
+const {
+  createReadStream,
+  createWriteStream,
+} = require('fs');
+
+const {
+  pipeline
+} = require('stream');
+
+const {
+  scrypt,
+  randomFill,
+  createCipheriv,
+} = require('crypto');
+
+const algorithm = 'aes-192-cbc';
+const password = 'Password used to generate key';
+
+// First, we'll generate the key. The key length is dependent on the algorithm.
+// In this case for aes192, it is 24 bytes (192 bits).
+scrypt(password, 'salt', 24, (err, key) => {
+  if (err) throw err;
+  // Then, we'll generate a random initialization vector
+  randomFill(new Uint8Array(16), (err, iv) => {
+    if (err) throw err;
+
+    const cipher = createCipheriv(algorithm, key, iv);
+
+    const input = createReadStream('test.js');
+    const output = createWriteStream('test.enc');
 
     pipeline(input, cipher, output, (err) => {
       if (err) throw err;
@@ -276,21 +452,52 @@ crypto.scrypt(password, 'salt', 24, (err, key) => {
 
 Example: Using the [`cipher.update()`][] and [`cipher.final()`][] methods:
 
-```js
-const crypto = require('crypto');
+```mjs
+const {
+  scrypt,
+  randomFill,
+  createCipheriv,
+} = await import('crypto');
 
 const algorithm = 'aes-192-cbc';
 const password = 'Password used to generate key';
 
 // First, we'll generate the key. The key length is dependent on the algorithm.
 // In this case for aes192, it is 24 bytes (192 bits).
-crypto.scrypt(password, 'salt', 24, (err, key) => {
+scrypt(password, 'salt', 24, (err, key) => {
   if (err) throw err;
   // Then, we'll generate a random initialization vector
-  crypto.randomFill(new Uint8Array(16), (err, iv) => {
+  randomFill(new Uint8Array(16), (err, iv) => {
     if (err) throw err;
 
-    const cipher = crypto.createCipheriv(algorithm, key, iv);
+    const cipher = createCipheriv(algorithm, key, iv);
+
+    let encrypted = cipher.update('some clear text data', 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    console.log(encrypted);
+  });
+});
+```
+
+```cjs
+const {
+  scrypt,
+  randomFill,
+  createCipheriv,
+} = require('crypto');
+
+const algorithm = 'aes-192-cbc';
+const password = 'Password used to generate key';
+
+// First, we'll generate the key. The key length is dependent on the algorithm.
+// In this case for aes192, it is 24 bytes (192 bits).
+scrypt(password, 'salt', 24, (err, key) => {
+  if (err) throw err;
+  // Then, we'll generate a random initialization vector
+  randomFill(new Uint8Array(16), (err, iv) => {
+    if (err) throw err;
+
+    const cipher = createCipheriv(algorithm, key, iv);
 
     let encrypted = cipher.update('some clear text data', 'utf8', 'hex');
     encrypted += cipher.final('hex');
@@ -418,19 +625,57 @@ directly using the `new` keyword.
 
 Example: Using `Decipher` objects as streams:
 
-```js
-const crypto = require('crypto');
+```mjs
+const {
+  scryptSync,
+  createDecipheriv,
+} = await import('crypto');
 
 const algorithm = 'aes-192-cbc';
 const password = 'Password used to generate key';
 // Key length is dependent on the algorithm. In this case for aes192, it is
 // 24 bytes (192 bits).
 // Use the async `crypto.scrypt()` instead.
-const key = crypto.scryptSync(password, 'salt', 24);
+const key = scryptSync(password, 'salt', 24);
 // The IV is usually passed along with the ciphertext.
 const iv = Buffer.alloc(16, 0); // Initialization vector.
 
-const decipher = crypto.createDecipheriv(algorithm, key, iv);
+const decipher = createDecipheriv(algorithm, key, iv);
+
+let decrypted = '';
+decipher.on('readable', () => {
+  while (null !== (chunk = decipher.read())) {
+    decrypted += chunk.toString('utf8');
+  }
+});
+decipher.on('end', () => {
+  console.log(decrypted);
+  // Prints: some clear text data
+});
+
+// Encrypted with same algorithm, key and iv.
+const encrypted =
+  'e5f79c5915c02171eec6b212d5520d44480993d7d622a7c4c2da32f6efda0ffa';
+decipher.write(encrypted, 'hex');
+decipher.end();
+```
+
+```cjs
+const {
+  scryptSync,
+  createDecipheriv,
+} = require('crypto');
+
+const algorithm = 'aes-192-cbc';
+const password = 'Password used to generate key';
+// Key length is dependent on the algorithm. In this case for aes192, it is
+// 24 bytes (192 bits).
+// Use the async `crypto.scrypt()` instead.
+const key = scryptSync(password, 'salt', 24);
+// The IV is usually passed along with the ciphertext.
+const iv = Buffer.alloc(16, 0); // Initialization vector.
+
+const decipher = createDecipheriv(algorithm, key, iv);
 
 let decrypted = '';
 decipher.on('readable', () => {
@@ -452,38 +697,98 @@ decipher.end();
 
 Example: Using `Decipher` and piped streams:
 
-```js
-const crypto = require('crypto');
-const fs = require('fs');
+```mjs
+import {
+  createReadStream,
+  createWriteStream,
+} from 'fs';
+
+const {
+  scryptSync,
+  createDecipheriv,
+} = await import('crypto');
 
 const algorithm = 'aes-192-cbc';
 const password = 'Password used to generate key';
 // Use the async `crypto.scrypt()` instead.
-const key = crypto.scryptSync(password, 'salt', 24);
+const key = scryptSync(password, 'salt', 24);
 // The IV is usually passed along with the ciphertext.
 const iv = Buffer.alloc(16, 0); // Initialization vector.
 
-const decipher = crypto.createDecipheriv(algorithm, key, iv);
+const decipher = createDecipheriv(algorithm, key, iv);
 
-const input = fs.createReadStream('test.enc');
-const output = fs.createWriteStream('test.js');
+const input = createReadStream('test.enc');
+const output = createWriteStream('test.js');
+
+input.pipe(decipher).pipe(output);
+```
+
+```cjs
+const {
+  createReadStream,
+  createWriteStream,
+} = require('fs');
+
+const {
+  scryptSync,
+  createDecipheriv,
+} = require('crypto');
+
+const algorithm = 'aes-192-cbc';
+const password = 'Password used to generate key';
+// Use the async `crypto.scrypt()` instead.
+const key = scryptSync(password, 'salt', 24);
+// The IV is usually passed along with the ciphertext.
+const iv = Buffer.alloc(16, 0); // Initialization vector.
+
+const decipher = createDecipheriv(algorithm, key, iv);
+
+const input = createReadStream('test.enc');
+const output = createWriteStream('test.js');
 
 input.pipe(decipher).pipe(output);
 ```
 
 Example: Using the [`decipher.update()`][] and [`decipher.final()`][] methods:
 
-```js
-const crypto = require('crypto');
+```mjs
+const {
+  scryptSync,
+  createDecipheriv,
+} = await import('crypto');
 
 const algorithm = 'aes-192-cbc';
 const password = 'Password used to generate key';
 // Use the async `crypto.scrypt()` instead.
-const key = crypto.scryptSync(password, 'salt', 24);
+const key = scryptSync(password, 'salt', 24);
 // The IV is usually passed along with the ciphertext.
 const iv = Buffer.alloc(16, 0); // Initialization vector.
 
-const decipher = crypto.createDecipheriv(algorithm, key, iv);
+const decipher = createDecipheriv(algorithm, key, iv);
+
+// Encrypted using same algorithm, key and iv.
+const encrypted =
+  'e5f79c5915c02171eec6b212d5520d44480993d7d622a7c4c2da32f6efda0ffa';
+let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+decrypted += decipher.final('utf8');
+console.log(decrypted);
+// Prints: some clear text data
+```
+
+```cjs
+const {
+  scryptSync,
+  createDecipheriv,
+} = require('crypto');
+
+const algorithm = 'aes-192-cbc';
+const password = 'Password used to generate key';
+// Use the async `crypto.scrypt()` instead.
+const key = scryptSync(password, 'salt', 24);
+// The IV is usually passed along with the ciphertext.
+const iv = Buffer.alloc(16, 0); // Initialization vector.
+
+const decipher = createDecipheriv(algorithm, key, iv);
 
 // Encrypted using same algorithm, key and iv.
 const encrypted =
@@ -633,16 +938,42 @@ exchanges.
 Instances of the `DiffieHellman` class can be created using the
 [`crypto.createDiffieHellman()`][] function.
 
-```js
-const crypto = require('crypto');
-const assert = require('assert');
+```mjs
+import assert from 'assert';
+
+const {
+  createDiffieHellman,
+} = await import('crypto');
 
 // Generate Alice's keys...
-const alice = crypto.createDiffieHellman(2048);
+const alice = createDiffieHellman(2048);
 const aliceKey = alice.generateKeys();
 
 // Generate Bob's keys...
-const bob = crypto.createDiffieHellman(alice.getPrime(), alice.getGenerator());
+const bob = createDiffieHellman(alice.getPrime(), alice.getGenerator());
+const bobKey = bob.generateKeys();
+
+// Exchange and generate the secret...
+const aliceSecret = alice.computeSecret(bobKey);
+const bobSecret = bob.computeSecret(aliceKey);
+
+// OK
+assert.strictEqual(aliceSecret.toString('hex'), bobSecret.toString('hex'));
+```
+
+```cjs
+const assert = require('assert');
+
+const {
+  createDiffieHellman,
+} = require('crypto');
+
+// Generate Alice's keys...
+const alice = createDiffieHellman(2048);
+const aliceKey = alice.generateKeys();
+
+// Generate Bob's keys...
+const bob = createDiffieHellman(alice.getPrime(), alice.getGenerator());
 const bobKey = bob.generateKeys();
 
 // Exchange and generate the secret...
@@ -786,12 +1117,18 @@ added: v0.7.5
 The `DiffieHellmanGroup` class takes a well-known modp group as its argument but
 otherwise works the same as `DiffieHellman`.
 
-```js
-const name = 'modp1';
-const dh = crypto.createDiffieHellmanGroup(name);
+```mjs
+const { createDiffieHellmanGroup } = await import('crypto');
+const dh = createDiffieHellmanGroup('modp1');
 ```
 
-`name` is taken from [RFC 2412][] (modp1 and 2) and [RFC 3526][]:
+```cjs
+const { createDiffieHellmanGroup } = require('crypto');
+const dh = createDiffieHellmanGroup('modp1');
+```
+
+The name (e.g. `'modp1'`) is taken from [RFC 2412][] (modp1 and 2) and
+[RFC 3526][]:
 
 ```console
 $ perl -ne 'print "$1\n" if /"(modp\d+)"/' src/node_crypto_groups.h
@@ -816,16 +1153,42 @@ key exchanges.
 Instances of the `ECDH` class can be created using the
 [`crypto.createECDH()`][] function.
 
-```js
-const crypto = require('crypto');
-const assert = require('assert');
+```mjs
+import assert from 'assert';
+
+const {
+  createECDH,
+} = await import('crypto');
 
 // Generate Alice's keys...
-const alice = crypto.createECDH('secp521r1');
+const alice = createECDH('secp521r1');
 const aliceKey = alice.generateKeys();
 
 // Generate Bob's keys...
-const bob = crypto.createECDH('secp521r1');
+const bob = createECDH('secp521r1');
+const bobKey = bob.generateKeys();
+
+// Exchange and generate the secret...
+const aliceSecret = alice.computeSecret(bobKey);
+const bobSecret = bob.computeSecret(aliceKey);
+
+assert.strictEqual(aliceSecret.toString('hex'), bobSecret.toString('hex'));
+// OK
+```
+
+```cjs
+const assert = require('assert');
+
+const {
+  createECDH,
+} = require('crypto');
+
+// Generate Alice's keys...
+const alice = createECDH('secp521r1');
+const aliceKey = alice.generateKeys();
+
+// Generate Bob's keys...
+const bob = createECDH('secp521r1');
 const bobKey = bob.generateKeys();
 
 // Exchange and generate the secret...
@@ -866,8 +1229,32 @@ If the `inputEncoding` is not provided, `key` is expected to be a [`Buffer`][],
 
 Example (uncompressing a key):
 
-```js
-const { createECDH, ECDH } = require('crypto');
+```mjs
+const {
+  createECDH,
+  ECDH,
+} = await import('crypto');
+
+const ecdh = createECDH('secp256k1');
+ecdh.generateKeys();
+
+const compressedKey = ecdh.getPublicKey('hex', 'compressed');
+
+const uncompressedKey = ECDH.convertKey(compressedKey,
+                                        'secp256k1',
+                                        'hex',
+                                        'hex',
+                                        'uncompressed');
+
+// The converted key and the uncompressed public key should be the same
+console.log(uncompressedKey === ecdh.getPublicKey('hex'));
+```
+
+```cjs
+const {
+  createECDH,
+  ECDH,
+} = require('crypto');
 
 const ecdh = createECDH('secp256k1');
 ecdh.generateKeys();
@@ -1008,16 +1395,47 @@ set.
 
 Example (obtaining a shared secret):
 
-```js
-const crypto = require('crypto');
-const alice = crypto.createECDH('secp256k1');
-const bob = crypto.createECDH('secp256k1');
+```mjs
+const {
+  createECDH,
+  createHash,
+} = await crypto('crypto');
+
+const alice = createECDH('secp256k1');
+const bob = createECDH('secp256k1');
 
 // This is a shortcut way of specifying one of Alice's previous private
 // keys. It would be unwise to use such a predictable private key in a real
 // application.
 alice.setPrivateKey(
-  crypto.createHash('sha256').update('alice', 'utf8').digest()
+  createHash('sha256').update('alice', 'utf8').digest()
+);
+
+// Bob uses a newly generated cryptographically strong
+// pseudorandom key pair
+bob.generateKeys();
+
+const aliceSecret = alice.computeSecret(bob.getPublicKey(), null, 'hex');
+const bobSecret = bob.computeSecret(alice.getPublicKey(), null, 'hex');
+
+// aliceSecret and bobSecret should be the same shared secret value
+console.log(aliceSecret === bobSecret);
+```
+
+```cjs
+const {
+  createECDH,
+  createHash,
+} = require('crypto');
+
+const alice = createECDH('secp256k1');
+const bob = createECDH('secp256k1');
+
+// This is a shortcut way of specifying one of Alice's previous private
+// keys. It would be unwise to use such a predictable private key in a real
+// application.
+alice.setPrivateKey(
+  createHash('sha256').update('alice', 'utf8').digest()
 );
 
 // Bob uses a newly generated cryptographically strong
@@ -1051,9 +1469,34 @@ objects are not to be created directly using the `new` keyword.
 
 Example: Using `Hash` objects as streams:
 
-```js
-const crypto = require('crypto');
-const hash = crypto.createHash('sha256');
+```mjs
+const {
+  createHash,
+} = await import('crypto');
+
+const hash = createHash('sha256');
+
+hash.on('readable', () => {
+  // Only one element is going to be produced by the
+  // hash stream.
+  const data = hash.read();
+  if (data) {
+    console.log(data.toString('hex'));
+    // Prints:
+    //   6a2da20943931e9834fc12cfe5bb47bbd9ae43489a30726962b576f4e3993e50
+  }
+});
+
+hash.write('some data to hash');
+hash.end();
+```
+
+```cjs
+const {
+  createHash,
+} = require('crypto');
+
+const hash = createHash('sha256');
 
 hash.on('readable', () => {
   // Only one element is going to be produced by the
@@ -1072,20 +1515,56 @@ hash.end();
 
 Example: Using `Hash` and piped streams:
 
-```js
-const crypto = require('crypto');
-const fs = require('fs');
-const hash = crypto.createHash('sha256');
+```mjs
+const {
+  createReadStream,
+} = require('fs');
 
-const input = fs.createReadStream('test.js');
+const {
+  createHash,
+} = await import('crypto');
+const hash = createHash('sha256');
+
+const input = createReadStream('test.js');
+input.pipe(hash).setEncoding('hex').pipe(process.stdout);
+```
+
+```cjs
+const {
+  createReadStream,
+} = require('fs');
+
+const {
+  createHash,
+} = require('crypto');
+
+const hash = createHash('sha256');
+
+const input = createReadStream('test.js');
 input.pipe(hash).setEncoding('hex').pipe(process.stdout);
 ```
 
 Example: Using the [`hash.update()`][] and [`hash.digest()`][] methods:
 
-```js
-const crypto = require('crypto');
-const hash = crypto.createHash('sha256');
+```mjs
+const {
+  createHash,
+} = require('crypto');
+
+const hash = createHash('sha256');
+
+hash.update('some data to hash');
+console.log(hash.digest('hex'));
+// Prints:
+//   6a2da20943931e9834fc12cfe5bb47bbd9ae43489a30726962b576f4e3993e50
+```
+
+```cjs
+const {
+  createHash,
+} = require('crypto');
+
+const hash = createHash('sha256');
 
 hash.update('some data to hash');
 console.log(hash.digest('hex'));
@@ -1111,10 +1590,33 @@ specify the desired output length in bytes.
 An error is thrown when an attempt is made to copy the `Hash` object after
 its [`hash.digest()`][] method has been called.
 
-```js
+```mjs
 // Calculate a rolling hash.
-const crypto = require('crypto');
-const hash = crypto.createHash('sha256');
+const {
+  createHash,
+} = require('crypto');
+
+const hash = createHash('sha256');
+
+hash.update('one');
+console.log(hash.copy().digest('hex'));
+
+hash.update('two');
+console.log(hash.copy().digest('hex'));
+
+hash.update('three');
+console.log(hash.copy().digest('hex'));
+
+// Etc.
+```
+
+```cjs
+// Calculate a rolling hash.
+const {
+  createHash,
+} = require('crypto');
+
+const hash = createHash('sha256');
 
 hash.update('one');
 console.log(hash.copy().digest('hex'));
@@ -1184,9 +1686,34 @@ objects are not to be created directly using the `new` keyword.
 
 Example: Using `Hmac` objects as streams:
 
-```js
-const crypto = require('crypto');
-const hmac = crypto.createHmac('sha256', 'a secret');
+```mjs
+const {
+  createHmac,
+} = require('crypto');
+
+const hmac = createHmac('sha256', 'a secret');
+
+hmac.on('readable', () => {
+  // Only one element is going to be produced by the
+  // hash stream.
+  const data = hmac.read();
+  if (data) {
+    console.log(data.toString('hex'));
+    // Prints:
+    //   7fd04df92f636fd450bc841c9418e5825c17f33ad9c87c518115a45971f7f77e
+  }
+});
+
+hmac.write('some data to hash');
+hmac.end();
+```
+
+```cjs
+const {
+  createHmac,
+} = require('crypto');
+
+const hmac = createHmac('sha256', 'a secret');
 
 hmac.on('readable', () => {
   // Only one element is going to be produced by the
@@ -1205,20 +1732,55 @@ hmac.end();
 
 Example: Using `Hmac` and piped streams:
 
-```js
-const crypto = require('crypto');
-const fs = require('fs');
-const hmac = crypto.createHmac('sha256', 'a secret');
+```mjs
+import { createReadStream } from 'fs';
 
-const input = fs.createReadStream('test.js');
+const {
+  createHmac,
+} = await import('crypto');
+
+const hmac = createHmac('sha256', 'a secret');
+
+const input = createReadStream('test.js');
+input.pipe(hmac).pipe(process.stdout);
+```
+
+```cjs
+const {
+  createReadStream,
+} = require('fs');
+
+const {
+  createHmac,
+} = require('crypto');
+
+const hmac = createHmac('sha256', 'a secret');
+
+const input = createReadStream('test.js');
 input.pipe(hmac).pipe(process.stdout);
 ```
 
 Example: Using the [`hmac.update()`][] and [`hmac.digest()`][] methods:
 
-```js
-const crypto = require('crypto');
-const hmac = crypto.createHmac('sha256', 'a secret');
+```mjs
+const {
+  createHmac,
+} = await import('crypto');
+
+const hmac = createHmac('sha256', 'a secret');
+
+hmac.update('some data to hash');
+console.log(hmac.digest('hex'));
+// Prints:
+//   7fd04df92f636fd450bc841c9418e5825c17f33ad9c87c518115a45971f7f77e
+```
+
+```cjs
+const {
+  createHmac,
+} = require('crypto');
+
+const hmac = createHmac('sha256', 'a secret');
 
 hmac.update('some data to hash');
 console.log(hmac.digest('hex'));
@@ -1300,8 +1862,32 @@ added: v15.0.0
 
 Example: Converting a `CryptoKey` instance to a `KeyObject`:
 
-```js
-const { webcrypto: { subtle }, KeyObject } = require('crypto');
+```mjs
+const {
+  webcrypto: {
+    subtle,
+  },
+  KeyObject,
+} = await import('crypto');
+
+const key = await subtle.generateKey({
+  name: 'HMAC',
+  hash: 'SHA-256',
+  length: 256
+}, true, ['sign', 'verify']);
+
+const keyObject = KeyObject.from(key);
+console.log(keyObject.symmetricKeySize);
+// Prints: 32 (symmetric key size in bytes)
+```
+
+```cjs
+const {
+  webcrypto: {
+    subtle,
+  },
+  KeyObject,
+} = require('crypto');
 
 (async function() {
   const key = await subtle.generateKey({
@@ -1468,19 +2054,46 @@ to be created directly using the `new` keyword.
 
 Example: Using `Sign` and [`Verify`][] objects as streams:
 
-```js
-const crypto = require('crypto');
+```mjs
+const {
+  generateKeyPairSync,
+  createSign,
+  createVerify,
+} = await import('crypto');
 
-const { privateKey, publicKey } = crypto.generateKeyPairSync('ec', {
+const { privateKey, publicKey } = generateKeyPairSync('ec', {
   namedCurve: 'sect239k1'
 });
 
-const sign = crypto.createSign('SHA256');
+const sign = createSign('SHA256');
 sign.write('some data to sign');
 sign.end();
 const signature = sign.sign(privateKey, 'hex');
 
-const verify = crypto.createVerify('SHA256');
+const verify = createVerify('SHA256');
+verify.write('some data to sign');
+verify.end();
+console.log(verify.verify(publicKey, signature, 'hex'));
+// Prints: true
+```
+
+```cjs
+const {
+  generateKeyPairSync,
+  createSign,
+  createVerify,
+} = require('crypto');
+
+const { privateKey, publicKey } = generateKeyPairSync('ec', {
+  namedCurve: 'sect239k1'
+});
+
+const sign = createSign('SHA256');
+sign.write('some data to sign');
+sign.end();
+const signature = sign.sign(privateKey, 'hex');
+
+const verify = createVerify('SHA256');
 verify.write('some data to sign');
 verify.end();
 console.log(verify.verify(publicKey, signature, 'hex'));
@@ -1489,19 +2102,46 @@ console.log(verify.verify(publicKey, signature, 'hex'));
 
 Example: Using the [`sign.update()`][] and [`verify.update()`][] methods:
 
-```js
-const crypto = require('crypto');
+```mjs
+const {
+  generateKeyPairSync,
+  createSign,
+  createVerify,
+} = await import('crypto');
 
-const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
+const { privateKey, publicKey } = generateKeyPairSync('rsa', {
   modulusLength: 2048,
 });
 
-const sign = crypto.createSign('SHA256');
+const sign = createSign('SHA256');
 sign.update('some data to sign');
 sign.end();
 const signature = sign.sign(privateKey);
 
-const verify = crypto.createVerify('SHA256');
+const verify = createVerify('SHA256');
+verify.update('some data to sign');
+verify.end();
+console.log(verify.verify(publicKey, signature));
+// Prints: true
+```
+
+```cjs
+const {
+  generateKeyPairSync,
+  createSign,
+  createVerify,
+} = require('crypto');
+
+const { privateKey, publicKey } = generateKeyPairSync('rsa', {
+  modulusLength: 2048,
+});
+
+const sign = createSign('SHA256');
+sign.update('some data to sign');
+sign.end();
+const signature = sign.sign(privateKey);
+
+const verify = createVerify('SHA256');
 verify.update('some data to sign');
 verify.end();
 console.log(verify.verify(publicKey, signature));
@@ -1710,7 +2350,15 @@ added: v15.6.0
 Encapsulates an X509 certificate and provides read-only access to
 its information.
 
-```js
+```mjs
+const { X509Certificate } = await import('crypto');
+
+const x509 = new X509Certificate('{... pem encoded cert ...}');
+
+console.log(x509.subject);
+```
+
+```cjs
 const { X509Certificate } = require('crypto');
 
 const x509 = new X509Certificate('{... pem encoded cert ...}');
@@ -2374,14 +3022,46 @@ display the available digest algorithms.
 
 Example: generating the sha256 sum of a file
 
-```js
+```mjs
+import {
+  createReadStream
+} from 'fs';
+
+const {
+  createHash,
+} = await import('crypto');
+
 const filename = process.argv[2];
-const crypto = require('crypto');
-const fs = require('fs');
 
-const hash = crypto.createHash('sha256');
+const hash = createHash('sha256');
 
-const input = fs.createReadStream(filename);
+const input = createReadStream(filename);
+input.on('readable', () => {
+  // Only one element is going to be produced by the
+  // hash stream.
+  const data = input.read();
+  if (data)
+    hash.update(data);
+  else {
+    console.log(`${hash.digest('hex')} ${filename}`);
+  }
+});
+```
+
+```cjs
+const {
+  createReadStream,
+} = require('fs');
+
+const {
+  createHash,
+} = require('crypto');
+
+const filename = process.argv[2];
+
+const hash = createHash('sha256');
+
+const input = createReadStream(filename);
 input.on('readable', () => {
   // Only one element is going to be produced by the
   // hash stream.
@@ -2428,14 +3108,46 @@ a [`KeyObject`][], its type must be `secret`.
 
 Example: generating the sha256 HMAC of a file
 
-```js
+```mjs
+import {
+  createReadStream
+} from 'fs';
+
+const {
+  createHmac,
+} = await import('crypto');
+
 const filename = process.argv[2];
-const crypto = require('crypto');
-const fs = require('fs');
 
-const hmac = crypto.createHmac('sha256', 'a secret');
+const hmac = createHmac('sha256', 'a secret');
 
-const input = fs.createReadStream(filename);
+const input = createReadStream(filename);
+input.on('readable', () => {
+  // Only one element is going to be produced by the
+  // hash stream.
+  const data = input.read();
+  if (data)
+    hmac.update(data);
+  else {
+    console.log(`${hmac.digest('hex')} ${filename}`);
+  }
+});
+```
+
+```cjs
+const {
+  createReadStream,
+} = require('fs');
+
+const {
+  createHmac,
+} = require('crypto');
+
+const filename = process.argv[2];
+
+const hmac = createHmac('sha256', 'a secret');
+
+const input = createReadStream(filename);
 input.on('readable', () => {
   // Only one element is going to be produced by the
   // hash stream.
@@ -2622,8 +3334,21 @@ added: v15.0.0
 Asynchronously generates a new random secret key of the given `length`. The
 `type` will determine which validations will be performed on the `length`.
 
-```js
-const { generateKey } = require('crypto');
+```mjs
+const {
+  generateKey,
+} = await import('crypto');
+
+generateKey('hmac', { length: 64 }, (err, key) => {
+  if (err) throw err;
+  console.log(key.export().toString('hex'));  // 46e..........620
+});
+```
+
+```cjs
+const {
+  generateKey,
+} = require('crypto');
 
 generateKey('hmac', { length: 64 }, (err, key) => {
   if (err) throw err;
@@ -2681,8 +3406,33 @@ the respective part of the key is returned as a [`KeyObject`][].
 It is recommended to encode public keys as `'spki'` and private keys as
 `'pkcs8'` with encryption for long-term storage:
 
-```js
-const { generateKeyPair } = require('crypto');
+```mjs
+const {
+  generateKeyPair,
+} = await import('crypto');
+
+generateKeyPair('rsa', {
+  modulusLength: 4096,
+  publicKeyEncoding: {
+    type: 'spki',
+    format: 'pem'
+  },
+  privateKeyEncoding: {
+    type: 'pkcs8',
+    format: 'pem',
+    cipher: 'aes-256-cbc',
+    passphrase: 'top secret'
+  }
+}, (err, publicKey, privateKey) => {
+  // Handle errors and use the generated key pair.
+});
+```
+
+```cjs
+const {
+  generateKeyPair,
+} = require('crypto');
+
 generateKeyPair('rsa', {
   modulusLength: 4096,
   publicKeyEncoding: {
@@ -2753,9 +3503,38 @@ When encoding public keys, it is recommended to use `'spki'`. When encoding
 private keys, it is recommended to use `'pkcs8'` with a strong passphrase,
 and to keep the passphrase confidential.
 
-```js
-const { generateKeyPairSync } = require('crypto');
-const { publicKey, privateKey } = generateKeyPairSync('rsa', {
+```mjs
+const {
+  generateKeyPairSync,
+} = await import('crypto');
+
+const {
+  publicKey,
+  privateKey,
+} = generateKeyPairSync('rsa', {
+  modulusLength: 4096,
+  publicKeyEncoding: {
+    type: 'spki',
+    format: 'pem'
+  },
+  privateKeyEncoding: {
+    type: 'pkcs8',
+    format: 'pem',
+    cipher: 'aes-256-cbc',
+    passphrase: 'top secret'
+  }
+});
+```
+
+```cjs
+const {
+  generateKeyPairSync,
+} = require('crypto');
+
+const {
+  publicKey,
+  privateKey,
+} = generateKeyPairSync('rsa', {
   modulusLength: 4096,
   publicKeyEncoding: {
     type: 'spki',
@@ -2792,8 +3571,19 @@ added: v15.0.0
 Synchronously generates a new random secret key of the given `length`. The
 `type` will determine which validations will be performed on the `length`.
 
-```js
-const { generateKeySync } = require('crypto');
+```mjs
+const {
+  generateKeySync,
+} = await import('crypto');
+
+const key = generateKeySync('hmac', 64);
+console.log(key.export().toString('hex'));  // e89..........41e
+```
+
+```cjs
+const {
+  generateKeySync,
+} = require('crypto');
 
 const key = generateKeySync('hmac', 64);
 console.log(key.export().toString('hex'));  // e89..........41e
@@ -2918,9 +3708,20 @@ added: v0.9.3
 * Returns: {string[]} An array with the names of the supported cipher
   algorithms.
 
-```js
-const ciphers = crypto.getCiphers();
-console.log(ciphers); // ['aes-128-cbc', 'aes-128-ccm', ...]
+```mjs
+const {
+  getCiphers,
+} = await import('crypto');
+
+console.log(getCiphers()); // ['aes-128-cbc', 'aes-128-ccm', ...]
+```
+
+```cjs
+const {
+  getCiphers,
+} = require('crypto');
+
+console.log(getCiphers()); // ['aes-128-cbc', 'aes-128-ccm', ...]
 ```
 
 ### `crypto.getCurves()`
@@ -2930,9 +3731,20 @@ added: v2.3.0
 
 * Returns: {string[]} An array with the names of the supported elliptic curves.
 
-```js
-const curves = crypto.getCurves();
-console.log(curves); // ['Oakley-EC2N-3', 'Oakley-EC2N-4', ...]
+```mjs
+const {
+  getCurves,
+} = await import('crypto');
+
+console.log(getCurves()); // ['Oakley-EC2N-3', 'Oakley-EC2N-4', ...]
+```
+
+```cjs
+const {
+  getCurves,
+} = require('crypto');
+
+console.log(getCurves()); // ['Oakley-EC2N-3', 'Oakley-EC2N-4', ...]
 ```
 
 ### `crypto.getDiffieHellman(groupName)`
@@ -2956,10 +3768,30 @@ and communication time.
 
 Example (obtaining a shared secret):
 
-```js
-const crypto = require('crypto');
-const alice = crypto.getDiffieHellman('modp14');
-const bob = crypto.getDiffieHellman('modp14');
+```mjs
+const {
+  getDiffieHellman,
+} = await import('crypto');
+const alice = getDiffieHellman('modp14');
+const bob = getDiffieHellman('modp14');
+
+alice.generateKeys();
+bob.generateKeys();
+
+const aliceSecret = alice.computeSecret(bob.getPublicKey(), null, 'hex');
+const bobSecret = bob.computeSecret(alice.getPublicKey(), null, 'hex');
+
+/* aliceSecret and bobSecret should be the same */
+console.log(aliceSecret === bobSecret);
+```
+
+```cjs
+const {
+  getDiffieHellman,
+} = require('crypto');
+
+const alice = getDiffieHellman('modp14');
+const bob = getDiffieHellman('modp14');
 
 alice.generateKeys();
 bob.generateKeys();
@@ -2988,9 +3820,20 @@ added: v0.9.3
 * Returns: {string[]} An array of the names of the supported hash algorithms,
   such as `'RSA-SHA256'`. Hash algorithms are also called "digest" algorithms.
 
-```js
-const hashes = crypto.getHashes();
-console.log(hashes); // ['DSA', 'DSA-SHA', 'DSA-SHA1', ...]
+```mjs
+const {
+  getHashes,
+} = await import('crypto');
+
+console.log(getHashes()); // ['DSA', 'DSA-SHA', 'DSA-SHA1', ...]
+```
+
+```cjs
+const {
+  getHashes,
+} = require('crypto');
+
+console.log(getHashes()); // ['DSA', 'DSA-SHA', 'DSA-SHA1', ...]
 ```
 
 ### `crypto.hkdf(digest, key, salt, info, keylen, callback)`
@@ -3022,9 +3865,23 @@ otherwise `err` will be `null`. The successfully generated `derivedKey` will
 be passed to the callback as an {ArrayBuffer}. An error will be thrown if any
 of the input aguments specify invalid values or types.
 
-```js
-const crypto = require('crypto');
-crypto.hkdf('sha512', 'key', 'salt', 'info', 64, (err, derivedKey) => {
+```mjs
+const {
+  hkdf,
+} = await import('crypto');
+
+hkdf('sha512', 'key', 'salt', 'info', 64, (err, derivedKey) => {
+  if (err) throw err;
+  console.log(Buffer.from(derivedKey).toString('hex'));  // '24156e2...5391653'
+});
+```
+
+```cjs
+const {
+  hkdf,
+} = require('crypto');
+
+hkdf('sha512', 'key', 'salt', 'info', 64, (err, derivedKey) => {
   if (err) throw err;
   console.log(Buffer.from(derivedKey).toString('hex'));  // '24156e2...5391653'
 });
@@ -3057,9 +3914,21 @@ The successfully generated `derivedKey` will be returned as an {ArrayBuffer}.
 An error will be thrown if any of the input aguments specify invalid values or
 types, or if the derived key cannot be generated.
 
-```js
-const crypto = require('crypto');
-const derivedKey = crypto.hkdfSync('sha512', 'key', 'salt', 'info', 64);
+```mjs
+const {
+  hkdfSync,
+} = await import('crypto');
+
+const derivedKey = hkdfSync('sha512', 'key', 'salt', 'info', 64);
+console.log(Buffer.from(derivedKey).toString('hex'));  // '24156e2...5391653'
+```
+
+```cjs
+const {
+  hkdfSync,
+} = require('crypto');
+
+const derivedKey = hkdfSync('sha512', 'key', 'salt', 'info', 64);
 console.log(Buffer.from(derivedKey).toString('hex'));  // '24156e2...5391653'
 ```
 
@@ -3121,9 +3990,23 @@ random and at least 16 bytes long. See [NIST SP 800-132][] for details.
 When passing strings for `password` or `salt`, please consider
 [caveats when using strings as inputs to cryptographic APIs][].
 
-```js
-const crypto = require('crypto');
-crypto.pbkdf2('secret', 'salt', 100000, 64, 'sha512', (err, derivedKey) => {
+```mjs
+const {
+  pbkdf2,
+} = await import('crypto');
+
+pbkdf2('secret', 'salt', 100000, 64, 'sha512', (err, derivedKey) => {
+  if (err) throw err;
+  console.log(derivedKey.toString('hex'));  // '3745e48...08d59ae'
+});
+```
+
+```cjs
+const {
+  pbkdf2,
+} = require('crypto');
+
+pbkdf2('secret', 'salt', 100000, 64, 'sha512', (err, derivedKey) => {
   if (err) throw err;
   console.log(derivedKey.toString('hex'));  // '3745e48...08d59ae'
 });
@@ -3133,7 +4016,16 @@ The `crypto.DEFAULT_ENCODING` property can be used to change the way the
 `derivedKey` is passed to the callback. This property, however, has been
 deprecated and use should be avoided.
 
-```js
+```mjs
+const crypto = await import('crypto');
+crypto.DEFAULT_ENCODING = 'hex';
+crypto.pbkdf2('secret', 'salt', 100000, 512, 'sha512', (err, derivedKey) => {
+  if (err) throw err;
+  console.log(derivedKey);  // '3745e48...aa39b34'
+});
+```
+
+```cjs
 const crypto = require('crypto');
 crypto.DEFAULT_ENCODING = 'hex';
 crypto.pbkdf2('secret', 'salt', 100000, 512, 'sha512', (err, derivedKey) => {
@@ -3195,9 +4087,21 @@ random and at least 16 bytes long. See [NIST SP 800-132][] for details.
 When passing strings for `password` or `salt`, please consider
 [caveats when using strings as inputs to cryptographic APIs][].
 
-```js
-const crypto = require('crypto');
-const key = crypto.pbkdf2Sync('secret', 'salt', 100000, 64, 'sha512');
+```mjs
+const {
+  pbkdf2Sync,
+} = await import('crypto');
+
+const key = pbkdf2Sync('secret', 'salt', 100000, 64, 'sha512');
+console.log(key.toString('hex'));  // '3745e48...08d59ae'
+```
+
+```cjs
+const {
+  pbkdf2Sync,
+} = require('crypto');
+
+const key = pbkdf2Sync('secret', 'salt', 100000, 64, 'sha512');
 console.log(key.toString('hex'));  // '3745e48...08d59ae'
 ```
 
@@ -3205,7 +4109,14 @@ The `crypto.DEFAULT_ENCODING` property may be used to change the way the
 `derivedKey` is returned. This property, however, is deprecated and use
 should be avoided.
 
-```js
+```mjs
+const crypto = await import('crypto');
+crypto.DEFAULT_ENCODING = 'hex';
+const key = crypto.pbkdf2Sync('secret', 'salt', 100000, 512, 'sha512');
+console.log(key);  // '3745e48...aa39b34'
+```
+
+```cjs
 const crypto = require('crypto');
 crypto.DEFAULT_ENCODING = 'hex';
 const key = crypto.pbkdf2Sync('secret', 'salt', 100000, 512, 'sha512');
@@ -3413,10 +4324,25 @@ and the `callback` function is invoked with two arguments: `err` and `buf`.
 If an error occurs, `err` will be an `Error` object; otherwise it is `null`. The
 `buf` argument is a [`Buffer`][] containing the generated bytes.
 
-```js
+```mjs
 // Asynchronous
-const crypto = require('crypto');
-crypto.randomBytes(256, (err, buf) => {
+const {
+  randomBytes,
+} = await import('crypto');
+
+randomBytes(256, (err, buf) => {
+  if (err) throw err;
+  console.log(`${buf.length} bytes of random data: ${buf.toString('hex')}`);
+});
+```
+
+```cjs
+// Asynchronous
+const {
+  randomBytes,
+} = require('crypto');
+
+randomBytes(256, (err, buf) => {
   if (err) throw err;
   console.log(`${buf.length} bytes of random data: ${buf.toString('hex')}`);
 });
@@ -3426,9 +4352,24 @@ If the `callback` function is not provided, the random bytes are generated
 synchronously and returned as a [`Buffer`][]. An error will be thrown if
 there is a problem generating the bytes.
 
-```js
+```mjs
 // Synchronous
-const buf = crypto.randomBytes(256);
+const {
+  randomBytes,
+} = await import('crypto');
+
+const buf = randomBytes(256);
+console.log(
+  `${buf.length} bytes of random data: ${buf.toString('hex')}`);
+```
+
+```cjs
+// Synchronous
+const {
+  randomBytes,
+} = require('crypto');
+
+const buf = randomBytes(256);
 console.log(
   `${buf.length} bytes of random data: ${buf.toString('hex')}`);
 ```
@@ -3469,36 +4410,81 @@ changes:
 
 Synchronous version of [`crypto.randomFill()`][].
 
-```js
-const buf = Buffer.alloc(10);
-console.log(crypto.randomFillSync(buf).toString('hex'));
+```mjs
+const {
+  randomFillSync,
+} = await import('crypto');
 
-crypto.randomFillSync(buf, 5);
+const buf = Buffer.alloc(10);
+console.log(randomFillSync(buf).toString('hex'));
+
+randomFillSync(buf, 5);
 console.log(buf.toString('hex'));
 
 // The above is equivalent to the following:
-crypto.randomFillSync(buf, 5, 5);
+randomFillSync(buf, 5, 5);
+console.log(buf.toString('hex'));
+```
+
+```cjs
+const {
+  randomFillSync,
+} = require('crypto');
+
+const buf = Buffer.alloc(10);
+console.log(randomFillSync(buf).toString('hex'));
+
+randomFillSync(buf, 5);
+console.log(buf.toString('hex'));
+
+// The above is equivalent to the following:
+randomFillSync(buf, 5, 5);
 console.log(buf.toString('hex'));
 ```
 
 Any `ArrayBuffer`, `TypedArray` or `DataView` instance may be passed as
 `buffer`.
 
-```js
+```mjs
+const {
+  randomFillSync,
+} = await import('crypto');
+
 const a = new Uint32Array(10);
-console.log(Buffer.from(crypto.randomFillSync(a).buffer,
+console.log(Buffer.from(randomFillSync(a).buffer,
                         a.byteOffset, a.byteLength).toString('hex'));
 
 const b = new Float64Array(10);
-console.log(Buffer.from(crypto.randomFillSync(b).buffer,
+console.log(Buffer.from(randomFillSync(b).buffer,
                         b.byteOffset, b.byteLength).toString('hex'));
 
 const c = new DataView(new ArrayBuffer(10));
-console.log(Buffer.from(crypto.randomFillSync(c).buffer,
+console.log(Buffer.from(randomFillSync(c).buffer,
                         c.byteOffset, c.byteLength).toString('hex'));
 
 const d = new ArrayBuffer(10);
-console.log(Buffer.from(crypto.randomFillSync(d)).toString('hex'));
+console.log(Buffer.from(randomFillSync(d)).toString('hex'));
+```
+
+```cjs
+const {
+  randomFillSync,
+} = require('crypto');
+
+const a = new Uint32Array(10);
+console.log(Buffer.from(randomFillSync(a).buffer,
+                        a.byteOffset, a.byteLength).toString('hex'));
+
+const b = new Float64Array(10);
+console.log(Buffer.from(randomFillSync(b).buffer,
+                        b.byteOffset, b.byteLength).toString('hex'));
+
+const c = new DataView(new ArrayBuffer(10));
+console.log(Buffer.from(randomFillSync(c).buffer,
+                        c.byteOffset, c.byteLength).toString('hex'));
+
+const d = new ArrayBuffer(10);
+console.log(Buffer.from(randomFillSync(d)).toString('hex'));
 ```
 
 ### `crypto.randomFill(buffer[, offset][, size], callback)`
@@ -3525,20 +4511,47 @@ requires that a callback is passed in.
 
 If the `callback` function is not provided, an error will be thrown.
 
-```js
+```mjs
+const {
+  randomFill,
+} = await import('crypto');
+
 const buf = Buffer.alloc(10);
-crypto.randomFill(buf, (err, buf) => {
+randomFill(buf, (err, buf) => {
   if (err) throw err;
   console.log(buf.toString('hex'));
 });
 
-crypto.randomFill(buf, 5, (err, buf) => {
+randomFill(buf, 5, (err, buf) => {
   if (err) throw err;
   console.log(buf.toString('hex'));
 });
 
 // The above is equivalent to the following:
-crypto.randomFill(buf, 5, 5, (err, buf) => {
+randomFill(buf, 5, 5, (err, buf) => {
+  if (err) throw err;
+  console.log(buf.toString('hex'));
+});
+```
+
+```cjs
+const {
+  randomFill,
+} = require('crypto');
+
+const buf = Buffer.alloc(10);
+randomFill(buf, (err, buf) => {
+  if (err) throw err;
+  console.log(buf.toString('hex'));
+});
+
+randomFill(buf, 5, (err, buf) => {
+  if (err) throw err;
+  console.log(buf.toString('hex'));
+});
+
+// The above is equivalent to the following:
+randomFill(buf, 5, 5, (err, buf) => {
   if (err) throw err;
   console.log(buf.toString('hex'));
 });
@@ -3547,30 +4560,67 @@ crypto.randomFill(buf, 5, 5, (err, buf) => {
 Any `ArrayBuffer` `TypedArray` or `DataView` instance may be passed as
 `buffer`.
 
-```js
+```mjs
+const {
+  randomFill,
+} = await import('crypto');
+
 const a = new Uint32Array(10);
-crypto.randomFill(a, (err, buf) => {
+randomFill(a, (err, buf) => {
   if (err) throw err;
   console.log(Buffer.from(buf.buffer, buf.byteOffset, buf.byteLength)
     .toString('hex'));
 });
 
 const b = new Float64Array(10);
-crypto.randomFill(b, (err, buf) => {
+randomFill(b, (err, buf) => {
   if (err) throw err;
   console.log(Buffer.from(buf.buffer, buf.byteOffset, buf.byteLength)
     .toString('hex'));
 });
 
 const c = new DataView(new ArrayBuffer(10));
-crypto.randomFill(c, (err, buf) => {
+randomFill(c, (err, buf) => {
   if (err) throw err;
   console.log(Buffer.from(buf.buffer, buf.byteOffset, buf.byteLength)
     .toString('hex'));
 });
 
 const d = new ArrayBuffer(10);
-crypto.randomFill(d, (err, buf) => {
+randomFill(d, (err, buf) => {
+  if (err) throw err;
+  console.log(Buffer.from(buf).toString('hex'));
+});
+```
+
+```cjs
+const {
+  randomFill,
+} = require('crypto');
+
+const a = new Uint32Array(10);
+randomFill(a, (err, buf) => {
+  if (err) throw err;
+  console.log(Buffer.from(buf.buffer, buf.byteOffset, buf.byteLength)
+    .toString('hex'));
+});
+
+const b = new Float64Array(10);
+randomFill(b, (err, buf) => {
+  if (err) throw err;
+  console.log(Buffer.from(buf.buffer, buf.byteOffset, buf.byteLength)
+    .toString('hex'));
+});
+
+const c = new DataView(new ArrayBuffer(10));
+randomFill(c, (err, buf) => {
+  if (err) throw err;
+  console.log(Buffer.from(buf.buffer, buf.byteOffset, buf.byteLength)
+    .toString('hex'));
+});
+
+const d = new ArrayBuffer(10);
+randomFill(d, (err, buf) => {
   if (err) throw err;
   console.log(Buffer.from(buf).toString('hex'));
 });
@@ -3605,23 +4655,67 @@ be [safe integers][].
 If the `callback` function is not provided, the random integer is
 generated synchronously.
 
-```js
+```mjs
 // Asynchronous
-crypto.randomInt(3, (err, n) => {
+const {
+  randomInt,
+} = await import('crypto');
+
+randomInt(3, (err, n) => {
   if (err) throw err;
   console.log(`Random number chosen from (0, 1, 2): ${n}`);
 });
 ```
 
-```js
+```cjs
+// Asynchronous
+const {
+  randomInt,
+} = require('crypto');
+
+randomInt(3, (err, n) => {
+  if (err) throw err;
+  console.log(`Random number chosen from (0, 1, 2): ${n}`);
+});
+```
+
+```mjs
 // Synchronous
-const n = crypto.randomInt(3);
+const {
+  randomInt,
+} = await import('crypto');
+
+const n = randomInt(3);
 console.log(`Random number chosen from (0, 1, 2): ${n}`);
 ```
 
-```js
+```cjs
+// Synchronous
+const {
+  randomInt,
+} = require('crypto');
+
+const n = randomInt(3);
+console.log(`Random number chosen from (0, 1, 2): ${n}`);
+```
+
+```mjs
 // With `min` argument
-const n = crypto.randomInt(1, 7);
+const {
+  randomInt,
+} = await import('crypto');
+
+const n = randomInt(1, 7);
+console.log(`The dice rolled: ${n}`);
+```
+
+```cjs
+// With `min` argument
+const {
+  randomInt,
+} = require('crypto');
+
+const n = randomInt(1, 7);
 console.log(`The dice rolled: ${n}`);
 ```
 
@@ -3693,15 +4787,35 @@ The `callback` function is called with two arguments: `err` and `derivedKey`.
 An exception is thrown when any of the input arguments specify invalid values
 or types.
 
-```js
-const crypto = require('crypto');
+```mjs
+const {
+  scrypt,
+} = await import('crypto');
+
 // Using the factory defaults.
-crypto.scrypt('password', 'salt', 64, (err, derivedKey) => {
+scrypt('password', 'salt', 64, (err, derivedKey) => {
   if (err) throw err;
   console.log(derivedKey.toString('hex'));  // '3745e48...08d59ae'
 });
 // Using a custom N parameter. Must be a power of two.
-crypto.scrypt('password', 'salt', 64, { N: 1024 }, (err, derivedKey) => {
+scrypt('password', 'salt', 64, { N: 1024 }, (err, derivedKey) => {
+  if (err) throw err;
+  console.log(derivedKey.toString('hex'));  // '3745e48...aa39b34'
+});
+```
+
+```cjs
+const {
+  scrypt,
+} = require('crypto');
+
+// Using the factory defaults.
+scrypt('password', 'salt', 64, (err, derivedKey) => {
+  if (err) throw err;
+  console.log(derivedKey.toString('hex'));  // '3745e48...08d59ae'
+});
+// Using a custom N parameter. Must be a power of two.
+scrypt('password', 'salt', 64, { N: 1024 }, (err, derivedKey) => {
   if (err) throw err;
   console.log(derivedKey.toString('hex'));  // '3745e48...aa39b34'
 });
@@ -3753,13 +4867,29 @@ returned as a [`Buffer`][].
 An exception is thrown when any of the input arguments specify invalid values
 or types.
 
-```js
-const crypto = require('crypto');
+```mjs
+const {
+  scryptSync,
+} = await import('crypto');
 // Using the factory defaults.
-const key1 = crypto.scryptSync('password', 'salt', 64);
+
+const key1 = scryptSync('password', 'salt', 64);
 console.log(key1.toString('hex'));  // '3745e48...08d59ae'
 // Using a custom N parameter. Must be a power of two.
-const key2 = crypto.scryptSync('password', 'salt', 64, { N: 1024 });
+const key2 = scryptSync('password', 'salt', 64, { N: 1024 });
+console.log(key2.toString('hex'));  // '3745e48...aa39b34'
+```
+
+```cjs
+const {
+  scryptSync,
+} = require('crypto');
+// Using the factory defaults.
+
+const key1 = scryptSync('password', 'salt', 64);
+console.log(key1.toString('hex'));  // '3745e48...08d59ae'
+// Using a custom N parameter. Must be a power of two.
+const key2 = scryptSync('password', 'salt', 64, { N: 1024 });
 console.log(key2.toString('hex'));  // '3745e48...aa39b34'
 ```
 
@@ -4094,15 +5224,19 @@ mode must adhere to certain restrictions when using the cipher API:
   applications *must* call `final()` to compute or verify the
   authentication tag.
 
-```js
-const crypto = require('crypto');
+```mjs
+const {
+  createCipheriv,
+  createDecipheriv,
+  randomBytes,
+} = await import('crypto');
 
 const key = 'keykeykeykeykeykeykeykey';
-const nonce = crypto.randomBytes(12);
+const nonce = randomBytes(12);
 
 const aad = Buffer.from('0123456789', 'hex');
 
-const cipher = crypto.createCipheriv('aes-192-ccm', key, nonce, {
+const cipher = createCipheriv('aes-192-ccm', key, nonce, {
   authTagLength: 16
 });
 const plaintext = 'Hello world';
@@ -4115,7 +5249,51 @@ const tag = cipher.getAuthTag();
 
 // Now transmit { ciphertext, nonce, tag }.
 
-const decipher = crypto.createDecipheriv('aes-192-ccm', key, nonce, {
+const decipher = createDecipheriv('aes-192-ccm', key, nonce, {
+  authTagLength: 16
+});
+decipher.setAuthTag(tag);
+decipher.setAAD(aad, {
+  plaintextLength: ciphertext.length
+});
+const receivedPlaintext = decipher.update(ciphertext, null, 'utf8');
+
+try {
+  decipher.final();
+} catch (err) {
+  console.error('Authentication failed!');
+  return;
+}
+
+console.log(receivedPlaintext);
+```
+
+```cjs
+const {
+  createCipheriv,
+  createDecipheriv,
+  randomBytes,
+} = require('crypto');
+
+const key = 'keykeykeykeykeykeykeykey';
+const nonce = randomBytes(12);
+
+const aad = Buffer.from('0123456789', 'hex');
+
+const cipher = createCipheriv('aes-192-ccm', key, nonce, {
+  authTagLength: 16
+});
+const plaintext = 'Hello world';
+cipher.setAAD(aad, {
+  plaintextLength: Buffer.byteLength(plaintext)
+});
+const ciphertext = cipher.update(plaintext, 'utf8');
+cipher.final();
+const tag = cipher.getAuthTag();
+
+// Now transmit { ciphertext, nonce, tag }.
+
+const decipher = createDecipheriv('aes-192-ccm', key, nonce, {
   authTagLength: 16
 });
 decipher.setAuthTag(tag);
