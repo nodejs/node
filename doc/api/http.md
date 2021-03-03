@@ -2819,6 +2819,7 @@ changes:
     avoided. See [`--insecure-http-parser`][] for more information.
     **Default:** `false`
   * `localAddress` {string} Local interface to bind for network connections.
+  * `localPort` {number} Local port to connect from.
   * `lookup` {Function} Custom lookup function. **Default:** [`dns.lookup()`][].
   * `maxHeaderSize` {number} Optionally overrides the value of
     [`--max-http-header-size`][] for requests received from the server, i.e.
