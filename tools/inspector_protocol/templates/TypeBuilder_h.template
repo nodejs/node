@@ -26,8 +26,6 @@
 namespace {{namespace}} {
 {% endfor %}
 namespace {{domain.domain}} {
-
-// ------------- Forward and enum declarations.
   {% for type in domain.types %}
     {% if not protocol.generate_type(domain.domain, type.id) %}{% continue %}{% endif %}
     {% if type.type == "object" %}
@@ -40,6 +38,8 @@ using {{type.id}} = Object;
 using {{type.id}} = {{protocol.resolve_type(type).type}};
     {% endif %}
   {% endfor %}
+
+// ------------- Forward and enum declarations.
   {% for type in domain.types %}
     {% if not protocol.generate_type(domain.domain, type.id) %}{% continue %}{% endif %}
     {% if "enum" in type %}
@@ -71,11 +71,9 @@ namespace {{param.name | to_title_case}}Enum {
     {% if not protocol.generate_type(domain.domain, type.id) %}{% continue %}{% endif %}
     {% if not (type.type == "object") or not ("properties" in type) %}{% continue %}{% endif %}
 
-class {{config.protocol.export_macro}} {{type.id}} : public Serializable{% if protocol.is_exported(domain.domain, type.id) %}, public API::{{type.id}}{% endif %}{
-    PROTOCOL_DISALLOW_COPY({{type.id}});
+class {{config.protocol.export_macro}} {{type.id}} : public ::{{config.crdtp.namespace}}::ProtocolObject<{{type.id}}>{% if protocol.is_exported(domain.domain, type.id) %},
+    public API::{{type.id}}{% endif %} {
 public:
-    static std::unique_ptr<{{type.id}}> fromValue(protocol::Value* value, ErrorSupport* errors);
-
     ~{{type.id}}() override { }
     {% for property in type.properties %}
       {% set property_type = protocol.resolve_type(property) %}
@@ -98,16 +96,6 @@ public:
       {% endif %}
     void {{"set" | to_method_case}}{{property_name}}({{property_type.pass_type}} value) { {{property_field}} = {{property_type.to_rvalue % "value"}}; }
     {% endfor %}
-
-    std::unique_ptr<protocol::DictionaryValue> toValue() const;
-    String serializeToJSON() override { return toValue()->serializeToJSON(); }
-    std::vector<uint8_t> serializeToBinary() override { return toValue()->serializeToBinary(); }
-    String toJSON() const { return toValue()->toJSONString(); }
-    std::unique_ptr<{{type.id}}> clone() const;
-    {% if protocol.is_exported(domain.domain, type.id) %}
-    {{config.exported.string_out}} toJSONString() const override;
-    void writeBinary(std::vector<uint8_t>* out) const override;
-    {% endif %}
 
     template<int STATE>
     class {{type.id}}Builder {
@@ -166,6 +154,8 @@ public:
     }
 
 private:
+    DECLARE_SERIALIZATION_SUPPORT();
+
     {{type.id}}()
     {
     {% for property in type.properties %}
@@ -245,7 +235,7 @@ public:
   {% if protocol.generate_disable(domain) %}
     virtual DispatchResponse {{"disable" | to_method_case}}()
     {
-        return DispatchResponse::OK();
+        return DispatchResponse::Success();
     }
   {% endif %}
 };
@@ -254,7 +244,7 @@ public:
 
 class {{config.protocol.export_macro}} Frontend {
 public:
-    explicit Frontend(FrontendChannel* frontendChannel) : m_frontendChannel(frontendChannel) { }
+  explicit Frontend(FrontendChannel* frontend_channel) : frontend_channel_(frontend_channel) {}
   {% for event in domain.events %}
     {% if not protocol.generate_event(domain.domain, event.name) %}{% continue %}{% endif %}
     void {{event.name | to_method_case}}(
@@ -268,11 +258,10 @@ public:
     );
   {% endfor %}
 
-    void flush();
-    void sendRawJSONNotification(String);
-    void sendRawCBORNotification(std::vector<uint8_t>);
-private:
-    FrontendChannel* m_frontendChannel;
+  void flush();
+  void sendRawNotification(std::unique_ptr<Serializable>);
+ private:
+  FrontendChannel* frontend_channel_;
 };
 
 // ------------- Dispatcher.

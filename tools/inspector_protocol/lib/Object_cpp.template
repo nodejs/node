@@ -14,11 +14,16 @@ std::unique_ptr<Object> Object::fromValue(protocol::Value* value, ErrorSupport* 
 {
     protocol::DictionaryValue* dictionary = DictionaryValue::cast(value);
     if (!dictionary) {
-        errors->addError("object expected");
+        errors->AddError("object expected");
         return nullptr;
     }
     dictionary = static_cast<protocol::DictionaryValue*>(dictionary->clone().release());
     return std::unique_ptr<Object>(new Object(std::unique_ptr<DictionaryValue>(dictionary)));
+}
+
+// Implements Serializable.
+void Object::AppendSerialized(std::vector<uint8_t>* out) const {
+    m_object->AppendSerialized(out);
 }
 
 std::unique_ptr<protocol::DictionaryValue> Object::toValue() const

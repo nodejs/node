@@ -209,7 +209,7 @@ std::string GetWorkerLabel(node::Environment* env) {
 }
 
 class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
-                          public protocol::FrontendChannel {
+                          public v8_inspector_protocol_crdtp::FrontendChannel {
  public:
   explicit ChannelImpl(Environment* env,
                        const std::unique_ptr<V8Inspector>& inspector,
@@ -220,7 +220,7 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
       : delegate_(std::move(delegate)), prevent_shutdown_(prevent_shutdown),
         retaining_context_(false) {
     session_ = inspector->connect(CONTEXT_GROUP_ID, this, StringView());
-    node_dispatcher_ = std::make_unique<protocol::UberDispatcher>(this);
+    node_dispatcher_ = std::make_unique<v8_inspector_protocol_crdtp::UberDispatcher>(this);
     tracing_agent_ =
         std::make_unique<protocol::TracingAgent>(env, main_thread_);
     tracing_agent_->Wire(node_dispatcher_.get());
@@ -300,7 +300,7 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     sendMessageToFrontend(Utf8ToStringView(message)->string());
   }
 
-  using Serializable = protocol::Serializable;
+  using Serializable = v8_inspector_protocol_crdtp::Serializable;
 
   void sendProtocolResponse(int callId,
                             std::unique_ptr<Serializable> message) override {
@@ -322,7 +322,7 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
   std::unique_ptr<protocol::WorkerAgent> worker_agent_;
   std::unique_ptr<InspectorSessionDelegate> delegate_;
   std::unique_ptr<v8_inspector::V8InspectorSession> session_;
-  std::unique_ptr<protocol::UberDispatcher> node_dispatcher_;
+  std::unique_ptr<v8_inspector_protocol_crdtp::UberDispatcher> node_dispatcher_;
   bool prevent_shutdown_;
   bool retaining_context_;
 };
