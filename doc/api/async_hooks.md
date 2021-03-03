@@ -738,7 +738,7 @@ added:
   - v14.8.0
   - v12.19.0
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/36782
     description: Added optional thisArg.
 -->
@@ -759,7 +759,7 @@ added:
   - v14.8.0
   - v12.19.0
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/36782
     description: Added optional thisArg.
 -->

@@ -688,7 +688,7 @@ This can only be called from the primary process.
 ## `cluster.isMaster`
 <!-- YAML
 added: v0.8.1
-deprecated: REPLACEME
+deprecated: v16.0.0
 -->
 
 Deprecated alias for [`cluster.isPrimary`][].
@@ -696,7 +696,7 @@ details.
 
 ## `cluster.isPrimary`
 <!-- YAML
-added: REPLACEME
+added: v16.0.0
 -->
 
 * {boolean}
@@ -789,7 +789,7 @@ This object is not intended to be changed or set manually.
 ## `cluster.setupMaster([settings])`
 <!-- YAML
 added: v0.7.1
-deprecated: REPLACEME
+deprecated: v16.0.0
 changes:
   - version: v6.4.0
     pr-url: https://github.com/nodejs/node/pull/7838
@@ -800,7 +800,7 @@ Deprecated alias for [`.setupPrimary()`][].
 
 ## `cluster.setupPrimary([settings])`
 <!-- YAML
-added: REPLACEME
+added: v16.0.0
 -->
 
 * `settings` {Object} See [`cluster.settings`][].

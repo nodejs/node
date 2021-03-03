@@ -282,7 +282,7 @@ irrespective of whether or not `./foo` and `./FOO` are the same file.
 <!--type=misc-->
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37246
     description: Added `node:` import support to `require(...)`.
 -->

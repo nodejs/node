@@ -2,6 +2,7 @@
 
 Select a Node.js version below to view the changelog history:
 
+* [Node.js 16](doc/changelogs/CHANGELOG_V16.md) **Current**
 * [Node.js 15](doc/changelogs/CHANGELOG_V15.md) **Current**
 * [Node.js 14](doc/changelogs/CHANGELOG_V14.md) **Long Term Support**
 * [Node.js 13](doc/changelogs/CHANGELOG_V13.md) End-of-Life
@@ -25,12 +26,16 @@ release.
 <!--lint disable maximum-line-length-->
 <table>
 <tr>
+  <th title="Current"><a href="doc/changelogs/CHANGELOG_V16.md">16</a><sup>Current</sup></th>
   <th title="Current"><a href="doc/changelogs/CHANGELOG_V15.md">15</a><sup>Current</sup></th>
   <th title="LTS Until 2023-04"><a href="doc/changelogs/CHANGELOG_V14.md">14</a><sup>LTS</sup></th>
   <th title="LTS Until 2022-04"><a href="doc/changelogs/CHANGELOG_V12.md">12</a><sup>LTS</sup></th>
   <th title="LTS Until 2021-04"><a href="doc/changelogs/CHANGELOG_V10.md">10</a><sup>LTS</sup></th>
 </tr>
 <tr>
+    <td valign="top">
+<b><a href="doc/changelogs/CHANGELOG_V16.md#16.0.0">16.0.0</a></b><br/>
+    </td>
     <td valign="top">
 <b><a href="doc/changelogs/CHANGELOG_V15.md#15.14.0">15.14.0</a></b><br/>
 <a href="doc/changelogs/CHANGELOG_V15.md#15.13.0">15.13.0</a><br/>

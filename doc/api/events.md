@@ -1141,7 +1141,7 @@ setMaxListeners(5, target, emitter);
 <!-- YAML
 added: v14.5.0
 changes:
-  - version: REPLACEME
+  - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37237
     description: changed EventTarget error handling.
   - version: v15.4.0
