@@ -26,6 +26,9 @@
 
 #include "node.h"
 #include "node_buffer.h"
+#ifndef NODE_EXPERIMENTAL_HTTP
+#include "node_process.h"
+#endif  /* NODE_EXPERIMENTAL_HTTP */
 #include "util.h"
 
 #include "async_wrap-inl.h"
@@ -1021,6 +1024,10 @@ void InitializeHttpParser(Local<Object> target,
 #ifndef NODE_EXPERIMENTAL_HTTP
   static uv_once_t init_once = UV_ONCE_INIT;
   uv_once(&init_once, InitMaxHttpHeaderSizeOnce);
+  ProcessEmitDeprecationWarning(
+    env,
+    "The legacy HTTP parser is deprecated.",
+    "DEP0131").IsNothing();
 #endif  /* NODE_EXPERIMENTAL_HTTP */
 }
 
