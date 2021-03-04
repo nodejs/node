@@ -2336,6 +2336,10 @@ error `UV_ENOSYS`.
 <!-- YAML
 deprecated: v0.4.7
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37460
+    description: The error returned may be an `AggregateError` if more than one
+                 error is returned.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -2349,7 +2353,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `mode` {integer}
 * `callback` {Function}
-  * `err` {Error}
+  * `err` {Error|AggregateError}
 
 Changes the permissions on a symbolic link. No arguments other than a possible
 exception are given to the completion callback.
@@ -2812,6 +2816,10 @@ If `options.withFileTypes` is set to `true`, the `files` array will contain
 <!-- YAML
 added: v0.1.29
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37460
+    description: The error returned may be an `AggregateError` if more than one
+                 error is returned.
   - version: v15.2.0
     pr-url: https://github.com/nodejs/node/pull/35911
     description: The options argument may include an AbortSignal to abort an
@@ -2843,7 +2851,7 @@ changes:
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
   * `signal` {AbortSignal} allows aborting an in-progress readFile
 * `callback` {Function}
-  * `err` {Error}
+  * `err` {Error|AggregateError}
   * `data` {string|Buffer}
 
 Asynchronously reads the entire contents of a file.
@@ -3390,6 +3398,10 @@ example/
 <!-- YAML
 added: v0.8.6
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37460
+    description: The error returned may be an `AggregateError` if more than one
+                 error is returned.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -3403,7 +3415,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `len` {integer} **Default:** `0`
 * `callback` {Function}
-  * `err` {Error}
+  * `err` {Error|AggregateError}
 
 Truncates the file. No arguments other than a possible exception are
 given to the completion callback. A file descriptor can also be passed as the
@@ -3843,6 +3855,10 @@ details.
 <!-- YAML
 added: v0.1.29
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37460
+    description: The error returned may be an `AggregateError` if more than one
+                 error is returned.
   - version: v15.2.0
     pr-url: https://github.com/nodejs/node/pull/35993
     description: The options argument may include an AbortSignal to abort an
@@ -3883,7 +3899,7 @@ changes:
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'w'`.
   * `signal` {AbortSignal} allows aborting an in-progress writeFile
 * `callback` {Function}
-  * `err` {Error}
+  * `err` {Error|AggregateError}
 
 When `file` is a filename, asynchronously writes data to the file, replacing the
 file if it already exists. `data` can be a string or a buffer.
