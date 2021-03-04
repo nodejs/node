@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "debug_utils-inl.h"
 #include "env.h"
 #include "v8.h"
 
@@ -75,29 +76,40 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_TLS_INVALID_PROTOCOL_METHOD, TypeError)                                \
   V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, Error)                                \
   V(ERR_VM_MODULE_CACHED_DATA_REJECTED, Error)                                 \
+  V(ERR_VM_MODULE_LINK_FAILURE, Error)                                         \
   V(ERR_WASI_NOT_STARTED, Error)                                               \
   V(ERR_WORKER_INIT_FAILED, Error)                                             \
-  V(ERR_PROTO_ACCESS, Error)                                                   \
+  V(ERR_PROTO_ACCESS, Error)
 
-#define V(code, type)                                                         \
-  inline v8::Local<v8::Value> code(v8::Isolate* isolate,                      \
-                                   const char* message)       {               \
-    v8::Local<v8::String> js_code = OneByteString(isolate, #code);            \
-    v8::Local<v8::String> js_msg = OneByteString(isolate, message);           \
-    v8::Local<v8::Object> e =                                                 \
-        v8::Exception::type(js_msg)->ToObject(                                \
-            isolate->GetCurrentContext()).ToLocalChecked();                   \
-    e->Set(isolate->GetCurrentContext(), OneByteString(isolate, "code"),      \
-           js_code).Check();                                                  \
-    return e;                                                                 \
-  }                                                                           \
-  inline void THROW_ ## code(v8::Isolate* isolate, const char* message) {     \
-    isolate->ThrowException(code(isolate, message));                          \
-  }                                                                           \
-  inline void THROW_ ## code(Environment* env, const char* message) {         \
-    THROW_ ## code(env->isolate(), message);                                  \
+#define V(code, type)                                                          \
+  template <typename... Args>                                                  \
+  inline v8::Local<v8::Value> code(                                            \
+      v8::Isolate* isolate, const char* format, Args&&... args) {              \
+    std::string message = SPrintF(format, std::forward<Args>(args)...);        \
+    v8::Local<v8::String> js_code = OneByteString(isolate, #code);             \
+    v8::Local<v8::String> js_msg =                                             \
+        OneByteString(isolate, message.c_str(), message.length());             \
+    v8::Local<v8::Object> e = v8::Exception::type(js_msg)                      \
+                                  ->ToObject(isolate->GetCurrentContext())     \
+                                  .ToLocalChecked();                           \
+    e->Set(isolate->GetCurrentContext(),                                       \
+           OneByteString(isolate, "code"),                                     \
+           js_code)                                                            \
+        .Check();                                                              \
+    return e;                                                                  \
+  }                                                                            \
+  template <typename... Args>                                                  \
+  inline void THROW_##code(                                                    \
+      v8::Isolate* isolate, const char* format, Args&&... args) {              \
+    isolate->ThrowException(                                                   \
+        code(isolate, format, std::forward<Args>(args)...));                   \
+  }                                                                            \
+  template <typename... Args>                                                  \
+  inline void THROW_##code(                                                    \
+      Environment* env, const char* format, Args&&... args) {                  \
+    THROW_##code(env->isolate(), format, std::forward<Args>(args)...);         \
   }
-  ERRORS_WITH_CODE(V)
+ERRORS_WITH_CODE(V)
 #undef V
 
 // Errors with predefined static messages
