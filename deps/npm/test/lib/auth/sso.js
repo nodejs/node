@@ -22,17 +22,12 @@ const sso = requireInject('../../../lib/auth/sso.js', {
   },
   'npm-profile': profile,
   'npm-registry-fetch': npmFetch,
-  '../../../lib/npm.js': {
-    flatOptions: _flatOptions,
-  },
-  '../../../lib/utils/open-url.js': (url, msg, cb) => {
-    if (url)
-      cb()
-    else {
-      cb(Object.assign(
+  '../../../lib/utils/open-url.js': async (npm, url, msg) => {
+    if (!url) {
+      throw Object.assign(
         new Error('failed open url'),
         { code: 'ERROR' }
-      ))
+      )
     }
   },
   '../../../lib/utils/otplease.js': (opts, fn) => {
@@ -47,11 +42,15 @@ const sso = requireInject('../../../lib/auth/sso.js', {
   },
 })
 
+const npm = {
+  flatOptions: _flatOptions,
+}
+
 test('empty login', async (t) => {
   _flatOptions.ssoType = false
 
   await t.rejects(
-    sso({}),
+    sso(npm, {}),
     { message: 'Missing option: sso-type' },
     'should throw if no sso-type defined in flatOptions'
   )
@@ -92,7 +91,7 @@ test('simple login', async (t) => {
   const {
     message,
     newCreds,
-  } = await sso({
+  } = await sso(npm, {
     creds: {},
     registry: 'https://registry.npmjs.org/',
     scope: '',
@@ -157,7 +156,7 @@ test('polling retry', async (t) => {
     ))
   }
 
-  await sso({
+  await sso(npm, {
     creds: {},
     registry: 'https://registry.npmjs.org/',
     scope: '',
@@ -177,7 +176,7 @@ test('polling error', async (t) => {
   ))
 
   await t.rejects(
-    sso({
+    sso(npm, {
       creds: {},
       registry: 'https://registry.npmjs.org/',
       scope: '',
@@ -196,7 +195,7 @@ test('no token retrieved from loginCouch', async (t) => {
   profile.loginCouch = () => ({})
 
   await t.rejects(
-    sso({
+    sso(npm, {
       creds: {},
       registry: 'https://registry.npmjs.org/',
       scope: '',
@@ -214,7 +213,7 @@ test('no sso url retrieved from loginCouch', async (t) => {
   profile.loginCouch = () => Promise.resolve({ token })
 
   await t.rejects(
-    sso({
+    sso(npm, {
       creds: {},
       registry: 'https://registry.npmjs.org/',
       scope: '',
@@ -235,7 +234,7 @@ test('scoped login', async (t) => {
   const {
     message,
     newCreds,
-  } = await sso({
+  } = await sso(npm, {
     creds: {},
     registry: 'https://diff-registry.npmjs.org/',
     scope: 'myscope',

@@ -1,9 +1,9 @@
-const { usage } = require('./star.js')
-const npm = require('./npm.js')
+const Star = require('./star.js')
 
-const unstar = (args, cb) => {
-  npm.config.set('star.unstar', true)
-  return npm.commands.star(args, cb)
+class Unstar extends Star {
+  exec (args, cb) {
+    this.npm.config.set('star.unstar', true)
+    super.exec(args, cb)
+  }
 }
-
-module.exports = Object.assign(unstar, { usage })
+module.exports = Unstar

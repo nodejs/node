@@ -5,9 +5,7 @@ const t = require('tap')
 const { resolve } = require('path')
 
 const p = '../../../../lib/utils/completion/installed-shallow.js'
-const installed = requireInject(p, {
-  '../../../../lib/npm.js': npm,
-})
+const installed = requireInject(p)
 
 t.test('global not set, include globals with -g', async t => {
   const dir = t.testdir({
@@ -32,7 +30,7 @@ t.test('global not set, include globals with -g', async t => {
   npm.localDir = resolve(dir, 'local/node_modules')
   flatOptions.global = false
   const opt = { conf: { argv: { remain: [] } } }
-  const res = await installed(opt)
+  const res = await installed(npm, opt)
   t.strictSame(res.sort(), [
     '@scope/y -g',
     'x -g',
@@ -65,7 +63,7 @@ t.test('global set, include globals and not locals', async t => {
   npm.localDir = resolve(dir, 'local/node_modules')
   flatOptions.global = true
   const opt = { conf: { argv: { remain: [] } } }
-  const res = await installed(opt)
+  const res = await installed(npm, opt)
   t.strictSame(res.sort(), [
     '@scope/y',
     'x',
@@ -96,7 +94,7 @@ t.test('more than 3 items in argv, skip it', async t => {
   npm.localDir = resolve(dir, 'local/node_modules')
   flatOptions.global = false
   const opt = { conf: { argv: { remain: [1, 2, 3, 4, 5, 6] } } }
-  const res = await installed(opt)
+  const res = await installed(npm, opt)
   t.strictSame(res, null)
   t.end()
 })

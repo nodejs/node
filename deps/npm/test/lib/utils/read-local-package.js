@@ -10,11 +10,10 @@ const _flatOptions = {
   },
 }
 
-const readLocalPackageName = requireInject('../../../lib/utils/read-local-package.js', {
-  '../../../lib/npm.js': {
-    flatOptions: _flatOptions,
-  },
-})
+const readLocalPackageName = requireInject('../../../lib/utils/read-local-package.js')
+const npm = {
+  flatOptions: _flatOptions,
+}
 
 test('read local package.json', async (t) => {
   prefix = t.testdir({
@@ -23,7 +22,7 @@ test('read local package.json', async (t) => {
       version: '1.0.0',
     }),
   })
-  const packageName = await readLocalPackageName()
+  const packageName = await readLocalPackageName(npm)
   t.equal(
     packageName,
     'my-local-package',
@@ -38,7 +37,7 @@ test('read local scoped-package.json', async (t) => {
       version: '1.0.0',
     }),
   })
-  const packageName = await readLocalPackageName()
+  const packageName = await readLocalPackageName(npm)
   t.equal(
     packageName,
     '@my-scope/my-local-package',
@@ -49,7 +48,7 @@ test('read local scoped-package.json', async (t) => {
 test('read using --global', async (t) => {
   prefix = t.testdir({})
   _flatOptions.global = true
-  const packageName = await readLocalPackageName()
+  const packageName = await readLocalPackageName(npm)
   t.equal(
     packageName,
     undefined,

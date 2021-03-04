@@ -3,10 +3,18 @@
 \fBscripts\fR \- How npm handles the "scripts" field
 .SS Description
 .P
-The \fB"scripts"\fP property of your \fBpackage\.json\fP file supports a number of built\-in scripts and their preset life cycle events as well as arbitrary scripts\. These all can be executed by running \fBnpm run\-script <stage>\fP or \fBnpm run <stage>\fP for short\. \fIPre\fR and \fIpost\fR commands with matching names will be run for those as well (e\.g\. \fBpremyscript\fP, \fBmyscript\fP, \fBpostmyscript\fP)\. Scripts from dependencies can be run with \fBnpm explore <pkg> \-\- npm run <stage>\fP\|\.
+The \fB"scripts"\fP property of your \fBpackage\.json\fP file supports a number
+of built\-in scripts and their preset life cycle events as well as
+arbitrary scripts\. These all can be executed by running
+\fBnpm run\-script <stage>\fP or \fBnpm run <stage>\fP for short\. \fIPre\fR and \fIpost\fR
+commands with matching names will be run for those as well (e\.g\. \fBpremyscript\fP,
+\fBmyscript\fP, \fBpostmyscript\fP)\. Scripts from dependencies can be run with
+\fBnpm explore <pkg> \-\- npm run <stage>\fP\|\.
 .SS Pre & Post Scripts
 .P
-To create "pre" or "post" scripts for any scripts defined in the \fB"scripts"\fP section of the \fBpackage\.json\fP, simply create another script \fIwith a matching name\fR and add "pre" or "post" to the beginning of them\.
+To create "pre" or "post" scripts for any scripts defined in the
+\fB"scripts"\fP section of the \fBpackage\.json\fP, simply create another script
+\fIwith a matching name\fR and add "pre" or "post" to the beginning of them\.
 .P
 .RS 2
 .nf
@@ -19,9 +27,14 @@ To create "pre" or "post" scripts for any scripts defined in the \fB"scripts"\fP
 }
 .fi
 .RE
+.P
+In this example \fBnpm run compress\fP would execute these scripts as
+described\.
 .SS Life Cycle Scripts
 .P
-There are some special life cycle scripts that happen only in certain situations\. These scripts happen in addition to the "pre" and "post" script\.
+There are some special life cycle scripts that happen only in certain
+situations\. These scripts happen in addition to the \fBpre<event>\fP, \fBpost<event>\fP, and
+\fB<event>\fP scripts\.
 .RS 0
 .IP \(bu 2
 \fBprepare\fP, \fBprepublish\fP, \fBprepublishOnly\fP, \fBprepack\fP, \fBpostpack\fP
@@ -31,6 +44,9 @@ There are some special life cycle scripts that happen only in certain situations
 \fBprepare\fR (since \fBnpm@4\.0\.0\fP)
 .RS 0
 .IP \(bu 2
+Runs any time before the package is packed, i\.e\. during \fBnpm publish\fP
+  and \fBnpm pack\fP
+.IP \(bu 2
 Runs BEFORE the package is packed
 .IP \(bu 2
 Runs BEFORE the package is published
@@ -39,14 +55,20 @@ Runs on local \fBnpm install\fP without any arguments
 .IP \(bu 2
 Run AFTER \fBprepublish\fP, but BEFORE \fBprepublishOnly\fP
 .IP \(bu 2
-NOTE: If a package being installed through git contains a \fBprepare\fP script, its \fBdependencies\fP and \fBdevDependencies\fP will be installed, and the prepare script will be run, before the package is packaged and installed\.
+NOTE: If a package being installed through git contains a \fBprepare\fP
+script, its \fBdependencies\fP and \fBdevDependencies\fP will be installed, and
+the prepare script will be run, before the package is packaged and
+installed\.
+.IP \(bu 2
+As of \fBnpm@7\fP these scripts run in the background
 
 .RE
 .P
 \fBprepublish\fR (DEPRECATED)
 .RS 0
 .IP \(bu 2
-Same as \fBprepare\fP
+Does not run during \fBnpm publish\fP, but does run during \fBnpm ci\fP
+and \fBnpm install\fP\|\. See below for more info\.
 
 .RE
 .P
@@ -69,7 +91,7 @@ NOTE: "\fBnpm run pack\fP" is NOT the same as "\fBnpm pack\fP"\. "\fBnpm run pac
 \fBpostpack\fR
 .RS 0
 .IP \(bu 2
-Runs AFTER the tarball has been generated and moved to its final destination\.
+Runs AFTER the tarball has been generated but before it is moved to its final destination (if at all, publish does not save the tarball locally)
 
 .RE
 .SS Prepare and Prepublish
@@ -107,29 +129,13 @@ other system tools on the target machines\.
 
 .RE
 .SS Life Cycle Operation Order
-.SS npm help \fBpublish\fP
+.SS npm help \fBcache add\fP
 .RS 0
-.IP \(bu 2
-\fBprepublishOnly\fP
 .IP \(bu 2
 \fBprepare\fP
-.IP \(bu 2
-\fBprepublish\fP
-.IP \(bu 2
-\fBpublish\fP
-.IP \(bu 2
-\fBpostpublish\fP
 
 .RE
-.SS npm help \fBpack\fP
-.RS 0
-.IP \(bu 2
-\fBprepack\fP
-.IP \(bu 2
-\fBpostpack\fP
-
-.RE
-.SS npm help \fBinstall\fP
+.SS npm help \fBci\fP
 .RS 0
 .IP \(bu 2
 \fBpreinstall\fP
@@ -137,20 +143,126 @@ other system tools on the target machines\.
 \fBinstall\fP
 .IP \(bu 2
 \fBpostinstall\fP
+.IP \(bu 2
+\fBprepublish\fP
+.IP \(bu 2
+\fBpreprepare\fP
+.IP \(bu 2
+\fBprepare\fP
+.IP \(bu 2
+\fBpostprepare\fP
+These all run after the actual installation of modules into
+\fBnode_modules\fP, in order, with no internal actions happening in between
+
+.RE
+.SS npm help \fBdiff\fP
+.RS 0
+.IP \(bu 2
+\fBprepare\fP
+
+.RE
+.SS npm help \fBenv\fP
+.RS 0
+.IP \(bu 2
+\fBenv\fP (You can override the default behavior of \fBnpm env\fP by defining
+  a custom \fBenv\fP entry in your \fBscripts\fP object)
+
+.RE
+.SS npm help \fBinstall\fP
+.P
+These also run when you run \fBnpm install \-g <pkg\-name>\fP
+.RS 0
+.IP \(bu 2
+\fBpreinstall\fP
+.IP \(bu 2
+\fBinstall\fP
+.IP \(bu 2
+\fBpostinstall\fP
+.IP \(bu 2
+\fBprepublish\fP
+.IP \(bu 2
+\fBpreprepare\fP
+.IP \(bu 2
+\fBprepare\fP
+.IP \(bu 2
+\fBpostprepare\fP
 
 .RE
 .P
-Also triggers
+If there is a \fBbinding\.gyp\fP file in the root of your package and you
+haven't defined your own \fBinstall\fP or \fBpreinstall\fP scripts, npm will
+default the \fBinstall\fP command to compile using node\-gyp via \fBnode\-gyp
+rebuild\fP
+.P
+These are run from the scripts of \fB<pkg\-name>\fP
+.SS npm help \fBpack\fP
 .RS 0
 .IP \(bu 2
-\fBprepublish\fP (when on local)
+\fBprepack\fP
 .IP \(bu 2
-\fBprepare\fP (when on local or workspaces)
+\fBprepare\fP
+.IP \(bu 2
+\fBpostpack\fP
+
+.RE
+.SS npm help \fBpublish\fP
+.RS 0
+.IP \(bu 2
+\fBprepublishOnly\fP
+.IP \(bu 2
+\fBprepack\fP
+.IP \(bu 2
+\fBprepare\fP
+.IP \(bu 2
+\fBpostpack\fP
+.IP \(bu 2
+\fBpublish\fP
+.IP \(bu 2
+\fBpostpublish\fP
+
+.RE
+.P
+\fBprepare\fP will not run during \fB\-\-dry\-run\fP
+.SS npm help \fBrebuild\fP
+.RS 0
+.IP \(bu 2
+\fBpreinstall\fP
+.IP \(bu 2
+\fBinstall\fP
+.IP \(bu 2
+\fBpostinstall\fP
+.IP \(bu 2
+\fBprepare\fP
+
+.RE
+.P
+\fBprepare\fP is only run if the current directory is a symlink (e\.g\. with
+linked packages)
+.SS npm help \fBrestart\fP
+.P
+If there is a \fBrestart\fP script defined, these events are run, otherwise
+\fBstop\fP and \fBstart\fP are both run if present, including their \fBpre\fP and
+\fBpost\fP iterations)
+.RS 0
+.IP \(bu 2
+\fBprerestart\fP
+.IP \(bu 2
+\fBrestart\fP
+.IP \(bu 2
+\fBpostrestart\fP
+
+.RE
+.SS npm help \fBrun <user defined>\fP
+.RS 0
+.IP \(bu 2
+\fBpre<user\-defined>\fP
+.IP \(bu 2
+\fB<user\-defined>\fP
+.IP \(bu 2
+\fBpost<user\-defined>\fP
 
 .RE
 .SS npm help \fBstart\fP
-.P
-\fBnpm run start\fP has an \fBnpm start\fP shorthand\.
 .RS 0
 .IP \(bu 2
 \fBprestart\fP
@@ -160,19 +272,28 @@ Also triggers
 \fBpoststart\fP
 
 .RE
-.SS Default Values
 .P
-npm will default some script values based on package contents\.
+If there is a \fBserver\.js\fP file in the root of your package, then npm
+will default the \fBstart\fP command to \fBnode server\.js\fP\|\.  \fBprestart\fP and
+\fBpoststart\fP will still run in this case\.
+.SS npm help \fBstop\fP
 .RS 0
 .IP \(bu 2
-\fB"start": "node server\.js"\fP:
-If there is a \fBserver\.js\fP file in the root of your package, then npm
-will default the \fBstart\fP command to \fBnode server\.js\fP\|\.
+\fBprestop\fP
 .IP \(bu 2
-\fB"install": "node\-gyp rebuild"\fP:
-If there is a \fBbinding\.gyp\fP file in the root of your package and you
-haven't defined your own \fBinstall\fP or \fBpreinstall\fP scripts, npm will
-default the \fBinstall\fP command to compile using node\-gyp\.
+\fBstop\fP
+.IP \(bu 2
+\fBpoststop\fP
+
+.RE
+.SS npm help \fBtest\fP
+.RS 0
+.IP \(bu 2
+\fBpretest\fP
+.IP \(bu 2
+\fBtest\fP
+.IP \(bu 2
+\fBposttest\fP
 
 .RE
 .SS User
@@ -192,14 +313,14 @@ executing the scripts\.  So, if your package\.json has this:
 .P
 .RS 2
 .nf
-{ 
-  "name" : "foo", 
-  "dependencies" : { 
-    "bar" : "0\.1\.x" 
-  }, 
-  "scripts": { 
-    "start" : "bar \./test" 
-  } 
+{
+  "name" : "foo",
+  "dependencies" : {
+    "bar" : "0\.1\.x"
+  },
+  "scripts": {
+    "start" : "bar \./test"
+  }
 }
 .fi
 .RE
@@ -212,8 +333,8 @@ The package\.json fields are tacked onto the \fBnpm_package_\fP prefix\. So,
 for instance, if you had \fB{"name":"foo", "version":"1\.2\.5"}\fP in your
 package\.json file, then your package scripts would have the
 \fBnpm_package_name\fP environment variable set to "foo", and the
-\fBnpm_package_version\fP set to "1\.2\.5"\.  You can access these variables 
-in your code with \fBprocess\.env\.npm_package_name\fP and 
+\fBnpm_package_version\fP set to "1\.2\.5"\.  You can access these variables
+in your code with \fBprocess\.env\.npm_package_name\fP and
 \fBprocess\.env\.npm_package_version\fP, and so on for other fields\.
 .SS configuration
 .P
@@ -228,14 +349,14 @@ if the package\.json has this:
 .P
 .RS 2
 .nf
-{ 
-  "name" : "foo", 
-  "config" : { 
-    "port" : "8080" 
-  }, 
-  "scripts" : { 
-    "start" : "node server\.js" 
-  } 
+{
+  "name" : "foo",
+  "config" : {
+    "port" : "8080"
+  },
+  "scripts" : {
+    "start" : "node server\.js"
+  }
 }
 .fi
 .RE
@@ -277,10 +398,10 @@ For example, if your package\.json contains this:
 .P
 .RS 2
 .nf
-{ 
-  "scripts" : { 
-    "install" : "scripts/install\.js", 
-    "postinstall" : "scripts/postinstall\.js", 
+{
+  "scripts" : {
+    "install" : "scripts/install\.js",
+    "postinstall" : "scripts/postinstall\.js",
     "uninstall" : "scripts/uninstall\.js"
   }
 }
@@ -299,10 +420,10 @@ fine:
 .P
 .RS 2
 .nf
-{ 
-  "scripts" : { 
-    "preinstall" : "\./configure", 
-    "install" : "make && make install", 
+{
+  "scripts" : {
+    "preinstall" : "\./configure",
+    "install" : "make && make install",
     "test" : "make test"
   }
 }

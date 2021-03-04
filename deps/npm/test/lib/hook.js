@@ -52,17 +52,17 @@ const libnpmhook = {
 }
 
 const output = []
-const hook = requireInject('../../lib/hook.js', {
-  '../../lib/npm.js': npm,
+const Hook = requireInject('../../lib/hook.js', {
   '../../lib/utils/otplease.js': async (opts, fn) => fn(opts),
   '../../lib/utils/output.js': (msg) => {
     output.push(msg)
   },
   libnpmhook,
 })
+const hook = new Hook(npm)
 
 test('npm hook no args', t => {
-  return hook([], (err) => {
+  return hook.exec([], (err) => {
     t.match(err, /npm hook add/, 'throws usage with no arguments')
     t.end()
   })
@@ -74,7 +74,7 @@ test('npm hook add', t => {
     output.length = 0
   })
 
-  return hook(['add', 'semver', 'https://google.com', 'some-secret'], (err) => {
+  return hook.exec(['add', 'semver', 'https://google.com', 'some-secret'], (err) => {
     if (err)
       throw err
 
@@ -97,7 +97,7 @@ test('npm hook add - unicode output', t => {
     output.length = 0
   })
 
-  return hook(['add', 'semver', 'https://google.com', 'some-secret'], (err) => {
+  return hook.exec(['add', 'semver', 'https://google.com', 'some-secret'], (err) => {
     if (err)
       throw err
 
@@ -120,7 +120,7 @@ test('npm hook add - json output', t => {
     output.length = 0
   })
 
-  return hook(['add', '@npmcli', 'https://google.com', 'some-secret'], (err) => {
+  return hook.exec(['add', '@npmcli', 'https://google.com', 'some-secret'], (err) => {
     if (err)
       throw err
 
@@ -148,7 +148,7 @@ test('npm hook add - parseable output', t => {
     output.length = 0
   })
 
-  return hook(['add', '@npmcli', 'https://google.com', 'some-secret'], (err) => {
+  return hook.exec(['add', '@npmcli', 'https://google.com', 'some-secret'], (err) => {
     if (err)
       throw err
 
@@ -176,7 +176,7 @@ test('npm hook add - silent output', t => {
     output.length = 0
   })
 
-  return hook(['add', '@npmcli', 'https://google.com', 'some-secret'], (err) => {
+  return hook.exec(['add', '@npmcli', 'https://google.com', 'some-secret'], (err) => {
     if (err)
       throw err
 
@@ -197,7 +197,7 @@ test('npm hook ls', t => {
     output.length = 0
   })
 
-  return hook(['ls'], (err) => {
+  return hook.exec(['ls'], (err) => {
     if (err)
       throw err
 
@@ -222,7 +222,7 @@ test('npm hook ls, no results', t => {
     output.length = 0
   })
 
-  return hook(['ls'], (err) => {
+  return hook.exec(['ls'], (err) => {
     if (err)
       throw err
 
@@ -249,7 +249,7 @@ test('npm hook ls, single result', t => {
     output.length = 0
   })
 
-  return hook(['ls'], (err) => {
+  return hook.exec(['ls'], (err) => {
     if (err)
       throw err
 
@@ -272,7 +272,7 @@ test('npm hook ls - json output', t => {
     output.length = 0
   })
 
-  return hook(['ls'], (err) => {
+  return hook.exec(['ls'], (err) => {
     if (err)
       throw err
 
@@ -309,7 +309,7 @@ test('npm hook ls - parseable output', t => {
     output.length = 0
   })
 
-  return hook(['ls'], (err) => {
+  return hook.exec(['ls'], (err) => {
     if (err)
       throw err
 
@@ -335,7 +335,7 @@ test('npm hook ls - silent output', t => {
     output.length = 0
   })
 
-  return hook(['ls'], (err) => {
+  return hook.exec(['ls'], (err) => {
     if (err)
       throw err
 
@@ -354,7 +354,7 @@ test('npm hook rm', t => {
     output.length = 0
   })
 
-  return hook(['rm', '1'], (err) => {
+  return hook.exec(['rm', '1'], (err) => {
     if (err)
       throw err
 
@@ -377,7 +377,7 @@ test('npm hook rm - unicode output', t => {
     output.length = 0
   })
 
-  return hook(['rm', '1'], (err) => {
+  return hook.exec(['rm', '1'], (err) => {
     if (err)
       throw err
 
@@ -400,7 +400,7 @@ test('npm hook rm - silent output', t => {
     output.length = 0
   })
 
-  return hook(['rm', '1'], (err) => {
+  return hook.exec(['rm', '1'], (err) => {
     if (err)
       throw err
 
@@ -421,7 +421,7 @@ test('npm hook rm - json output', t => {
     output.length = 0
   })
 
-  return hook(['rm', '1'], (err) => {
+  return hook.exec(['rm', '1'], (err) => {
     if (err)
       throw err
 
@@ -447,7 +447,7 @@ test('npm hook rm - parseable output', t => {
     output.length = 0
   })
 
-  return hook(['rm', '1'], (err) => {
+  return hook.exec(['rm', '1'], (err) => {
     if (err)
       throw err
 
@@ -469,7 +469,7 @@ test('npm hook update', t => {
     output.length = 0
   })
 
-  return hook(['update', '1', 'https://google.com', 'some-secret'], (err) => {
+  return hook.exec(['update', '1', 'https://google.com', 'some-secret'], (err) => {
     if (err)
       throw err
 
@@ -494,7 +494,7 @@ test('npm hook update - unicode', t => {
     output.length = 0
   })
 
-  return hook(['update', '1', 'https://google.com', 'some-secret'], (err) => {
+  return hook.exec(['update', '1', 'https://google.com', 'some-secret'], (err) => {
     if (err)
       throw err
 
@@ -519,7 +519,7 @@ test('npm hook update - json output', t => {
     output.length = 0
   })
 
-  return hook(['update', '1', 'https://google.com', 'some-secret'], (err) => {
+  return hook.exec(['update', '1', 'https://google.com', 'some-secret'], (err) => {
     if (err)
       throw err
 
@@ -547,7 +547,7 @@ test('npm hook update - parseable output', t => {
     output.length = 0
   })
 
-  return hook(['update', '1', 'https://google.com', 'some-secret'], (err) => {
+  return hook.exec(['update', '1', 'https://google.com', 'some-secret'], (err) => {
     if (err)
       throw err
 
@@ -573,7 +573,7 @@ test('npm hook update - silent output', t => {
     output.length = 0
   })
 
-  return hook(['update', '1', 'https://google.com', 'some-secret'], (err) => {
+  return hook.exec(['update', '1', 'https://google.com', 'some-secret'], (err) => {
     if (err)
       throw err
 
