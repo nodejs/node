@@ -16,6 +16,18 @@ currently need to generate three PRs as follows:
   necessary because differences in 10.x requires that the
   configuration files be regenerated specifically for 10.x.
 
+## Use of the quictls/openssl fork
+
+Node.js currently uses the quictls/openssl fork, which closely tracks
+the main openssl/openssl releases with the addition of APIs to support
+the QUIC protocol.
+
+Details on the fork, as well as the latest sources, can be found at
+<https://github.com/quictls/openssl>.
+
+Branches are used per OpenSSL version (for instance,
+<https://github.com/quictls/openssl/tree/OpenSSL_1_1_1j+quic)>.
+
 ## Requirements
 * Linux environment.
 * `perl` Only Perl version 5 is tested.
@@ -41,14 +53,18 @@ NASM version 2.11.08
 
 ## 1. Obtain and extract new OpenSSL sources
 
-Get a new source from  <https://www.openssl.org/source/> and extract
-all files into `deps/openssl/openssl`. Then add all files and commit
-them.
+Get a new source from <https://github.com/quictls/openssl/tree/OpenSSL_1_1_1j+quic>
+and copy all files into `deps/openssl/openssl`. Then add all files and commit
+them. (The link above, and the branch, will change with each new OpenSSL
+release).
+
 ```console
-% cd deps/openssl/
+% git clone https://github.com/quictls/openssl
+% cd openssl
+% git checkout OpenSSL_1_1_1j+quic
+% cd ../node/deps/openssl
 % rm -rf openssl
-% tar zxf ~/tmp/openssl-1.1.0h.tar.gz
-% mv openssl-1.1.0h openssl
+% cp -R ../../../openssl openssl
 % git add --all openssl
 % git commit openssl
 ```
@@ -59,10 +75,12 @@ to the relevant value):
 deps: upgrade openssl sources to 1.1.0h
 
 This updates all sources in deps/openssl/openssl by:
-    $ cd deps/openssl/
+    $ git clone https://github.com/quictls/openssl
+    $ cd openssl
+    $ git checkout OpenSSL_1_1_1j+quic
+    $ cd ../node/deps/openssl
     $ rm -rf openssl
-    $ tar zxf ~/tmp/openssl-1.1.0h.tar.gz
-    $ mv openssl-1.1.0h openssl
+    $ cp -R ../openssl openssl
     $ git add --all openssl
     $ git commit openssl
 ```
@@ -110,7 +128,7 @@ files if they are changed before committing:
 The commit message can be written as (with the openssl version set
 to the relevant value):
 ```text
- deps: update archs files for OpenSSL-1.1.0
+ deps: update archs files for OpenSSL-1.1.1
 
  After an OpenSSL source update, all the config files need to be
  regenerated and committed by:
