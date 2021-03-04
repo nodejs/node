@@ -5,14 +5,15 @@ test('bin', (t) => {
   t.plan(3)
   const dir = '/bin/dir'
 
-  const bin = requireInject('../../lib/bin.js', {
-    '../../lib/npm.js': { bin: dir, flatOptions: { global: false } },
+  const Bin = requireInject('../../lib/bin.js', {
     '../../lib/utils/output.js': (output) => {
       t.equal(output, dir, 'prints the correct directory')
     },
   })
 
-  bin([], (err) => {
+  const bin = new Bin({ bin: dir, flatOptions: { global: false } })
+
+  bin.exec([], (err) => {
     t.ifError(err, 'npm bin')
     t.ok('should have printed directory')
   })
@@ -30,15 +31,16 @@ test('bin -g', (t) => {
   }
   const dir = '/bin/dir'
 
-  const bin = requireInject('../../lib/bin.js', {
-    '../../lib/npm.js': { bin: dir, flatOptions: { global: true } },
+  const Bin = requireInject('../../lib/bin.js', {
     '../../lib/utils/path.js': [dir],
     '../../lib/utils/output.js': (output) => {
       t.equal(output, dir, 'prints the correct directory')
     },
   })
 
-  bin([], (err) => {
+  const bin = new Bin({ bin: dir, flatOptions: { global: true } })
+
+  bin.exec([], (err) => {
     t.ifError(err, 'npm bin')
     t.ok('should have printed directory')
   })
@@ -56,15 +58,15 @@ test('bin -g (not in path)', (t) => {
   }
   const dir = '/bin/dir'
 
-  const bin = requireInject('../../lib/bin.js', {
-    '../../lib/npm.js': { bin: dir, flatOptions: { global: true } },
+  const Bin = requireInject('../../lib/bin.js', {
     '../../lib/utils/path.js': ['/not/my/dir'],
     '../../lib/utils/output.js': (output) => {
       t.equal(output, dir, 'prints the correct directory')
     },
   })
+  const bin = new Bin({ bin: dir, flatOptions: { global: true } })
 
-  bin([], (err) => {
+  bin.exec([], (err) => {
     t.ifError(err, 'npm bin')
     t.ok('should have printed directory')
   })

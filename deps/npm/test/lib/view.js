@@ -238,98 +238,98 @@ const packument = (nv, opts) => {
 
 t.beforeEach(cleanLogs)
 t.test('should log package info', t => {
-  const view = requireInject('../../lib/view.js', {
-    '../../lib/npm.js': {
-      flatOptions: {
-        global: false,
-      },
-    },
+  const View = requireInject('../../lib/view.js', {
     pacote: {
       packument,
     },
   })
-
-  const viewJson = requireInject('../../lib/view.js', {
-    '../../lib/npm.js': {
-      flatOptions: {
-        json: true,
-      },
+  const view = new View({
+    flatOptions: {
+      global: false,
     },
+  })
+
+  const ViewJson = requireInject('../../lib/view.js', {
     pacote: {
       packument,
     },
   })
-
-  const viewUnicode = requireInject('../../lib/view.js', {
-    '../../lib/npm.js': {
-      flatOptions: {
-        global: false,
-        unicode: true,
-      },
+  const viewJson = new ViewJson({
+    flatOptions: {
+      json: true,
     },
+  })
+
+  const ViewUnicode = requireInject('../../lib/view.js', {
     pacote: {
       packument,
+    },
+  })
+  const viewUnicode = new ViewUnicode({
+    flatOptions: {
+      global: false,
+      unicode: true,
     },
   })
 
   t.test('package with license, bugs, repository and other fields', t => {
-    view(['green@1.0.0'], () => {
+    view.exec(['green@1.0.0'], () => {
       t.matchSnapshot(logs)
       t.end()
     })
   })
 
   t.test('package with more than 25 deps', t => {
-    view(['black@1.0.0'], () => {
+    view.exec(['black@1.0.0'], () => {
       t.matchSnapshot(logs)
       t.end()
     })
   })
 
   t.test('package with maintainers info as object', t => {
-    view(['pink@1.0.0'], () => {
+    view.exec(['pink@1.0.0'], () => {
       t.matchSnapshot(logs)
       t.end()
     })
   })
 
   t.test('package with homepage', t => {
-    view(['orange@1.0.0'], () => {
+    view.exec(['orange@1.0.0'], () => {
       t.matchSnapshot(logs)
       t.end()
     })
   })
 
   t.test('package with no versions', t => {
-    view(['brown'], () => {
+    view.exec(['brown'], () => {
       t.equals(logs, '', 'no info to display')
       t.end()
     })
   })
 
   t.test('package with no repo or homepage', t => {
-    view(['blue@1.0.0'], () => {
+    view.exec(['blue@1.0.0'], () => {
       t.matchSnapshot(logs)
       t.end()
     })
   })
 
   t.test('package with no modified time', t => {
-    viewUnicode(['cyan@1.0.0'], () => {
+    viewUnicode.exec(['cyan@1.0.0'], () => {
       t.matchSnapshot(logs)
       t.end()
     })
   })
 
   t.test('package with --json and semver range', t => {
-    viewJson(['cyan@^1.0.0'], () => {
+    viewJson.exec(['cyan@^1.0.0'], () => {
       t.matchSnapshot(logs)
       t.end()
     })
   })
 
   t.test('package with --json and no versions', t => {
-    viewJson(['brown'], () => {
+    viewJson.exec(['brown'], () => {
       t.equals(logs, '', 'no info to display')
       t.end()
     })
@@ -346,28 +346,28 @@ t.test('should log info of package in current working dir', t => {
     }, null, 2),
   })
 
-  const view = requireInject('../../lib/view.js', {
-    '../../lib/npm.js': {
-      prefix: testDir,
-      flatOptions: {
-        defaultTag: '1.0.0',
-        global: false,
-      },
-    },
+  const View = requireInject('../../lib/view.js', {
     pacote: {
       packument,
     },
   })
+  const view = new View({
+    prefix: testDir,
+    flatOptions: {
+      defaultTag: '1.0.0',
+      global: false,
+    },
+  })
 
   t.test('specific version', t => {
-    view(['.@1.0.0'], () => {
+    view.exec(['.@1.0.0'], () => {
       t.matchSnapshot(logs)
       t.end()
     })
   })
 
   t.test('non-specific version', t => {
-    view(['.'], () => {
+    view.exec(['.'], () => {
       t.matchSnapshot(logs)
       t.end()
     })
@@ -377,87 +377,87 @@ t.test('should log info of package in current working dir', t => {
 })
 
 t.test('should log info by field name', t => {
-  const viewJson = requireInject('../../lib/view.js', {
-    '../../lib/npm.js': {
-      flatOptions: {
-        json: true,
-        global: false,
-      },
-    },
+  const ViewJson = requireInject('../../lib/view.js', {
     pacote: {
       packument,
     },
   })
-
-  const view = requireInject('../../lib/view.js', {
-    '../../lib/npm.js': {
-      flatOptions: {
-        global: false,
-      },
+  const viewJson = new ViewJson({
+    flatOptions: {
+      json: true,
+      global: false,
     },
+  })
+
+  const View = requireInject('../../lib/view.js', {
     pacote: {
       packument,
+    },
+  })
+  const view = new View({
+    flatOptions: {
+      global: false,
     },
   })
 
   t.test('readme', t => {
-    view(['yellow@1.0.0', 'readme'], () => {
+    view.exec(['yellow@1.0.0', 'readme'], () => {
       t.matchSnapshot(logs)
       t.end()
     })
   })
 
   t.test('several fields', t => {
-    viewJson(['yellow@1.0.0', 'name', 'version', 'foo[bar]'], () => {
+    viewJson.exec(['yellow@1.0.0', 'name', 'version', 'foo[bar]'], () => {
       t.matchSnapshot(logs)
       t.end()
     })
   })
 
   t.test('several fields with several versions', t => {
-    view(['yellow@1.x.x', 'author'], () => {
+    view.exec(['yellow@1.x.x', 'author'], () => {
       t.matchSnapshot(logs)
       t.end()
     })
   })
 
   t.test('nested field with brackets', t => {
-    viewJson(['orange@1.0.0', 'dist[shasum]'], () => {
+    viewJson.exec(['orange@1.0.0', 'dist[shasum]'], () => {
       t.matchSnapshot(logs)
       t.end()
     })
   })
 
   t.test('maintainers with email', t => {
-    viewJson(['yellow@1.0.0', 'maintainers', 'name'], () => {
+    viewJson.exec(['yellow@1.0.0', 'maintainers', 'name'], () => {
       t.matchSnapshot(logs)
       t.end()
     })
   })
 
   t.test('maintainers with url', t => {
-    viewJson(['pink@1.0.0', 'maintainers'], () => {
+    viewJson.exec(['pink@1.0.0', 'maintainers'], () => {
       t.matchSnapshot(logs)
       t.end()
     })
   })
 
   t.test('unknown nested field ', t => {
-    view(['yellow@1.0.0', 'dist.foobar'], () => {
+    view.exec(['yellow@1.0.0', 'dist.foobar'], () => {
       t.equals(logs, '', 'no info to display')
       t.end()
     })
   })
 
   t.test('array field - 1 element', t => {
-    view(['purple@1.0.0', 'maintainers.name'], () => {
+    view.exec(['purple@1.0.0', 'maintainers.name'], () => {
       t.matchSnapshot(logs)
       t.end()
     })
   })
 
   t.test('array field - 2 elements', t => {
-    view(['yellow@1.x.x', 'maintainers.name'], () => {
+    view.exec(['yellow@1.x.x', 'maintainers.name'], () => {
       t.matchSnapshot(logs)
       t.end()
     })
@@ -467,14 +467,13 @@ t.test('should log info by field name', t => {
 })
 
 t.test('throw error if global mode', (t) => {
-  const view = requireInject('../../lib/view.js', {
-    '../../lib/npm.js': {
-      flatOptions: {
-        global: true,
-      },
+  const View = requireInject('../../lib/view.js')
+  const view = new View({
+    flatOptions: {
+      global: true,
     },
   })
-  view([], (err) => {
+  view.exec([], (err) => {
     t.equals(err.message, 'Cannot use view command in global mode.')
     t.end()
   })
@@ -483,15 +482,14 @@ t.test('throw error if global mode', (t) => {
 t.test('throw ENOENT error if package.json misisng', (t) => {
   const testDir = t.testdir({})
 
-  const view = requireInject('../../lib/view.js', {
-    '../../lib/npm.js': {
-      prefix: testDir,
-      flatOptions: {
-        global: false,
-      },
+  const View = requireInject('../../lib/view.js')
+  const view = new View({
+    prefix: testDir,
+    flatOptions: {
+      global: false,
     },
   })
-  view([], (err) => {
+  view.exec([], (err) => {
     t.match(err, { code: 'ENOENT' })
     t.end()
   })
@@ -502,15 +500,14 @@ t.test('throw EJSONPARSE error if package.json not json', (t) => {
     'package.json': 'not json, nope, not even a little bit!',
   })
 
-  const view = requireInject('../../lib/view.js', {
-    '../../lib/npm.js': {
-      prefix: testDir,
-      flatOptions: {
-        global: false,
-      },
+  const View = requireInject('../../lib/view.js')
+  const view = new View({
+    prefix: testDir,
+    flatOptions: {
+      global: false,
     },
   })
-  view([], (err) => {
+  view.exec([], (err) => {
     t.match(err, { code: 'EJSONPARSE' })
     t.end()
   })
@@ -521,48 +518,47 @@ t.test('throw error if package.json has no name', (t) => {
     'package.json': '{}',
   })
 
-  const view = requireInject('../../lib/view.js', {
-    '../../lib/npm.js': {
-      prefix: testDir,
-      flatOptions: {
-        global: false,
-      },
+  const View = requireInject('../../lib/view.js')
+  const view = new View({
+    prefix: testDir,
+    flatOptions: {
+      global: false,
     },
   })
-  view([], (err) => {
+  view.exec([], (err) => {
     t.equals(err.message, 'Invalid package.json, no "name" field')
     t.end()
   })
 })
 
 t.test('throws when unpublished', (t) => {
-  const view = requireInject('../../lib/view.js', {
-    '../../lib/npm.js': {
-      flatOptions: {
-        defaultTag: '1.0.1',
-        global: false,
-      },
-    },
+  const View = requireInject('../../lib/view.js', {
     pacote: {
       packument,
     },
   })
-  view(['red'], (err) => {
+  const view = new View({
+    flatOptions: {
+      defaultTag: '1.0.1',
+      global: false,
+    },
+  })
+  view.exec(['red'], (err) => {
     t.equals(err.code, 'E404')
     t.end()
   })
 })
 
 t.test('completion', async t => {
-  const view = requireInject('../../lib/view.js', {
-    '../../lib/npm.js': {
-      flatOptions: {
-        defaultTag: '1.0.1',
-        global: false,
-      },
-    },
+  const View = requireInject('../../lib/view.js', {
     pacote: {
       packument,
+    },
+  })
+  const view = new View({
+    flatOptions: {
+      defaultTag: '1.0.1',
+      global: false,
     },
   })
   const res = await view.completion({
@@ -573,11 +569,10 @@ t.test('completion', async t => {
 })
 
 t.test('no registry completion', async t => {
-  const view = requireInject('../../lib/view.js', {
-    '../../lib/npm.js': {
-      flatOptions: {
-        defaultTag: '1.0.1',
-      },
+  const View = requireInject('../../lib/view.js')
+  const view = new View({
+    flatOptions: {
+      defaultTag: '1.0.1',
     },
   })
   const res = await view.completion({conf: { argv: { remain: ['npm', 'view'] } } })

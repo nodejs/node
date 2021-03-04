@@ -1,16 +1,29 @@
-const npm = require('./npm.js')
 const output = require('./utils/output.js')
 const getIdentity = require('./utils/get-identity.js')
 const usageUtil = require('./utils/usage.js')
 
-const cmd = (args, cb) => whoami(args).then(() => cb()).catch(cb)
+class Whoami {
+  constructor (npm) {
+    this.npm = npm
+  }
 
-const usage = usageUtil('whoami', 'npm whoami [--registry <registry>]\n(just prints username according to given registry)')
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  get usage () {
+    return usageUtil(
+      'whoami',
+      'npm whoami [--registry <registry>]\n' +
+      '(just prints username according to given registry)'
+    )
+  }
 
-const whoami = async ([spec]) => {
-  const opts = npm.flatOptions
-  const username = await getIdentity(opts, spec)
-  output(opts.json ? JSON.stringify(username) : username)
+  exec (args, cb) {
+    this.whoami(args).then(() => cb()).catch(cb)
+  }
+
+  async whoami (args) {
+    const opts = this.npm.flatOptions
+    const username = await getIdentity(this.npm, opts)
+    output(opts.json ? JSON.stringify(username) : username)
+  }
 }
-
-module.exports = Object.assign(cmd, { usage })
+module.exports = Whoami

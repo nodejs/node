@@ -23,6 +23,7 @@ const childProcess = {
 }
 
 let rebuildArgs = null
+let rebuildFail = null
 let EDITOR = 'vim'
 const npm = {
   config: {
@@ -32,17 +33,17 @@ const npm = {
   commands: {
     rebuild: (args, cb) => {
       rebuildArgs = args
-      return cb()
+      return cb(rebuildFail)
     },
   },
 }
 
 const gracefulFs = require('graceful-fs')
-const edit = requireInject('../../lib/edit.js', {
-  '../../lib/npm.js': npm,
+const Edit = requireInject('../../lib/edit.js', {
   child_process: childProcess,
   'graceful-fs': gracefulFs,
 })
+const edit = new Edit(npm)
 
 test('npm edit', t => {
   t.teardown(() => {
@@ -52,7 +53,7 @@ test('npm edit', t => {
     editorOpts = null
   })
 
-  return edit(['semver'], (err) => {
+  return edit.exec(['semver'], (err) => {
     if (err)
       throw err
 
@@ -61,6 +62,27 @@ test('npm edit', t => {
     t.strictSame(editorArgs, [path], 'edited the correct directory')
     t.strictSame(editorOpts, { stdio: 'inherit' }, 'passed the correct opts')
     t.strictSame(rebuildArgs, [path], 'passed the correct path to rebuild')
+    t.end()
+  })
+})
+
+test('rebuild fails', t => {
+  t.teardown(() => {
+    rebuildFail = null
+    rebuildArgs = null
+    editorBin = null
+    editorArgs = null
+    editorOpts = null
+  })
+
+  rebuildFail = new Error('test error')
+  return edit.exec(['semver'], (err) => {
+    const path = resolve(__dirname, '../../node_modules/semver')
+    t.strictSame(editorBin, EDITOR, 'used the correct editor')
+    t.strictSame(editorArgs, [path], 'edited the correct directory')
+    t.strictSame(editorOpts, { stdio: 'inherit' }, 'passed the correct opts')
+    t.strictSame(rebuildArgs, [path], 'passed the correct path to rebuild')
+    t.match(err, { message: 'test error' })
     t.end()
   })
 })
@@ -75,7 +97,7 @@ test('npm edit editor has flags', t => {
     EDITOR = 'vim'
   })
 
-  return edit(['semver'], (err) => {
+  return edit.exec(['semver'], (err) => {
     if (err)
       throw err
 
@@ -89,7 +111,7 @@ test('npm edit editor has flags', t => {
 })
 
 test('npm edit no args', t => {
-  return edit([], (err) => {
+  return edit.exec([], (err) => {
     t.match(err, /npm edit/, 'throws usage error')
     t.end()
   })
@@ -104,7 +126,7 @@ test('npm edit lstat error propagates', t => {
     gracefulFs.lstat = _lstat
   })
 
-  return edit(['semver'], (err) => {
+  return edit.exec(['semver'], (err) => {
     t.match(err, /lstat failed/, 'user received correct error')
     t.end()
   })
@@ -116,7 +138,7 @@ test('npm edit editor exit code error propagates', t => {
     EDITOR_CODE = 0
   })
 
-  return edit(['semver'], (err) => {
+  return edit.exec(['semver'], (err) => {
     t.match(err, /exited with code: 137/, 'user received correct error')
     t.end()
   })

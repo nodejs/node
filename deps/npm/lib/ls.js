@@ -7,7 +7,6 @@ const Arborist = require('@npmcli/arborist')
 const { breadth } = require('treeverse')
 const npa = require('npm-package-arg')
 
-const npm = require('./npm.js')
 const usageUtil = require('./utils/usage.js')
 const completion = require('./utils/completion/installed-deep.js')
 const output = require('./utils/output.js')
@@ -24,20 +23,166 @@ const _problems = Symbol('problems')
 const _required = Symbol('required')
 const _type = Symbol('type')
 
-const usage = usageUtil(
-  'ls',
-  'npm ls [[<@scope>/]<pkg> ...]'
-)
+class LS {
+  constructor (npm) {
+    this.npm = npm
+  }
 
-const cmd = (args, cb) => ls(args).then(() => cb()).catch(cb)
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  get usage () {
+    return usageUtil(
+      'ls',
+      'npm ls [[<@scope>/]<pkg> ...]'
+    )
+  }
 
-const initTree = async ({ arb, args, json }) => {
-  const tree = await arb.loadActual()
-  tree[_include] = args.length === 0
-  tree[_depth] = 0
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  async completion (opts) {
+    return completion(this.npm, opts)
+  }
 
-  return tree
+  exec (args, cb) {
+    this.ls(args).then(() => cb()).catch(cb)
+  }
+
+  async ls (args) {
+    const {
+      all,
+      color,
+      depth,
+      json,
+      long,
+      global,
+      parseable,
+      prefix,
+      unicode,
+    } = this.npm.flatOptions
+    const path = global ? resolve(this.npm.globalDir, '..') : prefix
+    const dev = this.npm.config.get('dev')
+    const development = this.npm.config.get('development')
+    const link = this.npm.config.get('link')
+    const only = this.npm.config.get('only')
+    const prod = this.npm.config.get('prod')
+    const production = this.npm.config.get('production')
+
+    const arb = new Arborist({
+      global,
+      ...this.npm.flatOptions,
+      legacyPeerDeps: false,
+      path,
+    })
+    const tree = await this.initTree({arb, args })
+
+    const seenItems = new Set()
+    const seenNodes = new Map()
+    const problems = new Set()
+
+    // defines special handling of printed depth when filtering with args
+    const filterDefaultDepth = depth === null ? Infinity : depth
+    const depthToPrint = (all || args.length)
+      ? filterDefaultDepth
+      : (depth || 0)
+
+    // add root node of tree to list of seenNodes
+    seenNodes.set(tree.path, tree)
+
+    // tree traversal happens here, using treeverse.breadth
+    const result = await breadth({
+      tree,
+      // recursive method, `node` is going to be the current elem (starting from
+      // the `tree` obj) that was just visited in the `visit` method below
+      // `nodeResult` is going to be the returned `item` from `visit`
+      getChildren (node, nodeResult) {
+        const seenPaths = new Set()
+        const shouldSkipChildren =
+          !(node instanceof Arborist.Node) || (node[_depth] > depthToPrint)
+        return (shouldSkipChildren)
+          ? []
+          : [...(node.target || node).edgesOut.values()]
+            .filter(filterByEdgesTypes({
+              dev,
+              development,
+              link,
+              node,
+              prod,
+              production,
+              only,
+              tree,
+            }))
+            .map(mapEdgesToNodes({ seenPaths }))
+            .concat(appendExtraneousChildren({ node, seenPaths }))
+            .sort(sortAlphabetically)
+            .map(augmentNodesWithMetadata({
+              args,
+              currentDepth: node[_depth],
+              nodeResult,
+              seenNodes,
+            }))
+      },
+      // visit each `node` of the `tree`, returning an `item` - these are
+      // the elements that will be used to build the final output
+      visit (node) {
+        node[_problems] = getProblems(node, { global })
+
+        const item = json
+          ? getJsonOutputItem(node, { global, long })
+          : parseable
+            ? null
+            : getHumanOutputItem(node, { args, color, global, long })
+
+        // loop through list of node problems to add them to global list
+        if (node[_include]) {
+          for (const problem of node[_problems])
+            problems.add(problem)
+        }
+
+        seenItems.add(item)
+
+        // return a promise so we don't blow the stack
+        return Promise.resolve(item)
+      },
+    })
+
+    // handle the special case of a broken package.json in the root folder
+    const [rootError] = tree.errors.filter(e =>
+      e.code === 'EJSONPARSE' && e.path === resolve(path, 'package.json'))
+
+    output(
+      json
+        ? jsonOutput({ path, problems, result, rootError, seenItems })
+        : parseable
+          ? parseableOutput({ seenNodes, global, long })
+          : humanOutput({ color, result, seenItems, unicode })
+    )
+
+    // if filtering items, should exit with error code on no results
+    if (result && !result[_include] && args.length)
+      process.exitCode = 1
+
+    if (rootError) {
+      throw Object.assign(
+        new Error('Failed to parse root package.json'),
+        { code: 'EJSONPARSE' }
+      )
+    }
+
+    if (problems.size) {
+      throw Object.assign(
+        new Error([...problems].join(EOL)),
+        { code: 'ELSPROBLEMS' }
+      )
+    }
+  }
+
+  async initTree ({ arb, args }) {
+    const tree = await arb.loadActual()
+    tree[_include] = args.length === 0
+    tree[_depth] = 0
+
+    return tree
+  }
 }
+module.exports = LS
 
 const isGitNode = (node) => {
   if (!node.resolved)
@@ -252,7 +397,6 @@ const augmentNodesWithMetadata = ({
   args,
   currentDepth,
   nodeResult,
-  parseable,
   seenNodes,
 }) => (node) => {
   // if the original edge was a deduped dep, treeverse will fail to
@@ -285,7 +429,7 @@ const augmentNodesWithMetadata = ({
   // _filteredBy is used to apply extra color info to the item that
   // was used in args in order to filter
   node[_filteredBy] = node[_include] =
-    filterByPositionalArgs(args, { node: seenNodes.get(node.path), seenNodes })
+    filterByPositionalArgs(args, { node: seenNodes.get(node.path) })
   // _depth keeps track of how many levels deep tree traversal currently is
   // so that we can `npm ls --depth=1`
   node[_depth] = currentDepth + 1
@@ -359,140 +503,3 @@ const parseableOutput = ({ global, long, seenNodes }) => {
   }
   return out.trim()
 }
-
-const ls = async (args) => {
-  const {
-    all,
-    color,
-    depth,
-    json,
-    long,
-    global,
-    parseable,
-    prefix,
-    unicode,
-  } = npm.flatOptions
-  const path = global ? resolve(npm.globalDir, '..') : prefix
-  const dev = npm.config.get('dev')
-  const development = npm.config.get('development')
-  const link = npm.config.get('link')
-  const only = npm.config.get('only')
-  const prod = npm.config.get('prod')
-  const production = npm.config.get('production')
-
-  const arb = new Arborist({
-    global,
-    ...npm.flatOptions,
-    legacyPeerDeps: false,
-    path,
-  })
-  const tree = await initTree({
-    arb,
-    args,
-    global,
-    json,
-  })
-
-  const seenItems = new Set()
-  const seenNodes = new Map()
-  const problems = new Set()
-
-  // defines special handling of printed depth when filtering with args
-  const filterDefaultDepth = depth === null ? Infinity : depth
-  const depthToPrint = (all || args.length)
-    ? filterDefaultDepth
-    : (depth || 0)
-
-  // add root node of tree to list of seenNodes
-  seenNodes.set(tree.path, tree)
-
-  // tree traversal happens here, using treeverse.breadth
-  const result = await breadth({
-    tree,
-    // recursive method, `node` is going to be the current elem (starting from
-    // the `tree` obj) that was just visited in the `visit` method below
-    // `nodeResult` is going to be the returned `item` from `visit`
-    getChildren (node, nodeResult) {
-      const seenPaths = new Set()
-      const shouldSkipChildren =
-        !(node instanceof Arborist.Node) || (node[_depth] > depthToPrint)
-      return (shouldSkipChildren)
-        ? []
-        : [...(node.target || node).edgesOut.values()]
-          .filter(filterByEdgesTypes({
-            dev,
-            development,
-            link,
-            node,
-            prod,
-            production,
-            only,
-            tree,
-          }))
-          .map(mapEdgesToNodes({ seenPaths }))
-          .concat(appendExtraneousChildren({ node, seenPaths }))
-          .sort(sortAlphabetically)
-          .map(augmentNodesWithMetadata({
-            args,
-            currentDepth: node[_depth],
-            nodeResult,
-            parseable,
-            seenNodes,
-          }))
-    },
-    // visit each `node` of the `tree`, returning an `item` - these are
-    // the elements that will be used to build the final output
-    visit (node) {
-      node[_problems] = getProblems(node, { global })
-
-      const item = json
-        ? getJsonOutputItem(node, { global, long })
-        : parseable
-          ? null
-          : getHumanOutputItem(node, { args, color, global, long })
-
-      // loop through list of node problems to add them to global list
-      if (node[_include]) {
-        for (const problem of node[_problems])
-          problems.add(problem)
-      }
-
-      seenItems.add(item)
-
-      // return a promise so we don't blow the stack
-      return Promise.resolve(item)
-    },
-  })
-
-  // handle the special case of a broken package.json in the root folder
-  const [rootError] = tree.errors.filter(e =>
-    e.code === 'EJSONPARSE' && e.path === resolve(path, 'package.json'))
-
-  output(
-    json
-      ? jsonOutput({ path, problems, result, rootError, seenItems })
-      : parseable
-        ? parseableOutput({ seenNodes, global, long })
-        : humanOutput({ color, result, seenItems, unicode })
-  )
-
-  // if filtering items, should exit with error code on no results
-  if (result && !result[_include] && args.length)
-    process.exitCode = 1
-
-  if (rootError) {
-    throw Object.assign(
-      new Error('Failed to parse root package.json'),
-      { code: 'EJSONPARSE' }
-    )
-  }
-
-  if (problems.size) {
-    throw Object.assign(
-      new Error([...problems].join(EOL)),
-      { code: 'ELSPROBLEMS' }
-    )
-  }
-}
-
-module.exports = Object.assign(cmd, { usage, completion })

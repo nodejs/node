@@ -1,8 +1,19 @@
 // dedupe duplicated packages, or find them in the tree
-const dedupe = require('./dedupe.js')
 const usageUtil = require('./utils/usage.js')
 
-const usage = usageUtil('find-dupes', 'npm find-dupes')
-const cmd = (args, cb) => dedupe({ dryRun: true }, cb)
+class FindDupes {
+  constructor (npm) {
+    this.npm = npm
+  }
 
-module.exports = Object.assign(cmd, { usage })
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  get usage () {
+    return usageUtil('find-dupes', 'npm find-dupes')
+  }
+
+  exec (args, cb) {
+    this.npm.config.set('dry-run', true)
+    this.npm.commands.dedupe([], cb)
+  }
+}
+module.exports = FindDupes

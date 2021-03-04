@@ -1,24 +1,32 @@
 // prune extraneous packages
-const npm = require('./npm.js')
 const Arborist = require('@npmcli/arborist')
 const usageUtil = require('./utils/usage.js')
-
 const reifyFinish = require('./utils/reify-finish.js')
 
-const usage = usageUtil('prune',
-  'npm prune [[<@scope>/]<pkg>...] [--production]'
-)
+class Prune {
+  constructor (npm) {
+    this.npm = npm
+  }
 
-const cmd = (args, cb) => prune().then(() => cb()).catch(cb)
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  get usage () {
+    return usageUtil('prune',
+      'npm prune [[<@scope>/]<pkg>...] [--production]'
+    )
+  }
 
-const prune = async () => {
-  const where = npm.prefix
-  const arb = new Arborist({
-    ...npm.flatOptions,
-    path: where,
-  })
-  await arb.prune(npm.flatOptions)
-  await reifyFinish(arb)
+  exec (args, cb) {
+    this.prune().then(() => cb()).catch(cb)
+  }
+
+  async prune () {
+    const where = this.npm.prefix
+    const arb = new Arborist({
+      ...this.npm.flatOptions,
+      path: where,
+    })
+    await arb.prune(this.npm.flatOptions)
+    await reifyFinish(this.npm, arb)
+  }
 }
-
-module.exports = Object.assign(cmd, { usage })
+module.exports = Prune

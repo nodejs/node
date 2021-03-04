@@ -1,13 +1,26 @@
-const npm = require('./npm.js')
 const output = require('./utils/output.js')
+const envPath = require('./utils/path.js')
 const usageUtil = require('./utils/usage.js')
-const PATH = require('./utils/path.js')
-const cmd = (args, cb) => bin(args).then(() => cb()).catch(cb)
-const usage = usageUtil('bin', 'npm bin [-g]')
-const bin = async (args, cb) => {
-  const b = npm.bin
-  output(b)
-  if (npm.flatOptions.global && !PATH.includes(b))
-    console.error('(not in PATH env variable)')
+
+class Bin {
+  constructor (npm) {
+    this.npm = npm
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  get usage () {
+    return usageUtil('bin', 'npm bin [-g]')
+  }
+
+  exec (args, cb) {
+    this.bin(args).then(() => cb()).catch(cb)
+  }
+
+  async bin (args) {
+    const b = this.npm.bin
+    output(b)
+    if (this.npm.flatOptions.global && !envPath.includes(b))
+      console.error('(not in PATH env variable)')
+  }
 }
-module.exports = Object.assign(cmd, { usage })
+module.exports = Bin

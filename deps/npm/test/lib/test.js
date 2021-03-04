@@ -1,7 +1,7 @@
 const t = require('tap')
 const requireInject = require('require-inject')
 let RUN_ARGS = null
-const npmock = {
+const npm = {
   commands: {
     'run-script': (args, cb) => {
       RUN_ARGS = args
@@ -9,15 +9,14 @@ const npmock = {
     },
   },
 }
-const test = requireInject('../../lib/test.js', {
-  '../../lib/npm.js': npmock,
-})
+const Test = requireInject('../../lib/test.js')
+const test = new Test(npm)
 
 t.test('run a test', t => {
-  test([], (er) => {
+  test.exec([], (er) => {
     t.strictSame(RUN_ARGS, ['test'], 'added "test" to the args')
   })
-  test(['hello', 'world'], (er) => {
+  test.exec(['hello', 'world'], (er) => {
     t.strictSame(RUN_ARGS, ['test', 'hello', 'world'], 'added positional args')
   })
 
@@ -26,13 +25,13 @@ t.test('run a test', t => {
   })
   const otherErr = new Error('should see this')
 
-  npmock.commands['run-script'] = (args, cb) => cb(lcErr)
-  test([], (er) => {
+  npm.commands['run-script'] = (args, cb) => cb(lcErr)
+  test.exec([], (er) => {
     t.equal(er, 'Test failed.  See above for more details.')
   })
 
-  npmock.commands['run-script'] = (args, cb) => cb(otherErr)
-  test([], (er) => {
+  npm.commands['run-script'] = (args, cb) => cb(otherErr)
+  test.exec([], (er) => {
     t.match(er, { message: 'should see this' })
   })
 

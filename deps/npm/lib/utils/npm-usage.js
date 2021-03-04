@@ -1,10 +1,9 @@
-const npm = require('../npm.js')
 const didYouMean = require('./did-you-mean.js')
 const { dirname } = require('path')
 const output = require('./output.js')
 const { cmdList } = require('./cmd-list')
 
-module.exports = (valid = true) => {
+module.exports = (npm, valid = true) => {
   npm.config.set('loglevel', 'silent')
   const usesBrowser = npm.config.get('viewer') === 'browser'
     ? ' (in a browser)' : ''
@@ -22,7 +21,7 @@ npm help <term>    search for help on <term>${usesBrowser}
 npm help npm       more involved overview${usesBrowser}
 
 All commands:
-${npm.config.get('long') ? usages() : ('\n    ' + wrap(cmdList))}
+${npm.config.get('long') ? usages(npm) : ('\n    ' + wrap(cmdList))}
 
 Specify configs in the ini-formatted file:
     ${npm.config.get('userconfig')}
@@ -59,12 +58,11 @@ const wrap = (arr) => {
   return out.join('\n    ').substr(2)
 }
 
-const usages = () => {
+const usages = (npm) => {
   // return a string of <command>: <usage>
   let maxLen = 0
   return cmdList.reduce((set, c) => {
-    set.push([c, require(`../${npm.deref(c)}.js`).usage ||
-    /* istanbul ignore next - all commands should have usage */ ''])
+    set.push([c, npm.commands[c].usage])
     maxLen = Math.max(maxLen, c.length)
     return set
   }, [])

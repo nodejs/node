@@ -31,7 +31,6 @@ const mocks = {
       return tree
     }
   },
-  '../../lib/npm.js': npm,
   '../../lib/utils/usage.js': () => 'usage instructions',
 }
 
@@ -80,13 +79,14 @@ t.test('no args', t => {
     },
   }
 
-  const shrinkwrap = requireInject('../../lib/shrinkwrap.js', {
+  const Shrinkwrap = requireInject('../../lib/shrinkwrap.js', {
     ...mocks,
     npmlog,
     '@npmcli/arborist': Arborist,
   })
+  const shrinkwrap = new Shrinkwrap(npm)
 
-  shrinkwrap([], err => {
+  shrinkwrap.exec([], err => {
     if (err)
       throw err
   })
@@ -134,13 +134,14 @@ t.test('no virtual tree', t => {
     },
   }
 
-  const shrinkwrap = requireInject('../../lib/shrinkwrap.js', {
+  const Shrinkwrap = requireInject('../../lib/shrinkwrap.js', {
     ...mocks,
     npmlog,
     '@npmcli/arborist': Arborist,
   })
+  const shrinkwrap = new Shrinkwrap(npm)
 
-  shrinkwrap([], err => {
+  shrinkwrap.exec([], err => {
     if (err)
       throw err
   })
@@ -194,14 +195,15 @@ t.test('existing package-json file', t => {
     },
   }
 
-  const shrinkwrap = requireInject('../../lib/shrinkwrap.js', {
+  const Shrinkwrap = requireInject('../../lib/shrinkwrap.js', {
     ...mocks,
     fs,
     npmlog,
     '@npmcli/arborist': Arborist,
   })
+  const shrinkwrap = new Shrinkwrap(npm)
 
-  shrinkwrap([], err => {
+  shrinkwrap.exec([], err => {
     if (err)
       throw err
   })
@@ -248,13 +250,14 @@ t.test('update shrinkwrap file version', t => {
     },
   }
 
-  const shrinkwrap = requireInject('../../lib/shrinkwrap.js', {
+  const Shrinkwrap = requireInject('../../lib/shrinkwrap.js', {
     ...mocks,
     npmlog,
     '@npmcli/arborist': Arborist,
   })
+  const shrinkwrap = new Shrinkwrap(npm)
 
-  shrinkwrap([], err => {
+  shrinkwrap.exec([], err => {
     if (err)
       throw err
   })
@@ -301,24 +304,26 @@ t.test('update to date shrinkwrap file', t => {
     },
   }
 
-  const shrinkwrap = requireInject('../../lib/shrinkwrap.js', {
+  const Shrinkwrap = requireInject('../../lib/shrinkwrap.js', {
     ...mocks,
     npmlog,
     '@npmcli/arborist': Arborist,
   })
+  const shrinkwrap = new Shrinkwrap(npm)
 
-  shrinkwrap([], err => {
+  shrinkwrap.exec([], err => {
     if (err)
       throw err
   })
 })
 
 t.test('shrinkwrap --global', t => {
-  const shrinkwrap = requireInject('../../lib/shrinkwrap.js', mocks)
+  const Shrinkwrap = requireInject('../../lib/shrinkwrap.js', mocks)
 
   npm.flatOptions.global = true
+  const shrinkwrap = new Shrinkwrap(npm)
 
-  shrinkwrap([], err => {
+  shrinkwrap.exec([], err => {
     t.match(
       err,
       /does not work for global packages/,
@@ -330,8 +335,11 @@ t.test('shrinkwrap --global', t => {
 })
 
 t.test('works without fs.promises', async t => {
-  t.doesNotThrow(() => requireInject('../../lib/shrinkwrap.js', {
-    ...mocks,
-    fs: { ...fs, promises: null },
-  }))
+  t.doesNotThrow(() => {
+    const Shrinkwrap = requireInject('../../lib/shrinkwrap.js', {
+      ...mocks,
+      fs: { ...fs, promises: null },
+    })
+    new Shrinkwrap(npm)
+  })
 })

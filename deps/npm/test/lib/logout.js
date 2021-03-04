@@ -17,13 +17,13 @@ const npmFetch = (url, opts) => {
 const mocks = {
   npmlog,
   'npm-registry-fetch': npmFetch,
-  '../../lib/npm.js': {
-    flatOptions: _flatOptions,
-    config,
-  },
 }
 
-const logout = requireInject('../../lib/logout.js', mocks)
+const Logout = requireInject('../../lib/logout.js', mocks)
+const logout = new Logout({
+  flatOptions: _flatOptions,
+  config,
+})
 
 test('token logout', async (t) => {
   t.plan(6)
@@ -52,7 +52,7 @@ test('token logout', async (t) => {
   }
 
   await new Promise((res, rej) => {
-    logout([], (err) => {
+    logout.exec([], (err) => {
       t.ifError(err, 'should not error out')
 
       t.deepEqual(
@@ -121,7 +121,7 @@ test('token scoped logout', async (t) => {
   }
 
   await new Promise((res, rej) => {
-    logout([], (err) => {
+    logout.exec([], (err) => {
       t.ifError(err, 'should not error out')
 
       t.deepEqual(
@@ -174,7 +174,7 @@ test('user/pass logout', async (t) => {
   config.save = () => null
 
   await new Promise((res, rej) => {
-    logout([], (err) => {
+    logout.exec([], (err) => {
       t.ifError(err, 'should not error out')
 
       delete _flatOptions.username
@@ -189,7 +189,7 @@ test('user/pass logout', async (t) => {
 })
 
 test('missing credentials', (t) => {
-  logout([], (err) => {
+  logout.exec([], (err) => {
     t.match(
       err.message,
       /not logged in to https:\/\/registry.npmjs.org\/, so can't log out!/,
@@ -228,7 +228,7 @@ test('ignore invalid scoped registry config', async (t) => {
   config.save = () => null
 
   await new Promise((res, rej) => {
-    logout([], (err) => {
+    logout.exec([], (err) => {
       t.ifError(err, 'should not error out')
 
       t.deepEqual(
