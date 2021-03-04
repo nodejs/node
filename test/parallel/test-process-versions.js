@@ -35,7 +35,7 @@ assert(/^\d+\.\d+\.\d+(?:\.\d+)?-node\.\d+(?: \(candidate\))?$/
 assert(/^\d+$/.test(process.versions.modules));
 
 if (common.hasCrypto) {
-  assert(/^\d+\.\d+\.\d+[a-z]?(-fips)?$/.test(process.versions.openssl));
+  assert(/^\d+\.\d+\.\d+[a-z]?(\+quic)?(-fips)?$/.test(process.versions.openssl));
 }
 
 for (let i = 0; i < expected_keys.length; i++) {
