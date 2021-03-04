@@ -49469,6 +49469,17 @@ const validVersionNumberRegex = /^v\d+\.\d+\.\d+$/;
 const prUrlRegex = new RegExp("^https://github.com/nodejs/node/pull/\\d+$");
 const privatePRUrl = "https://github.com/nodejs-private/node-private/pull/";
 
+let releasedVersions;
+let invalidVersionMessage = "version(s) must respect the pattern `vx.x.x` or";
+if (process.env.NODE_RELEASED_VERSIONS) {
+  console.log("Using release list from env...");
+  releasedVersions = process.env.NODE_RELEASED_VERSIONS.split(",").map(
+    (v) => `v${v}`
+  );
+  invalidVersionMessage = `version not listed in the changelogs, `;
+}
+invalidVersionMessage += `use the placeholder \`${VERSION_PLACEHOLDER}\``;
+
 const kContainsIllegalKey = Symbol("illegal key");
 const kWrongKeyOrder = Symbol("Wrong key order");
 function unorderedKeys(meta) {
@@ -49488,11 +49499,16 @@ function containsInvalidVersionNumber(version) {
     return version.some(containsInvalidVersionNumber);
   }
 
-  return (
-    version !== undefined &&
-    version !== VERSION_PLACEHOLDER &&
-    !validVersionNumberRegex.test(version)
-  );
+  if (version === undefined || version === VERSION_PLACEHOLDER) return false;
+
+  if (
+    releasedVersions &&
+    // Always ignore 0.0.x and 0.1.x release numbers:
+    (version[1] !== "0" || (version[3] !== "0" && version[3] !== "1"))
+  )
+    return !releasedVersions.includes(version);
+
+  return !validVersionNumberRegex.test(version);
 }
 const getValidSemver = (version) =>
   version === VERSION_PLACEHOLDER ? MAX_SAFE_SEMVER_VERSION : version;
@@ -49569,11 +49585,7 @@ function validateChanges(file, node, changes) {
     }
 
     if (containsInvalidVersionNumber(change.version)) {
-      file.message(
-        `changes[${index}]: version(s) must respect the pattern \`vx.x.x\` ` +
-          `or use the placeholder \`${VERSION_PLACEHOLDER}\``,
-        node
-      );
+      file.message(`changes[${index}]: ${invalidVersionMessage}`, node);
     } else if (areVersionsUnordered(change.version)) {
       file.message(`changes[${index}]: list of versions is not in order`, node);
     }
@@ -49627,19 +49639,14 @@ function validateMeta(node, file, meta) {
   }
 
   if (containsInvalidVersionNumber(meta.added)) {
-    file.message(
-      "Invalid `added` value: version(s) must respect the pattern `vx.x.x` " +
-        `or use the placeholder \`${VERSION_PLACEHOLDER}\``,
-      node
-    );
+    file.message(`Invalid \`added\` value: ${invalidVersionMessage}`, node);
   } else if (areVersionsUnordered(meta.added)) {
     file.message("Versions in `added` list are not in order", node);
   }
 
   if (containsInvalidVersionNumber(meta.deprecated)) {
     file.message(
-      "Invalid `deprecated` value: version(s) must respect the pattern `vx.x.x` " +
-        `or use the placeholder \`${VERSION_PLACEHOLDER}\``,
+      `Invalid \`deprecated\` value: ${invalidVersionMessage}`,
       node
     );
   } else if (areVersionsUnordered(meta.deprecated)) {
@@ -49647,11 +49654,7 @@ function validateMeta(node, file, meta) {
   }
 
   if (containsInvalidVersionNumber(meta.removed)) {
-    file.message(
-      "Invalid `removed` value: version(s) must respect the pattern `vx.x.x` " +
-        `or use the placeholder \`${VERSION_PLACEHOLDER}\``,
-      node
-    );
+    file.message(`Invalid \`removed\` value: ${invalidVersionMessage}`, node);
   } else if (areVersionsUnordered(meta.removed)) {
     file.message("Versions in `removed` list are not in order", node);
   }
@@ -50490,6 +50493,7 @@ var plugins$2 = [
       flags: [
         "bash",
         "c",
+        "cjs",
         "coffee",
         "console",
         "cpp",
@@ -50498,6 +50502,7 @@ var plugins$2 = [
         "js",
         "json",
         "markdown",
+        "mjs",
         "powershell",
         "r",
         "text",
