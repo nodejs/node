@@ -15,7 +15,7 @@ const jsPrimitives = {
 
 const jsGlobalObjectsUrl = `${jsDocPrefix}Reference/Global_Objects/`;
 const jsGlobalTypes = [
-  'Array', 'ArrayBuffer', 'DataView', 'Date', 'Error',
+  'AggregateError', 'Array', 'ArrayBuffer', 'DataView', 'Date', 'Error',
   'EvalError', 'Function', 'Map', 'Object', 'Promise', 'RangeError',
   'ReferenceError', 'RegExp', 'Set', 'SharedArrayBuffer', 'SyntaxError',
   'TypeError', 'TypedArray', 'URIError', 'Uint8Array',
