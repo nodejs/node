@@ -51,7 +51,7 @@
 
 ### Notable Changes
 
-* [[`a3e3156b52`](https://github.com/nodejs/node/commit/a3e3156b52)] - **(SEMVER-MINOR)** **crypto**: make FIPS related options always awailable (Vít Ondruch) [#36341](https://github.com/nodejs/node/pull/36341)
+* [[`a3e3156b52`](https://github.com/nodejs/node/commit/a3e3156b52)] - **(SEMVER-MINOR)** **crypto**: make FIPS related options always available (Vít Ondruch) [#36341](https://github.com/nodejs/node/pull/36341)
 * [[`9ba5c0f9ba`](https://github.com/nodejs/node/commit/9ba5c0f9ba)] - **(SEMVER-MINOR)** **errors**: remove experimental from --enable-source-maps (Benjamin Coe) [#37362](https://github.com/nodejs/node/pull/37362)
 
 ### Commits
