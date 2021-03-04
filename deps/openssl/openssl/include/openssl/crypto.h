@@ -161,6 +161,10 @@ const char *OpenSSL_version(int type);
 # define OPENSSL_DIR              4
 # define OPENSSL_ENGINES_DIR      5
 
+# ifndef OPENSSL_NO_QUIC
+#  define OPENSSL_INFO_QUIC       2000
+# endif
+
 int OPENSSL_issetugid(void);
 
 typedef void CRYPTO_EX_new (void *parent, void *ptr, CRYPTO_EX_DATA *ad,

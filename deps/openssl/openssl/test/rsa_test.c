@@ -304,7 +304,7 @@ static int test_rsa_sslv23(int idx)
 static int test_rsa_oaep(int idx)
 {
     int ret = 0;
-    RSA *key;
+    RSA *key = NULL;
     unsigned char ptext[256];
     unsigned char ctext[256];
     static unsigned char ptext_ex[] = "\x54\x85\x9b\x34\x2c\x49\xea\x2a";
