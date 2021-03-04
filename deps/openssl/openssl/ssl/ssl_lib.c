@@ -839,6 +839,10 @@ SSL *SSL_new(SSL_CTX *ctx)
 
     s->job = NULL;
 
+#ifndef OPENSSL_NO_QUIC
+    s->quic_method = ctx->quic_method;
+#endif
+
 #ifndef OPENSSL_NO_CT
     if (!SSL_set_ct_validation_callback(s, ctx->ct_validation_callback,
                                         ctx->ct_validation_callback_arg))
@@ -1205,6 +1209,20 @@ void SSL_free(SSL *s)
     OPENSSL_free(s->clienthello);
     OPENSSL_free(s->pha_context);
     EVP_MD_CTX_free(s->pha_dgst);
+
+#ifndef OPENSSL_NO_QUIC
+    OPENSSL_free(s->ext.quic_transport_params);
+    OPENSSL_free(s->ext.peer_quic_transport_params_draft);
+    OPENSSL_free(s->ext.peer_quic_transport_params);
+    BUF_MEM_free(s->quic_buf);
+    while (s->quic_input_data_head != NULL) {
+        QUIC_DATA *qd;
+
+        qd = s->quic_input_data_head;
+        s->quic_input_data_head = qd->next;
+        OPENSSL_free(qd);
+    }
+#endif
 
     sk_X509_NAME_pop_free(s->ca_names, X509_NAME_free);
     sk_X509_NAME_pop_free(s->client_ca_names, X509_NAME_free);
@@ -1725,6 +1743,12 @@ static int ssl_io_intern(void *vargs)
 
 int ssl_read_internal(SSL *s, void *buf, size_t num, size_t *readbytes)
 {
+#ifndef OPENSSL_NO_QUIC
+    if (SSL_IS_QUIC(s)) {
+        SSLerr(SSL_F_SSL_READ_INTERNAL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+        return -1;
+    }
+#endif
     if (s->handshake_func == NULL) {
         SSLerr(SSL_F_SSL_READ_INTERNAL, SSL_R_UNINITIALIZED);
         return -1;
@@ -1857,6 +1881,12 @@ int SSL_get_early_data_status(const SSL *s)
 
 static int ssl_peek_internal(SSL *s, void *buf, size_t num, size_t *readbytes)
 {
+#ifndef OPENSSL_NO_QUIC
+    if (SSL_IS_QUIC(s)) {
+        SSLerr(SSL_F_SSL_PEEK_INTERNAL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+        return -1;
+    }
+#endif
     if (s->handshake_func == NULL) {
         SSLerr(SSL_F_SSL_PEEK_INTERNAL, SSL_R_UNINITIALIZED);
         return -1;
@@ -1917,6 +1947,12 @@ int SSL_peek_ex(SSL *s, void *buf, size_t num, size_t *readbytes)
 
 int ssl_write_internal(SSL *s, const void *buf, size_t num, size_t *written)
 {
+#ifndef OPENSSL_NO_QUIC
+    if (SSL_IS_QUIC(s)) {
+        SSLerr(SSL_F_SSL_WRITE_INTERNAL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+        return -1;
+    }
+#endif
     if (s->handshake_func == NULL) {
         SSLerr(SSL_F_SSL_WRITE_INTERNAL, SSL_R_UNINITIALIZED);
         return -1;
@@ -3568,6 +3604,11 @@ int SSL_get_error(const SSL *s, int i)
     }
 
     if (SSL_want_read(s)) {
+#ifndef OPENSSL_NO_QUIC
+        if (SSL_IS_QUIC(s)) {
+            return SSL_ERROR_WANT_READ;
+        }
+#endif
         bio = SSL_get_rbio(s);
         if (BIO_should_read(bio))
             return SSL_ERROR_WANT_READ;

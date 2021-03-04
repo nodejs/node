@@ -401,6 +401,7 @@ my @disablables = (
     "poly1305",
     "posix-io",
     "psk",
+    "quic",
     "rc2",
     "rc4",
     "rc5",
@@ -514,6 +515,8 @@ my @disable_cascades = (
     "comp"              => [ "zlib" ],
     "ec"                => [ "tls1_3", "sm2" ],
     "sm3"               => [ "sm2" ],
+    "tls1_3"            => [ "quic" ],
+
     sub { !$disabled{"unit-test"} } => [ "heartbeats" ],
 
     sub { !$disabled{"msan"} } => [ "asm" ],

@@ -1039,6 +1039,47 @@ static int test_HKDF(void)
     return ret;
 }
 
+static int test_emptyikm_HKDF(void)
+{
+    EVP_PKEY_CTX *pctx;
+    unsigned char out[20];
+    size_t outlen;
+    int ret = 0;
+    unsigned char salt[] = "9876543210";
+    unsigned char key[] = "";
+    unsigned char info[] = "stringinfo";
+    const unsigned char expected[] = {
+        0x68, 0x81, 0xa5, 0x3e, 0x5b, 0x9c, 0x7b, 0x6f, 0x2e, 0xec, 0xc8, 0x47,
+        0x7c, 0xfa, 0x47, 0x35, 0x66, 0x82, 0x15, 0x30
+    };
+    size_t expectedlen = sizeof(expected);
+
+    if (!TEST_ptr(pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL)))
+        goto done;
+
+    outlen = sizeof(out);
+    memset(out, 0, outlen);
+
+    if (!TEST_int_gt(EVP_PKEY_derive_init(pctx), 0)
+            || !TEST_int_gt(EVP_PKEY_CTX_set_hkdf_md(pctx, EVP_sha256()), 0)
+            || !TEST_int_gt(EVP_PKEY_CTX_set1_hkdf_salt(pctx, salt,
+                                                        sizeof(salt) - 1), 0)
+            || !TEST_int_gt(EVP_PKEY_CTX_set1_hkdf_key(pctx, key,
+                                                       sizeof(key) - 1), 0)
+            || !TEST_int_gt(EVP_PKEY_CTX_add1_hkdf_info(pctx, info,
+                                                        sizeof(info) - 1), 0)
+            || !TEST_int_gt(EVP_PKEY_derive(pctx, out, &outlen), 0)
+            || !TEST_mem_eq(out, outlen, expected, expectedlen))
+        goto done;
+
+    ret = 1;
+
+ done:
+    EVP_PKEY_CTX_free(pctx);
+
+    return ret;
+}
+
 #ifndef OPENSSL_NO_EC
 static int test_X509_PUBKEY_inplace(void)
 {
@@ -1197,6 +1238,7 @@ int setup_tests(void)
         return 0;
     ADD_ALL_TESTS(test_EVP_PKEY_check, OSSL_NELEM(keycheckdata));
     ADD_TEST(test_HKDF);
+    ADD_TEST(test_emptyikm_HKDF);
 #ifndef OPENSSL_NO_EC
     ADD_TEST(test_X509_PUBKEY_inplace);
     ADD_ALL_TESTS(test_invalide_ec_char2_pub_range_decode,
