@@ -5,7 +5,7 @@
  * Make sure to inspect the output below.  Do not ignore changes!
  */
 'use strict'
-exports[`test/lib/utils/npm-usage.js TAP basic usage > must match snapshot 1`] = `
+exports[`test/lib/utils/npm-usage.js TAP usage basic usage > must match snapshot 1`] = `
 
 Usage: npm <command>
 
@@ -41,7 +41,7 @@ npm@{VERSION} {BASEDIR}
 
 `
 
-exports[`test/lib/utils/npm-usage.js TAP did you mean? > must match snapshot 1`] = `
+exports[`test/lib/utils/npm-usage.js TAP usage did you mean? > must match snapshot 1`] = `
 
 Usage: npm <command>
 
@@ -77,14 +77,14 @@ npm@{VERSION} {BASEDIR}
 
 `
 
-exports[`test/lib/utils/npm-usage.js TAP did you mean? > must match snapshot 2`] = `
+exports[`test/lib/utils/npm-usage.js TAP usage did you mean? > must match snapshot 2`] = `
 
 Did you mean one of these?
     install
     uninstall
 `
 
-exports[`test/lib/utils/npm-usage.js TAP set process.stdout.columns columns=0 > must match snapshot 1`] = `
+exports[`test/lib/utils/npm-usage.js TAP usage set process.stdout.columns columns=0 > must match snapshot 1`] = `
 
 Usage: npm <command>
 
@@ -120,7 +120,7 @@ npm@{VERSION} {BASEDIR}
 
 `
 
-exports[`test/lib/utils/npm-usage.js TAP set process.stdout.columns columns=90 > must match snapshot 1`] = `
+exports[`test/lib/utils/npm-usage.js TAP usage set process.stdout.columns columns=90 > must match snapshot 1`] = `
 
 Usage: npm <command>
 
@@ -156,7 +156,7 @@ npm@{VERSION} {BASEDIR}
 
 `
 
-exports[`test/lib/utils/npm-usage.js TAP with browser > must match snapshot 1`] = `
+exports[`test/lib/utils/npm-usage.js TAP usage with browser > must match snapshot 1`] = `
 
 Usage: npm <command>
 
@@ -192,7 +192,7 @@ npm@{VERSION} {BASEDIR}
 
 `
 
-exports[`test/lib/utils/npm-usage.js TAP with long > must match snapshot 1`] = `
+exports[`test/lib/utils/npm-usage.js TAP usage with long > must match snapshot 1`] = `
 
 Usage: npm <command>
 
@@ -360,9 +360,9 @@ All commands:
 
                     alias: ln
 
-    ll              npm ls [[<@scope>/]<pkg> ...]
+    ll              npm ll [[<@scope>/]<pkg> ...]
 
-                    alias: list
+                    alias: la
 
     login           npm adduser [--registry=url] [--scope=@orgname] [--always-auth]
 
@@ -377,6 +377,8 @@ All commands:
     org             npm org set orgname username [developer | admin | owner]
                     npm org rm orgname username
                     npm org ls orgname [<username>]
+
+                    alias: ogr
 
     outdated        npm outdated [[<@scope>/]<pkg> ...]
 
@@ -393,10 +395,10 @@ All commands:
 
     prefix          npm prefix [-g]
 
-    profile         npm profile disable-2fa
+    profile         npm profile enable-2fa [auth-only|auth-and-writes]
 
 
-                    common options: npm profile get [<key>]
+                    common options: npm profile disable-2fa
 
 
     prune           npm prune [[<@scope>/]<pkg>...] [--production]
@@ -473,6 +475,7 @@ All commands:
                     'npm -v' or 'npm --version' to print npm version ({VERSION})
                     'npm view <pkg> version' to view a package's published version
                     'npm ls' to inspect current package/dependency versions
+
 
                     alias: verison
 

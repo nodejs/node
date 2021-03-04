@@ -1,6 +1,5 @@
 const t = require('tap')
 const requireInject = require('require-inject')
-const audit = require('../../lib/audit.js')
 
 t.test('should audit using Arborist', t => {
   let ARB_ARGS = null
@@ -10,13 +9,13 @@ t.test('should audit using Arborist', t => {
   let OUTPUT_CALLED = false
   let ARB_OBJ = null
 
-  const audit = requireInject('../../lib/audit.js', {
-    '../../lib/npm.js': {
-      prefix: 'foo',
-      flatOptions: {
-        json: false,
-      },
+  const npm = {
+    prefix: 'foo',
+    flatOptions: {
+      json: false,
     },
+  }
+  const Audit = requireInject('../../lib/audit.js', {
     'npm-audit-report': () => {
       AUDIT_REPORT_CALLED = true
       return {
@@ -32,7 +31,7 @@ t.test('should audit using Arborist', t => {
         this.auditReport = {}
       }
     },
-    '../../lib/utils/reify-finish.js': arb => {
+    '../../lib/utils/reify-finish.js': (npm, arb) => {
       if (arb !== ARB_OBJ)
         throw new Error('got wrong object passed to reify-output')
 
@@ -43,8 +42,10 @@ t.test('should audit using Arborist', t => {
     },
   })
 
+  const audit = new Audit(npm)
+
   t.test('audit', t => {
-    audit([], () => {
+    audit.exec([], () => {
       t.match(ARB_ARGS, { audit: true, path: 'foo' })
       t.equal(AUDIT_CALLED, true, 'called audit')
       t.equal(AUDIT_REPORT_CALLED, true, 'called audit report')
@@ -54,7 +55,7 @@ t.test('should audit using Arborist', t => {
   })
 
   t.test('audit fix', t => {
-    audit(['fix'], () => {
+    audit.exec(['fix'], () => {
       t.equal(REIFY_FINISH_CALLED, true, 'called reify output')
       t.end()
     })
@@ -64,13 +65,14 @@ t.test('should audit using Arborist', t => {
 })
 
 t.test('should audit - json', t => {
-  const audit = requireInject('../../lib/audit.js', {
-    '../../lib/npm.js': {
-      prefix: 'foo',
-      flatOptions: {
-        json: true,
-      },
+  const npm = {
+    prefix: 'foo',
+    flatOptions: {
+      json: true,
     },
+  }
+
+  const Audit = requireInject('../../lib/audit.js', {
     'npm-audit-report': () => ({
       report: 'there are vulnerabilities',
       exitCode: 0,
@@ -83,8 +85,9 @@ t.test('should audit - json', t => {
     '../../lib/utils/reify-output.js': () => {},
     '../../lib/utils/output.js': () => {},
   })
+  const audit = new Audit(npm)
 
-  audit([], (err) => {
+  audit.exec([], (err) => {
     t.notOk(err, 'no errors')
     t.end()
   })
@@ -95,17 +98,17 @@ t.test('report endpoint error', t => {
     t.test(`json=${json}`, t => {
       const OUTPUT = []
       const LOGS = []
-      const mocks = {
-        '../../lib/npm.js': {
-          prefix: 'foo',
-          command: 'audit',
-          flatOptions: {
-            json,
-          },
-          log: {
-            warn: (...warning) => LOGS.push(warning),
-          },
+      const npm = {
+        prefix: 'foo',
+        command: 'audit',
+        flatOptions: {
+          json,
         },
+        log: {
+          warn: (...warning) => LOGS.push(warning),
+        },
+      }
+      const Audit = requireInject('../../lib/audit.js', {
         'npm-audit-report': () => {
           throw new Error('should not call audit report when there are errors')
         },
@@ -130,15 +133,10 @@ t.test('report endpoint error', t => {
         '../../lib/utils/output.js': (...msg) => {
           OUTPUT.push(msg)
         },
-      }
-      // have to pass mocks to both to get the npm and output set right
-      const auditError = requireInject('../../lib/utils/audit-error.js', mocks)
-      const audit = requireInject('../../lib/audit.js', {
-        ...mocks,
-        '../../lib/utils/audit-error.js': auditError,
       })
+      const audit = new Audit(npm)
 
-      audit([], (err) => {
+      audit.exec([], (err) => {
         t.equal(err, 'audit endpoint returned an error')
         t.strictSame(OUTPUT, [
           [
@@ -168,6 +166,8 @@ t.test('report endpoint error', t => {
 })
 
 t.test('completion', t => {
+  const Audit = require('../../lib/audit.js')
+  const audit = new Audit({})
   t.test('fix', async t => {
     t.resolveMatch(audit.completion({ conf: { argv: { remain: ['npm', 'audit'] } } }), ['fix'], 'completes to fix')
     t.end()

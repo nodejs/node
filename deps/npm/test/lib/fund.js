@@ -188,11 +188,10 @@ const _flatOptions = {
   unicode: false,
   which: undefined,
 }
-const openUrl = (url, msg, cb) => {
-  if (url === 'http://npmjs.org') {
-    cb(new Error('ERROR'))
-    return
-  }
+const openUrl = async (npm, url, msg) => {
+  if (url === 'http://npmjs.org')
+    throw new Error('ERROR')
+
   if (_flatOptions.json) {
     printUrl = JSON.stringify({
       title: msg,
@@ -200,16 +199,8 @@ const openUrl = (url, msg, cb) => {
     })
   } else
     printUrl = `${msg}:\n  ${url}`
-
-  cb()
 }
-const fund = requireInject('../../lib/fund.js', {
-  '../../lib/npm.js': {
-    flatOptions: _flatOptions,
-    get prefix () {
-      return _flatOptions.prefix
-    },
-  },
+const Fund = requireInject('../../lib/fund.js', {
   '../../lib/utils/open-url.js': openUrl,
   '../../lib/utils/output.js': msg => {
     result += msg + '\n'
@@ -222,6 +213,12 @@ const fund = requireInject('../../lib/fund.js', {
       : Promise.reject(new Error('ERROR')),
   },
 })
+const fund = new Fund({
+  flatOptions: _flatOptions,
+  get prefix () {
+    return _flatOptions.prefix
+  },
+})
 
 test('fund with no package containing funding', t => {
   _flatOptions.prefix = t.testdir({
@@ -231,7 +228,7 @@ test('fund with no package containing funding', t => {
     }),
   })
 
-  fund([], (err) => {
+  fund.exec([], (err) => {
     t.ifError(err, 'should not error out')
     t.matchSnapshot(result, 'should print empty funding info')
     result = ''
@@ -242,7 +239,7 @@ test('fund with no package containing funding', t => {
 test('fund in which same maintainer owns all its deps', t => {
   _flatOptions.prefix = t.testdir(maintainerOwnsAllDeps)
 
-  fund([], (err) => {
+  fund.exec([], (err) => {
     t.ifError(err, 'should not error out')
     t.matchSnapshot(result, 'should print stack packages together')
     result = ''
@@ -254,7 +251,7 @@ test('fund in which same maintainer owns all its deps, using --json option', t =
   _flatOptions.json = true
   _flatOptions.prefix = t.testdir(maintainerOwnsAllDeps)
 
-  fund([], (err) => {
+  fund.exec([], (err) => {
     t.ifError(err, 'should not error out')
     t.deepEqual(
       JSON.parse(result),
@@ -292,7 +289,7 @@ test('fund in which same maintainer owns all its deps, using --json option', t =
 test('fund containing multi-level nested deps with no funding', t => {
   _flatOptions.prefix = t.testdir(nestedNoFundingPackages)
 
-  fund([], (err) => {
+  fund.exec([], (err) => {
     t.ifError(err, 'should not error out')
     t.matchSnapshot(
       result,
@@ -308,7 +305,7 @@ test('fund containing multi-level nested deps with no funding, using --json opti
   _flatOptions.prefix = t.testdir(nestedNoFundingPackages)
   _flatOptions.json = true
 
-  fund([], (err) => {
+  fund.exec([], (err) => {
     t.ifError(err, 'should not error out')
     t.deepEqual(
       JSON.parse(result),
@@ -340,7 +337,7 @@ test('fund containing multi-level nested deps with no funding, using --json opti
   _flatOptions.prefix = t.testdir(nestedMultipleFundingPackages)
   _flatOptions.json = true
 
-  fund([], (err) => {
+  fund.exec([], (err) => {
     t.ifError(err, 'should not error out')
     t.deepEqual(
       JSON.parse(result),
@@ -397,7 +394,7 @@ test('fund does not support global', t => {
   _flatOptions.prefix = t.testdir({})
   _flatOptions.global = true
 
-  fund([], (err) => {
+  fund.exec([], (err) => {
     t.match(err.code, 'EFUNDGLOBAL', 'should throw EFUNDGLOBAL error')
 
     result = ''
@@ -409,7 +406,7 @@ test('fund does not support global', t => {
 test('fund using package argument', t => {
   _flatOptions.prefix = t.testdir(maintainerOwnsAllDeps)
 
-  fund(['.'], (err) => {
+  fund.exec(['.'], (err) => {
     t.ifError(err, 'should not error out')
     t.matchSnapshot(printUrl, 'should open funding url')
 
@@ -423,7 +420,7 @@ test('fund does not support global, using --json option', t => {
   _flatOptions.global = true
   _flatOptions.json = true
 
-  fund([], (err) => {
+  fund.exec([], (err) => {
     t.equal(err.code, 'EFUNDGLOBAL', 'should use EFUNDGLOBAL error code')
     t.equal(
       err.message,
@@ -446,7 +443,7 @@ test('fund using string shorthand', t => {
     }),
   })
 
-  fund(['.'], (err) => {
+  fund.exec(['.'], (err) => {
     t.ifError(err, 'should not error out')
     t.matchSnapshot(printUrl, 'should open string-only url')
 
@@ -458,7 +455,7 @@ test('fund using string shorthand', t => {
 test('fund using nested packages with multiple sources', t => {
   _flatOptions.prefix = t.testdir(nestedMultipleFundingPackages)
 
-  fund(['.'], (err) => {
+  fund.exec(['.'], (err) => {
     t.ifError(err, 'should not error out')
     t.matchSnapshot(result, 'should prompt with all available URLs')
 
@@ -486,7 +483,7 @@ test('fund using symlink ref', t => {
   })
 
   // using symlinked ref
-  fund(['./node_modules/a'], (err) => {
+  fund.exec(['./node_modules/a'], (err) => {
     t.ifError(err, 'should not error out')
     t.match(
       printUrl,
@@ -497,7 +494,7 @@ test('fund using symlink ref', t => {
     printUrl = ''
 
     // using target ref
-    fund(['./a'], (err) => {
+    fund.exec(['./a'], (err) => {
       t.ifError(err, 'should not error out')
 
       t.match(
@@ -547,7 +544,7 @@ test('fund using data from actual tree', t => {
   })
 
   // using symlinked ref
-  fund(['a'], (err) => {
+  fund.exec(['a'], (err) => {
     t.ifError(err, 'should not error out')
     t.match(
       printUrl,
@@ -564,7 +561,7 @@ test('fund using nested packages with multiple sources, with a source number', t
   _flatOptions.prefix = t.testdir(nestedMultipleFundingPackages)
   _flatOptions.which = '1'
 
-  fund(['.'], (err) => {
+  fund.exec(['.'], (err) => {
     t.ifError(err, 'should not error out')
     t.matchSnapshot(printUrl, 'should open the numbered URL')
 
@@ -578,7 +575,7 @@ test('fund using pkg name while having conflicting versions', t => {
   _flatOptions.prefix = t.testdir(conflictingFundingPackages)
   _flatOptions.which = '1'
 
-  fund(['foo'], (err) => {
+  fund.exec(['foo'], (err) => {
     t.ifError(err, 'should not error out')
     t.matchSnapshot(printUrl, 'should open greatest version')
 
@@ -591,7 +588,7 @@ test('fund using package argument with no browser, using --json option', t => {
   _flatOptions.prefix = t.testdir(maintainerOwnsAllDeps)
   _flatOptions.json = true
 
-  fund(['.'], (err) => {
+  fund.exec(['.'], (err) => {
     t.ifError(err, 'should not error out')
     t.deepEqual(
       JSON.parse(printUrl),
@@ -611,7 +608,7 @@ test('fund using package argument with no browser, using --json option', t => {
 test('fund using package info fetch from registry', t => {
   _flatOptions.prefix = t.testdir({})
 
-  fund(['ntl'], (err) => {
+  fund.exec(['ntl'], (err) => {
     t.ifError(err, 'should not error out')
     t.match(
       printUrl,
@@ -627,7 +624,7 @@ test('fund using package info fetch from registry', t => {
 test('fund tries to use package info fetch from registry but registry has nothing', t => {
   _flatOptions.prefix = t.testdir({})
 
-  fund(['foo'], (err) => {
+  fund.exec(['foo'], (err) => {
     t.equal(err.code, 'ENOFUND', 'should have ENOFUND error code')
     t.equal(
       err.message,
@@ -643,7 +640,7 @@ test('fund tries to use package info fetch from registry but registry has nothin
 test('fund but target module has no funding info', t => {
   _flatOptions.prefix = t.testdir(nestedNoFundingPackages)
 
-  fund(['foo'], (err) => {
+  fund.exec(['foo'], (err) => {
     t.equal(err.code, 'ENOFUND', 'should have ENOFUND error code')
     t.equal(
       err.message,
@@ -660,7 +657,7 @@ test('fund using bad which value', t => {
   _flatOptions.prefix = t.testdir(nestedMultipleFundingPackages)
   _flatOptions.which = 3
 
-  fund(['bar'], (err) => {
+  fund.exec(['bar'], (err) => {
     t.equal(err.code, 'EFUNDNUMBER', 'should have EFUNDNUMBER error code')
     t.equal(
       err.message,
@@ -682,7 +679,7 @@ test('fund pkg missing version number', t => {
     }),
   })
 
-  fund([], (err) => {
+  fund.exec([], (err) => {
     t.ifError(err, 'should not error out')
     t.matchSnapshot(result, 'should print name only')
     result = ''
@@ -699,7 +696,7 @@ test('fund a package throws on openUrl', t => {
     }),
   })
 
-  fund(['.'], (err) => {
+  fund.exec(['.'], (err) => {
     t.equal(err.message, 'ERROR', 'should throw unknown error')
     result = ''
     t.end()
@@ -723,7 +720,7 @@ test('fund a package with type and multiple sources', t => {
     }),
   })
 
-  fund(['.'], (err) => {
+  fund.exec(['.'], (err) => {
     t.ifError(err, 'should not error out')
     t.matchSnapshot(result, 'should print prompt select message')
 
@@ -787,7 +784,7 @@ test('fund colors', t => {
   })
   _flatOptions.color = true
 
-  fund([], (err) => {
+  fund.exec([], (err) => {
     t.ifError(err, 'should not error out')
     t.matchSnapshot(result, 'should print output with color info')
 
@@ -837,7 +834,7 @@ test('sub dep with fund info and a parent with no funding info', t => {
     },
   })
 
-  fund([], (err) => {
+  fund.exec([], (err) => {
     t.ifError(err, 'should not error out')
     t.matchSnapshot(result, 'should nest sub dep as child of root')
 

@@ -1,3 +1,52 @@
+## v7.6.1 (2021-03-04)
+
+### BUG FIXES
+
+* [`3c9a589b0`](https://github.com/npm/cli/commit/3c9a589b004fa828a304abaf52d1d781710e1143)
+  [#2807](https://github.com/npm/cli/issues/2807)
+  `npm explain` show when an edge is a bundled edge
+  ([@kumavis](https://github.com/kumavis))
+* [`b33c760ce`](https://github.com/npm/cli/commit/b33c760cea7fe2696d35b5530abc1b455980fef1)
+  [#2766](https://github.com/npm/cli/issues/2766)
+  unused arguments cleanup
+  ([@sandersn](https://github.com/sandersn))
+* [`4a5dd3a5a`](https://github.com/npm/cli/commit/4a5dd3a5a200b3f4f7b47168497d8e03dca3a2ca)
+  [#2772](https://github.com/npm/cli/issues/2772)
+  fix(npm) pass npm context everywhere
+  ([@wraithgar](https://github.com/wraithgar))
+* [`e69be2ac5`](https://github.com/npm/cli/commit/e69be2ac5c35e985732e2baa00b70d39332e4b9f)
+  [#2789](https://github.com/npm/cli/issues/2789)
+  fix npm prefix on all Windows unix shells
+  ([@isaacs](https://github.com/isaacs))
+* [`2d682e4ca`](https://github.com/npm/cli/commit/2d682e4cab0cf109a16332f3222f1e9a4027db69)
+  [#2803](https://github.com/npm/cli/issues/2803)
+  fix(search): don't pass unused args
+  ([@wraithgar](https://github.com/wraithgar))
+* [`b3e7dd19b`](https://github.com/npm/cli/commit/b3e7dd19bb4888dad2bfb6702aed6560a7f91bf8)
+  [#2822](https://github.com/npm/cli/issues/2822)
+  fix(diff): set option "where" for pacote
+  ([@ruyadorno](https://github.com/ruyadorno))
+* [`96006640b`](https://github.com/npm/cli/commit/96006640b902d31415260df5ce3ad8d066a64623)
+  [#2824](https://github.com/npm/cli/issues/2824)
+  fix(repo, auth.sso): don't promisify open-url
+  ([@wraithgar](https://github.com/wraithgar))
+
+### DOCUMENTATION
+
+* [`c8b73db82`](https://github.com/npm/cli/commit/c8b73db82f0f2445c20a0a64110586253accd66b)
+  [#2690](https://github.com/npm/cli/issues/2690)
+  fix(docs): update scripts docs
+  ([@wraithgar](https://github.com/wraithgar))
+* [`5d922394b`](https://github.com/npm/cli/commit/5d922394b7874b2b38d34f03f2decbe0eb3e8583)
+  [#2809](https://github.com/npm/cli/issues/2809)
+  update republish timeout after unpublish
+  ([@BAJ-](https://github.com/BAJ-))
+
+### DEPENDENCIES
+
+* [`2d4ae598f`](https://github.com/npm/cli/commit/2d4ae598f30049680797685f76154b16a7e15a66)
+  `@npmcli/arborist@2.2.6`
+
 ## v7.6.0 (2021-02-25)
 
 ### FEATURES

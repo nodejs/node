@@ -68,17 +68,17 @@ const usageUtil = () => 'usage instructions'
 
 const mocks = {
   '../../lib/utils/config.js': { defaults, types },
-  '../../lib/npm.js': npm,
   '../../lib/utils/output.js': msg => {
     result = msg
   },
   '../../lib/utils/usage.js': usageUtil,
 }
 
-const config = requireInject('../../lib/config.js', mocks)
+const Config = requireInject('../../lib/config.js', mocks)
+const config = new Config(npm)
 
 t.test('config no args', t => {
-  config([], (err) => {
+  config.exec([], (err) => {
     t.match(err, /usage instructions/, 'should not error out on empty locations')
     t.end()
   })
@@ -94,7 +94,7 @@ t.test('config list', t => {
     delete npm.config.find
   })
 
-  config(['list'], (err) => {
+  config.exec(['list'], (err) => {
     t.ifError(err, 'npm config list')
     t.matchSnapshot(result, 'should list configs')
   })
@@ -120,7 +120,7 @@ t.test('config list overrides', t => {
     delete npm.config.find
   })
 
-  config(['list'], (err) => {
+  config.exec(['list'], (err) => {
     t.ifError(err, 'npm config list')
     t.matchSnapshot(result, 'should list overridden configs')
   })
@@ -138,7 +138,7 @@ t.test('config list --long', t => {
     result = ''
   })
 
-  config(['list'], (err) => {
+  config.exec(['list'], (err) => {
     t.ifError(err, 'npm config list --long')
     t.matchSnapshot(result, 'should list all configs')
   })
@@ -163,7 +163,7 @@ t.test('config list --json', t => {
     result = ''
   })
 
-  config(['list'], (err) => {
+  config.exec(['list'], (err) => {
     t.ifError(err, 'npm config list --json')
     t.deepEqual(
       JSON.parse(result),
@@ -179,7 +179,7 @@ t.test('config list --json', t => {
 })
 
 t.test('config delete no args', t => {
-  config(['delete'], (err) => {
+  config.exec(['delete'], (err) => {
     t.equal(
       err.message,
       'usage instructions',
@@ -202,7 +202,7 @@ t.test('config delete key', t => {
     t.equal(where, 'user', 'should save user config post-delete')
   }
 
-  config(['delete', 'foo'], (err) => {
+  config.exec(['delete', 'foo'], (err) => {
     t.ifError(err, 'npm config delete key')
   })
 
@@ -229,7 +229,7 @@ t.test('config delete multiple key', t => {
     t.equal(where, 'user', 'should save user config post-delete')
   }
 
-  config(['delete', 'foo', 'bar'], (err) => {
+  config.exec(['delete', 'foo', 'bar'], (err) => {
     t.ifError(err, 'npm config delete keys')
   })
 
@@ -252,7 +252,7 @@ t.test('config delete key --global', t => {
   }
 
   flatOptions.global = true
-  config(['delete', 'foo'], (err) => {
+  config.exec(['delete', 'foo'], (err) => {
     t.ifError(err, 'npm config delete key --global')
   })
 
@@ -264,7 +264,7 @@ t.test('config delete key --global', t => {
 })
 
 t.test('config set no args', t => {
-  config(['set'], (err) => {
+  config.exec(['set'], (err) => {
     t.equal(
       err.message,
       'usage instructions',
@@ -287,7 +287,7 @@ t.test('config set key', t => {
     t.equal(where, 'user', 'should save user config')
   }
 
-  config(['set', 'foo', 'bar'], (err) => {
+  config.exec(['set', 'foo', 'bar'], (err) => {
     t.ifError(err, 'npm config set key')
   })
 
@@ -310,7 +310,7 @@ t.test('config set key=val', t => {
     t.equal(where, 'user', 'should save user config')
   }
 
-  config(['set', 'foo=bar'], (err) => {
+  config.exec(['set', 'foo=bar'], (err) => {
     t.ifError(err, 'npm config set key')
   })
 
@@ -341,7 +341,7 @@ t.test('config set multiple keys', t => {
     t.equal(where, 'user', 'should save user config')
   }
 
-  config(['set', ...args], (err) => {
+  config.exec(['set', ...args], (err) => {
     t.ifError(err, 'npm config set key')
   })
 
@@ -364,7 +364,7 @@ t.test('config set key to empty value', t => {
     t.equal(where, 'user', 'should save user config')
   }
 
-  config(['set', 'foo'], (err) => {
+  config.exec(['set', 'foo'], (err) => {
     t.ifError(err, 'npm config set key to empty value')
   })
 
@@ -392,7 +392,7 @@ t.test('config set invalid key', t => {
     delete npm.log.warn
   })
 
-  config(['set', 'foo', 'bar'], (err) => {
+  config.exec(['set', 'foo', 'bar'], (err) => {
     t.ifError(err, 'npm config set invalid key')
   })
 })
@@ -411,7 +411,7 @@ t.test('config set key --global', t => {
   }
 
   flatOptions.global = true
-  config(['set', 'foo', 'bar'], (err) => {
+  config.exec(['set', 'foo', 'bar'], (err) => {
     t.ifError(err, 'npm config set key --global')
   })
 
@@ -432,7 +432,7 @@ t.test('config get no args', t => {
     delete npm.config.find
   })
 
-  config(['get'], (err) => {
+  config.exec(['get'], (err) => {
     t.ifError(err, 'npm config get no args')
     t.matchSnapshot(result, 'should list configs on config get no args')
   })
@@ -451,7 +451,7 @@ t.test('config get key', t => {
     throw new Error('should not save')
   }
 
-  config(['get', 'foo'], (err) => {
+  config.exec(['get', 'foo'], (err) => {
     t.ifError(err, 'npm config get key')
   })
 
@@ -479,7 +479,7 @@ t.test('config get multiple keys', t => {
     throw new Error('should not save')
   }
 
-  config(['get', 'foo', 'bar'], (err) => {
+  config.exec(['get', 'foo', 'bar'], (err) => {
     t.ifError(err, 'npm config get multiple keys')
     t.equal(result, 'foo=asdf\nbar=asdf')
   })
@@ -492,7 +492,7 @@ t.test('config get multiple keys', t => {
 })
 
 t.test('config get private key', t => {
-  config(['get', '//private-reg.npmjs.org/:_authThoken'], (err) => {
+  config.exec(['get', '//private-reg.npmjs.org/:_authThoken'], (err) => {
     t.match(
       err,
       /The \/\/private-reg.npmjs.org\/:_authThoken option is protected, and cannot be retrieved in this way/,
@@ -538,16 +538,19 @@ sign-git-commit=true`
       },
     },
   }
-  const config = requireInject('../../lib/config.js', editMocks)
-  config(['edit'], (err) => {
+  const Config = requireInject('../../lib/config.js', editMocks)
+  const config = new Config(npm)
+
+  config.exec(['edit'], (err) => {
     t.ifError(err, 'npm config edit')
 
     // test no config file result
     editMocks.fs.readFile = (p, e, cb) => {
       cb(new Error('ERR'))
     }
-    const config = requireInject('../../lib/config.js', editMocks)
-    config(['edit'], (err) => {
+    const Config = requireInject('../../lib/config.js', editMocks)
+    const config = new Config(npm)
+    config.exec(['edit'], (err) => {
       t.ifError(err, 'npm config edit')
     })
   })
@@ -594,8 +597,9 @@ t.test('config edit --global', t => {
       },
     },
   }
-  const config = requireInject('../../lib/config.js', editMocks)
-  config(['edit'], (err) => {
+  const Config = requireInject('../../lib/config.js', editMocks)
+  const config = new Config(npm)
+  config.exec(['edit'], (err) => {
     t.match(err, /exited with code: 137/, 'propagated exit code from editor')
   })
 

@@ -12,12 +12,12 @@ const npm = {
   localPrefix: '',
 }
 const mocks = {
-  '../../lib/npm.js': npm,
   '../../lib/utils/reify-finish.js': () => Promise.resolve(),
   '../../lib/utils/usage.js': () => 'usage instructions',
 }
 
-const uninstall = requireInject('../../lib/uninstall.js', mocks)
+const Uninstall = requireInject('../../lib/uninstall.js', mocks)
+const uninstall = new Uninstall(npm)
 
 t.afterEach(cb => {
   npm.globalDir = ''
@@ -87,7 +87,7 @@ t.test('remove single installed lib', t => {
 
   npm.flatOptions.prefix = path
 
-  uninstall(['b'], err => {
+  uninstall.exec(['b'], err => {
     if (err)
       throw err
 
@@ -150,7 +150,7 @@ t.test('remove multiple installed libs', t => {
 
   npm.flatOptions.prefix = path
 
-  uninstall(['b'], err => {
+  uninstall.exec(['b'], err => {
     if (err)
       throw err
 
@@ -165,7 +165,7 @@ t.test('no args local', t => {
 
   npm.flatOptions.prefix = path
 
-  uninstall([], err => {
+  uninstall.exec([], err => {
     t.match(
       err,
       /Must provide a package name to remove/,
@@ -201,7 +201,7 @@ t.test('no args global', t => {
   const a = resolve(path, 'lib/node_modules/a')
   t.ok(() => fs.statSync(a))
 
-  uninstall([], err => {
+  uninstall.exec([], err => {
     if (err)
       throw err
 
@@ -218,7 +218,7 @@ t.test('no args global but no package.json', t => {
   npm.localPrefix = path
   npm.flatOptions.global = true
 
-  uninstall([], err => {
+  uninstall.exec([], err => {
     t.match(
       err,
       'usage instructions',
@@ -232,16 +232,17 @@ t.test('no args global but no package.json', t => {
 t.test('unknown error reading from localPrefix package.json', t => {
   const path = t.testdir({})
 
-  const uninstall = requireInject('../../lib/uninstall.js', {
+  const Uninstall = requireInject('../../lib/uninstall.js', {
     ...mocks,
     'read-package-json-fast': () => Promise.reject(new Error('ERR')),
   })
+  const uninstall = new Uninstall(npm)
 
   npm.prefix = path
   npm.localPrefix = path
   npm.flatOptions.global = true
 
-  uninstall([], err => {
+  uninstall.exec([], err => {
     t.match(
       err,
       /ERR/,

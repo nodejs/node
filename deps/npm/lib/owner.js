@@ -3,94 +3,138 @@ const npa = require('npm-package-arg')
 const npmFetch = require('npm-registry-fetch')
 const pacote = require('pacote')
 
-const npm = require('./npm.js')
 const output = require('./utils/output.js')
 const otplease = require('./utils/otplease.js')
 const readLocalPkg = require('./utils/read-local-package.js')
 const usageUtil = require('./utils/usage.js')
 
-const usage = usageUtil(
-  'owner',
-  'npm owner add <user> [<@scope>/]<pkg>' +
-  '\nnpm owner rm <user> [<@scope>/]<pkg>' +
-  '\nnpm owner ls [<@scope>/]<pkg>'
-)
+class Owner {
+  constructor (npm) {
+    this.npm = npm
+  }
 
-const completion = async (opts) => {
-  const argv = opts.conf.argv.remain
-  if (argv.length > 3)
-    return []
+  get usage () {
+    return usageUtil(
+      'owner',
+      'npm owner add <user> [<@scope>/]<pkg>' +
+      '\nnpm owner rm <user> [<@scope>/]<pkg>' +
+      '\nnpm owner ls [<@scope>/]<pkg>'
+    )
+  }
 
-  if (argv[1] !== 'owner')
-    argv.unshift('owner')
+  get usageError () {
+    return Object.assign(new Error(this.usage), { code: 'EUSAGE' })
+  }
 
-  if (argv.length === 2)
-    return ['add', 'rm', 'ls']
-
-  // reaches registry in order to autocomplete rm
-  if (argv[2] === 'rm') {
-    const opts = {
-      ...npm.flatOptions,
-      fullMetadata: true,
-    }
-    const pkgName = await readLocalPkg()
-    if (!pkgName)
+  async completion (opts) {
+    const argv = opts.conf.argv.remain
+    if (argv.length > 3)
       return []
 
-    const spec = npa(pkgName)
-    const data = await pacote.packument(spec, opts)
-    if (data && data.maintainers && data.maintainers.length)
-      return data.maintainers.map(m => m.name)
+    if (argv[1] !== 'owner')
+      argv.unshift('owner')
+
+    if (argv.length === 2)
+      return ['add', 'rm', 'ls']
+
+    // reaches registry in order to autocomplete rm
+    if (argv[2] === 'rm') {
+      const pkgName = await readLocalPkg(this.npm)
+      if (!pkgName)
+        return []
+
+      const spec = npa(pkgName)
+      const data = await pacote.packument(spec, {
+        ...this.npm.flatOptions,
+        fullMetadata: true,
+      })
+      if (data && data.maintainers && data.maintainers.length)
+        return data.maintainers.map(m => m.name)
+    }
+    return []
   }
-  return []
+
+  exec (args, cb) {
+    this.owner(args).then(() => cb()).catch(cb)
+  }
+
+  async owner ([action, ...args]) {
+    const opts = this.npm.flatOptions
+    switch (action) {
+      case 'ls':
+      case 'list':
+        return this.ls(args[0], opts)
+      case 'add':
+        return this.add(args[0], args[1], opts)
+      case 'rm':
+      case 'remove':
+        return this.rm(args[0], args[1], opts)
+      default:
+        throw this.usageError
+    }
+  }
+
+  async ls (pkg, opts) {
+    if (!pkg) {
+      const pkgName = await readLocalPkg(this.npm)
+      if (!pkgName)
+        throw this.usageError
+
+      pkg = pkgName
+    }
+
+    const spec = npa(pkg)
+
+    try {
+      const packumentOpts = { ...opts, fullMetadata: true }
+      const { maintainers } = await pacote.packument(spec, packumentOpts)
+      if (!maintainers || !maintainers.length)
+        output('no admin found')
+      else
+        output(maintainers.map(o => `${o.name} <${o.email}>`).join('\n'))
+
+      return maintainers
+    } catch (err) {
+      log.error('owner ls', "Couldn't get owner data", pkg)
+      throw err
+    }
+  }
+
+  async add (user, pkg, opts) {
+    if (!user)
+      throw this.usageError
+
+    if (!pkg) {
+      const pkgName = await readLocalPkg(this.npm)
+      if (!pkgName)
+        throw this.usageError
+
+      pkg = pkgName
+    }
+    log.verbose('owner add', '%s to %s', user, pkg)
+
+    const spec = npa(pkg)
+    return putOwners(spec, user, opts, validateAddOwner)
+  }
+
+  async rm (user, pkg, opts) {
+    if (!user)
+      throw this.usageError
+
+    if (!pkg) {
+      const pkgName = await readLocalPkg(this.npm)
+      if (!pkgName)
+        throw this.usageError
+
+      pkg = pkgName
+    }
+    log.verbose('owner rm', '%s from %s', user, pkg)
+
+    const spec = npa(pkg)
+    return putOwners(spec, user, opts, validateRmOwner)
+  }
 }
-
-const UsageError = () =>
-  Object.assign(new Error(usage), { code: 'EUSAGE' })
-
-const cmd = (args, cb) => owner(args).then(() => cb()).catch(cb)
-
-const owner = async ([action, ...args]) => {
-  const opts = npm.flatOptions
-  switch (action) {
-    case 'ls':
-    case 'list':
-      return ls(args[0], opts)
-    case 'add':
-      return add(args[0], args[1], opts)
-    case 'rm':
-    case 'remove':
-      return rm(args[0], args[1], opts)
-    default:
-      throw UsageError()
-  }
-}
-
-const ls = async (pkg, opts) => {
-  if (!pkg) {
-    const pkgName = await readLocalPkg()
-    if (!pkgName)
-      throw UsageError()
-
-    pkg = pkgName
-  }
-
-  const spec = npa(pkg)
-
-  try {
-    const packumentOpts = { ...opts, fullMetadata: true }
-    const { maintainers } = await pacote.packument(spec, packumentOpts)
-    if (!maintainers || !maintainers.length)
-      output('no admin found')
-    else
-      output(maintainers.map(o => `${o.name} <${o.email}>`).join('\n'))
-
-    return maintainers
-  } catch (err) {
-    log.error('owner ls', "Couldn't get owner data", pkg)
-    throw err
-  }
-}
+module.exports = Owner
 
 const validateAddOwner = (newOwner, owners) => {
   owners = owners || []
@@ -107,23 +151,6 @@ const validateAddOwner = (newOwner, owners) => {
     ...owners,
     newOwner,
   ]
-}
-
-const add = async (user, pkg, opts) => {
-  if (!user)
-    throw UsageError()
-
-  if (!pkg) {
-    const pkgName = await readLocalPkg()
-    if (!pkgName)
-      throw UsageError()
-
-    pkg = pkgName
-  }
-  log.verbose('owner add', '%s to %s', user, pkg)
-
-  const spec = npa(pkg)
-  return putOwners(spec, user, opts, validateAddOwner)
 }
 
 const validateRmOwner = (rmOwner, owners) => {
@@ -149,23 +176,6 @@ const validateRmOwner = (rmOwner, owners) => {
   }
 
   return m
-}
-
-const rm = async (user, pkg, opts) => {
-  if (!user)
-    throw UsageError()
-
-  if (!pkg) {
-    const pkgName = await readLocalPkg()
-    if (!pkgName)
-      throw UsageError()
-
-    pkg = pkgName
-  }
-  log.verbose('owner rm', '%s from %s', user, pkg)
-
-  const spec = npa(pkg)
-  return putOwners(spec, user, opts, validateRmOwner)
 }
 
 const putOwners = async (spec, user, opts, validation) => {
@@ -227,5 +237,3 @@ const putOwners = async (spec, user, opts, validation) => {
   }
   return res
 }
-
-module.exports = Object.assign(cmd, { usage, completion })

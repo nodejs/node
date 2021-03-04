@@ -5,14 +5,14 @@ test('prefix', (t) => {
   t.plan(3)
   const dir = '/prefix/dir'
 
-  const prefix = requireInject('../../lib/prefix.js', {
-    '../../lib/npm.js': { prefix: dir },
+  const Prefix = requireInject('../../lib/prefix.js', {
     '../../lib/utils/output.js': (output) => {
       t.equal(output, dir, 'prints the correct directory')
     },
   })
+  const prefix = new Prefix({ prefix: dir })
 
-  prefix([], (err) => {
+  prefix.exec([], (err) => {
     t.ifError(err, 'npm prefix')
     t.ok('should have printed directory')
   })

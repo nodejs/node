@@ -108,16 +108,16 @@ const pacote = {
 
 // keep a tally of which urls got opened
 const opened = {}
-const openUrl = (url, errMsg, cb) => {
+const openUrl = async (npm, url, errMsg) => {
   opened[url] = opened[url] || 0
   opened[url]++
-  process.nextTick(cb)
 }
 
-const repo = requireInject('../../lib/repo.js', {
+const Repo = requireInject('../../lib/repo.js', {
   pacote,
   '../../lib/utils/open-url.js': openUrl,
 })
+const repo = new Repo({ flatOptions: {} })
 
 t.test('open repo urls', t => {
   const expect = {
@@ -150,7 +150,7 @@ t.test('open repo urls', t => {
   t.plan(keys.length)
   keys.forEach(pkg => {
     t.test(pkg, t => {
-      repo([pkg], (er) => {
+      repo.exec([pkg], (er) => {
         if (er)
           throw er
         const url = expect[pkg]
@@ -173,7 +173,7 @@ t.test('fail if cannot figure out repo url', t => {
 
   cases.forEach(pkg => {
     t.test(pkg, t => {
-      repo([pkg], er => {
+      repo.exec([pkg], er => {
         t.match(er, { pkgid: pkg })
         t.end()
       })
@@ -182,7 +182,7 @@ t.test('fail if cannot figure out repo url', t => {
 })
 
 t.test('open default package if none specified', t => {
-  repo([], (er) => {
+  repo.exec([], (er) => {
     if (er)
       throw er
     t.equal(opened['https://example.com/thispkg'], 2, 'opened expected url', {opened})

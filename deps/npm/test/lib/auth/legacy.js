@@ -13,18 +13,18 @@ const legacy = requireInject('../../../lib/auth/legacy.js', {
     },
   },
   'npm-profile': profile,
-  '../../../lib/utils/open-url.js': (url, msg, cb) => {
-    if (url)
-      cb()
-    else {
-      cb(Object.assign(
-        new Error('failed open url'),
-        { code: 'ERROR' }
-      ))
-    }
+  '../../../lib/utils/open-url.js': (npm, url, msg) => {
+    if (!url)
+      throw Object.assign(new Error('failed open url'), { code: 'ERROR' })
   },
   '../../../lib/utils/read-user-info.js': read,
 })
+
+const npm = {
+  config: {
+    get: () => null,
+  },
+}
 
 test('login using username/password with token result', async (t) => {
   profile.login = () => {
@@ -34,7 +34,7 @@ test('login using username/password with token result', async (t) => {
   const {
     message,
     newCreds,
-  } = await legacy({
+  } = await legacy(npm, {
     creds: {
       username: 'u',
       password: 'p',
@@ -75,7 +75,7 @@ test('login using username/password with user info result', async (t) => {
   const {
     message,
     newCreds,
-  } = await legacy({
+  } = await legacy(npm, {
     creds: {
       username: 'u',
       password: 'p',
@@ -126,7 +126,7 @@ test('login otp requested', async (t) => {
   const {
     message,
     newCreds,
-  } = await legacy({
+  } = await legacy(npm, {
     creds: {
       username: 'u',
       password: 'p',
@@ -162,7 +162,7 @@ test('login missing basic credential info', async (t) => {
   ))
 
   await t.rejects(
-    legacy({
+    legacy(npm, {
       creds: {
         username: 'u',
         password: 'p',
@@ -196,7 +196,7 @@ test('create new user when user not found', async (t) => {
   const {
     message,
     newCreds,
-  } = await legacy({
+  } = await legacy(npm, {
     creds: {
       username: 'u',
       password: 'p',
@@ -246,7 +246,7 @@ test('prompts for user info if required', async (t) => {
   const {
     message,
     newCreds,
-  } = await legacy({
+  } = await legacy(npm, {
     creds: {
       alwaysAuth: true,
     },
@@ -304,7 +304,7 @@ test('request otp when creating new user', async (t) => {
   }
   read.otp = () => Promise.resolve('1234')
 
-  await legacy({
+  await legacy(npm, {
     creds: {
       username: 'u',
       password: 'p',
@@ -333,7 +333,7 @@ test('unknown error during user creation', async (t) => {
   ))
 
   await t.rejects(
-    legacy({
+    legacy(npm, {
       creds: {
         username: 'u',
         password: 'p',
@@ -358,7 +358,7 @@ test('open url error', async (t) => {
   }
 
   await t.rejects(
-    legacy({
+    legacy(npm, {
       creds: {
         username: 'u',
         password: 'p',
@@ -377,7 +377,7 @@ test('open url error', async (t) => {
 test('login no credentials provided', async (t) => {
   profile.login = () => ({ token })
 
-  await legacy({
+  await legacy(npm, {
     creds: {
       username: undefined,
       password: undefined,
@@ -401,7 +401,7 @@ test('login no credentials provided', async (t) => {
 test('scoped login', async (t) => {
   profile.login = () => ({ token })
 
-  const { message } = await legacy({
+  const { message } = await legacy(npm, {
     creds: {
       username: 'u',
       password: 'p',

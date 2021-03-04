@@ -24,13 +24,13 @@ manydep@1.0.0
 exports[`test/lib/utils/explain-dep.js TAP bundled > explain color deep 1`] = `
 [1mbundle-of-joy[22m@[1m1.0.0[22m [1m[34mbundled[39m[22m[2m[22m
 [2mnode_modules/bundle-of-joy[22m
-  [1mprod-dep[22m@"[1m1.x[22m" from the root project
+  [34mbundled[39m [1mprod-dep[22m@"[1m1.x[22m" from the root project
 `
 
 exports[`test/lib/utils/explain-dep.js TAP bundled > explain nocolor shallow 1`] = `
 bundle-of-joy@1.0.0 bundled
 node_modules/bundle-of-joy
-  prod-dep@"1.x" from the root project
+  bundled prod-dep@"1.x" from the root project
 `
 
 exports[`test/lib/utils/explain-dep.js TAP bundled > print color 1`] = `

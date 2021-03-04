@@ -1,15 +1,25 @@
-const npm = require('./npm.js')
-const config = require('./config.js')
 const usageUtil = require('./utils/usage.js')
 
-const usage = usageUtil(
-  'get',
-  'npm get [<key> ...] (See `npm config`)'
-)
+class Get {
+  constructor (npm) {
+    this.npm = npm
+  }
 
-const completion = config.completion
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  get usage () {
+    return usageUtil(
+      'get',
+      'npm get [<key> ...] (See `npm config`)'
+    )
+  }
 
-const cmd = (args, cb) =>
-  npm.commands.config(['get'].concat(args), cb)
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  async completion (opts) {
+    return this.npm.commands.config.completion(opts)
+  }
 
-module.exports = Object.assign(cmd, { usage, completion })
+  exec (args, cb) {
+    this.npm.commands.config(['get'].concat(args), cb)
+  }
+}
+module.exports = Get

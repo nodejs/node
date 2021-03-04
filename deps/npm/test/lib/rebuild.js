@@ -13,14 +13,14 @@ const npm = {
   prefix: '',
 }
 const mocks = {
-  '../../lib/npm.js': npm,
   '../../lib/utils/output.js': (...msg) => {
     result += msg.join('\n')
   },
   '../../lib/utils/usage.js': () => 'usage instructions',
 }
 
-const rebuild = requireInject('../../lib/rebuild.js', mocks)
+const Rebuild = requireInject('../../lib/rebuild.js', mocks)
+const rebuild = new Rebuild(npm)
 
 t.afterEach(cb => {
   npm.prefix = ''
@@ -67,7 +67,7 @@ t.test('no args', t => {
 
   npm.prefix = path
 
-  rebuild([], err => {
+  rebuild.exec([], err => {
     if (err)
       throw err
 
@@ -115,7 +115,7 @@ t.test('filter by pkg name', t => {
   t.throws(() => fs.statSync(aBinFile))
   t.throws(() => fs.statSync(bBinFile))
 
-  rebuild(['b'], err => {
+  rebuild.exec(['b'], err => {
     if (err)
       throw err
 
@@ -163,7 +163,7 @@ t.test('filter by pkg@<range>', t => {
   const bBinFile = resolve(path, 'node_modules/.bin/b')
   const nestedBinFile = resolve(path, 'node_modules/a/node_modules/.bin/b')
 
-  rebuild(['b@2'], err => {
+  rebuild.exec(['b@2'], err => {
     if (err)
       throw err
 
@@ -203,7 +203,7 @@ t.test('filter by directory', t => {
   t.throws(() => fs.statSync(aBinFile))
   t.throws(() => fs.statSync(bBinFile))
 
-  rebuild(['file:node_modules/b'], err => {
+  rebuild.exec(['file:node_modules/b'], err => {
     if (err)
       throw err
 
@@ -215,7 +215,7 @@ t.test('filter by directory', t => {
 })
 
 t.test('filter must be a semver version/range, or directory', t => {
-  rebuild(['git+ssh://github.com/npm/arborist'], err => {
+  rebuild.exec(['git+ssh://github.com/npm/arborist'], err => {
     t.match(
       err,
       /Error: `npm rebuild` only supports SemVer version\/range specifiers/,
@@ -245,7 +245,7 @@ t.test('global prefix', t => {
   npm.flatOptions.global = true
   npm.globalDir = resolve(globalPath, 'lib', 'node_modules')
 
-  rebuild([], err => {
+  rebuild.exec([], err => {
     if (err)
       throw err
 

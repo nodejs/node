@@ -1,8 +1,6 @@
 const { resolve } = require('path')
 const readJson = require('read-package-json-fast')
-const npm = require('../npm.js')
-
-async function readLocalPackageName (cb) {
+async function readLocalPackageName (npm) {
   if (npm.flatOptions.global)
     return
 
