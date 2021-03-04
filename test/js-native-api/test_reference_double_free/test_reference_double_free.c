@@ -6,7 +6,7 @@ static size_t g_call_count = 0;
 
 static void Destructor(napi_env env, void* data, void* nothing) {
   napi_ref* ref = data;
-  NODE_API_CALL_RETURN_VOID(env, napi_delete_reference(env, *ref));
+  NAPI_CALL_RETURN_VOID(env, napi_delete_reference(env, *ref));
   free(ref);
 }
 
