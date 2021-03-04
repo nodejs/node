@@ -529,6 +529,7 @@ changes:
     **Default:** `500`.
   * `tabSize` {integer} The number of spaces a tab is equal to (minimum 1).
     **Default:** `8`.
+* Returns: {readline.Interface}
 
 The `readline.createInterface()` method creates a new `readline.Interface`
 instance.
