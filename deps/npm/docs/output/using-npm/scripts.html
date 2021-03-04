@@ -141,13 +141,21 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#pre--post-scripts">Pre &amp; Post Scripts</a></li><li><a href="#life-cycle-scripts">Life Cycle Scripts</a></li><ul><li><a href="#prepare-and-prepublish">Prepare and Prepublish</a></li></ul><li><a href="#life-cycle-operation-order">Life Cycle Operation Order</a></li><ul><li><a href="#npm-publish"><a href="../commands/npm-publish.html"><code>npm publish</code></a></a></li><li><a href="#npm-pack"><a href="../commands/npm-pack.html"><code>npm pack</code></a></a></li><li><a href="#npm-install"><a href="../commands/npm-install.html"><code>npm install</code></a></a></li><li><a href="#npm-start"><a href="../commands/npm-start.html"><code>npm start</code></a></a></li></ul><li><a href="#default-values">Default Values</a></li><li><a href="#user">User</a></li><li><a href="#environment">Environment</a></li><ul><li><a href="#path">path</a></li><li><a href="#packagejson-vars">package.json vars</a></li><li><a href="#configuration">configuration</a></li><li><a href="#special-packagejson-config-object">Special: package.json “config” object</a></li><li><a href="#current-lifecycle-event">current lifecycle event</a></li></ul><li><a href="#examples">Examples</a></li><li><a href="#exiting">Exiting</a></li><li><a href="#hook-scripts">Hook Scripts</a></li><li><a href="#best-practices">Best Practices</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#pre--post-scripts">Pre &amp; Post Scripts</a></li><li><a href="#life-cycle-scripts">Life Cycle Scripts</a></li><ul><li><a href="#prepare-and-prepublish">Prepare and Prepublish</a></li></ul><li><a href="#life-cycle-operation-order">Life Cycle Operation Order</a></li><ul><li><a href="#npm-cache-add"><a href="../commands/npm-cache.html"><code>npm cache add</code></a></a></li><li><a href="#npm-ci"><a href="../commands/npm-ci.html"><code>npm ci</code></a></a></li><li><a href="#npm-diff"><a href="../commands/npm-diff.html"><code>npm diff</code></a></a></li><li><a href="#npm-env"><a href="../commands/npm-env.html"><code>npm env</code></a></a></li><li><a href="#npm-install"><a href="../commands/npm-install.html"><code>npm install</code></a></a></li><li><a href="#npm-pack"><a href="../commands/npm-pack.html"><code>npm pack</code></a></a></li><li><a href="#npm-publish"><a href="../commands/npm-publish.html"><code>npm publish</code></a></a></li><li><a href="#npm-rebuild"><a href="../commands/npm-rebuild.html"><code>npm rebuild</code></a></a></li><li><a href="#npm-restart"><a href="../commands/npm-restart.html"><code>npm restart</code></a></a></li><li><a href="#npm-run-user-defined"><a href="../commands/npm-run.html"><code>npm run &lt;user defined&gt;</code></a></a></li><li><a href="#npm-start"><a href="../commands/npm-start.html"><code>npm start</code></a></a></li><li><a href="#npm-stop"><a href="../commands/npm-stop.html"><code>npm stop</code></a></a></li><li><a href="#npm-test"><a href="../commands/npm-test.html"><code>npm test</code></a></a></li></ul><li><a href="#user">User</a></li><li><a href="#environment">Environment</a></li><ul><li><a href="#path">path</a></li><li><a href="#packagejson-vars">package.json vars</a></li><li><a href="#configuration">configuration</a></li><li><a href="#special-packagejson-config-object">Special: package.json “config” object</a></li><li><a href="#current-lifecycle-event">current lifecycle event</a></li></ul><li><a href="#examples">Examples</a></li><li><a href="#exiting">Exiting</a></li><li><a href="#hook-scripts">Hook Scripts</a></li><li><a href="#best-practices">Best Practices</a></li><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
-<p>The <code>"scripts"</code> property of your <code>package.json</code> file supports a number of built-in scripts and their preset life cycle events as well as arbitrary scripts. These all can be executed by running <code>npm run-script &lt;stage&gt;</code> or <code>npm run &lt;stage&gt;</code> for short. <em>Pre</em> and <em>post</em> commands with matching names will be run for those as well (e.g. <code>premyscript</code>, <code>myscript</code>, <code>postmyscript</code>). Scripts from dependencies can be run with <code>npm explore &lt;pkg&gt; -- npm run &lt;stage&gt;</code>.</p>
+<p>The <code>"scripts"</code> property of your <code>package.json</code> file supports a number
+of built-in scripts and their preset life cycle events as well as
+arbitrary scripts. These all can be executed by running
+<code>npm run-script &lt;stage&gt;</code> or <code>npm run &lt;stage&gt;</code> for short. <em>Pre</em> and <em>post</em>
+commands with matching names will be run for those as well (e.g. <code>premyscript</code>,
+<code>myscript</code>, <code>postmyscript</code>). Scripts from dependencies can be run with
+<code>npm explore &lt;pkg&gt; -- npm run &lt;stage&gt;</code>.</p>
 <h3 id="pre--post-scripts">Pre &amp; Post Scripts</h3>
-<p>To create “pre” or “post” scripts for any scripts defined in the <code>"scripts"</code> section of the <code>package.json</code>, simply create another script <em>with a matching name</em> and add “pre” or “post” to the beginning of them.</p>
+<p>To create “pre” or “post” scripts for any scripts defined in the
+<code>"scripts"</code> section of the <code>package.json</code>, simply create another script
+<em>with a matching name</em> and add “pre” or “post” to the beginning of them.</p>
 <pre lang="json"><code>{
   "scripts": {
     "precompress": "{{ executes BEFORE the `compress` script }}",
@@ -156,22 +164,47 @@ npm command-line interface
   }
 }
 </code></pre>
+<p>In this example <code>npm run compress</code> would execute these scripts as
+described.</p>
 <h3 id="life-cycle-scripts">Life Cycle Scripts</h3>
-<p>There are some special life cycle scripts that happen only in certain situations. These scripts happen in addition to the “pre” and “post” script.</p>
+<p>There are some special life cycle scripts that happen only in certain
+situations. These scripts happen in addition to the <code>pre&lt;event&gt;</code>, <code>post&lt;event&gt;</code>, and
+<code>&lt;event&gt;</code> scripts.</p>
 <ul>
 <li><code>prepare</code>, <code>prepublish</code>, <code>prepublishOnly</code>, <code>prepack</code>, <code>postpack</code></li>
 </ul>
 <p><strong>prepare</strong> (since <code>npm@4.0.0</code>)</p>
 <ul>
-<li>Runs BEFORE the package is packed</li>
-<li>Runs BEFORE the package is published</li>
-<li>Runs on local <code>npm install</code> without any arguments</li>
-<li>Run AFTER <code>prepublish</code>, but BEFORE <code>prepublishOnly</code></li>
-<li>NOTE: If a package being installed through git contains a <code>prepare</code> script, its <code>dependencies</code> and <code>devDependencies</code> will be installed, and the prepare script will be run, before the package is packaged and installed.</li>
+<li>
+<p>Runs any time before the package is packed, i.e. during <code>npm publish</code>
+and <code>npm pack</code></p>
+</li>
+<li>
+<p>Runs BEFORE the package is packed</p>
+</li>
+<li>
+<p>Runs BEFORE the package is published</p>
+</li>
+<li>
+<p>Runs on local <code>npm install</code> without any arguments</p>
+</li>
+<li>
+<p>Run AFTER <code>prepublish</code>, but BEFORE <code>prepublishOnly</code></p>
+</li>
+<li>
+<p>NOTE: If a package being installed through git contains a <code>prepare</code>
+script, its <code>dependencies</code> and <code>devDependencies</code> will be installed, and
+the prepare script will be run, before the package is packaged and
+installed.</p>
+</li>
+<li>
+<p>As of <code>npm@7</code> these scripts run in the background</p>
+</li>
 </ul>
 <p><strong>prepublish</strong> (DEPRECATED)</p>
 <ul>
-<li>Same as <code>prepare</code></li>
+<li>Does not run during <code>npm publish</code>, but does run during <code>npm ci</code>
+and <code>npm install</code>. See below for more info.</li>
 </ul>
 <p><strong>prepublishOnly</strong></p>
 <ul>
@@ -184,7 +217,7 @@ npm command-line interface
 </ul>
 <p><strong>postpack</strong></p>
 <ul>
-<li>Runs AFTER the tarball has been generated and moved to its final destination.</li>
+<li>Runs AFTER the tarball has been generated but before it is moved to its final destination (if at all, publish does not save the tarball locally)</li>
 </ul>
 <h4 id="prepare-and-prepublish">Prepare and Prepublish</h4>
 <p><strong>Deprecation Note: prepublish</strong></p>
@@ -207,51 +240,106 @@ the size for your users.</li>
 other system tools on the target machines.</li>
 </ul>
 <h3 id="life-cycle-operation-order">Life Cycle Operation Order</h3>
-<h4 id="npm-publish"><a href="../commands/npm-publish.html"><code>npm publish</code></a></h4>
+<h4 id="npm-cache-add"><a href="../commands/npm-cache.html"><code>npm cache add</code></a></h4>
 <ul>
-<li><code>prepublishOnly</code></li>
 <li><code>prepare</code></li>
-<li><code>prepublish</code></li>
-<li><code>publish</code></li>
-<li><code>postpublish</code></li>
 </ul>
-<h4 id="npm-pack"><a href="../commands/npm-pack.html"><code>npm pack</code></a></h4>
-<ul>
-<li><code>prepack</code></li>
-<li><code>postpack</code></li>
-</ul>
-<h4 id="npm-install"><a href="../commands/npm-install.html"><code>npm install</code></a></h4>
+<h4 id="npm-ci"><a href="../commands/npm-ci.html"><code>npm ci</code></a></h4>
 <ul>
 <li><code>preinstall</code></li>
 <li><code>install</code></li>
 <li><code>postinstall</code></li>
+<li><code>prepublish</code></li>
+<li><code>preprepare</code></li>
+<li><code>prepare</code></li>
+<li><code>postprepare</code></li>
 </ul>
-<p>Also triggers</p>
+<p>These all run after the actual installation of modules into
+<code>node_modules</code>, in order, with no internal actions happening in between</p>
+<h4 id="npm-diff"><a href="../commands/npm-diff.html"><code>npm diff</code></a></h4>
 <ul>
-<li><code>prepublish</code> (when on local)</li>
-<li><code>prepare</code> (when on local or workspaces)</li>
+<li><code>prepare</code></li>
+</ul>
+<h4 id="npm-env"><a href="../commands/npm-env.html"><code>npm env</code></a></h4>
+<ul>
+<li><code>env</code> (You can override the default behavior of <code>npm env</code> by defining
+a custom <code>env</code> entry in your <code>scripts</code> object)</li>
+</ul>
+<h4 id="npm-install"><a href="../commands/npm-install.html"><code>npm install</code></a></h4>
+<p>These also run when you run <code>npm install -g &lt;pkg-name&gt;</code></p>
+<ul>
+<li><code>preinstall</code></li>
+<li><code>install</code></li>
+<li><code>postinstall</code></li>
+<li><code>prepublish</code></li>
+<li><code>preprepare</code></li>
+<li><code>prepare</code></li>
+<li><code>postprepare</code></li>
+</ul>
+<p>If there is a <code>binding.gyp</code> file in the root of your package and you
+haven’t defined your own <code>install</code> or <code>preinstall</code> scripts, npm will
+default the <code>install</code> command to compile using node-gyp via <code>node-gyp rebuild</code></p>
+<p>These are run from the scripts of <code>&lt;pkg-name&gt;</code></p>
+<h4 id="npm-pack"><a href="../commands/npm-pack.html"><code>npm pack</code></a></h4>
+<ul>
+<li><code>prepack</code></li>
+<li><code>prepare</code></li>
+<li><code>postpack</code></li>
+</ul>
+<h4 id="npm-publish"><a href="../commands/npm-publish.html"><code>npm publish</code></a></h4>
+<ul>
+<li><code>prepublishOnly</code></li>
+<li><code>prepack</code></li>
+<li><code>prepare</code></li>
+<li><code>postpack</code></li>
+<li><code>publish</code></li>
+<li><code>postpublish</code></li>
+</ul>
+<p><code>prepare</code> will not run during <code>--dry-run</code></p>
+<h4 id="npm-rebuild"><a href="../commands/npm-rebuild.html"><code>npm rebuild</code></a></h4>
+<ul>
+<li><code>preinstall</code></li>
+<li><code>install</code></li>
+<li><code>postinstall</code></li>
+<li><code>prepare</code></li>
+</ul>
+<p><code>prepare</code> is only run if the current directory is a symlink (e.g. with
+linked packages)</p>
+<h4 id="npm-restart"><a href="../commands/npm-restart.html"><code>npm restart</code></a></h4>
+<p>If there is a <code>restart</code> script defined, these events are run, otherwise
+<code>stop</code> and <code>start</code> are both run if present, including their <code>pre</code> and
+<code>post</code> iterations)</p>
+<ul>
+<li><code>prerestart</code></li>
+<li><code>restart</code></li>
+<li><code>postrestart</code></li>
+</ul>
+<h4 id="npm-run-user-defined"><a href="../commands/npm-run.html"><code>npm run &lt;user defined&gt;</code></a></h4>
+<ul>
+<li><code>pre&lt;user-defined&gt;</code></li>
+<li><code>&lt;user-defined&gt;</code></li>
+<li><code>post&lt;user-defined&gt;</code></li>
 </ul>
 <h4 id="npm-start"><a href="../commands/npm-start.html"><code>npm start</code></a></h4>
-<p><code>npm run start</code> has an <code>npm start</code> shorthand.</p>
 <ul>
 <li><code>prestart</code></li>
 <li><code>start</code></li>
 <li><code>poststart</code></li>
 </ul>
-<h3 id="default-values">Default Values</h3>
-<p>npm will default some script values based on package contents.</p>
-<ul>
-<li>
-<p><code>"start": "node server.js"</code>:</p>
 <p>If there is a <code>server.js</code> file in the root of your package, then npm
-will default the <code>start</code> command to <code>node server.js</code>.</p>
-</li>
-<li>
-<p><code>"install": "node-gyp rebuild"</code>:</p>
-<p>If there is a <code>binding.gyp</code> file in the root of your package and you
-haven’t defined your own <code>install</code> or <code>preinstall</code> scripts, npm will
-default the <code>install</code> command to compile using node-gyp.</p>
-</li>
+will default the <code>start</code> command to <code>node server.js</code>.  <code>prestart</code> and
+<code>poststart</code> will still run in this case.</p>
+<h4 id="npm-stop"><a href="../commands/npm-stop.html"><code>npm stop</code></a></h4>
+<ul>
+<li><code>prestop</code></li>
+<li><code>stop</code></li>
+<li><code>poststop</code></li>
+</ul>
+<h4 id="npm-test"><a href="../commands/npm-test.html"><code>npm test</code></a></h4>
+<ul>
+<li><code>pretest</code></li>
+<li><code>test</code></li>
+<li><code>posttest</code></li>
 </ul>
 <h3 id="user">User</h3>
 <p>When npm is run as root, scripts are always run with the effective uid
@@ -264,14 +352,14 @@ the process.</p>
 <p>If you depend on modules that define executable scripts, like test
 suites, then those executables will be added to the <code>PATH</code> for
 executing the scripts.  So, if your package.json has this:</p>
-<pre lang="json"><code>{ 
-  "name" : "foo", 
-  "dependencies" : { 
-    "bar" : "0.1.x" 
-  }, 
-  "scripts": { 
-    "start" : "bar ./test" 
-  } 
+<pre lang="json"><code>{
+  "name" : "foo",
+  "dependencies" : {
+    "bar" : "0.1.x"
+  },
+  "scripts": {
+    "start" : "bar ./test"
+  }
 }
 </code></pre>
 <p>then you could run <code>npm start</code> to execute the <code>bar</code> script, which is
@@ -292,14 +380,14 @@ config by checking the <code>npm_config_root</code> environment variable.</p>
 <p>The package.json “config” keys are overwritten in the environment if
 there is a config param of <code>&lt;name&gt;[@&lt;version&gt;]:&lt;key&gt;</code>.  For example,
 if the package.json has this:</p>
-<pre lang="json"><code>{ 
-  "name" : "foo", 
-  "config" : { 
-    "port" : "8080" 
-  }, 
-  "scripts" : { 
-    "start" : "node server.js" 
-  } 
+<pre lang="json"><code>{
+  "name" : "foo",
+  "config" : {
+    "port" : "8080"
+  },
+  "scripts" : {
+    "start" : "node server.js"
+  }
 }
 </code></pre>
 <p>and the server.js is this:</p>
@@ -320,10 +408,10 @@ see this in the script:</p>
 </code></pre>
 <h3 id="examples">Examples</h3>
 <p>For example, if your package.json contains this:</p>
-<pre lang="json"><code>{ 
-  "scripts" : { 
-    "install" : "scripts/install.js", 
-    "postinstall" : "scripts/postinstall.js", 
+<pre lang="json"><code>{
+  "scripts" : {
+    "install" : "scripts/install.js",
+    "postinstall" : "scripts/postinstall.js",
     "uninstall" : "scripts/uninstall.js"
   }
 }
@@ -336,10 +424,10 @@ be wise in this case to look at the <code>npm_lifecycle_event</code> environment
 variable.</p>
 <p>If you want to run a make command, you can do so.  This works just
 fine:</p>
-<pre lang="json"><code>{ 
-  "scripts" : { 
-    "preinstall" : "./configure", 
-    "install" : "make &amp;&amp; make install", 
+<pre lang="json"><code>{
+  "scripts" : {
+    "preinstall" : "./configure",
+    "install" : "make &amp;&amp; make install",
     "test" : "make test"
   }
 }

@@ -13,40 +13,28 @@ require('graceful-fs').gracefulify(require('fs'))
 
 const procLogListener = require('./utils/proc-log-listener.js')
 
-const hasOwnProperty = (obj, key) =>
-  Object.prototype.hasOwnProperty.call(obj, key)
-
-// the first time `npm.commands.xyz` is loaded, it gets added
-// to the cmds object, so we don't have to load it again.
-const proxyCmds = (npm) => {
-  const cmds = {}
-  return new Proxy(cmds, {
-    get: (prop, cmd) => {
-      if (hasOwnProperty(cmds, cmd))
-        return cmds[cmd]
-
-      const actual = deref(cmd)
-      if (!actual) {
-        cmds[cmd] = undefined
-        return cmds[cmd]
-      }
-      if (cmds[actual]) {
-        cmds[cmd] = cmds[actual]
-        return cmds[cmd]
-      }
-      cmds[actual] = makeCmd(actual)
-      cmds[cmd] = cmds[actual]
-      return cmds[cmd]
-    },
-  })
-}
-
-const makeCmd = cmd => {
-  const impl = require(`./${cmd}.js`)
-  const fn = (args, cb) => npm[_runCmd](cmd, impl, args, cb)
-  Object.assign(fn, impl)
-  return fn
-}
+const proxyCmds = new Proxy({}, {
+  get: (target, cmd) => {
+    const actual = deref(cmd)
+    if (actual && !Reflect.has(target, actual)) {
+      const Impl = require(`./${actual}.js`)
+      const impl = new Impl(npm)
+      // Our existing npm.commands[x] act like a function with attributes, but
+      // our modules have non-inumerable attributes so we can't just assign
+      // them to an anonymous function like we used to.  This acts like that
+      // old way of doing things, until we can make breaking changes to the
+      // npm.commands[x] api
+      target[actual] = new Proxy(
+        (args, cb) => npm[_runCmd](cmd, impl, args, cb),
+        {
+          get: (target, attr, receiver) => {
+            return Reflect.get(impl, attr, receiver)
+          },
+        })
+    }
+    return target[actual]
+  },
+})
 
 const { types, defaults, shorthands } = require('./utils/config.js')
 const { shellouts } = require('./utils/cmd-list.js')
@@ -68,7 +56,7 @@ const npm = module.exports = new class extends EventEmitter {
     }
     this.started = Date.now()
     this.command = null
-    this.commands = proxyCmds(this)
+    this.commands = proxyCmds
     procLogListener()
     process.emit('time', 'npm')
     this.version = require('../package.json').version
@@ -121,7 +109,7 @@ const npm = module.exports = new class extends EventEmitter {
       console.log(impl.usage)
       cb()
     } else {
-      impl(args, er => {
+      impl.exec(args, er => {
         process.emit('timeEnd', `command:${cmd}`)
         cb(er)
       })
@@ -193,7 +181,7 @@ const npm = module.exports = new class extends EventEmitter {
     this.title = tokrev ? 'npm token revoke' + (this.argv[2] ? ' ***' : '')
       : ['npm', ...this.argv].join(' ')
 
-    this.color = setupLog(this.config, this)
+    this.color = setupLog(this.config)
     process.env.COLOR = this.color ? '1' : '0'
 
     cleanUpLogFiles(this.cache, this.config.get('logs-max'), log.warn)

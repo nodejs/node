@@ -1,2 +1,9 @@
-const npm = require('./npm.js')
-module.exports = require('./utils/lifecycle-cmd.js')(npm, 'start')
+const LifecycleCmd = require('./utils/lifecycle-cmd.js')
+
+// This ends up calling run-script(['start', ...args])
+class Start extends LifecycleCmd {
+  constructor (npm) {
+    super(npm, 'start')
+  }
+}
+module.exports = Start

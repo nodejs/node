@@ -9,7 +9,7 @@ t.cleanSnapshot = str => str.replace(/in [0-9]+m?s/g, 'in {TIME}')
 const settings = {
   fund: true,
 }
-const npmock = {
+const npm = {
   started: Date.now(),
   flatOptions: settings,
 }
@@ -17,7 +17,6 @@ const getReifyOutput = tester =>
   requireInject(
     '../../../lib/utils/reify-output.js',
     {
-      '../../../lib/npm.js': npmock,
       '../../../lib/utils/output.js': tester,
     }
   )
@@ -32,7 +31,7 @@ t.test('missing info', (t) => {
     )
   )
 
-  reifyOutput({
+  reifyOutput(npm, {
     actualTree: {
       children: [],
     },
@@ -52,7 +51,7 @@ t.test('even more missing info', t => {
     )
   )
 
-  reifyOutput({
+  reifyOutput(npm, {
     actualTree: {
       children: [],
     },
@@ -73,7 +72,7 @@ t.test('single package', (t) => {
     }
   )
 
-  reifyOutput({
+  reifyOutput(npm, {
     // a report with an error is the same as no report at all, if
     // the command is not 'audit'
     auditReport: {
@@ -118,7 +117,7 @@ t.test('no message when funding config is false', (t) => {
     }
   )
 
-  reifyOutput({
+  reifyOutput(npm, {
     actualTree: {
       name: 'foo',
       package: {
@@ -160,7 +159,7 @@ t.test('print appropriate message for many packages', (t) => {
     }
   )
 
-  reifyOutput({
+  reifyOutput(npm, {
     actualTree: {
       name: 'foo',
       package: {
@@ -212,7 +211,7 @@ t.test('no output when silent', t => {
   })
   t.teardown(() => log.level = 'warn')
   log.level = 'silent'
-  reifyOutput({
+  reifyOutput(npm, {
     actualTree: { inventory: { size: 999 }, children: [] },
     auditReport: {
       toJSON: () => {
@@ -243,7 +242,7 @@ t.test('packages changed message', t => {
   // return a test function that builds up the mock and snapshots output
   const testCase = (t, added, removed, changed, audited, json, command) => {
     settings.json = json
-    npmock.command = command
+    npm.command = command
     const mock = {
       actualTree: {
         inventory: { size: audited, has: () => true },
@@ -276,7 +275,7 @@ t.test('packages changed message', t => {
       mock.diff.children.push({ action: 'CHANGE', actual, ideal })
     }
     output.length = 0
-    reifyOutput(mock)
+    reifyOutput(npm, mock)
     t.matchSnapshot(output.join('\n'), JSON.stringify({
       added,
       removed,
@@ -316,7 +315,7 @@ t.test('added packages should be looked up within returned tree', t => {
       out => t.matchSnapshot(out)
     )
 
-    reifyOutput({
+    reifyOutput(npm, {
       actualTree: {
         name: 'foo',
         inventory: {
@@ -337,7 +336,7 @@ t.test('added packages should be looked up within returned tree', t => {
       out => t.matchSnapshot(out)
     )
 
-    reifyOutput({
+    reifyOutput(npm, {
       actualTree: {
         name: 'foo',
         inventory: {

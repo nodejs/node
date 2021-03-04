@@ -16,7 +16,6 @@ const mocks = {
   '@npmcli/arborist': class {
     reify () {}
   },
-  '../../lib/npm.js': npm,
   '../../lib/utils/reify-finish.js': noop,
   '../../lib/utils/usage.js': () => 'usage instructions',
 }
@@ -47,15 +46,16 @@ t.test('no args', t => {
     }
   }
 
-  const update = requireInject('../../lib/update.js', {
+  const Update = requireInject('../../lib/update.js', {
     ...mocks,
-    '../../lib/utils/reify-finish.js': (arb) => {
+    '../../lib/utils/reify-finish.js': (npm, arb) => {
       t.isLike(arb, Arborist, 'should reify-finish with arborist instance')
     },
     '@npmcli/arborist': Arborist,
   })
+  const update = new Update(npm)
 
-  update([], err => {
+  update.exec([], err => {
     if (err)
       throw err
   })
@@ -80,15 +80,16 @@ t.test('with args', t => {
     }
   }
 
-  const update = requireInject('../../lib/update.js', {
+  const Update = requireInject('../../lib/update.js', {
     ...mocks,
-    '../../lib/utils/reify-finish.js': (arb) => {
+    '../../lib/utils/reify-finish.js': (npm, arb) => {
       t.isLike(arb, Arborist, 'should reify-finish with arborist instance')
     },
     '@npmcli/arborist': Arborist,
   })
+  const update = new Update(npm)
 
-  update(['ipt'], err => {
+  update.exec(['ipt'], err => {
     if (err)
       throw err
   })
@@ -100,7 +101,7 @@ t.test('update --depth=<number>', t => {
   npm.prefix = '/project/a'
   npm.flatOptions.depth = 1
 
-  const update = requireInject('../../lib/update.js', {
+  const Update = requireInject('../../lib/update.js', {
     ...mocks,
     npmlog: {
       warn: (title, msg) => {
@@ -113,8 +114,9 @@ t.test('update --depth=<number>', t => {
       },
     },
   })
+  const update = new Update(npm)
 
-  update([], err => {
+  update.exec([], err => {
     if (err)
       throw err
   })
@@ -150,12 +152,13 @@ t.test('update --global', t => {
     reify () {}
   }
 
-  const update = requireInject('../../lib/update.js', {
+  const Update = requireInject('../../lib/update.js', {
     ...mocks,
     '@npmcli/arborist': Arborist,
   })
+  const update = new Update(npm)
 
-  update([], err => {
+  update.exec([], err => {
     if (err)
       throw err
   })

@@ -75,8 +75,7 @@ const deref = (cmd) => {
   return cmd
 }
 
-const completion = requireInject('../../lib/completion.js', {
-  '../../lib/npm.js': npm,
+const Completion = requireInject('../../lib/completion.js', {
   '../../lib/utils/cmd-list.js': cmdList,
   '../../lib/utils/config.js': config,
   '../../lib/utils/deref-command.js': deref,
@@ -85,6 +84,7 @@ const completion = requireInject('../../lib/completion.js', {
     output.push(line)
   },
 })
+const completion = new Completion(npm)
 
 test('completion completion', async t => {
   const home = process.env.HOME
@@ -125,11 +125,13 @@ test('completion completion wrong word count', async t => {
 })
 
 test('completion errors in windows without bash', t => {
-  const compl = requireInject('../../lib/completion.js', {
+  const Compl = requireInject('../../lib/completion.js', {
     '../../lib/utils/is-windows-shell.js': true,
   })
 
-  compl({}, (err) => {
+  const compl = new Compl()
+
+  compl.exec({}, (err) => {
     t.match(err, {
       code: 'ENOTSUP',
       message: /completion supported only in MINGW/,
@@ -162,7 +164,7 @@ test('dump script when completion is not being attempted', t => {
     })
   }
 
-  completion({}, (err) => {
+  completion.exec({}, (err) => {
     if (err)
       throw err
 
@@ -195,7 +197,7 @@ test('dump script exits correctly when EPIPE is emitted on stdout', t => {
     })
   }
 
-  completion({}, (err) => {
+  completion.exec({}, (err) => {
     if (err)
       throw err
 
@@ -228,7 +230,7 @@ test('non EPIPE errors cause failures', t => {
     })
   }
 
-  completion({}, (err) => {
+  completion.exec({}, (err) => {
     t.equal(err.errno, 'ESOMETHINGELSE', 'propagated error')
     t.equal(data, completionScript, 'wrote the completion script')
     t.end()
@@ -248,7 +250,7 @@ test('completion completes single command name', t => {
     output.length = 0
   })
 
-  completion(['npm', 'c'], (err, res) => {
+  completion.exec(['npm', 'c'], (err, res) => {
     if (err)
       throw err
 
@@ -270,7 +272,7 @@ test('completion completes command names', t => {
     output.length = 0
   })
 
-  completion(['npm', 'a'], (err, res) => {
+  completion.exec(['npm', 'a'], (err, res) => {
     if (err)
       throw err
 
@@ -292,7 +294,7 @@ test('completion of invalid command name does nothing', t => {
     output.length = 0
   })
 
-  completion(['npm', 'compute'], (err, res) => {
+  completion.exec(['npm', 'compute'], (err, res) => {
     if (err)
       throw err
 
@@ -314,7 +316,7 @@ test('handles async completion function', t => {
     output.length = 0
   })
 
-  completion(['npm', 'promise', ''], (err, res) => {
+  completion.exec(['npm', 'promise', ''], (err, res) => {
     if (err)
       throw err
 
@@ -343,7 +345,7 @@ test('completion triggers command completions', t => {
     output.length = 0
   })
 
-  completion(['npm', 'access', ''], (err, res) => {
+  completion.exec(['npm', 'access', ''], (err, res) => {
     if (err)
       throw err
 
@@ -372,7 +374,7 @@ test('completion triggers filtered command completions', t => {
     output.length = 0
   })
 
-  completion(['npm', 'access', 'p'], (err, res) => {
+  completion.exec(['npm', 'access', 'p'], (err, res) => {
     if (err)
       throw err
 
@@ -401,7 +403,7 @@ test('completions for commands that return nested arrays are joined', t => {
     output.length = 0
   })
 
-  completion(['npm', 'completion', ''], (err, res) => {
+  completion.exec(['npm', 'completion', ''], (err, res) => {
     if (err)
       throw err
 
@@ -430,7 +432,7 @@ test('completions for commands that return nothing work correctly', t => {
     output.length = 0
   })
 
-  completion(['npm', 'donothing', ''], (err, res) => {
+  completion.exec(['npm', 'donothing', ''], (err, res) => {
     if (err)
       throw err
 
@@ -459,7 +461,7 @@ test('completions for commands that return a single item work correctly', t => {
     output.length = 0
   })
 
-  completion(['npm', 'driveaboat', ''], (err, res) => {
+  completion.exec(['npm', 'driveaboat', ''], (err, res) => {
     if (err)
       throw err
 
@@ -489,7 +491,7 @@ test('command completion for commands with no completion return no results', t =
   })
 
   // quotes around adduser are to ensure coverage when unescaping commands
-  completion(['npm', '\'adduser\'', ''], (err, res) => {
+  completion.exec(['npm', '\'adduser\'', ''], (err, res) => {
     if (err)
       throw err
 
@@ -520,7 +522,7 @@ test('command completion errors propagate', t => {
     accessCompletionError = false
   })
 
-  completion(['npm', 'access', ''], (err, res) => {
+  completion.exec(['npm', 'access', ''], (err, res) => {
     t.match(err, /access completion failed/, 'catches the appropriate error')
     t.strictSame(npmConfig, {
       argv: {
@@ -547,7 +549,7 @@ test('completion can complete flags', t => {
     output.length = 0
   })
 
-  completion(['npm', 'install', '--'], (err, res) => {
+  completion.exec(['npm', 'install', '--'], (err, res) => {
     if (err)
       throw err
 
@@ -570,7 +572,7 @@ test('double dashes escape from flag completion', t => {
     output.length = 0
   })
 
-  completion(['npm', '--', 'install', '--'], (err, res) => {
+  completion.exec(['npm', '--', 'install', '--'], (err, res) => {
     if (err)
       throw err
 
@@ -593,7 +595,7 @@ test('completion cannot complete options that take a value in mid-command', t =>
     output.length = 0
   })
 
-  completion(['npm', '--registry', 'install'], (err, res) => {
+  completion.exec(['npm', '--registry', 'install'], (err, res) => {
     if (err)
       throw err
 

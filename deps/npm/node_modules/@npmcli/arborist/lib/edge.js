@@ -87,14 +87,22 @@ class Edge {
 
   // return the edge data, and an explanation of how that edge came to be here
   [_explain] (seen) {
-    const { error, from } = this
+    const { error, from, bundled } = this
     return {
       type: this.type,
       name: this.name,
       spec: this.spec,
+      ...(bundled ? { bundled } : {}),
       ...(error ? { error } : {}),
       ...(from ? { from: from.explain(null, seen) } : {}),
     }
+  }
+
+  get bundled () {
+    if (!this.from)
+      return false
+    const { package: { bundleDependencies = [] } } = this.from
+    return bundleDependencies.includes(this.name)
   }
 
   get workspace () {

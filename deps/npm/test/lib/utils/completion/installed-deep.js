@@ -12,22 +12,21 @@ const _flatOptions = {
   },
 }
 const p = '../../../../lib/utils/completion/installed-deep.js'
-const installedDeep = requireInject(p, {
-  '../../../../lib/npm.js': {
-    flatOptions: _flatOptions,
-    get prefix () {
-      return _flatOptions.prefix
-    },
-    get globalDir () {
-      return globalDir
-    },
-    config: {
-      get (key) {
-        return _flatOptions[key]
-      },
+const installedDeep = requireInject(p)
+const npm = {
+  flatOptions: _flatOptions,
+  get prefix () {
+    return _flatOptions.prefix
+  },
+  get globalDir () {
+    return globalDir
+  },
+  config: {
+    get (key) {
+      return _flatOptions[key]
     },
   },
-})
+}
 
 const fixture = {
   'package.json': JSON.stringify({
@@ -154,7 +153,7 @@ test('get list of package names', async t => {
   prefix = resolve(fix, 'local')
   globalDir = resolve(fix, 'global/node_modules')
 
-  const res = await installedDeep(null)
+  const res = await installedDeep(npm, null)
   t.deepEqual(
     res,
     [
@@ -181,7 +180,7 @@ test('get list of package names as global', async t => {
 
   _flatOptions.global = true
 
-  const res = await installedDeep(null)
+  const res = await installedDeep(npm, null)
   t.deepEqual(
     res,
     [
@@ -206,7 +205,7 @@ test('limit depth', async t => {
 
   _flatOptions.depth = 0
 
-  const res = await installedDeep(null)
+  const res = await installedDeep(npm, null)
   t.deepEqual(
     res,
     [
@@ -235,7 +234,7 @@ test('limit depth as global', async t => {
   _flatOptions.global = true
   _flatOptions.depth = 0
 
-  const res = await installedDeep(null)
+  const res = await installedDeep(npm, null)
   t.deepEqual(
     res,
     [

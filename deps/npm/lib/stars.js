@@ -1,35 +1,42 @@
 const log = require('npmlog')
 const fetch = require('npm-registry-fetch')
 
-const npm = require('./npm.js')
 const output = require('./utils/output.js')
 const getIdentity = require('./utils/get-identity.js')
 const usageUtil = require('./utils/usage.js')
 
-const usage = usageUtil('stars', 'npm stars [<user>]')
+class Stars {
+  constructor (npm) {
+    this.npm = npm
+  }
 
-const cmd = (args, cb) => stars(args).then(() => cb()).catch(cb)
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  get usage () {
+    return usageUtil('stars', 'npm stars [<user>]')
+  }
 
-const stars = (args) => {
-  return stars_(args).catch(er => {
-    if (er.code === 'ENEEDAUTH')
-      log.warn('stars', 'auth is required to look up your username')
+  exec (args, cb) {
+    this.stars(args).then(() => cb()).catch(er => {
+      if (er.code === 'ENEEDAUTH')
+        log.warn('stars', 'auth is required to look up your username')
+      cb(er)
+    })
+  }
 
-    throw er
-  })
+  async stars ([user]) {
+    if (!user)
+      user = await getIdentity(this.npm, this.npm.flatOptions)
+
+    const { rows } = await fetch.json('/-/_view/starredByUser', {
+      ...this.npm.flatOptions,
+      query: { key: `"${user}"` },
+    })
+
+    if (rows.length === 0)
+      log.warn('stars', 'user has not starred any packages')
+
+    for (const row of rows)
+      output(row.value)
+  }
 }
-
-const stars_ = async ([user = getIdentity(npm.flatOptions)]) => {
-  const { rows } = await fetch.json('/-/_view/starredByUser', {
-    ...npm.flatOptions,
-    query: { key: `"${await user}"` },
-  })
-
-  if (rows.length === 0)
-    log.warn('stars', 'user has not starred any packages')
-
-  for (const row of rows)
-    output(row.value)
-}
-
-module.exports = Object.assign(cmd, { usage })
+module.exports = Stars

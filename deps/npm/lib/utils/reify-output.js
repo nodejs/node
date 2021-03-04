@@ -9,7 +9,6 @@
 // found 37 vulnerabilities (5 low, 7 moderate, 25 high)
 //   run `npm audit fix` to fix them, or `npm audit` for details
 
-const npm = require('../npm.js')
 const log = require('npmlog')
 const output = require('./output.js')
 const { depth } = require('treeverse')
@@ -19,7 +18,7 @@ const { readTree: getFundingInfo } = require('libnpmfund')
 const auditError = require('./audit-error.js')
 
 // TODO: output JSON if flatOptions.json is true
-const reifyOutput = arb => {
+const reifyOutput = (npm, arb) => {
   // don't print any info in --silent mode
   if (log.levels[log.level] > log.levels.error)
     return
@@ -29,7 +28,7 @@ const reifyOutput = arb => {
   // note: fails and crashes if we're running audit fix and there was an error
   // which is a good thing, because there's no point printing all this other
   // stuff in that case!
-  const auditReport = auditError(arb.auditReport) ? null : arb.auditReport
+  const auditReport = auditError(npm, arb.auditReport) ? null : arb.auditReport
 
   const summary = {
     added: 0,
@@ -75,9 +74,9 @@ const reifyOutput = arb => {
     }
     output(JSON.stringify(summary, 0, 2))
   } else {
-    packagesChangedMessage(summary)
+    packagesChangedMessage(npm, summary)
     packagesFundingMessage(summary)
-    printAuditReport(auditReport)
+    printAuditReport(npm, auditReport)
   }
 }
 
@@ -85,7 +84,7 @@ const reifyOutput = arb => {
 // at the end if there's still stuff, because it's silly for `npm audit`
 // to tell you to run `npm audit` for details.  otherwise, use the summary
 // report.  if we get here, we know it's not quiet or json.
-const printAuditReport = report => {
+const printAuditReport = (npm, report) => {
   if (!report)
     return
 
@@ -102,7 +101,7 @@ const printAuditReport = report => {
   output('\n' + res.report)
 }
 
-const packagesChangedMessage = ({ added, removed, changed, audited }) => {
+const packagesChangedMessage = (npm, { added, removed, changed, audited }) => {
   const msg = ['\n']
   if (added === 0 && removed === 0 && changed === 0) {
     msg.push('up to date')

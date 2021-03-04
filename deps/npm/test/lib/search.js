@@ -23,7 +23,6 @@ const libnpmsearch = {
 const mocks = {
   npmlog,
   libnpmsearch,
-  '../../lib/npm.js': npm,
   '../../lib/utils/output.js': (...msg) => {
     result += msg.join('\n')
   },
@@ -37,10 +36,11 @@ t.afterEach(cb => {
   cb()
 })
 
-const search = requireInject('../../lib/search.js', mocks)
+const Search = requireInject('../../lib/search.js', mocks)
+const search = new Search(npm)
 
 t.test('no args', t => {
-  search([], err => {
+  search.exec([], err => {
     t.match(
       err,
       /search must be called with arguments/,
@@ -59,12 +59,13 @@ t.test('search <name>', t => {
     },
   }
 
-  const search = requireInject('../../lib/search.js', {
+  const Search = requireInject('../../lib/search.js', {
     ...mocks,
     libnpmsearch,
   })
+  const search = new Search(npm)
 
-  search(['libnpm'], err => {
+  search.exec(['libnpm'], err => {
     if (err)
       throw err
 
@@ -93,12 +94,13 @@ t.test('search <name> --searchexclude --searchopts', t => {
     },
   }
 
-  const search = requireInject('../../lib/search.js', {
+  const Search = requireInject('../../lib/search.js', {
     ...mocks,
     libnpmsearch,
   })
+  const search = new Search(npm)
 
-  search(['foo'], err => {
+  search.exec(['foo'], err => {
     if (err)
       throw err
 
@@ -146,12 +148,13 @@ t.test('empty search results', t => {
     },
   }
 
-  const search = requireInject('../../lib/search.js', {
+  const Search = requireInject('../../lib/search.js', {
     ...mocks,
     libnpmsearch,
   })
+  const search = new Search(npm)
 
-  search(['foo'], err => {
+  search.exec(['foo'], err => {
     if (err)
       throw err
 
@@ -172,12 +175,13 @@ t.test('search api response error', t => {
     },
   }
 
-  const search = requireInject('../../lib/search.js', {
+  const Search = requireInject('../../lib/search.js', {
     ...mocks,
     libnpmsearch,
   })
+  const search = new Search(npm)
 
-  search(['foo'], err => {
+  search.exec(['foo'], err => {
     t.match(
       err,
       /ERR/,

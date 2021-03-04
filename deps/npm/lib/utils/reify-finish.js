@@ -1,17 +1,16 @@
 const reifyOutput = require('./reify-output.js')
-const npm = require('../npm.js')
 const ini = require('ini')
 const util = require('util')
 const fs = require('fs')
 const { writeFile } = fs.promises || { writeFile: util.promisify(fs.writeFile) }
 const {resolve} = require('path')
 
-const reifyFinish = async arb => {
-  await saveBuiltinConfig(arb)
-  reifyOutput(arb)
+const reifyFinish = async (npm, arb) => {
+  await saveBuiltinConfig(npm, arb)
+  reifyOutput(npm, arb)
 }
 
-const saveBuiltinConfig = async arb => {
+const saveBuiltinConfig = async (npm, arb) => {
   const { options: { global }, actualTree } = arb
   if (!global)
     return

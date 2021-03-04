@@ -1,7 +1,22 @@
-const npm = require('./npm.js')
 const output = require('./utils/output.js')
 const usageUtil = require('./utils/usage.js')
-const cmd = (args, cb) => root(args).then(() => cb()).catch(cb)
-const usage = usageUtil('root', 'npm root [-g]')
-const root = async (args, cb) => output(npm.dir)
-module.exports = Object.assign(cmd, { usage })
+
+class Root {
+  constructor (npm) {
+    this.npm = npm
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  get usage () {
+    return usageUtil('root', 'npm root [-g]')
+  }
+
+  exec (args, cb) {
+    this.root(args).then(() => cb()).catch(cb)
+  }
+
+  async root () {
+    output(this.npm.dir)
+  }
+}
+module.exports = Root

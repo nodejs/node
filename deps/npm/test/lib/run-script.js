@@ -22,18 +22,28 @@ const npm = {
 
 const output = []
 
-const npmlog = { level: 'warn' }
-const getRS = windows => requireInject('../../lib/run-script.js', {
-  '@npmcli/run-script': Object.assign(async opts => {
-    RUN_SCRIPTS.push(opts)
-  }, {
-    isServerPackage: require('@npmcli/run-script').isServerPackage,
-  }),
-  npmlog,
-  '../../lib/npm.js': npm,
-  '../../lib/utils/is-windows-shell.js': windows,
-  '../../lib/utils/output.js': (...msg) => output.push(msg),
+t.afterEach(cb => {
+  output.length = 0
+  RUN_SCRIPTS.length = 0
+  npm.flatOptions.json = false
+  npm.flatOptions.parseable = false
+  cb()
 })
+
+const npmlog = { level: 'warn' }
+const getRS = windows => {
+  const RunScript = requireInject('../../lib/run-script.js', {
+    '@npmcli/run-script': Object.assign(async opts => {
+      RUN_SCRIPTS.push(opts)
+    }, {
+      isServerPackage: require('@npmcli/run-script').isServerPackage,
+    }),
+    npmlog,
+    '../../lib/utils/is-windows-shell.js': windows,
+    '../../lib/utils/output.js': (...msg) => output.push(msg),
+  })
+  return new RunScript(npm)
+}
 
 const runScript = getRS(false)
 const runScriptWin = getRS(true)
@@ -69,109 +79,119 @@ t.test('completion', t => {
   t.end()
 })
 
-t.test('fail if no package.json', async t => {
+t.test('fail if no package.json', t => {
+  t.plan(2)
   npm.localPrefix = t.testdir()
-  await runScript([], er => t.match(er, { code: 'ENOENT' }))
-  await runScript(['test'], er => t.match(er, { code: 'ENOENT' }))
+  runScript.exec([], er => t.match(er, { code: 'ENOENT' }))
+  runScript.exec(['test'], er => t.match(er, { code: 'ENOENT' }))
 })
 
-t.test('default env, start, and restart scripts', async t => {
+t.test('default env, start, and restart scripts', t => {
   npm.localPrefix = t.testdir({
     'package.json': JSON.stringify({ name: 'x', version: '1.2.3' }),
     'server.js': 'console.log("hello, world")',
   })
 
-  await runScript(['start'], er => {
-    if (er)
-      throw er
+  t.test('start', t => {
+    runScript.exec(['start'], er => {
+      if (er)
+        throw er
 
-    t.match(RUN_SCRIPTS, [
-      {
-        path: npm.localPrefix,
-        args: [],
-        scriptShell: undefined,
-        stdio: 'inherit',
-        stdioString: true,
-        pkg: { name: 'x', version: '1.2.3', _id: 'x@1.2.3', scripts: {}},
-        event: 'start',
-      },
-    ])
-  })
-  RUN_SCRIPTS.length = 0
-
-  await runScript(['env'], er => {
-    if (er)
-      throw er
-
-    t.match(RUN_SCRIPTS, [
-      {
-        path: npm.localPrefix,
-        args: [],
-        scriptShell: undefined,
-        stdio: 'inherit',
-        stdioString: true,
-        pkg: {
-          name: 'x',
-          version: '1.2.3',
-          _id: 'x@1.2.3',
-          scripts: {
-            env: 'env',
-          },
+      t.match(RUN_SCRIPTS, [
+        {
+          path: npm.localPrefix,
+          args: [],
+          scriptShell: undefined,
+          stdio: 'inherit',
+          stdioString: true,
+          pkg: { name: 'x', version: '1.2.3', _id: 'x@1.2.3', scripts: {}},
+          event: 'start',
         },
-        event: 'env',
-      },
-    ])
+      ])
+      t.end()
+    })
   })
-  RUN_SCRIPTS.length = 0
 
-  await runScriptWin(['env'], er => {
-    if (er)
-      throw er
+  t.test('env', t => {
+    runScript.exec(['env'], er => {
+      if (er)
+        throw er
 
-    t.match(RUN_SCRIPTS, [
-      {
-        path: npm.localPrefix,
-        args: [],
-        scriptShell: undefined,
-        stdio: 'inherit',
-        stdioString: true,
-        pkg: { name: 'x',
-          version: '1.2.3',
-          _id: 'x@1.2.3',
-          scripts: {
-            env: 'SET',
-          } },
-        event: 'env',
-      },
-    ])
+      t.match(RUN_SCRIPTS, [
+        {
+          path: npm.localPrefix,
+          args: [],
+          scriptShell: undefined,
+          stdio: 'inherit',
+          stdioString: true,
+          pkg: {
+            name: 'x',
+            version: '1.2.3',
+            _id: 'x@1.2.3',
+            scripts: {
+              env: 'env',
+            },
+          },
+          event: 'env',
+        },
+      ])
+      t.end()
+    })
   })
-  RUN_SCRIPTS.length = 0
 
-  await runScript(['restart'], er => {
-    if (er)
-      throw er
+  t.test('windows env', t => {
+    runScriptWin.exec(['env'], er => {
+      if (er)
+        throw er
 
-    t.match(RUN_SCRIPTS, [
-      {
-        path: npm.localPrefix,
-        args: [],
-        scriptShell: undefined,
-        stdio: 'inherit',
-        stdioString: true,
-        pkg: { name: 'x',
-          version: '1.2.3',
-          _id: 'x@1.2.3',
-          scripts: {
-            restart: 'npm stop --if-present && npm start',
-          } },
-        event: 'restart',
-      },
-    ])
+      t.match(RUN_SCRIPTS, [
+        {
+          path: npm.localPrefix,
+          args: [],
+          scriptShell: undefined,
+          stdio: 'inherit',
+          stdioString: true,
+          pkg: { name: 'x',
+            version: '1.2.3',
+            _id: 'x@1.2.3',
+            scripts: {
+              env: 'SET',
+            } },
+          event: 'env',
+        },
+      ])
+      t.end()
+    })
   })
-  RUN_SCRIPTS.length = 0
+
+  t.test('restart', t => {
+    runScript.exec(['restart'], er => {
+      if (er)
+        throw er
+
+      t.match(RUN_SCRIPTS, [
+        {
+          path: npm.localPrefix,
+          args: [],
+          scriptShell: undefined,
+          stdio: 'inherit',
+          stdioString: true,
+          pkg: { name: 'x',
+            version: '1.2.3',
+            _id: 'x@1.2.3',
+            scripts: {
+              restart: 'npm stop --if-present && npm start',
+            } },
+          event: 'restart',
+        },
+      ])
+      t.end()
+    })
+  })
+  t.end()
 })
 
-t.test('non-default env script', async t => {
+t.test('non-default env script', t => {
   npm.localPrefix = t.testdir({
     'package.json': JSON.stringify({
       name: 'x',
@@ -182,54 +202,59 @@ t.test('non-default env script', async t => {
     }),
   })
 
-  await runScript(['env'], er => {
-    if (er)
-      throw er
+  t.test('env', t => {
+    runScript.exec(['env'], er => {
+      if (er)
+        throw er
 
-    t.match(RUN_SCRIPTS, [
-      {
-        path: npm.localPrefix,
-        args: [],
-        scriptShell: undefined,
-        stdio: 'inherit',
-        stdioString: true,
-        pkg: {
-          name: 'x',
-          version: '1.2.3',
-          _id: 'x@1.2.3',
-          scripts: {
-            env: 'hello',
+      t.match(RUN_SCRIPTS, [
+        {
+          path: npm.localPrefix,
+          args: [],
+          scriptShell: undefined,
+          stdio: 'inherit',
+          stdioString: true,
+          pkg: {
+            name: 'x',
+            version: '1.2.3',
+            _id: 'x@1.2.3',
+            scripts: {
+              env: 'hello',
+            },
           },
+          event: 'env',
         },
-        event: 'env',
-      },
-    ])
+      ])
+      t.end()
+    })
   })
-  RUN_SCRIPTS.length = 0
 
-  await runScriptWin(['env'], er => {
-    if (er)
-      throw er
+  t.test('env windows', t => {
+    runScriptWin.exec(['env'], er => {
+      if (er)
+        throw er
 
-    t.match(RUN_SCRIPTS, [
-      {
-        path: npm.localPrefix,
-        args: [],
-        scriptShell: undefined,
-        stdio: 'inherit',
-        stdioString: true,
-        pkg: { name: 'x',
-          version: '1.2.3',
-          _id: 'x@1.2.3',
-          scripts: {
-            env: 'hello',
+      t.match(RUN_SCRIPTS, [
+        {
+          path: npm.localPrefix,
+          args: [],
+          scriptShell: undefined,
+          stdio: 'inherit',
+          stdioString: true,
+          pkg: { name: 'x',
+            version: '1.2.3',
+            _id: 'x@1.2.3',
+            scripts: {
+              env: 'hello',
+            },
           },
+          event: 'env',
         },
-        event: 'env',
-      },
-    ])
+      ])
+      t.end()
+    })
   })
-  RUN_SCRIPTS.length = 0
+  t.end()
 })
 
 t.test('try to run missing script', t => {
@@ -238,33 +263,36 @@ t.test('try to run missing script', t => {
       scripts: { hello: 'world' },
     }),
   })
-  t.test('no suggestions', async t => {
-    await runScript(['notevenclose'], er => {
+  t.test('no suggestions', t => {
+    runScript.exec(['notevenclose'], er => {
       t.match(er, {
         message: 'missing script: notevenclose',
       })
+      t.end()
     })
   })
-  t.test('suggestions', async t => {
-    await runScript(['helo'], er => {
+  t.test('suggestions', t => {
+    runScript.exec(['helo'], er => {
       t.match(er, {
         message: 'missing script: helo\n\nDid you mean this?\n    hello',
       })
+      t.end()
     })
   })
-  t.test('with --if-present', async t => {
+  t.test('with --if-present', t => {
     npm.config.set('if-present', true)
-    await runScript(['goodbye'], er => {
+    runScript.exec(['goodbye'], er => {
       if (er)
         throw er
 
       t.strictSame(RUN_SCRIPTS, [], 'did not try to run anything')
+      t.end()
     })
   })
   t.end()
 })
 
-t.test('run pre/post hooks', async t => {
+t.test('run pre/post hooks', t => {
   npm.localPrefix = t.testdir({
     'package.json': JSON.stringify({
       name: 'x',
@@ -276,7 +304,7 @@ t.test('run pre/post hooks', async t => {
     }),
   })
 
-  await runScript(['env'], er => {
+  runScript.exec(['env'], er => {
     if (er)
       throw er
 
@@ -298,11 +326,11 @@ t.test('run pre/post hooks', async t => {
       },
       { event: 'postenv' },
     ])
+    t.end()
   })
-  RUN_SCRIPTS.length = 0
 })
 
-t.test('skip pre/post hooks when using ignoreScripts', async t => {
+t.test('skip pre/post hooks when using ignoreScripts', t => {
   npm.flatOptions.ignoreScripts = true
 
   npm.localPrefix = t.testdir({
@@ -316,7 +344,7 @@ t.test('skip pre/post hooks when using ignoreScripts', async t => {
     }),
   })
 
-  await runScript(['env'], er => {
+  runScript.exec(['env'], er => {
     if (er)
       throw er
 
@@ -339,13 +367,12 @@ t.test('skip pre/post hooks when using ignoreScripts', async t => {
         event: 'env',
       },
     ])
-
+    t.end()
     delete npm.flatOptions.ignoreScripts
   })
-  RUN_SCRIPTS.length = 0
 })
 
-t.test('run silent', async t => {
+t.test('run silent', t => {
   npmlog.level = 'silent'
   t.teardown(() => {
     npmlog.level = 'warn'
@@ -362,7 +389,7 @@ t.test('run silent', async t => {
     }),
   })
 
-  await runScript(['env'], er => {
+  runScript.exec(['env'], er => {
     if (er)
       throw er
 
@@ -391,11 +418,11 @@ t.test('run silent', async t => {
         stdio: 'inherit',
       },
     ])
+    t.end()
   })
-  RUN_SCRIPTS.length = 0
 })
 
-t.test('list scripts', async t => {
+t.test('list scripts', t => {
   const scripts = {
     test: 'exit 2',
     start: 'node server.js',
@@ -411,55 +438,62 @@ t.test('list scripts', async t => {
     }),
   })
 
-  await runScript([], er => {
-    if (er)
-      throw er
+  t.test('no args', t => {
+    runScript.exec([], er => {
+      if (er)
+        throw er
+      t.strictSame(output, [
+        ['Lifecycle scripts included in x:'],
+        ['  test\n    exit 2'],
+        ['  start\n    node server.js'],
+        ['  stop\n    node kill-server.js'],
+        ['\navailable via `npm run-script`:'],
+        ['  preenv\n    echo before the env'],
+        ['  postenv\n    echo after the env'],
+      ], 'basic report')
+      t.end()
+    })
   })
-  t.strictSame(output, [
-    ['Lifecycle scripts included in x:'],
-    ['  test\n    exit 2'],
-    ['  start\n    node server.js'],
-    ['  stop\n    node kill-server.js'],
-    ['\navailable via `npm run-script`:'],
-    ['  preenv\n    echo before the env'],
-    ['  postenv\n    echo after the env'],
-  ], 'basic report')
-  output.length = 0
 
-  npmlog.level = 'silent'
-  await runScript([], er => {
-    if (er)
-      throw er
+  t.test('silent', t => {
+    npmlog.level = 'silent'
+    runScript.exec([], er => {
+      if (er)
+        throw er
+      t.strictSame(output, [])
+      t.end()
+    })
   })
-  t.strictSame(output, [])
-  npmlog.level = 'warn'
+  t.test('warn json', t => {
+    npmlog.level = 'warn'
+    npm.flatOptions.json = true
+    runScript.exec([], er => {
+      if (er)
+        throw er
+      t.strictSame(output, [[JSON.stringify(scripts, 0, 2)]], 'json report')
+      t.end()
+    })
+  })
 
-  npm.flatOptions.json = true
-  await runScript([], er => {
-    if (er)
-      throw er
+  t.test('parseable', t => {
+    npm.flatOptions.parseable = true
+    runScript.exec([], er => {
+      if (er)
+        throw er
+      t.strictSame(output, [
+        ['test:exit 2'],
+        ['start:node server.js'],
+        ['stop:node kill-server.js'],
+        ['preenv:echo before the env'],
+        ['postenv:echo after the env'],
+      ])
+      t.end()
+    })
   })
-  t.strictSame(output, [[JSON.stringify(scripts, 0, 2)]], 'json report')
-  output.length = 0
-  npm.flatOptions.json = false
-
-  npm.flatOptions.parseable = true
-  await runScript([], er => {
-    if (er)
-      throw er
-  })
-  t.strictSame(output, [
-    ['test:exit 2'],
-    ['start:node server.js'],
-    ['stop:node kill-server.js'],
-    ['preenv:echo before the env'],
-    ['postenv:echo after the env'],
-  ])
-  output.length = 0
-  npm.flatOptions.parseable = false
+  t.end()
 })
 
-t.test('list scripts when no scripts', async t => {
+t.test('list scripts when no scripts', t => {
   npm.localPrefix = t.testdir({
     'package.json': JSON.stringify({
       name: 'x',
@@ -467,15 +501,15 @@ t.test('list scripts when no scripts', async t => {
     }),
   })
 
-  await runScript([], er => {
+  runScript.exec([], er => {
     if (er)
       throw er
+    t.strictSame(output, [], 'nothing to report')
+    t.end()
   })
-  t.strictSame(output, [], 'nothing to report')
-  output.length = 0
 })
 
-t.test('list scripts, only commands', async t => {
+t.test('list scripts, only commands', t => {
   npm.localPrefix = t.testdir({
     'package.json': JSON.stringify({
       name: 'x',
@@ -484,18 +518,18 @@ t.test('list scripts, only commands', async t => {
     }),
   })
 
-  await runScript([], er => {
+  runScript.exec([], er => {
     if (er)
       throw er
+    t.strictSame(output, [
+      ['Lifecycle scripts included in x:'],
+      ['  preversion\n    echo doing the version dance'],
+    ])
+    t.end()
   })
-  t.strictSame(output, [
-    ['Lifecycle scripts included in x:'],
-    ['  preversion\n    echo doing the version dance'],
-  ])
-  output.length = 0
 })
 
-t.test('list scripts, only non-commands', async t => {
+t.test('list scripts, only non-commands', t => {
   npm.localPrefix = t.testdir({
     'package.json': JSON.stringify({
       name: 'x',
@@ -504,13 +538,13 @@ t.test('list scripts, only non-commands', async t => {
     }),
   })
 
-  await runScript([], er => {
+  runScript.exec([], er => {
     if (er)
       throw er
+    t.strictSame(output, [
+      ['Scripts available in x via `npm run-script`:'],
+      ['  glorp\n    echo doing the glerp glop'],
+    ])
+    t.end()
   })
-  t.strictSame(output, [
-    ['Scripts available in x via `npm run-script`:'],
-    ['  glorp\n    echo doing the glerp glop'],
-  ])
-  output.length = 0
 })

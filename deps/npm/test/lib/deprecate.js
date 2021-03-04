@@ -18,10 +18,7 @@ npmFetch.json = async (uri, opts) => {
   }
 }
 
-const deprecate = requireInject('../../lib/deprecate.js', {
-  '../../lib/npm.js': {
-    flatOptions: { registry: 'https://registry.npmjs.org' },
-  },
+const Deprecate = requireInject('../../lib/deprecate.js', {
   '../../lib/utils/get-identity.js': async () => getIdentityImpl(),
   '../../lib/utils/otplease.js': async (opts, fn) => fn(opts),
   libnpmaccess: {
@@ -30,16 +27,19 @@ const deprecate = requireInject('../../lib/deprecate.js', {
   'npm-registry-fetch': npmFetch,
 })
 
+const deprecate = new Deprecate({
+  flatOptions: { registry: 'https://registry.npmjs.org' },
+})
+
 test('completion', async t => {
   const defaultIdentityImpl = getIdentityImpl
   t.teardown(() => {
     getIdentityImpl = defaultIdentityImpl
   })
 
-  const { completion } = deprecate
-
   const testComp = async (argv, expect) => {
-    const res = await completion({ conf: { argv: { remain: argv } } })
+    const res =
+      await deprecate.completion({ conf: { argv: { remain: argv } } })
     t.strictSame(res, expect, `completion: ${argv}`)
   }
 
@@ -59,21 +59,21 @@ test('completion', async t => {
 })
 
 test('no args', t => {
-  deprecate([], (err) => {
+  deprecate.exec([], (err) => {
     t.match(err, /Usage: npm deprecate/, 'logs usage')
     t.end()
   })
 })
 
 test('only one arg', t => {
-  deprecate(['foo'], (err) => {
+  deprecate.exec(['foo'], (err) => {
     t.match(err, /Usage: npm deprecate/, 'logs usage')
     t.end()
   })
 })
 
 test('invalid semver range', t => {
-  deprecate(['foo@notaversion', 'this will fail'], (err) => {
+  deprecate.exec(['foo@notaversion', 'this will fail'], (err) => {
     t.match(err, /invalid version range/, 'logs semver error')
     t.end()
   })
@@ -84,7 +84,7 @@ test('deprecates given range', t => {
     npmFetchBody = null
   })
 
-  deprecate(['foo@1.0.0', 'this version is deprecated'], (err) => {
+  deprecate.exec(['foo@1.0.0', 'this version is deprecated'], (err) => {
     if (err)
       throw err
 
@@ -110,7 +110,7 @@ test('deprecates all versions when no range is specified', t => {
     npmFetchBody = null
   })
 
-  deprecate(['foo', 'this version is deprecated'], (err) => {
+  deprecate.exec(['foo', 'this version is deprecated'], (err) => {
     if (err)
       throw err
 

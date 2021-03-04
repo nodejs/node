@@ -1,39 +1,47 @@
 const log = require('npmlog')
 const pacote = require('pacote')
-const { promisify } = require('util')
-const openUrl = promisify(require('./utils/open-url.js'))
+const openUrl = require('./utils/open-url.js')
 const usageUtil = require('./utils/usage.js')
-const npm = require('./npm.js')
 const hostedFromMani = require('./utils/hosted-git-info-from-manifest.js')
 
-const usage = usageUtil('docs', 'npm docs [<pkgname> [<pkgname> ...]]')
+class Docs {
+  constructor (npm) {
+    this.npm = npm
+  }
 
-const cmd = (args, cb) => docs(args).then(() => cb()).catch(cb)
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  get usage () {
+    return usageUtil('docs', 'npm docs [<pkgname> [<pkgname> ...]]')
+  }
 
-const docs = async args => {
-  if (!args || !args.length)
-    args = ['.']
+  exec (args, cb) {
+    this.docs(args).then(() => cb()).catch(cb)
+  }
 
-  await Promise.all(args.map(pkg => getDocs(pkg)))
+  async docs (args) {
+    if (!args || !args.length)
+      args = ['.']
+
+    await Promise.all(args.map(pkg => this.getDocs(pkg)))
+  }
+
+  async getDocs (pkg) {
+    const opts = { ...this.npm.flatOptions, fullMetadata: true }
+    const mani = await pacote.manifest(pkg, opts)
+    const url = this.getDocsUrl(mani)
+    log.silly('docs', 'url', url)
+    await openUrl(this.npm, url, `${mani.name} docs available at the following URL`)
+  }
+
+  getDocsUrl (mani) {
+    if (mani.homepage)
+      return mani.homepage
+
+    const info = hostedFromMani(mani)
+    if (info)
+      return info.docs()
+
+    return 'https://www.npmjs.com/package/' + mani.name
+  }
 }
-
-const getDocsUrl = mani => {
-  if (mani.homepage)
-    return mani.homepage
-
-  const info = hostedFromMani(mani)
-  if (info)
-    return info.docs()
-
-  return 'https://www.npmjs.com/package/' + mani.name
-}
-
-const getDocs = async pkg => {
-  const opts = { ...npm.flatOptions, fullMetadata: true }
-  const mani = await pacote.manifest(pkg, opts)
-  const url = getDocsUrl(mani)
-  log.silly('docs', 'url', url)
-  await openUrl(url, `${mani.name} docs available at the following URL`)
-}
-
-module.exports = Object.assign(cmd, { usage })
+module.exports = Docs

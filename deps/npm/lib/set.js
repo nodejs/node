@@ -1,14 +1,26 @@
-const npm = require('./npm.js')
-const config = require('./config.js')
+const usageUtil = require('./utils/usage.js')
 
-const usage = 'npm set <key>=<value> [<key>=<value> ...] (See `npm config`)'
+class Set {
+  constructor (npm) {
+    this.npm = npm
+  }
 
-const completion = config.completion
+  get usage () {
+    return usageUtil(
+      'set',
+      'npm set <key>=<value> [<key>=<value> ...] (See `npm config`)'
+    )
+  }
 
-const cmd = (args, cb) => {
-  if (!args.length)
-    return cb(usage)
-  npm.commands.config(['set'].concat(args), cb)
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  async completion (opts) {
+    return this.npm.commands.config.completion(opts)
+  }
+
+  exec (args, cb) {
+    if (!args.length)
+      return cb(this.usage)
+    this.npm.commands.config(['set'].concat(args), cb)
+  }
 }
-
-module.exports = Object.assign(cmd, { usage, completion })
+module.exports = Set

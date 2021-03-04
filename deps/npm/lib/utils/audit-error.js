@@ -4,8 +4,7 @@
 // returns 'true' if there was an error, false otherwise
 
 const output = require('./output.js')
-const npm = require('../npm.js')
-const auditError = (report) => {
+const auditError = (npm, report) => {
   if (!report || !report.error)
     return false
 

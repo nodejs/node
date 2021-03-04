@@ -1,8 +1,7 @@
 const { resolve } = require('path')
 const Arborist = require('@npmcli/arborist')
-const npm = require('../../npm.js')
 
-const installedDeep = async () => {
+const installedDeep = async (npm) => {
   const {
     depth,
     global,

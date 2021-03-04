@@ -1,52 +1,63 @@
 const log = require('npmlog')
 const pacote = require('pacote')
-const { promisify } = require('util')
-const openUrl = promisify(require('./utils/open-url.js'))
-const usageUtil = require('./utils/usage.js')
-const npm = require('./npm.js')
-const hostedFromMani = require('./utils/hosted-git-info-from-manifest.js')
 const { URL } = require('url')
 
-const usage = usageUtil('repo', 'npm repo [<pkgname> [<pkgname> ...]]')
+const hostedFromMani = require('./utils/hosted-git-info-from-manifest.js')
+const openUrl = require('./utils/open-url.js')
+const usageUtil = require('./utils/usage.js')
 
-const cmd = (args, cb) => repo(args).then(() => cb()).catch(cb)
-
-const repo = async args => {
-  if (!args || !args.length)
-    args = ['.']
-
-  await Promise.all(args.map(pkg => getRepo(pkg)))
-}
-
-const getRepo = async pkg => {
-  const opts = { ...npm.flatOptions, fullMetadata: true }
-  const mani = await pacote.manifest(pkg, opts)
-
-  const r = mani.repository
-  const rurl = !r ? null
-    : typeof r === 'string' ? r
-    : typeof r === 'object' && typeof r.url === 'string' ? r.url
-    : null
-
-  if (!rurl) {
-    throw Object.assign(new Error('no repository'), {
-      pkgid: pkg,
-    })
+class Repo {
+  constructor (npm) {
+    this.npm = npm
   }
 
-  const info = hostedFromMani(mani)
-  const url = info ?
-    info.browse(mani.repository.directory) : unknownHostedUrl(rurl)
-
-  if (!url) {
-    throw Object.assign(new Error('no repository: could not get url'), {
-      pkgid: pkg,
-    })
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  get usage () {
+    return usageUtil('repo', 'npm repo [<pkgname> [<pkgname> ...]]')
   }
 
-  log.silly('docs', 'url', url)
-  await openUrl(url, `${mani.name} repo available at the following URL`)
+  exec (args, cb) {
+    this.repo(args).then(() => cb()).catch(cb)
+  }
+
+  async repo (args) {
+    if (!args || !args.length)
+      args = ['.']
+
+    await Promise.all(args.map(pkg => this.get(pkg)))
+  }
+
+  async get (pkg) {
+    const opts = { ...this.npm.flatOptions, fullMetadata: true }
+    const mani = await pacote.manifest(pkg, opts)
+
+    const r = mani.repository
+    const rurl = !r ? null
+      : typeof r === 'string' ? r
+      : typeof r === 'object' && typeof r.url === 'string' ? r.url
+      : null
+
+    if (!rurl) {
+      throw Object.assign(new Error('no repository'), {
+        pkgid: pkg,
+      })
+    }
+
+    const info = hostedFromMani(mani)
+    const url = info ?
+      info.browse(mani.repository.directory) : unknownHostedUrl(rurl)
+
+    if (!url) {
+      throw Object.assign(new Error('no repository: could not get url'), {
+        pkgid: pkg,
+      })
+    }
+
+    log.silly('docs', 'url', url)
+    await openUrl(this.npm, url, `${mani.name} repo available at the following URL`)
+  }
 }
+module.exports = Repo
 
 const unknownHostedUrl = url => {
   try {
@@ -67,5 +78,3 @@ const unknownHostedUrl = url => {
     return null
   }
 }
-
-module.exports = Object.assign(cmd, { usage })

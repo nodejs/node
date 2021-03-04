@@ -10,7 +10,6 @@ const npmlog = { error: noop, info: noop, verbose: noop }
 const mocks = {
   npmlog,
   'npm-registry-fetch': npmFetch,
-  '../../lib/npm.js': npm,
   '../../lib/utils/output.js': (...msg) => {
     result += msg.join('\n')
   },
@@ -18,7 +17,8 @@ const mocks = {
   '../../lib/utils/usage.js': () => 'usage instructions',
 }
 
-const star = requireInject('../../lib/star.js', mocks)
+const Star = requireInject('../../lib/star.js', mocks)
+const star = new Star(npm)
 
 t.afterEach(cb => {
   npm.config = { get () {} }
@@ -29,7 +29,7 @@ t.afterEach(cb => {
 })
 
 t.test('no args', t => {
-  star([], err => {
+  star.exec([], err => {
     t.match(
       err,
       /usage instructions/,
@@ -56,7 +56,7 @@ t.test('star a package', t => {
     t.equal(msg, 'starring', 'should use expected msg')
     t.equal(id, pkgName, 'should use expected id')
   }
-  star([pkgName], err => {
+  star.exec([pkgName], err => {
     if (err)
       throw err
     t.equal(
@@ -84,7 +84,7 @@ t.test('unstar a package', t => {
     t.equal(msg, 'unstarring', 'should use expected msg')
     t.equal(id, pkgName, 'should use expected id')
   }
-  star([pkgName], err => {
+  star.exec([pkgName], err => {
     if (err)
       throw err
     t.equal(
@@ -99,7 +99,7 @@ t.test('unicode', async t => {
   t.test('star a package', t => {
     npm.flatOptions.unicode = true
     npmFetch.json = async (uri, opts) => ({})
-    star(['pkg'], err => {
+    star.exec(['pkg'], err => {
       if (err)
         throw err
       t.equal(
@@ -115,7 +115,7 @@ t.test('unicode', async t => {
     npm.flatOptions.unicode = true
     npm.config.get = key => key === 'star.unstar'
     npmFetch.json = async (uri, opts) => ({})
-    star(['pkg'], err => {
+    star.exec(['pkg'], err => {
       if (err)
         throw err
       t.equal(
@@ -129,11 +129,12 @@ t.test('unicode', async t => {
 })
 
 t.test('logged out user', t => {
-  const star = requireInject('../../lib/star.js', {
+  const Star = requireInject('../../lib/star.js', {
     ...mocks,
     '../../lib/utils/get-identity.js': async () => undefined,
   })
-  star(['@npmcli/arborist'], err => {
+  const star = new Star(npm)
+  star.exec(['@npmcli/arborist'], err => {
     t.match(
       err,
       /You need to be logged in/,

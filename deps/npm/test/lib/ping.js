@@ -6,8 +6,7 @@ test('pings', (t) => {
 
   const flatOptions = { registry: 'https://registry.npmjs.org' }
   let noticeCalls = 0
-  const ping = requireInject('../../lib/ping.js', {
-    '../../lib/npm.js': { flatOptions },
+  const Ping = requireInject('../../lib/ping.js', {
     '../../lib/utils/ping.js': function (spec) {
       t.equal(spec, flatOptions, 'passes flatOptions')
       return {}
@@ -25,8 +24,9 @@ test('pings', (t) => {
       },
     },
   })
+  const ping = new Ping({ flatOptions })
 
-  ping([], (err) => {
+  ping.exec([], (err) => {
     t.equal(noticeCalls, 2, 'should have logged 2 lines')
     t.ifError(err, 'npm ping')
     t.ok('should be able to ping')
@@ -39,8 +39,7 @@ test('pings and logs details', (t) => {
   const flatOptions = { registry: 'https://registry.npmjs.org' }
   const details = { extra: 'data' }
   let noticeCalls = 0
-  const ping = requireInject('../../lib/ping.js', {
-    '../../lib/npm.js': { flatOptions },
+  const Ping = requireInject('../../lib/ping.js', {
     '../../lib/utils/ping.js': function (spec) {
       t.equal(spec, flatOptions, 'passes flatOptions')
       return details
@@ -62,8 +61,9 @@ test('pings and logs details', (t) => {
       },
     },
   })
+  const ping = new Ping({ flatOptions })
 
-  ping([], (err) => {
+  ping.exec([], (err) => {
     t.equal(noticeCalls, 3, 'should have logged 3 lines')
     t.ifError(err, 'npm ping')
     t.ok('should be able to ping')
@@ -76,8 +76,7 @@ test('pings and returns json', (t) => {
   const flatOptions = { registry: 'https://registry.npmjs.org', json: true }
   const details = { extra: 'data' }
   let noticeCalls = 0
-  const ping = requireInject('../../lib/ping.js', {
-    '../../lib/npm.js': { flatOptions },
+  const Ping = requireInject('../../lib/ping.js', {
     '../../lib/utils/ping.js': function (spec) {
       t.equal(spec, flatOptions, 'passes flatOptions')
       return details
@@ -101,8 +100,9 @@ test('pings and returns json', (t) => {
       },
     },
   })
+  const ping = new Ping({ flatOptions })
 
-  ping([], (err) => {
+  ping.exec([], (err) => {
     t.equal(noticeCalls, 2, 'should have logged 2 lines')
     t.ifError(err, 'npm ping')
     t.ok('should be able to ping')

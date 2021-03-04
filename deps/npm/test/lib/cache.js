@@ -58,27 +58,26 @@ const cacache = {
   },
 }
 
-const mocks = {
+const Cache = requireInject('../../lib/cache.js', {
   cacache,
   npmlog,
   pacote,
   rimraf,
-  '../../lib/npm.js': npm,
   '../../lib/utils/output.js': output,
   '../../lib/utils/usage.js': usageUtil,
-}
+})
 
-const cache = requireInject('../../lib/cache.js', mocks)
+const cache = new Cache(npm)
 
 t.test('cache no args', t => {
-  cache([], err => {
+  cache.exec([], err => {
     t.equal(err.message, 'usage instructions', 'should throw usage instructions')
     t.end()
   })
 })
 
 t.test('cache clean', t => {
-  cache(['clean'], err => {
+  cache.exec(['clean'], err => {
     t.match(err.message, 'the npm cache self-heals', 'should throw warning')
     t.end()
   })
@@ -91,7 +90,7 @@ t.test('cache clean (force)', t => {
     flatOptions.force = false
   })
 
-  cache(['clear'], err => {
+  cache.exec(['clear'], err => {
     t.ifError(err)
     t.equal(rimrafPath, path.join(npm.cache, '_cacache'))
     t.end()
@@ -99,7 +98,7 @@ t.test('cache clean (force)', t => {
 })
 
 t.test('cache clean with arg', t => {
-  cache(['rm', 'pkg'], err => {
+  cache.exec(['rm', 'pkg'], err => {
     t.match(err.message, 'does not accept arguments', 'should throw error')
     t.end()
   })
@@ -110,7 +109,7 @@ t.test('cache add no arg', t => {
     logOutput = []
   })
 
-  cache(['add'], err => {
+  cache.exec(['add'], err => {
     t.strictSame(logOutput, [
       ['silly', 'cache add', 'args', []],
     ], 'logs correctly')
@@ -126,7 +125,7 @@ t.test('cache add pkg only', t => {
     tarballStreamOpts = {}
   })
 
-  cache(['add', 'mypkg'], err => {
+  cache.exec(['add', 'mypkg'], err => {
     t.ifError(err)
     t.strictSame(logOutput, [
       ['silly', 'cache add', 'args', ['mypkg']],
@@ -145,7 +144,7 @@ t.test('cache add pkg w/ spec modifier', t => {
     tarballStreamOpts = {}
   })
 
-  cache(['add', 'mypkg', 'latest'], err => {
+  cache.exec(['add', 'mypkg', 'latest'], err => {
     t.ifError(err)
     t.strictSame(logOutput, [
       ['silly', 'cache add', 'args', ['mypkg', 'latest']],
@@ -162,7 +161,7 @@ t.test('cache verify', t => {
     outputOutput = []
   })
 
-  cache(['verify'], err => {
+  cache.exec(['verify'], err => {
     t.ifError(err)
     t.match(outputOutput, [
       `Cache verified and compressed (${path.join(npm.cache, '_cacache')})`,
@@ -189,7 +188,7 @@ t.test('cache verify w/ extra output', t => {
     delete cacacheVerifyStats.missingContent
   })
 
-  cache(['check'], err => {
+  cache.exec(['check'], err => {
     t.ifError(err)
     t.match(outputOutput, [
       `Cache verified and compressed (~${path.join('/fake/path', '_cacache')})`,

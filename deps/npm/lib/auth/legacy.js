@@ -4,11 +4,6 @@ const profile = require('npm-profile')
 const openUrl = require('../utils/open-url.js')
 const read = require('../utils/read-user-info.js')
 
-// TODO: refactor lib/utils/open-url and its usages
-const openerPromise = (url) => new Promise((resolve, reject) => {
-  openUrl(url, 'to complete your login please visit', (er) => er ? reject(er) : resolve())
-})
-
 const loginPrompter = async (creds) => {
   const opts = { log: log }
 
@@ -19,7 +14,7 @@ const loginPrompter = async (creds) => {
   return creds
 }
 
-const login = async (opts) => {
+const login = async (npm, opts) => {
   let res
 
   const requestOTP = async () => {
@@ -54,6 +49,7 @@ const login = async (opts) => {
     return newUser
   }
 
+  const openerPromise = (url) => openUrl(npm, url, 'to complete your login please visit')
   try {
     res = await profile.login(openerPromise, loginPrompter, opts)
   } catch (err) {

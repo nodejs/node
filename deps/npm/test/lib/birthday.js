@@ -1,5 +1,4 @@
 const t = require('tap')
-const requireInject = require('require-inject')
 const npm = {
   flatOptions: {
     yes: false,
@@ -17,10 +16,9 @@ const npm = {
   },
 }
 
-const birthday = requireInject('../../lib/birthday.js', {
-  '../../lib/npm.js': npm,
-})
+const Birthday = require('../../lib/birthday.js')
+const birthday = new Birthday(npm)
 
 let calledCb = false
-birthday([], () => calledCb = true)
+birthday.exec([], () => calledCb = true)
 t.equal(calledCb, true, 'called the callback')

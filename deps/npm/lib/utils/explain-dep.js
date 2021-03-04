@@ -86,9 +86,10 @@ const explainDependents = ({ name, dependents }, depth, color) => {
   return str.split('\n').join('\n  ')
 }
 
-const explainEdge = ({ name, type, from, spec }, depth, color) => {
+const explainEdge = ({ name, type, bundled, from, spec }, depth, color) => {
   const { bold } = color ? chalk : nocolor
   return (type === 'prod' ? '' : `${colorType(type, color)} `) +
+    (bundled ? `${colorType('bundled', color)} ` : '') +
     `${bold(name)}@"${bold(spec)}" from ` +
     explainFrom(from, depth, color)
 }

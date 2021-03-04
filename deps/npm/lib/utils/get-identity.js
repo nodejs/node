@@ -1,10 +1,9 @@
 const npmFetch = require('npm-registry-fetch')
-const npm = require('../npm')
 
 const needsAuthError = (msg) =>
   Object.assign(new Error(msg), { code: 'ENEEDAUTH' })
 
-module.exports = async (opts = {}) => {
+module.exports = async (npm, opts = {}) => {
   const { registry } = opts
   if (!registry)
     throw Object.assign(new Error('No registry specified.'), { code: 'ENOREGISTRY' })

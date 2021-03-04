@@ -107,6 +107,7 @@ const cases = {
         type: 'prod',
         name: 'prod-dep',
         spec: '1.x',
+        bundled: true,
         from: {
           location: '/path/to/project',
         },

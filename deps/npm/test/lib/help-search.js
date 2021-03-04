@@ -24,7 +24,7 @@ const npm = {
 }
 
 let npmUsageArg = null
-const npmUsage = (arg) => {
+const npmUsage = (npm, arg) => {
   npmUsageArg = arg
 }
 
@@ -43,12 +43,12 @@ const globDir = {
 const glob = (p, cb) =>
   cb(null, Object.keys(globDir).map((file) => join(globRoot, file)))
 
-const helpSearch = requireInject('../../lib/help-search.js', {
-  '../../lib/npm.js': npm,
+const HelpSearch = requireInject('../../lib/help-search.js', {
   '../../lib/utils/npm-usage.js': npmUsage,
   '../../lib/utils/output.js': output,
   glob,
 })
+const helpSearch = new HelpSearch(npm)
 
 test('npm help-search', t => {
   globRoot = t.testdir(globDir)
@@ -57,7 +57,7 @@ test('npm help-search', t => {
     globRoot = null
   })
 
-  return helpSearch(['exec'], (err) => {
+  return helpSearch.exec(['exec'], (err) => {
     if (err)
       throw err
 
@@ -74,7 +74,7 @@ test('npm help-search multiple terms', t => {
     globRoot = null
   })
 
-  return helpSearch(['run', 'script'], (err) => {
+  return helpSearch.exec(['run', 'script'], (err) => {
     if (err)
       throw err
 
@@ -92,7 +92,7 @@ test('npm help-search single result prints full section', t => {
     globRoot = null
   })
 
-  return helpSearch(['does not exist in'], (err) => {
+  return helpSearch.exec(['does not exist in'], (err) => {
     if (err)
       throw err
 
@@ -111,7 +111,7 @@ test('npm help-search single result propagates error', t => {
     globRoot = null
   })
 
-  return helpSearch(['does not exist in'], (err) => {
+  return helpSearch.exec(['does not exist in'], (err) => {
     t.strictSame(npmHelpArgs, ['npm-install'], 'identified the correct man page and called help with it')
     t.match(err, /help broke/, 'propagated the error from help')
     t.end()
@@ -127,7 +127,7 @@ test('npm help-search long output', t => {
     globRoot = null
   })
 
-  return helpSearch(['exec'], (err) => {
+  return helpSearch.exec(['exec'], (err) => {
     if (err)
       throw err
 
@@ -147,7 +147,7 @@ test('npm help-search long output with color', t => {
     globRoot = null
   })
 
-  return helpSearch(['help-search'], (err) => {
+  return helpSearch.exec(['help-search'], (err) => {
     if (err)
       throw err
 
@@ -158,7 +158,7 @@ test('npm help-search long output with color', t => {
 })
 
 test('npm help-search no args', t => {
-  return helpSearch([], (err) => {
+  return helpSearch.exec([], (err) => {
     t.match(err, /npm help-search/, 'throws usage')
     t.end()
   })
@@ -172,7 +172,7 @@ test('npm help-search no matches', t => {
     globRoot = null
   })
 
-  return helpSearch(['asdfasdf'], (err) => {
+  return helpSearch.exec(['asdfasdf'], (err) => {
     if (err)
       throw err
 

@@ -1,9 +1,8 @@
 const sso = require('./sso.js')
-const npm = require('../npm.js')
 
-const login = (opts) => {
+const login = (npm, opts) => {
   npm.config.set('sso-type', 'saml')
-  return sso(opts)
+  return sso(npm, opts)
 }
 
 module.exports = login

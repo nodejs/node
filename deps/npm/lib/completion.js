@@ -29,7 +29,6 @@
 // as an array.
 //
 
-const npm = require('./npm.js')
 const { types, shorthands } = require('./utils/config.js')
 const deref = require('./utils/deref-command.js')
 const { aliases, cmdList, plumbing } = require('./utils/cmd-list.js')
@@ -44,115 +43,127 @@ const output = require('./utils/output.js')
 const fileExists = require('./utils/file-exists.js')
 
 const usageUtil = require('./utils/usage.js')
-const usage = usageUtil('completion', 'source <(npm completion)')
 const { promisify } = require('util')
 
-const cmd = (args, cb) => compl(args).then(() => cb()).catch(cb)
-
-// completion for the completion command
-const completion = async (opts) => {
-  if (opts.w > 2)
-    return
-
-  const { resolve } = require('path')
-  const [bashExists, zshExists] = await Promise.all([
-    fileExists(resolve(process.env.HOME, '.bashrc')),
-    fileExists(resolve(process.env.HOME, '.zshrc')),
-  ])
-  const out = []
-  if (zshExists)
-    out.push(['>>', '~/.zshrc'])
-
-  if (bashExists)
-    out.push(['>>', '~/.bashrc'])
-
-  return out
-}
-
-const compl = async args => {
-  if (isWindowsShell) {
-    const msg = 'npm completion supported only in MINGW / Git bash on Windows'
-    throw Object.assign(new Error(msg), {
-      code: 'ENOTSUP',
-    })
+class Completion {
+  constructor (npm) {
+    this.npm = npm
   }
 
-  const { COMP_CWORD, COMP_LINE, COMP_POINT } = process.env
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  get usage () {
+    return usageUtil('completion', 'source <(npm completion)')
+  }
 
-  // if the COMP_* isn't in the env, then just dump the script.
-  if (COMP_CWORD === undefined ||
+  // completion for the completion command
+  async completion (opts) {
+    if (opts.w > 2)
+      return
+
+    const { resolve } = require('path')
+    const [bashExists, zshExists] = await Promise.all([
+      fileExists(resolve(process.env.HOME, '.bashrc')),
+      fileExists(resolve(process.env.HOME, '.zshrc')),
+    ])
+    const out = []
+    if (zshExists)
+      out.push(['>>', '~/.zshrc'])
+
+    if (bashExists)
+      out.push(['>>', '~/.bashrc'])
+
+    return out
+  }
+
+  exec (args, cb) {
+    this.compl(args).then(() => cb()).catch(cb)
+  }
+
+  async compl (args) {
+    if (isWindowsShell) {
+      const msg = 'npm completion supported only in MINGW / Git bash on Windows'
+      throw Object.assign(new Error(msg), {
+        code: 'ENOTSUP',
+      })
+    }
+
+    const { COMP_CWORD, COMP_LINE, COMP_POINT } = process.env
+
+    // if the COMP_* isn't in the env, then just dump the script.
+    if (COMP_CWORD === undefined ||
       COMP_LINE === undefined ||
       COMP_POINT === undefined)
-    return dumpScript()
+      return dumpScript()
 
-  // ok we're actually looking at the envs and outputting the suggestions
-  // get the partial line and partial word,
-  // if the point isn't at the end.
-  // ie, tabbing at: npm foo b|ar
-  const w = +COMP_CWORD
-  const words = args.map(unescape)
-  const word = words[w]
-  const line = COMP_LINE
-  const point = +COMP_POINT
-  const partialLine = line.substr(0, point)
-  const partialWords = words.slice(0, w)
+    // ok we're actually looking at the envs and outputting the suggestions
+    // get the partial line and partial word,
+    // if the point isn't at the end.
+    // ie, tabbing at: npm foo b|ar
+    const w = +COMP_CWORD
+    const words = args.map(unescape)
+    const word = words[w]
+    const line = COMP_LINE
+    const point = +COMP_POINT
+    const partialLine = line.substr(0, point)
+    const partialWords = words.slice(0, w)
 
-  // figure out where in that last word the point is.
-  const partialWordRaw = args[w]
-  let i = partialWordRaw.length
-  while (partialWordRaw.substr(0, i) !== partialLine.substr(-1 * i) && i > 0)
-    i--
+    // figure out where in that last word the point is.
+    const partialWordRaw = args[w]
+    let i = partialWordRaw.length
+    while (partialWordRaw.substr(0, i) !== partialLine.substr(-1 * i) && i > 0)
+      i--
 
-  const partialWord = unescape(partialWordRaw.substr(0, i))
-  partialWords.push(partialWord)
+    const partialWord = unescape(partialWordRaw.substr(0, i))
+    partialWords.push(partialWord)
 
-  const opts = {
-    words,
-    w,
-    word,
-    line,
-    lineLength: line.length,
-    point,
-    partialLine,
-    partialWords,
-    partialWord,
-    raw: args,
-  }
+    const opts = {
+      words,
+      w,
+      word,
+      line,
+      lineLength: line.length,
+      point,
+      partialLine,
+      partialWords,
+      partialWord,
+      raw: args,
+    }
 
-  if (partialWords.slice(0, -1).indexOf('--') === -1) {
-    if (word.charAt(0) === '-')
-      return wrap(opts, configCompl(opts))
+    if (partialWords.slice(0, -1).indexOf('--') === -1) {
+      if (word.charAt(0) === '-')
+        return wrap(opts, configCompl(opts))
 
-    if (words[w - 1] &&
+      if (words[w - 1] &&
         words[w - 1].charAt(0) === '-' &&
         !isFlag(words[w - 1])) {
-      // awaiting a value for a non-bool config.
-      // don't even try to do this for now
-      return wrap(opts, configValueCompl(opts))
+        // awaiting a value for a non-bool config.
+        // don't even try to do this for now
+        return wrap(opts, configValueCompl(opts))
+      }
     }
-  }
 
-  // try to find the npm command.
-  // it's the first thing after all the configs.
-  // take a little shortcut and use npm's arg parsing logic.
-  // don't have to worry about the last arg being implicitly
-  // boolean'ed, since the last block will catch that.
-  const parsed = opts.conf =
-    nopt(types, shorthands, partialWords.slice(0, -1), 0)
-  // check if there's a command already.
-  const cmd = parsed.argv.remain[1]
-  if (!cmd)
-    return wrap(opts, cmdCompl(opts))
+    // try to find the npm command.
+    // it's the first thing after all the configs.
+    // take a little shortcut and use npm's arg parsing logic.
+    // don't have to worry about the last arg being implicitly
+    // boolean'ed, since the last block will catch that.
+    const parsed = opts.conf =
+      nopt(types, shorthands, partialWords.slice(0, -1), 0)
+    // check if there's a command already.
+    const cmd = parsed.argv.remain[1]
+    if (!cmd)
+      return wrap(opts, cmdCompl(opts))
 
-  Object.keys(parsed).forEach(k => npm.config.set(k, parsed[k]))
+    Object.keys(parsed).forEach(k => this.npm.config.set(k, parsed[k]))
 
-  // at this point, if words[1] is some kind of npm command,
-  // then complete on it.
-  // otherwise, do nothing
-  const impl = npm.commands[cmd]
-  if (impl && impl.completion) {
-    const comps = await impl.completion(opts)
-    return wrap(opts, comps)
+    // at this point, if words[1] is some kind of npm command,
+    // then complete on it.
+    // otherwise, do nothing
+    const impl = this.npm.commands[cmd]
+    if (impl && impl.completion) {
+      const comps = await impl.completion(opts)
+      return wrap(opts, comps)
+    }
   }
 }
 
@@ -266,4 +277,4 @@ const cmdCompl = opts => {
   return fullList
 }
 
-module.exports = Object.assign(cmd, { completion, usage })
+module.exports = Completion
