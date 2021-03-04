@@ -297,7 +297,9 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
     Local<Value> resolve_return_value =
         maybe_resolve_return_value.ToLocalChecked();
     if (!resolve_return_value->IsPromise()) {
-      env->ThrowError("linking error, expected resolver to return a promise");
+      THROW_ERR_VM_MODULE_LINK_FAILURE(
+          env, "request for '%s' did not return promise", specifier_std);
+      return;
     }
     Local<Promise> resolve_promise = resolve_return_value.As<Promise>();
     obj->resolve_cache_[specifier_std].Reset(env->isolate(), resolve_promise);
@@ -497,17 +499,19 @@ MaybeLocal<Module> ModuleWrap::ResolveModuleCallback(
 
   Isolate* isolate = env->isolate();
 
-  ModuleWrap* dependent = GetFromModule(env, referrer);
-  if (dependent == nullptr) {
-    env->ThrowError("linking error, null dep");
-    return MaybeLocal<Module>();
-  }
-
   Utf8Value specifier_utf8(isolate, specifier);
   std::string specifier_std(*specifier_utf8, specifier_utf8.length());
 
+  ModuleWrap* dependent = GetFromModule(env, referrer);
+  if (dependent == nullptr) {
+    THROW_ERR_VM_MODULE_LINK_FAILURE(
+        env, "request for '%s' is from invalid module", specifier_std);
+    return MaybeLocal<Module>();
+  }
+
   if (dependent->resolve_cache_.count(specifier_std) != 1) {
-    env->ThrowError("linking error, not in local cache");
+    THROW_ERR_VM_MODULE_LINK_FAILURE(
+        env, "request for '%s' is not in cache", specifier_std);
     return MaybeLocal<Module>();
   }
 
@@ -515,15 +519,15 @@ MaybeLocal<Module> ModuleWrap::ResolveModuleCallback(
       dependent->resolve_cache_[specifier_std].Get(isolate);
 
   if (resolve_promise->State() != Promise::kFulfilled) {
-    env->ThrowError("linking error, dependency promises must be resolved on "
-                    "instantiate");
+    THROW_ERR_VM_MODULE_LINK_FAILURE(
+        env, "request for '%s' is not yet fulfilled", specifier_std);
     return MaybeLocal<Module>();
   }
 
   Local<Object> module_object = resolve_promise->Result().As<Object>();
   if (module_object.IsEmpty() || !module_object->IsObject()) {
-    env->ThrowError("linking error, expected a valid module object from "
-                    "resolver");
+    THROW_ERR_VM_MODULE_LINK_FAILURE(
+        env, "request for '%s' did not return an object", specifier_std);
     return MaybeLocal<Module>();
   }
 
