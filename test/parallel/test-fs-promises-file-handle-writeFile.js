@@ -30,7 +30,7 @@ async function validateWriteFile() {
 async function doWriteAndCancel() {
   const filePathForHandle = path.resolve(tmpDir, 'dogs-running.txt');
   const fileHandle = await open(filePathForHandle, 'w+');
-  const buffer = Buffer.from('dogs running'.repeat(10000), 'utf8');
+  const buffer = Buffer.from('dogs running'.repeat(512 * 1024), 'utf8');
   const controller = new AbortController();
   const { signal } = controller;
   process.nextTick(() => controller.abort());
