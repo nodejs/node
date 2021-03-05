@@ -878,7 +878,7 @@ bool SignTraits::DeriveBits(
     case SignConfiguration::kSign: {
       size_t len;
       unsigned char* data = nullptr;
-      if (IsOneShot(params.key->GetAsymmetricKey())) {
+      if (IsOneShot(m_pkey)) {
         EVP_DigestSign(
             context.get(),
             nullptr,
@@ -910,10 +910,7 @@ bool SignTraits::DeriveBits(
           return false;
 
         if (UseP1363Encoding(m_pkey, params.dsa_encoding)) {
-          *out = ConvertSignatureToP1363(
-              env,
-              params.key->GetAsymmetricKey(),
-              buf);
+          *out = ConvertSignatureToP1363(env, m_pkey, buf);
         } else {
           buf.Resize(len);
           *out = std::move(buf);

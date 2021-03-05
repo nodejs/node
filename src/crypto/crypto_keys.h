@@ -74,7 +74,7 @@ struct PrivateKeyEncodingConfig : public AsymmetricKeyEncodingConfig {
 // use.
 class ManagedEVPPKey : public MemoryRetainer {
  public:
-  ManagedEVPPKey() = default;
+  ManagedEVPPKey() : mutex_(std::make_shared<Mutex>()) {}
   explicit ManagedEVPPKey(EVPKeyPointer&& pkey);
   ManagedEVPPKey(const ManagedEVPPKey& that);
   ManagedEVPPKey& operator=(const ManagedEVPPKey& that);

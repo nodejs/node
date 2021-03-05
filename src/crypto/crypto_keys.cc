@@ -559,6 +559,8 @@ ManagedEVPPKey::ManagedEVPPKey(const ManagedEVPPKey& that) {
 }
 
 ManagedEVPPKey& ManagedEVPPKey::operator=(const ManagedEVPPKey& that) {
+  Mutex::ScopedLock lock(*that.mutex_);
+
   pkey_.reset(that.get());
 
   if (pkey_)
