@@ -1,6 +1,6 @@
 {
   "common": {
-    "commit": "3586ff740b00aa1fa82ab00cccbc36cca0bb8ccb",
+    "commit": "bb97a689743eb5e3bc0bc92ac41ab266c54c134e",
     "path": "common"
   },
   "console": {
@@ -32,15 +32,15 @@
     "path": "html/webappapis/timers"
   },
   "interfaces": {
-    "commit": "8602e9c9a168c25838bc4b808e3d213ce94ccac1",
+    "commit": "79fa4cf76e0d39e3fc1b7ead85e067b0a064b892",
     "path": "interfaces"
   },
   "resources": {
-    "commit": "e366371a194459f23f8d6115cfdb57e0bc851468",
+    "commit": "972ca5b6693bffebebc5805e1b9da68a6876e1f6",
     "path": "resources"
   },
   "url": {
-    "commit": "59d28c8f2d91d12533cfd0371acbe473b1825967",
+    "commit": "33f2e3f2e759bd51ebf8e4b9a01b067bc8281c5c",
     "path": "url"
   }
 }
