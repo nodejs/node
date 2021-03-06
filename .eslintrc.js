@@ -53,12 +53,6 @@ module.exports = {
   overrides: [
     {
       files: [
-        'doc/api/esm.md/*.js',
-        'doc/api/fs.md/*.js',
-        'doc/api/module.md/*.js',
-        'doc/api/modules.md/*.js',
-        'doc/api/packages.md/*.js',
-        'doc/api/wasi.md/*.js',
         'test/es-module/test-esm-type-flag.js',
         'test/es-module/test-esm-type-flag-alias.js',
         '*.mjs',
@@ -71,9 +65,20 @@ module.exports = {
       processor: 'markdown/markdown',
     },
     {
-      files: ['**/*.md/*.js'],
-      parserOptions: { ecmaFeatures: { impliedStrict: true } },
+      files: ['**/*.md/*.cjs', '**/*.md/*.js'],
+      parserOptions: {
+        sourceType: 'script',
+        ecmaFeatures: { impliedStrict: true }
+      },
       rules: { strict: 'off' },
+    },
+    {
+      files: [
+        '**/*.md/*.mjs',
+        'doc/api/esm.md/*.js',
+        'doc/api/packages.md/*.js',
+      ],
+      parserOptions: { sourceType: 'module' },
     },
   ],
   rules: {
