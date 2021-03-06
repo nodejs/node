@@ -6,6 +6,7 @@ namespace {
 #define ENCODING_MAP(V) \
   V(ASCII)              \
   V(BASE64)             \
+  V(BASE64URL)          \
   V(BUFFER)             \
   V(HEX)                \
   V(LATIN1)             \
@@ -23,8 +24,7 @@ void ParseEncoding(const v8::FunctionCallbackInfo<v8::Value>& args) {
   ENCODING_MAP(V)
 #undef V
   auto encoding_string =
-      v8::String::NewFromUtf8(args.GetIsolate(), encoding_name,
-                              v8::NewStringType::kNormal)
+      v8::String::NewFromUtf8(args.GetIsolate(), encoding_name)
       .ToLocalChecked();
   args.GetReturnValue().Set(encoding_string);
 }
@@ -35,4 +35,4 @@ void Initialize(v8::Local<v8::Object> exports) {
 
 }  // anonymous namespace
 
-NODE_MODULE(binding, Initialize);
+NODE_MODULE(NODE_GYP_MODULE_NAME, Initialize)

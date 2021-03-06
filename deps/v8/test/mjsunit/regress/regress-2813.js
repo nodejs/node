@@ -36,8 +36,8 @@ function foo(x) {
     }
   }
   return 0;
-}
-
+};
+%PrepareFunctionForOptimization(foo);
 assertEquals(0, foo(0));
 assertEquals(0, foo(0));
 %OptimizeFunctionOnNextCall(foo);

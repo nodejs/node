@@ -342,27 +342,30 @@ var obj = {
   var a = 1;
   var b = 2;
 
-  tag`head${a}tail`;
-  tag`head${b}tail`;
-
+  // Call-sites are cached by ParseNode. Same tag call in a loop
+  // means same template object
+  for (var i = 0; i < 2; ++i) {
+    tag`head${i == 0 ? a : b}tail`;
+  }
   assertEquals(2, callSites.length);
   assertSame(callSites[0], callSites[1]);
 
-  eval("tag`head${a}tail`");
-  assertEquals(3, callSites.length);
-  assertSame(callSites[1], callSites[2]);
-
-  eval("tag`head${b}tail`");
+  // Tag calls within eval() never have the same ParseNode as the same tag
+  // call from a different eval() invocation.
+  for (var i = 0; i < 2; ++i) {
+    eval("tag`head${i == 0 ? a : b}tail`");
+  }
   assertEquals(4, callSites.length);
-  assertSame(callSites[2], callSites[3]);
+  assertTrue(callSites[1] !== callSites[2]);
+  assertTrue(callSites[2] !== callSites[3]);
 
   (new Function("tag", "a", "b", "return tag`head${a}tail`;"))(tag, 1, 2);
   assertEquals(5, callSites.length);
-  assertSame(callSites[3], callSites[4]);
+  assertTrue(callSites[3] !== callSites[4]);
 
   (new Function("tag", "a", "b", "return tag`head${b}tail`;"))(tag, 1, 2);
   assertEquals(6, callSites.length);
-  assertSame(callSites[4], callSites[5]);
+  assertTrue(callSites[4] !== callSites[5]);
 
   callSites = [];
 
@@ -374,17 +377,19 @@ var obj = {
 
   callSites = [];
 
-  eval("tag`\\\r\n\\\n\\\r`");
-  eval("tag`\\\r\n\\\n\\\r`");
+  for (var i = 0; i < 2; ++i) {
+    eval("tag`\\\r\n\\\n\\\r`");
+  }
   assertEquals(2, callSites.length);
-  assertSame(callSites[0], callSites[1]);
+  assertTrue(callSites[0] !== callSites[1]);
   assertEquals("", callSites[0][0]);
   assertEquals("\\\n\\\n\\\n", callSites[0].raw[0]);
 
   callSites = [];
 
-  tag`\uc548\ub155`;
-  tag`\uc548\ub155`;
+  for (var i = 0; i < 2; ++i) {
+    tag`\uc548\ub155`;
+  }
   assertEquals(2, callSites.length);
   assertSame(callSites[0], callSites[1]);
   assertEquals("안녕", callSites[0][0]);
@@ -476,11 +481,12 @@ var obj = {
 (function testLegacyOctal() {
   assertEquals('\u0000', `\0`);
   assertEquals('\u0000a', `\0a`);
-  for (var i = 0; i < 8; i++) {
+  for (var i = 0; i < 10; i++) {
     var code = "`\\0" + i + "`";
     assertThrows(code, SyntaxError);
+    // Not an error if tagged.
     code = "(function(){})" + code;
-    assertThrows(code, SyntaxError);
+    assertDoesNotThrow(code, SyntaxError);
   }
 
   assertEquals('\\0', String.raw`\0`);
@@ -493,17 +499,16 @@ var obj = {
   for (var i = 1; i < 8; i++) {
     var code = "`\\" + i + "`";
     assertThrows(code, SyntaxError);
+    // Not an error if tagged.
     code = "(function(){})" + code;
-    assertThrows(code, SyntaxError);
+    assertDoesNotThrow(code, SyntaxError);
   }
 })();
 
 
-(function testValidNumericEscapes() {
-  assertEquals("8", `\8`);
-  assertEquals("9", `\9`);
-  assertEquals("\u00008", `\08`);
-  assertEquals("\u00009", `\09`);
+(function testInvalidNumericEscapes() {
+  assertThrows(function() { eval("`\\8`"); }, SyntaxError)
+  assertThrows(function() { eval("`\\9`"); }, SyntaxError)
 })();
 
 
@@ -716,3 +721,147 @@ var global = this;
   assertEquals(["a", "b"], result);
   assertSame(result, f());
 })();
+
+(function testTaggedTemplateInvalidAssignmentTargetStrict() {
+  "use strict";
+  function f() {}
+  assertThrows(() => Function("++f`foo`"), SyntaxError);
+  assertThrows(() => Function("f`foo`++"), SyntaxError);
+  assertThrows(() => Function("--f`foo`"), SyntaxError);
+  assertThrows(() => Function("f`foo`--"), SyntaxError);
+  assertThrows(() => Function("f`foo` = 1"), SyntaxError);
+})();
+
+(function testTaggedTemplateInvalidAssignmentTargetSloppy() {
+  function f() {}
+  assertThrows(() => Function("++f`foo`"), SyntaxError);
+  assertThrows(() => Function("f`foo`++"), SyntaxError);
+  assertThrows(() => Function("--f`foo`"), SyntaxError);
+  assertThrows(() => Function("f`foo`--"), SyntaxError);
+  assertThrows(() => Function("f`foo` = 1"), SyntaxError);
+})();
+
+// Disable eval caching if a tagged template occurs in a nested function
+var v = 0;
+var templates = [];
+function tag(callSite) { templates.push(callSite); }
+for (v = 0; v < 6; v += 2) {
+  eval("(function() { for (var i = 0; i < 2; ++i) tag`Hello${v}world` })()");
+  assertSame(templates[v], templates[v + 1]);
+}
+assertNotSame(templates[0], templates[2]);
+assertNotSame(templates[0], templates[4]);
+assertNotSame(templates[1], templates[3]);
+assertNotSame(templates[1], templates[5]);
+assertNotSame(templates[2], templates[4]);
+assertNotSame(templates[3], templates[5]);
+
+function makeSource1(id) {
+  return `function f() {
+    for (var i = 0; i < 2; ++i) tag\`Hello${id}world\`;
+  }
+  f();`;
+}
+templates = [];
+for (v = 0; v < 6; v += 2) {
+  eval(makeSource1(v));
+  assertSame(templates[v], templates[v + 1]);
+}
+assertNotSame(templates[0], templates[2]);
+assertNotSame(templates[0], templates[4]);
+assertNotSame(templates[1], templates[3]);
+assertNotSame(templates[1], templates[5]);
+assertNotSame(templates[2], templates[4]);
+assertNotSame(templates[3], templates[5]);
+
+templates = [];
+eval("(function() { for (var i = 0; i < 2; ++i) tag`Hello${1}world` })()");
+eval("(function() { for (var i = 0; i < 2; ++i) tag`Hello${2}world` })()");
+eval("(function() { for (var i = 0; i < 2; ++i) tag`Hello${2}world` })()");
+assertSame(templates[0], templates[1]);
+assertNotSame(templates[0], templates[2]);
+assertNotSame(templates[0], templates[4]);
+assertNotSame(templates[1], templates[3]);
+assertNotSame(templates[1], templates[5]);
+assertSame(templates[2], templates[3]);
+assertNotSame(templates[2], templates[4]);
+assertNotSame(templates[3], templates[5]);
+assertSame(templates[4],templates[5]);
+
+templates = [];
+eval(makeSource1(1));
+eval(makeSource1(2));
+eval(makeSource1(3));
+assertSame(templates[0], templates[1]);
+assertNotSame(templates[0], templates[2]);
+assertNotSame(templates[0], templates[4]);
+assertNotSame(templates[1], templates[3]);
+assertNotSame(templates[1], templates[5]);
+assertSame(templates[2], templates[3]);
+assertNotSame(templates[2], templates[4]);
+assertNotSame(templates[3], templates[5]);
+assertSame(templates[4],templates[5]);
+
+// Disable eval caching if a tagged template occurs in an even deeper nested function
+var v = 0;
+templates = [];
+for (v = 0; v < 6; v += 2) {
+    eval("(function() { (function() { for (var i = 0; i < 2; ++i) tag`Hello${v}world` })() })()");
+    if (!v) continue;
+    assertNotSame(templates[v], templates[v - 1]);
+}
+assertNotSame(templates[0], templates[2]);
+assertNotSame(templates[0], templates[4]);
+assertNotSame(templates[1], templates[3]);
+assertNotSame(templates[1], templates[5]);
+assertNotSame(templates[2], templates[4]);
+assertNotSame(templates[3], templates[5]);
+
+function makeSource2(id) {
+  return `function f() {
+    function innerF() {
+      for (var i = 0; i < 2; ++i) tag\`Hello${id}world\`;
+    }
+    return innerF();
+  }
+  f();`;
+}
+templates = [];
+for (v = 0; v < 6; v += 2) {
+  eval(makeSource2(v));
+  assertSame(templates[v], templates[v + 1]);
+}
+assertNotSame(templates[0], templates[2]);
+assertNotSame(templates[0], templates[4]);
+assertNotSame(templates[1], templates[3]);
+assertNotSame(templates[1], templates[5]);
+assertNotSame(templates[2], templates[4]);
+assertNotSame(templates[3], templates[5]);
+
+templates = [];
+eval("(function() { (function() { for (var i = 0; i < 2; ++i) tag`Hello${1}world` })() })()");
+eval("(function() { (function() { for (var i = 0; i < 2; ++i) tag`Hello${2}world` })() })()");
+eval("(function() { (function() { for (var i = 0; i < 2; ++i) tag`Hello${2}world` })() })()");
+assertSame(templates[0], templates[1]);
+assertNotSame(templates[0], templates[2]);
+assertNotSame(templates[0], templates[4]);
+assertNotSame(templates[1], templates[3]);
+assertNotSame(templates[1], templates[5]);
+assertSame(templates[2], templates[3]);
+assertNotSame(templates[2], templates[4]);
+assertNotSame(templates[3], templates[5]);
+assertSame(templates[4], templates[5]);
+
+templates = [];
+eval(makeSource2(1));
+eval(makeSource2(2));
+eval(makeSource2(3));
+assertSame(templates[0], templates[1]);
+assertNotSame(templates[0], templates[2]);
+assertNotSame(templates[0], templates[4]);
+assertNotSame(templates[1], templates[3]);
+assertNotSame(templates[1], templates[5]);
+assertSame(templates[2], templates[3]);
+assertNotSame(templates[2], templates[4]);
+assertNotSame(templates[3], templates[5]);
+assertSame(templates[4], templates[5]);

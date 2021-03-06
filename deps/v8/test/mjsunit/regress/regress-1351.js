@@ -30,13 +30,13 @@
 // Test that the arguments value is does not escape when it appears as
 // an intermediate value in an expression.
 
-function h() { }
+function h() {}
 
 function f() {
   var a = null;
   h(a = arguments);
-}
-
+};
+%PrepareFunctionForOptimization(f);
 f();
 %OptimizeFunctionOnNextCall(f);
 f();

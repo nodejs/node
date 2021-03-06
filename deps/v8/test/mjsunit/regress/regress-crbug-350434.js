@@ -13,7 +13,7 @@ var p = new Ctor();
 
 
 function crash(o, timeout) {
-  var s = "4000111222";  // Outside Smi range.
+  var s = '4000111222';  // Outside Smi range.
   %SetAllocationTimeout(100000, timeout);
   // This allocates a heap number, causing a GC, triggering lazy deopt.
   var end = s >>> 0;
@@ -21,8 +21,8 @@ function crash(o, timeout) {
   // This creates a map dependency, which gives the GC a reason to trigger
   // a lazy deopt when that map dies.
   o.bar = 2;
-}
-
+};
+%PrepareFunctionForOptimization(crash);
 crash(o, 100000);
 crash(o, 100000);
 crash(p, 100000);

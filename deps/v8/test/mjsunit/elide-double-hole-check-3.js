@@ -29,8 +29,9 @@
 
 function f(a, i) {
   return a[i] + 0.5;
-}
-Array.prototype = [1.5,1.5,1.5];
+};
+%PrepareFunctionForOptimization(f);
+Array.prototype = [1.5, 1.5, 1.5];
 var arr = [0.0,,];
 assertEquals(0.5, f(arr, 0));
 assertEquals(0.5, f(arr, 0));

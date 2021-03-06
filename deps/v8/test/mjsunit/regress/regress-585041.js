@@ -14,8 +14,8 @@ function boom(dummy) {
   if (dummy) {
     f(arr, -2147483648);
   }
-}
-
+};
+%PrepareFunctionForOptimization(boom);
 boom(false);
 %OptimizeFunctionOnNextCall(boom);
 boom(false);

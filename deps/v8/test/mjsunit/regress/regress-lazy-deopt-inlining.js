@@ -7,9 +7,11 @@
 "use strict";
 function f1(d) {
   return 1 + f2(f3(d));
+};
+%PrepareFunctionForOptimization(f1);
+function f2(v) {
+  return v;
 }
-
-function f2(v) { return v; }
 
 function f3(d) {
   if (d) %DeoptimizeFunction(f1);

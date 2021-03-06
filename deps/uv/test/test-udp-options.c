@@ -114,9 +114,11 @@ TEST_IMPL(udp_options6) {
 TEST_IMPL(udp_no_autobind) {
   uv_loop_t* loop;
   uv_udp_t h;
+  uv_udp_t h2;
 
   loop = uv_default_loop();
 
+  /* Test a lazy initialized socket. */
   ASSERT(0 == uv_udp_init(loop, &h));
   ASSERT(UV_EBADF == uv_udp_set_multicast_ttl(&h, 32));
   ASSERT(UV_EBADF == uv_udp_set_broadcast(&h, 1));
@@ -126,9 +128,30 @@ TEST_IMPL(udp_no_autobind) {
   ASSERT(UV_EBADF == uv_udp_set_ttl(&h, 1));
 #endif
   ASSERT(UV_EBADF == uv_udp_set_multicast_loop(&h, 1));
+/* TODO(gengjiawen): Fix test on QEMU. */
+#if defined(__QEMU__)
+  RETURN_SKIP("Test does not currently work in QEMU");
+#endif
   ASSERT(UV_EBADF == uv_udp_set_multicast_interface(&h, "0.0.0.0"));
 
   uv_close((uv_handle_t*) &h, NULL);
+
+  /* Test a non-lazily initialized socket. */
+  ASSERT(0 == uv_udp_init_ex(loop, &h2, AF_INET | UV_UDP_RECVMMSG));
+  ASSERT(0 == uv_udp_set_multicast_ttl(&h2, 32));
+  ASSERT(0 == uv_udp_set_broadcast(&h2, 1));
+
+#if defined(__MVS__)
+  /* zOS only supports setting ttl for IPv6 sockets. */
+  ASSERT(UV_ENOTSUP == uv_udp_set_ttl(&h2, 1));
+#else
+  ASSERT(0 == uv_udp_set_ttl(&h2, 1));
+#endif
+
+  ASSERT(0 == uv_udp_set_multicast_loop(&h2, 1));
+  ASSERT(0 == uv_udp_set_multicast_interface(&h2, "0.0.0.0"));
+
+  uv_close((uv_handle_t*) &h2, NULL);
 
   ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
 

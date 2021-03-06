@@ -1,15 +1,16 @@
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
+const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
-const join = require('path').join;
+const { join } = require('path');
 const childProcess = require('child_process');
 const fs = require('fs');
 
-const stdoutScript = join(common.fixturesDir, 'echo-close-check.js');
-const tmpFile = join(common.tmpDir, 'stdin.txt');
+const stdoutScript = fixtures.path('echo-close-check.js');
+const tmpFile = join(tmpdir.path, 'stdin.txt');
 
-const cmd = '"' + process.argv[0] + '" "' + stdoutScript + '" < "' +
-            tmpFile + '"';
+const cmd = `"${process.argv[0]}" "${stdoutScript}" < "${tmpFile}"`;
 
 const string = 'abc\nümlaut.\nsomething else\n' +
                '南越国是前203年至前111年存在于岭南地区的一个国家，国都位于番禺，' +
@@ -24,17 +25,16 @@ const string = 'abc\nümlaut.\nsomething else\n' +
                '有效的改善了岭南地区落后的政治、##济现状。\n';
 
 
-common.refreshTmpDir();
+tmpdir.refresh();
 
-console.log(cmd + '\n\n');
+console.log(`${cmd}\n\n`);
 
 fs.writeFileSync(tmpFile, string);
 
 childProcess.exec(cmd, common.mustCall(function(err, stdout, stderr) {
   fs.unlinkSync(tmpFile);
 
-  if (err) throw err;
-  console.log(stdout);
-  assert.strictEqual(stdout, 'hello world\r\n' + string);
-  assert.strictEqual('', stderr);
+  assert.ifError(err);
+  assert.strictEqual(stdout, `hello world\r\n${string}`);
+  assert.strictEqual(stderr, '');
 }));

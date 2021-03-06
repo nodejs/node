@@ -1,13 +1,26 @@
+const usageUtil = require('./utils/usage.js')
 
-module.exports = set
+class Set {
+  constructor (npm) {
+    this.npm = npm
+  }
 
-set.usage = 'npm set <key> <value> (See `npm config`)'
+  get usage () {
+    return usageUtil(
+      'set',
+      'npm set <key>=<value> [<key>=<value> ...] (See `npm config`)'
+    )
+  }
 
-var npm = require('./npm.js')
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  async completion (opts) {
+    return this.npm.commands.config.completion(opts)
+  }
 
-set.completion = npm.commands.config.completion
-
-function set (args, cb) {
-  if (!args.length) return cb(set.usage)
-  npm.commands.config(['set'].concat(args), cb)
+  exec (args, cb) {
+    if (!args.length)
+      return cb(this.usage)
+    this.npm.commands.config(['set'].concat(args), cb)
+  }
 }
+module.exports = Set

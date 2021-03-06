@@ -10,7 +10,7 @@ a major release. In this section you'll find all macros and functions that
 will allow you to write or compile code conditionally, in order to work with
 multiple libuv versions.
 
-.. _semantic versioning: http://semver.org
+.. _semantic versioning: https://semver.org
 
 
 Macros

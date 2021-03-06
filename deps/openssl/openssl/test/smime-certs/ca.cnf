@@ -16,7 +16,7 @@ default_keyfile 	= privkey.pem
 # Don't prompt for fields: use those in section directly
 prompt			= no
 distinguished_name	= req_distinguished_name
-x509_extensions	= v3_ca	# The extentions to add to the self signed cert
+x509_extensions	= v3_ca	# The extensions to add to the self signed cert
 string_mask = utf8only
 
 # req_extensions = v3_req # The extensions to add to a certificate request

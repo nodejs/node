@@ -25,13 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --smi-only-arrays
+// Flags: --allow-natives-syntax
 
 function foo(arg) {
   var a = arg();
   return a;
-}
-
+};
+%PrepareFunctionForOptimization(foo);
 
 foo(Array);
 foo(Array);

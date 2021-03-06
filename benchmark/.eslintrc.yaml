@@ -1,0 +1,15 @@
+## Benchmark-specific linter rules
+
+env:
+  node: true
+  es6: true
+
+rules:
+  no-var: error
+  comma-dangle:
+    - error
+    - arrays: 'always-multiline'
+      objects: 'only-multiline'
+      imports: 'only-multiline'
+      exports: 'only-multiline'
+  prefer-arrow-callback: error

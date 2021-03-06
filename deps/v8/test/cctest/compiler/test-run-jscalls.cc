@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/flags/flags.h"
+#include "src/objects/contexts.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 #include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {
@@ -161,7 +165,8 @@ TEST(RuntimeCallInline) {
 
 TEST(EvalCall) {
   FunctionTester T("(function(a,b) { return eval(a); })");
-  Handle<JSObject> g(T.function->context()->global_object()->global_proxy());
+  Handle<JSObject> g(T.function->context().global_object().global_proxy(),
+                     T.isolate);
 
   T.CheckCall(T.Val(23), T.Val("17 + 6"), T.undefined());
   T.CheckCall(T.Val("'Y'; a"), T.Val("'Y'; a"), T.Val("b-val"));
@@ -185,7 +190,8 @@ TEST(ReceiverPatching) {
   // patches an undefined receiver to the global receiver. If this starts to
   // fail once we fix the calling protocol, just remove this test.
   FunctionTester T("(function(a) { return this; })");
-  Handle<JSObject> g(T.function->context()->global_object()->global_proxy());
+  Handle<JSObject> g(T.function->context().global_object().global_proxy(),
+                     T.isolate);
   T.CheckCall(g, T.undefined());
 }
 
@@ -199,56 +205,6 @@ TEST(CallEval) {
       "})();");
 
   T.CheckCall(T.Val(42), T.Val("x"), T.undefined());
-}
-
-
-TEST(ContextLoadedFromActivation) {
-  const char* script =
-      "var x = 42;"
-      "(function() {"
-      "  return function () { return x };"
-      "})()";
-
-  // Disable context specialization.
-  FunctionTester T(script);
-  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
-  v8::Context::Scope scope(context);
-  v8::Local<v8::Value> value = CompileRun(script);
-  i::Handle<i::Object> ofun = v8::Utils::OpenHandle(*value);
-  i::Handle<i::JSFunction> jsfun = Handle<JSFunction>::cast(ofun);
-  jsfun->set_code(T.function->code());
-  jsfun->set_shared(T.function->shared());
-  jsfun->set_literals(T.function->literals());
-  CHECK(context->Global()
-            ->Set(context, v8_str("foo"), v8::Utils::CallableToLocal(jsfun))
-            .FromJust());
-  CompileRun("var x = 24;");
-  ExpectInt32("foo();", 24);
-}
-
-
-TEST(BuiltinLoadedFromActivation) {
-  const char* script =
-      "var x = 42;"
-      "(function() {"
-      "  return function () { return this; };"
-      "})()";
-
-  // Disable context specialization.
-  FunctionTester T(script);
-  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
-  v8::Context::Scope scope(context);
-  v8::Local<v8::Value> value = CompileRun(script);
-  i::Handle<i::Object> ofun = v8::Utils::OpenHandle(*value);
-  i::Handle<i::JSFunction> jsfun = Handle<JSFunction>::cast(ofun);
-  jsfun->set_code(T.function->code());
-  jsfun->set_shared(T.function->shared());
-  jsfun->set_literals(T.function->literals());
-  CHECK(context->Global()
-            ->Set(context, v8_str("foo"), v8::Utils::CallableToLocal(jsfun))
-            .FromJust());
-  CompileRun("var x = 24;");
-  ExpectObject("foo()", context->Global());
 }
 
 }  // namespace compiler

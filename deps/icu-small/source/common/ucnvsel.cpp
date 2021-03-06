@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -41,6 +41,7 @@
 #include "propsvec.h"
 #include "uassert.h"
 #include "ucmndata.h"
+#include "udataswp.h"
 #include "uenumimp.h"
 #include "cmemory.h"
 #include "cstring.h"
@@ -72,7 +73,7 @@ static void generateSelectorData(UConverterSelector* result,
   // set errorValue to all-ones
   for (int32_t col = 0; col < columns; col++) {
     upvec_setValue(upvec, UPVEC_ERROR_VALUE_CP, UPVEC_ERROR_VALUE_CP,
-                   col, ~0, ~0, status);
+                   col, static_cast<uint32_t>(~0), static_cast<uint32_t>(~0), status);
   }
 
   for (int32_t i = 0; i < result->encodingsCount; ++i) {
@@ -109,7 +110,7 @@ static void generateSelectorData(UConverterSelector* result,
         // this will be reached for the converters that fill the set with
         // strings. Those should be ignored by our system
       } else {
-        upvec_setValue(upvec, start_char, end_char, column, ~0, mask,
+        upvec_setValue(upvec, start_char, end_char, column, static_cast<uint32_t>(~0), mask,
                        status);
       }
     }
@@ -130,7 +131,7 @@ static void generateSelectorData(UConverterSelector* result,
       uset_getItem(excludedCodePoints, j, &start_char, &end_char, NULL, 0,
                    status);
       for (int32_t col = 0; col < columns; col++) {
-        upvec_setValue(upvec, start_char, end_char, col, ~0, ~0,
+        upvec_setValue(upvec, start_char, end_char, col, static_cast<uint32_t>(~0), static_cast<uint32_t>(~0),
                       status);
       }
     }
@@ -684,42 +685,42 @@ static int16_t countOnes(uint32_t* mask, int32_t len) {
       ent &= ent - 1; // clear the least significant bit set
     }
   }
-  return totalOnes;
+  return static_cast<int16_t>(totalOnes);
 }
 
 
 /* internal function! */
 static UEnumeration *selectForMask(const UConverterSelector* sel,
-                                   uint32_t *mask, UErrorCode *status) {
+                                   uint32_t *theMask, UErrorCode *status) {
+  LocalMemory<uint32_t> mask(theMask);
   // this is the context we will use. Store a table of indices to which
   // encodings are legit.
-  struct Enumerator* result = (Enumerator*)uprv_malloc(sizeof(Enumerator));
-  if (result == NULL) {
-    uprv_free(mask);
+  LocalMemory<Enumerator> result(static_cast<Enumerator *>(uprv_malloc(sizeof(Enumerator))));
+  if (result.isNull()) {
     *status = U_MEMORY_ALLOCATION_ERROR;
-    return NULL;
+    return nullptr;
   }
-  result->index = NULL;  // this will be allocated later!
+  result->index = nullptr;  // this will be allocated later!
   result->length = result->cur = 0;
   result->sel = sel;
 
-  UEnumeration *en = (UEnumeration *)uprv_malloc(sizeof(UEnumeration));
-  if (en == NULL) {
+  LocalMemory<UEnumeration> en(static_cast<UEnumeration *>(uprv_malloc(sizeof(UEnumeration))));
+  if (en.isNull()) {
     // TODO(markus): Combine Enumerator and UEnumeration into one struct.
-    uprv_free(mask);
-    uprv_free(result);
     *status = U_MEMORY_ALLOCATION_ERROR;
-    return NULL;
+    return nullptr;
   }
-  memcpy(en, &defaultEncodings, sizeof(UEnumeration));
-  en->context = result;
+  memcpy(en.getAlias(), &defaultEncodings, sizeof(UEnumeration));
 
   int32_t columns = (sel->encodingsCount+31)/32;
-  int16_t numOnes = countOnes(mask, columns);
+  int16_t numOnes = countOnes(mask.getAlias(), columns);
   // now, we know the exact space we need for index
   if (numOnes > 0) {
-    result->index = (int16_t*) uprv_malloc(numOnes * sizeof(int16_t));
-
+    result->index = static_cast<int16_t*>(uprv_malloc(numOnes * sizeof(int16_t)));
+    if (result->index == nullptr) {
+      *status = U_MEMORY_ALLOCATION_ERROR;
+      return nullptr;
+    }
     int32_t i, j;
     int16_t k = 0;
     for (j = 0 ; j < columns; j++) {
@@ -733,8 +734,8 @@ static UEnumeration *selectForMask(const UConverterSelector* sel,
     }
   } //otherwise, index will remain NULL (and will never be touched by
     //the enumerator code anyway)
-  uprv_free(mask);
-  return en;
+  en->context = result.orphan();
+  return en.orphan();
 }
 
 /* check a string against the selector - UTF16 version */

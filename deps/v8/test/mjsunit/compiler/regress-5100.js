@@ -14,6 +14,7 @@ a["undefined"] = "undefined";
 (function() {
   function f(x) { return a[x]; }
 
+  %PrepareFunctionForOptimization(f);
   assertEquals(0, f(0));
   assertEquals(0, f(0));
   %OptimizeFunctionOnNextCall(f);
@@ -24,6 +25,7 @@ a["undefined"] = "undefined";
 (function() {
   function f( x) { return a[x]; }
 
+  %PrepareFunctionForOptimization(f);
   assertEquals(0, f(0));
   assertEquals(0, f(0));
   %OptimizeFunctionOnNextCall(f);
@@ -34,6 +36,7 @@ a["undefined"] = "undefined";
 (function() {
   function f( x) { return a[x]; }
 
+  %PrepareFunctionForOptimization(f);
   assertEquals(0, f(0));
   assertEquals(0, f(0));
   %OptimizeFunctionOnNextCall(f);
@@ -44,6 +47,7 @@ a["undefined"] = "undefined";
 (function() {
   function f( x) { return a[x]; }
 
+  %PrepareFunctionForOptimization(f);
   assertEquals(0, f(0));
   assertEquals(0, f(0));
   %OptimizeFunctionOnNextCall(f);

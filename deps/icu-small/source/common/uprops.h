@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -8,7 +8,7 @@
 *
 *******************************************************************************
 *   file name:  uprops.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -95,8 +95,15 @@ enum {
      * denominator: den = 20<<(frac20>>2)
      */
     UPROPS_NTV_FRACTION20_START=UPROPS_NTV_BASE60_START+36,  // 0x300+9*4=0x324
+    /**
+     * Fraction-32 values:
+     * frac32 = ntv-0x34c = 0..15 -> 1|3|5|7 / 32|64|128|256
+     * numerator: num = 2*(frac32&3)+1
+     * denominator: den = 32<<(frac32>>2)
+     */
+    UPROPS_NTV_FRACTION32_START=UPROPS_NTV_FRACTION20_START+24,  // 0x324+6*4=0x34c
     /** No numeric value (yet). */
-    UPROPS_NTV_RESERVED_START=UPROPS_NTV_FRACTION20_START+24,  // 0x324+6*4=0x34c
+    UPROPS_NTV_RESERVED_START=UPROPS_NTV_FRACTION32_START+16,  // 0x34c+4*4=0x35c
 
     UPROPS_NTV_MAX_SMALL_INT=UPROPS_NTV_FRACTION_START-UPROPS_NTV_NUMERIC_START-1
 };
@@ -114,12 +121,12 @@ enum {
  * Properties in vector word 0
  * Bits
  * 31..24   DerivedAge version major/minor one nibble each
- * 23..22   3..1: Bits 7..0 = Script_Extensions index
+ * 23..22   3..1: Bits 21..20 & 7..0 = Script_Extensions index
  *             3: Script value from Script_Extensions
  *             2: Script=Inherited
  *             1: Script=Common
- *             0: Script=bits 7..0
- * 21..20   reserved
+ *             0: Script=bits 21..20 & 7..0
+ * 21..20   Bits 9..8 of the UScriptCode, or index to Script_Extensions
  * 19..17   East Asian Width
  * 16.. 8   UBlockCode
  *  7.. 0   UScriptCode, or index to Script_Extensions
@@ -130,8 +137,15 @@ enum {
 #define UPROPS_AGE_SHIFT        24
 
 /* Script_Extensions: mask includes Script */
-#define UPROPS_SCRIPT_X_MASK    0x00c000ff
+#define UPROPS_SCRIPT_X_MASK    0x00f000ff
 #define UPROPS_SCRIPT_X_SHIFT   22
+
+// The UScriptCode or Script_Extensions index is split across two bit fields.
+// (Starting with Unicode 13/ICU 66/2019 due to more varied Script_Extensions.)
+// Shift the high bits right by 12 to assemble the full value.
+#define UPROPS_SCRIPT_HIGH_MASK    0x00300000
+#define UPROPS_SCRIPT_HIGH_SHIFT   12
+#define UPROPS_MAX_SCRIPT          0x3ff
 
 #define UPROPS_EA_MASK          0x000e0000
 #define UPROPS_EA_SHIFT         17
@@ -139,12 +153,26 @@ enum {
 #define UPROPS_BLOCK_MASK       0x0001ff00
 #define UPROPS_BLOCK_SHIFT      8
 
-#define UPROPS_SCRIPT_MASK      0x000000ff
+#define UPROPS_SCRIPT_LOW_MASK  0x000000ff
 
 /* UPROPS_SCRIPT_X_WITH_COMMON must be the lowest value that involves Script_Extensions. */
 #define UPROPS_SCRIPT_X_WITH_COMMON     0x400000
 #define UPROPS_SCRIPT_X_WITH_INHERITED  0x800000
 #define UPROPS_SCRIPT_X_WITH_OTHER      0xc00000
+
+#ifdef __cplusplus
+
+namespace {
+
+inline uint32_t uprops_mergeScriptCodeOrIndex(uint32_t scriptX) {
+    return
+        ((scriptX & UPROPS_SCRIPT_HIGH_MASK) >> UPROPS_SCRIPT_HIGH_SHIFT) |
+        (scriptX & UPROPS_SCRIPT_LOW_MASK);
+}
+
+}  // namespace
+
+#endif  // __cplusplus
 
 /*
  * Properties in vector word 1
@@ -189,15 +217,14 @@ enum {
     UPROPS_VARIATION_SELECTOR,
     UPROPS_PATTERN_SYNTAX,                      /* new in ICU 3.4 and Unicode 4.1 */
     UPROPS_PATTERN_WHITE_SPACE,
-    UPROPS_RESERVED,                            /* reserved & unused */
+    UPROPS_PREPENDED_CONCATENATION_MARK,        // new in ICU 60 and Unicode 10
     UPROPS_BINARY_1_TOP                         /* ==32 - full! */
 };
 
 /*
  * Properties in vector word 2
  * Bits
- * 31..28   http://www.unicode.org/reports/tr51/#Emoji_Properties
- * 27..26   reserved
+ * 31..26   http://www.unicode.org/reports/tr51/#Emoji_Properties
  * 25..20   Line Break
  * 19..15   Sentence Break
  * 14..10   Word Break
@@ -205,7 +232,9 @@ enum {
  *  4.. 0   Decomposition Type
  */
 enum {
-    UPROPS_2_EMOJI=28,
+    UPROPS_2_EXTENDED_PICTOGRAPHIC=26,
+    UPROPS_2_EMOJI_COMPONENT,
+    UPROPS_2_EMOJI,
     UPROPS_2_EMOJI_PRESENTATION,
     UPROPS_2_EMOJI_MODIFIER,
     UPROPS_2_EMOJI_MODIFIER_BASE
@@ -396,6 +425,10 @@ enum UPropertySource {
     UPROPS_SRC_NFKC_CF,
     /** From normalizer2impl.cpp/nfc.nrm canonical iterator data */
     UPROPS_SRC_NFC_CANON_ITER,
+    // Text layout properties.
+    UPROPS_SRC_INPC,
+    UPROPS_SRC_INSC,
+    UPROPS_SRC_VO,
     /** One more than the highest UPropertySource (UPROPS_SRC_) constant. */
     UPROPS_SRC_COUNT
 };
@@ -424,6 +457,9 @@ uchar_addPropertyStarts(const USetAdder *sa, UErrorCode *pErrorCode);
 U_CFUNC void U_EXPORT2
 upropsvec_addPropertyStarts(const USetAdder *sa, UErrorCode *pErrorCode);
 
+U_CFUNC void U_EXPORT2
+uprops_addPropertyStarts(UPropertySource src, const USetAdder *sa, UErrorCode *pErrorCode);
+
 /**
  * Return a set of characters for property enumeration.
  * For each two consecutive characters (start, limit) in the set,
@@ -450,6 +486,12 @@ uchar_swapNames(const UDataSwapper *ds,
 U_NAMESPACE_BEGIN
 
 class UnicodeSet;
+
+class CharacterProperties {
+public:
+    CharacterProperties() = delete;
+    static const UnicodeSet *getInclusionsForProperty(UProperty prop, UErrorCode &errorCode);
+};
 
 // implemented in uniset_props.cpp
 U_CFUNC UnicodeSet *

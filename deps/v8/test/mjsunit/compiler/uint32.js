@@ -40,6 +40,7 @@ function ChangeI2T(arr, i) {
   return uint32_array[i];
 }
 
+%PrepareFunctionForOptimization(ChangeI2T);
 assertEquals(K1, ChangeI2T(uint32_array, 0));
 assertEquals(K2, ChangeI2T(uint32_array, 1));
 %OptimizeFunctionOnNextCall(ChangeI2T);
@@ -60,6 +61,7 @@ function Deopt(obj, arr, i) {
   return x;
 }
 
+%PrepareFunctionForOptimization(Deopt);
 assertEquals(K1, Deopt({x: 0}, uint32_array, 0));
 assertEquals(K2, Deopt({x: 0}, uint32_array, 1));
 %OptimizeFunctionOnNextCall(Deopt);
@@ -71,6 +73,7 @@ function ChangeI2D(arr) {
   return arr[0] + arr[1];
 }
 
+%PrepareFunctionForOptimization(ChangeI2D);
 assertEquals(K1 + K2, ChangeI2D(uint32_array));
 assertEquals(K1 + K2, ChangeI2D(uint32_array));
 %OptimizeFunctionOnNextCall(ChangeI2D);
@@ -80,6 +83,7 @@ function ShrShr(val) {
   return (val >>> 0) >>> 1;
 }
 
+%PrepareFunctionForOptimization(ShrShr);
 assertEquals(K1, ShrShr(K2 | 0));
 assertEquals(K1, ShrShr(K2 | 0));
 %OptimizeFunctionOnNextCall(ShrShr);
@@ -89,6 +93,7 @@ function SarShr(val) {
   return val >> (-2 >>> 0);
 }
 
+%PrepareFunctionForOptimization(SarShr);
 var K3 = 0x80000000;
 assertEquals(-2, SarShr(K3 | 0));
 assertEquals(-2, SarShr(K3 | 0));
@@ -100,6 +105,7 @@ function Uint32Phi(a, b, c) {
   return (i | 0);
 }
 
+%PrepareFunctionForOptimization(Uint32Phi);
 var K4 = 0x80000001;
 assertEquals(K3 | 0, Uint32Phi(true, K3, K4));
 assertEquals(K4 | 0, Uint32Phi(false, K3, K4));
@@ -114,6 +120,7 @@ function NonUint32Phi(a, b, c) {
   return (i | 0);
 }
 
+%PrepareFunctionForOptimization(NonUint32Phi);
 assertEquals(K3 | 0, NonUint32Phi(true, K3, K4));
 assertEquals(K4 | 0, NonUint32Phi(false, K3, K4));
 assertEquals(K3 | 0, NonUint32Phi(true, K3, K4));
@@ -132,6 +139,7 @@ function PhiOfPhi(x) {
   return (a | 0);
 }
 
+%PrepareFunctionForOptimization(PhiOfPhi);
 assertEquals(1, PhiOfPhi(1));
 assertEquals(1, PhiOfPhi(1));
 %OptimizeFunctionOnNextCall(PhiOfPhi);
@@ -147,6 +155,7 @@ function PhiOfPhiUnsafe(x) {
   return a + a;
 }
 
+%PrepareFunctionForOptimization(PhiOfPhiUnsafe);
 assertEquals(2, PhiOfPhiUnsafe(1));
 assertEquals(2, PhiOfPhiUnsafe(1));
 %OptimizeFunctionOnNextCall(PhiOfPhiUnsafe);
@@ -166,6 +175,7 @@ function FillOldArrayWithHeapNumbers(N) {
   }
 }
 
+%PrepareFunctionForOptimization(FillOldArrayWithHeapNumbers);
 FillOldArrayWithHeapNumbers(1);
 FillOldArrayWithHeapNumbers(1);
 %OptimizeFunctionOnNextCall(FillOldArrayWithHeapNumbers);
@@ -191,6 +201,7 @@ function Outer(v, f) {
   return InnerWithArguments(v >>> 0, f);
 }
 
+%PrepareFunctionForOptimization(Outer);
 assertArrayEquals([0x0100, 0x01], Outer(0x0100, Pack));
 assertArrayEquals([0x0100, 0x01], Outer(0x0100, Pack));
 assertArrayEquals([0x0100, 0x01], Outer(0x0100, Pack));

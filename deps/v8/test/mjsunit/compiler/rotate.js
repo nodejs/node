@@ -64,27 +64,32 @@ function ROR4(x, sa) {
   return (x << (sa)) | (x >>> (32 - sa));
 }
 
+%PrepareFunctionForOptimization(ROR);
 assertEquals(1 << ((2 % 32)), ROR(1, 30));
 assertEquals(1 << ((2 % 32)), ROR(1, 30));
 %OptimizeFunctionOnNextCall(ROR);
 assertEquals(1 << ((2 % 32)), ROR(1, 30));
 
+%PrepareFunctionForOptimization(ROR1);
 assertEquals(0xF0000FFF | 0, ROR1(0x0000FFFF, 4));
 assertEquals(0xF0000FFF | 0, ROR1(0x0000FFFF, 4));
 %OptimizeFunctionOnNextCall(ROR1);
 assertEquals(0xF0000FFF | 0, ROR1(0x0000FFFF, 4));
 
+%PrepareFunctionForOptimization(ROR1);
 assertEquals(0x0FFFF000 | 0, ROR1(0x0000FFFF, 20));
 assertEquals(0x0FFFF000 | 0, ROR1(0x0000FFFF, 20));
 %OptimizeFunctionOnNextCall(ROR1);
 assertEquals(0x0FFFF000 | 0, ROR1(0x0000FFFF, 20));
 
+%PrepareFunctionForOptimization(ROR1);
 assertEquals(0x0FFFF000 | 0, ROR1(0x0000FFFF, Twenty()));
 assertEquals(0x0FFFF000 | 0, ROR1(0x0000FFFF, Twenty()));
 %OptimizeFunctionOnNextCall(ROR1);
 assertEquals(0x0FFFF000 | 0, ROR1(0x0000FFFF, Twenty()));
 
 for (var i = 0; i <= 100; i++) {
+  %PrepareFunctionForOptimization(ROR1);
   assertEquals(0xFFFFFFFF | 0, ROR1(0xFFFFFFFF, i));
   assertEquals(0xFFFFFFFF | 0, ROR1(0xFFFFFFFF, i));
   %OptimizeFunctionOnNextCall(ROR1);
@@ -92,6 +97,7 @@ for (var i = 0; i <= 100; i++) {
 }
 
 for (var i = 0; i <= 100; i++) {
+  %PrepareFunctionForOptimization(ROR1);
   assertEquals(-1, ROR1(-1, i));
   assertEquals(-1, ROR1(-1, i));
   %OptimizeFunctionOnNextCall(ROR1);
@@ -99,6 +105,7 @@ for (var i = 0; i <= 100; i++) {
 }
 
 for (var i = 0; i <= 100; i++) {
+  %PrepareFunctionForOptimization(ROR1);
   assertEquals(1 << (32 - (i % 32)), ROR1(1, i));
   assertEquals(1 << (32 - (i % 32)), ROR1(1, i));
   %OptimizeFunctionOnNextCall(ROR1);
@@ -106,6 +113,7 @@ for (var i = 0; i <= 100; i++) {
 }
 
 for (var i = 0; i <= 100; i++) {
+  %PrepareFunctionForOptimization(ROR1);
   assertEquals(1 << (32 - (i % 32)), ROR1(1.4, i));
   assertEquals(1 << (32 - (i % 32)), ROR1(1.4, i));
   %OptimizeFunctionOnNextCall(ROR1);
@@ -114,22 +122,26 @@ for (var i = 0; i <= 100; i++) {
 
 
 
+%PrepareFunctionForOptimization(ROR2);
 assertEquals(0xF0000FFF | 0, ROR2(0x0000FFFF, 28));
 assertEquals(0xF0000FFF | 0, ROR2(0x0000FFFF, 28));
 %OptimizeFunctionOnNextCall(ROR2);
 assertEquals(0xF0000FFF | 0, ROR2(0x0000FFFF, 28));
 
+%PrepareFunctionForOptimization(ROR2);
 assertEquals(0x0FFFF000 | 0, ROR2(0x0000FFFF, 12));
 assertEquals(0x0FFFF000 | 0, ROR2(0x0000FFFF, 12));
 %OptimizeFunctionOnNextCall(ROR2);
 assertEquals(0x0FFFF000 | 0, ROR2(0x0000FFFF, 12));
 
+%PrepareFunctionForOptimization(ROR2);
 assertEquals(0x0FFFF000 | 0, ROR2(0x0000FFFF, Twelve()));
 assertEquals(0x0FFFF000 | 0, ROR2(0x0000FFFF, Twelve()));
 %OptimizeFunctionOnNextCall(ROR2);
 assertEquals(0x0FFFF000 | 0, ROR2(0x0000FFFF, Twelve()));
 
 for (var i = 0; i <= 100; i++) {
+  %PrepareFunctionForOptimization(ROR2);
   assertEquals(0xFFFFFFFF | 0, ROR2(0xFFFFFFFF, i));
   assertEquals(0xFFFFFFFF | 0, ROR2(0xFFFFFFFF, i));
   %OptimizeFunctionOnNextCall(ROR2);
@@ -137,6 +149,7 @@ for (var i = 0; i <= 100; i++) {
 }
 
 for (var i = 0; i <= 100; i++) {
+  %PrepareFunctionForOptimization(ROR2);
   assertEquals(-1, ROR2(-1, i));
   assertEquals(-1, ROR2(-1, i));
   %OptimizeFunctionOnNextCall(ROR2);
@@ -144,28 +157,33 @@ for (var i = 0; i <= 100; i++) {
 }
 
 for (var i = 0; i <= 100; i++) {
+  %PrepareFunctionForOptimization(ROR2);
   assertEquals(1 << ((i % 32)), ROR2(1, i));
   assertEquals(1 << ((i % 32)), ROR2(1, i));
   %OptimizeFunctionOnNextCall(ROR2);
   assertEquals(1 << ((i % 32)), ROR2(1, i));
 }
 
+%PrepareFunctionForOptimization(ROR3);
 assertEquals(0xF0000FFF | 0, ROR3(0x0000FFFF, 4));
 assertEquals(0xF0000FFF | 0, ROR3(0x0000FFFF, 4));
 %OptimizeFunctionOnNextCall(ROR3);
 assertEquals(0xF0000FFF | 0, ROR3(0x0000FFFF, 4));
 
+%PrepareFunctionForOptimization(ROR3);
 assertEquals(0x0FFFF000 | 0, ROR3(0x0000FFFF, 20));
 assertEquals(0x0FFFF000 | 0, ROR3(0x0000FFFF, 20));
 %OptimizeFunctionOnNextCall(ROR3);
 assertEquals(0x0FFFF000 | 0, ROR3(0x0000FFFF, 20));
 
+%PrepareFunctionForOptimization(ROR3);
 assertEquals(0x0FFFF000 | 0, ROR3(0x0000FFFF, Twenty()));
 assertEquals(0x0FFFF000 | 0, ROR3(0x0000FFFF, Twenty()));
 %OptimizeFunctionOnNextCall(ROR3);
 assertEquals(0x0FFFF000 | 0, ROR3(0x0000FFFF, Twenty()));
 
 for (var i = 0; i <= 100; i++) {
+  %PrepareFunctionForOptimization(ROR3);
   assertEquals(0xFFFFFFFF | 0, ROR3(0xFFFFFFFF, i));
   assertEquals(0xFFFFFFFF | 0, ROR3(0xFFFFFFFF, i));
   %OptimizeFunctionOnNextCall(ROR3);
@@ -173,6 +191,7 @@ for (var i = 0; i <= 100; i++) {
 }
 
 for (var i = 0; i <= 100; i++) {
+  %PrepareFunctionForOptimization(ROR3);
   assertEquals(-1, ROR3(-1, i));
   assertEquals(-1, ROR3(-1, i));
   %OptimizeFunctionOnNextCall(ROR3);
@@ -180,28 +199,33 @@ for (var i = 0; i <= 100; i++) {
 }
 
 for (var i = 0; i <= 100; i++) {
+  %PrepareFunctionForOptimization(ROR3);
   assertEquals(1 << (32 - (i % 32)), ROR3(1, i));
   assertEquals(1 << (32 - (i % 32)), ROR3(1, i));
   %OptimizeFunctionOnNextCall(ROR3);
   assertEquals(1 << (32 - (i % 32)), ROR3(1, i));
 }
 
+%PrepareFunctionForOptimization(ROR4);
 assertEquals(0xF0000FFF | 0, ROR4(0x0000FFFF, 28));
 assertEquals(0xF0000FFF | 0, ROR4(0x0000FFFF, 28));
 %OptimizeFunctionOnNextCall(ROR4);
 assertEquals(0xF0000FFF | 0, ROR4(0x0000FFFF, 28));
 
+%PrepareFunctionForOptimization(ROR4);
 assertEquals(0x0FFFF000 | 0, ROR4(0x0000FFFF, 12));
 assertEquals(0x0FFFF000 | 0, ROR4(0x0000FFFF, 12));
 %OptimizeFunctionOnNextCall(ROR4);
 assertEquals(0x0FFFF000 | 0, ROR4(0x0000FFFF, 12));
 
+%PrepareFunctionForOptimization(ROR4);
 assertEquals(0x0FFFF000 | 0, ROR4(0x0000FFFF, Twelve()));
 assertEquals(0x0FFFF000 | 0, ROR4(0x0000FFFF, Twelve()));
 %OptimizeFunctionOnNextCall(ROR4);
 assertEquals(0x0FFFF000 | 0, ROR4(0x0000FFFF, Twelve()));
 
 for (var i = 0; i <= 100; i++) {
+  %PrepareFunctionForOptimization(ROR4);
   assertEquals(0xFFFFFFFF | 0, ROR4(0xFFFFFFFF, i));
   assertEquals(0xFFFFFFFF | 0, ROR4(0xFFFFFFFF, i));
   %OptimizeFunctionOnNextCall(ROR4);
@@ -209,6 +233,7 @@ for (var i = 0; i <= 100; i++) {
 }
 
 for (var i = 0; i <= 100; i++) {
+  %PrepareFunctionForOptimization(ROR4);
   assertEquals(-1, ROR4(-1, i));
   assertEquals(-1, ROR4(-1, i));
   %OptimizeFunctionOnNextCall(ROR4);
@@ -216,6 +241,7 @@ for (var i = 0; i <= 100; i++) {
 }
 
 for (var i = 0; i <= 100; i++) {
+  %PrepareFunctionForOptimization(ROR4);
   assertEquals(1 << ((i % 32)), ROR4(1, i));
   assertEquals(1 << ((i % 32)), ROR4(1, i));
   %OptimizeFunctionOnNextCall(ROR4);
@@ -260,48 +286,56 @@ function ROR4_sa40(x) {
 }
 
 // ROR1_sa20
+%PrepareFunctionForOptimization(ROR1_sa20);
 assertEquals(ROR1(0x0000FFFF, 20), ROR1_sa20(0x0000FFFF));
 assertEquals(ROR1(0x0000FFFF, 20), ROR1_sa20(0x0000FFFF));
 %OptimizeFunctionOnNextCall(ROR1_sa20);
 assertEquals(ROR1(0x0000FFFF, 20), ROR1_sa20(0x0000FFFF));
 
 // ROR1_sa40
+%PrepareFunctionForOptimization(ROR1_sa40);
 assertEquals(ROR1(0x0000FFFF, 40), ROR1_sa40(0x0000FFFF));
 assertEquals(ROR1(0x0000FFFF, 40), ROR1_sa40(0x0000FFFF));
 %OptimizeFunctionOnNextCall(ROR1_sa40);
 assertEquals(ROR1(0x0000FFFF, 40), ROR1_sa40(0x0000FFFF));
 
 // ROR2_sa20
+%PrepareFunctionForOptimization(ROR2_sa20);
 assertEquals(ROR2(0xFFFFFFFF, 20), ROR2_sa20(0xFFFFFFFF));
 assertEquals(ROR2(0xFFFFFFFF, 20), ROR2_sa20(0xFFFFFFFF));
 %OptimizeFunctionOnNextCall(ROR2_sa20);
 assertEquals(ROR2(0xFFFFFFFF, 20), ROR2_sa20(0xFFFFFFFF));
 
 // ROR2_sa40
+%PrepareFunctionForOptimization(ROR2_sa40);
 assertEquals(ROR2(0x0000FFFF, 40), ROR2_sa40(0x0000FFFF));
 assertEquals(ROR2(0x0000FFFF, 40), ROR2_sa40(0x0000FFFF));
 %OptimizeFunctionOnNextCall(ROR2_sa40);
 assertEquals(ROR2(0x0000FFFF, 40), ROR2_sa40(0x0000FFFF));
 
 // ROR3_sa20
+%PrepareFunctionForOptimization(ROR3_sa20);
 assertEquals(ROR3(0x0000FFFF, 20), ROR3_sa20(0x0000FFFF));
 assertEquals(ROR3(0x0000FFFF, 20), ROR3_sa20(0x0000FFFF));
 %OptimizeFunctionOnNextCall(ROR3_sa20);
 assertEquals(ROR3(0x0000FFFF, 20), ROR3_sa20(0x0000FFFF));
 
 // ROR3_sa40
+%PrepareFunctionForOptimization(ROR3_sa40);
 assertEquals(ROR3(0x0000FFFF, 40), ROR3_sa40(0x0000FFFF));
 assertEquals(ROR3(0x0000FFFF, 40), ROR3_sa40(0x0000FFFF));
 %OptimizeFunctionOnNextCall(ROR3_sa40);
 assertEquals(ROR3(0x0000FFFF, 40), ROR3_sa40(0x0000FFFF));
 
 // ROR4_sa20
+%PrepareFunctionForOptimization(ROR4_sa20);
 assertEquals(ROR4(0x0000FFFF, 20), ROR4_sa20(0x0000FFFF));
 assertEquals(ROR4(0x0000FFFF, 20), ROR4_sa20(0x0000FFFF));
 %OptimizeFunctionOnNextCall(ROR4_sa20);
 assertEquals(ROR4(0x0000FFFF, 20), ROR4_sa20(0x0000FFFF));
 
 // ROR4_sa40
+%PrepareFunctionForOptimization(ROR4_sa40);
 assertEquals(ROR4(0xFFFFFFFF, 40), ROR4_sa40(0xFFFFFFFF));
 assertEquals(ROR4(0xFFFFFFFF, 40), ROR4_sa40(0xFFFFFFFF));
 %OptimizeFunctionOnNextCall(ROR4_sa40);

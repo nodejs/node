@@ -30,8 +30,8 @@
 function RunOneTruncationTest(a, b) {
   var temp = a | 0;
   assertEquals(b, temp);
-}
-
+};
+%PrepareFunctionForOptimization(RunOneTruncationTest);
 function RunAllTruncationTests() {
   RunOneTruncationTest(0, 0);
   RunOneTruncationTest(0.5, 0);

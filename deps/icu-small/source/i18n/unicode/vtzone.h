@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -10,6 +10,8 @@
 #define VTZONE_H
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
 
 /**
  * \file
@@ -117,7 +119,7 @@ public:
      * created from VTIMEZONE data, the initial value is set by the TZURL property value
      * in the data.  Otherwise, the initial value is not set.
      * @param url Receives the RFC2445 TZURL property value.
-     * @return TRUE if TZURL attribute is available and value is set.
+     * @return true if TZURL attribute is available and value is set.
      * @stable ICU 3.8
      */
     UBool getTZURL(UnicodeString& url) const;
@@ -134,7 +136,7 @@ public:
      * was created from VTIMEZONE data, the initial value is set by the LAST-MODIFIED property
      * value in the data.  Otherwise, the initial value is not set.
      * @param lastModified Receives the last modified date.
-     * @return TRUE if lastModified attribute is available and value is set.
+     * @return true if lastModified attribute is available and value is set.
      * @stable ICU 3.8
      */
     UBool getLastModified(UDate& lastModified) const;
@@ -185,7 +187,7 @@ public:
      * @return   A new copy of this TimeZone object.
      * @stable ICU 3.8
      */
-    virtual TimeZone* clone(void) const;
+    virtual VTimeZone* clone() const;
 
     /**
      * Returns the TimeZone's adjusted GMT offset (i.e., the number of milliseconds to add
@@ -288,6 +290,7 @@ public:
      */
     virtual UBool useDaylightTime(void) const;
 
+#ifndef U_FORCE_HIDE_DEPRECATED_API
     /**
      * Queries if the given date is in daylight savings time in
      * this time zone.
@@ -302,6 +305,7 @@ public:
      * @deprecated ICU 2.4. Use Calendar::inDaylightTime() instead.
      */
     virtual UBool inDaylightTime(UDate date, UErrorCode& status) const;
+#endif  // U_FORCE_HIDE_DEPRECATED_API
 
     /**
      * Returns true if this zone has the same rule and offset as another zone.
@@ -318,7 +322,7 @@ public:
      * @param base      The base time.
      * @param inclusive Whether the base time is inclusive or not.
      * @param result    Receives the first transition after the base time.
-     * @return  TRUE if the transition is found.
+     * @return  true if the transition is found.
      * @stable ICU 3.8
      */
     virtual UBool getNextTransition(UDate base, UBool inclusive, TimeZoneTransition& result) const;
@@ -328,7 +332,7 @@ public:
      * @param base      The base time.
      * @param inclusive Whether the base time is inclusive or not.
      * @param result    Receives the most recent transition before the base time.
-     * @return  TRUE if the transition is found.
+     * @return  true if the transition is found.
      * @stable ICU 3.8
      */
     virtual UBool getPreviousTransition(UDate base, UBool inclusive, TimeZoneTransition& result) const;
@@ -452,6 +456,8 @@ public:
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif // VTZONE_H
 //eof

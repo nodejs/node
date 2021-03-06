@@ -153,6 +153,9 @@ int ares_set_servers(ares_channel channel,
   if (!channel)
     return ARES_ENODATA;
 
+  if (!ares__is_list_empty(&channel->all_queries))
+    return ARES_ENOTIMP;
+
   ares__destroy_servers_state(channel);
 
   for (srvr = servers; srvr; srvr = srvr->next)
@@ -201,6 +204,9 @@ int ares_set_servers_ports(ares_channel channel,
 
   if (!channel)
     return ARES_ENODATA;
+
+  if (!ares__is_list_empty(&channel->all_queries))
+    return ARES_ENOTIMP;
 
   ares__destroy_servers_state(channel);
 
@@ -257,8 +263,6 @@ static int set_servers_csv(ares_channel channel,
 
   if (!channel)
     return ARES_ENODATA;
-
-  ares__destroy_servers_state(channel);
 
   i = strlen(_csv);
   if (i == 0)

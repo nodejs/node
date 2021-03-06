@@ -1,8 +1,15 @@
-/* NOCW */
-/* used by apps/speed.c */
-DSA *get_dsa512(void);
-DSA *get_dsa1024(void);
-DSA *get_dsa2048(void);
+/*
+ * Copyright 1998-2017 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
+/* used by speed.c */
+DSA *get_dsa(int);
+
 static unsigned char dsa512_priv[] = {
     0x65, 0xe5, 0xc7, 0x38, 0x60, 0x24, 0xb5, 0x89, 0xd4, 0x9c, 0xeb, 0x4c,
     0x9c, 0x1d, 0x7a, 0x22, 0xbd, 0xd1, 0xc2, 0xd2,
@@ -39,23 +46,6 @@ static unsigned char dsa512_g[] = {
     0x2F, 0xCC, 0x24, 0x6B, 0x90, 0x77, 0xDE, 0xA2, 0x68, 0xA6, 0x52, 0x12,
     0xA2, 0x03, 0x9D, 0x20,
 };
-
-DSA *get_dsa512()
-{
-    DSA *dsa;
-
-    if ((dsa = DSA_new()) == NULL)
-        return (NULL);
-    dsa->priv_key = BN_bin2bn(dsa512_priv, sizeof(dsa512_priv), NULL);
-    dsa->pub_key = BN_bin2bn(dsa512_pub, sizeof(dsa512_pub), NULL);
-    dsa->p = BN_bin2bn(dsa512_p, sizeof(dsa512_p), NULL);
-    dsa->q = BN_bin2bn(dsa512_q, sizeof(dsa512_q), NULL);
-    dsa->g = BN_bin2bn(dsa512_g, sizeof(dsa512_g), NULL);
-    if ((dsa->priv_key == NULL) || (dsa->pub_key == NULL) || (dsa->p == NULL)
-        || (dsa->q == NULL) || (dsa->g == NULL))
-        return (NULL);
-    return (dsa);
-}
 
 static unsigned char dsa1024_priv[] = {
     0x7d, 0x21, 0xda, 0xbb, 0x62, 0x15, 0x47, 0x36, 0x07, 0x67, 0x12, 0xe8,
@@ -108,23 +98,6 @@ static unsigned char dsa1024_g[] = {
     0xE4, 0x09, 0x6C, 0x41, 0x17, 0x95, 0x92, 0xEB, 0x01, 0xB5, 0x73, 0xA5,
     0x6A, 0x7E, 0xD8, 0x32, 0xED, 0x0E, 0x02, 0xB8,
 };
-
-DSA *get_dsa1024()
-{
-    DSA *dsa;
-
-    if ((dsa = DSA_new()) == NULL)
-        return (NULL);
-    dsa->priv_key = BN_bin2bn(dsa1024_priv, sizeof(dsa1024_priv), NULL);
-    dsa->pub_key = BN_bin2bn(dsa1024_pub, sizeof(dsa1024_pub), NULL);
-    dsa->p = BN_bin2bn(dsa1024_p, sizeof(dsa1024_p), NULL);
-    dsa->q = BN_bin2bn(dsa1024_q, sizeof(dsa1024_q), NULL);
-    dsa->g = BN_bin2bn(dsa1024_g, sizeof(dsa1024_g), NULL);
-    if ((dsa->priv_key == NULL) || (dsa->pub_key == NULL) || (dsa->p == NULL)
-        || (dsa->q == NULL) || (dsa->g == NULL))
-        return (NULL);
-    return (dsa);
-}
 
 static unsigned char dsa2048_priv[] = {
     0x32, 0x67, 0x92, 0xf6, 0xc4, 0xe2, 0xe2, 0xe8, 0xa0, 0x8b, 0x6b, 0x45,
@@ -211,23 +184,77 @@ static unsigned char dsa2048_g[] = {
     0xF8, 0xB2, 0xE5, 0x38,
 };
 
-DSA *get_dsa2048()
+typedef struct testdsa_st {
+    unsigned char *priv;
+    unsigned char *pub;
+    unsigned char *p;
+    unsigned char *g;
+    unsigned char *q;
+    int priv_l;
+    int pub_l;
+    int p_l;
+    int g_l;
+    int q_l;
+} testdsa;
+
+#define set_dsa_ptr(st, bits) \
+    do { \
+        st.priv = dsa##bits##_priv; \
+        st.pub = dsa##bits##_pub; \
+        st.p = dsa##bits##_p; \
+        st.g = dsa##bits##_g; \
+        st.q = dsa##bits##_q; \
+        st.priv_l = sizeof(dsa##bits##_priv); \
+        st.pub_l = sizeof(dsa##bits##_pub); \
+        st.p_l = sizeof(dsa##bits##_p); \
+        st.g_l = sizeof(dsa##bits##_g); \
+        st.q_l = sizeof(dsa##bits##_q); \
+    } while (0)
+
+DSA *get_dsa(int dsa_bits)
 {
     DSA *dsa;
+    BIGNUM *priv_key, *pub_key, *p, *q, *g;
+    testdsa dsa_t;
+
+    switch (dsa_bits) {
+    case 512:
+        set_dsa_ptr(dsa_t, 512);
+        break;
+    case 1024:
+        set_dsa_ptr(dsa_t, 1024);
+        break;
+    case 2048:
+        set_dsa_ptr(dsa_t, 2048);
+        break;
+    default:
+        return NULL;
+    }
 
     if ((dsa = DSA_new()) == NULL)
-        return (NULL);
-    dsa->priv_key = BN_bin2bn(dsa2048_priv, sizeof(dsa2048_priv), NULL);
-    dsa->pub_key = BN_bin2bn(dsa2048_pub, sizeof(dsa2048_pub), NULL);
-    dsa->p = BN_bin2bn(dsa2048_p, sizeof(dsa2048_p), NULL);
-    dsa->q = BN_bin2bn(dsa2048_q, sizeof(dsa2048_q), NULL);
-    dsa->g = BN_bin2bn(dsa2048_g, sizeof(dsa2048_g), NULL);
-    if ((dsa->priv_key == NULL) || (dsa->pub_key == NULL) || (dsa->p == NULL)
-        || (dsa->q == NULL) || (dsa->g == NULL))
-        return (NULL);
-    return (dsa);
-}
+        return NULL;
+    priv_key = BN_bin2bn(dsa_t.priv, dsa_t.priv_l, NULL);
+    pub_key = BN_bin2bn(dsa_t.pub, dsa_t.pub_l, NULL);
+    p = BN_bin2bn(dsa_t.p, dsa_t.p_l, NULL);
+    q = BN_bin2bn(dsa_t.q, dsa_t.q_l, NULL);
+    g = BN_bin2bn(dsa_t.g, dsa_t.g_l, NULL);
+    if ((priv_key == NULL) || (pub_key == NULL) || (p == NULL) || (q == NULL)
+         || (g == NULL)) {
+        goto err;
+    }
+    if (!DSA_set0_pqg(dsa, p, q, g))
+        goto err;
 
-static const char rnd_seed[] =
-    "string to make the random number generator think it has entropy";
-static int rnd_fake = 0;
+    if (!DSA_set0_key(dsa, pub_key, priv_key))
+        goto err;
+
+    return dsa;
+ err:
+    DSA_free(dsa);
+    BN_free(priv_key);
+    BN_free(pub_key);
+    BN_free(p);
+    BN_free(q);
+    BN_free(g);
+    return NULL;
+}

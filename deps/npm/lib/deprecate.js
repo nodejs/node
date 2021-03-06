@@ -1,54 +1,82 @@
-var npm = require('./npm.js')
-var mapToRegistry = require('./utils/map-to-registry.js')
-var npa = require('npm-package-arg')
+const fetch = require('npm-registry-fetch')
+const otplease = require('./utils/otplease.js')
+const npa = require('npm-package-arg')
+const semver = require('semver')
+const getIdentity = require('./utils/get-identity.js')
+const libaccess = require('libnpmaccess')
+const usageUtil = require('./utils/usage.js')
 
-module.exports = deprecate
+class Deprecate {
+  constructor (npm) {
+    this.npm = npm
+  }
 
-deprecate.usage = 'npm deprecate <pkg>[@<version>] <message>'
+  get usage () {
+    return usageUtil(
+      'deprecate',
+      'npm deprecate <pkg>[@<version>] <message>'
+    )
+  }
 
-deprecate.completion = function (opts, cb) {
-  // first, get a list of remote packages this user owns.
-  // once we have a user account, then don't complete anything.
-  if (opts.conf.argv.remain.length > 2) return cb()
-  // get the list of packages by user
-  var path = '/-/by-user/'
-  mapToRegistry(path, npm.config, function (er, uri, c) {
-    if (er) return cb(er)
+  async completion (opts) {
+    if (opts.conf.argv.remain.length > 1)
+      return []
 
-    if (!(c && c.username)) return cb()
+    const username = await getIdentity(this.npm, this.npm.flatOptions)
+    const packages = await libaccess.lsPackages(username, this.npm.flatOptions)
+    return Object.keys(packages)
+      .filter((name) =>
+        packages[name] === 'write' &&
+        (opts.conf.argv.remain.length === 0 ||
+          name.startsWith(opts.conf.argv.remain[0])))
+  }
 
-    var params = {
-      timeout: 60000,
-      auth: c
-    }
-    npm.registry.get(uri + c.username, params, function (er, list) {
-      if (er) return cb()
-      console.error(list)
-      return cb(null, list[c.username])
+  exec (args, cb) {
+    this.deprecate(args)
+      .then(() => cb())
+      .catch(err => cb(err.code === 'EUSAGE' ? err.message : err))
+  }
+
+  async deprecate ([pkg, msg]) {
+    if (!pkg || !msg)
+      throw this.usageError()
+
+    // fetch the data and make sure it exists.
+    const p = npa(pkg)
+    // npa makes the default spec "latest", but for deprecation
+    // "*" is the appropriate default.
+    const spec = p.rawSpec === '' ? '*' : p.fetchSpec
+
+    if (semver.validRange(spec, true) === null)
+      throw new Error(`invalid version range: ${spec}`)
+
+    const uri = '/' + p.escapedName
+    const packument = await fetch.json(uri, {
+      ...this.npm.flatOptions,
+      spec: p,
+      query: { write: true },
     })
-  })
+
+    Object.keys(packument.versions)
+      .filter(v => semver.satisfies(v, spec, { includePrerelease: true }))
+      .forEach(v => {
+        packument.versions[v].deprecated = msg
+      })
+
+    return otplease(this.npm.flatOptions, opts => fetch(uri, {
+      ...opts,
+      spec: p,
+      method: 'PUT',
+      body: packument,
+      ignoreBody: true,
+    }))
+  }
+
+  usageError () {
+    return Object.assign(new Error(`\nUsage: ${this.usage}`), {
+      code: 'EUSAGE',
+    })
+  }
 }
 
-function deprecate (args, cb) {
-  var pkg = args[0]
-  var msg = args[1]
-  if (msg === undefined) return cb('Usage: ' + deprecate.usage)
-
-  // fetch the data and make sure it exists.
-  var p = npa(pkg)
-
-  // npa makes the default spec "latest", but for deprecation
-  // "*" is the appropriate default.
-  if (p.rawSpec === '') p.spec = '*'
-
-  mapToRegistry(p.name, npm.config, function (er, uri, auth) {
-    if (er) return cb(er)
-
-    var params = {
-      version: p.spec,
-      message: msg,
-      auth: auth
-    }
-    npm.registry.deprecate(uri, params, cb)
-  })
-}
+module.exports = Deprecate

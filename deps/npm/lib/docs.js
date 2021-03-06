@@ -1,42 +1,47 @@
-module.exports = docs
+const log = require('npmlog')
+const pacote = require('pacote')
+const openUrl = require('./utils/open-url.js')
+const usageUtil = require('./utils/usage.js')
+const hostedFromMani = require('./utils/hosted-git-info-from-manifest.js')
 
-var npm = require('./npm.js')
-var opener = require('opener')
-var log = require('npmlog')
-var fetchPackageMetadata = require('./fetch-package-metadata.js')
-var usage = require('./utils/usage')
+class Docs {
+  constructor (npm) {
+    this.npm = npm
+  }
 
-docs.usage = usage(
-  'docs',
-  'npm docs <pkgname>' +
-  '\nnpm docs .'
-)
-docs.completion = function (opts, cb) {
-  // FIXME: there used to be registry completion here, but it stopped making
-  // sense somewhere around 50,000 packages on the registry
-  cb()
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  get usage () {
+    return usageUtil('docs', 'npm docs [<pkgname> [<pkgname> ...]]')
+  }
+
+  exec (args, cb) {
+    this.docs(args).then(() => cb()).catch(cb)
+  }
+
+  async docs (args) {
+    if (!args || !args.length)
+      args = ['.']
+
+    await Promise.all(args.map(pkg => this.getDocs(pkg)))
+  }
+
+  async getDocs (pkg) {
+    const opts = { ...this.npm.flatOptions, fullMetadata: true }
+    const mani = await pacote.manifest(pkg, opts)
+    const url = this.getDocsUrl(mani)
+    log.silly('docs', 'url', url)
+    await openUrl(this.npm, url, `${mani.name} docs available at the following URL`)
+  }
+
+  getDocsUrl (mani) {
+    if (mani.homepage)
+      return mani.homepage
+
+    const info = hostedFromMani(mani)
+    if (info)
+      return info.docs()
+
+    return 'https://www.npmjs.com/package/' + mani.name
+  }
 }
-
-function docs (args, cb) {
-  if (!args || !args.length) args = ['.']
-  var pending = args.length
-  log.silly('docs', args)
-  args.forEach(function (proj) {
-    getDoc(proj, function (err) {
-      if (err) {
-        return cb(err)
-      }
-      --pending || cb()
-    })
-  })
-}
-
-function getDoc (project, cb) {
-  log.silly('getDoc', project)
-  fetchPackageMetadata(project, '.', function (er, d) {
-    if (er) return cb(er)
-    var url = d.homepage
-    if (!url) url = 'https://www.npmjs.org/package/' + d.name
-    return opener(url, {command: npm.config.get('browser')}, cb)
-  })
-}
+module.exports = Docs

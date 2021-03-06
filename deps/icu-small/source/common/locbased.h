@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
@@ -22,7 +22,7 @@
  * `actualLocale' of size ULOC_FULLNAME_CAPACITY
  */
 #define U_LOCALE_BASED(varname, objname) \
-  LocaleBased varname((objname).validLocale, (objname).actualLocale);
+  LocaleBased varname((objname).validLocale, (objname).actualLocale)
 
 U_NAMESPACE_BEGIN
 

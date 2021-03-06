@@ -45,7 +45,7 @@ for (var i = 0; i < 1000; ++i) {
         offset = 42;
     }
 
-    // Create some bizzare object to prevent method_check optimizations, since those will result in
+    // Create some bizarre object to prevent method_check optimizations, since those will result in
     // a failure while the function is still live.
     var object = {};
     object["a" + i] = i;

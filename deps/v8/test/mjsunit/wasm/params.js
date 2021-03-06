@@ -4,7 +4,6 @@
 
 // Flags: --expose-wasm
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 function runSelect2(select, which, a, b) {
@@ -18,7 +17,7 @@ function testSelect2(type) {
     var builder = new WasmModuleBuilder();
 
     builder.addFunction("select", makeSig_r_xx(type, type))
-      .addBody([kExprGetLocal, which])
+      .addBody([kExprLocalGet, which])
       .exportFunc()
 
     var select = builder.instantiate().exports.select;
@@ -26,7 +25,7 @@ function testSelect2(type) {
     runSelect2(select, which, 99, 97);
     runSelect2(select, which, -99, -97);
 
-    if (type != kAstF32) {
+    if (type != kWasmF32) {
       runSelect2(select, which, 0x80000000 | 0, 0x7fffffff | 0);
       runSelect2(select, which, 0x80000001 | 0, 0x7ffffffe | 0);
       runSelect2(select, which, 0xffffffff | 0, 0xfffffffe | 0);
@@ -35,7 +34,7 @@ function testSelect2(type) {
       runSelect2(select, which, -2147483648, 2147483647);
     }
 
-    if (type != kAstI32 && type != kAstI64) {
+    if (type != kWasmI32 && type != kWasmI64) {
       runSelect2(select, which, -1.25, 5.25);
       runSelect2(select, which, Infinity, -Infinity);
     }
@@ -43,9 +42,9 @@ function testSelect2(type) {
 }
 
 
-testSelect2(kAstI32);
-testSelect2(kAstF32);
-testSelect2(kAstF64);
+testSelect2(kWasmI32);
+testSelect2(kWasmF32);
+testSelect2(kWasmF64);
 
 
 function runSelect10(select, which, a, b) {
@@ -80,7 +79,7 @@ function testSelect10(t) {
 
     var builder = new WasmModuleBuilder();
     builder.addFunction("select", makeSig([t,t,t,t,t,t,t,t,t,t], [t]))
-      .addBody([kExprGetLocal, which])
+      .addBody([kExprLocalGet, which])
       .exportFunc();
 
     var select = builder.instantiate().exports.select;
@@ -89,7 +88,7 @@ function testSelect10(t) {
     runSelect10(select, which, 99, 97);
     runSelect10(select, which, -99, -97);
 
-    if (t != kAstF32) {
+    if (t != kWasmF32) {
       runSelect10(select, which, 0x80000000 | 0, 0x7fffffff | 0);
       runSelect10(select, which, 0x80000001 | 0, 0x7ffffffe | 0);
       runSelect10(select, which, 0xffffffff | 0, 0xfffffffe | 0);
@@ -98,7 +97,7 @@ function testSelect10(t) {
       runSelect10(select, which, -2147483648, 2147483647);
     }
 
-    if (t != kAstI32 && t != kAstI64) {
+    if (t != kWasmI32 && t != kWasmI64) {
       runSelect10(select, which, -1.25, 5.25);
       runSelect10(select, which, Infinity, -Infinity);
     }
@@ -106,6 +105,6 @@ function testSelect10(t) {
 }
 
 
-testSelect10(kAstI32);
-testSelect10(kAstF32);
-testSelect10(kAstF64);
+testSelect10(kWasmI32);
+testSelect10(kWasmF32);
+testSelect10(kWasmF64);

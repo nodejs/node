@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -356,7 +356,7 @@ public:
     }
 
     /**
-     * @return TRUE if the ce32 yields one or more CEs without further data lookups
+     * @return true if the ce32 yields one or more CEs without further data lookups
      */
     static UBool isSelfContainedCE32(uint32_t ce32) {
         return !isSpecialCE32(ce32) ||

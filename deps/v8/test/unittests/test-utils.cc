@@ -5,92 +5,83 @@
 #include "test/unittests/test-utils.h"
 
 #include "include/libplatform/libplatform.h"
+#include "include/v8.h"
+#include "src/api/api-inl.h"
 #include "src/base/platform/time.h"
-#include "src/debug/debug.h"
-#include "src/flags.h"
-#include "src/isolate.h"
-#include "src/v8.h"
+#include "src/execution/isolate.h"
+#include "src/flags/flags.h"
+#include "src/init/v8.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 
-// static
-v8::ArrayBuffer::Allocator* TestWithIsolate::array_buffer_allocator_ = nullptr;
-
-// static
-Isolate* TestWithIsolate::isolate_ = nullptr;
-
-TestWithIsolate::TestWithIsolate()
-    : isolate_scope_(isolate()), handle_scope_(isolate()) {}
-
-
-TestWithIsolate::~TestWithIsolate() {}
-
-
-// static
-void TestWithIsolate::SetUpTestCase() {
-  Test::SetUpTestCase();
-  EXPECT_EQ(NULL, isolate_);
-  v8::Isolate::CreateParams create_params;
-  array_buffer_allocator_ = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
-  create_params.array_buffer_allocator = array_buffer_allocator_;
-  isolate_ = v8::Isolate::New(create_params);
-  EXPECT_TRUE(isolate_ != NULL);
-}
-
-
-// static
-void TestWithIsolate::TearDownTestCase() {
-  ASSERT_TRUE(isolate_ != NULL);
-  v8::Platform* platform = internal::V8::GetCurrentPlatform();
-  ASSERT_TRUE(platform != NULL);
-  while (platform::PumpMessageLoop(platform, isolate_)) continue;
-  isolate_->Dispose();
-  isolate_ = NULL;
-  delete array_buffer_allocator_;
-  Test::TearDownTestCase();
-}
-
-
-TestWithContext::TestWithContext()
-    : context_(Context::New(isolate())), context_scope_(context_) {}
-
-
-TestWithContext::~TestWithContext() {}
-
-
-namespace base {
 namespace {
-
-inline int64_t GetRandomSeedFromFlag(int random_seed) {
-  return random_seed ? random_seed : TimeTicks::Now().ToInternalValue();
-}
-
+// counter_lookup_callback doesn't pass through any state information about
+// the current Isolate, so we have to store the current counter map somewhere.
+// Fortunately tests run serially, so we can just store it in a static global.
+CounterMap* kCurrentCounterMap = nullptr;
 }  // namespace
 
-TestWithRandomNumberGenerator::TestWithRandomNumberGenerator()
-    : rng_(GetRandomSeedFromFlag(::v8::internal::FLAG_random_seed)) {}
+IsolateWrapper::IsolateWrapper(CountersMode counters_mode)
+    : array_buffer_allocator_(
+          v8::ArrayBuffer::Allocator::NewDefaultAllocator()) {
+  CHECK_NULL(kCurrentCounterMap);
 
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = array_buffer_allocator_.get();
 
-TestWithRandomNumberGenerator::~TestWithRandomNumberGenerator() {}
+  if (counters_mode == kEnableCounters) {
+    counter_map_ = std::make_unique<CounterMap>();
+    kCurrentCounterMap = counter_map_.get();
 
-}  // namespace base
+    create_params.counter_lookup_callback = [](const char* name) {
+      CHECK_NOT_NULL(kCurrentCounterMap);
+      // If the name doesn't exist in the counter map, operator[] will default
+      // initialize it to zero.
+      return &(*kCurrentCounterMap)[name];
+    };
+  } else {
+    create_params.counter_lookup_callback = [](const char* name) -> int* {
+      return nullptr;
+    };
+  }
 
+  isolate_ = v8::Isolate::New(create_params);
+  CHECK_NOT_NULL(isolate());
+}
+
+IsolateWrapper::~IsolateWrapper() {
+  v8::Platform* platform = internal::V8::GetCurrentPlatform();
+  CHECK_NOT_NULL(platform);
+  while (platform::PumpMessageLoop(platform, isolate())) continue;
+  isolate_->Dispose();
+  if (counter_map_) {
+    CHECK_EQ(kCurrentCounterMap, counter_map_.get());
+    kCurrentCounterMap = nullptr;
+  } else {
+    CHECK_NULL(kCurrentCounterMap);
+  }
+}
 
 namespace internal {
 
-TestWithIsolate::~TestWithIsolate() {}
-
-TestWithIsolateAndZone::~TestWithIsolateAndZone() {}
-
-Factory* TestWithIsolate::factory() const { return isolate()->factory(); }
-
-
-base::RandomNumberGenerator* TestWithIsolate::random_number_generator() const {
-  return isolate()->random_number_generator();
+SaveFlags::SaveFlags() {
+  // For each flag, save the current flag value.
+#define FLAG_MODE_APPLY(ftype, ctype, nam, def, cmt) SAVED_##nam = FLAG_##nam;
+#include "src/flags/flag-definitions.h"  // NOLINT
+#undef FLAG_MODE_APPLY
 }
 
-
-TestWithZone::~TestWithZone() {}
+SaveFlags::~SaveFlags() {
+  // For each flag, set back the old flag value if it changed (don't write the
+  // flag if it didn't change, to keep TSAN happy).
+#define FLAG_MODE_APPLY(ftype, ctype, nam, def, cmt) \
+  if (SAVED_##nam != FLAG_##nam) {                   \
+    FLAG_##nam = SAVED_##nam;                        \
+  }
+#include "src/flags/flag-definitions.h"  // NOLINT
+#undef FLAG_MODE_APPLY
+}
 
 }  // namespace internal
 }  // namespace v8

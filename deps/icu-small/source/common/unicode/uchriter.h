@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
@@ -11,22 +11,25 @@
 #define UCHRITER_H
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
+
 #include "unicode/chariter.h"
 
 /**
  * \file
- * \brief C++ API: UChar Character Iterator
+ * \brief C++ API: char16_t Character Iterator
  */
 
 U_NAMESPACE_BEGIN
 
 /**
  * A concrete subclass of CharacterIterator that iterates over the
- * characters (code units or code points) in a UChar array.
+ * characters (code units or code points) in a char16_t array.
  * It's possible not only to create an
- * iterator that iterates over an entire UChar array, but also to
- * create one that iterates over only a subrange of a UChar array
- * (iterators over different subranges of the same UChar array don't
+ * iterator that iterates over an entire char16_t array, but also to
+ * create one that iterates over only a subrange of a char16_t array
+ * (iterators over different subranges of the same char16_t array don't
  * compare equal).
  * @see CharacterIterator
  * @see ForwardCharacterIterator
@@ -35,34 +38,34 @@ U_NAMESPACE_BEGIN
 class U_COMMON_API UCharCharacterIterator : public CharacterIterator {
 public:
   /**
-   * Create an iterator over the UChar array referred to by "textPtr".
+   * Create an iterator over the char16_t array referred to by "textPtr".
    * The iteration range is 0 to <code>length-1</code>.
    * text is only aliased, not adopted (the
    * destructor will not delete it).
-   * @param textPtr The UChar array to be iterated over
-   * @param length The length of the UChar array
+   * @param textPtr The char16_t array to be iterated over
+   * @param length The length of the char16_t array
    * @stable ICU 2.0
    */
-  UCharCharacterIterator(const UChar* textPtr, int32_t length);
+  UCharCharacterIterator(ConstChar16Ptr textPtr, int32_t length);
 
   /**
-   * Create an iterator over the UChar array referred to by "textPtr".
+   * Create an iterator over the char16_t array referred to by "textPtr".
    * The iteration range is 0 to <code>length-1</code>.
    * text is only aliased, not adopted (the
    * destructor will not delete it).
    * The starting
    * position is specified by "position". If "position" is outside the valid
    * iteration range, the behavior of this object is undefined.
-   * @param textPtr The UChar array to be iteratd over
-   * @param length The length of the UChar array
+   * @param textPtr The char16_t array to be iteratd over
+   * @param length The length of the char16_t array
    * @param position The starting position of the iteration
    * @stable ICU 2.0
    */
-  UCharCharacterIterator(const UChar* textPtr, int32_t length,
+  UCharCharacterIterator(ConstChar16Ptr textPtr, int32_t length,
                          int32_t position);
 
   /**
-   * Create an iterator over the UChar array referred to by "textPtr".
+   * Create an iterator over the char16_t array referred to by "textPtr".
    * The iteration range is 0 to <code>end-1</code>.
    * text is only aliased, not adopted (the
    * destructor will not delete it).
@@ -70,14 +73,14 @@ public:
    * position is specified by "position". If begin and end do not
    * form a valid iteration range or "position" is outside the valid
    * iteration range, the behavior of this object is undefined.
-   * @param textPtr The UChar array to be iterated over
-   * @param length The length of the UChar array
+   * @param textPtr The char16_t array to be iterated over
+   * @param length The length of the char16_t array
    * @param textBegin  The begin position of the iteration range
    * @param textEnd    The end position of the iteration range
    * @param position    The starting position of the iteration
    * @stable ICU 2.0
    */
-  UCharCharacterIterator(const UChar* textPtr, int32_t length,
+  UCharCharacterIterator(ConstChar16Ptr textPtr, int32_t length,
                          int32_t textBegin,
                          int32_t textEnd,
                          int32_t position);
@@ -132,7 +135,7 @@ public:
    * @return the CharacterIterator newly created
    * @stable ICU 2.0
    */
-  virtual CharacterIterator* clone(void) const;
+  virtual UCharCharacterIterator* clone() const;
 
   /**
    * Sets the iterator to refer to the first code unit in its
@@ -141,7 +144,7 @@ public:
    * @return the first code unit in its iteration range.
    * @stable ICU 2.0
    */
-  virtual UChar         first(void);
+  virtual char16_t         first(void);
 
   /**
    * Sets the iterator to refer to the first code unit in its
@@ -151,7 +154,7 @@ public:
    * @return the first code unit in its iteration range
    * @stable ICU 2.0
    */
-  virtual UChar         firstPostInc(void);
+  virtual char16_t         firstPostInc(void);
 
   /**
    * Sets the iterator to refer to the first code point in its
@@ -181,7 +184,7 @@ public:
    * @return the last code unit in its iteration range.
    * @stable ICU 2.0
    */
-  virtual UChar         last(void);
+  virtual char16_t         last(void);
 
   /**
    * Sets the iterator to refer to the last code point in its
@@ -200,7 +203,7 @@ public:
    * @return the code unit
    * @stable ICU 2.0
    */
-  virtual UChar         setIndex(int32_t position);
+  virtual char16_t         setIndex(int32_t position);
 
   /**
    * Sets the iterator to refer to the beginning of the code point
@@ -220,7 +223,7 @@ public:
    * @return the code unit the iterator currently refers to.
    * @stable ICU 2.0
    */
-  virtual UChar         current(void) const;
+  virtual char16_t         current(void) const;
 
   /**
    * Returns the code point the iterator currently refers to.
@@ -236,7 +239,7 @@ public:
    * @return the next code unit in the iteration range.
    * @stable ICU 2.0
    */
-  virtual UChar         next(void);
+  virtual char16_t         next(void);
 
   /**
    * Gets the current code unit for returning and advances to the next code unit
@@ -246,7 +249,7 @@ public:
    * @return the current code unit.
    * @stable ICU 2.0
    */
-  virtual UChar         nextPostInc(void);
+  virtual char16_t         nextPostInc(void);
 
   /**
    * Advances to the next code point in the iteration range (toward
@@ -271,11 +274,11 @@ public:
   virtual UChar32       next32PostInc(void);
 
   /**
-   * Returns FALSE if there are no more code units or code points
+   * Returns false if there are no more code units or code points
    * at or after the current position in the iteration range.
    * This is used with nextPostInc() or next32PostInc() in forward
    * iteration.
-   * @return FALSE if there are no more code units or code points
+   * @return false if there are no more code units or code points
    * at or after the current position in the iteration range.
    * @stable ICU 2.0
    */
@@ -288,7 +291,7 @@ public:
    * @return the previous code unit in the iteration range.
    * @stable ICU 2.0
    */
-  virtual UChar         previous(void);
+  virtual char16_t         previous(void);
 
   /**
    * Advances to the previous code point in the iteration range (toward
@@ -300,11 +303,11 @@ public:
   virtual UChar32       previous32(void);
 
   /**
-   * Returns FALSE if there are no more code units or code points
+   * Returns false if there are no more code units or code points
    * before the current position in the iteration range.
    * This is used with previous() or previous32() in backward
    * iteration.
-   * @return FALSE if there are no more code units or code points
+   * @return false if there are no more code units or code points
    * before the current position in the iteration range.
    * @stable ICU 2.0
    */
@@ -334,16 +337,20 @@ public:
    * @return the new position
    * @stable ICU 2.0
    */
+#ifdef move32
+   // One of the system headers right now is sometimes defining a conflicting macro we don't use
+#undef move32
+#endif
   virtual int32_t      move32(int32_t delta, EOrigin origin);
 
   /**
    * Sets the iterator to iterate over a new range of text
    * @stable ICU 2.0
    */
-  void setText(const UChar* newText, int32_t newTextLength);
+  void setText(ConstChar16Ptr newText, int32_t newTextLength);
 
   /**
-   * Copies the UChar array under iteration into the UnicodeString
+   * Copies the char16_t array under iteration into the UnicodeString
    * referred to by "result".  Even if this iterator iterates across
    * only a part of this string, the whole string is copied.
    * @param result Receives a copy of the text under iteration.
@@ -375,9 +382,12 @@ protected:
    * Protected member text
    * @stable ICU 2.0
    */
-  const UChar*            text;
+  const char16_t*            text;
 
 };
 
 U_NAMESPACE_END
+
+#endif /* U_SHOW_CPLUSPLUS_API */
+
 #endif

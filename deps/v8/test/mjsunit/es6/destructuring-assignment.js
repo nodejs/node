@@ -478,3 +478,154 @@ assertEquals(oz, [1, 2, 3, 4, 5]);
     { firstLetter: "B", rest: ["p", "u", "p", "p", "y"] },
   ], log);
 })();
+
+(function testNewTarget() {
+  assertThrows("(function() { [...new.target] = []; })", SyntaxError);
+  assertThrows("(function() { [a] = [...new.target] = []; })", SyntaxError);
+  assertThrows("(function() { [new.target] = []; })", SyntaxError);
+  assertThrows("(function() { [a] = [new.target] = []; })", SyntaxError);
+  assertThrows("(function() { ({ a: new.target] = {a: 0}); })", SyntaxError);
+  assertThrows("(function() { ({ a } = { a: new.target } = {}); })",
+               SyntaxError);
+
+  function ReturnNewTarget1() {
+    var result;
+    [result = new.target] = [];
+    return result;
+  }
+
+  function ReturnNewTarget2() {
+    var result;
+    [result] = [new.target];
+    return result;
+  }
+
+  function ReturnNewTarget3() {
+    var result;
+    ({ result = new.target } = {});
+    return result;
+  }
+
+  function ReturnNewTarget4() {
+    var result;
+    ({ result } = { result: new.target });
+    return result;
+  }
+
+  function FakeNewTarget() {}
+
+  function construct() {
+    assertEquals(undefined, ReturnNewTarget1());
+    assertEquals(ReturnNewTarget1, new ReturnNewTarget1());
+    assertEquals(FakeNewTarget,
+                 Reflect.construct(ReturnNewTarget1, [], FakeNewTarget));
+
+    assertEquals(undefined, ReturnNewTarget2());
+    assertEquals(ReturnNewTarget2, new ReturnNewTarget2());
+    assertEquals(FakeNewTarget,
+                 Reflect.construct(ReturnNewTarget2, [], FakeNewTarget));
+
+    assertEquals(undefined, ReturnNewTarget3());
+    assertEquals(ReturnNewTarget3, new ReturnNewTarget3());
+    assertEquals(FakeNewTarget,
+                 Reflect.construct(ReturnNewTarget3, [], FakeNewTarget));
+
+    assertEquals(undefined, ReturnNewTarget4());
+    assertEquals(ReturnNewTarget4, new ReturnNewTarget4());
+    assertEquals(FakeNewTarget,
+                 Reflect.construct(ReturnNewTarget4, [], FakeNewTarget));
+  }
+  construct();
+  FakeNewTarget.prototype = 1;
+  construct();
+})();
+
+(function testSuperCall() {
+  function ctor(body) {
+    return () => eval("(class extends Object { \n" +
+                      "  constructor() {\n" +
+                      body +
+                      "\n  }\n" +
+                      "})");
+  }
+  assertThrows(ctor("({ new: super() } = {})"), SyntaxError);
+  assertThrows(ctor("({ new: x } = { new: super() } = {})"), SyntaxError);
+  assertThrows(ctor("[super()] = []"), SyntaxError);
+  assertThrows(ctor("[x] = [super()] = []"), SyntaxError);
+  assertThrows(ctor("[...super()] = []"), SyntaxError);
+  assertThrows(ctor("[x] = [...super()] = []"), SyntaxError);
+
+  class Base { get foo() { return 1; } }
+  function ext(body) {
+    return eval("new (class extends Base {\n" +
+                "  constructor() {\n" +
+                body + ";\n" +
+                "  return { x: super.foo }" +
+                "\n  }\n" +
+                "})");
+  }
+  assertEquals(1, ext("let x; [x = super()] = []").x);
+  assertEquals(1, ext("let x, y; [y] = [x = super()] = []").x);
+  assertEquals(1, ext("let x; [x] = [super()]").x);
+  assertEquals(1, ext("let x, y; [y] = [x] = [super()]").x);
+
+  assertEquals(1, ext("let x; ({x = super()} = {})").x);
+  assertEquals(1, ext("let x, y; ({ x: y } = { x = super() } = {})").x);
+  assertEquals(1, ext("let x; ({x} = { x: super() })").x);
+  assertEquals(1, ext("let x, y; ({ x: y } = { x } = { x: super() })").x);
+})();
+
+(function testInvalidReturn() {
+  function* g() { yield 1; }
+
+  let executed_x_setter;
+  let executed_return;
+  var a = {
+    set x(val) {
+      executed_x_setter = true;
+      throw 3;
+    }
+  };
+
+  // The exception from the execution of g().return() should be suppressed by
+  // the setter error.
+  executed_x_setter = false;
+  executed_return = false;
+  g.prototype.return = function() {
+    executed_return = true;
+    throw 4;
+  };
+  assertThrowsEquals("[a.x] = g()", 3);
+  assertTrue(executed_x_setter);
+  assertTrue(executed_return);
+
+  // The exception from g().return() not returning an object should be
+  // suppressed by the setter error.
+  executed_x_setter = false;
+  executed_return = false;
+  g.prototype.return = function() {
+    assertTrue(executed_return);
+    return null;
+  };
+  assertThrowsEquals("[a.x] = g()", 3);
+  assertTrue(executed_x_setter);
+  assertTrue(executed_return);
+
+  // The TypeError from g().return not being a method should suppress the setter
+  // error.
+  executed_x_setter = false;
+  g.prototype.return = "not a method";
+  assertThrows("[a.x] = g()", TypeError);
+  assertTrue(executed_x_setter);
+
+  // The exception from the access of g().return should suppress the setter
+  // error.
+  executed_x_setter = false;
+  Object.setPrototypeOf(g.prototype, {
+    get return() {
+      throw 4;
+    }
+  });
+  assertThrowsEquals("[a.x] = g()", 4);
+  assertTrue(executed_x_setter);
+})

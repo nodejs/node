@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax
 
-function dummy(x) { };
+function dummy(x) {};
 
 function g() {
   return g.arguments;
@@ -17,8 +17,8 @@ function f(limit) {
     o.y = +o.y;
     g();
   }
-}
-
+};
+%PrepareFunctionForOptimization(f);
 f(1);
 f(1);
 %OptimizeFunctionOnNextCall(f);

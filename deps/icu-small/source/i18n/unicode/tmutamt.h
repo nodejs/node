@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
  *******************************************************************************
@@ -16,10 +16,14 @@
  * \brief C++ API: time unit amount object.
  */
 
-#include "unicode/measure.h"
-#include "unicode/tmunit.h"
+#include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
 
 #if !UCONFIG_NO_FORMATTING
+
+#include "unicode/measure.h"
+#include "unicode/tmunit.h"
 
 U_NAMESPACE_BEGIN
 
@@ -35,7 +39,7 @@ public:
     /**
      * Construct TimeUnitAmount object with the given number and the
      * given time unit.
-     * @param number        a numeric object; number.isNumeric() must be TRUE
+     * @param number        a numeric object; number.isNumeric() must be true
      * @param timeUnitField the time unit field of a time unit
      * @param status        the input-output error code.
      *                      If the number is not numeric or the timeUnitField
@@ -83,7 +87,7 @@ public:
      * @return a polymorphic clone of this object. The result will have the same               class as returned by getDynamicClassID().
      * @stable ICU 4.2
      */
-    virtual UObject* clone() const;
+    virtual TimeUnitAmount* clone() const;
 
 
     /**
@@ -164,6 +168,8 @@ TimeUnitAmount::operator!=(const UObject& other) const {
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif // __TMUTAMT_H__
 //eof

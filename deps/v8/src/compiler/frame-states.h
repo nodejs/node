@@ -5,57 +5,45 @@
 #ifndef V8_COMPILER_FRAME_STATES_H_
 #define V8_COMPILER_FRAME_STATES_H_
 
-#include "src/handles.h"
-#include "src/utils.h"
+#include "src/builtins/builtins.h"
+#include "src/compiler/node.h"
+#include "src/handles/handles.h"
+#include "src/objects/shared-function-info.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
 
-// Forward declarations.
-class SharedFunctionInfo;
-
 namespace compiler {
+
+class JSGraph;
+class Node;
+class SharedFunctionInfoRef;
 
 // Flag that describes how to combine the current environment with
 // the output of a node to obtain a framestate for lazy bailout.
 class OutputFrameStateCombine {
  public:
-  enum Kind {
-    kPushOutput,  // Push the output on the expression stack.
-    kPokeAt       // Poke at the given environment location,
-                  // counting from the top of the stack.
-  };
+  static const size_t kInvalidIndex = SIZE_MAX;
 
   static OutputFrameStateCombine Ignore() {
-    return OutputFrameStateCombine(kPushOutput, 0);
-  }
-  static OutputFrameStateCombine Push(size_t count = 1) {
-    return OutputFrameStateCombine(kPushOutput, count);
+    return OutputFrameStateCombine(kInvalidIndex);
   }
   static OutputFrameStateCombine PokeAt(size_t index) {
-    return OutputFrameStateCombine(kPokeAt, index);
+    return OutputFrameStateCombine(index);
   }
 
-  Kind kind() const { return kind_; }
-  size_t GetPushCount() const {
-    DCHECK_EQ(kPushOutput, kind());
-    return parameter_;
-  }
   size_t GetOffsetToPokeAt() const {
-    DCHECK_EQ(kPokeAt, kind());
+    DCHECK_NE(parameter_, kInvalidIndex);
     return parameter_;
   }
 
-  bool IsOutputIgnored() const {
-    return kind_ == kPushOutput && parameter_ == 0;
-  }
+  bool IsOutputIgnored() const { return parameter_ == kInvalidIndex; }
 
-  size_t ConsumedOutputCount() const {
-    return kind_ == kPushOutput ? GetPushCount() : 1;
-  }
+  size_t ConsumedOutputCount() const { return IsOutputIgnored() ? 0 : 1; }
 
   bool operator==(OutputFrameStateCombine const& other) const {
-    return kind_ == other.kind_ && parameter_ == other.parameter_;
+    return parameter_ == other.parameter_;
   }
   bool operator!=(OutputFrameStateCombine const& other) const {
     return !(*this == other);
@@ -66,23 +54,23 @@ class OutputFrameStateCombine {
                                   OutputFrameStateCombine const&);
 
  private:
-  OutputFrameStateCombine(Kind kind, size_t parameter)
-      : kind_(kind), parameter_(parameter) {}
+  explicit OutputFrameStateCombine(size_t parameter) : parameter_(parameter) {}
 
-  Kind const kind_;
   size_t const parameter_;
 };
 
 
 // The type of stack frame that a FrameState node represents.
 enum class FrameStateType {
-  kJavaScriptFunction,   // Represents an unoptimized JavaScriptFrame.
-  kInterpretedFunction,  // Represents an InterpretedFrame.
-  kArgumentsAdaptor,     // Represents an ArgumentsAdaptorFrame.
-  kTailCallerFunction,   // Represents a frame removed by tail call elimination.
-  kConstructStub,        // Represents a ConstructStubFrame.
-  kGetterStub,           // Represents a GetterStubFrame.
-  kSetterStub            // Represents a SetterStubFrame.
+  kInterpretedFunction,            // Represents an InterpretedFrame.
+  kArgumentsAdaptor,               // Represents an ArgumentsAdaptorFrame.
+  kConstructStub,                  // Represents a ConstructStubFrame.
+  kBuiltinContinuation,            // Represents a continuation to a stub.
+  kJavaScriptBuiltinContinuation,  // Represents a continuation to a JavaScipt
+                                   // builtin.
+  kJavaScriptBuiltinContinuationWithCatch  // Represents a continuation to a
+                                           // JavaScipt builtin with a catch
+                                           // handler.
 };
 
 class FrameStateFunctionInfo {
@@ -101,8 +89,9 @@ class FrameStateFunctionInfo {
   FrameStateType type() const { return type_; }
 
   static bool IsJSFunctionType(FrameStateType type) {
-    return type == FrameStateType::kJavaScriptFunction ||
-           type == FrameStateType::kInterpretedFunction;
+    return type == FrameStateType::kInterpretedFunction ||
+           type == FrameStateType::kJavaScriptBuiltinContinuation ||
+           type == FrameStateType::kJavaScriptBuiltinContinuationWithCatch;
   }
 
  private:
@@ -122,7 +111,7 @@ class FrameStateInfo final {
         info_(info) {}
 
   FrameStateType type() const {
-    return info_ == nullptr ? FrameStateType::kJavaScriptFunction
+    return info_ == nullptr ? FrameStateType::kInterpretedFunction
                             : info_->type();
   }
   BailoutId bailout_id() const { return bailout_id_; }
@@ -152,13 +141,30 @@ size_t hash_value(FrameStateInfo const&);
 
 std::ostream& operator<<(std::ostream&, FrameStateInfo const&);
 
-static const int kFrameStateParametersInput = 0;
-static const int kFrameStateLocalsInput = 1;
-static const int kFrameStateStackInput = 2;
-static const int kFrameStateContextInput = 3;
-static const int kFrameStateFunctionInput = 4;
-static const int kFrameStateOuterStateInput = 5;
-static const int kFrameStateInputCount = kFrameStateOuterStateInput + 1;
+static constexpr int kFrameStateParametersInput = 0;
+static constexpr int kFrameStateLocalsInput = 1;
+static constexpr int kFrameStateStackInput = 2;
+static constexpr int kFrameStateContextInput = 3;
+static constexpr int kFrameStateFunctionInput = 4;
+static constexpr int kFrameStateOuterStateInput = 5;
+static constexpr int kFrameStateInputCount = kFrameStateOuterStateInput + 1;
+
+enum class ContinuationFrameStateMode { EAGER, LAZY, LAZY_WITH_CATCH };
+
+FrameState CreateStubBuiltinContinuationFrameState(
+    JSGraph* graph, Builtins::Name name, Node* context, Node* const* parameters,
+    int parameter_count, Node* outer_frame_state,
+    ContinuationFrameStateMode mode);
+
+FrameState CreateJavaScriptBuiltinContinuationFrameState(
+    JSGraph* graph, const SharedFunctionInfoRef& shared, Builtins::Name name,
+    Node* target, Node* context, Node* const* stack_parameters,
+    int stack_parameter_count, Node* outer_frame_state,
+    ContinuationFrameStateMode mode);
+
+FrameState CreateGenericLazyDeoptContinuationFrameState(
+    JSGraph* graph, const SharedFunctionInfoRef& shared, Node* target,
+    Node* context, Node* receiver, Node* outer_frame_state);
 
 }  // namespace compiler
 }  // namespace internal

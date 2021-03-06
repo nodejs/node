@@ -319,19 +319,52 @@ Error constants
 
     too many links
 
+.. c:macro:: UV_ENOTTY
+
+    inappropriate ioctl for device
+
+.. c:macro:: UV_EFTYPE
+
+    inappropriate file type or format
+
+.. c:macro:: UV_EILSEQ
+
+    illegal byte sequence
+
 
 API
 ---
+
+.. c:macro:: UV_ERRNO_MAP(iter_macro)
+
+    Macro that expands to a series of invocations of `iter_macro` for
+    each of the error constants above. `iter_macro` is invoked with two
+    arguments: the name of the error constant without the `UV_` prefix,
+    and the error message string literal.
 
 .. c:function:: const char* uv_strerror(int err)
 
     Returns the error message for the given error code.  Leaks a few bytes
     of memory when you call it with an unknown error code.
 
+.. c:function:: char* uv_strerror_r(int err, char* buf, size_t buflen)
+
+    Returns the error message for the given error code. The zero-terminated
+    message is stored in the user-supplied buffer `buf` of at most `buflen` bytes.
+
+    .. versionadded:: 1.22.0
+
 .. c:function:: const char* uv_err_name(int err)
 
     Returns the error name for the given error code.  Leaks a few bytes
     of memory when you call it with an unknown error code.
+
+.. c:function:: char* uv_err_name_r(int err, char* buf, size_t buflen)
+
+    Returns the error name for the given error code. The zero-terminated
+    name is stored in the user-supplied buffer `buf` of at most `buflen` bytes.
+
+    .. versionadded:: 1.22.0
 
 .. c:function:: int uv_translate_sys_error(int sys_errno)
 

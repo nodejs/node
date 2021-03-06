@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --opt
 
 "use strict";
 
@@ -36,6 +36,7 @@ var functions = [ f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14,
 
 for (var i = 0; i < functions.length; ++i) {
   var func = functions[i];
+  %PrepareFunctionForOptimization(func);
   print("Testing:");
   print(func);
   for (var j = 0; j < 10; ++j) {
@@ -317,6 +318,7 @@ function TestThrow() {
       throw x;
     }
   }
+  %PrepareFunctionForOptimization(f);
   for (var i = 0; i < 5; i++) {
     try {
       f();
@@ -341,6 +343,7 @@ TestThrow();
 function TestFunctionLocal(s) {
   'use strict';
   var func = eval("(function baz(){" + s + "; })");
+  %PrepareFunctionForOptimization(func);
   print("Testing:");
   print(func);
   for (var i = 0; i < 5; ++i) {
@@ -363,6 +366,7 @@ function TestFunctionLocal(s) {
 function TestFunctionContext(s) {
   'use strict';
   var func = eval("(function baz(){ " + s + "; (function() { x; }); })");
+  %PrepareFunctionForOptimization(func);
   print("Testing:");
   print(func);
   for (var i = 0; i < 5; ++i) {
@@ -389,6 +393,7 @@ function TestFunctionContext(s) {
 function TestBlockLocal(s) {
   'use strict';
   var func = eval("(function baz(){ { " + s + "; } })");
+  %PrepareFunctionForOptimization(func);
   print("Testing:");
   print(func);
   for (var i = 0; i < 5; ++i) {
@@ -411,6 +416,7 @@ function TestBlockLocal(s) {
 function TestBlockContext(s) {
   'use strict';
   var func = eval("(function baz(){ { " + s + "; (function() { x; }); } })");
+  %PrepareFunctionForOptimization(func);
   print("Testing:");
   print(func);
   for (var i = 0; i < 5; ++i) {
@@ -469,6 +475,9 @@ function g(x) {
   }
 }
 
+%PrepareFunctionForOptimization(f);
+%PrepareFunctionForOptimization(g);
+
 for (var i=0; i<10; i++) {
   f(i);
   g(i);
@@ -480,5 +489,5 @@ for (var i=0; i<10; i++) {
 f(12);
 g(12);
 
-assertTrue(%GetOptimizationStatus(f) != 2);
-assertTrue(%GetOptimizationStatus(g) != 2);
+assertOptimized(f);
+assertOptimized(g);

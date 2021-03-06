@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -6,7 +6,7 @@
 *   Corporation and others.  All Rights Reserved.
 *******************************************************************************
 *   file name:  bytestrie.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -23,6 +23,9 @@
  */
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
+
 #include "unicode/stringpiece.h"
 #include "unicode/uobject.h"
 #include "unicode/ustringtrie.h"
@@ -91,6 +94,39 @@ public:
     BytesTrie &reset() {
         pos_=bytes_;
         remainingMatchLength_=-1;
+        return *this;
+    }
+
+    /**
+     * Returns the state of this trie as a 64-bit integer.
+     * The state value is never 0.
+     *
+     * @return opaque state value
+     * @see resetToState64
+     * @stable ICU 65
+     */
+    uint64_t getState64() const {
+        return (static_cast<uint64_t>(remainingMatchLength_ + 2) << kState64RemainingShift) |
+            (uint64_t)(pos_ - bytes_);
+    }
+
+    /**
+     * Resets this trie to the saved state.
+     * Unlike resetToState(State), the 64-bit state value
+     * must be from getState64() from the same trie object or
+     * from one initialized the exact same way.
+     * Because of no validation, this method is faster.
+     *
+     * @param state The opaque trie state value from getState64().
+     * @return *this
+     * @see getState64
+     * @see resetToState
+     * @see reset
+     * @stable ICU 65
+     */
+    BytesTrie &resetToState64(uint64_t state) {
+        remainingMatchLength_ = static_cast<int32_t>(state >> kState64RemainingShift) - 2;
+        pos_ = bytes_ + (state & kState64PosMask);
         return *this;
     }
 
@@ -215,16 +251,16 @@ public:
     /**
      * Determines whether all byte sequences reachable from the current state
      * map to the same value.
-     * @param uniqueValue Receives the unique value, if this function returns TRUE.
+     * @param uniqueValue Receives the unique value, if this function returns true.
      *                    (output-only)
-     * @return TRUE if all byte sequences reachable from the current state
+     * @return true if all byte sequences reachable from the current state
      *         map to the same value.
      * @stable ICU 4.8
      */
     inline UBool hasUniqueValue(int32_t &uniqueValue) const {
         const uint8_t *pos=pos_;
         // Skip the rest of a pending linear-match node.
-        return pos!=NULL && findUniqueValue(pos+remainingMatchLength_+1, FALSE, uniqueValue);
+        return pos!=NULL && findUniqueValue(pos+remainingMatchLength_+1, false, uniqueValue);
     }
 
     /**
@@ -283,7 +319,7 @@ public:
         Iterator &reset();
 
         /**
-         * @return TRUE if there are more elements.
+         * @return true if there are more elements.
          * @stable ICU 4.8
          */
         UBool hasNext() const;
@@ -299,7 +335,7 @@ public:
          *                  pass the U_SUCCESS() test, or else the function returns
          *                  immediately. Check for U_FAILURE() on output or use with
          *                  function chaining. (See User Guide for details.)
-         * @return TRUE if there is another element.
+         * @return true if there is another element.
          * @stable ICU 4.8
          */
         UBool next(UErrorCode &errorCode);
@@ -502,6 +538,13 @@ private:
     static const int32_t kMaxTwoByteDelta=((kMinThreeByteDeltaLead-kMinTwoByteDeltaLead)<<8)-1;  // 0x2fff
     static const int32_t kMaxThreeByteDelta=((kFourByteDeltaLead-kMinThreeByteDeltaLead)<<16)-1;  // 0xdffff
 
+    // For getState64():
+    // The remainingMatchLength_ is -1..14=(kMaxLinearMatchLength=0x10)-2
+    // so we need at least 5 bits for that.
+    // We add 2 to store it as a positive value 1..16=kMaxLinearMatchLength.
+    static constexpr int32_t kState64RemainingShift = 59;
+    static constexpr uint64_t kState64PosMask = (UINT64_C(1) << kState64RemainingShift) - 1;
+
     uint8_t *ownedArray_;
 
     // Fixed value referencing the BytesTrie bytes.
@@ -516,5 +559,7 @@ private:
 };
 
 U_NAMESPACE_END
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif  // __BYTESTRIE_H__

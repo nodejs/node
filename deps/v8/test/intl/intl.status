@@ -27,13 +27,42 @@
 
 [
 [ALWAYS, {
-  # TODO(jochen): The following test is flaky.
+# TODO(jochen): The following test is flaky.
   'overrides/caching': [PASS, FAIL],
 }],  # ALWAYS
 
-['arch == arm64 and mode == debug and simulator_run == True and variant == ignition', {
-  # Ignition on ARM64 simulator in debug mode.
-  'date-format/timezone': [PASS, ['no_snap', SKIP]],
-  'number-format/check-digit-ranges': [PASS, ['no_snap', SKIP]],
-}],  # 'arch == arm64 and mode == debug and simulator_run == True and variant == ignition'
+['variant == no_wasm_traps', {
+  '*': [SKIP],
+}],  # variant == no_wasm_traps
+
+['system == windows', {
+  # noi18n cannot turn on ICU backend for Date
+  'relative-time-format/default-locale-fr-CA': [SKIP],
+  'relative-time-format/default-locale-pt-BR': [SKIP],
+
+  # Unable to change locale on Windows:
+  'default_locale': [SKIP],
+
+  # Unable to change locale and TZ on Windows:
+  'regress-7770': [SKIP],
+}],  # system == windows'
+
+['system == android', {
+  # Android's ICU data file does not have the Chinese/Japanese dictionary
+  # required for the test to pass.
+  'break-iterator/zh-break': [SKIP],
+  'segmenter/word-containing': [SKIP],
+  # Unable to change locale on Android:
+  'relative-time-format/default-locale-fr-CA': [SKIP],
+  'relative-time-format/default-locale-pt-BR': [SKIP],
+  'default_locale': [SKIP],
+  # Unable to change locale and TZ on Android:
+  'regress-7770': [SKIP],
+}],  # 'system == android'
+
+################################################################################
+['variant == stress_snapshot', {
+  '*': [SKIP],  # only relevant for mjsunit tests.
+}],
+
 ]

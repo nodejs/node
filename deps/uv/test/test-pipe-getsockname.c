@@ -87,6 +87,9 @@ static void pipe_server_connection_cb(uv_stream_t* handle, int status) {
 
 
 TEST_IMPL(pipe_getsockname) {
+#if defined(NO_SELF_CONNECT)
+  RETURN_SKIP(NO_SELF_CONNECT);
+#endif
   uv_loop_t* loop;
   char buf[1024];
   size_t len;
@@ -168,7 +171,7 @@ TEST_IMPL(pipe_getsockname_abstract) {
   socklen_t sun_len;
   char abstract_pipe[] = "\0test-pipe";
 
-  sock = socket(AF_LOCAL, SOCK_STREAM, 0);
+  sock = socket(AF_UNIX, SOCK_STREAM, 0);
   ASSERT(sock != -1);
 
   sun_len = sizeof sun;
@@ -222,7 +225,9 @@ TEST_IMPL(pipe_getsockname_blocking) {
   ASSERT(r != -1);
   r = uv_pipe_open(&pipe_client, readfd);
   ASSERT(r == 0);
-  r = uv_read_start((uv_stream_t*)&pipe_client, NULL, NULL);
+  r = uv_read_start((uv_stream_t*) &pipe_client,
+                    (uv_alloc_cb) abort,
+                    (uv_read_cb) abort);
   ASSERT(r == 0);
   Sleep(100);
   r = uv_read_stop((uv_stream_t*)&pipe_client);
@@ -233,7 +238,9 @@ TEST_IMPL(pipe_getsockname_blocking) {
   ASSERT(r == 0);
   ASSERT(len1 == 0);  /* It's an annonymous pipe. */
 
-  r = uv_read_start((uv_stream_t*)&pipe_client, NULL, NULL);
+  r = uv_read_start((uv_stream_t*)&pipe_client,
+                    (uv_alloc_cb) abort,
+                    (uv_read_cb) abort);
   ASSERT(r == 0);
   Sleep(100);
 

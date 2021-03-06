@@ -31,22 +31,41 @@ TEST(FunctionalTest, HashDoubleZero) {
   EXPECT_EQ(h(0.0), h(-0.0));
 }
 
+namespace {
+
+inline int64_t GetRandomSeedFromFlag(int random_seed) {
+  return random_seed ? random_seed : TimeTicks::Now().ToInternalValue();
+}
+
+}  // namespace
 
 template <typename T>
-class FunctionalTest : public TestWithRandomNumberGenerator {};
+class FunctionalTest : public ::testing::Test {
+ public:
+  FunctionalTest()
+      : rng_(GetRandomSeedFromFlag(::v8::internal::FLAG_random_seed)) {}
+  ~FunctionalTest() override = default;
+  FunctionalTest(const FunctionalTest&) = delete;
+  FunctionalTest& operator=(const FunctionalTest&) = delete;
 
-typedef ::testing::Types<signed char, unsigned char,
-                         short,                    // NOLINT(runtime/int)
-                         unsigned short,           // NOLINT(runtime/int)
-                         int, unsigned int, long,  // NOLINT(runtime/int)
-                         unsigned long,            // NOLINT(runtime/int)
-                         long long,                // NOLINT(runtime/int)
-                         unsigned long long,       // NOLINT(runtime/int)
-                         int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t,
-                         int64_t, uint64_t, float, double> FunctionalTypes;
+  RandomNumberGenerator* rng() { return &rng_; }
 
-TYPED_TEST_CASE(FunctionalTest, FunctionalTypes);
+ private:
+  RandomNumberGenerator rng_;
+};
 
+using FunctionalTypes =
+    ::testing::Types<signed char, unsigned char,
+                     short,                    // NOLINT(runtime/int)
+                     unsigned short,           // NOLINT(runtime/int)
+                     int, unsigned int, long,  // NOLINT(runtime/int)
+                     unsigned long,            // NOLINT(runtime/int)
+                     long long,                // NOLINT(runtime/int)
+                     unsigned long long,       // NOLINT(runtime/int)
+                     int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t,
+                     int64_t, uint64_t, float, double>;
+
+TYPED_TEST_SUITE(FunctionalTest, FunctionalTypes);
 
 TYPED_TEST(FunctionalTest, EqualToImpliesSameHashCode) {
   hash<TypeParam> h;
@@ -55,7 +74,9 @@ TYPED_TEST(FunctionalTest, EqualToImpliesSameHashCode) {
   this->rng()->NextBytes(values, sizeof(values));
   TRACED_FOREACH(TypeParam, v1, values) {
     TRACED_FOREACH(TypeParam, v2, values) {
-      if (e(v1, v2)) EXPECT_EQ(h(v1), h(v2));
+      if (e(v1, v2)) {
+        EXPECT_EQ(h(v1), h(v2));
+      }
     }
   }
 }
@@ -124,7 +145,9 @@ TYPED_TEST(FunctionalTest, BitEqualToImpliesSameBitHash) {
   this->rng()->NextBytes(&values, sizeof(values));
   TRACED_FOREACH(TypeParam, v1, values) {
     TRACED_FOREACH(TypeParam, v2, values) {
-      if (e(v1, v2)) EXPECT_EQ(h(v1), h(v2));
+      if (e(v1, v2)) {
+        EXPECT_EQ(h(v1), h(v2));
+      }
     }
   }
 }

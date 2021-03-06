@@ -4,10 +4,12 @@
 Design overview
 ===============
 
-libuv is cross-platform support library which was originally written for NodeJS. It's designed
+libuv is cross-platform support library which was originally written for `Node.js`_. It's designed
 around the event-driven asynchronous I/O model.
 
-The library provides much more than simply abstraction over different I/O polling mechanisms:
+.. _Node.js: https://nodejs.org
+
+The library provides much more than a simple abstraction over different I/O polling mechanisms:
 'handles' and 'streams' provide a high level abstraction for sockets and other entities;
 cross-platform file I/O and threading functionality is also provided, amongst other things.
 
@@ -25,9 +27,10 @@ Handles and requests
 libuv provides users with 2 abstractions to work with, in combination with the event loop:
 handles and requests.
 
-Handles represent long-lived objects capable of performing certain operations while active. Some
-examples: a prepare handle gets its callback called once every loop iteration when active, and
-a TCP server handle get its connection callback called every time there is a new connection.
+Handles represent long-lived objects capable of performing certain operations while active. Some examples:
+
+- A prepare handle gets its callback called once every loop iteration when active.
+- A TCP server handle that gets its connection callback called every time there is a new connection.
 
 Requests represent (typically) short-lived operations. These operations can be performed over a
 handle: write requests are used to write data on a handle; or standalone: getaddrinfo requests
@@ -85,11 +88,11 @@ stages of a loop iteration:
         * If there are no active handles or requests, the timeout is 0.
         * If there are any idle handles active, the timeout is 0.
         * If there are any handles pending to be closed, the timeout is 0.
-        * If none of the above cases was matched, the timeout of the closest timer is taken, or
+        * If none of the above cases matches, the timeout of the closest timer is taken, or
           if there are no active timers, infinity.
 
-#. The loop blocks for I/O. At this point the loop will block for I/O for the timeout calculated
-   on the previous step. All I/O related handles that were monitoring a given file descriptor
+#. The loop blocks for I/O. At this point the loop will block for I/O for the duration calculated
+   in the previous step. All I/O related handles that were monitoring a given file descriptor
    for a read or write operation get their callbacks called at this point.
 
 #. Check handle callbacks are called. Check handles get their callbacks called right after the
@@ -103,7 +106,7 @@ stages of a loop iteration:
    so there might be timers which are due, those timers get their callbacks called.
 
 #. Iteration ends. If the loop was run with ``UV_RUN_NOWAIT`` or ``UV_RUN_ONCE`` modes the
-   iteration is ended and :c:func:`uv_run` will return. If the loop was run with ``UV_RUN_DEFAULT``
+   iteration ends and :c:func:`uv_run` will return. If the loop was run with ``UV_RUN_DEFAULT``
    it will continue from the start if it's still *alive*, otherwise it will also end.
 
 
@@ -123,12 +126,12 @@ Unlike network I/O, there are no platform-specific file I/O primitives libuv cou
 so the current approach is to run blocking file I/O operations in a thread pool.
 
 For a thorough explanation of the cross-platform file I/O landscape, checkout
-`this post <http://blog.libtorrent.org/2012/10/asynchronous-disk-io/>`_.
+`this post <https://blog.libtorrent.org/2012/10/asynchronous-disk-io/>`_.
 
-libuv currently uses a global thread pool on which all loops can queue work on. 3 types of
+libuv currently uses a global thread pool on which all loops can queue work. 3 types of
 operations are currently run on this pool:
 
-    * Filesystem operations
+    * File system operations
     * DNS functions (getaddrinfo and getnameinfo)
     * User specified code via :c:func:`uv_queue_work`
 

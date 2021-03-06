@@ -54,9 +54,9 @@ assertEquals(["a", "b", "c"], Reflect.ownKeys(proxy));
 keys.length = Math.pow(2, 33);
 assertThrows("Reflect.ownKeys(proxy)", RangeError);
 
-// Check that we allow duplicated keys.
+// Check that we don't allow duplicated keys.
 keys  = ['a', 'a', 'a']
-assertEquals(keys, Reflect.ownKeys(proxy));
+assertThrows("Reflect.ownKeys(proxy)", TypeError);
 
 // Non-Name results throw.
 keys = [1];
@@ -75,9 +75,9 @@ assertThrows("Reflect.ownKeys(proxy)", TypeError);
 keys = ["nonconf"];
 assertEquals(keys, Reflect.ownKeys(proxy));
 
-// Check that we allow duplicated keys.
+// Check that we don't allow duplicated keys.
 keys  = ['nonconf', 'nonconf', 'nonconf']
-assertEquals(keys, Reflect.ownKeys(proxy));
+assertThrows("Reflect.ownKeys(proxy)", TypeError);
 
 // Step 19a: The trap result must all keys of a non-extensible target.
 Object.preventExtensions(target);
@@ -89,6 +89,6 @@ assertEquals(keys, Reflect.ownKeys(proxy));
 keys = ["nonconf", "target_one", "fantasy"];
 assertThrows("Reflect.ownKeys(proxy)", TypeError);
 
-// Check that we allow duplicated keys.
+// Check that we don't allow duplicated keys.
 keys  = ['nonconf', 'target_one', 'nonconf', 'nonconf', 'target_one',]
-assertEquals(keys, Reflect.ownKeys(proxy));
+assertThrows("Reflect.ownKeys(proxy)", TypeError);

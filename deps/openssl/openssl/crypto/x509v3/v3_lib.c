@@ -1,65 +1,16 @@
-/* v3_lib.c */
 /*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
- * 1999.
+ * Copyright 1999-2018 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
-/* ====================================================================
- * Copyright (c) 1999 The OpenSSL Project.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    licensing@OpenSSL.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
- */
+
 /* X509 v3 extension utilities */
 
 #include <stdio.h>
-#include "cryptlib.h"
+#include "internal/cryptlib.h"
 #include <openssl/conf.h>
 #include <openssl/x509v3.h>
 
@@ -73,7 +24,8 @@ static void ext_list_free(X509V3_EXT_METHOD *ext);
 
 int X509V3_EXT_add(X509V3_EXT_METHOD *ext)
 {
-    if (!ext_list && !(ext_list = sk_X509V3_EXT_METHOD_new(ext_cmp))) {
+    if (ext_list == NULL
+        && (ext_list = sk_X509V3_EXT_METHOD_new(ext_cmp)) == NULL) {
         X509V3err(X509V3_F_X509V3_EXT_ADD, ERR_R_MALLOC_FAILURE);
         return 0;
     }
@@ -95,11 +47,14 @@ DECLARE_OBJ_BSEARCH_CMP_FN(const X509V3_EXT_METHOD *,
 IMPLEMENT_OBJ_BSEARCH_CMP_FN(const X509V3_EXT_METHOD *,
                              const X509V3_EXT_METHOD *, ext);
 
+#include "standard_exts.h"
+
 const X509V3_EXT_METHOD *X509V3_EXT_get_nid(int nid)
 {
     X509V3_EXT_METHOD tmp;
     const X509V3_EXT_METHOD *t = &tmp, *const *ret;
     int idx;
+
     if (nid < 0)
         return NULL;
     tmp.ext_nid = nid;
@@ -109,39 +64,15 @@ const X509V3_EXT_METHOD *X509V3_EXT_get_nid(int nid)
     if (!ext_list)
         return NULL;
     idx = sk_X509V3_EXT_METHOD_find(ext_list, &tmp);
-    if (idx == -1)
-        return NULL;
     return sk_X509V3_EXT_METHOD_value(ext_list, idx);
 }
 
 const X509V3_EXT_METHOD *X509V3_EXT_get(X509_EXTENSION *ext)
 {
     int nid;
-    if ((nid = OBJ_obj2nid(ext->object)) == NID_undef)
+    if ((nid = OBJ_obj2nid(X509_EXTENSION_get_object(ext))) == NID_undef)
         return NULL;
     return X509V3_EXT_get_nid(nid);
-}
-
-int X509V3_EXT_free(int nid, void *ext_data)
-{
-    const X509V3_EXT_METHOD *ext_method = X509V3_EXT_get_nid(nid);
-    if (ext_method == NULL) {
-        X509V3err(X509V3_F_X509V3_EXT_FREE,
-                  X509V3_R_CANNOT_FIND_FREE_FUNCTION);
-        return 0;
-    }
-
-    if (ext_method->it != NULL)
-        ASN1_item_free(ext_data, ASN1_ITEM_ptr(ext_method->it));
-    else if (ext_method->ext_free != NULL)
-        ext_method->ext_free(ext_data);
-    else {
-        X509V3err(X509V3_F_X509V3_EXT_FREE,
-                  X509V3_R_CANNOT_FIND_FREE_FUNCTION);
-        return 0;
-    }
-
-    return 1;
 }
 
 int X509V3_EXT_add_list(X509V3_EXT_METHOD *extlist)
@@ -157,14 +88,11 @@ int X509V3_EXT_add_alias(int nid_to, int nid_from)
     const X509V3_EXT_METHOD *ext;
     X509V3_EXT_METHOD *tmpext;
 
-    if (!(ext = X509V3_EXT_get_nid(nid_from))) {
-        X509V3err(X509V3_F_X509V3_EXT_ADD_ALIAS,
-                  X509V3_R_EXTENSION_NOT_FOUND);
+    if ((ext = X509V3_EXT_get_nid(nid_from)) == NULL) {
+        X509V3err(X509V3_F_X509V3_EXT_ADD_ALIAS, X509V3_R_EXTENSION_NOT_FOUND);
         return 0;
     }
-    if (!
-        (tmpext =
-         (X509V3_EXT_METHOD *)OPENSSL_malloc(sizeof(X509V3_EXT_METHOD)))) {
+    if ((tmpext = OPENSSL_malloc(sizeof(*tmpext))) == NULL) {
         X509V3err(X509V3_F_X509V3_EXT_ADD_ALIAS, ERR_R_MALLOC_FAILURE);
         return 0;
     }
@@ -202,14 +130,17 @@ void *X509V3_EXT_d2i(X509_EXTENSION *ext)
 {
     const X509V3_EXT_METHOD *method;
     const unsigned char *p;
+    ASN1_STRING *extvalue;
+    int extlen;
 
-    if (!(method = X509V3_EXT_get(ext)))
+    if ((method = X509V3_EXT_get(ext)) == NULL)
         return NULL;
-    p = ext->value->data;
+    extvalue = X509_EXTENSION_get_data(ext);
+    p = ASN1_STRING_get0_data(extvalue);
+    extlen = ASN1_STRING_length(extvalue);
     if (method->it)
-        return ASN1_item_d2i(NULL, &p, ext->value->length,
-                             ASN1_ITEM_ptr(method->it));
-    return method->d2i(NULL, &p, ext->value->length);
+        return ASN1_item_d2i(NULL, &p, extlen, ASN1_ITEM_ptr(method->it));
+    return method->d2i(NULL, &p, extlen);
 }
 
 /*-
@@ -228,11 +159,12 @@ void *X509V3_EXT_d2i(X509_EXTENSION *ext)
  * -2 extension occurs more than once.
  */
 
-void *X509V3_get_d2i(STACK_OF(X509_EXTENSION) *x, int nid, int *crit,
+void *X509V3_get_d2i(const STACK_OF(X509_EXTENSION) *x, int nid, int *crit,
                      int *idx)
 {
     int lastpos, i;
     X509_EXTENSION *ex, *found_ex = NULL;
+
     if (!x) {
         if (idx)
             *idx = -1;
@@ -248,7 +180,7 @@ void *X509V3_get_d2i(STACK_OF(X509_EXTENSION) *x, int nid, int *crit,
         lastpos = 0;
     for (i = lastpos; i < sk_X509_EXTENSION_num(x); i++) {
         ex = sk_X509_EXTENSION_value(x, i);
-        if (OBJ_obj2nid(ex->object) == nid) {
+        if (OBJ_obj2nid(X509_EXTENSION_get_object(ex)) == nid) {
             if (idx) {
                 *idx = i;
                 found_ex = ex;
@@ -286,9 +218,9 @@ void *X509V3_get_d2i(STACK_OF(X509_EXTENSION) *x, int nid, int *crit,
 int X509V3_add1_i2d(STACK_OF(X509_EXTENSION) **x, int nid, void *value,
                     int crit, unsigned long flags)
 {
-    int extidx = -1;
-    int errcode;
-    X509_EXTENSION *ext, *extmp;
+    int errcode, extidx = -1;
+    X509_EXTENSION *ext = NULL, *extmp;
+    STACK_OF(X509_EXTENSION) *ret = NULL;
     unsigned long ext_op = flags & X509V3_ADD_OP_MASK;
 
     /*
@@ -347,17 +279,25 @@ int X509V3_add1_i2d(STACK_OF(X509_EXTENSION) **x, int nid, void *value,
         return 1;
     }
 
-    if (!*x && !(*x = sk_X509_EXTENSION_new_null()))
-        return -1;
-    if (!sk_X509_EXTENSION_push(*x, ext))
-        return -1;
+    ret = *x;
+    if (*x == NULL
+        && (ret = sk_X509_EXTENSION_new_null()) == NULL)
+        goto m_fail;
+    if (!sk_X509_EXTENSION_push(ret, ext))
+        goto m_fail;
 
+    *x = ret;
     return 1;
+
+ m_fail:
+    /* X509V3err(X509V3_F_X509V3_ADD1_I2D, ERR_R_MALLOC_FAILURE); */
+    if (ret != *x)
+        sk_X509_EXTENSION_free(ret);
+    X509_EXTENSION_free(ext);
+    return -1;
 
  err:
     if (!(flags & X509V3_ADD_SILENT))
         X509V3err(X509V3_F_X509V3_ADD1_I2D, errcode);
     return 0;
 }
-
-IMPLEMENT_STACK_OF(X509V3_EXT_METHOD)

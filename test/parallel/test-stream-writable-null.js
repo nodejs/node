@@ -1,56 +1,47 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const stream = require('stream');
-const util = require('util');
 
-function MyWritable(options) {
-  stream.Writable.call(this, options);
+class MyWritable extends stream.Writable {
+  constructor(options) {
+    super({ autoDestroy: false, ...options });
+  }
+  _write(chunk, encoding, callback) {
+    assert.notStrictEqual(chunk, null);
+    callback();
+  }
 }
 
-util.inherits(MyWritable, stream.Writable);
-
-MyWritable.prototype._write = function(chunk, encoding, callback) {
-  assert.notStrictEqual(chunk, null);
-  callback();
-};
-
-assert.throws(() => {
-  var m = new MyWritable({objectMode: true});
-  m.write(null, (err) => assert.ok(err));
-}, TypeError, 'May not write null values to stream');
-assert.doesNotThrow(() => {
-  var m = new MyWritable({objectMode: true}).on('error', (e) => {
-    assert.ok(e);
+{
+  const m = new MyWritable({ objectMode: true });
+  m.on('error', common.mustNotCall());
+  assert.throws(() => {
+    m.write(null);
+  }, {
+    code: 'ERR_STREAM_NULL_VALUES'
   });
-  m.write(null, (err) => {
-    assert.ok(err);
-  });
-});
+}
 
-assert.throws(() => {
-  var m = new MyWritable();
-  m.write(false, (err) => assert.ok(err));
-}, TypeError, 'Invalid non-string/buffer chunk');
-assert.doesNotThrow(() => {
-  var m = new MyWritable().on('error', (e) => {
-    assert.ok(e);
+{
+  const m = new MyWritable();
+  m.on('error', common.mustNotCall());
+  assert.throws(() => {
+    m.write(false);
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE'
   });
-  m.write(false, (err) => {
-    assert.ok(err);
-  });
-});
+}
 
-assert.doesNotThrow(() => {
-  var m = new MyWritable({objectMode: true});
-  m.write(false, (err) => assert.ifError(err));
-});
-assert.doesNotThrow(() => {
-  var m = new MyWritable({objectMode: true}).on('error', (e) => {
+{ // Should not throw.
+  const m = new MyWritable({ objectMode: true });
+  m.write(false, assert.ifError);
+}
+
+{ // Should not throw.
+  const m = new MyWritable({ objectMode: true }).on('error', (e) => {
     assert.ifError(e || new Error('should not get here'));
   });
-  m.write(false, (err) => {
-    assert.ifError(err);
-  });
-});
+  m.write(false, assert.ifError);
+}

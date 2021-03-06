@@ -1,0 +1,24 @@
+Tests that multiple sessions pause once on console.assert.
+Pausing on exceptions in 1
+Asserting in 1
+Paused in 1 with reason assert
+Paused in 2 with reason assert
+Asserting in 2
+Paused in 1 with reason assert
+Paused in 2 with reason assert
+Pausing on exceptions in both
+Asserting in 1
+Paused in 1 with reason assert
+Paused in 2 with reason assert
+Asserting in 2
+Paused in 1 with reason assert
+Paused in 2 with reason assert
+Not pausing on exceptions
+Asserting in 1
+Asserting in 2
+Pausing on exceptions in 3 (different context group)
+Asserting in 3
+Paused in 3 with reason assert
+Asserting in 1
+Paused in 1 with reason assert
+Paused in 2 with reason assert

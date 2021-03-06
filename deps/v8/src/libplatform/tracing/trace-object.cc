@@ -2,18 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "include/libplatform/v8-tracing.h"
-
 #include "base/trace_event/common/trace_event_common.h"
+#include "include/libplatform/v8-tracing.h"
+#include "include/v8-platform.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
+#include "src/base/platform/wrappers.h"
 
 namespace v8 {
 namespace platform {
 namespace tracing {
 
-// We perform checks for NULL strings since it is possible that a string arg
-// value is NULL.
+// We perform checks for nullptr strings since it is possible that a string arg
+// value is nullptr.
 V8_INLINE static size_t GetAllocLength(const char* str) {
   return str ? strlen(str) + 1 : 0;
 }
@@ -22,19 +23,20 @@ V8_INLINE static size_t GetAllocLength(const char* str) {
 // location, and then advances |*buffer| by the amount written.
 V8_INLINE static void CopyTraceObjectParameter(char** buffer,
                                                const char** member) {
-  if (*member) {
-    size_t length = strlen(*member) + 1;
-    strncpy(*buffer, *member, length);
-    *member = *buffer;
-    *buffer += length;
-  }
+  if (*member == nullptr) return;
+  size_t length = strlen(*member) + 1;
+  base::Memcpy(*buffer, *member, length);
+  *member = *buffer;
+  *buffer += length;
 }
 
-void TraceObject::Initialize(char phase, const uint8_t* category_enabled_flag,
-                             const char* name, const char* scope, uint64_t id,
-                             uint64_t bind_id, int num_args,
-                             const char** arg_names, const uint8_t* arg_types,
-                             const uint64_t* arg_values, unsigned int flags) {
+void TraceObject::Initialize(
+    char phase, const uint8_t* category_enabled_flag, const char* name,
+    const char* scope, uint64_t id, uint64_t bind_id, int num_args,
+    const char** arg_names, const uint8_t* arg_types,
+    const uint64_t* arg_values,
+    std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables,
+    unsigned int flags, int64_t timestamp, int64_t cpu_timestamp) {
   pid_ = base::OS::GetCurrentProcessId();
   tid_ = base::OS::GetCurrentThreadId();
   phase_ = phase;
@@ -44,8 +46,8 @@ void TraceObject::Initialize(char phase, const uint8_t* category_enabled_flag,
   id_ = id;
   bind_id_ = bind_id;
   flags_ = flags;
-  ts_ = base::TimeTicks::HighResolutionNow().ToInternalValue();
-  tts_ = base::ThreadTicks::Now().ToInternalValue();
+  ts_ = timestamp;
+  tts_ = cpu_timestamp;
   duration_ = 0;
   cpu_duration_ = 0;
 
@@ -55,6 +57,8 @@ void TraceObject::Initialize(char phase, const uint8_t* category_enabled_flag,
     arg_names_[i] = arg_names[i];
     arg_values_[i].as_uint = arg_values[i];
     arg_types_[i] = arg_types[i];
+    if (arg_types[i] == TRACE_VALUE_TYPE_CONVERTABLE)
+      arg_convertables_[i] = std::move(arg_convertables[i]);
   }
 
   bool copy = !!(flags & TRACE_EVENT_FLAG_COPY);
@@ -98,17 +102,19 @@ void TraceObject::Initialize(char phase, const uint8_t* category_enabled_flag,
 
 TraceObject::~TraceObject() { delete[] parameter_copy_storage_; }
 
-void TraceObject::UpdateDuration() {
-  duration_ = base::TimeTicks::HighResolutionNow().ToInternalValue() - ts_;
-  cpu_duration_ = base::ThreadTicks::Now().ToInternalValue() - tts_;
+void TraceObject::UpdateDuration(int64_t timestamp, int64_t cpu_timestamp) {
+  duration_ = timestamp - ts_;
+  cpu_duration_ = cpu_timestamp - tts_;
 }
 
 void TraceObject::InitializeForTesting(
     char phase, const uint8_t* category_enabled_flag, const char* name,
     const char* scope, uint64_t id, uint64_t bind_id, int num_args,
     const char** arg_names, const uint8_t* arg_types,
-    const uint64_t* arg_values, unsigned int flags, int pid, int tid,
-    int64_t ts, int64_t tts, uint64_t duration, uint64_t cpu_duration) {
+    const uint64_t* arg_values,
+    std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables,
+    unsigned int flags, int pid, int tid, int64_t ts, int64_t tts,
+    uint64_t duration, uint64_t cpu_duration) {
   pid_ = pid;
   tid_ = tid;
   phase_ = phase;

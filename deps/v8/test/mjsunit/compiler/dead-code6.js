@@ -57,16 +57,19 @@ function dead3(a, b) {
     return a;
 }
 
+%PrepareFunctionForOptimization(dead1);
 assertTrue(dead1(33, 32) == 33);
 assertTrue(dead1(33, 32) == 33);
 %OptimizeFunctionOnNextCall(dead1);
 assertTrue(dead1(33, 32) == 33);
 
+%PrepareFunctionForOptimization(dead2);
 assertTrue(dead2(34, 11) == 34);
 assertTrue(dead2(34, 11) == 34);
 %OptimizeFunctionOnNextCall(dead2);
 assertTrue(dead2(34, 11) == 34);
 
+%PrepareFunctionForOptimization(dead3);
 assertTrue(dead3(35, 12) == 35);
 assertTrue(dead3(35, 12) == 35);
 %OptimizeFunctionOnNextCall(dead3);

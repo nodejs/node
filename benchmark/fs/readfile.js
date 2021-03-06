@@ -3,47 +3,59 @@
 // Yes, this is a silly benchmark.  Most benchmarks are silly.
 'use strict';
 
-var path = require('path');
-var common = require('../common.js');
-var filename = path.resolve(__dirname, '.removeme-benchmark-garbage');
-var fs = require('fs');
+const path = require('path');
+const common = require('../common.js');
+const fs = require('fs');
+const assert = require('assert');
 
-var bench = common.createBenchmark(main, {
-  dur: [5],
+const tmpdir = require('../../test/common/tmpdir');
+tmpdir.refresh();
+const filename = path.resolve(tmpdir.path,
+                              `.removeme-benchmark-garbage-${process.pid}`);
+
+const bench = common.createBenchmark(main, {
+  duration: [5],
   len: [1024, 16 * 1024 * 1024],
   concurrent: [1, 10]
 });
 
-function main(conf) {
-  var len = +conf.len;
-  try { fs.unlinkSync(filename); } catch (e) {}
-  var data = Buffer.alloc(len, 'x');
+function main({ len, duration, concurrent }) {
+  try { fs.unlinkSync(filename); } catch {}
+  let data = Buffer.alloc(len, 'x');
   fs.writeFileSync(filename, data);
   data = null;
 
-  var reads = 0;
+  let reads = 0;
+  let benchEnded = false;
   bench.start();
-  setTimeout(function() {
+  setTimeout(() => {
+    benchEnded = true;
     bench.end(reads);
-    try { fs.unlinkSync(filename); } catch (e) {}
+    try { fs.unlinkSync(filename); } catch {}
     process.exit(0);
-  }, +conf.dur * 1000);
+  }, duration * 1000);
 
   function read() {
     fs.readFile(filename, afterRead);
   }
 
   function afterRead(er, data) {
-    if (er)
+    if (er) {
+      if (er.code === 'ENOENT') {
+        // Only OK if unlinked by the timer from main.
+        assert.ok(benchEnded);
+        return;
+      }
       throw er;
+    }
 
     if (data.length !== len)
       throw new Error('wrong number of bytes returned');
 
     reads++;
-    read();
+    if (!benchEnded)
+      read();
   }
 
-  var cur = +conf.concurrent;
-  while (cur--) read();
+  while (concurrent--) read();
 }

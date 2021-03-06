@@ -13,6 +13,7 @@ function id(x) { return x; }
 function f1(x) {
   return x.length;
 }
+%PrepareFunctionForOptimization(f1);
 assertEquals(0, f1(""));
 assertEquals(1, f1("a"));
 %OptimizeFunctionOnNextCall(f1);
@@ -23,6 +24,7 @@ function f2(x, y, z) {
   x = x ? "" + y : "" + z;
   return x.length;
 }
+%PrepareFunctionForOptimization(f2);
 assertEquals(0, f2(true, "", "a"));
 assertEquals(1, f2(false, "", "a"));
 %OptimizeFunctionOnNextCall(f2);

@@ -1,0 +1,18 @@
+Name: DFA UTF-8 Decoder
+Short Name: utf8-decoder
+URL: http://bjoern.hoehrmann.de/utf-8/decoder/dfa/
+Version: 0
+License: MIT
+License File: NOT_SHIPPED
+Security Critical: no
+
+Description:
+Decodes UTF-8 bytes using a fast and simple definite finite automata.
+
+Local modifications:
+- Rejection state has been mapped to row 0 (instead of row 1) of the DFA,
+  saving some 50 bytes and making the table easier to reason about.
+- The transitions have been remapped to represent both a state transition and a
+  bit mask for the incoming byte.
+- The caller must now zero out the code point buffer after successful or
+  unsuccessful state transitions.

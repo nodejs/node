@@ -47,11 +47,13 @@ function mkNumberDictionary() {
 }
 
 function write(a, i) { a[i] = "bazinga!"; }
+%PrepareFunctionForOptimization(write);
 
 function test(factories, w) {
+  %PrepareFunctionForOptimization(w);
   factories.forEach(function(f) { w(f(), 0); });
   factories.forEach(function(f) { w(f(), 0); });
-      %OptimizeFunctionOnNextCall(w);
+  %OptimizeFunctionOnNextCall(w);
   factories.forEach(function(f) { w(f(), 0); });
 }
 

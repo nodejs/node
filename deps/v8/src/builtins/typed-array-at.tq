@@ -1,0 +1,28 @@
+// Copyright 2020 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace typed_array {
+// https://tc39.es/proposal-item-method/#sec-%typedarray%.prototype.at
+transitioning javascript builtin TypedArrayPrototypeAt(
+    js-implicit context: NativeContext, receiver: JSAny)(index: JSAny): JSAny {
+  // 1. Let O be the this value.
+  // 2. Perform ? ValidateTypedArray(O).
+  const o = ValidateTypedArray(context, receiver, '%TypedArray%.prototype.at');
+  // 3. Let len be O.[[ArrayLength]].
+  const len = Convert<Number>(o.length);
+  // 4. Let relativeIndex be ? ToInteger(index).
+  const relativeIndex = ToInteger_Inline(index);
+  // 5. If relativeIndex ≥ 0, then
+  //   a. Let k be relativeIndex.
+  // 6. Else,
+  //   a. Let k be len + relativeIndex.
+  const k = relativeIndex >= 0 ? relativeIndex : len + relativeIndex;
+  // 7. If k < 0 or k ≥ len, then return undefined.
+  if (k < 0 || k >= len) {
+    return Undefined;
+  }
+  // 8. Return ? Get(O, ! ToString(k)).
+  return GetProperty(o, k);
+}
+}

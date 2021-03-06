@@ -2,131 +2,194 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_WASM_RESULT_H_
-#define V8_WASM_RESULT_H_
+#ifndef V8_WASM_WASM_RESULT_H_
+#define V8_WASM_WASM_RESULT_H_
 
+#include <cstdarg>
 #include <memory>
 
 #include "src/base/compiler-specific.h"
+#include "src/base/macros.h"
+#include "src/base/platform/platform.h"
 
-#include "src/handles.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {
 
 class Isolate;
+template <typename T>
+class Handle;
 
 namespace wasm {
 
-// Error codes for programmatic checking of the decoder's verification.
-enum ErrorCode {
-  kSuccess,
-  kError,                 // TODO(titzer): remove me
-  kOutOfMemory,           // decoder ran out of memory
-  kEndOfCode,             // end of code reached prematurely
-  kInvalidOpcode,         // found invalid opcode
-  kUnreachableCode,       // found unreachable code
-  kImproperContinue,      // improperly nested continue
-  kImproperBreak,         // improperly nested break
-  kReturnCount,           // return count mismatch
-  kTypeError,             // type mismatch
-  kInvalidLocalIndex,     // invalid local
-  kInvalidGlobalIndex,    // invalid global
-  kInvalidFunctionIndex,  // invalid function
-  kInvalidMemType         // invalid memory type
+class V8_EXPORT_PRIVATE WasmError {
+ public:
+  WasmError() = default;
+
+  WasmError(uint32_t offset, std::string message)
+      : offset_(offset), message_(std::move(message)) {
+    // The error message must not be empty, otherwise {empty()} would be true.
+    DCHECK(!message_.empty());
+  }
+
+  PRINTF_FORMAT(3, 4)
+  WasmError(uint32_t offset, const char* format, ...) : offset_(offset) {
+    va_list args;
+    va_start(args, format);
+    message_ = FormatError(format, args);
+    va_end(args);
+    // The error message must not be empty, otherwise {empty()} would be true.
+    DCHECK(!message_.empty());
+  }
+
+  bool empty() const { return message_.empty(); }
+  bool has_error() const { return !message_.empty(); }
+
+  uint32_t offset() const { return offset_; }
+  const std::string& message() const& { return message_; }
+  std::string&& message() && { return std::move(message_); }
+
+ protected:
+  static std::string FormatError(const char* format, va_list args);
+
+ private:
+  uint32_t offset_ = 0;
+  std::string message_;
 };
 
-// The overall result of decoding a function or a module.
+// Either a result of type T, or a WasmError.
 template <typename T>
-struct Result {
-  Result() : val(), error_code(kSuccess), start(nullptr), error_pc(nullptr) {}
-  Result(Result&& other) { *this = std::move(other); }
-  Result& operator=(Result&& other) {
-    MoveFrom(other);
-    val = other.val;
+class Result {
+ public:
+  Result() = default;
+  Result(const Result&) = delete;
+  Result& operator=(const Result&) = delete;
+
+  template <typename S>
+  explicit Result(S&& value) : value_(std::forward<S>(value)) {}
+
+  template <typename S>
+  Result(Result<S>&& other) V8_NOEXCEPT : value_(std::move(other.value_)),
+                                          error_(std::move(other.error_)) {}
+
+  explicit Result(WasmError error) : error_(std::move(error)) {}
+
+  template <typename S>
+  Result& operator=(Result<S>&& other) V8_NOEXCEPT {
+    value_ = std::move(other.value_);
+    error_ = std::move(other.error_);
     return *this;
   }
 
-  T val;
-  ErrorCode error_code;
-  const byte* start;
-  const byte* error_pc;
-  const byte* error_pt;
-  std::unique_ptr<char[]> error_msg;
+  bool ok() const { return error_.empty(); }
+  bool failed() const { return error_.has_error(); }
+  const WasmError& error() const& { return error_; }
+  WasmError&& error() && { return std::move(error_); }
 
-  bool ok() const { return error_code == kSuccess; }
-  bool failed() const { return error_code != kSuccess; }
-
-  template <typename V>
-  void MoveFrom(Result<V>& that) {
-    error_code = that.error_code;
-    start = that.start;
-    error_pc = that.error_pc;
-    error_pt = that.error_pt;
-    error_msg = std::move(that.error_msg);
+  // Accessor for the value. Returns const reference if {this} is l-value or
+  // const, and returns r-value reference if {this} is r-value. This allows to
+  // extract non-copyable values like {std::unique_ptr} by using
+  // {std::move(result).value()}.
+  const T& value() const & {
+    DCHECK(ok());
+    return value_;
+  }
+  T&& value() && {
+    DCHECK(ok());
+    return std::move(value_);
   }
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(Result);
+  template <typename S>
+  friend class Result;
+
+  T value_ = T{};
+  WasmError error_;
 };
 
-template <typename T>
-std::ostream& operator<<(std::ostream& os, const Result<T>& result) {
-  os << "Result = ";
-  if (result.ok()) {
-    if (result.val != nullptr) {
-      os << *result.val;
-    } else {
-      os << "success (no value)";
-    }
-  } else if (result.error_msg.get() != nullptr) {
-    ptrdiff_t offset = result.error_pc - result.start;
-    if (offset < 0) {
-      os << result.error_msg.get() << " @" << offset;
-    } else {
-      os << result.error_msg.get() << " @+" << offset;
-    }
-  } else {
-    os << result.error_code;
-  }
-  os << std::endl;
-  return os;
-}
-
-std::ostream& operator<<(std::ostream& os, const ErrorCode& error_code);
-
 // A helper for generating error messages that bubble up to JS exceptions.
-class ErrorThrower {
+class V8_EXPORT_PRIVATE ErrorThrower {
  public:
   ErrorThrower(Isolate* isolate, const char* context)
       : isolate_(isolate), context_(context) {}
+  // Explicitly allow move-construction. Disallow copy.
+  ErrorThrower(ErrorThrower&& other) V8_NOEXCEPT;
+  ErrorThrower(const ErrorThrower&) = delete;
+  ErrorThrower& operator=(const ErrorThrower&) = delete;
   ~ErrorThrower();
 
-  PRINTF_FORMAT(2, 3) void Error(const char* fmt, ...);
+  PRINTF_FORMAT(2, 3) void TypeError(const char* fmt, ...);
+  PRINTF_FORMAT(2, 3) void RangeError(const char* fmt, ...);
+  PRINTF_FORMAT(2, 3) void CompileError(const char* fmt, ...);
+  PRINTF_FORMAT(2, 3) void LinkError(const char* fmt, ...);
+  PRINTF_FORMAT(2, 3) void RuntimeError(const char* fmt, ...);
 
-  template <typename T>
-  void Failed(const char* error, Result<T>& result) {
-    std::ostringstream str;
-    str << error << result;
-    return Error("%s", str.str().c_str());
+  void CompileFailed(const WasmError& error) {
+    DCHECK(error.has_error());
+    CompileError("%s @+%u", error.message().c_str(), error.offset());
   }
 
-  i::Handle<i::String> Reify() {
-    auto result = message_;
-    message_ = i::Handle<i::String>();
-    return result;
-  }
+  // Create and return exception object.
+  V8_WARN_UNUSED_RESULT Handle<Object> Reify();
 
-  bool error() const { return !message_.is_null(); }
+  // Reset any error which was set on this thrower.
+  void Reset();
+
+  bool error() const { return error_type_ != kNone; }
+  bool wasm_error() { return error_type_ >= kFirstWasmError; }
+  const char* error_msg() { return error_msg_.c_str(); }
+
+  Isolate* isolate() const { return isolate_; }
 
  private:
+  enum ErrorType {
+    kNone,
+    // General errors.
+    kTypeError,
+    kRangeError,
+    // Wasm errors.
+    kCompileError,
+    kLinkError,
+    kRuntimeError,
+
+    // Marker.
+    kFirstWasmError = kCompileError
+  };
+
+  void Format(ErrorType error_type_, const char* fmt, va_list);
+
   Isolate* isolate_;
   const char* context_;
-  i::Handle<i::String> message_;
+  ErrorType error_type_ = kNone;
+  std::string error_msg_;
+
+  // ErrorThrower should always be stack-allocated, since it constitutes a scope
+  // (things happen in the destructor).
+  DISALLOW_NEW_AND_DELETE()
 };
+
+// Like an ErrorThrower, but turns all pending exceptions into scheduled
+// exceptions when going out of scope. Use this in API methods.
+// Note that pending exceptions are not necessarily created by the ErrorThrower,
+// but e.g. by the wasm start function. There might also be a scheduled
+// exception, created by another API call (e.g. v8::Object::Get). But there
+// should never be both pending and scheduled exceptions.
+class V8_EXPORT_PRIVATE ScheduledErrorThrower : public ErrorThrower {
+ public:
+  ScheduledErrorThrower(i::Isolate* isolate, const char* context)
+      : ErrorThrower(isolate, context) {}
+
+  ~ScheduledErrorThrower();
+};
+
+// Use {nullptr_t} as data value to indicate that this only stores the error,
+// but no result value (the only valid value is {nullptr}).
+// [Storing {void} would require template specialization.]
+using VoidResult = Result<std::nullptr_t>;
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // V8_WASM_WASM_RESULT_H_

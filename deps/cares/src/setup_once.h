@@ -131,7 +131,7 @@ struct timeval {
 
 #if defined(__minix)
 /* Minix doesn't support recv on TCP sockets */
-#define sread(x,y,z) (ssize_t)read((RECV_TYPE_ARG1)(x), \
+#define sread(x,y,z) (ares_ssize_t)read((RECV_TYPE_ARG1)(x), \
                                    (RECV_TYPE_ARG2)(y), \
                                    (RECV_TYPE_ARG3)(z))
 
@@ -167,7 +167,7 @@ struct timeval {
   Error Missing_definition_of_return_and_arguments_types_of_recv
   /* */
 #else
-#define sread(x,y,z) (ssize_t)recv((RECV_TYPE_ARG1)(x), \
+#define sread(x,y,z) (ares_ssize_t)recv((RECV_TYPE_ARG1)(x), \
                                    (RECV_TYPE_ARG2)(y), \
                                    (RECV_TYPE_ARG3)(z), \
                                    (RECV_TYPE_ARG4)(0))
@@ -183,7 +183,7 @@ struct timeval {
 
 #if defined(__minix)
 /* Minix doesn't support send on TCP sockets */
-#define swrite(x,y,z) (ssize_t)write((SEND_TYPE_ARG1)(x), \
+#define swrite(x,y,z) (ares_ssize_t)write((SEND_TYPE_ARG1)(x), \
                                     (SEND_TYPE_ARG2)(y), \
                                     (SEND_TYPE_ARG3)(z))
 
@@ -198,7 +198,7 @@ struct timeval {
   Error Missing_definition_of_return_and_arguments_types_of_send
   /* */
 #else
-#define swrite(x,y,z) (ssize_t)send((SEND_TYPE_ARG1)(x), \
+#define swrite(x,y,z) (ares_ssize_t)send((SEND_TYPE_ARG1)(x), \
                                     (SEND_TYPE_ARG2)(y), \
                                     (SEND_TYPE_ARG3)(z), \
                                     (SEND_TYPE_ARG4)(SEND_4TH_ARG))
@@ -228,7 +228,7 @@ struct timeval {
   Error Missing_definition_of_return_and_arguments_types_of_recvfrom
   /* */
 #else
-#define sreadfrom(s,b,bl,f,fl) (ssize_t)recvfrom((RECVFROM_TYPE_ARG1)  (s),  \
+#define sreadfrom(s,b,bl,f,fl) (ares_ssize_t)recvfrom((RECVFROM_TYPE_ARG1)  (s),  \
                                                  (RECVFROM_TYPE_ARG2 *)(b),  \
                                                  (RECVFROM_TYPE_ARG3)  (bl), \
                                                  (RECVFROM_TYPE_ARG4)  (0),  \

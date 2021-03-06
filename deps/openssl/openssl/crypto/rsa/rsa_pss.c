@@ -1,69 +1,20 @@
-/* rsa_pss.c */
 /*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
- * 2005.
- */
-/* ====================================================================
- * Copyright (c) 2005 The OpenSSL Project.  All rights reserved.
+ * Copyright 2005-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    licensing@OpenSSL.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #include <stdio.h>
-#include "cryptlib.h"
+#include "internal/cryptlib.h"
 #include <openssl/bn.h>
 #include <openssl/rsa.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
+#include "rsa_local.h"
 
 static const unsigned char zeroes[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
@@ -87,9 +38,11 @@ int RSA_verify_PKCS1_PSS_mgf1(RSA *rsa, const unsigned char *mHash,
     int hLen, maskedDBLen, MSBits, emLen;
     const unsigned char *H;
     unsigned char *DB = NULL;
-    EVP_MD_CTX ctx;
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
     unsigned char H_[EVP_MAX_MD_SIZE];
-    EVP_MD_CTX_init(&ctx);
+
+    if (ctx == NULL)
+        goto err;
 
     if (mgf1Hash == NULL)
         mgf1Hash = Hash;
@@ -101,13 +54,12 @@ int RSA_verify_PKCS1_PSS_mgf1(RSA *rsa, const unsigned char *mHash,
      * Negative sLen has special meanings:
      *      -1      sLen == hLen
      *      -2      salt length is autorecovered from signature
+     *      -3      salt length is maximized
      *      -N      reserved
      */
-    if (sLen == -1)
+    if (sLen == RSA_PSS_SALTLEN_DIGEST) {
         sLen = hLen;
-    else if (sLen == -2)
-        sLen = -2;
-    else if (sLen < -2) {
+    } else if (sLen < RSA_PSS_SALTLEN_MAX) {
         RSAerr(RSA_F_RSA_VERIFY_PKCS1_PSS_MGF1, RSA_R_SLEN_CHECK_FAILED);
         goto err;
     }
@@ -122,7 +74,13 @@ int RSA_verify_PKCS1_PSS_mgf1(RSA *rsa, const unsigned char *mHash,
         EM++;
         emLen--;
     }
-    if (emLen < (hLen + sLen + 2)) { /* sLen can be small negative */
+    if (emLen < hLen + 2) {
+        RSAerr(RSA_F_RSA_VERIFY_PKCS1_PSS_MGF1, RSA_R_DATA_TOO_LARGE);
+        goto err;
+    }
+    if (sLen == RSA_PSS_SALTLEN_MAX) {
+        sLen = emLen - hLen - 2;
+    } else if (sLen > emLen - hLen - 2) { /* sLen can be small negative */
         RSAerr(RSA_F_RSA_VERIFY_PKCS1_PSS_MGF1, RSA_R_DATA_TOO_LARGE);
         goto err;
     }
@@ -133,7 +91,7 @@ int RSA_verify_PKCS1_PSS_mgf1(RSA *rsa, const unsigned char *mHash,
     maskedDBLen = emLen - hLen - 1;
     H = EM + maskedDBLen;
     DB = OPENSSL_malloc(maskedDBLen);
-    if (!DB) {
+    if (DB == NULL) {
         RSAerr(RSA_F_RSA_VERIFY_PKCS1_PSS_MGF1, ERR_R_MALLOC_FAILURE);
         goto err;
     }
@@ -148,30 +106,30 @@ int RSA_verify_PKCS1_PSS_mgf1(RSA *rsa, const unsigned char *mHash,
         RSAerr(RSA_F_RSA_VERIFY_PKCS1_PSS_MGF1, RSA_R_SLEN_RECOVERY_FAILED);
         goto err;
     }
-    if (sLen >= 0 && (maskedDBLen - i) != sLen) {
+    if (sLen != RSA_PSS_SALTLEN_AUTO && (maskedDBLen - i) != sLen) {
         RSAerr(RSA_F_RSA_VERIFY_PKCS1_PSS_MGF1, RSA_R_SLEN_CHECK_FAILED);
         goto err;
     }
-    if (!EVP_DigestInit_ex(&ctx, Hash, NULL)
-        || !EVP_DigestUpdate(&ctx, zeroes, sizeof zeroes)
-        || !EVP_DigestUpdate(&ctx, mHash, hLen))
+    if (!EVP_DigestInit_ex(ctx, Hash, NULL)
+        || !EVP_DigestUpdate(ctx, zeroes, sizeof(zeroes))
+        || !EVP_DigestUpdate(ctx, mHash, hLen))
         goto err;
     if (maskedDBLen - i) {
-        if (!EVP_DigestUpdate(&ctx, DB + i, maskedDBLen - i))
+        if (!EVP_DigestUpdate(ctx, DB + i, maskedDBLen - i))
             goto err;
     }
-    if (!EVP_DigestFinal_ex(&ctx, H_, NULL))
+    if (!EVP_DigestFinal_ex(ctx, H_, NULL))
         goto err;
     if (memcmp(H_, H, hLen)) {
         RSAerr(RSA_F_RSA_VERIFY_PKCS1_PSS_MGF1, RSA_R_BAD_SIGNATURE);
         ret = 0;
-    } else
+    } else {
         ret = 1;
+    }
 
  err:
-    if (DB)
-        OPENSSL_free(DB);
-    EVP_MD_CTX_cleanup(&ctx);
+    OPENSSL_free(DB);
+    EVP_MD_CTX_free(ctx);
 
     return ret;
 
@@ -193,7 +151,7 @@ int RSA_padding_add_PKCS1_PSS_mgf1(RSA *rsa, unsigned char *EM,
     int ret = 0;
     int hLen, maskedDBLen, MSBits, emLen;
     unsigned char *H, *salt = NULL, *p;
-    EVP_MD_CTX ctx;
+    EVP_MD_CTX *ctx = NULL;
 
     if (mgf1Hash == NULL)
         mgf1Hash = Hash;
@@ -205,13 +163,14 @@ int RSA_padding_add_PKCS1_PSS_mgf1(RSA *rsa, unsigned char *EM,
      * Negative sLen has special meanings:
      *      -1      sLen == hLen
      *      -2      salt length is maximized
+     *      -3      same as above (on signing)
      *      -N      reserved
      */
-    if (sLen == -1)
+    if (sLen == RSA_PSS_SALTLEN_DIGEST) {
         sLen = hLen;
-    else if (sLen == -2)
-        sLen = -2;
-    else if (sLen < -2) {
+    } else if (sLen == RSA_PSS_SALTLEN_MAX_SIGN) {
+        sLen = RSA_PSS_SALTLEN_MAX;
+    } else if (sLen < RSA_PSS_SALTLEN_MAX) {
         RSAerr(RSA_F_RSA_PADDING_ADD_PKCS1_PSS_MGF1, RSA_R_SLEN_CHECK_FAILED);
         goto err;
     }
@@ -222,16 +181,21 @@ int RSA_padding_add_PKCS1_PSS_mgf1(RSA *rsa, unsigned char *EM,
         *EM++ = 0;
         emLen--;
     }
-    if (sLen == -2) {
+    if (emLen < hLen + 2) {
+        RSAerr(RSA_F_RSA_PADDING_ADD_PKCS1_PSS_MGF1,
+               RSA_R_DATA_TOO_LARGE_FOR_KEY_SIZE);
+        goto err;
+    }
+    if (sLen == RSA_PSS_SALTLEN_MAX) {
         sLen = emLen - hLen - 2;
-    } else if (emLen < (hLen + sLen + 2)) {
+    } else if (sLen > emLen - hLen - 2) {
         RSAerr(RSA_F_RSA_PADDING_ADD_PKCS1_PSS_MGF1,
                RSA_R_DATA_TOO_LARGE_FOR_KEY_SIZE);
         goto err;
     }
     if (sLen > 0) {
         salt = OPENSSL_malloc(sLen);
-        if (!salt) {
+        if (salt == NULL) {
             RSAerr(RSA_F_RSA_PADDING_ADD_PKCS1_PSS_MGF1,
                    ERR_R_MALLOC_FAILURE);
             goto err;
@@ -241,16 +205,17 @@ int RSA_padding_add_PKCS1_PSS_mgf1(RSA *rsa, unsigned char *EM,
     }
     maskedDBLen = emLen - hLen - 1;
     H = EM + maskedDBLen;
-    EVP_MD_CTX_init(&ctx);
-    if (!EVP_DigestInit_ex(&ctx, Hash, NULL)
-        || !EVP_DigestUpdate(&ctx, zeroes, sizeof zeroes)
-        || !EVP_DigestUpdate(&ctx, mHash, hLen))
+    ctx = EVP_MD_CTX_new();
+    if (ctx == NULL)
         goto err;
-    if (sLen && !EVP_DigestUpdate(&ctx, salt, sLen))
+    if (!EVP_DigestInit_ex(ctx, Hash, NULL)
+        || !EVP_DigestUpdate(ctx, zeroes, sizeof(zeroes))
+        || !EVP_DigestUpdate(ctx, mHash, hLen))
         goto err;
-    if (!EVP_DigestFinal_ex(&ctx, H, NULL))
+    if (sLen && !EVP_DigestUpdate(ctx, salt, sLen))
         goto err;
-    EVP_MD_CTX_cleanup(&ctx);
+    if (!EVP_DigestFinal_ex(ctx, H, NULL))
+        goto err;
 
     /* Generate dbMask in place then perform XOR on it */
     if (PKCS1_MGF1(EM, maskedDBLen, H, hLen, mgf1Hash))
@@ -278,8 +243,8 @@ int RSA_padding_add_PKCS1_PSS_mgf1(RSA *rsa, unsigned char *EM,
     ret = 1;
 
  err:
-    if (salt)
-        OPENSSL_free(salt);
+    EVP_MD_CTX_free(ctx);
+    OPENSSL_clear_free(salt, (size_t)sLen); /* salt != NULL implies sLen > 0 */
 
     return ret;
 

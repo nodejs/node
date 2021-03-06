@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -173,7 +173,7 @@ public:
     status = U_SAFECLONE_ALLOCATED_WARNING;
     return clone();
   }
-  virtual BreakIterator* clone(void) const { return new SimpleFilteredSentenceBreakIterator(*this); }
+  virtual SimpleFilteredSentenceBreakIterator* clone() const { return new SimpleFilteredSentenceBreakIterator(*this); }
   virtual UClassID getDynamicClassID(void) const { return NULL; }
   virtual UBool operator==(const BreakIterator& o) const { if(this==&o) return true; return false; }
 
@@ -694,7 +694,12 @@ FilteredBreakIteratorBuilder::createInstance(const Locale& where, UErrorCode& st
 }
 
 FilteredBreakIteratorBuilder *
-FilteredBreakIteratorBuilder::createInstance(UErrorCode& status) {
+FilteredBreakIteratorBuilder::createInstance(UErrorCode &status) {
+  return createEmptyInstance(status);
+}
+
+FilteredBreakIteratorBuilder *
+FilteredBreakIteratorBuilder::createEmptyInstance(UErrorCode& status) {
   if(U_FAILURE(status)) return NULL;
   LocalPointer<FilteredBreakIteratorBuilder> ret(new SimpleFilteredBreakIteratorBuilder(status), status);
   return (U_SUCCESS(status))? ret.orphan(): NULL;
@@ -702,4 +707,4 @@ FilteredBreakIteratorBuilder::createInstance(UErrorCode& status) {
 
 U_NAMESPACE_END
 
-#endif //#if !UCONFIG_NO_BREAK_ITERATION && U_HAVE_STD_STRING && !UCONFIG_NO_FILTERED_BREAK_ITERATION
+#endif //#if !UCONFIG_NO_BREAK_ITERATION && !UCONFIG_NO_FILTERED_BREAK_ITERATION

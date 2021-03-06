@@ -4,31 +4,45 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const tempFile = path.join(common.tmpDir, 'fs-non-number-arguments-throw');
+const tmpdir = require('../common/tmpdir');
+const tempFile = path.join(tmpdir.path, 'fs-non-number-arguments-throw');
 
-common.refreshTmpDir();
+tmpdir.refresh();
 fs.writeFileSync(tempFile, 'abc\ndef');
 
-// a sanity check when using numbers instead of strings
+// A sanity check when using numbers instead of strings
 const sanity = 'def';
 const saneEmitter = fs.createReadStream(tempFile, { start: 4, end: 6 });
 
-assert.throws(function() {
-  fs.createReadStream(tempFile, { start: '4', end: 6 });
-}, /^TypeError: "start" option must be a Number$/,
-   "start as string didn't throw an error for createReadStream");
+assert.throws(
+  () => {
+    fs.createReadStream(tempFile, { start: '4', end: 6 });
+  },
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError'
+  });
 
-assert.throws(function() {
-  fs.createReadStream(tempFile, { start: 4, end: '6' });
-}, /^TypeError: "end" option must be a Number$/,
-   "end as string didn't throw an error for createReadStream");
+assert.throws(
+  () => {
+    fs.createReadStream(tempFile, { start: 4, end: '6' });
+  },
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError'
+  });
 
-assert.throws(function() {
-  fs.createWriteStream(tempFile, { start: '4' });
-}, /^TypeError: "start" option must be a Number$/,
-   "start as string didn't throw an error for createWriteStream");
+assert.throws(
+  () => {
+    fs.createWriteStream(tempFile, { start: '4' });
+  },
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError'
+  });
 
 saneEmitter.on('data', common.mustCall(function(data) {
-  assert.strictEqual(sanity, data.toString('utf8'), 'read ' +
-                     data.toString('utf8') + ' instead of ' + sanity);
+  assert.strictEqual(
+    sanity, data.toString('utf8'),
+    `read ${data.toString('utf8')} instead of ${sanity}`);
 }));

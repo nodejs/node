@@ -61,6 +61,7 @@
         break;
     }
   }
+  %PrepareFunctionForOptimization(f);
 
   function assertResult(r, label, b1, b2, b3) {
     f(label, b1, b2, b3);
@@ -94,30 +95,36 @@
   assertEquals(9, x);
 
   // Test deopt at the beginning of the case label evaluation.
+  %PrepareFunctionForOptimization(f);
   assertResult([2], "ca", "deopt", true);
   %OptimizeFunctionOnNextCall(f);
   assertResult([4], "ca", "deopt", false);
   assertEquals(10, x);
+  %PrepareFunctionForOptimization(f);
   %OptimizeFunctionOnNextCall(f);
 
   // Test deopt in the middle of the case label evaluation.
   assertResult([2], "ac", true, "deopt");
+  %PrepareFunctionForOptimization(f);
   %OptimizeFunctionOnNextCall(f);
   assertResult([4], "ac", false, "deopt");
   assertEquals(11, x);
 
   // Test deopt in the default case.
+  %PrepareFunctionForOptimization(f);
   %OptimizeFunctionOnNextCall(f);
   print("here");
   assertResult([4], 10000, false, false, "deopt");
   assertEquals(12, x);
 
   // Test deopt in the default case.
+  %PrepareFunctionForOptimization(f);
   %OptimizeFunctionOnNextCall(f);
   assertResult([4], 10000, false, false, "deopt");
   assertEquals(13, x);
 
   // Test deopt in x++ case.
+  %PrepareFunctionForOptimization(f);
   %OptimizeFunctionOnNextCall(f);
   assertResult([5], 13, false, false, "deopt");
   assertEquals(14, x);
@@ -158,6 +165,7 @@
         break;
     }
   }
+  %PrepareFunctionForOptimization(f);
 
   function assertResult(r, label, b1, b2, b3) {
     f(label, b1, b2, b3);
@@ -191,30 +199,36 @@
   assertEquals(9, x);
 
   // Test deopt at the beginning of the case label evaluation.
+  %PrepareFunctionForOptimization(f);
   assertResult([2,3], "ca", "deopt", true);
   %OptimizeFunctionOnNextCall(f);
   assertResult([4,5], "ca", "deopt", false);
   assertEquals(10, x);
+  %PrepareFunctionForOptimization(f);
   %OptimizeFunctionOnNextCall(f);
 
   // Test deopt in the middle of the case label evaluation.
   assertResult([2,3], "ac", true, "deopt");
+  %PrepareFunctionForOptimization(f);
   %OptimizeFunctionOnNextCall(f);
   assertResult([4,5], "ac", false, "deopt");
   assertEquals(11, x);
 
   // Test deopt in the default case.
+  %PrepareFunctionForOptimization(f);
   %OptimizeFunctionOnNextCall(f);
   print("here");
   assertResult([4,5], 10000, false, false, "deopt");
   assertEquals(12, x);
 
   // Test deopt in the default case.
+  %PrepareFunctionForOptimization(f);
   %OptimizeFunctionOnNextCall(f);
   assertResult([4,5], 10000, false, false, "deopt");
   assertEquals(13, x);
 
   // Test deopt in x++ case.
+  %PrepareFunctionForOptimization(f);
   %OptimizeFunctionOnNextCall(f);
   assertResult([5], 13, false, false, "deopt");
   assertEquals(14, x);

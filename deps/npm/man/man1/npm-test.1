@@ -1,27 +1,46 @@
-.TH "NPM\-TEST" "1" "November 2016" "" ""
+.TH "NPM\-TEST" "1" "March 2021" "" ""
 .SH "NAME"
 \fBnpm-test\fR \- Test a package
-.SH SYNOPSIS
+.SS Synopsis
 .P
 .RS 2
 .nf
-  npm test [\-\- <args>]
+npm test [\-\- <args>]
 
-  aliases: t, tst
+aliases: t, tst
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
-This runs a package's "test" script, if one was provided\.
+This runs a predefined command specified in the \fB"test"\fP property of
+a package's \fB"scripts"\fP object\.
+.SS Example
 .P
-To run tests as a condition of installation, set the \fBnpat\fP config to
-true\.
-.SH SEE ALSO
+.RS 2
+.nf
+{
+  "scripts": {
+    "test": "node test\.js"
+  }
+}
+.fi
+.RE
+.P
+.RS 2
+.nf
+npm test
+> npm@x\.x\.x test
+> node test\.js
+
+(test\.js output would be here)
+.fi
+.RE
+.SS See Also
 .RS 0
 .IP \(bu 2
 npm help run\-script
 .IP \(bu 2
-npm help 7 scripts
+npm help scripts
 .IP \(bu 2
 npm help start
 .IP \(bu 2
@@ -30,4 +49,3 @@ npm help restart
 npm help stop
 
 .RE
-

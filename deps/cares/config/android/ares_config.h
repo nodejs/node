@@ -10,20 +10,26 @@
 /* when building as static part of libcurl */
 /* #undef BUILDING_LIBCURL */
 
-/* when building c-ares library */
-/* #undef CARES_BUILDING_LIBRARY */
+/* Defined for build that exposes internal static functions for testing. */
+/* #undef CARES_EXPOSE_STATICS */
 
-/* when not building a shared library */
-/* #undef CARES_STATICLIB */
-
-/* Define to 1 to enable hiding of library internal symbols. */
+/* Defined for build with symbol hiding. */
 #define CARES_SYMBOL_HIDING 1
 
 /* Definition to make a library symbol externally visible. */
-#define CARES_SYMBOL_SCOPE_EXTERN __attribute__ ((visibility ("default")))
+#define CARES_SYMBOL_SCOPE_EXTERN __attribute__ ((__visibility__ ("default")))
+
+/* the signed version of size_t */
+#define CARES_TYPEOF_ARES_SSIZE_T ssize_t
+
+/* Use resolver library to configure cares */
+/* #undef CARES_USE_LIBRESOLV */
 
 /* if a /etc/inet dir is being used */
 /* #undef ETC_INET */
+
+/* Define to the type of arg 2 for gethostname. */
+#define GETHOSTNAME_TYPE_ARG2 size_t
 
 /* Define to the type qualifier of arg 1 for getnameinfo. */
 #define GETNAMEINFO_QUAL_ARG1 const
@@ -35,10 +41,10 @@
 #define GETNAMEINFO_TYPE_ARG2 socklen_t
 
 /* Define to the type of args 4 and 6 for getnameinfo. */
-#define GETNAMEINFO_TYPE_ARG46 size_t
+#define GETNAMEINFO_TYPE_ARG46 socklen_t
 
 /* Define to the type of arg 7 for getnameinfo. */
-#define GETNAMEINFO_TYPE_ARG7 unsigned int
+#define GETNAMEINFO_TYPE_ARG7 int
 
 /* Specifies the number of arguments to getservbyport_r */
 #define GETSERVBYPORT_R_ARGS 6
@@ -79,6 +85,9 @@
 /* Define to 1 if you have the connect function. */
 #define HAVE_CONNECT 1
 
+/* define if the compiler supports basic C++11 syntax */
+#define HAVE_CXX11 1
+
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
@@ -103,6 +112,9 @@
 /* Define to 1 if the getaddrinfo function is threadsafe. */
 #define HAVE_GETADDRINFO_THREADSAFE 1
 
+/* Define to 1 if you have the getenv function. */
+#define HAVE_GETENV 1
+
 /* Define to 1 if you have the gethostbyaddr function. */
 #define HAVE_GETHOSTBYADDR 1
 
@@ -116,7 +128,7 @@
 #define HAVE_GETNAMEINFO 1
 
 /* Define to 1 if you have the getservbyport_r function. */
-#define HAVE_GETSERVBYPORT_R 1
+/* #undef HAVE_GETSERVBYPORT_R */
 
 /* Define to 1 if you have the `gettimeofday' function. */
 #define HAVE_GETTIMEOFDAY 1
@@ -124,11 +136,8 @@
 /* Define to 1 if you have the `if_indextoname' function. */
 #define HAVE_IF_INDEXTONAME 1
 
-/* Define to 1 if you have the `inet_net_pton' function. */
+/* Define to 1 if you have a IPv6 capable working inet_net_pton function. */
 /* #undef HAVE_INET_NET_PTON */
-
-/* Define to 1 if inet_net_pton supports IPv6. */
-/* #undef HAVE_INET_NET_PTON_IPV6 */
 
 /* Define to 1 if you have a IPv6 capable working inet_ntop function. */
 #define HAVE_INET_NTOP 1
@@ -329,12 +338,8 @@
 /* Define to 1 if you have the ws2tcpip.h header file. */
 /* #undef HAVE_WS2TCPIP_H */
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
 #define LT_OBJDIR ".libs/"
-
-/* Define to 1 if you are building a native Windows target. */
-/* #undef NATIVE_WINDOWS */
 
 /* Define to 1 if you need the malloc.h header file even with stdlib.h */
 /* #undef NEED_MALLOC_H */
@@ -348,9 +353,6 @@
 /* Define to 1 if _THREAD_SAFE preprocessor symbol must be defined. */
 /* #undef NEED_THREAD_SAFE */
 
-/* Define to 1 if your C compiler doesn't accept -c and -o together. */
-/* #undef NO_MINUS_C_MINUS_O */
-
 /* cpu-machine-OS */
 #define OS "i686-pc-linux-gnu"
 
@@ -358,13 +360,13 @@
 #define PACKAGE "c-ares"
 
 /* Define to the address where bug reports for this package should be sent. */
-#define PACKAGE_BUGREPORT "c-ares mailing list => http://cool.haxx.se/mailman/listinfo/c-ares"
+#define PACKAGE_BUGREPORT "c-ares mailing list: http://cool.haxx.se/mailman/listinfo/c-ares"
 
 /* Define to the full name of this package. */
 #define PACKAGE_NAME "c-ares"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "c-ares 1.7.1"
+#define PACKAGE_STRING "c-ares 1.13.0"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "c-ares"
@@ -373,10 +375,13 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.7.1"
+#define PACKAGE_VERSION "1.13.0"
 
 /* a suitable file/device to read random data from */
 #define RANDOM_FILE "/dev/urandom"
+
+/* Define to the type qualifier pointed by arg 5 for recvfrom. */
+#define RECVFROM_QUAL_ARG5
 
 /* Define to the type of arg 1 for recvfrom. */
 #define RECVFROM_TYPE_ARG1 int
@@ -406,7 +411,7 @@
 /* #undef RECVFROM_TYPE_ARG6_IS_VOID */
 
 /* Define to the function return type for recvfrom. */
-#define RECVFROM_TYPE_RETV int
+#define RECVFROM_TYPE_RETV ssize_t
 
 /* Define to the type of arg 1 for recv. */
 #define RECV_TYPE_ARG1 int
@@ -421,7 +426,7 @@
 #define RECV_TYPE_ARG4 int
 
 /* Define to the function return type for recv. */
-#define RECV_TYPE_RETV int
+#define RECV_TYPE_RETV ssize_t
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
@@ -442,25 +447,7 @@
 #define SEND_TYPE_ARG4 int
 
 /* Define to the function return type for send. */
-#define SEND_TYPE_RETV int
-
-/* The size of `int', as computed by sizeof. */
-#define SIZEOF_INT 4
-
-/* The size of `long', as computed by sizeof. */
-#define SIZEOF_LONG 4
-
-/* The size of `size_t', as computed by sizeof. */
-#define SIZEOF_SIZE_T 4
-
-/* The size of `struct in6_addr', as computed by sizeof. */
-#define SIZEOF_STRUCT_IN6_ADDR 16
-
-/* The size of `struct in_addr', as computed by sizeof. */
-#define SIZEOF_STRUCT_IN_ADDR 4
-
-/* The size of `time_t', as computed by sizeof. */
-#define SIZEOF_TIME_T 4
+#define SEND_TYPE_RETV ssize_t
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
@@ -472,7 +459,10 @@
 /* #undef USE_BLOCKING_SOCKETS */
 
 /* Version number of package */
-#define VERSION "1.7.1"
+#define VERSION "1.13.0"
+
+/* Define to avoid automatic inclusion of winsock.h */
+/* #undef WIN32_LEAN_AND_MEAN */
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */
@@ -491,8 +481,13 @@
 /* #  undef _ALL_SOURCE */
 #endif
 
+/* Enable large inode numbers on Mac OS X 10.5.  */
+#ifndef _DARWIN_USE_64_BIT_INODE
+# define _DARWIN_USE_64_BIT_INODE 1
+#endif
+
 /* Number of bits in a file offset, on hosts where this is settable. */
-#define _FILE_OFFSET_BITS 64
+/* #undef _FILE_OFFSET_BITS */
 
 /* Define for large files, on AIX-style hosts. */
 /* #undef _LARGE_FILES */
@@ -508,5 +503,3 @@
 
 /* the signed version of size_t */
 /* #undef ssize_t */
-
-#define HAVE_GETENV 1

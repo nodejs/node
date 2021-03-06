@@ -102,7 +102,7 @@ var stdlib_math_members = [
     var code = Module.toString().replace('NaN', member);
     var decl = eval('(' + code + ')');
     decl(stdlib);
-    assertTrue(%IsNotAsmWasmCode(decl));
+    assertFalse(%IsAsmWasmCode(decl));
   }
   for (var i = 0; i < stdlib_math_members.length; ++i) {
     var member = stdlib_math_members[i];
@@ -112,7 +112,7 @@ var stdlib_math_members = [
     var code = Module.toString().replace('NaN', 'Math.' + member);
     var decl = eval('(' + code + ')');
     decl(stdlib);
-    assertTrue(%IsNotAsmWasmCode(decl));
+    assertFalse(%IsAsmWasmCode(decl));
   }
 })();
 
@@ -128,7 +128,7 @@ var stdlib_math_members = [
     var code = Module.toString().replace('NaN', member);
     var decl = eval('(' + code + ')');
     decl({});
-    assertTrue(%IsNotAsmWasmCode(decl));
+    assertFalse(%IsAsmWasmCode(decl));
   }
   for (var i = 0; i < stdlib_math_members.length; ++i) {
     var member = stdlib_math_members[i];
@@ -136,7 +136,7 @@ var stdlib_math_members = [
     var decl = eval('(' + code + ')');
     assertThrows(function() {
       decl({});
-      assertTrue(%IsNotAsmWasmCode(decl));
+      assertFalse(%IsAsmWasmCode(decl));
     });
   }
 })();

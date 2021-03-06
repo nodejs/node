@@ -7,23 +7,13 @@
 
 #include "include/v8config.h"
 
-// Annotate a typedef or function indicating it's ok if it's not used.
-// Use like:
-//   typedef Foo Bar ALLOW_UNUSED_TYPE;
+// Annotate a  using ALLOW_UNUSED_TYPE = or function indicating it's ok if it's
+// not used. Use like:
+//    using Bar = Foo;
 #if V8_HAS_ATTRIBUTE_UNUSED
 #define ALLOW_UNUSED_TYPE __attribute__((unused))
 #else
 #define ALLOW_UNUSED_TYPE
-#endif
-
-
-// Annotate a function indicating the caller must examine the return value.
-// Use like:
-//   int foo() WARN_UNUSED_RESULT;
-#if V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT
-#define WARN_UNUSED_RESULT __attribute__((warn_unused_result))
-#else
-#define WARN_UNUSED_RESULT /* NOT SUPPORTED */
 #endif
 
 // Tell the compiler a function is using a printf-style format string.
@@ -58,6 +48,88 @@
 #define STATIC_CONST_MEMBER_DEFINITION __declspec(selectany)
 #else
 #define STATIC_CONST_MEMBER_DEFINITION
+#endif
+
+#if V8_CC_MSVC
+
+#include <sal.h>
+
+// Macros for suppressing and disabling warnings on MSVC.
+//
+// Warning numbers are enumerated at:
+// http://msdn.microsoft.com/en-us/library/8x5x43k7(VS.80).aspx
+//
+// The warning pragma:
+// http://msdn.microsoft.com/en-us/library/2c8f766e(VS.80).aspx
+//
+// Using __pragma instead of #pragma inside macros:
+// http://msdn.microsoft.com/en-us/library/d9x1s805.aspx
+
+// MSVC_SUPPRESS_WARNING disables warning |n| for the remainder of the line and
+// for the next line of the source file.
+#define MSVC_SUPPRESS_WARNING(n) __pragma(warning(suppress : n))
+
+// Allows exporting a class that inherits from a non-exported base class.
+// This uses suppress instead of push/pop because the delimiter after the
+// declaration (either "," or "{") has to be placed before the pop macro.
+//
+// Example usage:
+// class EXPORT_API Foo : NON_EXPORTED_BASE(public Bar) {
+//
+// MSVC Compiler warning C4275:
+// non dll-interface class 'Bar' used as base for dll-interface class 'Foo'.
+// Note that this is intended to be used only when no access to the base class'
+// static data is done through derived classes or inline methods. For more info,
+// see http://msdn.microsoft.com/en-us/library/3tdb471s(VS.80).aspx
+#define NON_EXPORTED_BASE(code) \
+  MSVC_SUPPRESS_WARNING(4275)   \
+  code
+
+#else  // Not MSVC
+
+#define MSVC_SUPPRESS_WARNING(n)
+#define NON_EXPORTED_BASE(code) code
+
+#endif  // V8_CC_MSVC
+
+// Allowing the use of noexcept by removing the keyword on older compilers that
+// do not support adding noexcept to default members.
+// Disabled on MSVC because constructors of standard containers are not noexcept
+// there.
+#if ((!defined(V8_CC_GNU) && !defined(V8_CC_MSVC) &&                      \
+      !defined(V8_TARGET_ARCH_MIPS) && !defined(V8_TARGET_ARCH_MIPS64) && \
+      !defined(V8_TARGET_ARCH_PPC) && !defined(V8_TARGET_ARCH_PPC64)) ||  \
+     (defined(__clang__) && __cplusplus > 201300L))
+#define V8_NOEXCEPT noexcept
+#else
+#define V8_NOEXCEPT
+#endif
+
+// Specify memory alignment for structs, classes, etc.
+// Use like:
+//   class ALIGNAS(16) MyClass { ... }
+//   ALIGNAS(16) int array[4];
+//
+// In most places you can use the C++11 keyword "alignas", which is preferred.
+//
+// But compilers have trouble mixing __attribute__((...)) syntax with
+// alignas(...) syntax.
+//
+// Doesn't work in clang or gcc:
+//   struct alignas(16) __attribute__((packed)) S { char c; };
+// Works in clang but not gcc:
+//   struct __attribute__((packed)) alignas(16) S2 { char c; };
+// Works in clang and gcc:
+//   struct alignas(16) S3 { char c; } __attribute__((packed));
+//
+// There are also some attributes that must be specified *before* a class
+// definition: visibility (used for exporting functions/classes) is one of
+// these attributes. This means that it is not possible to use alignas() with a
+// class that is marked as exported.
+#if defined(V8_CC_MSVC)
+#define ALIGNAS(byte_alignment) __declspec(align(byte_alignment))
+#else
+#define ALIGNAS(byte_alignment) __attribute__((aligned(byte_alignment)))
 #endif
 
 #endif  // V8_BASE_COMPILER_SPECIFIC_H_

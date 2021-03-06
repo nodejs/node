@@ -32,6 +32,7 @@ var test_id = 0;
 function testFloor(expect, input) {
   var test = new Function('n',
                           '"' + (test_id++) + '";return Math.floor(n)');
+  %PrepareFunctionForOptimization(test);
   assertEquals(expect, test(input));
   assertEquals(expect, test(input));
   assertEquals(expect, test(input));
@@ -41,6 +42,7 @@ function testFloor(expect, input) {
   var test_double_input = new Function(
       'n',
       '"' + (test_id++) + '";return Math.floor(+n)');
+  %PrepareFunctionForOptimization(test_double_input);
   assertEquals(expect, test_double_input(input));
   assertEquals(expect, test_double_input(input));
   assertEquals(expect, test_double_input(input));
@@ -50,6 +52,7 @@ function testFloor(expect, input) {
   var test_double_output = new Function(
       'n',
       '"' + (test_id++) + '";return Math.floor(n) + -0.0');
+  %PrepareFunctionForOptimization(test_double_output);
   assertEquals(expect, test_double_output(input));
   assertEquals(expect, test_double_output(input));
   assertEquals(expect, test_double_output(input));
@@ -59,6 +62,7 @@ function testFloor(expect, input) {
   var test_via_ceil = new Function(
       'n',
       '"' + (test_id++) + '";return -Math.ceil(-n)');
+  %PrepareFunctionForOptimization(test_via_ceil);
   assertEquals(expect, test_via_ceil(input));
   assertEquals(expect, test_via_ceil(input));
   assertEquals(expect, test_via_ceil(input));
@@ -69,6 +73,7 @@ function testFloor(expect, input) {
     var test_via_trunc = new Function(
         'n',
         '"' + (test_id++) + '";return Math.trunc(n)');
+    %PrepareFunctionForOptimization(test_via_trunc);
     assertEquals(expect, test_via_trunc(input));
     assertEquals(expect, test_via_trunc(input));
     assertEquals(expect, test_via_trunc(input));
@@ -93,10 +98,10 @@ function test() {
 
 
 // Test in a loop to cover the custom IC and GC-related issues.
-for (var i = 0; i < 100; i++) {
+for (var i = 0; i < 10; i++) {
   test();
+  new Array(i * 10000);
 }
-
 
 // Regression test for a bug where a negative zero coming from Math.floor
 // was not properly handled by other operations.
@@ -106,7 +111,8 @@ function floorsum(i, n) {
     ret += Math.floor(n);
   }
   return ret;
-}
+};
+%PrepareFunctionForOptimization(floorsum);
 assertEquals(-0, floorsum(1, -0));
 %OptimizeFunctionOnNextCall(floorsum);
 // The optimized function will deopt.  Run it with enough iterations to try

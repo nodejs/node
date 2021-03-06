@@ -49,6 +49,7 @@ check();
 
 function f() { return array["-1"]; }
 
+%PrepareFunctionForOptimization(f);
 for (var i = 0; i < 3; i++) {
   assertEquals(undefined, f());
 }

@@ -6,18 +6,20 @@
 
 function loader(dst, src, i) {
   dst[i] = src[i];
-}
-
+};
+%PrepareFunctionForOptimization(loader);
 var ab = new ArrayBuffer(8);
 var i_view = new Int32Array(ab);
-i_view[0] = %GetHoleNaNUpper()
+i_view[0] = %GetHoleNaNUpper();
 i_view[1] = %GetHoleNaNLower();
 var f_view = new Float64Array(ab);
 
 var fixed_double_elements = new Float64Array(1);
 
-function opt_store() { fixed_double_elements[0] = f_view[0]; }
-
+function opt_store() {
+  fixed_double_elements[0] = f_view[0];
+};
+%PrepareFunctionForOptimization(opt_store);
 opt_store();
 opt_store();
 %OptimizeFunctionOnNextCall(opt_store);

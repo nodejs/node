@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2012-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 # Specific modes implementations for SPARC Architecture 2011. There
 # is T4 dependency though, an ASI value that is not specified in the
@@ -15,6 +22,10 @@
 # performance for parallelizable modes is ~1.5% worse for largest
 # block sizes [though few percent better for not so long ones]. All
 # this based on suggestions from David Miller.
+
+$::bias="STACK_BIAS";
+$::frame="STACK_FRAME";
+$::size_t_cc="SIZE_T_CC";
 
 sub asm_init {		# to be called with @ARGV as argument
     for (@_)		{ $::abibits=64 if (/\-m64/ || /\-xarch\=v9/); }
@@ -106,7 +117,7 @@ $::code.=<<___;
 
 	brnz,pn		$ooff, 2f
 	sub		$len, 1, $len
-		
+
 	std		%f0, [$out + 0]
 	std		%f2, [$out + 8]
 	brnz,pt		$len, .L${bits}_cbc_enc_loop
@@ -213,7 +224,7 @@ $::code.=<<___;
 	call		_${alg}${bits}_encrypt_1x
 	add		$inp, 16, $inp
 	sub		$len, 1, $len
-		
+
 	stda		%f0, [$out]0xe2		! ASI_BLK_INIT, T4-specific
 	add		$out, 8, $out
 	stda		%f2, [$out]0xe2		! ASI_BLK_INIT, T4-specific
@@ -328,7 +339,7 @@ $::code.=<<___;
 
 	brnz,pn		$ooff, 2f
 	sub		$len, 1, $len
-		
+
 	std		%f0, [$out + 0]
 	std		%f2, [$out + 8]
 	brnz,pt		$len, .L${bits}_cbc_dec_loop2x
@@ -434,7 +445,7 @@ $::code.=<<___;
 
 	brnz,pn		$ooff, 2f
 	sub		$len, 2, $len
-		
+
 	std		%f0, [$out + 0]
 	std		%f2, [$out + 8]
 	std		%f4, [$out + 16]
@@ -691,7 +702,7 @@ $::code.=<<___;
 
 	brnz,pn		$ooff, 2f
 	sub		$len, 1, $len
-		
+
 	std		%f0, [$out + 0]
 	std		%f2, [$out + 8]
 	brnz,pt		$len, .L${bits}_ctr32_loop2x
@@ -780,7 +791,7 @@ $::code.=<<___;
 
 	brnz,pn		$ooff, 2f
 	sub		$len, 2, $len
-		
+
 	std		%f0, [$out + 0]
 	std		%f2, [$out + 8]
 	std		%f4, [$out + 16]
@@ -1013,7 +1024,7 @@ $code.=<<___;
 
 	brnz,pn		$ooff, 2f
 	sub		$len, 1, $len
-		
+
 	std		%f0, [$out + 0]
 	std		%f2, [$out + 8]
 	brnz,pt		$len, .L${bits}_xts_${dir}loop2x
@@ -1124,7 +1135,7 @@ $code.=<<___;
 
 	brnz,pn		$ooff, 2f
 	sub		$len, 2, $len
-		
+
 	std		%f0, [$out + 0]
 	std		%f2, [$out + 8]
 	std		%f4, [$out + 16]
@@ -1387,7 +1398,7 @@ ___
 
 # Purpose of these subroutines is to explicitly encode VIS instructions,
 # so that one can compile the module without having to specify VIS
-# extentions on compiler command line, e.g. -xarch=v9 vs. -xarch=v9a.
+# extensions on compiler command line, e.g. -xarch=v9 vs. -xarch=v9a.
 # Idea is to reserve for option to produce "universal" binary and let
 # programmer detect if current CPU is VIS capable at run-time.
 sub unvis {

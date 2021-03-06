@@ -1,17 +1,38 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 // This test asserts that Stream.prototype.pipe does not leave listeners
 // hanging on the source or dest.
 require('../common');
 const stream = require('stream');
 const assert = require('assert');
-const util = require('util');
 
 function Writable() {
   this.writable = true;
   this.endCalls = 0;
   stream.Stream.call(this);
 }
-util.inherits(Writable, stream.Stream);
+Object.setPrototypeOf(Writable.prototype, stream.Stream.prototype);
+Object.setPrototypeOf(Writable, stream.Stream);
 Writable.prototype.end = function() {
   this.endCalls++;
 };
@@ -24,13 +45,15 @@ function Readable() {
   this.readable = true;
   stream.Stream.call(this);
 }
-util.inherits(Readable, stream.Stream);
+Object.setPrototypeOf(Readable.prototype, stream.Stream.prototype);
+Object.setPrototypeOf(Readable, stream.Stream);
 
 function Duplex() {
   this.readable = true;
   Writable.call(this);
 }
-util.inherits(Duplex, Writable);
+Object.setPrototypeOf(Duplex.prototype, Writable.prototype);
+Object.setPrototypeOf(Duplex, Writable);
 
 let i = 0;
 const limit = 100;
@@ -44,8 +67,8 @@ for (i = 0; i < limit; i++) {
   r.pipe(w);
   r.emit('end');
 }
-assert.strictEqual(0, r.listeners('end').length);
-assert.strictEqual(limit, w.endCalls);
+assert.strictEqual(r.listeners('end').length, 0);
+assert.strictEqual(w.endCalls, limit);
 
 w.endCalls = 0;
 
@@ -54,8 +77,8 @@ for (i = 0; i < limit; i++) {
   r.pipe(w);
   r.emit('close');
 }
-assert.strictEqual(0, r.listeners('close').length);
-assert.strictEqual(limit, w.endCalls);
+assert.strictEqual(r.listeners('close').length, 0);
+assert.strictEqual(w.endCalls, limit);
 
 w.endCalls = 0;
 
@@ -66,7 +89,7 @@ for (i = 0; i < limit; i++) {
   r.pipe(w);
   w.emit('close');
 }
-assert.strictEqual(0, w.listeners('close').length);
+assert.strictEqual(w.listeners('close').length, 0);
 
 r = new Readable();
 w = new Writable();

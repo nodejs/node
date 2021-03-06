@@ -9,6 +9,7 @@ function signInt32(i) {
   return Math.sign(i);
 }
 
+%PrepareFunctionForOptimization(signInt32);
 signInt32(0);
 signInt32(2);
 %OptimizeFunctionOnNextCall(signInt32);
@@ -27,6 +28,7 @@ function signFloat64(i) {
   return Math.sign(+i);
 }
 
+%PrepareFunctionForOptimization(signFloat64);
 signFloat64(0.1);
 signFloat64(-0.1);
 %OptimizeFunctionOnNextCall(signFloat64);

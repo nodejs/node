@@ -29,8 +29,8 @@
 
 function crash(obj) {
   return obj.foo;
-}
-
+};
+%PrepareFunctionForOptimization(crash);
 function base(number_of_properties) {
   var result = new Array();
   for (var i = 0; i < number_of_properties; i++) {

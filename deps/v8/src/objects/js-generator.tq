@@ -1,0 +1,49 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@generateCppClass
+extern class JSGeneratorObject extends JSObject {
+  function: JSFunction;
+  context: Context;
+  receiver: JSAny;
+
+  // For executing generators: the most recent input value.
+  // For suspended generators: debug information (bytecode offset).
+  // There is currently no need to remember the most recent input value for a
+  // suspended generator.
+  input_or_debug_pos: Object;
+
+  // The most recent resume mode.
+  resume_mode: Smi;
+
+  // A positive value indicates a suspended generator.  The special
+  // kGeneratorExecuting and kGeneratorClosed values indicate that a generator
+  // cannot be resumed.
+  continuation: Smi;
+
+  // Saved interpreter register file.
+  parameters_and_registers: FixedArray;
+}
+
+@generateCppClass
+extern class JSAsyncFunctionObject extends JSGeneratorObject {
+  promise: JSPromise;
+}
+
+@generateCppClass
+extern class JSAsyncGeneratorObject extends JSGeneratorObject {
+  // Pointer to the head of a singly linked list of AsyncGeneratorRequest, or
+  // undefined.
+  queue: HeapObject;
+  // Whether or not the generator is currently awaiting.
+  is_awaiting: Smi;
+}
+
+@generateCppClass
+extern class AsyncGeneratorRequest extends Struct {
+  next: AsyncGeneratorRequest|Undefined;
+  resume_mode: Smi;
+  value: Object;
+  promise: JSPromise;
+}

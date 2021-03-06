@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 // Copyright (C) 2009-2011, International Business Machines
 // Corporation and others. All Rights Reserved.
@@ -43,6 +43,12 @@ CheckedArrayByteSink& CheckedArrayByteSink::Reset() {
 
 void CheckedArrayByteSink::Append(const char* bytes, int32_t n) {
   if (n <= 0) {
+    return;
+  }
+  if (n > (INT32_MAX - appended_)) {
+    // TODO: Report as integer overflow, not merely buffer overflow.
+    appended_ = INT32_MAX;
+    overflowed_ = TRUE;
     return;
   }
   appended_ += n;

@@ -4,22 +4,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
-#include "src/list.h"
-#include "src/list-inl.h"
 #include "test/cctest/cctest.h"
-
-using v8::IdleTask;
-using v8::Task;
-using v8::Isolate;
 
 #include "src/tracing/trace-event.h"
 
-#define GET_TRACE_OBJECTS_LIST platform.GetMockTraceObjects()
-
-#define GET_TRACE_OBJECT(Index) GET_TRACE_OBJECTS_LIST->at(Index)
-
+namespace {
 
 struct MockTraceObject {
   char phase;
@@ -28,57 +19,46 @@ struct MockTraceObject {
   uint64_t bind_id;
   int num_args;
   unsigned int flags;
+  int64_t timestamp;
   MockTraceObject(char phase, std::string name, uint64_t id, uint64_t bind_id,
-                  int num_args, int flags)
+                  int num_args, int flags, int64_t timestamp)
       : phase(phase),
         name(name),
         id(id),
         bind_id(bind_id),
         num_args(num_args),
-        flags(flags) {}
+        flags(flags),
+        timestamp(timestamp) {}
 };
 
-typedef v8::internal::List<MockTraceObject*> MockTraceObjectList;
-
-class MockTracingPlatform : public v8::Platform {
+class MockTracingController : public v8::TracingController {
  public:
-  explicit MockTracingPlatform(v8::Platform* platform) {}
-  virtual ~MockTracingPlatform() {
-    for (int i = 0; i < trace_object_list_.length(); ++i) {
-      delete trace_object_list_[i];
-    }
-    trace_object_list_.Clear();
+  MockTracingController() = default;
+  MockTracingController(const MockTracingController&) = delete;
+  MockTracingController& operator=(const MockTracingController&) = delete;
+
+  uint64_t AddTraceEvent(
+      char phase, const uint8_t* category_enabled_flag, const char* name,
+      const char* scope, uint64_t id, uint64_t bind_id, int num_args,
+      const char** arg_names, const uint8_t* arg_types,
+      const uint64_t* arg_values,
+      std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables,
+      unsigned int flags) override {
+    return AddTraceEventWithTimestamp(
+        phase, category_enabled_flag, name, scope, id, bind_id, num_args,
+        arg_names, arg_types, arg_values, arg_convertables, flags, 0);
   }
-  void CallOnBackgroundThread(Task* task,
-                              ExpectedRuntime expected_runtime) override {}
 
-  void CallOnForegroundThread(Isolate* isolate, Task* task) override {}
-
-  void CallDelayedOnForegroundThread(Isolate* isolate, Task* task,
-                                     double delay_in_seconds) override {}
-
-  double MonotonicallyIncreasingTime() override { return 0.0; }
-
-  void CallIdleOnForegroundThread(Isolate* isolate, IdleTask* task) override {}
-
-  bool IdleTasksEnabled(Isolate* isolate) override { return false; }
-
-  bool PendingIdleTask() { return false; }
-
-  void PerformIdleTask(double idle_time_in_seconds) {}
-
-  bool PendingDelayedTask() { return false; }
-
-  void PerformDelayedTask() {}
-
-  uint64_t AddTraceEvent(char phase, const uint8_t* category_enabled_flag,
-                         const char* name, const char* scope, uint64_t id,
-                         uint64_t bind_id, int num_args, const char** arg_names,
-                         const uint8_t* arg_types, const uint64_t* arg_values,
-                         unsigned int flags) override {
-    MockTraceObject* to = new MockTraceObject(phase, std::string(name), id,
-                                              bind_id, num_args, flags);
-    trace_object_list_.Add(to);
+  uint64_t AddTraceEventWithTimestamp(
+      char phase, const uint8_t* category_enabled_flag, const char* name,
+      const char* scope, uint64_t id, uint64_t bind_id, int num_args,
+      const char** arg_names, const uint8_t* arg_types,
+      const uint64_t* arg_values,
+      std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables,
+      unsigned int flags, int64_t timestamp) override {
+    std::unique_ptr<MockTraceObject> to = std::make_unique<MockTraceObject>(
+        phase, std::string(name), id, bind_id, num_args, flags, timestamp);
+    trace_objects_.push_back(std::move(to));
     return 0;
   }
 
@@ -86,7 +66,7 @@ class MockTracingPlatform : public v8::Platform {
                                 const char* name, uint64_t handle) override {}
 
   const uint8_t* GetCategoryGroupEnabled(const char* name) override {
-    if (strcmp(name, "v8-cat")) {
+    if (strncmp(name, "v8-cat", 6)) {
       static uint8_t no = 0;
       return &no;
     } else {
@@ -95,125 +75,120 @@ class MockTracingPlatform : public v8::Platform {
     }
   }
 
-  const char* GetCategoryGroupName(
-      const uint8_t* category_enabled_flag) override {
-    static const char dummy[] = "dummy";
-    return dummy;
+  const std::vector<std::unique_ptr<MockTraceObject>>& GetMockTraceObjects()
+      const {
+    return trace_objects_;
   }
 
-  MockTraceObjectList* GetMockTraceObjects() { return &trace_object_list_; }
-
  private:
-  MockTraceObjectList trace_object_list_;
+  std::vector<std::unique_ptr<MockTraceObject>> trace_objects_;
 };
 
+class MockTracingPlatform : public TestPlatform {
+ public:
+  MockTracingPlatform() {
+    // Now that it's completely constructed, make this the current platform.
+    i::V8::SetPlatformForTesting(this);
+  }
+  ~MockTracingPlatform() override = default;
+
+  v8::TracingController* GetTracingController() override {
+    return &tracing_controller_;
+  }
+
+  size_t NumberOfTraceObjects() {
+    return tracing_controller_.GetMockTraceObjects().size();
+  }
+
+  MockTraceObject* GetTraceObject(size_t index) {
+    return tracing_controller_.GetMockTraceObjects().at(index).get();
+  }
+
+ private:
+  MockTracingController tracing_controller_;
+};
+
+}  // namespace
 
 TEST(TraceEventDisabledCategory) {
-  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
-  MockTracingPlatform platform(old_platform);
-  i::V8::SetPlatformForTesting(&platform);
+  MockTracingPlatform platform;
 
   // Disabled category, will not add events.
   TRACE_EVENT_BEGIN0("cat", "e1");
   TRACE_EVENT_END0("cat", "e1");
-  CHECK_EQ(0, GET_TRACE_OBJECTS_LIST->length());
-
-  i::V8::SetPlatformForTesting(old_platform);
+  CHECK_EQ(0, platform.NumberOfTraceObjects());
 }
 
-
 TEST(TraceEventNoArgs) {
-  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
-  MockTracingPlatform platform(old_platform);
-  i::V8::SetPlatformForTesting(&platform);
+  MockTracingPlatform platform;
 
   // Enabled category will add 2 events.
   TRACE_EVENT_BEGIN0("v8-cat", "e1");
   TRACE_EVENT_END0("v8-cat", "e1");
 
-  CHECK_EQ(2, GET_TRACE_OBJECTS_LIST->length());
-  CHECK_EQ('B', GET_TRACE_OBJECT(0)->phase);
-  CHECK_EQ("e1", GET_TRACE_OBJECT(0)->name);
-  CHECK_EQ(0, GET_TRACE_OBJECT(0)->num_args);
+  CHECK_EQ(2, platform.NumberOfTraceObjects());
+  CHECK_EQ('B', platform.GetTraceObject(0)->phase);
+  CHECK_EQ("e1", platform.GetTraceObject(0)->name);
+  CHECK_EQ(0, platform.GetTraceObject(0)->num_args);
 
-  CHECK_EQ('E', GET_TRACE_OBJECT(1)->phase);
-  CHECK_EQ("e1", GET_TRACE_OBJECT(1)->name);
-  CHECK_EQ(0, GET_TRACE_OBJECT(1)->num_args);
-
-  i::V8::SetPlatformForTesting(old_platform);
+  CHECK_EQ('E', platform.GetTraceObject(1)->phase);
+  CHECK_EQ("e1", platform.GetTraceObject(1)->name);
+  CHECK_EQ(0, platform.GetTraceObject(1)->num_args);
 }
 
-
 TEST(TraceEventWithOneArg) {
-  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
-  MockTracingPlatform platform(old_platform);
-  i::V8::SetPlatformForTesting(&platform);
+  MockTracingPlatform platform;
 
   TRACE_EVENT_BEGIN1("v8-cat", "e1", "arg1", 42);
   TRACE_EVENT_END1("v8-cat", "e1", "arg1", 42);
   TRACE_EVENT_BEGIN1("v8-cat", "e2", "arg1", "abc");
   TRACE_EVENT_END1("v8-cat", "e2", "arg1", "abc");
 
-  CHECK_EQ(4, GET_TRACE_OBJECTS_LIST->length());
+  CHECK_EQ(4, platform.NumberOfTraceObjects());
 
-  CHECK_EQ(1, GET_TRACE_OBJECT(0)->num_args);
-  CHECK_EQ(1, GET_TRACE_OBJECT(1)->num_args);
-  CHECK_EQ(1, GET_TRACE_OBJECT(2)->num_args);
-  CHECK_EQ(1, GET_TRACE_OBJECT(3)->num_args);
-
-  i::V8::SetPlatformForTesting(old_platform);
+  CHECK_EQ(1, platform.GetTraceObject(0)->num_args);
+  CHECK_EQ(1, platform.GetTraceObject(1)->num_args);
+  CHECK_EQ(1, platform.GetTraceObject(2)->num_args);
+  CHECK_EQ(1, platform.GetTraceObject(3)->num_args);
 }
 
-
 TEST(TraceEventWithTwoArgs) {
-  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
-  MockTracingPlatform platform(old_platform);
-  i::V8::SetPlatformForTesting(&platform);
+  MockTracingPlatform platform;
 
   TRACE_EVENT_BEGIN2("v8-cat", "e1", "arg1", 42, "arg2", "abc");
   TRACE_EVENT_END2("v8-cat", "e1", "arg1", 42, "arg2", "abc");
   TRACE_EVENT_BEGIN2("v8-cat", "e2", "arg1", "abc", "arg2", 43);
   TRACE_EVENT_END2("v8-cat", "e2", "arg1", "abc", "arg2", 43);
 
-  CHECK_EQ(4, GET_TRACE_OBJECTS_LIST->length());
+  CHECK_EQ(4, platform.NumberOfTraceObjects());
 
-  CHECK_EQ(2, GET_TRACE_OBJECT(0)->num_args);
-  CHECK_EQ(2, GET_TRACE_OBJECT(1)->num_args);
-  CHECK_EQ(2, GET_TRACE_OBJECT(2)->num_args);
-  CHECK_EQ(2, GET_TRACE_OBJECT(3)->num_args);
-
-  i::V8::SetPlatformForTesting(old_platform);
+  CHECK_EQ(2, platform.GetTraceObject(0)->num_args);
+  CHECK_EQ(2, platform.GetTraceObject(1)->num_args);
+  CHECK_EQ(2, platform.GetTraceObject(2)->num_args);
+  CHECK_EQ(2, platform.GetTraceObject(3)->num_args);
 }
 
-
 TEST(ScopedTraceEvent) {
-  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
-  MockTracingPlatform platform(old_platform);
-  i::V8::SetPlatformForTesting(&platform);
+  MockTracingPlatform platform;
 
   { TRACE_EVENT0("v8-cat", "e"); }
 
-  CHECK_EQ(1, GET_TRACE_OBJECTS_LIST->length());
-  CHECK_EQ(0, GET_TRACE_OBJECT(0)->num_args);
+  CHECK_EQ(1, platform.NumberOfTraceObjects());
+  CHECK_EQ(0, platform.GetTraceObject(0)->num_args);
 
   { TRACE_EVENT1("v8-cat", "e1", "arg1", "abc"); }
 
-  CHECK_EQ(2, GET_TRACE_OBJECTS_LIST->length());
-  CHECK_EQ(1, GET_TRACE_OBJECT(1)->num_args);
+  CHECK_EQ(2, platform.NumberOfTraceObjects());
+  CHECK_EQ(1, platform.GetTraceObject(1)->num_args);
 
   { TRACE_EVENT2("v8-cat", "e1", "arg1", "abc", "arg2", 42); }
 
-  CHECK_EQ(3, GET_TRACE_OBJECTS_LIST->length());
-  CHECK_EQ(2, GET_TRACE_OBJECT(2)->num_args);
-
-  i::V8::SetPlatformForTesting(old_platform);
+  CHECK_EQ(3, platform.NumberOfTraceObjects());
+  CHECK_EQ(2, platform.GetTraceObject(2)->num_args);
 }
 
-
 TEST(TestEventWithFlow) {
-  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
-  MockTracingPlatform platform(old_platform);
-  i::V8::SetPlatformForTesting(&platform);
+  MockTracingPlatform platform;
 
   static uint64_t bind_id = 21;
   {
@@ -226,57 +201,186 @@ TEST(TestEventWithFlow) {
   }
   { TRACE_EVENT_WITH_FLOW0("v8-cat", "f3", bind_id, TRACE_EVENT_FLAG_FLOW_IN); }
 
-  CHECK_EQ(3, GET_TRACE_OBJECTS_LIST->length());
-  CHECK_EQ(bind_id, GET_TRACE_OBJECT(0)->bind_id);
-  CHECK_EQ(TRACE_EVENT_FLAG_FLOW_OUT, GET_TRACE_OBJECT(0)->flags);
-  CHECK_EQ(bind_id, GET_TRACE_OBJECT(1)->bind_id);
+  CHECK_EQ(3, platform.NumberOfTraceObjects());
+  CHECK_EQ(bind_id, platform.GetTraceObject(0)->bind_id);
+  CHECK_EQ(TRACE_EVENT_FLAG_FLOW_OUT, platform.GetTraceObject(0)->flags);
+  CHECK_EQ(bind_id, platform.GetTraceObject(1)->bind_id);
   CHECK_EQ(TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT,
-           GET_TRACE_OBJECT(1)->flags);
-  CHECK_EQ(bind_id, GET_TRACE_OBJECT(2)->bind_id);
-  CHECK_EQ(TRACE_EVENT_FLAG_FLOW_IN, GET_TRACE_OBJECT(2)->flags);
-
-  i::V8::SetPlatformForTesting(old_platform);
+           platform.GetTraceObject(1)->flags);
+  CHECK_EQ(bind_id, platform.GetTraceObject(2)->bind_id);
+  CHECK_EQ(TRACE_EVENT_FLAG_FLOW_IN, platform.GetTraceObject(2)->flags);
 }
 
-
 TEST(TestEventWithId) {
-  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
-  MockTracingPlatform platform(old_platform);
-  i::V8::SetPlatformForTesting(&platform);
+  MockTracingPlatform platform;
 
   static uint64_t event_id = 21;
   TRACE_EVENT_ASYNC_BEGIN0("v8-cat", "a1", event_id);
   TRACE_EVENT_ASYNC_END0("v8-cat", "a1", event_id);
 
-  CHECK_EQ(2, GET_TRACE_OBJECTS_LIST->length());
-  CHECK_EQ(TRACE_EVENT_PHASE_ASYNC_BEGIN, GET_TRACE_OBJECT(0)->phase);
-  CHECK_EQ(event_id, GET_TRACE_OBJECT(0)->id);
-  CHECK_EQ(TRACE_EVENT_PHASE_ASYNC_END, GET_TRACE_OBJECT(1)->phase);
-  CHECK_EQ(event_id, GET_TRACE_OBJECT(1)->id);
-
-  i::V8::SetPlatformForTesting(old_platform);
+  CHECK_EQ(2, platform.NumberOfTraceObjects());
+  CHECK_EQ(TRACE_EVENT_PHASE_ASYNC_BEGIN, platform.GetTraceObject(0)->phase);
+  CHECK_EQ(event_id, platform.GetTraceObject(0)->id);
+  CHECK_EQ(TRACE_EVENT_PHASE_ASYNC_END, platform.GetTraceObject(1)->phase);
+  CHECK_EQ(event_id, platform.GetTraceObject(1)->id);
 }
 
-TEST(TestEventInContext) {
-  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
-  MockTracingPlatform platform(old_platform);
-  i::V8::SetPlatformForTesting(&platform);
+TEST(TestEventWithTimestamp) {
+  MockTracingPlatform platform;
 
-  static uint64_t isolate_id = 0x20151021;
+  TRACE_EVENT_INSTANT_WITH_TIMESTAMP0("v8-cat", "0arg",
+                                      TRACE_EVENT_SCOPE_GLOBAL, 1729);
+  TRACE_EVENT_INSTANT_WITH_TIMESTAMP1("v8-cat", "1arg",
+                                      TRACE_EVENT_SCOPE_GLOBAL, 4104, "val", 1);
+  TRACE_EVENT_MARK_WITH_TIMESTAMP2("v8-cat", "mark", 13832, "a", 1, "b", 2);
+
+  TRACE_EVENT_COPY_NESTABLE_ASYNC_BEGIN_WITH_TIMESTAMP0("v8-cat", "begin", 5,
+                                                        20683);
+  TRACE_EVENT_COPY_NESTABLE_ASYNC_END_WITH_TIMESTAMP0("v8-cat", "end", 5,
+                                                      32832);
+
+  CHECK_EQ(5, platform.NumberOfTraceObjects());
+
+  CHECK_EQ(1729, platform.GetTraceObject(0)->timestamp);
+  CHECK_EQ(0, platform.GetTraceObject(0)->num_args);
+
+  CHECK_EQ(4104, platform.GetTraceObject(1)->timestamp);
+  CHECK_EQ(1, platform.GetTraceObject(1)->num_args);
+
+  CHECK_EQ(13832, platform.GetTraceObject(2)->timestamp);
+  CHECK_EQ(2, platform.GetTraceObject(2)->num_args);
+
+  CHECK_EQ(20683, platform.GetTraceObject(3)->timestamp);
+  CHECK_EQ(32832, platform.GetTraceObject(4)->timestamp);
+}
+
+TEST(BuiltinsIsTraceCategoryEnabled) {
+  CcTest::InitializeVM();
+  MockTracingPlatform platform;
+
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  LocalContext env;
+
+  v8::Local<v8::Object> binding = env->GetExtrasBindingObject();
+  CHECK(!binding.IsEmpty());
+
+  auto undefined = v8::Undefined(isolate);
+  auto isTraceCategoryEnabled =
+      binding->Get(env.local(), v8_str("isTraceCategoryEnabled"))
+          .ToLocalChecked()
+          .As<v8::Function>();
+
   {
-    TRACE_EVENT_SCOPED_CONTEXT("v8-cat", "Isolate", isolate_id);
-    TRACE_EVENT0("v8-cat", "e");
+    // Test with an enabled category
+    v8::Local<v8::Value> argv[] = {v8_str("v8-cat")};
+    auto result = isTraceCategoryEnabled->Call(env.local(), undefined, 1, argv)
+                      .ToLocalChecked()
+                      .As<v8::Boolean>();
+
+    CHECK(result->BooleanValue(isolate));
   }
 
-  CHECK_EQ(3, GET_TRACE_OBJECTS_LIST->length());
-  CHECK_EQ(TRACE_EVENT_PHASE_ENTER_CONTEXT, GET_TRACE_OBJECT(0)->phase);
-  CHECK_EQ("Isolate", GET_TRACE_OBJECT(0)->name);
-  CHECK_EQ(isolate_id, GET_TRACE_OBJECT(0)->id);
-  CHECK_EQ(TRACE_EVENT_PHASE_COMPLETE, GET_TRACE_OBJECT(1)->phase);
-  CHECK_EQ("e", GET_TRACE_OBJECT(1)->name);
-  CHECK_EQ(TRACE_EVENT_PHASE_LEAVE_CONTEXT, GET_TRACE_OBJECT(2)->phase);
-  CHECK_EQ("Isolate", GET_TRACE_OBJECT(2)->name);
-  CHECK_EQ(isolate_id, GET_TRACE_OBJECT(2)->id);
+  {
+    // Test with a disabled category
+    v8::Local<v8::Value> argv[] = {v8_str("cat")};
+    auto result = isTraceCategoryEnabled->Call(env.local(), undefined, 1, argv)
+                      .ToLocalChecked()
+                      .As<v8::Boolean>();
 
-  i::V8::SetPlatformForTesting(old_platform);
+    CHECK(!result->BooleanValue(isolate));
+  }
+
+  {
+    // Test with an enabled utf8 category
+    v8::Local<v8::Value> argv[] = {v8_str("v8-cat\u20ac")};
+    auto result = isTraceCategoryEnabled->Call(env.local(), undefined, 1, argv)
+                      .ToLocalChecked()
+                      .As<v8::Boolean>();
+
+    CHECK(result->BooleanValue(isolate));
+  }
+}
+
+TEST(BuiltinsTrace) {
+  CcTest::InitializeVM();
+  MockTracingPlatform platform;
+
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  LocalContext env;
+
+  v8::Local<v8::Object> binding = env->GetExtrasBindingObject();
+  CHECK(!binding.IsEmpty());
+
+  auto undefined = v8::Undefined(isolate);
+  auto trace = binding->Get(env.local(), v8_str("trace"))
+                   .ToLocalChecked()
+                   .As<v8::Function>();
+
+  // Test with disabled category
+  {
+    v8::Local<v8::String> category = v8_str("cat");
+    v8::Local<v8::String> name = v8_str("name");
+    v8::Local<v8::Value> argv[] = {
+        v8::Integer::New(isolate, 'b'),                // phase
+        category, name, v8::Integer::New(isolate, 0),  // id
+        undefined                                      // data
+    };
+    auto result = trace->Call(env.local(), undefined, 5, argv)
+                      .ToLocalChecked()
+                      .As<v8::Boolean>();
+
+    CHECK(!result->BooleanValue(isolate));
+    CHECK_EQ(0, platform.NumberOfTraceObjects());
+  }
+
+  // Test with enabled category
+  {
+    v8::Local<v8::String> category = v8_str("v8-cat");
+    v8::Local<v8::String> name = v8_str("name");
+    v8::Local<v8::Object> data = v8::Object::New(isolate);
+    data->Set(context, v8_str("foo"), v8_str("bar")).FromJust();
+    v8::Local<v8::Value> argv[] = {
+        v8::Integer::New(isolate, 'b'),                  // phase
+        category, name, v8::Integer::New(isolate, 123),  // id
+        data                                             // data arg
+    };
+    auto result = trace->Call(env.local(), undefined, 5, argv)
+                      .ToLocalChecked()
+                      .As<v8::Boolean>();
+
+    CHECK(result->BooleanValue(isolate));
+    CHECK_EQ(1, platform.NumberOfTraceObjects());
+
+    CHECK_EQ(123, platform.GetTraceObject(0)->id);
+    CHECK_EQ('b', platform.GetTraceObject(0)->phase);
+    CHECK_EQ("name", platform.GetTraceObject(0)->name);
+    CHECK_EQ(1, platform.GetTraceObject(0)->num_args);
+  }
+
+  // Test with enabled utf8 category
+  {
+    v8::Local<v8::String> category = v8_str("v8-cat\u20ac");
+    v8::Local<v8::String> name = v8_str("name\u20ac");
+    v8::Local<v8::Object> data = v8::Object::New(isolate);
+    data->Set(context, v8_str("foo"), v8_str("bar")).FromJust();
+    v8::Local<v8::Value> argv[] = {
+        v8::Integer::New(isolate, 'b'),                  // phase
+        category, name, v8::Integer::New(isolate, 123),  // id
+        data                                             // data arg
+    };
+    auto result = trace->Call(env.local(), undefined, 5, argv)
+                      .ToLocalChecked()
+                      .As<v8::Boolean>();
+
+    CHECK(result->BooleanValue(isolate));
+    CHECK_EQ(2, platform.NumberOfTraceObjects());
+
+    CHECK_EQ(123, platform.GetTraceObject(1)->id);
+    CHECK_EQ('b', platform.GetTraceObject(1)->phase);
+    CHECK_EQ("name\u20ac", platform.GetTraceObject(1)->name);
+    CHECK_EQ(1, platform.GetTraceObject(1)->num_args);
+  }
 }

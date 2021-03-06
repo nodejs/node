@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -6,7 +6,7 @@
 *                Corporation and others. All Rights Reserved.
 ******************************************************************************
 *   file name:  ucln_in.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -26,10 +26,14 @@ as the functions are suppose to be called.
 It's usually best to have child dependencies called first. */
 typedef enum ECleanupI18NType {
     UCLN_I18N_START = -1,
+    UCLN_I18N_UNIT_EXTRAS,
+    UCLN_I18N_NUMBER_SKELETONS,
+    UCLN_I18N_CURRENCY_SPACING,
     UCLN_I18N_SPOOF,
     UCLN_I18N_SPOOFDATA,
     UCLN_I18N_TRANSLITERATOR,
     UCLN_I18N_REGEX,
+    UCLN_I18N_JAPANESE_CALENDAR,
     UCLN_I18N_ISLAMIC_CALENDAR,
     UCLN_I18N_CHINESE_CALENDAR,
     UCLN_I18N_HEBREW_CALENDAR,
@@ -56,6 +60,8 @@ typedef enum ECleanupI18NType {
     UCLN_I18N_GENDERINFO,
     UCLN_I18N_CDFINFO,
     UCLN_I18N_REGION,
+    UCLN_I18N_LIST_FORMATTER,
+    UCLN_I18N_NUMSYS,
     UCLN_I18N_COUNT /* This must be last */
 } ECleanupI18NType;
 

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --deopt-every-n-times=5 --nodead-code-elimination
+// Flags: --allow-natives-syntax --deopt-every-n-times=5
 
 var array = [];
 
@@ -10,6 +10,7 @@ function push(array, value) {
   array.push(value);
 }
 
+%PrepareFunctionForOptimization(push);
 push(array, 0);
 push(array, 1);
 push(array, 2);

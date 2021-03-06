@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/node.h"
 #include "src/compiler/schedule.h"
+
+#include "src/compiler/node.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -12,9 +13,9 @@ using testing::ElementsAre;
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace schedule_unittest {
 
-typedef TestWithIsolateAndZone BasicBlockTest;
-
+using BasicBlockTest = TestWithIsolateAndZone;
 
 TEST_F(BasicBlockTest, Constructor) {
   int const id = random_number_generator()->NextInt();
@@ -67,11 +68,10 @@ TEST_F(BasicBlockTest, GetCommonDominator3) {
   EXPECT_EQ(&b0, BasicBlock::GetCommonDominator(&b3, &b1));
 }
 
-
-typedef TestWithZone ScheduleTest;
-
-
-namespace {
+class ScheduleTest : public TestWithZone {
+ public:
+  ScheduleTest() : TestWithZone(kCompressGraphZone) {}
+};
 
 const Operator kCallOperator(IrOpcode::kCall, Operator::kNoProperties,
                              "MockCall", 0, 0, 0, 0, 0, 0);
@@ -79,8 +79,6 @@ const Operator kBranchOperator(IrOpcode::kBranch, Operator::kNoProperties,
                                "MockBranch", 0, 0, 0, 0, 0, 0);
 const Operator kDummyOperator(IrOpcode::kParameter, Operator::kNoProperties,
                               "Dummy", 0, 0, 0, 0, 0, 0);
-
-}  // namespace
 
 
 TEST_F(ScheduleTest, Constructor) {
@@ -244,6 +242,7 @@ TEST_F(ScheduleTest, InsertBranch) {
   EXPECT_THAT(end->predecessors(), ElementsAre(mblock));
 }
 
+}  // namespace schedule_unittest
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

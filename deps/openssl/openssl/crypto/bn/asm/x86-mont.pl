@@ -1,7 +1,14 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2005-2020 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 # ====================================================================
-# Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
+# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
 # details see http://www.openssl.org/~appro/cryptogams/.
@@ -30,7 +37,10 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 push(@INC,"${dir}","${dir}../../perlasm");
 require "x86asm.pl";
 
-&asm_init($ARGV[0],$0);
+$output = pop;
+open STDOUT,">$output";
+
+&asm_init($ARGV[0]);
 
 $sse2=0;
 for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
@@ -68,7 +78,7 @@ $frame=32;				# size of above frame rounded up to 16n
 	&lea	("ebp",&DWP(-$frame,"esp","edi",4));	# future alloca($frame+4*(num+2))
 	&neg	("edi");
 
-	# minimize cache contention by arraning 2K window between stack
+	# minimize cache contention by arranging 2K window between stack
 	# pointer and ap argument [np is also position sensitive vector,
 	# but it's assumed to be near ap, as it's allocated at ~same
 	# time].
@@ -84,7 +94,9 @@ $frame=32;				# size of above frame rounded up to 16n
 
 	&and	("ebp",-64);		# align to cache line
 
-	# Some OSes, *cough*-dows, insist on stack being "wired" to
+	# An OS-agnostic version of __chkstk.
+	#
+	# Some OSes (Windows) insist on stack being "wired" to
 	# physical memory in strictly sequential manner, i.e. if stack
 	# allocation spans two pages, then reference to farmost one can
 	# be punishable by SEGV. But page walking can do good even on
@@ -289,7 +301,7 @@ if (0) {
 	&xor	("eax","eax");	# signal "not fast enough [yet]"
 	&jmp	(&label("just_leave"));
 	# While the below code provides competitive performance for
-	# all key lengthes on modern Intel cores, it's still more
+	# all key lengths on modern Intel cores, it's still more
 	# than 10% slower for 4096-bit key elsewhere:-( "Competitive"
 	# means compared to the original integer-only assembler.
 	# 512-bit RSA sign is better by ~40%, but that's about all
@@ -592,16 +604,18 @@ $sbit=$num;
 	&jge	(&label("sub"));
 
 	&sbb	("eax",0);			# handle upmost overflow bit
-	&and	($tp,"eax");
-	&not	("eax");
-	&mov	($np,$rp);
-	&and	($np,"eax");
-	&or	($tp,$np);			# tp=carry?tp:rp
+	&mov	("edx",-1);
+	&xor	("edx","eax");
+	&jmp	(&label("copy"));
 
-&set_label("copy",16);				# copy or in-place refresh
-	&mov	("eax",&DWP(0,$tp,$num,4));
-	&mov	(&DWP(0,$rp,$num,4),"eax");	# rp[i]=tp[i]
+&set_label("copy",16);				# conditional copy
+	&mov	($tp,&DWP($frame,"esp",$num,4));
+	&mov	($np,&DWP(0,$rp,$num,4));
 	&mov	(&DWP($frame,"esp",$num,4),$j);	# zap temporary vector
+	&and	($tp,"eax");
+	&and	($np,"edx");
+	&or	($np,$tp);
+	&mov	(&DWP(0,$rp,$num,4),$np);
 	&dec	($num);
 	&jge	(&label("copy"));
 
@@ -613,3 +627,5 @@ $sbit=$num;
 &asciz("Montgomery Multiplication for x86, CRYPTOGAMS by <appro\@openssl.org>");
 
 &asm_finish();
+
+close STDOUT or die "error closing STDOUT: $!";

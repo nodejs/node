@@ -1,0 +1,103 @@
+Tests that multiple sessions do not interfere with each other's remote objects.
+Evaluating in 1
+Evaluating in 2
+Retrieving properties in 2
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : a
+                value : {
+                    description : 17
+                    type : number
+                    value : 17
+                }
+                writable : true
+            }
+            [1] : {
+                configurable : true
+                enumerable : false
+                isOwn : true
+                name : __proto__
+                value : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                writable : true
+            }
+        ]
+    }
+}
+Retrieving properties in 1
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : a
+                value : {
+                    description : 42
+                    type : number
+                    value : 42
+                }
+                writable : true
+            }
+            [1] : {
+                configurable : true
+                enumerable : false
+                isOwn : true
+                name : __proto__
+                value : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                writable : true
+            }
+        ]
+    }
+}
+Disconnecting 2
+Retrieving properties in 1
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : a
+                value : {
+                    description : 42
+                    type : number
+                    value : 42
+                }
+                writable : true
+            }
+            [1] : {
+                configurable : true
+                enumerable : false
+                isOwn : true
+                name : __proto__
+                value : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                writable : true
+            }
+        ]
+    }
+}

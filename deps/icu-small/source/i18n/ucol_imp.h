@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -10,7 +10,7 @@
 *
 * Private implementation header for C collation
 *   file name:  ucol_imp.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -41,10 +41,10 @@
  *  rules must be equivalent.
  *  @param source first collator
  *  @param target second collator
- *  @return TRUE or FALSE
+ *  @return true or false
  *  @internal ICU 3.0
  */
-U_INTERNAL UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 ucol_equals(const UCollator *source, const UCollator *target);
 
 /**

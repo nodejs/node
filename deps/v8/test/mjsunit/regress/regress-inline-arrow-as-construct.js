@@ -7,12 +7,12 @@
 // This tests that inlining a constructor call to a function which cannot be
 // used as a constructor (e.g. arrow function) still throws correctly.
 
-var g = () => {}
+var g = () => {};
 
 function f() {
   return new g();
-}
-
+};
+%PrepareFunctionForOptimization(f);
 assertThrows(f);
 assertThrows(f);
 %OptimizeFunctionOnNextCall(f);

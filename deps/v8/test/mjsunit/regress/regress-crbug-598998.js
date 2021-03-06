@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-tailcalls --allow-natives-syntax
+// Flags: --allow-natives-syntax --stress-inline
 
 "use strict";
 
@@ -20,10 +20,8 @@ function g(x) {
 
 function h(x) {
   g(x, 1);
-}
-
-%SetForceInlineFlag(g);
-%SetForceInlineFlag(f);
+};
+%PrepareFunctionForOptimization(h);
 %NeverOptimizeFunction(deopt_function);
 
 h(1);

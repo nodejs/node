@@ -47,4 +47,4 @@ invalidValues.forEach(function(value) {
 
 // https://code.google.com/p/chromium/issues/detail?id=537382
 
-assertEquals('11/11/1500', dtf.format(new Date(1500,10,11,12,0,0)));
+assertEquals('11/11/1500', dtf.format(new Date(Date.UTC(1500,10,11,12,0,0))));

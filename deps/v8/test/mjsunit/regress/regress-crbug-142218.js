@@ -32,8 +32,8 @@ a = new Array(length);
 
 function insert_element(key) {
   a[key] = 42;
-}
-
+};
+%PrepareFunctionForOptimization(insert_element);
 insert_element(1);
 %OptimizeFunctionOnNextCall(insert_element);
 insert_element(new Object());

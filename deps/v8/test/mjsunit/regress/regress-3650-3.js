@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --opt
 
 function foo(a) {
   for (var d in a) {
@@ -10,6 +10,7 @@ function foo(a) {
   }
 }
 
+%PrepareFunctionForOptimization(foo);
 foo([1,2,3]);
 foo([2,3,4]);
 %OptimizeFunctionOnNextCall(foo);

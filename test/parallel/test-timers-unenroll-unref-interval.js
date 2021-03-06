@@ -45,5 +45,5 @@ const timers = require('timers');
 // another. Any problems will occur when the second
 // should be called but before it is able to be.
 setTimeout(common.mustCall(() => {
-  setTimeout(common.mustCall(() => {}), 1);
+  setTimeout(common.mustCall(), 1);
 }), 1);

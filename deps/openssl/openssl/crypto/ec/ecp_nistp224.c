@@ -1,7 +1,12 @@
-/* crypto/ec/ecp_nistp224.c */
 /*
- * Written by Emilia Kasper (Google) for the OpenSSL project.
+ * Copyright 2010-2020 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
+
 /* Copyright 2011 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,29 +31,25 @@
  */
 
 #include <openssl/opensslconf.h>
-#ifndef OPENSSL_NO_EC_NISTP_64_GCC_128
+#ifdef OPENSSL_NO_EC_NISTP_64_GCC_128
+NON_EMPTY_TRANSLATION_UNIT
+#else
 
-# ifndef OPENSSL_SYS_VMS
-#  include <stdint.h>
-# else
-#  include <inttypes.h>
-# endif
-
+# include <stdint.h>
 # include <string.h>
 # include <openssl/err.h>
-# include "ec_lcl.h"
+# include "ec_local.h"
 
-# if defined(__GNUC__) && (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 1))
+# if defined(__SIZEOF_INT128__) && __SIZEOF_INT128__==16
   /* even with gcc, the typedef won't work for 32-bit platforms */
 typedef __uint128_t uint128_t;  /* nonstandard; implemented by gcc on 64-bit
                                  * platforms */
 # else
-#  error "Need GCC 3.1 or later to define type uint128_t"
+#  error "Your compiler doesn't appear to support 128-bit integer types"
 # endif
 
 typedef uint8_t u8;
 typedef uint64_t u64;
-typedef int64_t s64;
 
 /******************************************************************************/
 /*-
@@ -71,13 +72,14 @@ typedef int64_t s64;
  */
 
 typedef uint64_t limb;
+typedef uint64_t limb_aX __attribute((__aligned__(1)));
 typedef uint128_t widelimb;
 
 typedef limb felem[4];
 typedef widelimb widefelem[7];
 
 /*
- * Field element represented as a byte arrary. 28*8 = 224 bits is also the
+ * Field element represented as a byte array. 28*8 = 224 bits is also the
  * group order size for the elliptic curve, and we also use this type for
  * scalars for point multiplication.
  */
@@ -132,84 +134,55 @@ static const felem_bytearray nistp224_curve_params[5] = {
  * locations when doing simple scalar multiplies against the base point,
  * and then another four locations using the second 16 elements.
  */
-static const felem gmul[2][16][3] = { {{{0, 0, 0, 0},
-                                        {0, 0, 0, 0},
-                                        {0, 0, 0, 0}},
-                                       {{0x3280d6115c1d21, 0xc1d356c2112234,
-                                         0x7f321390b94a03, 0xb70e0cbd6bb4bf},
-                                        {0xd5819985007e34, 0x75a05a07476444,
-                                         0xfb4c22dfe6cd43, 0xbd376388b5f723},
-                                        {1, 0, 0, 0}},
-                                       {{0xfd9675666ebbe9, 0xbca7664d40ce5e,
-                                         0x2242df8d8a2a43, 0x1f49bbb0f99bc5},
-                                        {0x29e0b892dc9c43, 0xece8608436e662,
-                                         0xdc858f185310d0, 0x9812dd4eb8d321},
-                                        {1, 0, 0, 0}},
-                                       {{0x6d3e678d5d8eb8, 0x559eed1cb362f1,
-                                         0x16e9a3bbce8a3f, 0xeedcccd8c2a748},
-                                        {0xf19f90ed50266d, 0xabf2b4bf65f9df,
-                                         0x313865468fafec, 0x5cb379ba910a17},
-                                        {1, 0, 0, 0}},
-                                       {{0x0641966cab26e3, 0x91fb2991fab0a0,
-                                         0xefec27a4e13a0b, 0x0499aa8a5f8ebe},
-                                        {0x7510407766af5d, 0x84d929610d5450,
-                                         0x81d77aae82f706, 0x6916f6d4338c5b},
-                                        {1, 0, 0, 0}},
-                                       {{0xea95ac3b1f15c6, 0x086000905e82d4,
-                                         0xdd323ae4d1c8b1, 0x932b56be7685a3},
-                                        {0x9ef93dea25dbbf, 0x41665960f390f0,
-                                         0xfdec76dbe2a8a7, 0x523e80f019062a},
-                                        {1, 0, 0, 0}},
-                                       {{0x822fdd26732c73, 0xa01c83531b5d0f,
-                                         0x363f37347c1ba4, 0xc391b45c84725c},
-                                        {0xbbd5e1b2d6ad24, 0xddfbcde19dfaec,
-                                         0xc393da7e222a7f, 0x1efb7890ede244},
-                                        {1, 0, 0, 0}},
-                                       {{0x4c9e90ca217da1, 0xd11beca79159bb,
-                                         0xff8d33c2c98b7c, 0x2610b39409f849},
-                                        {0x44d1352ac64da0, 0xcdbb7b2c46b4fb,
-                                         0x966c079b753c89, 0xfe67e4e820b112},
-                                        {1, 0, 0, 0}},
-                                       {{0xe28cae2df5312d, 0xc71b61d16f5c6e,
-                                         0x79b7619a3e7c4c, 0x05c73240899b47},
-                                        {0x9f7f6382c73e3a, 0x18615165c56bda,
-                                         0x641fab2116fd56, 0x72855882b08394},
-                                        {1, 0, 0, 0}},
-                                       {{0x0469182f161c09, 0x74a98ca8d00fb5,
-                                         0xb89da93489a3e0, 0x41c98768fb0c1d},
-                                        {0xe5ea05fb32da81, 0x3dce9ffbca6855,
-                                         0x1cfe2d3fbf59e6, 0x0e5e03408738a7},
-                                        {1, 0, 0, 0}},
-                                       {{0xdab22b2333e87f, 0x4430137a5dd2f6,
-                                         0xe03ab9f738beb8, 0xcb0c5d0dc34f24},
-                                        {0x764a7df0c8fda5, 0x185ba5c3fa2044,
-                                         0x9281d688bcbe50, 0xc40331df893881},
-                                        {1, 0, 0, 0}},
-                                       {{0xb89530796f0f60, 0xade92bd26909a3,
-                                         0x1a0c83fb4884da, 0x1765bf22a5a984},
-                                        {0x772a9ee75db09e, 0x23bc6c67cec16f,
-                                         0x4c1edba8b14e2f, 0xe2a215d9611369},
-                                        {1, 0, 0, 0}},
-                                       {{0x571e509fb5efb3, 0xade88696410552,
-                                         0xc8ae85fada74fe, 0x6c7e4be83bbde3},
-                                        {0xff9f51160f4652, 0xb47ce2495a6539,
-                                         0xa2946c53b582f4, 0x286d2db3ee9a60},
-                                        {1, 0, 0, 0}},
-                                       {{0x40bbd5081a44af, 0x0995183b13926c,
-                                         0xbcefba6f47f6d0, 0x215619e9cc0057},
-                                        {0x8bc94d3b0df45e, 0xf11c54a3694f6f,
-                                         0x8631b93cdfe8b5, 0xe7e3f4b0982db9},
-                                        {1, 0, 0, 0}},
-                                       {{0xb17048ab3e1c7b, 0xac38f36ff8a1d8,
-                                         0x1c29819435d2c6, 0xc813132f4c07e9},
-                                        {0x2891425503b11f, 0x08781030579fea,
-                                         0xf5426ba5cc9674, 0x1e28ebf18562bc},
-                                        {1, 0, 0, 0}},
-                                       {{0x9f31997cc864eb, 0x06cd91d28b5e4c,
-                                         0xff17036691a973, 0xf1aef351497c58},
-                                        {0xdd1f2d600564ff, 0xdead073b1402db,
-                                         0x74a684435bd693, 0xeea7471f962558},
-                                        {1, 0, 0, 0}}},
+static const felem gmul[2][16][3] = {
+{{{0, 0, 0, 0},
+  {0, 0, 0, 0},
+  {0, 0, 0, 0}},
+ {{0x3280d6115c1d21, 0xc1d356c2112234, 0x7f321390b94a03, 0xb70e0cbd6bb4bf},
+  {0xd5819985007e34, 0x75a05a07476444, 0xfb4c22dfe6cd43, 0xbd376388b5f723},
+  {1, 0, 0, 0}},
+ {{0xfd9675666ebbe9, 0xbca7664d40ce5e, 0x2242df8d8a2a43, 0x1f49bbb0f99bc5},
+  {0x29e0b892dc9c43, 0xece8608436e662, 0xdc858f185310d0, 0x9812dd4eb8d321},
+  {1, 0, 0, 0}},
+ {{0x6d3e678d5d8eb8, 0x559eed1cb362f1, 0x16e9a3bbce8a3f, 0xeedcccd8c2a748},
+  {0xf19f90ed50266d, 0xabf2b4bf65f9df, 0x313865468fafec, 0x5cb379ba910a17},
+  {1, 0, 0, 0}},
+ {{0x0641966cab26e3, 0x91fb2991fab0a0, 0xefec27a4e13a0b, 0x0499aa8a5f8ebe},
+  {0x7510407766af5d, 0x84d929610d5450, 0x81d77aae82f706, 0x6916f6d4338c5b},
+  {1, 0, 0, 0}},
+ {{0xea95ac3b1f15c6, 0x086000905e82d4, 0xdd323ae4d1c8b1, 0x932b56be7685a3},
+  {0x9ef93dea25dbbf, 0x41665960f390f0, 0xfdec76dbe2a8a7, 0x523e80f019062a},
+  {1, 0, 0, 0}},
+ {{0x822fdd26732c73, 0xa01c83531b5d0f, 0x363f37347c1ba4, 0xc391b45c84725c},
+  {0xbbd5e1b2d6ad24, 0xddfbcde19dfaec, 0xc393da7e222a7f, 0x1efb7890ede244},
+  {1, 0, 0, 0}},
+ {{0x4c9e90ca217da1, 0xd11beca79159bb, 0xff8d33c2c98b7c, 0x2610b39409f849},
+  {0x44d1352ac64da0, 0xcdbb7b2c46b4fb, 0x966c079b753c89, 0xfe67e4e820b112},
+  {1, 0, 0, 0}},
+ {{0xe28cae2df5312d, 0xc71b61d16f5c6e, 0x79b7619a3e7c4c, 0x05c73240899b47},
+  {0x9f7f6382c73e3a, 0x18615165c56bda, 0x641fab2116fd56, 0x72855882b08394},
+  {1, 0, 0, 0}},
+ {{0x0469182f161c09, 0x74a98ca8d00fb5, 0xb89da93489a3e0, 0x41c98768fb0c1d},
+  {0xe5ea05fb32da81, 0x3dce9ffbca6855, 0x1cfe2d3fbf59e6, 0x0e5e03408738a7},
+  {1, 0, 0, 0}},
+ {{0xdab22b2333e87f, 0x4430137a5dd2f6, 0xe03ab9f738beb8, 0xcb0c5d0dc34f24},
+  {0x764a7df0c8fda5, 0x185ba5c3fa2044, 0x9281d688bcbe50, 0xc40331df893881},
+  {1, 0, 0, 0}},
+ {{0xb89530796f0f60, 0xade92bd26909a3, 0x1a0c83fb4884da, 0x1765bf22a5a984},
+  {0x772a9ee75db09e, 0x23bc6c67cec16f, 0x4c1edba8b14e2f, 0xe2a215d9611369},
+  {1, 0, 0, 0}},
+ {{0x571e509fb5efb3, 0xade88696410552, 0xc8ae85fada74fe, 0x6c7e4be83bbde3},
+  {0xff9f51160f4652, 0xb47ce2495a6539, 0xa2946c53b582f4, 0x286d2db3ee9a60},
+  {1, 0, 0, 0}},
+ {{0x40bbd5081a44af, 0x0995183b13926c, 0xbcefba6f47f6d0, 0x215619e9cc0057},
+  {0x8bc94d3b0df45e, 0xf11c54a3694f6f, 0x8631b93cdfe8b5, 0xe7e3f4b0982db9},
+  {1, 0, 0, 0}},
+ {{0xb17048ab3e1c7b, 0xac38f36ff8a1d8, 0x1c29819435d2c6, 0xc813132f4c07e9},
+  {0x2891425503b11f, 0x08781030579fea, 0xf5426ba5cc9674, 0x1e28ebf18562bc},
+  {1, 0, 0, 0}},
+ {{0x9f31997cc864eb, 0x06cd91d28b5e4c, 0xff17036691a973, 0xf1aef351497c58},
+  {0xdd1f2d600564ff, 0xdead073b1402db, 0x74a684435bd693, 0xeea7471f962558},
+  {1, 0, 0, 0}}},
 {{{0, 0, 0, 0},
   {0, 0, 0, 0},
   {0, 0, 0, 0}},
@@ -261,10 +234,11 @@ static const felem gmul[2][16][3] = { {{{0, 0, 0, 0},
 };
 
 /* Precomputation for the group generator. */
-typedef struct {
+struct nistp224_pre_comp_st {
     felem g_pre_comp[2][16][3];
-    int references;
-} NISTP224_PRE_COMP;
+    CRYPTO_REF_COUNT references;
+    CRYPTO_RWLOCK *lock;
+};
 
 const EC_METHOD *EC_GFp_nistp224_method(void)
 {
@@ -278,6 +252,7 @@ const EC_METHOD *EC_GFp_nistp224_method(void)
         ec_GFp_nistp224_group_set_curve,
         ec_GFp_simple_group_get_curve,
         ec_GFp_simple_group_get_degree,
+        ec_group_simple_order_bits,
         ec_GFp_simple_group_check_discriminant,
         ec_GFp_simple_point_init,
         ec_GFp_simple_point_finish,
@@ -305,9 +280,24 @@ const EC_METHOD *EC_GFp_nistp224_method(void)
         ec_GFp_nist_field_mul,
         ec_GFp_nist_field_sqr,
         0 /* field_div */ ,
+        ec_GFp_simple_field_inv,
         0 /* field_encode */ ,
         0 /* field_decode */ ,
-        0                       /* field_set_to_one */
+        0,                      /* field_set_to_one */
+        ec_key_simple_priv2oct,
+        ec_key_simple_oct2priv,
+        0, /* set private */
+        ec_key_simple_generate_key,
+        ec_key_simple_check_key,
+        ec_key_simple_generate_public_key,
+        0, /* keycopy */
+        0, /* keyfinish */
+        ecdh_simple_compute_key,
+        0, /* field_inverse_mod_ord */
+        0, /* blind_coordinates */
+        0, /* ladder_pre */
+        0, /* ladder_step */
+        0  /* ladder_post */
     };
 
     return &ret;
@@ -318,10 +308,10 @@ const EC_METHOD *EC_GFp_nistp224_method(void)
  */
 static void bin28_to_felem(felem out, const u8 in[28])
 {
-    out[0] = *((const uint64_t *)(in)) & 0x00ffffffffffffff;
-    out[1] = (*((const uint64_t *)(in + 7))) & 0x00ffffffffffffff;
-    out[2] = (*((const uint64_t *)(in + 14))) & 0x00ffffffffffffff;
-    out[3] = (*((const uint64_t *)(in+20))) >> 8;
+    out[0] = *((const limb *)(in)) & 0x00ffffffffffffff;
+    out[1] = (*((const limb_aX *)(in + 7))) & 0x00ffffffffffffff;
+    out[2] = (*((const limb_aX *)(in + 14))) & 0x00ffffffffffffff;
+    out[3] = (*((const limb_aX *)(in + 20))) >> 8;
 }
 
 static void felem_to_bin28(u8 out[28], const felem in)
@@ -335,34 +325,21 @@ static void felem_to_bin28(u8 out[28], const felem in)
     }
 }
 
-/* To preserve endianness when using BN_bn2bin and BN_bin2bn */
-static void flip_endian(u8 *out, const u8 *in, unsigned len)
-{
-    unsigned i;
-    for (i = 0; i < len; ++i)
-        out[i] = in[len - 1 - i];
-}
-
 /* From OpenSSL BIGNUM to internal representation */
 static int BN_to_felem(felem out, const BIGNUM *bn)
 {
-    felem_bytearray b_in;
     felem_bytearray b_out;
-    unsigned num_bytes;
+    int num_bytes;
 
-    /* BN_bn2bin eats leading zeroes */
-    memset(b_out, 0, sizeof b_out);
-    num_bytes = BN_num_bytes(bn);
-    if (num_bytes > sizeof b_out) {
-        ECerr(EC_F_BN_TO_FELEM, EC_R_BIGNUM_OUT_OF_RANGE);
-        return 0;
-    }
     if (BN_is_negative(bn)) {
         ECerr(EC_F_BN_TO_FELEM, EC_R_BIGNUM_OUT_OF_RANGE);
         return 0;
     }
-    num_bytes = BN_bn2bin(bn, b_in);
-    flip_endian(b_out, b_in, num_bytes);
+    num_bytes = BN_bn2lebinpad(bn, b_out, sizeof(b_out));
+    if (num_bytes < 0) {
+        ECerr(EC_F_BN_TO_FELEM, EC_R_BIGNUM_OUT_OF_RANGE);
+        return 0;
+    }
     bin28_to_felem(out, b_out);
     return 1;
 }
@@ -370,10 +347,9 @@ static int BN_to_felem(felem out, const BIGNUM *bn)
 /* From internal representation to OpenSSL BIGNUM */
 static BIGNUM *felem_to_BN(BIGNUM *out, const felem in)
 {
-    felem_bytearray b_in, b_out;
-    felem_to_bin28(b_in, in);
-    flip_endian(b_out, b_in, sizeof b_out);
-    return BN_bin2bn(b_out, sizeof b_out, out);
+    felem_bytearray b_out;
+    felem_to_bin28(b_out, in);
+    return BN_lebin2bn(b_out, sizeof(b_out), out);
 }
 
 /******************************************************************************/
@@ -410,22 +386,6 @@ static void felem_sum(felem out, const felem in)
     out[1] += in[1];
     out[2] += in[2];
     out[3] += in[3];
-}
-
-/* Get negative value: out = -in */
-/* Assumes in[i] < 2^57 */
-static void felem_neg(felem out, const felem in)
-{
-    static const limb two58p2 = (((limb) 1) << 58) + (((limb) 1) << 2);
-    static const limb two58m2 = (((limb) 1) << 58) - (((limb) 1) << 2);
-    static const limb two58m42m2 = (((limb) 1) << 58) -
-        (((limb) 1) << 42) - (((limb) 1) << 2);
-
-    /* Set to 0 mod 2^224-2^96+1 to ensure out > in */
-    out[0] = two58p2 - in[0];
-    out[1] = two58m42m2 - in[1];
-    out[2] = two58m2 - in[2];
-    out[3] = two58m2 - in[3];
 }
 
 /* Subtract field elements: out -= in */
@@ -549,11 +509,11 @@ static void felem_mul(widefelem out, const felem in1, const felem in2)
     out[0] = ((widelimb) in1[0]) * in2[0];
     out[1] = ((widelimb) in1[0]) * in2[1] + ((widelimb) in1[1]) * in2[0];
     out[2] = ((widelimb) in1[0]) * in2[2] + ((widelimb) in1[1]) * in2[1] +
-        ((widelimb) in1[2]) * in2[0];
+             ((widelimb) in1[2]) * in2[0];
     out[3] = ((widelimb) in1[0]) * in2[3] + ((widelimb) in1[1]) * in2[2] +
-        ((widelimb) in1[2]) * in2[1] + ((widelimb) in1[3]) * in2[0];
+             ((widelimb) in1[2]) * in2[1] + ((widelimb) in1[3]) * in2[0];
     out[4] = ((widelimb) in1[1]) * in2[3] + ((widelimb) in1[2]) * in2[2] +
-        ((widelimb) in1[3]) * in2[1];
+             ((widelimb) in1[3]) * in2[1];
     out[5] = ((widelimb) in1[2]) * in2[3] + ((widelimb) in1[3]) * in2[2];
     out[6] = ((widelimb) in1[3]) * in2[3];
 }
@@ -697,6 +657,18 @@ static void felem_contract(felem out, const felem in)
 }
 
 /*
+ * Get negative value: out = -in
+ * Requires in[i] < 2^63,
+ * ensures out[0] < 2^56, out[1] < 2^56, out[2] < 2^56, out[3] <= 2^56 + 2^16
+ */
+static void felem_neg(felem out, const felem in)
+{
+    widefelem tmp = {0};
+    felem_diff_128_64(tmp, in);
+    felem_reduce(out, tmp);
+}
+
+/*
  * Zero-check: returns 1 if input is 0, and 0 otherwise. We know that field
  * elements are reduced to in < 2^225, so we only need to check three cases:
  * 0, 2^224 - 2^96 + 1, and 2^225 - 2^97 + 2
@@ -716,7 +688,7 @@ static limb felem_is_zero(const felem in)
     return (zero | two224m96p1 | two225m97p2);
 }
 
-static limb felem_is_zero_int(const felem in)
+static int felem_is_zero_int(const void *in)
 {
     return (int)(felem_is_zero(in) & ((limb) 1));
 }
@@ -834,7 +806,7 @@ static void copy_conditional(felem out, const felem in, limb icopy)
  * Double an elliptic curve point:
  * (X', Y', Z') = 2 * (X, Y, Z), where
  * X' = (3 * (X - Z^2) * (X + Z^2))^2 - 8 * X * Y^2
- * Y' = 3 * (X - Z^2) * (X + Z^2) * (4 * X * Y^2 - X') - 8 * Y^2
+ * Y' = 3 * (X - Z^2) * (X + Z^2) * (4 * X * Y^2 - X') - 8 * Y^4
  * Z' = (Y + Z)^2 - Y^2 - Z^2 = 2 * Y * Z
  * Outputs can equal corresponding inputs, i.e., x_out == x_in is allowed,
  * while x_out == y_in is not (maybe this works, but it's not tested).
@@ -936,6 +908,7 @@ static void point_add(felem x3, felem y3, felem z3,
     felem ftmp, ftmp2, ftmp3, ftmp4, ftmp5, x_out, y_out, z_out;
     widefelem tmp, tmp2;
     limb z1_is_zero, z2_is_zero, x_equal, y_equal;
+    limb points_equal;
 
     if (!mixed) {
         /* ftmp2 = z2^2 */
@@ -992,15 +965,41 @@ static void point_add(felem x3, felem y3, felem z3,
     felem_reduce(ftmp, tmp);
 
     /*
-     * the formulae are incorrect if the points are equal so we check for
-     * this and do doubling if this happens
+     * The formulae are incorrect if the points are equal, in affine coordinates
+     * (X_1, Y_1) == (X_2, Y_2), so we check for this and do doubling if this
+     * happens.
+     *
+     * We use bitwise operations to avoid potential side-channels introduced by
+     * the short-circuiting behaviour of boolean operators.
      */
     x_equal = felem_is_zero(ftmp);
     y_equal = felem_is_zero(ftmp3);
+    /*
+     * The special case of either point being the point at infinity (z1 and/or
+     * z2 are zero), is handled separately later on in this function, so we
+     * avoid jumping to point_double here in those special cases.
+     */
     z1_is_zero = felem_is_zero(z1);
     z2_is_zero = felem_is_zero(z2);
-    /* In affine coordinates, (X_1, Y_1) == (X_2, Y_2) */
-    if (x_equal && y_equal && !z1_is_zero && !z2_is_zero) {
+
+    /*
+     * Compared to `ecp_nistp256.c` and `ecp_nistp521.c`, in this
+     * specific implementation `felem_is_zero()` returns truth as `0x1`
+     * (rather than `0xff..ff`).
+     *
+     * This implies that `~true` in this implementation becomes
+     * `0xff..fe` (rather than `0x0`): for this reason, to be used in
+     * the if expression, we mask out only the last bit in the next
+     * line.
+     */
+    points_equal = (x_equal & y_equal & (~z1_is_zero) & (~z2_is_zero)) & 1;
+
+    if (points_equal) {
+        /*
+         * This is obviously not constant-time but, as mentioned before, this
+         * case never happens during single point multiplication, so there is no
+         * timing leak for ECDH or ECDSA signing.
+         */
         point_double(x3, y3, z3, x1, y1, z1);
         return;
     }
@@ -1103,8 +1102,8 @@ static void select_point(const u64 idx, unsigned int size,
 {
     unsigned i, j;
     limb *outlimbs = &out[0][0];
-    memset(outlimbs, 0, 3 * sizeof(felem));
 
+    memset(out, 0, sizeof(*out) * 3);
     for (i = 0; i < size; i++) {
         const limb *inlimbs = &pre_comp[i][0][0];
         u64 mask = i ^ idx;
@@ -1147,7 +1146,7 @@ static void batch_mul(felem x_out, felem y_out, felem z_out,
     u8 sign, digit;
 
     /* set nq to the point at infinity */
-    memset(nq, 0, 3 * sizeof(felem));
+    memset(nq, 0, sizeof(nq));
 
     /*
      * Loop over all scalars msb-to-lsb, interleaving additions of multiples
@@ -1231,58 +1230,49 @@ static void batch_mul(felem x_out, felem y_out, felem z_out,
  * FUNCTIONS TO MANAGE PRECOMPUTATION
  */
 
-static NISTP224_PRE_COMP *nistp224_pre_comp_new()
+static NISTP224_PRE_COMP *nistp224_pre_comp_new(void)
 {
-    NISTP224_PRE_COMP *ret = NULL;
-    ret = (NISTP224_PRE_COMP *) OPENSSL_malloc(sizeof *ret);
+    NISTP224_PRE_COMP *ret = OPENSSL_zalloc(sizeof(*ret));
+
     if (!ret) {
         ECerr(EC_F_NISTP224_PRE_COMP_NEW, ERR_R_MALLOC_FAILURE);
         return ret;
     }
-    memset(ret->g_pre_comp, 0, sizeof(ret->g_pre_comp));
+
     ret->references = 1;
+
+    ret->lock = CRYPTO_THREAD_lock_new();
+    if (ret->lock == NULL) {
+        ECerr(EC_F_NISTP224_PRE_COMP_NEW, ERR_R_MALLOC_FAILURE);
+        OPENSSL_free(ret);
+        return NULL;
+    }
     return ret;
 }
 
-static void *nistp224_pre_comp_dup(void *src_)
-{
-    NISTP224_PRE_COMP *src = src_;
-
-    /* no need to actually copy, these objects never change! */
-    CRYPTO_add(&src->references, 1, CRYPTO_LOCK_EC_PRE_COMP);
-
-    return src_;
-}
-
-static void nistp224_pre_comp_free(void *pre_)
+NISTP224_PRE_COMP *EC_nistp224_pre_comp_dup(NISTP224_PRE_COMP *p)
 {
     int i;
-    NISTP224_PRE_COMP *pre = pre_;
-
-    if (!pre)
-        return;
-
-    i = CRYPTO_add(&pre->references, -1, CRYPTO_LOCK_EC_PRE_COMP);
-    if (i > 0)
-        return;
-
-    OPENSSL_free(pre);
+    if (p != NULL)
+        CRYPTO_UP_REF(&p->references, &i, p->lock);
+    return p;
 }
 
-static void nistp224_pre_comp_clear_free(void *pre_)
+void EC_nistp224_pre_comp_free(NISTP224_PRE_COMP *p)
 {
     int i;
-    NISTP224_PRE_COMP *pre = pre_;
 
-    if (!pre)
+    if (p == NULL)
         return;
 
-    i = CRYPTO_add(&pre->references, -1, CRYPTO_LOCK_EC_PRE_COMP);
+    CRYPTO_DOWN_REF(&p->references, &i, p->lock);
+    REF_PRINT_COUNT("EC_nistp224", x);
     if (i > 0)
         return;
+    REF_ASSERT_ISNT(i < 0);
 
-    OPENSSL_cleanse(pre, sizeof *pre);
-    OPENSSL_free(pre);
+    CRYPTO_THREAD_lock_free(p->lock);
+    OPENSSL_free(p);
 }
 
 /******************************************************************************/
@@ -1310,9 +1300,10 @@ int ec_GFp_nistp224_group_set_curve(EC_GROUP *group, const BIGNUM *p,
         if ((ctx = new_ctx = BN_CTX_new()) == NULL)
             return 0;
     BN_CTX_start(ctx);
-    if (((curve_p = BN_CTX_get(ctx)) == NULL) ||
-        ((curve_a = BN_CTX_get(ctx)) == NULL) ||
-        ((curve_b = BN_CTX_get(ctx)) == NULL))
+    curve_p = BN_CTX_get(ctx);
+    curve_a = BN_CTX_get(ctx);
+    curve_b = BN_CTX_get(ctx);
+    if (curve_b == NULL)
         goto err;
     BN_bin2bn(nistp224_curve_params[0], sizeof(felem_bytearray), curve_p);
     BN_bin2bn(nistp224_curve_params[1], sizeof(felem_bytearray), curve_a);
@@ -1326,8 +1317,7 @@ int ec_GFp_nistp224_group_set_curve(EC_GROUP *group, const BIGNUM *p,
     ret = ec_GFp_simple_group_set_curve(group, p, a, b, ctx);
  err:
     BN_CTX_end(ctx);
-    if (new_ctx != NULL)
-        BN_CTX_free(new_ctx);
+    BN_CTX_free(new_ctx);
     return ret;
 }
 
@@ -1348,8 +1338,8 @@ int ec_GFp_nistp224_point_get_affine_coordinates(const EC_GROUP *group,
               EC_R_POINT_AT_INFINITY);
         return 0;
     }
-    if ((!BN_to_felem(x_in, &point->X)) || (!BN_to_felem(y_in, &point->Y)) ||
-        (!BN_to_felem(z1, &point->Z)))
+    if ((!BN_to_felem(x_in, point->X)) || (!BN_to_felem(y_in, point->Y)) ||
+        (!BN_to_felem(z1, point->Z)))
         return 0;
     felem_inv(z2, z1);
     felem_square(tmp, z2);
@@ -1391,7 +1381,6 @@ static void make_points_affine(size_t num, felem points[ /* num */ ][3],
                                              sizeof(felem),
                                              tmp_felems,
                                              (void (*)(void *))felem_one,
-                                             (int (*)(const void *))
                                              felem_is_zero_int,
                                              (void (*)(void *, const void *))
                                              felem_assign,
@@ -1422,14 +1411,12 @@ int ec_GFp_nistp224_points_mul(const EC_GROUP *group, EC_POINT *r,
     int j;
     unsigned i;
     int mixed = 0;
-    BN_CTX *new_ctx = NULL;
     BIGNUM *x, *y, *z, *tmp_scalar;
     felem_bytearray g_secret;
     felem_bytearray *secrets = NULL;
-    felem(*pre_comp)[17][3] = NULL;
+    felem (*pre_comp)[17][3] = NULL;
     felem *tmp_felems = NULL;
-    felem_bytearray tmp;
-    unsigned num_bytes;
+    int num_bytes;
     int have_pre_comp = 0;
     size_t num_points = num;
     felem x_in, y_in, z_in, x_out, y_out, z_out;
@@ -1439,21 +1426,16 @@ int ec_GFp_nistp224_points_mul(const EC_GROUP *group, EC_POINT *r,
     const EC_POINT *p = NULL;
     const BIGNUM *p_scalar = NULL;
 
-    if (ctx == NULL)
-        if ((ctx = new_ctx = BN_CTX_new()) == NULL)
-            return 0;
     BN_CTX_start(ctx);
-    if (((x = BN_CTX_get(ctx)) == NULL) ||
-        ((y = BN_CTX_get(ctx)) == NULL) ||
-        ((z = BN_CTX_get(ctx)) == NULL) ||
-        ((tmp_scalar = BN_CTX_get(ctx)) == NULL))
+    x = BN_CTX_get(ctx);
+    y = BN_CTX_get(ctx);
+    z = BN_CTX_get(ctx);
+    tmp_scalar = BN_CTX_get(ctx);
+    if (tmp_scalar == NULL)
         goto err;
 
     if (scalar != NULL) {
-        pre = EC_EX_DATA_get_data(group->extra_data,
-                                  nistp224_pre_comp_dup,
-                                  nistp224_pre_comp_free,
-                                  nistp224_pre_comp_clear_free);
+        pre = group->pre_comp.nistp224;
         if (pre)
             /* we have precomputation, try to use it */
             g_pre_comp = (const felem(*)[16][3])pre->g_pre_comp;
@@ -1493,11 +1475,11 @@ int ec_GFp_nistp224_points_mul(const EC_GROUP *group, EC_POINT *r,
              */
             mixed = 1;
         }
-        secrets = OPENSSL_malloc(num_points * sizeof(felem_bytearray));
-        pre_comp = OPENSSL_malloc(num_points * 17 * 3 * sizeof(felem));
+        secrets = OPENSSL_zalloc(sizeof(*secrets) * num_points);
+        pre_comp = OPENSSL_zalloc(sizeof(*pre_comp) * num_points);
         if (mixed)
             tmp_felems =
-                OPENSSL_malloc((num_points * 17 + 1) * sizeof(felem));
+                OPENSSL_malloc(sizeof(felem) * (num_points * 17 + 1));
         if ((secrets == NULL) || (pre_comp == NULL)
             || (mixed && (tmp_felems == NULL))) {
             ECerr(EC_F_EC_GFP_NISTP224_POINTS_MUL, ERR_R_MALLOC_FAILURE);
@@ -1508,17 +1490,13 @@ int ec_GFp_nistp224_points_mul(const EC_GROUP *group, EC_POINT *r,
          * we treat NULL scalars as 0, and NULL points as points at infinity,
          * i.e., they contribute nothing to the linear combination
          */
-        memset(secrets, 0, num_points * sizeof(felem_bytearray));
-        memset(pre_comp, 0, num_points * 17 * 3 * sizeof(felem));
         for (i = 0; i < num_points; ++i) {
-            if (i == num)
+            if (i == num) {
                 /* the generator */
-            {
                 p = EC_GROUP_get0_generator(group);
                 p_scalar = scalar;
-            } else
+            } else {
                 /* the i^th point */
-            {
                 p = points[i];
                 p_scalar = scalars[i];
             }
@@ -1530,18 +1508,24 @@ int ec_GFp_nistp224_points_mul(const EC_GROUP *group, EC_POINT *r,
                      * this is an unusual input, and we don't guarantee
                      * constant-timeness
                      */
-                    if (!BN_nnmod(tmp_scalar, p_scalar, &group->order, ctx)) {
+                    if (!BN_nnmod(tmp_scalar, p_scalar, group->order, ctx)) {
                         ECerr(EC_F_EC_GFP_NISTP224_POINTS_MUL, ERR_R_BN_LIB);
                         goto err;
                     }
-                    num_bytes = BN_bn2bin(tmp_scalar, tmp);
-                } else
-                    num_bytes = BN_bn2bin(p_scalar, tmp);
-                flip_endian(secrets[i], tmp, num_bytes);
+                    num_bytes = BN_bn2lebinpad(tmp_scalar,
+                                               secrets[i], sizeof(secrets[i]));
+                } else {
+                    num_bytes = BN_bn2lebinpad(p_scalar,
+                                               secrets[i], sizeof(secrets[i]));
+                }
+                if (num_bytes < 0) {
+                    ECerr(EC_F_EC_GFP_NISTP224_POINTS_MUL, ERR_R_BN_LIB);
+                    goto err;
+                }
                 /* precompute multiples */
-                if ((!BN_to_felem(x_out, &p->X)) ||
-                    (!BN_to_felem(y_out, &p->Y)) ||
-                    (!BN_to_felem(z_out, &p->Z)))
+                if ((!BN_to_felem(x_out, p->X)) ||
+                    (!BN_to_felem(y_out, p->Y)) ||
+                    (!BN_to_felem(z_out, p->Z)))
                     goto err;
                 felem_assign(pre_comp[i][1][0], x_out);
                 felem_assign(pre_comp[i][1][1], y_out);
@@ -1569,31 +1553,32 @@ int ec_GFp_nistp224_points_mul(const EC_GROUP *group, EC_POINT *r,
 
     /* the scalar for the generator */
     if ((scalar != NULL) && (have_pre_comp)) {
-        memset(g_secret, 0, sizeof g_secret);
+        memset(g_secret, 0, sizeof(g_secret));
         /* reduce scalar to 0 <= scalar < 2^224 */
         if ((BN_num_bits(scalar) > 224) || (BN_is_negative(scalar))) {
             /*
              * this is an unusual input, and we don't guarantee
              * constant-timeness
              */
-            if (!BN_nnmod(tmp_scalar, scalar, &group->order, ctx)) {
+            if (!BN_nnmod(tmp_scalar, scalar, group->order, ctx)) {
                 ECerr(EC_F_EC_GFP_NISTP224_POINTS_MUL, ERR_R_BN_LIB);
                 goto err;
             }
-            num_bytes = BN_bn2bin(tmp_scalar, tmp);
-        } else
-            num_bytes = BN_bn2bin(scalar, tmp);
-        flip_endian(g_secret, tmp, num_bytes);
+            num_bytes = BN_bn2lebinpad(tmp_scalar, g_secret, sizeof(g_secret));
+        } else {
+            num_bytes = BN_bn2lebinpad(scalar, g_secret, sizeof(g_secret));
+        }
         /* do the multiplication with generator precomputation */
         batch_mul(x_out, y_out, z_out,
                   (const felem_bytearray(*))secrets, num_points,
                   g_secret,
                   mixed, (const felem(*)[17][3])pre_comp, g_pre_comp);
-    } else
+    } else {
         /* do the multiplication without generator precomputation */
         batch_mul(x_out, y_out, z_out,
                   (const felem_bytearray(*))secrets, num_points,
                   NULL, mixed, (const felem(*)[17][3])pre_comp, NULL);
+    }
     /* reduce the output to its unique minimal representation */
     felem_contract(x_in, x_out);
     felem_contract(y_in, y_out);
@@ -1607,16 +1592,10 @@ int ec_GFp_nistp224_points_mul(const EC_GROUP *group, EC_POINT *r,
 
  err:
     BN_CTX_end(ctx);
-    if (generator != NULL)
-        EC_POINT_free(generator);
-    if (new_ctx != NULL)
-        BN_CTX_free(new_ctx);
-    if (secrets != NULL)
-        OPENSSL_free(secrets);
-    if (pre_comp != NULL)
-        OPENSSL_free(pre_comp);
-    if (tmp_felems != NULL)
-        OPENSSL_free(tmp_felems);
+    EC_POINT_free(generator);
+    OPENSSL_free(secrets);
+    OPENSSL_free(pre_comp);
+    OPENSSL_free(tmp_felems);
     return ret;
 }
 
@@ -1631,14 +1610,14 @@ int ec_GFp_nistp224_precompute_mult(EC_GROUP *group, BN_CTX *ctx)
     felem tmp_felems[32];
 
     /* throw away old precomputation */
-    EC_EX_DATA_free_data(&group->extra_data, nistp224_pre_comp_dup,
-                         nistp224_pre_comp_free,
-                         nistp224_pre_comp_clear_free);
+    EC_pre_comp_free(group);
     if (ctx == NULL)
         if ((ctx = new_ctx = BN_CTX_new()) == NULL)
             return 0;
     BN_CTX_start(ctx);
-    if (((x = BN_CTX_get(ctx)) == NULL) || ((y = BN_CTX_get(ctx)) == NULL))
+    x = BN_CTX_get(ctx);
+    y = BN_CTX_get(ctx);
+    if (y == NULL)
         goto err;
     /* get the generator */
     if (group->generator == NULL)
@@ -1648,7 +1627,7 @@ int ec_GFp_nistp224_precompute_mult(EC_GROUP *group, BN_CTX *ctx)
         goto err;
     BN_bin2bn(nistp224_curve_params[3], sizeof(felem_bytearray), x);
     BN_bin2bn(nistp224_curve_params[4], sizeof(felem_bytearray), y);
-    if (!EC_POINT_set_affine_coordinates_GFp(group, generator, x, y, ctx))
+    if (!EC_POINT_set_affine_coordinates(group, generator, x, y, ctx))
         goto err;
     if ((pre = nistp224_pre_comp_new()) == NULL)
         goto err;
@@ -1659,9 +1638,9 @@ int ec_GFp_nistp224_precompute_mult(EC_GROUP *group, BN_CTX *ctx)
         memcpy(pre->g_pre_comp, gmul, sizeof(pre->g_pre_comp));
         goto done;
     }
-    if ((!BN_to_felem(pre->g_pre_comp[0][1][0], &group->generator->X)) ||
-        (!BN_to_felem(pre->g_pre_comp[0][1][1], &group->generator->Y)) ||
-        (!BN_to_felem(pre->g_pre_comp[0][1][2], &group->generator->Z)))
+    if ((!BN_to_felem(pre->g_pre_comp[0][1][0], group->generator->X)) ||
+        (!BN_to_felem(pre->g_pre_comp[0][1][1], group->generator->Y)) ||
+        (!BN_to_felem(pre->g_pre_comp[0][1][2], group->generator->Z)))
         goto err;
     /*
      * compute 2^56*G, 2^112*G, 2^168*G for the first table, 2^28*G, 2^84*G,
@@ -1736,34 +1715,20 @@ int ec_GFp_nistp224_precompute_mult(EC_GROUP *group, BN_CTX *ctx)
     make_points_affine(31, &(pre->g_pre_comp[0][1]), tmp_felems);
 
  done:
-    if (!EC_EX_DATA_set_data(&group->extra_data, pre, nistp224_pre_comp_dup,
-                             nistp224_pre_comp_free,
-                             nistp224_pre_comp_clear_free))
-        goto err;
-    ret = 1;
+    SETPRECOMP(group, nistp224, pre);
     pre = NULL;
+    ret = 1;
  err:
     BN_CTX_end(ctx);
-    if (generator != NULL)
-        EC_POINT_free(generator);
-    if (new_ctx != NULL)
-        BN_CTX_free(new_ctx);
-    if (pre)
-        nistp224_pre_comp_free(pre);
+    EC_POINT_free(generator);
+    BN_CTX_free(new_ctx);
+    EC_nistp224_pre_comp_free(pre);
     return ret;
 }
 
 int ec_GFp_nistp224_have_precompute_mult(const EC_GROUP *group)
 {
-    if (EC_EX_DATA_get_data(group->extra_data, nistp224_pre_comp_dup,
-                            nistp224_pre_comp_free,
-                            nistp224_pre_comp_clear_free)
-        != NULL)
-        return 1;
-    else
-        return 0;
+    return HAVEPRECOMP(group, nistp224);
 }
 
-#else
-static void *dummy = &dummy;
 #endif

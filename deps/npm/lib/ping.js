@@ -1,21 +1,36 @@
-var npm = require('./npm.js')
-var output = require('./utils/output.js')
+const log = require('npmlog')
+const output = require('./utils/output.js')
+const usageUtil = require('./utils/usage.js')
+const pingUtil = require('./utils/ping.js')
 
-module.exports = ping
-
-ping.usage = 'npm ping\nping registry'
-
-function ping (args, silent, cb) {
-  if (typeof cb !== 'function') {
-    cb = silent
-    silent = false
+class Ping {
+  constructor (npm) {
+    this.npm = npm
   }
-  var registry = npm.config.get('registry')
-  if (!registry) return cb(new Error('no default registry set'))
-  var auth = npm.config.getCredentialsByURI(registry)
 
-  npm.registry.ping(registry, {auth: auth}, function (er, pong) {
-    if (!silent) output(JSON.stringify(pong))
-    cb(er, er ? null : pong)
-  })
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  get usage () {
+    return usageUtil('ping', 'npm ping\nping registry')
+  }
+
+  exec (args, cb) {
+    this.ping(args).then(() => cb()).catch(cb)
+  }
+
+  async ping (args) {
+    log.notice('PING', this.npm.flatOptions.registry)
+    const start = Date.now()
+    const details = await pingUtil(this.npm.flatOptions)
+    const time = Date.now() - start
+    log.notice('PONG', `${time / 1000}ms`)
+    if (this.npm.flatOptions.json) {
+      output(JSON.stringify({
+        registry: this.npm.flatOptions.registry,
+        time,
+        details,
+      }, null, 2))
+    } else if (Object.keys(details).length)
+      log.notice('PONG', `${JSON.stringify(details, null, 2)}`)
+  }
 }
+module.exports = Ping

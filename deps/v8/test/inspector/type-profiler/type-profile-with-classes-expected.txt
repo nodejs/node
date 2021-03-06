@@ -1,0 +1,16 @@
+Test collecting type profile data with Profiler.takeTypeProfile.
+
+function f(/*number*/n) {
+/*undefined*/};
+f(5);
+function g(/*Object, number*/a, /*Array, number*/b, /*Flower, Object*/c) {
+  return 'bye';
+/*string*/};
+/*undefined*/class Tree {};
+/*Flower*/class Flower extends Tree{};
+var f = new Flower();
+f.constructor = {};
+f.constructor.name = "Not a flower.";
+g({}, [], f);
+g(3, 2.3, {a: 42});
+/*string*/

@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -6,7 +6,7 @@
 *   Corporation and others.  All Rights Reserved.
 *******************************************************************************
 *   file name:  messageimpl.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -33,7 +33,7 @@ U_NAMESPACE_BEGIN
 class U_COMMON_API MessageImpl {
 public:
     /**
-     * @return TRUE if getApostropheMode()==UMSGPAT_APOS_DOUBLE_REQUIRED
+     * @return true if getApostropheMode()==UMSGPAT_APOS_DOUBLE_REQUIRED
      */
     static UBool jdkAposMode(const MessagePattern &msgPattern) {
         return msgPattern.getApostropheMode()==UMSGPAT_APOS_DOUBLE_REQUIRED;

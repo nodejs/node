@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -30,8 +30,6 @@ U_NAMESPACE_BEGIN
 // -------------------------------------
 // Creates a formattable object with a char* string.
 // This API is useless. The API that takes a UnicodeString is actually just as good.
-// This is just a grandfathered API.
-
 Formattable::Formattable(const char* stringToCopy)
 {
     init();

@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 const spawn = require('child_process').spawn;
@@ -8,11 +8,13 @@ const child = spawn(process.execPath, [ '-i' ], {
   stdio: [null, null, 2]
 });
 
-var stdout = '';
+let stdout = '';
 child.stdout.setEncoding('utf8');
 child.stdout.on('data', function(c) {
   process.stdout.write(c);
   stdout += c;
+  if (stdout.includes('> THROW 2'))
+    child.stdin.end();
 });
 
 child.stdin.write = function(original) {
@@ -23,22 +25,22 @@ child.stdin.write = function(original) {
 }(child.stdin.write);
 
 child.stdout.once('data', function() {
-  child.stdin.write('var throws = 0;');
+  child.stdin.write('let throws = 0;');
   child.stdin.write('process.on("exit",function(){console.log(throws)});');
   child.stdin.write('function thrower(){console.log("THROW",throws++);XXX};');
   child.stdin.write('setTimeout(thrower);""\n');
 
   setTimeout(fsTest, 50);
   function fsTest() {
-    var f = JSON.stringify(__filename);
-    child.stdin.write('fs.readFile(' + f + ', thrower);\n');
+    const f = JSON.stringify(__filename);
+    child.stdin.write(`fs.readFile(${f}, thrower);\n`);
     setTimeout(eeTest, 50);
   }
 
   function eeTest() {
     child.stdin.write('setTimeout(function() {\n' +
-                      '  var events = require("events");\n' +
-                      '  var e = new events.EventEmitter;\n' +
+                      '  const events = require("events");\n' +
+                      '  let e = new events.EventEmitter;\n' +
                       '  process.nextTick(function() {\n' +
                       '    e.on("x", thrower);\n' +
                       '    setTimeout(function() {\n' +
@@ -46,14 +48,12 @@ child.stdout.once('data', function() {
                       '    });\n' +
                       '  });\n' +
                       '});"";\n');
-
-    setTimeout(child.stdin.end.bind(child.stdin), common.platformTimeout(200));
   }
 });
 
 child.on('close', function(c) {
   assert.strictEqual(c, 0);
-  // make sure we got 3 throws, in the end.
-  var lastLine = stdout.trim().split(/\r?\n/).pop();
+  // Make sure we got 3 throws, in the end.
+  const lastLine = stdout.trim().split(/\r?\n/).pop();
   assert.strictEqual(lastLine, '> 3');
 });

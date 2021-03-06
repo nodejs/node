@@ -1,33 +1,22 @@
 'use strict';
-var common = require('../common.js');
-var path = require('path');
-var v8 = require('v8');
+const common = require('../common.js');
+const { posix } = require('path');
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   path: [
     '',
     '.',
     '/foo/bar',
     '/baz/..',
-    'bar/baz'
+    'bar/baz',
   ],
-  n: [1e6]
+  n: [1e5]
 });
 
-function main(conf) {
-  var n = +conf.n;
-  var p = path.posix;
-  var input = '' + conf.path;
-
-  // Force optimization before starting the benchmark
-  p.isAbsolute(input);
-  v8.setFlagsFromString('--allow_natives_syntax');
-  eval('%OptimizeFunctionOnNextCall(p.isAbsolute)');
-  p.isAbsolute(input);
-
+function main({ n, path }) {
   bench.start();
-  for (var i = 0; i < n; i++) {
-    p.isAbsolute(input);
+  for (let i = 0; i < n; i++) {
+    posix.isAbsolute(i % 3 === 0 ? `${path}${i}` : path);
   }
   bench.end(n);
 }

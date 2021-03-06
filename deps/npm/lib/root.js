@@ -1,15 +1,22 @@
-module.exports = root
+const output = require('./utils/output.js')
+const usageUtil = require('./utils/usage.js')
 
-var npm = require('./npm.js')
-var output = require('./utils/output.js')
-
-root.usage = 'npm root [-g]'
-
-function root (args, silent, cb) {
-  if (typeof cb !== 'function') {
-    cb = silent
-    silent = false
+class Root {
+  constructor (npm) {
+    this.npm = npm
   }
-  if (!silent) output(npm.dir)
-  process.nextTick(cb.bind(this, null, npm.dir))
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  get usage () {
+    return usageUtil('root', 'npm root [-g]')
+  }
+
+  exec (args, cb) {
+    this.root(args).then(() => cb()).catch(cb)
+  }
+
+  async root () {
+    output(this.npm.dir)
+  }
 }
+module.exports = Root

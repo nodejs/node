@@ -34,7 +34,7 @@ function getX() { return x; }
 
 for (var i = 0; i < 10; i++) {
   assertEquals(i < 5 ? 0 : 42, getX());
-  if (i == 4) __defineGetter__("x", function() { return 42; });
+  if (i == 4) this.__defineGetter__("x", function() { return 42; });
 }
 
 
@@ -50,8 +50,8 @@ for (var i = 0; i < 10; i++) {
   setY(i);
   assertEquals(i < 5 ? i : 2 * i, y);
   if (i == 4) {
-    __defineSetter__("y", function(value) { setter_y = 2 * value; });
-    __defineGetter__("y", function() { return setter_y; });
+    this.__defineSetter__("y", function(value) { setter_y = 2 * value; });
+    this.__defineGetter__("y", function() { return setter_y; });
   }
 }
 
@@ -59,7 +59,7 @@ for (var i = 0; i < 10; i++) {
 // Test that replacing a getter with a normal property works as
 // expected.
 
-__defineGetter__("z", function() { return 42; });
+this.__defineGetter__("z", function() { return 42; });
 
 function getZ() { return z; }
 

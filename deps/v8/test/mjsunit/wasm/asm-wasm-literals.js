@@ -32,7 +32,7 @@ function PositiveIntLiterals() {
   function f2000000() { return 2000000; }
   function fmax() { return 2147483647; }
   return {f0: f0, f1: f1, f4: f4, f64: f64, f127: f127, f128: f128,
-          f256: f256, f1000: f1000, f2000000, fmax: fmax};
+          f256: f256, f1000: f1000, f2000000: f2000000, fmax: fmax};
 }
 
 RunAsmJsTest(PositiveIntLiterals, function(module) {
@@ -60,7 +60,7 @@ function NegativeIntLiterals() {
   function f2000000() { return -2000000; }
   function fmin() { return -2147483648; }
   return {f1: f1, f4: f4, f64: f64, f127: f127, f128: f128,
-          f256: f256, f1000: f1000, f2000000, fmin: fmin};
+          f256: f256, f1000: f1000, f2000000: f2000000, fmin: fmin};
 }
 
 RunAsmJsTest(NegativeIntLiterals, function (module) {
@@ -77,18 +77,18 @@ RunAsmJsTest(NegativeIntLiterals, function (module) {
 
 function PositiveUnsignedLiterals() {
   "use asm";
-  function f0() { return 0 >>> 0; }
-  function f1() { return 1 >>> 0; }
-  function f4() { return 4 >>> 0; }
-  function f64() { return 64 >>> 0; }
-  function f127() { return 127 >>> 0; }
-  function f128() { return 128 >>> 0; }
-  function f256() { return 256 >>> 0; }
-  function f1000() { return 1000 >>> 0; }
-  function f2000000() { return 2000000 >>> 0; }
-  function fmax() { return 2147483647 >>> 0; }
+  function f0() { return +(0 >>> 0); }
+  function f1() { return +(1 >>> 0); }
+  function f4() { return +(4 >>> 0); }
+  function f64() { return +(64 >>> 0); }
+  function f127() { return +(127 >>> 0); }
+  function f128() { return +(128 >>> 0); }
+  function f256() { return +(256 >>> 0); }
+  function f1000() { return +(1000 >>> 0); }
+  function f2000000() { return +(2000000 >>> 0); }
+  function fmax() { return +(2147483647 >>> 0); }
   return {f0: f0, f1: f1, f4: f4, f64: f64, f127: f127, f128: f128,
-          f256: f256, f1000: f1000, f2000000, fmax: fmax};
+          f256: f256, f1000: f1000, f2000000: f2000000, fmax: fmax};
 }
 
 RunAsmJsTest(PositiveUnsignedLiterals, function (module) {
@@ -139,16 +139,17 @@ RunAsmJsTest(LargeUnsignedLiterals, function(module) {
 function ManyI32() {
   "use asm";
   function main() {
-    var a =          1 +          -2 +          3 +          -4 | 0;
-    var b =         11 +         -22 +         33 +         -44 | 0;
-    var c =        111 +        -222 +        333 +        -444 | 0;
-    var d =       1111 +       -2222 +       3333 +       -4444 | 0;
-    var e =      11111 +      -22222 +      33333 +      -44444 | 0;
-    var f =     155555 +     -266666 +     377777 +     -488888 | 0;
-    var g =    1155555 +    -2266666 +    3377777 +    -4488888 | 0;
-    var h =   11155555 +   -22266666 +   33377777 +   -44488888 | 0;
-    var i =  111155555 +  -222266666 +  333377777 +  -444488888 | 0;
-    var j = (
+    var a = 0, b = 0, c = 0, d = 0, e = 0, f = 0, g = 0, h = 0, i = 0, j = 0;
+    a =          1 +          -2 +          3 +          -4 | 0;
+    b =         11 +         -22 +         33 +         -44 | 0;
+    c =        111 +        -222 +        333 +        -444 | 0;
+    d =       1111 +       -2222 +       3333 +       -4444 | 0;
+    e =      11111 +      -22222 +      33333 +      -44444 | 0;
+    f =     155555 +     -266666 +     377777 +     -488888 | 0;
+    g =    1155555 +    -2266666 +    3377777 +    -4488888 | 0;
+    h =   11155555 +   -22266666 +   33377777 +   -44488888 | 0;
+    i =  111155555 +  -222266666 +  333377777 +  -444488888 | 0;
+    j = (
       0x1        + 0x2        + 0x4        + 0x8       +
       0x10       + 0x20       + 0x40       + 0x80      +
       0x10F      + 0x200      + 0x400      + 0x800     +
@@ -171,15 +172,17 @@ RunAsmJsTest(ManyI32, function(module) {
 function ManyF64a() {
   "use asm";
   function main() {
-    var a = +(       0.1 +         -0.2 +         0.3 +         -0.4);
-    var b = +(       1.1 +         -2.2 +        0.33 +         -4.4);
-    var c = +(      11.1 +        -22.2 +        3.33 +        -4.44);
-    var d = +(     111.1 +       -222.2 +       33.33 +       -4.444);
-    var e = +(    1111.1 +      -2222.2 +      333.33 +      -4.4444);
-    var f = +(   15555.5 +     -26666.6 +     3777.77 +     -4.88888);
-    var g = +(  115555.5 +    -226666.6 +    33777.77 +    -4.488888);
-    var h = +( 1115555.5 +   -2226666.6 +   333777.77 +   -4.4488888);
-    var i = +(11115555.5 +  -22226666.6 +  3333777.77 +  -4.44488888);
+    var a = 0.0, b = 0.0, c = 0.0, d = 0.0,
+        e = 0.0, f = 0.0, g = 0.0, h = 0.0, i = 0.0;
+    a = +(       0.1 +         -0.2 +         0.3 +         -0.4);
+    b = +(       1.1 +         -2.2 +        0.33 +         -4.4);
+    c = +(      11.1 +        -22.2 +        3.33 +        -4.44);
+    d = +(     111.1 +       -222.2 +       33.33 +       -4.444);
+    e = +(    1111.1 +      -2222.2 +      333.33 +      -4.4444);
+    f = +(   15555.5 +     -26666.6 +     3777.77 +     -4.88888);
+    g = +(  115555.5 +    -226666.6 +    33777.77 +    -4.488888);
+    h = +( 1115555.5 +   -2226666.6 +   333777.77 +   -4.4488888);
+    i = +(11115555.5 +  -22226666.6 +  3333777.77 +  -4.44488888);
     return +(a + b + c + d + e + f + g + h + i);
   }
   return {main: main};

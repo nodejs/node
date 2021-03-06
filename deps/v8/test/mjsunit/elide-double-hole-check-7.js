@@ -30,6 +30,7 @@
 function f1(a, i) {
   return a[i] + 0.5;
 }
+%PrepareFunctionForOptimization(f1);
 var arr = [0.0,,2.5];
 assertEquals(0.5, f1(arr, 0));
 assertEquals(0.5, f1(arr, 0));

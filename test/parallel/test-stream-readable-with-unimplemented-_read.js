@@ -1,8 +1,18 @@
 'use strict';
 require('../common');
-const stream = require('stream');
+
 const assert = require('assert');
+const { Readable } = require('stream');
 
-const readable = new stream.Readable();
+const readable = new Readable();
 
-assert.throws(() => readable.read(), /not implemented/);
+assert.throws(
+  () => {
+    readable.read();
+  },
+  {
+    code: 'ERR_METHOD_NOT_IMPLEMENTED',
+    name: 'Error',
+    message: 'The _read() method is not implemented'
+  }
+);

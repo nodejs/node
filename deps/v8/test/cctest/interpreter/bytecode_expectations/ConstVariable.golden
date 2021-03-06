@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: string
-execute: yes
 wrap: yes
 
 ---
@@ -13,12 +11,9 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 10
+bytecode array length: 6
 bytecodes: [
-                B(LdaTheHole),
-                B(Star), R(0),
-  /*   30 E> */ B(StackCheck),
-  /*   44 S> */ B(LdaSmi), U8(10),
+  /*   44 S> */ B(LdaSmi), I8(10),
                 B(Star), R(0),
                 B(LdaUndefined),
   /*   48 S> */ B(Return),
@@ -32,23 +27,15 @@ handlers: [
 snippet: "
   const x = 10; return x;
 "
-frame size: 2
+frame size: 1
 parameter count: 1
-bytecode array length: 20
+bytecode array length: 5
 bytecodes: [
-                B(LdaTheHole),
+  /*   44 S> */ B(LdaSmi), I8(10),
                 B(Star), R(0),
-  /*   30 E> */ B(StackCheck),
-  /*   44 S> */ B(LdaSmi), U8(10),
-                B(Star), R(0),
-  /*   48 S> */ B(JumpIfNotHole), U8(11),
-                B(LdaConstant), U8(0),
-                B(Star), R(1),
-                B(CallRuntime), U16(Runtime::kThrowReferenceError), R(1), U8(1),
-  /*   58 S> */ B(Return),
+  /*   57 S> */ B(Return),
 ]
 constant pool: [
-  "x",
 ]
 handlers: [
 ]
@@ -57,27 +44,23 @@ handlers: [
 snippet: "
   const x = ( x = 20);
 "
-frame size: 3
+frame size: 2
 parameter count: 1
-bytecode array length: 30
+bytecode array length: 20
 bytecodes: [
                 B(LdaTheHole),
                 B(Star), R(0),
-  /*   30 E> */ B(StackCheck),
-  /*   48 S> */ B(LdaSmi), U8(20),
+  /*   44 S> */ B(LdaSmi), I8(20),
                 B(Star), R(1),
                 B(Ldar), R(0),
-                B(JumpIfNotHole), U8(11),
-                B(LdaConstant), U8(0),
-                B(Star), R(2),
-  /*   48 E> */ B(CallRuntime), U16(Runtime::kThrowReferenceError), R(2), U8(1),
+  /*   48 E> */ B(ThrowReferenceErrorIfHole), U8(0),
                 B(CallRuntime), U16(Runtime::kThrowConstAssignError), R(0), U8(0),
                 B(Star), R(0),
                 B(LdaUndefined),
   /*   55 S> */ B(Return),
 ]
 constant pool: [
-  "x",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
 ]
 handlers: [
 ]
@@ -86,28 +69,18 @@ handlers: [
 snippet: "
   const x = 10; x = 20;
 "
-frame size: 3
+frame size: 1
 parameter count: 1
-bytecode array length: 32
+bytecode array length: 13
 bytecodes: [
-                B(LdaTheHole),
+  /*   44 S> */ B(LdaSmi), I8(10),
                 B(Star), R(0),
-  /*   30 E> */ B(StackCheck),
-  /*   44 S> */ B(LdaSmi), U8(10),
-                B(Star), R(0),
-  /*   48 S> */ B(LdaSmi), U8(20),
-                B(Star), R(1),
-                B(Ldar), R(0),
-                B(JumpIfNotHole), U8(11),
-                B(LdaConstant), U8(0),
-                B(Star), R(2),
-  /*   50 E> */ B(CallRuntime), U16(Runtime::kThrowReferenceError), R(2), U8(1),
-                B(CallRuntime), U16(Runtime::kThrowConstAssignError), R(0), U8(0),
+  /*   48 S> */ B(LdaSmi), I8(20),
+  /*   50 E> */ B(CallRuntime), U16(Runtime::kThrowConstAssignError), R(0), U8(0),
                 B(LdaUndefined),
   /*   56 S> */ B(Return),
 ]
 constant pool: [
-  "x",
 ]
 handlers: [
 ]

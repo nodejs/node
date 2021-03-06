@@ -41,13 +41,13 @@ function RunAsmJsTest(asmfunc, expect) {
   expect(asm_module);
 }
 
-const fround = Math.fround;
-const Math_ceil = Math.ceil;
-const Math_floor = Math.floor;
-const Math_sqrt = Math.sqrt;
-const Math_abs = Math.abs;
-const Math_min = Math.min;
-const Math_max = Math.max;
+var fround = Math.fround;
+var Math_ceil = Math.ceil;
+var Math_floor = Math.floor;
+var Math_sqrt = Math.sqrt;
+var Math_abs = Math.abs;
+var Math_min = Math.min;
+var Math_max = Math.max;
 
 function f32_add(a, b) {
   a = fround(a);
@@ -159,58 +159,37 @@ function f32_gteq(a, b) {
   return 0;
 }
 
+function f32_neg(a) {
+  a = fround(a);
+  return fround(-a);
+}
+
 
 var inputs = [
-  0, 1, 2, 3, 4,
+  0, 1,
   NaN,
   Infinity,
   -Infinity,
-  10, 20, 30, 31, 32, 33, 100, 2000,
-  30000, 400000, 5000000,
-  100000000, 2000000000,
   2147483646,
   2147483647,
   2147483648,
   2147483649,
-  0x273a798e, 0x187937a3, 0xece3af83, 0x5495a16b, 0x0b668ecc, 0x11223344,
-  0x0000af73, 0x0000116b, 0x00658ecc, 0x002b3b4c,
-  0x88776655, 0x70000000, 0x07200000, 0x7fffffff, 0x56123761, 0x7fffff00,
-  0xeeeeeeee, 0xfffffffd, 0xf0000000, 0x007fffff, 0x003fffff, 0x001fffff,
-  -0,
-  -1, -2, -3, -4,
-  -10, -20, -30, -31, -32, -33, -100, -2000,
-  -30000, -400000, -5000000,
-  -100000000, -2000000000,
+  4026531840, // 0xf0000000
+  4294967293, // 0xfffffffd
+  4294967295, // 0xffffffff
+  -0, -1,
   -2147483646,
   -2147483647,
   -2147483648,
   -2147483649,
   0.1,
   1.1e-2,
-  1.2e-4,
-  1.3e-8,
-  1.4e-11,
-  1.5e-12,
   1.6e-13
 ];
 
 var funcs = [
-  f32_add,
-  f32_sub,
-  f32_mul,
-  f32_div,
-  f32_ceil,
-  f32_floor,
-// TODO(bradnelson) f32_sqrt,
-// TODO(bradnelson) f32_abs,
-// TODO(bradnelson) f32_min is wrong for -0
-// TODO(bradnelson) f32_max is wrong for -0
-  f32_eq,
-  f32_ne,
-  f32_lt,
-  f32_lteq,
-  f32_gt,
-  f32_gteq,
+  f32_add, f32_sub, f32_mul, f32_div, f32_ceil, f32_floor, f32_sqrt, f32_abs,
+  f32_min, f32_max, f32_eq, f32_ne, f32_lt, f32_lteq, f32_gt, f32_gteq, f32_neg
 ];
 
 (function () {

@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -6,7 +6,7 @@
 *   Corporation and others.  All Rights Reserved.
 *******************************************************************************
 *   file name:  ppucd.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -98,6 +98,7 @@ static const char *lineTypeStrings[]={
     "defaults",
     "block",
     "cp",
+    "unassigned",
     "algnamesrange"
 };
 
@@ -203,8 +204,17 @@ PreparsedUCD::getProps(UnicodeSet &newValues, UErrorCode &errorCode) {
     UChar32 start, end;
     if(!parseCodePointRange(field, start, end, errorCode)) { return NULL; }
     UniProps *props;
+    UBool insideBlock=FALSE;  // TRUE if cp or unassigned range inside the block range.
     switch(lineType) {
     case DEFAULTS_LINE:
+        // Should occur before any block/cp/unassigned line.
+        if(blockLineIndex>=0) {
+            fprintf(stderr,
+                    "error in preparsed UCD: default line %ld after one or more block lines\n",
+                    (long)lineNumber);
+            errorCode=U_PARSE_ERROR;
+            return NULL;
+        }
         if(defaultLineIndex>=0) {
             fprintf(stderr,
                     "error in preparsed UCD: second line with default properties on line %ld\n",
@@ -228,9 +238,22 @@ PreparsedUCD::getProps(UnicodeSet &newValues, UErrorCode &errorCode) {
         blockLineIndex=lineIndex;
         break;
     case CP_LINE:
+    case UNASSIGNED_LINE:
         if(blockProps.start<=start && end<=blockProps.end) {
-            // Code point range fully inside the last block inherits the block properties.
-            cpProps=blockProps;
+            insideBlock=TRUE;
+            if(lineType==CP_LINE) {
+                // Code point range fully inside the last block inherits the block properties.
+                cpProps=blockProps;
+            } else {
+                // Unassigned line inside the block is based on default properties
+                // which override block properties.
+                cpProps=defaultProps;
+                newValues=blockValues;
+                // Except, it inherits the one blk=Block property.
+                int32_t blkIndex=UCHAR_BLOCK-UCHAR_INT_START;
+                cpProps.intProps[blkIndex]=blockProps.intProps[blkIndex];
+                newValues.remove((UChar32)UCHAR_BLOCK);
+            }
         } else if(start>blockProps.end || end<blockProps.start) {
             // Code point range fully outside the last block inherits the default properties.
             cpProps=defaultProps;
@@ -254,6 +277,22 @@ PreparsedUCD::getProps(UnicodeSet &newValues, UErrorCode &errorCode) {
     props->end=end;
     while((field=nextField())!=NULL) {
         if(!parseProperty(*props, field, newValues, errorCode)) { return NULL; }
+    }
+    if(lineType==BLOCK_LINE) {
+        blockValues=newValues;
+    } else if(lineType==UNASSIGNED_LINE && insideBlock) {
+        // Unset newValues for values that are the same as the block values.
+        for(int32_t prop=0; prop<UCHAR_BINARY_LIMIT; ++prop) {
+            if(newValues.contains(prop) && cpProps.binProps[prop]==blockProps.binProps[prop]) {
+                newValues.remove(prop);
+            }
+        }
+        for(int32_t prop=UCHAR_INT_START; prop<UCHAR_INT_LIMIT; ++prop) {
+            int32_t index=prop-UCHAR_INT_START;
+            if(newValues.contains(prop) && cpProps.intProps[index]==blockProps.intProps[index]) {
+                newValues.remove(prop);
+            }
+        }
     }
     return props;
 }
@@ -515,12 +554,12 @@ PreparsedUCD::parseCodePointRange(const char *s, UChar32 &start, UChar32 &end, U
 
 void
 PreparsedUCD::parseString(const char *s, UnicodeString &uni, UErrorCode &errorCode) {
-    UChar *buffer=uni.getBuffer(-1);
+    UChar *buffer=toUCharPtr(uni.getBuffer(-1));
     int32_t length=u_parseString(s, buffer, uni.getCapacity(), NULL, &errorCode);
     if(errorCode==U_BUFFER_OVERFLOW_ERROR) {
         errorCode=U_ZERO_ERROR;
         uni.releaseBuffer(0);
-        buffer=uni.getBuffer(length);
+        buffer=toUCharPtr(uni.getBuffer(length));
         length=u_parseString(s, buffer, uni.getCapacity(), NULL, &errorCode);
     }
     uni.releaseBuffer(length);

@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
@@ -92,7 +92,7 @@ NormalizationTransliterator::NormalizationTransliterator(const NormalizationTran
 /**
  * Transliterator API.
  */
-Transliterator* NormalizationTransliterator::clone(void) const {
+NormalizationTransliterator* NormalizationTransliterator::clone() const {
     return new NormalizationTransliterator(*this);
 }
 

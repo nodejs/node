@@ -25,12 +25,12 @@
 #include "ares_private.h"
 
 #ifndef HAVE_WRITEV
-ssize_t ares_writev(ares_socket_t s, const struct iovec *iov, int iovcnt)
+ares_ssize_t ares_writev(ares_socket_t s, const struct iovec *iov, int iovcnt)
 {
   char *buffer, *bp;
   int i;
   size_t bytes = 0;
-  ssize_t result;
+  ares_ssize_t result;
 
   /* Validate iovcnt */
   if (iovcnt <= 0)

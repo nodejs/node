@@ -25,30 +25,43 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Tests of profiles generator and utilities.
+// Tests of the CPU profiler and utilities.
 
-#include "src/v8.h"
+#include <limits>
+#include <memory>
 
+#include "include/libplatform/v8-tracing.h"
+#include "include/v8-fast-api-calls.h"
 #include "include/v8-profiler.h"
+#include "src/api/api-inl.h"
 #include "src/base/platform/platform.h"
-#include "src/deoptimizer.h"
+#include "src/codegen/source-position-table.h"
+#include "src/deoptimizer/deoptimizer.h"
+#include "src/heap/spaces.h"
+#include "src/init/v8.h"
+#include "src/libplatform/default-platform.h"
+#include "src/libplatform/tracing/trace-event-listener.h"
+#include "src/libsampler/sampler.h"
+#include "src/logging/log.h"
+#include "src/objects/objects-inl.h"
 #include "src/profiler/cpu-profiler-inl.h"
 #include "src/profiler/profiler-listener.h"
-#include "src/utils.h"
+#include "src/profiler/symbolizer.h"
+#include "src/profiler/tracing-cpu-profiler.h"
+#include "src/tracing/trace-event.h"
+#include "src/utils/utils.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/heap/heap-utils.h"
 #include "test/cctest/profiler-extension.h"
+#include "test/common/flag-utils.h"
 
-using i::CodeEntry;
-using i::CpuProfile;
-using i::CpuProfiler;
-using i::CpuProfilesCollection;
-using i::Heap;
-using i::ProfileGenerator;
-using i::ProfileNode;
-using i::ProfilerEventsProcessor;
-using i::ProfilerListener;
-using i::ScopedVector;
-using i::Vector;
+#ifdef V8_USE_PERFETTO
+#include "protos/perfetto/trace/trace.pb.h"
+#endif
+
+namespace v8 {
+namespace internal {
+namespace test_cpu_profiler {
 
 // Helper methods
 static v8::Local<v8::Function> GetFunction(v8::Local<v8::Context> env,
@@ -63,51 +76,57 @@ static size_t offset(const char* src, const char* substring) {
   return static_cast<size_t>(it - src);
 }
 
+template <typename A, typename B>
+static int dist(A a, B b) {
+  return abs(static_cast<int>(a) - static_cast<int>(b));
+}
+
 static const char* reason(const i::DeoptimizeReason reason) {
   return i::DeoptimizeReasonToString(reason);
 }
 
 TEST(StartStop) {
-  CpuProfilesCollection profiles(CcTest::i_isolate());
-  ProfileGenerator generator(&profiles);
+  i::Isolate* isolate = CcTest::i_isolate();
+  CpuProfilesCollection profiles(isolate);
+  ProfilerCodeObserver code_observer(isolate);
+  Symbolizer symbolizer(code_observer.code_map());
   std::unique_ptr<ProfilerEventsProcessor> processor(
-      new ProfilerEventsProcessor(CcTest::i_isolate(), &generator,
-                                  v8::base::TimeDelta::FromMicroseconds(100)));
-  processor->Start();
+      new SamplingEventsProcessor(
+          isolate, &symbolizer, &code_observer, &profiles,
+          v8::base::TimeDelta::FromMicroseconds(100), true));
+  CHECK(processor->Start());
   processor->StopSynchronously();
 }
 
 static void EnqueueTickSampleEvent(ProfilerEventsProcessor* proc,
                                    i::Address frame1,
-                                   i::Address frame2 = NULL,
-                                   i::Address frame3 = NULL) {
-  v8::TickSample* sample = proc->StartTickSample();
-  sample->pc = frame1;
-  sample->tos = frame1;
-  sample->frames_count = 0;
-  if (frame2 != NULL) {
-    sample->stack[0] = frame2;
-    sample->frames_count = 1;
+                                   i::Address frame2 = kNullAddress,
+                                   i::Address frame3 = kNullAddress) {
+  v8::internal::TickSample sample;
+  sample.pc = reinterpret_cast<void*>(frame1);
+  sample.tos = reinterpret_cast<void*>(frame1);
+  sample.frames_count = 0;
+  if (frame2 != kNullAddress) {
+    sample.stack[0] = reinterpret_cast<void*>(frame2);
+    sample.frames_count = 1;
   }
-  if (frame3 != NULL) {
-    sample->stack[1] = frame3;
-    sample->frames_count = 2;
+  if (frame3 != kNullAddress) {
+    sample.stack[1] = reinterpret_cast<void*>(frame3);
+    sample.frames_count = 2;
   }
-  proc->FinishTickSample();
+  sample.timestamp = base::TimeTicks::HighResolutionNow();
+  proc->AddSample(sample);
 }
 
 namespace {
 
 class TestSetup {
  public:
-  TestSetup()
-      : old_flag_prof_browser_mode_(i::FLAG_prof_browser_mode) {
+  TestSetup() : old_flag_prof_browser_mode_(i::FLAG_prof_browser_mode) {
     i::FLAG_prof_browser_mode = false;
   }
 
-  ~TestSetup() {
-    i::FLAG_prof_browser_mode = old_flag_prof_browser_mode_;
-  }
+  ~TestSetup() { i::FLAG_prof_browser_mode = old_flag_prof_browser_mode_; }
 
  private:
   bool old_flag_prof_browser_mode_;
@@ -115,25 +134,26 @@ class TestSetup {
 
 }  // namespace
 
-i::AbstractCode* CreateCode(LocalContext* env) {
+i::AbstractCode CreateCode(i::Isolate* isolate, LocalContext* env) {
   static int counter = 0;
   i::EmbeddedVector<char, 256> script;
   i::EmbeddedVector<char, 32> name;
 
   i::SNPrintF(name, "function_%d", ++counter);
-  const char* name_start = name.start();
+  const char* name_start = name.begin();
   i::SNPrintF(script,
-      "function %s() {\n"
-           "var counter = 0;\n"
-           "for (var i = 0; i < %d; ++i) counter += i;\n"
-           "return '%s_' + counter;\n"
-       "}\n"
-       "%s();\n", name_start, counter, name_start, name_start);
-  CompileRun(script.start());
+              "function %s() {\n"
+              "var counter = 0;\n"
+              "for (var i = 0; i < %d; ++i) counter += i;\n"
+              "return '%s_' + counter;\n"
+              "}\n"
+              "%s();\n",
+              name_start, counter, name_start, name_start);
+  CompileRun(script.begin());
 
   i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*GetFunction(env->local(), name_start)));
-  return fun->abstract_code();
+  return fun->abstract_code(isolate);
 }
 
 TEST(CodeEvents) {
@@ -145,69 +165,59 @@ TEST(CodeEvents) {
 
   i::HandleScope scope(isolate);
 
-  i::AbstractCode* aaa_code = CreateCode(&env);
-  i::AbstractCode* comment_code = CreateCode(&env);
-  i::AbstractCode* args5_code = CreateCode(&env);
-  i::AbstractCode* comment2_code = CreateCode(&env);
-  i::AbstractCode* moved_code = CreateCode(&env);
-  i::AbstractCode* args3_code = CreateCode(&env);
-  i::AbstractCode* args4_code = CreateCode(&env);
+  i::Handle<i::AbstractCode> aaa_code(CreateCode(isolate, &env), isolate);
+  i::Handle<i::AbstractCode> comment_code(CreateCode(isolate, &env), isolate);
+  i::Handle<i::AbstractCode> comment2_code(CreateCode(isolate, &env), isolate);
+  i::Handle<i::AbstractCode> moved_code(CreateCode(isolate, &env), isolate);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
-  ProfileGenerator* generator = new ProfileGenerator(profiles);
-  ProfilerEventsProcessor* processor =
-      new ProfilerEventsProcessor(CcTest::i_isolate(), generator,
-                                  v8::base::TimeDelta::FromMicroseconds(100));
-  CpuProfiler profiler(isolate, profiles, generator, processor);
-  profiles->StartProfiling("", false);
-  processor->Start();
-  ProfilerListener profiler_listener(isolate);
-  isolate->code_event_dispatcher()->AddListener(&profiler_listener);
-  profiler_listener.AddObserver(&profiler);
+  ProfilerCodeObserver code_observer(isolate);
+  Symbolizer* symbolizer = new Symbolizer(code_observer.code_map());
+  ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
+      isolate, symbolizer, &code_observer, profiles,
+      v8::base::TimeDelta::FromMicroseconds(100), true);
+  CHECK(processor->Start());
+  ProfilerListener profiler_listener(isolate, processor,
+                                     *code_observer.strings());
+  isolate->logger()->AddCodeEventListener(&profiler_listener);
 
   // Enqueue code creation events.
   const char* aaa_str = "aaa";
   i::Handle<i::String> aaa_name = factory->NewStringFromAsciiChecked(aaa_str);
   profiler_listener.CodeCreateEvent(i::Logger::FUNCTION_TAG, aaa_code,
-                                    *aaa_name);
+                                    aaa_name);
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, comment_code,
                                     "comment");
-  profiler_listener.CodeCreateEvent(i::Logger::STUB_TAG, args5_code, 5);
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, comment2_code,
                                     "comment2");
-  profiler_listener.CodeMoveEvent(comment2_code, moved_code->address());
-  profiler_listener.CodeCreateEvent(i::Logger::STUB_TAG, args3_code, 3);
-  profiler_listener.CodeCreateEvent(i::Logger::STUB_TAG, args4_code, 4);
+  profiler_listener.CodeMoveEvent(*comment2_code, *moved_code);
 
   // Enqueue a tick event to enable code events processing.
-  EnqueueTickSampleEvent(processor, aaa_code->address());
+  EnqueueTickSampleEvent(processor, aaa_code->InstructionStart());
 
-  profiler_listener.RemoveObserver(&profiler);
-  isolate->code_event_dispatcher()->RemoveListener(&profiler_listener);
+  isolate->logger()->RemoveCodeEventListener(&profiler_listener);
   processor->StopSynchronously();
 
-  // Check the state of profile generator.
-  CodeEntry* aaa = generator->code_map()->FindEntry(aaa_code->address());
+  // Check the state of the symbolizer.
+  CodeEntry* aaa =
+      symbolizer->code_map()->FindEntry(aaa_code->InstructionStart());
   CHECK(aaa);
   CHECK_EQ(0, strcmp(aaa_str, aaa->name()));
 
   CodeEntry* comment =
-      generator->code_map()->FindEntry(comment_code->address());
+      symbolizer->code_map()->FindEntry(comment_code->InstructionStart());
   CHECK(comment);
   CHECK_EQ(0, strcmp("comment", comment->name()));
 
-  CodeEntry* args5 = generator->code_map()->FindEntry(args5_code->address());
-  CHECK(args5);
-  CHECK_EQ(0, strcmp("5", args5->name()));
+  CHECK(!symbolizer->code_map()->FindEntry(comment2_code->InstructionStart()));
 
-  CHECK(!generator->code_map()->FindEntry(comment2_code->address()));
-
-  CodeEntry* comment2 = generator->code_map()->FindEntry(moved_code->address());
+  CodeEntry* comment2 =
+      symbolizer->code_map()->FindEntry(moved_code->InstructionStart());
   CHECK(comment2);
   CHECK_EQ(0, strcmp("comment2", comment2->name()));
 }
 
-template<typename T>
+template <typename T>
 static int CompareProfileNodes(const T* p1, const T* p2) {
   return strcmp((*p1)->entry()->name(), (*p2)->entry()->name());
 }
@@ -218,59 +228,147 @@ TEST(TickEvents) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
 
-  i::AbstractCode* frame1_code = CreateCode(&env);
-  i::AbstractCode* frame2_code = CreateCode(&env);
-  i::AbstractCode* frame3_code = CreateCode(&env);
+  i::Handle<i::AbstractCode> frame1_code(CreateCode(isolate, &env), isolate);
+  i::Handle<i::AbstractCode> frame2_code(CreateCode(isolate, &env), isolate);
+  i::Handle<i::AbstractCode> frame3_code(CreateCode(isolate, &env), isolate);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
-  ProfileGenerator* generator = new ProfileGenerator(profiles);
-  ProfilerEventsProcessor* processor =
-      new ProfilerEventsProcessor(CcTest::i_isolate(), generator,
-                                  v8::base::TimeDelta::FromMicroseconds(100));
-  CpuProfiler profiler(isolate, profiles, generator, processor);
-  profiles->StartProfiling("", false);
-  processor->Start();
-  ProfilerListener profiler_listener(isolate);
-  isolate->code_event_dispatcher()->AddListener(&profiler_listener);
-  profiler_listener.AddObserver(&profiler);
+  ProfilerCodeObserver* code_observer = new ProfilerCodeObserver(isolate);
+  Symbolizer* symbolizer = new Symbolizer(code_observer->code_map());
+  ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
+      CcTest::i_isolate(), symbolizer, code_observer, profiles,
+      v8::base::TimeDelta::FromMicroseconds(100), true);
+  CpuProfiler profiler(isolate, kDebugNaming, kLazyLogging, profiles,
+                       symbolizer, processor, code_observer);
+  profiles->StartProfiling("");
+  CHECK(processor->Start());
+  ProfilerListener profiler_listener(isolate, processor,
+                                     *code_observer->strings());
+  isolate->logger()->AddCodeEventListener(&profiler_listener);
 
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, frame1_code, "bbb");
-  profiler_listener.CodeCreateEvent(i::Logger::STUB_TAG, frame2_code, 5);
+  profiler_listener.CodeCreateEvent(i::Logger::STUB_TAG, frame2_code, "ccc");
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, frame3_code, "ddd");
 
-  EnqueueTickSampleEvent(processor, frame1_code->instruction_start());
-  EnqueueTickSampleEvent(
-      processor,
-      frame2_code->instruction_start() + frame2_code->ExecutableSize() / 2,
-      frame1_code->instruction_start() + frame1_code->ExecutableSize() / 2);
-  EnqueueTickSampleEvent(processor, frame3_code->instruction_end() - 1,
-                         frame2_code->instruction_end() - 1,
-                         frame1_code->instruction_end() - 1);
+  EnqueueTickSampleEvent(processor, frame1_code->raw_instruction_start());
+  EnqueueTickSampleEvent(processor,
+                         frame2_code->raw_instruction_start() +
+                             frame2_code->raw_instruction_size() / 2,
+                         frame1_code->raw_instruction_start() +
+                             frame1_code->raw_instruction_size() / 2);
+  EnqueueTickSampleEvent(processor, frame3_code->raw_instruction_end() - 1,
+                         frame2_code->raw_instruction_end() - 1,
+                         frame1_code->raw_instruction_end() - 1);
 
-  profiler_listener.RemoveObserver(&profiler);
-  isolate->code_event_dispatcher()->RemoveListener(&profiler_listener);
+  isolate->logger()->RemoveCodeEventListener(&profiler_listener);
   processor->StopSynchronously();
   CpuProfile* profile = profiles->StopProfiling("");
   CHECK(profile);
 
   // Check call trees.
-  const i::List<ProfileNode*>* top_down_root_children =
+  const std::vector<ProfileNode*>* top_down_root_children =
       profile->top_down()->root()->children();
-  CHECK_EQ(1, top_down_root_children->length());
-  CHECK_EQ(0, strcmp("bbb", top_down_root_children->last()->entry()->name()));
-  const i::List<ProfileNode*>* top_down_bbb_children =
-      top_down_root_children->last()->children();
-  CHECK_EQ(1, top_down_bbb_children->length());
-  CHECK_EQ(0, strcmp("5", top_down_bbb_children->last()->entry()->name()));
-  const i::List<ProfileNode*>* top_down_stub_children =
-      top_down_bbb_children->last()->children();
-  CHECK_EQ(1, top_down_stub_children->length());
-  CHECK_EQ(0, strcmp("ddd", top_down_stub_children->last()->entry()->name()));
-  const i::List<ProfileNode*>* top_down_ddd_children =
-      top_down_stub_children->last()->children();
-  CHECK_EQ(0, top_down_ddd_children->length());
+  CHECK_EQ(1, top_down_root_children->size());
+  CHECK_EQ(0, strcmp("bbb", top_down_root_children->back()->entry()->name()));
+  const std::vector<ProfileNode*>* top_down_bbb_children =
+      top_down_root_children->back()->children();
+  CHECK_EQ(1, top_down_bbb_children->size());
+  CHECK_EQ(0, strcmp("ccc", top_down_bbb_children->back()->entry()->name()));
+  const std::vector<ProfileNode*>* top_down_stub_children =
+      top_down_bbb_children->back()->children();
+  CHECK_EQ(1, top_down_stub_children->size());
+  CHECK_EQ(0, strcmp("ddd", top_down_stub_children->back()->entry()->name()));
+  const std::vector<ProfileNode*>* top_down_ddd_children =
+      top_down_stub_children->back()->children();
+  CHECK(top_down_ddd_children->empty());
+}
 
-  isolate->code_event_dispatcher()->RemoveListener(&profiler_listener);
+TEST(CodeMapClearedBetweenProfilesWithLazyLogging) {
+  TestSetup test_setup;
+  LocalContext env;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+
+  // This gets logged when the profiler starts up and scans the heap.
+  i::Handle<i::AbstractCode> code1(CreateCode(isolate, &env), isolate);
+
+  CpuProfiler profiler(isolate, kDebugNaming, kLazyLogging);
+  profiler.StartProfiling("");
+
+  CpuProfile* profile = profiler.StopProfiling("");
+  CHECK(profile);
+
+  // Check that our code is still in the code map.
+  CodeMap* code_map = profiler.code_map_for_test();
+  CodeEntry* code1_entry = code_map->FindEntry(code1->InstructionStart());
+  CHECK(code1_entry);
+  CHECK_EQ(0, strcmp("function_1", code1_entry->name()));
+
+  profiler.DeleteProfile(profile);
+
+  // Check that the code map is emptied once the last profile is deleted.
+  CHECK(!code_map->FindEntry(code1->InstructionStart()));
+
+  // Create code between profiles. This should not be logged yet.
+  i::Handle<i::AbstractCode> code2(CreateCode(isolate, &env), isolate);
+
+  CHECK(!code_map->FindEntry(code2->InstructionStart()));
+}
+
+TEST(CodeMapNotClearedBetweenProfilesWithEagerLogging) {
+  TestSetup test_setup;
+  LocalContext env;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+
+  // This gets logged when the profiler starts up and scans the heap.
+  i::Handle<i::AbstractCode> code1(CreateCode(isolate, &env), isolate);
+
+  CpuProfiler profiler(isolate, kDebugNaming, kEagerLogging);
+  profiler.StartProfiling("");
+
+  CpuProfile* profile = profiler.StopProfiling("");
+  CHECK(profile);
+
+  // Check that our code is still in the code map.
+  CodeMap* code_map = profiler.code_map_for_test();
+  CodeEntry* code1_entry = code_map->FindEntry(code1->InstructionStart());
+  CHECK(code1_entry);
+  CHECK_EQ(0, strcmp("function_1", code1_entry->name()));
+
+  profiler.DeleteProfile(profile);
+
+  // We should still have an entry in kEagerLogging mode.
+  code1_entry = code_map->FindEntry(code1->InstructionStart());
+  CHECK(code1_entry);
+  CHECK_EQ(0, strcmp("function_1", code1_entry->name()));
+
+  // Create code between profiles. This should be logged too.
+  i::Handle<i::AbstractCode> code2(CreateCode(isolate, &env), isolate);
+  CHECK(code_map->FindEntry(code2->InstructionStart()));
+
+  profiler.StartProfiling("");
+  CpuProfile* profile2 = profiler.StopProfiling("");
+  CHECK(profile2);
+
+  // Check that we still have code map entries for both code objects.
+  code1_entry = code_map->FindEntry(code1->InstructionStart());
+  CHECK(code1_entry);
+  CHECK_EQ(0, strcmp("function_1", code1_entry->name()));
+  CodeEntry* code2_entry = code_map->FindEntry(code2->InstructionStart());
+  CHECK(code2_entry);
+  CHECK_EQ(0, strcmp("function_2", code2_entry->name()));
+
+  profiler.DeleteProfile(profile2);
+
+  // Check that we still have code map entries for both code objects, even after
+  // the last profile is deleted.
+  code1_entry = code_map->FindEntry(code1->InstructionStart());
+  CHECK(code1_entry);
+  CHECK_EQ(0, strcmp("function_1", code1_entry->name()));
+  code2_entry = code_map->FindEntry(code2->InstructionStart());
+  CHECK(code2_entry);
+  CHECK_EQ(0, strcmp("function_2", code2_entry->name()));
 }
 
 // http://crbug/51594
@@ -293,45 +391,45 @@ TEST(Issue1398) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
 
-  i::AbstractCode* code = CreateCode(&env);
+  i::Handle<i::AbstractCode> code(CreateCode(isolate, &env), isolate);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
-  ProfileGenerator* generator = new ProfileGenerator(profiles);
-  ProfilerEventsProcessor* processor =
-      new ProfilerEventsProcessor(CcTest::i_isolate(), generator,
-                                  v8::base::TimeDelta::FromMicroseconds(100));
-  CpuProfiler profiler(isolate, profiles, generator, processor);
-  profiles->StartProfiling("", false);
-  processor->Start();
-  ProfilerListener profiler_listener(isolate);
-  isolate->code_event_dispatcher()->AddListener(&profiler_listener);
-  profiler_listener.AddObserver(&profiler);
+  ProfilerCodeObserver* code_observer = new ProfilerCodeObserver(isolate);
+  Symbolizer* symbolizer = new Symbolizer(code_observer->code_map());
+  ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
+      CcTest::i_isolate(), symbolizer, code_observer, profiles,
+      v8::base::TimeDelta::FromMicroseconds(100), true);
+  CpuProfiler profiler(isolate, kDebugNaming, kLazyLogging, profiles,
+                       symbolizer, processor, code_observer);
+  profiles->StartProfiling("");
+  CHECK(processor->Start());
+  ProfilerListener profiler_listener(isolate, processor,
+                                     *code_observer->strings());
 
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, code, "bbb");
 
-  v8::TickSample* sample = processor->StartTickSample();
-  sample->pc = code->address();
-  sample->tos = 0;
-  sample->frames_count = v8::TickSample::kMaxFramesCount;
-  for (unsigned i = 0; i < sample->frames_count; ++i) {
-    sample->stack[i] = code->address();
+  v8::internal::TickSample sample;
+  sample.pc = reinterpret_cast<void*>(code->InstructionStart());
+  sample.tos = nullptr;
+  sample.frames_count = TickSample::kMaxFramesCount;
+  for (unsigned i = 0; i < sample.frames_count; ++i) {
+    sample.stack[i] = reinterpret_cast<void*>(code->InstructionStart());
   }
-  processor->FinishTickSample();
+  sample.timestamp = base::TimeTicks::HighResolutionNow();
+  processor->AddSample(sample);
 
-  profiler_listener.RemoveObserver(&profiler);
-  isolate->code_event_dispatcher()->RemoveListener(&profiler_listener);
   processor->StopSynchronously();
   CpuProfile* profile = profiles->StopProfiling("");
   CHECK(profile);
 
   unsigned actual_depth = 0;
   const ProfileNode* node = profile->top_down()->root();
-  while (node->children()->length() > 0) {
-    node = node->children()->last();
+  while (!node->children()->empty()) {
+    node = node->children()->back();
     ++actual_depth;
   }
 
-  CHECK_EQ(1 + v8::TickSample::kMaxFramesCount, actual_depth);  // +1 for PC.
+  CHECK_EQ(1 + TickSample::kMaxFramesCount, actual_depth);  // +1 for PC.
 }
 
 TEST(DeleteAllCpuProfiles) {
@@ -363,7 +461,6 @@ TEST(DeleteAllCpuProfiles) {
   CHECK_EQ(0, profiler->GetProfilesCount());
 }
 
-
 static bool FindCpuProfile(v8::CpuProfiler* v8profiler,
                            const v8::CpuProfile* v8profile) {
   i::CpuProfiler* profiler = reinterpret_cast<i::CpuProfiler*>(v8profiler);
@@ -371,12 +468,10 @@ static bool FindCpuProfile(v8::CpuProfiler* v8profiler,
       reinterpret_cast<const i::CpuProfile*>(v8profile);
   int length = profiler->GetProfilesCount();
   for (int i = 0; i < length; i++) {
-    if (profile == profiler->GetProfile(i))
-      return true;
+    if (profile == profiler->GetProfile(i)) return true;
   }
   return false;
 }
-
 
 TEST(DeleteCpuProfile) {
   LocalContext env;
@@ -417,7 +512,6 @@ TEST(DeleteCpuProfile) {
   cpu_profiler->Dispose();
 }
 
-
 TEST(ProfileStartEndTime) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -442,11 +536,13 @@ class ProfilerHelper {
     profiler_->Dispose();
   }
 
-  v8::CpuProfile* Run(v8::Local<v8::Function> function,
-                      v8::Local<v8::Value> argv[], int argc,
-                      unsigned min_js_samples = 0,
-                      unsigned min_external_samples = 0,
-                      bool collect_samples = false);
+  using ProfilingMode = v8::CpuProfilingMode;
+
+  v8::CpuProfile* Run(
+      v8::Local<v8::Function> function, v8::Local<v8::Value> argv[], int argc,
+      unsigned min_js_samples = 0, unsigned min_external_samples = 0,
+      ProfilingMode mode = ProfilingMode::kLeafNodeLineNumbers,
+      unsigned max_samples = v8::CpuProfilingOptions::kNoSampleLimit);
 
   v8::CpuProfiler* profiler() { return profiler_; }
 
@@ -459,16 +555,19 @@ v8::CpuProfile* ProfilerHelper::Run(v8::Local<v8::Function> function,
                                     v8::Local<v8::Value> argv[], int argc,
                                     unsigned min_js_samples,
                                     unsigned min_external_samples,
-                                    bool collect_samples) {
+                                    ProfilingMode mode, unsigned max_samples) {
   v8::Local<v8::String> profile_name = v8_str("my_profile");
 
   profiler_->SetSamplingInterval(100);
-  profiler_->StartProfiling(profile_name, collect_samples);
+  profiler_->StartProfiling(profile_name, {mode, max_samples, 0});
 
   v8::internal::CpuProfiler* iprofiler =
       reinterpret_cast<v8::internal::CpuProfiler*>(profiler_);
-  v8::sampler::Sampler* sampler = iprofiler->processor()->sampler();
+  v8::sampler::Sampler* sampler =
+      reinterpret_cast<i::SamplingEventsProcessor*>(iprofiler->processor())
+          ->sampler();
   sampler->StartCountingSamples();
+
   do {
     function->Call(context_, context_->Global(), argc, argv).ToLocalChecked();
   } while (sampler->js_sample_count() < min_js_samples ||
@@ -483,6 +582,13 @@ v8::CpuProfile* ProfilerHelper::Run(v8::Local<v8::Function> function,
   return profile;
 }
 
+static unsigned TotalHitCount(const v8::CpuProfileNode* node) {
+  unsigned hit_count = node->GetHitCount();
+  for (int i = 0, count = node->GetChildrenCount(); i < count; ++i)
+    hit_count += TotalHitCount(node->GetChild(i));
+  return hit_count;
+}
+
 static const v8::CpuProfileNode* FindChild(v8::Local<v8::Context> context,
                                            const v8::CpuProfileNode* node,
                                            const char* name) {
@@ -494,22 +600,27 @@ static const v8::CpuProfileNode* FindChild(v8::Local<v8::Context> context,
       return child;
     }
   }
-  return NULL;
+  return nullptr;
 }
 
+static const v8::CpuProfileNode* FindChild(const v8::CpuProfileNode* node,
+                                           const char* name) {
+  for (int i = 0, count = node->GetChildrenCount(); i < count; ++i) {
+    const v8::CpuProfileNode* child = node->GetChild(i);
+    if (strcmp(child->GetFunctionNameStr(), name) == 0) {
+      return child;
+    }
+  }
+  return nullptr;
+}
 
 static const v8::CpuProfileNode* GetChild(v8::Local<v8::Context> context,
                                           const v8::CpuProfileNode* node,
                                           const char* name) {
   const v8::CpuProfileNode* result = FindChild(context, node, name);
-  if (!result) {
-    char buffer[100];
-    i::SNPrintF(i::ArrayVector(buffer), "Failed to GetChild: %s", name);
-    FATAL(buffer);
-  }
+  if (!result) FATAL("Failed to GetChild: %s", name);
   return result;
 }
-
 
 static void CheckSimpleBranch(v8::Local<v8::Context> context,
                               const v8::CpuProfileNode* node,
@@ -520,7 +631,6 @@ static void CheckSimpleBranch(v8::Local<v8::Context> context,
   }
 }
 
-
 static const ProfileNode* GetSimpleBranch(v8::Local<v8::Context> context,
                                           v8::CpuProfile* profile,
                                           const char* names[], int length) {
@@ -529,6 +639,41 @@ static const ProfileNode* GetSimpleBranch(v8::Local<v8::Context> context,
     node = GetChild(context, node, names[i]);
   }
   return reinterpret_cast<const ProfileNode*>(node);
+}
+
+struct NameLinePair {
+  const char* name;
+  int line_number;
+};
+
+static const v8::CpuProfileNode* FindChild(const v8::CpuProfileNode* node,
+                                           NameLinePair pair) {
+  for (int i = 0, count = node->GetChildrenCount(); i < count; ++i) {
+    const v8::CpuProfileNode* child = node->GetChild(i);
+    // The name and line number must match, or if the requested line number was
+    // -1, then match any function of the same name.
+    if (strcmp(child->GetFunctionNameStr(), pair.name) == 0 &&
+        (child->GetLineNumber() == pair.line_number ||
+         pair.line_number == -1)) {
+      return child;
+    }
+  }
+  return nullptr;
+}
+
+static const v8::CpuProfileNode* GetChild(const v8::CpuProfileNode* node,
+                                          NameLinePair pair) {
+  const v8::CpuProfileNode* result = FindChild(node, pair);
+  if (!result) FATAL("Failed to GetChild: %s:%d", pair.name, pair.line_number);
+  return result;
+}
+
+static void CheckBranch(const v8::CpuProfileNode* node, NameLinePair path[],
+                        int length) {
+  for (int i = 0; i < length; i++) {
+    NameLinePair pair = path[i];
+    node = GetChild(node, pair);
+  }
 }
 
 static const char* cpu_profiler_test_source =
@@ -611,6 +756,40 @@ TEST(CollectCpuProfile) {
   profile->Delete();
 }
 
+TEST(CollectCpuProfileCallerLineNumbers) {
+  i::FLAG_allow_natives_syntax = true;
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  CompileRun(cpu_profiler_test_source);
+  v8::Local<v8::Function> function = GetFunction(env.local(), "start");
+
+  int32_t profiling_interval_ms = 200;
+  v8::Local<v8::Value> args[] = {
+      v8::Integer::New(env->GetIsolate(), profiling_interval_ms)};
+  ProfilerHelper helper(env.local());
+  helper.Run(function, args, arraysize(args), 1000, 0,
+             v8::CpuProfilingMode::kCallerLineNumbers, 0);
+  v8::CpuProfile* profile =
+      helper.Run(function, args, arraysize(args), 1000, 0,
+                 v8::CpuProfilingMode::kCallerLineNumbers, 0);
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* start_node = GetChild(root, {"start", 27});
+  const v8::CpuProfileNode* foo_node = GetChild(start_node, {"foo", 30});
+
+  NameLinePair bar_branch[] = {{"bar", 23}, {"delay", 19}, {"loop", 18}};
+  CheckBranch(foo_node, bar_branch, arraysize(bar_branch));
+  NameLinePair baz_branch[] = {{"baz", 25}, {"delay", 20}, {"loop", 18}};
+  CheckBranch(foo_node, baz_branch, arraysize(baz_branch));
+  NameLinePair delay_at22_branch[] = {{"delay", 22}, {"loop", 18}};
+  CheckBranch(foo_node, delay_at22_branch, arraysize(delay_at22_branch));
+  NameLinePair delay_at24_branch[] = {{"delay", 24}, {"loop", 18}};
+  CheckBranch(foo_node, delay_at24_branch, arraysize(delay_at24_branch));
+
+  profile->Delete();
+}
+
 static const char* hot_deopt_no_frame_entry_test_source =
     "%NeverOptimizeFunction(foo);\n"
     "%NeverOptimizeFunction(start);\n"
@@ -675,7 +854,7 @@ TEST(CollectCpuProfileSamples) {
       v8::Integer::New(env->GetIsolate(), profiling_interval_ms)};
   ProfilerHelper helper(env.local());
   v8::CpuProfile* profile =
-      helper.Run(function, args, arraysize(args), 1000, 0, true);
+      helper.Run(function, args, arraysize(args), 1000, 0);
 
   CHECK_LE(200, profile->GetSamplesCount());
   uint64_t end_time = profile->GetEndTime();
@@ -739,18 +918,18 @@ TEST(SampleWhenFrameIsNotSetup) {
   profile->Delete();
 }
 
-static const char* native_accessor_test_source = "function start(count) {\n"
-"  for (var i = 0; i < count; i++) {\n"
-"    var o = instance.foo;\n"
-"    instance.foo = o + 1;\n"
-"  }\n"
-"}\n";
+static const char* native_accessor_test_source =
+    "function start(count) {\n"
+    "  for (var i = 0; i < count; i++) {\n"
+    "    var o = instance.foo;\n"
+    "    instance.foo = o + 1;\n"
+    "  }\n"
+    "}\n";
 
 class TestApiCallbacks {
  public:
   explicit TestApiCallbacks(int min_duration_ms)
-      : min_duration_ms_(min_duration_ms),
-        is_warming_up_(false) {}
+      : min_duration_ms_(min_duration_ms), is_warming_up_(false) {}
 
   static void Getter(v8::Local<v8::String> name,
                      const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -758,8 +937,7 @@ class TestApiCallbacks {
     data->Wait();
   }
 
-  static void Setter(v8::Local<v8::String> name,
-                     v8::Local<v8::Value> value,
+  static void Setter(v8::Local<v8::String> name, v8::Local<v8::Value> value,
                      const v8::PropertyCallbackInfo<void>& info) {
     TestApiCallbacks* data = FromInfo(info);
     data->Wait();
@@ -775,11 +953,12 @@ class TestApiCallbacks {
  private:
   void Wait() {
     if (is_warming_up_) return;
-    double start = v8::base::OS::TimeCurrentMillis();
+    v8::Platform* platform = v8::internal::V8::GetCurrentPlatform();
+    double start = platform->CurrentClockTimeMillis();
     double duration = 0;
     while (duration < min_duration_ms_) {
       v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(1));
-      duration = v8::base::OS::TimeCurrentMillis() - start;
+      duration = platform->CurrentClockTimeMillis() - start;
     }
   }
 
@@ -792,7 +971,6 @@ class TestApiCallbacks {
   int min_duration_ms_;
   bool is_warming_up_;
 };
-
 
 // Test that native accessors are properly reported in the CPU profile.
 // This test checks the case when the long-running accessors are called
@@ -834,7 +1012,6 @@ TEST(NativeAccessorUninitializedIC) {
   profile->Delete();
 }
 
-
 // Test that native accessors are properly reported in the CPU profile.
 // This test makes sure that the accessors are called enough times to become
 // hot and to trigger optimizations.
@@ -849,8 +1026,7 @@ TEST(NativeAccessorMonomorphicIC) {
       func_template->InstanceTemplate();
 
   TestApiCallbacks accessors(1);
-  v8::Local<v8::External> data =
-      v8::External::New(isolate, &accessors);
+  v8::Local<v8::External> data = v8::External::New(isolate, &accessors);
   instance_template->SetAccessor(v8_str("foo"), &TestApiCallbacks::Getter,
                                  &TestApiCallbacks::Setter, data);
   v8::Local<v8::Function> func =
@@ -887,13 +1063,12 @@ TEST(NativeAccessorMonomorphicIC) {
   profile->Delete();
 }
 
-
-static const char* native_method_test_source = "function start(count) {\n"
-"  for (var i = 0; i < count; i++) {\n"
-"    instance.fooMethod();\n"
-"  }\n"
-"}\n";
-
+static const char* native_method_test_source =
+    "function start(count) {\n"
+    "  for (var i = 0; i < count; i++) {\n"
+    "    instance.fooMethod();\n"
+    "  }\n"
+    "}\n";
 
 TEST(NativeMethodUninitializedIC) {
   LocalContext env;
@@ -911,7 +1086,7 @@ TEST(NativeMethodUninitializedIC) {
   v8::Local<v8::Signature> signature =
       v8::Signature::New(isolate, func_template);
   proto_template->Set(
-      v8_str("fooMethod"),
+      isolate, "fooMethod",
       v8::FunctionTemplate::New(isolate, &TestApiCallbacks::Callback, data,
                                 signature, 0));
 
@@ -936,15 +1111,13 @@ TEST(NativeMethodUninitializedIC) {
   profile->Delete();
 }
 
-
 TEST(NativeMethodMonomorphicIC) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
 
   TestApiCallbacks callbacks(1);
-  v8::Local<v8::External> data =
-      v8::External::New(isolate, &callbacks);
+  v8::Local<v8::External> data = v8::External::New(isolate, &callbacks);
 
   v8::Local<v8::FunctionTemplate> func_template =
       v8::FunctionTemplate::New(isolate);
@@ -954,7 +1127,7 @@ TEST(NativeMethodMonomorphicIC) {
   v8::Local<v8::Signature> signature =
       v8::Signature::New(isolate, func_template);
   proto_template->Set(
-      v8_str("fooMethod"),
+      isolate, "fooMethod",
       v8::FunctionTemplate::New(isolate, &TestApiCallbacks::Callback, data,
                                 signature, 0));
 
@@ -991,7 +1164,6 @@ TEST(NativeMethodMonomorphicIC) {
   profile->Delete();
 }
 
-
 static const char* bound_function_test_source =
     "function foo() {\n"
     "  startProfiling('my_profile');\n"
@@ -1001,10 +1173,9 @@ static const char* bound_function_test_source =
     "  callback();\n"
     "}";
 
-
 TEST(BoundFunctionCall) {
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
 
   CompileRun(bound_function_test_source);
@@ -1023,19 +1194,30 @@ TEST(BoundFunctionCall) {
 
 // This tests checks distribution of the samples through the source lines.
 static void TickLines(bool optimize) {
+#ifndef V8_LITE_MODE
+  FLAG_opt = optimize;
+#endif  // V8_LITE_MODE
   CcTest::InitializeVM();
   LocalContext env;
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_turbo_source_positions = true;
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
   i::HandleScope scope(isolate);
 
   i::EmbeddedVector<char, 512> script;
+  i::EmbeddedVector<char, 64> prepare_opt;
+  i::EmbeddedVector<char, 64> optimize_call;
 
   const char* func_name = "func";
-  const char* opt_func =
-      optimize ? "%OptimizeFunctionOnNextCall" : "%NeverOptimizeFunction";
+  if (optimize) {
+    i::SNPrintF(prepare_opt, "%%PrepareFunctionForOptimization(%s);\n",
+                func_name);
+    i::SNPrintF(optimize_call, "%%OptimizeFunctionOnNextCall(%s);\n",
+                func_name);
+  } else {
+    prepare_opt[0] = '\0';
+    optimize_call[0] = '\0';
+  }
   i::SNPrintF(script,
               "function %s() {\n"
               "  var n = 0;\n"
@@ -1045,60 +1227,68 @@ static void TickLines(bool optimize) {
               "    n += m * m * m;\n"
               "  }\n"
               "}\n"
-              "%s();"
-              "%s(%s);\n"
+              "%s"
+              "%s();\n"
+              "%s"
               "%s();\n",
-              func_name, func_name, opt_func, func_name, func_name);
+              func_name, prepare_opt.begin(), func_name, optimize_call.begin(),
+              func_name);
 
-  CompileRun(script.start());
+  CompileRun(script.begin());
 
   i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*GetFunction(env.local(), func_name)));
-  CHECK(func->shared());
-  CHECK(func->shared()->abstract_code());
-  CHECK(!optimize || func->IsOptimized() ||
-        !CcTest::i_isolate()->use_crankshaft());
-  i::AbstractCode* code = func->abstract_code();
-  CHECK(code);
-  i::Address code_address = code->instruction_start();
-  CHECK(code_address);
+  CHECK(!func->shared().is_null());
+  CHECK(!func->shared().abstract_code(isolate).is_null());
+  CHECK(!optimize || func->HasAttachedOptimizedCode() ||
+        !CcTest::i_isolate()->use_optimizer());
+  i::Handle<i::AbstractCode> code(func->abstract_code(isolate), isolate);
+  CHECK(!code->is_null());
+  i::Address code_address = code->raw_instruction_start();
+  CHECK_NE(code_address, kNullAddress);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
-  ProfileGenerator* generator = new ProfileGenerator(profiles);
-  ProfilerEventsProcessor* processor =
-      new ProfilerEventsProcessor(CcTest::i_isolate(), generator,
-                                  v8::base::TimeDelta::FromMicroseconds(100));
-  CpuProfiler profiler(isolate, profiles, generator, processor);
-  profiles->StartProfiling("", false);
-  processor->Start();
-  ProfilerListener profiler_listener(isolate);
-  isolate->code_event_dispatcher()->AddListener(&profiler_listener);
-  profiler_listener.AddObserver(&profiler);
+  ProfilerCodeObserver* code_observer = new ProfilerCodeObserver(isolate);
+  Symbolizer* symbolizer = new Symbolizer(code_observer->code_map());
+  ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
+      CcTest::i_isolate(), symbolizer, code_observer, profiles,
+      v8::base::TimeDelta::FromMicroseconds(100), true);
+  CpuProfiler profiler(isolate, kDebugNaming, kLazyLogging, profiles,
+                       symbolizer, processor, code_observer);
+  profiles->StartProfiling("");
+  // TODO(delphick): Stop using the CpuProfiler internals here: This forces
+  // LogCompiledFunctions so that source positions are collected everywhere.
+  // This would normally happen automatically with CpuProfiler::StartProfiling
+  // but doesn't because it's constructed with a symbolizer and a processor.
+  isolate->logger()->LogCompiledFunctions();
+  CHECK(processor->Start());
+  ProfilerListener profiler_listener(isolate, processor,
+                                     *code_observer->strings());
 
   // Enqueue code creation events.
   i::Handle<i::String> str = factory->NewStringFromAsciiChecked(func_name);
   int line = 1;
   int column = 1;
   profiler_listener.CodeCreateEvent(i::Logger::FUNCTION_TAG, code,
-                                    func->shared(), *str, line, column);
+                                    handle(func->shared(), isolate), str, line,
+                                    column);
 
   // Enqueue a tick event to enable code events processing.
   EnqueueTickSampleEvent(processor, code_address);
 
-  profiler_listener.RemoveObserver(&profiler);
-  isolate->code_event_dispatcher()->RemoveListener(&profiler_listener);
   processor->StopSynchronously();
 
   CpuProfile* profile = profiles->StopProfiling("");
   CHECK(profile);
 
-  // Check the state of profile generator.
-  CodeEntry* func_entry = generator->code_map()->FindEntry(code_address);
+  // Check the state of the symbolizer.
+  CodeEntry* func_entry = symbolizer->code_map()->FindEntry(code_address);
   CHECK(func_entry);
   CHECK_EQ(0, strcmp(func_name, func_entry->name()));
-  const i::JITLineInfoTable* line_info = func_entry->line_info();
+  const i::SourcePositionTable* line_info = func_entry->line_info();
   CHECK(line_info);
-  CHECK(!line_info->empty());
+  CHECK_NE(v8::CpuProfileNode::kNoLineNumberInfo,
+           line_info->GetSourceLineNumber(100));
 
   // Check the hit source lines using V8 Public APIs.
   const i::ProfileTree* tree = profile->top_down();
@@ -1145,7 +1335,7 @@ static const char* call_function_test_source =
     "  } while (Date.now() - start < duration);\n"
     "}";
 
-// Test that if we sampled thread when it was inside FunctionCall buitin then
+// Test that if we sampled thread when it was inside FunctionCall builtin then
 // its caller frame will be '(unresolved function)' as we have no reliable way
 // to resolve it.
 //
@@ -1164,7 +1354,7 @@ TEST(FunctionCallSample) {
 
   // Collect garbage that might have be generated while installing
   // extensions.
-  CcTest::heap()->CollectAllGarbage();
+  CcTest::CollectAllGarbage();
 
   CompileRun(call_function_test_source);
   v8::Local<v8::Function> function = GetFunction(env.local(), "start");
@@ -1265,7 +1455,7 @@ static const char* cpu_profiler_deep_stack_test_source =
 //    0          foo 21 #254 no reason
 TEST(CpuProfileDeepStack) {
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
   ProfilerHelper helper(env);
 
@@ -1273,7 +1463,7 @@ TEST(CpuProfileDeepStack) {
   v8::Local<v8::Function> function = GetFunction(env, "start");
 
   v8::Local<v8::String> profile_name = v8_str("my_profile");
-  function->Call(env, env->Global(), 0, NULL).ToLocalChecked();
+  function->Call(env, env->Global(), 0, nullptr).ToLocalChecked();
   v8::CpuProfile* profile = helper.profiler()->StopProfiling(profile_name);
   CHECK(profile);
   // Dump collected profile to have a better diagnostic in case of failure.
@@ -1308,8 +1498,9 @@ static const char* js_native_js_test_source =
 static void CallJsFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Local<v8::Function> function = info[0].As<v8::Function>();
   v8::Local<v8::Value> argv[] = {info[1]};
-  function->Call(info.GetIsolate()->GetCurrentContext(), info.This(),
-                 arraysize(argv), argv)
+  function
+      ->Call(info.GetIsolate()->GetCurrentContext(), info.This(),
+             arraysize(argv), argv)
       .ToLocalChecked();
 }
 
@@ -1323,11 +1514,11 @@ static void CallJsFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
 TEST(JsNativeJsSample) {
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
 
-  v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New(
-      env->GetIsolate(), CallJsFunction);
+  v8::Local<v8::FunctionTemplate> func_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), CallJsFunction);
   v8::Local<v8::Function> func =
       func_template->GetFunction(env).ToLocalChecked();
   func->SetName(v8_str("CallJsFunction"));
@@ -1376,11 +1567,11 @@ static const char* js_native_js_runtime_js_test_source =
 TEST(JsNativeJsRuntimeJsSample) {
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
 
-  v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New(
-      env->GetIsolate(), CallJsFunction);
+  v8::Local<v8::FunctionTemplate> func_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), CallJsFunction);
   v8::Local<v8::Function> func =
       func_template->GetFunction(env).ToLocalChecked();
   func->SetName(v8_str("CallJsFunction"));
@@ -1433,7 +1624,7 @@ static const char* js_native1_js_native2_js_test_source =
 TEST(JsNative1JsNative2JsSample) {
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
 
   v8::Local<v8::Function> func1 =
@@ -1474,12 +1665,12 @@ static const char* js_force_collect_sample_source =
     "}";
 
 static void CallCollectSample(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  i::ProfilerExtension::profiler()->CollectSample();
+  v8::CpuProfiler::CollectSample(info.GetIsolate());
 }
 
 TEST(CollectSampleAPI) {
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
 
   v8::Local<v8::FunctionTemplate> func_template =
@@ -1533,7 +1724,7 @@ static const char* js_native_js_runtime_multiple_test_source =
 TEST(JsNativeJsRuntimeJsSampleMultiple) {
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
 
   v8::Local<v8::FunctionTemplate> func_template =
@@ -1560,11 +1751,6 @@ TEST(JsNativeJsRuntimeJsSampleMultiple) {
 }
 
 static const char* inlining_test_source =
-    "%NeverOptimizeFunction(action);\n"
-    "%NeverOptimizeFunction(start);\n"
-    "%OptimizeFunctionOnNextCall(level1);\n"
-    "%OptimizeFunctionOnNextCall(level2);\n"
-    "%OptimizeFunctionOnNextCall(level3);\n"
     "var finish = false;\n"
     "function action(n) {\n"
     "  var s = 0;\n"
@@ -1582,7 +1768,16 @@ static const char* inlining_test_source =
     "    level1();\n"
     "  finish = true;\n"
     "  level1();\n"
-    "}";
+    "}"
+    "%PrepareFunctionForOptimization(level1);\n"
+    "%PrepareFunctionForOptimization(level2);\n"
+    "%PrepareFunctionForOptimization(level3);\n"
+    "%NeverOptimizeFunction(action);\n"
+    "%NeverOptimizeFunction(start);\n"
+    "level1();\n"
+    "%OptimizeFunctionOnNextCall(level1);\n"
+    "%OptimizeFunctionOnNextCall(level2);\n"
+    "%OptimizeFunctionOnNextCall(level3);\n";
 
 // The test check multiple entrances/exits between JS and native code.
 //
@@ -1597,7 +1792,7 @@ static const char* inlining_test_source =
 TEST(Inlining) {
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
   ProfilerHelper helper(env);
 
@@ -1605,7 +1800,7 @@ TEST(Inlining) {
   v8::Local<v8::Function> function = GetFunction(env, "start");
 
   v8::Local<v8::String> profile_name = v8_str("my_profile");
-  function->Call(env, env->Global(), 0, NULL).ToLocalChecked();
+  function->Call(env, env->Global(), 0, nullptr).ToLocalChecked();
   v8::CpuProfile* profile = helper.profiler()->StopProfiling(profile_name);
   CHECK(profile);
   // Dump collected profile to have a better diagnostic in case of failure.
@@ -1617,6 +1812,305 @@ TEST(Inlining) {
   const v8::CpuProfileNode* level2_node = GetChild(env, level1_node, "level2");
   const v8::CpuProfileNode* level3_node = GetChild(env, level2_node, "level3");
   GetChild(env, level3_node, "action");
+
+  profile->Delete();
+}
+
+static const char* inlining_test_source2 = R"(
+    function action(n) {
+      var s = 0;
+      for (var i = 0; i < n; ++i) s += i*i*i;
+      return s;
+    }
+    function level4() {
+      action(100);
+      return action(100);
+    }
+    function level3() {
+      const a = level4();
+      const b = level4();
+      return a + b * 1.1;
+    }
+    function level2() {
+      return level3() * 2;
+    }
+    function level1() {
+      action(1);
+      action(200);
+      action(1);
+      return level2();
+    }
+    function start(n) {
+      while (--n)
+        level1();
+    };
+    %NeverOptimizeFunction(action);
+    %NeverOptimizeFunction(start);
+    %PrepareFunctionForOptimization(level1);
+    %PrepareFunctionForOptimization(level2);
+    %PrepareFunctionForOptimization(level3);
+    %PrepareFunctionForOptimization(level4);
+    level1();
+    level1();
+    %OptimizeFunctionOnNextCall(level1);
+    %OptimizeFunctionOnNextCall(level2);
+    %OptimizeFunctionOnNextCall(level3);
+    %OptimizeFunctionOnNextCall(level4);
+    level1();
+  )";
+
+// [Top down]:
+//     0  (root):0 0 #1
+//    13    start:34 6 #3
+//              bailed out due to 'Optimization is always disabled'
+//    19      level1:36 6 #4
+//    16        action:29 6 #14
+//                  bailed out due to 'Optimization is always disabled'
+//  2748        action:30 6 #10
+//                  bailed out due to 'Optimization is always disabled'
+//    18        action:31 6 #15
+//                  bailed out due to 'Optimization is always disabled'
+//     0        level2:32 6 #5
+//     0          level3:26 6 #6
+//    12            level4:22 6 #11
+//  1315              action:17 6 #13
+//                        bailed out due to 'Optimization is always disabled'
+//  1324              action:18 6 #12
+//                        bailed out due to 'Optimization is always disabled'
+//    16            level4:21 6 #7
+//  1268              action:17 6 #9
+//                        bailed out due to 'Optimization is always disabled'
+//  1322              action:18 6 #8
+//                        bailed out due to 'Optimization is always disabled'
+//     2    (program):0 0 #2
+TEST(Inlining2) {
+  FLAG_allow_natives_syntax = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  LocalContext env;
+  v8::CpuProfiler::UseDetailedSourcePositionsForProfiling(isolate);
+  v8::HandleScope scope(isolate);
+  ProfilerHelper helper(env.local());
+
+  CompileRun(inlining_test_source2);
+  v8::Local<v8::Function> function = GetFunction(env.local(), "start");
+
+  v8::Local<v8::Value> args[] = {v8::Integer::New(env->GetIsolate(), 20)};
+  static const unsigned min_samples = 4000;
+  static const unsigned min_ext_samples = 0;
+  v8::CpuProfile* profile =
+      helper.Run(function, args, arraysize(args), min_samples, min_ext_samples,
+                 v8::CpuProfilingMode::kCallerLineNumbers);
+  CHECK(profile);
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* start_node = GetChild(env.local(), root, "start");
+
+  NameLinePair l421_a17[] = {{"level1", 27},
+                             {"level2", 23},
+                             {"level3", 17},
+                             {"level4", 12},
+                             {"action", 8}};
+  CheckBranch(start_node, l421_a17, arraysize(l421_a17));
+  NameLinePair l422_a17[] = {{"level1", 27},
+                             {"level2", 23},
+                             {"level3", 17},
+                             {"level4", 13},
+                             {"action", 8}};
+  CheckBranch(start_node, l422_a17, arraysize(l422_a17));
+
+  NameLinePair l421_a18[] = {{"level1", 27},
+                             {"level2", 23},
+                             {"level3", 17},
+                             {"level4", 12},
+                             {"action", 9}};
+  CheckBranch(start_node, l421_a18, arraysize(l421_a18));
+  NameLinePair l422_a18[] = {{"level1", 27},
+                             {"level2", 23},
+                             {"level3", 17},
+                             {"level4", 13},
+                             {"action", 9}};
+  CheckBranch(start_node, l422_a18, arraysize(l422_a18));
+
+  NameLinePair action_direct[] = {{"level1", 27}, {"action", 21}};
+  CheckBranch(start_node, action_direct, arraysize(action_direct));
+
+  profile->Delete();
+}
+
+static const char* cross_script_source_a = R"(
+
+
+
+
+
+    %NeverOptimizeFunction(action);
+    function action(n) {
+      var s = 0;
+      for (var i = 0; i < n; ++i) s += i*i*i;
+      return s;
+    }
+    function level1() {
+      const a = action(1);
+      const b = action(200);
+      const c = action(1);
+      return a + b + c;
+    }
+  )";
+
+static const char* cross_script_source_b = R"(
+    %PrepareFunctionForOptimization(start);
+    %PrepareFunctionForOptimization(level1);
+    start(1);
+    start(1);
+    %OptimizeFunctionOnNextCall(start);
+    %OptimizeFunctionOnNextCall(level1);
+    start(1);
+    function start(n) {
+      while (--n)
+        level1();
+    };
+  )";
+
+TEST(CrossScriptInliningCallerLineNumbers) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  LocalContext env;
+  v8::CpuProfiler::UseDetailedSourcePositionsForProfiling(isolate);
+  v8::HandleScope scope(isolate);
+  ProfilerHelper helper(env.local());
+
+  v8::Local<v8::Script> script_a =
+      CompileWithOrigin(cross_script_source_a, "script_a", false);
+  v8::Local<v8::Script> script_b =
+      CompileWithOrigin(cross_script_source_b, "script_b", false);
+
+  script_a->Run(env.local()).ToLocalChecked();
+  script_b->Run(env.local()).ToLocalChecked();
+
+  v8::Local<v8::Function> function = GetFunction(env.local(), "start");
+
+  v8::Local<v8::Value> args[] = {v8::Integer::New(env->GetIsolate(), 10)};
+  static const unsigned min_samples = 1000;
+  static const unsigned min_ext_samples = 0;
+  v8::CpuProfile* profile =
+      helper.Run(function, args, arraysize(args), min_samples, min_ext_samples,
+                 v8::CpuProfilingMode::kCallerLineNumbers);
+  CHECK(profile);
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* start_node = GetChild(env.local(), root, "start");
+  CHECK_EQ(0, strcmp("script_b", start_node->GetScriptResourceNameStr()));
+
+  NameLinePair l19_a10[] = {{"level1", 11}, {"action", 15}};
+  CheckBranch(start_node, l19_a10, arraysize(l19_a10));
+
+  const v8::CpuProfileNode* level1_node =
+      GetChild(env.local(), start_node, "level1");
+  CHECK_EQ(0, strcmp("script_a", level1_node->GetScriptResourceNameStr()));
+
+  const v8::CpuProfileNode* action_node =
+      GetChild(env.local(), level1_node, "action");
+  CHECK_EQ(0, strcmp("script_a", action_node->GetScriptResourceNameStr()));
+
+  profile->Delete();
+}
+
+static const char* cross_script_source_c = R"(
+    function level3() {
+      const a = action(1);
+      const b = action(100);
+      const c = action(1);
+      return a + b + c;
+    }
+    %NeverOptimizeFunction(action);
+    function action(n) {
+      var s = 0;
+      for (var i = 0; i < n; ++i) s += i*i*i;
+      return s;
+    }
+  )";
+
+static const char* cross_script_source_d = R"(
+    function level2() {
+      const p = level3();
+      const q = level3();
+      return p + q;
+    }
+  )";
+
+static const char* cross_script_source_e = R"(
+    function level1() {
+      return level2() + 1000;
+    }
+  )";
+
+static const char* cross_script_source_f = R"(
+    %PrepareFunctionForOptimization(start);
+    %PrepareFunctionForOptimization(level1);
+    %PrepareFunctionForOptimization(level2);
+    %PrepareFunctionForOptimization(level3);
+    start(1);
+    start(1);
+    %OptimizeFunctionOnNextCall(start);
+    %OptimizeFunctionOnNextCall(level1);
+    %OptimizeFunctionOnNextCall(level2);
+    %OptimizeFunctionOnNextCall(level3);
+    start(1);
+    function start(n) {
+      while (--n)
+        level1();
+    };
+  )";
+
+TEST(CrossScriptInliningCallerLineNumbers2) {
+  i::FLAG_allow_natives_syntax = true;
+  LocalContext env;
+  v8::HandleScope scope(CcTest::isolate());
+  ProfilerHelper helper(env.local());
+
+  v8::Local<v8::Script> script_c =
+      CompileWithOrigin(cross_script_source_c, "script_c", false);
+  v8::Local<v8::Script> script_d =
+      CompileWithOrigin(cross_script_source_d, "script_d", false);
+  v8::Local<v8::Script> script_e =
+      CompileWithOrigin(cross_script_source_e, "script_e", false);
+  v8::Local<v8::Script> script_f =
+      CompileWithOrigin(cross_script_source_f, "script_f", false);
+
+  script_c->Run(env.local()).ToLocalChecked();
+  script_d->Run(env.local()).ToLocalChecked();
+  script_e->Run(env.local()).ToLocalChecked();
+  script_f->Run(env.local()).ToLocalChecked();
+
+  v8::Local<v8::Function> function = GetFunction(env.local(), "start");
+
+  v8::Local<v8::Value> args[] = {v8::Integer::New(env->GetIsolate(), 10)};
+  static const unsigned min_samples = 1000;
+  static const unsigned min_ext_samples = 0;
+  v8::CpuProfile* profile =
+      helper.Run(function, args, arraysize(args), min_samples, min_ext_samples,
+                 v8::CpuProfilingMode::kCallerLineNumbers);
+  CHECK(profile);
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* start_node = GetChild(env.local(), root, "start");
+  CHECK_EQ(0, strcmp("script_f", start_node->GetScriptResourceNameStr()));
+
+  const v8::CpuProfileNode* level1_node =
+      GetChild(env.local(), start_node, "level1");
+  CHECK_EQ(0, strcmp("script_e", level1_node->GetScriptResourceNameStr()));
+
+  const v8::CpuProfileNode* level2_node =
+      GetChild(env.local(), level1_node, "level2");
+  CHECK_EQ(0, strcmp("script_d", level2_node->GetScriptResourceNameStr()));
+
+  const v8::CpuProfileNode* level3_node =
+      GetChild(env.local(), level2_node, "level3");
+  CHECK_EQ(0, strcmp("script_c", level3_node->GetScriptResourceNameStr()));
+
+  const v8::CpuProfileNode* action_node =
+      GetChild(env.local(), level3_node, "action");
+  CHECK_EQ(0, strcmp("script_c", action_node->GetScriptResourceNameStr()));
 
   profile->Delete();
 }
@@ -1637,13 +2131,13 @@ TEST(IdleTime) {
   i::ProfilerEventsProcessor* processor =
       reinterpret_cast<i::CpuProfiler*>(cpu_profiler)->processor();
 
-  processor->AddCurrentStack(isolate, true);
-  cpu_profiler->SetIdle(true);
+  processor->AddCurrentStack(true);
+  isolate->SetIdle(true);
   for (int i = 0; i < 3; i++) {
-    processor->AddCurrentStack(isolate, true);
+    processor->AddCurrentStack(true);
   }
-  cpu_profiler->SetIdle(false);
-  processor->AddCurrentStack(isolate, true);
+  isolate->SetIdle(false);
+  processor->AddCurrentStack(true);
 
   v8::CpuProfile* profile = cpu_profiler->StopProfiling(profile_name);
   CHECK(profile);
@@ -1668,22 +2162,27 @@ TEST(IdleTime) {
 static void CheckFunctionDetails(v8::Isolate* isolate,
                                  const v8::CpuProfileNode* node,
                                  const char* name, const char* script_name,
-                                 int script_id, int line, int column) {
+                                 bool is_shared_cross_origin, int script_id,
+                                 int line, int column,
+                                 const v8::CpuProfileNode* parent) {
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   CHECK(v8_str(name)->Equals(context, node->GetFunctionName()).FromJust());
+  CHECK_EQ(0, strcmp(name, node->GetFunctionNameStr()));
   CHECK(v8_str(script_name)
             ->Equals(context, node->GetScriptResourceName())
             .FromJust());
+  CHECK_EQ(0, strcmp(script_name, node->GetScriptResourceNameStr()));
   CHECK_EQ(script_id, node->GetScriptId());
   CHECK_EQ(line, node->GetLineNumber());
   CHECK_EQ(column, node->GetColumnNumber());
+  CHECK_EQ(parent, node->GetParent());
+  CHECK_EQ(v8::CpuProfileNode::kScript, node->GetSourceType());
 }
-
 
 TEST(FunctionDetails) {
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
   ProfilerHelper helper(env);
 
@@ -1692,19 +2191,17 @@ TEST(FunctionDetails) {
       "%NeverOptimizeFunction(bar);\n"
       "    function foo\n() { bar(); }\n"
       " function bar() { startProfiling(); }\n",
-      "script_a");
+      "script_a", false);
   script_a->Run(env).ToLocalChecked();
   v8::Local<v8::Script> script_b = CompileWithOrigin(
       "%NeverOptimizeFunction(baz);"
       "\n\n   function baz() { foo(); }\n"
       "\n\nbaz();\n"
       "stopProfiling();\n",
-      "script_b");
+      "script_b", true);
   script_b->Run(env).ToLocalChecked();
   const v8::CpuProfile* profile = i::ProfilerExtension::last_profile;
-  const v8::CpuProfileNode* current = profile->GetTopDownRoot();
-  reinterpret_cast<ProfileNode*>(
-      const_cast<v8::CpuProfileNode*>(current))->Print(0);
+  reinterpret_cast<const i::CpuProfile*>(profile)->Print();
   // The tree should look like this:
   //  0   (root) 0 #1
   //  0    "" 19 #2 no reason script_b:1
@@ -1712,24 +2209,183 @@ TEST(FunctionDetails) {
   //  0        foo 18 #4 TryCatchStatement script_a:2
   //  1          bar 18 #5 no reason script_a:3
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  CHECK_EQ(root->GetParent(), nullptr);
   const v8::CpuProfileNode* script = GetChild(env, root, "");
-  CheckFunctionDetails(env->GetIsolate(), script, "", "script_b",
-                       script_b->GetUnboundScript()->GetId(), 1, 1);
+  CheckFunctionDetails(env->GetIsolate(), script, "", "script_b", true,
+                       script_b->GetUnboundScript()->GetId(), 1, 1, root);
   const v8::CpuProfileNode* baz = GetChild(env, script, "baz");
-  CheckFunctionDetails(env->GetIsolate(), baz, "baz", "script_b",
-                       script_b->GetUnboundScript()->GetId(), 3, 16);
+  CheckFunctionDetails(env->GetIsolate(), baz, "baz", "script_b", true,
+                       script_b->GetUnboundScript()->GetId(), 3, 16, script);
   const v8::CpuProfileNode* foo = GetChild(env, baz, "foo");
-  CheckFunctionDetails(env->GetIsolate(), foo, "foo", "script_a",
-                       script_a->GetUnboundScript()->GetId(), 4, 1);
+  CheckFunctionDetails(env->GetIsolate(), foo, "foo", "script_a", false,
+                       script_a->GetUnboundScript()->GetId(), 4, 1, baz);
   const v8::CpuProfileNode* bar = GetChild(env, foo, "bar");
-  CheckFunctionDetails(env->GetIsolate(), bar, "bar", "script_a",
-                       script_a->GetUnboundScript()->GetId(), 5, 14);
+  CheckFunctionDetails(env->GetIsolate(), bar, "bar", "script_a", false,
+                       script_a->GetUnboundScript()->GetId(), 5, 14, foo);
 }
 
+TEST(FunctionDetailsInlining) {
+  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_opt) return;
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
+  v8::Context::Scope context_scope(env);
+  ProfilerHelper helper(env);
+
+  // alpha is in a_script, beta in b_script. beta is
+  // inlined in alpha, but it should be attributed to b_script.
+
+  v8::Local<v8::Script> script_b = CompileWithOrigin(
+      "function beta(k) {\n"
+      "  let sum = 2;\n"
+      "  for(let i = 0; i < k; i ++) {\n"
+      "    sum += i;\n"
+      "    sum = sum + 'a';\n"
+      "  }\n"
+      "  return sum;\n"
+      "}\n"
+      "\n",
+      "script_b", true);
+
+  v8::Local<v8::Script> script_a = CompileWithOrigin(
+      "function alpha(p) {\n"
+      "  let res = beta(p);\n"
+      "  res = res + res;\n"
+      "  return res;\n"
+      "}\n"
+      "let p = 2;\n"
+      "\n"
+      "\n"
+      "// Warm up before profiling or the inlining doesn't happen.\n"
+      "%PrepareFunctionForOptimization(alpha);\n"
+      "p = alpha(p);\n"
+      "p = alpha(p);\n"
+      "%OptimizeFunctionOnNextCall(alpha);\n"
+      "p = alpha(p);\n"
+      "\n"
+      "\n"
+      "startProfiling();\n"
+      "for(let i = 0; i < 10000; i++) {\n"
+      "  p = alpha(p);\n"
+      "}\n"
+      "stopProfiling();\n"
+      "\n"
+      "\n",
+      "script_a", false);
+
+  script_b->Run(env).ToLocalChecked();
+  script_a->Run(env).ToLocalChecked();
+
+  const v8::CpuProfile* profile = i::ProfilerExtension::last_profile;
+  reinterpret_cast<const i::CpuProfile*>(profile)->Print();
+  //   The tree should look like this:
+  //  0  (root) 0 #1
+  //  5    (program) 0 #6
+  //  2     14 #2 script_a:1
+  //    ;;; deopted at script_id: 14 position: 299 with reason 'Insufficient
+  //    type feedback for call'.
+  //  1      alpha 14 #4 script_a:1
+  //  9        beta 13 #5 script_b:0
+  //  0      startProfiling 0 #3
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  CHECK_EQ(root->GetParent(), nullptr);
+  const v8::CpuProfileNode* script = GetChild(env, root, "");
+  CheckFunctionDetails(env->GetIsolate(), script, "", "script_a", false,
+                       script_a->GetUnboundScript()->GetId(), 1, 1, root);
+  const v8::CpuProfileNode* alpha = FindChild(env, script, "alpha");
+  // Return early if profiling didn't sample alpha.
+  if (!alpha) return;
+  CheckFunctionDetails(env->GetIsolate(), alpha, "alpha", "script_a", false,
+                       script_a->GetUnboundScript()->GetId(), 1, 15, script);
+  const v8::CpuProfileNode* beta = FindChild(env, alpha, "beta");
+  if (!beta) return;
+  CheckFunctionDetails(env->GetIsolate(), beta, "beta", "script_b", true,
+                       script_b->GetUnboundScript()->GetId(), 1, 14, alpha);
+}
+
+static const char* pre_profiling_osr_script = R"(
+    const kMinIterationDurationMs = 1;
+    function whenPass(pass, optDuration) {
+      if (pass == 5) startProfiling();
+    }
+    function hot(optDuration, deoptDuration) {
+      %PrepareFunctionForOptimization(hot);
+      for (let pass = 0; pass <= optDuration + deoptDuration; pass++) {
+        const startTime = Date.now();
+        // Let a few passes go by to ensure we have enough feeback info
+        if (pass == 3) %OptimizeOsr();
+        // Force deoptimization. %DeoptimizeNow and %DeoptimizeFunction don't
+        // doptimize OSRs.
+        if (pass == optDuration) whenPass = () => {};
+        whenPass(pass, optDuration);
+        while (Date.now() - startTime < kMinIterationDurationMs) {
+          for (let j = 0; j < 1000; j++) {
+            x = Math.random() * j;
+          }
+        }
+      }
+    }
+    function notHot(optDuration, deoptDuration) {
+      hot(optDuration, deoptDuration);
+      stopProfiling()
+    }
+  )";
+
+// Testing profiling of OSR code that was OSR optimized before profiling
+// started. Currently the behavior is not quite right so we're currently
+// testing a deopt event being sent to the sampling thread for a function
+// it knows nothing about. This deopt does mean we start getting samples
+// for hot so we expect some samples, just fewer than for notHot.
+//
+// We should get something like:
+//     0  (root):0 3 0 #1
+//    12    (garbage collector):0 3 0 #5
+//     5    notHot:22 0 4 #2
+//    85      hot:5 0 4 #6
+//     0      whenPass:2 0 4 #3
+//     0        startProfiling:0 2 0 #4
+//
+// But currently get something like:
+//     0  (root):0 3 0 #1
+//    12    (garbage collector):0 3 0 #5
+//    57    notHot:22 0 4 #2
+//    33      hot:5 0 4 #6
+//     0      whenPass:2 0 4 #3
+//     0        startProfiling:0 2 0 #4
+
+TEST(StartProfilingAfterOsr) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
+  v8::Context::Scope context_scope(env);
+  ProfilerHelper helper(env);
+  helper.profiler()->SetSamplingInterval(100);
+  CompileRun(pre_profiling_osr_script);
+  v8::Local<v8::Function> function = GetFunction(env, "notHot");
+
+  int32_t profiling_optimized_ms = 120;
+  int32_t profiling_deoptimized_ms = 40;
+  v8::Local<v8::Value> args[] = {
+      v8::Integer::New(env->GetIsolate(), profiling_optimized_ms),
+      v8::Integer::New(env->GetIsolate(), profiling_deoptimized_ms)};
+  function->Call(env, env->Global(), arraysize(args), args).ToLocalChecked();
+  const v8::CpuProfile* profile = i::ProfilerExtension::last_profile;
+  CHECK(profile);
+  reinterpret_cast<const i::CpuProfile*>(profile)->Print();
+
+  const CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* notHotNode = GetChild(env, root, "notHot");
+  const v8::CpuProfileNode* hotNode = GetChild(env, notHotNode, "hot");
+  USE(hotNode);
+  // If/when OSR sampling is fixed the following CHECK_GT could/should be
+  // uncommented and the node = node line deleted.
+  // CHECK_GT(hotNode->GetHitCount(), notHotNode->GetHitCount());
+}
 
 TEST(DontStopOnFinishedProfileDelete) {
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
 
   v8::CpuProfiler* profiler = v8::CpuProfiler::New(env->GetIsolate());
@@ -1748,36 +2404,37 @@ TEST(DontStopOnFinishedProfileDelete) {
   CHECK(inner_profile);
   CHECK_EQ(1, iprofiler->GetProfilesCount());
   inner_profile->Delete();
-  inner_profile = NULL;
+  inner_profile = nullptr;
   CHECK_EQ(0, iprofiler->GetProfilesCount());
 
   v8::CpuProfile* outer_profile = profiler->StopProfiling(outer);
   CHECK(outer_profile);
   CHECK_EQ(1, iprofiler->GetProfilesCount());
   outer_profile->Delete();
-  outer_profile = NULL;
+  outer_profile = nullptr;
   CHECK_EQ(0, iprofiler->GetProfilesCount());
   profiler->Dispose();
 }
-
 
 const char* GetBranchDeoptReason(v8::Local<v8::Context> context,
                                  i::CpuProfile* iprofile, const char* branch[],
                                  int length) {
   v8::CpuProfile* profile = reinterpret_cast<v8::CpuProfile*>(iprofile);
-  const ProfileNode* iopt_function = NULL;
+  const ProfileNode* iopt_function = nullptr;
   iopt_function = GetSimpleBranch(context, profile, branch, length);
-  CHECK_EQ(1U, iopt_function->deopt_infos().size());
+  if (iopt_function->deopt_infos().size() == 0) {
+    iopt_function = iopt_function->parent();
+  }
+  CHECK_LE(1U, iopt_function->deopt_infos().size());
   return iopt_function->deopt_infos()[0].deopt_reason;
 }
 
-
 // deopt at top function
 TEST(CollectDeoptEvents) {
-  if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_opt) return;
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
   ProfilerHelper helper(env);
   i::CpuProfiler* iprofiler =
@@ -1794,7 +2451,7 @@ TEST(CollectDeoptEvents) {
   for (int i = 0; i < 3; ++i) {
     i::EmbeddedVector<char, sizeof(opt_source) + 100> buffer;
     i::SNPrintF(buffer, opt_source, i, i);
-    v8::Script::Compile(env, v8_str(buffer.start()))
+    v8::Script::Compile(env, v8_str(buffer.begin()))
         .ToLocalChecked()
         ->Run(env)
         .ToLocalChecked();
@@ -1802,6 +2459,8 @@ TEST(CollectDeoptEvents) {
 
   const char* source =
       "startProfiling();\n"
+      "\n"
+      "%PrepareFunctionForOptimization(opt_function0);\n"
       "\n"
       "opt_function0(1, 1);\n"
       "\n"
@@ -1811,6 +2470,8 @@ TEST(CollectDeoptEvents) {
       "\n"
       "opt_function0(undefined, 1);\n"
       "\n"
+      "%PrepareFunctionForOptimization(opt_function1);\n"
+      "\n"
       "opt_function1(1, 1);\n"
       "\n"
       "%OptimizeFunctionOnNextCall(opt_function1)\n"
@@ -1818,6 +2479,8 @@ TEST(CollectDeoptEvents) {
       "opt_function1(1, 1);\n"
       "\n"
       "opt_function1(NaN, 1);\n"
+      "\n"
+      "%PrepareFunctionForOptimization(opt_function2);\n"
       "\n"
       "opt_function2(1, 1);\n"
       "\n"
@@ -1836,7 +2499,8 @@ TEST(CollectDeoptEvents) {
       .ToLocalChecked();
   i::CpuProfile* iprofile = iprofiler->GetProfile(0);
   iprofile->Print();
-  /* The expected profile
+  /* The expected profile. Note that the deopt reasons can hang off either of
+     the two nodes for each function, depending on the exact timing at runtime.
   [Top down]:
       0  (root) 0 #1
      23     32 #2
@@ -1856,16 +2520,21 @@ TEST(CollectDeoptEvents) {
 
   {
     const char* branch[] = {"", "opt_function0", "opt_function0"};
-    CHECK_EQ(reason(i::DeoptimizeReason::kNotAHeapNumber),
-             GetBranchDeoptReason(env, iprofile, branch, arraysize(branch)));
+    const char* deopt_reason =
+        GetBranchDeoptReason(env, iprofile, branch, arraysize(branch));
+    if (deopt_reason != reason(i::DeoptimizeReason::kNotAHeapNumber) &&
+        deopt_reason != reason(i::DeoptimizeReason::kNotASmi)) {
+      FATAL("%s", deopt_reason);
+    }
   }
   {
     const char* branch[] = {"", "opt_function1", "opt_function1"};
     const char* deopt_reason =
         GetBranchDeoptReason(env, iprofile, branch, arraysize(branch));
     if (deopt_reason != reason(i::DeoptimizeReason::kNaN) &&
-        deopt_reason != reason(i::DeoptimizeReason::kLostPrecisionOrNaN)) {
-      FATAL(deopt_reason);
+        deopt_reason != reason(i::DeoptimizeReason::kLostPrecisionOrNaN) &&
+        deopt_reason != reason(i::DeoptimizeReason::kNotASmi)) {
+      FATAL("%s", deopt_reason);
     }
   }
   {
@@ -1876,10 +2545,8 @@ TEST(CollectDeoptEvents) {
   iprofiler->DeleteProfile(iprofile);
 }
 
-
 TEST(SourceLocation) {
   i::FLAG_always_opt = true;
-  i::FLAG_hydrogen_track_positions = true;
   LocalContext env;
   v8::HandleScope scope(CcTest::isolate());
 
@@ -1895,19 +2562,17 @@ TEST(SourceLocation) {
       .ToLocalChecked();
 }
 
-
 static const char* inlined_source =
-    "function opt_function(left, right) { var k = left / 10; var r = 10 / "
-    "right; return k + r; }\n";
+    "function opt_function(left, right) { var k = left*right; return k + 1; "
+    "}\n";
 //   0.........1.........2.........3.........4....*....5.........6......*..7
-
 
 // deopt at the first level inlined function
 TEST(DeoptAtFirstLevelInlinedSource) {
-  if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_opt) return;
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
   ProfilerHelper helper(env);
   i::CpuProfiler* iprofiler =
@@ -1919,13 +2584,16 @@ TEST(DeoptAtFirstLevelInlinedSource) {
       "\n"
       "startProfiling();\n"
       "\n"
+      "%EnsureFeedbackVectorForFunction(opt_function);\n"
+      "%PrepareFunctionForOptimization(test);\n"
+      "\n"
       "test(10, 10);\n"
       "\n"
       "%OptimizeFunctionOnNextCall(test)\n"
       "\n"
       "test(10, 10);\n"
       "\n"
-      "test(undefined, 10);\n"
+      "test(undefined, 1e9);\n"
       "\n"
       "stopProfiling();\n"
       "\n";
@@ -1960,23 +2628,23 @@ TEST(DeoptAtFirstLevelInlinedSource) {
   CHECK_EQ(1U, deopt_infos.size());
 
   const v8::CpuProfileDeoptInfo& info = deopt_infos[0];
-  CHECK_EQ(reason(i::DeoptimizeReason::kNotAHeapNumber), info.deopt_reason);
+  CHECK(reason(i::DeoptimizeReason::kNotASmi) == info.deopt_reason ||
+        reason(i::DeoptimizeReason::kNotAHeapNumber) == info.deopt_reason);
   CHECK_EQ(2U, info.stack.size());
   CHECK_EQ(inlined_script_id, info.stack[0].script_id);
-  CHECK_EQ(offset(inlined_source, "left /"), info.stack[0].position);
+  CHECK_LE(dist(offset(inlined_source, "*right"), info.stack[0].position), 1);
   CHECK_EQ(script_id, info.stack[1].script_id);
   CHECK_EQ(offset(source, "opt_function(left,"), info.stack[1].position);
 
   iprofiler->DeleteProfile(iprofile);
 }
 
-
 // deopt at the second level inlined function
 TEST(DeoptAtSecondLevelInlinedSource) {
-  if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_opt) return;
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
   ProfilerHelper helper(env);
   i::CpuProfiler* iprofiler =
@@ -1985,9 +2653,13 @@ TEST(DeoptAtSecondLevelInlinedSource) {
   //   0.........1.........2.........3.........4.........5.........6.........7
   const char* source =
       "function test2(left, right) { return opt_function(left, right); }\n"
-      "function test1(left, right) { return test2(left, right); }\n"
+      "function test1(left, right) { return test2(left, right); } \n"
       "\n"
       "startProfiling();\n"
+      "\n"
+      "%EnsureFeedbackVectorForFunction(opt_function);\n"
+      "%EnsureFeedbackVectorForFunction(test2);\n"
+      "%PrepareFunctionForOptimization(test1);\n"
       "\n"
       "test1(10, 10);\n"
       "\n"
@@ -1995,7 +2667,7 @@ TEST(DeoptAtSecondLevelInlinedSource) {
       "\n"
       "test1(10, 10);\n"
       "\n"
-      "test1(undefined, 10);\n"
+      "test1(undefined, 1e9);\n"
       "\n"
       "stopProfiling();\n"
       "\n";
@@ -2033,10 +2705,11 @@ TEST(DeoptAtSecondLevelInlinedSource) {
   CHECK_EQ(1U, deopt_infos.size());
 
   const v8::CpuProfileDeoptInfo info = deopt_infos[0];
-  CHECK_EQ(reason(i::DeoptimizeReason::kNotAHeapNumber), info.deopt_reason);
+  CHECK(reason(i::DeoptimizeReason::kNotASmi) == info.deopt_reason ||
+        reason(i::DeoptimizeReason::kNotAHeapNumber) == info.deopt_reason);
   CHECK_EQ(3U, info.stack.size());
   CHECK_EQ(inlined_script_id, info.stack[0].script_id);
-  CHECK_EQ(offset(inlined_source, "left /"), info.stack[0].position);
+  CHECK_LE(dist(offset(inlined_source, "*right"), info.stack[0].position), 1);
   CHECK_EQ(script_id, info.stack[1].script_id);
   CHECK_EQ(offset(source, "opt_function(left,"), info.stack[1].position);
   CHECK_EQ(offset(source, "test2(left, right);"), info.stack[2].position);
@@ -2044,13 +2717,12 @@ TEST(DeoptAtSecondLevelInlinedSource) {
   iprofiler->DeleteProfile(iprofile);
 }
 
-
 // deopt in untracked function
 TEST(DeoptUntrackedFunction) {
-  if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_opt) return;
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
   ProfilerHelper helper(env);
   i::CpuProfiler* iprofiler =
@@ -2059,6 +2731,9 @@ TEST(DeoptUntrackedFunction) {
   //   0.........1.........2.........3.........4.........5.........6.........7
   const char* source =
       "function test(left, right) { return opt_function(left, right); }\n"
+      "\n"
+      "%EnsureFeedbackVectorForFunction(opt_function);"
+      "%PrepareFunctionForOptimization(test);\n"
       "\n"
       "test(10, 10);\n"
       "\n"
@@ -2090,3 +2765,1284 @@ TEST(DeoptUntrackedFunction) {
 
   iprofiler->DeleteProfile(iprofile);
 }
+
+using v8::platform::tracing::TraceBuffer;
+using v8::platform::tracing::TraceConfig;
+using v8::platform::tracing::TraceObject;
+
+namespace {
+
+#ifdef V8_USE_PERFETTO
+class CpuProfilerListener : public platform::tracing::TraceEventListener {
+ public:
+  void ProcessPacket(const ::perfetto::protos::TracePacket& packet) {
+    auto& seq_state = sequence_state_[packet.trusted_packet_sequence_id()];
+    if (packet.incremental_state_cleared()) seq_state = SequenceState{};
+
+    if (!packet.has_track_event()) return;
+
+    // Update incremental state.
+    if (packet.has_interned_data()) {
+      const auto& interned_data = packet.interned_data();
+      for (const auto& it : interned_data.event_names()) {
+        CHECK_EQ(seq_state.event_names_.find(it.iid()),
+                 seq_state.event_names_.end());
+        seq_state.event_names_[it.iid()] = it.name();
+      }
+    }
+    const auto& track_event = packet.track_event();
+    auto name = seq_state.event_names_[track_event.name_iid()];
+    if (name != "Profile" && name != "ProfileChunk") return;
+
+    CHECK_EQ(1, track_event.debug_annotations_size());
+    CHECK(track_event.debug_annotations()[0].has_legacy_json_value());
+    CHECK(!profile_id_ ||
+          track_event.legacy_event().unscoped_id() == profile_id_);
+    profile_id_ = track_event.legacy_event().unscoped_id();
+    result_json_ += result_json_.empty() ? "[" : ",\n";
+    result_json_ += track_event.debug_annotations()[0].legacy_json_value();
+  }
+
+  const std::string& result_json() {
+    result_json_ += "]";
+    return result_json_;
+  }
+  void Reset() {
+    result_json_.clear();
+    profile_id_ = 0;
+    sequence_state_.clear();
+  }
+
+ private:
+  std::string result_json_;
+  uint64_t profile_id_ = 0;
+
+  struct SequenceState {
+    std::map<uint64_t, std::string> event_names_;
+  };
+  std::map<uint32_t, SequenceState> sequence_state_;
+};
+
+#else
+
+class CpuProfileEventChecker : public v8::platform::tracing::TraceWriter {
+ public:
+  void AppendTraceEvent(TraceObject* trace_event) override {
+    if (trace_event->name() != std::string("Profile") &&
+        trace_event->name() != std::string("ProfileChunk"))
+      return;
+    CHECK(!profile_id_ || trace_event->id() == profile_id_);
+    CHECK_EQ(1, trace_event->num_args());
+    CHECK_EQ(TRACE_VALUE_TYPE_CONVERTABLE, trace_event->arg_types()[0]);
+    profile_id_ = trace_event->id();
+    v8::ConvertableToTraceFormat* arg =
+        trace_event->arg_convertables()[0].get();
+    result_json_ += result_json_.empty() ? "[" : ",\n";
+    arg->AppendAsTraceFormat(&result_json_);
+  }
+  void Flush() override { result_json_ += "]"; }
+
+  const std::string& result_json() const { return result_json_; }
+  void Reset() {
+    result_json_.clear();
+    profile_id_ = 0;
+  }
+
+ private:
+  std::string result_json_;
+  uint64_t profile_id_ = 0;
+};
+
+#endif  // !V8_USE_PERFETTO
+
+}  // namespace
+
+TEST(TracingCpuProfiler) {
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
+  v8::Context::Scope context_scope(env);
+
+  auto* tracing_controller =
+      static_cast<v8::platform::tracing::TracingController*>(
+          i::V8::GetCurrentPlatform()->GetTracingController());
+
+#ifdef V8_USE_PERFETTO
+  std::ostringstream perfetto_output;
+  tracing_controller->InitializeForPerfetto(&perfetto_output);
+  CpuProfilerListener listener;
+  tracing_controller->SetTraceEventListenerForTesting(&listener);
+#else
+  CpuProfileEventChecker* event_checker = new CpuProfileEventChecker();
+  TraceBuffer* ring_buffer =
+      TraceBuffer::CreateTraceBufferRingBuffer(1, event_checker);
+  tracing_controller->Initialize(ring_buffer);
+#endif
+
+  bool result = false;
+  for (int run_duration = 50; !result; run_duration += 50) {
+    TraceConfig* trace_config = new TraceConfig();
+    trace_config->AddIncludedCategory(
+        TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"));
+
+    std::string test_code = R"(
+        function foo() {
+          let s = 0;
+          const endTime = Date.now() + )" +
+                            std::to_string(run_duration) + R"(
+          while (Date.now() < endTime) s += Math.cos(s);
+          return s;
+        }
+        foo();)";
+
+    tracing_controller->StartTracing(trace_config);
+    CompileRun(test_code.c_str());
+#ifdef V8_USE_PERFETTO
+    TrackEvent::Flush();
+#endif
+    tracing_controller->StopTracing();
+
+#ifdef V8_USE_PERFETTO
+    std::string profile_json = listener.result_json();
+    listener.Reset();
+#else
+    std::string profile_json = event_checker->result_json();
+    event_checker->Reset();
+#endif
+    CHECK_LT(0u, profile_json.length());
+    printf("Profile JSON: %s\n", profile_json.c_str());
+
+    std::string profile_checker_code = R"(
+        function checkProfile(json) {
+          const profile_header = json[0];
+          if (typeof profile_header['startTime'] !== 'number')
+            return false;
+          return json.some(event => (event.lines || []).some(line => line));
+        }
+        checkProfile()" + profile_json +
+                                       ")";
+    result = CompileRunChecked(CcTest::isolate(), profile_checker_code.c_str())
+                 ->IsTrue();
+  }
+
+#ifndef V8_USE_PERFETTO
+  static_cast<v8::platform::tracing::TracingController*>(
+      i::V8::GetCurrentPlatform()->GetTracingController())
+      ->Initialize(nullptr);
+#endif  // !V8_USE_PERFETTO
+}
+
+TEST(Issue763073) {
+  class AllowNativesSyntax {
+   public:
+    AllowNativesSyntax()
+        : allow_natives_syntax_(i::FLAG_allow_natives_syntax),
+          trace_deopt_(i::FLAG_trace_deopt) {
+      i::FLAG_allow_natives_syntax = true;
+      i::FLAG_trace_deopt = true;
+    }
+
+    ~AllowNativesSyntax() {
+      i::FLAG_allow_natives_syntax = allow_natives_syntax_;
+      i::FLAG_trace_deopt = trace_deopt_;
+    }
+
+   private:
+    bool allow_natives_syntax_;
+    bool trace_deopt_;
+  };
+
+  AllowNativesSyntax allow_natives_syntax_scope;
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  CompileRun(
+      "function f() { return function g(x) { }; }"
+      // Create first closure, optimize it, and deoptimize it.
+      "var g = f();"
+      "%PrepareFunctionForOptimization(g);\n"
+      "g(1);"
+      "%OptimizeFunctionOnNextCall(g);"
+      "g(1);"
+      "%DeoptimizeFunction(g);"
+      // Create second closure, and optimize it. This will create another
+      // optimized code object and put in the (shared) type feedback vector.
+      "var h = f();"
+      "%PrepareFunctionForOptimization(h);\n"
+      "h(1);"
+      "%OptimizeFunctionOnNextCall(h);"
+      "h(1);");
+
+  // Start profiling.
+  v8::CpuProfiler* cpu_profiler = v8::CpuProfiler::New(env->GetIsolate());
+  v8::Local<v8::String> profile_name = v8_str("test");
+
+  // Here we test that the heap iteration upon profiling start is not
+  // confused by having a deoptimized code object for a closure while
+  // having a different optimized code object in the type feedback vector.
+  cpu_profiler->StartProfiling(profile_name);
+  v8::CpuProfile* p = cpu_profiler->StopProfiling(profile_name);
+  p->Delete();
+  cpu_profiler->Dispose();
+}
+
+static const char* js_collect_sample_api_source =
+    "%NeverOptimizeFunction(start);\n"
+    "function start() {\n"
+    "  CallStaticCollectSample();\n"
+    "}";
+
+static void CallStaticCollectSample(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::CpuProfiler::CollectSample(info.GetIsolate());
+}
+
+TEST(StaticCollectSampleAPI) {
+  i::FLAG_allow_natives_syntax = true;
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  v8::Local<v8::FunctionTemplate> func_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), CallStaticCollectSample);
+  v8::Local<v8::Function> func =
+      func_template->GetFunction(env.local()).ToLocalChecked();
+  func->SetName(v8_str("CallStaticCollectSample"));
+  env->Global()
+      ->Set(env.local(), v8_str("CallStaticCollectSample"), func)
+      .FromJust();
+
+  CompileRun(js_collect_sample_api_source);
+  v8::Local<v8::Function> function = GetFunction(env.local(), "start");
+
+  ProfilerHelper helper(env.local());
+  v8::CpuProfile* profile = helper.Run(function, nullptr, 0, 100);
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* start_node = GetChild(env.local(), root, "start");
+  GetChild(env.local(), start_node, "CallStaticCollectSample");
+
+  profile->Delete();
+}
+
+TEST(CodeEntriesMemoryLeak) {
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
+  v8::Context::Scope context_scope(env);
+
+  std::string source = "function start() {}\n";
+  for (int i = 0; i < 1000; ++i) {
+    source += "function foo" + std::to_string(i) + "() { return " +
+              std::to_string(i) +
+              "; }\n"
+              "foo" +
+              std::to_string(i) + "();\n";
+  }
+  CompileRun(source.c_str());
+  v8::Local<v8::Function> function = GetFunction(env, "start");
+
+  ProfilerHelper helper(env);
+
+  for (int j = 0; j < 100; ++j) {
+    v8::CpuProfile* profile = helper.Run(function, nullptr, 0);
+    profile->Delete();
+  }
+
+  i::CpuProfiler* profiler =
+      reinterpret_cast<i::CpuProfiler*>(helper.profiler());
+  CHECK(!profiler->profiler_listener_for_test());
+}
+
+TEST(NativeFrameStackTrace) {
+  // A test for issue https://crbug.com/768540
+  // When a sample lands in a native function which has not EXIT frame
+  // stack frame iterator used to bail out and produce an empty stack trace.
+  // The source code below makes v8 call the
+  // v8::internal::StringTable::TryStringToIndexOrLookupExisting native function
+  // without producing an EXIT frame.
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
+  v8::Context::Scope context_scope(env);
+
+  const char* source = R"(
+      function jsFunction() {
+        var s = {};
+        for (var i = 0; i < 1e4; ++i) {
+          for (var j = 0; j < 100; j++) {
+            s['item' + j] = 'alph';
+          }
+        }
+      })";
+
+  CompileRun(source);
+  v8::Local<v8::Function> function = GetFunction(env, "jsFunction");
+
+  ProfilerHelper helper(env);
+
+  v8::CpuProfile* profile = helper.Run(function, nullptr, 0, 100, 0);
+
+  // Count the fraction of samples landing in 'jsFunction' (valid stack)
+  // vs '(program)' (no stack captured).
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* js_function = FindChild(root, "jsFunction");
+  const v8::CpuProfileNode* program = FindChild(root, "(program)");
+  if (program) {
+    unsigned js_function_samples = TotalHitCount(js_function);
+    unsigned program_samples = TotalHitCount(program);
+    double valid_samples_ratio =
+        1. * js_function_samples / (js_function_samples + program_samples);
+    i::PrintF("Ratio: %f\n", valid_samples_ratio);
+    // TODO(alph): Investigate other causes of dropped frames. The ratio
+    // should be close to 99%.
+    CHECK_GE(valid_samples_ratio, 0.3);
+  }
+
+  profile->Delete();
+}
+
+TEST(SourcePositionTable) {
+  i::SourcePositionTable info;
+
+  // Newly created tables should return NoLineNumberInfo for any lookup.
+  int no_info = v8::CpuProfileNode::kNoLineNumberInfo;
+  CHECK_EQ(no_info, info.GetSourceLineNumber(std::numeric_limits<int>::min()));
+  CHECK_EQ(no_info, info.GetSourceLineNumber(0));
+  CHECK_EQ(SourcePosition::kNotInlined, info.GetInliningId(0));
+  CHECK_EQ(no_info, info.GetSourceLineNumber(1));
+  CHECK_EQ(no_info, info.GetSourceLineNumber(9));
+  CHECK_EQ(no_info, info.GetSourceLineNumber(10));
+  CHECK_EQ(no_info, info.GetSourceLineNumber(11));
+  CHECK_EQ(no_info, info.GetSourceLineNumber(19));
+  CHECK_EQ(no_info, info.GetSourceLineNumber(20));
+  CHECK_EQ(no_info, info.GetSourceLineNumber(21));
+  CHECK_EQ(no_info, info.GetSourceLineNumber(100));
+  CHECK_EQ(SourcePosition::kNotInlined, info.GetInliningId(100));
+  CHECK_EQ(no_info, info.GetSourceLineNumber(std::numeric_limits<int>::max()));
+
+  info.SetPosition(10, 1, SourcePosition::kNotInlined);
+  info.SetPosition(20, 2, SourcePosition::kNotInlined);
+
+  // The only valid return values are 1 or 2 - every pc maps to a line
+  // number.
+  CHECK_EQ(1, info.GetSourceLineNumber(std::numeric_limits<int>::min()));
+  CHECK_EQ(1, info.GetSourceLineNumber(0));
+  CHECK_EQ(1, info.GetSourceLineNumber(1));
+  CHECK_EQ(1, info.GetSourceLineNumber(9));
+  CHECK_EQ(1, info.GetSourceLineNumber(10));
+  CHECK_EQ(1, info.GetSourceLineNumber(11));
+  CHECK_EQ(1, info.GetSourceLineNumber(19));
+  CHECK_EQ(1, info.GetSourceLineNumber(20));
+  CHECK_EQ(2, info.GetSourceLineNumber(21));
+  CHECK_EQ(2, info.GetSourceLineNumber(100));
+  CHECK_EQ(2, info.GetSourceLineNumber(std::numeric_limits<int>::max()));
+
+  CHECK_EQ(SourcePosition::kNotInlined, info.GetInliningId(0));
+  CHECK_EQ(SourcePosition::kNotInlined, info.GetInliningId(100));
+
+  // Test SetPosition behavior.
+  info.SetPosition(25, 3, 0);
+  CHECK_EQ(2, info.GetSourceLineNumber(21));
+  CHECK_EQ(3, info.GetSourceLineNumber(100));
+  CHECK_EQ(3, info.GetSourceLineNumber(std::numeric_limits<int>::max()));
+
+  CHECK_EQ(SourcePosition::kNotInlined, info.GetInliningId(21));
+  CHECK_EQ(0, info.GetInliningId(100));
+
+  // Test that subsequent SetPosition calls with the same pc_offset are ignored.
+  info.SetPosition(25, 4, SourcePosition::kNotInlined);
+  CHECK_EQ(2, info.GetSourceLineNumber(21));
+  CHECK_EQ(3, info.GetSourceLineNumber(100));
+  CHECK_EQ(3, info.GetSourceLineNumber(std::numeric_limits<int>::max()));
+
+  CHECK_EQ(SourcePosition::kNotInlined, info.GetInliningId(21));
+  CHECK_EQ(0, info.GetInliningId(100));
+}
+
+TEST(MultipleProfilers) {
+  std::unique_ptr<CpuProfiler> profiler1(new CpuProfiler(CcTest::i_isolate()));
+  std::unique_ptr<CpuProfiler> profiler2(new CpuProfiler(CcTest::i_isolate()));
+  profiler1->StartProfiling("1");
+  profiler2->StartProfiling("2");
+  profiler1->StopProfiling("1");
+  profiler2->StopProfiling("2");
+}
+
+// Tests that logged CodeCreateEvent calls do not crash a reused CpuProfiler.
+// crbug.com/929928
+TEST(CrashReusedProfiler) {
+  LocalContext env;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+
+  std::unique_ptr<CpuProfiler> profiler(new CpuProfiler(isolate));
+  profiler->StartProfiling("1");
+  profiler->StopProfiling("1");
+
+  profiler->StartProfiling("2");
+  CreateCode(isolate, &env);
+  profiler->StopProfiling("2");
+}
+
+// Tests that samples from different profilers on the same isolate do not leak
+// samples to each other. See crbug.com/v8/8835.
+TEST(MultipleProfilersSampleIndependently) {
+  LocalContext env;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+
+  // Create two profilers- one slow ticking one, and one fast ticking one.
+  // Ensure that the slow ticking profiler does not receive samples from the
+  // fast ticking one.
+  std::unique_ptr<CpuProfiler> slow_profiler(
+      new CpuProfiler(CcTest::i_isolate()));
+  slow_profiler->set_sampling_interval(base::TimeDelta::FromSeconds(1));
+  slow_profiler->StartProfiling("1", {kLeafNodeLineNumbers});
+
+  CompileRun(R"(
+    function start() {
+      let val = 1;
+      for (let i = 0; i < 10e3; i++) {
+        val = (val * 2) % 3;
+      }
+      return val;
+    }
+  )");
+  v8::Local<v8::Function> function = GetFunction(env.local(), "start");
+  ProfilerHelper helper(env.local());
+  v8::CpuProfile* profile = helper.Run(function, nullptr, 0, 100, 0);
+
+  auto slow_profile = slow_profiler->StopProfiling("1");
+  CHECK_GT(profile->GetSamplesCount(), slow_profile->samples_count());
+}
+
+void ProfileSomeCode(v8::Isolate* isolate) {
+  v8::Isolate::Scope isolate_scope(isolate);
+  v8::HandleScope scope(isolate);
+  LocalContext context(isolate);
+
+  v8::CpuProfiler* profiler = v8::CpuProfiler::New(isolate);
+
+  v8::Local<v8::String> profile_name = v8_str("1");
+  profiler->StartProfiling(profile_name);
+  const char* source = R"(
+      function foo() {
+        var x = 0;
+        for (var i = 0; i < 1e3; i++) {
+          for (var j = 0; j < 1e3; j++) {
+            x = i * j;
+          }
+        }
+        return x;
+      }
+      foo();
+    )";
+
+  CompileRun(source);
+  profiler->StopProfiling(profile_name);
+  profiler->Dispose();
+}
+
+class IsolateThread : public v8::base::Thread {
+ public:
+  IsolateThread() : Thread(Options("IsolateThread")) {}
+
+  void Run() override {
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
+    ProfileSomeCode(isolate);
+    isolate->Dispose();
+  }
+};
+
+// Checking for crashes and TSAN issues with multiple isolates profiling.
+TEST(MultipleIsolates) {
+  IsolateThread thread1;
+  IsolateThread thread2;
+
+  CHECK(thread1.Start());
+  CHECK(thread2.Start());
+
+  thread1.Join();
+  thread2.Join();
+}
+
+// Varying called function frame sizes increases the chance of something going
+// wrong if sampling an unlocked frame. We also prevent optimization to prevent
+// inlining so each function call has its own frame.
+const char* varying_frame_size_script = R"(
+    %NeverOptimizeFunction(maybeYield);
+    %NeverOptimizeFunction(bar);
+    %NeverOptimizeFunction(foo);
+    function maybeYield(n) {
+      YieldIsolate(Math.random() > yieldLimit);
+    }
+    function bar(a, b, c, d) {
+      maybeYield(Math.random());
+      return a.length + b.length + c.length + d.length;
+    }
+    function foo(timeLimit, yieldProbability) {
+      yieldLimit = 1 - yieldProbability;
+      const startTime = Date.now();
+      for (let i = 0; i < 1e6; i++) {
+        maybeYield(1);
+        bar("Hickory", "Dickory", "Doc", "Mouse");
+        YieldIsolate(Math.random() > 0.999);
+        if ((Date.now() - startTime) > timeLimit) break;
+      }
+    }
+  )";
+
+class UnlockingThread : public v8::base::Thread {
+ public:
+  explicit UnlockingThread(v8::Local<v8::Context> env)
+      : Thread(Options("UnlockingThread")), env_(CcTest::isolate(), env) {}
+
+  void Run() override {
+    v8::Isolate* isolate = CcTest::isolate();
+    v8::Locker locker(isolate);
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> env = v8::Local<v8::Context>::New(isolate, env_);
+    Profile(env);
+  }
+
+  static void Profile(v8::Local<v8::Context> env) {
+    v8::Isolate* isolate = CcTest::isolate();
+    v8::Context::Scope context_scope(env);
+    v8::CpuProfiler* profiler = v8::CpuProfiler::New(isolate);
+    profiler->SetSamplingInterval(200);
+    v8::Local<v8::String> profile_name = v8_str("1");
+    profiler->StartProfiling(profile_name);
+    int32_t time_limit = 200;
+    double yield_probability = 0.001;
+    v8::Local<v8::Value> args[] = {v8::Integer::New(isolate, time_limit),
+                                   v8::Number::New(isolate, yield_probability)};
+    v8::Local<v8::Function> function = GetFunction(env, "foo");
+    function->Call(env, env->Global(), arraysize(args), args).ToLocalChecked();
+    profiler->StopProfiling(profile_name);
+    profiler->Dispose();
+  }
+
+ private:
+  v8::Persistent<v8::Context> env_;
+};
+
+// Checking for crashes with multiple thread/single Isolate profiling.
+TEST(MultipleThreadsSingleIsolate) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Locker locker(isolate);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
+  v8::Context::Scope context_scope(env);
+  CcTest::AddGlobalFunction(
+      env, "YieldIsolate", [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+        v8::Isolate* isolate = info.GetIsolate();
+        if (!info[0]->IsTrue()) return;
+        v8::Unlocker unlocker(isolate);
+        v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(1));
+      });
+
+  CompileRun(varying_frame_size_script);
+  UnlockingThread thread1(env);
+  UnlockingThread thread2(env);
+
+  CHECK(thread1.Start());
+  CHECK(thread2.Start());
+
+  // For good measure, profile on our own thread
+  UnlockingThread::Profile(env);
+  {
+    v8::Unlocker unlocker(isolate);
+    thread1.Join();
+    thread2.Join();
+  }
+}
+
+// Tests that StopProfiling doesn't wait for the next sample tick in order to
+// stop, but rather exits early before a given wait threshold.
+TEST(FastStopProfiling) {
+  static const base::TimeDelta kLongInterval = base::TimeDelta::FromSeconds(10);
+  static const base::TimeDelta kWaitThreshold = base::TimeDelta::FromSeconds(5);
+
+  std::unique_ptr<CpuProfiler> profiler(new CpuProfiler(CcTest::i_isolate()));
+  profiler->set_sampling_interval(kLongInterval);
+  profiler->StartProfiling("", {kLeafNodeLineNumbers});
+
+  v8::Platform* platform = v8::internal::V8::GetCurrentPlatform();
+  double start = platform->CurrentClockTimeMillis();
+  profiler->StopProfiling("");
+  double duration = platform->CurrentClockTimeMillis() - start;
+
+  CHECK_LT(duration, kWaitThreshold.InMillisecondsF());
+}
+
+// Tests that when current_profiles->size() is greater than the max allowable
+// number of concurrent profiles (100), we don't allow a new Profile to be
+// profiled
+TEST(MaxSimultaneousProfiles) {
+  LocalContext env;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+
+  v8::CpuProfiler* profiler = v8::CpuProfiler::New(env->GetIsolate());
+
+  // Spin up first profiler. Verify that status is kStarted
+  CpuProfilingStatus firstStatus = profiler->StartProfiling(
+      v8_str("1us"), {v8::CpuProfilingMode::kLeafNodeLineNumbers,
+                      v8::CpuProfilingOptions::kNoSampleLimit, 1});
+
+  CHECK_EQ(firstStatus, CpuProfilingStatus::kStarted);
+
+  // Spin up profiler with same title. Verify that status is kAlreadyStarted
+  CpuProfilingStatus startedStatus = profiler->StartProfiling(
+      v8_str("1us"), {v8::CpuProfilingMode::kLeafNodeLineNumbers,
+                      v8::CpuProfilingOptions::kNoSampleLimit, 1});
+
+  CHECK_EQ(startedStatus, CpuProfilingStatus::kAlreadyStarted);
+
+  // Spin up 99 more profilers, maxing out CpuProfilersCollection.
+  // Check they all return status of kStarted
+  for (int i = 2; i <= CpuProfilesCollection::kMaxSimultaneousProfiles; i++) {
+    CpuProfilingStatus status =
+        profiler->StartProfiling(v8_str((std::to_string(i) + "us").c_str()),
+                                 {v8::CpuProfilingMode::kLeafNodeLineNumbers,
+                                  v8::CpuProfilingOptions::kNoSampleLimit, i});
+    CHECK_EQ(status, CpuProfilingStatus::kStarted);
+  }
+
+  // Spin up 101st profiler. Verify status is kErrorTooManyProfilers
+  CpuProfilingStatus errorStatus = profiler->StartProfiling(
+      v8_str("101us"), {v8::CpuProfilingMode::kLeafNodeLineNumbers,
+                        v8::CpuProfilingOptions::kNoSampleLimit, 2});
+
+  CHECK_EQ(errorStatus, CpuProfilingStatus::kErrorTooManyProfilers);
+
+  // Clean up, otherwise will show a crash.
+  for (int i = 1; i <= CpuProfilesCollection::kMaxSimultaneousProfiles + 1;
+       i++) {
+    profiler->StopProfiling(v8_str((std::to_string(i) + "us").c_str()));
+  }
+}
+
+TEST(LowPrecisionSamplingStartStopInternal) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  CpuProfilesCollection profiles(isolate);
+  ProfilerCodeObserver code_observer(isolate);
+  Symbolizer symbolizer(code_observer.code_map());
+  std::unique_ptr<ProfilerEventsProcessor> processor(
+      new SamplingEventsProcessor(
+          isolate, &symbolizer, &code_observer, &profiles,
+          v8::base::TimeDelta::FromMicroseconds(100), false));
+  CHECK(processor->Start());
+  processor->StopSynchronously();
+}
+
+TEST(LowPrecisionSamplingStartStopPublic) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::CpuProfiler* cpu_profiler = v8::CpuProfiler::New(env->GetIsolate());
+  cpu_profiler->SetUsePreciseSampling(false);
+  v8::Local<v8::String> profile_name = v8_str("");
+  cpu_profiler->StartProfiling(profile_name, true);
+  cpu_profiler->StopProfiling(profile_name);
+  cpu_profiler->Dispose();
+}
+
+const char* naming_test_source = R"(
+  (function testAssignmentPropertyNamedFunction() {
+    let object = {};
+    object.propNamed = function () {
+      CallCollectSample();
+    };
+    object.propNamed();
+  })();
+  )";
+
+TEST(StandardNaming) {
+  LocalContext env;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+
+  v8::Local<v8::FunctionTemplate> func_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), CallCollectSample);
+  v8::Local<v8::Function> func =
+      func_template->GetFunction(env.local()).ToLocalChecked();
+  func->SetName(v8_str("CallCollectSample"));
+  env->Global()->Set(env.local(), v8_str("CallCollectSample"), func).FromJust();
+
+  v8::CpuProfiler* profiler =
+      v8::CpuProfiler::New(env->GetIsolate(), kStandardNaming);
+
+  const auto profile_name = v8_str("");
+  profiler->StartProfiling(profile_name);
+  CompileRun(naming_test_source);
+  auto* profile = profiler->StopProfiling(profile_name);
+
+  auto* root = profile->GetTopDownRoot();
+  auto* toplevel = FindChild(root, "");
+  DCHECK(toplevel);
+
+  auto* prop_assignment_named_test =
+      GetChild(env.local(), toplevel, "testAssignmentPropertyNamedFunction");
+  CHECK(FindChild(prop_assignment_named_test, ""));
+
+  profiler->Dispose();
+}
+
+TEST(DebugNaming) {
+  LocalContext env;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+
+  v8::Local<v8::FunctionTemplate> func_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), CallCollectSample);
+  v8::Local<v8::Function> func =
+      func_template->GetFunction(env.local()).ToLocalChecked();
+  func->SetName(v8_str("CallCollectSample"));
+  env->Global()->Set(env.local(), v8_str("CallCollectSample"), func).FromJust();
+
+  v8::CpuProfiler* profiler =
+      v8::CpuProfiler::New(env->GetIsolate(), kDebugNaming);
+
+  const auto profile_name = v8_str("");
+  profiler->StartProfiling(profile_name);
+  CompileRun(naming_test_source);
+  auto* profile = profiler->StopProfiling(profile_name);
+
+  auto* root = profile->GetTopDownRoot();
+  auto* toplevel = FindChild(root, "");
+  DCHECK(toplevel);
+
+  auto* prop_assignment_named_test =
+      GetChild(env.local(), toplevel, "testAssignmentPropertyNamedFunction");
+  CHECK(FindChild(prop_assignment_named_test, "object.propNamed"));
+
+  profiler->Dispose();
+}
+
+TEST(SampleLimit) {
+  LocalContext env;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+
+  CompileRun(R"(
+    function start() {
+      let val = 1;
+      for (let i = 0; i < 10e3; i++) {
+        val = (val * 2) % 3;
+      }
+      return val;
+    }
+  )");
+
+  // Take 100 samples of `start`, but set the max samples to 50.
+  v8::Local<v8::Function> function = GetFunction(env.local(), "start");
+  ProfilerHelper helper(env.local());
+  v8::CpuProfile* profile =
+      helper.Run(function, nullptr, 0, 100, 0,
+                 v8::CpuProfilingMode::kLeafNodeLineNumbers, 50);
+
+  CHECK_EQ(profile->GetSamplesCount(), 50);
+}
+
+// Tests that a CpuProfile instance subsamples from a stream of tick samples
+// appropriately.
+TEST(ProflilerSubsampling) {
+  LocalContext env;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+
+  CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
+  ProfilerCodeObserver* code_observer = new ProfilerCodeObserver(isolate);
+  Symbolizer* symbolizer = new Symbolizer(code_observer->code_map());
+  ProfilerEventsProcessor* processor =
+      new SamplingEventsProcessor(isolate, symbolizer, code_observer, profiles,
+                                  v8::base::TimeDelta::FromMicroseconds(1),
+                                  /* use_precise_sampling */ true);
+  CpuProfiler profiler(isolate, kDebugNaming, kLazyLogging, profiles,
+                       symbolizer, processor, code_observer);
+
+  // Create a new CpuProfile that wants samples at 8us.
+  CpuProfile profile(&profiler, "",
+                     {v8::CpuProfilingMode::kLeafNodeLineNumbers,
+                      v8::CpuProfilingOptions::kNoSampleLimit, 8});
+  // Verify that the first sample is always included.
+  CHECK(profile.CheckSubsample(base::TimeDelta::FromMicroseconds(10)));
+
+  // 4 2us samples should result in one 8us sample.
+  CHECK(!profile.CheckSubsample(base::TimeDelta::FromMicroseconds(2)));
+  CHECK(!profile.CheckSubsample(base::TimeDelta::FromMicroseconds(2)));
+  CHECK(!profile.CheckSubsample(base::TimeDelta::FromMicroseconds(2)));
+  CHECK(profile.CheckSubsample(base::TimeDelta::FromMicroseconds(2)));
+
+  // Profiles should expect the source sample interval to change, in which case
+  // they should still take the first sample elapsed after their interval.
+  CHECK(!profile.CheckSubsample(base::TimeDelta::FromMicroseconds(2)));
+  CHECK(!profile.CheckSubsample(base::TimeDelta::FromMicroseconds(2)));
+  CHECK(!profile.CheckSubsample(base::TimeDelta::FromMicroseconds(2)));
+  CHECK(profile.CheckSubsample(base::TimeDelta::FromMicroseconds(4)));
+
+  // Aligned samples (at 8us) are always included.
+  CHECK(profile.CheckSubsample(base::TimeDelta::FromMicroseconds(8)));
+
+  // Samples with a rate of 0 should always be included.
+  CHECK(profile.CheckSubsample(base::TimeDelta::FromMicroseconds(0)));
+}
+
+// Tests that the base sampling rate of a CpuProfilesCollection is dynamically
+// chosen based on the GCD of its child profiles.
+TEST(DynamicResampling) {
+  LocalContext env;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+
+  CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
+  ProfilerCodeObserver* code_observer = new ProfilerCodeObserver(isolate);
+  Symbolizer* symbolizer = new Symbolizer(code_observer->code_map());
+  ProfilerEventsProcessor* processor =
+      new SamplingEventsProcessor(isolate, symbolizer, code_observer, profiles,
+                                  v8::base::TimeDelta::FromMicroseconds(1),
+                                  /* use_precise_sampling */ true);
+  CpuProfiler profiler(isolate, kDebugNaming, kLazyLogging, profiles,
+                       symbolizer, processor, code_observer);
+
+  // Set a 1us base sampling rate, dividing all possible intervals.
+  profiler.set_sampling_interval(base::TimeDelta::FromMicroseconds(1));
+
+  // Verify that the sampling interval with no started profilers is unset.
+  CHECK_EQ(profiles->GetCommonSamplingInterval(), base::TimeDelta());
+
+  // Add a 10us profiler, verify that the base sampling interval is as high as
+  // possible (10us).
+  profiles->StartProfiling("10us",
+                           {v8::CpuProfilingMode::kLeafNodeLineNumbers,
+                            v8::CpuProfilingOptions::kNoSampleLimit, 10});
+  CHECK_EQ(profiles->GetCommonSamplingInterval(),
+           base::TimeDelta::FromMicroseconds(10));
+
+  // Add a 5us profiler, verify that the base sampling interval is as high as
+  // possible given a 10us and 5us profiler (5us).
+  profiles->StartProfiling("5us", {v8::CpuProfilingMode::kLeafNodeLineNumbers,
+                                   v8::CpuProfilingOptions::kNoSampleLimit, 5});
+  CHECK_EQ(profiles->GetCommonSamplingInterval(),
+           base::TimeDelta::FromMicroseconds(5));
+
+  // Add a 3us profiler, verify that the base sampling interval is 1us (due to
+  // coprime intervals).
+  profiles->StartProfiling("3us", {v8::CpuProfilingMode::kLeafNodeLineNumbers,
+                                   v8::CpuProfilingOptions::kNoSampleLimit, 3});
+  CHECK_EQ(profiles->GetCommonSamplingInterval(),
+           base::TimeDelta::FromMicroseconds(1));
+
+  // Remove the 5us profiler, verify that the sample interval stays at 1us.
+  profiles->StopProfiling("5us");
+  CHECK_EQ(profiles->GetCommonSamplingInterval(),
+           base::TimeDelta::FromMicroseconds(1));
+
+  // Remove the 10us profiler, verify that the sample interval becomes 3us.
+  profiles->StopProfiling("10us");
+  CHECK_EQ(profiles->GetCommonSamplingInterval(),
+           base::TimeDelta::FromMicroseconds(3));
+
+  // Remove the 3us profiler, verify that the sample interval becomes unset.
+  profiles->StopProfiling("3us");
+  CHECK_EQ(profiles->GetCommonSamplingInterval(), base::TimeDelta());
+}
+
+// Ensures that when a non-unit base sampling interval is set on the profiler,
+// that the sampling rate gets snapped to the nearest multiple prior to GCD
+// computation.
+TEST(DynamicResamplingWithBaseInterval) {
+  LocalContext env;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+
+  CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
+  ProfilerCodeObserver* code_observer = new ProfilerCodeObserver(isolate);
+  Symbolizer* symbolizer = new Symbolizer(code_observer->code_map());
+  ProfilerEventsProcessor* processor =
+      new SamplingEventsProcessor(isolate, symbolizer, code_observer, profiles,
+                                  v8::base::TimeDelta::FromMicroseconds(1),
+                                  /* use_precise_sampling */ true);
+  CpuProfiler profiler(isolate, kDebugNaming, kLazyLogging, profiles,
+                       symbolizer, processor, code_observer);
+
+  profiler.set_sampling_interval(base::TimeDelta::FromMicroseconds(7));
+
+  // Verify that the sampling interval with no started profilers is unset.
+  CHECK_EQ(profiles->GetCommonSamplingInterval(), base::TimeDelta());
+
+  // Add a profiler with an unset sampling interval, verify that the common
+  // sampling interval is equal to the base.
+  profiles->StartProfiling("unset", {v8::CpuProfilingMode::kLeafNodeLineNumbers,
+                                     v8::CpuProfilingOptions::kNoSampleLimit});
+  CHECK_EQ(profiles->GetCommonSamplingInterval(),
+           base::TimeDelta::FromMicroseconds(7));
+  profiles->StopProfiling("unset");
+
+  // Adding a 8us sampling interval rounds to a 14us base interval.
+  profiles->StartProfiling("8us", {v8::CpuProfilingMode::kLeafNodeLineNumbers,
+                                   v8::CpuProfilingOptions::kNoSampleLimit, 8});
+  CHECK_EQ(profiles->GetCommonSamplingInterval(),
+           base::TimeDelta::FromMicroseconds(14));
+
+  // Adding a 4us sampling interval should cause a lowering to a 7us interval.
+  profiles->StartProfiling("4us", {v8::CpuProfilingMode::kLeafNodeLineNumbers,
+                                   v8::CpuProfilingOptions::kNoSampleLimit, 4});
+  CHECK_EQ(profiles->GetCommonSamplingInterval(),
+           base::TimeDelta::FromMicroseconds(7));
+
+  // Removing the 4us sampling interval should restore the 14us sampling
+  // interval.
+  profiles->StopProfiling("4us");
+  CHECK_EQ(profiles->GetCommonSamplingInterval(),
+           base::TimeDelta::FromMicroseconds(14));
+
+  // Removing the 8us sampling interval should unset the common sampling
+  // interval.
+  profiles->StopProfiling("8us");
+  CHECK_EQ(profiles->GetCommonSamplingInterval(), base::TimeDelta());
+
+  // A sampling interval of 0us should enforce all profiles to have a sampling
+  // interval of 0us (the only multiple of 0).
+  profiler.set_sampling_interval(base::TimeDelta::FromMicroseconds(0));
+  profiles->StartProfiling("5us", {v8::CpuProfilingMode::kLeafNodeLineNumbers,
+                                   v8::CpuProfilingOptions::kNoSampleLimit, 5});
+  CHECK_EQ(profiles->GetCommonSamplingInterval(),
+           base::TimeDelta::FromMicroseconds(0));
+  profiles->StopProfiling("5us");
+}
+
+// Tests that functions compiled after a started profiler is stopped are still
+// visible when the profiler is started again. (https://crbug.com/v8/9151)
+TEST(Bug9151StaleCodeEntries) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  v8::Local<v8::FunctionTemplate> func_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), CallCollectSample);
+  v8::Local<v8::Function> func =
+      func_template->GetFunction(env.local()).ToLocalChecked();
+  func->SetName(v8_str("CallCollectSample"));
+  env->Global()->Set(env.local(), v8_str("CallCollectSample"), func).FromJust();
+
+  v8::CpuProfiler* profiler =
+      v8::CpuProfiler::New(env->GetIsolate(), kDebugNaming, kEagerLogging);
+  v8::Local<v8::String> profile_name = v8_str("");
+
+  // Warm up the profiler to create the initial code map.
+  profiler->StartProfiling(profile_name);
+  profiler->StopProfiling(profile_name);
+
+  // Log a function compilation (executed once to force a compilation).
+  CompileRun(R"(
+      function start() {
+        CallCollectSample();
+      }
+      start();
+  )");
+
+  // Restart the profiler, and execute both the JS function and callback.
+  profiler->StartProfiling(profile_name, true);
+  CompileRun("start();");
+  v8::CpuProfile* profile = profiler->StopProfiling(profile_name);
+
+  auto* root = profile->GetTopDownRoot();
+  auto* toplevel = GetChild(env.local(), root, "");
+
+  auto* start = FindChild(env.local(), toplevel, "start");
+  CHECK(start);
+
+  auto* callback = FindChild(env.local(), start, "CallCollectSample");
+  CHECK(callback);
+}
+
+enum class EntryCountMode { kAll, kOnlyInlined };
+
+// Count the number of unique source positions.
+int GetSourcePositionEntryCount(i::Isolate* isolate, const char* source,
+                                EntryCountMode mode = EntryCountMode::kAll) {
+  std::unordered_set<int64_t> raw_position_set;
+  i::Handle<i::JSFunction> function = i::Handle<i::JSFunction>::cast(
+      v8::Utils::OpenHandle(*CompileRun(source)));
+  if (function->ActiveTierIsIgnition()) return -1;
+  i::Handle<i::Code> code(function->code(), isolate);
+  i::SourcePositionTableIterator iterator(
+      ByteArray::cast(code->source_position_table()));
+
+  while (!iterator.done()) {
+    if (mode == EntryCountMode::kAll ||
+        iterator.source_position().isInlined()) {
+      raw_position_set.insert(iterator.source_position().raw());
+    }
+    iterator.Advance();
+  }
+  return static_cast<int>(raw_position_set.size());
+}
+
+UNINITIALIZED_TEST(DetailedSourcePositionAPI) {
+  i::FLAG_detailed_line_info = false;
+  i::FLAG_allow_natives_syntax = true;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+  const char* source =
+      "function fib(i) {"
+      "  if (i <= 1) return 1; "
+      "  return fib(i - 1) +"
+      "         fib(i - 2);"
+      "}"
+      "%PrepareFunctionForOptimization(fib);\n"
+      "fib(5);"
+      "%OptimizeFunctionOnNextCall(fib);"
+      "fib(5);"
+      "fib";
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    v8::Context::Scope context_scope(context);
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+
+    CHECK(!i_isolate->NeedsDetailedOptimizedCodeLineInfo());
+
+    int non_detailed_positions = GetSourcePositionEntryCount(i_isolate, source);
+
+    v8::CpuProfiler::UseDetailedSourcePositionsForProfiling(isolate);
+    CHECK(i_isolate->NeedsDetailedOptimizedCodeLineInfo());
+
+    int detailed_positions = GetSourcePositionEntryCount(i_isolate, source);
+
+    CHECK((non_detailed_positions == -1 && detailed_positions == -1) ||
+          non_detailed_positions < detailed_positions);
+  }
+
+  isolate->Dispose();
+}
+
+UNINITIALIZED_TEST(DetailedSourcePositionAPI_Inlining) {
+  i::FLAG_detailed_line_info = false;
+  i::FLAG_turbo_inlining = true;
+  i::FLAG_stress_inline = true;
+  i::FLAG_always_opt = false;
+  i::FLAG_allow_natives_syntax = true;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+  const char* source = R"(
+    function foo(x) {
+      return bar(x) + 1;
+    }
+
+    function bar(x) {
+      var y = 1;
+      for (var i = 0; i < x; ++i) {
+        y = y * x;
+      }
+      return x;
+    }
+
+    %EnsureFeedbackVectorForFunction(bar);
+    %PrepareFunctionForOptimization(foo);
+    foo(5);
+    %OptimizeFunctionOnNextCall(foo);
+    foo(5);
+    foo;
+  )";
+
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    v8::Context::Scope context_scope(context);
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+
+    CHECK(!i_isolate->NeedsDetailedOptimizedCodeLineInfo());
+
+    int non_detailed_positions =
+        GetSourcePositionEntryCount(i_isolate, source, EntryCountMode::kAll);
+    int non_detailed_inlined_positions = GetSourcePositionEntryCount(
+        i_isolate, source, EntryCountMode::kOnlyInlined);
+
+    v8::CpuProfiler::UseDetailedSourcePositionsForProfiling(isolate);
+    CHECK(i_isolate->NeedsDetailedOptimizedCodeLineInfo());
+
+    int detailed_positions =
+        GetSourcePositionEntryCount(i_isolate, source, EntryCountMode::kAll);
+    int detailed_inlined_positions = GetSourcePositionEntryCount(
+        i_isolate, source, EntryCountMode::kOnlyInlined);
+
+    if (non_detailed_positions == -1) {
+      CHECK_EQ(non_detailed_positions, detailed_positions);
+    } else {
+      CHECK_LT(non_detailed_positions, detailed_positions);
+      CHECK_LT(non_detailed_inlined_positions, detailed_inlined_positions);
+    }
+  }
+
+  isolate->Dispose();
+}
+
+namespace {
+
+struct FastApiReceiver {
+  static void FastCallback(v8::ApiObject receiver, int argument,
+                           int* fallback) {
+    v8::Object* receiver_obj = reinterpret_cast<v8::Object*>(&receiver);
+    if (!IsValidUnwrapObject(receiver_obj)) {
+      *fallback = 1;
+      return;
+    }
+    FastApiReceiver* receiver_ptr =
+        GetInternalField<FastApiReceiver, kV8WrapperObjectIndex>(receiver_obj);
+
+    receiver_ptr->result_ |= ApiCheckerResult::kFastCalled;
+
+    // Artificially slow down the callback with a predictable amount of time.
+    // This ensures the test has a relatively stable run time on various
+    // platforms and protects it from flakyness.
+    v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(100));
+  }
+
+  static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    v8::Object* receiver_obj = v8::Object::Cast(*info.Holder());
+    if (!IsValidUnwrapObject(receiver_obj)) {
+      info.GetIsolate()->ThrowException(v8_str("Called with a non-object."));
+      return;
+    }
+    FastApiReceiver* receiver =
+        GetInternalField<FastApiReceiver, kV8WrapperObjectIndex>(receiver_obj);
+
+    receiver->result_ |= ApiCheckerResult::kSlowCalled;
+  }
+
+  bool DidCallFast() const { return (result_ & ApiCheckerResult::kFastCalled); }
+  bool DidCallSlow() const { return (result_ & ApiCheckerResult::kSlowCalled); }
+
+  ApiCheckerResultFlags result_ = ApiCheckerResult::kNotCalled;
+};
+
+}  // namespace
+
+v8::Local<v8::Function> CreateApiCode(LocalContext* env) {
+  const char* foo_name = "foo";
+  const char* script =
+      "function foo(arg) {"
+      "  for (let i = 0; i < arg; ++i) { receiver.api_func(i); }"
+      "}"
+      "%PrepareFunctionForOptimization(foo);"
+      "foo(42); foo(42);"
+      "%OptimizeFunctionOnNextCall(foo);";
+  CompileRun(script);
+
+  return GetFunction(env->local(), foo_name);
+}
+
+TEST(FastApiCPUProfiler) {
+#if !defined(V8_LITE_MODE) && !defined(USE_SIMULATOR)
+  // None of the following configurations include JSCallReducer.
+  if (i::FLAG_jitless) return;
+  if (i::FLAG_turboprop) return;
+  if (i::FLAG_turbo_nci_as_midtier) return;
+
+  FLAG_SCOPE_EXTERNAL(opt);
+  FLAG_SCOPE_EXTERNAL(turbo_fast_api_calls);
+  FLAG_SCOPE_EXTERNAL(allow_natives_syntax);
+  // Disable --always_opt, otherwise we haven't generated the necessary
+  // feedback to go down the "best optimization" path for the fast call.
+  UNFLAG_SCOPE_EXTERNAL(always_opt);
+  UNFLAG_SCOPE_EXTERNAL(prof_browser_mode);
+
+  CcTest::InitializeVM();
+  LocalContext env;
+  v8::Isolate* isolate = CcTest::isolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->set_embedder_wrapper_type_index(kV8WrapperTypeIndex);
+  i_isolate->set_embedder_wrapper_object_index(kV8WrapperObjectIndex);
+
+  i::HandleScope scope(i_isolate);
+
+  // Setup the fast call.
+  FastApiReceiver receiver;
+
+  v8::TryCatch try_catch(isolate);
+
+  v8::CFunction c_func =
+      v8::CFunction::MakeWithFallbackSupport(FastApiReceiver::FastCallback);
+
+  Local<v8::FunctionTemplate> receiver_templ = v8::FunctionTemplate::New(
+      isolate, FastApiReceiver::SlowCallback, v8::Local<v8::Value>(),
+      v8::Local<v8::Signature>(), 1, v8::ConstructorBehavior::kAllow,
+      v8::SideEffectType::kHasSideEffect, &c_func);
+
+  v8::Local<v8::ObjectTemplate> object_template =
+      v8::ObjectTemplate::New(isolate);
+  object_template->SetInternalFieldCount(kV8WrapperObjectIndex + 1);
+  const char* api_func_str = "api_func";
+  object_template->Set(isolate, api_func_str, receiver_templ);
+
+  v8::Local<v8::Object> object =
+      object_template->NewInstance(env.local()).ToLocalChecked();
+  object->SetAlignedPointerInInternalField(kV8WrapperObjectIndex,
+                                           reinterpret_cast<void*>(&receiver));
+
+  int num_runs_arg = 100;
+  env->Global()->Set(env.local(), v8_str("receiver"), object).Check();
+
+  // Prepare the code.
+  v8::Local<v8::Function> function = CreateApiCode(&env);
+
+  // Setup and start CPU profiler.
+  v8::Local<v8::Value> args[] = {
+      v8::Integer::New(env->GetIsolate(), num_runs_arg)};
+  ProfilerHelper helper(env.local());
+  // TODO(mslekova): We could tweak the following count to reduce test
+  // runtime, while still keeping the test stable.
+  unsigned external_samples = 1000;
+  v8::CpuProfile* profile =
+      helper.Run(function, args, arraysize(args), 0, external_samples);
+
+  // Check if the fast and slow callbacks got executed.
+  CHECK(receiver.DidCallFast());
+  CHECK(receiver.DidCallSlow());
+  CHECK(!try_catch.HasCaught());
+
+  // Check that generated profile has the expected structure.
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* foo_node = GetChild(env.local(), root, "foo");
+  const v8::CpuProfileNode* api_func_node =
+      GetChild(env.local(), foo_node, api_func_str);
+  CHECK_NOT_NULL(api_func_node);
+  CHECK_EQ(api_func_node->GetSourceType(), CpuProfileNode::kCallback);
+
+  // Check that the CodeEntry is the expected one, i.e. the fast callback.
+  CodeEntry* code_entry =
+      reinterpret_cast<const ProfileNode*>(api_func_node)->entry();
+  CodeMap* code_map = reinterpret_cast<CpuProfile*>(profile)
+                          ->cpu_profiler()
+                          ->code_map_for_test();
+  CodeEntry* expected_code_entry =
+      code_map->FindEntry(reinterpret_cast<Address>(c_func.GetAddress()));
+  CHECK_EQ(code_entry, expected_code_entry);
+
+  int foo_ticks = foo_node->GetHitCount();
+  int api_func_ticks = api_func_node->GetHitCount();
+  // Check that at least 80% of the samples in foo hit the fast callback.
+  CHECK_LE(foo_ticks, api_func_ticks * 0.2);
+  // The following constant in the CHECK is because above we expect at least
+  // 1000 samples with EXTERNAL type (see external_samples). Since the only
+  // thing that generates those kind of samples is the fast callback, then
+  // we're supposed to have close to 1000 ticks in its node. Since the CPU
+  // profiler is nondeterministic, we've allowed for some slack, otherwise
+  // this could be 1000 instead of 800.
+  CHECK_GE(api_func_ticks, 800);
+
+  profile->Delete();
+#endif
+}
+
+}  // namespace test_cpu_profiler
+}  // namespace internal
+}  // namespace v8

@@ -62,6 +62,8 @@ function F4(a, b) {
 %NeverOptimizeFunction(test);
 
 function test(f, a, b) {
+  %PrepareFunctionForOptimization(f);
+
   f(a, a);
   f(a, b);
   f(b, a);

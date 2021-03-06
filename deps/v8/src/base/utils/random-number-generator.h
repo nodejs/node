@@ -5,6 +5,10 @@
 #ifndef V8_BASE_UTILS_RANDOM_NUMBER_GENERATOR_H_
 #define V8_BASE_UTILS_RANDOM_NUMBER_GENERATOR_H_
 
+#include <unordered_set>
+#include <vector>
+
+#include "src/base/base-export.h"
 #include "src/base/macros.h"
 
 namespace v8 {
@@ -31,11 +35,11 @@ namespace base {
 // https://code.google.com/p/v8/issues/detail?id=2905
 // This class is neither reentrant nor threadsafe.
 
-class RandomNumberGenerator final {
+class V8_BASE_EXPORT RandomNumberGenerator final {
  public:
   // EntropySource is used as a callback function when V8 needs a source of
   // entropy.
-  typedef bool (*EntropySource)(unsigned char* buffer, size_t buflen);
+  using EntropySource = bool (*)(unsigned char* buffer, size_t buflen);
   static void SetEntropySource(EntropySource entropy_source);
 
   RandomNumberGenerator();
@@ -46,9 +50,7 @@ class RandomNumberGenerator final {
   // that one int value is pseudorandomly generated and returned.
   // All 2^32 possible integer values are produced with (approximately) equal
   // probability.
-  V8_INLINE int NextInt() WARN_UNUSED_RESULT {
-    return Next(32);
-  }
+  V8_INLINE int NextInt() V8_WARN_UNUSED_RESULT { return Next(32); }
 
   // Returns a pseudorandom, uniformly distributed int value between 0
   // (inclusive) and the specified max value (exclusive), drawn from this random
@@ -56,33 +58,49 @@ class RandomNumberGenerator final {
   // one int value in the specified range is pseudorandomly generated and
   // returned. All max possible int values are produced with (approximately)
   // equal probability.
-  int NextInt(int max) WARN_UNUSED_RESULT;
+  int NextInt(int max) V8_WARN_UNUSED_RESULT;
 
   // Returns the next pseudorandom, uniformly distributed boolean value from
   // this random number generator's sequence. The general contract of
   // |NextBoolean()| is that one boolean value is pseudorandomly generated and
   // returned. The values true and false are produced with (approximately) equal
   // probability.
-  V8_INLINE bool NextBool() WARN_UNUSED_RESULT {
-    return Next(1) != 0;
-  }
+  V8_INLINE bool NextBool() V8_WARN_UNUSED_RESULT { return Next(1) != 0; }
 
   // Returns the next pseudorandom, uniformly distributed double value between
   // 0.0 and 1.0 from this random number generator's sequence.
   // The general contract of |NextDouble()| is that one double value, chosen
   // (approximately) uniformly from the range 0.0 (inclusive) to 1.0
   // (exclusive), is pseudorandomly generated and returned.
-  double NextDouble() WARN_UNUSED_RESULT;
+  double NextDouble() V8_WARN_UNUSED_RESULT;
 
   // Returns the next pseudorandom, uniformly distributed int64 value from this
   // random number generator's sequence. The general contract of |NextInt64()|
   // is that one 64-bit int value is pseudorandomly generated and returned.
   // All 2^64 possible integer values are produced with (approximately) equal
   // probability.
-  int64_t NextInt64() WARN_UNUSED_RESULT;
+  int64_t NextInt64() V8_WARN_UNUSED_RESULT;
 
   // Fills the elements of a specified array of bytes with random numbers.
   void NextBytes(void* buffer, size_t buflen);
+
+  // Returns the next pseudorandom set of n unique uint64 values smaller than
+  // max.
+  // n must be less or equal to max.
+  std::vector<uint64_t> NextSample(uint64_t max,
+                                   size_t n) V8_WARN_UNUSED_RESULT;
+
+  // Returns the next pseudorandom set of n unique uint64 values smaller than
+  // max.
+  // n must be less or equal to max.
+  // max - |excluded| must be less or equal to n.
+  //
+  // Generates list of all possible values and removes random values from it
+  // until size reaches n.
+  std::vector<uint64_t> NextSampleSlow(
+      uint64_t max, size_t n,
+      const std::unordered_set<uint64_t>& excluded =
+          std::unordered_set<uint64_t>{}) V8_WARN_UNUSED_RESULT;
 
   // Override the current ssed.
   void SetSeed(int64_t seed);
@@ -90,11 +108,10 @@ class RandomNumberGenerator final {
   int64_t initial_seed() const { return initial_seed_; }
 
   // Static and exposed for external use.
-  static inline double ToDouble(uint64_t state0, uint64_t state1) {
+  static inline double ToDouble(uint64_t state0) {
     // Exponent for double values for [1.0 .. 2.0)
-    static const uint64_t kExponentBits = V8_UINT64_C(0x3FF0000000000000);
-    static const uint64_t kMantissaMask = V8_UINT64_C(0x000FFFFFFFFFFFFF);
-    uint64_t random = ((state0 + state1) & kMantissaMask) | kExponentBits;
+    static const uint64_t kExponentBits = uint64_t{0x3FF0000000000000};
+    uint64_t random = (state0 >> 12) | kExponentBits;
     return bit_cast<double>(random) - 1;
   }
 
@@ -110,14 +127,14 @@ class RandomNumberGenerator final {
     *state1 = s1;
   }
 
- private:
-  static const int64_t kMultiplier = V8_2PART_UINT64_C(0x5, deece66d);
-  static const int64_t kAddend = 0xb;
-  static const int64_t kMask = V8_2PART_UINT64_C(0xffff, ffffffff);
-
-  int Next(int bits) WARN_UNUSED_RESULT;
-
   static uint64_t MurmurHash3(uint64_t);
+
+ private:
+  static const int64_t kMultiplier = 0x5'deec'e66d;
+  static const int64_t kAddend = 0xb;
+  static const int64_t kMask = 0xffff'ffff'ffff;
+
+  int Next(int bits) V8_WARN_UNUSED_RESULT;
 
   int64_t initial_seed_;
   uint64_t state0_;

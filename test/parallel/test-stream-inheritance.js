@@ -33,8 +33,14 @@ assert.ok(!(undefined instanceof Writable));
 
 // Simple inheritance check for `Writable` works fine in a subclass constructor.
 function CustomWritable() {
-  assert.ok(this instanceof Writable, 'inherits from Writable');
-  assert.ok(this instanceof CustomWritable, 'inherits from CustomWritable');
+  assert.ok(
+    this instanceof CustomWritable,
+    `${this} does not inherit from CustomWritable`
+  );
+  assert.ok(
+    this instanceof Writable,
+    `${this} does not inherit from Writable`
+  );
 }
 
 Object.setPrototypeOf(CustomWritable, Writable);
@@ -42,4 +48,16 @@ Object.setPrototypeOf(CustomWritable.prototype, Writable.prototype);
 
 new CustomWritable();
 
-assert.throws(CustomWritable, /AssertionError: inherits from Writable/);
+assert.throws(
+  CustomWritable,
+  {
+    code: 'ERR_ASSERTION',
+    constructor: assert.AssertionError,
+    message: 'undefined does not inherit from CustomWritable'
+  }
+);
+
+class OtherCustomWritable extends Writable {}
+
+assert(!(new OtherCustomWritable() instanceof CustomWritable));
+assert(!(new CustomWritable() instanceof OtherCustomWritable));

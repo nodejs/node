@@ -4,8 +4,9 @@
 
 #include "src/profiler/allocation-tracker.h"
 
-#include "src/frames-inl.h"
-#include "src/objects-inl.h"
+#include "src/execution/frames-inl.h"
+#include "src/handles/global-handles.h"
+#include "src/objects/objects-inl.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
 
 namespace v8 {
@@ -22,26 +23,25 @@ AllocationTraceNode::AllocationTraceNode(
 
 
 AllocationTraceNode::~AllocationTraceNode() {
-  for (int i = 0; i < children_.length(); i++) delete children_[i];
+  for (AllocationTraceNode* node : children_) delete node;
 }
 
 
 AllocationTraceNode* AllocationTraceNode::FindChild(
     unsigned function_info_index) {
-  for (int i = 0; i < children_.length(); i++) {
-    AllocationTraceNode* node = children_[i];
+  for (AllocationTraceNode* node : children_) {
     if (node->function_info_index() == function_info_index) return node;
   }
-  return NULL;
+  return nullptr;
 }
 
 
 AllocationTraceNode* AllocationTraceNode::FindOrAddChild(
     unsigned function_info_index) {
   AllocationTraceNode* child = FindChild(function_info_index);
-  if (child == NULL) {
+  if (child == nullptr) {
     child = new AllocationTraceNode(tree_, function_info_index);
-    children_.Add(child);
+    children_.push_back(child);
   }
   return child;
 }
@@ -55,7 +55,7 @@ void AllocationTraceNode::AddAllocation(unsigned size) {
 
 void AllocationTraceNode::Print(int indent, AllocationTracker* tracker) {
   base::OS::Print("%10u %10u %*c", total_size_, allocation_count_, indent, ' ');
-  if (tracker != NULL) {
+  if (tracker != nullptr) {
     AllocationTracker::FunctionInfo* info =
         tracker->function_info_list()[function_info_index_];
     base::OS::Print("%s #%u", info->name, id_);
@@ -64,8 +64,8 @@ void AllocationTraceNode::Print(int indent, AllocationTracker* tracker) {
   }
   base::OS::Print("\n");
   indent += 2;
-  for (int i = 0; i < children_.length(); i++) {
-    children_[i]->Print(indent, tracker);
+  for (AllocationTraceNode* node : children_) {
+    node->Print(indent, tracker);
   }
 }
 
@@ -75,17 +75,11 @@ AllocationTraceTree::AllocationTraceTree()
       root_(this, 0) {
 }
 
-
-AllocationTraceTree::~AllocationTraceTree() {
-}
-
-
 AllocationTraceNode* AllocationTraceTree::AddPathFromEnd(
     const Vector<unsigned>& path) {
   AllocationTraceNode* node = root();
-  for (unsigned* entry = path.start() + path.length() - 1;
-       entry != path.start() - 1;
-       --entry) {
+  for (unsigned* entry = path.begin() + path.length() - 1;
+       entry != path.begin() - 1; --entry) {
     node = node->FindOrAddChild(*entry);
   }
   return node;
@@ -97,13 +91,6 @@ void AllocationTraceTree::Print(AllocationTracker* tracker) {
   base::OS::Print("Total size | Allocation count | Function id | id\n");
   root()->Print(0, tracker);
 }
-
-
-void AllocationTracker::DeleteUnresolvedLocation(
-    UnresolvedLocation** location) {
-  delete *location;
-}
-
 
 AllocationTracker::FunctionInfo::FunctionInfo()
     : name(""),
@@ -149,10 +136,10 @@ void AddressToTraceMap::Clear() {
 
 
 void AddressToTraceMap::Print() {
-  PrintF("[AddressToTraceMap (%" PRIuS "): \n", ranges_.size());
+  PrintF("[AddressToTraceMap (%zu): \n", ranges_.size());
   for (RangeMap::iterator it = ranges_.begin(); it != ranges_.end(); ++it) {
-    PrintF("[%p - %p] => %u\n", static_cast<void*>(it->second.start),
-           static_cast<void*>(it->first), it->second.trace_node_id);
+    PrintF("[%p - %p] => %u\n", reinterpret_cast<void*>(it->second.start),
+           reinterpret_cast<void*>(it->first), it->second.trace_node_id);
   }
   PrintF("]\n");
 }
@@ -185,55 +172,49 @@ void AddressToTraceMap::RemoveRange(Address start, Address end) {
   }
 }
 
-
-void AllocationTracker::DeleteFunctionInfo(FunctionInfo** info) {
-    delete *info;
-}
-
 AllocationTracker::AllocationTracker(HeapObjectsMap* ids, StringsStorage* names)
     : ids_(ids),
       names_(names),
-      id_to_function_info_index_(base::HashMap::PointersMatch),
+      id_to_function_info_index_(),
       info_index_for_other_state_(0) {
   FunctionInfo* info = new FunctionInfo();
   info->name = "(root)";
-  function_info_list_.Add(info);
+  function_info_list_.push_back(info);
 }
 
 
 AllocationTracker::~AllocationTracker() {
-  unresolved_locations_.Iterate(DeleteUnresolvedLocation);
-  function_info_list_.Iterate(&DeleteFunctionInfo);
+  for (UnresolvedLocation* location : unresolved_locations_) delete location;
+  for (FunctionInfo* info : function_info_list_) delete info;
 }
 
 
 void AllocationTracker::PrepareForSerialization() {
-  List<UnresolvedLocation*> copy(unresolved_locations_.length());
-  copy.AddAll(unresolved_locations_);
-  unresolved_locations_.Clear();
-  for (int i = 0; i < copy.length(); i++) {
-    copy[i]->Resolve();
-    delete copy[i];
+  for (UnresolvedLocation* location : unresolved_locations_) {
+    location->Resolve();
+    delete location;
   }
+  unresolved_locations_.clear();
+  unresolved_locations_.shrink_to_fit();
 }
 
 
 void AllocationTracker::AllocationEvent(Address addr, int size) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
   Heap* heap = ids_->heap();
 
   // Mark the new block as FreeSpace to make sure the heap is iterable
   // while we are capturing stack trace.
   heap->CreateFillerObjectAt(addr, size, ClearRecordedSlots::kNo);
 
-  Isolate* isolate = heap->isolate();
+  Isolate* isolate = Isolate::FromHeap(heap);
   int length = 0;
   JavaScriptFrameIterator it(isolate);
   while (!it.done() && length < kMaxAllocationTraceLength) {
     JavaScriptFrame* frame = it.frame();
-    SharedFunctionInfo* shared = frame->function()->shared();
-    SnapshotObjectId id = ids_->FindOrAddEntry(
-        shared->address(), shared->Size(), false);
+    SharedFunctionInfo shared = frame->function().shared();
+    SnapshotObjectId id =
+        ids_->FindOrAddEntry(shared.address(), shared.Size(), false);
     allocation_trace_buffer_[length++] = AddFunctionInfo(shared, id);
     it.Advance();
   }
@@ -252,66 +233,59 @@ void AllocationTracker::AllocationEvent(Address addr, int size) {
 
 
 static uint32_t SnapshotObjectIdHash(SnapshotObjectId id) {
-  return ComputeIntegerHash(static_cast<uint32_t>(id),
-                            v8::internal::kZeroHashSeed);
+  return ComputeUnseededHash(static_cast<uint32_t>(id));
 }
 
-
-unsigned AllocationTracker::AddFunctionInfo(SharedFunctionInfo* shared,
+unsigned AllocationTracker::AddFunctionInfo(SharedFunctionInfo shared,
                                             SnapshotObjectId id) {
   base::HashMap::Entry* entry = id_to_function_info_index_.LookupOrInsert(
       reinterpret_cast<void*>(id), SnapshotObjectIdHash(id));
-  if (entry->value == NULL) {
+  if (entry->value == nullptr) {
     FunctionInfo* info = new FunctionInfo();
-    info->name = names_->GetFunctionName(shared->DebugName());
+    info->name = names_->GetCopy(shared.DebugNameCStr().get());
     info->function_id = id;
-    if (shared->script()->IsScript()) {
-      Script* script = Script::cast(shared->script());
-      if (script->name()->IsName()) {
-        Name* name = Name::cast(script->name());
+    if (shared.script().IsScript()) {
+      Script script = Script::cast(shared.script());
+      if (script.name().IsName()) {
+        Name name = Name::cast(script.name());
         info->script_name = names_->GetName(name);
       }
-      info->script_id = script->id();
+      info->script_id = script.id();
       // Converting start offset into line and column may cause heap
       // allocations so we postpone them until snapshot serialization.
-      unresolved_locations_.Add(new UnresolvedLocation(
-          script,
-          shared->start_position(),
-          info));
+      unresolved_locations_.push_back(
+          new UnresolvedLocation(script, shared.StartPosition(), info));
     }
-    entry->value = reinterpret_cast<void*>(function_info_list_.length());
-    function_info_list_.Add(info);
+    entry->value = reinterpret_cast<void*>(function_info_list_.size());
+    function_info_list_.push_back(info);
   }
   return static_cast<unsigned>(reinterpret_cast<intptr_t>((entry->value)));
 }
-
 
 unsigned AllocationTracker::functionInfoIndexForVMState(StateTag state) {
   if (state != OTHER) return 0;
   if (info_index_for_other_state_ == 0) {
     FunctionInfo* info = new FunctionInfo();
     info->name = "(V8 API)";
-    info_index_for_other_state_ = function_info_list_.length();
-    function_info_list_.Add(info);
+    info_index_for_other_state_ =
+        static_cast<unsigned>(function_info_list_.size());
+    function_info_list_.push_back(info);
   }
   return info_index_for_other_state_;
 }
 
-
-AllocationTracker::UnresolvedLocation::UnresolvedLocation(
-    Script* script, int start, FunctionInfo* info)
-    : start_position_(start),
-      info_(info) {
-  script_ = Handle<Script>::cast(
-      script->GetIsolate()->global_handles()->Create(script));
-  GlobalHandles::MakeWeak(reinterpret_cast<Object**>(script_.location()), this,
-                          &HandleWeakScript, v8::WeakCallbackType::kParameter);
+AllocationTracker::UnresolvedLocation::UnresolvedLocation(Script script,
+                                                          int start,
+                                                          FunctionInfo* info)
+    : start_position_(start), info_(info) {
+  script_ = script.GetIsolate()->global_handles()->Create(script);
+  GlobalHandles::MakeWeak(script_.location(), this, &HandleWeakScript,
+                          v8::WeakCallbackType::kParameter);
 }
-
 
 AllocationTracker::UnresolvedLocation::~UnresolvedLocation() {
   if (!script_.is_null()) {
-    GlobalHandles::Destroy(reinterpret_cast<Object**>(script_.location()));
+    GlobalHandles::Destroy(script_.location());
   }
 }
 
@@ -327,7 +301,7 @@ void AllocationTracker::UnresolvedLocation::HandleWeakScript(
     const v8::WeakCallbackInfo<void>& data) {
   UnresolvedLocation* loc =
       reinterpret_cast<UnresolvedLocation*>(data.GetParameter());
-  GlobalHandles::Destroy(reinterpret_cast<Object**>(loc->script_.location()));
+  GlobalHandles::Destroy(loc->script_.location());
   loc->script_ = Handle<Script>::null();
 }
 

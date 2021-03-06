@@ -264,7 +264,7 @@ function testOmittedBuiltin(throwing, omitted) {
 }
 
 
-testTrace("testArrayNative", testArrayNative, ["Array.map (native)"]);
+testTrace("testArrayNative", testArrayNative, ["Array.map"]);
 testTrace("testNested", testNested, ["at one", "at two", "at three"]);
 testTrace("testMethodNameInference", testMethodNameInference, ["at Foo.bar"]);
 testTrace("testImplicitConversion", testImplicitConversion, ["at Nirk.valueOf"]);
@@ -304,9 +304,6 @@ testTraceNativeConstructor(RegExp);  // Does ToString on argument.
 testOmittedBuiltin(function(){ [thrower, 2].sort(function (a,b) {
                                                      (b < a) - (a < b); });
                    }, "QuickSort");
-
-// Omitted because ADD from runtime.js is non-native builtin.
-testOmittedBuiltin(function(){ thrower + 2; }, "ADD");
 
 var reached = false;
 var error = new Error();
@@ -371,13 +368,17 @@ assertEquals(undefined, fake_error.stack);
 
 // Check that overwriting the stack property during stack trace formatting
 // does not crash.
-error = new Error();
+error = new Error("foobar");
 error.__defineGetter__("name", function() { error.stack = "abc"; });
-assertEquals("abc", error.stack);
+assertTrue(error.stack.startsWith("Error"));
+assertTrue(error.stack.includes("foobar"));
 
-error = new Error();
+error = new Error("foobar");
 error.__defineGetter__("name", function() { delete error.stack; });
-assertEquals(undefined, error.stack);
+// The first time, Error.stack returns the formatted stack trace,
+// not the content of the property.
+assertTrue(error.stack.startsWith("Error"));
+assertEquals(error.stack, undefined);
 
 // Check that repeated trace collection does not crash.
 error = new Error();
@@ -394,9 +395,7 @@ assertTrue(desc.writable);
 
 // Check that exceptions thrown within prepareStackTrace throws an exception.
 Error.prepareStackTrace = function(e, frames) { throw 42; }
-
-var x = {}
-assertThrows(() => Error.captureStackTrace(x));
+assertThrows(() => new Error().stack);
 
 // Check that we don't crash when CaptureSimpleStackTrace returns undefined.
 var o = {};
@@ -440,3 +439,23 @@ var constructor = new Error().stack[0].constructor;
 assertThrows(() => constructor.call());
 assertThrows(() => constructor.call(
     null, {}, () => undefined, {valueOf() { return 0 }}, false));
+
+// Test stack frames populated with line/column information for both call site
+// and enclosing function:
+Error.prepareStackTrace = function(e, frames) {
+  assertMatches(/stack-traces\.js/, frames[0].getFileName());
+  assertEquals(3, frames[0].getEnclosingColumnNumber());
+  assertEquals(11, frames[0].getColumnNumber());
+  assertTrue(frames[0].getEnclosingLineNumber() < frames[0].getLineNumber());
+}
+try {
+  function a() {
+    b();
+  }
+  function b() {
+    throw Error('hello world');
+  }
+  a();
+} catch (err) {
+  err.stack;
+}

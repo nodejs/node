@@ -4076,8 +4076,8 @@
 # define STATUS_HASH_NOT_PRESENT ((NTSTATUS) 0xC000A101L)
 #endif
 
-/* This is not the NTSTATUS_FROM_WIN32 that the DDK provides, because the */
-/* DDK got it wrong! */
+/* This is not the NTSTATUS_FROM_WIN32 that the DDK provides, because the DDK
+ * got it wrong! */
 #ifdef NTSTATUS_FROM_WIN32
 # undef NTSTATUS_FROM_WIN32
 #endif
@@ -4104,7 +4104,14 @@
 # define JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE          0x00002000
 #endif
 
+#ifndef SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
+# define SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE 0x00000002
+#endif
+
 /* from winternl.h */
+#if !defined(__UNICODE_STRING_DEFINED) && defined(__MINGW32__)
+#define __UNICODE_STRING_DEFINED
+#endif
 typedef struct _UNICODE_STRING {
   USHORT Length;
   USHORT MaximumLength;
@@ -4145,6 +4152,10 @@ typedef const UNICODE_STRING *PCUNICODE_STRING;
       struct {
         UCHAR  DataBuffer[1];
       } GenericReparseBuffer;
+      struct {
+        ULONG StringCount;
+        WCHAR StringList[1];
+      } AppExecLinkReparseBuffer;
     };
   } REPARSE_DATA_BUFFER, *PREPARSE_DATA_BUFFER;
 #endif
@@ -4429,6 +4440,10 @@ typedef struct _SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION {
 # define SystemProcessorPerformanceInformation 8
 #endif
 
+#ifndef ProcessConsoleHostProcess
+# define ProcessConsoleHostProcess 49
+#endif
+
 #ifndef FILE_DEVICE_FILE_SYSTEM
 # define FILE_DEVICE_FILE_SYSTEM 0x00000009
 #endif
@@ -4506,11 +4521,17 @@ typedef struct _SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION {
 #ifndef IO_REPARSE_TAG_SYMLINK
 # define IO_REPARSE_TAG_SYMLINK (0xA000000CL)
 #endif
+#ifndef IO_REPARSE_TAG_APPEXECLINK
+# define IO_REPARSE_TAG_APPEXECLINK (0x8000001BL)
+#endif
 
 typedef VOID (NTAPI *PIO_APC_ROUTINE)
              (PVOID ApcContext,
               PIO_STATUS_BLOCK IoStatusBlock,
               ULONG Reserved);
+
+typedef NTSTATUS (NTAPI *sRtlGetVersion)
+                 (PRTL_OSVERSIONINFOW lpVersionInformation);
 
 typedef ULONG (NTAPI *sRtlNtStatusToDosError)
               (NTSTATUS Status);
@@ -4568,6 +4589,13 @@ typedef NTSTATUS (NTAPI *sNtQueryDirectoryFile)
                   BOOLEAN RestartScan
                 );
 
+typedef NTSTATUS (NTAPI *sNtQueryInformationProcess)
+                 (HANDLE ProcessHandle,
+                  UINT ProcessInformationClass,
+                  PVOID ProcessInformation,
+                  ULONG Length,
+                  PULONG ReturnLength);
+
 /*
  * Kernel32 headers
  */
@@ -4606,6 +4634,10 @@ typedef NTSTATUS (NTAPI *sNtQueryDirectoryFile)
 #endif
 
 /* from winerror.h */
+#ifndef ERROR_ELEVATION_REQUIRED
+# define ERROR_ELEVATION_REQUIRED 740
+#endif
+
 #ifndef ERROR_SYMLINK_NOT_SUPPORTED
 # define ERROR_SYMLINK_NOT_SUPPORTED 1464
 #endif
@@ -4642,48 +4674,6 @@ typedef BOOL (WINAPI *sGetQueuedCompletionStatusEx)
               DWORD dwMilliseconds,
               BOOL fAlertable);
 
-typedef BOOL (WINAPI* sSetFileCompletionNotificationModes)
-             (HANDLE FileHandle,
-              UCHAR Flags);
-
-typedef BOOLEAN (WINAPI* sCreateSymbolicLinkW)
-                (LPCWSTR lpSymlinkFileName,
-                 LPCWSTR lpTargetFileName,
-                 DWORD dwFlags);
-
-typedef BOOL (WINAPI* sCancelIoEx)
-             (HANDLE hFile,
-              LPOVERLAPPED lpOverlapped);
-
-typedef VOID (WINAPI* sInitializeConditionVariable)
-             (PCONDITION_VARIABLE ConditionVariable);
-
-typedef BOOL (WINAPI* sSleepConditionVariableCS)
-             (PCONDITION_VARIABLE ConditionVariable,
-              PCRITICAL_SECTION CriticalSection,
-              DWORD dwMilliseconds);
-
-typedef BOOL (WINAPI* sSleepConditionVariableSRW)
-             (PCONDITION_VARIABLE ConditionVariable,
-              PSRWLOCK SRWLock,
-              DWORD dwMilliseconds,
-              ULONG Flags);
-
-typedef VOID (WINAPI* sWakeAllConditionVariable)
-             (PCONDITION_VARIABLE ConditionVariable);
-
-typedef VOID (WINAPI* sWakeConditionVariable)
-             (PCONDITION_VARIABLE ConditionVariable);
-
-typedef BOOL (WINAPI* sCancelSynchronousIo)
-             (HANDLE hThread);
-
-typedef DWORD (WINAPI* sGetFinalPathNameByHandleW)
-             (HANDLE hFile,
-              LPWSTR lpszFilePath,
-              DWORD cchFilePath,
-              DWORD dwFlags);
-
 /* from powerbase.h */
 #ifndef DEVICE_NOTIFY_CALLBACK
 # define DEVICE_NOTIFY_CALLBACK 2
@@ -4717,8 +4707,40 @@ typedef DWORD (WINAPI *sPowerRegisterSuspendResumeNotification)
                HANDLE        Recipient,
                _PHPOWERNOTIFY RegistrationHandle);
 
+/* from Winuser.h */
+typedef VOID (CALLBACK* WINEVENTPROC)
+             (HWINEVENTHOOK hWinEventHook,
+              DWORD         event,
+              HWND          hwnd,
+              LONG          idObject,
+              LONG          idChild,
+              DWORD         idEventThread,
+              DWORD         dwmsEventTime);
+
+typedef HWINEVENTHOOK (WINAPI *sSetWinEventHook)
+                      (UINT         eventMin,
+                       UINT         eventMax,
+                       HMODULE      hmodWinEventProc,
+                       WINEVENTPROC lpfnWinEventProc,
+                       DWORD        idProcess,
+                       DWORD        idThread,
+                       UINT         dwflags);
+
+/* From mstcpip.h */
+typedef struct _TCP_INITIAL_RTO_PARAMETERS {
+  USHORT Rtt;
+  UCHAR  MaxSynRetransmissions;
+} TCP_INITIAL_RTO_PARAMETERS, *PTCP_INITIAL_RTO_PARAMETERS;
+
+#ifndef TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS
+# define TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS ((UCHAR) -2)
+#endif
+#ifndef SIO_TCP_INITIAL_RTO
+# define  SIO_TCP_INITIAL_RTO _WSAIOW(IOC_VENDOR,17)
+#endif
 
 /* Ntdll function pointers */
+extern sRtlGetVersion pRtlGetVersion;
 extern sRtlNtStatusToDosError pRtlNtStatusToDosError;
 extern sNtDeviceIoControlFile pNtDeviceIoControlFile;
 extern sNtQueryInformationFile pNtQueryInformationFile;
@@ -4726,23 +4748,15 @@ extern sNtSetInformationFile pNtSetInformationFile;
 extern sNtQueryVolumeInformationFile pNtQueryVolumeInformationFile;
 extern sNtQueryDirectoryFile pNtQueryDirectoryFile;
 extern sNtQuerySystemInformation pNtQuerySystemInformation;
-
+extern sNtQueryInformationProcess pNtQueryInformationProcess;
 
 /* Kernel32 function pointers */
 extern sGetQueuedCompletionStatusEx pGetQueuedCompletionStatusEx;
-extern sSetFileCompletionNotificationModes pSetFileCompletionNotificationModes;
-extern sCreateSymbolicLinkW pCreateSymbolicLinkW;
-extern sCancelIoEx pCancelIoEx;
-extern sInitializeConditionVariable pInitializeConditionVariable;
-extern sSleepConditionVariableCS pSleepConditionVariableCS;
-extern sSleepConditionVariableSRW pSleepConditionVariableSRW;
-extern sWakeAllConditionVariable pWakeAllConditionVariable;
-extern sWakeConditionVariable pWakeConditionVariable;
-extern sCancelSynchronousIo pCancelSynchronousIo;
-extern sGetFinalPathNameByHandleW pGetFinalPathNameByHandleW;
-
 
 /* Powrprof.dll function pointer */
 extern sPowerRegisterSuspendResumeNotification pPowerRegisterSuspendResumeNotification;
+
+/* User32.dll function pointer */
+extern sSetWinEventHook pSetWinEventHook;
 
 #endif /* UV_WIN_WINAPI_H_ */

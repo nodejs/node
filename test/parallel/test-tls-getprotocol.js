@@ -1,14 +1,14 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
+// This test ensures that `getProtocol` returns the right protocol
+// from a TLS connection
+
+const assert = require('assert');
 const tls = require('tls');
-const fs = require('fs');
+const fixtures = require('../common/fixtures');
 
 const clientConfigs = [
   { secureProtocol: 'TLSv1_method', version: 'TLSv1' },
@@ -17,8 +17,9 @@ const clientConfigs = [
 ];
 
 const serverConfig = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem')
+  secureProtocol: 'TLS_method',
+  key: fixtures.readKey('agent2-key.pem'),
+  cert: fixtures.readKey('agent2-cert.pem')
 };
 
 const server = tls.createServer(serverConfig, common.mustCall(function() {
@@ -33,7 +34,8 @@ const server = tls.createServer(serverConfig, common.mustCall(function() {
       secureProtocol: v.secureProtocol
     }, common.mustCall(function() {
       assert.strictEqual(this.getProtocol(), v.version);
-      this.on('end', common.mustCall(function() {
+      this.on('end', common.mustCall());
+      this.on('close', common.mustCall(function() {
         assert.strictEqual(this.getProtocol(), null);
       })).end();
       if (++connected === clientConfigs.length)

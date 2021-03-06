@@ -28,14 +28,14 @@
 // Flags: --allow-natives-syntax
 
 function inlined() {
-    return 1;
+  return 1;
 }
 
 function foo() {
-    if ((inlined() + 0.5) == null) return "null";
-    return "non-null";
-}
-
+  if (inlined() + 0.5 == null) return 'null';
+  return 'non-null';
+};
+%PrepareFunctionForOptimization(foo);
 assertEquals("non-null", foo());
 assertEquals("non-null", foo());
 %OptimizeFunctionOnNextCall(foo);

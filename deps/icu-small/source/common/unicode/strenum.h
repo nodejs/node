@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -11,6 +11,10 @@
 
 #ifndef STRENUM_H
 #define STRENUM_H
+
+#include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
 
 #include "unicode/uobject.h"
 #include "unicode/unistr.h"
@@ -35,7 +39,7 @@ U_NAMESPACE_BEGIN
  * call, so the returned string still might not be 'valid' on
  * subsequent use.</p>
  *
- * <p>Strings may take the form of const char*, const UChar*, or const
+ * <p>Strings may take the form of const char*, const char16_t*, or const
  * UnicodeString*.  The type you get is determine by the variant of
  * 'next' that you call.  In general the StringEnumeration is
  * optimized for one of these types, but all StringEnumerations can
@@ -67,9 +71,6 @@ public:
      * Clones can be used concurrently in multiple threads.
      * If a subclass does not implement clone(), or if an error occurs,
      * then NULL is returned.
-     * The clone functions in all subclasses return a base class pointer
-     * because some compilers do not support covariant (same-as-this)
-     * return types; cast to the appropriate subclass if necessary.
      * The caller must delete the clone.
      *
      * @return a clone of this object
@@ -112,7 +113,7 @@ public:
      * <p>If the iterator is out of sync with its service, status is set
      * to U_ENUM_OUT_OF_SYNC_ERROR and NULL is returned.</p>
      *
-     * <p>If the native service string is a UChar* string, it is
+     * <p>If the native service string is a char16_t* string, it is
      * converted to char* with the invariant converter.  If the
      * conversion fails (because a character cannot be converted) then
      * status is set to U_INVARIANT_CONVERSION_ERROR and the return
@@ -131,7 +132,7 @@ public:
     virtual const char* next(int32_t *resultLength, UErrorCode& status);
 
     /**
-     * <p>Returns the next element as a NUL-terminated UChar*.  If there
+     * <p>Returns the next element as a NUL-terminated char16_t*.  If there
      * are no more elements, returns NULL.  If the resultLength pointer
      * is not NULL, the length of the string (not counting the
      * terminating NUL) is returned at that address.  If an error
@@ -153,7 +154,7 @@ public:
      *
      * @stable ICU 2.4
      */
-    virtual const UChar* unext(int32_t *resultLength, UErrorCode& status);
+    virtual const char16_t* unext(int32_t *resultLength, UErrorCode& status);
 
     /**
      * <p>Returns the next element a UnicodeString*.  If there are no
@@ -195,7 +196,7 @@ public:
      * Compares this enumeration to other to check if both are equal
      *
      * @param that The other string enumeration to compare this object to
-     * @return TRUE if the enumerations are equal. FALSE if not.
+     * @return true if the enumerations are equal. false if not.
      * @stable ICU 3.6
      */
     virtual UBool operator==(const StringEnumeration& that)const;
@@ -203,7 +204,7 @@ public:
      * Compares this enumeration to other to check if both are not equal
      *
      * @param that The other string enumeration to compare this object to
-     * @return TRUE if the enumerations are equal. FALSE if not.
+     * @return true if the enumerations are equal. false if not.
      * @stable ICU 3.6
      */
     virtual UBool operator!=(const StringEnumeration& that)const;
@@ -273,6 +274,8 @@ protected:
 };
 
 U_NAMESPACE_END
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 /* STRENUM_H */
 #endif

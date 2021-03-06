@@ -12,8 +12,8 @@ function foo() {
     a.shift();
   }
   return result;
-}
-
+};
+%PrepareFunctionForOptimization(foo);
 assertEquals(1, foo());
 assertEquals(1, foo());
 %OptimizeFunctionOnNextCall(foo);

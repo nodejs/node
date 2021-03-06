@@ -2,19 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --expose-gc --heap-stats
+// Flags: --allow-natives-syntax --expose-gc
 
 function g(dummy, x) {
   var start = "";
-  if (x) { start = x + " - "; }
+  if (x) {
+    start = x + ' - ';
+  }
   start = start + "array length";
 };
 
 function f() {
   gc();
   g([0.1]);
-}
-
+};
+%PrepareFunctionForOptimization(f);
 f();
 %OptimizeFunctionOnNextCall(f);
 f();

@@ -4,19 +4,22 @@
 
 #include <stdlib.h>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 
-#include "src/api.h"
+#include "src/execution/protectors-inl.h"
 #include "src/heap/heap.h"
-#include "src/objects.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
-void TestArrayBufferViewContents(LocalContext& env, bool should_use_buffer) {
+void TestArrayBufferViewContents(LocalContext* env, bool should_use_buffer) {
   v8::Local<v8::Object> obj_a = v8::Local<v8::Object>::Cast(
-      env->Global()
-          ->Get(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str("a"))
+      (*env)
+          ->Global()
+          ->Get((*env)->GetIsolate()->GetCurrentContext(), v8_str("a"))
           .ToLocalChecked());
   CHECK(obj_a->IsArrayBufferView());
   v8::Local<v8::ArrayBufferView> array_buffer_view =
@@ -31,7 +34,6 @@ void TestArrayBufferViewContents(LocalContext& env, bool should_use_buffer) {
   }
 }
 
-
 TEST(CopyContentsTypedArray) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -41,7 +43,7 @@ TEST(CopyContentsTypedArray) {
       "a[1] = 1;"
       "a[2] = 2;"
       "a[3] = 3;");
-  TestArrayBufferViewContents(env, false);
+  TestArrayBufferViewContents(&env, false);
 }
 
 
@@ -49,7 +51,7 @@ TEST(CopyContentsArray) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   CompileRun("var a = new Uint8Array([0, 1, 2, 3]);");
-  TestArrayBufferViewContents(env, false);
+  TestArrayBufferViewContents(&env, false);
 }
 
 
@@ -66,7 +68,7 @@ TEST(CopyContentsView) {
       "c[4] = 2;"
       "c[5] = 3;"
       "var a = new DataView(b, 2);");
-  TestArrayBufferViewContents(env, true);
+  TestArrayBufferViewContents(&env, true);
 }
 
 
@@ -76,9 +78,98 @@ TEST(AllocateNotExternal) {
   void* memory = reinterpret_cast<Isolate*>(env->GetIsolate())
                      ->array_buffer_allocator()
                      ->Allocate(1024);
+
+// Keep the test until the functions are removed.
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated"
+#endif
   v8::Local<v8::ArrayBuffer> buffer =
       v8::ArrayBuffer::New(env->GetIsolate(), memory, 1024,
                            v8::ArrayBufferCreationMode::kInternalized);
   CHECK(!buffer->IsExternal());
-  CHECK_EQ(memory, buffer->GetContents().Data());
+#if __clang__
+#pragma clang diagnostic pop
+#endif
+
+  CHECK_EQ(memory, buffer->GetBackingStore()->Data());
 }
+
+void TestSpeciesProtector(char* code,
+                          bool invalidates_species_protector = true) {
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  std::string typed_array_constructors[] = {
+#define TYPED_ARRAY_CTOR(Type, type, TYPE, ctype) #Type "Array",
+
+      TYPED_ARRAYS(TYPED_ARRAY_CTOR)
+#undef TYPED_ARRAY_CTOR
+  };
+
+  for (auto& constructor : typed_array_constructors) {
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
+    isolate->Enter();
+    {
+      LocalContext context(isolate);
+      v8::HandleScope scope(isolate);
+      v8::TryCatch try_catch(isolate);
+
+      CompileRun(("let x = new " + constructor + "();").c_str());
+      CompileRun(("let constructor = " + constructor + ";").c_str());
+      v8::Local<v8::Value> constructor_obj = CompileRun(constructor.c_str());
+      CHECK_EQ(constructor_obj, CompileRun("x.slice().constructor"));
+      CHECK_EQ(constructor_obj, CompileRun("x.subarray().constructor"));
+      CHECK_EQ(constructor_obj, CompileRun("x.map(()=>{}).constructor"));
+      std::string decl = "class MyTypedArray extends " + constructor + " { }";
+      CompileRun(decl.c_str());
+
+      v8::internal::Isolate* i_isolate =
+          reinterpret_cast<v8::internal::Isolate*>(isolate);
+      CHECK(Protectors::IsTypedArraySpeciesLookupChainIntact(i_isolate));
+      CompileRun(code);
+      if (invalidates_species_protector) {
+        CHECK(!Protectors::IsTypedArraySpeciesLookupChainIntact(i_isolate));
+      } else {
+        CHECK(Protectors::IsTypedArraySpeciesLookupChainIntact(i_isolate));
+      }
+
+      v8::Local<v8::Value> my_typed_array = CompileRun("MyTypedArray");
+      CHECK_EQ(my_typed_array, CompileRun("x.slice().constructor"));
+      CHECK_EQ(my_typed_array, CompileRun("x.subarray().constructor"));
+      CHECK_EQ(my_typed_array, CompileRun("x.map(()=>{}).constructor"));
+    }
+    isolate->Exit();
+    isolate->Dispose();
+  }
+}
+
+UNINITIALIZED_TEST(SpeciesConstructor) {
+  char code[] = "x.constructor = MyTypedArray";
+  TestSpeciesProtector(code);
+}
+
+UNINITIALIZED_TEST(SpeciesConstructorAccessor) {
+  char code[] =
+      "Object.defineProperty(x, 'constructor',{get() {return MyTypedArray;}})";
+  TestSpeciesProtector(code);
+}
+
+UNINITIALIZED_TEST(SpeciesModified) {
+  char code[] =
+      "Object.defineProperty(constructor, Symbol.species, "
+      "{value:MyTypedArray})";
+  TestSpeciesProtector(code);
+}
+
+UNINITIALIZED_TEST(SpeciesParentConstructor) {
+  char code[] = "constructor.prototype.constructor = MyTypedArray";
+  TestSpeciesProtector(code);
+}
+
+UNINITIALIZED_TEST(SpeciesProto) {
+  char code[] = "x.__proto__ = MyTypedArray.prototype";
+  TestSpeciesProtector(code, false);
+}
+
+}  // namespace internal
+}  // namespace v8

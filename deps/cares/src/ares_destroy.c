@@ -36,6 +36,8 @@ void ares_destroy_options(struct ares_options *options)
     ares_free(options->sortlist);
   if(options->lookups)
     ares_free(options->lookups);
+  if(options->resolvconf_path)
+    ares_free(options->resolvconf_path);
 }
 
 void ares_destroy(ares_channel channel)
@@ -44,7 +46,7 @@ void ares_destroy(ares_channel channel)
   struct query *query;
   struct list_node* list_head;
   struct list_node* list_node;
-  
+
   if (!channel)
     return;
 
@@ -84,6 +86,9 @@ void ares_destroy(ares_channel channel)
 
   if (channel->lookups)
     ares_free(channel->lookups);
+
+  if (channel->resolvconf_path)
+    ares_free(channel->resolvconf_path);
 
   ares_free(channel);
 }

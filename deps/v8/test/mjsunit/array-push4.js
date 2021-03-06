@@ -42,6 +42,7 @@ v = 0;
 function push_wrapper_1(array, value) {
   array.push(value);
 }
+%PrepareFunctionForOptimization(push_wrapper_1);
 array = [];
 array.__proto__ = my_array_proto;
 push_wrapper_1(array, 100);

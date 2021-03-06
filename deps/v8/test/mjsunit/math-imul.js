@@ -25,24 +25,30 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --max-opt-count=1000
+// Flags: --allow-natives-syntax
 
 var imul_func = Math.imul;
 function imul_polyfill(a, b) {
-  var ah  = (a >>> 16) & 0xffff;
+  var ah = a >>> 16 & 0xffff;
   var al = a & 0xffff;
-  var bh  = (b >>> 16) & 0xffff;
+  var bh = b >>> 16 & 0xffff;
   var bl = b & 0xffff;
-  return ((al * bl) + (((ah * bl + al * bh) << 16) >>> 0) | 0);
+  return al * bl + (ah * bl + al * bh << 16 >>> 0) | 0;
 }
 
 function TestMathImul(expected, a, b) {
-  function imul_meth_closure(a, b) { return Math.imul(a, b); }
-  function imul_func_closure(a, b) { return imul_func(a, b); }
+  function imul_meth_closure(a, b) {
+    return Math.imul(a, b);
+  };
+  %PrepareFunctionForOptimization(imul_meth_closure);
+  function imul_func_closure(a, b) {
+    return imul_func(a, b);
+  }
 
   // Test reference implementation.
+  ;
+  %PrepareFunctionForOptimization(imul_func_closure);
   assertEquals(expected, imul_polyfill(a, b));
-
   // Test direct method call.
   assertEquals(expected, Math.imul(a, b));
 
@@ -64,8 +70,8 @@ function TestMathImul(expected, a, b) {
   // Deoptimize closures and forget type feedback.
   %DeoptimizeFunction(imul_meth_closure);
   %DeoptimizeFunction(imul_func_closure);
-  %ClearFunctionTypeFeedback(imul_meth_closure);
-  %ClearFunctionTypeFeedback(imul_func_closure);
+  %ClearFunctionFeedback(imul_meth_closure);
+  %ClearFunctionFeedback(imul_func_closure);
 }
 
 TestMathImul(8, 2, 4);

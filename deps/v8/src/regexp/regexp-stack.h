@@ -7,7 +7,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/macros.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -19,34 +19,40 @@ class RegExpStack;
 // Since there is only one stack area, the Irregexp implementation is not
 // re-entrant. I.e., no regular expressions may be executed in the same thread
 // during a preempted Irregexp execution.
-class RegExpStackScope {
+class V8_NODISCARD RegExpStackScope {
  public:
   // Create and delete an instance to control the life-time of a growing stack.
 
   // Initializes the stack memory area if necessary.
   explicit RegExpStackScope(Isolate* isolate);
   ~RegExpStackScope();  // Releases the stack if it has grown.
+  RegExpStackScope(const RegExpStackScope&) = delete;
+  RegExpStackScope& operator=(const RegExpStackScope&) = delete;
 
   RegExpStack* stack() const { return regexp_stack_; }
 
  private:
   RegExpStack* regexp_stack_;
-
-  DISALLOW_COPY_AND_ASSIGN(RegExpStackScope);
 };
-
 
 class RegExpStack {
  public:
+  RegExpStack();
+  ~RegExpStack();
+  RegExpStack(const RegExpStack&) = delete;
+  RegExpStack& operator=(const RegExpStack&) = delete;
+
   // Number of allocated locations on the stack below the limit.
   // No sequence of pushes must be longer that this without doing a stack-limit
   // check.
-  static const int kStackLimitSlack = 32;
+  static constexpr int kStackLimitSlack = 32;
 
   // Gives the top of the memory used as stack.
   Address stack_base() {
-    DCHECK(thread_local_.memory_size_ != 0);
-    return thread_local_.memory_ + thread_local_.memory_size_;
+    DCHECK_NE(0, thread_local_.memory_size_);
+    DCHECK_EQ(thread_local_.memory_top_,
+              thread_local_.memory_ + thread_local_.memory_size_);
+    return reinterpret_cast<Address>(thread_local_.memory_top_);
   }
 
   // The total size of the memory allocated for the stack.
@@ -57,56 +63,69 @@ class RegExpStack {
   // There is only a limited number of locations below the stack limit,
   // so users of the stack should check the stack limit during any
   // sequence of pushes longer that this.
-  Address* limit_address() { return &(thread_local_.limit_); }
+  Address* limit_address_address() { return &(thread_local_.limit_); }
 
   // Ensures that there is a memory area with at least the specified size.
   // If passing zero, the default/minimum size buffer is allocated.
   Address EnsureCapacity(size_t size);
 
+  bool is_in_use() const { return thread_local_.is_in_use_; }
+  void set_is_in_use(bool v) { thread_local_.is_in_use_ = v; }
+
   // Thread local archiving.
-  static int ArchiveSpacePerThread() {
-    return static_cast<int>(sizeof(ThreadLocal));
+  static constexpr int ArchiveSpacePerThread() {
+    return static_cast<int>(kThreadLocalSize);
   }
   char* ArchiveStack(char* to);
   char* RestoreStack(char* from);
-  void FreeThreadResources() { thread_local_.Free(); }
-
- private:
-  RegExpStack();
-  ~RegExpStack();
-
-  // Artificial limit used when no memory has been allocated.
-  static const uintptr_t kMemoryTop = static_cast<uintptr_t>(-1);
-
-  // Minimal size of allocated stack area.
-  static const size_t kMinimumStackSize = 1 * KB;
+  void FreeThreadResources() { thread_local_.ResetToStaticStack(this); }
 
   // Maximal size of allocated stack area.
-  static const size_t kMaximumStackSize = 64 * MB;
+  static constexpr size_t kMaximumStackSize = 64 * MB;
+
+ private:
+  // Artificial limit used when the thread-local state has been destroyed.
+  static const Address kMemoryTop =
+      static_cast<Address>(static_cast<uintptr_t>(-1));
+
+  // Minimal size of dynamically-allocated stack area.
+  static constexpr size_t kMinimumDynamicStackSize = 1 * KB;
+
+  // In addition to dynamically-allocated, variable-sized stacks, we also have
+  // a statically allocated and sized area that is used whenever no dynamic
+  // stack is allocated. This guarantees that a stack is always available and
+  // we can skip availability-checks later on.
+  // It's double the slack size to ensure that we have a bit of breathing room
+  // before NativeRegExpMacroAssembler::GrowStack must be called.
+  static constexpr size_t kStaticStackSize =
+      2 * kStackLimitSlack * kSystemPointerSize;
+  byte static_stack_[kStaticStackSize] = {0};
+
+  STATIC_ASSERT(kStaticStackSize <= kMaximumStackSize);
 
   // Structure holding the allocated memory, size and limit.
   struct ThreadLocal {
-    ThreadLocal() { Clear(); }
-    // If memory_size_ > 0 then memory_ must be non-NULL.
-    Address memory_;
-    size_t memory_size_;
-    Address limit_;
-    void Clear() {
-      memory_ = NULL;
-      memory_size_ = 0;
-      limit_ = reinterpret_cast<Address>(kMemoryTop);
+    explicit ThreadLocal(RegExpStack* regexp_stack) {
+      ResetToStaticStack(regexp_stack);
     }
-    void Free();
+
+    // If memory_size_ > 0 then memory_ and memory_top_ must be non-nullptr
+    // and memory_top_ = memory_ + memory_size_
+    byte* memory_ = nullptr;
+    byte* memory_top_ = nullptr;
+    size_t memory_size_ = 0;
+    Address limit_ = kNullAddress;
+    bool owns_memory_ = false;  // Whether memory_ is owned and must be freed.
+    bool is_in_use_ = false;    // To guard against reentrancy.
+
+    void ResetToStaticStack(RegExpStack* regexp_stack);
+    void FreeAndInvalidate();
   };
+  static constexpr size_t kThreadLocalSize = sizeof(ThreadLocal);
 
-  // Address of allocated memory.
-  Address memory_address() {
-    return reinterpret_cast<Address>(&thread_local_.memory_);
-  }
-
-  // Address of size of allocated memory.
-  Address memory_size_address() {
-    return reinterpret_cast<Address>(&thread_local_.memory_size_);
+  // Address of top of memory used as stack.
+  Address memory_top_address_address() {
+    return reinterpret_cast<Address>(&thread_local_.memory_top_);
   }
 
   // Resets the buffer if it has grown beyond the default/minimum size.
@@ -120,8 +139,6 @@ class RegExpStack {
   friend class ExternalReference;
   friend class Isolate;
   friend class RegExpStackScope;
-
-  DISALLOW_COPY_AND_ASSIGN(RegExpStack);
 };
 
 }  // namespace internal

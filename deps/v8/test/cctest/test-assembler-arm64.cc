@@ -31,19 +31,25 @@
 #include <cmath>
 #include <limits>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
-#include "src/arm64/decoder-arm64-inl.h"
-#include "src/arm64/disasm-arm64.h"
-#include "src/arm64/simulator-arm64.h"
-#include "src/arm64/utils-arm64.h"
 #include "src/base/platform/platform.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/macro-assembler.h"
+#include "src/codegen/arm64/assembler-arm64-inl.h"
+#include "src/codegen/arm64/decoder-arm64-inl.h"
+#include "src/codegen/arm64/macro-assembler-arm64-inl.h"
+#include "src/codegen/arm64/utils-arm64.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/diagnostics/arm64/disasm-arm64.h"
+#include "src/execution/arm64/simulator-arm64.h"
+#include "src/execution/simulator.h"
+#include "src/heap/factory.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-utils-arm64.h"
+#include "test/common/assembler-tester.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 // Test infrastructure.
 //
@@ -61,8 +67,6 @@ using namespace v8::internal;
 //     RUN();
 //
 //     CHECK_EQUAL_64(1, x0);
-//
-//     TEARDOWN();
 //   }
 //
 // Within a START ... END block all registers but sp can be modified. sp has to
@@ -91,8 +95,7 @@ using namespace v8::internal;
 // If more advance computation is required before the assert then access the
 // RegisterDump named core directly:
 //
-//   CHECK_EQUAL_64(0x1234, core.xreg(0) & 0xffff);
-
+//   CHECK_EQUAL_64(0x1234, core.xreg(0) & 0xFFFF);
 
 #if 0  // TODO(all): enable.
 static v8::Persistent<v8::Context> env;
@@ -115,24 +118,24 @@ static void InitializeVM() {
 #ifdef USE_SIMULATOR
 
 // Run tests with the simulator.
-#define SETUP_SIZE(buf_size)                                   \
-  Isolate* isolate = CcTest::i_isolate();                      \
-  HandleScope scope(isolate);                                  \
-  CHECK(isolate != NULL);                                      \
-  byte* buf = new byte[buf_size];                              \
-  MacroAssembler masm(isolate, buf, buf_size,                  \
-                      v8::internal::CodeObjectRequired::kYes); \
-  Decoder<DispatchingDecoderVisitor>* decoder =                \
-      new Decoder<DispatchingDecoderVisitor>();                \
-  Simulator simulator(decoder);                                \
-  PrintDisassembler* pdis = NULL;                              \
-  RegisterDump core;
-
-/*  if (Cctest::trace_sim()) {                                                 \
-    pdis = new PrintDisassembler(stdout);                                      \
-    decoder.PrependVisitor(pdis);                                              \
-  }                                                                            \
-  */
+#define SETUP_SIZE(buf_size)                                               \
+  Isolate* isolate = CcTest::i_isolate();                                  \
+  HandleScope scope(isolate);                                              \
+  CHECK_NOT_NULL(isolate);                                                 \
+  std::unique_ptr<byte[]> owned_buf{new byte[buf_size]};                   \
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,     \
+                      ExternalAssemblerBuffer(owned_buf.get(), buf_size)); \
+  Decoder<DispatchingDecoderVisitor>* decoder =                            \
+      new Decoder<DispatchingDecoderVisitor>();                            \
+  Simulator simulator(decoder);                                            \
+  std::unique_ptr<PrintDisassembler> pdis;                                 \
+  RegisterDump core;                                                       \
+  HandleScope handle_scope(isolate);                                       \
+  Handle<Code> code;                                                       \
+  if (i::FLAG_trace_sim) {                                                 \
+    pdis.reset(new PrintDisassembler(stdout));                             \
+    decoder->PrependVisitor(pdis.get());                                   \
+  }
 
 // Reset the assembler and simulator, so that instructions can be generated,
 // but don't actually emit any code. This can be used by tests that need to
@@ -146,7 +149,6 @@ static void InitializeVM() {
   simulator.ResetState();
 
 #define START_AFTER_RESET()                                                    \
-  __ SetStackPointer(csp);                                                     \
   __ PushCalleeSavedRegisters();                                               \
   __ Debug("Start test.", __LINE__, TRACE_ENABLE | LOG_ALL);
 
@@ -154,72 +156,72 @@ static void InitializeVM() {
   RESET();                                                                     \
   START_AFTER_RESET();
 
-#define RUN()                                                                  \
-  simulator.RunFrom(reinterpret_cast<Instruction*>(buf))
+#define RUN() simulator.RunFrom(reinterpret_cast<Instruction*>(code->entry()))
 
 #define END()                                                                  \
   __ Debug("End test.", __LINE__, TRACE_DISABLE | LOG_ALL);                    \
   core.Dump(&masm);                                                            \
   __ PopCalleeSavedRegisters();                                                \
   __ Ret();                                                                    \
-  __ GetCode(NULL);
-
-#define TEARDOWN()                                                             \
-  delete pdis;                                                                 \
-  delete[] buf;
+  {                                                                            \
+    CodeDesc desc;                                                             \
+    __ GetCode(masm.isolate(), &desc);                                         \
+    code = Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build(); \
+    if (FLAG_print_code) code->Print();                                        \
+  }
 
 #else  // ifdef USE_SIMULATOR.
 // Run the test on real hardware or models.
-#define SETUP_SIZE(buf_size)                                   \
-  Isolate* isolate = CcTest::i_isolate();                      \
-  HandleScope scope(isolate);                                  \
-  CHECK(isolate != NULL);                                      \
-  size_t actual_size;                                          \
-  byte* buf = static_cast<byte*>(                              \
-      v8::base::OS::Allocate(buf_size, &actual_size, true));   \
-  MacroAssembler masm(isolate, buf, actual_size,               \
-                      v8::internal::CodeObjectRequired::kYes); \
+#define SETUP_SIZE(buf_size)                                           \
+  Isolate* isolate = CcTest::i_isolate();                              \
+  HandleScope scope(isolate);                                          \
+  CHECK_NOT_NULL(isolate);                                             \
+  auto owned_buf = AllocateAssemblerBuffer(buf_size);                  \
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes, \
+                      owned_buf->CreateView());                        \
+  HandleScope handle_scope(isolate);                                   \
+  Handle<Code> code;                                                   \
   RegisterDump core;
 
-#define RESET()                                                                \
-  __ Reset();                                                                  \
-  /* Reset the machine state (like simulator.ResetState()). */                 \
-  __ Msr(NZCV, xzr);                                                           \
+#define RESET()                                                \
+  owned_buf->MakeWritable();                                   \
+  __ Reset();                                                  \
+  __ CodeEntry();                                              \
+  /* Reset the machine state (like simulator.ResetState()). */ \
+  __ Msr(NZCV, xzr);                                           \
   __ Msr(FPCR, xzr);
 
-
 #define START_AFTER_RESET()                                                    \
-  __ SetStackPointer(csp);                                                     \
   __ PushCalleeSavedRegisters();
 
-#define START()                                                                \
-  RESET();                                                                     \
+#define START() \
+  RESET();      \
   START_AFTER_RESET();
 
-#define RUN()                                                       \
-  Assembler::FlushICache(isolate, buf, masm.SizeOfGeneratedCode()); \
-  {                                                                 \
-    void (*test_function)(void);                                    \
-    memcpy(&test_function, &buf, sizeof(buf));                      \
-    test_function();                                                \
+#define RUN()                                      \
+  {                                                \
+    auto f = GeneratedCode<void>::FromCode(*code); \
+    f.Call();                                      \
   }
 
 #define END()                                                                  \
   core.Dump(&masm);                                                            \
   __ PopCalleeSavedRegisters();                                                \
   __ Ret();                                                                    \
-  __ GetCode(NULL);
-
-#define TEARDOWN()                                                             \
-  v8::base::OS::Free(buf, actual_size);
+  {                                                                            \
+    CodeDesc desc;                                                             \
+    __ GetCode(masm.isolate(), &desc);                                         \
+    code = Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build(); \
+    if (FLAG_print_code) code->Print();                                        \
+  }
 
 #endif  // ifdef USE_SIMULATOR.
 
 #define CHECK_EQUAL_NZCV(expected)                                            \
   CHECK(EqualNzcv(expected, core.flags_nzcv()))
 
-#define CHECK_EQUAL_REGISTERS(expected)                                       \
-  CHECK(EqualRegisters(&expected, &core))
+#define CHECK_EQUAL_REGISTERS(expected) \
+  CHECK(EqualV8Registers(&expected, &core))
 
 #define CHECK_EQUAL_32(expected, result)                                      \
   CHECK(Equal32(static_cast<uint32_t>(expected), &core, result))
@@ -230,75 +232,88 @@ static void InitializeVM() {
 #define CHECK_EQUAL_64(expected, result)                                      \
   CHECK(Equal64(expected, &core, result))
 
+#define CHECK_FULL_HEAP_OBJECT_IN_REGISTER(expected, result) \
+  CHECK(Equal64(expected->ptr(), &core, result))
+
+#define CHECK_NOT_ZERO_AND_NOT_EQUAL_64(reg0, reg1) \
+  {                                                 \
+    int64_t value0 = core.xreg(reg0.code());        \
+    int64_t value1 = core.xreg(reg1.code());        \
+    CHECK_NE(0, value0);                            \
+    CHECK_NE(0, value1);                            \
+    CHECK_NE(value0, value1);                       \
+  }
+
 #define CHECK_EQUAL_FP64(expected, result)                                    \
   CHECK(EqualFP64(expected, &core, result))
 
-#ifdef DEBUG
-#define CHECK_LITERAL_POOL_SIZE(expected) \
-  CHECK((expected) == (__ LiteralPoolSize()))
-#else
-#define CHECK_LITERAL_POOL_SIZE(expected) ((void)0)
-#endif
+// Expected values for 128-bit comparisons are passed as two 64-bit values,
+// where expected_h (high) is <127:64> and expected_l (low) is <63:0>.
+#define CHECK_EQUAL_128(expected_h, expected_l, result) \
+  CHECK(Equal128(expected_h, expected_l, &core, result))
 
+#ifdef DEBUG
+#define CHECK_CONSTANT_POOL_SIZE(expected) \
+  CHECK_EQ(expected, __ GetConstantPoolEntriesSizeForTesting())
+#else
+#define CHECK_CONSTANT_POOL_SIZE(expected) ((void)0)
+#endif
 
 TEST(stack_ops) {
   INIT_V8();
   SETUP();
 
   START();
-  // save csp.
-  __ Mov(x29, csp);
+  // save sp.
+  __ Mov(x29, sp);
 
-  // Set the csp to a known value.
+  // Set the sp to a known value.
   __ Mov(x16, 0x1000);
-  __ Mov(csp, x16);
-  __ Mov(x0, csp);
+  __ Mov(sp, x16);
+  __ Mov(x0, sp);
 
-  // Add immediate to the csp, and move the result to a normal register.
-  __ Add(csp, csp, Operand(0x50));
-  __ Mov(x1, csp);
+  // Add immediate to the sp, and move the result to a normal register.
+  __ Add(sp, sp, Operand(0x50));
+  __ Mov(x1, sp);
 
-  // Add extended to the csp, and move the result to a normal register.
-  __ Mov(x17, 0xfff);
-  __ Add(csp, csp, Operand(x17, SXTB));
-  __ Mov(x2, csp);
+  // Add extended to the sp, and move the result to a normal register.
+  __ Mov(x17, 0xFFF);
+  __ Add(sp, sp, Operand(x17, SXTB));
+  __ Mov(x2, sp);
 
-  // Create an csp using a logical instruction, and move to normal register.
-  __ Orr(csp, xzr, Operand(0x1fff));
-  __ Mov(x3, csp);
+  // Create an sp using a logical instruction, and move to normal register.
+  __ Orr(sp, xzr, Operand(0x1FFF));
+  __ Mov(x3, sp);
 
-  // Write wcsp using a logical instruction.
-  __ Orr(wcsp, wzr, Operand(0xfffffff8L));
-  __ Mov(x4, csp);
+  // Write wsp using a logical instruction.
+  __ Orr(wsp, wzr, Operand(0xFFFFFFF8L));
+  __ Mov(x4, sp);
 
-  // Write csp, and read back wcsp.
-  __ Orr(csp, xzr, Operand(0xfffffff8L));
-  __ Mov(w5, wcsp);
+  // Write sp, and read back wsp.
+  __ Orr(sp, xzr, Operand(0xFFFFFFF8L));
+  __ Mov(w5, wsp);
 
-  //  restore csp.
-  __ Mov(csp, x29);
+  //  restore sp.
+  __ Mov(sp, x29);
   END();
 
   RUN();
 
   CHECK_EQUAL_64(0x1000, x0);
   CHECK_EQUAL_64(0x1050, x1);
-  CHECK_EQUAL_64(0x104f, x2);
-  CHECK_EQUAL_64(0x1fff, x3);
-  CHECK_EQUAL_64(0xfffffff8, x4);
-  CHECK_EQUAL_64(0xfffffff8, x5);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(0x104F, x2);
+  CHECK_EQUAL_64(0x1FFF, x3);
+  CHECK_EQUAL_64(0xFFFFFFF8, x4);
+  CHECK_EQUAL_64(0xFFFFFFF8, x5);
 }
-
 
 TEST(mvn) {
   INIT_V8();
   SETUP();
 
   START();
-  __ Mvn(w0, 0xfff);
-  __ Mvn(x1, 0xfff);
+  __ Mvn(w0, 0xFFF);
+  __ Mvn(x1, 0xFFF);
   __ Mvn(w2, Operand(w0, LSL, 1));
   __ Mvn(x3, Operand(x1, LSL, 2));
   __ Mvn(w4, Operand(w0, LSR, 3));
@@ -317,65 +332,62 @@ TEST(mvn) {
 
   RUN();
 
-  CHECK_EQUAL_64(0xfffff000, x0);
-  CHECK_EQUAL_64(0xfffffffffffff000UL, x1);
-  CHECK_EQUAL_64(0x00001fff, x2);
-  CHECK_EQUAL_64(0x0000000000003fffUL, x3);
-  CHECK_EQUAL_64(0xe00001ff, x4);
-  CHECK_EQUAL_64(0xf0000000000000ffUL, x5);
+  CHECK_EQUAL_64(0xFFFFF000, x0);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFF000UL, x1);
+  CHECK_EQUAL_64(0x00001FFF, x2);
+  CHECK_EQUAL_64(0x0000000000003FFFUL, x3);
+  CHECK_EQUAL_64(0xE00001FF, x4);
+  CHECK_EQUAL_64(0xF0000000000000FFUL, x5);
   CHECK_EQUAL_64(0x00000001, x6);
   CHECK_EQUAL_64(0x0, x7);
-  CHECK_EQUAL_64(0x7ff80000, x8);
-  CHECK_EQUAL_64(0x3ffc000000000000UL, x9);
-  CHECK_EQUAL_64(0xffffff00, x10);
+  CHECK_EQUAL_64(0x7FF80000, x8);
+  CHECK_EQUAL_64(0x3FFC000000000000UL, x9);
+  CHECK_EQUAL_64(0xFFFFFF00, x10);
   CHECK_EQUAL_64(0x0000000000000001UL, x11);
-  CHECK_EQUAL_64(0xffff8003, x12);
-  CHECK_EQUAL_64(0xffffffffffff0007UL, x13);
-  CHECK_EQUAL_64(0xfffffffffffe000fUL, x14);
-  CHECK_EQUAL_64(0xfffffffffffe000fUL, x15);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(0xFFFF8003, x12);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFF0007UL, x13);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFE000FUL, x14);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFE000FUL, x15);
 }
-
 
 TEST(mov) {
   INIT_V8();
   SETUP();
 
   START();
-  __ Mov(x0, 0xffffffffffffffffL);
-  __ Mov(x1, 0xffffffffffffffffL);
-  __ Mov(x2, 0xffffffffffffffffL);
-  __ Mov(x3, 0xffffffffffffffffL);
+  __ Mov(x0, 0xFFFFFFFFFFFFFFFFL);
+  __ Mov(x1, 0xFFFFFFFFFFFFFFFFL);
+  __ Mov(x2, 0xFFFFFFFFFFFFFFFFL);
+  __ Mov(x3, 0xFFFFFFFFFFFFFFFFL);
 
-  __ Mov(x0, 0x0123456789abcdefL);
+  __ Mov(x0, 0x0123456789ABCDEFL);
 
-  __ movz(x1, 0xabcdL << 16);
-  __ movk(x2, 0xabcdL << 32);
-  __ movn(x3, 0xabcdL << 48);
+  __ movz(x1, 0xABCDLL << 16);
+  __ movk(x2, 0xABCDLL << 32);
+  __ movn(x3, 0xABCDLL << 48);
 
-  __ Mov(x4, 0x0123456789abcdefL);
+  __ Mov(x4, 0x0123456789ABCDEFL);
   __ Mov(x5, x4);
 
   __ Mov(w6, -1);
 
   // Test that moves back to the same register have the desired effect. This
   // is a no-op for X registers, and a truncation for W registers.
-  __ Mov(x7, 0x0123456789abcdefL);
+  __ Mov(x7, 0x0123456789ABCDEFL);
   __ Mov(x7, x7);
-  __ Mov(x8, 0x0123456789abcdefL);
+  __ Mov(x8, 0x0123456789ABCDEFL);
   __ Mov(w8, w8);
-  __ Mov(x9, 0x0123456789abcdefL);
+  __ Mov(x9, 0x0123456789ABCDEFL);
   __ Mov(x9, Operand(x9));
-  __ Mov(x10, 0x0123456789abcdefL);
+  __ Mov(x10, 0x0123456789ABCDEFL);
   __ Mov(w10, Operand(w10));
 
-  __ Mov(w11, 0xfff);
-  __ Mov(x12, 0xfff);
+  __ Mov(w11, 0xFFF);
+  __ Mov(x12, 0xFFF);
   __ Mov(w13, Operand(w11, LSL, 1));
   __ Mov(x14, Operand(x12, LSL, 2));
   __ Mov(w15, Operand(w11, LSR, 3));
-  __ Mov(x18, Operand(x12, LSR, 4));
+  __ Mov(x28, Operand(x12, LSR, 4));
   __ Mov(w19, Operand(w11, ASR, 11));
   __ Mov(x20, Operand(x12, ASR, 12));
   __ Mov(w21, Operand(w11, ROR, 13));
@@ -389,144 +401,189 @@ TEST(mov) {
 
   RUN();
 
-  CHECK_EQUAL_64(0x0123456789abcdefL, x0);
-  CHECK_EQUAL_64(0x00000000abcd0000L, x1);
-  CHECK_EQUAL_64(0xffffabcdffffffffL, x2);
-  CHECK_EQUAL_64(0x5432ffffffffffffL, x3);
+  CHECK_EQUAL_64(0x0123456789ABCDEFL, x0);
+  CHECK_EQUAL_64(0x00000000ABCD0000L, x1);
+  CHECK_EQUAL_64(0xFFFFABCDFFFFFFFFL, x2);
+  CHECK_EQUAL_64(0x5432FFFFFFFFFFFFL, x3);
   CHECK_EQUAL_64(x4, x5);
   CHECK_EQUAL_32(-1, w6);
-  CHECK_EQUAL_64(0x0123456789abcdefL, x7);
-  CHECK_EQUAL_32(0x89abcdefL, w8);
-  CHECK_EQUAL_64(0x0123456789abcdefL, x9);
-  CHECK_EQUAL_32(0x89abcdefL, w10);
-  CHECK_EQUAL_64(0x00000fff, x11);
-  CHECK_EQUAL_64(0x0000000000000fffUL, x12);
-  CHECK_EQUAL_64(0x00001ffe, x13);
-  CHECK_EQUAL_64(0x0000000000003ffcUL, x14);
-  CHECK_EQUAL_64(0x000001ff, x15);
-  CHECK_EQUAL_64(0x00000000000000ffUL, x18);
+  CHECK_EQUAL_64(0x0123456789ABCDEFL, x7);
+  CHECK_EQUAL_32(0x89ABCDEFL, w8);
+  CHECK_EQUAL_64(0x0123456789ABCDEFL, x9);
+  CHECK_EQUAL_32(0x89ABCDEFL, w10);
+  CHECK_EQUAL_64(0x00000FFF, x11);
+  CHECK_EQUAL_64(0x0000000000000FFFUL, x12);
+  CHECK_EQUAL_64(0x00001FFE, x13);
+  CHECK_EQUAL_64(0x0000000000003FFCUL, x14);
+  CHECK_EQUAL_64(0x000001FF, x15);
+  CHECK_EQUAL_64(0x00000000000000FFUL, x28);
   CHECK_EQUAL_64(0x00000001, x19);
   CHECK_EQUAL_64(0x0, x20);
-  CHECK_EQUAL_64(0x7ff80000, x21);
-  CHECK_EQUAL_64(0x3ffc000000000000UL, x22);
-  CHECK_EQUAL_64(0x000000fe, x23);
-  CHECK_EQUAL_64(0xfffffffffffffffcUL, x24);
-  CHECK_EQUAL_64(0x00007ff8, x25);
-  CHECK_EQUAL_64(0x000000000000fff0UL, x26);
-  CHECK_EQUAL_64(0x000000000001ffe0UL, x27);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(0x7FF80000, x21);
+  CHECK_EQUAL_64(0x3FFC000000000000UL, x22);
+  CHECK_EQUAL_64(0x000000FE, x23);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFCUL, x24);
+  CHECK_EQUAL_64(0x00007FF8, x25);
+  CHECK_EQUAL_64(0x000000000000FFF0UL, x26);
+  CHECK_EQUAL_64(0x000000000001FFE0UL, x27);
 }
 
+TEST(move_pair) {
+  INIT_V8();
+  SETUP();
+
+  START();
+  __ Mov(x0, 0xabababab);
+  __ Mov(x1, 0xbabababa);
+  __ Mov(x2, 0x12341234);
+  __ Mov(x3, 0x43214321);
+
+  // No overlap:
+  //  x4 <- x0
+  //  x5 <- x1
+  __ MovePair(x4, x0, x5, x1);
+
+  // Overlap but we can swap moves:
+  //  x2 <- x0
+  //  x6 <- x2
+  __ MovePair(x2, x0, x6, x2);
+
+  // Overlap but can be done:
+  //  x7 <- x3
+  //  x3 <- x0
+  __ MovePair(x7, x3, x3, x0);
+
+  // Swap.
+  //  x0 <- x1
+  //  x1 <- x0
+  __ MovePair(x0, x1, x1, x0);
+
+  END();
+
+  RUN();
+
+  //  x4 <- x0
+  //  x5 <- x1
+  CHECK_EQUAL_64(0xabababab, x4);
+  CHECK_EQUAL_64(0xbabababa, x5);
+
+  //  x2 <- x0
+  //  x6 <- x2
+  CHECK_EQUAL_64(0xabababab, x2);
+  CHECK_EQUAL_64(0x12341234, x6);
+
+  //  x7 <- x3
+  //  x3 <- x0
+  CHECK_EQUAL_64(0x43214321, x7);
+  CHECK_EQUAL_64(0xabababab, x3);
+
+  // x0 and x1 should be swapped.
+  CHECK_EQUAL_64(0xbabababa, x0);
+  CHECK_EQUAL_64(0xabababab, x1);
+}
 
 TEST(mov_imm_w) {
   INIT_V8();
   SETUP();
 
   START();
-  __ Mov(w0, 0xffffffffL);
-  __ Mov(w1, 0xffff1234L);
-  __ Mov(w2, 0x1234ffffL);
+  __ Mov(w0, 0xFFFFFFFFL);
+  __ Mov(w1, 0xFFFF1234L);
+  __ Mov(w2, 0x1234FFFFL);
   __ Mov(w3, 0x00000000L);
   __ Mov(w4, 0x00001234L);
   __ Mov(w5, 0x12340000L);
   __ Mov(w6, 0x12345678L);
   __ Mov(w7, (int32_t)0x80000000);
-  __ Mov(w8, (int32_t)0xffff0000);
+  __ Mov(w8, (int32_t)0xFFFF0000);
   __ Mov(w9, kWMinInt);
   END();
 
   RUN();
 
-  CHECK_EQUAL_64(0xffffffffL, x0);
-  CHECK_EQUAL_64(0xffff1234L, x1);
-  CHECK_EQUAL_64(0x1234ffffL, x2);
+  CHECK_EQUAL_64(0xFFFFFFFFL, x0);
+  CHECK_EQUAL_64(0xFFFF1234L, x1);
+  CHECK_EQUAL_64(0x1234FFFFL, x2);
   CHECK_EQUAL_64(0x00000000L, x3);
   CHECK_EQUAL_64(0x00001234L, x4);
   CHECK_EQUAL_64(0x12340000L, x5);
   CHECK_EQUAL_64(0x12345678L, x6);
   CHECK_EQUAL_64(0x80000000L, x7);
-  CHECK_EQUAL_64(0xffff0000L, x8);
+  CHECK_EQUAL_64(0xFFFF0000L, x8);
   CHECK_EQUAL_32(kWMinInt, w9);
-
-  TEARDOWN();
 }
-
 
 TEST(mov_imm_x) {
   INIT_V8();
   SETUP();
 
   START();
-  __ Mov(x0, 0xffffffffffffffffL);
-  __ Mov(x1, 0xffffffffffff1234L);
-  __ Mov(x2, 0xffffffff12345678L);
-  __ Mov(x3, 0xffff1234ffff5678L);
-  __ Mov(x4, 0x1234ffffffff5678L);
-  __ Mov(x5, 0x1234ffff5678ffffL);
-  __ Mov(x6, 0x12345678ffffffffL);
-  __ Mov(x7, 0x1234ffffffffffffL);
-  __ Mov(x8, 0x123456789abcffffL);
-  __ Mov(x9, 0x12345678ffff9abcL);
-  __ Mov(x10, 0x1234ffff56789abcL);
-  __ Mov(x11, 0xffff123456789abcL);
+  __ Mov(x0, 0xFFFFFFFFFFFFFFFFL);
+  __ Mov(x1, 0xFFFFFFFFFFFF1234L);
+  __ Mov(x2, 0xFFFFFFFF12345678L);
+  __ Mov(x3, 0xFFFF1234FFFF5678L);
+  __ Mov(x4, 0x1234FFFFFFFF5678L);
+  __ Mov(x5, 0x1234FFFF5678FFFFL);
+  __ Mov(x6, 0x12345678FFFFFFFFL);
+  __ Mov(x7, 0x1234FFFFFFFFFFFFL);
+  __ Mov(x8, 0x123456789ABCFFFFL);
+  __ Mov(x9, 0x12345678FFFF9ABCL);
+  __ Mov(x10, 0x1234FFFF56789ABCL);
+  __ Mov(x11, 0xFFFF123456789ABCL);
   __ Mov(x12, 0x0000000000000000L);
   __ Mov(x13, 0x0000000000001234L);
   __ Mov(x14, 0x0000000012345678L);
   __ Mov(x15, 0x0000123400005678L);
-  __ Mov(x18, 0x1234000000005678L);
+  __ Mov(x30, 0x1234000000005678L);
   __ Mov(x19, 0x1234000056780000L);
   __ Mov(x20, 0x1234567800000000L);
   __ Mov(x21, 0x1234000000000000L);
-  __ Mov(x22, 0x123456789abc0000L);
-  __ Mov(x23, 0x1234567800009abcL);
-  __ Mov(x24, 0x1234000056789abcL);
-  __ Mov(x25, 0x0000123456789abcL);
-  __ Mov(x26, 0x123456789abcdef0L);
-  __ Mov(x27, 0xffff000000000001L);
-  __ Mov(x28, 0x8000ffff00000000L);
+  __ Mov(x22, 0x123456789ABC0000L);
+  __ Mov(x23, 0x1234567800009ABCL);
+  __ Mov(x24, 0x1234000056789ABCL);
+  __ Mov(x25, 0x0000123456789ABCL);
+  __ Mov(x26, 0x123456789ABCDEF0L);
+  __ Mov(x27, 0xFFFF000000000001L);
+  __ Mov(x28, 0x8000FFFF00000000L);
   END();
 
   RUN();
 
-  CHECK_EQUAL_64(0xffffffffffff1234L, x1);
-  CHECK_EQUAL_64(0xffffffff12345678L, x2);
-  CHECK_EQUAL_64(0xffff1234ffff5678L, x3);
-  CHECK_EQUAL_64(0x1234ffffffff5678L, x4);
-  CHECK_EQUAL_64(0x1234ffff5678ffffL, x5);
-  CHECK_EQUAL_64(0x12345678ffffffffL, x6);
-  CHECK_EQUAL_64(0x1234ffffffffffffL, x7);
-  CHECK_EQUAL_64(0x123456789abcffffL, x8);
-  CHECK_EQUAL_64(0x12345678ffff9abcL, x9);
-  CHECK_EQUAL_64(0x1234ffff56789abcL, x10);
-  CHECK_EQUAL_64(0xffff123456789abcL, x11);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFF1234L, x1);
+  CHECK_EQUAL_64(0xFFFFFFFF12345678L, x2);
+  CHECK_EQUAL_64(0xFFFF1234FFFF5678L, x3);
+  CHECK_EQUAL_64(0x1234FFFFFFFF5678L, x4);
+  CHECK_EQUAL_64(0x1234FFFF5678FFFFL, x5);
+  CHECK_EQUAL_64(0x12345678FFFFFFFFL, x6);
+  CHECK_EQUAL_64(0x1234FFFFFFFFFFFFL, x7);
+  CHECK_EQUAL_64(0x123456789ABCFFFFL, x8);
+  CHECK_EQUAL_64(0x12345678FFFF9ABCL, x9);
+  CHECK_EQUAL_64(0x1234FFFF56789ABCL, x10);
+  CHECK_EQUAL_64(0xFFFF123456789ABCL, x11);
   CHECK_EQUAL_64(0x0000000000000000L, x12);
   CHECK_EQUAL_64(0x0000000000001234L, x13);
   CHECK_EQUAL_64(0x0000000012345678L, x14);
   CHECK_EQUAL_64(0x0000123400005678L, x15);
-  CHECK_EQUAL_64(0x1234000000005678L, x18);
+  CHECK_EQUAL_64(0x1234000000005678L, x30);
   CHECK_EQUAL_64(0x1234000056780000L, x19);
   CHECK_EQUAL_64(0x1234567800000000L, x20);
   CHECK_EQUAL_64(0x1234000000000000L, x21);
-  CHECK_EQUAL_64(0x123456789abc0000L, x22);
-  CHECK_EQUAL_64(0x1234567800009abcL, x23);
-  CHECK_EQUAL_64(0x1234000056789abcL, x24);
-  CHECK_EQUAL_64(0x0000123456789abcL, x25);
-  CHECK_EQUAL_64(0x123456789abcdef0L, x26);
-  CHECK_EQUAL_64(0xffff000000000001L, x27);
-  CHECK_EQUAL_64(0x8000ffff00000000L, x28);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(0x123456789ABC0000L, x22);
+  CHECK_EQUAL_64(0x1234567800009ABCL, x23);
+  CHECK_EQUAL_64(0x1234000056789ABCL, x24);
+  CHECK_EQUAL_64(0x0000123456789ABCL, x25);
+  CHECK_EQUAL_64(0x123456789ABCDEF0L, x26);
+  CHECK_EQUAL_64(0xFFFF000000000001L, x27);
+  CHECK_EQUAL_64(0x8000FFFF00000000L, x28);
 }
-
 
 TEST(orr) {
   INIT_V8();
   SETUP();
 
   START();
-  __ Mov(x0, 0xf0f0);
-  __ Mov(x1, 0xf00000ff);
+  __ Mov(x0, 0xF0F0);
+  __ Mov(x1, 0xF00000FF);
 
   __ Orr(x2, x0, Operand(x1));
   __ Orr(w3, w0, Operand(w1, LSL, 28));
@@ -536,26 +593,23 @@ TEST(orr) {
   __ Orr(x7, x0, Operand(x1, ASR, 4));
   __ Orr(w8, w0, Operand(w1, ROR, 12));
   __ Orr(x9, x0, Operand(x1, ROR, 12));
-  __ Orr(w10, w0, Operand(0xf));
-  __ Orr(x11, x0, Operand(0xf0000000f0000000L));
+  __ Orr(w10, w0, Operand(0xF));
+  __ Orr(x11, x0, Operand(0xF0000000F0000000L));
   END();
 
   RUN();
 
-  CHECK_EQUAL_64(0xf000f0ff, x2);
-  CHECK_EQUAL_64(0xf000f0f0, x3);
-  CHECK_EQUAL_64(0xf00000ff0000f0f0L, x4);
-  CHECK_EQUAL_64(0x0f00f0ff, x5);
-  CHECK_EQUAL_64(0xff00f0ff, x6);
-  CHECK_EQUAL_64(0x0f00f0ff, x7);
-  CHECK_EQUAL_64(0x0ffff0f0, x8);
-  CHECK_EQUAL_64(0x0ff00000000ff0f0L, x9);
-  CHECK_EQUAL_64(0xf0ff, x10);
-  CHECK_EQUAL_64(0xf0000000f000f0f0L, x11);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(0xF000F0FF, x2);
+  CHECK_EQUAL_64(0xF000F0F0, x3);
+  CHECK_EQUAL_64(0xF00000FF0000F0F0L, x4);
+  CHECK_EQUAL_64(0x0F00F0FF, x5);
+  CHECK_EQUAL_64(0xFF00F0FF, x6);
+  CHECK_EQUAL_64(0x0F00F0FF, x7);
+  CHECK_EQUAL_64(0x0FFFF0F0, x8);
+  CHECK_EQUAL_64(0x0FF00000000FF0F0L, x9);
+  CHECK_EQUAL_64(0xF0FF, x10);
+  CHECK_EQUAL_64(0xF0000000F000F0F0L, x11);
 }
-
 
 TEST(orr_extend) {
   INIT_V8();
@@ -580,14 +634,11 @@ TEST(orr_extend) {
   CHECK_EQUAL_64(0x00010101, x7);
   CHECK_EQUAL_64(0x00020201, x8);
   CHECK_EQUAL_64(0x0000000400040401UL, x9);
-  CHECK_EQUAL_64(0x00000000ffffff81UL, x10);
-  CHECK_EQUAL_64(0xffffffffffff0101UL, x11);
-  CHECK_EQUAL_64(0xfffffffe00020201UL, x12);
+  CHECK_EQUAL_64(0x00000000FFFFFF81UL, x10);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFF0101UL, x11);
+  CHECK_EQUAL_64(0xFFFFFFFE00020201UL, x12);
   CHECK_EQUAL_64(0x0000000400040401UL, x13);
-
-  TEARDOWN();
 }
-
 
 TEST(bitwise_wide_imm) {
   INIT_V8();
@@ -595,10 +646,10 @@ TEST(bitwise_wide_imm) {
 
   START();
   __ Mov(x0, 0);
-  __ Mov(x1, 0xf0f0f0f0f0f0f0f0UL);
+  __ Mov(x1, 0xF0F0F0F0F0F0F0F0UL);
 
-  __ Orr(x10, x0, Operand(0x1234567890abcdefUL));
-  __ Orr(w11, w1, Operand(0x90abcdef));
+  __ Orr(x10, x0, Operand(0x1234567890ABCDEFUL));
+  __ Orr(w11, w1, Operand(0x90ABCDEF));
 
   __ Orr(w12, w0, kWMinInt);
   __ Eor(w13, w0, kWMinInt);
@@ -607,23 +658,20 @@ TEST(bitwise_wide_imm) {
   RUN();
 
   CHECK_EQUAL_64(0, x0);
-  CHECK_EQUAL_64(0xf0f0f0f0f0f0f0f0UL, x1);
-  CHECK_EQUAL_64(0x1234567890abcdefUL, x10);
-  CHECK_EQUAL_64(0xf0fbfdffUL, x11);
+  CHECK_EQUAL_64(0xF0F0F0F0F0F0F0F0UL, x1);
+  CHECK_EQUAL_64(0x1234567890ABCDEFUL, x10);
+  CHECK_EQUAL_64(0xF0FBFDFFUL, x11);
   CHECK_EQUAL_32(kWMinInt, w12);
   CHECK_EQUAL_32(kWMinInt, w13);
-
-  TEARDOWN();
 }
-
 
 TEST(orn) {
   INIT_V8();
   SETUP();
 
   START();
-  __ Mov(x0, 0xf0f0);
-  __ Mov(x1, 0xf00000ff);
+  __ Mov(x0, 0xF0F0);
+  __ Mov(x1, 0xF00000FF);
 
   __ Orn(x2, x0, Operand(x1));
   __ Orn(w3, w0, Operand(w1, LSL, 4));
@@ -633,26 +681,23 @@ TEST(orn) {
   __ Orn(x7, x0, Operand(x1, ASR, 1));
   __ Orn(w8, w0, Operand(w1, ROR, 16));
   __ Orn(x9, x0, Operand(x1, ROR, 16));
-  __ Orn(w10, w0, Operand(0xffff));
-  __ Orn(x11, x0, Operand(0xffff0000ffffL));
+  __ Orn(w10, w0, Operand(0xFFFF));
+  __ Orn(x11, x0, Operand(0xFFFF0000FFFFL));
   END();
 
   RUN();
 
-  CHECK_EQUAL_64(0xffffffff0ffffff0L, x2);
-  CHECK_EQUAL_64(0xfffff0ff, x3);
-  CHECK_EQUAL_64(0xfffffff0fffff0ffL, x4);
-  CHECK_EQUAL_64(0xffffffff87fffff0L, x5);
-  CHECK_EQUAL_64(0x07fffff0, x6);
-  CHECK_EQUAL_64(0xffffffff87fffff0L, x7);
-  CHECK_EQUAL_64(0xff00ffff, x8);
-  CHECK_EQUAL_64(0xff00ffffffffffffL, x9);
-  CHECK_EQUAL_64(0xfffff0f0, x10);
-  CHECK_EQUAL_64(0xffff0000fffff0f0L, x11);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(0xFFFFFFFF0FFFFFF0L, x2);
+  CHECK_EQUAL_64(0xFFFFF0FF, x3);
+  CHECK_EQUAL_64(0xFFFFFFF0FFFFF0FFL, x4);
+  CHECK_EQUAL_64(0xFFFFFFFF87FFFFF0L, x5);
+  CHECK_EQUAL_64(0x07FFFFF0, x6);
+  CHECK_EQUAL_64(0xFFFFFFFF87FFFFF0L, x7);
+  CHECK_EQUAL_64(0xFF00FFFF, x8);
+  CHECK_EQUAL_64(0xFF00FFFFFFFFFFFFL, x9);
+  CHECK_EQUAL_64(0xFFFFF0F0, x10);
+  CHECK_EQUAL_64(0xFFFF0000FFFFF0F0L, x11);
 }
-
 
 TEST(orn_extend) {
   INIT_V8();
@@ -673,26 +718,23 @@ TEST(orn_extend) {
 
   RUN();
 
-  CHECK_EQUAL_64(0xffffff7f, x6);
-  CHECK_EQUAL_64(0xfffffffffffefefdUL, x7);
-  CHECK_EQUAL_64(0xfffdfdfb, x8);
-  CHECK_EQUAL_64(0xfffffffbfffbfbf7UL, x9);
-  CHECK_EQUAL_64(0x0000007f, x10);
-  CHECK_EQUAL_64(0x0000fefd, x11);
-  CHECK_EQUAL_64(0x00000001fffdfdfbUL, x12);
-  CHECK_EQUAL_64(0xfffffffbfffbfbf7UL, x13);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(0xFFFFFF7F, x6);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFEFEFDUL, x7);
+  CHECK_EQUAL_64(0xFFFDFDFB, x8);
+  CHECK_EQUAL_64(0xFFFFFFFBFFFBFBF7UL, x9);
+  CHECK_EQUAL_64(0x0000007F, x10);
+  CHECK_EQUAL_64(0x0000FEFD, x11);
+  CHECK_EQUAL_64(0x00000001FFFDFDFBUL, x12);
+  CHECK_EQUAL_64(0xFFFFFFFBFFFBFBF7UL, x13);
 }
-
 
 TEST(and_) {
   INIT_V8();
   SETUP();
 
   START();
-  __ Mov(x0, 0xfff0);
-  __ Mov(x1, 0xf00000ff);
+  __ Mov(x0, 0xFFF0);
+  __ Mov(x1, 0xF00000FF);
 
   __ And(x2, x0, Operand(x1));
   __ And(w3, w0, Operand(w1, LSL, 4));
@@ -702,33 +744,30 @@ TEST(and_) {
   __ And(x7, x0, Operand(x1, ASR, 20));
   __ And(w8, w0, Operand(w1, ROR, 28));
   __ And(x9, x0, Operand(x1, ROR, 28));
-  __ And(w10, w0, Operand(0xff00));
-  __ And(x11, x0, Operand(0xff));
+  __ And(w10, w0, Operand(0xFF00));
+  __ And(x11, x0, Operand(0xFF));
   END();
 
   RUN();
 
-  CHECK_EQUAL_64(0x000000f0, x2);
-  CHECK_EQUAL_64(0x00000ff0, x3);
-  CHECK_EQUAL_64(0x00000ff0, x4);
+  CHECK_EQUAL_64(0x000000F0, x2);
+  CHECK_EQUAL_64(0x00000FF0, x3);
+  CHECK_EQUAL_64(0x00000FF0, x4);
   CHECK_EQUAL_64(0x00000070, x5);
-  CHECK_EQUAL_64(0x0000ff00, x6);
-  CHECK_EQUAL_64(0x00000f00, x7);
-  CHECK_EQUAL_64(0x00000ff0, x8);
+  CHECK_EQUAL_64(0x0000FF00, x6);
+  CHECK_EQUAL_64(0x00000F00, x7);
+  CHECK_EQUAL_64(0x00000FF0, x8);
   CHECK_EQUAL_64(0x00000000, x9);
-  CHECK_EQUAL_64(0x0000ff00, x10);
-  CHECK_EQUAL_64(0x000000f0, x11);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(0x0000FF00, x10);
+  CHECK_EQUAL_64(0x000000F0, x11);
 }
-
 
 TEST(and_extend) {
   INIT_V8();
   SETUP();
 
   START();
-  __ Mov(x0, 0xffffffffffffffffUL);
+  __ Mov(x0, 0xFFFFFFFFFFFFFFFFUL);
   __ Mov(x1, 0x8000000080008081UL);
   __ And(w6, w0, Operand(w1, UXTB));
   __ And(x7, x0, Operand(x1, UXTH, 1));
@@ -746,32 +785,29 @@ TEST(and_extend) {
   CHECK_EQUAL_64(0x00010102, x7);
   CHECK_EQUAL_64(0x00020204, x8);
   CHECK_EQUAL_64(0x0000000400040408UL, x9);
-  CHECK_EQUAL_64(0xffffff81, x10);
-  CHECK_EQUAL_64(0xffffffffffff0102UL, x11);
-  CHECK_EQUAL_64(0xfffffffe00020204UL, x12);
+  CHECK_EQUAL_64(0xFFFFFF81, x10);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFF0102UL, x11);
+  CHECK_EQUAL_64(0xFFFFFFFE00020204UL, x12);
   CHECK_EQUAL_64(0x0000000400040408UL, x13);
-
-  TEARDOWN();
 }
-
 
 TEST(ands) {
   INIT_V8();
   SETUP();
 
   START();
-  __ Mov(x1, 0xf00000ff);
+  __ Mov(x1, 0xF00000FF);
   __ Ands(w0, w1, Operand(w1));
   END();
 
   RUN();
 
   CHECK_EQUAL_NZCV(NFlag);
-  CHECK_EQUAL_64(0xf00000ff, x0);
+  CHECK_EQUAL_64(0xF00000FF, x0);
 
   START();
-  __ Mov(x0, 0xfff0);
-  __ Mov(x1, 0xf00000ff);
+  __ Mov(x0, 0xFFF0);
+  __ Mov(x1, 0xF00000FF);
   __ Ands(w0, w0, Operand(w1, LSR, 4));
   END();
 
@@ -792,8 +828,8 @@ TEST(ands) {
   CHECK_EQUAL_64(0x8000000000000000L, x0);
 
   START();
-  __ Mov(x0, 0xfff0);
-  __ Ands(w0, w0, Operand(0xf));
+  __ Mov(x0, 0xFFF0);
+  __ Ands(w0, w0, Operand(0xF));
   END();
 
   RUN();
@@ -802,7 +838,7 @@ TEST(ands) {
   CHECK_EQUAL_64(0x00000000, x0);
 
   START();
-  __ Mov(x0, 0xff000000);
+  __ Mov(x0, 0xFF000000);
   __ Ands(w0, w0, Operand(0x80000000));
   END();
 
@@ -810,18 +846,15 @@ TEST(ands) {
 
   CHECK_EQUAL_NZCV(NFlag);
   CHECK_EQUAL_64(0x80000000, x0);
-
-  TEARDOWN();
 }
-
 
 TEST(bic) {
   INIT_V8();
   SETUP();
 
   START();
-  __ Mov(x0, 0xfff0);
-  __ Mov(x1, 0xf00000ff);
+  __ Mov(x0, 0xFFF0);
+  __ Mov(x1, 0xF00000FF);
 
   __ Bic(x2, x0, Operand(x1));
   __ Bic(w3, w0, Operand(w1, LSL, 4));
@@ -831,45 +864,42 @@ TEST(bic) {
   __ Bic(x7, x0, Operand(x1, ASR, 20));
   __ Bic(w8, w0, Operand(w1, ROR, 28));
   __ Bic(x9, x0, Operand(x1, ROR, 24));
-  __ Bic(x10, x0, Operand(0x1f));
+  __ Bic(x10, x0, Operand(0x1F));
   __ Bic(x11, x0, Operand(0x100));
 
-  // Test bic into csp when the constant cannot be encoded in the immediate
+  // Test bic into sp when the constant cannot be encoded in the immediate
   // field.
-  // Use x20 to preserve csp. We check for the result via x21 because the
-  // test infrastructure requires that csp be restored to its original value.
-  __ Mov(x20, csp);
-  __ Mov(x0, 0xffffff);
-  __ Bic(csp, x0, Operand(0xabcdef));
-  __ Mov(x21, csp);
-  __ Mov(csp, x20);
+  // Use x20 to preserve sp. We check for the result via x21 because the
+  // test infrastructure requires that sp be restored to its original value.
+  __ Mov(x20, sp);
+  __ Mov(x0, 0xFFFFFF);
+  __ Bic(sp, x0, Operand(0xABCDEF));
+  __ Mov(x21, sp);
+  __ Mov(sp, x20);
   END();
 
   RUN();
 
-  CHECK_EQUAL_64(0x0000ff00, x2);
-  CHECK_EQUAL_64(0x0000f000, x3);
-  CHECK_EQUAL_64(0x0000f000, x4);
-  CHECK_EQUAL_64(0x0000ff80, x5);
-  CHECK_EQUAL_64(0x000000f0, x6);
-  CHECK_EQUAL_64(0x0000f0f0, x7);
-  CHECK_EQUAL_64(0x0000f000, x8);
-  CHECK_EQUAL_64(0x0000ff00, x9);
-  CHECK_EQUAL_64(0x0000ffe0, x10);
-  CHECK_EQUAL_64(0x0000fef0, x11);
+  CHECK_EQUAL_64(0x0000FF00, x2);
+  CHECK_EQUAL_64(0x0000F000, x3);
+  CHECK_EQUAL_64(0x0000F000, x4);
+  CHECK_EQUAL_64(0x0000FF80, x5);
+  CHECK_EQUAL_64(0x000000F0, x6);
+  CHECK_EQUAL_64(0x0000F0F0, x7);
+  CHECK_EQUAL_64(0x0000F000, x8);
+  CHECK_EQUAL_64(0x0000FF00, x9);
+  CHECK_EQUAL_64(0x0000FFE0, x10);
+  CHECK_EQUAL_64(0x0000FEF0, x11);
 
   CHECK_EQUAL_64(0x543210, x21);
-
-  TEARDOWN();
 }
-
 
 TEST(bic_extend) {
   INIT_V8();
   SETUP();
 
   START();
-  __ Mov(x0, 0xffffffffffffffffUL);
+  __ Mov(x0, 0xFFFFFFFFFFFFFFFFUL);
   __ Mov(x1, 0x8000000080008081UL);
   __ Bic(w6, w0, Operand(w1, UXTB));
   __ Bic(x7, x0, Operand(x1, UXTH, 1));
@@ -883,25 +913,22 @@ TEST(bic_extend) {
 
   RUN();
 
-  CHECK_EQUAL_64(0xffffff7e, x6);
-  CHECK_EQUAL_64(0xfffffffffffefefdUL, x7);
-  CHECK_EQUAL_64(0xfffdfdfb, x8);
-  CHECK_EQUAL_64(0xfffffffbfffbfbf7UL, x9);
-  CHECK_EQUAL_64(0x0000007e, x10);
-  CHECK_EQUAL_64(0x0000fefd, x11);
-  CHECK_EQUAL_64(0x00000001fffdfdfbUL, x12);
-  CHECK_EQUAL_64(0xfffffffbfffbfbf7UL, x13);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(0xFFFFFF7E, x6);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFEFEFDUL, x7);
+  CHECK_EQUAL_64(0xFFFDFDFB, x8);
+  CHECK_EQUAL_64(0xFFFFFFFBFFFBFBF7UL, x9);
+  CHECK_EQUAL_64(0x0000007E, x10);
+  CHECK_EQUAL_64(0x0000FEFD, x11);
+  CHECK_EQUAL_64(0x00000001FFFDFDFBUL, x12);
+  CHECK_EQUAL_64(0xFFFFFFFBFFFBFBF7UL, x13);
 }
-
 
 TEST(bics) {
   INIT_V8();
   SETUP();
 
   START();
-  __ Mov(x1, 0xffff);
+  __ Mov(x1, 0xFFFF);
   __ Bics(w0, w1, Operand(w1));
   END();
 
@@ -911,7 +938,7 @@ TEST(bics) {
   CHECK_EQUAL_64(0x00000000, x0);
 
   START();
-  __ Mov(x0, 0xffffffff);
+  __ Mov(x0, 0xFFFFFFFF);
   __ Bics(w0, w0, Operand(w0, LSR, 1));
   END();
 
@@ -932,8 +959,8 @@ TEST(bics) {
   CHECK_EQUAL_64(0x00000000, x0);
 
   START();
-  __ Mov(x0, 0xffffffffffffffffL);
-  __ Bics(x0, x0, Operand(0x7fffffffffffffffL));
+  __ Mov(x0, 0xFFFFFFFFFFFFFFFFL);
+  __ Bics(x0, x0, Operand(0x7FFFFFFFFFFFFFFFL));
   END();
 
   RUN();
@@ -942,26 +969,23 @@ TEST(bics) {
   CHECK_EQUAL_64(0x8000000000000000L, x0);
 
   START();
-  __ Mov(w0, 0xffff0000);
-  __ Bics(w0, w0, Operand(0xfffffff0));
+  __ Mov(w0, 0xFFFF0000);
+  __ Bics(w0, w0, Operand(0xFFFFFFF0));
   END();
 
   RUN();
 
   CHECK_EQUAL_NZCV(ZFlag);
   CHECK_EQUAL_64(0x00000000, x0);
-
-  TEARDOWN();
 }
-
 
 TEST(eor) {
   INIT_V8();
   SETUP();
 
   START();
-  __ Mov(x0, 0xfff0);
-  __ Mov(x1, 0xf00000ff);
+  __ Mov(x0, 0xFFF0);
+  __ Mov(x1, 0xF00000FF);
 
   __ Eor(x2, x0, Operand(x1));
   __ Eor(w3, w0, Operand(w1, LSL, 4));
@@ -971,26 +995,23 @@ TEST(eor) {
   __ Eor(x7, x0, Operand(x1, ASR, 20));
   __ Eor(w8, w0, Operand(w1, ROR, 28));
   __ Eor(x9, x0, Operand(x1, ROR, 28));
-  __ Eor(w10, w0, Operand(0xff00ff00));
-  __ Eor(x11, x0, Operand(0xff00ff00ff00ff00L));
+  __ Eor(w10, w0, Operand(0xFF00FF00));
+  __ Eor(x11, x0, Operand(0xFF00FF00FF00FF00L));
   END();
 
   RUN();
 
-  CHECK_EQUAL_64(0xf000ff0f, x2);
-  CHECK_EQUAL_64(0x0000f000, x3);
-  CHECK_EQUAL_64(0x0000000f0000f000L, x4);
-  CHECK_EQUAL_64(0x7800ff8f, x5);
-  CHECK_EQUAL_64(0xffff00f0, x6);
-  CHECK_EQUAL_64(0x0000f0f0, x7);
-  CHECK_EQUAL_64(0x0000f00f, x8);
-  CHECK_EQUAL_64(0x00000ff00000ffffL, x9);
-  CHECK_EQUAL_64(0xff0000f0, x10);
-  CHECK_EQUAL_64(0xff00ff00ff0000f0L, x11);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(0xF000FF0F, x2);
+  CHECK_EQUAL_64(0x0000F000, x3);
+  CHECK_EQUAL_64(0x0000000F0000F000L, x4);
+  CHECK_EQUAL_64(0x7800FF8F, x5);
+  CHECK_EQUAL_64(0xFFFF00F0, x6);
+  CHECK_EQUAL_64(0x0000F0F0, x7);
+  CHECK_EQUAL_64(0x0000F00F, x8);
+  CHECK_EQUAL_64(0x00000FF00000FFFFL, x9);
+  CHECK_EQUAL_64(0xFF0000F0, x10);
+  CHECK_EQUAL_64(0xFF00FF00FF0000F0L, x11);
 }
-
 
 TEST(eor_extend) {
   INIT_V8();
@@ -1015,22 +1036,19 @@ TEST(eor_extend) {
   CHECK_EQUAL_64(0x1111111111101013UL, x7);
   CHECK_EQUAL_64(0x11131315, x8);
   CHECK_EQUAL_64(0x1111111511151519UL, x9);
-  CHECK_EQUAL_64(0xeeeeee90, x10);
-  CHECK_EQUAL_64(0xeeeeeeeeeeee1013UL, x11);
-  CHECK_EQUAL_64(0xeeeeeeef11131315UL, x12);
+  CHECK_EQUAL_64(0xEEEEEE90, x10);
+  CHECK_EQUAL_64(0xEEEEEEEEEEEE1013UL, x11);
+  CHECK_EQUAL_64(0xEEEEEEEF11131315UL, x12);
   CHECK_EQUAL_64(0x1111111511151519UL, x13);
-
-  TEARDOWN();
 }
-
 
 TEST(eon) {
   INIT_V8();
   SETUP();
 
   START();
-  __ Mov(x0, 0xfff0);
-  __ Mov(x1, 0xf00000ff);
+  __ Mov(x0, 0xFFF0);
+  __ Mov(x1, 0xF00000FF);
 
   __ Eon(x2, x0, Operand(x1));
   __ Eon(w3, w0, Operand(w1, LSL, 4));
@@ -1040,26 +1058,23 @@ TEST(eon) {
   __ Eon(x7, x0, Operand(x1, ASR, 20));
   __ Eon(w8, w0, Operand(w1, ROR, 28));
   __ Eon(x9, x0, Operand(x1, ROR, 28));
-  __ Eon(w10, w0, Operand(0x03c003c0));
+  __ Eon(w10, w0, Operand(0x03C003C0));
   __ Eon(x11, x0, Operand(0x0000100000001000L));
   END();
 
   RUN();
 
-  CHECK_EQUAL_64(0xffffffff0fff00f0L, x2);
-  CHECK_EQUAL_64(0xffff0fff, x3);
-  CHECK_EQUAL_64(0xfffffff0ffff0fffL, x4);
-  CHECK_EQUAL_64(0xffffffff87ff0070L, x5);
-  CHECK_EQUAL_64(0x0000ff0f, x6);
-  CHECK_EQUAL_64(0xffffffffffff0f0fL, x7);
-  CHECK_EQUAL_64(0xffff0ff0, x8);
-  CHECK_EQUAL_64(0xfffff00fffff0000L, x9);
-  CHECK_EQUAL_64(0xfc3f03cf, x10);
-  CHECK_EQUAL_64(0xffffefffffff100fL, x11);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(0xFFFFFFFF0FFF00F0L, x2);
+  CHECK_EQUAL_64(0xFFFF0FFF, x3);
+  CHECK_EQUAL_64(0xFFFFFFF0FFFF0FFFL, x4);
+  CHECK_EQUAL_64(0xFFFFFFFF87FF0070L, x5);
+  CHECK_EQUAL_64(0x0000FF0F, x6);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFF0F0FL, x7);
+  CHECK_EQUAL_64(0xFFFF0FF0, x8);
+  CHECK_EQUAL_64(0xFFFFF00FFFFF0000L, x9);
+  CHECK_EQUAL_64(0xFC3F03CF, x10);
+  CHECK_EQUAL_64(0xFFFFEFFFFFFF100FL, x11);
 }
-
 
 TEST(eon_extend) {
   INIT_V8();
@@ -1080,18 +1095,15 @@ TEST(eon_extend) {
 
   RUN();
 
-  CHECK_EQUAL_64(0xeeeeee6f, x6);
-  CHECK_EQUAL_64(0xeeeeeeeeeeefefecUL, x7);
-  CHECK_EQUAL_64(0xeeececea, x8);
-  CHECK_EQUAL_64(0xeeeeeeeaeeeaeae6UL, x9);
-  CHECK_EQUAL_64(0x1111116f, x10);
-  CHECK_EQUAL_64(0x111111111111efecUL, x11);
-  CHECK_EQUAL_64(0x11111110eeececeaUL, x12);
-  CHECK_EQUAL_64(0xeeeeeeeaeeeaeae6UL, x13);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(0xEEEEEE6F, x6);
+  CHECK_EQUAL_64(0xEEEEEEEEEEEFEFECUL, x7);
+  CHECK_EQUAL_64(0xEEECECEA, x8);
+  CHECK_EQUAL_64(0xEEEEEEEAEEEAEAE6UL, x9);
+  CHECK_EQUAL_64(0x1111116F, x10);
+  CHECK_EQUAL_64(0x111111111111EFECUL, x11);
+  CHECK_EQUAL_64(0x11111110EEECECEAUL, x12);
+  CHECK_EQUAL_64(0xEEEEEEEAEEEAEAE6UL, x13);
 }
-
 
 TEST(mul) {
   INIT_V8();
@@ -1100,27 +1112,27 @@ TEST(mul) {
   START();
   __ Mov(x16, 0);
   __ Mov(x17, 1);
-  __ Mov(x18, 0xffffffff);
-  __ Mov(x19, 0xffffffffffffffffUL);
+  __ Mov(x15, 0xFFFFFFFF);
+  __ Mov(x19, 0xFFFFFFFFFFFFFFFFUL);
 
   __ Mul(w0, w16, w16);
   __ Mul(w1, w16, w17);
-  __ Mul(w2, w17, w18);
-  __ Mul(w3, w18, w19);
+  __ Mul(w2, w17, w15);
+  __ Mul(w3, w15, w19);
   __ Mul(x4, x16, x16);
-  __ Mul(x5, x17, x18);
-  __ Mul(x6, x18, x19);
+  __ Mul(x5, x17, x15);
+  __ Mul(x6, x15, x19);
   __ Mul(x7, x19, x19);
-  __ Smull(x8, w17, w18);
-  __ Smull(x9, w18, w18);
+  __ Smull(x8, w17, w15);
+  __ Smull(x9, w15, w15);
   __ Smull(x10, w19, w19);
   __ Mneg(w11, w16, w16);
   __ Mneg(w12, w16, w17);
-  __ Mneg(w13, w17, w18);
-  __ Mneg(w14, w18, w19);
+  __ Mneg(w13, w17, w15);
+  __ Mneg(w14, w15, w19);
   __ Mneg(x20, x16, x16);
-  __ Mneg(x21, x17, x18);
-  __ Mneg(x22, x18, x19);
+  __ Mneg(x21, x17, x15);
+  __ Mneg(x22, x15, x19);
   __ Mneg(x23, x19, x19);
   END();
 
@@ -1128,27 +1140,24 @@ TEST(mul) {
 
   CHECK_EQUAL_64(0, x0);
   CHECK_EQUAL_64(0, x1);
-  CHECK_EQUAL_64(0xffffffff, x2);
+  CHECK_EQUAL_64(0xFFFFFFFF, x2);
   CHECK_EQUAL_64(1, x3);
   CHECK_EQUAL_64(0, x4);
-  CHECK_EQUAL_64(0xffffffff, x5);
-  CHECK_EQUAL_64(0xffffffff00000001UL, x6);
+  CHECK_EQUAL_64(0xFFFFFFFF, x5);
+  CHECK_EQUAL_64(0xFFFFFFFF00000001UL, x6);
   CHECK_EQUAL_64(1, x7);
-  CHECK_EQUAL_64(0xffffffffffffffffUL, x8);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x8);
   CHECK_EQUAL_64(1, x9);
   CHECK_EQUAL_64(1, x10);
   CHECK_EQUAL_64(0, x11);
   CHECK_EQUAL_64(0, x12);
   CHECK_EQUAL_64(1, x13);
-  CHECK_EQUAL_64(0xffffffff, x14);
+  CHECK_EQUAL_64(0xFFFFFFFF, x14);
   CHECK_EQUAL_64(0, x20);
-  CHECK_EQUAL_64(0xffffffff00000001UL, x21);
-  CHECK_EQUAL_64(0xffffffff, x22);
-  CHECK_EQUAL_64(0xffffffffffffffffUL, x23);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(0xFFFFFFFF00000001UL, x21);
+  CHECK_EQUAL_64(0xFFFFFFFF, x22);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x23);
 }
-
 
 static void SmullHelper(int64_t expected, int64_t a, int64_t b) {
   SETUP();
@@ -1159,9 +1168,7 @@ static void SmullHelper(int64_t expected, int64_t a, int64_t b) {
   END();
   RUN();
   CHECK_EQUAL_64(expected, x2);
-  TEARDOWN();
 }
-
 
 TEST(smull) {
   INIT_V8();
@@ -1169,10 +1176,9 @@ TEST(smull) {
   SmullHelper(1, 1, 1);
   SmullHelper(-1, -1, 1);
   SmullHelper(1, -1, -1);
-  SmullHelper(0xffffffff80000000, 0x80000000, 1);
+  SmullHelper(0xFFFFFFFF80000000, 0x80000000, 1);
   SmullHelper(0x0000000080000000, 0x00010000, 0x00008000);
 }
-
 
 TEST(madd) {
   INIT_V8();
@@ -1181,33 +1187,33 @@ TEST(madd) {
   START();
   __ Mov(x16, 0);
   __ Mov(x17, 1);
-  __ Mov(x18, 0xffffffff);
-  __ Mov(x19, 0xffffffffffffffffUL);
+  __ Mov(x28, 0xFFFFFFFF);
+  __ Mov(x19, 0xFFFFFFFFFFFFFFFFUL);
 
   __ Madd(w0, w16, w16, w16);
   __ Madd(w1, w16, w16, w17);
-  __ Madd(w2, w16, w16, w18);
+  __ Madd(w2, w16, w16, w28);
   __ Madd(w3, w16, w16, w19);
   __ Madd(w4, w16, w17, w17);
-  __ Madd(w5, w17, w17, w18);
+  __ Madd(w5, w17, w17, w28);
   __ Madd(w6, w17, w17, w19);
-  __ Madd(w7, w17, w18, w16);
-  __ Madd(w8, w17, w18, w18);
-  __ Madd(w9, w18, w18, w17);
-  __ Madd(w10, w18, w19, w18);
+  __ Madd(w7, w17, w28, w16);
+  __ Madd(w8, w17, w28, w28);
+  __ Madd(w9, w28, w28, w17);
+  __ Madd(w10, w28, w19, w28);
   __ Madd(w11, w19, w19, w19);
 
   __ Madd(x12, x16, x16, x16);
   __ Madd(x13, x16, x16, x17);
-  __ Madd(x14, x16, x16, x18);
+  __ Madd(x14, x16, x16, x28);
   __ Madd(x15, x16, x16, x19);
   __ Madd(x20, x16, x17, x17);
-  __ Madd(x21, x17, x17, x18);
+  __ Madd(x21, x17, x17, x28);
   __ Madd(x22, x17, x17, x19);
-  __ Madd(x23, x17, x18, x16);
-  __ Madd(x24, x17, x18, x18);
-  __ Madd(x25, x18, x18, x17);
-  __ Madd(x26, x18, x19, x18);
+  __ Madd(x23, x17, x28, x16);
+  __ Madd(x24, x17, x28, x28);
+  __ Madd(x25, x28, x28, x17);
+  __ Madd(x26, x28, x19, x28);
   __ Madd(x27, x19, x19, x19);
 
   END();
@@ -1216,33 +1222,30 @@ TEST(madd) {
 
   CHECK_EQUAL_64(0, x0);
   CHECK_EQUAL_64(1, x1);
-  CHECK_EQUAL_64(0xffffffff, x2);
-  CHECK_EQUAL_64(0xffffffff, x3);
+  CHECK_EQUAL_64(0xFFFFFFFF, x2);
+  CHECK_EQUAL_64(0xFFFFFFFF, x3);
   CHECK_EQUAL_64(1, x4);
   CHECK_EQUAL_64(0, x5);
   CHECK_EQUAL_64(0, x6);
-  CHECK_EQUAL_64(0xffffffff, x7);
-  CHECK_EQUAL_64(0xfffffffe, x8);
+  CHECK_EQUAL_64(0xFFFFFFFF, x7);
+  CHECK_EQUAL_64(0xFFFFFFFE, x8);
   CHECK_EQUAL_64(2, x9);
   CHECK_EQUAL_64(0, x10);
   CHECK_EQUAL_64(0, x11);
 
   CHECK_EQUAL_64(0, x12);
   CHECK_EQUAL_64(1, x13);
-  CHECK_EQUAL_64(0xffffffff, x14);
-  CHECK_EQUAL_64(0xffffffffffffffff, x15);
+  CHECK_EQUAL_64(0xFFFFFFFF, x14);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFF, x15);
   CHECK_EQUAL_64(1, x20);
   CHECK_EQUAL_64(0x100000000UL, x21);
   CHECK_EQUAL_64(0, x22);
-  CHECK_EQUAL_64(0xffffffff, x23);
-  CHECK_EQUAL_64(0x1fffffffe, x24);
-  CHECK_EQUAL_64(0xfffffffe00000002UL, x25);
+  CHECK_EQUAL_64(0xFFFFFFFF, x23);
+  CHECK_EQUAL_64(0x1FFFFFFFE, x24);
+  CHECK_EQUAL_64(0xFFFFFFFE00000002UL, x25);
   CHECK_EQUAL_64(0, x26);
   CHECK_EQUAL_64(0, x27);
-
-  TEARDOWN();
 }
-
 
 TEST(msub) {
   INIT_V8();
@@ -1251,33 +1254,33 @@ TEST(msub) {
   START();
   __ Mov(x16, 0);
   __ Mov(x17, 1);
-  __ Mov(x18, 0xffffffff);
-  __ Mov(x19, 0xffffffffffffffffUL);
+  __ Mov(x28, 0xFFFFFFFF);
+  __ Mov(x19, 0xFFFFFFFFFFFFFFFFUL);
 
   __ Msub(w0, w16, w16, w16);
   __ Msub(w1, w16, w16, w17);
-  __ Msub(w2, w16, w16, w18);
+  __ Msub(w2, w16, w16, w28);
   __ Msub(w3, w16, w16, w19);
   __ Msub(w4, w16, w17, w17);
-  __ Msub(w5, w17, w17, w18);
+  __ Msub(w5, w17, w17, w28);
   __ Msub(w6, w17, w17, w19);
-  __ Msub(w7, w17, w18, w16);
-  __ Msub(w8, w17, w18, w18);
-  __ Msub(w9, w18, w18, w17);
-  __ Msub(w10, w18, w19, w18);
+  __ Msub(w7, w17, w28, w16);
+  __ Msub(w8, w17, w28, w28);
+  __ Msub(w9, w28, w28, w17);
+  __ Msub(w10, w28, w19, w28);
   __ Msub(w11, w19, w19, w19);
 
   __ Msub(x12, x16, x16, x16);
   __ Msub(x13, x16, x16, x17);
-  __ Msub(x14, x16, x16, x18);
+  __ Msub(x14, x16, x16, x28);
   __ Msub(x15, x16, x16, x19);
   __ Msub(x20, x16, x17, x17);
-  __ Msub(x21, x17, x17, x18);
+  __ Msub(x21, x17, x17, x28);
   __ Msub(x22, x17, x17, x19);
-  __ Msub(x23, x17, x18, x16);
-  __ Msub(x24, x17, x18, x18);
-  __ Msub(x25, x18, x18, x17);
-  __ Msub(x26, x18, x19, x18);
+  __ Msub(x23, x17, x28, x16);
+  __ Msub(x24, x17, x28, x28);
+  __ Msub(x25, x28, x28, x17);
+  __ Msub(x26, x28, x19, x28);
   __ Msub(x27, x19, x19, x19);
 
   END();
@@ -1286,33 +1289,30 @@ TEST(msub) {
 
   CHECK_EQUAL_64(0, x0);
   CHECK_EQUAL_64(1, x1);
-  CHECK_EQUAL_64(0xffffffff, x2);
-  CHECK_EQUAL_64(0xffffffff, x3);
+  CHECK_EQUAL_64(0xFFFFFFFF, x2);
+  CHECK_EQUAL_64(0xFFFFFFFF, x3);
   CHECK_EQUAL_64(1, x4);
-  CHECK_EQUAL_64(0xfffffffe, x5);
-  CHECK_EQUAL_64(0xfffffffe, x6);
+  CHECK_EQUAL_64(0xFFFFFFFE, x5);
+  CHECK_EQUAL_64(0xFFFFFFFE, x6);
   CHECK_EQUAL_64(1, x7);
   CHECK_EQUAL_64(0, x8);
   CHECK_EQUAL_64(0, x9);
-  CHECK_EQUAL_64(0xfffffffe, x10);
-  CHECK_EQUAL_64(0xfffffffe, x11);
+  CHECK_EQUAL_64(0xFFFFFFFE, x10);
+  CHECK_EQUAL_64(0xFFFFFFFE, x11);
 
   CHECK_EQUAL_64(0, x12);
   CHECK_EQUAL_64(1, x13);
-  CHECK_EQUAL_64(0xffffffff, x14);
-  CHECK_EQUAL_64(0xffffffffffffffffUL, x15);
+  CHECK_EQUAL_64(0xFFFFFFFF, x14);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x15);
   CHECK_EQUAL_64(1, x20);
-  CHECK_EQUAL_64(0xfffffffeUL, x21);
-  CHECK_EQUAL_64(0xfffffffffffffffeUL, x22);
-  CHECK_EQUAL_64(0xffffffff00000001UL, x23);
+  CHECK_EQUAL_64(0xFFFFFFFEUL, x21);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFEUL, x22);
+  CHECK_EQUAL_64(0xFFFFFFFF00000001UL, x23);
   CHECK_EQUAL_64(0, x24);
   CHECK_EQUAL_64(0x200000000UL, x25);
-  CHECK_EQUAL_64(0x1fffffffeUL, x26);
-  CHECK_EQUAL_64(0xfffffffffffffffeUL, x27);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(0x1FFFFFFFEUL, x26);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFEUL, x27);
 }
-
 
 TEST(smulh) {
   INIT_V8();
@@ -1323,12 +1323,12 @@ TEST(smulh) {
   __ Mov(x21, 1);
   __ Mov(x22, 0x0000000100000000L);
   __ Mov(x23, 0x12345678);
-  __ Mov(x24, 0x0123456789abcdefL);
+  __ Mov(x24, 0x0123456789ABCDEFL);
   __ Mov(x25, 0x0000000200000000L);
   __ Mov(x26, 0x8000000000000000UL);
-  __ Mov(x27, 0xffffffffffffffffUL);
+  __ Mov(x27, 0xFFFFFFFFFFFFFFFFUL);
   __ Mov(x28, 0x5555555555555555UL);
-  __ Mov(x29, 0xaaaaaaaaaaaaaaaaUL);
+  __ Mov(x29, 0xAAAAAAAAAAAAAAAAUL);
 
   __ Smulh(x0, x20, x24);
   __ Smulh(x1, x21, x24);
@@ -1350,18 +1350,15 @@ TEST(smulh) {
   CHECK_EQUAL_64(0, x1);
   CHECK_EQUAL_64(0, x2);
   CHECK_EQUAL_64(0x01234567, x3);
-  CHECK_EQUAL_64(0x02468acf, x4);
-  CHECK_EQUAL_64(0xffffffffffffffffUL, x5);
+  CHECK_EQUAL_64(0x02468ACF, x4);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x5);
   CHECK_EQUAL_64(0x4000000000000000UL, x6);
   CHECK_EQUAL_64(0, x7);
   CHECK_EQUAL_64(0, x8);
-  CHECK_EQUAL_64(0x1c71c71c71c71c71UL, x9);
-  CHECK_EQUAL_64(0xe38e38e38e38e38eUL, x10);
-  CHECK_EQUAL_64(0x1c71c71c71c71c72UL, x11);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(0x1C71C71C71C71C71UL, x9);
+  CHECK_EQUAL_64(0xE38E38E38E38E38EUL, x10);
+  CHECK_EQUAL_64(0x1C71C71C71C71C72UL, x11);
 }
-
 
 TEST(smaddl_umaddl) {
   INIT_V8();
@@ -1369,17 +1366,17 @@ TEST(smaddl_umaddl) {
 
   START();
   __ Mov(x17, 1);
-  __ Mov(x18, 0xffffffff);
-  __ Mov(x19, 0xffffffffffffffffUL);
+  __ Mov(x28, 0xFFFFFFFF);
+  __ Mov(x19, 0xFFFFFFFFFFFFFFFFUL);
   __ Mov(x20, 4);
   __ Mov(x21, 0x200000000UL);
 
-  __ Smaddl(x9, w17, w18, x20);
-  __ Smaddl(x10, w18, w18, x20);
+  __ Smaddl(x9, w17, w28, x20);
+  __ Smaddl(x10, w28, w28, x20);
   __ Smaddl(x11, w19, w19, x20);
   __ Smaddl(x12, w19, w19, x21);
-  __ Umaddl(x13, w17, w18, x20);
-  __ Umaddl(x14, w18, w18, x20);
+  __ Umaddl(x13, w17, w28, x20);
+  __ Umaddl(x14, w28, w28, x20);
   __ Umaddl(x15, w19, w19, x20);
   __ Umaddl(x22, w19, w19, x21);
   END();
@@ -1391,13 +1388,10 @@ TEST(smaddl_umaddl) {
   CHECK_EQUAL_64(5, x11);
   CHECK_EQUAL_64(0x200000001UL, x12);
   CHECK_EQUAL_64(0x100000003UL, x13);
-  CHECK_EQUAL_64(0xfffffffe00000005UL, x14);
-  CHECK_EQUAL_64(0xfffffffe00000005UL, x15);
+  CHECK_EQUAL_64(0xFFFFFFFE00000005UL, x14);
+  CHECK_EQUAL_64(0xFFFFFFFE00000005UL, x15);
   CHECK_EQUAL_64(0x1, x22);
-
-  TEARDOWN();
 }
-
 
 TEST(smsubl_umsubl) {
   INIT_V8();
@@ -1405,17 +1399,17 @@ TEST(smsubl_umsubl) {
 
   START();
   __ Mov(x17, 1);
-  __ Mov(x18, 0xffffffff);
-  __ Mov(x19, 0xffffffffffffffffUL);
+  __ Mov(x28, 0xFFFFFFFF);
+  __ Mov(x19, 0xFFFFFFFFFFFFFFFFUL);
   __ Mov(x20, 4);
   __ Mov(x21, 0x200000000UL);
 
-  __ Smsubl(x9, w17, w18, x20);
-  __ Smsubl(x10, w18, w18, x20);
+  __ Smsubl(x9, w17, w28, x20);
+  __ Smsubl(x10, w28, w28, x20);
   __ Smsubl(x11, w19, w19, x20);
   __ Smsubl(x12, w19, w19, x21);
-  __ Umsubl(x13, w17, w18, x20);
-  __ Umsubl(x14, w18, w18, x20);
+  __ Umsubl(x13, w17, w28, x20);
+  __ Umsubl(x14, w28, w28, x20);
   __ Umsubl(x15, w19, w19, x20);
   __ Umsubl(x22, w19, w19, x21);
   END();
@@ -1425,15 +1419,12 @@ TEST(smsubl_umsubl) {
   CHECK_EQUAL_64(5, x9);
   CHECK_EQUAL_64(3, x10);
   CHECK_EQUAL_64(3, x11);
-  CHECK_EQUAL_64(0x1ffffffffUL, x12);
-  CHECK_EQUAL_64(0xffffffff00000005UL, x13);
+  CHECK_EQUAL_64(0x1FFFFFFFFUL, x12);
+  CHECK_EQUAL_64(0xFFFFFFFF00000005UL, x13);
   CHECK_EQUAL_64(0x200000003UL, x14);
   CHECK_EQUAL_64(0x200000003UL, x15);
-  CHECK_EQUAL_64(0x3ffffffffUL, x22);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(0x3FFFFFFFFUL, x22);
 }
-
 
 TEST(div) {
   INIT_V8();
@@ -1441,8 +1432,8 @@ TEST(div) {
 
   START();
   __ Mov(x16, 1);
-  __ Mov(x17, 0xffffffff);
-  __ Mov(x18, 0xffffffffffffffffUL);
+  __ Mov(x17, 0xFFFFFFFF);
+  __ Mov(x30, 0xFFFFFFFFFFFFFFFFUL);
   __ Mov(x19, 0x80000000);
   __ Mov(x20, 0x8000000000000000UL);
   __ Mov(x21, 2);
@@ -1451,13 +1442,13 @@ TEST(div) {
   __ Udiv(w1, w17, w16);
   __ Sdiv(w2, w16, w16);
   __ Sdiv(w3, w16, w17);
-  __ Sdiv(w4, w17, w18);
+  __ Sdiv(w4, w17, w30);
 
   __ Udiv(x5, x16, x16);
-  __ Udiv(x6, x17, x18);
+  __ Udiv(x6, x17, x30);
   __ Sdiv(x7, x16, x16);
   __ Sdiv(x8, x16, x17);
-  __ Sdiv(x9, x17, x18);
+  __ Sdiv(x9, x17, x30);
 
   __ Udiv(w10, w19, w21);
   __ Sdiv(w11, w19, w21);
@@ -1468,16 +1459,16 @@ TEST(div) {
 
   __ Udiv(w22, w19, w17);
   __ Sdiv(w23, w19, w17);
-  __ Udiv(x24, x20, x18);
-  __ Sdiv(x25, x20, x18);
+  __ Udiv(x24, x20, x30);
+  __ Sdiv(x25, x20, x30);
 
   __ Udiv(x26, x16, x21);
   __ Sdiv(x27, x16, x21);
-  __ Udiv(x28, x18, x21);
-  __ Sdiv(x29, x18, x21);
+  __ Udiv(x28, x30, x21);
+  __ Sdiv(x29, x30, x21);
 
   __ Mov(x17, 0);
-  __ Udiv(w18, w16, w17);
+  __ Udiv(w30, w16, w17);
   __ Sdiv(w19, w16, w17);
   __ Udiv(x20, x16, x17);
   __ Sdiv(x21, x16, x17);
@@ -1486,15 +1477,15 @@ TEST(div) {
   RUN();
 
   CHECK_EQUAL_64(1, x0);
-  CHECK_EQUAL_64(0xffffffff, x1);
+  CHECK_EQUAL_64(0xFFFFFFFF, x1);
   CHECK_EQUAL_64(1, x2);
-  CHECK_EQUAL_64(0xffffffff, x3);
+  CHECK_EQUAL_64(0xFFFFFFFF, x3);
   CHECK_EQUAL_64(1, x4);
   CHECK_EQUAL_64(1, x5);
   CHECK_EQUAL_64(0, x6);
   CHECK_EQUAL_64(1, x7);
   CHECK_EQUAL_64(0, x8);
-  CHECK_EQUAL_64(0xffffffff00000001UL, x9);
+  CHECK_EQUAL_64(0xFFFFFFFF00000001UL, x9);
   CHECK_EQUAL_64(0x40000000, x10);
   CHECK_EQUAL_64(0xC0000000, x11);
   CHECK_EQUAL_64(0x40000000, x12);
@@ -1507,23 +1498,20 @@ TEST(div) {
   CHECK_EQUAL_64(0x8000000000000000UL, x25);
   CHECK_EQUAL_64(0, x26);
   CHECK_EQUAL_64(0, x27);
-  CHECK_EQUAL_64(0x7fffffffffffffffUL, x28);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFFFFUL, x28);
   CHECK_EQUAL_64(0, x29);
-  CHECK_EQUAL_64(0, x18);
+  CHECK_EQUAL_64(0, x30);
   CHECK_EQUAL_64(0, x19);
   CHECK_EQUAL_64(0, x20);
   CHECK_EQUAL_64(0, x21);
-
-  TEARDOWN();
 }
-
 
 TEST(rbit_rev) {
   INIT_V8();
   SETUP();
 
   START();
-  __ Mov(x24, 0xfedcba9876543210UL);
+  __ Mov(x24, 0xFEDCBA9876543210UL);
   __ Rbit(w0, w24);
   __ Rbit(x1, x24);
   __ Rev16(w2, w24);
@@ -1535,17 +1523,14 @@ TEST(rbit_rev) {
 
   RUN();
 
-  CHECK_EQUAL_64(0x084c2a6e, x0);
-  CHECK_EQUAL_64(0x084c2a6e195d3b7fUL, x1);
+  CHECK_EQUAL_64(0x084C2A6E, x0);
+  CHECK_EQUAL_64(0x084C2A6E195D3B7FUL, x1);
   CHECK_EQUAL_64(0x54761032, x2);
-  CHECK_EQUAL_64(0xdcfe98ba54761032UL, x3);
+  CHECK_EQUAL_64(0xDCFE98BA54761032UL, x3);
   CHECK_EQUAL_64(0x10325476, x4);
-  CHECK_EQUAL_64(0x98badcfe10325476UL, x5);
-  CHECK_EQUAL_64(0x1032547698badcfeUL, x6);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(0x98BADCFE10325476UL, x5);
+  CHECK_EQUAL_64(0x1032547698BADCFEUL, x6);
 }
-
 
 TEST(clz_cls) {
   INIT_V8();
@@ -1553,7 +1538,7 @@ TEST(clz_cls) {
 
   START();
   __ Mov(x24, 0x0008000000800000UL);
-  __ Mov(x25, 0xff800000fff80000UL);
+  __ Mov(x25, 0xFF800000FFF80000UL);
   __ Mov(x26, 0);
   __ Clz(w0, w24);
   __ Clz(x1, x24);
@@ -1583,10 +1568,7 @@ TEST(clz_cls) {
   CHECK_EQUAL_64(8, x9);
   CHECK_EQUAL_64(31, x10);
   CHECK_EQUAL_64(63, x11);
-
-  TEARDOWN();
 }
-
 
 TEST(label) {
   INIT_V8();
@@ -1622,10 +1604,7 @@ TEST(label) {
 
   CHECK_EQUAL_64(0x1, x0);
   CHECK_EQUAL_64(0x1, x1);
-
-  TEARDOWN();
 }
-
 
 TEST(branch_at_start) {
   INIT_V8();
@@ -1655,9 +1634,7 @@ TEST(branch_at_start) {
   RUN();
 
   CHECK_EQUAL_64(0x1, x0);
-  TEARDOWN();
 }
-
 
 TEST(adr) {
   INIT_V8();
@@ -1673,43 +1650,40 @@ TEST(adr) {
   __ Adr(x3, &label_1);
   __ Adr(x4, &label_1);
 
-  __ Bind(&label_2);
+  __ Bind(&label_2, BranchTargetIdentifier::kBtiJump);
   __ Eor(x5, x2, Operand(x3));  // Ensure that x2,x3 and x4 are identical.
   __ Eor(x6, x2, Operand(x4));
   __ Orr(x0, x0, Operand(x5));
   __ Orr(x0, x0, Operand(x6));
   __ Br(x2);  // label_1, label_3
 
-  __ Bind(&label_3);
+  __ Bind(&label_3, BranchTargetIdentifier::kBtiJump);
   __ Adr(x2, &label_3);   // Self-reference (offset 0).
   __ Eor(x1, x1, Operand(x2));
   __ Adr(x2, &label_4);   // Simple forward reference.
   __ Br(x2);  // label_4
 
-  __ Bind(&label_1);
+  __ Bind(&label_1, BranchTargetIdentifier::kBtiJump);
   __ Adr(x2, &label_3);   // Multiple reverse references to the same label.
   __ Adr(x3, &label_3);
   __ Adr(x4, &label_3);
   __ Adr(x5, &label_2);   // Simple reverse reference.
   __ Br(x5);  // label_2
 
-  __ Bind(&label_4);
+  __ Bind(&label_4, BranchTargetIdentifier::kBtiJump);
   END();
 
   RUN();
 
   CHECK_EQUAL_64(0x0, x0);
   CHECK_EQUAL_64(0x0, x1);
-
-  TEARDOWN();
 }
-
 
 TEST(adr_far) {
   INIT_V8();
 
   int max_range = 1 << (Instruction::ImmPCRelRangeBitwidth - 1);
-  SETUP_SIZE(max_range + 1000 * kInstructionSize);
+  SETUP_SIZE(max_range + 1000 * kInstrSize);
 
   Label done, fail;
   Label test_near, near_forward, near_backward;
@@ -1722,11 +1696,11 @@ TEST(adr_far) {
   __ Adr(x10, &near_forward, MacroAssembler::kAdrFar);
   __ Br(x10);
   __ B(&fail);
-  __ Bind(&near_backward);
+  __ Bind(&near_backward, BranchTargetIdentifier::kBtiJump);
   __ Orr(x0, x0, 1 << 1);
   __ B(&test_far);
 
-  __ Bind(&near_forward);
+  __ Bind(&near_forward, BranchTargetIdentifier::kBtiJump);
   __ Orr(x0, x0, 1 << 0);
   __ Adr(x10, &near_backward, MacroAssembler::kAdrFar);
   __ Br(x10);
@@ -1735,11 +1709,11 @@ TEST(adr_far) {
   __ Adr(x10, &far_forward, MacroAssembler::kAdrFar);
   __ Br(x10);
   __ B(&fail);
-  __ Bind(&far_backward);
+  __ Bind(&far_backward, BranchTargetIdentifier::kBtiJump);
   __ Orr(x0, x0, 1 << 3);
   __ B(&done);
 
-  for (unsigned i = 0; i < max_range / kInstructionSize + 1; ++i) {
+  for (int i = 0; i < max_range / kInstrSize + 1; ++i) {
     if (i % 100 == 0) {
       // If we do land in this code, we do not want to execute so many nops
       // before reaching the end of test (especially if tracing is activated).
@@ -1749,8 +1723,7 @@ TEST(adr_far) {
     }
   }
 
-
-  __ Bind(&far_forward);
+  __ Bind(&far_forward, BranchTargetIdentifier::kBtiJump);
   __ Orr(x0, x0, 1 << 2);
   __ Adr(x10, &far_backward, MacroAssembler::kAdrFar);
   __ Br(x10);
@@ -1764,11 +1737,8 @@ TEST(adr_far) {
 
   RUN();
 
-  CHECK_EQUAL_64(0xf, x0);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(0xF, x0);
 }
-
 
 TEST(branch_cond) {
   INIT_V8();
@@ -1855,17 +1825,14 @@ TEST(branch_cond) {
   RUN();
 
   CHECK_EQUAL_64(0x1, x0);
-
-  TEARDOWN();
 }
-
 
 TEST(branch_to_reg) {
   INIT_V8();
   SETUP();
 
   // Test br.
-  Label fn1, after_fn1;
+  Label fn1, after_fn1, after_bl1;
 
   START();
   __ Mov(x29, lr);
@@ -1880,9 +1847,10 @@ TEST(branch_to_reg) {
 
   __ Bind(&after_fn1);
   __ Bl(&fn1);
+  __ Bind(&after_bl1, BranchTargetIdentifier::kBtiJump);  // For Br(x0) in fn1.
 
   // Test blr.
-  Label fn2, after_fn2;
+  Label fn2, after_fn2, after_bl2;
 
   __ Mov(x2, 0);
   __ B(&after_fn2);
@@ -1894,6 +1862,7 @@ TEST(branch_to_reg) {
 
   __ Bind(&after_fn2);
   __ Bl(&fn2);
+  __ Bind(&after_bl2, BranchTargetIdentifier::kBtiCall);  // For Blr(x0) in fn2.
   __ Mov(x3, lr);
 
   __ Mov(lr, x29);
@@ -1901,13 +1870,97 @@ TEST(branch_to_reg) {
 
   RUN();
 
-  CHECK_EQUAL_64(core.xreg(3) + kInstructionSize, x0);
+  CHECK_EQUAL_64(core.xreg(3) + kInstrSize, x0);
   CHECK_EQUAL_64(42, x1);
   CHECK_EQUAL_64(84, x2);
-
-  TEARDOWN();
 }
 
+static void BtiHelper(Register ipreg) {
+  SETUP();
+
+  Label jump_target, jump_call_target, call_target, test_pacibsp,
+      pacibsp_target, done;
+  START();
+  UseScratchRegisterScope temps(&masm);
+  temps.Exclude(ipreg);
+
+  __ Adr(x0, &jump_target);
+  __ Br(x0);
+  __ Nop();
+
+  __ Bind(&jump_target, BranchTargetIdentifier::kBtiJump);
+  __ Adr(x0, &call_target);
+  __ Blr(x0);
+
+  __ Adr(ipreg, &jump_call_target);
+  __ Blr(ipreg);
+  __ Adr(lr, &test_pacibsp);  // Make Ret return to test_pacibsp.
+  __ Br(ipreg);
+
+  __ Bind(&test_pacibsp, BranchTargetIdentifier::kNone);
+  __ Adr(ipreg, &pacibsp_target);
+  __ Blr(ipreg);
+  __ Adr(lr, &done);  // Make Ret return to done label.
+  __ Br(ipreg);
+
+  __ Bind(&call_target, BranchTargetIdentifier::kBtiCall);
+  __ Ret();
+
+  __ Bind(&jump_call_target, BranchTargetIdentifier::kBtiJumpCall);
+  __ Ret();
+
+  __ Bind(&pacibsp_target, BranchTargetIdentifier::kPacibsp);
+  __ Autibsp();
+  __ Ret();
+
+  __ Bind(&done);
+  END();
+
+#ifdef USE_SIMULATOR
+  simulator.SetGuardedPages(true);
+  RUN();
+#endif  // USE_SIMULATOR
+}
+
+TEST(bti) {
+  BtiHelper(x16);
+  BtiHelper(x17);
+}
+
+TEST(unguarded_bti_is_nop) {
+  SETUP();
+
+  Label start, none, c, j, jc;
+  START();
+  __ B(&start);
+  __ Bind(&none, BranchTargetIdentifier::kBti);
+  __ Bind(&c, BranchTargetIdentifier::kBtiCall);
+  __ Bind(&j, BranchTargetIdentifier::kBtiJump);
+  __ Bind(&jc, BranchTargetIdentifier::kBtiJumpCall);
+  CHECK(__ SizeOfCodeGeneratedSince(&none) == 4 * kInstrSize);
+  __ Ret();
+
+  Label jump_to_c, call_to_j;
+  __ Bind(&start);
+  __ Adr(x0, &none);
+  __ Adr(lr, &jump_to_c);
+  __ Br(x0);
+
+  __ Bind(&jump_to_c);
+  __ Adr(x0, &c);
+  __ Adr(lr, &call_to_j);
+  __ Br(x0);
+
+  __ Bind(&call_to_j);
+  __ Adr(x0, &j);
+  __ Blr(x0);
+  END();
+
+#ifdef USE_SIMULATOR
+  simulator.SetGuardedPages(false);
+  RUN();
+#endif  // USE_SIMULATOR
+}
 
 TEST(compare_branch) {
   INIT_V8();
@@ -1951,17 +2004,17 @@ TEST(compare_branch) {
   __ Mov(x3, 1);
   __ Bind(&nzf_end);
 
-  __ Mov(x18, 0xffffffff00000000UL);
+  __ Mov(x19, 0xFFFFFFFF00000000UL);
 
   Label a, a_end;
-  __ Cbz(w18, &a);
+  __ Cbz(w19, &a);
   __ B(&a_end);
   __ Bind(&a);
   __ Mov(x4, 1);
   __ Bind(&a_end);
 
   Label b, b_end;
-  __ Cbnz(w18, &b);
+  __ Cbnz(w19, &b);
   __ B(&b_end);
   __ Bind(&b);
   __ Mov(x5, 1);
@@ -1977,10 +2030,7 @@ TEST(compare_branch) {
   CHECK_EQUAL_64(0, x3);
   CHECK_EQUAL_64(1, x4);
   CHECK_EQUAL_64(0, x5);
-
-  TEARDOWN();
 }
-
 
 TEST(test_branch) {
   INIT_V8();
@@ -1991,7 +2041,7 @@ TEST(test_branch) {
   __ Mov(x1, 0);
   __ Mov(x2, 0);
   __ Mov(x3, 0);
-  __ Mov(x16, 0xaaaaaaaaaaaaaaaaUL);
+  __ Mov(x16, 0xAAAAAAAAAAAAAAAAUL);
 
   Label bz, bz_end;
   __ Tbz(w16, 0, &bz);
@@ -2028,84 +2078,147 @@ TEST(test_branch) {
   CHECK_EQUAL_64(0, x1);
   CHECK_EQUAL_64(1, x2);
   CHECK_EQUAL_64(0, x3);
-
-  TEARDOWN();
 }
 
+namespace {
+// Generate a block of code that, when hit, always jumps to `landing_pad`.
+void GenerateLandingNops(MacroAssembler* masm, int n, Label* landing_pad) {
+  for (int i = 0; i < (n - 1); i++) {
+    if (i % 100 == 0) {
+      masm->B(landing_pad);
+    } else {
+      masm->Nop();
+    }
+  }
+  masm->B(landing_pad);
+}
+}  // namespace
 
 TEST(far_branch_backward) {
   INIT_V8();
 
-  // Test that the MacroAssembler correctly resolves backward branches to labels
-  // that are outside the immediate range of branch instructions.
-  int max_range =
-    std::max(Instruction::ImmBranchRange(TestBranchType),
-             std::max(Instruction::ImmBranchRange(CompareBranchType),
-                      Instruction::ImmBranchRange(CondBranchType)));
+  ImmBranchType branch_types[] = {TestBranchType, CompareBranchType,
+                                  CondBranchType};
 
-  SETUP_SIZE(max_range + 1000 * kInstructionSize);
+  for (ImmBranchType type : branch_types) {
+    int range = Instruction::ImmBranchRange(type);
 
-  START();
+    SETUP_SIZE(range + 1000 * kInstrSize);
 
-  Label done, fail;
-  Label test_tbz, test_cbz, test_bcond;
-  Label success_tbz, success_cbz, success_bcond;
+    START();
 
-  __ Mov(x0, 0);
-  __ Mov(x1, 1);
-  __ Mov(x10, 0);
+    Label done, fail;
+    // Avoid using near and far as variable name because both are defined as
+    // macro in minwindef.h from Windows SDK.
+    Label near_label, far_label, in_range, out_of_range;
 
-  __ B(&test_tbz);
-  __ Bind(&success_tbz);
-  __ Orr(x0, x0, 1 << 0);
-  __ B(&test_cbz);
-  __ Bind(&success_cbz);
-  __ Orr(x0, x0, 1 << 1);
-  __ B(&test_bcond);
-  __ Bind(&success_bcond);
-  __ Orr(x0, x0, 1 << 2);
+    __ Mov(x0, 0);
+    __ Mov(x1, 1);
+    __ Mov(x10, 0);
 
-  __ B(&done);
+    __ B(&near_label);
+    __ Bind(&in_range);
+    __ Orr(x0, x0, 1 << 0);
 
-  // Generate enough code to overflow the immediate range of the three types of
-  // branches below.
-  for (unsigned i = 0; i < max_range / kInstructionSize + 1; ++i) {
-    if (i % 100 == 0) {
-      // If we do land in this code, we do not want to execute so many nops
-      // before reaching the end of test (especially if tracing is activated).
-      __ B(&fail);
-    } else {
-      __ Nop();
+    __ B(&far_label);
+    __ Bind(&out_of_range);
+    __ Orr(x0, x0, 1 << 1);
+
+    __ B(&done);
+
+    // We use a slack and an approximate budget instead of checking precisely
+    // when the branch limit is hit, since veneers and literal pool can mess
+    // with our calculation of where the limit is.
+    // In this test, we want to make sure we support backwards branches and the
+    // range is more-or-less correct. It's not a big deal if the macro-assembler
+    // got the range a little wrong, as long as it's not far off which could
+    // affect performance.
+
+    int budget =
+        (range - static_cast<int>(__ SizeOfCodeGeneratedSince(&in_range))) /
+        kInstrSize;
+
+    const int kSlack = 100;
+
+    // Generate enough code so that the next branch will be in range but we are
+    // close to the limit.
+    GenerateLandingNops(&masm, budget - kSlack, &fail);
+
+    __ Bind(&near_label);
+    switch (type) {
+      case TestBranchType:
+        __ Tbz(x10, 3, &in_range);
+        // This should be:
+        //     TBZ <in_range>
+        CHECK_EQ(1 * kInstrSize, __ SizeOfCodeGeneratedSince(&near_label));
+        break;
+      case CompareBranchType:
+        __ Cbz(x10, &in_range);
+        // This should be:
+        //     CBZ <in_range>
+        CHECK_EQ(1 * kInstrSize, __ SizeOfCodeGeneratedSince(&near_label));
+        break;
+      case CondBranchType:
+        __ Cmp(x10, 0);
+        __ B(eq, &in_range);
+        // This should be:
+        //     CMP
+        //     B.EQ <in_range>
+        CHECK_EQ(2 * kInstrSize, __ SizeOfCodeGeneratedSince(&near_label));
+        break;
+      default:
+        UNREACHABLE();
+        break;
     }
+
+    // Now go past the limit so that branches are now out of range.
+    GenerateLandingNops(&masm, kSlack * 2, &fail);
+
+    __ Bind(&far_label);
+    switch (type) {
+      case TestBranchType:
+        __ Tbz(x10, 5, &out_of_range);
+        // This should be:
+        //     TBNZ <skip>
+        //     B <out_of_range>
+        //   skip:
+        CHECK_EQ(2 * kInstrSize, __ SizeOfCodeGeneratedSince(&far_label));
+        break;
+      case CompareBranchType:
+        __ Cbz(x10, &out_of_range);
+        // This should be:
+        //     CBNZ <skip>
+        //     B <out_of_range>
+        //   skip:
+        CHECK_EQ(2 * kInstrSize, __ SizeOfCodeGeneratedSince(&far_label));
+        break;
+      case CondBranchType:
+        __ Cmp(x10, 0);
+        __ B(eq, &out_of_range);
+        // This should be:
+        //     CMP
+        //     B.NE <skip>
+        //     B <out_of_range>
+        //  skip:
+        CHECK_EQ(3 * kInstrSize, __ SizeOfCodeGeneratedSince(&far_label));
+        break;
+      default:
+        UNREACHABLE();
+        break;
+    }
+
+    __ Bind(&fail);
+    __ Mov(x1, 0);
+    __ Bind(&done);
+
+    END();
+
+    RUN();
+
+    CHECK_EQUAL_64(0x3, x0);
+    CHECK_EQUAL_64(1, x1);
   }
-  __ B(&fail);
-
-  __ Bind(&test_tbz);
-  __ Tbz(x10, 7, &success_tbz);
-  __ Bind(&test_cbz);
-  __ Cbz(x10, &success_cbz);
-  __ Bind(&test_bcond);
-  __ Cmp(x10, 0);
-  __ B(eq, &success_bcond);
-
-  // For each out-of-range branch instructions, at least two instructions should
-  // have been generated.
-  CHECK_GE(7 * kInstructionSize, __ SizeOfCodeGeneratedSince(&test_tbz));
-
-  __ Bind(&fail);
-  __ Mov(x1, 0);
-  __ Bind(&done);
-
-  END();
-
-  RUN();
-
-  CHECK_EQUAL_64(0x7, x0);
-  CHECK_EQUAL_64(0x1, x1);
-
-  TEARDOWN();
 }
-
 
 TEST(far_branch_simple_veneer) {
   INIT_V8();
@@ -2117,7 +2230,7 @@ TEST(far_branch_simple_veneer) {
              std::max(Instruction::ImmBranchRange(CompareBranchType),
                       Instruction::ImmBranchRange(CondBranchType)));
 
-  SETUP_SIZE(max_range + 1000 * kInstructionSize);
+  SETUP_SIZE(max_range + 1000 * kInstrSize);
 
   START();
 
@@ -2139,7 +2252,7 @@ TEST(far_branch_simple_veneer) {
 
   // Generate enough code to overflow the immediate range of the three types of
   // branches below.
-  for (unsigned i = 0; i < max_range / kInstructionSize + 1; ++i) {
+  for (int i = 0; i < max_range / kInstrSize + 1; ++i) {
     if (i % 100 == 0) {
       // If we do land in this code, we do not want to execute so many nops
       // before reaching the end of test (especially if tracing is activated).
@@ -2172,10 +2285,7 @@ TEST(far_branch_simple_veneer) {
 
   CHECK_EQUAL_64(0x7, x0);
   CHECK_EQUAL_64(0x1, x1);
-
-  TEARDOWN();
 }
-
 
 TEST(far_branch_veneer_link_chain) {
   INIT_V8();
@@ -2193,7 +2303,7 @@ TEST(far_branch_veneer_link_chain) {
              std::max(Instruction::ImmBranchRange(CompareBranchType),
                       Instruction::ImmBranchRange(CondBranchType)));
 
-  SETUP_SIZE(max_range + 1000 * kInstructionSize);
+  SETUP_SIZE(max_range + 1000 * kInstrSize);
 
   START();
 
@@ -2234,18 +2344,7 @@ TEST(far_branch_veneer_link_chain) {
 
   // Generate enough code to overflow the immediate range of the three types of
   // branches below.
-  for (unsigned i = 0; i < max_range / kInstructionSize + 1; ++i) {
-    if (i % 100 == 0) {
-      // If we do land in this code, we do not want to execute so many nops
-      // before reaching the end of test (especially if tracing is activated).
-      // Also, the branches give the MacroAssembler the opportunity to emit the
-      // veneers.
-      __ B(&fail);
-    } else {
-      __ Nop();
-    }
-  }
-  __ B(&fail);
+  GenerateLandingNops(&masm, (max_range / kInstrSize) + 1, &fail);
 
   __ Bind(&success_tbz);
   __ Orr(x0, x0, 1 << 0);
@@ -2267,10 +2366,7 @@ TEST(far_branch_veneer_link_chain) {
 
   CHECK_EQUAL_64(0x7, x0);
   CHECK_EQUAL_64(0x1, x1);
-
-  TEARDOWN();
 }
-
 
 TEST(far_branch_veneer_broken_link_chain) {
   INIT_V8();
@@ -2279,15 +2375,66 @@ TEST(far_branch_veneer_broken_link_chain) {
   // a branch from the link chain of a label and the two links on each side of
   // the removed branch cannot be linked together (out of range).
   //
-  // We test with tbz because it has a small range.
+  // We want to generate the following code, we test with tbz because it has a
+  // small range:
+  //
+  // ~~~
+  // 1: B <far>
+  //          :
+  //          :
+  //          :
+  // 2: TBZ <far> -------.
+  //          :          |
+  //          :          | out of range
+  //          :          |
+  // 3: TBZ <far>        |
+  //          |          |
+  //          | in range |
+  //          V          |
+  // far:              <-'
+  // ~~~
+  //
+  // If we say that the range of TBZ is 3 lines on this graph, then we can get
+  // into a situation where the link chain gets broken. When emitting the two
+  // TBZ instructions, we are in range of the previous branch in the chain so
+  // we'll generate a TBZ and not a TBNZ+B sequence that can encode a bigger
+  // range.
+  //
+  // However, the first TBZ (2), is out of range of the far label so a veneer
+  // will be generated after the second TBZ (3). And this will result in a
+  // broken chain because we can no longer link from (3) back to (1).
+  //
+  // ~~~
+  // 1: B <far>     <-.
+  //                  :
+  //                  : out of range
+  //                  :
+  // 2: TBZ <veneer>  :
+  //                  :
+  //                  :
+  //                  :
+  // 3: TBZ <far> ----'
+  //
+  //    B <skip>
+  // veneer:
+  //    B <far>
+  // skip:
+  //
+  // far:
+  // ~~~
+  //
+  // This test makes sure the MacroAssembler is able to resolve this case by,
+  // for instance, resolving (1) early and making it jump to <veneer> instead of
+  // <far>.
+
   int max_range = Instruction::ImmBranchRange(TestBranchType);
   int inter_range = max_range / 2 + max_range / 10;
 
-  SETUP_SIZE(3 * inter_range + 1000 * kInstructionSize);
+  SETUP_SIZE(3 * inter_range + 1000 * kInstrSize);
 
   START();
 
-  Label skip, fail, done;
+  Label fail, done;
   Label test_1, test_2, test_3;
   Label far_target;
 
@@ -2300,43 +2447,41 @@ TEST(far_branch_veneer_broken_link_chain) {
   __ Mov(x0, 1);
   __ B(&far_target);
 
-  for (unsigned i = 0; i < inter_range / kInstructionSize; ++i) {
-    if (i % 100 == 0) {
-      // Do not allow generating veneers. They should not be needed.
-      __ b(&fail);
-    } else {
-      __ Nop();
-    }
-  }
+  GenerateLandingNops(&masm, inter_range / kInstrSize, &fail);
 
   // Will need a veneer to point to reach the target.
   __ Bind(&test_2);
   __ Mov(x0, 2);
-  __ Tbz(x10, 7, &far_target);
-
-  for (unsigned i = 0; i < inter_range / kInstructionSize; ++i) {
-    if (i % 100 == 0) {
-      // Do not allow generating veneers. They should not be needed.
-      __ b(&fail);
-    } else {
-      __ Nop();
-    }
+  {
+    Label tbz;
+    __ Bind(&tbz);
+    __ Tbz(x10, 7, &far_target);
+    // This should be a single TBZ since the previous link is in range at this
+    // point.
+    CHECK_EQ(1 * kInstrSize, __ SizeOfCodeGeneratedSince(&tbz));
   }
+
+  GenerateLandingNops(&masm, inter_range / kInstrSize, &fail);
 
   // Does not need a veneer to reach the target, but the initial branch
   // instruction is out of range.
   __ Bind(&test_3);
   __ Mov(x0, 3);
-  __ Tbz(x10, 7, &far_target);
-
-  for (unsigned i = 0; i < inter_range / kInstructionSize; ++i) {
-    if (i % 100 == 0) {
-      // Allow generating veneers.
-      __ B(&fail);
-    } else {
-      __ Nop();
-    }
+  {
+    Label tbz;
+    __ Bind(&tbz);
+    __ Tbz(x10, 7, &far_target);
+    // This should be a single TBZ since the previous link is in range at this
+    // point.
+    CHECK_EQ(1 * kInstrSize, __ SizeOfCodeGeneratedSince(&tbz));
   }
+
+  // A veneer will be generated for the first TBZ, which will then remove the
+  // label from the chain and break it because the second TBZ is out of range of
+  // the first branch.
+  // The MacroAssembler should be able to cope with this.
+
+  GenerateLandingNops(&masm, inter_range / kInstrSize, &fail);
 
   __ B(&fail);
 
@@ -2357,10 +2502,7 @@ TEST(far_branch_veneer_broken_link_chain) {
 
   CHECK_EQUAL_64(0x3, x0);
   CHECK_EQUAL_64(0x1, x1);
-
-  TEARDOWN();
 }
-
 
 TEST(branch_type) {
   INIT_V8();
@@ -2414,53 +2556,47 @@ TEST(branch_type) {
   RUN();
 
   CHECK_EQUAL_64(0x0, x0);
-
-  TEARDOWN();
 }
-
 
 TEST(ldr_str_offset) {
   INIT_V8();
   SETUP();
 
-  uint64_t src[2] = {0xfedcba9876543210UL, 0x0123456789abcdefUL};
+  uint64_t src[2] = {0xFEDCBA9876543210UL, 0x0123456789ABCDEFUL};
   uint64_t dst[5] = {0, 0, 0, 0, 0};
   uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
   uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
 
   START();
   __ Mov(x17, src_base);
-  __ Mov(x18, dst_base);
+  __ Mov(x19, dst_base);
   __ Ldr(w0, MemOperand(x17));
-  __ Str(w0, MemOperand(x18));
+  __ Str(w0, MemOperand(x19));
   __ Ldr(w1, MemOperand(x17, 4));
-  __ Str(w1, MemOperand(x18, 12));
+  __ Str(w1, MemOperand(x19, 12));
   __ Ldr(x2, MemOperand(x17, 8));
-  __ Str(x2, MemOperand(x18, 16));
+  __ Str(x2, MemOperand(x19, 16));
   __ Ldrb(w3, MemOperand(x17, 1));
-  __ Strb(w3, MemOperand(x18, 25));
+  __ Strb(w3, MemOperand(x19, 25));
   __ Ldrh(w4, MemOperand(x17, 2));
-  __ Strh(w4, MemOperand(x18, 33));
+  __ Strh(w4, MemOperand(x19, 33));
   END();
 
   RUN();
 
   CHECK_EQUAL_64(0x76543210, x0);
   CHECK_EQUAL_64(0x76543210, dst[0]);
-  CHECK_EQUAL_64(0xfedcba98, x1);
-  CHECK_EQUAL_64(0xfedcba9800000000UL, dst[1]);
-  CHECK_EQUAL_64(0x0123456789abcdefUL, x2);
-  CHECK_EQUAL_64(0x0123456789abcdefUL, dst[2]);
+  CHECK_EQUAL_64(0xFEDCBA98, x1);
+  CHECK_EQUAL_64(0xFEDCBA9800000000UL, dst[1]);
+  CHECK_EQUAL_64(0x0123456789ABCDEFUL, x2);
+  CHECK_EQUAL_64(0x0123456789ABCDEFUL, dst[2]);
   CHECK_EQUAL_64(0x32, x3);
   CHECK_EQUAL_64(0x3200, dst[3]);
   CHECK_EQUAL_64(0x7654, x4);
   CHECK_EQUAL_64(0x765400, dst[4]);
   CHECK_EQUAL_64(src_base, x17);
-  CHECK_EQUAL_64(dst_base, x18);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(dst_base, x19);
 }
-
 
 TEST(ldr_str_wide) {
   INIT_V8();
@@ -2470,8 +2606,8 @@ TEST(ldr_str_wide) {
   uint32_t dst[8192];
   uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
   uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
-  memset(src, 0xaa, 8192 * sizeof(src[0]));
-  memset(dst, 0xaa, 8192 * sizeof(dst[0]));
+  memset(src, 0xAA, 8192 * sizeof(src[0]));
+  memset(dst, 0xAA, 8192 * sizeof(dst[0]));
   src[0] = 0;
   src[6144] = 6144;
   src[8191] = 8191;
@@ -2506,23 +2642,20 @@ TEST(ldr_str_wide) {
   CHECK_EQUAL_32(6144, dst[6144]);
   CHECK_EQUAL_64(src_base + 6144 * sizeof(src[0]), x26);
   CHECK_EQUAL_64(dst_base + 6144 * sizeof(dst[0]), x27);
-
-  TEARDOWN();
 }
-
 
 TEST(ldr_str_preindex) {
   INIT_V8();
   SETUP();
 
-  uint64_t src[2] = {0xfedcba9876543210UL, 0x0123456789abcdefUL};
+  uint64_t src[2] = {0xFEDCBA9876543210UL, 0x0123456789ABCDEFUL};
   uint64_t dst[6] = {0, 0, 0, 0, 0, 0};
   uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
   uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
 
   START();
   __ Mov(x17, src_base);
-  __ Mov(x18, dst_base);
+  __ Mov(x28, dst_base);
   __ Mov(x19, src_base);
   __ Mov(x20, dst_base);
   __ Mov(x21, src_base + 16);
@@ -2532,7 +2665,7 @@ TEST(ldr_str_preindex) {
   __ Mov(x25, src_base);
   __ Mov(x26, dst_base);
   __ Ldr(w0, MemOperand(x17, 4, PreIndex));
-  __ Str(w0, MemOperand(x18, 12, PreIndex));
+  __ Str(w0, MemOperand(x28, 12, PreIndex));
   __ Ldr(x1, MemOperand(x19, 8, PreIndex));
   __ Str(x1, MemOperand(x20, 16, PreIndex));
   __ Ldr(w2, MemOperand(x21, -4, PreIndex));
@@ -2545,10 +2678,10 @@ TEST(ldr_str_preindex) {
 
   RUN();
 
-  CHECK_EQUAL_64(0xfedcba98, x0);
-  CHECK_EQUAL_64(0xfedcba9800000000UL, dst[1]);
-  CHECK_EQUAL_64(0x0123456789abcdefUL, x1);
-  CHECK_EQUAL_64(0x0123456789abcdefUL, dst[2]);
+  CHECK_EQUAL_64(0xFEDCBA98, x0);
+  CHECK_EQUAL_64(0xFEDCBA9800000000UL, dst[1]);
+  CHECK_EQUAL_64(0x0123456789ABCDEFUL, x1);
+  CHECK_EQUAL_64(0x0123456789ABCDEFUL, dst[2]);
   CHECK_EQUAL_64(0x01234567, x2);
   CHECK_EQUAL_64(0x0123456700000000UL, dst[4]);
   CHECK_EQUAL_64(0x32, x3);
@@ -2556,7 +2689,7 @@ TEST(ldr_str_preindex) {
   CHECK_EQUAL_64(0x9876, x4);
   CHECK_EQUAL_64(0x987600, dst[5]);
   CHECK_EQUAL_64(src_base + 4, x17);
-  CHECK_EQUAL_64(dst_base + 12, x18);
+  CHECK_EQUAL_64(dst_base + 12, x28);
   CHECK_EQUAL_64(src_base + 8, x19);
   CHECK_EQUAL_64(dst_base + 16, x20);
   CHECK_EQUAL_64(src_base + 12, x21);
@@ -2565,23 +2698,20 @@ TEST(ldr_str_preindex) {
   CHECK_EQUAL_64(dst_base + 25, x24);
   CHECK_EQUAL_64(src_base + 3, x25);
   CHECK_EQUAL_64(dst_base + 41, x26);
-
-  TEARDOWN();
 }
-
 
 TEST(ldr_str_postindex) {
   INIT_V8();
   SETUP();
 
-  uint64_t src[2] = {0xfedcba9876543210UL, 0x0123456789abcdefUL};
+  uint64_t src[2] = {0xFEDCBA9876543210UL, 0x0123456789ABCDEFUL};
   uint64_t dst[6] = {0, 0, 0, 0, 0, 0};
   uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
   uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
 
   START();
   __ Mov(x17, src_base + 4);
-  __ Mov(x18, dst_base + 12);
+  __ Mov(x28, dst_base + 12);
   __ Mov(x19, src_base + 8);
   __ Mov(x20, dst_base + 16);
   __ Mov(x21, src_base + 8);
@@ -2591,7 +2721,7 @@ TEST(ldr_str_postindex) {
   __ Mov(x25, src_base + 3);
   __ Mov(x26, dst_base + 41);
   __ Ldr(w0, MemOperand(x17, 4, PostIndex));
-  __ Str(w0, MemOperand(x18, 12, PostIndex));
+  __ Str(w0, MemOperand(x28, 12, PostIndex));
   __ Ldr(x1, MemOperand(x19, 8, PostIndex));
   __ Str(x1, MemOperand(x20, 16, PostIndex));
   __ Ldr(x2, MemOperand(x21, -8, PostIndex));
@@ -2604,18 +2734,18 @@ TEST(ldr_str_postindex) {
 
   RUN();
 
-  CHECK_EQUAL_64(0xfedcba98, x0);
-  CHECK_EQUAL_64(0xfedcba9800000000UL, dst[1]);
-  CHECK_EQUAL_64(0x0123456789abcdefUL, x1);
-  CHECK_EQUAL_64(0x0123456789abcdefUL, dst[2]);
-  CHECK_EQUAL_64(0x0123456789abcdefUL, x2);
-  CHECK_EQUAL_64(0x0123456789abcdefUL, dst[4]);
+  CHECK_EQUAL_64(0xFEDCBA98, x0);
+  CHECK_EQUAL_64(0xFEDCBA9800000000UL, dst[1]);
+  CHECK_EQUAL_64(0x0123456789ABCDEFUL, x1);
+  CHECK_EQUAL_64(0x0123456789ABCDEFUL, dst[2]);
+  CHECK_EQUAL_64(0x0123456789ABCDEFUL, x2);
+  CHECK_EQUAL_64(0x0123456789ABCDEFUL, dst[4]);
   CHECK_EQUAL_64(0x32, x3);
   CHECK_EQUAL_64(0x3200, dst[3]);
   CHECK_EQUAL_64(0x9876, x4);
   CHECK_EQUAL_64(0x987600, dst[5]);
   CHECK_EQUAL_64(src_base + 8, x17);
-  CHECK_EQUAL_64(dst_base + 24, x18);
+  CHECK_EQUAL_64(dst_base + 24, x28);
   CHECK_EQUAL_64(src_base + 16, x19);
   CHECK_EQUAL_64(dst_base + 32, x20);
   CHECK_EQUAL_64(src_base, x21);
@@ -2624,16 +2754,13 @@ TEST(ldr_str_postindex) {
   CHECK_EQUAL_64(dst_base + 30, x24);
   CHECK_EQUAL_64(src_base, x25);
   CHECK_EQUAL_64(dst_base, x26);
-
-  TEARDOWN();
 }
-
 
 TEST(load_signed) {
   INIT_V8();
   SETUP();
 
-  uint32_t src[2] = {0x80008080, 0x7fff7f7f};
+  uint32_t src[2] = {0x80008080, 0x7FFF7F7F};
   uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
 
   START();
@@ -2652,20 +2779,17 @@ TEST(load_signed) {
 
   RUN();
 
-  CHECK_EQUAL_64(0xffffff80, x0);
-  CHECK_EQUAL_64(0x0000007f, x1);
-  CHECK_EQUAL_64(0xffff8080, x2);
-  CHECK_EQUAL_64(0x00007f7f, x3);
-  CHECK_EQUAL_64(0xffffffffffffff80UL, x4);
-  CHECK_EQUAL_64(0x000000000000007fUL, x5);
-  CHECK_EQUAL_64(0xffffffffffff8080UL, x6);
-  CHECK_EQUAL_64(0x0000000000007f7fUL, x7);
-  CHECK_EQUAL_64(0xffffffff80008080UL, x8);
-  CHECK_EQUAL_64(0x000000007fff7f7fUL, x9);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(0xFFFFFF80, x0);
+  CHECK_EQUAL_64(0x0000007F, x1);
+  CHECK_EQUAL_64(0xFFFF8080, x2);
+  CHECK_EQUAL_64(0x00007F7F, x3);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFF80UL, x4);
+  CHECK_EQUAL_64(0x000000000000007FUL, x5);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFF8080UL, x6);
+  CHECK_EQUAL_64(0x0000000000007F7FUL, x7);
+  CHECK_EQUAL_64(0xFFFFFFFF80008080UL, x8);
+  CHECK_EQUAL_64(0x000000007FFF7F7FUL, x9);
 }
-
 
 TEST(load_store_regoffset) {
   INIT_V8();
@@ -2679,21 +2803,21 @@ TEST(load_store_regoffset) {
   START();
   __ Mov(x16, src_base);
   __ Mov(x17, dst_base);
-  __ Mov(x18, src_base + 3 * sizeof(src[0]));
+  __ Mov(x21, src_base + 3 * sizeof(src[0]));
   __ Mov(x19, dst_base + 3 * sizeof(dst[0]));
   __ Mov(x20, dst_base + 4 * sizeof(dst[0]));
   __ Mov(x24, 0);
   __ Mov(x25, 4);
   __ Mov(x26, -4);
-  __ Mov(x27, 0xfffffffc);  // 32-bit -4.
-  __ Mov(x28, 0xfffffffe);  // 32-bit -2.
-  __ Mov(x29, 0xffffffff);  // 32-bit -1.
+  __ Mov(x27, 0xFFFFFFFC);  // 32-bit -4.
+  __ Mov(x28, 0xFFFFFFFE);  // 32-bit -2.
+  __ Mov(x29, 0xFFFFFFFF);  // 32-bit -1.
 
   __ Ldr(w0, MemOperand(x16, x24));
   __ Ldr(x1, MemOperand(x16, x25));
-  __ Ldr(w2, MemOperand(x18, x26));
-  __ Ldr(w3, MemOperand(x18, x27, SXTW));
-  __ Ldr(w4, MemOperand(x18, x28, SXTW, 2));
+  __ Ldr(w2, MemOperand(x21, x26));
+  __ Ldr(w3, MemOperand(x21, x27, SXTW));
+  __ Ldr(w4, MemOperand(x21, x28, SXTW, 2));
   __ Str(w0, MemOperand(x17, x24));
   __ Str(x1, MemOperand(x17, x25));
   __ Str(w2, MemOperand(x20, x29, SXTW, 2));
@@ -2710,10 +2834,7 @@ TEST(load_store_regoffset) {
   CHECK_EQUAL_32(2, dst[1]);
   CHECK_EQUAL_32(3, dst[2]);
   CHECK_EQUAL_32(3, dst[3]);
-
-  TEARDOWN();
 }
-
 
 TEST(load_store_float) {
   INIT_V8();
@@ -2726,13 +2847,13 @@ TEST(load_store_float) {
 
   START();
   __ Mov(x17, src_base);
-  __ Mov(x18, dst_base);
+  __ Mov(x28, dst_base);
   __ Mov(x19, src_base);
   __ Mov(x20, dst_base);
   __ Mov(x21, src_base);
   __ Mov(x22, dst_base);
   __ Ldr(s0, MemOperand(x17, sizeof(src[0])));
-  __ Str(s0, MemOperand(x18, sizeof(dst[0]), PostIndex));
+  __ Str(s0, MemOperand(x28, sizeof(dst[0]), PostIndex));
   __ Ldr(s1, MemOperand(x19, sizeof(src[0]), PostIndex));
   __ Str(s1, MemOperand(x20, 2 * sizeof(dst[0]), PreIndex));
   __ Ldr(s2, MemOperand(x21, 2 * sizeof(src[0]), PreIndex));
@@ -2748,15 +2869,12 @@ TEST(load_store_float) {
   CHECK_EQUAL_FP32(3.0, s2);
   CHECK_EQUAL_FP32(3.0, dst[1]);
   CHECK_EQUAL_64(src_base, x17);
-  CHECK_EQUAL_64(dst_base + sizeof(dst[0]), x18);
+  CHECK_EQUAL_64(dst_base + sizeof(dst[0]), x28);
   CHECK_EQUAL_64(src_base + sizeof(src[0]), x19);
   CHECK_EQUAL_64(dst_base + 2 * sizeof(dst[0]), x20);
   CHECK_EQUAL_64(src_base + 2 * sizeof(src[0]), x21);
   CHECK_EQUAL_64(dst_base, x22);
-
-  TEARDOWN();
 }
-
 
 TEST(load_store_double) {
   INIT_V8();
@@ -2769,13 +2887,13 @@ TEST(load_store_double) {
 
   START();
   __ Mov(x17, src_base);
-  __ Mov(x18, dst_base);
+  __ Mov(x28, dst_base);
   __ Mov(x19, src_base);
   __ Mov(x20, dst_base);
   __ Mov(x21, src_base);
   __ Mov(x22, dst_base);
   __ Ldr(d0, MemOperand(x17, sizeof(src[0])));
-  __ Str(d0, MemOperand(x18, sizeof(dst[0]), PostIndex));
+  __ Str(d0, MemOperand(x28, sizeof(dst[0]), PostIndex));
   __ Ldr(d1, MemOperand(x19, sizeof(src[0]), PostIndex));
   __ Str(d1, MemOperand(x20, 2 * sizeof(dst[0]), PreIndex));
   __ Ldr(d2, MemOperand(x21, 2 * sizeof(src[0]), PreIndex));
@@ -2791,15 +2909,3269 @@ TEST(load_store_double) {
   CHECK_EQUAL_FP64(3.0, d2);
   CHECK_EQUAL_FP64(3.0, dst[1]);
   CHECK_EQUAL_64(src_base, x17);
-  CHECK_EQUAL_64(dst_base + sizeof(dst[0]), x18);
+  CHECK_EQUAL_64(dst_base + sizeof(dst[0]), x28);
   CHECK_EQUAL_64(src_base + sizeof(src[0]), x19);
   CHECK_EQUAL_64(dst_base + 2 * sizeof(dst[0]), x20);
   CHECK_EQUAL_64(src_base + 2 * sizeof(src[0]), x21);
   CHECK_EQUAL_64(dst_base, x22);
-
-  TEARDOWN();
 }
 
+TEST(load_store_b) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[3] = {0x12, 0x23, 0x34};
+  uint8_t dst[3] = {0, 0, 0};
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+  uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x28, dst_base);
+  __ Mov(x19, src_base);
+  __ Mov(x20, dst_base);
+  __ Mov(x21, src_base);
+  __ Mov(x22, dst_base);
+  __ Ldr(b0, MemOperand(x17, sizeof(src[0])));
+  __ Str(b0, MemOperand(x28, sizeof(dst[0]), PostIndex));
+  __ Ldr(b1, MemOperand(x19, sizeof(src[0]), PostIndex));
+  __ Str(b1, MemOperand(x20, 2 * sizeof(dst[0]), PreIndex));
+  __ Ldr(b2, MemOperand(x21, 2 * sizeof(src[0]), PreIndex));
+  __ Str(b2, MemOperand(x22, sizeof(dst[0])));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x23, q0);
+  CHECK_EQUAL_64(0x23, dst[0]);
+  CHECK_EQUAL_128(0, 0x12, q1);
+  CHECK_EQUAL_64(0x12, dst[2]);
+  CHECK_EQUAL_128(0, 0x34, q2);
+  CHECK_EQUAL_64(0x34, dst[1]);
+  CHECK_EQUAL_64(src_base, x17);
+  CHECK_EQUAL_64(dst_base + sizeof(dst[0]), x28);
+  CHECK_EQUAL_64(src_base + sizeof(src[0]), x19);
+  CHECK_EQUAL_64(dst_base + 2 * sizeof(dst[0]), x20);
+  CHECK_EQUAL_64(src_base + 2 * sizeof(src[0]), x21);
+  CHECK_EQUAL_64(dst_base, x22);
+}
+
+TEST(load_store_h) {
+  INIT_V8();
+  SETUP();
+
+  uint16_t src[3] = {0x1234, 0x2345, 0x3456};
+  uint16_t dst[3] = {0, 0, 0};
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+  uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x28, dst_base);
+  __ Mov(x19, src_base);
+  __ Mov(x20, dst_base);
+  __ Mov(x21, src_base);
+  __ Mov(x22, dst_base);
+  __ Ldr(h0, MemOperand(x17, sizeof(src[0])));
+  __ Str(h0, MemOperand(x28, sizeof(dst[0]), PostIndex));
+  __ Ldr(h1, MemOperand(x19, sizeof(src[0]), PostIndex));
+  __ Str(h1, MemOperand(x20, 2 * sizeof(dst[0]), PreIndex));
+  __ Ldr(h2, MemOperand(x21, 2 * sizeof(src[0]), PreIndex));
+  __ Str(h2, MemOperand(x22, sizeof(dst[0])));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x2345, q0);
+  CHECK_EQUAL_64(0x2345, dst[0]);
+  CHECK_EQUAL_128(0, 0x1234, q1);
+  CHECK_EQUAL_64(0x1234, dst[2]);
+  CHECK_EQUAL_128(0, 0x3456, q2);
+  CHECK_EQUAL_64(0x3456, dst[1]);
+  CHECK_EQUAL_64(src_base, x17);
+  CHECK_EQUAL_64(dst_base + sizeof(dst[0]), x28);
+  CHECK_EQUAL_64(src_base + sizeof(src[0]), x19);
+  CHECK_EQUAL_64(dst_base + 2 * sizeof(dst[0]), x20);
+  CHECK_EQUAL_64(src_base + 2 * sizeof(src[0]), x21);
+  CHECK_EQUAL_64(dst_base, x22);
+}
+
+TEST(load_store_q) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[48] = {0x10, 0x32, 0x54, 0x76, 0x98, 0xBA, 0xDC, 0xFE, 0x01, 0x23,
+                     0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0x21, 0x43, 0x65, 0x87,
+                     0xA9, 0xCB, 0xED, 0x0F, 0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC,
+                     0xDE, 0xF0, 0x24, 0x46, 0x68, 0x8A, 0xAC, 0xCE, 0xE0, 0x02,
+                     0x42, 0x64, 0x86, 0xA8, 0xCA, 0xEC, 0x0E, 0x20};
+
+  uint64_t dst[6] = {0, 0, 0, 0, 0, 0};
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+  uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x28, dst_base);
+  __ Mov(x19, src_base);
+  __ Mov(x20, dst_base);
+  __ Mov(x21, src_base);
+  __ Mov(x22, dst_base);
+  __ Ldr(q0, MemOperand(x17, 16));
+  __ Str(q0, MemOperand(x28, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x19, 16, PostIndex));
+  __ Str(q1, MemOperand(x20, 32, PreIndex));
+  __ Ldr(q2, MemOperand(x21, 32, PreIndex));
+  __ Str(q2, MemOperand(x22, 16));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0xF0DEBC9A78563412, 0x0FEDCBA987654321, q0);
+  CHECK_EQUAL_64(0x0FEDCBA987654321, dst[0]);
+  CHECK_EQUAL_64(0xF0DEBC9A78563412, dst[1]);
+  CHECK_EQUAL_128(0xEFCDAB8967452301, 0xFEDCBA9876543210, q1);
+  CHECK_EQUAL_64(0xFEDCBA9876543210, dst[4]);
+  CHECK_EQUAL_64(0xEFCDAB8967452301, dst[5]);
+  CHECK_EQUAL_128(0x200EECCAA8866442, 0x02E0CEAC8A684624, q2);
+  CHECK_EQUAL_64(0x02E0CEAC8A684624, dst[2]);
+  CHECK_EQUAL_64(0x200EECCAA8866442, dst[3]);
+  CHECK_EQUAL_64(src_base, x17);
+  CHECK_EQUAL_64(dst_base + 16, x28);
+  CHECK_EQUAL_64(src_base + 16, x19);
+  CHECK_EQUAL_64(dst_base + 32, x20);
+  CHECK_EQUAL_64(src_base + 32, x21);
+  CHECK_EQUAL_64(dst_base, x22);
+}
+
+TEST(neon_ld1_d) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[32 + 5];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Ldr(q2, MemOperand(x17));  // Initialise top 64-bits of Q register.
+  __ Ld1(v2.V8B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1(v3.V8B(), v4.V8B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1(v5.V4H(), v6.V4H(), v7.V4H(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1(v16.V2S(), v17.V2S(), v18.V2S(), v19.V2S(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1(v30.V2S(), v31.V2S(), v0.V2S(), v1.V2S(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1(v20.V1D(), v21.V1D(), v22.V1D(), v23.V1D(), MemOperand(x17));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x0706050403020100, q2);
+  CHECK_EQUAL_128(0, 0x0807060504030201, q3);
+  CHECK_EQUAL_128(0, 0x100F0E0D0C0B0A09, q4);
+  CHECK_EQUAL_128(0, 0x0908070605040302, q5);
+  CHECK_EQUAL_128(0, 0x11100F0E0D0C0B0A, q6);
+  CHECK_EQUAL_128(0, 0x1918171615141312, q7);
+  CHECK_EQUAL_128(0, 0x0A09080706050403, q16);
+  CHECK_EQUAL_128(0, 0x1211100F0E0D0C0B, q17);
+  CHECK_EQUAL_128(0, 0x1A19181716151413, q18);
+  CHECK_EQUAL_128(0, 0x2221201F1E1D1C1B, q19);
+  CHECK_EQUAL_128(0, 0x0B0A090807060504, q30);
+  CHECK_EQUAL_128(0, 0x131211100F0E0D0C, q31);
+  CHECK_EQUAL_128(0, 0x1B1A191817161514, q0);
+  CHECK_EQUAL_128(0, 0x232221201F1E1D1C, q1);
+  CHECK_EQUAL_128(0, 0x0C0B0A0908070605, q20);
+  CHECK_EQUAL_128(0, 0x14131211100F0E0D, q21);
+  CHECK_EQUAL_128(0, 0x1C1B1A1918171615, q22);
+  CHECK_EQUAL_128(0, 0x24232221201F1E1D, q23);
+}
+
+TEST(neon_ld1_d_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[32 + 5];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x28, src_base + 1);
+  __ Mov(x19, src_base + 2);
+  __ Mov(x20, src_base + 3);
+  __ Mov(x21, src_base + 4);
+  __ Mov(x22, src_base + 5);
+  __ Mov(x23, 1);
+  __ Ldr(q2, MemOperand(x17));  // Initialise top 64-bits of Q register.
+  __ Ld1(v2.V8B(), MemOperand(x17, x23, PostIndex));
+  __ Ld1(v3.V8B(), v4.V8B(), MemOperand(x28, 16, PostIndex));
+  __ Ld1(v5.V4H(), v6.V4H(), v7.V4H(), MemOperand(x19, 24, PostIndex));
+  __ Ld1(v16.V2S(), v17.V2S(), v18.V2S(), v19.V2S(),
+         MemOperand(x20, 32, PostIndex));
+  __ Ld1(v30.V2S(), v31.V2S(), v0.V2S(), v1.V2S(),
+         MemOperand(x21, 32, PostIndex));
+  __ Ld1(v20.V1D(), v21.V1D(), v22.V1D(), v23.V1D(),
+         MemOperand(x22, 32, PostIndex));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x0706050403020100, q2);
+  CHECK_EQUAL_128(0, 0x0807060504030201, q3);
+  CHECK_EQUAL_128(0, 0x100F0E0D0C0B0A09, q4);
+  CHECK_EQUAL_128(0, 0x0908070605040302, q5);
+  CHECK_EQUAL_128(0, 0x11100F0E0D0C0B0A, q6);
+  CHECK_EQUAL_128(0, 0x1918171615141312, q7);
+  CHECK_EQUAL_128(0, 0x0A09080706050403, q16);
+  CHECK_EQUAL_128(0, 0x1211100F0E0D0C0B, q17);
+  CHECK_EQUAL_128(0, 0x1A19181716151413, q18);
+  CHECK_EQUAL_128(0, 0x2221201F1E1D1C1B, q19);
+  CHECK_EQUAL_128(0, 0x0B0A090807060504, q30);
+  CHECK_EQUAL_128(0, 0x131211100F0E0D0C, q31);
+  CHECK_EQUAL_128(0, 0x1B1A191817161514, q0);
+  CHECK_EQUAL_128(0, 0x232221201F1E1D1C, q1);
+  CHECK_EQUAL_128(0, 0x0C0B0A0908070605, q20);
+  CHECK_EQUAL_128(0, 0x14131211100F0E0D, q21);
+  CHECK_EQUAL_128(0, 0x1C1B1A1918171615, q22);
+  CHECK_EQUAL_128(0, 0x24232221201F1E1D, q23);
+  CHECK_EQUAL_64(src_base + 1, x17);
+  CHECK_EQUAL_64(src_base + 1 + 16, x28);
+  CHECK_EQUAL_64(src_base + 2 + 24, x19);
+  CHECK_EQUAL_64(src_base + 3 + 32, x20);
+  CHECK_EQUAL_64(src_base + 4 + 32, x21);
+  CHECK_EQUAL_64(src_base + 5 + 32, x22);
+}
+
+TEST(neon_ld1_q) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64 + 4];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Ld1(v2.V16B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1(v3.V16B(), v4.V16B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1(v5.V8H(), v6.V8H(), v7.V8H(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1(v16.V4S(), v17.V4S(), v18.V4S(), v19.V4S(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1(v30.V2D(), v31.V2D(), v0.V2D(), v1.V2D(), MemOperand(x17));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050403020100, q2);
+  CHECK_EQUAL_128(0x100F0E0D0C0B0A09, 0x0807060504030201, q3);
+  CHECK_EQUAL_128(0x201F1E1D1C1B1A19, 0x1817161514131211, q4);
+  CHECK_EQUAL_128(0x11100F0E0D0C0B0A, 0x0908070605040302, q5);
+  CHECK_EQUAL_128(0x21201F1E1D1C1B1A, 0x1918171615141312, q6);
+  CHECK_EQUAL_128(0x31302F2E2D2C2B2A, 0x2928272625242322, q7);
+  CHECK_EQUAL_128(0x1211100F0E0D0C0B, 0x0A09080706050403, q16);
+  CHECK_EQUAL_128(0x2221201F1E1D1C1B, 0x1A19181716151413, q17);
+  CHECK_EQUAL_128(0x3231302F2E2D2C2B, 0x2A29282726252423, q18);
+  CHECK_EQUAL_128(0x4241403F3E3D3C3B, 0x3A39383736353433, q19);
+  CHECK_EQUAL_128(0x131211100F0E0D0C, 0x0B0A090807060504, q30);
+  CHECK_EQUAL_128(0x232221201F1E1D1C, 0x1B1A191817161514, q31);
+  CHECK_EQUAL_128(0x333231302F2E2D2C, 0x2B2A292827262524, q0);
+  CHECK_EQUAL_128(0x434241403F3E3D3C, 0x3B3A393837363534, q1);
+}
+
+TEST(neon_ld1_q_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64 + 4];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x28, src_base + 1);
+  __ Mov(x19, src_base + 2);
+  __ Mov(x20, src_base + 3);
+  __ Mov(x21, src_base + 4);
+  __ Mov(x22, 1);
+  __ Ld1(v2.V16B(), MemOperand(x17, x22, PostIndex));
+  __ Ld1(v3.V16B(), v4.V16B(), MemOperand(x28, 32, PostIndex));
+  __ Ld1(v5.V8H(), v6.V8H(), v7.V8H(), MemOperand(x19, 48, PostIndex));
+  __ Ld1(v16.V4S(), v17.V4S(), v18.V4S(), v19.V4S(),
+         MemOperand(x20, 64, PostIndex));
+  __ Ld1(v30.V2D(), v31.V2D(), v0.V2D(), v1.V2D(),
+         MemOperand(x21, 64, PostIndex));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050403020100, q2);
+  CHECK_EQUAL_128(0x100F0E0D0C0B0A09, 0x0807060504030201, q3);
+  CHECK_EQUAL_128(0x201F1E1D1C1B1A19, 0x1817161514131211, q4);
+  CHECK_EQUAL_128(0x11100F0E0D0C0B0A, 0x0908070605040302, q5);
+  CHECK_EQUAL_128(0x21201F1E1D1C1B1A, 0x1918171615141312, q6);
+  CHECK_EQUAL_128(0x31302F2E2D2C2B2A, 0x2928272625242322, q7);
+  CHECK_EQUAL_128(0x1211100F0E0D0C0B, 0x0A09080706050403, q16);
+  CHECK_EQUAL_128(0x2221201F1E1D1C1B, 0x1A19181716151413, q17);
+  CHECK_EQUAL_128(0x3231302F2E2D2C2B, 0x2A29282726252423, q18);
+  CHECK_EQUAL_128(0x4241403F3E3D3C3B, 0x3A39383736353433, q19);
+  CHECK_EQUAL_128(0x131211100F0E0D0C, 0x0B0A090807060504, q30);
+  CHECK_EQUAL_128(0x232221201F1E1D1C, 0x1B1A191817161514, q31);
+  CHECK_EQUAL_128(0x333231302F2E2D2C, 0x2B2A292827262524, q0);
+  CHECK_EQUAL_128(0x434241403F3E3D3C, 0x3B3A393837363534, q1);
+  CHECK_EQUAL_64(src_base + 1, x17);
+  CHECK_EQUAL_64(src_base + 1 + 32, x28);
+  CHECK_EQUAL_64(src_base + 2 + 48, x19);
+  CHECK_EQUAL_64(src_base + 3 + 64, x20);
+  CHECK_EQUAL_64(src_base + 4 + 64, x21);
+}
+
+TEST(neon_ld1_lane) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+
+  // Test loading whole register by element.
+  __ Mov(x17, src_base);
+  for (int i = 15; i >= 0; i--) {
+    __ Ld1(v0.B(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  __ Mov(x17, src_base);
+  for (int i = 7; i >= 0; i--) {
+    __ Ld1(v1.H(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  __ Mov(x17, src_base);
+  for (int i = 3; i >= 0; i--) {
+    __ Ld1(v2.S(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  __ Mov(x17, src_base);
+  for (int i = 1; i >= 0; i--) {
+    __ Ld1(v3.D(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  // Test loading a single element into an initialised register.
+  __ Mov(x17, src_base);
+  __ Ldr(q4, MemOperand(x17));
+  __ Ld1(v4.B(), 4, MemOperand(x17));
+  __ Ldr(q5, MemOperand(x17));
+  __ Ld1(v5.H(), 3, MemOperand(x17));
+  __ Ldr(q6, MemOperand(x17));
+  __ Ld1(v6.S(), 2, MemOperand(x17));
+  __ Ldr(q7, MemOperand(x17));
+  __ Ld1(v7.D(), 1, MemOperand(x17));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0001020304050607, 0x08090A0B0C0D0E0F, q0);
+  CHECK_EQUAL_128(0x0100020103020403, 0x0504060507060807, q1);
+  CHECK_EQUAL_128(0x0302010004030201, 0x0504030206050403, q2);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0807060504030201, q3);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050003020100, q4);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0100050403020100, q5);
+  CHECK_EQUAL_128(0x0F0E0D0C03020100, 0x0706050403020100, q6);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0706050403020100, q7);
+}
+
+TEST(neon_ld2_d) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64 + 4];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Ld2(v2.V8B(), v3.V8B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld2(v4.V8B(), v5.V8B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld2(v6.V4H(), v7.V4H(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld2(v31.V2S(), v0.V2S(), MemOperand(x17));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x0E0C0A0806040200, q2);
+  CHECK_EQUAL_128(0, 0x0F0D0B0907050301, q3);
+  CHECK_EQUAL_128(0, 0x0F0D0B0907050301, q4);
+  CHECK_EQUAL_128(0, 0x100E0C0A08060402, q5);
+  CHECK_EQUAL_128(0, 0x0F0E0B0A07060302, q6);
+  CHECK_EQUAL_128(0, 0x11100D0C09080504, q7);
+  CHECK_EQUAL_128(0, 0x0E0D0C0B06050403, q31);
+  CHECK_EQUAL_128(0, 0x1211100F0A090807, q0);
+}
+
+TEST(neon_ld2_d_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[32 + 4];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x28, src_base + 1);
+  __ Mov(x19, src_base + 2);
+  __ Mov(x20, src_base + 3);
+  __ Mov(x21, src_base + 4);
+  __ Mov(x22, 1);
+  __ Ld2(v2.V8B(), v3.V8B(), MemOperand(x17, x22, PostIndex));
+  __ Ld2(v4.V8B(), v5.V8B(), MemOperand(x28, 16, PostIndex));
+  __ Ld2(v5.V4H(), v6.V4H(), MemOperand(x19, 16, PostIndex));
+  __ Ld2(v16.V2S(), v17.V2S(), MemOperand(x20, 16, PostIndex));
+  __ Ld2(v31.V2S(), v0.V2S(), MemOperand(x21, 16, PostIndex));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x0E0C0A0806040200, q2);
+  CHECK_EQUAL_128(0, 0x0F0D0B0907050301, q3);
+  CHECK_EQUAL_128(0, 0x0F0D0B0907050301, q4);
+  CHECK_EQUAL_128(0, 0x0F0E0B0A07060302, q5);
+  CHECK_EQUAL_128(0, 0x11100D0C09080504, q6);
+  CHECK_EQUAL_128(0, 0x0E0D0C0B06050403, q16);
+  CHECK_EQUAL_128(0, 0x1211100F0A090807, q17);
+  CHECK_EQUAL_128(0, 0x0F0E0D0C07060504, q31);
+  CHECK_EQUAL_128(0, 0x131211100B0A0908, q0);
+
+  CHECK_EQUAL_64(src_base + 1, x17);
+  CHECK_EQUAL_64(src_base + 1 + 16, x28);
+  CHECK_EQUAL_64(src_base + 2 + 16, x19);
+  CHECK_EQUAL_64(src_base + 3 + 16, x20);
+  CHECK_EQUAL_64(src_base + 4 + 16, x21);
+}
+
+TEST(neon_ld2_q) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64 + 4];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Ld2(v2.V16B(), v3.V16B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld2(v4.V16B(), v5.V16B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld2(v6.V8H(), v7.V8H(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld2(v16.V4S(), v17.V4S(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld2(v31.V2D(), v0.V2D(), MemOperand(x17));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x1E1C1A1816141210, 0x0E0C0A0806040200, q2);
+  CHECK_EQUAL_128(0x1F1D1B1917151311, 0x0F0D0B0907050301, q3);
+  CHECK_EQUAL_128(0x1F1D1B1917151311, 0x0F0D0B0907050301, q4);
+  CHECK_EQUAL_128(0x201E1C1A18161412, 0x100E0C0A08060402, q5);
+  CHECK_EQUAL_128(0x1F1E1B1A17161312, 0x0F0E0B0A07060302, q6);
+  CHECK_EQUAL_128(0x21201D1C19181514, 0x11100D0C09080504, q7);
+  CHECK_EQUAL_128(0x1E1D1C1B16151413, 0x0E0D0C0B06050403, q16);
+  CHECK_EQUAL_128(0x2221201F1A191817, 0x1211100F0A090807, q17);
+  CHECK_EQUAL_128(0x1B1A191817161514, 0x0B0A090807060504, q31);
+  CHECK_EQUAL_128(0x232221201F1E1D1C, 0x131211100F0E0D0C, q0);
+}
+
+TEST(neon_ld2_q_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64 + 4];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x28, src_base + 1);
+  __ Mov(x19, src_base + 2);
+  __ Mov(x20, src_base + 3);
+  __ Mov(x21, src_base + 4);
+  __ Mov(x22, 1);
+  __ Ld2(v2.V16B(), v3.V16B(), MemOperand(x17, x22, PostIndex));
+  __ Ld2(v4.V16B(), v5.V16B(), MemOperand(x28, 32, PostIndex));
+  __ Ld2(v6.V8H(), v7.V8H(), MemOperand(x19, 32, PostIndex));
+  __ Ld2(v16.V4S(), v17.V4S(), MemOperand(x20, 32, PostIndex));
+  __ Ld2(v31.V2D(), v0.V2D(), MemOperand(x21, 32, PostIndex));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x1E1C1A1816141210, 0x0E0C0A0806040200, q2);
+  CHECK_EQUAL_128(0x1F1D1B1917151311, 0x0F0D0B0907050301, q3);
+  CHECK_EQUAL_128(0x1F1D1B1917151311, 0x0F0D0B0907050301, q4);
+  CHECK_EQUAL_128(0x201E1C1A18161412, 0x100E0C0A08060402, q5);
+  CHECK_EQUAL_128(0x1F1E1B1A17161312, 0x0F0E0B0A07060302, q6);
+  CHECK_EQUAL_128(0x21201D1C19181514, 0x11100D0C09080504, q7);
+  CHECK_EQUAL_128(0x1E1D1C1B16151413, 0x0E0D0C0B06050403, q16);
+  CHECK_EQUAL_128(0x2221201F1A191817, 0x1211100F0A090807, q17);
+  CHECK_EQUAL_128(0x1B1A191817161514, 0x0B0A090807060504, q31);
+  CHECK_EQUAL_128(0x232221201F1E1D1C, 0x131211100F0E0D0C, q0);
+
+  CHECK_EQUAL_64(src_base + 1, x17);
+  CHECK_EQUAL_64(src_base + 1 + 32, x28);
+  CHECK_EQUAL_64(src_base + 2 + 32, x19);
+  CHECK_EQUAL_64(src_base + 3 + 32, x20);
+  CHECK_EQUAL_64(src_base + 4 + 32, x21);
+}
+
+TEST(neon_ld2_lane) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+
+  // Test loading whole register by element.
+  __ Mov(x17, src_base);
+  for (int i = 15; i >= 0; i--) {
+    __ Ld2(v0.B(), v1.B(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  __ Mov(x17, src_base);
+  for (int i = 7; i >= 0; i--) {
+    __ Ld2(v2.H(), v3.H(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  __ Mov(x17, src_base);
+  for (int i = 3; i >= 0; i--) {
+    __ Ld2(v4.S(), v5.S(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  __ Mov(x17, src_base);
+  for (int i = 1; i >= 0; i--) {
+    __ Ld2(v6.D(), v7.D(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  // Test loading a single element into an initialised register.
+  __ Mov(x17, src_base);
+  __ Mov(x4, x17);
+  __ Ldr(q8, MemOperand(x4, 16, PostIndex));
+  __ Ldr(q9, MemOperand(x4));
+  __ Ld2(v8_.B(), v9.B(), 4, MemOperand(x17));
+  __ Mov(x5, x17);
+  __ Ldr(q10, MemOperand(x5, 16, PostIndex));
+  __ Ldr(q11, MemOperand(x5));
+  __ Ld2(v10.H(), v11.H(), 3, MemOperand(x17));
+  __ Mov(x6, x17);
+  __ Ldr(q12, MemOperand(x6, 16, PostIndex));
+  __ Ldr(q13, MemOperand(x6));
+  __ Ld2(v12.S(), v13.S(), 2, MemOperand(x17));
+  __ Mov(x7, x17);
+  __ Ldr(q14, MemOperand(x7, 16, PostIndex));
+  __ Ldr(q15, MemOperand(x7));
+  __ Ld2(v14.D(), v15.D(), 1, MemOperand(x17));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0001020304050607, 0x08090A0B0C0D0E0F, q0);
+  CHECK_EQUAL_128(0x0102030405060708, 0x090A0B0C0D0E0F10, q1);
+  CHECK_EQUAL_128(0x0100020103020403, 0x0504060507060807, q2);
+  CHECK_EQUAL_128(0x0302040305040605, 0x0706080709080A09, q3);
+  CHECK_EQUAL_128(0x0302010004030201, 0x0504030206050403, q4);
+  CHECK_EQUAL_128(0x0706050408070605, 0x090807060A090807, q5);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0807060504030201, q6);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x100F0E0D0C0B0A09, q7);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050003020100, q8);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x1716150113121110, q9);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0100050403020100, q10);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x0302151413121110, q11);
+  CHECK_EQUAL_128(0x0F0E0D0C03020100, 0x0706050403020100, q12);
+  CHECK_EQUAL_128(0x1F1E1D1C07060504, 0x1716151413121110, q13);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0706050403020100, q14);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x1716151413121110, q15);
+}
+
+TEST(neon_ld2_lane_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x28, src_base);
+  __ Mov(x19, src_base);
+  __ Mov(x20, src_base);
+  __ Mov(x21, src_base);
+  __ Mov(x22, src_base);
+  __ Mov(x23, src_base);
+  __ Mov(x24, src_base);
+
+  // Test loading whole register by element.
+  for (int i = 15; i >= 0; i--) {
+    __ Ld2(v0.B(), v1.B(), i, MemOperand(x17, 2, PostIndex));
+  }
+
+  for (int i = 7; i >= 0; i--) {
+    __ Ld2(v2.H(), v3.H(), i, MemOperand(x28, 4, PostIndex));
+  }
+
+  for (int i = 3; i >= 0; i--) {
+    __ Ld2(v4.S(), v5.S(), i, MemOperand(x19, 8, PostIndex));
+  }
+
+  for (int i = 1; i >= 0; i--) {
+    __ Ld2(v6.D(), v7.D(), i, MemOperand(x20, 16, PostIndex));
+  }
+
+  // Test loading a single element into an initialised register.
+  __ Mov(x25, 1);
+  __ Mov(x4, x21);
+  __ Ldr(q8, MemOperand(x4, 16, PostIndex));
+  __ Ldr(q9, MemOperand(x4));
+  __ Ld2(v8_.B(), v9.B(), 4, MemOperand(x21, x25, PostIndex));
+  __ Add(x25, x25, 1);
+
+  __ Mov(x5, x22);
+  __ Ldr(q10, MemOperand(x5, 16, PostIndex));
+  __ Ldr(q11, MemOperand(x5));
+  __ Ld2(v10.H(), v11.H(), 3, MemOperand(x22, x25, PostIndex));
+  __ Add(x25, x25, 1);
+
+  __ Mov(x6, x23);
+  __ Ldr(q12, MemOperand(x6, 16, PostIndex));
+  __ Ldr(q13, MemOperand(x6));
+  __ Ld2(v12.S(), v13.S(), 2, MemOperand(x23, x25, PostIndex));
+  __ Add(x25, x25, 1);
+
+  __ Mov(x7, x24);
+  __ Ldr(q14, MemOperand(x7, 16, PostIndex));
+  __ Ldr(q15, MemOperand(x7));
+  __ Ld2(v14.D(), v15.D(), 1, MemOperand(x24, x25, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x00020406080A0C0E, 0x10121416181A1C1E, q0);
+  CHECK_EQUAL_128(0x01030507090B0D0F, 0x11131517191B1D1F, q1);
+  CHECK_EQUAL_128(0x0100050409080D0C, 0x1110151419181D1C, q2);
+  CHECK_EQUAL_128(0x030207060B0A0F0E, 0x131217161B1A1F1E, q3);
+  CHECK_EQUAL_128(0x030201000B0A0908, 0x131211101B1A1918, q4);
+  CHECK_EQUAL_128(0x070605040F0E0D0C, 0x171615141F1E1D1C, q5);
+  CHECK_EQUAL_128(0x0706050403020100, 0x1716151413121110, q6);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x1F1E1D1C1B1A1918, q7);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050003020100, q8);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x1716150113121110, q9);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0100050403020100, q10);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x0302151413121110, q11);
+  CHECK_EQUAL_128(0x0F0E0D0C03020100, 0x0706050403020100, q12);
+  CHECK_EQUAL_128(0x1F1E1D1C07060504, 0x1716151413121110, q13);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0706050403020100, q14);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x1716151413121110, q15);
+
+  CHECK_EQUAL_64(src_base + 32, x17);
+  CHECK_EQUAL_64(src_base + 32, x28);
+  CHECK_EQUAL_64(src_base + 32, x19);
+  CHECK_EQUAL_64(src_base + 32, x20);
+  CHECK_EQUAL_64(src_base + 1, x21);
+  CHECK_EQUAL_64(src_base + 2, x22);
+  CHECK_EQUAL_64(src_base + 3, x23);
+  CHECK_EQUAL_64(src_base + 4, x24);
+}
+
+TEST(neon_ld2_alllanes) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base + 1);
+  __ Ld2r(v0.V8B(), v1.V8B(), MemOperand(x17));
+  __ Add(x17, x17, 2);
+  __ Ld2r(v2.V16B(), v3.V16B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld2r(v4.V4H(), v5.V4H(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld2r(v6.V8H(), v7.V8H(), MemOperand(x17));
+  __ Add(x17, x17, 4);
+  __ Ld2r(v8_.V2S(), v9.V2S(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld2r(v10.V4S(), v11.V4S(), MemOperand(x17));
+  __ Add(x17, x17, 8);
+  __ Ld2r(v12.V2D(), v13.V2D(), MemOperand(x17));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0000000000000000, 0x0101010101010101, q0);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0202020202020202, q1);
+  CHECK_EQUAL_128(0x0303030303030303, 0x0303030303030303, q2);
+  CHECK_EQUAL_128(0x0404040404040404, 0x0404040404040404, q3);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0504050405040504, q4);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0706070607060706, q5);
+  CHECK_EQUAL_128(0x0605060506050605, 0x0605060506050605, q6);
+  CHECK_EQUAL_128(0x0807080708070807, 0x0807080708070807, q7);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0C0B0A090C0B0A09, q8);
+  CHECK_EQUAL_128(0x0000000000000000, 0x100F0E0D100F0E0D, q9);
+  CHECK_EQUAL_128(0x0D0C0B0A0D0C0B0A, 0x0D0C0B0A0D0C0B0A, q10);
+  CHECK_EQUAL_128(0x11100F0E11100F0E, 0x11100F0E11100F0E, q11);
+  CHECK_EQUAL_128(0x1918171615141312, 0x1918171615141312, q12);
+  CHECK_EQUAL_128(0x21201F1E1D1C1B1A, 0x21201F1E1D1C1B1A, q13);
+}
+
+TEST(neon_ld2_alllanes_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base + 1);
+  __ Mov(x19, 1);
+  __ Ld2r(v0.V8B(), v1.V8B(), MemOperand(x17, 2, PostIndex));
+  __ Ld2r(v2.V16B(), v3.V16B(), MemOperand(x17, x19, PostIndex));
+  __ Ld2r(v4.V4H(), v5.V4H(), MemOperand(x17, x19, PostIndex));
+  __ Ld2r(v6.V8H(), v7.V8H(), MemOperand(x17, 4, PostIndex));
+  __ Ld2r(v8_.V2S(), v9.V2S(), MemOperand(x17, x19, PostIndex));
+  __ Ld2r(v10.V4S(), v11.V4S(), MemOperand(x17, 8, PostIndex));
+  __ Ld2r(v12.V2D(), v13.V2D(), MemOperand(x17, 16, PostIndex));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0000000000000000, 0x0101010101010101, q0);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0202020202020202, q1);
+  CHECK_EQUAL_128(0x0303030303030303, 0x0303030303030303, q2);
+  CHECK_EQUAL_128(0x0404040404040404, 0x0404040404040404, q3);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0504050405040504, q4);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0706070607060706, q5);
+  CHECK_EQUAL_128(0x0605060506050605, 0x0605060506050605, q6);
+  CHECK_EQUAL_128(0x0807080708070807, 0x0807080708070807, q7);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0C0B0A090C0B0A09, q8);
+  CHECK_EQUAL_128(0x0000000000000000, 0x100F0E0D100F0E0D, q9);
+  CHECK_EQUAL_128(0x0D0C0B0A0D0C0B0A, 0x0D0C0B0A0D0C0B0A, q10);
+  CHECK_EQUAL_128(0x11100F0E11100F0E, 0x11100F0E11100F0E, q11);
+  CHECK_EQUAL_128(0x1918171615141312, 0x1918171615141312, q12);
+  CHECK_EQUAL_128(0x21201F1E1D1C1B1A, 0x21201F1E1D1C1B1A, q13);
+  CHECK_EQUAL_64(src_base + 34, x17);
+}
+
+TEST(neon_ld3_d) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64 + 4];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Ld3(v2.V8B(), v3.V8B(), v4.V8B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld3(v5.V8B(), v6.V8B(), v7.V8B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld3(v8_.V4H(), v9.V4H(), v10.V4H(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld3(v31.V2S(), v0.V2S(), v1.V2S(), MemOperand(x17));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x15120F0C09060300, q2);
+  CHECK_EQUAL_128(0, 0x1613100D0A070401, q3);
+  CHECK_EQUAL_128(0, 0x1714110E0B080502, q4);
+  CHECK_EQUAL_128(0, 0x1613100D0A070401, q5);
+  CHECK_EQUAL_128(0, 0x1714110E0B080502, q6);
+  CHECK_EQUAL_128(0, 0x1815120F0C090603, q7);
+  CHECK_EQUAL_128(0, 0x15140F0E09080302, q8);
+  CHECK_EQUAL_128(0, 0x171611100B0A0504, q9);
+  CHECK_EQUAL_128(0, 0x191813120D0C0706, q10);
+  CHECK_EQUAL_128(0, 0x1211100F06050403, q31);
+  CHECK_EQUAL_128(0, 0x161514130A090807, q0);
+  CHECK_EQUAL_128(0, 0x1A1918170E0D0C0B, q1);
+}
+
+TEST(neon_ld3_d_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[32 + 4];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x28, src_base + 1);
+  __ Mov(x19, src_base + 2);
+  __ Mov(x20, src_base + 3);
+  __ Mov(x21, src_base + 4);
+  __ Mov(x22, 1);
+  __ Ld3(v2.V8B(), v3.V8B(), v4.V8B(), MemOperand(x17, x22, PostIndex));
+  __ Ld3(v5.V8B(), v6.V8B(), v7.V8B(), MemOperand(x28, 24, PostIndex));
+  __ Ld3(v8_.V4H(), v9.V4H(), v10.V4H(), MemOperand(x19, 24, PostIndex));
+  __ Ld3(v11.V2S(), v12.V2S(), v13.V2S(), MemOperand(x20, 24, PostIndex));
+  __ Ld3(v31.V2S(), v0.V2S(), v1.V2S(), MemOperand(x21, 24, PostIndex));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x15120F0C09060300, q2);
+  CHECK_EQUAL_128(0, 0x1613100D0A070401, q3);
+  CHECK_EQUAL_128(0, 0x1714110E0B080502, q4);
+  CHECK_EQUAL_128(0, 0x1613100D0A070401, q5);
+  CHECK_EQUAL_128(0, 0x1714110E0B080502, q6);
+  CHECK_EQUAL_128(0, 0x1815120F0C090603, q7);
+  CHECK_EQUAL_128(0, 0x15140F0E09080302, q8);
+  CHECK_EQUAL_128(0, 0x171611100B0A0504, q9);
+  CHECK_EQUAL_128(0, 0x191813120D0C0706, q10);
+  CHECK_EQUAL_128(0, 0x1211100F06050403, q11);
+  CHECK_EQUAL_128(0, 0x161514130A090807, q12);
+  CHECK_EQUAL_128(0, 0x1A1918170E0D0C0B, q13);
+  CHECK_EQUAL_128(0, 0x1312111007060504, q31);
+  CHECK_EQUAL_128(0, 0x171615140B0A0908, q0);
+  CHECK_EQUAL_128(0, 0x1B1A19180F0E0D0C, q1);
+
+  CHECK_EQUAL_64(src_base + 1, x17);
+  CHECK_EQUAL_64(src_base + 1 + 24, x28);
+  CHECK_EQUAL_64(src_base + 2 + 24, x19);
+  CHECK_EQUAL_64(src_base + 3 + 24, x20);
+  CHECK_EQUAL_64(src_base + 4 + 24, x21);
+}
+
+TEST(neon_ld3_q) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64 + 4];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Ld3(v2.V16B(), v3.V16B(), v4.V16B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld3(v5.V16B(), v6.V16B(), v7.V16B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld3(v8_.V8H(), v9.V8H(), v10.V8H(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld3(v11.V4S(), v12.V4S(), v13.V4S(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld3(v31.V2D(), v0.V2D(), v1.V2D(), MemOperand(x17));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x2D2A2724211E1B18, 0x15120F0C09060300, q2);
+  CHECK_EQUAL_128(0x2E2B2825221F1C19, 0x1613100D0A070401, q3);
+  CHECK_EQUAL_128(0x2F2C292623201D1A, 0x1714110E0B080502, q4);
+  CHECK_EQUAL_128(0x2E2B2825221F1C19, 0x1613100D0A070401, q5);
+  CHECK_EQUAL_128(0x2F2C292623201D1A, 0x1714110E0B080502, q6);
+  CHECK_EQUAL_128(0x302D2A2724211E1B, 0x1815120F0C090603, q7);
+  CHECK_EQUAL_128(0x2D2C272621201B1A, 0x15140F0E09080302, q8);
+  CHECK_EQUAL_128(0x2F2E292823221D1C, 0x171611100B0A0504, q9);
+  CHECK_EQUAL_128(0x31302B2A25241F1E, 0x191813120D0C0706, q10);
+  CHECK_EQUAL_128(0x2A2928271E1D1C1B, 0x1211100F06050403, q11);
+  CHECK_EQUAL_128(0x2E2D2C2B2221201F, 0x161514130A090807, q12);
+  CHECK_EQUAL_128(0x3231302F26252423, 0x1A1918170E0D0C0B, q13);
+  CHECK_EQUAL_128(0x232221201F1E1D1C, 0x0B0A090807060504, q31);
+  CHECK_EQUAL_128(0x2B2A292827262524, 0x131211100F0E0D0C, q0);
+  CHECK_EQUAL_128(0x333231302F2E2D2C, 0x1B1A191817161514, q1);
+}
+
+TEST(neon_ld3_q_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64 + 4];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x28, src_base + 1);
+  __ Mov(x19, src_base + 2);
+  __ Mov(x20, src_base + 3);
+  __ Mov(x21, src_base + 4);
+  __ Mov(x22, 1);
+
+  __ Ld3(v2.V16B(), v3.V16B(), v4.V16B(), MemOperand(x17, x22, PostIndex));
+  __ Ld3(v5.V16B(), v6.V16B(), v7.V16B(), MemOperand(x28, 48, PostIndex));
+  __ Ld3(v8_.V8H(), v9.V8H(), v10.V8H(), MemOperand(x19, 48, PostIndex));
+  __ Ld3(v11.V4S(), v12.V4S(), v13.V4S(), MemOperand(x20, 48, PostIndex));
+  __ Ld3(v31.V2D(), v0.V2D(), v1.V2D(), MemOperand(x21, 48, PostIndex));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x2D2A2724211E1B18, 0x15120F0C09060300, q2);
+  CHECK_EQUAL_128(0x2E2B2825221F1C19, 0x1613100D0A070401, q3);
+  CHECK_EQUAL_128(0x2F2C292623201D1A, 0x1714110E0B080502, q4);
+  CHECK_EQUAL_128(0x2E2B2825221F1C19, 0x1613100D0A070401, q5);
+  CHECK_EQUAL_128(0x2F2C292623201D1A, 0x1714110E0B080502, q6);
+  CHECK_EQUAL_128(0x302D2A2724211E1B, 0x1815120F0C090603, q7);
+  CHECK_EQUAL_128(0x2D2C272621201B1A, 0x15140F0E09080302, q8);
+  CHECK_EQUAL_128(0x2F2E292823221D1C, 0x171611100B0A0504, q9);
+  CHECK_EQUAL_128(0x31302B2A25241F1E, 0x191813120D0C0706, q10);
+  CHECK_EQUAL_128(0x2A2928271E1D1C1B, 0x1211100F06050403, q11);
+  CHECK_EQUAL_128(0x2E2D2C2B2221201F, 0x161514130A090807, q12);
+  CHECK_EQUAL_128(0x3231302F26252423, 0x1A1918170E0D0C0B, q13);
+  CHECK_EQUAL_128(0x232221201F1E1D1C, 0x0B0A090807060504, q31);
+  CHECK_EQUAL_128(0x2B2A292827262524, 0x131211100F0E0D0C, q0);
+  CHECK_EQUAL_128(0x333231302F2E2D2C, 0x1B1A191817161514, q1);
+
+  CHECK_EQUAL_64(src_base + 1, x17);
+  CHECK_EQUAL_64(src_base + 1 + 48, x28);
+  CHECK_EQUAL_64(src_base + 2 + 48, x19);
+  CHECK_EQUAL_64(src_base + 3 + 48, x20);
+  CHECK_EQUAL_64(src_base + 4 + 48, x21);
+}
+
+TEST(neon_ld3_lane) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+
+  // Test loading whole register by element.
+  __ Mov(x17, src_base);
+  for (int i = 15; i >= 0; i--) {
+    __ Ld3(v0.B(), v1.B(), v2.B(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  __ Mov(x17, src_base);
+  for (int i = 7; i >= 0; i--) {
+    __ Ld3(v3.H(), v4.H(), v5.H(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  __ Mov(x17, src_base);
+  for (int i = 3; i >= 0; i--) {
+    __ Ld3(v6.S(), v7.S(), v8_.S(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  __ Mov(x17, src_base);
+  for (int i = 1; i >= 0; i--) {
+    __ Ld3(v9.D(), v10.D(), v11.D(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  // Test loading a single element into an initialised register.
+  __ Mov(x17, src_base);
+  __ Mov(x4, x17);
+  __ Ldr(q12, MemOperand(x4, 16, PostIndex));
+  __ Ldr(q13, MemOperand(x4, 16, PostIndex));
+  __ Ldr(q14, MemOperand(x4));
+  __ Ld3(v12.B(), v13.B(), v14.B(), 4, MemOperand(x17));
+  __ Mov(x5, x17);
+  __ Ldr(q15, MemOperand(x5, 16, PostIndex));
+  __ Ldr(q16, MemOperand(x5, 16, PostIndex));
+  __ Ldr(q17, MemOperand(x5));
+  __ Ld3(v15.H(), v16.H(), v17.H(), 3, MemOperand(x17));
+  __ Mov(x6, x17);
+  __ Ldr(q18, MemOperand(x6, 16, PostIndex));
+  __ Ldr(q19, MemOperand(x6, 16, PostIndex));
+  __ Ldr(q20, MemOperand(x6));
+  __ Ld3(v18.S(), v19.S(), v20.S(), 2, MemOperand(x17));
+  __ Mov(x7, x17);
+  __ Ldr(q21, MemOperand(x7, 16, PostIndex));
+  __ Ldr(q22, MemOperand(x7, 16, PostIndex));
+  __ Ldr(q23, MemOperand(x7));
+  __ Ld3(v21.D(), v22.D(), v23.D(), 1, MemOperand(x17));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0001020304050607, 0x08090A0B0C0D0E0F, q0);
+  CHECK_EQUAL_128(0x0102030405060708, 0x090A0B0C0D0E0F10, q1);
+  CHECK_EQUAL_128(0x0203040506070809, 0x0A0B0C0D0E0F1011, q2);
+  CHECK_EQUAL_128(0x0100020103020403, 0x0504060507060807, q3);
+  CHECK_EQUAL_128(0x0302040305040605, 0x0706080709080A09, q4);
+  CHECK_EQUAL_128(0x0504060507060807, 0x09080A090B0A0C0B, q5);
+  CHECK_EQUAL_128(0x0302010004030201, 0x0504030206050403, q6);
+  CHECK_EQUAL_128(0x0706050408070605, 0x090807060A090807, q7);
+  CHECK_EQUAL_128(0x0B0A09080C0B0A09, 0x0D0C0B0A0E0D0C0B, q8);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0807060504030201, q9);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x100F0E0D0C0B0A09, q10);
+  CHECK_EQUAL_128(0x1716151413121110, 0x1817161514131211, q11);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050003020100, q12);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x1716150113121110, q13);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x2726250223222120, q14);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0100050403020100, q15);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x0302151413121110, q16);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x0504252423222120, q17);
+}
+
+TEST(neon_ld3_lane_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+
+  // Test loading whole register by element.
+  __ Mov(x17, src_base);
+  __ Mov(x28, src_base);
+  __ Mov(x19, src_base);
+  __ Mov(x20, src_base);
+  __ Mov(x21, src_base);
+  __ Mov(x22, src_base);
+  __ Mov(x23, src_base);
+  __ Mov(x24, src_base);
+  for (int i = 15; i >= 0; i--) {
+    __ Ld3(v0.B(), v1.B(), v2.B(), i, MemOperand(x17, 3, PostIndex));
+  }
+
+  for (int i = 7; i >= 0; i--) {
+    __ Ld3(v3.H(), v4.H(), v5.H(), i, MemOperand(x28, 6, PostIndex));
+  }
+
+  for (int i = 3; i >= 0; i--) {
+    __ Ld3(v6.S(), v7.S(), v8_.S(), i, MemOperand(x19, 12, PostIndex));
+  }
+
+  for (int i = 1; i >= 0; i--) {
+    __ Ld3(v9.D(), v10.D(), v11.D(), i, MemOperand(x20, 24, PostIndex));
+  }
+
+  // Test loading a single element into an initialised register.
+  __ Mov(x25, 1);
+  __ Mov(x4, x21);
+  __ Ldr(q12, MemOperand(x4, 16, PostIndex));
+  __ Ldr(q13, MemOperand(x4, 16, PostIndex));
+  __ Ldr(q14, MemOperand(x4));
+  __ Ld3(v12.B(), v13.B(), v14.B(), 4, MemOperand(x21, x25, PostIndex));
+  __ Add(x25, x25, 1);
+
+  __ Mov(x5, x22);
+  __ Ldr(q15, MemOperand(x5, 16, PostIndex));
+  __ Ldr(q16, MemOperand(x5, 16, PostIndex));
+  __ Ldr(q17, MemOperand(x5));
+  __ Ld3(v15.H(), v16.H(), v17.H(), 3, MemOperand(x22, x25, PostIndex));
+  __ Add(x25, x25, 1);
+
+  __ Mov(x6, x23);
+  __ Ldr(q18, MemOperand(x6, 16, PostIndex));
+  __ Ldr(q19, MemOperand(x6, 16, PostIndex));
+  __ Ldr(q20, MemOperand(x6));
+  __ Ld3(v18.S(), v19.S(), v20.S(), 2, MemOperand(x23, x25, PostIndex));
+  __ Add(x25, x25, 1);
+
+  __ Mov(x7, x24);
+  __ Ldr(q21, MemOperand(x7, 16, PostIndex));
+  __ Ldr(q22, MemOperand(x7, 16, PostIndex));
+  __ Ldr(q23, MemOperand(x7));
+  __ Ld3(v21.D(), v22.D(), v23.D(), 1, MemOperand(x24, x25, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x000306090C0F1215, 0x181B1E2124272A2D, q0);
+  CHECK_EQUAL_128(0x0104070A0D101316, 0x191C1F2225282B2E, q1);
+  CHECK_EQUAL_128(0x0205080B0E111417, 0x1A1D202326292C2F, q2);
+  CHECK_EQUAL_128(0x010007060D0C1312, 0x19181F1E25242B2A, q3);
+  CHECK_EQUAL_128(0x030209080F0E1514, 0x1B1A212027262D2C, q4);
+  CHECK_EQUAL_128(0x05040B0A11101716, 0x1D1C232229282F2E, q5);
+  CHECK_EQUAL_128(0x030201000F0E0D0C, 0x1B1A191827262524, q6);
+  CHECK_EQUAL_128(0x0706050413121110, 0x1F1E1D1C2B2A2928, q7);
+  CHECK_EQUAL_128(0x0B0A090817161514, 0x232221202F2E2D2C, q8);
+  CHECK_EQUAL_128(0x0706050403020100, 0x1F1E1D1C1B1A1918, q9);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x2726252423222120, q10);
+  CHECK_EQUAL_128(0x1716151413121110, 0x2F2E2D2C2B2A2928, q11);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050003020100, q12);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x1716150113121110, q13);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x2726250223222120, q14);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0100050403020100, q15);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x0302151413121110, q16);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x0504252423222120, q17);
+  CHECK_EQUAL_128(0x0F0E0D0C03020100, 0x0706050403020100, q18);
+  CHECK_EQUAL_128(0x1F1E1D1C07060504, 0x1716151413121110, q19);
+  CHECK_EQUAL_128(0x2F2E2D2C0B0A0908, 0x2726252423222120, q20);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0706050403020100, q21);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x1716151413121110, q22);
+  CHECK_EQUAL_128(0x1716151413121110, 0x2726252423222120, q23);
+
+  CHECK_EQUAL_64(src_base + 48, x17);
+  CHECK_EQUAL_64(src_base + 48, x28);
+  CHECK_EQUAL_64(src_base + 48, x19);
+  CHECK_EQUAL_64(src_base + 48, x20);
+  CHECK_EQUAL_64(src_base + 1, x21);
+  CHECK_EQUAL_64(src_base + 2, x22);
+  CHECK_EQUAL_64(src_base + 3, x23);
+  CHECK_EQUAL_64(src_base + 4, x24);
+}
+
+TEST(neon_ld3_alllanes) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base + 1);
+  __ Ld3r(v0.V8B(), v1.V8B(), v2.V8B(), MemOperand(x17));
+  __ Add(x17, x17, 3);
+  __ Ld3r(v3.V16B(), v4.V16B(), v5.V16B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld3r(v6.V4H(), v7.V4H(), v8_.V4H(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld3r(v9.V8H(), v10.V8H(), v11.V8H(), MemOperand(x17));
+  __ Add(x17, x17, 6);
+  __ Ld3r(v12.V2S(), v13.V2S(), v14.V2S(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld3r(v15.V4S(), v16.V4S(), v17.V4S(), MemOperand(x17));
+  __ Add(x17, x17, 12);
+  __ Ld3r(v18.V2D(), v19.V2D(), v20.V2D(), MemOperand(x17));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0000000000000000, 0x0101010101010101, q0);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0202020202020202, q1);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0303030303030303, q2);
+  CHECK_EQUAL_128(0x0404040404040404, 0x0404040404040404, q3);
+  CHECK_EQUAL_128(0x0505050505050505, 0x0505050505050505, q4);
+  CHECK_EQUAL_128(0x0606060606060606, 0x0606060606060606, q5);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0605060506050605, q6);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0807080708070807, q7);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0A090A090A090A09, q8);
+  CHECK_EQUAL_128(0x0706070607060706, 0x0706070607060706, q9);
+  CHECK_EQUAL_128(0x0908090809080908, 0x0908090809080908, q10);
+  CHECK_EQUAL_128(0x0B0A0B0A0B0A0B0A, 0x0B0A0B0A0B0A0B0A, q11);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0F0E0D0C0F0E0D0C, q12);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1312111013121110, q13);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1716151417161514, q14);
+  CHECK_EQUAL_128(0x100F0E0D100F0E0D, 0x100F0E0D100F0E0D, q15);
+  CHECK_EQUAL_128(0x1413121114131211, 0x1413121114131211, q16);
+  CHECK_EQUAL_128(0x1817161518171615, 0x1817161518171615, q17);
+  CHECK_EQUAL_128(0x201F1E1D1C1B1A19, 0x201F1E1D1C1B1A19, q18);
+  CHECK_EQUAL_128(0x2827262524232221, 0x2827262524232221, q19);
+  CHECK_EQUAL_128(0x302F2E2D2C2B2A29, 0x302F2E2D2C2B2A29, q20);
+}
+
+TEST(neon_ld3_alllanes_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base + 1);
+  __ Mov(x19, 1);
+  __ Ld3r(v0.V8B(), v1.V8B(), v2.V8B(), MemOperand(x17, 3, PostIndex));
+  __ Ld3r(v3.V16B(), v4.V16B(), v5.V16B(), MemOperand(x17, x19, PostIndex));
+  __ Ld3r(v6.V4H(), v7.V4H(), v8_.V4H(), MemOperand(x17, x19, PostIndex));
+  __ Ld3r(v9.V8H(), v10.V8H(), v11.V8H(), MemOperand(x17, 6, PostIndex));
+  __ Ld3r(v12.V2S(), v13.V2S(), v14.V2S(), MemOperand(x17, x19, PostIndex));
+  __ Ld3r(v15.V4S(), v16.V4S(), v17.V4S(), MemOperand(x17, 12, PostIndex));
+  __ Ld3r(v18.V2D(), v19.V2D(), v20.V2D(), MemOperand(x17, 24, PostIndex));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0000000000000000, 0x0101010101010101, q0);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0202020202020202, q1);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0303030303030303, q2);
+  CHECK_EQUAL_128(0x0404040404040404, 0x0404040404040404, q3);
+  CHECK_EQUAL_128(0x0505050505050505, 0x0505050505050505, q4);
+  CHECK_EQUAL_128(0x0606060606060606, 0x0606060606060606, q5);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0605060506050605, q6);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0807080708070807, q7);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0A090A090A090A09, q8);
+  CHECK_EQUAL_128(0x0706070607060706, 0x0706070607060706, q9);
+  CHECK_EQUAL_128(0x0908090809080908, 0x0908090809080908, q10);
+  CHECK_EQUAL_128(0x0B0A0B0A0B0A0B0A, 0x0B0A0B0A0B0A0B0A, q11);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0F0E0D0C0F0E0D0C, q12);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1312111013121110, q13);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1716151417161514, q14);
+  CHECK_EQUAL_128(0x100F0E0D100F0E0D, 0x100F0E0D100F0E0D, q15);
+  CHECK_EQUAL_128(0x1413121114131211, 0x1413121114131211, q16);
+  CHECK_EQUAL_128(0x1817161518171615, 0x1817161518171615, q17);
+  CHECK_EQUAL_128(0x201F1E1D1C1B1A19, 0x201F1E1D1C1B1A19, q18);
+  CHECK_EQUAL_128(0x2827262524232221, 0x2827262524232221, q19);
+  CHECK_EQUAL_128(0x302F2E2D2C2B2A29, 0x302F2E2D2C2B2A29, q20);
+}
+
+TEST(neon_ld4_d) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64 + 4];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Ld4(v2.V8B(), v3.V8B(), v4.V8B(), v5.V8B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld4(v6.V8B(), v7.V8B(), v8_.V8B(), v9.V8B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld4(v10.V4H(), v11.V4H(), v12.V4H(), v13.V4H(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld4(v30.V2S(), v31.V2S(), v0.V2S(), v1.V2S(), MemOperand(x17));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x1C1814100C080400, q2);
+  CHECK_EQUAL_128(0, 0x1D1915110D090501, q3);
+  CHECK_EQUAL_128(0, 0x1E1A16120E0A0602, q4);
+  CHECK_EQUAL_128(0, 0x1F1B17130F0B0703, q5);
+  CHECK_EQUAL_128(0, 0x1D1915110D090501, q6);
+  CHECK_EQUAL_128(0, 0x1E1A16120E0A0602, q7);
+  CHECK_EQUAL_128(0, 0x1F1B17130F0B0703, q8);
+  CHECK_EQUAL_128(0, 0x201C1814100C0804, q9);
+  CHECK_EQUAL_128(0, 0x1B1A13120B0A0302, q10);
+  CHECK_EQUAL_128(0, 0x1D1C15140D0C0504, q11);
+  CHECK_EQUAL_128(0, 0x1F1E17160F0E0706, q12);
+  CHECK_EQUAL_128(0, 0x2120191811100908, q13);
+  CHECK_EQUAL_128(0, 0x1615141306050403, q30);
+  CHECK_EQUAL_128(0, 0x1A1918170A090807, q31);
+  CHECK_EQUAL_128(0, 0x1E1D1C1B0E0D0C0B, q0);
+  CHECK_EQUAL_128(0, 0x2221201F1211100F, q1);
+}
+
+TEST(neon_ld4_d_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[32 + 4];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x28, src_base + 1);
+  __ Mov(x19, src_base + 2);
+  __ Mov(x20, src_base + 3);
+  __ Mov(x21, src_base + 4);
+  __ Mov(x22, 1);
+  __ Ld4(v2.V8B(), v3.V8B(), v4.V8B(), v5.V8B(),
+         MemOperand(x17, x22, PostIndex));
+  __ Ld4(v6.V8B(), v7.V8B(), v8_.V8B(), v9.V8B(),
+         MemOperand(x28, 32, PostIndex));
+  __ Ld4(v10.V4H(), v11.V4H(), v12.V4H(), v13.V4H(),
+         MemOperand(x19, 32, PostIndex));
+  __ Ld4(v14.V2S(), v15.V2S(), v16.V2S(), v17.V2S(),
+         MemOperand(x20, 32, PostIndex));
+  __ Ld4(v30.V2S(), v31.V2S(), v0.V2S(), v1.V2S(),
+         MemOperand(x21, 32, PostIndex));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x1C1814100C080400, q2);
+  CHECK_EQUAL_128(0, 0x1D1915110D090501, q3);
+  CHECK_EQUAL_128(0, 0x1E1A16120E0A0602, q4);
+  CHECK_EQUAL_128(0, 0x1F1B17130F0B0703, q5);
+  CHECK_EQUAL_128(0, 0x1D1915110D090501, q6);
+  CHECK_EQUAL_128(0, 0x1E1A16120E0A0602, q7);
+  CHECK_EQUAL_128(0, 0x1F1B17130F0B0703, q8);
+  CHECK_EQUAL_128(0, 0x201C1814100C0804, q9);
+  CHECK_EQUAL_128(0, 0x1B1A13120B0A0302, q10);
+  CHECK_EQUAL_128(0, 0x1D1C15140D0C0504, q11);
+  CHECK_EQUAL_128(0, 0x1F1E17160F0E0706, q12);
+  CHECK_EQUAL_128(0, 0x2120191811100908, q13);
+  CHECK_EQUAL_128(0, 0x1615141306050403, q14);
+  CHECK_EQUAL_128(0, 0x1A1918170A090807, q15);
+  CHECK_EQUAL_128(0, 0x1E1D1C1B0E0D0C0B, q16);
+  CHECK_EQUAL_128(0, 0x2221201F1211100F, q17);
+  CHECK_EQUAL_128(0, 0x1716151407060504, q30);
+  CHECK_EQUAL_128(0, 0x1B1A19180B0A0908, q31);
+  CHECK_EQUAL_128(0, 0x1F1E1D1C0F0E0D0C, q0);
+  CHECK_EQUAL_128(0, 0x2322212013121110, q1);
+
+  CHECK_EQUAL_64(src_base + 1, x17);
+  CHECK_EQUAL_64(src_base + 1 + 32, x28);
+  CHECK_EQUAL_64(src_base + 2 + 32, x19);
+  CHECK_EQUAL_64(src_base + 3 + 32, x20);
+  CHECK_EQUAL_64(src_base + 4 + 32, x21);
+}
+
+TEST(neon_ld4_q) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64 + 4];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Ld4(v2.V16B(), v3.V16B(), v4.V16B(), v5.V16B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld4(v6.V16B(), v7.V16B(), v8_.V16B(), v9.V16B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld4(v10.V8H(), v11.V8H(), v12.V8H(), v13.V8H(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld4(v14.V4S(), v15.V4S(), v16.V4S(), v17.V4S(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld4(v18.V2D(), v19.V2D(), v20.V2D(), v21.V2D(), MemOperand(x17));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x3C3834302C282420, 0x1C1814100C080400, q2);
+  CHECK_EQUAL_128(0x3D3935312D292521, 0x1D1915110D090501, q3);
+  CHECK_EQUAL_128(0x3E3A36322E2A2622, 0x1E1A16120E0A0602, q4);
+  CHECK_EQUAL_128(0x3F3B37332F2B2723, 0x1F1B17130F0B0703, q5);
+  CHECK_EQUAL_128(0x3D3935312D292521, 0x1D1915110D090501, q6);
+  CHECK_EQUAL_128(0x3E3A36322E2A2622, 0x1E1A16120E0A0602, q7);
+  CHECK_EQUAL_128(0x3F3B37332F2B2723, 0x1F1B17130F0B0703, q8);
+  CHECK_EQUAL_128(0x403C3834302C2824, 0x201C1814100C0804, q9);
+  CHECK_EQUAL_128(0x3B3A33322B2A2322, 0x1B1A13120B0A0302, q10);
+  CHECK_EQUAL_128(0x3D3C35342D2C2524, 0x1D1C15140D0C0504, q11);
+  CHECK_EQUAL_128(0x3F3E37362F2E2726, 0x1F1E17160F0E0706, q12);
+  CHECK_EQUAL_128(0x4140393831302928, 0x2120191811100908, q13);
+  CHECK_EQUAL_128(0x3635343326252423, 0x1615141306050403, q14);
+  CHECK_EQUAL_128(0x3A3938372A292827, 0x1A1918170A090807, q15);
+  CHECK_EQUAL_128(0x3E3D3C3B2E2D2C2B, 0x1E1D1C1B0E0D0C0B, q16);
+  CHECK_EQUAL_128(0x4241403F3231302F, 0x2221201F1211100F, q17);
+  CHECK_EQUAL_128(0x2B2A292827262524, 0x0B0A090807060504, q18);
+  CHECK_EQUAL_128(0x333231302F2E2D2C, 0x131211100F0E0D0C, q19);
+  CHECK_EQUAL_128(0x3B3A393837363534, 0x1B1A191817161514, q20);
+  CHECK_EQUAL_128(0x434241403F3E3D3C, 0x232221201F1E1D1C, q21);
+}
+
+TEST(neon_ld4_q_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64 + 4];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x28, src_base + 1);
+  __ Mov(x19, src_base + 2);
+  __ Mov(x20, src_base + 3);
+  __ Mov(x21, src_base + 4);
+  __ Mov(x22, 1);
+
+  __ Ld4(v2.V16B(), v3.V16B(), v4.V16B(), v5.V16B(),
+         MemOperand(x17, x22, PostIndex));
+  __ Ld4(v6.V16B(), v7.V16B(), v8_.V16B(), v9.V16B(),
+         MemOperand(x28, 64, PostIndex));
+  __ Ld4(v10.V8H(), v11.V8H(), v12.V8H(), v13.V8H(),
+         MemOperand(x19, 64, PostIndex));
+  __ Ld4(v14.V4S(), v15.V4S(), v16.V4S(), v17.V4S(),
+         MemOperand(x20, 64, PostIndex));
+  __ Ld4(v30.V2D(), v31.V2D(), v0.V2D(), v1.V2D(),
+         MemOperand(x21, 64, PostIndex));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x3C3834302C282420, 0x1C1814100C080400, q2);
+  CHECK_EQUAL_128(0x3D3935312D292521, 0x1D1915110D090501, q3);
+  CHECK_EQUAL_128(0x3E3A36322E2A2622, 0x1E1A16120E0A0602, q4);
+  CHECK_EQUAL_128(0x3F3B37332F2B2723, 0x1F1B17130F0B0703, q5);
+  CHECK_EQUAL_128(0x3D3935312D292521, 0x1D1915110D090501, q6);
+  CHECK_EQUAL_128(0x3E3A36322E2A2622, 0x1E1A16120E0A0602, q7);
+  CHECK_EQUAL_128(0x3F3B37332F2B2723, 0x1F1B17130F0B0703, q8);
+  CHECK_EQUAL_128(0x403C3834302C2824, 0x201C1814100C0804, q9);
+  CHECK_EQUAL_128(0x3B3A33322B2A2322, 0x1B1A13120B0A0302, q10);
+  CHECK_EQUAL_128(0x3D3C35342D2C2524, 0x1D1C15140D0C0504, q11);
+  CHECK_EQUAL_128(0x3F3E37362F2E2726, 0x1F1E17160F0E0706, q12);
+  CHECK_EQUAL_128(0x4140393831302928, 0x2120191811100908, q13);
+  CHECK_EQUAL_128(0x3635343326252423, 0x1615141306050403, q14);
+  CHECK_EQUAL_128(0x3A3938372A292827, 0x1A1918170A090807, q15);
+  CHECK_EQUAL_128(0x3E3D3C3B2E2D2C2B, 0x1E1D1C1B0E0D0C0B, q16);
+  CHECK_EQUAL_128(0x4241403F3231302F, 0x2221201F1211100F, q17);
+  CHECK_EQUAL_128(0x2B2A292827262524, 0x0B0A090807060504, q30);
+  CHECK_EQUAL_128(0x333231302F2E2D2C, 0x131211100F0E0D0C, q31);
+  CHECK_EQUAL_128(0x3B3A393837363534, 0x1B1A191817161514, q0);
+  CHECK_EQUAL_128(0x434241403F3E3D3C, 0x232221201F1E1D1C, q1);
+
+  CHECK_EQUAL_64(src_base + 1, x17);
+  CHECK_EQUAL_64(src_base + 1 + 64, x28);
+  CHECK_EQUAL_64(src_base + 2 + 64, x19);
+  CHECK_EQUAL_64(src_base + 3 + 64, x20);
+  CHECK_EQUAL_64(src_base + 4 + 64, x21);
+}
+
+TEST(neon_ld4_lane) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+
+  // Test loading whole register by element.
+  __ Mov(x17, src_base);
+  for (int i = 15; i >= 0; i--) {
+    __ Ld4(v0.B(), v1.B(), v2.B(), v3.B(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  __ Mov(x17, src_base);
+  for (int i = 7; i >= 0; i--) {
+    __ Ld4(v4.H(), v5.H(), v6.H(), v7.H(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  __ Mov(x17, src_base);
+  for (int i = 3; i >= 0; i--) {
+    __ Ld4(v8_.S(), v9.S(), v10.S(), v11.S(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  __ Mov(x17, src_base);
+  for (int i = 1; i >= 0; i--) {
+    __ Ld4(v12.D(), v13.D(), v14.D(), v15.D(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+
+  // Test loading a single element into an initialised register.
+  __ Mov(x17, src_base);
+  __ Mov(x4, x17);
+  __ Ldr(q16, MemOperand(x4, 16, PostIndex));
+  __ Ldr(q17, MemOperand(x4, 16, PostIndex));
+  __ Ldr(q18, MemOperand(x4, 16, PostIndex));
+  __ Ldr(q19, MemOperand(x4));
+  __ Ld4(v16.B(), v17.B(), v18.B(), v19.B(), 4, MemOperand(x17));
+
+  __ Mov(x5, x17);
+  __ Ldr(q20, MemOperand(x5, 16, PostIndex));
+  __ Ldr(q21, MemOperand(x5, 16, PostIndex));
+  __ Ldr(q22, MemOperand(x5, 16, PostIndex));
+  __ Ldr(q23, MemOperand(x5));
+  __ Ld4(v20.H(), v21.H(), v22.H(), v23.H(), 3, MemOperand(x17));
+
+  __ Mov(x6, x17);
+  __ Ldr(q24, MemOperand(x6, 16, PostIndex));
+  __ Ldr(q25, MemOperand(x6, 16, PostIndex));
+  __ Ldr(q26, MemOperand(x6, 16, PostIndex));
+  __ Ldr(q27, MemOperand(x6));
+  __ Ld4(v24.S(), v25.S(), v26.S(), v27.S(), 2, MemOperand(x17));
+
+  __ Mov(x7, x17);
+  __ Ldr(q28, MemOperand(x7, 16, PostIndex));
+  __ Ldr(q29, MemOperand(x7, 16, PostIndex));
+  __ Ldr(q30, MemOperand(x7, 16, PostIndex));
+  __ Ldr(q31, MemOperand(x7));
+  __ Ld4(v28.D(), v29.D(), v30.D(), v31.D(), 1, MemOperand(x17));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0001020304050607, 0x08090A0B0C0D0E0F, q0);
+  CHECK_EQUAL_128(0x0102030405060708, 0x090A0B0C0D0E0F10, q1);
+  CHECK_EQUAL_128(0x0203040506070809, 0x0A0B0C0D0E0F1011, q2);
+  CHECK_EQUAL_128(0x030405060708090A, 0x0B0C0D0E0F101112, q3);
+  CHECK_EQUAL_128(0x0100020103020403, 0x0504060507060807, q4);
+  CHECK_EQUAL_128(0x0302040305040605, 0x0706080709080A09, q5);
+  CHECK_EQUAL_128(0x0504060507060807, 0x09080A090B0A0C0B, q6);
+  CHECK_EQUAL_128(0x0706080709080A09, 0x0B0A0C0B0D0C0E0D, q7);
+  CHECK_EQUAL_128(0x0302010004030201, 0x0504030206050403, q8);
+  CHECK_EQUAL_128(0x0706050408070605, 0x090807060A090807, q9);
+  CHECK_EQUAL_128(0x0B0A09080C0B0A09, 0x0D0C0B0A0E0D0C0B, q10);
+  CHECK_EQUAL_128(0x0F0E0D0C100F0E0D, 0x11100F0E1211100F, q11);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0807060504030201, q12);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x100F0E0D0C0B0A09, q13);
+  CHECK_EQUAL_128(0x1716151413121110, 0x1817161514131211, q14);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x201F1E1D1C1B1A19, q15);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050003020100, q16);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x1716150113121110, q17);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x2726250223222120, q18);
+  CHECK_EQUAL_128(0x3F3E3D3C3B3A3938, 0x3736350333323130, q19);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0100050403020100, q20);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x0302151413121110, q21);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x0504252423222120, q22);
+  CHECK_EQUAL_128(0x3F3E3D3C3B3A3938, 0x0706353433323130, q23);
+  CHECK_EQUAL_128(0x0F0E0D0C03020100, 0x0706050403020100, q24);
+  CHECK_EQUAL_128(0x1F1E1D1C07060504, 0x1716151413121110, q25);
+  CHECK_EQUAL_128(0x2F2E2D2C0B0A0908, 0x2726252423222120, q26);
+  CHECK_EQUAL_128(0x3F3E3D3C0F0E0D0C, 0x3736353433323130, q27);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0706050403020100, q28);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x1716151413121110, q29);
+  CHECK_EQUAL_128(0x1716151413121110, 0x2726252423222120, q30);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x3736353433323130, q31);
+}
+
+TEST(neon_ld4_lane_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+
+  // Test loading whole register by element.
+  __ Mov(x17, src_base);
+  for (int i = 15; i >= 0; i--) {
+    __ Ld4(v0.B(), v1.B(), v2.B(), v3.B(), i, MemOperand(x17, 4, PostIndex));
+  }
+
+  __ Mov(x28, src_base);
+  for (int i = 7; i >= 0; i--) {
+    __ Ld4(v4.H(), v5.H(), v6.H(), v7.H(), i, MemOperand(x28, 8, PostIndex));
+  }
+
+  __ Mov(x19, src_base);
+  for (int i = 3; i >= 0; i--) {
+    __ Ld4(v8_.S(), v9.S(), v10.S(), v11.S(), i,
+           MemOperand(x19, 16, PostIndex));
+  }
+
+  __ Mov(x20, src_base);
+  for (int i = 1; i >= 0; i--) {
+    __ Ld4(v12.D(), v13.D(), v14.D(), v15.D(), i,
+           MemOperand(x20, 32, PostIndex));
+  }
+
+  // Test loading a single element into an initialised register.
+  __ Mov(x25, 1);
+  __ Mov(x21, src_base);
+  __ Mov(x22, src_base);
+  __ Mov(x23, src_base);
+  __ Mov(x24, src_base);
+
+  __ Mov(x4, x21);
+  __ Ldr(q16, MemOperand(x4, 16, PostIndex));
+  __ Ldr(q17, MemOperand(x4, 16, PostIndex));
+  __ Ldr(q18, MemOperand(x4, 16, PostIndex));
+  __ Ldr(q19, MemOperand(x4));
+  __ Ld4(v16.B(), v17.B(), v18.B(), v19.B(), 4,
+         MemOperand(x21, x25, PostIndex));
+  __ Add(x25, x25, 1);
+
+  __ Mov(x5, x22);
+  __ Ldr(q20, MemOperand(x5, 16, PostIndex));
+  __ Ldr(q21, MemOperand(x5, 16, PostIndex));
+  __ Ldr(q22, MemOperand(x5, 16, PostIndex));
+  __ Ldr(q23, MemOperand(x5));
+  __ Ld4(v20.H(), v21.H(), v22.H(), v23.H(), 3,
+         MemOperand(x22, x25, PostIndex));
+  __ Add(x25, x25, 1);
+
+  __ Mov(x6, x23);
+  __ Ldr(q24, MemOperand(x6, 16, PostIndex));
+  __ Ldr(q25, MemOperand(x6, 16, PostIndex));
+  __ Ldr(q26, MemOperand(x6, 16, PostIndex));
+  __ Ldr(q27, MemOperand(x6));
+  __ Ld4(v24.S(), v25.S(), v26.S(), v27.S(), 2,
+         MemOperand(x23, x25, PostIndex));
+  __ Add(x25, x25, 1);
+
+  __ Mov(x7, x24);
+  __ Ldr(q28, MemOperand(x7, 16, PostIndex));
+  __ Ldr(q29, MemOperand(x7, 16, PostIndex));
+  __ Ldr(q30, MemOperand(x7, 16, PostIndex));
+  __ Ldr(q31, MemOperand(x7));
+  __ Ld4(v28.D(), v29.D(), v30.D(), v31.D(), 1,
+         MemOperand(x24, x25, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0004080C1014181C, 0x2024282C3034383C, q0);
+  CHECK_EQUAL_128(0x0105090D1115191D, 0x2125292D3135393D, q1);
+  CHECK_EQUAL_128(0x02060A0E12161A1E, 0x22262A2E32363A3E, q2);
+  CHECK_EQUAL_128(0x03070B0F13171B1F, 0x23272B2F33373B3F, q3);
+  CHECK_EQUAL_128(0x0100090811101918, 0x2120292831303938, q4);
+  CHECK_EQUAL_128(0x03020B0A13121B1A, 0x23222B2A33323B3A, q5);
+  CHECK_EQUAL_128(0x05040D0C15141D1C, 0x25242D2C35343D3C, q6);
+  CHECK_EQUAL_128(0x07060F0E17161F1E, 0x27262F2E37363F3E, q7);
+  CHECK_EQUAL_128(0x0302010013121110, 0x2322212033323130, q8);
+  CHECK_EQUAL_128(0x0706050417161514, 0x2726252437363534, q9);
+  CHECK_EQUAL_128(0x0B0A09081B1A1918, 0x2B2A29283B3A3938, q10);
+  CHECK_EQUAL_128(0x0F0E0D0C1F1E1D1C, 0x2F2E2D2C3F3E3D3C, q11);
+  CHECK_EQUAL_128(0x0706050403020100, 0x2726252423222120, q12);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x2F2E2D2C2B2A2928, q13);
+  CHECK_EQUAL_128(0x1716151413121110, 0x3736353433323130, q14);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x3F3E3D3C3B3A3938, q15);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050003020100, q16);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x1716150113121110, q17);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x2726250223222120, q18);
+  CHECK_EQUAL_128(0x3F3E3D3C3B3A3938, 0x3736350333323130, q19);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0100050403020100, q20);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x0302151413121110, q21);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x0504252423222120, q22);
+  CHECK_EQUAL_128(0x3F3E3D3C3B3A3938, 0x0706353433323130, q23);
+  CHECK_EQUAL_128(0x0F0E0D0C03020100, 0x0706050403020100, q24);
+  CHECK_EQUAL_128(0x1F1E1D1C07060504, 0x1716151413121110, q25);
+  CHECK_EQUAL_128(0x2F2E2D2C0B0A0908, 0x2726252423222120, q26);
+  CHECK_EQUAL_128(0x3F3E3D3C0F0E0D0C, 0x3736353433323130, q27);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0706050403020100, q28);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x1716151413121110, q29);
+  CHECK_EQUAL_128(0x1716151413121110, 0x2726252423222120, q30);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x3736353433323130, q31);
+
+  CHECK_EQUAL_64(src_base + 64, x17);
+  CHECK_EQUAL_64(src_base + 64, x28);
+  CHECK_EQUAL_64(src_base + 64, x19);
+  CHECK_EQUAL_64(src_base + 64, x20);
+  CHECK_EQUAL_64(src_base + 1, x21);
+  CHECK_EQUAL_64(src_base + 2, x22);
+  CHECK_EQUAL_64(src_base + 3, x23);
+  CHECK_EQUAL_64(src_base + 4, x24);
+}
+
+TEST(neon_ld4_alllanes) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base + 1);
+  __ Ld4r(v0.V8B(), v1.V8B(), v2.V8B(), v3.V8B(), MemOperand(x17));
+  __ Add(x17, x17, 4);
+  __ Ld4r(v4.V16B(), v5.V16B(), v6.V16B(), v7.V16B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld4r(v8_.V4H(), v9.V4H(), v10.V4H(), v11.V4H(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld4r(v12.V8H(), v13.V8H(), v14.V8H(), v15.V8H(), MemOperand(x17));
+  __ Add(x17, x17, 8);
+  __ Ld4r(v16.V2S(), v17.V2S(), v18.V2S(), v19.V2S(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld4r(v20.V4S(), v21.V4S(), v22.V4S(), v23.V4S(), MemOperand(x17));
+  __ Add(x17, x17, 16);
+  __ Ld4r(v24.V2D(), v25.V2D(), v26.V2D(), v27.V2D(), MemOperand(x17));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0000000000000000, 0x0101010101010101, q0);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0202020202020202, q1);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0303030303030303, q2);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0404040404040404, q3);
+  CHECK_EQUAL_128(0x0505050505050505, 0x0505050505050505, q4);
+  CHECK_EQUAL_128(0x0606060606060606, 0x0606060606060606, q5);
+  CHECK_EQUAL_128(0x0707070707070707, 0x0707070707070707, q6);
+  CHECK_EQUAL_128(0x0808080808080808, 0x0808080808080808, q7);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0706070607060706, q8);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0908090809080908, q9);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0B0A0B0A0B0A0B0A, q10);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0D0C0D0C0D0C0D0C, q11);
+  CHECK_EQUAL_128(0x0807080708070807, 0x0807080708070807, q12);
+  CHECK_EQUAL_128(0x0A090A090A090A09, 0x0A090A090A090A09, q13);
+  CHECK_EQUAL_128(0x0C0B0C0B0C0B0C0B, 0x0C0B0C0B0C0B0C0B, q14);
+  CHECK_EQUAL_128(0x0E0D0E0D0E0D0E0D, 0x0E0D0E0D0E0D0E0D, q15);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1211100F1211100F, q16);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1615141316151413, q17);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1A1918171A191817, q18);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1E1D1C1B1E1D1C1B, q19);
+  CHECK_EQUAL_128(0x1312111013121110, 0x1312111013121110, q20);
+  CHECK_EQUAL_128(0x1716151417161514, 0x1716151417161514, q21);
+  CHECK_EQUAL_128(0x1B1A19181B1A1918, 0x1B1A19181B1A1918, q22);
+  CHECK_EQUAL_128(0x1F1E1D1C1F1E1D1C, 0x1F1E1D1C1F1E1D1C, q23);
+  CHECK_EQUAL_128(0x2726252423222120, 0x2726252423222120, q24);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x2F2E2D2C2B2A2928, q25);
+  CHECK_EQUAL_128(0x3736353433323130, 0x3736353433323130, q26);
+  CHECK_EQUAL_128(0x3F3E3D3C3B3A3938, 0x3F3E3D3C3B3A3938, q27);
+}
+
+TEST(neon_ld4_alllanes_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base + 1);
+  __ Mov(x19, 1);
+  __ Ld4r(v0.V8B(), v1.V8B(), v2.V8B(), v3.V8B(),
+          MemOperand(x17, 4, PostIndex));
+  __ Ld4r(v4.V16B(), v5.V16B(), v6.V16B(), v7.V16B(),
+          MemOperand(x17, x19, PostIndex));
+  __ Ld4r(v8_.V4H(), v9.V4H(), v10.V4H(), v11.V4H(),
+          MemOperand(x17, x19, PostIndex));
+  __ Ld4r(v12.V8H(), v13.V8H(), v14.V8H(), v15.V8H(),
+          MemOperand(x17, 8, PostIndex));
+  __ Ld4r(v16.V2S(), v17.V2S(), v18.V2S(), v19.V2S(),
+          MemOperand(x17, x19, PostIndex));
+  __ Ld4r(v20.V4S(), v21.V4S(), v22.V4S(), v23.V4S(),
+          MemOperand(x17, 16, PostIndex));
+  __ Ld4r(v24.V2D(), v25.V2D(), v26.V2D(), v27.V2D(),
+          MemOperand(x17, 32, PostIndex));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0000000000000000, 0x0101010101010101, q0);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0202020202020202, q1);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0303030303030303, q2);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0404040404040404, q3);
+  CHECK_EQUAL_128(0x0505050505050505, 0x0505050505050505, q4);
+  CHECK_EQUAL_128(0x0606060606060606, 0x0606060606060606, q5);
+  CHECK_EQUAL_128(0x0707070707070707, 0x0707070707070707, q6);
+  CHECK_EQUAL_128(0x0808080808080808, 0x0808080808080808, q7);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0706070607060706, q8);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0908090809080908, q9);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0B0A0B0A0B0A0B0A, q10);
+  CHECK_EQUAL_128(0x0000000000000000, 0x0D0C0D0C0D0C0D0C, q11);
+  CHECK_EQUAL_128(0x0807080708070807, 0x0807080708070807, q12);
+  CHECK_EQUAL_128(0x0A090A090A090A09, 0x0A090A090A090A09, q13);
+  CHECK_EQUAL_128(0x0C0B0C0B0C0B0C0B, 0x0C0B0C0B0C0B0C0B, q14);
+  CHECK_EQUAL_128(0x0E0D0E0D0E0D0E0D, 0x0E0D0E0D0E0D0E0D, q15);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1211100F1211100F, q16);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1615141316151413, q17);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1A1918171A191817, q18);
+  CHECK_EQUAL_128(0x0000000000000000, 0x1E1D1C1B1E1D1C1B, q19);
+  CHECK_EQUAL_128(0x1312111013121110, 0x1312111013121110, q20);
+  CHECK_EQUAL_128(0x1716151417161514, 0x1716151417161514, q21);
+  CHECK_EQUAL_128(0x1B1A19181B1A1918, 0x1B1A19181B1A1918, q22);
+  CHECK_EQUAL_128(0x1F1E1D1C1F1E1D1C, 0x1F1E1D1C1F1E1D1C, q23);
+  CHECK_EQUAL_128(0x2726252423222120, 0x2726252423222120, q24);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x2F2E2D2C2B2A2928, q25);
+  CHECK_EQUAL_128(0x3736353433323130, 0x3736353433323130, q26);
+  CHECK_EQUAL_128(0x3F3E3D3C3B3A3938, 0x3F3E3D3C3B3A3938, q27);
+  CHECK_EQUAL_64(src_base + 64, x17);
+}
+
+TEST(neon_st1_lane) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x19, -16);
+  __ Ldr(q0, MemOperand(x17));
+
+  for (int i = 15; i >= 0; i--) {
+    __ St1(v0.B(), i, MemOperand(x17));
+    __ Add(x17, x17, 1);
+  }
+  __ Ldr(q1, MemOperand(x17, x19));
+
+  for (int i = 7; i >= 0; i--) {
+    __ St1(v0.H(), i, MemOperand(x17));
+    __ Add(x17, x17, 2);
+  }
+  __ Ldr(q2, MemOperand(x17, x19));
+
+  for (int i = 3; i >= 0; i--) {
+    __ St1(v0.S(), i, MemOperand(x17));
+    __ Add(x17, x17, 4);
+  }
+  __ Ldr(q3, MemOperand(x17, x19));
+
+  for (int i = 1; i >= 0; i--) {
+    __ St1(v0.D(), i, MemOperand(x17));
+    __ Add(x17, x17, 8);
+  }
+  __ Ldr(q4, MemOperand(x17, x19));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0001020304050607, 0x08090A0B0C0D0E0F, q1);
+  CHECK_EQUAL_128(0x0100030205040706, 0x09080B0A0D0C0F0E, q2);
+  CHECK_EQUAL_128(0x0302010007060504, 0x0B0A09080F0E0D0C, q3);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0F0E0D0C0B0A0908, q4);
+}
+
+TEST(neon_st2_lane) {
+  INIT_V8();
+  SETUP();
+
+  // Struct size * addressing modes * element sizes * vector size.
+  uint8_t dst[2 * 2 * 4 * 16];
+  memset(dst, 0, sizeof(dst));
+  uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
+
+  START();
+  __ Mov(x17, dst_base);
+  __ Mov(x19, dst_base);
+  __ Movi(v0.V2D(), 0x0001020304050607, 0x08090A0B0C0D0E0F);
+  __ Movi(v1.V2D(), 0x1011121314151617, 0x18191A1B1C1D1E1F);
+
+  // Test B stores with and without post index.
+  for (int i = 15; i >= 0; i--) {
+    __ St2(v0.B(), v1.B(), i, MemOperand(x19));
+    __ Add(x19, x19, 2);
+  }
+  for (int i = 15; i >= 0; i--) {
+    __ St2(v0.B(), v1.B(), i, MemOperand(x19, 2, PostIndex));
+  }
+  __ Ldr(q2, MemOperand(x17, 0 * 16));
+  __ Ldr(q3, MemOperand(x17, 1 * 16));
+  __ Ldr(q4, MemOperand(x17, 2 * 16));
+  __ Ldr(q5, MemOperand(x17, 3 * 16));
+
+  // Test H stores with and without post index.
+  __ Mov(x0, 4);
+  for (int i = 7; i >= 0; i--) {
+    __ St2(v0.H(), v1.H(), i, MemOperand(x19));
+    __ Add(x19, x19, 4);
+  }
+  for (int i = 7; i >= 0; i--) {
+    __ St2(v0.H(), v1.H(), i, MemOperand(x19, x0, PostIndex));
+  }
+  __ Ldr(q6, MemOperand(x17, 4 * 16));
+  __ Ldr(q7, MemOperand(x17, 5 * 16));
+  __ Ldr(q16, MemOperand(x17, 6 * 16));
+  __ Ldr(q17, MemOperand(x17, 7 * 16));
+
+  // Test S stores with and without post index.
+  for (int i = 3; i >= 0; i--) {
+    __ St2(v0.S(), v1.S(), i, MemOperand(x19));
+    __ Add(x19, x19, 8);
+  }
+  for (int i = 3; i >= 0; i--) {
+    __ St2(v0.S(), v1.S(), i, MemOperand(x19, 8, PostIndex));
+  }
+  __ Ldr(q18, MemOperand(x17, 8 * 16));
+  __ Ldr(q19, MemOperand(x17, 9 * 16));
+  __ Ldr(q20, MemOperand(x17, 10 * 16));
+  __ Ldr(q21, MemOperand(x17, 11 * 16));
+
+  // Test D stores with and without post index.
+  __ Mov(x0, 16);
+  __ St2(v0.D(), v1.D(), 1, MemOperand(x19));
+  __ Add(x19, x19, 16);
+  __ St2(v0.D(), v1.D(), 0, MemOperand(x19, 16, PostIndex));
+  __ St2(v0.D(), v1.D(), 1, MemOperand(x19, x0, PostIndex));
+  __ St2(v0.D(), v1.D(), 0, MemOperand(x19, x0, PostIndex));
+  __ Ldr(q22, MemOperand(x17, 12 * 16));
+  __ Ldr(q23, MemOperand(x17, 13 * 16));
+  __ Ldr(q24, MemOperand(x17, 14 * 16));
+  __ Ldr(q25, MemOperand(x17, 15 * 16));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x1707160615051404, 0x1303120211011000, q2);
+  CHECK_EQUAL_128(0x1F0F1E0E1D0D1C0C, 0x1B0B1A0A19091808, q3);
+  CHECK_EQUAL_128(0x1707160615051404, 0x1303120211011000, q4);
+  CHECK_EQUAL_128(0x1F0F1E0E1D0D1C0C, 0x1B0B1A0A19091808, q5);
+
+  CHECK_EQUAL_128(0x1617060714150405, 0x1213020310110001, q6);
+  CHECK_EQUAL_128(0x1E1F0E0F1C1D0C0D, 0x1A1B0A0B18190809, q7);
+  CHECK_EQUAL_128(0x1617060714150405, 0x1213020310110001, q16);
+  CHECK_EQUAL_128(0x1E1F0E0F1C1D0C0D, 0x1A1B0A0B18190809, q17);
+
+  CHECK_EQUAL_128(0x1415161704050607, 0x1011121300010203, q18);
+  CHECK_EQUAL_128(0x1C1D1E1F0C0D0E0F, 0x18191A1B08090A0B, q19);
+  CHECK_EQUAL_128(0x1415161704050607, 0x1011121300010203, q20);
+  CHECK_EQUAL_128(0x1C1D1E1F0C0D0E0F, 0x18191A1B08090A0B, q21);
+
+  CHECK_EQUAL_128(0x1011121314151617, 0x0001020304050607, q22);
+  CHECK_EQUAL_128(0x18191A1B1C1D1E1F, 0x08090A0B0C0D0E0F, q23);
+  CHECK_EQUAL_128(0x1011121314151617, 0x0001020304050607, q22);
+  CHECK_EQUAL_128(0x18191A1B1C1D1E1F, 0x08090A0B0C0D0E0F, q23);
+}
+
+TEST(neon_st3_lane) {
+  INIT_V8();
+  SETUP();
+
+  // Struct size * addressing modes * element sizes * vector size.
+  uint8_t dst[3 * 2 * 4 * 16];
+  memset(dst, 0, sizeof(dst));
+  uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
+
+  START();
+  __ Mov(x17, dst_base);
+  __ Mov(x19, dst_base);
+  __ Movi(v0.V2D(), 0x0001020304050607, 0x08090A0B0C0D0E0F);
+  __ Movi(v1.V2D(), 0x1011121314151617, 0x18191A1B1C1D1E1F);
+  __ Movi(v2.V2D(), 0x2021222324252627, 0x28292A2B2C2D2E2F);
+
+  // Test B stores with and without post index.
+  for (int i = 15; i >= 0; i--) {
+    __ St3(v0.B(), v1.B(), v2.B(), i, MemOperand(x19));
+    __ Add(x19, x19, 3);
+  }
+  for (int i = 15; i >= 0; i--) {
+    __ St3(v0.B(), v1.B(), v2.B(), i, MemOperand(x19, 3, PostIndex));
+  }
+  __ Ldr(q3, MemOperand(x17, 0 * 16));
+  __ Ldr(q4, MemOperand(x17, 1 * 16));
+  __ Ldr(q5, MemOperand(x17, 2 * 16));
+  __ Ldr(q6, MemOperand(x17, 3 * 16));
+  __ Ldr(q7, MemOperand(x17, 4 * 16));
+  __ Ldr(q16, MemOperand(x17, 5 * 16));
+
+  // Test H stores with and without post index.
+  __ Mov(x0, 6);
+  for (int i = 7; i >= 0; i--) {
+    __ St3(v0.H(), v1.H(), v2.H(), i, MemOperand(x19));
+    __ Add(x19, x19, 6);
+  }
+  for (int i = 7; i >= 0; i--) {
+    __ St3(v0.H(), v1.H(), v2.H(), i, MemOperand(x19, x0, PostIndex));
+  }
+  __ Ldr(q17, MemOperand(x17, 6 * 16));
+  __ Ldr(q18, MemOperand(x17, 7 * 16));
+  __ Ldr(q19, MemOperand(x17, 8 * 16));
+  __ Ldr(q20, MemOperand(x17, 9 * 16));
+  __ Ldr(q21, MemOperand(x17, 10 * 16));
+  __ Ldr(q22, MemOperand(x17, 11 * 16));
+
+  // Test S stores with and without post index.
+  for (int i = 3; i >= 0; i--) {
+    __ St3(v0.S(), v1.S(), v2.S(), i, MemOperand(x19));
+    __ Add(x19, x19, 12);
+  }
+  for (int i = 3; i >= 0; i--) {
+    __ St3(v0.S(), v1.S(), v2.S(), i, MemOperand(x19, 12, PostIndex));
+  }
+  __ Ldr(q23, MemOperand(x17, 12 * 16));
+  __ Ldr(q24, MemOperand(x17, 13 * 16));
+  __ Ldr(q25, MemOperand(x17, 14 * 16));
+  __ Ldr(q26, MemOperand(x17, 15 * 16));
+  __ Ldr(q27, MemOperand(x17, 16 * 16));
+  __ Ldr(q28, MemOperand(x17, 17 * 16));
+
+  // Test D stores with and without post index.
+  __ Mov(x0, 24);
+  __ St3(v0.D(), v1.D(), v2.D(), 1, MemOperand(x19));
+  __ Add(x19, x19, 24);
+  __ St3(v0.D(), v1.D(), v2.D(), 0, MemOperand(x19, 24, PostIndex));
+  __ St3(v0.D(), v1.D(), v2.D(), 1, MemOperand(x19, x0, PostIndex));
+  __ Ldr(q29, MemOperand(x17, 18 * 16));
+  __ Ldr(q30, MemOperand(x17, 19 * 16));
+  __ Ldr(q31, MemOperand(x17, 20 * 16));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0524140423130322, 0x1202211101201000, q3);
+  CHECK_EQUAL_128(0x1A0A291909281808, 0x2717072616062515, q4);
+  CHECK_EQUAL_128(0x2F1F0F2E1E0E2D1D, 0x0D2C1C0C2B1B0B2A, q5);
+  CHECK_EQUAL_128(0x0524140423130322, 0x1202211101201000, q6);
+  CHECK_EQUAL_128(0x1A0A291909281808, 0x2717072616062515, q7);
+  CHECK_EQUAL_128(0x2F1F0F2E1E0E2D1D, 0x0D2C1C0C2B1B0B2A, q16);
+
+  CHECK_EQUAL_128(0x1415040522231213, 0x0203202110110001, q17);
+  CHECK_EQUAL_128(0x0A0B282918190809, 0x2627161706072425, q18);
+  CHECK_EQUAL_128(0x2E2F1E1F0E0F2C2D, 0x1C1D0C0D2A2B1A1B, q19);
+  CHECK_EQUAL_128(0x1415040522231213, 0x0203202110110001, q20);
+  CHECK_EQUAL_128(0x0A0B282918190809, 0x2627161706072425, q21);
+  CHECK_EQUAL_128(0x2E2F1E1F0E0F2C2D, 0x1C1D0C0D2A2B1A1B, q22);
+
+  CHECK_EQUAL_128(0x0405060720212223, 0x1011121300010203, q23);
+  CHECK_EQUAL_128(0x18191A1B08090A0B, 0x2425262714151617, q24);
+  CHECK_EQUAL_128(0x2C2D2E2F1C1D1E1F, 0x0C0D0E0F28292A2B, q25);
+  CHECK_EQUAL_128(0x0405060720212223, 0x1011121300010203, q26);
+  CHECK_EQUAL_128(0x18191A1B08090A0B, 0x2425262714151617, q27);
+  CHECK_EQUAL_128(0x2C2D2E2F1C1D1E1F, 0x0C0D0E0F28292A2B, q28);
+}
+
+TEST(neon_st4_lane) {
+  INIT_V8();
+  SETUP();
+
+  // Struct size * element sizes * vector size.
+  uint8_t dst[4 * 4 * 16];
+  memset(dst, 0, sizeof(dst));
+  uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
+
+  START();
+  __ Mov(x17, dst_base);
+  __ Mov(x19, dst_base);
+  __ Movi(v0.V2D(), 0x0001020304050607, 0x08090A0B0C0D0E0F);
+  __ Movi(v1.V2D(), 0x1011121314151617, 0x18191A1B1C1D1E1F);
+  __ Movi(v2.V2D(), 0x2021222324252627, 0x28292A2B2C2D2E2F);
+  __ Movi(v3.V2D(), 0x2021222324252627, 0x28292A2B2C2D2E2F);
+
+  // Test B stores without post index.
+  for (int i = 15; i >= 0; i--) {
+    __ St4(v0.B(), v1.B(), v2.B(), v3.B(), i, MemOperand(x19));
+    __ Add(x19, x19, 4);
+  }
+  __ Ldr(q4, MemOperand(x17, 0 * 16));
+  __ Ldr(q5, MemOperand(x17, 1 * 16));
+  __ Ldr(q6, MemOperand(x17, 2 * 16));
+  __ Ldr(q7, MemOperand(x17, 3 * 16));
+
+  // Test H stores with post index.
+  __ Mov(x0, 8);
+  for (int i = 7; i >= 0; i--) {
+    __ St4(v0.H(), v1.H(), v2.H(), v3.H(), i, MemOperand(x19, x0, PostIndex));
+  }
+  __ Ldr(q16, MemOperand(x17, 4 * 16));
+  __ Ldr(q17, MemOperand(x17, 5 * 16));
+  __ Ldr(q18, MemOperand(x17, 6 * 16));
+  __ Ldr(q19, MemOperand(x17, 7 * 16));
+
+  // Test S stores without post index.
+  for (int i = 3; i >= 0; i--) {
+    __ St4(v0.S(), v1.S(), v2.S(), v3.S(), i, MemOperand(x19));
+    __ Add(x19, x19, 16);
+  }
+  __ Ldr(q20, MemOperand(x17, 8 * 16));
+  __ Ldr(q21, MemOperand(x17, 9 * 16));
+  __ Ldr(q22, MemOperand(x17, 10 * 16));
+  __ Ldr(q23, MemOperand(x17, 11 * 16));
+
+  // Test D stores with post index.
+  __ Mov(x0, 32);
+  __ St4(v0.D(), v1.D(), v2.D(), v3.D(), 0, MemOperand(x19, 32, PostIndex));
+  __ St4(v0.D(), v1.D(), v2.D(), v3.D(), 1, MemOperand(x19, x0, PostIndex));
+
+  __ Ldr(q24, MemOperand(x17, 12 * 16));
+  __ Ldr(q25, MemOperand(x17, 13 * 16));
+  __ Ldr(q26, MemOperand(x17, 14 * 16));
+  __ Ldr(q27, MemOperand(x17, 15 * 16));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x2323130322221202, 0x2121110120201000, q4);
+  CHECK_EQUAL_128(0x2727170726261606, 0x2525150524241404, q5);
+  CHECK_EQUAL_128(0x2B2B1B0B2A2A1A0A, 0x2929190928281808, q6);
+  CHECK_EQUAL_128(0x2F2F1F0F2E2E1E0E, 0x2D2D1D0D2C2C1C0C, q7);
+
+  CHECK_EQUAL_128(0x2223222312130203, 0x2021202110110001, q16);
+  CHECK_EQUAL_128(0x2627262716170607, 0x2425242514150405, q17);
+  CHECK_EQUAL_128(0x2A2B2A2B1A1B0A0B, 0x2829282918190809, q18);
+  CHECK_EQUAL_128(0x2E2F2E2F1E1F0E0F, 0x2C2D2C2D1C1D0C0D, q19);
+
+  CHECK_EQUAL_128(0x2021222320212223, 0x1011121300010203, q20);
+  CHECK_EQUAL_128(0x2425262724252627, 0x1415161704050607, q21);
+  CHECK_EQUAL_128(0x28292A2B28292A2B, 0x18191A1B08090A0B, q22);
+  CHECK_EQUAL_128(0x2C2D2E2F2C2D2E2F, 0x1C1D1E1F0C0D0E0F, q23);
+
+  CHECK_EQUAL_128(0x18191A1B1C1D1E1F, 0x08090A0B0C0D0E0F, q24);
+  CHECK_EQUAL_128(0x28292A2B2C2D2E2F, 0x28292A2B2C2D2E2F, q25);
+  CHECK_EQUAL_128(0x1011121314151617, 0x0001020304050607, q26);
+  CHECK_EQUAL_128(0x2021222324252627, 0x2021222324252627, q27);
+}
+
+TEST(neon_ld1_lane_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x28, src_base);
+  __ Mov(x19, src_base);
+  __ Mov(x20, src_base);
+  __ Mov(x21, src_base);
+  __ Mov(x22, src_base);
+  __ Mov(x23, src_base);
+  __ Mov(x24, src_base);
+
+  // Test loading whole register by element.
+  for (int i = 15; i >= 0; i--) {
+    __ Ld1(v0.B(), i, MemOperand(x17, 1, PostIndex));
+  }
+
+  for (int i = 7; i >= 0; i--) {
+    __ Ld1(v1.H(), i, MemOperand(x28, 2, PostIndex));
+  }
+
+  for (int i = 3; i >= 0; i--) {
+    __ Ld1(v2.S(), i, MemOperand(x19, 4, PostIndex));
+  }
+
+  for (int i = 1; i >= 0; i--) {
+    __ Ld1(v3.D(), i, MemOperand(x20, 8, PostIndex));
+  }
+
+  // Test loading a single element into an initialised register.
+  __ Mov(x25, 1);
+  __ Ldr(q4, MemOperand(x21));
+  __ Ld1(v4.B(), 4, MemOperand(x21, x25, PostIndex));
+  __ Add(x25, x25, 1);
+
+  __ Ldr(q5, MemOperand(x22));
+  __ Ld1(v5.H(), 3, MemOperand(x22, x25, PostIndex));
+  __ Add(x25, x25, 1);
+
+  __ Ldr(q6, MemOperand(x23));
+  __ Ld1(v6.S(), 2, MemOperand(x23, x25, PostIndex));
+  __ Add(x25, x25, 1);
+
+  __ Ldr(q7, MemOperand(x24));
+  __ Ld1(v7.D(), 1, MemOperand(x24, x25, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0001020304050607, 0x08090A0B0C0D0E0F, q0);
+  CHECK_EQUAL_128(0x0100030205040706, 0x09080B0A0D0C0F0E, q1);
+  CHECK_EQUAL_128(0x0302010007060504, 0x0B0A09080F0E0D0C, q2);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0F0E0D0C0B0A0908, q3);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050003020100, q4);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0100050403020100, q5);
+  CHECK_EQUAL_128(0x0F0E0D0C03020100, 0x0706050403020100, q6);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0706050403020100, q7);
+  CHECK_EQUAL_64(src_base + 16, x17);
+  CHECK_EQUAL_64(src_base + 16, x28);
+  CHECK_EQUAL_64(src_base + 16, x19);
+  CHECK_EQUAL_64(src_base + 16, x20);
+  CHECK_EQUAL_64(src_base + 1, x21);
+  CHECK_EQUAL_64(src_base + 2, x22);
+  CHECK_EQUAL_64(src_base + 3, x23);
+  CHECK_EQUAL_64(src_base + 4, x24);
+}
+
+TEST(neon_st1_lane_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x19, -16);
+  __ Ldr(q0, MemOperand(x17));
+
+  for (int i = 15; i >= 0; i--) {
+    __ St1(v0.B(), i, MemOperand(x17, 1, PostIndex));
+  }
+  __ Ldr(q1, MemOperand(x17, x19));
+
+  for (int i = 7; i >= 0; i--) {
+    __ St1(v0.H(), i, MemOperand(x17, 2, PostIndex));
+  }
+  __ Ldr(q2, MemOperand(x17, x19));
+
+  for (int i = 3; i >= 0; i--) {
+    __ St1(v0.S(), i, MemOperand(x17, 4, PostIndex));
+  }
+  __ Ldr(q3, MemOperand(x17, x19));
+
+  for (int i = 1; i >= 0; i--) {
+    __ St1(v0.D(), i, MemOperand(x17, 8, PostIndex));
+  }
+  __ Ldr(q4, MemOperand(x17, x19));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0001020304050607, 0x08090A0B0C0D0E0F, q1);
+  CHECK_EQUAL_128(0x0100030205040706, 0x09080B0A0D0C0F0E, q2);
+  CHECK_EQUAL_128(0x0302010007060504, 0x0B0A09080F0E0D0C, q3);
+  CHECK_EQUAL_128(0x0706050403020100, 0x0F0E0D0C0B0A0908, q4);
+}
+
+TEST(neon_ld1_alllanes) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base + 1);
+  __ Ld1r(v0.V8B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1r(v1.V16B(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1r(v2.V4H(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1r(v3.V8H(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1r(v4.V2S(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1r(v5.V4S(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1r(v6.V1D(), MemOperand(x17));
+  __ Add(x17, x17, 1);
+  __ Ld1r(v7.V2D(), MemOperand(x17));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x0101010101010101, q0);
+  CHECK_EQUAL_128(0x0202020202020202, 0x0202020202020202, q1);
+  CHECK_EQUAL_128(0, 0x0403040304030403, q2);
+  CHECK_EQUAL_128(0x0504050405040504, 0x0504050405040504, q3);
+  CHECK_EQUAL_128(0, 0x0807060508070605, q4);
+  CHECK_EQUAL_128(0x0908070609080706, 0x0908070609080706, q5);
+  CHECK_EQUAL_128(0, 0x0E0D0C0B0A090807, q6);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0F0E0D0C0B0A0908, q7);
+}
+
+TEST(neon_ld1_alllanes_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base + 1);
+  __ Mov(x19, 1);
+  __ Ld1r(v0.V8B(), MemOperand(x17, 1, PostIndex));
+  __ Ld1r(v1.V16B(), MemOperand(x17, x19, PostIndex));
+  __ Ld1r(v2.V4H(), MemOperand(x17, x19, PostIndex));
+  __ Ld1r(v3.V8H(), MemOperand(x17, 2, PostIndex));
+  __ Ld1r(v4.V2S(), MemOperand(x17, x19, PostIndex));
+  __ Ld1r(v5.V4S(), MemOperand(x17, 4, PostIndex));
+  __ Ld1r(v6.V2D(), MemOperand(x17, 8, PostIndex));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x0101010101010101, q0);
+  CHECK_EQUAL_128(0x0202020202020202, 0x0202020202020202, q1);
+  CHECK_EQUAL_128(0, 0x0403040304030403, q2);
+  CHECK_EQUAL_128(0x0504050405040504, 0x0504050405040504, q3);
+  CHECK_EQUAL_128(0, 0x0908070609080706, q4);
+  CHECK_EQUAL_128(0x0A0908070A090807, 0x0A0908070A090807, q5);
+  CHECK_EQUAL_128(0x1211100F0E0D0C0B, 0x1211100F0E0D0C0B, q6);
+  CHECK_EQUAL_64(src_base + 19, x17);
+}
+
+TEST(neon_st1_d) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[14 * kDRegSize];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x17, 16, PostIndex));
+  __ Mov(x17, src_base);
+
+  __ St1(v0.V8B(), MemOperand(x17));
+  __ Ldr(d16, MemOperand(x17, 8, PostIndex));
+
+  __ St1(v0.V8B(), v1.V8B(), MemOperand(x17));
+  __ Ldr(q17, MemOperand(x17, 16, PostIndex));
+
+  __ St1(v0.V4H(), v1.V4H(), v2.V4H(), MemOperand(x17));
+  __ Ldr(d18, MemOperand(x17, 8, PostIndex));
+  __ Ldr(d19, MemOperand(x17, 8, PostIndex));
+  __ Ldr(d20, MemOperand(x17, 8, PostIndex));
+
+  __ St1(v0.V2S(), v1.V2S(), v2.V2S(), v3.V2S(), MemOperand(x17));
+  __ Ldr(q21, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q22, MemOperand(x17, 16, PostIndex));
+
+  __ St1(v0.V1D(), v1.V1D(), v2.V1D(), v3.V1D(), MemOperand(x17));
+  __ Ldr(q23, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q24, MemOperand(x17));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050403020100, q0);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x1716151413121110, q1);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x2726252423222120, q2);
+  CHECK_EQUAL_128(0x3F3E3D3C3B3A3938, 0x3736353433323130, q3);
+  CHECK_EQUAL_128(0, 0x0706050403020100, q16);
+  CHECK_EQUAL_128(0x1716151413121110, 0x0706050403020100, q17);
+  CHECK_EQUAL_128(0, 0x0706050403020100, q18);
+  CHECK_EQUAL_128(0, 0x1716151413121110, q19);
+  CHECK_EQUAL_128(0, 0x2726252423222120, q20);
+  CHECK_EQUAL_128(0x1716151413121110, 0x0706050403020100, q21);
+  CHECK_EQUAL_128(0x3736353433323130, 0x2726252423222120, q22);
+  CHECK_EQUAL_128(0x1716151413121110, 0x0706050403020100, q23);
+  CHECK_EQUAL_128(0x3736353433323130, 0x2726252423222120, q24);
+}
+
+TEST(neon_st1_d_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64 + 14 * kDRegSize];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x28, -8);
+  __ Mov(x19, -16);
+  __ Mov(x20, -24);
+  __ Mov(x21, -32);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x17, 16, PostIndex));
+  __ Mov(x17, src_base);
+
+  __ St1(v0.V8B(), MemOperand(x17, 8, PostIndex));
+  __ Ldr(d16, MemOperand(x17, x28));
+
+  __ St1(v0.V8B(), v1.V8B(), MemOperand(x17, 16, PostIndex));
+  __ Ldr(q17, MemOperand(x17, x19));
+
+  __ St1(v0.V4H(), v1.V4H(), v2.V4H(), MemOperand(x17, 24, PostIndex));
+  __ Ldr(d18, MemOperand(x17, x20));
+  __ Ldr(d19, MemOperand(x17, x19));
+  __ Ldr(d20, MemOperand(x17, x28));
+
+  __ St1(v0.V2S(), v1.V2S(), v2.V2S(), v3.V2S(),
+         MemOperand(x17, 32, PostIndex));
+  __ Ldr(q21, MemOperand(x17, x21));
+  __ Ldr(q22, MemOperand(x17, x19));
+
+  __ St1(v0.V1D(), v1.V1D(), v2.V1D(), v3.V1D(),
+         MemOperand(x17, 32, PostIndex));
+  __ Ldr(q23, MemOperand(x17, x21));
+  __ Ldr(q24, MemOperand(x17, x19));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x0706050403020100, q16);
+  CHECK_EQUAL_128(0x1716151413121110, 0x0706050403020100, q17);
+  CHECK_EQUAL_128(0, 0x0706050403020100, q18);
+  CHECK_EQUAL_128(0, 0x1716151413121110, q19);
+  CHECK_EQUAL_128(0, 0x2726252423222120, q20);
+  CHECK_EQUAL_128(0x1716151413121110, 0x0706050403020100, q21);
+  CHECK_EQUAL_128(0x3736353433323130, 0x2726252423222120, q22);
+  CHECK_EQUAL_128(0x1716151413121110, 0x0706050403020100, q23);
+  CHECK_EQUAL_128(0x3736353433323130, 0x2726252423222120, q24);
+}
+
+TEST(neon_st1_q) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64 + 160];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x17, 16, PostIndex));
+
+  __ St1(v0.V16B(), MemOperand(x17));
+  __ Ldr(q16, MemOperand(x17, 16, PostIndex));
+
+  __ St1(v0.V8H(), v1.V8H(), MemOperand(x17));
+  __ Ldr(q17, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q18, MemOperand(x17, 16, PostIndex));
+
+  __ St1(v0.V4S(), v1.V4S(), v2.V4S(), MemOperand(x17));
+  __ Ldr(q19, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q20, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q21, MemOperand(x17, 16, PostIndex));
+
+  __ St1(v0.V2D(), v1.V2D(), v2.V2D(), v3.V2D(), MemOperand(x17));
+  __ Ldr(q22, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q23, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q24, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q25, MemOperand(x17));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050403020100, q16);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050403020100, q17);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x1716151413121110, q18);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050403020100, q19);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x1716151413121110, q20);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x2726252423222120, q21);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050403020100, q22);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x1716151413121110, q23);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x2726252423222120, q24);
+  CHECK_EQUAL_128(0x3F3E3D3C3B3A3938, 0x3736353433323130, q25);
+}
+
+TEST(neon_st1_q_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[64 + 160];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x28, -16);
+  __ Mov(x19, -32);
+  __ Mov(x20, -48);
+  __ Mov(x21, -64);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x17, 16, PostIndex));
+
+  __ St1(v0.V16B(), MemOperand(x17, 16, PostIndex));
+  __ Ldr(q16, MemOperand(x17, x28));
+
+  __ St1(v0.V8H(), v1.V8H(), MemOperand(x17, 32, PostIndex));
+  __ Ldr(q17, MemOperand(x17, x19));
+  __ Ldr(q18, MemOperand(x17, x28));
+
+  __ St1(v0.V4S(), v1.V4S(), v2.V4S(), MemOperand(x17, 48, PostIndex));
+  __ Ldr(q19, MemOperand(x17, x20));
+  __ Ldr(q20, MemOperand(x17, x19));
+  __ Ldr(q21, MemOperand(x17, x28));
+
+  __ St1(v0.V2D(), v1.V2D(), v2.V2D(), v3.V2D(),
+         MemOperand(x17, 64, PostIndex));
+  __ Ldr(q22, MemOperand(x17, x21));
+  __ Ldr(q23, MemOperand(x17, x20));
+  __ Ldr(q24, MemOperand(x17, x19));
+  __ Ldr(q25, MemOperand(x17, x28));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050403020100, q16);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050403020100, q17);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x1716151413121110, q18);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050403020100, q19);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x1716151413121110, q20);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x2726252423222120, q21);
+  CHECK_EQUAL_128(0x0F0E0D0C0B0A0908, 0x0706050403020100, q22);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x1716151413121110, q23);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x2726252423222120, q24);
+  CHECK_EQUAL_128(0x3F3E3D3C3B3A3938, 0x3736353433323130, q25);
+}
+
+TEST(neon_st2_d) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[4 * 16];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+
+  __ St2(v0.V8B(), v1.V8B(), MemOperand(x19));
+  __ Add(x19, x19, 22);
+  __ St2(v0.V4H(), v1.V4H(), MemOperand(x19));
+  __ Add(x19, x19, 11);
+  __ St2(v0.V2S(), v1.V2S(), MemOperand(x19));
+
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x19, 16, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x1707160615051404, 0x1303120211011000, q0);
+  CHECK_EQUAL_128(0x0504131203021110, 0x0100151413121110, q1);
+  CHECK_EQUAL_128(0x1615140706050413, 0x1211100302010014, q2);
+  CHECK_EQUAL_128(0x3F3E3D3C3B3A3938, 0x3736353433323117, q3);
+}
+
+TEST(neon_st2_d_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[4 * 16];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x22, 5);
+  __ Mov(x17, src_base);
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+
+  __ St2(v0.V8B(), v1.V8B(), MemOperand(x19, x22, PostIndex));
+  __ St2(v0.V4H(), v1.V4H(), MemOperand(x19, 16, PostIndex));
+  __ St2(v0.V2S(), v1.V2S(), MemOperand(x19));
+
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x19, 16, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x1405041312030211, 0x1001000211011000, q0);
+  CHECK_EQUAL_128(0x0605041312111003, 0x0201001716070615, q1);
+  CHECK_EQUAL_128(0x2F2E2D2C2B2A2928, 0x2726251716151407, q2);
+}
+
+TEST(neon_st2_q) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[5 * 16];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+
+  __ St2(v0.V16B(), v1.V16B(), MemOperand(x19));
+  __ Add(x19, x19, 8);
+  __ St2(v0.V8H(), v1.V8H(), MemOperand(x19));
+  __ Add(x19, x19, 22);
+  __ St2(v0.V4S(), v1.V4S(), MemOperand(x19));
+  __ Add(x19, x19, 2);
+  __ St2(v0.V2D(), v1.V2D(), MemOperand(x19));
+
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x19, 16, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x1312030211100100, 0x1303120211011000, q0);
+  CHECK_EQUAL_128(0x01000B0A19180908, 0x1716070615140504, q1);
+  CHECK_EQUAL_128(0x1716151413121110, 0x0706050403020100, q2);
+  CHECK_EQUAL_128(0x1F1E1D1C1B1A1918, 0x0F0E0D0C0B0A0908, q3);
+}
+
+TEST(neon_st2_q_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[5 * 16];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x22, 5);
+  __ Mov(x17, src_base);
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+
+  __ St2(v0.V16B(), v1.V16B(), MemOperand(x19, x22, PostIndex));
+  __ St2(v0.V8H(), v1.V8H(), MemOperand(x19, 32, PostIndex));
+  __ St2(v0.V4S(), v1.V4S(), MemOperand(x19, x22, PostIndex));
+  __ St2(v0.V2D(), v1.V2D(), MemOperand(x19));
+
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q4, MemOperand(x19, 16, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x1405041312030211, 0x1001000211011000, q0);
+  CHECK_EQUAL_128(0x1C0D0C1B1A0B0A19, 0x1809081716070615, q1);
+  CHECK_EQUAL_128(0x0504030201001003, 0x0201001F1E0F0E1D, q2);
+  CHECK_EQUAL_128(0x0D0C0B0A09081716, 0x1514131211100706, q3);
+  CHECK_EQUAL_128(0x4F4E4D4C4B4A1F1E, 0x1D1C1B1A19180F0E, q4);
+}
+
+TEST(neon_st3_d) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[3 * 16];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x17, 16, PostIndex));
+
+  __ St3(v0.V8B(), v1.V8B(), v2.V8B(), MemOperand(x19));
+  __ Add(x19, x19, 3);
+  __ St3(v0.V4H(), v1.V4H(), v2.V4H(), MemOperand(x19));
+  __ Add(x19, x19, 2);
+  __ St3(v0.V2S(), v1.V2S(), v2.V2S(), MemOperand(x19));
+
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x19, 16, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x2221201312111003, 0x0201000100201000, q0);
+  CHECK_EQUAL_128(0x1F1E1D2726252417, 0x1615140706050423, q1);
+}
+
+TEST(neon_st3_d_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[4 * 16];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x22, 5);
+  __ Mov(x17, src_base);
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x17, 16, PostIndex));
+
+  __ St3(v0.V8B(), v1.V8B(), v2.V8B(), MemOperand(x19, x22, PostIndex));
+  __ St3(v0.V4H(), v1.V4H(), v2.V4H(), MemOperand(x19, 24, PostIndex));
+  __ St3(v0.V2S(), v1.V2S(), v2.V2S(), MemOperand(x19));
+
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x19, 16, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x2213120302212011, 0x1001001101201000, q0);
+  CHECK_EQUAL_128(0x0201002726171607, 0x0625241514050423, q1);
+  CHECK_EQUAL_128(0x1615140706050423, 0x2221201312111003, q2);
+  CHECK_EQUAL_128(0x3F3E3D3C3B3A3938, 0x3736352726252417, q3);
+}
+
+TEST(neon_st3_q) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[6 * 16];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x17, 16, PostIndex));
+
+  __ St3(v0.V16B(), v1.V16B(), v2.V16B(), MemOperand(x19));
+  __ Add(x19, x19, 5);
+  __ St3(v0.V8H(), v1.V8H(), v2.V8H(), MemOperand(x19));
+  __ Add(x19, x19, 12);
+  __ St3(v0.V4S(), v1.V4S(), v2.V4S(), MemOperand(x19));
+  __ Add(x19, x19, 22);
+  __ St3(v0.V2D(), v1.V2D(), v2.V2D(), MemOperand(x19));
+
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q4, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q5, MemOperand(x19, 16, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x2213120302212011, 0x1001001101201000, q0);
+  CHECK_EQUAL_128(0x0605042322212013, 0x1211100302010023, q1);
+  CHECK_EQUAL_128(0x1007060504030201, 0x0025241716151407, q2);
+  CHECK_EQUAL_128(0x0827262524232221, 0x2017161514131211, q3);
+  CHECK_EQUAL_128(0x281F1E1D1C1B1A19, 0x180F0E0D0C0B0A09, q4);
+  CHECK_EQUAL_128(0x5F5E5D5C5B5A5958, 0x572F2E2D2C2B2A29, q5);
+}
+
+TEST(neon_st3_q_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[7 * 16];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x22, 5);
+  __ Mov(x17, src_base);
+  __ Mov(x28, src_base);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x17, 16, PostIndex));
+
+  __ St3(v0.V16B(), v1.V16B(), v2.V16B(), MemOperand(x28, x22, PostIndex));
+  __ St3(v0.V8H(), v1.V8H(), v2.V8H(), MemOperand(x28, 48, PostIndex));
+  __ St3(v0.V4S(), v1.V4S(), v2.V4S(), MemOperand(x28, x22, PostIndex));
+  __ St3(v0.V2D(), v1.V2D(), v2.V2D(), MemOperand(x28));
+
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q4, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q5, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q6, MemOperand(x19, 16, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x2213120302212011, 0x1001001101201000, q0);
+  CHECK_EQUAL_128(0x1809082726171607, 0x0625241514050423, q1);
+  CHECK_EQUAL_128(0x0E2D2C1D1C0D0C2B, 0x2A1B1A0B0A292819, q2);
+  CHECK_EQUAL_128(0x0504030201001003, 0x0201002F2E1F1E0F, q3);
+  CHECK_EQUAL_128(0x2524232221201716, 0x1514131211100706, q4);
+  CHECK_EQUAL_128(0x1D1C1B1A19180F0E, 0x0D0C0B0A09082726, q5);
+  CHECK_EQUAL_128(0x6F6E6D6C6B6A2F2E, 0x2D2C2B2A29281F1E, q6);
+}
+
+TEST(neon_st4_d) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[4 * 16];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x28, src_base);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x17, 16, PostIndex));
+
+  __ St4(v0.V8B(), v1.V8B(), v2.V8B(), v3.V8B(), MemOperand(x28));
+  __ Add(x28, x28, 12);
+  __ St4(v0.V4H(), v1.V4H(), v2.V4H(), v3.V4H(), MemOperand(x28));
+  __ Add(x28, x28, 15);
+  __ St4(v0.V2S(), v1.V2S(), v2.V2S(), v3.V2S(), MemOperand(x28));
+
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x19, 16, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x1110010032221202, 0X3121110130201000, q0);
+  CHECK_EQUAL_128(0x1003020100322322, 0X1312030231302120, q1);
+  CHECK_EQUAL_128(0x1407060504333231, 0X3023222120131211, q2);
+  CHECK_EQUAL_128(0x3F3E3D3C3B373635, 0x3427262524171615, q3);
+}
+
+TEST(neon_st4_d_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[5 * 16];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x22, 5);
+  __ Mov(x17, src_base);
+  __ Mov(x28, src_base);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x17, 16, PostIndex));
+
+  __ St4(v0.V8B(), v1.V8B(), v2.V8B(), v3.V8B(),
+         MemOperand(x28, x22, PostIndex));
+  __ St4(v0.V4H(), v1.V4H(), v2.V4H(), v3.V4H(),
+         MemOperand(x28, 32, PostIndex));
+  __ St4(v0.V2S(), v1.V2S(), v2.V2S(), v3.V2S(), MemOperand(x28));
+
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q4, MemOperand(x19, 16, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x1203023130212011, 0x1001000130201000, q0);
+  CHECK_EQUAL_128(0x1607063534252415, 0x1405043332232213, q1);
+  CHECK_EQUAL_128(0x2221201312111003, 0x0201003736272617, q2);
+  CHECK_EQUAL_128(0x2625241716151407, 0x0605043332313023, q3);
+  CHECK_EQUAL_128(0x4F4E4D4C4B4A4948, 0x4746453736353427, q4);
+}
+
+TEST(neon_st4_q) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[7 * 16];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x17, src_base);
+  __ Mov(x28, src_base);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x17, 16, PostIndex));
+
+  __ St4(v0.V16B(), v1.V16B(), v2.V16B(), v3.V16B(), MemOperand(x28));
+  __ Add(x28, x28, 5);
+  __ St4(v0.V8H(), v1.V8H(), v2.V8H(), v3.V8H(), MemOperand(x28));
+  __ Add(x28, x28, 12);
+  __ St4(v0.V4S(), v1.V4S(), v2.V4S(), v3.V4S(), MemOperand(x28));
+  __ Add(x28, x28, 22);
+  __ St4(v0.V2D(), v1.V2D(), v2.V2D(), v3.V2D(), MemOperand(x28));
+  __ Add(x28, x28, 10);
+
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q4, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q5, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q6, MemOperand(x19, 16, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x1203023130212011, 0x1001000130201000, q0);
+  CHECK_EQUAL_128(0x3231302322212013, 0x1211100302010013, q1);
+  CHECK_EQUAL_128(0x1007060504030201, 0x0015140706050433, q2);
+  CHECK_EQUAL_128(0x3027262524232221, 0x2017161514131211, q3);
+  CHECK_EQUAL_128(0x180F0E0D0C0B0A09, 0x0837363534333231, q4);
+  CHECK_EQUAL_128(0x382F2E2D2C2B2A29, 0x281F1E1D1C1B1A19, q5);
+  CHECK_EQUAL_128(0x6F6E6D6C6B6A6968, 0x673F3E3D3C3B3A39, q6);
+}
+
+TEST(neon_st4_q_postindex) {
+  INIT_V8();
+  SETUP();
+
+  uint8_t src[9 * 16];
+  for (unsigned i = 0; i < sizeof(src); i++) {
+    src[i] = i;
+  }
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  START();
+  __ Mov(x22, 5);
+  __ Mov(x17, src_base);
+  __ Mov(x28, src_base);
+  __ Ldr(q0, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x17, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x17, 16, PostIndex));
+
+  __ St4(v0.V16B(), v1.V16B(), v2.V16B(), v3.V16B(),
+         MemOperand(x28, x22, PostIndex));
+  __ St4(v0.V8H(), v1.V8H(), v2.V8H(), v3.V8H(),
+         MemOperand(x28, 64, PostIndex));
+  __ St4(v0.V4S(), v1.V4S(), v2.V4S(), v3.V4S(),
+         MemOperand(x28, x22, PostIndex));
+  __ St4(v0.V2D(), v1.V2D(), v2.V2D(), v3.V2D(), MemOperand(x28));
+
+  __ Mov(x19, src_base);
+  __ Ldr(q0, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q1, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q2, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q3, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q4, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q5, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q6, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q7, MemOperand(x19, 16, PostIndex));
+  __ Ldr(q8, MemOperand(x19, 16, PostIndex));
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0x1203023130212011, 0x1001000130201000, q0);
+  CHECK_EQUAL_128(0x1607063534252415, 0x1405043332232213, q1);
+  CHECK_EQUAL_128(0x1A0B0A3938292819, 0x1809083736272617, q2);
+  CHECK_EQUAL_128(0x1E0F0E3D3C2D2C1D, 0x1C0D0C3B3A2B2A1B, q3);
+  CHECK_EQUAL_128(0x0504030201001003, 0x0201003F3E2F2E1F, q4);
+  CHECK_EQUAL_128(0x2524232221201716, 0x1514131211100706, q5);
+  CHECK_EQUAL_128(0x0D0C0B0A09083736, 0x3534333231302726, q6);
+  CHECK_EQUAL_128(0x2D2C2B2A29281F1E, 0x1D1C1B1A19180F0E, q7);
+  CHECK_EQUAL_128(0x8F8E8D8C8B8A3F3E, 0x3D3C3B3A39382F2E, q8);
+}
+
+TEST(neon_destructive_minmaxp) {
+  INIT_V8();
+  SETUP();
+
+  START();
+  __ Movi(v0.V2D(), 0, 0x2222222233333333);
+  __ Movi(v1.V2D(), 0, 0x0000000011111111);
+
+  __ Sminp(v16.V2S(), v0.V2S(), v1.V2S());
+  __ Mov(v17, v0);
+  __ Sminp(v17.V2S(), v17.V2S(), v1.V2S());
+  __ Mov(v18, v1);
+  __ Sminp(v18.V2S(), v0.V2S(), v18.V2S());
+  __ Mov(v19, v0);
+  __ Sminp(v19.V2S(), v19.V2S(), v19.V2S());
+
+  __ Smaxp(v20.V2S(), v0.V2S(), v1.V2S());
+  __ Mov(v21, v0);
+  __ Smaxp(v21.V2S(), v21.V2S(), v1.V2S());
+  __ Mov(v22, v1);
+  __ Smaxp(v22.V2S(), v0.V2S(), v22.V2S());
+  __ Mov(v23, v0);
+  __ Smaxp(v23.V2S(), v23.V2S(), v23.V2S());
+
+  __ Uminp(v24.V2S(), v0.V2S(), v1.V2S());
+  __ Mov(v25, v0);
+  __ Uminp(v25.V2S(), v25.V2S(), v1.V2S());
+  __ Mov(v26, v1);
+  __ Uminp(v26.V2S(), v0.V2S(), v26.V2S());
+  __ Mov(v27, v0);
+  __ Uminp(v27.V2S(), v27.V2S(), v27.V2S());
+
+  __ Umaxp(v28.V2S(), v0.V2S(), v1.V2S());
+  __ Mov(v29, v0);
+  __ Umaxp(v29.V2S(), v29.V2S(), v1.V2S());
+  __ Mov(v30, v1);
+  __ Umaxp(v30.V2S(), v0.V2S(), v30.V2S());
+  __ Mov(v31, v0);
+  __ Umaxp(v31.V2S(), v31.V2S(), v31.V2S());
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0, 0x0000000022222222, q16);
+  CHECK_EQUAL_128(0, 0x0000000022222222, q17);
+  CHECK_EQUAL_128(0, 0x0000000022222222, q18);
+  CHECK_EQUAL_128(0, 0x2222222222222222, q19);
+
+  CHECK_EQUAL_128(0, 0x1111111133333333, q20);
+  CHECK_EQUAL_128(0, 0x1111111133333333, q21);
+  CHECK_EQUAL_128(0, 0x1111111133333333, q22);
+  CHECK_EQUAL_128(0, 0x3333333333333333, q23);
+
+  CHECK_EQUAL_128(0, 0x0000000022222222, q24);
+  CHECK_EQUAL_128(0, 0x0000000022222222, q25);
+  CHECK_EQUAL_128(0, 0x0000000022222222, q26);
+  CHECK_EQUAL_128(0, 0x2222222222222222, q27);
+
+  CHECK_EQUAL_128(0, 0x1111111133333333, q28);
+  CHECK_EQUAL_128(0, 0x1111111133333333, q29);
+  CHECK_EQUAL_128(0, 0x1111111133333333, q30);
+  CHECK_EQUAL_128(0, 0x3333333333333333, q31);
+}
+
+TEST(neon_destructive_tbl) {
+  INIT_V8();
+  SETUP();
+
+  START();
+  __ Movi(v0.V2D(), 0x0041424334353627, 0x28291A1B1C0D0E0F);
+  __ Movi(v1.V2D(), 0xAFAEADACABAAA9A8, 0xA7A6A5A4A3A2A1A0);
+  __ Movi(v2.V2D(), 0xBFBEBDBCBBBAB9B8, 0xB7B6B5B4B3B2B1B0);
+  __ Movi(v3.V2D(), 0xCFCECDCCCBCAC9C8, 0xC7C6C5C4C3C2C1C0);
+  __ Movi(v4.V2D(), 0xDFDEDDDCDBDAD9D8, 0xD7D6D5D4D3D2D1D0);
+
+  __ Movi(v16.V2D(), 0x5555555555555555, 0x5555555555555555);
+  __ Tbl(v16.V16B(), v1.V16B(), v0.V16B());
+  __ Mov(v17, v0);
+  __ Tbl(v17.V16B(), v1.V16B(), v17.V16B());
+  __ Mov(v18, v1);
+  __ Tbl(v18.V16B(), v18.V16B(), v0.V16B());
+  __ Mov(v19, v0);
+  __ Tbl(v19.V16B(), v19.V16B(), v19.V16B());
+
+  __ Movi(v20.V2D(), 0x5555555555555555, 0x5555555555555555);
+  __ Tbl(v20.V16B(), v1.V16B(), v2.V16B(), v3.V16B(), v4.V16B(), v0.V16B());
+  __ Mov(v21, v0);
+  __ Tbl(v21.V16B(), v1.V16B(), v2.V16B(), v3.V16B(), v4.V16B(), v21.V16B());
+  __ Mov(v22, v1);
+  __ Mov(v23, v2);
+  __ Mov(v24, v3);
+  __ Mov(v25, v4);
+  __ Tbl(v22.V16B(), v22.V16B(), v23.V16B(), v24.V16B(), v25.V16B(), v0.V16B());
+  __ Mov(v26, v0);
+  __ Mov(v27, v1);
+  __ Mov(v28, v2);
+  __ Mov(v29, v3);
+  __ Tbl(v26.V16B(), v26.V16B(), v27.V16B(), v28.V16B(), v29.V16B(),
+         v26.V16B());
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0xA000000000000000, 0x0000000000ADAEAF, q16);
+  CHECK_EQUAL_128(0xA000000000000000, 0x0000000000ADAEAF, q17);
+  CHECK_EQUAL_128(0xA000000000000000, 0x0000000000ADAEAF, q18);
+  CHECK_EQUAL_128(0x0F00000000000000, 0x0000000000424100, q19);
+
+  CHECK_EQUAL_128(0xA0000000D4D5D6C7, 0xC8C9BABBBCADAEAF, q20);
+  CHECK_EQUAL_128(0xA0000000D4D5D6C7, 0xC8C9BABBBCADAEAF, q21);
+  CHECK_EQUAL_128(0xA0000000D4D5D6C7, 0xC8C9BABBBCADAEAF, q22);
+  CHECK_EQUAL_128(0x0F000000C4C5C6B7, 0xB8B9AAABAC424100, q26);
+}
+
+TEST(neon_destructive_tbx) {
+  INIT_V8();
+  SETUP();
+
+  START();
+  __ Movi(v0.V2D(), 0x0041424334353627, 0x28291A1B1C0D0E0F);
+  __ Movi(v1.V2D(), 0xAFAEADACABAAA9A8, 0xA7A6A5A4A3A2A1A0);
+  __ Movi(v2.V2D(), 0xBFBEBDBCBBBAB9B8, 0xB7B6B5B4B3B2B1B0);
+  __ Movi(v3.V2D(), 0xCFCECDCCCBCAC9C8, 0xC7C6C5C4C3C2C1C0);
+  __ Movi(v4.V2D(), 0xDFDEDDDCDBDAD9D8, 0xD7D6D5D4D3D2D1D0);
+
+  __ Movi(v16.V2D(), 0x5555555555555555, 0x5555555555555555);
+  __ Tbx(v16.V16B(), v1.V16B(), v0.V16B());
+  __ Mov(v17, v0);
+  __ Tbx(v17.V16B(), v1.V16B(), v17.V16B());
+  __ Mov(v18, v1);
+  __ Tbx(v18.V16B(), v18.V16B(), v0.V16B());
+  __ Mov(v19, v0);
+  __ Tbx(v19.V16B(), v19.V16B(), v19.V16B());
+
+  __ Movi(v20.V2D(), 0x5555555555555555, 0x5555555555555555);
+  __ Tbx(v20.V16B(), v1.V16B(), v2.V16B(), v3.V16B(), v4.V16B(), v0.V16B());
+  __ Mov(v21, v0);
+  __ Tbx(v21.V16B(), v1.V16B(), v2.V16B(), v3.V16B(), v4.V16B(), v21.V16B());
+  __ Mov(v22, v1);
+  __ Mov(v23, v2);
+  __ Mov(v24, v3);
+  __ Mov(v25, v4);
+  __ Tbx(v22.V16B(), v22.V16B(), v23.V16B(), v24.V16B(), v25.V16B(), v0.V16B());
+  __ Mov(v26, v0);
+  __ Mov(v27, v1);
+  __ Mov(v28, v2);
+  __ Mov(v29, v3);
+  __ Tbx(v26.V16B(), v26.V16B(), v27.V16B(), v28.V16B(), v29.V16B(),
+         v26.V16B());
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0xA055555555555555, 0x5555555555ADAEAF, q16);
+  CHECK_EQUAL_128(0xA041424334353627, 0x28291A1B1CADAEAF, q17);
+  CHECK_EQUAL_128(0xA0AEADACABAAA9A8, 0xA7A6A5A4A3ADAEAF, q18);
+  CHECK_EQUAL_128(0x0F41424334353627, 0x28291A1B1C424100, q19);
+
+  CHECK_EQUAL_128(0xA0555555D4D5D6C7, 0xC8C9BABBBCADAEAF, q20);
+  CHECK_EQUAL_128(0xA0414243D4D5D6C7, 0xC8C9BABBBCADAEAF, q21);
+  CHECK_EQUAL_128(0xA0AEADACD4D5D6C7, 0xC8C9BABBBCADAEAF, q22);
+  CHECK_EQUAL_128(0x0F414243C4C5C6B7, 0xB8B9AAABAC424100, q26);
+}
+
+TEST(neon_destructive_fcvtl) {
+  INIT_V8();
+  SETUP();
+
+  START();
+  __ Movi(v0.V2D(), 0x400000003F800000, 0xBF800000C0000000);
+  __ Fcvtl(v16.V2D(), v0.V2S());
+  __ Fcvtl2(v17.V2D(), v0.V4S());
+  __ Mov(v18, v0);
+  __ Mov(v19, v0);
+  __ Fcvtl(v18.V2D(), v18.V2S());
+  __ Fcvtl2(v19.V2D(), v19.V4S());
+
+  __ Movi(v1.V2D(), 0x40003C003C004000, 0xC000BC00BC00C000);
+  __ Fcvtl(v20.V4S(), v1.V4H());
+  __ Fcvtl2(v21.V4S(), v1.V8H());
+  __ Mov(v22, v1);
+  __ Mov(v23, v1);
+  __ Fcvtl(v22.V4S(), v22.V4H());
+  __ Fcvtl2(v23.V4S(), v23.V8H());
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0xBFF0000000000000, 0xC000000000000000, q16);
+  CHECK_EQUAL_128(0x4000000000000000, 0x3FF0000000000000, q17);
+  CHECK_EQUAL_128(0xBFF0000000000000, 0xC000000000000000, q18);
+  CHECK_EQUAL_128(0x4000000000000000, 0x3FF0000000000000, q19);
+
+  CHECK_EQUAL_128(0xC0000000BF800000, 0xBF800000C0000000, q20);
+  CHECK_EQUAL_128(0x400000003F800000, 0x3F80000040000000, q21);
+  CHECK_EQUAL_128(0xC0000000BF800000, 0xBF800000C0000000, q22);
+  CHECK_EQUAL_128(0x400000003F800000, 0x3F80000040000000, q23);
+}
 
 TEST(ldp_stp_float) {
   INIT_V8();
@@ -2826,10 +6198,7 @@ TEST(ldp_stp_float) {
   CHECK_EQUAL_FP32(1.0, dst[2]);
   CHECK_EQUAL_64(src_base + 2 * sizeof(src[0]), x16);
   CHECK_EQUAL_64(dst_base + sizeof(dst[1]), x17);
-
-  TEARDOWN();
 }
-
 
 TEST(ldp_stp_double) {
   INIT_V8();
@@ -2856,17 +6225,44 @@ TEST(ldp_stp_double) {
   CHECK_EQUAL_FP64(1.0, dst[2]);
   CHECK_EQUAL_64(src_base + 2 * sizeof(src[0]), x16);
   CHECK_EQUAL_64(dst_base + sizeof(dst[1]), x17);
-
-  TEARDOWN();
 }
 
+TEST(ldp_stp_quad) {
+  SETUP();
+
+  uint64_t src[4] = {0x0123456789ABCDEF, 0xAAAAAAAA55555555, 0xFEDCBA9876543210,
+                     0x55555555AAAAAAAA};
+  uint64_t dst[6] = {0, 0, 0, 0, 0, 0};
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+  uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
+
+  START();
+  __ Mov(x16, src_base);
+  __ Mov(x17, dst_base);
+  __ Ldp(q31, q0, MemOperand(x16, 4 * sizeof(src[0]), PostIndex));
+  __ Stp(q0, q31, MemOperand(x17, 2 * sizeof(dst[1]), PreIndex));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_128(0xAAAAAAAA55555555, 0x0123456789ABCDEF, q31);
+  CHECK_EQUAL_128(0x55555555AAAAAAAA, 0xFEDCBA9876543210, q0);
+  CHECK_EQUAL_64(0, dst[0]);
+  CHECK_EQUAL_64(0, dst[1]);
+  CHECK_EQUAL_64(0xFEDCBA9876543210, dst[2]);
+  CHECK_EQUAL_64(0x55555555AAAAAAAA, dst[3]);
+  CHECK_EQUAL_64(0x0123456789ABCDEF, dst[4]);
+  CHECK_EQUAL_64(0xAAAAAAAA55555555, dst[5]);
+  CHECK_EQUAL_64(src_base + 4 * sizeof(src[0]), x16);
+  CHECK_EQUAL_64(dst_base + 2 * sizeof(dst[1]), x17);
+}
 
 TEST(ldp_stp_offset) {
   INIT_V8();
   SETUP();
 
-  uint64_t src[3] = {0x0011223344556677UL, 0x8899aabbccddeeffUL,
-                     0xffeeddccbbaa9988UL};
+  uint64_t src[3] = {0x0011223344556677UL, 0x8899AABBCCDDEEFFUL,
+                     0xFFEEDDCCBBAA9988UL};
   uint64_t dst[7] = {0, 0, 0, 0, 0, 0, 0};
   uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
   uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
@@ -2874,13 +6270,13 @@ TEST(ldp_stp_offset) {
   START();
   __ Mov(x16, src_base);
   __ Mov(x17, dst_base);
-  __ Mov(x18, src_base + 24);
+  __ Mov(x28, src_base + 24);
   __ Mov(x19, dst_base + 56);
   __ Ldp(w0, w1, MemOperand(x16));
   __ Ldp(w2, w3, MemOperand(x16, 4));
   __ Ldp(x4, x5, MemOperand(x16, 8));
-  __ Ldp(w6, w7, MemOperand(x18, -12));
-  __ Ldp(x8, x9, MemOperand(x18, -16));
+  __ Ldp(w6, w7, MemOperand(x28, -12));
+  __ Ldp(x8, x9, MemOperand(x28, -16));
   __ Stp(w0, w1, MemOperand(x17));
   __ Stp(w2, w3, MemOperand(x17, 8));
   __ Stp(x4, x5, MemOperand(x17, 16));
@@ -2894,34 +6290,31 @@ TEST(ldp_stp_offset) {
   CHECK_EQUAL_64(0x00112233, x1);
   CHECK_EQUAL_64(0x0011223344556677UL, dst[0]);
   CHECK_EQUAL_64(0x00112233, x2);
-  CHECK_EQUAL_64(0xccddeeff, x3);
-  CHECK_EQUAL_64(0xccddeeff00112233UL, dst[1]);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x4);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, dst[2]);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, x5);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, dst[3]);
-  CHECK_EQUAL_64(0x8899aabb, x6);
-  CHECK_EQUAL_64(0xbbaa9988, x7);
-  CHECK_EQUAL_64(0xbbaa99888899aabbUL, dst[4]);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x8);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, dst[5]);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, x9);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, dst[6]);
+  CHECK_EQUAL_64(0xCCDDEEFF, x3);
+  CHECK_EQUAL_64(0xCCDDEEFF00112233UL, dst[1]);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, x4);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, dst[2]);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, x5);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, dst[3]);
+  CHECK_EQUAL_64(0x8899AABB, x6);
+  CHECK_EQUAL_64(0xBBAA9988, x7);
+  CHECK_EQUAL_64(0xBBAA99888899AABBUL, dst[4]);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, x8);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, dst[5]);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, x9);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, dst[6]);
   CHECK_EQUAL_64(src_base, x16);
   CHECK_EQUAL_64(dst_base, x17);
-  CHECK_EQUAL_64(src_base + 24, x18);
+  CHECK_EQUAL_64(src_base + 24, x28);
   CHECK_EQUAL_64(dst_base + 56, x19);
-
-  TEARDOWN();
 }
-
 
 TEST(ldp_stp_offset_wide) {
   INIT_V8();
   SETUP();
 
-  uint64_t src[3] = {0x0011223344556677, 0x8899aabbccddeeff,
-                     0xffeeddccbbaa9988};
+  uint64_t src[3] = {0x0011223344556677, 0x8899AABBCCDDEEFF,
+                     0xFFEEDDCCBBAA9988};
   uint64_t dst[7] = {0, 0, 0, 0, 0, 0, 0};
   uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
   uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
@@ -2932,13 +6325,13 @@ TEST(ldp_stp_offset_wide) {
   START();
   __ Mov(x20, src_base - base_offset);
   __ Mov(x21, dst_base - base_offset);
-  __ Mov(x18, src_base + base_offset + 24);
+  __ Mov(x28, src_base + base_offset + 24);
   __ Mov(x19, dst_base + base_offset + 56);
   __ Ldp(w0, w1, MemOperand(x20, base_offset));
   __ Ldp(w2, w3, MemOperand(x20, base_offset + 4));
   __ Ldp(x4, x5, MemOperand(x20, base_offset + 8));
-  __ Ldp(w6, w7, MemOperand(x18, -12 - base_offset));
-  __ Ldp(x8, x9, MemOperand(x18, -16 - base_offset));
+  __ Ldp(w6, w7, MemOperand(x28, -12 - base_offset));
+  __ Ldp(x8, x9, MemOperand(x28, -16 - base_offset));
   __ Stp(w0, w1, MemOperand(x21, base_offset));
   __ Stp(w2, w3, MemOperand(x21, base_offset + 8));
   __ Stp(x4, x5, MemOperand(x21, base_offset + 16));
@@ -2952,34 +6345,31 @@ TEST(ldp_stp_offset_wide) {
   CHECK_EQUAL_64(0x00112233, x1);
   CHECK_EQUAL_64(0x0011223344556677UL, dst[0]);
   CHECK_EQUAL_64(0x00112233, x2);
-  CHECK_EQUAL_64(0xccddeeff, x3);
-  CHECK_EQUAL_64(0xccddeeff00112233UL, dst[1]);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x4);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, dst[2]);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, x5);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, dst[3]);
-  CHECK_EQUAL_64(0x8899aabb, x6);
-  CHECK_EQUAL_64(0xbbaa9988, x7);
-  CHECK_EQUAL_64(0xbbaa99888899aabbUL, dst[4]);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x8);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, dst[5]);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, x9);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, dst[6]);
+  CHECK_EQUAL_64(0xCCDDEEFF, x3);
+  CHECK_EQUAL_64(0xCCDDEEFF00112233UL, dst[1]);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, x4);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, dst[2]);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, x5);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, dst[3]);
+  CHECK_EQUAL_64(0x8899AABB, x6);
+  CHECK_EQUAL_64(0xBBAA9988, x7);
+  CHECK_EQUAL_64(0xBBAA99888899AABBUL, dst[4]);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, x8);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, dst[5]);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, x9);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, dst[6]);
   CHECK_EQUAL_64(src_base - base_offset, x20);
   CHECK_EQUAL_64(dst_base - base_offset, x21);
-  CHECK_EQUAL_64(src_base + base_offset + 24, x18);
+  CHECK_EQUAL_64(src_base + base_offset + 24, x28);
   CHECK_EQUAL_64(dst_base + base_offset + 56, x19);
-
-  TEARDOWN();
 }
-
 
 TEST(ldp_stp_preindex) {
   INIT_V8();
   SETUP();
 
-  uint64_t src[3] = {0x0011223344556677UL, 0x8899aabbccddeeffUL,
-                     0xffeeddccbbaa9988UL};
+  uint64_t src[3] = {0x0011223344556677UL, 0x8899AABBCCDDEEFFUL,
+                     0xFFEEDDCCBBAA9988UL};
   uint64_t dst[5] = {0, 0, 0, 0, 0};
   uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
   uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
@@ -2987,7 +6377,7 @@ TEST(ldp_stp_preindex) {
   START();
   __ Mov(x16, src_base);
   __ Mov(x17, dst_base);
-  __ Mov(x18, dst_base + 16);
+  __ Mov(x28, dst_base + 16);
   __ Ldp(w0, w1, MemOperand(x16, 4, PreIndex));
   __ Mov(x19, x16);
   __ Ldp(w2, w3, MemOperand(x16, -4, PreIndex));
@@ -2997,44 +6387,41 @@ TEST(ldp_stp_preindex) {
   __ Ldp(x4, x5, MemOperand(x16, 8, PreIndex));
   __ Mov(x21, x16);
   __ Ldp(x6, x7, MemOperand(x16, -8, PreIndex));
-  __ Stp(x7, x6, MemOperand(x18, 8, PreIndex));
-  __ Mov(x22, x18);
-  __ Stp(x5, x4, MemOperand(x18, -8, PreIndex));
+  __ Stp(x7, x6, MemOperand(x28, 8, PreIndex));
+  __ Mov(x22, x28);
+  __ Stp(x5, x4, MemOperand(x28, -8, PreIndex));
   END();
 
   RUN();
 
   CHECK_EQUAL_64(0x00112233, x0);
-  CHECK_EQUAL_64(0xccddeeff, x1);
+  CHECK_EQUAL_64(0xCCDDEEFF, x1);
   CHECK_EQUAL_64(0x44556677, x2);
   CHECK_EQUAL_64(0x00112233, x3);
-  CHECK_EQUAL_64(0xccddeeff00112233UL, dst[0]);
+  CHECK_EQUAL_64(0xCCDDEEFF00112233UL, dst[0]);
   CHECK_EQUAL_64(0x0000000000112233UL, dst[1]);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x4);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, x5);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, x4);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, x5);
   CHECK_EQUAL_64(0x0011223344556677UL, x6);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x7);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, dst[2]);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, dst[3]);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, x7);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, dst[2]);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, dst[3]);
   CHECK_EQUAL_64(0x0011223344556677UL, dst[4]);
   CHECK_EQUAL_64(src_base, x16);
   CHECK_EQUAL_64(dst_base, x17);
-  CHECK_EQUAL_64(dst_base + 16, x18);
+  CHECK_EQUAL_64(dst_base + 16, x28);
   CHECK_EQUAL_64(src_base + 4, x19);
   CHECK_EQUAL_64(dst_base + 4, x20);
   CHECK_EQUAL_64(src_base + 8, x21);
   CHECK_EQUAL_64(dst_base + 24, x22);
-
-  TEARDOWN();
 }
-
 
 TEST(ldp_stp_preindex_wide) {
   INIT_V8();
   SETUP();
 
-  uint64_t src[3] = {0x0011223344556677, 0x8899aabbccddeeff,
-                     0xffeeddccbbaa9988};
+  uint64_t src[3] = {0x0011223344556677, 0x8899AABBCCDDEEFF,
+                     0xFFEEDDCCBBAA9988};
   uint64_t dst[5] = {0, 0, 0, 0, 0};
   uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
   uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
@@ -3045,7 +6432,7 @@ TEST(ldp_stp_preindex_wide) {
   START();
   __ Mov(x24, src_base - base_offset);
   __ Mov(x25, dst_base + base_offset);
-  __ Mov(x18, dst_base + base_offset + 16);
+  __ Mov(x28, dst_base + base_offset + 16);
   __ Ldp(w0, w1, MemOperand(x24, base_offset + 4, PreIndex));
   __ Mov(x19, x24);
   __ Mov(x24, src_base - base_offset + 4);
@@ -3059,45 +6446,42 @@ TEST(ldp_stp_preindex_wide) {
   __ Mov(x21, x24);
   __ Mov(x24, src_base - base_offset + 8);
   __ Ldp(x6, x7, MemOperand(x24, base_offset - 8, PreIndex));
-  __ Stp(x7, x6, MemOperand(x18, 8 - base_offset, PreIndex));
-  __ Mov(x22, x18);
-  __ Mov(x18, dst_base + base_offset + 16 + 8);
-  __ Stp(x5, x4, MemOperand(x18, -8 - base_offset, PreIndex));
+  __ Stp(x7, x6, MemOperand(x28, 8 - base_offset, PreIndex));
+  __ Mov(x22, x28);
+  __ Mov(x28, dst_base + base_offset + 16 + 8);
+  __ Stp(x5, x4, MemOperand(x28, -8 - base_offset, PreIndex));
   END();
 
   RUN();
 
   CHECK_EQUAL_64(0x00112233, x0);
-  CHECK_EQUAL_64(0xccddeeff, x1);
+  CHECK_EQUAL_64(0xCCDDEEFF, x1);
   CHECK_EQUAL_64(0x44556677, x2);
   CHECK_EQUAL_64(0x00112233, x3);
-  CHECK_EQUAL_64(0xccddeeff00112233UL, dst[0]);
+  CHECK_EQUAL_64(0xCCDDEEFF00112233UL, dst[0]);
   CHECK_EQUAL_64(0x0000000000112233UL, dst[1]);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x4);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, x5);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, x4);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, x5);
   CHECK_EQUAL_64(0x0011223344556677UL, x6);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x7);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, dst[2]);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, dst[3]);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, x7);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, dst[2]);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, dst[3]);
   CHECK_EQUAL_64(0x0011223344556677UL, dst[4]);
   CHECK_EQUAL_64(src_base, x24);
   CHECK_EQUAL_64(dst_base, x25);
-  CHECK_EQUAL_64(dst_base + 16, x18);
+  CHECK_EQUAL_64(dst_base + 16, x28);
   CHECK_EQUAL_64(src_base + 4, x19);
   CHECK_EQUAL_64(dst_base + 4, x20);
   CHECK_EQUAL_64(src_base + 8, x21);
   CHECK_EQUAL_64(dst_base + 24, x22);
-
-  TEARDOWN();
 }
-
 
 TEST(ldp_stp_postindex) {
   INIT_V8();
   SETUP();
 
-  uint64_t src[4] = {0x0011223344556677UL, 0x8899aabbccddeeffUL,
-                     0xffeeddccbbaa9988UL, 0x7766554433221100UL};
+  uint64_t src[4] = {0x0011223344556677UL, 0x8899AABBCCDDEEFFUL,
+                     0xFFEEDDCCBBAA9988UL, 0x7766554433221100UL};
   uint64_t dst[5] = {0, 0, 0, 0, 0};
   uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
   uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
@@ -3105,7 +6489,7 @@ TEST(ldp_stp_postindex) {
   START();
   __ Mov(x16, src_base);
   __ Mov(x17, dst_base);
-  __ Mov(x18, dst_base + 16);
+  __ Mov(x28, dst_base + 16);
   __ Ldp(w0, w1, MemOperand(x16, 4, PostIndex));
   __ Mov(x19, x16);
   __ Ldp(w2, w3, MemOperand(x16, -4, PostIndex));
@@ -3115,9 +6499,9 @@ TEST(ldp_stp_postindex) {
   __ Ldp(x4, x5, MemOperand(x16, 8, PostIndex));
   __ Mov(x21, x16);
   __ Ldp(x6, x7, MemOperand(x16, -8, PostIndex));
-  __ Stp(x7, x6, MemOperand(x18, 8, PostIndex));
-  __ Mov(x22, x18);
-  __ Stp(x5, x4, MemOperand(x18, -8, PostIndex));
+  __ Stp(x7, x6, MemOperand(x28, 8, PostIndex));
+  __ Mov(x22, x28);
+  __ Stp(x5, x4, MemOperand(x28, -8, PostIndex));
   END();
 
   RUN();
@@ -3125,33 +6509,30 @@ TEST(ldp_stp_postindex) {
   CHECK_EQUAL_64(0x44556677, x0);
   CHECK_EQUAL_64(0x00112233, x1);
   CHECK_EQUAL_64(0x00112233, x2);
-  CHECK_EQUAL_64(0xccddeeff, x3);
+  CHECK_EQUAL_64(0xCCDDEEFF, x3);
   CHECK_EQUAL_64(0x4455667700112233UL, dst[0]);
   CHECK_EQUAL_64(0x0000000000112233UL, dst[1]);
   CHECK_EQUAL_64(0x0011223344556677UL, x4);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x5);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x6);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, x7);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, dst[2]);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, dst[3]);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, x5);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, x6);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, x7);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, dst[2]);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, dst[3]);
   CHECK_EQUAL_64(0x0011223344556677UL, dst[4]);
   CHECK_EQUAL_64(src_base, x16);
   CHECK_EQUAL_64(dst_base, x17);
-  CHECK_EQUAL_64(dst_base + 16, x18);
+  CHECK_EQUAL_64(dst_base + 16, x28);
   CHECK_EQUAL_64(src_base + 4, x19);
   CHECK_EQUAL_64(dst_base + 4, x20);
   CHECK_EQUAL_64(src_base + 8, x21);
   CHECK_EQUAL_64(dst_base + 24, x22);
-
-  TEARDOWN();
 }
-
 
 TEST(ldp_stp_postindex_wide) {
   INIT_V8();
   SETUP();
 
-  uint64_t src[4] = {0x0011223344556677, 0x8899aabbccddeeff, 0xffeeddccbbaa9988,
+  uint64_t src[4] = {0x0011223344556677, 0x8899AABBCCDDEEFF, 0xFFEEDDCCBBAA9988,
                      0x7766554433221100};
   uint64_t dst[5] = {0, 0, 0, 0, 0};
   uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
@@ -3163,7 +6544,7 @@ TEST(ldp_stp_postindex_wide) {
   START();
   __ Mov(x24, src_base);
   __ Mov(x25, dst_base);
-  __ Mov(x18, dst_base + 16);
+  __ Mov(x28, dst_base + 16);
   __ Ldp(w0, w1, MemOperand(x24, base_offset + 4, PostIndex));
   __ Mov(x19, x24);
   __ Sub(x24, x24, base_offset);
@@ -3177,10 +6558,10 @@ TEST(ldp_stp_postindex_wide) {
   __ Mov(x21, x24);
   __ Sub(x24, x24, base_offset);
   __ Ldp(x6, x7, MemOperand(x24, base_offset - 8, PostIndex));
-  __ Stp(x7, x6, MemOperand(x18, 8 - base_offset, PostIndex));
-  __ Mov(x22, x18);
-  __ Add(x18, x18, base_offset);
-  __ Stp(x5, x4, MemOperand(x18, -8 - base_offset, PostIndex));
+  __ Stp(x7, x6, MemOperand(x28, 8 - base_offset, PostIndex));
+  __ Mov(x22, x28);
+  __ Add(x28, x28, base_offset);
+  __ Stp(x5, x4, MemOperand(x28, -8 - base_offset, PostIndex));
   END();
 
   RUN();
@@ -3188,33 +6569,30 @@ TEST(ldp_stp_postindex_wide) {
   CHECK_EQUAL_64(0x44556677, x0);
   CHECK_EQUAL_64(0x00112233, x1);
   CHECK_EQUAL_64(0x00112233, x2);
-  CHECK_EQUAL_64(0xccddeeff, x3);
+  CHECK_EQUAL_64(0xCCDDEEFF, x3);
   CHECK_EQUAL_64(0x4455667700112233UL, dst[0]);
   CHECK_EQUAL_64(0x0000000000112233UL, dst[1]);
   CHECK_EQUAL_64(0x0011223344556677UL, x4);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x5);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x6);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, x7);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, dst[2]);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, dst[3]);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, x5);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, x6);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, x7);
+  CHECK_EQUAL_64(0xFFEEDDCCBBAA9988UL, dst[2]);
+  CHECK_EQUAL_64(0x8899AABBCCDDEEFFUL, dst[3]);
   CHECK_EQUAL_64(0x0011223344556677UL, dst[4]);
   CHECK_EQUAL_64(src_base + base_offset, x24);
   CHECK_EQUAL_64(dst_base - base_offset, x25);
-  CHECK_EQUAL_64(dst_base - base_offset + 16, x18);
+  CHECK_EQUAL_64(dst_base - base_offset + 16, x28);
   CHECK_EQUAL_64(src_base + base_offset + 4, x19);
   CHECK_EQUAL_64(dst_base - base_offset + 4, x20);
   CHECK_EQUAL_64(src_base + base_offset + 8, x21);
   CHECK_EQUAL_64(dst_base - base_offset + 24, x22);
-
-  TEARDOWN();
 }
-
 
 TEST(ldp_sign_extend) {
   INIT_V8();
   SETUP();
 
-  uint32_t src[2] = {0x80000000, 0x7fffffff};
+  uint32_t src[2] = {0x80000000, 0x7FFFFFFF};
   uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
 
   START();
@@ -3224,32 +6602,29 @@ TEST(ldp_sign_extend) {
 
   RUN();
 
-  CHECK_EQUAL_64(0xffffffff80000000UL, x0);
-  CHECK_EQUAL_64(0x000000007fffffffUL, x1);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(0xFFFFFFFF80000000UL, x0);
+  CHECK_EQUAL_64(0x000000007FFFFFFFUL, x1);
 }
-
 
 TEST(ldur_stur) {
   INIT_V8();
   SETUP();
 
-  int64_t src[2] = {0x0123456789abcdefUL, 0x0123456789abcdefUL};
+  int64_t src[2] = {0x0123456789ABCDEFUL, 0x0123456789ABCDEFUL};
   int64_t dst[5] = {0, 0, 0, 0, 0};
   uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
   uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
 
   START();
   __ Mov(x17, src_base);
-  __ Mov(x18, dst_base);
+  __ Mov(x28, dst_base);
   __ Mov(x19, src_base + 16);
   __ Mov(x20, dst_base + 32);
   __ Mov(x21, dst_base + 40);
   __ Ldr(w0, MemOperand(x17, 1));
-  __ Str(w0, MemOperand(x18, 2));
+  __ Str(w0, MemOperand(x28, 2));
   __ Ldr(x1, MemOperand(x17, 3));
-  __ Str(x1, MemOperand(x18, 9));
+  __ Str(x1, MemOperand(x28, 9));
   __ Ldr(w2, MemOperand(x19, -9));
   __ Str(w2, MemOperand(x20, -5));
   __ Ldrb(w3, MemOperand(x19, -1));
@@ -3258,183 +6633,261 @@ TEST(ldur_stur) {
 
   RUN();
 
-  CHECK_EQUAL_64(0x6789abcd, x0);
-  CHECK_EQUAL_64(0x6789abcd0000L, dst[0]);
-  CHECK_EQUAL_64(0xabcdef0123456789L, x1);
-  CHECK_EQUAL_64(0xcdef012345678900L, dst[1]);
-  CHECK_EQUAL_64(0x000000ab, dst[2]);
-  CHECK_EQUAL_64(0xabcdef01, x2);
-  CHECK_EQUAL_64(0x00abcdef01000000L, dst[3]);
+  CHECK_EQUAL_64(0x6789ABCD, x0);
+  CHECK_EQUAL_64(0x6789ABCD0000L, dst[0]);
+  CHECK_EQUAL_64(0xABCDEF0123456789L, x1);
+  CHECK_EQUAL_64(0xCDEF012345678900L, dst[1]);
+  CHECK_EQUAL_64(0x000000AB, dst[2]);
+  CHECK_EQUAL_64(0xABCDEF01, x2);
+  CHECK_EQUAL_64(0x00ABCDEF01000000L, dst[3]);
   CHECK_EQUAL_64(0x00000001, x3);
   CHECK_EQUAL_64(0x0100000000000000L, dst[4]);
   CHECK_EQUAL_64(src_base, x17);
-  CHECK_EQUAL_64(dst_base, x18);
+  CHECK_EQUAL_64(dst_base, x28);
   CHECK_EQUAL_64(src_base + 16, x19);
   CHECK_EQUAL_64(dst_base + 32, x20);
-
-  TEARDOWN();
 }
 
+TEST(ldr_pcrel_large_offset) {
+  INIT_V8();
+  SETUP_SIZE(1 * MB);
 
-#if 0  // TODO(all) enable.
-// TODO(rodolph): Adapt w16 Literal tests for RelocInfo.
+  START();
+
+  __ Ldr(x1, isolate->factory()->undefined_value());
+
+  {
+    v8::internal::PatchingAssembler::BlockPoolsScope scope(&masm);
+    int start = __ pc_offset();
+    while (__ pc_offset() - start < 600 * KB) {
+      __ Nop();
+    }
+  }
+
+  __ Ldr(x2, isolate->factory()->undefined_value());
+
+  END();
+
+  RUN();
+
+  CHECK_FULL_HEAP_OBJECT_IN_REGISTER(isolate->factory()->undefined_value(), x1);
+  CHECK_FULL_HEAP_OBJECT_IN_REGISTER(isolate->factory()->undefined_value(), x2);
+}
+
 TEST(ldr_literal) {
   INIT_V8();
   SETUP();
 
   START();
-  __ Ldr(x2, 0x1234567890abcdefUL);
-  __ Ldr(w3, 0xfedcba09);
-  __ Ldr(d13, 1.234);
-  __ Ldr(s25, 2.5);
+  __ Ldr(x2, isolate->factory()->undefined_value());
+
   END();
 
   RUN();
 
-  CHECK_EQUAL_64(0x1234567890abcdefUL, x2);
-  CHECK_EQUAL_64(0xfedcba09, x3);
-  CHECK_EQUAL_FP64(1.234, d13);
-  CHECK_EQUAL_FP32(2.5, s25);
-
-  TEARDOWN();
+  CHECK_FULL_HEAP_OBJECT_IN_REGISTER(isolate->factory()->undefined_value(), x2);
 }
 
+#ifdef DEBUG
+// These tests rely on functions available in debug mode.
+enum LiteralPoolEmitOutcome { EmitExpected, NoEmitExpected };
+enum LiteralPoolEmissionAlignment { EmitAtUnaligned, EmitAtAligned };
 
-static void LdrLiteralRangeHelper(ptrdiff_t range_,
-                                  LiteralPoolEmitOption option,
-                                  bool expect_dump) {
-  CHECK(range_ > 0);
-  SETUP_SIZE(range_ + 1024);
+static void LdrLiteralRangeHelper(
+    size_t range, LiteralPoolEmitOutcome outcome,
+    LiteralPoolEmissionAlignment unaligned_emission) {
+  SETUP_SIZE(static_cast<int>(range + 1024));
 
-  Label label_1, label_2;
-
-  size_t range = static_cast<size_t>(range_);
-  size_t code_size = 0;
-  size_t pool_guard_size;
-
-  if (option == NoJumpRequired) {
-    // Space for an explicit branch.
-    pool_guard_size = sizeof(Instr);
-  } else {
-    pool_guard_size = 0;
-  }
+  const size_t first_pool_entries = 2;
+  const size_t first_pool_size_bytes = first_pool_entries * kInt64Size;
 
   START();
   // Force a pool dump so the pool starts off empty.
-  __ EmitLiteralPool(JumpRequired);
-  CHECK_LITERAL_POOL_SIZE(0);
+  __ ForceConstantPoolEmissionWithJump();
+  CHECK_CONSTANT_POOL_SIZE(0);
 
-  __ Ldr(x0, 0x1234567890abcdefUL);
-  __ Ldr(w1, 0xfedcba09);
-  __ Ldr(d0, 1.234);
-  __ Ldr(s1, 2.5);
-  CHECK_LITERAL_POOL_SIZE(4);
-
-  code_size += 4 * sizeof(Instr);
-
-  // Check that the requested range (allowing space for a branch over the pool)
-  // can be handled by this test.
-  CHECK((code_size + pool_guard_size) <= range);
-
-  // Emit NOPs up to 'range', leaving space for the pool guard.
-  while ((code_size + pool_guard_size) < range) {
+  // Emit prepadding to influence alignment of the pool.
+  bool currently_aligned = IsAligned(__ pc_offset(), kInt64Size);
+  if ((unaligned_emission == EmitAtUnaligned && currently_aligned) ||
+      (unaligned_emission == EmitAtAligned && !currently_aligned)) {
     __ Nop();
-    code_size += sizeof(Instr);
   }
 
-  // Emit the guard sequence before the literal pool.
-  if (option == NoJumpRequired) {
-    __ B(&label_1);
-    code_size += sizeof(Instr);
+  int initial_pc_offset = __ pc_offset();
+  __ Ldr(x0, isolate->factory()->undefined_value());
+  __ Ldr(x1, isolate->factory()->the_hole_value());
+  CHECK_CONSTANT_POOL_SIZE(first_pool_size_bytes);
+
+  size_t expected_pool_size = 0;
+
+  auto PoolSizeAt = [&](int pc_offset) {
+    // To determine padding, consider the size of the prologue of the pool,
+    // and the jump around the pool, which we always need.
+    size_t prologue_size = 2 * kInstrSize + kInstrSize;
+    size_t pc = pc_offset + prologue_size;
+    const size_t padding = IsAligned(pc, kInt64Size) ? 0 : kInt32Size;
+    CHECK_EQ(padding == 0, unaligned_emission == EmitAtAligned);
+    return prologue_size + first_pool_size_bytes + padding;
+  };
+
+  int pc_offset_before_emission = -1;
+  bool pool_was_emitted = false;
+  while (__ pc_offset() - initial_pc_offset < static_cast<intptr_t>(range)) {
+    pc_offset_before_emission = __ pc_offset() + kInstrSize;
+    __ Nop();
+    if (__ GetConstantPoolEntriesSizeForTesting() == 0) {
+      pool_was_emitted = true;
+      break;
+    }
   }
 
-  CHECK(code_size == range);
-  CHECK_LITERAL_POOL_SIZE(4);
-
-  // Possibly generate a literal pool.
-  __ CheckLiteralPool(option);
-  __ Bind(&label_1);
-  if (expect_dump) {
-    CHECK_LITERAL_POOL_SIZE(0);
+  if (outcome == EmitExpected) {
+    if (!pool_was_emitted) {
+      FATAL(
+          "Pool was not emitted up to pc_offset %d which corresponds to a "
+          "distance to the first constant of %d bytes",
+          __ pc_offset(), __ pc_offset() - initial_pc_offset);
+    }
+    // Check that the size of the emitted constant pool is as expected.
+    expected_pool_size = PoolSizeAt(pc_offset_before_emission);
+    CHECK_EQ(pc_offset_before_emission + expected_pool_size, __ pc_offset());
   } else {
-    CHECK_LITERAL_POOL_SIZE(4);
+    CHECK_EQ(outcome, NoEmitExpected);
+    if (pool_was_emitted) {
+      FATAL("Pool was unexpectedly emitted at pc_offset %d ",
+            pc_offset_before_emission);
+    }
+    CHECK_CONSTANT_POOL_SIZE(first_pool_size_bytes);
+    CHECK_EQ(pc_offset_before_emission, __ pc_offset());
   }
 
   // Force a pool flush to check that a second pool functions correctly.
-  __ EmitLiteralPool(JumpRequired);
-  CHECK_LITERAL_POOL_SIZE(0);
+  __ ForceConstantPoolEmissionWithJump();
+  CHECK_CONSTANT_POOL_SIZE(0);
 
   // These loads should be after the pool (and will require a new one).
-  __ Ldr(x4, 0x34567890abcdef12UL);
-  __ Ldr(w5, 0xdcba09fe);
-  __ Ldr(d4, 123.4);
-  __ Ldr(s5, 250.0);
-  CHECK_LITERAL_POOL_SIZE(4);
+  const int second_pool_entries = 2;
+  __ Ldr(x4, isolate->factory()->true_value());
+  __ Ldr(x5, isolate->factory()->false_value());
+  CHECK_CONSTANT_POOL_SIZE(second_pool_entries * kInt64Size);
+
   END();
+
+  if (outcome == EmitExpected) {
+    Address pool_start = code->InstructionStart() + pc_offset_before_emission;
+    Instruction* branch = reinterpret_cast<Instruction*>(pool_start);
+    CHECK(branch->IsImmBranch());
+    CHECK_EQ(expected_pool_size, branch->ImmPCOffset());
+    Instruction* marker =
+        reinterpret_cast<Instruction*>(pool_start + kInstrSize);
+    CHECK(marker->IsLdrLiteralX());
+    size_t pool_data_start_offset = pc_offset_before_emission + kInstrSize;
+    size_t padding =
+        IsAligned(pool_data_start_offset, kInt64Size) ? 0 : kInt32Size;
+    size_t marker_size = kInstrSize;
+    CHECK_EQ((first_pool_size_bytes + marker_size + padding) / kInt32Size,
+             marker->ImmLLiteral());
+  }
 
   RUN();
 
   // Check that the literals loaded correctly.
-  CHECK_EQUAL_64(0x1234567890abcdefUL, x0);
-  CHECK_EQUAL_64(0xfedcba09, x1);
-  CHECK_EQUAL_FP64(1.234, d0);
-  CHECK_EQUAL_FP32(2.5, s1);
-  CHECK_EQUAL_64(0x34567890abcdef12UL, x4);
-  CHECK_EQUAL_64(0xdcba09fe, x5);
-  CHECK_EQUAL_FP64(123.4, d4);
-  CHECK_EQUAL_FP32(250.0, s5);
-
-  TEARDOWN();
+  CHECK_FULL_HEAP_OBJECT_IN_REGISTER(isolate->factory()->undefined_value(), x0);
+  CHECK_FULL_HEAP_OBJECT_IN_REGISTER(isolate->factory()->the_hole_value(), x1);
+  CHECK_FULL_HEAP_OBJECT_IN_REGISTER(isolate->factory()->true_value(), x4);
+  CHECK_FULL_HEAP_OBJECT_IN_REGISTER(isolate->factory()->false_value(), x5);
 }
 
-
-TEST(ldr_literal_range_1) {
+TEST(ldr_literal_range_max_dist_emission_1) {
   INIT_V8();
-  LdrLiteralRangeHelper(kRecommendedLiteralPoolRange,
-                        NoJumpRequired,
-                        true);
+  LdrLiteralRangeHelper(
+      MacroAssembler::GetApproxMaxDistToConstPoolForTesting() +
+          MacroAssembler::GetCheckConstPoolIntervalForTesting(),
+      EmitExpected, EmitAtAligned);
 }
 
-
-TEST(ldr_literal_range_2) {
+TEST(ldr_literal_range_max_dist_emission_2) {
   INIT_V8();
-  LdrLiteralRangeHelper(kRecommendedLiteralPoolRange-sizeof(Instr),
-                        NoJumpRequired,
-                        false);
+  LdrLiteralRangeHelper(
+      MacroAssembler::GetApproxMaxDistToConstPoolForTesting() +
+          MacroAssembler::GetCheckConstPoolIntervalForTesting(),
+      EmitExpected, EmitAtUnaligned);
 }
 
-
-TEST(ldr_literal_range_3) {
+TEST(ldr_literal_range_max_dist_no_emission_1) {
   INIT_V8();
-  LdrLiteralRangeHelper(2 * kRecommendedLiteralPoolRange,
-                        JumpRequired,
-                        true);
+  LdrLiteralRangeHelper(
+      MacroAssembler::GetApproxMaxDistToConstPoolForTesting() -
+          MacroAssembler::GetCheckConstPoolIntervalForTesting(),
+      NoEmitExpected, EmitAtUnaligned);
 }
 
-
-TEST(ldr_literal_range_4) {
+TEST(ldr_literal_range_max_dist_no_emission_2) {
   INIT_V8();
-  LdrLiteralRangeHelper(2 * kRecommendedLiteralPoolRange-sizeof(Instr),
-                        JumpRequired,
-                        false);
+  LdrLiteralRangeHelper(
+      MacroAssembler::GetApproxMaxDistToConstPoolForTesting() -
+          MacroAssembler::GetCheckConstPoolIntervalForTesting(),
+      NoEmitExpected, EmitAtAligned);
 }
 
-
-TEST(ldr_literal_range_5) {
-  INIT_V8();
-  LdrLiteralRangeHelper(kLiteralPoolCheckInterval,
-                        JumpRequired,
-                        false);
-}
-
-
-TEST(ldr_literal_range_6) {
-  INIT_V8();
-  LdrLiteralRangeHelper(kLiteralPoolCheckInterval-sizeof(Instr),
-                        JumpRequired,
-                        false);
-}
 #endif
+
+static const PrefetchOperation kPrfmOperations[] = {
+    PLDL1KEEP, PLDL1STRM, PLDL2KEEP, PLDL2STRM, PLDL3KEEP, PLDL3STRM,
+
+    PLIL1KEEP, PLIL1STRM, PLIL2KEEP, PLIL2STRM, PLIL3KEEP, PLIL3STRM,
+
+    PSTL1KEEP, PSTL1STRM, PSTL2KEEP, PSTL2STRM, PSTL3KEEP, PSTL3STRM};
+
+TEST(prfm_regoffset_assem) {
+  INIT_V8();
+  SETUP();
+
+  START();
+  // The address used in prfm doesn't have to be valid.
+  __ Mov(x0, 0x0123456789abcdef);
+
+  CPURegList inputs(CPURegister::kRegister, kXRegSizeInBits, 10, 18);
+  __ Mov(x10, 0);
+  __ Mov(x11, 1);
+  __ Mov(x12, 8);
+  __ Mov(x13, 255);
+  __ Mov(x14, -0);
+  __ Mov(x15, -1);
+  __ Mov(x16, -8);
+  __ Mov(x17, -255);
+  __ Mov(x18, 0xfedcba9876543210);
+
+  for (int op = 0; op < (1 << ImmPrefetchOperation_width); op++) {
+    // Unallocated prefetch operations are ignored, so test all of them.
+    // We have to use the Assembler directly for this.
+    CPURegList loop = inputs;
+    while (!loop.IsEmpty()) {
+      __ prfm(op, MemOperand(x0, Register::Create(loop.PopLowestIndex().code(),
+                                                  kXRegSizeInBits)));
+    }
+  }
+
+  for (PrefetchOperation op : kPrfmOperations) {
+    // Also test named operations.
+    CPURegList loop = inputs;
+    while (!loop.IsEmpty()) {
+      Register input =
+          Register::Create(loop.PopLowestIndex().code(), kXRegSizeInBits);
+      __ prfm(op, MemOperand(x0, input, UXTW));
+      __ prfm(op, MemOperand(x0, input, UXTW, 3));
+      __ prfm(op, MemOperand(x0, input, LSL));
+      __ prfm(op, MemOperand(x0, input, LSL, 3));
+      __ prfm(op, MemOperand(x0, input, SXTW));
+      __ prfm(op, MemOperand(x0, input, SXTW, 3));
+      __ prfm(op, MemOperand(x0, input, SXTX));
+      __ prfm(op, MemOperand(x0, input, SXTX, 3));
+    }
+  }
+
+  END();
+  RUN();
+}
 
 TEST(add_sub_imm) {
   INIT_V8();
@@ -3443,17 +6896,17 @@ TEST(add_sub_imm) {
   START();
   __ Mov(x0, 0x0);
   __ Mov(x1, 0x1111);
-  __ Mov(x2, 0xffffffffffffffffL);
+  __ Mov(x2, 0xFFFFFFFFFFFFFFFFL);
   __ Mov(x3, 0x8000000000000000L);
 
   __ Add(x10, x0, Operand(0x123));
   __ Add(x11, x1, Operand(0x122000));
-  __ Add(x12, x0, Operand(0xabc << 12));
+  __ Add(x12, x0, Operand(0xABC << 12));
   __ Add(x13, x2, Operand(1));
 
   __ Add(w14, w0, Operand(0x123));
   __ Add(w15, w1, Operand(0x122000));
-  __ Add(w16, w0, Operand(0xabc << 12));
+  __ Add(w16, w0, Operand(0xABC << 12));
   __ Add(w17, w2, Operand(1));
 
   __ Sub(x20, x0, Operand(0x1));
@@ -3471,27 +6924,24 @@ TEST(add_sub_imm) {
 
   CHECK_EQUAL_64(0x123, x10);
   CHECK_EQUAL_64(0x123111, x11);
-  CHECK_EQUAL_64(0xabc000, x12);
+  CHECK_EQUAL_64(0xABC000, x12);
   CHECK_EQUAL_64(0x0, x13);
 
   CHECK_EQUAL_32(0x123, w14);
   CHECK_EQUAL_32(0x123111, w15);
-  CHECK_EQUAL_32(0xabc000, w16);
+  CHECK_EQUAL_32(0xABC000, w16);
   CHECK_EQUAL_32(0x0, w17);
 
-  CHECK_EQUAL_64(0xffffffffffffffffL, x20);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFL, x20);
   CHECK_EQUAL_64(0x1000, x21);
   CHECK_EQUAL_64(0x111, x22);
-  CHECK_EQUAL_64(0x7fffffffffffffffL, x23);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFFFFL, x23);
 
-  CHECK_EQUAL_32(0xffffffff, w24);
+  CHECK_EQUAL_32(0xFFFFFFFF, w24);
   CHECK_EQUAL_32(0x1000, w25);
   CHECK_EQUAL_32(0x111, w26);
-  CHECK_EQUAL_32(0xffffffff, w27);
-
-  TEARDOWN();
+  CHECK_EQUAL_32(0xFFFFFFFF, w27);
 }
-
 
 TEST(add_sub_wide_imm) {
   INIT_V8();
@@ -3501,36 +6951,33 @@ TEST(add_sub_wide_imm) {
   __ Mov(x0, 0x0);
   __ Mov(x1, 0x1);
 
-  __ Add(x10, x0, Operand(0x1234567890abcdefUL));
-  __ Add(x11, x1, Operand(0xffffffff));
+  __ Add(x10, x0, Operand(0x1234567890ABCDEFUL));
+  __ Add(x11, x1, Operand(0xFFFFFFFF));
 
   __ Add(w12, w0, Operand(0x12345678));
-  __ Add(w13, w1, Operand(0xffffffff));
+  __ Add(w13, w1, Operand(0xFFFFFFFF));
 
-  __ Add(w18, w0, Operand(kWMinInt));
+  __ Add(w28, w0, Operand(kWMinInt));
   __ Sub(w19, w0, Operand(kWMinInt));
 
-  __ Sub(x20, x0, Operand(0x1234567890abcdefUL));
+  __ Sub(x20, x0, Operand(0x1234567890ABCDEFUL));
   __ Sub(w21, w0, Operand(0x12345678));
   END();
 
   RUN();
 
-  CHECK_EQUAL_64(0x1234567890abcdefUL, x10);
+  CHECK_EQUAL_64(0x1234567890ABCDEFUL, x10);
   CHECK_EQUAL_64(0x100000000UL, x11);
 
   CHECK_EQUAL_32(0x12345678, w12);
   CHECK_EQUAL_64(0x0, x13);
 
-  CHECK_EQUAL_32(kWMinInt, w18);
+  CHECK_EQUAL_32(kWMinInt, w28);
   CHECK_EQUAL_32(kWMinInt, w19);
 
-  CHECK_EQUAL_64(-0x1234567890abcdefUL, x20);
+  CHECK_EQUAL_64(-0x1234567890ABCDEFLL, x20);
   CHECK_EQUAL_32(-0x12345678, w21);
-
-  TEARDOWN();
 }
-
 
 TEST(add_sub_shifted) {
   INIT_V8();
@@ -3538,9 +6985,9 @@ TEST(add_sub_shifted) {
 
   START();
   __ Mov(x0, 0);
-  __ Mov(x1, 0x0123456789abcdefL);
-  __ Mov(x2, 0xfedcba9876543210L);
-  __ Mov(x3, 0xffffffffffffffffL);
+  __ Mov(x1, 0x0123456789ABCDEFL);
+  __ Mov(x2, 0xFEDCBA9876543210L);
+  __ Mov(x3, 0xFFFFFFFFFFFFFFFFL);
 
   __ Add(x10, x1, Operand(x2));
   __ Add(x11, x0, Operand(x1, LSL, 8));
@@ -3548,7 +6995,7 @@ TEST(add_sub_shifted) {
   __ Add(x13, x0, Operand(x1, ASR, 8));
   __ Add(x14, x0, Operand(x2, ASR, 8));
   __ Add(w15, w0, Operand(w1, ASR, 8));
-  __ Add(w18, w3, Operand(w1, ROR, 8));
+  __ Add(w28, w3, Operand(w1, ROR, 8));
   __ Add(x19, x3, Operand(x1, ROR, 8));
 
   __ Sub(x20, x3, Operand(x2));
@@ -3563,27 +7010,24 @@ TEST(add_sub_shifted) {
 
   RUN();
 
-  CHECK_EQUAL_64(0xffffffffffffffffL, x10);
-  CHECK_EQUAL_64(0x23456789abcdef00L, x11);
-  CHECK_EQUAL_64(0x000123456789abcdL, x12);
-  CHECK_EQUAL_64(0x000123456789abcdL, x13);
-  CHECK_EQUAL_64(0xfffedcba98765432L, x14);
-  CHECK_EQUAL_64(0xff89abcd, x15);
-  CHECK_EQUAL_64(0xef89abcc, x18);
-  CHECK_EQUAL_64(0xef0123456789abccL, x19);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFL, x10);
+  CHECK_EQUAL_64(0x23456789ABCDEF00L, x11);
+  CHECK_EQUAL_64(0x000123456789ABCDL, x12);
+  CHECK_EQUAL_64(0x000123456789ABCDL, x13);
+  CHECK_EQUAL_64(0xFFFEDCBA98765432L, x14);
+  CHECK_EQUAL_64(0xFF89ABCD, x15);
+  CHECK_EQUAL_64(0xEF89ABCC, x28);
+  CHECK_EQUAL_64(0xEF0123456789ABCCL, x19);
 
-  CHECK_EQUAL_64(0x0123456789abcdefL, x20);
-  CHECK_EQUAL_64(0xdcba9876543210ffL, x21);
-  CHECK_EQUAL_64(0xfffedcba98765432L, x22);
-  CHECK_EQUAL_64(0xfffedcba98765432L, x23);
-  CHECK_EQUAL_64(0x000123456789abcdL, x24);
+  CHECK_EQUAL_64(0x0123456789ABCDEFL, x20);
+  CHECK_EQUAL_64(0xDCBA9876543210FFL, x21);
+  CHECK_EQUAL_64(0xFFFEDCBA98765432L, x22);
+  CHECK_EQUAL_64(0xFFFEDCBA98765432L, x23);
+  CHECK_EQUAL_64(0x000123456789ABCDL, x24);
   CHECK_EQUAL_64(0x00765432, x25);
   CHECK_EQUAL_64(0x10765432, x26);
-  CHECK_EQUAL_64(0x10fedcba98765432L, x27);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(0x10FEDCBA98765432L, x27);
 }
-
 
 TEST(add_sub_extended) {
   INIT_V8();
@@ -3591,8 +7035,8 @@ TEST(add_sub_extended) {
 
   START();
   __ Mov(x0, 0);
-  __ Mov(x1, 0x0123456789abcdefL);
-  __ Mov(x2, 0xfedcba9876543210L);
+  __ Mov(x1, 0x0123456789ABCDEFL);
+  __ Mov(x2, 0xFEDCBA9876543210L);
   __ Mov(w3, 0x80);
 
   __ Add(x10, x0, Operand(x1, UXTB, 0));
@@ -3604,7 +7048,7 @@ TEST(add_sub_extended) {
   __ Add(x15, x0, Operand(x1, SXTB, 1));
   __ Add(x16, x0, Operand(x1, SXTH, 2));
   __ Add(x17, x0, Operand(x1, SXTW, 3));
-  __ Add(x18, x0, Operand(x2, SXTB, 0));
+  __ Add(x4, x0, Operand(x2, SXTB, 0));
   __ Add(x19, x0, Operand(x2, SXTB, 1));
   __ Add(x20, x0, Operand(x2, SXTH, 2));
   __ Add(x21, x0, Operand(x2, SXTW, 3));
@@ -3625,36 +7069,33 @@ TEST(add_sub_extended) {
 
   RUN();
 
-  CHECK_EQUAL_64(0xefL, x10);
-  CHECK_EQUAL_64(0x1deL, x11);
-  CHECK_EQUAL_64(0x337bcL, x12);
-  CHECK_EQUAL_64(0x89abcdef0L, x13);
+  CHECK_EQUAL_64(0xEFL, x10);
+  CHECK_EQUAL_64(0x1DEL, x11);
+  CHECK_EQUAL_64(0x337BCL, x12);
+  CHECK_EQUAL_64(0x89ABCDEF0L, x13);
 
-  CHECK_EQUAL_64(0xffffffffffffffefL, x14);
-  CHECK_EQUAL_64(0xffffffffffffffdeL, x15);
-  CHECK_EQUAL_64(0xffffffffffff37bcL, x16);
-  CHECK_EQUAL_64(0xfffffffc4d5e6f78L, x17);
-  CHECK_EQUAL_64(0x10L, x18);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFEFL, x14);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFDEL, x15);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFF37BCL, x16);
+  CHECK_EQUAL_64(0xFFFFFFFC4D5E6F78L, x17);
+  CHECK_EQUAL_64(0x10L, x4);
   CHECK_EQUAL_64(0x20L, x19);
-  CHECK_EQUAL_64(0xc840L, x20);
-  CHECK_EQUAL_64(0x3b2a19080L, x21);
+  CHECK_EQUAL_64(0xC840L, x20);
+  CHECK_EQUAL_64(0x3B2A19080L, x21);
 
-  CHECK_EQUAL_64(0x0123456789abce0fL, x22);
-  CHECK_EQUAL_64(0x0123456789abcdcfL, x23);
+  CHECK_EQUAL_64(0x0123456789ABCE0FL, x22);
+  CHECK_EQUAL_64(0x0123456789ABCDCFL, x23);
 
-  CHECK_EQUAL_32(0x89abce2f, w24);
-  CHECK_EQUAL_32(0xffffffef, w25);
-  CHECK_EQUAL_32(0xffffffde, w26);
-  CHECK_EQUAL_32(0xc3b2a188, w27);
+  CHECK_EQUAL_32(0x89ABCE2F, w24);
+  CHECK_EQUAL_32(0xFFFFFFEF, w25);
+  CHECK_EQUAL_32(0xFFFFFFDE, w26);
+  CHECK_EQUAL_32(0xC3B2A188, w27);
 
-  CHECK_EQUAL_32(0x4d5e6f78, w28);
-  CHECK_EQUAL_64(0xfffffffc4d5e6f78L, x29);
+  CHECK_EQUAL_32(0x4D5E6F78, w28);
+  CHECK_EQUAL_64(0xFFFFFFFC4D5E6F78L, x29);
 
   CHECK_EQUAL_64(256, x30);
-
-  TEARDOWN();
 }
-
 
 TEST(add_sub_negative) {
   INIT_V8();
@@ -3678,7 +7119,7 @@ TEST(add_sub_negative) {
   __ Add(w19, w3, -0x344);
   __ Add(w20, w4, -2000);
 
-  __ Sub(w21, w3, -0xbc);
+  __ Sub(w21, w3, -0xBC);
   __ Sub(w22, w4, -2000);
   END();
 
@@ -3690,17 +7131,14 @@ TEST(add_sub_negative) {
 
   CHECK_EQUAL_64(600, x13);
   CHECK_EQUAL_64(5000, x14);
-  CHECK_EQUAL_64(0x1122334455667cdd, x15);
+  CHECK_EQUAL_64(0x1122334455667CDD, x15);
 
   CHECK_EQUAL_32(0x11223000, w19);
   CHECK_EQUAL_32(398000, w20);
 
   CHECK_EQUAL_32(0x11223400, w21);
   CHECK_EQUAL_32(402000, w22);
-
-  TEARDOWN();
 }
-
 
 TEST(add_sub_zero) {
   INIT_V8();
@@ -3735,10 +7173,75 @@ TEST(add_sub_zero) {
   CHECK_EQUAL_64(0, x0);
   CHECK_EQUAL_64(0, x1);
   CHECK_EQUAL_64(0, x2);
-
-  TEARDOWN();
 }
 
+TEST(preshift_immediates) {
+  INIT_V8();
+  SETUP();
+
+  START();
+  // Test operations involving immediates that could be generated using a
+  // pre-shifted encodable immediate followed by a post-shift applied to
+  // the arithmetic or logical operation.
+
+  // Save sp.
+  __ Mov(x29, sp);
+
+  // Set the registers to known values.
+  __ Mov(x0, 0x1000);
+  __ Mov(sp, 0x1000);
+
+  // Arithmetic ops.
+  __ Add(x1, x0, 0x1F7DE);
+  __ Add(w2, w0, 0xFFFFFF1);
+  __ Adds(x3, x0, 0x18001);
+  __ Adds(w4, w0, 0xFFFFFF1);
+  __ Add(x5, x0, 0x10100);
+  __ Sub(w6, w0, 0xFFFFFF1);
+  __ Subs(x7, x0, 0x18001);
+  __ Subs(w8, w0, 0xFFFFFF1);
+
+  // Logical ops.
+  __ And(x9, x0, 0x1F7DE);
+  __ Orr(w10, w0, 0xFFFFFF1);
+  __ Eor(x11, x0, 0x18001);
+
+  // Ops using the stack pointer.
+  __ Add(sp, sp, 0x1F7F0);
+  __ Mov(x12, sp);
+  __ Mov(sp, 0x1000);
+
+  __ Adds(x13, sp, 0x1F7F0);
+
+  __ Orr(sp, x0, 0x1F7F0);
+  __ Mov(x14, sp);
+  __ Mov(sp, 0x1000);
+
+  __ Add(sp, sp, 0x10100);
+  __ Mov(x15, sp);
+
+  //  Restore sp.
+  __ Mov(sp, x29);
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_64(0x1000, x0);
+  CHECK_EQUAL_64(0x207DE, x1);
+  CHECK_EQUAL_64(0x10000FF1, x2);
+  CHECK_EQUAL_64(0x19001, x3);
+  CHECK_EQUAL_64(0x10000FF1, x4);
+  CHECK_EQUAL_64(0x11100, x5);
+  CHECK_EQUAL_64(0xF000100F, x6);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFE8FFF, x7);
+  CHECK_EQUAL_64(0xF000100F, x8);
+  CHECK_EQUAL_64(0x1000, x9);
+  CHECK_EQUAL_64(0xFFFFFF1, x10);
+  CHECK_EQUAL_64(0x207F0, x12);
+  CHECK_EQUAL_64(0x207F0, x13);
+  CHECK_EQUAL_64(0x1F7F0, x14);
+  CHECK_EQUAL_64(0x11100, x15);
+}
 
 TEST(claim_drop_zero) {
   INIT_V8();
@@ -3756,26 +7259,19 @@ TEST(claim_drop_zero) {
   __ Drop(xzr, 0);
   __ Claim(x7, 0);
   __ Drop(x7, 0);
-  __ ClaimBySMI(xzr, 8);
-  __ DropBySMI(xzr, 8);
-  __ ClaimBySMI(xzr, 0);
-  __ DropBySMI(xzr, 0);
   CHECK_EQ(0u, __ SizeOfCodeGeneratedSince(&start));
 
   END();
 
   RUN();
-
-  TEARDOWN();
 }
-
 
 TEST(neg) {
   INIT_V8();
   SETUP();
 
   START();
-  __ Mov(x0, 0xf123456789abcdefL);
+  __ Mov(x0, 0xF123456789ABCDEFL);
 
   // Immediate.
   __ Neg(x1, 0x123);
@@ -3800,24 +7296,21 @@ TEST(neg) {
 
   RUN();
 
-  CHECK_EQUAL_64(0xfffffffffffffeddUL, x1);
-  CHECK_EQUAL_64(0xfffffedd, x2);
-  CHECK_EQUAL_64(0x1db97530eca86422UL, x3);
-  CHECK_EQUAL_64(0xd950c844, x4);
-  CHECK_EQUAL_64(0xe1db97530eca8643UL, x5);
-  CHECK_EQUAL_64(0xf7654322, x6);
-  CHECK_EQUAL_64(0x0076e5d4c3b2a191UL, x7);
-  CHECK_EQUAL_64(0x01d950c9, x8);
-  CHECK_EQUAL_64(0xffffff11, x9);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFEDDUL, x1);
+  CHECK_EQUAL_64(0xFFFFFEDD, x2);
+  CHECK_EQUAL_64(0x1DB97530ECA86422UL, x3);
+  CHECK_EQUAL_64(0xD950C844, x4);
+  CHECK_EQUAL_64(0xE1DB97530ECA8643UL, x5);
+  CHECK_EQUAL_64(0xF7654322, x6);
+  CHECK_EQUAL_64(0x0076E5D4C3B2A191UL, x7);
+  CHECK_EQUAL_64(0x01D950C9, x8);
+  CHECK_EQUAL_64(0xFFFFFF11, x9);
   CHECK_EQUAL_64(0x0000000000000022UL, x10);
-  CHECK_EQUAL_64(0xfffcc844, x11);
+  CHECK_EQUAL_64(0xFFFCC844, x11);
   CHECK_EQUAL_64(0x0000000000019088UL, x12);
   CHECK_EQUAL_64(0x65432110, x13);
   CHECK_EQUAL_64(0x0000000765432110UL, x14);
-
-  TEARDOWN();
 }
-
 
 template <typename T, typename Op>
 static void AdcsSbcsHelper(Op op, T left, T right, int carry, T expected,
@@ -3844,17 +7337,14 @@ static void AdcsSbcsHelper(Op op, T left, T right, int carry, T expected,
   CHECK_EQUAL_64(right, right_reg.X());
   CHECK_EQUAL_64(expected, result_reg.X());
   CHECK_EQUAL_NZCV(expected_flags);
-
-  TEARDOWN();
 }
-
 
 TEST(adcs_sbcs_x) {
   INIT_V8();
   uint64_t inputs[] = {
-      0x0000000000000000, 0x0000000000000001, 0x7ffffffffffffffe,
-      0x7fffffffffffffff, 0x8000000000000000, 0x8000000000000001,
-      0xfffffffffffffffe, 0xffffffffffffffff,
+      0x0000000000000000, 0x0000000000000001, 0x7FFFFFFFFFFFFFFE,
+      0x7FFFFFFFFFFFFFFF, 0x8000000000000000, 0x8000000000000001,
+      0xFFFFFFFFFFFFFFFE, 0xFFFFFFFFFFFFFFFF,
   };
   static const size_t input_count = sizeof(inputs) / sizeof(inputs[0]);
 
@@ -3868,134 +7358,134 @@ TEST(adcs_sbcs_x) {
   static const Expected expected_adcs_x[input_count][input_count] = {
       {{0x0000000000000000, ZFlag, 0x0000000000000001, NoFlag},
        {0x0000000000000001, NoFlag, 0x0000000000000002, NoFlag},
-       {0x7ffffffffffffffe, NoFlag, 0x7fffffffffffffff, NoFlag},
-       {0x7fffffffffffffff, NoFlag, 0x8000000000000000, NVFlag},
+       {0x7FFFFFFFFFFFFFFE, NoFlag, 0x7FFFFFFFFFFFFFFF, NoFlag},
+       {0x7FFFFFFFFFFFFFFF, NoFlag, 0x8000000000000000, NVFlag},
        {0x8000000000000000, NFlag, 0x8000000000000001, NFlag},
        {0x8000000000000001, NFlag, 0x8000000000000002, NFlag},
-       {0xfffffffffffffffe, NFlag, 0xffffffffffffffff, NFlag},
-       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag}},
+       {0xFFFFFFFFFFFFFFFE, NFlag, 0xFFFFFFFFFFFFFFFF, NFlag},
+       {0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag}},
       {{0x0000000000000001, NoFlag, 0x0000000000000002, NoFlag},
        {0x0000000000000002, NoFlag, 0x0000000000000003, NoFlag},
-       {0x7fffffffffffffff, NoFlag, 0x8000000000000000, NVFlag},
+       {0x7FFFFFFFFFFFFFFF, NoFlag, 0x8000000000000000, NVFlag},
        {0x8000000000000000, NVFlag, 0x8000000000000001, NVFlag},
        {0x8000000000000001, NFlag, 0x8000000000000002, NFlag},
        {0x8000000000000002, NFlag, 0x8000000000000003, NFlag},
-       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
+       {0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag},
        {0x0000000000000000, ZCFlag, 0x0000000000000001, CFlag}},
-      {{0x7ffffffffffffffe, NoFlag, 0x7fffffffffffffff, NoFlag},
-       {0x7fffffffffffffff, NoFlag, 0x8000000000000000, NVFlag},
-       {0xfffffffffffffffc, NVFlag, 0xfffffffffffffffd, NVFlag},
-       {0xfffffffffffffffd, NVFlag, 0xfffffffffffffffe, NVFlag},
-       {0xfffffffffffffffe, NFlag, 0xffffffffffffffff, NFlag},
-       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
-       {0x7ffffffffffffffc, CFlag, 0x7ffffffffffffffd, CFlag},
-       {0x7ffffffffffffffd, CFlag, 0x7ffffffffffffffe, CFlag}},
-      {{0x7fffffffffffffff, NoFlag, 0x8000000000000000, NVFlag},
+      {{0x7FFFFFFFFFFFFFFE, NoFlag, 0x7FFFFFFFFFFFFFFF, NoFlag},
+       {0x7FFFFFFFFFFFFFFF, NoFlag, 0x8000000000000000, NVFlag},
+       {0xFFFFFFFFFFFFFFFC, NVFlag, 0xFFFFFFFFFFFFFFFD, NVFlag},
+       {0xFFFFFFFFFFFFFFFD, NVFlag, 0xFFFFFFFFFFFFFFFE, NVFlag},
+       {0xFFFFFFFFFFFFFFFE, NFlag, 0xFFFFFFFFFFFFFFFF, NFlag},
+       {0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag},
+       {0x7FFFFFFFFFFFFFFC, CFlag, 0x7FFFFFFFFFFFFFFD, CFlag},
+       {0x7FFFFFFFFFFFFFFD, CFlag, 0x7FFFFFFFFFFFFFFE, CFlag}},
+      {{0x7FFFFFFFFFFFFFFF, NoFlag, 0x8000000000000000, NVFlag},
        {0x8000000000000000, NVFlag, 0x8000000000000001, NVFlag},
-       {0xfffffffffffffffd, NVFlag, 0xfffffffffffffffe, NVFlag},
-       {0xfffffffffffffffe, NVFlag, 0xffffffffffffffff, NVFlag},
-       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
+       {0xFFFFFFFFFFFFFFFD, NVFlag, 0xFFFFFFFFFFFFFFFE, NVFlag},
+       {0xFFFFFFFFFFFFFFFE, NVFlag, 0xFFFFFFFFFFFFFFFF, NVFlag},
+       {0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag},
        {0x0000000000000000, ZCFlag, 0x0000000000000001, CFlag},
-       {0x7ffffffffffffffd, CFlag, 0x7ffffffffffffffe, CFlag},
-       {0x7ffffffffffffffe, CFlag, 0x7fffffffffffffff, CFlag}},
+       {0x7FFFFFFFFFFFFFFD, CFlag, 0x7FFFFFFFFFFFFFFE, CFlag},
+       {0x7FFFFFFFFFFFFFFE, CFlag, 0x7FFFFFFFFFFFFFFF, CFlag}},
       {{0x8000000000000000, NFlag, 0x8000000000000001, NFlag},
        {0x8000000000000001, NFlag, 0x8000000000000002, NFlag},
-       {0xfffffffffffffffe, NFlag, 0xffffffffffffffff, NFlag},
-       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
+       {0xFFFFFFFFFFFFFFFE, NFlag, 0xFFFFFFFFFFFFFFFF, NFlag},
+       {0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag},
        {0x0000000000000000, ZCVFlag, 0x0000000000000001, CVFlag},
        {0x0000000000000001, CVFlag, 0x0000000000000002, CVFlag},
-       {0x7ffffffffffffffe, CVFlag, 0x7fffffffffffffff, CVFlag},
-       {0x7fffffffffffffff, CVFlag, 0x8000000000000000, NCFlag}},
+       {0x7FFFFFFFFFFFFFFE, CVFlag, 0x7FFFFFFFFFFFFFFF, CVFlag},
+       {0x7FFFFFFFFFFFFFFF, CVFlag, 0x8000000000000000, NCFlag}},
       {{0x8000000000000001, NFlag, 0x8000000000000002, NFlag},
        {0x8000000000000002, NFlag, 0x8000000000000003, NFlag},
-       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
+       {0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag},
        {0x0000000000000000, ZCFlag, 0x0000000000000001, CFlag},
        {0x0000000000000001, CVFlag, 0x0000000000000002, CVFlag},
        {0x0000000000000002, CVFlag, 0x0000000000000003, CVFlag},
-       {0x7fffffffffffffff, CVFlag, 0x8000000000000000, NCFlag},
+       {0x7FFFFFFFFFFFFFFF, CVFlag, 0x8000000000000000, NCFlag},
        {0x8000000000000000, NCFlag, 0x8000000000000001, NCFlag}},
-      {{0xfffffffffffffffe, NFlag, 0xffffffffffffffff, NFlag},
-       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
-       {0x7ffffffffffffffc, CFlag, 0x7ffffffffffffffd, CFlag},
-       {0x7ffffffffffffffd, CFlag, 0x7ffffffffffffffe, CFlag},
-       {0x7ffffffffffffffe, CVFlag, 0x7fffffffffffffff, CVFlag},
-       {0x7fffffffffffffff, CVFlag, 0x8000000000000000, NCFlag},
-       {0xfffffffffffffffc, NCFlag, 0xfffffffffffffffd, NCFlag},
-       {0xfffffffffffffffd, NCFlag, 0xfffffffffffffffe, NCFlag}},
-      {{0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
+      {{0xFFFFFFFFFFFFFFFE, NFlag, 0xFFFFFFFFFFFFFFFF, NFlag},
+       {0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag},
+       {0x7FFFFFFFFFFFFFFC, CFlag, 0x7FFFFFFFFFFFFFFD, CFlag},
+       {0x7FFFFFFFFFFFFFFD, CFlag, 0x7FFFFFFFFFFFFFFE, CFlag},
+       {0x7FFFFFFFFFFFFFFE, CVFlag, 0x7FFFFFFFFFFFFFFF, CVFlag},
+       {0x7FFFFFFFFFFFFFFF, CVFlag, 0x8000000000000000, NCFlag},
+       {0xFFFFFFFFFFFFFFFC, NCFlag, 0xFFFFFFFFFFFFFFFD, NCFlag},
+       {0xFFFFFFFFFFFFFFFD, NCFlag, 0xFFFFFFFFFFFFFFFE, NCFlag}},
+      {{0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag},
        {0x0000000000000000, ZCFlag, 0x0000000000000001, CFlag},
-       {0x7ffffffffffffffd, CFlag, 0x7ffffffffffffffe, CFlag},
-       {0x7ffffffffffffffe, CFlag, 0x7fffffffffffffff, CFlag},
-       {0x7fffffffffffffff, CVFlag, 0x8000000000000000, NCFlag},
+       {0x7FFFFFFFFFFFFFFD, CFlag, 0x7FFFFFFFFFFFFFFE, CFlag},
+       {0x7FFFFFFFFFFFFFFE, CFlag, 0x7FFFFFFFFFFFFFFF, CFlag},
+       {0x7FFFFFFFFFFFFFFF, CVFlag, 0x8000000000000000, NCFlag},
        {0x8000000000000000, NCFlag, 0x8000000000000001, NCFlag},
-       {0xfffffffffffffffd, NCFlag, 0xfffffffffffffffe, NCFlag},
-       {0xfffffffffffffffe, NCFlag, 0xffffffffffffffff, NCFlag}}};
+       {0xFFFFFFFFFFFFFFFD, NCFlag, 0xFFFFFFFFFFFFFFFE, NCFlag},
+       {0xFFFFFFFFFFFFFFFE, NCFlag, 0xFFFFFFFFFFFFFFFF, NCFlag}}};
 
   static const Expected expected_sbcs_x[input_count][input_count] = {
-      {{0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
-       {0xfffffffffffffffe, NFlag, 0xffffffffffffffff, NFlag},
+      {{0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag},
+       {0xFFFFFFFFFFFFFFFE, NFlag, 0xFFFFFFFFFFFFFFFF, NFlag},
        {0x8000000000000001, NFlag, 0x8000000000000002, NFlag},
        {0x8000000000000000, NFlag, 0x8000000000000001, NFlag},
-       {0x7fffffffffffffff, NoFlag, 0x8000000000000000, NVFlag},
-       {0x7ffffffffffffffe, NoFlag, 0x7fffffffffffffff, NoFlag},
+       {0x7FFFFFFFFFFFFFFF, NoFlag, 0x8000000000000000, NVFlag},
+       {0x7FFFFFFFFFFFFFFE, NoFlag, 0x7FFFFFFFFFFFFFFF, NoFlag},
        {0x0000000000000001, NoFlag, 0x0000000000000002, NoFlag},
        {0x0000000000000000, ZFlag, 0x0000000000000001, NoFlag}},
       {{0x0000000000000000, ZCFlag, 0x0000000000000001, CFlag},
-       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
+       {0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag},
        {0x8000000000000002, NFlag, 0x8000000000000003, NFlag},
        {0x8000000000000001, NFlag, 0x8000000000000002, NFlag},
        {0x8000000000000000, NVFlag, 0x8000000000000001, NVFlag},
-       {0x7fffffffffffffff, NoFlag, 0x8000000000000000, NVFlag},
+       {0x7FFFFFFFFFFFFFFF, NoFlag, 0x8000000000000000, NVFlag},
        {0x0000000000000002, NoFlag, 0x0000000000000003, NoFlag},
        {0x0000000000000001, NoFlag, 0x0000000000000002, NoFlag}},
-      {{0x7ffffffffffffffd, CFlag, 0x7ffffffffffffffe, CFlag},
-       {0x7ffffffffffffffc, CFlag, 0x7ffffffffffffffd, CFlag},
-       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
-       {0xfffffffffffffffe, NFlag, 0xffffffffffffffff, NFlag},
-       {0xfffffffffffffffd, NVFlag, 0xfffffffffffffffe, NVFlag},
-       {0xfffffffffffffffc, NVFlag, 0xfffffffffffffffd, NVFlag},
-       {0x7fffffffffffffff, NoFlag, 0x8000000000000000, NVFlag},
-       {0x7ffffffffffffffe, NoFlag, 0x7fffffffffffffff, NoFlag}},
-      {{0x7ffffffffffffffe, CFlag, 0x7fffffffffffffff, CFlag},
-       {0x7ffffffffffffffd, CFlag, 0x7ffffffffffffffe, CFlag},
+      {{0x7FFFFFFFFFFFFFFD, CFlag, 0x7FFFFFFFFFFFFFFE, CFlag},
+       {0x7FFFFFFFFFFFFFFC, CFlag, 0x7FFFFFFFFFFFFFFD, CFlag},
+       {0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag},
+       {0xFFFFFFFFFFFFFFFE, NFlag, 0xFFFFFFFFFFFFFFFF, NFlag},
+       {0xFFFFFFFFFFFFFFFD, NVFlag, 0xFFFFFFFFFFFFFFFE, NVFlag},
+       {0xFFFFFFFFFFFFFFFC, NVFlag, 0xFFFFFFFFFFFFFFFD, NVFlag},
+       {0x7FFFFFFFFFFFFFFF, NoFlag, 0x8000000000000000, NVFlag},
+       {0x7FFFFFFFFFFFFFFE, NoFlag, 0x7FFFFFFFFFFFFFFF, NoFlag}},
+      {{0x7FFFFFFFFFFFFFFE, CFlag, 0x7FFFFFFFFFFFFFFF, CFlag},
+       {0x7FFFFFFFFFFFFFFD, CFlag, 0x7FFFFFFFFFFFFFFE, CFlag},
        {0x0000000000000000, ZCFlag, 0x0000000000000001, CFlag},
-       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
-       {0xfffffffffffffffe, NVFlag, 0xffffffffffffffff, NVFlag},
-       {0xfffffffffffffffd, NVFlag, 0xfffffffffffffffe, NVFlag},
+       {0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag},
+       {0xFFFFFFFFFFFFFFFE, NVFlag, 0xFFFFFFFFFFFFFFFF, NVFlag},
+       {0xFFFFFFFFFFFFFFFD, NVFlag, 0xFFFFFFFFFFFFFFFE, NVFlag},
        {0x8000000000000000, NVFlag, 0x8000000000000001, NVFlag},
-       {0x7fffffffffffffff, NoFlag, 0x8000000000000000, NVFlag}},
-      {{0x7fffffffffffffff, CVFlag, 0x8000000000000000, NCFlag},
-       {0x7ffffffffffffffe, CVFlag, 0x7fffffffffffffff, CVFlag},
+       {0x7FFFFFFFFFFFFFFF, NoFlag, 0x8000000000000000, NVFlag}},
+      {{0x7FFFFFFFFFFFFFFF, CVFlag, 0x8000000000000000, NCFlag},
+       {0x7FFFFFFFFFFFFFFE, CVFlag, 0x7FFFFFFFFFFFFFFF, CVFlag},
        {0x0000000000000001, CVFlag, 0x0000000000000002, CVFlag},
        {0x0000000000000000, ZCVFlag, 0x0000000000000001, CVFlag},
-       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
-       {0xfffffffffffffffe, NFlag, 0xffffffffffffffff, NFlag},
+       {0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag},
+       {0xFFFFFFFFFFFFFFFE, NFlag, 0xFFFFFFFFFFFFFFFF, NFlag},
        {0x8000000000000001, NFlag, 0x8000000000000002, NFlag},
        {0x8000000000000000, NFlag, 0x8000000000000001, NFlag}},
       {{0x8000000000000000, NCFlag, 0x8000000000000001, NCFlag},
-       {0x7fffffffffffffff, CVFlag, 0x8000000000000000, NCFlag},
+       {0x7FFFFFFFFFFFFFFF, CVFlag, 0x8000000000000000, NCFlag},
        {0x0000000000000002, CVFlag, 0x0000000000000003, CVFlag},
        {0x0000000000000001, CVFlag, 0x0000000000000002, CVFlag},
        {0x0000000000000000, ZCFlag, 0x0000000000000001, CFlag},
-       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
+       {0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag},
        {0x8000000000000002, NFlag, 0x8000000000000003, NFlag},
        {0x8000000000000001, NFlag, 0x8000000000000002, NFlag}},
-      {{0xfffffffffffffffd, NCFlag, 0xfffffffffffffffe, NCFlag},
-       {0xfffffffffffffffc, NCFlag, 0xfffffffffffffffd, NCFlag},
-       {0x7fffffffffffffff, CVFlag, 0x8000000000000000, NCFlag},
-       {0x7ffffffffffffffe, CVFlag, 0x7fffffffffffffff, CVFlag},
-       {0x7ffffffffffffffd, CFlag, 0x7ffffffffffffffe, CFlag},
-       {0x7ffffffffffffffc, CFlag, 0x7ffffffffffffffd, CFlag},
-       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
-       {0xfffffffffffffffe, NFlag, 0xffffffffffffffff, NFlag}},
-      {{0xfffffffffffffffe, NCFlag, 0xffffffffffffffff, NCFlag},
-       {0xfffffffffffffffd, NCFlag, 0xfffffffffffffffe, NCFlag},
+      {{0xFFFFFFFFFFFFFFFD, NCFlag, 0xFFFFFFFFFFFFFFFE, NCFlag},
+       {0xFFFFFFFFFFFFFFFC, NCFlag, 0xFFFFFFFFFFFFFFFD, NCFlag},
+       {0x7FFFFFFFFFFFFFFF, CVFlag, 0x8000000000000000, NCFlag},
+       {0x7FFFFFFFFFFFFFFE, CVFlag, 0x7FFFFFFFFFFFFFFF, CVFlag},
+       {0x7FFFFFFFFFFFFFFD, CFlag, 0x7FFFFFFFFFFFFFFE, CFlag},
+       {0x7FFFFFFFFFFFFFFC, CFlag, 0x7FFFFFFFFFFFFFFD, CFlag},
+       {0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag},
+       {0xFFFFFFFFFFFFFFFE, NFlag, 0xFFFFFFFFFFFFFFFF, NFlag}},
+      {{0xFFFFFFFFFFFFFFFE, NCFlag, 0xFFFFFFFFFFFFFFFF, NCFlag},
+       {0xFFFFFFFFFFFFFFFD, NCFlag, 0xFFFFFFFFFFFFFFFE, NCFlag},
        {0x8000000000000000, NCFlag, 0x8000000000000001, NCFlag},
-       {0x7fffffffffffffff, CVFlag, 0x8000000000000000, NCFlag},
-       {0x7ffffffffffffffe, CFlag, 0x7fffffffffffffff, CFlag},
-       {0x7ffffffffffffffd, CFlag, 0x7ffffffffffffffe, CFlag},
+       {0x7FFFFFFFFFFFFFFF, CVFlag, 0x8000000000000000, NCFlag},
+       {0x7FFFFFFFFFFFFFFE, CFlag, 0x7FFFFFFFFFFFFFFF, CFlag},
+       {0x7FFFFFFFFFFFFFFD, CFlag, 0x7FFFFFFFFFFFFFFE, CFlag},
        {0x0000000000000000, ZCFlag, 0x0000000000000001, CFlag},
-       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag}}};
+       {0xFFFFFFFFFFFFFFFF, NFlag, 0x0000000000000000, ZCFlag}}};
 
   for (size_t left = 0; left < input_count; left++) {
     for (size_t right = 0; right < input_count; right++) {
@@ -4018,12 +7508,11 @@ TEST(adcs_sbcs_x) {
   }
 }
 
-
 TEST(adcs_sbcs_w) {
   INIT_V8();
   uint32_t inputs[] = {
-      0x00000000, 0x00000001, 0x7ffffffe, 0x7fffffff,
-      0x80000000, 0x80000001, 0xfffffffe, 0xffffffff,
+      0x00000000, 0x00000001, 0x7FFFFFFE, 0x7FFFFFFF,
+      0x80000000, 0x80000001, 0xFFFFFFFE, 0xFFFFFFFF,
   };
   static const size_t input_count = sizeof(inputs) / sizeof(inputs[0]);
 
@@ -4037,134 +7526,134 @@ TEST(adcs_sbcs_w) {
   static const Expected expected_adcs_w[input_count][input_count] = {
       {{0x00000000, ZFlag, 0x00000001, NoFlag},
        {0x00000001, NoFlag, 0x00000002, NoFlag},
-       {0x7ffffffe, NoFlag, 0x7fffffff, NoFlag},
-       {0x7fffffff, NoFlag, 0x80000000, NVFlag},
+       {0x7FFFFFFE, NoFlag, 0x7FFFFFFF, NoFlag},
+       {0x7FFFFFFF, NoFlag, 0x80000000, NVFlag},
        {0x80000000, NFlag, 0x80000001, NFlag},
        {0x80000001, NFlag, 0x80000002, NFlag},
-       {0xfffffffe, NFlag, 0xffffffff, NFlag},
-       {0xffffffff, NFlag, 0x00000000, ZCFlag}},
+       {0xFFFFFFFE, NFlag, 0xFFFFFFFF, NFlag},
+       {0xFFFFFFFF, NFlag, 0x00000000, ZCFlag}},
       {{0x00000001, NoFlag, 0x00000002, NoFlag},
        {0x00000002, NoFlag, 0x00000003, NoFlag},
-       {0x7fffffff, NoFlag, 0x80000000, NVFlag},
+       {0x7FFFFFFF, NoFlag, 0x80000000, NVFlag},
        {0x80000000, NVFlag, 0x80000001, NVFlag},
        {0x80000001, NFlag, 0x80000002, NFlag},
        {0x80000002, NFlag, 0x80000003, NFlag},
-       {0xffffffff, NFlag, 0x00000000, ZCFlag},
+       {0xFFFFFFFF, NFlag, 0x00000000, ZCFlag},
        {0x00000000, ZCFlag, 0x00000001, CFlag}},
-      {{0x7ffffffe, NoFlag, 0x7fffffff, NoFlag},
-       {0x7fffffff, NoFlag, 0x80000000, NVFlag},
-       {0xfffffffc, NVFlag, 0xfffffffd, NVFlag},
-       {0xfffffffd, NVFlag, 0xfffffffe, NVFlag},
-       {0xfffffffe, NFlag, 0xffffffff, NFlag},
-       {0xffffffff, NFlag, 0x00000000, ZCFlag},
-       {0x7ffffffc, CFlag, 0x7ffffffd, CFlag},
-       {0x7ffffffd, CFlag, 0x7ffffffe, CFlag}},
-      {{0x7fffffff, NoFlag, 0x80000000, NVFlag},
+      {{0x7FFFFFFE, NoFlag, 0x7FFFFFFF, NoFlag},
+       {0x7FFFFFFF, NoFlag, 0x80000000, NVFlag},
+       {0xFFFFFFFC, NVFlag, 0xFFFFFFFD, NVFlag},
+       {0xFFFFFFFD, NVFlag, 0xFFFFFFFE, NVFlag},
+       {0xFFFFFFFE, NFlag, 0xFFFFFFFF, NFlag},
+       {0xFFFFFFFF, NFlag, 0x00000000, ZCFlag},
+       {0x7FFFFFFC, CFlag, 0x7FFFFFFD, CFlag},
+       {0x7FFFFFFD, CFlag, 0x7FFFFFFE, CFlag}},
+      {{0x7FFFFFFF, NoFlag, 0x80000000, NVFlag},
        {0x80000000, NVFlag, 0x80000001, NVFlag},
-       {0xfffffffd, NVFlag, 0xfffffffe, NVFlag},
-       {0xfffffffe, NVFlag, 0xffffffff, NVFlag},
-       {0xffffffff, NFlag, 0x00000000, ZCFlag},
+       {0xFFFFFFFD, NVFlag, 0xFFFFFFFE, NVFlag},
+       {0xFFFFFFFE, NVFlag, 0xFFFFFFFF, NVFlag},
+       {0xFFFFFFFF, NFlag, 0x00000000, ZCFlag},
        {0x00000000, ZCFlag, 0x00000001, CFlag},
-       {0x7ffffffd, CFlag, 0x7ffffffe, CFlag},
-       {0x7ffffffe, CFlag, 0x7fffffff, CFlag}},
+       {0x7FFFFFFD, CFlag, 0x7FFFFFFE, CFlag},
+       {0x7FFFFFFE, CFlag, 0x7FFFFFFF, CFlag}},
       {{0x80000000, NFlag, 0x80000001, NFlag},
        {0x80000001, NFlag, 0x80000002, NFlag},
-       {0xfffffffe, NFlag, 0xffffffff, NFlag},
-       {0xffffffff, NFlag, 0x00000000, ZCFlag},
+       {0xFFFFFFFE, NFlag, 0xFFFFFFFF, NFlag},
+       {0xFFFFFFFF, NFlag, 0x00000000, ZCFlag},
        {0x00000000, ZCVFlag, 0x00000001, CVFlag},
        {0x00000001, CVFlag, 0x00000002, CVFlag},
-       {0x7ffffffe, CVFlag, 0x7fffffff, CVFlag},
-       {0x7fffffff, CVFlag, 0x80000000, NCFlag}},
+       {0x7FFFFFFE, CVFlag, 0x7FFFFFFF, CVFlag},
+       {0x7FFFFFFF, CVFlag, 0x80000000, NCFlag}},
       {{0x80000001, NFlag, 0x80000002, NFlag},
        {0x80000002, NFlag, 0x80000003, NFlag},
-       {0xffffffff, NFlag, 0x00000000, ZCFlag},
+       {0xFFFFFFFF, NFlag, 0x00000000, ZCFlag},
        {0x00000000, ZCFlag, 0x00000001, CFlag},
        {0x00000001, CVFlag, 0x00000002, CVFlag},
        {0x00000002, CVFlag, 0x00000003, CVFlag},
-       {0x7fffffff, CVFlag, 0x80000000, NCFlag},
+       {0x7FFFFFFF, CVFlag, 0x80000000, NCFlag},
        {0x80000000, NCFlag, 0x80000001, NCFlag}},
-      {{0xfffffffe, NFlag, 0xffffffff, NFlag},
-       {0xffffffff, NFlag, 0x00000000, ZCFlag},
-       {0x7ffffffc, CFlag, 0x7ffffffd, CFlag},
-       {0x7ffffffd, CFlag, 0x7ffffffe, CFlag},
-       {0x7ffffffe, CVFlag, 0x7fffffff, CVFlag},
-       {0x7fffffff, CVFlag, 0x80000000, NCFlag},
-       {0xfffffffc, NCFlag, 0xfffffffd, NCFlag},
-       {0xfffffffd, NCFlag, 0xfffffffe, NCFlag}},
-      {{0xffffffff, NFlag, 0x00000000, ZCFlag},
+      {{0xFFFFFFFE, NFlag, 0xFFFFFFFF, NFlag},
+       {0xFFFFFFFF, NFlag, 0x00000000, ZCFlag},
+       {0x7FFFFFFC, CFlag, 0x7FFFFFFD, CFlag},
+       {0x7FFFFFFD, CFlag, 0x7FFFFFFE, CFlag},
+       {0x7FFFFFFE, CVFlag, 0x7FFFFFFF, CVFlag},
+       {0x7FFFFFFF, CVFlag, 0x80000000, NCFlag},
+       {0xFFFFFFFC, NCFlag, 0xFFFFFFFD, NCFlag},
+       {0xFFFFFFFD, NCFlag, 0xFFFFFFFE, NCFlag}},
+      {{0xFFFFFFFF, NFlag, 0x00000000, ZCFlag},
        {0x00000000, ZCFlag, 0x00000001, CFlag},
-       {0x7ffffffd, CFlag, 0x7ffffffe, CFlag},
-       {0x7ffffffe, CFlag, 0x7fffffff, CFlag},
-       {0x7fffffff, CVFlag, 0x80000000, NCFlag},
+       {0x7FFFFFFD, CFlag, 0x7FFFFFFE, CFlag},
+       {0x7FFFFFFE, CFlag, 0x7FFFFFFF, CFlag},
+       {0x7FFFFFFF, CVFlag, 0x80000000, NCFlag},
        {0x80000000, NCFlag, 0x80000001, NCFlag},
-       {0xfffffffd, NCFlag, 0xfffffffe, NCFlag},
-       {0xfffffffe, NCFlag, 0xffffffff, NCFlag}}};
+       {0xFFFFFFFD, NCFlag, 0xFFFFFFFE, NCFlag},
+       {0xFFFFFFFE, NCFlag, 0xFFFFFFFF, NCFlag}}};
 
   static const Expected expected_sbcs_w[input_count][input_count] = {
-      {{0xffffffff, NFlag, 0x00000000, ZCFlag},
-       {0xfffffffe, NFlag, 0xffffffff, NFlag},
+      {{0xFFFFFFFF, NFlag, 0x00000000, ZCFlag},
+       {0xFFFFFFFE, NFlag, 0xFFFFFFFF, NFlag},
        {0x80000001, NFlag, 0x80000002, NFlag},
        {0x80000000, NFlag, 0x80000001, NFlag},
-       {0x7fffffff, NoFlag, 0x80000000, NVFlag},
-       {0x7ffffffe, NoFlag, 0x7fffffff, NoFlag},
+       {0x7FFFFFFF, NoFlag, 0x80000000, NVFlag},
+       {0x7FFFFFFE, NoFlag, 0x7FFFFFFF, NoFlag},
        {0x00000001, NoFlag, 0x00000002, NoFlag},
        {0x00000000, ZFlag, 0x00000001, NoFlag}},
       {{0x00000000, ZCFlag, 0x00000001, CFlag},
-       {0xffffffff, NFlag, 0x00000000, ZCFlag},
+       {0xFFFFFFFF, NFlag, 0x00000000, ZCFlag},
        {0x80000002, NFlag, 0x80000003, NFlag},
        {0x80000001, NFlag, 0x80000002, NFlag},
        {0x80000000, NVFlag, 0x80000001, NVFlag},
-       {0x7fffffff, NoFlag, 0x80000000, NVFlag},
+       {0x7FFFFFFF, NoFlag, 0x80000000, NVFlag},
        {0x00000002, NoFlag, 0x00000003, NoFlag},
        {0x00000001, NoFlag, 0x00000002, NoFlag}},
-      {{0x7ffffffd, CFlag, 0x7ffffffe, CFlag},
-       {0x7ffffffc, CFlag, 0x7ffffffd, CFlag},
-       {0xffffffff, NFlag, 0x00000000, ZCFlag},
-       {0xfffffffe, NFlag, 0xffffffff, NFlag},
-       {0xfffffffd, NVFlag, 0xfffffffe, NVFlag},
-       {0xfffffffc, NVFlag, 0xfffffffd, NVFlag},
-       {0x7fffffff, NoFlag, 0x80000000, NVFlag},
-       {0x7ffffffe, NoFlag, 0x7fffffff, NoFlag}},
-      {{0x7ffffffe, CFlag, 0x7fffffff, CFlag},
-       {0x7ffffffd, CFlag, 0x7ffffffe, CFlag},
+      {{0x7FFFFFFD, CFlag, 0x7FFFFFFE, CFlag},
+       {0x7FFFFFFC, CFlag, 0x7FFFFFFD, CFlag},
+       {0xFFFFFFFF, NFlag, 0x00000000, ZCFlag},
+       {0xFFFFFFFE, NFlag, 0xFFFFFFFF, NFlag},
+       {0xFFFFFFFD, NVFlag, 0xFFFFFFFE, NVFlag},
+       {0xFFFFFFFC, NVFlag, 0xFFFFFFFD, NVFlag},
+       {0x7FFFFFFF, NoFlag, 0x80000000, NVFlag},
+       {0x7FFFFFFE, NoFlag, 0x7FFFFFFF, NoFlag}},
+      {{0x7FFFFFFE, CFlag, 0x7FFFFFFF, CFlag},
+       {0x7FFFFFFD, CFlag, 0x7FFFFFFE, CFlag},
        {0x00000000, ZCFlag, 0x00000001, CFlag},
-       {0xffffffff, NFlag, 0x00000000, ZCFlag},
-       {0xfffffffe, NVFlag, 0xffffffff, NVFlag},
-       {0xfffffffd, NVFlag, 0xfffffffe, NVFlag},
+       {0xFFFFFFFF, NFlag, 0x00000000, ZCFlag},
+       {0xFFFFFFFE, NVFlag, 0xFFFFFFFF, NVFlag},
+       {0xFFFFFFFD, NVFlag, 0xFFFFFFFE, NVFlag},
        {0x80000000, NVFlag, 0x80000001, NVFlag},
-       {0x7fffffff, NoFlag, 0x80000000, NVFlag}},
-      {{0x7fffffff, CVFlag, 0x80000000, NCFlag},
-       {0x7ffffffe, CVFlag, 0x7fffffff, CVFlag},
+       {0x7FFFFFFF, NoFlag, 0x80000000, NVFlag}},
+      {{0x7FFFFFFF, CVFlag, 0x80000000, NCFlag},
+       {0x7FFFFFFE, CVFlag, 0x7FFFFFFF, CVFlag},
        {0x00000001, CVFlag, 0x00000002, CVFlag},
        {0x00000000, ZCVFlag, 0x00000001, CVFlag},
-       {0xffffffff, NFlag, 0x00000000, ZCFlag},
-       {0xfffffffe, NFlag, 0xffffffff, NFlag},
+       {0xFFFFFFFF, NFlag, 0x00000000, ZCFlag},
+       {0xFFFFFFFE, NFlag, 0xFFFFFFFF, NFlag},
        {0x80000001, NFlag, 0x80000002, NFlag},
        {0x80000000, NFlag, 0x80000001, NFlag}},
       {{0x80000000, NCFlag, 0x80000001, NCFlag},
-       {0x7fffffff, CVFlag, 0x80000000, NCFlag},
+       {0x7FFFFFFF, CVFlag, 0x80000000, NCFlag},
        {0x00000002, CVFlag, 0x00000003, CVFlag},
        {0x00000001, CVFlag, 0x00000002, CVFlag},
        {0x00000000, ZCFlag, 0x00000001, CFlag},
-       {0xffffffff, NFlag, 0x00000000, ZCFlag},
+       {0xFFFFFFFF, NFlag, 0x00000000, ZCFlag},
        {0x80000002, NFlag, 0x80000003, NFlag},
        {0x80000001, NFlag, 0x80000002, NFlag}},
-      {{0xfffffffd, NCFlag, 0xfffffffe, NCFlag},
-       {0xfffffffc, NCFlag, 0xfffffffd, NCFlag},
-       {0x7fffffff, CVFlag, 0x80000000, NCFlag},
-       {0x7ffffffe, CVFlag, 0x7fffffff, CVFlag},
-       {0x7ffffffd, CFlag, 0x7ffffffe, CFlag},
-       {0x7ffffffc, CFlag, 0x7ffffffd, CFlag},
-       {0xffffffff, NFlag, 0x00000000, ZCFlag},
-       {0xfffffffe, NFlag, 0xffffffff, NFlag}},
-      {{0xfffffffe, NCFlag, 0xffffffff, NCFlag},
-       {0xfffffffd, NCFlag, 0xfffffffe, NCFlag},
+      {{0xFFFFFFFD, NCFlag, 0xFFFFFFFE, NCFlag},
+       {0xFFFFFFFC, NCFlag, 0xFFFFFFFD, NCFlag},
+       {0x7FFFFFFF, CVFlag, 0x80000000, NCFlag},
+       {0x7FFFFFFE, CVFlag, 0x7FFFFFFF, CVFlag},
+       {0x7FFFFFFD, CFlag, 0x7FFFFFFE, CFlag},
+       {0x7FFFFFFC, CFlag, 0x7FFFFFFD, CFlag},
+       {0xFFFFFFFF, NFlag, 0x00000000, ZCFlag},
+       {0xFFFFFFFE, NFlag, 0xFFFFFFFF, NFlag}},
+      {{0xFFFFFFFE, NCFlag, 0xFFFFFFFF, NCFlag},
+       {0xFFFFFFFD, NCFlag, 0xFFFFFFFE, NCFlag},
        {0x80000000, NCFlag, 0x80000001, NCFlag},
-       {0x7fffffff, CVFlag, 0x80000000, NCFlag},
-       {0x7ffffffe, CFlag, 0x7fffffff, CFlag},
-       {0x7ffffffd, CFlag, 0x7ffffffe, CFlag},
+       {0x7FFFFFFF, CVFlag, 0x80000000, NCFlag},
+       {0x7FFFFFFE, CFlag, 0x7FFFFFFF, CFlag},
+       {0x7FFFFFFD, CFlag, 0x7FFFFFFE, CFlag},
        {0x00000000, ZCFlag, 0x00000001, CFlag},
-       {0xffffffff, NFlag, 0x00000000, ZCFlag}}};
+       {0xFFFFFFFF, NFlag, 0x00000000, ZCFlag}}};
 
   for (size_t left = 0; left < input_count; left++) {
     for (size_t right = 0; right < input_count; right++) {
@@ -4187,7 +7676,6 @@ TEST(adcs_sbcs_w) {
   }
 }
 
-
 TEST(adc_sbc_shift) {
   INIT_V8();
   SETUP();
@@ -4195,9 +7683,9 @@ TEST(adc_sbc_shift) {
   START();
   __ Mov(x0, 0);
   __ Mov(x1, 1);
-  __ Mov(x2, 0x0123456789abcdefL);
-  __ Mov(x3, 0xfedcba9876543210L);
-  __ Mov(x4, 0xffffffffffffffffL);
+  __ Mov(x2, 0x0123456789ABCDEFL);
+  __ Mov(x3, 0xFEDCBA9876543210L);
+  __ Mov(x4, 0xFFFFFFFFFFFFFFFFL);
 
   // Clear the C flag.
   __ Adds(x0, x0, Operand(0));
@@ -4217,7 +7705,7 @@ TEST(adc_sbc_shift) {
   // Set the C flag.
   __ Cmp(w0, Operand(w0));
 
-  __ Adc(x18, x2, Operand(x3));
+  __ Adc(x28, x2, Operand(x3));
   __ Adc(x19, x0, Operand(x1, LSL, 60));
   __ Sbc(x20, x4, Operand(x3, LSR, 4));
   __ Adc(x21, x2, Operand(x3, ASR, 4));
@@ -4232,33 +7720,30 @@ TEST(adc_sbc_shift) {
 
   RUN();
 
-  CHECK_EQUAL_64(0xffffffffffffffffL, x5);
-  CHECK_EQUAL_64(1L << 60, x6);
-  CHECK_EQUAL_64(0xf0123456789abcddL, x7);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFL, x5);
+  CHECK_EQUAL_64(1LL << 60, x6);
+  CHECK_EQUAL_64(0xF0123456789ABCDDL, x7);
   CHECK_EQUAL_64(0x0111111111111110L, x8);
   CHECK_EQUAL_64(0x1222222222222221L, x9);
 
-  CHECK_EQUAL_32(0xffffffff, w10);
+  CHECK_EQUAL_32(0xFFFFFFFF, w10);
   CHECK_EQUAL_32(1 << 30, w11);
-  CHECK_EQUAL_32(0xf89abcdd, w12);
+  CHECK_EQUAL_32(0xF89ABCDD, w12);
   CHECK_EQUAL_32(0x91111110, w13);
-  CHECK_EQUAL_32(0x9a222221, w14);
+  CHECK_EQUAL_32(0x9A222221, w14);
 
-  CHECK_EQUAL_64(0xffffffffffffffffL + 1, x18);
-  CHECK_EQUAL_64((1L << 60) + 1, x19);
-  CHECK_EQUAL_64(0xf0123456789abcddL + 1, x20);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFLL + 1, x28);
+  CHECK_EQUAL_64((1LL << 60) + 1, x19);
+  CHECK_EQUAL_64(0xF0123456789ABCDDL + 1, x20);
   CHECK_EQUAL_64(0x0111111111111110L + 1, x21);
   CHECK_EQUAL_64(0x1222222222222221L + 1, x22);
 
-  CHECK_EQUAL_32(0xffffffff + 1, w23);
+  CHECK_EQUAL_32(0xFFFFFFFFULL + 1, w23);
   CHECK_EQUAL_32((1 << 30) + 1, w24);
-  CHECK_EQUAL_32(0xf89abcdd + 1, w25);
+  CHECK_EQUAL_32(0xF89ABCDD + 1, w25);
   CHECK_EQUAL_32(0x91111110 + 1, w26);
-  CHECK_EQUAL_32(0x9a222221 + 1, w27);
-
-  TEARDOWN();
+  CHECK_EQUAL_32(0x9A222221 + 1, w27);
 }
-
 
 TEST(adc_sbc_extend) {
   INIT_V8();
@@ -4270,7 +7755,7 @@ TEST(adc_sbc_extend) {
 
   __ Mov(x0, 0);
   __ Mov(x1, 1);
-  __ Mov(x2, 0x0123456789abcdefL);
+  __ Mov(x2, 0x0123456789ABCDEFL);
 
   __ Adc(x10, x1, Operand(w2, UXTB, 1));
   __ Adc(x11, x1, Operand(x2, SXTH, 2));
@@ -4296,28 +7781,28 @@ TEST(adc_sbc_extend) {
 
   RUN();
 
-  CHECK_EQUAL_64(0x1df, x10);
-  CHECK_EQUAL_64(0xffffffffffff37bdL, x11);
-  CHECK_EQUAL_64(0xfffffff765432110L, x12);
-  CHECK_EQUAL_64(0x123456789abcdef1L, x13);
+  CHECK_EQUAL_64(0x1DF, x10);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFF37BDL, x11);
+  CHECK_EQUAL_64(0xFFFFFFF765432110L, x12);
+  CHECK_EQUAL_64(0x123456789ABCDEF1L, x13);
 
-  CHECK_EQUAL_32(0x1df, w14);
-  CHECK_EQUAL_32(0xffff37bd, w15);
-  CHECK_EQUAL_32(0x9abcdef1, w9);
+  CHECK_EQUAL_32(0x1DF, w14);
+  CHECK_EQUAL_32(0xFFFF37BD, w15);
+  CHECK_EQUAL_32(0x9ABCDEF1, w9);
 
-  CHECK_EQUAL_64(0x1df + 1, x20);
-  CHECK_EQUAL_64(0xffffffffffff37bdL + 1, x21);
-  CHECK_EQUAL_64(0xfffffff765432110L + 1, x22);
-  CHECK_EQUAL_64(0x123456789abcdef1L + 1, x23);
+  CHECK_EQUAL_64(0x1DF + 1, x20);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFF37BDL + 1, x21);
+  CHECK_EQUAL_64(0xFFFFFFF765432110L + 1, x22);
+  CHECK_EQUAL_64(0x123456789ABCDEF1L + 1, x23);
 
-  CHECK_EQUAL_32(0x1df + 1, w24);
-  CHECK_EQUAL_32(0xffff37bd + 1, w25);
-  CHECK_EQUAL_32(0x9abcdef1 + 1, w26);
+  CHECK_EQUAL_32(0x1DF + 1, w24);
+  CHECK_EQUAL_32(0xFFFF37BD + 1, w25);
+  CHECK_EQUAL_32(0x9ABCDEF1 + 1, w26);
 
   // Check that adc correctly sets the condition flags.
   START();
-  __ Mov(x0, 0xff);
-  __ Mov(x1, 0xffffffffffffffffL);
+  __ Mov(x0, 0xFF);
+  __ Mov(x1, 0xFFFFFFFFFFFFFFFFL);
   // Clear the C flag.
   __ Adds(x0, x0, Operand(0));
   __ Adcs(x10, x0, Operand(x1, SXTX, 1));
@@ -4328,7 +7813,7 @@ TEST(adc_sbc_extend) {
   CHECK_EQUAL_NZCV(CFlag);
 
   START();
-  __ Mov(x0, 0x7fffffffffffffffL);
+  __ Mov(x0, 0x7FFFFFFFFFFFFFFFL);
   __ Mov(x1, 1);
   // Clear the C flag.
   __ Adds(x0, x0, Operand(0));
@@ -4340,7 +7825,7 @@ TEST(adc_sbc_extend) {
   CHECK_EQUAL_NZCV(NVFlag);
 
   START();
-  __ Mov(x0, 0x7fffffffffffffffL);
+  __ Mov(x0, 0x7FFFFFFFFFFFFFFFL);
   // Clear the C flag.
   __ Adds(x0, x0, Operand(0));
   __ Adcs(x10, x0, Operand(1));
@@ -4349,10 +7834,7 @@ TEST(adc_sbc_extend) {
   RUN();
 
   CHECK_EQUAL_NZCV(NVFlag);
-
-  TEARDOWN();
 }
-
 
 TEST(adc_sbc_wide_imm) {
   INIT_V8();
@@ -4364,43 +7846,40 @@ TEST(adc_sbc_wide_imm) {
   // Clear the C flag.
   __ Adds(x0, x0, Operand(0));
 
-  __ Adc(x7, x0, Operand(0x1234567890abcdefUL));
-  __ Adc(w8, w0, Operand(0xffffffff));
-  __ Sbc(x9, x0, Operand(0x1234567890abcdefUL));
-  __ Sbc(w10, w0, Operand(0xffffffff));
-  __ Ngc(x11, Operand(0xffffffff00000000UL));
-  __ Ngc(w12, Operand(0xffff0000));
+  __ Adc(x7, x0, Operand(0x1234567890ABCDEFUL));
+  __ Adc(w8, w0, Operand(0xFFFFFFFF));
+  __ Sbc(x9, x0, Operand(0x1234567890ABCDEFUL));
+  __ Sbc(w10, w0, Operand(0xFFFFFFFF));
+  __ Ngc(x11, Operand(0xFFFFFFFF00000000UL));
+  __ Ngc(w12, Operand(0xFFFF0000));
 
   // Set the C flag.
   __ Cmp(w0, Operand(w0));
 
-  __ Adc(x18, x0, Operand(0x1234567890abcdefUL));
-  __ Adc(w19, w0, Operand(0xffffffff));
-  __ Sbc(x20, x0, Operand(0x1234567890abcdefUL));
-  __ Sbc(w21, w0, Operand(0xffffffff));
-  __ Ngc(x22, Operand(0xffffffff00000000UL));
-  __ Ngc(w23, Operand(0xffff0000));
+  __ Adc(x28, x0, Operand(0x1234567890ABCDEFUL));
+  __ Adc(w19, w0, Operand(0xFFFFFFFF));
+  __ Sbc(x20, x0, Operand(0x1234567890ABCDEFUL));
+  __ Sbc(w21, w0, Operand(0xFFFFFFFF));
+  __ Ngc(x22, Operand(0xFFFFFFFF00000000UL));
+  __ Ngc(w23, Operand(0xFFFF0000));
   END();
 
   RUN();
 
-  CHECK_EQUAL_64(0x1234567890abcdefUL, x7);
-  CHECK_EQUAL_64(0xffffffff, x8);
-  CHECK_EQUAL_64(0xedcba9876f543210UL, x9);
+  CHECK_EQUAL_64(0x1234567890ABCDEFUL, x7);
+  CHECK_EQUAL_64(0xFFFFFFFF, x8);
+  CHECK_EQUAL_64(0xEDCBA9876F543210UL, x9);
   CHECK_EQUAL_64(0, x10);
-  CHECK_EQUAL_64(0xffffffff, x11);
-  CHECK_EQUAL_64(0xffff, x12);
+  CHECK_EQUAL_64(0xFFFFFFFF, x11);
+  CHECK_EQUAL_64(0xFFFF, x12);
 
-  CHECK_EQUAL_64(0x1234567890abcdefUL + 1, x18);
+  CHECK_EQUAL_64(0x1234567890ABCDEFUL + 1, x28);
   CHECK_EQUAL_64(0, x19);
-  CHECK_EQUAL_64(0xedcba9876f543211UL, x20);
+  CHECK_EQUAL_64(0xEDCBA9876F543211UL, x20);
   CHECK_EQUAL_64(1, x21);
   CHECK_EQUAL_64(0x100000000UL, x22);
   CHECK_EQUAL_64(0x10000, x23);
-
-  TEARDOWN();
 }
-
 
 TEST(flags) {
   INIT_V8();
@@ -4486,7 +7965,7 @@ TEST(flags) {
 
   START();
   __ Mov(x0, 1);
-  __ Mov(x1, 0x7fffffffffffffffL);
+  __ Mov(x1, 0x7FFFFFFFFFFFFFFFL);
   __ Cmn(x1, Operand(x0));
   END();
 
@@ -4496,7 +7975,7 @@ TEST(flags) {
 
   START();
   __ Mov(w0, 1);
-  __ Mov(w1, 0x7fffffff);
+  __ Mov(w1, 0x7FFFFFFF);
   __ Cmn(w1, Operand(w0));
   END();
 
@@ -4506,7 +7985,7 @@ TEST(flags) {
 
   START();
   __ Mov(x0, 1);
-  __ Mov(x1, 0xffffffffffffffffL);
+  __ Mov(x1, 0xFFFFFFFFFFFFFFFFL);
   __ Cmn(x1, Operand(x0));
   END();
 
@@ -4516,7 +7995,7 @@ TEST(flags) {
 
   START();
   __ Mov(w0, 1);
-  __ Mov(w1, 0xffffffff);
+  __ Mov(w1, 0xFFFFFFFF);
   __ Cmn(w1, Operand(w0));
   END();
 
@@ -4547,26 +8026,23 @@ TEST(flags) {
   RUN();
 
   CHECK_EQUAL_NZCV(ZCFlag);
-
-  TEARDOWN();
 }
-
 
 TEST(cmp_shift) {
   INIT_V8();
   SETUP();
 
   START();
-  __ Mov(x18, 0xf0000000);
-  __ Mov(x19, 0xf000000010000000UL);
-  __ Mov(x20, 0xf0000000f0000000UL);
+  __ Mov(x28, 0xF0000000);
+  __ Mov(x19, 0xF000000010000000UL);
+  __ Mov(x20, 0xF0000000F0000000UL);
   __ Mov(x21, 0x7800000078000000UL);
-  __ Mov(x22, 0x3c0000003c000000UL);
+  __ Mov(x22, 0x3C0000003C000000UL);
   __ Mov(x23, 0x8000000780000000UL);
-  __ Mov(x24, 0x0000000f00000000UL);
-  __ Mov(x25, 0x00000003c0000000UL);
+  __ Mov(x24, 0x0000000F00000000UL);
+  __ Mov(x25, 0x00000003C0000000UL);
   __ Mov(x26, 0x8000000780000000UL);
-  __ Mov(x27, 0xc0000003);
+  __ Mov(x27, 0xC0000003);
 
   __ Cmp(w20, Operand(w21, LSL, 1));
   __ Mrs(x0, NZCV);
@@ -4577,7 +8053,7 @@ TEST(cmp_shift) {
   __ Cmp(w19, Operand(w23, LSR, 3));
   __ Mrs(x2, NZCV);
 
-  __ Cmp(x18, Operand(x24, LSR, 4));
+  __ Cmp(x28, Operand(x24, LSR, 4));
   __ Mrs(x3, NZCV);
 
   __ Cmp(w20, Operand(w25, ASR, 2));
@@ -4603,10 +8079,7 @@ TEST(cmp_shift) {
   CHECK_EQUAL_32(ZCFlag, w5);
   CHECK_EQUAL_32(ZCFlag, w6);
   CHECK_EQUAL_32(ZCFlag, w7);
-
-  TEARDOWN();
 }
-
 
 TEST(cmp_extend) {
   INIT_V8();
@@ -4615,11 +8088,11 @@ TEST(cmp_extend) {
   START();
   __ Mov(w20, 0x2);
   __ Mov(w21, 0x1);
-  __ Mov(x22, 0xffffffffffffffffUL);
-  __ Mov(x23, 0xff);
-  __ Mov(x24, 0xfffffffffffffffeUL);
-  __ Mov(x25, 0xffff);
-  __ Mov(x26, 0xffffffff);
+  __ Mov(x22, 0xFFFFFFFFFFFFFFFFUL);
+  __ Mov(x23, 0xFF);
+  __ Mov(x24, 0xFFFFFFFFFFFFFFFEUL);
+  __ Mov(x25, 0xFFFF);
+  __ Mov(x26, 0xFFFFFFFF);
 
   __ Cmp(w20, Operand(w21, LSL, 1));
   __ Mrs(x0, NZCV);
@@ -4656,10 +8129,7 @@ TEST(cmp_extend) {
   CHECK_EQUAL_32(ZCFlag, w5);
   CHECK_EQUAL_32(NCFlag, w6);
   CHECK_EQUAL_32(ZCFlag, w7);
-
-  TEARDOWN();
 }
-
 
 TEST(ccmp) {
   INIT_V8();
@@ -4700,10 +8170,7 @@ TEST(ccmp) {
   CHECK_EQUAL_32(NZCVFlag, w3);
   CHECK_EQUAL_32(ZCFlag, w4);
   CHECK_EQUAL_32(ZCFlag, w5);
-
-  TEARDOWN();
 }
-
 
 TEST(ccmp_wide_imm) {
   INIT_V8();
@@ -4717,7 +8184,7 @@ TEST(ccmp_wide_imm) {
   __ Mrs(x0, NZCV);
 
   __ Cmp(w20, Operand(w20));
-  __ Ccmp(x20, Operand(0xffffffffffffffffUL), NZCVFlag, eq);
+  __ Ccmp(x20, Operand(0xFFFFFFFFFFFFFFFFUL), NZCVFlag, eq);
   __ Mrs(x1, NZCV);
   END();
 
@@ -4725,10 +8192,7 @@ TEST(ccmp_wide_imm) {
 
   CHECK_EQUAL_32(NFlag, w0);
   CHECK_EQUAL_32(NoFlag, w1);
-
-  TEARDOWN();
 }
-
 
 TEST(ccmp_shift_extend) {
   INIT_V8();
@@ -4737,9 +8201,9 @@ TEST(ccmp_shift_extend) {
   START();
   __ Mov(w20, 0x2);
   __ Mov(w21, 0x1);
-  __ Mov(x22, 0xffffffffffffffffUL);
-  __ Mov(x23, 0xff);
-  __ Mov(x24, 0xfffffffffffffffeUL);
+  __ Mov(x22, 0xFFFFFFFFFFFFFFFFUL);
+  __ Mov(x23, 0xFF);
+  __ Mov(x24, 0xFFFFFFFFFFFFFFFEUL);
 
   __ Cmp(w20, Operand(w20));
   __ Ccmp(w20, Operand(w21, LSL, 1), NZCVFlag, eq);
@@ -4769,10 +8233,7 @@ TEST(ccmp_shift_extend) {
   CHECK_EQUAL_32(ZCFlag, w2);
   CHECK_EQUAL_32(NCFlag, w3);
   CHECK_EQUAL_32(NZCVFlag, w4);
-
-  TEARDOWN();
 }
-
 
 TEST(csel) {
   INIT_V8();
@@ -4780,8 +8241,8 @@ TEST(csel) {
 
   START();
   __ Mov(x16, 0);
-  __ Mov(x24, 0x0000000f0000000fUL);
-  __ Mov(x25, 0x0000001f0000001fUL);
+  __ Mov(x24, 0x0000000F0000000FUL);
+  __ Mov(x25, 0x0000001F0000001FUL);
   __ Mov(x26, 0);
   __ Mov(x27, 0);
 
@@ -4807,7 +8268,7 @@ TEST(csel) {
   __ Cneg(x12, x24, ne);
 
   __ csel(w15, w24, w25, al);
-  __ csel(x18, x24, x25, nv);
+  __ csel(x28, x24, x25, nv);
 
   __ CzeroX(x24, ne);
   __ CzeroX(x25, eq);
@@ -4818,42 +8279,39 @@ TEST(csel) {
 
   RUN();
 
-  CHECK_EQUAL_64(0x0000000f, x0);
-  CHECK_EQUAL_64(0x0000001f, x1);
+  CHECK_EQUAL_64(0x0000000F, x0);
+  CHECK_EQUAL_64(0x0000001F, x1);
   CHECK_EQUAL_64(0x00000020, x2);
-  CHECK_EQUAL_64(0x0000000f, x3);
-  CHECK_EQUAL_64(0xffffffe0ffffffe0UL, x4);
-  CHECK_EQUAL_64(0x0000000f0000000fUL, x5);
-  CHECK_EQUAL_64(0xffffffe0ffffffe1UL, x6);
-  CHECK_EQUAL_64(0x0000000f0000000fUL, x7);
+  CHECK_EQUAL_64(0x0000000F, x3);
+  CHECK_EQUAL_64(0xFFFFFFE0FFFFFFE0UL, x4);
+  CHECK_EQUAL_64(0x0000000F0000000FUL, x5);
+  CHECK_EQUAL_64(0xFFFFFFE0FFFFFFE1UL, x6);
+  CHECK_EQUAL_64(0x0000000F0000000FUL, x7);
   CHECK_EQUAL_64(0x00000001, x8);
-  CHECK_EQUAL_64(0xffffffff, x9);
-  CHECK_EQUAL_64(0x0000001f00000020UL, x10);
-  CHECK_EQUAL_64(0xfffffff0fffffff0UL, x11);
-  CHECK_EQUAL_64(0xfffffff0fffffff1UL, x12);
-  CHECK_EQUAL_64(0x0000000f, x13);
-  CHECK_EQUAL_64(0x0000000f0000000fUL, x14);
-  CHECK_EQUAL_64(0x0000000f, x15);
-  CHECK_EQUAL_64(0x0000000f0000000fUL, x18);
+  CHECK_EQUAL_64(0xFFFFFFFF, x9);
+  CHECK_EQUAL_64(0x0000001F00000020UL, x10);
+  CHECK_EQUAL_64(0xFFFFFFF0FFFFFFF0UL, x11);
+  CHECK_EQUAL_64(0xFFFFFFF0FFFFFFF1UL, x12);
+  CHECK_EQUAL_64(0x0000000F, x13);
+  CHECK_EQUAL_64(0x0000000F0000000FUL, x14);
+  CHECK_EQUAL_64(0x0000000F, x15);
+  CHECK_EQUAL_64(0x0000000F0000000FUL, x28);
   CHECK_EQUAL_64(0, x24);
-  CHECK_EQUAL_64(0x0000001f0000001fUL, x25);
-  CHECK_EQUAL_64(0x0000001f0000001fUL, x26);
+  CHECK_EQUAL_64(0x0000001F0000001FUL, x25);
+  CHECK_EQUAL_64(0x0000001F0000001FUL, x26);
   CHECK_EQUAL_64(0, x27);
-
-  TEARDOWN();
 }
-
 
 TEST(csel_imm) {
   INIT_V8();
   SETUP();
 
   START();
-  __ Mov(x18, 0);
+  __ Mov(x28, 0);
   __ Mov(x19, 0x80000000);
   __ Mov(x20, 0x8000000000000000UL);
 
-  __ Cmp(x18, Operand(0));
+  __ Cmp(x28, Operand(0));
   __ Csel(w0, w19, -2, ne);
   __ Csel(w1, w19, -1, ne);
   __ Csel(w2, w19, 0, ne);
@@ -4893,16 +8351,13 @@ TEST(csel_imm) {
   CHECK_EQUAL_64(-1, x13);
   CHECK_EQUAL_64(0x4000000000000000UL, x14);
   CHECK_EQUAL_64(0x8000000000000000UL, x15);
-
-  TEARDOWN();
 }
-
 
 TEST(lslv) {
   INIT_V8();
   SETUP();
 
-  uint64_t value = 0x0123456789abcdefUL;
+  uint64_t value = 0x0123456789ABCDEFUL;
   int shift[] = {1, 3, 5, 9, 17, 33};
 
   START();
@@ -4918,7 +8373,7 @@ TEST(lslv) {
 
   __ Lsl(x16, x0, x1);
   __ Lsl(x17, x0, x2);
-  __ Lsl(x18, x0, x3);
+  __ Lsl(x28, x0, x3);
   __ Lsl(x19, x0, x4);
   __ Lsl(x20, x0, x5);
   __ Lsl(x21, x0, x6);
@@ -4936,7 +8391,7 @@ TEST(lslv) {
   CHECK_EQUAL_64(value, x0);
   CHECK_EQUAL_64(value << (shift[0] & 63), x16);
   CHECK_EQUAL_64(value << (shift[1] & 63), x17);
-  CHECK_EQUAL_64(value << (shift[2] & 63), x18);
+  CHECK_EQUAL_64(value << (shift[2] & 63), x28);
   CHECK_EQUAL_64(value << (shift[3] & 63), x19);
   CHECK_EQUAL_64(value << (shift[4] & 63), x20);
   CHECK_EQUAL_64(value << (shift[5] & 63), x21);
@@ -4946,16 +8401,13 @@ TEST(lslv) {
   CHECK_EQUAL_32(value << (shift[3] & 31), w25);
   CHECK_EQUAL_32(value << (shift[4] & 31), w26);
   CHECK_EQUAL_32(value << (shift[5] & 31), w27);
-
-  TEARDOWN();
 }
-
 
 TEST(lsrv) {
   INIT_V8();
   SETUP();
 
-  uint64_t value = 0x0123456789abcdefUL;
+  uint64_t value = 0x0123456789ABCDEFUL;
   int shift[] = {1, 3, 5, 9, 17, 33};
 
   START();
@@ -4971,7 +8423,7 @@ TEST(lsrv) {
 
   __ Lsr(x16, x0, x1);
   __ Lsr(x17, x0, x2);
-  __ Lsr(x18, x0, x3);
+  __ Lsr(x28, x0, x3);
   __ Lsr(x19, x0, x4);
   __ Lsr(x20, x0, x5);
   __ Lsr(x21, x0, x6);
@@ -4989,28 +8441,25 @@ TEST(lsrv) {
   CHECK_EQUAL_64(value, x0);
   CHECK_EQUAL_64(value >> (shift[0] & 63), x16);
   CHECK_EQUAL_64(value >> (shift[1] & 63), x17);
-  CHECK_EQUAL_64(value >> (shift[2] & 63), x18);
+  CHECK_EQUAL_64(value >> (shift[2] & 63), x28);
   CHECK_EQUAL_64(value >> (shift[3] & 63), x19);
   CHECK_EQUAL_64(value >> (shift[4] & 63), x20);
   CHECK_EQUAL_64(value >> (shift[5] & 63), x21);
 
-  value &= 0xffffffffUL;
+  value &= 0xFFFFFFFFUL;
   CHECK_EQUAL_32(value >> (shift[0] & 31), w22);
   CHECK_EQUAL_32(value >> (shift[1] & 31), w23);
   CHECK_EQUAL_32(value >> (shift[2] & 31), w24);
   CHECK_EQUAL_32(value >> (shift[3] & 31), w25);
   CHECK_EQUAL_32(value >> (shift[4] & 31), w26);
   CHECK_EQUAL_32(value >> (shift[5] & 31), w27);
-
-  TEARDOWN();
 }
-
 
 TEST(asrv) {
   INIT_V8();
   SETUP();
 
-  int64_t value = 0xfedcba98fedcba98UL;
+  int64_t value = 0xFEDCBA98FEDCBA98UL;
   int shift[] = {1, 3, 5, 9, 17, 33};
 
   START();
@@ -5026,7 +8475,7 @@ TEST(asrv) {
 
   __ Asr(x16, x0, x1);
   __ Asr(x17, x0, x2);
-  __ Asr(x18, x0, x3);
+  __ Asr(x28, x0, x3);
   __ Asr(x19, x0, x4);
   __ Asr(x20, x0, x5);
   __ Asr(x21, x0, x6);
@@ -5044,28 +8493,25 @@ TEST(asrv) {
   CHECK_EQUAL_64(value, x0);
   CHECK_EQUAL_64(value >> (shift[0] & 63), x16);
   CHECK_EQUAL_64(value >> (shift[1] & 63), x17);
-  CHECK_EQUAL_64(value >> (shift[2] & 63), x18);
+  CHECK_EQUAL_64(value >> (shift[2] & 63), x28);
   CHECK_EQUAL_64(value >> (shift[3] & 63), x19);
   CHECK_EQUAL_64(value >> (shift[4] & 63), x20);
   CHECK_EQUAL_64(value >> (shift[5] & 63), x21);
 
-  int32_t value32 = static_cast<int32_t>(value & 0xffffffffUL);
+  int32_t value32 = static_cast<int32_t>(value & 0xFFFFFFFFUL);
   CHECK_EQUAL_32(value32 >> (shift[0] & 31), w22);
   CHECK_EQUAL_32(value32 >> (shift[1] & 31), w23);
   CHECK_EQUAL_32(value32 >> (shift[2] & 31), w24);
   CHECK_EQUAL_32(value32 >> (shift[3] & 31), w25);
   CHECK_EQUAL_32(value32 >> (shift[4] & 31), w26);
   CHECK_EQUAL_32(value32 >> (shift[5] & 31), w27);
-
-  TEARDOWN();
 }
-
 
 TEST(rorv) {
   INIT_V8();
   SETUP();
 
-  uint64_t value = 0x0123456789abcdefUL;
+  uint64_t value = 0x0123456789ABCDEFUL;
   int shift[] = {4, 8, 12, 16, 24, 36};
 
   START();
@@ -5081,7 +8527,7 @@ TEST(rorv) {
 
   __ Ror(x16, x0, x1);
   __ Ror(x17, x0, x2);
-  __ Ror(x18, x0, x3);
+  __ Ror(x28, x0, x3);
   __ Ror(x19, x0, x4);
   __ Ror(x20, x0, x5);
   __ Ror(x21, x0, x6);
@@ -5097,29 +8543,26 @@ TEST(rorv) {
   RUN();
 
   CHECK_EQUAL_64(value, x0);
-  CHECK_EQUAL_64(0xf0123456789abcdeUL, x16);
-  CHECK_EQUAL_64(0xef0123456789abcdUL, x17);
-  CHECK_EQUAL_64(0xdef0123456789abcUL, x18);
-  CHECK_EQUAL_64(0xcdef0123456789abUL, x19);
-  CHECK_EQUAL_64(0xabcdef0123456789UL, x20);
-  CHECK_EQUAL_64(0x789abcdef0123456UL, x21);
-  CHECK_EQUAL_32(0xf89abcde, w22);
-  CHECK_EQUAL_32(0xef89abcd, w23);
-  CHECK_EQUAL_32(0xdef89abc, w24);
-  CHECK_EQUAL_32(0xcdef89ab, w25);
-  CHECK_EQUAL_32(0xabcdef89, w26);
-  CHECK_EQUAL_32(0xf89abcde, w27);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(0xF0123456789ABCDEUL, x16);
+  CHECK_EQUAL_64(0xEF0123456789ABCDUL, x17);
+  CHECK_EQUAL_64(0xDEF0123456789ABCUL, x28);
+  CHECK_EQUAL_64(0xCDEF0123456789ABUL, x19);
+  CHECK_EQUAL_64(0xABCDEF0123456789UL, x20);
+  CHECK_EQUAL_64(0x789ABCDEF0123456UL, x21);
+  CHECK_EQUAL_32(0xF89ABCDE, w22);
+  CHECK_EQUAL_32(0xEF89ABCD, w23);
+  CHECK_EQUAL_32(0xDEF89ABC, w24);
+  CHECK_EQUAL_32(0xCDEF89AB, w25);
+  CHECK_EQUAL_32(0xABCDEF89, w26);
+  CHECK_EQUAL_32(0xF89ABCDE, w27);
 }
-
 
 TEST(bfm) {
   INIT_V8();
   SETUP();
 
   START();
-  __ Mov(x1, 0x0123456789abcdefL);
+  __ Mov(x1, 0x0123456789ABCDEFL);
 
   __ Mov(x10, 0x8888888888888888L);
   __ Mov(x11, 0x8888888888888888L);
@@ -5141,27 +8584,23 @@ TEST(bfm) {
 
   RUN();
 
+  CHECK_EQUAL_64(0x88888888888889ABL, x10);
+  CHECK_EQUAL_64(0x8888CDEF88888888L, x11);
 
-  CHECK_EQUAL_64(0x88888888888889abL, x10);
-  CHECK_EQUAL_64(0x8888cdef88888888L, x11);
+  CHECK_EQUAL_32(0x888888AB, w20);
+  CHECK_EQUAL_32(0x88CDEF88, w21);
 
-  CHECK_EQUAL_32(0x888888ab, w20);
-  CHECK_EQUAL_32(0x88cdef88, w21);
-
-  CHECK_EQUAL_64(0x8888888888ef8888L, x12);
-  CHECK_EQUAL_64(0x88888888888888abL, x13);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(0x8888888888EF8888L, x12);
+  CHECK_EQUAL_64(0x88888888888888ABL, x13);
 }
-
 
 TEST(sbfm) {
   INIT_V8();
   SETUP();
 
   START();
-  __ Mov(x1, 0x0123456789abcdefL);
-  __ Mov(x2, 0xfedcba9876543210L);
+  __ Mov(x1, 0x0123456789ABCDEFL);
+  __ Mov(x2, 0xFEDCBA9876543210L);
 
   __ sbfm(x10, x1, 16, 31);
   __ sbfm(x11, x1, 32, 15);
@@ -5174,7 +8613,7 @@ TEST(sbfm) {
   __ sbfm(w17, w2, 24, 15);
 
   // Aliases.
-  __ Asr(x18, x1, 32);
+  __ Asr(x3, x1, 32);
   __ Asr(x19, x2, 32);
   __ Sbfiz(x20, x1, 8, 16);
   __ Sbfiz(x21, x2, 8, 16);
@@ -5190,41 +8629,37 @@ TEST(sbfm) {
 
   RUN();
 
-
-  CHECK_EQUAL_64(0xffffffffffff89abL, x10);
-  CHECK_EQUAL_64(0xffffcdef00000000L, x11);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFF89ABL, x10);
+  CHECK_EQUAL_64(0xFFFFCDEF00000000L, x11);
   CHECK_EQUAL_64(0x4567L, x12);
-  CHECK_EQUAL_64(0x789abcdef0000L, x13);
+  CHECK_EQUAL_64(0x789ABCDEF0000L, x13);
 
-  CHECK_EQUAL_32(0xffffffab, w14);
-  CHECK_EQUAL_32(0xffcdef00, w15);
+  CHECK_EQUAL_32(0xFFFFFFAB, w14);
+  CHECK_EQUAL_32(0xFFCDEF00, w15);
   CHECK_EQUAL_32(0x54, w16);
   CHECK_EQUAL_32(0x00321000, w17);
 
-  CHECK_EQUAL_64(0x01234567L, x18);
-  CHECK_EQUAL_64(0xfffffffffedcba98L, x19);
-  CHECK_EQUAL_64(0xffffffffffcdef00L, x20);
+  CHECK_EQUAL_64(0x01234567L, x3);
+  CHECK_EQUAL_64(0xFFFFFFFFFEDCBA98L, x19);
+  CHECK_EQUAL_64(0xFFFFFFFFFFCDEF00L, x20);
   CHECK_EQUAL_64(0x321000L, x21);
-  CHECK_EQUAL_64(0xffffffffffffabcdL, x22);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFABCDL, x22);
   CHECK_EQUAL_64(0x5432L, x23);
-  CHECK_EQUAL_64(0xffffffffffffffefL, x24);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFEFL, x24);
   CHECK_EQUAL_64(0x10, x25);
-  CHECK_EQUAL_64(0xffffffffffffcdefL, x26);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFCDEFL, x26);
   CHECK_EQUAL_64(0x3210, x27);
-  CHECK_EQUAL_64(0xffffffff89abcdefL, x28);
+  CHECK_EQUAL_64(0xFFFFFFFF89ABCDEFL, x28);
   CHECK_EQUAL_64(0x76543210, x29);
-
-  TEARDOWN();
 }
-
 
 TEST(ubfm) {
   INIT_V8();
   SETUP();
 
   START();
-  __ Mov(x1, 0x0123456789abcdefL);
-  __ Mov(x2, 0xfedcba9876543210L);
+  __ Mov(x1, 0x0123456789ABCDEFL);
+  __ Mov(x2, 0xFEDCBA9876543210L);
 
   __ Mov(x10, 0x8888888888888888L);
   __ Mov(x11, 0x8888888888888888L);
@@ -5243,7 +8678,7 @@ TEST(ubfm) {
   __ Lsl(x15, x1, 63);
   __ Lsl(x16, x1, 0);
   __ Lsr(x17, x1, 32);
-  __ Ubfiz(x18, x1, 8, 16);
+  __ Ubfiz(x3, x1, 8, 16);
   __ Ubfx(x19, x1, 8, 16);
   __ Uxtb(x20, x1);
   __ Uxth(x21, x1);
@@ -5252,36 +8687,33 @@ TEST(ubfm) {
 
   RUN();
 
-  CHECK_EQUAL_64(0x00000000000089abL, x10);
-  CHECK_EQUAL_64(0x0000cdef00000000L, x11);
+  CHECK_EQUAL_64(0x00000000000089ABL, x10);
+  CHECK_EQUAL_64(0x0000CDEF00000000L, x11);
   CHECK_EQUAL_64(0x4567L, x12);
-  CHECK_EQUAL_64(0x789abcdef0000L, x13);
+  CHECK_EQUAL_64(0x789ABCDEF0000L, x13);
 
-  CHECK_EQUAL_32(0x000000ab, w25);
-  CHECK_EQUAL_32(0x00cdef00, w26);
+  CHECK_EQUAL_32(0x000000AB, w25);
+  CHECK_EQUAL_32(0x00CDEF00, w26);
   CHECK_EQUAL_32(0x54, w27);
   CHECK_EQUAL_32(0x00321000, w28);
 
   CHECK_EQUAL_64(0x8000000000000000L, x15);
-  CHECK_EQUAL_64(0x0123456789abcdefL, x16);
+  CHECK_EQUAL_64(0x0123456789ABCDEFL, x16);
   CHECK_EQUAL_64(0x01234567L, x17);
-  CHECK_EQUAL_64(0xcdef00L, x18);
-  CHECK_EQUAL_64(0xabcdL, x19);
-  CHECK_EQUAL_64(0xefL, x20);
-  CHECK_EQUAL_64(0xcdefL, x21);
-  CHECK_EQUAL_64(0x89abcdefL, x22);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(0xCDEF00L, x3);
+  CHECK_EQUAL_64(0xABCDL, x19);
+  CHECK_EQUAL_64(0xEFL, x20);
+  CHECK_EQUAL_64(0xCDEFL, x21);
+  CHECK_EQUAL_64(0x89ABCDEFL, x22);
 }
-
 
 TEST(extr) {
   INIT_V8();
   SETUP();
 
   START();
-  __ Mov(x1, 0x0123456789abcdefL);
-  __ Mov(x2, 0xfedcba9876543210L);
+  __ Mov(x1, 0x0123456789ABCDEFL);
+  __ Mov(x2, 0xFEDCBA9876543210L);
 
   __ Extr(w10, w1, w2, 0);
   __ Extr(x11, x1, x2, 0);
@@ -5299,19 +8731,16 @@ TEST(extr) {
   RUN();
 
   CHECK_EQUAL_64(0x76543210, x10);
-  CHECK_EQUAL_64(0xfedcba9876543210L, x11);
-  CHECK_EQUAL_64(0xbb2a1908, x12);
-  CHECK_EQUAL_64(0x0048d159e26af37bUL, x13);
-  CHECK_EQUAL_64(0x89abcdef, x20);
-  CHECK_EQUAL_64(0x0123456789abcdefL, x21);
-  CHECK_EQUAL_64(0x19083b2a, x22);
-  CHECK_EQUAL_64(0x13579bdf, x23);
-  CHECK_EQUAL_64(0x7f6e5d4c3b2a1908UL, x24);
-  CHECK_EQUAL_64(0x02468acf13579bdeUL, x25);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(0xFEDCBA9876543210L, x11);
+  CHECK_EQUAL_64(0xBB2A1908, x12);
+  CHECK_EQUAL_64(0x0048D159E26AF37BUL, x13);
+  CHECK_EQUAL_64(0x89ABCDEF, x20);
+  CHECK_EQUAL_64(0x0123456789ABCDEFL, x21);
+  CHECK_EQUAL_64(0x19083B2A, x22);
+  CHECK_EQUAL_64(0x13579BDF, x23);
+  CHECK_EQUAL_64(0x7F6E5D4C3B2A1908UL, x24);
+  CHECK_EQUAL_64(0x02468ACF13579BDEUL, x25);
 }
-
 
 TEST(fmov_imm) {
   INIT_V8();
@@ -5338,10 +8767,7 @@ TEST(fmov_imm) {
   CHECK_EQUAL_FP64(0.0, d4);
   CHECK_EQUAL_FP32(kFP32PositiveInfinity, s5);
   CHECK_EQUAL_FP64(kFP64NegativeInfinity, d6);
-
-  TEARDOWN();
 }
-
 
 TEST(fmov_reg) {
   INIT_V8();
@@ -5356,23 +8782,20 @@ TEST(fmov_reg) {
   __ Fmov(x1, d1);
   __ Fmov(d2, x1);
   __ Fmov(d4, d1);
-  __ Fmov(d6, rawbits_to_double(0x0123456789abcdefL));
+  __ Fmov(d6, bit_cast<double>(0x0123456789ABCDEFL));
   __ Fmov(s6, s6);
   END();
 
   RUN();
 
-  CHECK_EQUAL_32(float_to_rawbits(1.0), w10);
+  CHECK_EQUAL_32(bit_cast<uint32_t>(1.0f), w10);
   CHECK_EQUAL_FP32(1.0, s30);
   CHECK_EQUAL_FP32(1.0, s5);
-  CHECK_EQUAL_64(double_to_rawbits(-13.0), x1);
+  CHECK_EQUAL_64(bit_cast<uint64_t>(-13.0), x1);
   CHECK_EQUAL_FP64(-13.0, d2);
   CHECK_EQUAL_FP64(-13.0, d4);
-  CHECK_EQUAL_FP32(rawbits_to_float(0x89abcdef), s6);
-
-  TEARDOWN();
+  CHECK_EQUAL_FP32(bit_cast<float>(0x89ABCDEF), s6);
 }
-
 
 TEST(fadd) {
   INIT_V8();
@@ -5426,10 +8849,7 @@ TEST(fadd) {
   CHECK_EQUAL_FP64(kFP64NegativeInfinity, d11);
   CHECK_EQUAL_FP64(kFP64DefaultNaN, d12);
   CHECK_EQUAL_FP64(kFP64DefaultNaN, d13);
-
-  TEARDOWN();
 }
-
 
 TEST(fsub) {
   INIT_V8();
@@ -5483,10 +8903,7 @@ TEST(fsub) {
   CHECK_EQUAL_FP64(kFP64PositiveInfinity, d11);
   CHECK_EQUAL_FP64(kFP64DefaultNaN, d12);
   CHECK_EQUAL_FP64(kFP64DefaultNaN, d13);
-
-  TEARDOWN();
 }
-
 
 TEST(fmul) {
   INIT_V8();
@@ -5541,8 +8958,6 @@ TEST(fmul) {
   CHECK_EQUAL_FP64(kFP64PositiveInfinity, d11);
   CHECK_EQUAL_FP64(kFP64DefaultNaN, d12);
   CHECK_EQUAL_FP64(kFP64DefaultNaN, d13);
-
-  TEARDOWN();
 }
 
 
@@ -5567,10 +8982,7 @@ static void FmaddFmsubHelper(double n, double m, double a,
   CHECK_EQUAL_FP64(fmsub, d29);
   CHECK_EQUAL_FP64(fnmadd, d30);
   CHECK_EQUAL_FP64(fnmsub, d31);
-
-  TEARDOWN();
 }
-
 
 TEST(fmadd_fmsub_double) {
   INIT_V8();
@@ -5613,7 +9025,6 @@ TEST(fmadd_fmsub_double) {
                    kFP64NegativeInfinity);  // -inf + (-inf * 1) = -inf
 }
 
-
 static void FmaddFmsubHelper(float n, float m, float a,
                              float fmadd, float fmsub,
                              float fnmadd, float fnmsub) {
@@ -5635,10 +9046,7 @@ static void FmaddFmsubHelper(float n, float m, float a,
   CHECK_EQUAL_FP32(fmsub, s29);
   CHECK_EQUAL_FP32(fnmadd, s30);
   CHECK_EQUAL_FP32(fnmsub, s31);
-
-  TEARDOWN();
 }
-
 
 TEST(fmadd_fmsub_float) {
   INIT_V8();
@@ -5680,16 +9088,15 @@ TEST(fmadd_fmsub_float) {
                    kFP32NegativeInfinity);  // -inf + (-inf * 1) = -inf
 }
 
-
 TEST(fmadd_fmsub_double_nans) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  double s1 = rawbits_to_double(0x7ff5555511111111);
-  double s2 = rawbits_to_double(0x7ff5555522222222);
-  double sa = rawbits_to_double(0x7ff55555aaaaaaaa);
-  double q1 = rawbits_to_double(0x7ffaaaaa11111111);
-  double q2 = rawbits_to_double(0x7ffaaaaa22222222);
-  double qa = rawbits_to_double(0x7ffaaaaaaaaaaaaa);
+  double s1 = bit_cast<double>(0x7FF5555511111111);
+  double s2 = bit_cast<double>(0x7FF5555522222222);
+  double sa = bit_cast<double>(0x7FF55555AAAAAAAA);
+  double q1 = bit_cast<double>(0x7FFAAAAA11111111);
+  double q2 = bit_cast<double>(0x7FFAAAAA22222222);
+  double qa = bit_cast<double>(0x7FFAAAAAAAAAAAAA);
   CHECK(IsSignallingNaN(s1));
   CHECK(IsSignallingNaN(s2));
   CHECK(IsSignallingNaN(sa));
@@ -5698,9 +9105,9 @@ TEST(fmadd_fmsub_double_nans) {
   CHECK(IsQuietNaN(qa));
 
   // The input NaNs after passing through ProcessNaN.
-  double s1_proc = rawbits_to_double(0x7ffd555511111111);
-  double s2_proc = rawbits_to_double(0x7ffd555522222222);
-  double sa_proc = rawbits_to_double(0x7ffd5555aaaaaaaa);
+  double s1_proc = bit_cast<double>(0x7FFD555511111111);
+  double s2_proc = bit_cast<double>(0x7FFD555522222222);
+  double sa_proc = bit_cast<double>(0x7FFD5555AAAAAAAA);
   double q1_proc = q1;
   double q2_proc = q2;
   double qa_proc = qa;
@@ -5712,10 +9119,10 @@ TEST(fmadd_fmsub_double_nans) {
   CHECK(IsQuietNaN(qa_proc));
 
   // Negated NaNs as it would be done on ARMv8 hardware.
-  double s1_proc_neg = rawbits_to_double(0xfffd555511111111);
-  double sa_proc_neg = rawbits_to_double(0xfffd5555aaaaaaaa);
-  double q1_proc_neg = rawbits_to_double(0xfffaaaaa11111111);
-  double qa_proc_neg = rawbits_to_double(0xfffaaaaaaaaaaaaa);
+  double s1_proc_neg = bit_cast<double>(0xFFFD555511111111);
+  double sa_proc_neg = bit_cast<double>(0xFFFD5555AAAAAAAA);
+  double q1_proc_neg = bit_cast<double>(0xFFFAAAAA11111111);
+  double qa_proc_neg = bit_cast<double>(0xFFFAAAAAAAAAAAAA);
   CHECK(IsQuietNaN(s1_proc_neg));
   CHECK(IsQuietNaN(sa_proc_neg));
   CHECK(IsQuietNaN(q1_proc_neg));
@@ -5763,16 +9170,15 @@ TEST(fmadd_fmsub_double_nans) {
                    kFP64DefaultNaN, kFP64DefaultNaN);
 }
 
-
 TEST(fmadd_fmsub_float_nans) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  float s1 = rawbits_to_float(0x7f951111);
-  float s2 = rawbits_to_float(0x7f952222);
-  float sa = rawbits_to_float(0x7f95aaaa);
-  float q1 = rawbits_to_float(0x7fea1111);
-  float q2 = rawbits_to_float(0x7fea2222);
-  float qa = rawbits_to_float(0x7feaaaaa);
+  float s1 = bit_cast<float>(0x7F951111);
+  float s2 = bit_cast<float>(0x7F952222);
+  float sa = bit_cast<float>(0x7F95AAAA);
+  float q1 = bit_cast<float>(0x7FEA1111);
+  float q2 = bit_cast<float>(0x7FEA2222);
+  float qa = bit_cast<float>(0x7FEAAAAA);
   CHECK(IsSignallingNaN(s1));
   CHECK(IsSignallingNaN(s2));
   CHECK(IsSignallingNaN(sa));
@@ -5781,9 +9187,9 @@ TEST(fmadd_fmsub_float_nans) {
   CHECK(IsQuietNaN(qa));
 
   // The input NaNs after passing through ProcessNaN.
-  float s1_proc = rawbits_to_float(0x7fd51111);
-  float s2_proc = rawbits_to_float(0x7fd52222);
-  float sa_proc = rawbits_to_float(0x7fd5aaaa);
+  float s1_proc = bit_cast<float>(0x7FD51111);
+  float s2_proc = bit_cast<float>(0x7FD52222);
+  float sa_proc = bit_cast<float>(0x7FD5AAAA);
   float q1_proc = q1;
   float q2_proc = q2;
   float qa_proc = qa;
@@ -5795,10 +9201,10 @@ TEST(fmadd_fmsub_float_nans) {
   CHECK(IsQuietNaN(qa_proc));
 
   // Negated NaNs as it would be done on ARMv8 hardware.
-  float s1_proc_neg = rawbits_to_float(0xffd51111);
-  float sa_proc_neg = rawbits_to_float(0xffd5aaaa);
-  float q1_proc_neg = rawbits_to_float(0xffea1111);
-  float qa_proc_neg = rawbits_to_float(0xffeaaaaa);
+  float s1_proc_neg = bit_cast<float>(0xFFD51111);
+  float sa_proc_neg = bit_cast<float>(0xFFD5AAAA);
+  float q1_proc_neg = bit_cast<float>(0xFFEA1111);
+  float qa_proc_neg = bit_cast<float>(0xFFEAAAAA);
   CHECK(IsQuietNaN(s1_proc_neg));
   CHECK(IsQuietNaN(sa_proc_neg));
   CHECK(IsQuietNaN(q1_proc_neg));
@@ -5845,7 +9251,6 @@ TEST(fmadd_fmsub_float_nans) {
                    kFP32DefaultNaN, kFP32DefaultNaN,
                    kFP32DefaultNaN, kFP32DefaultNaN);
 }
-
 
 TEST(fdiv) {
   INIT_V8();
@@ -5900,8 +9305,6 @@ TEST(fdiv) {
   CHECK_EQUAL_FP64(-0.0, d11);
   CHECK_EQUAL_FP64(kFP64DefaultNaN, d12);
   CHECK_EQUAL_FP64(kFP64DefaultNaN, d13);
-
-  TEARDOWN();
 }
 
 
@@ -5909,15 +9312,15 @@ static float MinMaxHelper(float n,
                           float m,
                           bool min,
                           float quiet_nan_substitute = 0.0) {
-  uint32_t raw_n = float_to_rawbits(n);
-  uint32_t raw_m = float_to_rawbits(m);
+  uint32_t raw_n = bit_cast<uint32_t>(n);
+  uint32_t raw_m = bit_cast<uint32_t>(m);
 
   if (std::isnan(n) && ((raw_n & kSQuietNanMask) == 0)) {
     // n is signalling NaN.
-    return rawbits_to_float(raw_n | kSQuietNanMask);
+    return bit_cast<float>(raw_n | static_cast<uint32_t>(kSQuietNanMask));
   } else if (std::isnan(m) && ((raw_m & kSQuietNanMask) == 0)) {
     // m is signalling NaN.
-    return rawbits_to_float(raw_m | kSQuietNanMask);
+    return bit_cast<float>(raw_m | static_cast<uint32_t>(kSQuietNanMask));
   } else if (quiet_nan_substitute == 0.0) {
     if (std::isnan(n)) {
       // n is quiet NaN.
@@ -5950,15 +9353,15 @@ static double MinMaxHelper(double n,
                            double m,
                            bool min,
                            double quiet_nan_substitute = 0.0) {
-  uint64_t raw_n = double_to_rawbits(n);
-  uint64_t raw_m = double_to_rawbits(m);
+  uint64_t raw_n = bit_cast<uint64_t>(n);
+  uint64_t raw_m = bit_cast<uint64_t>(m);
 
   if (std::isnan(n) && ((raw_n & kDQuietNanMask) == 0)) {
     // n is signalling NaN.
-    return rawbits_to_double(raw_n | kDQuietNanMask);
+    return bit_cast<double>(raw_n | kDQuietNanMask);
   } else if (std::isnan(m) && ((raw_m & kDQuietNanMask) == 0)) {
     // m is signalling NaN.
-    return rawbits_to_double(raw_m | kDQuietNanMask);
+    return bit_cast<double>(raw_m | kDQuietNanMask);
   } else if (quiet_nan_substitute == 0.0) {
     if (std::isnan(n)) {
       // n is quiet NaN.
@@ -6006,18 +9409,15 @@ static void FminFmaxDoubleHelper(double n, double m, double min, double max,
   CHECK_EQUAL_FP64(max, d29);
   CHECK_EQUAL_FP64(minnm, d30);
   CHECK_EQUAL_FP64(maxnm, d31);
-
-  TEARDOWN();
 }
-
 
 TEST(fmax_fmin_d) {
   INIT_V8();
   // Use non-standard NaNs to check that the payload bits are preserved.
-  double snan = rawbits_to_double(0x7ff5555512345678);
-  double qnan = rawbits_to_double(0x7ffaaaaa87654321);
+  double snan = bit_cast<double>(0x7FF5555512345678);
+  double qnan = bit_cast<double>(0x7FFAAAAA87654321);
 
-  double snan_processed = rawbits_to_double(0x7ffd555512345678);
+  double snan_processed = bit_cast<double>(0x7FFD555512345678);
   double qnan_processed = qnan;
 
   CHECK(IsSignallingNaN(snan));
@@ -6071,7 +9471,6 @@ TEST(fmax_fmin_d) {
   }
 }
 
-
 static void FminFmaxFloatHelper(float n, float m, float min, float max,
                                 float minnm, float maxnm) {
   SETUP();
@@ -6091,18 +9490,15 @@ static void FminFmaxFloatHelper(float n, float m, float min, float max,
   CHECK_EQUAL_FP32(max, s29);
   CHECK_EQUAL_FP32(minnm, s30);
   CHECK_EQUAL_FP32(maxnm, s31);
-
-  TEARDOWN();
 }
-
 
 TEST(fmax_fmin_s) {
   INIT_V8();
   // Use non-standard NaNs to check that the payload bits are preserved.
-  float snan = rawbits_to_float(0x7f951234);
-  float qnan = rawbits_to_float(0x7fea8765);
+  float snan = bit_cast<float>(0x7F951234);
+  float qnan = bit_cast<float>(0x7FEA8765);
 
-  float snan_processed = rawbits_to_float(0x7fd51234);
+  float snan_processed = bit_cast<float>(0x7FD51234);
   float qnan_processed = qnan;
 
   CHECK(IsSignallingNaN(snan));
@@ -6155,7 +9551,6 @@ TEST(fmax_fmin_s) {
     }
   }
 }
-
 
 TEST(fccmp) {
   INIT_V8();
@@ -6220,10 +9615,7 @@ TEST(fccmp) {
   CHECK_EQUAL_32(NFlag, w7);
   CHECK_EQUAL_32(ZCFlag, w8);
   CHECK_EQUAL_32(ZCFlag, w9);
-
-  TEARDOWN();
 }
-
 
 TEST(fcmp) {
   INIT_V8();
@@ -6242,8 +9634,8 @@ TEST(fcmp) {
 
     __ Fmov(s8, 0.0);
     __ Fmov(s9, 0.5);
-    __ Mov(w18, 0x7f800001);  // Single precision NaN.
-    __ Fmov(s18, w18);
+    __ Mov(w19, 0x7F800001);  // Single precision NaN.
+    __ Fmov(s18, w19);
 
     __ Fcmp(s8, s8);
     __ Mrs(x0, NZCV);
@@ -6257,14 +9649,14 @@ TEST(fcmp) {
     __ Mrs(x4, NZCV);
     __ Fcmp(s8, 0.0);
     __ Mrs(x5, NZCV);
-    masm.FPTmpList()->set_list(d0.Bit());
+    masm.FPTmpList()->set_list(d0.bit());
     __ Fcmp(s8, 255.0);
     masm.FPTmpList()->set_list(0);
     __ Mrs(x6, NZCV);
 
     __ Fmov(d19, 0.0);
     __ Fmov(d20, 0.5);
-    __ Mov(x21, 0x7ff0000000000001UL);   // Double precision NaN.
+    __ Mov(x21, 0x7FF0000000000001UL);  // Double precision NaN.
     __ Fmov(d21, x21);
 
     __ Fcmp(d19, d19);
@@ -6279,7 +9671,7 @@ TEST(fcmp) {
     __ Mrs(x14, NZCV);
     __ Fcmp(d19, 0.0);
     __ Mrs(x15, NZCV);
-    masm.FPTmpList()->set_list(d0.Bit());
+    masm.FPTmpList()->set_list(d0.bit());
     __ Fcmp(d19, 12.3456);
     masm.FPTmpList()->set_list(0);
     __ Mrs(x16, NZCV);
@@ -6303,10 +9695,7 @@ TEST(fcmp) {
   CHECK_EQUAL_32(CVFlag, w14);
   CHECK_EQUAL_32(ZCFlag, w15);
   CHECK_EQUAL_32(NFlag, w16);
-
-  TEARDOWN();
 }
-
 
 TEST(fcsel) {
   INIT_V8();
@@ -6336,10 +9725,7 @@ TEST(fcsel) {
   CHECK_EQUAL_FP64(4.0, d3);
   CHECK_EQUAL_FP32(1.0, s4);
   CHECK_EQUAL_FP64(3.0, d5);
-
-  TEARDOWN();
 }
-
 
 TEST(fneg) {
   INIT_V8();
@@ -6381,10 +9767,7 @@ TEST(fneg) {
   CHECK_EQUAL_FP64(0.0, d9);
   CHECK_EQUAL_FP64(kFP64NegativeInfinity, d10);
   CHECK_EQUAL_FP64(kFP64PositiveInfinity, d11);
-
-  TEARDOWN();
 }
-
 
 TEST(fabs) {
   INIT_V8();
@@ -6418,10 +9801,7 @@ TEST(fabs) {
   CHECK_EQUAL_FP64(1.0, d5);
   CHECK_EQUAL_FP64(0.0, d6);
   CHECK_EQUAL_FP64(kFP64PositiveInfinity, d7);
-
-  TEARDOWN();
 }
-
 
 TEST(fsqrt) {
   INIT_V8();
@@ -6475,10 +9855,7 @@ TEST(fsqrt) {
   CHECK_EQUAL_FP64(-0.0, d11);
   CHECK_EQUAL_FP64(kFP32PositiveInfinity, d12);
   CHECK_EQUAL_FP64(kFP64DefaultNaN, d13);
-
-  TEARDOWN();
 }
-
 
 TEST(frinta) {
   INIT_V8();
@@ -6564,10 +9941,7 @@ TEST(frinta) {
   CHECK_EQUAL_FP64(0.0, d21);
   CHECK_EQUAL_FP64(-0.0, d22);
   CHECK_EQUAL_FP64(-0.0, d23);
-
-  TEARDOWN();
 }
-
 
 TEST(frintm) {
   INIT_V8();
@@ -6653,10 +10027,7 @@ TEST(frintm) {
   CHECK_EQUAL_FP64(0.0, d21);
   CHECK_EQUAL_FP64(-0.0, d22);
   CHECK_EQUAL_FP64(-1.0, d23);
-
-  TEARDOWN();
 }
-
 
 TEST(frintn) {
   INIT_V8();
@@ -6742,10 +10113,7 @@ TEST(frintn) {
   CHECK_EQUAL_FP64(0.0, d21);
   CHECK_EQUAL_FP64(-0.0, d22);
   CHECK_EQUAL_FP64(-0.0, d23);
-
-  TEARDOWN();
 }
-
 
 TEST(frintp) {
   INIT_V8();
@@ -6831,10 +10199,7 @@ TEST(frintp) {
   CHECK_EQUAL_FP64(0.0, d21);
   CHECK_EQUAL_FP64(-0.0, d22);
   CHECK_EQUAL_FP64(-0.0, d23);
-
-  TEARDOWN();
 }
-
 
 TEST(frintz) {
   INIT_V8();
@@ -6914,10 +10279,7 @@ TEST(frintz) {
   CHECK_EQUAL_FP64(kFP64NegativeInfinity, d19);
   CHECK_EQUAL_FP64(0.0, d20);
   CHECK_EQUAL_FP64(-0.0, d21);
-
-  TEARDOWN();
 }
-
 
 TEST(fcvt_ds) {
   INIT_V8();
@@ -6937,8 +10299,8 @@ TEST(fcvt_ds) {
   __ Fmov(s26, -0.0);
   __ Fmov(s27, FLT_MAX);
   __ Fmov(s28, FLT_MIN);
-  __ Fmov(s29, rawbits_to_float(0x7fc12345));   // Quiet NaN.
-  __ Fmov(s30, rawbits_to_float(0x7f812345));   // Signalling NaN.
+  __ Fmov(s29, bit_cast<float>(0x7FC12345));  // Quiet NaN.
+  __ Fmov(s30, bit_cast<float>(0x7F812345));  // Signalling NaN.
 
   __ Fcvt(d0, s16);
   __ Fcvt(d1, s17);
@@ -6979,12 +10341,9 @@ TEST(fcvt_ds) {
   //  - The top bit of the mantissa is forced to 1 (making it a quiet NaN).
   //  - The remaining mantissa bits are copied until they run out.
   //  - The low-order bits that haven't already been assigned are set to 0.
-  CHECK_EQUAL_FP64(rawbits_to_double(0x7ff82468a0000000), d13);
-  CHECK_EQUAL_FP64(rawbits_to_double(0x7ff82468a0000000), d14);
-
-  TEARDOWN();
+  CHECK_EQUAL_FP64(bit_cast<double>(0x7FF82468A0000000), d13);
+  CHECK_EQUAL_FP64(bit_cast<double>(0x7FF82468A0000000), d14);
 }
-
 
 TEST(fcvt_sd) {
   INIT_V8();
@@ -6995,83 +10354,86 @@ TEST(fcvt_sd) {
   //
   // Note that this test only checks ties-to-even rounding, because that is all
   // that the simulator supports.
-  struct {double in; float expected;} test[] = {
-    // Check some simple conversions.
-    {0.0, 0.0f},
-    {1.0, 1.0f},
-    {1.5, 1.5f},
-    {2.0, 2.0f},
-    {FLT_MAX, FLT_MAX},
-    //  - The smallest normalized float.
-    {pow(2.0, -126), powf(2, -126)},
-    //  - Normal floats that need (ties-to-even) rounding.
-    //    For normalized numbers:
-    //         bit 29 (0x0000000020000000) is the lowest-order bit which will
-    //                                     fit in the float's mantissa.
-    {rawbits_to_double(0x3ff0000000000000), rawbits_to_float(0x3f800000)},
-    {rawbits_to_double(0x3ff0000000000001), rawbits_to_float(0x3f800000)},
-    {rawbits_to_double(0x3ff0000010000000), rawbits_to_float(0x3f800000)},
-    {rawbits_to_double(0x3ff0000010000001), rawbits_to_float(0x3f800001)},
-    {rawbits_to_double(0x3ff0000020000000), rawbits_to_float(0x3f800001)},
-    {rawbits_to_double(0x3ff0000020000001), rawbits_to_float(0x3f800001)},
-    {rawbits_to_double(0x3ff0000030000000), rawbits_to_float(0x3f800002)},
-    {rawbits_to_double(0x3ff0000030000001), rawbits_to_float(0x3f800002)},
-    {rawbits_to_double(0x3ff0000040000000), rawbits_to_float(0x3f800002)},
-    {rawbits_to_double(0x3ff0000040000001), rawbits_to_float(0x3f800002)},
-    {rawbits_to_double(0x3ff0000050000000), rawbits_to_float(0x3f800002)},
-    {rawbits_to_double(0x3ff0000050000001), rawbits_to_float(0x3f800003)},
-    {rawbits_to_double(0x3ff0000060000000), rawbits_to_float(0x3f800003)},
-    //  - A mantissa that overflows into the exponent during rounding.
-    {rawbits_to_double(0x3feffffff0000000), rawbits_to_float(0x3f800000)},
-    //  - The largest double that rounds to a normal float.
-    {rawbits_to_double(0x47efffffefffffff), rawbits_to_float(0x7f7fffff)},
+  struct {
+    double in;
+    float expected;
+  } test[] = {
+      // Check some simple conversions.
+      {0.0, 0.0f},
+      {1.0, 1.0f},
+      {1.5, 1.5f},
+      {2.0, 2.0f},
+      {FLT_MAX, FLT_MAX},
+      //  - The smallest normalized float.
+      {pow(2.0, -126), powf(2, -126)},
+      //  - Normal floats that need (ties-to-even) rounding.
+      //    For normalized numbers:
+      //         bit 29 (0x0000000020000000) is the lowest-order bit which will
+      //                                     fit in the float's mantissa.
+      {bit_cast<double>(0x3FF0000000000000), bit_cast<float>(0x3F800000)},
+      {bit_cast<double>(0x3FF0000000000001), bit_cast<float>(0x3F800000)},
+      {bit_cast<double>(0x3FF0000010000000), bit_cast<float>(0x3F800000)},
+      {bit_cast<double>(0x3FF0000010000001), bit_cast<float>(0x3F800001)},
+      {bit_cast<double>(0x3FF0000020000000), bit_cast<float>(0x3F800001)},
+      {bit_cast<double>(0x3FF0000020000001), bit_cast<float>(0x3F800001)},
+      {bit_cast<double>(0x3FF0000030000000), bit_cast<float>(0x3F800002)},
+      {bit_cast<double>(0x3FF0000030000001), bit_cast<float>(0x3F800002)},
+      {bit_cast<double>(0x3FF0000040000000), bit_cast<float>(0x3F800002)},
+      {bit_cast<double>(0x3FF0000040000001), bit_cast<float>(0x3F800002)},
+      {bit_cast<double>(0x3FF0000050000000), bit_cast<float>(0x3F800002)},
+      {bit_cast<double>(0x3FF0000050000001), bit_cast<float>(0x3F800003)},
+      {bit_cast<double>(0x3FF0000060000000), bit_cast<float>(0x3F800003)},
+      //  - A mantissa that overflows into the exponent during rounding.
+      {bit_cast<double>(0x3FEFFFFFF0000000), bit_cast<float>(0x3F800000)},
+      //  - The largest double that rounds to a normal float.
+      {bit_cast<double>(0x47EFFFFFEFFFFFFF), bit_cast<float>(0x7F7FFFFF)},
 
-    // Doubles that are too big for a float.
-    {kFP64PositiveInfinity, kFP32PositiveInfinity},
-    {DBL_MAX, kFP32PositiveInfinity},
-    //  - The smallest exponent that's too big for a float.
-    {pow(2.0, 128), kFP32PositiveInfinity},
-    //  - This exponent is in range, but the value rounds to infinity.
-    {rawbits_to_double(0x47effffff0000000), kFP32PositiveInfinity},
+      // Doubles that are too big for a float.
+      {kFP64PositiveInfinity, kFP32PositiveInfinity},
+      {DBL_MAX, kFP32PositiveInfinity},
+      //  - The smallest exponent that's too big for a float.
+      {pow(2.0, 128), kFP32PositiveInfinity},
+      //  - This exponent is in range, but the value rounds to infinity.
+      {bit_cast<double>(0x47EFFFFFF0000000), kFP32PositiveInfinity},
 
-    // Doubles that are too small for a float.
-    //  - The smallest (subnormal) double.
-    {DBL_MIN, 0.0},
-    //  - The largest double which is too small for a subnormal float.
-    {rawbits_to_double(0x3690000000000000), rawbits_to_float(0x00000000)},
+      // Doubles that are too small for a float.
+      //  - The smallest (subnormal) double.
+      {DBL_MIN, 0.0},
+      //  - The largest double which is too small for a subnormal float.
+      {bit_cast<double>(0x3690000000000000), bit_cast<float>(0x00000000)},
 
-    // Normal doubles that become subnormal floats.
-    //  - The largest subnormal float.
-    {rawbits_to_double(0x380fffffc0000000), rawbits_to_float(0x007fffff)},
-    //  - The smallest subnormal float.
-    {rawbits_to_double(0x36a0000000000000), rawbits_to_float(0x00000001)},
-    //  - Subnormal floats that need (ties-to-even) rounding.
-    //    For these subnormals:
-    //         bit 34 (0x0000000400000000) is the lowest-order bit which will
-    //                                     fit in the float's mantissa.
-    {rawbits_to_double(0x37c159e000000000), rawbits_to_float(0x00045678)},
-    {rawbits_to_double(0x37c159e000000001), rawbits_to_float(0x00045678)},
-    {rawbits_to_double(0x37c159e200000000), rawbits_to_float(0x00045678)},
-    {rawbits_to_double(0x37c159e200000001), rawbits_to_float(0x00045679)},
-    {rawbits_to_double(0x37c159e400000000), rawbits_to_float(0x00045679)},
-    {rawbits_to_double(0x37c159e400000001), rawbits_to_float(0x00045679)},
-    {rawbits_to_double(0x37c159e600000000), rawbits_to_float(0x0004567a)},
-    {rawbits_to_double(0x37c159e600000001), rawbits_to_float(0x0004567a)},
-    {rawbits_to_double(0x37c159e800000000), rawbits_to_float(0x0004567a)},
-    {rawbits_to_double(0x37c159e800000001), rawbits_to_float(0x0004567a)},
-    {rawbits_to_double(0x37c159ea00000000), rawbits_to_float(0x0004567a)},
-    {rawbits_to_double(0x37c159ea00000001), rawbits_to_float(0x0004567b)},
-    {rawbits_to_double(0x37c159ec00000000), rawbits_to_float(0x0004567b)},
-    //  - The smallest double which rounds up to become a subnormal float.
-    {rawbits_to_double(0x3690000000000001), rawbits_to_float(0x00000001)},
+      // Normal doubles that become subnormal floats.
+      //  - The largest subnormal float.
+      {bit_cast<double>(0x380FFFFFC0000000), bit_cast<float>(0x007FFFFF)},
+      //  - The smallest subnormal float.
+      {bit_cast<double>(0x36A0000000000000), bit_cast<float>(0x00000001)},
+      //  - Subnormal floats that need (ties-to-even) rounding.
+      //    For these subnormals:
+      //         bit 34 (0x0000000400000000) is the lowest-order bit which will
+      //                                     fit in the float's mantissa.
+      {bit_cast<double>(0x37C159E000000000), bit_cast<float>(0x00045678)},
+      {bit_cast<double>(0x37C159E000000001), bit_cast<float>(0x00045678)},
+      {bit_cast<double>(0x37C159E200000000), bit_cast<float>(0x00045678)},
+      {bit_cast<double>(0x37C159E200000001), bit_cast<float>(0x00045679)},
+      {bit_cast<double>(0x37C159E400000000), bit_cast<float>(0x00045679)},
+      {bit_cast<double>(0x37C159E400000001), bit_cast<float>(0x00045679)},
+      {bit_cast<double>(0x37C159E600000000), bit_cast<float>(0x0004567A)},
+      {bit_cast<double>(0x37C159E600000001), bit_cast<float>(0x0004567A)},
+      {bit_cast<double>(0x37C159E800000000), bit_cast<float>(0x0004567A)},
+      {bit_cast<double>(0x37C159E800000001), bit_cast<float>(0x0004567A)},
+      {bit_cast<double>(0x37C159EA00000000), bit_cast<float>(0x0004567A)},
+      {bit_cast<double>(0x37C159EA00000001), bit_cast<float>(0x0004567B)},
+      {bit_cast<double>(0x37C159EC00000000), bit_cast<float>(0x0004567B)},
+      //  - The smallest double which rounds up to become a subnormal float.
+      {bit_cast<double>(0x3690000000000001), bit_cast<float>(0x00000001)},
 
-    // Check NaN payload preservation.
-    {rawbits_to_double(0x7ff82468a0000000), rawbits_to_float(0x7fc12345)},
-    {rawbits_to_double(0x7ff82468bfffffff), rawbits_to_float(0x7fc12345)},
-    //  - Signalling NaNs become quiet NaNs.
-    {rawbits_to_double(0x7ff02468a0000000), rawbits_to_float(0x7fc12345)},
-    {rawbits_to_double(0x7ff02468bfffffff), rawbits_to_float(0x7fc12345)},
-    {rawbits_to_double(0x7ff000001fffffff), rawbits_to_float(0x7fc00000)},
+      // Check NaN payload preservation.
+      {bit_cast<double>(0x7FF82468A0000000), bit_cast<float>(0x7FC12345)},
+      {bit_cast<double>(0x7FF82468BFFFFFFF), bit_cast<float>(0x7FC12345)},
+      //  - Signalling NaNs become quiet NaNs.
+      {bit_cast<double>(0x7FF02468A0000000), bit_cast<float>(0x7FC12345)},
+      {bit_cast<double>(0x7FF02468BFFFFFFF), bit_cast<float>(0x7FC12345)},
+      {bit_cast<double>(0x7FF000001FFFFFFF), bit_cast<float>(0x7FC00000)},
   };
   int count = sizeof(test) / sizeof(test[0]);
 
@@ -7080,8 +10442,8 @@ TEST(fcvt_sd) {
     float expected = test[i].expected;
 
     // We only expect positive input.
-    CHECK(std::signbit(in) == 0);
-    CHECK(std::signbit(expected) == 0);
+    CHECK_EQ(std::signbit(in), 0);
+    CHECK_EQ(std::signbit(expected), 0);
 
     SETUP();
     START();
@@ -7096,14 +10458,15 @@ TEST(fcvt_sd) {
     RUN();
     CHECK_EQUAL_FP32(expected, s20);
     CHECK_EQUAL_FP32(-expected, s21);
-    TEARDOWN();
   }
 }
-
 
 TEST(fcvtas) {
   INIT_V8();
   SETUP();
+
+  int64_t scratch = 0;
+  uintptr_t scratch_base = reinterpret_cast<uintptr_t>(&scratch);
 
   START();
   __ Fmov(s0, 1.0);
@@ -7112,7 +10475,7 @@ TEST(fcvtas) {
   __ Fmov(s3, -2.5);
   __ Fmov(s4, kFP32PositiveInfinity);
   __ Fmov(s5, kFP32NegativeInfinity);
-  __ Fmov(s6, 0x7fffff80);  // Largest float < INT32_MAX.
+  __ Fmov(s6, 0x7FFFFF80);  // Largest float < INT32_MAX.
   __ Fneg(s7, s6);          // Smallest float > INT32_MIN.
   __ Fmov(d8, 1.0);
   __ Fmov(d9, 1.1);
@@ -7122,19 +10485,19 @@ TEST(fcvtas) {
   __ Fmov(d13, kFP64NegativeInfinity);
   __ Fmov(d14, kWMaxInt - 1);
   __ Fmov(d15, kWMinInt + 1);
+  __ Fmov(s16, 2.5);
   __ Fmov(s17, 1.1);
-  __ Fmov(s18, 2.5);
   __ Fmov(s19, -2.5);
   __ Fmov(s20, kFP32PositiveInfinity);
   __ Fmov(s21, kFP32NegativeInfinity);
-  __ Fmov(s22, 0x7fffff8000000000UL);   // Largest float < INT64_MAX.
+  __ Fmov(s22, 0x7FFFFF8000000000UL);   // Largest float < INT64_MAX.
   __ Fneg(s23, s22);                    // Smallest float > INT64_MIN.
   __ Fmov(d24, 1.1);
   __ Fmov(d25, 2.5);
   __ Fmov(d26, -2.5);
   __ Fmov(d27, kFP64PositiveInfinity);
   __ Fmov(d28, kFP64NegativeInfinity);
-  __ Fmov(d29, 0x7ffffffffffffc00UL);   // Largest double < INT64_MAX.
+  __ Fmov(d29, 0x7FFFFFFFFFFFFC00UL);   // Largest double < INT64_MAX.
   __ Fneg(d30, d29);                    // Smallest double > INT64_MIN.
 
   __ Fcvtas(w0, s0);
@@ -7154,7 +10517,6 @@ TEST(fcvtas) {
   __ Fcvtas(w14, d14);
   __ Fcvtas(w15, d15);
   __ Fcvtas(x17, s17);
-  __ Fcvtas(x18, s18);
   __ Fcvtas(x19, s19);
   __ Fcvtas(x20, s20);
   __ Fcvtas(x21, s21);
@@ -7165,6 +10527,12 @@ TEST(fcvtas) {
   __ Fcvtas(x26, d26);
   __ Fcvtas(x27, d27);
   __ Fcvtas(x28, d28);
+
+  // Save results to the scratch memory, for those that don't fit in registers.
+  __ Mov(x30, scratch_base);
+  __ Fcvtas(x29, s16);
+  __ Str(x29, MemOperand(x30));
+
   __ Fcvtas(x29, d29);
   __ Fcvtas(x30, d30);
   END();
@@ -7174,37 +10542,34 @@ TEST(fcvtas) {
   CHECK_EQUAL_64(1, x0);
   CHECK_EQUAL_64(1, x1);
   CHECK_EQUAL_64(3, x2);
-  CHECK_EQUAL_64(0xfffffffd, x3);
-  CHECK_EQUAL_64(0x7fffffff, x4);
+  CHECK_EQUAL_64(0xFFFFFFFD, x3);
+  CHECK_EQUAL_64(0x7FFFFFFF, x4);
   CHECK_EQUAL_64(0x80000000, x5);
-  CHECK_EQUAL_64(0x7fffff80, x6);
+  CHECK_EQUAL_64(0x7FFFFF80, x6);
   CHECK_EQUAL_64(0x80000080, x7);
   CHECK_EQUAL_64(1, x8);
   CHECK_EQUAL_64(1, x9);
   CHECK_EQUAL_64(3, x10);
-  CHECK_EQUAL_64(0xfffffffd, x11);
-  CHECK_EQUAL_64(0x7fffffff, x12);
+  CHECK_EQUAL_64(0xFFFFFFFD, x11);
+  CHECK_EQUAL_64(0x7FFFFFFF, x12);
   CHECK_EQUAL_64(0x80000000, x13);
-  CHECK_EQUAL_64(0x7ffffffe, x14);
+  CHECK_EQUAL_64(0x7FFFFFFE, x14);
   CHECK_EQUAL_64(0x80000001, x15);
+  CHECK_EQUAL_64(3, scratch);
   CHECK_EQUAL_64(1, x17);
-  CHECK_EQUAL_64(3, x18);
-  CHECK_EQUAL_64(0xfffffffffffffffdUL, x19);
-  CHECK_EQUAL_64(0x7fffffffffffffffUL, x20);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFDUL, x19);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFFFFUL, x20);
   CHECK_EQUAL_64(0x8000000000000000UL, x21);
-  CHECK_EQUAL_64(0x7fffff8000000000UL, x22);
+  CHECK_EQUAL_64(0x7FFFFF8000000000UL, x22);
   CHECK_EQUAL_64(0x8000008000000000UL, x23);
   CHECK_EQUAL_64(1, x24);
   CHECK_EQUAL_64(3, x25);
-  CHECK_EQUAL_64(0xfffffffffffffffdUL, x26);
-  CHECK_EQUAL_64(0x7fffffffffffffffUL, x27);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFDUL, x26);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFFFFUL, x27);
   CHECK_EQUAL_64(0x8000000000000000UL, x28);
-  CHECK_EQUAL_64(0x7ffffffffffffc00UL, x29);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFC00UL, x29);
   CHECK_EQUAL_64(0x8000000000000400UL, x30);
-
-  TEARDOWN();
 }
-
 
 TEST(fcvtau) {
   INIT_V8();
@@ -7217,27 +10582,27 @@ TEST(fcvtau) {
   __ Fmov(s3, -2.5);
   __ Fmov(s4, kFP32PositiveInfinity);
   __ Fmov(s5, kFP32NegativeInfinity);
-  __ Fmov(s6, 0xffffff00);  // Largest float < UINT32_MAX.
+  __ Fmov(s6, 0xFFFFFF00);  // Largest float < UINT32_MAX.
   __ Fmov(d8, 1.0);
   __ Fmov(d9, 1.1);
   __ Fmov(d10, 2.5);
   __ Fmov(d11, -2.5);
   __ Fmov(d12, kFP64PositiveInfinity);
   __ Fmov(d13, kFP64NegativeInfinity);
-  __ Fmov(d14, 0xfffffffe);
+  __ Fmov(d14, 0xFFFFFFFE);
   __ Fmov(s16, 1.0);
   __ Fmov(s17, 1.1);
   __ Fmov(s18, 2.5);
   __ Fmov(s19, -2.5);
   __ Fmov(s20, kFP32PositiveInfinity);
   __ Fmov(s21, kFP32NegativeInfinity);
-  __ Fmov(s22, 0xffffff0000000000UL);  // Largest float < UINT64_MAX.
+  __ Fmov(s22, 0xFFFFFF0000000000UL);  // Largest float < UINT64_MAX.
   __ Fmov(d24, 1.1);
   __ Fmov(d25, 2.5);
   __ Fmov(d26, -2.5);
   __ Fmov(d27, kFP64PositiveInfinity);
   __ Fmov(d28, kFP64NegativeInfinity);
-  __ Fmov(d29, 0xfffffffffffff800UL);  // Largest double < UINT64_MAX.
+  __ Fmov(d29, 0xFFFFFFFFFFFFF800UL);  // Largest double < UINT64_MAX.
   __ Fmov(s30, 0x100000000UL);
 
   __ Fcvtau(w0, s0);
@@ -7257,7 +10622,7 @@ TEST(fcvtau) {
   __ Fcvtau(w15, d15);
   __ Fcvtau(x16, s16);
   __ Fcvtau(x17, s17);
-  __ Fcvtau(x18, s18);
+  __ Fcvtau(x7, s18);
   __ Fcvtau(x19, s19);
   __ Fcvtau(x20, s20);
   __ Fcvtau(x21, s21);
@@ -7277,38 +10642,38 @@ TEST(fcvtau) {
   CHECK_EQUAL_64(1, x1);
   CHECK_EQUAL_64(3, x2);
   CHECK_EQUAL_64(0, x3);
-  CHECK_EQUAL_64(0xffffffff, x4);
+  CHECK_EQUAL_64(0xFFFFFFFF, x4);
   CHECK_EQUAL_64(0, x5);
-  CHECK_EQUAL_64(0xffffff00, x6);
+  CHECK_EQUAL_64(0xFFFFFF00, x6);
   CHECK_EQUAL_64(1, x8);
   CHECK_EQUAL_64(1, x9);
   CHECK_EQUAL_64(3, x10);
   CHECK_EQUAL_64(0, x11);
-  CHECK_EQUAL_64(0xffffffff, x12);
+  CHECK_EQUAL_64(0xFFFFFFFF, x12);
   CHECK_EQUAL_64(0, x13);
-  CHECK_EQUAL_64(0xfffffffe, x14);
+  CHECK_EQUAL_64(0xFFFFFFFE, x14);
   CHECK_EQUAL_64(1, x16);
   CHECK_EQUAL_64(1, x17);
-  CHECK_EQUAL_64(3, x18);
+  CHECK_EQUAL_64(3, x7);
   CHECK_EQUAL_64(0, x19);
-  CHECK_EQUAL_64(0xffffffffffffffffUL, x20);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x20);
   CHECK_EQUAL_64(0, x21);
-  CHECK_EQUAL_64(0xffffff0000000000UL, x22);
+  CHECK_EQUAL_64(0xFFFFFF0000000000UL, x22);
   CHECK_EQUAL_64(1, x24);
   CHECK_EQUAL_64(3, x25);
   CHECK_EQUAL_64(0, x26);
-  CHECK_EQUAL_64(0xffffffffffffffffUL, x27);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x27);
   CHECK_EQUAL_64(0, x28);
-  CHECK_EQUAL_64(0xfffffffffffff800UL, x29);
-  CHECK_EQUAL_64(0xffffffff, x30);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFF800UL, x29);
+  CHECK_EQUAL_64(0xFFFFFFFF, x30);
 }
-
 
 TEST(fcvtms) {
   INIT_V8();
   SETUP();
+
+  int64_t scratch = 0;
+  uintptr_t scratch_base = reinterpret_cast<uintptr_t>(&scratch);
 
   START();
   __ Fmov(s0, 1.0);
@@ -7317,7 +10682,7 @@ TEST(fcvtms) {
   __ Fmov(s3, -1.5);
   __ Fmov(s4, kFP32PositiveInfinity);
   __ Fmov(s5, kFP32NegativeInfinity);
-  __ Fmov(s6, 0x7fffff80);  // Largest float < INT32_MAX.
+  __ Fmov(s6, 0x7FFFFF80);  // Largest float < INT32_MAX.
   __ Fneg(s7, s6);          // Smallest float > INT32_MIN.
   __ Fmov(d8, 1.0);
   __ Fmov(d9, 1.1);
@@ -7327,19 +10692,19 @@ TEST(fcvtms) {
   __ Fmov(d13, kFP64NegativeInfinity);
   __ Fmov(d14, kWMaxInt - 1);
   __ Fmov(d15, kWMinInt + 1);
+  __ Fmov(s16, 1.5);
   __ Fmov(s17, 1.1);
-  __ Fmov(s18, 1.5);
   __ Fmov(s19, -1.5);
   __ Fmov(s20, kFP32PositiveInfinity);
   __ Fmov(s21, kFP32NegativeInfinity);
-  __ Fmov(s22, 0x7fffff8000000000UL);   // Largest float < INT64_MAX.
+  __ Fmov(s22, 0x7FFFFF8000000000UL);   // Largest float < INT64_MAX.
   __ Fneg(s23, s22);                    // Smallest float > INT64_MIN.
   __ Fmov(d24, 1.1);
   __ Fmov(d25, 1.5);
   __ Fmov(d26, -1.5);
   __ Fmov(d27, kFP64PositiveInfinity);
   __ Fmov(d28, kFP64NegativeInfinity);
-  __ Fmov(d29, 0x7ffffffffffffc00UL);   // Largest double < INT64_MAX.
+  __ Fmov(d29, 0x7FFFFFFFFFFFFC00UL);   // Largest double < INT64_MAX.
   __ Fneg(d30, d29);                    // Smallest double > INT64_MIN.
 
   __ Fcvtms(w0, s0);
@@ -7359,7 +10724,6 @@ TEST(fcvtms) {
   __ Fcvtms(w14, d14);
   __ Fcvtms(w15, d15);
   __ Fcvtms(x17, s17);
-  __ Fcvtms(x18, s18);
   __ Fcvtms(x19, s19);
   __ Fcvtms(x20, s20);
   __ Fcvtms(x21, s21);
@@ -7370,6 +10734,12 @@ TEST(fcvtms) {
   __ Fcvtms(x26, d26);
   __ Fcvtms(x27, d27);
   __ Fcvtms(x28, d28);
+
+  // Save results to the scratch memory, for those that don't fit in registers.
+  __ Mov(x30, scratch_base);
+  __ Fcvtms(x29, s16);
+  __ Str(x29, MemOperand(x30));
+
   __ Fcvtms(x29, d29);
   __ Fcvtms(x30, d30);
   END();
@@ -7379,41 +10749,41 @@ TEST(fcvtms) {
   CHECK_EQUAL_64(1, x0);
   CHECK_EQUAL_64(1, x1);
   CHECK_EQUAL_64(1, x2);
-  CHECK_EQUAL_64(0xfffffffe, x3);
-  CHECK_EQUAL_64(0x7fffffff, x4);
+  CHECK_EQUAL_64(0xFFFFFFFE, x3);
+  CHECK_EQUAL_64(0x7FFFFFFF, x4);
   CHECK_EQUAL_64(0x80000000, x5);
-  CHECK_EQUAL_64(0x7fffff80, x6);
+  CHECK_EQUAL_64(0x7FFFFF80, x6);
   CHECK_EQUAL_64(0x80000080, x7);
   CHECK_EQUAL_64(1, x8);
   CHECK_EQUAL_64(1, x9);
   CHECK_EQUAL_64(1, x10);
-  CHECK_EQUAL_64(0xfffffffe, x11);
-  CHECK_EQUAL_64(0x7fffffff, x12);
+  CHECK_EQUAL_64(0xFFFFFFFE, x11);
+  CHECK_EQUAL_64(0x7FFFFFFF, x12);
   CHECK_EQUAL_64(0x80000000, x13);
-  CHECK_EQUAL_64(0x7ffffffe, x14);
+  CHECK_EQUAL_64(0x7FFFFFFE, x14);
   CHECK_EQUAL_64(0x80000001, x15);
+  CHECK_EQUAL_64(1, scratch);
   CHECK_EQUAL_64(1, x17);
-  CHECK_EQUAL_64(1, x18);
-  CHECK_EQUAL_64(0xfffffffffffffffeUL, x19);
-  CHECK_EQUAL_64(0x7fffffffffffffffUL, x20);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFEUL, x19);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFFFFUL, x20);
   CHECK_EQUAL_64(0x8000000000000000UL, x21);
-  CHECK_EQUAL_64(0x7fffff8000000000UL, x22);
+  CHECK_EQUAL_64(0x7FFFFF8000000000UL, x22);
   CHECK_EQUAL_64(0x8000008000000000UL, x23);
   CHECK_EQUAL_64(1, x24);
   CHECK_EQUAL_64(1, x25);
-  CHECK_EQUAL_64(0xfffffffffffffffeUL, x26);
-  CHECK_EQUAL_64(0x7fffffffffffffffUL, x27);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFEUL, x26);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFFFFUL, x27);
   CHECK_EQUAL_64(0x8000000000000000UL, x28);
-  CHECK_EQUAL_64(0x7ffffffffffffc00UL, x29);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFC00UL, x29);
   CHECK_EQUAL_64(0x8000000000000400UL, x30);
-
-  TEARDOWN();
 }
-
 
 TEST(fcvtmu) {
   INIT_V8();
   SETUP();
+
+  int64_t scratch = 0;
+  uintptr_t scratch_base = reinterpret_cast<uintptr_t>(&scratch);
 
   START();
   __ Fmov(s0, 1.0);
@@ -7422,7 +10792,7 @@ TEST(fcvtmu) {
   __ Fmov(s3, -1.5);
   __ Fmov(s4, kFP32PositiveInfinity);
   __ Fmov(s5, kFP32NegativeInfinity);
-  __ Fmov(s6, 0x7fffff80);  // Largest float < INT32_MAX.
+  __ Fmov(s6, 0x7FFFFF80);  // Largest float < INT32_MAX.
   __ Fneg(s7, s6);          // Smallest float > INT32_MIN.
   __ Fmov(d8, 1.0);
   __ Fmov(d9, 1.1);
@@ -7432,19 +10802,19 @@ TEST(fcvtmu) {
   __ Fmov(d13, kFP64NegativeInfinity);
   __ Fmov(d14, kWMaxInt - 1);
   __ Fmov(d15, kWMinInt + 1);
+  __ Fmov(s16, 1.5);
   __ Fmov(s17, 1.1);
-  __ Fmov(s18, 1.5);
   __ Fmov(s19, -1.5);
   __ Fmov(s20, kFP32PositiveInfinity);
   __ Fmov(s21, kFP32NegativeInfinity);
-  __ Fmov(s22, 0x7fffff8000000000UL);   // Largest float < INT64_MAX.
+  __ Fmov(s22, 0x7FFFFF8000000000UL);   // Largest float < INT64_MAX.
   __ Fneg(s23, s22);                    // Smallest float > INT64_MIN.
   __ Fmov(d24, 1.1);
   __ Fmov(d25, 1.5);
   __ Fmov(d26, -1.5);
   __ Fmov(d27, kFP64PositiveInfinity);
   __ Fmov(d28, kFP64NegativeInfinity);
-  __ Fmov(d29, 0x7ffffffffffffc00UL);   // Largest double < INT64_MAX.
+  __ Fmov(d29, 0x7FFFFFFFFFFFFC00UL);   // Largest double < INT64_MAX.
   __ Fneg(d30, d29);                    // Smallest double > INT64_MIN.
 
   __ Fcvtmu(w0, s0);
@@ -7462,8 +10832,8 @@ TEST(fcvtmu) {
   __ Fcvtmu(w12, d12);
   __ Fcvtmu(w13, d13);
   __ Fcvtmu(w14, d14);
+  __ Fcvtmu(w15, d15);
   __ Fcvtmu(x17, s17);
-  __ Fcvtmu(x18, s18);
   __ Fcvtmu(x19, s19);
   __ Fcvtmu(x20, s20);
   __ Fcvtmu(x21, s21);
@@ -7474,6 +10844,12 @@ TEST(fcvtmu) {
   __ Fcvtmu(x26, d26);
   __ Fcvtmu(x27, d27);
   __ Fcvtmu(x28, d28);
+
+  // Save results to the scratch memory, for those that don't fit in registers.
+  __ Mov(x30, scratch_base);
+  __ Fcvtmu(x29, s16);
+  __ Str(x29, MemOperand(x30));
+
   __ Fcvtmu(x29, d29);
   __ Fcvtmu(x30, d30);
   END();
@@ -7484,39 +10860,40 @@ TEST(fcvtmu) {
   CHECK_EQUAL_64(1, x1);
   CHECK_EQUAL_64(1, x2);
   CHECK_EQUAL_64(0, x3);
-  CHECK_EQUAL_64(0xffffffff, x4);
+  CHECK_EQUAL_64(0xFFFFFFFF, x4);
   CHECK_EQUAL_64(0, x5);
-  CHECK_EQUAL_64(0x7fffff80, x6);
+  CHECK_EQUAL_64(0x7FFFFF80, x6);
   CHECK_EQUAL_64(0, x7);
   CHECK_EQUAL_64(1, x8);
   CHECK_EQUAL_64(1, x9);
   CHECK_EQUAL_64(1, x10);
   CHECK_EQUAL_64(0, x11);
-  CHECK_EQUAL_64(0xffffffff, x12);
+  CHECK_EQUAL_64(0xFFFFFFFF, x12);
   CHECK_EQUAL_64(0, x13);
-  CHECK_EQUAL_64(0x7ffffffe, x14);
+  CHECK_EQUAL_64(0x7FFFFFFE, x14);
+  CHECK_EQUAL_64(0x0, x15);
+  CHECK_EQUAL_64(1, scratch);
   CHECK_EQUAL_64(1, x17);
-  CHECK_EQUAL_64(1, x18);
   CHECK_EQUAL_64(0x0UL, x19);
-  CHECK_EQUAL_64(0xffffffffffffffffUL, x20);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x20);
   CHECK_EQUAL_64(0x0UL, x21);
-  CHECK_EQUAL_64(0x7fffff8000000000UL, x22);
+  CHECK_EQUAL_64(0x7FFFFF8000000000UL, x22);
   CHECK_EQUAL_64(0x0UL, x23);
   CHECK_EQUAL_64(1, x24);
   CHECK_EQUAL_64(1, x25);
   CHECK_EQUAL_64(0x0UL, x26);
-  CHECK_EQUAL_64(0xffffffffffffffffUL, x27);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x27);
   CHECK_EQUAL_64(0x0UL, x28);
-  CHECK_EQUAL_64(0x7ffffffffffffc00UL, x29);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFC00UL, x29);
   CHECK_EQUAL_64(0x0UL, x30);
-
-  TEARDOWN();
 }
-
 
 TEST(fcvtns) {
   INIT_V8();
   SETUP();
+
+  int64_t scratch = 0;
+  uintptr_t scratch_base = reinterpret_cast<uintptr_t>(&scratch);
 
   START();
   __ Fmov(s0, 1.0);
@@ -7525,7 +10902,7 @@ TEST(fcvtns) {
   __ Fmov(s3, -1.5);
   __ Fmov(s4, kFP32PositiveInfinity);
   __ Fmov(s5, kFP32NegativeInfinity);
-  __ Fmov(s6, 0x7fffff80);  // Largest float < INT32_MAX.
+  __ Fmov(s6, 0x7FFFFF80);  // Largest float < INT32_MAX.
   __ Fneg(s7, s6);          // Smallest float > INT32_MIN.
   __ Fmov(d8, 1.0);
   __ Fmov(d9, 1.1);
@@ -7535,19 +10912,19 @@ TEST(fcvtns) {
   __ Fmov(d13, kFP64NegativeInfinity);
   __ Fmov(d14, kWMaxInt - 1);
   __ Fmov(d15, kWMinInt + 1);
+  __ Fmov(s16, 1.5);
   __ Fmov(s17, 1.1);
-  __ Fmov(s18, 1.5);
   __ Fmov(s19, -1.5);
   __ Fmov(s20, kFP32PositiveInfinity);
   __ Fmov(s21, kFP32NegativeInfinity);
-  __ Fmov(s22, 0x7fffff8000000000UL);   // Largest float < INT64_MAX.
+  __ Fmov(s22, 0x7FFFFF8000000000UL);   // Largest float < INT64_MAX.
   __ Fneg(s23, s22);                    // Smallest float > INT64_MIN.
   __ Fmov(d24, 1.1);
   __ Fmov(d25, 1.5);
   __ Fmov(d26, -1.5);
   __ Fmov(d27, kFP64PositiveInfinity);
   __ Fmov(d28, kFP64NegativeInfinity);
-  __ Fmov(d29, 0x7ffffffffffffc00UL);   // Largest double < INT64_MAX.
+  __ Fmov(d29, 0x7FFFFFFFFFFFFC00UL);   // Largest double < INT64_MAX.
   __ Fneg(d30, d29);                    // Smallest double > INT64_MIN.
 
   __ Fcvtns(w0, s0);
@@ -7567,7 +10944,6 @@ TEST(fcvtns) {
   __ Fcvtns(w14, d14);
   __ Fcvtns(w15, d15);
   __ Fcvtns(x17, s17);
-  __ Fcvtns(x18, s18);
   __ Fcvtns(x19, s19);
   __ Fcvtns(x20, s20);
   __ Fcvtns(x21, s21);
@@ -7578,6 +10954,12 @@ TEST(fcvtns) {
   __ Fcvtns(x26, d26);
   __ Fcvtns(x27, d27);
 //  __ Fcvtns(x28, d28);
+
+  // Save results to the scratch memory, for those that don't fit in registers.
+  __ Mov(x30, scratch_base);
+  __ Fcvtns(x29, s16);
+  __ Str(x29, MemOperand(x30));
+
   __ Fcvtns(x29, d29);
   __ Fcvtns(x30, d30);
   END();
@@ -7587,37 +10969,34 @@ TEST(fcvtns) {
   CHECK_EQUAL_64(1, x0);
   CHECK_EQUAL_64(1, x1);
   CHECK_EQUAL_64(2, x2);
-  CHECK_EQUAL_64(0xfffffffe, x3);
-  CHECK_EQUAL_64(0x7fffffff, x4);
+  CHECK_EQUAL_64(0xFFFFFFFE, x3);
+  CHECK_EQUAL_64(0x7FFFFFFF, x4);
   CHECK_EQUAL_64(0x80000000, x5);
-  CHECK_EQUAL_64(0x7fffff80, x6);
+  CHECK_EQUAL_64(0x7FFFFF80, x6);
   CHECK_EQUAL_64(0x80000080, x7);
   CHECK_EQUAL_64(1, x8);
   CHECK_EQUAL_64(1, x9);
   CHECK_EQUAL_64(2, x10);
-  CHECK_EQUAL_64(0xfffffffe, x11);
-  CHECK_EQUAL_64(0x7fffffff, x12);
+  CHECK_EQUAL_64(0xFFFFFFFE, x11);
+  CHECK_EQUAL_64(0x7FFFFFFF, x12);
   CHECK_EQUAL_64(0x80000000, x13);
-  CHECK_EQUAL_64(0x7ffffffe, x14);
+  CHECK_EQUAL_64(0x7FFFFFFE, x14);
   CHECK_EQUAL_64(0x80000001, x15);
+  CHECK_EQUAL_64(2, scratch);
   CHECK_EQUAL_64(1, x17);
-  CHECK_EQUAL_64(2, x18);
-  CHECK_EQUAL_64(0xfffffffffffffffeUL, x19);
-  CHECK_EQUAL_64(0x7fffffffffffffffUL, x20);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFEUL, x19);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFFFFUL, x20);
   CHECK_EQUAL_64(0x8000000000000000UL, x21);
-  CHECK_EQUAL_64(0x7fffff8000000000UL, x22);
+  CHECK_EQUAL_64(0x7FFFFF8000000000UL, x22);
   CHECK_EQUAL_64(0x8000008000000000UL, x23);
   CHECK_EQUAL_64(1, x24);
   CHECK_EQUAL_64(2, x25);
-  CHECK_EQUAL_64(0xfffffffffffffffeUL, x26);
-  CHECK_EQUAL_64(0x7fffffffffffffffUL, x27);
-//  CHECK_EQUAL_64(0x8000000000000000UL, x28);
-  CHECK_EQUAL_64(0x7ffffffffffffc00UL, x29);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFEUL, x26);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFFFFUL, x27);
+  //  CHECK_EQUAL_64(0x8000000000000000UL, x28);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFC00UL, x29);
   CHECK_EQUAL_64(0x8000000000000400UL, x30);
-
-  TEARDOWN();
 }
-
 
 TEST(fcvtnu) {
   INIT_V8();
@@ -7630,27 +11009,27 @@ TEST(fcvtnu) {
   __ Fmov(s3, -1.5);
   __ Fmov(s4, kFP32PositiveInfinity);
   __ Fmov(s5, kFP32NegativeInfinity);
-  __ Fmov(s6, 0xffffff00);  // Largest float < UINT32_MAX.
+  __ Fmov(s6, 0xFFFFFF00);  // Largest float < UINT32_MAX.
+  __ Fmov(s7, 1.5);
   __ Fmov(d8, 1.0);
   __ Fmov(d9, 1.1);
   __ Fmov(d10, 1.5);
   __ Fmov(d11, -1.5);
   __ Fmov(d12, kFP64PositiveInfinity);
   __ Fmov(d13, kFP64NegativeInfinity);
-  __ Fmov(d14, 0xfffffffe);
+  __ Fmov(d14, 0xFFFFFFFE);
   __ Fmov(s16, 1.0);
   __ Fmov(s17, 1.1);
-  __ Fmov(s18, 1.5);
   __ Fmov(s19, -1.5);
   __ Fmov(s20, kFP32PositiveInfinity);
   __ Fmov(s21, kFP32NegativeInfinity);
-  __ Fmov(s22, 0xffffff0000000000UL);   // Largest float < UINT64_MAX.
+  __ Fmov(s22, 0xFFFFFF0000000000UL);  // Largest float < UINT64_MAX.
   __ Fmov(d24, 1.1);
   __ Fmov(d25, 1.5);
   __ Fmov(d26, -1.5);
   __ Fmov(d27, kFP64PositiveInfinity);
   __ Fmov(d28, kFP64NegativeInfinity);
-  __ Fmov(d29, 0xfffffffffffff800UL);   // Largest double < UINT64_MAX.
+  __ Fmov(d29, 0xFFFFFFFFFFFFF800UL);  // Largest double < UINT64_MAX.
   __ Fmov(s30, 0x100000000UL);
 
   __ Fcvtnu(w0, s0);
@@ -7660,6 +11039,7 @@ TEST(fcvtnu) {
   __ Fcvtnu(w4, s4);
   __ Fcvtnu(w5, s5);
   __ Fcvtnu(w6, s6);
+  __ Fcvtnu(x7, s7);
   __ Fcvtnu(w8, d8);
   __ Fcvtnu(w9, d9);
   __ Fcvtnu(w10, d10);
@@ -7670,7 +11050,6 @@ TEST(fcvtnu) {
   __ Fcvtnu(w15, d15);
   __ Fcvtnu(x16, s16);
   __ Fcvtnu(x17, s17);
-  __ Fcvtnu(x18, s18);
   __ Fcvtnu(x19, s19);
   __ Fcvtnu(x20, s20);
   __ Fcvtnu(x21, s21);
@@ -7690,38 +11069,38 @@ TEST(fcvtnu) {
   CHECK_EQUAL_64(1, x1);
   CHECK_EQUAL_64(2, x2);
   CHECK_EQUAL_64(0, x3);
-  CHECK_EQUAL_64(0xffffffff, x4);
+  CHECK_EQUAL_64(0xFFFFFFFF, x4);
   CHECK_EQUAL_64(0, x5);
-  CHECK_EQUAL_64(0xffffff00, x6);
+  CHECK_EQUAL_64(0xFFFFFF00, x6);
+  CHECK_EQUAL_64(2, x7);
   CHECK_EQUAL_64(1, x8);
   CHECK_EQUAL_64(1, x9);
   CHECK_EQUAL_64(2, x10);
   CHECK_EQUAL_64(0, x11);
-  CHECK_EQUAL_64(0xffffffff, x12);
+  CHECK_EQUAL_64(0xFFFFFFFF, x12);
   CHECK_EQUAL_64(0, x13);
-  CHECK_EQUAL_64(0xfffffffe, x14);
+  CHECK_EQUAL_64(0xFFFFFFFE, x14);
   CHECK_EQUAL_64(1, x16);
   CHECK_EQUAL_64(1, x17);
-  CHECK_EQUAL_64(2, x18);
   CHECK_EQUAL_64(0, x19);
-  CHECK_EQUAL_64(0xffffffffffffffffUL, x20);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x20);
   CHECK_EQUAL_64(0, x21);
-  CHECK_EQUAL_64(0xffffff0000000000UL, x22);
+  CHECK_EQUAL_64(0xFFFFFF0000000000UL, x22);
   CHECK_EQUAL_64(1, x24);
   CHECK_EQUAL_64(2, x25);
   CHECK_EQUAL_64(0, x26);
-  CHECK_EQUAL_64(0xffffffffffffffffUL, x27);
-//  CHECK_EQUAL_64(0, x28);
-  CHECK_EQUAL_64(0xfffffffffffff800UL, x29);
-  CHECK_EQUAL_64(0xffffffff, x30);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x27);
+  //  CHECK_EQUAL_64(0, x28);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFF800UL, x29);
+  CHECK_EQUAL_64(0xFFFFFFFF, x30);
 }
-
 
 TEST(fcvtzs) {
   INIT_V8();
   SETUP();
+
+  int64_t scratch = 0;
+  uintptr_t scratch_base = reinterpret_cast<uintptr_t>(&scratch);
 
   START();
   __ Fmov(s0, 1.0);
@@ -7730,7 +11109,7 @@ TEST(fcvtzs) {
   __ Fmov(s3, -1.5);
   __ Fmov(s4, kFP32PositiveInfinity);
   __ Fmov(s5, kFP32NegativeInfinity);
-  __ Fmov(s6, 0x7fffff80);  // Largest float < INT32_MAX.
+  __ Fmov(s6, 0x7FFFFF80);  // Largest float < INT32_MAX.
   __ Fneg(s7, s6);          // Smallest float > INT32_MIN.
   __ Fmov(d8, 1.0);
   __ Fmov(d9, 1.1);
@@ -7740,19 +11119,19 @@ TEST(fcvtzs) {
   __ Fmov(d13, kFP64NegativeInfinity);
   __ Fmov(d14, kWMaxInt - 1);
   __ Fmov(d15, kWMinInt + 1);
+  __ Fmov(s16, 1.5);
   __ Fmov(s17, 1.1);
-  __ Fmov(s18, 1.5);
   __ Fmov(s19, -1.5);
   __ Fmov(s20, kFP32PositiveInfinity);
   __ Fmov(s21, kFP32NegativeInfinity);
-  __ Fmov(s22, 0x7fffff8000000000UL);   // Largest float < INT64_MAX.
+  __ Fmov(s22, 0x7FFFFF8000000000UL);   // Largest float < INT64_MAX.
   __ Fneg(s23, s22);                    // Smallest float > INT64_MIN.
   __ Fmov(d24, 1.1);
   __ Fmov(d25, 1.5);
   __ Fmov(d26, -1.5);
   __ Fmov(d27, kFP64PositiveInfinity);
   __ Fmov(d28, kFP64NegativeInfinity);
-  __ Fmov(d29, 0x7ffffffffffffc00UL);   // Largest double < INT64_MAX.
+  __ Fmov(d29, 0x7FFFFFFFFFFFFC00UL);   // Largest double < INT64_MAX.
   __ Fneg(d30, d29);                    // Smallest double > INT64_MIN.
 
   __ Fcvtzs(w0, s0);
@@ -7772,7 +11151,6 @@ TEST(fcvtzs) {
   __ Fcvtzs(w14, d14);
   __ Fcvtzs(w15, d15);
   __ Fcvtzs(x17, s17);
-  __ Fcvtzs(x18, s18);
   __ Fcvtzs(x19, s19);
   __ Fcvtzs(x20, s20);
   __ Fcvtzs(x21, s21);
@@ -7783,6 +11161,12 @@ TEST(fcvtzs) {
   __ Fcvtzs(x26, d26);
   __ Fcvtzs(x27, d27);
   __ Fcvtzs(x28, d28);
+
+  // Save results to the scratch memory, for those that don't fit in registers.
+  __ Mov(x30, scratch_base);
+  __ Fcvtmu(x29, s16);
+  __ Str(x29, MemOperand(x30));
+
   __ Fcvtzs(x29, d29);
   __ Fcvtzs(x30, d30);
   END();
@@ -7792,41 +11176,145 @@ TEST(fcvtzs) {
   CHECK_EQUAL_64(1, x0);
   CHECK_EQUAL_64(1, x1);
   CHECK_EQUAL_64(1, x2);
-  CHECK_EQUAL_64(0xffffffff, x3);
-  CHECK_EQUAL_64(0x7fffffff, x4);
+  CHECK_EQUAL_64(0xFFFFFFFF, x3);
+  CHECK_EQUAL_64(0x7FFFFFFF, x4);
   CHECK_EQUAL_64(0x80000000, x5);
-  CHECK_EQUAL_64(0x7fffff80, x6);
+  CHECK_EQUAL_64(0x7FFFFF80, x6);
   CHECK_EQUAL_64(0x80000080, x7);
   CHECK_EQUAL_64(1, x8);
   CHECK_EQUAL_64(1, x9);
   CHECK_EQUAL_64(1, x10);
-  CHECK_EQUAL_64(0xffffffff, x11);
-  CHECK_EQUAL_64(0x7fffffff, x12);
+  CHECK_EQUAL_64(0xFFFFFFFF, x11);
+  CHECK_EQUAL_64(0x7FFFFFFF, x12);
   CHECK_EQUAL_64(0x80000000, x13);
-  CHECK_EQUAL_64(0x7ffffffe, x14);
+  CHECK_EQUAL_64(0x7FFFFFFE, x14);
   CHECK_EQUAL_64(0x80000001, x15);
+  CHECK_EQUAL_64(1, scratch);
   CHECK_EQUAL_64(1, x17);
-  CHECK_EQUAL_64(1, x18);
-  CHECK_EQUAL_64(0xffffffffffffffffUL, x19);
-  CHECK_EQUAL_64(0x7fffffffffffffffUL, x20);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x19);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFFFFUL, x20);
   CHECK_EQUAL_64(0x8000000000000000UL, x21);
-  CHECK_EQUAL_64(0x7fffff8000000000UL, x22);
+  CHECK_EQUAL_64(0x7FFFFF8000000000UL, x22);
   CHECK_EQUAL_64(0x8000008000000000UL, x23);
   CHECK_EQUAL_64(1, x24);
   CHECK_EQUAL_64(1, x25);
-  CHECK_EQUAL_64(0xffffffffffffffffUL, x26);
-  CHECK_EQUAL_64(0x7fffffffffffffffUL, x27);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x26);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFFFFUL, x27);
   CHECK_EQUAL_64(0x8000000000000000UL, x28);
-  CHECK_EQUAL_64(0x7ffffffffffffc00UL, x29);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFC00UL, x29);
   CHECK_EQUAL_64(0x8000000000000400UL, x30);
-
-  TEARDOWN();
 }
 
+static void FjcvtzsHelper(uint64_t value, uint64_t expected,
+                          uint32_t expected_z) {
+  SETUP();
+  START();
+  __ Fmov(d0, bit_cast<double>(value));
+  __ Fjcvtzs(w0, d0);
+  __ Mrs(x1, NZCV);
+  END();
+
+  if (CpuFeatures::IsSupported(JSCVT)) {
+    RUN();
+
+    CHECK_EQUAL_64(expected, x0);
+    CHECK_EQUAL_32(expected_z, w1);
+  }
+}
+
+TEST(fjcvtzs) {
+  // Simple values.
+  FjcvtzsHelper(0x0000000000000000, 0, ZFlag);   // 0.0
+  FjcvtzsHelper(0x0010000000000000, 0, NoFlag);  // The smallest normal value.
+  FjcvtzsHelper(0x3fdfffffffffffff, 0, NoFlag);  // The value just below 0.5.
+  FjcvtzsHelper(0x3fe0000000000000, 0, NoFlag);  // 0.5
+  FjcvtzsHelper(0x3fe0000000000001, 0, NoFlag);  // The value just above 0.5.
+  FjcvtzsHelper(0x3fefffffffffffff, 0, NoFlag);  // The value just below 1.0.
+  FjcvtzsHelper(0x3ff0000000000000, 1, ZFlag);   // 1.0
+  FjcvtzsHelper(0x3ff0000000000001, 1, NoFlag);  // The value just above 1.0.
+  FjcvtzsHelper(0x3ff8000000000000, 1, NoFlag);  // 1.5
+  FjcvtzsHelper(0x4024000000000000, 10, ZFlag);  // 10
+  FjcvtzsHelper(0x7fefffffffffffff, 0, NoFlag);  // The largest finite value.
+
+  // Infinity.
+  FjcvtzsHelper(0x7ff0000000000000, 0, NoFlag);
+
+  // NaNs.
+  //  - Quiet NaNs
+  FjcvtzsHelper(0x7ff923456789abcd, 0, NoFlag);
+  FjcvtzsHelper(0x7ff8000000000000, 0, NoFlag);
+  //  - Signalling NaNs
+  FjcvtzsHelper(0x7ff123456789abcd, 0, NoFlag);
+  FjcvtzsHelper(0x7ff0000000000001, 0, NoFlag);
+
+  // Subnormals.
+  //  - A recognisable bit pattern.
+  FjcvtzsHelper(0x000123456789abcd, 0, NoFlag);
+  //  - The largest subnormal value.
+  FjcvtzsHelper(0x000fffffffffffff, 0, NoFlag);
+  //  - The smallest subnormal value.
+  FjcvtzsHelper(0x0000000000000001, 0, NoFlag);
+
+  // The same values again, but negated.
+  FjcvtzsHelper(0x8000000000000000, 0, NoFlag);
+  FjcvtzsHelper(0x8010000000000000, 0, NoFlag);
+  FjcvtzsHelper(0xbfdfffffffffffff, 0, NoFlag);
+  FjcvtzsHelper(0xbfe0000000000000, 0, NoFlag);
+  FjcvtzsHelper(0xbfe0000000000001, 0, NoFlag);
+  FjcvtzsHelper(0xbfefffffffffffff, 0, NoFlag);
+  FjcvtzsHelper(0xbff0000000000000, 0xffffffff, ZFlag);
+  FjcvtzsHelper(0xbff0000000000001, 0xffffffff, NoFlag);
+  FjcvtzsHelper(0xbff8000000000000, 0xffffffff, NoFlag);
+  FjcvtzsHelper(0xc024000000000000, 0xfffffff6, ZFlag);
+  FjcvtzsHelper(0xffefffffffffffff, 0, NoFlag);
+  FjcvtzsHelper(0xfff0000000000000, 0, NoFlag);
+  FjcvtzsHelper(0xfff923456789abcd, 0, NoFlag);
+  FjcvtzsHelper(0xfff8000000000000, 0, NoFlag);
+  FjcvtzsHelper(0xfff123456789abcd, 0, NoFlag);
+  FjcvtzsHelper(0xfff0000000000001, 0, NoFlag);
+  FjcvtzsHelper(0x800123456789abcd, 0, NoFlag);
+  FjcvtzsHelper(0x800fffffffffffff, 0, NoFlag);
+  FjcvtzsHelper(0x8000000000000001, 0, NoFlag);
+  // Test floating-point numbers of every possible exponent, most of the
+  // expected values are zero but there is a range of exponents where the
+  // results are shifted parts of this mantissa.
+  uint64_t mantissa = 0x0001234567890abc;
+
+  // Between an exponent of 0 and 52, only some of the top bits of the
+  // mantissa are above the decimal position of doubles so the mantissa is
+  // shifted to the right down to just those top bits. Above 52, all bits
+  // of the mantissa are shifted left above the decimal position until it
+  // reaches 52 + 64 where all the bits are shifted out of the range of 64-bit
+  // integers.
+  int first_exp_boundary = 52;
+  int second_exp_boundary = first_exp_boundary + 64;
+  for (int exponent = 0; exponent < 2048; exponent++) {
+    int e = exponent - 1023;
+
+    uint64_t expected = 0;
+    if (e < 0) {
+      expected = 0;
+    } else if (e <= first_exp_boundary) {
+      expected = (UINT64_C(1) << e) | (mantissa >> (52 - e));
+      expected &= 0xffffffff;
+    } else if (e < second_exp_boundary) {
+      expected = (mantissa << (e - 52)) & 0xffffffff;
+    } else {
+      expected = 0;
+    }
+
+    uint64_t value = (static_cast<uint64_t>(exponent) << 52) | mantissa;
+    FjcvtzsHelper(value, expected, NoFlag);
+    FjcvtzsHelper(value | kDSignMask, (-expected) & 0xffffffff, NoFlag);
+  }
+}
 
 TEST(fcvtzu) {
   INIT_V8();
   SETUP();
+
+  int64_t scratch = 0;
+  uintptr_t scratch_base = reinterpret_cast<uintptr_t>(&scratch);
 
   START();
   __ Fmov(s0, 1.0);
@@ -7835,7 +11323,7 @@ TEST(fcvtzu) {
   __ Fmov(s3, -1.5);
   __ Fmov(s4, kFP32PositiveInfinity);
   __ Fmov(s5, kFP32NegativeInfinity);
-  __ Fmov(s6, 0x7fffff80);  // Largest float < INT32_MAX.
+  __ Fmov(s6, 0x7FFFFF80);  // Largest float < INT32_MAX.
   __ Fneg(s7, s6);          // Smallest float > INT32_MIN.
   __ Fmov(d8, 1.0);
   __ Fmov(d9, 1.1);
@@ -7845,19 +11333,19 @@ TEST(fcvtzu) {
   __ Fmov(d13, kFP64NegativeInfinity);
   __ Fmov(d14, kWMaxInt - 1);
   __ Fmov(d15, kWMinInt + 1);
+  __ Fmov(s16, 1.5);
   __ Fmov(s17, 1.1);
-  __ Fmov(s18, 1.5);
   __ Fmov(s19, -1.5);
   __ Fmov(s20, kFP32PositiveInfinity);
   __ Fmov(s21, kFP32NegativeInfinity);
-  __ Fmov(s22, 0x7fffff8000000000UL);   // Largest float < INT64_MAX.
+  __ Fmov(s22, 0x7FFFFF8000000000UL);   // Largest float < INT64_MAX.
   __ Fneg(s23, s22);                    // Smallest float > INT64_MIN.
   __ Fmov(d24, 1.1);
   __ Fmov(d25, 1.5);
   __ Fmov(d26, -1.5);
   __ Fmov(d27, kFP64PositiveInfinity);
   __ Fmov(d28, kFP64NegativeInfinity);
-  __ Fmov(d29, 0x7ffffffffffffc00UL);   // Largest double < INT64_MAX.
+  __ Fmov(d29, 0x7FFFFFFFFFFFFC00UL);   // Largest double < INT64_MAX.
   __ Fneg(d30, d29);                    // Smallest double > INT64_MIN.
 
   __ Fcvtzu(w0, s0);
@@ -7875,8 +11363,8 @@ TEST(fcvtzu) {
   __ Fcvtzu(w12, d12);
   __ Fcvtzu(w13, d13);
   __ Fcvtzu(w14, d14);
+  __ Fcvtzu(w15, d15);
   __ Fcvtzu(x17, s17);
-  __ Fcvtzu(x18, s18);
   __ Fcvtzu(x19, s19);
   __ Fcvtzu(x20, s20);
   __ Fcvtzu(x21, s21);
@@ -7887,6 +11375,12 @@ TEST(fcvtzu) {
   __ Fcvtzu(x26, d26);
   __ Fcvtzu(x27, d27);
   __ Fcvtzu(x28, d28);
+
+  // Save results to the scratch memory, for those that don't fit in registers.
+  __ Mov(x30, scratch_base);
+  __ Fcvtzu(x29, s16);
+  __ Str(x29, MemOperand(x30));
+
   __ Fcvtzu(x29, d29);
   __ Fcvtzu(x30, d30);
   END();
@@ -7897,33 +11391,32 @@ TEST(fcvtzu) {
   CHECK_EQUAL_64(1, x1);
   CHECK_EQUAL_64(1, x2);
   CHECK_EQUAL_64(0, x3);
-  CHECK_EQUAL_64(0xffffffff, x4);
+  CHECK_EQUAL_64(0xFFFFFFFF, x4);
   CHECK_EQUAL_64(0, x5);
-  CHECK_EQUAL_64(0x7fffff80, x6);
+  CHECK_EQUAL_64(0x7FFFFF80, x6);
   CHECK_EQUAL_64(0, x7);
   CHECK_EQUAL_64(1, x8);
   CHECK_EQUAL_64(1, x9);
   CHECK_EQUAL_64(1, x10);
   CHECK_EQUAL_64(0, x11);
-  CHECK_EQUAL_64(0xffffffff, x12);
+  CHECK_EQUAL_64(0xFFFFFFFF, x12);
   CHECK_EQUAL_64(0, x13);
-  CHECK_EQUAL_64(0x7ffffffe, x14);
+  CHECK_EQUAL_64(0x7FFFFFFE, x14);
+  CHECK_EQUAL_64(0x0, x15);
+  CHECK_EQUAL_64(1, scratch);
   CHECK_EQUAL_64(1, x17);
-  CHECK_EQUAL_64(1, x18);
   CHECK_EQUAL_64(0x0UL, x19);
-  CHECK_EQUAL_64(0xffffffffffffffffUL, x20);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x20);
   CHECK_EQUAL_64(0x0UL, x21);
-  CHECK_EQUAL_64(0x7fffff8000000000UL, x22);
+  CHECK_EQUAL_64(0x7FFFFF8000000000UL, x22);
   CHECK_EQUAL_64(0x0UL, x23);
   CHECK_EQUAL_64(1, x24);
   CHECK_EQUAL_64(1, x25);
   CHECK_EQUAL_64(0x0UL, x26);
-  CHECK_EQUAL_64(0xffffffffffffffffUL, x27);
+  CHECK_EQUAL_64(0xFFFFFFFFFFFFFFFFUL, x27);
   CHECK_EQUAL_64(0x0UL, x28);
-  CHECK_EQUAL_64(0x7ffffffffffffc00UL, x29);
+  CHECK_EQUAL_64(0x7FFFFFFFFFFFFC00UL, x29);
   CHECK_EQUAL_64(0x0UL, x30);
-
-  TEARDOWN();
 }
 
 
@@ -7941,9 +11434,9 @@ static void TestUScvtfHelper(uint64_t in,
                              uint64_t expected_scvtf_bits,
                              uint64_t expected_ucvtf_bits) {
   uint64_t u64 = in;
-  uint32_t u32 = u64 & 0xffffffff;
+  uint32_t u32 = u64 & 0xFFFFFFFF;
   int64_t s64 = static_cast<int64_t>(in);
-  int32_t s32 = s64 & 0x7fffffff;
+  int32_t s32 = s64 & 0x7FFFFFFF;
 
   bool cvtf_s32 = (s64 == s32);
   bool cvtf_u32 = (u64 == u32);
@@ -8003,8 +11496,8 @@ static void TestUScvtfHelper(uint64_t in,
   RUN();
 
   // Check the results.
-  double expected_scvtf_base = rawbits_to_double(expected_scvtf_bits);
-  double expected_ucvtf_base = rawbits_to_double(expected_ucvtf_bits);
+  double expected_scvtf_base = bit_cast<double>(expected_scvtf_bits);
+  double expected_ucvtf_base = bit_cast<double>(expected_ucvtf_bits);
 
   for (int fbits = 0; fbits <= 32; fbits++) {
     double expected_scvtf = expected_scvtf_base / pow(2.0, fbits);
@@ -8020,10 +11513,7 @@ static void TestUScvtfHelper(uint64_t in,
     CHECK_EQUAL_FP64(expected_scvtf, results_scvtf_x[fbits]);
     CHECK_EQUAL_FP64(expected_ucvtf, results_ucvtf_x[fbits]);
   }
-
-  TEARDOWN();
 }
-
 
 TEST(scvtf_ucvtf_double) {
   INIT_V8();
@@ -8031,74 +11521,73 @@ TEST(scvtf_ucvtf_double) {
   // results should not depened on the rounding mode, and ucvtf and scvtf should
   // produce the same result.
   TestUScvtfHelper(0x0000000000000000, 0x0000000000000000, 0x0000000000000000);
-  TestUScvtfHelper(0x0000000000000001, 0x3ff0000000000000, 0x3ff0000000000000);
-  TestUScvtfHelper(0x0000000040000000, 0x41d0000000000000, 0x41d0000000000000);
-  TestUScvtfHelper(0x0000000100000000, 0x41f0000000000000, 0x41f0000000000000);
-  TestUScvtfHelper(0x4000000000000000, 0x43d0000000000000, 0x43d0000000000000);
+  TestUScvtfHelper(0x0000000000000001, 0x3FF0000000000000, 0x3FF0000000000000);
+  TestUScvtfHelper(0x0000000040000000, 0x41D0000000000000, 0x41D0000000000000);
+  TestUScvtfHelper(0x0000000100000000, 0x41F0000000000000, 0x41F0000000000000);
+  TestUScvtfHelper(0x4000000000000000, 0x43D0000000000000, 0x43D0000000000000);
   // Test mantissa extremities.
-  TestUScvtfHelper(0x4000000000000400, 0x43d0000000000001, 0x43d0000000000001);
+  TestUScvtfHelper(0x4000000000000400, 0x43D0000000000001, 0x43D0000000000001);
   // The largest int32_t that fits in a double.
-  TestUScvtfHelper(0x000000007fffffff, 0x41dfffffffc00000, 0x41dfffffffc00000);
+  TestUScvtfHelper(0x000000007FFFFFFF, 0x41DFFFFFFFC00000, 0x41DFFFFFFFC00000);
   // Values that would be negative if treated as an int32_t.
-  TestUScvtfHelper(0x00000000ffffffff, 0x41efffffffe00000, 0x41efffffffe00000);
-  TestUScvtfHelper(0x0000000080000000, 0x41e0000000000000, 0x41e0000000000000);
-  TestUScvtfHelper(0x0000000080000001, 0x41e0000000200000, 0x41e0000000200000);
+  TestUScvtfHelper(0x00000000FFFFFFFF, 0x41EFFFFFFFE00000, 0x41EFFFFFFFE00000);
+  TestUScvtfHelper(0x0000000080000000, 0x41E0000000000000, 0x41E0000000000000);
+  TestUScvtfHelper(0x0000000080000001, 0x41E0000000200000, 0x41E0000000200000);
   // The largest int64_t that fits in a double.
-  TestUScvtfHelper(0x7ffffffffffffc00, 0x43dfffffffffffff, 0x43dfffffffffffff);
+  TestUScvtfHelper(0x7FFFFFFFFFFFFC00, 0x43DFFFFFFFFFFFFF, 0x43DFFFFFFFFFFFFF);
   // Check for bit pattern reproduction.
-  TestUScvtfHelper(0x0123456789abcde0, 0x43723456789abcde, 0x43723456789abcde);
-  TestUScvtfHelper(0x0000000012345678, 0x41b2345678000000, 0x41b2345678000000);
+  TestUScvtfHelper(0x0123456789ABCDE0, 0x43723456789ABCDE, 0x43723456789ABCDE);
+  TestUScvtfHelper(0x0000000012345678, 0x41B2345678000000, 0x41B2345678000000);
 
   // Simple conversions of negative int64_t values. These require no rounding,
   // and the results should not depend on the rounding mode.
-  TestUScvtfHelper(0xffffffffc0000000, 0xc1d0000000000000, 0x43effffffff80000);
-  TestUScvtfHelper(0xffffffff00000000, 0xc1f0000000000000, 0x43efffffffe00000);
-  TestUScvtfHelper(0xc000000000000000, 0xc3d0000000000000, 0x43e8000000000000);
+  TestUScvtfHelper(0xFFFFFFFFC0000000, 0xC1D0000000000000, 0x43EFFFFFFFF80000);
+  TestUScvtfHelper(0xFFFFFFFF00000000, 0xC1F0000000000000, 0x43EFFFFFFFE00000);
+  TestUScvtfHelper(0xC000000000000000, 0xC3D0000000000000, 0x43E8000000000000);
 
   // Conversions which require rounding.
-  TestUScvtfHelper(0x1000000000000000, 0x43b0000000000000, 0x43b0000000000000);
-  TestUScvtfHelper(0x1000000000000001, 0x43b0000000000000, 0x43b0000000000000);
-  TestUScvtfHelper(0x1000000000000080, 0x43b0000000000000, 0x43b0000000000000);
-  TestUScvtfHelper(0x1000000000000081, 0x43b0000000000001, 0x43b0000000000001);
-  TestUScvtfHelper(0x1000000000000100, 0x43b0000000000001, 0x43b0000000000001);
-  TestUScvtfHelper(0x1000000000000101, 0x43b0000000000001, 0x43b0000000000001);
-  TestUScvtfHelper(0x1000000000000180, 0x43b0000000000002, 0x43b0000000000002);
-  TestUScvtfHelper(0x1000000000000181, 0x43b0000000000002, 0x43b0000000000002);
-  TestUScvtfHelper(0x1000000000000200, 0x43b0000000000002, 0x43b0000000000002);
-  TestUScvtfHelper(0x1000000000000201, 0x43b0000000000002, 0x43b0000000000002);
-  TestUScvtfHelper(0x1000000000000280, 0x43b0000000000002, 0x43b0000000000002);
-  TestUScvtfHelper(0x1000000000000281, 0x43b0000000000003, 0x43b0000000000003);
-  TestUScvtfHelper(0x1000000000000300, 0x43b0000000000003, 0x43b0000000000003);
+  TestUScvtfHelper(0x1000000000000000, 0x43B0000000000000, 0x43B0000000000000);
+  TestUScvtfHelper(0x1000000000000001, 0x43B0000000000000, 0x43B0000000000000);
+  TestUScvtfHelper(0x1000000000000080, 0x43B0000000000000, 0x43B0000000000000);
+  TestUScvtfHelper(0x1000000000000081, 0x43B0000000000001, 0x43B0000000000001);
+  TestUScvtfHelper(0x1000000000000100, 0x43B0000000000001, 0x43B0000000000001);
+  TestUScvtfHelper(0x1000000000000101, 0x43B0000000000001, 0x43B0000000000001);
+  TestUScvtfHelper(0x1000000000000180, 0x43B0000000000002, 0x43B0000000000002);
+  TestUScvtfHelper(0x1000000000000181, 0x43B0000000000002, 0x43B0000000000002);
+  TestUScvtfHelper(0x1000000000000200, 0x43B0000000000002, 0x43B0000000000002);
+  TestUScvtfHelper(0x1000000000000201, 0x43B0000000000002, 0x43B0000000000002);
+  TestUScvtfHelper(0x1000000000000280, 0x43B0000000000002, 0x43B0000000000002);
+  TestUScvtfHelper(0x1000000000000281, 0x43B0000000000003, 0x43B0000000000003);
+  TestUScvtfHelper(0x1000000000000300, 0x43B0000000000003, 0x43B0000000000003);
   // Check rounding of negative int64_t values (and large uint64_t values).
-  TestUScvtfHelper(0x8000000000000000, 0xc3e0000000000000, 0x43e0000000000000);
-  TestUScvtfHelper(0x8000000000000001, 0xc3e0000000000000, 0x43e0000000000000);
-  TestUScvtfHelper(0x8000000000000200, 0xc3e0000000000000, 0x43e0000000000000);
-  TestUScvtfHelper(0x8000000000000201, 0xc3dfffffffffffff, 0x43e0000000000000);
-  TestUScvtfHelper(0x8000000000000400, 0xc3dfffffffffffff, 0x43e0000000000000);
-  TestUScvtfHelper(0x8000000000000401, 0xc3dfffffffffffff, 0x43e0000000000001);
-  TestUScvtfHelper(0x8000000000000600, 0xc3dffffffffffffe, 0x43e0000000000001);
-  TestUScvtfHelper(0x8000000000000601, 0xc3dffffffffffffe, 0x43e0000000000001);
-  TestUScvtfHelper(0x8000000000000800, 0xc3dffffffffffffe, 0x43e0000000000001);
-  TestUScvtfHelper(0x8000000000000801, 0xc3dffffffffffffe, 0x43e0000000000001);
-  TestUScvtfHelper(0x8000000000000a00, 0xc3dffffffffffffe, 0x43e0000000000001);
-  TestUScvtfHelper(0x8000000000000a01, 0xc3dffffffffffffd, 0x43e0000000000001);
-  TestUScvtfHelper(0x8000000000000c00, 0xc3dffffffffffffd, 0x43e0000000000002);
+  TestUScvtfHelper(0x8000000000000000, 0xC3E0000000000000, 0x43E0000000000000);
+  TestUScvtfHelper(0x8000000000000001, 0xC3E0000000000000, 0x43E0000000000000);
+  TestUScvtfHelper(0x8000000000000200, 0xC3E0000000000000, 0x43E0000000000000);
+  TestUScvtfHelper(0x8000000000000201, 0xC3DFFFFFFFFFFFFF, 0x43E0000000000000);
+  TestUScvtfHelper(0x8000000000000400, 0xC3DFFFFFFFFFFFFF, 0x43E0000000000000);
+  TestUScvtfHelper(0x8000000000000401, 0xC3DFFFFFFFFFFFFF, 0x43E0000000000001);
+  TestUScvtfHelper(0x8000000000000600, 0xC3DFFFFFFFFFFFFE, 0x43E0000000000001);
+  TestUScvtfHelper(0x8000000000000601, 0xC3DFFFFFFFFFFFFE, 0x43E0000000000001);
+  TestUScvtfHelper(0x8000000000000800, 0xC3DFFFFFFFFFFFFE, 0x43E0000000000001);
+  TestUScvtfHelper(0x8000000000000801, 0xC3DFFFFFFFFFFFFE, 0x43E0000000000001);
+  TestUScvtfHelper(0x8000000000000A00, 0xC3DFFFFFFFFFFFFE, 0x43E0000000000001);
+  TestUScvtfHelper(0x8000000000000A01, 0xC3DFFFFFFFFFFFFD, 0x43E0000000000001);
+  TestUScvtfHelper(0x8000000000000C00, 0xC3DFFFFFFFFFFFFD, 0x43E0000000000002);
   // Round up to produce a result that's too big for the input to represent.
-  TestUScvtfHelper(0x7ffffffffffffe00, 0x43e0000000000000, 0x43e0000000000000);
-  TestUScvtfHelper(0x7fffffffffffffff, 0x43e0000000000000, 0x43e0000000000000);
-  TestUScvtfHelper(0xfffffffffffffc00, 0xc090000000000000, 0x43f0000000000000);
-  TestUScvtfHelper(0xffffffffffffffff, 0xbff0000000000000, 0x43f0000000000000);
+  TestUScvtfHelper(0x7FFFFFFFFFFFFE00, 0x43E0000000000000, 0x43E0000000000000);
+  TestUScvtfHelper(0x7FFFFFFFFFFFFFFF, 0x43E0000000000000, 0x43E0000000000000);
+  TestUScvtfHelper(0xFFFFFFFFFFFFFC00, 0xC090000000000000, 0x43F0000000000000);
+  TestUScvtfHelper(0xFFFFFFFFFFFFFFFF, 0xBFF0000000000000, 0x43F0000000000000);
 }
-
 
 // The same as TestUScvtfHelper, but convert to floats.
 static void TestUScvtf32Helper(uint64_t in,
                                uint32_t expected_scvtf_bits,
                                uint32_t expected_ucvtf_bits) {
   uint64_t u64 = in;
-  uint32_t u32 = u64 & 0xffffffff;
+  uint32_t u32 = u64 & 0xFFFFFFFF;
   int64_t s64 = static_cast<int64_t>(in);
-  int32_t s32 = s64 & 0x7fffffff;
+  int32_t s32 = s64 & 0x7FFFFFFF;
 
   bool cvtf_s32 = (s64 == s32);
   bool cvtf_u32 = (u64 == u32);
@@ -8158,8 +11647,8 @@ static void TestUScvtf32Helper(uint64_t in,
   RUN();
 
   // Check the results.
-  float expected_scvtf_base = rawbits_to_float(expected_scvtf_bits);
-  float expected_ucvtf_base = rawbits_to_float(expected_ucvtf_bits);
+  float expected_scvtf_base = bit_cast<float>(expected_scvtf_bits);
+  float expected_ucvtf_base = bit_cast<float>(expected_ucvtf_bits);
 
   for (int fbits = 0; fbits <= 32; fbits++) {
     float expected_scvtf = expected_scvtf_base / powf(2, fbits);
@@ -8168,19 +11657,14 @@ static void TestUScvtf32Helper(uint64_t in,
     CHECK_EQUAL_FP32(expected_ucvtf, results_ucvtf_x[fbits]);
     if (cvtf_s32) CHECK_EQUAL_FP32(expected_scvtf, results_scvtf_w[fbits]);
     if (cvtf_u32) CHECK_EQUAL_FP32(expected_ucvtf, results_ucvtf_w[fbits]);
-    break;
   }
   for (int fbits = 33; fbits <= 64; fbits++) {
-    break;
     float expected_scvtf = expected_scvtf_base / powf(2, fbits);
     float expected_ucvtf = expected_ucvtf_base / powf(2, fbits);
     CHECK_EQUAL_FP32(expected_scvtf, results_scvtf_x[fbits]);
     CHECK_EQUAL_FP32(expected_ucvtf, results_ucvtf_x[fbits]);
   }
-
-  TEARDOWN();
 }
-
 
 TEST(scvtf_ucvtf_float) {
   INIT_V8();
@@ -8188,28 +11672,28 @@ TEST(scvtf_ucvtf_float) {
   // results should not depened on the rounding mode, and ucvtf and scvtf should
   // produce the same result.
   TestUScvtf32Helper(0x0000000000000000, 0x00000000, 0x00000000);
-  TestUScvtf32Helper(0x0000000000000001, 0x3f800000, 0x3f800000);
-  TestUScvtf32Helper(0x0000000040000000, 0x4e800000, 0x4e800000);
-  TestUScvtf32Helper(0x0000000100000000, 0x4f800000, 0x4f800000);
-  TestUScvtf32Helper(0x4000000000000000, 0x5e800000, 0x5e800000);
+  TestUScvtf32Helper(0x0000000000000001, 0x3F800000, 0x3F800000);
+  TestUScvtf32Helper(0x0000000040000000, 0x4E800000, 0x4E800000);
+  TestUScvtf32Helper(0x0000000100000000, 0x4F800000, 0x4F800000);
+  TestUScvtf32Helper(0x4000000000000000, 0x5E800000, 0x5E800000);
   // Test mantissa extremities.
-  TestUScvtf32Helper(0x0000000000800001, 0x4b000001, 0x4b000001);
-  TestUScvtf32Helper(0x4000008000000000, 0x5e800001, 0x5e800001);
+  TestUScvtf32Helper(0x0000000000800001, 0x4B000001, 0x4B000001);
+  TestUScvtf32Helper(0x4000008000000000, 0x5E800001, 0x5E800001);
   // The largest int32_t that fits in a float.
-  TestUScvtf32Helper(0x000000007fffff80, 0x4effffff, 0x4effffff);
+  TestUScvtf32Helper(0x000000007FFFFF80, 0x4EFFFFFF, 0x4EFFFFFF);
   // Values that would be negative if treated as an int32_t.
-  TestUScvtf32Helper(0x00000000ffffff00, 0x4f7fffff, 0x4f7fffff);
-  TestUScvtf32Helper(0x0000000080000000, 0x4f000000, 0x4f000000);
-  TestUScvtf32Helper(0x0000000080000100, 0x4f000001, 0x4f000001);
+  TestUScvtf32Helper(0x00000000FFFFFF00, 0x4F7FFFFF, 0x4F7FFFFF);
+  TestUScvtf32Helper(0x0000000080000000, 0x4F000000, 0x4F000000);
+  TestUScvtf32Helper(0x0000000080000100, 0x4F000001, 0x4F000001);
   // The largest int64_t that fits in a float.
-  TestUScvtf32Helper(0x7fffff8000000000, 0x5effffff, 0x5effffff);
+  TestUScvtf32Helper(0x7FFFFF8000000000, 0x5EFFFFFF, 0x5EFFFFFF);
   // Check for bit pattern reproduction.
-  TestUScvtf32Helper(0x0000000000876543, 0x4b076543, 0x4b076543);
+  TestUScvtf32Helper(0x0000000000876543, 0x4B076543, 0x4B076543);
 
   // Simple conversions of negative int64_t values. These require no rounding,
   // and the results should not depend on the rounding mode.
-  TestUScvtf32Helper(0xfffffc0000000000, 0xd4800000, 0x5f7ffffc);
-  TestUScvtf32Helper(0xc000000000000000, 0xde800000, 0x5f400000);
+  TestUScvtf32Helper(0xFFFFFC0000000000, 0xD4800000, 0x5F7FFFFC);
+  TestUScvtf32Helper(0xC000000000000000, 0xDE800000, 0x5F400000);
 
   // Conversions which require rounding.
   TestUScvtf32Helper(0x0000800000000000, 0x57000000, 0x57000000);
@@ -8226,30 +11710,29 @@ TEST(scvtf_ucvtf_float) {
   TestUScvtf32Helper(0x0000800002800001, 0x57000003, 0x57000003);
   TestUScvtf32Helper(0x0000800003000000, 0x57000003, 0x57000003);
   // Check rounding of negative int64_t values (and large uint64_t values).
-  TestUScvtf32Helper(0x8000000000000000, 0xdf000000, 0x5f000000);
-  TestUScvtf32Helper(0x8000000000000001, 0xdf000000, 0x5f000000);
-  TestUScvtf32Helper(0x8000004000000000, 0xdf000000, 0x5f000000);
-  TestUScvtf32Helper(0x8000004000000001, 0xdeffffff, 0x5f000000);
-  TestUScvtf32Helper(0x8000008000000000, 0xdeffffff, 0x5f000000);
-  TestUScvtf32Helper(0x8000008000000001, 0xdeffffff, 0x5f000001);
-  TestUScvtf32Helper(0x800000c000000000, 0xdefffffe, 0x5f000001);
-  TestUScvtf32Helper(0x800000c000000001, 0xdefffffe, 0x5f000001);
-  TestUScvtf32Helper(0x8000010000000000, 0xdefffffe, 0x5f000001);
-  TestUScvtf32Helper(0x8000010000000001, 0xdefffffe, 0x5f000001);
-  TestUScvtf32Helper(0x8000014000000000, 0xdefffffe, 0x5f000001);
-  TestUScvtf32Helper(0x8000014000000001, 0xdefffffd, 0x5f000001);
-  TestUScvtf32Helper(0x8000018000000000, 0xdefffffd, 0x5f000002);
+  TestUScvtf32Helper(0x8000000000000000, 0xDF000000, 0x5F000000);
+  TestUScvtf32Helper(0x8000000000000001, 0xDF000000, 0x5F000000);
+  TestUScvtf32Helper(0x8000004000000000, 0xDF000000, 0x5F000000);
+  TestUScvtf32Helper(0x8000004000000001, 0xDEFFFFFF, 0x5F000000);
+  TestUScvtf32Helper(0x8000008000000000, 0xDEFFFFFF, 0x5F000000);
+  TestUScvtf32Helper(0x8000008000000001, 0xDEFFFFFF, 0x5F000001);
+  TestUScvtf32Helper(0x800000C000000000, 0xDEFFFFFE, 0x5F000001);
+  TestUScvtf32Helper(0x800000C000000001, 0xDEFFFFFE, 0x5F000001);
+  TestUScvtf32Helper(0x8000010000000000, 0xDEFFFFFE, 0x5F000001);
+  TestUScvtf32Helper(0x8000010000000001, 0xDEFFFFFE, 0x5F000001);
+  TestUScvtf32Helper(0x8000014000000000, 0xDEFFFFFE, 0x5F000001);
+  TestUScvtf32Helper(0x8000014000000001, 0xDEFFFFFD, 0x5F000001);
+  TestUScvtf32Helper(0x8000018000000000, 0xDEFFFFFD, 0x5F000002);
   // Round up to produce a result that's too big for the input to represent.
-  TestUScvtf32Helper(0x000000007fffffc0, 0x4f000000, 0x4f000000);
-  TestUScvtf32Helper(0x000000007fffffff, 0x4f000000, 0x4f000000);
-  TestUScvtf32Helper(0x00000000ffffff80, 0x4f800000, 0x4f800000);
-  TestUScvtf32Helper(0x00000000ffffffff, 0x4f800000, 0x4f800000);
-  TestUScvtf32Helper(0x7fffffc000000000, 0x5f000000, 0x5f000000);
-  TestUScvtf32Helper(0x7fffffffffffffff, 0x5f000000, 0x5f000000);
-  TestUScvtf32Helper(0xffffff8000000000, 0xd3000000, 0x5f800000);
-  TestUScvtf32Helper(0xffffffffffffffff, 0xbf800000, 0x5f800000);
+  TestUScvtf32Helper(0x000000007FFFFFC0, 0x4F000000, 0x4F000000);
+  TestUScvtf32Helper(0x000000007FFFFFFF, 0x4F000000, 0x4F000000);
+  TestUScvtf32Helper(0x00000000FFFFFF80, 0x4F800000, 0x4F800000);
+  TestUScvtf32Helper(0x00000000FFFFFFFF, 0x4F800000, 0x4F800000);
+  TestUScvtf32Helper(0x7FFFFFC000000000, 0x5F000000, 0x5F000000);
+  TestUScvtf32Helper(0x7FFFFFFFFFFFFFFF, 0x5F000000, 0x5F000000);
+  TestUScvtf32Helper(0xFFFFFF8000000000, 0xD3000000, 0x5F800000);
+  TestUScvtf32Helper(0xFFFFFFFFFFFFFFFF, 0xBF800000, 0x5F800000);
 }
-
 
 TEST(system_mrs) {
   INIT_V8();
@@ -8286,26 +11769,23 @@ TEST(system_mrs) {
   // FPCR
   // The default FPCR on Linux-based platforms is 0.
   CHECK_EQUAL_32(0, w6);
-
-  TEARDOWN();
 }
-
 
 TEST(system_msr) {
   INIT_V8();
   // All FPCR fields that must be implemented: AHP, DN, FZ, RMode
-  const uint64_t fpcr_core = 0x07c00000;
+  const uint64_t fpcr_core = 0x07C00000;
 
   // All FPCR fields (including fields which may be read-as-zero):
-  //  Stride, Len
+  //  Stride, FZ16, Len
   //  IDE, IXE, UFE, OFE, DZE, IOE
-  const uint64_t fpcr_all = fpcr_core | 0x00379f00;
+  const uint64_t fpcr_all = fpcr_core | 0x003F9F00;
 
   SETUP();
 
   START();
   __ Mov(w0, 0);
-  __ Mov(w1, 0x7fffffff);
+  __ Mov(w1, 0x7FFFFFFF);
 
   __ Mov(x7, 0);
 
@@ -8358,12 +11838,85 @@ TEST(system_msr) {
   CHECK_EQUAL_64(fpcr_core, x8);
   CHECK_EQUAL_64(fpcr_core, x9);
   CHECK_EQUAL_64(0, x10);
-
-  TEARDOWN();
 }
 
+TEST(system_pauth_b) {
+#ifdef DEBUG
+  i::FLAG_sim_abort_on_bad_auth = false;
+#endif
+  SETUP();
+  START();
 
-TEST(system_nop) {
+  // Exclude x16 and x17 from the scratch register list so we can use
+  // Pac/Autib1716 safely.
+  UseScratchRegisterScope temps(&masm);
+  temps.Exclude(x16, x17);
+  temps.Include(x10, x11);
+
+  // Backup stack pointer.
+  __ Mov(x20, sp);
+
+  // Modifiers
+  __ Mov(x16, 0x477d469dec0b8768);
+  __ Mov(sp, 0x477d469dec0b8760);
+
+  // Generate PACs using the 3 system instructions.
+  __ Mov(x17, 0x0000000012345678);
+  __ Pacib1716();
+  __ Mov(x0, x17);
+
+  __ Mov(lr, 0x0000000012345678);
+  __ Pacibsp();
+  __ Mov(x2, lr);
+
+  // Authenticate the pointers above.
+  __ Mov(x17, x0);
+  __ Autib1716();
+  __ Mov(x3, x17);
+
+  __ Mov(lr, x2);
+  __ Autibsp();
+  __ Mov(x5, lr);
+
+  // Attempt to authenticate incorrect pointers.
+  __ Mov(x17, x2);
+  __ Autib1716();
+  __ Mov(x6, x17);
+
+  __ Mov(lr, x0);
+  __ Autibsp();
+  __ Mov(x8, lr);
+
+  // Restore stack pointer.
+  __ Mov(sp, x20);
+
+  // Mask out just the PAC code bits.
+  __ And(x0, x0, 0x007f000000000000);
+  __ And(x2, x2, 0x007f000000000000);
+
+  END();
+
+// TODO(all): test on real hardware when available
+#ifdef USE_SIMULATOR
+  RUN();
+
+  // Check PAC codes have been generated and aren't equal.
+  // NOTE: with a different ComputePAC implementation, there may be a collision.
+  CHECK_NE(0, core.xreg(2));
+  CHECK_NOT_ZERO_AND_NOT_EQUAL_64(x0, x2);
+
+  // Pointers correctly authenticated.
+  CHECK_EQUAL_64(0x0000000012345678, x3);
+  CHECK_EQUAL_64(0x0000000012345678, x5);
+
+  // Pointers corrupted after failing to authenticate.
+  CHECK_EQUAL_64(0x0040000012345678, x6);
+  CHECK_EQUAL_64(0x0040000012345678, x8);
+
+#endif  // USE_SIMULATOR
+}
+
+TEST(system) {
   INIT_V8();
   SETUP();
   RegisterDump before;
@@ -8371,16 +11924,14 @@ TEST(system_nop) {
   START();
   before.Dump(&masm);
   __ Nop();
+  __ Csdb();
   END();
 
   RUN();
 
   CHECK_EQUAL_REGISTERS(before);
   CHECK_EQUAL_NZCV(before.flags_nzcv());
-
-  TEARDOWN();
 }
-
 
 TEST(zero_dest) {
   INIT_V8();
@@ -8389,12 +11940,14 @@ TEST(zero_dest) {
 
   START();
   // Preserve the system stack pointer, in case we clobber it.
-  __ Mov(x30, csp);
+  __ Mov(x30, sp);
   // Initialize the other registers used in this test.
   uint64_t literal_base = 0x0100001000100101UL;
   __ Mov(x0, 0);
   __ Mov(x1, literal_base);
   for (int i = 2; i < x30.code(); i++) {
+    // Skip x18, the platform register.
+    if (i == 18) continue;
     __ Add(Register::XRegFromCode(i), Register::XRegFromCode(i-1), x1);
   }
   before.Dump(&masm);
@@ -8429,12 +11982,12 @@ TEST(zero_dest) {
   __ sub(xzr, x7, xzr);
   __ sub(xzr, xzr, x7);
 
-  // Swap the saved system stack pointer with the real one. If csp was written
+  // Swap the saved system stack pointer with the real one. If sp was written
   // during the test, it will show up in x30. This is done because the test
-  // framework assumes that csp will be valid at the end of the test.
+  // framework assumes that sp will be valid at the end of the test.
   __ Mov(x29, x30);
-  __ Mov(x30, csp);
-  __ Mov(csp, x29);
+  __ Mov(x30, sp);
+  __ Mov(sp, x29);
   // We used x29 as a scratch register, so reset it to make sure it doesn't
   // trigger a test failure.
   __ Add(x29, x28, x1);
@@ -8444,10 +11997,7 @@ TEST(zero_dest) {
 
   CHECK_EQUAL_REGISTERS(before);
   CHECK_EQUAL_NZCV(before.flags_nzcv());
-
-  TEARDOWN();
 }
-
 
 TEST(zero_dest_setflags) {
   INIT_V8();
@@ -8456,12 +12006,14 @@ TEST(zero_dest_setflags) {
 
   START();
   // Preserve the system stack pointer, in case we clobber it.
-  __ Mov(x30, csp);
+  __ Mov(x30, sp);
   // Initialize the other registers used in this test.
   uint64_t literal_base = 0x0100001000100101UL;
   __ Mov(x0, 0);
   __ Mov(x1, literal_base);
   for (int i = 2; i < 30; i++) {
+    // Skip x18, the platform register.
+    if (i == 18) continue;
     __ Add(Register::XRegFromCode(i), Register::XRegFromCode(i-1), x1);
   }
   before.Dump(&masm);
@@ -8475,14 +12027,14 @@ TEST(zero_dest_setflags) {
   __ adds(xzr, x1, xzr);
   __ adds(xzr, xzr, x1);
 
-  __ ands(xzr, x2, ~0xf);
-  __ ands(xzr, xzr, ~0xf);
+  __ ands(xzr, x2, ~0xF);
+  __ ands(xzr, xzr, ~0xF);
   __ ands(xzr, x0, x2);
   __ ands(xzr, x2, xzr);
   __ ands(xzr, xzr, x2);
 
-  __ bics(xzr, x3, ~0xf);
-  __ bics(xzr, xzr, ~0xf);
+  __ bics(xzr, x3, ~0xF);
+  __ bics(xzr, xzr, ~0xF);
   __ bics(xzr, x0, x3);
   __ bics(xzr, x3, xzr);
   __ bics(xzr, xzr, x3);
@@ -8494,12 +12046,12 @@ TEST(zero_dest_setflags) {
   __ subs(xzr, x3, xzr);
   __ subs(xzr, xzr, x3);
 
-  // Swap the saved system stack pointer with the real one. If csp was written
+  // Swap the saved system stack pointer with the real one. If sp was written
   // during the test, it will show up in x30. This is done because the test
-  // framework assumes that csp will be valid at the end of the test.
+  // framework assumes that sp will be valid at the end of the test.
   __ Mov(x29, x30);
-  __ Mov(x30, csp);
-  __ Mov(csp, x29);
+  __ Mov(x30, sp);
+  __ Mov(sp, x29);
   // We used x29 as a scratch register, so reset it to make sure it doesn't
   // trigger a test failure.
   __ Add(x29, x28, x1);
@@ -8508,73 +12060,44 @@ TEST(zero_dest_setflags) {
   RUN();
 
   CHECK_EQUAL_REGISTERS(before);
-
-  TEARDOWN();
 }
-
 
 TEST(register_bit) {
   // No code generation takes place in this test, so no need to setup and
   // teardown.
 
   // Simple tests.
-  CHECK(x0.Bit() == (1UL << 0));
-  CHECK(x1.Bit() == (1UL << 1));
-  CHECK(x10.Bit() == (1UL << 10));
+  CHECK_EQ(x0.bit(), 1ULL << 0);
+  CHECK_EQ(x1.bit(), 1ULL << 1);
+  CHECK_EQ(x10.bit(), 1ULL << 10);
 
   // AAPCS64 definitions.
-  CHECK(fp.Bit() == (1UL << kFramePointerRegCode));
-  CHECK(lr.Bit() == (1UL << kLinkRegCode));
+  CHECK_EQ(fp.bit(), 1ULL << kFramePointerRegCode);
+  CHECK_EQ(lr.bit(), 1ULL << kLinkRegCode);
 
   // Fixed (hardware) definitions.
-  CHECK(xzr.Bit() == (1UL << kZeroRegCode));
+  CHECK_EQ(xzr.bit(), 1ULL << kZeroRegCode);
 
   // Internal ABI definitions.
-  CHECK(jssp.Bit() == (1UL << kJSSPCode));
-  CHECK(csp.Bit() == (1UL << kSPRegInternalCode));
-  CHECK(csp.Bit() != xzr.Bit());
+  CHECK_EQ(sp.bit(), 1ULL << kSPRegInternalCode);
+  CHECK_NE(sp.bit(), xzr.bit());
 
-  // xn.Bit() == wn.Bit() at all times, for the same n.
-  CHECK(x0.Bit() == w0.Bit());
-  CHECK(x1.Bit() == w1.Bit());
-  CHECK(x10.Bit() == w10.Bit());
-  CHECK(jssp.Bit() == wjssp.Bit());
-  CHECK(xzr.Bit() == wzr.Bit());
-  CHECK(csp.Bit() == wcsp.Bit());
+  // xn.bit() == wn.bit() at all times, for the same n.
+  CHECK_EQ(x0.bit(), w0.bit());
+  CHECK_EQ(x1.bit(), w1.bit());
+  CHECK_EQ(x10.bit(), w10.bit());
+  CHECK_EQ(xzr.bit(), wzr.bit());
+  CHECK_EQ(sp.bit(), wsp.bit());
 }
-
-
-TEST(stack_pointer_override) {
-  // This test generates some stack maintenance code, but the test only checks
-  // the reported state.
-  INIT_V8();
-  SETUP();
-  START();
-
-  // The default stack pointer in V8 is jssp, but for compatibility with W16,
-  // the test framework sets it to csp before calling the test.
-  CHECK(csp.Is(__ StackPointer()));
-  __ SetStackPointer(x0);
-  CHECK(x0.Is(__ StackPointer()));
-  __ SetStackPointer(jssp);
-  CHECK(jssp.Is(__ StackPointer()));
-  __ SetStackPointer(csp);
-  CHECK(csp.Is(__ StackPointer()));
-
-  END();
-  RUN();
-  TEARDOWN();
-}
-
 
 TEST(peek_poke_simple) {
   INIT_V8();
   SETUP();
   START();
 
-  static const RegList x0_to_x3 = x0.Bit() | x1.Bit() | x2.Bit() | x3.Bit();
-  static const RegList x10_to_x13 = x10.Bit() | x11.Bit() |
-                                    x12.Bit() | x13.Bit();
+  static const RegList x0_to_x3 = x0.bit() | x1.bit() | x2.bit() | x3.bit();
+  static const RegList x10_to_x13 =
+      x10.bit() | x11.bit() | x12.bit() | x13.bit();
 
   // The literal base is chosen to have two useful properties:
   //  * When multiplied by small values (such as a register index), this value
@@ -8625,14 +12148,11 @@ TEST(peek_poke_simple) {
   CHECK_EQUAL_64(literal_base * 3, x2);
   CHECK_EQUAL_64(literal_base * 4, x3);
 
-  CHECK_EQUAL_64((literal_base * 1) & 0xffffffff, x10);
-  CHECK_EQUAL_64((literal_base * 2) & 0xffffffff, x11);
-  CHECK_EQUAL_64((literal_base * 3) & 0xffffffff, x12);
-  CHECK_EQUAL_64((literal_base * 4) & 0xffffffff, x13);
-
-  TEARDOWN();
+  CHECK_EQUAL_64((literal_base * 1) & 0xFFFFFFFF, x10);
+  CHECK_EQUAL_64((literal_base * 2) & 0xFFFFFFFF, x11);
+  CHECK_EQUAL_64((literal_base * 3) & 0xFFFFFFFF, x12);
+  CHECK_EQUAL_64((literal_base * 4) & 0xFFFFFFFF, x13);
 }
-
 
 TEST(peek_poke_unaligned) {
   INIT_V8();
@@ -8662,35 +12182,35 @@ TEST(peek_poke_unaligned) {
   //    x0-x6 should be unchanged.
   //    w10-w12 should contain the lower words of x0-x2.
   __ Poke(x0, 1);
-  Clobber(&masm, x0.Bit());
+  Clobber(&masm, x0.bit());
   __ Peek(x0, 1);
   __ Poke(x1, 2);
-  Clobber(&masm, x1.Bit());
+  Clobber(&masm, x1.bit());
   __ Peek(x1, 2);
   __ Poke(x2, 3);
-  Clobber(&masm, x2.Bit());
+  Clobber(&masm, x2.bit());
   __ Peek(x2, 3);
   __ Poke(x3, 4);
-  Clobber(&masm, x3.Bit());
+  Clobber(&masm, x3.bit());
   __ Peek(x3, 4);
   __ Poke(x4, 5);
-  Clobber(&masm, x4.Bit());
+  Clobber(&masm, x4.bit());
   __ Peek(x4, 5);
   __ Poke(x5, 6);
-  Clobber(&masm, x5.Bit());
+  Clobber(&masm, x5.bit());
   __ Peek(x5, 6);
   __ Poke(x6, 7);
-  Clobber(&masm, x6.Bit());
+  Clobber(&masm, x6.bit());
   __ Peek(x6, 7);
 
   __ Poke(w0, 1);
-  Clobber(&masm, w10.Bit());
+  Clobber(&masm, w10.bit());
   __ Peek(w10, 1);
   __ Poke(w1, 2);
-  Clobber(&masm, w11.Bit());
+  Clobber(&masm, w11.bit());
   __ Peek(w11, 2);
   __ Poke(w2, 3);
-  Clobber(&masm, w12.Bit());
+  Clobber(&masm, w12.bit());
   __ Peek(w12, 3);
 
   __ Drop(4);
@@ -8706,13 +12226,10 @@ TEST(peek_poke_unaligned) {
   CHECK_EQUAL_64(literal_base * 6, x5);
   CHECK_EQUAL_64(literal_base * 7, x6);
 
-  CHECK_EQUAL_64((literal_base * 1) & 0xffffffff, x10);
-  CHECK_EQUAL_64((literal_base * 2) & 0xffffffff, x11);
-  CHECK_EQUAL_64((literal_base * 3) & 0xffffffff, x12);
-
-  TEARDOWN();
+  CHECK_EQUAL_64((literal_base * 1) & 0xFFFFFFFF, x10);
+  CHECK_EQUAL_64((literal_base * 2) & 0xFFFFFFFF, x11);
+  CHECK_EQUAL_64((literal_base * 3) & 0xFFFFFFFF, x12);
 }
-
 
 TEST(peek_poke_endianness) {
   INIT_V8();
@@ -8752,17 +12269,14 @@ TEST(peek_poke_endianness) {
   uint64_t x0_expected = literal_base * 1;
   uint64_t x1_expected = literal_base * 2;
   uint64_t x4_expected = (x0_expected << 32) | (x0_expected >> 32);
-  uint64_t x5_expected = ((x1_expected << 16) & 0xffff0000) |
-                         ((x1_expected >> 16) & 0x0000ffff);
+  uint64_t x5_expected =
+      ((x1_expected << 16) & 0xFFFF0000) | ((x1_expected >> 16) & 0x0000FFFF);
 
   CHECK_EQUAL_64(x0_expected, x0);
   CHECK_EQUAL_64(x1_expected, x1);
   CHECK_EQUAL_64(x4_expected, x4);
   CHECK_EQUAL_64(x5_expected, x5);
-
-  TEARDOWN();
 }
-
 
 TEST(peek_poke_mixed) {
   INIT_V8();
@@ -8792,23 +12306,16 @@ TEST(peek_poke_mixed) {
   __ Poke(x1, 8);
   __ Poke(x0, 0);
   {
-    CHECK(__ StackPointer().Is(csp));
-    __ Mov(x4, __ StackPointer());
-    __ SetStackPointer(x4);
-
-    __ Poke(wzr, 0);    // Clobber the space we're about to drop.
-    __ Drop(1, kWRegSize);
-    __ Peek(x6, 0);
-    __ Claim(1);
-    __ Peek(w7, 10);
-    __ Poke(x3, 28);
+    __ Peek(x6, 4);
+    __ Peek(w7, 6);
     __ Poke(xzr, 0);    // Clobber the space we're about to drop.
-    __ Drop(1);
-    __ Poke(x2, 12);
-    __ Push(w0);
-
-    __ Mov(csp, __ StackPointer());
-    __ SetStackPointer(csp);
+    __ Poke(xzr, 8);    // Clobber the space we're about to drop.
+    __ Drop(2);
+    __ Poke(x3, 8);
+    __ Poke(x2, 0);
+    __ Claim(2);
+    __ Poke(x0, 0);
+    __ Poke(x1, 8);
   }
 
   __ Pop(x0, x1, x2, x3);
@@ -8821,8 +12328,8 @@ TEST(peek_poke_mixed) {
   uint64_t x2_expected = literal_base * 3;
   uint64_t x3_expected = literal_base * 4;
   uint64_t x6_expected = (x1_expected << 32) | (x0_expected >> 32);
-  uint64_t x7_expected = ((x1_expected << 16) & 0xffff0000) |
-                         ((x0_expected >> 48) & 0x0000ffff);
+  uint64_t x7_expected =
+      ((x1_expected << 16) & 0xFFFF0000) | ((x0_expected >> 48) & 0x0000FFFF);
 
   CHECK_EQUAL_64(x0_expected, x0);
   CHECK_EQUAL_64(x1_expected, x1);
@@ -8830,10 +12337,7 @@ TEST(peek_poke_mixed) {
   CHECK_EQUAL_64(x3_expected, x3);
   CHECK_EQUAL_64(x6_expected, x6);
   CHECK_EQUAL_64(x7_expected, x7);
-
-  TEARDOWN();
 }
-
 
 // This enum is used only as an argument to the push-pop test helpers.
 enum PushPopMethod {
@@ -8845,41 +12349,40 @@ enum PushPopMethod {
   PushPopRegList
 };
 
-
-// The maximum number of registers that can be used by the PushPopJssp* tests,
+// The maximum number of registers that can be used by the PushPop* tests,
 // where a reg_count field is provided.
-static int const kPushPopJsspMaxRegCount = -1;
+static int const kPushPopMaxRegCount = -1;
 
 // Test a simple push-pop pattern:
-//  * Claim <claim> bytes to set the stack alignment.
 //  * Push <reg_count> registers with size <reg_size>.
 //  * Clobber the register contents.
 //  * Pop <reg_count> registers to restore the original contents.
-//  * Drop <claim> bytes to restore the original stack pointer.
 //
 // Different push and pop methods can be specified independently to test for
 // proper word-endian behaviour.
-static void PushPopJsspSimpleHelper(int reg_count,
-                                    int claim,
-                                    int reg_size,
-                                    PushPopMethod push_method,
-                                    PushPopMethod pop_method) {
+static void PushPopSimpleHelper(int reg_count, int reg_size,
+                                PushPopMethod push_method,
+                                PushPopMethod pop_method) {
   SETUP();
 
   START();
 
   // Registers in the TmpList can be used by the macro assembler for debug code
-  // (for example in 'Pop'), so we can't use them here. We can't use jssp
-  // because it will be the stack pointer for this test.
-  static RegList const allowed = ~(masm.TmpList()->list() | jssp.Bit());
-  if (reg_count == kPushPopJsspMaxRegCount) {
+  // (for example in 'Pop'), so we can't use them here.
+  // x18 is reserved for the platform register.
+  // For simplicity, exclude LR as well, as we would need to sign it when
+  // pushing it. This also ensures that the list has an even number of elements,
+  // which is needed for alignment.
+  RegList allowed = ~(masm.TmpList()->list() | x18.bit() | lr.bit());
+  if (reg_count == kPushPopMaxRegCount) {
     reg_count = CountSetBits(allowed, kNumberOfRegisters);
   }
+  DCHECK_EQ(reg_count % 2, 0);
   // Work out which registers to use, based on reg_size.
-  Register r[kNumberOfRegisters];
-  Register x[kNumberOfRegisters];
-  RegList list = PopulateRegisterArray(NULL, x, r, reg_size, reg_count,
-                                       allowed);
+  auto r = CreateRegisterArray<Register, kNumberOfRegisters>();
+  auto x = CreateRegisterArray<Register, kNumberOfRegisters>();
+  RegList list = PopulateRegisterArray(nullptr, x.data(), r.data(), reg_size,
+                                       reg_count, allowed);
 
   // The literal base is chosen to have two useful properties:
   //  * When multiplied by small values (such as a register index), this value
@@ -8889,10 +12392,6 @@ static void PushPopJsspSimpleHelper(int reg_count,
   uint64_t literal_base = 0x0100001000100101UL;
 
   {
-    CHECK(__ StackPointer().Is(csp));
-    __ Mov(jssp, __ StackPointer());
-    __ SetStackPointer(jssp);
-
     int i;
 
     // Initialize the registers.
@@ -8904,14 +12403,12 @@ static void PushPopJsspSimpleHelper(int reg_count,
       }
     }
 
-    // Claim memory first, as requested.
-    __ Claim(claim, kByteSizeInBytes);
-
     switch (push_method) {
       case PushPopByFour:
         // Push high-numbered registers first (to the highest addresses).
         for (i = reg_count; i >= 4; i -= 4) {
-          __ Push(r[i-1], r[i-2], r[i-3], r[i-4]);
+          __ Push<TurboAssembler::kDontStoreLR>(r[i - 1], r[i - 2], r[i - 3],
+                                                r[i - 4]);
         }
         // Finish off the leftovers.
         switch (i) {
@@ -8919,12 +12416,12 @@ static void PushPopJsspSimpleHelper(int reg_count,
           case 2:  __ Push(r[1], r[0]);       break;
           case 1:  __ Push(r[0]);             break;
           default:
-            CHECK(i == 0);
+            CHECK_EQ(i, 0);
             break;
         }
         break;
       case PushPopRegList:
-        __ PushSizeRegList(list, reg_size);
+        __ PushSizeRegList<TurboAssembler::kDontStoreLR>(list, reg_size);
         break;
     }
 
@@ -8935,7 +12432,8 @@ static void PushPopJsspSimpleHelper(int reg_count,
       case PushPopByFour:
         // Pop low-numbered registers first (from the lowest addresses).
         for (i = 0; i <= (reg_count-4); i += 4) {
-          __ Pop(r[i], r[i+1], r[i+2], r[i+3]);
+          __ Pop<TurboAssembler::kDontLoadLR>(r[i], r[i + 1], r[i + 2],
+                                              r[i + 3]);
         }
         // Finish off the leftovers.
         switch (reg_count - i) {
@@ -8943,20 +12441,14 @@ static void PushPopJsspSimpleHelper(int reg_count,
           case 2:  __ Pop(r[i], r[i+1]);         break;
           case 1:  __ Pop(r[i]);                 break;
           default:
-            CHECK(i == reg_count);
+            CHECK_EQ(i, reg_count);
             break;
         }
         break;
       case PushPopRegList:
-        __ PopSizeRegList(list, reg_size);
+        __ PopSizeRegList<TurboAssembler::kDontLoadLR>(list, reg_size);
         break;
     }
-
-    // Drop memory to restore jssp.
-    __ Drop(claim, kByteSizeInBytes);
-
-    __ Mov(csp, __ StackPointer());
-    __ SetStackPointer(csp);
   }
 
   END();
@@ -8966,7 +12458,7 @@ static void PushPopJsspSimpleHelper(int reg_count,
   // Check that the register contents were preserved.
   // Always use CHECK_EQUAL_64, even when testing W registers, so we can test
   // that the upper word was properly cleared by Pop.
-  literal_base &= (0xffffffffffffffffUL >> (64-reg_size));
+  literal_base &= (0xFFFFFFFFFFFFFFFFUL >> (64 - reg_size));
   for (int i = 0; i < reg_count; i++) {
     if (x[i].IsZero()) {
       CHECK_EQUAL_64(0, x[i]);
@@ -8974,81 +12466,55 @@ static void PushPopJsspSimpleHelper(int reg_count,
       CHECK_EQUAL_64(literal_base * i, x[i]);
     }
   }
-
-  TEARDOWN();
 }
 
-
-TEST(push_pop_jssp_simple_32) {
+TEST(push_pop_simple_32) {
   INIT_V8();
-  for (int claim = 0; claim <= 8; claim++) {
-    for (int count = 0; count <= 8; count++) {
-      PushPopJsspSimpleHelper(count, claim, kWRegSizeInBits,
-                              PushPopByFour, PushPopByFour);
-      PushPopJsspSimpleHelper(count, claim, kWRegSizeInBits,
-                              PushPopByFour, PushPopRegList);
-      PushPopJsspSimpleHelper(count, claim, kWRegSizeInBits,
-                              PushPopRegList, PushPopByFour);
-      PushPopJsspSimpleHelper(count, claim, kWRegSizeInBits,
-                              PushPopRegList, PushPopRegList);
-    }
-    // Test with the maximum number of registers.
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kWRegSizeInBits,
-                            PushPopByFour, PushPopByFour);
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kWRegSizeInBits,
-                            PushPopByFour, PushPopRegList);
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kWRegSizeInBits,
-                            PushPopRegList, PushPopByFour);
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kWRegSizeInBits,
-                            PushPopRegList, PushPopRegList);
+
+  for (int count = 0; count < kPushPopMaxRegCount; count += 4) {
+    PushPopSimpleHelper(count, kWRegSizeInBits, PushPopByFour, PushPopByFour);
+    PushPopSimpleHelper(count, kWRegSizeInBits, PushPopByFour, PushPopRegList);
+    PushPopSimpleHelper(count, kWRegSizeInBits, PushPopRegList, PushPopByFour);
+    PushPopSimpleHelper(count, kWRegSizeInBits, PushPopRegList, PushPopRegList);
   }
+  // Skip testing kPushPopMaxRegCount, as we exclude the temporary registers
+  // and we end up with a number of registers that is not a multiple of four and
+  // is not supported for pushing.
 }
 
-
-TEST(push_pop_jssp_simple_64) {
+TEST(push_pop_simple_64) {
   INIT_V8();
-  for (int claim = 0; claim <= 8; claim++) {
-    for (int count = 0; count <= 8; count++) {
-      PushPopJsspSimpleHelper(count, claim, kXRegSizeInBits,
-                              PushPopByFour, PushPopByFour);
-      PushPopJsspSimpleHelper(count, claim, kXRegSizeInBits,
-                              PushPopByFour, PushPopRegList);
-      PushPopJsspSimpleHelper(count, claim, kXRegSizeInBits,
-                              PushPopRegList, PushPopByFour);
-      PushPopJsspSimpleHelper(count, claim, kXRegSizeInBits,
-                              PushPopRegList, PushPopRegList);
-    }
-    // Test with the maximum number of registers.
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kXRegSizeInBits,
-                            PushPopByFour, PushPopByFour);
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kXRegSizeInBits,
-                            PushPopByFour, PushPopRegList);
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kXRegSizeInBits,
-                            PushPopRegList, PushPopByFour);
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kXRegSizeInBits,
-                            PushPopRegList, PushPopRegList);
+  for (int count = 0; count <= 8; count += 2) {
+    PushPopSimpleHelper(count, kXRegSizeInBits, PushPopByFour, PushPopByFour);
+    PushPopSimpleHelper(count, kXRegSizeInBits, PushPopByFour, PushPopRegList);
+    PushPopSimpleHelper(count, kXRegSizeInBits, PushPopRegList, PushPopByFour);
+    PushPopSimpleHelper(count, kXRegSizeInBits, PushPopRegList, PushPopRegList);
   }
+  // Test with the maximum number of registers.
+  PushPopSimpleHelper(kPushPopMaxRegCount, kXRegSizeInBits, PushPopByFour,
+                      PushPopByFour);
+  PushPopSimpleHelper(kPushPopMaxRegCount, kXRegSizeInBits, PushPopByFour,
+                      PushPopRegList);
+  PushPopSimpleHelper(kPushPopMaxRegCount, kXRegSizeInBits, PushPopRegList,
+                      PushPopByFour);
+  PushPopSimpleHelper(kPushPopMaxRegCount, kXRegSizeInBits, PushPopRegList,
+                      PushPopRegList);
 }
 
-
-// The maximum number of registers that can be used by the PushPopFPJssp* tests,
+// The maximum number of registers that can be used by the PushPopFP* tests,
 // where a reg_count field is provided.
-static int const kPushPopFPJsspMaxRegCount = -1;
+static int const kPushPopFPMaxRegCount = -1;
 
 // Test a simple push-pop pattern:
-//  * Claim <claim> bytes to set the stack alignment.
 //  * Push <reg_count> FP registers with size <reg_size>.
 //  * Clobber the register contents.
 //  * Pop <reg_count> FP registers to restore the original contents.
-//  * Drop <claim> bytes to restore the original stack pointer.
 //
 // Different push and pop methods can be specified independently to test for
 // proper word-endian behaviour.
-static void PushPopFPJsspSimpleHelper(int reg_count,
-                                      int claim,
-                                      int reg_size,
-                                      PushPopMethod push_method,
-                                      PushPopMethod pop_method) {
+static void PushPopFPSimpleHelper(int reg_count, int reg_size,
+                                  PushPopMethod push_method,
+                                  PushPopMethod pop_method) {
   SETUP();
 
   START();
@@ -9056,14 +12522,14 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
   // We can use any floating-point register. None of them are reserved for
   // debug code, for example.
   static RegList const allowed = ~0;
-  if (reg_count == kPushPopFPJsspMaxRegCount) {
-    reg_count = CountSetBits(allowed, kNumberOfFPRegisters);
+  if (reg_count == kPushPopFPMaxRegCount) {
+    reg_count = CountSetBits(allowed, kNumberOfVRegisters);
   }
   // Work out which registers to use, based on reg_size.
-  FPRegister v[kNumberOfRegisters];
-  FPRegister d[kNumberOfRegisters];
-  RegList list = PopulateFPRegisterArray(NULL, d, v, reg_size, reg_count,
-                                         allowed);
+  auto v = CreateRegisterArray<VRegister, kNumberOfRegisters>();
+  auto d = CreateRegisterArray<VRegister, kNumberOfRegisters>();
+  RegList list = PopulateVRegisterArray(nullptr, d.data(), v.data(), reg_size,
+                                        reg_count, allowed);
 
   // The literal base is chosen to have two useful properties:
   //  * When multiplied (using an integer) by small values (such as a register
@@ -9075,10 +12541,6 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
   uint64_t literal_base = 0x0100001000100101UL;
 
   {
-    CHECK(__ StackPointer().Is(csp));
-    __ Mov(jssp, __ StackPointer());
-    __ SetStackPointer(jssp);
-
     int i;
 
     // Initialize the registers, using X registers to load the literal.
@@ -9092,9 +12554,6 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
       __ Add(x0, x0, x1);
     }
 
-    // Claim memory first, as requested.
-    __ Claim(claim, kByteSizeInBytes);
-
     switch (push_method) {
       case PushPopByFour:
         // Push high-numbered registers first (to the highest addresses).
@@ -9107,12 +12566,12 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
           case 2:  __ Push(v[1], v[0]);       break;
           case 1:  __ Push(v[0]);             break;
           default:
-            CHECK(i == 0);
+            CHECK_EQ(i, 0);
             break;
         }
         break;
       case PushPopRegList:
-        __ PushSizeRegList(list, reg_size, CPURegister::kFPRegister);
+        __ PushSizeRegList(list, reg_size, CPURegister::kVRegister);
         break;
     }
 
@@ -9131,20 +12590,14 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
           case 2:  __ Pop(v[i], v[i+1]);         break;
           case 1:  __ Pop(v[i]);                 break;
           default:
-            CHECK(i == reg_count);
+            CHECK_EQ(i, reg_count);
             break;
         }
         break;
       case PushPopRegList:
-        __ PopSizeRegList(list, reg_size, CPURegister::kFPRegister);
+        __ PopSizeRegList(list, reg_size, CPURegister::kVRegister);
         break;
     }
-
-    // Drop memory to restore jssp.
-    __ Drop(claim, kByteSizeInBytes);
-
-    __ Mov(csp, __ StackPointer());
-    __ SetStackPointer(csp);
   }
 
   END();
@@ -9154,97 +12607,85 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
   // Check that the register contents were preserved.
   // Always use CHECK_EQUAL_FP64, even when testing S registers, so we can
   // test that the upper word was properly cleared by Pop.
-  literal_base &= (0xffffffffffffffffUL >> (64-reg_size));
+  literal_base &= (0xFFFFFFFFFFFFFFFFUL >> (64 - reg_size));
   for (int i = 0; i < reg_count; i++) {
     uint64_t literal = literal_base * i;
     double expected;
     memcpy(&expected, &literal, sizeof(expected));
     CHECK_EQUAL_FP64(expected, d[i]);
   }
-
-  TEARDOWN();
 }
 
-
-TEST(push_pop_fp_jssp_simple_32) {
+TEST(push_pop_fp_simple_32) {
   INIT_V8();
-  for (int claim = 0; claim <= 8; claim++) {
-    for (int count = 0; count <= 8; count++) {
-      PushPopFPJsspSimpleHelper(count, claim, kSRegSizeInBits,
-                                PushPopByFour, PushPopByFour);
-      PushPopFPJsspSimpleHelper(count, claim, kSRegSizeInBits,
-                                PushPopByFour, PushPopRegList);
-      PushPopFPJsspSimpleHelper(count, claim, kSRegSizeInBits,
-                                PushPopRegList, PushPopByFour);
-      PushPopFPJsspSimpleHelper(count, claim, kSRegSizeInBits,
-                                PushPopRegList, PushPopRegList);
-    }
-    // Test with the maximum number of registers.
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kSRegSizeInBits,
-                              PushPopByFour, PushPopByFour);
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kSRegSizeInBits,
-                              PushPopByFour, PushPopRegList);
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kSRegSizeInBits,
-                              PushPopRegList, PushPopByFour);
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kSRegSizeInBits,
-                              PushPopRegList, PushPopRegList);
+  for (int count = 0; count <= 8; count += 4) {
+    PushPopFPSimpleHelper(count, kSRegSizeInBits, PushPopByFour, PushPopByFour);
+    PushPopFPSimpleHelper(count, kSRegSizeInBits, PushPopByFour,
+                          PushPopRegList);
+    PushPopFPSimpleHelper(count, kSRegSizeInBits, PushPopRegList,
+                          PushPopByFour);
+    PushPopFPSimpleHelper(count, kSRegSizeInBits, PushPopRegList,
+                          PushPopRegList);
   }
+  // Test with the maximum number of registers.
+  PushPopFPSimpleHelper(kPushPopFPMaxRegCount, kSRegSizeInBits, PushPopByFour,
+                        PushPopByFour);
+  PushPopFPSimpleHelper(kPushPopFPMaxRegCount, kSRegSizeInBits, PushPopByFour,
+                        PushPopRegList);
+  PushPopFPSimpleHelper(kPushPopFPMaxRegCount, kSRegSizeInBits, PushPopRegList,
+                        PushPopByFour);
+  PushPopFPSimpleHelper(kPushPopFPMaxRegCount, kSRegSizeInBits, PushPopRegList,
+                        PushPopRegList);
 }
 
-
-TEST(push_pop_fp_jssp_simple_64) {
+TEST(push_pop_fp_simple_64) {
   INIT_V8();
-  for (int claim = 0; claim <= 8; claim++) {
-    for (int count = 0; count <= 8; count++) {
-      PushPopFPJsspSimpleHelper(count, claim, kDRegSizeInBits,
-                                PushPopByFour, PushPopByFour);
-      PushPopFPJsspSimpleHelper(count, claim, kDRegSizeInBits,
-                                PushPopByFour, PushPopRegList);
-      PushPopFPJsspSimpleHelper(count, claim, kDRegSizeInBits,
-                                PushPopRegList, PushPopByFour);
-      PushPopFPJsspSimpleHelper(count, claim, kDRegSizeInBits,
-                                PushPopRegList, PushPopRegList);
-    }
-    // Test with the maximum number of registers.
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kDRegSizeInBits,
-                              PushPopByFour, PushPopByFour);
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kDRegSizeInBits,
-                              PushPopByFour, PushPopRegList);
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kDRegSizeInBits,
-                              PushPopRegList, PushPopByFour);
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kDRegSizeInBits,
-                              PushPopRegList, PushPopRegList);
+  for (int count = 0; count <= 8; count += 2) {
+    PushPopFPSimpleHelper(count, kDRegSizeInBits, PushPopByFour, PushPopByFour);
+    PushPopFPSimpleHelper(count, kDRegSizeInBits, PushPopByFour,
+                          PushPopRegList);
+    PushPopFPSimpleHelper(count, kDRegSizeInBits, PushPopRegList,
+                          PushPopByFour);
+    PushPopFPSimpleHelper(count, kDRegSizeInBits, PushPopRegList,
+                          PushPopRegList);
   }
+  // Test with the maximum number of registers.
+  PushPopFPSimpleHelper(kPushPopFPMaxRegCount, kDRegSizeInBits, PushPopByFour,
+                        PushPopByFour);
+  PushPopFPSimpleHelper(kPushPopFPMaxRegCount, kDRegSizeInBits, PushPopByFour,
+                        PushPopRegList);
+  PushPopFPSimpleHelper(kPushPopFPMaxRegCount, kDRegSizeInBits, PushPopRegList,
+                        PushPopByFour);
+  PushPopFPSimpleHelper(kPushPopFPMaxRegCount, kDRegSizeInBits, PushPopRegList,
+                        PushPopRegList);
 }
 
 
 // Push and pop data using an overlapping combination of Push/Pop and
 // RegList-based methods.
-static void PushPopJsspMixedMethodsHelper(int claim, int reg_size) {
+static void PushPopMixedMethodsHelper(int reg_size) {
   SETUP();
 
-  // Registers x8 and x9 are used by the macro assembler for debug code (for
-  // example in 'Pop'), so we can't use them here. We can't use jssp because it
-  // will be the stack pointer for this test.
-  static RegList const allowed =
-      ~(x8.Bit() | x9.Bit() | jssp.Bit() | xzr.Bit());
+  // Registers in the TmpList can be used by the macro assembler for debug code
+  // (for example in 'Pop'), so we can't use them here.
+  static RegList const allowed = ~(masm.TmpList()->list());
   // Work out which registers to use, based on reg_size.
-  Register r[10];
-  Register x[10];
-  PopulateRegisterArray(NULL, x, r, reg_size, 10, allowed);
+  auto r = CreateRegisterArray<Register, 10>();
+  auto x = CreateRegisterArray<Register, 10>();
+  PopulateRegisterArray(nullptr, x.data(), r.data(), reg_size, 10, allowed);
 
   // Calculate some handy register lists.
   RegList r0_to_r3 = 0;
   for (int i = 0; i <= 3; i++) {
-    r0_to_r3 |= x[i].Bit();
+    r0_to_r3 |= x[i].bit();
   }
   RegList r4_to_r5 = 0;
   for (int i = 4; i <= 5; i++) {
-    r4_to_r5 |= x[i].Bit();
+    r4_to_r5 |= x[i].bit();
   }
   RegList r6_to_r9 = 0;
   for (int i = 6; i <= 9; i++) {
-    r6_to_r9 |= x[i].Bit();
+    r6_to_r9 |= x[i].bit();
   }
 
   // The literal base is chosen to have two useful properties:
@@ -9256,13 +12697,6 @@ static void PushPopJsspMixedMethodsHelper(int claim, int reg_size) {
 
   START();
   {
-    CHECK(__ StackPointer().Is(csp));
-    __ Mov(jssp, __ StackPointer());
-    __ SetStackPointer(jssp);
-
-    // Claim memory first, as requested.
-    __ Claim(claim, kByteSizeInBytes);
-
     __ Mov(x[3], literal_base * 3);
     __ Mov(x[2], literal_base * 2);
     __ Mov(x[1], literal_base * 1);
@@ -9280,12 +12714,6 @@ static void PushPopJsspMixedMethodsHelper(int claim, int reg_size) {
     __ Pop(r[4], r[5]);
     Clobber(&masm, r6_to_r9);
     __ Pop(r[6], r[7], r[8], r[9]);
-
-    // Drop memory to restore jssp.
-    __ Drop(claim, kByteSizeInBytes);
-
-    __ Mov(csp, __ StackPointer());
-    __ SetStackPointer(csp);
   }
 
   END();
@@ -9294,7 +12722,7 @@ static void PushPopJsspMixedMethodsHelper(int claim, int reg_size) {
 
   // Always use CHECK_EQUAL_64, even when testing W registers, so we can test
   // that the upper word was properly cleared by Pop.
-  literal_base &= (0xffffffffffffffffUL >> (64-reg_size));
+  literal_base &= (0xFFFFFFFFFFFFFFFFUL >> (64 - reg_size));
 
   CHECK_EQUAL_64(literal_base * 3, x[9]);
   CHECK_EQUAL_64(literal_base * 2, x[8]);
@@ -9302,291 +12730,57 @@ static void PushPopJsspMixedMethodsHelper(int claim, int reg_size) {
   CHECK_EQUAL_64(literal_base * 3, x[6]);
   CHECK_EQUAL_64(literal_base * 1, x[5]);
   CHECK_EQUAL_64(literal_base * 2, x[4]);
-
-  TEARDOWN();
 }
 
-
-TEST(push_pop_jssp_mixed_methods_64) {
+TEST(push_pop_mixed_methods_64) {
   INIT_V8();
-  for (int claim = 0; claim <= 8; claim++) {
-    PushPopJsspMixedMethodsHelper(claim, kXRegSizeInBits);
-  }
+  PushPopMixedMethodsHelper(kXRegSizeInBits);
 }
 
-
-TEST(push_pop_jssp_mixed_methods_32) {
-  INIT_V8();
-  for (int claim = 0; claim <= 8; claim++) {
-    PushPopJsspMixedMethodsHelper(claim, kWRegSizeInBits);
-  }
-}
-
-
-// Push and pop data using overlapping X- and W-sized quantities.
-static void PushPopJsspWXOverlapHelper(int reg_count, int claim) {
-  // This test emits rather a lot of code.
-  SETUP_SIZE(BUF_SIZE * 2);
-
-  // Work out which registers to use, based on reg_size.
-  Register tmp = x8;
-  static RegList const allowed = ~(tmp.Bit() | jssp.Bit());
-  if (reg_count == kPushPopJsspMaxRegCount) {
-    reg_count = CountSetBits(allowed, kNumberOfRegisters);
-  }
-  Register w[kNumberOfRegisters];
-  Register x[kNumberOfRegisters];
-  RegList list = PopulateRegisterArray(w, x, NULL, 0, reg_count, allowed);
-
-  // The number of W-sized slots we expect to pop. When we pop, we alternate
-  // between W and X registers, so we need reg_count*1.5 W-sized slots.
-  int const requested_w_slots = reg_count + reg_count / 2;
-
-  // Track what _should_ be on the stack, using W-sized slots.
-  static int const kMaxWSlots = kNumberOfRegisters + kNumberOfRegisters / 2;
-  uint32_t stack[kMaxWSlots];
-  for (int i = 0; i < kMaxWSlots; i++) {
-    stack[i] = 0xdeadbeef;
-  }
-
-  // The literal base is chosen to have two useful properties:
-  //  * When multiplied by small values (such as a register index), this value
-  //    is clearly readable in the result.
-  //  * The value is not formed from repeating fixed-size smaller values, so it
-  //    can be used to detect endianness-related errors.
-  static uint64_t const literal_base = 0x0100001000100101UL;
-  static uint64_t const literal_base_hi = literal_base >> 32;
-  static uint64_t const literal_base_lo = literal_base & 0xffffffff;
-  static uint64_t const literal_base_w = literal_base & 0xffffffff;
-
-  START();
-  {
-    CHECK(__ StackPointer().Is(csp));
-    __ Mov(jssp, __ StackPointer());
-    __ SetStackPointer(jssp);
-
-    // Initialize the registers.
-    for (int i = 0; i < reg_count; i++) {
-      // Always write into the X register, to ensure that the upper word is
-      // properly ignored by Push when testing W registers.
-      if (!x[i].IsZero()) {
-        __ Mov(x[i], literal_base * i);
-      }
-    }
-
-    // Claim memory first, as requested.
-    __ Claim(claim, kByteSizeInBytes);
-
-    // The push-pop pattern is as follows:
-    // Push:           Pop:
-    //  x[0](hi)   ->   w[0]
-    //  x[0](lo)   ->   x[1](hi)
-    //  w[1]       ->   x[1](lo)
-    //  w[1]       ->   w[2]
-    //  x[2](hi)   ->   x[2](hi)
-    //  x[2](lo)   ->   x[2](lo)
-    //  x[2](hi)   ->   w[3]
-    //  x[2](lo)   ->   x[4](hi)
-    //  x[2](hi)   ->   x[4](lo)
-    //  x[2](lo)   ->   w[5]
-    //  w[3]       ->   x[5](hi)
-    //  w[3]       ->   x[6](lo)
-    //  w[3]       ->   w[7]
-    //  w[3]       ->   x[8](hi)
-    //  x[4](hi)   ->   x[8](lo)
-    //  x[4](lo)   ->   w[9]
-    // ... pattern continues ...
-    //
-    // That is, registers are pushed starting with the lower numbers,
-    // alternating between x and w registers, and pushing i%4+1 copies of each,
-    // where i is the register number.
-    // Registers are popped starting with the higher numbers one-by-one,
-    // alternating between x and w registers, but only popping one at a time.
-    //
-    // This pattern provides a wide variety of alignment effects and overlaps.
-
-    // ---- Push ----
-
-    int active_w_slots = 0;
-    for (int i = 0; active_w_slots < requested_w_slots; i++) {
-      CHECK(i < reg_count);
-      // In order to test various arguments to PushMultipleTimes, and to try to
-      // exercise different alignment and overlap effects, we push each
-      // register a different number of times.
-      int times = i % 4 + 1;
-      if (i & 1) {
-        // Push odd-numbered registers as W registers.
-        if (i & 2) {
-          __ PushMultipleTimes(w[i], times);
-        } else {
-          // Use a register to specify the count.
-          __ Mov(tmp.W(), times);
-          __ PushMultipleTimes(w[i], tmp.W());
-        }
-        // Fill in the expected stack slots.
-        for (int j = 0; j < times; j++) {
-          if (w[i].Is(wzr)) {
-            // The zero register always writes zeroes.
-            stack[active_w_slots++] = 0;
-          } else {
-            stack[active_w_slots++] = literal_base_w * i;
-          }
-        }
-      } else {
-        // Push even-numbered registers as X registers.
-        if (i & 2) {
-          __ PushMultipleTimes(x[i], times);
-        } else {
-          // Use a register to specify the count.
-          __ Mov(tmp, times);
-          __ PushMultipleTimes(x[i], tmp);
-        }
-        // Fill in the expected stack slots.
-        for (int j = 0; j < times; j++) {
-          if (x[i].IsZero()) {
-            // The zero register always writes zeroes.
-            stack[active_w_slots++] = 0;
-            stack[active_w_slots++] = 0;
-          } else {
-            stack[active_w_slots++] = literal_base_hi * i;
-            stack[active_w_slots++] = literal_base_lo * i;
-          }
-        }
-      }
-    }
-    // Because we were pushing several registers at a time, we probably pushed
-    // more than we needed to.
-    if (active_w_slots > requested_w_slots) {
-      __ Drop(active_w_slots - requested_w_slots, kWRegSize);
-      // Bump the number of active W-sized slots back to where it should be,
-      // and fill the empty space with a dummy value.
-      do {
-        stack[active_w_slots--] = 0xdeadbeef;
-      } while (active_w_slots > requested_w_slots);
-    }
-
-    // ---- Pop ----
-
-    Clobber(&masm, list);
-
-    // If popping an even number of registers, the first one will be X-sized.
-    // Otherwise, the first one will be W-sized.
-    bool next_is_64 = !(reg_count & 1);
-    for (int i = reg_count-1; i >= 0; i--) {
-      if (next_is_64) {
-        __ Pop(x[i]);
-        active_w_slots -= 2;
-      } else {
-        __ Pop(w[i]);
-        active_w_slots -= 1;
-      }
-      next_is_64 = !next_is_64;
-    }
-    CHECK(active_w_slots == 0);
-
-    // Drop memory to restore jssp.
-    __ Drop(claim, kByteSizeInBytes);
-
-    __ Mov(csp, __ StackPointer());
-    __ SetStackPointer(csp);
-  }
-
-  END();
-
-  RUN();
-
-  int slot = 0;
-  for (int i = 0; i < reg_count; i++) {
-    // Even-numbered registers were written as W registers.
-    // Odd-numbered registers were written as X registers.
-    bool expect_64 = (i & 1);
-    uint64_t expected;
-
-    if (expect_64) {
-      uint64_t hi = stack[slot++];
-      uint64_t lo = stack[slot++];
-      expected = (hi << 32) | lo;
-    } else {
-      expected = stack[slot++];
-    }
-
-    // Always use CHECK_EQUAL_64, even when testing W registers, so we can
-    // test that the upper word was properly cleared by Pop.
-    if (x[i].IsZero()) {
-      CHECK_EQUAL_64(0, x[i]);
-    } else {
-      CHECK_EQUAL_64(expected, x[i]);
-    }
-  }
-  CHECK(slot == requested_w_slots);
-
-  TEARDOWN();
-}
-
-
-TEST(push_pop_jssp_wx_overlap) {
-  INIT_V8();
-  for (int claim = 0; claim <= 8; claim++) {
-    for (int count = 1; count <= 8; count++) {
-      PushPopJsspWXOverlapHelper(count, claim);
-      PushPopJsspWXOverlapHelper(count, claim);
-      PushPopJsspWXOverlapHelper(count, claim);
-      PushPopJsspWXOverlapHelper(count, claim);
-    }
-    // Test with the maximum number of registers.
-    PushPopJsspWXOverlapHelper(kPushPopJsspMaxRegCount, claim);
-    PushPopJsspWXOverlapHelper(kPushPopJsspMaxRegCount, claim);
-    PushPopJsspWXOverlapHelper(kPushPopJsspMaxRegCount, claim);
-    PushPopJsspWXOverlapHelper(kPushPopJsspMaxRegCount, claim);
-  }
-}
-
-
-TEST(push_pop_csp) {
+TEST(push_pop) {
   INIT_V8();
   SETUP();
 
   START();
-
-  CHECK(csp.Is(__ StackPointer()));
-
   __ Mov(x3, 0x3333333333333333UL);
   __ Mov(x2, 0x2222222222222222UL);
   __ Mov(x1, 0x1111111111111111UL);
   __ Mov(x0, 0x0000000000000000UL);
   __ Claim(2);
-  __ PushXRegList(x0.Bit() | x1.Bit() | x2.Bit() | x3.Bit());
+  __ PushXRegList(x0.bit() | x1.bit() | x2.bit() | x3.bit());
   __ Push(x3, x2);
-  __ PopXRegList(x0.Bit() | x1.Bit() | x2.Bit() | x3.Bit());
+  __ PopXRegList(x0.bit() | x1.bit() | x2.bit() | x3.bit());
   __ Push(x2, x1, x3, x0);
   __ Pop(x4, x5);
   __ Pop(x6, x7, x8, x9);
 
   __ Claim(2);
-  __ PushWRegList(w0.Bit() | w1.Bit() | w2.Bit() | w3.Bit());
+  __ PushWRegList(w0.bit() | w1.bit() | w2.bit() | w3.bit());
   __ Push(w3, w1, w2, w0);
-  __ PopWRegList(w10.Bit() | w11.Bit() | w12.Bit() | w13.Bit());
+  __ PopWRegList(w10.bit() | w11.bit() | w12.bit() | w13.bit());
   __ Pop(w14, w15, w16, w17);
 
   __ Claim(2);
   __ Push(w2, w2, w1, w1);
   __ Push(x3, x3);
-  __ Pop(w18, w19, w20, w21);
+  __ Pop(w30, w19, w20, w21);
   __ Pop(x22, x23);
 
   __ Claim(2);
-  __ PushXRegList(x1.Bit() | x22.Bit());
-  __ PopXRegList(x24.Bit() | x26.Bit());
+  __ PushXRegList(x1.bit() | x22.bit());
+  __ PopXRegList(x24.bit() | x26.bit());
 
   __ Claim(2);
-  __ PushWRegList(w1.Bit() | w2.Bit() | w4.Bit() | w22.Bit());
-  __ PopWRegList(w25.Bit() | w27.Bit() | w28.Bit() | w29.Bit());
+  __ PushWRegList(w1.bit() | w2.bit() | w4.bit() | w22.bit());
+  __ PopWRegList(w25.bit() | w27.bit() | w28.bit() | w29.bit());
 
   __ Claim(2);
   __ PushXRegList(0);
   __ PopXRegList(0);
-  __ PushXRegList(0xffffffff);
-  __ PopXRegList(0xffffffff);
+  // Don't push/pop x18 (platform register) or lr
+  RegList all_regs = 0xFFFFFFFF & ~(x18.bit() | lr.bit());
+  __ PushXRegList<TurboAssembler::kDontStoreLR>(all_regs);
+  __ PopXRegList<TurboAssembler::kDontLoadLR>(all_regs);
   __ Drop(12);
 
   END();
@@ -9613,7 +12807,7 @@ TEST(push_pop_csp) {
   CHECK_EQUAL_32(0x33333333U, w15);
   CHECK_EQUAL_32(0x22222222U, w14);
 
-  CHECK_EQUAL_32(0x11111111U, w18);
+  CHECK_EQUAL_32(0x11111111U, w30);
   CHECK_EQUAL_32(0x11111111U, w19);
   CHECK_EQUAL_32(0x11111111U, w20);
   CHECK_EQUAL_32(0x11111111U, w21);
@@ -9627,398 +12821,897 @@ TEST(push_pop_csp) {
   CHECK_EQUAL_32(0x00000000U, w27);
   CHECK_EQUAL_32(0x22222222U, w28);
   CHECK_EQUAL_32(0x33333333U, w29);
-  TEARDOWN();
 }
 
-
-TEST(push_queued) {
+TEST(copy_slots_down) {
   INIT_V8();
   SETUP();
 
-  START();
-
-  CHECK(__ StackPointer().Is(csp));
-  __ Mov(jssp, __ StackPointer());
-  __ SetStackPointer(jssp);
-
-  MacroAssembler::PushPopQueue queue(&masm);
-
-  // Queue up registers.
-  queue.Queue(x0);
-  queue.Queue(x1);
-  queue.Queue(x2);
-  queue.Queue(x3);
-
-  queue.Queue(w4);
-  queue.Queue(w5);
-  queue.Queue(w6);
-
-  queue.Queue(d0);
-  queue.Queue(d1);
-
-  queue.Queue(s2);
-
-  __ Mov(x0, 0x1234000000000000);
-  __ Mov(x1, 0x1234000100010001);
-  __ Mov(x2, 0x1234000200020002);
-  __ Mov(x3, 0x1234000300030003);
-  __ Mov(w4, 0x12340004);
-  __ Mov(w5, 0x12340005);
-  __ Mov(w6, 0x12340006);
-  __ Fmov(d0, 123400.0);
-  __ Fmov(d1, 123401.0);
-  __ Fmov(s2, 123402.0);
-
-  // Actually push them.
-  queue.PushQueued();
-
-  Clobber(&masm, CPURegList(CPURegister::kRegister, kXRegSizeInBits, 0, 6));
-  Clobber(&masm, CPURegList(CPURegister::kFPRegister, kDRegSizeInBits, 0, 2));
-
-  // Pop them conventionally.
-  __ Pop(s2);
-  __ Pop(d1, d0);
-  __ Pop(w6, w5, w4);
-  __ Pop(x3, x2, x1, x0);
-
-  __ Mov(csp, __ StackPointer());
-  __ SetStackPointer(csp);
-
-  END();
-
-  RUN();
-
-  CHECK_EQUAL_64(0x1234000000000000, x0);
-  CHECK_EQUAL_64(0x1234000100010001, x1);
-  CHECK_EQUAL_64(0x1234000200020002, x2);
-  CHECK_EQUAL_64(0x1234000300030003, x3);
-
-  CHECK_EQUAL_32(0x12340004, w4);
-  CHECK_EQUAL_32(0x12340005, w5);
-  CHECK_EQUAL_32(0x12340006, w6);
-
-  CHECK_EQUAL_FP64(123400.0, d0);
-  CHECK_EQUAL_FP64(123401.0, d1);
-
-  CHECK_EQUAL_FP32(123402.0, s2);
-
-  TEARDOWN();
-}
-
-
-TEST(pop_queued) {
-  INIT_V8();
-  SETUP();
+  const uint64_t ones = 0x1111111111111111UL;
+  const uint64_t twos = 0x2222222222222222UL;
+  const uint64_t threes = 0x3333333333333333UL;
+  const uint64_t fours = 0x4444444444444444UL;
 
   START();
 
-  CHECK(__ StackPointer().Is(csp));
-  __ Mov(jssp, __ StackPointer());
-  __ SetStackPointer(jssp);
+  // Test copying 12 slots down one slot.
+  __ Mov(x1, ones);
+  __ Mov(x2, twos);
+  __ Mov(x3, threes);
+  __ Mov(x4, fours);
 
-  MacroAssembler::PushPopQueue queue(&masm);
+  __ Push(x1, x2, x3, x4);
+  __ Push(x1, x2, x1, x2);
+  __ Push(x3, x4, x3, x4);
+  __ Push(xzr, xzr);
 
-  __ Mov(x0, 0x1234000000000000);
-  __ Mov(x1, 0x1234000100010001);
-  __ Mov(x2, 0x1234000200020002);
-  __ Mov(x3, 0x1234000300030003);
-  __ Mov(w4, 0x12340004);
-  __ Mov(w5, 0x12340005);
-  __ Mov(w6, 0x12340006);
-  __ Fmov(d0, 123400.0);
-  __ Fmov(d1, 123401.0);
-  __ Fmov(s2, 123402.0);
-
-  // Push registers conventionally.
-  __ Push(x0, x1, x2, x3);
-  __ Push(w4, w5, w6);
-  __ Push(d0, d1);
-  __ Push(s2);
-
-  // Queue up a pop.
-  queue.Queue(s2);
-
-  queue.Queue(d1);
-  queue.Queue(d0);
-
-  queue.Queue(w6);
-  queue.Queue(w5);
-  queue.Queue(w4);
-
-  queue.Queue(x3);
-  queue.Queue(x2);
-  queue.Queue(x1);
-  queue.Queue(x0);
-
-  Clobber(&masm, CPURegList(CPURegister::kRegister, kXRegSizeInBits, 0, 6));
-  Clobber(&masm, CPURegList(CPURegister::kFPRegister, kDRegSizeInBits, 0, 2));
-
-  // Actually pop them.
-  queue.PopQueued();
-
-  __ Mov(csp, __ StackPointer());
-  __ SetStackPointer(csp);
-
-  END();
-
-  RUN();
-
-  CHECK_EQUAL_64(0x1234000000000000, x0);
-  CHECK_EQUAL_64(0x1234000100010001, x1);
-  CHECK_EQUAL_64(0x1234000200020002, x2);
-  CHECK_EQUAL_64(0x1234000300030003, x3);
-
-  CHECK_EQUAL_64(0x0000000012340004, x4);
-  CHECK_EQUAL_64(0x0000000012340005, x5);
-  CHECK_EQUAL_64(0x0000000012340006, x6);
-
-  CHECK_EQUAL_FP64(123400.0, d0);
-  CHECK_EQUAL_FP64(123401.0, d1);
-
-  CHECK_EQUAL_FP32(123402.0, s2);
-
-  TEARDOWN();
-}
-
-
-TEST(jump_both_smi) {
-  INIT_V8();
-  SETUP();
-
-  Label cond_pass_00, cond_pass_01, cond_pass_10, cond_pass_11;
-  Label cond_fail_00, cond_fail_01, cond_fail_10, cond_fail_11;
-  Label return1, return2, return3, done;
-
-  START();
-
-  __ Mov(x0, 0x5555555500000001UL);  // A pointer.
-  __ Mov(x1, 0xaaaaaaaa00000001UL);  // A pointer.
-  __ Mov(x2, 0x1234567800000000UL);  // A smi.
-  __ Mov(x3, 0x8765432100000000UL);  // A smi.
-  __ Mov(x4, 0xdead);
-  __ Mov(x5, 0xdead);
-  __ Mov(x6, 0xdead);
-  __ Mov(x7, 0xdead);
-
-  __ JumpIfBothSmi(x0, x1, &cond_pass_00, &cond_fail_00);
-  __ Bind(&return1);
-  __ JumpIfBothSmi(x0, x2, &cond_pass_01, &cond_fail_01);
-  __ Bind(&return2);
-  __ JumpIfBothSmi(x2, x1, &cond_pass_10, &cond_fail_10);
-  __ Bind(&return3);
-  __ JumpIfBothSmi(x2, x3, &cond_pass_11, &cond_fail_11);
-
-  __ Bind(&cond_fail_00);
-  __ Mov(x4, 0);
-  __ B(&return1);
-  __ Bind(&cond_pass_00);
-  __ Mov(x4, 1);
-  __ B(&return1);
-
-  __ Bind(&cond_fail_01);
-  __ Mov(x5, 0);
-  __ B(&return2);
-  __ Bind(&cond_pass_01);
   __ Mov(x5, 1);
-  __ B(&return2);
+  __ Mov(x6, 2);
+  __ Mov(x7, 12);
+  __ CopySlots(x5, x6, x7);
 
-  __ Bind(&cond_fail_10);
-  __ Mov(x6, 0);
-  __ B(&return3);
-  __ Bind(&cond_pass_10);
-  __ Mov(x6, 1);
-  __ B(&return3);
+  __ Pop(xzr, x4, x5, x6);
+  __ Pop(x7, x8, x9, x10);
+  __ Pop(x11, x12, x13, x14);
+  __ Pop(x15, xzr);
 
-  __ Bind(&cond_fail_11);
-  __ Mov(x7, 0);
-  __ B(&done);
-  __ Bind(&cond_pass_11);
-  __ Mov(x7, 1);
+  // Test copying one slot down one slot.
+  __ Push(x1, xzr, xzr, xzr);
 
-  __ Bind(&done);
+  __ Mov(x1, 2);
+  __ Mov(x2, 3);
+  __ Mov(x3, 1);
+  __ CopySlots(x1, x2, x3);
+
+  __ Drop(2);
+  __ Pop(x0, xzr);
 
   END();
 
   RUN();
 
-  CHECK_EQUAL_64(0x5555555500000001UL, x0);
-  CHECK_EQUAL_64(0xaaaaaaaa00000001UL, x1);
-  CHECK_EQUAL_64(0x1234567800000000UL, x2);
-  CHECK_EQUAL_64(0x8765432100000000UL, x3);
-  CHECK_EQUAL_64(0, x4);
-  CHECK_EQUAL_64(0, x5);
-  CHECK_EQUAL_64(0, x6);
-  CHECK_EQUAL_64(1, x7);
+  CHECK_EQUAL_64(fours, x4);
+  CHECK_EQUAL_64(threes, x5);
+  CHECK_EQUAL_64(fours, x6);
+  CHECK_EQUAL_64(threes, x7);
 
-  TEARDOWN();
+  CHECK_EQUAL_64(twos, x8);
+  CHECK_EQUAL_64(ones, x9);
+  CHECK_EQUAL_64(twos, x10);
+  CHECK_EQUAL_64(ones, x11);
+
+  CHECK_EQUAL_64(fours, x12);
+  CHECK_EQUAL_64(threes, x13);
+  CHECK_EQUAL_64(twos, x14);
+  CHECK_EQUAL_64(ones, x15);
+
+  CHECK_EQUAL_64(ones, x0);
 }
 
-
-TEST(jump_either_smi) {
+TEST(copy_slots_up) {
   INIT_V8();
   SETUP();
 
-  Label cond_pass_00, cond_pass_01, cond_pass_10, cond_pass_11;
-  Label cond_fail_00, cond_fail_01, cond_fail_10, cond_fail_11;
-  Label return1, return2, return3, done;
+  const uint64_t ones = 0x1111111111111111UL;
+  const uint64_t twos = 0x2222222222222222UL;
+  const uint64_t threes = 0x3333333333333333UL;
 
   START();
 
-  __ Mov(x0, 0x5555555500000001UL);  // A pointer.
-  __ Mov(x1, 0xaaaaaaaa00000001UL);  // A pointer.
-  __ Mov(x2, 0x1234567800000000UL);  // A smi.
-  __ Mov(x3, 0x8765432100000000UL);  // A smi.
-  __ Mov(x4, 0xdead);
-  __ Mov(x5, 0xdead);
-  __ Mov(x6, 0xdead);
-  __ Mov(x7, 0xdead);
+  __ Mov(x1, ones);
+  __ Mov(x2, twos);
+  __ Mov(x3, threes);
 
-  __ JumpIfEitherSmi(x0, x1, &cond_pass_00, &cond_fail_00);
-  __ Bind(&return1);
-  __ JumpIfEitherSmi(x0, x2, &cond_pass_01, &cond_fail_01);
-  __ Bind(&return2);
-  __ JumpIfEitherSmi(x2, x1, &cond_pass_10, &cond_fail_10);
-  __ Bind(&return3);
-  __ JumpIfEitherSmi(x2, x3, &cond_pass_11, &cond_fail_11);
+  // Test copying one slot to the next slot higher in memory.
+  __ Push(xzr, x1);
 
-  __ Bind(&cond_fail_00);
-  __ Mov(x4, 0);
-  __ B(&return1);
-  __ Bind(&cond_pass_00);
-  __ Mov(x4, 1);
-  __ B(&return1);
-
-  __ Bind(&cond_fail_01);
-  __ Mov(x5, 0);
-  __ B(&return2);
-  __ Bind(&cond_pass_01);
   __ Mov(x5, 1);
-  __ B(&return2);
-
-  __ Bind(&cond_fail_10);
   __ Mov(x6, 0);
-  __ B(&return3);
-  __ Bind(&cond_pass_10);
-  __ Mov(x6, 1);
-  __ B(&return3);
-
-  __ Bind(&cond_fail_11);
-  __ Mov(x7, 0);
-  __ B(&done);
-  __ Bind(&cond_pass_11);
   __ Mov(x7, 1);
+  __ CopySlots(x5, x6, x7);
 
-  __ Bind(&done);
+  __ Pop(xzr, x10);
+
+  // Test copying two slots to the next two slots higher in memory.
+  __ Push(xzr, xzr);
+  __ Push(x1, x2);
+
+  __ Mov(x5, 2);
+  __ Mov(x6, 0);
+  __ Mov(x7, 2);
+  __ CopySlots(x5, x6, x7);
+
+  __ Drop(2);
+  __ Pop(x11, x12);
+
+  // Test copying three slots to the next three slots higher in memory.
+  __ Push(xzr, xzr, xzr, x1);
+  __ Push(x2, x3);
+
+  __ Mov(x5, 3);
+  __ Mov(x6, 0);
+  __ Mov(x7, 3);
+  __ CopySlots(x5, x6, x7);
+
+  __ Drop(2);
+  __ Pop(xzr, x0, x1, x2);
 
   END();
 
   RUN();
 
-  CHECK_EQUAL_64(0x5555555500000001UL, x0);
-  CHECK_EQUAL_64(0xaaaaaaaa00000001UL, x1);
-  CHECK_EQUAL_64(0x1234567800000000UL, x2);
-  CHECK_EQUAL_64(0x8765432100000000UL, x3);
-  CHECK_EQUAL_64(0, x4);
-  CHECK_EQUAL_64(1, x5);
-  CHECK_EQUAL_64(1, x6);
-  CHECK_EQUAL_64(1, x7);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(ones, x10);
+  CHECK_EQUAL_64(twos, x11);
+  CHECK_EQUAL_64(ones, x12);
+  CHECK_EQUAL_64(threes, x0);
+  CHECK_EQUAL_64(twos, x1);
+  CHECK_EQUAL_64(ones, x2);
 }
 
+TEST(copy_double_words_downwards_even) {
+  INIT_V8();
+  SETUP();
+
+  const uint64_t ones = 0x1111111111111111UL;
+  const uint64_t twos = 0x2222222222222222UL;
+  const uint64_t threes = 0x3333333333333333UL;
+  const uint64_t fours = 0x4444444444444444UL;
+
+  START();
+
+  // Test copying 12 slots up one slot.
+  __ Mov(x1, ones);
+  __ Mov(x2, twos);
+  __ Mov(x3, threes);
+  __ Mov(x4, fours);
+
+  __ Push(xzr, xzr);
+  __ Push(x1, x2, x3, x4);
+  __ Push(x1, x2, x1, x2);
+  __ Push(x3, x4, x3, x4);
+
+  __ SlotAddress(x5, 12);
+  __ SlotAddress(x6, 11);
+  __ Mov(x7, 12);
+  __ CopyDoubleWords(x5, x6, x7, TurboAssembler::kSrcLessThanDst);
+
+  __ Pop(xzr, x4, x5, x6);
+  __ Pop(x7, x8, x9, x10);
+  __ Pop(x11, x12, x13, x14);
+  __ Pop(x15, xzr);
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_64(ones, x15);
+  CHECK_EQUAL_64(twos, x14);
+  CHECK_EQUAL_64(threes, x13);
+  CHECK_EQUAL_64(fours, x12);
+
+  CHECK_EQUAL_64(ones, x11);
+  CHECK_EQUAL_64(twos, x10);
+  CHECK_EQUAL_64(ones, x9);
+  CHECK_EQUAL_64(twos, x8);
+
+  CHECK_EQUAL_64(threes, x7);
+  CHECK_EQUAL_64(fours, x6);
+  CHECK_EQUAL_64(threes, x5);
+  CHECK_EQUAL_64(fours, x4);
+}
+
+TEST(copy_double_words_downwards_odd) {
+  INIT_V8();
+  SETUP();
+
+  const uint64_t ones = 0x1111111111111111UL;
+  const uint64_t twos = 0x2222222222222222UL;
+  const uint64_t threes = 0x3333333333333333UL;
+  const uint64_t fours = 0x4444444444444444UL;
+  const uint64_t fives = 0x5555555555555555UL;
+
+  START();
+
+  // Test copying 13 slots up one slot.
+  __ Mov(x1, ones);
+  __ Mov(x2, twos);
+  __ Mov(x3, threes);
+  __ Mov(x4, fours);
+  __ Mov(x5, fives);
+
+  __ Push(xzr, x5);
+  __ Push(x1, x2, x3, x4);
+  __ Push(x1, x2, x1, x2);
+  __ Push(x3, x4, x3, x4);
+
+  __ SlotAddress(x5, 13);
+  __ SlotAddress(x6, 12);
+  __ Mov(x7, 13);
+  __ CopyDoubleWords(x5, x6, x7, TurboAssembler::kSrcLessThanDst);
+
+  __ Pop(xzr, x4);
+  __ Pop(x5, x6, x7, x8);
+  __ Pop(x9, x10, x11, x12);
+  __ Pop(x13, x14, x15, x16);
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_64(fives, x16);
+
+  CHECK_EQUAL_64(ones, x15);
+  CHECK_EQUAL_64(twos, x14);
+  CHECK_EQUAL_64(threes, x13);
+  CHECK_EQUAL_64(fours, x12);
+
+  CHECK_EQUAL_64(ones, x11);
+  CHECK_EQUAL_64(twos, x10);
+  CHECK_EQUAL_64(ones, x9);
+  CHECK_EQUAL_64(twos, x8);
+
+  CHECK_EQUAL_64(threes, x7);
+  CHECK_EQUAL_64(fours, x6);
+  CHECK_EQUAL_64(threes, x5);
+  CHECK_EQUAL_64(fours, x4);
+}
+
+TEST(copy_noop) {
+  INIT_V8();
+  SETUP();
+
+  const uint64_t ones = 0x1111111111111111UL;
+  const uint64_t twos = 0x2222222222222222UL;
+  const uint64_t threes = 0x3333333333333333UL;
+  const uint64_t fours = 0x4444444444444444UL;
+  const uint64_t fives = 0x5555555555555555UL;
+
+  START();
+
+  __ Mov(x1, ones);
+  __ Mov(x2, twos);
+  __ Mov(x3, threes);
+  __ Mov(x4, fours);
+  __ Mov(x5, fives);
+
+  __ Push(xzr, x5, x5, xzr);
+  __ Push(x3, x4, x3, x4);
+  __ Push(x1, x2, x1, x2);
+  __ Push(x1, x2, x3, x4);
+
+  // src < dst, count == 0
+  __ SlotAddress(x5, 3);
+  __ SlotAddress(x6, 2);
+  __ Mov(x7, 0);
+  __ CopyDoubleWords(x5, x6, x7, TurboAssembler::kSrcLessThanDst);
+
+  // dst < src, count == 0
+  __ SlotAddress(x5, 2);
+  __ SlotAddress(x6, 3);
+  __ Mov(x7, 0);
+  __ CopyDoubleWords(x5, x6, x7, TurboAssembler::kDstLessThanSrc);
+
+  __ Pop(x1, x2, x3, x4);
+  __ Pop(x5, x6, x7, x8);
+  __ Pop(x9, x10, x11, x12);
+  __ Pop(x13, x14, x15, x16);
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_64(fours, x1);
+  CHECK_EQUAL_64(threes, x2);
+  CHECK_EQUAL_64(twos, x3);
+  CHECK_EQUAL_64(ones, x4);
+
+  CHECK_EQUAL_64(twos, x5);
+  CHECK_EQUAL_64(ones, x6);
+  CHECK_EQUAL_64(twos, x7);
+  CHECK_EQUAL_64(ones, x8);
+
+  CHECK_EQUAL_64(fours, x9);
+  CHECK_EQUAL_64(threes, x10);
+  CHECK_EQUAL_64(fours, x11);
+  CHECK_EQUAL_64(threes, x12);
+
+  CHECK_EQUAL_64(0, x13);
+  CHECK_EQUAL_64(fives, x14);
+  CHECK_EQUAL_64(fives, x15);
+  CHECK_EQUAL_64(0, x16);
+}
 
 TEST(noreg) {
   // This test doesn't generate any code, but it verifies some invariants
   // related to NoReg.
-  CHECK(NoReg.Is(NoFPReg));
-  CHECK(NoFPReg.Is(NoReg));
-  CHECK(NoReg.Is(NoCPUReg));
-  CHECK(NoCPUReg.Is(NoReg));
-  CHECK(NoFPReg.Is(NoCPUReg));
-  CHECK(NoCPUReg.Is(NoFPReg));
+  CHECK_EQ(NoReg, NoVReg);
+  CHECK_EQ(NoVReg, NoReg);
+  CHECK_EQ(NoReg, NoCPUReg);
+  CHECK_EQ(NoCPUReg, NoReg);
+  CHECK_EQ(NoVReg, NoCPUReg);
+  CHECK_EQ(NoCPUReg, NoVReg);
 
   CHECK(NoReg.IsNone());
-  CHECK(NoFPReg.IsNone());
+  CHECK(NoVReg.IsNone());
   CHECK(NoCPUReg.IsNone());
 }
 
+TEST(vreg) {
+  // This test doesn't generate any code, but it verifies
+  // Helper functions and methods pertaining to VRegister logic.
+
+  CHECK_EQ(8U, RegisterSizeInBitsFromFormat(kFormatB));
+  CHECK_EQ(16U, RegisterSizeInBitsFromFormat(kFormatH));
+  CHECK_EQ(32U, RegisterSizeInBitsFromFormat(kFormatS));
+  CHECK_EQ(64U, RegisterSizeInBitsFromFormat(kFormatD));
+  CHECK_EQ(64U, RegisterSizeInBitsFromFormat(kFormat8B));
+  CHECK_EQ(64U, RegisterSizeInBitsFromFormat(kFormat4H));
+  CHECK_EQ(64U, RegisterSizeInBitsFromFormat(kFormat2S));
+  CHECK_EQ(64U, RegisterSizeInBitsFromFormat(kFormat1D));
+  CHECK_EQ(128U, RegisterSizeInBitsFromFormat(kFormat16B));
+  CHECK_EQ(128U, RegisterSizeInBitsFromFormat(kFormat8H));
+  CHECK_EQ(128U, RegisterSizeInBitsFromFormat(kFormat4S));
+  CHECK_EQ(128U, RegisterSizeInBitsFromFormat(kFormat2D));
+
+  CHECK_EQ(16, LaneCountFromFormat(kFormat16B));
+  CHECK_EQ(8, LaneCountFromFormat(kFormat8B));
+  CHECK_EQ(8, LaneCountFromFormat(kFormat8H));
+  CHECK_EQ(4, LaneCountFromFormat(kFormat4H));
+  CHECK_EQ(4, LaneCountFromFormat(kFormat4S));
+  CHECK_EQ(2, LaneCountFromFormat(kFormat2S));
+  CHECK_EQ(2, LaneCountFromFormat(kFormat2D));
+  CHECK_EQ(1, LaneCountFromFormat(kFormat1D));
+  CHECK_EQ(1, LaneCountFromFormat(kFormatB));
+  CHECK_EQ(1, LaneCountFromFormat(kFormatH));
+  CHECK_EQ(1, LaneCountFromFormat(kFormatS));
+  CHECK_EQ(1, LaneCountFromFormat(kFormatD));
+
+  CHECK(!IsVectorFormat(kFormatB));
+  CHECK(!IsVectorFormat(kFormatH));
+  CHECK(!IsVectorFormat(kFormatS));
+  CHECK(!IsVectorFormat(kFormatD));
+  CHECK(IsVectorFormat(kFormat16B));
+  CHECK(IsVectorFormat(kFormat8B));
+  CHECK(IsVectorFormat(kFormat8H));
+  CHECK(IsVectorFormat(kFormat4H));
+  CHECK(IsVectorFormat(kFormat4S));
+  CHECK(IsVectorFormat(kFormat2S));
+  CHECK(IsVectorFormat(kFormat2D));
+  CHECK(IsVectorFormat(kFormat1D));
+
+  CHECK(!d0.Is8B());
+  CHECK(!d0.Is16B());
+  CHECK(!d0.Is4H());
+  CHECK(!d0.Is8H());
+  CHECK(!d0.Is2S());
+  CHECK(!d0.Is4S());
+  CHECK(d0.Is1D());
+  CHECK(!d0.Is1S());
+  CHECK(!d0.Is1H());
+  CHECK(!d0.Is1B());
+  CHECK(!d0.IsVector());
+  CHECK(d0.IsScalar());
+  CHECK(d0.IsFPRegister());
+
+  CHECK(!d0.IsW());
+  CHECK(!d0.IsX());
+  CHECK(d0.IsV());
+  CHECK(!d0.IsB());
+  CHECK(!d0.IsH());
+  CHECK(!d0.IsS());
+  CHECK(d0.IsD());
+  CHECK(!d0.IsQ());
+
+  CHECK(!s0.Is8B());
+  CHECK(!s0.Is16B());
+  CHECK(!s0.Is4H());
+  CHECK(!s0.Is8H());
+  CHECK(!s0.Is2S());
+  CHECK(!s0.Is4S());
+  CHECK(!s0.Is1D());
+  CHECK(s0.Is1S());
+  CHECK(!s0.Is1H());
+  CHECK(!s0.Is1B());
+  CHECK(!s0.IsVector());
+  CHECK(s0.IsScalar());
+  CHECK(s0.IsFPRegister());
+
+  CHECK(!s0.IsW());
+  CHECK(!s0.IsX());
+  CHECK(s0.IsV());
+  CHECK(!s0.IsB());
+  CHECK(!s0.IsH());
+  CHECK(s0.IsS());
+  CHECK(!s0.IsD());
+  CHECK(!s0.IsQ());
+
+  CHECK(!h0.Is8B());
+  CHECK(!h0.Is16B());
+  CHECK(!h0.Is4H());
+  CHECK(!h0.Is8H());
+  CHECK(!h0.Is2S());
+  CHECK(!h0.Is4S());
+  CHECK(!h0.Is1D());
+  CHECK(!h0.Is1S());
+  CHECK(h0.Is1H());
+  CHECK(!h0.Is1B());
+  CHECK(!h0.IsVector());
+  CHECK(h0.IsScalar());
+  CHECK(!h0.IsFPRegister());
+
+  CHECK(!h0.IsW());
+  CHECK(!h0.IsX());
+  CHECK(h0.IsV());
+  CHECK(!h0.IsB());
+  CHECK(h0.IsH());
+  CHECK(!h0.IsS());
+  CHECK(!h0.IsD());
+  CHECK(!h0.IsQ());
+
+  CHECK(!b0.Is8B());
+  CHECK(!b0.Is16B());
+  CHECK(!b0.Is4H());
+  CHECK(!b0.Is8H());
+  CHECK(!b0.Is2S());
+  CHECK(!b0.Is4S());
+  CHECK(!b0.Is1D());
+  CHECK(!b0.Is1S());
+  CHECK(!b0.Is1H());
+  CHECK(b0.Is1B());
+  CHECK(!b0.IsVector());
+  CHECK(b0.IsScalar());
+  CHECK(!b0.IsFPRegister());
+
+  CHECK(!b0.IsW());
+  CHECK(!b0.IsX());
+  CHECK(b0.IsV());
+  CHECK(b0.IsB());
+  CHECK(!b0.IsH());
+  CHECK(!b0.IsS());
+  CHECK(!b0.IsD());
+  CHECK(!b0.IsQ());
+
+  CHECK(!q0.Is8B());
+  CHECK(!q0.Is16B());
+  CHECK(!q0.Is4H());
+  CHECK(!q0.Is8H());
+  CHECK(!q0.Is2S());
+  CHECK(!q0.Is4S());
+  CHECK(!q0.Is1D());
+  CHECK(!q0.Is2D());
+  CHECK(!q0.Is1S());
+  CHECK(!q0.Is1H());
+  CHECK(!q0.Is1B());
+  CHECK(!q0.IsVector());
+  CHECK(q0.IsScalar());
+  CHECK(!q0.IsFPRegister());
+
+  CHECK(!q0.IsW());
+  CHECK(!q0.IsX());
+  CHECK(q0.IsV());
+  CHECK(!q0.IsB());
+  CHECK(!q0.IsH());
+  CHECK(!q0.IsS());
+  CHECK(!q0.IsD());
+  CHECK(q0.IsQ());
+
+  CHECK(w0.IsW());
+  CHECK(!w0.IsX());
+  CHECK(!w0.IsV());
+  CHECK(!w0.IsB());
+  CHECK(!w0.IsH());
+  CHECK(!w0.IsS());
+  CHECK(!w0.IsD());
+  CHECK(!w0.IsQ());
+
+  CHECK(!x0.IsW());
+  CHECK(x0.IsX());
+  CHECK(!x0.IsV());
+  CHECK(!x0.IsB());
+  CHECK(!x0.IsH());
+  CHECK(!x0.IsS());
+  CHECK(!x0.IsD());
+  CHECK(!x0.IsQ());
+
+  CHECK(v0.V().IsV());
+  CHECK(v0.B().IsB());
+  CHECK(v0.H().IsH());
+  CHECK(v0.D().IsD());
+  CHECK(v0.S().IsS());
+  CHECK(v0.Q().IsQ());
+
+  VRegister test_8b(VRegister::Create(0, 64, 8));
+  CHECK(test_8b.Is8B());
+  CHECK(!test_8b.Is16B());
+  CHECK(!test_8b.Is4H());
+  CHECK(!test_8b.Is8H());
+  CHECK(!test_8b.Is2S());
+  CHECK(!test_8b.Is4S());
+  CHECK(!test_8b.Is1D());
+  CHECK(!test_8b.Is2D());
+  CHECK(!test_8b.Is1H());
+  CHECK(!test_8b.Is1B());
+  CHECK(test_8b.IsVector());
+  CHECK(!test_8b.IsScalar());
+  CHECK(test_8b.IsFPRegister());
+
+  VRegister test_16b(VRegister::Create(0, 128, 16));
+  CHECK(!test_16b.Is8B());
+  CHECK(test_16b.Is16B());
+  CHECK(!test_16b.Is4H());
+  CHECK(!test_16b.Is8H());
+  CHECK(!test_16b.Is2S());
+  CHECK(!test_16b.Is4S());
+  CHECK(!test_16b.Is1D());
+  CHECK(!test_16b.Is2D());
+  CHECK(!test_16b.Is1H());
+  CHECK(!test_16b.Is1B());
+  CHECK(test_16b.IsVector());
+  CHECK(!test_16b.IsScalar());
+  CHECK(!test_16b.IsFPRegister());
+
+  VRegister test_4h(VRegister::Create(0, 64, 4));
+  CHECK(!test_4h.Is8B());
+  CHECK(!test_4h.Is16B());
+  CHECK(test_4h.Is4H());
+  CHECK(!test_4h.Is8H());
+  CHECK(!test_4h.Is2S());
+  CHECK(!test_4h.Is4S());
+  CHECK(!test_4h.Is1D());
+  CHECK(!test_4h.Is2D());
+  CHECK(!test_4h.Is1H());
+  CHECK(!test_4h.Is1B());
+  CHECK(test_4h.IsVector());
+  CHECK(!test_4h.IsScalar());
+  CHECK(test_4h.IsFPRegister());
+
+  VRegister test_8h(VRegister::Create(0, 128, 8));
+  CHECK(!test_8h.Is8B());
+  CHECK(!test_8h.Is16B());
+  CHECK(!test_8h.Is4H());
+  CHECK(test_8h.Is8H());
+  CHECK(!test_8h.Is2S());
+  CHECK(!test_8h.Is4S());
+  CHECK(!test_8h.Is1D());
+  CHECK(!test_8h.Is2D());
+  CHECK(!test_8h.Is1H());
+  CHECK(!test_8h.Is1B());
+  CHECK(test_8h.IsVector());
+  CHECK(!test_8h.IsScalar());
+  CHECK(!test_8h.IsFPRegister());
+
+  VRegister test_2s(VRegister::Create(0, 64, 2));
+  CHECK(!test_2s.Is8B());
+  CHECK(!test_2s.Is16B());
+  CHECK(!test_2s.Is4H());
+  CHECK(!test_2s.Is8H());
+  CHECK(test_2s.Is2S());
+  CHECK(!test_2s.Is4S());
+  CHECK(!test_2s.Is1D());
+  CHECK(!test_2s.Is2D());
+  CHECK(!test_2s.Is1H());
+  CHECK(!test_2s.Is1B());
+  CHECK(test_2s.IsVector());
+  CHECK(!test_2s.IsScalar());
+  CHECK(test_2s.IsFPRegister());
+
+  VRegister test_4s(VRegister::Create(0, 128, 4));
+  CHECK(!test_4s.Is8B());
+  CHECK(!test_4s.Is16B());
+  CHECK(!test_4s.Is4H());
+  CHECK(!test_4s.Is8H());
+  CHECK(!test_4s.Is2S());
+  CHECK(test_4s.Is4S());
+  CHECK(!test_4s.Is1D());
+  CHECK(!test_4s.Is2D());
+  CHECK(!test_4s.Is1S());
+  CHECK(!test_4s.Is1H());
+  CHECK(!test_4s.Is1B());
+  CHECK(test_4s.IsVector());
+  CHECK(!test_4s.IsScalar());
+  CHECK(!test_4s.IsFPRegister());
+
+  VRegister test_1d(VRegister::Create(0, 64, 1));
+  CHECK(!test_1d.Is8B());
+  CHECK(!test_1d.Is16B());
+  CHECK(!test_1d.Is4H());
+  CHECK(!test_1d.Is8H());
+  CHECK(!test_1d.Is2S());
+  CHECK(!test_1d.Is4S());
+  CHECK(test_1d.Is1D());
+  CHECK(!test_1d.Is2D());
+  CHECK(!test_1d.Is1S());
+  CHECK(!test_1d.Is1H());
+  CHECK(!test_1d.Is1B());
+  CHECK(!test_1d.IsVector());
+  CHECK(test_1d.IsScalar());
+  CHECK(test_1d.IsFPRegister());
+
+  VRegister test_2d(VRegister::Create(0, 128, 2));
+  CHECK(!test_2d.Is8B());
+  CHECK(!test_2d.Is16B());
+  CHECK(!test_2d.Is4H());
+  CHECK(!test_2d.Is8H());
+  CHECK(!test_2d.Is2S());
+  CHECK(!test_2d.Is4S());
+  CHECK(!test_2d.Is1D());
+  CHECK(test_2d.Is2D());
+  CHECK(!test_2d.Is1H());
+  CHECK(!test_2d.Is1B());
+  CHECK(test_2d.IsVector());
+  CHECK(!test_2d.IsScalar());
+  CHECK(!test_2d.IsFPRegister());
+
+  VRegister test_1s(VRegister::Create(0, 32, 1));
+  CHECK(!test_1s.Is8B());
+  CHECK(!test_1s.Is16B());
+  CHECK(!test_1s.Is4H());
+  CHECK(!test_1s.Is8H());
+  CHECK(!test_1s.Is2S());
+  CHECK(!test_1s.Is4S());
+  CHECK(!test_1s.Is1D());
+  CHECK(!test_1s.Is2D());
+  CHECK(test_1s.Is1S());
+  CHECK(!test_1s.Is1H());
+  CHECK(!test_1s.Is1B());
+  CHECK(!test_1s.IsVector());
+  CHECK(test_1s.IsScalar());
+  CHECK(test_1s.IsFPRegister());
+
+  VRegister test_1h(VRegister::Create(0, 16, 1));
+  CHECK(!test_1h.Is8B());
+  CHECK(!test_1h.Is16B());
+  CHECK(!test_1h.Is4H());
+  CHECK(!test_1h.Is8H());
+  CHECK(!test_1h.Is2S());
+  CHECK(!test_1h.Is4S());
+  CHECK(!test_1h.Is1D());
+  CHECK(!test_1h.Is2D());
+  CHECK(!test_1h.Is1S());
+  CHECK(test_1h.Is1H());
+  CHECK(!test_1h.Is1B());
+  CHECK(!test_1h.IsVector());
+  CHECK(test_1h.IsScalar());
+  CHECK(!test_1h.IsFPRegister());
+
+  VRegister test_1b(VRegister::Create(0, 8, 1));
+  CHECK(!test_1b.Is8B());
+  CHECK(!test_1b.Is16B());
+  CHECK(!test_1b.Is4H());
+  CHECK(!test_1b.Is8H());
+  CHECK(!test_1b.Is2S());
+  CHECK(!test_1b.Is4S());
+  CHECK(!test_1b.Is1D());
+  CHECK(!test_1b.Is2D());
+  CHECK(!test_1b.Is1S());
+  CHECK(!test_1b.Is1H());
+  CHECK(test_1b.Is1B());
+  CHECK(!test_1b.IsVector());
+  CHECK(test_1b.IsScalar());
+  CHECK(!test_1b.IsFPRegister());
+
+  VRegister test_breg_from_code(VRegister::BRegFromCode(0));
+  CHECK_EQ(test_breg_from_code.SizeInBits(), kBRegSizeInBits);
+
+  VRegister test_hreg_from_code(VRegister::HRegFromCode(0));
+  CHECK_EQ(test_hreg_from_code.SizeInBits(), kHRegSizeInBits);
+
+  VRegister test_sreg_from_code(VRegister::SRegFromCode(0));
+  CHECK_EQ(test_sreg_from_code.SizeInBits(), kSRegSizeInBits);
+
+  VRegister test_dreg_from_code(VRegister::DRegFromCode(0));
+  CHECK_EQ(test_dreg_from_code.SizeInBits(), kDRegSizeInBits);
+
+  VRegister test_qreg_from_code(VRegister::QRegFromCode(0));
+  CHECK_EQ(test_qreg_from_code.SizeInBits(), kQRegSizeInBits);
+
+  VRegister test_vreg_from_code(VRegister::VRegFromCode(0));
+  CHECK_EQ(test_vreg_from_code.SizeInBits(), kVRegSizeInBits);
+
+  VRegister test_v8b(VRegister::VRegFromCode(31).V8B());
+  CHECK_EQ(test_v8b.code(), 31);
+  CHECK_EQ(test_v8b.SizeInBits(), kDRegSizeInBits);
+  CHECK(test_v8b.IsLaneSizeB());
+  CHECK(!test_v8b.IsLaneSizeH());
+  CHECK(!test_v8b.IsLaneSizeS());
+  CHECK(!test_v8b.IsLaneSizeD());
+  CHECK_EQ(test_v8b.LaneSizeInBits(), 8U);
+
+  VRegister test_v16b(VRegister::VRegFromCode(31).V16B());
+  CHECK_EQ(test_v16b.code(), 31);
+  CHECK_EQ(test_v16b.SizeInBits(), kQRegSizeInBits);
+  CHECK(test_v16b.IsLaneSizeB());
+  CHECK(!test_v16b.IsLaneSizeH());
+  CHECK(!test_v16b.IsLaneSizeS());
+  CHECK(!test_v16b.IsLaneSizeD());
+  CHECK_EQ(test_v16b.LaneSizeInBits(), 8U);
+
+  VRegister test_v4h(VRegister::VRegFromCode(31).V4H());
+  CHECK_EQ(test_v4h.code(), 31);
+  CHECK_EQ(test_v4h.SizeInBits(), kDRegSizeInBits);
+  CHECK(!test_v4h.IsLaneSizeB());
+  CHECK(test_v4h.IsLaneSizeH());
+  CHECK(!test_v4h.IsLaneSizeS());
+  CHECK(!test_v4h.IsLaneSizeD());
+  CHECK_EQ(test_v4h.LaneSizeInBits(), 16U);
+
+  VRegister test_v8h(VRegister::VRegFromCode(31).V8H());
+  CHECK_EQ(test_v8h.code(), 31);
+  CHECK_EQ(test_v8h.SizeInBits(), kQRegSizeInBits);
+  CHECK(!test_v8h.IsLaneSizeB());
+  CHECK(test_v8h.IsLaneSizeH());
+  CHECK(!test_v8h.IsLaneSizeS());
+  CHECK(!test_v8h.IsLaneSizeD());
+  CHECK_EQ(test_v8h.LaneSizeInBits(), 16U);
+
+  VRegister test_v2s(VRegister::VRegFromCode(31).V2S());
+  CHECK_EQ(test_v2s.code(), 31);
+  CHECK_EQ(test_v2s.SizeInBits(), kDRegSizeInBits);
+  CHECK(!test_v2s.IsLaneSizeB());
+  CHECK(!test_v2s.IsLaneSizeH());
+  CHECK(test_v2s.IsLaneSizeS());
+  CHECK(!test_v2s.IsLaneSizeD());
+  CHECK_EQ(test_v2s.LaneSizeInBits(), 32U);
+
+  VRegister test_v4s(VRegister::VRegFromCode(31).V4S());
+  CHECK_EQ(test_v4s.code(), 31);
+  CHECK_EQ(test_v4s.SizeInBits(), kQRegSizeInBits);
+  CHECK(!test_v4s.IsLaneSizeB());
+  CHECK(!test_v4s.IsLaneSizeH());
+  CHECK(test_v4s.IsLaneSizeS());
+  CHECK(!test_v4s.IsLaneSizeD());
+  CHECK_EQ(test_v4s.LaneSizeInBits(), 32U);
+
+  VRegister test_v1d(VRegister::VRegFromCode(31).V1D());
+  CHECK_EQ(test_v1d.code(), 31);
+  CHECK_EQ(test_v1d.SizeInBits(), kDRegSizeInBits);
+  CHECK(!test_v1d.IsLaneSizeB());
+  CHECK(!test_v1d.IsLaneSizeH());
+  CHECK(!test_v1d.IsLaneSizeS());
+  CHECK(test_v1d.IsLaneSizeD());
+  CHECK_EQ(test_v1d.LaneSizeInBits(), 64U);
+
+  VRegister test_v2d(VRegister::VRegFromCode(31).V2D());
+  CHECK_EQ(test_v2d.code(), 31);
+  CHECK_EQ(test_v2d.SizeInBits(), kQRegSizeInBits);
+  CHECK(!test_v2d.IsLaneSizeB());
+  CHECK(!test_v2d.IsLaneSizeH());
+  CHECK(!test_v2d.IsLaneSizeS());
+  CHECK(test_v2d.IsLaneSizeD());
+  CHECK_EQ(test_v2d.LaneSizeInBits(), 64U);
+
+  CHECK(test_v1d.IsSameFormat(test_v1d));
+  CHECK(test_v2d.IsSameFormat(test_v2d));
+  CHECK(!test_v1d.IsSameFormat(test_v2d));
+  CHECK(!test_v2s.IsSameFormat(test_v2d));
+}
 
 TEST(isvalid) {
   // This test doesn't generate any code, but it verifies some invariants
   // related to IsValid().
-  CHECK(!NoReg.IsValid());
-  CHECK(!NoFPReg.IsValid());
-  CHECK(!NoCPUReg.IsValid());
+  CHECK(!NoReg.is_valid());
+  CHECK(!NoVReg.is_valid());
+  CHECK(!NoCPUReg.is_valid());
 
-  CHECK(x0.IsValid());
-  CHECK(w0.IsValid());
-  CHECK(x30.IsValid());
-  CHECK(w30.IsValid());
-  CHECK(xzr.IsValid());
-  CHECK(wzr.IsValid());
+  CHECK(x0.is_valid());
+  CHECK(w0.is_valid());
+  CHECK(x30.is_valid());
+  CHECK(w30.is_valid());
+  CHECK(xzr.is_valid());
+  CHECK(wzr.is_valid());
 
-  CHECK(csp.IsValid());
-  CHECK(wcsp.IsValid());
+  CHECK(sp.is_valid());
+  CHECK(wsp.is_valid());
 
-  CHECK(d0.IsValid());
-  CHECK(s0.IsValid());
-  CHECK(d31.IsValid());
-  CHECK(s31.IsValid());
+  CHECK(d0.is_valid());
+  CHECK(s0.is_valid());
+  CHECK(d31.is_valid());
+  CHECK(s31.is_valid());
 
-  CHECK(x0.IsValidRegister());
-  CHECK(w0.IsValidRegister());
-  CHECK(xzr.IsValidRegister());
-  CHECK(wzr.IsValidRegister());
-  CHECK(csp.IsValidRegister());
-  CHECK(wcsp.IsValidRegister());
-  CHECK(!x0.IsValidFPRegister());
-  CHECK(!w0.IsValidFPRegister());
-  CHECK(!xzr.IsValidFPRegister());
-  CHECK(!wzr.IsValidFPRegister());
-  CHECK(!csp.IsValidFPRegister());
-  CHECK(!wcsp.IsValidFPRegister());
+  CHECK(x0.IsRegister());
+  CHECK(w0.IsRegister());
+  CHECK(xzr.IsRegister());
+  CHECK(wzr.IsRegister());
+  CHECK(sp.IsRegister());
+  CHECK(wsp.IsRegister());
+  CHECK(!x0.IsVRegister());
+  CHECK(!w0.IsVRegister());
+  CHECK(!xzr.IsVRegister());
+  CHECK(!wzr.IsVRegister());
+  CHECK(!sp.IsVRegister());
+  CHECK(!wsp.IsVRegister());
 
-  CHECK(d0.IsValidFPRegister());
-  CHECK(s0.IsValidFPRegister());
-  CHECK(!d0.IsValidRegister());
-  CHECK(!s0.IsValidRegister());
+  CHECK(d0.IsVRegister());
+  CHECK(s0.IsVRegister());
+  CHECK(!d0.IsRegister());
+  CHECK(!s0.IsRegister());
 
   // Test the same as before, but using CPURegister types. This shouldn't make
   // any difference.
-  CHECK(static_cast<CPURegister>(x0).IsValid());
-  CHECK(static_cast<CPURegister>(w0).IsValid());
-  CHECK(static_cast<CPURegister>(x30).IsValid());
-  CHECK(static_cast<CPURegister>(w30).IsValid());
-  CHECK(static_cast<CPURegister>(xzr).IsValid());
-  CHECK(static_cast<CPURegister>(wzr).IsValid());
+  CHECK(static_cast<CPURegister>(x0).is_valid());
+  CHECK(static_cast<CPURegister>(w0).is_valid());
+  CHECK(static_cast<CPURegister>(x30).is_valid());
+  CHECK(static_cast<CPURegister>(w30).is_valid());
+  CHECK(static_cast<CPURegister>(xzr).is_valid());
+  CHECK(static_cast<CPURegister>(wzr).is_valid());
 
-  CHECK(static_cast<CPURegister>(csp).IsValid());
-  CHECK(static_cast<CPURegister>(wcsp).IsValid());
+  CHECK(static_cast<CPURegister>(sp).is_valid());
+  CHECK(static_cast<CPURegister>(wsp).is_valid());
 
-  CHECK(static_cast<CPURegister>(d0).IsValid());
-  CHECK(static_cast<CPURegister>(s0).IsValid());
-  CHECK(static_cast<CPURegister>(d31).IsValid());
-  CHECK(static_cast<CPURegister>(s31).IsValid());
+  CHECK(static_cast<CPURegister>(d0).is_valid());
+  CHECK(static_cast<CPURegister>(s0).is_valid());
+  CHECK(static_cast<CPURegister>(d31).is_valid());
+  CHECK(static_cast<CPURegister>(s31).is_valid());
 
-  CHECK(static_cast<CPURegister>(x0).IsValidRegister());
-  CHECK(static_cast<CPURegister>(w0).IsValidRegister());
-  CHECK(static_cast<CPURegister>(xzr).IsValidRegister());
-  CHECK(static_cast<CPURegister>(wzr).IsValidRegister());
-  CHECK(static_cast<CPURegister>(csp).IsValidRegister());
-  CHECK(static_cast<CPURegister>(wcsp).IsValidRegister());
-  CHECK(!static_cast<CPURegister>(x0).IsValidFPRegister());
-  CHECK(!static_cast<CPURegister>(w0).IsValidFPRegister());
-  CHECK(!static_cast<CPURegister>(xzr).IsValidFPRegister());
-  CHECK(!static_cast<CPURegister>(wzr).IsValidFPRegister());
-  CHECK(!static_cast<CPURegister>(csp).IsValidFPRegister());
-  CHECK(!static_cast<CPURegister>(wcsp).IsValidFPRegister());
+  CHECK(static_cast<CPURegister>(x0).IsRegister());
+  CHECK(static_cast<CPURegister>(w0).IsRegister());
+  CHECK(static_cast<CPURegister>(xzr).IsRegister());
+  CHECK(static_cast<CPURegister>(wzr).IsRegister());
+  CHECK(static_cast<CPURegister>(sp).IsRegister());
+  CHECK(static_cast<CPURegister>(wsp).IsRegister());
+  CHECK(!static_cast<CPURegister>(x0).IsVRegister());
+  CHECK(!static_cast<CPURegister>(w0).IsVRegister());
+  CHECK(!static_cast<CPURegister>(xzr).IsVRegister());
+  CHECK(!static_cast<CPURegister>(wzr).IsVRegister());
+  CHECK(!static_cast<CPURegister>(sp).IsVRegister());
+  CHECK(!static_cast<CPURegister>(wsp).IsVRegister());
 
-  CHECK(static_cast<CPURegister>(d0).IsValidFPRegister());
-  CHECK(static_cast<CPURegister>(s0).IsValidFPRegister());
-  CHECK(!static_cast<CPURegister>(d0).IsValidRegister());
-  CHECK(!static_cast<CPURegister>(s0).IsValidRegister());
+  CHECK(static_cast<CPURegister>(d0).IsVRegister());
+  CHECK(static_cast<CPURegister>(s0).IsVRegister());
+  CHECK(!static_cast<CPURegister>(d0).IsRegister());
+  CHECK(!static_cast<CPURegister>(s0).IsRegister());
 }
 
+TEST(areconsecutive) {
+  // This test generates no code; it just checks that AreConsecutive works.
+  CHECK(AreConsecutive(b0, NoVReg));
+  CHECK(AreConsecutive(b1, b2));
+  CHECK(AreConsecutive(b3, b4, b5));
+  CHECK(AreConsecutive(b6, b7, b8, b9));
+  CHECK(AreConsecutive(h10, NoVReg));
+  CHECK(AreConsecutive(h11, h12));
+  CHECK(AreConsecutive(h13, h14, h15));
+  CHECK(AreConsecutive(h16, h17, h18, h19));
+  CHECK(AreConsecutive(s20, NoVReg));
+  CHECK(AreConsecutive(s21, s22));
+  CHECK(AreConsecutive(s23, s24, s25));
+  CHECK(AreConsecutive(s26, s27, s28, s29));
+  CHECK(AreConsecutive(d30, NoVReg));
+  CHECK(AreConsecutive(d31, d0));
+  CHECK(AreConsecutive(d1, d2, d3));
+  CHECK(AreConsecutive(d4, d5, d6, d7));
+  CHECK(AreConsecutive(q8, NoVReg));
+  CHECK(AreConsecutive(q9, q10));
+  CHECK(AreConsecutive(q11, q12, q13));
+  CHECK(AreConsecutive(q14, q15, q16, q17));
+  CHECK(AreConsecutive(v18, NoVReg));
+  CHECK(AreConsecutive(v19, v20));
+  CHECK(AreConsecutive(v21, v22, v23));
+  CHECK(AreConsecutive(v24, v25, v26, v27));
+  CHECK(AreConsecutive(b29, h30));
+  CHECK(AreConsecutive(s31, d0, q1));
+  CHECK(AreConsecutive(v2, b3, h4, s5));
+
+  CHECK(AreConsecutive(b26, b27, NoVReg, NoVReg));
+  CHECK(AreConsecutive(h28, NoVReg, NoVReg, NoVReg));
+
+  CHECK(!AreConsecutive(b0, b2));
+  CHECK(!AreConsecutive(h1, h0));
+  CHECK(!AreConsecutive(s31, s1));
+  CHECK(!AreConsecutive(d12, d12));
+  CHECK(!AreConsecutive(q31, q1));
+
+  CHECK(!AreConsecutive(b5, b4, b3));
+  CHECK(!AreConsecutive(h15, h16, h15, h14));
+  CHECK(!AreConsecutive(s25, s24, s23, s22));
+  CHECK(!AreConsecutive(d5, d6, d7, d6));
+  CHECK(!AreConsecutive(q15, q16, q17, q6));
+
+  CHECK(!AreConsecutive(b0, b1, b3));
+  CHECK(!AreConsecutive(h4, h5, h6, h6));
+  CHECK(!AreConsecutive(d15, d16, d18, NoVReg));
+  CHECK(!AreConsecutive(s28, s30, NoVReg, NoVReg));
+}
 
 TEST(cpureglist_utils_x) {
   // This test doesn't generate any code, but it verifies the behaviour of
@@ -10039,11 +13732,11 @@ TEST(cpureglist_utils_x) {
   CHECK(!test.IncludesAliasOf(x4));
   CHECK(!test.IncludesAliasOf(x30));
   CHECK(!test.IncludesAliasOf(xzr));
-  CHECK(!test.IncludesAliasOf(csp));
+  CHECK(!test.IncludesAliasOf(sp));
   CHECK(!test.IncludesAliasOf(w4));
   CHECK(!test.IncludesAliasOf(w30));
   CHECK(!test.IncludesAliasOf(wzr));
-  CHECK(!test.IncludesAliasOf(wcsp));
+  CHECK(!test.IncludesAliasOf(wsp));
 
   CHECK(!test.IncludesAliasOf(d0));
   CHECK(!test.IncludesAliasOf(d1));
@@ -10056,10 +13749,10 @@ TEST(cpureglist_utils_x) {
 
   CHECK(!test.IsEmpty());
 
-  CHECK(test.type() == x0.type());
+  CHECK_EQ(test.type(), x0.type());
 
-  CHECK(test.PopHighestIndex().Is(x3));
-  CHECK(test.PopLowestIndex().Is(x0));
+  CHECK_EQ(test.PopHighestIndex(), x3);
+  CHECK_EQ(test.PopLowestIndex(), x0);
 
   CHECK(test.IncludesAliasOf(x1));
   CHECK(test.IncludesAliasOf(x2));
@@ -10070,8 +13763,8 @@ TEST(cpureglist_utils_x) {
   CHECK(!test.IncludesAliasOf(w0));
   CHECK(!test.IncludesAliasOf(w3));
 
-  CHECK(test.PopHighestIndex().Is(x2));
-  CHECK(test.PopLowestIndex().Is(x1));
+  CHECK_EQ(test.PopHighestIndex(), x2);
+  CHECK_EQ(test.PopLowestIndex(), x1);
 
   CHECK(!test.IncludesAliasOf(x1));
   CHECK(!test.IncludesAliasOf(x2));
@@ -10080,7 +13773,6 @@ TEST(cpureglist_utils_x) {
 
   CHECK(test.IsEmpty());
 }
-
 
 TEST(cpureglist_utils_w) {
   // This test doesn't generate any code, but it verifies the behaviour of
@@ -10103,13 +13795,13 @@ TEST(cpureglist_utils_w) {
   CHECK(!test.IncludesAliasOf(x14));
   CHECK(!test.IncludesAliasOf(x30));
   CHECK(!test.IncludesAliasOf(xzr));
-  CHECK(!test.IncludesAliasOf(csp));
+  CHECK(!test.IncludesAliasOf(sp));
   CHECK(!test.IncludesAliasOf(w0));
   CHECK(!test.IncludesAliasOf(w9));
   CHECK(!test.IncludesAliasOf(w14));
   CHECK(!test.IncludesAliasOf(w30));
   CHECK(!test.IncludesAliasOf(wzr));
-  CHECK(!test.IncludesAliasOf(wcsp));
+  CHECK(!test.IncludesAliasOf(wsp));
 
   CHECK(!test.IncludesAliasOf(d10));
   CHECK(!test.IncludesAliasOf(d11));
@@ -10122,10 +13814,10 @@ TEST(cpureglist_utils_w) {
 
   CHECK(!test.IsEmpty());
 
-  CHECK(test.type() == w10.type());
+  CHECK_EQ(test.type(), w10.type());
 
-  CHECK(test.PopHighestIndex().Is(w13));
-  CHECK(test.PopLowestIndex().Is(w10));
+  CHECK_EQ(test.PopHighestIndex(), w13);
+  CHECK_EQ(test.PopLowestIndex(), w10);
 
   CHECK(test.IncludesAliasOf(x11));
   CHECK(test.IncludesAliasOf(x12));
@@ -10136,8 +13828,8 @@ TEST(cpureglist_utils_w) {
   CHECK(!test.IncludesAliasOf(w10));
   CHECK(!test.IncludesAliasOf(w13));
 
-  CHECK(test.PopHighestIndex().Is(w12));
-  CHECK(test.PopLowestIndex().Is(w11));
+  CHECK_EQ(test.PopHighestIndex(), w12);
+  CHECK_EQ(test.PopLowestIndex(), w11);
 
   CHECK(!test.IncludesAliasOf(x11));
   CHECK(!test.IncludesAliasOf(x12));
@@ -10146,7 +13838,6 @@ TEST(cpureglist_utils_w) {
 
   CHECK(test.IsEmpty());
 }
-
 
 TEST(cpureglist_utils_d) {
   // This test doesn't generate any code, but it verifies the behaviour of
@@ -10184,15 +13875,15 @@ TEST(cpureglist_utils_d) {
 
   CHECK(!test.IncludesAliasOf(xzr));
   CHECK(!test.IncludesAliasOf(wzr));
-  CHECK(!test.IncludesAliasOf(csp));
-  CHECK(!test.IncludesAliasOf(wcsp));
+  CHECK(!test.IncludesAliasOf(sp));
+  CHECK(!test.IncludesAliasOf(wsp));
 
   CHECK(!test.IsEmpty());
 
-  CHECK(test.type() == d20.type());
+  CHECK_EQ(test.type(), d20.type());
 
-  CHECK(test.PopHighestIndex().Is(d23));
-  CHECK(test.PopLowestIndex().Is(d20));
+  CHECK_EQ(test.PopHighestIndex(), d23);
+  CHECK_EQ(test.PopLowestIndex(), d20);
 
   CHECK(test.IncludesAliasOf(d21));
   CHECK(test.IncludesAliasOf(d22));
@@ -10203,8 +13894,8 @@ TEST(cpureglist_utils_d) {
   CHECK(!test.IncludesAliasOf(s20));
   CHECK(!test.IncludesAliasOf(s23));
 
-  CHECK(test.PopHighestIndex().Is(d22));
-  CHECK(test.PopLowestIndex().Is(d21));
+  CHECK_EQ(test.PopHighestIndex(), d22);
+  CHECK_EQ(test.PopLowestIndex(), d21);
 
   CHECK(!test.IncludesAliasOf(d21));
   CHECK(!test.IncludesAliasOf(d22));
@@ -10213,7 +13904,6 @@ TEST(cpureglist_utils_d) {
 
   CHECK(test.IsEmpty());
 }
-
 
 TEST(cpureglist_utils_s) {
   // This test doesn't generate any code, but it verifies the behaviour of
@@ -10235,7 +13925,6 @@ TEST(cpureglist_utils_s) {
   CHECK(test.IncludesAliasOf(s23));
 }
 
-
 TEST(cpureglist_utils_empty) {
   // This test doesn't generate any code, but it verifies the behaviour of
   // the CPURegList utility methods.
@@ -10245,8 +13934,8 @@ TEST(cpureglist_utils_empty) {
   // them, and that they are empty.
   CPURegList reg32(CPURegister::kRegister, kWRegSizeInBits, 0);
   CPURegList reg64(CPURegister::kRegister, kXRegSizeInBits, 0);
-  CPURegList fpreg32(CPURegister::kFPRegister, kSRegSizeInBits, 0);
-  CPURegList fpreg64(CPURegister::kFPRegister, kDRegSizeInBits, 0);
+  CPURegList fpreg32(CPURegister::kVRegister, kSRegSizeInBits, 0);
+  CPURegList fpreg64(CPURegister::kVRegister, kDRegSizeInBits, 0);
 
   CHECK(reg32.IsEmpty());
   CHECK(reg64.IsEmpty());
@@ -10269,7 +13958,6 @@ TEST(cpureglist_utils_empty) {
   CHECK(fpreg64.IsEmpty());
 }
 
-
 TEST(printf) {
   INIT_V8();
   SETUP_SIZE(BUF_SIZE * 2);
@@ -10282,7 +13970,7 @@ TEST(printf) {
   // Initialize x29 to the value of the stack pointer. We will use x29 as a
   // temporary stack pointer later, and initializing it in this way allows the
   // RegisterDump check to pass.
-  __ Mov(x29, __ StackPointer());
+  __ Mov(x29, sp);
 
   // Test simple integer arguments.
   __ Mov(x0, 1234);
@@ -10295,17 +13983,17 @@ TEST(printf) {
   __ Mov(x2, reinterpret_cast<uintptr_t>(test_substring));
 
   // Test the maximum number of arguments, and sign extension.
-  __ Mov(w3, 0xffffffff);
-  __ Mov(w4, 0xffffffff);
-  __ Mov(x5, 0xffffffffffffffff);
-  __ Mov(x6, 0xffffffffffffffff);
+  __ Mov(w3, 0xFFFFFFFF);
+  __ Mov(w4, 0xFFFFFFFF);
+  __ Mov(x5, 0xFFFFFFFFFFFFFFFF);
+  __ Mov(x6, 0xFFFFFFFFFFFFFFFF);
   __ Fmov(s1, 1.234);
   __ Fmov(s2, 2.345);
   __ Fmov(d3, 3.456);
   __ Fmov(d4, 4.567);
 
   // Test printing callee-saved registers.
-  __ Mov(x28, 0x123456789abcdef);
+  __ Mov(x28, 0x123456789ABCDEF);
   __ Fmov(d10, 42.0);
 
   // Test with three arguments.
@@ -10332,20 +14020,8 @@ TEST(printf) {
   __ Printf("%g\n", d10);
   __ Printf("%%%%%s%%%c%%\n", x2, w13);
 
-  // Print the stack pointer (csp).
-  CHECK(csp.Is(__ StackPointer()));
-  __ Printf("StackPointer(csp): 0x%016" PRIx64 ", 0x%08" PRIx32 "\n",
-            __ StackPointer(), __ StackPointer().W());
-
-  // Test with a different stack pointer.
-  const Register old_stack_pointer = __ StackPointer();
-  __ Mov(x29, old_stack_pointer);
-  __ SetStackPointer(x29);
-  // Print the stack pointer (not csp).
-  __ Printf("StackPointer(not csp): 0x%016" PRIx64 ", 0x%08" PRIx32 "\n",
-            __ StackPointer(), __ StackPointer().W());
-  __ Mov(old_stack_pointer, __ StackPointer());
-  __ SetStackPointer(old_stack_pointer);
+  // Print the stack pointer.
+  __ Printf("StackPointer(sp): 0x%016" PRIx64 ", 0x%08" PRIx32 "\n", sp, wsp);
 
   // Test with three arguments.
   __ Printf("3=%u, 4=%u, 5=%u\n", x10, x11, x12);
@@ -10364,10 +14040,7 @@ TEST(printf) {
   // bytes that were printed. However, the printf_no_preserve test should check
   // that, and here we just test that we didn't clobber any registers.
   CHECK_EQUAL_REGISTERS(before);
-
-  TEARDOWN();
 }
-
 
 TEST(printf_no_preserve) {
   INIT_V8();
@@ -10397,10 +14070,10 @@ TEST(printf_no_preserve) {
   __ Mov(x22, x0);
 
   // Test the maximum number of arguments, and sign extension.
-  __ Mov(w3, 0xffffffff);
-  __ Mov(w4, 0xffffffff);
-  __ Mov(x5, 0xffffffffffffffff);
-  __ Mov(x6, 0xffffffffffffffff);
+  __ Mov(w3, 0xFFFFFFFF);
+  __ Mov(w4, 0xFFFFFFFF);
+  __ Mov(x5, 0xFFFFFFFFFFFFFFFF);
+  __ Mov(x6, 0xFFFFFFFFFFFFFFFF);
   __ PrintfNoPreserve("w3(uint32): %" PRIu32 "\nw4(int32): %" PRId32 "\n"
                       "x5(uint64): %" PRIu64 "\nx6(int64): %" PRId64 "\n",
                       w3, w4, x5, x6);
@@ -10414,7 +14087,7 @@ TEST(printf_no_preserve) {
   __ Mov(x24, x0);
 
   // Test printing callee-saved registers.
-  __ Mov(x28, 0x123456789abcdef);
+  __ Mov(x28, 0x123456789ABCDEF);
   __ PrintfNoPreserve("0x%" PRIx32 ", 0x%" PRIx64 "\n", w28, x28);
   __ Mov(x25, x0);
 
@@ -10422,33 +14095,21 @@ TEST(printf_no_preserve) {
   __ PrintfNoPreserve("%g\n", d10);
   __ Mov(x26, x0);
 
-  // Test with a different stack pointer.
-  const Register old_stack_pointer = __ StackPointer();
-  __ Mov(x29, old_stack_pointer);
-  __ SetStackPointer(x29);
-  // Print the stack pointer (not csp).
-  __ PrintfNoPreserve(
-      "StackPointer(not csp): 0x%016" PRIx64 ", 0x%08" PRIx32 "\n",
-      __ StackPointer(), __ StackPointer().W());
-  __ Mov(x27, x0);
-  __ Mov(old_stack_pointer, __ StackPointer());
-  __ SetStackPointer(old_stack_pointer);
-
   // Test with three arguments.
   __ Mov(x3, 3);
   __ Mov(x4, 40);
   __ Mov(x5, 500);
   __ PrintfNoPreserve("3=%u, 4=%u, 5=%u\n", x3, x4, x5);
-  __ Mov(x28, x0);
+  __ Mov(x27, x0);
 
   // Mixed argument types.
-  __ Mov(w3, 0xffffffff);
+  __ Mov(w3, 0xFFFFFFFF);
   __ Fmov(s1, 1.234);
-  __ Mov(x5, 0xffffffffffffffff);
+  __ Mov(x5, 0xFFFFFFFFFFFFFFFF);
   __ Fmov(d3, 3.456);
   __ PrintfNoPreserve("w3: %" PRIu32 ", s1: %f, x5: %" PRIu64 ", d3: %f\n",
                       w3, s1, x5, d3);
-  __ Mov(x29, x0);
+  __ Mov(x28, x0);
 
   END();
   RUN();
@@ -10474,22 +14135,15 @@ TEST(printf_no_preserve) {
   // %e: 3.456000e+00
   // %E: 4.567000E+00
   CHECK_EQUAL_64(13 + 10 + 17 + 17, x24);
-  // 0x89abcdef, 0x123456789abcdef
+  // 0x89ABCDEF, 0x123456789ABCDEF
   CHECK_EQUAL_64(30, x25);
   // 42
   CHECK_EQUAL_64(3, x26);
-  // StackPointer(not csp): 0x00007fb037ae2370, 0x37ae2370
-  // Note: This is an example value, but the field width is fixed here so the
-  // string length is still predictable.
-  CHECK_EQUAL_64(54, x27);
   // 3=3, 4=40, 5=500
-  CHECK_EQUAL_64(17, x28);
+  CHECK_EQUAL_64(17, x27);
   // w3: 4294967295, s1: 1.234000, x5: 18446744073709551615, d3: 3.456000
-  CHECK_EQUAL_64(69, x29);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(69, x28);
 }
-
 
 TEST(blr_lr) {
   // A simple test to check that the simulator correcty handle "blr lr".
@@ -10504,22 +14158,19 @@ TEST(blr_lr) {
   __ Adr(lr, &target);
 
   __ Blr(lr);
-  __ Mov(x0, 0xdeadbeef);
+  __ Mov(x0, 0xDEADBEEF);
   __ B(&end);
 
-  __ Bind(&target);
-  __ Mov(x0, 0xc001c0de);
+  __ Bind(&target, BranchTargetIdentifier::kBtiCall);
+  __ Mov(x0, 0xC001C0DE);
 
   __ Bind(&end);
   END();
 
   RUN();
 
-  CHECK_EQUAL_64(0xc001c0de, x0);
-
-  TEARDOWN();
+  CHECK_EQUAL_64(0xC001C0DE, x0);
 }
-
 
 TEST(barriers) {
   // Generate all supported barriers, this is just a smoke test
@@ -10576,21 +14227,18 @@ TEST(barriers) {
   END();
 
   RUN();
-
-  TEARDOWN();
 }
-
 
 TEST(process_nan_double) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  double sn = rawbits_to_double(0x7ff5555511111111);
-  double qn = rawbits_to_double(0x7ffaaaaa11111111);
+  double sn = bit_cast<double>(0x7FF5555511111111);
+  double qn = bit_cast<double>(0x7FFAAAAA11111111);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsQuietNaN(qn));
 
   // The input NaNs after passing through ProcessNaN.
-  double sn_proc = rawbits_to_double(0x7ffd555511111111);
+  double sn_proc = bit_cast<double>(0x7FFD555511111111);
   double qn_proc = qn;
   CHECK(IsQuietNaN(sn_proc));
   CHECK(IsQuietNaN(qn_proc));
@@ -10630,17 +14278,17 @@ TEST(process_nan_double) {
   END();
   RUN();
 
-  uint64_t qn_raw = double_to_rawbits(qn);
-  uint64_t sn_raw = double_to_rawbits(sn);
+  uint64_t qn_raw = bit_cast<uint64_t>(qn);
+  uint64_t sn_raw = bit_cast<uint64_t>(sn);
 
   //   - Signalling NaN
   CHECK_EQUAL_FP64(sn, d1);
-  CHECK_EQUAL_FP64(rawbits_to_double(sn_raw & ~kDSignMask), d2);
-  CHECK_EQUAL_FP64(rawbits_to_double(sn_raw ^ kDSignMask), d3);
+  CHECK_EQUAL_FP64(bit_cast<double>(sn_raw & ~kDSignMask), d2);
+  CHECK_EQUAL_FP64(bit_cast<double>(sn_raw ^ kDSignMask), d3);
   //   - Quiet NaN
   CHECK_EQUAL_FP64(qn, d11);
-  CHECK_EQUAL_FP64(rawbits_to_double(qn_raw & ~kDSignMask), d12);
-  CHECK_EQUAL_FP64(rawbits_to_double(qn_raw ^ kDSignMask), d13);
+  CHECK_EQUAL_FP64(bit_cast<double>(qn_raw & ~kDSignMask), d12);
+  CHECK_EQUAL_FP64(bit_cast<double>(qn_raw ^ kDSignMask), d13);
 
   //   - Signalling NaN
   CHECK_EQUAL_FP64(sn_proc, d4);
@@ -10652,21 +14300,18 @@ TEST(process_nan_double) {
   CHECK_EQUAL_FP64(qn_proc, d15);
   CHECK_EQUAL_FP64(qn_proc, d16);
   CHECK_EQUAL_FP64(qn_proc, d17);
-
-  TEARDOWN();
 }
-
 
 TEST(process_nan_float) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  float sn = rawbits_to_float(0x7f951111);
-  float qn = rawbits_to_float(0x7fea1111);
+  float sn = bit_cast<float>(0x7F951111);
+  float qn = bit_cast<float>(0x7FEA1111);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsQuietNaN(qn));
 
   // The input NaNs after passing through ProcessNaN.
-  float sn_proc = rawbits_to_float(0x7fd51111);
+  float sn_proc = bit_cast<float>(0x7FD51111);
   float qn_proc = qn;
   CHECK(IsQuietNaN(sn_proc));
   CHECK(IsQuietNaN(qn_proc));
@@ -10706,17 +14351,18 @@ TEST(process_nan_float) {
   END();
   RUN();
 
-  uint32_t qn_raw = float_to_rawbits(qn);
-  uint32_t sn_raw = float_to_rawbits(sn);
+  uint32_t qn_raw = bit_cast<uint32_t>(qn);
+  uint32_t sn_raw = bit_cast<uint32_t>(sn);
+  uint32_t sign_mask = static_cast<uint32_t>(kSSignMask);
 
   //   - Signalling NaN
   CHECK_EQUAL_FP32(sn, s1);
-  CHECK_EQUAL_FP32(rawbits_to_float(sn_raw & ~kSSignMask), s2);
-  CHECK_EQUAL_FP32(rawbits_to_float(sn_raw ^ kSSignMask), s3);
+  CHECK_EQUAL_FP32(bit_cast<float>(sn_raw & ~sign_mask), s2);
+  CHECK_EQUAL_FP32(bit_cast<float>(sn_raw ^ sign_mask), s3);
   //   - Quiet NaN
   CHECK_EQUAL_FP32(qn, s11);
-  CHECK_EQUAL_FP32(rawbits_to_float(qn_raw & ~kSSignMask), s12);
-  CHECK_EQUAL_FP32(rawbits_to_float(qn_raw ^ kSSignMask), s13);
+  CHECK_EQUAL_FP32(bit_cast<float>(qn_raw & ~sign_mask), s12);
+  CHECK_EQUAL_FP32(bit_cast<float>(qn_raw ^ sign_mask), s13);
 
   //   - Signalling NaN
   CHECK_EQUAL_FP32(sn_proc, s4);
@@ -10728,8 +14374,6 @@ TEST(process_nan_float) {
   CHECK_EQUAL_FP32(qn_proc, s15);
   CHECK_EQUAL_FP32(qn_proc, s16);
   CHECK_EQUAL_FP32(qn_proc, s17);
-
-  TEARDOWN();
 }
 
 
@@ -10761,26 +14405,23 @@ static void ProcessNaNsHelper(double n, double m, double expected) {
   CHECK_EQUAL_FP64(expected, d5);
   CHECK_EQUAL_FP64(expected, d6);
   CHECK_EQUAL_FP64(expected, d7);
-
-  TEARDOWN();
 }
-
 
 TEST(process_nans_double) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  double sn = rawbits_to_double(0x7ff5555511111111);
-  double sm = rawbits_to_double(0x7ff5555522222222);
-  double qn = rawbits_to_double(0x7ffaaaaa11111111);
-  double qm = rawbits_to_double(0x7ffaaaaa22222222);
+  double sn = bit_cast<double>(0x7FF5555511111111);
+  double sm = bit_cast<double>(0x7FF5555522222222);
+  double qn = bit_cast<double>(0x7FFAAAAA11111111);
+  double qm = bit_cast<double>(0x7FFAAAAA22222222);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsSignallingNaN(sm));
   CHECK(IsQuietNaN(qn));
   CHECK(IsQuietNaN(qm));
 
   // The input NaNs after passing through ProcessNaN.
-  double sn_proc = rawbits_to_double(0x7ffd555511111111);
-  double sm_proc = rawbits_to_double(0x7ffd555522222222);
+  double sn_proc = bit_cast<double>(0x7FFD555511111111);
+  double sm_proc = bit_cast<double>(0x7FFD555522222222);
   double qn_proc = qn;
   double qm_proc = qm;
   CHECK(IsQuietNaN(sn_proc));
@@ -10803,7 +14444,6 @@ TEST(process_nans_double) {
   ProcessNaNsHelper(qn, sm, sm_proc);
   ProcessNaNsHelper(sn, sm, sn_proc);
 }
-
 
 static void ProcessNaNsHelper(float n, float m, float expected) {
   CHECK(std::isnan(n) || std::isnan(m));
@@ -10833,26 +14473,23 @@ static void ProcessNaNsHelper(float n, float m, float expected) {
   CHECK_EQUAL_FP32(expected, s5);
   CHECK_EQUAL_FP32(expected, s6);
   CHECK_EQUAL_FP32(expected, s7);
-
-  TEARDOWN();
 }
-
 
 TEST(process_nans_float) {
   INIT_V8();
   // Make sure that NaN propagation works correctly.
-  float sn = rawbits_to_float(0x7f951111);
-  float sm = rawbits_to_float(0x7f952222);
-  float qn = rawbits_to_float(0x7fea1111);
-  float qm = rawbits_to_float(0x7fea2222);
+  float sn = bit_cast<float>(0x7F951111);
+  float sm = bit_cast<float>(0x7F952222);
+  float qn = bit_cast<float>(0x7FEA1111);
+  float qm = bit_cast<float>(0x7FEA2222);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsSignallingNaN(sm));
   CHECK(IsQuietNaN(qn));
   CHECK(IsQuietNaN(qm));
 
   // The input NaNs after passing through ProcessNaN.
-  float sn_proc = rawbits_to_float(0x7fd51111);
-  float sm_proc = rawbits_to_float(0x7fd52222);
+  float sn_proc = bit_cast<float>(0x7FD51111);
+  float sm_proc = bit_cast<float>(0x7FD52222);
   float qn_proc = qn;
   float qm_proc = qm;
   CHECK(IsQuietNaN(sn_proc));
@@ -10875,7 +14512,6 @@ TEST(process_nans_float) {
   ProcessNaNsHelper(qn, sm, sm_proc);
   ProcessNaNsHelper(sn, sm, sn_proc);
 }
-
 
 static void DefaultNaNHelper(float n, float m, float a) {
   CHECK(std::isnan(n) || std::isnan(m) || std::isnan(a));
@@ -10934,10 +14570,11 @@ static void DefaultNaNHelper(float n, float m, float a) {
   RUN();
 
   if (test_1op) {
-    uint32_t n_raw = float_to_rawbits(n);
+    uint32_t n_raw = bit_cast<uint32_t>(n);
+    uint32_t sign_mask = static_cast<uint32_t>(kSSignMask);
     CHECK_EQUAL_FP32(n, s10);
-    CHECK_EQUAL_FP32(rawbits_to_float(n_raw & ~kSSignMask), s11);
-    CHECK_EQUAL_FP32(rawbits_to_float(n_raw ^ kSSignMask), s12);
+    CHECK_EQUAL_FP32(bit_cast<float>(n_raw & ~sign_mask), s11);
+    CHECK_EQUAL_FP32(bit_cast<float>(n_raw ^ sign_mask), s12);
     CHECK_EQUAL_FP32(kFP32DefaultNaN, s13);
     CHECK_EQUAL_FP32(kFP32DefaultNaN, s14);
     CHECK_EQUAL_FP32(kFP32DefaultNaN, s15);
@@ -10958,19 +14595,16 @@ static void DefaultNaNHelper(float n, float m, float a) {
   CHECK_EQUAL_FP32(kFP32DefaultNaN, s25);
   CHECK_EQUAL_FP32(kFP32DefaultNaN, s26);
   CHECK_EQUAL_FP32(kFP32DefaultNaN, s27);
-
-  TEARDOWN();
 }
-
 
 TEST(default_nan_float) {
   INIT_V8();
-  float sn = rawbits_to_float(0x7f951111);
-  float sm = rawbits_to_float(0x7f952222);
-  float sa = rawbits_to_float(0x7f95aaaa);
-  float qn = rawbits_to_float(0x7fea1111);
-  float qm = rawbits_to_float(0x7fea2222);
-  float qa = rawbits_to_float(0x7feaaaaa);
+  float sn = bit_cast<float>(0x7F951111);
+  float sm = bit_cast<float>(0x7F952222);
+  float sa = bit_cast<float>(0x7F95AAAA);
+  float qn = bit_cast<float>(0x7FEA1111);
+  float qm = bit_cast<float>(0x7FEA2222);
+  float qa = bit_cast<float>(0x7FEAAAAA);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsSignallingNaN(sm));
   CHECK(IsSignallingNaN(sa));
@@ -11003,7 +14637,6 @@ TEST(default_nan_float) {
   DefaultNaNHelper(qn, sm, qa);
   DefaultNaNHelper(qn, qm, qa);
 }
-
 
 static void DefaultNaNHelper(double n, double m, double a) {
   CHECK(std::isnan(n) || std::isnan(m) || std::isnan(a));
@@ -11062,10 +14695,10 @@ static void DefaultNaNHelper(double n, double m, double a) {
   RUN();
 
   if (test_1op) {
-    uint64_t n_raw = double_to_rawbits(n);
+    uint64_t n_raw = bit_cast<uint64_t>(n);
     CHECK_EQUAL_FP64(n, d10);
-    CHECK_EQUAL_FP64(rawbits_to_double(n_raw & ~kDSignMask), d11);
-    CHECK_EQUAL_FP64(rawbits_to_double(n_raw ^ kDSignMask), d12);
+    CHECK_EQUAL_FP64(bit_cast<double>(n_raw & ~kDSignMask), d11);
+    CHECK_EQUAL_FP64(bit_cast<double>(n_raw ^ kDSignMask), d12);
     CHECK_EQUAL_FP64(kFP64DefaultNaN, d13);
     CHECK_EQUAL_FP64(kFP64DefaultNaN, d14);
     CHECK_EQUAL_FP64(kFP64DefaultNaN, d15);
@@ -11086,19 +14719,16 @@ static void DefaultNaNHelper(double n, double m, double a) {
   CHECK_EQUAL_FP64(kFP64DefaultNaN, d25);
   CHECK_EQUAL_FP64(kFP64DefaultNaN, d26);
   CHECK_EQUAL_FP64(kFP64DefaultNaN, d27);
-
-  TEARDOWN();
 }
-
 
 TEST(default_nan_double) {
   INIT_V8();
-  double sn = rawbits_to_double(0x7ff5555511111111);
-  double sm = rawbits_to_double(0x7ff5555522222222);
-  double sa = rawbits_to_double(0x7ff55555aaaaaaaa);
-  double qn = rawbits_to_double(0x7ffaaaaa11111111);
-  double qm = rawbits_to_double(0x7ffaaaaa22222222);
-  double qa = rawbits_to_double(0x7ffaaaaaaaaaaaaa);
+  double sn = bit_cast<double>(0x7FF5555511111111);
+  double sm = bit_cast<double>(0x7FF5555522222222);
+  double sa = bit_cast<double>(0x7FF55555AAAAAAAA);
+  double qn = bit_cast<double>(0x7FFAAAAA11111111);
+  double qm = bit_cast<double>(0x7FFAAAAA22222222);
+  double qa = bit_cast<double>(0x7FFAAAAAAAAAAAAA);
   CHECK(IsSignallingNaN(sn));
   CHECK(IsSignallingNaN(sm));
   CHECK(IsSignallingNaN(sa));
@@ -11132,11 +14762,7 @@ TEST(default_nan_double) {
   DefaultNaNHelper(qn, qm, qa);
 }
 
-
-TEST(call_no_relocation) {
-  Address call_start;
-  Address return_address;
-
+TEST(near_call_no_relocation) {
   INIT_V8();
   SETUP();
 
@@ -11153,30 +14779,17 @@ TEST(call_no_relocation) {
 
   __ Bind(&test);
   __ Mov(x0, 0x0);
-  __ Push(lr, xzr);
   {
     Assembler::BlockConstPoolScope scope(&masm);
-    call_start = buf + __ pc_offset();
-    __ Call(buf + function.pos(), RelocInfo::NONE64);
-    return_address = buf + __ pc_offset();
+    int offset = (function.pos() - __ pc_offset()) / kInstrSize;
+    __ near_call(offset, RelocInfo::NONE);
   }
-  __ Pop(xzr, lr);
   END();
 
   RUN();
 
   CHECK_EQUAL_64(1, x0);
-
-  // The return_address_from_call_start function doesn't currently encounter any
-  // non-relocatable sequences, so we check it here to make sure it works.
-  // TODO(jbramley): Once Crankshaft is complete, decide if we need to support
-  // non-relocatable calls at all.
-  CHECK(return_address ==
-        Assembler::return_address_from_call_start(call_start));
-
-  TEARDOWN();
 }
-
 
 static void AbsHelperX(int64_t value) {
   int64_t expected;
@@ -11191,7 +14804,7 @@ static void AbsHelperX(int64_t value) {
   __ Mov(x1, value);
 
   if (value != kXMinInt) {
-    expected = labs(value);
+    expected = std::abs(value);
 
     Label next;
     // The result is representable.
@@ -11199,16 +14812,16 @@ static void AbsHelperX(int64_t value) {
     __ Abs(x11, x1, &fail);
     __ Abs(x12, x1, &fail, &next);
     __ Bind(&next);
-    __ Abs(x13, x1, NULL, &done);
+    __ Abs(x13, x1, nullptr, &done);
   } else {
-    // labs is undefined for kXMinInt but our implementation in the
+    // std::abs is undefined for kXMinInt but our implementation in the
     // MacroAssembler will return kXMinInt in such a case.
     expected = kXMinInt;
 
     Label next;
     // The result is not representable.
     __ Abs(x10, x1);
-    __ Abs(x11, x1, NULL, &fail);
+    __ Abs(x11, x1, nullptr, &fail);
     __ Abs(x12, x1, &next, &fail);
     __ Bind(&next);
     __ Abs(x13, x1, &done);
@@ -11228,8 +14841,6 @@ static void AbsHelperX(int64_t value) {
   CHECK_EQUAL_64(expected, x11);
   CHECK_EQUAL_64(expected, x12);
   CHECK_EQUAL_64(expected, x13);
-
-  TEARDOWN();
 }
 
 
@@ -11256,7 +14867,7 @@ static void AbsHelperW(int32_t value) {
     __ Abs(w11, w1, &fail);
     __ Abs(w12, w1, &fail, &next);
     __ Bind(&next);
-    __ Abs(w13, w1, NULL, &done);
+    __ Abs(w13, w1, nullptr, &done);
   } else {
     // abs is undefined for kWMinInt but our implementation in the
     // MacroAssembler will return kWMinInt in such a case.
@@ -11265,7 +14876,7 @@ static void AbsHelperW(int32_t value) {
     Label next;
     // The result is not representable.
     __ Abs(w10, w1);
-    __ Abs(w11, w1, NULL, &fail);
+    __ Abs(w11, w1, nullptr, &fail);
     __ Abs(w12, w1, &next, &fail);
     __ Bind(&next);
     __ Abs(w13, w1, &done);
@@ -11285,10 +14896,7 @@ static void AbsHelperW(int32_t value) {
   CHECK_EQUAL_32(expected, w11);
   CHECK_EQUAL_32(expected, w12);
   CHECK_EQUAL_32(expected, w13);
-
-  TEARDOWN();
 }
-
 
 TEST(abs) {
   INIT_V8();
@@ -11304,7 +14912,6 @@ TEST(abs) {
   AbsHelperW(kWMinInt);
   AbsHelperW(kWMaxInt);
 }
-
 
 TEST(pool_size) {
   INIT_V8();
@@ -11325,16 +14932,17 @@ TEST(pool_size) {
   }
 
   __ RecordVeneerPool(masm.pc_offset(), veneer_pool_size);
-  for (unsigned i = 0; i < veneer_pool_size / kInstructionSize; ++i) {
+  for (unsigned i = 0; i < veneer_pool_size / kInstrSize; ++i) {
     __ nop();
   }
 
   __ bind(&exit);
 
-  HandleScope handle_scope(isolate);
   CodeDesc desc;
-  masm.GetCode(&desc);
-  Handle<Code> code = isolate->factory()->NewCode(desc, 0, masm.CodeObject());
+  masm.GetCode(isolate, &desc);
+  code = Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING)
+             .set_self_reference(masm.CodeObject())
+             .Build();
 
   unsigned pool_count = 0;
   int pool_mask = RelocInfo::ModeMask(RelocInfo::CONST_POOL) |
@@ -11342,27 +14950,24 @@ TEST(pool_size) {
   for (RelocIterator it(*code, pool_mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     if (RelocInfo::IsConstPool(info->rmode())) {
-      CHECK(info->data() == constant_pool_size);
+      CHECK_EQ(info->data(), constant_pool_size);
       ++pool_count;
     }
     if (RelocInfo::IsVeneerPool(info->rmode())) {
-      CHECK(info->data() == veneer_pool_size);
+      CHECK_EQ(info->data(), veneer_pool_size);
       ++pool_count;
     }
   }
 
-  CHECK(pool_count == 2);
-
-  TEARDOWN();
+  CHECK_EQ(pool_count, 2);
 }
-
 
 TEST(jump_tables_forward) {
   // Test jump tables with forward jumps.
   const int kNumCases = 512;
 
   INIT_V8();
-  SETUP_SIZE(kNumCases * 5 * kInstructionSize + 8192);
+  SETUP_SIZE(kNumCases * 5 * kInstrSize + 8192);
   START();
 
   int32_t values[kNumCases];
@@ -11389,7 +14994,7 @@ TEST(jump_tables_forward) {
     Label base;
 
     __ Adr(x10, &base);
-    __ Ldr(x11, MemOperand(x10, index, LSL, kPointerSizeLog2));
+    __ Ldr(x11, MemOperand(x10, index, LSL, kSystemPointerSizeLog2));
     __ Br(x11);
     __ Bind(&base);
     for (int i = 0; i < kNumCases; ++i) {
@@ -11398,7 +15003,7 @@ TEST(jump_tables_forward) {
   }
 
   for (int i = 0; i < kNumCases; ++i) {
-    __ Bind(&labels[i]);
+    __ Bind(&labels[i], BranchTargetIdentifier::kBtiJump);
     __ Mov(value, values[i]);
     __ B(&done);
   }
@@ -11416,17 +15021,14 @@ TEST(jump_tables_forward) {
   for (int i = 0; i < kNumCases; ++i) {
     CHECK_EQ(values[i], results[i]);
   }
-
-  TEARDOWN();
 }
-
 
 TEST(jump_tables_backward) {
   // Test jump tables with backward jumps.
   const int kNumCases = 512;
 
   INIT_V8();
-  SETUP_SIZE(kNumCases * 5 * kInstructionSize + 8192);
+  SETUP_SIZE(kNumCases * 5 * kInstrSize + 8192);
   START();
 
   int32_t values[kNumCases];
@@ -11449,7 +15051,7 @@ TEST(jump_tables_backward) {
   __ B(&loop);
 
   for (int i = 0; i < kNumCases; ++i) {
-    __ Bind(&labels[i]);
+    __ Bind(&labels[i], BranchTargetIdentifier::kBtiJump);
     __ Mov(value, values[i]);
     __ B(&done);
   }
@@ -11460,7 +15062,7 @@ TEST(jump_tables_backward) {
     Label base;
 
     __ Adr(x10, &base);
-    __ Ldr(x11, MemOperand(x10, index, LSL, kPointerSizeLog2));
+    __ Ldr(x11, MemOperand(x10, index, LSL, kSystemPointerSizeLog2));
     __ Br(x11);
     __ Bind(&base);
     for (int i = 0; i < kNumCases; ++i) {
@@ -11481,10 +15083,7 @@ TEST(jump_tables_backward) {
   for (int i = 0; i < kNumCases; ++i) {
     CHECK_EQ(values[i], results[i]);
   }
-
-  TEARDOWN();
 }
-
 
 TEST(internal_reference_linked) {
   // Test internal reference when they are linked in a label chain.
@@ -11514,7 +15113,7 @@ TEST(internal_reference_linked) {
   __ dcptr(&done);
   __ Tbz(x0, 1, &done);
 
-  __ Bind(&done);
+  __ Bind(&done, BranchTargetIdentifier::kBtiJump);
   __ Mov(x0, 1);
 
   END();
@@ -11522,6 +15121,28 @@ TEST(internal_reference_linked) {
   RUN();
 
   CHECK_EQUAL_64(0x1, x0);
-
-  TEARDOWN();
 }
+
+}  // namespace internal
+}  // namespace v8
+
+#undef __
+#undef BUF_SIZE
+#undef SETUP
+#undef INIT_V8
+#undef SETUP_SIZE
+#undef RESET
+#undef START_AFTER_RESET
+#undef START
+#undef RUN
+#undef END
+#undef CHECK_EQUAL_NZCV
+#undef CHECK_EQUAL_REGISTERS
+#undef CHECK_EQUAL_32
+#undef CHECK_EQUAL_FP32
+#undef CHECK_EQUAL_64
+#undef CHECK_FULL_HEAP_OBJECT_IN_REGISTER
+#undef CHECK_NOT_ZERO_AND_NOT_EQUAL_64
+#undef CHECK_EQUAL_FP64
+#undef CHECK_EQUAL_128
+#undef CHECK_CONSTANT_POOL_SIZE

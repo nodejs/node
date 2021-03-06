@@ -5,7 +5,8 @@
 #ifndef V8_COMPILER_JS_TYPED_LOWERING_H_
 #define V8_COMPILER_JS_TYPED_LOWERING_H_
 
-#include "src/base/flags.h"
+#include "src/base/compiler-specific.h"
+#include "src/common/globals.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/opcodes.h"
 
@@ -13,10 +14,7 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
-class CompilationDependencies;
 class Factory;
-class TypeCache;
-
 
 namespace compiler {
 
@@ -24,23 +22,20 @@ namespace compiler {
 class CommonOperatorBuilder;
 class JSGraph;
 class JSOperatorBuilder;
-class MachineOperatorBuilder;
 class SimplifiedOperatorBuilder;
+class TypeCache;
 
+enum Signedness { kSigned, kUnsigned };
 
 // Lowers JS-level operators to simplified operators based on types.
-class JSTypedLowering final : public AdvancedReducer {
+class V8_EXPORT_PRIVATE JSTypedLowering final
+    : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
-  // Flags that control the mode of operation.
-  enum Flag {
-    kNoFlags = 0u,
-    kDeoptimizationEnabled = 1u << 0,
-  };
-  typedef base::Flags<Flag> Flags;
+  JSTypedLowering(Editor* editor, JSGraph* jsgraph, JSHeapBroker* broker,
+                  Zone* zone);
+  ~JSTypedLowering() final = default;
 
-  JSTypedLowering(Editor* editor, CompilationDependencies* dependencies,
-                  Flags flags, JSGraph* jsgraph, Zone* zone);
-  ~JSTypedLowering() final {}
+  const char* reducer_name() const override { return "JSTypedLowering"; }
 
   Reduction Reduce(Node* node) final;
 
@@ -48,64 +43,67 @@ class JSTypedLowering final : public AdvancedReducer {
   friend class JSBinopReduction;
 
   Reduction ReduceJSAdd(Node* node);
+  Reduction ReduceJSBitwiseNot(Node* node);
+  Reduction ReduceJSDecrement(Node* node);
+  Reduction ReduceJSIncrement(Node* node);
+  Reduction ReduceJSNegate(Node* node);
   Reduction ReduceJSComparison(Node* node);
   Reduction ReduceJSLoadNamed(Node* node);
-  Reduction ReduceJSLoadProperty(Node* node);
-  Reduction ReduceJSStoreProperty(Node* node);
-  Reduction ReduceJSInstanceOf(Node* node);
+  Reduction ReduceJSHasInPrototypeChain(Node* node);
+  Reduction ReduceJSOrdinaryHasInstance(Node* node);
+  Reduction ReduceJSHasContextExtension(Node* node);
   Reduction ReduceJSLoadContext(Node* node);
   Reduction ReduceJSStoreContext(Node* node);
-  Reduction ReduceJSEqualTypeOf(Node* node, bool invert);
-  Reduction ReduceJSEqual(Node* node, bool invert);
-  Reduction ReduceJSStrictEqual(Node* node, bool invert);
-  Reduction ReduceJSToBoolean(Node* node);
-  Reduction ReduceJSToInteger(Node* node);
+  Reduction ReduceJSLoadModule(Node* node);
+  Reduction ReduceJSStoreModule(Node* node);
+  Reduction ReduceJSEqual(Node* node);
+  Reduction ReduceJSStrictEqual(Node* node);
   Reduction ReduceJSToLength(Node* node);
+  Reduction ReduceJSToName(Node* node);
   Reduction ReduceJSToNumberInput(Node* input);
   Reduction ReduceJSToNumber(Node* node);
+  Reduction ReduceJSToNumeric(Node* node);
   Reduction ReduceJSToStringInput(Node* input);
   Reduction ReduceJSToString(Node* node);
   Reduction ReduceJSToObject(Node* node);
-  Reduction ReduceJSConvertReceiver(Node* node);
-  Reduction ReduceJSCallConstruct(Node* node);
-  Reduction ReduceJSCallFunction(Node* node);
-  Reduction ReduceJSForInDone(Node* node);
+  Reduction ReduceJSConstructForwardVarargs(Node* node);
+  Reduction ReduceJSConstruct(Node* node);
+  Reduction ReduceJSCallForwardVarargs(Node* node);
+  Reduction ReduceJSCall(Node* node);
   Reduction ReduceJSForInNext(Node* node);
-  Reduction ReduceJSForInStep(Node* node);
+  Reduction ReduceJSForInPrepare(Node* node);
+  Reduction ReduceJSLoadMessage(Node* node);
+  Reduction ReduceJSStoreMessage(Node* node);
   Reduction ReduceJSGeneratorStore(Node* node);
   Reduction ReduceJSGeneratorRestoreContinuation(Node* node);
+  Reduction ReduceJSGeneratorRestoreContext(Node* node);
   Reduction ReduceJSGeneratorRestoreRegister(Node* node);
-  Reduction ReduceCheckMaps(Node* node);
-  Reduction ReduceCheckString(Node* node);
-  Reduction ReduceLoadField(Node* node);
-  Reduction ReduceNumberRoundop(Node* node);
-  Reduction ReduceSelect(Node* node);
+  Reduction ReduceJSGeneratorRestoreInputOrDebugPos(Node* node);
   Reduction ReduceNumberBinop(Node* node);
   Reduction ReduceInt32Binop(Node* node);
   Reduction ReduceUI32Shift(Node* node, Signedness signedness);
+  Reduction ReduceObjectIsArray(Node* node);
+  Reduction ReduceJSParseInt(Node* node);
+  Reduction ReduceJSResolvePromise(Node* node);
+
+  // Helper for ReduceJSLoadModule and ReduceJSStoreModule.
+  Node* BuildGetModuleCell(Node* node);
 
   Factory* factory() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
+  JSHeapBroker* broker() const { return broker_; }
   Isolate* isolate() const;
   JSOperatorBuilder* javascript() const;
   CommonOperatorBuilder* common() const;
   SimplifiedOperatorBuilder* simplified() const;
-  MachineOperatorBuilder* machine() const;
-  CompilationDependencies* dependencies() const;
-  Flags flags() const { return flags_; }
 
-  CompilationDependencies* dependencies_;
-  Flags flags_;
   JSGraph* jsgraph_;
-  Type* shifted_int32_ranges_[4];
-  Type* const true_type_;
-  Type* const false_type_;
-  Type* const the_hole_type_;
-  TypeCache const& type_cache_;
+  JSHeapBroker* broker_;
+  Type empty_string_type_;
+  Type pointer_comparable_type_;
+  TypeCache const* type_cache_;
 };
-
-DEFINE_OPERATORS_FOR_FLAGS(JSTypedLowering::Flags)
 
 }  // namespace compiler
 }  // namespace internal

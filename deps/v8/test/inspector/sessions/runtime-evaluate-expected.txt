@@ -1,0 +1,25 @@
+Tests that multiple sessions share the context.
+Assigning in 1
+Evaluating in 2
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 42
+            type : number
+            value : 42
+        }
+    }
+}
+Awaiting in 1
+Resolving in 2
+Should resolve in 1
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : foo
+        }
+    }
+}

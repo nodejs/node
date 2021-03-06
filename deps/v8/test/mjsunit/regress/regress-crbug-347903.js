@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --use-allocation-folding --verify-heap
+// Flags: --allow-natives-syntax --verify-heap
 
 function f() {
   var a = new Array(84632);
@@ -11,9 +11,11 @@ function f() {
   var b = new Array(84632);
   var c = new Array(84632);
   return [a, b, c];
-}
-f(); f();
+};
+%PrepareFunctionForOptimization(f);
+f();
+f();
 %OptimizeFunctionOnNextCall(f);
-for(var i = 0; i < 10; i++) {
+for (var i = 0; i < 10; i++) {
   f();
 }

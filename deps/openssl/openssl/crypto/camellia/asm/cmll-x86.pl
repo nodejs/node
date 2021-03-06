@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2008-2020 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 # ====================================================================
 # Copyright (c) 2008 Andy Polyakov <appro@openssl.org>
@@ -42,7 +49,10 @@ require "x86asm.pl";
 
 $OPENSSL=1;
 
-&asm_init($ARGV[0],"cmll-586.pl",$ARGV[$#ARGV] eq "386");
+$output = pop;
+open STDOUT,">$output";
+
+&asm_init($ARGV[0],$ARGV[$#ARGV] eq "386");
 
 @T=("eax","ebx","ecx","edx");
 $idx="esi";
@@ -723,11 +733,11 @@ my $bias=int(@T[0])?shift(@T):0;
 &function_end("Camellia_Ekeygen");
 
 if ($OPENSSL) {
-# int private_Camellia_set_key (
+# int Camellia_set_key (
 #		const unsigned char *userKey,
 #		int bits,
 #		CAMELLIA_KEY *key)
-&function_begin_B("private_Camellia_set_key");
+&function_begin_B("Camellia_set_key");
 	&push	("ebx");
 	&mov	("ecx",&wparam(0));	# pull arguments
 	&mov	("ebx",&wparam(1));
@@ -760,7 +770,7 @@ if ($OPENSSL) {
 &set_label("done",4);
 	&pop	("ebx");
 	&ret	();
-&function_end_B("private_Camellia_set_key");
+&function_end_B("Camellia_set_key");
 }
 
 @SBOX=(
@@ -782,9 +792,9 @@ if ($OPENSSL) {
  64, 40,211,123,187,201, 67,193, 21,227,173,244,119,199,128,158);
 
 sub S1110 { my $i=shift; $i=@SBOX[$i]; return $i<<24|$i<<16|$i<<8; }
-sub S4404 { my $i=shift; $i=($i<<1|$i>>7)&0xff; $i=@SBOX[$i]; return $i<<24|$i<<16|$i; }	
-sub S0222 { my $i=shift; $i=@SBOX[$i]; $i=($i<<1|$i>>7)&0xff; return $i<<16|$i<<8|$i; }	
-sub S3033 { my $i=shift; $i=@SBOX[$i]; $i=($i>>1|$i<<7)&0xff; return $i<<24|$i<<8|$i; }	
+sub S4404 { my $i=shift; $i=($i<<1|$i>>7)&0xff; $i=@SBOX[$i]; return $i<<24|$i<<16|$i; }
+sub S0222 { my $i=shift; $i=@SBOX[$i]; $i=($i<<1|$i>>7)&0xff; return $i<<16|$i<<8|$i; }
+sub S3033 { my $i=shift; $i=@SBOX[$i]; $i=($i>>1|$i<<7)&0xff; return $i<<24|$i<<8|$i; }
 
 &set_label("Camellia_SIGMA",64);
 &data_word(
@@ -1136,3 +1146,5 @@ my ($s0,$s1,$s2,$s3) = @T;
 &asciz("Camellia for x86 by <appro\@openssl.org>");
 
 &asm_finish();
+
+close STDOUT or die "error closing STDOUT: $!";

@@ -1,23 +1,26 @@
-module.exports = bin
+const output = require('./utils/output.js')
+const envPath = require('./utils/path.js')
+const usageUtil = require('./utils/usage.js')
 
-var npm = require('./npm.js')
-var osenv = require('osenv')
-var output = require('./utils/output.js')
-
-bin.usage = 'npm bin [--global]'
-
-function bin (args, silent, cb) {
-  if (typeof cb !== 'function') {
-    cb = silent
-    silent = false
+class Bin {
+  constructor (npm) {
+    this.npm = npm
   }
-  var b = npm.bin
-  var PATH = osenv.path()
 
-  if (!silent) output(b)
-  process.nextTick(cb.bind(this, null, b))
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  get usage () {
+    return usageUtil('bin', 'npm bin [-g]')
+  }
 
-  if (npm.config.get('global') && PATH.indexOf(b) === -1) {
-    npm.config.get('logstream').write('(not in PATH env variable)\n')
+  exec (args, cb) {
+    this.bin(args).then(() => cb()).catch(cb)
+  }
+
+  async bin (args) {
+    const b = this.npm.bin
+    output(b)
+    if (this.npm.flatOptions.global && !envPath.includes(b))
+      console.error('(not in PATH env variable)')
   }
 }
+module.exports = Bin

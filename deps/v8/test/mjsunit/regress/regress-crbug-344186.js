@@ -10,7 +10,8 @@ function fun(base) {
   array[base - 95] = 1;
   array[base - 99] = 2;
   array[base + 4] = 3;
-}
+};
+%PrepareFunctionForOptimization(fun);
 fun(100);
 %OptimizeFunctionOnNextCall(fun);
 fun(0);

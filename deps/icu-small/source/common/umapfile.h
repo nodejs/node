@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -29,7 +29,7 @@
 #include "unicode/udata.h"
 #include "putilimp.h"
 
-U_CFUNC UBool uprv_mapFile(UDataMemory *pdm, const char *path);
+U_CFUNC UBool uprv_mapFile(UDataMemory *pdm, const char *path, UErrorCode *status);
 U_CFUNC void  uprv_unmapFile(UDataMemory *pData);
 
 /* MAP_NONE: no memory mapping, no file access at all */

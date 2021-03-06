@@ -1,7 +1,7 @@
-.TH "NPM\-DEDUPE" "1" "November 2016" "" ""
+.TH "NPM\-DEDUPE" "1" "March 2021" "" ""
 .SH "NAME"
 \fBnpm-dedupe\fR \- Reduce duplication
-.SH SYNOPSIS
+.SS Synopsis
 .P
 .RS 2
 .nf
@@ -11,7 +11,7 @@ npm ddp
 aliases: find\-dupes, ddp
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 Searches the local package tree and attempts to simplify the overall
 structure by moving dependencies further up the tree, where they can
@@ -29,7 +29,7 @@ a
 .fi
 .RE
 .P
-In this case, npm help \fBnpm\-dedupe\fP will transform the tree to:
+In this case, \fBnpm dedupe\fP will transform the tree to:
 .P
 .RS 2
 .nf
@@ -44,28 +44,44 @@ Because of the hierarchical nature of node's module lookup, b and d
 will both get their dependency met by the single c package at the root
 level of the tree\.
 .P
-The deduplication algorithm walks the tree, moving each dependency as far
-up in the tree as possible, even if duplicates are not found\. This will
-result in both a flat and deduplicated tree\.
+In some cases, you may have a dependency graph like this:
 .P
-If a suitable version exists at the target location in the tree
-already, then it will be left untouched, but the other duplicates will
-be deleted\.
+.RS 2
+.nf
+a
++\-\- b <\-\- depends on c@1\.0\.x
++\-\- c@1\.0\.3
+`\-\- d <\-\- depends on c@1\.x
+    `\-\- c@1\.9\.9
+.fi
+.RE
+.P
+During the installation process, the \fBc@1\.0\.3\fP dependency for \fBb\fP was
+placed in the root of the tree\.  Though \fBd\fP\|'s dependency on \fBc@1\.x\fP could
+have been satisfied by \fBc@1\.0\.3\fP, the newer \fBc@1\.9\.0\fP dependency was used,
+because npm favors updates by default, even when doing so causes
+duplication\.
+.P
+Running \fBnpm dedupe\fP will cause npm to note the duplication and
+re\-evaluate, deleting the nested \fBc\fP module, because the one in the root is
+sufficient\.
+.P
+To prefer deduplication over novelty during the installation process, run
+\fBnpm install \-\-prefer\-dedupe\fP or \fBnpm config set prefer\-dedupe true\fP\|\.
 .P
 Arguments are ignored\. Dedupe always acts on the entire tree\.
 .P
-Modules
-.P
 Note that this operation transforms the dependency tree, but will never
 result in new modules being installed\.
-.SH SEE ALSO
+.P
+Using \fBnpm find\-dupes\fP will run the command in \fB\-\-dry\-run\fP mode\.
+.SS See Also
 .RS 0
 .IP \(bu 2
-npm help ls
+npm ls \fI/cli\-commands/ls\fR
 .IP \(bu 2
-npm help update
+npm update \fI/cli\-commands/update\fR
 .IP \(bu 2
-npm help install
+npm install \fI/cli\-commands/install\fR
 
 .RE
-

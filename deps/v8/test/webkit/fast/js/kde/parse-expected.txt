@@ -30,14 +30,10 @@ PASS function test() { return;}; lab: 1 is 1
 PASS function test() { while(0) break; } lab: 1 is 1
 PASS function test() { while(0) continue; } lab: 1 is 1
 PASS function test() { return lab;} lab: 1 is 1
-PASS function test() { while(0) break lab; } lab: 1 threw exception SyntaxError: Undefined label 'lab'.
-PASS function test() { while(0) continue lab; } lab: 1 threw exception SyntaxError: Undefined label 'lab'.
 PASS function test() { return } lab: 1 is 1
 PASS function test() { while(0) break } lab: 1 is 1
 PASS function test() { while(0) continue } lab: 1 is 1
 PASS function test() { return 0 } lab: 1 is 1
-PASS function test() { while(0) break lab } lab: 1 threw exception SyntaxError: Undefined label 'lab'.
-PASS function test() { while(0) continue lab } lab: 1 threw exception SyntaxError: Undefined label 'lab'.
 PASS var éĀʯΈᢨ = 101; éĀʯΈᢨ; is 101
 PASS var f÷; threw exception SyntaxError: Invalid or unexpected token.
 PASS var \u0061 = 102; a is 102

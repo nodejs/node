@@ -1,11 +1,10 @@
 'use strict';
 // http://groups.google.com/group/nodejs/browse_thread/thread/f66cd3c960406919
 const common = require('../common');
-const assert = require('assert');
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
+const assert = require('assert');
 
 if (process.argv[2] === 'request') {
   const http = require('http');
@@ -38,58 +37,60 @@ if (process.argv[2] === 'shasum') {
 const http = require('http');
 const cp = require('child_process');
 
-const filename = require('path').join(common.tmpDir, 'big');
+const tmpdir = require('../common/tmpdir');
+
+const filename = require('path').join(tmpdir.path, 'big');
 let server;
 
 function executeRequest(cb) {
-  cp.exec([process.execPath,
-           __filename,
+  cp.exec([`"${process.execPath}"`,
+           `"${__filename}"`,
            'request',
            server.address().port,
            '|',
-           process.execPath,
-           __filename,
+           `"${process.execPath}"`,
+           `"${__filename}"`,
            'shasum' ].join(' '),
           (err, stdout, stderr) => {
-            if (err) throw err;
-            assert.equal('8c206a1a87599f532ce68675536f0b1546900d7a',
-                         stdout.slice(0, 40));
+            if (stderr.trim() !== '') {
+              console.log(stderr);
+            }
+            assert.ifError(err);
+            assert.strictEqual(stdout.slice(0, 40),
+                               '8c206a1a87599f532ce68675536f0b1546900d7a');
             cb();
           }
   );
 }
 
 
-common.refreshTmpDir();
+tmpdir.refresh();
 
-const ddcmd = common.ddCommand(filename, 10240);
+common.createZeroFilledFile(filename);
 
-cp.exec(ddcmd, function(err, stdout, stderr) {
-  if (err) throw err;
-  server = http.createServer(function(req, res) {
-    res.writeHead(200);
+server = http.createServer(function(req, res) {
+  res.writeHead(200);
 
-    // Create the subprocess
-    const cat = cp.spawn('cat', [filename]);
+  // Create the subprocess
+  const cat = cp.spawn('cat', [filename]);
 
-    // Stream the data through to the response as binary chunks
-    cat.stdout.on('data', (data) => {
-      res.write(data);
-    });
-
-    cat.stdout.on('end', () => res.end());
-
-    // End the response on exit (and log errors)
-    cat.on('exit', (code) => {
-      if (code !== 0) {
-        console.error('subprocess exited with code ' + code);
-        process.exit(1);
-      }
-    });
-
+  // Stream the data through to the response as binary chunks
+  cat.stdout.on('data', (data) => {
+    res.write(data);
   });
 
-  server.listen(0, () => {
-    executeRequest(() => server.close());
+  cat.stdout.on('end', () => res.end());
+
+  // End the response on exit (and log errors)
+  cat.on('exit', (code) => {
+    if (code !== 0) {
+      console.error(`subprocess exited with code ${code}`);
+      process.exit(1);
+    }
   });
+
+});
+
+server.listen(0, () => {
+  executeRequest(() => server.close());
 });

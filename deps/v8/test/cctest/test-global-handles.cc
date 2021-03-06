@@ -25,301 +25,171 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/global-handles.h"
-
+#include "src/api/api-inl.h"
+#include "src/execution/isolate.h"
+#include "src/handles/global-handles.h"
+#include "src/heap/factory.h"
+#include "src/heap/heap-inl.h"
+#include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/heap/heap-utils.h"
 
-using namespace v8::internal;
-using v8::UniqueId;
+namespace v8 {
+namespace internal {
 
+namespace {
 
-static List<Object*> skippable_objects;
-static List<Object*> can_skip_called_objects;
-
-
-static bool CanSkipCallback(Heap* heap, Object** pointer) {
-  can_skip_called_objects.Add(*pointer);
-  return skippable_objects.Contains(*pointer);
-}
-
-
-static void ResetCanSkipData() {
-  skippable_objects.Clear();
-  can_skip_called_objects.Clear();
-}
-
-
-class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
+// Empty v8::EmbedderHeapTracer that never keeps objects alive on Scavenge. See
+// |IsRootForNonTracingGC|.
+class NonRootingEmbedderHeapTracer final : public v8::EmbedderHeapTracer {
  public:
-  TestRetainedObjectInfo() : has_been_disposed_(false) {}
+  NonRootingEmbedderHeapTracer() = default;
 
-  bool has_been_disposed() { return has_been_disposed_; }
+  void RegisterV8References(
+      const std::vector<std::pair<void*, void*>>& embedder_fields) final {}
+  bool AdvanceTracing(double deadline_in_ms) final { return true; }
+  bool IsTracingDone() final { return true; }
+  void TracePrologue(TraceFlags) final {}
+  void TraceEpilogue(TraceSummary*) final {}
+  void EnterFinalPause(EmbedderStackState) final {}
 
-  virtual void Dispose() {
-    CHECK(!has_been_disposed_);
-    has_been_disposed_ = true;
+  bool IsRootForNonTracingGC(const v8::TracedGlobal<v8::Value>& handle) final {
+    return false;
   }
-
-  virtual bool IsEquivalent(v8::RetainedObjectInfo* other) {
-    return other == this;
-  }
-
-  virtual intptr_t GetHash() { return 0; }
-
-  virtual const char* GetLabel() { return "whatever"; }
-
- private:
-  bool has_been_disposed_;
 };
 
+void InvokeScavenge() { CcTest::CollectGarbage(i::NEW_SPACE); }
 
-class TestObjectVisitor : public ObjectVisitor {
- public:
-  void VisitPointers(Object** start, Object** end) override {
-    for (Object** o = start; o != end; ++o)
-      visited.Add(*o);
-  }
+void InvokeMarkSweep() { CcTest::CollectAllGarbage(); }
 
-  List<Object*> visited;
+void SimpleCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(v8_num(0));
+}
+
+struct FlagAndGlobal {
+  bool flag;
+  v8::Global<v8::Object> handle;
 };
 
+struct TracedGlobalWrapper {
+  v8::TracedGlobal<v8::Object> handle;
+};
 
-TEST(IterateObjectGroupsOldApi) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  GlobalHandles* global_handles = isolate->global_handles();
-  v8::HandleScope handle_scope(CcTest::isolate());
-
-  Handle<Object> g1s1 =
-      global_handles->Create(*isolate->factory()->NewFixedArray(1));
-  Handle<Object> g1s2 =
-      global_handles->Create(*isolate->factory()->NewFixedArray(1));
-
-  Handle<Object> g2s1 =
-      global_handles->Create(*isolate->factory()->NewFixedArray(1));
-  Handle<Object> g2s2 =
-      global_handles->Create(*isolate->factory()->NewFixedArray(1));
-
-  TestRetainedObjectInfo info1;
-  TestRetainedObjectInfo info2;
-  {
-    Object** g1_objects[] = { g1s1.location(), g1s2.location() };
-    Object** g2_objects[] = { g2s1.location(), g2s2.location() };
-
-    global_handles->AddObjectGroup(g1_objects, 2, &info1);
-    global_handles->AddObjectGroup(g2_objects, 2, &info2);
-  }
-
-  // Iterate the object groups. First skip all.
-  {
-    ResetCanSkipData();
-    skippable_objects.Add(*g1s1.location());
-    skippable_objects.Add(*g1s2.location());
-    skippable_objects.Add(*g2s1.location());
-    skippable_objects.Add(*g2s2.location());
-    TestObjectVisitor visitor;
-    global_handles->IterateObjectGroups(&visitor, &CanSkipCallback);
-
-    // CanSkipCallback was called for all objects.
-    CHECK(can_skip_called_objects.length() == 4);
-    CHECK(can_skip_called_objects.Contains(*g1s1.location()));
-    CHECK(can_skip_called_objects.Contains(*g1s2.location()));
-    CHECK(can_skip_called_objects.Contains(*g2s1.location()));
-    CHECK(can_skip_called_objects.Contains(*g2s2.location()));
-
-    // Nothing was visited.
-    CHECK(visitor.visited.length() == 0);
-    CHECK(!info1.has_been_disposed());
-    CHECK(!info2.has_been_disposed());
-  }
-
-  // Iterate again, now only skip the second object group.
-  {
-    ResetCanSkipData();
-    // The first grough should still be visited, since only one object is
-    // skipped.
-    skippable_objects.Add(*g1s1.location());
-    skippable_objects.Add(*g2s1.location());
-    skippable_objects.Add(*g2s2.location());
-    TestObjectVisitor visitor;
-    global_handles->IterateObjectGroups(&visitor, &CanSkipCallback);
-
-    // CanSkipCallback was called for all objects.
-    CHECK(can_skip_called_objects.length() == 3 ||
-          can_skip_called_objects.length() == 4);
-    CHECK(can_skip_called_objects.Contains(*g1s2.location()));
-    CHECK(can_skip_called_objects.Contains(*g2s1.location()));
-    CHECK(can_skip_called_objects.Contains(*g2s2.location()));
-
-    // The first group was visited.
-    CHECK(visitor.visited.length() == 2);
-    CHECK(visitor.visited.Contains(*g1s1.location()));
-    CHECK(visitor.visited.Contains(*g1s2.location()));
-    CHECK(info1.has_been_disposed());
-    CHECK(!info2.has_been_disposed());
-  }
-
-  // Iterate again, don't skip anything.
-  {
-    ResetCanSkipData();
-    TestObjectVisitor visitor;
-    global_handles->IterateObjectGroups(&visitor, &CanSkipCallback);
-
-    // CanSkipCallback was called for all objects.
-    CHECK(can_skip_called_objects.length() == 1);
-    CHECK(can_skip_called_objects.Contains(*g2s1.location()) ||
-          can_skip_called_objects.Contains(*g2s2.location()));
-
-    // The second group was visited.
-    CHECK(visitor.visited.length() == 2);
-    CHECK(visitor.visited.Contains(*g2s1.location()));
-    CHECK(visitor.visited.Contains(*g2s2.location()));
-    CHECK(info2.has_been_disposed());
-  }
+void ResetHandleAndSetFlag(const v8::WeakCallbackInfo<FlagAndGlobal>& data) {
+  data.GetParameter()->handle.Reset();
+  data.GetParameter()->flag = true;
 }
 
-
-TEST(IterateObjectGroups) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  GlobalHandles* global_handles = isolate->global_handles();
-
-  v8::HandleScope handle_scope(CcTest::isolate());
-
-  Handle<Object> g1s1 =
-      global_handles->Create(*isolate->factory()->NewFixedArray(1));
-  Handle<Object> g1s2 =
-      global_handles->Create(*isolate->factory()->NewFixedArray(1));
-
-  Handle<Object> g2s1 =
-      global_handles->Create(*isolate->factory()->NewFixedArray(1));
-  Handle<Object> g2s2 =
-    global_handles->Create(*isolate->factory()->NewFixedArray(1));
-
-  TestRetainedObjectInfo info1;
-  TestRetainedObjectInfo info2;
-  global_handles->SetObjectGroupId(g2s1.location(), UniqueId(2));
-  global_handles->SetObjectGroupId(g2s2.location(), UniqueId(2));
-  global_handles->SetRetainedObjectInfo(UniqueId(2), &info2);
-  global_handles->SetObjectGroupId(g1s1.location(), UniqueId(1));
-  global_handles->SetObjectGroupId(g1s2.location(), UniqueId(1));
-  global_handles->SetRetainedObjectInfo(UniqueId(1), &info1);
-
-  // Iterate the object groups. First skip all.
-  {
-    ResetCanSkipData();
-    skippable_objects.Add(*g1s1.location());
-    skippable_objects.Add(*g1s2.location());
-    skippable_objects.Add(*g2s1.location());
-    skippable_objects.Add(*g2s2.location());
-    TestObjectVisitor visitor;
-    global_handles->IterateObjectGroups(&visitor, &CanSkipCallback);
-
-    // CanSkipCallback was called for all objects.
-    CHECK(can_skip_called_objects.length() == 4);
-    CHECK(can_skip_called_objects.Contains(*g1s1.location()));
-    CHECK(can_skip_called_objects.Contains(*g1s2.location()));
-    CHECK(can_skip_called_objects.Contains(*g2s1.location()));
-    CHECK(can_skip_called_objects.Contains(*g2s2.location()));
-
-    // Nothing was visited.
-    CHECK(visitor.visited.length() == 0);
-    CHECK(!info1.has_been_disposed());
-    CHECK(!info2.has_been_disposed());
-  }
-
-  // Iterate again, now only skip the second object group.
-  {
-    ResetCanSkipData();
-    // The first grough should still be visited, since only one object is
-    // skipped.
-    skippable_objects.Add(*g1s1.location());
-    skippable_objects.Add(*g2s1.location());
-    skippable_objects.Add(*g2s2.location());
-    TestObjectVisitor visitor;
-    global_handles->IterateObjectGroups(&visitor, &CanSkipCallback);
-
-    // CanSkipCallback was called for all objects.
-    CHECK(can_skip_called_objects.length() == 3 ||
-          can_skip_called_objects.length() == 4);
-    CHECK(can_skip_called_objects.Contains(*g1s2.location()));
-    CHECK(can_skip_called_objects.Contains(*g2s1.location()));
-    CHECK(can_skip_called_objects.Contains(*g2s2.location()));
-
-    // The first group was visited.
-    CHECK(visitor.visited.length() == 2);
-    CHECK(visitor.visited.Contains(*g1s1.location()));
-    CHECK(visitor.visited.Contains(*g1s2.location()));
-    CHECK(info1.has_been_disposed());
-    CHECK(!info2.has_been_disposed());
-  }
-
-  // Iterate again, don't skip anything.
-  {
-    ResetCanSkipData();
-    TestObjectVisitor visitor;
-    global_handles->IterateObjectGroups(&visitor, &CanSkipCallback);
-
-    // CanSkipCallback was called for all objects.
-    CHECK(can_skip_called_objects.length() == 1);
-    CHECK(can_skip_called_objects.Contains(*g2s1.location()) ||
-          can_skip_called_objects.Contains(*g2s2.location()));
-
-    // The second group was visited.
-    CHECK(visitor.visited.length() == 2);
-    CHECK(visitor.visited.Contains(*g2s1.location()));
-    CHECK(visitor.visited.Contains(*g2s2.location()));
-    CHECK(info2.has_been_disposed());
-  }
+template <typename HandleContainer>
+void ConstructJSObject(v8::Isolate* isolate, v8::Local<v8::Context> context,
+                       HandleContainer* flag_and_persistent) {
+  v8::HandleScope handle_scope(isolate);
+  v8::Local<v8::Object> object(v8::Object::New(isolate));
+  CHECK(!object.IsEmpty());
+  flag_and_persistent->handle.Reset(isolate, object);
+  CHECK(!flag_and_persistent->handle.IsEmpty());
 }
 
-
-TEST(ImplicitReferences) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  GlobalHandles* global_handles = isolate->global_handles();
-
-  v8::HandleScope handle_scope(CcTest::isolate());
-
-  Handle<Object> g1s1 =
-      global_handles->Create(*isolate->factory()->NewFixedArray(1));
-  Handle<Object> g1c1 =
-      global_handles->Create(*isolate->factory()->NewFixedArray(1));
-  Handle<Object> g1c2 =
-      global_handles->Create(*isolate->factory()->NewFixedArray(1));
-
-
-  Handle<Object> g2s1 =
-      global_handles->Create(*isolate->factory()->NewFixedArray(1));
-  Handle<Object> g2s2 =
-    global_handles->Create(*isolate->factory()->NewFixedArray(1));
-  Handle<Object> g2c1 =
-    global_handles->Create(*isolate->factory()->NewFixedArray(1));
-
-  global_handles->SetObjectGroupId(g1s1.location(), UniqueId(1));
-  global_handles->SetObjectGroupId(g2s1.location(), UniqueId(2));
-  global_handles->SetObjectGroupId(g2s2.location(), UniqueId(2));
-  global_handles->SetReferenceFromGroup(UniqueId(1), g1c1.location());
-  global_handles->SetReferenceFromGroup(UniqueId(1), g1c2.location());
-  global_handles->SetReferenceFromGroup(UniqueId(2), g2c1.location());
-
-  List<ImplicitRefGroup*>* implicit_refs =
-      global_handles->implicit_ref_groups();
-  USE(implicit_refs);
-  CHECK(implicit_refs->length() == 2);
-  CHECK(implicit_refs->at(0)->parent ==
-        reinterpret_cast<HeapObject**>(g1s1.location()));
-  CHECK(implicit_refs->at(0)->length == 2);
-  CHECK(implicit_refs->at(0)->children[0] == g1c1.location());
-  CHECK(implicit_refs->at(0)->children[1] == g1c2.location());
-  CHECK(implicit_refs->at(1)->parent ==
-        reinterpret_cast<HeapObject**>(g2s1.location()));
-  CHECK(implicit_refs->at(1)->length == 1);
-  CHECK(implicit_refs->at(1)->children[0] == g2c1.location());
-  global_handles->RemoveObjectGroups();
-  global_handles->RemoveImplicitRefGroups();
+void ConstructJSObject(v8::Isolate* isolate, v8::Global<v8::Object>* global) {
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Object> object(v8::Object::New(isolate));
+  CHECK(!object.IsEmpty());
+  *global = v8::Global<v8::Object>(isolate, object);
+  CHECK(!global->IsEmpty());
 }
 
+void ConstructJSObject(v8::Isolate* isolate,
+                       v8::TracedGlobal<v8::Object>* traced) {
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Object> object(v8::Object::New(isolate));
+  CHECK(!object.IsEmpty());
+  *traced = v8::TracedGlobal<v8::Object>(isolate, object);
+  CHECK(!traced->IsEmpty());
+}
+
+template <typename HandleContainer>
+void ConstructJSApiObject(v8::Isolate* isolate, v8::Local<v8::Context> context,
+                          HandleContainer* flag_and_persistent) {
+  v8::HandleScope handle_scope(isolate);
+  v8::Local<v8::FunctionTemplate> fun =
+      v8::FunctionTemplate::New(isolate, SimpleCallback);
+  v8::Local<v8::Object> object = fun->GetFunction(context)
+                                     .ToLocalChecked()
+                                     ->NewInstance(context)
+                                     .ToLocalChecked();
+  CHECK(!object.IsEmpty());
+  flag_and_persistent->handle.Reset(isolate, object);
+  CHECK(!flag_and_persistent->handle.IsEmpty());
+}
+
+enum class SurvivalMode { kSurvives, kDies };
+
+template <typename ConstructFunction, typename ModifierFunction,
+          typename GCFunction>
+void WeakHandleTest(v8::Isolate* isolate, ConstructFunction construct_function,
+                    ModifierFunction modifier_function, GCFunction gc_function,
+                    SurvivalMode survives) {
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope context_scope(context);
+
+  FlagAndGlobal fp;
+  construct_function(isolate, context, &fp);
+  CHECK(heap::InCorrectGeneration(isolate, fp.handle));
+  fp.handle.SetWeak(&fp, &ResetHandleAndSetFlag,
+                    v8::WeakCallbackType::kParameter);
+  fp.flag = false;
+  modifier_function(&fp);
+  gc_function();
+  CHECK_IMPLIES(survives == SurvivalMode::kSurvives, !fp.flag);
+  CHECK_IMPLIES(survives == SurvivalMode::kDies, fp.flag);
+}
+
+template <typename ConstructFunction, typename ModifierFunction,
+          typename GCFunction>
+void TracedGlobalTest(v8::Isolate* isolate,
+                      ConstructFunction construct_function,
+                      ModifierFunction modifier_function,
+                      GCFunction gc_function, SurvivalMode survives) {
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope context_scope(context);
+
+  NonRootingEmbedderHeapTracer tracer;
+  heap::TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
+
+  auto fp = std::make_unique<TracedGlobalWrapper>();
+  construct_function(isolate, context, fp.get());
+  CHECK(heap::InCorrectGeneration(isolate, fp->handle));
+  modifier_function(fp.get());
+  gc_function();
+  CHECK_IMPLIES(survives == SurvivalMode::kSurvives, !fp->handle.IsEmpty());
+  CHECK_IMPLIES(survives == SurvivalMode::kDies, fp->handle.IsEmpty());
+}
+
+void ResurrectingFinalizer(
+    const v8::WeakCallbackInfo<v8::Global<v8::Object>>& data) {
+  data.GetParameter()->ClearWeak();
+}
+
+void ResettingFinalizer(
+    const v8::WeakCallbackInfo<v8::Global<v8::Object>>& data) {
+  data.GetParameter()->Reset();
+}
+
+void EmptyWeakCallback(const v8::WeakCallbackInfo<void>& data) {}
+
+void ResurrectingFinalizerSettingProperty(
+    const v8::WeakCallbackInfo<v8::Global<v8::Object>>& data) {
+  data.GetParameter()->ClearWeak();
+  v8::Local<v8::Object> o =
+      v8::Local<v8::Object>::New(data.GetIsolate(), *data.GetParameter());
+  o->Set(data.GetIsolate()->GetCurrentContext(), v8_str("finalizer"),
+         v8_str("was here"))
+      .FromJust();
+}
+
+}  // namespace
 
 TEST(EternalHandles) {
   CcTest::InitializeVM();
@@ -332,7 +202,7 @@ TEST(EternalHandles) {
   int indices[kArrayLength];
   v8::Eternal<v8::Value> eternals[kArrayLength];
 
-  CHECK_EQ(0, eternal_handles->NumberOfHandles());
+  CHECK_EQ(0, eternal_handles->handles_count());
   for (int i = 0; i < kArrayLength; i++) {
     indices[i] = -1;
     HandleScope scope(isolate);
@@ -349,7 +219,7 @@ TEST(EternalHandles) {
     CHECK(!eternals[i].IsEmpty());
   }
 
-  isolate->heap()->CollectAllAvailableGarbage();
+  CcTest::CollectAllAvailableGarbage();
 
   for (int i = 0; i < kArrayLength; i++) {
     for (int j = 0; j < 2; j++) {
@@ -371,7 +241,7 @@ TEST(EternalHandles) {
     }
   }
 
-  CHECK_EQ(2*kArrayLength, eternal_handles->NumberOfHandles());
+  CHECK_EQ(2 * kArrayLength, eternal_handles->handles_count());
 
   // Create an eternal via the constructor
   {
@@ -382,7 +252,7 @@ TEST(EternalHandles) {
     CHECK(object == eternal.Get(v8_isolate));
   }
 
-  CHECK_EQ(2*kArrayLength + 1, eternal_handles->NumberOfHandles());
+  CHECK_EQ(2 * kArrayLength + 1, eternal_handles->handles_count());
 }
 
 
@@ -402,10 +272,6 @@ TEST(PersistentBaseGetLocal) {
   CHECK(v8::Local<v8::Object>::New(isolate, g) == g.Get(isolate));
 }
 
-
-void WeakCallback(const v8::WeakCallbackInfo<void>& data) {}
-
-
 TEST(WeakPersistentSmi) {
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
@@ -415,16 +281,8 @@ TEST(WeakPersistentSmi) {
   v8::Global<v8::Number> g(isolate, n);
 
   // Should not crash.
-  g.SetWeak<void>(nullptr, &WeakCallback, v8::WeakCallbackType::kParameter);
-}
-
-void finalizer(const v8::WeakCallbackInfo<v8::Global<v8::Object>>& data) {
-  data.GetParameter()->ClearWeak();
-  v8::Local<v8::Object> o =
-      v8::Local<v8::Object>::New(data.GetIsolate(), *data.GetParameter());
-  o->Set(data.GetIsolate()->GetCurrentContext(), v8_str("finalizer"),
-         v8_str("was here"))
-      .FromJust();
+  g.SetWeak<void>(nullptr, &EmptyWeakCallback,
+                  v8::WeakCallbackType::kParameter);
 }
 
 TEST(FinalizerWeakness) {
@@ -439,10 +297,11 @@ TEST(FinalizerWeakness) {
     v8::Local<v8::Object> o = v8::Object::New(isolate);
     identity = o->GetIdentityHash();
     g.Reset(isolate, o);
-    g.SetWeak(&g, finalizer, v8::WeakCallbackType::kFinalizer);
+    g.SetWeak(&g, &ResurrectingFinalizerSettingProperty,
+              v8::WeakCallbackType::kFinalizer);
   }
 
-  CcTest::i_isolate()->heap()->CollectAllAvailableGarbage();
+  CcTest::CollectAllAvailableGarbage();
 
   CHECK(!g.IsEmpty());
   v8::HandleScope scope(isolate);
@@ -464,8 +323,400 @@ TEST(PhatomHandlesWithoutCallbacks) {
     g2.SetWeak();
   }
 
-  CHECK_EQ(0, isolate->NumberOfPhantomHandleResetsSinceLastCall());
-  CcTest::i_isolate()->heap()->CollectAllAvailableGarbage();
-  CHECK_EQ(2, isolate->NumberOfPhantomHandleResetsSinceLastCall());
-  CHECK_EQ(0, isolate->NumberOfPhantomHandleResetsSinceLastCall());
+  CHECK_EQ(0u, isolate->NumberOfPhantomHandleResetsSinceLastCall());
+  CcTest::CollectAllAvailableGarbage();
+  CHECK_EQ(2u, isolate->NumberOfPhantomHandleResetsSinceLastCall());
+  CHECK_EQ(0u, isolate->NumberOfPhantomHandleResetsSinceLastCall());
 }
+
+TEST(WeakHandleToUnmodifiedJSObjectDiesOnScavenge) {
+  if (FLAG_single_generation) return;
+  CcTest::InitializeVM();
+  WeakHandleTest(
+      CcTest::isolate(), &ConstructJSObject<FlagAndGlobal>,
+      [](FlagAndGlobal* fp) {}, []() { InvokeScavenge(); },
+      SurvivalMode::kDies);
+}
+
+TEST(TracedGlobalToUnmodifiedJSObjectSurvivesScavenge) {
+  if (FLAG_single_generation) return;
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  TracedGlobalTest(
+      CcTest::isolate(), &ConstructJSObject<TracedGlobalWrapper>,
+      [](TracedGlobalWrapper* fp) {}, []() { InvokeScavenge(); },
+      SurvivalMode::kSurvives);
+}
+
+TEST(WeakHandleToUnmodifiedJSObjectDiesOnMarkCompact) {
+  CcTest::InitializeVM();
+  WeakHandleTest(
+      CcTest::isolate(), &ConstructJSObject<FlagAndGlobal>,
+      [](FlagAndGlobal* fp) {}, []() { InvokeMarkSweep(); },
+      SurvivalMode::kDies);
+}
+
+TEST(WeakHandleToUnmodifiedJSObjectSurvivesMarkCompactWhenInHandle) {
+  CcTest::InitializeVM();
+  WeakHandleTest(
+      CcTest::isolate(), &ConstructJSObject<FlagAndGlobal>,
+      [](FlagAndGlobal* fp) {
+        v8::Local<v8::Object> handle =
+            v8::Local<v8::Object>::New(CcTest::isolate(), fp->handle);
+        USE(handle);
+      },
+      []() { InvokeMarkSweep(); }, SurvivalMode::kSurvives);
+}
+
+TEST(WeakHandleToUnmodifiedJSApiObjectDiesOnScavenge) {
+  if (FLAG_single_generation) return;
+  CcTest::InitializeVM();
+  WeakHandleTest(
+      CcTest::isolate(), &ConstructJSApiObject<FlagAndGlobal>,
+      [](FlagAndGlobal* fp) {}, []() { InvokeScavenge(); },
+      SurvivalMode::kDies);
+}
+
+TEST(TracedGlobalToUnmodifiedJSApiObjectDiesOnScavenge) {
+  if (FLAG_single_generation) return;
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  TracedGlobalTest(
+      CcTest::isolate(), &ConstructJSApiObject<TracedGlobalWrapper>,
+      [](TracedGlobalWrapper* fp) {}, []() { InvokeScavenge(); },
+      SurvivalMode::kDies);
+}
+
+TEST(TracedGlobalToJSApiObjectWithIdentityHashSurvivesScavenge) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  Isolate* i_isolate = CcTest::i_isolate();
+  HandleScope scope(i_isolate);
+  Handle<JSWeakMap> weakmap = i_isolate->factory()->NewJSWeakMap();
+
+  TracedGlobalTest(
+      CcTest::isolate(), &ConstructJSApiObject<TracedGlobalWrapper>,
+      [&weakmap, i_isolate](TracedGlobalWrapper* fp) {
+        v8::HandleScope scope(CcTest::isolate());
+        Handle<JSReceiver> key =
+            Utils::OpenHandle(*fp->handle.Get(CcTest::isolate()));
+        Handle<Smi> smi(Smi::FromInt(23), i_isolate);
+        int32_t hash = key->GetOrCreateHash(i_isolate).value();
+        JSWeakCollection::Set(weakmap, key, smi, hash);
+      },
+      []() { InvokeScavenge(); }, SurvivalMode::kSurvives);
+}
+
+TEST(WeakHandleToUnmodifiedJSApiObjectSurvivesScavengeWhenInHandle) {
+  if (FLAG_single_generation) return;
+  CcTest::InitializeVM();
+  WeakHandleTest(
+      CcTest::isolate(), &ConstructJSApiObject<FlagAndGlobal>,
+      [](FlagAndGlobal* fp) {
+        v8::Local<v8::Object> handle =
+            v8::Local<v8::Object>::New(CcTest::isolate(), fp->handle);
+        USE(handle);
+      },
+      []() { InvokeScavenge(); }, SurvivalMode::kSurvives);
+}
+
+TEST(WeakHandleToUnmodifiedJSApiObjectDiesOnMarkCompact) {
+  CcTest::InitializeVM();
+  WeakHandleTest(
+      CcTest::isolate(), &ConstructJSApiObject<FlagAndGlobal>,
+      [](FlagAndGlobal* fp) {}, []() { InvokeMarkSweep(); },
+      SurvivalMode::kDies);
+}
+
+TEST(WeakHandleToUnmodifiedJSApiObjectSurvivesMarkCompactWhenInHandle) {
+  CcTest::InitializeVM();
+  WeakHandleTest(
+      CcTest::isolate(), &ConstructJSApiObject<FlagAndGlobal>,
+      [](FlagAndGlobal* fp) {
+        v8::Local<v8::Object> handle =
+            v8::Local<v8::Object>::New(CcTest::isolate(), fp->handle);
+        USE(handle);
+      },
+      []() { InvokeMarkSweep(); }, SurvivalMode::kSurvives);
+}
+
+TEST(TracedGlobalToJSApiObjectWithModifiedMapSurvivesScavenge) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  LocalContext context;
+
+  TracedGlobal<v8::Object> handle;
+  {
+    v8::HandleScope scope(isolate);
+    // Create an API object which does not have the same map as constructor.
+    auto function_template = FunctionTemplate::New(isolate);
+    auto instance_t = function_template->InstanceTemplate();
+    instance_t->Set(isolate, "a", v8::Number::New(isolate, 10));
+    auto function =
+        function_template->GetFunction(context.local()).ToLocalChecked();
+    auto i = function->NewInstance(context.local()).ToLocalChecked();
+    handle.Reset(isolate, i);
+  }
+  InvokeScavenge();
+  CHECK(!handle.IsEmpty());
+}
+
+TEST(TracedGlobalTOJsApiObjectWithElementsSurvivesScavenge) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  LocalContext context;
+
+  TracedGlobal<v8::Object> handle;
+  {
+    v8::HandleScope scope(isolate);
+
+    // Create an API object which has elements.
+    auto function_template = FunctionTemplate::New(isolate);
+    auto instance_t = function_template->InstanceTemplate();
+    instance_t->Set(isolate, "1", v8::Number::New(isolate, 10));
+    instance_t->Set(isolate, "2", v8::Number::New(isolate, 10));
+    auto function =
+        function_template->GetFunction(context.local()).ToLocalChecked();
+    auto i = function->NewInstance(context.local()).ToLocalChecked();
+    handle.Reset(isolate, i);
+  }
+  InvokeScavenge();
+  CHECK(!handle.IsEmpty());
+}
+
+TEST(FinalizerOnUnmodifiedJSApiObjectDoesNotCrash) {
+  // See crbug.com/v8/8586.
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope context_scope(context);
+
+  FlagAndGlobal fp;
+  ConstructJSApiObject(isolate, context, &fp);
+  fp.handle.SetWeak(&fp, &ResetHandleAndSetFlag,
+                    v8::WeakCallbackType::kFinalizer);
+  fp.flag = false;
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Object> tmp = v8::Local<v8::Object>::New(isolate, fp.handle);
+    USE(tmp);
+    InvokeScavenge();
+  }
+}
+
+namespace {
+
+void ConstructFinalizerPointingPhantomHandle(
+    v8::Isolate* isolate, v8::Global<v8::Object>* g1,
+    v8::Global<v8::Object>* g2,
+    typename v8::WeakCallbackInfo<v8::Global<v8::Object>>::Callback
+        finalizer_for_g1) {
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Object> o1 =
+      v8::Local<v8::Object>::New(isolate, v8::Object::New(isolate));
+  v8::Local<v8::Object> o2 =
+      v8::Local<v8::Object>::New(isolate, v8::Object::New(isolate));
+  o1->Set(isolate->GetCurrentContext(), v8_str("link"), o2).FromJust();
+  g1->Reset(isolate, o1);
+  g2->Reset(isolate, o2);
+  // g1 will be finalized but resurrected.
+  g1->SetWeak(g1, finalizer_for_g1, v8::WeakCallbackType::kFinalizer);
+  // g2 will be a phantom handle that is dependent on the finalizer handle
+  // g1 as it is in its subgraph.
+  g2->SetWeak();
+}
+
+}  // namespace
+
+TEST(FinalizerResurrectsAndKeepsPhantomAliveOnMarkCompact) {
+  // See crbug.com/772299.
+  CcTest::InitializeVM();
+  v8::Global<v8::Object> g1, g2;
+  ConstructFinalizerPointingPhantomHandle(CcTest::isolate(), &g1, &g2,
+                                          ResurrectingFinalizer);
+  InvokeMarkSweep();
+  // Both, g1 and g2, should stay alive as the finalizer resurrects the root
+  // object that transitively keeps the other one alive.
+  CHECK(!g1.IsEmpty());
+  CHECK(!g2.IsEmpty());
+  InvokeMarkSweep();
+  // The finalizer handle is now strong, so it should keep the objects alive.
+  CHECK(!g1.IsEmpty());
+  CHECK(!g2.IsEmpty());
+}
+
+TEST(FinalizerDiesAndKeepsPhantomAliveOnMarkCompact) {
+  CcTest::InitializeVM();
+  v8::Global<v8::Object> g1, g2;
+  ConstructFinalizerPointingPhantomHandle(CcTest::isolate(), &g1, &g2,
+                                          ResettingFinalizer);
+  InvokeMarkSweep();
+  // Finalizer (g1) dies but the phantom handle (g2) is kept alive for one
+  // more round as the underlying object only dies on the next GC.
+  CHECK(g1.IsEmpty());
+  CHECK(!g2.IsEmpty());
+  InvokeMarkSweep();
+  // Phantom handle dies after one more round.
+  CHECK(g1.IsEmpty());
+  CHECK(g2.IsEmpty());
+}
+
+namespace {
+
+void ForceScavenge2(const v8::WeakCallbackInfo<FlagAndGlobal>& data) {
+  data.GetParameter()->flag = true;
+  InvokeScavenge();
+}
+
+void ForceScavenge1(const v8::WeakCallbackInfo<FlagAndGlobal>& data) {
+  data.GetParameter()->handle.Reset();
+  data.SetSecondPassCallback(ForceScavenge2);
+}
+
+void ForceMarkSweep2(const v8::WeakCallbackInfo<FlagAndGlobal>& data) {
+  data.GetParameter()->flag = true;
+  InvokeMarkSweep();
+}
+
+void ForceMarkSweep1(const v8::WeakCallbackInfo<FlagAndGlobal>& data) {
+  data.GetParameter()->handle.Reset();
+  data.SetSecondPassCallback(ForceMarkSweep2);
+}
+
+}  // namespace
+
+TEST(GCFromWeakCallbacks) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Locker locker(CcTest::isolate());
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope context_scope(context);
+
+  if (FLAG_single_generation) {
+    FlagAndGlobal fp;
+    ConstructJSApiObject(isolate, context, &fp);
+    CHECK(!heap::InYoungGeneration(isolate, fp.handle));
+    fp.flag = false;
+    fp.handle.SetWeak(&fp, &ForceMarkSweep1, v8::WeakCallbackType::kParameter);
+    InvokeMarkSweep();
+    EmptyMessageQueues(isolate);
+    CHECK(fp.flag);
+    return;
+  }
+
+  static const int kNumberOfGCTypes = 2;
+  using Callback = v8::WeakCallbackInfo<FlagAndGlobal>::Callback;
+  Callback gc_forcing_callback[kNumberOfGCTypes] = {&ForceScavenge1,
+                                                    &ForceMarkSweep1};
+
+  using GCInvoker = void (*)();
+  GCInvoker invoke_gc[kNumberOfGCTypes] = {&InvokeScavenge, &InvokeMarkSweep};
+
+  for (int outer_gc = 0; outer_gc < kNumberOfGCTypes; outer_gc++) {
+    for (int inner_gc = 0; inner_gc < kNumberOfGCTypes; inner_gc++) {
+      FlagAndGlobal fp;
+      ConstructJSApiObject(isolate, context, &fp);
+      CHECK(heap::InYoungGeneration(isolate, fp.handle));
+      fp.flag = false;
+      fp.handle.SetWeak(&fp, gc_forcing_callback[inner_gc],
+                        v8::WeakCallbackType::kParameter);
+      invoke_gc[outer_gc]();
+      EmptyMessageQueues(isolate);
+      CHECK(fp.flag);
+    }
+  }
+}
+
+namespace {
+
+void SecondPassCallback(const v8::WeakCallbackInfo<FlagAndGlobal>& data) {
+  data.GetParameter()->flag = true;
+}
+
+void FirstPassCallback(const v8::WeakCallbackInfo<FlagAndGlobal>& data) {
+  data.GetParameter()->handle.Reset();
+  data.SetSecondPassCallback(SecondPassCallback);
+}
+
+}  // namespace
+
+TEST(SecondPassPhantomCallbacks) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Locker locker(CcTest::isolate());
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope context_scope(context);
+  FlagAndGlobal fp;
+  ConstructJSApiObject(isolate, context, &fp);
+  fp.flag = false;
+  fp.handle.SetWeak(&fp, FirstPassCallback, v8::WeakCallbackType::kParameter);
+  CHECK(!fp.flag);
+  InvokeMarkSweep();
+  InvokeMarkSweep();
+  CHECK(fp.flag);
+}
+
+TEST(MoveStrongGlobal) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Global<v8::Object>* global = new Global<v8::Object>();
+  ConstructJSObject(isolate, global);
+  InvokeMarkSweep();
+  v8::Global<v8::Object> global2(std::move(*global));
+  delete global;
+  InvokeMarkSweep();
+}
+
+TEST(MoveWeakGlobal) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Global<v8::Object>* global = new Global<v8::Object>();
+  ConstructJSObject(isolate, global);
+  InvokeMarkSweep();
+  global->SetWeak();
+  v8::Global<v8::Object> global2(std::move(*global));
+  delete global;
+  InvokeMarkSweep();
+}
+
+TEST(TotalSizeRegularNode) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  Isolate* i_isolate = CcTest::i_isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Global<v8::Object>* global = new Global<v8::Object>();
+  CHECK_EQ(i_isolate->global_handles()->TotalSize(), 0);
+  CHECK_EQ(i_isolate->global_handles()->UsedSize(), 0);
+  ConstructJSObject(isolate, global);
+  CHECK_GT(i_isolate->global_handles()->TotalSize(), 0);
+  CHECK_GT(i_isolate->global_handles()->UsedSize(), 0);
+  delete global;
+  CHECK_GT(i_isolate->global_handles()->TotalSize(), 0);
+  CHECK_EQ(i_isolate->global_handles()->UsedSize(), 0);
+}
+
+TEST(TotalSizeTracedNode) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  Isolate* i_isolate = CcTest::i_isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::TracedGlobal<v8::Object>* global = new TracedGlobal<v8::Object>();
+  CHECK_EQ(i_isolate->global_handles()->TotalSize(), 0);
+  CHECK_EQ(i_isolate->global_handles()->UsedSize(), 0);
+  ConstructJSObject(isolate, global);
+  CHECK_GT(i_isolate->global_handles()->TotalSize(), 0);
+  CHECK_GT(i_isolate->global_handles()->UsedSize(), 0);
+  delete global;
+  CHECK_GT(i_isolate->global_handles()->TotalSize(), 0);
+  CHECK_EQ(i_isolate->global_handles()->UsedSize(), 0);
+}
+
+}  // namespace internal
+}  // namespace v8

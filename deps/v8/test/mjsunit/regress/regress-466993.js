@@ -5,10 +5,12 @@
 // Flags: --allow-natives-syntax
 
 var test = function() {
-  var a = {"1": false, "2": false, "3": false, "4": false};
+  var a = {'1': false, '2': false, '3': false, '4': false};
   assertEquals(false, a[1]);
   a[1] = true;
 };
+;
+%PrepareFunctionForOptimization(test);
 test();
 test();
 test();

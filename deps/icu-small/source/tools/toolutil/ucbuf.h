@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -32,11 +32,11 @@ typedef struct UCHARBUF UCHARBUF;
 /**
  * End of file value
  */
-#define U_EOF 0xFFFFFFFF
+#define U_EOF ((int32_t)0xFFFFFFFF)
 /**
  * Error value if a sequence cannot be unescaped
  */
-#define U_ERR 0xFFFFFFFE
+#define U_ERR ((int32_t)0xFFFFFFFE)
 
 typedef struct ULine ULine;
 

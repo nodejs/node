@@ -7,6 +7,7 @@ function counter(x) {
   return (function() { if (x-- == 0) throw error;});
 }
 
+// TODO(asm): This module is not valid asm.js.
 function Module() {
   "use asm";
 

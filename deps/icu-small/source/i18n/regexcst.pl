@@ -10,13 +10,13 @@
 #  regexcst.pl
 #            Compile the regular expression paser state table data into initialized C data.
 #            Usage:
-#                   cd icu/source/i18n
+#                   cd icu4c/source/i18n
 #                   perl regexcst.pl < regexcst.txt > regexcst.h
 #
 #             The output file, regexcst.h, is included by some of the .cpp regex
 #             implementation files.   This perl script is NOT run as part
 #             of a normal ICU build.  It is run by hand when needed, and the
-#             regexcst.h generated file is put back into cvs.
+#             regexcst.h generated file is put back into the source code repository.
 #
 #             See regexcst.txt for a description of the input format for this script.
 #
@@ -201,6 +201,8 @@ for ($state=1; $state<$num_states; $state++) {
 
 die if ($errors>0);
 
+print "// © 2016 and later: Unicode, Inc. and others.\n";
+print "// License & terms of use: http://www.unicode.org/copyright.html\n";
 print "//---------------------------------------------------------------------------------\n";
 print "//\n";
 print "// Generated Header File.  Do not edit by hand.\n";
@@ -246,6 +248,7 @@ foreach $setName (keys %charClasses) {
         $i++;
     }
 }
+print "    constexpr uint32_t kRuleSet_count = $i-128;";
 print "\n\n";
 
 #

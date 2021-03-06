@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -40,27 +40,9 @@
 #define uprv_strchr(s, c) U_STANDARD_CPP_NAMESPACE strchr(s, c)
 #define uprv_strstr(s, c) U_STANDARD_CPP_NAMESPACE strstr(s, c)
 #define uprv_strrchr(s, c) U_STANDARD_CPP_NAMESPACE strrchr(s, c)
-
-#if U_DEBUG
-
-#define uprv_strncpy(dst, src, size) ( \
-    uprv_checkValidMemory(src, 1), \
-    U_STANDARD_CPP_NAMESPACE strncpy(dst, src, size))
-#define uprv_strncmp(s1, s2, n) ( \
-    uprv_checkValidMemory(s1, 1), \
-    uprv_checkValidMemory(s2, 1), \
-    U_STANDARD_CPP_NAMESPACE strncmp(s1, s2, n))
-#define uprv_strncat(dst, src, n) ( \
-    uprv_checkValidMemory(src, 1), \
-    U_STANDARD_CPP_NAMESPACE strncat(dst, src, n))
-
-#else
-
 #define uprv_strncpy(dst, src, size) U_STANDARD_CPP_NAMESPACE strncpy(dst, src, size)
 #define uprv_strncmp(s1, s2, n) U_STANDARD_CPP_NAMESPACE strncmp(s1, s2, n)
 #define uprv_strncat(dst, src, n) U_STANDARD_CPP_NAMESPACE strncat(dst, src, n)
-
-#endif  /* U_DEBUG */
 
 /**
  * Is c an ASCII-repertoire letter a-z or A-Z?
@@ -69,6 +51,8 @@
  */
 U_CAPI UBool U_EXPORT2
 uprv_isASCIILetter(char c);
+
+// NOTE: For u_asciiToUpper that takes a UChar, see ustr_imp.h
 
 U_CAPI char U_EXPORT2
 uprv_toupper(char c);

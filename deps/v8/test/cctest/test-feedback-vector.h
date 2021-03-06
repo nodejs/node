@@ -5,8 +5,9 @@
 #ifndef V8_TEST_FEEDBACK_VECTOR_H_
 #define V8_TEST_FEEDBACK_VECTOR_H_
 
-#include "src/objects.h"
-
+#include "src/objects/feedback-vector.h"
+#include "src/objects/objects.h"
+#include "src/objects/shared-function-info.h"
 
 namespace v8 {
 namespace internal {
@@ -15,37 +16,50 @@ namespace internal {
 // Use helper.slot(X) to get X'th slot identifier.
 class FeedbackVectorHelper {
  public:
-  explicit FeedbackVectorHelper(Handle<TypeFeedbackVector> vector)
+  explicit FeedbackVectorHelper(Handle<FeedbackVector> vector)
       : vector_(vector) {
-    int slot_count = vector->slot_count();
+    int slot_count = vector->length();
     slots_.reserve(slot_count);
-    TypeFeedbackMetadataIterator iter(vector->metadata());
+    FeedbackMetadataIterator iter(vector->metadata());
     while (iter.HasNext()) {
-      FeedbackVectorSlot slot = iter.Next();
+      FeedbackSlot slot = iter.Next();
       slots_.push_back(slot);
     }
   }
 
-  Handle<TypeFeedbackVector> vector() { return vector_; }
+  Handle<FeedbackVector> vector() { return vector_; }
 
   // Returns slot identifier by numerical index.
-  FeedbackVectorSlot slot(int index) const { return slots_[index]; }
+  FeedbackSlot slot(int index) const { return slots_[index]; }
 
   // Returns the number of slots in the feedback vector.
   int slot_count() const { return static_cast<int>(slots_.size()); }
 
  private:
-  Handle<TypeFeedbackVector> vector_;
-  std::vector<FeedbackVectorSlot> slots_;
+  Handle<FeedbackVector> vector_;
+  std::vector<FeedbackSlot> slots_;
 };
 
 template <typename Spec>
-Handle<TypeFeedbackVector> NewTypeFeedbackVector(Isolate* isolate, Spec* spec) {
-  Handle<TypeFeedbackMetadata> metadata =
-      TypeFeedbackMetadata::New(isolate, spec);
-  return TypeFeedbackVector::New(isolate, metadata);
+Handle<FeedbackVector> NewFeedbackVector(Isolate* isolate, Spec* spec) {
+  Handle<FeedbackMetadata> metadata = FeedbackMetadata::New(isolate, spec);
+  Handle<SharedFunctionInfo> shared =
+      isolate->factory()->NewSharedFunctionInfoForBuiltin(
+          isolate->factory()->empty_string(), Builtins::kIllegal);
+  // Set the raw feedback metadata to circumvent checks that we are not
+  // overwriting existing metadata.
+  shared->set_raw_outer_scope_info_or_feedback_metadata(*metadata);
+  Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
+      ClosureFeedbackCellArray::New(isolate, shared);
+  IsCompiledScope is_compiled_scope(shared->is_compiled_scope(isolate));
+  return FeedbackVector::New(isolate, shared, closure_feedback_cell_array,
+                             &is_compiled_scope);
 }
 
+template <typename Spec>
+Handle<FeedbackMetadata> NewFeedbackMetadata(Isolate* isolate, Spec* spec) {
+  return FeedbackMetadata::New(isolate, spec);
+}
 
 }  // namespace internal
 }  // namespace v8

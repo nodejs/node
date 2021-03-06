@@ -164,7 +164,7 @@ TEST_IMPL(tcp_create_early_bad_bind) {
 #endif
 
   r = uv_tcp_bind(&client, (const struct sockaddr*) &addr, 0);
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__CYGWIN__) && !defined(__MSYS__)
   ASSERT(r == UV_EINVAL);
 #else
   ASSERT(r == UV_EFAULT);

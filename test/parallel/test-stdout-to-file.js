@@ -4,35 +4,29 @@ const assert = require('assert');
 const path = require('path');
 const childProcess = require('child_process');
 const fs = require('fs');
+const fixtures = require('../common/fixtures');
+const tmpdir = require('../common/tmpdir');
 
-const scriptString = path.join(common.fixturesDir, 'print-chars.js');
-const scriptBuffer = path.join(common.fixturesDir,
-                               'print-chars-from-buffer.js');
-const tmpFile = path.join(common.tmpDir, 'stdout.txt');
+const scriptString = fixtures.path('print-chars.js');
+const scriptBuffer = fixtures.path('print-chars-from-buffer.js');
+const tmpFile = path.join(tmpdir.path, 'stdout.txt');
 
-common.refreshTmpDir();
+tmpdir.refresh();
 
 function test(size, useBuffer, cb) {
-  var cmd = '"' + process.argv[0] + '"' +
-            ' ' +
-            '"' + (useBuffer ? scriptBuffer : scriptString) + '"' +
-            ' ' +
-            size +
-            ' > ' +
-            '"' + tmpFile + '"';
+  const cmd = `"${process.argv[0]}" "${
+    useBuffer ? scriptBuffer : scriptString}" ${size} > "${tmpFile}"`;
 
   try {
     fs.unlinkSync(tmpFile);
-  } catch (e) {}
+  } catch {}
 
   console.log(`${size} chars to ${tmpFile}...`);
 
-  childProcess.exec(cmd, common.mustCall(function(err) {
-    if (err) throw err;
-
+  childProcess.exec(cmd, common.mustSucceed(() => {
     console.log('done!');
 
-    var stat = fs.statSync(tmpFile);
+    const stat = fs.statSync(tmpFile);
 
     console.log(`${tmpFile} has ${stat.size} bytes`);
 

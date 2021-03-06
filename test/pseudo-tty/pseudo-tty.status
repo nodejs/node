@@ -1,6 +1,6 @@
 prefix pseudo-tty
 
-[$system==aix]
-# test issue only, covered under https://github.com/nodejs/node/issues/7973
-no_dropped_stdio           : SKIP
-no_interleaved_stdio       : SKIP
+[$system==solaris]
+# https://github.com/nodejs/node/pull/16225 - `ioctl(fd, TIOCGWINSZ)` seems
+# to fail with EINVAL on SmartOS when `fd` is a pty from python's pty module.
+test-tty-stdout-resize     : FAIL, PASS

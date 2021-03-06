@@ -5,11 +5,13 @@
 #include "src/base/sys-info.h"
 
 #if V8_OS_POSIX
-#include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+#if !V8_OS_FUCHSIA
+#include <sys/resource.h>
+#endif
 #endif
 
 #if V8_OS_BSD
@@ -33,7 +35,7 @@ int SysInfo::NumberOfProcessors() {
   int mib[2] = {CTL_HW, HW_NCPU};
   int ncpu = 0;
   size_t len = sizeof(ncpu);
-  if (sysctl(mib, arraysize(mib), &ncpu, &len, NULL, 0) != 0) {
+  if (sysctl(mib, arraysize(mib), &ncpu, &len, nullptr, 0) != 0) {
     return 1;
   }
   return ncpu;
@@ -57,15 +59,15 @@ int64_t SysInfo::AmountOfPhysicalMemory() {
   int mib[2] = {CTL_HW, HW_MEMSIZE};
   int64_t memsize = 0;
   size_t len = sizeof(memsize);
-  if (sysctl(mib, arraysize(mib), &memsize, &len, NULL, 0) != 0) {
+  if (sysctl(mib, arraysize(mib), &memsize, &len, nullptr, 0) != 0) {
     return 0;
   }
   return memsize;
 #elif V8_OS_FREEBSD
   int pages, page_size;
   size_t size = sizeof(pages);
-  sysctlbyname("vm.stats.vm.v_page_count", &pages, &size, NULL, 0);
-  sysctlbyname("vm.stats.vm.v_page_size", &page_size, &size, NULL, 0);
+  sysctlbyname("vm.stats.vm.v_page_count", &pages, &size, nullptr, 0);
+  sysctlbyname("vm.stats.vm.v_page_size", &page_size, &size, nullptr, 0);
   if (pages == -1 || page_size == -1) {
     return 0;
   }
@@ -101,7 +103,7 @@ int64_t SysInfo::AmountOfPhysicalMemory() {
 
 // static
 int64_t SysInfo::AmountOfVirtualMemory() {
-#if V8_OS_WIN
+#if V8_OS_WIN || V8_OS_FUCHSIA
   return 0;
 #elif V8_OS_POSIX
   struct rlimit rlim;

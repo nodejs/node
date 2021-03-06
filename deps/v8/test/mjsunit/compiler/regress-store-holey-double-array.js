@@ -19,6 +19,7 @@
 
   var a = [,0.1];
 
+  %PrepareFunctionForOptimization(g);
   g(f64, a, 1);
   g(f64, a, 1);
   %OptimizeFunctionOnNextCall(g);
@@ -35,6 +36,8 @@
   }
 
   var a=[,0.1];
+
+  %PrepareFunctionForOptimization(g);
   g(a, 1);
   g(a, 1);
   %OptimizeFunctionOnNextCall(g);

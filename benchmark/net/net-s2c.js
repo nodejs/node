@@ -1,54 +1,106 @@
-// test the speed of .pipe() with sockets
+// Test the speed of .pipe() with sockets
 'use strict';
 
-var common = require('../common.js');
-var PORT = common.PORT;
+const common = require('../common.js');
+const PORT = common.PORT;
 
-var bench = common.createBenchmark(main, {
-  len: [102400, 1024 * 1024 * 16],
+const bench = common.createBenchmark(main, {
+  sendchunklen: [256, 32 * 1024, 128 * 1024, 16 * 1024 * 1024],
   type: ['utf', 'asc', 'buf'],
+  recvbuflen: [0, 64 * 1024, 1024 * 1024],
+  recvbufgenfn: ['true', 'false'],
   dur: [5]
+}, {
+  test: { sendchunklen: 256 }
 });
 
-var dur;
-var len;
-var type;
-var chunk;
-var encoding;
+let chunk;
+let encoding;
+let recvbuf;
+let received = 0;
 
-function main(conf) {
-  dur = +conf.dur;
-  len = +conf.len;
-  type = conf.type;
+function main({ dur, sendchunklen, type, recvbuflen, recvbufgenfn }) {
+  if (isFinite(recvbuflen) && recvbuflen > 0)
+    recvbuf = Buffer.alloc(recvbuflen);
 
   switch (type) {
     case 'buf':
-      chunk = Buffer.alloc(len, 'x');
+      chunk = Buffer.alloc(sendchunklen, 'x');
       break;
     case 'utf':
       encoding = 'utf8';
-      chunk = new Array(len / 2 + 1).join('ü');
+      chunk = 'ü'.repeat(sendchunklen / 2);
       break;
     case 'asc':
       encoding = 'ascii';
-      chunk = new Array(len + 1).join('x');
+      chunk = 'x'.repeat(sendchunklen);
       break;
     default:
-      throw new Error('invalid type: ' + type);
+      throw new Error(`invalid type: ${type}`);
   }
 
-  server();
+  const reader = new Reader();
+  let writer;
+  let socketOpts;
+  if (recvbuf === undefined) {
+    writer = new Writer();
+    socketOpts = { port: PORT };
+  } else {
+    let buffer = recvbuf;
+    if (recvbufgenfn === 'true') {
+      let bufidx = -1;
+      const bufpool = [
+        recvbuf,
+        Buffer.from(recvbuf),
+        Buffer.from(recvbuf),
+      ];
+      buffer = () => {
+        bufidx = (bufidx + 1) % bufpool.length;
+        return bufpool[bufidx];
+      };
+    }
+    socketOpts = {
+      port: PORT,
+      onread: {
+        buffer,
+        callback: function(nread, buf) {
+          received += nread;
+        }
+      }
+    };
+  }
+
+  // The actual benchmark.
+  const server = net.createServer((socket) => {
+    reader.pipe(socket);
+  });
+
+  server.listen(PORT, () => {
+    const socket = net.connect(socketOpts);
+    socket.on('connect', () => {
+      bench.start();
+
+      if (recvbuf === undefined)
+        socket.pipe(writer);
+
+      setTimeout(() => {
+        const bytes = received;
+        const gbits = (bytes * 8) / (1024 * 1024 * 1024);
+        bench.end(gbits);
+        process.exit(0);
+      }, dur * 1000);
+    });
+  });
 }
 
-var net = require('net');
+const net = require('net');
 
 function Writer() {
-  this.received = 0;
   this.writable = true;
 }
 
 Writer.prototype.write = function(chunk, encoding, cb) {
-  this.received += chunk.length;
+  received += chunk.length;
 
   if (typeof encoding === 'function')
     encoding();
@@ -58,15 +110,24 @@ Writer.prototype.write = function(chunk, encoding, cb) {
   return true;
 };
 
-// doesn't matter, never emits anything.
+// Doesn't matter, never emits anything.
 Writer.prototype.on = function() {};
 Writer.prototype.once = function() {};
 Writer.prototype.emit = function() {};
 Writer.prototype.prependListener = function() {};
 
 
+function flow() {
+  const dest = this.dest;
+  const res = dest.write(chunk, encoding);
+  if (!res)
+    dest.once('drain', this.flow);
+  else
+    process.nextTick(this.flow);
+}
+
 function Reader() {
-  this.flow = this.flow.bind(this);
+  this.flow = flow.bind(this);
   this.readable = true;
 }
 
@@ -75,39 +136,3 @@ Reader.prototype.pipe = function(dest) {
   this.flow();
   return dest;
 };
-
-Reader.prototype.flow = function() {
-  var dest = this.dest;
-  var res = dest.write(chunk, encoding);
-  if (!res)
-    dest.once('drain', this.flow);
-  else
-    process.nextTick(this.flow);
-};
-
-
-function server() {
-  var reader = new Reader();
-  var writer = new Writer();
-
-  // the actual benchmark.
-  var server = net.createServer(function(socket) {
-    reader.pipe(socket);
-  });
-
-  server.listen(PORT, function() {
-    var socket = net.connect(PORT);
-    socket.on('connect', function() {
-      bench.start();
-
-      socket.pipe(writer);
-
-      setTimeout(function() {
-        var bytes = writer.received;
-        var gbits = (bytes * 8) / (1024 * 1024 * 1024);
-        bench.end(gbits);
-        process.exit(0);
-      }, dur * 1000);
-    });
-  });
-}

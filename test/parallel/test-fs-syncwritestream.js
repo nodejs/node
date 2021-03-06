@@ -6,8 +6,8 @@ const stream = require('stream');
 const fs = require('fs');
 const path = require('path');
 
-// require('internal/fs').SyncWriteStream is used as a stdio implementation
-// when stdout/stderr point to files.
+// require('internal/fs/utils').SyncWriteStream is used as a stdio
+// implementation when stdout/stderr point to files.
 
 if (process.argv[2] === 'child') {
   // Note: Calling console.log() is part of this test as it exercises the
@@ -21,9 +21,10 @@ if (process.argv[2] === 'child') {
   return;
 }
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
-const filename = path.join(common.tmpDir, 'stdout');
+const filename = path.join(tmpdir.path, 'stdout');
 const stdoutFd = fs.openSync(filename, 'w');
 
 const proc = spawn(process.execPath, [__filename, 'child'], {

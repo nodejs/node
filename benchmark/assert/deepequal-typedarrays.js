@@ -1,23 +1,43 @@
 'use strict';
-var common = require('../common.js');
-var assert = require('assert');
-var bench = common.createBenchmark(main, {
-  type: ('Int8Array Uint8Array Int16Array Uint16Array Int32Array Uint32Array ' +
-    'Float32Array Float64Array Uint8ClampedArray').split(' '),
-  n: [1]
+const common = require('../common.js');
+const assert = require('assert');
+
+const bench = common.createBenchmark(main, {
+  type: [
+    'Int8Array',
+    'Uint8Array',
+    'Float32Array',
+    'Float64Array',
+    'Uint8ClampedArray',
+  ],
+  n: [5e2],
+  strict: [0, 1],
+  method: [
+    'deepEqual',
+    'notDeepEqual',
+  ],
+  len: [1e2, 5e3],
 });
 
-function main(conf) {
-  var type = conf.type;
-  var clazz = global[type];
-  var n = +conf.n;
+function main({ type, n, len, method, strict }) {
+  const clazz = global[type];
+  const actual = new clazz(len);
+  const expected = new clazz(len);
+  const expectedWrong = new clazz(len);
+  const wrongIndex = Math.floor(len / 2);
+  expectedWrong[wrongIndex] = 123;
+
+  if (strict) {
+    method = method.replace('eep', 'eepStrict');
+  }
+  const fn = assert[method];
+  const value2 = method.includes('not') ? expectedWrong : expected;
 
   bench.start();
-  var actual = new clazz(n * 1e6);
-  var expected = new clazz(n * 1e6);
-
-  // eslint-disable-next-line no-restricted-properties
-  assert.deepEqual(actual, expected);
-
+  for (let i = 0; i < n; ++i) {
+    actual[0] = i;
+    value2[0] = i;
+    fn(actual, value2);
+  }
   bench.end(n);
 }

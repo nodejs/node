@@ -1,0 +1,3 @@
+*modules-skip-1-top-level-await-fail.mjs:7: ReferenceError: x is not defined
+await x;
+^

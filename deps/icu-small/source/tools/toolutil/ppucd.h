@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -6,7 +6,7 @@
 *   Corporation and others.  All Rights Reserved.
 *******************************************************************************
 *   file name:  ppucd.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -84,6 +84,8 @@ public:
         BLOCK_LINE,
         /** cp;0030;AHex;bc=EN;gc=Nd;na=DIGIT ZERO;... */
         CP_LINE,
+        /** unassigned;E01F0..E0FFF;bc=BN;CWKCF;DI;GCB=CN;NFKC_CF= */
+        UNASSIGNED_LINE,
 
         /** algnamesrange;4E00..9FCC;han;CJK UNIFIED IDEOGRAPH- */
         ALG_NAMES_RANGE_LINE,
@@ -119,7 +121,9 @@ public:
     const UVersionInfo &getUnicodeVersion() const { return ucdVersion; }
 
     /** Returns TRUE if the current line has property values. */
-    UBool lineHasPropertyValues() const { return DEFAULTS_LINE<=lineType && lineType<=CP_LINE; }
+    UBool lineHasPropertyValues() const {
+        return DEFAULTS_LINE<=lineType && lineType<=UNASSIGNED_LINE;
+    }
 
     /**
      * Parses properties from the current line.
@@ -166,6 +170,7 @@ private:
 
     UVersionInfo ucdVersion;
     UniProps defaultProps, blockProps, cpProps;
+    UnicodeSet blockValues;
     // Multiple lines so that default and block properties can maintain pointers
     // into their line buffers.
     char lines[kNumLineBuffers][4096];

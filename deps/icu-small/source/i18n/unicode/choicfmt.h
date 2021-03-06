@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ********************************************************************************
@@ -26,19 +26,22 @@
 
 #include "unicode/utypes.h"
 
+#if U_SHOW_CPLUSPLUS_API
+
 /**
  * \file
  * \brief C++ API: Choice Format.
  */
 
 #if !UCONFIG_NO_FORMATTING
-#ifndef U_HIDE_DEPRECATED_API
 
 #include "unicode/fieldpos.h"
 #include "unicode/format.h"
 #include "unicode/messagepattern.h"
 #include "unicode/numfmt.h"
 #include "unicode/unistr.h"
+
+#ifndef U_HIDE_DEPRECATED_API
 
 U_NAMESPACE_BEGIN
 
@@ -103,7 +106,7 @@ class MessageFormat;
  * arrays of numbers, closure flags and strings,
  * they are interpreted just like
  * the sequence of <code>(number separator string)</code> in an equivalent pattern string.
- * <code>closure[i]==TRUE</code> corresponds to a <code>less_than</code> separator sign.
+ * <code>closure[i]==true</code> corresponds to a <code>less_than</code> separator sign.
  * The equivalent pattern string will be constructed automatically.</p>
  *
  * <p>During formatting, a number is mapped to the first range
@@ -123,7 +126,7 @@ class MessageFormat;
  * <p>Here is an example of two arrays that map the number
  * <code>1..7</code> to the English day of the week abbreviations
  * <code>Sun..Sat</code>. No closures array is given; this is the same as
- * specifying all closures to be <code>FALSE</code>.</p>
+ * specifying all closures to be <code>false</code>.</p>
  *
  * <pre>    {1,2,3,4,5,6,7},
  *     {&quot;Sun&quot;,&quot;Mon&quot;,&quot;Tue&quot;,&quot;Wed&quot;,&quot;Thur&quot;,&quot;Fri&quot;,&quot;Sat&quot;}</pre>
@@ -135,7 +138,7 @@ class MessageFormat;
  * like the turned bracket in European notation: [-Inf, 1) == [-Inf, 1[  )</p>
  *
  * <pre>    {0, 1, 1},
- *     {FALSE, FALSE, TRUE},
+ *     {false, false, true},
  *     {&quot;no files&quot;, &quot;one file&quot;, &quot;many files&quot;}</pre>
  *
  * <p>Here is an example that shows formatting and parsing: </p>
@@ -186,7 +189,7 @@ public:
 
     /**
      * Constructs a new ChoiceFormat with the given limits and message strings.
-     * All closure flags default to <code>FALSE</code>,
+     * All closure flags default to <code>false</code>,
      * equivalent to <code>less_than_or_equal</code> separators.
      *
      * Copies the limits and formats instead of adopting them.
@@ -207,9 +210,9 @@ public:
      *
      * @param limits Array of limit values
      * @param closures Array of booleans specifying whether each
-     * element of 'limits' is open or closed.  If FALSE, then the
+     * element of 'limits' is open or closed.  If false, then the
      * corresponding limit number is a member of its range.
-     * If TRUE, then the limit number belongs to the previous range it.
+     * If true, then the limit number belongs to the previous range it.
      * @param formats Array of formats
      * @param count Size of 'limits', 'closures', and 'formats' arrays
      * @deprecated ICU 49 Use MessageFormat instead, with plural and select arguments.
@@ -248,7 +251,7 @@ public:
      * @return a copy of this object
      * @deprecated ICU 49 Use MessageFormat instead, with plural and select arguments.
      */
-    virtual Format* clone(void) const;
+    virtual ChoiceFormat* clone() const;
 
     /**
      * Returns true if the given Format objects are semantically equal.
@@ -565,13 +568,13 @@ private:
      * The intervals may be closed, half open, or open.  This affects
      * formatting but does not affect parsing.  Interval i is affected
      * by fClosures[i] and fClosures[i+1].  If fClosures[i]
-     * is FALSE, then the value fChoiceLimits[i] is in interval i.
+     * is false, then the value fChoiceLimits[i] is in interval i.
      * That is, intervals i and i are:
      *
      *  i-1:                 ... x < fChoiceLimits[i]
      *    i: fChoiceLimits[i] <= x ...
      *
-     * If fClosures[i] is TRUE, then the value fChoiceLimits[i] is
+     * If fClosures[i] is true, then the value fChoiceLimits[i] is
      * in interval i-1.  That is, intervals i-1 and i are:
      *
      *  i-1:                ... x <= fChoiceLimits[i]
@@ -591,6 +594,8 @@ U_NAMESPACE_END
 
 #endif  // U_HIDE_DEPRECATED_API
 #endif /* #if !UCONFIG_NO_FORMATTING */
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif // CHOICFMT_H
 //eof

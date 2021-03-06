@@ -1,15 +1,22 @@
-module.exports = prefix
+const output = require('./utils/output.js')
+const usageUtil = require('./utils/usage.js')
 
-var npm = require('./npm.js')
-var output = require('./utils/output.js')
-
-prefix.usage = 'npm prefix [-g]'
-
-function prefix (args, silent, cb) {
-  if (typeof cb !== 'function') {
-    cb = silent
-    silent = false
+class Prefix {
+  constructor (npm) {
+    this.npm = npm
   }
-  if (!silent) output(npm.prefix)
-  process.nextTick(cb.bind(this, null, npm.prefix))
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  get usage () {
+    return usageUtil('prefix', 'npm prefix [-g]')
+  }
+
+  exec (args, cb) {
+    this.prefix(args).then(() => cb()).catch(cb)
+  }
+
+  async prefix (args) {
+    return output(this.npm.prefix)
+  }
 }
+module.exports = Prefix

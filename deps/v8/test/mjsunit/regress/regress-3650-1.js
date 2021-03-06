@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --deopt-every-n-times=55
-// Flags: --nodead-code-elimination
 
 function f(t) {
   var result = [];
@@ -15,6 +14,7 @@ function f(t) {
   }
   return result.join('');
 }
+%PrepareFunctionForOptimization(f);
 
 var t = {a: "1", b: "2"};
 assertEquals("aa11ab12ba21bb22", f(t));

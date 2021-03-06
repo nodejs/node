@@ -1,4 +1,16 @@
 /*
+ * Copyright 2004-2016 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
+/*
+ * This file is dual-licensed and is also available under the following
+ * terms:
+ *
  * Copyright (c) 2004, Richard Levitte <richard@levitte.org>
  * All rights reserved.
  *
@@ -104,12 +116,12 @@ const char *LP_find_file(LP_DIR_CTX **ctx, const char *directory)
             return 0;
         }
 
-        *ctx = (LP_DIR_CTX *)malloc(sizeof(LP_DIR_CTX));
+        *ctx = malloc(sizeof(**ctx));
         if (*ctx == NULL) {
             errno = ENOMEM;
             return 0;
         }
-        memset(*ctx, '\0', sizeof(LP_DIR_CTX));
+        memset(*ctx, 0, sizeof(**ctx));
 
         strcpy((*ctx)->filespec, directory);
         strcat((*ctx)->filespec, "*.*;");

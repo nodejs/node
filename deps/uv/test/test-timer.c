@@ -161,6 +161,7 @@ TEST_IMPL(timer_init) {
 
   ASSERT(0 == uv_timer_init(uv_default_loop(), &handle));
   ASSERT(0 == uv_timer_get_repeat(&handle));
+  ASSERT_UINT64_LE(0, uv_timer_get_due_in(&handle));
   ASSERT(0 == uv_is_active((uv_handle_t*) &handle));
 
   MAKE_VALGRIND_HAPPY();
@@ -232,6 +233,9 @@ TEST_IMPL(timer_huge_timeout) {
   ASSERT(0 == uv_timer_start(&tiny_timer, tiny_timer_cb, 1, 0));
   ASSERT(0 == uv_timer_start(&huge_timer1, tiny_timer_cb, 0xffffffffffffLL, 0));
   ASSERT(0 == uv_timer_start(&huge_timer2, tiny_timer_cb, (uint64_t) -1, 0));
+  ASSERT_UINT64_EQ(1, uv_timer_get_due_in(&tiny_timer));
+  ASSERT_UINT64_EQ(281474976710655, uv_timer_get_due_in(&huge_timer1));
+  ASSERT_UINT64_LE(0, uv_timer_get_due_in(&huge_timer2));
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
   MAKE_VALGRIND_HAPPY();
   return 0;
@@ -286,6 +290,19 @@ TEST_IMPL(timer_run_once) {
 
   uv_close((uv_handle_t*) &timer_handle, NULL);
   ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_ONCE));
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+
+TEST_IMPL(timer_is_closing) {
+  uv_timer_t handle;
+
+  ASSERT(0 == uv_timer_init(uv_default_loop(), &handle));
+  uv_close((uv_handle_t *)&handle, NULL);
+
+  ASSERT(UV_EINVAL == uv_timer_start(&handle, never_cb, 100, 100));
 
   MAKE_VALGRIND_HAPPY();
   return 0;

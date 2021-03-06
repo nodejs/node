@@ -6,15 +6,11 @@ const common = require('../common');
 // the full 64 bits and the result is that it does not process the
 // addresses correctly and runs out of memory
 // Disabling until we get a fix upstreamed into V8
-if (common.isAix) {
+if (common.isAIX)
   common.skip('AIX address range too big for scripts.');
-  return;
-}
 
-if (!common.enoughTestCpu) {
+if (!common.enoughTestCpu)
   common.skip('test is CPU-intensive');
-  return;
-}
 
 const base = require('./tick-processor-base.js');
 
@@ -23,7 +19,7 @@ const base = require('./tick-processor-base.js');
 base.runTest({
   pattern: /LazyCompile.*\[eval]:1|.*%  UNKNOWN/,
   code: `function f() {
-           for (var i = 0; i < 1000000; i++) {
+           for (let i = 0; i < 1000000; i++) {
              i++;
            }
            setImmediate(function() { f(); });

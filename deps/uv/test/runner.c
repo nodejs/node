@@ -20,6 +20,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "runner.h"
@@ -27,6 +28,13 @@
 #include "uv.h"
 
 char executable_path[sizeof(executable_path)];
+
+
+static int compare_task(const void* va, const void* vb) {
+  const task_entry_t* a = va;
+  const task_entry_t* b = vb;
+  return strcmp(a->task_name, b->task_name);
+}
 
 
 const char* fmt(double d) {
@@ -67,21 +75,28 @@ const char* fmt(double d) {
 
 
 int run_tests(int benchmark_output) {
+  int actual;
   int total;
   int passed;
   int failed;
   int skipped;
   int current;
   int test_result;
+  int skip;
   task_entry_t* task;
 
   /* Count the number of tests. */
+  actual = 0;
   total = 0;
-  for (task = TASKS; task->main; task++) {
+  for (task = TASKS; task->main; task++, actual++) {
     if (!task->is_helper) {
       total++;
     }
   }
+
+  /* Keep platform_output first. */
+  skip = (actual > 0 && 0 == strcmp(TASKS[0].task_name, "platform_output"));
+  qsort(TASKS + skip, actual - skip, sizeof(TASKS[0]), compare_task);
 
   fprintf(stderr, "1..%d\n", total);
   fflush(stderr);
@@ -116,6 +131,7 @@ void log_tap_result(int test_count,
   const char* result;
   const char* directive;
   char reason[1024];
+  int reason_length;
 
   switch (status) {
   case TEST_OK:
@@ -133,6 +149,9 @@ void log_tap_result(int test_count,
 
   if (status == TEST_SKIP && process_output_size(process) > 0) {
     process_read_last_line(process, reason, sizeof reason);
+    reason_length = strlen(reason);
+    if (reason_length > 0 && reason[reason_length - 1] == '\n')
+      reason[reason_length - 1] = '\0';
   } else {
     reason[0] = '\0';
   }
@@ -149,6 +168,7 @@ int run_test(const char* test,
   process_info_t processes[1024];
   process_info_t *main_proc;
   task_entry_t* task;
+  int timeout_multiplier;
   int process_count;
   int result;
   int status;
@@ -197,9 +217,6 @@ int run_test(const char* test,
     process_count++;
   }
 
-  /* Give the helpers time to settle. Race-y, fix this. */
-  uv_sleep(250);
-
   /* Now start the test itself. */
   for (task = TASKS; task->main; task++) {
     if (strcmp(test, task->task_name) != 0) {
@@ -234,7 +251,22 @@ int run_test(const char* test,
     goto out;
   }
 
-  result = process_wait(main_proc, 1, task->timeout);
+  timeout_multiplier = 1;
+#ifndef _WIN32
+  do {
+    const char* var;
+
+    var = getenv("UV_TEST_TIMEOUT_MULTIPLIER");
+    if (var == NULL)
+      break;
+
+    timeout_multiplier = atoi(var);
+    if (timeout_multiplier <= 0)
+      timeout_multiplier = 1;
+  } while (0);
+#endif
+
+  result = process_wait(main_proc, 1, task->timeout * timeout_multiplier);
   if (result == -1) {
     FATAL("process_wait failed");
   } else if (result == -2) {
@@ -352,12 +384,6 @@ int run_test_part(const char* test, const char* part) {
 }
 
 
-static int compare_task(const void* va, const void* vb) {
-  const task_entry_t* a = va;
-  const task_entry_t* b = vb;
-  return strcmp(a->task_name, b->task_name);
-}
-
 
 static int find_helpers(const task_entry_t* task,
                         const task_entry_t** helpers) {
@@ -410,13 +436,18 @@ void print_lines(const char* buffer, size_t size, FILE* stream) {
 
   start = buffer;
   while ((end = memchr(start, '\n', &buffer[size] - start))) {
-    fprintf(stream, "# %.*s\n", (int) (end - start), start);
+    fputs("# ", stream);
+    fwrite(start, 1, (int)(end - start), stream);
+    fputs("\n", stream);
     fflush(stream);
     start = end + 1;
   }
 
-  if (start < &buffer[size]) {
-    fprintf(stream, "# %s\n", start);
+  end = &buffer[size];
+  if (start < end) {
+    fputs("# ", stream);
+    fwrite(start, 1, (int)(end - start), stream);
+    fputs("\n", stream);
     fflush(stream);
   }
 }

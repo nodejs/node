@@ -58,7 +58,6 @@ static const env_var_t required_vars[] = { /* keep me sorted */
   E_V("USERPROFILE"),
   E_V("WINDIR"),
 };
-static size_t n_required_vars = ARRAY_SIZE(required_vars);
 
 
 static HANDLE uv_global_job_handle_;
@@ -148,8 +147,7 @@ static void uv_process_init(uv_loop_t* loop, uv_process_t* handle) {
   handle->child_stdio_buffer = NULL;
   handle->exit_cb_pending = 0;
 
-  uv_req_init(loop, (uv_req_t*)&handle->exit_req);
-  handle->exit_req.type = UV_PROCESS_EXIT;
+  UV_REQ_INIT(&handle->exit_req, UV_PROCESS_EXIT);
   handle->exit_req.data = handle;
 }
 
@@ -361,8 +359,8 @@ static WCHAR* search_path(const WCHAR *file,
     return NULL;
   }
 
-  /* Find the start of the filename so we can split the directory from the */
-  /* name. */
+  /* Find the start of the filename so we can split the directory from the
+   * name. */
   for (file_name_start = (WCHAR*)file + file_len;
        file_name_start > file
            && file_name_start[-1] != L'\\'
@@ -406,8 +404,15 @@ static WCHAR* search_path(const WCHAR *file,
       /* Next slice starts just after where the previous one ended */
       dir_start = dir_end;
 
+      /* If path is quoted, find quote end */
+      if (*dir_start == L'"' || *dir_start == L'\'') {
+        dir_end = wcschr(dir_start + 1, *dir_start);
+        if (dir_end == NULL) {
+          dir_end = wcschr(dir_start, L'\0');
+        }
+      }
       /* Slice until the next ; or \0 is found */
-      dir_end = wcschr(dir_start, L';');
+      dir_end = wcschr(dir_end, L';');
       if (dir_end == NULL) {
         dir_end = wcschr(dir_start, L'\0');
       }
@@ -492,7 +497,7 @@ WCHAR* quote_cmd_arg(const WCHAR *source, WCHAR *target) {
    *   input : hello\\"world
    *   output: "hello\\\\\"world"
    *   input : hello world\
-   *   output: "hello world\"
+   *   output: "hello world\\"
    */
 
   *(target++) = L'"';
@@ -550,8 +555,8 @@ int make_program_args(char** args, int verbatim_arguments, WCHAR** dst_ptr) {
     arg_count++;
   }
 
-  /* Adjust for potential quotes. Also assume the worst-case scenario */
-  /* that every character needs escaping, so we need twice as much space. */
+  /* Adjust for potential quotes. Also assume the worst-case scenario that
+   * every character needs escaping, so we need twice as much space. */
   dst_len = dst_len * 2 + arg_count * 2;
 
   /* Allocate buffer for the final command line. */
@@ -686,7 +691,7 @@ int make_program_env(char* env_block[], WCHAR** dst_ptr) {
   WCHAR* dst_copy;
   WCHAR** ptr_copy;
   WCHAR** env_copy;
-  DWORD* required_vars_value_len = alloca(n_required_vars * sizeof(DWORD*));
+  DWORD required_vars_value_len[ARRAY_SIZE(required_vars)];
 
   /* first pass: determine size in UTF-16 */
   for (env = env_block; *env; env++) {
@@ -708,7 +713,7 @@ int make_program_env(char* env_block[], WCHAR** dst_ptr) {
 
   /* second pass: copy to UTF-16 environment block */
   dst_copy = (WCHAR*)uv__malloc(env_len * sizeof(WCHAR));
-  if (!dst_copy) {
+  if (dst_copy == NULL && env_len > 0) {
     return ERROR_OUTOFMEMORY;
   }
   env_copy = alloca(env_block_count * sizeof(WCHAR*));
@@ -733,13 +738,13 @@ int make_program_env(char* env_block[], WCHAR** dst_ptr) {
     }
   }
   *ptr_copy = NULL;
-  assert(env_len == ptr - dst_copy);
+  assert(env_len == 0 || env_len == (size_t) (ptr - dst_copy));
 
   /* sort our (UTF-16) copy */
   qsort(env_copy, env_block_count-1, sizeof(wchar_t*), qsort_wcscmp);
 
   /* third pass: check for required variables */
-  for (ptr_copy = env_copy, i = 0; i < n_required_vars; ) {
+  for (ptr_copy = env_copy, i = 0; i < ARRAY_SIZE(required_vars); ) {
     int cmp;
     if (!*ptr_copy) {
       cmp = -1;
@@ -772,10 +777,10 @@ int make_program_env(char* env_block[], WCHAR** dst_ptr) {
   }
 
   for (ptr = dst, ptr_copy = env_copy, i = 0;
-       *ptr_copy || i < n_required_vars;
+       *ptr_copy || i < ARRAY_SIZE(required_vars);
        ptr += len) {
     int cmp;
-    if (i >= n_required_vars) {
+    if (i >= ARRAY_SIZE(required_vars)) {
       cmp = 1;
     } else if (!*ptr_copy) {
       cmp = -1;
@@ -793,7 +798,7 @@ int make_program_env(char* env_block[], WCHAR** dst_ptr) {
         var_size = GetEnvironmentVariableW(required_vars[i].wide,
                                            ptr,
                                            (int) (env_len - (ptr - dst)));
-        if (var_size != len-1) { /* race condition? */
+        if (var_size != (DWORD) (len - 1)) { /* TODO: handle race condition? */
           uv_fatal_error(GetLastError(), "GetEnvironmentVariableW");
         }
       }
@@ -809,7 +814,7 @@ int make_program_env(char* env_block[], WCHAR** dst_ptr) {
   }
 
   /* Terminate with an extra NULL. */
-  assert(env_len == (ptr - dst));
+  assert(env_len == (size_t) (ptr - dst));
   *ptr = L'\0';
 
   uv__free(dst_copy);
@@ -825,8 +830,13 @@ int make_program_env(char* env_block[], WCHAR** dst_ptr) {
  */
 static WCHAR* find_path(WCHAR *env) {
   for (; env != NULL && *env != 0; env += wcslen(env) + 1) {
-    if (wcsncmp(env, L"PATH=", 5) == 0)
+    if ((env[0] == L'P' || env[0] == L'p') &&
+        (env[1] == L'A' || env[1] == L'a') &&
+        (env[2] == L'T' || env[2] == L't') &&
+        (env[3] == L'H' || env[3] == L'h') &&
+        (env[4] == L'=')) {
       return &env[5];
+    }
   }
 
   return NULL;
@@ -859,9 +869,9 @@ void uv_process_proc_exit(uv_loop_t* loop, uv_process_t* handle) {
   assert(handle->exit_cb_pending);
   handle->exit_cb_pending = 0;
 
-  /* If we're closing, don't call the exit callback. Just schedule a close */
-  /* callback now. */
-  if (handle->flags & UV__HANDLE_CLOSING) {
+  /* If we're closing, don't call the exit callback. Just schedule a close
+   * callback now. */
+  if (handle->flags & UV_HANDLE_CLOSING) {
     uv_want_endgame(loop, (uv_handle_t*) handle);
     return;
   }
@@ -872,14 +882,14 @@ void uv_process_proc_exit(uv_loop_t* loop, uv_process_t* handle) {
     handle->wait_handle = INVALID_HANDLE_VALUE;
   }
 
-  /* Set the handle to inactive: no callbacks will be made after the exit */
-  /* callback.*/
+  /* Set the handle to inactive: no callbacks will be made after the exit
+   * callback. */
   uv__handle_stop(handle);
 
   if (GetExitCodeProcess(handle->process_handle, &status)) {
     exit_code = status;
   } else {
-    /* Unable to to obtain the exit code. This should never happen. */
+    /* Unable to obtain the exit code. This should never happen. */
     exit_code = uv_translate_sys_error(GetLastError());
   }
 
@@ -894,8 +904,8 @@ void uv_process_close(uv_loop_t* loop, uv_process_t* handle) {
   uv__handle_closing(handle);
 
   if (handle->wait_handle != INVALID_HANDLE_VALUE) {
-    /* This blocks until either the wait was cancelled, or the callback has */
-    /* completed. */
+    /* This blocks until either the wait was cancelled, or the callback has
+     * completed. */
     BOOL r = UnregisterWaitEx(handle->wait_handle, INVALID_HANDLE_VALUE);
     if (!r) {
       /* This should never happen, and if it happens, we can't recover... */
@@ -913,7 +923,7 @@ void uv_process_close(uv_loop_t* loop, uv_process_t* handle) {
 
 void uv_process_endgame(uv_loop_t* loop, uv_process_t* handle) {
   assert(!handle->exit_cb_pending);
-  assert(handle->flags & UV__HANDLE_CLOSING);
+  assert(handle->flags & UV_HANDLE_CLOSING);
   assert(!(handle->flags & UV_HANDLE_CLOSED));
 
   /* Clean-up the process handle. */
@@ -953,6 +963,8 @@ int uv_spawn(uv_loop_t* loop,
                               UV_PROCESS_SETGID |
                               UV_PROCESS_SETUID |
                               UV_PROCESS_WINDOWS_HIDE |
+                              UV_PROCESS_WINDOWS_HIDE_CONSOLE |
+                              UV_PROCESS_WINDOWS_HIDE_GUI |
                               UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS)));
 
   err = uv_utf8_to_utf16_alloc(options->file, &application);
@@ -1052,14 +1064,25 @@ int uv_spawn(uv_loop_t* loop,
   startup.hStdOutput = uv__stdio_handle(process->child_stdio_buffer, 1);
   startup.hStdError = uv__stdio_handle(process->child_stdio_buffer, 2);
 
-  if (options->flags & UV_PROCESS_WINDOWS_HIDE) {
+  process_flags = CREATE_UNICODE_ENVIRONMENT;
+
+  if ((options->flags & UV_PROCESS_WINDOWS_HIDE_CONSOLE) ||
+      (options->flags & UV_PROCESS_WINDOWS_HIDE)) {
+    /* Avoid creating console window if stdio is not inherited. */
+    for (i = 0; i < options->stdio_count; i++) {
+      if (options->stdio[i].flags & UV_INHERIT_FD)
+        break;
+      if (i == options->stdio_count - 1)
+        process_flags |= CREATE_NO_WINDOW;
+    }
+  }
+  if ((options->flags & UV_PROCESS_WINDOWS_HIDE_GUI) ||
+      (options->flags & UV_PROCESS_WINDOWS_HIDE)) {
     /* Use SW_HIDE to avoid any potential process window. */
     startup.wShowWindow = SW_HIDE;
   } else {
     startup.wShowWindow = SW_SHOWDEFAULT;
   }
-
-  process_flags = CREATE_UNICODE_ENVIRONMENT;
 
   if (options->flags & UV_PROCESS_DETACHED) {
     /* Note that we're not setting the CREATE_BREAKAWAY_FROM_JOB flag. That
@@ -1090,14 +1113,13 @@ int uv_spawn(uv_loop_t* loop,
     goto done;
   }
 
-  /* Spawn succeeded */
-  /* Beyond this point, failure is reported asynchronously. */
+  /* Spawn succeeded. Beyond this point, failure is reported asynchronously. */
 
   process->process_handle = info.hProcess;
   process->pid = info.dwProcessId;
 
-  /* If the process isn't spawned as detached, assign to the global job */
-  /* object so windows will kill it when the parent process dies. */
+  /* If the process isn't spawned as detached, assign to the global job object
+   * so windows will kill it when the parent process dies. */
   if (!(options->flags & UV_PROCESS_DETACHED)) {
     uv_once(&uv_global_job_handle_init_guard_, uv__init_global_job_handle);
 
@@ -1124,7 +1146,8 @@ int uv_spawn(uv_loop_t* loop,
     if (fdopt->flags & UV_CREATE_PIPE &&
         fdopt->data.stream->type == UV_NAMED_PIPE &&
         ((uv_pipe_t*) fdopt->data.stream)->ipc) {
-      ((uv_pipe_t*) fdopt->data.stream)->pipe.conn.ipc_pid = info.dwProcessId;
+      ((uv_pipe_t*) fdopt->data.stream)->pipe.conn.ipc_remote_pid =
+          info.dwProcessId;
     }
   }
 
@@ -1140,8 +1163,8 @@ int uv_spawn(uv_loop_t* loop,
 
   assert(!err);
 
-  /* Make the handle active. It will remain active until the exit callback */
-  /* is made or the handle is closed, whichever happens first. */
+  /* Make the handle active. It will remain active until the exit callback is
+   * made or the handle is closed, whichever happens first. */
   uv__handle_start(process);
 
   /* Cleanup, whether we succeeded or failed. */
@@ -1164,20 +1187,24 @@ int uv_spawn(uv_loop_t* loop,
 
 
 static int uv__kill(HANDLE process_handle, int signum) {
+  if (signum < 0 || signum >= NSIG) {
+    return UV_EINVAL;
+  }
+
   switch (signum) {
     case SIGTERM:
     case SIGKILL:
     case SIGINT: {
-      /* Unconditionally terminate the process. On Windows, killed processes */
-      /* normally return 1. */
+      /* Unconditionally terminate the process. On Windows, killed processes
+       * normally return 1. */
       DWORD status;
       int err;
 
       if (TerminateProcess(process_handle, 1))
         return 0;
 
-      /* If the process already exited before TerminateProcess was called, */
-      /* TerminateProcess will fail with ERROR_ACCESS_DENIED. */
+      /* If the process already exited before TerminateProcess was called,.
+       * TerminateProcess will fail with ERROR_ACCESS_DENIED. */
       err = GetLastError();
       if (err == ERROR_ACCESS_DENIED &&
           GetExitCodeProcess(process_handle, &status) &&
@@ -1228,8 +1255,15 @@ int uv_process_kill(uv_process_t* process, int signum) {
 
 int uv_kill(int pid, int signum) {
   int err;
-  HANDLE process_handle = OpenProcess(PROCESS_TERMINATE |
-    PROCESS_QUERY_INFORMATION, FALSE, pid);
+  HANDLE process_handle;
+
+  if (pid == 0) {
+    process_handle = GetCurrentProcess();
+  } else {
+    process_handle = OpenProcess(PROCESS_TERMINATE | PROCESS_QUERY_INFORMATION,
+                                 FALSE,
+                                 pid);
+  }
 
   if (process_handle == NULL) {
     err = GetLastError();

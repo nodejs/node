@@ -45,6 +45,7 @@ function testPolymorphicLoads() {
     function load(a, i) {
       return a[i];
     }
+    %PrepareFunctionForOptimization(load);
 
     var object_array = new Object;
     var sparse_object_array = new Object;
@@ -83,7 +84,7 @@ function testPolymorphicLoads() {
   load = make_polymorphic_load_function();
   assertEquals(undefined, load(sparse_object_array, new Object()));
 
-  // Try with crankshaft.
+  // Try with optimizing compiler.
   load = make_polymorphic_load_function();
   %OptimizeFunctionOnNextCall(load);
   assertEquals(1, load(object_array, 1));
@@ -110,6 +111,7 @@ function testPolymorphicStores() {
     function store(a, i, val) {
       a[i] = val;
     }
+    %PrepareFunctionForOptimization(store);
 
     var object_array = new Object;
     var sparse_object_array = new Object;

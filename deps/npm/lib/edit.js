@@ -1,35 +1,58 @@
 // npm edit <pkg>
 // open the package folder in the $EDITOR
 
-module.exports = edit
-edit.usage = 'npm edit <pkg>[@<version>]'
+const { resolve } = require('path')
+const fs = require('graceful-fs')
+const { spawn } = require('child_process')
+const usageUtil = require('./utils/usage.js')
+const splitPackageNames = require('./utils/split-package-names.js')
+const completion = require('./utils/completion/installed-shallow.js')
 
-edit.completion = require('./utils/completion/installed-shallow.js')
-
-var npm = require('./npm.js')
-var path = require('path')
-var fs = require('graceful-fs')
-var editor = require('editor')
-var noProgressTillDone = require('./utils/no-progress-while-running').tillDone
-
-function edit (args, cb) {
-  var p = args[0]
-  if (args.length !== 1 || !p) return cb(edit.usage)
-  var e = npm.config.get('editor')
-  if (!e) {
-    return cb(new Error(
-      "No editor set.  Set the 'editor' config, or $EDITOR environ."
-    ))
+class Edit {
+  constructor (npm) {
+    this.npm = npm
   }
-  p = p.split('/')
-       .join('/node_modules/')
-       .replace(/(\/node_modules)+/, '/node_modules')
-  var f = path.resolve(npm.dir, p)
-  fs.lstat(f, function (er) {
-    if (er) return cb(er)
-    editor(f, { editor: e }, noProgressTillDone(function (er) {
-      if (er) return cb(er)
-      npm.commands.rebuild(args, cb)
-    }))
-  })
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  get usage () {
+    return usageUtil('edit', 'npm edit <pkg>[/<subpkg>...]')
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  async completion (opts) {
+    return completion(this.npm, opts)
+  }
+
+  exec (args, cb) {
+    this.edit(args).then(() => cb()).catch(cb)
+  }
+
+  async edit (args) {
+    if (args.length !== 1)
+      throw new Error(this.usage)
+
+    const path = splitPackageNames(args[0])
+    const dir = resolve(this.npm.dir, path)
+
+    // graceful-fs does not promisify
+    await new Promise((resolve, reject) => {
+      fs.lstat(dir, (err) => {
+        if (err)
+          return reject(err)
+        const [bin, ...args] = this.npm.config.get('editor').split(/\s+/)
+        const editor = spawn(bin, [...args, dir], { stdio: 'inherit' })
+        editor.on('exit', (code) => {
+          if (code)
+            return reject(new Error(`editor process exited with code: ${code}`))
+          this.npm.commands.rebuild([dir], (err) => {
+            if (err)
+              return reject(err)
+
+            resolve()
+          })
+        })
+      })
+    })
+  }
 }
+module.exports = Edit

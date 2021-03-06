@@ -1,8 +1,13 @@
 #ifndef SRC_NODE_MUTEX_H_
 #define SRC_NODE_MUTEX_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "util.h"
 #include "uv.h"
+
+#include <memory>  // std::shared_ptr<T>
+#include <utility>  // std::forward<T>
 
 namespace node {
 
@@ -13,6 +18,51 @@ struct LibuvMutexTraits;
 using ConditionVariable = ConditionVariableBase<LibuvMutexTraits>;
 using Mutex = MutexBase<LibuvMutexTraits>;
 
+template <typename T, typename MutexT = Mutex>
+class ExclusiveAccess {
+ public:
+  ExclusiveAccess() = default;
+
+  template <typename... Args>
+  explicit ExclusiveAccess(Args&&... args)
+      : item_(std::forward<Args>(args)...) {}
+
+  ExclusiveAccess(const ExclusiveAccess&) = delete;
+  ExclusiveAccess& operator=(const ExclusiveAccess&) = delete;
+
+  class Scoped {
+   public:
+    // ExclusiveAccess will commonly be used in conjuction with std::shared_ptr
+    // and without this constructor it's too easy to forget to keep a reference
+    // around to the shared_ptr while operating on the ExclusiveAccess object.
+    explicit Scoped(const std::shared_ptr<ExclusiveAccess>& shared)
+        : shared_(shared)
+        , scoped_lock_(shared->mutex_)
+        , pointer_(&shared->item_) {}
+
+    explicit Scoped(ExclusiveAccess* exclusive_access)
+        : shared_()
+        , scoped_lock_(exclusive_access->mutex_)
+        , pointer_(&exclusive_access->item_) {}
+
+    T& operator*() const { return *pointer_; }
+    T* operator->() const { return pointer_; }
+
+    Scoped(const Scoped&) = delete;
+    Scoped& operator=(const Scoped&) = delete;
+
+   private:
+    std::shared_ptr<ExclusiveAccess> shared_;
+    typename MutexT::ScopedLock scoped_lock_;
+    T* const pointer_;
+  };
+
+ private:
+  friend class ScopedLock;
+  MutexT mutex_;
+  T item_;
+};
+
 template <typename Traits>
 class MutexBase {
  public:
@@ -20,6 +70,9 @@ class MutexBase {
   inline ~MutexBase();
   inline void Lock();
   inline void Unlock();
+
+  MutexBase(const MutexBase&) = delete;
+  MutexBase& operator=(const MutexBase&) = delete;
 
   class ScopedLock;
   class ScopedUnlock;
@@ -30,11 +83,13 @@ class MutexBase {
     inline explicit ScopedLock(const ScopedUnlock& scoped_unlock);
     inline ~ScopedLock();
 
+    ScopedLock(const ScopedLock&) = delete;
+    ScopedLock& operator=(const ScopedLock&) = delete;
+
    private:
     template <typename> friend class ConditionVariableBase;
     friend class ScopedUnlock;
     const MutexBase& mutex_;
-    DISALLOW_COPY_AND_ASSIGN(ScopedLock);
   };
 
   class ScopedUnlock {
@@ -42,16 +97,17 @@ class MutexBase {
     inline explicit ScopedUnlock(const ScopedLock& scoped_lock);
     inline ~ScopedUnlock();
 
+    ScopedUnlock(const ScopedUnlock&) = delete;
+    ScopedUnlock& operator=(const ScopedUnlock&) = delete;
+
    private:
     friend class ScopedLock;
     const MutexBase& mutex_;
-    DISALLOW_COPY_AND_ASSIGN(ScopedUnlock);
   };
 
  private:
   template <typename> friend class ConditionVariableBase;
   mutable typename Traits::MutexT mutex_;
-  DISALLOW_COPY_AND_ASSIGN(MutexBase);
 };
 
 template <typename Traits>
@@ -65,9 +121,11 @@ class ConditionVariableBase {
   inline void Signal(const ScopedLock&);
   inline void Wait(const ScopedLock& scoped_lock);
 
+  ConditionVariableBase(const ConditionVariableBase&) = delete;
+  ConditionVariableBase& operator=(const ConditionVariableBase&) = delete;
+
  private:
   typename Traits::CondT cond_;
-  DISALLOW_COPY_AND_ASSIGN(ConditionVariableBase);
 };
 
 struct LibuvMutexTraits {
@@ -183,5 +241,7 @@ MutexBase<Traits>::ScopedUnlock::~ScopedUnlock() {
 }
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_MUTEX_H_

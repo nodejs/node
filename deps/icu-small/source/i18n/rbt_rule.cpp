@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
  **********************************************************************
@@ -180,13 +180,13 @@ TransliterationRule::TransliterationRule(TransliterationRule& other) :
     }
 
     if (other.anteContext != NULL) {
-        anteContext = (StringMatcher*) other.anteContext->clone();
+        anteContext = other.anteContext->clone();
     }
     if (other.key != NULL) {
-        key = (StringMatcher*) other.key->clone();
+        key = other.key->clone();
     }
     if (other.postContext != NULL) {
-        postContext = (StringMatcher*) other.postContext->clone();
+        postContext = other.postContext->clone();
     }
     output = other.output->clone();
 }

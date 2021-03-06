@@ -30,21 +30,21 @@ const dgram = require('dgram');
 // number causes all sockets bound to that number to share a port.
 //
 // The 2 workers that call bind() will share a port, the two workers that do
-// not will not share a port, so master will see 3 unique source ports.
+// not will not share a port, so primary will see 3 unique source ports.
 
 // Note that on Windows, clustered dgram is not supported. Since explicit
 // binding causes the dgram to be clustered, don't fork the workers that bind.
 // This is a useful test, still, because it demonstrates that by avoiding
 // clustering, client (ephemeral, implicitly bound) dgram sockets become
-// supported while using cluster, though servers still cause the master to error
-// with ENOTSUP.
+// supported while using cluster, though servers still cause the primary
+// to error with ENOTSUP.
 
-if (cluster.isMaster) {
-  var messages = 0;
+if (cluster.isPrimary) {
+  let messages = 0;
   const ports = {};
   const pids = [];
 
-  var target = dgram.createSocket('udp4');
+  const target = dgram.createSocket('udp4');
 
   const done = common.mustCall(function() {
     cluster.disconnect();
@@ -70,21 +70,20 @@ if (cluster.isMaster) {
   });
 
   target.on('listening', function() {
-    cluster.fork();
-    cluster.fork();
+    cluster.fork({ PORT: target.address().port });
+    cluster.fork({ PORT: target.address().port });
     if (!common.isWindows) {
-      cluster.fork({BOUND: 'y'});
-      cluster.fork({BOUND: 'y'});
+      cluster.fork({ BOUND: 'y', PORT: target.address().port });
+      cluster.fork({ BOUND: 'y', PORT: target.address().port });
     }
   });
 
-  target.bind({port: common.PORT, exclusive: true});
+  target.bind({ port: 0, exclusive: true });
 
   return;
 }
 
 const source = dgram.createSocket('udp4');
-var interval;
 
 source.on('close', function() {
   clearInterval(interval);
@@ -93,13 +92,14 @@ source.on('close', function() {
 if (process.env.BOUND === 'y') {
   source.bind(0);
 } else {
-  // cluster doesn't know about exclusive sockets, so it won't close them. This
+  // Cluster doesn't know about exclusive sockets, so it won't close them. This
   // is expected, its the same situation for timers, outgoing tcp connections,
   // etc, which also keep workers alive after disconnect was requested.
   source.unref();
 }
 
+assert(process.env.PORT);
 const buf = Buffer.from(process.pid.toString());
-interval = setInterval(() => {
-  source.send(buf, common.PORT, '127.0.0.1');
+const interval = setInterval(() => {
+  source.send(buf, process.env.PORT, '127.0.0.1');
 }, 1).unref();

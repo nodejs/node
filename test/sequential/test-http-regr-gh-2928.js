@@ -5,17 +5,17 @@
 const common = require('../common');
 const assert = require('assert');
 const httpCommon = require('_http_common');
-const HTTPParser = process.binding('http_parser').HTTPParser;
+const { HTTPParser } = require('_http_common');
 const net = require('net');
 
 const COUNT = httpCommon.parsers.max + 1;
 
 const parsers = new Array(COUNT);
-for (var i = 0; i < parsers.length; i++)
+for (let i = 0; i < parsers.length; i++)
   parsers[i] = httpCommon.parsers.alloc();
 
-var gotRequests = 0;
-var gotResponses = 0;
+let gotRequests = 0;
+let gotResponses = 0;
 
 function execAndClose() {
   if (parsers.length === 0)
@@ -23,7 +23,7 @@ function execAndClose() {
   process.stdout.write('.');
 
   const parser = parsers.pop();
-  parser.reinitialize(HTTPParser.RESPONSE);
+  parser.initialize(HTTPParser.RESPONSE, {});
 
   const socket = net.connect(common.PORT);
   socket.on('error', (e) => {
@@ -31,6 +31,7 @@ function execAndClose() {
     // https://github.com/nodejs/node/issues/2663.
     if (common.isSunOS && e.code === 'ECONNREFUSED') {
       parsers.push(parser);
+      parser.reused = true;
       socket.destroy();
       setImmediate(execAndClose);
       return;
@@ -38,19 +39,19 @@ function execAndClose() {
     throw e;
   });
 
-  parser.consume(socket._handle._externalStream);
+  parser.consume(socket._handle);
 
   parser.onIncoming = function onIncoming() {
     process.stdout.write('+');
     gotResponses++;
-    parser.unconsume(socket._handle._externalStream);
+    parser.unconsume();
     httpCommon.freeParser(parser);
     socket.destroy();
     setImmediate(execAndClose);
   };
 }
 
-var server = net.createServer(function(c) {
+const server = net.createServer(function(c) {
   if (++gotRequests === COUNT)
     server.close();
   c.end('HTTP/1.1 200 OK\r\n\r\n', function() {
@@ -59,5 +60,5 @@ var server = net.createServer(function(c) {
 }).listen(common.PORT, execAndClose);
 
 process.on('exit', function() {
-  assert.equal(gotResponses, COUNT);
+  assert.strictEqual(gotResponses, COUNT);
 });

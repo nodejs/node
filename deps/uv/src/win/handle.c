@@ -59,15 +59,15 @@ uv_handle_type uv_guess_handle(uv_file file) {
 
 
 int uv_is_active(const uv_handle_t* handle) {
-  return (handle->flags & UV__HANDLE_ACTIVE) &&
-        !(handle->flags & UV__HANDLE_CLOSING);
+  return (handle->flags & UV_HANDLE_ACTIVE) &&
+        !(handle->flags & UV_HANDLE_CLOSING);
 }
 
 
 void uv_close(uv_handle_t* handle, uv_close_cb cb) {
   uv_loop_t* loop = handle->loop;
 
-  if (handle->flags & UV__HANDLE_CLOSING) {
+  if (handle->flags & UV_HANDLE_CLOSING) {
     assert(0);
     return;
   }
@@ -139,7 +139,6 @@ void uv_close(uv_handle_t* handle, uv_close_cb cb) {
     case UV_FS_POLL:
       uv__fs_poll_close((uv_fs_poll_t*) handle);
       uv__handle_closing(handle);
-      uv_want_endgame(loop, handle);
       return;
 
     default:
@@ -150,5 +149,14 @@ void uv_close(uv_handle_t* handle, uv_close_cb cb) {
 
 
 int uv_is_closing(const uv_handle_t* handle) {
-  return !!(handle->flags & (UV__HANDLE_CLOSING | UV_HANDLE_CLOSED));
+  return !!(handle->flags & (UV_HANDLE_CLOSING | UV_HANDLE_CLOSED));
+}
+
+
+uv_os_fd_t uv_get_osfhandle(int fd) {
+  return uv__get_osfhandle(fd);
+}
+
+int uv_open_osfhandle(uv_os_fd_t os_fd) {
+  return _open_osfhandle((intptr_t) os_fd, 0);
 }

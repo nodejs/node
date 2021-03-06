@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: mixed
-execute: yes
 wrap: yes
 
 ---
@@ -13,14 +11,13 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 6
+bytecode array length: 5
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(3),
-  /*   51 S> */ B(Return),
+  /*   34 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(37),
+  /*   50 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
+  ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]
@@ -33,24 +30,24 @@ frame size: 3
 parameter count: 1
 bytecode array length: 35
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
-  /*   42 S> */ B(LdaSmi), U8(1),
+  /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star), R(0),
-  /*   45 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(3),
+  /*   45 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(37),
                 B(Star), R(2),
                 B(LdaZero),
                 B(Star), R(1),
                 B(Ldar), R(0),
-  /*   54 E> */ B(StaKeyedPropertySloppy), R(2), R(1), U8(2),
-                B(LdaSmi), U8(1),
+  /*   54 E> */ B(StaInArrayLiteral), R(2), R(1), U8(1),
+                B(LdaSmi), I8(1),
                 B(Star), R(1),
-  /*   57 E> */ B(AddSmi), U8(1), R(0), U8(1),
-                B(StaKeyedPropertySloppy), R(2), R(1), U8(2),
+                B(Ldar), R(0),
+  /*   59 E> */ B(AddSmi), I8(1), U8(3),
+                B(StaInArrayLiteral), R(2), R(1), U8(1),
                 B(Ldar), R(2),
-  /*   66 S> */ B(Return),
+  /*   65 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
+  ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]
@@ -61,14 +58,13 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 6
+bytecode array length: 5
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(CreateArrayLiteral), U8(0), U8(2), U8(2),
-  /*   62 S> */ B(Return),
+  /*   34 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(4),
+  /*   61 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
+  ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
 ]
 handlers: [
 ]
@@ -81,38 +77,128 @@ frame size: 5
 parameter count: 1
 bytecode array length: 65
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
-  /*   42 S> */ B(LdaSmi), U8(1),
+  /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star), R(0),
-  /*   45 S> */ B(CreateArrayLiteral), U8(0), U8(2), U8(2),
+  /*   45 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(4),
                 B(Star), R(2),
                 B(LdaZero),
                 B(Star), R(1),
-                B(CreateArrayLiteral), U8(1), U8(0), U8(3),
+                B(CreateArrayLiteral), U8(1), U8(1), U8(37),
                 B(Star), R(4),
                 B(LdaZero),
                 B(Star), R(3),
                 B(Ldar), R(0),
-  /*   56 E> */ B(StaKeyedPropertySloppy), R(4), R(3), U8(1),
+  /*   56 E> */ B(StaInArrayLiteral), R(4), R(3), U8(2),
                 B(Ldar), R(4),
-                B(StaKeyedPropertySloppy), R(2), R(1), U8(6),
-                B(LdaSmi), U8(1),
+                B(StaInArrayLiteral), R(2), R(1), U8(4),
+                B(LdaSmi), I8(1),
                 B(Star), R(1),
-                B(CreateArrayLiteral), U8(2), U8(1), U8(3),
+                B(CreateArrayLiteral), U8(2), U8(6), U8(37),
                 B(Star), R(4),
                 B(LdaZero),
                 B(Star), R(3),
-  /*   66 E> */ B(AddSmi), U8(2), R(0), U8(3),
-                B(StaKeyedPropertySloppy), R(4), R(3), U8(4),
+                B(Ldar), R(0),
+  /*   68 E> */ B(AddSmi), I8(2), U8(7),
+                B(StaInArrayLiteral), R(4), R(3), U8(8),
                 B(Ldar), R(4),
-                B(StaKeyedPropertySloppy), R(2), R(1), U8(6),
+                B(StaInArrayLiteral), R(2), R(1), U8(4),
                 B(Ldar), R(2),
-  /*   77 S> */ B(Return),
+  /*   76 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
-  InstanceType::FIXED_ARRAY_TYPE,
-  InstanceType::FIXED_ARRAY_TYPE,
+  ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
+  ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
+  ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
+]
+handlers: [
+]
+
+---
+snippet: "
+  var a = [ 1, 2 ]; return [ ...a ];
+"
+frame size: 1
+parameter count: 1
+bytecode array length: 8
+bytecodes: [
+  /*   42 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(37),
+                B(Star), R(0),
+  /*   64 S> */ B(CreateArrayFromIterable),
+  /*   68 S> */ B(Return),
+]
+constant pool: [
+  ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
+]
+handlers: [
+]
+
+---
+snippet: "
+  var a = [ 1, 2 ]; return [ 0, ...a ];
+"
+frame size: 6
+parameter count: 1
+bytecode array length: 74
+bytecodes: [
+  /*   42 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(37),
+                B(Star), R(0),
+  /*   52 S> */ B(CreateArrayLiteral), U8(1), U8(1), U8(37),
+                B(Star), R(2),
+                B(LdaSmi), I8(1),
+  /*   67 S> */ B(Star), R(1),
+  /*   67 E> */ B(GetIterator), R(0), U8(2), U8(4),
+                B(JumpIfJSReceiver), U8(7),
+                B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
+                B(Star), R(4),
+                B(LdaNamedProperty), R(4), U8(2), U8(6),
+                B(Star), R(3),
+                B(CallProperty0), R(3), R(4), U8(15),
+                B(Star), R(5),
+                B(JumpIfJSReceiver), U8(7),
+                B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(5), U8(1),
+                B(LdaNamedProperty), R(5), U8(3), U8(17),
+                B(JumpIfToBooleanTrue), U8(19),
+                B(LdaNamedProperty), R(5), U8(4), U8(8),
+                B(StaInArrayLiteral), R(2), R(1), U8(13),
+                B(Ldar), R(1),
+                B(Inc), U8(12),
+                B(Star), R(1),
+                B(JumpLoop), U8(33), I8(0),
+                B(Ldar), R(2),
+  /*   71 S> */ B(Return),
+]
+constant pool: [
+  ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
+  ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["next"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["done"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["value"],
+]
+handlers: [
+]
+
+---
+snippet: "
+  var a = [ 1, 2 ]; return [ ...a, 3 ];
+"
+frame size: 3
+parameter count: 1
+bytecode array length: 24
+bytecodes: [
+  /*   42 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(37),
+                B(Star), R(0),
+  /*   64 S> */ B(CreateArrayFromIterable),
+                B(Star), R(2),
+                B(LdaNamedProperty), R(2), U8(1), U8(1),
+                B(Star), R(1),
+                B(LdaSmi), I8(3),
+                B(StaInArrayLiteral), R(2), R(1), U8(3),
+                B(Ldar), R(2),
+  /*   71 S> */ B(Return),
+]
+constant pool: [
+  ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["length"],
 ]
 handlers: [
 ]

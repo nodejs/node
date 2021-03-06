@@ -1,13 +1,15 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var v8 = require('v8');
+const assert = require('assert');
+const v8 = require('v8');
 
-var s = v8.getHeapStatistics();
-var keys = [
+const s = v8.getHeapStatistics();
+const keys = [
   'does_zap_garbage',
   'heap_size_limit',
   'malloced_memory',
+  'number_of_detached_contexts',
+  'number_of_native_contexts',
   'peak_malloced_memory',
   'total_available_size',
   'total_heap_size',
@@ -16,16 +18,31 @@ var keys = [
   'used_heap_size'];
 assert.deepStrictEqual(Object.keys(s).sort(), keys);
 keys.forEach(function(key) {
-  assert.equal(typeof s[key], 'number');
+  assert.strictEqual(typeof s[key], 'number');
+});
+
+
+const heapCodeStatistics = v8.getHeapCodeStatistics();
+const heapCodeStatisticsKeys = [
+  'bytecode_and_metadata_size',
+  'code_and_metadata_size',
+  'external_script_source_size'];
+assert.deepStrictEqual(Object.keys(heapCodeStatistics).sort(),
+                       heapCodeStatisticsKeys);
+heapCodeStatisticsKeys.forEach(function(key) {
+  assert.strictEqual(typeof heapCodeStatistics[key], 'number');
 });
 
 
 const expectedHeapSpaces = [
+  'code_large_object_space',
+  'code_space',
+  'large_object_space',
+  'map_space',
+  'new_large_object_space',
   'new_space',
   'old_space',
-  'code_space',
-  'map_space',
-  'large_object_space'
+  'read_only_space'
 ];
 const heapSpaceStatistics = v8.getHeapSpaceStatistics();
 const actualHeapSpaceNames = heapSpaceStatistics.map((s) => s.space_name);

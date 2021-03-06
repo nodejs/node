@@ -1,42 +1,30 @@
+'use strict'
 
-module.exports = exports = install
+const fs = require('graceful-fs')
+const os = require('os')
+const tar = require('tar')
+const path = require('path')
+const crypto = require('crypto')
+const log = require('npmlog')
+const semver = require('semver')
+const request = require('request')
+const processRelease = require('./process-release')
+const win = process.platform === 'win32'
+const getProxyFromURI = require('./proxy')
 
-module.exports.test = { download: download, readCAFile: readCAFile }
-
-exports.usage = 'Install node development files for the specified node version.'
-
-/**
- * Module dependencies.
- */
-
-var fs = require('graceful-fs')
-  , osenv = require('osenv')
-  , tar = require('tar')
-  , rm = require('rimraf')
-  , path = require('path')
-  , crypto = require('crypto')
-  , zlib = require('zlib')
-  , log = require('npmlog')
-  , semver = require('semver')
-  , fstream = require('fstream')
-  , request = require('request')
-  , minimatch = require('minimatch')
-  , mkdir = require('mkdirp')
-  , processRelease = require('./process-release')
-  , win = process.platform == 'win32'
-
-function install (gyp, argv, callback) {
-
+function install (fs, gyp, argv, callback) {
   var release = processRelease(argv, gyp, process.version, process.release)
 
   // ensure no double-callbacks happen
   function cb (err) {
-    if (cb.done) return
+    if (cb.done) {
+      return
+    }
     cb.done = true
     if (err) {
       log.warn('install', 'got an error, rolling back install')
       // roll-back the install if anything went wrong
-      gyp.commands.remove([ release.versionDir ], function (err2) {
+      gyp.commands.remove([release.versionDir], function () {
         callback(err)
       })
     } else {
@@ -78,13 +66,13 @@ function install (gyp, argv, callback) {
   // check if it is already installed, and only install when needed
   if (gyp.opts.ensure) {
     log.verbose('install', '--ensure was passed, so won\'t reinstall if already installed')
-    fs.stat(devDir, function (err, stat) {
+    fs.stat(devDir, function (err) {
       if (err) {
-        if (err.code == 'ENOENT') {
+        if (err.code === 'ENOENT') {
           log.verbose('install', 'version not already installed, continuing with install', release.version)
           go()
-        } else if (err.code == 'EACCES') {
-          eaccesFallback()
+        } else if (err.code === 'EACCES') {
+          eaccesFallback(err)
         } else {
           cb(err)
         }
@@ -93,7 +81,7 @@ function install (gyp, argv, callback) {
       log.verbose('install', 'version is already installed, need to check "installVersion"')
       var installVersionFile = path.resolve(devDir, 'installVersion')
       fs.readFile(installVersionFile, 'ascii', function (err, ver) {
-        if (err && err.code != 'ENOENT') {
+        if (err && err.code !== 'ENOENT') {
           return cb(err)
         }
         var installVersion = parseInt(ver, 10) || 0
@@ -112,7 +100,7 @@ function install (gyp, argv, callback) {
     go()
   }
 
-  function getContentSha(res, callback) {
+  function getContentSha (res, callback) {
     var shasum = crypto.createHash('sha256')
     res.on('data', function (chunk) {
       shasum.update(chunk)
@@ -122,14 +110,13 @@ function install (gyp, argv, callback) {
   }
 
   function go () {
-
     log.verbose('ensuring nodedir is created', devDir)
 
     // first create the dir for the node dev files
-    mkdir(devDir, function (err, created) {
+    fs.mkdir(devDir, { recursive: true }, function (err, created) {
       if (err) {
-        if (err.code == 'EACCES') {
-          eaccesFallback()
+        if (err.code === 'EACCES') {
+          eaccesFallback(err)
         } else {
           cb(err)
         }
@@ -143,42 +130,32 @@ function install (gyp, argv, callback) {
       // now download the node tarball
       var tarPath = gyp.opts.tarball
       var badDownload = false
-        , extractCount = 0
-        , gunzip = zlib.createGunzip()
-        , extracter = tar.Extract({ path: devDir, strip: 1, filter: isValid })
-
+      var extractCount = 0
       var contentShasums = {}
       var expectShasums = {}
 
       // checks if a file to be extracted from the tarball is valid.
       // only .h header files and the gyp files get extracted
-      function isValid () {
-        var name = this.path.substring(devDir.length + 1)
-        var isValid = valid(name)
-        if (name === '' && this.type === 'Directory') {
-          // the first directory entry is ok
-          return true
-        }
+      function isValid (path) {
+        var isValid = valid(path)
         if (isValid) {
-          log.verbose('extracted file from tarball', name)
+          log.verbose('extracted file from tarball', path)
           extractCount++
         } else {
           // invalid
-          log.silly('ignoring from tarball', name)
+          log.silly('ignoring from tarball', path)
         }
         return isValid
       }
 
-      gunzip.on('error', cb)
-      extracter.on('error', cb)
-      extracter.on('end', afterTarball)
-
-      // download the tarball, gunzip and extract!
-
+      // download the tarball and extract!
       if (tarPath) {
-        var input = fs.createReadStream(tarPath)
-        input.pipe(gunzip).pipe(extracter)
-        return
+        return tar.extract({
+          file: tarPath,
+          strip: 1,
+          filter: isValid,
+          cwd: devDir
+        }).then(afterTarball, cb)
       }
 
       try {
@@ -218,12 +195,18 @@ function install (gyp, argv, callback) {
         })
 
         // start unzipping and untaring
-        req.pipe(gunzip).pipe(extracter)
+        res.pipe(tar.extract({
+          strip: 1,
+          cwd: devDir,
+          filter: isValid
+        }).on('close', afterTarball).on('error', cb))
       })
 
       // invoked after the tarball has finished being extracted
       function afterTarball () {
-        if (badDownload) return
+        if (badDownload) {
+          return
+        }
         if (extractCount === 0) {
           return cb(new Error('There was a fatal problem while downloading/extracting the tarball'))
         }
@@ -241,8 +224,8 @@ function install (gyp, argv, callback) {
         var installVersionPath = path.resolve(devDir, 'installVersion')
         fs.writeFile(installVersionPath, gyp.package.installVersion + '\n', deref)
 
-        // Only download SHASUMS.txt if not using tarPath override
-        if (!tarPath) {
+        // Only download SHASUMS.txt if we downloaded something in need of SHA verification
+        if (!tarPath || win) {
           // download SHASUMS.txt
           async++
           downloadShasums(deref)
@@ -254,7 +237,9 @@ function install (gyp, argv, callback) {
         }
 
         function deref (err) {
-          if (err) return cb(err)
+          if (err) {
+            return cb(err)
+          }
 
           async--
           if (!async) {
@@ -272,10 +257,8 @@ function install (gyp, argv, callback) {
         }
       }
 
-      function downloadShasums(done) {
+      function downloadShasums (done) {
         log.verbose('check download content checksum, need to download `SHASUMS256.txt`...')
-        var shasumsPath = path.resolve(devDir, 'SHASUMS256.txt')
-
         log.verbose('checksum url', release.shasumsUrl)
         try {
           var req = download(gyp, process.env, release.shasumsUrl)
@@ -298,7 +281,9 @@ function install (gyp, argv, callback) {
             var lines = Buffer.concat(chunks).toString().trim().split('\n')
             lines.forEach(function (line) {
               var items = line.trim().split(/\s+/)
-              if (items.length !== 2) return
+              if (items.length !== 2) {
+                return
+              }
 
               // 0035d18e2dcf9aad669b1c7c07319e17abfe3762  ./node-v0.11.4.tar.gz
               var name = items[1].replace(/^\.\//, '')
@@ -313,81 +298,58 @@ function install (gyp, argv, callback) {
 
       function downloadNodeLib (done) {
         log.verbose('on Windows; need to download `' + release.name + '.lib`...')
-        var dir32 = path.resolve(devDir, 'ia32')
-          , dir64 = path.resolve(devDir, 'x64')
-          , libPath32 = path.resolve(dir32, release.name + '.lib')
-          , libPath64 = path.resolve(dir64, release.name + '.lib')
+        var archs = ['ia32', 'x64', 'arm64']
+        var async = archs.length
+        archs.forEach(function (arch) {
+          var dir = path.resolve(devDir, arch)
+          var targetLibPath = path.resolve(dir, release.name + '.lib')
+          var libUrl = release[arch].libUrl
+          var libPath = release[arch].libPath
+          var name = arch + ' ' + release.name + '.lib'
+          log.verbose(name, 'dir', dir)
+          log.verbose(name, 'url', libUrl)
 
-        log.verbose('32-bit ' + release.name + '.lib dir', dir32)
-        log.verbose('64-bit ' + release.name + '.lib dir', dir64)
-        log.verbose('`' + release.name + '.lib` 32-bit url', release.libUrl32)
-        log.verbose('`' + release.name + '.lib` 64-bit url', release.libUrl64)
+          fs.mkdir(dir, { recursive: true }, function (err) {
+            if (err) {
+              return done(err)
+            }
+            log.verbose('streaming', name, 'to:', targetLibPath)
 
-        var async = 2
-        mkdir(dir32, function (err) {
-          if (err) return done(err)
-          log.verbose('streaming 32-bit ' + release.name + '.lib to:', libPath32)
-
-          try {
-            var req = download(gyp, process.env, release.libUrl32, cb)
-          } catch (e) {
-            return cb(e)
-          }
-
-          req.on('error', done)
-          req.on('response', function (res) {
-            if (res.statusCode !== 200) {
-              done(new Error(res.statusCode + ' status code downloading 32-bit ' + release.name + '.lib'))
-              return
+            try {
+              var req = download(gyp, process.env, libUrl, cb)
+            } catch (e) {
+              return cb(e)
             }
 
-            getContentSha(res, function (_, checksum) {
-              contentShasums[release.libPath32] = checksum
-              log.verbose('content checksum', release.libPath32, checksum)
+            req.on('error', done)
+            req.on('response', function (res) {
+              if (res.statusCode === 403 || res.statusCode === 404) {
+                if (arch === 'arm64') {
+                  // Arm64 is a newer platform on Windows and not all node distributions provide it.
+                  log.verbose(`${name} was not found in ${libUrl}`)
+                } else {
+                  log.warn(`${name} was not found in ${libUrl}`)
+                }
+                return
+              } else if (res.statusCode !== 200) {
+                done(new Error(res.statusCode + ' status code downloading ' + name))
+                return
+              }
+
+              getContentSha(res, function (_, checksum) {
+                contentShasums[libPath] = checksum
+                log.verbose('content checksum', libPath, checksum)
+              })
+
+              var ws = fs.createWriteStream(targetLibPath)
+              ws.on('error', cb)
+              req.pipe(ws)
             })
-
-            var ws = fs.createWriteStream(libPath32)
-            ws.on('error', cb)
-            req.pipe(ws)
-          })
-          req.on('end', function () {
-            --async || done()
-          })
-        })
-        mkdir(dir64, function (err) {
-          if (err) return done(err)
-          log.verbose('streaming 64-bit ' + release.name + '.lib to:', libPath64)
-
-          try {
-            var req = download(gyp, process.env, release.libUrl64, cb)
-          } catch (e) {
-            return cb(e)
-          }
-
-          req.on('error', done)
-          req.on('response', function (res) {
-            if (res.statusCode !== 200) {
-              done(new Error(res.statusCode + ' status code downloading 64-bit ' + release.name + '.lib'))
-              return
-            }
-
-            getContentSha(res, function (_, checksum) {
-              contentShasums[release.libPath64] = checksum
-              log.verbose('content checksum', release.libPath64, checksum)
-            })
-
-            var ws = fs.createWriteStream(libPath64)
-            ws.on('error', cb)
-            req.pipe(ws)
-          })
-          req.on('end', function () {
-            --async || done()
+            req.on('end', function () { --async || done() })
           })
         })
       } // downloadNodeLib()
-
     }) // mkdir()
-
   } // go()
 
   /**
@@ -396,8 +358,8 @@ function install (gyp, argv, callback) {
 
   function valid (file) {
     // header files
-    return minimatch(file, '*.h', { matchBase: true }) ||
-           minimatch(file, '*.gypi', { matchBase: true })
+    var extname = path.extname(file)
+    return extname === '.h' || extname === '.gypi'
   }
 
   /**
@@ -409,28 +371,37 @@ function install (gyp, argv, callback) {
    * the compilation will succeed...
    */
 
-  function eaccesFallback () {
-    var tmpdir = osenv.tmpdir()
+  function eaccesFallback (err) {
+    var noretry = '--node_gyp_internal_noretry'
+    if (argv.indexOf(noretry) !== -1) {
+      return cb(err)
+    }
+    var tmpdir = os.tmpdir()
     gyp.devDir = path.resolve(tmpdir, '.node-gyp')
-    log.warn('EACCES', 'user "%s" does not have permission to access the dev dir "%s"', osenv.user(), devDir)
+    var userString = ''
+    try {
+      // os.userInfo can fail on some systems, it's not critical here
+      userString = ` ("${os.userInfo().username}")`
+    } catch (e) {}
+    log.warn('EACCES', 'current user%s does not have permission to access the dev dir "%s"', userString, devDir)
     log.warn('EACCES', 'attempting to reinstall using temporary dev dir "%s"', gyp.devDir)
-    if (process.cwd() == tmpdir) {
+    if (process.cwd() === tmpdir) {
       log.verbose('tmpdir == cwd', 'automatically will remove dev files after to save disk space')
       gyp.todo.push({ name: 'remove', args: argv })
     }
-    gyp.commands.install(argv, cb)
+    gyp.commands.install([noretry].concat(argv), cb)
   }
-
 }
 
 function download (gyp, env, url) {
   log.http('GET', url)
 
   var requestOpts = {
-      uri: url
-    , headers: {
-        'User-Agent': 'node-gyp v' + gyp.version + ' (node ' + process.version + ')'
-      }
+    uri: url,
+    headers: {
+      'User-Agent': 'node-gyp v' + gyp.version + ' (node ' + process.version + ')',
+      Connection: 'keep-alive'
+    }
   }
 
   var cafile = gyp.opts.cafile
@@ -439,10 +410,7 @@ function download (gyp, env, url) {
   }
 
   // basic support for a proxy server
-  var proxyUrl = gyp.opts.proxy
-              || env.http_proxy
-              || env.HTTP_PROXY
-              || env.npm_config_proxy
+  var proxyUrl = getProxyFromURI(gyp, env, url)
   if (proxyUrl) {
     if (/^https?:\/\//i.test(proxyUrl)) {
       log.verbose('download', 'using proxy url: "%s"', proxyUrl)
@@ -467,3 +435,13 @@ function readCAFile (filename) {
   var re = /(-----BEGIN CERTIFICATE-----[\S\s]*?-----END CERTIFICATE-----)/g
   return ca.match(re)
 }
+
+module.exports = function (gyp, argv, callback) {
+  return install(fs, gyp, argv, callback)
+}
+module.exports.test = {
+  download: download,
+  install: install,
+  readCAFile: readCAFile
+}
+module.exports.usage = 'Install node development files for the specified node version.'

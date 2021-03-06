@@ -1,55 +1,53 @@
 'use strict';
 const common = require('../common');
-const fs = require('fs');
-
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
+const fixtures = require('../common/fixtures');
 const https = require('https');
 
 const options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem')
 };
 
-var connections = {};
+const connections = {};
 
-var server = https.createServer(options, function(req, res) {
-  var interval = setInterval(function() {
+const server = https.createServer(options, (req, res) => {
+  const interval = setInterval(() => {
     res.write('data');
   }, 1000);
   interval.unref();
 });
 
-server.on('connection', function(connection) {
-  var key = connection.remoteAddress + ':' + connection.remotePort;
-  connection.on('close', function() {
+server.on('connection', (connection) => {
+  const key = `${connection.remoteAddress}:${connection.remotePort}`;
+  connection.on('close', () => {
     delete connections[key];
   });
   connections[key] = connection;
 });
 
 function shutdown() {
-  server.close(common.mustCall(function() {}));
+  server.close(common.mustSucceed());
 
-  for (var key in connections) {
+  for (const key in connections) {
     connections[key].destroy();
     delete connections[key];
   }
 }
 
-server.listen(0, function() {
-  var requestOptions = {
+server.listen(0, () => {
+  const requestOptions = {
     hostname: '127.0.0.1',
-    port: this.address().port,
+    port: server.address().port,
     path: '/',
     method: 'GET',
     rejectUnauthorized: false
   };
 
-  var req = https.request(requestOptions, function(res) {
-    res.on('data', function(d) {});
+  const req = https.request(requestOptions, (res) => {
+    res.on('data', () => {});
     setImmediate(shutdown);
   });
   req.end();

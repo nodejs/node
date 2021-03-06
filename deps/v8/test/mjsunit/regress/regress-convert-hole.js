@@ -43,6 +43,7 @@ function f_store(test, test2, a, i) {
 }
 
 var a1 = [0, 0, 0, {}];
+%PrepareFunctionForOptimization(f_store);
 f_store(true, false, a1, 0);
 f_store(true, true, a1, 0);
 f_store(false, false, a1, 1);
@@ -72,6 +73,7 @@ function f_call(f, test, test2, i) {
   return d;
 }
 
+%PrepareFunctionForOptimization(f_call);
 f_call(test_arg(1.5), true, false, 0);
 f_call(test_arg(2.5), true, true, 0);
 f_call(test_arg(1), false, false, 1);
@@ -100,6 +102,7 @@ function f_external(test, test2, test3, a, i) {
 }
 
 var a2 = new Int32Array(10);
+%PrepareFunctionForOptimization(f_external);
 f_external(true, false, true, a2, 0);
 f_external(true, true, true, a2, 0);
 f_external(false, false, true, a2, 1);

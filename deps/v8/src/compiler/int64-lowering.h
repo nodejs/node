@@ -5,29 +5,42 @@
 #ifndef V8_COMPILER_INT64_LOWERING_H_
 #define V8_COMPILER_INT64_LOWERING_H_
 
+#include <memory>
+
+#include "src/common/globals.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-marker.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
+
+template <typename T>
+class Signature;
+
 namespace compiler {
 
-class Int64Lowering {
+// Struct for CallDescriptors that need special lowering.
+struct V8_EXPORT_PRIVATE Int64LoweringSpecialCase {
+  // Map from CallDescriptors that should be replaced, to the replacement
+  // CallDescriptors.
+  std::unordered_map<const CallDescriptor*, const CallDescriptor*> replacements;
+};
+
+class V8_EXPORT_PRIVATE Int64Lowering {
  public:
-  Int64Lowering(Graph* graph, MachineOperatorBuilder* machine,
-                CommonOperatorBuilder* common, Zone* zone,
-                Signature<MachineRepresentation>* signature);
+  Int64Lowering(
+      Graph* graph, MachineOperatorBuilder* machine,
+      CommonOperatorBuilder* common, Zone* zone,
+      Signature<MachineRepresentation>* signature,
+      std::unique_ptr<Int64LoweringSpecialCase> special_case = nullptr);
 
   void LowerGraph();
 
   static int GetParameterCountAfterLowering(
       Signature<MachineRepresentation>* signature);
-
-  static const int kLowerWordOffset;
-  static const int kHigherWordOffset;
 
  private:
   enum class State : uint8_t { kUnvisited, kOnStack, kVisited };
@@ -43,13 +56,16 @@ class Int64Lowering {
   CommonOperatorBuilder* common() const { return common_; }
   Signature<MachineRepresentation>* signature() const { return signature_; }
 
-  void PrepareReplacements(Node* node);
   void PushNode(Node* node);
   void LowerNode(Node* node);
-  bool DefaultLowering(Node* node);
+  bool DefaultLowering(Node* node, bool low_word_only = false);
   void LowerComparison(Node* node, const Operator* signed_op,
                        const Operator* unsigned_op);
-  void PrepareProjectionReplacements(Node* node);
+  void LowerWord64AtomicBinop(Node* node, const Operator* op);
+  void LowerWord64AtomicNarrowOp(Node* node, const Operator* op);
+
+  const CallDescriptor* LowerCallDescriptor(
+      const CallDescriptor* call_descriptor);
 
   void ReplaceNode(Node* old, Node* new_low, Node* new_high);
   bool HasReplacementLow(Node* node);
@@ -57,7 +73,9 @@ class Int64Lowering {
   bool HasReplacementHigh(Node* node);
   Node* GetReplacementHigh(Node* node);
   void PreparePhiReplacement(Node* phi);
-  void GetIndexNodes(Node* index, Node*& index_low, Node*& index_high);
+  void GetIndexNodes(Node* index, Node** index_low, Node** index_high);
+  void ReplaceNodeWithProjections(Node* node);
+  void LowerMemoryBaseAndIndex(Node* node);
 
   struct NodeState {
     Node* node;
@@ -73,6 +91,7 @@ class Int64Lowering {
   Replacement* replacements_;
   Signature<MachineRepresentation>* signature_;
   Node* placeholder_;
+  std::unique_ptr<Int64LoweringSpecialCase> special_case_;
 };
 
 }  // namespace compiler

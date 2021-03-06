@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: number
-execute: yes
 wrap: yes
 
 ---
@@ -13,11 +11,10 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 8
+bytecode array length: 7
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(ExtraWide), B(LdaSmi), U32(12345678),
-  /*   51 S> */ B(Return),
+  /*   34 S> */ B(ExtraWide), B(LdaSmi), I32(12345678),
+  /*   50 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -30,13 +27,12 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 12
+bytecode array length: 11
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
-  /*   42 S> */ B(Wide), B(LdaSmi), U16(1234),
+  /*   42 S> */ B(Wide), B(LdaSmi), I16(1234),
                 B(Star), R(0),
-  /*   48 S> */ B(Wide), B(LdaSmi), U16(5678),
-  /*   61 S> */ B(Return),
+  /*   48 S> */ B(Wide), B(LdaSmi), I16(5678),
+  /*   60 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -49,13 +45,12 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 12
+bytecode array length: 11
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
-  /*   42 S> */ B(Wide), B(LdaSmi), U16(1234),
+  /*   42 S> */ B(Wide), B(LdaSmi), I16(1234),
                 B(Star), R(0),
-  /*   48 S> */ B(Wide), B(LdaSmi), U16(1234),
-  /*   61 S> */ B(Return),
+  /*   48 S> */ B(Wide), B(LdaSmi), I16(1234),
+  /*   60 S> */ B(Return),
 ]
 constant pool: [
 ]

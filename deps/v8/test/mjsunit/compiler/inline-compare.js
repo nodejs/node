@@ -42,6 +42,7 @@ function TestInlineCompare(o) {
   }
 }
 
+%PrepareFunctionForOptimization(TestInlineCompare);
 var o = {};
 o.f = function() { return 0 === 1; };
 for (var i = 0; i < 5; i++) TestInlineCompare(o);

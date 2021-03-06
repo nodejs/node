@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
  ********************************************************************
@@ -12,6 +12,8 @@
 #define NORMLZR_H
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
 
 /**
  * \file
@@ -168,7 +170,7 @@ public:
    * @param mode  The normalization mode.
    * @deprecated ICU 56 Use Normalizer2 instead.
    */
-  Normalizer(const UChar* str, int32_t length, UNormalizationMode mode);
+  Normalizer(ConstChar16Ptr str, int32_t length, UNormalizationMode mode);
 
   /**
    * Creates a new <code>Normalizer</code> object for iterating over the
@@ -183,6 +185,7 @@ public:
   Normalizer(const CharacterIterator& iter, UNormalizationMode mode);
 #endif  /* U_HIDE_DEPRECATED_API */
 
+#ifndef U_FORCE_HIDE_DEPRECATED_API
   /**
    * Copy constructor.
    * @param copy The object to be copied.
@@ -195,7 +198,7 @@ public:
    * @deprecated ICU 56 Use Normalizer2 instead.
    */
   virtual ~Normalizer();
-
+#endif  // U_FORCE_HIDE_DEPRECATED_API
 
   //-------------------------------------------------------------------------
   // Static utility methods
@@ -231,7 +234,7 @@ public:
    *
    * @param source    the string to be composed.
    * @param compat    Perform compatibility decomposition before composition.
-   *                  If this argument is <code>FALSE</code>, only canonical
+   *                  If this argument is <code>false</code>, only canonical
    *                  decomposition will be performed.
    * @param options   the optional features to be enabled (0 for no options)
    * @param result    The composed string (on output).
@@ -253,7 +256,7 @@ public:
    *
    * @param source    the string to be decomposed.
    * @param compat    Perform compatibility decomposition.
-   *                  If this argument is <code>FALSE</code>, only canonical
+   *                  If this argument is <code>false</code>, only canonical
    *                  decomposition will be performed.
    * @param options   the optional features to be enabled (0 for no options)
    * @param result    The decomposed string (on output).
@@ -312,7 +315,7 @@ public:
    * never a "maybe".
    * For NFD, NFKD, and FCD, both functions work exactly the same.
    * For NFC and NFKC where quickCheck may return "maybe", this function will
-   * perform further tests to arrive at a TRUE/FALSE result.
+   * perform further tests to arrive at a true/false result.
    *
    * @param src        String that is to be tested if it is in a normalization format.
    * @param mode       Which normalization form to test for.
@@ -574,7 +577,7 @@ public:
   int32_t            endIndex(void) const;
 
   /**
-   * Returns TRUE when both iterators refer to the same character in the same
+   * Returns true when both iterators refer to the same character in the same
    * input text.
    *
    * @param that a Normalizer object to compare this one to
@@ -584,7 +587,7 @@ public:
   UBool        operator==(const Normalizer& that) const;
 
   /**
-   * Returns FALSE when both iterators refer to the same character in the same
+   * Returns false when both iterators refer to the same character in the same
    * input text.
    *
    * @param that a Normalizer object to compare this one to
@@ -599,7 +602,7 @@ public:
    * @return a pointer to a new Normalizer
    * @deprecated ICU 56 Use Normalizer2 instead.
    */
-  Normalizer*        clone(void) const;
+  Normalizer*        clone() const;
 
   /**
    * Generates a hash code for this iterator.
@@ -652,8 +655,8 @@ public:
    * It is possible to specify multiple options that are all turned on or off.
    *
    * @param   option  the option(s) whose value is/are to be set.
-   * @param   value   the new setting for the option.  Use <code>TRUE</code> to
-   *                  turn the option(s) on and <code>FALSE</code> to turn it/them off.
+   * @param   value   the new setting for the option.  Use <code>true</code> to
+   *                  turn the option(s) on and <code>false</code> to turn it/them off.
    *
    * @see #getOption
    * @deprecated ICU 56 Use Normalizer2 instead.
@@ -663,11 +666,11 @@ public:
 
   /**
    * Determine whether an option is turned on or off.
-   * If multiple options are specified, then the result is TRUE if any
+   * If multiple options are specified, then the result is true if any
    * of them are set.
    * <p>
    * @param option the option(s) that are to be checked
-   * @return TRUE if any of the option(s) are set
+   * @return true if any of the option(s) are set
    * @see #setOption
    * @deprecated ICU 56 Use Normalizer2 instead.
    */
@@ -704,7 +707,7 @@ public:
    * @param status a UErrorCode
    * @deprecated ICU 56 Use Normalizer2 instead.
    */
-  void setText(const UChar* newText,
+  void setText(ConstChar16Ptr newText,
                     int32_t length,
             UErrorCode &status);
   /**
@@ -723,12 +726,14 @@ public:
   static UClassID U_EXPORT2 getStaticClassID();
 #endif  /* U_HIDE_DEPRECATED_API */
 
+#ifndef U_FORCE_HIDE_DEPRECATED_API
   /**
    * ICU "poor man's RTTI", returns a UClassID for the actual class.
    * @return a UClassID for the actual class.
    * @deprecated ICU 56 Use Normalizer2 instead.
    */
   virtual UClassID getDynamicClassID() const;
+#endif  // U_FORCE_HIDE_DEPRECATED_API
 
 private:
   //-------------------------------------------------------------------------
@@ -796,8 +801,8 @@ Normalizer::compare(const UnicodeString &s1, const UnicodeString &s2,
                     uint32_t options,
                     UErrorCode &errorCode) {
   // all argument checking is done in unorm_compare
-  return unorm_compare(s1.getBuffer(), s1.length(),
-                       s2.getBuffer(), s2.length(),
+  return unorm_compare(toUCharPtr(s1.getBuffer()), s1.length(),
+                       toUCharPtr(s2.getBuffer()), s2.length(),
                        options,
                        &errorCode);
 }
@@ -807,3 +812,5 @@ U_NAMESPACE_END
 #endif /* #if !UCONFIG_NO_NORMALIZATION */
 
 #endif // NORMLZR_H
+
+#endif /* U_SHOW_CPLUSPLUS_API */

@@ -1,69 +1,77 @@
 [stdin]
-
 [stdin]:1
 with(this){__filename}
 ^^^^
+
 SyntaxError: Strict mode code may not include a with statement
-    at Object.exports.runInThisContext (vm.js:*)
-    at Object.<anonymous> ([stdin]-wrapper:*:*)
-    at Module._compile (module.js:*:*)
-    at Immediate.<anonymous> (bootstrap_node.js:*:*)
-    at runCallback (timers.js:*:*)
-    at tryOnImmediate (timers.js:*:*)
-    at processImmediate [as _immediateCallback] (timers.js:*:*)
+    at new Script (node:vm:*)
+    at createScript (node:vm:*)
+    at Object.runInThisContext (node:vm:*)
+    at node:internal/process/execution:*:*
+    at [stdin]-wrapper:*:*
+    at evalScript (node:internal/process/execution:*:*)
+    at node:internal/main/eval_stdin:*:*
+    at Socket.<anonymous> (node:internal/process/execution:*:*)
+    at Socket.emit (node:events:*:*)
+    at endReadableNT (node:internal/streams/readable:*:*)
 42
 42
-
 [stdin]:1
 throw new Error("hello")
 ^
-Error: hello
-    at [stdin]:1:*
-    at ContextifyScript.Script.runInThisContext (vm.js:*)
-    at Object.exports.runInThisContext (vm.js:*)
-    at Object.<anonymous> ([stdin]-wrapper:*:*)
-    at Module._compile (module.js:*:*)
-    at Immediate.<anonymous> (bootstrap_node.js:*:*)
-    at runCallback (timers.js:*:*)
-    at tryOnImmediate (timers.js:*:*)
-    at processImmediate [as _immediateCallback] (timers.js:*:*)
 
+Error: hello
+    at [stdin]:1:7
+    at Script.runInThisContext (node:vm:*)
+    at Object.runInThisContext (node:vm:*)
+    at node:internal/process/execution:*:*
+    at [stdin]-wrapper:*:*
+    at evalScript (node:internal/process/execution:*:*)
+    at node:internal/main/eval_stdin:*:*
+    at Socket.<anonymous> (node:internal/process/execution:*:*)
+    at Socket.emit (node:events:*:*)
+    at endReadableNT (node:internal/streams/readable:*:*)
 [stdin]:1
 throw new Error("hello")
 ^
+
 Error: hello
     at [stdin]:1:*
-    at ContextifyScript.Script.runInThisContext (vm.js:*)
-    at Object.exports.runInThisContext (vm.js:*)
-    at Object.<anonymous> ([stdin]-wrapper:*:*)
-    at Module._compile (module.js:*:*)
-    at Immediate.<anonymous> (bootstrap_node.js:*:*)
-    at runCallback (timers.js:*:*)
-    at tryOnImmediate (timers.js:*:*)
-    at processImmediate [as _immediateCallback] (timers.js:*:*)
+    at Script.runInThisContext (node:vm:*)
+    at Object.runInThisContext (node:vm:*)
+    at node:internal/process/execution:*:*
+    at [stdin]-wrapper:*:*
+    at evalScript (node:internal/process/execution:*:*)
+    at node:internal/main/eval_stdin:*:*
+    at Socket.<anonymous> (node:internal/process/execution:*:*)
+    at Socket.emit (node:events:*:*)
+    at endReadableNT (node:internal/streams/readable:*:*)
 100
-
 [stdin]:1
-var x = 100; y = x;
+let x = 100; y = x;
                ^
+
 ReferenceError: y is not defined
     at [stdin]:1:16
-    at ContextifyScript.Script.runInThisContext (vm.js:*)
-    at Object.exports.runInThisContext (vm.js:*)
-    at Object.<anonymous> ([stdin]-wrapper:*:*)
-    at Module._compile (module.js:*:*)
-    at Immediate.<anonymous> (bootstrap_node.js:*:*)
-    at runCallback (timers.js:*:*)
-    at tryOnImmediate (timers.js:*:*)
-    at processImmediate [as _immediateCallback] (timers.js:*:*)
+    at Script.runInThisContext (node:vm:*)
+    at Object.runInThisContext (node:vm:*)
+    at node:internal/process/execution:*:*
+    at [stdin]-wrapper:*:*
+    at evalScript (node:internal/process/execution:*:*)
+    at node:internal/main/eval_stdin:*:*
+    at Socket.<anonymous> (node:internal/process/execution:*:*)
+    at Socket.emit (node:events:*:*)
+    at endReadableNT (node:internal/streams/readable:*:*)
 
 [stdin]:1
-var ______________________________________________; throw 10
+let ______________________________________________; throw 10
                                                     ^
 10
+(Use `* --trace-uncaught ...` to show where the exception was thrown)
 
 [stdin]:1
-var ______________________________________________; throw 10
+let ______________________________________________; throw 10
                                                     ^
 10
+(Use `* --trace-uncaught ...` to show where the exception was thrown)
 done

@@ -9,6 +9,9 @@
 Structures are aligned so that any libuv handle can be cast to `uv_handle_t`.
 All API functions defined here work with any handle type.
 
+Libuv handles are not movable. Pointers to handle structures passed to
+functions must remain valid for the duration of the requested operation. Take
+care when using stack allocated handles.
 
 Data types
 ----------
@@ -17,7 +20,7 @@ Data types
 
     The base libuv handle type.
 
-.. c:type:: uv_handle_type
+.. c:enum:: uv_handle_type
 
     The kind of the libuv handle.
 
@@ -57,6 +60,9 @@ Data types
     a ``UV_ENOBUFS`` error will be triggered in the :c:type:`uv_udp_recv_cb` or the
     :c:type:`uv_read_cb` callback.
 
+    Each buffer is used only once and the user is responsible for freeing it in the
+    :c:type:`uv_udp_recv_cb` or the :c:type:`uv_read_cb` callback.
+
     A suggested size (65536 at the moment in most cases) is provided, but it's just an indication,
     not related in any way to the pending data to be read. The user is free to allocate the amount
     of memory they decide.
@@ -84,11 +90,11 @@ Public members
 
 .. c:member:: uv_loop_t* uv_handle_t.loop
 
-    Pointer to the :c:type:`uv_loop_t` where the handle is running on. Readonly.
+    Pointer to the :c:type:`uv_loop_t` the handle is running on. Readonly.
 
-.. c:member:: uv_loop_t* uv_handle_t.type
+.. c:member:: uv_handle_type uv_handle_t.type
 
-    Pointer to the :c:type:`uv_handle_type`. Readonly.
+    The :c:type:`uv_handle_type`, indicating the type of the underlying handle. Readonly.
 
 .. c:member:: void* uv_handle_t.data
 
@@ -97,6 +103,14 @@ Public members
 
 API
 ---
+
+.. c:macro:: UV_HANDLE_TYPE_MAP(iter_macro)
+
+    Macro that expands to a series of invocations of `iter_macro` for
+    each of the handle types. `iter_macro` is invoked with two
+    arguments: the name of the `uv_handle_type` element without the
+    `UV_` prefix, and the name of the corresponding structure type
+    without the `uv_` prefix and `_t` suffix.
 
 .. c:function:: int uv_is_active(const uv_handle_t* handle)
 
@@ -129,6 +143,8 @@ API
 
     Request handle to be closed. `close_cb` will be called asynchronously after
     this call. This MUST be called on each handle before memory is released.
+    Moreover, the memory can only be released in `close_cb` or after it has
+    returned.
 
     Handles that wrap file descriptors are closed immediately but
     `close_cb` will still be deferred to the next iteration of the event loop.
@@ -174,8 +190,11 @@ just for some handle types.
     Gets or sets the size of the send buffer that the operating
     system uses for the socket.
 
-    If `*value` == 0, it will return the current send buffer size,
-    otherwise it will use `*value` to set the new send buffer size.
+    If `*value` == 0, then it will set `*value` to the current send buffer size.
+    If `*value` > 0 then it will use `*value` to set the new send buffer size.
+
+    On success, zero is returned. On error, a negative result is
+    returned.
 
     This function works for TCP, pipe and UDP handles on Unix and for TCP and
     UDP handles on Windows.
@@ -188,8 +207,11 @@ just for some handle types.
     Gets or sets the size of the receive buffer that the operating
     system uses for the socket.
 
-    If `*value` == 0, it will return the current receive buffer size,
-    otherwise it will use `*value` to set the new receive buffer size.
+    If `*value` == 0, then it will set `*value` to the current receive buffer size.
+    If `*value` > 0 then it will use `*value` to set the new receive buffer size.
+
+    On success, zero is returned. On error, a negative result is
+    returned.
 
     This function works for TCP, pipe and UDP handles on Unix and for TCP and
     UDP handles on Windows.
@@ -211,6 +233,38 @@ just for some handle types.
         Be very careful when using this function. libuv assumes it's in control of the file
         descriptor so any change to it may lead to malfunction.
 
+.. c:function:: uv_loop_t* uv_handle_get_loop(const uv_handle_t* handle)
+
+    Returns `handle->loop`.
+
+    .. versionadded:: 1.19.0
+
+.. c:function:: void* uv_handle_get_data(const uv_handle_t* handle)
+
+    Returns `handle->data`.
+
+    .. versionadded:: 1.19.0
+
+.. c:function:: void* uv_handle_set_data(uv_handle_t* handle, void* data)
+
+    Sets `handle->data` to `data`.
+
+    .. versionadded:: 1.19.0
+
+.. c:function:: uv_handle_type uv_handle_get_type(const uv_handle_t* handle)
+
+    Returns `handle->type`.
+
+    .. versionadded:: 1.19.0
+
+.. c:function:: const char* uv_handle_type_name(uv_handle_type type)
+
+    Returns the name for the equivalent struct for a given handle type,
+    e.g. `"pipe"` (as in :c:type:`uv_pipe_t`) for `UV_NAMED_PIPE`.
+
+    If no such handle type exists, this returns `NULL`.
+
+    .. versionadded:: 1.19.0
 
 .. _refcount:
 

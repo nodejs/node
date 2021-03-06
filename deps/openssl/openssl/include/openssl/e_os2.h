@@ -1,62 +1,16 @@
-/* e_os2.h */
-/* ====================================================================
- * Copyright (c) 1998-2000 The OpenSSL Project.  All rights reserved.
+/*
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    openssl-core@openssl.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
-
-#include <openssl/opensslconf.h>
 
 #ifndef HEADER_E_OS2_H
 # define HEADER_E_OS2_H
+
+# include <openssl/opensslconf.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -70,58 +24,50 @@ extern "C" {
 
 # define OPENSSL_SYS_UNIX
 
-/* ---------------------- Macintosh, before MacOS X ----------------------- */
-# if defined(__MWERKS__) && defined(macintosh) || defined(OPENSSL_SYSNAME_MAC)
-#  undef OPENSSL_SYS_UNIX
-#  define OPENSSL_SYS_MACINTOSH_CLASSIC
-# endif
-
-/* ---------------------- NetWare ----------------------------------------- */
-# if defined(NETWARE) || defined(OPENSSL_SYSNAME_NETWARE)
-#  undef OPENSSL_SYS_UNIX
-#  define OPENSSL_SYS_NETWARE
-# endif
-
 /* --------------------- Microsoft operating systems ---------------------- */
 
 /*
  * Note that MSDOS actually denotes 32-bit environments running on top of
  * MS-DOS, such as DJGPP one.
  */
-# if defined(OPENSSL_SYSNAME_MSDOS)
+# if defined(OPENSSL_SYS_MSDOS)
 #  undef OPENSSL_SYS_UNIX
-#  define OPENSSL_SYS_MSDOS
 # endif
 
 /*
  * For 32 bit environment, there seems to be the CygWin environment and then
  * all the others that try to do the same thing Microsoft does...
  */
-# if defined(OPENSSL_SYSNAME_UWIN)
+/*
+ * UEFI lives here because it might be built with a Microsoft toolchain and
+ * we need to avoid the false positive match on Windows.
+ */
+# if defined(OPENSSL_SYS_UEFI)
+#  undef OPENSSL_SYS_UNIX
+# elif defined(OPENSSL_SYS_UWIN)
 #  undef OPENSSL_SYS_UNIX
 #  define OPENSSL_SYS_WIN32_UWIN
 # else
-#  if defined(__CYGWIN__) || defined(OPENSSL_SYSNAME_CYGWIN)
-#   undef OPENSSL_SYS_UNIX
+#  if defined(__CYGWIN__) || defined(OPENSSL_SYS_CYGWIN)
 #   define OPENSSL_SYS_WIN32_CYGWIN
 #  else
-#   if defined(_WIN32) || defined(OPENSSL_SYSNAME_WIN32)
+#   if defined(_WIN32) || defined(OPENSSL_SYS_WIN32)
 #    undef OPENSSL_SYS_UNIX
-#    define OPENSSL_SYS_WIN32
+#    if !defined(OPENSSL_SYS_WIN32)
+#     define OPENSSL_SYS_WIN32
+#    endif
 #   endif
-#   if defined(_WIN64) || defined(OPENSSL_SYSNAME_WIN64)
+#   if defined(_WIN64) || defined(OPENSSL_SYS_WIN64)
 #    undef OPENSSL_SYS_UNIX
 #    if !defined(OPENSSL_SYS_WIN64)
 #     define OPENSSL_SYS_WIN64
 #    endif
 #   endif
-#   if defined(OPENSSL_SYSNAME_WINNT)
+#   if defined(OPENSSL_SYS_WINNT)
 #    undef OPENSSL_SYS_UNIX
-#    define OPENSSL_SYS_WINNT
 #   endif
-#   if defined(OPENSSL_SYSNAME_WINCE)
+#   if defined(OPENSSL_SYS_WINCE)
 #    undef OPENSSL_SYS_UNIX
-#    define OPENSSL_SYS_WINCE
 #   endif
 #  endif
 # endif
@@ -150,8 +96,10 @@ extern "C" {
 # endif
 
 /* ------------------------------- OpenVMS -------------------------------- */
-# if defined(__VMS) || defined(VMS) || defined(OPENSSL_SYSNAME_VMS)
-#  undef OPENSSL_SYS_UNIX
+# if defined(__VMS) || defined(VMS) || defined(OPENSSL_SYS_VMS)
+#  if !defined(OPENSSL_SYS_VMS)
+#   undef OPENSSL_SYS_UNIX
+#  endif
 #  define OPENSSL_SYS_VMS
 #  if defined(__DECC)
 #   define OPENSSL_SYS_VMS_DECC
@@ -163,71 +111,24 @@ extern "C" {
 #  endif
 # endif
 
-/* -------------------------------- OS/2 ---------------------------------- */
-# if defined(__EMX__) || defined(__OS2__)
-#  undef OPENSSL_SYS_UNIX
-#  define OPENSSL_SYS_OS2
-# endif
-
 /* -------------------------------- Unix ---------------------------------- */
 # ifdef OPENSSL_SYS_UNIX
-#  if defined(linux) || defined(__linux__) || defined(OPENSSL_SYSNAME_LINUX)
+#  if defined(linux) || defined(__linux__) && !defined(OPENSSL_SYS_LINUX)
 #   define OPENSSL_SYS_LINUX
 #  endif
-#  ifdef OPENSSL_SYSNAME_MPE
-#   define OPENSSL_SYS_MPE
-#  endif
-#  ifdef OPENSSL_SYSNAME_SNI
-#   define OPENSSL_SYS_SNI
-#  endif
-#  ifdef OPENSSL_SYSNAME_ULTRASPARC
-#   define OPENSSL_SYS_ULTRASPARC
-#  endif
-#  ifdef OPENSSL_SYSNAME_NEWS4
-#   define OPENSSL_SYS_NEWS4
-#  endif
-#  ifdef OPENSSL_SYSNAME_MACOSX
-#   define OPENSSL_SYS_MACOSX
-#  endif
-#  ifdef OPENSSL_SYSNAME_MACOSX_RHAPSODY
-#   define OPENSSL_SYS_MACOSX_RHAPSODY
-#   define OPENSSL_SYS_MACOSX
-#  endif
-#  ifdef OPENSSL_SYSNAME_SUNOS
-#   define OPENSSL_SYS_SUNOS
-#  endif
-#  if defined(_CRAY) || defined(OPENSSL_SYSNAME_CRAY)
-#   define OPENSSL_SYS_CRAY
-#  endif
-#  if defined(_AIX) || defined(OPENSSL_SYSNAME_AIX)
+#  if defined(_AIX) && !defined(OPENSSL_SYS_AIX)
 #   define OPENSSL_SYS_AIX
 #  endif
 # endif
 
 /* -------------------------------- VOS ----------------------------------- */
-# if defined(__VOS__) || defined(OPENSSL_SYSNAME_VOS)
+# if defined(__VOS__) && !defined(OPENSSL_SYS_VOS)
 #  define OPENSSL_SYS_VOS
 #  ifdef __HPPA__
 #   define OPENSSL_SYS_VOS_HPPA
 #  endif
 #  ifdef __IA32__
 #   define OPENSSL_SYS_VOS_IA32
-#  endif
-# endif
-
-/* ------------------------------ VxWorks --------------------------------- */
-# ifdef OPENSSL_SYSNAME_VXWORKS
-#  define OPENSSL_SYS_VXWORKS
-# endif
-
-/* -------------------------------- BeOS ---------------------------------- */
-# if defined(__BEOS__)
-#  define OPENSSL_SYS_BEOS
-#  include <sys/socket.h>
-#  if defined(BONE_VERSION)
-#   define OPENSSL_SYS_BEOS_BONE
-#  else
-#   define OPENSSL_SYS_BEOS_R5
 #  endif
 # endif
 
@@ -245,39 +146,31 @@ extern "C" {
 # endif
 
 /*-
- * Definitions of OPENSSL_GLOBAL and OPENSSL_EXTERN, to define and declare
- * certain global symbols that, with some compilers under VMS, have to be
- * defined and declared explicitely with globaldef and globalref.
- * Definitions of OPENSSL_EXPORT and OPENSSL_IMPORT, to define and declare
- * DLL exports and imports for compilers under Win32.  These are a little
- * more complicated to use.  Basically, for any library that exports some
- * global variables, the following code must be present in the header file
- * that declares them, before OPENSSL_EXTERN is used:
+ * OPENSSL_EXTERN is normally used to declare a symbol with possible extra
+ * attributes to handle its presence in a shared library.
+ * OPENSSL_EXPORT is used to define a symbol with extra possible attributes
+ * to make it visible in a shared library.
+ * Care needs to be taken when a header file is used both to declare and
+ * define symbols.  Basically, for any library that exports some global
+ * variables, the following code must be present in the header file that
+ * declares them, before OPENSSL_EXTERN is used:
  *
  * #ifdef SOME_BUILD_FLAG_MACRO
  * # undef OPENSSL_EXTERN
  * # define OPENSSL_EXTERN OPENSSL_EXPORT
  * #endif
  *
- * The default is to have OPENSSL_EXPORT, OPENSSL_IMPORT and OPENSSL_GLOBAL
- * have some generally sensible values, and for OPENSSL_EXTERN to have the
- * value OPENSSL_IMPORT.
+ * The default is to have OPENSSL_EXPORT and OPENSSL_EXTERN
+ * have some generally sensible values.
  */
 
-# if defined(OPENSSL_SYS_VMS_NODECC)
-#  define OPENSSL_EXPORT globalref
-#  define OPENSSL_IMPORT globalref
-#  define OPENSSL_GLOBAL globaldef
-# elif defined(OPENSSL_SYS_WINDOWS) && defined(OPENSSL_OPT_WINDLL)
+# if defined(OPENSSL_SYS_WINDOWS) && defined(OPENSSL_OPT_WINDLL)
 #  define OPENSSL_EXPORT extern __declspec(dllexport)
-#  define OPENSSL_IMPORT extern __declspec(dllimport)
-#  define OPENSSL_GLOBAL
+#  define OPENSSL_EXTERN extern __declspec(dllimport)
 # else
 #  define OPENSSL_EXPORT extern
-#  define OPENSSL_IMPORT extern
-#  define OPENSSL_GLOBAL
+#  define OPENSSL_EXTERN extern
 # endif
-# define OPENSSL_EXTERN OPENSSL_IMPORT
 
 /*-
  * Macros to allow global variables to be reached through function calls when
@@ -297,29 +190,108 @@ extern "C" {
 #  define OPENSSL_DECLARE_GLOBAL(type,name) type *_shadow_##name(void)
 #  define OPENSSL_GLOBAL_REF(name) (*(_shadow_##name()))
 # else
-#  define OPENSSL_IMPLEMENT_GLOBAL(type,name,value) OPENSSL_GLOBAL type _shadow_##name=value;
+#  define OPENSSL_IMPLEMENT_GLOBAL(type,name,value) type _shadow_##name=value;
 #  define OPENSSL_DECLARE_GLOBAL(type,name) OPENSSL_EXPORT type _shadow_##name
 #  define OPENSSL_GLOBAL_REF(name) _shadow_##name
 # endif
 
-# if defined(OPENSSL_SYS_MACINTOSH_CLASSIC) && macintosh==1 && !defined(MAC_OS_GUSI_SOURCE)
-#  define ossl_ssize_t long
+# ifdef _WIN32
+#  ifdef _WIN64
+#   define ossl_ssize_t __int64
+#   define OSSL_SSIZE_MAX _I64_MAX
+#  else
+#   define ossl_ssize_t int
+#   define OSSL_SSIZE_MAX INT_MAX
+#  endif
 # endif
 
-# ifdef OPENSSL_SYS_MSDOS
-#  define ossl_ssize_t long
-# endif
-
-# if defined(NeXT) || defined(OPENSSL_SYS_NEWS4) || defined(OPENSSL_SYS_SUNOS)
-#  define ssize_t int
-# endif
-
-# if defined(__ultrix) && !defined(ssize_t)
-#  define ossl_ssize_t int
+# if defined(OPENSSL_SYS_UEFI) && !defined(ossl_ssize_t)
+#  define ossl_ssize_t INTN
+#  define OSSL_SSIZE_MAX MAX_INTN
 # endif
 
 # ifndef ossl_ssize_t
 #  define ossl_ssize_t ssize_t
+#  if defined(SSIZE_MAX)
+#   define OSSL_SSIZE_MAX SSIZE_MAX
+#  elif defined(_POSIX_SSIZE_MAX)
+#   define OSSL_SSIZE_MAX _POSIX_SSIZE_MAX
+#  else
+#   define OSSL_SSIZE_MAX ((ssize_t)(SIZE_MAX>>1))
+#  endif
+# endif
+
+# ifdef DEBUG_UNUSED
+#  define __owur __attribute__((__warn_unused_result__))
+# else
+#  define __owur
+# endif
+
+/* Standard integer types */
+# if defined(OPENSSL_SYS_UEFI)
+typedef INT8 int8_t;
+typedef UINT8 uint8_t;
+typedef INT16 int16_t;
+typedef UINT16 uint16_t;
+typedef INT32 int32_t;
+typedef UINT32 uint32_t;
+typedef INT64 int64_t;
+typedef UINT64 uint64_t;
+# elif (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L) || \
+     defined(__osf__) || defined(__sgi) || defined(__hpux) || \
+     defined(OPENSSL_SYS_VMS) || defined (__OpenBSD__)
+#  include <inttypes.h>
+# elif defined(_MSC_VER) && _MSC_VER<1600
+/*
+ * minimally required typdefs for systems not supporting inttypes.h or
+ * stdint.h: currently just older VC++
+ */
+typedef signed char int8_t;
+typedef unsigned char uint8_t;
+typedef short int16_t;
+typedef unsigned short uint16_t;
+typedef int int32_t;
+typedef unsigned int uint32_t;
+typedef __int64 int64_t;
+typedef unsigned __int64 uint64_t;
+# else
+#  include <stdint.h>
+# endif
+
+/* ossl_inline: portable inline definition usable in public headers */
+# if !defined(inline) && !defined(__cplusplus)
+#  if defined(__STDC_VERSION__) && __STDC_VERSION__>=199901L
+   /* just use inline */
+#   define ossl_inline inline
+#  elif defined(__GNUC__) && __GNUC__>=2
+#   define ossl_inline __inline__
+#  elif defined(_MSC_VER)
+  /*
+   * Visual Studio: inline is available in C++ only, however
+   * __inline is available for C, see
+   * http://msdn.microsoft.com/en-us/library/z8y1yy88.aspx
+   */
+#   define ossl_inline __inline
+#  else
+#   define ossl_inline
+#  endif
+# else
+#  define ossl_inline inline
+# endif
+
+# if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+#  define ossl_noreturn _Noreturn
+# elif defined(__GNUC__) && __GNUC__ >= 2
+#  define ossl_noreturn __attribute__((noreturn))
+# else
+#  define ossl_noreturn
+# endif
+
+/* ossl_unused: portable unused attribute for use in public headers */
+# if defined(__GNUC__)
+#  define ossl_unused __attribute__((unused))
+# else
+#  define ossl_unused
 # endif
 
 #ifdef  __cplusplus

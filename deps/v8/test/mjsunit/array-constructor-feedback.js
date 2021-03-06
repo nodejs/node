@@ -25,8 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --expose-gc
-// Flags: --noalways-opt
+// Flags: --allow-natives-syntax --expose-gc --no-always-opt --opt
 
 // Test element kind of objects.
 
@@ -47,14 +46,14 @@ var elements_kind = {
 }
 
 function getKind(obj) {
-  if (%HasFastSmiElements(obj)) return elements_kind.fast_smi_only;
-  if (%HasFastObjectElements(obj)) return elements_kind.fast;
-  if (%HasFastDoubleElements(obj)) return elements_kind.fast_double;
+  if (%HasSmiElements(obj)) return elements_kind.fast_smi_only;
+  if (%HasObjectElements(obj)) return elements_kind.fast;
+  if (%HasDoubleElements(obj)) return elements_kind.fast_double;
   if (%HasDictionaryElements(obj)) return elements_kind.dictionary;
 }
 
 function isHoley(obj) {
-  if (%HasFastHoleyElements(obj)) return true;
+  if (%HasHoleyElements(obj)) return true;
   return false;
 }
 
@@ -68,67 +67,30 @@ function assertKind(expected, obj, name_opt) {
   function bar0(t) {
     return new t();
   }
+  %PrepareFunctionForOptimization(bar0);
   a = bar0(Array);
   a[0] = 3.5;
   b = bar0(Array);
   assertKind(elements_kind.fast_double, b);
-    %OptimizeFunctionOnNextCall(bar0);
+  %OptimizeFunctionOnNextCall(bar0);
   b = bar0(Array);
   assertKind(elements_kind.fast_double, b);
   assertOptimized(bar0);
   // bar0 should deopt
   b = bar0(Object);
-  assertUnoptimized(bar0)
+  assertUnoptimized(bar0);
+  %PrepareFunctionForOptimization(bar0);
   // When it's re-optimized, we should call through the full stub
   bar0(Array);
-    %OptimizeFunctionOnNextCall(bar0);
+  %OptimizeFunctionOnNextCall(bar0);
   b = bar0(Array);
-  // This only makes sense to test if we allow crankshafting
-  if (4 != %GetOptimizationStatus(bar0)) {
-    // We also lost our ability to record kind feedback, as the site
-    // is megamorphic now.
-    assertKind(elements_kind.fast_smi_only, b);
-    assertOptimized(bar0);
-    b[0] = 3.5;
-    c = bar0(Array);
-    assertKind(elements_kind.fast_smi_only, c);
-  }
-})();
-
-
-// Test: Ensure that inlined array calls in crankshaft learn from deopts
-// based on the move to a dictionary for the array.
-(function() {
-  function bar(len) {
-    return new Array(len);
-  }
-  a = bar(10);
-  a[0] = "a string";
-  a = bar(10);
-  assertKind(elements_kind.fast, a);
-    %OptimizeFunctionOnNextCall(bar);
-  a = bar(10);
-  assertKind(elements_kind.fast, a);
-  assertOptimized(bar);
-  bar(100000);
-  assertOptimized(bar);
-
-  // If the argument isn't a smi, things should still work.
-  a = bar("oops");
-  assertOptimized(bar);
-  assertKind(elements_kind.fast, a);
-
-  function barn(one, two, three) {
-    return new Array(one, two, three);
-  }
-
-  barn(1, 2, 3);
-  barn(1, 2, 3);
-    %OptimizeFunctionOnNextCall(barn);
-  barn(1, 2, 3);
-  assertOptimized(barn);
-  a = barn(1, "oops", 3);
-  assertOptimized(barn);
+  // We also lost our ability to record kind feedback, as the site
+  // is megamorphic now.
+  assertKind(elements_kind.fast_smi_only, b);
+  assertOptimized(bar0);
+  b[0] = 3.5;
+  c = bar0(Array);
+  assertKind(elements_kind.fast_smi_only, c);
 })();
 
 
@@ -139,19 +101,16 @@ function assertKind(expected, obj, name_opt) {
   function bar() {
     return new Array();
   }
+  %PrepareFunctionForOptimization(bar);
   a = bar();
   bar();
-    %OptimizeFunctionOnNextCall(bar);
+  %OptimizeFunctionOnNextCall(bar);
   b = bar();
-  // This only makes sense to test if we allow crankshafting
-  if (4 != %GetOptimizationStatus(bar)) {
-    assertOptimized(bar);
-      %DebugPrint(3);
-    b[0] = 3.5;
-    c = bar();
-    assertKind(elements_kind.fast_smi_only, c);
-    assertOptimized(bar);
-  }
+  assertOptimized(bar);
+  b[0] = 3.5;
+  c = bar();
+  assertKind(elements_kind.fast_smi_only, c);
+  assertOptimized(bar);
 })();
 
 
@@ -159,14 +118,16 @@ function assertKind(expected, obj, name_opt) {
 // map for Array in that context will be used.
 (function() {
   function bar() { return new Array(); }
+  %PrepareFunctionForOptimization(bar);
   bar();
   bar();
-    %OptimizeFunctionOnNextCall(bar);
+  %OptimizeFunctionOnNextCall(bar);
   a = bar();
   assertTrue(a instanceof Array);
 
   var contextB = Realm.create();
-  Realm.eval(contextB, "function bar2() { return new Array(); };");
+  Realm.eval(contextB,
+      "function bar2() { return new Array(); }; %PrepareFunctionForOptimization(bar2)");
   Realm.eval(contextB, "bar2(); bar2();");
   Realm.eval(contextB, "%OptimizeFunctionOnNextCall(bar2);");
   Realm.eval(contextB, "bar2();");
@@ -178,12 +139,13 @@ function assertKind(expected, obj, name_opt) {
 // should deal with arguments that create holey arrays.
 (function() {
   function bar(len) { return new Array(len); }
+  %PrepareFunctionForOptimization(bar);
   bar(0);
   bar(0);
-    %OptimizeFunctionOnNextCall(bar);
+  %OptimizeFunctionOnNextCall(bar);
   a = bar(0);
   assertOptimized(bar);
-  assertFalse(isHoley(a));
+  assertTrue(isHoley(a));
   a = bar(1);  // ouch!
   assertOptimized(bar);
   assertTrue(isHoley(a));
@@ -191,16 +153,13 @@ function assertKind(expected, obj, name_opt) {
   assertTrue(isHoley(a));
   a = bar(0);
   assertOptimized(bar);
-  // Crankshafted functions don't use mementos, so feedback still
-  // indicates a packed array is desired. (unless --nocrankshaft is in use).
-  if (4 != %GetOptimizationStatus(bar)) {
-    assertFalse(isHoley(a));
-  }
+  assertTrue(isHoley(a));
 })();
 
 // Test: Make sure that crankshaft continues with feedback for large arrays.
 (function() {
   function bar(len) { return new Array(len); }
+  %PrepareFunctionForOptimization(bar);
   var size = 100001;
   // Perform a gc, because we are allocating a very large array and if a gc
   // happens during the allocation we could lose our memento.

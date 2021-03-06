@@ -95,6 +95,13 @@ void ares_gethostbyname(ares_channel channel, const char *name, int family,
     return;
   }
 
+  /* Per RFC 7686, reject queries for ".onion" domain names with NXDOMAIN. */
+  if (ares__is_onion_domain(name))
+    {
+      callback(arg, ARES_ENOTFOUND, 0, NULL);
+      return;
+    }
+
   if (fake_hostent(name, family, callback, arg))
     return;
 
@@ -204,6 +211,13 @@ static void host_callback(void *arg, int status, int timeouts,
           if (host && channel->nsort)
             sort6_addresses(host, channel->sortlist, channel->nsort);
         }
+      if (status == ARES_SUCCESS && host && host->h_addr_list[0] == NULL)
+      {
+        /* The query returned something but had no A/AAAA record
+           (even after potentially retrying AAAA with A)
+           so we should treat this as an error */
+        status = ARES_ENODATA;
+      }
       end_hquery(hquery, status, host);
     }
   else if ((status == ARES_ENODATA || status == ARES_EBADRESP ||
@@ -244,7 +258,7 @@ static int fake_hostent(const char *name, int family,
   struct in_addr in;
   struct ares_in6_addr in6;
 
-  if (family == AF_INET || family == AF_INET6)
+  if (family == AF_INET || family == AF_UNSPEC)
     {
       /* It only looks like an IP address if it's all numbers and dots. */
       int numdots = 0, valid = 1;
@@ -260,15 +274,19 @@ static int fake_hostent(const char *name, int family,
         }
 
       /* if we don't have 3 dots, it is illegal
-       * (although inet_addr doesn't think so).
+       * (although inet_pton doesn't think so).
        */
-      if (numdots != 3 || !valid)
+      if (numdots != 3 || !valid) {
         result = 0;
-      else
-        result = ((in.s_addr = inet_addr(name)) == INADDR_NONE ? 0 : 1);
+      } else {
+        result = (ares_inet_pton(AF_INET, name, &in) < 1 ? 0 : 1);
+      }
 
-      if (result)
-        family = AF_INET;
+      /*
+       * Set address family in case of failure,
+       * as we will try to convert it later afterwards
+       */
+      family = result ? AF_INET : AF_INET6;
     }
   if (family == AF_INET6)
     result = (ares_inet_pton(AF_INET6, name, &in6) < 1 ? 0 : 1);
@@ -351,30 +369,34 @@ static int file_lookup(const char *name, int family, struct hostent **host)
     char tmp[MAX_PATH];
     HKEY hkeyHosts;
 
-    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, WIN_NS_NT_KEY, 0, KEY_READ,
+    if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, WIN_NS_NT_KEY, 0, KEY_READ,
                      &hkeyHosts) == ERROR_SUCCESS)
     {
       DWORD dwLength = MAX_PATH;
-      RegQueryValueEx(hkeyHosts, DATABASEPATH, NULL, NULL, (LPBYTE)tmp,
+      RegQueryValueExA(hkeyHosts, DATABASEPATH, NULL, NULL, (LPBYTE)tmp,
                       &dwLength);
-      ExpandEnvironmentStrings(tmp, PATH_HOSTS, MAX_PATH);
+      ExpandEnvironmentStringsA(tmp, PATH_HOSTS, MAX_PATH);
       RegCloseKey(hkeyHosts);
     }
   }
   else if (platform == WIN_9X)
-    GetWindowsDirectory(PATH_HOSTS, MAX_PATH);
+    GetWindowsDirectoryA(PATH_HOSTS, MAX_PATH);
   else
     return ARES_ENOTFOUND;
 
   strcat(PATH_HOSTS, WIN_PATH_HOSTS);
 
 #elif defined(WATT32)
-  extern const char *_w32_GetHostsFile (void);
   const char *PATH_HOSTS = _w32_GetHostsFile();
 
   if (!PATH_HOSTS)
     return ARES_ENOTFOUND;
 #endif
+
+  /* Per RFC 7686, reject queries for ".onion" domain names with NXDOMAIN. */
+  if (ares__is_onion_domain(name))
+    return ARES_ENOTFOUND;
+
 
   fp = fopen(PATH_HOSTS, "r");
   if (!fp)

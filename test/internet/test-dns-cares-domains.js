@@ -1,10 +1,11 @@
 'use strict';
-require('../common');
-var assert = require('assert');
-var dns = require('dns');
-var domain = require('domain');
+const common = require('../common');
+const { addresses } = require('../common/internet');
+const assert = require('assert');
+const dns = require('dns');
+const domain = require('domain');
 
-var methods = [
+const methods = [
   'resolve4',
   'resolve6',
   'resolveCname',
@@ -18,10 +19,10 @@ var methods = [
 ];
 
 methods.forEach(function(method) {
-  var d = domain.create();
+  const d = domain.create();
   d.run(function() {
-    dns[method]('google.com', function() {
-      assert.strictEqual(process.domain, d, method + ' retains domain');
-    });
+    dns[method](addresses.INET_HOST, common.mustCall(() => {
+      assert.strictEqual(process.domain, d, `${method} retains domain`);
+    }));
   });
 });

@@ -1,4 +1,11 @@
-#!/usr/local/bin/perl
+#! /usr/bin/env perl
+# Copyright 2005-2018 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 use Fcntl;
 
@@ -11,6 +18,7 @@ use Fcntl;
 my $stripcr = 0;
 
 my $arg;
+my @excludes = ();
 
 foreach $arg (@ARGV) {
 	if ($arg eq "-stripcr")
@@ -18,10 +26,16 @@ foreach $arg (@ARGV) {
 		$stripcr = 1;
 		next;
 		}
-	$arg =~ s|\\|/|g;	# compensate for bug/feature in cygwin glob...
-	foreach (glob $arg)
+	if ($arg =~ /^-exclude_re=(.*)$/)
 		{
-		push @filelist, $_;
+		push @excludes, $1;
+		next;
+		}
+	$arg =~ s|\\|/|g;	# compensate for bug/feature in cygwin glob...
+	$arg = qq("$arg") if ($arg =~ /\s/);	# compensate for bug in 5.10...
+	foreach my $f (glob $arg)
+		{
+		push @filelist, $f unless grep { $f =~ /$_/ } @excludes;
 		}
 }
 
@@ -33,7 +47,7 @@ if ($fnum <= 1)
 	}
 
 $dest = pop @filelist;
-	
+
 if ($fnum > 2 && ! -d $dest)
 	{
 	die "Destination must be a directory";
@@ -66,5 +80,5 @@ foreach (@filelist)
 	close(OUT);
 	print "Copying: $_ to $dfile\n";
 	}
-		
+
 

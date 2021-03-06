@@ -31,15 +31,17 @@
 // have a pending lazy deoptimization on the stack.
 
 function deopt() {
-  try { } catch (e) { }  // Avoid inlining.
+  try {
+  } catch (e) {
+  }  // Avoid inlining.
   %DeoptimizeFunction(outer);
   for (var i = 0; i < 10; i++) gc();  // Force code flushing.
 }
 
 function outer(should_deopt) {
   inner(should_deopt);
-}
-
+};
+%PrepareFunctionForOptimization(outer);
 function inner(should_deopt) {
   if (should_deopt) deopt();
 }

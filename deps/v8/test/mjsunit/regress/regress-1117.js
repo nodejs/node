@@ -30,14 +30,20 @@
 // Test that we actually return the right value (-0) when we multiply
 // constant 0 with a negative integer.
 
-function foo(y) {return 0 * y; }
-assertEquals(1/foo(-42), -Infinity);
-assertEquals(1/foo(-42), -Infinity);
+function foo(y) {
+  return 0 * y;
+};
+%PrepareFunctionForOptimization(foo);
+assertEquals(1 / foo(-42), -Infinity);
+assertEquals(1 / foo(-42), -Infinity);
 %OptimizeFunctionOnNextCall(foo);
-assertEquals(1/foo(-42), -Infinity);
+assertEquals(1 / foo(-42), -Infinity);
 
-function bar(x) { return x * 0; }
-assertEquals(Infinity, 1/bar(5));
-assertEquals(Infinity, 1/bar(5));
+function bar(x) {
+  return x * 0;
+};
+%PrepareFunctionForOptimization(bar);
+assertEquals(Infinity, 1 / bar(5));
+assertEquals(Infinity, 1 / bar(5));
 %OptimizeFunctionOnNextCall(bar);
-assertEquals(-Infinity, 1/bar(-5));
+assertEquals(-Infinity, 1 / bar(-5));

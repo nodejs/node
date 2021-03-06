@@ -1,0 +1,36 @@
+{
+  "name": "@babel/types",
+  "version": "7.12.12",
+  "description": "Babel Types is a Lodash-esque utility library for AST nodes",
+  "author": "Sebastian McKenzie <sebmck@gmail.com>",
+  "homepage": "https://babeljs.io/",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/babel/babel.git",
+    "directory": "packages/babel-types"
+  },
+  "main": "lib/index.js",
+  "types": "lib/index-legacy.d.ts",
+  "typesVersions": {
+    ">=3.7": {
+      "lib/index-legacy.d.ts": [
+        "lib/index.d.ts"
+      ]
+    }
+  },
+  "dependencies": {
+    "@babel/helper-validator-identifier": "^7.12.11",
+    "lodash": "^4.17.19",
+    "to-fast-properties": "^2.0.0"
+  },
+  "devDependencies": {
+    "@babel/generator": "7.12.11",
+    "@babel/parser": "7.12.11",
+    "@types/lodash": "^4.14.162",
+    "chalk": "^4.1.0"
+  }
+}

@@ -1,305 +1,263 @@
-module.exports = config
+const { defaults, types } = require('./utils/config.js')
+const usageUtil = require('./utils/usage.js')
+const output = require('./utils/output.js')
 
-var log = require('npmlog')
-var npm = require('./npm.js')
-var npmconf = require('./config/core.js')
-var fs = require('graceful-fs')
-var writeFileAtomic = require('write-file-atomic')
-var types = npmconf.defs.types
-var ini = require('ini')
-var editor = require('editor')
-var os = require('os')
-var umask = require('./utils/umask')
-var usage = require('./utils/usage')
-var output = require('./utils/output')
-var noProgressTillDone = require('./utils/no-progress-while-running').tillDone
+const mkdirp = require('mkdirp-infer-owner')
+const { dirname } = require('path')
+const { promisify } = require('util')
+const fs = require('fs')
+const readFile = promisify(fs.readFile)
+const writeFile = promisify(fs.writeFile)
+const { spawn } = require('child_process')
+const { EOL } = require('os')
+const ini = require('ini')
 
-config.usage = usage(
-  'config',
-  'npm config set <key> <value>' +
-  '\nnpm config get [<key>]' +
-  '\nnpm config delete <key>' +
-  '\nnpm config list' +
-  '\nnpm config edit' +
-  '\nnpm set <key> <value>' +
-  '\nnpm get [<key>]'
-)
-config.completion = function (opts, cb) {
-  var argv = opts.conf.argv.remain
-  if (argv[1] !== 'config') argv.unshift('config')
-  if (argv.length === 2) {
-    var cmds = ['get', 'set', 'delete', 'ls', 'rm', 'edit']
-    if (opts.partialWord !== 'l') cmds.push('list')
-    return cb(null, cmds)
+// take an array of `[key, value, k2=v2, k3, v3, ...]` and turn into
+// { key: value, k2: v2, k3: v3 }
+const keyValues = args => {
+  const kv = {}
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i].split('=')
+    const key = arg.shift()
+    const val = arg.length ? arg.join('=')
+      : i < args.length - 1 ? args[++i]
+      : ''
+    kv[key.trim()] = val.trim()
   }
-
-  var action = argv[2]
-  switch (action) {
-    case 'set':
-      // todo: complete with valid values, if possible.
-      if (argv.length > 3) return cb(null, [])
-      // fallthrough
-      /*eslint no-fallthrough:0*/
-    case 'get':
-    case 'delete':
-    case 'rm':
-      return cb(null, Object.keys(types))
-    case 'edit':
-    case 'list': case 'ls':
-      return cb(null, [])
-    default: return cb(null, [])
-  }
+  return kv
 }
 
-// npm config set key value
-// npm config get key
-// npm config list
-function config (args, cb) {
-  var action = args.shift()
-  switch (action) {
-    case 'set': return set(args[0], args[1], cb)
-    case 'get': return get(args[0], cb)
-    case 'delete': case 'rm': case 'del': return del(args[0], cb)
-    case 'list': case 'ls': return list(cb)
-    case 'edit': return edit(cb)
-    default: return unknown(action, cb)
+const publicVar = k => !/^(\/\/[^:]+:)?_/.test(k)
+
+class Config {
+  constructor (npm) {
+    this.npm = npm
   }
-}
 
-function edit (cb) {
-  var e = npm.config.get('editor')
-  var which = npm.config.get('global') ? 'global' : 'user'
-  var f = npm.config.get(which + 'config')
-  if (!e) return cb(new Error('No EDITOR config or environ set.'))
-  npm.config.save(which, function (er) {
-    if (er) return cb(er)
-    fs.readFile(f, 'utf8', function (er, data) {
-      if (er) data = ''
-      data = [
-        ';;;;',
-        '; npm ' + (npm.config.get('global')
-                  ? 'globalconfig' : 'userconfig') + ' file',
-        '; this is a simple ini-formatted file',
-        '; lines that start with semi-colons are comments.',
-        '; read `npm help config` for help on the various options',
-        ';;;;',
-        '',
-        data
-      ].concat([
-        ';;;;',
-        '; all options with default values',
-        ';;;;'
-      ]).concat(Object.keys(npmconf.defaults).reduce(function (arr, key) {
-        var obj = {}
-        obj[key] = npmconf.defaults[key]
-        if (key === 'logstream') return arr
-        return arr.concat(
-          ini.stringify(obj)
-            .replace(/\n$/m, '')
-            .replace(/^/g, '; ')
-            .replace(/\n/g, '\n; ')
-            .split('\n'))
-      }, []))
-      .concat([''])
-      .join(os.EOL)
-      writeFileAtomic(
-        f,
-        data,
-        function (er) {
-          if (er) return cb(er)
-          editor(f, { editor: e }, noProgressTillDone(cb))
-        }
-      )
-    })
-  })
-}
-
-function del (key, cb) {
-  if (!key) return cb(new Error('no key provided'))
-  var where = npm.config.get('global') ? 'global' : 'user'
-  npm.config.del(key, where)
-  npm.config.save(where, cb)
-}
-
-function set (key, val, cb) {
-  if (key === undefined) {
-    return unknown('', cb)
+  get usage () {
+    return usageUtil(
+      'config',
+      'npm config set <key>=<value> [<key>=<value> ...]' +
+      '\nnpm config get [<key> [<key> ...]]' +
+      '\nnpm config delete <key> [<key> ...]' +
+      '\nnpm config list [--json]' +
+      '\nnpm config edit' +
+      '\nnpm set <key>=<value> [<key>=<value> ...]' +
+      '\nnpm get [<key> [<key> ...]]'
+    )
   }
-  if (val === undefined) {
-    if (key.indexOf('=') !== -1) {
-      var k = key.split('=')
-      key = k.shift()
-      val = k.join('=')
-    } else {
-      val = ''
+
+  async completion (opts) {
+    const argv = opts.conf.argv.remain
+    if (argv[1] !== 'config')
+      argv.unshift('config')
+
+    if (argv.length === 2) {
+      const cmds = ['get', 'set', 'delete', 'ls', 'rm', 'edit']
+      if (opts.partialWord !== 'l')
+        cmds.push('list')
+
+      return cmds
+    }
+
+    const action = argv[2]
+    switch (action) {
+      case 'set':
+        // todo: complete with valid values, if possible.
+        if (argv.length > 3)
+          return []
+
+        // fallthrough
+        /* eslint no-fallthrough:0 */
+      case 'get':
+      case 'delete':
+      case 'rm':
+        return Object.keys(types)
+      case 'edit':
+      case 'list':
+      case 'ls':
+      default:
+        return []
     }
   }
-  key = key.trim()
-  val = val.trim()
-  log.info('config', 'set %j %j', key, val)
-  var where = npm.config.get('global') ? 'global' : 'user'
-  if (key.match(/umask/)) val = umask.fromString(val)
-  npm.config.set(key, val, where)
-  npm.config.save(where, cb)
-}
 
-function get (key, cb) {
-  if (!key) return list(cb)
-  if (!publicVar(key)) {
-    return cb(new Error('---sekretz---'))
-  }
-  var val = npm.config.get(key)
-  if (key.match(/umask/)) val = umask.toString(val)
-  output(val)
-  cb()
-}
-
-function sort (a, b) {
-  return a > b ? 1 : -1
-}
-
-function publicVar (k) {
-  return !(k.charAt(0) === '_' ||
-           k.indexOf(':_') !== -1 ||
-           types[k] !== types[k])
-}
-
-function getKeys (data) {
-  return Object.keys(data).filter(publicVar).sort(sort)
-}
-
-function list (cb) {
-  var msg = ''
-  var long = npm.config.get('long')
-
-  var cli = npm.config.sources.cli.data
-  var cliKeys = getKeys(cli)
-  if (cliKeys.length) {
-    msg += '; cli configs\n'
-    cliKeys.forEach(function (k) {
-      if (cli[k] && typeof cli[k] === 'object') return
-      if (k === 'argv') return
-      msg += k + ' = ' + JSON.stringify(cli[k]) + '\n'
-    })
-    msg += '\n'
+  exec (args, cb) {
+    this.config(args).then(() => cb()).catch(cb)
   }
 
-  // env configs
-  var env = npm.config.sources.env.data
-  var envKeys = getKeys(env)
-  if (envKeys.length) {
-    msg += '; environment configs\n'
-    envKeys.forEach(function (k) {
-      if (env[k] !== npm.config.get(k)) {
-        if (!long) return
-        msg += '; ' + k + ' = ' +
-          JSON.stringify(env[k]) + ' (overridden)\n'
-      } else msg += k + ' = ' + JSON.stringify(env[k]) + '\n'
-    })
-    msg += '\n'
+  async config ([action, ...args]) {
+    this.npm.log.disableProgress()
+    try {
+      switch (action) {
+        case 'set':
+          await this.set(args)
+          break
+        case 'get':
+          await this.get(args)
+          break
+        case 'delete':
+        case 'rm':
+        case 'del':
+          await this.del(args)
+          break
+        case 'list':
+        case 'ls':
+          await (this.npm.flatOptions.json ? this.listJson() : this.list())
+          break
+        case 'edit':
+          await this.edit()
+          break
+        default:
+          throw this.usageError()
+      }
+    } finally {
+      this.npm.log.enableProgress()
+    }
   }
 
-  // project config file
-  var project = npm.config.sources.project
-  var pconf = project.data
-  var ppath = project.path
-  var pconfKeys = getKeys(pconf)
-  if (pconfKeys.length) {
-    msg += '; project config ' + ppath + '\n'
-    pconfKeys.forEach(function (k) {
-      var val = (k.charAt(0) === '_')
-              ? '---sekretz---'
-              : JSON.stringify(pconf[k])
-      if (pconf[k] !== npm.config.get(k)) {
-        if (!long) return
-        msg += '; ' + k + ' = ' + val + ' (overridden)\n'
-      } else msg += k + ' = ' + val + '\n'
-    })
-    msg += '\n'
+  async set (args) {
+    if (!args.length)
+      throw this.usageError()
+
+    const where = this.npm.flatOptions.global ? 'global' : 'user'
+    for (const [key, val] of Object.entries(keyValues(args))) {
+      this.npm.log.info('config', 'set %j %j', key, val)
+      this.npm.config.set(key, val || '', where)
+      if (!this.npm.config.validate(where))
+        this.npm.log.warn('config', 'omitting invalid config values')
+    }
+
+    await this.npm.config.save(where)
   }
 
-  // user config file
-  var uconf = npm.config.sources.user.data
-  var uconfKeys = getKeys(uconf)
-  if (uconfKeys.length) {
-    msg += '; userconfig ' + npm.config.get('userconfig') + '\n'
-    uconfKeys.forEach(function (k) {
-      var val = (k.charAt(0) === '_')
-              ? '---sekretz---'
-              : JSON.stringify(uconf[k])
-      if (uconf[k] !== npm.config.get(k)) {
-        if (!long) return
-        msg += '; ' + k + ' = ' + val + ' (overridden)\n'
-      } else msg += k + ' = ' + val + '\n'
-    })
-    msg += '\n'
+  async get (keys) {
+    if (!keys.length)
+      return this.list()
+
+    const out = []
+    for (const key of keys) {
+      if (!publicVar(key))
+        throw `The ${key} option is protected, and cannot be retrieved in this way`
+
+      const pref = keys.length > 1 ? `${key}=` : ''
+      out.push(pref + this.npm.config.get(key))
+    }
+    output(out.join('\n'))
   }
 
-  // global config file
-  var gconf = npm.config.sources.global.data
-  var gconfKeys = getKeys(gconf)
-  if (gconfKeys.length) {
-    msg += '; globalconfig ' + npm.config.get('globalconfig') + '\n'
-    gconfKeys.forEach(function (k) {
-      var val = (k.charAt(0) === '_')
-              ? '---sekretz---'
-              : JSON.stringify(gconf[k])
-      if (gconf[k] !== npm.config.get(k)) {
-        if (!long) return
-        msg += '; ' + k + ' = ' + val + ' (overridden)\n'
-      } else msg += k + ' = ' + val + '\n'
-    })
-    msg += '\n'
+  async del (keys) {
+    if (!keys.length)
+      throw this.usageError()
+
+    const where = this.npm.flatOptions.global ? 'global' : 'user'
+    for (const key of keys)
+      this.npm.config.delete(key, where)
+    await this.npm.config.save(where)
   }
 
-  // builtin config file
-  var builtin = npm.config.sources.builtin || {}
-  if (builtin && builtin.data) {
-    var bconf = builtin.data
-    var bpath = builtin.path
-    var bconfKeys = getKeys(bconf)
-    if (bconfKeys.length) {
-      msg += '; builtin config ' + bpath + '\n'
-      bconfKeys.forEach(function (k) {
-        var val = (k.charAt(0) === '_')
-                ? '---sekretz---'
-                : JSON.stringify(bconf[k])
-        if (bconf[k] !== npm.config.get(k)) {
-          if (!long) return
-          msg += '; ' + k + ' = ' + val + ' (overridden)\n'
-        } else msg += k + ' = ' + val + '\n'
+  async edit () {
+    const { editor: e, global } = this.npm.flatOptions
+    const where = global ? 'global' : 'user'
+    const file = this.npm.config.data.get(where).source
+
+    // save first, just to make sure it's synced up
+    // this also removes all the comments from the last time we edited it.
+    await this.npm.config.save(where)
+
+    const data = (
+      await readFile(file, 'utf8').catch(() => '')
+    ).replace(/\r\n/g, '\n')
+    const defData = Object.entries(defaults).reduce((str, [key, val]) => {
+      const obj = { [key]: val }
+      const i = ini.stringify(obj)
+        .replace(/\r\n/g, '\n') // normalizes output from ini.stringify
+        .replace(/\n$/m, '')
+        .replace(/^/g, '; ')
+        .replace(/\n/g, '\n; ')
+        .split('\n')
+      return str + '\n' + i
+    }, '')
+
+    const tmpData = `;;;;
+; npm ${where}config file: ${file}
+; this is a simple ini-formatted file
+; lines that start with semi-colons are comments
+; run \`npm help 7 config\` for documentation of the various options
+;
+; Configs like \`@scope:registry\` map a scope to a given registry url.
+;
+; Configs like \`//<hostname>/:_authToken\` are auth that is restricted
+; to the registry host specified.
+
+${data.split('\n').sort((a, b) => a.localeCompare(b)).join('\n').trim()}
+
+;;;;
+; all available options shown below with default values
+;;;;
+
+${defData}
+`.split('\n').join(EOL)
+    await mkdirp(dirname(file))
+    await writeFile(file, tmpData, 'utf8')
+    await new Promise((resolve, reject) => {
+      const [bin, ...args] = e.split(/\s+/)
+      const editor = spawn(bin, [...args, file], { stdio: 'inherit' })
+      editor.on('exit', (code) => {
+        if (code)
+          return reject(new Error(`editor process exited with code: ${code}`))
+        return resolve()
       })
-      msg += '\n'
+    })
+  }
+
+  async list () {
+    const msg = []
+    const { long } = this.npm.flatOptions
+    for (const [where, { data, source }] of this.npm.config.data.entries()) {
+      if (where === 'default' && !long)
+        continue
+
+      const keys = Object.keys(data).sort((a, b) => a.localeCompare(b))
+      if (!keys.length)
+        continue
+
+      msg.push(`; "${where}" config from ${source}`, '')
+      for (const k of keys) {
+        const v = publicVar(k) ? JSON.stringify(data[k]) : '(protected)'
+        const src = this.npm.config.find(k)
+        const overridden = src !== where
+        msg.push((overridden ? '; ' : '') +
+          `${k} = ${v} ${overridden ? `; overridden by ${src}` : ''}`)
+      }
+      msg.push('')
     }
+
+    if (!long) {
+      msg.push(
+        `; node bin location = ${process.execPath}`,
+        `; cwd = ${process.cwd()}`,
+        `; HOME = ${process.env.HOME}`,
+        '; Run `npm config ls -l` to show all defaults.'
+      )
+    }
+
+    output(msg.join('\n').trim())
   }
 
-  // only show defaults if --long
-  if (!long) {
-    msg += '; node bin location = ' + process.execPath + '\n' +
-           '; cwd = ' + process.cwd() + '\n' +
-           '; HOME = ' + process.env.HOME + '\n' +
-           '; "npm config ls -l" to show all defaults.\n'
+  async listJson () {
+    const publicConf = {}
+    for (const key in this.npm.config.list[0]) {
+      if (!publicVar(key))
+        continue
 
-    output(msg)
-    return cb()
+      publicConf[key] = this.npm.config.get(key)
+    }
+    output(JSON.stringify(publicConf, null, 2))
   }
 
-  var defaults = npmconf.defaults
-  var defKeys = getKeys(defaults)
-  msg += '; default values\n'
-  defKeys.forEach(function (k) {
-    if (defaults[k] && typeof defaults[k] === 'object') return
-    var val = JSON.stringify(defaults[k])
-    if (defaults[k] !== npm.config.get(k)) {
-      msg += '; ' + k + ' = ' + val + ' (overridden)\n'
-    } else msg += k + ' = ' + val + '\n'
-  })
-  msg += '\n'
-
-  output(msg)
-  return cb()
+  usageError () {
+    return Object.assign(new Error(this.usage), { code: 'EUSAGE' })
+  }
 }
 
-function unknown (action, cb) {
-  cb('Usage:\n' + config.usage)
-}
+module.exports = Config

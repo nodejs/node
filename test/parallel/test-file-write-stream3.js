@@ -1,11 +1,34 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 
+const tmpdir = require('../common/tmpdir');
 
-const filepath = path.join(common.tmpDir, 'write_pos.txt');
+
+const filepath = path.join(tmpdir.path, 'write_pos.txt');
 
 
 const cb_expected = 'write open close write open close write open close ';
@@ -21,16 +44,16 @@ const fileDataExpected_3 = 'abcdefghij\u2026\u2026qrstuvwxyz';
 process.on('exit', function() {
   if (cb_occurred !== cb_expected) {
     console.log('  Test callback events missing or out of order:');
-    console.log('    expected: %j', cb_expected);
-    console.log('    occurred: %j', cb_occurred);
-    assert.strictEqual(cb_occurred, cb_expected,
-                       'events missing or out of order: "' +
-                       cb_occurred + '" !== "' + cb_expected + '"');
+    console.log(`    expected: ${cb_expected}`);
+    console.log(`    occurred: ${cb_occurred}`);
+    assert.strictEqual(
+      cb_occurred, cb_expected,
+      `events missing or out of order: "${cb_occurred}" !== "${cb_expected}"`);
   }
 });
 
 
-common.refreshTmpDir();
+tmpdir.refresh();
 
 
 function run_test_1() {
@@ -138,6 +161,7 @@ function run_test_3() {
     assert.strictEqual(fileData, fileDataExpected_3);
 
     run_test_4();
+    run_test_5();
   });
 
   file.on('error', function(err) {
@@ -155,12 +179,36 @@ function run_test_3() {
 
 const run_test_4 = common.mustCall(function() {
   //  Error: start must be >= zero
-  assert.throws(
-      function() {
-        fs.createWriteStream(filepath, { start: -5, flags: 'r+' });
-      },
-      /"start" must be/
-  );
+  const fn = () => {
+    fs.createWriteStream(filepath, { start: -5, flags: 'r+' });
+  };
+  // Verify the range of values using a common integer verifier.
+  // Limit Number.MAX_SAFE_INTEGER
+  const err = {
+    code: 'ERR_OUT_OF_RANGE',
+    message: 'The value of "start" is out of range. ' +
+             `It must be >= 0 && <= ${Number.MAX_SAFE_INTEGER}. Received -5`,
+    name: 'RangeError'
+  };
+  assert.throws(fn, err);
+});
+
+
+const run_test_5 = common.mustCall(function() {
+  //  Error: start must be <= 2 ** 53 - 1
+  const fn = () => {
+    fs.createWriteStream(filepath, { start: 2 ** 53, flags: 'r+' });
+  };
+  // Verify the range of values using a common integer verifier.
+  // Limit Number.MAX_SAFE_INTEGER
+  const err = {
+    code: 'ERR_OUT_OF_RANGE',
+    message: 'The value of "start" is out of range. It must be ' +
+             `>= 0 && <= ${Number.MAX_SAFE_INTEGER}. ` +
+             'Received 9_007_199_254_740_992',
+    name: 'RangeError'
+  };
+  assert.throws(fn, err);
 });
 
 run_test_1();

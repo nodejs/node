@@ -5,21 +5,46 @@
 #ifndef V8_AST_PRETTYPRINTER_H_
 #define V8_AST_PRETTYPRINTER_H_
 
-#include "src/allocation.h"
+#include <memory>
+
 #include "src/ast/ast.h"
 #include "src/base/compiler-specific.h"
-#include "src/string-builder.h"
+#include "src/objects/function-kind.h"
+#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {
 
+class IncrementalStringBuilder;  // to avoid including string-builder-inl.h
+
 class CallPrinter final : public AstVisitor<CallPrinter> {
  public:
-  explicit CallPrinter(Isolate* isolate, bool is_builtin);
+  enum class SpreadErrorInArgsHint { kErrorInArgs, kNoErrorInArgs };
+
+  explicit CallPrinter(Isolate* isolate, bool is_user_js,
+                       SpreadErrorInArgsHint error_in_spread_args =
+                           SpreadErrorInArgsHint::kNoErrorInArgs);
+  ~CallPrinter();
 
   // The following routine prints the node with position |position| into a
   // string.
   Handle<String> Print(FunctionLiteral* program, int position);
+  enum ErrorHint {
+    kNone,
+    kNormalIterator,
+    kAsyncIterator,
+    kCallAndNormalIterator,
+    kCallAndAsyncIterator
+  };
+
+  ErrorHint GetErrorHint() const;
+  Expression* spread_arg() const { return spread_arg_; }
+  ObjectLiteralProperty* destructuring_prop() const {
+    return destructuring_prop_;
+  }
+  Assignment* destructuring_assignment() const {
+    return destructuring_assignment_;
+  }
 
 // Individual nodes
 #define DECLARE_VISIT(type) void Visit##type(type* node);
@@ -34,19 +59,27 @@ class CallPrinter final : public AstVisitor<CallPrinter> {
 
   Isolate* isolate_;
   int num_prints_;
-  IncrementalStringBuilder builder_;
+  // Allocate the builder on the heap simply because it's forward declared.
+  std::unique_ptr<IncrementalStringBuilder> builder_;
   int position_;  // position of ast node to print
   bool found_;
   bool done_;
-  bool is_builtin_;
-
+  bool is_user_js_;
+  bool is_iterator_error_;
+  bool is_async_iterator_error_;
+  bool is_call_error_;
+  SpreadErrorInArgsHint error_in_spread_args_;
+  ObjectLiteralProperty* destructuring_prop_;
+  Assignment* destructuring_assignment_;
+  Expression* spread_arg_;
+  FunctionKind function_kind_;
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
  protected:
   void PrintLiteral(Handle<Object> value, bool quote);
   void PrintLiteral(const AstRawString* value, bool quote);
-  void FindStatements(ZoneList<Statement*>* statements);
-  void FindArguments(ZoneList<Expression*>* arguments);
+  void FindStatements(const ZonePtrList<Statement>* statements);
+  void FindArguments(const ZonePtrList<Expression>* arguments);
 };
 
 
@@ -54,7 +87,7 @@ class CallPrinter final : public AstVisitor<CallPrinter> {
 
 class AstPrinter final : public AstVisitor<AstPrinter> {
  public:
-  explicit AstPrinter(Isolate* isolate);
+  explicit AstPrinter(uintptr_t stack_limit);
   ~AstPrinter();
 
   // The following routines print a node into a string.
@@ -77,31 +110,37 @@ class AstPrinter final : public AstVisitor<AstPrinter> {
 
   void Init();
 
-  void PrintLabels(ZoneList<const AstRawString*>* labels);
+  void PrintLabels(ZonePtrList<const AstRawString>* labels);
   void PrintLiteral(const AstRawString* value, bool quote);
-  void PrintLiteral(Handle<Object> value, bool quote);
+  void PrintLiteral(const AstConsString* value, bool quote);
+  void PrintLiteral(Literal* literal, bool quote);
   void PrintIndented(const char* txt);
   void PrintIndentedVisit(const char* s, AstNode* node);
 
-  void PrintStatements(ZoneList<Statement*>* statements);
-  void PrintDeclarations(ZoneList<Declaration*>* declarations);
+  void PrintStatements(const ZonePtrList<Statement>* statements);
+  void PrintDeclarations(Declaration::List* declarations);
   void PrintParameters(DeclarationScope* scope);
-  void PrintArguments(ZoneList<Expression*>* arguments);
+  void PrintArguments(const ZonePtrList<Expression>* arguments);
   void PrintCaseClause(CaseClause* clause);
-  void PrintLiteralIndented(const char* info, Handle<Object> value, bool quote);
-  void PrintLiteralWithModeIndented(const char* info,
-                                    Variable* var,
-                                    Handle<Object> value);
-  void PrintLabelsIndented(ZoneList<const AstRawString*>* labels);
-  void PrintProperties(ZoneList<ObjectLiteral::Property*>* properties);
-  void PrintTryStatement(TryStatement* try_statement);
+  void PrintLiteralIndented(const char* info, Literal* literal, bool quote);
+  void PrintLiteralIndented(const char* info, const AstRawString* value,
+                            bool quote);
+  void PrintLiteralIndented(const char* info, const AstConsString* value,
+                            bool quote);
+  void PrintLiteralWithModeIndented(const char* info, Variable* var,
+                                    const AstRawString* value);
+  void PrintLabelsIndented(ZonePtrList<const AstRawString>* labels,
+                           const char* prefix = "");
+  void PrintObjectProperties(
+      const ZonePtrList<ObjectLiteral::Property>* properties);
+  void PrintClassProperties(
+      const ZonePtrList<ClassLiteral::Property>* properties);
 
   void inc_indent() { indent_++; }
   void dec_indent() { indent_--; }
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
-  Isolate* isolate_;
   char* output_;  // output string buffer
   int size_;      // output_ size
   int pos_;       // current printing position

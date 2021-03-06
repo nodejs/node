@@ -1,0 +1,20 @@
+{
+  "name": "@babel/helper-validator-identifier",
+  "version": "7.12.11",
+  "description": "Validate identifier/keywords name",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/babel/babel.git",
+    "directory": "packages/babel-helper-validator-identifier"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./lib/index.js",
+  "exports": "./lib/index.js",
+  "devDependencies": {
+    "charcodes": "^0.2.0",
+    "unicode-13.0.0": "^0.8.0"
+  }
+}

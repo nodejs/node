@@ -54,7 +54,7 @@ struct Counter {
 class LoopPeelingTest : public GraphTest {
  public:
   LoopPeelingTest() : GraphTest(1), machine_(zone()) {}
-  ~LoopPeelingTest() override {}
+  ~LoopPeelingTest() override = default;
 
  protected:
   MachineOperatorBuilder machine_;
@@ -63,34 +63,34 @@ class LoopPeelingTest : public GraphTest {
 
   LoopTree* GetLoopTree() {
     if (FLAG_trace_turbo_graph) {
-      OFStream os(stdout);
-      os << AsRPO(*graph());
+      StdoutStream{} << AsRPO(*graph());
     }
-    Zone zone(isolate()->allocator());
-    return LoopFinder::BuildLoopTree(graph(), &zone);
+    Zone zone(isolate()->allocator(), ZONE_NAME);
+    return LoopFinder::BuildLoopTree(graph(), tick_counter(), &zone);
   }
 
 
   PeeledIteration* PeelOne() {
     LoopTree* loop_tree = GetLoopTree();
     LoopTree::Loop* loop = loop_tree->outer_loops()[0];
-    EXPECT_TRUE(LoopPeeler::CanPeel(loop_tree, loop));
-    return Peel(loop_tree, loop);
+    LoopPeeler peeler(graph(), common(), loop_tree, zone(), source_positions(),
+                      node_origins());
+    EXPECT_TRUE(peeler.CanPeel(loop));
+    return Peel(peeler, loop);
   }
 
-  PeeledIteration* Peel(LoopTree* loop_tree, LoopTree::Loop* loop) {
-    EXPECT_TRUE(LoopPeeler::CanPeel(loop_tree, loop));
-    PeeledIteration* peeled =
-        LoopPeeler::Peel(graph(), common(), loop_tree, loop, zone());
+  PeeledIteration* Peel(LoopPeeler peeler, LoopTree::Loop* loop) {
+    EXPECT_TRUE(peeler.CanPeel(loop));
+    PeeledIteration* peeled = peeler.Peel(loop);
     if (FLAG_trace_turbo_graph) {
-      OFStream os(stdout);
-      os << AsRPO(*graph());
+      StdoutStream{} << AsRPO(*graph());
     }
     return peeled;
   }
 
   Node* InsertReturn(Node* val, Node* effect, Node* control) {
-    Node* r = graph()->NewNode(common()->Return(), val, effect, control);
+    Node* zero = graph()->NewNode(common()->Int32Constant(0));
+    Node* r = graph()->NewNode(common()->Return(), zero, val, effect, control);
     graph()->SetEnd(r);
     return r;
   }
@@ -144,7 +144,9 @@ class LoopPeelingTest : public GraphTest {
                              c.base, c.base, w->loop);
     c.add = graph()->NewNode(machine()->Int32Add(), c.phi, c.inc);
     c.phi->ReplaceInput(1, c.add);
-    c.exit_marker = graph()->NewNode(common()->LoopExitValue(), c.phi, w->exit);
+    c.exit_marker = graph()->NewNode(
+        common()->LoopExitValue(MachineRepresentation::kTagged), c.phi,
+        w->exit);
     return c;
   }
 };
@@ -249,7 +251,9 @@ TEST_F(LoopPeelingTest, SimpleNestedLoopWithCounter_peel_inner) {
   EXPECT_NE(nullptr, loop);
   EXPECT_EQ(1u, loop->depth());
 
-  PeeledIteration* peeled = Peel(loop_tree, loop);
+  LoopPeeler peeler(graph(), common(), loop_tree, zone(), source_positions(),
+                    node_origins());
+  PeeledIteration* peeled = Peel(peeler, loop);
 
   ExpectNotPeeled(outer.loop, peeled);
   ExpectNotPeeled(outer.branch, peeled);
@@ -288,7 +292,9 @@ TEST_F(LoopPeelingTest, SimpleInnerCounter_peel_inner) {
   EXPECT_NE(nullptr, loop);
   EXPECT_EQ(1u, loop->depth());
 
-  PeeledIteration* peeled = Peel(loop_tree, loop);
+  LoopPeeler peeler(graph(), common(), loop_tree, zone(), source_positions(),
+                    node_origins());
+  PeeledIteration* peeled = Peel(peeler, loop);
 
   ExpectNotPeeled(outer.loop, peeled);
   ExpectNotPeeled(outer.branch, peeled);
@@ -368,7 +374,8 @@ TEST_F(LoopPeelingTest, TwoBackedgeLoopWithPhi) {
   loop->ReplaceInput(2, b2.if_false);
 
   Node* exit = graph()->NewNode(common()->LoopExit(), b1.if_false, loop);
-  Node* exit_marker = graph()->NewNode(common()->LoopExitValue(), phi, exit);
+  Node* exit_marker = graph()->NewNode(
+      common()->LoopExitValue(MachineRepresentation::kTagged), phi, exit);
   Node* r = InsertReturn(exit_marker, start(), exit);
 
   PeeledIteration* peeled = PeelOne();
@@ -422,7 +429,8 @@ TEST_F(LoopPeelingTest, TwoBackedgeLoopWithCounter) {
   loop->ReplaceInput(2, b2.if_false);
 
   Node* exit = graph()->NewNode(common()->LoopExit(), b1.if_false, loop);
-  Node* exit_marker = graph()->NewNode(common()->LoopExitValue(), phi, exit);
+  Node* exit_marker = graph()->NewNode(
+      common()->LoopExitValue(MachineRepresentation::kTagged), phi, exit);
   Node* r = InsertReturn(exit_marker, start(), exit);
 
   PeeledIteration* peeled = PeelOne();
@@ -516,7 +524,9 @@ TEST_F(LoopPeelingTest, SimpleLoopWithUnmarkedExit) {
   {
     LoopTree* loop_tree = GetLoopTree();
     LoopTree::Loop* loop = loop_tree->outer_loops()[0];
-    EXPECT_FALSE(LoopPeeler::CanPeel(loop_tree, loop));
+    LoopPeeler peeler(graph(), common(), loop_tree, zone(), source_positions(),
+                      node_origins());
+    EXPECT_FALSE(peeler.CanPeel(loop));
   }
 }
 

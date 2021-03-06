@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /******************************************************************************
  *   Copyright (C) 2009-2013, International Business Machines
@@ -65,7 +65,7 @@ isFileModTimeLater(const char *filePath, const char *checkAgainst, UBool isDir) 
                     if (U_FAILURE(status)) {
                         fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, u_errorName(status));
                         return FALSE;
-                    };
+                    }
 
                     if ((subDirp = opendir(newpath.data())) != NULL) {
                         /* If this new path is a directory, make a recursive call with the newpath. */
@@ -134,7 +134,7 @@ static int32_t whichFileModTimeIsLater(const char *file1, const char *file2) {
 /* Swap the file separater character given with the new one in the file path. */
 U_CAPI void U_EXPORT2
 swapFileSepChar(char *filePath, const char oldFileSepChar, const char newFileSepChar) {
-    for (int32_t i = 0, length = uprv_strlen(filePath); i < length; i++) {
+    for (int32_t i = 0, length = static_cast<int32_t>(uprv_strlen(filePath)); i < length; i++) {
         filePath[i] = (filePath[i] == oldFileSepChar ) ? newFileSepChar : filePath[i];
     }
 }

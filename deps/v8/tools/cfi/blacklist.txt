@@ -1,4 +1,0 @@
-# All std:: types
-# This should be possible to remove, if/when we build against
-# a statically linked libc++.
-type:std::*

@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
  *******************************************************************************
@@ -50,7 +50,7 @@ TimeUnitAmount::operator==(const UObject& other) const {
     return Measure::operator==(other);
 }
 
-UObject*
+TimeUnitAmount*
 TimeUnitAmount::clone() const {
     return new TimeUnitAmount(*this);
 }

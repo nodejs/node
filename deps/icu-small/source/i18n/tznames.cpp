@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -29,7 +29,7 @@
 U_NAMESPACE_BEGIN
 
 // TimeZoneNames object cache handling
-static UMutex gTimeZoneNamesLock = U_MUTEX_INITIALIZER;
+static UMutex gTimeZoneNamesLock;
 static UHashtable *gTimeZoneNamesCache = NULL;
 static UBool gTimeZoneNamesCacheInitialized = FALSE;
 
@@ -87,7 +87,7 @@ static void sweepCache() {
     const UHashElement* elem;
     double now = (double)uprv_getUTCtime();
 
-    while ((elem = uhash_nextElement(gTimeZoneNamesCache, &pos))) {
+    while ((elem = uhash_nextElement(gTimeZoneNamesCache, &pos)) != 0) {
         TimeZoneNamesCacheEntry *entry = (TimeZoneNamesCacheEntry *)elem->value.pointer;
         if (entry->refCount <= 0 && (now - entry->lastAccess) > CACHE_EXPIRATION) {
             // delete this entry
@@ -105,8 +105,8 @@ public:
     virtual ~TimeZoneNamesDelegate();
 
     virtual UBool operator==(const TimeZoneNames& other) const;
-    virtual UBool operator!=(const TimeZoneNames& other) const {return !operator==(other);};
-    virtual TimeZoneNames* clone() const;
+    virtual UBool operator!=(const TimeZoneNames& other) const {return !operator==(other);}
+    virtual TimeZoneNamesDelegate* clone() const;
 
     StringEnumeration* getAvailableMetaZoneIDs(UErrorCode& status) const;
     StringEnumeration* getAvailableMetaZoneIDs(const UnicodeString& tzID, UErrorCode& status) const;
@@ -233,7 +233,7 @@ TimeZoneNamesDelegate::operator==(const TimeZoneNames& other) const {
     return FALSE;
 }
 
-TimeZoneNames*
+TimeZoneNamesDelegate*
 TimeZoneNamesDelegate::clone() const {
     TimeZoneNamesDelegate* other = new TimeZoneNamesDelegate();
     if (other != NULL) {

@@ -1,428 +1,288 @@
-/*
+const os = require('os')
+const path = require('path')
+const pacote = require('pacote')
+const table = require('text-table')
+const color = require('ansicolors')
+const styles = require('ansistyles')
+const npa = require('npm-package-arg')
+const pickManifest = require('npm-pick-manifest')
 
-npm outdated [pkg]
+const Arborist = require('@npmcli/arborist')
 
-Does the following:
+const output = require('./utils/output.js')
+const usageUtil = require('./utils/usage.js')
+const ansiTrim = require('./utils/ansi-trim.js')
 
-1. check for a new version of pkg
-
-If no packages are specified, then run for all installed
-packages.
-
---parseable creates output like this:
-<fullpath>:<name@wanted>:<name@installed>:<name@latest>
-
-*/
-
-module.exports = outdated
-
-outdated.usage = 'npm outdated [[<@scope>/]<pkg> ...]'
-
-outdated.completion = require('./utils/completion/installed-deep.js')
-
-var os = require('os')
-var url = require('url')
-var path = require('path')
-var log = require('npmlog')
-var readPackageTree = require('read-package-tree')
-var readJson = require('read-package-json')
-var asyncMap = require('slide').asyncMap
-var color = require('ansicolors')
-var styles = require('ansistyles')
-var table = require('text-table')
-var semver = require('semver')
-var npa = require('npm-package-arg')
-var mutateIntoLogicalTree = require('./install/mutate-into-logical-tree.js')
-var cache = require('./cache.js')
-var npm = require('./npm.js')
-var long = npm.config.get('long')
-var mapToRegistry = require('./utils/map-to-registry.js')
-var isExtraneous = require('./install/is-extraneous.js')
-var recalculateMetadata = require('./install/deps.js').recalculateMetadata
-var moduleName = require('./utils/module-name.js')
-var output = require('./utils/output.js')
-
-function uniqName (item) {
-  return item[0].path + '|' + item[1] + '|' + item[7]
-}
-
-function uniq (list) {
-  var uniqed = []
-  var seen = {}
-  list.forEach(function (item) {
-    var name = uniqName(item)
-    if (seen[name]) return
-    seen[name] = true
-    uniqed.push(item)
-  })
-  return uniqed
-}
-
-function andRecalculateMetadata (next) {
-  return function (er, tree) {
-    if (er) return next(er)
-    recalculateMetadata(tree, log, next)
+class Outdated {
+  constructor (npm) {
+    this.npm = npm
   }
-}
 
-function outdated (args, silent, cb) {
-  if (typeof cb !== 'function') {
-    cb = silent
-    silent = false
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  get usage () {
+    return usageUtil('outdated',
+      'npm outdated [[<@scope>/]<pkg> ...]'
+    )
   }
-  var dir = path.resolve(npm.dir, '..')
 
-  // default depth for `outdated` is 0 (cf. `ls`)
-  if (npm.config.get('depth') === Infinity) npm.config.set('depth', 0)
+  exec (args, cb) {
+    this.outdated(args).then(() => cb()).catch(cb)
+  }
 
-  readPackageTree(dir, andRecalculateMetadata(function (er, tree) {
-    if (!tree) return cb(er)
-    mutateIntoLogicalTree(tree)
-    outdated_(args, '', tree, {}, 0, function (er, list) {
-      list = uniq(list || []).sort(function (aa, bb) {
-        return aa[0].path.localeCompare(bb[0].path) ||
-          aa[1].localeCompare(bb[1])
-      })
-      if (er || silent || list.length === 0) return cb(er, list)
-      if (npm.config.get('json')) {
-        output(makeJSON(list))
-      } else if (npm.config.get('parseable')) {
-        output(makeParseable(list))
-      } else {
-        var outList = list.map(makePretty)
-        var outHead = [ 'Package',
-                        'Current',
-                        'Wanted',
-                        'Latest',
-                        'Location'
-                      ]
-        if (long) outHead.push('Package Type')
-        var outTable = [outHead].concat(outList)
+  async outdated (args) {
+    this.opts = this.npm.flatOptions
 
-        if (npm.color) {
-          outTable[0] = outTable[0].map(function (heading) {
-            return styles.underline(heading)
-          })
-        }
+    const global = path.resolve(this.npm.globalDir, '..')
+    const where = this.opts.global
+      ? global
+      : this.npm.prefix
 
-        var tableOpts = {
-          align: ['l', 'r', 'r', 'r', 'l'],
-          stringLength: function (s) { return ansiTrim(s).length }
-        }
-        output(table(outTable, tableOpts))
+    const arb = new Arborist({
+      ...this.opts,
+      path: where,
+    })
+
+    this.edges = new Set()
+    this.list = []
+    this.tree = await arb.loadActual()
+
+    if (args.length !== 0) {
+      // specific deps
+      for (let i = 0; i < args.length; i++) {
+        const nodes = this.tree.inventory.query('name', args[i])
+        this.getEdges(nodes, 'edgesIn')
       }
-      cb(null, list.map(function (item) { return [item[0].parent.path].concat(item.slice(1, 7)) }))
-    })
-  }))
-}
-
-// [[ dir, dep, has, want, latest, type ]]
-function makePretty (p) {
-  var dep = p[0]
-  var depname = p[1]
-  var dir = dep.path
-  var has = p[2]
-  var want = p[3]
-  var latest = p[4]
-  var type = p[6]
-  var deppath = p[7]
-
-  if (!npm.config.get('global')) {
-    dir = path.relative(process.cwd(), dir)
-  }
-
-  var columns = [ depname,
-                  has || 'MISSING',
-                  want,
-                  latest,
-                  deppath
-                ]
-  if (long) columns[5] = type
-
-  if (npm.color) {
-    columns[0] = color[has === want || want === 'linked' ? 'yellow' : 'red'](columns[0]) // dep
-    columns[2] = color.green(columns[2]) // want
-    columns[3] = color.magenta(columns[3]) // latest
-  }
-
-  return columns
-}
-
-function ansiTrim (str) {
-  var r = new RegExp('\x1b(?:\\[(?:\\d+[ABCDEFGJKSTm]|\\d+;\\d+[Hfm]|' +
-        '\\d+;\\d+;\\d+m|6n|s|u|\\?25[lh])|\\w)', 'g')
-  return str.replace(r, '')
-}
-
-function makeParseable (list) {
-  return list.map(function (p) {
-    var dep = p[0]
-    var depname = p[1]
-    var dir = dep.path
-    var has = p[2]
-    var want = p[3]
-    var latest = p[4]
-    var type = p[6]
-
-    var out = [
-      dir,
-      depname + '@' + want,
-      (has ? (depname + '@' + has) : 'MISSING'),
-      depname + '@' + latest
-    ]
-    if (long) out.push(type)
-
-    return out.join(':')
-  }).join(os.EOL)
-}
-
-function makeJSON (list) {
-  var out = {}
-  list.forEach(function (p) {
-    var dep = p[0]
-    var depname = p[1]
-    var dir = dep.path
-    var has = p[2]
-    var want = p[3]
-    var latest = p[4]
-    var type = p[6]
-    if (!npm.config.get('global')) {
-      dir = path.relative(process.cwd(), dir)
-    }
-    out[depname] = { current: has,
-                  wanted: want,
-                  latest: latest,
-                  location: dir
-                }
-    if (long) out[depname].type = type
-  })
-  return JSON.stringify(out, null, 2)
-}
-
-function outdated_ (args, path, tree, parentHas, depth, cb) {
-  if (!tree.package) tree.package = {}
-  if (path && tree.package.name) path += ' > ' + tree.package.name
-  if (!path && tree.package.name) path = tree.package.name
-  if (depth > npm.config.get('depth')) {
-    return cb(null, [])
-  }
-  var types = {}
-  var pkg = tree.package
-
-  var deps = tree.children.filter(function (child) { return !isExtraneous(child) }) || []
-
-  deps.forEach(function (dep) {
-    types[moduleName(dep)] = 'dependencies'
-  })
-
-  Object.keys(tree.missingDeps).forEach(function (name) {
-    deps.push({
-      package: { name: name },
-      path: tree.path,
-      parent: tree,
-      isMissing: true
-    })
-    types[name] = 'dependencies'
-  })
-
-  // If we explicitly asked for dev deps OR we didn't ask for production deps
-  // AND we asked to save dev-deps OR we didn't ask to save anything that's NOT
-  // dev deps then…
-  // (All the save checking here is because this gets called from npm-update currently
-  // and that requires this logic around dev deps.)
-  // FIXME: Refactor npm update to not be in terms of outdated.
-  var dev = npm.config.get('dev') || /^dev(elopment)?$/.test(npm.config.get('also'))
-  var prod = npm.config.get('production') || /^prod(uction)?$/.test(npm.config.get('only'))
-  if ((dev || !prod) &&
-      (npm.config.get('save-dev') || (
-        !npm.config.get('save') && !npm.config.get('save-optional')))) {
-    Object.keys(tree.missingDevDeps).forEach(function (name) {
-      deps.push({
-        package: { name: name },
-        path: tree.path,
-        parent: tree,
-        isMissing: true
-      })
-      if (!types[name]) {
-        types[name] = 'devDependencies'
+    } else {
+      if (this.opts.all) {
+        // all deps in tree
+        const nodes = this.tree.inventory.values()
+        this.getEdges(nodes, 'edgesOut')
       }
-    })
-  }
+      // top-level deps
+      this.getEdges()
+    }
 
-  if (npm.config.get('save-dev')) {
-    deps = deps.filter(function (dep) { return pkg.devDependencies[moduleName(dep)] })
-    deps.forEach(function (dep) {
-      types[moduleName(dep)] = 'devDependencies'
-    })
-  } else if (npm.config.get('save')) {
-    // remove optional dependencies from dependencies during --save.
-    deps = deps.filter(function (dep) { return !pkg.optionalDependencies[moduleName(dep)] })
-  } else if (npm.config.get('save-optional')) {
-    deps = deps.filter(function (dep) { return pkg.optionalDependencies[moduleName(dep)] })
-    deps.forEach(function (dep) {
-      types[moduleName(dep)] = 'optionalDependencies'
-    })
-  }
-  var doUpdate = dev || (
-    !prod &&
-    !Object.keys(parentHas).length &&
-    !npm.config.get('global')
-  )
-  if (doUpdate) {
-    Object.keys(pkg.devDependencies).forEach(function (k) {
-      if (!(k in parentHas)) {
-        deps[k] = pkg.devDependencies[k]
-        types[k] = 'devDependencies'
+    await Promise.all(Array.from(this.edges).map((edge) => {
+      return this.getOutdatedInfo(edge)
+    }))
+
+    // sorts list alphabetically
+    const outdated = this.list.sort((a, b) => a.name.localeCompare(b.name))
+
+    // return if no outdated packages
+    if (outdated.length === 0 && !this.opts.json)
+      return
+
+    // display results
+    if (this.opts.json)
+      output(this.makeJSON(outdated))
+    else if (this.opts.parseable)
+      output(this.makeParseable(outdated))
+    else {
+      const outList = outdated.map(x => this.makePretty(x))
+      const outHead = ['Package',
+        'Current',
+        'Wanted',
+        'Latest',
+        'Location',
+        'Depended by',
+      ]
+
+      if (this.opts.long)
+        outHead.push('Package Type', 'Homepage')
+      const outTable = [outHead].concat(outList)
+
+      if (this.opts.color)
+        outTable[0] = outTable[0].map(heading => styles.underline(heading))
+
+      const tableOpts = {
+        align: ['l', 'r', 'r', 'r', 'l'],
+        stringLength: s => ansiTrim(s).length,
       }
+      output(table(outTable, tableOpts))
+    }
+  }
+
+  getEdges (nodes, type) {
+    if (!nodes)
+      return this.getEdgesOut(this.tree)
+    for (const node of nodes) {
+      type === 'edgesOut'
+        ? this.getEdgesOut(node)
+        : this.getEdgesIn(node)
+    }
+  }
+
+  getEdgesIn (node) {
+    for (const edge of node.edgesIn)
+      this.edges.add(edge)
+  }
+
+  getEdgesOut (node) {
+    if (this.opts.global) {
+      for (const child of node.children.values())
+        this.edges.add(child)
+    } else {
+      for (const edge of node.edgesOut.values())
+        this.edges.add(edge)
+    }
+  }
+
+  async getPackument (spec) {
+    const packument = await pacote.packument(spec, {
+      ...this.npm.flatOptions,
+      fullMetadata: this.npm.flatOptions.long,
+      preferOnline: true,
     })
+    return packument
   }
 
-  var has = Object.create(parentHas)
-  tree.children.forEach(function (child) {
-    if (child.package.name && child.package.private) {
-      deps = deps.filter(function (dep) { return dep !== child })
+  async getOutdatedInfo (edge) {
+    const spec = npa(edge.name)
+    const node = edge.to || edge
+    const { path, location } = node
+    const { version: current } = node.package || {}
+
+    const type = edge.optional ? 'optionalDependencies'
+      : edge.peer ? 'peerDependencies'
+      : edge.dev ? 'devDependencies'
+      : 'dependencies'
+
+    for (const omitType of this.opts.omit || []) {
+      if (node[omitType])
+        return
     }
-    has[child.package.name] = {
-      version: child.package.version,
-      from: child.package._from
-    }
-  })
 
-  // now get what we should have, based on the dep.
-  // if has[dep] !== shouldHave[dep], then cb with the data
-  // otherwise dive into the folder
-  asyncMap(deps, function (dep, cb) {
-    var name = moduleName(dep)
-    var required = (tree.package.dependencies)[name] ||
-                   (tree.package.optionalDependencies)[name] ||
-                   (tree.package.devDependencies)[name] ||
-                   dep.package._requested && dep.package._requested.spec ||
-                   '*'
-    if (!long) return shouldUpdate(args, dep, name, has, required, depth, path, cb)
+    // deps different from prod not currently
+    // on disk are not included in the output
+    if (edge.error === 'MISSING' && type !== 'dependencies')
+      return
 
-    shouldUpdate(args, dep, name, has, required, depth, path, cb, types[name])
-  }, cb)
-}
-
-function shouldUpdate (args, tree, dep, has, req, depth, pkgpath, cb, type) {
-  // look up the most recent version.
-  // if that's what we already have, or if it's not on the args list,
-  // then dive into it.  Otherwise, cb() with the data.
-
-  // { version: , from: }
-  var curr = has[dep]
-
-  function skip (er) {
-    // show user that no viable version can be found
-    if (er) return cb(er)
-    outdated_(args,
-              pkgpath,
-              tree,
-              has,
-              depth + 1,
-              cb)
-  }
-
-  function doIt (wanted, latest) {
-    if (!long) {
-      return cb(null, [[tree, dep, curr && curr.version, wanted, latest, req, null, pkgpath]])
-    }
-    cb(null, [[tree, dep, curr && curr.version, wanted, latest, req, type, pkgpath]])
-  }
-
-  if (args.length && args.indexOf(dep) === -1) return skip()
-  var parsed = npa(dep + '@' + req)
-  if (tree.isLink && tree.parent && tree.parent.isTop) {
-    return doIt('linked', 'linked')
-  }
-  if (parsed.type === 'git' || parsed.type === 'hosted') {
-    return doIt('git', 'git')
-  }
-
-  // search for the latest package
-  mapToRegistry(dep, npm.config, function (er, uri, auth) {
-    if (er) return cb(er)
-
-    npm.registry.get(uri, { auth: auth }, updateDeps)
-  })
-
-  function updateLocalDeps (latestRegistryVersion) {
-    readJson(path.resolve(parsed.spec, 'package.json'), function (er, localDependency) {
-      if (er) return cb()
-
-      var wanted = localDependency.version
-      var latest = localDependency.version
-
-      if (latestRegistryVersion) {
-        latest = latestRegistryVersion
-        if (semver.lt(wanted, latestRegistryVersion)) {
-          wanted = latestRegistryVersion
-          req = dep + '@' + latest
-        }
+    try {
+      const packument = await this.getPackument(spec)
+      const expected = edge.spec
+      // if it's not a range, version, or tag, skip it
+      try {
+        if (!npa(`${edge.name}@${edge.spec}`).registry)
+          return null
+      } catch (err) {
+        return null
       }
+      const wanted = pickManifest(packument, expected, this.npm.flatOptions)
+      const latest = pickManifest(packument, '*', this.npm.flatOptions)
 
-      if (curr.version !== wanted) {
-        doIt(wanted, latest)
-      } else {
-        skip()
+      if (
+        !current ||
+        current !== wanted.version ||
+        wanted.version !== latest.version
+      ) {
+        this.list.push({
+          name: edge.name,
+          path,
+          type,
+          current,
+          location,
+          wanted: wanted.version,
+          latest: latest.version,
+          dependent: edge.from ? edge.from.name : 'global',
+          homepage: packument.homepage,
+        })
+      }
+    } catch (err) {
+      // silently catch and ignore ETARGET, E403 &
+      // E404 errors, deps are just skipped
+      if (!(
+        err.code === 'ETARGET' ||
+        err.code === 'E403' ||
+        err.code === 'E404')
+      )
+        throw err
+    }
+  }
+
+  // formatting functions
+  makePretty (dep) {
+    const {
+      current = 'MISSING',
+      location = '-',
+      homepage = '',
+      name,
+      wanted,
+      latest,
+      type,
+      dependent,
+    } = dep
+
+    const columns = [name, current, wanted, latest, location, dependent]
+
+    if (this.opts.long) {
+      columns[6] = type
+      columns[7] = homepage
+    }
+
+    if (this.opts.color) {
+      columns[0] = color[current === wanted ? 'yellow' : 'red'](columns[0]) // current
+      columns[2] = color.green(columns[2]) // wanted
+      columns[3] = color.magenta(columns[3]) // latest
+    }
+
+    return columns
+  }
+
+  // --parseable creates output like this:
+  // <fullpath>:<name@wanted>:<name@installed>:<name@latest>:<dependedby>
+  makeParseable (list) {
+    return list.map(dep => {
+      const {
+        name,
+        current,
+        wanted,
+        latest,
+        path,
+        dependent,
+        type,
+        homepage,
+      } = dep
+      const out = [
+        path,
+        name + '@' + wanted,
+        current ? (name + '@' + current) : 'MISSING',
+        name + '@' + latest,
+        dependent,
+      ]
+      if (this.opts.long)
+        out.push(type, homepage)
+
+      return out.join(':')
+    }).join(os.EOL)
+  }
+
+  makeJSON (list) {
+    const out = {}
+    list.forEach(dep => {
+      const {
+        name,
+        current,
+        wanted,
+        latest,
+        path,
+        type,
+        dependent,
+        homepage,
+      } = dep
+      out[name] = {
+        current,
+        wanted,
+        latest,
+        dependent,
+        location: path,
+      }
+      if (this.opts.long) {
+        out[name].type = type
+        out[name].homepage = homepage
       }
     })
-  }
-
-  function updateDeps (er, d) {
-    if (er) {
-      if (parsed.type !== 'local') return cb(er)
-      return updateLocalDeps()
-    }
-
-    if (!d || !d['dist-tags'] || !d.versions) return cb()
-    var l = d.versions[d['dist-tags'].latest]
-    if (!l) return cb()
-
-    var r = req
-    if (d['dist-tags'][req]) {
-      r = d['dist-tags'][req]
-    }
-
-    if (semver.validRange(r, true)) {
-      // some kind of semver range.
-      // see if it's in the doc.
-      var vers = Object.keys(d.versions)
-      var v = semver.maxSatisfying(vers, r, true)
-      if (v) {
-        return onCacheAdd(null, d.versions[v])
-      }
-    }
-
-    // We didn't find the version in the doc.  See if cache can find it.
-    cache.add(dep, req, null, false, onCacheAdd)
-
-    function onCacheAdd (er, d) {
-      // if this fails, then it means we can't update this thing.
-      // it's probably a thing that isn't published.
-      if (er) {
-        if (er.code && er.code === 'ETARGET') {
-          // no viable version found
-          return skip(er)
-        }
-        return skip()
-      }
-
-      // check that the url origin hasn't changed (#1727) and that
-      // there is no newer version available
-      var dFromUrl = d._from && url.parse(d._from).protocol
-      var cFromUrl = curr && curr.from && url.parse(curr.from).protocol
-
-      if (!curr ||
-          dFromUrl && cFromUrl && d._from !== curr.from ||
-          d.version !== curr.version ||
-          d.version !== l.version) {
-        if (parsed.type === 'local') return updateLocalDeps(l.version)
-
-        doIt(d.version, l.version)
-      } else {
-        skip()
-      }
-    }
+    return JSON.stringify(out, null, 2)
   }
 }
+module.exports = Outdated

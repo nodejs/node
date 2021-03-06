@@ -1,3 +1,12 @@
+/*
+ * Copyright 2004-2019 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
 #if (defined(_WIN64) || defined(_WIN32_WCE)) && !defined(UNICODE)
 # define UNICODE
 #endif
@@ -19,7 +28,7 @@ static TCHAR msg[128];
 static void unimplemented(void)
 {
     OPENSSL_showfatal(sizeof(TCHAR) == sizeof(char) ? "%s\n" : "%S\n", msg);
-    ExitProcess(1);
+    TerminateProcess(GetCurrentProcess(), 1);
 }
 
 void OPENSSL_Uplink(volatile void **table, int index)
@@ -90,7 +99,7 @@ void OPENSSL_Uplink(volatile void **table, int index)
     table[index] = func;
 }
 
-#if defined(_MSC_VER) && defined(_M_IX86) && !defined(OPENSSL_NO_INLINE_ASM)
+#if defined(_MSC_VER) && defined(_M_IX86)
 # define LAZY(i)         \
 __declspec(naked) static void lazy##i (void) {  \
         _asm    push i                          \

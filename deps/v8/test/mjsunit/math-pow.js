@@ -167,6 +167,7 @@ function test() {
       (-1*(Math.pow(2,52))*(Math.pow(2,-1074))) === -2.2250738585072014e-308);
 }
 
+%PrepareFunctionForOptimization(test);
 test();
 test();
 %OptimizeFunctionOnNextCall(test);

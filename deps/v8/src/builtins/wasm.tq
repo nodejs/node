@@ -1,0 +1,425 @@
+// Copyright 2020 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-wasm-gen.h'
+
+namespace runtime {
+extern runtime WasmMemoryGrow(Context, WasmInstanceObject, Smi): Smi;
+extern runtime WasmRefFunc(Context, WasmInstanceObject, Smi): JSAny;
+extern runtime WasmTableInit(
+    Context, WasmInstanceObject, Object, Object, Smi, Smi, Smi): JSAny;
+extern runtime WasmTableCopy(
+    Context, WasmInstanceObject, Object, Object, Smi, Smi, Smi): JSAny;
+extern runtime WasmFunctionTableGet(
+    Context, WasmInstanceObject, Smi, Smi): JSAny;
+extern runtime WasmFunctionTableSet(
+    Context, WasmInstanceObject, Smi, Smi, Object): JSAny;
+extern runtime ThrowWasmError(Context, Smi): JSAny;
+extern runtime Throw(Context, Object): JSAny;
+extern runtime ReThrow(Context, Object): JSAny;
+extern runtime WasmTriggerTierUp(Context, WasmInstanceObject): JSAny;
+extern runtime WasmStackGuard(Context): JSAny;
+extern runtime ThrowWasmStackOverflow(Context): JSAny;
+extern runtime WasmTraceMemory(Context, Smi): JSAny;
+extern runtime WasmTraceEnter(Context): JSAny;
+extern runtime WasmTraceExit(Context, Smi): JSAny;
+extern runtime WasmAtomicNotify(
+    Context, WasmInstanceObject, Number, Number): Smi;
+extern runtime WasmI32AtomicWait(
+    Context, WasmInstanceObject, Number, Number, BigInt): Smi;
+extern runtime WasmI64AtomicWait(
+    Context, WasmInstanceObject, Number, BigInt, BigInt): Smi;
+extern runtime WasmAllocateRtt(Context, Smi, Map): Map;
+}
+
+namespace unsafe {
+extern macro TimesTaggedSize(intptr): intptr;
+extern macro Allocate(intptr, constexpr AllocationFlag): HeapObject;
+}
+
+namespace wasm {
+const kFuncTableType: constexpr int31 generates 'wasm::HeapType::kFunc';
+
+extern macro WasmBuiltinsAssembler::LoadInstanceFromFrame(): WasmInstanceObject;
+
+// WasmInstanceObject has a field layout that Torque can't handle yet.
+// TODO(bbudge) Eliminate these functions when Torque is ready.
+extern macro WasmBuiltinsAssembler::LoadContextFromInstance(WasmInstanceObject):
+    NativeContext;
+extern macro WasmBuiltinsAssembler::LoadTablesFromInstance(WasmInstanceObject):
+    FixedArray;
+extern macro WasmBuiltinsAssembler::LoadExternalFunctionsFromInstance(
+    WasmInstanceObject): FixedArray;
+extern macro WasmBuiltinsAssembler::LoadManagedObjectMapsFromInstance(
+    WasmInstanceObject): FixedArray;
+
+macro LoadContextFromFrame(): NativeContext {
+  return LoadContextFromInstance(LoadInstanceFromFrame());
+}
+
+builtin WasmInt32ToHeapNumber(val: int32): HeapNumber {
+  return AllocateHeapNumberWithValue(Convert<float64>(val));
+}
+
+builtin WasmTaggedNonSmiToInt32(implicit context: Context)(val: JSAnyNotSmi):
+    int32 {
+  return ChangeTaggedNonSmiToInt32(val);
+}
+
+builtin WasmTaggedToFloat64(implicit context: Context)(val: JSAny): float64 {
+  return ChangeTaggedToFloat64(val);
+}
+
+builtin WasmMemoryGrow(numPages: int32): int32 {
+  if (!IsValidPositiveSmi(ChangeInt32ToIntPtr(numPages)))
+    return Int32Constant(-1);
+  const instance: WasmInstanceObject = LoadInstanceFromFrame();
+  const context: NativeContext = LoadContextFromInstance(instance);
+  const result: Smi =
+      runtime::WasmMemoryGrow(context, instance, SmiFromInt32(numPages));
+  return SmiToInt32(result);
+}
+
+builtin WasmTableInit(
+    dstRaw: uint32, srcRaw: uint32, sizeRaw: uint32, tableIndex: Smi,
+    segmentIndex: Smi): JSAny {
+  try {
+    const instance: WasmInstanceObject = LoadInstanceFromFrame();
+    const dst: Smi = Convert<PositiveSmi>(dstRaw) otherwise TableOutOfBounds;
+    const src: Smi = Convert<PositiveSmi>(srcRaw) otherwise TableOutOfBounds;
+    const size: Smi = Convert<PositiveSmi>(sizeRaw) otherwise TableOutOfBounds;
+    tail runtime::WasmTableInit(
+        LoadContextFromInstance(instance), instance, tableIndex, segmentIndex,
+        dst, src, size);
+  } label TableOutOfBounds deferred {
+    tail ThrowWasmTrapTableOutOfBounds();
+  }
+}
+
+builtin WasmTableCopy(
+    dstRaw: uint32, srcRaw: uint32, sizeRaw: uint32, dstTable: Smi,
+    srcTable: Smi): JSAny {
+  try {
+    const instance: WasmInstanceObject = LoadInstanceFromFrame();
+    const dst: Smi = Convert<PositiveSmi>(dstRaw) otherwise TableOutOfBounds;
+    const src: Smi = Convert<PositiveSmi>(srcRaw) otherwise TableOutOfBounds;
+    const size: Smi = Convert<PositiveSmi>(sizeRaw) otherwise TableOutOfBounds;
+    tail runtime::WasmTableCopy(
+        LoadContextFromInstance(instance), instance, dstTable, srcTable, dst,
+        src, size);
+  } label TableOutOfBounds deferred {
+    tail ThrowWasmTrapTableOutOfBounds();
+  }
+}
+
+builtin WasmTableGet(tableIndex: intptr, index: int32): Object {
+  const instance: WasmInstanceObject = LoadInstanceFromFrame();
+  const entryIndex: intptr = ChangeInt32ToIntPtr(index);
+  try {
+    assert(IsValidPositiveSmi(tableIndex));
+    if (!IsValidPositiveSmi(entryIndex)) goto IndexOutOfRange;
+
+    const tables: FixedArray = LoadTablesFromInstance(instance);
+    const table: WasmTableObject = %RawDownCast<WasmTableObject>(
+        LoadFixedArrayElement(tables, tableIndex));
+    const entriesCount: intptr = Convert<intptr, Smi>(table.current_length);
+    if (entryIndex >= entriesCount) goto IndexOutOfRange;
+
+    const entries: FixedArray = table.entries;
+    const entry: Object = LoadFixedArrayElement(entries, entryIndex);
+
+    try {
+      const entryObject: HeapObject =
+          TaggedToHeapObject<HeapObject>(entry) otherwise ReturnEntry;
+      if (IsTuple2Map(entryObject.map)) goto CallRuntime;
+      goto ReturnEntry;
+    } label ReturnEntry {
+      return entry;
+    }
+  } label CallRuntime deferred {
+    tail runtime::WasmFunctionTableGet(
+        LoadContextFromInstance(instance), instance, SmiFromIntPtr(tableIndex),
+        SmiFromIntPtr(entryIndex));
+  } label IndexOutOfRange deferred {
+    tail ThrowWasmTrapTableOutOfBounds();
+  }
+}
+
+builtin WasmTableSet(tableIndex: intptr, index: int32, value: Object): Object {
+  const instance: WasmInstanceObject = LoadInstanceFromFrame();
+  const entryIndex: intptr = ChangeInt32ToIntPtr(index);
+  try {
+    assert(IsValidPositiveSmi(tableIndex));
+    if (!IsValidPositiveSmi(entryIndex)) goto IndexOutOfRange;
+
+    const tables: FixedArray = LoadTablesFromInstance(instance);
+    const table: WasmTableObject = %RawDownCast<WasmTableObject>(
+        LoadFixedArrayElement(tables, tableIndex));
+
+    // Fall back to the runtime to set funcrefs, since we have to update
+    // function dispatch tables.
+    const tableType: Smi = table.raw_type;
+    if (tableType == SmiConstant(kFuncTableType)) goto CallRuntime;
+
+    const entriesCount: intptr = Convert<intptr, Smi>(table.current_length);
+    if (entryIndex >= entriesCount) goto IndexOutOfRange;
+
+    const entries: FixedArray = table.entries;
+    StoreFixedArrayElement(entries, entryIndex, value);
+    return Undefined;
+  } label CallRuntime deferred {
+    tail runtime::WasmFunctionTableSet(
+        LoadContextFromInstance(instance), instance, SmiFromIntPtr(tableIndex),
+        SmiFromIntPtr(entryIndex), value);
+  } label IndexOutOfRange deferred {
+    tail ThrowWasmTrapTableOutOfBounds();
+  }
+}
+
+builtin WasmRefFunc(index: uint32): Object {
+  const instance: WasmInstanceObject = LoadInstanceFromFrame();
+  try {
+    const table: FixedArray = LoadExternalFunctionsFromInstance(instance);
+    if (table == Undefined) goto CallRuntime;
+    const functionIndex: intptr = Signed(ChangeUint32ToWord(index));
+    const result: Object = LoadFixedArrayElement(table, functionIndex);
+    if (result == Undefined) goto CallRuntime;
+    return result;
+  } label CallRuntime deferred {
+    tail runtime::WasmRefFunc(
+        LoadContextFromInstance(instance), instance, SmiFromUint32(index));
+  }
+}
+
+builtin WasmThrow(exception: Object): JSAny {
+  tail runtime::Throw(LoadContextFromFrame(), exception);
+}
+
+builtin WasmRethrow(exception: Object): JSAny {
+  if (exception == Null) tail ThrowWasmTrapRethrowNull();
+  tail runtime::ReThrow(LoadContextFromFrame(), exception);
+}
+
+builtin WasmTriggerTierUp(): JSAny {
+  const instance: WasmInstanceObject = LoadInstanceFromFrame();
+  tail runtime::WasmTriggerTierUp(LoadContextFromFrame(), instance);
+}
+
+builtin WasmStackGuard(): JSAny {
+  tail runtime::WasmStackGuard(LoadContextFromFrame());
+}
+
+builtin WasmStackOverflow(): JSAny {
+  tail runtime::ThrowWasmStackOverflow(LoadContextFromFrame());
+}
+
+builtin WasmTraceMemory(info: Smi): JSAny {
+  tail runtime::WasmTraceMemory(LoadContextFromFrame(), info);
+}
+
+builtin WasmTraceEnter(): JSAny {
+  tail runtime::WasmTraceEnter(LoadContextFromFrame());
+}
+
+builtin WasmTraceExit(info: Smi): JSAny {
+  tail runtime::WasmTraceExit(LoadContextFromFrame(), info);
+}
+
+builtin WasmAllocateJSArray(implicit context: Context)(size: Smi): JSArray {
+  const map: Map = GetFastPackedElementsJSArrayMap();
+  return AllocateJSArray(ElementsKind::PACKED_ELEMENTS, map, size, size);
+}
+
+builtin WasmAllocateRtt(typeIndex: intptr, parent: Map): Map {
+  tail runtime::WasmAllocateRtt(
+      LoadContextFromFrame(), SmiTag(typeIndex), parent);
+}
+
+builtin WasmAllocateStructWithRtt(rtt: Map): HeapObject {
+  const instanceSize: intptr =
+      unsafe::TimesTaggedSize(Convert<intptr>(rtt.instance_size_in_words));
+  const result: HeapObject = unsafe::Allocate(
+      instanceSize, AllocationFlag::kAllowLargeObjectAllocation);
+  *UnsafeConstCast(&result.map) = rtt;
+  return result;
+}
+
+builtin WasmAllocateArrayWithRtt(
+    rtt: Map, length: uint32, elementSize: uint32): HeapObject {
+  // instanceSize = RoundUp(elementSize * length, kObjectAlignment)
+  //              + WasmArray::kHeaderSize
+  const instanceSize: intptr =
+      torque_internal::AlignTagged(
+          Convert<intptr>(length) * Convert<intptr>(elementSize)) +
+      Convert<intptr>(kWasmArrayHeaderSize);
+  const result: HeapObject = unsafe::Allocate(
+      instanceSize, AllocationFlag::kAllowLargeObjectAllocation);
+  *UnsafeConstCast(&result.map) = rtt;
+  %RawDownCast<WasmArray>(result).length = length;
+  return result;
+}
+
+// Redeclaration with different typing (value is an Object, not JSAny).
+extern transitioning runtime
+CreateDataProperty(implicit context: Context)(JSReceiver, JSAny, Object);
+
+transitioning builtin WasmAllocateObjectWrapper(implicit context: Context)(
+    obj: Object): JSObject {
+  // Note: {obj} can be null, or i31ref. The code below is agnostic to that.
+  const wrapper = NewJSObject();
+  const symbol = WasmWrappedObjectSymbolConstant();
+  CreateDataProperty(wrapper, symbol, obj);
+  return wrapper;
+}
+
+builtin WasmInt32ToNumber(value: int32): Number {
+  return ChangeInt32ToTagged(value);
+}
+
+builtin WasmUint32ToNumber(value: uint32): Number {
+  return ChangeUint32ToTagged(value);
+}
+
+builtin UintPtr53ToNumber(value: uintptr): Number {
+  if (value <= kSmiMaxValue) return Convert<Smi>(Convert<intptr>(value));
+  const valueFloat = ChangeUintPtrToFloat64(value);
+  // Values need to be within [0..2^53], such that they can be represented as
+  // float64.
+  assert(ChangeFloat64ToUintPtr(valueFloat) == value);
+  return AllocateHeapNumberWithValue(valueFloat);
+}
+
+extern builtin I64ToBigInt(intptr): BigInt;
+
+builtin WasmAtomicNotify(offset: uintptr, count: uint32): uint32 {
+  const instance: WasmInstanceObject = LoadInstanceFromFrame();
+  const result: Smi = runtime::WasmAtomicNotify(
+      LoadContextFromInstance(instance), instance, UintPtr53ToNumber(offset),
+      WasmUint32ToNumber(count));
+  return Unsigned(SmiToInt32(result));
+}
+
+builtin WasmI32AtomicWait64(
+    offset: uintptr, expectedValue: int32, timeout: intptr): uint32 {
+  if constexpr (Is64()) {
+    const instance: WasmInstanceObject = LoadInstanceFromFrame();
+    const result: Smi = runtime::WasmI32AtomicWait(
+        LoadContextFromInstance(instance), instance, UintPtr53ToNumber(offset),
+        WasmInt32ToNumber(expectedValue), I64ToBigInt(timeout));
+    return Unsigned(SmiToInt32(result));
+  } else {
+    unreachable;
+  }
+}
+
+builtin WasmI64AtomicWait64(
+    offset: uintptr, expectedValue: intptr, timeout: intptr): uint32 {
+  if constexpr (Is64()) {
+    const instance: WasmInstanceObject = LoadInstanceFromFrame();
+    const result: Smi = runtime::WasmI64AtomicWait(
+        LoadContextFromInstance(instance), instance, UintPtr53ToNumber(offset),
+        I64ToBigInt(expectedValue), I64ToBigInt(timeout));
+    return Unsigned(SmiToInt32(result));
+  } else {
+    unreachable;
+  }
+}
+
+extern macro TryHasOwnProperty(HeapObject, Map, InstanceType, Name): never
+    labels Found, NotFound, Bailout;
+type OnNonExistent constexpr 'OnNonExistent';
+const kReturnUndefined: constexpr OnNonExistent
+    generates 'OnNonExistent::kReturnUndefined';
+extern macro SmiConstant(constexpr OnNonExistent): Smi;
+extern transitioning builtin GetPropertyWithReceiver(implicit context: Context)(
+    JSAny, Name, JSAny, Smi): JSAny;
+
+transitioning builtin WasmGetOwnProperty(implicit context: Context)(
+    object: Object, uniqueName: Name): JSAny {
+  try {
+    const heapObject: HeapObject =
+        TaggedToHeapObject(object) otherwise NotFound;
+    const receiver: JSReceiver =
+        Cast<JSReceiver>(heapObject) otherwise NotFound;
+    try {
+      TryHasOwnProperty(
+          receiver, receiver.map, receiver.instanceType, uniqueName)
+          otherwise Found, NotFound, Bailout;
+    } label Found {
+      tail GetPropertyWithReceiver(
+          receiver, uniqueName, receiver, SmiConstant(kReturnUndefined));
+    }
+  } label NotFound deferred {
+    return Undefined;
+  } label Bailout deferred {
+    unreachable;
+  }
+}
+
+// Trap builtins.
+
+builtin WasmTrap(error: Smi): JSAny {
+  tail runtime::ThrowWasmError(LoadContextFromFrame(), error);
+}
+
+builtin ThrowWasmTrapUnreachable(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapUnreachable));
+}
+
+builtin ThrowWasmTrapMemOutOfBounds(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapMemOutOfBounds));
+}
+
+builtin ThrowWasmTrapUnalignedAccess(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapUnalignedAccess));
+}
+
+builtin ThrowWasmTrapDivByZero(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapDivByZero));
+}
+
+builtin ThrowWasmTrapDivUnrepresentable(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapDivUnrepresentable));
+}
+
+builtin ThrowWasmTrapRemByZero(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapRemByZero));
+}
+
+builtin ThrowWasmTrapFloatUnrepresentable(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapFloatUnrepresentable));
+}
+
+builtin ThrowWasmTrapFuncSigMismatch(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapFuncSigMismatch));
+}
+
+builtin ThrowWasmTrapDataSegmentDropped(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapDataSegmentDropped));
+}
+
+builtin ThrowWasmTrapElemSegmentDropped(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapElemSegmentDropped));
+}
+
+builtin ThrowWasmTrapTableOutOfBounds(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapTableOutOfBounds));
+}
+
+builtin ThrowWasmTrapRethrowNull(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapRethrowNull));
+}
+
+builtin ThrowWasmTrapNullDereference(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapNullDereference));
+}
+
+builtin ThrowWasmTrapIllegalCast(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapIllegalCast));
+}
+
+builtin ThrowWasmTrapArrayOutOfBounds(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapArrayOutOfBounds));
+}
+}

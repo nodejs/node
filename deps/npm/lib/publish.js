@@ -1,155 +1,143 @@
+const util = require('util')
+const log = require('npmlog')
+const semver = require('semver')
+const pack = require('libnpmpack')
+const libpub = require('libnpmpublish').publish
+const runScript = require('@npmcli/run-script')
+const pacote = require('pacote')
+const npa = require('npm-package-arg')
+const npmFetch = require('npm-registry-fetch')
 
-module.exports = publish
+const { flatten } = require('./utils/flat-options.js')
+const output = require('./utils/output.js')
+const otplease = require('./utils/otplease.js')
+const usageUtil = require('./utils/usage.js')
+const { getContents, logTar } = require('./utils/tar.js')
 
-var npm = require('./npm.js')
-var log = require('npmlog')
-var path = require('path')
-var readJson = require('read-package-json')
-var lifecycle = require('./utils/lifecycle.js')
-var chain = require('slide').chain
-var mapToRegistry = require('./utils/map-to-registry.js')
-var cachedPackageRoot = require('./cache/cached-package-root.js')
-var createReadStream = require('graceful-fs').createReadStream
-var npa = require('npm-package-arg')
-var semver = require('semver')
-var getPublishConfig = require('./utils/get-publish-config.js')
-var output = require('./utils/output.js')
+// this is the only case in the CLI where we use the old full slow
+// 'read-package-json' module, because we want to pull in all the
+// defaults and metadata, like git sha's and default scripts and all that.
+const readJson = util.promisify(require('read-package-json'))
 
-publish.usage = 'npm publish [<tarball>|<folder>] [--tag <tag>] [--access <public|restricted>]' +
-                "\n\nPublishes '.' if no argument supplied" +
-                '\n\nSets tag `latest` if no --tag specified'
-
-publish.completion = function (opts, cb) {
-  // publish can complete to a folder with a package.json
-  // or a tarball, or a tarball url.
-  // for now, not yet implemented.
-  return cb()
-}
-
-function publish (args, isRetry, cb) {
-  if (typeof cb !== 'function') {
-    cb = isRetry
-    isRetry = false
-  }
-  if (args.length === 0) args = ['.']
-  if (args.length !== 1) return cb(publish.usage)
-
-  log.verbose('publish', args)
-
-  var t = npm.config.get('tag').trim()
-  if (semver.validRange(t)) {
-    var er = new Error('Tag name must not be a valid SemVer range: ' + t)
-    return cb(er)
+class Publish {
+  constructor (npm) {
+    this.npm = npm
   }
 
-  var arg = args[0]
-  // if it's a local folder, then run the prepublish there, first.
-  readJson(path.resolve(arg, 'package.json'), function (er, data) {
-    if (er && er.code !== 'ENOENT' && er.code !== 'ENOTDIR') return cb(er)
-
-    if (data) {
-      if (!data.name) return cb(new Error('No name provided'))
-      if (!data.version) return cb(new Error('No version provided'))
-    }
-
-    // Error is OK. Could be publishing a URL or tarball, however, that means
-    // that we will not have automatically run the prepublish script, since
-    // that gets run when adding a folder to the cache.
-    if (er) return cacheAddPublish(arg, false, isRetry, cb)
-    else cacheAddPublish(arg, true, isRetry, cb)
-  })
-}
-
-// didPre in this case means that we already ran the prepublish script,
-// and that the 'dir' is an actual directory, and not something silly
-// like a tarball or name@version thing.
-// That means that we can run publish/postpublish in the dir, rather than
-// in the cache dir.
-function cacheAddPublish (dir, didPre, isRetry, cb) {
-  npm.commands.cache.add(dir, null, null, false, function (er, data) {
-    if (er) return cb(er)
-    log.silly('publish', data)
-    var cachedir = path.resolve(cachedPackageRoot(data), 'package')
-    chain(
-      [
-        !didPre && [lifecycle, data, 'prepublish', cachedir],
-        [publish_, dir, data, isRetry, cachedir],
-        [lifecycle, data, 'publish', didPre ? dir : cachedir],
-        [lifecycle, data, 'postpublish', didPre ? dir : cachedir]
-      ],
-      cb
-    )
-  })
-}
-
-function publish_ (arg, data, isRetry, cachedir, cb) {
-  if (!data) return cb(new Error('no package.json file found'))
-
-  var mappedConfig = getPublishConfig(
-    data.publishConfig,
-    npm.config,
-    npm.registry
-  )
-  var config = mappedConfig.config
-  var registry = mappedConfig.client
-
-  data._npmVersion = npm.version
-  data._nodeVersion = process.versions.node
-
-  delete data.modules
-  if (data.private) {
-    return cb(new Error(
-      'This package has been marked as private\n' +
-      "Remove the 'private' field from the package.json to publish it."
-    ))
+  get usage () {
+    return usageUtil('publish',
+      'npm publish [<folder>] [--tag <tag>] [--access <public|restricted>] [--dry-run]' +
+      '\n\nPublishes \'.\' if no argument supplied' +
+      '\nSets tag `latest` if no --tag specified')
   }
 
-  mapToRegistry(data.name, config, function (er, registryURI, auth, registryBase) {
-    if (er) return cb(er)
+  exec (args, cb) {
+    this.publish(args).then(() => cb()).catch(cb)
+  }
 
-    var tarballPath = cachedir + '.tgz'
+  async publish (args) {
+    if (args.length === 0)
+      args = ['.']
+    if (args.length !== 1)
+      throw this.usage
 
-    // we just want the base registry URL in this case
-    log.verbose('publish', 'registryBase', registryBase)
-    log.silly('publish', 'uploading', tarballPath)
+    log.verbose('publish', args)
 
-    data._npmUser = {
-      name: auth.username,
-      email: auth.email
+    const opts = { ...this.npm.flatOptions }
+    const { unicode, dryRun, json, defaultTag } = opts
+
+    if (semver.validRange(defaultTag))
+      throw new Error('Tag name must not be a valid SemVer range: ' + defaultTag.trim())
+
+    // you can publish name@version, ./foo.tgz, etc.
+    // even though the default is the 'file:.' cwd.
+    const spec = npa(args[0])
+    let manifest = await this.getManifest(spec, opts)
+
+    if (manifest.publishConfig)
+      Object.assign(opts, this.publishConfigToOpts(manifest.publishConfig))
+
+    // only run scripts for directory type publishes
+    if (spec.type === 'directory') {
+      await runScript({
+        event: 'prepublishOnly',
+        path: spec.fetchSpec,
+        stdio: 'inherit',
+        pkg: manifest,
+        banner: log.level !== 'silent',
+      })
     }
 
-    var params = {
-      metadata: data,
-      body: createReadStream(tarballPath),
-      auth: auth
-    }
+    const tarballData = await pack(spec, opts)
+    const pkgContents = await getContents(manifest, tarballData)
 
-    // registry-frontdoor cares about the access level, which is only
-    // configurable for scoped packages
-    if (config.get('access')) {
-      if (!npa(data.name).scope && config.get('access') === 'restricted') {
-        return cb(new Error("Can't restrict access to unscoped packages."))
-      }
+    // The purpose of re-reading the manifest is in case it changed,
+    // so that we send the latest and greatest thing to the registry
+    // note that publishConfig might have changed as well!
+    manifest = await this.getManifest(spec, opts)
+    if (manifest.publishConfig)
+      Object.assign(opts, this.publishConfigToOpts(manifest.publishConfig))
 
-      params.access = config.get('access')
-    }
+    // note that logTar calls npmlog.notice(), so if we ARE in silent mode,
+    // this will do nothing, but we still want it in the debuglog if it fails.
+    if (!json)
+      logTar(pkgContents, { log, unicode })
 
-    log.showProgress('publish:' + data._id)
-    registry.publish(registryBase, params, function (er) {
-      if (er && er.code === 'EPUBLISHCONFLICT' &&
-          npm.config.get('force') && !isRetry) {
-        log.warn('publish', 'Forced publish over ' + data._id)
-        return npm.commands.unpublish([data._id], function (er) {
-          // ignore errors.  Use the force.  Reach out with your feelings.
-          // but if it fails again, then report the first error.
-          publish([arg], er || true, cb)
+    if (!dryRun) {
+      const resolved = npa.resolve(manifest.name, manifest.version)
+      const registry = npmFetch.pickRegistry(resolved, opts)
+      const creds = this.npm.config.getCredentialsByURI(registry)
+      if (!creds.token && !creds.username) {
+        throw Object.assign(new Error('This command requires you to be logged in.'), {
+          code: 'ENEEDAUTH',
         })
       }
-      // report the unpublish error if this was a retry and unpublish failed
-      if (er && isRetry && isRetry !== true) return cb(isRetry)
-      if (er) return cb(er)
-      output('+ ' + data._id)
-      cb()
-    })
-  })
+      await otplease(opts, opts => libpub(manifest, tarballData, opts))
+    }
+
+    if (spec.type === 'directory') {
+      await runScript({
+        event: 'publish',
+        path: spec.fetchSpec,
+        stdio: 'inherit',
+        pkg: manifest,
+        banner: log.level !== 'silent',
+      })
+
+      await runScript({
+        event: 'postpublish',
+        path: spec.fetchSpec,
+        stdio: 'inherit',
+        pkg: manifest,
+        banner: log.level !== 'silent',
+      })
+    }
+
+    const silent = log.level === 'silent'
+    if (!silent && json)
+      output(JSON.stringify(pkgContents, null, 2))
+    else if (!silent)
+      output(`+ ${pkgContents.id}`)
+
+    return pkgContents
+  }
+
+  // if it's a directory, read it from the file system
+  // otherwise, get the full metadata from whatever it is
+  getManifest (spec, opts) {
+    if (spec.type === 'directory')
+      return readJson(`${spec.fetchSpec}/package.json`)
+    return pacote.manifest(spec, { ...opts, fullMetadata: true })
+  }
+
+  // for historical reasons, publishConfig in package.json can contain
+  // ANY config keys that npm supports in .npmrc files and elsewhere.
+  // We *may* want to revisit this at some point, and have a minimal set
+  // that's a SemVer-major change that ought to get a RFC written on it.
+  publishConfigToOpts (publishConfig) {
+    // create a new object that inherits from the config stack
+    // then squash the css-case into camelCase opts, like we do
+    return flatten({...this.npm.config.list[0], ...publishConfig})
+  }
 }
+module.exports = Publish

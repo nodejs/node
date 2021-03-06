@@ -3,6 +3,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import argparse
 import os
 import sys
@@ -14,13 +17,17 @@ ROLL_SUMMARY = ("Summary of changes available at:\n"
 
 ISSUE_MSG = (
 """Please follow these instructions for assigning/CC'ing issues:
-https://github.com/v8/v8/wiki/Triaging%20issues
+https://v8.dev/docs/triage-issues
 
 Please close rolling in case of a roll revert:
 https://v8-roll.appspot.com/
 This only works with a Google account.
 
-CQ_INCLUDE_TRYBOTS=master.tryserver.blink:linux_precise_blink_rel;master.tryserver.chromium.linux:linux_optional_gpu_tests_rel;master.tryserver.chromium.mac:mac_optional_gpu_tests_rel;master.tryserver.chromium.win:win_optional_gpu_tests_rel""")
+CQ_INCLUDE_TRYBOTS=luci.chromium.try:linux-blink-rel
+CQ_INCLUDE_TRYBOTS=luci.chromium.try:linux_optional_gpu_tests_rel
+CQ_INCLUDE_TRYBOTS=luci.chromium.try:mac_optional_gpu_tests_rel
+CQ_INCLUDE_TRYBOTS=luci.chromium.try:win_optional_gpu_tests_rel
+CQ_INCLUDE_TRYBOTS=luci.chromium.try:android_optional_gpu_tests_rel""")
 
 class Preparation(Step):
   MESSAGE = "Preparation."
@@ -39,14 +46,10 @@ class DetectLastRoll(Step):
     self['json_output']['monitoring_state'] = 'detect_last_roll'
     self["last_roll"] = self._options.last_roll
     if not self["last_roll"]:
-      # Interpret the DEPS file to retrieve the v8 revision.
-      # TODO(machenbach): This should be part or the roll-deps api of
-      # depot_tools.
-      Var = lambda var: '%s'
-      exec(FileToText(os.path.join(self._options.chromium, "DEPS")))
+      # Get last-rolled v8 revision from Chromium's DEPS file.
+      self["last_roll"] = self.Command(
+          "gclient", "getdep -r src/v8", cwd=self._options.chromium).strip()
 
-      # The revision rolled last.
-      self["last_roll"] = vars['v8_revision']
     self["last_version"] = self.GetVersionTag(self["last_roll"])
     assert self["last_version"], "The last rolled v8 revision is not tagged."
 
@@ -140,7 +143,7 @@ class UploadCL(Step):
     self['json_output']['monitoring_state'] = 'upload'
     cwd = self._options.chromium
     # Patch DEPS file.
-    if self.Command("roll-dep-svn", "v8 %s" %
+    if self.Command("gclient", "setdep -r src/v8@%s" %
                     self["roll"], cwd=cwd) is None:
       self.Die("Failed to create deps for %s" % self["roll"])
 
@@ -155,14 +158,14 @@ class UploadCL(Step):
     message.append("TBR=%s" % self._options.reviewer)
     self.GitCommit("\n\n".join(message),  author=self._options.author, cwd=cwd)
     if not self._options.dry_run:
-      self.GitUpload(author=self._options.author,
-                     force=True,
+      self.GitUpload(force=True,
                      bypass_hooks=True,
                      cq=self._options.use_commit_queue,
+                     cq_dry_run=self._options.use_dry_run,
                      cwd=cwd)
-      print "CL uploaded."
+      print("CL uploaded.")
     else:
-      print "Dry run - don't upload."
+      print("Dry run - don't upload.")
 
     self.GitCheckout("master", cwd=cwd)
     self.GitDeleteBranch("work-branch", cwd=cwd)
@@ -195,13 +198,17 @@ class AutoRoll(ScriptsBase):
                              "specified."),
     parser.add_argument("--roll", help="Deprecated.",
                         default=True, action="store_true")
-    parser.add_argument("--use-commit-queue",
-                        help="Check the CQ bit on upload.",
-                        default=True, action="store_true")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--use-commit-queue",
+                       help="Trigger the CQ full run on upload.",
+                       default=False, action="store_true")
+    group.add_argument("--use-dry-run",
+                       help="Trigger the CQ dry run on upload.",
+                       default=True, action="store_true")
 
   def _ProcessOptions(self, options):  # pragma: no cover
     if not options.author or not options.reviewer:
-      print "A reviewer (-r) and an author (-a) are required."
+      print("A reviewer (-r) and an author (-a) are required.")
       return False
 
     options.requires_editor = False

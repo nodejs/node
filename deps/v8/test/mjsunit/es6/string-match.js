@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var pattern = {};
+const pattern = {};
 pattern[Symbol.match] = function(string) {
   return string.length;
 };
@@ -11,6 +11,9 @@ assertThrows(() => String.prototype.match.call(null, pattern),
              TypeError);
 // Override is called.
 assertEquals(5, "abcde".match(pattern));
+// Receiver is not converted to string if pattern has Symbol.match
+const receiver = { toString(){ throw new Error(); }, length: 6 };
+assertEquals(6, String.prototype.match.call(receiver, pattern));
 // Non-callable override.
 pattern[Symbol.match] = "dumdidum";
 assertThrows(() => "abcde".match(pattern), TypeError);

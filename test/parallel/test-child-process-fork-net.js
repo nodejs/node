@@ -1,185 +1,172 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-require('../common');
+const {
+  mustCall,
+  mustCallAtLeast,
+  platformTimeout,
+} = require('../common');
 const assert = require('assert');
 const fork = require('child_process').fork;
 const net = require('net');
-
-// progress tracker
-function ProgressTracker(missing, callback) {
-  this.missing = missing;
-  this.callback = callback;
-}
-ProgressTracker.prototype.done = function() {
-  this.missing -= 1;
-  this.check();
-};
-ProgressTracker.prototype.check = function() {
-  if (this.missing === 0) this.callback();
-};
+const debug = require('util').debuglog('test');
+const count = 12;
 
 if (process.argv[2] === 'child') {
+  const needEnd = [];
+  const id = process.argv[3];
 
-  var serverScope;
+  process.on('message', mustCall((m, socket) => {
+    if (!socket) return;
 
-  process.on('message', function onServer(msg, server) {
-    if (msg.what !== 'server') return;
-    process.removeListener('message', onServer);
+    debug(`[${id}] got socket ${m}`);
 
-    serverScope = server;
+    // Will call .end('end') or .write('write');
+    socket[m](m);
 
-    server.on('connection', function(socket) {
-      console.log('CHILD: got connection');
-      process.send({what: 'connection'});
-      socket.destroy();
+    socket.resume();
+
+    socket.on('data', mustCallAtLeast(() => {
+      debug(`[${id}] socket.data ${m}`);
+    }));
+
+    socket.on('end', mustCall(() => {
+      debug(`[${id}] socket.end ${m}`);
+    }));
+
+    // Store the unfinished socket
+    if (m === 'write') {
+      needEnd.push(socket);
+    }
+
+    socket.on('close', mustCall((had_error) => {
+      debug(`[${id}] socket.close ${had_error} ${m}`);
+    }));
+
+    socket.on('finish', mustCall(() => {
+      debug(`[${id}] socket finished ${m}`);
+    }));
+  }));
+
+  process.on('message', mustCall((m) => {
+    if (m !== 'close') return;
+    debug(`[${id}] got close message`);
+    needEnd.forEach((endMe, i) => {
+      debug(`[${id}] ending ${i}/${needEnd.length}`);
+      endMe.end('end');
     });
+  }));
 
-    // start making connection from parent
-    console.log('CHILD: server listening');
-    process.send({what: 'listening'});
-  });
-
-  process.on('message', function onClose(msg) {
-    if (msg.what !== 'close') return;
-    process.removeListener('message', onClose);
-
-    serverScope.on('close', function() {
-      process.send({what: 'close'});
+  process.on('disconnect', mustCall(() => {
+    debug(`[${id}] process disconnect, ending`);
+    needEnd.forEach((endMe, i) => {
+      debug(`[${id}] ending ${i}/${needEnd.length}`);
+      endMe.end('end');
     });
-    serverScope.close();
-  });
+  }));
 
-  process.on('message', function onSocket(msg, socket) {
-    if (msg.what !== 'socket') return;
-    process.removeListener('message', onSocket);
-    socket.end('echo');
-    console.log('CHILD: got socket');
-  });
-
-  process.send({what: 'ready'});
 } else {
 
-  var child = fork(process.argv[1], ['child']);
+  const child1 = fork(process.argv[1], ['child', '1']);
+  const child2 = fork(process.argv[1], ['child', '2']);
+  const child3 = fork(process.argv[1], ['child', '3']);
 
-  child.on('exit', function() {
-    console.log('CHILD: died');
+  const server = net.createServer();
+
+  let connected = 0;
+  let closed = 0;
+  server.on('connection', function(socket) {
+    switch (connected % 6) {
+      case 0:
+        child1.send('end', socket); break;
+      case 1:
+        child1.send('write', socket); break;
+      case 2:
+        child2.send('end', socket); break;
+      case 3:
+        child2.send('write', socket); break;
+      case 4:
+        child3.send('end', socket); break;
+      case 5:
+        child3.send('write', socket); break;
+    }
+    connected += 1;
+
+    // TODO(@jasnell): This is not actually being called.
+    // It is not clear if it is needed.
+    socket.once('close', () => {
+      debug(`[m] socket closed, total ${++closed}`);
+    });
+
+    if (connected === count) {
+      closeServer();
+    }
   });
 
-  // send net.Server to child and test by connecting
-  var testServer = function(callback) {
+  let disconnected = 0;
+  server.on('listening', mustCall(() => {
 
-    // destroy server execute callback when done
-    var progress = new ProgressTracker(2, function() {
-      server.on('close', function() {
-        console.log('PARENT: server closed');
-        child.send({what: 'close'});
+    let j = count;
+    while (j--) {
+      const client = net.connect(server.address().port, '127.0.0.1');
+      client.on('error', () => {
+        // This can happen if we kill the subprocess too early.
+        // The client should still get a close event afterwards.
+        // It likely won't so don't wrap in a mustCall.
+        debug('[m] CLIENT: error event');
       });
-      server.close();
-    });
+      client.on('close', mustCall(() => {
+        debug('[m] CLIENT: close event');
+        disconnected += 1;
+      }));
+      client.resume();
+    }
+  }));
 
-    // we expect 4 connections and close events
-    var connections = new ProgressTracker(4, progress.done.bind(progress));
-    var closed = new ProgressTracker(4, progress.done.bind(progress));
+  let closeEmitted = false;
+  server.on('close', mustCall(function() {
+    closeEmitted = true;
 
-    // create server and send it to child
-    var server = net.createServer();
-    server.on('connection', function(socket) {
-      console.log('PARENT: got connection');
-      socket.destroy();
-      connections.done();
-    });
-    server.on('listening', function() {
-      console.log('PARENT: server listening');
-      child.send({what: 'server'}, server);
-    });
-    server.listen(0);
+    child1.kill();
+    child2.kill();
+    child3.kill();
+  }));
 
-    // handle client messages
-    var messageHandlers = function(msg) {
+  server.listen(0, '127.0.0.1');
 
-      if (msg.what === 'listening') {
-        // make connections
-        var socket;
-        for (var i = 0; i < 4; i++) {
-          socket = net.connect(server.address().port, function() {
-            console.log('CLIENT: connected');
-          });
-          socket.on('close', function() {
-            closed.done();
-            console.log('CLIENT: closed');
-          });
-        }
+  function closeServer() {
+    server.close();
 
-      } else if (msg.what === 'connection') {
-        // child got connection
-        connections.done();
-      } else if (msg.what === 'close') {
-        child.removeListener('message', messageHandlers);
-        callback();
-      }
-    };
-
-    child.on('message', messageHandlers);
-  };
-
-  // send net.Socket to child
-  var testSocket = function(callback) {
-
-    // create a new server and connect to it,
-    // but the socket will be handled by the child
-    var server = net.createServer();
-    server.on('connection', function(socket) {
-      socket.on('close', function() {
-        console.log('CLIENT: socket closed');
-      });
-      child.send({what: 'socket'}, socket);
-    });
-    server.on('close', function() {
-      console.log('PARENT: server closed');
-      callback();
-    });
-    // don't listen on the same port, because SmartOS sometimes says
-    // that the server's fd is closed, but it still cannot listen
-    // on the same port again.
-    //
-    // An isolated test for this would be lovely, but for now, this
-    // will have to do.
-    server.listen(0, function() {
-      console.error('testSocket, listening');
-      var connect = net.connect(server.address().port);
-      var store = '';
-      connect.on('data', function(chunk) {
-        store += chunk;
-        console.log('CLIENT: got data');
-      });
-      connect.on('close', function() {
-        console.log('CLIENT: closed');
-        assert.equal(store, 'echo');
-        server.close();
-      });
-    });
-  };
-
-  // create server and send it to child
-  var serverSuccess = false;
-  var socketSuccess = false;
-  child.on('message', function onReady(msg) {
-    if (msg.what !== 'ready') return;
-    child.removeListener('message', onReady);
-
-    testServer(function() {
-      serverSuccess = true;
-
-      testSocket(function() {
-        socketSuccess = true;
-        child.kill();
-      });
-    });
-
-  });
+    setTimeout(() => {
+      assert(!closeEmitted);
+      child1.send('close');
+      child2.send('close');
+      child3.disconnect();
+    }, platformTimeout(200));
+  }
 
   process.on('exit', function() {
-    assert.ok(serverSuccess);
-    assert.ok(socketSuccess);
+    assert.strictEqual(server._workers.length, 0);
+    assert.strictEqual(disconnected, count);
+    assert.strictEqual(connected, count);
   });
-
 }

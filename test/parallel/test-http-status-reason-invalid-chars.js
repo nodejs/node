@@ -3,7 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const http = require('http');
-const net = require('net');
+const Countdown = require('../common/countdown');
 
 function explicit(req, res) {
   assert.throws(() => {
@@ -34,15 +34,13 @@ const server = http.createServer((req, res) => {
     implicit(req, res);
   }
 }).listen(0, common.mustCall(() => {
-  const addr = server.address().address;
-  const hostname = net.isIPv6(addr) ? `[${addr}1]` : addr;
+  const hostname = 'localhost';
+  const countdown = new Countdown(2, () => server.close());
   const url = `http://${hostname}:${server.address().port}`;
-  let left = 2;
   const check = common.mustCall((res) => {
-    left--;
     assert.notStrictEqual(res.headers['content-type'], 'text/html');
     assert.notStrictEqual(res.headers['content-type'], 'gotcha');
-    if (left === 0) server.close();
+    countdown.dec();
   }, 2);
   http.get(`${url}/explicit`, check).end();
   http.get(`${url}/implicit`, check).end();

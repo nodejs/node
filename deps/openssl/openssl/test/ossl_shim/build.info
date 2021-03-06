@@ -1,0 +1,6 @@
+IF[{- defined $target{CXX} && !$disabled{"external-tests"} -}]
+  PROGRAMS_NO_INST=ossl_shim
+  SOURCE[ossl_shim]=ossl_shim.cc async_bio.cc packeted_bio.cc test_config.cc
+  INCLUDE[ossl_shim]=. include ../../include
+  DEPEND[ossl_shim]=../../libssl ../../libcrypto
+ENDIF

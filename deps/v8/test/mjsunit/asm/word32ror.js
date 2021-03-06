@@ -11,7 +11,7 @@ var rol = (function Module(stdlib, foreign, heap) {
   function rol(x, y) {
     x = x | 0;
     y = y | 0;
-    return (x << y) | (x >>> (32 - y));
+    return (x << y) | (x >>> (32 - y)) | 0;
   }
   return { rol: rol };
 })(stdlib, foreign, heap).rol;
@@ -26,7 +26,7 @@ var ror = (function Module(stdlib, foreign, heap) {
   function ror(x, y) {
     x = x | 0;
     y = y | 0;
-    return (x << (32 - y)) | (x >>> y);
+    return (x << (32 - y)) | (x >>> y) | 0;
   }
   return { ror: ror };
 })(stdlib, foreign, heap).ror;

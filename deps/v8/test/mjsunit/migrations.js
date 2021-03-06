@@ -244,10 +244,6 @@ var migrations = [
     migr: function(o, i) { o.__proto__ = {}; },
   },
   {
-    name: "%FunctionSetPrototype",
-    migr: function(o, i) { %FunctionSetPrototype(o, null); },
-  },
-  {
     name: "modify prototype",
     migr: function(o, i) { if (i == 0) o.__proto__.__proto1__ = [,,,5,,,]; },
   },
@@ -278,7 +274,7 @@ var migrations = [
     migr: function(o, i) { Object.seal(o); },
   },
   { // Must be the last in the sequence, because after the global object freeze
-    // the other modifications does not make sence.
+    // the other modifications does not make sense.
     name: "freeze",
     migr: function(o, i) { Object.freeze(o); },
   },

@@ -1,34 +1,35 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var child_process = require('child_process');
+const common = require('../common');
+const assert = require('assert');
+const child_process = require('child_process');
+const fixtures = require('../common/fixtures');
+const { getSystemErrorName } = require('util');
 
-var testScript = path.join(common.fixturesDir, 'catch-stdout-error.js');
+const testScript = fixtures.path('catch-stdout-error.js');
 
-var cmd = JSON.stringify(process.execPath) + ' ' +
-          JSON.stringify(testScript) + ' | ' +
-          JSON.stringify(process.execPath) + ' ' +
-          '-pe "process.stdin.on(\'data\' , () => process.exit(1))"';
+const cmd = `${JSON.stringify(process.execPath)} ` +
+            `${JSON.stringify(testScript)} | ` +
+            `${JSON.stringify(process.execPath)} ` +
+            '-pe "process.stdin.on(\'data\' , () => process.exit(1))"';
 
-var child = child_process.exec(cmd);
-var output = '';
-var outputExpect = { 'code': 'EPIPE',
-                     'errno': 'EPIPE',
-                     'syscall': 'write' };
+const child = child_process.exec(cmd);
+let output = '';
 
 child.stderr.on('data', function(c) {
   output += c;
 });
 
-child.on('close', function(code) {
+
+child.on('close', common.mustCall(function(code) {
   try {
     output = JSON.parse(output);
-  } catch (er) {
+  } catch {
     console.error(output);
     process.exit(1);
   }
 
-  assert.deepStrictEqual(output, outputExpect);
+  assert.strictEqual(output.code, 'EPIPE');
+  assert.strictEqual(getSystemErrorName(output.errno), 'EPIPE');
+  assert.strictEqual(output.syscall, 'write');
   console.log('ok');
-});
+}));

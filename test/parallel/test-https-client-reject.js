@@ -1,22 +1,40 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-
-if (!common.hasCrypto) {
+const common = require('../common');
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
-var https = require('https');
 
-var fs = require('fs');
-var path = require('path');
+const fixtures = require('../common/fixtures');
 
-var options = {
-  key: fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem')),
-  cert: fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))
+const assert = require('assert');
+const https = require('https');
+
+const options = {
+  key: fixtures.readKey('rsa_private.pem'),
+  cert: fixtures.readKey('rsa_cert.crt')
 };
 
-var server = https.createServer(options, common.mustCall(function(req, res) {
+const server = https.createServer(options, common.mustCall(function(req, res) {
   res.writeHead(200);
   res.end();
   req.resume();
@@ -25,7 +43,7 @@ var server = https.createServer(options, common.mustCall(function(req, res) {
 });
 
 function unauthorized() {
-  var req = https.request({
+  const req = https.request({
     port: server.address().port,
     rejectUnauthorized: false
   }, function(res) {
@@ -40,11 +58,11 @@ function unauthorized() {
 }
 
 function rejectUnauthorized() {
-  var options = {
+  const options = {
     port: server.address().port
   };
   options.agent = new https.Agent(options);
-  var req = https.request(options, common.fail);
+  const req = https.request(options, common.mustNotCall());
   req.on('error', function(err) {
     authorized();
   });
@@ -52,16 +70,16 @@ function rejectUnauthorized() {
 }
 
 function authorized() {
-  var options = {
+  const options = {
     port: server.address().port,
-    ca: [fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))]
+    ca: [fixtures.readKey('rsa_cert.crt')]
   };
   options.agent = new https.Agent(options);
-  var req = https.request(options, function(res) {
+  const req = https.request(options, function(res) {
     res.resume();
     assert(req.socket.authorized);
     server.close();
   });
-  req.on('error', common.fail);
+  req.on('error', common.mustNotCall());
   req.end();
 }

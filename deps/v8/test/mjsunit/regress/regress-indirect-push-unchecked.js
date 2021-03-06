@@ -8,8 +8,8 @@ var a = [1.5];
 
 function p() {
   Array.prototype.push.call(a, 1.7);
-}
-
+};
+%PrepareFunctionForOptimization(p);
 p();
 p();
 p();

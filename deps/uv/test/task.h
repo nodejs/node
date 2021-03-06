@@ -27,9 +27,11 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
+#include <inttypes.h>
 
 #if defined(_MSC_VER) && _MSC_VER < 1600
-# include "stdint-msvc2008.h"
+# include "uv/stdint-msvc2008.h"
 #else
 # include <stdint.h>
 #endif
@@ -42,6 +44,10 @@
 #ifdef __clang__
 # pragma clang diagnostic ignored "-Wvariadic-macros"
 # pragma clang diagnostic ignored "-Wc99-extensions"
+#endif
+
+#ifdef __GNUC__
+# pragma GCC diagnostic ignored "-Wvariadic-macros"
 #endif
 
 #define TEST_PORT 9123
@@ -105,6 +111,142 @@ typedef enum {
   }                                                       \
  } while (0)
 
+#define ASSERT_BASE(a, operator, b, type, conv)              \
+ do {                                                        \
+  volatile type eval_a = (type) (a);                         \
+  volatile type eval_b = (type) (b);                         \
+  if (!(eval_a operator eval_b)) {                           \
+    fprintf(stderr,                                          \
+            "Assertion failed in %s on line %d: `%s %s %s` " \
+            "(%"conv" %s %"conv")\n",                        \
+            __FILE__,                                        \
+            __LINE__,                                        \
+            #a,                                              \
+            #operator,                                       \
+            #b,                                              \
+            eval_a,                                          \
+            #operator,                                       \
+            eval_b);                                         \
+    abort();                                                 \
+  }                                                          \
+ } while (0)
+
+#define ASSERT_BASE_STR(expr, a, operator, b, type, conv)      \
+ do {                                                          \
+  if (!(expr)) {                                               \
+    fprintf(stderr,                                            \
+            "Assertion failed in %s on line %d: `%s %s %s` "   \
+            "(%"conv" %s %"conv")\n",                          \
+            __FILE__,                                          \
+            __LINE__,                                          \
+            #a,                                                \
+            #operator,                                         \
+            #b,                                                \
+            (type)a,                                           \
+            #operator,                                         \
+            (type)b);                                          \
+    abort();                                                   \
+  }                                                            \
+ } while (0)
+
+#define ASSERT_BASE_LEN(expr, a, operator, b, conv, len)     \
+ do {                                                        \
+  if (!(expr)) {                                             \
+    fprintf(stderr,                                          \
+            "Assertion failed in %s on line %d: `%s %s %s` " \
+            "(%.*"#conv" %s %.*"#conv")\n",                  \
+            __FILE__,                                        \
+            __LINE__,                                        \
+            #a,                                              \
+            #operator,                                       \
+            #b,                                              \
+            (int)len,                                        \
+            a,                                               \
+            #operator,                                       \
+            (int)len,                                        \
+            b);                                              \
+    abort();                                                 \
+  }                                                          \
+ } while (0)
+
+#define ASSERT_BASE_HEX(expr, a, operator, b, size)            \
+ do {                                                          \
+  if (!(expr)) {                                               \
+    int i;                                                     \
+    unsigned char* a_ = (unsigned char*)a;                     \
+    unsigned char* b_ = (unsigned char*)b;                     \
+    fprintf(stderr,                                            \
+            "Assertion failed in %s on line %d: `%s %s %s` (", \
+            __FILE__,                                          \
+            __LINE__,                                          \
+            #a,                                                \
+            #operator,                                         \
+            #b);                                               \
+    for (i = 0; i < size; ++i) {                               \
+      if (i > 0) fprintf(stderr, ":");                         \
+      fprintf(stderr, "%02X", a_[i]);                          \
+    }                                                          \
+    fprintf(stderr, " %s ", #operator);                        \
+    for (i = 0; i < size; ++i) {                               \
+      if (i > 0) fprintf(stderr, ":");                         \
+      fprintf(stderr, "%02X", b_[i]);                          \
+    }                                                          \
+    fprintf(stderr, ")\n");                                    \
+    abort();                                                   \
+  }                                                            \
+ } while (0)
+
+#define ASSERT_EQ(a, b) ASSERT_BASE(a, ==, b, int64_t, PRId64)
+#define ASSERT_GE(a, b) ASSERT_BASE(a, >=, b, int64_t, PRId64)
+#define ASSERT_GT(a, b) ASSERT_BASE(a, >, b, int64_t, PRId64)
+#define ASSERT_LE(a, b) ASSERT_BASE(a, <=, b, int64_t, PRId64)
+#define ASSERT_LT(a, b) ASSERT_BASE(a, <, b, int64_t, PRId64)
+#define ASSERT_NE(a, b) ASSERT_BASE(a, !=, b, int64_t, PRId64)
+
+#define ASSERT_UINT64_EQ(a, b) ASSERT_BASE(a, ==, b, uint64_t, PRIu64)
+#define ASSERT_UINT64_GE(a, b) ASSERT_BASE(a, >=, b, uint64_t, PRIu64)
+#define ASSERT_UINT64_GT(a, b) ASSERT_BASE(a, >, b, uint64_t, PRIu64)
+#define ASSERT_UINT64_LE(a, b) ASSERT_BASE(a, <=, b, uint64_t, PRIu64)
+#define ASSERT_UINT64_LT(a, b) ASSERT_BASE(a, <, b, uint64_t, PRIu64)
+#define ASSERT_UINT64_NE(a, b) ASSERT_BASE(a, !=, b, uint64_t, PRIu64)
+
+#define ASSERT_DOUBLE_EQ(a, b) ASSERT_BASE(a, ==, b, double, "f")
+#define ASSERT_DOUBLE_GE(a, b) ASSERT_BASE(a, >=, b, double, "f")
+#define ASSERT_DOUBLE_GT(a, b) ASSERT_BASE(a, >, b, double, "f")
+#define ASSERT_DOUBLE_LE(a, b) ASSERT_BASE(a, <=, b, double, "f")
+#define ASSERT_DOUBLE_LT(a, b) ASSERT_BASE(a, <, b, double, "f")
+#define ASSERT_DOUBLE_NE(a, b) ASSERT_BASE(a, !=, b, double, "f")
+
+#define ASSERT_STR_EQ(a, b) \
+  ASSERT_BASE_STR(strcmp(a, b) == 0, a, == , b, char*, "s")
+
+#define ASSERT_STR_NE(a, b) \
+  ASSERT_BASE_STR(strcmp(a, b) != 0, a, !=, b, char*, "s")
+
+#define ASSERT_MEM_EQ(a, b, size) \
+  ASSERT_BASE_LEN(memcmp(a, b, size) == 0, a, ==, b, s, size)
+
+#define ASSERT_MEM_NE(a, b, size) \
+  ASSERT_BASE_LEN(memcmp(a, b, size) != 0, a, !=, b, s, size)
+
+#define ASSERT_MEM_HEX_EQ(a, b, size) \
+  ASSERT_BASE_HEX(memcmp(a, b, size) == 0, a, ==, b, size)
+
+#define ASSERT_MEM_HEX_NE(a, b, size) \
+  ASSERT_BASE_HEX(memcmp(a, b, size) != 0, a, !=, b, size)
+
+#define ASSERT_NULL(a) \
+  ASSERT_BASE(a, ==, NULL, void*, "p")
+
+#define ASSERT_NOT_NULL(a) \
+  ASSERT_BASE(a, !=, NULL, void*, "p")
+
+#define ASSERT_PTR_EQ(a, b) \
+  ASSERT_BASE(a, ==, b, void*, "p")
+
+#define ASSERT_PTR_NE(a, b) \
+  ASSERT_BASE(a, !=, b, void*, "p")
+
 /* This macro cleans up the main loop. This is used to avoid valgrind
  * warnings about memory being "leaked" by the main event loop.
  */
@@ -112,6 +254,7 @@ typedef enum {
   do {                                              \
     close_loop(uv_default_loop());                  \
     ASSERT(0 == uv_loop_close(uv_default_loop()));  \
+    uv_library_shutdown();                          \
   } while (0)
 
 /* Just sugar for wrapping the main() for a task or helper. */
@@ -126,9 +269,6 @@ typedef enum {
 #define HELPER_IMPL(name)                                                     \
   int run_helper_##name(void);                                                \
   int run_helper_##name(void)
-
-/* Pause the calling thread for a number of milliseconds. */
-void uv_sleep(int msec);
 
 /* Format big numbers nicely. WARNING: leaks memory. */
 const char* fmt(double d);
@@ -174,11 +314,16 @@ extern int snprintf(char*, size_t, const char*, ...);
 
 #if defined(__clang__) ||                                \
     defined(__GNUC__) ||                                 \
-    defined(__INTEL_COMPILER) ||                         \
-    defined(__SUNPRO_C)
+    defined(__INTEL_COMPILER)
 # define UNUSED __attribute__((unused))
 #else
 # define UNUSED
+#endif
+
+#if defined(_WIN32)
+#define notify_parent_process() ((void) 0)
+#else
+extern void notify_parent_process(void);
 #endif
 
 /* Fully close a loop */
@@ -208,5 +353,25 @@ UNUSED static int can_ipv6(void) {
   uv_free_interface_addresses(addr, count);
   return supported;
 }
+
+#if defined(__CYGWIN__) || defined(__MSYS__) || defined(__PASE__)
+# define NO_FS_EVENTS "Filesystem watching not supported on this platform."
+#endif
+
+#if defined(__MSYS__)
+# define NO_SEND_HANDLE_ON_PIPE \
+  "MSYS2 runtime does not support sending handles on pipes."
+#elif defined(__CYGWIN__)
+# define NO_SEND_HANDLE_ON_PIPE \
+  "Cygwin runtime does not support sending handles on pipes."
+#endif
+
+#if defined(__MSYS__)
+# define NO_SELF_CONNECT \
+  "MSYS2 runtime hangs on listen+connect in same process."
+#elif defined(__CYGWIN__)
+# define NO_SELF_CONNECT \
+  "Cygwin runtime hangs on listen+connect in same process."
+#endif
 
 #endif /* TASK_H_ */

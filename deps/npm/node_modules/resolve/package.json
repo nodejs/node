@@ -1,0 +1,51 @@
+{
+	"name": "resolve",
+	"description": "resolve like require.resolve() on behalf of files asynchronously and synchronously",
+	"version": "1.20.0",
+	"repository": {
+		"type": "git",
+		"url": "git://github.com/browserify/resolve.git"
+	},
+	"main": "index.js",
+	"keywords": [
+		"resolve",
+		"require",
+		"node",
+		"module"
+	],
+	"scripts": {
+		"prepublish": "safe-publish-latest && cp node_modules/is-core-module/core.json ./lib/ ||:",
+		"prelint": "eclint check '**/*'",
+		"lint": "eslint --ext=js,mjs .",
+		"pretests-only": "cd ./test/resolver/nested_symlinks && node mylib/sync && node mylib/async",
+		"tests-only": "tape test/*.js",
+		"pretest": "npm run lint",
+		"test": "npm run --silent tests-only",
+		"posttest": "npm run test:multirepo && aud --production",
+		"test:multirepo": "cd ./test/resolver/multirepo && npm install && npm test"
+	},
+	"devDependencies": {
+		"@ljharb/eslint-config": "^17.5.1",
+		"array.prototype.map": "^1.0.3",
+		"aud": "^1.1.4",
+		"eclint": "^2.8.1",
+		"eslint": "^7.19.0",
+		"object-keys": "^1.1.1",
+		"safe-publish-latest": "^1.1.4",
+		"tap": "0.4.13",
+		"tape": "^5.1.1"
+	},
+	"license": "MIT",
+	"author": {
+		"name": "James Halliday",
+		"email": "mail@substack.net",
+		"url": "http://substack.net"
+	},
+	"funding": {
+		"url": "https://github.com/sponsors/ljharb"
+	},
+	"dependencies": {
+		"is-core-module": "^2.2.0",
+		"path-parse": "^1.0.6"
+	}
+}

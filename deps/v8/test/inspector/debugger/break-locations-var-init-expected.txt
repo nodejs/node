@@ -1,0 +1,214 @@
+Tests breakable locations in variable initializations.
+
+Running test: testBreakLocations
+
+Running test: testStepInto
+
+function testFunction() {
+  var obj1 = |_|{a : 1};
+  var arr1 = |_|[1];
+  var promise = |_|Promise.|C|resolve(1).|C|then(x => x |_|* 2|R|).|C|then(x => x |_|/ 2|R|);
+  |_|Promise.|C|resolve(1).|C|then(x => x |_|* 2|R|).|C|then(x => x |_|/ 2|R|);
+  |_|promise = Promise.|C|resolve(1).|C|then(x => x |_|* 2|R|).|C|then(x => x |_|/ 2|R|);
+  var a = |_|1;
+  const x = |_|(a = 20);
+  var y = |_|(a = 100);
+  var z = |_|x + (a = 1) + (a = 2) + (a = 3) + |C|f();
+  function f() {
+    for (let { |_|x, |_|y } = |_|{ x: 0, y: 1 }; y |_|> 0; --|_|y) { let z = |_|x + y; }
+  |R|}
+  var b = obj1.|_|a;
+  |_|(async function asyncF() {
+    let r = |_|await Promise.|C|resolve(42);
+    |_|return r;|R|
+  |R|})|C|();
+  |_|return promise;|R|
+}
+
+(anonymous) (expr.js:0:0)
+
+
+testFunction (test.js:2:13)
+(anonymous) (expr.js:0:0)
+function testFunction() {
+  var obj1 = #{a : 1};
+  var arr1 = [1];
+
+testFunction (test.js:3:13)
+(anonymous) (expr.js:0:0)
+  var obj1 = {a : 1};
+  var arr1 = #[1];
+  var promise = Promise.resolve(1).then(x => x * 2).then(x => x / 2);
+
+testFunction (test.js:4:16)
+(anonymous) (expr.js:0:0)
+  var arr1 = [1];
+  var promise = #Promise.resolve(1).then(x => x * 2).then(x => x / 2);
+  Promise.resolve(1).then(x => x * 2).then(x => x / 2);
+
+testFunction (test.js:5:2)
+(anonymous) (expr.js:0:0)
+  var promise = Promise.resolve(1).then(x => x * 2).then(x => x / 2);
+  #Promise.resolve(1).then(x => x * 2).then(x => x / 2);
+  promise = Promise.resolve(1).then(x => x * 2).then(x => x / 2);
+
+testFunction (test.js:6:2)
+(anonymous) (expr.js:0:0)
+  Promise.resolve(1).then(x => x * 2).then(x => x / 2);
+  #promise = Promise.resolve(1).then(x => x * 2).then(x => x / 2);
+  var a = 1;
+
+testFunction (test.js:7:10)
+(anonymous) (expr.js:0:0)
+  promise = Promise.resolve(1).then(x => x * 2).then(x => x / 2);
+  var a = #1;
+  const x = (a = 20);
+
+testFunction (test.js:8:12)
+(anonymous) (expr.js:0:0)
+  var a = 1;
+  const x = #(a = 20);
+  var y = (a = 100);
+
+testFunction (test.js:9:10)
+(anonymous) (expr.js:0:0)
+  const x = (a = 20);
+  var y = #(a = 100);
+  var z = x + (a = 1) + (a = 2) + (a = 3) + f();
+
+testFunction (test.js:10:10)
+(anonymous) (expr.js:0:0)
+  var y = (a = 100);
+  var z = #x + (a = 1) + (a = 2) + (a = 3) + f();
+  function f() {
+
+f (test.js:12:24)
+testFunction (test.js:10:44)
+(anonymous) (expr.js:0:0)
+  function f() {
+    for (let { x, y } = #{ x: 0, y: 1 }; y > 0; --y) { let z = x + y; }
+  }
+
+f (test.js:12:15)
+testFunction (test.js:10:44)
+(anonymous) (expr.js:0:0)
+  function f() {
+    for (let { #x, y } = { x: 0, y: 1 }; y > 0; --y) { let z = x + y; }
+  }
+
+f (test.js:12:18)
+testFunction (test.js:10:44)
+(anonymous) (expr.js:0:0)
+  function f() {
+    for (let { x, #y } = { x: 0, y: 1 }; y > 0; --y) { let z = x + y; }
+  }
+
+f (test.js:12:42)
+testFunction (test.js:10:44)
+(anonymous) (expr.js:0:0)
+  function f() {
+    for (let { x, y } = { x: 0, y: 1 }; y #> 0; --y) { let z = x + y; }
+  }
+
+f (test.js:12:62)
+testFunction (test.js:10:44)
+(anonymous) (expr.js:0:0)
+  function f() {
+    for (let { x, y } = { x: 0, y: 1 }; y > 0; --y) { let z = #x + y; }
+  }
+
+f (test.js:12:49)
+testFunction (test.js:10:44)
+(anonymous) (expr.js:0:0)
+  function f() {
+    for (let { x, y } = { x: 0, y: 1 }; y > 0; --#y) { let z = x + y; }
+  }
+
+f (test.js:12:42)
+testFunction (test.js:10:44)
+(anonymous) (expr.js:0:0)
+  function f() {
+    for (let { x, y } = { x: 0, y: 1 }; y #> 0; --y) { let z = x + y; }
+  }
+
+f (test.js:13:2)
+testFunction (test.js:10:44)
+(anonymous) (expr.js:0:0)
+    for (let { x, y } = { x: 0, y: 1 }; y > 0; --y) { let z = x + y; }
+  #}
+  var b = obj1.a;
+
+testFunction (test.js:14:15)
+(anonymous) (expr.js:0:0)
+  }
+  var b = obj1.#a;
+  (async function asyncF() {
+
+testFunction (test.js:15:2)
+(anonymous) (expr.js:0:0)
+  var b = obj1.a;
+  #(async function asyncF() {
+    let r = await Promise.resolve(42);
+
+asyncF (test.js:16:12)
+testFunction (test.js:18:4)
+(anonymous) (expr.js:0:0)
+  (async function asyncF() {
+    let r = #await Promise.resolve(42);
+    return r;
+
+asyncF (test.js:17:4)
+    let r = await Promise.resolve(42);
+    #return r;
+  })();
+
+asyncF (test.js:17:13)
+    let r = await Promise.resolve(42);
+    return r;#
+  })();
+
+(anonymous) (test.js:4:64)
+  var arr1 = [1];
+  var promise = Promise.resolve(1).then(x => x * 2).then(x => x #/ 2);
+  Promise.resolve(1).then(x => x * 2).then(x => x / 2);
+
+(anonymous) (test.js:4:67)
+  var arr1 = [1];
+  var promise = Promise.resolve(1).then(x => x * 2).then(x => x / 2#);
+  Promise.resolve(1).then(x => x * 2).then(x => x / 2);
+
+(anonymous) (test.js:5:50)
+  var promise = Promise.resolve(1).then(x => x * 2).then(x => x / 2);
+  Promise.resolve(1).then(x => x * 2).then(x => x #/ 2);
+  promise = Promise.resolve(1).then(x => x * 2).then(x => x / 2);
+
+(anonymous) (test.js:5:53)
+  var promise = Promise.resolve(1).then(x => x * 2).then(x => x / 2);
+  Promise.resolve(1).then(x => x * 2).then(x => x / 2#);
+  promise = Promise.resolve(1).then(x => x * 2).then(x => x / 2);
+
+(anonymous) (test.js:6:60)
+  Promise.resolve(1).then(x => x * 2).then(x => x / 2);
+  promise = Promise.resolve(1).then(x => x * 2).then(x => x #/ 2);
+  var a = 1;
+
+(anonymous) (test.js:6:63)
+  Promise.resolve(1).then(x => x * 2).then(x => x / 2);
+  promise = Promise.resolve(1).then(x => x * 2).then(x => x / 2#);
+  var a = 1;
+
+
+Running test: testStepIntoAfterBreakpoint
+testFunction (test.js:10:10)
+(anonymous) (expr.js:0:0)
+  var y = (a = 100);
+  var z = #x + (a = 1) + (a = 2) + (a = 3) + f();
+  function f() {
+
+f (test.js:12:24)
+testFunction (test.js:10:44)
+(anonymous) (expr.js:0:0)
+  function f() {
+    for (let { x, y } = #{ x: 0, y: 1 }; y > 0; --y) { let z = x + y; }
+  }
+

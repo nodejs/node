@@ -47,6 +47,7 @@ function LoadXY(x, y) {
   return Load(object);
 }
 
+%PrepareFunctionForOptimization(LoadXY);
 for (var i = 0; i < 5; i++) LoadXY(i, i);
 %OptimizeFunctionOnNextCall(LoadXY);
 LoadXY(6, 6);

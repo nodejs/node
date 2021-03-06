@@ -920,7 +920,6 @@ function TestMapSetSubclassing(container, is_map) {
   assertEquals(["match", "tostring"], log);
   // TODO(littledan): Is the RegExp constructor correct to create
   // the internal slots and do these type checks this way?
-  assertEquals("biep", %_RegExpSource(o));
   assertThrows(() => Object.getOwnPropertyDescriptor(RegExp.prototype,
                                                      'source').get(o),
                TypeError);

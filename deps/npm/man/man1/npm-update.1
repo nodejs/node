@@ -1,7 +1,7 @@
-.TH "NPM\-UPDATE" "1" "November 2016" "" ""
+.TH "NPM\-UPDATE" "1" "March 2021" "" ""
 .SH "NAME"
-\fBnpm-update\fR \- Update a package
-.SH SYNOPSIS
+\fBnpm-update\fR \- Update packages
+.SS Synopsis
 .P
 .RS 2
 .nf
@@ -10,7 +10,7 @@ npm update [\-g] [<pkg>\.\.\.]
 aliases: up, upgrade
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 This command will update all the packages listed to the latest version
 (specified by the \fBtag\fP config), respecting semver\.
@@ -24,18 +24,11 @@ packages\.
 .P
 If no package name is specified, all packages in the specified location (global
 or local) will be updated\.
-.P
-As of \fBnpm@2\.6\.1\fP, the \fBnpm update\fP will only inspect top\-level packages\.
-Prior versions of \fBnpm\fP would also recursively inspect all dependencies\.
-To get the old behavior, use \fBnpm \-\-depth 9999 update\fP\|\.
-.SH EXAMPLES
-.P
-IMPORTANT VERSION NOTE: these examples assume \fBnpm@2\.6\.1\fP or later\.  For
-older versions of \fBnpm\fP, you must specify \fB\-\-depth 0\fP to get the behavior
-described below\.
+.SS Example
 .P
 For the examples below, assume that the current package is \fBapp\fP and it depends
-on dependencies, \fBdep1\fP (\fBdep2\fP, \.\. etc\.)\.  The published versions of \fBdep1\fP are:
+on dependencies, \fBdep1\fP (\fBdep2\fP, \.\. etc\.)\.  The published versions of \fBdep1\fP
+are:
 .P
 .RS 2
 .nf
@@ -81,10 +74,10 @@ However, if \fBapp\fP\|'s \fBpackage\.json\fP contains:
 .fi
 .RE
 .P
-In this case, running \fBnpm update\fP will install \fBdep1@1\.1\.2\fP\|\.  Even though the \fBlatest\fP
-tag points to \fB1\.2\.2\fP, this version does not satisfy \fB~1\.1\.1\fP, which is equivalent
-to \fB>=1\.1\.1 <1\.2\.0\fP\|\.  So the highest\-sorting version that satisfies \fB~1\.1\.1\fP is used,
-which is \fB1\.1\.2\fP\|\.
+In this case, running \fBnpm update\fP will install \fBdep1@1\.1\.2\fP\|\.  Even though the
+\fBlatest\fP tag points to \fB1\.2\.2\fP, this version do not satisfy \fB~1\.1\.1\fP, which is
+equivalent to \fB>=1\.1\.1 <1\.2\.0\fP\|\.  So the highest\-sorting version that satisfies
+\fB~1\.1\.1\fP is used, which is \fB1\.1\.2\fP\|\.
 .SS Caret Dependencies below 1\.0\.0
 .P
 Suppose \fBapp\fP has a caret dependency on a version below \fB1\.0\.0\fP, for example:
@@ -112,43 +105,19 @@ If the dependence were on \fB^0\.4\.0\fP:
 .P
 Then \fBnpm update\fP will install \fBdep1@0\.4\.1\fP, because that is the highest\-sorting
 version that satisfies \fB^0\.4\.0\fP (\fB>= 0\.4\.0 <0\.5\.0\fP)
-.SS Recording Updates with \fB\-\-save\fP
-.P
-When you want to update a package and save the new version as
-the minimum required dependency in \fBpackage\.json\fP, you can use
-\fBnpm update \-S\fP or \fBnpm update \-\-save\fP\|\.  For example if
-\fBpackage\.json\fP contains:
-.P
-.RS 2
-.nf
-"dependencies": {
-  "dep1": "^1\.1\.1"
-}
-.fi
-.RE
-.P
-Then \fBnpm update \-\-save\fP will install \fBdep1@1\.2\.2\fP (i\.e\., \fBlatest\fP),
-and \fBpackage\.json\fP will be modified:
-.P
-.RS 2
-.nf
-"dependencies": {
-  "dep1": "^1\.2\.2"
-}
-.fi
-.RE
-.P
-Note that \fBnpm\fP will only write an updated version to \fBpackage\.json\fP
-if it installs a new package\.
 .SS Updating Globally\-Installed Packages
 .P
 \fBnpm update \-g\fP will apply the \fBupdate\fP action to each globally installed
 package that is \fBoutdated\fP \-\- that is, has a version that is different from
-\fBlatest\fP\|\.
+\fBwanted\fP\|\.
+.P
+Note: Globally installed packages are treated as if they are installed with a
+caret semver range specified\. So if you require to update to \fBlatest\fP you may
+need to run \fBnpm install \-g [<pkg>\.\.\.]\fP
 .P
 NOTE: If a package has been upgraded to a version newer than \fBlatest\fP, it will
 be \fIdowngraded\fR\|\.
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
 npm help install
@@ -157,11 +126,10 @@ npm help outdated
 .IP \(bu 2
 npm help shrinkwrap
 .IP \(bu 2
-npm help 7 registry
+npm help registry
 .IP \(bu 2
-npm help 5 folders
+npm help folders
 .IP \(bu 2
 npm help ls
 
 .RE
-

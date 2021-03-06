@@ -1,0 +1,10 @@
+test/mjsunit/mjsunit.js:{NUMBER}: Failure: expected <not same as 1> found <1>
+
+Stack: MjsUnitAssertionError
+    at assertNotSame *mjsunit.js {NUMBER}:{NUMBER}
+    at               *%(basename)s 7:1
+    throw new MjsUnitAssertionError(message);
+    ^
+MjsUnitAssertionError
+    at assertNotSame *mjsunit.js {NUMBER}:{NUMBER}
+    at               *%(basename)s 7:1

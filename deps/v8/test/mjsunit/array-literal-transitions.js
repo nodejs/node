@@ -25,61 +25,63 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --expose-gc
-// Flags: --ignition-osr --turbo-from-bytecode
+// Flags: --allow-natives-syntax --expose-gc --ignition-osr --no-always-opt
+// Flags: --opt
 
 // IC and Crankshaft support for smi-only elements in dynamic array literals.
 function get(foo) { return foo; }  // Used to generate dynamic values.
 
 function array_literal_test() {
   var a0 = [1, 2, 3];
-  assertTrue(%HasFastSmiElements(a0));
+  assertTrue(%HasSmiElements(a0));
   var a1 = [get(1), get(2), get(3)];
-  assertTrue(%HasFastSmiElements(a1));
+  assertTrue(%HasSmiElements(a1));
 
   var b0 = [1, 2, get("three")];
-  assertTrue(%HasFastObjectElements(b0));
+  assertTrue(%HasObjectElements(b0));
   var b1 = [get(1), get(2), get("three")];
-  assertTrue(%HasFastObjectElements(b1));
+  assertTrue(%HasObjectElements(b1));
 
   var c0 = [1, 2, get(3.5)];
-  assertTrue(%HasFastDoubleElements(c0));
+  assertTrue(%HasDoubleElements(c0));
   assertEquals(3.5, c0[2]);
   assertEquals(2, c0[1]);
   assertEquals(1, c0[0]);
 
   var c1 = [1, 2, 3.5];
-  assertTrue(%HasFastDoubleElements(c1));
+  assertTrue(%HasDoubleElements(c1));
   assertEquals(3.5, c1[2]);
   assertEquals(2, c1[1]);
   assertEquals(1, c1[0]);
 
   var c2 = [get(1), get(2), get(3.5)];
-  assertTrue(%HasFastDoubleElements(c2));
+  assertTrue(%HasDoubleElements(c2));
   assertEquals(3.5, c2[2]);
   assertEquals(2, c2[1]);
   assertEquals(1, c2[0]);
 
   var object = new Object();
   var d0 = [1, 2, object];
-  assertTrue(%HasFastObjectElements(d0));
+  assertTrue(%HasObjectElements(d0));
   assertEquals(object, d0[2]);
   assertEquals(2, d0[1]);
   assertEquals(1, d0[0]);
 
   var e0 = [1, 2, 3.5];
-  assertTrue(%HasFastDoubleElements(e0));
+  assertTrue(%HasDoubleElements(e0));
   assertEquals(3.5, e0[2]);
   assertEquals(2, e0[1]);
   assertEquals(1, e0[0]);
 
   var f0 = [1, 2, [1, 2]];
-  assertTrue(%HasFastObjectElements(f0));
+  assertTrue(%HasObjectElements(f0));
   assertEquals([1,2], f0[2]);
   assertEquals(2, f0[1]);
   assertEquals(1, f0[0]);
 }
+%PrepareFunctionForOptimization(array_literal_test);
 
+%PrepareFunctionForOptimization(array_literal_test);
 for (var i = 0; i < 3; i++) {
   array_literal_test();
 }
@@ -101,14 +103,16 @@ function test_large_literal() {
   large =
     [ 0, 1, 2, 3, 4, 5, d(), d(), d(), d(), d(), d(), o(), o(), o(), o() ];
   assertFalse(%HasDictionaryElements(large));
-  assertFalse(%HasFastSmiElements(large));
-  assertFalse(%HasFastDoubleElements(large));
-  assertTrue(%HasFastObjectElements(large));
+  assertFalse(%HasSmiElements(large));
+  assertFalse(%HasDoubleElements(large));
+  assertTrue(%HasObjectElements(large));
   assertEquals(large,
                [0, 1, 2, 3, 4, 5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5,
                 new Object(), new Object(), new Object(), new Object()]);
 }
+%PrepareFunctionForOptimization(test_large_literal);
 
+%PrepareFunctionForOptimization(test_large_literal);
 for (var i = 0; i < 3; i++) {
   test_large_literal();
 }
@@ -122,7 +126,9 @@ function deopt_array(use_literal) {
     return new Array();
   }
 }
+%PrepareFunctionForOptimization(deopt_array);
 
+%PrepareFunctionForOptimization(deopt_array);
 deopt_array(false);
 deopt_array(false);
 deopt_array(false);
@@ -139,7 +145,9 @@ assertOptimized(deopt_array);
 function deopt_array_literal_all_smis(a) {
   return [0, 1, a];
 }
+%PrepareFunctionForOptimization(deopt_array_literal_all_smis);
 
+%PrepareFunctionForOptimization(deopt_array_literal_all_smis);
 deopt_array_literal_all_smis(2);
 deopt_array_literal_all_smis(3);
 deopt_array_literal_all_smis(4);
@@ -147,7 +155,7 @@ array = deopt_array_literal_all_smis(4);
 assertEquals(0, array[0]);
 assertEquals(1, array[1]);
 assertEquals(4, array[2]);
-  %OptimizeFunctionOnNextCall(deopt_array_literal_all_smis);
+%OptimizeFunctionOnNextCall(deopt_array_literal_all_smis);
 array = deopt_array_literal_all_smis(5);
 array = deopt_array_literal_all_smis(6);
 assertOptimized(deopt_array_literal_all_smis);
@@ -164,7 +172,9 @@ assertEquals(.5, array[2]);
 function deopt_array_literal_all_doubles(a) {
   return [0.5, 1, a];
 }
+%PrepareFunctionForOptimization(deopt_array_literal_all_doubles);
 
+%PrepareFunctionForOptimization(deopt_array_literal_all_doubles);
 deopt_array_literal_all_doubles(.5);
 deopt_array_literal_all_doubles(.5);
 deopt_array_literal_all_doubles(.5);
@@ -172,7 +182,7 @@ array = deopt_array_literal_all_doubles(0.5);
 assertEquals(0.5, array[0]);
 assertEquals(1, array[1]);
 assertEquals(0.5, array[2]);
-  %OptimizeFunctionOnNextCall(deopt_array_literal_all_doubles);
+%OptimizeFunctionOnNextCall(deopt_array_literal_all_doubles);
 array = deopt_array_literal_all_doubles(5);
 array = deopt_array_literal_all_doubles(6);
 assertOptimized(deopt_array_literal_all_doubles);
@@ -189,9 +199,8 @@ assertEquals(foo, array[2]);
 
 (function literals_after_osr() {
   var color = [0];
-  // Trigger OSR, if optimization is not disabled.
-  if (%GetOptimizationStatus(literals_after_osr) != 4) {
-    while (%GetOptimizationCount(literals_after_osr) == 0) {}
-  }
+  // Trigger OSR.
+  while ((%GetOptimizationStatus(literals_after_osr) &
+    V8OptimizationStatus.kTopmostFrameIsTurboFanned) !== 0) {}
   return [color[0]];
 })();

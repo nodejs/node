@@ -34,6 +34,7 @@ function aoo(i) {
   return a[i + 1];
 }
 
+%PrepareFunctionForOptimization(aoo);
 aoo(1);
 aoo(-1);
 %OptimizeFunctionOnNextCall(aoo);
@@ -51,6 +52,7 @@ function boo(i) {
   return ret;
 }
 
+%PrepareFunctionForOptimization(boo);
 boo(1);
 boo(-1);
 %OptimizeFunctionOnNextCall(boo);
@@ -67,6 +69,7 @@ function coo() {
   return ret;
 }
 
+%PrepareFunctionForOptimization(coo);
 coo();
 coo();
 %OptimizeFunctionOnNextCall(coo);
@@ -81,6 +84,7 @@ function doo() {
   }
   return ret;
 }
+%PrepareFunctionForOptimization(doo);
 doo();
 doo();
 %OptimizeFunctionOnNextCall(doo);
@@ -97,6 +101,7 @@ function eoo() {
 
   return ret;
 }
+%PrepareFunctionForOptimization(eoo);
 eoo();
 eoo();
 %OptimizeFunctionOnNextCall(eoo);
@@ -118,6 +123,7 @@ function foo() {
   return ret;
 }
 
+%PrepareFunctionForOptimization(foo);
 foo();
 foo();
 %OptimizeFunctionOnNextCall(foo);
@@ -133,6 +139,7 @@ function goo(i) {
 
   return a[i + 3];
 }
+%PrepareFunctionForOptimization(goo);
 goo(-1);
 goo(-1);
 %OptimizeFunctionOnNextCall(goo);
@@ -147,6 +154,7 @@ function hoo() {
    return a[index() + 3];
 }
 
+%PrepareFunctionForOptimization(hoo);
 hoo();
 hoo();
 %OptimizeFunctionOnNextCall(hoo);
@@ -157,6 +165,7 @@ function ioo(i) {
   return a[i] + a[i + 1];
 }
 
+%PrepareFunctionForOptimization(ioo);
 ioo(1);
 ioo(1);
 %OptimizeFunctionOnNextCall(ioo);

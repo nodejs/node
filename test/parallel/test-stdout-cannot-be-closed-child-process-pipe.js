@@ -1,6 +1,6 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 if (process.argv[2] === 'child')
   process.stdout.end('foo');
@@ -8,10 +8,10 @@ else
   parent();
 
 function parent() {
-  var spawn = require('child_process').spawn;
-  var child = spawn(process.execPath, [__filename, 'child']);
-  var out = '';
-  var err = '';
+  const spawn = require('child_process').spawn;
+  const child = spawn(process.execPath, [__filename, 'child']);
+  let out = '';
+  let err = '';
 
   child.stdout.setEncoding('utf8');
   child.stderr.setEncoding('utf8');
@@ -24,9 +24,9 @@ function parent() {
   });
 
   child.on('close', function(code, signal) {
-    assert(code);
-    assert.equal(out, 'foo');
-    assert(/process\.stdout cannot be closed/.test(err));
+    assert.strictEqual(code, 0);
+    assert.strictEqual(err, '');
+    assert.strictEqual(out, 'foo');
     console.log('ok');
   });
 }

@@ -3,8 +3,10 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import itertools
 import os
 import sys
+import tempfile
 import unittest
 
 # Needed because the test runner contains relative imports.
@@ -12,86 +14,72 @@ TOOLS_PATH = os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))))
 sys.path.append(TOOLS_PATH)
 
-from testrunner.local.testsuite import TestSuite
+from testrunner.local.testsuite import TestSuite, TestGenerator
 from testrunner.objects.testcase import TestCase
+from testrunner.test_config import TestConfig
 
 
 class TestSuiteTest(unittest.TestCase):
-  def test_filter_testcases_by_status_first_pass(self):
-    suite = TestSuite('foo', 'bar')
-    suite.tests = [
-      TestCase(suite, 'foo/bar'),
-      TestCase(suite, 'baz/bar'),
-    ]
-    suite.rules = {
-      '': {
-        'foo/bar': set(['PASS', 'SKIP']),
-        'baz/bar': set(['PASS', 'FAIL']),
-      },
-    }
-    suite.wildcards = {
-      '': {
-        'baz/*': set(['PASS', 'SLOW']),
-      },
-    }
-    suite.FilterTestCasesByStatus(warn_unused_rules=False)
-    self.assertEquals(
-        [TestCase(suite, 'baz/bar')],
-        suite.tests,
-    )
-    self.assertEquals(set(['PASS', 'FAIL', 'SLOW']), suite.tests[0].outcomes)
-
-  def test_filter_testcases_by_status_second_pass(self):
-    suite = TestSuite('foo', 'bar')
-
-    test1 = TestCase(suite, 'foo/bar')
-    test2 = TestCase(suite, 'baz/bar')
-
-    # Contrived outcomes from filtering by variant-independent rules.
-    test1.outcomes = set(['PREV'])
-    test2.outcomes = set(['PREV'])
-
-    suite.tests = [
-      test1.CopyAddingFlags(variant='default', flags=[]),
-      test1.CopyAddingFlags(variant='stress', flags=['-v']),
-      test2.CopyAddingFlags(variant='default', flags=[]),
-      test2.CopyAddingFlags(variant='stress', flags=['-v']),
-    ]
-
-    suite.rules = {
-      'default': {
-        'foo/bar': set(['PASS', 'SKIP']),
-        'baz/bar': set(['PASS', 'FAIL']),
-      },
-      'stress': {
-        'baz/bar': set(['SKIP']),
-      },
-    }
-    suite.wildcards = {
-      'default': {
-        'baz/*': set(['PASS', 'SLOW']),
-      },
-      'stress': {
-        'foo/*': set(['PASS', 'SLOW']),
-      },
-    }
-    suite.FilterTestCasesByStatus(warn_unused_rules=False, variants=True)
-    self.assertEquals(
-        [
-          TestCase(suite, 'foo/bar', flags=['-v']),
-          TestCase(suite, 'baz/bar'),
-        ],
-        suite.tests,
+  def setUp(self):
+    test_dir = os.path.dirname(__file__)
+    self.test_root = os.path.join(test_dir, "fake_testsuite")
+    self.test_config = TestConfig(
+        command_prefix=[],
+        extra_flags=[],
+        isolates=False,
+        mode_flags=[],
+        no_harness=False,
+        noi18n=False,
+        random_seed=0,
+        run_skipped=False,
+        shell_dir='fake_testsuite/fake_d8',
+        timeout=10,
+        verbose=False,
     )
 
-    self.assertEquals(
-        set(['PASS', 'SLOW', 'PREV']),
-        suite.tests[0].outcomes,
-    )
-    self.assertEquals(
-        set(['PASS', 'FAIL', 'SLOW', 'PREV']),
-        suite.tests[1].outcomes,
-    )
+    self.suite = TestSuite.Load(
+        self.test_root, self.test_config, "standard_runner")
+
+  def testLoadingTestSuites(self):
+    self.assertEquals(self.suite.name, "fake_testsuite")
+    self.assertEquals(self.suite.test_config, self.test_config)
+
+    # Verify that the components of the TestSuite aren't loaded yet.
+    self.assertIsNone(self.suite.tests)
+    self.assertIsNone(self.suite.statusfile)
+
+  def testLoadingTestsFromDisk(self):
+    tests = self.suite.load_tests_from_disk(
+      statusfile_variables={})
+    def is_generator(iterator):
+      return iterator == iter(iterator)
+
+    self.assertTrue(is_generator(tests))
+    self.assertEquals(tests.test_count_estimate, 2)
+
+    slow_tests, fast_tests = list(tests.slow_tests), list(tests.fast_tests)
+    # Verify that the components of the TestSuite are loaded.
+    self.assertTrue(len(slow_tests) == len(fast_tests) == 1)
+    self.assertTrue(all(test.is_slow for test in slow_tests))
+    self.assertFalse(any(test.is_slow for test in fast_tests))
+    self.assertIsNotNone(self.suite.statusfile)
+
+  def testMergingTestGenerators(self):
+    tests = self.suite.load_tests_from_disk(
+      statusfile_variables={})
+    more_tests = self.suite.load_tests_from_disk(
+      statusfile_variables={})
+
+    # Merge the test generators
+    tests.merge(more_tests)
+    self.assertEquals(tests.test_count_estimate, 4)
+
+    # Check the tests are sorted by speed
+    test_speeds = []
+    for test in tests:
+      test_speeds.append(test.is_slow)
+
+    self.assertEquals(test_speeds, [True, True, False, False])
 
 
 if __name__ == '__main__':

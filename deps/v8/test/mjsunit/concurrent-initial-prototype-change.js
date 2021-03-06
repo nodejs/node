@@ -27,7 +27,7 @@
 
 // Flags: --allow-natives-syntax
 // Flags: --concurrent-recompilation --block-concurrent-recompilation
-// Flags: --nostress-opt
+// Flags: --nostress-opt --no-always-opt
 
 // --nostress-opt is in place because this particular optimization
 // (guaranteeing that the Array prototype chain has no elements) is
@@ -44,7 +44,9 @@ if (!%IsConcurrentRecompilationSupported()) {
 function f1(a, i) {
   return a[i] + 0.5;
 }
+%PrepareFunctionForOptimization(f1);
 
+%PrepareFunctionForOptimization(f1);
 var arr = [0.0,,2.5];
 assertEquals(0.5, f1(arr, 0));
 assertEquals(0.5, f1(arr, 0));
@@ -64,4 +66,4 @@ assertUnoptimized(f1, "no sync");
 // due to map dependency.
 assertUnoptimized(f1, "sync");
 //Clear type info for stress runs.
-%ClearFunctionTypeFeedback(f1);
+%ClearFunctionFeedback(f1);

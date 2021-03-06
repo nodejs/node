@@ -25,49 +25,67 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import os
 import shutil
 
-from testrunner.local import commands
+from testrunner.local import command
 from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.objects import testcase
 
+SHELL = 'cctest'
 
-class CcTestSuite(testsuite.TestSuite):
 
-  def __init__(self, name, root):
-    super(CcTestSuite, self).__init__(name, root)
-    if utils.IsWindows():
-      build_dir = "build"
-    else:
-      build_dir = "out"
-
-  def ListTests(self, context):
-    shell = os.path.abspath(os.path.join(context.shell_dir, self.shell()))
+class TestLoader(testsuite.TestLoader):
+  def _list_test_filenames(self):
+    shell = os.path.abspath(os.path.join(self.test_config.shell_dir, SHELL))
     if utils.IsWindows():
       shell += ".exe"
-    output = commands.Execute(context.command_prefix +
-                              [shell, "--list"] +
-                              context.extra_flags)
+    cmd = command.Command(
+        cmd_prefix=self.test_config.command_prefix,
+        shell=shell,
+        args=["--list"] + self.test_config.extra_flags)
+    output = cmd.execute()
+    # TODO make errors visible (see duplicated code in 'unittests')
     if output.exit_code != 0:
-      print output.stdout
-      print output.stderr
+      print(cmd)
+      print(output.stdout)
+      print(output.stderr)
       return []
-    tests = []
-    for test_desc in output.stdout.strip().split():
-      test = testcase.TestCase(self, test_desc)
-      tests.append(test)
-    tests.sort(key=lambda t: t.path)
-    return tests
 
-  def GetFlagsForTestCase(self, testcase, context):
-    testname = testcase.path.split(os.path.sep)[-1]
-    return (testcase.flags + [testcase.path] + context.mode_flags)
-
-  def shell(self):
-    return "cctest"
+    return sorted(output.stdout.strip().split())
 
 
-def GetSuite(name, root):
-  return CcTestSuite(name, root)
+class TestSuite(testsuite.TestSuite):
+  def _test_loader_class(self):
+    return TestLoader
+
+  def _test_class(self):
+    return TestCase
+
+
+class TestCase(testcase.TestCase):
+  def get_shell(self):
+    return SHELL
+
+  def _get_files_params(self):
+    return [self.path]
+
+  def _get_resources(self):
+    # Bytecode-generator tests are the only ones requiring extra files on
+    # Android.
+    parts = self.name.split('/')
+    if parts[0] == 'test-bytecode-generator':
+      expectation_file = os.path.join(
+          self.suite.root, 'interpreter', 'bytecode_expectations',
+          '%s.golden' % parts[1])
+      if os.path.exists(expectation_file):
+        return [expectation_file]
+    return []
+
+
+def GetSuite(*args, **kwargs):
+  return TestSuite(*args, **kwargs)

@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/overflowing-math.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/codegen.h"
+#include "src/codegen/tick-counter.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/typer.h"
+#include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 
@@ -76,30 +78,33 @@ class ReducerTester : public HandleAndZoneScope {
   explicit ReducerTester(int num_parameters = 0,
                          MachineOperatorBuilder::Flags flags =
                              MachineOperatorBuilder::kAllOptionalOps)
-      : isolate(main_isolate()),
-        binop(NULL),
-        unop(NULL),
+      : HandleAndZoneScope(kCompressGraphZone),
+        isolate(main_isolate()),
+        binop(nullptr),
+        unop(nullptr),
         machine(main_zone(), MachineType::PointerRepresentation(), flags),
         common(main_zone()),
         graph(main_zone()),
         javascript(main_zone()),
-        typer(isolate, &graph),
         jsgraph(isolate, &graph, &common, &javascript, nullptr, &machine),
-        maxuint32(Constant<int32_t>(kMaxUInt32)) {
+        maxuint32(Constant<int32_t>(kMaxUInt32)),
+        graph_reducer(main_zone(), &graph, &tick_counter, nullptr,
+                      jsgraph.Dead()) {
     Node* s = graph.NewNode(common.Start(num_parameters));
     graph.SetStart(s);
   }
 
   Isolate* isolate;
+  TickCounter tick_counter;
   const Operator* binop;
   const Operator* unop;
   MachineOperatorBuilder machine;
   CommonOperatorBuilder common;
   Graph graph;
   JSOperatorBuilder javascript;
-  Typer typer;
   JSGraph jsgraph;
   Node* maxuint32;
+  GraphReducer graph_reducer;
 
   template <typename T>
   Node* Constant(volatile T value) {
@@ -124,7 +129,7 @@ class ReducerTester : public HandleAndZoneScope {
   void CheckFoldBinop(volatile T expect, Node* a, Node* b) {
     CHECK(binop);
     Node* n = CreateBinopNode(a, b);
-    MachineOperatorReducer reducer(&jsgraph);
+    MachineOperatorReducer reducer(&graph_reducer, &jsgraph);
     Reduction reduction = reducer.Reduce(n);
     CHECK(reduction.Changed());
     CHECK_NE(n, reduction.replacement());
@@ -144,7 +149,7 @@ class ReducerTester : public HandleAndZoneScope {
   void CheckBinop(Node* expect, Node* a, Node* b) {
     CHECK(binop);
     Node* n = CreateBinopNode(a, b);
-    MachineOperatorReducer reducer(&jsgraph);
+    MachineOperatorReducer reducer(&graph_reducer, &jsgraph);
     Reduction reduction = reducer.Reduce(n);
     CHECK(reduction.Changed());
     CHECK_EQ(expect, reduction.replacement());
@@ -156,7 +161,7 @@ class ReducerTester : public HandleAndZoneScope {
                       Node* right) {
     CHECK(binop);
     Node* n = CreateBinopNode(left, right);
-    MachineOperatorReducer reducer(&jsgraph);
+    MachineOperatorReducer reducer(&graph_reducer, &jsgraph);
     Reduction reduction = reducer.Reduce(n);
     CHECK(reduction.Changed());
     CHECK_EQ(binop, reduction.replacement()->op());
@@ -171,7 +176,7 @@ class ReducerTester : public HandleAndZoneScope {
                       Node* right_expect, Node* left, Node* right) {
     CHECK(binop);
     Node* n = CreateBinopNode(left, right);
-    MachineOperatorReducer reducer(&jsgraph);
+    MachineOperatorReducer reducer(&graph_reducer, &jsgraph);
     Reduction r = reducer.Reduce(n);
     CHECK(r.Changed());
     CHECK_EQ(op_expect->opcode(), r.replacement()->op()->opcode());
@@ -186,7 +191,7 @@ class ReducerTester : public HandleAndZoneScope {
                       volatile T right_expect, Node* left, Node* right) {
     CHECK(binop);
     Node* n = CreateBinopNode(left, right);
-    MachineOperatorReducer reducer(&jsgraph);
+    MachineOperatorReducer reducer(&graph_reducer, &jsgraph);
     Reduction r = reducer.Reduce(n);
     CHECK(r.Changed());
     CHECK_EQ(op_expect->opcode(), r.replacement()->op()->opcode());
@@ -205,7 +210,7 @@ class ReducerTester : public HandleAndZoneScope {
     Node* k = Constant<T>(constant);
     {
       Node* n = CreateBinopNode(k, p);
-      MachineOperatorReducer reducer(&jsgraph);
+      MachineOperatorReducer reducer(&graph_reducer, &jsgraph);
       Reduction reduction = reducer.Reduce(n);
       CHECK(!reduction.Changed() || reduction.replacement() == n);
       CHECK_EQ(p, n->InputAt(0));
@@ -213,7 +218,7 @@ class ReducerTester : public HandleAndZoneScope {
     }
     {
       Node* n = CreateBinopNode(p, k);
-      MachineOperatorReducer reducer(&jsgraph);
+      MachineOperatorReducer reducer(&graph_reducer, &jsgraph);
       Reduction reduction = reducer.Reduce(n);
       CHECK(!reduction.Changed());
       CHECK_EQ(p, n->InputAt(0));
@@ -229,7 +234,7 @@ class ReducerTester : public HandleAndZoneScope {
     Node* p = Parameter();
     Node* k = Constant<T>(constant);
     Node* n = CreateBinopNode(k, p);
-    MachineOperatorReducer reducer(&jsgraph);
+    MachineOperatorReducer reducer(&graph_reducer, &jsgraph);
     Reduction reduction = reducer.Reduce(n);
     CHECK(!reduction.Changed());
     CHECK_EQ(k, n->InputAt(0));
@@ -255,11 +260,8 @@ TEST(ReduceWord32And) {
   ReducerTester R;
   R.binop = R.machine.Word32And();
 
-  FOR_INT32_INPUTS(pl) {
-    FOR_INT32_INPUTS(pr) {
-      int32_t x = *pl, y = *pr;
-      R.CheckFoldBinop<int32_t>(x & y, x, y);
-    }
+  FOR_INT32_INPUTS(x) {
+    FOR_INT32_INPUTS(y) { R.CheckFoldBinop<int32_t>(x & y, x, y); }
   }
 
   R.CheckPutConstantOnRight(33);
@@ -281,11 +283,8 @@ TEST(ReduceWord32Or) {
   ReducerTester R;
   R.binop = R.machine.Word32Or();
 
-  FOR_INT32_INPUTS(pl) {
-    FOR_INT32_INPUTS(pr) {
-      int32_t x = *pl, y = *pr;
-      R.CheckFoldBinop<int32_t>(x | y, x, y);
-    }
+  FOR_INT32_INPUTS(x) {
+    FOR_INT32_INPUTS(y) { R.CheckFoldBinop<int32_t>(x | y, x, y); }
   }
 
   R.CheckPutConstantOnRight(36);
@@ -307,11 +306,8 @@ TEST(ReduceWord32Xor) {
   ReducerTester R;
   R.binop = R.machine.Word32Xor();
 
-  FOR_INT32_INPUTS(pl) {
-    FOR_INT32_INPUTS(pr) {
-      int32_t x = *pl, y = *pr;
-      R.CheckFoldBinop<int32_t>(x ^ y, x, y);
-    }
+  FOR_INT32_INPUTS(x) {
+    FOR_INT32_INPUTS(y) { R.CheckFoldBinop<int32_t>(x ^ y, x, y); }
   }
 
   R.CheckPutConstantOnRight(39);
@@ -331,10 +327,9 @@ TEST(ReduceWord32Shl) {
   R.binop = R.machine.Word32Shl();
 
   // TODO(titzer): out of range shifts
-  FOR_INT32_INPUTS(i) {
+  FOR_INT32_INPUTS(x) {
     for (int y = 0; y < 32; y++) {
-      int32_t x = *i;
-      R.CheckFoldBinop<int32_t>(x << y, x, y);
+      R.CheckFoldBinop<int32_t>(base::ShlWithWraparound(x, y), x, y);
     }
   }
 
@@ -350,10 +345,9 @@ TEST(ReduceWord64Shl) {
   ReducerTester R;
   R.binop = R.machine.Word64Shl();
 
-  FOR_INT64_INPUTS(i) {
+  FOR_INT64_INPUTS(x) {
     for (int64_t y = 0; y < 64; y++) {
-      int64_t x = *i;
-      R.CheckFoldBinop<int64_t>(x << y, x, y);
+      R.CheckFoldBinop<int64_t>(base::ShlWithWraparound(x, y), x, y);
     }
   }
 
@@ -370,9 +364,8 @@ TEST(ReduceWord32Shr) {
   R.binop = R.machine.Word32Shr();
 
   // TODO(titzer): test out of range shifts
-  FOR_UINT32_INPUTS(i) {
+  FOR_UINT32_INPUTS(x) {
     for (uint32_t y = 0; y < 32; y++) {
-      uint32_t x = *i;
       R.CheckFoldBinop<int32_t>(x >> y, x, y);
     }
   }
@@ -389,9 +382,8 @@ TEST(ReduceWord64Shr) {
   ReducerTester R;
   R.binop = R.machine.Word64Shr();
 
-  FOR_UINT64_INPUTS(i) {
+  FOR_UINT64_INPUTS(x) {
     for (uint64_t y = 0; y < 64; y++) {
-      uint64_t x = *i;
       R.CheckFoldBinop<int64_t>(x >> y, x, y);
     }
   }
@@ -409,9 +401,8 @@ TEST(ReduceWord32Sar) {
   R.binop = R.machine.Word32Sar();
 
   // TODO(titzer): test out of range shifts
-  FOR_INT32_INPUTS(i) {
+  FOR_INT32_INPUTS(x) {
     for (int32_t y = 0; y < 32; y++) {
-      int32_t x = *i;
       R.CheckFoldBinop<int32_t>(x >> y, x, y);
     }
   }
@@ -428,9 +419,8 @@ TEST(ReduceWord64Sar) {
   ReducerTester R;
   R.binop = R.machine.Word64Sar();
 
-  FOR_INT64_INPUTS(i) {
+  FOR_INT64_INPUTS(x) {
     for (int64_t y = 0; y < 64; y++) {
-      int64_t x = *i;
       R.CheckFoldBinop<int64_t>(x >> y, x, y);
     }
   }
@@ -448,12 +438,12 @@ static void CheckJsShift(ReducerTester* R) {
 
   Node* x = R->Parameter(0);
   Node* y = R->Parameter(1);
-  Node* thirty_one = R->Constant<int32_t>(0x1f);
+  Node* thirty_one = R->Constant<int32_t>(0x1F);
   Node* y_and_thirty_one =
       R->graph.NewNode(R->machine.Word32And(), y, thirty_one);
 
   // If the underlying machine shift instructions 'and' their right operand
-  // with 0x1f then:  x << (y & 0x1f) => x << y
+  // with 0x1F then:  x << (y & 0x1F) => x << y
   R->CheckFoldBinop(x, y, x, y_and_thirty_one);
 }
 
@@ -476,11 +466,8 @@ TEST(Word32Equal) {
   ReducerTester R;
   R.binop = R.machine.Word32Equal();
 
-  FOR_INT32_INPUTS(pl) {
-    FOR_INT32_INPUTS(pr) {
-      int32_t x = *pl, y = *pr;
-      R.CheckFoldBinop<int32_t>(x == y ? 1 : 0, x, y);
-    }
+  FOR_INT32_INPUTS(x) {
+    FOR_INT32_INPUTS(y) { R.CheckFoldBinop<int32_t>(x == y ? 1 : 0, x, y); }
   }
 
   R.CheckPutConstantOnRight(48);
@@ -501,10 +488,9 @@ TEST(ReduceInt32Add) {
   ReducerTester R;
   R.binop = R.machine.Int32Add();
 
-  FOR_INT32_INPUTS(pl) {
-    FOR_INT32_INPUTS(pr) {
-      int32_t x = *pl, y = *pr;
-      R.CheckFoldBinop<int32_t>(x + y, x, y);  // TODO(titzer): signed overflow
+  FOR_INT32_INPUTS(x) {
+    FOR_INT32_INPUTS(y) {
+      R.CheckFoldBinop<int32_t>(base::AddWithWraparound(x, y), x, y);
     }
   }
 
@@ -522,10 +508,9 @@ TEST(ReduceInt64Add) {
   ReducerTester R;
   R.binop = R.machine.Int64Add();
 
-  FOR_INT64_INPUTS(pl) {
-    FOR_INT64_INPUTS(pr) {
-      int64_t x = *pl, y = *pr;
-      R.CheckFoldBinop<int64_t>(x + y, x, y);
+  FOR_INT64_INPUTS(x) {
+    FOR_INT64_INPUTS(y) {
+      R.CheckFoldBinop<int64_t>(base::AddWithWraparound(x, y), x, y);
     }
   }
 
@@ -541,10 +526,9 @@ TEST(ReduceInt32Sub) {
   ReducerTester R;
   R.binop = R.machine.Int32Sub();
 
-  FOR_INT32_INPUTS(pl) {
-    FOR_INT32_INPUTS(pr) {
-      int32_t x = *pl, y = *pr;
-      R.CheckFoldBinop<int32_t>(x - y, x, y);
+  FOR_INT32_INPUTS(x) {
+    FOR_INT32_INPUTS(y) {
+      R.CheckFoldBinop<int32_t>(base::SubWithWraparound(x, y), x, y);
     }
   }
 
@@ -560,10 +544,9 @@ TEST(ReduceInt64Sub) {
   ReducerTester R;
   R.binop = R.machine.Int64Sub();
 
-  FOR_INT64_INPUTS(pl) {
-    FOR_INT64_INPUTS(pr) {
-      int64_t x = *pl, y = *pr;
-      R.CheckFoldBinop<int64_t>(x - y, x, y);
+  FOR_INT64_INPUTS(x) {
+    FOR_INT64_INPUTS(y) {
+      R.CheckFoldBinop<int64_t>(base::SubWithWraparound(x, y), x, y);
     }
   }
 
@@ -585,10 +568,9 @@ TEST(ReduceInt32Mul) {
   ReducerTester R;
   R.binop = R.machine.Int32Mul();
 
-  FOR_INT32_INPUTS(pl) {
-    FOR_INT32_INPUTS(pr) {
-      int32_t x = *pl, y = *pr;
-      R.CheckFoldBinop<int32_t>(x * y, x, y);  // TODO(titzer): signed overflow
+  FOR_INT32_INPUTS(x) {
+    FOR_INT32_INPUTS(y) {
+      R.CheckFoldBinop<int32_t>(base::MulWithWraparound(x, y), x, y);
     }
   }
 
@@ -623,11 +605,11 @@ TEST(ReduceInt32Div) {
   ReducerTester R;
   R.binop = R.machine.Int32Div();
 
-  FOR_INT32_INPUTS(pl) {
-    FOR_INT32_INPUTS(pr) {
-      int32_t x = *pl, y = *pr;
+  FOR_INT32_INPUTS(x) {
+    FOR_INT32_INPUTS(y) {
       if (y == 0) continue;              // TODO(titzer): test / 0
-      int32_t r = y == -1 ? -x : x / y;  // INT_MIN / -1 may explode in C
+      int32_t r = y == -1 ? base::NegateWithWraparound(x)
+                          : x / y;  // INT_MIN / -1 may explode in C
       R.CheckFoldBinop<int32_t>(r, x, y);
     }
   }
@@ -651,9 +633,8 @@ TEST(ReduceUint32Div) {
   ReducerTester R;
   R.binop = R.machine.Uint32Div();
 
-  FOR_UINT32_INPUTS(pl) {
-    FOR_UINT32_INPUTS(pr) {
-      uint32_t x = *pl, y = *pr;
+  FOR_UINT32_INPUTS(x) {
+    FOR_UINT32_INPUTS(y) {
       if (y == 0) continue;  // TODO(titzer): test / 0
       R.CheckFoldBinop<int32_t>(x / y, x, y);
     }
@@ -680,9 +661,8 @@ TEST(ReduceInt32Mod) {
   ReducerTester R;
   R.binop = R.machine.Int32Mod();
 
-  FOR_INT32_INPUTS(pl) {
-    FOR_INT32_INPUTS(pr) {
-      int32_t x = *pl, y = *pr;
+  FOR_INT32_INPUTS(x) {
+    FOR_INT32_INPUTS(y) {
       if (y == 0) continue;             // TODO(titzer): test % 0
       int32_t r = y == -1 ? 0 : x % y;  // INT_MIN % -1 may explode in C
       R.CheckFoldBinop<int32_t>(r, x, y);
@@ -704,9 +684,8 @@ TEST(ReduceUint32Mod) {
   ReducerTester R;
   R.binop = R.machine.Uint32Mod();
 
-  FOR_INT32_INPUTS(pl) {
-    FOR_INT32_INPUTS(pr) {
-      uint32_t x = *pl, y = *pr;
+  FOR_UINT32_INPUTS(x) {
+    FOR_UINT32_INPUTS(y) {
       if (y == 0) continue;  // TODO(titzer): test x % 0
       R.CheckFoldBinop<int32_t>(x % y, x, y);
     }
@@ -732,11 +711,8 @@ TEST(ReduceInt32LessThan) {
   ReducerTester R;
   R.binop = R.machine.Int32LessThan();
 
-  FOR_INT32_INPUTS(pl) {
-    FOR_INT32_INPUTS(pr) {
-      int32_t x = *pl, y = *pr;
-      R.CheckFoldBinop<int32_t>(x < y ? 1 : 0, x, y);
-    }
+  FOR_INT32_INPUTS(x) {
+    FOR_INT32_INPUTS(y) { R.CheckFoldBinop<int32_t>(x < y ? 1 : 0, x, y); }
   }
 
   R.CheckDontPutConstantOnRight(41399);
@@ -752,14 +728,11 @@ TEST(ReduceInt32LessThanOrEqual) {
   ReducerTester R;
   R.binop = R.machine.Int32LessThanOrEqual();
 
-  FOR_INT32_INPUTS(pl) {
-    FOR_INT32_INPUTS(pr) {
-      int32_t x = *pl, y = *pr;
-      R.CheckFoldBinop<int32_t>(x <= y ? 1 : 0, x, y);
-    }
+  FOR_INT32_INPUTS(x) {
+    FOR_INT32_INPUTS(y) { R.CheckFoldBinop<int32_t>(x <= y ? 1 : 0, x, y); }
   }
 
-  FOR_INT32_INPUTS(i) { R.CheckDontPutConstantOnRight<int32_t>(*i); }
+  FOR_INT32_INPUTS(i) { R.CheckDontPutConstantOnRight<int32_t>(i); }
 
   Node* x = R.Parameter(0);
 
@@ -771,11 +744,8 @@ TEST(ReduceUint32LessThan) {
   ReducerTester R;
   R.binop = R.machine.Uint32LessThan();
 
-  FOR_UINT32_INPUTS(pl) {
-    FOR_UINT32_INPUTS(pr) {
-      uint32_t x = *pl, y = *pr;
-      R.CheckFoldBinop<int32_t>(x < y ? 1 : 0, x, y);
-    }
+  FOR_UINT32_INPUTS(x) {
+    FOR_UINT32_INPUTS(y) { R.CheckFoldBinop<int32_t>(x < y ? 1 : 0, x, y); }
   }
 
   R.CheckDontPutConstantOnRight(41399);
@@ -795,11 +765,8 @@ TEST(ReduceUint32LessThanOrEqual) {
   ReducerTester R;
   R.binop = R.machine.Uint32LessThanOrEqual();
 
-  FOR_UINT32_INPUTS(pl) {
-    FOR_UINT32_INPUTS(pr) {
-      uint32_t x = *pl, y = *pr;
-      R.CheckFoldBinop<int32_t>(x <= y ? 1 : 0, x, y);
-    }
+  FOR_UINT32_INPUTS(x) {
+    FOR_UINT32_INPUTS(y) { R.CheckFoldBinop<int32_t>(x <= y ? 1 : 0, x, y); }
   }
 
   R.CheckDontPutConstantOnRight(41399);
@@ -824,7 +791,7 @@ TEST(ReduceLoadStore) {
                                index, R.graph.start(), R.graph.start());
 
   {
-    MachineOperatorReducer reducer(&R.jsgraph);
+    MachineOperatorReducer reducer(&R.graph_reducer, &R.jsgraph);
     Reduction reduction = reducer.Reduce(load);
     CHECK(!reduction.Changed());  // loads should not be reduced.
   }
@@ -834,7 +801,7 @@ TEST(ReduceLoadStore) {
         R.graph.NewNode(R.machine.Store(StoreRepresentation(
                             MachineRepresentation::kWord32, kNoWriteBarrier)),
                         base, index, load, load, R.graph.start());
-    MachineOperatorReducer reducer(&R.jsgraph);
+    MachineOperatorReducer reducer(&R.graph_reducer, &R.jsgraph);
     Reduction reduction = reducer.Reduce(store);
     CHECK(!reduction.Changed());  // stores should not be reduced.
   }
@@ -844,40 +811,34 @@ TEST(ReduceFloat32Sub) {
   ReducerTester R;
   R.binop = R.machine.Float32Sub();
 
-  FOR_FLOAT32_INPUTS(pl) {
-    FOR_FLOAT32_INPUTS(pr) {
-      float x = *pl, y = *pr;
-      R.CheckFoldBinop<float>(x - y, x, y);
-    }
+  FOR_FLOAT32_INPUTS(x) {
+    FOR_FLOAT32_INPUTS(y) { R.CheckFoldBinop<float>(x - y, x, y); }
   }
 
   Node* x = R.Parameter();
-  Node* zero = R.Constant<float>(0.0);
   Node* nan = R.Constant<float>(std::numeric_limits<float>::quiet_NaN());
 
-  R.CheckBinop(x, x, zero);   // x - 0 => x
-  R.CheckBinop(nan, nan, x);  // nan - x  => nan
-  R.CheckBinop(nan, x, nan);  // x - nan => nan
+  // nan - x  => nan
+  R.CheckFoldBinop(std::numeric_limits<float>::quiet_NaN(), nan, x);
+  // x - nan => nan
+  R.CheckFoldBinop(std::numeric_limits<float>::quiet_NaN(), x, nan);
 }
 
 TEST(ReduceFloat64Sub) {
   ReducerTester R;
   R.binop = R.machine.Float64Sub();
 
-  FOR_FLOAT64_INPUTS(pl) {
-    FOR_FLOAT64_INPUTS(pr) {
-      double x = *pl, y = *pr;
-      R.CheckFoldBinop<double>(x - y, x, y);
-    }
+  FOR_FLOAT64_INPUTS(x) {
+    FOR_FLOAT64_INPUTS(y) { R.CheckFoldBinop<double>(x - y, x, y); }
   }
 
   Node* x = R.Parameter();
-  Node* zero = R.Constant<double>(0.0);
   Node* nan = R.Constant<double>(std::numeric_limits<double>::quiet_NaN());
 
-  R.CheckBinop(x, x, zero);   // x - 0 => x
-  R.CheckBinop(nan, nan, x);  // nan - x  => nan
-  R.CheckBinop(nan, x, nan);  // x - nan => nan
+  // nan - x  => nan
+  R.CheckFoldBinop(std::numeric_limits<double>::quiet_NaN(), nan, x);
+  // x - nan => nan
+  R.CheckFoldBinop(std::numeric_limits<double>::quiet_NaN(), x, nan);
 }
 
 // TODO(titzer): test MachineOperatorReducer for Word64And

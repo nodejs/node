@@ -32,7 +32,7 @@ vals.forEach(function(t) {
   let cntr = 0;
   for (let i = 0; i < t.length; i++)
     cntr += t[i];
-  assert.strictEqual(t.length * 5, cntr);
+  assert.strictEqual(cntr, t.length * 5);
 
   // Check this does not throw
   t.toString();

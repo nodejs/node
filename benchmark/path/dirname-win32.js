@@ -1,9 +1,8 @@
 'use strict';
-var common = require('../common.js');
-var path = require('path');
-var v8 = require('v8');
+const common = require('../common.js');
+const { win32 } = require('path');
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   path: [
     '',
     '\\',
@@ -11,25 +10,15 @@ var bench = common.createBenchmark(main, {
     'C:\\foo\\bar',
     'foo',
     'foo\\bar',
-    'D:\\foo\\bar\\baz\\asdf\\quux'
+    'D:\\foo\\bar\\baz\\asdf\\quux',
   ],
-  n: [1e6]
+  n: [1e5]
 });
 
-function main(conf) {
-  var n = +conf.n;
-  var p = path.win32;
-  var input = '' + conf.path;
-
-  // Force optimization before starting the benchmark
-  p.dirname(input);
-  v8.setFlagsFromString('--allow_natives_syntax');
-  eval('%OptimizeFunctionOnNextCall(p.dirname)');
-  p.dirname(input);
-
+function main({ n, path }) {
   bench.start();
-  for (var i = 0; i < n; i++) {
-    p.dirname(input);
+  for (let i = 0; i < n; i++) {
+    win32.dirname(i % 3 === 0 ? `${path}${i}` : path);
   }
   bench.end(n);
 }

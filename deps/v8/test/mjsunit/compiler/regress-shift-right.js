@@ -14,6 +14,7 @@
     return 1 >> tmp1;
   }
 
+  %PrepareFunctionForOptimization(f);
   %OptimizeFunctionOnNextCall(f);
   assertEquals(0, f());
 })();
@@ -36,6 +37,7 @@
     return f;
   })();
 
+  %PrepareFunctionForOptimization(f);
   %OptimizeFunctionOnNextCall(f);
   assertEquals(0, f());
 })();

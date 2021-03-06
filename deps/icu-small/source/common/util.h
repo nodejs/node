@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
  **********************************************************************
@@ -46,6 +46,13 @@ class U_COMMON_API ICU_Utility /* not : public UObject because all methods are s
                                        int32_t radix = 10,
                                        int32_t minDigits = 1);
 
+    /** Returns a bogus UnicodeString by value. */
+    static inline UnicodeString makeBogusString() {
+        UnicodeString result;
+        result.setToBogus();
+        return result;
+    }
+
     /**
      * Return true if the character is NOT printable ASCII.
      *
@@ -57,8 +64,8 @@ class U_COMMON_API ICU_Utility /* not : public UObject because all methods are s
     /**
      * Escape unprintable characters using \uxxxx notation for U+0000 to
      * U+FFFF and \Uxxxxxxxx for U+10000 and above.  If the character is
-     * printable ASCII, then do nothing and return FALSE.  Otherwise,
-     * append the escaped notation and return TRUE.
+     * printable ASCII, then do nothing and return false.  Otherwise,
+     * append the escaped notation and return true.
      */
     static UBool escapeUnprintable(UnicodeString& result, UChar32 c);
 
@@ -88,7 +95,7 @@ class U_COMMON_API ICU_Utility /* not : public UObject because all methods are s
      * after pos, or str.length(), if there is none.
      */
     static int32_t skipWhitespace(const UnicodeString& str, int32_t& pos,
-                                  UBool advance = FALSE);
+                                  UBool advance = false);
 
     /**
      * Skip over Pattern_White_Space in a Replaceable.
@@ -172,11 +179,20 @@ class U_COMMON_API ICU_Utility /* not : public UObject because all methods are s
      * Parse an integer at pos, either of the form \d+ or of the form
      * 0x[0-9A-Fa-f]+ or 0[0-7]+, that is, in standard decimal, hex,
      * or octal format.
-     * @param pos INPUT-OUTPUT parameter.  On input, the first
-     * character to parse.  On output, the character after the last
-     * parsed character.
+     * @param pos INPUT-OUTPUT parameter.  On input, the index of the first
+     * character to parse.  On output, the index of the character after the
+     * last parsed character.
      */
     static int32_t parseInteger(const UnicodeString& rule, int32_t& pos, int32_t limit);
+
+    /**
+     * Parse an integer at pos using only ASCII digits.
+     * Base 10 only.
+     * @param pos INPUT-OUTPUT parameter.  On input, the index of the first
+     * character to parse.  On output, the index of the character after the
+     * last parsed character.
+     */
+    static int32_t parseAsciiInteger(const UnicodeString& str, int32_t& pos);
 
     /**
      * Parse a Unicode identifier from the given string at the given

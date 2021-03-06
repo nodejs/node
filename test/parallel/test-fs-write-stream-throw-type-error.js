@@ -1,35 +1,32 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-const example = path.join(common.tmpDir, 'dummy');
+const tmpdir = require('../common/tmpdir');
 
-common.refreshTmpDir();
+const example = path.join(tmpdir.path, 'dummy');
 
-assert.doesNotThrow(function() {
-  fs.createWriteStream(example, undefined);
-});
-assert.doesNotThrow(function() {
-  fs.createWriteStream(example, null);
-});
-assert.doesNotThrow(function() {
-  fs.createWriteStream(example, 'utf8');
-});
-assert.doesNotThrow(function() {
-  fs.createWriteStream(example, {encoding: 'utf8'});
-});
+tmpdir.refresh();
+// Should not throw.
+fs.createWriteStream(example, undefined).end();
+fs.createWriteStream(example, null).end();
+fs.createWriteStream(example, 'utf8').end();
+fs.createWriteStream(example, { encoding: 'utf8' }).end();
 
-assert.throws(function() {
-  fs.createWriteStream(example, 123);
-}, /"options" must be a string or an object/);
-assert.throws(function() {
-  fs.createWriteStream(example, 0);
-}, /"options" must be a string or an object/);
-assert.throws(function() {
-  fs.createWriteStream(example, true);
-}, /"options" must be a string or an object/);
-assert.throws(function() {
-  fs.createWriteStream(example, false);
-}, /"options" must be a string or an object/);
+const createWriteStreamErr = (path, opt) => {
+  assert.throws(
+    () => {
+      fs.createWriteStream(path, opt);
+    },
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError'
+    });
+};
+
+createWriteStreamErr(example, 123);
+createWriteStreamErr(example, 0);
+createWriteStreamErr(example, true);
+createWriteStreamErr(example, false);

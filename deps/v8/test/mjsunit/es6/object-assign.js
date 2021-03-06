@@ -4,6 +4,8 @@
 
 // Based on Mozilla Object.assign() tests
 
+// Flags: --allow-natives-syntax
+
 function checkDataProperty(object, propertyKey, value, writable, enumerable, configurable) {
   var desc = Object.getOwnPropertyDescriptor(object, propertyKey);
   assertFalse(desc === undefined);
@@ -170,4 +172,116 @@ assertSame(Object.assign(o, {}), o);
   var target = {};
   var source = {get k1() { throw "fail" }};
   assertThrows(()=>Object.assign(target, source));
+})();
+
+(function strings_and_symbol_order1() {
+  // first order
+  var log = [];
+
+  var sym1 = Symbol("x"), sym2 = Symbol("y");
+  var source = {
+      get [sym1](){ log.push("get sym1"); },
+      get a() { log.push("get a"); },
+      get b() { log.push("get b"); },
+      get c() { log.push("get c"); },
+      get [sym2](){ log.push("get sym2"); },
+  };
+
+  Object.assign({}, source);
+
+  assertEquals(log, ["get a", "get b", "get c", "get sym1", "get sym2"]);
+})();
+
+(function strings_and_symbol_order2() {
+  // first order
+  var log = [];
+
+  var sym1 = Symbol("x"), sym2 = Symbol("y");
+  var source = {
+      get [sym1](){ log.push("get sym1"); },
+      get a() { log.push("get a"); },
+      get [sym2](){ log.push("get sym2"); },
+      get b() { log.push("get b"); },
+      get c() { log.push("get c"); },
+  };
+
+  Object.assign({}, source);
+
+  assertEquals(log, ["get a", "get b", "get c", "get sym1", "get sym2"]);
+})();
+
+
+(function strings_and_symbol_order3() {
+  // first order
+  var log = [];
+
+  var sym1 = Symbol("x"), sym2 = Symbol("y");
+  var source = {
+      get a() { log.push("get a"); },
+      get [sym1](){ log.push("get sym1"); },
+      get b() { log.push("get b"); },
+      get [sym2](){ log.push("get sym2"); },
+      get c() { log.push("get c"); },
+  };
+
+  Object.assign({}, source);
+
+  assertEquals(log, ["get a", "get b", "get c", "get sym1", "get sym2"]);
+})();
+
+(function proxy() {
+  const fast_source = { key1: "value1", key2: "value2"};
+  const slow_source = {__proto__:null};
+  for (let i = 0; i < 2000; i++) {
+    slow_source["key" + i] = i;
+  }
+
+  const empty_handler = {};
+  let target = {};
+  let proxy = new Proxy(target, empty_handler);
+  assertArrayEquals(Object.keys(target), []);
+  let result = Object.assign(proxy, fast_source);
+  %HeapObjectVerify(result);
+  assertArrayEquals(Object.keys(result), Object.keys(target));
+  assertArrayEquals(Object.keys(result), Object.keys(fast_source));
+  assertArrayEquals(Object.values(result), Object.values(fast_source));
+
+  target = {};
+  proxy = new Proxy(target, empty_handler);
+  assertArrayEquals(Object.keys(target), []);
+  result = Object.assign(proxy, slow_source);
+  %HeapObjectVerify(result);
+  assertEquals(Object.keys(result).length, Object.keys(target).length);
+  assertEquals(Object.keys(result).length, Object.keys(slow_source).length);
+})();
+
+(function global_object() {
+  let source = {
+    global1: "global1",
+    get global2() { return "global2" },
+  };
+  let result = Object.assign(globalThis, source);
+  %HeapObjectVerify(result);
+  assertTrue(result === globalThis);
+  assertTrue(result.global1 === source.global1);
+  assertTrue(result.global2 === source.global2);
+
+  let target = {};
+  result = Object.assign(target, globalThis);
+  %HeapObjectVerify(result);
+  assertTrue(result === target);
+  assertTrue(result.global1 === source.global1);
+  assertTrue(result.global2 === source.global2);
+
+  for (let i = 0; i < 2000; i++) {
+    source["property" + i] = i;
+  }
+  result = Object.assign(globalThis, source);
+  %HeapObjectVerify(result);
+  assertTrue(result === globalThis);
+  for (let i = 0; i < 2000; i++) {
+    const key = "property" + i;
+    assertEquals(result[key], i);
+  }
+
 })();

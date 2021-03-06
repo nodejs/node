@@ -1,27 +1,20 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
+const common = require('../common');
+common.skipIfInspectorDisabled();
 
-var script = common.fixturesDir + '/empty.js';
+// This test ensures that the --debug-brk flag will exit the process
+const assert = require('assert');
+const fixtures = require('../common/fixtures');
+const { spawnSync } = require('child_process');
 
-function fail() {
-  assert(0); // `node --debug-brk script.js` should not quit
-}
+// File name here doesn't actually matter the process will exit on start.
+const script = fixtures.path('empty.js');
 
 function test(arg) {
-  var child = spawn(process.execPath, [arg, script]);
-  child.on('exit', fail);
-
-  // give node time to start up the debugger
-  setTimeout(function() {
-    child.removeListener('exit', fail);
-    child.kill();
-  }, 2000);
-
-  process.on('exit', function() {
-    assert(child.killed);
-  });
+  const child = spawnSync(process.execPath, ['--inspect', arg, script]);
+  const stderr = child.stderr.toString();
+  assert(stderr.includes('DEP0062'));
+  assert.strictEqual(child.status, 9);
 }
 
 test('--debug-brk');

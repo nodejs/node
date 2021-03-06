@@ -18,37 +18,32 @@
  * IN THE SOFTWARE.
  */
 
+#include "uv.h"
+#include "internal.h"
+
 #include <dlfcn.h>
 #include <errno.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include <TargetConditionals.h>
 
 #if !TARGET_OS_IPHONE
-# include <CoreFoundation/CoreFoundation.h>
-# include <ApplicationServices/ApplicationServices.h>
+#include "darwin-stub.h"
 #endif
 
 
 static int uv__pthread_setname_np(const char* name) {
-  int (*dynamic_pthread_setname_np)(const char* name);
   char namebuf[64];  /* MAXTHREADNAMESIZE */
   int err;
-
-  /* pthread_setname_np() first appeared in OS X 10.6 and iOS 3.2. */
-  *(void **)(&dynamic_pthread_setname_np) =
-      dlsym(RTLD_DEFAULT, "pthread_setname_np");
-
-  if (dynamic_pthread_setname_np == NULL)
-    return -ENOSYS;
 
   strncpy(namebuf, name, sizeof(namebuf) - 1);
   namebuf[sizeof(namebuf) - 1] = '\0';
 
-  err = dynamic_pthread_setname_np(namebuf);
+  err = pthread_setname_np(namebuf);
   if (err)
-    return -err;
+    return UV__ERR(err);
 
   return 0;
 }
@@ -76,15 +71,13 @@ int uv__set_process_title(const char* title) {
   CFStringRef* display_name_key;
   CFDictionaryRef (*pCFBundleGetInfoDictionary)(CFBundleRef);
   CFBundleRef (*pCFBundleGetMainBundle)(void);
-  CFBundleRef hi_services_bundle;
-  OSStatus (*pSetApplicationIsDaemon)(int);
   CFDictionaryRef (*pLSApplicationCheckIn)(int, CFDictionaryRef);
   void (*pLSSetApplicationLaunchServicesServerConnectionStatus)(uint64_t,
                                                                 void*);
   CFTypeRef asn;
   int err;
 
-  err = -ENOENT;
+  err = UV_ENOENT;
   application_services_handle = dlopen("/System/Library/Frameworks/"
                                        "ApplicationServices.framework/"
                                        "Versions/A/ApplicationServices",
@@ -148,30 +141,19 @@ int uv__set_process_title(const char* title) {
   if (pCFBundleGetInfoDictionary == NULL || pCFBundleGetMainBundle == NULL)
     goto out;
 
-  /* Black 10.9 magic, to remove (Not responding) mark in Activity Monitor */
-  hi_services_bundle =
-      pCFBundleGetBundleWithIdentifier(S("com.apple.HIServices"));
-  err = -ENOENT;
-  if (hi_services_bundle == NULL)
-    goto out;
-
-  *(void **)(&pSetApplicationIsDaemon) = pCFBundleGetFunctionPointerForName(
-      hi_services_bundle,
-      S("SetApplicationIsDaemon"));
   *(void **)(&pLSApplicationCheckIn) = pCFBundleGetFunctionPointerForName(
       launch_services_bundle,
       S("_LSApplicationCheckIn"));
+
+  if (pLSApplicationCheckIn == NULL)
+    goto out;
+
   *(void **)(&pLSSetApplicationLaunchServicesServerConnectionStatus) =
       pCFBundleGetFunctionPointerForName(
           launch_services_bundle,
           S("_LSSetApplicationLaunchServicesServerConnectionStatus"));
-  if (pSetApplicationIsDaemon == NULL ||
-      pLSApplicationCheckIn == NULL ||
-      pLSSetApplicationLaunchServicesServerConnectionStatus == NULL) {
-    goto out;
-  }
 
-  if (pSetApplicationIsDaemon(1) != noErr)
+  if (pLSSetApplicationLaunchServicesServerConnectionStatus == NULL)
     goto out;
 
   pLSSetApplicationLaunchServicesServerConnectionStatus(0, NULL);
@@ -182,7 +164,11 @@ int uv__set_process_title(const char* title) {
 
   asn = pLSGetCurrentApplicationASN();
 
-  err = -EINVAL;
+  err = UV_EBUSY;
+  if (asn == NULL)
+    goto out;
+
+  err = UV_EINVAL;
   if (pLSSetApplicationInformationItem(-2,  /* Magic value. */
                                        asn,
                                        *display_name_key,

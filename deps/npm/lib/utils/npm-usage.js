@@ -1,0 +1,73 @@
+const didYouMean = require('./did-you-mean.js')
+const { dirname } = require('path')
+const output = require('./output.js')
+const { cmdList } = require('./cmd-list')
+
+module.exports = (npm, valid = true) => {
+  npm.config.set('loglevel', 'silent')
+  const usesBrowser = npm.config.get('viewer') === 'browser'
+    ? ' (in a browser)' : ''
+  npm.log.level = 'silent'
+  output(`
+Usage: npm <command>
+
+npm install        install all the dependencies in your project
+npm install <foo>  add the <foo> dependency to your project
+npm test           run this project's tests
+npm run <foo>      run the script named <foo>
+npm <command> -h   quick help on <command>
+npm -l             display usage info for all commands
+npm help <term>    search for help on <term>${usesBrowser}
+npm help npm       more involved overview${usesBrowser}
+
+All commands:
+${npm.config.get('long') ? usages(npm) : ('\n    ' + wrap(cmdList))}
+
+Specify configs in the ini-formatted file:
+    ${npm.config.get('userconfig')}
+or on the command line via: npm <command> --key=value
+
+More configuration info: npm help config
+Configuration fields: npm help 7 config
+
+npm@${npm.version} ${dirname(dirname(__dirname))}
+`)
+
+  if (npm.argv.length >= 1)
+    output(didYouMean(npm.argv[0], cmdList))
+
+  if (!valid)
+    process.exitCode = 1
+}
+
+const wrap = (arr) => {
+  const out = ['']
+
+  const line = !process.stdout.columns ? 60
+    : Math.min(60, Math.max(process.stdout.columns - 16, 24))
+
+  let l = 0
+  for (const c of arr.sort((a, b) => a < b ? -1 : 1)) {
+    if (out[l].length + c.length + 2 < line)
+      out[l] += ', ' + c
+    else {
+      out[l++] += ','
+      out[l] = c
+    }
+  }
+  return out.join('\n    ').substr(2)
+}
+
+const usages = (npm) => {
+  // return a string of <command>: <usage>
+  let maxLen = 0
+  return cmdList.reduce((set, c) => {
+    set.push([c, npm.commands[c].usage])
+    maxLen = Math.max(maxLen, c.length)
+    return set
+  }, [])
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([c, usage]) => `\n    ${c}${' '.repeat(maxLen - c.length + 1)}${
+      (usage.split('\n').join('\n' + ' '.repeat(maxLen + 5)))}`)
+    .join('\n')
+}

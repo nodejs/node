@@ -1,16 +1,22 @@
-#!/usr/local/bin/perl
+#! /usr/bin/env perl
+# Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 # The inner loop instruction sequence and the IP/FP modifications are from
-# Svend Olaf Mikkelsen <svolaf@inet.uni-c.dk>
-# I've added the stuff needed for crypt() but I've not worried about making
-# things perfect.
-#
+# Svend Olaf Mikkelsen
 
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 push(@INC,"${dir}","${dir}../../perlasm");
 require "x86asm.pl";
 
-&asm_init($ARGV[0],"crypt586.pl");
+$output=pop;
+open STDOUT,">$output";
+
+&asm_init($ARGV[0]);
 
 $L="edi";
 $R="esi";
@@ -18,6 +24,8 @@ $R="esi";
 &external_label("DES_SPtrans");
 &fcrypt_body("fcrypt_body");
 &asm_finish();
+
+close STDOUT or die "error closing STDOUT: $!";
 
 sub fcrypt_body
 	{
@@ -103,7 +111,7 @@ sub D_ENCRYPT
 	&and(	$u,		"0xfcfcfcfc"	);		# 2
 	&xor(	$tmp1,		$tmp1);				# 1
 	&and(	$t,		"0xcfcfcfcf"	);		# 2
-	&xor(	$tmp2,		$tmp2);	
+	&xor(	$tmp2,		$tmp2);
 	&movb(	&LB($tmp1),	&LB($u)	);
 	&movb(	&LB($tmp2),	&HB($u)	);
 	&rotr(	$t,		4		);
@@ -167,7 +175,7 @@ sub IP_new
 	&R_PERM_OP($l,$tt,$r,14,"0x33333333",$r);
 	&R_PERM_OP($tt,$r,$l,22,"0x03fc03fc",$r);
 	&R_PERM_OP($l,$r,$tt, 9,"0xaaaaaaaa",$r);
-	
+
 	if ($lr != 3)
 		{
 		if (($lr-3) < 0)

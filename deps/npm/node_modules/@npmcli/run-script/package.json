@@ -1,0 +1,47 @@
+{
+  "name": "@npmcli/run-script",
+  "version": "1.8.3",
+  "description": "Run a lifecycle script for a package (descendant of npm-lifecycle)",
+  "author": "Isaac Z. Schlueter <i@izs.me> (https://izs.me)",
+  "license": "ISC",
+  "scripts": {
+    "test": "tap",
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags",
+    "eslint": "eslint",
+    "lint": "npm run eslint -- \"lib/**/*.js\"",
+    "lintfix": "npm run lint -- --fix"
+  },
+  "tap": {
+    "check-coverage": true,
+    "coverage-map": "map.js"
+  },
+  "devDependencies": {
+    "eslint": "^7.19.0",
+    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^4.2.1",
+    "eslint-plugin-standard": "^5.0.0",
+    "minipass": "^3.1.1",
+    "require-inject": "^1.4.4",
+    "tap": "^14.11.0"
+  },
+  "dependencies": {
+    "@npmcli/node-gyp": "^1.0.2",
+    "@npmcli/promise-spawn": "^1.3.2",
+    "infer-owner": "^1.0.4",
+    "node-gyp": "^7.1.0",
+    "puka": "^1.0.1",
+    "read-package-json-fast": "^2.0.1"
+  },
+  "files": [
+    "lib/**/*.js",
+    "lib/node-gyp-bin"
+  ],
+  "main": "lib/run-script.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/run-script.git"
+  }
+}

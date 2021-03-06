@@ -1,64 +1,14 @@
-/* v3_genn.c */
 /*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
- * 1999.
- */
-/* ====================================================================
- * Copyright (c) 1999-2008 The OpenSSL Project.  All rights reserved.
+ * Copyright 1999-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    licensing@OpenSSL.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #include <stdio.h>
-#include "cryptlib.h"
+#include "internal/cryptlib.h"
 #include <openssl/asn1t.h>
 #include <openssl/conf.h>
 #include <openssl/x509v3.h>
@@ -72,8 +22,9 @@ ASN1_SEQUENCE(OTHERNAME) = {
 IMPLEMENT_ASN1_FUNCTIONS(OTHERNAME)
 
 ASN1_SEQUENCE(EDIPARTYNAME) = {
-        ASN1_IMP_OPT(EDIPARTYNAME, nameAssigner, DIRECTORYSTRING, 0),
-        ASN1_IMP_OPT(EDIPARTYNAME, partyName, DIRECTORYSTRING, 1)
+        /* DirectoryString is a CHOICE type so use explicit tagging */
+        ASN1_EXP_OPT(EDIPARTYNAME, nameAssigner, DIRECTORYSTRING, 0),
+        ASN1_EXP(EDIPARTYNAME, partyName, DIRECTORYSTRING, 1)
 } ASN1_SEQUENCE_END(EDIPARTYNAME)
 
 IMPLEMENT_ASN1_FUNCTIONS(EDIPARTYNAME)
@@ -107,6 +58,37 @@ GENERAL_NAME *GENERAL_NAME_dup(GENERAL_NAME *a)
                                     (char *)a);
 }
 
+static int edipartyname_cmp(const EDIPARTYNAME *a, const EDIPARTYNAME *b)
+{
+    int res;
+
+    if (a == NULL || b == NULL) {
+        /*
+         * Shouldn't be possible in a valid GENERAL_NAME, but we handle it
+         * anyway. OTHERNAME_cmp treats NULL != NULL so we do the same here
+         */
+        return -1;
+    }
+    if (a->nameAssigner == NULL && b->nameAssigner != NULL)
+        return -1;
+    if (a->nameAssigner != NULL && b->nameAssigner == NULL)
+        return 1;
+    /* If we get here then both have nameAssigner set, or both unset */
+    if (a->nameAssigner != NULL) {
+        res = ASN1_STRING_cmp(a->nameAssigner, b->nameAssigner);
+        if (res != 0)
+            return res;
+    }
+    /*
+     * partyName is required, so these should never be NULL. We treat it in
+     * the same way as the a == NULL || b == NULL case above
+     */
+    if (a->partyName == NULL || b->partyName == NULL)
+        return -1;
+
+    return ASN1_STRING_cmp(a->partyName, b->partyName);
+}
+
 /* Returns 0 if they are equal, != 0 otherwise. */
 int GENERAL_NAME_cmp(GENERAL_NAME *a, GENERAL_NAME *b)
 {
@@ -116,8 +98,11 @@ int GENERAL_NAME_cmp(GENERAL_NAME *a, GENERAL_NAME *b)
         return -1;
     switch (a->type) {
     case GEN_X400:
+        result = ASN1_TYPE_cmp(a->d.x400Address, b->d.x400Address);
+        break;
+
     case GEN_EDIPARTY:
-        result = ASN1_TYPE_cmp(a->d.other, b->d.other);
+        result = edipartyname_cmp(a->d.ediPartyName, b->d.ediPartyName);
         break;
 
     case GEN_OTHERNAME:
@@ -164,8 +149,11 @@ void GENERAL_NAME_set0_value(GENERAL_NAME *a, int type, void *value)
 {
     switch (type) {
     case GEN_X400:
+        a->d.x400Address = value;
+        break;
+
     case GEN_EDIPARTY:
-        a->d.other = value;
+        a->d.ediPartyName = value;
         break;
 
     case GEN_OTHERNAME:
@@ -193,14 +181,16 @@ void GENERAL_NAME_set0_value(GENERAL_NAME *a, int type, void *value)
     a->type = type;
 }
 
-void *GENERAL_NAME_get0_value(GENERAL_NAME *a, int *ptype)
+void *GENERAL_NAME_get0_value(const GENERAL_NAME *a, int *ptype)
 {
     if (ptype)
         *ptype = a->type;
     switch (a->type) {
     case GEN_X400:
+        return a->d.x400Address;
+
     case GEN_EDIPARTY:
-        return a->d.other;
+        return a->d.ediPartyName;
 
     case GEN_OTHERNAME:
         return a->d.otherName;
@@ -229,15 +219,16 @@ int GENERAL_NAME_set0_othername(GENERAL_NAME *gen,
 {
     OTHERNAME *oth;
     oth = OTHERNAME_new();
-    if (!oth)
+    if (oth == NULL)
         return 0;
+    ASN1_TYPE_free(oth->value);
     oth->type_id = oid;
     oth->value = value;
     GENERAL_NAME_set0_value(gen, GEN_OTHERNAME, oth);
     return 1;
 }
 
-int GENERAL_NAME_get0_otherName(GENERAL_NAME *gen,
+int GENERAL_NAME_get0_otherName(const GENERAL_NAME *gen,
                                 ASN1_OBJECT **poid, ASN1_TYPE **pvalue)
 {
     if (gen->type != GEN_OTHERNAME)

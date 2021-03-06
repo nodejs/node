@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
@@ -151,7 +151,7 @@ class U_I18N_API OlsonTimeZone: public BasicTimeZone {
     /**
      * TimeZone API.
      */
-    virtual TimeZone* clone() const;
+    virtual OlsonTimeZone* clone() const;
 
     /**
      * TimeZone API.
@@ -208,7 +208,7 @@ class U_I18N_API OlsonTimeZone: public BasicTimeZone {
     /**
      * TimeZone API.  For a historical zone, whether DST is used or
      * not varies over time.  In order to approximate expected
-     * behavior, this method returns TRUE if DST is observed at any
+     * behavior, this method returns true if DST is observed at any
      * point in the current year.
      */
     virtual UBool useDaylightTime() const;
@@ -234,7 +234,7 @@ class U_I18N_API OlsonTimeZone: public BasicTimeZone {
      * @param base      The base time.
      * @param inclusive Whether the base time is inclusive or not.
      * @param result    Receives the first transition after the base time.
-     * @return  TRUE if the transition is found.
+     * @return  true if the transition is found.
      */
     virtual UBool getNextTransition(UDate base, UBool inclusive, TimeZoneTransition& result) const;
 
@@ -244,7 +244,7 @@ class U_I18N_API OlsonTimeZone: public BasicTimeZone {
      * @param base      The base time.
      * @param inclusive Whether the base time is inclusive or not.
      * @param result    Receives the most recent transition before the base time.
-     * @return  TRUE if the transition is found.
+     * @return  true if the transition is found.
      */
     virtual UBool getPreviousTransition(UDate base, UBool inclusive, TimeZoneTransition& result) const;
 
@@ -398,7 +398,7 @@ private:
     TimeArrayTimeZoneRule   **historicRules;
     int16_t             historicRuleCount;
     SimpleTimeZone      *finalZoneWithStartYear; // hack
-    UInitOnce           transitionRulesInitOnce;
+    UInitOnce           transitionRulesInitOnce = U_INITONCE_INITIALIZER;
 };
 
 inline int16_t

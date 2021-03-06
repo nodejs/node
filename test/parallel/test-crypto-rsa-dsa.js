@@ -1,46 +1,96 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
-
-if (!common.hasCrypto) {
+const common = require('../common');
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
-var constants = require('crypto').constants;
-var crypto = require('crypto');
+
+const assert = require('assert');
+const crypto = require('crypto');
+
+const constants = crypto.constants;
+
+const fixtures = require('../common/fixtures');
 
 // Test certificates
-var certPem = fs.readFileSync(common.fixturesDir + '/test_cert.pem', 'ascii');
-var keyPem = fs.readFileSync(common.fixturesDir + '/test_key.pem', 'ascii');
-var rsaPubPem = fs.readFileSync(common.fixturesDir + '/test_rsa_pubkey.pem',
-    'ascii');
-var rsaKeyPem = fs.readFileSync(common.fixturesDir + '/test_rsa_privkey.pem',
-    'ascii');
-var rsaKeyPemEncrypted = fs.readFileSync(
-  common.fixturesDir + '/test_rsa_privkey_encrypted.pem', 'ascii');
-var dsaPubPem = fs.readFileSync(common.fixturesDir + '/test_dsa_pubkey.pem',
-    'ascii');
-var dsaKeyPem = fs.readFileSync(common.fixturesDir + '/test_dsa_privkey.pem',
-    'ascii');
-var dsaKeyPemEncrypted = fs.readFileSync(
-  common.fixturesDir + '/test_dsa_privkey_encrypted.pem', 'ascii');
+const certPem = fixtures.readKey('rsa_cert.crt');
+const keyPem = fixtures.readKey('rsa_private.pem');
+const rsaKeySize = 2048;
+const rsaPubPem = fixtures.readKey('rsa_public.pem', 'ascii');
+const rsaKeyPem = fixtures.readKey('rsa_private.pem', 'ascii');
+const rsaKeyPemEncrypted = fixtures.readKey('rsa_private_encrypted.pem',
+                                            'ascii');
+const dsaPubPem = fixtures.readKey('dsa_public.pem', 'ascii');
+const dsaKeyPem = fixtures.readKey('dsa_private.pem', 'ascii');
+const dsaKeyPemEncrypted = fixtures.readKey('dsa_private_encrypted.pem',
+                                            'ascii');
+const rsaPkcs8KeyPem = fixtures.readKey('rsa_private_pkcs8.pem');
+const dsaPkcs8KeyPem = fixtures.readKey('dsa_private_pkcs8.pem');
+
+const ec = new TextEncoder();
+
+const decryptError = {
+  message: 'error:06065064:digital envelope routines:EVP_DecryptFinal_ex:' +
+    'bad decrypt',
+  code: 'ERR_OSSL_EVP_BAD_DECRYPT',
+  reason: 'bad decrypt',
+  function: 'EVP_DecryptFinal_ex',
+  library: 'digital envelope routines',
+};
+
+function getBufferCopy(buf) {
+  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+}
 
 // Test RSA encryption/decryption
 {
   const input = 'I AM THE WALRUS';
   const bufferToEncrypt = Buffer.from(input);
+  const bufferPassword = Buffer.from('password');
 
   let encryptedBuffer = crypto.publicEncrypt(rsaPubPem, bufferToEncrypt);
 
+  // Test other input types
+  let otherEncrypted;
+  {
+    const ab = getBufferCopy(ec.encode(rsaPubPem));
+    const ab2enc = getBufferCopy(bufferToEncrypt);
+
+    crypto.publicEncrypt(ab, ab2enc);
+    crypto.publicEncrypt(new Uint8Array(ab), new Uint8Array(ab2enc));
+    crypto.publicEncrypt(new DataView(ab), new DataView(ab2enc));
+    otherEncrypted = crypto.publicEncrypt({
+      key: Buffer.from(ab).toString('hex'),
+      encoding: 'hex'
+    }, Buffer.from(ab2enc).toString('hex'));
+  }
+
   let decryptedBuffer = crypto.privateDecrypt(rsaKeyPem, encryptedBuffer);
-  assert.strictEqual(input, decryptedBuffer.toString());
+  const otherDecrypted = crypto.privateDecrypt(rsaKeyPem, otherEncrypted);
+  assert.strictEqual(decryptedBuffer.toString(), input);
+  assert.strictEqual(otherDecrypted.toString(), input);
+
+  decryptedBuffer = crypto.privateDecrypt(rsaPkcs8KeyPem, encryptedBuffer);
+  assert.strictEqual(decryptedBuffer.toString(), input);
 
   let decryptedBufferWithPassword = crypto.privateDecrypt({
     key: rsaKeyPemEncrypted,
     passphrase: 'password'
   }, encryptedBuffer);
-  assert.strictEqual(input, decryptedBufferWithPassword.toString());
+
+  const otherDecryptedBufferWithPassword = crypto.privateDecrypt({
+    key: rsaKeyPemEncrypted,
+    passphrase: ec.encode('password')
+  }, encryptedBuffer);
+
+  assert.strictEqual(
+    otherDecryptedBufferWithPassword.toString(),
+    decryptedBufferWithPassword.toString());
+
+  decryptedBufferWithPassword = crypto.privateDecrypt({
+    key: rsaKeyPemEncrypted,
+    passphrase: 'password'
+  }, encryptedBuffer);
+
+  assert.strictEqual(decryptedBufferWithPassword.toString(), input);
 
   encryptedBuffer = crypto.publicEncrypt({
     key: rsaKeyPemEncrypted,
@@ -51,157 +101,286 @@ var dsaKeyPemEncrypted = fs.readFileSync(
     key: rsaKeyPemEncrypted,
     passphrase: 'password'
   }, encryptedBuffer);
-  assert.strictEqual(input, decryptedBufferWithPassword.toString());
+  assert.strictEqual(decryptedBufferWithPassword.toString(), input);
 
   encryptedBuffer = crypto.privateEncrypt({
     key: rsaKeyPemEncrypted,
-    passphrase: Buffer.from('password')
+    passphrase: bufferPassword
   }, bufferToEncrypt);
 
   decryptedBufferWithPassword = crypto.publicDecrypt({
     key: rsaKeyPemEncrypted,
-    passphrase: Buffer.from('password')
+    passphrase: bufferPassword
   }, encryptedBuffer);
-  assert.strictEqual(input, decryptedBufferWithPassword.toString());
+  assert.strictEqual(decryptedBufferWithPassword.toString(), input);
+
+  // Now with explicit RSA_PKCS1_PADDING.
+  encryptedBuffer = crypto.privateEncrypt({
+    padding: crypto.constants.RSA_PKCS1_PADDING,
+    key: rsaKeyPemEncrypted,
+    passphrase: bufferPassword
+  }, bufferToEncrypt);
+
+  decryptedBufferWithPassword = crypto.publicDecrypt({
+    padding: crypto.constants.RSA_PKCS1_PADDING,
+    key: rsaKeyPemEncrypted,
+    passphrase: bufferPassword
+  }, encryptedBuffer);
+  assert.strictEqual(decryptedBufferWithPassword.toString(), input);
+
+  // Omitting padding should be okay because RSA_PKCS1_PADDING is the default.
+  decryptedBufferWithPassword = crypto.publicDecrypt({
+    key: rsaKeyPemEncrypted,
+    passphrase: bufferPassword
+  }, encryptedBuffer);
+  assert.strictEqual(decryptedBufferWithPassword.toString(), input);
+
+  // Now with RSA_NO_PADDING. Plaintext needs to match key size.
+  const plaintext = 'x'.repeat(rsaKeySize / 8);
+  encryptedBuffer = crypto.privateEncrypt({
+    padding: crypto.constants.RSA_NO_PADDING,
+    key: rsaKeyPemEncrypted,
+    passphrase: bufferPassword
+  }, Buffer.from(plaintext));
+
+  decryptedBufferWithPassword = crypto.publicDecrypt({
+    padding: crypto.constants.RSA_NO_PADDING,
+    key: rsaKeyPemEncrypted,
+    passphrase: bufferPassword
+  }, encryptedBuffer);
+  assert.strictEqual(decryptedBufferWithPassword.toString(), plaintext);
 
   encryptedBuffer = crypto.publicEncrypt(certPem, bufferToEncrypt);
 
   decryptedBuffer = crypto.privateDecrypt(keyPem, encryptedBuffer);
-  assert.strictEqual(input, decryptedBuffer.toString());
+  assert.strictEqual(decryptedBuffer.toString(), input);
 
   encryptedBuffer = crypto.publicEncrypt(keyPem, bufferToEncrypt);
 
   decryptedBuffer = crypto.privateDecrypt(keyPem, encryptedBuffer);
-  assert.strictEqual(input, decryptedBuffer.toString());
+  assert.strictEqual(decryptedBuffer.toString(), input);
 
   encryptedBuffer = crypto.privateEncrypt(keyPem, bufferToEncrypt);
 
   decryptedBuffer = crypto.publicDecrypt(keyPem, encryptedBuffer);
-  assert.strictEqual(input, decryptedBuffer.toString());
+  assert.strictEqual(decryptedBuffer.toString(), input);
 
-  assert.throws(function() {
+  assert.throws(() => {
     crypto.privateDecrypt({
       key: rsaKeyPemEncrypted,
       passphrase: 'wrong'
     }, bufferToEncrypt);
-  });
+  }, decryptError);
 
-  assert.throws(function() {
+  assert.throws(() => {
     crypto.publicEncrypt({
       key: rsaKeyPemEncrypted,
       passphrase: 'wrong'
     }, encryptedBuffer);
-  });
+  }, decryptError);
 
   encryptedBuffer = crypto.privateEncrypt({
     key: rsaKeyPemEncrypted,
     passphrase: Buffer.from('password')
   }, bufferToEncrypt);
 
-  assert.throws(function() {
+  assert.throws(() => {
     crypto.publicDecrypt({
       key: rsaKeyPemEncrypted,
-      passphrase: [].concat.apply([], Buffer.from('password'))
+      passphrase: Buffer.from('wrong')
     }, encryptedBuffer);
-  });
+  }, decryptError);
 }
 
-function test_rsa(padding) {
-  var input = Buffer.allocUnsafe(padding === 'RSA_NO_PADDING' ? 1024 / 8 : 32);
-  for (var i = 0; i < input.length; i++)
+function test_rsa(padding, encryptOaepHash, decryptOaepHash) {
+  const size = (padding === 'RSA_NO_PADDING') ? rsaKeySize / 8 : 32;
+  const input = Buffer.allocUnsafe(size);
+  for (let i = 0; i < input.length; i++)
     input[i] = (i * 7 + 11) & 0xff;
-  var bufferToEncrypt = Buffer.from(input);
+  const bufferToEncrypt = Buffer.from(input);
 
   padding = constants[padding];
 
-  var encryptedBuffer = crypto.publicEncrypt({
+  const encryptedBuffer = crypto.publicEncrypt({
     key: rsaPubPem,
-    padding: padding
+    padding: padding,
+    oaepHash: encryptOaepHash
   }, bufferToEncrypt);
 
-  var decryptedBuffer = crypto.privateDecrypt({
+  let decryptedBuffer = crypto.privateDecrypt({
     key: rsaKeyPem,
-    padding: padding
+    padding: padding,
+    oaepHash: decryptOaepHash
   }, encryptedBuffer);
-  assert.equal(input, decryptedBuffer.toString());
+  assert.deepStrictEqual(decryptedBuffer, input);
+
+  decryptedBuffer = crypto.privateDecrypt({
+    key: rsaPkcs8KeyPem,
+    padding: padding,
+    oaepHash: decryptOaepHash
+  }, encryptedBuffer);
+  assert.deepStrictEqual(decryptedBuffer, input);
 }
 
 test_rsa('RSA_NO_PADDING');
 test_rsa('RSA_PKCS1_PADDING');
 test_rsa('RSA_PKCS1_OAEP_PADDING');
 
+// Test OAEP with different hash functions.
+test_rsa('RSA_PKCS1_OAEP_PADDING', undefined, 'sha1');
+test_rsa('RSA_PKCS1_OAEP_PADDING', 'sha1', undefined);
+test_rsa('RSA_PKCS1_OAEP_PADDING', 'sha256', 'sha256');
+test_rsa('RSA_PKCS1_OAEP_PADDING', 'sha512', 'sha512');
+assert.throws(() => {
+  test_rsa('RSA_PKCS1_OAEP_PADDING', 'sha256', 'sha512');
+}, {
+  code: 'ERR_OSSL_RSA_OAEP_DECODING_ERROR'
+});
+
+// The following RSA-OAEP test cases were created using the WebCrypto API to
+// ensure compatibility when using non-SHA1 hash functions.
+{
+  const { decryptionTests } =
+      JSON.parse(fixtures.readSync('rsa-oaep-test-vectors.js', 'utf8'));
+
+  for (const { ct, oaepHash, oaepLabel } of decryptionTests) {
+    const label = oaepLabel ? Buffer.from(oaepLabel, 'hex') : undefined;
+    const copiedLabel = oaepLabel ? getBufferCopy(label) : undefined;
+
+    const decrypted = crypto.privateDecrypt({
+      key: rsaPkcs8KeyPem,
+      oaepHash,
+      oaepLabel: oaepLabel ? label : undefined
+    }, Buffer.from(ct, 'hex'));
+
+    assert.strictEqual(decrypted.toString('utf8'), 'Hello Node.js');
+
+    const otherDecrypted = crypto.privateDecrypt({
+      key: rsaPkcs8KeyPem,
+      oaepHash,
+      oaepLabel: copiedLabel
+    }, Buffer.from(ct, 'hex'));
+
+    assert.strictEqual(otherDecrypted.toString('utf8'), 'Hello Node.js');
+  }
+}
+
+// Test invalid oaepHash and oaepLabel options.
+for (const fn of [crypto.publicEncrypt, crypto.privateDecrypt]) {
+  assert.throws(() => {
+    fn({
+      key: rsaPubPem,
+      oaepHash: 'Hello world'
+    }, Buffer.alloc(10));
+  }, {
+    code: 'ERR_OSSL_EVP_INVALID_DIGEST'
+  });
+
+  for (const oaepHash of [0, false, null, Symbol(), () => {}]) {
+    assert.throws(() => {
+      fn({
+        key: rsaPubPem,
+        oaepHash
+      }, Buffer.alloc(10));
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE'
+    });
+  }
+
+  for (const oaepLabel of [0, false, null, Symbol(), () => {}, {}]) {
+    assert.throws(() => {
+      fn({
+        key: rsaPubPem,
+        oaepLabel
+      }, Buffer.alloc(10));
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE'
+    });
+  }
+}
+
 // Test RSA key signing/verification
-var rsaSign = crypto.createSign('RSA-SHA1');
-var rsaVerify = crypto.createVerify('RSA-SHA1');
+let rsaSign = crypto.createSign('SHA1');
+let rsaVerify = crypto.createVerify('SHA1');
 assert.ok(rsaSign);
 assert.ok(rsaVerify);
 
-rsaSign.update(rsaPubPem);
-var rsaSignature = rsaSign.sign(rsaKeyPem, 'hex');
-assert.equal(rsaSignature,
-             '5c50e3145c4e2497aadb0eabc83b342d0b0021ece0d4c4a064b7c' +
-             '8f020d7e2688b122bfb54c724ac9ee169f83f66d2fe90abeb95e8' +
-             'e1290e7e177152a4de3d944cf7d4883114a20ed0f78e70e25ef0f' +
-             '60f06b858e6af42a2f276ede95bbc6bc9a9bbdda15bd663186a6f' +
-             '40819a7af19e577bb2efa5e579a1f5ce8a0d4ca8b8f6');
+const expectedSignature = fixtures.readKey(
+  'rsa_public_sha1_signature_signedby_rsa_private_pkcs8.sha1',
+  'hex'
+);
 
+rsaSign.update(rsaPubPem);
+let rsaSignature = rsaSign.sign(rsaKeyPem, 'hex');
+assert.strictEqual(rsaSignature, expectedSignature);
+
+rsaVerify.update(rsaPubPem);
+assert.strictEqual(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), true);
+
+// Test RSA PKCS#8 key signing/verification
+rsaSign = crypto.createSign('SHA1');
+rsaSign.update(rsaPubPem);
+rsaSignature = rsaSign.sign(rsaPkcs8KeyPem, 'hex');
+assert.strictEqual(rsaSignature, expectedSignature);
+
+rsaVerify = crypto.createVerify('SHA1');
 rsaVerify.update(rsaPubPem);
 assert.strictEqual(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), true);
 
 // Test RSA key signing/verification with encrypted key
-rsaSign = crypto.createSign('RSA-SHA1');
+rsaSign = crypto.createSign('SHA1');
 rsaSign.update(rsaPubPem);
-assert.doesNotThrow(function() {
-  var signOptions = { key: rsaKeyPemEncrypted, passphrase: 'password' };
-  rsaSignature = rsaSign.sign(signOptions, 'hex');
-});
-assert.equal(rsaSignature,
-             '5c50e3145c4e2497aadb0eabc83b342d0b0021ece0d4c4a064b7c' +
-             '8f020d7e2688b122bfb54c724ac9ee169f83f66d2fe90abeb95e8' +
-             'e1290e7e177152a4de3d944cf7d4883114a20ed0f78e70e25ef0f' +
-             '60f06b858e6af42a2f276ede95bbc6bc9a9bbdda15bd663186a6f' +
-             '40819a7af19e577bb2efa5e579a1f5ce8a0d4ca8b8f6');
+const signOptions = { key: rsaKeyPemEncrypted, passphrase: 'password' };
+rsaSignature = rsaSign.sign(signOptions, 'hex');
+assert.strictEqual(rsaSignature, expectedSignature);
 
-rsaVerify = crypto.createVerify('RSA-SHA1');
+rsaVerify = crypto.createVerify('SHA1');
 rsaVerify.update(rsaPubPem);
 assert.strictEqual(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), true);
 
-rsaSign = crypto.createSign('RSA-SHA1');
+rsaSign = crypto.createSign('SHA1');
 rsaSign.update(rsaPubPem);
-assert.throws(function() {
-  var signOptions = { key: rsaKeyPemEncrypted, passphrase: 'wrong' };
+assert.throws(() => {
+  const signOptions = { key: rsaKeyPemEncrypted, passphrase: 'wrong' };
   rsaSign.sign(signOptions, 'hex');
-});
+}, decryptError);
 
 //
 // Test RSA signing and verification
 //
 {
-  const privateKey = fs.readFileSync(
-      common.fixturesDir + '/test_rsa_privkey_2.pem');
-
-  const publicKey = fs.readFileSync(
-      common.fixturesDir + '/test_rsa_pubkey_2.pem');
+  const privateKey = fixtures.readKey('rsa_private_b.pem');
+  const publicKey = fixtures.readKey('rsa_public_b.pem');
 
   const input = 'I AM THE WALRUS';
 
-  const signature =
-      '79d59d34f56d0e94aa6a3e306882b52ed4191f07521f25f505a078dc2f89' +
-      '396e0c8ac89e996fde5717f4cb89199d8fec249961fcb07b74cd3d2a4ffa' +
-      '235417b69618e4bcd76b97e29975b7ce862299410e1b522a328e44ac9bb2' +
-      '8195e0268da7eda23d9825ac43c724e86ceeee0d0d4465678652ccaf6501' +
-      '0ddfb299bedeb1ad';
+  const signature = fixtures.readKey(
+    'I_AM_THE_WALRUS_sha256_signature_signedby_rsa_private_b.sha256',
+    'hex'
+  );
 
-  const sign = crypto.createSign('RSA-SHA256');
+  const sign = crypto.createSign('SHA256');
   sign.update(input);
 
   const output = sign.sign(privateKey, 'hex');
   assert.strictEqual(output, signature);
 
-  const verify = crypto.createVerify('RSA-SHA256');
+  const verify = crypto.createVerify('SHA256');
   verify.update(input);
 
   assert.strictEqual(verify.verify(publicKey, signature, 'hex'), true);
+
+  // Test the legacy signature algorithm name.
+  const sign2 = crypto.createSign('RSA-SHA256');
+  sign2.update(input);
+
+  const output2 = sign2.sign(privateKey, 'hex');
+  assert.strictEqual(output2, signature);
+
+  const verify2 = crypto.createVerify('SHA256');
+  verify2.update(input);
+
+  assert.strictEqual(verify2.verify(publicKey, signature, 'hex'), true);
 }
 
 
@@ -212,12 +391,41 @@ assert.throws(function() {
   const input = 'I AM THE WALRUS';
 
   // DSA signatures vary across runs so there is no static string to verify
-  // against
-  const sign = crypto.createSign('DSS1');
+  // against.
+  const sign = crypto.createSign('SHA1');
   sign.update(input);
   const signature = sign.sign(dsaKeyPem, 'hex');
 
-  const verify = crypto.createVerify('DSS1');
+  const verify = crypto.createVerify('SHA1');
+  verify.update(input);
+
+  assert.strictEqual(verify.verify(dsaPubPem, signature, 'hex'), true);
+
+  // Test the legacy 'DSS1' name.
+  const sign2 = crypto.createSign('DSS1');
+  sign2.update(input);
+  const signature2 = sign2.sign(dsaKeyPem, 'hex');
+
+  const verify2 = crypto.createVerify('DSS1');
+  verify2.update(input);
+
+  assert.strictEqual(verify2.verify(dsaPubPem, signature2, 'hex'), true);
+}
+
+
+//
+// Test DSA signing and verification with PKCS#8 private key
+//
+{
+  const input = 'I AM THE WALRUS';
+
+  // DSA signatures vary across runs so there is no static string to verify
+  // against.
+  const sign = crypto.createSign('SHA1');
+  sign.update(input);
+  const signature = sign.sign(dsaPkcs8KeyPem, 'hex');
+
+  const verify = crypto.createVerify('SHA1');
   verify.update(input);
 
   assert.strictEqual(verify.verify(dsaPubPem, signature, 'hex'), true);
@@ -230,26 +438,22 @@ assert.throws(function() {
 const input = 'I AM THE WALRUS';
 
 {
-  const sign = crypto.createSign('DSS1');
+  const sign = crypto.createSign('SHA1');
   sign.update(input);
-  assert.throws(function() {
+  assert.throws(() => {
     sign.sign({ key: dsaKeyPemEncrypted, passphrase: 'wrong' }, 'hex');
-  });
+  }, decryptError);
 }
 
 {
   // DSA signatures vary across runs so there is no static string to verify
-  // against
-  const sign = crypto.createSign('DSS1');
+  // against.
+  const sign = crypto.createSign('SHA1');
   sign.update(input);
+  const signOptions = { key: dsaKeyPemEncrypted, passphrase: 'password' };
+  const signature = sign.sign(signOptions, 'hex');
 
-  let signature;
-  assert.doesNotThrow(function() {
-    const signOptions = { key: dsaKeyPemEncrypted, passphrase: 'password' };
-    signature = sign.sign(signOptions, 'hex');
-  });
-
-  const verify = crypto.createVerify('DSS1');
+  const verify = crypto.createVerify('SHA1');
   verify.update(input);
 
   assert.strictEqual(verify.verify(dsaPubPem, signature, 'hex'), true);

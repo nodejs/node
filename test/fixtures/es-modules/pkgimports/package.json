@@ -1,0 +1,30 @@
+{
+  "imports": {
+    "#test": "./test.js",
+    "#branch": {
+      "import": "./importbranch.js",
+      "require": "./requirebranch.js"
+    },
+    "#subpath/*": "./sub/*",
+    "#external": "pkgexports/valid-cjs",
+    "#external/subpath/*": "pkgexports/sub/*",
+    "#external/invalidsubpath/": "pkgexports/sub",
+    "#belowbase": "../belowbase",
+    "#url": "some:url",
+    "#null": null,
+    "#nullcondition": {
+      "import": {
+        "default": null
+      },
+      "require": {
+        "default": null
+      },
+      "default": "./test.js"
+    },
+    "#subpath/nullshadow/": [null],
+    "#": "./test.js",
+    "#/initialslash": "./test.js",
+    "#notfound": "./notfound.js",
+    "#percent": "./..%2F/x.js"
+  }
+}

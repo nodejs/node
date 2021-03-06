@@ -3,6 +3,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import argparse
 import sys
 
@@ -15,7 +18,7 @@ class Preparation(Step):
   def RunStep(self):
     # TODO(machenbach): Remove after the git switch.
     if self.Config("PERSISTFILE_BASENAME") == "/tmp/v8-auto-tag-tempfile":
-      print "This script is disabled until after the v8 git migration."
+      print("This script is disabled until after the v8 git migration.")
       return True
 
     self.CommonPrepare()
@@ -80,7 +83,7 @@ class GetOldestUntaggedVersion(Step):
         self["candidate_version"] = version
 
     if not self["candidate"] or not self["candidate_version"]:
-      print "Nothing found to tag."
+      print("Nothing found to tag.")
       self.CommonCleanup()
       return True
 
@@ -120,18 +123,18 @@ class CalculateTagRevision(Step):
       # Don't include the version change commit itself if there is no upper
       # limit yet.
       candidate_svn =  str(int(candidate_svn) + 1)
-      next_svn = sys.maxint
+      next_svn = sys.maxsize
     lkgr_svn = self.LastLKGR(candidate_svn, next_svn)
 
     if not lkgr_svn:
-      print "There is no lkgr since the candidate version yet."
+      print("There is no lkgr since the candidate version yet.")
       self.CommonCleanup()
       return True
 
     # Let's check if the lkgr is at least three hours old.
     self["lkgr"] = self.vc.SvnGit(lkgr_svn)
     if not self["lkgr"]:
-      print "Couldn't find git hash for lkgr %s" % lkgr_svn
+      print("Couldn't find git hash for lkgr %s" % lkgr_svn)
       self.CommonCleanup()
       return True
 
@@ -139,11 +142,11 @@ class CalculateTagRevision(Step):
     current_utc_time = self._side_effect_handler.GetUTCStamp()
 
     if current_utc_time < lkgr_utc_time + 10800:
-      print "Candidate lkgr %s is too recent for tagging." % lkgr_svn
+      print("Candidate lkgr %s is too recent for tagging." % lkgr_svn)
       self.CommonCleanup()
       return True
 
-    print "Tagging revision %s with %s" % (lkgr_svn, self["candidate_version"])
+    print("Tagging revision %s with %s" % (lkgr_svn, self["candidate_version"]))
 
 
 class MakeTag(Step):
@@ -172,7 +175,7 @@ class AutoTag(ScriptsBase):
 
   def _ProcessOptions(self, options):  # pragma: no cover
     if not options.dry_run and not options.author:
-      print "Specify your chromium.org email with -a"
+      print("Specify your chromium.org email with -a")
       return False
     options.wait_for_lgtm = False
     options.force_readline_defaults = True

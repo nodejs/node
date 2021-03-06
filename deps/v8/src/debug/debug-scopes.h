@@ -5,11 +5,15 @@
 #ifndef V8_DEBUG_DEBUG_SCOPES_H_
 #define V8_DEBUG_DEBUG_SCOPES_H_
 
+#include <vector>
+
 #include "src/debug/debug-frames.h"
-#include "src/frames.h"
 
 namespace v8 {
 namespace internal {
+
+class JavaScriptFrame;
+class ParseInfo;
 
 // Iterate over the actual scopes visible from a stack frame or from a closure.
 // The iteration proceeds from the innermost visible nested scope outwards.
@@ -37,130 +41,132 @@ class ScopeIterator {
   static const int kScopeDetailsFunctionIndex = 5;
   static const int kScopeDetailsSize = 6;
 
-  enum Option { DEFAULT, IGNORE_NESTED_SCOPES, COLLECT_NON_LOCALS };
+  enum class ReparseStrategy {
+    kScript,
+    kFunctionLiteral,
+  };
 
   ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
-                Option options = DEFAULT);
+                ReparseStrategy strategy);
 
   ScopeIterator(Isolate* isolate, Handle<JSFunction> function);
   ScopeIterator(Isolate* isolate, Handle<JSGeneratorObject> generator);
+  ~ScopeIterator();
 
-  MUST_USE_RESULT MaybeHandle<JSObject> MaterializeScopeDetails();
+  Handle<JSObject> MaterializeScopeDetails();
 
   // More scopes?
-  bool Done() {
-    DCHECK(!failed_);
-    return context_.is_null();
-  }
-
-  bool Failed() { return failed_; }
+  bool Done() const { return context_.is_null(); }
 
   // Move to the next scope.
   void Next();
 
+  // Restart to the first scope and context.
+  void Restart();
+
   // Return the type of the current scope.
-  ScopeType Type();
+  ScopeType Type() const;
+
+  // Indicates which variables should be visited. Either only variables from the
+  // scope that are available on the stack, or all variables.
+  enum class Mode { STACK, ALL };
 
   // Return the JavaScript object with the content of the current scope.
-  MaybeHandle<JSObject> ScopeObject();
+  Handle<JSObject> ScopeObject(Mode mode);
 
-  bool HasContext();
+  // Returns whether the current scope declares any variables.
+  bool DeclaresLocals(Mode mode) const;
 
   // Set variable value and return true on success.
   bool SetVariableValue(Handle<String> variable_name, Handle<Object> new_value);
 
-  Handle<ScopeInfo> CurrentScopeInfo();
-
-  // Return the context for this scope. For the local context there might not
-  // be an actual context.
-  Handle<Context> CurrentContext();
+  bool ClosureScopeHasThisReference() const;
 
   // Populate the set with collected non-local variable names.
-  Handle<StringSet> GetNonLocals();
+  Handle<StringSet> GetLocals() { return locals_; }
+
+  // Similar to JSFunction::GetName return the function's name or it's inferred
+  // name.
+  Handle<Object> GetFunctionDebugName() const;
+
+  Handle<Script> GetScript() const { return script_; }
+
+  bool HasPositionInfo();
+  int start_position();
+  int end_position();
 
 #ifdef DEBUG
   // Debug print of the content of the current scope.
   void DebugPrint();
 #endif
 
+  bool InInnerScope() const { return !function_.is_null(); }
+  bool HasContext() const;
+  bool NeedsAndHasContext() const;
+  Handle<Context> CurrentContext() const {
+    DCHECK(HasContext());
+    return context_;
+  }
+
  private:
-  struct ExtendedScopeInfo {
-    ExtendedScopeInfo(Handle<ScopeInfo> info, int start, int end)
-        : scope_info(info), start_position(start), end_position(end) {}
-    explicit ExtendedScopeInfo(Handle<ScopeInfo> info)
-        : scope_info(info), start_position(-1), end_position(-1) {}
-    Handle<ScopeInfo> scope_info;
-    int start_position;
-    int end_position;
-    bool is_hidden() { return start_position == -1 && end_position == -1; }
-  };
-
   Isolate* isolate_;
-  FrameInspector* const frame_inspector_;
+  std::unique_ptr<ParseInfo> info_;
+  FrameInspector* const frame_inspector_ = nullptr;
+  Handle<JSGeneratorObject> generator_;
+
+  // The currently-executing function from the inspected frame, or null if this
+  // ScopeIterator has already iterated to any Scope outside that function.
+  Handle<JSFunction> function_;
+
   Handle<Context> context_;
-  List<ExtendedScopeInfo> nested_scope_chain_;
-  Handle<StringSet> non_locals_;
-  bool seen_script_scope_;
-  bool failed_;
+  Handle<Script> script_;
+  Handle<StringSet> locals_;
+  DeclarationScope* closure_scope_ = nullptr;
+  Scope* start_scope_ = nullptr;
+  Scope* current_scope_ = nullptr;
+  bool seen_script_scope_ = false;
 
-  inline JavaScriptFrame* GetFrame() {
-    return frame_inspector_->GetArgumentsFrame();
+  inline JavaScriptFrame* GetFrame() const {
+    return frame_inspector_->javascript_frame();
   }
 
-  inline Handle<JSFunction> GetFunction() {
-    return frame_inspector_->GetFunction();
-  }
+  void AdvanceOneScope();
+  void AdvanceToNonHiddenScope();
+  void AdvanceContext();
+  void CollectLocalsFromCurrentScope();
 
-  void RetrieveScopeChain(DeclarationScope* scope);
+  int GetSourcePosition();
 
-  void CollectNonLocals(ParseInfo* info, DeclarationScope* scope);
+  void TryParseAndRetrieveScopes(ReparseStrategy strategy);
 
   void UnwrapEvaluationContext();
 
-  MUST_USE_RESULT MaybeHandle<JSObject> MaterializeScriptScope();
-  MUST_USE_RESULT MaybeHandle<JSObject> MaterializeLocalScope();
-  MUST_USE_RESULT MaybeHandle<JSObject> MaterializeModuleScope();
-  Handle<JSObject> MaterializeClosure();
-  Handle<JSObject> MaterializeCatchScope();
-  Handle<JSObject> MaterializeInnerScope();
+  using Visitor = std::function<bool(Handle<String> name, Handle<Object> value,
+                                     ScopeType scope_type)>;
+
   Handle<JSObject> WithContextExtension();
 
   bool SetLocalVariableValue(Handle<String> variable_name,
                              Handle<Object> new_value);
-  bool SetInnerScopeVariableValue(Handle<String> variable_name,
-                                  Handle<Object> new_value);
-  bool SetClosureVariableValue(Handle<String> variable_name,
+  bool SetContextVariableValue(Handle<String> variable_name,
                                Handle<Object> new_value);
+  bool SetContextExtensionValue(Handle<String> variable_name,
+                                Handle<Object> new_value);
   bool SetScriptVariableValue(Handle<String> variable_name,
                               Handle<Object> new_value);
-  bool SetCatchVariableValue(Handle<String> variable_name,
-                             Handle<Object> new_value);
+  bool SetModuleVariableValue(Handle<String> variable_name,
+                              Handle<Object> new_value);
 
   // Helper functions.
-  bool SetParameterValue(Handle<ScopeInfo> scope_info, JavaScriptFrame* frame,
-                         Handle<String> parameter_name,
-                         Handle<Object> new_value);
-  bool SetStackVariableValue(Handle<ScopeInfo> scope_info,
-                             Handle<String> variable_name,
-                             Handle<Object> new_value);
-  bool SetContextVariableValue(Handle<ScopeInfo> scope_info,
-                               Handle<Context> context,
-                               Handle<String> variable_name,
-                               Handle<Object> new_value);
-
-  void CopyContextLocalsToScopeObject(Handle<ScopeInfo> scope_info,
-                                      Handle<Context> context,
-                                      Handle<JSObject> scope_object);
-  void CopyContextExtensionToScopeObject(Handle<Context> context,
-                                         Handle<JSObject> scope_object,
-                                         KeyCollectionMode mode);
-
-  // Get the chain of nested scopes within this scope for the source statement
-  // position. The scopes will be added to the list from the outermost scope to
-  // the innermost scope. Only nested block, catch or with scopes are tracked
-  // and will be returned, but no inner function scopes.
-  void GetNestedScopeChain(Isolate* isolate, Scope* scope,
-                           int statement_position);
+  void VisitScope(const Visitor& visitor, Mode mode) const;
+  void VisitLocalScope(const Visitor& visitor, Mode mode,
+                       ScopeType scope_type) const;
+  void VisitScriptScope(const Visitor& visitor) const;
+  void VisitModuleScope(const Visitor& visitor) const;
+  bool VisitLocals(const Visitor& visitor, Mode mode,
+                   ScopeType scope_type) const;
+  bool VisitContextLocals(const Visitor& visitor, Handle<ScopeInfo> scope_info,
+                          Handle<Context> context, ScopeType scope_type) const;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(ScopeIterator);
 };

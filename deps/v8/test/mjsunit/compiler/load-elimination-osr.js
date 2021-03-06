@@ -58,6 +58,7 @@ function foo_hot(x, limit) {
   return o.y;
 }
 
+%PrepareFunctionForOptimization(foo_hot);
 assertEquals(22, foo_hot(11, 1));
 assertEquals(24, foo_hot(12, 1));
 %OptimizeFunctionOnNextCall(foo_hot);

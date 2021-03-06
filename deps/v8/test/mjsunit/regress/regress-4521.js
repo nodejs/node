@@ -13,6 +13,7 @@ class B {
 class C extends B {
   bar() { return super[%DeoptimizeFunction(C.prototype.bar), "foo"]() }
 }
+%PrepareFunctionForOptimization(C.prototype.bar);
 
 assertEquals(23, new C().bar());
 assertEquals(23, new C().bar());

@@ -1,26 +1,23 @@
 'use strict';
 
 // test HTTP throughput in fragmented header case
-var common = require('../common.js');
-var net = require('net');
-var test = require('../../test/common.js');
+const common = require('../common.js');
+const net = require('net');
 
-var bench = common.createBenchmark(main, {
-  len:  [1, 4, 8, 16, 32, 64, 128],
-  num:  [5, 50, 500, 2000],
+const bench = common.createBenchmark(main, {
+  len: [1, 4, 8, 16, 32, 64, 128],
+  n: [5, 50, 500, 2000],
   type: ['send'],
 });
 
 
-function main(conf) {
-  var len = +conf.len;
-  var num = +conf.num;
-  var todo = [];
-  var headers = [];
+function main({ len, n }) {
+  let todo = [];
+  const headers = [];
   // Chose 7 because 9 showed "Connection error" / "Connection closed"
   // An odd number could result in a better length dispersion.
-  for (var i = 7; i <= 7 * 7 * 7; i *= 7)
-    headers.push(Array(i + 1).join('o'));
+  for (let i = 7; i <= 7 * 7 * 7; i *= 7)
+    headers.push('o'.repeat(i));
 
   function WriteHTTPHeaders(channel, has_keep_alive, extra_header_count) {
     todo = [];
@@ -34,36 +31,36 @@ function main(conf) {
               'Chrome/39.0.2171.71 Safari/537.36');
     todo.push('Accept-Encoding: gzip, deflate, sdch');
     todo.push('Accept-Language: en-US,en;q=0.8');
-    for (var i = 0; i < extra_header_count; i++) {
+    for (let i = 0; i < extra_header_count; i++) {
       // Utilize first three powers of a small integer for an odd cycle and
       // because the fourth power of some integers overloads the server.
-      todo.push('X-Header-' + i + ': ' + headers[i % 3]);
+      todo.push(`X-Header-${i}: ${headers[i % 3]}`);
     }
     todo.push('');
     todo.push('');
     todo = todo.join('\r\n');
     // Using odd numbers in many places may increase length coverage.
-    var chunksize = 37;
-    for (i = 0; i < todo.length; i += chunksize) {
-      var cur = todo.slice(i, i + chunksize);
+    const chunksize = 37;
+    for (let i = 0; i < todo.length; i += chunksize) {
+      const cur = todo.slice(i, i + chunksize);
       channel.write(cur);
     }
   }
 
-  var min = 10;
-  var size = 0;
-  var mod = 317;
-  var mult = 17;
-  var add = 11;
-  var count = 0;
-  var PIPE = test.PIPE;
-  var socket = net.connect(PIPE, function() {
+  const min = 10;
+  let size = 0;
+  const mod = 317;
+  const mult = 17;
+  const add = 11;
+  let count = 0;
+  const PIPE = process.env.PIPE_NAME;
+  const socket = net.connect(PIPE, () => {
     bench.start();
     WriteHTTPHeaders(socket, 1, len);
     socket.setEncoding('utf8');
-    socket.on('data', function(d) {
-      var did = false;
-      var pattern = 'HTTP/1.1 200 OK\r\n';
+    socket.on('data', (d) => {
+      let did = false;
+      let pattern = 'HTTP/1.1 200 OK\r\n';
       if ((d.length === pattern.length && d === pattern) ||
           (d.length > pattern.length &&
            d.slice(0, pattern.length) === pattern)) {
@@ -79,7 +76,7 @@ function main(conf) {
       size = (size * mult + add) % mod;
       if (did) {
         count += 1;
-        if (count === num) {
+        if (count === n) {
           bench.end(count);
           process.exit(0);
         } else {
@@ -87,11 +84,11 @@ function main(conf) {
         }
       }
     });
-    socket.on('close', function() {
+    socket.on('close', () => {
       console.log('Connection closed');
     });
 
-    socket.on('error', function() {
+    socket.on('error', () => {
       throw new Error('Connection error');
     });
   });

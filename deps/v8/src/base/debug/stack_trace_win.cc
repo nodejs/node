@@ -7,13 +7,20 @@
 
 #include "src/base/debug/stack_trace.h"
 
+// This file can't use "src/base/win32-headers.h" because it defines symbols
+// that lead to compilation errors. But `NOMINMAX` should be defined to disable
+// defining of the `min` and `max` MACROS.
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+
 #include <windows.h>
 #include <dbghelp.h>
-#include <Shlwapi.h>
 #include <stddef.h>
 
 #include <iostream>
 #include <memory>
+#include <string>
 
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -24,9 +31,9 @@ namespace debug {
 
 namespace {
 
-// Previous unhandled filter. Will be called if not NULL when we intercept an
+// Previous unhandled filter. Will be called if not nullptr when we intercept an
 // exception. Only used in unit tests.
-LPTOP_LEVEL_EXCEPTION_FILTER g_previous_filter = NULL;
+LPTOP_LEVEL_EXCEPTION_FILTER g_previous_filter = nullptr;
 
 bool g_dump_stack_in_signal_handler = true;
 bool g_initialized_symbols = false;
@@ -42,19 +49,13 @@ long WINAPI StackDumpExceptionFilter(EXCEPTION_POINTERS* info) {  // NOLINT
   return EXCEPTION_CONTINUE_SEARCH;
 }
 
-void GetExePath(wchar_t* path_out) {
-  GetModuleFileName(NULL, path_out, MAX_PATH);
-  path_out[MAX_PATH - 1] = L'\0';
-  PathRemoveFileSpec(path_out);
-}
-
 bool InitializeSymbols() {
   if (g_initialized_symbols) return g_init_error == ERROR_SUCCESS;
   g_initialized_symbols = true;
   // Defer symbol load until they're needed, use undecorated names, and get line
   // numbers.
   SymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_UNDNAME | SYMOPT_LOAD_LINES);
-  if (!SymInitialize(GetCurrentProcess(), NULL, TRUE)) {
+  if (!SymInitialize(GetCurrentProcess(), nullptr, TRUE)) {
     g_init_error = GetLastError();
     // TODO(awong): Handle error: SymInitialize can fail with
     // ERROR_INVALID_PARAMETER.
@@ -80,9 +81,13 @@ bool InitializeSymbols() {
   }
 
   wchar_t exe_path[MAX_PATH];
-  GetExePath(exe_path);
-  std::wstring new_path(std::wstring(symbols_path.get()) + L";" +
-                        std::wstring(exe_path));
+  GetModuleFileName(nullptr, exe_path, MAX_PATH);
+  std::wstring exe_path_wstring(exe_path);
+  // To get the path without the filename, we just need to remove the final
+  // slash and everything after it.
+  std::wstring new_path(
+      std::wstring(symbols_path.get()) + L";" +
+      exe_path_wstring.substr(0, exe_path_wstring.find_last_of(L"\\/")));
   if (!SymSetSearchPathW(GetCurrentProcess(), new_path.c_str())) {
     g_init_error = GetLastError();
     return false;
@@ -163,23 +168,10 @@ void DisableSignalStackDump() {
   g_dump_stack_in_signal_handler = false;
 }
 
-// Disable optimizations for the StackTrace::StackTrace function. It is
-// important to disable at least frame pointer optimization ("y"), since
-// that breaks CaptureStackBackTrace() and prevents StackTrace from working
-// in Release builds (it may still be janky if other frames are using FPO,
-// but at least it will make it further).
-#if defined(COMPILER_MSVC)
-#pragma optimize("", off)
-#endif
-
 StackTrace::StackTrace() {
   // When walking our own stack, use CaptureStackBackTrace().
-  count_ = CaptureStackBackTrace(0, arraysize(trace_), trace_, NULL);
+  count_ = CaptureStackBackTrace(0, arraysize(trace_), trace_, nullptr);
 }
-
-#if defined(COMPILER_MSVC)
-#pragma optimize("", on)
-#endif
 
 StackTrace::StackTrace(EXCEPTION_POINTERS* exception_pointers) {
   InitTrace(exception_pointers->ContextRecord);
@@ -202,10 +194,19 @@ void StackTrace::InitTrace(const CONTEXT* context_record) {
   STACKFRAME64 stack_frame;
   memset(&stack_frame, 0, sizeof(stack_frame));
 #if defined(_WIN64)
+#if defined(_M_X64)
   int machine_type = IMAGE_FILE_MACHINE_AMD64;
   stack_frame.AddrPC.Offset = context_record->Rip;
   stack_frame.AddrFrame.Offset = context_record->Rbp;
   stack_frame.AddrStack.Offset = context_record->Rsp;
+#elif defined(_M_ARM64)
+  int machine_type = IMAGE_FILE_MACHINE_ARM64;
+  stack_frame.AddrPC.Offset = context_record->Pc;
+  stack_frame.AddrFrame.Offset = context_record->Fp;
+  stack_frame.AddrStack.Offset = context_record->Sp;
+#else
+#error Unsupported Arch
+#endif
 #else
   int machine_type = IMAGE_FILE_MACHINE_I386;
   stack_frame.AddrPC.Offset = context_record->Eip;
@@ -216,13 +217,13 @@ void StackTrace::InitTrace(const CONTEXT* context_record) {
   stack_frame.AddrFrame.Mode = AddrModeFlat;
   stack_frame.AddrStack.Mode = AddrModeFlat;
   while (StackWalk64(machine_type, GetCurrentProcess(), GetCurrentThread(),
-                     &stack_frame, &context_copy, NULL,
-                     &SymFunctionTableAccess64, &SymGetModuleBase64, NULL) &&
+                     &stack_frame, &context_copy, nullptr,
+                     &SymFunctionTableAccess64, &SymGetModuleBase64, nullptr) &&
          count_ < arraysize(trace_)) {
     trace_[count_++] = reinterpret_cast<void*>(stack_frame.AddrPC.Offset);
   }
 
-  for (size_t i = count_; i < arraysize(trace_); ++i) trace_[i] = NULL;
+  for (size_t i = count_; i < arraysize(trace_); ++i) trace_[i] = nullptr;
 }
 
 void StackTrace::Print() const { OutputToStream(&std::cerr); }

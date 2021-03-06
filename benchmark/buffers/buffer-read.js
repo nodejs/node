@@ -1,7 +1,11 @@
 'use strict';
-var common = require('../common.js');
+const common = require('../common.js');
 
-var types = [
+const types = [
+  'BigUInt64LE',
+  'BigUInt64BE',
+  'BigInt64LE',
+  'BigInt64BE',
   'UInt8',
   'UInt16LE',
   'UInt16BE',
@@ -12,33 +16,25 @@ var types = [
   'Int16BE',
   'Int32LE',
   'Int32BE',
-  'FloatLE',
-  'FloatBE',
-  'DoubleLE',
-  'DoubleBE'
 ];
 
-var bench = common.createBenchmark(main, {
-  noAssert: ['false', 'true'],
-  buffer: ['fast', 'slow'],
+const bench = common.createBenchmark(main, {
+  buffer: ['fast'],
   type: types,
-  millions: [1]
+  n: [1e6]
 });
 
-function main(conf) {
-  var noAssert = conf.noAssert === 'true';
-  var len = +conf.millions * 1e6;
-  var clazz = conf.buf === 'fast' ? Buffer : require('buffer').SlowBuffer;
-  var buff = new clazz(8);
-  var fn = 'read' + conf.type;
+function main({ n, buf, type }) {
+  const buff = buf === 'fast' ?
+    Buffer.alloc(8) :
+    require('buffer').SlowBuffer(8);
+  const fn = `read${type}`;
 
-  buff.writeDoubleLE(0, 0, noAssert);
-  var testFunction = new Function('buff', [
-    'for (var i = 0; i !== ' + len + '; i++) {',
-    '  buff.' + fn + '(0, ' + JSON.stringify(noAssert) + ');',
-    '}'
-  ].join('\n'));
+  buff.writeDoubleLE(0, 0);
   bench.start();
-  testFunction(buff);
-  bench.end(len / 1e6);
+
+  for (let i = 0; i !== n; i++) {
+    buff[fn](0);
+  }
+  bench.end(n);
 }

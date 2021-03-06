@@ -26,6 +26,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import argparse
 import datetime
 import httplib
@@ -45,16 +48,23 @@ import urllib2
 from git_recipes import GitRecipesMixin
 from git_recipes import GitFailedException
 
-CHANGELOG_FILE = "ChangeLog"
 DAY_IN_SECONDS = 24 * 60 * 60
 PUSH_MSG_GIT_RE = re.compile(r".* \(based on (?P<git_rev>[a-fA-F0-9]+)\)$")
 PUSH_MSG_NEW_RE = re.compile(r"^Version \d+\.\d+\.\d+$")
 VERSION_FILE = os.path.join("include", "v8-version.h")
 WATCHLISTS_FILE = "WATCHLISTS"
+RELEASE_WORKDIR = "/tmp/v8-release-scripts-work-dir/"
 
 # V8 base directory.
 V8_BASE = os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Add our copy of depot_tools to the PATH as many scripts use tools from there,
+# e.g. git-cl, fetch, git-new-branch etc, and we can not depend on depot_tools
+# being in the PATH on the LUCI bots.
+path_to_depot_tools = os.path.join(V8_BASE, 'third_party', 'depot_tools')
+new_path = path_to_depot_tools + os.pathsep + os.environ.get('PATH')
+os.environ['PATH'] = new_path
 
 
 def TextToFile(text, file_name):
@@ -82,99 +92,6 @@ def MSub(rexp, replacement, text):
   return re.sub(rexp, replacement, text, flags=re.MULTILINE)
 
 
-def Fill80(line):
-  # Replace tabs and remove surrounding space.
-  line = re.sub(r"\t", r"        ", line.strip())
-
-  # Format with 8 characters indentation and line width 80.
-  return textwrap.fill(line, width=80, initial_indent="        ",
-                       subsequent_indent="        ")
-
-
-def MakeComment(text):
-  return MSub(r"^( ?)", "#", text)
-
-
-def StripComments(text):
-  # Use split not splitlines to keep terminal newlines.
-  return "\n".join(filter(lambda x: not x.startswith("#"), text.split("\n")))
-
-
-def MakeChangeLogBody(commit_messages, auto_format=False):
-  result = ""
-  added_titles = set()
-  for (title, body, author) in commit_messages:
-    # TODO(machenbach): Better check for reverts. A revert should remove the
-    # original CL from the actual log entry.
-    title = title.strip()
-    if auto_format:
-      # Only add commits that set the LOG flag correctly.
-      log_exp = r"^[ \t]*LOG[ \t]*=[ \t]*(?:(?:Y(?:ES)?)|TRUE)"
-      if not re.search(log_exp, body, flags=re.I | re.M):
-        continue
-      # Never include reverts.
-      if title.startswith("Revert "):
-        continue
-      # Don't include duplicates.
-      if title in added_titles:
-        continue
-
-    # Add and format the commit's title and bug reference. Move dot to the end.
-    added_titles.add(title)
-    raw_title = re.sub(r"(\.|\?|!)$", "", title)
-    bug_reference = MakeChangeLogBugReference(body)
-    space = " " if bug_reference else ""
-    result += "%s\n" % Fill80("%s%s%s." % (raw_title, space, bug_reference))
-
-    # Append the commit's author for reference if not in auto-format mode.
-    if not auto_format:
-      result += "%s\n" % Fill80("(%s)" % author.strip())
-
-    result += "\n"
-  return result
-
-
-def MakeChangeLogBugReference(body):
-  """Grep for "BUG=xxxx" lines in the commit message and convert them to
-  "(issue xxxx)".
-  """
-  crbugs = []
-  v8bugs = []
-
-  def AddIssues(text):
-    ref = re.match(r"^BUG[ \t]*=[ \t]*(.+)$", text.strip())
-    if not ref:
-      return
-    for bug in ref.group(1).split(","):
-      bug = bug.strip()
-      match = re.match(r"^v8:(\d+)$", bug)
-      if match: v8bugs.append(int(match.group(1)))
-      else:
-        match = re.match(r"^(?:chromium:)?(\d+)$", bug)
-        if match: crbugs.append(int(match.group(1)))
-
-  # Add issues to crbugs and v8bugs.
-  map(AddIssues, body.splitlines())
-
-  # Filter duplicates, sort, stringify.
-  crbugs = map(str, sorted(set(crbugs)))
-  v8bugs = map(str, sorted(set(v8bugs)))
-
-  bug_groups = []
-  def FormatIssues(prefix, bugs):
-    if len(bugs) > 0:
-      plural = "s" if len(bugs) > 1 else ""
-      bug_groups.append("%sissue%s %s" % (prefix, plural, ", ".join(bugs)))
-
-  FormatIssues("", v8bugs)
-  FormatIssues("Chromium ", crbugs)
-
-  if len(bug_groups) > 0:
-    return "(%s)" % ", ".join(bug_groups)
-  else:
-    return ""
-
-
 def SortingKey(version):
   """Key for sorting version number strings: '3.11' > '3.2.1.1'"""
   version_keys = map(int, version.split("."))
@@ -191,8 +108,8 @@ def Command(cmd, args="", prefix="", pipe=True, cwd=None):
   cwd = cwd or os.getcwd()
   # TODO(machenbach): Use timeout.
   cmd_line = "%s %s %s" % (prefix, cmd, args)
-  print "Command: %s" % cmd_line
-  print "in %s" % cwd
+  print("Command: %s" % cmd_line)
+  print("in %s" % cwd)
   sys.stdout.flush()
   try:
     if pipe:
@@ -264,15 +181,12 @@ class SideEffectHandler(object):  # pragma: no cover
     try:
       return json.loads(data)
     except:
-      print data
-      print "ERROR: Could not read response. Is your key valid?"
+      print(data)
+      print("ERROR: Could not read response. Is your key valid?")
       raise
 
   def Sleep(self, seconds):
     time.sleep(seconds)
-
-  def GetDate(self):
-    return datetime.date.today().strftime("%Y-%m-%d")
 
   def GetUTCStamp(self):
     return time.mktime(datetime.datetime.utcnow().timetuple())
@@ -395,7 +309,7 @@ class GitInterface(VCInterface):
                     "git updater is lagging behind?")
 
     self.step.Git("tag %s %s" % (tag, commit))
-    self.step.Git("push origin %s" % tag)
+    self.step.Git("push origin refs/tags/%s:refs/tags/%s" % (tag, tag))
 
   def CLLand(self):
     self.step.GitCLLand()
@@ -440,7 +354,7 @@ class Step(GitRecipesMixin):
     if not self._state and os.path.exists(state_file):
       self._state.update(json.loads(FileToText(state_file)))
 
-    print ">>> Step %d: %s" % (self._number, self._text)
+    print(">>> Step %d: %s" % (self._number, self._text))
     try:
       return self.RunStep()
     finally:
@@ -476,16 +390,16 @@ class Step(GitRecipesMixin):
           raise Exception("Retried too often. Giving up. Reason: %s" %
                           str(got_exception))
         wait_time = wait_plan.pop()
-        print "Waiting for %f seconds." % wait_time
+        print("Waiting for %f seconds." % wait_time)
         self._side_effect_handler.Sleep(wait_time)
-        print "Retrying..."
+        print("Retrying...")
       else:
         return result
 
   def ReadLine(self, default=None):
     # Don't prompt in forced mode.
     if self._options.force_readline_defaults and default is not None:
-      print "%s (forced)" % default
+      print("%s (forced)" % default)
       return default
     else:
       return self._side_effect_handler.ReadLine()
@@ -516,13 +430,10 @@ class Step(GitRecipesMixin):
     cmd = lambda: self._side_effect_handler.ReadURL(url, params)
     return self.Retry(cmd, retry_on, wait_plan)
 
-  def GetDate(self):
-    return self._side_effect_handler.GetDate()
-
   def Die(self, msg=""):
     if msg != "":
-      print "Error: %s" % msg
-    print "Exiting"
+      print("Error: %s" % msg)
+    print("Exiting")
     raise Exception(msg)
 
   def DieNoManualMode(self, msg=""):
@@ -531,7 +442,7 @@ class Step(GitRecipesMixin):
       self.Die(msg)
 
   def Confirm(self, msg):
-    print "%s [Y/n] " % msg,
+    print("%s [Y/n] " % msg, end=' ')
     answer = self.ReadLine(default="Y")
     return answer == "" or answer == "Y" or answer == "y"
 
@@ -541,7 +452,7 @@ class Step(GitRecipesMixin):
         msg = "Branch %s exists, do you want to delete it?" % name
         if self.Confirm(msg):
           self.GitDeleteBranch(name, cwd=cwd)
-          print "Branch %s deleted." % name
+          print("Branch %s deleted." % name)
         else:
           msg = "Can't continue. Please delete branch %s and try again." % name
           self.Die(msg)
@@ -549,7 +460,8 @@ class Step(GitRecipesMixin):
   def InitialEnvironmentChecks(self, cwd):
     # Cancel if this is not a git checkout.
     if not os.path.exists(os.path.join(cwd, ".git")):  # pragma: no cover
-      self.Die("This is not a git checkout, this script won't work for you.")
+      self.Die("%s is not a git checkout. If you know what you're doing, try "
+               "deleting it and rerunning this script." % cwd)
 
     # Cancel if EDITOR is unset or not executable.
     if (self._options.requires_editor and (not os.environ.get("EDITOR") or
@@ -599,27 +511,27 @@ class Step(GitRecipesMixin):
   def WaitForLGTM(self):
     print ("Please wait for an LGTM, then type \"LGTM<Return>\" to commit "
            "your change. (If you need to iterate on the patch or double check "
-           "that it's sane, do so in another shell, but remember to not "
+           "that it's sensible, do so in another shell, but remember to not "
            "change the headline of the uploaded CL.")
     answer = ""
     while answer != "LGTM":
-      print "> ",
+      print("> ", end=' ')
       answer = self.ReadLine(None if self._options.wait_for_lgtm else "LGTM")
       if answer != "LGTM":
-        print "That was not 'LGTM'."
+        print("That was not 'LGTM'.")
 
   def WaitForResolvingConflicts(self, patch_file):
     print("Applying the patch \"%s\" failed. Either type \"ABORT<Return>\", "
           "or resolve the conflicts, stage *all* touched files with "
-          "'git add', and type \"RESOLVED<Return>\"")
+          "'git add', and type \"RESOLVED<Return>\"" % (patch_file))
     self.DieNoManualMode()
     answer = ""
     while answer != "RESOLVED":
       if answer == "ABORT":
         self.Die("Applying the patch failed.")
       if answer != "":
-        print "That was not 'RESOLVED' or 'ABORT'."
-      print "> ",
+        print("That was not 'RESOLVED' or 'ABORT'.")
+      print("> ", end=' ')
       answer = self.ReadLine()
 
   # Takes a file containing the patch to apply as first argument.
@@ -758,16 +670,26 @@ class UploadStep(Step):
   MESSAGE = "Upload for code review."
 
   def RunStep(self):
+    reviewer = None
     if self._options.reviewer:
-      print "Using account %s for review." % self._options.reviewer
+      print("Using account %s for review." % self._options.reviewer)
       reviewer = self._options.reviewer
-    else:
-      print "Please enter the email address of a V8 reviewer for your patch: ",
+
+    tbr_reviewer = None
+    if self._options.tbr_reviewer:
+      print("Using account %s for TBR review." % self._options.tbr_reviewer)
+      tbr_reviewer = self._options.tbr_reviewer
+
+    if not reviewer and not tbr_reviewer:
+      print(
+        "Please enter the email address of a V8 reviewer for your patch: ",
+        end=' ')
       self.DieNoManualMode("A reviewer must be specified in forced mode.")
       reviewer = self.ReadLine()
-    self.GitUpload(reviewer, self._options.author, self._options.force_upload,
+
+    self.GitUpload(reviewer, self._options.force_upload,
                    bypass_hooks=self._options.bypass_upload_hooks,
-                   cc=self._options.cc)
+                   cc=self._options.cc, tbr_reviewer=tbr_reviewer)
 
 
 def MakeStep(step_class=Step, number=0, state=None, config=None,
@@ -813,13 +735,15 @@ class ScriptsBase(object):
   def MakeOptions(self, args=None):
     parser = argparse.ArgumentParser(description=self._Description())
     parser.add_argument("-a", "--author", default="",
-                        help="The author email used for rietveld.")
+                        help="The author email used for code review.")
     parser.add_argument("--dry-run", default=False, action="store_true",
                         help="Perform only read-only actions.")
     parser.add_argument("--json-output",
                         help="File to write results summary to.")
     parser.add_argument("-r", "--reviewer", default="",
                         help="The account name to be used for reviews.")
+    parser.add_argument("--tbr-reviewer", "--tbr", default="",
+                        help="The account name to be used for TBR reviews.")
     parser.add_argument("-s", "--step",
         help="Specify the step where to start work. Default: 0.",
         default=0, type=int)
@@ -835,7 +759,7 @@ class ScriptsBase(object):
 
     # Process common options.
     if options.step < 0:  # pragma: no cover
-      print "Bad step number %d" % options.step
+      print("Bad step number %d" % options.step)
       parser.print_help()
       return None
 
@@ -863,6 +787,11 @@ class ScriptsBase(object):
     options = self.MakeOptions(args)
     if not options:
       return 1
+
+    # Ensure temp dir exists for state files.
+    state_dir = os.path.dirname(self._config["PERSISTFILE_BASENAME"])
+    if not os.path.exists(state_dir):
+      os.makedirs(state_dir)
 
     state_file = "%s-state.json" % self._config["PERSISTFILE_BASENAME"]
     if options.step == 0 and os.path.exists(state_file):

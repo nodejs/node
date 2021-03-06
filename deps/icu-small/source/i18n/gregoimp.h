@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
  **********************************************************************
@@ -39,6 +39,17 @@ class ClockMath {
      * @return the floor of the quotient
      */
     static int32_t floorDivide(int32_t numerator, int32_t denominator);
+
+    /**
+     * Divide two integers, returning the floor of the quotient.
+     * Unlike the built-in division, this is mathematically
+     * well-behaved.  E.g., <code>-1/4</code> => 0 but
+     * <code>floorDivide(-1,4)</code> => -1.
+     * @param numerator the numerator
+     * @param denominator a divisor which must be != 0
+     * @return the floor of the quotient
+     */
+    static int64_t floorDivide(int64_t numerator, int64_t denominator);
 
     /**
      * Divide two numbers, returning the floor of the quotient.
@@ -137,9 +148,9 @@ class ClockMath {
 class Grego {
  public:
     /**
-     * Return TRUE if the given year is a leap year.
+     * Return true if the given year is a leap year.
      * @param year Gregorian year, with 0 == 1 BCE, -1 == 2 BCE, etc.
-     * @return TRUE if the year is a leap year
+     * @return true if the year is a leap year
      */
     static inline UBool isLeapYear(int32_t year);
 
@@ -288,8 +299,8 @@ inline int32_t Grego::millisToJulianDay(double millis) {
 }
 
 inline int32_t Grego::gregorianShift(int32_t eyear) {
-  int32_t y = eyear-1;
-  int32_t gregShift = ClockMath::floorDivide(y, 400) - ClockMath::floorDivide(y, 100) + 2;
+  int64_t y = (int64_t)eyear-1;
+  int32_t gregShift = static_cast<int32_t>(ClockMath::floorDivide(y, (int64_t)400) - ClockMath::floorDivide(y, (int64_t)100) + 2);
   return gregShift;
 }
 

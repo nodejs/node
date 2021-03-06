@@ -13,5 +13,6 @@ F[Symbol.hasInstance] = function(v) { return true };
 Object.setPrototypeOf(F, proto);
 
 function foo(x) { return x instanceof F };
+%PrepareFunctionForOptimization(foo);
 %OptimizeFunctionOnNextCall(foo);
 assertTrue(foo(1));

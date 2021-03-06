@@ -35,17 +35,14 @@ const bench = common.createBenchmark(main, {
     '中文呢', // unicode
     '((((())))', // invalid
     ':alternate-protocol', // fast bailout
-    'alternate-protocol:' // slow bailout
+    'alternate-protocol:', // slow bailout
   ],
-  n: [5e8],
+  n: [1e6],
 });
 
-function main(conf) {
-  var n = +conf.n;
-  var key = conf.key;
-
+function main({ n, key }) {
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     _checkIsHttpToken(key);
   }
   bench.end(n);

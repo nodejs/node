@@ -27,13 +27,13 @@
 
 // Flags: --allow-natives-syntax
 
-var o = [6,7,8,9];
+var o = [6, 7, 8, 9];
 
 function f(b) {
   var v = o.pop() + b;
   return v;
-}
-
+};
+%PrepareFunctionForOptimization(f);
 assertEquals(10, f(1));
 assertEquals(9, f(1));
 assertEquals(8, f(1));

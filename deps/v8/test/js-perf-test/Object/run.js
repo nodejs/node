@@ -6,8 +6,9 @@
 load('../base.js');
 
 load('assign.js');
-load('values.js');
+load('create.js');
 load('entries.js');
+load('values.js');
 
 var success = true;
 

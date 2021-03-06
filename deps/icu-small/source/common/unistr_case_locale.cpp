@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -6,7 +6,7 @@
 *   Corporation and others.  All Rights Reserved.
 *******************************************************************************
 *   file name:  unistr_case_locale.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -19,9 +19,9 @@
 
 #include "unicode/utypes.h"
 #include "unicode/locid.h"
+#include "unicode/ucasemap.h"
 #include "unicode/unistr.h"
-#include "cmemory.h"
-#include "ustr_imp.h"
+#include "ucasemap_imp.h"
 
 U_NAMESPACE_BEGIN
 
@@ -29,44 +29,28 @@ U_NAMESPACE_BEGIN
 // Write implementation
 //========================================
 
-/*
- * Set parameters on an empty UCaseMap, for UCaseMap-less API functions.
- * Do this fast because it is called with every function call.
- */
-static inline void
-setTempCaseMap(UCaseMap *csm, const char *locale) {
-    if(csm->csp==NULL) {
-        csm->csp=ucase_getSingleton();
-    }
-    if(locale!=NULL && locale[0]==0) {
-        csm->locale[0]=0;
-    } else {
-        ustrcase_setTempCaseMapLocale(csm, locale);
-    }
-}
-
 UnicodeString &
 UnicodeString::toLower() {
-  return toLower(Locale::getDefault());
+  return caseMap(ustrcase_getCaseLocale(NULL), 0,
+                 UCASEMAP_BREAK_ITERATOR_NULL ustrcase_internalToLower);
 }
 
 UnicodeString &
 UnicodeString::toLower(const Locale &locale) {
-  UCaseMap csm=UCASEMAP_INITIALIZER;
-  setTempCaseMap(&csm, locale.getName());
-  return caseMap(&csm, ustrcase_internalToLower);
+  return caseMap(ustrcase_getCaseLocale(locale.getBaseName()), 0,
+                 UCASEMAP_BREAK_ITERATOR_NULL ustrcase_internalToLower);
 }
 
 UnicodeString &
 UnicodeString::toUpper() {
-  return toUpper(Locale::getDefault());
+  return caseMap(ustrcase_getCaseLocale(NULL), 0,
+                 UCASEMAP_BREAK_ITERATOR_NULL ustrcase_internalToUpper);
 }
 
 UnicodeString &
 UnicodeString::toUpper(const Locale &locale) {
-  UCaseMap csm=UCASEMAP_INITIALIZER;
-  setTempCaseMap(&csm, locale.getName());
-  return caseMap(&csm, ustrcase_internalToUpper);
+  return caseMap(ustrcase_getCaseLocale(locale.getBaseName()), 0,
+                 UCASEMAP_BREAK_ITERATOR_NULL ustrcase_internalToUpper);
 }
 
 U_NAMESPACE_END

@@ -1,12 +1,35 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 #ifndef SRC_NODE_WATCHDOG_H_
 #define SRC_NODE_WATCHDOG_H_
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "v8.h"
-#include "uv.h"
-#include "node_mutex.h"
 #include <vector>
+#include "handle_wrap.h"
+#include "memory_tracker-inl.h"
+#include "node_mutex.h"
+#include "uv.h"
+#include "v8.h"
 
 #ifdef __POSIX__
 #include <pthread.h>
@@ -14,55 +37,81 @@
 
 namespace node {
 
+enum class SignalPropagation {
+  kContinuePropagation,
+  kStopPropagation,
+};
+
 class Watchdog {
  public:
-  explicit Watchdog(v8::Isolate* isolate, uint64_t ms);
+  explicit Watchdog(v8::Isolate* isolate,
+                    uint64_t ms,
+                    bool* timed_out = nullptr);
   ~Watchdog();
-
-  void Dispose();
-
   v8::Isolate* isolate() { return isolate_; }
-  bool HasTimedOut() { return timed_out_; }
- private:
-  void Destroy();
 
+ private:
   static void Run(void* arg);
-  static void Async(uv_async_t* async);
   static void Timer(uv_timer_t* timer);
 
   v8::Isolate* isolate_;
   uv_thread_t thread_;
-  uv_loop_t* loop_;
+  uv_loop_t loop_;
   uv_async_t async_;
   uv_timer_t timer_;
-  bool timed_out_;
-  bool destroyed_;
+  bool* timed_out_;
 };
 
-class SigintWatchdog {
+class SigintWatchdogBase {
  public:
-  explicit SigintWatchdog(v8::Isolate* isolate);
+  virtual ~SigintWatchdogBase() = default;
+  virtual SignalPropagation HandleSigint() = 0;
+};
+
+class SigintWatchdog : public SigintWatchdogBase {
+ public:
+  explicit SigintWatchdog(v8::Isolate* isolate,
+                          bool* received_signal = nullptr);
   ~SigintWatchdog();
-
-  void Dispose();
-
   v8::Isolate* isolate() { return isolate_; }
-  bool HasReceivedSignal() { return received_signal_; }
-  void HandleSigint();
+  SignalPropagation HandleSigint() override;
 
  private:
-  void Destroy();
-
   v8::Isolate* isolate_;
-  bool received_signal_;
-  bool destroyed_;
+  bool* received_signal_;
+};
+
+class TraceSigintWatchdog : public HandleWrap, public SigintWatchdogBase {
+ public:
+  static void Init(Environment* env, v8::Local<v8::Object> target);
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  SignalPropagation HandleSigint() override;
+
+  inline void MemoryInfo(node::MemoryTracker* tracker) const override {
+    tracker->TrackInlineField("handle_", handle_);
+  }
+  SET_MEMORY_INFO_NAME(TraceSigintWatchdog)
+  SET_SELF_SIZE(TraceSigintWatchdog)
+
+ private:
+  enum class SignalFlags { None, FromIdle, FromInterrupt };
+
+  TraceSigintWatchdog(Environment* env, v8::Local<v8::Object> object);
+  void HandleInterrupt();
+
+  bool interrupting = false;
+  uv_async_t handle_;
+  SignalFlags signal_flag_ = SignalFlags::None;
 };
 
 class SigintWatchdogHelper {
  public:
   static SigintWatchdogHelper* GetInstance() { return &instance; }
-  void Register(SigintWatchdog* watchdog);
-  void Unregister(SigintWatchdog* watchdog);
+  void Register(SigintWatchdogBase* watchdog);
+  void Unregister(SigintWatchdogBase* watchdog);
   bool HasPendingSignal();
 
   int Start();
@@ -79,7 +128,7 @@ class SigintWatchdogHelper {
 
   Mutex mutex_;
   Mutex list_mutex_;
-  std::vector<SigintWatchdog*> watchdogs_;
+  std::vector<SigintWatchdogBase*> watchdogs_;
   bool has_pending_signal_;
 
 #ifdef __POSIX__
@@ -89,8 +138,9 @@ class SigintWatchdogHelper {
   bool stopping_;
 
   static void* RunSigintWatchdog(void* arg);
-  static void HandleSignal(int signum);
+  static void HandleSignal(int signum, siginfo_t* info, void* ucontext);
 #else
+  bool watchdog_disabled_;
   static BOOL WINAPI WinCtrlCHandlerRoutine(DWORD dwCtrlType);
 #endif
 };

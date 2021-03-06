@@ -1,22 +1,30 @@
 'use strict';
 const common = require('../common');
 const stream = require('stream');
+const assert = require('assert');
 
-// A writable stream which pushes data onto the stream which pipes into it,
-// but only the first time it's written to. Since it's not paused at this time,
-// a second write will occur. If the pipe increases awaitDrain twice, we'll
-// never get subsequent chunks because 'drain' is only emitted once.
 const writable = new stream.Writable({
-  write: common.mustCall((chunk, encoding, cb) => {
+  write: common.mustCall(function(chunk, encoding, cb) {
+    assert.strictEqual(
+      readable._readableState.awaitDrainWriters,
+      null,
+    );
+
     if (chunk.length === 32 * 1024) { // first chunk
-      readable.push(new Buffer(33 * 1024)); // above hwm
+      readable.push(Buffer.alloc(34 * 1024)); // above hwm
+      // We should check if awaitDrain counter is increased in the next
+      // tick, because awaitDrain is incremented after this method finished
+      process.nextTick(() => {
+        assert.strictEqual(readable._readableState.awaitDrainWriters, writable);
+      });
     }
-    cb();
+
+    process.nextTick(cb);
   }, 3)
 });
 
 // A readable stream which produces two buffers.
-const bufs = [new Buffer(32 * 1024), new Buffer(33 * 1024)]; // above hwm
+const bufs = [Buffer.alloc(32 * 1024), Buffer.alloc(33 * 1024)]; // above hwm
 const readable = new stream.Readable({
   read: function() {
     while (bufs.length > 0) {

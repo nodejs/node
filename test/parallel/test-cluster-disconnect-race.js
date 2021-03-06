@@ -4,21 +4,19 @@
 // Ref: https://github.com/nodejs/node/issues/4205
 
 const common = require('../common');
+if (common.isWindows)
+  common.skip('This test does not apply to Windows.');
+
 const assert = require('assert');
 const net = require('net');
 const cluster = require('cluster');
 
-if (common.isWindows) {
-  common.skip('This test does not apply to Windows.');
-  return;
-}
-
 cluster.schedulingPolicy = cluster.SCHED_NONE;
 
-if (cluster.isMaster) {
-  var worker1, worker2;
+if (cluster.isPrimary) {
+  let worker2;
 
-  worker1 = cluster.fork();
+  const worker1 = cluster.fork();
   worker1.on('message', common.mustCall(function() {
     worker2 = cluster.fork();
     worker1.disconnect();
@@ -26,14 +24,14 @@ if (cluster.isMaster) {
   }));
 
   cluster.on('exit', common.mustCall(function(worker, code) {
-    assert.strictEqual(code, 0, 'worker exited with error');
+    assert.strictEqual(code, 0, `worker exited with error code ${code}`);
   }, 2));
 
   return;
 }
 
-var server = net.createServer();
+const server = net.createServer();
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   process.send('listening');
 });

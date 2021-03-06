@@ -8,9 +8,9 @@
 
 # To use the script, first get some benchmark results, for example via
 # tools/run_perf.py ../v8-perf/benchmarks/Octane2.1/Octane2.1-TF.json
-#  --outdir=out/x64.release-on --outdir-no-patch=out/x64.release-off
+#  --outdir=out/x64.release-on --outdir-secondary=out/x64.release-off
 # --json-test-results=results-on.json
-# --json-test-results-no-patch=results-off.json
+# --json-test-results-secondary=results-off.json
 # then run this script
 # Rscript statistics-for-json.R results-on.json results-off.json ~/SVG
 # to produce graphs (and get stdio output of statistical tests).

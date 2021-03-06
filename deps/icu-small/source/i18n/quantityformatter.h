@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -26,6 +26,7 @@ class PluralRules;
 class NumberFormat;
 class Formattable;
 class FieldPosition;
+class FormattedStringBuilder;
 
 /**
  * A plural aware formatter that is good for expressing a single quantity and
@@ -73,18 +74,18 @@ public:
      * @param variant "zero", "one", "two", "few", "many", "other"
      * @param rawPattern the pattern for the variant e.g "{0} meters"
      * @param status any error returned here.
-     * @return TRUE on success; FALSE if status was set to a non zero error.
+     * @return true on success; false if status was set to a non zero error.
      */
     UBool addIfAbsent(const char *variant, const UnicodeString &rawPattern, UErrorCode &status);
 
     /**
-     * returns TRUE if this object has at least the "other" variant.
+     * returns true if this object has at least the "other" variant.
      */
     UBool isValid() const;
 
     /**
      * Gets the pattern formatter that would be used for a particular variant.
-     * If isValid() returns TRUE, this method is guaranteed to return a
+     * If isValid() returns true, this method is guaranteed to return a
      * non-NULL value.
      */
     const SimpleFormatter *getByVariant(const char *variant) const;
@@ -111,6 +112,7 @@ public:
 
     /**
      * Selects the standard plural form for the number/formatter/rules.
+     * Used in MeasureFormat for backwards compatibility with NumberFormat.
      */
     static StandardPlural::Form selectPlural(
             const Formattable &number,
@@ -121,7 +123,29 @@ public:
             UErrorCode &status);
 
     /**
+     * Formats a quantity and selects its plural form. The output is appended
+     * to a FormattedStringBuilder in order to retain field information.
+     *
+     * @param quantity The number to format.
+     * @param fmt The formatter to use to format the number.
+     * @param rules The rules to use to select the plural form of the
+     *              formatted number.
+     * @param output Where to append the result of the format operation.
+     * @param pluralForm Output variable populated with the plural form of the
+     *                   formatted number.
+     * @param status Set if an error occurs.
+     */
+    static void formatAndSelect(
+            double quantity,
+            const NumberFormat& fmt,
+            const PluralRules& rules,
+            FormattedStringBuilder& output,
+            StandardPlural::Form& pluralForm,
+            UErrorCode& status);
+
+    /**
      * Formats the pattern with the value and adjusts the FieldPosition.
+     * TODO: Remove?
      */
     static UnicodeString &format(
             const SimpleFormatter &pattern,

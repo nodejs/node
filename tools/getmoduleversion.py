@@ -2,6 +2,7 @@ from __future__ import print_function
 import os
 import re
 
+
 def get_version():
   node_version_h = os.path.join(
     os.path.dirname(__file__),
@@ -17,8 +18,9 @@ def get_version():
     if re.match(regex, line):
       major = line.split()[2]
       return major
-  
+
   raise Exception('Could not find pattern matching %s' % regex)
+
 
 if __name__ == '__main__':
   print(get_version())

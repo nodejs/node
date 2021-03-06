@@ -169,23 +169,23 @@
   var x = 1;
 
   function f1(y = eval("var x = 2")) { with ({}) { return x; } }
-  assertEquals(1, f1());
+  assertEquals(2, f1());
   function f2(y = eval("var x = 2"), z = x) { return z; }
-  assertEquals(1, f2());
+  assertEquals(2, f2());
   assertEquals(1, f2(0));
   function f3(y = eval("var x = 2"), z = eval("x")) { return z; }
-  assertEquals(1, f3());
+  assertEquals(2, f3());
   assertEquals(1, f3(0));
   function f8(y = (eval("var x = 2"), x)) { return y; }
   assertEquals(2, f8());
   assertEquals(0, f8(0));
 
   function f11(z = eval("var y = 2")) { return y; }
-  assertThrows(f11, ReferenceError);
-  function f12(z = eval("var y = 2"), b = y) {}
-  assertThrows(f12, ReferenceError);
-  function f13(z = eval("var y = 2"), b = eval("y")) {}
-  assertThrows(f13, ReferenceError);
+  assertEquals(2, f11());
+  function f12(z = eval("var y = 2"), b = y) { return b; }
+  assertEquals(2, f12());
+  function f13(z = eval("var y = 2"), b = eval("y")) { return b; }
+  assertEquals(2, f13());
 
   function f21(f = () => x) { eval("var x = 2"); return f() }
   assertEquals(1, f21());
@@ -195,23 +195,23 @@
   assertEquals(3, f22(() => 3));
 
   var g1 = (y = eval("var x = 2")) => { with ({}) { return x; } };
-  assertEquals(1, g1());
+  assertEquals(2, g1());
   var g2 = (y = eval("var x = 2"), z = x) => { return z; };
-  assertEquals(1, g2());
+  assertEquals(2, g2());
   assertEquals(1, g2(0));
   var g3 = (y = eval("var x = 2"), z = eval("x")) => { return z; };
-  assertEquals(1, g3());
+  assertEquals(2, g3());
   assertEquals(1, g3(0));
   var g8 = (y = (eval("var x = 2"), x)) => { return y; };
   assertEquals(2, g8());
   assertEquals(0, g8(0));
 
   var g11 = (z = eval("var y = 2")) => { return y; };
-  assertThrows(g11, ReferenceError);
-  var g12 = (z = eval("var y = 2"), b = y) => {};
-  assertThrows(g12, ReferenceError);
-  var g13 = (z = eval("var y = 2"), b = eval("y")) => {};
-  assertThrows(g13, ReferenceError);
+  assertEquals(2, g11());
+  var g12 = (z = eval("var y = 2"), b = y) => { return b; };
+  assertEquals(2, g12());
+  var g13 = (z = eval("var y = 2"), b = eval("y")) => { return b; };
+  assertEquals(2, g13());
 
   var g21 = (f = () => x) => { eval("var x = 2"); return f() };
   assertEquals(1, g21());

@@ -14,21 +14,24 @@ function testStates(ending, finished, ended) {
 }
 
 writable._write = (chunk, encoding, cb) => {
-  // ending, finished, ended start in false.
+  // Ending, finished, ended start in false.
   testStates(false, false, false);
   cb();
 };
 
 writable.on('finish', () => {
-  // ending, finished, ended = true.
+  // Ending, finished, ended = true.
   testStates(true, true, true);
 });
 
-writable.end('testing function end()', () => {
-  // ending, finished, ended = true.
+const result = writable.end('testing function end()', () => {
+  // Ending, finished, ended = true.
   testStates(true, true, true);
 });
 
-// ending, ended = true.
+// End returns the writable instance
+assert.strictEqual(result, writable);
+
+// Ending, ended = true.
 // finished = false.
 testStates(true, false, true);

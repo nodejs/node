@@ -1,0 +1,6 @@
+Error: test
+    at one (file:*/[eval1]:2:9)
+    at two (file:*/[eval1]:15:9)
+    at async three (file:*/[eval1]:18:3)
+    at async four (file:*/[eval1]:22:3)
+    at async main (file:*/[eval1]:28:5)

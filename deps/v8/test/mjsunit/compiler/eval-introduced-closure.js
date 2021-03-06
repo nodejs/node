@@ -42,6 +42,7 @@ function do_eval(str) {
 }
 
 var eval_f = do_eval('(' + f + ')');
+%PrepareFunctionForOptimization(eval_f);
 for (var i = 0; i < 5; i++) assertEquals(27, eval_f());
 %OptimizeFunctionOnNextCall(eval_f);
 assertEquals(27, eval_f());
@@ -53,6 +54,7 @@ function do_eval_local(str) {
 }
 
 eval_f = do_eval_local('(' + f + ')');
+%PrepareFunctionForOptimization(eval_f);
 for (var i = 0; i < 5; i++) assertEquals(42, eval_f());
 %OptimizeFunctionOnNextCall(eval_f);
 assertEquals(42, eval_f());
@@ -65,6 +67,7 @@ function do_eval_with_other_eval_call(str) {
 }
 
 eval_f = do_eval_with_other_eval_call('(' + f + ')');
+%PrepareFunctionForOptimization(eval_f);
 for (var i = 0; i < 5; i++) assertEquals(27, eval_f());
 %OptimizeFunctionOnNextCall(eval_f);
 assertEquals(27, eval_f());
@@ -72,6 +75,7 @@ assertEquals(27, eval_f());
 function test_non_strict_outer_eval() {
   function strict_eval(str) { "use strict"; return eval(str); }
   var eval_f = strict_eval('(' + f + ')');
+  %PrepareFunctionForOptimization(eval_f);
   for (var i = 0; i < 5; i++) assertEquals(27, eval_f());
   %OptimizeFunctionOnNextCall(eval_f);
   assertEquals(27, eval_f());
@@ -85,6 +89,7 @@ function test_strict_outer_eval() {
   "use strict";
   function strict_eval(str) { "use strict"; return eval(str); }
   var eval_f = strict_eval('(' + f + ')');
+  %PrepareFunctionForOptimization(eval_f);
   for (var i = 0; i < 5; i++) assertEquals(27, eval_f());
   %OptimizeFunctionOnNextCall(eval_f);
   assertEquals(27, eval_f());

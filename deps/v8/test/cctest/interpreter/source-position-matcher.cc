@@ -4,8 +4,8 @@
 
 #include "test/cctest/interpreter/source-position-matcher.h"
 
-#include "src/objects-inl.h"
-#include "src/objects.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -56,9 +56,9 @@ struct PositionTableEntryComparer {
 bool SourcePositionMatcher::Match(Handle<BytecodeArray> original_bytecode,
                                   Handle<BytecodeArray> optimized_bytecode) {
   SourcePositionTableIterator original(
-      original_bytecode->source_position_table());
+      original_bytecode->SourcePositionTable());
   SourcePositionTableIterator optimized(
-      optimized_bytecode->source_position_table());
+      optimized_bytecode->SourcePositionTable());
 
   int last_original_bytecode_offset = 0;
   int last_optimized_bytecode_offset = 0;
@@ -150,7 +150,7 @@ bool SourcePositionMatcher::CompareExpressionPositions(
   for (size_t i = 0; i < original_positions->size(); ++i) {
     PositionTableEntry original = original_positions->at(i);
     PositionTableEntry optimized = original_positions->at(i);
-    CHECK(original.source_position > 0);
+    CHECK_GT(original.source_position, 0);
     if ((original.is_statement || optimized.is_statement) ||
         (original.source_position != optimized.source_position) ||
         (original.source_position < 0)) {
@@ -213,7 +213,8 @@ void SourcePositionMatcher::MoveToNextStatement(
     if (iterator->is_statement()) {
       break;
     }
-    positions->push_back({iterator->code_offset(), iterator->source_position(),
+    positions->push_back({iterator->code_offset(),
+                          iterator->source_position().raw(),
                           iterator->is_statement()});
     iterator->Advance();
   }

@@ -1,70 +1,64 @@
-// test the throughput of the fs.WriteStream class.
+// Test the throughput of the fs.WriteStream class.
 'use strict';
 
-var path = require('path');
-var common = require('../common.js');
-var filename = path.resolve(__dirname, '.removeme-benchmark-garbage');
-var fs = require('fs');
+const path = require('path');
+const common = require('../common.js');
+const fs = require('fs');
 
-var bench = common.createBenchmark(main, {
+const tmpdir = require('../../test/common/tmpdir');
+tmpdir.refresh();
+const filename = path.resolve(tmpdir.path,
+                              `.removeme-benchmark-garbage-${process.pid}`);
+
+const bench = common.createBenchmark(main, {
   dur: [5],
-  type: ['buf', 'asc', 'utf'],
+  encodingType: ['buf', 'asc', 'utf'],
   size: [2, 1024, 65535, 1024 * 1024]
 });
 
-function main(conf) {
-  var dur = +conf.dur;
-  var type = conf.type;
-  var size = +conf.size;
-  var encoding;
+function main({ dur, encodingType, size }) {
+  let encoding;
 
-  var chunk;
-  switch (type) {
+  let chunk;
+  switch (encodingType) {
     case 'buf':
       chunk = Buffer.alloc(size, 'b');
       break;
     case 'asc':
-      chunk = new Array(size + 1).join('a');
+      chunk = 'a'.repeat(size);
       encoding = 'ascii';
       break;
     case 'utf':
-      chunk = new Array(Math.ceil(size / 2) + 1).join('ü');
+      chunk = 'ü'.repeat(Math.ceil(size / 2));
       encoding = 'utf8';
       break;
     default:
-      throw new Error('invalid type');
+      throw new Error(`invalid encodingType: ${encodingType}`);
   }
 
-  try { fs.unlinkSync(filename); } catch (e) {}
+  try { fs.unlinkSync(filename); } catch {}
 
-  var started = false;
-  var ending = false;
-  var ended = false;
-  setTimeout(function() {
-    ending = true;
-    f.end();
-  }, dur * 1000);
+  let started = false;
+  let ended = false;
 
-  var f = fs.createWriteStream(filename);
+  const f = fs.createWriteStream(filename);
   f.on('drain', write);
   f.on('open', write);
   f.on('close', done);
-  f.on('finish', function() {
+  f.on('finish', () => {
     ended = true;
-    var written = fs.statSync(filename).size / 1024;
-    try { fs.unlinkSync(filename); } catch (e) {}
+    const written = fs.statSync(filename).size / 1024;
+    try { fs.unlinkSync(filename); } catch {}
     bench.end(written / 1024);
   });
 
 
   function write() {
-    // don't try to write after we end, even if a 'drain' event comes.
-    // v0.8 streams are so sloppy!
-    if (ending)
-      return;
-
     if (!started) {
       started = true;
+      setTimeout(() => {
+        f.end();
+      }, dur * 1000);
       bench.start();
     }
 

@@ -6,6 +6,7 @@
 "use strict";
 
 function test(expected, f) {
+  %PrepareFunctionForOptimization(f);
   assertEquals(expected, f());
   assertEquals(expected, f());
   %OptimizeFunctionOnNextCall(f);
@@ -14,6 +15,7 @@ function test(expected, f) {
 }
 
 function testThrows(f) {
+  %PrepareFunctionForOptimization(f);
   assertThrows(f);
   assertThrows(f);
   %OptimizeFunctionOnNextCall(f);

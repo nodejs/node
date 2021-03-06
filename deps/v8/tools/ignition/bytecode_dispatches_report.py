@@ -5,6 +5,9 @@
 # found in the LICENSE file.
 #
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import argparse
 import heapq
 import json
@@ -54,8 +57,8 @@ def warn_if_counter_may_have_saturated(dispatches_table):
   for source, counters_from_source in iteritems(dispatches_table):
     for destination, counter in iteritems(counters_from_source):
       if counter == __COUNTER_MAX:
-        print "WARNING: {} -> {} may have saturated.".format(source,
-                                                             destination)
+        print("WARNING: {} -> {} may have saturated.".format(source,
+                                                             destination))
 
 
 def find_top_bytecode_dispatch_pairs(dispatches_table, top_count):
@@ -71,9 +74,9 @@ def find_top_bytecode_dispatch_pairs(dispatches_table, top_count):
 def print_top_bytecode_dispatch_pairs(dispatches_table, top_count):
   top_bytecode_dispatch_pairs = (
     find_top_bytecode_dispatch_pairs(dispatches_table, top_count))
-  print "Top {} bytecode dispatch pairs:".format(top_count)
+  print("Top {} bytecode dispatch pairs:".format(top_count))
   for source, destination, counter in top_bytecode_dispatch_pairs:
-    print "{:>12d}\t{} -> {}".format(counter, source, destination)
+    print("{:>12d}\t{} -> {}".format(counter, source, destination))
 
 
 def find_top_bytecodes(dispatches_table):
@@ -87,9 +90,9 @@ def find_top_bytecodes(dispatches_table):
 
 def print_top_bytecodes(dispatches_table):
   top_bytecodes = find_top_bytecodes(dispatches_table)
-  print "Top bytecodes:"
+  print("Top bytecodes:")
   for bytecode, counter in top_bytecodes:
-    print "{:>12d}\t{}".format(counter, bytecode)
+    print("{:>12d}\t{}".format(counter, bytecode))
 
 
 def find_top_dispatch_sources_and_destinations(
@@ -116,13 +119,13 @@ def print_top_dispatch_sources_and_destinations(dispatches_table, bytecode,
                                                 top_count, sort_relative):
   top_sources, top_destinations = find_top_dispatch_sources_and_destinations(
       dispatches_table, bytecode, top_count, sort_relative)
-  print "Top sources of dispatches to {}:".format(bytecode)
+  print("Top sources of dispatches to {}:".format(bytecode))
   for source_name, counter, ratio in top_sources:
-    print "{:>12d}\t{:>5.1f}%\t{}".format(counter, ratio * 100, source_name)
+    print("{:>12d}\t{:>5.1f}%\t{}".format(counter, ratio * 100, source_name))
 
-  print "\nTop destinations of dispatches from {}:".format(bytecode)
+  print("\nTop destinations of dispatches from {}:".format(bytecode))
   for destination_name, counter, ratio in top_destinations:
-    print "{:>12d}\t{:>5.1f}%\t{}".format(counter, ratio * 100, destination_name)
+    print("{:>12d}\t{:>5.1f}%\t{}".format(counter, ratio * 100, destination_name))
 
 
 def build_counters_matrix(dispatches_table):

@@ -26,5 +26,5 @@ if (process.argv[2] === 'child') {
     env: process.env
   });
 
-  assert.equal(child.status, 0);
+  assert.strictEqual(child.status, 0);
 }

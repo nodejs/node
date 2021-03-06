@@ -1,181 +1,157 @@
-module.exports = runScript
+const runScript = require('@npmcli/run-script')
+const { isServerPackage } = runScript
+const readJson = require('read-package-json-fast')
+const { resolve } = require('path')
+const output = require('./utils/output.js')
+const log = require('npmlog')
+const usageUtil = require('./utils/usage.js')
+const didYouMean = require('./utils/did-you-mean.js')
+const isWindowsShell = require('./utils/is-windows-shell.js')
 
-var lifecycle = require('./utils/lifecycle.js')
-var npm = require('./npm.js')
-var path = require('path')
-var readJson = require('read-package-json')
-var log = require('npmlog')
-var chain = require('slide').chain
-var usage = require('./utils/usage')
-var output = require('./utils/output.js')
+const cmdList = [
+  'publish',
+  'install',
+  'uninstall',
+  'test',
+  'stop',
+  'start',
+  'restart',
+  'version',
+].reduce((l, p) => l.concat(['pre' + p, p, 'post' + p]), [])
 
-runScript.usage = usage(
-  'run-script',
-  'npm run-script <command> [-- <args>...]'
-)
-
-runScript.completion = function (opts, cb) {
-  // see if there's already a package specified.
-  var argv = opts.conf.argv.remain
-
-  if (argv.length >= 4) return cb()
-
-  if (argv.length === 3) {
-    // either specified a script locally, in which case, done,
-    // or a package, in which case, complete against its scripts
-    var json = path.join(npm.localPrefix, 'package.json')
-    return readJson(json, function (er, d) {
-      if (er && er.code !== 'ENOENT' && er.code !== 'ENOTDIR') return cb(er)
-      if (er) d = {}
-      var scripts = Object.keys(d.scripts || {})
-      console.error('local scripts', scripts)
-      if (scripts.indexOf(argv[2]) !== -1) return cb()
-      // ok, try to find out which package it was, then
-      var pref = npm.config.get('global') ? npm.config.get('prefix')
-               : npm.localPrefix
-      var pkgDir = path.resolve(pref, 'node_modules', argv[2], 'package.json')
-      readJson(pkgDir, function (er, d) {
-        if (er && er.code !== 'ENOENT' && er.code !== 'ENOTDIR') return cb(er)
-        if (er) d = {}
-        var scripts = Object.keys(d.scripts || {})
-        return cb(null, scripts)
-      })
-    })
+class RunScript {
+  constructor (npm) {
+    this.npm = npm
   }
 
-  readJson(path.join(npm.localPrefix, 'package.json'), function (er, d) {
-    if (er && er.code !== 'ENOENT' && er.code !== 'ENOTDIR') return cb(er)
-    d = d || {}
-    cb(null, Object.keys(d.scripts || {}))
-  })
-}
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  get usage () {
+    return usageUtil(
+      'run-script',
+      'npm run-script <command> [-- <args>]'
+    )
+  }
 
-function runScript (args, cb) {
-  if (!args.length) return list(cb)
+  async completion (opts) {
+    const argv = opts.conf.argv.remain
+    if (argv.length === 2) {
+      // find the script name
+      const json = resolve(this.npm.localPrefix, 'package.json')
+      const { scripts = {} } = await readJson(json).catch(er => ({}))
+      return Object.keys(scripts)
+    }
+  }
 
-  var pkgdir = npm.localPrefix
-  var cmd = args.shift()
+  exec (args, cb) {
+    if (args.length)
+      this.run(args).then(() => cb()).catch(cb)
+    else
+      this.list(args).then(() => cb()).catch(cb)
+  }
 
-  readJson(path.resolve(pkgdir, 'package.json'), function (er, d) {
-    if (er) return cb(er)
-    run(d, pkgdir, cmd, args, cb)
-  })
-}
+  async run (args) {
+    const path = this.npm.localPrefix
+    const event = args.shift()
+    const { scriptShell } = this.npm.flatOptions
 
-function list (cb) {
-  var json = path.join(npm.localPrefix, 'package.json')
-  var cmdList = [
-    'publish',
-    'install',
-    'uninstall',
-    'test',
-    'stop',
-    'start',
-    'restart',
-    'version'
-  ].reduce(function (l, p) {
-    return l.concat(['pre' + p, p, 'post' + p])
-  }, [])
-  return readJson(json, function (er, d) {
-    if (er && er.code !== 'ENOENT' && er.code !== 'ENOTDIR') return cb(er)
-    if (er) d = {}
-    var allScripts = Object.keys(d.scripts || {})
-    var scripts = []
-    var runScripts = []
-    allScripts.forEach(function (script) {
-      if (cmdList.indexOf(script) !== -1) scripts.push(script)
-      else runScripts.push(script)
-    })
+    const pkg = await readJson(`${path}/package.json`)
+    const { scripts = {} } = pkg
 
-    if (log.level === 'silent') {
-      return cb(null, allScripts)
+    if (event === 'restart' && !scripts.restart)
+      scripts.restart = 'npm stop --if-present && npm start'
+    else if (event === 'env' && !scripts.env)
+      scripts.env = isWindowsShell ? 'SET' : 'env'
+
+    pkg.scripts = scripts
+
+    if (
+      !Object.prototype.hasOwnProperty.call(scripts, event) &&
+      !(event === 'start' && await isServerPackage(path))
+    ) {
+      if (this.npm.config.get('if-present'))
+        return
+
+      const suggestions = didYouMean(event, Object.keys(scripts))
+      throw new Error(`missing script: ${event}${
+      suggestions ? `\n${suggestions}` : ''}`)
     }
 
-    if (npm.config.get('json')) {
-      output(JSON.stringify(d.scripts || {}, null, 2))
-      return cb(null, allScripts)
+    // positional args only added to the main event, not pre/post
+    const events = [[event, args]]
+    if (!this.npm.flatOptions.ignoreScripts) {
+      if (scripts[`pre${event}`])
+        events.unshift([`pre${event}`, []])
+
+      if (scripts[`post${event}`])
+        events.push([`post${event}`, []])
     }
 
-    if (npm.config.get('parseable')) {
-      allScripts.forEach(function (script) {
-        output(script + ':' + d.scripts[script])
+    const opts = {
+      path,
+      args,
+      scriptShell,
+      stdio: 'inherit',
+      stdioString: true,
+      pkg,
+      banner: log.level !== 'silent',
+    }
+
+    for (const [event, args] of events) {
+      await runScript({
+        ...opts,
+        event,
+        args,
       })
-      return cb(null, allScripts)
+    }
+  }
+
+  async list () {
+    const path = this.npm.localPrefix
+    const { scripts, name } = await readJson(`${path}/package.json`)
+
+    if (!scripts)
+      return []
+
+    const allScripts = Object.keys(scripts)
+    if (log.level === 'silent')
+      return allScripts
+
+    if (this.npm.flatOptions.json) {
+      output(JSON.stringify(scripts, null, 2))
+      return allScripts
     }
 
-    var s = '\n    '
-    var prefix = '  '
-    if (scripts.length) {
-      output('Lifecycle scripts included in %s:', d.name)
+    if (this.npm.flatOptions.parseable) {
+      for (const [script, cmd] of Object.entries(scripts))
+        output(`${script}:${cmd}`)
+
+      return allScripts
     }
-    scripts.forEach(function (script) {
-      output(prefix + script + s + d.scripts[script])
-    })
-    if (!scripts.length && runScripts.length) {
-      output('Scripts available in %s via `npm run-script`:', d.name)
-    } else if (runScripts.length) {
+
+    const indent = '\n    '
+    const prefix = '  '
+    const cmds = []
+    const runScripts = []
+    for (const script of allScripts) {
+      const list = cmdList.includes(script) ? cmds : runScripts
+      list.push(script)
+    }
+
+    if (cmds.length)
+      output(`Lifecycle scripts included in ${name}:`)
+
+    for (const script of cmds)
+      output(prefix + script + indent + scripts[script])
+
+    if (!cmds.length && runScripts.length)
+      output(`Scripts available in ${name} via \`npm run-script\`:`)
+    else if (runScripts.length)
       output('\navailable via `npm run-script`:')
-    }
-    runScripts.forEach(function (script) {
-      output(prefix + script + s + d.scripts[script])
-    })
-    return cb(null, allScripts)
-  })
-}
 
-function run (pkg, wd, cmd, args, cb) {
-  if (!pkg.scripts) pkg.scripts = {}
+    for (const script of runScripts)
+      output(prefix + script + indent + scripts[script])
 
-  var cmds
-  if (cmd === 'restart' && !pkg.scripts.restart) {
-    cmds = [
-      'prestop', 'stop', 'poststop',
-      'restart',
-      'prestart', 'start', 'poststart'
-    ]
-  } else {
-    if (!pkg.scripts[cmd]) {
-      if (cmd === 'test') {
-        pkg.scripts.test = 'echo \'Error: no test specified\''
-      } else if (cmd === 'env') {
-        if (process.platform === 'win32') {
-          log.verbose('run-script using default platform env: SET (Windows)')
-          pkg.scripts[cmd] = 'SET'
-        } else {
-          log.verbose('run-script using default platform env: env (Unix)')
-          pkg.scripts[cmd] = 'env'
-        }
-      } else if (npm.config.get('if-present')) {
-        return cb(null)
-      } else {
-        return cb(new Error('missing script: ' + cmd))
-      }
-    }
-    cmds = [cmd]
+    return allScripts
   }
-
-  if (!cmd.match(/^(pre|post)/)) {
-    cmds = ['pre' + cmd].concat(cmds).concat('post' + cmd)
-  }
-
-  log.verbose('run-script', cmds)
-  chain(cmds.map(function (c) {
-    // pass cli arguments after -- to script.
-    if (pkg.scripts[c] && c === cmd) {
-      pkg.scripts[c] = pkg.scripts[c] + joinArgs(args)
-    }
-
-    // when running scripts explicitly, assume that they're trusted.
-    return [lifecycle, pkg, c, wd, true]
-  }), cb)
 }
-
-// join arguments after '--' and pass them to script,
-// handle special characters such as ', ", ' '.
-function joinArgs (args) {
-  var joinedArgs = ''
-  args.forEach(function (arg) {
-    joinedArgs += ' "' + arg.replace(/"/g, '\\"') + '"'
-  })
-  return joinedArgs
-}
+module.exports = RunScript

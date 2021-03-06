@@ -22,6 +22,9 @@ function foo() {
   return result;
 }
 
+%PrepareFunctionForOptimization(foo);
 assertEquals(4950, foo()());
+%PrepareFunctionForOptimization(foo);
 assertEquals(4950, foo()());
+%PrepareFunctionForOptimization(foo);
 assertEquals(4950, foo()());

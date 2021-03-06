@@ -1,0 +1,47 @@
+# Copyright 2019 The V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../gni/v8.gni")
+
+v8_executable("wasm_api_tests") {
+  testonly = true
+
+  deps = [
+    "../..:v8_maybe_icu",
+    "../..:wee8",
+    "//build/win:default_exe_manifest",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+
+  data_deps = [
+    "../../tools:v8_testrunner",
+  ]
+
+  data = [
+    "testcfg.py",
+    "wasm-api-tests.status",
+  ]
+
+  configs = [ "../..:internal_config_base" ]
+
+  sources = [
+    "../../testing/gmock-support.h",
+    "../../testing/gtest-support.h",
+    "callbacks.cc",
+    "finalize.cc",
+    "globals.cc",
+    "hostref.cc",
+    "memory.cc",
+    "multi-return.cc",
+    "reflect.cc",
+    "run-all-wasm-api-tests.cc",
+    "serialize.cc",
+    "startup-errors.cc",
+    "table.cc",
+    "threads.cc",
+    "traps.cc",
+    "wasm-api-test.h",
+  ]
+}

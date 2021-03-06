@@ -42,3 +42,17 @@ assertEquals('flüße', result[5]);
 assertEquals('FUSSE', result[6]);
 assertEquals('Fuße', result[7]);
 assertEquals('März', result[8]);
+
+result = ["AE", "Ä"].sort(new Intl.Collator("de", {usage: "sort"}).compare)
+assertEquals("Ä", result[0]);
+assertEquals("AE", result[1]);
+result = ["AE", "Ä"].sort(new Intl.Collator("de", {usage: "search"}).compare)
+assertEquals("AE", result[0]);
+assertEquals("Ä", result[1]);
+
+
+var collator = new Intl.Collator("de", {usage: "search"});
+collator.resolvedOptions() // This triggers the code that removes the u-co-search keyword
+result = ["AE", "Ä"].sort(collator.compare)
+assertEquals("AE", result[0]);
+assertEquals("Ä", result[1]);

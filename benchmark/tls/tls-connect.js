@@ -1,41 +1,37 @@
 'use strict';
-var fs = require('fs'),
-  path = require('path'),
-  tls = require('tls');
+const fixtures = require('../../test/common/fixtures');
+const tls = require('tls');
 
-var common = require('../common.js');
-var bench = common.createBenchmark(main, {
+const common = require('../common.js');
+const bench = common.createBenchmark(main, {
   concurrency: [1, 10],
   dur: [5]
 });
 
-var clientConn = 0;
-var serverConn = 0;
-var server;
-var dur;
-var concurrency;
-var running = true;
+let clientConn = 0;
+let serverConn = 0;
+let dur;
+let concurrency;
+let running = true;
 
 function main(conf) {
-  dur = +conf.dur;
-  concurrency = +conf.concurrency;
-
-  var cert_dir = path.resolve(__dirname, '../../test/fixtures');
-  var options = {
-    key: fs.readFileSync(cert_dir + '/test_key.pem'),
-    cert: fs.readFileSync(cert_dir + '/test_cert.pem'),
-    ca: [ fs.readFileSync(cert_dir + '/test_ca.pem') ],
+  dur = conf.dur;
+  concurrency = conf.concurrency;
+  const options = {
+    key: fixtures.readKey('rsa_private.pem'),
+    cert: fixtures.readKey('rsa_cert.crt'),
+    ca: fixtures.readKey('rsa_ca.crt'),
     ciphers: 'AES256-GCM-SHA384'
   };
 
-  server = tls.createServer(options, onConnection);
+  const server = tls.createServer(options, onConnection);
   server.listen(common.PORT, onListening);
 }
 
 function onListening() {
   setTimeout(done, dur * 1000);
   bench.start();
-  for (var i = 0; i < concurrency; i++)
+  for (let i = 0; i < concurrency; i++)
     makeConnection();
 }
 
@@ -44,13 +40,13 @@ function onConnection(conn) {
 }
 
 function makeConnection() {
-  var options = {
+  const options = {
     port: common.PORT,
     rejectUnauthorized: false
   };
-  var conn = tls.connect(options, function() {
+  const conn = tls.connect(options, () => {
     clientConn++;
-    conn.on('error', function(er) {
+    conn.on('error', (er) => {
       console.error('client error', er);
       throw er;
     });
@@ -61,7 +57,7 @@ function makeConnection() {
 
 function done() {
   running = false;
-  // it's only an established connection if they both saw it.
+  // It's only an established connection if they both saw it.
   // because we destroy the server somewhat abruptly, these
   // don't always match.  Generally, serverConn will be
   // the smaller number, but take the min just to be sure.

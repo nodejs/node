@@ -63,10 +63,10 @@ PASS (new DerivedReturnSymbol) threw exception TypeError: Derived constructors m
 PASS (new DerivedThrow) threw exception Thrown Exception String.
 
 Derived class not calling super()
-PASS (new DerivedNoSuperNoReturn) threw exception ReferenceError: this is not defined.
+PASS (new DerivedNoSuperNoReturn) threw exception ReferenceError: Must call super constructor in derived class before accessing 'this' or returning from derived constructor.
 PASS (new DerivedNoSuperReturnImplicit) threw exception ReferenceError: DerivedNoSuperReturnImplicit is not defined.
-PASS (new DerivedNoSuperReturnUndefined) threw exception ReferenceError: this is not defined.
-PASS (new DerivedNoSuperReturnThis) threw exception ReferenceError: this is not defined.
+PASS (new DerivedNoSuperReturnUndefined) threw exception ReferenceError: Must call super constructor in derived class before accessing 'this' or returning from derived constructor.
+PASS (new DerivedNoSuperReturnThis) threw exception ReferenceError: Must call super constructor in derived class before accessing 'this' or returning from derived constructor.
 PASS (new DerivedNoSuperReturnObject) did not throw exception.
 PASS (new DerivedNoSuperReturnObject2) did not throw exception.
 PASS (new DerivedNoSuperReturnString) threw exception TypeError: Derived constructors may only return object or undefined.

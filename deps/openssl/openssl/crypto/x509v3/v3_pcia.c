@@ -1,9 +1,17 @@
-/* v3_pcia.c */
 /*
- * Contributed to the OpenSSL Project 2004 by Richard Levitte
- * (richard@levitte.org)
+ * Copyright 2004-2016 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
-/* Copyright (c) 2004 Kungliga Tekniska Högskolan
+
+/*
+ * This file is dual-licensed and is also available under the following
+ * terms:
+ *
+ * Copyright (c) 2004 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  *

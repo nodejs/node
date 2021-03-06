@@ -41,7 +41,8 @@ var a = new Ctor();
 
 function Two(x) {
   return x.two;
-}
+};
+%PrepareFunctionForOptimization(Two);
 assertEquals(2, Two(a));
 assertEquals(2, Two(a));
 b2.constant_function = "no longer constant!";

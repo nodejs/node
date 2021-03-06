@@ -1,71 +1,59 @@
 'use strict';
-var fs = require('fs');
-var path = require('path');
-var common = require('../common.js');
+const fs = require('fs');
+const path = require('path');
+const { builtinModules } = require('module');
+const common = require('../common.js');
 
-var tmpDirectory = path.join(__dirname, '..', 'tmp');
-var benchmarkDirectory = path.join(tmpDirectory, 'nodejs-benchmark-module');
+const tmpdir = require('../../test/common/tmpdir');
+let benchmarkDirectory = path.join(tmpdir.path, 'nodejs-benchmark-module');
 
-var bench = common.createBenchmark(main, {
-  thousands: [50],
-  fullPath: ['true', 'false']
+// Filter all irregular modules.
+const otherModules = builtinModules.filter((name) => !/\/|^_|^sys/.test(name));
+
+const bench = common.createBenchmark(main, {
+  name: ['', '/', '/index.js'],
+  dir: ['rel', 'abs'],
+  files: [5e2],
+  n: [1, 1e3],
+  cache: ['true', 'false']
 });
 
-function main(conf) {
-  var n = +conf.thousands * 1e3;
-
-  rmrf(tmpDirectory);
-  try { fs.mkdirSync(tmpDirectory); } catch (e) {}
-  try { fs.mkdirSync(benchmarkDirectory); } catch (e) {}
-
-  for (var i = 0; i <= n; i++) {
-    fs.mkdirSync(benchmarkDirectory + i);
+function main({ n, name, cache, files, dir }) {
+  tmpdir.refresh();
+  fs.mkdirSync(benchmarkDirectory);
+  for (let i = 0; i <= files; i++) {
+    fs.mkdirSync(`${benchmarkDirectory}${i}`);
     fs.writeFileSync(
-      benchmarkDirectory + i + '/package.json',
+      `${benchmarkDirectory}${i}/package.json`,
       '{"main": "index.js"}'
     );
     fs.writeFileSync(
-      benchmarkDirectory + i + '/index.js',
+      `${benchmarkDirectory}${i}/index.js`,
       'module.exports = "";'
     );
   }
 
-  if (conf.fullPath === 'true')
-    measureFull(n);
-  else
-    measureDir(n);
+  if (dir === 'rel')
+    benchmarkDirectory = path.relative(__dirname, benchmarkDirectory);
+
+  measureDir(n, cache === 'true', files, name);
+
+  tmpdir.refresh();
 }
 
-function measureFull(n) {
+function measureDir(n, cache, files, name) {
+  if (cache) {
+    for (let i = 0; i <= files; i++) {
+      require(`${benchmarkDirectory}${i}${name}`);
+    }
+  }
   bench.start();
-  for (var i = 0; i <= n; i++) {
-    require(benchmarkDirectory + i + '/index.js');
+  for (let i = 0; i <= files; i++) {
+    for (let j = 0; j < n; j++)
+      require(`${benchmarkDirectory}${i}${name}`);
+    // Pretend mixed input (otherwise the results are less representative due to
+    // highly specialized code).
+    require(otherModules[i % otherModules.length]);
   }
-  bench.end(n / 1e3);
-}
-
-function measureDir(n) {
-  bench.start();
-  for (var i = 0; i <= n; i++) {
-    require(benchmarkDirectory + i);
-  }
-  bench.end(n / 1e3);
-}
-
-function rmrf(location) {
-  try {
-    var things = fs.readdirSync(location);
-    things.forEach(function(thing) {
-      var cur = path.join(location, thing),
-        isDirectory = fs.statSync(cur).isDirectory();
-      if (isDirectory) {
-        rmrf(cur);
-        return;
-      }
-      fs.unlinkSync(cur);
-    });
-    fs.rmdirSync(location);
-  } catch (err) {
-    // Ignore error
-  }
+  bench.end(n * files);
 }

@@ -16,7 +16,7 @@ namespace compiler {
 namespace {
 
 char const* const kMnemonics[] = {
-#define DECLARE_MNEMONIC(x) #x,
+#define DECLARE_MNEMONIC(x, ...) #x,
     ALL_OP_LIST(DECLARE_MNEMONIC)
 #undef DECLARE_MNEMONIC
         "UnknownOpcode"};
@@ -26,6 +26,8 @@ char const* const kMnemonics[] = {
 
 // static
 char const* IrOpcode::Mnemonic(Value value) {
+  DCHECK_LE(0, static_cast<int>(value));
+  DCHECK_LE(static_cast<int>(value), IrOpcode::Value::kLast);
   size_t const n = std::min<size_t>(value, arraysize(kMnemonics) - 1);
   return kMnemonics[n];
 }

@@ -29,12 +29,22 @@
 
 // Test that the throw is not inlined if object literals cannot be
 // inlined.
-function bar() { throw {}; }
-
-function foo() { bar(); }
-
-for (var i = 0; i < 5; ++i) {
-    try { foo() } catch (e) { }
+function bar() {
+  throw {};
 }
-%OptimizeFunctionOnNextCall(foo)
-try { foo() } catch (e) { }
+
+function foo() {
+  bar();
+};
+%PrepareFunctionForOptimization(foo);
+for (var i = 0; i < 5; ++i) {
+  try {
+    foo();
+  } catch (e) {
+  }
+}
+%OptimizeFunctionOnNextCall(foo);
+try {
+  foo();
+} catch (e) {
+}

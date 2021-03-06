@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --opt
 
 (function() {
   function foo(x) {
@@ -11,10 +11,10 @@
     return x + y;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(-2147483648, foo(0));
   assertEquals(0, foo(2147483648));
   assertEquals(2147483647, foo(4294967295));
-  %BaselineFunctionOnNextCall(foo);
   assertEquals(-2147483648, foo(0));
   assertEquals(0, foo(2147483648));
   assertEquals(2147483647, foo(4294967295));
@@ -32,10 +32,10 @@
     return x - y;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(-2147483648, foo(0));
   assertEquals(0, foo(2147483648));
   assertEquals(2147483647, foo(4294967295));
-  %BaselineFunctionOnNextCall(foo);
   assertEquals(-2147483648, foo(0));
   assertEquals(0, foo(2147483648));
   assertEquals(2147483647, foo(4294967295));
@@ -53,10 +53,10 @@
     return x + y;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(2147483648, foo(0));
   assertEquals(0, foo(-2147483648));
   assertEquals(4294967295, foo(2147483647));
-  %BaselineFunctionOnNextCall(foo);
   assertEquals(2147483648, foo(0));
   assertEquals(0, foo(-2147483648));
   assertEquals(4294967295, foo(2147483647));
@@ -74,10 +74,10 @@
     return x - y;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(2147483648, foo(0));
   assertEquals(0, foo(-2147483648));
   assertEquals(4294967295, foo(2147483647));
-  %BaselineFunctionOnNextCall(foo);
   assertEquals(2147483648, foo(0));
   assertEquals(0, foo(-2147483648));
   assertEquals(4294967295, foo(2147483647));
@@ -95,10 +95,10 @@
     return x + y;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(2147483647, foo(2147483647));
   assertEquals(-2147483648, foo(-2147483648));
   assertEquals(0, foo(0));
-  %BaselineFunctionOnNextCall(foo);
   assertEquals(2147483647, foo(2147483647));
   assertEquals(-2147483648, foo(-2147483648));
   assertEquals(0, foo(0));
@@ -116,10 +116,10 @@
     return y - z;
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertEquals(2147483647, foo(-1));
   assertEquals(2147483648, foo(0));
   assertEquals(2147483649, foo(1));
-  %BaselineFunctionOnNextCall(foo);
   assertEquals(2147483647, foo(-1));
   assertEquals(2147483648, foo(0));
   assertEquals(2147483649, foo(1));

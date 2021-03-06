@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -17,7 +17,6 @@
 #include "unicode/utypes.h"
 #include "unicode/uobject.h"
 #include "unicode/unistr.h"
-#include "putilimp.h"
 
 U_NAMESPACE_BEGIN
 
@@ -39,7 +38,7 @@ public:
         kNegativeNumberRule = -1,
         kImproperFractionRule = -2,
         kProperFractionRule = -3,
-        kMasterRule = -4,
+        kDefaultRule = -4,
         kInfinityRule = -5,
         kNaNRule = -6,
         kOtherRule = -7
@@ -66,7 +65,7 @@ public:
 
     UChar getDecimalPoint() const { return decimalPoint; }
 
-    double getDivisor() const { return uprv_pow(radix, exponent); }
+    int64_t getDivisor() const;
 
     void doFormat(int64_t number, UnicodeString& toAppendTo, int32_t pos, int32_t recursionCount, UErrorCode& status) const;
     void doFormat(double  number, UnicodeString& toAppendTo, int32_t pos, int32_t recursionCount, UErrorCode& status) const;
@@ -75,9 +74,10 @@ public:
                   ParsePosition& pos,
                   UBool isFractional,
                   double upperBound,
+                  uint32_t nonNumericalExecutedRuleMask,
                   Formattable& result) const;
 
-    UBool shouldRollBack(double number) const;
+    UBool shouldRollBack(int64_t number) const;
 
     void _appendRuleText(UnicodeString& result) const;
 
@@ -95,6 +95,7 @@ private:
     int32_t indexOfAnyRulePrefix() const;
     double matchToDelimiter(const UnicodeString& text, int32_t startPos, double baseValue,
                             const UnicodeString& delimiter, ParsePosition& pp, const NFSubstitution* sub,
+                            uint32_t nonNumericalExecutedRuleMask,
                             double upperBound) const;
     void stripPrefix(UnicodeString& text, const UnicodeString& prefix, ParsePosition& pp) const;
 
@@ -108,7 +109,7 @@ private:
     int32_t radix;
     int16_t exponent;
     UChar decimalPoint;
-    UnicodeString ruleText;
+    UnicodeString fRuleText;
     NFSubstitution* sub1;
     NFSubstitution* sub2;
     const RuleBasedNumberFormat* formatter;

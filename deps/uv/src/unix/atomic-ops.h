@@ -20,11 +20,9 @@
 
 #if defined(__SUNPRO_C) || defined(__SUNPRO_CC)
 #include <atomic.h>
-#define __sync_val_compare_and_swap(p, o, n) atomic_cas_ptr(p, o, n)
 #endif
 
 UV_UNUSED(static int cmpxchgi(int* ptr, int oldval, int newval));
-UV_UNUSED(static long cmpxchgl(long* ptr, long oldval, long newval));
 UV_UNUSED(static void cpu_relax(void));
 
 /* Prefer hand-rolled assembly over the gcc builtins because the latter also
@@ -38,42 +36,15 @@ UV_UNUSED(static int cmpxchgi(int* ptr, int oldval, int newval)) {
                         : "r" (newval), "0" (oldval)
                         : "memory");
   return out;
-#elif defined(_AIX) && defined(__xlC__)
-  const int out = (*(volatile int*) ptr);
-  __compare_and_swap(ptr, &oldval, newval);
-  return out;
 #elif defined(__MVS__)
-  return __plo_CS(ptr, (unsigned int*) ptr,
-                  oldval, (unsigned int*) &newval);
-#else
-  return __sync_val_compare_and_swap(ptr, oldval, newval);
-#endif
-}
-
-UV_UNUSED(static long cmpxchgl(long* ptr, long oldval, long newval)) {
-#if defined(__i386__) || defined(__x86_64__)
-  long out;
-  __asm__ __volatile__ ("lock; cmpxchg %2, %1;"
-                        : "=a" (out), "+m" (*(volatile long*) ptr)
-                        : "r" (newval), "0" (oldval)
-                        : "memory");
-  return out;
-#elif defined(_AIX) && defined(__xlC__)
-  const long out = (*(volatile int*) ptr);
-# if defined(__64BIT__)
-  __compare_and_swaplp(ptr, &oldval, newval);
-# else
-  __compare_and_swap(ptr, &oldval, newval);
-# endif /* if defined(__64BIT__) */
-  return out;
-#elif defined (__MVS__)
-# ifdef _LP64
-  return __plo_CSGR(ptr, (unsigned long long*) ptr,
-                    oldval, (unsigned long long*) &newval);
-# else
-  return __plo_CS(ptr, (unsigned int*) ptr,
-                  oldval, (unsigned int*) &newval);
-# endif
+  unsigned int op4;
+  if (__plo_CSST(ptr, (unsigned int*) &oldval, newval,
+                (unsigned int*) ptr, *ptr, &op4))
+    return oldval;
+  else
+    return op4;
+#elif defined(__SUNPRO_C) || defined(__SUNPRO_CC)
+  return atomic_cas_uint((uint_t *)ptr, (uint_t)oldval, (uint_t)newval);
 #else
   return __sync_val_compare_and_swap(ptr, oldval, newval);
 #endif
@@ -82,6 +53,8 @@ UV_UNUSED(static long cmpxchgl(long* ptr, long oldval, long newval)) {
 UV_UNUSED(static void cpu_relax(void)) {
 #if defined(__i386__) || defined(__x86_64__)
   __asm__ __volatile__ ("rep; nop");  /* a.k.a. PAUSE */
+#elif (defined(__arm__) && __ARM_ARCH >= 7) || defined(__aarch64__)
+  __asm__ volatile("yield");
 #endif
 }
 

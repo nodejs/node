@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /********************************************************************
  * COPYRIGHT:
@@ -351,8 +351,10 @@ int32_t udbg_enumByName(UDebugEnumType type, const char *value) {
  */
 U_CAPI const char *udbg_getPlatform(void)
 {
-#if U_PLATFORM_HAS_WIN32_API
+#if U_PLATFORM_USES_ONLY_WIN32_API
     return "Windows";
+#elif U_PLATFORM == U_PF_CYGWIN
+    return "Cygwin";
 #elif U_PLATFORM == U_PF_UNKNOWN
     return "unknown";
 #elif U_PLATFORM == U_PF_DARWIN
@@ -398,7 +400,7 @@ U_CAPI  int32_t
 paramStatic(const USystemParams *param, char *target, int32_t targetCapacity, UErrorCode *status) {
   if(param->paramStr==NULL) return paramEmpty(param,target,targetCapacity,status);
   if(U_FAILURE(*status))return 0;
-  int32_t len = uprv_strlen(param->paramStr);
+  int32_t len = static_cast<int32_t>(uprv_strlen(param->paramStr));
   if(target!=NULL) {
     uprv_strncpy(target,param->paramStr,uprv_min(len,targetCapacity));
   }
@@ -410,14 +412,14 @@ static const char *nullString = "(null)";
 static int32_t stringToStringBuffer(char *target, int32_t targetCapacity, const char *str, UErrorCode *status) {
   if(str==NULL) str=nullString;
 
-  int32_t len = uprv_strlen(str);
+  int32_t len = static_cast<int32_t>(uprv_strlen(str));
   if (U_SUCCESS(*status)) {
     if(target!=NULL) {
       uprv_strncpy(target,str,uprv_min(len,targetCapacity));
     }
   } else {
     const char *s = u_errorName(*status);
-    len = uprv_strlen(s);
+    len = static_cast<int32_t>(uprv_strlen(s));
     if(target!=NULL) {
       uprv_strncpy(target,s,uprv_min(len,targetCapacity));
     }
@@ -552,7 +554,6 @@ static const USystemParams systemParams[] = {
 #endif
   { "uconfig.internal_digitlist", paramInteger, "b", 1}, /* always 1 */
   { "uconfig.have_parseallinput", paramInteger, "b", UCONFIG_HAVE_PARSEALLINPUT},
-  { "uconfig.format_fastpaths_49",paramInteger, "b", UCONFIG_FORMAT_FASTPATHS_49},
 
 
 };
@@ -593,59 +594,12 @@ U_CAPI void udbg_writeIcuInfo(FILE *out) {
   fprintf(out, " </icuSystemParams>\n");
 }
 
-#define ICU_TRAC_URL "http://bugs.icu-project.org/trac/ticket/"
-#define CLDR_TRAC_URL "http://unicode.org/cldr/trac/ticket/"
-#define CLDR_TICKET_PREFIX "cldrbug:"
-
-U_CAPI char *udbg_knownIssueURLFrom(const char *ticket, char *buf) {
-  if( ticket==NULL ) {
-    return NULL;
-  }
-
-  if( !strncmp(ticket, CLDR_TICKET_PREFIX, strlen(CLDR_TICKET_PREFIX)) ) {
-    strcpy( buf, CLDR_TRAC_URL );
-    strcat( buf, ticket+strlen(CLDR_TICKET_PREFIX) );
-  } else {
-    strcpy( buf, ICU_TRAC_URL );
-    strcat( buf, ticket );
-  }
-  return buf;
-}
+#define UNICODE_BUG_URL "https://unicode-org.atlassian.net/browse/"
+#define OLD_CLDR_PREFIX "cldrbug:"
+#define CLDR_BUG_PREFIX "CLDR-"
+#define ICU_BUG_PREFIX "ICU-"
 
 
-#if !U_HAVE_STD_STRING
-const char *warning = "WARNING: Don't have std::string (STL) - known issue logs will be deficient.";
-
-U_CAPI void *udbg_knownIssue_openU(void *ptr, const char *ticket, char *where, const UChar *msg, UBool *firstForTicket,
-                                   UBool *firstForWhere) {
-  if(ptr==NULL) {
-    puts(warning);
-  }
-  printf("%s\tKnown Issue #%s\n", where, ticket);
-
-  return (void*)warning;
-}
-
-U_CAPI void *udbg_knownIssue_open(void *ptr, const char *ticket, char *where, const char *msg, UBool *firstForTicket,
-                                   UBool *firstForWhere) {
-  if(ptr==NULL) {
-    puts(warning);
-  }
-  if(msg==NULL) msg = "";
-  printf("%s\tKnown Issue #%s  \"%s\n", where, ticket, msg);
-
-  return (void*)warning;
-}
-
-U_CAPI UBool udbg_knownIssue_print(void *ptr) {
-  puts(warning);
-  return FALSE;
-}
-
-U_CAPI void udbg_knownIssue_close(void *ptr) {
-  // nothing to do
-}
-#else
 
 #include <set>
 #include <map>
@@ -674,8 +628,27 @@ KnownIssues::~KnownIssues()
 {
 }
 
-void KnownIssues::add(const char *ticket, const char *where, const UChar *msg, UBool *firstForTicket, UBool *firstForWhere)
+/**
+ * Map cldr:1234 to CLDR-1234
+ * Map 1234 to ICU-1234
+ */
+static std::string mapTicketId(const char *ticketStr) {
+  std::string ticket(ticketStr);
+  // TODO: Can remove this function once all logKnownIssue calls are switched over
+  // to the ICU-1234 and CLDR-1234 format.
+  if(ticket.rfind(OLD_CLDR_PREFIX) == 0) {
+    // map cldrbug:1234 to CLDR-1234
+    ticket.replace(0, uprv_strlen(OLD_CLDR_PREFIX), CLDR_BUG_PREFIX);
+  } else if(::isdigit(ticket[0])) {
+    // map 1234 to ICU-1234
+    ticket.insert(0, ICU_BUG_PREFIX);
+  }
+  return ticket;
+}
+
+void KnownIssues::add(const char *ticketStr, const char *where, const UChar *msg, UBool *firstForTicket, UBool *firstForWhere)
 {
+  const std::string ticket = mapTicketId(ticketStr);
   if(fTable.find(ticket) == fTable.end()) {
     if(firstForTicket!=NULL) *firstForTicket = TRUE;
     fTable[ticket] = std::map < std::string, std::set < std::string > >();
@@ -697,8 +670,9 @@ void KnownIssues::add(const char *ticket, const char *where, const UChar *msg, U
   fTable[ticket][where].insert(std::string(icu::CStr(ustr)()));
 }
 
-void KnownIssues::add(const char *ticket, const char *where, const char *msg, UBool *firstForTicket, UBool *firstForWhere)
+void KnownIssues::add(const char *ticketStr, const char *where, const char *msg, UBool *firstForTicket, UBool *firstForWhere)
 {
+  const std::string ticket = mapTicketId(ticketStr);
   if(fTable.find(ticket) == fTable.end()) {
     if(firstForTicket!=NULL) *firstForTicket = TRUE;
     fTable[ticket] = std::map < std::string, std::set < std::string > >();
@@ -730,8 +704,13 @@ UBool KnownIssues::print()
           std::map <  std::string,  std::set <  std::string > > >::iterator i = fTable.begin();
        i != fTable.end();
        i++ ) {
-    char URL[1024];
-    std::cout << '#' << (*i).first << " <" << udbg_knownIssueURLFrom( (*i).first.c_str(), URL ) << ">" << std::endl;
+    const std::string ticketid = (*i).first;
+    std::cout << "[" << ticketid << "] ";
+    if(ticketid.rfind(ICU_BUG_PREFIX) == 0 || ticketid.rfind(CLDR_BUG_PREFIX) == 0) {
+      // If it's a unicode.org bug.
+      std::cout << UNICODE_BUG_URL << ticketid;
+    } // Else: some other kind of bug. Allow this, but without a URL.
+    std::cout << std::endl;
 
     for( std::map< std::string, std::set < std::string > >::iterator ii = (*i).second.begin();
          ii != (*i).second.end();
@@ -785,5 +764,3 @@ U_CAPI void udbg_knownIssue_close(void *ptr) {
   KnownIssues *t = static_cast<KnownIssues*>(ptr);
   delete t;
 }
-
-#endif

@@ -32,6 +32,8 @@ function TestNonSmiArrayLength() {
     return a.length+1;
   }
 
+  %PrepareFunctionForOptimization(f);
+
   var a = [];
   a.length = 0xFFFF;
   assertSame(0x10000, f(a));

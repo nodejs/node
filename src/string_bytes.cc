@@ -1,13 +1,36 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 #include "string_bytes.h"
 
-#include "base64.h"
-#include "node.h"
+#include "base64-inl.h"
+#include "env-inl.h"
 #include "node_buffer.h"
-#include "v8.h"
+#include "node_errors.h"
+#include "util.h"
 
-#include <limits.h>
-#include <string.h>  // memcpy
-#include <vector>
+#include <climits>
+#include <cstring>  // memcpy
+
+#include <algorithm>
 
 // When creating strings >= this length v8's gc spins up and consumes
 // most of the execution time. For these cases it's more performant to
@@ -16,14 +39,17 @@
 
 namespace node {
 
-using v8::EscapableHandleScope;
 using v8::HandleScope;
 using v8::Isolate;
+using v8::Just;
 using v8::Local;
+using v8::Maybe;
 using v8::MaybeLocal;
-using v8::Object;
+using v8::Nothing;
 using v8::String;
 using v8::Value;
+
+namespace {
 
 template <typename ResourceType, typename TypeName>
 class ExternString: public ResourceType {
@@ -45,46 +71,56 @@ class ExternString: public ResourceType {
     return length() * sizeof(*data());
   }
 
-  static Local<String> NewFromCopy(Isolate* isolate,
-                                   const TypeName* data,
-                                   size_t length) {
-    EscapableHandleScope scope(isolate);
-
+  static MaybeLocal<Value> NewFromCopy(Isolate* isolate,
+                                       const TypeName* data,
+                                       size_t length,
+                                       Local<Value>* error) {
     if (length == 0)
-      return scope.Escape(String::Empty(isolate));
+      return String::Empty(isolate);
+
+    if (length < EXTERN_APEX)
+      return NewSimpleFromCopy(isolate, data, length, error);
 
     TypeName* new_data = node::UncheckedMalloc<TypeName>(length);
     if (new_data == nullptr) {
-      return Local<String>();
+      *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
+      return MaybeLocal<Value>();
     }
     memcpy(new_data, data, length * sizeof(*new_data));
 
-    return scope.Escape(ExternString<ResourceType, TypeName>::New(isolate,
-                                                                  new_data,
-                                                                  length));
+    return ExternString<ResourceType, TypeName>::New(isolate,
+                                                     new_data,
+                                                     length,
+                                                     error);
   }
 
   // uses "data" for external resource, and will be free'd on gc
-  static Local<String> New(Isolate* isolate,
-                           const TypeName* data,
-                           size_t length) {
-    EscapableHandleScope scope(isolate);
-
+  static MaybeLocal<Value> New(Isolate* isolate,
+                               TypeName* data,
+                               size_t length,
+                               Local<Value>* error) {
     if (length == 0)
-      return scope.Escape(String::Empty(isolate));
+      return String::Empty(isolate);
+
+    if (length < EXTERN_APEX) {
+      MaybeLocal<Value> str = NewSimpleFromCopy(isolate, data, length, error);
+      free(data);
+      return str;
+    }
 
     ExternString* h_str = new ExternString<ResourceType, TypeName>(isolate,
                                                                    data,
                                                                    length);
-    MaybeLocal<String> str = NewExternal(isolate, h_str);
+    MaybeLocal<Value> str = NewExternal(isolate, h_str);
     isolate->AdjustAmountOfExternalAllocatedMemory(h_str->byte_length());
 
     if (str.IsEmpty()) {
       delete h_str;
-      return Local<String>();
+      *error = node::ERR_STRING_TOO_LONG(isolate);
+      return MaybeLocal<Value>();
     }
 
-    return scope.Escape(str.ToLocalChecked());
+    return str.ToLocalChecked();
   }
 
   inline Isolate* isolate() const { return isolate_; }
@@ -92,8 +128,14 @@ class ExternString: public ResourceType {
  private:
   ExternString(Isolate* isolate, const TypeName* data, size_t length)
     : isolate_(isolate), data_(data), length_(length) { }
-  static MaybeLocal<String> NewExternal(Isolate* isolate,
-                                        ExternString* h_str);
+  static MaybeLocal<Value> NewExternal(Isolate* isolate,
+                                       ExternString* h_str);
+
+  // This method does not actually create ExternString instances.
+  static MaybeLocal<Value> NewSimpleFromCopy(Isolate* isolate,
+                                             const TypeName* data,
+                                             size_t length,
+                                             Local<Value>* error);
 
   Isolate* isolate_;
   const TypeName* data_;
@@ -108,18 +150,54 @@ typedef ExternString<String::ExternalStringResource,
 
 
 template <>
-MaybeLocal<String> ExternOneByteString::NewExternal(
+MaybeLocal<Value> ExternOneByteString::NewExternal(
     Isolate* isolate, ExternOneByteString* h_str) {
-  return String::NewExternalOneByte(isolate, h_str);
+  return String::NewExternalOneByte(isolate, h_str).FromMaybe(Local<Value>());
 }
 
 
 template <>
-MaybeLocal<String> ExternTwoByteString::NewExternal(
+MaybeLocal<Value> ExternTwoByteString::NewExternal(
     Isolate* isolate, ExternTwoByteString* h_str) {
-  return String::NewExternalTwoByte(isolate, h_str);
+  return String::NewExternalTwoByte(isolate, h_str).FromMaybe(Local<Value>());
 }
 
+template <>
+MaybeLocal<Value> ExternOneByteString::NewSimpleFromCopy(Isolate* isolate,
+                                                         const char* data,
+                                                         size_t length,
+                                                         Local<Value>* error) {
+  MaybeLocal<String> str =
+      String::NewFromOneByte(isolate,
+                             reinterpret_cast<const uint8_t*>(data),
+                             v8::NewStringType::kNormal,
+                             length);
+  if (str.IsEmpty()) {
+    *error = node::ERR_STRING_TOO_LONG(isolate);
+    return MaybeLocal<Value>();
+  }
+  return str.ToLocalChecked();
+}
+
+
+template <>
+MaybeLocal<Value> ExternTwoByteString::NewSimpleFromCopy(Isolate* isolate,
+                                                         const uint16_t* data,
+                                                         size_t length,
+                                                         Local<Value>* error) {
+  MaybeLocal<String> str =
+      String::NewFromTwoByte(isolate,
+                             data,
+                             v8::NewStringType::kNormal,
+                             length);
+  if (str.IsEmpty()) {
+    *error = node::ERR_STRING_TOO_LONG(isolate);
+    return MaybeLocal<Value>();
+  }
+  return str.ToLocalChecked();
+}
+
+}  // anonymous namespace
 
 // supports regular and URL-safe base64
 const int8_t unbase64_table[256] =
@@ -161,19 +239,19 @@ static const int8_t unhex_table[256] =
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
   };
 
-#define unhex(x)                                                              \
-  static_cast<unsigned>(unhex_table[static_cast<uint8_t>(x)])
-
+static inline unsigned unhex(uint8_t x) {
+  return unhex_table[x];
+}
 
 template <typename TypeName>
-size_t hex_decode(char* buf,
-                  size_t len,
-                  const TypeName* src,
-                  const size_t srcLen) {
+static size_t hex_decode(char* buf,
+                         size_t len,
+                         const TypeName* src,
+                         const size_t srcLen) {
   size_t i;
   for (i = 0; i < len && i * 2 + 1 < srcLen; ++i) {
-    unsigned a = unhex(src[i * 2 + 0]);
-    unsigned b = unhex(src[i * 2 + 1]);
+    unsigned a = unhex(static_cast<uint8_t>(src[i * 2 + 0]));
+    unsigned b = unhex(static_cast<uint8_t>(src[i * 2 + 1]));
     if (!~a || !~b)
       return i;
     buf[i] = (a << 4) | b;
@@ -182,75 +260,43 @@ size_t hex_decode(char* buf,
   return i;
 }
 
-
-bool StringBytes::GetExternalParts(Isolate* isolate,
-                                   Local<Value> val,
-                                   const char** data,
-                                   size_t* len) {
-  if (Buffer::HasInstance(val)) {
-    *data = Buffer::Data(val);
-    *len = Buffer::Length(val);
-    return true;
-  }
-
-  if (!val->IsString())
-    return false;
-
-  Local<String> str = val.As<String>();
-
-  if (str->IsExternalOneByte()) {
-    const String::ExternalOneByteStringResource* ext;
-    ext = str->GetExternalOneByteStringResource();
-    *data = ext->data();
-    *len = ext->length();
-    return true;
-
-  } else if (str->IsExternal()) {
-    const String::ExternalStringResource* ext;
-    ext = str->GetExternalStringResource();
-    *data = reinterpret_cast<const char*>(ext->data());
-    *len = ext->length() * sizeof(*ext->data());
-    return true;
-  }
-
-  return false;
-}
-
-
-size_t StringBytes::WriteUCS2(char* buf,
+size_t StringBytes::WriteUCS2(Isolate* isolate,
+                              char* buf,
                               size_t buflen,
-                              size_t nbytes,
-                              const char* data,
                               Local<String> str,
                               int flags,
                               size_t* chars_written) {
   uint16_t* const dst = reinterpret_cast<uint16_t*>(buf);
 
-  size_t max_chars = (buflen / sizeof(*dst));
+  size_t max_chars = buflen / sizeof(*dst);
+  if (max_chars == 0) {
+    return 0;
+  }
+
+  uint16_t* const aligned_dst = AlignUp(dst, sizeof(*dst));
   size_t nchars;
-  size_t alignment = reinterpret_cast<uintptr_t>(dst) % sizeof(*dst);
-  if (alignment == 0) {
-    nchars = str->Write(dst, 0, max_chars, flags);
+  if (aligned_dst == dst) {
+    nchars = str->Write(isolate, dst, 0, max_chars, flags);
     *chars_written = nchars;
     return nchars * sizeof(*dst);
   }
 
-  uint16_t* aligned_dst =
-      reinterpret_cast<uint16_t*>(buf + sizeof(*dst) - alignment);
-  ASSERT_EQ(reinterpret_cast<uintptr_t>(aligned_dst) % sizeof(*dst), 0);
+  CHECK_EQ(reinterpret_cast<uintptr_t>(aligned_dst) % sizeof(*dst), 0);
 
   // Write all but the last char
-  nchars = str->Write(aligned_dst, 0, max_chars - 1, flags);
+  max_chars = std::min(max_chars, static_cast<size_t>(str->Length()));
+  if (max_chars == 0) return 0;
+  nchars = str->Write(isolate, aligned_dst, 0, max_chars - 1, flags);
+  CHECK_EQ(nchars, max_chars - 1);
 
   // Shift everything to unaligned-left
   memmove(dst, aligned_dst, nchars * sizeof(*dst));
 
   // One more char to be written
   uint16_t last;
-  if (nchars == max_chars - 1 && str->Write(&last, nchars, 1, flags) != 0) {
-    memcpy(buf + nchars * sizeof(*dst), &last, sizeof(last));
-    nchars++;
-  }
+  CHECK_EQ(str->Write(isolate, &last, nchars, 1, flags), 1);
+  memcpy(buf + nchars * sizeof(*dst), &last, sizeof(last));
+  nchars++;
 
   *chars_written = nchars;
   return nchars * sizeof(*dst);
@@ -264,16 +310,14 @@ size_t StringBytes::Write(Isolate* isolate,
                           enum encoding encoding,
                           int* chars_written) {
   HandleScope scope(isolate);
-  const char* data = nullptr;
-  size_t nbytes = 0;
-  const bool is_extern = GetExternalParts(isolate, val, &data, &nbytes);
-  const size_t external_nbytes = nbytes;
+  size_t nbytes;
+  int nchars;
+
+  if (chars_written == nullptr)
+    chars_written = &nchars;
 
   CHECK(val->IsString() == true);
   Local<String> str = val.As<String>();
-
-  if (nbytes > buflen)
-    nbytes = buflen;
 
   int flags = String::HINT_MANY_WRITES_EXPECTED |
               String::NO_NULL_TERMINATION |
@@ -282,36 +326,31 @@ size_t StringBytes::Write(Isolate* isolate,
   switch (encoding) {
     case ASCII:
     case LATIN1:
-      if (is_extern && str->IsOneByte()) {
-        memcpy(buf, data, nbytes);
+      if (str->IsExternalOneByte()) {
+        auto ext = str->GetExternalOneByteStringResource();
+        nbytes = std::min(buflen, ext->length());
+        memcpy(buf, ext->data(), nbytes);
       } else {
         uint8_t* const dst = reinterpret_cast<uint8_t*>(buf);
-        nbytes = str->WriteOneByte(dst, 0, buflen, flags);
+        nbytes = str->WriteOneByte(isolate, dst, 0, buflen, flags);
       }
-      if (chars_written != nullptr)
-        *chars_written = nbytes;
+      *chars_written = nbytes;
       break;
 
     case BUFFER:
     case UTF8:
-      nbytes = str->WriteUtf8(buf, buflen, chars_written, flags);
+      nbytes = str->WriteUtf8(isolate, buf, buflen, chars_written, flags);
       break;
 
     case UCS2: {
       size_t nchars;
 
-      if (is_extern && !str->IsOneByte()) {
-        memcpy(buf, data, nbytes);
-        nchars = nbytes / sizeof(uint16_t);
-      } else {
-        nbytes = WriteUCS2(buf, buflen, nbytes, data, str, flags, &nchars);
-      }
-      if (chars_written != nullptr)
-        *chars_written = nchars;
+      nbytes = WriteUCS2(isolate, buf, buflen, str, flags, &nchars);
+      *chars_written = static_cast<int>(nchars);
 
       // Node's "ucs2" encoding wants LE character data stored in
       // the Buffer, so we need to reorder on BE platforms.  See
-      // http://nodejs.org/api/buffer.html regarding Node's "ucs2"
+      // https://nodejs.org/api/buffer.html regarding Node's "ucs2"
       // encoding specification
       if (IsBigEndian())
         SwapBytes16(buf, nbytes);
@@ -319,28 +358,28 @@ size_t StringBytes::Write(Isolate* isolate,
       break;
     }
 
+    case BASE64URL:
+      // Fall through
     case BASE64:
-      if (is_extern) {
-        nbytes = base64_decode(buf, buflen, data, external_nbytes);
+      if (str->IsExternalOneByte()) {
+        auto ext = str->GetExternalOneByteStringResource();
+        nbytes = base64_decode(buf, buflen, ext->data(), ext->length());
       } else {
-        String::Value value(str);
+        String::Value value(isolate, str);
         nbytes = base64_decode(buf, buflen, *value, value.length());
       }
-      if (chars_written != nullptr) {
-        *chars_written = nbytes;
-      }
+      *chars_written = nbytes;
       break;
 
     case HEX:
-      if (is_extern) {
-        nbytes = hex_decode(buf, buflen, data, external_nbytes);
+      if (str->IsExternalOneByte()) {
+        auto ext = str->GetExternalOneByteStringResource();
+        nbytes = hex_decode(buf, buflen, ext->data(), ext->length());
       } else {
-        String::Value value(str);
+        String::Value value(isolate, str);
         nbytes = hex_decode(buf, buflen, *value, value.length());
       }
-      if (chars_written != nullptr) {
-        *chars_written = nbytes;
-      }
+      *chars_written = nbytes;
       break;
 
     default:
@@ -352,31 +391,23 @@ size_t StringBytes::Write(Isolate* isolate,
 }
 
 
-bool StringBytes::IsValidString(Isolate* isolate,
-                                Local<String> string,
-                                enum encoding enc) {
-  if (enc == HEX && string->Length() % 2 != 0)
-    return false;
-  // TODO(bnoordhuis) Add BASE64 check?
-  return true;
-}
-
-
 // Quick and dirty size calculation
 // Will always be at least big enough, but may have some extra
 // UTF8 can be as much as 3x the size, Base64 can have 1-2 extra bytes
-size_t StringBytes::StorageSize(Isolate* isolate,
-                                Local<Value> val,
-                                enum encoding encoding) {
+Maybe<size_t> StringBytes::StorageSize(Isolate* isolate,
+                                       Local<Value> val,
+                                       enum encoding encoding) {
   HandleScope scope(isolate);
   size_t data_size = 0;
   bool is_buffer = Buffer::HasInstance(val);
 
   if (is_buffer && (encoding == BUFFER || encoding == LATIN1)) {
-    return Buffer::Length(val);
+    return Just(Buffer::Length(val));
   }
 
-  Local<String> str = val->ToString(isolate);
+  Local<String> str;
+  if (!val->ToString(isolate->GetCurrentContext()).ToLocal(&str))
+    return Nothing<size_t>();
 
   switch (encoding) {
     case ASCII:
@@ -396,6 +427,8 @@ size_t StringBytes::StorageSize(Isolate* isolate,
       data_size = str->Length() * sizeof(uint16_t);
       break;
 
+    case BASE64URL:
+      // Fall through
     case BASE64:
       data_size = base64_decoded_size_fast(str->Length());
       break;
@@ -410,57 +443,45 @@ size_t StringBytes::StorageSize(Isolate* isolate,
       break;
   }
 
-  return data_size;
+  return Just(data_size);
 }
 
-
-size_t StringBytes::Size(Isolate* isolate,
-                         Local<Value> val,
-                         enum encoding encoding) {
+Maybe<size_t> StringBytes::Size(Isolate* isolate,
+                                Local<Value> val,
+                                enum encoding encoding) {
   HandleScope scope(isolate);
-  size_t data_size = 0;
-  bool is_buffer = Buffer::HasInstance(val);
 
-  if (is_buffer && (encoding == BUFFER || encoding == LATIN1))
-    return Buffer::Length(val);
+  if (Buffer::HasInstance(val) && (encoding == BUFFER || encoding == LATIN1))
+    return Just(Buffer::Length(val));
 
-  const char* data;
-  if (GetExternalParts(isolate, val, &data, &data_size))
-    return data_size;
-
-  Local<String> str = val->ToString(isolate);
+  Local<String> str;
+  if (!val->ToString(isolate->GetCurrentContext()).ToLocal(&str))
+    return Nothing<size_t>();
 
   switch (encoding) {
     case ASCII:
     case LATIN1:
-      data_size = str->Length();
-      break;
+      return Just<size_t>(str->Length());
 
     case BUFFER:
     case UTF8:
-      data_size = str->Utf8Length();
-      break;
+      return Just<size_t>(str->Utf8Length(isolate));
 
     case UCS2:
-      data_size = str->Length() * sizeof(uint16_t);
-      break;
+      return Just(str->Length() * sizeof(uint16_t));
 
+    case BASE64URL:
+      // Fall through
     case BASE64: {
-      String::Value value(str);
-      data_size = base64_decoded_size(*value, value.length());
-      break;
+      String::Value value(isolate, str);
+      return Just(base64_decoded_size(*value, value.length()));
     }
 
     case HEX:
-      data_size = str->Length() / 2;
-      break;
-
-    default:
-      CHECK(0 && "unknown encoding");
-      break;
+      return Just<size_t>(str->Length() / 2);
   }
 
-  return data_size;
+  UNREACHABLE();
 }
 
 
@@ -569,7 +590,11 @@ static void force_ascii(const char* src, char* dst, size_t len) {
 }
 
 
-static size_t hex_encode(const char* src, size_t slen, char* dst, size_t dlen) {
+size_t StringBytes::hex_encode(
+    const char* src,
+    size_t slen,
+    char* dst,
+    size_t dlen) {
   // We know how much we'll write, just make sure that there's space.
   CHECK(dlen >= slen * 2 &&
       "not enough space provided for hex encode");
@@ -585,98 +610,149 @@ static size_t hex_encode(const char* src, size_t slen, char* dst, size_t dlen) {
   return dlen;
 }
 
+std::string StringBytes::hex_encode(const char* src, size_t slen) {
+  size_t dlen = slen * 2;
+  std::string dst(dlen, '\0');
+  hex_encode(src, slen, &dst[0], dlen);
+  return dst;
+}
+
+#define CHECK_BUFLEN_IN_RANGE(len)                                    \
+  do {                                                                \
+    if ((len) > Buffer::kMaxLength) {                                 \
+      *error = node::ERR_BUFFER_TOO_LARGE(isolate);                   \
+      return MaybeLocal<Value>();                                     \
+    }                                                                 \
+  } while (0)
 
 
-Local<Value> StringBytes::Encode(Isolate* isolate,
-                                 const char* buf,
-                                 size_t buflen,
-                                 enum encoding encoding) {
-  EscapableHandleScope scope(isolate);
+MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
+                                      const char* buf,
+                                      size_t buflen,
+                                      enum encoding encoding,
+                                      Local<Value>* error) {
+  CHECK_BUFLEN_IN_RANGE(buflen);
 
-  CHECK_NE(encoding, UCS2);
-  CHECK_LE(buflen, Buffer::kMaxLength);
-  if (!buflen && encoding != BUFFER)
-    return scope.Escape(String::Empty(isolate));
+  if (!buflen && encoding != BUFFER) {
+    return String::Empty(isolate);
+  }
 
-  Local<String> val;
+  MaybeLocal<String> val;
+
   switch (encoding) {
     case BUFFER:
       {
-        Local<Object> vbuf =
-            Buffer::Copy(isolate, buf, buflen).ToLocalChecked();
-        return scope.Escape(vbuf);
+        if (buflen > node::Buffer::kMaxLength) {
+          *error = node::ERR_BUFFER_TOO_LARGE(isolate);
+          return MaybeLocal<Value>();
+        }
+        auto maybe_buf = Buffer::Copy(isolate, buf, buflen);
+        Local<v8::Object> buf;
+        if (!maybe_buf.ToLocal(&buf)) {
+          *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
+        }
+        return buf;
       }
 
     case ASCII:
       if (contains_non_ascii(buf, buflen)) {
         char* out = node::UncheckedMalloc(buflen);
         if (out == nullptr) {
-          return Local<String>();
+          *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
+          return MaybeLocal<Value>();
         }
         force_ascii(buf, out, buflen);
-        if (buflen < EXTERN_APEX) {
-          val = OneByteString(isolate, out, buflen);
-          free(out);
-        } else {
-          val = ExternOneByteString::New(isolate, out, buflen);
-        }
+        return ExternOneByteString::New(isolate, out, buflen, error);
       } else {
-        if (buflen < EXTERN_APEX)
-          val = OneByteString(isolate, buf, buflen);
-        else
-          val = ExternOneByteString::NewFromCopy(isolate, buf, buflen);
+        return ExternOneByteString::NewFromCopy(isolate, buf, buflen, error);
       }
-      break;
 
     case UTF8:
-      val = String::NewFromUtf8(isolate,
-                                buf,
-                                String::kNormalString,
-                                buflen);
-      break;
+      {
+        val = String::NewFromUtf8(isolate,
+                                  buf,
+                                  v8::NewStringType::kNormal,
+                                  buflen);
+        Local<String> str;
+        if (!val.ToLocal(&str)) {
+          *error = node::ERR_STRING_TOO_LONG(isolate);
+        }
+        return str;
+      }
 
     case LATIN1:
-      if (buflen < EXTERN_APEX)
-        val = OneByteString(isolate, buf, buflen);
-      else
-        val = ExternOneByteString::NewFromCopy(isolate, buf, buflen);
-      break;
+      return ExternOneByteString::NewFromCopy(isolate, buf, buflen, error);
 
     case BASE64: {
       size_t dlen = base64_encoded_size(buflen);
       char* dst = node::UncheckedMalloc(dlen);
       if (dst == nullptr) {
-        return Local<String>();
+        *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
+        return MaybeLocal<Value>();
       }
 
       size_t written = base64_encode(buf, buflen, dst, dlen);
       CHECK_EQ(written, dlen);
 
-      if (dlen < EXTERN_APEX) {
-        val = OneByteString(isolate, dst, dlen);
-        free(dst);
-      } else {
-        val = ExternOneByteString::New(isolate, dst, dlen);
+      return ExternOneByteString::New(isolate, dst, dlen, error);
+    }
+
+    case BASE64URL: {
+      size_t dlen = base64_encoded_size(buflen, Base64Mode::URL);
+      char* dst = node::UncheckedMalloc(dlen);
+      if (dst == nullptr) {
+        *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
+        return MaybeLocal<Value>();
       }
-      break;
+
+      size_t written = base64_encode(buf, buflen, dst, dlen, Base64Mode::URL);
+      CHECK_EQ(written, dlen);
+
+      return ExternOneByteString::New(isolate, dst, dlen, error);
     }
 
     case HEX: {
       size_t dlen = buflen * 2;
       char* dst = node::UncheckedMalloc(dlen);
       if (dst == nullptr) {
-        return Local<String>();
+        *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
+        return MaybeLocal<Value>();
       }
       size_t written = hex_encode(buf, buflen, dst, dlen);
       CHECK_EQ(written, dlen);
 
-      if (dlen < EXTERN_APEX) {
-        val = OneByteString(isolate, dst, dlen);
-        free(dst);
-      } else {
-        val = ExternOneByteString::New(isolate, dst, dlen);
+      return ExternOneByteString::New(isolate, dst, dlen, error);
+    }
+
+    case UCS2: {
+      if (IsBigEndian()) {
+        uint16_t* dst = node::UncheckedMalloc<uint16_t>(buflen / 2);
+        if (dst == nullptr) {
+          *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
+          return MaybeLocal<Value>();
+        }
+        for (size_t i = 0, k = 0; k < buflen / 2; i += 2, k += 1) {
+          // The input is in *little endian*, because that's what Node.js
+          // expects, so the high byte comes after the low byte.
+          const uint8_t hi = static_cast<uint8_t>(buf[i + 1]);
+          const uint8_t lo = static_cast<uint8_t>(buf[i + 0]);
+          dst[k] = static_cast<uint16_t>(hi) << 8 | lo;
+        }
+        return ExternTwoByteString::New(isolate, dst, buflen / 2, error);
       }
-      break;
+      if (reinterpret_cast<uintptr_t>(buf) % 2 != 0) {
+        // Unaligned data still means we can't directly pass it to V8.
+        char* dst = node::UncheckedMalloc(buflen);
+        if (dst == nullptr) {
+          *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
+          return MaybeLocal<Value>();
+        }
+        memcpy(dst, buf, buflen);
+        return ExternTwoByteString::New(
+            isolate, reinterpret_cast<uint16_t*>(dst), buflen / 2, error);
+      }
+      return ExternTwoByteString::NewFromCopy(
+          isolate, reinterpret_cast<const uint16_t*>(buf), buflen / 2, error);
     }
 
     default:
@@ -684,66 +760,41 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
       break;
   }
 
-  return scope.Escape(val);
+  UNREACHABLE();
 }
 
 
-Local<Value> StringBytes::Encode(Isolate* isolate,
-                                 const uint16_t* buf,
-                                 size_t buflen) {
+MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
+                                      const uint16_t* buf,
+                                      size_t buflen,
+                                      Local<Value>* error) {
+  CHECK_BUFLEN_IN_RANGE(buflen);
+
   // Node's "ucs2" encoding expects LE character data inside a
   // Buffer, so we need to reorder on BE platforms.  See
-  // http://nodejs.org/api/buffer.html regarding Node's "ucs2"
+  // https://nodejs.org/api/buffer.html regarding Node's "ucs2"
   // encoding specification
-  std::vector<uint16_t> dst;
   if (IsBigEndian()) {
-    dst.assign(buf, buf + buflen);
-    size_t nbytes = buflen * sizeof(dst[0]);
-    SwapBytes16(reinterpret_cast<char*>(&dst[0]), nbytes);
-    buf = &dst[0];
-  }
-
-  Local<String> val;
-  if (buflen < EXTERN_APEX) {
-    val = String::NewFromTwoByte(isolate,
-                                 buf,
-                                 String::kNormalString,
-                                 buflen);
+    uint16_t* dst = node::UncheckedMalloc<uint16_t>(buflen);
+    if (dst == nullptr) {
+      *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
+      return MaybeLocal<Value>();
+    }
+    size_t nbytes = buflen * sizeof(uint16_t);
+    memcpy(dst, buf, nbytes);
+    SwapBytes16(reinterpret_cast<char*>(dst), nbytes);
+    return ExternTwoByteString::New(isolate, dst, buflen, error);
   } else {
-    val = ExternTwoByteString::NewFromCopy(isolate, buf, buflen);
+    return ExternTwoByteString::NewFromCopy(isolate, buf, buflen, error);
   }
-
-  return val;
 }
 
-Local<Value> StringBytes::Encode(Isolate* isolate,
-                                 const char* buf,
-                                 enum encoding encoding) {
+MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
+                                      const char* buf,
+                                      enum encoding encoding,
+                                      Local<Value>* error) {
   const size_t len = strlen(buf);
-  Local<Value> ret;
-  if (encoding == UCS2) {
-    // In Node, UCS2 means utf16le. The data must be in little-endian
-    // order and must be aligned on 2-bytes. This returns an empty
-    // value if it's not aligned and ensures the appropriate byte order
-    // on big endian architectures.
-    const bool be = IsBigEndian();
-    if (len % 2 != 0)
-      return ret;
-    std::vector<uint16_t> vec(len / 2);
-    for (size_t i = 0, k = 0; i < len; i += 2, k += 1) {
-      const uint8_t hi = static_cast<uint8_t>(buf[i + 0]);
-      const uint8_t lo = static_cast<uint8_t>(buf[i + 1]);
-      vec[k] = be ?
-          static_cast<uint16_t>(hi) << 8 | lo
-          : static_cast<uint16_t>(lo) << 8 | hi;
-    }
-    ret = vec.empty() ?
-        static_cast< Local<Value> >(String::Empty(isolate))
-        : StringBytes::Encode(isolate, &vec[0], vec.size());
-  } else {
-    ret = StringBytes::Encode(isolate, buf, len, encoding);
-  }
-  return ret;
+  return Encode(isolate, buf, len, encoding, error);
 }
 
 }  // namespace node

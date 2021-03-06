@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
@@ -60,7 +60,7 @@ UnicodeNameTransliterator::UnicodeNameTransliterator(const UnicodeNameTransliter
 /**
  * Transliterator API.
  */
-Transliterator* UnicodeNameTransliterator::clone(void) const {
+UnicodeNameTransliterator* UnicodeNameTransliterator::clone() const {
     return new UnicodeNameTransliterator(*this);
 }
 

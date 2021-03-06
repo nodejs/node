@@ -1,73 +1,56 @@
-// npm pack <pkg>
-// Packs the specified package into a .tgz file, which can then
-// be installed.
+const util = require('util')
+const log = require('npmlog')
+const pacote = require('pacote')
+const libpack = require('libnpmpack')
+const npa = require('npm-package-arg')
 
-module.exports = pack
+const { getContents, logTar } = require('./utils/tar.js')
 
-var install = require('./install.js')
-var cache = require('./cache.js')
-var fs = require('graceful-fs')
-var chain = require('slide').chain
-var path = require('path')
-var cwd = process.cwd()
-var writeStreamAtomic = require('fs-write-stream-atomic')
-var cachedPackageRoot = require('./cache/cached-package-root.js')
-var output = require('./utils/output.js')
+const writeFile = util.promisify(require('fs').writeFile)
+const output = require('./utils/output.js')
 
-pack.usage = 'npm pack [[<@scope>/]<pkg>...]'
+const usageUtil = require('./utils/usage.js')
 
-// if it can be installed, it can be packed.
-pack.completion = install.completion
-
-function pack (args, silent, cb) {
-  if (typeof cb !== 'function') {
-    cb = silent
-    silent = false
+class Pack {
+  constructor (npm) {
+    this.npm = npm
   }
 
-  if (args.length === 0) args = ['.']
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  get usage () {
+    return usageUtil('pack', 'npm pack [[<@scope>/]<pkg>...] [--dry-run]')
+  }
 
-  chain(
-    args.map(function (arg) { return function (cb) { pack_(arg, cb) } }),
-    function (er, files) {
-      if (er || silent) return cb(er, files)
-      printFiles(files, cb)
+  exec (args, cb) {
+    this.pack(args).then(() => cb()).catch(cb)
+  }
+
+  async pack (args) {
+    if (args.length === 0)
+      args = ['.']
+
+    const { unicode } = this.npm.flatOptions
+
+    // clone the opts because pacote mutates it with resolved/integrity
+    const tarballs = await Promise.all(args.map(async (arg) => {
+      const spec = npa(arg)
+      const { dryRun } = this.npm.flatOptions
+      const manifest = await pacote.manifest(spec, this.npm.flatOptions)
+      const filename = `${manifest.name}-${manifest.version}.tgz`
+        .replace(/^@/, '').replace(/\//, '-')
+      const tarballData = await libpack(arg, this.npm.flatOptions)
+      const pkgContents = await getContents(manifest, tarballData)
+
+      if (!dryRun)
+        await writeFile(filename, tarballData)
+
+      return pkgContents
+    }))
+
+    for (const tar of tarballs) {
+      logTar(tar, { log, unicode })
+      output(tar.filename.replace(/^@/, '').replace(/\//, '-'))
     }
-  )
+  }
 }
-
-function printFiles (files, cb) {
-  files = files.map(function (file) {
-    return path.relative(cwd, file)
-  })
-  output(files.join('\n'))
-  cb()
-}
-
-// add to cache, then cp to the cwd
-function pack_ (pkg, cb) {
-  cache.add(pkg, null, null, false, function (er, data) {
-    if (er) return cb(er)
-
-    // scoped packages get special treatment
-    var name = data.name
-    if (name[0] === '@') name = name.substr(1).replace(/\//g, '-')
-    var fname = name + '-' + data.version + '.tgz'
-
-    var cached = path.join(cachedPackageRoot(data), 'package.tgz')
-    var from = fs.createReadStream(cached)
-    var to = writeStreamAtomic(fname)
-    var errState = null
-
-    from.on('error', cb_)
-    to.on('error', cb_)
-    to.on('close', cb_)
-    from.pipe(to)
-
-    function cb_ (er) {
-      if (errState) return
-      if (er) return cb(errState = er)
-      cb(null, fname)
-    }
-  })
-}
+module.exports = Pack

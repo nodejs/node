@@ -1,0 +1,210 @@
+.TH "NPM\-AUDIT" "1" "March 2021" "" ""
+.SH "NAME"
+\fBnpm-audit\fR \- Run a security audit
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm audit [\-\-json] [\-\-production] [\-\-audit\-level=(low|moderate|high|critical)]
+npm audit fix [\-\-force|\-\-package\-lock\-only|\-\-dry\-run|\-\-production|\-\-only=(dev|prod)]
+
+common options: [\-\-production] [\-\-only=(dev|prod)]
+.fi
+.RE
+.SS Description
+.P
+The audit command submits a description of the dependencies configured in
+your project to your default registry and asks for a report of known
+vulnerabilities\.  If any vulnerabilities are found, then the impact and
+appropriate remediation will be calculated\.  If the \fBfix\fP argument is
+provided, then remediations will be applied to the package tree\.
+.P
+The command will exit with a 0 exit code if no vulnerabilities were found\.
+.P
+Note that some vulnerabilities cannot be fixed automatically and will
+require manual intervention or review\.  Also note that since \fBnpm audit
+fix\fP runs a full\-fledged \fBnpm install\fP under the hood, all configs that
+apply to the installer will also apply to \fBnpm install\fP \-\- so things like
+\fBnpm audit fix \-\-package\-lock\-only\fP will work as expected\.
+.P
+By default, the audit command will exit with a non\-zero code if any
+vulnerability is found\. It may be useful in CI environments to include the
+\fB\-\-audit\-level\fP parameter to specify the minimum vulnerability level that
+will cause the command to fail\. This option does not filter the report
+output, it simply changes the command's failure threshold\.
+.SS Audit Endpoints
+.P
+There are two audit endpoints that npm may use to fetch vulnerability
+information: the \fBBulk Advisory\fP endpoint and the \fBQuick Audit\fP endpoint\.
+.SS Bulk Advisory Endpoint
+.P
+As of version 7, npm uses the much faster \fBBulk Advisory\fP endpoint to
+optimize the speed of calculating audit results\.
+.P
+npm will generate a JSON payload with the name and list of versions of each
+package in the tree, and POST it to the default configured registry at
+the path \fB/\-/npm/v1/security/advisories/bulk\fP\|\.
+.P
+Any packages in the tree that do not have a \fBversion\fP field in their
+package\.json file will be ignored\.  If any \fB\-\-omit\fP options are specified
+(either via the \fB\-\-omit\fP config, or one of the shorthands such as
+\fB\-\-production\fP, \fB\-\-only=dev\fP, and so on), then packages will be omitted
+from the submitted payload as appropriate\.
+.P
+If the registry responds with an error, or with an invalid response, then
+npm will attempt to load advisory data from the \fBQuick Audit\fP endpoint\.
+.P
+The expected result will contain a set of advisory objects for each
+dependency that matches the advisory range\.  Each advisory object contains
+a \fBname\fP, \fBurl\fP, \fBid\fP, \fBseverity\fP, \fBvulnerable_versions\fP, and \fBtitle\fP\|\.
+.P
+npm then uses these advisory objects to calculate vulnerabilities and
+meta\-vulnerabilities of the dependencies within the tree\.
+.SS Quick Audit Endpoint
+.P
+If the \fBBulk Advisory\fP endpoint returns an error, or invalid data, npm will
+attempt to load advisory data from the \fBQuick Audit\fP endpoint, which is
+considerably slower in most cases\.
+.P
+The full package tree as found in \fBpackage\-lock\.json\fP is submitted, along
+with the following pieces of additional metadata:
+.RS 0
+.IP \(bu 2
+\fBnpm_version\fP
+.IP \(bu 2
+\fBnode_version\fP
+.IP \(bu 2
+\fBplatform\fP
+.IP \(bu 2
+\fBarch\fP
+.IP \(bu 2
+\fBnode_env\fP
+
+.RE
+.P
+All packages in the tree are submitted to the Quick Audit endpoint\.
+Omitted dependency types are skipped when generating the report\.
+.SS Scrubbing
+.P
+Out of an abundance of caution, npm versions 5 and 6 would "scrub" any
+packages from the submitted report if their name contained a \fB/\fP character,
+so as to avoid leaking the names of potentially private packages or git
+URLs\.
+.P
+However, in practice, this resulted in audits often failing to properly
+detect meta\-vulnerabilities, because the tree would appear to be invalid
+due to missing dependencies, and prevented the detection of vulnerabilities
+in package trees that used git dependencies or private modules\.
+.P
+This scrubbing has been removed from npm as of version 7\.
+.SS Calculating Meta\-Vulnerabilities and Remediations
+.P
+npm uses the
+\fB@npmcli/metavuln\-calculator\fP \fIhttp://npm\.im/@npmcli/metavuln\-calculator\fR
+module to turn a set of security advisories into a set of "vulnerability"
+objects\.  A "meta\-vulnerability" is a dependency that is vulnerable by
+virtue of dependence on vulnerable versions of a vulnerable package\.
+.P
+For example, if the package \fBfoo\fP is vulnerable in the range \fB>=1\.0\.2
+<2\.0\.0\fP, and the package \fBbar\fP depends on \fBfoo@^1\.1\.0\fP, then that version
+of \fBbar\fP can only be installed by installing a vulnerable version of \fBfoo\fP\|\.
+In this case, \fBbar\fP is a "metavulnerability"\.
+.P
+Once metavulnerabilities for a given package are calculated, they are
+cached in the \fB~/\.npm\fP folder and only re\-evaluated if the advisory range
+changes, or a new version of the package is published (in which case, the
+new version is checked for metavulnerable status as well)\.
+.P
+If the chain of metavulnerabilities extends all the way to the root
+project, and it cannot be updated without changing its dependency ranges,
+then \fBnpm audit fix\fP will require the \fB\-\-force\fP option to apply the
+remediation\.  If remediations do not require changes to the dependency
+ranges, then all vulnerable packages will be updated to a version that does
+not have an advisory or metavulnerability posted against it\.
+.SS Exit Code
+.P
+The \fBnpm audit\fP command will exit with a 0 exit code if no vulnerabilities
+were found\.  The \fBnpm audit fix\fP command will exit with 0 exit code if no
+vulnerabilities are found \fIor\fR if the remediation is able to successfully
+fix all vulnerabilities\.
+.P
+If vulnerabilities were found the exit code will depend on the
+\fBaudit\-level\fP configuration setting\.
+.SS Examples
+.P
+Scan your project for vulnerabilities and automatically install any compatible
+updates to vulnerable dependencies:
+.P
+.RS 2
+.nf
+$ npm audit fix
+.fi
+.RE
+.P
+Run \fBaudit fix\fP without modifying \fBnode_modules\fP, but still updating the
+pkglock:
+.P
+.RS 2
+.nf
+$ npm audit fix \-\-package\-lock\-only
+.fi
+.RE
+.P
+Skip updating \fBdevDependencies\fP:
+.P
+.RS 2
+.nf
+$ npm audit fix \-\-only=prod
+.fi
+.RE
+.P
+Have \fBaudit fix\fP install SemVer\-major updates to toplevel dependencies, not
+just SemVer\-compatible ones:
+.P
+.RS 2
+.nf
+$ npm audit fix \-\-force
+.fi
+.RE
+.P
+Do a dry run to get an idea of what \fBaudit fix\fP will do, and \fIalso\fR output
+install information in JSON format:
+.P
+.RS 2
+.nf
+$ npm audit fix \-\-dry\-run \-\-json
+.fi
+.RE
+.P
+Scan your project for vulnerabilities and just show the details, without
+fixing anything:
+.P
+.RS 2
+.nf
+$ npm audit
+.fi
+.RE
+.P
+Get the detailed audit report in JSON format:
+.P
+.RS 2
+.nf
+$ npm audit \-\-json
+.fi
+.RE
+.P
+Fail an audit only if the results include a vulnerability with a level of moderate or higher:
+.P
+.RS 2
+.nf
+$ npm audit \-\-audit\-level=moderate
+.fi
+.RE
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help install
+.IP \(bu 2
+npm help config
+
+.RE

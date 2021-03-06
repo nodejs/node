@@ -3,6 +3,8 @@
 
 libuv is currently managed by the following individuals:
 
+* **Anna Henningsen** ([@addaleax](https://github.com/addaleax))
+* **Bartosz Sosnowski** ([@bzoz](https://github.com/bzoz))
 * **Ben Noordhuis** ([@bnoordhuis](https://github.com/bnoordhuis))
   - GPG key: D77B 1E34 243F BAF0 5F8E  9CC3 4F55 C8C8 46AB 89B9 (pubkey-bnoordhuis)
 * **Bert Belder** ([@piscisaureus](https://github.com/piscisaureus))
@@ -11,8 +13,14 @@ libuv is currently managed by the following individuals:
   - GPG key: 5735 3E0D BDAA A7E8 39B6  6A1A FF47 D5E4 AD8B 4FDC (pubkey-cjihrig-kb)
 * **Fedor Indutny** ([@indutny](https://github.com/indutny))
   - GPG key: AF2E EA41 EC34 47BF DD86  FED9 D706 3CCE 19B7 E890 (pubkey-indutny)
-* **Imran Iqbal** ([@iWuzHere](https://github.com/iWuzHere))
+* **Imran Iqbal** ([@imran-iq](https://github.com/imran-iq))
   - GPG key: 9DFE AA5F 481B BF77 2D90  03CE D592 4925 2F8E C41A (pubkey-iwuzhere)
+* **Jameson Nash** ([@vtjnash](https://github.com/vtjnash))
+* **John Barboza** ([@jbarz](https://github.com/jbarz))
+* **Kaoru Takanashi** ([@erw7](https://github.com/erw7))
+  - GPG Key: 5804 F999 8A92 2AFB A398  47A0 7183 5090 6134 887F (pubkey-erw7)
+* **Richard Lau** ([@richardlau](https://github.com/richardlau))
+  - GPG key: C82F A3AE 1CBE DC6B E46B  9360 C43C EC45 C17A B93C (pubkey-richardlau)
 * **Santiago Gimeno** ([@santigimeno](https://github.com/santigimeno))
   - GPG key: 612F 0EAD 9401 6223 79DF  4402 F28C 3C8D A33C 03BE (pubkey-santigimeno)
 * **Saúl Ibarra Corretgé** ([@saghul](https://github.com/saghul))

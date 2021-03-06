@@ -1,12 +1,23 @@
+/*
+ * Copyright 2005-2016 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
 #ifndef HEADER_WHRLPOOL_H
 # define HEADER_WHRLPOOL_H
 
+#include <openssl/opensslconf.h>
+
+# ifndef OPENSSL_NO_WHIRLPOOL
 # include <openssl/e_os2.h>
 # include <stddef.h>
-
-#ifdef __cplusplus
+# ifdef __cplusplus
 extern "C" {
-#endif
+# endif
 
 # define WHIRLPOOL_DIGEST_LENGTH (512/8)
 # define WHIRLPOOL_BBLOCK        512
@@ -23,19 +34,15 @@ typedef struct {
     size_t bitlen[WHIRLPOOL_COUNTER / sizeof(size_t)];
 } WHIRLPOOL_CTX;
 
-# ifndef OPENSSL_NO_WHIRLPOOL
-#  ifdef OPENSSL_FIPS
-int private_WHIRLPOOL_Init(WHIRLPOOL_CTX *c);
-#  endif
 int WHIRLPOOL_Init(WHIRLPOOL_CTX *c);
 int WHIRLPOOL_Update(WHIRLPOOL_CTX *c, const void *inp, size_t bytes);
 void WHIRLPOOL_BitUpdate(WHIRLPOOL_CTX *c, const void *inp, size_t bits);
 int WHIRLPOOL_Final(unsigned char *md, WHIRLPOOL_CTX *c);
 unsigned char *WHIRLPOOL(const void *inp, size_t bytes, unsigned char *md);
-# endif
 
-#ifdef __cplusplus
+# ifdef __cplusplus
 }
-#endif
+# endif
+# endif
 
 #endif

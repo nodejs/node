@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -88,7 +88,7 @@ protected:
     virtual UBool inDaylightTime(UErrorCode&) const;
 
     /**
-     * Returns TRUE because Coptic/Ethiopic Calendar does have a default century
+     * Returns true because Coptic/Ethiopic Calendar does have a default century
      * @internal
      */
     virtual UBool haveDefaultCentury() const;

@@ -1,18 +1,19 @@
 'use strict';
-require('../common');
+const common = require('../common');
+const { addresses } = require('../common/internet');
 const assert = require('assert');
 const dns = require('dns');
 const net = require('net');
+const util = require('util');
 const isIPv4 = net.isIPv4;
 
-let expected = 0;
-let completed = 0;
+const dnsPromises = dns.promises;
 let running = false;
 const queue = [];
 
 function TEST(f) {
   function next() {
-    var f = queue.shift();
+    const f = queue.shift();
     if (f) {
       running = true;
       console.log(f.name);
@@ -22,11 +23,9 @@ function TEST(f) {
 
   function done() {
     running = false;
-    completed++;
     process.nextTick(next);
   }
 
-  expected++;
   queue.push(f);
 
   if (!running) {
@@ -38,150 +37,211 @@ function checkWrap(req) {
   assert.ok(typeof req === 'object');
 }
 
-TEST(function test_resolve4(done) {
-  var req = dns.resolve4('www.google.com', function(err, ips) {
-    if (err) throw err;
+TEST(async function test_resolve4(done) {
+  function validateResult(res) {
+    assert.ok(res.length > 0);
 
-    assert.ok(ips.length > 0);
-
-    for (var i = 0; i < ips.length; i++) {
-      assert.ok(isIPv4(ips[i]));
+    for (let i = 0; i < res.length; i++) {
+      assert.ok(isIPv4(res[i]));
     }
+  }
 
-    done();
-  });
+  validateResult(await dnsPromises.resolve4(addresses.INET4_HOST));
 
-  checkWrap(req);
-});
-
-TEST(function test_reverse_ipv4(done) {
-  var req = dns.reverse('8.8.8.8', function(err, domains) {
-    if (err) throw err;
-
-    assert.ok(domains.length > 0);
-
-    for (var i = 0; i < domains.length; i++) {
-      assert.ok(domains[i]);
-      assert.ok(typeof domains[i] === 'string');
-    }
-
-    done();
-  });
-
-  checkWrap(req);
-});
-
-TEST(function test_lookup_ipv4_explicit(done) {
-  var req = dns.lookup('www.google.com', 4, function(err, ip, family) {
-    if (err) throw err;
-    assert.ok(net.isIPv4(ip));
-    assert.strictEqual(family, 4);
-
-    done();
-  });
-
-  checkWrap(req);
-});
-
-TEST(function test_lookup_ipv4_implicit(done) {
-  var req = dns.lookup('www.google.com', function(err, ip, family) {
-    if (err) throw err;
-    assert.ok(net.isIPv4(ip));
-    assert.strictEqual(family, 4);
-
-    done();
-  });
-
-  checkWrap(req);
-});
-
-TEST(function test_lookup_ipv4_explicit_object(done) {
-  var req = dns.lookup('www.google.com', {
-    family: 4
-  }, function(err, ip, family) {
-    if (err) throw err;
-    assert.ok(net.isIPv4(ip));
-    assert.strictEqual(family, 4);
-
-    done();
-  });
-
-  checkWrap(req);
-});
-
-TEST(function test_lookup_ipv4_hint_addrconfig(done) {
-  var req = dns.lookup('www.google.com', {
-    hints: dns.ADDRCONFIG
-  }, function(err, ip, family) {
-    if (err) throw err;
-    assert.ok(net.isIPv4(ip));
-    assert.strictEqual(family, 4);
-
-    done();
-  });
-
-  checkWrap(req);
-});
-
-TEST(function test_lookup_ip_ipv4(done) {
-  var req = dns.lookup('127.0.0.1', function(err, ip, family) {
-    if (err) throw err;
-    assert.strictEqual(ip, '127.0.0.1');
-    assert.strictEqual(family, 4);
-
-    done();
-  });
-
-  checkWrap(req);
-});
-
-TEST(function test_lookup_localhost_ipv4(done) {
-  var req = dns.lookup('localhost', 4, function(err, ip, family) {
-    if (err) throw err;
-    assert.strictEqual(ip, '127.0.0.1');
-    assert.strictEqual(family, 4);
-
-    done();
-  });
-
-  checkWrap(req);
-});
-
-TEST(function test_lookup_all_ipv4(done) {
-  var req = dns.lookup(
-    'www.google.com',
-    {all: true, family: 4},
-    function(err, ips) {
-      if (err) throw err;
-      assert.ok(Array.isArray(ips));
-      assert.ok(ips.length > 0);
-
-      ips.forEach(function(ip) {
-        assert.ok(isIPv4(ip.address));
-        assert.strictEqual(ip.family, 4);
-      });
-
+  const req = dns.resolve4(
+    addresses.INET4_HOST,
+    common.mustSucceed((ips) => {
+      validateResult(ips);
       done();
+    }));
+
+  checkWrap(req);
+});
+
+TEST(async function test_reverse_ipv4(done) {
+  function validateResult(res) {
+    assert.ok(res.length > 0);
+
+    for (let i = 0; i < res.length; i++) {
+      assert.ok(res[i]);
+      assert.ok(typeof res[i] === 'string');
     }
+  }
+
+  validateResult(await dnsPromises.reverse(addresses.INET4_IP));
+
+  const req = dns.reverse(
+    addresses.INET4_IP,
+    common.mustSucceed((domains) => {
+      validateResult(domains);
+      done();
+    }));
+
+  checkWrap(req);
+});
+
+TEST(async function test_lookup_ipv4_explicit(done) {
+  function validateResult(res) {
+    assert.ok(net.isIPv4(res.address));
+    assert.strictEqual(res.family, 4);
+  }
+
+  validateResult(await dnsPromises.lookup(addresses.INET4_HOST, 4));
+
+  const req = dns.lookup(
+    addresses.INET4_HOST, 4,
+    common.mustSucceed((ip, family) => {
+      validateResult({ address: ip, family });
+      done();
+    }));
+
+  checkWrap(req);
+});
+
+TEST(async function test_lookup_ipv4_implicit(done) {
+  function validateResult(res) {
+    assert.ok(net.isIPv4(res.address));
+    assert.strictEqual(res.family, 4);
+  }
+
+  validateResult(await dnsPromises.lookup(addresses.INET4_HOST));
+
+  const req = dns.lookup(
+    addresses.INET4_HOST,
+    common.mustSucceed((ip, family) => {
+      validateResult({ address: ip, family });
+      done();
+    }));
+
+  checkWrap(req);
+});
+
+TEST(async function test_lookup_ipv4_explicit_object(done) {
+  function validateResult(res) {
+    assert.ok(net.isIPv4(res.address));
+    assert.strictEqual(res.family, 4);
+  }
+
+  validateResult(await dnsPromises.lookup(addresses.INET4_HOST, { family: 4 }));
+
+  const req = dns.lookup(addresses.INET4_HOST, {
+    family: 4
+  }, common.mustSucceed((ip, family) => {
+    validateResult({ address: ip, family });
+    done();
+  }));
+
+  checkWrap(req);
+});
+
+TEST(async function test_lookup_ipv4_hint_addrconfig(done) {
+  function validateResult(res) {
+    assert.ok(net.isIPv4(res.address));
+    assert.strictEqual(res.family, 4);
+  }
+
+  validateResult(await dnsPromises.lookup(addresses.INET4_HOST, {
+    hints: dns.ADDRCONFIG
+  }));
+
+  const req = dns.lookup(addresses.INET4_HOST, {
+    hints: dns.ADDRCONFIG
+  }, common.mustSucceed((ip, family) => {
+    validateResult({ address: ip, family });
+    done();
+  }));
+
+  checkWrap(req);
+});
+
+TEST(async function test_lookup_ip_ipv4(done) {
+  function validateResult(res) {
+    assert.strictEqual(res.address, '127.0.0.1');
+    assert.strictEqual(res.family, 4);
+  }
+
+  validateResult(await dnsPromises.lookup('127.0.0.1'));
+
+  const req = dns.lookup('127.0.0.1',
+                         common.mustSucceed((ip, family) => {
+                           validateResult({ address: ip, family });
+                           done();
+                         }));
+
+  checkWrap(req);
+});
+
+TEST(async function test_lookup_localhost_ipv4(done) {
+  function validateResult(res) {
+    assert.strictEqual(res.address, '127.0.0.1');
+    assert.strictEqual(res.family, 4);
+  }
+
+  validateResult(await dnsPromises.lookup('localhost', 4));
+
+  const req = dns.lookup('localhost', 4,
+                         common.mustSucceed((ip, family) => {
+                           validateResult({ address: ip, family });
+                           done();
+                         }));
+
+  checkWrap(req);
+});
+
+TEST(async function test_lookup_all_ipv4(done) {
+  function validateResult(res) {
+    assert.ok(Array.isArray(res));
+    assert.ok(res.length > 0);
+
+    res.forEach((ip) => {
+      assert.ok(isIPv4(ip.address));
+      assert.strictEqual(ip.family, 4);
+    });
+  }
+
+  validateResult(await dnsPromises.lookup(addresses.INET4_HOST, {
+    all: true,
+    family: 4
+  }));
+
+  const req = dns.lookup(
+    addresses.INET4_HOST,
+    { all: true, family: 4 },
+    common.mustSucceed((ips) => {
+      validateResult(ips);
+      done();
+    })
   );
 
   checkWrap(req);
 });
 
-TEST(function test_lookupservice_ip_ipv4(done) {
-  var req = dns.lookupService('127.0.0.1', 80, function(err, host, service) {
-    if (err) throw err;
-    assert.equal(typeof host, 'string');
-    assert(host);
-    assert(['http', 'www', '80'].includes(service));
-    done();
-  });
+TEST(async function test_lookupservice_ip_ipv4(done) {
+  function validateResult(res) {
+    assert.strictEqual(typeof res.hostname, 'string');
+    assert(res.hostname);
+    assert(['http', 'www', '80'].includes(res.service));
+  }
+
+  validateResult(await dnsPromises.lookupService('127.0.0.1', 80));
+
+  const req = dns.lookupService(
+    '127.0.0.1', 80,
+    common.mustSucceed((hostname, service) => {
+      validateResult({ hostname, service });
+      done();
+    })
+  );
 
   checkWrap(req);
 });
 
-process.on('exit', function() {
-  console.log(completed + ' tests completed');
-  assert.equal(running, false);
-  assert.strictEqual(expected, completed);
+TEST(function test_lookupservice_ip_ipv4_promise(done) {
+  util.promisify(dns.lookupService)('127.0.0.1', 80)
+    .then(common.mustCall(({ hostname, service }) => {
+      assert.strictEqual(typeof hostname, 'string');
+      assert(hostname.length > 0);
+      assert(['http', 'www', '80'].includes(service));
+      done();
+    }));
 });

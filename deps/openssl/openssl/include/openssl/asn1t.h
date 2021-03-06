@@ -1,61 +1,12 @@
-/* asn1t.h */
 /*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
- * 2000.
+ * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
-/* ====================================================================
- * Copyright (c) 2000-2005 The OpenSSL Project.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    licensing@OpenSSL.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
- */
+
 #ifndef HEADER_ASN1T_H
 # define HEADER_ASN1T_H
 
@@ -82,15 +33,18 @@ extern "C" {
 /* Macros for start and end of ASN1_ITEM definition */
 
 #  define ASN1_ITEM_start(itname) \
-        OPENSSL_GLOBAL const ASN1_ITEM itname##_it = {
+        const ASN1_ITEM itname##_it = {
 
-#  define ASN1_ITEM_end(itname) \
+#  define static_ASN1_ITEM_start(itname) \
+        static const ASN1_ITEM itname##_it = {
+
+#  define ASN1_ITEM_end(itname)                 \
                 };
 
 # else
 
 /* Macro to obtain ASN1_ADB pointer from a type (only used internally) */
-#  define ASN1_ADB_ptr(iptr) ((const ASN1_ADB *)(iptr()))
+#  define ASN1_ADB_ptr(iptr) ((const ASN1_ADB *)((iptr)()))
 
 /* Macros for start and end of ASN1_ITEM definition */
 
@@ -98,6 +52,9 @@ extern "C" {
         const ASN1_ITEM * itname##_it(void) \
         { \
                 static const ASN1_ITEM local_it = {
+
+#  define static_ASN1_ITEM_start(itname) \
+        static ASN1_ITEM_start(itname)
 
 #  define ASN1_ITEM_end(itname) \
                 }; \
@@ -114,6 +71,17 @@ extern "C" {
 # define ASN1_ITEM_TEMPLATE_END(tname) \
         ;\
         ASN1_ITEM_start(tname) \
+                ASN1_ITYPE_PRIMITIVE,\
+                -1,\
+                &tname##_item_tt,\
+                0,\
+                NULL,\
+                0,\
+                #tname \
+        ASN1_ITEM_end(tname)
+# define static_ASN1_ITEM_TEMPLATE_END(tname) \
+        ;\
+        static_ASN1_ITEM_start(tname) \
                 ASN1_ITYPE_PRIMITIVE,\
                 -1,\
                 &tname##_item_tt,\
@@ -151,9 +119,23 @@ extern "C" {
 
 # define ASN1_SEQUENCE_END(stname) ASN1_SEQUENCE_END_name(stname, stname)
 
+# define static_ASN1_SEQUENCE_END(stname) static_ASN1_SEQUENCE_END_name(stname, stname)
+
 # define ASN1_SEQUENCE_END_name(stname, tname) \
         ;\
         ASN1_ITEM_start(tname) \
+                ASN1_ITYPE_SEQUENCE,\
+                V_ASN1_SEQUENCE,\
+                tname##_seq_tt,\
+                sizeof(tname##_seq_tt) / sizeof(ASN1_TEMPLATE),\
+                NULL,\
+                sizeof(stname),\
+                #tname \
+        ASN1_ITEM_end(tname)
+
+# define static_ASN1_SEQUENCE_END_name(stname, tname) \
+        ;\
+        static_ASN1_ITEM_start(tname) \
                 ASN1_ITYPE_SEQUENCE,\
                 V_ASN1_SEQUENCE,\
                 tname##_seq_tt,\
@@ -177,8 +159,8 @@ extern "C" {
         static const ASN1_AUX tname##_aux = {NULL, ASN1_AFLG_BROKEN, 0, 0, 0, 0}; \
         ASN1_SEQUENCE(tname)
 
-# define ASN1_SEQUENCE_ref(tname, cb, lck) \
-        static const ASN1_AUX tname##_aux = {NULL, ASN1_AFLG_REFCOUNT, offsetof(tname, references), lck, cb, 0}; \
+# define ASN1_SEQUENCE_ref(tname, cb) \
+        static const ASN1_AUX tname##_aux = {NULL, ASN1_AFLG_REFCOUNT, offsetof(tname, references), offsetof(tname, lock), cb, 0}; \
         ASN1_SEQUENCE(tname)
 
 # define ASN1_SEQUENCE_enc(tname, enc, cb) \
@@ -196,16 +178,41 @@ extern "C" {
                 sizeof(tname),\
                 #tname \
         ASN1_ITEM_end(tname)
+# define static_ASN1_NDEF_SEQUENCE_END(tname) \
+        ;\
+        static_ASN1_ITEM_start(tname) \
+                ASN1_ITYPE_NDEF_SEQUENCE,\
+                V_ASN1_SEQUENCE,\
+                tname##_seq_tt,\
+                sizeof(tname##_seq_tt) / sizeof(ASN1_TEMPLATE),\
+                NULL,\
+                sizeof(tname),\
+                #tname \
+        ASN1_ITEM_end(tname)
 
 # define ASN1_BROKEN_SEQUENCE_END(stname) ASN1_SEQUENCE_END_ref(stname, stname)
+# define static_ASN1_BROKEN_SEQUENCE_END(stname) \
+        static_ASN1_SEQUENCE_END_ref(stname, stname)
 
 # define ASN1_SEQUENCE_END_enc(stname, tname) ASN1_SEQUENCE_END_ref(stname, tname)
 
 # define ASN1_SEQUENCE_END_cb(stname, tname) ASN1_SEQUENCE_END_ref(stname, tname)
+# define static_ASN1_SEQUENCE_END_cb(stname, tname) static_ASN1_SEQUENCE_END_ref(stname, tname)
 
 # define ASN1_SEQUENCE_END_ref(stname, tname) \
         ;\
         ASN1_ITEM_start(tname) \
+                ASN1_ITYPE_SEQUENCE,\
+                V_ASN1_SEQUENCE,\
+                tname##_seq_tt,\
+                sizeof(tname##_seq_tt) / sizeof(ASN1_TEMPLATE),\
+                &tname##_aux,\
+                sizeof(stname),\
+                #tname \
+        ASN1_ITEM_end(tname)
+# define static_ASN1_SEQUENCE_END_ref(stname, tname) \
+        ;\
+        static_ASN1_ITEM_start(tname) \
                 ASN1_ITYPE_SEQUENCE,\
                 V_ASN1_SEQUENCE,\
                 tname##_seq_tt,\
@@ -259,11 +266,27 @@ extern "C" {
 
 # define ASN1_CHOICE_END(stname) ASN1_CHOICE_END_name(stname, stname)
 
+# define static_ASN1_CHOICE_END(stname) static_ASN1_CHOICE_END_name(stname, stname)
+
 # define ASN1_CHOICE_END_name(stname, tname) ASN1_CHOICE_END_selector(stname, tname, type)
+
+# define static_ASN1_CHOICE_END_name(stname, tname) static_ASN1_CHOICE_END_selector(stname, tname, type)
 
 # define ASN1_CHOICE_END_selector(stname, tname, selname) \
         ;\
         ASN1_ITEM_start(tname) \
+                ASN1_ITYPE_CHOICE,\
+                offsetof(stname,selname) ,\
+                tname##_ch_tt,\
+                sizeof(tname##_ch_tt) / sizeof(ASN1_TEMPLATE),\
+                NULL,\
+                sizeof(stname),\
+                #stname \
+        ASN1_ITEM_end(tname)
+
+# define static_ASN1_CHOICE_END_selector(stname, tname, selname) \
+        ;\
+        static_ASN1_ITEM_start(tname) \
                 ASN1_ITYPE_CHOICE,\
                 offsetof(stname,selname) ,\
                 tname##_ch_tt,\
@@ -299,18 +322,13 @@ extern "C" {
         (flags), (tag), offsetof(stname, field),\
         #field, ASN1_ITEM_ref(type) }
 
-/* used when the structure is combined with the parent */
-
-# define ASN1_EX_COMBINE(flags, tag, type) { \
-        (flags)|ASN1_TFLG_COMBINE, (tag), 0, NULL, ASN1_ITEM_ref(type) }
-
 /* implicit and explicit helper macros */
 
 # define ASN1_IMP_EX(stname, field, type, tag, ex) \
-                ASN1_EX_TYPE(ASN1_TFLG_IMPLICIT | ex, tag, stname, field, type)
+         ASN1_EX_TYPE(ASN1_TFLG_IMPLICIT | (ex), tag, stname, field, type)
 
 # define ASN1_EXP_EX(stname, field, type, tag, ex) \
-                ASN1_EX_TYPE(ASN1_TFLG_EXPLICIT | ex, tag, stname, field, type)
+         ASN1_EX_TYPE(ASN1_TFLG_EXPLICIT | (ex), tag, stname, field, type)
 
 /* Any defined by macros: the field used is in the table itself */
 
@@ -323,20 +341,27 @@ extern "C" {
 # endif
 /* Plain simple type */
 # define ASN1_SIMPLE(stname, field, type) ASN1_EX_TYPE(0,0, stname, field, type)
+/* Embedded simple type */
+# define ASN1_EMBED(stname, field, type) ASN1_EX_TYPE(ASN1_TFLG_EMBED,0, stname, field, type)
 
 /* OPTIONAL simple type */
 # define ASN1_OPT(stname, field, type) ASN1_EX_TYPE(ASN1_TFLG_OPTIONAL, 0, stname, field, type)
+# define ASN1_OPT_EMBED(stname, field, type) ASN1_EX_TYPE(ASN1_TFLG_OPTIONAL|ASN1_TFLG_EMBED, 0, stname, field, type)
 
 /* IMPLICIT tagged simple type */
 # define ASN1_IMP(stname, field, type, tag) ASN1_IMP_EX(stname, field, type, tag, 0)
+# define ASN1_IMP_EMBED(stname, field, type, tag) ASN1_IMP_EX(stname, field, type, tag, ASN1_TFLG_EMBED)
 
 /* IMPLICIT tagged OPTIONAL simple type */
 # define ASN1_IMP_OPT(stname, field, type, tag) ASN1_IMP_EX(stname, field, type, tag, ASN1_TFLG_OPTIONAL)
+# define ASN1_IMP_OPT_EMBED(stname, field, type, tag) ASN1_IMP_EX(stname, field, type, tag, ASN1_TFLG_OPTIONAL|ASN1_TFLG_EMBED)
 
 /* Same as above but EXPLICIT */
 
 # define ASN1_EXP(stname, field, type, tag) ASN1_EXP_EX(stname, field, type, tag, 0)
+# define ASN1_EXP_EMBED(stname, field, type, tag) ASN1_EXP_EX(stname, field, type, tag, ASN1_TFLG_EMBED)
 # define ASN1_EXP_OPT(stname, field, type, tag) ASN1_EXP_EX(stname, field, type, tag, ASN1_TFLG_OPTIONAL)
+# define ASN1_EXP_OPT_EMBED(stname, field, type, tag) ASN1_EXP_EX(stname, field, type, tag, ASN1_TFLG_OPTIONAL|ASN1_TFLG_EMBED)
 
 /* SEQUENCE OF type */
 # define ASN1_SEQUENCE_OF(stname, field, type) \
@@ -395,12 +420,12 @@ extern "C" {
 
 # ifndef OPENSSL_EXPORT_VAR_AS_FUNCTION
 
-#  define ASN1_ADB_END(name, flags, field, app_table, def, none) \
+#  define ASN1_ADB_END(name, flags, field, adb_cb, def, none) \
         ;\
         static const ASN1_ADB name##_adb = {\
                 flags,\
                 offsetof(name, field),\
-                app_table,\
+                adb_cb,\
                 name##_adbtbl,\
                 sizeof(name##_adbtbl) / sizeof(ASN1_ADB_TABLE),\
                 def,\
@@ -409,7 +434,7 @@ extern "C" {
 
 # else
 
-#  define ASN1_ADB_END(name, flags, field, app_table, def, none) \
+#  define ASN1_ADB_END(name, flags, field, adb_cb, def, none) \
         ;\
         static const ASN1_ITEM *name##_adb(void) \
         { \
@@ -417,7 +442,7 @@ extern "C" {
                 {\
                 flags,\
                 offsetof(name, field),\
-                app_table,\
+                adb_cb,\
                 name##_adbtbl,\
                 sizeof(name##_adbtbl) / sizeof(ASN1_ADB_TABLE),\
                 def,\
@@ -444,9 +469,7 @@ struct ASN1_TEMPLATE_st {
     unsigned long flags;        /* Various flags */
     long tag;                   /* tag, not used if no tagging */
     unsigned long offset;       /* Offset of this field in structure */
-# ifndef NO_ASN1_FIELD_NAMES
     const char *field_name;     /* Field name */
-# endif
     ASN1_ITEM_EXP *item;        /* Relevant ASN1_ITEM or ASN1_ADB */
 };
 
@@ -461,7 +484,7 @@ typedef struct ASN1_ADB_st ASN1_ADB;
 struct ASN1_ADB_st {
     unsigned long flags;        /* Various flags */
     unsigned long offset;       /* Offset of selector field */
-    STACK_OF(ASN1_ADB_TABLE) **app_items; /* Application defined items */
+    int (*adb_cb)(long *psel);  /* Application callback */
     const ASN1_ADB_TABLE *tbl;  /* Table of possible types */
     long tblcount;              /* Number of entries in tbl */
     const ASN1_TEMPLATE *default_tt; /* Type to use if no match */
@@ -508,10 +531,10 @@ struct ASN1_ADB_TABLE_st {
 # define ASN1_TFLG_TAG_MASK      (0x3 << 3)
 
 /* context specific IMPLICIT */
-# define ASN1_TFLG_IMPLICIT      ASN1_TFLG_IMPTAG|ASN1_TFLG_CONTEXT
+# define ASN1_TFLG_IMPLICIT      (ASN1_TFLG_IMPTAG|ASN1_TFLG_CONTEXT)
 
 /* context specific EXPLICIT */
-# define ASN1_TFLG_EXPLICIT      ASN1_TFLG_EXPTAG|ASN1_TFLG_CONTEXT
+# define ASN1_TFLG_EXPLICIT      (ASN1_TFLG_EXPTAG|ASN1_TFLG_CONTEXT)
 
 /*
  * If tagging is in force these determine the type of tag to use. Otherwise
@@ -543,20 +566,14 @@ struct ASN1_ADB_TABLE_st {
 # define ASN1_TFLG_ADB_INT       (0x1<<9)
 
 /*
- * This flag means a parent structure is passed instead of the field: this is
- * useful is a SEQUENCE is being combined with a CHOICE for example. Since
- * this means the structure and item name will differ we need to use the
- * ASN1_CHOICE_END_name() macro for example.
- */
-
-# define ASN1_TFLG_COMBINE       (0x1<<10)
-
-/*
  * This flag when present in a SEQUENCE OF, SET OF or EXPLICIT causes
  * indefinite length constructed encoding to be used if required.
  */
 
 # define ASN1_TFLG_NDEF          (0x1<<11)
+
+/* Field is embedded and not a pointer */
+# define ASN1_TFLG_EMBED         (0x1 << 12)
 
 /* This is the actual ASN1 item itself */
 
@@ -569,9 +586,7 @@ struct ASN1_ITEM_st {
     long tcount;                /* Number of templates if SEQUENCE or CHOICE */
     const void *funcs;          /* functions that handle this type */
     long size;                  /* Structure size (usually) */
-# ifndef NO_ASN1_FIELD_NAMES
     const char *sname;          /* Structure name */
-# endif
 };
 
 /*-
@@ -597,10 +612,6 @@ struct ASN1_ITEM_st {
  * The 'funcs' field is used for application
  * specific functions.
  *
- * For COMPAT types the funcs field gives a
- * set of functions that handle this type, this
- * supports the old d2i, i2d convention.
- *
  * The EXTERN type uses a new style d2i/i2d.
  * The new style should be used where possible
  * because it avoids things like the d2i IMPLICIT
@@ -625,8 +636,6 @@ struct ASN1_ITEM_st {
 
 # define ASN1_ITYPE_CHOICE               0x2
 
-# define ASN1_ITYPE_COMPAT               0x3
-
 # define ASN1_ITYPE_EXTERN               0x4
 
 # define ASN1_ITYPE_MSTRING              0x5
@@ -648,13 +657,6 @@ struct ASN1_TLC_st {
 };
 
 /* Typedefs for ASN1 function pointers */
-
-typedef ASN1_VALUE *ASN1_new_func(void);
-typedef void ASN1_free_func(ASN1_VALUE *a);
-typedef ASN1_VALUE *ASN1_d2i_func(ASN1_VALUE **a, const unsigned char **in,
-                                  long length);
-typedef int ASN1_i2d_func(ASN1_VALUE *a, unsigned char **in);
-
 typedef int ASN1_ex_d2i(ASN1_VALUE **pval, const unsigned char **in, long len,
                         const ASN1_ITEM *it, int tag, int aclass, char opt,
                         ASN1_TLC *ctx);
@@ -676,13 +678,6 @@ typedef int ASN1_primitive_c2i(ASN1_VALUE **pval, const unsigned char *cont,
 typedef int ASN1_primitive_print(BIO *out, ASN1_VALUE **pval,
                                  const ASN1_ITEM *it, int indent,
                                  const ASN1_PCTX *pctx);
-
-typedef struct ASN1_COMPAT_FUNCS_st {
-    ASN1_new_func *asn1_new;
-    ASN1_free_func *asn1_free;
-    ASN1_d2i_func *asn1_d2i;
-    ASN1_i2d_func *asn1_i2d;
-} ASN1_COMPAT_FUNCS;
 
 typedef struct ASN1_EXTERN_FUNCS_st {
     void *app_data;
@@ -786,27 +781,6 @@ typedef struct ASN1_STREAM_ARG_st {
                                         ASN1_ITYPE_MSTRING, mask, NULL, 0, NULL, sizeof(ASN1_STRING), #itname \
                                 ASN1_ITEM_end(itname)
 
-/* Macro to implement an ASN1_ITEM in terms of old style funcs */
-
-# define IMPLEMENT_COMPAT_ASN1(sname) IMPLEMENT_COMPAT_ASN1_type(sname, V_ASN1_SEQUENCE)
-
-# define IMPLEMENT_COMPAT_ASN1_type(sname, tag) \
-        static const ASN1_COMPAT_FUNCS sname##_ff = { \
-                (ASN1_new_func *)sname##_new, \
-                (ASN1_free_func *)sname##_free, \
-                (ASN1_d2i_func *)d2i_##sname, \
-                (ASN1_i2d_func *)i2d_##sname, \
-        }; \
-        ASN1_ITEM_start(sname) \
-                ASN1_ITYPE_COMPAT, \
-                tag, \
-                NULL, \
-                0, \
-                &sname##_ff, \
-                0, \
-                #sname \
-        ASN1_ITEM_end(sname)
-
 # define IMPLEMENT_EXTERN_ASN1(sname, tag, fptrs) \
         ASN1_ITEM_start(sname) \
                 ASN1_ITYPE_EXTERN, \
@@ -873,6 +847,19 @@ typedef struct ASN1_STREAM_ARG_st {
                 return ASN1_item_ndef_i2d((ASN1_VALUE *)a, out, ASN1_ITEM_rptr(stname));\
         }
 
+# define IMPLEMENT_STATIC_ASN1_ENCODE_FUNCTIONS(stname) \
+        static stname *d2i_##stname(stname **a, \
+                                   const unsigned char **in, long len) \
+        { \
+                return (stname *)ASN1_item_d2i((ASN1_VALUE **)a, in, len, \
+                                               ASN1_ITEM_rptr(stname)); \
+        } \
+        static int i2d_##stname(stname *a, unsigned char **out) \
+        { \
+                return ASN1_item_i2d((ASN1_VALUE *)a, out, \
+                                     ASN1_ITEM_rptr(stname)); \
+        }
+
 /*
  * This includes evil casts to remove const: they will go away when full ASN1
  * constification is done.
@@ -919,53 +906,38 @@ DECLARE_ASN1_ITEM(ASN1_FBOOLEAN)
 DECLARE_ASN1_ITEM(ASN1_SEQUENCE)
 DECLARE_ASN1_ITEM(CBIGNUM)
 DECLARE_ASN1_ITEM(BIGNUM)
+DECLARE_ASN1_ITEM(INT32)
+DECLARE_ASN1_ITEM(ZINT32)
+DECLARE_ASN1_ITEM(UINT32)
+DECLARE_ASN1_ITEM(ZUINT32)
+DECLARE_ASN1_ITEM(INT64)
+DECLARE_ASN1_ITEM(ZINT64)
+DECLARE_ASN1_ITEM(UINT64)
+DECLARE_ASN1_ITEM(ZUINT64)
+
+# if OPENSSL_API_COMPAT < 0x10200000L
+/*
+ * LONG and ZLONG are strongly discouraged for use as stored data, as the
+ * underlying C type (long) differs in size depending on the architecture.
+ * They are designed with 32-bit longs in mind.
+ */
 DECLARE_ASN1_ITEM(LONG)
 DECLARE_ASN1_ITEM(ZLONG)
+# endif
 
-DECLARE_STACK_OF(ASN1_VALUE)
+DEFINE_STACK_OF(ASN1_VALUE)
 
 /* Functions used internally by the ASN1 code */
 
 int ASN1_item_ex_new(ASN1_VALUE **pval, const ASN1_ITEM *it);
 void ASN1_item_ex_free(ASN1_VALUE **pval, const ASN1_ITEM *it);
-int ASN1_template_new(ASN1_VALUE **pval, const ASN1_TEMPLATE *tt);
-int ASN1_primitive_new(ASN1_VALUE **pval, const ASN1_ITEM *it);
 
-void ASN1_template_free(ASN1_VALUE **pval, const ASN1_TEMPLATE *tt);
-int ASN1_template_d2i(ASN1_VALUE **pval, const unsigned char **in, long len,
-                      const ASN1_TEMPLATE *tt);
 int ASN1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in, long len,
                      const ASN1_ITEM *it, int tag, int aclass, char opt,
                      ASN1_TLC *ctx);
 
 int ASN1_item_ex_i2d(ASN1_VALUE **pval, unsigned char **out,
                      const ASN1_ITEM *it, int tag, int aclass);
-int ASN1_template_i2d(ASN1_VALUE **pval, unsigned char **out,
-                      const ASN1_TEMPLATE *tt);
-void ASN1_primitive_free(ASN1_VALUE **pval, const ASN1_ITEM *it);
-
-int asn1_ex_i2c(ASN1_VALUE **pval, unsigned char *cont, int *putype,
-                const ASN1_ITEM *it);
-int asn1_ex_c2i(ASN1_VALUE **pval, const unsigned char *cont, int len,
-                int utype, char *free_cont, const ASN1_ITEM *it);
-
-int asn1_get_choice_selector(ASN1_VALUE **pval, const ASN1_ITEM *it);
-int asn1_set_choice_selector(ASN1_VALUE **pval, int value,
-                             const ASN1_ITEM *it);
-
-ASN1_VALUE **asn1_get_field_ptr(ASN1_VALUE **pval, const ASN1_TEMPLATE *tt);
-
-const ASN1_TEMPLATE *asn1_do_adb(ASN1_VALUE **pval, const ASN1_TEMPLATE *tt,
-                                 int nullerr);
-
-int asn1_do_lock(ASN1_VALUE **pval, int op, const ASN1_ITEM *it);
-
-void asn1_enc_init(ASN1_VALUE **pval, const ASN1_ITEM *it);
-void asn1_enc_free(ASN1_VALUE **pval, const ASN1_ITEM *it);
-int asn1_enc_restore(int *len, unsigned char **out, ASN1_VALUE **pval,
-                     const ASN1_ITEM *it);
-int asn1_enc_save(ASN1_VALUE **pval, const unsigned char *in, int inlen,
-                  const ASN1_ITEM *it);
 
 #ifdef  __cplusplus
 }

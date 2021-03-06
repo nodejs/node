@@ -6,15 +6,13 @@
 
 var test = function() {
   var t = Date.now();  // Just any non-constant double value.
-  var o = {
-    ['p']: 1,
-    t
-  };
+  var o = {['p']: 1, t};
 };
 
 function caller() {
   test();
-}
+};
+%PrepareFunctionForOptimization(caller);
 caller();
 caller();
 %OptimizeFunctionOnNextCall(caller);

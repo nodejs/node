@@ -25,9 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-/**
- * @fileoverview Test reduce and reduceRight
- */
+// Flags: --allow-natives-syntax --opt --no-lazy-feedback-allocation
+
+// TODO(v8:10195): Fix these tests s.t. we assert deoptimization occurs when
+// expected (e.g. in a %DeoptimizeNow call), then remove
+// --no-lazy-feedback-allocation.
 
 function clone(v) {
   // Shallow-copies arrays, returns everything else verbatim.
@@ -408,6 +410,12 @@ testReduce("reduceRight", "ArrayWithNonElementPropertiesReduceRight", 6,
             [5, 1, 0, arrayPlus, 6],
            ], arrayPlus, sum, 0);
 
+// Test passing undefined as initial value (to test missing parameter
+// detection).
+[1].reduce((a, b) => { assertEquals(a, undefined); assertEquals(b, 1) },
+           undefined);
+[1, 2].reduce((a, b) => { assertEquals(a, 1); assertEquals(b, 2); });
+[1].reduce((a, b) => { assertTrue(false); });
 
 // Test error conditions:
 
@@ -501,6 +509,13 @@ testReduce("reduce", "ArrayManipulationShort", 3,
             [1, 2, 1, [1, 2], 3],
            ], arr, manipulator, 0);
 
+var arr = [1, 2, 3, 4];
+testReduce("reduceRight", "RightArrayManipulationShort", 7,
+           [[0, 4, 3, [1, 2, 3, 4], 4],
+            [4, 2, 1, [1, 2], 6],
+            [6, 1, 0, [1], 7],
+           ], arr, manipulator, 0);
+
 var arr = [1, 2, 3, 4, 5];
 testReduce("reduce", "ArrayManipulationLonger", 10,
            [[0, 1, 0, [1, 2, 3, 4, 5], 1],
@@ -531,3 +546,824 @@ var arr = [];
 Object.defineProperty(arr, "0", { get: function() { delete this[0] },
   configurable: true});
 assertEquals(undefined, arr.reduceRight(function(val) { return val }));
+
+
+(function ReduceRightMaxIndex() {
+  const kMaxIndex = 0xffffffff-1;
+  let array = [];
+  array[kMaxIndex-2] = 'value-2';
+  array[kMaxIndex-1] = 'value-1';
+  // Use the maximum array index possible.
+  array[kMaxIndex] = 'value';
+  // Add the next index which is a normal property and thus will not show up.
+  array[kMaxIndex+1] = 'normal property';
+  assertThrowsEquals( () => {
+      array.reduceRight((sum, value) => {
+        assertEquals('initial', sum);
+        assertEquals('value', value);
+        // Throw at this point as we would very slowly loop down from kMaxIndex.
+        throw 'do not continue';
+      }, 'initial')
+  }, 'do not continue');
+})();
+
+(function OptimizedReduce() {
+  let f = (a,current) => a + current;
+  let g = function(a) {
+    return a.reduce(f);
+  };
+  %PrepareFunctionForOptimization(g);
+  let a = [1,2,3,4,5,6,7,8,9,10];
+  g(a); g(a);
+  let total = g(a);
+  %OptimizeFunctionOnNextCall(g);
+  assertEquals(total, g(a));
+})();
+
+(function OptimizedReduceEmpty() {
+  let f = (a,current) => a + current;
+  let g = function(a) {
+    return a.reduce(f);
+  };
+  %PrepareFunctionForOptimization(g);
+  let a = [1,2,3,4,5,6,7,8,9,10];
+  g(a); g(a); g(a);
+  %OptimizeFunctionOnNextCall(g);
+  g(a);
+  assertThrows(() => g([]));
+})();
+
+(function OptimizedReduceLazyDeopt() {
+  let deopt = false;
+  let f = (a,current) => { if (deopt) %DeoptimizeNow(); return a + current; };
+  let g = function(a) {
+    return a.reduce(f);
+  };
+  %PrepareFunctionForOptimization(g);
+  let a = [1,2,3,4,5,6,7,8,9,10];
+  g(a); g(a);
+  let total = g(a);
+  %OptimizeFunctionOnNextCall(g);
+  g(a);
+  deopt = true;
+  assertEquals(total, g(a));
+})();
+
+(function OptimizedReduceLazyDeoptMiddleOfIteration() {
+  let deopt = false;
+  let f = (a,current) => {
+    if (current == 6 && deopt) %DeoptimizeNow();
+    return a + current;
+  };
+  let g = function(a) {
+    return a.reduce(f);
+  };
+  %PrepareFunctionForOptimization(g);
+  let a = [11,22,33,45,56,6,77,84,93,101];
+  g(a); g(a);
+  let total = g(a);
+  %OptimizeFunctionOnNextCall(g);
+  g(a);
+  deopt = true;
+  assertEquals(total, g(a));
+})();
+
+(function OptimizedReduceEagerDeoptMiddleOfIteration() {
+  let deopt = false;
+  let array = [11,22,33,45,56,6,77,84,93,101];
+  let f = (a,current) => {
+    if (current == 6 && deopt) {array[0] = 1.5; }
+    return a + current;
+  };
+  let g = function() {
+    return array.reduce(f);
+  };
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  let total = g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  deopt = true;
+  g();
+  %PrepareFunctionForOptimization(g);
+  deopt = false;
+  array = [11,22,33,45,56,6,77,84,93,101];
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  deopt = true;
+  assertEquals(total, g());
+})();
+
+(function OptimizedReduceEagerDeoptMiddleOfIterationHoley() {
+  let deopt = false;
+  let array = [, ,11,22,,33,45,56,,6,77,84,93,101,];
+  let f = (a,current) => {
+    if (current == 6 && deopt) {array[0] = 1.5; }
+    return a + current;
+  };
+  let g = function() {
+    return array.reduce(f);
+  };
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  let total = g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  deopt = true;
+  g();
+  %PrepareFunctionForOptimization(g);
+  deopt = false;
+  array = [11,22,33,45,56,6,77,84,93,101];
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  deopt = true;
+  assertEquals(total, g());
+})();
+
+(function TriggerReduceRightPreLoopDeopt() {
+  function f(a) {
+    a.reduceRight((x) => { return x + 1 });
+  };
+  %PrepareFunctionForOptimization(f);
+  f([1,2,]);
+  f([1,2,]);
+  %OptimizeFunctionOnNextCall(f);
+  assertThrows(() => f([]), TypeError);
+})();
+
+(function OptimizedReduceRightEagerDeoptMiddleOfIterationHoley() {
+  let deopt = false;
+  let array = [, ,11,22,,33,45,56,,6,77,84,93,101,];
+  let f = (a,current) => {
+    if (current == 6 && deopt) {array[array.length-1] = 1.5; }
+    return a + current;
+  };
+  let g = function() {
+    return array.reduceRight(f);
+  };
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  let total = g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  deopt = true;
+  g();
+  %PrepareFunctionForOptimization(g);
+  deopt = false;
+  array = [11,22,33,45,56,6,77,84,93,101];
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  deopt = true;
+  assertEquals(total, g());
+})();
+
+(function ReduceCatch() {
+  let f = (a,current) => {
+    return a + current;
+  };
+  let g = function() {
+    try {
+      return array.reduce(f);
+    } catch (e) {
+    }
+  };
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  let total = g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  g();
+  assertEquals(total, g());
+})();
+
+(function ReduceThrow() {
+  let done = false;
+  let f = (a, current) => {
+    if (done) throw "x";
+    return a + current;
+  };
+  let array = [1,2,3];
+  let g = function() {
+    try {
+      return array.reduce(f);
+    } catch (e) {
+      return null;
+    }
+  };
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  let total = g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  assertEquals(6, g());
+  done = true;
+  assertEquals(null, g());
+  done = false;
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  assertEquals(6, g());
+  done = true;
+  assertEquals(null, g());
+})();
+
+(function ReduceThrow() {
+  let done = false;
+  let f = (a, current) => {
+    if (done) throw "x";
+    return a + current;
+  };
+  %NeverOptimizeFunction(f);
+  let array = [1,2,3];
+  let g = function() {
+    try {
+      return array.reduce(f);
+    } catch (e) {
+      return null;
+    }
+  };
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  let total = g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  assertEquals(6, g());
+  done = true;
+  assertEquals(null, g());
+  done = false;
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  assertEquals(6, g());
+  done = true;
+  assertEquals(null, g());
+})();
+
+(function ReduceFinally() {
+  let done = false;
+  let f = (a, current) => {
+    if (done) throw "x";
+    return a + current;
+  };
+  let array = [1,2,3];
+  let g = function() {
+    try {
+      return array.reduce(f);
+    } catch (e) {
+    } finally {
+      if (done) return null;
+    }
+  };
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  let total = g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  assertEquals(6, g());
+  done = true;
+  assertEquals(null, g());
+  done = false;
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  assertEquals(6, g());
+  done = true;
+  assertEquals(null, g());
+})();
+
+(function ReduceFinallyNoInline() {
+  let done = false;
+  let f = (a, current) => {
+    if (done) throw "x";
+    return a + current;
+  };
+  %NeverOptimizeFunction(f);
+  let array = [1,2,3];
+  let g = function() {
+    try {
+      return array.reduce(f);
+    } catch (e) {
+    } finally {
+      if (done) return null;
+    }
+  };
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  let total = g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  assertEquals(6, g());
+  done = true;
+  assertEquals(null, g());
+  done = false;
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  assertEquals(6, g());
+  done = true;
+  assertEquals(null, g());
+})();
+
+(function ReduceNonCallableOpt() {
+  let done = false;
+  let f = (a, current) => {
+    return a + current;
+  };
+  let array = [1,2,3];
+  let g = function() {
+    return array.reduce(f);
+  };
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  let total = g();
+  %OptimizeFunctionOnNextCall(g);
+  g(); g();
+  assertEquals(6, g());
+  f = null;
+  assertThrows(() => g());
+})();
+
+(function ReduceCatchInlineDeopt() {
+  let done = false;
+  let f = (a, current) => {
+    if (done) {
+      %DeoptimizeNow();
+      throw "x";
+    }
+    return a + current;
+  };
+  let array = [1,2,3];
+  let g = function() {
+    try {
+      return array.reduce(f);
+    } catch (e) {
+      if (done) return null;
+    }
+  };
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  let total = g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  assertEquals(6, g());
+  done = true;
+  assertEquals(null, g());
+  done = false;
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  assertEquals(6, g());
+  done = true;
+  assertEquals(null, g());
+})();
+
+(function ReduceFinallyInlineDeopt() {
+  let done = false;
+  let f = (a, current) => {
+    if (done) {
+      %DeoptimizeNow();
+      throw "x";
+    }
+    return a + current;
+  };
+  let array = [1,2,3];
+  let g = function() {
+    try {
+      return array.reduce(f);
+    } catch (e) {
+    } finally {
+      if (done) return null;
+    }
+  };
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  let total = g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  assertEquals(6, g());
+  done = true;
+  assertEquals(null, g());
+  done = false;
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  assertEquals(6, g());
+  done = true;
+  assertEquals(null, g());
+})();
+
+(function OptimizedReduceRight() {
+  let count = 0;
+  let f = (a,current,i) => a + current * ++count;
+  let g = function(a) {
+    count = 0;
+    return a.reduceRight(f);
+  };
+  %PrepareFunctionForOptimization(g);
+  let a = [1,2,3,4,5,6,7,8,9,10];
+  g(a); g(a);
+  let total = g(a);
+  %OptimizeFunctionOnNextCall(g);
+  assertEquals(total, g(a));
+})();
+
+(function OptimizedReduceEmpty() {
+  let count = 0;
+  let f = (a,current,i) => a + current * ++count;
+  let g = function(a) {
+    count = 0;
+    return a.reduceRight(f);
+  };
+  %PrepareFunctionForOptimization(g);
+  let a = [1,2,3,4,5,6,7,8,9,10];
+  g(a); g(a); g(a);
+  %OptimizeFunctionOnNextCall(g);
+  g(a);
+  assertThrows(() => g([]));
+})();
+
+(function OptimizedReduceLazyDeopt() {
+  let deopt = false;
+  let f = (a,current) => { if (deopt) %DeoptimizeNow(); return a + current; };
+  let g = function(a) {
+    return a.reduceRight(f);
+  };
+  %PrepareFunctionForOptimization(g);
+  let a = [1,2,3,4,5,6,7,8,9,10];
+  g(a); g(a);
+  let total = g(a);
+  %OptimizeFunctionOnNextCall(g);
+  g(a);
+  deopt = true;
+  assertEquals(total, g(a));
+})();
+
+(function OptimizedReduceLazyDeoptMiddleOfIteration() {
+  let deopt = false;
+  let f = (a,current) => {
+    if (current == 6 && deopt) %DeoptimizeNow();
+    return a + current;
+  };
+  let g = function(a) {
+    return a.reduceRight(f);
+  };
+  %PrepareFunctionForOptimization(g);
+  let a = [11,22,33,45,56,6,77,84,93,101];
+  g(a); g(a);
+  let total = g(a);
+  %OptimizeFunctionOnNextCall(g);
+  g(a);
+  deopt = true;
+  assertEquals(total, g(a));
+})();
+
+(function OptimizedReduceEagerDeoptMiddleOfIteration() {
+  let deopt = false;
+  let array = [11,22,33,45,56,6,77,84,93,101];
+  let f = (a,current) => {
+    if (current == 6 && deopt) {array[9] = 1.5; }
+    return a + current;
+  };
+  let g = function() {
+    return array.reduceRight(f);
+  };
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  let total = g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  deopt = true;
+  g();
+  %PrepareFunctionForOptimization(g);
+  deopt = false;
+  array = [11,22,33,45,56,6,77,84,93,101];
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  deopt = true;
+  assertEquals(total, g());
+})();
+
+(function ReduceCatch() {
+  let f = (a,current) => {
+    return a + current;
+  };
+  let g = function() {
+    try {
+      return array.reduceRight(f);
+    } catch (e) {
+    }
+  };
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  let total = g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  g();
+  assertEquals(total, g());
+})();
+
+(function ReduceThrow() {
+  let done = false;
+  let f = (a, current) => {
+    if (done) throw "x";
+    return a + current;
+  };
+  let array = [1,2,3];
+  let g = function() {
+    try {
+      return array.reduceRight(f);
+    } catch (e) {
+      return null;
+    }
+  };
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  let total = g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  assertEquals(6, g());
+  done = true;
+  assertEquals(null, g());
+  done = false;
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  assertEquals(6, g());
+  done = true;
+  assertEquals(null, g());
+})();
+
+(function ReduceThrow() {
+  let done = false;
+  let f = (a, current) => {
+    if (done) throw "x";
+    return a + current;
+  };
+  %NeverOptimizeFunction(f);
+  let array = [1,2,3];
+  let g = function() {
+    try {
+      return array.reduceRight(f);
+    } catch (e) {
+      return null;
+    }
+  };
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  let total = g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  assertEquals(6, g());
+  done = true;
+  assertEquals(null, g());
+  done = false;
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  assertEquals(6, g());
+  done = true;
+  assertEquals(null, g());
+})();
+
+(function ReduceFinally() {
+  let done = false;
+  let f = (a, current) => {
+    if (done) throw "x";
+    return a + current;
+  };
+  let array = [1,2,3];
+  let g = function() {
+    try {
+      return array.reduceRight(f);
+    } catch (e) {
+    } finally {
+      if (done) return null;
+    }
+  };
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  let total = g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  assertEquals(6, g());
+  done = true;
+  assertEquals(null, g());
+  done = false;
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  assertEquals(6, g());
+  done = true;
+  assertEquals(null, g());
+})();
+
+(function ReduceFinallyNoInline() {
+  let done = false;
+  let f = (a, current) => {
+    if (done) throw "x";
+    return a + current;
+  };
+  %NeverOptimizeFunction(f);
+  let array = [1,2,3];
+  let g = function() {
+    try {
+      return array.reduceRight(f);
+    } catch (e) {
+    } finally {
+      if (done) return null;
+    }
+  };
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  let total = g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  assertEquals(6, g());
+  done = true;
+  assertEquals(null, g());
+  done = false;
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  assertEquals(6, g());
+  done = true;
+  assertEquals(null, g());
+})();
+
+(function ReduceNonCallableOpt() {
+  let done = false;
+  let f = (a, current) => {
+    return a + current;
+  };
+  let array = [1,2,3];
+  let g = function() {
+    return array.reduceRight(f);
+  };
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  let total = g();
+  %OptimizeFunctionOnNextCall(g);
+  g(); g();
+  assertEquals(6, g());
+  f = null;
+  assertThrows(() => g());
+})();
+
+(function ReduceCatchInlineDeopt() {
+  let done = false;
+  let f = (a, current) => {
+    if (done) {
+      %DeoptimizeNow();
+      throw "x";
+    }
+    return a + current;
+  };
+  let array = [1,2,3];
+  let g = function() {
+    try {
+      return array.reduceRight(f);
+    } catch (e) {
+      if (done) return null;
+    }
+  };
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  let total = g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  assertEquals(6, g());
+  done = true;
+  assertEquals(null, g());
+  done = false;
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  assertEquals(6, g());
+  done = true;
+  assertEquals(null, g());
+})();
+
+(function ReduceFinallyInlineDeopt() {
+  let done = false;
+  let f = (a, current) => {
+    if (done) {
+      %DeoptimizeNow();
+      throw "x";
+    }
+    return a + current;
+  };
+  let array = [1,2,3];
+  let g = function() {
+    try {
+      return array.reduceRight(f);
+    } catch (e) {
+    } finally {
+      if (done) return null;
+    }
+  };
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  let total = g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  assertEquals(6, g());
+  done = true;
+  assertEquals(null, g());
+  done = false;
+  %PrepareFunctionForOptimization(g);
+  g(); g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  assertEquals(6, g());
+  done = true;
+  assertEquals(null, g());
+})();
+
+(function ReduceHoleyArrayWithDefaultAccumulator() {
+  var holey = new Array(10);
+  function reduce(a) {
+    let callback = function(accumulator, currentValue) {
+      return currentValue;
+    };
+    return a.reduce(callback, 13);
+  };
+  %PrepareFunctionForOptimization(reduce);
+  assertEquals(13, reduce(holey));
+  assertEquals(13, reduce(holey));
+  assertEquals(13, reduce(holey));
+  %OptimizeFunctionOnNextCall(reduce);
+  assertEquals(13, reduce(holey));
+})();
+
+(function ReduceRightHoleyArrayWithDefaultAccumulator() {
+  var holey = new Array(10);
+  function reduce(a) {
+    let callback = function(accumulator, currentValue) {
+      return currentValue;
+    };
+    return a.reduceRight(callback, 13);
+  };
+  %PrepareFunctionForOptimization(reduce);
+  assertEquals(13, reduce(holey));
+  assertEquals(13, reduce(holey));
+  assertEquals(13, reduce(holey));
+  %OptimizeFunctionOnNextCall(reduce);
+  assertEquals(13, reduce(holey));
+})();
+
+(function ReduceHoleyArrayOneElementWithDefaultAccumulator() {
+  var holey = new Array(10);
+  holey[1] = 5;
+  function reduce(a) {
+    let callback = function(accumulator, currentValue) {
+      return currentValue + accumulator;
+    };
+    return a.reduce(callback, 13);
+  };
+  %PrepareFunctionForOptimization(reduce);
+  assertEquals(18, reduce(holey));
+  assertEquals(18, reduce(holey));
+  assertEquals(18, reduce(holey));
+  %OptimizeFunctionOnNextCall(reduce);
+  assertEquals(18, reduce(holey));
+})();
+
+(function ReduceRightHoleyArrayOneElementWithDefaultAccumulator() {
+  var holey = new Array(10);
+  holey[1] = 5;
+  function reduce(a) {
+    let callback = function(accumulator, currentValue) {
+      return currentValue + accumulator;
+    };
+    return a.reduceRight(callback, 13);
+  };
+  %PrepareFunctionForOptimization(reduce);
+  assertEquals(18, reduce(holey));
+  assertEquals(18, reduce(holey));
+  assertEquals(18, reduce(holey));
+  %OptimizeFunctionOnNextCall(reduce);
+  assertEquals(18, reduce(holey));
+})();
+
+(function ReduceMixedHoleyArrays() {
+  function r(a) {
+    return a.reduce((acc, i) => {acc[0]});
+  };
+  %PrepareFunctionForOptimization(r);
+  r([[0]]);
+  r([[0]]);
+  r([0,,]);
+  %OptimizeFunctionOnNextCall(r);
+  r([,0,0]);
+})();

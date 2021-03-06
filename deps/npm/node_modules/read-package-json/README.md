@@ -67,12 +67,6 @@ independent.
 
 Mix and match!
 
-## readJson.cache
-
-The `lru-cache` object that readJson uses to not read the same file over
-and over again.  See
-[lru-cache](https://github.com/isaacs/node-lru-cache) for details.
-
 ## Other Relevant Files Besides `package.json`
 
 Some other files have an effect on the resulting data object, in the

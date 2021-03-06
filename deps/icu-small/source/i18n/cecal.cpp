@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -49,7 +49,7 @@ static const int32_t LIMITS[UCAL_FIELD_COUNT][4] = {
 //-------------------------------------------------------------------------
 
 CECalendar::CECalendar(const Locale& aLocale, UErrorCode& success)
-:   Calendar(TimeZone::createDefault(), aLocale, success)
+:   Calendar(TimeZone::forLocaleOrDefault(aLocale), aLocale, success)
 {
     setTimeInMillis(getNow(), success);
 }

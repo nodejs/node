@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -64,6 +64,8 @@
 
 #include "unicode/utypes.h"
 
+#if U_SHOW_CPLUSPLUS_API
+
 #if !UCONFIG_NO_COLLATION
 
 #include "unicode/coll.h"
@@ -97,14 +99,14 @@ class UVector64;
  * table-based collation.
  * <p>
  * For more information about the collation service see
- * <a href="http://userguide.icu-project.org/collation">the User Guide</a>.
+ * <a href="https://unicode-org.github.io/icu/userguide/collation">the User Guide</a>.
  * <p>
  * Collation service provides correct sorting orders for most locales supported in ICU.
  * If specific data for a locale is not available, the orders eventually falls back
  * to the <a href="http://www.unicode.org/reports/tr35/tr35-collation.html#Root_Collation">CLDR root sort order</a>.
  * <p>
  * Sort ordering may be customized by providing your own set of rules. For more on
- * this subject see the <a href="http://userguide.icu-project.org/collation/customization">
+ * this subject see the <a href="https://unicode-org.github.io/icu/userguide/collation/customization">
  * Collation Customization</a> section of the User Guide.
  * <p>
  * Note, RuleBasedCollator is not to be subclassed.
@@ -228,7 +230,7 @@ public:
      * @return a copy of this object, owned by the caller
      * @stable ICU 2.0
      */
-    virtual Collator* clone(void) const;
+    virtual RuleBasedCollator* clone() const;
 
     /**
      * Creates a collation element iterator for the source string. The caller of
@@ -308,8 +310,8 @@ public:
     * than target
     * @stable ICU 2.6
     */
-    virtual UCollationResult compare(const UChar* source, int32_t sourceLength,
-                                     const UChar* target, int32_t targetLength,
+    virtual UCollationResult compare(const char16_t* source, int32_t sourceLength,
+                                     const char16_t* target, int32_t targetLength,
                                      UErrorCode &status) const;
 
     /**
@@ -377,7 +379,7 @@ public:
      * @see CollationKey
      * @stable ICU 2.0
      */
-    virtual CollationKey& getCollationKey(const UChar *source,
+    virtual CollationKey& getCollationKey(const char16_t *source,
                                           int32_t sourceLength,
                                           CollationKey& key,
                                           UErrorCode& status) const;
@@ -389,6 +391,7 @@ public:
      */
     virtual int32_t hashCode() const;
 
+#ifndef U_FORCE_HIDE_DEPRECATED_API
     /**
     * Gets the locale of the Collator
     * @param type can be either requested, valid or actual locale. For more
@@ -400,6 +403,7 @@ public:
     * @deprecated ICU 2.8 likely to change in ICU 3.0, based on feedback
     */
     virtual Locale getLocale(ULocDataLocaleType type, UErrorCode& status) const;
+#endif  // U_FORCE_HIDE_DEPRECATED_API
 
     /**
      * Gets the tailoring rules for this collator.
@@ -491,7 +495,7 @@ public:
      * just the tailoring.
      *
      * getRules(void) should normally be used instead.
-     * See http://userguide.icu-project.org/collation/customization#TOC-Building-on-Existing-Locales
+     * See https://unicode-org.github.io/icu/userguide/collation/customization#building-on-existing-locales
      * @param delta one of UCOL_TAILORING_ONLY, UCOL_FULL_RULES.
      * @param buffer UnicodeString to store the result rules
      * @stable ICU 2.2
@@ -545,6 +549,7 @@ public:
      */
     virtual UColReorderCode getMaxVariable() const;
 
+#ifndef U_FORCE_HIDE_DEPRECATED_API
     /**
      * Sets the variable top to the primary weight of the specified string.
      *
@@ -552,7 +557,7 @@ public:
      * the top of one of the supported reordering groups,
      * and it must not be beyond the last of those groups.
      * See setMaxVariable().
-     * @param varTop one or more (if contraction) UChars to which the variable top should be set
+     * @param varTop one or more (if contraction) char16_ts to which the variable top should be set
      * @param len length of variable top string. If -1 it is considered to be zero terminated.
      * @param status error code. If error code is set, the return value is undefined. Errors set by this function are: <br>
      *    U_CE_NOT_FOUND_ERROR if more than one character was passed and there is no such contraction<br>
@@ -561,7 +566,7 @@ public:
      * @return variable top primary weight
      * @deprecated ICU 53 Call setMaxVariable() instead.
      */
-    virtual uint32_t setVariableTop(const UChar *varTop, int32_t len, UErrorCode &status);
+    virtual uint32_t setVariableTop(const char16_t *varTop, int32_t len, UErrorCode &status);
 
     /**
      * Sets the variable top to the primary weight of the specified string.
@@ -570,7 +575,7 @@ public:
      * the top of one of the supported reordering groups,
      * and it must not be beyond the last of those groups.
      * See setMaxVariable().
-     * @param varTop a UnicodeString size 1 or more (if contraction) of UChars to which the variable top should be set
+     * @param varTop a UnicodeString size 1 or more (if contraction) of char16_ts to which the variable top should be set
      * @param status error code. If error code is set, the return value is undefined. Errors set by this function are: <br>
      *    U_CE_NOT_FOUND_ERROR if more than one character was passed and there is no such contraction<br>
      *    U_ILLEGAL_ARGUMENT_ERROR if the variable top is beyond
@@ -592,6 +597,7 @@ public:
      * @deprecated ICU 53 Call setMaxVariable() instead.
      */
     virtual void setVariableTop(uint32_t varTop, UErrorCode &status);
+#endif  // U_FORCE_HIDE_DEPRECATED_API
 
     /**
      * Gets the variable top value of a Collator.
@@ -631,7 +637,7 @@ public:
                                int32_t resultLength) const;
 
     /**
-     * Get the sort key as an array of bytes from a UChar buffer.
+     * Get the sort key as an array of bytes from a char16_t buffer.
      *
      * Note that sort keys are often less efficient than simply doing comparison.
      * For more details, see the ICU User Guide.
@@ -646,7 +652,7 @@ public:
      * @return Number of bytes needed for storing the sort key
      * @stable ICU 2.2
      */
-    virtual int32_t getSortKey(const UChar *source, int32_t sourceLength,
+    virtual int32_t getSortKey(const char16_t *source, int32_t sourceLength,
                                uint8_t *result, int32_t resultLength) const;
 
     /**
@@ -696,7 +702,7 @@ public:
      *  This string will be normalized.
      *  The structure and the syntax of the string is defined in the "Naming collators"
      *  section of the users guide:
-     *  http://userguide.icu-project.org/collation/concepts#TOC-Collator-naming-scheme
+     *  https://unicode-org.github.io/icu/userguide/collation/concepts#collator-naming-scheme
      *  This function supports preflighting.
      *
      *  This is internal, and intended to be used with delegate converters.
@@ -746,7 +752,7 @@ public:
      * Implements ucol_getContractionsAndExpansions().
      * Gets this collator's sets of contraction strings and/or
      * characters and strings that map to multiple collation elements (expansions).
-     * If addPrefixes is TRUE, then contractions that are expressed as
+     * If addPrefixes is true, then contractions that are expressed as
      * prefix/pre-context rules are included.
      * @param contractions if not NULL, the set to hold the contractions
      * @param expansions if not NULL, the set to hold the expansions
@@ -821,17 +827,17 @@ private:
     void adoptTailoring(CollationTailoring *t, UErrorCode &errorCode);
 
     // Both lengths must be <0 or else both must be >=0.
-    UCollationResult doCompare(const UChar *left, int32_t leftLength,
-                               const UChar *right, int32_t rightLength,
+    UCollationResult doCompare(const char16_t *left, int32_t leftLength,
+                               const char16_t *right, int32_t rightLength,
                                UErrorCode &errorCode) const;
     UCollationResult doCompare(const uint8_t *left, int32_t leftLength,
                                const uint8_t *right, int32_t rightLength,
                                UErrorCode &errorCode) const;
 
-    void writeSortKey(const UChar *s, int32_t length,
+    void writeSortKey(const char16_t *s, int32_t length,
                       SortKeyByteSink &sink, UErrorCode &errorCode) const;
 
-    void writeIdenticalLevel(const UChar *s, const UChar *limit,
+    void writeIdenticalLevel(const char16_t *s, const char16_t *limit,
                              SortKeyByteSink &sink, UErrorCode &errorCode) const;
 
     const CollationSettings &getDefaultSettings() const;
@@ -851,7 +857,7 @@ private:
      * Tests whether a character is "unsafe" for use as a collation starting point.
      *
      * @param c code point or code unit
-     * @return TRUE if c is unsafe
+     * @return true if c is unsafe
      * @see CollationElementIterator#setOffset(int)
      */
     UBool isUnsafe(UChar32 c) const;
@@ -874,4 +880,7 @@ private:
 U_NAMESPACE_END
 
 #endif  // !UCONFIG_NO_COLLATION
+
+#endif /* U_SHOW_CPLUSPLUS_API */
+
 #endif  // TBLCOLL_H

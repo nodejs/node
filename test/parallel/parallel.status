@@ -7,21 +7,61 @@ prefix parallel
 [true] # This section applies to all platforms
 
 [$system==win32]
+# https://github.com/nodejs/node/issues/20750
+test-http2-pipe: PASS,FLAKY
+# https://github.com/nodejs/node/issues/20750
+test-stream-pipeline-http2: PASS,FLAKY
+# https://github.com/nodejs/node/issues/24497
+test-timers-immediate-queue: PASS,FLAKY
+# https://github.com/nodejs/node/issues/23277
+test-worker-memory: PASS,FLAKY
+# https://github.com/nodejs/node/issues/30846
+test-worker-message-port-transfer-terminate: PASS,FLAKY
 
 [$system==linux]
 
 [$system==macos]
 
 [$arch==arm || $arch==arm64]
+# https://github.com/nodejs/node/issues/26610
+test-async-hooks-http-parser-destroy: PASS,FLAKY
+# https://github.com/nodejs/node/pull/31178
+test-crypto-dh-stateless: SKIP
+test-crypto-keygen: SKIP
 
 [$system==solaris] # Also applies to SmartOS
 
 [$system==freebsd]
+# https://github.com/nodejs/node/issues/31727
+test-fs-stat-bigint: PASS,FLAKY
+# https://github.com/nodejs/node/issues/28803
+test-stdout-close-catch: PASS,FLAKY
+# https://github.com/nodejs/node/issues/31280
+test-worker-message-port-message-before-close: PASS,FLAKY
 
-# fs-watch currently needs special configuration on AIX and we
-# want to improve under https://github.com/nodejs/node/issues/5085.
-# Tests are disabled so CI can be green and we can spot other
-# regressions until this work is complete
 [$system==aix]
-test-fs-watch-enoent                 : FAIL, PASS
-test-fs-watch-encoding               : FAIL, PASS
+
+[$system==ibmi]
+# https://github.com/nodejs/node/pull/30819
+test-child-process-fork-net-server: SKIP
+test-cli-node-options: SKIP
+test-cluster-shared-leak: SKIP
+test-http-writable-true-after-close: SKIP
+test-http2-connect-method: SKIP
+test-net-error-twice: SKIP
+# https://github.com/libuv/libuv/pull/2782
+test-net-allow-half-open: SKIP
+test-net-keepalive: SKIP
+test-net-persistent-keepalive: SKIP
+test-net-socket-close-after-end: SKIP
+test-net-socket-connect-without-cb: SKIP
+test-net-socket-connecting: SKIP
+test-net-socket-ready-without-cb: SKIP
+test-net-write-after-end-nt: SKIP
+test-tls-env-extra-ca: SKIP
+# https://github.com/nodejs/node/pull/34209
+test-dgram-error-message-address: SKIP
+# https://github.com/nodejs/node/issues/36929
+test-crypto-secure-heap: SKIP
+# https://github.com/nodejs/node/issues/36925
+test-fs-read-type: SKIP

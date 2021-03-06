@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -6,7 +6,7 @@
 *   Corporation and others.  All Rights Reserved.
 *******************************************************************************
 *   file name:  ucharstriebuilder.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -287,7 +287,7 @@ UCharsTrieBuilder::indexOfElementWithNextUnit(int32_t i, int32_t unitIndex, UCha
 
 UCharsTrieBuilder::UCTLinearMatchNode::UCTLinearMatchNode(const UChar *units, int32_t len, Node *nextNode)
         : LinearMatchNode(len, nextNode), s(units) {
-    hash=hash*37+ustr_hashUCharsN(units, len);
+    hash=hash*37u+ustr_hashUCharsN(units, len);
 }
 
 UBool

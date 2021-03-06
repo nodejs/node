@@ -4,11 +4,16 @@
 
 // Flags: --allow-natives-syntax
 
-function foo(x) { return x | x; }
+function foo(x) {
+  return x | x;
+}
 foo(1);
 foo(2);
 
-function bar(x) { foo(x); }
+function bar(x) {
+  foo(x);
+};
+%PrepareFunctionForOptimization(bar);
 %OptimizeFunctionOnNextCall(bar);
 
 assertThrows(() => bar(Symbol.toPrimitive));

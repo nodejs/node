@@ -5,15 +5,22 @@
 // Flags: --allow-natives-syntax
 
 function deepEquals(a, b) {
-  if (a === b) { if (a === 0) return (1 / a) === (1 / b); return true; }
+  if (a === b) {
+    if (a === 0) return 1 / a === 1 / b;
+    return true;
+  }
   if (typeof a != typeof b) return false;
   if (typeof a == "number") return isNaN(a) && isNaN(b);
   if (typeof a !== "object" && typeof a !== "function") return false;
-  if (objectClass === "RegExp") { return (a.toString() === b.toString()); }
+  if (objectClass === 'RegExp') {
+    return a.toString() === b.toString();
+  }
   if (objectClass === "Function") return false;
   if (objectClass === "Array") {
     var elementsCount = 0;
-    if (a.length != b.length) { return false; }
+    if (a.length != b.length) {
+      return false;
+    }
     for (var i = 0; i < a.length; i++) {
       if (!deepEquals(a[i], b[i])) return false;
     }
@@ -21,14 +28,14 @@ function deepEquals(a, b) {
   }
 }
 
-
-function __f_1(){
+function __f_1() {
   var __v_0 = [];
-  for(var i=0; i<2; i++){
-    __v_0.push([])
+  for (var i = 0; i < 2; i++) {
+    __v_0.push([]);
     deepEquals(2, __v_0.length);
   }
-}
+};
+%PrepareFunctionForOptimization(__f_1);
 __f_1();
 %OptimizeFunctionOnNextCall(__f_1);
 __f_1();

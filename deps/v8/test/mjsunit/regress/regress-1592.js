@@ -27,15 +27,15 @@
 
 // Flags: --allow-natives-syntax
 
-var f = {
-  apply: function(a, b) {}
-};
+var f = {apply: function(a, b) {}};
 
 function test(a) {
   f.apply(this, arguments);
 }
 
 // Initialize ICs.
+;
+%PrepareFunctionForOptimization(test);
 test(1);
 test(1);
 

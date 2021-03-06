@@ -1,29 +1,27 @@
 'use strict';
-var common = require('../common.js');
-var path = require('path');
-var v8 = require('v8');
+const common = require('../common.js');
+const { win32 } = require('path');
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   paths: [
-    ['C:\\foo', 'bar', '', 'baz\\asdf', 'quux', '..'].join('|')
+    ['C:\\foo', 'bar', '', 'baz\\asdf', 'quux', '..'].join('|'),
   ],
-  n: [1e6]
+  n: [1e5]
 });
 
-function main(conf) {
-  var n = +conf.n;
-  var p = path.win32;
-  var args = ('' + conf.paths).split('|');
-
-  // Force optimization before starting the benchmark
-  p.join.apply(null, args);
-  v8.setFlagsFromString('--allow_natives_syntax');
-  eval('%OptimizeFunctionOnNextCall(p.join)');
-  p.join.apply(null, args);
+function main({ n, paths }) {
+  const args = paths.split('|');
+  const copy = [...args];
+  const orig = copy[1];
 
   bench.start();
-  for (var i = 0; i < n; i++) {
-    p.join.apply(null, args);
+  for (let i = 0; i < n; i++) {
+    if (i % 3 === 0) {
+      copy[1] = `${orig}${i}`;
+      win32.join(...copy);
+    } else {
+      win32.join(...args);
+    }
   }
   bench.end(n);
 }

@@ -1,0 +1,100 @@
+env:
+  es6: true
+
+rules:
+  prefer-object-spread: error
+  no-buffer-constructor: error
+  no-mixed-operators:
+    - error
+    - groups: [[ "&&", "||" ]]
+  no-restricted-syntax:
+    # Config copied from .eslintrc.js
+    - error
+    - selector: "CallExpression[callee.object.name='assert']:not([callee.property.name='ok']):not([callee.property.name='fail']):not([callee.property.name='ifError'])"
+      message: "Please only use simple assertions in ./lib"
+    - selector: "CallExpression[callee.name='setTimeout'][arguments.length<2]"
+      message: "setTimeout() must be invoked with at least two arguments."
+    - selector: "CallExpression[callee.name='setInterval'][arguments.length<2]"
+      message: "setInterval() must be invoked with at least 2 arguments."
+    - selector: "ThrowStatement > CallExpression[callee.name=/Error$/]"
+      message: "Use new keyword when throwing an Error."
+    # Config specific to lib
+    - selector: "NewExpression[callee.name=/Error$/]:not([callee.name=/^(AssertionError|NghttpError|AbortError)$/])"
+      message: "Use an error exported by the internal/errors module."
+    - selector: "CallExpression[callee.object.name='Error'][callee.property.name='captureStackTrace']"
+      message: "Please use `require('internal/errors').hideStackFrames()` instead."
+    - selector: "AssignmentExpression:matches([left.name='prepareStackTrace'], [left.property.name='prepareStackTrace'])"
+      message: "Use 'overrideStackTrace' from 'lib/internal/errors.js' instead of 'Error.prepareStackTrace'."
+  # Custom rules in tools/eslint-rules
+  node-core/lowercase-name-for-primitive: error
+  node-core/non-ascii-character: error
+  node-core/no-array-destructuring: error
+  node-core/prefer-primordials:
+    - error
+    - name: Array
+    - name: ArrayBuffer
+    - name: BigInt
+    - name: BigInt64Array
+    - name: BigUint64Array
+    - name: Boolean
+    - name: DataView
+    - name: Date
+    - name: decodeURI
+    - name: decodeURIComponent
+    - name: encodeURI
+    - name: encodeURIComponent
+    - name: Error
+      ignore:
+        - prepareStackTrace
+        - stackTraceLimit
+    - name: EvalError
+    - name: Float32Array
+    - name: Float64Array
+    - name: Function
+    - name: Int16Array
+    - name: Int32Array
+    - name: Int8Array
+    - name: isFinite
+      into: Number
+    - name: isNaN
+      into: Number
+    - name: JSON
+    - name: Map
+      into: Safe
+    - name: Math
+    - name: Number
+    - name: Object
+    - name: parseFloat
+      into: Number
+    - name: parseInt
+      into: Number
+    - name: Promise
+    - name: RangeError
+    - name: ReferenceError
+    - name: Reflect
+    - name: RegExp
+    - name: Set
+      into: Safe
+    - name: String
+    - name: Symbol
+    - name: SyntaxError
+    - name: TypeError
+    - name: Uint16Array
+    - name: Uint32Array
+    - name: Uint8Array
+    - name: Uint8ClampedArray
+    - name: URIError
+    - name: WeakMap
+      into: Safe
+    - name: WeakSet
+      into: Safe
+globals:
+  Intl: false
+  # Parameters passed to internal modules
+  global: false
+  require: false
+  process: false
+  exports: false
+  module: false
+  internalBinding: false
+  primordials: false

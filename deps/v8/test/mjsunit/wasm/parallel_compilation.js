@@ -4,7 +4,6 @@
 
 // Flags: --expose-wasm --wasm-num-compilation-tasks=10
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 function assertModule(module, memsize) {
@@ -20,13 +19,16 @@ function assertModule(module, memsize) {
   assertFalse(mem === null);
   assertFalse(mem === 0);
   assertEquals("object", typeof mem);
-  assertTrue(mem instanceof ArrayBuffer);
+  assertTrue(mem instanceof WebAssembly.Memory);
+  var buf = mem.buffer;
+  assertTrue(buf instanceof ArrayBuffer);
+  assertEquals(memsize, buf.byteLength);
   for (var i = 0; i < 4; i++) {
     module.exports.memory = 0;  // should be ignored
-    assertEquals(mem, module.exports.memory);
+    mem.buffer = 0; // should be ignored
+    assertSame(mem, module.exports.memory);
+    assertSame(buf, mem.buffer);
   }
-
-  assertEquals(memsize, module.exports.memory.byteLength);
 }
 
 function assertFunction(module, func) {
@@ -48,7 +50,7 @@ function assertFunction(module, func) {
   for (i = 0; i < 1000; i++) {
     builder.addFunction("sub" + i, kSig_i_i)
       .addBody([                // --
-        kExprGetLocal, 0,       // --
+        kExprLocalGet, 0,       // --
         kExprI32Const, i % 61,  // --
         kExprI32Sub])           // --
       .exportFunc()
@@ -72,8 +74,8 @@ function assertFunction(module, func) {
 
   f[0] = builder.addFunction("add0", kSig_i_ii)
   .addBody([
-            kExprGetLocal, 0,             // --
-            kExprGetLocal, 1,             // --
+            kExprLocalGet, 0,             // --
+            kExprLocalGet, 1,             // --
             kExprI32Add,                  // --
           ])
           .exportFunc()
@@ -82,9 +84,9 @@ function assertFunction(module, func) {
   for (i = 1; i < 256; i++) {
     f[i] = builder.addFunction("add" + i, kSig_i_ii)
       .addBody([                                            // --
-        kExprGetLocal, 0,                                   // --
-        kExprGetLocal, 1,                                   // --
-        kExprCallFunction, kArity2, f[i >>> 1].index])      // --
+        kExprLocalGet, 0,                                   // --
+        kExprLocalGet, 1,                                   // --
+        kExprCallFunction, f[i >>> 1].index])      // --
       .exportFunc()
   }
   var module = builder.instantiate();

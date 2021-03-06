@@ -68,6 +68,7 @@
       return r;
     }
 
+    %PrepareFunctionForOptimization(A);
     assertEquals("ABC", A(1,2));
     assertEquals("ABC", A(1,2));
     %OptimizeFunctionOnNextCall(A);
@@ -76,11 +77,11 @@
     assertEquals("ABC", A(1,2));
 
     %DeoptimizeFunction(A);
-    %ClearFunctionTypeFeedback(A);
+    %ClearFunctionFeedback(A);
     %DeoptimizeFunction(B);
-    %ClearFunctionTypeFeedback(B);
+    %ClearFunctionFeedback(B);
     %DeoptimizeFunction(C);
-    %ClearFunctionTypeFeedback(C);
+    %ClearFunctionFeedback(C);
   }
 
   for (var a = 1; a <= 3; a++) {

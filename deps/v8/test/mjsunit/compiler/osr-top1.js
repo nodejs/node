@@ -4,13 +4,17 @@
 
 // Flags: --use-osr --allow-natives-syntax
 
-var sum = 0;
-for (var i = 0; i < 10000; i++) {
-  if (i == 100) %OptimizeOsr();
-  var x = i + 2;
-  var y = x + 5;
-  var z = y + 3;
-  sum += z;
-}
+function f() {
+  var sum = 0;
+  for (var i = 0; i < 10000; i++) {
+    if (i == 100) %OptimizeOsr();
+    var x = i + 2;
+    var y = x + 5;
+    var z = y + 3;
+    sum += z;
+  }
 
-assertEquals(50095000, sum);
+  assertEquals(50095000, sum);
+}
+%PrepareFunctionForOptimization(f);
+f();

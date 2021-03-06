@@ -30,12 +30,14 @@
 var non_const_true = true;
 
 function f(o) {
-  return (non_const_true && (o.val == null || false));
+  return non_const_true && (o.val == null || false);
 }
 
 // Create an object with a constant function in another realm.
+;
+%PrepareFunctionForOptimization(f);
 var realm = Realm.create();
-var realmObject = Realm.eval(realm, "function g() {}; var o = { val:g }; o;")
+var realmObject = Realm.eval(realm, 'function g() {}; var o = { val:g }; o;');
 
 // Make the CompareNil IC in the function monomorphic.
 assertFalse(f(realmObject));

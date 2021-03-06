@@ -1,72 +1,57 @@
 'use strict';
-
+// Flags: --expose-internals
 const common = require('../common');
-const icu = getPunycode();
+
+if (!common.hasIntl)
+  common.skip('missing Intl');
+
+const { internalBinding } = require('internal/test/binding');
+const icu = internalBinding('icu');
 const assert = require('assert');
 
-function getPunycode() {
-  try {
-    return process.binding('icu');
-  } catch (err) {
-    return undefined;
+// Test hasConverter method
+assert(icu.hasConverter('utf-8'),
+       'hasConverter should report converter exists for utf-8');
+assert(!icu.hasConverter('x'),
+       'hasConverter should report converter does not exist for x');
+
+const tests = require('../fixtures/url-idna.js');
+const fixtures = require('../fixtures/icu-punycode-toascii.json');
+
+{
+  for (const [i, { ascii, unicode }] of tests.entries()) {
+    assert.strictEqual(ascii, icu.toASCII(unicode), `toASCII(${i + 1})`);
+    assert.strictEqual(unicode, icu.toUnicode(ascii), `toUnicode(${i + 1})`);
+    assert.strictEqual(ascii, icu.toASCII(icu.toUnicode(ascii)),
+                       `toASCII(toUnicode(${i + 1}))`);
+    assert.strictEqual(unicode, icu.toUnicode(icu.toASCII(unicode)),
+                       `toUnicode(toASCII(${i + 1}))`);
   }
 }
 
-if (!icu) {
-  common.skip('icu punycode tests because ICU is not present.');
-  return;
+{
+  for (const [i, test] of fixtures.entries()) {
+    if (typeof test === 'string')
+      continue; // skip comments
+    const { comment, input, output } = test;
+    let caseComment = `case ${i + 1}`;
+    if (comment)
+      caseComment += ` (${comment})`;
+    if (output === null) {
+      assert.throws(
+        () => icu.toASCII(input),
+        {
+          code: 'ERR_INVALID_ARG_VALUE',
+          name: 'TypeError',
+          message: 'Cannot convert name to ASCII'
+        }
+      );
+      icu.toASCII(input, true); // Should not throw.
+    } else {
+      assert.strictEqual(icu.toASCII(input), output, `ToASCII ${caseComment}`);
+      assert.strictEqual(icu.toASCII(input, true), output,
+                         `ToASCII ${caseComment} in lenient mode`);
+    }
+    icu.toUnicode(input); // Should not throw.
+  }
 }
-
-// Credit for list: http://www.i18nguy.com/markup/idna-examples.html
-const tests = [
-  'افغانستا.icom.museum',
-  'الجزائر.icom.museum',
-  'österreich.icom.museum',
-  'বাংলাদেশ.icom.museum',
-  'беларусь.icom.museum',
-  'belgië.icom.museum',
-  'българия.icom.museum',
-  'تشادر.icom.museum',
-  '中国.icom.museum',
-  'القمر.icom.museum',
-  'κυπρος.icom.museum',
-  'českárepublika.icom.museum',
-  'مصر.icom.museum',
-  'ελλάδα.icom.museum',
-  'magyarország.icom.museum',
-  'ísland.icom.museum',
-  'भारत.icom.museum',
-  'ايران.icom.museum',
-  'éire.icom.museum',
-  'איקו״ם.ישראל.museum',
-  '日本.icom.museum',
-  'الأردن.icom.museum',
-  'қазақстан.icom.museum',
-  '한국.icom.museum',
-  'кыргызстан.icom.museum',
-  'ລາວ.icom.museum',
-  'لبنان.icom.museum',
-  'македонија.icom.museum',
-  'موريتانيا.icom.museum',
-  'méxico.icom.museum',
-  'монголулс.icom.museum',
-  'المغرب.icom.museum',
-  'नेपाल.icom.museum',
-  'عمان.icom.museum',
-  'قطر.icom.museum',
-  'românia.icom.museum',
-  'россия.иком.museum',
-  'србијаицрнагора.иком.museum',
-  'இலங்கை.icom.museum',
-  'españa.icom.museum',
-  'ไทย.icom.museum',
-  'تونس.icom.museum',
-  'türkiye.icom.museum',
-  'украина.icom.museum',
-  'việtnam.icom.museum'
-];
-
-// Testing the roundtrip
-tests.forEach((i) => {
-  assert.strictEqual(i, icu.toUnicode(icu.toASCII(i)));
-});

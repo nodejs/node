@@ -1,11 +1,11 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2014, International Business Machines
 * Corporation and others.  All Rights Reserved.
 *******************************************************************************
-* loadednormalizer2impl.h
+* norm2allmodes.h
 *
 * created on: 2014sep07
 * created by: Markus W. Scherer
@@ -18,7 +18,9 @@
 
 #if !UCONFIG_NO_NORMALIZATION
 
+#include "unicode/edits.h"
 #include "unicode/normalizer2.h"
+#include "unicode/stringoptions.h"
 #include "unicode/unistr.h"
 #include "cpputils.h"
 #include "normalizer2impl.h"
@@ -63,13 +65,13 @@ public:
     normalizeSecondAndAppend(UnicodeString &first,
                              const UnicodeString &second,
                              UErrorCode &errorCode) const {
-        return normalizeSecondAndAppend(first, second, TRUE, errorCode);
+        return normalizeSecondAndAppend(first, second, true, errorCode);
     }
     virtual UnicodeString &
     append(UnicodeString &first,
            const UnicodeString &second,
            UErrorCode &errorCode) const {
-        return normalizeSecondAndAppend(first, second, FALSE, errorCode);
+        return normalizeSecondAndAppend(first, second, false, errorCode);
     }
     UnicodeString &
     normalizeSecondAndAppend(UnicodeString &first,
@@ -110,14 +112,14 @@ public:
         int32_t length;
         const UChar *d=impl.getDecomposition(c, buffer, length);
         if(d==NULL) {
-            return FALSE;
+            return false;
         }
         if(d==buffer) {
             decomposition.setTo(buffer, length);  // copy the string (Jamos from Hangul syllable c)
         } else {
-            decomposition.setTo(FALSE, d, length);  // read-only alias
+            decomposition.setTo(false, d, length);  // read-only alias
         }
-        return TRUE;
+        return true;
     }
     virtual UBool
     getRawDecomposition(UChar32 c, UnicodeString &decomposition) const {
@@ -125,14 +127,14 @@ public:
         int32_t length;
         const UChar *d=impl.getRawDecomposition(c, buffer, length);
         if(d==NULL) {
-            return FALSE;
+            return false;
         }
         if(d==buffer) {
             decomposition.setTo(buffer, length);  // copy the string (algorithmic decomposition)
         } else {
-            decomposition.setTo(FALSE, d, length);  // read-only alias
+            decomposition.setTo(false, d, length);  // read-only alias
         }
-        return TRUE;
+        return true;
     }
     virtual UChar32
     composePair(UChar32 a, UChar32 b) const {
@@ -148,12 +150,12 @@ public:
     virtual UBool
     isNormalized(const UnicodeString &s, UErrorCode &errorCode) const {
         if(U_FAILURE(errorCode)) {
-            return FALSE;
+            return false;
         }
         const UChar *sArray=s.getBuffer();
         if(sArray==NULL) {
             errorCode=U_ILLEGAL_ARGUMENT_ERROR;
-            return FALSE;
+            return false;
         }
         const UChar *sLimit=sArray+s.length();
         return sLimit==spanQuickCheckYes(sArray, sLimit, errorCode);
@@ -210,8 +212,8 @@ private:
     virtual UNormalizationCheckResult getQuickCheck(UChar32 c) const {
         return impl.isDecompYes(impl.getNorm16(c)) ? UNORM_YES : UNORM_NO;
     }
-    virtual UBool hasBoundaryBefore(UChar32 c) const { return impl.hasDecompBoundary(c, TRUE); }
-    virtual UBool hasBoundaryAfter(UChar32 c) const { return impl.hasDecompBoundary(c, FALSE); }
+    virtual UBool hasBoundaryBefore(UChar32 c) const { return impl.hasDecompBoundaryBefore(c); }
+    virtual UBool hasBoundaryAfter(UChar32 c) const { return impl.hasDecompBoundaryAfter(c); }
     virtual UBool isInert(UChar32 c) const { return impl.isDecompInert(c); }
 };
 
@@ -224,36 +226,60 @@ public:
 private:
     virtual void
     normalize(const UChar *src, const UChar *limit,
-              ReorderingBuffer &buffer, UErrorCode &errorCode) const {
-        impl.compose(src, limit, onlyContiguous, TRUE, buffer, errorCode);
+              ReorderingBuffer &buffer, UErrorCode &errorCode) const U_OVERRIDE {
+        impl.compose(src, limit, onlyContiguous, true, buffer, errorCode);
     }
     using Normalizer2WithImpl::normalize;  // Avoid warning about hiding base class function.
+
+    void
+    normalizeUTF8(uint32_t options, StringPiece src, ByteSink &sink,
+                  Edits *edits, UErrorCode &errorCode) const U_OVERRIDE {
+        if (U_FAILURE(errorCode)) {
+            return;
+        }
+        if (edits != nullptr && (options & U_EDITS_NO_RESET) == 0) {
+            edits->reset();
+        }
+        const uint8_t *s = reinterpret_cast<const uint8_t *>(src.data());
+        impl.composeUTF8(options, onlyContiguous, s, s + src.length(),
+                         &sink, edits, errorCode);
+        sink.Flush();
+    }
+
     virtual void
     normalizeAndAppend(const UChar *src, const UChar *limit, UBool doNormalize,
                        UnicodeString &safeMiddle,
-                       ReorderingBuffer &buffer, UErrorCode &errorCode) const {
+                       ReorderingBuffer &buffer, UErrorCode &errorCode) const U_OVERRIDE {
         impl.composeAndAppend(src, limit, doNormalize, onlyContiguous, safeMiddle, buffer, errorCode);
     }
 
     virtual UBool
-    isNormalized(const UnicodeString &s, UErrorCode &errorCode) const {
+    isNormalized(const UnicodeString &s, UErrorCode &errorCode) const U_OVERRIDE {
         if(U_FAILURE(errorCode)) {
-            return FALSE;
+            return false;
         }
         const UChar *sArray=s.getBuffer();
         if(sArray==NULL) {
             errorCode=U_ILLEGAL_ARGUMENT_ERROR;
-            return FALSE;
+            return false;
         }
         UnicodeString temp;
         ReorderingBuffer buffer(impl, temp);
         if(!buffer.init(5, errorCode)) {  // small destCapacity for substring normalization
-            return FALSE;
+            return false;
         }
-        return impl.compose(sArray, sArray+s.length(), onlyContiguous, FALSE, buffer, errorCode);
+        return impl.compose(sArray, sArray+s.length(), onlyContiguous, false, buffer, errorCode);
+    }
+    virtual UBool
+    isNormalizedUTF8(StringPiece sp, UErrorCode &errorCode) const U_OVERRIDE {
+        if(U_FAILURE(errorCode)) {
+            return false;
+        }
+        const uint8_t *s = reinterpret_cast<const uint8_t *>(sp.data());
+        return impl.composeUTF8(0, onlyContiguous, s, s + sp.length(), nullptr, nullptr, errorCode);
     }
     virtual UNormalizationCheckResult
-    quickCheck(const UnicodeString &s, UErrorCode &errorCode) const {
+    quickCheck(const UnicodeString &s, UErrorCode &errorCode) const U_OVERRIDE {
         if(U_FAILURE(errorCode)) {
             return UNORM_MAYBE;
         }
@@ -267,21 +293,21 @@ private:
         return qcResult;
     }
     virtual const UChar *
-    spanQuickCheckYes(const UChar *src, const UChar *limit, UErrorCode &) const {
+    spanQuickCheckYes(const UChar *src, const UChar *limit, UErrorCode &) const U_OVERRIDE {
         return impl.composeQuickCheck(src, limit, onlyContiguous, NULL);
     }
     using Normalizer2WithImpl::spanQuickCheckYes;  // Avoid warning about hiding base class function.
-    virtual UNormalizationCheckResult getQuickCheck(UChar32 c) const {
+    virtual UNormalizationCheckResult getQuickCheck(UChar32 c) const U_OVERRIDE {
         return impl.getCompQuickCheck(impl.getNorm16(c));
     }
-    virtual UBool hasBoundaryBefore(UChar32 c) const {
+    virtual UBool hasBoundaryBefore(UChar32 c) const U_OVERRIDE {
         return impl.hasCompBoundaryBefore(c);
     }
-    virtual UBool hasBoundaryAfter(UChar32 c) const {
-        return impl.hasCompBoundaryAfter(c, onlyContiguous, FALSE);
+    virtual UBool hasBoundaryAfter(UChar32 c) const U_OVERRIDE {
+        return impl.hasCompBoundaryAfter(c, onlyContiguous);
     }
-    virtual UBool isInert(UChar32 c) const {
-        return impl.hasCompBoundaryAfter(c, onlyContiguous, TRUE);
+    virtual UBool isInert(UChar32 c) const U_OVERRIDE {
+        return impl.isCompInert(c, onlyContiguous);
     }
 
     const UBool onlyContiguous;
@@ -317,7 +343,7 @@ private:
 
 struct Norm2AllModes : public UMemory {
     Norm2AllModes(Normalizer2Impl *i)
-            : impl(i), comp(*i, FALSE), decomp(*i), fcd(*i), fcc(*i, TRUE) {}
+            : impl(i), comp(*i, false), decomp(*i), fcd(*i), fcc(*i, true) {}
     ~Norm2AllModes();
 
     static Norm2AllModes *createInstance(Normalizer2Impl *impl, UErrorCode &errorCode);

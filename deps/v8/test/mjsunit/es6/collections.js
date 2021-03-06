@@ -307,17 +307,6 @@ assertTrue(WeakSet.prototype.has instanceof Function)
 assertTrue(WeakSet.prototype.delete instanceof Function)
 
 
-// Test class of instance and prototype.
-assertEquals("Set", %_ClassOf(new Set))
-assertEquals("Object", %_ClassOf(Set.prototype))
-assertEquals("Map", %_ClassOf(new Map))
-assertEquals("Object", %_ClassOf(Map.prototype))
-assertEquals("WeakMap", %_ClassOf(new WeakMap))
-assertEquals("Object", %_ClassOf(WeakMap.prototype))
-assertEquals("WeakSet", %_ClassOf(new WeakSet))
-assertEquals("Object", %_ClassOf(WeakMap.prototype))
-
-
 // Test name of constructor.
 assertEquals("Set", Set.name);
 assertEquals("Map", Map.name);

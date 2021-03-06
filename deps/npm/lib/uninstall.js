@@ -1,76 +1,63 @@
-'use strict'
-// remove a package.
+const { resolve } = require('path')
+const Arborist = require('@npmcli/arborist')
+const rpj = require('read-package-json-fast')
 
-module.exports = uninstall
-module.exports.Uninstaller = Uninstaller
+const usageUtil = require('./utils/usage.js')
+const reifyFinish = require('./utils/reify-finish.js')
+const completion = require('./utils/completion/installed-shallow.js')
 
-var util = require('util')
-var path = require('path')
-var validate = require('aproba')
-var chain = require('slide').chain
-var readJson = require('read-package-json')
-var npm = require('./npm.js')
-var Installer = require('./install.js').Installer
-var getSaveType = require('./install/save.js').getSaveType
-var removeDeps = require('./install/deps.js').removeDeps
-var loadExtraneous = require('./install/deps.js').loadExtraneous
-var log = require('npmlog')
-var usage = require('./utils/usage')
+class Uninstall {
+  constructor (npm) {
+    this.npm = npm
+  }
 
-uninstall.usage = usage(
-  'uninstall',
-  'npm uninstall [<@scope>/]<pkg>[@<version>]... [--save|--save-dev|--save-optional]'
-)
+  get usage () {
+    return usageUtil(
+      'uninstall',
+      'npm uninstall [<@scope>/]<pkg>[@<version>]... [-S|--save|--no-save]'
+    )
+  }
 
-uninstall.completion = require('./utils/completion/installed-shallow.js')
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  async completion (opts) {
+    return completion(this.npm, opts)
+  }
 
-function uninstall (args, cb) {
-  validate('AF', arguments)
-  // the /path/to/node_modules/..
-  var dryrun = !!npm.config.get('dry-run')
+  exec (args, cb) {
+    this.uninstall(args).then(() => cb()).catch(cb)
+  }
 
-  if (args.length === 1 && args[0] === '.') args = []
-  args = args.filter(function (a) {
-    return path.resolve(a) !== where
-  })
+  async uninstall (args) {
+    // the /path/to/node_modules/..
+    const { global, prefix } = this.npm.flatOptions
+    const path = global ? resolve(this.npm.globalDir, '..') : prefix
 
-  var where = npm.config.get('global') || !args.length
-            ? path.resolve(npm.globalDir, '..')
-            : npm.prefix
+    if (!args.length) {
+      if (!global)
+        throw new Error('Must provide a package name to remove')
+      else {
+        let pkg
 
-  if (args.length) {
-    new Uninstaller(where, dryrun, args).run(cb)
-  } else {
-    // remove this package from the global space, if it's installed there
-    readJson(path.resolve(npm.localPrefix, 'package.json'), function (er, pkg) {
-      if (er && er.code !== 'ENOENT' && er.code !== 'ENOTDIR') return cb(er)
-      if (er) return cb(uninstall.usage)
-      new Uninstaller(where, dryrun, [pkg.name]).run(cb)
+        try {
+          pkg = await rpj(resolve(this.npm.localPrefix, 'package.json'))
+        } catch (er) {
+          if (er.code !== 'ENOENT' && er.code !== 'ENOTDIR')
+            throw er
+          else
+            throw this.usage
+        }
+
+        args.push(pkg.name)
+      }
+    }
+
+    const arb = new Arborist({ ...this.npm.flatOptions, path })
+
+    await arb.reify({
+      ...this.npm.flatOptions,
+      rm: args,
     })
+    await reifyFinish(this.npm, arb)
   }
 }
-
-function Uninstaller (where, dryrun, args) {
-  validate('SBA', arguments)
-  Installer.call(this, where, dryrun, args)
-}
-util.inherits(Uninstaller, Installer)
-
-Uninstaller.prototype.loadArgMetadata = function (next) {
-  this.args = this.args.map(function (arg) { return {name: arg} })
-  next()
-}
-
-Uninstaller.prototype.loadAllDepsIntoIdealTree = function (cb) {
-  validate('F', arguments)
-  log.silly('uninstall', 'loadAllDepsIntoIdealtree')
-  var saveDeps = getSaveType(this.args)
-
-  var cg = this.progress.loadAllDepsIntoIdealTree
-  var steps = []
-
-  steps.push(
-    [removeDeps, this.args, this.idealTree, saveDeps, cg.newGroup('removeDeps')],
-    [loadExtraneous, this.idealTree, cg.newGroup('loadExtraneous')])
-  chain(steps, cb)
-}
+module.exports = Uninstall

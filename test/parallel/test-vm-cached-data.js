@@ -1,9 +1,8 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const vm = require('vm');
 const spawnSync = require('child_process').spawnSync;
-const Buffer = require('buffer').Buffer;
 
 function getSource(tag) {
   return `(function ${tag}() { return '${tag}'; })`;
@@ -15,8 +14,8 @@ function produce(source, count) {
 
   const out = spawnSync(process.execPath, [ '-e', `
     'use strict';
-    var assert = require('assert');
-    var vm = require('vm');
+    const assert = require('assert');
+    const vm = require('vm');
 
     var data;
     for (var i = 0; i < ${count}; i++) {
@@ -32,7 +31,7 @@ function produce(source, count) {
     console.log(data);
   `, source]);
 
-  assert.equal(out.status, 0, out.stderr + '');
+  assert.strictEqual(out.status, 0, String(out.stderr));
 
   return Buffer.from(out.stdout.toString(), 'base64');
 }
@@ -42,12 +41,14 @@ function testProduceConsume() {
 
   const data = produce(source);
 
-  // It should consume code cache
-  const script = new vm.Script(source, {
-    cachedData: data
-  });
-  assert(!script.cachedDataRejected);
-  assert.equal(script.runInThisContext()(), 'original');
+  for (const cachedData of common.getArrayBufferViews(data)) {
+    // It should consume code cache
+    const script = new vm.Script(source, {
+      cachedData
+    });
+    assert(!script.cachedDataRejected);
+    assert.strictEqual(script.runInThisContext()(), 'original');
+  }
 }
 testProduceConsume();
 
@@ -68,7 +69,7 @@ function testRejectInvalid() {
     cachedData: data
   });
   assert(script.cachedDataRejected);
-  assert.equal(script.runInThisContext()(), 'invalid_1');
+  assert.strictEqual(script.runInThisContext()(), 'invalid_1');
 }
 testRejectInvalid();
 
@@ -89,4 +90,8 @@ assert.throws(() => {
   new vm.Script('function abc() {}', {
     cachedData: 'ohai'
   });
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  name: 'TypeError',
+  message: /must be an instance of Buffer, TypedArray, or DataView/
 });

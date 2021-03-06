@@ -45,8 +45,9 @@
 #define _WIN32_WINNT 0x501
 #endif  // __MINGW32__
 #if !defined(__MINGW32__) || defined(__MINGW64_VERSION_MAJOR)
-#include <dbghelp.h>  // For SymLoadModule64 and al.
-#include <errno.h>  // For STRUNCATE
+#include <dbghelp.h>         // For SymLoadModule64 and al.
+#include <errno.h>           // For STRUNCATE
+#include <versionhelpers.h>  // For IsWindows8OrGreater().
 #endif  // !defined(__MINGW32__) || defined(__MINGW64_VERSION_MAJOR)
 #include <limits.h>  // For INT_MAX and al.
 #include <tlhelp32.h>  // For Module32First and al.

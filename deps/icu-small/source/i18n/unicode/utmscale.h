@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -283,10 +283,14 @@ typedef enum UDateTimeScale {
      */
     UDTS_UNIX_MICROSECONDS_TIME,
 
+#ifndef U_HIDE_DEPRECATED_API
     /**
      * The first unused time scale value. The limit of this enum
+     * @deprecated ICU 59 The numeric value may change over time, see ICU ticket #12420.
      */
     UDTS_MAX_SCALE
+#endif  /* U_HIDE_DEPRECATED_API */
+
 } UDateTimeScale;
 
 /**
@@ -423,12 +427,15 @@ typedef enum UTimeScaleValue {
 
 #endif /* U_HIDE_INTERNAL_API */
 
+#ifndef U_HIDE_DEPRECATED_API
     /**
      * The number of time scale values, in other words limit of this enum.
      *
      * @see utmscale_getTimeScaleValue
+     * @deprecated ICU 59 The numeric value may change over time, see ICU ticket #12420.
      */
     UTSV_MAX_SCALE_VALUE=11
+#endif  /* U_HIDE_DEPRECATED_API */
 
 } UTimeScaleValue;
 
@@ -442,7 +449,7 @@ typedef enum UTimeScaleValue {
  *
  * @stable ICU 3.2
  */
-U_STABLE int64_t U_EXPORT2
+U_CAPI int64_t U_EXPORT2
     utmscale_getTimeScaleValue(UDateTimeScale timeScale, UTimeScaleValue value, UErrorCode *status);
 
 /* Conversion to 'universal time scale' */
@@ -458,7 +465,7 @@ U_STABLE int64_t U_EXPORT2
  *
  * @stable ICU 3.2
  */
-U_STABLE int64_t U_EXPORT2
+U_CAPI int64_t U_EXPORT2
     utmscale_fromInt64(int64_t otherTime, UDateTimeScale timeScale, UErrorCode *status);
 
 /* Conversion from 'universal time scale' */
@@ -474,7 +481,7 @@ U_STABLE int64_t U_EXPORT2
  *
  * @stable ICU 3.2
  */
-U_STABLE int64_t U_EXPORT2
+U_CAPI int64_t U_EXPORT2
     utmscale_toInt64(int64_t universalTime, UDateTimeScale timeScale, UErrorCode *status);
 
 #endif /* #if !UCONFIG_NO_FORMATTING */

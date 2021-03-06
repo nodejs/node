@@ -12,6 +12,7 @@ function f() {
   return g(1, (%_DeoptimizeNow(), 2), 3);
 }
 
+%PrepareFunctionForOptimization(f);
 f();
 f();
 %OptimizeFunctionOnNextCall(f);

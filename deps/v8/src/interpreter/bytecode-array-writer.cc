@@ -4,11 +4,16 @@
 
 #include "src/interpreter/bytecode-array-writer.h"
 
-#include "src/api.h"
+#include "src/api/api-inl.h"
+#include "src/heap/local-factory-inl.h"
+#include "src/interpreter/bytecode-jump-table.h"
 #include "src/interpreter/bytecode-label.h"
+#include "src/interpreter/bytecode-node.h"
 #include "src/interpreter/bytecode-register.h"
+#include "src/interpreter/bytecode-source-info.h"
 #include "src/interpreter/constant-array-builder.h"
-#include "src/log.h"
+#include "src/interpreter/handler-table-builder.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -21,76 +26,196 @@ BytecodeArrayWriter::BytecodeArrayWriter(
     Zone* zone, ConstantArrayBuilder* constant_array_builder,
     SourcePositionTableBuilder::RecordingMode source_position_mode)
     : bytecodes_(zone),
-      max_register_count_(0),
       unbound_jumps_(0),
       source_position_table_builder_(zone, source_position_mode),
-      constant_array_builder_(constant_array_builder) {}
+      constant_array_builder_(constant_array_builder),
+      last_bytecode_(Bytecode::kIllegal),
+      last_bytecode_offset_(0),
+      last_bytecode_had_source_info_(false),
+      elide_noneffectful_bytecodes_(FLAG_ignition_elide_noneffectful_bytecodes),
+      exit_seen_in_block_(false) {
+  bytecodes_.reserve(512);  // Derived via experimentation.
+}
 
-// override
-BytecodeArrayWriter::~BytecodeArrayWriter() {}
-
-// override
+template <typename LocalIsolate>
 Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
-    Isolate* isolate, int fixed_register_count, int parameter_count,
-    Handle<FixedArray> handler_table) {
+    LocalIsolate* isolate, int register_count, int parameter_count,
+    Handle<ByteArray> handler_table) {
   DCHECK_EQ(0, unbound_jumps_);
 
   int bytecode_size = static_cast<int>(bytecodes()->size());
-
-  // All locals need a frame slot for the debugger, but may not be
-  // present in generated code.
-  int frame_size_for_locals = fixed_register_count * kPointerSize;
-  int frame_size_used = max_register_count() * kPointerSize;
-  int frame_size = std::max(frame_size_for_locals, frame_size_used);
+  int frame_size = register_count * kSystemPointerSize;
   Handle<FixedArray> constant_pool =
       constant_array_builder()->ToFixedArray(isolate);
   Handle<BytecodeArray> bytecode_array = isolate->factory()->NewBytecodeArray(
       bytecode_size, &bytecodes()->front(), frame_size, parameter_count,
       constant_pool);
   bytecode_array->set_handler_table(*handler_table);
-  Handle<ByteArray> source_position_table =
-      source_position_table_builder()->ToSourcePositionTable(
-          isolate, Handle<AbstractCode>::cast(bytecode_array));
-  bytecode_array->set_source_position_table(*source_position_table);
   return bytecode_array;
 }
 
-// override
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
+        Isolate* isolate, int register_count, int parameter_count,
+        Handle<ByteArray> handler_table);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
+        LocalIsolate* isolate, int register_count, int parameter_count,
+        Handle<ByteArray> handler_table);
+
+template <typename LocalIsolate>
+Handle<ByteArray> BytecodeArrayWriter::ToSourcePositionTable(
+    LocalIsolate* isolate) {
+  DCHECK(!source_position_table_builder_.Lazy());
+  Handle<ByteArray> source_position_table =
+      source_position_table_builder_.Omit()
+          ? isolate->factory()->empty_byte_array()
+          : source_position_table_builder_.ToSourcePositionTable(isolate);
+  return source_position_table;
+}
+
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<ByteArray> BytecodeArrayWriter::ToSourcePositionTable(
+        Isolate* isolate);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<ByteArray> BytecodeArrayWriter::ToSourcePositionTable(
+        LocalIsolate* isolate);
+
+#ifdef DEBUG
+int BytecodeArrayWriter::CheckBytecodeMatches(BytecodeArray bytecode) {
+  int mismatches = false;
+  int bytecode_size = static_cast<int>(bytecodes()->size());
+  const byte* bytecode_ptr = &bytecodes()->front();
+  if (bytecode_size != bytecode.length()) mismatches = true;
+
+  // If there's a mismatch only in the length of the bytecode (very unlikely)
+  // then the first mismatch will be the first extra bytecode.
+  int first_mismatch = std::min(bytecode_size, bytecode.length());
+  for (int i = 0; i < first_mismatch; ++i) {
+    if (bytecode_ptr[i] != bytecode.get(i)) {
+      mismatches = true;
+      first_mismatch = i;
+      break;
+    }
+  }
+
+  if (mismatches) {
+    return first_mismatch;
+  }
+  return -1;
+}
+#endif
+
 void BytecodeArrayWriter::Write(BytecodeNode* node) {
   DCHECK(!Bytecodes::IsJump(node->bytecode()));
+
+  if (exit_seen_in_block_) return;  // Don't emit dead code.
+  UpdateExitSeenInBlock(node->bytecode());
+  MaybeElideLastBytecode(node->bytecode(), node->source_info().is_valid());
+
   UpdateSourcePositionTable(node);
   EmitBytecode(node);
 }
 
-// override
 void BytecodeArrayWriter::WriteJump(BytecodeNode* node, BytecodeLabel* label) {
-  DCHECK(Bytecodes::IsJump(node->bytecode()));
+  DCHECK(Bytecodes::IsForwardJump(node->bytecode()));
+
+  if (exit_seen_in_block_) return;  // Don't emit dead code.
+  UpdateExitSeenInBlock(node->bytecode());
+  MaybeElideLastBytecode(node->bytecode(), node->source_info().is_valid());
+
   UpdateSourcePositionTable(node);
   EmitJump(node, label);
 }
 
-// override
-void BytecodeArrayWriter::BindLabel(BytecodeLabel* label) {
-  size_t current_offset = bytecodes()->size();
-  if (label->is_forward_target()) {
-    // An earlier jump instruction refers to this label. Update it's location.
-    PatchJump(current_offset, label->offset());
-    // Now treat as if the label will only be back referred to.
-  }
-  label->bind_to(current_offset);
+void BytecodeArrayWriter::WriteJumpLoop(BytecodeNode* node,
+                                        BytecodeLoopHeader* loop_header) {
+  DCHECK_EQ(node->bytecode(), Bytecode::kJumpLoop);
+
+  if (exit_seen_in_block_) return;  // Don't emit dead code.
+  UpdateExitSeenInBlock(node->bytecode());
+  MaybeElideLastBytecode(node->bytecode(), node->source_info().is_valid());
+
+  UpdateSourcePositionTable(node);
+  EmitJumpLoop(node, loop_header);
 }
 
-// override
-void BytecodeArrayWriter::BindLabel(const BytecodeLabel& target,
-                                    BytecodeLabel* label) {
-  DCHECK(!label->is_bound());
-  DCHECK(target.is_bound());
-  if (label->is_forward_target()) {
-    // An earlier jump instruction refers to this label. Update it's location.
-    PatchJump(target.offset(), label->offset());
-    // Now treat as if the label will only be back referred to.
-  }
-  label->bind_to(target.offset());
+void BytecodeArrayWriter::WriteSwitch(BytecodeNode* node,
+                                      BytecodeJumpTable* jump_table) {
+  DCHECK(Bytecodes::IsSwitch(node->bytecode()));
+
+  if (exit_seen_in_block_) return;  // Don't emit dead code.
+  UpdateExitSeenInBlock(node->bytecode());
+  MaybeElideLastBytecode(node->bytecode(), node->source_info().is_valid());
+
+  UpdateSourcePositionTable(node);
+  EmitSwitch(node, jump_table);
+}
+
+void BytecodeArrayWriter::BindLabel(BytecodeLabel* label) {
+  DCHECK(label->has_referrer_jump());
+  size_t current_offset = bytecodes()->size();
+  // Update the jump instruction's location.
+  PatchJump(current_offset, label->jump_offset());
+  label->bind();
+  StartBasicBlock();
+}
+
+void BytecodeArrayWriter::BindLoopHeader(BytecodeLoopHeader* loop_header) {
+  size_t current_offset = bytecodes()->size();
+  loop_header->bind_to(current_offset);
+  StartBasicBlock();
+}
+
+void BytecodeArrayWriter::BindJumpTableEntry(BytecodeJumpTable* jump_table,
+                                             int case_value) {
+  DCHECK(!jump_table->is_bound(case_value));
+
+  size_t current_offset = bytecodes()->size();
+  size_t relative_jump = current_offset - jump_table->switch_bytecode_offset();
+
+  constant_array_builder()->SetJumpTableSmi(
+      jump_table->ConstantPoolEntryFor(case_value),
+      Smi::FromInt(static_cast<int>(relative_jump)));
+  jump_table->mark_bound(case_value);
+
+  StartBasicBlock();
+}
+
+void BytecodeArrayWriter::BindHandlerTarget(
+    HandlerTableBuilder* handler_table_builder, int handler_id) {
+  size_t current_offset = bytecodes()->size();
+  StartBasicBlock();
+  handler_table_builder->SetHandlerTarget(handler_id, current_offset);
+}
+
+void BytecodeArrayWriter::BindTryRegionStart(
+    HandlerTableBuilder* handler_table_builder, int handler_id) {
+  size_t current_offset = bytecodes()->size();
+  // Try blocks don't have to be in a separate basic block, but we do have to
+  // invalidate the bytecode to avoid eliding it and changing the offset.
+  InvalidateLastBytecode();
+  handler_table_builder->SetTryRegionStart(handler_id, current_offset);
+}
+
+void BytecodeArrayWriter::BindTryRegionEnd(
+    HandlerTableBuilder* handler_table_builder, int handler_id) {
+  // Try blocks don't have to be in a separate basic block, but we do have to
+  // invalidate the bytecode to avoid eliding it and changing the offset.
+  InvalidateLastBytecode();
+  size_t current_offset = bytecodes()->size();
+  handler_table_builder->SetTryRegionEnd(handler_id, current_offset);
+}
+
+void BytecodeArrayWriter::SetFunctionEntrySourcePosition(int position) {
+  bool is_statement = false;
+  source_position_table_builder_.AddPosition(
+      kFunctionEntryBytecodeOffset, SourcePosition(position), is_statement);
+}
+
+void BytecodeArrayWriter::StartBasicBlock() {
+  InvalidateLastBytecode();
+  exit_seen_in_block_ = false;
 }
 
 void BytecodeArrayWriter::UpdateSourcePositionTable(
@@ -98,122 +223,95 @@ void BytecodeArrayWriter::UpdateSourcePositionTable(
   int bytecode_offset = static_cast<int>(bytecodes()->size());
   const BytecodeSourceInfo& source_info = node->source_info();
   if (source_info.is_valid()) {
-    source_position_table_builder()->AddPosition(bytecode_offset,
-                                                 source_info.source_position(),
-                                                 source_info.is_statement());
+    source_position_table_builder()->AddPosition(
+        bytecode_offset, SourcePosition(source_info.source_position()),
+        source_info.is_statement());
   }
 }
 
-namespace {
-
-OperandScale ScaleForScalableByteOperand(OperandSize operand_size) {
-  STATIC_ASSERT(static_cast<int>(OperandSize::kByte) ==
-                static_cast<int>(OperandScale::kSingle));
-  STATIC_ASSERT(static_cast<int>(OperandSize::kShort) ==
-                static_cast<int>(OperandScale::kDouble));
-  STATIC_ASSERT(static_cast<int>(OperandSize::kQuad) ==
-                static_cast<int>(OperandScale::kQuadruple));
-  return static_cast<OperandScale>(operand_size);
-}
-
-OperandScale OperandScaleForScalableSignedByte(uint32_t operand_value) {
-  int32_t signed_operand = static_cast<int32_t>(operand_value);
-  OperandSize bytes_required = Bytecodes::SizeForSignedOperand(signed_operand);
-  return ScaleForScalableByteOperand(bytes_required);
-}
-
-OperandScale OperandScaleForScalableUnsignedByte(uint32_t operand_value) {
-  OperandSize bytes_required = Bytecodes::SizeForUnsignedOperand(operand_value);
-  return ScaleForScalableByteOperand(bytes_required);
-}
-
-OperandScale GetOperandScale(const BytecodeNode* const node) {
-  const OperandTypeInfo* operand_type_infos =
-      Bytecodes::GetOperandTypeInfos(node->bytecode());
-  OperandScale operand_scale = OperandScale::kSingle;
-  int operand_count = node->operand_count();
-  for (int i = 0; i < operand_count; ++i) {
-    switch (operand_type_infos[i]) {
-      case OperandTypeInfo::kScalableSignedByte: {
-        uint32_t operand = node->operand(i);
-        operand_scale =
-            std::max(operand_scale, OperandScaleForScalableSignedByte(operand));
-        break;
-      }
-      case OperandTypeInfo::kScalableUnsignedByte: {
-        uint32_t operand = node->operand(i);
-        operand_scale = std::max(operand_scale,
-                                 OperandScaleForScalableUnsignedByte(operand));
-        break;
-      }
-      case OperandTypeInfo::kFixedUnsignedByte:
-      case OperandTypeInfo::kFixedUnsignedShort:
-        break;
-      case OperandTypeInfo::kNone:
-        UNREACHABLE();
-        break;
-    }
+void BytecodeArrayWriter::UpdateExitSeenInBlock(Bytecode bytecode) {
+  switch (bytecode) {
+    case Bytecode::kReturn:
+    case Bytecode::kThrow:
+    case Bytecode::kReThrow:
+    case Bytecode::kAbort:
+    case Bytecode::kJump:
+    case Bytecode::kJumpConstant:
+    case Bytecode::kSuspendGenerator:
+      exit_seen_in_block_ = true;
+      break;
+    default:
+      break;
   }
-  return operand_scale;
 }
 
-}  // namespace
+void BytecodeArrayWriter::MaybeElideLastBytecode(Bytecode next_bytecode,
+                                                 bool has_source_info) {
+  if (!elide_noneffectful_bytecodes_) return;
+
+  // If the last bytecode loaded the accumulator without any external effect,
+  // and the next bytecode clobbers this load without reading the accumulator,
+  // then the previous bytecode can be elided as it has no effect.
+  if (Bytecodes::IsAccumulatorLoadWithoutEffects(last_bytecode_) &&
+      Bytecodes::GetAccumulatorUse(next_bytecode) == AccumulatorUse::kWrite &&
+      (!last_bytecode_had_source_info_ || !has_source_info)) {
+    DCHECK_GT(bytecodes()->size(), last_bytecode_offset_);
+    bytecodes()->resize(last_bytecode_offset_);
+    // If the last bytecode had source info we will transfer the source info
+    // to this bytecode.
+    has_source_info |= last_bytecode_had_source_info_;
+  }
+  last_bytecode_ = next_bytecode;
+  last_bytecode_had_source_info_ = has_source_info;
+  last_bytecode_offset_ = bytecodes()->size();
+}
+
+void BytecodeArrayWriter::InvalidateLastBytecode() {
+  last_bytecode_ = Bytecode::kIllegal;
+}
 
 void BytecodeArrayWriter::EmitBytecode(const BytecodeNode* const node) {
   DCHECK_NE(node->bytecode(), Bytecode::kIllegal);
 
-  uint8_t buffer[kMaxSizeOfPackedBytecode];
-  uint8_t* buffer_limit = buffer;
+  Bytecode bytecode = node->bytecode();
+  OperandScale operand_scale = node->operand_scale();
 
-  OperandScale operand_scale = GetOperandScale(node);
   if (operand_scale != OperandScale::kSingle) {
     Bytecode prefix = Bytecodes::OperandScaleToPrefixBytecode(operand_scale);
-    *buffer_limit++ = Bytecodes::ToByte(prefix);
+    bytecodes()->push_back(Bytecodes::ToByte(prefix));
   }
-
-  Bytecode bytecode = node->bytecode();
-  *buffer_limit++ = Bytecodes::ToByte(bytecode);
+  bytecodes()->push_back(Bytecodes::ToByte(bytecode));
 
   const uint32_t* const operands = node->operands();
-  const OperandType* operand_types = Bytecodes::GetOperandTypes(bytecode);
-  const int operand_count = Bytecodes::NumberOfOperands(bytecode);
+  const int operand_count = node->operand_count();
+  const OperandSize* operand_sizes =
+      Bytecodes::GetOperandSizes(bytecode, operand_scale);
   for (int i = 0; i < operand_count; ++i) {
-    OperandSize operand_size =
-        Bytecodes::SizeOfOperand(operand_types[i], operand_scale);
-    switch (operand_size) {
+    switch (operand_sizes[i]) {
       case OperandSize::kNone:
         UNREACHABLE();
         break;
       case OperandSize::kByte:
-        *buffer_limit++ = static_cast<uint8_t>(operands[i]);
+        bytecodes()->push_back(static_cast<uint8_t>(operands[i]));
         break;
       case OperandSize::kShort: {
-        WriteUnalignedUInt16(buffer_limit, operands[i]);
-        buffer_limit += 2;
+        uint16_t operand = static_cast<uint16_t>(operands[i]);
+        const uint8_t* raw_operand = reinterpret_cast<const uint8_t*>(&operand);
+        bytecodes()->push_back(raw_operand[0]);
+        bytecodes()->push_back(raw_operand[1]);
         break;
       }
       case OperandSize::kQuad: {
-        WriteUnalignedUInt32(buffer_limit, operands[i]);
-        buffer_limit += 4;
+        const uint8_t* raw_operand =
+            reinterpret_cast<const uint8_t*>(&operands[i]);
+        bytecodes()->push_back(raw_operand[0]);
+        bytecodes()->push_back(raw_operand[1]);
+        bytecodes()->push_back(raw_operand[2]);
+        bytecodes()->push_back(raw_operand[3]);
         break;
       }
     }
-
-    int count = Bytecodes::GetNumberOfRegistersRepresentedBy(operand_types[i]);
-    if (count == 0) {
-      continue;
-    }
-    // NB operand_types is terminated by OperandType::kNone so
-    // operand_types[i + 1] is valid whilst i < operand_count.
-    if (operand_types[i + 1] == OperandType::kRegCount) {
-      count = static_cast<int>(operands[i]);
-    }
-    Register reg = Register::FromOperand(static_cast<int32_t>(operands[i]));
-    max_register_count_ = std::max(max_register_count_, reg.index() + count);
   }
-
-  DCHECK_LE(buffer_limit, buffer + sizeof(buffer));
-  bytecodes()->insert(bytecodes()->end(), buffer, buffer_limit);
 }
 
 // static
@@ -229,36 +327,43 @@ Bytecode GetJumpWithConstantOperand(Bytecode jump_bytecode) {
       return Bytecode::kJumpIfToBooleanTrueConstant;
     case Bytecode::kJumpIfToBooleanFalse:
       return Bytecode::kJumpIfToBooleanFalseConstant;
-    case Bytecode::kJumpIfNotHole:
-      return Bytecode::kJumpIfNotHoleConstant;
     case Bytecode::kJumpIfNull:
       return Bytecode::kJumpIfNullConstant;
+    case Bytecode::kJumpIfNotNull:
+      return Bytecode::kJumpIfNotNullConstant;
     case Bytecode::kJumpIfUndefined:
       return Bytecode::kJumpIfUndefinedConstant;
+    case Bytecode::kJumpIfNotUndefined:
+      return Bytecode::kJumpIfNotUndefinedConstant;
+    case Bytecode::kJumpIfUndefinedOrNull:
+      return Bytecode::kJumpIfUndefinedOrNullConstant;
+    case Bytecode::kJumpIfJSReceiver:
+      return Bytecode::kJumpIfJSReceiverConstant;
     default:
       UNREACHABLE();
-      return Bytecode::kIllegal;
   }
 }
 
 void BytecodeArrayWriter::PatchJumpWith8BitOperand(size_t jump_location,
                                                    int delta) {
   Bytecode jump_bytecode = Bytecodes::FromByte(bytecodes()->at(jump_location));
+  DCHECK(Bytecodes::IsForwardJump(jump_bytecode));
   DCHECK(Bytecodes::IsJumpImmediate(jump_bytecode));
+  DCHECK_EQ(Bytecodes::GetOperandType(jump_bytecode, 0), OperandType::kUImm);
+  DCHECK_GT(delta, 0);
   size_t operand_location = jump_location + 1;
   DCHECK_EQ(bytecodes()->at(operand_location), k8BitJumpPlaceholder);
-  if (Bytecodes::SizeForSignedOperand(delta) == OperandSize::kByte) {
-    // The jump fits within the range of an Imm operand, so cancel
+  if (Bytecodes::ScaleForUnsignedOperand(delta) == OperandScale::kSingle) {
+    // The jump fits within the range of an UImm8 operand, so cancel
     // the reservation and jump directly.
     constant_array_builder()->DiscardReservedEntry(OperandSize::kByte);
     bytecodes()->at(operand_location) = static_cast<uint8_t>(delta);
   } else {
-    // The jump does not fit within the range of an Imm operand, so
+    // The jump does not fit within the range of an UImm8 operand, so
     // commit reservation putting the offset into the constant pool,
     // and update the jump instruction and operand.
     size_t entry = constant_array_builder()->CommitReservedEntry(
         OperandSize::kByte, Smi::FromInt(delta));
-    DCHECK_LE(entry, kMaxUInt32);
     DCHECK_EQ(Bytecodes::SizeForUnsignedOperand(static_cast<uint32_t>(entry)),
               OperandSize::kByte);
     jump_bytecode = GetJumpWithConstantOperand(jump_bytecode);
@@ -270,18 +375,28 @@ void BytecodeArrayWriter::PatchJumpWith8BitOperand(size_t jump_location,
 void BytecodeArrayWriter::PatchJumpWith16BitOperand(size_t jump_location,
                                                     int delta) {
   Bytecode jump_bytecode = Bytecodes::FromByte(bytecodes()->at(jump_location));
+  DCHECK(Bytecodes::IsForwardJump(jump_bytecode));
   DCHECK(Bytecodes::IsJumpImmediate(jump_bytecode));
+  DCHECK_EQ(Bytecodes::GetOperandType(jump_bytecode, 0), OperandType::kUImm);
+  DCHECK_GT(delta, 0);
   size_t operand_location = jump_location + 1;
   uint8_t operand_bytes[2];
-  if (Bytecodes::SizeForSignedOperand(delta) <= OperandSize::kShort) {
+  if (Bytecodes::ScaleForUnsignedOperand(delta) <= OperandScale::kDouble) {
+    // The jump fits within the range of an Imm16 operand, so cancel
+    // the reservation and jump directly.
     constant_array_builder()->DiscardReservedEntry(OperandSize::kShort);
-    WriteUnalignedUInt16(operand_bytes, static_cast<uint16_t>(delta));
+    base::WriteUnalignedValue<uint16_t>(
+        reinterpret_cast<Address>(operand_bytes), static_cast<uint16_t>(delta));
   } else {
-    jump_bytecode = GetJumpWithConstantOperand(jump_bytecode);
-    bytecodes()->at(jump_location) = Bytecodes::ToByte(jump_bytecode);
+    // The jump does not fit within the range of an Imm16 operand, so
+    // commit reservation putting the offset into the constant pool,
+    // and update the jump instruction and operand.
     size_t entry = constant_array_builder()->CommitReservedEntry(
         OperandSize::kShort, Smi::FromInt(delta));
-    WriteUnalignedUInt16(operand_bytes, static_cast<uint16_t>(entry));
+    jump_bytecode = GetJumpWithConstantOperand(jump_bytecode);
+    bytecodes()->at(jump_location) = Bytecodes::ToByte(jump_bytecode);
+    base::WriteUnalignedValue<uint16_t>(
+        reinterpret_cast<Address>(operand_bytes), static_cast<uint16_t>(entry));
   }
   DCHECK(bytecodes()->at(operand_location) == k8BitJumpPlaceholder &&
          bytecodes()->at(operand_location + 1) == k8BitJumpPlaceholder);
@@ -295,7 +410,8 @@ void BytecodeArrayWriter::PatchJumpWith32BitOperand(size_t jump_location,
       Bytecodes::FromByte(bytecodes()->at(jump_location))));
   constant_array_builder()->DiscardReservedEntry(OperandSize::kQuad);
   uint8_t operand_bytes[4];
-  WriteUnalignedUInt32(operand_bytes, static_cast<uint32_t>(delta));
+  base::WriteUnalignedValue<uint32_t>(reinterpret_cast<Address>(operand_bytes),
+                                      static_cast<uint32_t>(delta));
   size_t operand_location = jump_location + 1;
   DCHECK(bytecodes()->at(operand_location) == k8BitJumpPlaceholder &&
          bytecodes()->at(operand_location + 1) == k8BitJumpPlaceholder &&
@@ -339,51 +455,71 @@ void BytecodeArrayWriter::PatchJump(size_t jump_target, size_t jump_location) {
   unbound_jumps_--;
 }
 
-void BytecodeArrayWriter::EmitJump(BytecodeNode* node, BytecodeLabel* label) {
-  DCHECK(Bytecodes::IsJump(node->bytecode()));
-  DCHECK_EQ(0, node->operand(0));
+void BytecodeArrayWriter::EmitJumpLoop(BytecodeNode* node,
+                                       BytecodeLoopHeader* loop_header) {
+  DCHECK_EQ(node->bytecode(), Bytecode::kJumpLoop);
+  DCHECK_EQ(0u, node->operand(0));
 
   size_t current_offset = bytecodes()->size();
 
-  if (label->is_bound()) {
-    CHECK_GE(current_offset, label->offset());
-    CHECK_LE(current_offset, static_cast<size_t>(kMaxInt));
-    // Label has been bound already so this is a backwards jump.
-    size_t abs_delta = current_offset - label->offset();
-    int delta = -static_cast<int>(abs_delta);
-    OperandSize operand_size = Bytecodes::SizeForSignedOperand(delta);
-    if (operand_size > OperandSize::kByte) {
-      // Adjust for scaling byte prefix for wide jump offset.
-      DCHECK_LE(delta, 0);
-      delta -= 1;
-    }
-    node->set_bytecode(node->bytecode(), delta);
-  } else {
-    // The label has not yet been bound so this is a forward reference
-    // that will be patched when the label is bound. We create a
-    // reservation in the constant pool so the jump can be patched
-    // when the label is bound. The reservation means the maximum size
-    // of the operand for the constant is known and the jump can
-    // be emitted into the bytecode stream with space for the operand.
-    unbound_jumps_++;
-    label->set_referrer(current_offset);
-    OperandSize reserved_operand_size =
-        constant_array_builder()->CreateReservedEntry();
-    switch (reserved_operand_size) {
-      case OperandSize::kNone:
-        UNREACHABLE();
-        break;
-      case OperandSize::kByte:
-        node->set_bytecode(node->bytecode(), k8BitJumpPlaceholder);
-        break;
-      case OperandSize::kShort:
-        node->set_bytecode(node->bytecode(), k16BitJumpPlaceholder);
-        break;
-      case OperandSize::kQuad:
-        node->set_bytecode(node->bytecode(), k32BitJumpPlaceholder);
-        break;
-    }
+  CHECK_GE(current_offset, loop_header->offset());
+  CHECK_LE(current_offset, static_cast<size_t>(kMaxUInt32));
+  // Label has been bound already so this is a backwards jump.
+  uint32_t delta =
+      static_cast<uint32_t>(current_offset - loop_header->offset());
+  OperandScale operand_scale = Bytecodes::ScaleForUnsignedOperand(delta);
+  if (operand_scale > OperandScale::kSingle) {
+    // Adjust for scaling byte prefix for wide jump offset.
+    delta += 1;
   }
+  node->update_operand0(delta);
+  EmitBytecode(node);
+}
+
+void BytecodeArrayWriter::EmitJump(BytecodeNode* node, BytecodeLabel* label) {
+  DCHECK(Bytecodes::IsForwardJump(node->bytecode()));
+  DCHECK_EQ(0u, node->operand(0));
+
+  size_t current_offset = bytecodes()->size();
+
+  // The label has not yet been bound so this is a forward reference
+  // that will be patched when the label is bound. We create a
+  // reservation in the constant pool so the jump can be patched
+  // when the label is bound. The reservation means the maximum size
+  // of the operand for the constant is known and the jump can
+  // be emitted into the bytecode stream with space for the operand.
+  unbound_jumps_++;
+  label->set_referrer(current_offset);
+  OperandSize reserved_operand_size =
+      constant_array_builder()->CreateReservedEntry();
+  DCHECK_NE(Bytecode::kJumpLoop, node->bytecode());
+  switch (reserved_operand_size) {
+    case OperandSize::kNone:
+      UNREACHABLE();
+    case OperandSize::kByte:
+      node->update_operand0(k8BitJumpPlaceholder);
+      break;
+    case OperandSize::kShort:
+      node->update_operand0(k16BitJumpPlaceholder);
+      break;
+    case OperandSize::kQuad:
+      node->update_operand0(k32BitJumpPlaceholder);
+      break;
+  }
+  EmitBytecode(node);
+}
+
+void BytecodeArrayWriter::EmitSwitch(BytecodeNode* node,
+                                     BytecodeJumpTable* jump_table) {
+  DCHECK(Bytecodes::IsSwitch(node->bytecode()));
+
+  size_t current_offset = bytecodes()->size();
+  if (node->operand_scale() > OperandScale::kSingle) {
+    // Adjust for scaling byte prefix.
+    current_offset += 1;
+  }
+  jump_table->set_switch_bytecode_offset(current_offset);
+
   EmitBytecode(node);
 }
 

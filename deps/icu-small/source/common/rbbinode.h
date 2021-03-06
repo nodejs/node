@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /********************************************************************
  * COPYRIGHT:
@@ -79,7 +79,7 @@ class RBBINode : public UMemory {
                                             //   corresponds to columns in the final
                                             //   state transition table.
 
-        UBool         fLookAheadEnd;        // For endMark nodes, set TRUE if
+        UBool         fLookAheadEnd;        // For endMark nodes, set true if
                                             //   marking the end of a look-ahead rule.
 
         UBool         fRuleRoot;            // True if this node is the root of a rule.

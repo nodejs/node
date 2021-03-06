@@ -65,16 +65,16 @@ PASS (1234.567).toFixed(2) is "1234.57"
 PASS (1234.567).toFixed(2.9) is "1234.57"
 PASS (1234.567).toFixed(5) is "1234.56700"
 PASS (1234.567).toFixed(20) is "1234.56700000000000727596"
-PASS (1234.567).toFixed(21) threw exception RangeError: toFixed() digits argument must be between 0 and 20.
-PASS (1234.567).toFixed(100) threw exception RangeError: toFixed() digits argument must be between 0 and 20.
-PASS (1234.567).toFixed(101) threw exception RangeError: toFixed() digits argument must be between 0 and 20.
-PASS (1234.567).toFixed(-1) threw exception RangeError: toFixed() digits argument must be between 0 and 20.
-PASS (1234.567).toFixed(-4) threw exception RangeError: toFixed() digits argument must be between 0 and 20.
-PASS (1234.567).toFixed(-5) threw exception RangeError: toFixed() digits argument must be between 0 and 20.
-PASS (1234.567).toFixed(-20) threw exception RangeError: toFixed() digits argument must be between 0 and 20.
-PASS (1234.567).toFixed(-21) threw exception RangeError: toFixed() digits argument must be between 0 and 20.
-PASS (1234.567).toFixed(posInf) threw exception RangeError: toFixed() digits argument must be between 0 and 20.
-PASS (1234.567).toFixed(negInf) threw exception RangeError: toFixed() digits argument must be between 0 and 20.
+FAIL (1234.567).toFixed(21) should throw an exception. Was 1234.567000000000007275958.
+FAIL (1234.567).toFixed(100) should throw an exception. Was 1234.5670000000000072759576141834259033203125000000000000000000000000000000000000000000000000000000000000.
+PASS (1234.567).toFixed(101) threw exception RangeError: toFixed() digits argument must be between 0 and 100.
+PASS (1234.567).toFixed(-1) threw exception RangeError: toFixed() digits argument must be between 0 and 100.
+PASS (1234.567).toFixed(-4) threw exception RangeError: toFixed() digits argument must be between 0 and 100.
+PASS (1234.567).toFixed(-5) threw exception RangeError: toFixed() digits argument must be between 0 and 100.
+PASS (1234.567).toFixed(-20) threw exception RangeError: toFixed() digits argument must be between 0 and 100.
+PASS (1234.567).toFixed(-21) threw exception RangeError: toFixed() digits argument must be between 0 and 100.
+PASS (1234.567).toFixed(posInf) threw exception RangeError: toFixed() digits argument must be between 0 and 100.
+PASS (1234.567).toFixed(negInf) threw exception RangeError: toFixed() digits argument must be between 0 and 100.
 PASS posInf.toFixed() is "Infinity"
 PASS negInf.toFixed() is "-Infinity"
 PASS nan.toFixed() is "NaN"

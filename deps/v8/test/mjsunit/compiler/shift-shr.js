@@ -19,8 +19,40 @@ function test_shr(left) {
   return errors;
 }
 
+%PrepareFunctionForOptimization(test_shr);
 assertEquals(0, test_shr(1));
 %OptimizeFunctionOnNextCall(test_shr);
 for (var i = 5; i >= -5; i--) {
   assertEquals(0, test_shr(i));
 }
+
+
+(function () {
+  function foo(x, b, array) {
+    var y;
+    x = x >>> 0;
+    b ? (y = x | 0) : (y = x);
+    return array[y];
+  }
+
+  %PrepareFunctionForOptimization(foo);
+  foo(111, true, new Array(42));
+  foo(111, true, new Array(42));
+  %OptimizeFunctionOnNextCall(foo);
+  foo(-111, true, new Array(42));
+})();
+
+(function () {
+  function foo(x, b, array) {
+    var y;
+    x = x >>> 0;
+    b ? (y = x | 0) : (y = x);
+    return array[y];
+  }
+
+  %PrepareFunctionForOptimization(foo);
+  foo(111, true, new Array(42));
+  foo(111, true, new Array(42));
+  %OptimizeFunctionOnNextCall(foo);
+  foo(111, true, new Array(42));
+})();

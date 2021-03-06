@@ -14,6 +14,7 @@ function test_hole_check_for_let(a) {
     }
   }
 }
+%PrepareFunctionForOptimization(test_hole_check_for_let);
 assertDoesNotThrow("test_hole_check_for_let(0)");
 assertThrows("test_hole_check_for_let(1)", ReferenceError);
 %OptimizeFunctionOnNextCall(test_hole_check_for_let)
@@ -29,6 +30,7 @@ function test_hole_check_for_const(a) {
     }
   }
 }
+%PrepareFunctionForOptimization(test_hole_check_for_const);
 assertThrows("test_hole_check_for_const(0)", TypeError);
 assertThrows("test_hole_check_for_const(1)", ReferenceError);
 %OptimizeFunctionOnNextCall(test_hole_check_for_const)

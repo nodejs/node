@@ -8,6 +8,7 @@ var a = [, 2.121736758e-314];
 
 function foo() { return a[1]; }
 
+%PrepareFunctionForOptimization(foo);
 assertEquals(2.121736758e-314, foo());
 assertEquals(2.121736758e-314, foo());
 %OptimizeFunctionOnNextCall(foo);

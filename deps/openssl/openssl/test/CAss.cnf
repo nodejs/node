@@ -36,7 +36,7 @@ certs		= $dir/certs		# Where the issued certs are kept
 crl_dir		= $dir/crl		# Where the issued crl are kept
 database	= $dir/index.txt	# database index file.
 #unique_subject	= no			# Set to 'no' to allow creation of
-					# several ctificates with same subject.
+					# several certificates with same subject.
 new_certs_dir	= $dir/newcerts		# default place for new certs.
 
 certificate	= $dir/cacert.pem 	# The CA certificate
@@ -45,7 +45,7 @@ crl		= $dir/crl.pem 		# The current CRL
 private_key	= $dir/private/cakey.pem# The private key
 RANDFILE	= $dir/private/.rand	# private random number file
 
-x509_extensions	= v3_ca			# The extentions to add to the cert
+x509_extensions	= v3_ca			# The extensions to add to the cert
 
 name_opt 	= ca_default		# Subject Name options
 cert_opt 	= ca_default		# Certificate field options
@@ -71,6 +71,6 @@ emailAddress		= optional
 [ v3_ca ]
 subjectKeyIdentifier=hash
 authorityKeyIdentifier=keyid:always,issuer:always
-basicConstraints = CA:true,pathlen:1
+basicConstraints = critical,CA:true,pathlen:1
 keyUsage = cRLSign, keyCertSign
 issuerAltName=issuer:copy

@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 //
 //  rbbiscan.h
@@ -54,7 +54,7 @@ public:
     struct RBBIRuleChar {
         UChar32             fChar;
         UBool               fEscaped;
-        RBBIRuleChar() : fChar(0), fEscaped(FALSE) {};
+        RBBIRuleChar() : fChar(0), fEscaped(false) {}
     };
 
     RBBIRuleScanner(RBBIRuleBuilder  *rb);
@@ -72,6 +72,8 @@ public:
                                                     //   trees, one each for the forward and
                                                     //   reverse rules,
                                                     //   and a list of UnicodeSets encountered.
+
+    int32_t     numRules();                         // Return the number of rules that have been seen.
 
     /**
      * Return a rules string without unnecessary

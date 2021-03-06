@@ -27,11 +27,13 @@
 
 // Flags: --allow-natives-syntax
 
-function g(f) { return f.call.apply(f.bind, arguments); }
+function g(f) {
+  return f.call.apply(f.bind, arguments);
+};
+%PrepareFunctionForOptimization(g);
+var x = new Object();
 
-var x = new Object;
-
-function t() { }
+function t() {}
 
 g(t, x);
 g(t, x);
@@ -53,7 +55,7 @@ Fake.prototype.call = function () {
 Fake.prototype.bind = function () {
 };
 
-var fake = new Fake;
+var fake = new Fake();
 
 g(fake, x);
 

@@ -6,6 +6,8 @@ const assert = require('assert');
 const util = require('internal/util');
 
 const tests = [
+  [undefined, 'utf8'],
+  [null, 'utf8'],
   ['', 'utf8'],
   ['utf8', 'utf8'],
   ['utf-8', 'utf8'],
@@ -16,6 +18,10 @@ const tests = [
   ['utF-8', 'utf8'],
   ['ucs2', 'utf16le'],
   ['UCS2', 'utf16le'],
+  ['UcS2', 'utf16le'],
+  ['ucs-2', 'utf16le'],
+  ['UCS-2', 'utf16le'],
+  ['UcS-2', 'utf16le'],
   ['utf16le', 'utf16le'],
   ['utf-16le', 'utf16le'],
   ['UTF-16LE', 'utf16le'],
@@ -23,17 +29,27 @@ const tests = [
   ['binary', 'latin1'],
   ['BINARY', 'latin1'],
   ['latin1', 'latin1'],
+  ['LaTiN1', 'latin1'],
   ['base64', 'base64'],
   ['BASE64', 'base64'],
+  ['Base64', 'base64'],
+  ['base64url', 'base64url'],
+  ['BASE64url', 'base64url'],
+  ['Base64url', 'base64url'],
   ['hex', 'hex'],
   ['HEX', 'hex'],
+  ['ASCII', 'ascii'],
+  ['AsCii', 'ascii'],
   ['foo', undefined],
   [1, undefined],
-  [false, 'utf8'],
-  [undefined, 'utf8'],
+  [false, undefined],
+  [NaN, undefined],
+  [0, undefined],
   [[], undefined],
+  [{}, undefined]
 ];
 
-tests.forEach((i) => {
-  assert.strictEqual(util.normalizeEncoding(i[0]), i[1]);
+tests.forEach((e, i) => {
+  const res = util.normalizeEncoding(e[0]);
+  assert.strictEqual(res, e[1], `#${i} failed: expected ${e[1]}, got ${res}`);
 });

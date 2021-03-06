@@ -1,13 +1,19 @@
-module.exports = test
+const LifecycleCmd = require('./utils/lifecycle-cmd.js')
 
-var testCmd = require('./utils/lifecycle.js').cmd('test')
+// This ends up calling run-script(['test', ...args])
+class Test extends LifecycleCmd {
+  constructor (npm) {
+    super(npm, 'test')
+  }
 
-function test (args, cb) {
-  testCmd(args, function (er) {
-    if (!er) return cb()
-    if (er.code === 'ELIFECYCLE') {
-      return cb('Test failed.  See above for more details.')
-    }
-    return cb(er)
-  })
+  exec (args, cb) {
+    super.exec(args, er => {
+      if (er && er.code === 'ELIFECYCLE') {
+        /* eslint-disable standard/no-callback-literal */
+        cb('Test failed.  See above for more details.')
+      } else
+        cb(er)
+    })
+  }
 }
+module.exports = Test

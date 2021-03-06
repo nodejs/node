@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -622,8 +622,11 @@ CollationRuleParser::parseSetting(UErrorCode &errorCode) {
                 setParseError("expected language tag in [import langTag]", errorCode);
                 return;
             }
-            if(length == 3 && uprv_memcmp(baseID, "und", 3) == 0) {
+            if(length == 0) {
                 uprv_strcpy(baseID, "root");
+            } else if(*baseID == '_') {
+                uprv_memmove(baseID + 3, baseID, length + 1);
+                uprv_memcpy(baseID, "und", 3);
             }
             // @collation=type, or length=0 if not specified
             char collationType[ULOC_KEYWORDS_CAPACITY];

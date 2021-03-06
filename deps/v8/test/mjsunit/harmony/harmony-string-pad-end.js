@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-string-padding
-
 (function TestMeta() {
   assertEquals(1, String.prototype.padEnd.length);
   assertEquals("function", typeof String.prototype.padEnd);
@@ -95,4 +93,15 @@
 
 (function TestTruncation() {
   assertEquals("ab", "a".padEnd(2, "bc"));
+})();
+
+
+(function TestMaxLength() {
+  assertThrows(() => "123".padEnd(Math.pow(2, 40)), RangeError);
+  assertThrows(() => "123".padEnd(1 << 30), RangeError);
+})();
+
+
+(function TestNoArguments() {
+  assertEquals("abc", "abc".padEnd());
 })();

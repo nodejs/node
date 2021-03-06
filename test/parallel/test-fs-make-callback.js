@@ -1,38 +1,28 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const fs = require('fs');
+const callbackThrowValues = [null, true, false, 0, 1, 'foo', /foo/, [], {}];
 
-function test(cb) {
+const { sep } = require('path');
+
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
+
+function testMakeCallback(cb) {
   return function() {
-    // fs.stat() calls makeCallback() on its second argument
-    fs.stat(__filename, cb);
+    // fs.mkdtemp() calls makeCallback() on its third argument
+    fs.mkdtemp(`${tmpdir.path}${sep}`, {}, cb);
   };
 }
 
-// Verify the case where a callback function is provided
-assert.doesNotThrow(test(function() {}));
-
-process.once('warning', common.mustCall((warning) => {
-  assert.strictEqual(
-    warning.message,
-    'Calling an asynchronous function without callback is deprecated.'
-  );
-
-  invalidArgumentsTests();
-}));
-
-// Passing undefined/nothing calls rethrow() internally, which emits a warning
-assert.doesNotThrow(test());
-
-function invalidArgumentsTests() {
-  assert.throws(test(null));
-  assert.throws(test(true));
-  assert.throws(test(false));
-  assert.throws(test(1));
-  assert.throws(test(0));
-  assert.throws(test('foo'));
-  assert.throws(test(/foo/));
-  assert.throws(test([]));
-  assert.throws(test({}));
+function invalidCallbackThrowsTests() {
+  callbackThrowValues.forEach((value) => {
+    assert.throws(testMakeCallback(value), {
+      code: 'ERR_INVALID_CALLBACK',
+      name: 'TypeError'
+    });
+  });
 }
+
+invalidCallbackThrowsTests();

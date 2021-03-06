@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --min-preparse-length=0
-
 (function testRestIndex() {
   assertEquals(5, ((...args) => args.length)(1,2,3,4,5));
   assertEquals(4, ((a, ...args) => args.length)(1,2,3,4,5));

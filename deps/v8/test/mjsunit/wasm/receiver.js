@@ -4,22 +4,21 @@
 
 // Flags: --expose-wasm
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 function testCallImport(func, expected, a, b) {
   var builder = new WasmModuleBuilder();
 
   var sig_index = builder.addType(kSig_i_dd);
-  builder.addImport("func", sig_index);
+  builder.addImport("mod", "func", sig_index);
   builder.addFunction("main", sig_index)
     .addBody([
-      kExprGetLocal, 0,            // --
-      kExprGetLocal, 1,            // --
-      kExprCallImport, 2, 0])      // --
+      kExprLocalGet, 0,            // --
+      kExprLocalGet, 1,            // --
+      kExprCallFunction, 0])         // --
     .exportAs("main");
 
-  var main = builder.instantiate({func: func}).exports.main;
+  var main = builder.instantiate({mod: {func: func}}).exports.main;
 
   assertEquals(expected, main(a, b));
 }

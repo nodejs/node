@@ -305,6 +305,7 @@ function lithium_integer_mod() {
 
 }
 
+%PrepareFunctionForOptimization(lithium_integer_mod);
 lithium_integer_mod();
 %OptimizeFunctionOnNextCall(lithium_integer_mod)
 lithium_integer_mod();

@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /********************************************************************
  * COPYRIGHT:
@@ -151,7 +151,7 @@ int32_t SelectFormat::findSubMessage(const MessagePattern& pattern, int32_t part
     return msgStart;
 }
 
-Format* SelectFormat::clone() const
+SelectFormat* SelectFormat::clone() const
 {
     return new SelectFormat(*this);
 }

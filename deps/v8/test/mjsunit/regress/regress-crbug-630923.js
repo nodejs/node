@@ -10,7 +10,8 @@ function bar(o) {
 }
 function foo() {
   bar(o);
-}
+};
+%PrepareFunctionForOptimization(foo);
 foo();
 %OptimizeFunctionOnNextCall(foo);
 foo();

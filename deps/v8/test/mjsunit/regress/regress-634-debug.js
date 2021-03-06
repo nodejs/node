@@ -35,6 +35,7 @@ function f() {
   %SetAllocationTimeout(-1, -1, true);
 }
 
+%PrepareFunctionForOptimization(f);
 f();
 f();
 %OptimizeFunctionOnNextCall(f);

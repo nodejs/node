@@ -62,8 +62,8 @@ The externally maintained libraries used by libuv are:
   - stdint-msvc2008.h (from msinttypes), copyright Alexander Chemeris. Three
     clause BSD license.
 
-  - pthread-fixes.h, pthread-fixes.c, copyright Google Inc. and Sony Mobile
-    Communications AB. Three clause BSD license.
+  - pthread-fixes.c, copyright Google Inc. and Sony Mobile Communications AB.
+    Three clause BSD license.
 
   - android-ifaddrs.h, android-ifaddrs.c, copyright Berkeley Software Design
     Inc, Kenneth MacKay and Emergya (Cloud4all, FP7/2007-2013, grant agreement

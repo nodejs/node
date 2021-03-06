@@ -1,7 +1,14 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2006-2020 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 #
 # ====================================================================
-# Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
+# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
 # details see http://www.openssl.org/~appro/cryptogams/.
@@ -14,6 +21,9 @@
 # code provides approximately the same performance per GHz as AMD64.
 # I.e. if you compare 1GHz 21264 and 2GHz Opteron, you'll observe ~2x
 # difference.
+
+$output=pop;
+open STDOUT,">$output";
 
 # int bn_mul_mont(
 $rp="a0";	# BN_ULONG *rp,
@@ -287,15 +297,12 @@ bn_mul_mont:
 	mov	sp,$tp
 	mov	$bp,$rp		# restore rp
 
-	and	sp,$hi0,$ap
-	bic	$bp,$hi0,$bp
-	bis	$bp,$ap,$ap	# ap=borrow?tp:rp
-
 .align	4
-.Lcopy:	ldq	$aj,0($ap)	# copy or in-place refresh
+.Lcopy:	ldq	$aj,0($tp)	# conditional copy
+	ldq	$nj,0($rp)
 	lda	$tp,8($tp)
 	lda	$rp,8($rp)
-	lda	$ap,8($ap)
+	cmoveq	$hi0,$nj,$aj
 	stq	zero,-8($tp)	# zap tp
 	cmpult	$tp,$tj,AT
 	stq	$aj,-8($rp)
@@ -318,4 +325,4 @@ bn_mul_mont:
 ___
 
 print $code;
-close STDOUT;
+close STDOUT or die "error closing STDOUT: $!";

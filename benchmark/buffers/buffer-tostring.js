@@ -3,25 +3,42 @@
 const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
-  arg: ['true', 'false'],
-  len: [0, 1, 64, 1024],
-  n: [1e7]
+  encoding: ['utf8', 'ascii', 'latin1', 'hex', 'UCS-2'],
+  args: [0, 1, 3],
+  len: [1, 64, 1024],
+  n: [1e6]
 });
 
-function main(conf) {
-  const arg = conf.arg === 'true';
-  const len = conf.len | 0;
-  const n = conf.n | 0;
+function main({ encoding, args, len, n }) {
   const buf = Buffer.alloc(len, 42);
 
-  var i;
-  bench.start();
-  if (arg) {
-    for (i = 0; i < n; i += 1)
-      buf.toString('utf8');
-  } else {
-    for (i = 0; i < n; i += 1)
-      buf.toString();
+  if (encoding.length === 0)
+    encoding = undefined;
+
+  switch (args) {
+    case 1:
+      bench.start();
+      for (let i = 0; i < n; i += 1)
+        buf.toString(encoding);
+      bench.end(n);
+      break;
+    case 2:
+      bench.start();
+      for (let i = 0; i < n; i += 1)
+        buf.toString(encoding, 0);
+      bench.end(n);
+      break;
+    case 3:
+      bench.start();
+      for (let i = 0; i < n; i += 1)
+        buf.toString(encoding, 0, len);
+      bench.end(n);
+      break;
+    default:
+      bench.start();
+      for (let i = 0; i < n; i += 1)
+        buf.toString();
+      bench.end(n);
+      break;
   }
-  bench.end(n);
 }

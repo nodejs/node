@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-regexp-property
-
 assertThrows("/\\p{In CJK}/u");
 assertThrows("/\\p{InCJKUnifiedIdeographs}/u");
 assertThrows("/\\p{InCJK}/u");
@@ -36,7 +34,7 @@ assertThrows("/\\p{BidiClass=LeftToRight}/u");
 assertThrows("/\\p{BidiC=LeftToRight}/u");
 assertThrows("/\\p{bidi_c=Left_To_Right}/u");
 
-assertDoesNotThrow("/\\p{Block=CJK}/u");
+assertThrows("/\\p{Block=CJK}/u");
 assertThrows("/\\p{Block = CJK}/u");
 assertThrows("/\\p{Block=cjk}/u");
 assertThrows("/\\p{BLK=CJK}/u");

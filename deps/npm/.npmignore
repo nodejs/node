@@ -1,23 +1,22 @@
 *.swp
 .*.swp
+netlify.toml
 npm-debug.log
-/test/bin
-/test/output.log
-/test/packages/*/node_modules
-/test/packages/npm-test-depends-on-spark/which-spark.log
-/test/packages/test-package/random-data.txt
-/test/root
-/test/npm_cache
+/.github
+/test
 node_modules/marked
-node_modules/ronn
+node_modules/marked-man
 node_modules/tap
+tap-snapshots
 node_modules/.bin
 node_modules/npm-registry-mock
 /npmrc
 /release/
+/coverage/
 
 # don't need these in the npm package.
 html/*.png
+docs/nav.yml
 
 # don't ignore .npmignore files
 # these are used in some tests.
@@ -27,8 +26,6 @@ html/*.png
 
 *.pyc
 
-/test/tap/builtin-config
-
+Session.vim
 .nyc_output
-
-npm-shrinkwrap.json
+/.editorconfig

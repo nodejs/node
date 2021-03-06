@@ -18,8 +18,9 @@ var outer = new Outer(inner);
 
 Outer.prototype.boom = function() {
   return this.inner.property;
-}
+};
 
+%PrepareFunctionForOptimization(Outer.prototype.boom);
 assertEquals("OK", outer.boom());
 assertEquals("OK", outer.boom());
 %OptimizeFunctionOnNextCall(Outer.prototype.boom);

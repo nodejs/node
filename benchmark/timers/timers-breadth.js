@@ -1,20 +1,19 @@
 'use strict';
-var common = require('../common.js');
+const common = require('../common.js');
 
-var bench = common.createBenchmark(main, {
-  thousands: [500],
+const bench = common.createBenchmark(main, {
+  n: [5e6],
 });
 
-function main(conf) {
-  var N = +conf.thousands * 1e3;
-  var n = 0;
+function main({ n }) {
+  let j = 0;
   bench.start();
   function cb() {
-    n++;
-    if (n === N)
-      bench.end(N / 1e3);
+    j++;
+    if (j === n)
+      bench.end(n);
   }
-  for (var i = 0; i < N; i++) {
+  for (let i = 0; i < n; i++) {
     setTimeout(cb, 1);
   }
 }

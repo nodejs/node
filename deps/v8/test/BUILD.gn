@@ -2,32 +2,41 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("../gni/isolate.gni")
+import("../gni/v8.gni")
 
 group("gn_all") {
   testonly = true
 
-  deps = [
-    ":default_tests",
+  data_deps = [
+    "benchmarks:v8_benchmarks",
+    "fuzzer:v8_fuzzer",
+    "intl:v8_intl",
+    "message:v8_message",
+    "mjsunit:v8_mjsunit",
+    "mozilla:v8_mozilla",
+    "test262:v8_test262",
+    "wasm-js:v8_wasm_js",
+    "wasm-spec-tests:v8_wasm_spec_tests",
+    "webkit:v8_webkit",
   ]
+
+  deps = [
+    "inspector:inspector-test",
+    "mkgrokdump:mkgrokdump",
+    "wasm-api-tests:wasm_api_tests",
+  ]
+
+  if (v8_fuzzilli) {
+    deps += [ "fuzzilli:v8_fuzzilli_test" ]
+  }
 
   if (host_os != "mac" || !is_android) {
     # These items don't compile for Android on Mac.
     deps += [
+      "benchmarks/cpp:gn_all",
       "cctest:cctest",
       "cctest:generate-bytecode-expectations",
       "unittests:unittests",
-    ]
-  }
-
-  if (v8_test_isolation_mode != "noop") {
-    deps += [
-      ":benchmarks_run",
-      ":bot_default_run",
-      ":default_run",
-      ":mozilla_run",
-      ":simdjs_run",
-      "test262:test262_run",
     ]
   }
 }
@@ -36,159 +45,117 @@ group("gn_all") {
 # Test groups
 #
 
-group("default_tests") {
+group("v8_perf") {
   testonly = true
 
-  if (v8_test_isolation_mode != "noop") {
-    deps = [
-      ":cctest_run",
-      ":fuzzer_run",
-      ":intl_run",
-      ":message_run",
-      ":mjsunit_run",
-      ":preparser_run",
-      ":unittests_run",
-    ]
-  }
-}
-
-v8_isolate_run("bot_default") {
-  deps = [
-    ":default_tests",
-    ":webkit_run",
+  data_deps = [
+    "..:d8",
+    "..:v8_python_base",
+    "../tools:v8_android_test_runner_deps",
+    "../tools:v8_testrunner",
   ]
 
-  isolate = "bot_default.isolate"
-}
+  data = [
+    "../tools/run_perf.py",
 
-v8_isolate_run("default") {
-  deps = [
-    ":default_tests",
+    # This is often used to trigger performance bots. We include it in the
+    # isolate to not get these builds deduped.
+    "../tools/whitespace.txt",
+    "js-perf-test/",
+    "memory/",
   ]
-
-  isolate = "default.isolate"
 }
 
-v8_isolate_run("optimize_for_size") {
-  deps = [
-    ":cctest_run",
-    ":intl_run",
-    ":mjsunit_run",
-    ":webkit_run",
-  ]
+group("v8_bot_default") {
+  testonly = true
 
-  isolate = "optimize_for_size.isolate"
-}
-
-v8_isolate_run("perf") {
-  deps = [
-    ":cctest_exe_run",
-    "..:d8_run",
-  ]
-
-  isolate = "perf.isolate"
-}
-
-###############################################################################
-# Subtests
-#
-
-v8_isolate_run("benchmarks") {
-  deps = [
-    "..:d8_run",
-  ]
-
-  isolate = "benchmarks/benchmarks.isolate"
-}
-
-v8_isolate_run("cctest") {
-  deps = [
-    ":cctest_exe_run",
-  ]
-
-  isolate = "cctest/cctest.isolate"
-}
-
-v8_isolate_run("cctest_exe") {
-  deps = [
+  data_deps = [
     "cctest:cctest",
-  ]
-
-  isolate = "cctest/cctest_exe.isolate"
-}
-
-v8_isolate_run("fuzzer") {
-  deps = [
-    "..:v8_simple_json_fuzzer",
-    "..:v8_simple_parser_fuzzer",
-    "..:v8_simple_regexp_fuzzer",
-    "..:v8_simple_wasm_asmjs_fuzzer",
-    "..:v8_simple_wasm_fuzzer",
-  ]
-
-  isolate = "fuzzer/fuzzer.isolate"
-}
-
-v8_isolate_run("intl") {
-  deps = [
-    "..:d8_run",
-  ]
-
-  isolate = "intl/intl.isolate"
-}
-
-v8_isolate_run("message") {
-  deps = [
-    "..:d8_run",
-  ]
-
-  isolate = "message/message.isolate"
-}
-
-v8_isolate_run("mjsunit") {
-  deps = [
-    "..:d8_run",
-  ]
-
-  isolate = "mjsunit/mjsunit.isolate"
-}
-
-v8_isolate_run("mozilla") {
-  deps = [
-    "..:d8_run",
-  ]
-
-  isolate = "mozilla/mozilla.isolate"
-}
-
-v8_isolate_run("preparser") {
-  deps = [
-    "..:d8_run",
-  ]
-
-  isolate = "preparser/preparser.isolate"
-}
-
-v8_isolate_run("simdjs") {
-  deps = [
-    "..:d8_run",
-  ]
-
-  isolate = "simdjs/simdjs.isolate"
-}
-
-v8_isolate_run("unittests") {
-  deps = [
+    "debugger:v8_debugger",
+    "fuzzer:v8_fuzzer",
+    "inspector:inspector-test",
+    "intl:v8_intl",
+    "message:v8_message",
+    "mjsunit:v8_mjsunit",
+    "mkgrokdump:mkgrokdump",
     "unittests:unittests",
+    "wasm-api-tests:wasm_api_tests",
+    "wasm-js:v8_wasm_js",
+    "wasm-spec-tests:v8_wasm_spec_tests",
+    "webkit:v8_webkit",
   ]
-
-  isolate = "unittests/unittests.isolate"
 }
 
-v8_isolate_run("webkit") {
-  deps = [
-    "..:d8_run",
+group("v8_default") {
+  testonly = true
+
+  data_deps = [
+    "cctest:cctest",
+    "debugger:v8_debugger",
+    "fuzzer:v8_fuzzer",
+    "inspector:inspector-test",
+    "intl:v8_intl",
+    "message:v8_message",
+    "mjsunit:v8_mjsunit",
+    "mkgrokdump:mkgrokdump",
+    "unittests:unittests",
+    "wasm-api-tests:wasm_api_tests",
+    "wasm-js:v8_wasm_js",
+    "wasm-spec-tests:v8_wasm_spec_tests",
+  ]
+}
+
+group("v8_optimize_for_size") {
+  testonly = true
+
+  data_deps = [
+    "cctest:cctest",
+    "debugger:v8_debugger",
+    "inspector:inspector-test",
+    "intl:v8_intl",
+    "mjsunit:v8_mjsunit",
+    "webkit:v8_webkit",
+  ]
+}
+
+group("v8_d8_default") {
+  testonly = true
+
+  data_deps = [
+    "debugger:v8_debugger",
+    "intl:v8_intl",
+    "message:v8_message",
+    "mjsunit:v8_mjsunit",
+    "webkit:v8_webkit",
+  ]
+}
+
+group("v8_run_num_fuzzer") {
+  testonly = true
+
+  data_deps = [
+    "benchmarks:v8_benchmarks",
+    "mjsunit:v8_mjsunit",
+    "webkit:v8_webkit",
+  ]
+}
+
+v8_header_set("common_test_headers") {
+  testonly = true
+
+  configs = []
+
+  public_deps = [
+    "../:v8_for_testing",
+    "../:v8_libbase",
   ]
 
-  isolate = "webkit/webkit.isolate"
+  sources = [
+    "common/assembler-tester.h",
+    "common/flag-utils.h",
+    "common/types-fuzz.h",
+    "common/wasm/flag-utils.h",
+    "common/wasm/test-signatures.h",
+    "common/wasm/wasm-macro-gen.h",
+  ]
 }

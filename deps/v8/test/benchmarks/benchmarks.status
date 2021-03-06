@@ -35,5 +35,72 @@
   # Slow tests.
   'kraken/imaging-gaussian-blur': [PASS, SLOW],
   'octane/typescript': [PASS, SLOW],
+  'octane/box2d': [PASS, SLOW],
+
+  # https://crbug.com/v8/11222
+  'octane/raytrace': [PASS, SLOW],
 }],  # ALWAYS
+
+# Slow variants.
+['variant in [jitless, nooptimization, stress]', {
+  # Slow tests.
+  'kraken/ai-astar': [PASS, SLOW],
+  'kraken/imaging-darkroom': [PASS, SLOW],
+  'kraken/imaging-desaturate': [PASS, SLOW],
+  'octane/code-load': [PASS, SLOW],
+  'octane/crypto': [PASS, SLOW],
+  'octane/earley-boyer': [PASS, SLOW],
+  'octane/gbemu-part1': [PASS, SLOW],
+  'octane/navier-stokes': [PASS, SLOW],
+  'octane/pdfjs': [PASS, SLOW],
+  'octane/regexp': [PASS, SLOW],
+}],
+
+['variant == stress', {
+  # Too slow for stress mode.
+  'kraken/imaging-desaturate' : [PASS, ['mode == debug', SKIP]],
+  'kraken/imaging-gaussian-blur' : [PASS, ['mode == debug', SKIP]],
+  'octane/mandreel': [SKIP],
+  'octane/typescript': [SKIP],
+  'octane/raytrace': [PASS, SLOW, ['tsan', SKIP]],
+
+  # Too memory hungry on Odroid devices: https://crbug.com/v8/8963
+  'kraken/stanford-crypto-ccm': [PASS, ['arch == arm and not simulator_run', SKIP]],
+}],
+
+['variant == jitless', {
+  # Too slow for jitless mode.
+  'kraken/imaging-desaturate' : [PASS, ['mode == debug', SKIP]],
+  'kraken/imaging-gaussian-blur' : [PASS, ['mode == debug', SKIP]],
+  'octane/zlib': [SKIP],
+}],
+
+['variant == nooptimization and mode == debug', {
+  # Too slow for nooptimization mode and debug.
+  'kraken/imaging-gaussian-blur': [SKIP],
+}],
+
+['variant == stress_incremental_marking', {
+  # Too slow for stress_incremental_marking.
+  'octane/box2d': [SKIP],
+  'octane/typescript': [SKIP],
+}],
+
+['gc_fuzzer', {
+  # Too slow for gc fuzzing.
+  'octane/earley-boyer' : [PASS, SLOW, ['mode == debug', SKIP]],
+  'octane/splay': [SKIP],
+  'octane/typescript': [SKIP],
+}],  # 'gc_fuzzer'
+
+['predictable', {
+  # https://crbug.com/v8/8537
+  'octane/typescript': [SKIP],
+}],  # 'predictable'
+
+################################################################################
+['variant == stress_snapshot', {
+  '*': [SKIP],  # only relevant for mjsunit tests.
+}],
+
 ]

@@ -1,96 +1,77 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
-var dataWritten = false;
-var connectHappened = false;
-
-var tcp = net.Server(function(s) {
+const tcp = net.Server(common.mustCall((s) => {
   tcp.close();
 
-  console.log('tcp server connection');
-
-  var buf = '';
+  let buf = '';
+  s.setEncoding('utf8');
   s.on('data', function(d) {
     buf += d;
   });
 
-  s.on('end', function() {
-    console.error('SERVER: end', buf.toString());
-    assert.equal(buf, "L'État, c'est moi");
-    console.log('tcp socket disconnect');
+  s.on('end', common.mustCall(function() {
+    console.error('SERVER: end', buf);
+    assert.strictEqual(buf, "L'État, c'est moi");
     s.end();
-  });
+  }));
+}));
 
-  s.on('error', function(e) {
-    console.log('tcp server-side error: ' + e.message);
-    process.exit(1);
-  });
-});
+tcp.listen(0, common.mustCall(function() {
+  const socket = net.Stream({ highWaterMark: 0 });
 
-tcp.listen(0, function() {
-  var socket = net.Stream({ highWaterMark: 0 });
+  let connected = false;
+  assert.strictEqual(socket.pending, true);
+  socket.connect(this.address().port, common.mustCall(() => connected = true));
 
-  console.log('Connecting to socket ');
-
-  socket.connect(this.address().port, function() {
-    console.log('socket connected');
-    connectHappened = true;
-  });
-
-  console.log('connecting = ' + socket.connecting);
-
-  assert.equal('opening', socket.readyState);
-
-  // Make sure that anything besides a buffer or a string throws.
-  [null,
-   true,
-   false,
-   undefined,
-   1,
-   1.0,
-   1 / 0,
-   +Infinity,
-   -Infinity,
-   [],
-   {}
-  ].forEach(function(v) {
-    function f() {
-      console.error('write', v);
-      socket.write(v);
-    }
-    assert.throws(f, TypeError);
-  });
+  assert.strictEqual(socket.pending, true);
+  assert.strictEqual(socket.connecting, true);
+  assert.strictEqual(socket.readyState, 'opening');
 
   // Write a string that contains a multi-byte character sequence to test that
   // `bytesWritten` is incremented with the # of bytes, not # of characters.
-  var a = "L'État, c'est ";
-  var b = 'moi';
+  const a = "L'État, c'est ";
+  const b = 'moi';
 
   // We're still connecting at this point so the datagram is first pushed onto
   // the connect queue. Make sure that it's not added to `bytesWritten` again
   // when the actual write happens.
-  var r = socket.write(a, function(er) {
+  const r = socket.write(a, common.mustCall((er) => {
     console.error('write cb');
-    dataWritten = true;
-    assert.ok(connectHappened);
-    console.error('socket.bytesWritten', socket.bytesWritten);
-    //assert.equal(socket.bytesWritten, Buffer.from(a + b).length);
-    console.error('data written');
-  });
-  console.error('socket.bytesWritten', socket.bytesWritten);
-  console.error('write returned', r);
+    assert.ok(connected);
+    assert.strictEqual(socket.bytesWritten, Buffer.from(a + b).length);
+    assert.strictEqual(socket.pending, false);
+  }));
+  socket.on('close', common.mustCall(() => {
+    assert.strictEqual(socket.pending, true);
+  }));
 
-  assert.equal(socket.bytesWritten, Buffer.from(a).length);
-
-  assert.equal(false, r);
+  assert.strictEqual(socket.bytesWritten, Buffer.from(a).length);
+  assert.strictEqual(r, false);
   socket.end(b);
 
-  assert.equal('opening', socket.readyState);
-});
-
-process.on('exit', function() {
-  assert.ok(connectHappened);
-  assert.ok(dataWritten);
-});
+  assert.strictEqual(socket.readyState, 'opening');
+}));

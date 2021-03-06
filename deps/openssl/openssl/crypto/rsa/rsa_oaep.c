@@ -1,7 +1,10 @@
-/* crypto/rsa/rsa_oaep.c */
 /*
- * Written by Ulf Moeller. This software is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied.
+ * Copyright 1999-2019 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 /* EME-OAEP as defined in RFC 2437 (PKCS #1 v2.0) */
@@ -17,16 +20,15 @@
  * one-wayness.  For the RSA function, this is an equivalent notion.
  */
 
-#include "constant_time_locl.h"
+#include "internal/constant_time.h"
 
-#if !defined(OPENSSL_NO_SHA) && !defined(OPENSSL_NO_SHA1)
-# include <stdio.h>
-# include "cryptlib.h"
-# include <openssl/bn.h>
-# include <openssl/rsa.h>
-# include <openssl/evp.h>
-# include <openssl/rand.h>
-# include <openssl/sha.h>
+#include <stdio.h>
+#include "internal/cryptlib.h"
+#include <openssl/bn.h>
+#include <openssl/evp.h>
+#include <openssl/rand.h>
+#include <openssl/sha.h>
+#include "rsa_local.h"
 
 int RSA_padding_add_PKCS1_OAEP(unsigned char *to, int tlen,
                                const unsigned char *from, int flen,
@@ -41,10 +43,12 @@ int RSA_padding_add_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
                                     const unsigned char *param, int plen,
                                     const EVP_MD *md, const EVP_MD *mgf1md)
 {
+    int rv = 0;
     int i, emlen = tlen - 1;
     unsigned char *db, *seed;
-    unsigned char *dbmask, seedmask[EVP_MAX_MD_SIZE];
-    int mdlen;
+    unsigned char *dbmask = NULL;
+    unsigned char seedmask[EVP_MAX_MD_SIZE];
+    int mdlen, dbmask_len = 0;
 
     if (md == NULL)
         md = EVP_sha1();
@@ -70,36 +74,35 @@ int RSA_padding_add_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
     db = to + mdlen + 1;
 
     if (!EVP_Digest((void *)param, plen, db, NULL, md, NULL))
-        return 0;
+        goto err;
     memset(db + mdlen, 0, emlen - flen - 2 * mdlen - 1);
     db[emlen - flen - mdlen - 1] = 0x01;
     memcpy(db + emlen - flen - mdlen, from, (unsigned int)flen);
     if (RAND_bytes(seed, mdlen) <= 0)
-        return 0;
-# ifdef PKCS_TESTVECT
-    memcpy(seed,
-           "\xaa\xfd\x12\xf6\x59\xca\xe6\x34\x89\xb4\x79\xe5\x07\x6d\xde\xc2\xf0\x6c\xb5\x8f",
-           20);
-# endif
+        goto err;
 
-    dbmask = OPENSSL_malloc(emlen - mdlen);
+    dbmask_len = emlen - mdlen;
+    dbmask = OPENSSL_malloc(dbmask_len);
     if (dbmask == NULL) {
         RSAerr(RSA_F_RSA_PADDING_ADD_PKCS1_OAEP_MGF1, ERR_R_MALLOC_FAILURE);
-        return 0;
+        goto err;
     }
 
-    if (PKCS1_MGF1(dbmask, emlen - mdlen, seed, mdlen, mgf1md) < 0)
-        return 0;
-    for (i = 0; i < emlen - mdlen; i++)
+    if (PKCS1_MGF1(dbmask, dbmask_len, seed, mdlen, mgf1md) < 0)
+        goto err;
+    for (i = 0; i < dbmask_len; i++)
         db[i] ^= dbmask[i];
 
-    if (PKCS1_MGF1(seedmask, mdlen, db, emlen - mdlen, mgf1md) < 0)
-        return 0;
+    if (PKCS1_MGF1(seedmask, mdlen, db, dbmask_len, mgf1md) < 0)
+        goto err;
     for (i = 0; i < mdlen; i++)
         seed[i] ^= seedmask[i];
+    rv = 1;
 
-    OPENSSL_free(dbmask);
-    return 1;
+ err:
+    OPENSSL_cleanse(seedmask, sizeof(seedmask));
+    OPENSSL_clear_free(dbmask, dbmask_len);
+    return rv;
 }
 
 int RSA_padding_check_PKCS1_OAEP(unsigned char *to, int tlen,
@@ -116,8 +119,8 @@ int RSA_padding_check_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
                                       int plen, const EVP_MD *md,
                                       const EVP_MD *mgf1md)
 {
-    int i, dblen, mlen = -1, one_index = 0, msg_index;
-    unsigned int good, found_one_byte;
+    int i, dblen = 0, mlen = -1, one_index = 0, msg_index;
+    unsigned int good = 0, found_one_byte, mask;
     const unsigned char *maskedseed, *maskeddb;
     /*
      * |em| is the encoded message, zero-padded to exactly |num| bytes: em =
@@ -140,31 +143,42 @@ int RSA_padding_check_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
      * |num| is the length of the modulus; |flen| is the length of the
      * encoded message. Therefore, for any |from| that was obtained by
      * decrypting a ciphertext, we must have |flen| <= |num|. Similarly,
-     * num < 2 * mdlen + 2 must hold for the modulus irrespective of
+     * |num| >= 2 * |mdlen| + 2 must hold for the modulus irrespective of
      * the ciphertext, see PKCS #1 v2.2, section 7.1.2.
      * This does not leak any side-channel information.
      */
-    if (num < flen || num < 2 * mdlen + 2)
-        goto decoding_err;
+    if (num < flen || num < 2 * mdlen + 2) {
+        RSAerr(RSA_F_RSA_PADDING_CHECK_PKCS1_OAEP_MGF1,
+               RSA_R_OAEP_DECODING_ERROR);
+        return -1;
+    }
 
     dblen = num - mdlen - 1;
     db = OPENSSL_malloc(dblen);
-    em = OPENSSL_malloc(num);
-    if (db == NULL || em == NULL) {
+    if (db == NULL) {
         RSAerr(RSA_F_RSA_PADDING_CHECK_PKCS1_OAEP_MGF1, ERR_R_MALLOC_FAILURE);
         goto cleanup;
     }
 
+    em = OPENSSL_malloc(num);
+    if (em == NULL) {
+        RSAerr(RSA_F_RSA_PADDING_CHECK_PKCS1_OAEP_MGF1,
+               ERR_R_MALLOC_FAILURE);
+        goto cleanup;
+    }
+
     /*
-     * Always do this zero-padding copy (even when num == flen) to avoid
-     * leaking that information. The copy still leaks some side-channel
-     * information, but it's impossible to have a fixed  memory access
-     * pattern since we can't read out of the bounds of |from|.
-     *
-     * TODO(emilia): Consider porting BN_bn2bin_padded from BoringSSL.
+     * Caller is encouraged to pass zero-padded message created with
+     * BN_bn2binpad. Trouble is that since we can't read out of |from|'s
+     * bounds, it's impossible to have an invariant memory access pattern
+     * in case |from| was not zero-padded in advance.
      */
-    memset(em, 0, num);
-    memcpy(em + num - flen, from, flen);
+    for (from += flen, em += num, i = 0; i < num; i++) {
+        mask = ~constant_time_is_zero(flen);
+        flen -= 1 & mask;
+        from -= 1 & mask;
+        *--em = *from & mask;
+    }
 
     /*
      * The first byte must be zero, however we must not leak if this is
@@ -211,33 +225,49 @@ int RSA_padding_check_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
      * so plaintext-awareness ensures timing side-channels are no longer a
      * concern.
      */
-    if (!good)
-        goto decoding_err;
-
     msg_index = one_index + 1;
     mlen = dblen - msg_index;
 
-    if (tlen < mlen) {
-        RSAerr(RSA_F_RSA_PADDING_CHECK_PKCS1_OAEP_MGF1, RSA_R_DATA_TOO_LARGE);
-        mlen = -1;
-    } else {
-        memcpy(to, db + msg_index, mlen);
-        goto cleanup;
+    /*
+     * For good measure, do this check in constant time as well.
+     */
+    good &= constant_time_ge(tlen, mlen);
+
+    /*
+     * Move the result in-place by |dblen|-|mdlen|-1-|mlen| bytes to the left.
+     * Then if |good| move |mlen| bytes from |db|+|mdlen|+1 to |to|.
+     * Otherwise leave |to| unchanged.
+     * Copy the memory back in a way that does not reveal the size of
+     * the data being copied via a timing side channel. This requires copying
+     * parts of the buffer multiple times based on the bits set in the real
+     * length. Clear bits do a non-copy with identical access pattern.
+     * The loop below has overall complexity of O(N*log(N)).
+     */
+    tlen = constant_time_select_int(constant_time_lt(dblen - mdlen - 1, tlen),
+                                    dblen - mdlen - 1, tlen);
+    for (msg_index = 1; msg_index < dblen - mdlen - 1; msg_index <<= 1) {
+        mask = ~constant_time_eq(msg_index & (dblen - mdlen - 1 - mlen), 0);
+        for (i = mdlen + 1; i < dblen - msg_index; i++)
+            db[i] = constant_time_select_8(mask, db[i + msg_index], db[i]);
+    }
+    for (i = 0; i < tlen; i++) {
+        mask = good & constant_time_lt(i, mlen);
+        to[i] = constant_time_select_8(mask, db[i + mdlen + 1], to[i]);
     }
 
- decoding_err:
     /*
      * To avoid chosen ciphertext attacks, the error message should not
      * reveal which kind of decoding error happened.
      */
     RSAerr(RSA_F_RSA_PADDING_CHECK_PKCS1_OAEP_MGF1,
            RSA_R_OAEP_DECODING_ERROR);
+    err_clear_last_constant_time(1 & good);
  cleanup:
-    if (db != NULL)
-        OPENSSL_free(db);
-    if (em != NULL)
-        OPENSSL_free(em);
-    return mlen;
+    OPENSSL_cleanse(seed, sizeof(seed));
+    OPENSSL_clear_free(db, dblen);
+    OPENSSL_clear_free(em, num);
+
+    return constant_time_select_int(good, mlen, -1);
 }
 
 int PKCS1_MGF1(unsigned char *mask, long len,
@@ -245,12 +275,13 @@ int PKCS1_MGF1(unsigned char *mask, long len,
 {
     long i, outlen = 0;
     unsigned char cnt[4];
-    EVP_MD_CTX c;
+    EVP_MD_CTX *c = EVP_MD_CTX_new();
     unsigned char md[EVP_MAX_MD_SIZE];
     int mdlen;
     int rv = -1;
 
-    EVP_MD_CTX_init(&c);
+    if (c == NULL)
+        goto err;
     mdlen = EVP_MD_size(dgst);
     if (mdlen < 0)
         goto err;
@@ -259,16 +290,16 @@ int PKCS1_MGF1(unsigned char *mask, long len,
         cnt[1] = (unsigned char)((i >> 16) & 255);
         cnt[2] = (unsigned char)((i >> 8)) & 255;
         cnt[3] = (unsigned char)(i & 255);
-        if (!EVP_DigestInit_ex(&c, dgst, NULL)
-            || !EVP_DigestUpdate(&c, seed, seedlen)
-            || !EVP_DigestUpdate(&c, cnt, 4))
+        if (!EVP_DigestInit_ex(c, dgst, NULL)
+            || !EVP_DigestUpdate(c, seed, seedlen)
+            || !EVP_DigestUpdate(c, cnt, 4))
             goto err;
         if (outlen + mdlen <= len) {
-            if (!EVP_DigestFinal_ex(&c, mask + outlen, NULL))
+            if (!EVP_DigestFinal_ex(c, mask + outlen, NULL))
                 goto err;
             outlen += mdlen;
         } else {
-            if (!EVP_DigestFinal_ex(&c, md, NULL))
+            if (!EVP_DigestFinal_ex(c, md, NULL))
                 goto err;
             memcpy(mask + outlen, md, len - outlen);
             outlen = len;
@@ -276,8 +307,7 @@ int PKCS1_MGF1(unsigned char *mask, long len,
     }
     rv = 0;
  err:
-    EVP_MD_CTX_cleanup(&c);
+    OPENSSL_cleanse(md, sizeof(md));
+    EVP_MD_CTX_free(c);
     return rv;
 }
-
-#endif

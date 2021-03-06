@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -12,6 +12,8 @@
 
 #include "unicode/utypes.h"
 
+#if U_SHOW_CPLUSPLUS_API
+
 /**
  * \file
  * \brief C++ API: Provides display names of Locale and its components.
@@ -20,6 +22,7 @@
 #if !UCONFIG_NO_FORMATTING
 
 #include "unicode/locid.h"
+#include "unicode/strenum.h"
 #include "unicode/uscript.h"
 #include "unicode/uldnames.h"
 #include "unicode/udisplaycontext.h"
@@ -48,7 +51,7 @@ public:
      * @return a LocaleDisplayNames instance
      * @stable ICU 4.4
      */
-    static LocaleDisplayNames* U_EXPORT2 createInstance(const Locale& locale);
+    inline static LocaleDisplayNames* U_EXPORT2 createInstance(const Locale& locale);
 
     /**
      * Returns an instance of LocaleDisplayNames that returns names
@@ -202,5 +205,7 @@ inline LocaleDisplayNames* LocaleDisplayNames::createInstance(const Locale& loca
 U_NAMESPACE_END
 
 #endif
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif

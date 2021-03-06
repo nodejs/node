@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 "use strict";
-var pubsuffix = require('./pubsuffix');
+var pubsuffix = require('./pubsuffix-psl');
 
 // Gives the permutation of all possible domainMatch()es of a given domain. The
 // array is in shortest-to-longest order.  Handy for indexing.

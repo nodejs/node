@@ -1,7 +1,9 @@
+// Flags: --expose-internals
 'use strict';
 
 require('../common');
-const binding = process.binding('constants');
+const { internalBinding } = require('internal/test/binding');
+const binding = internalBinding('constants');
 const constants = require('constants');
 const assert = require('assert');
 
@@ -19,8 +21,10 @@ assert.ok(binding.crypto);
         assert.strictEqual(binding[l][k][j], constants[j]);
       });
     }
-    if (l !== 'os') { // top level os constant isn't currently copied
+    if (l !== 'os') { // Top level os constant isn't currently copied
       assert.strictEqual(binding[l][k], constants[k]);
     }
   });
 });
+
+assert.ok(Object.isFrozen(constants));

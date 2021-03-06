@@ -5,368 +5,489 @@
 #ifndef V8_WASM_DECODER_H_
 #define V8_WASM_DECODER_H_
 
+#include <cinttypes>
+#include <cstdarg>
 #include <memory>
 
 #include "src/base/compiler-specific.h"
-#include "src/flags.h"
-#include "src/signature.h"
-#include "src/utils.h"
+#include "src/base/memory.h"
+#include "src/codegen/signature.h"
+#include "src/flags/flags.h"
+#include "src/utils/vector.h"
+#include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 namespace wasm {
 
-#if DEBUG
 #define TRACE(...)                                    \
   do {                                                \
     if (FLAG_trace_wasm_decoder) PrintF(__VA_ARGS__); \
   } while (false)
-#else
-#define TRACE(...)
-#endif
+#define TRACE_IF(cond, ...)                                     \
+  do {                                                          \
+    if (FLAG_trace_wasm_decoder && (cond)) PrintF(__VA_ARGS__); \
+  } while (false)
+
+// A {DecodeResult} only stores the failure / success status, but no data.
+using DecodeResult = VoidResult;
 
 // A helper utility to decode bytes, integers, fields, varints, etc, from
 // a buffer of bytes.
 class Decoder {
  public:
-  Decoder(const byte* start, const byte* end)
-      : start_(start),
-        pc_(start),
-        limit_(end),
-        end_(end),
-        error_pc_(nullptr),
-        error_pt_(nullptr) {}
+  // {ValidateFlag} can be used in a boolean manner ({if (!validate) ...}).
+  enum ValidateFlag : int8_t {
+    kNoValidation = 0,   // Don't run validation, assume valid input.
+    kBooleanValidation,  // Run validation but only store a generic error.
+    kFullValidation      // Run full validation with error message and location.
+  };
 
-  virtual ~Decoder() {}
+  enum TraceFlag : bool { kTrace = true, kNoTrace = false };
 
-  inline bool check(const byte* base, unsigned offset, unsigned length,
-                    const char* msg) {
-    DCHECK_GE(base, start_);
-    if ((base + offset + length) > limit_) {
-      error(base, base + offset, "%s", msg);
+  Decoder(const byte* start, const byte* end, uint32_t buffer_offset = 0)
+      : Decoder(start, start, end, buffer_offset) {}
+  explicit Decoder(const Vector<const byte> bytes, uint32_t buffer_offset = 0)
+      : Decoder(bytes.begin(), bytes.begin() + bytes.length(), buffer_offset) {}
+  Decoder(const byte* start, const byte* pc, const byte* end,
+          uint32_t buffer_offset = 0)
+      : start_(start), pc_(pc), end_(end), buffer_offset_(buffer_offset) {
+    DCHECK_LE(start, pc);
+    DCHECK_LE(pc, end);
+    DCHECK_EQ(static_cast<uint32_t>(end - start), end - start);
+  }
+
+  virtual ~Decoder() = default;
+
+  bool validate_size(const byte* pc, uint32_t length, const char* msg) {
+    DCHECK_LE(start_, pc);
+    if (V8_UNLIKELY(pc > end_ || length > static_cast<uint32_t>(end_ - pc))) {
+      error(pc, msg);
       return false;
     }
     return true;
   }
 
-  // Reads a single 8-bit byte, reporting an error if out of bounds.
-  inline uint8_t checked_read_u8(const byte* base, unsigned offset,
-                                 const char* msg = "expected 1 byte") {
-    return check(base, offset, 1, msg) ? base[offset] : 0;
+  // Reads an 8-bit unsigned integer.
+  template <ValidateFlag validate>
+  uint8_t read_u8(const byte* pc, const char* msg = "expected 1 byte") {
+    return read_little_endian<uint8_t, validate>(pc, msg);
   }
 
-  // Reads 16-bit word, reporting an error if out of bounds.
-  inline uint16_t checked_read_u16(const byte* base, unsigned offset,
-                                   const char* msg = "expected 2 bytes") {
-    return check(base, offset, 2, msg) ? read_u16(base + offset) : 0;
+  // Reads a 16-bit unsigned integer (little endian).
+  template <ValidateFlag validate>
+  uint16_t read_u16(const byte* pc, const char* msg = "expected 2 bytes") {
+    return read_little_endian<uint16_t, validate>(pc, msg);
   }
 
-  // Reads 32-bit word, reporting an error if out of bounds.
-  inline uint32_t checked_read_u32(const byte* base, unsigned offset,
-                                   const char* msg = "expected 4 bytes") {
-    return check(base, offset, 4, msg) ? read_u32(base + offset) : 0;
+  // Reads a 32-bit unsigned integer (little endian).
+  template <ValidateFlag validate>
+  uint32_t read_u32(const byte* pc, const char* msg = "expected 4 bytes") {
+    return read_little_endian<uint32_t, validate>(pc, msg);
   }
 
-  // Reads 64-bit word, reporting an error if out of bounds.
-  inline uint64_t checked_read_u64(const byte* base, unsigned offset,
-                                   const char* msg = "expected 8 bytes") {
-    return check(base, offset, 8, msg) ? read_u64(base + offset) : 0;
-  }
-
-  // Reads a variable-length unsigned integer (little endian).
-  uint32_t checked_read_u32v(const byte* base, unsigned offset,
-                             unsigned* length,
-                             const char* msg = "expected LEB32") {
-    return checked_read_leb<uint32_t, false>(base, offset, length, msg);
-  }
-
-  // Reads a variable-length signed integer (little endian).
-  int32_t checked_read_i32v(const byte* base, unsigned offset, unsigned* length,
-                            const char* msg = "expected SLEB32") {
-    uint32_t result =
-        checked_read_leb<uint32_t, true>(base, offset, length, msg);
-    if (*length == 5) return bit_cast<int32_t>(result);
-    if (*length > 0) {
-      int shift = 32 - 7 * *length;
-      // Perform sign extension.
-      return bit_cast<int32_t>(result << shift) >> shift;
-    }
-    return 0;
+  // Reads a 64-bit unsigned integer (little endian).
+  template <ValidateFlag validate>
+  uint64_t read_u64(const byte* pc, const char* msg = "expected 8 bytes") {
+    return read_little_endian<uint64_t, validate>(pc, msg);
   }
 
   // Reads a variable-length unsigned integer (little endian).
-  uint64_t checked_read_u64v(const byte* base, unsigned offset,
-                             unsigned* length,
-                             const char* msg = "expected LEB64") {
-    return checked_read_leb<uint64_t, false>(base, offset, length, msg);
+  template <ValidateFlag validate>
+  uint32_t read_u32v(const byte* pc, uint32_t* length,
+                     const char* name = "LEB32") {
+    return read_leb<uint32_t, validate, kNoTrace>(pc, length, name);
   }
 
   // Reads a variable-length signed integer (little endian).
-  int64_t checked_read_i64v(const byte* base, unsigned offset, unsigned* length,
-                            const char* msg = "expected SLEB64") {
-    uint64_t result =
-        checked_read_leb<uint64_t, true>(base, offset, length, msg);
-    if (*length == 10) return bit_cast<int64_t>(result);
-    if (*length > 0) {
-      int shift = 64 - 7 * *length;
-      // Perform sign extension.
-      return bit_cast<int64_t>(result << shift) >> shift;
+  template <ValidateFlag validate>
+  int32_t read_i32v(const byte* pc, uint32_t* length,
+                    const char* name = "signed LEB32") {
+    return read_leb<int32_t, validate, kNoTrace>(pc, length, name);
+  }
+
+  // Reads a variable-length unsigned integer (little endian).
+  template <ValidateFlag validate>
+  uint64_t read_u64v(const byte* pc, uint32_t* length,
+                     const char* name = "LEB64") {
+    return read_leb<uint64_t, validate, kNoTrace>(pc, length, name);
+  }
+
+  // Reads a variable-length signed integer (little endian).
+  template <ValidateFlag validate>
+  int64_t read_i64v(const byte* pc, uint32_t* length,
+                    const char* name = "signed LEB64") {
+    return read_leb<int64_t, validate, kNoTrace>(pc, length, name);
+  }
+
+  // Reads a variable-length 33-bit signed integer (little endian).
+  template <ValidateFlag validate>
+  int64_t read_i33v(const byte* pc, uint32_t* length,
+                    const char* name = "signed LEB33") {
+    return read_leb<int64_t, validate, kNoTrace, 33>(pc, length, name);
+  }
+
+  // Convenient overload for callers who don't care about length.
+  template <ValidateFlag validate>
+  WasmOpcode read_prefixed_opcode(const byte* pc) {
+    uint32_t len;
+    return read_prefixed_opcode<validate>(pc, &len);
+  }
+
+  // Reads a prefixed-opcode, possibly with variable-length index.
+  // `length` is set to the number of bytes that make up this opcode,
+  // *including* the prefix byte. For most opcodes, it will be 2.
+  template <ValidateFlag validate>
+  WasmOpcode read_prefixed_opcode(const byte* pc, uint32_t* length,
+                                  const char* name = "prefixed opcode") {
+    uint32_t index;
+
+    // Prefixed opcodes all use LEB128 encoding.
+    index = read_u32v<validate>(pc + 1, length, "prefixed opcode index");
+    *length += 1;  // Prefix byte.
+    // Only support opcodes that go up to 0xFF (when decoded). Anything
+    // bigger will need 1 more byte, and the '<< 8' below will be wrong.
+    if (validate && V8_UNLIKELY(index > 0xff)) {
+      errorf(pc, "Invalid prefixed opcode %d", index);
+      // If size validation fails.
+      index = 0;
+      *length = 0;
     }
-    return 0;
-  }
 
-  // Reads a single 16-bit unsigned integer (little endian).
-  inline uint16_t read_u16(const byte* ptr) {
-    DCHECK(ptr >= start_ && (ptr + 2) <= end_);
-    return ReadLittleEndianValue<uint16_t>(ptr);
-  }
-
-  // Reads a single 32-bit unsigned integer (little endian).
-  inline uint32_t read_u32(const byte* ptr) {
-    DCHECK(ptr >= start_ && (ptr + 4) <= end_);
-    return ReadLittleEndianValue<uint32_t>(ptr);
-  }
-
-  // Reads a single 64-bit unsigned integer (little endian).
-  inline uint64_t read_u64(const byte* ptr) {
-    DCHECK(ptr >= start_ && (ptr + 8) <= end_);
-    return ReadLittleEndianValue<uint64_t>(ptr);
+    return static_cast<WasmOpcode>((*pc) << 8 | index);
   }
 
   // Reads a 8-bit unsigned integer (byte) and advances {pc_}.
-  uint8_t consume_u8(const char* name = nullptr) {
-    TRACE("  +%d  %-20s: ", static_cast<int>(pc_ - start_),
-          name ? name : "uint8_t");
-    if (checkAvailable(1)) {
-      byte val = *(pc_++);
-      TRACE("%02x = %d\n", val, val);
-      return val;
-    }
-    return traceOffEnd<uint8_t>();
+  uint8_t consume_u8(const char* name = "uint8_t") {
+    return consume_little_endian<uint8_t>(name);
   }
 
   // Reads a 16-bit unsigned integer (little endian) and advances {pc_}.
-  uint16_t consume_u16(const char* name = nullptr) {
-    TRACE("  +%d  %-20s: ", static_cast<int>(pc_ - start_),
-          name ? name : "uint16_t");
-    if (checkAvailable(2)) {
-      uint16_t val = read_u16(pc_);
-      TRACE("%02x %02x = %d\n", pc_[0], pc_[1], val);
-      pc_ += 2;
-      return val;
-    }
-    return traceOffEnd<uint16_t>();
+  uint16_t consume_u16(const char* name = "uint16_t") {
+    return consume_little_endian<uint16_t>(name);
   }
 
   // Reads a single 32-bit unsigned integer (little endian) and advances {pc_}.
-  uint32_t consume_u32(const char* name = nullptr) {
-    TRACE("  +%d  %-20s: ", static_cast<int>(pc_ - start_),
-          name ? name : "uint32_t");
-    if (checkAvailable(4)) {
-      uint32_t val = read_u32(pc_);
-      TRACE("%02x %02x %02x %02x = %u\n", pc_[0], pc_[1], pc_[2], pc_[3], val);
-      pc_ += 4;
-      return val;
-    }
-    return traceOffEnd<uint32_t>();
+  uint32_t consume_u32(const char* name = "uint32_t") {
+    return consume_little_endian<uint32_t>(name);
   }
 
-  // Reads a LEB128 variable-length 32-bit integer and advances {pc_}.
+  // Reads a LEB128 variable-length unsigned 32-bit integer and advances {pc_}.
   uint32_t consume_u32v(const char* name = nullptr) {
-    TRACE("  +%d  %-20s: ", static_cast<int>(pc_ - start_),
-          name ? name : "varint");
-    if (checkAvailable(1)) {
-      const byte* pos = pc_;
-      const byte* end = pc_ + 5;
-      if (end > limit_) end = limit_;
+    uint32_t length = 0;
+    uint32_t result =
+        read_leb<uint32_t, kFullValidation, kTrace>(pc_, &length, name);
+    pc_ += length;
+    return result;
+  }
 
-      uint32_t result = 0;
-      int shift = 0;
-      byte b = 0;
-      while (pc_ < end) {
-        b = *pc_++;
-        TRACE("%02x ", b);
-        result = result | ((b & 0x7F) << shift);
-        if ((b & 0x80) == 0) break;
-        shift += 7;
-      }
+  // Reads a LEB128 variable-length signed 32-bit integer and advances {pc_}.
+  int32_t consume_i32v(const char* name = nullptr) {
+    uint32_t length = 0;
+    int32_t result =
+        read_leb<int32_t, kFullValidation, kTrace>(pc_, &length, name);
+    pc_ += length;
+    return result;
+  }
 
-      int length = static_cast<int>(pc_ - pos);
-      if (pc_ == end && (b & 0x80)) {
-        error(pc_ - 1, "varint too large");
-      } else if (length == 0) {
-        error(pc_, "varint of length 0");
-      } else {
-        TRACE("= %u\n", result);
-      }
-      return result;
-    }
-    return traceOffEnd<uint32_t>();
+  // Reads a LEB128 variable-length unsigned 64-bit integer and advances {pc_}.
+  uint64_t consume_u64v(const char* name = nullptr) {
+    uint32_t length = 0;
+    uint64_t result =
+        read_leb<uint64_t, kFullValidation, kTrace>(pc_, &length, name);
+    pc_ += length;
+    return result;
   }
 
   // Consume {size} bytes and send them to the bit bucket, advancing {pc_}.
-  void consume_bytes(int size) {
+  void consume_bytes(uint32_t size, const char* name = "skip") {
+    // Only trace if the name is not null.
+    TRACE_IF(name, "  +%u  %-20s: %u bytes\n", pc_offset(), name, size);
     if (checkAvailable(size)) {
       pc_ += size;
     } else {
-      pc_ = limit_;
+      pc_ = end_;
     }
   }
 
-  // Check that at least {size} bytes exist between {pc_} and {limit_}.
-  bool checkAvailable(int size) {
-    intptr_t pc_overflow_value = std::numeric_limits<intptr_t>::max() - size;
-    if (size < 0 || (intptr_t)pc_ > pc_overflow_value) {
-      error(pc_, nullptr, "reading %d bytes would underflow/overflow", size);
+  // Check that at least {size} bytes exist between {pc_} and {end_}.
+  bool checkAvailable(uint32_t size) {
+    DCHECK_LE(pc_, end_);
+    if (V8_UNLIKELY(size > static_cast<uint32_t>(end_ - pc_))) {
+      errorf(pc_, "expected %u bytes, fell off end", size);
       return false;
-    } else if (pc_ < start_ || limit_ < (pc_ + size)) {
-      error(pc_, nullptr, "expected %d bytes, fell off end", size);
-      return false;
-    } else {
-      return true;
     }
+    return true;
   }
 
-  void error(const char* msg) { error(pc_, nullptr, "%s", msg); }
+  // Use this for "boolean validation", i.e. if the error message is not used
+  // anyway.
+  void V8_NOINLINE MarkError() {
+    if (!ok()) return;
+    error_ = {0, "validation failed"};
+    onFirstError();
+  }
 
-  void error(const byte* pc, const char* msg) { error(pc, nullptr, "%s", msg); }
+  // Do not inline error methods. This has measurable impact on validation time,
+  // see https://crbug.com/910432.
+  void V8_NOINLINE error(const char* msg) { errorf(pc_offset(), "%s", msg); }
+  void V8_NOINLINE error(const uint8_t* pc, const char* msg) {
+    errorf(pc_offset(pc), "%s", msg);
+  }
+  void V8_NOINLINE error(uint32_t offset, const char* msg) {
+    errorf(offset, "%s", msg);
+  }
 
-  // Sets internal error state.
-  void PRINTF_FORMAT(4, 5)
-      error(const byte* pc, const byte* pt, const char* format, ...) {
-    if (ok()) {
-#if DEBUG
-      if (FLAG_wasm_break_on_decoder_error) {
-        base::OS::DebugBreak();
-      }
-#endif
-      const int kMaxErrorMsg = 256;
-      char* buffer = new char[kMaxErrorMsg];
-      va_list arguments;
-      va_start(arguments, format);
-      base::OS::VSNPrintF(buffer, kMaxErrorMsg - 1, format, arguments);
-      va_end(arguments);
-      error_msg_.reset(buffer);
-      error_pc_ = pc;
-      error_pt_ = pt;
-      onFirstError();
-    }
+  void V8_NOINLINE PRINTF_FORMAT(2, 3) errorf(const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    verrorf(pc_offset(), format, args);
+    va_end(args);
+  }
+
+  void V8_NOINLINE PRINTF_FORMAT(3, 4)
+      errorf(uint32_t offset, const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    verrorf(offset, format, args);
+    va_end(args);
+  }
+
+  void V8_NOINLINE PRINTF_FORMAT(3, 4)
+      errorf(const uint8_t* pc, const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    verrorf(pc_offset(pc), format, args);
+    va_end(args);
   }
 
   // Behavior triggered on first error, overridden in subclasses.
   virtual void onFirstError() {}
 
+  // Debugging helper to print a bytes range as hex bytes.
+  void traceByteRange(const byte* start, const byte* end) {
+    DCHECK_LE(start, end);
+    for (const byte* p = start; p < end; ++p) TRACE("%02x ", *p);
+  }
+
   // Debugging helper to print bytes up to the end.
-  template <typename T>
-  T traceOffEnd() {
-    T t = 0;
-    for (const byte* ptr = pc_; ptr < limit_; ptr++) {
-      TRACE("%02x ", *ptr);
-    }
+  void traceOffEnd() {
+    traceByteRange(pc_, end_);
     TRACE("<end>\n");
-    pc_ = limit_;
-    return t;
   }
 
   // Converts the given value to a {Result}, copying the error if necessary.
-  template <typename T>
-  Result<T> toResult(T val) {
-    Result<T> result;
-    if (error_pc_) {
-      TRACE("Result error: %s\n", error_msg_.get());
-      result.error_code = kError;
-      result.start = start_;
-      result.error_pc = error_pc_;
-      result.error_pt = error_pt_;
-      // transfer ownership of the error to the result.
-      result.error_msg.reset(error_msg_.release());
-    } else {
-      result.error_code = kSuccess;
+  template <typename T, typename U = typename std::remove_reference<T>::type>
+  Result<U> toResult(T&& val) {
+    if (failed()) {
+      TRACE("Result error: %s\n", error_.message().c_str());
+      return Result<U>{error_};
     }
-    result.val = std::move(val);
-    return result;
+    return Result<U>{std::forward<T>(val)};
   }
 
   // Resets the boundaries of this decoder.
-  void Reset(const byte* start, const byte* end) {
+  void Reset(const byte* start, const byte* end, uint32_t buffer_offset = 0) {
+    DCHECK_LE(start, end);
+    DCHECK_EQ(static_cast<uint32_t>(end - start), end - start);
     start_ = start;
     pc_ = start;
-    limit_ = end;
     end_ = end;
-    error_pc_ = nullptr;
-    error_pt_ = nullptr;
-    error_msg_.reset();
+    buffer_offset_ = buffer_offset;
+    error_ = {};
   }
 
-  bool ok() const { return error_pc_ == nullptr; }
-  bool failed() const { return !!error_msg_; }
-  bool more() const { return pc_ < limit_; }
+  void Reset(Vector<const uint8_t> bytes, uint32_t buffer_offset = 0) {
+    Reset(bytes.begin(), bytes.end(), buffer_offset);
+  }
 
-  const byte* start() { return start_; }
-  const byte* pc() { return pc_; }
-  uint32_t pc_offset() { return static_cast<uint32_t>(pc_ - start_); }
+  bool ok() const { return error_.empty(); }
+  bool failed() const { return !ok(); }
+  bool more() const { return pc_ < end_; }
+  const WasmError& error() const { return error_; }
+
+  const byte* start() const { return start_; }
+  const byte* pc() const { return pc_; }
+  uint32_t V8_INLINE position() const {
+    return static_cast<uint32_t>(pc_ - start_);
+  }
+  // This needs to be inlined for performance (see https://crbug.com/910432).
+  uint32_t V8_INLINE pc_offset(const uint8_t* pc) const {
+    DCHECK_LE(start_, pc);
+    DCHECK_GE(kMaxUInt32 - buffer_offset_, pc - start_);
+    return static_cast<uint32_t>(pc - start_) + buffer_offset_;
+  }
+  uint32_t pc_offset() const { return pc_offset(pc_); }
+  uint32_t buffer_offset() const { return buffer_offset_; }
+  // Takes an offset relative to the module start and returns an offset relative
+  // to the current buffer of the decoder.
+  uint32_t GetBufferRelativeOffset(uint32_t offset) const {
+    DCHECK_LE(buffer_offset_, offset);
+    return offset - buffer_offset_;
+  }
+  const byte* end() const { return end_; }
+  void set_end(const byte* end) { end_ = end; }
+
+  // Check if the byte at {offset} from the current pc equals {expected}.
+  bool lookahead(int offset, byte expected) {
+    DCHECK_LE(pc_, end_);
+    return end_ - pc_ > offset && pc_[offset] == expected;
+  }
 
  protected:
   const byte* start_;
   const byte* pc_;
-  const byte* limit_;
   const byte* end_;
-  const byte* error_pc_;
-  const byte* error_pt_;
-  std::unique_ptr<char[]> error_msg_;
+  // The offset of the current buffer in the module. Needed for streaming.
+  uint32_t buffer_offset_;
+  WasmError error_;
 
  private:
-  template <typename IntType, bool is_signed>
-  IntType checked_read_leb(const byte* base, unsigned offset, unsigned* length,
-                           const char* msg) {
-    if (!check(base, offset, 1, msg)) {
-      *length = 0;
-      return 0;
-    }
+  void verrorf(uint32_t offset, const char* format, va_list args) {
+    // Only report the first error.
+    if (!ok()) return;
+    constexpr int kMaxErrorMsg = 256;
+    EmbeddedVector<char, kMaxErrorMsg> buffer;
+    int len = VSNPrintF(buffer, format, args);
+    CHECK_LT(0, len);
+    error_ = {offset, {buffer.begin(), static_cast<size_t>(len)}};
+    onFirstError();
+  }
 
-    const int kMaxLength = (sizeof(IntType) * 8 + 6) / 7;
-    const byte* ptr = base + offset;
-    const byte* end = ptr + kMaxLength;
-    if (end > limit_) end = limit_;
-    int shift = 0;
-    byte b = 0;
-    IntType result = 0;
-    while (ptr < end) {
-      b = *ptr++;
-      result = result | (static_cast<IntType>(b & 0x7F) << shift);
-      if ((b & 0x80) == 0) break;
-      shift += 7;
+  template <typename IntType, ValidateFlag validate>
+  IntType read_little_endian(const byte* pc, const char* msg) {
+    if (!validate) {
+      DCHECK(validate_size(pc, sizeof(IntType), msg));
+    } else if (!validate_size(pc, sizeof(IntType), msg)) {
+      return IntType{0};
     }
-    DCHECK_LE(ptr - (base + offset), kMaxLength);
-    *length = static_cast<unsigned>(ptr - (base + offset));
-    if (ptr == end) {
-      // Check there are no bits set beyond the bitwidth of {IntType}.
-      const int kExtraBits = (1 + kMaxLength * 7) - (sizeof(IntType) * 8);
-      const byte kExtraBitsMask =
-          static_cast<byte>((0xFF << (8 - kExtraBits)) & 0xFF);
-      int extra_bits_value;
-      if (is_signed) {
-        // A signed-LEB128 must sign-extend the final byte, excluding its
-        // most-signifcant bit. e.g. for a 32-bit LEB128:
-        //   kExtraBits = 4
-        //   kExtraBitsMask = 0xf0
-        // If b is 0x0f, the value is negative, so extra_bits_value is 0x70.
-        // If b is 0x03, the value is positive, so extra_bits_value is 0x00.
-        extra_bits_value = (static_cast<int8_t>(b << kExtraBits) >> 8) &
-                           kExtraBitsMask & ~0x80;
+    return base::ReadLittleEndianValue<IntType>(reinterpret_cast<Address>(pc));
+  }
+
+  template <typename IntType>
+  IntType consume_little_endian(const char* name) {
+    TRACE("  +%u  %-20s: ", pc_offset(), name);
+    if (!checkAvailable(sizeof(IntType))) {
+      traceOffEnd();
+      pc_ = end_;
+      return IntType{0};
+    }
+    IntType val = read_little_endian<IntType, kNoValidation>(pc_, name);
+    traceByteRange(pc_, pc_ + sizeof(IntType));
+    TRACE("= %d\n", val);
+    pc_ += sizeof(IntType);
+    return val;
+  }
+
+  template <typename IntType, ValidateFlag validate, TraceFlag trace,
+            size_t size_in_bits = 8 * sizeof(IntType)>
+  V8_INLINE IntType read_leb(const byte* pc, uint32_t* length,
+                             const char* name = "varint") {
+    static_assert(size_in_bits <= 8 * sizeof(IntType),
+                  "leb does not fit in type");
+    TRACE_IF(trace, "  +%u  %-20s: ", pc_offset(), name);
+    // Fast path for single-byte integers.
+    if ((!validate || V8_LIKELY(pc < end_)) && !(*pc & 0x80)) {
+      TRACE_IF(trace, "%02x ", *pc);
+      *length = 1;
+      IntType result = *pc;
+      if (std::is_signed<IntType>::value) {
+        // Perform sign extension.
+        constexpr int sign_ext_shift = int{8 * sizeof(IntType)} - 7;
+        result = (result << sign_ext_shift) >> sign_ext_shift;
+        TRACE_IF(trace, "= %" PRIi64 "\n", static_cast<int64_t>(result));
       } else {
-        extra_bits_value = 0;
+        TRACE_IF(trace, "= %" PRIu64 "\n", static_cast<uint64_t>(result));
       }
-      if (*length == kMaxLength && (b & kExtraBitsMask) != extra_bits_value) {
-        error(base, ptr, "extra bits in varint");
-        return 0;
+      return result;
+    }
+    return read_leb_slowpath<IntType, validate, trace, size_in_bits>(pc, length,
+                                                                     name);
+  }
+
+  template <typename IntType, ValidateFlag validate, TraceFlag trace,
+            size_t size_in_bits = 8 * sizeof(IntType)>
+  V8_NOINLINE IntType read_leb_slowpath(const byte* pc, uint32_t* length,
+                                        const char* name) {
+    // Create an unrolled LEB decoding function per integer type.
+    return read_leb_tail<IntType, validate, trace, size_in_bits, 0>(pc, length,
+                                                                    name, 0);
+  }
+
+  template <typename IntType, ValidateFlag validate, TraceFlag trace,
+            size_t size_in_bits, int byte_index>
+  V8_INLINE IntType read_leb_tail(const byte* pc, uint32_t* length,
+                                  const char* name, IntType result) {
+    constexpr bool is_signed = std::is_signed<IntType>::value;
+    constexpr int kMaxLength = (size_in_bits + 6) / 7;
+    static_assert(byte_index < kMaxLength, "invalid template instantiation");
+    constexpr int shift = byte_index * 7;
+    constexpr bool is_last_byte = byte_index == kMaxLength - 1;
+    const bool at_end = validate && pc >= end_;
+    byte b = 0;
+    if (V8_LIKELY(!at_end)) {
+      DCHECK_LT(pc, end_);
+      b = *pc;
+      TRACE_IF(trace, "%02x ", b);
+      using Unsigned = typename std::make_unsigned<IntType>::type;
+      result = result |
+               (static_cast<Unsigned>(static_cast<IntType>(b) & 0x7f) << shift);
+    }
+    if (!is_last_byte && (b & 0x80)) {
+      // Make sure that we only instantiate the template for valid byte indexes.
+      // Compilers are not smart enough to figure out statically that the
+      // following call is unreachable if is_last_byte is false.
+      constexpr int next_byte_index = byte_index + (is_last_byte ? 0 : 1);
+      return read_leb_tail<IntType, validate, trace, size_in_bits,
+                           next_byte_index>(pc + 1, length, name, result);
+    }
+    *length = byte_index + (at_end ? 0 : 1);
+    if (validate && V8_UNLIKELY(at_end || (b & 0x80))) {
+      TRACE_IF(trace, at_end ? "<end> " : "<length overflow> ");
+      if (validate == kFullValidation) {
+        errorf(pc, "expected %s", name);
+      } else {
+        MarkError();
       }
-      if ((b & 0x80) != 0) {
-        error(base, ptr, "%s", msg);
-        return 0;
+      result = 0;
+      *length = 0;
+    }
+    if (is_last_byte) {
+      // A signed-LEB128 must sign-extend the final byte, excluding its
+      // most-significant bit; e.g. for a 32-bit LEB128:
+      //   kExtraBits = 4  (== 32 - (5-1) * 7)
+      // For unsigned values, the extra bits must be all zero.
+      // For signed values, the extra bits *plus* the most significant bit must
+      // either be 0, or all ones.
+      constexpr int kExtraBits = size_in_bits - ((kMaxLength - 1) * 7);
+      constexpr int kSignExtBits = kExtraBits - (is_signed ? 1 : 0);
+      const byte checked_bits = b & (0xFF << kSignExtBits);
+      constexpr byte kSignExtendedExtraBits = 0x7f & (0xFF << kSignExtBits);
+      const bool valid_extra_bits =
+          checked_bits == 0 ||
+          (is_signed && checked_bits == kSignExtendedExtraBits);
+      if (!validate) {
+        DCHECK(valid_extra_bits);
+      } else if (V8_UNLIKELY(!valid_extra_bits)) {
+        if (validate == kFullValidation) {
+          error(pc, "extra bits in varint");
+        } else {
+          MarkError();
+        }
+        result = 0;
+        *length = 0;
       }
+    }
+    constexpr int sign_ext_shift =
+        is_signed ? std::max(0, int{8 * sizeof(IntType)} - shift - 7) : 0;
+    // Perform sign extension.
+    result = (result << sign_ext_shift) >> sign_ext_shift;
+    if (trace && is_signed) {
+      TRACE("= %" PRIi64 "\n", static_cast<int64_t>(result));
+    } else if (trace) {
+      TRACE("= %" PRIu64 "\n", static_cast<uint64_t>(result));
     }
     return result;
   }

@@ -62,16 +62,3 @@ testBitNot(0x80000000 - 0.12345, "float6");
 testBitNot("0", "string0");
 testBitNot("2.3", "string2.3");
 testBitNot("-9.4", "string-9.4");
-
-
-// Try to test that we can deal with allocation failures in
-// the fast path and just use the slow path instead.
-function TryToGC() {
-  var x = 0x40000000;
-  // Put in an eval to foil Crankshaft.
-  eval("");
-  for (var i = 0; i < 1000000; i++) {
-    assertEquals(~0x40000000, ~x);
-  }
-}
-TryToGC();

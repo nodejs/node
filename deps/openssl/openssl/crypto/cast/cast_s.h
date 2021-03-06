@@ -1,61 +1,13 @@
-/* crypto/cast/cast_s.h */
-/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
- * All rights reserved.
+/*
+ * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * This package is an SSL implementation written
- * by Eric Young (eay@cryptsoft.com).
- * The implementation was written so as to conform with Netscapes SSL.
- *
- * This library is free for commercial and non-commercial use as long as
- * the following conditions are aheared to.  The following conditions
- * apply to all code found in this distribution, be it the RC4, RSA,
- * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
- * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@cryptsoft.com).
- *
- * Copyright remains Eric Young's, and as such any Copyright notices in
- * the code are not to be removed.
- * If this package is used in a product, Eric Young should be given attribution
- * as the author of the parts of the library used.
- * This can be in the form of a textual message at program startup or
- * in documentation (online or textual) provided with the package.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    "This product includes cryptographic software written by
- *     Eric Young (eay@cryptsoft.com)"
- *    The word 'cryptographic' can be left out if the rouines from the library
- *    being used are not cryptographic related :-).
- * 4. If you include any Windows specific code (or a derivative thereof) from
- *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
- *
- * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- * The licence and distribution terms for any publically available version or
- * derivative of this code cannot be changed.  i.e. this code cannot simply be
- * copied and put under another distribution licence
- * [including the GNU Public Licence.]
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
-OPENSSL_GLOBAL const CAST_LONG CAST_S_table0[256] = {
+
+const CAST_LONG CAST_S_table0[256] = {
     0x30fb40d4, 0x9fa0ff0b, 0x6beccd2f, 0x3f258c7a,
     0x1e213f2f, 0x9c004dd3, 0x6003e540, 0xcf9fc949,
     0xbfd4af27, 0x88bbbdb5, 0xe2034090, 0x98d09675,
@@ -122,7 +74,7 @@ OPENSSL_GLOBAL const CAST_LONG CAST_S_table0[256] = {
     0x427b169c, 0x5ac9f049, 0xdd8f0f00, 0x5c8165bf,
 };
 
-OPENSSL_GLOBAL const CAST_LONG CAST_S_table1[256] = {
+const CAST_LONG CAST_S_table1[256] = {
     0x1f201094, 0xef0ba75b, 0x69e3cf7e, 0x393f4380,
     0xfe61cf7a, 0xeec5207a, 0x55889c94, 0x72fc0651,
     0xada7ef79, 0x4e1d7235, 0xd55a63ce, 0xde0436ba,
@@ -189,7 +141,7 @@ OPENSSL_GLOBAL const CAST_LONG CAST_S_table1[256] = {
     0x7160a539, 0x73bfbe70, 0x83877605, 0x4523ecf1,
 };
 
-OPENSSL_GLOBAL const CAST_LONG CAST_S_table2[256] = {
+const CAST_LONG CAST_S_table2[256] = {
     0x8defc240, 0x25fa5d9f, 0xeb903dbf, 0xe810c907,
     0x47607fff, 0x369fe44b, 0x8c1fc644, 0xaececa90,
     0xbeb1f9bf, 0xeefbcaea, 0xe8cf1950, 0x51df07ae,
@@ -256,7 +208,7 @@ OPENSSL_GLOBAL const CAST_LONG CAST_S_table2[256] = {
     0xdfef4636, 0xa133c501, 0xe9d3531c, 0xee353783,
 };
 
-OPENSSL_GLOBAL const CAST_LONG CAST_S_table3[256] = {
+const CAST_LONG CAST_S_table3[256] = {
     0x9db30420, 0x1fb6e9de, 0xa7be7bef, 0xd273a298,
     0x4a4f7bdb, 0x64ad8c57, 0x85510443, 0xfa020ed1,
     0x7e287aff, 0xe60fb663, 0x095f35a1, 0x79ebf120,
@@ -323,7 +275,7 @@ OPENSSL_GLOBAL const CAST_LONG CAST_S_table3[256] = {
     0x13ecf0b0, 0xd3ffb372, 0x3f85c5c1, 0x0aef7ed2,
 };
 
-OPENSSL_GLOBAL const CAST_LONG CAST_S_table4[256] = {
+const CAST_LONG CAST_S_table4[256] = {
     0x7ec90c04, 0x2c6e74b9, 0x9b0e66df, 0xa6337911,
     0xb86a7fff, 0x1dd358f5, 0x44dd9d44, 0x1731167f,
     0x08fbf1fa, 0xe7f511cc, 0xd2051b00, 0x735aba00,
@@ -390,7 +342,7 @@ OPENSSL_GLOBAL const CAST_LONG CAST_S_table4[256] = {
     0x5e76ffa8, 0xb1534546, 0x6d47de08, 0xefe9e7d4,
 };
 
-OPENSSL_GLOBAL const CAST_LONG CAST_S_table5[256] = {
+const CAST_LONG CAST_S_table5[256] = {
     0xf6fa8f9d, 0x2cac6ce1, 0x4ca34867, 0xe2337f7c,
     0x95db08e7, 0x016843b4, 0xeced5cbc, 0x325553ac,
     0xbf9f0960, 0xdfa1e2ed, 0x83f0579d, 0x63ed86b9,
@@ -457,7 +409,7 @@ OPENSSL_GLOBAL const CAST_LONG CAST_S_table5[256] = {
     0x48392905, 0xa65b1db8, 0x851c97bd, 0xd675cf2f,
 };
 
-OPENSSL_GLOBAL const CAST_LONG CAST_S_table6[256] = {
+const CAST_LONG CAST_S_table6[256] = {
     0x85e04019, 0x332bf567, 0x662dbfff, 0xcfc65693,
     0x2a8d7f6f, 0xab9bc912, 0xde6008a1, 0x2028da1f,
     0x0227bce7, 0x4d642916, 0x18fac300, 0x50f18b82,
@@ -524,7 +476,7 @@ OPENSSL_GLOBAL const CAST_LONG CAST_S_table6[256] = {
     0xf2a279c7, 0x94e01be8, 0x90716f4b, 0x954b8aa3,
 };
 
-OPENSSL_GLOBAL const CAST_LONG CAST_S_table7[256] = {
+const CAST_LONG CAST_S_table7[256] = {
     0xe216300d, 0xbbddfffc, 0xa7ebdabd, 0x35648095,
     0x7789f8b7, 0xe6c1121b, 0x0e241600, 0x052ce8b5,
     0x11a9cfb0, 0xe5952f11, 0xece7990a, 0x9386d174,

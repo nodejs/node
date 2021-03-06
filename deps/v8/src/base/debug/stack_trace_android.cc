@@ -63,7 +63,7 @@ bool EnableInProcessStackDumping() {
   memset(&action, 0, sizeof(action));
   action.sa_handler = SIG_IGN;
   sigemptyset(&action.sa_mask);
-  return (sigaction(SIGPIPE, &action, NULL) == 0);
+  return (sigaction(SIGPIPE, &action, nullptr) == 0);
 }
 
 void DisableSignalStackDump() {

@@ -12,8 +12,7 @@ var m = (function Module(stdlib, foreign, heap) {
   var MEM32 = new stdlib.Float32Array(heap);
   function load(i) {
     i = i|0;
-    i = +MEM32[i >> 2];
-    return i;
+    return +MEM32[i >> 2];
   }
   function store(i, v) {
     i = i|0;
@@ -22,8 +21,7 @@ var m = (function Module(stdlib, foreign, heap) {
   }
   function load8(i) {
     i = i|0;
-    i = +MEM32[i + 8 >> 2];
-    return i;
+    return +MEM32[i + 8 >> 2];
   }
   function store8(i, v) {
     i = i|0;

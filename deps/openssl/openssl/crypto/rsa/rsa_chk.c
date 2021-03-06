@@ -1,66 +1,42 @@
-/* crypto/rsa/rsa_chk.c  */
-/* ====================================================================
- * Copyright (c) 1999 The OpenSSL Project.  All rights reserved.
+/*
+ * Copyright 1999-2017 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    openssl-core@OpenSSL.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #include <openssl/bn.h>
 #include <openssl/err.h>
-#include <openssl/rsa.h>
+#include "rsa_local.h"
 
 int RSA_check_key(const RSA *key)
 {
+    return RSA_check_key_ex(key, NULL);
+}
+
+int RSA_check_key_ex(const RSA *key, BN_GENCB *cb)
+{
     BIGNUM *i, *j, *k, *l, *m;
     BN_CTX *ctx;
-    int ret = 1;
+    int ret = 1, ex_primes = 0, idx;
+    RSA_PRIME_INFO *pinfo;
 
-    if (!key->p || !key->q || !key->n || !key->e || !key->d) {
-        RSAerr(RSA_F_RSA_CHECK_KEY, RSA_R_VALUE_MISSING);
+    if (key->p == NULL || key->q == NULL || key->n == NULL
+            || key->e == NULL || key->d == NULL) {
+        RSAerr(RSA_F_RSA_CHECK_KEY_EX, RSA_R_VALUE_MISSING);
         return 0;
+    }
+
+    /* multi-prime? */
+    if (key->version == RSA_ASN1_VERSION_MULTI) {
+        ex_primes = sk_RSA_PRIME_INFO_num(key->prime_infos);
+        if (ex_primes <= 0
+                || (ex_primes + 2) > rsa_multip_cap(BN_num_bits(key->n))) {
+            RSAerr(RSA_F_RSA_CHECK_KEY_EX, RSA_R_INVALID_MULTI_PRIME_KEY);
+            return 0;
+        }
     }
 
     i = BN_new();
@@ -72,42 +48,62 @@ int RSA_check_key(const RSA *key)
     if (i == NULL || j == NULL || k == NULL || l == NULL
             || m == NULL || ctx == NULL) {
         ret = -1;
-        RSAerr(RSA_F_RSA_CHECK_KEY, ERR_R_MALLOC_FAILURE);
+        RSAerr(RSA_F_RSA_CHECK_KEY_EX, ERR_R_MALLOC_FAILURE);
         goto err;
     }
 
     if (BN_is_one(key->e)) {
         ret = 0;
-        RSAerr(RSA_F_RSA_CHECK_KEY, RSA_R_BAD_E_VALUE);
+        RSAerr(RSA_F_RSA_CHECK_KEY_EX, RSA_R_BAD_E_VALUE);
     }
     if (!BN_is_odd(key->e)) {
         ret = 0;
-        RSAerr(RSA_F_RSA_CHECK_KEY, RSA_R_BAD_E_VALUE);
+        RSAerr(RSA_F_RSA_CHECK_KEY_EX, RSA_R_BAD_E_VALUE);
     }
 
     /* p prime? */
-    if (BN_is_prime_ex(key->p, BN_prime_checks, NULL, NULL) != 1) {
+    if (BN_is_prime_ex(key->p, BN_prime_checks, NULL, cb) != 1) {
         ret = 0;
-        RSAerr(RSA_F_RSA_CHECK_KEY, RSA_R_P_NOT_PRIME);
+        RSAerr(RSA_F_RSA_CHECK_KEY_EX, RSA_R_P_NOT_PRIME);
     }
 
     /* q prime? */
-    if (BN_is_prime_ex(key->q, BN_prime_checks, NULL, NULL) != 1) {
+    if (BN_is_prime_ex(key->q, BN_prime_checks, NULL, cb) != 1) {
         ret = 0;
-        RSAerr(RSA_F_RSA_CHECK_KEY, RSA_R_Q_NOT_PRIME);
+        RSAerr(RSA_F_RSA_CHECK_KEY_EX, RSA_R_Q_NOT_PRIME);
     }
 
-    /* n = p*q? */
+    /* r_i prime? */
+    for (idx = 0; idx < ex_primes; idx++) {
+        pinfo = sk_RSA_PRIME_INFO_value(key->prime_infos, idx);
+        if (BN_is_prime_ex(pinfo->r, BN_prime_checks, NULL, cb) != 1) {
+            ret = 0;
+            RSAerr(RSA_F_RSA_CHECK_KEY_EX, RSA_R_MP_R_NOT_PRIME);
+        }
+    }
+
+    /* n = p*q * r_3...r_i? */
     if (!BN_mul(i, key->p, key->q, ctx)) {
         ret = -1;
         goto err;
     }
+    for (idx = 0; idx < ex_primes; idx++) {
+        pinfo = sk_RSA_PRIME_INFO_value(key->prime_infos, idx);
+        if (!BN_mul(i, i, pinfo->r, ctx)) {
+            ret = -1;
+            goto err;
+        }
+    }
     if (BN_cmp(i, key->n) != 0) {
         ret = 0;
-        RSAerr(RSA_F_RSA_CHECK_KEY, RSA_R_N_DOES_NOT_EQUAL_P_Q);
+        if (ex_primes)
+            RSAerr(RSA_F_RSA_CHECK_KEY_EX,
+                   RSA_R_N_DOES_NOT_EQUAL_PRODUCT_OF_PRIMES);
+        else
+            RSAerr(RSA_F_RSA_CHECK_KEY_EX, RSA_R_N_DOES_NOT_EQUAL_P_Q);
     }
 
-    /* d*e = 1  mod lcm(p-1,q-1)? */
+    /* d*e = 1  mod \lambda(n)? */
     if (!BN_sub(i, key->p, BN_value_one())) {
         ret = -1;
         goto err;
@@ -117,7 +113,7 @@ int RSA_check_key(const RSA *key)
         goto err;
     }
 
-    /* now compute k = lcm(i,j) */
+    /* now compute k = \lambda(n) = LCM(i, j, r_3 - 1...) */
     if (!BN_mul(l, i, j, ctx)) {
         ret = -1;
         goto err;
@@ -125,6 +121,21 @@ int RSA_check_key(const RSA *key)
     if (!BN_gcd(m, i, j, ctx)) {
         ret = -1;
         goto err;
+    }
+    for (idx = 0; idx < ex_primes; idx++) {
+        pinfo = sk_RSA_PRIME_INFO_value(key->prime_infos, idx);
+        if (!BN_sub(k, pinfo->r, BN_value_one())) {
+            ret = -1;
+            goto err;
+        }
+        if (!BN_mul(l, l, k, ctx)) {
+            ret = -1;
+            goto err;
+        }
+        if (!BN_gcd(m, m, k, ctx)) {
+            ret = -1;
+            goto err;
+        }
     }
     if (!BN_div(k, NULL, l, m, ctx)) { /* remainder is 0 */
         ret = -1;
@@ -137,7 +148,7 @@ int RSA_check_key(const RSA *key)
 
     if (!BN_is_one(i)) {
         ret = 0;
-        RSAerr(RSA_F_RSA_CHECK_KEY, RSA_R_D_E_NOT_CONGRUENT_TO_1);
+        RSAerr(RSA_F_RSA_CHECK_KEY_EX, RSA_R_D_E_NOT_CONGRUENT_TO_1);
     }
 
     if (key->dmp1 != NULL && key->dmq1 != NULL && key->iqmp != NULL) {
@@ -152,7 +163,7 @@ int RSA_check_key(const RSA *key)
         }
         if (BN_cmp(j, key->dmp1) != 0) {
             ret = 0;
-            RSAerr(RSA_F_RSA_CHECK_KEY, RSA_R_DMP1_NOT_CONGRUENT_TO_D);
+            RSAerr(RSA_F_RSA_CHECK_KEY_EX, RSA_R_DMP1_NOT_CONGRUENT_TO_D);
         }
 
         /* dmq1 = d mod (q-1)? */
@@ -166,7 +177,7 @@ int RSA_check_key(const RSA *key)
         }
         if (BN_cmp(j, key->dmq1) != 0) {
             ret = 0;
-            RSAerr(RSA_F_RSA_CHECK_KEY, RSA_R_DMQ1_NOT_CONGRUENT_TO_D);
+            RSAerr(RSA_F_RSA_CHECK_KEY_EX, RSA_R_DMQ1_NOT_CONGRUENT_TO_D);
         }
 
         /* iqmp = q^-1 mod p? */
@@ -176,7 +187,33 @@ int RSA_check_key(const RSA *key)
         }
         if (BN_cmp(i, key->iqmp) != 0) {
             ret = 0;
-            RSAerr(RSA_F_RSA_CHECK_KEY, RSA_R_IQMP_NOT_INVERSE_OF_Q);
+            RSAerr(RSA_F_RSA_CHECK_KEY_EX, RSA_R_IQMP_NOT_INVERSE_OF_Q);
+        }
+    }
+
+    for (idx = 0; idx < ex_primes; idx++) {
+        pinfo = sk_RSA_PRIME_INFO_value(key->prime_infos, idx);
+        /* d_i = d mod (r_i - 1)? */
+        if (!BN_sub(i, pinfo->r, BN_value_one())) {
+            ret = -1;
+            goto err;
+        }
+        if (!BN_mod(j, key->d, i, ctx)) {
+            ret = -1;
+            goto err;
+        }
+        if (BN_cmp(j, pinfo->d) != 0) {
+            ret = 0;
+            RSAerr(RSA_F_RSA_CHECK_KEY_EX, RSA_R_MP_EXPONENT_NOT_CONGRUENT_TO_D);
+        }
+        /* t_i = R_i ^ -1 mod r_i ? */
+        if (!BN_mod_inverse(i, pinfo->pp, pinfo->r, ctx)) {
+            ret = -1;
+            goto err;
+        }
+        if (BN_cmp(i, pinfo->t) != 0) {
+            ret = 0;
+            RSAerr(RSA_F_RSA_CHECK_KEY_EX, RSA_R_MP_COEFFICIENT_NOT_INVERSE_OF_R);
         }
     }
 

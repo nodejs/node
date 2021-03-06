@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -8,7 +8,7 @@
 *
 *******************************************************************************
 *   file name:  package.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -57,13 +57,13 @@ public:
      * Uses the prefix of the first entry of the package in readPackage(),
      * rather than the package basename.
      */
-    void setAutoPrefix() { doAutoPrefix=TRUE; }
+    void setAutoPrefix() { doAutoPrefix=true; }
     /**
      * Same as setAutoPrefix(), plus the prefix must end with the platform type letter.
      */
     void setAutoPrefixWithType() {
-        doAutoPrefix=TRUE;
-        prefixEndsWithType=TRUE;
+        doAutoPrefix=true;
+        prefixEndsWithType=true;
     }
     void setPrefix(const char *p);
 
@@ -128,7 +128,7 @@ public:
     const Item *getItem(int32_t idx) const;
 
     /*
-     * Check dependencies and return TRUE if all dependencies are fulfilled.
+     * Check dependencies and return true if all dependencies are fulfilled.
      */
     UBool checkDependencies();
 

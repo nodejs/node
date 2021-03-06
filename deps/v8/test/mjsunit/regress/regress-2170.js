@@ -35,15 +35,15 @@ function array_fun() {
     for (var j = 0; j < a.length; j++) {
       x.push(a[j]);
     }
-    for(var j = 0; j < x.length; j++) {
+    for (var j = 0; j < x.length; j++) {
       if (typeof x[j] != 'number') {
         throw "foo";
       }
       x[j] = x[j];
     }
   }
-}
-
+};
+%PrepareFunctionForOptimization(array_fun);
 try {
   for (var i = 0; i < 10; ++i) {
     array_fun();

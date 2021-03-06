@@ -1,43 +1,52 @@
-module.exports = logout
+const log = require('npmlog')
+const getAuth = require('npm-registry-fetch/auth.js')
+const npmFetch = require('npm-registry-fetch')
+const usageUtil = require('./utils/usage.js')
 
-var dezalgo = require('dezalgo')
-var log = require('npmlog')
+class Logout {
+  constructor (npm) {
+    this.npm = npm
+  }
 
-var npm = require('./npm.js')
-var mapToRegistry = require('./utils/map-to-registry.js')
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  get usage () {
+    return usageUtil(
+      'logout',
+      'npm logout [--registry=<url>] [--scope=<@scope>]'
+    )
+  }
 
-logout.usage = 'npm logout [--registry=<url>] [--scope=<@scope>]'
+  exec (args, cb) {
+    this.logout(args).then(() => cb()).catch(cb)
+  }
 
-function afterLogout (normalized, cb) {
-  var scope = npm.config.get('scope')
+  async logout (args) {
+    const { registry, scope } = this.npm.flatOptions
+    const regRef = scope ? `${scope}:registry` : 'registry'
+    const reg = this.npm.flatOptions[regRef] || registry
 
-  if (scope) npm.config.del(scope + ':registry')
-
-  npm.config.clearCredentialsByURI(normalized)
-  npm.config.save('user', cb)
-}
-
-function logout (args, cb) {
-  cb = dezalgo(cb)
-
-  mapToRegistry('/', npm.config, function (err, uri, auth, normalized) {
-    if (err) return cb(err)
+    const auth = getAuth(reg, this.npm.flatOptions)
 
     if (auth.token) {
-      log.verbose('logout', 'clearing session token for', normalized)
-      npm.registry.logout(normalized, { auth: auth }, function (err) {
-        if (err) return cb(err)
-
-        afterLogout(normalized, cb)
+      log.verbose('logout', `clearing token for ${reg}`)
+      await npmFetch(`/-/user/token/${encodeURIComponent(auth.token)}`, {
+        ...this.npm.flatOptions,
+        method: 'DELETE',
+        ignoreBody: true,
       })
-    } else if (auth.username || auth.password) {
-      log.verbose('logout', 'clearing user credentials for', normalized)
-
-      afterLogout(normalized, cb)
-    } else {
-      cb(new Error(
-        'Not logged in to', normalized + ',', "so can't log out."
-      ))
+    } else if (auth.username || auth.password)
+      log.verbose('logout', `clearing user credentials for ${reg}`)
+    else {
+      const msg = `not logged in to ${reg}, so can't log out!`
+      throw Object.assign(new Error(msg), { code: 'ENEEDAUTH' })
     }
-  })
+
+    if (scope)
+      this.npm.config.delete(regRef, 'user')
+
+    this.npm.config.clearCredentialsByURI(reg)
+
+    await this.npm.config.save('user')
+  }
 }
+module.exports = Logout

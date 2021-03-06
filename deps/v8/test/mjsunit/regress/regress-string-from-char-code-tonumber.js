@@ -4,7 +4,11 @@
 
 // Flags: --allow-natives-syntax
 
-var thrower = { [Symbol.toPrimitive]: function() { FAIL } };
+var thrower = {
+  [Symbol.toPrimitive]: function() {
+    FAIL;
+  }
+};
 
 function testTrace(func) {
   try {
@@ -17,8 +21,10 @@ function testTrace(func) {
 
 testTrace(String.fromCharCode);
 
-function foo(x) { return String.fromCharCode(x); }
-
+function foo(x) {
+  return String.fromCharCode(x);
+};
+%PrepareFunctionForOptimization(foo);
 foo(1);
 foo(2);
 testTrace(foo);

@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --ignore-unhandled-promises
 
 // Make sure we don't rely on functions patchable by monkeys.
 var call = Function.prototype.call.call.bind(Function.prototype.call)
@@ -34,6 +34,9 @@ var defineProperty = Object.defineProperty;
 var numberPrototype = Number.prototype;
 var symbolIterator = Symbol.iterator;
 
+function assertUnreachable() {
+  %AbortJS("Failure: unreachable");
+}
 
 (function() {
   // Test before clearing global (fails otherwise)
@@ -64,7 +67,7 @@ function clearProp(o, name) {
 
 // Find intrinsics and null them out.
 var globals = Object.getOwnPropertyNames(this)
-var whitelist = {
+var allowlist = {
   Promise: true,
   TypeError: true,
   String: true,
@@ -75,7 +78,7 @@ var whitelist = {
 
 for (var i in globals) {
   var name = globals[i]
-  if (name in whitelist || name[0] === name[0].toLowerCase()) delete globals[i]
+  if (name in allowlist || name[0] === name[0].toLowerCase()) delete globals[i]
 }
 for (var i in globals) {
   if (globals[i]) clearProp(this, globals[i])
@@ -580,6 +583,15 @@ function assertAsyncDone(iteration) {
 })();
 
 (function() {
+  Promise.all({[symbolIterator](){ return null; }}).then(
+    assertUnreachable,
+    function(r) {
+      assertAsync(r instanceof TypeError, 'all/non iterable');
+    });
+  assertAsyncRan();
+})();
+
+(function() {
   var deferred = defer(Promise);
   var p = deferred.promise;
   function* f() {
@@ -982,7 +994,7 @@ function assertAsyncDone(iteration) {
   var promise = new Promise(function(res) { resolve = res; });
   resolve({ then() { thenCalled = true; throw new Error(); } });
   assertLater(function() { return thenCalled; }, "resolve-with-thenable");
-});
+})();
 
 (function() {
   var calledWith;

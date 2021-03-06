@@ -50,6 +50,19 @@ function TestWithFunctionProxy(test, x, y, z) {
 }
 
 // ---------------------------------------------------------------------------
+// Test Proxy constructor properties
+
+(function TestProxyProperties() {
+  assertEquals(2, Proxy.length);
+  assertEquals(Function.__proto__, Proxy.__proto__);
+  assertEquals(undefined, Proxy.prototype);
+  assertEquals(undefined, Object.getOwnPropertyDescriptor(Proxy, "arguments"));
+  assertThrows(() => Proxy.arguments, TypeError);
+  assertEquals(undefined, Object.getOwnPropertyDescriptor(Proxy, "caller"));
+  assertThrows(() => Proxy.caller, TypeError);
+})();
+
+// ---------------------------------------------------------------------------
 // Getting property descriptors (Object.getOwnPropertyDescriptor).
 
 var key
@@ -1274,8 +1287,7 @@ TestKeysThrow({
 
 // ---------------------------------------------------------------------------
 // String conversion (Object.prototype.toString,
-//                    Object.prototype.toLocaleString,
-//                    Function.prototype.toString)
+//                    Object.prototype.toLocaleString)
 
 var key
 
@@ -1293,7 +1305,6 @@ function TestToString(handler) {
   assertEquals(Symbol.toStringTag, key)
   assertEquals("my_proxy", Object.prototype.toLocaleString.call(f))
   assertEquals("toString", key)
-  assertThrows(function(){ Function.prototype.toString.call(f) })
 
   var o = Object.create(p)
   key = ""
@@ -1499,6 +1510,7 @@ function TestConstructorWithProxyPrototype2(create, handler) {
   function f() {
     return o.x;
   }
+  %PrepareFunctionForOptimization(f);
   assertEquals(10, f());
   assertEquals(10, f());
   %OptimizeFunctionOnNextCall(f);

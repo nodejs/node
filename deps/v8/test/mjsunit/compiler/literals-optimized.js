@@ -30,6 +30,7 @@
 // Test optimized versions of array and object literals.
 
 function TestOptimizedLiteral(create, verify) {
+  %PrepareFunctionForOptimization(create);
   verify(create(1, 2, 3), 1, 2, 3);
   verify(create(3, 5, 7), 3, 5, 7);
   %OptimizeFunctionOnNextCall(create);

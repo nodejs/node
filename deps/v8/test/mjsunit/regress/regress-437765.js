@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --no-fold-constants
+// Flags: --allow-natives-syntax
 
 function foo(x, y) {
   return Math.floor(x / y);
@@ -14,8 +14,8 @@ function bar(x, y) {
 
 function baz() {
   bar(64, 2);
-}
-
+};
+%PrepareFunctionForOptimization(baz);
 baz();
 baz();
 %OptimizeFunctionOnNextCall(baz);

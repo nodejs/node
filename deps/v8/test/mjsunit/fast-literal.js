@@ -25,15 +25,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --no-inline-new --nouse-allocation-folding
+// Flags: --allow-natives-syntax --no-inline-new
 
 %SetAllocationTimeout(20, 0);
 function f() {
   return [[1, 2, 3], [1.1, 1.2, 1.3], [[], [], []]];
-}
-
-f(); f(); f();
+};
+%PrepareFunctionForOptimization(f);
+f();
+f();
+f();
 %OptimizeFunctionOnNextCall(f);
-for (var i=0; i<50; i++) {
+for (var i = 0; i < 50; i++) {
   f();
 }

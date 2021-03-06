@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --debug-code --gc-interval=201 --verify-heap --max-inlined-source-size=999999 --max-inlined-nodes=999999 --max-inlined-nodes-cumulative=999999
+// Flags: --allow-natives-syntax --debug-code --gc-interval=201 --verify-heap
+// Flags: --max-inlined-bytecode-size=999999 --max-inlined-bytecode-size-cumulative=999999
+// Flags: --opt --no-always-opt
 
 // Begin stripped down and modified version of mjsunit.js for easy minimization in CF.
 function MjsUnitAssertionError(message) {}
@@ -79,6 +81,7 @@ function __f_0(o) {
     assertTrue(false);
   }
 }
+%PrepareFunctionForOptimization(__f_0);
 __v_4 = {};
 __v_4.size = function() { return 42; }
 __v_4.g = function() { return this.size(); };

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --enable-slow-asserts
+// Flags: --enable-slow-asserts --no-force-slow-path
 
 var s = "\u1234-------";
 for (var i = 0; i < 17; i++) {

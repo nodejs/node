@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -8,7 +8,7 @@
 *
 *******************************************************************************
 *   file name:  derb.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -631,7 +631,7 @@ static const char *getEncodingName(const char *encoding) {
     if (!(enc = ucnv_getStandardName(encoding, "MIME", &err))) {
         err = U_ZERO_ERROR;
         if (!(enc = ucnv_getStandardName(encoding, "IANA", &err))) {
-            ;
+            // do nothing
         }
     }
 

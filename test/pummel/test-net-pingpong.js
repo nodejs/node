@@ -1,26 +1,47 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
-var tests_run = 0;
+let tests_run = 0;
 
-function pingPongTest(port, host, on_complete) {
-  var N = 1000;
-  var count = 0;
-  var sent_final_ping = false;
+function pingPongTest(host, on_complete) {
+  const N = 1000;
+  let count = 0;
+  let sent_final_ping = false;
 
-  var server = net.createServer({ allowHalfOpen: true }, function(socket) {
-    assert.equal(true, socket.remoteAddress !== null);
-    assert.equal(true, socket.remoteAddress !== undefined);
-    var address = socket.remoteAddress;
+  const server = net.createServer({ allowHalfOpen: true }, function(socket) {
+    assert.strictEqual(socket.remoteAddress !== null, true);
+    assert.strictEqual(socket.remoteAddress !== undefined, true);
+    const address = socket.remoteAddress;
     if (host === '127.0.0.1') {
-      assert.equal(address, '127.0.0.1');
+      assert.strictEqual(address, '127.0.0.1');
     } else if (host == null || host === 'localhost') {
       assert(address === '127.0.0.1' || address === '::ffff:127.0.0.1');
     } else {
-      console.log('host = ' + host + ', remoteAddress = ' + address);
-      assert.equal(address, '::1');
+      console.log(`host = ${host}, remoteAddress = ${address}`);
+      assert.strictEqual(address, '::1');
     }
 
     socket.setEncoding('utf8');
@@ -28,48 +49,47 @@ function pingPongTest(port, host, on_complete) {
     socket.timeout = 0;
 
     socket.on('data', function(data) {
-      console.log('server got: ' + JSON.stringify(data));
-      assert.equal('open', socket.readyState);
-      assert.equal(true, count <= N);
-      if (/PING/.exec(data)) {
+      console.log(`server got: ${JSON.stringify(data)}`);
+      assert.strictEqual(socket.readyState, 'open');
+      assert.strictEqual(count <= N, true);
+      if (/PING/.test(data)) {
         socket.write('PONG');
       }
     });
 
     socket.on('end', function() {
-      assert.equal('writeOnly', socket.readyState);
+      assert.strictEqual(socket.readyState, 'writeOnly');
       socket.end();
     });
 
     socket.on('close', function(had_error) {
-      assert.equal(false, had_error);
-      assert.equal('closed', socket.readyState);
+      assert.strictEqual(had_error, false);
+      assert.strictEqual(socket.readyState, 'closed');
       socket.server.close();
     });
   });
 
-  server.listen(port, host, function() {
-    var client = net.createConnection(port, host);
+  server.listen(0, host, function() {
+    const client = net.createConnection(server.address().port, host);
 
     client.setEncoding('utf8');
 
     client.on('connect', function() {
-      assert.equal('open', client.readyState);
+      assert.strictEqual(client.readyState, 'open');
       client.write('PING');
     });
 
     client.on('data', function(data) {
-      console.log('client got: ' + data);
+      console.log(`client got: ${data}`);
 
-      assert.equal('PONG', data);
+      assert.strictEqual(data, 'PONG');
       count += 1;
 
       if (sent_final_ping) {
-        assert.equal('readOnly', client.readyState);
+        assert.strictEqual(client.readyState, 'readOnly');
         return;
-      } else {
-        assert.equal('open', client.readyState);
       }
+      assert.strictEqual(client.readyState, 'open');
 
       if (count < N) {
         client.write('PING');
@@ -81,21 +101,20 @@ function pingPongTest(port, host, on_complete) {
     });
 
     client.on('close', function() {
-      assert.equal(N + 1, count);
-      assert.equal(true, sent_final_ping);
+      assert.strictEqual(count, N + 1);
+      assert.strictEqual(sent_final_ping, true);
       if (on_complete) on_complete();
       tests_run += 1;
     });
   });
 }
 
-/* All are run at once, so run on different ports */
-pingPongTest(common.PORT, 'localhost');
-pingPongTest(common.PORT + 1, null);
+// All are run at once and will run on different ports.
+pingPongTest('localhost');
+pingPongTest(null);
 
-// This IPv6 isn't working on Solaris
-if (!common.isSunOS) pingPongTest(common.PORT + 2, '::1');
+if (common.hasIPv6) pingPongTest('::1');
 
 process.on('exit', function() {
-  assert.equal(common.isSunOS ? 2 : 3, tests_run);
+  assert.strictEqual(tests_run, common.hasIPv6 ? 3 : 2);
 });

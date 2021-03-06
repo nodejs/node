@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -607,7 +607,7 @@ CollationFastLatinBuilder::encodeContractions(UErrorCode &errorCode) {
         }
         UBool firstTriple = TRUE;
         for(int32_t index = (int32_t)ce & 0x7fffffff;; index += 3) {
-            int32_t x = contractionCEs.elementAti(index);
+            int32_t x = static_cast<int32_t>(contractionCEs.elementAti(index));
             if((uint32_t)x == CollationFastLatin::CONTR_CHAR_MASK && !firstTriple) { break; }
             int64_t cce0 = contractionCEs.elementAti(index + 1);
             int64_t cce1 = contractionCEs.elementAti(index + 2);

@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -852,8 +852,7 @@ CollationDataBuilder::copyFromBaseCE32(UChar32 c, uint32_t ce32, UBool withConte
         ce32 = encodeOneCE(Collation::unassignedCEFromCodePoint(c), errorCode);
         break;
     default:
-        U_ASSERT(FALSE);  // require ce32 == base->getFinalCE32(ce32)
-        break;
+        UPRV_UNREACHABLE;  // require ce32 == base->getFinalCE32(ce32)
     }
     return ce32;
 }

@@ -5,7 +5,8 @@
 #include "src/ast/variables.h"
 
 #include "src/ast/scopes.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -13,63 +14,34 @@ namespace internal {
 // ----------------------------------------------------------------------------
 // Implementation Variable.
 
-const char* Variable::Mode2String(VariableMode mode) {
-  switch (mode) {
-    case VAR: return "VAR";
-    case CONST_LEGACY: return "CONST_LEGACY";
-    case LET: return "LET";
-    case CONST: return "CONST";
-    case DYNAMIC: return "DYNAMIC";
-    case DYNAMIC_GLOBAL: return "DYNAMIC_GLOBAL";
-    case DYNAMIC_LOCAL: return "DYNAMIC_LOCAL";
-    case TEMPORARY: return "TEMPORARY";
-  }
-  UNREACHABLE();
-  return NULL;
-}
-
-Variable::Variable(Scope* scope, const AstRawString* name, VariableMode mode,
-                   Kind kind, InitializationFlag initialization_flag,
-                   MaybeAssignedFlag maybe_assigned_flag)
-    : scope_(scope),
-      name_(name),
-      mode_(mode),
-      kind_(kind),
-      location_(VariableLocation::UNALLOCATED),
-      index_(-1),
-      initializer_position_(kNoSourcePosition),
-      local_if_not_shadowed_(NULL),
-      force_context_allocation_(false),
-      is_used_(false),
-      initialization_flag_(initialization_flag),
-      maybe_assigned_(maybe_assigned_flag) {
-  // Var declared variables never need initialization.
-  DCHECK(!(mode == VAR && initialization_flag == kNeedsInitialization));
-}
-
+Variable::Variable(Variable* other)
+    : scope_(other->scope_),
+      name_(other->name_),
+      local_if_not_shadowed_(nullptr),
+      next_(nullptr),
+      index_(other->index_),
+      initializer_position_(other->initializer_position_),
+      bit_field_(other->bit_field_) {}
 
 bool Variable::IsGlobalObjectProperty() const {
   // Temporaries are never global, they must always be allocated in the
   // activation frame.
-  return (IsDynamicVariableMode(mode_) ||
-          (IsDeclaredVariableMode(mode_) && !IsLexicalVariableMode(mode_))) &&
-         scope_ != NULL && scope_->is_script_scope();
+  return (IsDynamicVariableMode(mode()) || mode() == VariableMode::kVar) &&
+         scope_ != nullptr && scope_->is_script_scope();
 }
 
-
-bool Variable::IsStaticGlobalObjectProperty() const {
-  // Temporaries are never global, they must always be allocated in the
-  // activation frame.
-  return (IsDeclaredVariableMode(mode_) && !IsLexicalVariableMode(mode_)) &&
-         scope_ != NULL && scope_->is_script_scope();
+bool Variable::IsReplGlobalLet() const {
+  return scope()->is_repl_mode_scope() && mode() == VariableMode::kLet;
 }
 
+void Variable::RewriteLocationForRepl() {
+  DCHECK(scope_->is_repl_mode_scope());
 
-int Variable::CompareIndex(Variable* const* v, Variable* const* w) {
-  int x = (*v)->index();
-  int y = (*w)->index();
-  // Consider sorting them according to type as well?
-  return x - y;
+  if (mode() == VariableMode::kLet) {
+    DCHECK_EQ(location(), VariableLocation::CONTEXT);
+    bit_field_ =
+        LocationField::update(bit_field_, VariableLocation::REPL_GLOBAL);
+  }
 }
 
 }  // namespace internal

@@ -26,9 +26,17 @@
 #endif
 
 
+#ifdef _WIN32_WINNT
+#undef _WIN32_WINNT
+#define _WIN32_WINNT 0x601
+#endif
+
+#if _WIN32_WINNT >= _WIN32_WINNT_WIN8
+// see Include/shared/winapifamily.h in the Windows Kit
 #if defined(WINAPI_FAMILY_PARTITION) && (!(defined(IOWIN32_USING_WINRT_API)))
-#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP)
+#if WINAPI_FAMILY_ONE_PARTITION(WINAPI_FAMILY, WINAPI_PARTITION_APP)
 #define IOWIN32_USING_WINRT_API 1
+#endif
 #endif
 #endif
 
@@ -243,7 +251,7 @@ static BOOL MySetFilePointerEx(HANDLE hFile, LARGE_INTEGER pos, LARGE_INTEGER *n
     return SetFilePointerEx(hFile, pos, newPos, dwMoveMethod);
 #else
     LONG lHigh = pos.HighPart;
-    DWORD dwNewPos = SetFilePointer(hFile, pos.LowPart, &lHigh, FILE_CURRENT);
+    DWORD dwNewPos = SetFilePointer(hFile, pos.LowPart, &lHigh, dwMoveMethod);
     BOOL fOk = TRUE;
     if (dwNewPos == 0xFFFFFFFF)
         if (GetLastError() != NO_ERROR)
@@ -370,7 +378,7 @@ long ZCALLBACK win32_seek64_file_func (voidpf opaque, voidpf stream,ZPOS64_T off
     {
         LARGE_INTEGER pos;
         pos.QuadPart = offset;
-        if (!MySetFilePointerEx(hFile, pos, NULL, FILE_CURRENT))
+        if (!MySetFilePointerEx(hFile, pos, NULL, dwMoveMethod))
         {
             DWORD dwErr = GetLastError();
             ((WIN32FILE_IOWIN*)stream) -> error=(int)dwErr;

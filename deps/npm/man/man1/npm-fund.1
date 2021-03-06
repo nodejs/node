@@ -1,0 +1,77 @@
+.TH "NPM\-FUND" "1" "March 2021" "" ""
+.SH "NAME"
+\fBnpm-fund\fR \- Retrieve funding information
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm fund [<pkg>]
+.fi
+.RE
+.SS Description
+.P
+This command retrieves information on how to fund the dependencies of a
+given project\. If no package name is provided, it will list all
+dependencies that are looking for funding in a tree structure, listing the
+type of funding and the url to visit\. If a package name is provided then it
+tries to open its funding url using the \fB\-\-browser\fP config param; if there
+are multiple funding sources for the package, the user will be instructed
+to pass the \fB\-\-which\fP option to disambiguate\.
+.P
+The list will avoid duplicated entries and will stack all packages that
+share the same url as a single entry\. Thus, the list does not have the same
+shape of the output from \fBnpm ls\fP\|\.
+.SS Configuration
+.SS browser
+.RS 0
+.IP \(bu 2
+Default: OS X: \fB"open"\fP, Windows: \fB"start"\fP, Others: \fB"xdg\-open"\fP
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+The browser that is called by the \fBnpm fund\fP command to open websites\.
+.SS json
+.RS 0
+.IP \(bu 2
+Type: Boolean
+.IP \(bu 2
+Default: false
+
+.RE
+.P
+Show information in JSON format\.
+.SS unicode
+.RS 0
+.IP \(bu 2
+Type: Boolean
+.IP \(bu 2
+Default: true
+
+.RE
+.P
+Whether to represent the tree structure using unicode characters\.
+Set it to \fBfalse\fP in order to use all\-ansi output\.
+.SS which
+.RS 0
+.IP \(bu 2
+Type: Number
+.IP \(bu 2
+Default: undefined
+
+.RE
+.P
+If there are multiple funding sources, which 1\-indexed source URL to open\.
+.SH See Also
+.RS 0
+.IP \(bu 2
+npm help install
+.IP \(bu 2
+npm help docs
+.IP \(bu 2
+npm help ls
+.IP \(bu 2
+npm help config
+
+.RE

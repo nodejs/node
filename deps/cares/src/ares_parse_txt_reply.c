@@ -113,7 +113,7 @@ ares__parse_txt_reply (const unsigned char *abuf, int alen,
         }
 
       /* Check if we are really looking at a TXT record */
-      if (rr_class == C_IN && rr_type == T_TXT)
+      if ((rr_class == C_IN || rr_class == C_CHAOS) && rr_type == T_TXT)
         {
           /*
            * There may be multiple substrings in a single TXT record. Each

@@ -1,24 +1,38 @@
-.TH "NPM\-PING" "1" "November 2016" "" ""
+.TH "NPM\-PING" "1" "March 2021" "" ""
 .SH "NAME"
 \fBnpm-ping\fR \- Ping npm registry
-.SH SYNOPSIS
+.SS Synopsis
 .P
 .RS 2
 .nf
 npm ping [\-\-registry <registry>]
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 Ping the configured or given npm registry and verify authentication\.
-.SH SEE ALSO
+If it works it will output something like:
+.P
+.RS 2
+.nf
+Ping success: {*Details about registry*}
+.fi
+.RE
+.P
+otherwise you will get:
+.P
+.RS 2
+.nf
+Ping error: {*Detail about error}
+.fi
+.RE
+.SS See Also
 .RS 0
+.IP \(bu 2
+npm help doctor
 .IP \(bu 2
 npm help config
 .IP \(bu 2
-npm help 7 config
-.IP \(bu 2
-npm help 5 npmrc
+npm help npmrc
 
 .RE
-

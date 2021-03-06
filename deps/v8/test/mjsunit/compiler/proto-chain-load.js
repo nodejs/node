@@ -37,6 +37,7 @@ var obj0 = Object.create(obj1, { f0: {value: 0} });
 
 function get4(obj) { return obj.f4; }
 
+%PrepareFunctionForOptimization(get4);
 assertEquals(4, get4(obj0));
 assertEquals(4, get4(obj0));
 %OptimizeFunctionOnNextCall(get4);

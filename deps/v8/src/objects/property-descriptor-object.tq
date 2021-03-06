@@ -1,0 +1,26 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/objects/property-descriptor-object.h'
+
+bitfield struct PropertyDescriptorObjectFlags extends uint31 {
+  is_enumerable: bool: 1 bit;
+  has_enumerable: bool: 1 bit;
+  is_configurable: bool: 1 bit;
+  has_configurable: bool: 1 bit;
+  is_writable: bool: 1 bit;
+  has_writable: bool: 1 bit;
+  has_value: bool: 1 bit;
+  has_get: bool: 1 bit;
+  has_set: bool: 1 bit;
+}
+
+@generateCppClass
+@generatePrint
+extern class PropertyDescriptorObject extends Struct {
+  flags: SmiTagged<PropertyDescriptorObjectFlags>;
+  value: JSAny|TheHole;
+  get: JSAny|TheHole;
+  set: JSAny|TheHole;
+}

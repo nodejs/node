@@ -42,6 +42,7 @@ function g(x) {
   return f(x);
 }
 
+%PrepareFunctionForOptimization(g);
 for (var i = 0; i < 5; i++) g(0);
 %OptimizeFunctionOnNextCall(g);
 assertEquals(true, g(0));
@@ -57,6 +58,7 @@ function h(x) {
   return f(x) ? "yes" : "no";
 }
 
+%PrepareFunctionForOptimization(h);
 for (var i = 0; i < 5; i++) h(0);
 %OptimizeFunctionOnNextCall(h);
 assertEquals("yes", h(0));

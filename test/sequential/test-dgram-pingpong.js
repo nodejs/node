@@ -6,7 +6,7 @@ const dgram = require('dgram');
 function pingPongTest(port, host) {
 
   const server = dgram.createSocket('udp4', common.mustCall((msg, rinfo) => {
-    assert.strictEqual('PING', msg.toString('ascii'));
+    assert.strictEqual(msg.toString('ascii'), 'PING');
     server.send('PONG', 0, 4, rinfo.port, rinfo.address);
   }));
 
@@ -15,12 +15,12 @@ function pingPongTest(port, host) {
   });
 
   server.on('listening', function() {
-    console.log('server listening on ' + port);
+    console.log(`server listening on ${port}`);
 
     const client = dgram.createSocket('udp4');
 
     client.on('message', function(msg) {
-      assert.strictEqual('PONG', msg.toString('ascii'));
+      assert.strictEqual(msg.toString('ascii'), 'PONG');
 
       client.close();
       server.close();
@@ -30,7 +30,7 @@ function pingPongTest(port, host) {
       throw e;
     });
 
-    console.log('Client sending to ' + port);
+    console.log(`Client sending to ${port}`);
 
     function clientSend() {
       client.send('PING', 0, 4, port, 'localhost');

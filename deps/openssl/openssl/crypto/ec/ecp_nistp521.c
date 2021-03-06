@@ -1,7 +1,12 @@
-/* crypto/ec/ecp_nistp521.c */
 /*
- * Written by Adam Langley (Google) for the OpenSSL project
+ * Copyright 2011-2020 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
+
 /* Copyright 2011 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,30 +31,25 @@
  * work which got its smarts from Daniel J. Bernstein's work on the same.
  */
 
-#include <openssl/opensslconf.h>
-#ifndef OPENSSL_NO_EC_NISTP_64_GCC_128
-
-# ifndef OPENSSL_SYS_VMS
-#  include <stdint.h>
-# else
-#  include <inttypes.h>
-# endif
+#include <openssl/e_os2.h>
+#ifdef OPENSSL_NO_EC_NISTP_64_GCC_128
+NON_EMPTY_TRANSLATION_UNIT
+#else
 
 # include <string.h>
 # include <openssl/err.h>
-# include "ec_lcl.h"
+# include "ec_local.h"
 
-# if defined(__GNUC__) && (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 1))
+# if defined(__SIZEOF_INT128__) && __SIZEOF_INT128__==16
   /* even with gcc, the typedef won't work for 32-bit platforms */
 typedef __uint128_t uint128_t;  /* nonstandard; implemented by gcc on 64-bit
                                  * platforms */
 # else
-#  error "Need GCC 3.1 or later to define type uint128_t"
+#  error "Your compiler doesn't appear to support 128-bit integer types"
 # endif
 
 typedef uint8_t u8;
 typedef uint64_t u64;
-typedef int64_t s64;
 
 /*
  * The underlying field. P521 operates over GF(2^521-1). We can serialise an
@@ -128,6 +128,7 @@ static const felem_bytearray nistp521_curve_params[5] = {
 # define NLIMBS 9
 
 typedef uint64_t limb;
+typedef limb limb_aX __attribute((__aligned__(1)));
 typedef limb felem[NLIMBS];
 typedef uint128_t largefelem[NLIMBS];
 
@@ -141,14 +142,14 @@ static const limb bottom58bits = 0x3ffffffffffffff;
 static void bin66_to_felem(felem out, const u8 in[66])
 {
     out[0] = (*((limb *) & in[0])) & bottom58bits;
-    out[1] = (*((limb *) & in[7]) >> 2) & bottom58bits;
-    out[2] = (*((limb *) & in[14]) >> 4) & bottom58bits;
-    out[3] = (*((limb *) & in[21]) >> 6) & bottom58bits;
-    out[4] = (*((limb *) & in[29])) & bottom58bits;
-    out[5] = (*((limb *) & in[36]) >> 2) & bottom58bits;
-    out[6] = (*((limb *) & in[43]) >> 4) & bottom58bits;
-    out[7] = (*((limb *) & in[50]) >> 6) & bottom58bits;
-    out[8] = (*((limb *) & in[58])) & bottom57bits;
+    out[1] = (*((limb_aX *) & in[7]) >> 2) & bottom58bits;
+    out[2] = (*((limb_aX *) & in[14]) >> 4) & bottom58bits;
+    out[3] = (*((limb_aX *) & in[21]) >> 6) & bottom58bits;
+    out[4] = (*((limb_aX *) & in[29])) & bottom58bits;
+    out[5] = (*((limb_aX *) & in[36]) >> 2) & bottom58bits;
+    out[6] = (*((limb_aX *) & in[43]) >> 4) & bottom58bits;
+    out[7] = (*((limb_aX *) & in[50]) >> 6) & bottom58bits;
+    out[8] = (*((limb_aX *) & in[58])) & bottom57bits;
 }
 
 /*
@@ -159,44 +160,31 @@ static void felem_to_bin66(u8 out[66], const felem in)
 {
     memset(out, 0, 66);
     (*((limb *) & out[0])) = in[0];
-    (*((limb *) & out[7])) |= in[1] << 2;
-    (*((limb *) & out[14])) |= in[2] << 4;
-    (*((limb *) & out[21])) |= in[3] << 6;
-    (*((limb *) & out[29])) = in[4];
-    (*((limb *) & out[36])) |= in[5] << 2;
-    (*((limb *) & out[43])) |= in[6] << 4;
-    (*((limb *) & out[50])) |= in[7] << 6;
-    (*((limb *) & out[58])) = in[8];
-}
-
-/* To preserve endianness when using BN_bn2bin and BN_bin2bn */
-static void flip_endian(u8 *out, const u8 *in, unsigned len)
-{
-    unsigned i;
-    for (i = 0; i < len; ++i)
-        out[i] = in[len - 1 - i];
+    (*((limb_aX *) & out[7])) |= in[1] << 2;
+    (*((limb_aX *) & out[14])) |= in[2] << 4;
+    (*((limb_aX *) & out[21])) |= in[3] << 6;
+    (*((limb_aX *) & out[29])) = in[4];
+    (*((limb_aX *) & out[36])) |= in[5] << 2;
+    (*((limb_aX *) & out[43])) |= in[6] << 4;
+    (*((limb_aX *) & out[50])) |= in[7] << 6;
+    (*((limb_aX *) & out[58])) = in[8];
 }
 
 /* BN_to_felem converts an OpenSSL BIGNUM into an felem */
 static int BN_to_felem(felem out, const BIGNUM *bn)
 {
-    felem_bytearray b_in;
     felem_bytearray b_out;
-    unsigned num_bytes;
+    int num_bytes;
 
-    /* BN_bn2bin eats leading zeroes */
-    memset(b_out, 0, sizeof b_out);
-    num_bytes = BN_num_bytes(bn);
-    if (num_bytes > sizeof b_out) {
-        ECerr(EC_F_BN_TO_FELEM, EC_R_BIGNUM_OUT_OF_RANGE);
-        return 0;
-    }
     if (BN_is_negative(bn)) {
         ECerr(EC_F_BN_TO_FELEM, EC_R_BIGNUM_OUT_OF_RANGE);
         return 0;
     }
-    num_bytes = BN_bn2bin(bn, b_in);
-    flip_endian(b_out, b_in, num_bytes);
+    num_bytes = BN_bn2lebinpad(bn, b_out, sizeof(b_out));
+    if (num_bytes < 0) {
+        ECerr(EC_F_BN_TO_FELEM, EC_R_BIGNUM_OUT_OF_RANGE);
+        return 0;
+    }
     bin66_to_felem(out, b_out);
     return 1;
 }
@@ -204,10 +192,9 @@ static int BN_to_felem(felem out, const BIGNUM *bn)
 /* felem_to_BN converts an felem into an OpenSSL BIGNUM */
 static BIGNUM *felem_to_BN(BIGNUM *out, const felem in)
 {
-    felem_bytearray b_in, b_out;
-    felem_to_bin66(b_in, in);
-    flip_endian(b_out, b_in, sizeof b_out);
-    return BN_bin2bn(b_out, sizeof b_out, out);
+    felem_bytearray b_out;
+    felem_to_bin66(b_out, in);
+    return BN_lebin2bn(b_out, sizeof(b_out), out);
 }
 
 /*-
@@ -357,10 +344,15 @@ static void felem_diff64(felem out, const felem in)
 static void felem_diff_128_64(largefelem out, const felem in)
 {
     /*
-     * In order to prevent underflow, we add 0 mod p before subtracting.
+     * In order to prevent underflow, we add 64p mod p (which is equivalent
+     * to 0 mod p) before subtracting. p is 2^521 - 1, i.e. in binary a 521
+     * digit number with all bits set to 1. See "The representation of field
+     * elements" comment above for a description of how limbs are used to
+     * represent a number. 64p is represented with 8 limbs containing a number
+     * with 58 bits set and one limb with a number with 57 bits set.
      */
-    static const limb two63m6 = (((limb) 1) << 62) - (((limb) 1) << 5);
-    static const limb two63m5 = (((limb) 1) << 62) - (((limb) 1) << 4);
+    static const limb two63m6 = (((limb) 1) << 63) - (((limb) 1) << 6);
+    static const limb two63m5 = (((limb) 1) << 63) - (((limb) 1) << 5);
 
     out[0] += two63m6 - in[0];
     out[1] += two63m5 - in[1];
@@ -430,19 +422,19 @@ static void felem_square(largefelem out, const felem in)
     out[2] = ((uint128_t) in[0]) * inx2[2] + ((uint128_t) in[1]) * in[1];
     out[3] = ((uint128_t) in[0]) * inx2[3] + ((uint128_t) in[1]) * inx2[2];
     out[4] = ((uint128_t) in[0]) * inx2[4] +
-        ((uint128_t) in[1]) * inx2[3] + ((uint128_t) in[2]) * in[2];
+             ((uint128_t) in[1]) * inx2[3] + ((uint128_t) in[2]) * in[2];
     out[5] = ((uint128_t) in[0]) * inx2[5] +
-        ((uint128_t) in[1]) * inx2[4] + ((uint128_t) in[2]) * inx2[3];
+             ((uint128_t) in[1]) * inx2[4] + ((uint128_t) in[2]) * inx2[3];
     out[6] = ((uint128_t) in[0]) * inx2[6] +
-        ((uint128_t) in[1]) * inx2[5] +
-        ((uint128_t) in[2]) * inx2[4] + ((uint128_t) in[3]) * in[3];
+             ((uint128_t) in[1]) * inx2[5] +
+             ((uint128_t) in[2]) * inx2[4] + ((uint128_t) in[3]) * in[3];
     out[7] = ((uint128_t) in[0]) * inx2[7] +
-        ((uint128_t) in[1]) * inx2[6] +
-        ((uint128_t) in[2]) * inx2[5] + ((uint128_t) in[3]) * inx2[4];
+             ((uint128_t) in[1]) * inx2[6] +
+             ((uint128_t) in[2]) * inx2[5] + ((uint128_t) in[3]) * inx2[4];
     out[8] = ((uint128_t) in[0]) * inx2[8] +
-        ((uint128_t) in[1]) * inx2[7] +
-        ((uint128_t) in[2]) * inx2[6] +
-        ((uint128_t) in[3]) * inx2[5] + ((uint128_t) in[4]) * in[4];
+             ((uint128_t) in[1]) * inx2[7] +
+             ((uint128_t) in[2]) * inx2[6] +
+             ((uint128_t) in[3]) * inx2[5] + ((uint128_t) in[4]) * in[4];
 
     /*
      * The remaining limbs fall above 2^521, with the first falling at 2^522.
@@ -455,21 +447,21 @@ static void felem_square(largefelem out, const felem in)
 
     /* 9 */
     out[0] += ((uint128_t) in[1]) * inx4[8] +
-        ((uint128_t) in[2]) * inx4[7] +
-        ((uint128_t) in[3]) * inx4[6] + ((uint128_t) in[4]) * inx4[5];
+              ((uint128_t) in[2]) * inx4[7] +
+              ((uint128_t) in[3]) * inx4[6] + ((uint128_t) in[4]) * inx4[5];
 
     /* 10 */
     out[1] += ((uint128_t) in[2]) * inx4[8] +
-        ((uint128_t) in[3]) * inx4[7] +
-        ((uint128_t) in[4]) * inx4[6] + ((uint128_t) in[5]) * inx2[5];
+              ((uint128_t) in[3]) * inx4[7] +
+              ((uint128_t) in[4]) * inx4[6] + ((uint128_t) in[5]) * inx2[5];
 
     /* 11 */
     out[2] += ((uint128_t) in[3]) * inx4[8] +
-        ((uint128_t) in[4]) * inx4[7] + ((uint128_t) in[5]) * inx4[6];
+              ((uint128_t) in[4]) * inx4[7] + ((uint128_t) in[5]) * inx4[6];
 
     /* 12 */
     out[3] += ((uint128_t) in[4]) * inx4[8] +
-        ((uint128_t) in[5]) * inx4[7] + ((uint128_t) in[6]) * inx2[6];
+              ((uint128_t) in[5]) * inx4[7] + ((uint128_t) in[6]) * inx2[6];
 
     /* 13 */
     out[4] += ((uint128_t) in[5]) * inx4[8] + ((uint128_t) in[6]) * inx4[7];
@@ -499,87 +491,101 @@ static void felem_mul(largefelem out, const felem in1, const felem in2)
 
     out[0] = ((uint128_t) in1[0]) * in2[0];
 
-    out[1] = ((uint128_t) in1[0]) * in2[1] + ((uint128_t) in1[1]) * in2[0];
+    out[1] = ((uint128_t) in1[0]) * in2[1] +
+             ((uint128_t) in1[1]) * in2[0];
 
     out[2] = ((uint128_t) in1[0]) * in2[2] +
-        ((uint128_t) in1[1]) * in2[1] + ((uint128_t) in1[2]) * in2[0];
+             ((uint128_t) in1[1]) * in2[1] +
+             ((uint128_t) in1[2]) * in2[0];
 
     out[3] = ((uint128_t) in1[0]) * in2[3] +
-        ((uint128_t) in1[1]) * in2[2] +
-        ((uint128_t) in1[2]) * in2[1] + ((uint128_t) in1[3]) * in2[0];
+             ((uint128_t) in1[1]) * in2[2] +
+             ((uint128_t) in1[2]) * in2[1] +
+             ((uint128_t) in1[3]) * in2[0];
 
     out[4] = ((uint128_t) in1[0]) * in2[4] +
-        ((uint128_t) in1[1]) * in2[3] +
-        ((uint128_t) in1[2]) * in2[2] +
-        ((uint128_t) in1[3]) * in2[1] + ((uint128_t) in1[4]) * in2[0];
+             ((uint128_t) in1[1]) * in2[3] +
+             ((uint128_t) in1[2]) * in2[2] +
+             ((uint128_t) in1[3]) * in2[1] +
+             ((uint128_t) in1[4]) * in2[0];
 
     out[5] = ((uint128_t) in1[0]) * in2[5] +
-        ((uint128_t) in1[1]) * in2[4] +
-        ((uint128_t) in1[2]) * in2[3] +
-        ((uint128_t) in1[3]) * in2[2] +
-        ((uint128_t) in1[4]) * in2[1] + ((uint128_t) in1[5]) * in2[0];
+             ((uint128_t) in1[1]) * in2[4] +
+             ((uint128_t) in1[2]) * in2[3] +
+             ((uint128_t) in1[3]) * in2[2] +
+             ((uint128_t) in1[4]) * in2[1] +
+             ((uint128_t) in1[5]) * in2[0];
 
     out[6] = ((uint128_t) in1[0]) * in2[6] +
-        ((uint128_t) in1[1]) * in2[5] +
-        ((uint128_t) in1[2]) * in2[4] +
-        ((uint128_t) in1[3]) * in2[3] +
-        ((uint128_t) in1[4]) * in2[2] +
-        ((uint128_t) in1[5]) * in2[1] + ((uint128_t) in1[6]) * in2[0];
+             ((uint128_t) in1[1]) * in2[5] +
+             ((uint128_t) in1[2]) * in2[4] +
+             ((uint128_t) in1[3]) * in2[3] +
+             ((uint128_t) in1[4]) * in2[2] +
+             ((uint128_t) in1[5]) * in2[1] +
+             ((uint128_t) in1[6]) * in2[0];
 
     out[7] = ((uint128_t) in1[0]) * in2[7] +
-        ((uint128_t) in1[1]) * in2[6] +
-        ((uint128_t) in1[2]) * in2[5] +
-        ((uint128_t) in1[3]) * in2[4] +
-        ((uint128_t) in1[4]) * in2[3] +
-        ((uint128_t) in1[5]) * in2[2] +
-        ((uint128_t) in1[6]) * in2[1] + ((uint128_t) in1[7]) * in2[0];
+             ((uint128_t) in1[1]) * in2[6] +
+             ((uint128_t) in1[2]) * in2[5] +
+             ((uint128_t) in1[3]) * in2[4] +
+             ((uint128_t) in1[4]) * in2[3] +
+             ((uint128_t) in1[5]) * in2[2] +
+             ((uint128_t) in1[6]) * in2[1] +
+             ((uint128_t) in1[7]) * in2[0];
 
     out[8] = ((uint128_t) in1[0]) * in2[8] +
-        ((uint128_t) in1[1]) * in2[7] +
-        ((uint128_t) in1[2]) * in2[6] +
-        ((uint128_t) in1[3]) * in2[5] +
-        ((uint128_t) in1[4]) * in2[4] +
-        ((uint128_t) in1[5]) * in2[3] +
-        ((uint128_t) in1[6]) * in2[2] +
-        ((uint128_t) in1[7]) * in2[1] + ((uint128_t) in1[8]) * in2[0];
+             ((uint128_t) in1[1]) * in2[7] +
+             ((uint128_t) in1[2]) * in2[6] +
+             ((uint128_t) in1[3]) * in2[5] +
+             ((uint128_t) in1[4]) * in2[4] +
+             ((uint128_t) in1[5]) * in2[3] +
+             ((uint128_t) in1[6]) * in2[2] +
+             ((uint128_t) in1[7]) * in2[1] +
+             ((uint128_t) in1[8]) * in2[0];
 
     /* See comment in felem_square about the use of in2x2 here */
 
     out[0] += ((uint128_t) in1[1]) * in2x2[8] +
-        ((uint128_t) in1[2]) * in2x2[7] +
-        ((uint128_t) in1[3]) * in2x2[6] +
-        ((uint128_t) in1[4]) * in2x2[5] +
-        ((uint128_t) in1[5]) * in2x2[4] +
-        ((uint128_t) in1[6]) * in2x2[3] +
-        ((uint128_t) in1[7]) * in2x2[2] + ((uint128_t) in1[8]) * in2x2[1];
+              ((uint128_t) in1[2]) * in2x2[7] +
+              ((uint128_t) in1[3]) * in2x2[6] +
+              ((uint128_t) in1[4]) * in2x2[5] +
+              ((uint128_t) in1[5]) * in2x2[4] +
+              ((uint128_t) in1[6]) * in2x2[3] +
+              ((uint128_t) in1[7]) * in2x2[2] +
+              ((uint128_t) in1[8]) * in2x2[1];
 
     out[1] += ((uint128_t) in1[2]) * in2x2[8] +
-        ((uint128_t) in1[3]) * in2x2[7] +
-        ((uint128_t) in1[4]) * in2x2[6] +
-        ((uint128_t) in1[5]) * in2x2[5] +
-        ((uint128_t) in1[6]) * in2x2[4] +
-        ((uint128_t) in1[7]) * in2x2[3] + ((uint128_t) in1[8]) * in2x2[2];
+              ((uint128_t) in1[3]) * in2x2[7] +
+              ((uint128_t) in1[4]) * in2x2[6] +
+              ((uint128_t) in1[5]) * in2x2[5] +
+              ((uint128_t) in1[6]) * in2x2[4] +
+              ((uint128_t) in1[7]) * in2x2[3] +
+              ((uint128_t) in1[8]) * in2x2[2];
 
     out[2] += ((uint128_t) in1[3]) * in2x2[8] +
-        ((uint128_t) in1[4]) * in2x2[7] +
-        ((uint128_t) in1[5]) * in2x2[6] +
-        ((uint128_t) in1[6]) * in2x2[5] +
-        ((uint128_t) in1[7]) * in2x2[4] + ((uint128_t) in1[8]) * in2x2[3];
+              ((uint128_t) in1[4]) * in2x2[7] +
+              ((uint128_t) in1[5]) * in2x2[6] +
+              ((uint128_t) in1[6]) * in2x2[5] +
+              ((uint128_t) in1[7]) * in2x2[4] +
+              ((uint128_t) in1[8]) * in2x2[3];
 
     out[3] += ((uint128_t) in1[4]) * in2x2[8] +
-        ((uint128_t) in1[5]) * in2x2[7] +
-        ((uint128_t) in1[6]) * in2x2[6] +
-        ((uint128_t) in1[7]) * in2x2[5] + ((uint128_t) in1[8]) * in2x2[4];
+              ((uint128_t) in1[5]) * in2x2[7] +
+              ((uint128_t) in1[6]) * in2x2[6] +
+              ((uint128_t) in1[7]) * in2x2[5] +
+              ((uint128_t) in1[8]) * in2x2[4];
 
     out[4] += ((uint128_t) in1[5]) * in2x2[8] +
-        ((uint128_t) in1[6]) * in2x2[7] +
-        ((uint128_t) in1[7]) * in2x2[6] + ((uint128_t) in1[8]) * in2x2[5];
+              ((uint128_t) in1[6]) * in2x2[7] +
+              ((uint128_t) in1[7]) * in2x2[6] +
+              ((uint128_t) in1[8]) * in2x2[5];
 
     out[5] += ((uint128_t) in1[6]) * in2x2[8] +
-        ((uint128_t) in1[7]) * in2x2[7] + ((uint128_t) in1[8]) * in2x2[6];
+              ((uint128_t) in1[7]) * in2x2[7] +
+              ((uint128_t) in1[8]) * in2x2[6];
 
     out[6] += ((uint128_t) in1[7]) * in2x2[8] +
-        ((uint128_t) in1[8]) * in2x2[7];
+              ((uint128_t) in1[8]) * in2x2[7];
 
     out[7] += ((uint128_t) in1[8]) * in2x2[8];
 }
@@ -852,7 +858,7 @@ static limb felem_is_zero(const felem in)
      * We know that ftmp[i] < 2^63, therefore the only way that the top bit
      * can be set is if is_zero was 0 before the decrement.
      */
-    is_zero = ((s64) is_zero) >> 63;
+    is_zero = 0 - (is_zero >> 63);
 
     is_p = ftmp[0] ^ kPrime[0];
     is_p |= ftmp[1] ^ kPrime[1];
@@ -865,13 +871,13 @@ static limb felem_is_zero(const felem in)
     is_p |= ftmp[8] ^ kPrime[8];
 
     is_p--;
-    is_p = ((s64) is_p) >> 63;
+    is_p = 0 - (is_p >> 63);
 
     is_zero |= is_p;
     return is_zero;
 }
 
-static int felem_is_zero_int(const felem in)
+static int felem_is_zero_int(const void *in)
 {
     return (int)(felem_is_zero(in) & ((limb) 1));
 }
@@ -936,7 +942,7 @@ static void felem_contract(felem out, const felem in)
     is_p &= is_p << 4;
     is_p &= is_p << 2;
     is_p &= is_p << 1;
-    is_p = ((s64) is_p) >> 63;
+    is_p = 0 - (is_p >> 63);
     is_p = ~is_p;
 
     /* is_p is 0 iff |out| == 2^521-1 and all ones otherwise */
@@ -962,7 +968,7 @@ static void felem_contract(felem out, const felem in)
     is_greater |= is_greater << 4;
     is_greater |= is_greater << 2;
     is_greater |= is_greater << 1;
-    is_greater = ((s64) is_greater) >> 63;
+    is_greater = 0 - (is_greater >> 63);
 
     out[0] -= kPrime[0] & is_greater;
     out[1] -= kPrime[1] & is_greater;
@@ -1019,7 +1025,7 @@ static void felem_contract(felem out, const felem in)
  * coordinates */
 
 /*-
- * point_double calcuates 2*(x_in, y_in, z_in)
+ * point_double calculates 2*(x_in, y_in, z_in)
  *
  * The method is taken from:
  *   http://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#doubling-dbl-2001-b
@@ -1135,16 +1141,16 @@ static void copy_conditional(felem out, const felem in, limb mask)
 }
 
 /*-
- * point_add calcuates (x1, y1, z1) + (x2, y2, z2)
+ * point_add calculates (x1, y1, z1) + (x2, y2, z2)
  *
  * The method is taken from
  *   http://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-add-2007-bl,
  * adapted for mixed addition (z2 = 1, or z2 = 0 for the point at infinity).
  *
  * This function includes a branch for checking whether the two input points
- * are equal (while not equal to the point at infinity). This case never
- * happens during single point multiplication, so there is no timing leak for
- * ECDH or ECDSA signing. */
+ * are equal (while not equal to the point at infinity). See comment below
+ * on constant-time.
+ */
 static void point_add(felem x3, felem y3, felem z3,
                       const felem x1, const felem y1, const felem z1,
                       const int mixed, const felem x2, const felem y2,
@@ -1153,6 +1159,7 @@ static void point_add(felem x3, felem y3, felem z3,
     felem ftmp, ftmp2, ftmp3, ftmp4, ftmp5, ftmp6, x_out, y_out, z_out;
     largefelem tmp, tmp2;
     limb x_equal, y_equal, z1_is_zero, z2_is_zero;
+    limb points_equal;
 
     z1_is_zero = felem_is_zero(z1);
     z2_is_zero = felem_is_zero(z2);
@@ -1237,7 +1244,40 @@ static void point_add(felem x3, felem y3, felem z3,
     felem_scalar64(ftmp5, 2);
     /* ftmp5[i] < 2^61 */
 
-    if (x_equal && y_equal && !z1_is_zero && !z2_is_zero) {
+    /*
+     * The formulae are incorrect if the points are equal, in affine coordinates
+     * (X_1, Y_1) == (X_2, Y_2), so we check for this and do doubling if this
+     * happens.
+     *
+     * We use bitwise operations to avoid potential side-channels introduced by
+     * the short-circuiting behaviour of boolean operators.
+     *
+     * The special case of either point being the point at infinity (z1 and/or
+     * z2 are zero), is handled separately later on in this function, so we
+     * avoid jumping to point_double here in those special cases.
+     *
+     * Notice the comment below on the implications of this branching for timing
+     * leaks and why it is considered practically irrelevant.
+     */
+    points_equal = (x_equal & y_equal & (~z1_is_zero) & (~z2_is_zero));
+
+    if (points_equal) {
+        /*
+         * This is obviously not constant-time but it will almost-never happen
+         * for ECDH / ECDSA. The case where it can happen is during scalar-mult
+         * where the intermediate value gets very close to the group order.
+         * Since |ec_GFp_nistp_recode_scalar_bits| produces signed digits for
+         * the scalar, it's possible for the intermediate value to be a small
+         * negative multiple of the base point, and for the final signed digit
+         * to be the same value. We believe that this only occurs for the scalar
+         * 1fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+         * ffffffa51868783bf2f966b7fcc0148f709a5d03bb5c9b8899c47aebb6fb
+         * 71e913863f7, in that case the penultimate intermediate is -9G and
+         * the final digit is also -9G. Since this only happens for a single
+         * scalar, the timing leak is irrelevant. (Any attacker who wanted to
+         * check whether a secret scalar was that exact value, can already do
+         * so.)
+         */
         point_double(x3, y3, z3, x1, y1, z1);
         return;
     }
@@ -1335,9 +1375,10 @@ static void point_add(felem x3, felem y3, felem z3,
  * Tables for other points have table[i] = iG for i in 0 .. 16. */
 
 /* gmul is the table of precomputed base points */
-static const felem gmul[16][3] = { {{0, 0, 0, 0, 0, 0, 0, 0, 0},
-                                    {0, 0, 0, 0, 0, 0, 0, 0, 0},
-                                    {0, 0, 0, 0, 0, 0, 0, 0, 0}},
+static const felem gmul[16][3] = {
+{{0, 0, 0, 0, 0, 0, 0, 0, 0},
+ {0, 0, 0, 0, 0, 0, 0, 0, 0},
+ {0, 0, 0, 0, 0, 0, 0, 0, 0}},
 {{0x017e7e31c2e5bd66, 0x022cf0615a90a6fe, 0x00127a2ffa8de334,
   0x01dfbf9d64a3f877, 0x006b4d3dbaa14b5e, 0x014fed487e0a2bd8,
   0x015b4429c6481390, 0x03a73678fb2d988e, 0x00c6858e06b70404},
@@ -1455,7 +1496,8 @@ static void select_point(const limb idx, unsigned int size,
 {
     unsigned i, j;
     limb *outlimbs = &out[0][0];
-    memset(outlimbs, 0, 3 * sizeof(felem));
+
+    memset(out, 0, sizeof(*out) * 3);
 
     for (i = 0; i < size; i++) {
         const limb *inlimbs = &pre_comp[i][0][0];
@@ -1498,7 +1540,7 @@ static void batch_mul(felem x_out, felem y_out, felem z_out,
     u8 sign, digit;
 
     /* set nq to the point at infinity */
-    memset(nq, 0, 3 * sizeof(felem));
+    memset(nq, 0, sizeof(nq));
 
     /*
      * Loop over all scalars msb-to-lsb, interleaving additions of multiples
@@ -1569,10 +1611,11 @@ static void batch_mul(felem x_out, felem y_out, felem z_out,
 }
 
 /* Precomputation for the group generator. */
-typedef struct {
+struct nistp521_pre_comp_st {
     felem g_pre_comp[16][3];
-    int references;
-} NISTP521_PRE_COMP;
+    CRYPTO_REF_COUNT references;
+    CRYPTO_RWLOCK *lock;
+};
 
 const EC_METHOD *EC_GFp_nistp521_method(void)
 {
@@ -1586,6 +1629,7 @@ const EC_METHOD *EC_GFp_nistp521_method(void)
         ec_GFp_nistp521_group_set_curve,
         ec_GFp_simple_group_get_curve,
         ec_GFp_simple_group_get_degree,
+        ec_group_simple_order_bits,
         ec_GFp_simple_group_check_discriminant,
         ec_GFp_simple_point_init,
         ec_GFp_simple_point_finish,
@@ -1613,9 +1657,24 @@ const EC_METHOD *EC_GFp_nistp521_method(void)
         ec_GFp_nist_field_mul,
         ec_GFp_nist_field_sqr,
         0 /* field_div */ ,
+        ec_GFp_simple_field_inv,
         0 /* field_encode */ ,
         0 /* field_decode */ ,
-        0                       /* field_set_to_one */
+        0,                      /* field_set_to_one */
+        ec_key_simple_priv2oct,
+        ec_key_simple_oct2priv,
+        0, /* set private */
+        ec_key_simple_generate_key,
+        ec_key_simple_check_key,
+        ec_key_simple_generate_public_key,
+        0, /* keycopy */
+        0, /* keyfinish */
+        ecdh_simple_compute_key,
+        0, /* field_inverse_mod_ord */
+        0, /* blind_coordinates */
+        0, /* ladder_pre */
+        0, /* ladder_step */
+        0  /* ladder_post */
     };
 
     return &ret;
@@ -1626,58 +1685,49 @@ const EC_METHOD *EC_GFp_nistp521_method(void)
  * FUNCTIONS TO MANAGE PRECOMPUTATION
  */
 
-static NISTP521_PRE_COMP *nistp521_pre_comp_new()
+static NISTP521_PRE_COMP *nistp521_pre_comp_new(void)
 {
-    NISTP521_PRE_COMP *ret = NULL;
-    ret = (NISTP521_PRE_COMP *) OPENSSL_malloc(sizeof(NISTP521_PRE_COMP));
-    if (!ret) {
+    NISTP521_PRE_COMP *ret = OPENSSL_zalloc(sizeof(*ret));
+
+    if (ret == NULL) {
         ECerr(EC_F_NISTP521_PRE_COMP_NEW, ERR_R_MALLOC_FAILURE);
         return ret;
     }
-    memset(ret->g_pre_comp, 0, sizeof(ret->g_pre_comp));
+
     ret->references = 1;
+
+    ret->lock = CRYPTO_THREAD_lock_new();
+    if (ret->lock == NULL) {
+        ECerr(EC_F_NISTP521_PRE_COMP_NEW, ERR_R_MALLOC_FAILURE);
+        OPENSSL_free(ret);
+        return NULL;
+    }
     return ret;
 }
 
-static void *nistp521_pre_comp_dup(void *src_)
-{
-    NISTP521_PRE_COMP *src = src_;
-
-    /* no need to actually copy, these objects never change! */
-    CRYPTO_add(&src->references, 1, CRYPTO_LOCK_EC_PRE_COMP);
-
-    return src_;
-}
-
-static void nistp521_pre_comp_free(void *pre_)
+NISTP521_PRE_COMP *EC_nistp521_pre_comp_dup(NISTP521_PRE_COMP *p)
 {
     int i;
-    NISTP521_PRE_COMP *pre = pre_;
-
-    if (!pre)
-        return;
-
-    i = CRYPTO_add(&pre->references, -1, CRYPTO_LOCK_EC_PRE_COMP);
-    if (i > 0)
-        return;
-
-    OPENSSL_free(pre);
+    if (p != NULL)
+        CRYPTO_UP_REF(&p->references, &i, p->lock);
+    return p;
 }
 
-static void nistp521_pre_comp_clear_free(void *pre_)
+void EC_nistp521_pre_comp_free(NISTP521_PRE_COMP *p)
 {
     int i;
-    NISTP521_PRE_COMP *pre = pre_;
 
-    if (!pre)
+    if (p == NULL)
         return;
 
-    i = CRYPTO_add(&pre->references, -1, CRYPTO_LOCK_EC_PRE_COMP);
+    CRYPTO_DOWN_REF(&p->references, &i, p->lock);
+    REF_PRINT_COUNT("EC_nistp521", x);
     if (i > 0)
         return;
+    REF_ASSERT_ISNT(i < 0);
 
-    OPENSSL_cleanse(pre, sizeof(*pre));
-    OPENSSL_free(pre);
+    CRYPTO_THREAD_lock_free(p->lock);
+    OPENSSL_free(p);
 }
 
 /******************************************************************************/
@@ -1705,9 +1755,10 @@ int ec_GFp_nistp521_group_set_curve(EC_GROUP *group, const BIGNUM *p,
         if ((ctx = new_ctx = BN_CTX_new()) == NULL)
             return 0;
     BN_CTX_start(ctx);
-    if (((curve_p = BN_CTX_get(ctx)) == NULL) ||
-        ((curve_a = BN_CTX_get(ctx)) == NULL) ||
-        ((curve_b = BN_CTX_get(ctx)) == NULL))
+    curve_p = BN_CTX_get(ctx);
+    curve_a = BN_CTX_get(ctx);
+    curve_b = BN_CTX_get(ctx);
+    if (curve_b == NULL)
         goto err;
     BN_bin2bn(nistp521_curve_params[0], sizeof(felem_bytearray), curve_p);
     BN_bin2bn(nistp521_curve_params[1], sizeof(felem_bytearray), curve_a);
@@ -1721,8 +1772,7 @@ int ec_GFp_nistp521_group_set_curve(EC_GROUP *group, const BIGNUM *p,
     ret = ec_GFp_simple_group_set_curve(group, p, a, b, ctx);
  err:
     BN_CTX_end(ctx);
-    if (new_ctx != NULL)
-        BN_CTX_free(new_ctx);
+    BN_CTX_free(new_ctx);
     return ret;
 }
 
@@ -1743,8 +1793,8 @@ int ec_GFp_nistp521_point_get_affine_coordinates(const EC_GROUP *group,
               EC_R_POINT_AT_INFINITY);
         return 0;
     }
-    if ((!BN_to_felem(x_in, &point->X)) || (!BN_to_felem(y_in, &point->Y)) ||
-        (!BN_to_felem(z1, &point->Z)))
+    if ((!BN_to_felem(x_in, point->X)) || (!BN_to_felem(y_in, point->Y)) ||
+        (!BN_to_felem(z1, point->Z)))
         return 0;
     felem_inv(z2, z1);
     felem_square(tmp, z2);
@@ -1787,7 +1837,6 @@ static void make_points_affine(size_t num, felem points[][3],
                                              sizeof(felem),
                                              tmp_felems,
                                              (void (*)(void *))felem_one,
-                                             (int (*)(const void *))
                                              felem_is_zero_int,
                                              (void (*)(void *, const void *))
                                              felem_assign,
@@ -1817,14 +1866,13 @@ int ec_GFp_nistp521_points_mul(const EC_GROUP *group, EC_POINT *r,
     int ret = 0;
     int j;
     int mixed = 0;
-    BN_CTX *new_ctx = NULL;
     BIGNUM *x, *y, *z, *tmp_scalar;
     felem_bytearray g_secret;
     felem_bytearray *secrets = NULL;
-    felem(*pre_comp)[17][3] = NULL;
+    felem (*pre_comp)[17][3] = NULL;
     felem *tmp_felems = NULL;
-    felem_bytearray tmp;
-    unsigned i, num_bytes;
+    unsigned i;
+    int num_bytes;
     int have_pre_comp = 0;
     size_t num_points = num;
     felem x_in, y_in, z_in, x_out, y_out, z_out;
@@ -1834,21 +1882,16 @@ int ec_GFp_nistp521_points_mul(const EC_GROUP *group, EC_POINT *r,
     const EC_POINT *p = NULL;
     const BIGNUM *p_scalar = NULL;
 
-    if (ctx == NULL)
-        if ((ctx = new_ctx = BN_CTX_new()) == NULL)
-            return 0;
     BN_CTX_start(ctx);
-    if (((x = BN_CTX_get(ctx)) == NULL) ||
-        ((y = BN_CTX_get(ctx)) == NULL) ||
-        ((z = BN_CTX_get(ctx)) == NULL) ||
-        ((tmp_scalar = BN_CTX_get(ctx)) == NULL))
+    x = BN_CTX_get(ctx);
+    y = BN_CTX_get(ctx);
+    z = BN_CTX_get(ctx);
+    tmp_scalar = BN_CTX_get(ctx);
+    if (tmp_scalar == NULL)
         goto err;
 
     if (scalar != NULL) {
-        pre = EC_EX_DATA_get_data(group->extra_data,
-                                  nistp521_pre_comp_dup,
-                                  nistp521_pre_comp_free,
-                                  nistp521_pre_comp_clear_free);
+        pre = group->pre_comp.nistp521;
         if (pre)
             /* we have precomputation, try to use it */
             g_pre_comp = &pre->g_pre_comp[0];
@@ -1888,11 +1931,11 @@ int ec_GFp_nistp521_points_mul(const EC_GROUP *group, EC_POINT *r,
              */
             mixed = 1;
         }
-        secrets = OPENSSL_malloc(num_points * sizeof(felem_bytearray));
-        pre_comp = OPENSSL_malloc(num_points * 17 * 3 * sizeof(felem));
+        secrets = OPENSSL_zalloc(sizeof(*secrets) * num_points);
+        pre_comp = OPENSSL_zalloc(sizeof(*pre_comp) * num_points);
         if (mixed)
             tmp_felems =
-                OPENSSL_malloc((num_points * 17 + 1) * sizeof(felem));
+                OPENSSL_malloc(sizeof(*tmp_felems) * (num_points * 17 + 1));
         if ((secrets == NULL) || (pre_comp == NULL)
             || (mixed && (tmp_felems == NULL))) {
             ECerr(EC_F_EC_GFP_NISTP521_POINTS_MUL, ERR_R_MALLOC_FAILURE);
@@ -1903,20 +1946,16 @@ int ec_GFp_nistp521_points_mul(const EC_GROUP *group, EC_POINT *r,
          * we treat NULL scalars as 0, and NULL points as points at infinity,
          * i.e., they contribute nothing to the linear combination
          */
-        memset(secrets, 0, num_points * sizeof(felem_bytearray));
-        memset(pre_comp, 0, num_points * 17 * 3 * sizeof(felem));
         for (i = 0; i < num_points; ++i) {
-            if (i == num)
+            if (i == num) {
                 /*
                  * we didn't have a valid precomputation, so we pick the
                  * generator
                  */
-            {
                 p = EC_GROUP_get0_generator(group);
                 p_scalar = scalar;
-            } else
+            } else {
                 /* the i^th point */
-            {
                 p = points[i];
                 p_scalar = scalars[i];
             }
@@ -1928,18 +1967,24 @@ int ec_GFp_nistp521_points_mul(const EC_GROUP *group, EC_POINT *r,
                      * this is an unusual input, and we don't guarantee
                      * constant-timeness
                      */
-                    if (!BN_nnmod(tmp_scalar, p_scalar, &group->order, ctx)) {
+                    if (!BN_nnmod(tmp_scalar, p_scalar, group->order, ctx)) {
                         ECerr(EC_F_EC_GFP_NISTP521_POINTS_MUL, ERR_R_BN_LIB);
                         goto err;
                     }
-                    num_bytes = BN_bn2bin(tmp_scalar, tmp);
-                } else
-                    num_bytes = BN_bn2bin(p_scalar, tmp);
-                flip_endian(secrets[i], tmp, num_bytes);
+                    num_bytes = BN_bn2lebinpad(tmp_scalar,
+                                               secrets[i], sizeof(secrets[i]));
+                } else {
+                    num_bytes = BN_bn2lebinpad(p_scalar,
+                                               secrets[i], sizeof(secrets[i]));
+                }
+                if (num_bytes < 0) {
+                    ECerr(EC_F_EC_GFP_NISTP521_POINTS_MUL, ERR_R_BN_LIB);
+                    goto err;
+                }
                 /* precompute multiples */
-                if ((!BN_to_felem(x_out, &p->X)) ||
-                    (!BN_to_felem(y_out, &p->Y)) ||
-                    (!BN_to_felem(z_out, &p->Z)))
+                if ((!BN_to_felem(x_out, p->X)) ||
+                    (!BN_to_felem(y_out, p->Y)) ||
+                    (!BN_to_felem(z_out, p->Z)))
                     goto err;
                 memcpy(pre_comp[i][1][0], x_out, sizeof(felem));
                 memcpy(pre_comp[i][1][1], y_out, sizeof(felem));
@@ -1974,25 +2019,26 @@ int ec_GFp_nistp521_points_mul(const EC_GROUP *group, EC_POINT *r,
              * this is an unusual input, and we don't guarantee
              * constant-timeness
              */
-            if (!BN_nnmod(tmp_scalar, scalar, &group->order, ctx)) {
+            if (!BN_nnmod(tmp_scalar, scalar, group->order, ctx)) {
                 ECerr(EC_F_EC_GFP_NISTP521_POINTS_MUL, ERR_R_BN_LIB);
                 goto err;
             }
-            num_bytes = BN_bn2bin(tmp_scalar, tmp);
-        } else
-            num_bytes = BN_bn2bin(scalar, tmp);
-        flip_endian(g_secret, tmp, num_bytes);
+            num_bytes = BN_bn2lebinpad(tmp_scalar, g_secret, sizeof(g_secret));
+        } else {
+            num_bytes = BN_bn2lebinpad(scalar, g_secret, sizeof(g_secret));
+        }
         /* do the multiplication with generator precomputation */
         batch_mul(x_out, y_out, z_out,
                   (const felem_bytearray(*))secrets, num_points,
                   g_secret,
                   mixed, (const felem(*)[17][3])pre_comp,
                   (const felem(*)[3])g_pre_comp);
-    } else
+    } else {
         /* do the multiplication without generator precomputation */
         batch_mul(x_out, y_out, z_out,
                   (const felem_bytearray(*))secrets, num_points,
                   NULL, mixed, (const felem(*)[17][3])pre_comp, NULL);
+    }
     /* reduce the output to its unique minimal representation */
     felem_contract(x_in, x_out);
     felem_contract(y_in, y_out);
@@ -2006,16 +2052,10 @@ int ec_GFp_nistp521_points_mul(const EC_GROUP *group, EC_POINT *r,
 
  err:
     BN_CTX_end(ctx);
-    if (generator != NULL)
-        EC_POINT_free(generator);
-    if (new_ctx != NULL)
-        BN_CTX_free(new_ctx);
-    if (secrets != NULL)
-        OPENSSL_free(secrets);
-    if (pre_comp != NULL)
-        OPENSSL_free(pre_comp);
-    if (tmp_felems != NULL)
-        OPENSSL_free(tmp_felems);
+    EC_POINT_free(generator);
+    OPENSSL_free(secrets);
+    OPENSSL_free(pre_comp);
+    OPENSSL_free(tmp_felems);
     return ret;
 }
 
@@ -2030,14 +2070,14 @@ int ec_GFp_nistp521_precompute_mult(EC_GROUP *group, BN_CTX *ctx)
     felem tmp_felems[16];
 
     /* throw away old precomputation */
-    EC_EX_DATA_free_data(&group->extra_data, nistp521_pre_comp_dup,
-                         nistp521_pre_comp_free,
-                         nistp521_pre_comp_clear_free);
+    EC_pre_comp_free(group);
     if (ctx == NULL)
         if ((ctx = new_ctx = BN_CTX_new()) == NULL)
             return 0;
     BN_CTX_start(ctx);
-    if (((x = BN_CTX_get(ctx)) == NULL) || ((y = BN_CTX_get(ctx)) == NULL))
+    x = BN_CTX_get(ctx);
+    y = BN_CTX_get(ctx);
+    if (y == NULL)
         goto err;
     /* get the generator */
     if (group->generator == NULL)
@@ -2047,7 +2087,7 @@ int ec_GFp_nistp521_precompute_mult(EC_GROUP *group, BN_CTX *ctx)
         goto err;
     BN_bin2bn(nistp521_curve_params[3], sizeof(felem_bytearray), x);
     BN_bin2bn(nistp521_curve_params[4], sizeof(felem_bytearray), y);
-    if (!EC_POINT_set_affine_coordinates_GFp(group, generator, x, y, ctx))
+    if (!EC_POINT_set_affine_coordinates(group, generator, x, y, ctx))
         goto err;
     if ((pre = nistp521_pre_comp_new()) == NULL)
         goto err;
@@ -2058,9 +2098,9 @@ int ec_GFp_nistp521_precompute_mult(EC_GROUP *group, BN_CTX *ctx)
         memcpy(pre->g_pre_comp, gmul, sizeof(pre->g_pre_comp));
         goto done;
     }
-    if ((!BN_to_felem(pre->g_pre_comp[1][0], &group->generator->X)) ||
-        (!BN_to_felem(pre->g_pre_comp[1][1], &group->generator->Y)) ||
-        (!BN_to_felem(pre->g_pre_comp[1][2], &group->generator->Z)))
+    if ((!BN_to_felem(pre->g_pre_comp[1][0], group->generator->X)) ||
+        (!BN_to_felem(pre->g_pre_comp[1][1], group->generator->Y)) ||
+        (!BN_to_felem(pre->g_pre_comp[1][2], group->generator->Z)))
         goto err;
     /* compute 2^130*G, 2^260*G, 2^390*G */
     for (i = 1; i <= 4; i <<= 1) {
@@ -2115,34 +2155,20 @@ int ec_GFp_nistp521_precompute_mult(EC_GROUP *group, BN_CTX *ctx)
     make_points_affine(15, &(pre->g_pre_comp[1]), tmp_felems);
 
  done:
-    if (!EC_EX_DATA_set_data(&group->extra_data, pre, nistp521_pre_comp_dup,
-                             nistp521_pre_comp_free,
-                             nistp521_pre_comp_clear_free))
-        goto err;
+    SETPRECOMP(group, nistp521, pre);
     ret = 1;
     pre = NULL;
  err:
     BN_CTX_end(ctx);
-    if (generator != NULL)
-        EC_POINT_free(generator);
-    if (new_ctx != NULL)
-        BN_CTX_free(new_ctx);
-    if (pre)
-        nistp521_pre_comp_free(pre);
+    EC_POINT_free(generator);
+    BN_CTX_free(new_ctx);
+    EC_nistp521_pre_comp_free(pre);
     return ret;
 }
 
 int ec_GFp_nistp521_have_precompute_mult(const EC_GROUP *group)
 {
-    if (EC_EX_DATA_get_data(group->extra_data, nistp521_pre_comp_dup,
-                            nistp521_pre_comp_free,
-                            nistp521_pre_comp_clear_free)
-        != NULL)
-        return 1;
-    else
-        return 0;
+    return HAVEPRECOMP(group, nistp521);
 }
 
-#else
-static void *dummy = &dummy;
 #endif

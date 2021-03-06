@@ -25,8 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --nodead-code-elimination
-// Flags: --nofold-constants --nouse-gvn
+// Flags: --allow-natives-syntax
 
 // Create a function to get a long series of removable simulates.
 // f() {
@@ -69,7 +68,9 @@ for (var i = 750; i < 3000; i++) {
 
 source += "x=1; return _0;"
 var f = new Function(source);
+%PrepareFunctionForOptimization(f);
 
+%PrepareFunctionForOptimization(f);
 f();
 %OptimizeFunctionOnNextCall(f);
 f();

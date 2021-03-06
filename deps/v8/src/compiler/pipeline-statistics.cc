@@ -2,26 +2,40 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/pipeline-statistics.h"
+
 #include <memory>
 
-#include "src/compiler.h"
-#include "src/compiler/pipeline-statistics.h"
-#include "src/compiler/zone-pool.h"
+#include "src/codegen/optimized-compilation-info.h"
+#include "src/compiler/zone-stats.h"
+#include "src/objects/shared-function-info.h"
+#include "src/objects/string.h"
+#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
+namespace {
+
+// We log detailed phase information about the pipeline
+// in both the v8.turbofan and the v8.wasm.turbofan categories.
+constexpr const char kTraceCategory[] =           // --
+    TRACE_DISABLED_BY_DEFAULT("v8.turbofan") ","  // --
+    TRACE_DISABLED_BY_DEFAULT("v8.wasm.turbofan");
+
+}  // namespace
+
 void PipelineStatistics::CommonStats::Begin(
     PipelineStatistics* pipeline_stats) {
   DCHECK(!scope_);
-  scope_.reset(new ZonePool::StatsScope(pipeline_stats->zone_pool_));
+  scope_.reset(new ZoneStats::StatsScope(pipeline_stats->zone_stats_));
   timer_.Start();
   outer_zone_initial_size_ = pipeline_stats->OuterZoneSize();
   allocated_bytes_at_start_ =
       outer_zone_initial_size_ -
       pipeline_stats->total_stats_.outer_zone_initial_size_ +
-      pipeline_stats->zone_pool_->GetCurrentAllocatedBytes();
+      pipeline_stats->zone_stats_->GetCurrentAllocatedBytes();
 }
 
 
@@ -42,21 +56,16 @@ void PipelineStatistics::CommonStats::End(
   timer_.Stop();
 }
 
-
-PipelineStatistics::PipelineStatistics(CompilationInfo* info,
-                                       ZonePool* zone_pool)
-    : isolate_(info->isolate()),
-      outer_zone_(info->zone()),
-      zone_pool_(zone_pool),
-      compilation_stats_(isolate_->GetTurboStatistics()),
-      source_size_(0),
+PipelineStatistics::PipelineStatistics(OptimizedCompilationInfo* info,
+                                       CompilationStatistics* compilation_stats,
+                                       ZoneStats* zone_stats)
+    : outer_zone_(info->zone()),
+      zone_stats_(zone_stats),
+      compilation_stats_(compilation_stats),
       phase_kind_name_(nullptr),
       phase_name_(nullptr) {
   if (info->has_shared_info()) {
-    source_size_ = static_cast<size_t>(info->shared_info()->SourceSize());
-    std::unique_ptr<char[]> name =
-        info->shared_info()->DebugName()->ToCString();
-    function_name_ = name.get();
+    function_name_.assign(info->shared_info()->DebugNameCStr().get());
   }
   total_stats_.Begin(this);
 }
@@ -66,38 +75,39 @@ PipelineStatistics::~PipelineStatistics() {
   if (InPhaseKind()) EndPhaseKind();
   CompilationStatistics::BasicStats diff;
   total_stats_.End(this, &diff);
-  compilation_stats_->RecordTotalStats(source_size_, diff);
+  compilation_stats_->RecordTotalStats(diff);
 }
 
 
 void PipelineStatistics::BeginPhaseKind(const char* phase_kind_name) {
   DCHECK(!InPhase());
   if (InPhaseKind()) EndPhaseKind();
+  TRACE_EVENT_BEGIN0(kTraceCategory, phase_kind_name);
   phase_kind_name_ = phase_kind_name;
   phase_kind_stats_.Begin(this);
 }
-
 
 void PipelineStatistics::EndPhaseKind() {
   DCHECK(!InPhase());
   CompilationStatistics::BasicStats diff;
   phase_kind_stats_.End(this, &diff);
   compilation_stats_->RecordPhaseKindStats(phase_kind_name_, diff);
+  TRACE_EVENT_END0(kTraceCategory, phase_kind_name_);
 }
 
-
-void PipelineStatistics::BeginPhase(const char* name) {
+void PipelineStatistics::BeginPhase(const char* phase_name) {
+  TRACE_EVENT_BEGIN0(kTraceCategory, phase_name);
   DCHECK(InPhaseKind());
-  phase_name_ = name;
+  phase_name_ = phase_name;
   phase_stats_.Begin(this);
 }
-
 
 void PipelineStatistics::EndPhase() {
   DCHECK(InPhaseKind());
   CompilationStatistics::BasicStats diff;
   phase_stats_.End(this, &diff);
   compilation_stats_->RecordPhaseStats(phase_kind_name_, phase_name_, diff);
+  TRACE_EVENT_END0(kTraceCategory, phase_name_);
 }
 
 }  // namespace compiler

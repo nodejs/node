@@ -40,6 +40,9 @@ PERF_SCRIPT_OUTPUT = """
    11111111 Builtin:InterpreterEntryTrampoline
    22222222 bar
 
+   00000000 hello
+   11111111 LazyCompile:~Foo
+
    11111111 Builtin:InterpreterEntryTrampoline
    22222222 bar
 """
@@ -50,22 +53,26 @@ class LinuxPerfReportTest(unittest.TestCase):
     perf_stream = StringIO.StringIO(PERF_SCRIPT_OUTPUT)
     callchains = list(ipr.collapsed_callchains_generator(perf_stream))
     self.assertListEqual(callchains, [
-      ["foo", "BytecodeHandler:bar"],
-      ["foo", "BytecodeHandler:bar"],
-      ["beep", "BytecodeHandler:bar"],
+      ['firstSymbol', 'secondSymbol', '[other]'],
+      ["foo", "BytecodeHandler:bar", "[interpreter]"],
+      ["foo", "BytecodeHandler:bar", "[interpreter]"],
+      ["beep", "BytecodeHandler:bar", "[interpreter]"],
+      ["hello", "v8::internal::Compiler", "Stub:CEntryStub", "[compiler]"],
+      ["Lost", "[misattributed]"],
+      ["hello", "LazyCompile:~Foo", "[jit]"],
       ["[entry trampoline]"],
     ])
 
-  def test_collapsed_callchains_generator_show_other(self):
+  def test_collapsed_callchains_generator_hide_other(self):
     perf_stream = StringIO.StringIO(PERF_SCRIPT_OUTPUT)
     callchains = list(ipr.collapsed_callchains_generator(perf_stream,
-                                                         show_all=True))
+                                                         hide_other=True,
+                                                         hide_compiler=True,
+                                                         hide_jit=True))
     self.assertListEqual(callchains, [
-      ['firstSymbol', 'secondSymbol', '[other]'],
-      ["foo", "BytecodeHandler:bar"],
-      ["foo", "BytecodeHandler:bar"],
-      ["beep", "BytecodeHandler:bar"],
-      ["hello", "v8::internal::Compiler", "[compiler]"],
+      ["foo", "BytecodeHandler:bar", "[interpreter]"],
+      ["foo", "BytecodeHandler:bar", "[interpreter]"],
+      ["beep", "BytecodeHandler:bar", "[interpreter]"],
       ["Lost", "[misattributed]"],
       ["[entry trampoline]"],
     ])
@@ -125,7 +132,7 @@ class LinuxPerfReportTest(unittest.TestCase):
     """)
     callchains = list(ipr.collapsed_callchains_generator(perf_stream, False))
     self.assertListEqual(callchains, [
-      ["foo", "BytecodeHandler:first"],
+      ["foo", "BytecodeHandler:first", "[interpreter]"],
     ])
 
   def test_compiler_symbols_regex(self):
@@ -137,6 +144,15 @@ class LinuxPerfReportTest(unittest.TestCase):
     for compiler_symbol in compiler_symbols:
       self.assertTrue(ipr.COMPILER_SYMBOLS_RE.match(compiler_symbol))
 
+  def test_jit_code_symbols_regex(self):
+    jit_code_symbols = [
+      "LazyCompile:~Foo blah.js",
+      "Eval:*",
+      "Script:*Bar tmp.js",
+    ]
+    for jit_code_symbol in jit_code_symbols:
+      self.assertTrue(ipr.JIT_CODE_SYMBOLS_RE.match(jit_code_symbol))
+
   def test_strip_function_parameters(self):
     def should_match(signature, name):
       self.assertEqual(ipr.strip_function_parameters(signature), name)
@@ -145,3 +161,6 @@ class LinuxPerfReportTest(unittest.TestCase):
     should_match("Foo(foomatic::(anonymous)::bar(baz))", "Foo"),
     should_match("v8::(anonymous ns)::bar<thing(with, parentheses)>(baz, poe)",
        "v8::(anonymous ns)::bar<thing(with, parentheses)>")
+
+if __name__ == '__main__':
+    unittest.main()

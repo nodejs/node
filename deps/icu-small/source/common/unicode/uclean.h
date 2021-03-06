@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -6,7 +6,7 @@
 *                Corporation and others. All Rights Reserved.
 ******************************************************************************
 *   file name:  uclean.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -49,7 +49,7 @@
  *
  * @stable ICU 2.6
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 u_init(UErrorCode *status);
 
 #ifndef U_HIDE_SYSTEM_API
@@ -70,7 +70,7 @@ u_init(UErrorCode *status);
  * This has the effect of restoring ICU to its initial condition, before
  * any of these override functions were installed.  Refer to
  * u_setMemoryFunctions(), u_setMutexFunctions and
- * utrace_setFunctions().  If ICU is to be reinitialized after after
+ * utrace_setFunctions().  If ICU is to be reinitialized after
  * calling u_cleanup(), these runtime override functions will need to
  * be set up again if they are still required.
  * <p>
@@ -98,13 +98,13 @@ u_init(UErrorCode *status);
  * @stable ICU 2.0
  * @system
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 u_cleanup(void);
 
-
+U_CDECL_BEGIN
 /**
   *  Pointer type for a user supplied memory allocation function.
-  *  @param context user supplied value, obtained from from u_setMemoryFunctions().
+  *  @param context user supplied value, obtained from u_setMemoryFunctions().
   *  @param size    The number of bytes to be allocated
   *  @return        Pointer to the newly allocated memory, or NULL if the allocation failed.
   *  @stable ICU 2.8
@@ -113,7 +113,7 @@ u_cleanup(void);
 typedef void *U_CALLCONV UMemAllocFn(const void *context, size_t size);
 /**
   *  Pointer type for a user supplied memory re-allocation function.
-  *  @param context user supplied value, obtained from from u_setMemoryFunctions().
+  *  @param context user supplied value, obtained from u_setMemoryFunctions().
   *  @param size    The number of bytes to be allocated
   *  @return        Pointer to the newly allocated memory, or NULL if the allocation failed.
   *  @stable ICU 2.8
@@ -123,7 +123,7 @@ typedef void *U_CALLCONV UMemReallocFn(const void *context, void *mem, size_t si
 /**
   *  Pointer type for a user supplied memory free  function.  Behavior should be
   *  similar the standard C library free().
-  *  @param context user supplied value, obtained from from u_setMemoryFunctions().
+  *  @param context user supplied value, obtained from u_setMemoryFunctions().
   *  @param mem     Pointer to the memory block to be resized
   *  @param size    The new size for the block
   *  @return        Pointer to the resized memory block, or NULL if the resizing failed.
@@ -148,10 +148,11 @@ typedef void  U_CALLCONV UMemFreeFn (const void *context, void *mem);
  *  @stable ICU 2.8
  *  @system
  */
-U_STABLE void U_EXPORT2
-u_setMemoryFunctions(const void *context, UMemAllocFn *a, UMemReallocFn *r, UMemFreeFn *f,
+U_CAPI void U_EXPORT2
+u_setMemoryFunctions(const void *context, UMemAllocFn * U_CALLCONV_FPTR a, UMemReallocFn * U_CALLCONV_FPTR r, UMemFreeFn * U_CALLCONV_FPTR f,
                     UErrorCode *status);
 
+U_CDECL_END
 
 #ifndef U_HIDE_DEPRECATED_API
 /*********************************************************************************
@@ -172,13 +173,14 @@ u_setMemoryFunctions(const void *context, UMemAllocFn *a, UMemReallocFn *r, UMem
   */
 typedef void *UMTX;
 
+U_CDECL_BEGIN
 /**
   *  Function Pointer type for a user supplied mutex initialization function.
   *  The user-supplied function will be called by ICU whenever ICU needs to create a
   *  new mutex.  The function implementation should create a mutex, and store a pointer
   *  to something that uniquely identifies the mutex into the UMTX that is supplied
-  *  as a paramter.
-  *  @param context user supplied value, obtained from from u_setMutexFunctions().
+  *  as a parameter.
+  *  @param context user supplied value, obtained from u_setMutexFunctions().
   *  @param mutex   Receives a pointer that identifies the new mutex.
   *                 The mutex init function must set the UMTX to a non-null value.
   *                 Subsequent calls by ICU to lock, unlock, or destroy a mutex will
@@ -195,13 +197,13 @@ typedef void U_CALLCONV UMtxInitFn (const void *context, UMTX  *mutex, UErrorCod
   *  Function Pointer type for a user supplied mutex functions.
   *  One of the  user-supplied functions with this signature will be called by ICU
   *  whenever ICU needs to lock, unlock, or destroy a mutex.
-  *  @param context user supplied value, obtained from from u_setMutexFunctions().
+  *  @param context user supplied value, obtained from u_setMutexFunctions().
   *  @param mutex   specify the mutex on which to operate.
   *  @deprecated ICU 52. This function is no longer supported.
   *  @system
   */
 typedef void U_CALLCONV UMtxFn   (const void *context, UMTX  *mutex);
-
+U_CDECL_END
 
 /**
   *  Set the functions that ICU will use for mutex operations
@@ -227,7 +229,7 @@ u_setMutexFunctions(const void *context, UMtxInitFn *init, UMtxFn *destroy, UMtx
 
 /**
   *  Pointer type for a user supplied atomic increment or decrement function.
-  *  @param context user supplied value, obtained from from u_setAtomicIncDecFunctions().
+  *  @param context user supplied value, obtained from u_setAtomicIncDecFunctions().
   *  @param p   Pointer to a 32 bit int to be incremented or decremented
   *  @return    The value of the variable after the inc or dec operation.
   *  @deprecated ICU 52. This function is no longer supported.

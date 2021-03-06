@@ -13,4 +13,4 @@ function __f_97(stdlib, buffer) {
   }
 }
 var module = __f_97(this);
-assertTrue(%IsNotAsmWasmCode(__f_97));
+assertFalse(%IsAsmWasmCode(__f_97));

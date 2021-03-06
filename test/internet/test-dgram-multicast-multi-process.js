@@ -1,9 +1,35 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 const common = require('../common');
+// Skip test in FreeBSD jails.
+if (common.inFreeBSDJail)
+  common.skip('In a FreeBSD jail');
+
 const assert = require('assert');
 const dgram = require('dgram');
 const fork = require('child_process').fork;
 const LOCAL_BROADCAST_HOST = '224.0.0.114';
+const LOCAL_HOST_IFADDR = '0.0.0.0';
 const TIMEOUT = common.platformTimeout(5000);
 const messages = [
   Buffer.from('First message to send'),
@@ -13,22 +39,17 @@ const messages = [
 ];
 const workers = {};
 const listeners = 3;
+let listening, sendSocket, done, timer, dead;
 
 
-// Skip test in FreeBSD jails.
-if (common.inFreeBSDJail) {
-  common.skip('In a FreeBSD jail');
-  return;
-}
-
-function launchChildProcess(index) {
+function launchChildProcess() {
   const worker = fork(__filename, ['child']);
   workers[worker.pid] = worker;
 
   worker.messagesReceived = [];
 
   // Handle the death of workers.
-  worker.on('exit', function(code, signal) {
+  worker.on('exit', function(code) {
     // Don't consider this the true death if the worker has finished
     // successfully or if the exit code is 0.
     if (worker.isDone || code === 0) {
@@ -76,10 +97,10 @@ function launchChildProcess(index) {
         Object.keys(workers).forEach(function(pid) {
           const worker = workers[pid];
 
-          var count = 0;
+          let count = 0;
 
           worker.messagesReceived.forEach(function(buf) {
-            for (var i = 0; i < messages.length; ++i) {
+            for (let i = 0; i < messages.length; ++i) {
               if (buf.toString() === messages[i].toString()) {
                 count++;
                 break;
@@ -90,48 +111,47 @@ function launchChildProcess(index) {
           console.error('[PARENT] %d received %d matching messages.',
                         worker.pid, count);
 
-          assert.strictEqual(count, messages.length,
-                             'A worker received an invalid multicast message');
+          assert.strictEqual(count, messages.length);
         });
 
         clearTimeout(timer);
         console.error('[PARENT] Success');
-        killChildren(workers);
+        killSubprocesses(workers);
       }
     }
   });
 }
 
-function killChildren(children) {
-  Object.keys(children).forEach(function(key) {
-    const child = children[key];
-    child.kill();
+function killSubprocesses(subprocesses) {
+  Object.keys(subprocesses).forEach(function(key) {
+    const subprocess = subprocesses[key];
+    subprocess.kill();
   });
 }
 
 if (process.argv[2] !== 'child') {
-  var listening = 0;
-  var dead = 0;
-  var i = 0;
-  var done = 0;
+  listening = 0;
+  dead = 0;
+  let i = 0;
+  done = 0;
 
   // Exit the test if it doesn't succeed within TIMEOUT.
-  var timer = setTimeout(function() {
+  timer = setTimeout(function() {
     console.error('[PARENT] Responses were not received within %d ms.',
                   TIMEOUT);
     console.error('[PARENT] Fail');
 
-    killChildren(workers);
+    killSubprocesses(workers);
 
     process.exit(1);
   }, TIMEOUT);
 
   // Launch child processes.
-  for (var x = 0; x < listeners; x++) {
+  for (let x = 0; x < listeners; x++) {
     launchChildProcess(x);
   }
 
-  var sendSocket = dgram.createSocket('udp4');
+  sendSocket = dgram.createSocket('udp4');
 
   // The socket is actually created async now.
   sendSocket.on('listening', function() {
@@ -139,6 +159,7 @@ if (process.argv[2] !== 'child') {
     sendSocket.setBroadcast(true);
     sendSocket.setMulticastTTL(1);
     sendSocket.setMulticastLoopback(true);
+    sendSocket.setMulticastInterface(LOCAL_HOST_IFADDR);
   });
 
   sendSocket.on('close', function() {
@@ -149,7 +170,7 @@ if (process.argv[2] !== 'child') {
     const buf = messages[i++];
 
     if (!buf) {
-      try { sendSocket.close(); } catch (e) {}
+      try { sendSocket.close(); } catch {}
       return;
     }
 
@@ -160,7 +181,7 @@ if (process.argv[2] !== 'child') {
       common.PORT,
       LOCAL_BROADCAST_HOST,
       function(err) {
-        if (err) throw err;
+        assert.ifError(err);
         console.error('[PARENT] sent "%s" to %s:%s',
                       buf.toString(),
                       LOCAL_BROADCAST_HOST, common.PORT);
@@ -178,7 +199,7 @@ if (process.argv[2] === 'child') {
   });
 
   listenSocket.on('listening', function() {
-    listenSocket.addMembership(LOCAL_BROADCAST_HOST);
+    listenSocket.addMembership(LOCAL_BROADCAST_HOST, LOCAL_HOST_IFADDR);
 
     listenSocket.on('message', function(buf, rinfo) {
       console.error('[CHILD] %s received "%s" from %j', process.pid,
@@ -188,7 +209,7 @@ if (process.argv[2] === 'child') {
 
       process.send({ message: buf.toString() });
 
-      if (receivedMessages.length == messages.length) {
+      if (receivedMessages.length === messages.length) {
         // .dropMembership() not strictly needed but here as a sanity check.
         listenSocket.dropMembership(LOCAL_BROADCAST_HOST);
         process.nextTick(function() {

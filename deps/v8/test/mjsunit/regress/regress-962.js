@@ -52,6 +52,7 @@ F.prototype.foo = function () {
 
 var ctx = new F;
 
+%PrepareFunctionForOptimization(F.prototype.foo);
 for (var i = 0; i < 5; i++) ctx.foo();
 %OptimizeFunctionOnNextCall(F.prototype.foo);
 ctx.foo();

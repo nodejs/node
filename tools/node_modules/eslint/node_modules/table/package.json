@@ -1,0 +1,85 @@
+{
+  "author": {
+    "email": "gajus@gajus.com",
+    "name": "Gajus Kuizinas",
+    "url": "http://gajus.com"
+  },
+  "dependencies": {
+    "ajv": "^7.0.2",
+    "lodash": "^4.17.20",
+    "slice-ansi": "^4.0.0",
+    "string-width": "^4.2.0"
+  },
+  "description": "Formats data into a string table.",
+  "devDependencies": {
+    "@babel/cli": "^7.12.10",
+    "@babel/core": "^7.12.10",
+    "@babel/node": "^7.12.10",
+    "@babel/plugin-transform-flow-strip-types": "^7.12.10",
+    "@babel/preset-env": "^7.12.11",
+    "@babel/register": "^7.12.10",
+    "ajv-cli": "^4.0.1",
+    "ajv-keywords": "^4.0.0",
+    "babel-plugin-istanbul": "^6.0.0",
+    "babel-plugin-lodash": "^3.3.4",
+    "babel-plugin-transform-export-default-name": "^2.1.0",
+    "chai": "^4.2.0",
+    "chalk": "^4.1.0",
+    "coveralls": "^3.1.0",
+    "eslint": "^7.16.0",
+    "eslint-config-canonical": "^25.0.0",
+    "flow-bin": "^0.141.0",
+    "flow-copy-source": "^2.0.9",
+    "gitdown": "^3.1.3",
+    "husky": "^4.3.6",
+    "js-beautify": "^1.13.0",
+    "mocha": "^8.2.1",
+    "nyc": "^15.1.0",
+    "semantic-release": "^17.3.1",
+    "sinon": "^9.2.2"
+  },
+  "engines": {
+    "node": ">=10.0.0"
+  },
+  "husky": {
+    "hooks": {
+      "post-commit": "npm run create-readme && git add README.md && git commit -m 'docs: generate docs' --no-verify",
+      "pre-commit": "npm run lint && npm run test && npm run build"
+    }
+  },
+  "keywords": [
+    "ascii",
+    "text",
+    "table",
+    "align",
+    "ansi"
+  ],
+  "license": "BSD-3-Clause",
+  "main": "./dist/index.js",
+  "name": "table",
+  "nyc": {
+    "include": [
+      "src/**/*.js"
+    ],
+    "instrument": false,
+    "reporter": [
+      "text-lcov"
+    ],
+    "require": [
+      "@babel/register"
+    ],
+    "sourceMap": false
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gajus/table"
+  },
+  "scripts": {
+    "build": "rm -fr ./dist && NODE_ENV=production babel ./src --out-dir ./dist --copy-files --source-maps && npm run create-validators && flow-copy-source src dist",
+    "create-readme": "gitdown ./.README/README.md --output-file ./README.md",
+    "create-validators": "ajv compile --all-errors --inline-refs=false -s src/schemas/config -s src/schemas/streamConfig -r src/schemas/shared -c ajv-keywords/dist/keywords/typeof -o | js-beautify > dist/validators.js",
+    "lint": "npm run build && eslint ./src ./test && flow",
+    "test": "mocha --require @babel/register"
+  },
+  "version": "6.0.7"
+}

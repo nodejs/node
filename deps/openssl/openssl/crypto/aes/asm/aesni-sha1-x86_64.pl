@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2011-2020 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 #
 # ====================================================================
 # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
@@ -25,7 +32,10 @@
 # Sandy Bridge	5.05[+5.0(6.1)]	10.06(11.15)	5.98(7.05)  +68%(+58%)
 # Ivy Bridge	5.05[+4.6]	9.65		5.54        +74%
 # Haswell	4.43[+3.6(4.2)]	8.00(8.58)	4.55(5.21)  +75%(+65%)
+# Skylake	2.63[+3.5(4.1)]	6.17(6.69)	4.23(4.44)  +46%(+51%)
 # Bulldozer	5.77[+6.0]	11.72		6.37        +84%
+# Ryzen(**)	2.71[+1.93]	4.64		2.74        +69%
+# Goldmont(**)	3.82[+1.70]	5.52		4.20        +31%
 #
 #		AES-192-CBC
 # Westmere	4.51		9.81		6.80	    +44%
@@ -39,12 +49,16 @@
 # Sandy Bridge	7.05		12.06(13.15)	7.12(7.72)  +69%(+70%)
 # Ivy Bridge	7.05		11.65		7.12        +64%
 # Haswell	6.19		9.76(10.34)	6.21(6.25)  +57%(+65%)
+# Skylake	3.62		7.16(7.68)	4.56(4.76)  +57%(+61%)
 # Bulldozer	8.00		13.95		8.25        +69%
+# Ryzen(**)	3.71		5.64		3.72        +52%
+# Goldmont(**)	5.35		7.05		5.76        +22%
 #
 # (*)	There are two code paths: SSSE3 and AVX. See sha1-568.pl for
 #	background information. Above numbers in parentheses are SSSE3
 #	results collected on AVX-capable CPU, i.e. apply on OSes that
 #	don't support AVX.
+# (**)	SHAEXT results.
 #
 # Needless to mention that it makes no sense to implement "stitched"
 # *decrypt* subroutine. Because *both* AESNI-CBC decrypt and SHA1
@@ -94,13 +108,13 @@ $avx=1 if (!$avx && $win64 && ($flavour =~ /nasm/ || $ENV{ASM} =~ /nasm/) &&
 $avx=1 if (!$avx && $win64 && ($flavour =~ /masm/ || $ENV{ASM} =~ /ml64/) &&
 	   `ml64 2>&1` =~ /Version ([0-9]+)\./ &&
 	   $1>=10);
-$avx=1 if (!$avx && `$ENV{CC} -v 2>&1` =~ /((?:^clang|LLVM) version|.*based on LLVM) ([3-9]\.[0-9]+)/ && $2>=3.0);
+$avx=1 if (!$avx && `$ENV{CC} -v 2>&1` =~ /((?:clang|LLVM) version|.*based on LLVM) ([0-9]+\.[0-9]+)/ && $2>=3.0);
 
 $shaext=1;	### set to zero if compiling for 1.0.1
 
 $stitched_decrypt=0;
 
-open OUT,"| \"$^X\" $xlate $flavour $output";
+open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
 *STDOUT=*OUT;
 
 # void aesni_cbc_sha1_enc(const void *inp,
@@ -119,6 +133,7 @@ $code.=<<___;
 .type	aesni_cbc_sha1_enc,\@abi-omnipotent
 .align	32
 aesni_cbc_sha1_enc:
+.cfi_startproc
 	# caller should check for SSSE3 and AES-NI bits
 	mov	OPENSSL_ia32cap_P+0(%rip),%r10d
 	mov	OPENSSL_ia32cap_P+4(%rip),%r11
@@ -137,6 +152,7 @@ ___
 $code.=<<___;
 	jmp	aesni_cbc_sha1_enc_ssse3
 	ret
+.cfi_endproc
 .size	aesni_cbc_sha1_enc,.-aesni_cbc_sha1_enc
 ___
 
@@ -177,16 +193,24 @@ $code.=<<___;
 .type	aesni_cbc_sha1_enc_ssse3,\@function,6
 .align	32
 aesni_cbc_sha1_enc_ssse3:
+.cfi_startproc
 	mov	`($win64?56:8)`(%rsp),$inp	# load 7th argument
 	#shr	\$6,$len			# debugging artefact
 	#jz	.Lepilogue_ssse3		# debugging artefact
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 	lea	`-104-($win64?10*16:0)`(%rsp),%rsp
+.cfi_adjust_cfa_offset	`104+($win64?10*16:0)`
 	#mov	$in0,$inp			# debugging artefact
 	#lea	64(%rsp),$ctx			# debugging artefact
 ___
@@ -298,7 +322,7 @@ ___
     $r++;	unshift(@rndkey,pop(@rndkey));
 };
 
-sub Xupdate_ssse3_16_31()		# recall that $Xi starts wtih 4
+sub Xupdate_ssse3_16_31()		# recall that $Xi starts with 4
 { use integer;
   my $body = shift;
   my @insns = (&$body,&$body,&$body,&$body);	# 40 instructions
@@ -712,15 +736,24 @@ $code.=<<___ if ($win64);
 ___
 $code.=<<___;
 	lea	`104+($win64?10*16:0)`(%rsp),%rsi
+.cfi_def_cfa	%rsi,56
 	mov	0(%rsi),%r15
+.cfi_restore	%r15
 	mov	8(%rsi),%r14
+.cfi_restore	%r14
 	mov	16(%rsi),%r13
+.cfi_restore	%r13
 	mov	24(%rsi),%r12
+.cfi_restore	%r12
 	mov	32(%rsi),%rbp
+.cfi_restore	%rbp
 	mov	40(%rsi),%rbx
+.cfi_restore	%rbx
 	lea	48(%rsi),%rsp
+.cfi_def_cfa	%rsp,8
 .Lepilogue_ssse3:
 	ret
+.cfi_endproc
 .size	aesni_cbc_sha1_enc_ssse3,.-aesni_cbc_sha1_enc_ssse3
 ___
 
@@ -784,7 +817,7 @@ sub body_00_19_dec () {	# ((c^d)&b)^d
 sub body_20_39_dec () {	# b^d^c
     # on entry @T[0]=b^d
     return &body_40_59_dec() if ($rx==39);
-  
+
     my @r=@body_20_39;
 
 	unshift (@r,@aes256_dec[$rx])	if (@aes256_dec[$rx]);
@@ -809,6 +842,7 @@ $code.=<<___;
 .type	aesni256_cbc_sha1_dec,\@abi-omnipotent
 .align	32
 aesni256_cbc_sha1_dec:
+.cfi_startproc
 	# caller should check for SSSE3 and AES-NI bits
 	mov	OPENSSL_ia32cap_P+0(%rip),%r10d
 	mov	OPENSSL_ia32cap_P+4(%rip),%r11d
@@ -823,19 +857,28 @@ ___
 $code.=<<___;
 	jmp	aesni256_cbc_sha1_dec_ssse3
 	ret
+.cfi_endproc
 .size	aesni256_cbc_sha1_dec,.-aesni256_cbc_sha1_dec
 
 .type	aesni256_cbc_sha1_dec_ssse3,\@function,6
 .align	32
 aesni256_cbc_sha1_dec_ssse3:
+.cfi_startproc
 	mov	`($win64?56:8)`(%rsp),$inp	# load 7th argument
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 	lea	`-104-($win64?10*16:0)`(%rsp),%rsp
+.cfi_adjust_cfa_offset	`104+($win64?10*16:0)`
 ___
 $code.=<<___ if ($win64);
 	movaps	%xmm6,96+0(%rsp)
@@ -983,15 +1026,24 @@ $code.=<<___ if ($win64);
 ___
 $code.=<<___;
 	lea	`104+($win64?10*16:0)`(%rsp),%rsi
+.cfi_cfa_def	%rsi,56
 	mov	0(%rsi),%r15
+.cfi_restore	%r15
 	mov	8(%rsi),%r14
+.cfi_restore	%r14
 	mov	16(%rsi),%r13
+.cfi_restore	%r13
 	mov	24(%rsi),%r12
+.cfi_restore	%r12
 	mov	32(%rsi),%rbp
+.cfi_restore	%rbp
 	mov	40(%rsi),%rbx
+.cfi_restore	%rbx
 	lea	48(%rsi),%rsp
+.cfi_cfa_def	%rsp,8
 .Lepilogue_dec_ssse3:
 	ret
+.cfi_endproc
 .size	aesni256_cbc_sha1_dec_ssse3,.-aesni256_cbc_sha1_dec_ssse3
 ___
 						}}}
@@ -1017,16 +1069,24 @@ $code.=<<___;
 .type	aesni_cbc_sha1_enc_avx,\@function,6
 .align	32
 aesni_cbc_sha1_enc_avx:
+.cfi_startproc
 	mov	`($win64?56:8)`(%rsp),$inp	# load 7th argument
 	#shr	\$6,$len			# debugging artefact
 	#jz	.Lepilogue_avx			# debugging artefact
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 	lea	`-104-($win64?10*16:0)`(%rsp),%rsp
+.cfi_adjust_cfa_offset	`104+($win64?10*16:0)`
 	#mov	$in0,$inp			# debugging artefact
 	#lea	64(%rsp),$ctx			# debugging artefact
 ___
@@ -1137,7 +1197,7 @@ ___
     $r++;	unshift(@rndkey,pop(@rndkey));
 };
 
-sub Xupdate_avx_16_31()		# recall that $Xi starts wtih 4
+sub Xupdate_avx_16_31()		# recall that $Xi starts with 4
 { use integer;
   my $body = shift;
   my @insns = (&$body,&$body,&$body,&$body);	# 40 instructions
@@ -1425,15 +1485,24 @@ $code.=<<___ if ($win64);
 ___
 $code.=<<___;
 	lea	`104+($win64?10*16:0)`(%rsp),%rsi
+.cfi_def_cfa	%rsi,56
 	mov	0(%rsi),%r15
+.cfi_restore	%r15
 	mov	8(%rsi),%r14
+.cfi_restore	%r14
 	mov	16(%rsi),%r13
+.cfi_restore	%r13
 	mov	24(%rsi),%r12
+.cfi_restore	%r12
 	mov	32(%rsi),%rbp
+.cfi_restore	%rbp
 	mov	40(%rsi),%rbx
+.cfi_restore	%rbx
 	lea	48(%rsi),%rsp
+.cfi_def_cfa	%rsp,8
 .Lepilogue_avx:
 	ret
+.cfi_endproc
 .size	aesni_cbc_sha1_enc_avx,.-aesni_cbc_sha1_enc_avx
 ___
 
@@ -1482,14 +1551,22 @@ $code.=<<___;
 .type	aesni256_cbc_sha1_dec_avx,\@function,6
 .align	32
 aesni256_cbc_sha1_dec_avx:
+.cfi_startproc
 	mov	`($win64?56:8)`(%rsp),$inp	# load 7th argument
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 	lea	`-104-($win64?10*16:0)`(%rsp),%rsp
+.cfi_adjust_cfa_offset	`104+($win64?10*16:0)`
 ___
 $code.=<<___ if ($win64);
 	movaps	%xmm6,96+0(%rsp)
@@ -1636,15 +1713,24 @@ $code.=<<___ if ($win64);
 ___
 $code.=<<___;
 	lea	`104+($win64?10*16:0)`(%rsp),%rsi
+.cfi_def_cfa	%rsi,56
 	mov	0(%rsi),%r15
+.cfi_restore	%r15
 	mov	8(%rsi),%r14
+.cfi_restore	%r14
 	mov	16(%rsi),%r13
+.cfi_restore	%r13
 	mov	24(%rsi),%r12
+.cfi_restore	%r12
 	mov	32(%rsi),%rbp
+.cfi_restore	%rbp
 	mov	40(%rsi),%rbx
+.cfi_restore	%rbx
 	lea	48(%rsi),%rsp
+.cfi_def_cfa	%rsp,8
 .Lepilogue_dec_avx:
 	ret
+.cfi_endproc
 .size	aesni256_cbc_sha1_dec_avx,.-aesni256_cbc_sha1_dec_avx
 ___
 						}}}
@@ -1678,6 +1764,7 @@ $code.=<<___;
 .type	aesni_cbc_sha1_enc_shaext,\@function,6
 .align	32
 aesni_cbc_sha1_enc_shaext:
+.cfi_startproc
 	mov	`($win64?56:8)`(%rsp),$inp	# load 7th argument
 ___
 $code.=<<___ if ($win64);
@@ -1702,6 +1789,7 @@ $code.=<<___;
 	mov	240($key),$rounds
 	sub	$in0,$out
 	movups	($key),$rndkey0			# $key[0]
+	movups	($ivp),$iv			# load IV
 	movups	16($key),$rndkey[0]		# forward reference
 	lea	112($key),$key			# size optimization
 
@@ -1828,6 +1916,7 @@ $code.=<<___ if ($win64);
 ___
 $code.=<<___;
 	ret
+.cfi_endproc
 .size	aesni_cbc_sha1_enc_shaext,.-aesni_cbc_sha1_enc_shaext
 ___
 						}}}
@@ -2054,4 +2143,4 @@ foreach (split("\n",$code)) {
 
 	print $_,"\n";
 }
-close STDOUT;
+close STDOUT or die "error closing STDOUT: $!";

@@ -4,7 +4,7 @@ const assert = require('assert');
 const active = require('timers').active;
 
 // active() should create timers for these
-var legitTimers = [
+const legitTimers = [
   { _idleTimeout: 0 },
   { _idleTimeout: 1 }
 ];
@@ -21,7 +21,7 @@ legitTimers.forEach(function(legit) {
 
 
 // active() should not create a timer for these
-var bogusTimers = [
+const bogusTimers = [
   { _idleTimeout: -1 },
   { _idleTimeout: undefined },
 ];
@@ -30,5 +30,5 @@ bogusTimers.forEach(function(bogus) {
   const savedTimeout = bogus._idleTimeout;
   active(bogus);
   // active() should not mutate these objects
-  assert.deepStrictEqual(bogus, {_idleTimeout: savedTimeout});
+  assert.deepStrictEqual(bogus, { _idleTimeout: savedTimeout });
 });

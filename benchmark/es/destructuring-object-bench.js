@@ -4,39 +4,35 @@ const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
   method: ['normal', 'destructureObject'],
-  millions: [100]
+  n: [1e8]
 });
 
 function runNormal(n) {
-  var i = 0;
-  var o = { x: 0, y: 1 };
+  const o = { x: 0, y: 1 };
   bench.start();
-  for (; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     /* eslint-disable no-unused-vars */
-    var x = o.x;
-    var y = o.y;
-    var r = o.r || 2;
+    const x = o.x;
+    const y = o.y;
+    const r = o.r || 2;
     /* eslint-enable no-unused-vars */
   }
-  bench.end(n / 1e6);
+  bench.end(n);
 }
 
 function runDestructured(n) {
-  var i = 0;
-  var o = { x: 0, y: 1 };
+  const o = { x: 0, y: 1 };
   bench.start();
-  for (; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     /* eslint-disable no-unused-vars */
-    var { x, y, r = 2 } = o;
+    const { x, y, r = 2 } = o;
     /* eslint-enable no-unused-vars */
   }
-  bench.end(n / 1e6);
+  bench.end(n);
 }
 
-function main(conf) {
-  const n = +conf.millions * 1e6;
-
-  switch (conf.method) {
+function main({ n, method }) {
+  switch (method) {
     case 'normal':
       runNormal(n);
       break;
@@ -44,6 +40,6 @@ function main(conf) {
       runDestructured(n);
       break;
     default:
-      throw new Error('Unexpected method');
+      throw new Error(`Unexpected method "${method}"`);
   }
 }

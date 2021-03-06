@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -6,7 +6,7 @@
 *   Corporation and others.  All Rights Reserved.
 *******************************************************************************
 *   file name:  patternprops.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -17,6 +17,7 @@
 #ifndef __PATTERNPROPS_H__
 #define __PATTERNPROPS_H__
 
+#include "unicode/unistr.h"
 #include "unicode/utypes.h"
 
 U_NAMESPACE_BEGIN
@@ -43,17 +44,17 @@ U_NAMESPACE_BEGIN
 class U_COMMON_API PatternProps {
 public:
     /**
-     * @return TRUE if c is a Pattern_Syntax code point.
+     * @return true if c is a Pattern_Syntax code point.
      */
     static UBool isSyntax(UChar32 c);
 
     /**
-     * @return TRUE if c is a Pattern_Syntax or Pattern_White_Space code point.
+     * @return true if c is a Pattern_Syntax or Pattern_White_Space code point.
      */
     static UBool isSyntaxOrWhiteSpace(UChar32 c);
 
     /**
-     * @return TRUE if c is a Pattern_White_Space character.
+     * @return true if c is a Pattern_White_Space character.
      */
     static UBool isWhiteSpace(UChar32 c);
 
@@ -64,6 +65,12 @@ public:
     static const UChar *skipWhiteSpace(const UChar *s, int32_t length);
 
     /**
+     * Skips over Pattern_White_Space starting at index start in s.
+     * @return The smallest index at or after start with a non-white space character.
+     */
+    static int32_t skipWhiteSpace(const UnicodeString &s, int32_t start);
+
+    /**
      * @return s except with leading and trailing Pattern_White_Space removed and length adjusted.
      */
     static const UChar *trimWhiteSpace(const UChar *s, int32_t &length);
@@ -71,7 +78,7 @@ public:
     /**
      * Tests whether the string contains a "pattern identifier", that is,
      * whether it contains only non-Pattern_White_Space, non-Pattern_Syntax characters.
-     * @return TRUE if there are no Pattern_White_Space or Pattern_Syntax characters in s.
+     * @return true if there are no Pattern_White_Space or Pattern_Syntax characters in s.
      */
     static UBool isIdentifier(const UChar *s, int32_t length);
 

@@ -27,10 +27,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. -->
 
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
+  <meta charset="utf-8">
   <title>V8 Tick Processor</title>
 
-  <style type="text/css">
+  <style>
     body {
       font-family: Verdana, Arial, Helvetica, sans-serif;
       font-size: 10pt;
@@ -42,23 +42,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. -->
       margin-top: 0px;
     }
   </style>
-
-  <script src="splaytree.js"></script>
-  <script src="codemap.js"></script>
-  <script src="csvparser.js"></script>
-  <script src="consarray.js"></script>
-  <script src="profile.js"></script>
-  <script src="profile_view.js"></script>
-  <script src="logreader.js"></script>
-  <script src="tickprocessor.js"></script>
-
-  <script type="text/javascript">
+  <script type="module">
+    import {
+      TickProcessor, UnixCppEntriesProvider, MacCppEntriesProvider,
+      WindowsCppEntriesProvider
+    } from "./tickprocessor.mjs";
 
 var v8log_content;
-var textout;
+globalThis.textout;
 
-function load_logfile(evt) {
-  textout.value = "";
+globalThis.load_logfile = function(evt) {
+  globalThis.textout.value = "";
   var f = evt.target.files[0];
   if (f) {
     var reader = new FileReader();
@@ -76,18 +70,19 @@ function load_logfile(evt) {
 }
 
 function print(arg) {
-  textout.value+=arg+"\n";
+  globalThis.textout.value+=arg+"\n";
 }
 
 function start_process() {
-  ArgumentsProcessor.DEFAULTS = {
+  let DEFAULTS = {
     logFileName: 'v8.log',
     platform: 'unix',
     stateFilter: null,
     callGraphSize: 5,
     ignoreUnknown: false,
-    separateIc: false,
+    separateIc: true,
     targetRootFS: '',
+    apkEmbeddedLibrary: '',
     nm: 'nm'
   };
 
@@ -98,22 +93,20 @@ function start_process() {
   };
 
   var tickProcessor = new TickProcessor(
-    new (entriesProviders[ArgumentsProcessor.DEFAULTS.platform])(
-        ArgumentsProcessor.DEFAULTS.nm,
-        ArgumentsProcessor.DEFAULTS.targetRootFS),
-    ArgumentsProcessor.DEFAULTS.separateIc,
-    ArgumentsProcessor.DEFAULTS.callGraphSize,
-    ArgumentsProcessor.DEFAULTS.ignoreUnknown,
-    ArgumentsProcessor.DEFAULTS.stateFilter);
+    new (entriesProviders[DEFAULTS.platform])(
+        DEFAULTS.nm, DEFAULTS.targetRootFS, DEFAULTS.apkEmbeddedLibrary),
+    DEFAULTS.separateIc, DEFAULTS.callGraphSize,
+    DEFAULTS.ignoreUnknown, DEFAULTS.stateFilter);
 
   tickProcessor.processLogChunk(v8log_content);
   tickProcessor.printStatistics();
 }
-
+</script>
+<script>
 function Load() {
   document.getElementById('fileinput').addEventListener(
-      'change', load_logfile, false);
-  textout = document.getElementById('textout');
+      'change', globalThis.load_logfile, false);
+  globalThis.textout = document.getElementById('textout');
 }
 </script>
 </head>

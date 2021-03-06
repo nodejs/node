@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
@@ -10,6 +10,8 @@
 #define SCINUMBERFORMATTER_H
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
 
 #if !UCONFIG_NO_FORMATTING
 
@@ -24,7 +26,6 @@
 U_NAMESPACE_BEGIN
 
 class FieldPositionIterator;
-class DecimalFormatStaticSets;
 class DecimalFormatSymbols;
 class DecimalFormat;
 class Formattable;
@@ -150,7 +151,6 @@ public:
                 const UnicodeString &original,
                 FieldPositionIterator &fpi,
                 const UnicodeString &preExponent,
-                const DecimalFormatStaticSets &decimalFormatSets,
                 UnicodeString &appendTo,
                 UErrorCode &status) const = 0;
     private:
@@ -159,13 +159,12 @@ public:
 
     class U_I18N_API SuperscriptStyle : public Style {
     public:
-        virtual Style *clone() const;
+        virtual SuperscriptStyle *clone() const;
     protected:
         virtual UnicodeString &format(
                 const UnicodeString &original,
                 FieldPositionIterator &fpi,
                 const UnicodeString &preExponent,
-                const DecimalFormatStaticSets &decimalFormatSets,
                 UnicodeString &appendTo,
                 UErrorCode &status) const;
     };
@@ -178,13 +177,12 @@ public:
                 : Style(),
                   fBeginMarkup(beginMarkup),
                   fEndMarkup(endMarkup) { }
-        virtual Style *clone() const;
+        virtual MarkupStyle *clone() const;
     protected:
         virtual UnicodeString &format(
                 const UnicodeString &original,
                 FieldPositionIterator &fpi,
                 const UnicodeString &preExponent,
-                const DecimalFormatStaticSets &decimalFormatSets,
                 UnicodeString &appendTo,
                 UErrorCode &status) const;
     private:
@@ -211,7 +209,6 @@ public:
     UnicodeString fPreExponent;
     DecimalFormat *fDecimalFormat;
     Style *fStyle;
-    const DecimalFormatStaticSets *fStaticSets;
 
 };
 
@@ -219,4 +216,7 @@ U_NAMESPACE_END
 
 
 #endif /* !UCONFIG_NO_FORMATTING */
+
+#endif /* U_SHOW_CPLUSPLUS_API */
+
 #endif

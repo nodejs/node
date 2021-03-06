@@ -2,6 +2,4 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-regexp-lookbehind
-
 assertTrue(/(?<=12345123451234512345)/.test("12345123451234512345"));

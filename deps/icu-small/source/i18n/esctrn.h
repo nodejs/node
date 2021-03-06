@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
@@ -115,7 +115,7 @@ class EscapeTransliterator : public Transliterator {
     /**
      * Transliterator API.
      */
-    virtual Transliterator* clone() const;
+    virtual EscapeTransliterator* clone() const;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for the actual class.

@@ -92,3 +92,20 @@ function TestNonOwnSlots() {
   assertThrows(function() { object.next(); }, TypeError);
 }
 TestNonOwnSlots();
+
+
+function TestSlicedStringRegression() {
+  var long_string = "abcdefhijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  var sliced_string = long_string.substring(1);
+  var iterator = sliced_string[Symbol.iterator]();
+}
+TestSlicedStringRegression();
+
+
+(function(){
+  var str = "\uD83C\uDF1F\u5FCD\u8005\u306E\u653B\u6483\uD83C\uDF1F";
+  var arr = [...str];
+  assertEquals(["\uD83C\uDF1F", "\u5FCD", "\u8005", "\u306E", "\u653B",
+                "\u6483", "\uD83C\uDF1F"], arr);
+  assertEquals(7, arr.length);
+})();

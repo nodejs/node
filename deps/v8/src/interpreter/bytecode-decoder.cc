@@ -6,14 +6,16 @@
 
 #include <iomanip>
 
-#include "src/utils.h"
+#include "src/interpreter/interpreter-intrinsics.h"
+#include "src/objects/contexts.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
 namespace interpreter {
 
 // static
-Register BytecodeDecoder::DecodeRegisterOperand(const uint8_t* operand_start,
+Register BytecodeDecoder::DecodeRegisterOperand(Address operand_start,
                                                 OperandType operand_type,
                                                 OperandScale operand_scale) {
   DCHECK(Bytecodes::IsRegisterOperandType(operand_type));
@@ -23,17 +25,28 @@ Register BytecodeDecoder::DecodeRegisterOperand(const uint8_t* operand_start,
 }
 
 // static
-int32_t BytecodeDecoder::DecodeSignedOperand(const uint8_t* operand_start,
+RegisterList BytecodeDecoder::DecodeRegisterListOperand(
+    Address operand_start, uint32_t count, OperandType operand_type,
+    OperandScale operand_scale) {
+  Register first_reg =
+      DecodeRegisterOperand(operand_start, operand_type, operand_scale);
+  return RegisterList(first_reg.index(), static_cast<int>(count));
+}
+
+// static
+int32_t BytecodeDecoder::DecodeSignedOperand(Address operand_start,
                                              OperandType operand_type,
                                              OperandScale operand_scale) {
   DCHECK(!Bytecodes::IsUnsignedOperandType(operand_type));
   switch (Bytecodes::SizeOfOperand(operand_type, operand_scale)) {
     case OperandSize::kByte:
-      return static_cast<int8_t>(*operand_start);
+      return *reinterpret_cast<const int8_t*>(operand_start);
     case OperandSize::kShort:
-      return static_cast<int16_t>(ReadUnalignedUInt16(operand_start));
+      return static_cast<int16_t>(
+          base::ReadUnalignedValue<uint16_t>(operand_start));
     case OperandSize::kQuad:
-      return static_cast<int32_t>(ReadUnalignedUInt32(operand_start));
+      return static_cast<int32_t>(
+          base::ReadUnalignedValue<uint32_t>(operand_start));
     case OperandSize::kNone:
       UNREACHABLE();
   }
@@ -41,22 +54,42 @@ int32_t BytecodeDecoder::DecodeSignedOperand(const uint8_t* operand_start,
 }
 
 // static
-uint32_t BytecodeDecoder::DecodeUnsignedOperand(const uint8_t* operand_start,
+uint32_t BytecodeDecoder::DecodeUnsignedOperand(Address operand_start,
                                                 OperandType operand_type,
                                                 OperandScale operand_scale) {
   DCHECK(Bytecodes::IsUnsignedOperandType(operand_type));
   switch (Bytecodes::SizeOfOperand(operand_type, operand_scale)) {
     case OperandSize::kByte:
-      return *operand_start;
+      return *reinterpret_cast<const uint8_t*>(operand_start);
     case OperandSize::kShort:
-      return ReadUnalignedUInt16(operand_start);
+      return base::ReadUnalignedValue<uint16_t>(operand_start);
     case OperandSize::kQuad:
-      return ReadUnalignedUInt32(operand_start);
+      return base::ReadUnalignedValue<uint32_t>(operand_start);
     case OperandSize::kNone:
       UNREACHABLE();
   }
   return 0;
 }
+
+namespace {
+
+const char* NameForRuntimeId(Runtime::FunctionId idx) {
+  return Runtime::FunctionForId(idx)->name;
+}
+
+const char* NameForNativeContextIndex(uint32_t idx) {
+  switch (idx) {
+#define CASE(index_name, type, name) \
+  case Context::index_name:          \
+    return #name;
+    NATIVE_CONTEXT_FIELDS(CASE)
+#undef CASE
+    default:
+      UNREACHABLE();
+  }
+}
+
+}  // anonymous namespace
 
 // static
 std::ostream& BytecodeDecoder::Decode(std::ostream& os,
@@ -94,23 +127,34 @@ std::ostream& BytecodeDecoder::Decode(std::ostream& os,
   if (Bytecodes::IsDebugBreak(bytecode)) return os;
 
   int number_of_operands = Bytecodes::NumberOfOperands(bytecode);
-  int range = 0;
   for (int i = 0; i < number_of_operands; i++) {
     OperandType op_type = Bytecodes::GetOperandType(bytecode, i);
     int operand_offset =
         Bytecodes::GetOperandOffset(bytecode, i, operand_scale);
-    const uint8_t* operand_start =
-        &bytecode_start[prefix_offset + operand_offset];
+    Address operand_start = reinterpret_cast<Address>(
+        &bytecode_start[prefix_offset + operand_offset]);
     switch (op_type) {
-      case interpreter::OperandType::kRegCount:
-        os << "#"
-           << DecodeUnsignedOperand(operand_start, op_type, operand_scale);
-        break;
       case interpreter::OperandType::kIdx:
-      case interpreter::OperandType::kRuntimeId:
-      case interpreter::OperandType::kIntrinsicId:
+      case interpreter::OperandType::kUImm:
         os << "["
            << DecodeUnsignedOperand(operand_start, op_type, operand_scale)
+           << "]";
+        break;
+      case interpreter::OperandType::kIntrinsicId: {
+        auto id = static_cast<IntrinsicsHelper::IntrinsicId>(
+            DecodeUnsignedOperand(operand_start, op_type, operand_scale));
+        os << "[" << NameForRuntimeId(IntrinsicsHelper::ToRuntimeId(id)) << "]";
+        break;
+      }
+      case interpreter::OperandType::kNativeContextIndex: {
+        auto id = DecodeUnsignedOperand(operand_start, op_type, operand_scale);
+        os << "[" << NameForNativeContextIndex(id) << "]";
+        break;
+      }
+      case interpreter::OperandType::kRuntimeId:
+        os << "["
+           << NameForRuntimeId(static_cast<Runtime::FunctionId>(
+                  DecodeUnsignedOperand(operand_start, op_type, operand_scale)))
            << "]";
         break;
       case interpreter::OperandType::kImm:
@@ -121,7 +165,6 @@ std::ostream& BytecodeDecoder::Decode(std::ostream& os,
         os << "#"
            << DecodeUnsignedOperand(operand_start, op_type, operand_scale);
         break;
-      case interpreter::OperandType::kMaybeReg:
       case interpreter::OperandType::kReg:
       case interpreter::OperandType::kRegOut: {
         Register reg =
@@ -129,19 +172,41 @@ std::ostream& BytecodeDecoder::Decode(std::ostream& os,
         os << reg.ToString(parameter_count);
         break;
       }
-      case interpreter::OperandType::kRegOutTriple:
-        range += 1;
+      case interpreter::OperandType::kRegOutTriple: {
+        RegisterList reg_list =
+            DecodeRegisterListOperand(operand_start, 3, op_type, operand_scale);
+        os << reg_list.first_register().ToString(parameter_count) << "-"
+           << reg_list.last_register().ToString(parameter_count);
+        break;
+      }
       case interpreter::OperandType::kRegOutPair:
       case interpreter::OperandType::kRegPair: {
-        range += 1;
-        Register first_reg =
-            DecodeRegisterOperand(operand_start, op_type, operand_scale);
-        Register last_reg = Register(first_reg.index() + range);
-        os << first_reg.ToString(parameter_count) << "-"
-           << last_reg.ToString(parameter_count);
+        RegisterList reg_list =
+            DecodeRegisterListOperand(operand_start, 2, op_type, operand_scale);
+        os << reg_list.first_register().ToString(parameter_count) << "-"
+           << reg_list.last_register().ToString(parameter_count);
+        break;
+      }
+      case interpreter::OperandType::kRegOutList:
+      case interpreter::OperandType::kRegList: {
+        DCHECK_LT(i, number_of_operands - 1);
+        DCHECK_EQ(Bytecodes::GetOperandType(bytecode, i + 1),
+                  OperandType::kRegCount);
+        int reg_count_offset =
+            Bytecodes::GetOperandOffset(bytecode, i + 1, operand_scale);
+        Address reg_count_operand = reinterpret_cast<Address>(
+            &bytecode_start[prefix_offset + reg_count_offset]);
+        uint32_t count = DecodeUnsignedOperand(
+            reg_count_operand, OperandType::kRegCount, operand_scale);
+        RegisterList reg_list = DecodeRegisterListOperand(
+            operand_start, count, op_type, operand_scale);
+        os << reg_list.first_register().ToString(parameter_count) << "-"
+           << reg_list.last_register().ToString(parameter_count);
+        i++;  // Skip kRegCount.
         break;
       }
       case interpreter::OperandType::kNone:
+      case interpreter::OperandType::kRegCount:  // Dealt with in kRegList.
         UNREACHABLE();
         break;
     }

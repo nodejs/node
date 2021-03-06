@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-tailcalls --allow-natives-syntax
+// Flags: --allow-natives-syntax --stress-inline
 
 "use strict";
 
@@ -17,10 +17,8 @@ function g(x) {
 function h(x) {
   var z = g(x, 1);
   return z + 1;
-}
-
-%SetForceInlineFlag(g);
-%SetForceInlineFlag(f);
+};
+%PrepareFunctionForOptimization(h);
 
 h(1);
 h(1);

@@ -1,0 +1,11 @@
+{
+  "basic.any.js": {
+    "fail": "self.performance.addEventListener is not a function"
+  },
+  "idlharness.any.js": {
+    "skip": "TODO: update IDL parser"
+  },
+  "window-worker-timeOrigin.window.js": {
+    "fail": "depends on URL.createObjectURL(blob)"
+  }
+}

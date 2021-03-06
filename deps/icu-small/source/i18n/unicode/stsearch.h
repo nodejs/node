@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
@@ -13,6 +13,8 @@
 #define STSEARCH_H
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
 
 /**
  * \file
@@ -119,8 +121,7 @@ U_NAMESPACE_BEGIN
  *      pos != USEARCH_DONE;
  *      pos = iter.next(error))
  * {
- *     printf("Found match at %d pos, length is %d\n", pos,
- *                                             iter.getMatchLength());
+ *     printf("Found match at %d pos, length is %d\n", pos, iter.getMatchedLength());
  * }
  * </code></pre>
  * <p>
@@ -291,7 +292,7 @@ public:
     /**
      * Equality operator.
      * @param that instance to be compared.
-     * @return TRUE if both instances have the same attributes,
+     * @return true if both instances have the same attributes,
      *         breakiterators, collators and iterate over the same text
      *         while looking for the same pattern.
      * @stable ICU 2.0
@@ -412,7 +413,7 @@ public:
      * @return cloned object
      * @stable ICU 2.0
      */
-    virtual SearchIterator * safeClone(void) const;
+    virtual StringSearch * safeClone() const;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for the actual class.
@@ -501,5 +502,7 @@ private :
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_COLLATION */
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif

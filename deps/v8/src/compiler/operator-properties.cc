@@ -7,6 +7,7 @@
 #include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/opcodes.h"
+#include "src/runtime/runtime.h"
 
 namespace v8 {
 namespace internal {
@@ -18,6 +19,118 @@ bool OperatorProperties::HasContextInput(const Operator* op) {
   return IrOpcode::IsJsOpcode(opcode);
 }
 
+// static
+bool OperatorProperties::NeedsExactContext(const Operator* op) {
+  DCHECK(HasContextInput(op));
+  IrOpcode::Value const opcode = static_cast<IrOpcode::Value>(op->opcode());
+  switch (opcode) {
+#define CASE(Name, ...) case IrOpcode::k##Name:
+    // Binary/unary operators, calls and constructor calls only
+    // need the context to generate exceptions or lookup fields
+    // on the native context, so passing any context is fine.
+    JS_SIMPLE_BINOP_LIST(CASE)
+    JS_CALL_OP_LIST(CASE)
+    JS_CONSTRUCT_OP_LIST(CASE)
+    JS_SIMPLE_UNOP_LIST(CASE)
+#undef CASE
+    case IrOpcode::kJSCloneObject:
+    case IrOpcode::kJSCreate:
+    case IrOpcode::kJSCreateLiteralArray:
+    case IrOpcode::kJSCreateEmptyLiteralArray:
+    case IrOpcode::kJSCreateLiteralObject:
+    case IrOpcode::kJSCreateEmptyLiteralObject:
+    case IrOpcode::kJSCreateArrayFromIterable:
+    case IrOpcode::kJSCreateLiteralRegExp:
+    case IrOpcode::kJSGetTemplateObject:
+    case IrOpcode::kJSForInEnumerate:
+    case IrOpcode::kJSForInNext:
+    case IrOpcode::kJSForInPrepare:
+    case IrOpcode::kJSGeneratorRestoreContext:
+    case IrOpcode::kJSGeneratorRestoreContinuation:
+    case IrOpcode::kJSGeneratorRestoreInputOrDebugPos:
+    case IrOpcode::kJSGeneratorRestoreRegister:
+    case IrOpcode::kJSGetSuperConstructor:
+    case IrOpcode::kJSLoadGlobal:
+    case IrOpcode::kJSLoadMessage:
+    case IrOpcode::kJSStackCheck:
+    case IrOpcode::kJSStoreMessage:
+    case IrOpcode::kJSGetIterator:
+      return false;
+
+    case IrOpcode::kJSCallRuntime:
+      return Runtime::NeedsExactContext(CallRuntimeParametersOf(op).id());
+
+    case IrOpcode::kJSCreateArguments:
+      // For mapped arguments we need to access slots of context-allocated
+      // variables if there's aliasing with formal parameters.
+      return CreateArgumentsTypeOf(op) == CreateArgumentsType::kMappedArguments;
+
+    case IrOpcode::kJSCreateBlockContext:
+    case IrOpcode::kJSCreateClosure:
+    case IrOpcode::kJSCreateFunctionContext:
+    case IrOpcode::kJSCreateGeneratorObject:
+    case IrOpcode::kJSCreateCatchContext:
+    case IrOpcode::kJSCreateWithContext:
+    case IrOpcode::kJSDebugger:
+    case IrOpcode::kJSDeleteProperty:
+    case IrOpcode::kJSGeneratorStore:
+    case IrOpcode::kJSGetImportMeta:
+    case IrOpcode::kJSHasProperty:
+    case IrOpcode::kJSHasContextExtension:
+    case IrOpcode::kJSLoadContext:
+    case IrOpcode::kJSLoadModule:
+    case IrOpcode::kJSLoadNamed:
+    case IrOpcode::kJSLoadNamedFromSuper:
+    case IrOpcode::kJSLoadProperty:
+    case IrOpcode::kJSStoreContext:
+    case IrOpcode::kJSStoreDataPropertyInLiteral:
+    case IrOpcode::kJSStoreGlobal:
+    case IrOpcode::kJSStoreInArrayLiteral:
+    case IrOpcode::kJSStoreModule:
+    case IrOpcode::kJSStoreNamed:
+    case IrOpcode::kJSStoreNamedOwn:
+    case IrOpcode::kJSStoreProperty:
+      return true;
+
+    case IrOpcode::kJSAsyncFunctionEnter:
+    case IrOpcode::kJSAsyncFunctionReject:
+    case IrOpcode::kJSAsyncFunctionResolve:
+    case IrOpcode::kJSCreateArrayIterator:
+    case IrOpcode::kJSCreateAsyncFunctionObject:
+    case IrOpcode::kJSCreateBoundFunction:
+    case IrOpcode::kJSCreateCollectionIterator:
+    case IrOpcode::kJSCreateIterResultObject:
+    case IrOpcode::kJSCreateStringIterator:
+    case IrOpcode::kJSCreateKeyValueArray:
+    case IrOpcode::kJSCreateObject:
+    case IrOpcode::kJSCreatePromise:
+    case IrOpcode::kJSCreateTypedArray:
+    case IrOpcode::kJSCreateArray:
+    case IrOpcode::kJSFulfillPromise:
+    case IrOpcode::kJSObjectIsArray:
+    case IrOpcode::kJSPerformPromiseThen:
+    case IrOpcode::kJSPromiseResolve:
+    case IrOpcode::kJSRegExpTest:
+    case IrOpcode::kJSRejectPromise:
+    case IrOpcode::kJSResolvePromise:
+      // These operators aren't introduced by BytecodeGraphBuilder and
+      // thus we don't bother checking them. If you ever introduce one
+      // of these early in the BytecodeGraphBuilder make sure to check
+      // whether they are context-sensitive.
+      break;
+
+#define CASE(Name) case IrOpcode::k##Name:
+      // Non-JavaScript operators don't have a notion of "context"
+      COMMON_OP_LIST(CASE)
+      CONTROL_OP_LIST(CASE)
+      MACHINE_OP_LIST(CASE)
+      MACHINE_SIMD_OP_LIST(CASE)
+      SIMPLIFIED_OP_LIST(CASE)
+      break;
+#undef CASE
+  }
+  UNREACHABLE();
+}
 
 // static
 bool OperatorProperties::HasFrameStateInput(const Operator* op) {
@@ -32,7 +145,10 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
 
     // Strict equality cannot lazily deoptimize.
     case IrOpcode::kJSStrictEqual:
-    case IrOpcode::kJSStrictNotEqual:
+      return false;
+
+    // Generator creation cannot call back into arbitrary JavaScript.
+    case IrOpcode::kJSCreateGeneratorObject:
       return false;
 
     // Binary operations
@@ -41,6 +157,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSMultiply:
     case IrOpcode::kJSDivide:
     case IrOpcode::kJSModulus:
+    case IrOpcode::kJSExponentiate:
 
     // Bitwise operations
     case IrOpcode::kJSBitwiseOr:
@@ -54,51 +171,83 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
 
     // Compare operations
     case IrOpcode::kJSEqual:
-    case IrOpcode::kJSNotEqual:
     case IrOpcode::kJSGreaterThan:
     case IrOpcode::kJSGreaterThanOrEqual:
     case IrOpcode::kJSLessThan:
     case IrOpcode::kJSLessThanOrEqual:
     case IrOpcode::kJSHasProperty:
+    case IrOpcode::kJSHasInPrototypeChain:
     case IrOpcode::kJSInstanceOf:
+    case IrOpcode::kJSOrdinaryHasInstance:
 
     // Object operations
     case IrOpcode::kJSCreate:
     case IrOpcode::kJSCreateArguments:
     case IrOpcode::kJSCreateArray:
+    case IrOpcode::kJSCreateTypedArray:
     case IrOpcode::kJSCreateLiteralArray:
+    case IrOpcode::kJSCreateArrayFromIterable:
     case IrOpcode::kJSCreateLiteralObject:
     case IrOpcode::kJSCreateLiteralRegExp:
+    case IrOpcode::kJSCreateObject:
+    case IrOpcode::kJSCloneObject:
 
     // Property access operations
-    case IrOpcode::kJSLoadNamed:
-    case IrOpcode::kJSStoreNamed:
-    case IrOpcode::kJSLoadProperty:
-    case IrOpcode::kJSStoreProperty:
-    case IrOpcode::kJSLoadGlobal:
-    case IrOpcode::kJSStoreGlobal:
     case IrOpcode::kJSDeleteProperty:
-
-    // Context operations
-    case IrOpcode::kJSCreateScriptContext:
+    case IrOpcode::kJSLoadGlobal:
+    case IrOpcode::kJSLoadNamed:
+    case IrOpcode::kJSLoadNamedFromSuper:
+    case IrOpcode::kJSLoadProperty:
+    case IrOpcode::kJSStoreDataPropertyInLiteral:
+    case IrOpcode::kJSStoreInArrayLiteral:
+    case IrOpcode::kJSStoreGlobal:
+    case IrOpcode::kJSStoreNamed:
+    case IrOpcode::kJSStoreNamedOwn:
+    case IrOpcode::kJSStoreProperty:
 
     // Conversions
-    case IrOpcode::kJSToInteger:
     case IrOpcode::kJSToLength:
     case IrOpcode::kJSToName:
     case IrOpcode::kJSToNumber:
+    case IrOpcode::kJSToNumberConvertBigInt:
+    case IrOpcode::kJSToNumeric:
     case IrOpcode::kJSToObject:
     case IrOpcode::kJSToString:
+    case IrOpcode::kJSParseInt:
 
     // Call operations
-    case IrOpcode::kJSCallConstruct:
-    case IrOpcode::kJSCallFunction:
+    case IrOpcode::kJSConstructForwardVarargs:
+    case IrOpcode::kJSConstruct:
+    case IrOpcode::kJSConstructWithArrayLike:
+    case IrOpcode::kJSConstructWithSpread:
+    case IrOpcode::kJSCallForwardVarargs:
+    case IrOpcode::kJSCall:
+    case IrOpcode::kJSCallWithArrayLike:
+    case IrOpcode::kJSCallWithSpread:
 
     // Misc operations
-    case IrOpcode::kJSConvertReceiver:
+    case IrOpcode::kJSAsyncFunctionEnter:
+    case IrOpcode::kJSAsyncFunctionReject:
+    case IrOpcode::kJSAsyncFunctionResolve:
+    case IrOpcode::kJSForInEnumerate:
     case IrOpcode::kJSForInNext:
-    case IrOpcode::kJSForInPrepare:
     case IrOpcode::kJSStackCheck:
+    case IrOpcode::kJSDebugger:
+    case IrOpcode::kJSGetSuperConstructor:
+    case IrOpcode::kJSBitwiseNot:
+    case IrOpcode::kJSDecrement:
+    case IrOpcode::kJSIncrement:
+    case IrOpcode::kJSNegate:
+    case IrOpcode::kJSPromiseResolve:
+    case IrOpcode::kJSRejectPromise:
+    case IrOpcode::kJSResolvePromise:
+    case IrOpcode::kJSPerformPromiseThen:
+    case IrOpcode::kJSObjectIsArray:
+    case IrOpcode::kJSRegExpTest:
+    case IrOpcode::kJSGetImportMeta:
+
+    // Iterator protocol operations
+    case IrOpcode::kJSGetIterator:
       return true;
 
     default:

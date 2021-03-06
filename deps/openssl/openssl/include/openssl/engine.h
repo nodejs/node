@@ -1,65 +1,11 @@
-/* openssl/engine.h */
 /*
- * Written by Geoff Thorpe (geoff@geoffthorpe.net) for the OpenSSL project
- * 2000.
- */
-/* ====================================================================
- * Copyright (c) 1999-2004 The OpenSSL Project.  All rights reserved.
+ * Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    licensing@OpenSSL.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
- */
-/* ====================================================================
- * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
- * ECDH support in OpenSSL originally developed by
- * SUN MICROSYSTEMS, INC., and contributed to the OpenSSL project.
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #ifndef HEADER_ENGINE_H
@@ -67,40 +13,24 @@
 
 # include <openssl/opensslconf.h>
 
-# ifdef OPENSSL_NO_ENGINE
-#  error ENGINE is disabled.
-# endif
-
-# ifndef OPENSSL_NO_DEPRECATED
+# ifndef OPENSSL_NO_ENGINE
+# if OPENSSL_API_COMPAT < 0x10100000L
 #  include <openssl/bn.h>
-#  ifndef OPENSSL_NO_RSA
-#   include <openssl/rsa.h>
-#  endif
-#  ifndef OPENSSL_NO_DSA
-#   include <openssl/dsa.h>
-#  endif
-#  ifndef OPENSSL_NO_DH
-#   include <openssl/dh.h>
-#  endif
-#  ifndef OPENSSL_NO_ECDH
-#   include <openssl/ecdh.h>
-#  endif
-#  ifndef OPENSSL_NO_ECDSA
-#   include <openssl/ecdsa.h>
-#  endif
+#  include <openssl/rsa.h>
+#  include <openssl/dsa.h>
+#  include <openssl/dh.h>
+#  include <openssl/ec.h>
 #  include <openssl/rand.h>
 #  include <openssl/ui.h>
 #  include <openssl/err.h>
 # endif
-
 # include <openssl/ossl_typ.h>
 # include <openssl/symhacks.h>
-
 # include <openssl/x509.h>
-
-#ifdef  __cplusplus
+# include <openssl/engineerr.h>
+# ifdef  __cplusplus
 extern "C" {
-#endif
+# endif
 
 /*
  * These flags are used to control combinations of algorithm (methods) by
@@ -110,13 +40,11 @@ extern "C" {
 # define ENGINE_METHOD_DSA               (unsigned int)0x0002
 # define ENGINE_METHOD_DH                (unsigned int)0x0004
 # define ENGINE_METHOD_RAND              (unsigned int)0x0008
-# define ENGINE_METHOD_ECDH              (unsigned int)0x0010
-# define ENGINE_METHOD_ECDSA             (unsigned int)0x0020
 # define ENGINE_METHOD_CIPHERS           (unsigned int)0x0040
 # define ENGINE_METHOD_DIGESTS           (unsigned int)0x0080
-# define ENGINE_METHOD_STORE             (unsigned int)0x0100
 # define ENGINE_METHOD_PKEY_METHS        (unsigned int)0x0200
 # define ENGINE_METHOD_PKEY_ASN1_METHS   (unsigned int)0x0400
+# define ENGINE_METHOD_EC                (unsigned int)0x0800
 /* Obvious all-or-nothing cases. */
 # define ENGINE_METHOD_ALL               (unsigned int)0xFFFF
 # define ENGINE_METHOD_NONE              (unsigned int)0x0000
@@ -391,29 +319,25 @@ int ENGINE_add(ENGINE *e);
 int ENGINE_remove(ENGINE *e);
 /* Retrieve an engine from the list by its unique "id" value. */
 ENGINE *ENGINE_by_id(const char *id);
-/* Add all the built-in engines. */
-void ENGINE_load_openssl(void);
-void ENGINE_load_dynamic(void);
+
+#if OPENSSL_API_COMPAT < 0x10100000L
+# define ENGINE_load_openssl() \
+    OPENSSL_init_crypto(OPENSSL_INIT_ENGINE_OPENSSL, NULL)
+# define ENGINE_load_dynamic() \
+    OPENSSL_init_crypto(OPENSSL_INIT_ENGINE_DYNAMIC, NULL)
 # ifndef OPENSSL_NO_STATIC_ENGINE
-void ENGINE_load_4758cca(void);
-void ENGINE_load_aep(void);
-void ENGINE_load_atalla(void);
-void ENGINE_load_chil(void);
-void ENGINE_load_cswift(void);
-void ENGINE_load_nuron(void);
-void ENGINE_load_sureware(void);
-void ENGINE_load_ubsec(void);
-void ENGINE_load_padlock(void);
-void ENGINE_load_capi(void);
-#  ifndef OPENSSL_NO_GMP
-void ENGINE_load_gmp(void);
-#  endif
-#  ifndef OPENSSL_NO_GOST
-void ENGINE_load_gost(void);
-#  endif
+#  define ENGINE_load_padlock() \
+    OPENSSL_init_crypto(OPENSSL_INIT_ENGINE_PADLOCK, NULL)
+#  define ENGINE_load_capi() \
+    OPENSSL_init_crypto(OPENSSL_INIT_ENGINE_CAPI, NULL)
+#  define ENGINE_load_afalg() \
+    OPENSSL_init_crypto(OPENSSL_INIT_ENGINE_AFALG, NULL)
 # endif
-void ENGINE_load_cryptodev(void);
-void ENGINE_load_rdrand(void);
+# define ENGINE_load_cryptodev() \
+    OPENSSL_init_crypto(OPENSSL_INIT_ENGINE_CRYPTODEV, NULL)
+# define ENGINE_load_rdrand() \
+    OPENSSL_init_crypto(OPENSSL_INIT_ENGINE_RDRAND, NULL)
+#endif
 void ENGINE_load_builtin_engines(void);
 
 /*
@@ -428,8 +352,7 @@ void ENGINE_set_table_flags(unsigned int flags);
  *   ENGINE_register_***(e) - registers the implementation from 'e' (if it has one)
  *   ENGINE_unregister_***(e) - unregister the implementation from 'e'
  *   ENGINE_register_all_***() - call ENGINE_register_***() for each 'e' in the list
- * Cleanup is automatically registered from each table when required, so
- * ENGINE_cleanup() will reverse any "register" operations.
+ * Cleanup is automatically registered from each table when required.
  */
 
 int ENGINE_register_RSA(ENGINE *e);
@@ -440,13 +363,9 @@ int ENGINE_register_DSA(ENGINE *e);
 void ENGINE_unregister_DSA(ENGINE *e);
 void ENGINE_register_all_DSA(void);
 
-int ENGINE_register_ECDH(ENGINE *e);
-void ENGINE_unregister_ECDH(ENGINE *e);
-void ENGINE_register_all_ECDH(void);
-
-int ENGINE_register_ECDSA(ENGINE *e);
-void ENGINE_unregister_ECDSA(ENGINE *e);
-void ENGINE_register_all_ECDSA(void);
+int ENGINE_register_EC(ENGINE *e);
+void ENGINE_unregister_EC(ENGINE *e);
+void ENGINE_register_all_EC(void);
 
 int ENGINE_register_DH(ENGINE *e);
 void ENGINE_unregister_DH(ENGINE *e);
@@ -455,10 +374,6 @@ void ENGINE_register_all_DH(void);
 int ENGINE_register_RAND(ENGINE *e);
 void ENGINE_unregister_RAND(ENGINE *e);
 void ENGINE_register_all_RAND(void);
-
-int ENGINE_register_STORE(ENGINE *e);
-void ENGINE_unregister_STORE(ENGINE *e);
-void ENGINE_register_all_STORE(void);
 
 int ENGINE_register_ciphers(ENGINE *e);
 void ENGINE_unregister_ciphers(ENGINE *e);
@@ -486,7 +401,7 @@ int ENGINE_register_complete(ENGINE *e);
 int ENGINE_register_all_complete(void);
 
 /*
- * Send parametrised control commands to the engine. The possibilities to
+ * Send parameterised control commands to the engine. The possibilities to
  * send down an integer, a pointer to data or a function pointer are
  * provided. Any of the parameters may or may not be NULL, depending on the
  * command number. In actuality, this function only requires a structural
@@ -554,11 +469,9 @@ int ENGINE_set_id(ENGINE *e, const char *id);
 int ENGINE_set_name(ENGINE *e, const char *name);
 int ENGINE_set_RSA(ENGINE *e, const RSA_METHOD *rsa_meth);
 int ENGINE_set_DSA(ENGINE *e, const DSA_METHOD *dsa_meth);
-int ENGINE_set_ECDH(ENGINE *e, const ECDH_METHOD *ecdh_meth);
-int ENGINE_set_ECDSA(ENGINE *e, const ECDSA_METHOD *ecdsa_meth);
+int ENGINE_set_EC(ENGINE *e, const EC_KEY_METHOD *ecdsa_meth);
 int ENGINE_set_DH(ENGINE *e, const DH_METHOD *dh_meth);
 int ENGINE_set_RAND(ENGINE *e, const RAND_METHOD *rand_meth);
-int ENGINE_set_STORE(ENGINE *e, const STORE_METHOD *store_meth);
 int ENGINE_set_destroy_function(ENGINE *e, ENGINE_GEN_INT_FUNC_PTR destroy_f);
 int ENGINE_set_init_function(ENGINE *e, ENGINE_GEN_INT_FUNC_PTR init_f);
 int ENGINE_set_finish_function(ENGINE *e, ENGINE_GEN_INT_FUNC_PTR finish_f);
@@ -576,19 +489,18 @@ int ENGINE_set_pkey_asn1_meths(ENGINE *e, ENGINE_PKEY_ASN1_METHS_PTR f);
 int ENGINE_set_flags(ENGINE *e, int flags);
 int ENGINE_set_cmd_defns(ENGINE *e, const ENGINE_CMD_DEFN *defns);
 /* These functions allow control over any per-structure ENGINE data. */
-int ENGINE_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
-                            CRYPTO_EX_dup *dup_func,
-                            CRYPTO_EX_free *free_func);
+#define ENGINE_get_ex_new_index(l, p, newf, dupf, freef) \
+    CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_ENGINE, l, p, newf, dupf, freef)
 int ENGINE_set_ex_data(ENGINE *e, int idx, void *arg);
 void *ENGINE_get_ex_data(const ENGINE *e, int idx);
 
+#if OPENSSL_API_COMPAT < 0x10100000L
 /*
- * This function cleans up anything that needs it. Eg. the ENGINE_add()
- * function automatically ensures the list cleanup function is registered to
- * be called from ENGINE_cleanup(). Similarly, all ENGINE_register_***
- * functions ensure ENGINE_cleanup() will clean up after them.
+ * This function previously cleaned up anything that needs it. Auto-deinit will
+ * now take care of it so it is no longer required to call this function.
  */
-void ENGINE_cleanup(void);
+# define ENGINE_cleanup() while(0) continue
+#endif
 
 /*
  * These return values from within the ENGINE structure. These can be useful
@@ -600,11 +512,9 @@ const char *ENGINE_get_id(const ENGINE *e);
 const char *ENGINE_get_name(const ENGINE *e);
 const RSA_METHOD *ENGINE_get_RSA(const ENGINE *e);
 const DSA_METHOD *ENGINE_get_DSA(const ENGINE *e);
-const ECDH_METHOD *ENGINE_get_ECDH(const ENGINE *e);
-const ECDSA_METHOD *ENGINE_get_ECDSA(const ENGINE *e);
+const EC_KEY_METHOD *ENGINE_get_EC(const ENGINE *e);
 const DH_METHOD *ENGINE_get_DH(const ENGINE *e);
 const RAND_METHOD *ENGINE_get_RAND(const ENGINE *e);
-const STORE_METHOD *ENGINE_get_STORE(const ENGINE *e);
 ENGINE_GEN_INT_FUNC_PTR ENGINE_get_destroy_function(const ENGINE *e);
 ENGINE_GEN_INT_FUNC_PTR ENGINE_get_init_function(const ENGINE *e);
 ENGINE_GEN_INT_FUNC_PTR ENGINE_get_finish_function(const ENGINE *e);
@@ -679,8 +589,7 @@ int ENGINE_load_ssl_client_cert(ENGINE *e, SSL *s,
 ENGINE *ENGINE_get_default_RSA(void);
 /* Same for the other "methods" */
 ENGINE *ENGINE_get_default_DSA(void);
-ENGINE *ENGINE_get_default_ECDH(void);
-ENGINE *ENGINE_get_default_ECDSA(void);
+ENGINE *ENGINE_get_default_EC(void);
 ENGINE *ENGINE_get_default_DH(void);
 ENGINE *ENGINE_get_default_RAND(void);
 /*
@@ -702,8 +611,7 @@ int ENGINE_set_default_RSA(ENGINE *e);
 int ENGINE_set_default_string(ENGINE *e, const char *def_list);
 /* Same for the other "methods" */
 int ENGINE_set_default_DSA(ENGINE *e);
-int ENGINE_set_default_ECDH(ENGINE *e);
-int ENGINE_set_default_ECDSA(ENGINE *e);
+int ENGINE_set_default_EC(ENGINE *e);
 int ENGINE_set_default_DH(ENGINE *e);
 int ENGINE_set_default_RAND(ENGINE *e);
 int ENGINE_set_default_ciphers(ENGINE *e);
@@ -730,12 +638,12 @@ void ENGINE_add_conf_module(void);
 /**************************/
 
 /* Binary/behaviour compatibility levels */
-# define OSSL_DYNAMIC_VERSION            (unsigned long)0x00020000
+# define OSSL_DYNAMIC_VERSION            (unsigned long)0x00030000
 /*
  * Binary versions older than this are too old for us (whether we're a loader
  * or a loadee)
  */
-# define OSSL_DYNAMIC_OLDEST             (unsigned long)0x00020000
+# define OSSL_DYNAMIC_OLDEST             (unsigned long)0x00030000
 
 /*
  * When compiling an ENGINE entirely as an external shared library, loadable
@@ -748,40 +656,22 @@ void ENGINE_add_conf_module(void);
  * same static data as the calling application (or library), and thus whether
  * these callbacks need to be set or not.
  */
-typedef void *(*dyn_MEM_malloc_cb) (size_t);
-typedef void *(*dyn_MEM_realloc_cb) (void *, size_t);
-typedef void (*dyn_MEM_free_cb) (void *);
+typedef void *(*dyn_MEM_malloc_fn) (size_t, const char *, int);
+typedef void *(*dyn_MEM_realloc_fn) (void *, size_t, const char *, int);
+typedef void (*dyn_MEM_free_fn) (void *, const char *, int);
 typedef struct st_dynamic_MEM_fns {
-    dyn_MEM_malloc_cb malloc_cb;
-    dyn_MEM_realloc_cb realloc_cb;
-    dyn_MEM_free_cb free_cb;
+    dyn_MEM_malloc_fn malloc_fn;
+    dyn_MEM_realloc_fn realloc_fn;
+    dyn_MEM_free_fn free_fn;
 } dynamic_MEM_fns;
 /*
  * FIXME: Perhaps the memory and locking code (crypto.h) should declare and
- * use these types so we (and any other dependant code) can simplify a bit??
+ * use these types so we (and any other dependent code) can simplify a bit??
  */
-typedef void (*dyn_lock_locking_cb) (int, int, const char *, int);
-typedef int (*dyn_lock_add_lock_cb) (int *, int, int, const char *, int);
-typedef struct CRYPTO_dynlock_value *(*dyn_dynlock_create_cb) (const char *,
-                                                               int);
-typedef void (*dyn_dynlock_lock_cb) (int, struct CRYPTO_dynlock_value *,
-                                     const char *, int);
-typedef void (*dyn_dynlock_destroy_cb) (struct CRYPTO_dynlock_value *,
-                                        const char *, int);
-typedef struct st_dynamic_LOCK_fns {
-    dyn_lock_locking_cb lock_locking_cb;
-    dyn_lock_add_lock_cb lock_add_lock_cb;
-    dyn_dynlock_create_cb dynlock_create_cb;
-    dyn_dynlock_lock_cb dynlock_lock_cb;
-    dyn_dynlock_destroy_cb dynlock_destroy_cb;
-} dynamic_LOCK_fns;
 /* The top-level structure */
 typedef struct st_dynamic_fns {
     void *static_state;
-    const ERR_FNS *err_fns;
-    const CRYPTO_EX_DATA_IMPL *ex_data_fns;
     dynamic_MEM_fns mem_fns;
-    dynamic_LOCK_fns lock_fns;
 } dynamic_fns;
 
 /*
@@ -800,7 +690,7 @@ typedef unsigned long (*dynamic_v_check_fn) (unsigned long ossl_version);
 # define IMPLEMENT_DYNAMIC_CHECK_FN() \
         OPENSSL_EXPORT unsigned long v_check(unsigned long v); \
         OPENSSL_EXPORT unsigned long v_check(unsigned long v) { \
-                if(v >= OSSL_DYNAMIC_OLDEST) return OSSL_DYNAMIC_VERSION; \
+                if (v >= OSSL_DYNAMIC_OLDEST) return OSSL_DYNAMIC_VERSION; \
                 return 0; }
 
 /*
@@ -828,21 +718,13 @@ typedef int (*dynamic_bind_engine) (ENGINE *e, const char *id,
         int bind_engine(ENGINE *e, const char *id, const dynamic_fns *fns); \
         OPENSSL_EXPORT \
         int bind_engine(ENGINE *e, const char *id, const dynamic_fns *fns) { \
-                if(ENGINE_get_static_state() == fns->static_state) goto skip_cbs; \
-                if(!CRYPTO_set_mem_functions(fns->mem_fns.malloc_cb, \
-                        fns->mem_fns.realloc_cb, fns->mem_fns.free_cb)) \
-                        return 0; \
-                CRYPTO_set_locking_callback(fns->lock_fns.lock_locking_cb); \
-                CRYPTO_set_add_lock_callback(fns->lock_fns.lock_add_lock_cb); \
-                CRYPTO_set_dynlock_create_callback(fns->lock_fns.dynlock_create_cb); \
-                CRYPTO_set_dynlock_lock_callback(fns->lock_fns.dynlock_lock_cb); \
-                CRYPTO_set_dynlock_destroy_callback(fns->lock_fns.dynlock_destroy_cb); \
-                if(!CRYPTO_set_ex_data_implementation(fns->ex_data_fns)) \
-                        return 0; \
-                if(!ERR_set_implementation(fns->err_fns)) return 0; \
+            if (ENGINE_get_static_state() == fns->static_state) goto skip_cbs; \
+            CRYPTO_set_mem_functions(fns->mem_fns.malloc_fn, \
+                                     fns->mem_fns.realloc_fn, \
+                                     fns->mem_fns.free_fn); \
         skip_cbs: \
-                if(!fn(e,id)) return 0; \
-                return 1; }
+            if (!fn(e, id)) return 0; \
+            return 1; }
 
 /*
  * If the loading application (or library) and the loaded ENGINE library
@@ -857,104 +739,13 @@ typedef int (*dynamic_bind_engine) (ENGINE *e, const char *id,
  */
 void *ENGINE_get_static_state(void);
 
-# if defined(__OpenBSD__) || defined(__FreeBSD__) || defined(HAVE_CRYPTODEV)
-void ENGINE_setup_bsd_cryptodev(void);
+# if defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__DragonFly__)
+DEPRECATEDIN_1_1_0(void ENGINE_setup_bsd_cryptodev(void))
 # endif
 
-/* BEGIN ERROR CODES */
-/*
- * The following lines are auto generated by the script mkerr.pl. Any changes
- * made after this point may be overwritten when the script is next run.
- */
-void ERR_load_ENGINE_strings(void);
 
-/* Error codes for the ENGINE functions. */
-
-/* Function codes. */
-# define ENGINE_F_DYNAMIC_CTRL                            180
-# define ENGINE_F_DYNAMIC_GET_DATA_CTX                    181
-# define ENGINE_F_DYNAMIC_LOAD                            182
-# define ENGINE_F_DYNAMIC_SET_DATA_CTX                    183
-# define ENGINE_F_ENGINE_ADD                              105
-# define ENGINE_F_ENGINE_BY_ID                            106
-# define ENGINE_F_ENGINE_CMD_IS_EXECUTABLE                170
-# define ENGINE_F_ENGINE_CTRL                             142
-# define ENGINE_F_ENGINE_CTRL_CMD                         178
-# define ENGINE_F_ENGINE_CTRL_CMD_STRING                  171
-# define ENGINE_F_ENGINE_FINISH                           107
-# define ENGINE_F_ENGINE_FREE_UTIL                        108
-# define ENGINE_F_ENGINE_GET_CIPHER                       185
-# define ENGINE_F_ENGINE_GET_DEFAULT_TYPE                 177
-# define ENGINE_F_ENGINE_GET_DIGEST                       186
-# define ENGINE_F_ENGINE_GET_NEXT                         115
-# define ENGINE_F_ENGINE_GET_PKEY_ASN1_METH               193
-# define ENGINE_F_ENGINE_GET_PKEY_METH                    192
-# define ENGINE_F_ENGINE_GET_PREV                         116
-# define ENGINE_F_ENGINE_INIT                             119
-# define ENGINE_F_ENGINE_LIST_ADD                         120
-# define ENGINE_F_ENGINE_LIST_REMOVE                      121
-# define ENGINE_F_ENGINE_LOAD_PRIVATE_KEY                 150
-# define ENGINE_F_ENGINE_LOAD_PUBLIC_KEY                  151
-# define ENGINE_F_ENGINE_LOAD_SSL_CLIENT_CERT             194
-# define ENGINE_F_ENGINE_NEW                              122
-# define ENGINE_F_ENGINE_REMOVE                           123
-# define ENGINE_F_ENGINE_SET_DEFAULT_STRING               189
-# define ENGINE_F_ENGINE_SET_DEFAULT_TYPE                 126
-# define ENGINE_F_ENGINE_SET_ID                           129
-# define ENGINE_F_ENGINE_SET_NAME                         130
-# define ENGINE_F_ENGINE_TABLE_REGISTER                   184
-# define ENGINE_F_ENGINE_UNLOAD_KEY                       152
-# define ENGINE_F_ENGINE_UNLOCKED_FINISH                  191
-# define ENGINE_F_ENGINE_UP_REF                           190
-# define ENGINE_F_INT_CTRL_HELPER                         172
-# define ENGINE_F_INT_ENGINE_CONFIGURE                    188
-# define ENGINE_F_INT_ENGINE_MODULE_INIT                  187
-# define ENGINE_F_LOG_MESSAGE                             141
-
-/* Reason codes. */
-# define ENGINE_R_ALREADY_LOADED                          100
-# define ENGINE_R_ARGUMENT_IS_NOT_A_NUMBER                133
-# define ENGINE_R_CMD_NOT_EXECUTABLE                      134
-# define ENGINE_R_COMMAND_TAKES_INPUT                     135
-# define ENGINE_R_COMMAND_TAKES_NO_INPUT                  136
-# define ENGINE_R_CONFLICTING_ENGINE_ID                   103
-# define ENGINE_R_CTRL_COMMAND_NOT_IMPLEMENTED            119
-# define ENGINE_R_DH_NOT_IMPLEMENTED                      139
-# define ENGINE_R_DSA_NOT_IMPLEMENTED                     140
-# define ENGINE_R_DSO_FAILURE                             104
-# define ENGINE_R_DSO_NOT_FOUND                           132
-# define ENGINE_R_ENGINES_SECTION_ERROR                   148
-# define ENGINE_R_ENGINE_CONFIGURATION_ERROR              102
-# define ENGINE_R_ENGINE_IS_NOT_IN_LIST                   105
-# define ENGINE_R_ENGINE_SECTION_ERROR                    149
-# define ENGINE_R_FAILED_LOADING_PRIVATE_KEY              128
-# define ENGINE_R_FAILED_LOADING_PUBLIC_KEY               129
-# define ENGINE_R_FINISH_FAILED                           106
-# define ENGINE_R_GET_HANDLE_FAILED                       107
-# define ENGINE_R_ID_OR_NAME_MISSING                      108
-# define ENGINE_R_INIT_FAILED                             109
-# define ENGINE_R_INTERNAL_LIST_ERROR                     110
-# define ENGINE_R_INVALID_ARGUMENT                        143
-# define ENGINE_R_INVALID_CMD_NAME                        137
-# define ENGINE_R_INVALID_CMD_NUMBER                      138
-# define ENGINE_R_INVALID_INIT_VALUE                      151
-# define ENGINE_R_INVALID_STRING                          150
-# define ENGINE_R_NOT_INITIALISED                         117
-# define ENGINE_R_NOT_LOADED                              112
-# define ENGINE_R_NO_CONTROL_FUNCTION                     120
-# define ENGINE_R_NO_INDEX                                144
-# define ENGINE_R_NO_LOAD_FUNCTION                        125
-# define ENGINE_R_NO_REFERENCE                            130
-# define ENGINE_R_NO_SUCH_ENGINE                          116
-# define ENGINE_R_NO_UNLOAD_FUNCTION                      126
-# define ENGINE_R_PROVIDE_PARAMETERS                      113
-# define ENGINE_R_RSA_NOT_IMPLEMENTED                     141
-# define ENGINE_R_UNIMPLEMENTED_CIPHER                    146
-# define ENGINE_R_UNIMPLEMENTED_DIGEST                    147
-# define ENGINE_R_UNIMPLEMENTED_PUBLIC_KEY_METHOD         101
-# define ENGINE_R_VERSION_INCOMPATIBILITY                 145
-
-#ifdef  __cplusplus
+#  ifdef  __cplusplus
 }
-#endif
+#  endif
+# endif
 #endif

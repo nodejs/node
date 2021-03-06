@@ -45,6 +45,7 @@ function foo_int(a, b) {
   return result * a;
 }
 
+%PrepareFunctionForOptimization(foo_smi);
 foo_smi(10, 5);
 var r1 = foo_smi(10, 5);
 %OptimizeFunctionOnNextCall(foo_smi);
@@ -52,6 +53,7 @@ var r2 = foo_smi(10, 5);
 
 assertEquals(r1, r2);
 
+%PrepareFunctionForOptimization(foo_int);
 foo_int(10, 21474800);
 var r3 = foo_int(10, 21474800);
 %OptimizeFunctionOnNextCall(foo_int);
@@ -64,6 +66,7 @@ function foo2(value) {
   return value * -1;
 }
 
+%PrepareFunctionForOptimization(foo2);
 foo2(-2147483600);
 foo2(-2147483600);
 %OptimizeFunctionOnNextCall(foo2);

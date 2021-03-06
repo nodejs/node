@@ -88,10 +88,9 @@ static void read_cb(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf) {
 
   bytes_received += nread;
 
-  /* We call shutdown here because when bytes_received == sizeof MESSAGE */
-  /* there will be no more data sent nor received, so here it would be */
-  /* possible for a backend to to call shutdown_cb immediately and *not* */
-  /* from a fresh stack. */
+  /* We call shutdown here because when bytes_received == sizeof MESSAGE there
+   * will be no more data sent nor received, so here it would be possible for a
+   * backend to call shutdown_cb immediately and *not* from a fresh stack. */
   if (bytes_received == sizeof MESSAGE) {
     nested++;
 
@@ -131,10 +130,10 @@ static void write_cb(uv_write_t* req, int status) {
 
   puts("Data written. 500ms timeout...");
 
-  /* After the data has been sent, we're going to wait for a while, then */
-  /* start reading. This makes us certain that the message has been echoed */
-  /* back to our receive buffer when we start reading. This maximizes the */
-  /* temptation for the backend to use dirty stack for calling read_cb. */
+  /* After the data has been sent, we're going to wait for a while, then start
+   * reading. This makes us certain that the message has been echoed back to
+   * our receive buffer when we start reading. This maximizes the temptation
+   * for the backend to use dirty stack for calling read_cb. */
   nested++;
   r = uv_timer_init(uv_default_loop(), &timer);
   ASSERT(r == 0);

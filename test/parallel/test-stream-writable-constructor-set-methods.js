@@ -1,35 +1,41 @@
 'use strict';
-require('../common');
-var assert = require('assert');
+const common = require('../common');
 
-var Writable = require('stream').Writable;
+const assert = require('assert');
+const { Writable } = require('stream');
 
-var _writeCalled = false;
-function _write(d, e, n) {
-  _writeCalled = true;
-}
+const bufferBlerg = Buffer.from('blerg');
+const w = new Writable();
 
-var w = new Writable({ write: _write });
-w.end(Buffer.from('blerg'));
+assert.throws(
+  () => {
+    w.end(bufferBlerg);
+  },
+  {
+    name: 'Error',
+    code: 'ERR_METHOD_NOT_IMPLEMENTED',
+    message: 'The _write() method is not implemented'
+  }
+);
 
-var _writevCalled = false;
-var dLength = 0;
-function _writev(d, n) {
-  dLength = d.length;
-  _writevCalled = true;
-}
-
-var w2 = new Writable({ writev: _writev });
-w2.cork();
-
-w2.write(Buffer.from('blerg'));
-w2.write(Buffer.from('blerg'));
-w2.end();
-
-process.on('exit', function() {
-  assert.equal(w._write, _write);
-  assert(_writeCalled);
-  assert.equal(w2._writev, _writev);
-  assert.equal(dLength, 2);
-  assert(_writevCalled);
+const _write = common.mustCall((chunk, _, next) => {
+  next();
 });
+
+const _writev = common.mustCall((chunks, next) => {
+  assert.strictEqual(chunks.length, 2);
+  next();
+});
+
+const w2 = new Writable({ write: _write, writev: _writev });
+
+assert.strictEqual(w2._write, _write);
+assert.strictEqual(w2._writev, _writev);
+
+w2.write(bufferBlerg);
+
+w2.cork();
+w2.write(bufferBlerg);
+w2.write(bufferBlerg);
+
+w2.end();

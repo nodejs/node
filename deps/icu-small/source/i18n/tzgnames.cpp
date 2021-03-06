@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -18,14 +18,18 @@
 #include "unicode/rbtz.h"
 #include "unicode/simpleformatter.h"
 #include "unicode/simpletz.h"
+#include "unicode/strenum.h"
 #include "unicode/vtzone.h"
 
+#include "bytesinkutil.h"
+#include "charstr.h"
 #include "cmemory.h"
 #include "cstring.h"
 #include "mutex.h"
 #include "uhash.h"
 #include "uassert.h"
 #include "umutex.h"
+#include "ulocimp.h"
 #include "uresimp.h"
 #include "ureslocs.h"
 #include "zonemeta.h"
@@ -268,7 +272,7 @@ GNameSearchHandler::getMatches(int32_t& maxMatchLen) {
     return results;
 }
 
-static UMutex gLock = U_MUTEX_INITIALIZER;
+static UMutex gLock;
 
 class TZGNCore : public UMemory {
 public:
@@ -406,12 +410,15 @@ TZGNCore::initialize(const Locale& locale, UErrorCode& status) {
 
     // target region
     const char* region = fLocale.getCountry();
-    int32_t regionLen = uprv_strlen(region);
+    int32_t regionLen = static_cast<int32_t>(uprv_strlen(region));
     if (regionLen == 0) {
-        char loc[ULOC_FULLNAME_CAPACITY];
-        uloc_addLikelySubtags(fLocale.getName(), loc, sizeof(loc), &status);
+        CharString loc;
+        {
+            CharStringByteSink sink(&loc);
+            ulocimp_addLikelySubtags(fLocale.getName(), sink, &status);
+        }
 
-        regionLen = uloc_getCountry(loc, fTargetRegion, sizeof(fTargetRegion), &status);
+        regionLen = uloc_getCountry(loc.data(), fTargetRegion, sizeof(fTargetRegion), &status);
         if (U_SUCCESS(status)) {
             fTargetRegion[regionLen] = 0;
         } else {
@@ -614,7 +621,7 @@ TZGNCore::formatGenericNonLocationName(const TimeZone& tz, UTimeZoneGenericNameT
         UErrorCode status = U_ZERO_ERROR;
         UBool useStandard = FALSE;
         int32_t raw, sav;
-        UChar tmpNameBuf[64];
+        UChar tmpNameBuf[ZONE_NAME_U16_MAX];
 
         tz.getOffset(date, FALSE, raw, sav, status);
         if (U_FAILURE(status)) {
@@ -682,7 +689,7 @@ TZGNCore::formatGenericNonLocationName(const TimeZone& tz, UTimeZoneGenericNameT
                 // for some meta zones in some locales.  This looks like a data bugs.
                 // For now, we check if the standard name is different from its generic
                 // name below.
-                UChar genNameBuf[64];
+                UChar genNameBuf[ZONE_NAME_U16_MAX];
                 UnicodeString mzGenericName(genNameBuf, 0, UPRV_LENGTHOF(genNameBuf));
                 fTimeZoneNames->getMetaZoneDisplayName(mzID, nameType, mzGenericName);
                 if (stdName.caseCompare(mzGenericName, 0) == 0) {
@@ -855,7 +862,7 @@ TZGNCore::loadStrings(const UnicodeString& tzCanonicalID) {
     };
 
     StringEnumeration *mzIDs = fTimeZoneNames->getAvailableMetaZoneIDs(tzCanonicalID, status);
-    while ((mzID = mzIDs->snext(status))) {
+    while ((mzID = mzIDs->snext(status)) != NULL) {
         if (U_FAILURE(status)) {
             break;
         }
@@ -1043,7 +1050,7 @@ TZGNCore::findLocal(const UnicodeString& text, int32_t start, uint32_t types, UE
             StringEnumeration *tzIDs = TimeZone::createTimeZoneIDEnumeration(UCAL_ZONE_TYPE_CANONICAL, NULL, NULL, status);
             if (U_SUCCESS(status)) {
                 const UnicodeString *tzID;
-                while ((tzID = tzIDs->snext(status))) {
+                while ((tzID = tzIDs->snext(status)) != NULL) {
                     if (U_FAILURE(status)) {
                         break;
                     }
@@ -1111,7 +1118,7 @@ typedef struct TZGNCoreRef {
 } TZGNCoreRef;
 
 // TZGNCore object cache handling
-static UMutex gTZGNLock = U_MUTEX_INITIALIZER;
+static UMutex gTZGNLock;
 static UHashtable *gTZGNCoreCache = NULL;
 static UBool gTZGNCoreCacheInitialized = FALSE;
 
@@ -1163,7 +1170,7 @@ static void sweepCache() {
     const UHashElement* elem;
     double now = (double)uprv_getUTCtime();
 
-    while ((elem = uhash_nextElement(gTZGNCoreCache, &pos))) {
+    while ((elem = uhash_nextElement(gTZGNCoreCache, &pos)) != NULL) {
         TZGNCoreRef *entry = (TZGNCoreRef *)elem->value.pointer;
         if (entry->refCount <= 0 && (now - entry->lastAccess) > CACHE_EXPIRATION) {
             // delete this entry

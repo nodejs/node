@@ -1,12 +1,32 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var fs = require('fs');
-var got_error = false;
-var success_count = 0;
-var mode_async;
-var mode_sync;
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
+
+let mode_async;
+let mode_sync;
 
 // Need to hijack fs.open/close to make sure that things
 // get closed once they're opened.
@@ -19,7 +39,7 @@ fs._closeSync = fs.closeSync;
 fs.close = close;
 fs.closeSync = closeSync;
 
-var openCount = 0;
+let openCount = 0;
 
 function open() {
   openCount++;
@@ -42,7 +62,7 @@ function closeSync() {
 }
 
 
-// On Windows chmod is only able to manipulate read-only bit
+// On Windows chmod is only able to manipulate write permission
 if (common.isWindows) {
   mode_async = 0o400;   // read-only
   mode_sync = 0o600;    // read-write
@@ -51,87 +71,83 @@ if (common.isWindows) {
   mode_sync = 0o644;
 }
 
-const file1 = path.join(common.fixturesDir, 'a.js');
-const file2 = path.join(common.fixturesDir, 'a1.js');
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
-fs.chmod(file1, mode_async.toString(8), function(err) {
-  if (err) {
-    got_error = true;
+const file1 = path.join(tmpdir.path, 'a.js');
+const file2 = path.join(tmpdir.path, 'a1.js');
+
+// Create file1.
+fs.closeSync(fs.openSync(file1, 'w'));
+
+fs.chmod(file1, mode_async.toString(8), common.mustSucceed(() => {
+  if (common.isWindows) {
+    assert.ok((fs.statSync(file1).mode & 0o777) & mode_async);
   } else {
-    console.log(fs.statSync(file1).mode);
-
-    if (common.isWindows) {
-      assert.ok((fs.statSync(file1).mode & 0o777) & mode_async);
-    } else {
-      assert.equal(mode_async, fs.statSync(file1).mode & 0o777);
-    }
-
-    fs.chmodSync(file1, mode_sync);
-    if (common.isWindows) {
-      assert.ok((fs.statSync(file1).mode & 0o777) & mode_sync);
-    } else {
-      assert.equal(mode_sync, fs.statSync(file1).mode & 0o777);
-    }
-    success_count++;
+    assert.strictEqual(fs.statSync(file1).mode & 0o777, mode_async);
   }
-});
 
-fs.open(file2, 'a', function(err, fd) {
-  if (err) {
-    got_error = true;
-    console.error(err.stack);
-    return;
+  fs.chmodSync(file1, mode_sync);
+  if (common.isWindows) {
+    assert.ok((fs.statSync(file1).mode & 0o777) & mode_sync);
+  } else {
+    assert.strictEqual(fs.statSync(file1).mode & 0o777, mode_sync);
   }
-  fs.fchmod(fd, mode_async.toString(8), function(err) {
-    if (err) {
-      got_error = true;
+}));
+
+fs.open(file2, 'w', common.mustSucceed((fd) => {
+  fs.fchmod(fd, mode_async.toString(8), common.mustSucceed(() => {
+    if (common.isWindows) {
+      assert.ok((fs.fstatSync(fd).mode & 0o777) & mode_async);
     } else {
-      console.log(fs.fstatSync(fd).mode);
-
-      if (common.isWindows) {
-        assert.ok((fs.fstatSync(fd).mode & 0o777) & mode_async);
-      } else {
-        assert.equal(mode_async, fs.fstatSync(fd).mode & 0o777);
-      }
-
-      fs.fchmodSync(fd, mode_sync);
-      if (common.isWindows) {
-        assert.ok((fs.fstatSync(fd).mode & 0o777) & mode_sync);
-      } else {
-        assert.equal(mode_sync, fs.fstatSync(fd).mode & 0o777);
-      }
-      success_count++;
-      fs.close(fd);
+      assert.strictEqual(fs.fstatSync(fd).mode & 0o777, mode_async);
     }
-  });
-});
+
+    assert.throws(
+      () => fs.fchmod(fd, {}),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+      }
+    );
+
+    fs.fchmodSync(fd, mode_sync);
+    if (common.isWindows) {
+      assert.ok((fs.fstatSync(fd).mode & 0o777) & mode_sync);
+    } else {
+      assert.strictEqual(fs.fstatSync(fd).mode & 0o777, mode_sync);
+    }
+
+    fs.close(fd, assert.ifError);
+  }));
+}));
 
 // lchmod
 if (fs.lchmod) {
-  var link = path.join(common.tmpDir, 'symbolic-link');
+  const link = path.join(tmpdir.path, 'symbolic-link');
 
-  common.refreshTmpDir();
   fs.symlinkSync(file2, link);
 
-  fs.lchmod(link, mode_async, function(err) {
-    if (err) {
-      got_error = true;
-    } else {
-      console.log(fs.lstatSync(link).mode);
-      assert.equal(mode_async, fs.lstatSync(link).mode & 0o777);
+  fs.lchmod(link, mode_async, common.mustSucceed(() => {
+    assert.strictEqual(fs.lstatSync(link).mode & 0o777, mode_async);
 
-      fs.lchmodSync(link, mode_sync);
-      assert.equal(mode_sync, fs.lstatSync(link).mode & 0o777);
-      success_count++;
-    }
-  });
-} else {
-  success_count++;
+    fs.lchmodSync(link, mode_sync);
+    assert.strictEqual(fs.lstatSync(link).mode & 0o777, mode_sync);
+
+  }));
 }
 
+[false, 1, {}, [], null, undefined].forEach((input) => {
+  const errObj = {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+    message: 'The "path" argument must be of type string or an instance ' +
+             'of Buffer or URL.' +
+             common.invalidArgTypeHelper(input)
+  };
+  assert.throws(() => fs.chmod(input, 1, common.mustNotCall()), errObj);
+  assert.throws(() => fs.chmodSync(input, 1), errObj);
+});
 
 process.on('exit', function() {
-  assert.equal(3, success_count);
-  assert.equal(0, openCount);
-  assert.equal(false, got_error);
+  assert.strictEqual(openCount, 0);
 });

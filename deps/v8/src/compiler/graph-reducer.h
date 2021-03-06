@@ -5,22 +5,28 @@
 #ifndef V8_COMPILER_GRAPH_REDUCER_H_
 #define V8_COMPILER_GRAPH_REDUCER_H_
 
+#include "src/base/compiler-specific.h"
+#include "src/common/globals.h"
 #include "src/compiler/node-marker.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
+
+class TickCounter;
+
 namespace compiler {
 
-// Forward declarations.
 class Graph;
+class JSHeapBroker;
 class Node;
-
 
 // NodeIds are identifying numbers for nodes that can be used to index auxiliary
 // out-of-line data associated with each node.
-typedef uint32_t NodeId;
+using NodeId = uint32_t;
 
+// Possible outcomes for decisions.
+enum class Decision : uint8_t { kUnknown, kTrue, kFalse };
 
 // Represents the result of trying to reduce a node in the graph.
 class Reduction final {
@@ -29,6 +35,10 @@ class Reduction final {
 
   Node* replacement() const { return replacement_; }
   bool Changed() const { return replacement() != nullptr; }
+  Reduction FollowedBy(Reduction next) const {
+    if (next.Changed()) return next;
+    return *this;
+  }
 
  private:
   Node* replacement_;
@@ -40,9 +50,12 @@ class Reduction final {
 // language-specific reductions (e.g. reduction based on types or constant
 // folding of low-level operators) can be integrated into the graph reduction
 // phase.
-class Reducer {
+class V8_EXPORT_PRIVATE Reducer {
  public:
-  virtual ~Reducer() {}
+  virtual ~Reducer() = default;
+
+  // Only used for tracing, when using the --trace_turbo_reduction flag.
+  virtual const char* reducer_name() const = 0;
 
   // Try to reduce a node if possible.
   virtual Reduction Reduce(Node* node) = 0;
@@ -66,7 +79,7 @@ class AdvancedReducer : public Reducer {
   // Observe the actions of this reducer.
   class Editor {
    public:
-    virtual ~Editor() {}
+    virtual ~Editor() = default;
 
     // Replace {node} with {replacement}.
     virtual void Replace(Node* node, Node* replacement) = 0;
@@ -119,10 +132,15 @@ class AdvancedReducer : public Reducer {
 
 
 // Performs an iterative reduction of a node graph.
-class GraphReducer : public AdvancedReducer::Editor {
+class V8_EXPORT_PRIVATE GraphReducer
+    : public NON_EXPORTED_BASE(AdvancedReducer::Editor) {
  public:
-  GraphReducer(Zone* zone, Graph* graph, Node* dead = nullptr);
-  ~GraphReducer();
+  GraphReducer(Zone* zone, Graph* graph, TickCounter* tick_counter,
+               JSHeapBroker* broker, Node* dead = nullptr);
+  ~GraphReducer() override;
+
+  GraphReducer(const GraphReducer&) = delete;
+  GraphReducer& operator=(const GraphReducer&) = delete;
 
   Graph* graph() const { return graph_; }
 
@@ -171,10 +189,10 @@ class GraphReducer : public AdvancedReducer::Editor {
   Node* const dead_;
   NodeMarker<State> state_;
   ZoneVector<Reducer*> reducers_;
-  ZoneStack<Node*> revisit_;
+  ZoneQueue<Node*> revisit_;
   ZoneStack<NodeState> stack_;
-
-  DISALLOW_COPY_AND_ASSIGN(GraphReducer);
+  TickCounter* const tick_counter_;
+  JSHeapBroker* const broker_;
 };
 
 }  // namespace compiler

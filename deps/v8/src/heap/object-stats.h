@@ -5,78 +5,123 @@
 #ifndef V8_HEAP_OBJECT_STATS_H_
 #define V8_HEAP_OBJECT_STATS_H_
 
-#include <set>
+#include "src/objects/code.h"
+#include "src/objects/objects.h"
 
-#include "src/base/ieee754.h"
-#include "src/heap/heap.h"
-#include "src/heap/objects-visiting.h"
-#include "src/objects.h"
+// These instance types do not exist for actual use but are merely introduced
+// for object stats tracing. In contrast to Code and FixedArray sub types
+// these types are not known to other counters outside of object stats
+// tracing.
+//
+// Update LAST_VIRTUAL_TYPE below when changing this macro.
+#define VIRTUAL_INSTANCE_TYPE_LIST(V)            \
+  CODE_KIND_LIST(V)                              \
+  V(ARRAY_BOILERPLATE_DESCRIPTION_ELEMENTS_TYPE) \
+  V(ARRAY_DICTIONARY_ELEMENTS_TYPE)              \
+  V(ARRAY_ELEMENTS_TYPE)                         \
+  V(BOILERPLATE_ELEMENTS_TYPE)                   \
+  V(BOILERPLATE_PROPERTY_ARRAY_TYPE)             \
+  V(BOILERPLATE_PROPERTY_DICTIONARY_TYPE)        \
+  V(BYTECODE_ARRAY_CONSTANT_POOL_TYPE)           \
+  V(BYTECODE_ARRAY_HANDLER_TABLE_TYPE)           \
+  V(COW_ARRAY_TYPE)                              \
+  V(DEOPTIMIZATION_DATA_TYPE)                    \
+  V(DEPENDENT_CODE_TYPE)                         \
+  V(DEPRECATED_DESCRIPTOR_ARRAY_TYPE)            \
+  V(EMBEDDED_OBJECT_TYPE)                        \
+  V(ENUM_KEYS_CACHE_TYPE)                        \
+  V(ENUM_INDICES_CACHE_TYPE)                     \
+  V(FEEDBACK_VECTOR_ENTRY_TYPE)                  \
+  V(FEEDBACK_VECTOR_HEADER_TYPE)                 \
+  V(FEEDBACK_VECTOR_SLOT_CALL_TYPE)              \
+  V(FEEDBACK_VECTOR_SLOT_CALL_UNUSED_TYPE)       \
+  V(FEEDBACK_VECTOR_SLOT_ENUM_TYPE)              \
+  V(FEEDBACK_VECTOR_SLOT_LOAD_TYPE)              \
+  V(FEEDBACK_VECTOR_SLOT_LOAD_UNUSED_TYPE)       \
+  V(FEEDBACK_VECTOR_SLOT_OTHER_TYPE)             \
+  V(FEEDBACK_VECTOR_SLOT_STORE_TYPE)             \
+  V(FEEDBACK_VECTOR_SLOT_STORE_UNUSED_TYPE)      \
+  V(FUNCTION_TEMPLATE_INFO_ENTRIES_TYPE)         \
+  V(GLOBAL_ELEMENTS_TYPE)                        \
+  V(GLOBAL_PROPERTIES_TYPE)                      \
+  V(JS_ARRAY_BOILERPLATE_TYPE)                   \
+  V(JS_COLLECTION_TABLE_TYPE)                    \
+  V(JS_OBJECT_BOILERPLATE_TYPE)                  \
+  V(JS_UNCOMPILED_FUNCTION_TYPE)                 \
+  V(MAP_ABANDONED_PROTOTYPE_TYPE)                \
+  V(MAP_DEPRECATED_TYPE)                         \
+  V(MAP_DICTIONARY_TYPE)                         \
+  V(MAP_PROTOTYPE_DICTIONARY_TYPE)               \
+  V(MAP_PROTOTYPE_TYPE)                          \
+  V(MAP_STABLE_TYPE)                             \
+  V(NUMBER_STRING_CACHE_TYPE)                    \
+  V(OBJECT_DICTIONARY_ELEMENTS_TYPE)             \
+  V(OBJECT_ELEMENTS_TYPE)                        \
+  V(OBJECT_PROPERTY_ARRAY_TYPE)                  \
+  V(OBJECT_PROPERTY_DICTIONARY_TYPE)             \
+  V(OBJECT_TO_CODE_TYPE)                         \
+  V(OPTIMIZED_CODE_LITERALS_TYPE)                \
+  V(OTHER_CONTEXT_TYPE)                          \
+  V(PROTOTYPE_DESCRIPTOR_ARRAY_TYPE)             \
+  V(PROTOTYPE_PROPERTY_ARRAY_TYPE)               \
+  V(PROTOTYPE_PROPERTY_DICTIONARY_TYPE)          \
+  V(PROTOTYPE_USERS_TYPE)                        \
+  V(REGEXP_MULTIPLE_CACHE_TYPE)                  \
+  V(RELOC_INFO_TYPE)                             \
+  V(RETAINED_MAPS_TYPE)                          \
+  V(SCRIPT_LIST_TYPE)                            \
+  V(SCRIPT_SHARED_FUNCTION_INFOS_TYPE)           \
+  V(SCRIPT_SOURCE_EXTERNAL_ONE_BYTE_TYPE)        \
+  V(SCRIPT_SOURCE_EXTERNAL_TWO_BYTE_TYPE)        \
+  V(SCRIPT_SOURCE_NON_EXTERNAL_ONE_BYTE_TYPE)    \
+  V(SCRIPT_SOURCE_NON_EXTERNAL_TWO_BYTE_TYPE)    \
+  V(SERIALIZED_OBJECTS_TYPE)                     \
+  V(SINGLE_CHARACTER_STRING_CACHE_TYPE)          \
+  V(STRING_SPLIT_CACHE_TYPE)                     \
+  V(STRING_EXTERNAL_RESOURCE_ONE_BYTE_TYPE)      \
+  V(STRING_EXTERNAL_RESOURCE_TWO_BYTE_TYPE)      \
+  V(SOURCE_POSITION_TABLE_TYPE)                  \
+  V(UNCOMPILED_SHARED_FUNCTION_INFO_TYPE)        \
+  V(WEAK_NEW_SPACE_OBJECT_TO_CODE_TYPE)
 
 namespace v8 {
 namespace internal {
 
+class Heap;
+class Isolate;
+
 class ObjectStats {
  public:
-  explicit ObjectStats(Heap* heap) : heap_(heap) { ClearObjectStats(); }
+  static const size_t kNoOverAllocation = 0;
+
+  explicit ObjectStats(Heap* heap) : heap_(heap) { ClearObjectStats(true); }
+
+  // See description on VIRTUAL_INSTANCE_TYPE_LIST.
+  enum VirtualInstanceType {
+#define DEFINE_VIRTUAL_INSTANCE_TYPE(type) type,
+    VIRTUAL_INSTANCE_TYPE_LIST(DEFINE_VIRTUAL_INSTANCE_TYPE)
+#undef DEFINE_FIXED_ARRAY_SUB_INSTANCE_TYPE
+        LAST_VIRTUAL_TYPE = WEAK_NEW_SPACE_OBJECT_TO_CODE_TYPE,
+  };
 
   // ObjectStats are kept in two arrays, counts and sizes. Related stats are
   // stored in a contiguous linear buffer. Stats groups are stored one after
   // another.
   enum {
-    FIRST_CODE_KIND_SUB_TYPE = LAST_TYPE + 1,
-    FIRST_FIXED_ARRAY_SUB_TYPE =
-        FIRST_CODE_KIND_SUB_TYPE + Code::NUMBER_OF_KINDS,
-    FIRST_CODE_AGE_SUB_TYPE =
-        FIRST_FIXED_ARRAY_SUB_TYPE + LAST_FIXED_ARRAY_SUB_TYPE + 1,
-    OBJECT_STATS_COUNT = FIRST_CODE_AGE_SUB_TYPE + Code::kCodeAgeCount + 1
+    FIRST_VIRTUAL_TYPE = LAST_TYPE + 1,
+    OBJECT_STATS_COUNT = FIRST_VIRTUAL_TYPE + LAST_VIRTUAL_TYPE + 1,
   };
 
   void ClearObjectStats(bool clear_last_time_stats = false);
 
-  void CheckpointObjectStats();
   void PrintJSON(const char* key);
+  void Dump(std::stringstream& stream);
 
-  void RecordObjectStats(InstanceType type, size_t size) {
-    DCHECK(type <= LAST_TYPE);
-    object_counts_[type]++;
-    object_sizes_[type] += size;
-    size_histogram_[type][HistogramIndexFromSize(size)]++;
-  }
-
-  void RecordCodeSubTypeStats(int code_sub_type, int code_age, size_t size) {
-    int code_sub_type_index = FIRST_CODE_KIND_SUB_TYPE + code_sub_type;
-    int code_age_index =
-        FIRST_CODE_AGE_SUB_TYPE + code_age - Code::kFirstCodeAge;
-    DCHECK(code_sub_type_index >= FIRST_CODE_KIND_SUB_TYPE &&
-           code_sub_type_index < FIRST_CODE_AGE_SUB_TYPE);
-    DCHECK(code_age_index >= FIRST_CODE_AGE_SUB_TYPE &&
-           code_age_index < OBJECT_STATS_COUNT);
-    object_counts_[code_sub_type_index]++;
-    object_sizes_[code_sub_type_index] += size;
-    object_counts_[code_age_index]++;
-    object_sizes_[code_age_index] += size;
-    const int idx = HistogramIndexFromSize(size);
-    size_histogram_[code_sub_type_index][idx]++;
-    size_histogram_[code_age_index][idx]++;
-  }
-
-  bool RecordFixedArraySubTypeStats(FixedArrayBase* array, int array_sub_type,
-                                    size_t size, size_t over_allocated) {
-    auto it = visited_fixed_array_sub_types_.insert(array);
-    if (!it.second) return false;
-    DCHECK(array_sub_type <= LAST_FIXED_ARRAY_SUB_TYPE);
-    object_counts_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type]++;
-    object_sizes_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type] += size;
-    size_histogram_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type]
-                   [HistogramIndexFromSize(size)]++;
-    if (over_allocated > 0) {
-      over_allocated_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type] +=
-          over_allocated;
-      over_allocated_histogram_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type]
-                               [HistogramIndexFromSize(over_allocated)]++;
-    }
-    return true;
-  }
+  void CheckpointObjectStats();
+  void RecordObjectStats(InstanceType type, size_t size,
+                         size_t over_allocated = kNoOverAllocation);
+  void RecordVirtualObjectStats(VirtualInstanceType type, size_t size,
+                                size_t over_allocated);
 
   size_t object_count_last_gc(size_t index) {
     return object_counts_last_time_[index];
@@ -90,18 +135,22 @@ class ObjectStats {
   Heap* heap() { return heap_; }
 
  private:
-  static const int kFirstBucketShift = 5;  // <=32
-  static const int kLastBucketShift = 19;  // >512k
+  static const int kFirstBucketShift = 5;  // <32
+  static const int kLastBucketShift = 20;  // >=1M
   static const int kFirstBucket = 1 << kFirstBucketShift;
   static const int kLastBucket = 1 << kLastBucketShift;
   static const int kNumberOfBuckets = kLastBucketShift - kFirstBucketShift + 1;
+  static const int kLastValueBucketIndex = kLastBucketShift - kFirstBucketShift;
 
-  int HistogramIndexFromSize(size_t size) {
-    if (size == 0) return 0;
-    int idx = static_cast<int>(base::ieee754::log2(static_cast<double>(size))) -
-              kFirstBucketShift;
-    return idx < 0 ? 0 : idx;
-  }
+  void PrintKeyAndId(const char* key, int gc_count);
+  // The following functions are excluded from inline to reduce the overall
+  // binary size of VB. On x64 this save around 80KB.
+  V8_NOINLINE void PrintInstanceTypeJSON(const char* key, int gc_count,
+                                         const char* name, int index);
+  V8_NOINLINE void DumpInstanceTypeData(std::stringstream& stream,
+                                        const char* name, int index);
+
+  int HistogramIndexFromSize(size_t size);
 
   Heap* heap_;
   // Object counts and used memory by InstanceType.
@@ -115,42 +164,34 @@ class ObjectStats {
   size_t size_histogram_[OBJECT_STATS_COUNT][kNumberOfBuckets];
   size_t over_allocated_histogram_[OBJECT_STATS_COUNT][kNumberOfBuckets];
 
-  std::set<FixedArrayBase*> visited_fixed_array_sub_types_;
+  size_t tagged_fields_count_;
+  size_t embedder_fields_count_;
+  size_t inobject_smi_fields_count_;
+  size_t unboxed_double_fields_count_;
+  size_t boxed_double_fields_count_;
+  size_t string_data_count_;
+  size_t raw_fields_count_;
+
+  friend class ObjectStatsCollectorImpl;
 };
 
 class ObjectStatsCollector {
  public:
-  ObjectStatsCollector(Heap* heap, ObjectStats* stats)
-      : heap_(heap), stats_(stats) {}
+  ObjectStatsCollector(Heap* heap, ObjectStats* live, ObjectStats* dead)
+      : heap_(heap), live_(live), dead_(dead) {
+    DCHECK_NOT_NULL(heap_);
+    DCHECK_NOT_NULL(live_);
+    DCHECK_NOT_NULL(dead_);
+  }
 
-  void CollectGlobalStatistics();
-  void CollectStatistics(HeapObject* obj);
+  // Collects type information of live and dead objects. Requires mark bits to
+  // be present.
+  void Collect();
 
  private:
-  class CompilationCacheTableVisitor;
-
-  void RecordBytecodeArrayDetails(BytecodeArray* obj);
-  void RecordCodeDetails(Code* code);
-  void RecordFixedArrayDetails(FixedArray* array);
-  void RecordJSCollectionDetails(JSObject* obj);
-  void RecordJSFunctionDetails(JSFunction* function);
-  void RecordJSObjectDetails(JSObject* object);
-  void RecordJSWeakCollectionDetails(JSWeakCollection* obj);
-  void RecordMapDetails(Map* map);
-  void RecordScriptDetails(Script* obj);
-  void RecordTemplateInfoDetails(TemplateInfo* obj);
-  void RecordSharedFunctionInfoDetails(SharedFunctionInfo* sfi);
-
-  bool RecordFixedArrayHelper(HeapObject* parent, FixedArray* array,
-                              int subtype, size_t overhead);
-  void RecursivelyRecordFixedArrayHelper(HeapObject* parent, FixedArray* array,
-                                         int subtype);
-  template <class HashTable>
-  void RecordHashTableHelper(HeapObject* parent, HashTable* array, int subtype);
-  Heap* heap_;
-  ObjectStats* stats_;
-
-  friend class ObjectStatsCollector::CompilationCacheTableVisitor;
+  Heap* const heap_;
+  ObjectStats* const live_;
+  ObjectStats* const dead_;
 };
 
 }  // namespace internal

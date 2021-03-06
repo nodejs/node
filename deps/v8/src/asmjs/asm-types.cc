@@ -6,7 +6,8 @@
 
 #include <cinttypes>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -37,11 +38,12 @@ std::string AsmType::Name() {
   return this->AsCallableType()->Name();
 }
 
-bool AsmType::IsExactly(AsmType* that) {
-  // TODO(jpp): maybe this can become this == that.
-  AsmValueType* avt = this->AsValueType();
+bool AsmType::IsExactly(AsmType* x, AsmType* y) {
+  // TODO(jpp): maybe this can become x == y.
+  if (x == nullptr) return y == nullptr;
+  AsmValueType* avt = x->AsValueType();
   if (avt != nullptr) {
-    AsmValueType* tavt = that->AsValueType();
+    AsmValueType* tavt = y->AsValueType();
     if (tavt == nullptr) {
       return false;
     }
@@ -50,7 +52,7 @@ bool AsmType::IsExactly(AsmType* that) {
 
   // TODO(jpp): is it useful to allow non-value types to be tested with
   // IsExactly?
-  return that == this;
+  return x == y;
 }
 
 bool AsmType::IsA(AsmType* that) {
@@ -68,7 +70,6 @@ bool AsmType::IsA(AsmType* that) {
   }
 
   UNREACHABLE();
-  return that == this;
 }
 
 int32_t AsmType::ElementSizeInBytes() {
@@ -171,7 +172,7 @@ class AsmFroundType final : public AsmCallableType {
 }  // namespace
 
 AsmType* AsmType::FroundType(Zone* zone) {
-  auto* Fround = new (zone) AsmFroundType();
+  auto* Fround = zone->New<AsmFroundType>();
   return reinterpret_cast<AsmType*>(Fround);
 }
 
@@ -194,13 +195,14 @@ namespace {
 class AsmMinMaxType final : public AsmCallableType {
  private:
   friend AsmType;
+  friend Zone;
 
   AsmMinMaxType(AsmType* dest, AsmType* src)
       : AsmCallableType(), return_type_(dest), arg_(src) {}
 
   bool CanBeInvokedWith(AsmType* return_type,
                         const ZoneVector<AsmType*>& args) override {
-    if (!return_type_->IsExactly(return_type)) {
+    if (!AsmType::IsExactly(return_type_, return_type)) {
       return false;
     }
 
@@ -228,25 +230,10 @@ class AsmMinMaxType final : public AsmCallableType {
 }  // namespace
 
 AsmType* AsmType::MinMaxType(Zone* zone, AsmType* dest, AsmType* src) {
-  DCHECK(dest->AsValueType() != nullptr);
-  DCHECK(src->AsValueType() != nullptr);
-  auto* MinMax = new (zone) AsmMinMaxType(dest, src);
+  DCHECK_NOT_NULL(dest->AsValueType());
+  DCHECK_NOT_NULL(src->AsValueType());
+  auto* MinMax = zone->New<AsmMinMaxType>(dest, src);
   return reinterpret_cast<AsmType*>(MinMax);
-}
-
-bool AsmFFIType::CanBeInvokedWith(AsmType* return_type,
-                                  const ZoneVector<AsmType*>& args) {
-  if (return_type->IsExactly(AsmType::Float())) {
-    return false;
-  }
-
-  for (size_t ii = 0; ii < args.size(); ++ii) {
-    if (!args[ii]->IsA(AsmType::Extern())) {
-      return false;
-    }
-  }
-
-  return true;
 }
 
 bool AsmFunctionType::IsA(AsmType* other) {
@@ -254,7 +241,7 @@ bool AsmFunctionType::IsA(AsmType* other) {
   if (that == nullptr) {
     return false;
   }
-  if (!return_type_->IsExactly(that->return_type_)) {
+  if (!AsmType::IsExactly(return_type_, that->return_type_)) {
     return false;
   }
 
@@ -263,7 +250,7 @@ bool AsmFunctionType::IsA(AsmType* other) {
   }
 
   for (size_t ii = 0; ii < args_.size(); ++ii) {
-    if (!args_[ii]->IsExactly(that->args_[ii])) {
+    if (!AsmType::IsExactly(args_[ii], that->args_[ii])) {
       return false;
     }
   }
@@ -273,7 +260,7 @@ bool AsmFunctionType::IsA(AsmType* other) {
 
 bool AsmFunctionType::CanBeInvokedWith(AsmType* return_type,
                                        const ZoneVector<AsmType*>& args) {
-  if (!return_type_->IsExactly(return_type)) {
+  if (!AsmType::IsExactly(return_type_, return_type)) {
     return false;
   }
 
@@ -315,38 +302,8 @@ bool AsmOverloadedFunctionType::CanBeInvokedWith(
 }
 
 void AsmOverloadedFunctionType::AddOverload(AsmType* overload) {
-  DCHECK(overload->AsCallableType() != nullptr);
+  DCHECK_NOT_NULL(overload->AsCallableType());
   overloads_.push_back(overload);
-}
-
-AsmFunctionTableType::AsmFunctionTableType(size_t length, AsmType* signature)
-    : length_(length), signature_(signature) {
-  DCHECK(signature_ != nullptr);
-  DCHECK(signature_->AsFunctionType() != nullptr);
-}
-
-namespace {
-// ToString is used for reporting function tables' names. It converts its
-// argument to uint32_t because asm.js integers are 32-bits, thus effectively
-// limiting the max function table's length.
-std::string ToString(size_t s) {
-  auto u32 = static_cast<uint32_t>(s);
-  // 16 bytes is more than enough to represent a 32-bit integer as a base 10
-  // string.
-  char digits[16];
-  int length = base::OS::SNPrintF(digits, arraysize(digits), "%" PRIu32, u32);
-  DCHECK_NE(length, -1);
-  return std::string(digits, length);
-}
-}  // namespace
-
-std::string AsmFunctionTableType::Name() {
-  return "(" + signature_->Name() + ")[" + ToString(length_) + "]";
-}
-
-bool AsmFunctionTableType::CanBeInvokedWith(AsmType* return_type,
-                                            const ZoneVector<AsmType*>& args) {
-  return signature_->AsCallableType()->CanBeInvokedWith(return_type, args);
 }
 
 }  // namespace wasm

@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_ATOMIC_UTILS_H_
-#define V8_ATOMIC_UTILS_H_
+#ifndef V8_BASE_ATOMIC_UTILS_H_
+#define V8_BASE_ATOMIC_UTILS_H_
 
 #include <limits.h>
+#include <type_traits>
 
 #include "src/base/atomicops.h"
 #include "src/base/macros.h"
@@ -13,45 +14,7 @@
 namespace v8 {
 namespace base {
 
-template <class T>
-class AtomicNumber {
- public:
-  AtomicNumber() : value_(0) {}
-  explicit AtomicNumber(T initial) : value_(initial) {}
-
-  // Returns the value after incrementing.
-  V8_INLINE T Increment(T increment) {
-    return static_cast<T>(base::Barrier_AtomicIncrement(
-        &value_, static_cast<base::AtomicWord>(increment)));
-  }
-
-  // Returns the value after decrementing.
-  V8_INLINE T Decrement(T decrement) {
-    return static_cast<T>(base::Barrier_AtomicIncrement(
-        &value_, -static_cast<base::AtomicWord>(decrement)));
-  }
-
-  V8_INLINE T Value() { return static_cast<T>(base::Acquire_Load(&value_)); }
-
-  V8_INLINE void SetValue(T new_value) {
-    base::Release_Store(&value_, static_cast<base::AtomicWord>(new_value));
-  }
-
-  V8_INLINE T operator=(T value) {
-    SetValue(value);
-    return value;
-  }
-
-  V8_INLINE T operator+=(T value) { return Increment(value); }
-  V8_INLINE T operator-=(T value) { return Decrement(value); }
-
- private:
-  STATIC_ASSERT(sizeof(T) <= sizeof(base::AtomicWord));
-
-  base::AtomicWord value_;
-};
-
-
+// Deprecated. Use std::atomic<T> for new code.
 // Flag using T atomically. Also accepts void* as T.
 template <typename T>
 class AtomicValue {
@@ -63,13 +26,6 @@ class AtomicValue {
 
   V8_INLINE T Value() const {
     return cast_helper<T>::to_return_type(base::Acquire_Load(&value_));
-  }
-
-  V8_INLINE bool TrySetValue(T old_value, T new_value) {
-    return base::Release_CompareAndSwap(
-               &value_, cast_helper<T>::to_storage_type(old_value),
-               cast_helper<T>::to_storage_type(new_value)) ==
-           cast_helper<T>::to_storage_type(old_value);
   }
 
   V8_INLINE void SetValue(T new_value) {
@@ -102,83 +58,162 @@ class AtomicValue {
   base::AtomicWord value_;
 };
 
-
-// See utils.h for EnumSet. Storage is always base::AtomicWord.
-// Requirements on E:
-// - No explicit values.
-// - E::kLastValue defined to be the last actually used value.
-//
-// Example:
-// enum E { kA, kB, kC, kLastValue = kC };
-template <class E>
-class AtomicEnumSet {
+// Provides atomic operations for a values stored at some address.
+template <typename TAtomicStorageType>
+class AsAtomicImpl {
  public:
-  explicit AtomicEnumSet(base::AtomicWord bits = 0) : bits_(bits) {}
+  using AtomicStorageType = TAtomicStorageType;
 
-  bool IsEmpty() const { return ToIntegral() == 0; }
-
-  bool Contains(E element) const { return (ToIntegral() & Mask(element)) != 0; }
-  bool ContainsAnyOf(const AtomicEnumSet& set) const {
-    return (ToIntegral() & set.ToIntegral()) != 0;
+  template <typename T>
+  static T Acquire_Load(T* addr) {
+    STATIC_ASSERT(sizeof(T) <= sizeof(AtomicStorageType));
+    return cast_helper<T>::to_return_type(
+        base::Acquire_Load(to_storage_addr(addr)));
   }
 
-  void RemoveAll() { base::Release_Store(&bits_, 0); }
-
-  bool operator==(const AtomicEnumSet& set) const {
-    return ToIntegral() == set.ToIntegral();
+  template <typename T>
+  static T Relaxed_Load(T* addr) {
+    STATIC_ASSERT(sizeof(T) <= sizeof(AtomicStorageType));
+    return cast_helper<T>::to_return_type(
+        base::Relaxed_Load(to_storage_addr(addr)));
   }
 
-  bool operator!=(const AtomicEnumSet& set) const {
-    return ToIntegral() != set.ToIntegral();
+  template <typename T>
+  static void Release_Store(T* addr,
+                            typename std::remove_reference<T>::type new_value) {
+    STATIC_ASSERT(sizeof(T) <= sizeof(AtomicStorageType));
+    base::Release_Store(to_storage_addr(addr),
+                        cast_helper<T>::to_storage_type(new_value));
   }
 
-  AtomicEnumSet<E> operator|(const AtomicEnumSet& set) const {
-    return AtomicEnumSet<E>(ToIntegral() | set.ToIntegral());
+  template <typename T>
+  static void Relaxed_Store(T* addr,
+                            typename std::remove_reference<T>::type new_value) {
+    STATIC_ASSERT(sizeof(T) <= sizeof(AtomicStorageType));
+    base::Relaxed_Store(to_storage_addr(addr),
+                        cast_helper<T>::to_storage_type(new_value));
   }
 
-// The following operations modify the underlying storage.
-
-#define ATOMIC_SET_WRITE(OP, NEW_VAL)                                     \
-  do {                                                                    \
-    base::AtomicWord old;                                                 \
-    do {                                                                  \
-      old = base::Acquire_Load(&bits_);                                   \
-    } while (base::Release_CompareAndSwap(&bits_, old, old OP NEW_VAL) != \
-             old);                                                        \
-  } while (false)
-
-  void Add(E element) { ATOMIC_SET_WRITE(|, Mask(element)); }
-
-  void Add(const AtomicEnumSet& set) { ATOMIC_SET_WRITE(|, set.ToIntegral()); }
-
-  void Remove(E element) { ATOMIC_SET_WRITE(&, ~Mask(element)); }
-
-  void Remove(const AtomicEnumSet& set) {
-    ATOMIC_SET_WRITE(&, ~set.ToIntegral());
+  template <typename T>
+  static T Release_CompareAndSwap(
+      T* addr, typename std::remove_reference<T>::type old_value,
+      typename std::remove_reference<T>::type new_value) {
+    STATIC_ASSERT(sizeof(T) <= sizeof(AtomicStorageType));
+    return cast_helper<T>::to_return_type(base::Release_CompareAndSwap(
+        to_storage_addr(addr), cast_helper<T>::to_storage_type(old_value),
+        cast_helper<T>::to_storage_type(new_value)));
   }
 
-  void Intersect(const AtomicEnumSet& set) {
-    ATOMIC_SET_WRITE(&, set.ToIntegral());
+  template <typename T>
+  static T Relaxed_CompareAndSwap(
+      T* addr, typename std::remove_reference<T>::type old_value,
+      typename std::remove_reference<T>::type new_value) {
+    STATIC_ASSERT(sizeof(T) <= sizeof(AtomicStorageType));
+    return cast_helper<T>::to_return_type(base::Relaxed_CompareAndSwap(
+        to_storage_addr(addr), cast_helper<T>::to_storage_type(old_value),
+        cast_helper<T>::to_storage_type(new_value)));
   }
 
-#undef ATOMIC_SET_OP
+  template <typename T>
+  static T AcquireRelease_CompareAndSwap(
+      T* addr, typename std::remove_reference<T>::type old_value,
+      typename std::remove_reference<T>::type new_value) {
+    STATIC_ASSERT(sizeof(T) <= sizeof(AtomicStorageType));
+    return cast_helper<T>::to_return_type(base::AcquireRelease_CompareAndSwap(
+        to_storage_addr(addr), cast_helper<T>::to_storage_type(old_value),
+        cast_helper<T>::to_storage_type(new_value)));
+  }
+
+  // Atomically sets bits selected by the mask to the given value.
+  // Returns false if the bits are already set as needed.
+  template <typename T>
+  static bool SetBits(T* addr, T bits, T mask) {
+    STATIC_ASSERT(sizeof(T) <= sizeof(AtomicStorageType));
+    DCHECK_EQ(bits & ~mask, static_cast<T>(0));
+    T old_value = Relaxed_Load(addr);
+    T new_value, old_value_before_cas;
+    do {
+      if ((old_value & mask) == bits) return false;
+      new_value = (old_value & ~mask) | bits;
+      old_value_before_cas = old_value;
+      old_value = Release_CompareAndSwap(addr, old_value, new_value);
+    } while (old_value != old_value_before_cas);
+    return true;
+  }
 
  private:
-  // Check whether there's enough storage to hold E.
-  STATIC_ASSERT(E::kLastValue < (sizeof(base::AtomicWord) * CHAR_BIT));
+  template <typename U>
+  struct cast_helper {
+    static AtomicStorageType to_storage_type(U value) {
+      return static_cast<AtomicStorageType>(value);
+    }
+    static U to_return_type(AtomicStorageType value) {
+      return static_cast<U>(value);
+    }
+  };
 
-  V8_INLINE base::AtomicWord ToIntegral() const {
-    return base::Acquire_Load(&bits_);
+  template <typename U>
+  struct cast_helper<U*> {
+    static AtomicStorageType to_storage_type(U* value) {
+      return reinterpret_cast<AtomicStorageType>(value);
+    }
+    static U* to_return_type(AtomicStorageType value) {
+      return reinterpret_cast<U*>(value);
+    }
+  };
+
+  template <typename T>
+  static AtomicStorageType* to_storage_addr(T* value) {
+    return reinterpret_cast<AtomicStorageType*>(value);
   }
-
-  V8_INLINE base::AtomicWord Mask(E element) const {
-    return static_cast<base::AtomicWord>(1) << element;
+  template <typename T>
+  static const AtomicStorageType* to_storage_addr(const T* value) {
+    return reinterpret_cast<const AtomicStorageType*>(value);
   }
-
-  base::AtomicWord bits_;
 };
+
+using AsAtomic8 = AsAtomicImpl<base::Atomic8>;
+using AsAtomic32 = AsAtomicImpl<base::Atomic32>;
+using AsAtomicWord = AsAtomicImpl<base::AtomicWord>;
+
+// This is similar to AsAtomicWord but it explicitly deletes functionality
+// provided atomic access to bit representation of stored values.
+template <typename TAtomicStorageType>
+class AsAtomicPointerImpl : public AsAtomicImpl<TAtomicStorageType> {
+ public:
+  template <typename T>
+  static bool SetBits(T* addr, T bits, T mask) = delete;
+};
+
+using AsAtomicPointer = AsAtomicPointerImpl<base::AtomicWord>;
+
+template <typename T,
+          typename = typename std::enable_if<std::is_unsigned<T>::value>::type>
+inline void CheckedIncrement(std::atomic<T>* number, T amount) {
+  const T old = number->fetch_add(amount);
+  DCHECK_GE(old + amount, old);
+  USE(old);
+}
+
+template <typename T,
+          typename = typename std::enable_if<std::is_unsigned<T>::value>::type>
+inline void CheckedDecrement(std::atomic<T>* number, T amount) {
+  const T old = number->fetch_sub(amount);
+  DCHECK_GE(old, amount);
+  USE(old);
+}
+
+template <typename T>
+V8_INLINE std::atomic<T>* AsAtomicPtr(T* t) {
+  return reinterpret_cast<std::atomic<T>*>(t);
+}
+
+template <typename T>
+V8_INLINE const std::atomic<T>* AsAtomicPtr(const T* t) {
+  return reinterpret_cast<const std::atomic<T>*>(t);
+}
 
 }  // namespace base
 }  // namespace v8
 
-#endif  // #define V8_ATOMIC_UTILS_H_
+#endif  // V8_BASE_ATOMIC_UTILS_H_

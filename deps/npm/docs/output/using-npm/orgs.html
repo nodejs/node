@@ -1,0 +1,236 @@
+<html><head>
+<title>orgs</title>
+<style>
+body {
+    background-color: #ffffff;
+    color: #24292e;
+
+    margin: 0;
+
+    line-height: 1.5;
+
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+#rainbar {
+    height: 10px;
+    background-image: linear-gradient(139deg, #fb8817, #ff4b01, #c12127, #e02aff);
+}
+
+a {
+    text-decoration: none;
+    color: #0366d6;
+}
+a:hover {
+    text-decoration: underline;
+}
+
+pre {
+    margin: 1em 0px;
+    padding: 1em;
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+
+    display: block;
+    overflow: auto;
+
+    white-space: pre;
+
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+code {
+    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 85%;
+    padding: 0.2em 0.4em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+pre > code {
+    padding: 0;
+    background-color: inherit;
+    color: inherit;
+}
+h1, h2, h3 {
+    font-weight: 600;
+}
+
+#logobar {
+    background-color: #333333;
+    margin: 0 auto;
+    padding: 1em 4em;
+}
+#logobar .logo {
+    float: left;
+}
+#logobar .title {
+    font-weight: 600;
+    color: #dddddd;
+    float: left;
+    margin: 5px 0 0 1em;
+}
+#logobar:after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+#content {
+    margin: 0 auto;
+    padding: 0 4em;
+}
+
+#table_of_contents > h2 {
+    font-size: 1.17em;
+}
+#table_of_contents ul:first-child {
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+    padding: 1em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+#table_of_contents ul {
+    list-style-type: none;
+    padding-left: 1.5em;
+}
+#table_of_contents li {
+    font-size: 0.9em;
+}
+#table_of_contents li a {
+    color: #000000;
+}
+
+header.title {
+    border-bottom: solid 1px #e1e4e8;
+}
+header.title > h1 {
+    margin-bottom: 0.25em;
+}
+header.title > .description {
+    display: block;
+    margin-bottom: 0.5em;
+    line-height: 1;
+}
+
+footer#edit {
+    border-top: solid 1px #e1e4e8;
+    margin: 3em 0 4em 0;
+    padding-top: 2em;
+}
+</style>
+</head>
+<body>
+<div id="banner">
+<div id="rainbar"></div>
+<div id="logobar">
+<svg class="logo" role="img" height="32" width="32" viewBox="0 0 700 700">
+<polygon fill="#cb0000" points="0,700 700,700 700,0 0,0"></polygon>
+<polygon fill="#ffffff" points="150,550 350,550 350,250 450,250 450,550 550,550 550,150 150,150"></polygon>
+</svg>
+<div class="title">
+npm command-line interface
+</div>
+</div>
+</div>
+
+<section id="content">
+<header class="title">
+<h1 id="orgs">orgs</h1>
+<span class="description">Working with Teams &amp; Orgs</span>
+</header>
+
+<section id="table_of_contents">
+<h2 id="table-of-contents">Table of contents</h2>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#team-admins-create-teams">Team Admins create teams</a></li><li><a href="#publish-a-package-and-adjust-package-access">Publish a package and adjust package access</a></li><li><a href="#monitor-your-package-access">Monitor your package access</a></li><li><a href="#see-also">See also</a></li></ul></div>
+</section>
+
+<div id="_content"><h3 id="description">Description</h3>
+<p>There are three levels of org users:</p>
+<ol>
+<li>Super admin, controls billing &amp; adding people to the org.</li>
+<li>Team admin, manages team membership &amp; package access.</li>
+<li>Developer, works on packages they are given access to.</li>
+</ol>
+<p>The super admin is the only person who can add users to the org because it impacts the monthly bill. The super admin will use the website to manage membership. Every org has a <code>developers</code> team that all users are automatically added to.</p>
+<p>The team admin is the person who manages team creation, team membership, and package access for teams. The team admin grants package access to teams, not individuals.</p>
+<p>The developer will be able to access packages based on the teams they are on. Access is either read-write or read-only.</p>
+<p>There are two main commands:</p>
+<ol>
+<li><code>npm team</code> see <a href="../commands/npm-team.html">npm team</a> for more details</li>
+<li><code>npm access</code> see <a href="../commands/npm-access.html">npm access</a> for more details</li>
+</ol>
+<h3 id="team-admins-create-teams">Team Admins create teams</h3>
+<ul>
+<li>Check who you’ve added to your org:</li>
+</ul>
+<pre lang="bash"><code>npm team ls &lt;org&gt;:developers
+</code></pre>
+<ul>
+<li>
+<p>Each org is automatically given a <code>developers</code> team, so you can see the whole list of team members in your org. This team automatically gets read-write access to all packages, but you can change that with the <code>access</code> command.</p>
+</li>
+<li>
+<p>Create a new team:</p>
+</li>
+</ul>
+<pre lang="bash"><code>npm team create &lt;org:team&gt;
+</code></pre>
+<ul>
+<li>Add members to that team:</li>
+</ul>
+<pre lang="bash"><code>npm team add &lt;org:team&gt; &lt;user&gt;
+</code></pre>
+<h3 id="publish-a-package-and-adjust-package-access">Publish a package and adjust package access</h3>
+<ul>
+<li>In package directory, run</li>
+</ul>
+<pre lang="bash"><code>npm init --scope=&lt;org&gt;
+</code></pre>
+<p>to scope it for your org &amp; publish as usual</p>
+<ul>
+<li>Grant access:</li>
+</ul>
+<pre lang="bash"><code>npm access grant &lt;read-only|read-write&gt; &lt;org:team&gt; [&lt;package&gt;]
+</code></pre>
+<ul>
+<li>Revoke access:</li>
+</ul>
+<pre lang="bash"><code>npm access revoke &lt;org:team&gt; [&lt;package&gt;]
+</code></pre>
+<h3 id="monitor-your-package-access">Monitor your package access</h3>
+<ul>
+<li>See what org packages a team member can access:</li>
+</ul>
+<pre lang="bash"><code>npm access ls-packages &lt;org&gt; &lt;user&gt;
+</code></pre>
+<ul>
+<li>See packages available to a specific team:</li>
+</ul>
+<pre lang="bash"><code>npm access ls-packages &lt;org:team&gt;
+</code></pre>
+<ul>
+<li>Check which teams are collaborating on a package:</li>
+</ul>
+<pre lang="bash"><code>npm access ls-collaborators &lt;pkg&gt;
+</code></pre>
+<h3 id="see-also">See also</h3>
+<ul>
+<li><a href="../commands/npm-team.html">npm team</a></li>
+<li><a href="../commands/npm-access.html">npm access</a></li>
+<li><a href="../using-npm/scope.html">npm scope</a></li>
+</ul>
+</div>
+
+<footer id="edit">
+<a href="https://github.com/npm/cli/edit/latest/docs/content/using-npm/orgs.md">
+<svg role="img" viewBox="0 0 16 16" width="16" height="16" fill="currentcolor" style="vertical-align: text-bottom; margin-right: 0.3em;">
+<path fill-rule="evenodd" d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25a1.75 1.75 0 01.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354l-1.086-1.086zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064l6.286-6.286z"></path>
+</svg>
+Edit this page on GitHub
+</a>
+</footer>
+</section>
+
+
+
+</body></html>

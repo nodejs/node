@@ -5,11 +5,13 @@
 // Flags: --allow-natives-syntax
 
 function bar() { return 0/0 && 1; }
+%PrepareFunctionForOptimization(bar);
 assertEquals(NaN, bar());
 %OptimizeFunctionOnNextCall(bar);
 assertEquals(NaN, bar());
 
 function foo() { return 0/0 || 1; }
+%PrepareFunctionForOptimization(foo);
 assertEquals(1, foo());
 %OptimizeFunctionOnNextCall(foo);
 assertEquals(1, foo());

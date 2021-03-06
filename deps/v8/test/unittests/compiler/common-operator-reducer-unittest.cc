@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/common-operator.h"
 #include "src/compiler/common-operator-reducer.h"
+#include "src/codegen/machine-type.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/machine-type.h"
 #include "test/unittests/compiler/graph-reducer-unittest.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
@@ -17,20 +17,23 @@ using testing::StrictMock;
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace common_operator_reducer_unittest {
 
 class CommonOperatorReducerTest : public GraphTest {
  public:
   explicit CommonOperatorReducerTest(int num_parameters = 1)
       : GraphTest(num_parameters), machine_(zone()), simplified_(zone()) {}
-  ~CommonOperatorReducerTest() override {}
+  ~CommonOperatorReducerTest() override = default;
 
  protected:
   Reduction Reduce(
       AdvancedReducer::Editor* editor, Node* node,
       MachineOperatorBuilder::Flags flags = MachineOperatorBuilder::kNoFlags) {
+    JSHeapBroker broker(isolate(), zone());
     MachineOperatorBuilder machine(zone(), MachineType::PointerRepresentation(),
                                    flags);
-    CommonOperatorReducer reducer(editor, graph(), common(), &machine);
+    CommonOperatorReducer reducer(editor, graph(), &broker, common(), &machine,
+                                  zone());
     return reducer.Reduce(node);
   }
 
@@ -158,6 +161,26 @@ TEST_F(CommonOperatorReducerTest, BranchWithBooleanNot) {
   }
 }
 
+TEST_F(CommonOperatorReducerTest, BranchWithSelect) {
+  Node* const value = Parameter(0);
+  TRACED_FOREACH(BranchHint, hint, kBranchHints) {
+    Node* const control = graph()->start();
+    Node* const branch = graph()->NewNode(
+        common()->Branch(hint),
+        graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
+                         value, FalseConstant(), TrueConstant()),
+        control);
+    Node* const if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* const if_false = graph()->NewNode(common()->IfFalse(), branch);
+    Reduction const r = Reduce(branch);
+    ASSERT_TRUE(r.Changed());
+    EXPECT_EQ(branch, r.replacement());
+    EXPECT_THAT(branch, IsBranch(value, control));
+    EXPECT_THAT(if_false, IsIfTrue(branch));
+    EXPECT_THAT(if_true, IsIfFalse(branch));
+    EXPECT_EQ(NegateBranchHint(hint), BranchHintOf(branch->op()));
+  }
+}
 
 // -----------------------------------------------------------------------------
 // Merge
@@ -341,7 +364,9 @@ TEST_F(CommonOperatorReducerTest, ReturnWithPhiAndEffectPhiAndMerge) {
   Node* ephi = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, merge);
   Node* phi = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
                                vtrue, vfalse, merge);
-  Node* ret = graph()->NewNode(common()->Return(), phi, ephi, merge);
+
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret = graph()->NewNode(common()->Return(), zero, phi, ephi, merge);
   graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
   StrictMock<MockAdvancedReducerEditor> editor;
   EXPECT_CALL(editor, Replace(merge, IsDead()));
@@ -352,6 +377,33 @@ TEST_F(CommonOperatorReducerTest, ReturnWithPhiAndEffectPhiAndMerge) {
                                     IsReturn(vfalse, efalse, if_false)));
 }
 
+TEST_F(CommonOperatorReducerTest, MultiReturnWithPhiAndEffectPhiAndMerge) {
+  Node* cond = Parameter(2);
+  Node* branch = graph()->NewNode(common()->Branch(), cond, graph()->start());
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* etrue = graph()->start();
+  Node* vtrue1 = Parameter(0);
+  Node* vtrue2 = Parameter(1);
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* efalse = graph()->start();
+  Node* vfalse1 = Parameter(1);
+  Node* vfalse2 = Parameter(0);
+  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  Node* ephi = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, merge);
+  Node* phi1 = graph()->NewNode(
+      common()->Phi(MachineRepresentation::kTagged, 2), vtrue1, vfalse1, merge);
+  Node* phi2 = graph()->NewNode(
+      common()->Phi(MachineRepresentation::kTagged, 2), vtrue2, vfalse2, merge);
+
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret =
+      graph()->NewNode(common()->Return(2), zero, phi1, phi2, ephi, merge);
+  graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
+  StrictMock<MockAdvancedReducerEditor> editor;
+  Reduction const r = Reduce(&editor, ret);
+  // For now a return with multiple return values should not be reduced.
+  ASSERT_TRUE(!r.Changed());
+}
 
 // -----------------------------------------------------------------------------
 // Select
@@ -442,6 +494,53 @@ TEST_F(CommonOperatorReducerTest, SelectToFloat64Abs) {
   EXPECT_THAT(r.replacement(), IsFloat64Abs(p0));
 }
 
+// -----------------------------------------------------------------------------
+// Switch
+
+TEST_F(CommonOperatorReducerTest, SwitchInputMatchesCaseWithDefault) {
+  Node* const control = graph()->start();
+
+  Node* sw = graph()->NewNode(common()->Switch(2), Int32Constant(1), control);
+  Node* const if_1 = graph()->NewNode(common()->IfValue(1), sw);
+  graph()->NewNode(common()->IfDefault(), sw);
+
+  StrictMock<MockAdvancedReducerEditor> editor;
+  EXPECT_CALL(editor, Replace(if_1, control));
+  Reduction r = Reduce(&editor, sw);
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsDead());
+}
+
+TEST_F(CommonOperatorReducerTest, SwitchInputMatchesDefaultWithCase) {
+  Node* const control = graph()->start();
+
+  Node* sw = graph()->NewNode(common()->Switch(2), Int32Constant(0), control);
+  graph()->NewNode(common()->IfValue(1), sw);
+  Node* const if_default = graph()->NewNode(common()->IfDefault(), sw);
+
+  StrictMock<MockAdvancedReducerEditor> editor;
+  EXPECT_CALL(editor, Replace(if_default, control));
+  Reduction r = Reduce(&editor, sw);
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsDead());
+}
+
+TEST_F(CommonOperatorReducerTest, SwitchInputMatchesCaseExtraCaseWithDefault) {
+  Node* const control = graph()->start();
+
+  Node* sw = graph()->NewNode(common()->Switch(3), Int32Constant(0), control);
+  Node* const if_0 = graph()->NewNode(common()->IfValue(0), sw);
+  graph()->NewNode(common()->IfValue(1), sw);
+  graph()->NewNode(common()->IfDefault(), sw);
+
+  StrictMock<MockAdvancedReducerEditor> editor;
+  EXPECT_CALL(editor, Replace(if_0, control));
+  Reduction r = Reduce(&editor, sw);
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsDead());
+}
+
+}  // namespace common_operator_reducer_unittest
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

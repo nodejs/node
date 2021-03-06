@@ -34,6 +34,7 @@ function f(a, i, l) {
   return l + v;
 }
 
+%PrepareFunctionForOptimization(f);
 assertEquals("test1.5", f(a, 0, "test"));
 assertEquals("test1.5", f(a, 0, "test"));
 %OptimizeFunctionOnNextCall(f);
@@ -51,6 +52,7 @@ function f2(b, a1, a2) {
   return "test" + v + x;
 }
 
+%PrepareFunctionForOptimization(f2);
 f2(true, [1.4,1.8,,1.9], [1.4,1.8,,1.9]);
 f2(true, [1.4,1.8,,1.9], [1.4,1.8,,1.9]);
 f2(false, [1.4,1.8,,1.9], [1.4,1.8,,1.9]);
@@ -63,6 +65,7 @@ function t_smi(a) {
   a[0] = 1.5;
 }
 
+%PrepareFunctionForOptimization(t_smi);
 t_smi([1,,3]);
 t_smi([1,,3]);
 t_smi([1,,3]);
@@ -77,6 +80,7 @@ function t(b) {
   b[1] = {};
 }
 
+%PrepareFunctionForOptimization(t);
 t([1.4, 1.6,,1.8, NaN]);
 t([1.4, 1.6,,1.8, NaN]);
 %OptimizeFunctionOnNextCall(t);

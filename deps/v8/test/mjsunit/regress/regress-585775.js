@@ -3,4 +3,4 @@
 // found in the LICENSE file.
 
 var pattern = /foo/;
-assertEquals(undefined, pattern.compile(pattern));
+assertEquals(pattern, pattern.compile(pattern));

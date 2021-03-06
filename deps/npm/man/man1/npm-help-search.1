@@ -1,24 +1,24 @@
-.TH "NPM\-HELP\-SEARCH" "1" "November 2016" "" ""
+.TH "NPM\-HELP\-SEARCH" "1" "March 2021" "" ""
 .SH "NAME"
 \fBnpm-help-search\fR \- Search npm help documentation
-.SH SYNOPSIS
+.SS Synopsis
 .P
 .RS 2
 .nf
 npm help\-search <text>
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
-This command will search the npm markdown documentation files for the
-terms provided, and then list the results, sorted by relevance\.
+This command will search the npm markdown documentation files for the terms
+provided, and then list the results, sorted by relevance\.
 .P
 If only one result is found, then it will show that help topic\.
 .P
-If the argument to \fBnpm help\fP is not a known help topic, then it will
-call \fBhelp\-search\fP\|\.  It is rarely if ever necessary to call this
-command directly\.
-.SH CONFIGURATION
+If the argument to \fBnpm help\fP is not a known help topic, then it will call
+\fBhelp\-search\fP\|\.  It is rarely if ever necessary to call this command
+directly\.
+.SS Configuration
 .SS long
 .RS 0
 .IP \(bu 2
@@ -32,7 +32,7 @@ If true, the "long" flag will cause help\-search to output context around
 where the terms were found in the documentation\.
 .P
 If false, then help\-search will just list out the help topics found\.
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
 npm help npm
@@ -40,4 +40,3 @@ npm help npm
 npm help help
 
 .RE
-

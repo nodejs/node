@@ -4,8 +4,8 @@
 :c:type:`uv_pipe_t` --- Pipe handle
 ===================================
 
-Pipe handles provide an abstraction over local domain sockets on Unix and named
-pipes on Windows.
+Pipe handles provide an abstraction over streaming files on Unix (including
+local domain sockets, pipes, and FIFOs) and named pipes on Windows.
 
 :c:type:`uv_pipe_t` is a 'subclass' of :c:type:`uv_stream_t`.
 
@@ -21,7 +21,11 @@ Data types
 Public members
 ^^^^^^^^^^^^^^
 
-N/A
+.. c:member:: int uv_pipe_t.ipc
+
+    Whether this pipe is suitable for handle passing between processes.
+    Only a connected pipe that will be passing the handles should have this flag
+    set, not the listening pipe that uv_accept is called on.
 
 .. seealso:: The :c:type:`uv_stream_t` members also apply.
 
@@ -32,7 +36,10 @@ API
 .. c:function:: int uv_pipe_init(uv_loop_t* loop, uv_pipe_t* handle, int ipc)
 
     Initialize a pipe handle. The `ipc` argument is a boolean to indicate if
-    this pipe will be used for handle passing between processes.
+    this pipe will be used for handle passing between processes (which may
+    change the bytes on the wire). Only a connected pipe that will be
+    passing the handles should have this flag set, not the listening pipe
+    that uv_accept is called on.
 
 .. c:function:: int uv_pipe_open(uv_pipe_t* handle, uv_file file)
 
@@ -102,3 +109,30 @@ API
     and call ``uv_accept(pipe, handle)``.
 
 .. seealso:: The :c:type:`uv_stream_t` API functions also apply.
+
+.. c:function:: int uv_pipe_chmod(uv_pipe_t* handle, int flags)
+
+    Alters pipe permissions, allowing it to be accessed from processes run by
+    different users. Makes the pipe writable or readable by all users. Mode can
+    be ``UV_WRITABLE``, ``UV_READABLE`` or ``UV_WRITABLE | UV_READABLE``. This
+    function is blocking.
+
+    .. versionadded:: 1.16.0
+
+.. c:function:: int uv_pipe(uv_file fds[2], int read_flags, int write_flags)
+
+    Create a pair of connected pipe handles.
+    Data may be written to `fds[1]` and read from `fds[0]`.
+    The resulting handles can be passed to `uv_pipe_open`, used with `uv_spawn`,
+    or for any other purpose.
+
+    Valid values for `flags` are:
+
+      - UV_NONBLOCK_PIPE: Opens the specified socket handle for `OVERLAPPED`
+        or `FIONBIO`/`O_NONBLOCK` I/O usage.
+        This is recommended for handles that will be used by libuv,
+        and not usually recommended otherwise.
+
+    Equivalent to :man:`pipe(2)` with the `O_CLOEXEC` flag set.
+
+    .. versionadded:: 1.41.0

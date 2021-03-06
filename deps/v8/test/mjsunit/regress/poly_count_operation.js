@@ -35,6 +35,7 @@ var deopt_setter = false;
 function f_mono(o) {
   return 5 + o.x++;
 }
+%PrepareFunctionForOptimization(f_mono);
 
 var to_deopt = f_mono;
 
@@ -75,6 +76,7 @@ assertEquals(3, s);
 function f_poly(o) {
   return 5 + o.x++;
 }
+%PrepareFunctionForOptimization(f_poly);
 
 v = 1;
 to_deopt = f_poly;
@@ -93,6 +95,7 @@ assertEquals(8, f_poly(o2));
 assertEquals(6, g);
 assertEquals(6, s);
 
+%PrepareFunctionForOptimization(f_poly);
 %OptimizeFunctionOnNextCall(f_poly);
 v = undefined;
 assertEquals(NaN, f_poly(o2));
@@ -102,6 +105,7 @@ assertEquals(7, s);
 function f_pre(o) {
   return 5 + ++o.x;
 }
+%PrepareFunctionForOptimization(f_pre);
 
 v = 1;
 to_deopt = f_pre;
@@ -120,6 +124,7 @@ assertEquals(9, f_pre(o2));
 assertEquals(10, g);
 assertEquals(10, s);
 
+%PrepareFunctionForOptimization(f_pre);
 %OptimizeFunctionOnNextCall(f_pre);
 v = undefined;
 assertEquals(NaN, f_pre(o2));
@@ -130,6 +135,7 @@ assertEquals(11, s);
 function f_get(o) {
   return 5 + o.x++;
 }
+%PrepareFunctionForOptimization(f_get);
 
 v = 1;
 to_deopt = f_get;
@@ -148,6 +154,7 @@ assertEquals(8, f_get(o2));
 assertEquals(14, g);
 assertEquals(14, s);
 
+%PrepareFunctionForOptimization(f_get);
 %OptimizeFunctionOnNextCall(f_get);
 v = undefined;
 assertEquals(NaN, f_get(o2));

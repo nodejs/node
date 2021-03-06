@@ -42,7 +42,9 @@
 
   function foo() { return bar(arguments[0], arguments[1], arguments[2]); }
   function baz(f, deopt) { return foo("x", deopt, f); }
+  %PrepareFunctionForOptimization(baz);
 
+  %PrepareFunctionForOptimization(baz);
   baz(f1, 0);
   baz(f2, 0);
   %OptimizeFunctionOnNextCall(baz);
@@ -65,7 +67,9 @@
 
   function foo() { return bar(arguments[0], arguments[1]); }
   function baz(deopt) { return foo("x", deopt); }
+  %PrepareFunctionForOptimization(baz);
 
+  %PrepareFunctionForOptimization(baz);
   baz(0);
   baz(0);
   %OptimizeFunctionOnNextCall(baz);
@@ -88,7 +92,9 @@
 
   function foo() { return bar(arguments[0], arguments[1]); }
   function baz(deopt) { return foo(0, deopt); }
+  %PrepareFunctionForOptimization(baz);
 
+  %PrepareFunctionForOptimization(baz);
   baz(0);
   baz(0);
   %OptimizeFunctionOnNextCall(baz);

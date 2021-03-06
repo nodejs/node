@@ -60,6 +60,7 @@ function baz() {
   assertEquals(288, b.y);
 }
 
+%PrepareFunctionForOptimization(Foo.prototype.bar);
 baz();
 baz();
 %OptimizeFunctionOnNextCall(Foo.prototype.bar);

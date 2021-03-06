@@ -27,6 +27,11 @@
 fpGetNetworkParams_t ares_fpGetNetworkParams = ZERO_NULL;
 fpSystemFunction036_t ares_fpSystemFunction036 = ZERO_NULL;
 fpGetAdaptersAddresses_t ares_fpGetAdaptersAddresses = ZERO_NULL;
+fpGetBestRoute2_t ares_fpGetBestRoute2 = ZERO_NULL;
+#endif
+
+#if defined(ANDROID) || defined(__ANDROID__)
+#include "ares_android.h"
 #endif
 
 /* library-private global vars with source visibility restricted to this file */
@@ -35,9 +40,19 @@ static unsigned int ares_initialized;
 static int          ares_init_flags;
 
 /* library-private global vars with visibility across the whole library */
-void *(*ares_malloc)(size_t size) = malloc;
-void *(*ares_realloc)(void *ptr, size_t size) = realloc;
-void (*ares_free)(void *ptr) = free;
+#if defined(WIN32)
+/* We need indirections to handle Windows DLL rules. */
+static void *default_malloc(size_t size) { return malloc(size); }
+static void *default_realloc(void *p, size_t size) { return realloc(p, size); }
+static void default_free(void *p) { free(p); }
+#else
+# define default_malloc malloc
+# define default_realloc realloc
+# define default_free free
+#endif
+void *(*ares_malloc)(size_t size) = default_malloc;
+void *(*ares_realloc)(void *ptr, size_t size) = default_realloc;
+void (*ares_free)(void *ptr) = default_free;
 
 #ifdef USE_WINSOCK
 static HMODULE hnd_iphlpapi;
@@ -69,6 +84,15 @@ static int ares_win32_init(void)
       /* This can happen on clients before WinXP, I don't
          think it should be an error, unless we don't want to
          support Windows 2000 anymore */
+    }
+
+  ares_fpGetBestRoute2 = (fpGetBestRoute2_t)
+    GetProcAddress(hnd_iphlpapi, "GetBestRoute2");
+  if (!ares_fpGetBestRoute2)
+    {
+      /* This can happen on clients before Vista, I don't
+         think it should be an error, unless we don't want to
+         support Windows XP anymore */
     }
 
   /*
@@ -150,8 +174,13 @@ void ares_library_cleanup(void)
   if (ares_init_flags & ARES_LIB_INIT_WIN32)
     ares_win32_cleanup();
 
+#if defined(ANDROID) || defined(__ANDROID__)
+  ares_library_cleanup_android();
+#endif
+
   ares_init_flags = ARES_LIB_INIT_NONE;
   ares_malloc = malloc;
+  ares_realloc = realloc;
   ares_free = free;
 }
 
@@ -164,5 +193,3 @@ int ares_library_initialized(void)
 #endif
   return ARES_SUCCESS;
 }
-
-

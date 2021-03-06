@@ -1,39 +1,51 @@
 'use strict';
-// Flags: --expose_internals
+// Flags: --expose-internals
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
-const _validateStdio = require('internal/child_process')._validateStdio;
+const getValidStdio = require('internal/child_process').getValidStdio;
 
-// should throw if string and not ignore, pipe, or inherit
-assert.throws(function() {
-  _validateStdio('foo');
-}, /Incorrect value of stdio option/);
+const expectedError = { code: 'ERR_INVALID_ARG_VALUE', name: 'TypeError' };
 
-// should throw if not a string or array
-assert.throws(function() {
-  _validateStdio(600);
-}, /Incorrect value of stdio option/);
+// Should throw if string and not ignore, pipe, or inherit
+assert.throws(() => getValidStdio('foo'), expectedError);
 
-// should populate stdio with undefined if len < 3
+// Should throw if not a string or array
+assert.throws(() => getValidStdio(600), expectedError);
+
+// Should populate stdio with undefined if len < 3
 {
   const stdio1 = [];
-  const result = _validateStdio(stdio1, false);
+  const result = getValidStdio(stdio1, false);
   assert.strictEqual(stdio1.length, 3);
   assert.strictEqual(result.hasOwnProperty('stdio'), true);
   assert.strictEqual(result.hasOwnProperty('ipc'), true);
   assert.strictEqual(result.hasOwnProperty('ipcFd'), true);
 }
 
-// should throw if stdio has ipc and sync is true
+// Should throw if stdio has ipc and sync is true
 const stdio2 = ['ipc', 'ipc', 'ipc'];
-assert.throws(function() {
-  _validateStdio(stdio2, true);
-}, /You cannot use IPC with synchronous forks/);
+assert.throws(() => getValidStdio(stdio2, true),
+              { code: 'ERR_IPC_SYNC_FORK', name: 'Error' }
+);
 
+// Should throw if stdio is not a valid input
 {
+  const stdio = ['foo'];
+  assert.throws(() => getValidStdio(stdio, false),
+                { code: 'ERR_INVALID_SYNC_FORK_INPUT', name: 'TypeError' }
+  );
+}
+
+// Should throw if stdio is not a valid option
+{
+  const stdio = [{ foo: 'bar' }];
+  assert.throws(() => getValidStdio(stdio), expectedError);
+}
+
+if (common.isMainThread) {
   const stdio3 = [process.stdin, process.stdout, process.stderr];
-  const result = _validateStdio(stdio3, false);
+  const result = getValidStdio(stdio3, false);
   assert.deepStrictEqual(result, {
     stdio: [
       { type: 'fd', fd: 0 },
@@ -43,4 +55,7 @@ assert.throws(function() {
     ipc: undefined,
     ipcFd: undefined
   });
+} else {
+  common.printSkipMessage(
+    'stdio is not associated with file descriptors in Workers');
 }

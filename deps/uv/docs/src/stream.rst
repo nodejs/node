@@ -6,7 +6,7 @@
 
 Stream handles provide an abstraction of a duplex communication channel.
 :c:type:`uv_stream_t` is an abstract type, libuv provides 3 stream implementations
-in the for of :c:type:`uv_tcp_t`, :c:type:`uv_pipe_t` and :c:type:`uv_tty_t`.
+in the form of :c:type:`uv_tcp_t`, :c:type:`uv_pipe_t` and :c:type:`uv_tty_t`.
 
 
 Data types
@@ -45,13 +45,13 @@ Data types
         `nread` might be 0, which does *not* indicate an error or EOF. This
         is equivalent to ``EAGAIN`` or ``EWOULDBLOCK`` under ``read(2)``.
 
-    The callee is responsible for stopping closing the stream when an error happens
+    The callee is responsible for stopping/closing the stream when an error happens
     by calling :c:func:`uv_read_stop` or :c:func:`uv_close`. Trying to read
     from the stream again is undefined.
 
     The callee is responsible for freeing the buffer, libuv does not reuse it.
-    The buffer may be a null buffer (where buf->base=NULL and buf->len=0) on
-    error.
+    The buffer may be a null buffer (where `buf->base` == NULL and `buf->len` == 0)
+    on error.
 
 .. c:type:: void (*uv_write_cb)(uv_write_t* req, int status)
 
@@ -138,6 +138,11 @@ API
     Read data from an incoming stream. The :c:type:`uv_read_cb` callback will
     be made several times until there is no more data to read or
     :c:func:`uv_read_stop` is called.
+
+    .. versionchanged:: 1.38.0 :c:func:`uv_read_start()` now consistently
+      returns `UV_EALREADY` when called twice, and `UV_EINVAL` when the
+      stream is closing. With older libuv versions, it returns `UV_EALREADY`
+      on Windows but not UNIX, and `UV_EINVAL` on UNIX but not Windows.
 
 .. c:function:: int uv_read_stop(uv_stream_t*)
 
@@ -227,5 +232,11 @@ API
         the stream.
 
     .. versionchanged:: 1.4.0 UNIX implementation added.
+
+.. c:function:: size_t uv_stream_get_write_queue_size(const uv_stream_t* stream)
+
+    Returns `stream->write_queue_size`.
+
+    .. versionadded:: 1.19.0
 
 .. seealso:: The :c:type:`uv_handle_t` API functions also apply.

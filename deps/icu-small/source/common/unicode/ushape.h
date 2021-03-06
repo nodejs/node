@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -8,7 +8,7 @@
 *
 ******************************************************************************
 *   file name:  ushape.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -93,12 +93,12 @@
  *        which must not indicate a failure before the function call.
  *
  * @return The number of UChars written to the destination buffer.
- *         If an error occured, then no output was written, or it may be
+ *         If an error occurred, then no output was written, or it may be
  *         incomplete. If <code>U_BUFFER_OVERFLOW_ERROR</code> is set, then
  *         the return value indicates the necessary destination buffer size.
  * @stable ICU 2.0
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 u_shapeArabic(const UChar *source, int32_t sourceLength,
               UChar *dest, int32_t destSize,
               uint32_t options,

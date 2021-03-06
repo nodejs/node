@@ -41,14 +41,22 @@ API
 
 .. c:function:: int uv_idle_init(uv_loop_t* loop, uv_idle_t* idle)
 
-    Initialize the handle.
+    Initialize the handle. This function always succeeds.
+
+    :returns: 0
 
 .. c:function:: int uv_idle_start(uv_idle_t* idle, uv_idle_cb cb)
 
-    Start the handle with the given callback.
+    Start the handle with the given callback. This function always succeeds,
+    except when `cb` is `NULL`.
+
+    :returns: 0 on success, or `UV_EINVAL` when `cb == NULL`.
 
 .. c:function:: int uv_idle_stop(uv_idle_t* idle)
 
     Stop the handle, the callback will no longer be called.
+    This function always succeeds.
+
+    :returns: 0
 
 .. seealso:: The :c:type:`uv_handle_t` API functions also apply.

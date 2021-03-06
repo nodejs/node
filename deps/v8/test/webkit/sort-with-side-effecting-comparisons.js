@@ -27,7 +27,7 @@ description(
 
 var array = [];
 
-for (var i = 0; i < 20000; ++i)
+for (var i = 0; i < 2000; ++i)
     array.push(i);
 
 array.sort(function(a, b) {

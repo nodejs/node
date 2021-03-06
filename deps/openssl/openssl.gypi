@@ -1036,7 +1036,9 @@
     #
     'conditions': [
       ['(OS=="win" and MSVS_VERSION>="2012") or '
-       'llvm_version>="3.3" or xcode_version>="5.0" or gas_version>="2.23"', {
+       'llvm_version and v(llvm_version) >= v("3.3") or '
+        'gas_version and v(gas_version) >= v("2.23") or '
+        'xcode_version and v(xcode_version) >= v("5.0")', {
         'openssl_sources_x64_win_masm': [
           '<@(openssl_sources_asm_latest_x64_win_masm)',
           '<@(openssl_sources_common_x64_win_masm)',
@@ -1268,6 +1270,9 @@
       # the real driver but that poses a security liability when an attacker
       # is able to create a malicious DLL in one of the default search paths.
       'OPENSSL_NO_HW',
+
+      # Disable NPN (Next Protocol Negotiation), superseded by ALPN.
+      'OPENSSL_NO_NEXTPROTONEG',
     ],
     'openssl_default_defines_win': [
       'MK1MF_BUILD',

@@ -13,13 +13,6 @@ namespace v8 {
 namespace base {
 
 template <class T>
-bool MagicNumbersForDivision<T>::operator==(
-    const MagicNumbersForDivision& rhs) const {
-  return multiplier == rhs.multiplier && shift == rhs.shift && add == rhs.add;
-}
-
-
-template <class T>
 MagicNumbersForDivision<T> SignedDivisionByConstant(T d) {
   STATIC_ASSERT(static_cast<T>(0) < static_cast<T>(-1));
   DCHECK(d != static_cast<T>(-1) && d != 0 && d != 1);
@@ -60,7 +53,7 @@ template <class T>
 MagicNumbersForDivision<T> UnsignedDivisionByConstant(T d,
                                                       unsigned leading_zeros) {
   STATIC_ASSERT(static_cast<T>(0) < static_cast<T>(-1));
-  DCHECK(d != 0);
+  DCHECK_NE(d, 0);
   const unsigned bits = static_cast<unsigned>(sizeof(T)) * 8;
   const T ones = ~static_cast<T>(0) >> leading_zeros;
   const T min = static_cast<T>(1) << (bits - 1);
@@ -100,16 +93,22 @@ MagicNumbersForDivision<T> UnsignedDivisionByConstant(T d,
 // -----------------------------------------------------------------------------
 // Instantiations.
 
-template struct MagicNumbersForDivision<uint32_t>;
-template struct MagicNumbersForDivision<uint64_t>;
+template struct EXPORT_TEMPLATE_DEFINE(V8_BASE_EXPORT)
+    MagicNumbersForDivision<uint32_t>;
+template struct EXPORT_TEMPLATE_DEFINE(V8_BASE_EXPORT)
+    MagicNumbersForDivision<uint64_t>;
 
-template MagicNumbersForDivision<uint32_t> SignedDivisionByConstant(uint32_t d);
-template MagicNumbersForDivision<uint64_t> SignedDivisionByConstant(uint64_t d);
+template EXPORT_TEMPLATE_DEFINE(V8_BASE_EXPORT)
+    MagicNumbersForDivision<uint32_t> SignedDivisionByConstant(uint32_t d);
+template EXPORT_TEMPLATE_DEFINE(V8_BASE_EXPORT)
+    MagicNumbersForDivision<uint64_t> SignedDivisionByConstant(uint64_t d);
 
-template MagicNumbersForDivision<uint32_t> UnsignedDivisionByConstant(
-    uint32_t d, unsigned leading_zeros);
-template MagicNumbersForDivision<uint64_t> UnsignedDivisionByConstant(
-    uint64_t d, unsigned leading_zeros);
+template EXPORT_TEMPLATE_DEFINE(V8_BASE_EXPORT)
+    MagicNumbersForDivision<uint32_t> UnsignedDivisionByConstant(
+        uint32_t d, unsigned leading_zeros);
+template EXPORT_TEMPLATE_DEFINE(V8_BASE_EXPORT)
+    MagicNumbersForDivision<uint64_t> UnsignedDivisionByConstant(
+        uint64_t d, unsigned leading_zeros);
 
 }  // namespace base
 }  // namespace v8

@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 const common = require('../common');
 const assert = require('assert');
@@ -15,10 +36,11 @@ const data = '南越国是前203年至前111年存在于岭南地区的一个国
              '历经五代君主。南越国是岭南地区的第一个有记载的政权国家，采用封建制和郡县制并存的制度，' +
              '它的建立保证了秦末乱世岭南地区社会秩序的稳定，有效的改善了岭南地区落后的政治、##济现状。\n';
 
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
-// test that empty file will be created and have content added
-const filename = join(common.tmpDir, 'append-sync.txt');
+// Test that empty file will be created and have content added.
+const filename = join(tmpdir.path, 'append-sync.txt');
 
 fs.appendFileSync(filename, data);
 
@@ -26,8 +48,8 @@ const fileData = fs.readFileSync(filename);
 
 assert.strictEqual(Buffer.byteLength(data), fileData.length);
 
-// test that appends data to a non empty file
-const filename2 = join(common.tmpDir, 'append-sync2.txt');
+// Test that appends data to a non empty file.
+const filename2 = join(tmpdir.path, 'append-sync2.txt');
 fs.writeFileSync(filename2, currentFileData);
 
 fs.appendFileSync(filename2, data);
@@ -37,8 +59,8 @@ const fileData2 = fs.readFileSync(filename2);
 assert.strictEqual(Buffer.byteLength(data) + currentFileData.length,
                    fileData2.length);
 
-// test that appendFileSync accepts buffers
-const filename3 = join(common.tmpDir, 'append-sync3.txt');
+// Test that appendFileSync accepts buffers.
+const filename3 = join(tmpdir.path, 'append-sync3.txt');
 fs.writeFileSync(filename3, currentFileData);
 
 const buf = Buffer.from(data, 'utf8');
@@ -48,13 +70,20 @@ const fileData3 = fs.readFileSync(filename3);
 
 assert.strictEqual(buf.length + currentFileData.length, fileData3.length);
 
-// test that appendFile accepts numbers.
-const filename4 = join(common.tmpDir, 'append-sync4.txt');
+const filename4 = join(tmpdir.path, 'append-sync4.txt');
 fs.writeFileSync(filename4, currentFileData, { mode: m });
 
-fs.appendFileSync(filename4, num, { mode: m });
+[
+  true, false, 0, 1, Infinity, () => {}, {}, [], undefined, null
+].forEach((value) => {
+  assert.throws(
+    () => fs.appendFileSync(filename4, value, { mode: m }),
+    { message: /data/, code: 'ERR_INVALID_ARG_TYPE' }
+  );
+});
+fs.appendFileSync(filename4, `${num}`, { mode: m });
 
-// windows permissions aren't unix
+// Windows permissions aren't Unix.
 if (!common.isWindows) {
   const st = fs.statSync(filename4);
   assert.strictEqual(st.mode & 0o700, m);
@@ -62,11 +91,11 @@ if (!common.isWindows) {
 
 const fileData4 = fs.readFileSync(filename4);
 
-assert.strictEqual(Buffer.byteLength('' + num) + currentFileData.length,
+assert.strictEqual(Buffer.byteLength(String(num)) + currentFileData.length,
                    fileData4.length);
 
-// test that appendFile accepts file descriptors
-const filename5 = join(common.tmpDir, 'append-sync5.txt');
+// Test that appendFile accepts file descriptors.
+const filename5 = join(tmpdir.path, 'append-sync5.txt');
 fs.writeFileSync(filename5, currentFileData);
 
 const filename5fd = fs.openSync(filename5, 'a+', 0o600);
@@ -77,13 +106,3 @@ const fileData5 = fs.readFileSync(filename5);
 
 assert.strictEqual(Buffer.byteLength(data) + currentFileData.length,
                    fileData5.length);
-
-//exit logic for cleanup
-
-process.on('exit', function() {
-  fs.unlinkSync(filename);
-  fs.unlinkSync(filename2);
-  fs.unlinkSync(filename3);
-  fs.unlinkSync(filename4);
-  fs.unlinkSync(filename5);
-});

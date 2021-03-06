@@ -1,0 +1,23 @@
+{
+    "$id": "config.json",
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+        "border": {
+            "$ref": "shared.json#/definitions/borders"
+        },
+        "columns": {
+            "$ref": "shared.json#/definitions/columns"
+        },
+        "columnDefault": {
+            "$ref": "shared.json#/definitions/column"
+        },
+        "drawHorizontalLine": {
+            "typeof": "function"
+        },
+        "singleLine": {
+            "typeof": "boolean"
+        }
+    },
+    "additionalProperties": false
+}

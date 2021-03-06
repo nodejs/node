@@ -1,38 +1,56 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-
-var fs = require('fs');
-
-if (!common.hasCrypto) {
+const common = require('../common');
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
-var https = require('https');
 
-var options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
+const assert = require('assert');
+const fixtures = require('../common/fixtures');
+const https = require('https');
+
+const options = {
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem')
 };
 
 process.stdout.write('build body...');
-var body = 'hello world\n'.repeat(1024 * 1024);
+const body = 'hello world\n'.repeat(1024 * 1024);
 process.stdout.write('done\n');
 
-var server = https.createServer(options, common.mustCall(function(req, res) {
+const server = https.createServer(options, common.mustCall(function(req, res) {
   console.log('got request');
   res.writeHead(200, { 'content-type': 'text/plain' });
   res.end(body);
 }));
 
-server.listen(common.PORT, common.mustCall(function() {
+server.listen(0, common.mustCall(function() {
   https.get({
-    port: common.PORT,
+    port: server.address().port,
     rejectUnauthorized: false
   }, common.mustCall(function(res) {
     console.log('response!');
 
-    var count = 0;
+    let count = 0;
 
     res.on('data', function(d) {
       process.stdout.write('.');

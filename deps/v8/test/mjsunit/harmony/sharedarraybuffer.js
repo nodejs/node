@@ -25,8 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-sharedarraybuffer
-
+// Flags: --harmony-sharedarraybuffer --allow-natives-syntax
 
 // SharedArrayBuffer
 
@@ -47,11 +46,10 @@ function TestArrayBufferCreation() {
   assertThrows(function() { new SharedArrayBuffer(-10); }, RangeError);
   assertThrows(function() { new SharedArrayBuffer(-2.567); }, RangeError);
 
-/* TODO[dslomov]: Reenable the test
   assertThrows(function() {
-    var ab1 = new SharedArrayBuffer(0xFFFFFFFFFFFF)
+    let kArrayBufferByteLengthLimit = %ArrayBufferMaxByteLength() + 1;
+    var ab1 = new SharedArrayBuffer(kArrayBufferByteLengthLimit);
   }, RangeError);
-*/
 
   var sab = new SharedArrayBuffer();
   assertSame(0, sab.byteLength);
@@ -69,13 +67,6 @@ function TestByteLengthNotWritable() {
 }
 
 TestByteLengthNotWritable();
-
-function TestArrayBufferNoSlice() {
-  var sab = new SharedArrayBuffer(10);
-  assertEquals(undefined, sab.slice);
-}
-
-TestArrayBufferNoSlice();
 
 // Typed arrays using SharedArrayBuffers
 
@@ -96,9 +87,6 @@ function TestTypedArray(constr, elementSize, typicalElement) {
   assertEquals("[object " + constr.name + "]",
       Object.prototype.toString.call(a0));
 
-  // TODO(binji): Should this return false here? It is a view, but it doesn't
-  // view a SharedArrayBuffer...
-  assertTrue(SharedArrayBuffer.isView(a0));
   assertSame(elementSize, a0.BYTES_PER_ELEMENT);
   assertSame(30, a0.length);
   assertSame(30*elementSize, a0.byteLength);
@@ -460,10 +448,10 @@ function TestTypedArraysWithIllegalIndices() {
   assertEquals(255, a[s2]);
   assertEquals(0, a[-0]);
 
-  /* Chromium bug: 424619
-   * a[-Infinity] = 50;
-   * assertEquals(undefined, a[-Infinity]);
-   */
+
+  a[-Infinity] = 50;
+  assertEquals(undefined, a[-Infinity]);
+
   a[1.5] = 10;
   assertEquals(undefined, a[1.5]);
   var nan = Math.sqrt(-1);
@@ -509,10 +497,9 @@ function TestTypedArraysWithIllegalIndicesStrict() {
   assertEquals(255, a[s2]);
   assertEquals(0, a[-0]);
 
-  /* Chromium bug: 424619
-   * a[-Infinity] = 50;
-   * assertEquals(undefined, a[-Infinity]);
-   */
+  a[-Infinity] = 50;
+  assertEquals(undefined, a[-Infinity]);
+
   a[1.5] = 10;
   assertEquals(undefined, a[1.5]);
   var nan = Math.sqrt(-1);
@@ -590,3 +577,13 @@ desc = Object.getOwnPropertyDescriptor(SharedArrayBuffer.prototype,
 var a = new ArrayBuffer(10);
 Object.defineProperty(a, 'byteLength', desc);
 assertThrows(function() {a.byteLength}, TypeError);
+
+// test SharedArrayBuffer species getter
+assertSame(SharedArrayBuffer[Symbol.species], SharedArrayBuffer);
+var desc = Object.getOwnPropertyDescriptor(SharedArrayBuffer, Symbol.species);
+assertEquals("function", typeof desc.get);
+assertEquals("get [Symbol.species]", desc.get.name);
+assertEquals(0, desc.get.length);
+assertEquals("undefined", typeof desc.set);
+assertTrue(desc.configurable);
+assertFalse(desc.enumerable);

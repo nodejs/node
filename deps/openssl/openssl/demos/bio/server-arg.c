@@ -1,5 +1,11 @@
-/* NOCW */
-/* demos/bio/server-arg.c */
+/*
+ * Copyright 2013-2017 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
 
 /*
  * A minimal program to serve an SSL connection. It uses blocking. It use the
@@ -8,7 +14,9 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 #include <signal.h>
+#include <stdlib.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 
@@ -20,16 +28,11 @@ int main(int argc, char *argv[])
     SSL_CONF_CTX *cctx;
     char buf[512];
     BIO *in = NULL;
-    int ret = 1, i;
+    int ret = EXIT_FAILURE, i;
     char **args = argv + 1;
     int nargs = argc - 1;
 
-    SSL_load_error_strings();
-
-    /* Add ciphers and message digests */
-    OpenSSL_add_ssl_algorithms();
-
-    ctx = SSL_CTX_new(SSLv23_server_method());
+    ctx = SSL_CTX_new(TLS_server_method());
 
     cctx = SSL_CONF_CTX_new();
     SSL_CONF_CTX_set_flags(cctx, SSL_CONF_FLAG_SERVER);
@@ -52,7 +55,7 @@ int main(int argc, char *argv[])
         if (rv > 0)
             continue;
         /* Otherwise application specific argument processing */
-        if (!strcmp(*args, "-port")) {
+        if (strcmp(*args, "-port") == 0) {
             port = args[1];
             if (port == NULL) {
                 fprintf(stderr, "Missing -port argument\n");
@@ -72,7 +75,7 @@ int main(int argc, char *argv[])
         ERR_print_errors_fp(stderr);
         goto err;
     }
-#if 0
+#ifdef ITERATE_CERTS
     /*
      * Demo of how to iterate over all certificates in an SSL_CTX structure.
      */
@@ -132,13 +135,10 @@ int main(int argc, char *argv[])
         fflush(stdout);
     }
 
-    ret = 0;
+    ret = EXIT_SUCCESS;
  err:
-    if (ret) {
+    if (ret != EXIT_SUCCESS)
         ERR_print_errors_fp(stderr);
-    }
-    if (in != NULL)
-        BIO_free(in);
-    exit(ret);
-    return (!ret);
+    BIO_free(in);
+    return ret;
 }

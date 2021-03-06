@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ***************************************************************************
@@ -20,12 +20,14 @@
 #include "unicode/uspoof.h"
 #include "unicode/uscript.h"
 #include "unicode/udata.h"
-
+#include "udataswp.h"
 #include "utrie2.h"
 
 #if !UCONFIG_NO_NORMALIZATION
 
 #ifdef __cplusplus
+
+#include "capi_helper.h"
 
 U_NAMESPACE_BEGIN
 
@@ -52,7 +54,8 @@ class ConfusableDataUtils;
   *  Class SpoofImpl corresponds directly to the plain C API opaque type
   *  USpoofChecker.  One can be cast to the other.
   */
-class SpoofImpl : public UObject  {
+class SpoofImpl : public UObject,
+        public IcuCApiHelper<USpoofChecker, SpoofImpl, USPOOF_MAGIC> {
 public:
     SpoofImpl(SpoofData *data, UErrorCode& status);
     SpoofImpl(UErrorCode& status);
@@ -83,6 +86,9 @@ public:
     void getNumerics(const UnicodeString& input, UnicodeSet& result, UErrorCode& status) const;
     URestrictionLevel getRestrictionLevel(const UnicodeString& input, UErrorCode& status) const;
 
+    int32_t findHiddenOverlay(const UnicodeString& input, UErrorCode& status) const;
+    bool isIllegalCombiningDotLeadCharacter(UChar32 cp) const;
+
     /** parse a hex number.  Untility used by the builders.   */
     static UChar32 ScanHex(const UChar *s, int32_t start, int32_t limit, UErrorCode &status);
 
@@ -93,7 +99,6 @@ public:
     // Data Members
     //
 
-    int32_t           fMagic;             // Internal sanity check.
     int32_t           fChecks;            // Bit vector of checks to perform.
 
     SpoofData        *fSpoofData;
@@ -109,7 +114,8 @@ public:
  *  Class CheckResult corresponds directly to the plain C API opaque type
  *  USpoofCheckResult.  One can be cast to the other.
  */
-class CheckResult : public UObject {
+class CheckResult : public UObject,
+        public IcuCApiHelper<USpoofCheckResult, CheckResult, USPOOF_CHECK_MAGIC> {
 public:
     CheckResult();
     virtual ~CheckResult();
@@ -124,7 +130,6 @@ public:
     int32_t toCombinedBitmask(int32_t expectedChecks);
 
     // Data Members
-    int32_t fMagic;                        // Internal sanity check.
     int32_t fChecks;                       // Bit vector of checks that were failed.
     UnicodeSet fNumerics;                  // Set of numerics found in the string.
     URestrictionLevel fRestrictionLevel;   // The restriction level of the string.
@@ -217,7 +222,7 @@ class SpoofData: public UMemory {
     SpoofData(const void *serializedData, int32_t length, UErrorCode &status);
 
     //  Check raw Spoof Data Version compatibility.
-    //  Return TRUE it looks good.
+    //  Return true it looks good.
     UBool validateDataVersion(UErrorCode &status) const;
 
     ~SpoofData();                    // Destructor not normally used.

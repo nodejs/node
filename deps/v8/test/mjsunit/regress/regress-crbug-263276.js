@@ -35,8 +35,8 @@ array2.bar = true;
 
 function bad(array) {
   array[array.length] = 1;
-}
-
+};
+%PrepareFunctionForOptimization(bad);
 bad(array1);
 bad(array1);
 bad(array2);  // Length is now 1.

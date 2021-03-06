@@ -1,14 +1,15 @@
-'use strict'
-var aliases = require('../config/cmd-list').aliases
+const aliases = require('../utils/cmd-list').aliases
 
 module.exports = function usage (cmd, txt, opt) {
-  var post = Object.keys(aliases).reduce(function (p, c) {
+  const post = Object.keys(aliases).reduce(function (p, c) {
     var val = aliases[c]
-    if (val !== cmd) return p
+    if (val !== cmd)
+      return p
     return p.concat(c)
   }, [])
 
-  if (opt || post.length > 0) txt += '\n\n'
+  if (opt || post.length > 0)
+    txt += '\n\n'
 
   if (post.length === 1) {
     txt += 'alias: '
@@ -19,7 +20,8 @@ module.exports = function usage (cmd, txt, opt) {
   }
 
   if (opt) {
-    if (post.length > 0) txt += '\n'
+    if (post.length > 0)
+      txt += '\n'
     txt += 'common options: ' + opt
   }
 

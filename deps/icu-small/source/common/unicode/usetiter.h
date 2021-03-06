@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
@@ -10,6 +10,9 @@
 #define USETITER_H
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
+
 #include "unicode/uobject.h"
 #include "unicode/unistr.h"
 
@@ -173,7 +176,7 @@ class U_COMMON_API UnicodeSetIterator : public UObject {
      * If there are no more elements in the set, return false.
      *
      * <p>
-     * If <tt>isString() == TRUE</tt>, the value is a
+     * If <tt>isString() == true</tt>, the value is a
      * string, otherwise the value is a
      * single code point.  Elements of either type can be retrieved
      * with the function <tt>getString()</tt>, while elements of
@@ -194,7 +197,7 @@ class U_COMMON_API UnicodeSetIterator : public UObject {
     /**
      * Returns the next element in the set, either a code point range
      * or a string.  If there are no more elements in the set, return
-     * false.  If <tt>isString() == TRUE</tt>, the value is a
+     * false.  If <tt>isString() == true</tt>, the value is a
      * string and can be accessed with <tt>getString()</tt>.  Otherwise the value is a
      * range of one or more code points from <tt>getCodepoint()</tt> to
      * <tt>getCodepointeEnd()</tt> inclusive.
@@ -202,7 +205,7 @@ class U_COMMON_API UnicodeSetIterator : public UObject {
      * <p>The order of iteration is all code points ranges in sorted
      * order, followed by all strings sorted order.  Ranges are
      * disjoint and non-contiguous.  The value returned from <tt>getString()</tt>
-     * is undefined unless <tt>isString() == TRUE</tt>.  Do not mix calls to
+     * is undefined unless <tt>isString() == true</tt>.  Do not mix calls to
      * <tt>next()</tt> and <tt>nextRange()</tt> without calling
      * <tt>reset()</tt> between them.  The results of doing so are
      * undefined.
@@ -316,5 +319,7 @@ inline UChar32 UnicodeSetIterator::getCodepointEnd() const {
 
 
 U_NAMESPACE_END
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif

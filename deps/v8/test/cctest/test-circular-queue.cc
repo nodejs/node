@@ -27,7 +27,7 @@
 //
 // Tests of the circular queue.
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/profiler/circular-queue-inl.h"
 #include "test/cctest/cctest.h"
@@ -36,7 +36,7 @@ using i::SamplingCircularQueue;
 
 
 TEST(SamplingCircularQueue) {
-  typedef v8::base::AtomicWord Record;
+  using Record = v8::base::AtomicWord;
   const int kMaxRecordsInQueue = 4;
   SamplingCircularQueue<Record, kMaxRecordsInQueue> scq;
 
@@ -100,8 +100,8 @@ TEST(SamplingCircularQueue) {
 
 namespace {
 
-typedef v8::base::AtomicWord Record;
-typedef SamplingCircularQueue<Record, 12> TestSampleQueue;
+using Record = v8::base::AtomicWord;
+using TestSampleQueue = SamplingCircularQueue<Record, 12>;
 
 class ProducerThread: public v8::base::Thread {
  public:
@@ -113,7 +113,7 @@ class ProducerThread: public v8::base::Thread {
         value_(value),
         finished_(finished) {}
 
-  virtual void Run() {
+  void Run() override {
     for (Record i = value_; i < value_ + records_per_chunk_; ++i) {
       Record* rec = reinterpret_cast<Record*>(scq_->StartEnqueue());
       CHECK(rec);
@@ -148,7 +148,7 @@ TEST(SamplingCircularQueueMultithreading) {
   ProducerThread producer3(&scq, kRecordsPerChunk, 20, &semaphore);
 
   CHECK(!scq.Peek());
-  producer1.Start();
+  CHECK(producer1.Start());
   semaphore.Wait();
   for (Record i = 1; i < 1 + kRecordsPerChunk; ++i) {
     Record* rec = reinterpret_cast<Record*>(scq.Peek());
@@ -160,7 +160,7 @@ TEST(SamplingCircularQueueMultithreading) {
   }
 
   CHECK(!scq.Peek());
-  producer2.Start();
+  CHECK(producer2.Start());
   semaphore.Wait();
   for (Record i = 10; i < 10 + kRecordsPerChunk; ++i) {
     Record* rec = reinterpret_cast<Record*>(scq.Peek());
@@ -172,7 +172,7 @@ TEST(SamplingCircularQueueMultithreading) {
   }
 
   CHECK(!scq.Peek());
-  producer3.Start();
+  CHECK(producer3.Start());
   semaphore.Wait();
   for (Record i = 20; i < 20 + kRecordsPerChunk; ++i) {
     Record* rec = reinterpret_cast<Record*>(scq.Peek());

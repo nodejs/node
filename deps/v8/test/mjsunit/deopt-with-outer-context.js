@@ -8,13 +8,15 @@ function outer(y) {
   function inner() {
     var x = 10;
     (function() {
-       // Access x from inner function to force it to be context allocated.
-       x = 20;
-       %DeoptimizeFunction(inner);
+      // Access x from inner function to force it to be context allocated.
+      x = 20;
+      %DeoptimizeFunction(inner);
     })();
     // Variable y should be read from the outer context.
     return y;
   };
+  %PrepareFunctionForOptimization(inner);
+  ;
   %OptimizeFunctionOnNextCall(inner);
   return inner();
 }

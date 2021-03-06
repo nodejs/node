@@ -7,6 +7,7 @@
 
 #include <iosfwd>
 
+#include "src/common/globals.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
 
@@ -14,20 +15,26 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-class BytecodeDecoder final {
+class V8_EXPORT_PRIVATE BytecodeDecoder final {
  public:
   // Decodes a register operand in a byte array.
-  static Register DecodeRegisterOperand(const uint8_t* operand_start,
+  static Register DecodeRegisterOperand(Address operand_start,
                                         OperandType operand_type,
                                         OperandScale operand_scale);
 
+  // Decodes a register list operand in a byte array.
+  static RegisterList DecodeRegisterListOperand(Address operand_start,
+                                                uint32_t count,
+                                                OperandType operand_type,
+                                                OperandScale operand_scale);
+
   // Decodes a signed operand in a byte array.
-  static int32_t DecodeSignedOperand(const uint8_t* operand_start,
+  static int32_t DecodeSignedOperand(Address operand_start,
                                      OperandType operand_type,
                                      OperandScale operand_scale);
 
   // Decodes an unsigned operand in a byte array.
-  static uint32_t DecodeUnsignedOperand(const uint8_t* operand_start,
+  static uint32_t DecodeUnsignedOperand(Address operand_start,
                                         OperandType operand_type,
                                         OperandScale operand_scale);
 

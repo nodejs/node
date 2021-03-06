@@ -2,264 +2,274 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/macros.h"
+#include "src/base/platform/mutex.h"
+#include "src/base/platform/time.h"
+#include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/builtins/builtins-utils.h"
-
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
+#include "src/common/globals.h"
+#include "src/execution/futex-emulation.h"
+#include "src/heap/factory.h"
+#include "src/logging/counters.h"
+#include "src/numbers/conversions-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
 
-// ES7 sharedmem 6.3.4.1 get SharedArrayBuffer.prototype.byteLength
-BUILTIN(SharedArrayBufferPrototypeGetByteLength) {
+// See builtins-arraybuffer.cc for implementations of
+// SharedArrayBuffer.prototype.byteLength and SharedArrayBuffer.prototype.slice
+
+// https://tc39.es/ecma262/#sec-atomics.islockfree
+inline bool AtomicIsLockFree(double size) {
+  // According to the standard, 1, 2, and 4 byte atomics are supposed to be
+  // 'lock free' on every platform. 'Lock free' means that all possible uses of
+  // those atomics guarantee forward progress for the agent cluster (i.e. all
+  // threads in contrast with a single thread).
+  //
+  // This property is often, but not always, aligned with whether atomic
+  // accesses are implemented with software locks such as mutexes.
+  //
+  // V8 has lock free atomics for all sizes on all supported first-class
+  // architectures: ia32, x64, ARM32 variants, and ARM64. Further, this property
+  // is depended upon by WebAssembly, which prescribes that all atomic accesses
+  // are always lock free.
+  return size == 1 || size == 2 || size == 4 || size == 8;
+}
+
+// https://tc39.es/ecma262/#sec-atomics.islockfree
+BUILTIN(AtomicsIsLockFree) {
   HandleScope scope(isolate);
-  CHECK_RECEIVER(JSArrayBuffer, array_buffer,
-                 "get SharedArrayBuffer.prototype.byteLength");
-  if (!array_buffer->is_shared()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                              isolate->factory()->NewStringFromAsciiChecked(
-                                  "get SharedArrayBuffer.prototype.byteLength"),
-                              args.receiver()));
+  Handle<Object> size = args.atOrUndefined(isolate, 1);
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, size,
+                                     Object::ToNumber(isolate, size));
+  return *isolate->factory()->ToBoolean(AtomicIsLockFree(size->Number()));
+}
+
+// https://tc39.es/ecma262/#sec-validatesharedintegertypedarray
+V8_WARN_UNUSED_RESULT MaybeHandle<JSTypedArray> ValidateIntegerTypedArray(
+    Isolate* isolate, Handle<Object> object, const char* method_name,
+    bool only_int32_and_big_int64 = false) {
+  if (object->IsJSTypedArray()) {
+    Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(object);
+
+    if (typed_array->WasDetached()) {
+      THROW_NEW_ERROR(
+          isolate,
+          NewTypeError(
+              MessageTemplate::kDetachedOperation,
+              isolate->factory()->NewStringFromAsciiChecked(method_name)),
+          JSTypedArray);
+    }
+
+    if (only_int32_and_big_int64) {
+      if (typed_array->type() == kExternalInt32Array ||
+          typed_array->type() == kExternalBigInt64Array) {
+        return typed_array;
+      }
+    } else {
+      if (typed_array->type() != kExternalFloat32Array &&
+          typed_array->type() != kExternalFloat64Array &&
+          typed_array->type() != kExternalUint8ClampedArray)
+        return typed_array;
+    }
   }
-  return array_buffer->byte_length();
+
+  THROW_NEW_ERROR(
+      isolate,
+      NewTypeError(only_int32_and_big_int64
+                       ? MessageTemplate::kNotInt32OrBigInt64TypedArray
+                       : MessageTemplate::kNotIntegerTypedArray,
+                   object),
+      JSTypedArray);
+}
+
+// https://tc39.es/ecma262/#sec-validateatomicaccess
+// ValidateAtomicAccess( typedArray, requestIndex )
+V8_WARN_UNUSED_RESULT Maybe<size_t> ValidateAtomicAccess(
+    Isolate* isolate, Handle<JSTypedArray> typed_array,
+    Handle<Object> request_index) {
+  Handle<Object> access_index_obj;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, access_index_obj,
+      Object::ToIndex(isolate, request_index,
+                      MessageTemplate::kInvalidAtomicAccessIndex),
+      Nothing<size_t>());
+
+  size_t access_index;
+  size_t typed_array_length = typed_array->length();
+  if (!TryNumberToSize(*access_index_obj, &access_index) ||
+      access_index >= typed_array_length) {
+    isolate->Throw(*isolate->factory()->NewRangeError(
+        MessageTemplate::kInvalidAtomicAccessIndex));
+    return Nothing<size_t>();
+  }
+  return Just<size_t>(access_index);
 }
 
 namespace {
 
-void ValidateSharedTypedArray(CodeStubAssembler* a, compiler::Node* tagged,
-                              compiler::Node* context,
-                              compiler::Node** out_instance_type,
-                              compiler::Node** out_backing_store) {
-  using namespace compiler;
-  CodeStubAssembler::Label is_smi(a), not_smi(a), is_typed_array(a),
-      not_typed_array(a), is_shared(a), not_shared(a), is_float_or_clamped(a),
-      not_float_or_clamped(a), invalid(a);
-
-  // Fail if it is not a heap object.
-  a->Branch(a->WordIsSmi(tagged), &is_smi, &not_smi);
-  a->Bind(&is_smi);
-  a->Goto(&invalid);
-
-  // Fail if the array's instance type is not JSTypedArray.
-  a->Bind(&not_smi);
-  a->Branch(a->WordEqual(a->LoadInstanceType(tagged),
-                         a->Int32Constant(JS_TYPED_ARRAY_TYPE)),
-            &is_typed_array, &not_typed_array);
-  a->Bind(&not_typed_array);
-  a->Goto(&invalid);
-
-  // Fail if the array's JSArrayBuffer is not shared.
-  a->Bind(&is_typed_array);
-  Node* array_buffer = a->LoadObjectField(tagged, JSTypedArray::kBufferOffset);
-  Node* is_buffer_shared = a->BitFieldDecode<JSArrayBuffer::IsShared>(
-      a->LoadObjectField(array_buffer, JSArrayBuffer::kBitFieldSlot));
-  a->Branch(is_buffer_shared, &is_shared, &not_shared);
-  a->Bind(&not_shared);
-  a->Goto(&invalid);
-
-  // Fail if the array's element type is float32, float64 or clamped.
-  a->Bind(&is_shared);
-  Node* elements_instance_type = a->LoadInstanceType(
-      a->LoadObjectField(tagged, JSObject::kElementsOffset));
-  STATIC_ASSERT(FIXED_INT8_ARRAY_TYPE < FIXED_FLOAT32_ARRAY_TYPE);
-  STATIC_ASSERT(FIXED_INT16_ARRAY_TYPE < FIXED_FLOAT32_ARRAY_TYPE);
-  STATIC_ASSERT(FIXED_INT32_ARRAY_TYPE < FIXED_FLOAT32_ARRAY_TYPE);
-  STATIC_ASSERT(FIXED_UINT8_ARRAY_TYPE < FIXED_FLOAT32_ARRAY_TYPE);
-  STATIC_ASSERT(FIXED_UINT16_ARRAY_TYPE < FIXED_FLOAT32_ARRAY_TYPE);
-  STATIC_ASSERT(FIXED_UINT32_ARRAY_TYPE < FIXED_FLOAT32_ARRAY_TYPE);
-  a->Branch(a->Int32LessThan(elements_instance_type,
-                             a->Int32Constant(FIXED_FLOAT32_ARRAY_TYPE)),
-            &not_float_or_clamped, &is_float_or_clamped);
-  a->Bind(&is_float_or_clamped);
-  a->Goto(&invalid);
-
-  a->Bind(&invalid);
-  a->CallRuntime(Runtime::kThrowNotIntegerSharedTypedArrayError, context,
-                 tagged);
-  a->Return(a->UndefinedConstant());
-
-  a->Bind(&not_float_or_clamped);
-  *out_instance_type = elements_instance_type;
-
-  Node* backing_store =
-      a->LoadObjectField(array_buffer, JSArrayBuffer::kBackingStoreOffset);
-  Node* byte_offset = a->ChangeUint32ToWord(a->TruncateTaggedToWord32(
-      context,
-      a->LoadObjectField(tagged, JSArrayBufferView::kByteOffsetOffset)));
-  *out_backing_store = a->IntPtrAdd(backing_store, byte_offset);
+inline size_t GetAddress64(size_t index, size_t byte_offset) {
+  return (index << 3) + byte_offset;
 }
 
-// https://tc39.github.io/ecmascript_sharedmem/shmem.html#Atomics.ValidateAtomicAccess
-compiler::Node* ConvertTaggedAtomicIndexToWord32(CodeStubAssembler* a,
-                                                 compiler::Node* tagged,
-                                                 compiler::Node* context) {
-  using namespace compiler;
-  CodeStubAssembler::Variable var_result(a, MachineRepresentation::kWord32);
+inline size_t GetAddress32(size_t index, size_t byte_offset) {
+  return (index << 2) + byte_offset;
+}
 
-  Callable to_number = CodeFactory::ToNumber(a->isolate());
-  Node* number_index = a->CallStub(to_number, context, tagged);
-  CodeStubAssembler::Label done(a, &var_result);
+}  // namespace
 
-  CodeStubAssembler::Label if_numberissmi(a), if_numberisnotsmi(a);
-  a->Branch(a->WordIsSmi(number_index), &if_numberissmi, &if_numberisnotsmi);
+// ES #sec-atomics.notify
+// Atomics.notify( typedArray, index, count )
+BUILTIN(AtomicsNotify) {
+  HandleScope scope(isolate);
+  Handle<Object> array = args.atOrUndefined(isolate, 1);
+  Handle<Object> index = args.atOrUndefined(isolate, 2);
+  Handle<Object> count = args.atOrUndefined(isolate, 3);
 
-  a->Bind(&if_numberissmi);
-  {
-    var_result.Bind(a->SmiToWord32(number_index));
-    a->Goto(&done);
-  }
+  Handle<JSTypedArray> sta;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, sta,
+      ValidateIntegerTypedArray(isolate, array, "Atomics.notify", true));
 
-  a->Bind(&if_numberisnotsmi);
-  {
-    Node* number_index_value = a->LoadHeapNumberValue(number_index);
-    Node* access_index = a->TruncateFloat64ToWord32(number_index_value);
-    Node* test_index = a->ChangeInt32ToFloat64(access_index);
+  // 2. Let i be ? ValidateAtomicAccess(typedArray, index).
+  Maybe<size_t> maybe_index = ValidateAtomicAccess(isolate, sta, index);
+  if (maybe_index.IsNothing()) return ReadOnlyRoots(isolate).exception();
+  size_t i = maybe_index.FromJust();
 
-    CodeStubAssembler::Label if_indexesareequal(a), if_indexesarenotequal(a);
-    a->Branch(a->Float64Equal(number_index_value, test_index),
-              &if_indexesareequal, &if_indexesarenotequal);
-
-    a->Bind(&if_indexesareequal);
-    {
-      var_result.Bind(access_index);
-      a->Goto(&done);
+  // 3. If count is undefined, let c be +∞.
+  // 4. Else,
+  //   a. Let intCount be ? ToInteger(count).
+  //   b. Let c be max(intCount, 0).
+  uint32_t c;
+  if (count->IsUndefined(isolate)) {
+    c = kMaxUInt32;
+  } else {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, count,
+                                       Object::ToInteger(isolate, count));
+    double count_double = count->Number();
+    if (count_double < 0) {
+      count_double = 0;
+    } else if (count_double > kMaxUInt32) {
+      count_double = kMaxUInt32;
     }
-
-    a->Bind(&if_indexesarenotequal);
-    a->Return(
-        a->CallRuntime(Runtime::kThrowInvalidAtomicAccessIndexError, context));
+    c = static_cast<uint32_t>(count_double);
   }
 
-  a->Bind(&done);
-  return var_result.value();
+  // Steps 5-9 performed in FutexEmulation::Wake.
+
+  // 10. If IsSharedArrayBuffer(buffer) is false, return 0.
+  Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
+  size_t wake_addr;
+
+  if (V8_UNLIKELY(!sta->GetBuffer()->is_shared())) {
+    return Smi::FromInt(0);
+  }
+
+  // Steps 11-17 performed in FutexEmulation::Wake.
+  if (sta->type() == kExternalBigInt64Array) {
+    wake_addr = GetAddress64(i, sta->byte_offset());
+  } else {
+    DCHECK(sta->type() == kExternalInt32Array);
+    wake_addr = GetAddress32(i, sta->byte_offset());
+  }
+  return FutexEmulation::Wake(array_buffer, wake_addr, c);
 }
 
-void ValidateAtomicIndex(CodeStubAssembler* a, compiler::Node* index_word,
-                         compiler::Node* array_length_word,
-                         compiler::Node* context) {
-  using namespace compiler;
-  // Check if the index is in bounds. If not, throw RangeError.
-  CodeStubAssembler::Label if_inbounds(a), if_notinbounds(a);
-  a->Branch(
-      a->WordOr(a->Int32LessThan(index_word, a->Int32Constant(0)),
-                a->Int32GreaterThanOrEqual(index_word, array_length_word)),
-      &if_notinbounds, &if_inbounds);
-  a->Bind(&if_notinbounds);
-  a->Return(
-      a->CallRuntime(Runtime::kThrowInvalidAtomicAccessIndexError, context));
-  a->Bind(&if_inbounds);
+Object DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,
+              Handle<Object> array, Handle<Object> index, Handle<Object> value,
+              Handle<Object> timeout) {
+  // 1. Let buffer be ? ValidateIntegerTypedArray(typedArray, true).
+  Handle<JSTypedArray> sta;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, sta,
+      ValidateIntegerTypedArray(isolate, array, "Atomics.wait", true));
+
+  // 2. If IsSharedArrayBuffer(buffer) is false, throw a TypeError exception.
+  if (V8_UNLIKELY(!sta->GetBuffer()->is_shared())) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kNotSharedTypedArray, array));
+  }
+
+  // 3. Let i be ? ValidateAtomicAccess(typedArray, index).
+  Maybe<size_t> maybe_index = ValidateAtomicAccess(isolate, sta, index);
+  if (maybe_index.IsNothing()) return ReadOnlyRoots(isolate).exception();
+  size_t i = maybe_index.FromJust();
+
+  // 4. Let arrayTypeName be typedArray.[[TypedArrayName]].
+  // 5. If arrayTypeName is "BigInt64Array", let v be ? ToBigInt64(value).
+  // 6. Otherwise, let v be ? ToInt32(value).
+  if (sta->type() == kExternalBigInt64Array) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
+                                       BigInt::FromObject(isolate, value));
+  } else {
+    DCHECK(sta->type() == kExternalInt32Array);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
+                                       Object::ToInt32(isolate, value));
+  }
+
+  // 7. Let q be ? ToNumber(timeout).
+  // 8. If q is NaN, let t be +∞, else let t be max(q, 0).
+  double timeout_number;
+  if (timeout->IsUndefined(isolate)) {
+    timeout_number = ReadOnlyRoots(isolate).infinity_value().Number();
+  } else {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, timeout,
+                                       Object::ToNumber(isolate, timeout));
+    timeout_number = timeout->Number();
+    if (std::isnan(timeout_number))
+      timeout_number = ReadOnlyRoots(isolate).infinity_value().Number();
+    else if (timeout_number < 0)
+      timeout_number = 0;
+  }
+
+  // 9. If mode is sync, then
+  //   a. Let B be AgentCanSuspend().
+  //   b. If B is false, throw a TypeError exception.
+  if (mode == FutexEmulation::WaitMode::kSync &&
+      !isolate->allow_atomics_wait()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kAtomicsWaitNotAllowed));
+  }
+
+  Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
+
+  if (sta->type() == kExternalBigInt64Array) {
+    return FutexEmulation::WaitJs64(
+        isolate, mode, array_buffer, GetAddress64(i, sta->byte_offset()),
+        Handle<BigInt>::cast(value)->AsInt64(), timeout_number);
+  } else {
+    DCHECK(sta->type() == kExternalInt32Array);
+    return FutexEmulation::WaitJs32(isolate, mode, array_buffer,
+                                    GetAddress32(i, sta->byte_offset()),
+                                    NumberToInt32(*value), timeout_number);
+  }
 }
 
-}  // anonymous namespace
+// https://tc39.es/ecma262/#sec-atomics.wait
+// Atomics.wait( typedArray, index, value, timeout )
+BUILTIN(AtomicsWait) {
+  HandleScope scope(isolate);
+  Handle<Object> array = args.atOrUndefined(isolate, 1);
+  Handle<Object> index = args.atOrUndefined(isolate, 2);
+  Handle<Object> value = args.atOrUndefined(isolate, 3);
+  Handle<Object> timeout = args.atOrUndefined(isolate, 4);
 
-void Builtins::Generate_AtomicsLoad(CodeStubAssembler* a) {
-  using namespace compiler;
-  Node* array = a->Parameter(1);
-  Node* index = a->Parameter(2);
-  Node* context = a->Parameter(3 + 2);
-
-  Node* instance_type;
-  Node* backing_store;
-  ValidateSharedTypedArray(a, array, context, &instance_type, &backing_store);
-
-  Node* index_word32 = ConvertTaggedAtomicIndexToWord32(a, index, context);
-  Node* array_length_word32 = a->TruncateTaggedToWord32(
-      context, a->LoadObjectField(array, JSTypedArray::kLengthOffset));
-  ValidateAtomicIndex(a, index_word32, array_length_word32, context);
-  Node* index_word = a->ChangeUint32ToWord(index_word32);
-
-  CodeStubAssembler::Label i8(a), u8(a), i16(a), u16(a), i32(a), u32(a),
-      other(a);
-  int32_t case_values[] = {
-      FIXED_INT8_ARRAY_TYPE,   FIXED_UINT8_ARRAY_TYPE, FIXED_INT16_ARRAY_TYPE,
-      FIXED_UINT16_ARRAY_TYPE, FIXED_INT32_ARRAY_TYPE, FIXED_UINT32_ARRAY_TYPE,
-  };
-  CodeStubAssembler::Label* case_labels[] = {
-      &i8, &u8, &i16, &u16, &i32, &u32,
-  };
-  a->Switch(instance_type, &other, case_values, case_labels,
-            arraysize(case_labels));
-
-  a->Bind(&i8);
-  a->Return(
-      a->SmiTag(a->AtomicLoad(MachineType::Int8(), backing_store, index_word)));
-
-  a->Bind(&u8);
-  a->Return(a->SmiTag(
-      a->AtomicLoad(MachineType::Uint8(), backing_store, index_word)));
-
-  a->Bind(&i16);
-  a->Return(a->SmiTag(a->AtomicLoad(MachineType::Int16(), backing_store,
-                                    a->WordShl(index_word, 1))));
-
-  a->Bind(&u16);
-  a->Return(a->SmiTag(a->AtomicLoad(MachineType::Uint16(), backing_store,
-                                    a->WordShl(index_word, 1))));
-
-  a->Bind(&i32);
-  a->Return(a->ChangeInt32ToTagged(a->AtomicLoad(
-      MachineType::Int32(), backing_store, a->WordShl(index_word, 2))));
-
-  a->Bind(&u32);
-  a->Return(a->ChangeUint32ToTagged(a->AtomicLoad(
-      MachineType::Uint32(), backing_store, a->WordShl(index_word, 2))));
-
-  // This shouldn't happen, we've already validated the type.
-  a->Bind(&other);
-  a->Return(a->Int32Constant(0));
+  return DoWait(isolate, FutexEmulation::WaitMode::kSync, array, index, value,
+                timeout);
 }
 
-void Builtins::Generate_AtomicsStore(CodeStubAssembler* a) {
-  using namespace compiler;
-  Node* array = a->Parameter(1);
-  Node* index = a->Parameter(2);
-  Node* value = a->Parameter(3);
-  Node* context = a->Parameter(4 + 2);
+BUILTIN(AtomicsWaitAsync) {
+  HandleScope scope(isolate);
+  Handle<Object> array = args.atOrUndefined(isolate, 1);
+  Handle<Object> index = args.atOrUndefined(isolate, 2);
+  Handle<Object> value = args.atOrUndefined(isolate, 3);
+  Handle<Object> timeout = args.atOrUndefined(isolate, 4);
 
-  Node* instance_type;
-  Node* backing_store;
-  ValidateSharedTypedArray(a, array, context, &instance_type, &backing_store);
-
-  Node* index_word32 = ConvertTaggedAtomicIndexToWord32(a, index, context);
-  Node* array_length_word32 = a->TruncateTaggedToWord32(
-      context, a->LoadObjectField(array, JSTypedArray::kLengthOffset));
-  ValidateAtomicIndex(a, index_word32, array_length_word32, context);
-  Node* index_word = a->ChangeUint32ToWord(index_word32);
-
-  Callable to_integer = CodeFactory::ToInteger(a->isolate());
-  Node* value_integer = a->CallStub(to_integer, context, value);
-  Node* value_word32 = a->TruncateTaggedToWord32(context, value_integer);
-
-  CodeStubAssembler::Label u8(a), u16(a), u32(a), other(a);
-  int32_t case_values[] = {
-      FIXED_INT8_ARRAY_TYPE,   FIXED_UINT8_ARRAY_TYPE, FIXED_INT16_ARRAY_TYPE,
-      FIXED_UINT16_ARRAY_TYPE, FIXED_INT32_ARRAY_TYPE, FIXED_UINT32_ARRAY_TYPE,
-  };
-  CodeStubAssembler::Label* case_labels[] = {
-      &u8, &u8, &u16, &u16, &u32, &u32,
-  };
-  a->Switch(instance_type, &other, case_values, case_labels,
-            arraysize(case_labels));
-
-  a->Bind(&u8);
-  a->AtomicStore(MachineRepresentation::kWord8, backing_store, index_word,
-                 value_word32);
-  a->Return(value_integer);
-
-  a->Bind(&u16);
-  a->SmiTag(a->AtomicStore(MachineRepresentation::kWord16, backing_store,
-                           a->WordShl(index_word, 1), value_word32));
-  a->Return(value_integer);
-
-  a->Bind(&u32);
-  a->AtomicStore(MachineRepresentation::kWord32, backing_store,
-                 a->WordShl(index_word, 2), value_word32);
-  a->Return(value_integer);
-
-  // This shouldn't happen, we've already validated the type.
-  a->Bind(&other);
-  a->Return(a->Int32Constant(0));
+  return DoWait(isolate, FutexEmulation::WaitMode::kAsync, array, index, value,
+                timeout);
 }
 
 }  // namespace internal

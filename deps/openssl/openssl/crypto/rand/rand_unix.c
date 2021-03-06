@@ -1,140 +1,141 @@
-/* crypto/rand/rand_unix.c */
-/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
- * All rights reserved.
+/*
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * This package is an SSL implementation written
- * by Eric Young (eay@cryptsoft.com).
- * The implementation was written so as to conform with Netscapes SSL.
- *
- * This library is free for commercial and non-commercial use as long as
- * the following conditions are aheared to.  The following conditions
- * apply to all code found in this distribution, be it the RC4, RSA,
- * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
- * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@cryptsoft.com).
- *
- * Copyright remains Eric Young's, and as such any Copyright notices in
- * the code are not to be removed.
- * If this package is used in a product, Eric Young should be given attribution
- * as the author of the parts of the library used.
- * This can be in the form of a textual message at program startup or
- * in documentation (online or textual) provided with the package.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    "This product includes cryptographic software written by
- *     Eric Young (eay@cryptsoft.com)"
- *    The word 'cryptographic' can be left out if the rouines from the library
- *    being used are not cryptographic related :-).
- * 4. If you include any Windows specific code (or a derivative thereof) from
- *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
- *
- * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- * The licence and distribution terms for any publically available version or
- * derivative of this code cannot be changed.  i.e. this code cannot simply be
- * copied and put under another distribution licence
- * [including the GNU Public Licence.]
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
-/* ====================================================================
- * Copyright (c) 1998-2006 The OpenSSL Project.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    openssl-core@openssl.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
- */
-#include <stdio.h>
 
-#define USE_SOCKETS
+#ifndef _GNU_SOURCE
+# define _GNU_SOURCE
+#endif
 #include "e_os.h"
-#include "cryptlib.h"
+#include <stdio.h>
+#include "internal/cryptlib.h"
 #include <openssl/rand.h>
-#include "rand_lcl.h"
-
-#if !(defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_WIN32) || defined(OPENSSL_SYS_VMS) || defined(OPENSSL_SYS_OS2) || defined(OPENSSL_SYS_VXWORKS) || defined(OPENSSL_SYS_NETWARE))
-
+#include <openssl/crypto.h>
+#include "rand_local.h"
+#include "crypto/rand.h"
+#include <stdio.h>
+#include "internal/dso.h"
+#ifdef __linux
+# include <sys/syscall.h>
+# ifdef DEVRANDOM_WAIT
+#  include <sys/shm.h>
+#  include <sys/utsname.h>
+# endif
+#endif
+#if (defined(__FreeBSD__) || defined(__NetBSD__)) && !defined(OPENSSL_SYS_UEFI)
 # include <sys/types.h>
-# include <sys/time.h>
-# include <sys/times.h>
+# include <sys/sysctl.h>
+# include <sys/param.h>
+#endif
+#if defined(__OpenBSD__)
+# include <sys/param.h>
+#endif
+
+#if defined(OPENSSL_SYS_UNIX) || defined(__DJGPP__)
+# include <sys/types.h>
 # include <sys/stat.h>
 # include <fcntl.h>
 # include <unistd.h>
-# include <time.h>
-# if defined(OPENSSL_SYS_LINUX) /* should actually be available virtually
-                                 * everywhere */
-#  include <poll.h>
+# include <sys/time.h>
+
+static uint64_t get_time_stamp(void);
+static uint64_t get_timer_bits(void);
+
+/* Macro to convert two thirty two bit values into a sixty four bit one */
+# define TWO32TO64(a, b) ((((uint64_t)(a)) << 32) + (b))
+
+/*
+ * Check for the existence and support of POSIX timers.  The standard
+ * says that the _POSIX_TIMERS macro will have a positive value if they
+ * are available.
+ *
+ * However, we want an additional constraint: that the timer support does
+ * not require an extra library dependency.  Early versions of glibc
+ * require -lrt to be specified on the link line to access the timers,
+ * so this needs to be checked for.
+ *
+ * It is worse because some libraries define __GLIBC__ but don't
+ * support the version testing macro (e.g. uClibc).  This means
+ * an extra check is needed.
+ *
+ * The final condition is:
+ *      "have posix timers and either not glibc or glibc without -lrt"
+ *
+ * The nested #if sequences are required to avoid using a parameterised
+ * macro that might be undefined.
+ */
+# undef OSSL_POSIX_TIMER_OKAY
+# if defined(_POSIX_TIMERS) && _POSIX_TIMERS > 0
+#  if defined(__GLIBC__)
+#   if defined(__GLIBC_PREREQ)
+#    if __GLIBC_PREREQ(2, 17)
+#     define OSSL_POSIX_TIMER_OKAY
+#    endif
+#   endif
+#  else
+#   define OSSL_POSIX_TIMER_OKAY
+#  endif
 # endif
-# include <limits.h>
-# ifndef FD_SETSIZE
-#  define FD_SETSIZE (8*sizeof(fd_set))
-# endif
+#endif /* (defined(OPENSSL_SYS_UNIX) && !defined(OPENSSL_SYS_VXWORKS))
+          || defined(__DJGPP__) */
+
+#if defined(OPENSSL_RAND_SEED_NONE)
+/* none means none. this simplifies the following logic */
+# undef OPENSSL_RAND_SEED_OS
+# undef OPENSSL_RAND_SEED_GETRANDOM
+# undef OPENSSL_RAND_SEED_LIBRANDOM
+# undef OPENSSL_RAND_SEED_DEVRANDOM
+# undef OPENSSL_RAND_SEED_RDTSC
+# undef OPENSSL_RAND_SEED_RDCPU
+# undef OPENSSL_RAND_SEED_EGD
+#endif
+
+#if (defined(OPENSSL_SYS_VXWORKS) || defined(OPENSSL_SYS_UEFI)) && \
+        !defined(OPENSSL_RAND_SEED_NONE)
+# error "UEFI and VXWorks only support seeding NONE"
+#endif
+
+#if defined(OPENSSL_SYS_VXWORKS)
+/* empty implementation */
+int rand_pool_init(void)
+{
+    return 1;
+}
+
+void rand_pool_cleanup(void)
+{
+}
+
+void rand_pool_keep_random_devices_open(int keep)
+{
+}
+
+size_t rand_pool_acquire_entropy(RAND_POOL *pool)
+{
+    return rand_pool_entropy_available(pool);
+}
+#endif
+
+#if !(defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_WIN32) \
+    || defined(OPENSSL_SYS_VMS) || defined(OPENSSL_SYS_VXWORKS) \
+    || defined(OPENSSL_SYS_UEFI))
 
 # if defined(OPENSSL_SYS_VOS)
+
+#  ifndef OPENSSL_RAND_SEED_OS
+#   error "Unsupported seeding method configured; must be os"
+#  endif
+
+#  if defined(OPENSSL_SYS_VOS_HPPA) && defined(OPENSSL_SYS_VOS_IA32)
+#   error "Unsupported HP-PA and IA32 at the same time."
+#  endif
+#  if !defined(OPENSSL_SYS_VOS_HPPA) && !defined(OPENSSL_SYS_VOS_IA32)
+#   error "Must have one of HP-PA or IA32"
+#  endif
 
 /*
  * The following algorithm repeatedly samples the real-time clock (RTC) to
@@ -142,57 +143,32 @@
  * uneven execution speed of the code (due to factors such as cache misses,
  * interrupts, bus activity, and scheduling) and upon the rather large
  * relative difference between the speed of the clock and the rate at which
- * it can be read.
+ * it can be read.  If it is ported to an environment where execution speed
+ * is more constant or where the RTC ticks at a much slower rate, or the
+ * clock can be read with fewer instructions, it is likely that the results
+ * would be far more predictable.  This should only be used for legacy
+ * platforms.
  *
- * If this code is ported to an environment where execution speed is more
- * constant or where the RTC ticks at a much slower rate, or the clock can be
- * read with fewer instructions, it is likely that the results would be far
- * more predictable.
- *
- * As a precaution, we generate 4 times the minimum required amount of seed
- * data.
+ * As a precaution, we assume only 2 bits of entropy per byte.
  */
-
-int RAND_poll(void)
+size_t rand_pool_acquire_entropy(RAND_POOL *pool)
 {
     short int code;
-    gid_t curr_gid;
-    pid_t curr_pid;
-    uid_t curr_uid;
     int i, k;
+    size_t bytes_needed;
     struct timespec ts;
     unsigned char v;
-
 #  ifdef OPENSSL_SYS_VOS_HPPA
     long duration;
     extern void s$sleep(long *_duration, short int *_code);
 #  else
-#   ifdef OPENSSL_SYS_VOS_IA32
     long long duration;
     extern void s$sleep2(long long *_duration, short int *_code);
-#   else
-#    error "Unsupported Platform."
-#   endif                       /* OPENSSL_SYS_VOS_IA32 */
-#  endif                        /* OPENSSL_SYS_VOS_HPPA */
+#  endif
 
-    /*
-     * Seed with the gid, pid, and uid, to ensure *some* variation between
-     * different processes.
-     */
+    bytes_needed = rand_pool_bytes_needed(pool, 4 /*entropy_factor*/);
 
-    curr_gid = getgid();
-    RAND_add(&curr_gid, sizeof curr_gid, 1);
-    curr_gid = 0;
-
-    curr_pid = getpid();
-    RAND_add(&curr_pid, sizeof curr_pid, 1);
-    curr_pid = 0;
-
-    curr_uid = getuid();
-    RAND_add(&curr_uid, sizeof curr_uid, 1);
-    curr_uid = 0;
-
-    for (i = 0; i < (ENTROPY_NEEDED * 4); i++) {
+    for (i = 0; i < bytes_needed; i++) {
         /*
          * burn some cpu; hope for interrupts, cache collisions, bus
          * interference, etc.
@@ -205,243 +181,695 @@ int RAND_poll(void)
         duration = 1;
         s$sleep(&duration, &code);
 #  else
-#   ifdef OPENSSL_SYS_VOS_IA32
         /* sleep for 1/65536 of a second (15 us).  */
         duration = 1;
         s$sleep2(&duration, &code);
-#   endif                       /* OPENSSL_SYS_VOS_IA32 */
-#  endif                        /* OPENSSL_SYS_VOS_HPPA */
+#  endif
 
-        /* get wall clock time.  */
+        /* Get wall clock time, take 8 bits. */
         clock_gettime(CLOCK_REALTIME, &ts);
-
-        /* take 8 bits */
-        v = (unsigned char)(ts.tv_nsec % 256);
-        RAND_add(&v, sizeof v, 1);
-        v = 0;
+        v = (unsigned char)(ts.tv_nsec & 0xFF);
+        rand_pool_add(pool, arg, &v, sizeof(v) , 2);
     }
-    return 1;
+    return rand_pool_entropy_available(pool);
 }
-# elif defined __OpenBSD__
-int RAND_poll(void)
+
+void rand_pool_cleanup(void)
 {
-    u_int32_t rnd = 0, i;
-    unsigned char buf[ENTROPY_NEEDED];
-
-    for (i = 0; i < sizeof(buf); i++) {
-        if (i % 4 == 0)
-            rnd = arc4random();
-        buf[i] = rnd;
-        rnd >>= 8;
-    }
-    RAND_add(buf, sizeof(buf), ENTROPY_NEEDED);
-    OPENSSL_cleanse(buf, sizeof(buf));
-
-    return 1;
 }
-# else                          /* !defined(__OpenBSD__) */
-int RAND_poll(void)
+
+void rand_pool_keep_random_devices_open(int keep)
 {
-    unsigned long l;
-    pid_t curr_pid = getpid();
-#  if defined(DEVRANDOM) || defined(DEVRANDOM_EGD)
-    unsigned char tmpbuf[ENTROPY_NEEDED];
-    int n = 0;
-#  endif
-#  ifdef DEVRANDOM
-    static const char *randomfiles[] = { DEVRANDOM };
-    struct stat randomstats[sizeof(randomfiles) / sizeof(randomfiles[0])];
-    int fd;
-    unsigned int i;
-#  endif
-#  ifdef DEVRANDOM_EGD
-    static const char *egdsockets[] = { DEVRANDOM_EGD, NULL };
-    const char **egdsocket = NULL;
+}
+
+# else
+
+#  if defined(OPENSSL_RAND_SEED_EGD) && \
+        (defined(OPENSSL_NO_EGD) || !defined(DEVRANDOM_EGD))
+#   error "Seeding uses EGD but EGD is turned off or no device given"
 #  endif
 
-#  ifdef DEVRANDOM
-    memset(randomstats, 0, sizeof(randomstats));
+#  if defined(OPENSSL_RAND_SEED_DEVRANDOM) && !defined(DEVRANDOM)
+#   error "Seeding uses urandom but DEVRANDOM is not configured"
+#  endif
+
+#  if defined(OPENSSL_RAND_SEED_OS)
+#   if !defined(DEVRANDOM)
+#    error "OS seeding requires DEVRANDOM to be configured"
+#   endif
+#   define OPENSSL_RAND_SEED_GETRANDOM
+#   define OPENSSL_RAND_SEED_DEVRANDOM
+#  endif
+
+#  if defined(OPENSSL_RAND_SEED_LIBRANDOM)
+#   error "librandom not (yet) supported"
+#  endif
+
+#  if (defined(__FreeBSD__) || defined(__NetBSD__)) && defined(KERN_ARND)
+/*
+ * sysctl_random(): Use sysctl() to read a random number from the kernel
+ * Returns the number of bytes returned in buf on success, -1 on failure.
+ */
+static ssize_t sysctl_random(char *buf, size_t buflen)
+{
+    int mib[2];
+    size_t done = 0;
+    size_t len;
+
     /*
-     * Use a random entropy pool device. Linux, FreeBSD and OpenBSD have
-     * this. Use /dev/urandom if you can as /dev/random may block if it runs
-     * out of random entries.
+     * Note: sign conversion between size_t and ssize_t is safe even
+     * without a range check, see comment in syscall_random()
      */
 
-    for (i = 0; (i < sizeof(randomfiles) / sizeof(randomfiles[0])) &&
-         (n < ENTROPY_NEEDED); i++) {
-        if ((fd = open(randomfiles[i], O_RDONLY
-#   ifdef O_NONBLOCK
-                       | O_NONBLOCK
-#   endif
-#   ifdef O_BINARY
-                       | O_BINARY
-#   endif
-#   ifdef O_NOCTTY              /* If it happens to be a TTY (god forbid), do
-                                 * not make it our controlling tty */
-                       | O_NOCTTY
-#   endif
-             )) >= 0) {
-            int usec = 10 * 1000; /* spend 10ms on each file */
-            int r;
-            unsigned int j;
-            struct stat *st = &randomstats[i];
+    /*
+     * On FreeBSD old implementations returned longs, newer versions support
+     * variable sizes up to 256 byte. The code below would not work properly
+     * when the sysctl returns long and we want to request something not a
+     * multiple of longs, which should never be the case.
+     */
+#if   defined(__FreeBSD__)
+    if (!ossl_assert(buflen % sizeof(long) == 0)) {
+        errno = EINVAL;
+        return -1;
+    }
+#endif
 
+    /*
+     * On NetBSD before 4.0 KERN_ARND was an alias for KERN_URND, and only
+     * filled in an int, leaving the rest uninitialized. Since NetBSD 4.0
+     * it returns a variable number of bytes with the current version supporting
+     * up to 256 bytes.
+     * Just return an error on older NetBSD versions.
+     */
+#if   defined(__NetBSD__) && __NetBSD_Version__ < 400000000
+    errno = ENOSYS;
+    return -1;
+#endif
+
+    mib[0] = CTL_KERN;
+    mib[1] = KERN_ARND;
+
+    do {
+        len = buflen > 256 ? 256 : buflen;
+        if (sysctl(mib, 2, buf, &len, NULL, 0) == -1)
+            return done > 0 ? done : -1;
+        done += len;
+        buf += len;
+        buflen -= len;
+    } while (buflen > 0);
+
+    return done;
+}
+#  endif
+
+#  if defined(OPENSSL_RAND_SEED_GETRANDOM)
+
+#   if defined(__linux) && !defined(__NR_getrandom)
+#    if defined(__arm__)
+#     define __NR_getrandom    (__NR_SYSCALL_BASE+384)
+#    elif defined(__i386__)
+#     define __NR_getrandom    355
+#    elif defined(__x86_64__)
+#     if defined(__ILP32__)
+#      define __NR_getrandom   (__X32_SYSCALL_BIT + 318)
+#     else
+#      define __NR_getrandom   318
+#     endif
+#    elif defined(__xtensa__)
+#     define __NR_getrandom    338
+#    elif defined(__s390__) || defined(__s390x__)
+#     define __NR_getrandom    349
+#    elif defined(__bfin__)
+#     define __NR_getrandom    389
+#    elif defined(__powerpc__)
+#     define __NR_getrandom    359
+#    elif defined(__mips__) || defined(__mips64)
+#     if _MIPS_SIM == _MIPS_SIM_ABI32
+#      define __NR_getrandom   (__NR_Linux + 353)
+#     elif _MIPS_SIM == _MIPS_SIM_ABI64
+#      define __NR_getrandom   (__NR_Linux + 313)
+#     elif _MIPS_SIM == _MIPS_SIM_NABI32
+#      define __NR_getrandom   (__NR_Linux + 317)
+#     endif
+#    elif defined(__hppa__)
+#     define __NR_getrandom    (__NR_Linux + 339)
+#    elif defined(__sparc__)
+#     define __NR_getrandom    347
+#    elif defined(__ia64__)
+#     define __NR_getrandom    1339
+#    elif defined(__alpha__)
+#     define __NR_getrandom    511
+#    elif defined(__sh__)
+#     if defined(__SH5__)
+#      define __NR_getrandom   373
+#     else
+#      define __NR_getrandom   384
+#     endif
+#    elif defined(__avr32__)
+#     define __NR_getrandom    317
+#    elif defined(__microblaze__)
+#     define __NR_getrandom    385
+#    elif defined(__m68k__)
+#     define __NR_getrandom    352
+#    elif defined(__cris__)
+#     define __NR_getrandom    356
+#    elif defined(__aarch64__)
+#     define __NR_getrandom    278
+#    else /* generic */
+#     define __NR_getrandom    278
+#    endif
+#   endif
+
+/*
+ * syscall_random(): Try to get random data using a system call
+ * returns the number of bytes returned in buf, or < 0 on error.
+ */
+static ssize_t syscall_random(void *buf, size_t buflen)
+{
+    /*
+     * Note: 'buflen' equals the size of the buffer which is used by the
+     * get_entropy() callback of the RAND_DRBG. It is roughly bounded by
+     *
+     *   2 * RAND_POOL_FACTOR * (RAND_DRBG_STRENGTH / 8) = 2^14
+     *
+     * which is way below the OSSL_SSIZE_MAX limit. Therefore sign conversion
+     * between size_t and ssize_t is safe even without a range check.
+     */
+
+    /*
+     * Do runtime detection to find getentropy().
+     *
+     * Known OSs that should support this:
+     * - Darwin since 16 (OSX 10.12, IOS 10.0).
+     * - Solaris since 11.3
+     * - OpenBSD since 5.6
+     * - Linux since 3.17 with glibc 2.25
+     * - FreeBSD since 12.0 (1200061)
+     *
+     * Note: Sometimes getentropy() can be provided but not implemented
+     * internally. So we need to check errno for ENOSYS
+     */
+#  if defined(__GNUC__) && __GNUC__>=2 && defined(__ELF__) && !defined(__hpux)
+    extern int getentropy(void *buffer, size_t length) __attribute__((weak));
+
+    if (getentropy != NULL) {
+        if (getentropy(buf, buflen) == 0)
+            return (ssize_t)buflen;
+        if (errno != ENOSYS)
+            return -1;
+    }
+#  else
+    union {
+        void *p;
+        int (*f)(void *buffer, size_t length);
+    } p_getentropy;
+
+    /*
+     * We could cache the result of the lookup, but we normally don't
+     * call this function often.
+     */
+    ERR_set_mark();
+    p_getentropy.p = DSO_global_lookup("getentropy");
+    ERR_pop_to_mark();
+    if (p_getentropy.p != NULL)
+        return p_getentropy.f(buf, buflen) == 0 ? (ssize_t)buflen : -1;
+#  endif
+
+    /* Linux supports this since version 3.17 */
+#  if defined(__linux) && defined(__NR_getrandom)
+    return syscall(__NR_getrandom, buf, buflen, 0);
+#  elif (defined(__FreeBSD__) || defined(__NetBSD__)) && defined(KERN_ARND)
+    return sysctl_random(buf, buflen);
+#  else
+    errno = ENOSYS;
+    return -1;
+#  endif
+}
+#  endif    /* defined(OPENSSL_RAND_SEED_GETRANDOM) */
+
+#  if defined(OPENSSL_RAND_SEED_DEVRANDOM)
+static const char *random_device_paths[] = { DEVRANDOM };
+static struct random_device {
+    int fd;
+    dev_t dev;
+    ino_t ino;
+    mode_t mode;
+    dev_t rdev;
+} random_devices[OSSL_NELEM(random_device_paths)];
+static int keep_random_devices_open = 1;
+
+#   if defined(__linux) && defined(DEVRANDOM_WAIT) \
+       && defined(OPENSSL_RAND_SEED_GETRANDOM)
+static void *shm_addr;
+
+static void cleanup_shm(void)
+{
+    shmdt(shm_addr);
+}
+
+/*
+ * Ensure that the system randomness source has been adequately seeded.
+ * This is done by having the first start of libcrypto, wait until the device
+ * /dev/random becomes able to supply a byte of entropy.  Subsequent starts
+ * of the library and later reseedings do not need to do this.
+ */
+static int wait_random_seeded(void)
+{
+    static int seeded = OPENSSL_RAND_SEED_DEVRANDOM_SHM_ID < 0;
+    static const int kernel_version[] = { DEVRANDOM_SAFE_KERNEL };
+    int kernel[2];
+    int shm_id, fd, r;
+    char c, *p;
+    struct utsname un;
+    fd_set fds;
+
+    if (!seeded) {
+        /* See if anything has created the global seeded indication */
+        if ((shm_id = shmget(OPENSSL_RAND_SEED_DEVRANDOM_SHM_ID, 1, 0)) == -1) {
             /*
-             * Avoid using same input... Used to be O_NOFOLLOW above, but
-             * it's not universally appropriate...
+             * Check the kernel's version and fail if it is too recent.
+             *
+             * Linux kernels from 4.8 onwards do not guarantee that
+             * /dev/urandom is properly seeded when /dev/random becomes
+             * readable.  However, such kernels support the getentropy(2)
+             * system call and this should always succeed which renders
+             * this alternative but essentially identical source moot.
              */
-            if (fstat(fd, st) != 0) {
-                close(fd);
-                continue;
-            }
-            for (j = 0; j < i; j++) {
-                if (randomstats[j].st_ino == st->st_ino &&
-                    randomstats[j].st_dev == st->st_dev)
-                    break;
-            }
-            if (j < i) {
-                close(fd);
-                continue;
-            }
-
-            do {
-                int try_read = 0;
-
-#   if defined(OPENSSL_SYS_BEOS_R5)
-                /*
-                 * select() is broken in BeOS R5, so we simply try to read
-                 * something and snooze if we couldn't
-                 */
-                try_read = 1;
-
-#   elif defined(OPENSSL_SYS_LINUX)
-                /* use poll() */
-                struct pollfd pset;
-
-                pset.fd = fd;
-                pset.events = POLLIN;
-                pset.revents = 0;
-
-                if (poll(&pset, 1, usec / 1000) < 0)
-                    usec = 0;
-                else
-                    try_read = (pset.revents & POLLIN) != 0;
-
-#   else
-                /* use select() */
-                fd_set fset;
-                struct timeval t;
-
-                t.tv_sec = 0;
-                t.tv_usec = usec;
-
-                if (FD_SETSIZE > 0 && (unsigned)fd >= FD_SETSIZE) {
-                    /*
-                     * can't use select, so just try to read once anyway
-                     */
-                    try_read = 1;
-                } else {
-                    FD_ZERO(&fset);
-                    FD_SET(fd, &fset);
-
-                    if (select(fd + 1, &fset, NULL, NULL, &t) >= 0) {
-                        usec = t.tv_usec;
-                        if (FD_ISSET(fd, &fset))
-                            try_read = 1;
-                    } else
-                        usec = 0;
+            if (uname(&un) == 0) {
+                kernel[0] = atoi(un.release);
+                p = strchr(un.release, '.');
+                kernel[1] = p == NULL ? 0 : atoi(p + 1);
+                if (kernel[0] > kernel_version[0]
+                    || (kernel[0] == kernel_version[0]
+                        && kernel[1] >= kernel_version[1])) {
+                    return 0;
                 }
-#   endif
-
-                if (try_read) {
-                    r = read(fd, (unsigned char *)tmpbuf + n,
-                             ENTROPY_NEEDED - n);
-                    if (r > 0)
-                        n += r;
-#   if defined(OPENSSL_SYS_BEOS_R5)
-                    if (r == 0)
-                        snooze(t.tv_usec);
-#   endif
-                } else
-                    r = -1;
-
-                /*
-                 * Some Unixen will update t in select(), some won't.  For
-                 * those who won't, or if we didn't use select() in the first
-                 * place, give up here, otherwise, we will do this once again
-                 * for the remaining time.
-                 */
-                if (usec == 10 * 1000)
-                    usec = 0;
             }
-            while ((r > 0 ||
-                    (errno == EINTR || errno == EAGAIN)) && usec != 0
-                   && n < ENTROPY_NEEDED);
-
-            close(fd);
+            /* Open /dev/random and wait for it to be readable */
+            if ((fd = open(DEVRANDOM_WAIT, O_RDONLY)) != -1) {
+                if (DEVRANDM_WAIT_USE_SELECT && fd < FD_SETSIZE) {
+                    FD_ZERO(&fds);
+                    FD_SET(fd, &fds);
+                    while ((r = select(fd + 1, &fds, NULL, NULL, NULL)) < 0
+                           && errno == EINTR);
+                } else {
+                    while ((r = read(fd, &c, 1)) < 0 && errno == EINTR);
+                }
+                close(fd);
+                if (r == 1) {
+                    seeded = 1;
+                    /* Create the shared memory indicator */
+                    shm_id = shmget(OPENSSL_RAND_SEED_DEVRANDOM_SHM_ID, 1,
+                                    IPC_CREAT | S_IRUSR | S_IRGRP | S_IROTH);
+                }
+            }
+        }
+        if (shm_id != -1) {
+            seeded = 1;
+            /*
+             * Map the shared memory to prevent its premature destruction.
+             * If this call fails, it isn't a big problem.
+             */
+            shm_addr = shmat(shm_id, NULL, SHM_RDONLY);
+            if (shm_addr != (void *)-1)
+                OPENSSL_atexit(&cleanup_shm);
         }
     }
-#  endif                        /* defined(DEVRANDOM) */
-
-#  ifdef DEVRANDOM_EGD
-    /*
-     * Use an EGD socket to read entropy from an EGD or PRNGD entropy
-     * collecting daemon.
-     */
-
-    for (egdsocket = egdsockets; *egdsocket && n < ENTROPY_NEEDED;
-         egdsocket++) {
-        int r;
-
-        r = RAND_query_egd_bytes(*egdsocket, (unsigned char *)tmpbuf + n,
-                                 ENTROPY_NEEDED - n);
-        if (r > 0)
-            n += r;
-    }
-#  endif                        /* defined(DEVRANDOM_EGD) */
-
-#  if defined(DEVRANDOM) || defined(DEVRANDOM_EGD)
-    if (n > 0) {
-        RAND_add(tmpbuf, sizeof tmpbuf, (double)n);
-        OPENSSL_cleanse(tmpbuf, n);
-    }
-#  endif
-
-    /* put in some default random data, we need more than just this */
-    l = curr_pid;
-    RAND_add(&l, sizeof(l), 0.0);
-    l = getuid();
-    RAND_add(&l, sizeof(l), 0.0);
-
-    l = time(NULL);
-    RAND_add(&l, sizeof(l), 0.0);
-
-#  if defined(OPENSSL_SYS_BEOS)
-    {
-        system_info sysInfo;
-        get_system_info(&sysInfo);
-        RAND_add(&sysInfo, sizeof(sysInfo), 0);
-    }
-#  endif
-
-#  if defined(DEVRANDOM) || defined(DEVRANDOM_EGD)
-    return 1;
-#  else
-    return 0;
-#  endif
+    return seeded;
 }
-
-# endif                         /* defined(__OpenBSD__) */
-#endif                          /* !(defined(OPENSSL_SYS_WINDOWS) ||
-                                 * defined(OPENSSL_SYS_WIN32) ||
-                                 * defined(OPENSSL_SYS_VMS) ||
-                                 * defined(OPENSSL_SYS_OS2) ||
-                                 * defined(OPENSSL_SYS_VXWORKS) ||
-                                 * defined(OPENSSL_SYS_NETWARE)) */
-
-#if defined(OPENSSL_SYS_VXWORKS)
-int RAND_poll(void)
+#   else /* defined __linux && DEVRANDOM_WAIT && OPENSSL_RAND_SEED_GETRANDOM */
+static int wait_random_seeded(void)
 {
-    return 0;
+    return 1;
 }
+#   endif
+
+/*
+ * Verify that the file descriptor associated with the random source is
+ * still valid. The rationale for doing this is the fact that it is not
+ * uncommon for daemons to close all open file handles when daemonizing.
+ * So the handle might have been closed or even reused for opening
+ * another file.
+ */
+static int check_random_device(struct random_device * rd)
+{
+    struct stat st;
+
+    return rd->fd != -1
+           && fstat(rd->fd, &st) != -1
+           && rd->dev == st.st_dev
+           && rd->ino == st.st_ino
+           && ((rd->mode ^ st.st_mode) & ~(S_IRWXU | S_IRWXG | S_IRWXO)) == 0
+           && rd->rdev == st.st_rdev;
+}
+
+/*
+ * Open a random device if required and return its file descriptor or -1 on error
+ */
+static int get_random_device(size_t n)
+{
+    struct stat st;
+    struct random_device * rd = &random_devices[n];
+
+    /* reuse existing file descriptor if it is (still) valid */
+    if (check_random_device(rd))
+        return rd->fd;
+
+    /* open the random device ... */
+    if ((rd->fd = open(random_device_paths[n], O_RDONLY)) == -1)
+        return rd->fd;
+
+    /* ... and cache its relevant stat(2) data */
+    if (fstat(rd->fd, &st) != -1) {
+        rd->dev = st.st_dev;
+        rd->ino = st.st_ino;
+        rd->mode = st.st_mode;
+        rd->rdev = st.st_rdev;
+    } else {
+        close(rd->fd);
+        rd->fd = -1;
+    }
+
+    return rd->fd;
+}
+
+/*
+ * Close a random device making sure it is a random device
+ */
+static void close_random_device(size_t n)
+{
+    struct random_device * rd = &random_devices[n];
+
+    if (check_random_device(rd))
+        close(rd->fd);
+    rd->fd = -1;
+}
+
+int rand_pool_init(void)
+{
+    size_t i;
+
+    for (i = 0; i < OSSL_NELEM(random_devices); i++)
+        random_devices[i].fd = -1;
+
+    return 1;
+}
+
+void rand_pool_cleanup(void)
+{
+    size_t i;
+
+    for (i = 0; i < OSSL_NELEM(random_devices); i++)
+        close_random_device(i);
+}
+
+void rand_pool_keep_random_devices_open(int keep)
+{
+    if (!keep)
+        rand_pool_cleanup();
+
+    keep_random_devices_open = keep;
+}
+
+#  else     /* !defined(OPENSSL_RAND_SEED_DEVRANDOM) */
+
+int rand_pool_init(void)
+{
+    return 1;
+}
+
+void rand_pool_cleanup(void)
+{
+}
+
+void rand_pool_keep_random_devices_open(int keep)
+{
+}
+
+#  endif    /* defined(OPENSSL_RAND_SEED_DEVRANDOM) */
+
+/*
+ * Try the various seeding methods in turn, exit when successful.
+ *
+ * TODO(DRBG): If more than one entropy source is available, is it
+ * preferable to stop as soon as enough entropy has been collected
+ * (as favored by @rsalz) or should one rather be defensive and add
+ * more entropy than requested and/or from different sources?
+ *
+ * Currently, the user can select multiple entropy sources in the
+ * configure step, yet in practice only the first available source
+ * will be used. A more flexible solution has been requested, but
+ * currently it is not clear how this can be achieved without
+ * overengineering the problem. There are many parameters which
+ * could be taken into account when selecting the order and amount
+ * of input from the different entropy sources (trust, quality,
+ * possibility of blocking).
+ */
+size_t rand_pool_acquire_entropy(RAND_POOL *pool)
+{
+#  if defined(OPENSSL_RAND_SEED_NONE)
+    return rand_pool_entropy_available(pool);
+#  else
+    size_t entropy_available;
+
+#   if defined(OPENSSL_RAND_SEED_GETRANDOM)
+    {
+        size_t bytes_needed;
+        unsigned char *buffer;
+        ssize_t bytes;
+        /* Maximum allowed number of consecutive unsuccessful attempts */
+        int attempts = 3;
+
+        bytes_needed = rand_pool_bytes_needed(pool, 1 /*entropy_factor*/);
+        while (bytes_needed != 0 && attempts-- > 0) {
+            buffer = rand_pool_add_begin(pool, bytes_needed);
+            bytes = syscall_random(buffer, bytes_needed);
+            if (bytes > 0) {
+                rand_pool_add_end(pool, bytes, 8 * bytes);
+                bytes_needed -= bytes;
+                attempts = 3; /* reset counter after successful attempt */
+            } else if (bytes < 0 && errno != EINTR) {
+                break;
+            }
+        }
+    }
+    entropy_available = rand_pool_entropy_available(pool);
+    if (entropy_available > 0)
+        return entropy_available;
+#   endif
+
+#   if defined(OPENSSL_RAND_SEED_LIBRANDOM)
+    {
+        /* Not yet implemented. */
+    }
+#   endif
+
+#   if defined(OPENSSL_RAND_SEED_DEVRANDOM)
+    if (wait_random_seeded()) {
+        size_t bytes_needed;
+        unsigned char *buffer;
+        size_t i;
+
+        bytes_needed = rand_pool_bytes_needed(pool, 1 /*entropy_factor*/);
+        for (i = 0; bytes_needed > 0 && i < OSSL_NELEM(random_device_paths);
+             i++) {
+            ssize_t bytes = 0;
+            /* Maximum number of consecutive unsuccessful attempts */
+            int attempts = 3;
+            const int fd = get_random_device(i);
+
+            if (fd == -1)
+                continue;
+
+            while (bytes_needed != 0 && attempts-- > 0) {
+                buffer = rand_pool_add_begin(pool, bytes_needed);
+                bytes = read(fd, buffer, bytes_needed);
+
+                if (bytes > 0) {
+                    rand_pool_add_end(pool, bytes, 8 * bytes);
+                    bytes_needed -= bytes;
+                    attempts = 3; /* reset counter on successful attempt */
+                } else if (bytes < 0 && errno != EINTR) {
+                    break;
+                }
+            }
+            if (bytes < 0 || !keep_random_devices_open)
+                close_random_device(i);
+
+            bytes_needed = rand_pool_bytes_needed(pool, 1);
+        }
+        entropy_available = rand_pool_entropy_available(pool);
+        if (entropy_available > 0)
+            return entropy_available;
+    }
+#   endif
+
+#   if defined(OPENSSL_RAND_SEED_RDTSC)
+    entropy_available = rand_acquire_entropy_from_tsc(pool);
+    if (entropy_available > 0)
+        return entropy_available;
+#   endif
+
+#   if defined(OPENSSL_RAND_SEED_RDCPU)
+    entropy_available = rand_acquire_entropy_from_cpu(pool);
+    if (entropy_available > 0)
+        return entropy_available;
+#   endif
+
+#   if defined(OPENSSL_RAND_SEED_EGD)
+    {
+        static const char *paths[] = { DEVRANDOM_EGD, NULL };
+        size_t bytes_needed;
+        unsigned char *buffer;
+        int i;
+
+        bytes_needed = rand_pool_bytes_needed(pool, 1 /*entropy_factor*/);
+        for (i = 0; bytes_needed > 0 && paths[i] != NULL; i++) {
+            size_t bytes = 0;
+            int num;
+
+            buffer = rand_pool_add_begin(pool, bytes_needed);
+            num = RAND_query_egd_bytes(paths[i],
+                                       buffer, (int)bytes_needed);
+            if (num == (int)bytes_needed)
+                bytes = bytes_needed;
+
+            rand_pool_add_end(pool, bytes, 8 * bytes);
+            bytes_needed = rand_pool_bytes_needed(pool, 1);
+        }
+        entropy_available = rand_pool_entropy_available(pool);
+        if (entropy_available > 0)
+            return entropy_available;
+    }
+#   endif
+
+    return rand_pool_entropy_available(pool);
+#  endif
+}
+# endif
 #endif
+
+#if defined(OPENSSL_SYS_UNIX) || defined(__DJGPP__)
+int rand_pool_add_nonce_data(RAND_POOL *pool)
+{
+    struct {
+        pid_t pid;
+        CRYPTO_THREAD_ID tid;
+        uint64_t time;
+    } data = { 0 };
+
+    /*
+     * Add process id, thread id, and a high resolution timestamp to
+     * ensure that the nonce is unique with high probability for
+     * different process instances.
+     */
+    data.pid = getpid();
+    data.tid = CRYPTO_THREAD_get_current_id();
+    data.time = get_time_stamp();
+
+    return rand_pool_add(pool, (unsigned char *)&data, sizeof(data), 0);
+}
+
+int rand_pool_add_additional_data(RAND_POOL *pool)
+{
+    struct {
+        int fork_id;
+        CRYPTO_THREAD_ID tid;
+        uint64_t time;
+    } data = { 0 };
+
+    /*
+     * Add some noise from the thread id and a high resolution timer.
+     * The fork_id adds some extra fork-safety.
+     * The thread id adds a little randomness if the drbg is accessed
+     * concurrently (which is the case for the <master> drbg).
+     */
+    data.fork_id = openssl_get_fork_id();
+    data.tid = CRYPTO_THREAD_get_current_id();
+    data.time = get_timer_bits();
+
+    return rand_pool_add(pool, (unsigned char *)&data, sizeof(data), 0);
+}
+
+
+/*
+ * Get the current time with the highest possible resolution
+ *
+ * The time stamp is added to the nonce, so it is optimized for not repeating.
+ * The current time is ideal for this purpose, provided the computer's clock
+ * is synchronized.
+ */
+static uint64_t get_time_stamp(void)
+{
+# if defined(OSSL_POSIX_TIMER_OKAY)
+    {
+        struct timespec ts;
+
+        if (clock_gettime(CLOCK_REALTIME, &ts) == 0)
+            return TWO32TO64(ts.tv_sec, ts.tv_nsec);
+    }
+# endif
+# if defined(__unix__) \
+     || (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L)
+    {
+        struct timeval tv;
+
+        if (gettimeofday(&tv, NULL) == 0)
+            return TWO32TO64(tv.tv_sec, tv.tv_usec);
+    }
+# endif
+    return time(NULL);
+}
+
+/*
+ * Get an arbitrary timer value of the highest possible resolution
+ *
+ * The timer value is added as random noise to the additional data,
+ * which is not considered a trusted entropy sourec, so any result
+ * is acceptable.
+ */
+static uint64_t get_timer_bits(void)
+{
+    uint64_t res = OPENSSL_rdtsc();
+
+    if (res != 0)
+        return res;
+
+# if defined(__sun) || defined(__hpux)
+    return gethrtime();
+# elif defined(_AIX)
+    {
+        timebasestruct_t t;
+
+        read_wall_time(&t, TIMEBASE_SZ);
+        return TWO32TO64(t.tb_high, t.tb_low);
+    }
+# elif defined(OSSL_POSIX_TIMER_OKAY)
+    {
+        struct timespec ts;
+
+#  ifdef CLOCK_BOOTTIME
+#   define CLOCK_TYPE CLOCK_BOOTTIME
+#  elif defined(_POSIX_MONOTONIC_CLOCK)
+#   define CLOCK_TYPE CLOCK_MONOTONIC
+#  else
+#   define CLOCK_TYPE CLOCK_REALTIME
+#  endif
+
+        if (clock_gettime(CLOCK_TYPE, &ts) == 0)
+            return TWO32TO64(ts.tv_sec, ts.tv_nsec);
+    }
+# endif
+# if defined(__unix__) \
+     || (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L)
+    {
+        struct timeval tv;
+
+        if (gettimeofday(&tv, NULL) == 0)
+            return TWO32TO64(tv.tv_sec, tv.tv_usec);
+    }
+# endif
+    return time(NULL);
+}
+#endif /* (defined(OPENSSL_SYS_UNIX) && !defined(OPENSSL_SYS_VXWORKS))
+          || defined(__DJGPP__) */

@@ -25,23 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test both the Harmony egal operator and it's function equivalent.
-
-function TestEgal(expected, x, y) {
-  // TODO(mstarzinger): Once we have the egal operator, we can test it here.
-  assertSame(expected, Object.is(x, y));
-}
-
 var test_set = [ {}, [], Infinity, -Infinity, "s", "ア", 0, 0/-1, null,
     undefined, true, false, Symbol("foo"), NaN ];
 for (var i = 0; i < test_set.length; i++) {
   for (var j = 0; j < test_set.length; j++) {
     if (i == j) {
       assertSame(test_set[i], test_set[j]);
-      TestEgal(true, test_set[i], test_set[j]);
+      assertTrue(Object.is(test_set[i], test_set[j]));
     } else {
-      TestEgal(false, test_set[i], test_set[j]);
-      TestEgal(false, test_set[j], test_set[i]);
+      assertFalse(Object.is(test_set[i], test_set[j]));
     }
   }
 }

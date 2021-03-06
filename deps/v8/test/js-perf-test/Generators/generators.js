@@ -67,7 +67,7 @@ function Loop() {
 // ----------------------------------------------------------------------------
 
 function* multiples(x) {
-  let skip = function.sent || 0;
+  let skip = 2;
   let next = 0;
   while (true) {
     if (skip === 0) {

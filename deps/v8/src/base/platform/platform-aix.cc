@@ -29,56 +29,61 @@
 #undef MAP_TYPE
 
 #include "src/base/macros.h"
+#include "src/base/platform/platform-posix.h"
 #include "src/base/platform/platform.h"
-
 
 namespace v8 {
 namespace base {
 
 
-static inline void* mmapHelper(size_t len, int prot, int flags, int fildes,
-                               off_t off) {
-  void* addr = OS::GetRandomMmapAddr();
-  return mmap(addr, len, prot, flags, fildes, off);
+int64_t get_gmt_offset(const tm& localtm) {
+  // replacement for tm->tm_gmtoff field in glibc
+  // returns seconds east of UTC, taking DST into account
+  struct timeval tv;
+  struct timezone tz;
+  int ret_code = gettimeofday(&tv, &tz);
+  // 0 = success, -1 = failure
+  DCHECK_NE(ret_code, -1);
+  if (ret_code == -1) {
+    return 0;
+  }
+  return (-tz.tz_minuteswest * 60) + (localtm.tm_isdst > 0 ? 3600 : 0);
 }
 
+class AIXTimezoneCache : public PosixTimezoneCache {
+  const char* LocalTimezone(double time) override;
 
-const char* OS::LocalTimezone(double time, TimezoneCache* cache) {
-  if (std::isnan(time)) return "";
-  time_t tv = static_cast<time_t>(floor(time / msPerSecond));
+  double LocalTimeOffset(double time_ms, bool is_utc) override;
+
+  ~AIXTimezoneCache() override {}
+};
+
+const char* AIXTimezoneCache::LocalTimezone(double time_ms) {
+  if (std::isnan(time_ms)) return "";
+  time_t tv = static_cast<time_t>(floor(time_ms / msPerSecond));
   struct tm tm;
   struct tm* t = localtime_r(&tv, &tm);
-  if (NULL == t) return "";
+  if (nullptr == t) return "";
   return tzname[0];  // The location of the timezone string on AIX.
 }
 
-
-double OS::LocalTimeOffset(TimezoneCache* cache) {
-  // On AIX, struct tm does not contain a tm_gmtoff field.
-  time_t utc = time(NULL);
-  DCHECK(utc != -1);
+double AIXTimezoneCache::LocalTimeOffset(double time_ms, bool is_utc) {
+  // On AIX, struct tm does not contain a tm_gmtoff field, use get_gmt_offset
+  // helper function
+  time_t utc = time(nullptr);
+  DCHECK_NE(utc, -1);
   struct tm tm;
   struct tm* loc = localtime_r(&utc, &tm);
-  DCHECK(loc != NULL);
-  return static_cast<double>((mktime(loc) - utc) * msPerSecond);
+  DCHECK_NOT_NULL(loc);
+  return static_cast<double>(get_gmt_offset(*loc) * msPerSecond -
+                             (loc->tm_isdst > 0 ? 3600 * msPerSecond : 0));
 }
 
-
-void* OS::Allocate(const size_t requested, size_t* allocated, bool executable) {
-  const size_t msize = RoundUp(requested, getpagesize());
-  int prot = PROT_READ | PROT_WRITE | (executable ? PROT_EXEC : 0);
-  void* mbase = mmapHelper(msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-
-  if (mbase == MAP_FAILED) return NULL;
-  *allocated = msize;
-  return mbase;
-}
-
+TimezoneCache* OS::CreateTimezoneCache() { return new AIXTimezoneCache(); }
 
 static unsigned StringToLong(char* buffer) {
-  return static_cast<unsigned>(strtol(buffer, NULL, 16));  // NOLINT
+  return static_cast<unsigned>(strtol(buffer, nullptr, 16));  // NOLINT
 }
-
 
 std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   std::vector<SharedLibraryAddress> result;
@@ -112,7 +117,7 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
     if (buffer[3] != 'x') continue;
     char* start_of_path = index(buffer, '/');
     // There may be no filename in this line.  Skip to next.
-    if (start_of_path == NULL) continue;
+    if (start_of_path == nullptr) continue;
     buffer[bytes_read] = 0;
     result.push_back(SharedLibraryAddress(start_of_path, start, end));
   }
@@ -120,126 +125,38 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   return result;
 }
 
-
 void OS::SignalCodeMovingGC() {}
 
+void OS::AdjustSchedulingParams() {}
 
-// Constants used for mmap.
-static const int kMmapFd = -1;
-static const int kMmapFdOffset = 0;
+// static
+Stack::StackSlot Stack::GetStackStart() {
+  // pthread_getthrds_np creates 3 values:
+  // __pi_stackaddr, __pi_stacksize, __pi_stackend
 
-VirtualMemory::VirtualMemory() : address_(NULL), size_(0) {}
+  // higher address ----- __pi_stackend, stack base
+  //
+  //   |
+  //   |  __pi_stacksize, stack grows downwards
+  //   |
+  //   V
+  //
+  // lower address -----  __pi_stackaddr, current sp
 
-
-VirtualMemory::VirtualMemory(size_t size)
-    : address_(ReserveRegion(size)), size_(size) {}
-
-
-VirtualMemory::VirtualMemory(size_t size, size_t alignment)
-    : address_(NULL), size_(0) {
-  DCHECK((alignment % OS::AllocateAlignment()) == 0);
-  size_t request_size =
-      RoundUp(size + alignment, static_cast<intptr_t>(OS::AllocateAlignment()));
-  void* reservation =
-      mmapHelper(request_size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, kMmapFd,
-                 kMmapFdOffset);
-  if (reservation == MAP_FAILED) return;
-
-  uint8_t* base = static_cast<uint8_t*>(reservation);
-  uint8_t* aligned_base = RoundUp(base, alignment);
-  DCHECK_LE(base, aligned_base);
-
-  // Unmap extra memory reserved before and after the desired block.
-  if (aligned_base != base) {
-    size_t prefix_size = static_cast<size_t>(aligned_base - base);
-    OS::Free(base, prefix_size);
-    request_size -= prefix_size;
+  pthread_t tid = pthread_self();
+  struct __pthrdsinfo buf;
+  // clear buf
+  memset(&buf, 0, sizeof(buf));
+  char regbuf[1];
+  int regbufsize = sizeof(regbuf);
+  const int rc = pthread_getthrds_np(&tid, PTHRDSINFO_QUERY_ALL, &buf,
+                                     sizeof(buf), regbuf, &regbufsize);
+  CHECK(!rc);
+  if (buf.__pi_stackend == NULL || buf.__pi_stackaddr == NULL) {
+    return nullptr;
   }
-
-  size_t aligned_size = RoundUp(size, OS::AllocateAlignment());
-  DCHECK_LE(aligned_size, request_size);
-
-  if (aligned_size != request_size) {
-    size_t suffix_size = request_size - aligned_size;
-    OS::Free(aligned_base + aligned_size, suffix_size);
-    request_size -= suffix_size;
-  }
-
-  DCHECK(aligned_size == request_size);
-
-  address_ = static_cast<void*>(aligned_base);
-  size_ = aligned_size;
+  return reinterpret_cast<void*>(buf.__pi_stackend);
 }
 
-
-VirtualMemory::~VirtualMemory() {
-  if (IsReserved()) {
-    bool result = ReleaseRegion(address(), size());
-    DCHECK(result);
-    USE(result);
-  }
-}
-
-
-bool VirtualMemory::IsReserved() { return address_ != NULL; }
-
-
-void VirtualMemory::Reset() {
-  address_ = NULL;
-  size_ = 0;
-}
-
-
-bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
-  return CommitRegion(address, size, is_executable);
-}
-
-
-bool VirtualMemory::Uncommit(void* address, size_t size) {
-  return UncommitRegion(address, size);
-}
-
-
-bool VirtualMemory::Guard(void* address) {
-  OS::Guard(address, OS::CommitPageSize());
-  return true;
-}
-
-
-void* VirtualMemory::ReserveRegion(size_t size) {
-  void* result = mmapHelper(size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS,
-                            kMmapFd, kMmapFdOffset);
-
-  if (result == MAP_FAILED) return NULL;
-
-  return result;
-}
-
-
-bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
-  int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-
-  if (mprotect(base, size, prot) == -1) return false;
-
-  return true;
-}
-
-
-bool VirtualMemory::UncommitRegion(void* base, size_t size) {
-  return mprotect(base, size, PROT_NONE) != -1;
-}
-
-bool VirtualMemory::ReleasePartialRegion(void* base, size_t size,
-                                         void* free_start, size_t free_size) {
-  return munmap(free_start, free_size) == 0;
-}
-
-
-bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
-  return munmap(base, size) == 0;
-}
-
-
-bool VirtualMemory::HasLazyCommits() { return true; }
 }  // namespace base
 }  // namespace v8

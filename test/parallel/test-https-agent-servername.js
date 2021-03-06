@@ -1,22 +1,21 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
+const assert = require('assert');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
-var https = require('https');
-var fs = require('fs');
+const https = require('https');
+const fixtures = require('../common/fixtures');
 
-var options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem'),
-  ca:  fs.readFileSync(common.fixturesDir + '/keys/ca1-cert.pem')
+const options = {
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem'),
+  ca: fixtures.readKey('ca1-cert.pem')
 };
 
 
-var server = https.Server(options, function(req, res) {
+const server = https.Server(options, (req, res) => {
   res.writeHead(200);
   res.end('hello world\n');
 });
@@ -29,11 +28,11 @@ server.listen(0, function() {
     rejectUnauthorized: true,
     servername: 'agent1',
     ca: options.ca
-  }, function(res) {
+  }, (res) => {
     res.resume();
-    console.log(res.statusCode);
+    assert.strictEqual(res.statusCode, 200);
     server.close();
-  }).on('error', function(e) {
+  }).on('error', (e) => {
     console.log(e.message);
     process.exit(1);
   });

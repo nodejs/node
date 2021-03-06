@@ -6,670 +6,257 @@
 #define V8_BUILTINS_BUILTINS_H_
 
 #include "src/base/flags.h"
-#include "src/handles.h"
+#include "src/builtins/builtins-definitions.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {
 
-#define CODE_AGE_LIST_WITH_ARG(V, A) \
-  V(Quadragenarian, A)               \
-  V(Quinquagenarian, A)              \
-  V(Sexagenarian, A)                 \
-  V(Septuagenarian, A)               \
-  V(Octogenarian, A)
-
-#define CODE_AGE_LIST_IGNORE_ARG(X, V) V(X)
-
-#define CODE_AGE_LIST(V) CODE_AGE_LIST_WITH_ARG(CODE_AGE_LIST_IGNORE_ARG, V)
-
-#define CODE_AGE_LIST_COMPLETE(V) \
-  V(ToBeExecutedOnce)             \
-  V(NotExecuted)                  \
-  V(ExecutedOnce)                 \
-  V(NoAge)                        \
-  CODE_AGE_LIST_WITH_ARG(CODE_AGE_LIST_IGNORE_ARG, V)
-
-#define DECLARE_CODE_AGE_BUILTIN(C, V) \
-  V(Make##C##CodeYoungAgainOddMarking) \
-  V(Make##C##CodeYoungAgainEvenMarking)
-
-// CPP: Builtin in C++. Entered via BUILTIN_EXIT frame.
-//      Args: name
-// API: Builtin in C++ for API callbacks. Entered via EXIT frame.
-//      Args: name
-// TFJ: Builtin in Turbofan, with JS linkage (callable as Javascript function).
-//      Args: name, arguments count
-// TFS: Builtin in Turbofan, with CodeStub linkage.
-//      Args: name, code kind, extra IC state, interface descriptor
-// ASM: Builtin in platform-dependent assembly.
-//      Args: name
-// ASH: Handlers implemented in platform-dependent assembly.
-//      Args: name, code kind, extra IC state
-// DBG: Builtin in platform-dependent assembly, used by the debugger.
-//      Args: name
-#define BUILTIN_LIST(CPP, API, TFJ, TFS, ASM, ASH, DBG)                       \
-  ASM(Abort)                                                                  \
-  /* Handlers */                                                              \
-  ASH(KeyedLoadIC_Megamorphic, KEYED_LOAD_IC, kNoExtraICState)                \
-  ASM(KeyedLoadIC_Miss)                                                       \
-  ASH(KeyedLoadIC_Slow, HANDLER, Code::KEYED_LOAD_IC)                         \
-  ASH(KeyedStoreIC_Megamorphic, KEYED_STORE_IC, kNoExtraICState)              \
-  ASH(KeyedStoreIC_Megamorphic_Strict, KEYED_STORE_IC,                        \
-      StoreICState::kStrictModeState)                                         \
-  ASM(KeyedStoreIC_Miss)                                                      \
-  ASH(KeyedStoreIC_Slow, HANDLER, Code::KEYED_STORE_IC)                       \
-  TFS(LoadGlobalIC_Miss, BUILTIN, kNoExtraICState, LoadGlobalWithVector)      \
-  TFS(LoadGlobalIC_Slow, HANDLER, Code::LOAD_GLOBAL_IC, LoadGlobalWithVector) \
-  ASH(LoadIC_Getter_ForDeopt, LOAD_IC, kNoExtraICState)                       \
-  TFS(LoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector)                  \
-  ASH(LoadIC_Normal, HANDLER, Code::LOAD_IC)                                  \
-  TFS(LoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector)                    \
-  TFS(StoreIC_Miss, BUILTIN, kNoExtraICState, StoreWithVector)                \
-  ASH(StoreIC_Normal, HANDLER, Code::STORE_IC)                                \
-  ASH(StoreIC_Setter_ForDeopt, STORE_IC, StoreICState::kStrictModeState)      \
-  TFS(StoreIC_SlowSloppy, HANDLER, Code::STORE_IC, StoreWithVector)           \
-  TFS(StoreIC_SlowStrict, HANDLER, Code::STORE_IC, StoreWithVector)           \
-                                                                              \
-  /* Code aging */                                                            \
-  CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, ASM)                       \
-                                                                              \
-  /* Calls */                                                                 \
-  ASM(ArgumentsAdaptorTrampoline)                                             \
-  /* ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList) */             \
-  ASM(CallFunction_ReceiverIsNullOrUndefined)                                 \
-  ASM(CallFunction_ReceiverIsNotNullOrUndefined)                              \
-  ASM(CallFunction_ReceiverIsAny)                                             \
-  ASM(TailCallFunction_ReceiverIsNullOrUndefined)                             \
-  ASM(TailCallFunction_ReceiverIsNotNullOrUndefined)                          \
-  ASM(TailCallFunction_ReceiverIsAny)                                         \
-  /* ES6 section 9.4.1.1 [[Call]] ( thisArgument, argumentsList) */           \
-  ASM(CallBoundFunction)                                                      \
-  ASM(TailCallBoundFunction)                                                  \
-  /* ES6 section 7.3.12 Call(F, V, [argumentsList]) */                        \
-  ASM(Call_ReceiverIsNullOrUndefined)                                         \
-  ASM(Call_ReceiverIsNotNullOrUndefined)                                      \
-  ASM(Call_ReceiverIsAny)                                                     \
-  ASM(TailCall_ReceiverIsNullOrUndefined)                                     \
-  ASM(TailCall_ReceiverIsNotNullOrUndefined)                                  \
-  ASM(TailCall_ReceiverIsAny)                                                 \
-                                                                              \
-  /* Construct */                                                             \
-  /* ES6 section 9.2.2 [[Construct]] ( argumentsList, newTarget) */           \
-  ASM(ConstructFunction)                                                      \
-  /* ES6 section 9.4.1.2 [[Construct]] (argumentsList, newTarget) */          \
-  ASM(ConstructBoundFunction)                                                 \
-  ASM(ConstructedNonConstructable)                                            \
-  /* ES6 section 9.5.14 [[Construct]] ( argumentsList, newTarget) */          \
-  ASM(ConstructProxy)                                                         \
-  /* ES6 section 7.3.13 Construct (F, [argumentsList], [newTarget]) */        \
-  ASM(Construct)                                                              \
-  ASM(JSConstructStubApi)                                                     \
-  ASM(JSConstructStubGeneric)                                                 \
-  ASM(JSBuiltinsConstructStub)                                                \
-  ASM(JSBuiltinsConstructStubForDerived)                                      \
-                                                                              \
-  /* Apply and entries */                                                     \
-  ASM(Apply)                                                                  \
-  ASM(JSEntryTrampoline)                                                      \
-  ASM(JSConstructEntryTrampoline)                                             \
-  ASM(ResumeGeneratorTrampoline)                                              \
-                                                                              \
-  /* Stack and interrupt check */                                             \
-  ASM(InterruptCheck)                                                         \
-  ASM(StackCheck)                                                             \
-                                                                              \
-  /* Interpreter */                                                           \
-  ASM(InterpreterEntryTrampoline)                                             \
-  ASM(InterpreterMarkBaselineOnReturn)                                        \
-  ASM(InterpreterPushArgsAndCall)                                             \
-  ASM(InterpreterPushArgsAndCallFunction)                                     \
-  ASM(InterpreterPushArgsAndConstruct)                                        \
-  ASM(InterpreterPushArgsAndTailCall)                                         \
-  ASM(InterpreterPushArgsAndTailCallFunction)                                 \
-  ASM(InterpreterEnterBytecodeDispatch)                                       \
-  ASM(InterpreterOnStackReplacement)                                          \
-                                                                              \
-  /* Code life-cycle */                                                       \
-  ASM(CompileLazy)                                                            \
-  ASM(CompileBaseline)                                                        \
-  ASM(CompileOptimized)                                                       \
-  ASM(CompileOptimizedConcurrent)                                             \
-  ASM(InOptimizationQueue)                                                    \
-  ASM(InstantiateAsmJs)                                                       \
-  ASM(MarkCodeAsToBeExecutedOnce)                                             \
-  ASM(MarkCodeAsExecutedOnce)                                                 \
-  ASM(MarkCodeAsExecutedTwice)                                                \
-  ASM(NotifyDeoptimized)                                                      \
-  ASM(NotifySoftDeoptimized)                                                  \
-  ASM(NotifyLazyDeoptimized)                                                  \
-  ASM(NotifyStubFailure)                                                      \
-  ASM(NotifyStubFailureSaveDoubles)                                           \
-  ASM(OnStackReplacement)                                                     \
-                                                                              \
-  /* API callback handling */                                                 \
-  API(HandleApiCall)                                                          \
-  API(HandleApiCallAsFunction)                                                \
-  API(HandleApiCallAsConstructor)                                             \
-  ASM(HandleFastApiCall)                                                      \
-                                                                              \
-  /* Adapters for Turbofan into runtime */                                    \
-  ASM(AllocateInNewSpace)                                                     \
-  ASM(AllocateInOldSpace)                                                     \
-                                                                              \
-  /* TurboFan support builtins */                                             \
-  TFS(CopyFastSmiOrObjectElements, BUILTIN, kNoExtraICState,                  \
-      CopyFastSmiOrObjectElements)                                            \
-  TFS(GrowFastDoubleElements, BUILTIN, kNoExtraICState, GrowArrayElements)    \
-  TFS(GrowFastSmiOrObjectElements, BUILTIN, kNoExtraICState,                  \
-      GrowArrayElements)                                                      \
-                                                                              \
-  /* Debugger */                                                              \
-  DBG(FrameDropper_LiveEdit)                                                  \
-  DBG(Return_DebugBreak)                                                      \
-  DBG(Slot_DebugBreak)                                                        \
-                                                                              \
-  /* Type conversions */                                                      \
-  TFS(ToBoolean, BUILTIN, kNoExtraICState, TypeConversion)                    \
-  TFS(OrdinaryToPrimitive_Number, BUILTIN, kNoExtraICState, TypeConversion)   \
-  TFS(OrdinaryToPrimitive_String, BUILTIN, kNoExtraICState, TypeConversion)   \
-  TFS(NonPrimitiveToPrimitive_Default, BUILTIN, kNoExtraICState,              \
-      TypeConversion)                                                         \
-  TFS(NonPrimitiveToPrimitive_Number, BUILTIN, kNoExtraICState,               \
-      TypeConversion)                                                         \
-  TFS(NonPrimitiveToPrimitive_String, BUILTIN, kNoExtraICState,               \
-      TypeConversion)                                                         \
-  TFS(StringToNumber, BUILTIN, kNoExtraICState, TypeConversion)               \
-  TFS(NonNumberToNumber, BUILTIN, kNoExtraICState, TypeConversion)            \
-  ASM(ToNumber)                                                               \
-                                                                              \
-  /* Built-in functions for Javascript */                                     \
-  /* Special internal builtins */                                             \
-  CPP(EmptyFunction)                                                          \
-  CPP(Illegal)                                                                \
-  CPP(RestrictedFunctionPropertiesThrower)                                    \
-  CPP(RestrictedStrictArgumentsPropertiesThrower)                             \
-  CPP(UnsupportedThrower)                                                     \
-                                                                              \
-  /* Array */                                                                 \
-  ASM(ArrayCode)                                                              \
-  ASM(InternalArrayCode)                                                      \
-  CPP(ArrayConcat)                                                            \
-  /* ES6 section 22.1.2.2 Array.isArray */                                    \
-  TFJ(ArrayIsArray, 2)                                                        \
-  /* ES7 #sec-array.prototype.includes */                                     \
-  TFJ(ArrayIncludes, 3)                                                       \
-  TFJ(ArrayIndexOf, 3)                                                        \
-  CPP(ArrayPop)                                                               \
-  CPP(ArrayPush)                                                              \
-  CPP(ArrayShift)                                                             \
-  CPP(ArraySlice)                                                             \
-  CPP(ArraySplice)                                                            \
-  CPP(ArrayUnshift)                                                           \
-                                                                              \
-  /* ArrayBuffer */                                                           \
-  CPP(ArrayBufferConstructor)                                                 \
-  CPP(ArrayBufferConstructor_ConstructStub)                                   \
-  CPP(ArrayBufferPrototypeGetByteLength)                                      \
-  CPP(ArrayBufferIsView)                                                      \
-                                                                              \
-  /* Boolean */                                                               \
-  CPP(BooleanConstructor)                                                     \
-  CPP(BooleanConstructor_ConstructStub)                                       \
-  /* ES6 section 19.3.3.2 Boolean.prototype.toString ( ) */                   \
-  TFJ(BooleanPrototypeToString, 1)                                            \
-  /* ES6 section 19.3.3.3 Boolean.prototype.valueOf ( ) */                    \
-  TFJ(BooleanPrototypeValueOf, 1)                                             \
-                                                                              \
-  /* CallSite */                                                              \
-  CPP(CallSitePrototypeGetColumnNumber)                                       \
-  CPP(CallSitePrototypeGetEvalOrigin)                                         \
-  CPP(CallSitePrototypeGetFileName)                                           \
-  CPP(CallSitePrototypeGetFunction)                                           \
-  CPP(CallSitePrototypeGetFunctionName)                                       \
-  CPP(CallSitePrototypeGetLineNumber)                                         \
-  CPP(CallSitePrototypeGetMethodName)                                         \
-  CPP(CallSitePrototypeGetPosition)                                           \
-  CPP(CallSitePrototypeGetScriptNameOrSourceURL)                              \
-  CPP(CallSitePrototypeGetThis)                                               \
-  CPP(CallSitePrototypeGetTypeName)                                           \
-  CPP(CallSitePrototypeIsConstructor)                                         \
-  CPP(CallSitePrototypeIsEval)                                                \
-  CPP(CallSitePrototypeIsNative)                                              \
-  CPP(CallSitePrototypeIsToplevel)                                            \
-  CPP(CallSitePrototypeToString)                                              \
-                                                                              \
-  /* DataView */                                                              \
-  CPP(DataViewConstructor)                                                    \
-  CPP(DataViewConstructor_ConstructStub)                                      \
-  CPP(DataViewPrototypeGetBuffer)                                             \
-  CPP(DataViewPrototypeGetByteLength)                                         \
-  CPP(DataViewPrototypeGetByteOffset)                                         \
-                                                                              \
-  /* Date */                                                                  \
-  CPP(DateConstructor)                                                        \
-  CPP(DateConstructor_ConstructStub)                                          \
-  /* ES6 section 20.3.4.2 Date.prototype.getDate ( ) */                       \
-  ASM(DatePrototypeGetDate)                                                   \
-  /* ES6 section 20.3.4.3 Date.prototype.getDay ( ) */                        \
-  ASM(DatePrototypeGetDay)                                                    \
-  /* ES6 section 20.3.4.4 Date.prototype.getFullYear ( ) */                   \
-  ASM(DatePrototypeGetFullYear)                                               \
-  /* ES6 section 20.3.4.5 Date.prototype.getHours ( ) */                      \
-  ASM(DatePrototypeGetHours)                                                  \
-  /* ES6 section 20.3.4.6 Date.prototype.getMilliseconds ( ) */               \
-  ASM(DatePrototypeGetMilliseconds)                                           \
-  /* ES6 section 20.3.4.7 Date.prototype.getMinutes ( ) */                    \
-  ASM(DatePrototypeGetMinutes)                                                \
-  /* ES6 section 20.3.4.8 Date.prototype.getMonth */                          \
-  ASM(DatePrototypeGetMonth)                                                  \
-  /* ES6 section 20.3.4.9 Date.prototype.getSeconds ( ) */                    \
-  ASM(DatePrototypeGetSeconds)                                                \
-  /* ES6 section 20.3.4.10 Date.prototype.getTime ( ) */                      \
-  ASM(DatePrototypeGetTime)                                                   \
-  /* ES6 section 20.3.4.11 Date.prototype.getTimezoneOffset ( ) */            \
-  ASM(DatePrototypeGetTimezoneOffset)                                         \
-  /* ES6 section 20.3.4.12 Date.prototype.getUTCDate ( ) */                   \
-  ASM(DatePrototypeGetUTCDate)                                                \
-  /* ES6 section 20.3.4.13 Date.prototype.getUTCDay ( ) */                    \
-  ASM(DatePrototypeGetUTCDay)                                                 \
-  /* ES6 section 20.3.4.14 Date.prototype.getUTCFullYear ( ) */               \
-  ASM(DatePrototypeGetUTCFullYear)                                            \
-  /* ES6 section 20.3.4.15 Date.prototype.getUTCHours ( ) */                  \
-  ASM(DatePrototypeGetUTCHours)                                               \
-  /* ES6 section 20.3.4.16 Date.prototype.getUTCMilliseconds ( ) */           \
-  ASM(DatePrototypeGetUTCMilliseconds)                                        \
-  /* ES6 section 20.3.4.17 Date.prototype.getUTCMinutes ( ) */                \
-  ASM(DatePrototypeGetUTCMinutes)                                             \
-  /* ES6 section 20.3.4.18 Date.prototype.getUTCMonth ( ) */                  \
-  ASM(DatePrototypeGetUTCMonth)                                               \
-  /* ES6 section 20.3.4.19 Date.prototype.getUTCSeconds ( ) */                \
-  ASM(DatePrototypeGetUTCSeconds)                                             \
-  CPP(DatePrototypeGetYear)                                                   \
-  CPP(DatePrototypeSetYear)                                                   \
-  CPP(DateNow)                                                                \
-  CPP(DateParse)                                                              \
-  CPP(DatePrototypeSetDate)                                                   \
-  CPP(DatePrototypeSetFullYear)                                               \
-  CPP(DatePrototypeSetHours)                                                  \
-  CPP(DatePrototypeSetMilliseconds)                                           \
-  CPP(DatePrototypeSetMinutes)                                                \
-  CPP(DatePrototypeSetMonth)                                                  \
-  CPP(DatePrototypeSetSeconds)                                                \
-  CPP(DatePrototypeSetTime)                                                   \
-  CPP(DatePrototypeSetUTCDate)                                                \
-  CPP(DatePrototypeSetUTCFullYear)                                            \
-  CPP(DatePrototypeSetUTCHours)                                               \
-  CPP(DatePrototypeSetUTCMilliseconds)                                        \
-  CPP(DatePrototypeSetUTCMinutes)                                             \
-  CPP(DatePrototypeSetUTCMonth)                                               \
-  CPP(DatePrototypeSetUTCSeconds)                                             \
-  CPP(DatePrototypeToDateString)                                              \
-  CPP(DatePrototypeToISOString)                                               \
-  CPP(DatePrototypeToPrimitive)                                               \
-  CPP(DatePrototypeToUTCString)                                               \
-  CPP(DatePrototypeToString)                                                  \
-  CPP(DatePrototypeToTimeString)                                              \
-  CPP(DatePrototypeValueOf)                                                   \
-  CPP(DatePrototypeToJson)                                                    \
-  CPP(DateUTC)                                                                \
-                                                                              \
-  /* Error */                                                                 \
-  CPP(ErrorConstructor)                                                       \
-  CPP(ErrorCaptureStackTrace)                                                 \
-  CPP(ErrorPrototypeToString)                                                 \
-  CPP(MakeError)                                                              \
-  CPP(MakeRangeError)                                                         \
-  CPP(MakeSyntaxError)                                                        \
-  CPP(MakeTypeError)                                                          \
-  CPP(MakeURIError)                                                           \
-                                                                              \
-  /* Function */                                                              \
-  CPP(FunctionConstructor)                                                    \
-  ASM(FunctionPrototypeApply)                                                 \
-  CPP(FunctionPrototypeBind)                                                  \
-  ASM(FunctionPrototypeCall)                                                  \
-  /* ES6 section 19.2.3.6 Function.prototype [ @@hasInstance ] ( V ) */       \
-  TFJ(FunctionPrototypeHasInstance, 2)                                        \
-  CPP(FunctionPrototypeToString)                                              \
-                                                                              \
-  /* Generator and Async */                                                   \
-  CPP(GeneratorFunctionConstructor)                                           \
-  /* ES6 section 25.3.1.2 Generator.prototype.next ( value ) */               \
-  TFJ(GeneratorPrototypeNext, 2)                                              \
-  /* ES6 section 25.3.1.3 Generator.prototype.return ( value ) */             \
-  TFJ(GeneratorPrototypeReturn, 2)                                            \
-  /* ES6 section 25.3.1.4 Generator.prototype.throw ( exception ) */          \
-  TFJ(GeneratorPrototypeThrow, 2)                                             \
-  CPP(AsyncFunctionConstructor)                                               \
-                                                                              \
-  /* Encode and decode */                                                     \
-  CPP(GlobalDecodeURI)                                                        \
-  CPP(GlobalDecodeURIComponent)                                               \
-  CPP(GlobalEncodeURI)                                                        \
-  CPP(GlobalEncodeURIComponent)                                               \
-  CPP(GlobalEscape)                                                           \
-  CPP(GlobalUnescape)                                                         \
-                                                                              \
-  /* Eval */                                                                  \
-  CPP(GlobalEval)                                                             \
-                                                                              \
-  /* JSON */                                                                  \
-  CPP(JsonParse)                                                              \
-  CPP(JsonStringify)                                                          \
-                                                                              \
-  /* Math */                                                                  \
-  /* ES6 section 20.2.2.1 Math.abs ( x ) */                                   \
-  TFJ(MathAbs, 2)                                                             \
-  /* ES6 section 20.2.2.2 Math.acos ( x ) */                                  \
-  TFJ(MathAcos, 2)                                                            \
-  /* ES6 section 20.2.2.3 Math.acosh ( x ) */                                 \
-  TFJ(MathAcosh, 2)                                                           \
-  /* ES6 section 20.2.2.4 Math.asin ( x ) */                                  \
-  TFJ(MathAsin, 2)                                                            \
-  /* ES6 section 20.2.2.5 Math.asinh ( x ) */                                 \
-  TFJ(MathAsinh, 2)                                                           \
-  /* ES6 section 20.2.2.6 Math.atan ( x ) */                                  \
-  TFJ(MathAtan, 2)                                                            \
-  /* ES6 section 20.2.2.7 Math.atanh ( x ) */                                 \
-  TFJ(MathAtanh, 2)                                                           \
-  /* ES6 section 20.2.2.8 Math.atan2 ( y, x ) */                              \
-  TFJ(MathAtan2, 3)                                                           \
-  /* ES6 section 20.2.2.9 Math.cbrt ( x ) */                                  \
-  TFJ(MathCbrt, 2)                                                            \
-  /* ES6 section 20.2.2.10 Math.ceil ( x ) */                                 \
-  TFJ(MathCeil, 2)                                                            \
-  /* ES6 section 20.2.2.11 Math.clz32 ( x ) */                                \
-  TFJ(MathClz32, 2)                                                           \
-  /* ES6 section 20.2.2.12 Math.cos ( x ) */                                  \
-  TFJ(MathCos, 2)                                                             \
-  /* ES6 section 20.2.2.13 Math.cosh ( x ) */                                 \
-  TFJ(MathCosh, 2)                                                            \
-  /* ES6 section 20.2.2.14 Math.exp ( x ) */                                  \
-  TFJ(MathExp, 2)                                                             \
-  /* ES6 section 20.2.2.15 Math.expm1 ( x ) */                                \
-  TFJ(MathExpm1, 2)                                                           \
-  /* ES6 section 20.2.2.16 Math.floor ( x ) */                                \
-  TFJ(MathFloor, 2)                                                           \
-  /* ES6 section 20.2.2.17 Math.fround ( x ) */                               \
-  TFJ(MathFround, 2)                                                          \
-  /* ES6 section 20.2.2.18 Math.hypot ( value1, value2, ...values ) */        \
-  CPP(MathHypot)                                                              \
-  /* ES6 section 20.2.2.19 Math.imul ( x, y ) */                              \
-  TFJ(MathImul, 3)                                                            \
-  /* ES6 section 20.2.2.20 Math.log ( x ) */                                  \
-  TFJ(MathLog, 2)                                                             \
-  /* ES6 section 20.2.2.21 Math.log1p ( x ) */                                \
-  TFJ(MathLog1p, 2)                                                           \
-  /* ES6 section 20.2.2.22 Math.log10 ( x ) */                                \
-  TFJ(MathLog10, 2)                                                           \
-  /* ES6 section 20.2.2.23 Math.log2 ( x ) */                                 \
-  TFJ(MathLog2, 2)                                                            \
-  /* ES6 section 20.2.2.24 Math.max ( value1, value2 , ...values ) */         \
-  ASM(MathMax)                                                                \
-  /* ES6 section 20.2.2.25 Math.min ( value1, value2 , ...values ) */         \
-  ASM(MathMin)                                                                \
-  /* ES6 section 20.2.2.26 Math.pow ( x, y ) */                               \
-  TFJ(MathPow, 3)                                                             \
-  /* ES6 section 20.2.2.28 Math.round ( x ) */                                \
-  TFJ(MathRound, 2)                                                           \
-  /* ES6 section 20.2.2.29 Math.sign ( x ) */                                 \
-  TFJ(MathSign, 2)                                                            \
-  /* ES6 section 20.2.2.30 Math.sin ( x ) */                                  \
-  TFJ(MathSin, 2)                                                             \
-  /* ES6 section 20.2.2.31 Math.sinh ( x ) */                                 \
-  TFJ(MathSinh, 2)                                                            \
-  /* ES6 section 20.2.2.32 Math.sqrt ( x ) */                                 \
-  TFJ(MathTan, 2)                                                             \
-  /* ES6 section 20.2.2.33 Math.tan ( x ) */                                  \
-  TFJ(MathTanh, 2)                                                            \
-  /* ES6 section 20.2.2.34 Math.tanh ( x ) */                                 \
-  TFJ(MathSqrt, 2)                                                            \
-  /* ES6 section 20.2.2.35 Math.trunc ( x ) */                                \
-  TFJ(MathTrunc, 2)                                                           \
-                                                                              \
-  /* Number */                                                                \
-  /* ES6 section 20.1.1.1 Number ( [ value ] ) for the [[Call]] case */       \
-  ASM(NumberConstructor)                                                      \
-  /* ES6 section 20.1.1.1 Number ( [ value ] ) for the [[Construct]] case */  \
-  ASM(NumberConstructor_ConstructStub)                                        \
-  CPP(NumberPrototypeToExponential)                                           \
-  CPP(NumberPrototypeToFixed)                                                 \
-  CPP(NumberPrototypeToLocaleString)                                          \
-  CPP(NumberPrototypeToPrecision)                                             \
-  CPP(NumberPrototypeToString)                                                \
-  /* ES6 section 20.1.3.7 Number.prototype.valueOf ( ) */                     \
-  TFJ(NumberPrototypeValueOf, 1)                                              \
-                                                                              \
-  /* Object */                                                                \
-  CPP(ObjectAssign)                                                           \
-  CPP(ObjectCreate)                                                           \
-  CPP(ObjectDefineGetter)                                                     \
-  CPP(ObjectDefineProperties)                                                 \
-  CPP(ObjectDefineProperty)                                                   \
-  CPP(ObjectDefineSetter)                                                     \
-  CPP(ObjectEntries)                                                          \
-  CPP(ObjectFreeze)                                                           \
-  CPP(ObjectGetOwnPropertyDescriptor)                                         \
-  CPP(ObjectGetOwnPropertyDescriptors)                                        \
-  CPP(ObjectGetOwnPropertyNames)                                              \
-  CPP(ObjectGetOwnPropertySymbols)                                            \
-  CPP(ObjectGetPrototypeOf)                                                   \
-  /* ES6 section 19.1.3.2 Object.prototype.hasOwnProperty */                  \
-  TFJ(ObjectHasOwnProperty, 2)                                                \
-  CPP(ObjectIs)                                                               \
-  CPP(ObjectIsExtensible)                                                     \
-  CPP(ObjectIsFrozen)                                                         \
-  CPP(ObjectIsSealed)                                                         \
-  CPP(ObjectKeys)                                                             \
-  CPP(ObjectLookupGetter)                                                     \
-  CPP(ObjectLookupSetter)                                                     \
-  CPP(ObjectPreventExtensions)                                                \
-  /* ES6 section 19.1.3.6 Object.prototype.toString () */                     \
-  TFJ(ObjectProtoToString, 1)                                                 \
-  CPP(ObjectPrototypePropertyIsEnumerable)                                    \
-  CPP(ObjectSeal)                                                             \
-  CPP(ObjectValues)                                                           \
-                                                                              \
-  /* Proxy */                                                                 \
-  CPP(ProxyConstructor)                                                       \
-  CPP(ProxyConstructor_ConstructStub)                                         \
-                                                                              \
-  /* Reflect */                                                               \
-  ASM(ReflectApply)                                                           \
-  ASM(ReflectConstruct)                                                       \
-  CPP(ReflectDefineProperty)                                                  \
-  CPP(ReflectDeleteProperty)                                                  \
-  CPP(ReflectGet)                                                             \
-  CPP(ReflectGetOwnPropertyDescriptor)                                        \
-  CPP(ReflectGetPrototypeOf)                                                  \
-  CPP(ReflectHas)                                                             \
-  CPP(ReflectIsExtensible)                                                    \
-  CPP(ReflectOwnKeys)                                                         \
-  CPP(ReflectPreventExtensions)                                               \
-  CPP(ReflectSet)                                                             \
-  CPP(ReflectSetPrototypeOf)                                                  \
-                                                                              \
-  /* SharedArrayBuffer */                                                     \
-  CPP(SharedArrayBufferPrototypeGetByteLength)                                \
-  TFJ(AtomicsLoad, 3)                                                         \
-  TFJ(AtomicsStore, 4)                                                        \
-                                                                              \
-  /* String */                                                                \
-  ASM(StringConstructor)                                                      \
-  ASM(StringConstructor_ConstructStub)                                        \
-  CPP(StringFromCodePoint)                                                    \
-  /* ES6 section 21.1.2.1 String.fromCharCode ( ...codeUnits ) */             \
-  TFJ(StringFromCharCode, 2)                                                  \
-  /* ES6 section 21.1.3.1 String.prototype.charAt ( pos ) */                  \
-  TFJ(StringPrototypeCharAt, 2)                                               \
-  /* ES6 section 21.1.3.2 String.prototype.charCodeAt ( pos ) */              \
-  TFJ(StringPrototypeCharCodeAt, 2)                                           \
-  /* ES6 section 21.1.3.25 String.prototype.toString () */                    \
-  TFJ(StringPrototypeToString, 1)                                             \
-  CPP(StringPrototypeTrim)                                                    \
-  CPP(StringPrototypeTrimLeft)                                                \
-  CPP(StringPrototypeTrimRight)                                               \
-  /* ES6 section 21.1.3.28 String.prototype.valueOf () */                     \
-  TFJ(StringPrototypeValueOf, 1)                                              \
-                                                                              \
-  /* Symbol */                                                                \
-  CPP(SymbolConstructor)                                                      \
-  CPP(SymbolConstructor_ConstructStub)                                        \
-  /* ES6 section 19.4.3.4 Symbol.prototype [ @@toPrimitive ] ( hint ) */      \
-  TFJ(SymbolPrototypeToPrimitive, 2)                                          \
-  /* ES6 section 19.4.3.2 Symbol.prototype.toString ( ) */                    \
-  TFJ(SymbolPrototypeToString, 1)                                             \
-  /* ES6 section 19.4.3.3 Symbol.prototype.valueOf ( ) */                     \
-  TFJ(SymbolPrototypeValueOf, 1)                                              \
-                                                                              \
-  /* TypedArray */                                                            \
-  CPP(TypedArrayPrototypeBuffer)                                              \
-  /* ES6 section 22.2.3.2 get %TypedArray%.prototype.byteLength */            \
-  TFJ(TypedArrayPrototypeByteLength, 1)                                       \
-  /* ES6 section 22.2.3.3 get %TypedArray%.prototype.byteOffset */            \
-  TFJ(TypedArrayPrototypeByteOffset, 1)                                       \
-  /* ES6 section 22.2.3.18 get %TypedArray%.prototype.length */               \
-  TFJ(TypedArrayPrototypeLength, 1)
-
-#define IGNORE_BUILTIN(...)
-
-#define BUILTIN_LIST_ALL(V) BUILTIN_LIST(V, V, V, V, V, V, V)
-
-#define BUILTIN_LIST_C(V)                                            \
-  BUILTIN_LIST(V, V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN)
-
-#define BUILTIN_LIST_A(V)                                                      \
-  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               V, V, V)
-
-#define BUILTIN_LIST_DBG(V)                                                    \
-  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, V)
+class ByteArray;
+class CallInterfaceDescriptor;
+class Callable;
+template <typename T>
+class Handle;
+class Isolate;
 
 // Forward declarations.
-class CodeStubAssembler;
-class ObjectVisitor;
+class BailoutId;
+class RootVisitor;
+enum class InterpreterPushArgsMode : unsigned;
+namespace compiler {
+class CodeAssemblerState;
+}  // namespace compiler
+
+template <typename T>
+static constexpr T FirstFromVarArgs(T x, ...) noexcept {
+  return x;
+}
+
+// Convenience macro to avoid generating named accessors for all builtins.
+#define BUILTIN_CODE(isolate, name) \
+  (isolate)->builtins()->builtin_handle(Builtins::k##name)
 
 class Builtins {
  public:
-  ~Builtins();
+  explicit Builtins(Isolate* isolate) : isolate_(isolate) {}
 
-  // Generate all builtin code objects. Should be called once during
-  // isolate initialization.
-  void SetUp(Isolate* isolate, bool create_heap_objects);
+  Builtins(const Builtins&) = delete;
+  Builtins& operator=(const Builtins&) = delete;
+
   void TearDown();
 
-  // Garbage collection support.
-  void IterateBuiltins(ObjectVisitor* v);
-
   // Disassembler support.
-  const char* Lookup(byte* pc);
+  const char* Lookup(Address pc);
 
-  enum Name {
+  enum Name : int32_t {
 #define DEF_ENUM(Name, ...) k##Name,
-    BUILTIN_LIST_ALL(DEF_ENUM)
+    BUILTIN_LIST(DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM,
+                 DEF_ENUM)
 #undef DEF_ENUM
-        builtin_count
+        builtin_count,
+
+#define EXTRACT_NAME(Name, ...) k##Name,
+    // Define kFirstBytecodeHandler,
+    kFirstBytecodeHandler =
+        FirstFromVarArgs(BUILTIN_LIST_BYTECODE_HANDLERS(EXTRACT_NAME) 0)
+#undef EXTRACT_NAME
   };
 
-#define DECLARE_BUILTIN_ACCESSOR(Name, ...) Handle<Code> Name();
-  BUILTIN_LIST_ALL(DECLARE_BUILTIN_ACCESSOR)
-#undef DECLARE_BUILTIN_ACCESSOR
+  static const int32_t kNoBuiltinId = -1;
+
+  static constexpr int kFirstWideBytecodeHandler =
+      kFirstBytecodeHandler + kNumberOfBytecodeHandlers;
+  static constexpr int kFirstExtraWideBytecodeHandler =
+      kFirstWideBytecodeHandler + kNumberOfWideBytecodeHandlers;
+  static constexpr int kLastBytecodeHandlerPlusOne =
+      kFirstExtraWideBytecodeHandler + kNumberOfWideBytecodeHandlers;
+  STATIC_ASSERT(kLastBytecodeHandlerPlusOne == builtin_count);
+
+  static constexpr bool IsBuiltinId(int maybe_id) {
+    return 0 <= maybe_id && maybe_id < builtin_count;
+  }
+
+  // The different builtin kinds are documented in builtins-definitions.h.
+  enum Kind { CPP, TFJ, TFC, TFS, TFH, BCH, ASM };
+
+  static BailoutId GetContinuationBailoutId(Name name);
+  static Name GetBuiltinFromBailoutId(BailoutId);
 
   // Convenience wrappers.
-  Handle<Code> CallFunction(
-      ConvertReceiverMode = ConvertReceiverMode::kAny,
-      TailCallMode tail_call_mode = TailCallMode::kDisallow);
-  Handle<Code> Call(ConvertReceiverMode = ConvertReceiverMode::kAny,
-                    TailCallMode tail_call_mode = TailCallMode::kDisallow);
-  Handle<Code> CallBoundFunction(TailCallMode tail_call_mode);
+  Handle<Code> CallFunction(ConvertReceiverMode = ConvertReceiverMode::kAny);
+  Handle<Code> Call(ConvertReceiverMode = ConvertReceiverMode::kAny);
   Handle<Code> NonPrimitiveToPrimitive(
       ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
   Handle<Code> OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint);
-  Handle<Code> InterpreterPushArgsAndCall(
-      TailCallMode tail_call_mode,
-      CallableType function_type = CallableType::kAny);
+  Handle<Code> JSConstructStubGeneric();
 
-  Code* builtin(Name name) {
-    // Code::cast cannot be used here since we access builtins
-    // during the marking phase of mark sweep. See IC::Clear.
-    return reinterpret_cast<Code*>(builtins_[name]);
-  }
+  // Used by CreateOffHeapTrampolines in isolate.cc.
+  void set_builtin(int index, Code builtin);
 
-  Address builtin_address(Name name) {
-    return reinterpret_cast<Address>(&builtins_[name]);
-  }
+  V8_EXPORT_PRIVATE Code builtin(int index);
+  V8_EXPORT_PRIVATE Handle<Code> builtin_handle(int index);
+
+  static CallInterfaceDescriptor CallInterfaceDescriptorFor(Name name);
+  V8_EXPORT_PRIVATE static Callable CallableFor(Isolate* isolate, Name name);
+  static bool HasJSLinkage(int index);
+
+  static int GetStackParameterCount(Name name);
 
   static const char* name(int index);
+
+  // Support for --print-builtin-size and --print-builtin-code.
+  void PrintBuiltinCode();
+  void PrintBuiltinSize();
 
   // Returns the C++ entry point for builtins implemented in C++, and the null
   // Address otherwise.
   static Address CppEntryOf(int index);
 
+  static Kind KindOf(int index);
+  static const char* KindNameOf(int index);
+
   static bool IsCpp(int index);
-  static bool IsApi(int index);
-  static bool HasCppImplementation(int index);
+
+  // True, iff the given code object is a builtin. Note that this does not
+  // necessarily mean that its kind is Code::BUILTIN.
+  static bool IsBuiltin(const Code code);
+
+  // As above, but safe to access off the main thread since the check is done
+  // by handle location. Similar to Heap::IsRootHandle.
+  bool IsBuiltinHandle(Handle<HeapObject> maybe_code, int* index) const;
+
+  // True, iff the given code object is a builtin with off-heap embedded code.
+  static bool IsIsolateIndependentBuiltin(const Code code);
+
+  // True, iff the given builtin contains no isolate-specific code and can be
+  // embedded into the binary.
+  static constexpr bool kAllBuiltinsAreIsolateIndependent = true;
+  static constexpr bool AllBuiltinsAreIsolateIndependent() {
+    return kAllBuiltinsAreIsolateIndependent;
+  }
+  static constexpr bool IsIsolateIndependent(int index) {
+    STATIC_ASSERT(kAllBuiltinsAreIsolateIndependent);
+    return kAllBuiltinsAreIsolateIndependent;
+  }
+
+  // Initializes the table of builtin entry points based on the current contents
+  // of the builtins table.
+  static void InitializeBuiltinEntryTable(Isolate* isolate);
+
+  // Emits a CodeCreateEvent for every builtin.
+  static void EmitCodeCreateEvents(Isolate* isolate);
 
   bool is_initialized() const { return initialized_; }
 
-  MUST_USE_RESULT static MaybeHandle<Object> InvokeApiFunction(
+  // Used by SetupIsolateDelegate and Deserializer.
+  void MarkInitialized() {
+    DCHECK(!initialized_);
+    initialized_ = true;
+  }
+
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> InvokeApiFunction(
       Isolate* isolate, bool is_construct, Handle<HeapObject> function,
       Handle<Object> receiver, int argc, Handle<Object> args[],
       Handle<HeapObject> new_target);
 
-  enum ExitFrameType { EXIT, BUILTIN_EXIT };
+  static void Generate_Adaptor(MacroAssembler* masm, Address builtin_address);
 
-  static void Generate_Adaptor(MacroAssembler* masm, Address builtin_address,
-                               ExitFrameType exit_frame_type);
+  static void Generate_CEntry(MacroAssembler* masm, int result_size,
+                              SaveFPRegsMode save_doubles, ArgvMode argv_mode,
+                              bool builtin_exit_frame);
 
   static bool AllowDynamicFunction(Isolate* isolate, Handle<JSFunction> target,
                                    Handle<JSObject> target_global_proxy);
 
+  // Creates a trampoline code object that jumps to the given off-heap entry.
+  // The result should not be used directly, but only from the related Factory
+  // function.
+  // TODO(delphick): Come up with a better name since it may not generate an
+  // executable trampoline.
+  static Handle<Code> GenerateOffHeapTrampolineFor(
+      Isolate* isolate, Address off_heap_entry, int32_t kind_specific_flags,
+      bool generate_jump_to_instruction_stream);
+
+  // Generate the RelocInfo ByteArray that would be generated for an offheap
+  // trampoline.
+  static Handle<ByteArray> GenerateOffHeapTrampolineRelocInfo(Isolate* isolate);
+
+  // Only builtins with JS linkage should ever need to be called via their
+  // trampoline Code object. The remaining builtins have non-executable Code
+  // objects.
+  static bool CodeObjectIsExecutable(int builtin_index);
+
+  static bool IsJSEntryVariant(int builtin_index) {
+    switch (builtin_index) {
+      case kJSEntry:
+      case kJSConstructEntry:
+      case kJSRunMicrotasksEntry:
+        return true;
+      default:
+        return false;
+    }
+    UNREACHABLE();
+  }
+
+  int js_entry_handler_offset() const {
+    DCHECK_NE(js_entry_handler_offset_, 0);
+    return js_entry_handler_offset_;
+  }
+
+  void SetJSEntryHandlerOffset(int offset) {
+    // Check the stored offset is either uninitialized or unchanged (we
+    // generate multiple variants of this builtin but they should all have the
+    // same handler offset).
+    CHECK(js_entry_handler_offset_ == 0 || js_entry_handler_offset_ == offset);
+    js_entry_handler_offset_ = offset;
+  }
+
  private:
-  Builtins();
-
   static void Generate_CallFunction(MacroAssembler* masm,
-                                    ConvertReceiverMode mode,
-                                    TailCallMode tail_call_mode);
+                                    ConvertReceiverMode mode);
 
-  static void Generate_CallBoundFunctionImpl(MacroAssembler* masm,
-                                             TailCallMode tail_call_mode);
+  static void Generate_CallBoundFunctionImpl(MacroAssembler* masm);
 
-  static void Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode,
-                            TailCallMode tail_call_mode);
+  static void Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode);
 
-  static void Generate_InterpreterPushArgsAndCallImpl(
-      MacroAssembler* masm, TailCallMode tail_call_mode,
-      CallableType function_type);
+  enum class CallOrConstructMode { kCall, kConstruct };
+  static void Generate_CallOrConstructVarargs(MacroAssembler* masm,
+                                              Handle<Code> code);
+  static void Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
+                                                     CallOrConstructMode mode,
+                                                     Handle<Code> code);
 
-  static void Generate_DatePrototype_GetField(MacroAssembler* masm,
-                                              int field_index);
+  static void Generate_InterpreterPushArgsThenCallImpl(
+      MacroAssembler* masm, ConvertReceiverMode receiver_mode,
+      InterpreterPushArgsMode mode);
 
-  enum class MathMaxMinKind { kMax, kMin };
-  static void Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind);
+  static void Generate_InterpreterPushArgsThenConstructImpl(
+      MacroAssembler* masm, InterpreterPushArgsMode mode);
 
 #define DECLARE_ASM(Name, ...) \
   static void Generate_##Name(MacroAssembler* masm);
 #define DECLARE_TF(Name, ...) \
-  static void Generate_##Name(CodeStubAssembler* csasm);
+  static void Generate_##Name(compiler::CodeAssemblerState* state);
 
-  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, DECLARE_TF, DECLARE_TF,
-               DECLARE_ASM, DECLARE_ASM, DECLARE_ASM)
+  BUILTIN_LIST(IGNORE_BUILTIN, DECLARE_TF, DECLARE_TF, DECLARE_TF, DECLARE_TF,
+               IGNORE_BUILTIN, DECLARE_ASM)
 
 #undef DECLARE_ASM
 #undef DECLARE_TF
 
-  // Note: These are always Code objects, but to conform with
-  // IterateBuiltins() above which assumes Object**'s for the callback
-  // function f, we use an Object* array here.
-  Object* builtins_[builtin_count];
-  bool initialized_;
+  Isolate* isolate_;
+  bool initialized_ = false;
 
-  friend class Isolate;
+  // Stores the offset of exception handler entry point (the handler_entry
+  // label) in JSEntry and its variants. It's used to generate the handler table
+  // during codegen (mksnapshot-only).
+  int js_entry_handler_offset_ = 0;
 
-  DISALLOW_COPY_AND_ASSIGN(Builtins);
+  friend class SetupIsolateDelegate;
 };
+
+Builtins::Name ExampleBuiltinForTorqueFunctionPointerType(
+    size_t function_pointer_type_id);
 
 }  // namespace internal
 }  // namespace v8

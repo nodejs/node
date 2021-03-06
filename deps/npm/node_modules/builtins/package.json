@@ -1,0 +1,14 @@
+{
+  "name": "builtins",
+  "version": "1.0.3",
+  "description": "List of node.js builtin modules",
+  "repository": "juliangruber/builtins",
+  "license": "MIT",
+  "main": "builtins.json",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org"
+  },
+  "scripts": {
+    "test": "node test.js"
+  }
+}

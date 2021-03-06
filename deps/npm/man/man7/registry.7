@@ -1,0 +1,77 @@
+.TH "REGISTRY" "7" "March 2021" "" ""
+.SH "NAME"
+\fBregistry\fR \- The JavaScript Package Registry
+.SS Description
+.P
+To resolve packages by name and version, npm talks to a registry website
+that implements the CommonJS Package Registry specification for reading
+package info\.
+.P
+npm is configured to use the \fBnpm public registry\fR at
+https://registry\.npmjs\.org by default\. Use of the npm public registry is
+subject to terms of use available at https://www\.npmjs\.com/policies/terms\|\.
+.P
+You can configure npm to use any compatible registry you like, and even run
+your own registry\. Use of someone else's registry may be governed by their
+terms of use\.
+.P
+npm's package registry implementation supports several
+write APIs as well, to allow for publishing packages and managing user
+account information\.
+.P
+The npm public registry is powered by a CouchDB database,
+of which there is a public mirror at https://skimdb\.npmjs\.com/registry\|\.
+.P
+The registry URL used is determined by the scope of the package (see
+npm help \fBscope\fP\|\. If no scope is specified, the default registry is used, which is
+supplied by the \fBregistry\fP config parameter\.  See npm help \fBconfig\fP,
+npm help \fBnpmrc\fP, and npm help \fBconfig\fP for more on managing npm's configuration\.
+.SS Does npm send any information about me back to the registry?
+.P
+Yes\.
+.P
+When making requests of the registry npm adds two headers with information
+about your environment:
+.RS 0
+.IP \(bu 2
+\fBNpm\-Scope\fP – If your project is scoped, this header will contain its
+scope\. In the future npm hopes to build registry features that use this
+information to allow you to customize your experience for your
+organization\.
+.IP \(bu 2
+\fBNpm\-In\-CI\fP – Set to "true" if npm believes this install is running in a
+continuous integration environment, "false" otherwise\. This is detected by
+looking for the following environment variables: \fBCI\fP, \fBTDDIUM\fP,
+\fBJENKINS_URL\fP, \fBbamboo\.buildKey\fP\|\. If you'd like to learn more you may find
+the original PR \fIhttps://github\.com/npm/npm\-registry\-client/pull/129\fR
+interesting\.
+This is used to gather better metrics on how npm is used by humans, versus
+build farms\.
+
+.RE
+.P
+The npm registry does not try to correlate the information in these headers
+with any authenticated accounts that may be used in the same requests\.
+.SS How can I prevent my package from being published in the official registry?
+.P
+Set \fB"private": true\fP in your \fBpackage\.json\fP to prevent it from being
+published at all, or
+\fB"publishConfig":{"registry":"http://my\-internal\-registry\.local"}\fP
+to force it to be published only to your internal/private registry\.
+.P
+See npm help \fBpackage\.json\fP for more info on what goes in the package\.json file\.
+.SS Where can I find my own, & other's, published packages?
+.P
+https://www\.npmjs\.com/
+.SS See also
+.RS 0
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help npmrc
+.IP \(bu 2
+npm help developers
+
+.RE

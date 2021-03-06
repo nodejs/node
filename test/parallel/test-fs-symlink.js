@@ -1,50 +1,90 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
+if (!common.canCreateSymLink())
+  common.skip('insufficient privileges');
+
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
-const exec = require('child_process').exec;
 
-var linkTime;
-var fileTime;
+let linkTime;
+let fileTime;
 
-if (common.isWindows) {
-  // On Windows, creating symlinks requires admin privileges.
-  // We'll only try to run symlink test if we have enough privileges.
-  exec('whoami /priv', function(err, o) {
-    if (err || !o.includes('SeCreateSymbolicLinkPrivilege')) {
-      common.skip('insufficient privileges');
-      return;
-    }
-  });
-}
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 
-common.refreshTmpDir();
+// Test creating and reading symbolic link
+const linkData = fixtures.path('/cycles/root.js');
+const linkPath = path.join(tmpdir.path, 'symlink1.js');
 
-// test creating and reading symbolic link
-const linkData = path.join(common.fixturesDir, '/cycles/root.js');
-const linkPath = path.join(common.tmpDir, 'symlink1.js');
-
-fs.symlink(linkData, linkPath, common.mustCall(function(err) {
-  assert.ifError(err);
-
-  fs.lstat(linkPath, common.mustCall(function(err, stats) {
-    assert.ifError(err);
+fs.symlink(linkData, linkPath, common.mustSucceed(() => {
+  fs.lstat(linkPath, common.mustSucceed((stats) => {
     linkTime = stats.mtime.getTime();
   }));
 
-  fs.stat(linkPath, common.mustCall(function(err, stats) {
-    assert.ifError(err);
+  fs.stat(linkPath, common.mustSucceed((stats) => {
     fileTime = stats.mtime.getTime();
   }));
 
-  fs.readlink(linkPath, common.mustCall(function(err, destination) {
-    assert.ifError(err);
+  fs.readlink(linkPath, common.mustSucceed((destination) => {
     assert.strictEqual(destination, linkData);
   }));
 }));
 
+// Test invalid symlink
+{
+  const linkData = fixtures.path('/not/exists/file');
+  const linkPath = path.join(tmpdir.path, 'symlink2.js');
 
-process.on('exit', function() {
+  fs.symlink(linkData, linkPath, common.mustSucceed(() => {
+    assert(!fs.existsSync(linkPath));
+  }));
+}
+
+[false, 1, {}, [], null, undefined].forEach((input) => {
+  const errObj = {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+    message: /target|path/
+  };
+  assert.throws(() => fs.symlink(input, '', common.mustNotCall()), errObj);
+  assert.throws(() => fs.symlinkSync(input, ''), errObj);
+
+  assert.throws(() => fs.symlink('', input, common.mustNotCall()), errObj);
+  assert.throws(() => fs.symlinkSync('', input), errObj);
+});
+
+const errObj = {
+  code: 'ERR_FS_INVALID_SYMLINK_TYPE',
+  name: 'Error',
+  message:
+    'Symlink type must be one of "dir", "file", or "junction". Received "🍏"'
+};
+assert.throws(() => fs.symlink('', '', '🍏', common.mustNotCall()), errObj);
+assert.throws(() => fs.symlinkSync('', '', '🍏'), errObj);
+
+process.on('exit', () => {
   assert.notStrictEqual(linkTime, fileTime);
 });

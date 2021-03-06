@@ -1,0 +1,134 @@
+=pod
+
+=head1 NAME
+
+SSL_dup, SSL_new, SSL_up_ref - create an SSL structure for a connection
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ SSL *SSL_dup(SSL *s);
+ SSL *SSL_new(SSL_CTX *ctx);
+ int SSL_up_ref(SSL *s);
+
+=head1 DESCRIPTION
+
+SSL_new() creates a new B<SSL> structure which is needed to hold the
+data for a TLS/SSL connection. The new structure inherits the settings
+of the underlying context B<ctx>: connection method,
+options, verification settings, timeout settings. An B<SSL> structure is
+reference counted. Creating an B<SSL> structure for the first time increments
+the reference count. Freeing it (using SSL_free) decrements it. When the
+reference count drops to zero, any memory or resources allocated to the B<SSL>
+structure are freed.
+
+SSL_up_ref() increments the reference count for an
+existing B<SSL> structure.
+
+The function SSL_dup() creates and returns a new B<SSL> structure from the same
+B<SSL_CTX> that was used to create I<s>. It additionally duplicates a subset of
+the settings in I<s> into the new B<SSL> object.
+
+For SSL_dup() to work, the connection MUST be in its initial state and
+MUST NOT have yet started the SSL handshake.  For connections that are not in
+their initial state SSL_dup() just increments an internal
+reference count and returns the I<same> handle.  It may be possible to
+use L<SSL_clear(3)> to recycle an SSL handle that is not in its initial
+state for re-use, but this is best avoided.  Instead, save and restore
+the session, if desired, and construct a fresh handle for each connection.
+
+The subset of settings in I<s> that are duplicated are:
+
+=over 4
+
+=item any session data if configured (including the session_id_context)
+
+=item any tmp_dh settings set via L<SSL_set_tmp_dh(3)>,
+L<SSL_set_tmp_dh_callback(3)>, or L<SSL_set_dh_auto(3)>
+
+=item any configured certificates, private keys or certificate chains
+
+=item any configured signature algorithms, or client signature algorithms
+
+=item any DANE settings
+
+=item any Options set via L<SSL_set_options(3)>
+
+=item any Mode set via L<SSL_set_mode(3)>
+
+=item any minimum or maximum protocol settings set via
+L<SSL_set_min_proto_version(3)> or L<SSL_set_max_proto_version(3)> (Note: Only
+from OpenSSL 1.1.1h and above)
+
+=item any Verify mode, callback or depth set via L<SSL_set_verify(3)> or
+L<SSL_set_verify_depth(3)> or any configured X509 verification parameters
+
+=item any msg callback or info callback set via L<SSL_set_msg_callback(3)> or
+L<SSL_set_info_callback(3)>
+
+=item any default password callback set via L<SSL_set_default_passwd_cb(3)>
+
+=item any session id generation callback set via L<SSL_set_generate_session_id(3)>
+
+=item any configured Cipher List
+
+=item initial accept (server) or connect (client) state
+
+=item the max cert list value set via L<SSL_set_max_cert_list(3)>
+
+=item the read_ahead value set via L<SSL_set_read_ahead(3)>
+
+=item application specific data set via L<SSL_set_ex_data(3)>
+
+=item any CA list or client CA list set via L<SSL_set0_CA_list(3)>,
+SSL_set0_client_CA_list() or similar functions
+
+=item any security level settings or callbacks
+
+=item any configured serverinfo data
+
+=item any configured PSK identity hint
+
+=item any configured custom extensions
+
+=item any client certificate types configured via SSL_set1_client_certificate_types
+
+=back
+
+=head1 RETURN VALUES
+
+The following return values can occur:
+
+=over 4
+
+=item NULL
+
+The creation of a new SSL structure failed. Check the error stack to
+find out the reason.
+
+=item Pointer to an SSL structure
+
+The return value points to an allocated SSL structure.
+
+SSL_up_ref() returns 1 for success and 0 for failure.
+
+=back
+
+=head1 SEE ALSO
+
+L<SSL_free(3)>, L<SSL_clear(3)>,
+L<SSL_CTX_set_options(3)>,
+L<SSL_get_SSL_CTX(3)>,
+L<ssl(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

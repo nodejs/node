@@ -23,28 +23,14 @@
 #include <limits.h>
 #include <stdlib.h>
 
+#if defined(__MINGW64_VERSION_MAJOR)
+/* MemoryBarrier expands to __mm_mfence in some cases (x86+sse2), which may
+ * require this header in some versions of mingw64. */
+#include <intrin.h>
+#endif
+
 #include "uv.h"
 #include "internal.h"
-
-
-#define HAVE_CONDVAR_API() (pInitializeConditionVariable != NULL)
-
-static int uv_cond_fallback_init(uv_cond_t* cond);
-static void uv_cond_fallback_destroy(uv_cond_t* cond);
-static void uv_cond_fallback_signal(uv_cond_t* cond);
-static void uv_cond_fallback_broadcast(uv_cond_t* cond);
-static void uv_cond_fallback_wait(uv_cond_t* cond, uv_mutex_t* mutex);
-static int uv_cond_fallback_timedwait(uv_cond_t* cond,
-    uv_mutex_t* mutex, uint64_t timeout);
-
-static int uv_cond_condvar_init(uv_cond_t* cond);
-static void uv_cond_condvar_destroy(uv_cond_t* cond);
-static void uv_cond_condvar_signal(uv_cond_t* cond);
-static void uv_cond_condvar_broadcast(uv_cond_t* cond);
-static void uv_cond_condvar_wait(uv_cond_t* cond, uv_mutex_t* mutex);
-static int uv_cond_condvar_timedwait(uv_cond_t* cond,
-    uv_mutex_t* mutex, uint64_t timeout);
-
 
 static void uv__once_inner(uv_once_t* guard, void (*callback)(void)) {
   DWORD result;
@@ -69,8 +55,8 @@ static void uv__once_inner(uv_once_t* guard, void (*callback)(void)) {
     guard->ran = 1;
 
   } else {
-    /* We lost the race. Destroy the event we created and wait for the */
-    /* existing one to become signaled. */
+    /* We lost the race. Destroy the event we created and wait for the existing
+     * one to become signaled. */
     CloseHandle(created_event);
     result = WaitForSingleObject(existing_event, INFINITE);
     assert(result == WAIT_OBJECT_0);
@@ -126,9 +112,34 @@ static UINT __stdcall uv__thread_start(void* arg) {
 
 
 int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
+  uv_thread_options_t params;
+  params.flags = UV_THREAD_NO_FLAGS;
+  return uv_thread_create_ex(tid, &params, entry, arg);
+}
+
+int uv_thread_create_ex(uv_thread_t* tid,
+                        const uv_thread_options_t* params,
+                        void (*entry)(void *arg),
+                        void *arg) {
   struct thread_ctx* ctx;
   int err;
   HANDLE thread;
+  SYSTEM_INFO sysinfo;
+  size_t stack_size;
+  size_t pagesize;
+
+  stack_size =
+      params->flags & UV_THREAD_HAS_STACK_SIZE ? params->stack_size : 0;
+
+  if (stack_size != 0) {
+    GetNativeSystemInfo(&sysinfo);
+    pagesize = (size_t)sysinfo.dwPageSize;
+    /* Round up to the nearest page boundary. */
+    stack_size = (stack_size + pagesize - 1) &~ (pagesize - 1);
+
+    if ((unsigned)stack_size != stack_size)
+      return UV_EINVAL;
+  }
 
   ctx = uv__malloc(sizeof(*ctx));
   if (ctx == NULL)
@@ -138,9 +149,9 @@ int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
   ctx->arg = arg;
 
   /* Create the thread in suspended state so we have a chance to pass
-   * its own creation handle to it */   
+   * its own creation handle to it */
   thread = (HANDLE) _beginthreadex(NULL,
-                                   0,
+                                   (unsigned)stack_size,
                                    uv__thread_start,
                                    ctx,
                                    CREATE_SUSPENDED,
@@ -182,6 +193,7 @@ int uv_thread_join(uv_thread_t *tid) {
   else {
     CloseHandle(*tid);
     *tid = 0;
+    MemoryBarrier();  /* For feature parity with pthread_join(). */
     return 0;
   }
 }
@@ -195,6 +207,11 @@ int uv_thread_equal(const uv_thread_t* t1, const uv_thread_t* t2) {
 int uv_mutex_init(uv_mutex_t* mutex) {
   InitializeCriticalSection(mutex);
   return 0;
+}
+
+
+int uv_mutex_init_recursive(uv_mutex_t* mutex) {
+  return uv_mutex_init(mutex);
 }
 
 
@@ -371,233 +388,39 @@ int uv_sem_trywait(uv_sem_t* sem) {
 }
 
 
-/* This condition variable implementation is based on the SetEvent solution
- * (section 3.2) at http://www.cs.wustl.edu/~schmidt/win32-cv-1.html
- * We could not use the SignalObjectAndWait solution (section 3.4) because
- * it want the 2nd argument (type uv_mutex_t) of uv_cond_wait() and
- * uv_cond_timedwait() to be HANDLEs, but we use CRITICAL_SECTIONs.
- */
-
-static int uv_cond_fallback_init(uv_cond_t* cond) {
-  int err;
-
-  /* Initialize the count to 0. */
-  cond->fallback.waiters_count = 0;
-
-  InitializeCriticalSection(&cond->fallback.waiters_count_lock);
-
-  /* Create an auto-reset event. */
-  cond->fallback.signal_event = CreateEvent(NULL,  /* no security */
-                                            FALSE, /* auto-reset event */
-                                            FALSE, /* non-signaled initially */
-                                            NULL); /* unnamed */
-  if (!cond->fallback.signal_event) {
-    err = GetLastError();
-    goto error2;
-  }
-
-  /* Create a manual-reset event. */
-  cond->fallback.broadcast_event = CreateEvent(NULL,  /* no security */
-                                               TRUE,  /* manual-reset */
-                                               FALSE, /* non-signaled */
-                                               NULL); /* unnamed */
-  if (!cond->fallback.broadcast_event) {
-    err = GetLastError();
-    goto error;
-  }
-
-  return 0;
-
-error:
-  CloseHandle(cond->fallback.signal_event);
-error2:
-  DeleteCriticalSection(&cond->fallback.waiters_count_lock);
-  return uv_translate_sys_error(err);
-}
-
-
-static int uv_cond_condvar_init(uv_cond_t* cond) {
-  pInitializeConditionVariable(&cond->cond_var);
-  return 0;
-}
-
-
 int uv_cond_init(uv_cond_t* cond) {
-  uv__once_init();
-
-  if (HAVE_CONDVAR_API())
-    return uv_cond_condvar_init(cond);
-  else
-    return uv_cond_fallback_init(cond);
-}
-
-
-static void uv_cond_fallback_destroy(uv_cond_t* cond) {
-  if (!CloseHandle(cond->fallback.broadcast_event))
-    abort();
-  if (!CloseHandle(cond->fallback.signal_event))
-    abort();
-  DeleteCriticalSection(&cond->fallback.waiters_count_lock);
-}
-
-
-static void uv_cond_condvar_destroy(uv_cond_t* cond) {
-  /* nothing to do */
+  InitializeConditionVariable(&cond->cond_var);
+  return 0;
 }
 
 
 void uv_cond_destroy(uv_cond_t* cond) {
-  if (HAVE_CONDVAR_API())
-    uv_cond_condvar_destroy(cond);
-  else
-    uv_cond_fallback_destroy(cond);
-}
-
-
-static void uv_cond_fallback_signal(uv_cond_t* cond) {
-  int have_waiters;
-
-  /* Avoid race conditions. */
-  EnterCriticalSection(&cond->fallback.waiters_count_lock);
-  have_waiters = cond->fallback.waiters_count > 0;
-  LeaveCriticalSection(&cond->fallback.waiters_count_lock);
-
-  if (have_waiters)
-    SetEvent(cond->fallback.signal_event);
-}
-
-
-static void uv_cond_condvar_signal(uv_cond_t* cond) {
-  pWakeConditionVariable(&cond->cond_var);
+  /* nothing to do */
+  (void) &cond;
 }
 
 
 void uv_cond_signal(uv_cond_t* cond) {
-  if (HAVE_CONDVAR_API())
-    uv_cond_condvar_signal(cond);
-  else
-    uv_cond_fallback_signal(cond);
-}
-
-
-static void uv_cond_fallback_broadcast(uv_cond_t* cond) {
-  int have_waiters;
-
-  /* Avoid race conditions. */
-  EnterCriticalSection(&cond->fallback.waiters_count_lock);
-  have_waiters = cond->fallback.waiters_count > 0;
-  LeaveCriticalSection(&cond->fallback.waiters_count_lock);
-
-  if (have_waiters)
-    SetEvent(cond->fallback.broadcast_event);
-}
-
-
-static void uv_cond_condvar_broadcast(uv_cond_t* cond) {
-  pWakeAllConditionVariable(&cond->cond_var);
+  WakeConditionVariable(&cond->cond_var);
 }
 
 
 void uv_cond_broadcast(uv_cond_t* cond) {
-  if (HAVE_CONDVAR_API())
-    uv_cond_condvar_broadcast(cond);
-  else
-    uv_cond_fallback_broadcast(cond);
-}
-
-
-static int uv_cond_wait_helper(uv_cond_t* cond, uv_mutex_t* mutex,
-    DWORD dwMilliseconds) {
-  DWORD result;
-  int last_waiter;
-  HANDLE handles[2] = {
-    cond->fallback.signal_event,
-    cond->fallback.broadcast_event
-  };
-
-  /* Avoid race conditions. */
-  EnterCriticalSection(&cond->fallback.waiters_count_lock);
-  cond->fallback.waiters_count++;
-  LeaveCriticalSection(&cond->fallback.waiters_count_lock);
-
-  /* It's ok to release the <mutex> here since Win32 manual-reset events */
-  /* maintain state when used with <SetEvent>. This avoids the "lost wakeup" */
-  /* bug. */
-  uv_mutex_unlock(mutex);
-
-  /* Wait for either event to become signaled due to <uv_cond_signal> being */
-  /* called or <uv_cond_broadcast> being called. */
-  result = WaitForMultipleObjects(2, handles, FALSE, dwMilliseconds);
-
-  EnterCriticalSection(&cond->fallback.waiters_count_lock);
-  cond->fallback.waiters_count--;
-  last_waiter = result == WAIT_OBJECT_0 + 1
-      && cond->fallback.waiters_count == 0;
-  LeaveCriticalSection(&cond->fallback.waiters_count_lock);
-
-  /* Some thread called <pthread_cond_broadcast>. */
-  if (last_waiter) {
-    /* We're the last waiter to be notified or to stop waiting, so reset the */
-    /* the manual-reset event. */
-    ResetEvent(cond->fallback.broadcast_event);
-  }
-
-  /* Reacquire the <mutex>. */
-  uv_mutex_lock(mutex);
-
-  if (result == WAIT_OBJECT_0 || result == WAIT_OBJECT_0 + 1)
-    return 0;
-
-  if (result == WAIT_TIMEOUT)
-    return UV_ETIMEDOUT;
-
-  abort();
-  return -1; /* Satisfy the compiler. */
-}
-
-
-static void uv_cond_fallback_wait(uv_cond_t* cond, uv_mutex_t* mutex) {
-  if (uv_cond_wait_helper(cond, mutex, INFINITE))
-    abort();
-}
-
-
-static void uv_cond_condvar_wait(uv_cond_t* cond, uv_mutex_t* mutex) {
-  if (!pSleepConditionVariableCS(&cond->cond_var, mutex, INFINITE))
-    abort();
+  WakeAllConditionVariable(&cond->cond_var);
 }
 
 
 void uv_cond_wait(uv_cond_t* cond, uv_mutex_t* mutex) {
-  if (HAVE_CONDVAR_API())
-    uv_cond_condvar_wait(cond, mutex);
-  else
-    uv_cond_fallback_wait(cond, mutex);
+  if (!SleepConditionVariableCS(&cond->cond_var, mutex, INFINITE))
+    abort();
 }
 
-
-static int uv_cond_fallback_timedwait(uv_cond_t* cond,
-    uv_mutex_t* mutex, uint64_t timeout) {
-  return uv_cond_wait_helper(cond, mutex, (DWORD)(timeout / 1e6));
-}
-
-
-static int uv_cond_condvar_timedwait(uv_cond_t* cond,
-    uv_mutex_t* mutex, uint64_t timeout) {
-  if (pSleepConditionVariableCS(&cond->cond_var, mutex, (DWORD)(timeout / 1e6)))
+int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex, uint64_t timeout) {
+  if (SleepConditionVariableCS(&cond->cond_var, mutex, (DWORD)(timeout / 1e6)))
     return 0;
   if (GetLastError() != ERROR_TIMEOUT)
     abort();
   return UV_ETIMEDOUT;
-}
-
-
-int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex,
-    uint64_t timeout) {
-  if (HAVE_CONDVAR_API())
-    return uv_cond_condvar_timedwait(cond, mutex, timeout);
-  else
-    return uv_cond_fallback_timedwait(cond, mutex, timeout);
 }
 
 

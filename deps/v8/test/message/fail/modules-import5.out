@@ -1,0 +1,5 @@
+*%(basename)s:6: SyntaxError: The requested module 'modules-import5.mjs' does not provide an export named 'c'
+export {c as a} from "modules-import5.mjs";
+        ^^^^^^
+SyntaxError: The requested module 'modules-import5.mjs' does not provide an export named 'c'
+

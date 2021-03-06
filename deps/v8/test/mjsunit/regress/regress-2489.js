@@ -31,8 +31,8 @@
 
 function f(a, b) {
   return g("c", "d");
-}
-
+};
+%PrepareFunctionForOptimization(f);
 function g(a, b) {
   g.constructor.apply(this, arguments);
 }
@@ -40,7 +40,7 @@ function g(a, b) {
 g.constructor = function(a, b) {
   assertEquals("c", a);
   assertEquals("d", b);
-}
+};
 
 f("a", "b");
 f("a", "b");

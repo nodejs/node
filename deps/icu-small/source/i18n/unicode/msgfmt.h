@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 * Copyright (C) 2007-2013, International Business Machines Corporation and
@@ -20,6 +20,8 @@
 #define MSGFMT_H
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
 
 /**
  * \file
@@ -69,9 +71,8 @@ class NumberFormat;
  * if the pattern has named arguments (see {@link #usesNamedArguments()}).
  *
  * <p>An argument might not specify any format type. In this case,
- * a Number value is formatted with a default (for the locale) NumberFormat,
- * a Date value is formatted with a default (for the locale) DateFormat,
- * and for any other value its toString() value is used.
+ * a numeric value is formatted with a default (for the locale) NumberFormat,
+ * and a date/time value is formatted with a default (for the locale) DateFormat.
  *
  * <p>An argument might specify a "simple" type for which the specified
  * Format object is created, cached and used.
@@ -124,7 +125,7 @@ class NumberFormat;
  * argNumber = '0' | ('1'..'9' ('0'..'9')*)
  *
  * argType = "number" | "date" | "time" | "spellout" | "ordinal" | "duration"
- * argStyle = "short" | "medium" | "long" | "full" | "integer" | "currency" | "percent" | argStyleText
+ * argStyle = "short" | "medium" | "long" | "full" | "integer" | "currency" | "percent" | argStyleText | "::" argSkeletonText
  * </pre>
  *
  * <ul>
@@ -166,7 +167,7 @@ class NumberFormat;
  *       <td colspan=2><i>(none)</i>
  *       <td><code>null</code>
  *    <tr>
- *       <td rowspan=5><code>number</code>
+ *       <td rowspan=6><code>number</code>
  *       <td><i>(none)</i>
  *       <td><code>NumberFormat.createInstance(getLocale(), status)</code>
  *    <tr>
@@ -182,7 +183,10 @@ class NumberFormat;
  *       <td><i>argStyleText</i>
  *       <td><code>new DecimalFormat(argStyleText, new DecimalFormatSymbols(getLocale(), status), status)</code>
  *    <tr>
- *       <td rowspan=6><code>date</code>
+ *       <td><i>argSkeletonText</i>
+ *       <td><code>NumberFormatter::forSkeleton(argSkeletonText, status).locale(getLocale()).toFormat(status)</code>
+ *    <tr>
+ *       <td rowspan=7><code>date</code>
  *       <td><i>(none)</i>
  *       <td><code>DateFormat.createDateInstance(kDefault, getLocale(), status)</code>
  *    <tr>
@@ -199,7 +203,10 @@ class NumberFormat;
  *       <td><code>DateFormat.createDateInstance(kFull, getLocale(), status)</code>
  *    <tr>
  *       <td><i>argStyleText</i>
- *       <td><code>new SimpleDateFormat(argStyleText, getLocale(), status)
+ *       <td><code>new SimpleDateFormat(argStyleText, getLocale(), status)</code>
+ *    <tr>
+ *       <td><i>argSkeletonText</i>
+ *       <td><code>DateFormat::createInstanceForSkeleton(argSkeletonText, getLocale(), status)</code>
  *    <tr>
  *       <td rowspan=6><code>time</code>
  *       <td><i>(none)</i>
@@ -218,7 +225,7 @@ class NumberFormat;
  *       <td><code>DateFormat.createTimeInstance(kFull, getLocale(), status)</code>
  *    <tr>
  *       <td><i>argStyleText</i>
- *       <td><code>new SimpleDateFormat(argStyleText, getLocale(), status)
+ *       <td><code>new SimpleDateFormat(argStyleText, getLocale(), status)</code>
  *    <tr>
  *       <td><code>spellout</code>
  *       <td><i>argStyleText (optional)</i>
@@ -237,6 +244,19 @@ class NumberFormat;
  * </table>
  * <p>
  *
+ * <h4>Argument formatting</h4>
+ *
+ * <p>Arguments are formatted according to their type, using the default
+ * ICU formatters for those types, unless otherwise specified.</p>
+ *
+ * <p>There are also several ways to control the formatting.</p>
+ *
+ * <p>We recommend you use default styles, predefined style values, skeletons,
+ * or preformatted values, but not pattern strings or custom format objects.</p>
+ *
+ * <p>For more details, see the
+ * <a href="https://unicode-org.github.io/icu/userguide/format_parse/messages">ICU User Guide</a>.</p>
+ *
  * <h4>Usage Information</h4>
  *
  * <p>Here are some examples of usage:
@@ -254,11 +274,11 @@ class NumberFormat;
  *
  *     UnicodeString result;
  *     MessageFormat::format(
- *          "At {1,time} on {1,date}, there was {2} on planet {0,number}.",
+ *          "At {1,time,::jmm} on {1,date,::dMMMM}, there was {2} on planet {0,number}.",
  *          arguments, 3, result, success );
  *
  *     cout << "result: " << result << endl;
- *     //<output>: At 4:34:20 PM on 23-Mar-98, there was a disturbance
+ *     //<output>: At 4:34 PM on March 23, there was a disturbance
  *     //             in the Force on planet 7.
  * \endcode
  * </pre>
@@ -400,7 +420,7 @@ public:
      * result and should delete it when done.
      * @stable ICU 2.0
      */
-    virtual Format* clone(void) const;
+    virtual MessageFormat* clone() const;
 
     /**
      * Returns true if the given Format objects are semantically equal.
@@ -900,7 +920,7 @@ private:
     int32_t            argTypeCapacity;
 
     /**
-     * TRUE if there are different argTypes for the same argument.
+     * true if there are different argTypes for the same argument.
      * This only matters when the MessageFormat is used in the plain C (umsg_xxx) API
      * where the pattern argTypes determine how the va_arg list is read.
      */
@@ -939,7 +959,7 @@ private:
      * @return the index of the list which matches the keyword s.
      */
     static int32_t findKeyword( const UnicodeString& s,
-                                const UChar * const *list);
+                                const char16_t * const *list);
 
     /**
      * Thin wrapper around the format(... AppendableWrapper ...) variant.
@@ -990,6 +1010,8 @@ private:
     UBool argNameMatches(int32_t partIndex, const UnicodeString& argName, int32_t argNumber);
 
     void cacheExplicitFormats(UErrorCode& status);
+
+    int32_t skipLeadingSpaces(UnicodeString& style);
 
     Format* createAppropriateFormat(UnicodeString& type,
                                     UnicodeString& style,
@@ -1067,7 +1089,7 @@ private:
     class U_I18N_API DummyFormat : public Format {
     public:
         virtual UBool operator==(const Format&) const;
-        virtual Format* clone() const;
+        virtual DummyFormat* clone() const;
         virtual UnicodeString& format(const Formattable& obj,
                               UnicodeString& appendTo,
                               UErrorCode& status) const;
@@ -1090,6 +1112,8 @@ private:
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif // _MSGFMT
 //eof

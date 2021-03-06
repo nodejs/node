@@ -21,6 +21,9 @@
 
 #include "uv.h"
 #include "task.h"
+#if defined(_WIN32)
+# include "../src/win/winapi.h"
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,6 +37,11 @@
  * See https://github.com/joyent/libuv/issues/210
  */
 TEST_IMPL(error_message) {
+#if defined(__ASAN__)
+  RETURN_SKIP("Test does not currently work in ASAN");
+#endif
+  char buf[32];
+
   /* Cop out. Can't do proper checks on systems with
    * i18n-ized error messages...
    */
@@ -46,6 +54,10 @@ TEST_IMPL(error_message) {
   ASSERT(strcmp(uv_strerror(1337), "Unknown error") == 0);
   ASSERT(strcmp(uv_strerror(-1337), "Unknown error") == 0);
 
+  ASSERT(strstr(uv_strerror_r(UV_EINVAL, buf, sizeof(buf)), "Success") == NULL);
+  ASSERT(strstr(uv_strerror_r(1337, buf, sizeof(buf)), "1337") != NULL);
+  ASSERT(strstr(uv_strerror_r(-1337, buf, sizeof(buf)), "-1337") != NULL);
+
   return 0;
 }
 
@@ -53,6 +65,7 @@ TEST_IMPL(error_message) {
 TEST_IMPL(sys_error) {
 #if defined(_WIN32)
   ASSERT(uv_translate_sys_error(ERROR_NOACCESS) == UV_EACCES);
+  ASSERT(uv_translate_sys_error(ERROR_ELEVATION_REQUIRED) == UV_EACCES);
   ASSERT(uv_translate_sys_error(WSAEADDRINUSE) == UV_EADDRINUSE);
   ASSERT(uv_translate_sys_error(ERROR_BAD_PIPE) == UV_EPIPE);
 #else

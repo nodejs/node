@@ -53,11 +53,8 @@ def path_to_build_dir(configuration):
 
 
 def compute_ninja_command_for_targets(targets='', configuration=None):
-  flags = []
-  if "use_goma=1" in os.getenv('GYP_DEFINES', '').split(' '):
-    flags = ['-j', '512']
   build_dir = path_to_build_dir(configuration);
-  build_cmd = ' '.join(['ninja'] + flags + ['-C', build_dir, targets])
+  build_cmd = ' '.join(['autoninja', '-C', build_dir, targets])
   vim.command('return "%s"' % build_cmd)
 
 

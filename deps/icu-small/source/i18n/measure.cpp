@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
@@ -23,7 +23,7 @@ U_NAMESPACE_BEGIN
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(Measure)
 
-Measure::Measure() {}
+Measure::Measure() : unit(nullptr) {}
 
 Measure::Measure(const Formattable& _number, MeasureUnit* adoptedUnit,
                  UErrorCode& ec) :
@@ -35,7 +35,7 @@ Measure::Measure(const Formattable& _number, MeasureUnit* adoptedUnit,
 }
 
 Measure::Measure(const Measure& other) :
-    UObject(other), unit(0) {
+    UObject(other), unit(nullptr) {
     *this = other;
 }
 
@@ -43,12 +43,16 @@ Measure& Measure::operator=(const Measure& other) {
     if (this != &other) {
         delete unit;
         number = other.number;
-        unit = (MeasureUnit*) other.unit->clone();
+        if (other.unit != nullptr) {
+            unit = other.unit->clone();
+        } else {
+            unit = nullptr;
+        }
     }
     return *this;
 }
 
-UObject *Measure::clone() const {
+Measure *Measure::clone() const {
     return new Measure(*this);
 }
 

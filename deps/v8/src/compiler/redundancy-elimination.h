@@ -11,10 +11,14 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class RedundancyElimination final : public AdvancedReducer {
+class V8_EXPORT_PRIVATE RedundancyElimination final : public AdvancedReducer {
  public:
   RedundancyElimination(Editor* editor, Zone* zone);
   ~RedundancyElimination() final;
+  RedundancyElimination(const RedundancyElimination&) = delete;
+  RedundancyElimination& operator=(const RedundancyElimination&) = delete;
+
+  const char* reducer_name() const override { return "RedundancyElimination"; }
 
   Reduction Reduce(Node* node) final;
 
@@ -34,8 +38,11 @@ class RedundancyElimination final : public AdvancedReducer {
 
     EffectPathChecks const* AddCheck(Zone* zone, Node* node) const;
     Node* LookupCheck(Node* node) const;
+    Node* LookupBoundsCheckFor(Node* node) const;
 
    private:
+    friend Zone;
+
     EffectPathChecks(Check* head, size_t size) : head_(head), size_(size) {}
 
     // We keep track of the list length so that we can find the longest
@@ -56,6 +63,8 @@ class RedundancyElimination final : public AdvancedReducer {
 
   Reduction ReduceCheckNode(Node* node);
   Reduction ReduceEffectPhi(Node* node);
+  Reduction ReduceSpeculativeNumberComparison(Node* node);
+  Reduction ReduceSpeculativeNumberOperation(Node* node);
   Reduction ReduceStart(Node* node);
   Reduction ReduceOtherNode(Node* node);
 
@@ -66,8 +75,6 @@ class RedundancyElimination final : public AdvancedReducer {
 
   PathChecksForEffectNodes node_checks_;
   Zone* const zone_;
-
-  DISALLOW_COPY_AND_ASSIGN(RedundancyElimination);
 };
 
 }  // namespace compiler

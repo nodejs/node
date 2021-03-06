@@ -1,0 +1,3 @@
+[flake8]
+exclude=.git,deps,lib,src,tools/gyp,tools/inspector_protocol,tools/pip,tools/v8_gypfiles/broken
+ignore=E1,E2,E3,E4,E5,E7,W5,W6

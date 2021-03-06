@@ -63,10 +63,15 @@ API
     Get the path being monitored by the handle. The buffer must be preallocated
     by the user. Returns 0 on success or an error code < 0 in case of failure.
     On success, `buffer` will contain the path and `size` its length. If the buffer
-    is not big enough UV_ENOBUFS will be returned and len will be set to the
-    required size.
+    is not big enough `UV_ENOBUFS` will be returned and `size` will be set to
+    the required size.
 
     .. versionchanged:: 1.3.0 the returned length no longer includes the terminating null byte,
                         and the buffer is not null terminated.
+
+    .. versionchanged:: 1.9.0 the returned length includes the terminating null
+                        byte on `UV_ENOBUFS`, and the buffer is null terminated
+                        on success.
+
 
 .. seealso:: The :c:type:`uv_handle_t` API functions also apply.

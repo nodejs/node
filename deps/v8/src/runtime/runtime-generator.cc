@@ -2,143 +2,150 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/execution/arguments-inl.h"
+#include "src/heap/factory.h"
+#include "src/heap/heap-inl.h"
+#include "src/logging/counters.h"
+#include "src/objects/js-generator-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/runtime/runtime-utils.h"
-
-#include "src/arguments.h"
-#include "src/debug/debug.h"
-#include "src/factory.h"
-#include "src/frames-inl.h"
-#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
 
+RUNTIME_FUNCTION(Runtime_AsyncFunctionAwaitCaught) {
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
+}
+
+RUNTIME_FUNCTION(Runtime_AsyncFunctionAwaitUncaught) {
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
+}
+
+RUNTIME_FUNCTION(Runtime_AsyncFunctionEnter) {
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
+}
+
+RUNTIME_FUNCTION(Runtime_AsyncFunctionReject) {
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
+}
+
+RUNTIME_FUNCTION(Runtime_AsyncFunctionResolve) {
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
+}
+
 RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 1);
-  CHECK(function->shared()->is_resumable());
+  CHECK_IMPLIES(IsAsyncFunction(function->shared().kind()),
+                IsAsyncGeneratorFunction(function->shared().kind()));
+  CHECK(IsResumableFunction(function->shared().kind()));
 
-  Handle<FixedArray> operand_stack;
-  if (function->shared()->HasBytecodeArray()) {
-    // New-style generators.
-    DCHECK(!function->shared()->HasBaselineCode());
-    int size = function->shared()->bytecode_array()->register_count();
-    operand_stack = isolate->factory()->NewFixedArray(size);
-  } else {
-    // Old-style generators.
-    DCHECK(function->shared()->HasBaselineCode());
-    operand_stack = isolate->factory()->empty_fixed_array();
-  }
+  // Underlying function needs to have bytecode available.
+  DCHECK(function->shared().HasBytecodeArray());
+  int size = function->shared().internal_formal_parameter_count() +
+             function->shared().GetBytecodeArray(isolate).register_count();
+  Handle<FixedArray> parameters_and_registers =
+      isolate->factory()->NewFixedArray(size);
 
   Handle<JSGeneratorObject> generator =
       isolate->factory()->NewJSGeneratorObject(function);
   generator->set_function(*function);
   generator->set_context(isolate->context());
   generator->set_receiver(*receiver);
-  generator->set_operand_stack(*operand_stack);
+  generator->set_parameters_and_registers(*parameters_and_registers);
+  generator->set_resume_mode(JSGeneratorObject::ResumeMode::kNext);
   generator->set_continuation(JSGeneratorObject::kGeneratorExecuting);
+  if (generator->IsJSAsyncGeneratorObject()) {
+    Handle<JSAsyncGeneratorObject>::cast(generator)->set_is_awaiting(0);
+  }
   return *generator;
 }
 
-RUNTIME_FUNCTION(Runtime_SuspendJSGeneratorObject) {
-  HandleScope handle_scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator_object, 0);
-
-  JavaScriptFrameIterator stack_iterator(isolate);
-  JavaScriptFrame* frame = stack_iterator.frame();
-  CHECK(frame->function()->shared()->is_resumable());
-  DCHECK_EQ(frame->function(), generator_object->function());
-  DCHECK(frame->function()->shared()->is_compiled());
-  DCHECK(!frame->function()->IsOptimized());
-
-  isolate->debug()->RecordAsyncFunction(generator_object);
-
-  // The caller should have saved the context and continuation already.
-  DCHECK_EQ(generator_object->context(), Context::cast(frame->context()));
-  DCHECK_LT(0, generator_object->continuation());
-
-  // We expect there to be at least two values on the operand stack: the return
-  // value of the yield expression, and the arguments to this runtime call.
-  // Neither of those should be saved.
-  int operands_count = frame->ComputeOperandsCount();
-  DCHECK_GE(operands_count, 1 + args.length());
-  operands_count -= 1 + args.length();
-
-  if (operands_count == 0) {
-    // Although it's semantically harmless to call this function with an
-    // operands_count of zero, it is also unnecessary.
-    DCHECK_EQ(generator_object->operand_stack(),
-              isolate->heap()->empty_fixed_array());
-  } else {
-    Handle<FixedArray> operand_stack =
-        isolate->factory()->NewFixedArray(operands_count);
-    frame->SaveOperandStack(*operand_stack);
-    generator_object->set_operand_stack(*operand_stack);
-  }
-
-  return isolate->heap()->undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_GeneratorClose) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
-
-  generator->set_continuation(JSGeneratorObject::kGeneratorClosed);
-
-  return isolate->heap()->undefined_value();
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
 }
 
 RUNTIME_FUNCTION(Runtime_GeneratorGetFunction) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
 
   return generator->function();
 }
 
-RUNTIME_FUNCTION(Runtime_GeneratorGetReceiver) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
-
-  return generator->receiver();
+RUNTIME_FUNCTION(Runtime_AsyncGeneratorAwaitCaught) {
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
 }
 
-RUNTIME_FUNCTION(Runtime_GeneratorGetInputOrDebugPos) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
+RUNTIME_FUNCTION(Runtime_AsyncGeneratorAwaitUncaught) {
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
+}
 
-  return generator->input_or_debug_pos();
+RUNTIME_FUNCTION(Runtime_AsyncGeneratorResolve) {
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
+}
+
+RUNTIME_FUNCTION(Runtime_AsyncGeneratorReject) {
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
+}
+
+RUNTIME_FUNCTION(Runtime_AsyncGeneratorYield) {
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
 }
 
 RUNTIME_FUNCTION(Runtime_GeneratorGetResumeMode) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
-
-  return Smi::FromInt(generator->resume_mode());
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
 }
 
-RUNTIME_FUNCTION(Runtime_GeneratorGetContinuation) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
+// Return true if {generator}'s PC has a catch handler. This allows
+// catch prediction to happen from the AsyncGeneratorResumeNext stub.
+RUNTIME_FUNCTION(Runtime_AsyncGeneratorHasCatchHandlerForPC) {
+  DisallowGarbageCollection no_gc_scope;
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_CHECKED(JSAsyncGeneratorObject, generator, 0);
 
-  return Smi::FromInt(generator->continuation());
-}
+  int state = generator.continuation();
+  DCHECK_NE(state, JSAsyncGeneratorObject::kGeneratorExecuting);
 
-RUNTIME_FUNCTION(Runtime_GeneratorGetSourcePosition) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
+  // If state is 0 ("suspendedStart"), there is guaranteed to be no catch
+  // handler. Otherwise, if state is below 0, the generator is closed and will
+  // not reach a catch handler.
+  if (state < 1) return ReadOnlyRoots(isolate).false_value();
 
-  if (!generator->is_suspended()) return isolate->heap()->undefined_value();
-  return Smi::FromInt(generator->source_position());
+  SharedFunctionInfo shared = generator.function().shared();
+  DCHECK(shared.HasBytecodeArray());
+  HandlerTable handler_table(shared.GetBytecodeArray(isolate));
+
+  int pc = Smi::cast(generator.input_or_debug_pos()).value();
+  HandlerTable::CatchPrediction catch_prediction = HandlerTable::ASYNC_AWAIT;
+  handler_table.LookupRange(pc, nullptr, &catch_prediction);
+  return isolate->heap()->ToBoolean(catch_prediction == HandlerTable::CAUGHT);
 }
 
 }  // namespace internal

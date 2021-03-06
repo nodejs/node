@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: number
-execute: yes
 wrap: yes
 
 ---
@@ -12,9 +10,8 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 3
+bytecode array length: 2
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
                 B(LdaUndefined),
   /*   34 S> */ B(Return),
 ]
@@ -29,11 +26,10 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 3
+bytecode array length: 2
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(LdaUndefined),
-  /*   42 S> */ B(Return),
+  /*   41 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -46,11 +42,10 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 3
+bytecode array length: 2
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(LdaNull),
-  /*   47 S> */ B(Return),
+  /*   46 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -63,11 +58,10 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 3
+bytecode array length: 2
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(LdaTrue),
-  /*   47 S> */ B(Return),
+  /*   46 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -80,11 +74,10 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 3
+bytecode array length: 2
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(LdaFalse),
-  /*   48 S> */ B(Return),
+  /*   47 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -97,11 +90,10 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 3
+bytecode array length: 2
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(LdaZero),
-  /*   44 S> */ B(Return),
+  /*   43 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -114,11 +106,10 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 4
+bytecode array length: 3
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(LdaSmi), U8(1),
-  /*   45 S> */ B(Return),
+  /*   34 S> */ B(LdaSmi), I8(1),
+  /*   44 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -131,11 +122,10 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 4
+bytecode array length: 3
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(LdaSmi), U8(-1),
-  /*   45 S> */ B(Return),
+  /*   34 S> */ B(LdaSmi), I8(-1),
+  /*   44 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -148,11 +138,10 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 4
+bytecode array length: 3
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(LdaSmi), U8(127),
-  /*   47 S> */ B(Return),
+  /*   34 S> */ B(LdaSmi), I8(127),
+  /*   46 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -165,11 +154,10 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 4
+bytecode array length: 3
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(LdaSmi), U8(-128),
-  /*   47 S> */ B(Return),
+  /*   34 S> */ B(LdaSmi), I8(-128),
+  /*   46 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -182,11 +170,10 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 4
+bytecode array length: 3
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(LdaSmi), U8(2),
-  /*   46 S> */ B(Return),
+  /*   34 S> */ B(LdaSmi), I8(2),
+  /*   45 S> */ B(Return),
 ]
 constant pool: [
 ]

@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
@@ -50,7 +50,7 @@ static UInitOnce gSpecialInversesInitOnce = U_INITONCE_INITIALIZER;
 /**
  * The mutex controlling access to SPECIAL_INVERSES
  */
-static UMutex LOCK = U_MUTEX_INITIALIZER;
+static UMutex LOCK;
 
 TransliteratorIDParser::Specs::Specs(const UnicodeString& s, const UnicodeString& t,
                                      const UnicodeString& v, UBool sawS,
@@ -294,6 +294,7 @@ UnicodeSet* TransliteratorIDParser::parseGlobalFilter(const UnicodeString& id, i
         pos = ppos.getIndex();
 
         if (withParens == 1 && !ICU_Utility::parseChar(id, pos, CLOSE_REV)) {
+            delete filter;
             pos = start;
             return NULL;
         }

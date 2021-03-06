@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -54,11 +54,13 @@
 
 #include "unicode/utypes.h"
 
+#if U_SHOW_CPLUSPLUS_API
+
 #if !UCONFIG_NO_COLLATION
 
 #include "unicode/uobject.h"
 #include "unicode/ucol.h"
-#include "unicode/normlzr.h"
+#include "unicode/unorm.h"
 #include "unicode/locid.h"
 #include "unicode/uniset.h"
 #include "unicode/umisc.h"
@@ -158,7 +160,7 @@ class CollationKey;
 * @see         CollationKey
 * @see         CollationElementIterator
 * @see         Locale
-* @see         Normalizer
+* @see         Normalizer2
 * @version     2.0 11/15/01
 */
 
@@ -204,6 +206,7 @@ public:
 
     // Cannot use #ifndef U_HIDE_DEPRECATED_API for the following, it is
     // used by virtual methods that cannot have that conditional.
+#ifndef U_FORCE_HIDE_DEPRECATED_API
     /**
      * LESS is returned if source string is compared to be less than target
      * string in the compare() method.
@@ -220,6 +223,7 @@ public:
         EQUAL = UCOL_EQUAL,  // 0
         GREATER = UCOL_GREATER  // 1
     };
+#endif  // U_FORCE_HIDE_DEPRECATED_API
 
     // Collator public destructor -----------------------------------------
 
@@ -232,21 +236,21 @@ public:
     // Collator public methods --------------------------------------------
 
     /**
-     * Returns TRUE if "other" is the same as "this".
+     * Returns true if "other" is the same as "this".
      *
-     * The base class implementation returns TRUE if "other" has the same type/class as "this":
-     * <code>typeid(*this) == typeid(other)</code>.
+     * The base class implementation returns true if "other" has the same type/class as "this":
+     * `typeid(*this) == typeid(other)`.
      *
      * Subclass implementations should do something like the following:
-     * <pre>
-     *   if (this == &other) { return TRUE; }
-     *   if (!Collator::operator==(other)) { return FALSE; }  // not the same class
      *
-     *   const MyCollator &o = (const MyCollator&)other;
-     *   (compare this vs. o's subclass fields)
-     * </pre>
+     *     if (this == &other) { return true; }
+     *     if (!Collator::operator==(other)) { return false; }  // not the same class
+     *
+     *     const MyCollator &o = (const MyCollator&)other;
+     *     (compare this vs. o's subclass fields)
+     *
      * @param other Collator object to be compared
-     * @return TRUE if other is the same as this.
+     * @return true if other is the same as this.
      * @stable ICU 2.0
      */
     virtual UBool operator==(const Collator& other) const;
@@ -255,7 +259,7 @@ public:
      * Returns true if "other" is not the same as "this".
      * Calls ! operator==(const Collator&) const which works for all subclasses.
      * @param other Collator object to be compared
-     * @return TRUE if other is not the same as this.
+     * @return true if other is not the same as this.
      * @stable ICU 2.0
      */
     virtual UBool operator!=(const Collator& other) const;
@@ -265,7 +269,7 @@ public:
      * @return a copy of this object, owned by the caller
      * @stable ICU 2.0
      */
-    virtual Collator* clone(void) const = 0;
+    virtual Collator* clone() const = 0;
 
     /**
      * Creates the Collator object for the current default locale.
@@ -300,7 +304,7 @@ public:
      * Starting with ICU 54, collation attributes can be specified via locale keywords as well,
      * in the old locale extension syntax ("el@colCaseFirst=upper")
      * or in language tag syntax ("el-u-kf-upper").
-     * See <a href="http://userguide.icu-project.org/collation/api">User Guide: Collation API</a>.
+     * See <a href="https://unicode-org.github.io/icu/userguide/collation/api">User Guide: Collation API</a>.
      *
      * The UErrorCode& err parameter is used to return status information to the user.
      * To check whether the construction succeeded or not, you should check
@@ -323,6 +327,7 @@ public:
      */
     static Collator* U_EXPORT2 createInstance(const Locale& loc, UErrorCode& err);
 
+#ifndef U_FORCE_HIDE_DEPRECATED_API
     /**
      * The comparison function compares the character data stored in two
      * different strings. Returns information about whether a string is less
@@ -336,6 +341,7 @@ public:
      */
     virtual EComparisonResult compare(const UnicodeString& source,
                                       const UnicodeString& target) const;
+#endif  // U_FORCE_HIDE_DEPRECATED_API
 
     /**
      * The comparison function compares the character data stored in two
@@ -353,6 +359,7 @@ public:
                                       const UnicodeString& target,
                                       UErrorCode &status) const = 0;
 
+#ifndef U_FORCE_HIDE_DEPRECATED_API
     /**
      * Does the same thing as compare but limits the comparison to a specified
      * length
@@ -368,6 +375,7 @@ public:
     virtual EComparisonResult compare(const UnicodeString& source,
                                       const UnicodeString& target,
                                       int32_t length) const;
+#endif  // U_FORCE_HIDE_DEPRECATED_API
 
     /**
      * Does the same thing as compare but limits the comparison to a specified
@@ -387,14 +395,15 @@ public:
                                       int32_t length,
                                       UErrorCode &status) const = 0;
 
+#ifndef U_FORCE_HIDE_DEPRECATED_API
     /**
      * The comparison function compares the character data stored in two
      * different string arrays. Returns information about whether a string array
      * is less than, greater than or equal to another string array.
      * <p>Example of use:
      * <pre>
-     * .       UChar ABC[] = {0x41, 0x42, 0x43, 0};  // = "ABC"
-     * .       UChar abc[] = {0x61, 0x62, 0x63, 0};  // = "abc"
+     * .       char16_t ABC[] = {0x41, 0x42, 0x43, 0};  // = "ABC"
+     * .       char16_t abc[] = {0x61, 0x62, 0x63, 0};  // = "abc"
      * .       UErrorCode status = U_ZERO_ERROR;
      * .       Collator *myCollation =
      * .                         Collator::createInstance(Locale::getUS(), status);
@@ -420,9 +429,10 @@ public:
      *         target
      * @deprecated ICU 2.6 use the overload with UErrorCode &
      */
-    virtual EComparisonResult compare(const UChar* source, int32_t sourceLength,
-                                      const UChar* target, int32_t targetLength)
+    virtual EComparisonResult compare(const char16_t* source, int32_t sourceLength,
+                                      const char16_t* target, int32_t targetLength)
                                       const;
+#endif  // U_FORCE_HIDE_DEPRECATED_API
 
     /**
      * The comparison function compares the character data stored in two
@@ -440,8 +450,8 @@ public:
      * than target
      * @stable ICU 2.6
      */
-    virtual UCollationResult compare(const UChar* source, int32_t sourceLength,
-                                      const UChar* target, int32_t targetLength,
+    virtual UCollationResult compare(const char16_t* source, int32_t sourceLength,
+                                      const char16_t* target, int32_t targetLength,
                                       UErrorCode &status) const = 0;
 
     /**
@@ -517,7 +527,7 @@ public:
      * @see CollationKey#compare
      * @stable ICU 2.0
      */
-    virtual CollationKey& getCollationKey(const UChar*source,
+    virtual CollationKey& getCollationKey(const char16_t*source,
                                           int32_t sourceLength,
                                           CollationKey& key,
                                           UErrorCode& status) const = 0;
@@ -527,6 +537,7 @@ public:
      */
     virtual int32_t hashCode(void) const = 0;
 
+#ifndef U_FORCE_HIDE_DEPRECATED_API
     /**
      * Gets the locale of the Collator
      *
@@ -540,6 +551,7 @@ public:
      * in ICU 3.0.
      */
     virtual Locale getLocale(ULocDataLocaleType type, UErrorCode& status) const = 0;
+#endif  // U_FORCE_HIDE_DEPRECATED_API
 
     /**
      * Convenience method for comparing two strings based on the collation rules.
@@ -576,6 +588,7 @@ public:
      */
     UBool equals(const UnicodeString& source, const UnicodeString& target) const;
 
+#ifndef U_FORCE_HIDE_DEPRECATED_API
     /**
      * Determines the minimum strength that will be used in comparison or
      * transformation.
@@ -607,6 +620,7 @@ public:
      * @deprecated ICU 2.6 Use setAttribute(UCOL_STRENGTH...) instead
      */
     virtual void setStrength(ECollationStrength newStrength);
+#endif  // U_FORCE_HIDE_DEPRECATED_API
 
     /**
      * Retrieves the reordering codes for this collator.
@@ -672,7 +686,7 @@ public:
                                 UErrorCode& status);
 
     /**
-     * Get name of the object for the desired Locale, in the desired langauge
+     * Get name of the object for the desired Locale, in the desired language
      * @param objectLocale must be from getAvailableLocales
      * @param displayLocale specifies the desired locale for output
      * @param name the fill-in parameter of the return value
@@ -685,7 +699,7 @@ public:
                                          UnicodeString& name);
 
     /**
-    * Get name of the object for the desired Locale, in the langauge of the
+    * Get name of the object for the desired Locale, in the language of the
     * default locale.
     * @param objectLocale must be from getAvailableLocales
     * @param name the fill-in parameter of the return value
@@ -774,7 +788,7 @@ public:
      * applications who wish to cache collators, or otherwise reuse
      * collators when possible.  The functional equivalent may change
      * over time.  For more information, please see the <a
-     * href="http://userguide.icu-project.org/locale#TOC-Locales-and-Services">
+     * href="https://unicode-org.github.io/icu/userguide/locale#locales-and-services">
      * Locales and Services</a> section of the ICU User Guide.
      * @param keyword a particular keyword as enumerated by
      * ucol_getKeywords.
@@ -827,7 +841,7 @@ public:
      * Collator::createInstance to avoid undefined behavior.
      * @param key the registry key returned by a previous call to registerInstance
      * @param status the in/out status code, no special meanings are assigned
-     * @return TRUE if the collator for the key was successfully unregistered
+     * @return true if the collator for the key was successfully unregistered
      * @stable ICU 2.6
      */
     static UBool U_EXPORT2 unregister(URegistryKey key, UErrorCode& status);
@@ -904,6 +918,7 @@ public:
      */
     virtual UColReorderCode getMaxVariable() const;
 
+#ifndef U_FORCE_HIDE_DEPRECATED_API
     /**
      * Sets the variable top to the primary weight of the specified string.
      *
@@ -911,7 +926,7 @@ public:
      * the top of one of the supported reordering groups,
      * and it must not be beyond the last of those groups.
      * See setMaxVariable().
-     * @param varTop one or more (if contraction) UChars to which the variable top should be set
+     * @param varTop one or more (if contraction) char16_ts to which the variable top should be set
      * @param len length of variable top string. If -1 it is considered to be zero terminated.
      * @param status error code. If error code is set, the return value is undefined. Errors set by this function are: <br>
      *    U_CE_NOT_FOUND_ERROR if more than one character was passed and there is no such contraction<br>
@@ -920,7 +935,7 @@ public:
      * @return variable top primary weight
      * @deprecated ICU 53 Call setMaxVariable() instead.
      */
-    virtual uint32_t setVariableTop(const UChar *varTop, int32_t len, UErrorCode &status) = 0;
+    virtual uint32_t setVariableTop(const char16_t *varTop, int32_t len, UErrorCode &status) = 0;
 
     /**
      * Sets the variable top to the primary weight of the specified string.
@@ -929,7 +944,7 @@ public:
      * the top of one of the supported reordering groups,
      * and it must not be beyond the last of those groups.
      * See setMaxVariable().
-     * @param varTop a UnicodeString size 1 or more (if contraction) of UChars to which the variable top should be set
+     * @param varTop a UnicodeString size 1 or more (if contraction) of char16_ts to which the variable top should be set
      * @param status error code. If error code is set, the return value is undefined. Errors set by this function are: <br>
      *    U_CE_NOT_FOUND_ERROR if more than one character was passed and there is no such contraction<br>
      *    U_ILLEGAL_ARGUMENT_ERROR if the variable top is beyond
@@ -951,6 +966,7 @@ public:
      * @deprecated ICU 53 Call setMaxVariable() instead.
      */
     virtual void setVariableTop(uint32_t varTop, UErrorCode &status) = 0;
+#endif  // U_FORCE_HIDE_DEPRECATED_API
 
     /**
      * Gets the variable top value of a Collator.
@@ -972,6 +988,7 @@ public:
      */
     virtual UnicodeSet *getTailoredSet(UErrorCode &status) const;
 
+#ifndef U_FORCE_HIDE_DEPRECATED_API
     /**
      * Same as clone().
      * The base class implementation simply calls clone().
@@ -979,7 +996,8 @@ public:
      * @see clone()
      * @deprecated ICU 50 no need to have two methods for cloning
      */
-    virtual Collator* safeClone(void) const;
+    virtual Collator* safeClone() const;
+#endif  // U_FORCE_HIDE_DEPRECATED_API
 
     /**
      * Get the sort key as an array of bytes from a UnicodeString.
@@ -1002,7 +1020,7 @@ public:
                               int32_t resultLength) const = 0;
 
     /**
-     * Get the sort key as an array of bytes from a UChar buffer.
+     * Get the sort key as an array of bytes from a char16_t buffer.
      * Sort key byte arrays are zero-terminated and can be compared using
      * strcmp().
      *
@@ -1020,7 +1038,7 @@ public:
      * @return Number of bytes needed for storing the sort key
      * @stable ICU 2.2
      */
-    virtual int32_t getSortKey(const UChar*source, int32_t sourceLength,
+    virtual int32_t getSortKey(const char16_t*source, int32_t sourceLength,
                                uint8_t*result, int32_t resultLength) const = 0;
 
     /**
@@ -1121,7 +1139,7 @@ public:
      *  This string will be normalized.
      *  The structure and the syntax of the string is defined in the "Naming collators"
      *  section of the users guide:
-     *  http://userguide.icu-project.org/collation/concepts#TOC-Collator-naming-scheme
+     *  https://unicode-org.github.io/icu/userguide/collation/concepts#collator-naming-scheme
      *  This function supports preflighting.
      *
      *  This is internal, and intended to be used with delegate converters.
@@ -1270,5 +1288,7 @@ public:
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_COLLATION */
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif

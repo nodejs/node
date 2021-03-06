@@ -1,177 +1,177 @@
 # Node.js Project Governance
 
-## Core Technical Committee
+<!-- TOC -->
 
-The Node.js project is governed by a Core Technical Committee (CTC) which is
-responsible for high-level guidance of the project.
+* [Triagers](#triagers)
+* [Collaborators](#collaborators)
+  * [Collaborator activities](#collaborator-activities)
+* [Technical steering committee](#technical-steering-committee)
+  * [TSC meetings](#tsc-meetings)
+* [Collaborator nominations](#collaborator-nominations)
+  * [Onboarding](#onboarding)
+* [Consensus seeking process](#consensus-seeking-process)
 
-The CTC has final authority over this project including:
+<!-- /TOC -->
+
+## Triagers
+
+Triagers assess newly-opened issues in the nodejs/node and nodejs/help
+repositories. There is no GitHub team for triagers at the moment.
+
+Triagers have:
+* ability to label issues
+* ability to comment, close, and reopen issues
+
+See:
+
+* [A guide for triagers](./doc/guides/contributing/issues.md#triaging-a-bug-report)
+
+## Collaborators
+
+Node.js Core Collaborators maintain the [nodejs/node][] GitHub repository.
+The GitHub team for Node.js Core Collaborators is @nodejs/collaborators.
+Collaborators have:
+
+* Commit access to the [nodejs/node][] repository
+* Access to the Node.js continuous integration (CI) jobs
+
+Both Collaborators and non-Collaborators may propose changes to the Node.js
+source code. The mechanism to propose such a change is a GitHub pull request.
+Collaborators review and merge (_land_) pull requests.
+
+Two Collaborators must approve a pull request before the pull request can land.
+(One Collaborator approval is enough if the pull request has been open for more
+than 7 days.) Approving a pull request indicates that the Collaborator accepts
+responsibility for the change. Approval must be from Collaborators who are not
+authors of the change.
+
+If a Collaborator opposes a proposed change, then the change cannot land. The
+exception is if the TSC votes to approve the change despite the opposition.
+Usually, involving the TSC is unnecessary. Often, discussions or further changes
+result in Collaborators removing their opposition.
+
+See:
+
+* [List of Collaborators](./README.md#current-project-team-members)
+* [A guide for Collaborators](./doc/guides/collaborator-guide.md)
+
+### Collaborator activities
+
+* Helping users and novice contributors
+* Contributing code and documentation changes that improve the project
+* Reviewing and commenting on issues and pull requests
+* Participation in working groups
+* Merging pull requests
+
+The TSC can remove inactive Collaborators or provide them with _Emeritus_
+status. Emeriti may request that the TSC restore them to active status.
+
+## Technical Steering Committee
+
+A subset of the Collaborators forms the Technical Steering Committee (TSC).
+The TSC has final authority over this project, including:
 
 * Technical direction
 * Project governance and process (including this policy)
 * Contribution policy
 * GitHub repository hosting
 * Conduct guidelines
-* Maintaining the list of additional Collaborators
+* Maintaining the list of Collaborators
 
-For the current list of CTC members, see the project
-[README.md](./README.md#current-project-team-members).
+The current list of TSC members is in
+[the project README](./README.md#current-project-team-members).
 
-## Collaborators
+The [TSC Charter][] governs the operations of the TSC. All changes to the
+Charter need approval by the OpenJS Foundation Board of Directors.
 
-The [nodejs/node](https://github.com/nodejs/node) GitHub repository is
-maintained by the CTC and additional Collaborators who are added by the
-CTC on an ongoing basis.
+### TSC meetings
 
-Individuals identified by the CTC as making significant and valuable
-contributions are made Collaborators and given commit access to the project.
+The TSC meets in a voice conference call. Each year, the TSC elects a chair to
+run the meetings. The TSC streams its meetings for public viewing on YouTube or
+a similar service.
 
-_Note:_ If you make a significant contribution and are not considered
-for commit access, log an issue or contact a CTC member directly.
+The TSC agenda includes issues that are at an impasse. The intention of the
+agenda is not to review or approve all patches. Collaborators review and approve
+patches on GitHub.
 
-Modifications of the contents of the nodejs/node repository are made on
-a collaborative basis. Anybody with a GitHub account may propose a
-modification via pull request and it will be considered by the project
-Collaborators. All pull requests must be reviewed and accepted by a
-Collaborator with sufficient expertise who is able to take full
-responsibility for the change. In the case of pull requests proposed
-by an existing Collaborator, an additional Collaborator is required
-for sign-off.
+Any community member can create a GitHub issue asking that the TSC review
+something. If consensus-seeking fails for an issue, a Collaborator may apply the
+`tsc-agenda` label. That will add it to the TSC meeting agenda.
 
-If one or more Collaborators oppose a proposed change, then the change can not
-be accepted unless:
+Before each TSC meeting, the meeting chair will share the agenda with members of
+the TSC. TSC members can also add items to the agenda at the beginning of each
+meeting. The meeting chair and the TSC cannot veto or remove items.
 
-* Discussions and/or additional changes result in no Collaborators objecting to
-  the change. Previously-objecting Collaborators do not necessarily have to
-  sign-off on the change, but they should not be opposed to it.
-* The change is escalated to the CTC and the CTC votes to approve the change.
-  This should be used only after other options (especially discussion among
-  the disagreeing Collaborators) have been exhausted.
+The TSC may invite people to take part in a non-voting capacity.
 
-Collaborators may opt to elevate significant or controversial modifications to
-the CTC by assigning the `ctc-review` label to a pull request or issue. The
-CTC should serve as the final arbiter where required.
+During the meeting, the TSC chair ensures that someone takes minutes. After the
+meeting, the TSC chair ensures that someone opens a pull request with the
+minutes.
 
-For the current list of Collaborators, see the project
-[README.md](./README.md#current-project-team-members).
-
-A guide for Collaborators is maintained in
-[COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md).
-
-### Collaborator Activities
-
-Typical activities of a Collaborator include:
-
-* helping users and novice contributors
-* contributing code and documentation changes that improve the project
-* reviewing and commenting on issues and pull requests
-* participation in working groups
-* merging pull requests
-
-While the above are typical things done by Collaborators, there are no required
-activities to retain Collaborator status. There is currently no process by which
-inactive Collaborators are removed from the project.
-
-## CTC Membership
-
-CTC seats are not time-limited. There is no fixed size of the CTC. The CTC
-should be of such a size as to ensure adequate coverage of important areas of
-expertise balanced with the ability to make decisions efficiently.
-
-There is no specific set of requirements or qualifications for CTC
-membership beyond these rules.
-
-The CTC may add additional members to the CTC by a standard CTC motion.
-
-When a CTC member's participation in [CTC activities](#ctc-activities) has become
-minimal for a sustained period of time, the CTC will request that the member
-either indicate an intention to increase participation or voluntarily resign.
-
-CTC members may only be removed by voluntary resignation or through a standard
-CTC motion.
-
-Changes to CTC membership should be posted in the agenda, and may be
-suggested as any other agenda item (see [CTC Meetings](#ctc-meetings) below).
-
-No more than 1/3 of the CTC members may be affiliated with the same
-employer.  If removal or resignation of a CTC member, or a change of
-employment by a CTC member, creates a situation where more than 1/3 of
-the CTC membership shares an employer, then the situation must be
-immediately remedied by the resignation or removal of one or more CTC
-members affiliated with the over-represented employer(s).
-
-### CTC Activities
-
-Typical activities of a CTC member include:
-
-* attending the weekly meeting
-* commenting on the weekly CTC meeting issue and issues labeled `ctc-review`
-* participating in CTC email threads
-* volunteering for tasks that arise from CTC meetings and related discussions
-* other activities (beyond those typical of Collaborators) that facilitate the
-  smooth day-to-day operation of the Node.js project
-
-Note that CTC members are also Collaborators and therefore typically perform
-Collaborator activities as well.
-
-### CTC Meetings
-
-The CTC meets weekly in a voice conference call. The meeting is run by a
-designated meeting chair approved by the CTC. Each meeting is streamed on
-YouTube.
-
-Items are added to the CTC agenda which are considered contentious or
-are modifications of governance, contribution policy, CTC membership,
-or release process.
-
-The intention of the agenda is not to approve or review all patches.
-That should happen continuously on GitHub and be handled by the larger
-group of Collaborators.
-
-Any community member or contributor can ask that something be reviewed
-by the CTC by logging a GitHub issue. Any Collaborator, CTC member, or the
-meeting chair can bring the issue to the CTC's attention by applying the
-`ctc-review` label. If consensus-seeking among CTC members fails for a
-particular issue, it may be added to the CTC meeting agenda by adding the
-`ctc-agenda` label.
-
-Prior to each CTC meeting, the meeting chair will share the agenda with
-members of the CTC. CTC members can also add items to the agenda at the
-beginning of each meeting. The meeting chair and the CTC cannot veto or remove
-items.
-
-The CTC may invite persons or representatives from certain projects to
-participate in a non-voting capacity.
-
-The meeting chair is responsible for ensuring that minutes are taken and that a
-pull request with the minutes is submitted after the meeting.
-
-Due to the challenges of scheduling a global meeting with participants in
-several timezones, the CTC will seek to resolve as many agenda items as possible
-outside of meetings using
-[the CTC issue tracker](https://github.com/nodejs/CTC/issues). The process in
+The TSC seeks to resolve as many issues as possible outside meetings using
+[the TSC issue tracker](https://github.com/nodejs/TSC/issues). The process in
 the issue tracker is:
 
-* A CTC member opens an issue explaining the proposal/issue and @-mentions
-  @nodejs/ctc.
-* After 72 hours, if there are two or more `LGTM`s from other CTC members and no
-  explicit opposition from other CTC members, then the proposal is approved.
-* If there are any CTC members objecting, then a conversation ensues until
-  either the proposal is dropped or the objecting members are persuaded. If
-  there is an extended impasse, a motion for a vote may be made.
+* A TSC member opens an issue explaining the proposal/issue and @-mentions
+  @nodejs/tsc.
+* The proposal passes if, after 72 hours, there are two or more TSC approvals
+  and no TSC opposition.
+* If there is an extended impasse, a TSC member may make a motion for a vote.
 
-## Consensus Seeking Process
+## Collaborator nominations
 
-The CTC follows a
-[Consensus Seeking](http://en.wikipedia.org/wiki/Consensus-seeking_decision-making)
-decision making model.
+Existing Collaborators can nominate someone to become a Collaborator. Nominees
+should have significant and valuable contributions across the Node.js
+organization.
 
-When an agenda item has appeared to reach a consensus, the meeting chair will
-ask "Does anyone object?" as a final call for dissent from the consensus.
+To nominate a new Collaborator, open an issue in the [nodejs/node][] repository.
+Provide a summary of the nominee's contributions. For example:
 
-If an agenda item cannot reach a consensus, a CTC member can call for either a
-closing vote or a vote to table the issue to the next meeting. All votes
-(including votes to close or table) pass if and only if more than 50% of the CTC
-members (excluding individuals who explicitly abstain) vote in favor. For
-example, if there are 20 CTC members, and 5 of those members indicate that they
-abstain, then 8 votes in favor are required for a resolution to pass.
+* Commits in the [nodejs/node][] repository.
+  * Use the link `https://github.com/nodejs/node/commits?author=GITHUB_ID`
+* Pull requests and issues opened in the [nodejs/node][] repository.
+  * Use the link `https://github.com/nodejs/node/issues?q=author:GITHUB_ID`
+* Comments on pull requests and issues in the [nodejs/node][] repository
+  * Use the link `https://github.com/nodejs/node/issues?q=commenter:GITHUB_ID`
+* Reviews on pull requests in the [nodejs/node][] repository
+  * Use the link `https://github.com/nodejs/node/pulls?q=reviewed-by:GITHUB_ID`
+* Help provided to end-users and novice contributors
+* Pull requests and issues opened throughout the Node.js organization
+  * Use the link  `https://github.com/search?q=author:GITHUB_ID+org:nodejs`
+* Comments on pull requests and issues throughout the Node.js organization
+  * Use the link `https://github.com/search?q=commenter:GITHUB_ID+org:nodejs`
+* Participation in other projects, teams, and working groups of the Node.js
+  organization
+* Other participation in the wider Node.js community
+
+Mention @nodejs/collaborators in the issue to notify other Collaborators about
+the nomination.
+
+The nomination passes if no Collaborators oppose it after one week. Otherwise,
+the nomination fails.
+
+There are steps a nominator can take in advance to make a nomination as
+frictionless as possible. To request feedback from other Collaborators in
+ private, use the [Collaborators discussion page][]
+ (which only Collaborators may view). A nominator may also work with the
+nominee to improve their contribution profile.
+
+Collaborators might overlook someone with valuable contributions. In that case,
+the contributor may open an issue or contact a Collaborator to request a
+nomination.
+
+### Onboarding
+
+After the nomination passes, a TSC member onboards the new Collaborator. See
+[the onboarding guide](./onboarding.md) for details of the onboarding
+process.
+
+## Consensus seeking process
+
+The TSC follows a [Consensus Seeking][] decision-making model per the
+[TSC Charter][].
+
+[Collaborators discussion page]: https://github.com/orgs/nodejs/teams/collaborators/discussions
+[Consensus Seeking]: https://en.wikipedia.org/wiki/Consensus-seeking_decision-making
+[TSC Charter]: https://github.com/nodejs/TSC/blob/master/TSC-Charter.md
+[nodejs/node]: https://github.com/nodejs/node

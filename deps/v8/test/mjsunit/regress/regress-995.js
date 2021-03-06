@@ -39,14 +39,6 @@ function f(value) {
 }
 f(new String("bar"));
 
-// HClassOf.
-function g(value) {
-  if (%_ClassOf(value) === 'Date') {
-    if (%_ClassOf(value) === 'String') assertTrue(false);
-  }
-}
-g(new Date());
-
 // HIsNull.
 function h(value) {
   if (value == null) {

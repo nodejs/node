@@ -1,32 +1,55 @@
-module.exports = bugs
+const log = require('npmlog')
+const pacote = require('pacote')
+const openUrl = require('./utils/open-url.js')
+const usageUtil = require('./utils/usage.js')
+const hostedFromMani = require('./utils/hosted-git-info-from-manifest.js')
 
-var npm = require('./npm.js')
-var log = require('npmlog')
-var opener = require('opener')
-var fetchPackageMetadata = require('./fetch-package-metadata.js')
-var usage = require('./utils/usage')
+class Bugs {
+  constructor (npm) {
+    this.npm = npm
+  }
 
-bugs.usage = usage(
-  'bugs',
-  'npm bugs [<pkgname>]'
-)
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  get usage () {
+    return usageUtil('bugs', 'npm bugs [<pkgname>]')
+  }
 
-bugs.completion = function (opts, cb) {
-  // FIXME: there used to be registry completion here, but it stopped making
-  // sense somewhere around 50,000 packages on the registry
-  cb()
-}
+  exec (args, cb) {
+    this.bugs(args).then(() => cb()).catch(cb)
+  }
 
-function bugs (args, cb) {
-  var n = args.length ? args[0] : '.'
-  fetchPackageMetadata(n, '.', function (er, d) {
-    if (er) return cb(er)
+  async bugs (args) {
+    if (!args || !args.length)
+      args = ['.']
 
-    var url = d.bugs && ((typeof d.bugs === 'string') ? d.bugs : d.bugs.url)
-    if (!url) {
-      url = 'https://www.npmjs.org/package/' + d.name
-    }
+    await Promise.all(args.map(pkg => this.getBugs(pkg)))
+  }
+
+  async getBugs (pkg) {
+    const opts = { ...this.npm.flatOptions, fullMetadata: true }
+    const mani = await pacote.manifest(pkg, opts)
+    const url = this.getBugsUrl(mani)
     log.silly('bugs', 'url', url)
-    opener(url, { command: npm.config.get('browser') }, cb)
-  })
+    await openUrl(this.npm, url, `${mani.name} bug list available at the following URL`)
+  }
+
+  getBugsUrl (mani) {
+    if (mani.bugs) {
+      if (typeof mani.bugs === 'string')
+        return mani.bugs
+
+      if (typeof mani.bugs === 'object' && mani.bugs.url)
+        return mani.bugs.url
+    }
+
+    // try to get it from the repo, if possible
+    const info = hostedFromMani(mani)
+    if (info)
+      return info.bugs()
+
+    // just send them to the website, hopefully that has some info!
+    return `https://www.npmjs.com/package/${mani.name}`
+  }
 }
+
+module.exports = Bugs

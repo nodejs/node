@@ -1,0 +1,106 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-regexp-gen.h'
+
+namespace regexp {
+
+transitioning macro
+RegExpPrototypeSearchBodyFast(implicit context: Context)(
+    regexp: JSRegExp, string: String): JSAny {
+  assert(IsFastRegExpPermissive(regexp));
+
+  // Grab the initial value of last index.
+  const previousLastIndex: Smi = FastLoadLastIndex(regexp);
+
+  // Ensure last index is 0.
+  FastStoreLastIndex(regexp, 0);
+
+  // Call exec.
+  try {
+    const matchIndices: RegExpMatchInfo =
+        RegExpPrototypeExecBodyWithoutResultFast(
+            UnsafeCast<JSRegExp>(regexp), string)
+        otherwise DidNotMatch;
+
+    // Successful match.
+    // Reset last index.
+    FastStoreLastIndex(regexp, previousLastIndex);
+
+    // Return the index of the match.
+    return UnsafeCast<Smi>(
+        matchIndices.objects[kRegExpMatchInfoFirstCaptureIndex]);
+  } label DidNotMatch {
+    // Reset last index and return -1.
+    FastStoreLastIndex(regexp, previousLastIndex);
+    return SmiConstant(-1);
+  }
+}
+
+extern macro RegExpBuiltinsAssembler::BranchIfRegExpResult(
+    implicit context: Context)(Object): never labels IsUnmodified,
+    IsModified;
+
+macro
+IsRegExpResult(implicit context: Context)(execResult: HeapObject): bool {
+  BranchIfRegExpResult(execResult) otherwise return true, return false;
+}
+
+transitioning macro RegExpPrototypeSearchBodySlow(implicit context: Context)(
+    regexp: JSReceiver, string: String): JSAny {
+  // Grab the initial value of last index.
+  const previousLastIndex = SlowLoadLastIndex(regexp);
+  const smiZero: Smi = 0;
+
+  // Ensure last index is 0.
+  if (!SameValue(previousLastIndex, smiZero)) {
+    SlowStoreLastIndex(regexp, smiZero);
+  }
+
+  // Call exec.
+  const execResult = RegExpExec(regexp, string);
+
+  // Reset last index if necessary.
+  const currentLastIndex = SlowLoadLastIndex(regexp);
+  if (!SameValue(currentLastIndex, previousLastIndex)) {
+    SlowStoreLastIndex(regexp, previousLastIndex);
+  }
+
+  // Return -1 if no match was found.
+  if (execResult == Null) {
+    return SmiConstant(-1);
+  }
+
+  // Return the index of the match.
+  const fastExecResult = Cast<JSRegExpResult>(execResult)
+      otherwise return GetProperty(execResult, 'index');
+  return fastExecResult.index;
+}
+
+// Helper that skips a few initial checks. and assumes...
+// 1) receiver is a "fast permissive" RegExp
+// 2) pattern is a string
+transitioning builtin RegExpSearchFast(implicit context: Context)(
+    receiver: JSRegExp, string: String): JSAny {
+  return RegExpPrototypeSearchBodyFast(receiver, string);
+}
+
+// ES#sec-regexp.prototype-@@search
+// RegExp.prototype [ @@search ] ( string )
+transitioning javascript builtin RegExpPrototypeSearch(
+    js-implicit context: NativeContext, receiver: JSAny)(string: JSAny): JSAny {
+  ThrowIfNotJSReceiver(
+      receiver, MessageTemplate::kIncompatibleMethodReceiver,
+      'RegExp.prototype.@@search');
+  const receiver = UnsafeCast<JSReceiver>(receiver);
+  const string: String = ToString_Inline(string);
+
+  if (IsFastRegExpPermissive(receiver)) {
+    // TODO(pwong): Could be optimized to remove the overhead of calling the
+    //              builtin (at the cost of a larger builtin).
+    return RegExpSearchFast(UnsafeCast<JSRegExp>(receiver), string);
+  }
+  return RegExpPrototypeSearchBodySlow(receiver, string);
+}
+}

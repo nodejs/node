@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: string
-execute: yes
 wrap: no
 test function name: f
 
@@ -18,13 +16,12 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 7
+bytecode array length: 6
 bytecodes: [
-  /*   10 E> */ B(StackCheck),
-  /*   24 S> */ B(LdaSmi), U8(13),
+  /*   24 S> */ B(LdaSmi), I8(13),
                 B(Star), R(0),
   /*   29 S> */ B(TypeOf),
-  /*   47 S> */ B(Return),
+  /*   46 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -43,12 +40,12 @@ frame size: 0
 parameter count: 1
 bytecode array length: 5
 bytecodes: [
-  /*   22 E> */ B(StackCheck),
-  /*   28 S> */ B(LdaGlobalInsideTypeof), U8(1),
+  /*   28 S> */ B(LdaGlobalInsideTypeof), U8(0), U8(0),
                 B(TypeOf),
-  /*   46 S> */ B(Return),
+  /*   45 S> */ B(Return),
 ]
 constant pool: [
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
 ]
 handlers: [
 ]

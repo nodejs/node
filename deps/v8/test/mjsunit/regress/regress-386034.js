@@ -9,11 +9,13 @@ function f(x) {
   for (i = 0; i < 1; i++) {
     v.apply(this, arguments);
   }
-}
-
+};
+%PrepareFunctionForOptimization(f);
 function g() {}
 
 f(g);
 f(g);
 %OptimizeFunctionOnNextCall(f);
-assertThrows(function() { f('----'); }, TypeError);
+assertThrows(function() {
+  f('----');
+}, TypeError);

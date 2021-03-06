@@ -19,5 +19,6 @@ var f = (function () {
   return f;
 })();
 
+%PrepareFunctionForOptimization(f);
 %OptimizeFunctionOnNextCall(f);
 assertEquals(0, f(0, -1));

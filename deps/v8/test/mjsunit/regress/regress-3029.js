@@ -37,8 +37,8 @@ function f() {
 
 function g() {
   f();
-}
-
+};
+%PrepareFunctionForOptimization(g);
 assertThrows("g()", TypeError);
 assertThrows("g()", TypeError);
 %OptimizeFunctionOnNextCall(g);

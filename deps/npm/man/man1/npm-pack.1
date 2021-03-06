@@ -1,27 +1,33 @@
-.TH "NPM\-PACK" "1" "November 2016" "" ""
+.TH "NPM\-PACK" "1" "March 2021" "" ""
 .SH "NAME"
 \fBnpm-pack\fR \- Create a tarball from a package
-.SH SYNOPSIS
+.SS Synopsis
 .P
 .RS 2
 .nf
-npm pack [[<@scope>/]<pkg>\.\.\.]
+npm pack [[<@scope>/]<pkg>\.\.\.] [\-\-dry\-run]
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 For anything that's installable (that is, a package folder, tarball,
-tarball url, name@tag, name@version, name, or scoped name), this
-command will fetch it to the cache, and then copy the tarball to the
-current working directory as \fB<name>\-<version>\.tgz\fP, and then write
-the filenames out to stdout\.
+tarball url, git url, name@tag, name@version, name, or scoped name), this
+command will fetch it to the cache, copy the tarball to the current working
+directory as \fB<name>\-<version>\.tgz\fP, and then write the filenames out to
+stdout\.
 .P
 If the same package is specified multiple times, then the file will be
 overwritten the second time\.
 .P
 If no arguments are supplied, then npm packs the current package folder\.
-.SH SEE ALSO
+.P
+The \fB\-\-dry\-run\fP argument will do everything that pack usually does without
+actually packing anything\.  That is, it reports on what would have gone
+into the tarball, but nothing else\.
+.SS See Also
 .RS 0
+.IP \(bu 2
+npm\-packlist package \fIhttp://npm\.im/npm\-packlist\fR
 .IP \(bu 2
 npm help cache
 .IP \(bu 2
@@ -29,9 +35,6 @@ npm help publish
 .IP \(bu 2
 npm help config
 .IP \(bu 2
-npm help 7 config
-.IP \(bu 2
-npm help 5 npmrc
+npm help npmrc
 
 .RE
-

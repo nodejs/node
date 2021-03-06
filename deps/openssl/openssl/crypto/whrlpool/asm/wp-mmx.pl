@@ -1,7 +1,14 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2005-2020 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 #
 # ====================================================================
-# Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
+# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 # project. Rights for redistribution and usage in source and binary
 # forms are granted according to the OpenSSL license.
 # ====================================================================
@@ -24,7 +31,7 @@
 # multiplying 64 by CPU clock frequency and dividing by relevant
 # value from the given table:
 #
-#		$SCALE=2/8	icc8	gcc3	
+#		$SCALE=2/8	icc8	gcc3
 # Intel P4	3200/4600	4600(*)	6400
 # Intel PIII	2900/3000	4900	5400
 # AMD K[78]	2500/1800	9900	8200(**)
@@ -49,7 +56,10 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 push(@INC,"${dir}","${dir}../../perlasm");
 require "x86asm.pl";
 
-&asm_init($ARGV[0],"wp-mmx.pl");
+$output=pop;
+open STDOUT,">$output";
+
+&asm_init($ARGV[0]);
 
 sub L()  { &data_byte(@_); }
 sub LL()
@@ -59,19 +69,19 @@ sub LL()
 					unshift(@_,pop(@_));
 				  }
 				}
-	else			{ die "unvalid SCALE value"; }
+	else			{ die "invalid SCALE value"; }
 }
 
 sub scale()
 {	if	($SCALE==2)	{ &lea(@_[0],&DWP(0,@_[1],@_[1])); }
 	elsif	($SCALE==8)	{ &lea(@_[0],&DWP(0,"",@_[1],8));  }
-	else			{ die "unvalid SCALE value";       }
+	else			{ die "invalid SCALE value";       }
 }
 
 sub row()
 {	if	($SCALE==2)	{ ((8-shift)&7); }
 	elsif	($SCALE==8)	{ (8*shift);     }
-	else			{ die "unvalid SCALE value"; }
+	else			{ die "invalid SCALE value"; }
 }
 
 $tbl="ebp";
@@ -492,4 +502,6 @@ for($i=0;$i<8;$i++) {
 	&L(0xca,0x2d,0xbf,0x07,0xad,0x5a,0x83,0x33);
 
 &function_end_B("whirlpool_block_mmx");
-&asm_finish(); 
+&asm_finish();
+
+close STDOUT or die "error closing STDOUT: $!";

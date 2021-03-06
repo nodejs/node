@@ -1,8 +1,7 @@
-'use strict'
-var log = require('npmlog')
+const log = require('npmlog')
 // output to stdout in a progress bar compatible way
-module.exports = function () {
+module.exports = (...msg) => {
   log.clearProgress()
-  console.log.apply(console, arguments)
+  console.log(...msg)
   log.showProgress()
 }

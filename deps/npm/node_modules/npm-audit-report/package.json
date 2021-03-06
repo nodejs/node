@@ -1,0 +1,52 @@
+{
+  "name": "npm-audit-report",
+  "version": "2.1.4",
+  "description": "Given a response from the npm security api, render it into a variety of security reports",
+  "main": "lib/index.js",
+  "scripts": {
+    "test": "tap",
+    "snap": "tap",
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags"
+  },
+  "tap": {
+    "check-coverage": true,
+    "coverage-map": "map.js"
+  },
+  "keywords": [
+    "npm",
+    "security",
+    "report",
+    "audit"
+  ],
+  "author": "Adam Baldwin",
+  "license": "ISC",
+  "dependencies": {
+    "chalk": "^4.0.0"
+  },
+  "devDependencies": {
+    "tap": "^14.10.7",
+    "require-inject": "^1.4.4"
+  },
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/npm-audit-report.git"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/npm-audit-report/issues"
+  },
+  "homepage": "https://github.com/npm/npm-audit-report#readme",
+  "files": [
+    "index.js",
+    "lib",
+    "reporters"
+  ],
+  "engines": {
+    "node": ">=10"
+  }
+}

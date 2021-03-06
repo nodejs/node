@@ -1,0 +1,60 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+bitfield struct JSArrayBufferFlags extends uint32 {
+  is_external: bool: 1 bit;
+  is_detachable: bool: 1 bit;
+  was_detached: bool: 1 bit;
+  is_asm_js_memory: bool: 1 bit;
+  is_shared: bool: 1 bit;
+}
+
+@generateCppClass
+extern class JSArrayBuffer extends JSObject {
+  byte_length: uintptr;
+  backing_store: ExternalPointer;
+  extension: RawPtr;
+  bit_field: JSArrayBufferFlags;
+  // Pads header size to be a multiple of kTaggedSize.
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+}
+
+extern operator '.backing_store_ptr' macro LoadJSArrayBufferBackingStorePtr(
+    JSArrayBuffer): RawPtr;
+
+@export
+macro IsDetachedBuffer(buffer: JSArrayBuffer): bool {
+  return buffer.bit_field.was_detached;
+}
+
+macro IsSharedArrayBuffer(buffer: JSArrayBuffer): bool {
+  return buffer.bit_field.is_shared;
+}
+
+@abstract
+@generateCppClass
+extern class JSArrayBufferView extends JSObject {
+  buffer: JSArrayBuffer;
+  byte_offset: uintptr;
+  byte_length: uintptr;
+}
+
+@generateCppClass
+extern class JSTypedArray extends JSArrayBufferView {
+  length: uintptr;
+  external_pointer: ExternalPointer;
+  // [base_pointer]: TODO(v8:4153)
+  base_pointer: ByteArray|Smi;
+}
+
+extern operator '.external_pointer_ptr' macro
+LoadJSTypedArrayExternalPointerPtr(JSTypedArray): RawPtr;
+extern operator '.external_pointer_ptr=' macro
+StoreJSTypedArrayExternalPointerPtr(JSTypedArray, RawPtr);
+
+@generateCppClass
+extern class JSDataView extends JSArrayBufferView {
+  data_pointer: ExternalPointer;
+}

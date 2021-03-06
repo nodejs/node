@@ -41,10 +41,16 @@ var o = new Hest();
 var s = new Svin();
 var v = 0;
 
+%PrepareFunctionForOptimization(Hest.prototype.one);
 for (var i = 0; i < 5; i++) {
   o.one(s);
 }
 %OptimizeFunctionOnNextCall(Hest.prototype.one);
+o.one(s);
+%PrepareFunctionForOptimization(Hest.prototype.three);
+for (var i = 0; i < 5; i++) {
+  o.one(s);
+}
 %OptimizeFunctionOnNextCall(Hest.prototype.three);
 o.one(s);
 
@@ -65,5 +71,5 @@ try {
   assertTrue(stack.indexOf("38:56") != -1);
   assertTrue(stack.indexOf("34:51") != -1);
   assertTrue(stack.indexOf("36:38") != -1);
-  assertTrue(stack.indexOf("54:5") != -1);
+  assertTrue(stack.indexOf("60:5") != -1);
 }

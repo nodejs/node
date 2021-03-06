@@ -1,34 +1,40 @@
 'use strict';
 const common = require('../common.js');
+const { exec, execSync } = require('child_process');
+const isWindows = process.platform === 'win32';
 
-var messagesLength = [64, 256, 1024, 4096];
-// Windows does not support that long arguments
-if (process.platform !== 'win32')
-  messagesLength.push(32768);
-const bench = common.createBenchmark(main, {
+const messagesLength = [64, 256, 1024, 4096];
+// Windows does not support command lines longer than 8191 characters
+if (!isWindows) messagesLength.push(32768);
+
+const bench = common.createBenchmark(childProcessExecStdout, {
   len: messagesLength,
   dur: [5]
 });
 
-const exec = require('child_process').exec;
-function main(conf) {
+function childProcessExecStdout({ dur, len }) {
   bench.start();
 
-  const dur = +conf.dur;
-  const len = +conf.len;
+  const maxDuration = dur * 1000;
+  const cmd = `yes "${'.'.repeat(len)}"`;
+  const child = exec(cmd, { 'stdio': ['ignore', 'pipe', 'ignore'] });
 
-  const msg = `"${'.'.repeat(len)}"`;
-  msg.match(/./);
-  const options = {'stdio': ['ignore', 'pipe', 'ignore']};
-  const child = exec(`yes ${msg}`, options);
-
-  var bytes = 0;
-  child.stdout.on('data', function(msg) {
+  let bytes = 0;
+  child.stdout.on('data', (msg) => {
     bytes += msg.length;
   });
 
-  setTimeout(function() {
-    child.kill();
+  setTimeout(() => {
     bench.end(bytes);
-  }, dur * 1000);
+    if (isWindows) {
+      // Sometimes there's a yes.exe process left hanging around on Windows.
+      try {
+        execSync(`taskkill /f /t /pid ${child.pid}`);
+      } catch {
+        // This is a best effort kill. stderr is piped to parent for tracing.
+      }
+    } else {
+      child.kill();
+    }
+  }, maxDuration);
 }

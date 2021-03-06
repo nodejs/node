@@ -71,6 +71,10 @@ assertThrows('"\\u111G"');
 assertEquals("\\x1G", /\x1G/.source);
 assertEquals("\\u111G", /\u111G/.source);
 
+// Test that octal literals continue to be forbidden in template even
+// when followed by a string containing an octal literal.
+assertThrows('`\\1`\n"\\1"');
+
 // Test some materialized array literals.
 assertEquals([1,2,3,4], eval('[1,2,3,4]'));
 assertEquals([[1,2],3,4], eval('[[1,2],3,4]'));

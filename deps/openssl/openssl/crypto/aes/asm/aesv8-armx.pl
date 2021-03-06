@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2014-2020 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 #
 # ====================================================================
 # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
@@ -27,12 +34,22 @@
 # Cortex-A53	1.32		1.29		1.46
 # Cortex-A57(*)	1.95		0.85		0.93
 # Denver	1.96		0.86		0.80
+# Mongoose	1.33		1.20		1.20
+# Kryo		1.26		0.94		1.00
 #
 # (*)	original 3.64/1.34/1.32 results were for r0p0 revision
 #	and are still same even for updated module;
 
 $flavour = shift;
-open STDOUT,">".shift;
+$output  = shift;
+
+$0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
+( $xlate="${dir}arm-xlate.pl" and -f $xlate ) or
+( $xlate="${dir}../../perlasm/arm-xlate.pl" and -f $xlate) or
+die "can't locate arm-xlate.pl";
+
+open OUT,"| \"$^X\" $xlate $flavour $output";
+*STDOUT=*OUT;
 
 $prefix="aes_v8";
 
@@ -43,9 +60,12 @@ $code=<<___;
 .text
 ___
 $code.=".arch	armv8-a+crypto\n"			if ($flavour =~ /64/);
-$code.=".arch	armv7-a\n.fpu	neon\n.code	32\n"	if ($flavour !~ /64/);
-		#^^^^^^ this is done to simplify adoption by not depending
-		#	on latest binutils.
+$code.=<<___						if ($flavour !~ /64/);
+.arch	armv7-a	// don't confuse not-so-latest binutils with argv8 :-)
+.fpu	neon
+.code	32
+#undef	__thumb2__
+___
 
 # Assembler mnemonics are an eclectic mix of 32- and 64-bit syntax,
 # NEON is mostly 32-bit mnemonics, integer - mostly 64. Goal is to
@@ -60,7 +80,7 @@ my ($zero,$rcon,$mask,$in0,$in1,$tmp,$key)=
 
 $code.=<<___;
 .align	5
-rcon:
+.Lrcon:
 .long	0x01,0x01,0x01,0x01
 .long	0x0c0f0e0d,0x0c0f0e0d,0x0c0f0e0d,0x0c0f0e0d	// rotate-n-splat
 .long	0x1b,0x1b,0x1b,0x1b
@@ -89,7 +109,7 @@ $code.=<<___;
 	tst	$bits,#0x3f
 	b.ne	.Lenc_key_abort
 
-	adr	$ptr,rcon
+	adr	$ptr,.Lrcon
 	cmp	$bits,#192
 
 	veor	$zero,$zero,$zero
@@ -163,7 +183,12 @@ $code.=<<___;
 .Loop192:
 	vtbl.8	$key,{$in1},$mask
 	vext.8	$tmp,$zero,$in0,#12
+#ifdef __ARMEB__
+	vst1.32	{$in1},[$out],#16
+	sub	$out,$out,#8
+#else
 	vst1.32	{$in1},[$out],#8
+#endif
 	aese	$key,$zero
 	subs	$bits,$bits,#1
 
@@ -242,6 +267,7 @@ $code.=<<___;
 ${prefix}_set_decrypt_key:
 ___
 $code.=<<___	if ($flavour =~ /64/);
+	.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 ___
@@ -285,6 +311,7 @@ $code.=<<___	if ($flavour !~ /64/);
 ___
 $code.=<<___	if ($flavour =~ /64/);
 	ldp	x29,x30,[sp],#16
+	.inst	0xd50323bf		// autiasp
 	ret
 ___
 $code.=<<___;
@@ -693,8 +720,11 @@ $code.=<<___;
 	ldr		$rounds,[$key,#240]
 
 	ldr		$ctr, [$ivp, #12]
+#ifdef __ARMEB__
+	vld1.8		{$dat0},[$ivp]
+#else
 	vld1.32		{$dat0},[$ivp]
-
+#endif
 	vld1.32		{q8-q9},[$key]		// load key schedule...
 	sub		$rounds,$rounds,#4
 	mov		$step,#16
@@ -710,17 +740,17 @@ $code.=<<___;
 #ifndef __ARMEB__
 	rev		$ctr, $ctr
 #endif
-	vorr		$dat1,$dat0,$dat0
 	add		$tctr1, $ctr, #1
-	vorr		$dat2,$dat0,$dat0
-	add		$ctr, $ctr, #2
 	vorr		$ivec,$dat0,$dat0
 	rev		$tctr1, $tctr1
-	vmov.32		${dat1}[3],$tctr1
+	vmov.32		${ivec}[3],$tctr1
+	add		$ctr, $ctr, #2
+	vorr		$dat1,$ivec,$ivec
 	b.ls		.Lctr32_tail
 	rev		$tctr2, $ctr
+	vmov.32		${ivec}[3],$tctr2
 	sub		$len,$len,#3		// bias
-	vmov.32		${dat2}[3],$tctr2
+	vorr		$dat2,$ivec,$ivec
 	b		.Loop3x_ctr32
 
 .align	4
@@ -747,11 +777,11 @@ $code.=<<___;
 	aese		$dat1,q8
 	aesmc		$tmp1,$dat1
 	 vld1.8		{$in0},[$inp],#16
-	 vorr		$dat0,$ivec,$ivec
+	 add		$tctr0,$ctr,#1
 	aese		$dat2,q8
 	aesmc		$dat2,$dat2
 	 vld1.8		{$in1},[$inp],#16
-	 vorr		$dat1,$ivec,$ivec
+	 rev		$tctr0,$tctr0
 	aese		$tmp0,q9
 	aesmc		$tmp0,$tmp0
 	aese		$tmp1,q9
@@ -760,8 +790,6 @@ $code.=<<___;
 	 mov		$key_,$key
 	aese		$dat2,q9
 	aesmc		$tmp2,$dat2
-	 vorr		$dat2,$ivec,$ivec
-	 add		$tctr0,$ctr,#1
 	aese		$tmp0,q12
 	aesmc		$tmp0,$tmp0
 	aese		$tmp1,q12
@@ -777,20 +805,22 @@ $code.=<<___;
 	aese		$tmp1,q13
 	aesmc		$tmp1,$tmp1
 	 veor		$in2,$in2,$rndlast
-	 rev		$tctr0,$tctr0
+	 vmov.32	${ivec}[3], $tctr0
 	aese		$tmp2,q13
 	aesmc		$tmp2,$tmp2
-	 vmov.32	${dat0}[3], $tctr0
+	 vorr		$dat0,$ivec,$ivec
 	 rev		$tctr1,$tctr1
 	aese		$tmp0,q14
 	aesmc		$tmp0,$tmp0
+	 vmov.32	${ivec}[3], $tctr1
+	 rev		$tctr2,$ctr
 	aese		$tmp1,q14
 	aesmc		$tmp1,$tmp1
-	 vmov.32	${dat1}[3], $tctr1
-	 rev		$tctr2,$ctr
+	 vorr		$dat1,$ivec,$ivec
+	 vmov.32	${ivec}[3], $tctr2
 	aese		$tmp2,q14
 	aesmc		$tmp2,$tmp2
-	 vmov.32	${dat2}[3], $tctr2
+	 vorr		$dat2,$ivec,$ivec
 	 subs		$len,$len,#3
 	aese		$tmp0,q15
 	aese		$tmp1,q15
@@ -910,7 +940,7 @@ if ($flavour =~ /64/) {			######## 64-bit code
 	s/^(\s+)v/$1/o		or	# strip off v prefix
 	s/\bbx\s+lr\b/ret/o;
 
-	# fix up remainig legacy suffixes
+	# fix up remaining legacy suffixes
 	s/\.[ui]?8//o;
 	m/\],#8/o and s/\.16b/\.8b/go;
 	s/\.[ui]?32//o and s/\.16b/\.4s/go;
@@ -945,21 +975,21 @@ if ($flavour =~ /64/) {			######## 64-bit code
 
 	$arg =~ m/q([0-9]+),\s*\{q([0-9]+)\},\s*q([0-9]+)/o &&
 	sprintf	"vtbl.8	d%d,{q%d},d%d\n\t".
-		"vtbl.8	d%d,{q%d},d%d", 2*$1,$2,2*$3, 2*$1+1,$2,2*$3+1;	
+		"vtbl.8	d%d,{q%d},d%d", 2*$1,$2,2*$3, 2*$1+1,$2,2*$3+1;
     }
 
     sub unvdup32 {
 	my $arg=shift;
 
 	$arg =~ m/q([0-9]+),\s*q([0-9]+)\[([0-3])\]/o &&
-	sprintf	"vdup.32	q%d,d%d[%d]",$1,2*$2+($3>>1),$3&1;	
+	sprintf	"vdup.32	q%d,d%d[%d]",$1,2*$2+($3>>1),$3&1;
     }
 
     sub unvmov32 {
 	my $arg=shift;
 
 	$arg =~ m/q([0-9]+)\[([0-3])\],(.*)/o &&
-	sprintf	"vmov.32	d%d[%d],%s",2*$1+($2>>1),$2&1,$3;	
+	sprintf	"vmov.32	d%d[%d],%s",2*$1+($2>>1),$2&1,$3;
     }
 
     foreach(split("\n",$code)) {
@@ -969,7 +999,7 @@ if ($flavour =~ /64/) {			######## 64-bit code
 	s/\bv([0-9])\.[12468]+[bsd]\b/q$1/go;	# new->old registers
 	s/\/\/\s?/@ /o;				# new->old style commentary
 
-	# fix up remainig new-style suffixes
+	# fix up remaining new-style suffixes
 	s/\{q([0-9]+)\},\s*\[(.+)\],#8/sprintf "{d%d},[$2]!",2*$1/eo	or
 	s/\],#[0-9]+/]!/o;
 
@@ -986,4 +1016,4 @@ if ($flavour =~ /64/) {			######## 64-bit code
     }
 }
 
-close STDOUT;
+close STDOUT or die "error closing STDOUT: $!";

@@ -54,7 +54,7 @@ static const char *inet_ntop6(const unsigned char *src, char *dst, size_t size);
  *     On Windows we store the error in the thread errno, not
  *     in the winsock error code. This is to avoid loosing the
  *     actual last winsock error. So use macro ERRNO to fetch the
- *     errno this funtion sets when returning NULL, not SOCKERRNO.
+ *     errno this function sets when returning NULL, not SOCKERRNO.
  * author:
  *     Paul Vixie, 1996.
  */
@@ -180,8 +180,7 @@ inet_ntop6(const unsigned char *src, char *dst, size_t size)
     tp += sprintf(tp, "%x", words[i]);
   }
   /* Was it a trailing run of 0x00's? */
-  if (best.base != -1 && (best.base + best.len) == 
-      (NS_IN6ADDRSZ / NS_INT16SZ))
+  if (best.base != -1 && (best.base + best.len) == (NS_IN6ADDRSZ / NS_INT16SZ))
     *tp++ = ':';
   *tp++ = '\0';
 

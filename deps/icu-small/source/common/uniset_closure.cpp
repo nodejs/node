@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -8,7 +8,7 @@
 *
 *******************************************************************************
 *   file name:  uniset_closure.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -31,10 +31,6 @@
 #include "util.h"
 #include "uvector.h"
 
-// initial storage. Must be >= 0
-// *** same as in uniset.cpp ! ***
-#define START_EXTRA 16
-
 U_NAMESPACE_BEGIN
 
 // TODO memory debugging provided inside uniset.cpp
@@ -49,42 +45,16 @@ U_NAMESPACE_BEGIN
 UnicodeSet::UnicodeSet(const UnicodeString& pattern,
                        uint32_t options,
                        const SymbolTable* symbols,
-                       UErrorCode& status) :
-    len(0), capacity(START_EXTRA), list(0), bmpSet(0), buffer(0),
-    bufferCapacity(0), patLen(0), pat(NULL), strings(NULL), stringSpan(NULL),
-    fFlags(0)
-{
-    if(U_SUCCESS(status)){
-        list = (UChar32*) uprv_malloc(sizeof(UChar32) * capacity);
-        /* test for NULL */
-        if(list == NULL) {
-            status = U_MEMORY_ALLOCATION_ERROR;
-        }else{
-            allocateStrings(status);
-            applyPattern(pattern, options, symbols, status);
-        }
-    }
+                       UErrorCode& status) {
+    applyPattern(pattern, options, symbols, status);
     _dbgct(this);
 }
 
 UnicodeSet::UnicodeSet(const UnicodeString& pattern, ParsePosition& pos,
                        uint32_t options,
                        const SymbolTable* symbols,
-                       UErrorCode& status) :
-    len(0), capacity(START_EXTRA), list(0), bmpSet(0), buffer(0),
-    bufferCapacity(0), patLen(0), pat(NULL), strings(NULL), stringSpan(NULL),
-    fFlags(0)
-{
-    if(U_SUCCESS(status)){
-        list = (UChar32*) uprv_malloc(sizeof(UChar32) * capacity);
-        /* test for NULL */
-        if(list == NULL) {
-            status = U_MEMORY_ALLOCATION_ERROR;
-        }else{
-            allocateStrings(status);
-            applyPattern(pattern, pos, options, symbols, status);
-        }
-    }
+                       UErrorCode& status) {
+    applyPattern(pattern, pos, options, symbols, status);
     _dbgct(this);
 }
 
@@ -129,7 +99,7 @@ UnicodeSet& UnicodeSet::applyPattern(const UnicodeString& pattern,
     // _applyPattern calls add() etc., which set pat to empty.
     UnicodeString rebuiltPat;
     RuleCharacterIterator chars(pattern, symbols, pos);
-    applyPattern(chars, symbols, rebuiltPat, options, &UnicodeSet::closeOver, status);
+    applyPattern(chars, symbols, rebuiltPat, options, &UnicodeSet::closeOver, 0, status);
     if (U_FAILURE(status)) return *this;
     if (chars.inVariable()) {
         // syntaxError(chars, "Extra chars in variable value");
@@ -184,7 +154,6 @@ UnicodeSet& UnicodeSet::closeOver(int32_t attribute) {
         return *this;
     }
     if (attribute & (USET_CASE_INSENSITIVE | USET_ADD_CASE_MAPPINGS)) {
-        const UCaseProps *csp = ucase_getSingleton();
         {
             UnicodeSet foldSet(*this);
             UnicodeString str;
@@ -200,14 +169,13 @@ UnicodeSet& UnicodeSet::closeOver(int32_t attribute) {
             // start with input set to guarantee inclusion
             // USET_CASE: remove strings because the strings will actually be reduced (folded);
             //            therefore, start with no strings and add only those needed
-            if (attribute & USET_CASE_INSENSITIVE) {
+            if ((attribute & USET_CASE_INSENSITIVE) && foldSet.hasStrings()) {
                 foldSet.strings->removeAllElements();
             }
 
             int32_t n = getRangeCount();
             UChar32 result;
             const UChar *full;
-            int32_t locCache = 0;
 
             for (int32_t i=0; i<n; ++i) {
                 UChar32 start = getRangeStart(i);
@@ -216,32 +184,32 @@ UnicodeSet& UnicodeSet::closeOver(int32_t attribute) {
                 if (attribute & USET_CASE_INSENSITIVE) {
                     // full case closure
                     for (UChar32 cp=start; cp<=end; ++cp) {
-                        ucase_addCaseClosure(csp, cp, &sa);
+                        ucase_addCaseClosure(cp, &sa);
                     }
                 } else {
                     // add case mappings
                     // (does not add long s for regular s, or Kelvin for k, for example)
                     for (UChar32 cp=start; cp<=end; ++cp) {
-                        result = ucase_toFullLower(csp, cp, NULL, NULL, &full, "", &locCache);
+                        result = ucase_toFullLower(cp, NULL, NULL, &full, UCASE_LOC_ROOT);
                         addCaseMapping(foldSet, result, full, str);
 
-                        result = ucase_toFullTitle(csp, cp, NULL, NULL, &full, "", &locCache);
+                        result = ucase_toFullTitle(cp, NULL, NULL, &full, UCASE_LOC_ROOT);
                         addCaseMapping(foldSet, result, full, str);
 
-                        result = ucase_toFullUpper(csp, cp, NULL, NULL, &full, "", &locCache);
+                        result = ucase_toFullUpper(cp, NULL, NULL, &full, UCASE_LOC_ROOT);
                         addCaseMapping(foldSet, result, full, str);
 
-                        result = ucase_toFullFolding(csp, cp, &full, 0);
+                        result = ucase_toFullFolding(cp, &full, 0);
                         addCaseMapping(foldSet, result, full, str);
                     }
                 }
             }
-            if (strings != NULL && strings->size() > 0) {
+            if (hasStrings()) {
                 if (attribute & USET_CASE_INSENSITIVE) {
                     for (int32_t j=0; j<strings->size(); ++j) {
                         str = *(const UnicodeString *) strings->elementAt(j);
                         str.foldCase();
-                        if(!ucase_addStringCaseClosure(csp, str.getBuffer(), str.length(), &sa)) {
+                        if(!ucase_addStringCaseClosure(str.getBuffer(), str.length(), &sa)) {
                             foldSet.add(str); // does not map to code points: add the folded string itself
                         }
                     }

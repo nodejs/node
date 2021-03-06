@@ -1,6 +1,7 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
+const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
 const repl = require('repl');
 
@@ -14,7 +15,7 @@ function customEval(code, context, file, cb) {
   return cb(evalCount === 1 ? new repl.Recoverable() : null, true);
 }
 
-const putIn = new common.ArrayStream();
+const putIn = new ArrayStream();
 
 putIn.write = function(msg) {
   if (msg === '... ') {

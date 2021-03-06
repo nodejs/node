@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -8,7 +8,7 @@
 *
 *******************************************************************************
 *   file name:  udatpg.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -181,6 +181,25 @@ udatpg_getAppendItemName(const UDateTimePatternGenerator *dtpg,
     return result.getBuffer();
 }
 
+U_CAPI int32_t U_EXPORT2
+udatpg_getFieldDisplayName(const UDateTimePatternGenerator *dtpg,
+                           UDateTimePatternField field,
+                           UDateTimePGDisplayWidth width,
+                           UChar *fieldName, int32_t capacity,
+                           UErrorCode *pErrorCode) {
+    if (U_FAILURE(*pErrorCode))
+        return -1;
+    if (fieldName == NULL ? capacity != 0 : capacity < 0) {
+        *pErrorCode = U_ILLEGAL_ARGUMENT_ERROR;
+        return -1;
+    }
+    UnicodeString result = ((const DateTimePatternGenerator *)dtpg)->getFieldDisplayName(field,width);
+    if (fieldName == NULL) {
+        return result.length();
+    }
+    return result.extract(fieldName, capacity, *pErrorCode);
+}
+
 U_CAPI void U_EXPORT2
 udatpg_setDateTimeFormat(const UDateTimePatternGenerator *dtpg,
                          const UChar *dtFormat, int32_t length) {
@@ -270,6 +289,11 @@ udatpg_getPatternForSkeleton(const UDateTimePatternGenerator *dtpg,
         *pLength=result.length();
     }
     return result.getBuffer();
+}
+
+U_CAPI UDateFormatHourCycle U_EXPORT2
+udatpg_getDefaultHourCycle(const UDateTimePatternGenerator *dtpg, UErrorCode* pErrorCode) {
+    return ((const DateTimePatternGenerator *)dtpg)->getDefaultHourCycle(*pErrorCode);
 }
 
 #endif

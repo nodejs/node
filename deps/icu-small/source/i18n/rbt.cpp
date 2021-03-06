@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
@@ -27,7 +27,6 @@ U_NAMESPACE_BEGIN
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(RuleBasedTransliterator)
 
-static UMutex transliteratorDataMutex = U_MUTEX_INITIALIZER;
 static Replaceable *gLockedText = NULL;
 
 void RuleBasedTransliterator::_construct(const UnicodeString& rules,
@@ -192,8 +191,8 @@ RuleBasedTransliterator::~RuleBasedTransliterator() {
     }
 }
 
-Transliterator* // Covariant return NOT ALLOWED (for portability)
-RuleBasedTransliterator::clone(void) const {
+RuleBasedTransliterator*
+RuleBasedTransliterator::clone() const {
     return new RuleBasedTransliterator(*this);
 }
 
@@ -253,6 +252,8 @@ RuleBasedTransliterator::handleTransliterate(Replaceable& text, UTransPosition& 
     //  Shared RBT data protected by transliteratorDataMutex.
     //
     // TODO(andy): Need a better scheme for handling this.
+
+    static UMutex transliteratorDataMutex;
     UBool needToLock;
     {
         Mutex m;

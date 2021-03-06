@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -8,7 +8,7 @@
 *
 *******************************************************************************
 *   file name:  uset.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -249,7 +249,7 @@ class USetAccess /* not : public UObject because all methods are static */ {
 public:
     /* Try to have the compiler inline these*/
     inline static int32_t getStringCount(const UnicodeSet& set) {
-        return set.getStringCount();
+        return set.stringsSize();
     }
     inline static const UnicodeString* getString(const UnicodeSet& set,
                                                  int32_t i) {

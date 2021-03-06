@@ -1,45 +1,82 @@
-module.exports = star
+const fetch = require('npm-registry-fetch')
+const log = require('npmlog')
+const npa = require('npm-package-arg')
 
-var npm = require('./npm.js')
-var log = require('npmlog')
-var asyncMap = require('slide').asyncMap
-var mapToRegistry = require('./utils/map-to-registry.js')
-var usage = require('./utils/usage')
-var output = require('./utils/output.js')
+const output = require('./utils/output.js')
+const usageUtil = require('./utils/usage.js')
+const getIdentity = require('./utils/get-identity')
 
-star.usage = usage(
-  'star',
-  'npm star [<pkg>...]\n' +
-  'npm unstar [<pkg>...]'
-)
+class Star {
+  constructor (npm) {
+    this.npm = npm
+  }
 
-star.completion = function (opts, cb) {
-  // FIXME: there used to be registry completion here, but it stopped making
-  // sense somewhere around 50,000 packages on the registry
-  cb()
-}
+  get usage () {
+    return usageUtil(
+      'star',
+      'npm star [<pkg>...]\n' +
+      'npm unstar [<pkg>...]'
+    )
+  }
 
-function star (args, cb) {
-  if (!args.length) return cb(star.usage)
-  var s = npm.config.get('unicode') ? '\u2605 ' : '(*)'
-  var u = npm.config.get('unicode') ? '\u2606 ' : '( )'
-  var using = !(npm.command.match(/^un/))
-  if (!using) s = u
-  asyncMap(args, function (pkg, cb) {
-    mapToRegistry(pkg, npm.config, function (er, uri, auth) {
-      if (er) return cb(er)
+  exec (args, cb) {
+    this.star(args).then(() => cb()).catch(cb)
+  }
 
-      var params = {
-        starred: using,
-        auth: auth
+  async star (args) {
+    if (!args.length)
+      throw new Error(this.usage)
+
+    // if we're unstarring, then show an empty star image
+    // otherwise, show the full star image
+    const { unicode } = this.npm.flatOptions
+    const unstar = this.npm.config.get('star.unstar')
+    const full = unicode ? '\u2605 ' : '(*)'
+    const empty = unicode ? '\u2606 ' : '( )'
+    const show = unstar ? empty : full
+
+    const pkgs = args.map(npa)
+    for (const pkg of pkgs) {
+      const [username, fullData] = await Promise.all([
+        getIdentity(this.npm, this.npm.flatOptions),
+        fetch.json(pkg.escapedName, {
+          ...this.npm.flatOptions,
+          spec: pkg,
+          query: { write: true },
+          preferOnline: true,
+        }),
+      ])
+
+      if (!username)
+        throw new Error('You need to be logged in!')
+
+      const body = {
+        _id: fullData._id,
+        _rev: fullData._rev,
+        users: fullData.users || {},
       }
-      npm.registry.star(uri, params, function (er, data, raw, req) {
-        if (!er) {
-          output(s + ' ' + pkg)
-          log.verbose('star', data)
-        }
-        cb(er, data, raw, req)
+
+      if (!unstar) {
+        log.info('star', 'starring', body._id)
+        body.users[username] = true
+        log.verbose('star', 'starring', body)
+      } else {
+        delete body.users[username]
+        log.info('unstar', 'unstarring', body._id)
+        log.verbose('unstar', 'unstarring', body)
+      }
+
+      const data = await fetch.json(pkg.escapedName, {
+        ...this.npm.flatOptions,
+        spec: pkg,
+        method: 'PUT',
+        body,
       })
-    })
-  }, cb)
+
+      output(show + ' ' + pkg.name)
+      log.verbose('star', data)
+      return data
+    }
+  }
 }
+module.exports = Star

@@ -3,13 +3,11 @@
 const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
-  len: [0, 1, 64, 1024],
-  n: [1e7]
+  len: [64, 1024],
+  n: [1e6]
 });
 
-function main(conf) {
-  const len = conf.len | 0;
-  const n = conf.n | 0;
+function main({ len, n }) {
   const buf = Buffer.alloc(len);
 
   for (let i = 0; i < buf.length; i++)

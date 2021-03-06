@@ -36,9 +36,9 @@ static int TARGET_CONNECTIONS;
 
 
 static void do_write(uv_stream_t*);
-static void maybe_connect_some();
+static void maybe_connect_some(void);
 
-static uv_req_t* req_alloc();
+static uv_req_t* req_alloc(void);
 static void req_free(uv_req_t* uv_req);
 
 static void buf_alloc(uv_handle_t* handle, size_t size, uv_buf_t* buf);
@@ -390,6 +390,7 @@ HELPER_IMPL(tcp_pump_server) {
   r = uv_listen((uv_stream_t*)&tcpServer, MAX_WRITE_HANDLES, connection_cb);
   ASSERT(r == 0);
 
+  notify_parent_process();
   uv_run(loop, UV_RUN_DEFAULT);
 
   return 0;
@@ -411,6 +412,7 @@ HELPER_IMPL(pipe_pump_server) {
   r = uv_listen((uv_stream_t*)&pipeServer, MAX_WRITE_HANDLES, connection_cb);
   ASSERT(r == 0);
 
+  notify_parent_process();
   uv_run(loop, UV_RUN_DEFAULT);
 
   MAKE_VALGRIND_HAPPY();

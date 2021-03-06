@@ -1,22 +1,26 @@
-'use strict'
-var validate = require('aproba')
-var log = require('npmlog')
+const log = require('npmlog')
 
-var pulsers = 0
-var pulse
+let pulseTimer = null
+const withPromise = async (promise) => {
+  pulseStart()
+  try {
+    return await promise
+  } finally {
+    pulseStop()
+  }
+}
 
-module.exports = function (prefix, cb) {
-  validate('SF', [prefix, cb])
-  if (!prefix) prefix = 'network'
-  if (!pulsers++) {
-    pulse = setInterval(function () {
-      log.gauge.pulse(prefix)
-    }, 250)
-  }
-  return function () {
-    if (!--pulsers) {
-      clearInterval(pulse)
-    }
-    cb.apply(null, arguments)
-  }
+const pulseStart = () => {
+  pulseTimer = pulseTimer || setInterval(() => {
+    log.gauge.pulse('')
+  }, 150)
+}
+
+const pulseStop = () => {
+  clearInterval(pulseTimer)
+  pulseTimer = null
+}
+
+module.exports = {
+  withPromise,
 }

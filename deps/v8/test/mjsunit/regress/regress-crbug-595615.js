@@ -2,14 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --harmony-tailcalls
+// Flags: --allow-natives-syntax
 
 "use strict";
 
 function f(o) {
   return o.x();
+};
+%PrepareFunctionForOptimization(f);
+try {
+  f({x: 1});
+} catch (e) {
 }
-try { f({ x: 1 }); } catch(e) {}
-try { f({ x: 1 }); } catch(e) {}
+try {
+  f({x: 1});
+} catch (e) {
+}
 %OptimizeFunctionOnNextCall(f);
-try { f({ x: 1 }); } catch(e) {}
+try {
+  f({x: 1});
+} catch (e) {
+}

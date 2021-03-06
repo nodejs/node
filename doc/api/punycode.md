@@ -1,11 +1,20 @@
-# punycode
+# Punycode
+<!-- YAML
+deprecated: v7.0.0
+-->
+
+<!--introduced_in=v0.10.0-->
 
 > Stability: 0 - Deprecated
+
+<!-- source_link=lib/punycode.js -->
 
 **The version of the punycode module bundled in Node.js is being deprecated**.
 In a future major version of Node.js this module will be removed. Users
 currently depending on the `punycode` module should switch to using the
-userland-provided [Punycode.js][] module instead.
+userland-provided [Punycode.js][] module instead. For punycode-based URL
+encoding, see [`url.domainToASCII`][] or, more generally, the
+[WHATWG URL API][].
 
 The `punycode` module is a bundled version of the [Punycode.js][] module. It
 can be accessed using:
@@ -25,16 +34,16 @@ to `'example.com'`) is represented by Punycode as the ASCII string
 
 The `punycode` module provides a simple implementation of the Punycode standard.
 
-*Note*: The `punycode` module is a third-party dependency used by Node.js and
+The `punycode` module is a third-party dependency used by Node.js and
 made available to developers as a convenience. Fixes or other modifications to
 the module must be directed to the [Punycode.js][] project.
 
-## punycode.decode(string)
+## `punycode.decode(string)`
 <!-- YAML
 added: v0.5.1
 -->
 
-* `string` {String}
+* `string` {string}
 
 The `punycode.decode()` method converts a [Punycode][] string of ASCII-only
 characters to the equivalent string of Unicode codepoints.
@@ -44,12 +53,12 @@ punycode.decode('maana-pta'); // 'mañana'
 punycode.decode('--dqo34k'); // '☃-⌘'
 ```
 
-## punycode.encode(string)
+## `punycode.encode(string)`
 <!-- YAML
 added: v0.5.1
 -->
 
-* `string` {String}
+* `string` {string}
 
 The `punycode.encode()` method converts a string of Unicode codepoints to a
 [Punycode][] string of ASCII-only characters.
@@ -59,12 +68,12 @@ punycode.encode('mañana'); // 'maana-pta'
 punycode.encode('☃-⌘'); // '--dqo34k'
 ```
 
-## punycode.toASCII(domain)
+## `punycode.toASCII(domain)`
 <!-- YAML
 added: v0.6.1
 -->
 
-* `domain` {String}
+* `domain` {string}
 
 The `punycode.toASCII()` method converts a Unicode string representing an
 Internationalized Domain Name to [Punycode][]. Only the non-ASCII parts of the
@@ -78,12 +87,12 @@ punycode.toASCII('☃-⌘.com');   // 'xn----dqo34k.com'
 punycode.toASCII('example.com'); // 'example.com'
 ```
 
-## punycode.toUnicode(domain)
+## `punycode.toUnicode(domain)`
 <!-- YAML
 added: v0.6.1
 -->
 
-* `domain` {String}
+* `domain` {string}
 
 The `punycode.toUnicode()` method converts a string representing a domain name
 containing [Punycode][] encoded characters into Unicode. Only the [Punycode][]
@@ -96,17 +105,17 @@ punycode.toUnicode('xn----dqo34k.com');  // '☃-⌘.com'
 punycode.toUnicode('example.com');       // 'example.com'
 ```
 
-## punycode.ucs2
+## `punycode.ucs2`
 <!-- YAML
 added: v0.7.0
 -->
 
-### punycode.ucs2.decode(string)
+### `punycode.ucs2.decode(string)`
 <!-- YAML
 added: v0.7.0
 -->
 
-* `string` {String}
+* `string` {string}
 
 The `punycode.ucs2.decode()` method returns an array containing the numeric
 codepoint values of each Unicode symbol in the string.
@@ -117,12 +126,12 @@ punycode.ucs2.decode('abc'); // [0x61, 0x62, 0x63]
 punycode.ucs2.decode('\uD834\uDF06'); // [0x1D306]
 ```
 
-### punycode.ucs2.encode(codePoints)
+### `punycode.ucs2.encode(codePoints)`
 <!-- YAML
 added: v0.7.0
 -->
 
-* `codePoints` {Array}
+* `codePoints` {integer[]}
 
 The `punycode.ucs2.encode()` method returns a string based on an array of
 numeric code point values.
@@ -132,12 +141,16 @@ punycode.ucs2.encode([0x61, 0x62, 0x63]); // 'abc'
 punycode.ucs2.encode([0x1D306]); // '\uD834\uDF06'
 ```
 
-## punycode.version
+## `punycode.version`
 <!-- YAML
 added: v0.6.1
 -->
 
+* {string}
+
 Returns a string identifying the current [Punycode.js][] version number.
 
 [Punycode]: https://tools.ietf.org/html/rfc3492
-[Punycode.js]: https://mths.be/punycode
+[Punycode.js]: https://github.com/bestiejs/punycode.js
+[WHATWG URL API]: url.md#url_the_whatwg_url_api
+[`url.domainToASCII`]: url.md#url_url_domaintoascii_domain

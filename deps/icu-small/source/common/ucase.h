@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -8,7 +8,7 @@
 *
 *******************************************************************************
 *   file name:  ucase.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -26,6 +26,7 @@
 #include "putilimp.h"
 #include "uset_imp.h"
 #include "udataswp.h"
+#include "utrie2.h"
 
 #ifdef __cplusplus
 U_NAMESPACE_BEGIN
@@ -37,18 +38,8 @@ U_NAMESPACE_END
 
 /* library API -------------------------------------------------------------- */
 
-U_CDECL_BEGIN
-
-struct UCaseProps;
-typedef struct UCaseProps UCaseProps;
-
-U_CDECL_END
-
-U_CAPI const UCaseProps * U_EXPORT2
-ucase_getSingleton(void);
-
 U_CFUNC void U_EXPORT2
-ucase_addPropertyStarts(const UCaseProps *csp, const USetAdder *sa, UErrorCode *pErrorCode);
+ucase_addPropertyStarts(const USetAdder *sa, UErrorCode *pErrorCode);
 
 /**
  * Requires non-NULL locale ID but otherwise does the equivalent of
@@ -56,7 +47,7 @@ ucase_addPropertyStarts(const UCaseProps *csp, const USetAdder *sa, UErrorCode *
  * Accepts both 2- and 3-letter codes and accepts case variants.
  */
 U_CFUNC int32_t
-ucase_getCaseLocale(const char *locale, int32_t *locCache);
+ucase_getCaseLocale(const char *locale);
 
 /* Casing locale types for ucase_getCaseLocale */
 enum {
@@ -65,13 +56,14 @@ enum {
     UCASE_LOC_TURKISH,
     UCASE_LOC_LITHUANIAN,
     UCASE_LOC_GREEK,
-    UCASE_LOC_DUTCH
+    UCASE_LOC_DUTCH,
+    UCASE_LOC_ARMENIAN
 };
 
 /**
  * Bit mask for getting just the options from a string compare options word
  * that are relevant for case-insensitive string comparison.
- * See uchar.h. Also include _STRNCMP_STYLE and U_COMPARE_CODE_POINT_ORDER.
+ * See stringoptions.h. Also include _STRNCMP_STYLE and U_COMPARE_CODE_POINT_ORDER.
  * @internal
  */
 #define _STRCASECMP_OPTIONS_MASK 0xffff
@@ -79,24 +71,30 @@ enum {
 /**
  * Bit mask for getting just the options from a string compare options word
  * that are relevant for case folding (of a single string or code point).
- * See uchar.h.
+ *
+ * Currently only bit 0 for U_FOLD_CASE_EXCLUDE_SPECIAL_I.
+ * It is conceivable that at some point we might use one more bit for using uppercase sharp s.
+ * It is conceivable that at some point we might want the option to use only simple case foldings
+ * when operating on strings.
+ *
+ * See stringoptions.h.
  * @internal
  */
-#define _FOLD_CASE_OPTIONS_MASK 0xff
+#define _FOLD_CASE_OPTIONS_MASK 7
 
 /* single-code point functions */
 
 U_CAPI UChar32 U_EXPORT2
-ucase_tolower(const UCaseProps *csp, UChar32 c);
+ucase_tolower(UChar32 c);
 
 U_CAPI UChar32 U_EXPORT2
-ucase_toupper(const UCaseProps *csp, UChar32 c);
+ucase_toupper(UChar32 c);
 
 U_CAPI UChar32 U_EXPORT2
-ucase_totitle(const UCaseProps *csp, UChar32 c);
+ucase_totitle(UChar32 c);
 
 U_CAPI UChar32 U_EXPORT2
-ucase_fold(const UCaseProps *csp, UChar32 c, uint32_t options);
+ucase_fold(UChar32 c, uint32_t options);
 
 /**
  * Adds all simple case mappings and the full case folding for c to sa,
@@ -108,7 +106,7 @@ ucase_fold(const UCaseProps *csp, UChar32 c, uint32_t options);
  * - for k include the Kelvin sign
  */
 U_CFUNC void U_EXPORT2
-ucase_addCaseClosure(const UCaseProps *csp, UChar32 c, const USetAdder *sa);
+ucase_addCaseClosure(UChar32 c, const USetAdder *sa);
 
 /**
  * Maps the string to single code points and adds the associated case closure
@@ -120,10 +118,10 @@ ucase_addCaseClosure(const UCaseProps *csp, UChar32 c, const USetAdder *sa);
  * the string itself is added as well as part of its code points' closure.
  * It must be length>=0.
  *
- * @return TRUE if the string was found
+ * @return true if the string was found
  */
 U_CFUNC UBool U_EXPORT2
-ucase_addStringCaseClosure(const UCaseProps *csp, const UChar *s, int32_t length, const USetAdder *sa);
+ucase_addStringCaseClosure(const UChar *s, int32_t length, const USetAdder *sa);
 
 #ifdef __cplusplus
 U_NAMESPACE_BEGIN
@@ -152,22 +150,49 @@ private:
     int32_t rowCpIndex;
 };
 
+/**
+ * Fast case mapping data for ASCII/Latin.
+ * Linear arrays of delta bytes: 0=no mapping; EXC=exception.
+ * Deltas must not cross the ASCII boundary, or else they cannot be easily used
+ * in simple UTF-8 code.
+ */
+namespace LatinCase {
+
+/** Case mapping/folding data for code points up to U+017F. */
+constexpr UChar LIMIT = 0x180;
+/** U+017F case-folds and uppercases crossing the ASCII boundary. */
+constexpr UChar LONG_S = 0x17f;
+/** Exception: Complex mapping, or too-large delta. */
+constexpr int8_t EXC = -0x80;
+
+/** Deltas for lowercasing for most locales, and default case folding. */
+extern const int8_t TO_LOWER_NORMAL[LIMIT];
+/** Deltas for lowercasing for tr/az/lt, and Turkic case folding. */
+extern const int8_t TO_LOWER_TR_LT[LIMIT];
+
+/** Deltas for uppercasing for most locales. */
+extern const int8_t TO_UPPER_NORMAL[LIMIT];
+/** Deltas for uppercasing for tr/az. */
+extern const int8_t TO_UPPER_TR[LIMIT];
+
+}  // namespace LatinCase
+
 U_NAMESPACE_END
 #endif
 
 /** @return UCASE_NONE, UCASE_LOWER, UCASE_UPPER, UCASE_TITLE */
 U_CAPI int32_t U_EXPORT2
-ucase_getType(const UCaseProps *csp, UChar32 c);
+ucase_getType(UChar32 c);
 
 /** @return like ucase_getType() but also sets UCASE_IGNORABLE if c is case-ignorable */
 U_CAPI int32_t U_EXPORT2
-ucase_getTypeOrIgnorable(const UCaseProps *csp, UChar32 c);
+ucase_getTypeOrIgnorable(UChar32 c);
 
 U_CAPI UBool U_EXPORT2
-ucase_isSoftDotted(const UCaseProps *csp, UChar32 c);
+ucase_isSoftDotted(UChar32 c);
 
 U_CAPI UBool U_EXPORT2
-ucase_isCaseSensitive(const UCaseProps *csp, UChar32 c);
+ucase_isCaseSensitive(UChar32 c);
 
 /* string case mapping functions */
 
@@ -240,10 +265,7 @@ enum {
  * @param context Pointer to be passed into iter.
  * @param pString If the mapping result is a string, then the pointer is
  *                written to *pString.
- * @param locale Locale ID for locale-dependent mappings.
- * @param locCache Initialize to 0; may be used to cache the result of parsing
- *                 the locale ID for subsequent calls.
- *                 Can be NULL.
+ * @param caseLocale Case locale value from ucase_getCaseLocale().
  * @return Output code point or string length, see UCASE_MAX_STRING_LENGTH.
  *
  * @see UCaseContextIterator
@@ -251,25 +273,25 @@ enum {
  * @internal
  */
 U_CAPI int32_t U_EXPORT2
-ucase_toFullLower(const UCaseProps *csp, UChar32 c,
+ucase_toFullLower(UChar32 c,
                   UCaseContextIterator *iter, void *context,
                   const UChar **pString,
-                  const char *locale, int32_t *locCache);
+                  int32_t caseLocale);
 
 U_CAPI int32_t U_EXPORT2
-ucase_toFullUpper(const UCaseProps *csp, UChar32 c,
+ucase_toFullUpper(UChar32 c,
                   UCaseContextIterator *iter, void *context,
                   const UChar **pString,
-                  const char *locale, int32_t *locCache);
+                  int32_t caseLocale);
 
 U_CAPI int32_t U_EXPORT2
-ucase_toFullTitle(const UCaseProps *csp, UChar32 c,
+ucase_toFullTitle(UChar32 c,
                   UCaseContextIterator *iter, void *context,
                   const UChar **pString,
-                  const char *locale, int32_t *locCache);
+                  int32_t caseLocale);
 
 U_CAPI int32_t U_EXPORT2
-ucase_toFullFolding(const UCaseProps *csp, UChar32 c,
+ucase_toFullFolding(UChar32 c,
                     const UChar **pString,
                     uint32_t options);
 
@@ -283,10 +305,10 @@ U_CDECL_BEGIN
  * @internal
  */
 typedef int32_t U_CALLCONV
-UCaseMapFull(const UCaseProps *csp, UChar32 c,
+UCaseMapFull(UChar32 c,
              UCaseContextIterator *iter, void *context,
              const UChar **pString,
-             const char *locale, int32_t *locCache);
+             int32_t caseLocale);
 
 U_CDECL_END
 
@@ -315,6 +337,9 @@ enum {
 
 /* definitions for 16-bit case properties word ------------------------------ */
 
+U_CFUNC const UTrie2 * U_EXPORT2
+ucase_getTrie();
+
 /* 2-bit constants for types of cased characters */
 #define UCASE_TYPE_MASK     3
 enum {
@@ -327,9 +352,13 @@ enum {
 #define UCASE_GET_TYPE(props) ((props)&UCASE_TYPE_MASK)
 #define UCASE_GET_TYPE_AND_IGNORABLE(props) ((props)&7)
 
+#define UCASE_IS_UPPER_OR_TITLE(props) ((props)&2)
+
 #define UCASE_IGNORABLE         4
-#define UCASE_SENSITIVE         8
-#define UCASE_EXCEPTION         0x10
+#define UCASE_EXCEPTION         8
+#define UCASE_SENSITIVE         0x10
+
+#define UCASE_HAS_EXCEPTION(props) ((props)&UCASE_EXCEPTION)
 
 #define UCASE_DOT_MASK      0x60
 enum {
@@ -351,9 +380,9 @@ enum {
 #   define UCASE_GET_DELTA(props) (int16_t)(((props)&0x8000) ? (((props)>>UCASE_DELTA_SHIFT)|0xfe00) : ((uint16_t)(props)>>UCASE_DELTA_SHIFT))
 #endif
 
-/* exception: bits 15..5 are an unsigned 11-bit index into the exceptions array */
-#define UCASE_EXC_SHIFT     5
-#define UCASE_EXC_MASK      0xffe0
+/* exception: bits 15..4 are an unsigned 12-bit index into the exceptions array */
+#define UCASE_EXC_SHIFT     4
+#define UCASE_EXC_MASK      0xfff0
 #define UCASE_MAX_EXCEPTIONS ((UCASE_EXC_MASK>>UCASE_EXC_SHIFT)+1)
 
 /* definitions for 16-bit main exceptions word ------------------------------ */
@@ -364,7 +393,7 @@ enum {
     UCASE_EXC_FOLD,
     UCASE_EXC_UPPER,
     UCASE_EXC_TITLE,
-    UCASE_EXC_4,            /* reserved */
+    UCASE_EXC_DELTA,
     UCASE_EXC_5,            /* reserved */
     UCASE_EXC_CLOSURE,
     UCASE_EXC_FULL_MAPPINGS,
@@ -374,7 +403,11 @@ enum {
 /* each slot is 2 uint16_t instead of 1 */
 #define UCASE_EXC_DOUBLE_SLOTS      0x100
 
-/* reserved: exception bits 11..9 */
+enum {
+    UCASE_EXC_NO_SIMPLE_CASE_FOLDING=0x200,
+    UCASE_EXC_DELTA_IS_NEGATIVE=0x400,
+    UCASE_EXC_SENSITIVE=0x800
+};
 
 /* UCASE_EXC_DOT_MASK=UCASE_DOT_MASK<<UCASE_EXC_DOT_SHIFT */
 #define UCASE_EXC_DOT_SHIFT     7

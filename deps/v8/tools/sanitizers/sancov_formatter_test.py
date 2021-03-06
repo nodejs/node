@@ -185,7 +185,8 @@ class FormatterTests(unittest.TestCase):
     cls._cov.report()
 
   def test_process_symbolizer_output(self):
-    result = sancov_formatter.process_symbolizer_output(SYMBOLIZER_OUTPUT)
+    result = sancov_formatter.process_symbolizer_output(
+        SYMBOLIZER_OUTPUT, BUILD_DIR)
     self.assertEquals(EXPECTED_PROCESSED_OUTPUT, result)
 
   def test_merge_instrumented_line_results(self):

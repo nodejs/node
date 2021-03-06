@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 require('../common');
 const assert = require('assert');
@@ -10,7 +31,7 @@ test2();
 function test1() {
   const r = new Readable();
 
-  // should not end when we get a Buffer.alloc(0) or '' as the _read
+  // Should not end when we get a Buffer.alloc(0) or '' as the _read
   // result that just means that there is *temporarily* no data, but to
   // go ahead and try again later.
   //
@@ -25,17 +46,17 @@ function test1() {
   r._read = function(n) {
     switch (reads--) {
       case 5:
-        return setImmediate(function() {
+        return setImmediate(() => {
           return r.push(buf);
         });
       case 4:
-        setImmediate(function() {
+        setImmediate(() => {
           return r.push(Buffer.alloc(0));
         });
         return setImmediate(r.read.bind(r, 0));
       case 3:
         setImmediate(r.read.bind(r, 0));
-        return process.nextTick(function() {
+        return process.nextTick(() => {
           return r.push(Buffer.alloc(0));
         });
       case 2:
@@ -54,43 +75,42 @@ function test1() {
   function flow() {
     let chunk;
     while (null !== (chunk = r.read()))
-      results.push(chunk + '');
+      results.push(String(chunk));
   }
   r.on('readable', flow);
-  r.on('end', function() {
+  r.on('end', () => {
     results.push('EOF');
   });
   flow();
 
-  process.on('exit', function() {
+  process.on('exit', () => {
     assert.deepStrictEqual(results, [ 'xxxxx', 'xxxxx', 'EOF' ]);
     console.log('ok');
   });
 }
 
 function test2() {
-  var r = new Readable({ encoding: 'base64' });
-  var reads = 5;
+  const r = new Readable({ encoding: 'base64' });
+  let reads = 5;
   r._read = function(n) {
     if (!reads--)
       return r.push(null); // EOF
-    else
-      return r.push(Buffer.from('x'));
+    return r.push(Buffer.from('x'));
   };
 
-  var results = [];
+  const results = [];
   function flow() {
-    var chunk;
+    let chunk;
     while (null !== (chunk = r.read()))
-      results.push(chunk + '');
+      results.push(String(chunk));
   }
   r.on('readable', flow);
-  r.on('end', function() {
+  r.on('end', () => {
     results.push('EOF');
   });
   flow();
 
-  process.on('exit', function() {
+  process.on('exit', () => {
     assert.deepStrictEqual(results, [ 'eHh4', 'eHg=', 'EOF' ]);
     console.log('ok');
   });

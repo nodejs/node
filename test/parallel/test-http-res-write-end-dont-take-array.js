@@ -1,44 +1,71 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-require('../common');
-var assert = require('assert');
-var http = require('http');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
 
-var test = 1;
+const server = http.createServer();
 
-var server = http.createServer(function(req, res) {
-  res.writeHead(200, {'Content-Type': 'text/plain'});
-  if (test === 1) {
-    // write should accept string
-    res.write('string');
-    // write should accept buffer
-    res.write(Buffer.from('asdf'));
-
-    // write should not accept an Array
-    assert.throws(function() {
-      res.write(['array']);
-    }, TypeError, 'first argument must be a string or Buffer');
-
-    // end should not accept an Array
-    assert.throws(function() {
-      res.end(['moo']);
-    }, TypeError, 'first argument must be a string or Buffer');
-
-    // end should accept string
-    res.end('string');
-  } else if (test === 2) {
-    // end should accept Buffer
+server.once('request', common.mustCall((req, res) => {
+  server.on('request', common.mustCall((req, res) => {
     res.end(Buffer.from('asdf'));
-  }
-});
+  }));
+  // `res.write()` should accept `string`.
+  res.write('string');
+  // `res.write()` should accept `buffer`.
+  res.write(Buffer.from('asdf'));
+
+  const expectedError = {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+  };
+
+  // `res.write()` should not accept an Array.
+  assert.throws(
+    () => {
+      res.write(['array']);
+    },
+    expectedError
+  );
+
+  // `res.end()` should not accept an Array.
+  assert.throws(
+    () => {
+      res.end(['moo']);
+    },
+    expectedError
+  );
+
+  // `res.end()` should accept `string`.
+  res.end('string');
+}));
 
 server.listen(0, function() {
-  // just make a request, other tests handle responses
-  http.get({port: this.address().port}, function(res) {
+  // Just make a request, other tests handle responses.
+  http.get({ port: this.address().port }, (res) => {
     res.resume();
-    // lazy serial test, because we can only call end once per request
-    test += 1;
-    // do it again to test .end(Buffer);
-    http.get({port: server.address().port}, function(res) {
+    // Do it again to test .end(Buffer);
+    http.get({ port: server.address().port }, (res) => {
       res.resume();
       server.close();
     });

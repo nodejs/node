@@ -3,6 +3,7 @@
 const common = require('../common');
 const http = require('http');
 const assert = require('assert');
+const Countdown = require('../common/countdown');
 
 // Test that certain response header fields do not repeat.
 // 'content-length' should also be in this list but it is
@@ -27,9 +28,10 @@ const norepeat = [
   'age',
   'expires'
 ];
+const runCount = 2;
 
 const server = http.createServer(function(req, res) {
-  var num = req.headers['x-num'];
+  const num = req.headers['x-num'];
   if (num === '1') {
     for (const name of norepeat) {
       res.setHeader(name, ['A', 'B']);
@@ -47,22 +49,22 @@ const server = http.createServer(function(req, res) {
 });
 
 server.listen(0, common.mustCall(function() {
-  var count = 0;
-  for (let n = 1; n <= 2; n++) {
-    // this runs twice, the first time, the server will use
+  const countdown = new Countdown(runCount, () => server.close());
+  for (let n = 1; n <= runCount; n++) {
+    // This runs twice, the first time, the server will use
     // setHeader, the second time it uses writeHead. The
     // result on the client side should be the same in
     // either case -- only the first instance of the header
     // value should be reported for the header fields listed
     // in the norepeat array.
     http.get(
-      {port: this.address().port, headers: {'x-num': n}},
+      { port: this.address().port, headers: { 'x-num': n } },
       common.mustCall(function(res) {
-        if (++count === 2) server.close();
+        countdown.dec();
         for (const name of norepeat) {
-          assert.equal(res.headers[name], 'A');
+          assert.strictEqual(res.headers[name], 'A');
         }
-        assert.equal(res.headers['x-a'], 'A, B');
+        assert.strictEqual(res.headers['x-a'], 'A, B');
       })
     );
   }

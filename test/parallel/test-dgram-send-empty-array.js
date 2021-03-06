@@ -2,21 +2,16 @@
 
 const common = require('../common');
 
-if (common.isOSX) {
-  common.skip('because of 17894467 Apple bug');
-  return;
-}
-
 const assert = require('assert');
 const dgram = require('dgram');
 
 const client = dgram.createSocket('udp4');
 
-var interval;
+let interval;
 
 client.on('message', common.mustCall(function onMessage(buf, info) {
   const expected = Buffer.alloc(0);
-  assert.ok(buf.equals(expected), 'message was received correctly');
+  assert.ok(buf.equals(expected), `Expected empty message but got ${buf}`);
   clearInterval(interval);
   client.close();
 }));

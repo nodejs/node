@@ -81,7 +81,7 @@ shouldBe("parseFloat(lf + '1')", "1");
 shouldBe("parseFloat(ls + '1')", "1");
 shouldBe("parseFloat(ps + '1')", "1");
 shouldBe("parseFloat(oghamSpaceMark + '1')", "1");
-shouldBe("parseFloat(mongolianVowelSeparator + '1')", "1");
+shouldBe("parseFloat(mongolianVowelSeparator + '1')", "NaN");
 shouldBe("parseFloat(enQuad + '1')", "1");
 shouldBe("parseFloat(emQuad + '1')", "1");
 shouldBe("parseFloat(enSpace + '1')", "1");

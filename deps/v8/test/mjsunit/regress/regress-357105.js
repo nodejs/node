@@ -4,9 +4,9 @@
 
 // Flags: --allow-natives-syntax --expose-gc
 
-var global = { };
+var global = {};
 
-function do_nothing() { }
+function do_nothing() {}
 
 function f(opt_gc) {
   var x = new Array(3);
@@ -14,8 +14,8 @@ function f(opt_gc) {
   opt_gc();
   global[1] = 15.5;
   return x;
-}
-
+};
+%PrepareFunctionForOptimization(f);
 gc();
 global = f(gc);
 global = f(do_nothing);

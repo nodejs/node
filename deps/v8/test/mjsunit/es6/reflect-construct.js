@@ -17,6 +17,30 @@
 })();
 
 
+(function testReflectConstructArg1NonConstructor() {
+  try {
+    Reflect.construct(() => {}, []);
+  } catch (e) {
+    assertInstanceof(e, TypeError);
+    assertEquals("() => {} is not a constructor", e.message);
+    return;
+  }
+  assertUnreachable("Exception expected");
+})();
+
+
+(function testReflectConstructArg3NonConstructor() {
+  try {
+    Reflect.construct(function() {}, [], () => {});
+  } catch (e) {
+    assertInstanceof(e, TypeError);
+    assertEquals("() => {} is not a constructor", e.message);
+    return;
+  }
+  assertUnreachable("Exception expected");
+})();
+
+
 (function testReflectConstructBasic() {
   function Constructor() { "use strict"; }
   assertInstanceof(Reflect.construct(Constructor, []), Constructor);
@@ -287,6 +311,7 @@
   var realm2 = Realm.create();
 
   var well_known_intrinsic_constructors = [
+    ["AggregateError", [[]]],
       "Array",
       "ArrayBuffer",
       "Boolean",
@@ -298,10 +323,10 @@
       "Float64Array",
       ["Function", ["return 153;"]],
       ["Function", ["'use strict'; return 153;"]],
-      ["Function", ["'use strong'; return 153;"]],
       ["((function*(){}).constructor)", ["yield 153;"]],  // GeneratorFunction
       ["((function*(){}).constructor)", ["'use strict'; yield 153;"]],
-      ["((function*(){}).constructor)", ["'use strong'; yield 153;"]],
+      // AsyncGeneratorFunction
+      ["((async function*(){}).constructor)", ["return 153;"]],
       "Int8Array",
       "Int16Array",
       "Int32Array",

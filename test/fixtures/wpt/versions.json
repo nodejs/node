@@ -1,0 +1,46 @@
+{
+  "common": {
+    "commit": "3586ff740b00aa1fa82ab00cccbc36cca0bb8ccb",
+    "path": "common"
+  },
+  "console": {
+    "commit": "3b1f72e99a91d31551edd2147dc7b564eaf25d72",
+    "path": "console"
+  },
+  "dom/abort": {
+    "commit": "625e1310ce19e9dde25b01f9eda0452c6ec274da",
+    "path": "dom/abort"
+  },
+  "encoding": {
+    "commit": "35f70910d3753c8b650fdfd4c716caedfefe88c9",
+    "path": "encoding"
+  },
+  "FileAPI": {
+    "commit": "3b279420d40afea32506e823f9ac005448f4f3d8",
+    "path": "FileAPI"
+  },
+  "hr-time": {
+    "commit": "9910784394858a8e34d9eb4e5d00788765abf837",
+    "path": "hr-time"
+  },
+  "html/webappapis/microtask-queuing": {
+    "commit": "2c5c3c4c27d27a419c1fdba3e9879c2d22037074",
+    "path": "html/webappapis/microtask-queuing"
+  },
+  "html/webappapis/timers": {
+    "commit": "5873f2d8f1f7bbb9c64689e52d04498614632906",
+    "path": "html/webappapis/timers"
+  },
+  "interfaces": {
+    "commit": "8602e9c9a168c25838bc4b808e3d213ce94ccac1",
+    "path": "interfaces"
+  },
+  "resources": {
+    "commit": "e366371a194459f23f8d6115cfdb57e0bc851468",
+    "path": "resources"
+  },
+  "url": {
+    "commit": "59d28c8f2d91d12533cfd0371acbe473b1825967",
+    "path": "url"
+  }
+}

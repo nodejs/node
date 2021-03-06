@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
  ******************************************************************************
@@ -65,7 +65,7 @@ DangiCalendar::~DangiCalendar()
 {
 }
 
-Calendar*
+DangiCalendar*
 DangiCalendar::clone() const
 {
     return new DangiCalendar(*this);

@@ -1,0 +1,57 @@
+{
+  "name": "flatted",
+  "version": "3.1.1",
+  "description": "A super light and fast circular JSON parser.",
+  "unpkg": "min.js",
+  "types": "types.d.ts",
+  "main": "./cjs/index.js",
+  "scripts": {
+    "build": "npm run cjs && npm run rollup:es && npm run rollup:babel && npm run min && npm run test && npm run size",
+    "cjs": "ascjs esm cjs",
+    "rollup:es": "rollup --config rollup/es.config.js && sed -i.bck 's/^var /self./' es.js && rm -rf es.js.bck",
+    "rollup:babel": "rollup --config rollup/babel.config.js && sed -i.bck 's/^var /self./' index.js && rm -rf index.js.bck && drop-babel-typeof index.js",
+    "min": "terser index.js -c -m -o min.js",
+    "size": "cat index.js | wc -c;cat min.js | wc -c;gzip -c9 min.js | wc -c;cat min.js | brotli | wc -c; cat es.js | brotli | wc -c",
+    "coveralls": "nyc report --reporter=text-lcov | coveralls",
+    "test": "nyc node test/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WebReflection/flatted.git"
+  },
+  "keywords": [
+    "circular",
+    "JSON",
+    "fast",
+    "parser",
+    "minimal"
+  ],
+  "author": "Andrea Giammarchi",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/WebReflection/flatted/issues"
+  },
+  "homepage": "https://github.com/WebReflection/flatted#readme",
+  "devDependencies": {
+    "@babel/core": "^7.11.6",
+    "@babel/preset-env": "^7.11.5",
+    "ascjs": "^4.0.1",
+    "circular-json": "^0.5.9",
+    "circular-json-es6": "^2.0.2",
+    "coveralls": "^3.1.0",
+    "drop-babel-typeof": "^1.0.3",
+    "jsan": "^3.1.13",
+    "nyc": "^15.1.0",
+    "rollup": "^2.26.11",
+    "rollup-plugin-babel": "^4.4.0",
+    "rollup-plugin-node-resolve": "^5.2.0",
+    "rollup-plugin-terser": "^7.0.2",
+    "terser": "^5.3.0"
+  },
+  "module": "./esm/index.js",
+  "type": "module",
+  "exports": {
+    "import": "./esm/index.js",
+    "default": "./cjs/index.js"
+  }
+}

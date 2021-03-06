@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --use-osr --allow-natives-syntax --crankshaft
+// Flags: --use-osr --allow-natives-syntax --opt
 
 var o1 = {a : 10};
 var o2 = { };
@@ -40,6 +40,7 @@ function f(n, x, b) {
   }
   return sum;
 }
+%PrepareFunctionForOptimization(f);
 
 f(10, o3);
 f(20, o3);
@@ -51,6 +52,7 @@ f(100000, o3);
 
 // This causes all code for f to be lazily deopted.
 o2.a = 5;
+%PrepareFunctionForOptimization(f);
 
 // If OSR did not evict the old code, it will be installed in f here.
 %OptimizeFunctionOnNextCall(f);

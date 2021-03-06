@@ -10,7 +10,10 @@
   function g() {
     for (var x in a) {
       try {
-        for (var i = 0; i < 10; i++) { %OptimizeOsr(); }
+        for (var i = 0; i < 10; i++) {
+          %OptimizeOsr();
+          %PrepareFunctionForOptimization(g);
+        }
         return;
       } catch(e) {
         continue;
@@ -18,6 +21,7 @@
     }
   }
 
+  %PrepareFunctionForOptimization(g);
   g();
 })();
 
@@ -27,11 +31,15 @@
   function g() {
     for (var x in a) {
       if (x) {
-        for (var i = 0; i < 10; i++) { %OptimizeOsr(); }
+        for (var i = 0; i < 10; i++) {
+          %OptimizeOsr();
+          %PrepareFunctionForOptimization(g);
+        }
       }
       continue;
     }
   }
 
+  %PrepareFunctionForOptimization(g);
   g();
 })();

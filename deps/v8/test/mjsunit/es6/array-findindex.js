@@ -234,6 +234,40 @@ assertEquals(3, a.findIndex(function(val) { return 24 === val; }));
 
 
 //
+// Test predicate is called for missing properties
+//
+(function() {
+  const obj = {
+    "0": 0,
+    "2": 2,
+    length: 3
+  };
+  const received = [];
+  const predicate = (v) => { received.push(v); return false; };
+  const found = Array.prototype.findIndex.call(obj, predicate);
+  assertEquals(-1, found);
+  assertArrayEquals([0, undefined, 2], received);
+})();
+
+
+//
+// Test predicate modifying array prototype
+//
+(function() {
+  const a = [0, , 2];
+  const received = [];
+  const predicate = (v) => {
+    a.__proto__ = null;
+    received.push(v);
+    return false;
+  };
+  const found = Array.prototype.findIndex.call(a, predicate);
+  assertEquals(-1, found);
+  assertArrayEquals([0, undefined, 2], received);
+})();
+
+
+//
 // Test thisArg
 //
 (function() {

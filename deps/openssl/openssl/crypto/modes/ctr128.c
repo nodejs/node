@@ -1,63 +1,21 @@
-/* ====================================================================
- * Copyright (c) 2008 The OpenSSL Project.  All rights reserved.
+/*
+ * Copyright 2008-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    openssl-core@openssl.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #include <openssl/crypto.h>
-#include "modes_lcl.h"
+#include "modes_local.h"
 #include <string.h>
 
-#ifndef MODES_DEBUG
-# ifndef NDEBUG
-#  define NDEBUG
-# endif
+#if defined(__GNUC__) && !defined(STRICT_ALIGNMENT)
+typedef size_t size_t_aX __attribute((__aligned__(1)));
+#else
+typedef size_t size_t_aX;
 #endif
-#include <assert.h>
 
 /*
  * NOTE: the IV/counter CTR mode is big-endian.  The code itself is
@@ -100,7 +58,7 @@ static void ctr128_inc_aligned(unsigned char *counter)
         --n;
         d = data[n] += c;
         /* did addition carry? */
-        c = ((d - c) ^ d) >> (sizeof(size_t) * 8 - 1);
+        c = ((d - c) & ~d) >> (sizeof(size_t) * 8 - 1);
     } while (n);
 }
 #endif
@@ -113,7 +71,7 @@ static void ctr128_inc_aligned(unsigned char *counter)
  * before the first call to CRYPTO_ctr128_encrypt(). This algorithm assumes
  * that the counter is in the x lower bits of the IV (ivec), and that the
  * application has full control over overflow and the rest of the IV.  This
- * implementation takes NO responsability for checking that the counter
+ * implementation takes NO responsibility for checking that the counter
  * doesn't overflow into the rest of the IV when incremented.
  */
 void CRYPTO_ctr128_encrypt(const unsigned char *in, unsigned char *out,
@@ -124,9 +82,6 @@ void CRYPTO_ctr128_encrypt(const unsigned char *in, unsigned char *out,
 {
     unsigned int n;
     size_t l = 0;
-
-    assert(in && out && key && ecount_buf && num);
-    assert(*num < 16);
 
     n = *num;
 
@@ -148,8 +103,9 @@ void CRYPTO_ctr128_encrypt(const unsigned char *in, unsigned char *out,
                 (*block) (ivec, ecount_buf, key);
                 ctr128_inc_aligned(ivec);
                 for (n = 0; n < 16; n += sizeof(size_t))
-                    *(size_t *)(out + n) =
-                        *(size_t *)(in + n) ^ *(size_t *)(ecount_buf + n);
+                    *(size_t_aX *)(out + n) =
+                        *(size_t_aX *)(in + n)
+                        ^ *(size_t_aX *)(ecount_buf + n);
                 len -= 16;
                 out += 16;
                 in += 16;
@@ -203,9 +159,6 @@ void CRYPTO_ctr128_encrypt_ctr32(const unsigned char *in, unsigned char *out,
 {
     unsigned int n, ctr32;
 
-    assert(in && out && key && ecount_buf && num);
-    assert(*num < 16);
-
     n = *num;
 
     while (n && len) {
@@ -238,7 +191,7 @@ void CRYPTO_ctr128_encrypt_ctr32(const unsigned char *in, unsigned char *out,
         (*func) (in, out, blocks, key, ivec);
         /* (*ctr) does not update ivec, caller does: */
         PUTU32(ivec + 12, ctr32);
-        /* ... overflow was detected, propogate carry. */
+        /* ... overflow was detected, propagate carry. */
         if (ctr32 == 0)
             ctr96_inc(ivec);
         blocks *= 16;

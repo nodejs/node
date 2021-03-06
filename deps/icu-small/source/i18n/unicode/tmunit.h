@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
  *******************************************************************************
@@ -16,6 +16,9 @@
  * \brief C++ API: time unit object
  */
 
+#include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
 
 #include "unicode/measunit.h"
 
@@ -70,7 +73,7 @@ public:
      * Override clone.
      * @stable ICU 4.2
      */
-    virtual UObject* clone() const;
+    virtual TimeUnit* clone() const;
 
     /**
      * Copy operator.
@@ -131,6 +134,8 @@ private:
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif // __TMUNIT_H__
 //eof

@@ -4,6 +4,7 @@
 
 #include "src/compiler/control-flow-optimizer.h"
 
+#include "src/codegen/tick-counter.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node-matchers.h"
@@ -16,18 +17,20 @@ namespace compiler {
 ControlFlowOptimizer::ControlFlowOptimizer(Graph* graph,
                                            CommonOperatorBuilder* common,
                                            MachineOperatorBuilder* machine,
+                                           TickCounter* tick_counter,
                                            Zone* zone)
     : graph_(graph),
       common_(common),
       machine_(machine),
       queue_(zone),
       queued_(graph, 2),
-      zone_(zone) {}
-
+      zone_(zone),
+      tick_counter_(tick_counter) {}
 
 void ControlFlowOptimizer::Optimize() {
   Enqueue(graph()->start());
   while (!queue_.empty()) {
+    tick_counter_->TickAndMaybeEnterSafepoint();
     Node* node = queue_.front();
     queue_.pop();
     if (node->IsDead()) continue;
@@ -76,13 +79,14 @@ bool ControlFlowOptimizer::TryBuildSwitch(Node* node) {
   if (cond->opcode() != IrOpcode::kWord32Equal) return false;
   Int32BinopMatcher m(cond);
   Node* index = m.left().node();
-  if (!m.right().HasValue()) return false;
-  int32_t value = m.right().Value();
+  if (!m.right().HasResolvedValue()) return false;
+  int32_t value = m.right().ResolvedValue();
   ZoneSet<int32_t> values(zone());
   values.insert(value);
 
   Node* if_false;
   Node* if_true;
+  int32_t order = 1;
   while (true) {
     BranchMatcher matcher(branch);
     DCHECK(matcher.Matched());
@@ -100,8 +104,8 @@ bool ControlFlowOptimizer::TryBuildSwitch(Node* node) {
     if (cond1->opcode() != IrOpcode::kWord32Equal) break;
     Int32BinopMatcher m1(cond1);
     if (m1.left().node() != index) break;
-    if (!m1.right().HasValue()) break;
-    int32_t value1 = m1.right().Value();
+    if (!m1.right().HasResolvedValue()) break;
+    int32_t value1 = m1.right().ResolvedValue();
     if (values.find(value1) != values.end()) break;
     DCHECK_NE(value, value1);
 
@@ -109,7 +113,7 @@ bool ControlFlowOptimizer::TryBuildSwitch(Node* node) {
       branch->NullAllInputs();
       if_true->ReplaceInput(0, node);
     }
-    NodeProperties::ChangeOp(if_true, common()->IfValue(value));
+    NodeProperties::ChangeOp(if_true, common()->IfValue(value, order++));
     if_false->NullAllInputs();
     Enqueue(if_true);
 
@@ -128,7 +132,7 @@ bool ControlFlowOptimizer::TryBuildSwitch(Node* node) {
   node->ReplaceInput(0, index);
   NodeProperties::ChangeOp(node, common()->Switch(values.size() + 1));
   if_true->ReplaceInput(0, node);
-  NodeProperties::ChangeOp(if_true, common()->IfValue(value));
+  NodeProperties::ChangeOp(if_true, common()->IfValue(value, order++));
   Enqueue(if_true);
   if_false->ReplaceInput(0, node);
   NodeProperties::ChangeOp(if_false, common()->IfDefault());

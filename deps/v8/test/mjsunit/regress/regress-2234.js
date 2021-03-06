@@ -33,8 +33,8 @@ function test(i) {
   // Check whether the first cache line has been accidentally overwritten
   // with incorrect key.
   assertEquals(0, Math.sin(0));
-}
-
+};
+%PrepareFunctionForOptimization(test);
 for (i = 0; i < 10000; ++i) {
   test(i);
   if (i == 0) %OptimizeFunctionOnNextCall(test);

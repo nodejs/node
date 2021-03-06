@@ -25,18 +25,36 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --use-osr --allow-natives-syntax --ignition-osr --turbo-from-bytecode
+// Flags: --use-osr --allow-natives-syntax --opt
+// Flags: --no-always-opt
+
+// Can't OSR with always-opt or in Lite mode.
+if (isNeverOptimizeLiteMode()) {
+  print("Warning: skipping test that requires optimization in Lite mode.");
+  testRunner.quit(0);
+}
+assertFalse(isAlwaysOptimize());
 
 function f() {
   do {
     do {
-      for (var i = 0; i < 10; i++) %OptimizeOsr();
+      for (var i = 0; i < 10; i++) {
+        %OptimizeOsr();
+        %PrepareFunctionForOptimization(f);
+      }
+      // Note: this check can't be wrapped in a function, because
+      // calling that function causes a deopt from lack of call
+      // feedback.
+      var opt_status = %GetOptimizationStatus(f);
+      assertTrue(
+        (opt_status & V8OptimizationStatus.kMaybeDeopted) !== 0 ||
+        (opt_status & V8OptimizationStatus.kTopmostFrameIsTurboFanned) !== 0);
     } while (false);
   } while (false);
 }
 
+%PrepareFunctionForOptimization(f);
 f();
-assertTrue(%GetOptimizationCount(f) > 0 || %GetOptimizationStatus(f) == 4);
 
 function g() {
   for (var i = 0; i < 1; i++) { }
@@ -55,7 +73,15 @@ function g() {
             do {
               do {
                 do {
-                  for (var i = 0; i < 10; i++) %OptimizeOsr();
+                  for (var i = 0; i < 10; i++) {
+                    %OptimizeOsr();
+                    %PrepareFunctionForOptimization(g);
+                  }
+                  var opt_status = %GetOptimizationStatus(g);
+                  assertTrue(
+                    (opt_status & V8OptimizationStatus.kMaybeDeopted) !== 0 ||
+                    (opt_status &
+                        V8OptimizationStatus.kTopmostFrameIsTurboFanned) !== 0);
                 } while (false);
               } while (false);
             } while (false);
@@ -66,5 +92,5 @@ function g() {
   } while (false);
 }
 
+%PrepareFunctionForOptimization(g);
 g();
-assertTrue(%GetOptimizationCount(g) > 0 || %GetOptimizationStatus(g) == 4);

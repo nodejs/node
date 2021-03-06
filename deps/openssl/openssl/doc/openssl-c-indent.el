@@ -2,7 +2,7 @@
 ;;;
 ;;; This definition is for the "CC mode" package, which is the default
 ;;; mode for editing C source files in Emacs 20, not for the older
-;;; c-mode.el (which was the default in less recent releaes of Emacs 19).
+;;; c-mode.el (which was the default in less recent releases of Emacs 19).
 ;;;
 ;;; Recommended use is to add this line in your .emacs:
 ;;;
@@ -12,7 +12,7 @@
 ;;; M-x c-set-style <RET> (or C-c . for short), and enter "eay".
 ;;; To toggle the auto-newline feature of CC mode, type C-c C-a.
 ;;;
-;;; If you're a OpenSSL developer, you might find it more comfortable
+;;; If you're an OpenSSL developer, you might find it more comfortable
 ;;; to have this style be permanent in your OpenSSL development
 ;;; directory.  To have that, please perform this:
 ;;;
@@ -28,7 +28,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Note, it could be easy to inherit from the "gnu" style...  however,
 ;; one never knows if that style will change somewhere in the future,
-;; so I've chosen to copy the "gnu" style values explicitely instead
+;; so I've chosen to copy the "gnu" style values explicitly instead
 ;; and mark them with a comment.                // RLevitte 2015-08-31
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -54,6 +54,7 @@
                 (arglist-close . c-lineup-arglist)           ; From "gnu" style
                 (inline-open . 0)                            ; From "gnu" style
                 (brace-list-open . +)                        ; From "gnu" style
+                (inextern-lang . 0)     ; Don't indent inside extern block
                 (topmost-intro-cont first c-lineup-topmost-intro-cont
                                     c-lineup-gnu-DEFUN-intro-cont) ; From "gnu" style
                 )

@@ -1,0 +1,87 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-proxy-gen.h'
+
+namespace proxy {
+
+extern transitioning runtime
+SetPropertyWithReceiver(implicit context: Context)(
+    Object, Name, Object, Object): void;
+
+transitioning macro CallThrowTypeErrorIfStrict(implicit context: Context)(
+    message: constexpr MessageTemplate) {
+  ThrowTypeErrorIfStrict(SmiConstant(message), Null, Null);
+}
+
+// ES #sec-proxy-object-internal-methods-and-internal-slots-set-p-v-receiver
+// https://tc39.github.io/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-set-p-v-receiver
+transitioning builtin
+ProxySetProperty(implicit context: Context)(
+    proxy: JSProxy, name: PropertyKey|PrivateSymbol, value: JSAny,
+    receiverValue: JSAny): JSAny {
+  // 1. Assert: IsPropertyKey(P) is true.
+  assert(TaggedIsNotSmi(name));
+  assert(Is<Name>(name));
+
+  let key: PropertyKey;
+  typeswitch (name) {
+    case (PrivateSymbol): {
+      CallThrowTypeErrorIfStrict(MessageTemplate::kProxyPrivate);
+      return Undefined;
+    }
+    case (name: PropertyKey): {
+      key = name;
+    }
+  }
+
+  try {
+    // 2. Let handler be O.[[ProxyHandler]].
+    // 3. If handler is null, throw a TypeError exception.
+    // 4. Assert: Type(handler) is Object.
+    assert(proxy.handler == Null || Is<JSReceiver>(proxy.handler));
+    const handler =
+        Cast<JSReceiver>(proxy.handler) otherwise ThrowProxyHandlerRevoked;
+
+    // 5. Let target be O.[[ProxyTarget]].
+    const target = UnsafeCast<JSReceiver>(proxy.target);
+
+    // 6. Let trap be ? GetMethod(handler, "set").
+    // 7. If trap is undefined, then (see 7.a below).
+    const trap: Callable = GetMethod(handler, 'set')
+        otherwise goto TrapUndefined(target);
+
+    // 8. Let booleanTrapResult be ToBoolean(? Call(trap, handler,
+    // « target, P, V, Receiver »)).
+    // 9. If booleanTrapResult is false, return false.
+    // 10. Let targetDesc be ? target.[[GetOwnProperty]](P).
+    // 11. If targetDesc is not undefined and targetDesc.[[Configurable]] is
+    // false, then
+    //    a. If IsDataDescriptor(targetDesc) is true and
+    //    targetDesc.[[Writable]] is false, then
+    //      i. If SameValue(V, targetDesc.[[Value]]) is false, throw a
+    //      TypeError exception.
+    //    b. If IsAccessorDescriptor(targetDesc) is true, then
+    //      i. If targetDesc.[[Set]] is undefined, throw a TypeError
+    //      exception.
+    // 12. Return true.
+    const trapResult =
+        Call(context, trap, handler, target, key, value, receiverValue);
+    if (ToBoolean(trapResult)) {
+      CheckGetSetTrapResult(target, proxy, name, value, kProxySet);
+      return value;
+    }
+    ThrowTypeErrorIfStrict(
+        SmiConstant(MessageTemplate::kProxyTrapReturnedFalsishFor), 'set',
+        name);
+    return value;
+  } label TrapUndefined(target: Object) {
+    // 7.a. Return ? target.[[Set]](P, V, Receiver).
+    SetPropertyWithReceiver(target, name, value, receiverValue);
+    return value;
+  } label ThrowProxyHandlerRevoked deferred {
+    ThrowTypeError(MessageTemplate::kProxyRevoked, 'set');
+  }
+}
+}

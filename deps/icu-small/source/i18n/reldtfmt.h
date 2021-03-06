@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -71,7 +71,7 @@ public:
      * @return    A copy of the object.
      * @internal ICU 3.8
      */
-    virtual Format* clone(void) const;
+    virtual RelativeDateFormat* clone() const;
 
     /**
      * Return true if the given Format objects are semantically equal. Objects
@@ -235,7 +235,6 @@ public:
      */
     virtual const DateFormatSymbols* getDateFormatSymbols(void) const;
 
-    /* Cannot use #ifndef U_HIDE_DRAFT_API for the following draft method since it is virtual */
     /**
      * Set a particular UDisplayContext value in the formatter, such as
      * UDISPCTX_CAPITALIZATION_FOR_STANDALONE. Note: For getContext, see

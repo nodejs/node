@@ -50,18 +50,31 @@
 #define STATIC_TESTABLE static
 #endif
 
+/* By using a double cast, we can get rid of the bogus warning of
+ * warning: cast from 'const struct sockaddr *' to 'const struct sockaddr_in6 *' increases required alignment from 1 to 4 [-Wcast-align]
+ */
+#define CARES_INADDR_CAST(type, var) ((type)((void *)var))
+
 #if defined(WIN32) && !defined(WATT32)
 
-#define WIN_NS_9X      "System\\CurrentControlSet\\Services\\VxD\\MSTCP"
-#define WIN_NS_NT_KEY  "System\\CurrentControlSet\\Services\\Tcpip\\Parameters"
-#define NAMESERVER     "NameServer"
-#define DHCPNAMESERVER "DhcpNameServer"
-#define DATABASEPATH   "DatabasePath"
-#define WIN_PATH_HOSTS  "\\hosts"
+#define WIN_NS_9X            "System\\CurrentControlSet\\Services\\VxD\\MSTCP"
+#define WIN_NS_NT_KEY        "System\\CurrentControlSet\\Services\\Tcpip\\Parameters"
+#define WIN_DNSCLIENT        "Software\\Policies\\Microsoft\\System\\DNSClient"
+#define WIN_NT_DNSCLIENT     "Software\\Policies\\Microsoft\\Windows NT\\DNSClient"
+#define NAMESERVER           "NameServer"
+#define DHCPNAMESERVER       "DhcpNameServer"
+#define DATABASEPATH         "DatabasePath"
+#define WIN_PATH_HOSTS       "\\hosts"
+#define SEARCHLIST_KEY       "SearchList"
+#define PRIMARYDNSSUFFIX_KEY "PrimaryDNSSuffix"
+#define INTERFACES_KEY       "Interfaces"
+#define DOMAIN_KEY           "Domain"
+#define DHCPDOMAIN_KEY       "DhcpDomain"
 
 #elif defined(WATT32)
 
 #define PATH_RESOLV_CONF "/dev/ENV/etc/resolv.conf"
+W32_FUNC const char *_w32_GetHostsFile (void);
 
 #elif defined(NETWARE)
 
@@ -94,6 +107,7 @@
 #endif
 
 #include "ares_strdup.h"
+#include "ares_strsplit.h"
 
 #ifndef HAVE_STRCASECMP
 #  include "ares_strcasecmp.h"
@@ -314,7 +328,16 @@ struct ares_channeldata {
 
   ares_sock_config_callback sock_config_cb;
   void *sock_config_cb_data;
+
+  const struct ares_socket_functions * sock_funcs;
+  void *sock_func_cb_data;
+
+  /* Path for resolv.conf file, configurable via ares_options */
+  char *resolvconf_path;
 };
+
+/* Does the domain end in ".onion" or ".onion."? Case-insensitive. */
+int ares__is_onion_domain(const char *name);
 
 /* Memory management functions */
 extern void *(*ares_malloc)(size_t size);
@@ -338,9 +361,51 @@ int ares__expand_name_for_response(const unsigned char *encoded,
                                    char **s, long *enclen);
 void ares__init_servers_state(ares_channel channel);
 void ares__destroy_servers_state(ares_channel channel);
+int ares__parse_qtype_reply(const unsigned char* abuf, int alen, int* qtype);
+int ares__single_domain(ares_channel channel, const char *name, char **s);
+int ares__cat_domain(const char *name, const char *domain, char **s);
+int ares__sortaddrinfo(ares_channel channel, struct ares_addrinfo_node *ai_node);
+int ares__readaddrinfo(FILE *fp, const char *name, unsigned short port,
+                       const struct ares_addrinfo_hints *hints,
+                       struct ares_addrinfo *ai);
+
+struct ares_addrinfo *ares__malloc_addrinfo(void);
+
+struct ares_addrinfo_node *ares__malloc_addrinfo_node(void);
+void ares__freeaddrinfo_nodes(struct ares_addrinfo_node *ai_node);
+
+struct ares_addrinfo_node *ares__append_addrinfo_node(struct ares_addrinfo_node **ai_node);
+void ares__addrinfo_cat_nodes(struct ares_addrinfo_node **head,
+                              struct ares_addrinfo_node *tail);
+
+struct ares_addrinfo_cname *ares__malloc_addrinfo_cname(void);
+void ares__freeaddrinfo_cnames(struct ares_addrinfo_cname *ai_cname);
+
+struct ares_addrinfo_cname *ares__append_addrinfo_cname(struct ares_addrinfo_cname **ai_cname);
+
+void ares__addrinfo_cat_cnames(struct ares_addrinfo_cname **head,
+                               struct ares_addrinfo_cname *tail);
+
+int ares__parse_into_addrinfo(const unsigned char *abuf,
+                              int alen,
+                              struct ares_addrinfo *ai);
+
+int ares__parse_into_addrinfo2(const unsigned char *abuf,
+                               int alen,
+                               char **question_hostname,
+                               struct ares_addrinfo *ai);
+
 #if 0 /* Not used */
 long ares__tvdiff(struct timeval t1, struct timeval t2);
 #endif
+
+ares_socket_t ares__open_socket(ares_channel channel,
+                                int af, int type, int protocol);
+void ares__close_socket(ares_channel, ares_socket_t);
+int ares__connect_socket(ares_channel channel,
+                         ares_socket_t sockfd,
+                         const struct sockaddr *addr,
+                         ares_socklen_t addrlen);
 
 #define ARES_SWAP_BYTE(a,b) \
   { unsigned char swapByte = *(a);  *(a) = *(b);  *(b) = swapByte; }
@@ -350,14 +415,5 @@ long ares__tvdiff(struct timeval t1, struct timeval t2);
     if ((c)->sock_state_cb)                                             \
       (c)->sock_state_cb((c)->sock_state_cb_data, (s), (r), (w));       \
   } WHILE_FALSE
-
-#ifdef CURLDEBUG
-/* This is low-level hard-hacking memory leak tracking and similar. Using the
-   libcurl lowlevel code from within library is ugly and only works when
-   c-ares is built and linked with a similarly curldebug-enabled libcurl,
-   but we do this anyway for convenience. */
-#define HEADER_CURL_SETUP_ONCE_H
-#include "../lib/memdebug.h"
-#endif
 
 #endif /* __ARES_PRIVATE_H */

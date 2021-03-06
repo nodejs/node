@@ -1,0 +1,2 @@
+Test RunTimeCallStats collection using Profiler.getRuntimeCallStats.
+PASSED

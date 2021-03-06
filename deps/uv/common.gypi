@@ -16,9 +16,9 @@
           'VCCLCompilerTool': {
             'target_conditions': [
               ['uv_library=="static_library"', {
-                'RuntimeLibrary': 1, # static debug
+                'RuntimeLibrary': 1, # /MTd static debug
               }, {
-                'RuntimeLibrary': 3, # DLL debug
+                'RuntimeLibrary': 3, # /MDd DLL debug
               }],
             ],
             'Optimization': 0, # /Od, no optimization
@@ -32,11 +32,10 @@
         },
         'xcode_settings': {
           'GCC_OPTIMIZATION_LEVEL': '0',
-          'OTHER_CFLAGS': [ '-Wno-strict-aliasing' ],
         },
         'conditions': [
           ['OS != "zos"', {
-            'cflags': [ '-O0', '-fwrapv' ]
+            'cflags': [ '-O0', '-fno-common', '-fwrapv' ]
           }],
           ['OS == "android"', {
             'cflags': [ '-fPIE' ],
@@ -48,18 +47,14 @@
         'defines': [ 'NDEBUG' ],
         'cflags': [
           '-O3',
-          '-fstrict-aliasing',
-          '-fomit-frame-pointer',
-          '-fdata-sections',
-          '-ffunction-sections',
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
             'target_conditions': [
               ['uv_library=="static_library"', {
-                'RuntimeLibrary': 0, # static release
+                'RuntimeLibrary': 0, # /MT static release
               }, {
-                'RuntimeLibrary': 2, # debug release
+                'RuntimeLibrary': 2, # /MD DLL release
               }],
             ],
             'Optimization': 3, # /Ox, full optimization
@@ -82,6 +77,16 @@
             'LinkIncremental': 1, # disable incremental linking
           },
         },
+        'conditions': [
+          ['OS != "zos"', {
+            'cflags': [
+              '-fdata-sections',
+              '-ffunction-sections',
+              '-fno-common',
+              '-fomit-frame-pointer',
+            ],
+          }],
+        ]
       }
     },
     'msvs_settings': {
@@ -130,7 +135,7 @@
           }]
         ]
       }],
-      ['OS in "freebsd dragonflybsd linux openbsd solaris android"', {
+      ['OS in "freebsd dragonflybsd linux openbsd solaris android aix"', {
         'cflags': [ '-Wall' ],
         'cflags_cc': [ '-fno-rtti', '-fno-exceptions' ],
         'target_conditions': [
@@ -158,6 +163,10 @@
             'cflags': [ '-pthread' ],
             'ldflags': [ '-pthread' ],
           }],
+          [ 'OS=="aix" and target_arch=="ppc64"', {
+            'cflags': [ '-maix64' ],
+            'ldflags': [ '-maix64' ],
+          }],
         ],
       }],
       ['OS=="mac"', {
@@ -172,14 +181,12 @@
           'GCC_THREADSAFE_STATICS': 'NO',           # -fno-threadsafe-statics
           'PREBINDING': 'NO',                       # No -Wl,-prebind
           'USE_HEADERMAP': 'NO',
-          'OTHER_CFLAGS': [
-            '-fstrict-aliasing',
-          ],
           'WARNING_CFLAGS': [
             '-Wall',
             '-Wendif-labels',
             '-W',
             '-Wno-unused-parameter',
+            '-Wstrict-prototypes',
           ],
         },
         'conditions': [

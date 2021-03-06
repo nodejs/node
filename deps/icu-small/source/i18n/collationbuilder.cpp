@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -577,8 +577,7 @@ CollationBuilder::getSpecialResetPosition(const UnicodeString &str,
         parserErrorReason = "LDML forbids tailoring to U+FFFF";
         return 0;
     default:
-        U_ASSERT(FALSE);
-        return 0;
+        UPRV_UNREACHABLE;
     }
 
     int32_t index = findOrInsertNodeForRootCE(ce, strength, errorCode);

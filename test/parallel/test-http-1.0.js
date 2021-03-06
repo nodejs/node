@@ -1,20 +1,41 @@
-'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
-var http = require('http');
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var body = 'hello world\n';
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
+const http = require('http');
+
+const body = 'hello world\n';
 
 function test(handler, request_generator, response_validator) {
-  var server = http.createServer(handler);
+  const server = http.createServer(handler);
 
-  var client_got_eof = false;
-  var server_response = '';
+  let client_got_eof = false;
+  let server_response = '';
 
   server.listen(0);
   server.on('listening', function() {
-    var c = net.createConnection(this.address().port);
+    const c = net.createConnection(this.address().port);
 
     c.setEncoding('utf8');
 
@@ -37,10 +58,10 @@ function test(handler, request_generator, response_validator) {
 
 {
   function handler(req, res) {
-    assert.strictEqual('1.0', req.httpVersion);
-    assert.strictEqual(1, req.httpVersionMajor);
-    assert.strictEqual(0, req.httpVersionMinor);
-    res.writeHead(200, {'Content-Type': 'text/plain'});
+    assert.strictEqual(req.httpVersion, '1.0');
+    assert.strictEqual(req.httpVersionMajor, 1);
+    assert.strictEqual(req.httpVersionMinor, 0);
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end(body);
   }
 
@@ -51,8 +72,8 @@ function test(handler, request_generator, response_validator) {
   function response_validator(server_response, client_got_eof, timed_out) {
     const m = server_response.split('\r\n\r\n');
     assert.strictEqual(m[1], body);
-    assert.strictEqual(true, client_got_eof);
-    assert.strictEqual(false, timed_out);
+    assert.strictEqual(client_got_eof, true);
+    assert.strictEqual(timed_out, false);
   }
 
   test(handler, request_generator, response_validator);
@@ -65,11 +86,11 @@ function test(handler, request_generator, response_validator) {
 //
 {
   function handler(req, res) {
-    assert.strictEqual('1.0', req.httpVersion);
-    assert.strictEqual(1, req.httpVersionMajor);
-    assert.strictEqual(0, req.httpVersionMinor);
+    assert.strictEqual(req.httpVersion, '1.0');
+    assert.strictEqual(req.httpVersionMajor, 1);
+    assert.strictEqual(req.httpVersionMinor, 0);
     res.sendDate = false;
-    res.writeHead(200, {'Content-Type': 'text/plain'});
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.write('Hello, '); res._send('');
     res.write('world!'); res._send('');
     res.end();
@@ -91,9 +112,9 @@ function test(handler, request_generator, response_validator) {
                               '\r\n' +
                               'Hello, world!';
 
-    assert.strictEqual(expected_response, server_response);
-    assert.strictEqual(true, client_got_eof);
-    assert.strictEqual(false, timed_out);
+    assert.strictEqual(server_response, expected_response);
+    assert.strictEqual(client_got_eof, true);
+    assert.strictEqual(timed_out, false);
   }
 
   test(handler, request_generator, response_validator);
@@ -101,11 +122,11 @@ function test(handler, request_generator, response_validator) {
 
 {
   function handler(req, res) {
-    assert.strictEqual('1.1', req.httpVersion);
-    assert.strictEqual(1, req.httpVersionMajor);
-    assert.strictEqual(1, req.httpVersionMinor);
+    assert.strictEqual(req.httpVersion, '1.1');
+    assert.strictEqual(req.httpVersionMajor, 1);
+    assert.strictEqual(req.httpVersionMinor, 1);
     res.sendDate = false;
-    res.writeHead(200, {'Content-Type': 'text/plain'});
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.write('Hello, '); res._send('');
     res.write('world!'); res._send('');
     res.end();
@@ -134,9 +155,9 @@ function test(handler, request_generator, response_validator) {
                               '0\r\n' +
                               '\r\n';
 
-    assert.strictEqual(expected_response, server_response);
-    assert.strictEqual(true, client_got_eof);
-    assert.strictEqual(false, timed_out);
+    assert.strictEqual(server_response, expected_response);
+    assert.strictEqual(client_got_eof, true);
+    assert.strictEqual(timed_out, false);
   }
 
   test(handler, request_generator, response_validator);

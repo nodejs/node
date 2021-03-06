@@ -6,16 +6,15 @@
 #define V8_PROFILER_CIRCULAR_QUEUE_H_
 
 #include "src/base/atomicops.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {
 
-
 // Lock-free cache-friendly sampling circular queue for large
 // records. Intended for fast transfer of large records between a
 // single producer and a single consumer. If the queue is full,
-// StartEnqueue will return NULL. The queue is designed with
+// StartEnqueue will return nullptr. The queue is designed with
 // a goal in mind to evade cache lines thrashing by preventing
 // simultaneous reads and writes to adjanced memory locations.
 template<typename T, unsigned Length>
@@ -24,16 +23,18 @@ class SamplingCircularQueue {
   // Executed on the application thread.
   SamplingCircularQueue();
   ~SamplingCircularQueue();
+  SamplingCircularQueue(const SamplingCircularQueue&) = delete;
+  SamplingCircularQueue& operator=(const SamplingCircularQueue&) = delete;
 
   // StartEnqueue returns a pointer to a memory location for storing the next
-  // record or NULL if all entries are full at the moment.
+  // record or nullptr if all entries are full at the moment.
   T* StartEnqueue();
   // Notifies the queue that the producer has complete writing data into the
   // memory returned by StartEnqueue and it can be passed to the consumer.
   void FinishEnqueue();
 
   // Executed on the consumer (analyzer) thread.
-  // Retrieves, but does not remove, the head of this queue, returning NULL
+  // Retrieves, but does not remove, the head of this queue, returning nullptr
   // if this queue is empty. After the record had been read by a consumer,
   // Remove must be called.
   T* Peek();
@@ -47,7 +48,7 @@ class SamplingCircularQueue {
              // completely processed by the consumer.
   };
 
-  struct V8_ALIGNED(PROCESSOR_CACHE_LINE_SIZE) Entry {
+  struct alignas(PROCESSOR_CACHE_LINE_SIZE) Entry {
     Entry() : marker(kEmpty) {}
     T record;
     base::Atomic32 marker;
@@ -56,10 +57,8 @@ class SamplingCircularQueue {
   Entry* Next(Entry* entry);
 
   Entry buffer_[Length];
-  V8_ALIGNED(PROCESSOR_CACHE_LINE_SIZE) Entry* enqueue_pos_;
-  V8_ALIGNED(PROCESSOR_CACHE_LINE_SIZE) Entry* dequeue_pos_;
-
-  DISALLOW_COPY_AND_ASSIGN(SamplingCircularQueue);
+  alignas(PROCESSOR_CACHE_LINE_SIZE) Entry* enqueue_pos_;
+  alignas(PROCESSOR_CACHE_LINE_SIZE) Entry* dequeue_pos_;
 };
 
 

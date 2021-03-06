@@ -5,13 +5,16 @@
 #ifndef V8_BASE_PLATFORM_TIME_H_
 #define V8_BASE_PLATFORM_TIME_H_
 
+#include <stdint.h>
+
 #include <ctime>
 #include <iosfwd>
 #include <limits>
 
+#include "src/base/base-export.h"
 #include "src/base/bits.h"
 #include "src/base/macros.h"
-#include "src/base/safe_math.h"
+#include "src/base/safe_conversions.h"
 #if V8_OS_WIN
 #include "src/base/win32-headers.h"
 #endif
@@ -34,7 +37,26 @@ class TimeTicks;
 namespace time_internal {
 template<class TimeClass>
 class TimeBase;
-}
+}  // namespace time_internal
+
+class TimeConstants {
+ public:
+  static constexpr int64_t kHoursPerDay = 24;
+  static constexpr int64_t kMillisecondsPerSecond = 1000;
+  static constexpr int64_t kMillisecondsPerDay =
+      kMillisecondsPerSecond * 60 * 60 * kHoursPerDay;
+  static constexpr int64_t kMicrosecondsPerMillisecond = 1000;
+  static constexpr int64_t kMicrosecondsPerSecond =
+      kMicrosecondsPerMillisecond * kMillisecondsPerSecond;
+  static constexpr int64_t kMicrosecondsPerMinute = kMicrosecondsPerSecond * 60;
+  static constexpr int64_t kMicrosecondsPerHour = kMicrosecondsPerMinute * 60;
+  static constexpr int64_t kMicrosecondsPerDay =
+      kMicrosecondsPerHour * kHoursPerDay;
+  static constexpr int64_t kMicrosecondsPerWeek = kMicrosecondsPerDay * 7;
+  static constexpr int64_t kNanosecondsPerMicrosecond = 1000;
+  static constexpr int64_t kNanosecondsPerSecond =
+      kNanosecondsPerMicrosecond * kMicrosecondsPerSecond;
+};
 
 // -----------------------------------------------------------------------------
 // TimeDelta
@@ -42,20 +64,61 @@ class TimeBase;
 // This class represents a duration of time, internally represented in
 // microseonds.
 
-class TimeDelta final {
+class V8_BASE_EXPORT TimeDelta final {
  public:
-  TimeDelta() : delta_(0) {}
+  constexpr TimeDelta() : delta_(0) {}
 
   // Converts units of time to TimeDeltas.
-  static TimeDelta FromDays(int days);
-  static TimeDelta FromHours(int hours);
-  static TimeDelta FromMinutes(int minutes);
-  static TimeDelta FromSeconds(int64_t seconds);
-  static TimeDelta FromMilliseconds(int64_t milliseconds);
-  static TimeDelta FromMicroseconds(int64_t microseconds) {
+  static constexpr TimeDelta FromDays(int days) {
+    return TimeDelta(days * TimeConstants::kMicrosecondsPerDay);
+  }
+  static constexpr TimeDelta FromHours(int hours) {
+    return TimeDelta(hours * TimeConstants::kMicrosecondsPerHour);
+  }
+  static constexpr TimeDelta FromMinutes(int minutes) {
+    return TimeDelta(minutes * TimeConstants::kMicrosecondsPerMinute);
+  }
+  static constexpr TimeDelta FromSeconds(int64_t seconds) {
+    return TimeDelta(seconds * TimeConstants::kMicrosecondsPerSecond);
+  }
+  static constexpr TimeDelta FromMilliseconds(int64_t milliseconds) {
+    return TimeDelta(milliseconds * TimeConstants::kMicrosecondsPerMillisecond);
+  }
+  static constexpr TimeDelta FromMicroseconds(int64_t microseconds) {
     return TimeDelta(microseconds);
   }
-  static TimeDelta FromNanoseconds(int64_t nanoseconds);
+  static constexpr TimeDelta FromNanoseconds(int64_t nanoseconds) {
+    return TimeDelta(nanoseconds / TimeConstants::kNanosecondsPerMicrosecond);
+  }
+
+  static TimeDelta FromSecondsD(double seconds) {
+    return FromDouble(seconds * TimeConstants::kMicrosecondsPerSecond);
+  }
+  static TimeDelta FromMillisecondsD(double milliseconds) {
+    return FromDouble(milliseconds *
+                      TimeConstants::kMicrosecondsPerMillisecond);
+  }
+
+  // Returns the maximum time delta, which should be greater than any reasonable
+  // time delta we might compare it to. Adding or subtracting the maximum time
+  // delta to a time or another time delta has an undefined result.
+  static constexpr TimeDelta Max();
+
+  // Returns the minimum time delta, which should be less than than any
+  // reasonable time delta we might compare it to. Adding or subtracting the
+  // minimum time delta to a time or another time delta has an undefined result.
+  static constexpr TimeDelta Min();
+
+  // Returns true if the time delta is zero.
+  constexpr bool IsZero() const { return delta_ == 0; }
+
+  // Returns true if the time delta is the maximum/minimum time delta.
+  constexpr bool IsMax() const {
+    return delta_ == std::numeric_limits<int64_t>::max();
+  }
+  constexpr bool IsMin() const {
+    return delta_ == std::numeric_limits<int64_t>::min();
+  }
 
   // Returns the time delta in some unit. The F versions return a floating
   // point value, the "regular" versions return a rounded-down value.
@@ -70,7 +133,7 @@ class TimeDelta final {
   double InMillisecondsF() const;
   int64_t InMilliseconds() const;
   int64_t InMillisecondsRoundedUp() const;
-  int64_t InMicroseconds() const { return delta_; }
+  int64_t InMicroseconds() const;
   int64_t InNanoseconds() const;
 
   // Converts to/from Mach time specs.
@@ -80,11 +143,6 @@ class TimeDelta final {
   // Converts to/from POSIX time specs.
   static TimeDelta FromTimespec(struct timespec ts);
   struct timespec ToTimespec() const;
-
-  TimeDelta& operator=(const TimeDelta& other) {
-    delta_ = other.delta_;
-    return *this;
-  }
 
   // Computations with other deltas.
   TimeDelta operator+(const TimeDelta& other) const {
@@ -102,9 +160,7 @@ class TimeDelta final {
     delta_ -= other.delta_;
     return *this;
   }
-  TimeDelta operator-() const {
-    return TimeDelta(-delta_);
-  }
+  constexpr TimeDelta operator-() const { return TimeDelta(-delta_); }
 
   double TimesOf(const TimeDelta& other) const {
     return static_cast<double>(delta_) / static_cast<double>(other.delta_);
@@ -134,36 +190,53 @@ class TimeDelta final {
   }
 
   // Comparison operators.
-  bool operator==(const TimeDelta& other) const {
+  constexpr bool operator==(const TimeDelta& other) const {
     return delta_ == other.delta_;
   }
-  bool operator!=(const TimeDelta& other) const {
+  constexpr bool operator!=(const TimeDelta& other) const {
     return delta_ != other.delta_;
   }
-  bool operator<(const TimeDelta& other) const {
+  constexpr bool operator<(const TimeDelta& other) const {
     return delta_ < other.delta_;
   }
-  bool operator<=(const TimeDelta& other) const {
+  constexpr bool operator<=(const TimeDelta& other) const {
     return delta_ <= other.delta_;
   }
-  bool operator>(const TimeDelta& other) const {
+  constexpr bool operator>(const TimeDelta& other) const {
     return delta_ > other.delta_;
   }
-  bool operator>=(const TimeDelta& other) const {
+  constexpr bool operator>=(const TimeDelta& other) const {
     return delta_ >= other.delta_;
   }
 
  private:
+  // TODO(v8:10620): constexpr requires constexpr saturated_cast.
+  static inline TimeDelta FromDouble(double value);
+
   template<class TimeClass> friend class time_internal::TimeBase;
   // Constructs a delta given the duration in microseconds. This is private
   // to avoid confusion by callers with an integer constructor. Use
   // FromSeconds, FromMilliseconds, etc. instead.
-  explicit TimeDelta(int64_t delta) : delta_(delta) {}
+  explicit constexpr TimeDelta(int64_t delta) : delta_(delta) {}
 
   // Delta in microseconds.
   int64_t delta_;
 };
 
+// static
+TimeDelta TimeDelta::FromDouble(double value) {
+  return TimeDelta(saturated_cast<int64_t>(value));
+}
+
+// static
+constexpr TimeDelta TimeDelta::Max() {
+  return TimeDelta(std::numeric_limits<int64_t>::max());
+}
+
+// static
+constexpr TimeDelta TimeDelta::Min() {
+  return TimeDelta(std::numeric_limits<int64_t>::min());
+}
 
 namespace time_internal {
 
@@ -173,41 +246,54 @@ namespace time_internal {
 // classes. Each subclass provides for strong type-checking to ensure
 // semantically meaningful comparison/math of time values from the same clock
 // source or timeline.
-template<class TimeClass>
-class TimeBase {
+template <class TimeClass>
+class TimeBase : public TimeConstants {
  public:
-  static const int64_t kHoursPerDay = 24;
-  static const int64_t kMillisecondsPerSecond = 1000;
-  static const int64_t kMillisecondsPerDay =
-      kMillisecondsPerSecond * 60 * 60 * kHoursPerDay;
-  static const int64_t kMicrosecondsPerMillisecond = 1000;
-  static const int64_t kMicrosecondsPerSecond =
-      kMicrosecondsPerMillisecond * kMillisecondsPerSecond;
-  static const int64_t kMicrosecondsPerMinute = kMicrosecondsPerSecond * 60;
-  static const int64_t kMicrosecondsPerHour = kMicrosecondsPerMinute * 60;
-  static const int64_t kMicrosecondsPerDay =
-      kMicrosecondsPerHour * kHoursPerDay;
-  static const int64_t kMicrosecondsPerWeek = kMicrosecondsPerDay * 7;
-  static const int64_t kNanosecondsPerMicrosecond = 1000;
-  static const int64_t kNanosecondsPerSecond =
-      kNanosecondsPerMicrosecond * kMicrosecondsPerSecond;
+#if V8_OS_WIN
+  // To avoid overflow in QPC to Microseconds calculations, since we multiply
+  // by kMicrosecondsPerSecond, then the QPC value should not exceed
+  // (2^63 - 1) / 1E6. If it exceeds that threshold, we divide then multiply.
+  static constexpr int64_t kQPCOverflowThreshold = INT64_C(0x8637BD05AF7);
+#endif
 
   // Returns true if this object has not been initialized.
   //
   // Warning: Be careful when writing code that performs math on time values,
   // since it's possible to produce a valid "zero" result that should not be
   // interpreted as a "null" value.
-  bool IsNull() const {
-    return us_ == 0;
+  constexpr bool IsNull() const { return us_ == 0; }
+
+  // Returns the maximum/minimum times, which should be greater/less than any
+  // reasonable time with which we might compare it.
+  static TimeClass Max() {
+    return TimeClass(std::numeric_limits<int64_t>::max());
+  }
+  static TimeClass Min() {
+    return TimeClass(std::numeric_limits<int64_t>::min());
   }
 
-  // Returns true if this object represents the maximum time.
-  bool IsMax() const { return us_ == std::numeric_limits<int64_t>::max(); }
+  // Returns true if this object represents the maximum/minimum time.
+  constexpr bool IsMax() const {
+    return us_ == std::numeric_limits<int64_t>::max();
+  }
+  constexpr bool IsMin() const {
+    return us_ == std::numeric_limits<int64_t>::min();
+  }
 
   // For serializing only. Use FromInternalValue() to reconstitute. Please don't
   // use this and do arithmetic on it, as it is more error prone than using the
   // provided operators.
   int64_t ToInternalValue() const { return us_; }
+
+  // The amount of time since the origin (or "zero") point. This is a syntactic
+  // convenience to aid in code readability, mainly for debugging/testing use
+  // cases.
+  //
+  // Warning: While the Time subclass has a fixed origin point, the origin for
+  // the other subclasses can vary each time the application is restarted.
+  constexpr TimeDelta since_origin() const {
+    return TimeDelta::FromMicroseconds(us_);
+  }
 
   TimeClass& operator=(TimeClass other) {
     us_ = other.us_;
@@ -262,7 +348,7 @@ class TimeBase {
   static TimeClass FromInternalValue(int64_t us) { return TimeClass(us); }
 
  protected:
-  explicit TimeBase(int64_t us) : us_(us) {}
+  explicit constexpr TimeBase(int64_t us) : us_(us) {}
 
   // Time value in a microsecond timebase.
   int64_t us_;
@@ -277,10 +363,10 @@ class TimeBase {
 // This class represents an absolute point in time, internally represented as
 // microseconds (s/1,000,000) since 00:00:00 UTC, January 1, 1970.
 
-class Time final : public time_internal::TimeBase<Time> {
+class V8_BASE_EXPORT Time final : public time_internal::TimeBase<Time> {
  public:
-  // Contains the NULL time. Use Time::Now() to get the current time.
-  Time() : TimeBase(0) {}
+  // Contains the nullptr time. Use Time::Now() to get the current time.
+  constexpr Time() : TimeBase(0) {}
 
   // Returns the current time. Watch out, the system might adjust its clock
   // in which case time will actually go backwards. We don't guarantee that
@@ -295,10 +381,6 @@ class Time final : public time_internal::TimeBase<Time> {
 
   // Returns the time for epoch in Unix-like system (Jan 1, 1970).
   static Time UnixEpoch() { return Time(0); }
-
-  // Returns the maximum time, which should be greater than any reasonable time
-  // with which we might compare it.
-  static Time Max() { return Time(std::numeric_limits<int64_t>::max()); }
 
   // Converts to/from POSIX time specs.
   static Time FromTimespec(struct timespec ts);
@@ -319,10 +401,10 @@ class Time final : public time_internal::TimeBase<Time> {
 
  private:
   friend class time_internal::TimeBase<Time>;
-  explicit Time(int64_t us) : TimeBase(us) {}
+  explicit constexpr Time(int64_t us) : TimeBase(us) {}
 };
 
-std::ostream& operator<<(std::ostream&, const Time&);
+V8_BASE_EXPORT std::ostream& operator<<(std::ostream&, const Time&);
 
 inline Time operator+(const TimeDelta& delta, const Time& time) {
   return time + delta;
@@ -339,32 +421,32 @@ inline Time operator+(const TimeDelta& delta, const Time& time) {
 // Time::Now() may actually decrease or jump).  But note that TimeTicks may
 // "stand still", for example if the computer suspended.
 
-class TimeTicks final : public time_internal::TimeBase<TimeTicks> {
+class V8_BASE_EXPORT TimeTicks final
+    : public time_internal::TimeBase<TimeTicks> {
  public:
-  TimeTicks() : TimeBase(0) {}
+  constexpr TimeTicks() : TimeBase(0) {}
 
-  // Platform-dependent tick count representing "right now."
-  // The resolution of this clock is ~1-15ms.  Resolution varies depending
-  // on hardware/operating system configuration.
+  // Platform-dependent tick count representing "right now." When
+  // IsHighResolution() returns false, the resolution of the clock could be as
+  // coarse as ~15.6ms. Otherwise, the resolution should be no worse than one
+  // microsecond.
   // This method never returns a null TimeTicks.
   static TimeTicks Now();
 
-  // Returns a platform-dependent high-resolution tick count. Implementation
-  // is hardware dependent and may or may not return sub-millisecond
-  // resolution.  THIS CALL IS GENERALLY MUCH MORE EXPENSIVE THAN Now() AND
-  // SHOULD ONLY BE USED WHEN IT IS REALLY NEEDED.
-  // This method never returns a null TimeTicks.
+  // This is equivalent to Now() but DCHECKs that IsHighResolution(). Useful for
+  // test frameworks that rely on high resolution clocks (in practice all
+  // platforms but low-end Windows devices have high resolution clocks).
   static TimeTicks HighResolutionNow();
 
   // Returns true if the high-resolution clock is working on this system.
-  static bool IsHighResolutionClockWorking();
+  static bool IsHighResolution();
 
  private:
   friend class time_internal::TimeBase<TimeTicks>;
 
   // Please use Now() to create a new object. This is for internal use
   // and testing. Ticks are in microseconds.
-  explicit TimeTicks(int64_t ticks) : TimeBase(ticks) {}
+  explicit constexpr TimeTicks(int64_t ticks) : TimeBase(ticks) {}
 };
 
 inline TimeTicks operator+(const TimeDelta& delta, const TimeTicks& ticks) {
@@ -376,9 +458,10 @@ inline TimeTicks operator+(const TimeDelta& delta, const TimeTicks& ticks) {
 
 // Represents a clock, specific to a particular thread, than runs only while the
 // thread is running.
-class ThreadTicks final : public time_internal::TimeBase<ThreadTicks> {
+class V8_BASE_EXPORT ThreadTicks final
+    : public time_internal::TimeBase<ThreadTicks> {
  public:
-  ThreadTicks() : TimeBase(0) {}
+  constexpr ThreadTicks() : TimeBase(0) {}
 
   // Returns true if ThreadTicks::Now() is supported on this system.
   static bool IsSupported();
@@ -408,9 +491,12 @@ class ThreadTicks final : public time_internal::TimeBase<ThreadTicks> {
 #endif
 
  private:
+  template <class TimeClass>
+  friend class time_internal::TimeBase;
+
   // Please use Now() or GetForThread() to create a new object. This is for
   // internal use and testing. Ticks are in microseconds.
-  explicit ThreadTicks(int64_t ticks) : TimeBase(ticks) {}
+  explicit constexpr ThreadTicks(int64_t ticks) : TimeBase(ticks) {}
 
 #if V8_OS_WIN
   // Returns the frequency of the TSC in ticks per second, or 0 if it hasn't

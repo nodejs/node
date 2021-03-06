@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
  *******************************************************************************
@@ -8,7 +8,7 @@
  *
  *******************************************************************************
  *   file name:  usprep.h
- *   encoding:   US-ASCII
+ *   encoding:   UTF-8
  *   tab size:   8 (not used)
  *   indentation:4
  *
@@ -25,7 +25,10 @@
  */
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
 #include "unicode/localpointer.h"
+#endif   // U_SHOW_CPLUSPLUS_API
 
 /**
  *
@@ -33,14 +36,14 @@
  * StringPrep prepares Unicode strings for use in network protocols.
  * Profiles of StingPrep are set of rules and data according to with the
  * Unicode Strings are prepared. Each profiles contains tables which describe
- * how a code point should be treated. The tables are broadly classied into
+ * how a code point should be treated. The tables are broadly classified into
  * <ul>
- *     <li> Unassinged Table: Contains code points that are unassigned
+ *     <li> Unassigned Table: Contains code points that are unassigned
  *          in the Unicode Version supported by StringPrep. Currently
  *          RFC 3454 supports Unicode 3.2. </li>
- *     <li> Prohibited Table: Contains code points that are prohibted from
+ *     <li> Prohibited Table: Contains code points that are prohibited from
  *          the output of the StringPrep processing function. </li>
- *     <li> Mapping Table: Contains code ponts that are deleted from the output or case mapped. </li>
+ *     <li> Mapping Table: Contains code points that are deleted from the output or case mapped. </li>
  * </ul>
  *
  * The procedure for preparing Unicode strings:
@@ -181,7 +184,7 @@ typedef enum UStringPrepProfileType {
  * @see usprep_close()
  * @stable ICU 2.8
  */
-U_STABLE UStringPrepProfile* U_EXPORT2
+U_CAPI UStringPrepProfile* U_EXPORT2
 usprep_open(const char* path,
             const char* fileName,
             UErrorCode* status);
@@ -197,7 +200,7 @@ usprep_open(const char* path,
  * @see usprep_close()
  * @stable ICU 4.2
  */
-U_STABLE UStringPrepProfile* U_EXPORT2
+U_CAPI UStringPrepProfile* U_EXPORT2
 usprep_openByType(UStringPrepProfileType type,
 				  UErrorCode* status);
 
@@ -206,7 +209,7 @@ usprep_openByType(UStringPrepProfileType type,
  * @param profile The profile to close
  * @stable ICU 2.8
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 usprep_close(UStringPrepProfile* profile);
 
 #if U_SHOW_CPLUSPLUS_API
@@ -230,7 +233,7 @@ U_NAMESPACE_END
 
 /**
  * Prepare the input buffer for use in applications with the given profile. This operation maps, normalizes(NFKC),
- * checks for prohited and BiDi characters in the order defined by RFC 3454
+ * checks for prohibited and BiDi characters in the order defined by RFC 3454
  * depending on the options specified in the profile.
  *
  * @param prep          The profile to use
@@ -257,7 +260,7 @@ U_NAMESPACE_END
  * @stable ICU 2.8
  */
 
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 usprep_prepare(   const UStringPrepProfile* prep,
                   const UChar* src, int32_t srcLength,
                   UChar* dest, int32_t destCapacity,

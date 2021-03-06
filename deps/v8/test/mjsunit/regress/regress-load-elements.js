@@ -27,13 +27,13 @@
 
 // Flags: --allow-natives-syntax
 
-function bad_func(o,a) {
+function bad_func(o, a) {
   for (var i = 0; i < 1; ++i) {
     o.prop = 0;
     var x = a[0];
   }
-}
-
+};
+%PrepareFunctionForOptimization(bad_func);
 o = new Object();
 a = {};
 a[0] = 1;

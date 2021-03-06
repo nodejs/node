@@ -34,6 +34,9 @@
 #define SET_REQ_ERROR(req, error)                                       \
   SET_REQ_STATUS((req), NTSTATUS_FROM_WIN32((error)))
 
+/* Note: used open-coded in UV_REQ_INIT() because of a circular dependency
+ * between src/uv-common.h and src/win/internal.h.
+ */
 #define SET_REQ_SUCCESS(req)                                            \
   SET_REQ_STATUS((req), STATUS_SUCCESS)
 
@@ -77,12 +80,6 @@
                                   &((req)->u.io.overlapped))) {         \
     uv_fatal_error(GetLastError(), "PostQueuedCompletionStatus");       \
   }
-
-
-INLINE static void uv_req_init(uv_loop_t* loop, uv_req_t* req) {
-  req->type = UV_UNKNOWN_REQ;
-  SET_REQ_SUCCESS(req);
-}
 
 
 INLINE static uv_req_t* uv_overlapped_to_req(OVERLAPPED* overlapped) {

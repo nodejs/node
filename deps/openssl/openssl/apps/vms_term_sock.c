@@ -1,4 +1,5 @@
 /*
+ * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2016 VMS Software, Inc. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -143,7 +144,7 @@ int main (int argc, char *argv[], char *envp[])
         ** Process the terminal input
         */
         LogMessage ("Waiting on terminal I/O ...\n");
-        len = recv (TermSock, TermBuff, sizeof (TermBuff), 0) ;
+        len = recv (TermSock, TermBuff, sizeof(TermBuff), 0) ;
         TermBuff[len] = '\0';
         LogMessage ("Received terminal I/O [%s]", TermBuff);
 
@@ -183,7 +184,7 @@ int TerminalSocket (int FunctionCode, int *ReturnSocket)
                 close (TerminalSocketPair[0]);
             if (TerminalSocketPair[1])
                 close (TerminalSocketPair[1]);
-            return (TERM_SOCK_FAILURE);
+            return TERM_SOCK_FAILURE;
         }
 
         /*
@@ -196,7 +197,7 @@ int TerminalSocket (int FunctionCode, int *ReturnSocket)
             LogMessage ("TerminalSocket: SYS$ASSIGN () - %08X", status);
             close (TerminalSocketPair[0]);
             close (TerminalSocketPair[1]);
-            return (TERM_SOCK_FAILURE);
+            return TERM_SOCK_FAILURE;
         }
 
         /*
@@ -209,13 +210,13 @@ int TerminalSocket (int FunctionCode, int *ReturnSocket)
                           TerminalDeviceAst,
                           0,
                           TerminalDeviceBuff,
-                          sizeof (TerminalDeviceBuff) - 2,
+                          sizeof(TerminalDeviceBuff) - 2,
                           0, 0, 0, 0);
         if (! (status & 1)) {
             LogMessage ("TerminalSocket: SYS$QIO () - %08X", status);
             close (TerminalSocketPair[0]);
             close (TerminalSocketPair[1]);
-            return (TERM_SOCK_FAILURE);
+            return TERM_SOCK_FAILURE;
         }
 
         /*
@@ -233,7 +234,7 @@ int TerminalSocket (int FunctionCode, int *ReturnSocket)
             LogMessage ("TerminalSocket: SYS$CANCEL () - %08X", status);
             close (TerminalSocketPair[0]);
             close (TerminalSocketPair[1]);
-            return (TERM_SOCK_FAILURE);
+            return TERM_SOCK_FAILURE;
         }
 
         /*
@@ -244,7 +245,7 @@ int TerminalSocket (int FunctionCode, int *ReturnSocket)
             LogMessage ("TerminalSocket: SYS$DASSGN () - %08X", status);
             close (TerminalSocketPair[0]);
             close (TerminalSocketPair[1]);
-            return (TERM_SOCK_FAILURE);
+            return TERM_SOCK_FAILURE;
         }
 
         /*
@@ -264,14 +265,14 @@ int TerminalSocket (int FunctionCode, int *ReturnSocket)
 	** Invalid function code
 	*/
         LogMessage ("TerminalSocket: Invalid Function Code - %d", FunctionCode);
-        return (TERM_SOCK_FAILURE);
+        return TERM_SOCK_FAILURE;
         break;
     }
 
     /*
     ** Return success
     */
-    return (TERM_SOCK_SUCCESS);
+    return TERM_SOCK_SUCCESS;
 
 }
 
@@ -311,13 +312,13 @@ static int CreateSocketPair (int SocketFamily,
     SockDesc1 = socket (SocketFamily, SocketType, 0);
     if (SockDesc1 < 0) {
         LogMessage ("CreateSocketPair: socket () - %d", errno);
-        return (-1);
+        return -1;
     }
 
     /*
     ** Initialize the socket information
     */
-    slen = sizeof (sin);
+    slen = sizeof(sin);
     memset ((char *) &sin, 0, slen);
     sin.sin_family = SocketFamily;
     sin.sin_addr.s_addr = inet_addr (LocalHostAddr);
@@ -330,7 +331,7 @@ static int CreateSocketPair (int SocketFamily,
     if (status < 0) {
         LogMessage ("CreateSocketPair: bind () - %d", errno);
         close (SockDesc1);
-        return (-1);
+        return -1;
     }
 
     /*
@@ -340,7 +341,7 @@ static int CreateSocketPair (int SocketFamily,
     if (status < 0) {
         LogMessage ("CreateSocketPair: getsockname () - %d", errno);
         close (SockDesc1);
-        return (-1);
+        return -1;
     } else
         LocalHostPort = sin.sin_port;
 
@@ -359,7 +360,7 @@ static int CreateSocketPair (int SocketFamily,
     if (! (status & 1)) {
         LogMessage ("CreateSocketPair: SYS$BINTIM () - %08X", status);
         close (SockDesc1);
-        return (-1);
+        return -1;
     }
 
     /*
@@ -370,7 +371,7 @@ static int CreateSocketPair (int SocketFamily,
     if (! (status & 1)) {
         LogMessage ("CreateSocketPair: SYS$ASSIGN () - %08X", status);
         close (SockDesc1);
-        return (-1);
+        return -1;
     }
 
     /*
@@ -392,7 +393,7 @@ static int CreateSocketPair (int SocketFamily,
         LogMessage ("CreateSocketPair: SYS$QIO () - %08X", status);
         close (SockDesc1);
         sys$dassgn (TcpDeviceChan);
-        return (-1);
+        return -1;
     }
 
     /*
@@ -428,18 +429,18 @@ static int CreateSocketPair (int SocketFamily,
         close (SockDesc1);
         close (SockDesc2);
         sys$dassgn (TcpDeviceChan);
-        return (-1);
+        return -1;
     }
 
     /*
     ** Now issue the connect
     */
-    memset ((char *) &sin, 0, sizeof (sin)) ;
+    memset ((char *) &sin, 0, sizeof(sin)) ;
     sin.sin_family = SocketFamily;
     sin.sin_addr.s_addr = inet_addr (LocalHostAddr) ;
     sin.sin_port = LocalHostPort ;
 
-    status = connect (SockDesc2, (struct sockaddr *) &sin, sizeof (sin));
+    status = connect (SockDesc2, (struct sockaddr *) &sin, sizeof(sin));
     if (status < 0 ) {
         LogMessage ("CreateSocketPair: connect () - %d", errno);
         sys$cantim (&sptb, 0);
@@ -447,7 +448,7 @@ static int CreateSocketPair (int SocketFamily,
         close (SockDesc1);
         close (SockDesc2);
         sys$dassgn (TcpDeviceChan);
-        return (-1);
+        return -1;
     }
 
     /*
@@ -467,7 +468,7 @@ static int CreateSocketPair (int SocketFamily,
         close (SockDesc1);
         close (SockDesc2);
         sys$dassgn (TcpDeviceChan);
-        return (-1);
+        return -1;
     }
 
     /*
@@ -513,7 +514,7 @@ static int TerminalDeviceAst (int astparm)
     strcat (TerminalDeviceBuff, "\n");
 
     /*
-    ** Send the data read from the terminal device throught the socket pair
+    ** Send the data read from the terminal device through the socket pair
     */
     send (TerminalSocketPair[0], TerminalDeviceBuff,
           TerminalDeviceIosb.iosb$w_bcnt + 1, 0);
@@ -528,7 +529,7 @@ static int TerminalDeviceAst (int astparm)
                       TerminalDeviceAst,
                       0,
                       TerminalDeviceBuff,
-                      sizeof (TerminalDeviceBuff) - 1,
+                      sizeof(TerminalDeviceBuff) - 1,
                       0, 0, 0, 0);
 
     /*

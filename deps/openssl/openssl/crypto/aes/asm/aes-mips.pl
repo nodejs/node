@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2010-2020 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 # ====================================================================
 # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
@@ -57,16 +64,18 @@
 $flavour = shift || "o32"; # supported flavours are o32,n32,64,nubi32,nubi64
 
 if ($flavour =~ /64|n32/i) {
-	$PTR_ADD="dadd";	# incidentally works even on n32
-	$PTR_SUB="dsub";	# incidentally works even on n32
+	$PTR_LA="dla";
+	$PTR_ADD="daddu";	# incidentally works even on n32
+	$PTR_SUB="dsubu";	# incidentally works even on n32
 	$PTR_INS="dins";
 	$REG_S="sd";
 	$REG_L="ld";
 	$PTR_SLL="dsll";	# incidentally works even on n32
 	$SZREG=8;
 } else {
-	$PTR_ADD="add";
-	$PTR_SUB="sub";
+	$PTR_LA="la";
+	$PTR_ADD="addu";
+	$PTR_SUB="subu";
 	$PTR_INS="ins";
 	$REG_S="sw";
 	$REG_L="lw";
@@ -79,29 +88,23 @@ $pf = ($flavour =~ /nubi/i) ? $t0 : $t2;
 #
 ######################################################################
 
-$big_endian=(`echo MIPSEL | $ENV{CC} -E -`=~/MIPSEL/)?1:0 if ($ENV{CC});
+$big_endian=(`echo MIPSEB | $ENV{CC} -E -`=~/MIPSEB/)?0:1 if ($ENV{CC});
 
-for (@ARGV) {	$output=$_ if (/^\w[\w\-]*\.\w+$/);	}
+for (@ARGV) {	$output=$_ if (/\w[\w\-]*\.\w+$/);	}
 open STDOUT,">$output";
 
 if (!defined($big_endian))
 {    $big_endian=(unpack('L',pack('N',1))==1);   }
 
-while (($output=shift) && ($output!~/^\w[\w\-]*\.\w+$/)) {}
+while (($output=shift) && ($output!~/\w[\w\-]*\.\w+$/)) {}
 open STDOUT,">$output";
 
 my ($MSB,$LSB)=(0,3);	# automatically converted to little-endian
 
 $code.=<<___;
+#include "mips_arch.h"
+
 .text
-#ifdef OPENSSL_FIPSCANISTER
-# include <openssl/fipssyms.h>
-#endif
-
-#if defined(__mips_smartmips) && !defined(_MIPS_ARCH_MIPS32R2)
-#define _MIPS_ARCH_MIPS32R2
-#endif
-
 #if !defined(__mips_eabi) && (!defined(__vxworks) || defined(__pic__))
 .option	pic2
 #endif
@@ -110,14 +113,14 @@ ___
 
 {{{
 my $FRAMESIZE=16*$SZREG;
-my $SAVED_REGS_MASK = ($flavour =~ /nubi/i) ? 0xc0fff008 : 0xc0ff0000;
+my $SAVED_REGS_MASK = ($flavour =~ /nubi/i) ? "0xc0fff008" : "0xc0ff0000";
 
 my ($inp,$out,$key,$Tbl,$s0,$s1,$s2,$s3)=($a0,$a1,$a2,$a3,$a4,$a5,$a6,$a7);
 my ($i0,$i1,$i2,$i3)=($at,$t0,$t1,$t2);
 my ($t0,$t1,$t2,$t3,$t4,$t5,$t6,$t7,$t8,$t9,$t10,$t11) = map("\$$_",(12..23));
 my ($key0,$cnt)=($gp,$fp);
 
-# instuction ordering is "stolen" from output from MIPSpro assembler
+# instruction ordering is "stolen" from output from MIPSpro assembler
 # invoked with -mips3 -O3 arguments...
 $code.=<<___;
 .align	5
@@ -137,7 +140,7 @@ _mips_AES_encrypt:
 	xor	$s2,$t2
 	xor	$s3,$t3
 
-	sub	$cnt,1
+	subu	$cnt,1
 #if defined(__mips_smartmips)
 	ext	$i0,$s1,16,8
 .Loop_enc:
@@ -209,7 +212,7 @@ _mips_AES_encrypt:
 	xor	$t2,$t6
 	xor	$t3,$t7
 
-	sub	$cnt,1
+	subu	$cnt,1
 	$PTR_ADD $key0,16
 	xor	$s0,$t0
 	xor	$s1,$t1
@@ -400,7 +403,7 @@ _mips_AES_encrypt:
 	xor	$t2,$t6
 	xor	$t3,$t7
 
-	sub	$cnt,1
+	subu	$cnt,1
 	$PTR_ADD $key0,16
 	xor	$s0,$t0
 	xor	$s1,$t1
@@ -646,8 +649,14 @@ $code.=<<___ if ($flavour !~ /o32/i);	# non-o32 PIC-ification
 ___
 $code.=<<___;
 	.set	reorder
-	la	$Tbl,AES_Te		# PIC-ified 'load address'
+	$PTR_LA	$Tbl,AES_Te		# PIC-ified 'load address'
 
+#if defined(_MIPS_ARCH_MIPS32R6) || defined(_MIPS_ARCH_MIPS64R6)
+	lw	$s0,0($inp)
+	lw	$s1,4($inp)
+	lw	$s2,8($inp)
+	lw	$s3,12($inp)
+#else
 	lwl	$s0,0+$MSB($inp)
 	lwl	$s1,4+$MSB($inp)
 	lwl	$s2,8+$MSB($inp)
@@ -656,9 +665,16 @@ $code.=<<___;
 	lwr	$s1,4+$LSB($inp)
 	lwr	$s2,8+$LSB($inp)
 	lwr	$s3,12+$LSB($inp)
+#endif
 
 	bal	_mips_AES_encrypt
 
+#if defined(_MIPS_ARCH_MIPS32R6) || defined(_MIPS_ARCH_MIPS64R6)
+	sw	$s0,0($out)
+	sw	$s1,4($out)
+	sw	$s2,8($out)
+	sw	$s3,12($out)
+#else
 	swr	$s0,0+$LSB($out)
 	swr	$s1,4+$LSB($out)
 	swr	$s2,8+$LSB($out)
@@ -667,6 +683,7 @@ $code.=<<___;
 	swl	$s1,4+$MSB($out)
 	swl	$s2,8+$MSB($out)
 	swl	$s3,12+$MSB($out)
+#endif
 
 	.set	noreorder
 	$REG_L	$ra,$FRAMESIZE-1*$SZREG($sp)
@@ -711,7 +728,7 @@ _mips_AES_decrypt:
 	xor	$s2,$t2
 	xor	$s3,$t3
 
-	sub	$cnt,1
+	subu	$cnt,1
 #if defined(__mips_smartmips)
 	ext	$i0,$s3,16,8
 .Loop_dec:
@@ -783,7 +800,7 @@ _mips_AES_decrypt:
 	xor	$t2,$t6
 	xor	$t3,$t7
 
-	sub	$cnt,1
+	subu	$cnt,1
 	$PTR_ADD $key0,16
 	xor	$s0,$t0
 	xor	$s1,$t1
@@ -976,7 +993,7 @@ _mips_AES_decrypt:
 	xor	$t2,$t6
 	xor	$t3,$t7
 
-	sub	$cnt,1
+	subu	$cnt,1
 	$PTR_ADD $key0,16
 	xor	$s0,$t0
 	xor	$s1,$t1
@@ -1217,8 +1234,14 @@ $code.=<<___ if ($flavour !~ /o32/i);	# non-o32 PIC-ification
 ___
 $code.=<<___;
 	.set	reorder
-	la	$Tbl,AES_Td		# PIC-ified 'load address'
+	$PTR_LA	$Tbl,AES_Td		# PIC-ified 'load address'
 
+#if defined(_MIPS_ARCH_MIPS32R6) || defined(_MIPS_ARCH_MIPS64R6)
+	lw	$s0,0($inp)
+	lw	$s1,4($inp)
+	lw	$s2,8($inp)
+	lw	$s3,12($inp)
+#else
 	lwl	$s0,0+$MSB($inp)
 	lwl	$s1,4+$MSB($inp)
 	lwl	$s2,8+$MSB($inp)
@@ -1227,9 +1250,16 @@ $code.=<<___;
 	lwr	$s1,4+$LSB($inp)
 	lwr	$s2,8+$LSB($inp)
 	lwr	$s3,12+$LSB($inp)
+#endif
 
 	bal	_mips_AES_decrypt
 
+#if defined(_MIPS_ARCH_MIPS32R6) || defined(_MIPS_ARCH_MIPS64R6)
+	sw	$s0,0($out)
+	sw	$s1,4($out)
+	sw	$s2,8($out)
+	sw	$s3,12($out)
+#else
 	swr	$s0,0+$LSB($out)
 	swr	$s1,4+$LSB($out)
 	swr	$s2,8+$LSB($out)
@@ -1238,6 +1268,7 @@ $code.=<<___;
 	swl	$s1,4+$MSB($out)
 	swl	$s2,8+$MSB($out)
 	swl	$s3,12+$MSB($out)
+#endif
 
 	.set	noreorder
 	$REG_L	$ra,$FRAMESIZE-1*$SZREG($sp)
@@ -1267,7 +1298,7 @@ ___
 
 {{{
 my $FRAMESIZE=8*$SZREG;
-my $SAVED_REGS_MASK = ($flavour =~ /nubi/i) ? 0xc000f008 : 0xc0000000;
+my $SAVED_REGS_MASK = ($flavour =~ /nubi/i) ? "0xc000f008" : "0xc0000000";
 
 my ($inp,$bits,$key,$Tbl)=($a0,$a1,$a2,$a3);
 my ($rk0,$rk1,$rk2,$rk3,$rk4,$rk5,$rk6,$rk7)=($a4,$a5,$a6,$a7,$s0,$s1,$s2,$s3);
@@ -1286,35 +1317,52 @@ _mips_AES_set_encrypt_key:
 	$PTR_ADD $rcon,$Tbl,256
 
 	.set	reorder
+#if defined(_MIPS_ARCH_MIPS32R6) || defined(_MIPS_ARCH_MIPS64R6)
+	lw	$rk0,0($inp)		# load 128 bits
+	lw	$rk1,4($inp)
+	lw	$rk2,8($inp)
+	lw	$rk3,12($inp)
+#else
 	lwl	$rk0,0+$MSB($inp)	# load 128 bits
 	lwl	$rk1,4+$MSB($inp)
 	lwl	$rk2,8+$MSB($inp)
 	lwl	$rk3,12+$MSB($inp)
-	li	$at,128
 	lwr	$rk0,0+$LSB($inp)
 	lwr	$rk1,4+$LSB($inp)
 	lwr	$rk2,8+$LSB($inp)
 	lwr	$rk3,12+$LSB($inp)
+#endif
+	li	$at,128
 	.set	noreorder
 	beq	$bits,$at,.L128bits
 	li	$cnt,10
 
 	.set	reorder
+#if defined(_MIPS_ARCH_MIPS32R6) || defined(_MIPS_ARCH_MIPS64R6)
+	lw	$rk4,16($inp)		# load 192 bits
+	lw	$rk5,20($inp)
+#else
 	lwl	$rk4,16+$MSB($inp)	# load 192 bits
 	lwl	$rk5,20+$MSB($inp)
-	li	$at,192
 	lwr	$rk4,16+$LSB($inp)
 	lwr	$rk5,20+$LSB($inp)
+#endif
+	li	$at,192
 	.set	noreorder
 	beq	$bits,$at,.L192bits
 	li	$cnt,8
 
 	.set	reorder
+#if defined(_MIPS_ARCH_MIPS32R6) || defined(_MIPS_ARCH_MIPS64R6)
+	lw	$rk6,24($inp)		# load 256 bits
+	lw	$rk7,28($inp)
+#else
 	lwl	$rk6,24+$MSB($inp)	# load 256 bits
 	lwl	$rk7,28+$MSB($inp)
-	li	$at,256
 	lwr	$rk6,24+$LSB($inp)
 	lwr	$rk7,28+$LSB($inp)
+#endif
+	li	$at,256
 	.set	noreorder
 	beq	$bits,$at,.L256bits
 	li	$cnt,7
@@ -1344,7 +1392,7 @@ _mips_AES_set_encrypt_key:
 	sw	$rk1,4($key)
 	sw	$rk2,8($key)
 	sw	$rk3,12($key)
-	sub	$cnt,1
+	subu	$cnt,1
 	$PTR_ADD $key,16
 
 	_bias	$i0,24
@@ -1401,7 +1449,7 @@ _mips_AES_set_encrypt_key:
 	sw	$rk3,12($key)
 	sw	$rk4,16($key)
 	sw	$rk5,20($key)
-	sub	$cnt,1
+	subu	$cnt,1
 	$PTR_ADD $key,24
 
 	_bias	$i0,24
@@ -1462,7 +1510,7 @@ _mips_AES_set_encrypt_key:
 	sw	$rk5,20($key)
 	sw	$rk6,24($key)
 	sw	$rk7,28($key)
-	sub	$cnt,1
+	subu	$cnt,1
 
 	_bias	$i0,24
 	_bias	$i1,16
@@ -1528,9 +1576,9 @@ _mips_AES_set_encrypt_key:
 	nop
 .end	_mips_AES_set_encrypt_key
 
-.globl	private_AES_set_encrypt_key
-.ent	private_AES_set_encrypt_key
-private_AES_set_encrypt_key:
+.globl	AES_set_encrypt_key
+.ent	AES_set_encrypt_key
+AES_set_encrypt_key:
 	.frame	$sp,$FRAMESIZE,$ra
 	.mask	$SAVED_REGS_MASK,-$SZREG
 	.set	noreorder
@@ -1552,11 +1600,11 @@ $code.=<<___ if ($flavour =~ /nubi/i);	# optimize non-nubi prologue
 ___
 $code.=<<___ if ($flavour !~ /o32/i);	# non-o32 PIC-ification
 	.cplocal	$Tbl
-	.cpsetup	$pf,$zero,private_AES_set_encrypt_key
+	.cpsetup	$pf,$zero,AES_set_encrypt_key
 ___
 $code.=<<___;
 	.set	reorder
-	la	$Tbl,AES_Te4		# PIC-ified 'load address'
+	$PTR_LA	$Tbl,AES_Te4		# PIC-ified 'load address'
 
 	bal	_mips_AES_set_encrypt_key
 
@@ -1575,7 +1623,7 @@ ___
 $code.=<<___;
 	jr	$ra
 	$PTR_ADD $sp,$FRAMESIZE
-.end	private_AES_set_encrypt_key
+.end	AES_set_encrypt_key
 ___
 
 my ($head,$tail)=($inp,$bits);
@@ -1583,9 +1631,9 @@ my ($tp1,$tp2,$tp4,$tp8,$tp9,$tpb,$tpd,$tpe)=($a4,$a5,$a6,$a7,$s0,$s1,$s2,$s3);
 my ($m,$x80808080,$x7f7f7f7f,$x1b1b1b1b)=($at,$t0,$t1,$t2);
 $code.=<<___;
 .align	5
-.globl	private_AES_set_decrypt_key
-.ent	private_AES_set_decrypt_key
-private_AES_set_decrypt_key:
+.globl	AES_set_decrypt_key
+.ent	AES_set_decrypt_key
+AES_set_decrypt_key:
 	.frame	$sp,$FRAMESIZE,$ra
 	.mask	$SAVED_REGS_MASK,-$SZREG
 	.set	noreorder
@@ -1607,11 +1655,11 @@ $code.=<<___ if ($flavour =~ /nubi/i);	# optimize non-nubi prologue
 ___
 $code.=<<___ if ($flavour !~ /o32/i);	# non-o32 PIC-ification
 	.cplocal	$Tbl
-	.cpsetup	$pf,$zero,private_AES_set_decrypt_key
+	.cpsetup	$pf,$zero,AES_set_decrypt_key
 ___
 $code.=<<___;
 	.set	reorder
-	la	$Tbl,AES_Te4		# PIC-ified 'load address'
+	$PTR_LA	$Tbl,AES_Te4		# PIC-ified 'load address'
 
 	bal	_mips_AES_set_encrypt_key
 
@@ -1644,7 +1692,7 @@ $code.=<<___;
 
 	lw	$tp1,16($key)		# modulo-scheduled
 	lui	$x80808080,0x8080
-	sub	$cnt,1
+	subu	$cnt,1
 	or	$x80808080,0x8080
 	sll	$cnt,2
 	$PTR_ADD $key,16
@@ -1707,7 +1755,7 @@ $code.=<<___;
 	lw	$tp1,4($key)		# modulo-scheduled
 	xor	$tpe,$tp2
 #endif
-	sub	$cnt,1
+	subu	$cnt,1
 	sw	$tpe,0($key)
 	$PTR_ADD $key,4
 	bnez	$cnt,.Lmix
@@ -1729,7 +1777,7 @@ ___
 $code.=<<___;
 	jr	$ra
 	$PTR_ADD $sp,$FRAMESIZE
-.end	private_AES_set_decrypt_key
+.end	AES_set_decrypt_key
 ___
 }}}
 
@@ -2119,4 +2167,4 @@ foreach (split("\n",$code)) {
 	print $_,"\n";
 }
 
-close STDOUT;
+close STDOUT or die "error closing STDOUT: $!";

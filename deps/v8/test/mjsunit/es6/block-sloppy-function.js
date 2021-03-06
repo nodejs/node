@@ -67,6 +67,24 @@
   assertEquals(1, f);
 })();
 
+(function shadowingLetDoesntBindGenerator() {
+  let f = function *f() {
+    while(true) {
+      yield 1;
+    }
+  };
+  assertEquals(1, f().next().value);
+  {
+    function *f() {
+      while(true) {
+        yield 2;
+      }
+    }
+    assertEquals(2, f().next().value);
+  }
+  assertEquals(1, f().next().value);
+})();
+
 (function shadowingClassDoesntBind() {
   class f { }
   assertEquals('class f { }', f.toString());
@@ -478,6 +496,32 @@
   assertEquals(4, f());
 })();
 
+(function noHoistingIfLetOutsideSimpleCatch() {
+  assertThrows(()=>f, ReferenceError);
+
+  let f = 2;
+
+  assertEquals(2, f);
+
+  try {
+    throw 0;
+  } catch (f) {
+    {
+      assertEquals(4, f());
+
+      function f() {
+        return 4;
+      }
+
+      assertEquals(4, f());
+    }
+
+    assertEquals(0, f);
+  }
+
+  assertEquals(2, f);
+})();
+
 (function noHoistingThroughComplexCatch() {
   try {
     throw 0;
@@ -594,7 +638,6 @@ eval(`
   `);
 }();
 
-// This test is incorrect BUG(v8:5168). The commented assertions are correct.
 (function evalHoistingThroughSimpleCatch() {
   try {
     throw 0;
@@ -603,27 +646,22 @@ eval(`
       return 4;
     } }`);
 
-    // assertEquals(0, f);
-    assertEquals(4, f());
+    assertEquals(0, f);
   }
 
-  // assertEquals(4, f());
-  assertEquals(undefined, f);
+  assertEquals(4, f());
 })();
 
-// This test is incorrect BUG(v8:5168). The commented assertions are correct.
 (function evalHoistingThroughWith() {
   with ({f: 0}) {
     eval(`{ function f() {
       return 4;
     } }`);
 
-    // assertEquals(0, f);
-    assertEquals(4, f());
+    assertEquals(0, f);
   }
 
-  // assertEquals(4, f());
-  assertEquals(undefined, f);
+  assertEquals(4, f());
 })();
 
 let dontHoistGlobal;

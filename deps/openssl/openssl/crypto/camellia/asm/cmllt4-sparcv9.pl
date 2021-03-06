@@ -1,8 +1,15 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2012-2020 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 # ====================================================================
-# Written by David S. Miller <davem@devemloft.net> and Andy Polyakov
-# <appro@openssl.org>. The module is licensed under 2-clause BSD
+# Written by David S. Miller and Andy Polyakov.
+# The module is licensed under 2-clause BSD
 # license. October 2012. All rights reserved.
 # ====================================================================
 
@@ -10,7 +17,7 @@
 # Camellia for SPARC T4.
 #
 # As with AES below results [for aligned data] are virtually identical
-# to critical path lenths for 3-cycle instruction latency:
+# to critical path lengths for 3-cycle instruction latency:
 #
 #		128-bit key	192/256-
 # CBC encrypt	4.14/4.21(*)	5.46/5.52
@@ -18,7 +25,7 @@
 #			     misaligned data.
 #
 # As with Intel AES-NI, question is if it's possible to improve
-# performance of parallelizeable modes by interleaving round
+# performance of parallelizable modes by interleaving round
 # instructions. In Camellia every instruction is dependent on
 # previous, which means that there is place for 2 additional ones
 # in between two dependent. Can we expect 3x performance improvement?
@@ -46,7 +53,8 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 push(@INC,"${dir}","${dir}../../perlasm");
 require "sparcv9_modes.pl";
 
-&asm_init(@ARGV);
+$output = pop;
+open STDOUT,">$output";
 
 $::evp=1;	# if $evp is set to 0, script generates module with
 # Camellia_[en|de]crypt, Camellia_set_key and Camellia_cbc_encrypt
@@ -59,6 +67,8 @@ $::evp=1;	# if $evp is set to 0, script generates module with
 my ($inp,$out,$key,$rounds,$tmp,$mask)=map("%o$_",(0..5));
 
 $code=<<___;
+#include "sparc_arch.h"
+
 .text
 
 .globl	cmll_t4_encrypt
@@ -926,4 +936,4 @@ ___
 
 &emit_assembler();
 
-close STDOUT;
+close STDOUT or die "error closing STDOUT: $!";

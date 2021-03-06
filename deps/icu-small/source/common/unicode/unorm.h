@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -131,6 +131,8 @@
 
 // Do not conditionalize the following enum with #ifndef U_HIDE_DEPRECATED_API,
 // it is needed for layout of Normalizer object.
+#ifndef U_FORCE_HIDE_DEPRECATED_API
+
 /**
  * Constants for normalization modes.
  * @deprecated ICU 56 Use unorm2.h instead.
@@ -154,6 +156,8 @@ typedef enum {
   /** One more than the highest normalization mode constant. @deprecated ICU 56 Use unorm2.h instead. */
   UNORM_MODE_COUNT
 } UNormalizationMode;
+
+#endif  // U_FORCE_HIDE_DEPRECATED_API
 
 #ifndef U_HIDE_DEPRECATED_API
 
@@ -210,7 +214,7 @@ enum {
  *         the output was truncated, and the error code is set to U_BUFFER_OVERFLOW_ERROR.
  * @deprecated ICU 56 Use unorm2.h instead.
  */
-U_STABLE int32_t U_EXPORT2
+U_DEPRECATED int32_t U_EXPORT2
 unorm_normalize(const UChar *source, int32_t sourceLength,
                 UNormalizationMode mode, int32_t options,
                 UChar *result, int32_t resultLength,
@@ -236,7 +240,7 @@ unorm_normalize(const UChar *source, int32_t sourceLength,
  * @see unorm_isNormalized
  * @deprecated ICU 56 Use unorm2.h instead.
  */
-U_STABLE UNormalizationCheckResult U_EXPORT2
+U_DEPRECATED UNormalizationCheckResult U_EXPORT2
 unorm_quickCheck(const UChar *source, int32_t sourcelength,
                  UNormalizationMode mode,
                  UErrorCode *status);
@@ -257,7 +261,7 @@ unorm_quickCheck(const UChar *source, int32_t sourcelength,
  * @see unorm_isNormalized
  * @deprecated ICU 56 Use unorm2.h instead.
  */
-U_STABLE UNormalizationCheckResult U_EXPORT2
+U_DEPRECATED UNormalizationCheckResult U_EXPORT2
 unorm_quickCheckWithOptions(const UChar *src, int32_t srcLength,
                             UNormalizationMode mode, int32_t options,
                             UErrorCode *pErrorCode);
@@ -270,7 +274,7 @@ unorm_quickCheckWithOptions(const UChar *src, int32_t srcLength,
  * never a "maybe".
  * For NFD, NFKD, and FCD, both functions work exactly the same.
  * For NFC and NFKC where quickCheck may return "maybe", this function will
- * perform further tests to arrive at a TRUE/FALSE result.
+ * perform further tests to arrive at a true/false result.
  *
  * @param src        String that is to be tested if it is in a normalization format.
  * @param srcLength  Length of source to test, or -1 if NUL-terminated.
@@ -283,7 +287,7 @@ unorm_quickCheckWithOptions(const UChar *src, int32_t srcLength,
  * @see unorm_quickCheck
  * @deprecated ICU 56 Use unorm2.h instead.
  */
-U_STABLE UBool U_EXPORT2
+U_DEPRECATED UBool U_EXPORT2
 unorm_isNormalized(const UChar *src, int32_t srcLength,
                    UNormalizationMode mode,
                    UErrorCode *pErrorCode);
@@ -305,7 +309,7 @@ unorm_isNormalized(const UChar *src, int32_t srcLength,
  * @see unorm_isNormalized
  * @deprecated ICU 56 Use unorm2.h instead.
  */
-U_STABLE UBool U_EXPORT2
+U_DEPRECATED UBool U_EXPORT2
 unorm_isNormalizedWithOptions(const UChar *src, int32_t srcLength,
                               UNormalizationMode mode, int32_t options,
                               UErrorCode *pErrorCode);
@@ -354,10 +358,10 @@ unorm_isNormalizedWithOptions(const UChar *src, int32_t srcLength,
  * It is useful for operations like a normalizing transliterator, where one would
  * not want to replace a piece of text if it is not modified.
  *
- * If doNormalize==TRUE and pNeededToNormalize!=NULL then *pNeeded... is set TRUE
+ * If doNormalize==true and pNeededToNormalize!=NULL then *pNeeded... is set true
  * if the normalization was necessary.
  *
- * If doNormalize==FALSE then *pNeededToNormalize will be set to FALSE.
+ * If doNormalize==false then *pNeededToNormalize will be set to false.
  *
  * If the buffer overflows, then *pNeededToNormalize will be undefined;
  * essentially, whenever U_FAILURE is true (like in buffer overflows), this result
@@ -369,11 +373,11 @@ unorm_isNormalizedWithOptions(const UChar *src, int32_t srcLength,
  * @param mode The normalization mode.
  * @param options The normalization options, ORed together (0 for no options).
  * @param doNormalize Indicates if the source text up to the next boundary
- *                    is to be normalized (TRUE) or just copied (FALSE).
+ *                    is to be normalized (true) or just copied (false).
  * @param pNeededToNormalize Output flag indicating if the normalization resulted in
  *                           different text from the input.
  *                           Not defined if an error occurs including buffer overflow.
- *                           Always FALSE if !doNormalize.
+ *                           Always false if !doNormalize.
  * @param pErrorCode ICU error code in/out parameter.
  *                   Must fulfill U_SUCCESS before the function call.
  * @return Length of output (number of UChars) when successful or buffer overflow.
@@ -383,7 +387,7 @@ unorm_isNormalizedWithOptions(const UChar *src, int32_t srcLength,
  *
  * @deprecated ICU 56 Use unorm2.h instead.
  */
-U_STABLE int32_t U_EXPORT2
+U_DEPRECATED int32_t U_EXPORT2
 unorm_next(UCharIterator *src,
            UChar *dest, int32_t destCapacity,
            UNormalizationMode mode, int32_t options,
@@ -402,11 +406,11 @@ unorm_next(UCharIterator *src,
  * @param mode The normalization mode.
  * @param options The normalization options, ORed together (0 for no options).
  * @param doNormalize Indicates if the source text up to the next boundary
- *                    is to be normalized (TRUE) or just copied (FALSE).
+ *                    is to be normalized (true) or just copied (false).
  * @param pNeededToNormalize Output flag indicating if the normalization resulted in
  *                           different text from the input.
  *                           Not defined if an error occurs including buffer overflow.
- *                           Always FALSE if !doNormalize.
+ *                           Always false if !doNormalize.
  * @param pErrorCode ICU error code in/out parameter.
  *                   Must fulfill U_SUCCESS before the function call.
  * @return Length of output (number of UChars) when successful or buffer overflow.
@@ -416,7 +420,7 @@ unorm_next(UCharIterator *src,
  *
  * @deprecated ICU 56 Use unorm2.h instead.
  */
-U_STABLE int32_t U_EXPORT2
+U_DEPRECATED int32_t U_EXPORT2
 unorm_previous(UCharIterator *src,
                UChar *dest, int32_t destCapacity,
                UNormalizationMode mode, int32_t options,
@@ -460,7 +464,7 @@ unorm_previous(UCharIterator *src,
  *
  * @deprecated ICU 56 Use unorm2.h instead.
  */
-U_STABLE int32_t U_EXPORT2
+U_DEPRECATED int32_t U_EXPORT2
 unorm_concatenate(const UChar *left, int32_t leftLength,
                   const UChar *right, int32_t rightLength,
                   UChar *dest, int32_t destCapacity,

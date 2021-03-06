@@ -1,0 +1,257 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-regexp-gen.h'
+
+namespace regexp {
+
+extern builtin
+SubString(implicit context: Context)(String, Smi, Smi): String;
+
+extern runtime RegExpExecMultiple(implicit context: Context)(
+    JSRegExp, String, RegExpMatchInfo, JSArray): Null|JSArray;
+extern transitioning runtime
+RegExpReplaceRT(Context, JSReceiver, String, Object): String;
+extern transitioning runtime
+StringBuilderConcat(implicit context: Context)(JSArray, Smi, String): String;
+extern transitioning runtime
+StringReplaceNonGlobalRegExpWithFunction(implicit context: Context)(
+    String, JSRegExp, Callable): String;
+
+transitioning macro RegExpReplaceCallableNoExplicitCaptures(
+    implicit context: Context)(
+    matchesElements: FixedArray, matchesLength: intptr, string: String,
+    replaceFn: Callable) {
+  let matchStart: Smi = 0;
+  for (let i: intptr = 0; i < matchesLength; i++) {
+    typeswitch (matchesElements.objects[i]) {
+      // Element represents a slice.
+      case (elSmi: Smi): {
+        // The slice's match start and end is either encoded as one or two
+        // smis. A positive smi indicates a single smi encoding (see
+        // ReplacementStringBuilder::AddSubjectSlice()).
+        if (elSmi > 0) {
+          // For single smi encoding, see
+          // StringBuilderSubstringLength::encode() and
+          // StringBuilderSubstringPosition::encode().
+          const elInt: intptr = Convert<intptr>(elSmi);
+          const newMatchStart: intptr = (elInt >> 11) + (elInt & 0x7FF);
+          matchStart = Convert<Smi>(newMatchStart);
+        } else {
+          // For two smi encoding, the length is negative followed by the
+          // match start.
+          const nextEl: Smi = UnsafeCast<Smi>(matchesElements.objects[++i]);
+          matchStart = nextEl - elSmi;
+        }
+      }
+      // Element represents the matched substring, which is then passed to the
+      // replace function.
+      case (elString: String): {
+        const replacementObj: JSAny =
+            Call(context, replaceFn, Undefined, elString, matchStart, string);
+        const replacement: String = ToString_Inline(replacementObj);
+        matchesElements.objects[i] = replacement;
+        matchStart += elString.length_smi;
+      }
+      case (Object): deferred {
+        unreachable;
+      }
+    }
+  }
+}
+
+transitioning macro
+RegExpReplaceCallableWithExplicitCaptures(implicit context: Context)(
+    matchesElements: FixedArray, matchesLength: intptr, replaceFn: Callable) {
+  for (let i: intptr = 0; i < matchesLength; i++) {
+    const elArray =
+        Cast<JSArray>(matchesElements.objects[i]) otherwise continue;
+
+    // The JSArray is expanded into the function args by Reflect.apply().
+    // TODO(jgruber): Remove indirection through Call->ReflectApply.
+    const replacementObj: JSAny = Call(
+        context, GetReflectApply(), Undefined, replaceFn, Undefined, elArray);
+
+    // Overwrite the i'th element in the results with the string
+    // we got back from the callback function.
+    matchesElements.objects[i] = ToString_Inline(replacementObj);
+  }
+}
+
+transitioning macro RegExpReplaceFastGlobalCallable(implicit context: Context)(
+    regexp: FastJSRegExp, string: String, replaceFn: Callable): String {
+  regexp.lastIndex = 0;
+
+  const kInitialCapacity: intptr = 16;
+  const kInitialLength: Smi = 0;
+  const result: Null|JSArray = RegExpExecMultiple(
+      regexp, string, GetRegExpLastMatchInfo(),
+      AllocateJSArray(
+          ElementsKind::PACKED_ELEMENTS, GetFastPackedElementsJSArrayMap(),
+          kInitialCapacity, kInitialLength));
+
+  regexp.lastIndex = 0;
+
+  // If no matches, return the subject string.
+  if (result == Null) return string;
+
+  const matches: JSArray = UnsafeCast<JSArray>(result);
+  const matchesLength: Smi = Cast<Smi>(matches.length) otherwise unreachable;
+  const matchesLengthInt: intptr = Convert<intptr>(matchesLength);
+  const matchesElements: FixedArray = UnsafeCast<FixedArray>(matches.elements);
+
+  // Reload last match info since it might have changed.
+  const nofCaptures: Smi = GetRegExpLastMatchInfo().NumberOfCaptures();
+
+  // If the number of captures is two then there are no explicit captures in
+  // the regexp, just the implicit capture that captures the whole match. In
+  // this case we can simplify quite a bit and end up with something faster.
+  if (nofCaptures == 2) {
+    RegExpReplaceCallableNoExplicitCaptures(
+        matchesElements, matchesLengthInt, string, replaceFn);
+  } else {
+    RegExpReplaceCallableWithExplicitCaptures(
+        matchesElements, matchesLengthInt, replaceFn);
+  }
+
+  return StringBuilderConcat(matches, matchesLength, string);
+}
+
+transitioning macro RegExpReplaceFastString(implicit context: Context)(
+    regexp: JSRegExp, string: String, replaceString: String): String {
+  // The fast path is reached only if {receiver} is an unmodified JSRegExp
+  // instance, {replace_value} is non-callable, and ToString({replace_value})
+  // does not contain '$', i.e. we're doing a simple string replacement.
+  let result: String = kEmptyString;
+  let lastMatchEnd: Smi = 0;
+  let unicode: bool = false;
+  const replaceLength: Smi = replaceString.length_smi;
+  const fastRegexp = UnsafeCast<FastJSRegExp>(regexp);
+  const global: bool = fastRegexp.global;
+
+  if (global) {
+    unicode = fastRegexp.unicode;
+    fastRegexp.lastIndex = 0;
+  }
+
+  while (true) {
+    const match: RegExpMatchInfo =
+        RegExpPrototypeExecBodyWithoutResultFast(regexp, string)
+        otherwise break;
+    const matchStart: Smi = match.GetStartOfCapture(0);
+    const matchEnd: Smi = match.GetEndOfCapture(0);
+
+    // TODO(jgruber): We could skip many of the checks that using SubString
+    // here entails.
+    result = result + SubString(string, lastMatchEnd, matchStart);
+    lastMatchEnd = matchEnd;
+
+    if (replaceLength != 0) result = result + replaceString;
+
+    // Non-global case ends here after the first replacement.
+    if (!global) break;
+
+    // If match is the empty string, we have to increment lastIndex.
+    if (matchEnd == matchStart) {
+      typeswitch (regexp) {
+        case (fastRegexp: FastJSRegExp): {
+          fastRegexp.lastIndex =
+              AdvanceStringIndexFast(string, fastRegexp.lastIndex, unicode);
+        }
+        case (Object): {
+          const lastIndex: JSAny = SlowLoadLastIndex(regexp);
+          const thisIndex: Number = ToLength_Inline(lastIndex);
+          const nextIndex: Number =
+              AdvanceStringIndexSlow(string, thisIndex, unicode);
+          SlowStoreLastIndex(regexp, nextIndex);
+        }
+      }
+    }
+  }
+
+  return result + SubString(string, lastMatchEnd, string.length_smi);
+}
+
+transitioning builtin RegExpReplace(implicit context: Context)(
+    regexp: FastJSRegExp, string: String, replaceValue: JSAny): String {
+  // TODO(pwong): Remove assert when all callers (StringPrototypeReplace) are
+  // from Torque.
+  assert(Is<FastJSRegExp>(regexp));
+
+  // 2. Is {replace_value} callable?
+  typeswitch (replaceValue) {
+    case (replaceFn: Callable): {
+      return regexp.global ?
+          RegExpReplaceFastGlobalCallable(regexp, string, replaceFn) :
+          StringReplaceNonGlobalRegExpWithFunction(string, regexp, replaceFn);
+    }
+    case (JSAny): {
+      const stableRegexp: JSRegExp = regexp;
+      const replaceString: String = ToString_Inline(replaceValue);
+
+      try {
+        // ToString(replaceValue) could potentially change the shape of the
+        // RegExp object. Recheck that we are still on the fast path and bail
+        // to runtime otherwise.
+        const fastRegexp = Cast<FastJSRegExp>(stableRegexp) otherwise Runtime;
+        if (StringIndexOf(
+                replaceString, SingleCharacterStringConstant('$'), 0) != -1) {
+          goto Runtime;
+        }
+
+        return RegExpReplaceFastString(fastRegexp, string, replaceString);
+      } label Runtime deferred {
+        return RegExpReplaceRT(context, stableRegexp, string, replaceString);
+      }
+    }
+  }
+}
+
+const kRegExpReplaceCalledOnSlowRegExp: constexpr int31
+    generates 'v8::Isolate::kRegExpReplaceCalledOnSlowRegExp';
+
+transitioning javascript builtin RegExpPrototypeReplace(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  const methodName: constexpr string = 'RegExp.prototype.@@replace';
+
+  // RegExpPrototypeReplace is a bit of a beast - a summary of dispatch logic:
+  //
+  // if (!IsFastRegExp(receiver)) CallRuntime(RegExpReplace)
+  // if (IsCallable(replace)) {
+  //   if (IsGlobal(receiver)) {
+  //     // Called 'fast-path' but contains several runtime calls.
+  //     RegExpReplaceFastGlobalCallable()
+  //   } else {
+  //     CallRuntime(StringReplaceNonGlobalRegExpWithFunction)
+  //   }
+  // } else {
+  //   if (replace.contains("$")) {
+  //     CallRuntime(RegExpReplace)
+  //   } else {
+  //     RegExpReplaceFastString()
+  //   }
+  // }
+
+  const string: JSAny = arguments[0];
+  const replaceValue: JSAny = arguments[1];
+
+  // Let rx be the this value.
+  // If Type(rx) is not Object, throw a TypeError exception.
+  const rx = Cast<JSReceiver>(receiver)
+      otherwise ThrowTypeError(
+      MessageTemplate::kIncompatibleMethodReceiver, methodName);
+
+  // Let S be ? ToString(string).
+  const s = ToString_Inline(string);
+
+  // Fast-path checks: 1. Is the {receiver} an unmodified JSRegExp instance?
+  try {
+    const fastRx: FastJSRegExp = Cast<FastJSRegExp>(rx) otherwise Runtime;
+    return RegExpReplace(fastRx, s, replaceValue);
+  } label Runtime deferred {
+    IncrementUseCounter(context, SmiConstant(kRegExpReplaceCalledOnSlowRegExp));
+    return RegExpReplaceRT(context, rx, s, replaceValue);
+  }
+}
+}

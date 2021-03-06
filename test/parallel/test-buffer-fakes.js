@@ -2,7 +2,6 @@
 
 require('../common');
 const assert = require('assert');
-const Buffer = require('buffer').Buffer;
 
 function FakeBuffer() { }
 Object.setPrototypeOf(FakeBuffer, Buffer);
@@ -15,7 +14,7 @@ assert.throws(function() {
 }, TypeError);
 
 assert.throws(function() {
-  +Buffer.prototype;
+  +Buffer.prototype; // eslint-disable-line no-unused-expressions
 }, TypeError);
 
 assert.throws(function() {

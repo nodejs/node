@@ -7,7 +7,9 @@
 
 #include <iosfwd>
 
-#include "src/zone-containers.h"
+#include "src/base/compiler-specific.h"
+#include "src/common/globals.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -18,15 +20,14 @@ class BasicBlock;
 class BasicBlockInstrumentor;
 class Node;
 
-
-typedef ZoneVector<BasicBlock*> BasicBlockVector;
-typedef ZoneVector<Node*> NodeVector;
-
+using BasicBlockVector = ZoneVector<BasicBlock*>;
+using NodeVector = ZoneVector<Node*>;
 
 // A basic block contains an ordered list of nodes and ends with a control
 // node. Note that if a basic block has phis, then all phis must appear as the
 // first nodes in the block.
-class BasicBlock final : public ZoneObject {
+class V8_EXPORT_PRIVATE BasicBlock final
+    : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   // Possible control nodes that can end a block.
   enum Control {
@@ -55,8 +56,18 @@ class BasicBlock final : public ZoneObject {
   };
 
   BasicBlock(Zone* zone, Id id);
+  BasicBlock(const BasicBlock&) = delete;
+  BasicBlock& operator=(const BasicBlock&) = delete;
 
   Id id() const { return id_; }
+#if DEBUG
+  void set_debug_info(AssemblerDebugInfo debug_info) {
+    debug_info_ = debug_info;
+  }
+  AssemblerDebugInfo debug_info() const { return debug_info_; }
+#endif  // DEBUG
+
+  void Print();
 
   // Predecessors.
   BasicBlockVector& predecessors() { return predecessors_; }
@@ -65,6 +76,7 @@ class BasicBlock final : public ZoneObject {
   BasicBlock* PredecessorAt(size_t index) { return predecessors_[index]; }
   void ClearPredecessors() { predecessors_.clear(); }
   void AddPredecessor(BasicBlock* predecessor);
+  void RemovePredecessor(size_t index);
 
   // Successors.
   BasicBlockVector& successors() { return successors_; }
@@ -75,7 +87,7 @@ class BasicBlock final : public ZoneObject {
   void AddSuccessor(BasicBlock* successor);
 
   // Nodes in the basic block.
-  typedef Node* value_type;
+  using value_type = Node*;
   bool empty() const { return nodes_.empty(); }
   size_t size() const { return nodes_.size(); }
   Node* NodeAt(size_t index) { return nodes_[index]; }
@@ -84,15 +96,17 @@ class BasicBlock final : public ZoneObject {
   value_type& front() { return nodes_.front(); }
   value_type const& front() const { return nodes_.front(); }
 
-  typedef NodeVector::iterator iterator;
+  using iterator = NodeVector::iterator;
   iterator begin() { return nodes_.begin(); }
   iterator end() { return nodes_.end(); }
 
-  typedef NodeVector::const_iterator const_iterator;
+  void RemoveNode(iterator it) { nodes_.erase(it); }
+
+  using const_iterator = NodeVector::const_iterator;
   const_iterator begin() const { return nodes_.begin(); }
   const_iterator end() const { return nodes_.end(); }
 
-  typedef NodeVector::reverse_iterator reverse_iterator;
+  using reverse_iterator = NodeVector::reverse_iterator;
   reverse_iterator rbegin() { return nodes_.rbegin(); }
   reverse_iterator rend() { return nodes_.rend(); }
 
@@ -102,6 +116,11 @@ class BasicBlock final : public ZoneObject {
                    InputIterator insertion_end) {
     nodes_.insert(insertion_point, insertion_start, insertion_end);
   }
+
+  // Trim basic block to end at {new_end}.
+  void TrimNodes(iterator new_end);
+
+  void ResetRPOInfo();
 
   // Accessors.
   Control control() const { return control_; }
@@ -137,6 +156,8 @@ class BasicBlock final : public ZoneObject {
   int32_t rpo_number() const { return rpo_number_; }
   void set_rpo_number(int32_t rpo_number);
 
+  NodeVector* nodes() { return &nodes_; }
+
   // Loop membership helpers.
   inline bool IsLoopHeader() const { return loop_end_ != nullptr; }
   bool LoopContains(BasicBlock* block) const;
@@ -155,37 +176,41 @@ class BasicBlock final : public ZoneObject {
   BasicBlock* loop_header_;  // Pointer to dominating loop header basic block,
   // nullptr if none. For loop headers, this points to
   // enclosing loop header.
-  BasicBlock* loop_end_;     // end of the loop, if this block is a loop header.
-  int32_t loop_depth_;       // loop nesting, 0 is top-level
+  BasicBlock* loop_end_;  // end of the loop, if this block is a loop header.
+  int32_t loop_depth_;    // loop nesting, 0 is top-level
 
-  Control control_;          // Control at the end of the block.
-  Node* control_input_;      // Input value for control.
-  NodeVector nodes_;         // nodes of this block in forward order.
+  Control control_;      // Control at the end of the block.
+  Node* control_input_;  // Input value for control.
+  NodeVector nodes_;     // nodes of this block in forward order.
 
   BasicBlockVector successors_;
   BasicBlockVector predecessors_;
+#if DEBUG
+  AssemblerDebugInfo debug_info_;
+#endif
   Id id_;
-
-  DISALLOW_COPY_AND_ASSIGN(BasicBlock);
 };
 
+std::ostream& operator<<(std::ostream&, const BasicBlock&);
 std::ostream& operator<<(std::ostream&, const BasicBlock::Control&);
 std::ostream& operator<<(std::ostream&, const BasicBlock::Id&);
-
 
 // A schedule represents the result of assigning nodes to basic blocks
 // and ordering them within basic blocks. Prior to computing a schedule,
 // a graph has no notion of control flow ordering other than that induced
 // by the graph's dependencies. A schedule is required to generate code.
-class Schedule final : public ZoneObject {
+class V8_EXPORT_PRIVATE Schedule final : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   explicit Schedule(Zone* zone, size_t node_count_hint = 0);
+  Schedule(const Schedule&) = delete;
+  Schedule& operator=(const Schedule&) = delete;
 
   // Return the block which contains {node}, if any.
   BasicBlock* block(Node* node) const;
 
   bool IsScheduled(Node* node);
   BasicBlock* GetBlockById(BasicBlock::Id block_id);
+  void ClearBlockById(BasicBlock::Id block_id);
 
   size_t BasicBlockCount() const { return all_blocks_.size(); }
   size_t RpoBlockCount() const { return rpo_order_.size(); }
@@ -253,16 +278,22 @@ class Schedule final : public ZoneObject {
   Zone* zone() const { return zone_; }
 
  private:
+  friend class GraphAssembler;
   friend class Scheduler;
   friend class BasicBlockInstrumentor;
   friend class RawMachineAssembler;
 
-  // Ensure properties of the CFG assumed by further stages.
+  // For CSA/Torque: Ensure properties of the CFG assumed by further stages.
   void EnsureCFGWellFormedness();
+  // For CSA/Torque: Eliminates unnecessary phi nodes, including phis with a
+  // single input. The latter is necessary to ensure the property required for
+  // SSA deconstruction that the target block of a control flow split has no
+  // phis.
+  void EliminateRedundantPhiNodes();
   // Ensure split-edge form for a hand-assembled schedule.
   void EnsureSplitEdgeForm(BasicBlock* block);
-  // Ensure entry into a deferred block happens from a single hot block.
-  void EnsureDeferredCodeSingleEntryPoint(BasicBlock* block);
+  // Move Phi operands to newly created merger blocks
+  void MovePhis(BasicBlock* from, BasicBlock* to);
   // Copy deferred block markers down as far as possible
   void PropagateDeferredMark();
 
@@ -273,16 +304,14 @@ class Schedule final : public ZoneObject {
   void SetBlockForNode(BasicBlock* block, Node* node);
 
   Zone* zone_;
-  BasicBlockVector all_blocks_;           // All basic blocks in the schedule.
-  BasicBlockVector nodeid_to_block_;      // Map from node to containing block.
-  BasicBlockVector rpo_order_;            // Reverse-post-order block list.
+  BasicBlockVector all_blocks_;       // All basic blocks in the schedule.
+  BasicBlockVector nodeid_to_block_;  // Map from node to containing block.
+  BasicBlockVector rpo_order_;        // Reverse-post-order block list.
   BasicBlock* start_;
   BasicBlock* end_;
-
-  DISALLOW_COPY_AND_ASSIGN(Schedule);
 };
 
-std::ostream& operator<<(std::ostream&, const Schedule&);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, const Schedule&);
 
 }  // namespace compiler
 }  // namespace internal

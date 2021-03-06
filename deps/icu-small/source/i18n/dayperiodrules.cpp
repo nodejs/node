@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -174,7 +174,7 @@ struct DayPeriodRulesDataSink : public ResourceSink {
         }
     }
 
-    void addCutoff(CutoffType type, UnicodeString hour_str, UErrorCode &errorCode) {
+    void addCutoff(CutoffType type, const UnicodeString &hour_str, UErrorCode &errorCode) {
         if (U_FAILURE(errorCode)) { return; }
 
         if (type == CUTOFF_TYPE_UNKNOWN) {
@@ -340,7 +340,7 @@ const DayPeriodRules *DayPeriodRules::getInstance(const Locale &locale, UErrorCo
     // does), return NULL.
     if(U_FAILURE(errorCode)) { return NULL; }
 
-    const char *localeCode = locale.getName();
+    const char *localeCode = locale.getBaseName();
     char name[ULOC_FULLNAME_CAPACITY];
     char parentName[ULOC_FULLNAME_CAPACITY];
 

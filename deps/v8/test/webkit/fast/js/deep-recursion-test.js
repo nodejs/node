@@ -29,7 +29,7 @@ description("This test how deep we can recurse, and that we get an exception whe
     }
 
     try {
-        simpleRecursion(5000);
+        simpleRecursion(4000);
     } catch (ex) {
         debug("FAIL: " + ex);
     }

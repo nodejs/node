@@ -25,9 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --fold-constants --nodead-code-elimination
 // Flags: --expose-gc --allow-natives-syntax
 // Flags: --concurrent-recompilation --block-concurrent-recompilation
+// Flags: --opt --no-always-opt
 
 if (!%IsConcurrentRecompilationSupported()) {
   print("Concurrent recompilation is disabled. Skipping this test.");
@@ -35,6 +35,7 @@ if (!%IsConcurrentRecompilationSupported()) {
 }
 
 function test(fun) {
+  %PrepareFunctionForOptimization(fun);
   fun();
   fun();
   // Mark for concurrent optimization.

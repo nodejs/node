@@ -31,19 +31,19 @@ function test1() {
   // Trigger overflow when converting/truncating double to integer.
   // Divide by 10 to avoid overflow when smi-tagging at the end.
   return Math.floor(-100000000000.5) / 10;
-}
-
+};
+%PrepareFunctionForOptimization(test1);
 function test2() {
   // Trigger no overflow.
   return Math.floor(-100.2);
-}
-
+};
+%PrepareFunctionForOptimization(test2);
 function test3() {
   // Trigger overflow when compensating by subtracting after compare.
   // Divide by 10 to avoid overflow when smi-tagging at the end.
   return Math.floor(-2147483648.1) / 10;
-}
-
+};
+%PrepareFunctionForOptimization(test3);
 test1();
 test1();
 %OptimizeFunctionOnNextCall(test1);

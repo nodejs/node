@@ -20,11 +20,9 @@ stream.on('keypress', (s, k) => {
 
 stream.write('foo');
 
-process.on('exit', () => {
-  assert.deepStrictEqual(sequence, ['f', 'o', 'o']);
-  assert.deepStrictEqual(keys, [
-    { sequence: 'f', name: 'f', ctrl: false, meta: false, shift: false },
-    { sequence: 'o', name: 'o', ctrl: false, meta: false, shift: false },
-    { sequence: 'o', name: 'o', ctrl: false, meta: false, shift: false }
-  ]);
-});
+assert.deepStrictEqual(sequence, ['f', 'o', 'o']);
+assert.deepStrictEqual(keys, [
+  { sequence: 'f', name: 'f', ctrl: false, meta: false, shift: false },
+  { sequence: 'o', name: 'o', ctrl: false, meta: false, shift: false },
+  { sequence: 'o', name: 'o', ctrl: false, meta: false, shift: false }
+]);

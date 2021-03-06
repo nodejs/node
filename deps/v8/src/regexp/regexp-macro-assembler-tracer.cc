@@ -5,6 +5,7 @@
 #include "src/regexp/regexp-macro-assembler-tracer.h"
 
 #include "src/ast/ast.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -12,17 +13,14 @@ namespace internal {
 RegExpMacroAssemblerTracer::RegExpMacroAssemblerTracer(
     Isolate* isolate, RegExpMacroAssembler* assembler)
     : RegExpMacroAssembler(isolate, assembler->zone()), assembler_(assembler) {
-  unsigned int type = assembler->Implementation();
-  DCHECK(type < 8);
-  const char* impl_names[] = {"IA32", "ARM", "ARM64", "MIPS",
+  IrregexpImplementation type = assembler->Implementation();
+  DCHECK_LT(type, 9);
+  const char* impl_names[] = {"IA32", "ARM", "ARM64", "MIPS",    "S390",
                               "PPC",  "X64", "X87",   "Bytecode"};
   PrintF("RegExpMacroAssembler%s();\n", impl_names[type]);
 }
 
-
-RegExpMacroAssemblerTracer::~RegExpMacroAssemblerTracer() {
-}
-
+RegExpMacroAssemblerTracer::~RegExpMacroAssemblerTracer() = default;
 
 void RegExpMacroAssemblerTracer::AbortedCodeGeneration() {
   PrintF(" AbortedCodeGeneration\n");
@@ -164,23 +162,18 @@ void RegExpMacroAssemblerTracer::ReadStackPointerFromRegister(int reg) {
   assembler_->ReadStackPointerFromRegister(reg);
 }
 
-
-void RegExpMacroAssemblerTracer::LoadCurrentCharacter(int cp_offset,
-                                                      Label* on_end_of_input,
-                                                      bool check_bounds,
-                                                      int characters) {
+void RegExpMacroAssemblerTracer::LoadCurrentCharacterImpl(
+    int cp_offset, Label* on_end_of_input, bool check_bounds, int characters,
+    int eats_at_least) {
   const char* check_msg = check_bounds ? "" : " (unchecked)";
-  PrintF(" LoadCurrentCharacter(cp_offset=%d, label[%08x]%s (%d chars));\n",
-         cp_offset,
-         LabelToInt(on_end_of_input),
-         check_msg,
-         characters);
-  assembler_->LoadCurrentCharacter(cp_offset,
-                                   on_end_of_input,
-                                   check_bounds,
-                                   characters);
+  PrintF(
+      " LoadCurrentCharacter(cp_offset=%d, label[%08x]%s (%d chars) (eats at "
+      "least %d));\n",
+      cp_offset, LabelToInt(on_end_of_input), check_msg, characters,
+      eats_at_least);
+  assembler_->LoadCurrentCharacter(cp_offset, on_end_of_input, check_bounds,
+                                   characters, eats_at_least);
 }
-
 
 class PrintablePrinter {
  public:
@@ -234,12 +227,12 @@ void RegExpMacroAssemblerTracer::CheckCharacter(unsigned c, Label* on_equal) {
   assembler_->CheckCharacter(c, on_equal);
 }
 
-
-void RegExpMacroAssemblerTracer::CheckAtStart(Label* on_at_start) {
-  PrintF(" CheckAtStart(label[%08x]);\n", LabelToInt(on_at_start));
-  assembler_->CheckAtStart(on_at_start);
+void RegExpMacroAssemblerTracer::CheckAtStart(int cp_offset,
+                                              Label* on_at_start) {
+  PrintF(" CheckAtStart(cp_offset=%d, label[%08x]);\n", cp_offset,
+         LabelToInt(on_at_start));
+  assembler_->CheckAtStart(cp_offset, on_at_start);
 }
-
 
 void RegExpMacroAssemblerTracer::CheckNotAtStart(int cp_offset,
                                                  Label* on_not_at_start) {
@@ -358,7 +351,6 @@ void RegExpMacroAssemblerTracer::CheckNotBackReference(int start_reg,
   assembler_->CheckNotBackReference(start_reg, read_backward, on_no_match);
 }
 
-
 void RegExpMacroAssemblerTracer::CheckNotBackReferenceIgnoreCase(
     int start_reg, bool read_backward, bool unicode, Label* on_no_match) {
   PrintF(" CheckNotBackReferenceIgnoreCase(register=%d, %s %s, label[%08x]);\n",
@@ -367,7 +359,6 @@ void RegExpMacroAssemblerTracer::CheckNotBackReferenceIgnoreCase(
   assembler_->CheckNotBackReferenceIgnoreCase(start_reg, read_backward, unicode,
                                               on_no_match);
 }
-
 
 void RegExpMacroAssemblerTracer::CheckPosition(int cp_offset,
                                                Label* on_outside_input) {

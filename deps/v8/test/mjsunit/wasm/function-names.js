@@ -4,13 +4,12 @@
 
 // Flags: --expose-wasm
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 var builder = new WasmModuleBuilder();
 
 var last_func_index = builder.addFunction("exec_unreachable", kSig_v_v)
-  .addBody([kExprUnreachable])
+  .addBody([kExprUnreachable]).index
 
 var illegal_func_name = [0xff];
 var func_names = [ "☠", illegal_func_name, "some math: (½)² = ¼", "" ];
@@ -19,11 +18,11 @@ var expected_names = ["exec_unreachable", "☠", null,
 
 for (var func_name of func_names) {
   last_func_index = builder.addFunction(func_name, kSig_v_v)
-    .addBody([kExprCallFunction, kArity0, last_func_index]).index;
+    .addBody([kExprCallFunction, last_func_index]).index;
 }
 
 builder.addFunction("main", kSig_v_v)
-  .addBody([kExprCallFunction, kArity0, last_func_index])
+  .addBody([kExprCallFunction, last_func_index])
   .exportFunc();
 
 var module = builder.instantiate();
@@ -40,7 +39,7 @@ var module = builder.instantiate();
     for (var i = 0; i < names.length; ++i) {
       var line = lines[i].trim();
       if (names[i] === null) continue;
-      var printed_name = names[i] === undefined ? "<WASM UNNAMED>" : names[i]
+      var printed_name = names[i];
       var expected_start = "at " + printed_name + " (";
       assertTrue(line.startsWith(expected_start),
           "should start with '" + expected_start + "': '" + line + "'");
@@ -54,16 +53,16 @@ Error.prepareStackTrace = function(error, frames) {
   return frames;
 };
 
-
 (function testFunctionNamesAsCallSites() {
-  var names = expected_names.concat(["testFunctionNamesAsCallSites", null]);
+  var names = expected_names.concat(['testFunctionNamesAsCallSites', null]);
   try {
     module.exports.main();
-    assertFalse("should throw");
+    assertFalse('should throw');
   } catch (e) {
-    assertEquals(names.length, e.stack.length);
+    assertEquals(names.length, e.stack.length, 'stack length');
     for (var i = 0; i < names.length; ++i) {
-      assertEquals(names[i], e.stack[i].getFunctionName());
+      assertEquals(
+          names[i], e.stack[i].getFunctionName(), 'function name at ' + i);
     }
   }
 })();

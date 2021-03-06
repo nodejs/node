@@ -25,15 +25,31 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# for py2/py3 compatibility
+from __future__ import print_function
 
-import os
 from os.path import exists
 from os.path import isdir
 from os.path import join
+import os
 import platform
 import re
-import subprocess
-import urllib2
+import urllib
+
+
+### Exit codes and their meaning.
+# Normal execution.
+EXIT_CODE_PASS = 0
+# Execution with test failures.
+EXIT_CODE_FAILURES = 1
+# Execution with no tests executed.
+EXIT_CODE_NO_TESTS = 2
+# Execution aborted with SIGINT (Ctrl-C).
+EXIT_CODE_INTERRUPTED = 3
+# Execution aborted with SIGTERM.
+EXIT_CODE_TERMINATED = 4
+# Internal error.
+EXIT_CODE_INTERNAL_ERROR = 5
 
 
 def GetSuitePaths(test_root):
@@ -74,7 +90,8 @@ def GuessOS():
     return 'solaris'
   elif system == 'NetBSD':
     return 'netbsd'
-  elif system == 'AIX':
+  elif system in ['AIX', 'OS400']:
+    # OS400 runs an AIX emulator called PASE
     return 'aix'
   else:
     return None
@@ -119,23 +136,6 @@ def GuessWordsize():
 
 def IsWindows():
   return GuessOS() == 'windows'
-
-
-def URLRetrieve(source, destination):
-  """urllib is broken for SSL connections via a proxy therefore we
-  can't use urllib.urlretrieve()."""
-  if IsWindows():
-    try:
-      # In python 2.7.6 on windows, urlopen has a problem with redirects.
-      # Try using curl instead. Note, this is fixed in 2.7.8.
-      subprocess.check_call(["curl", source, '-k', '-L', '-o', destination])
-      return
-    except:
-      # If there's no curl, fall back to urlopen.
-      print "Curl is currently not installed. Falling back to python."
-      pass
-  with open(destination, 'w') as f:
-    f.write(urllib2.urlopen(source).read())
 
 
 class FrozenDict(dict):

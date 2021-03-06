@@ -4,7 +4,6 @@
 
 // Flags: --expose-wasm
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 // Collect the Callsite objects instead of just a string:
@@ -12,8 +11,32 @@ Error.prepareStackTrace = function(error, frames) {
   return frames;
 };
 
-var builder = new WasmModuleBuilder();
+function testTrapLocations(instance, expected_stack_length) {
+  function testWasmTrap(value, reason, position) {
+    let function_name = arguments.callee.name;
+    try {
+      instance.exports.main(value);
+      fail('expected wasm exception');
+    } catch (e) {
+      assertEquals(kTrapMsgs[reason], e.message, 'trap reason');
+      // Check that the trapping function is the one which was called from this
+      // function.
+      assertTrue(
+          e.stack[1].toString().startsWith(function_name), 'stack depth');
+      assertEquals(0, e.stack[0].getLineNumber(), 'wasmFunctionIndex');
+      assertEquals(position, e.stack[0].getPosition(), 'position');
+    }
+  }
 
+  // The actual tests:
+  testWasmTrap(0, kTrapDivByZero, 14);
+  testWasmTrap(1, kTrapMemOutOfBounds, 15);
+  testWasmTrap(2, kTrapUnreachable, 28);
+  testWasmTrap(3, kTrapTableOutOfBounds, 32);
+}
+
+var builder = new WasmModuleBuilder();
+builder.addMemory(0, 1, false);
 var sig_index = builder.addType(kSig_i_v)
 
 // Build a function to resemble this code:
@@ -30,49 +53,40 @@ var sig_index = builder.addType(kSig_i_v)
 builder.addFunction("main", kSig_i_i)
   .addBody([
       // offset 1
-      kExprBlock,
-            kExprGetLocal, 0,
+        kExprBlock, kWasmI32,
+            kExprLocalGet, 0,
             kExprI32Const, 2,
           kExprI32LtU,
-        kExprIf,
-        // offset 8
+        kExprIf, kWasmStmt,
+        // offset 9
               kExprI32Const, 0x7e /* -2 */,
-              kExprGetLocal, 0,
+              kExprLocalGet, 0,
             kExprI32DivU,
-          // offset 13
+          // offset 15
           kExprI32LoadMem, 0, 0,
-          kExprBr, 1, 1,
+          kExprBr, 1,
         kExprEnd,
-        // offset 20
-            kExprGetLocal, 0,
+        // offset 21
+            kExprLocalGet, 0,
             kExprI32Const, 2,
           kExprI32Eq,
-        kExprIf,
+        kExprIf, kWasmStmt,
           kExprUnreachable,
         kExprEnd,
-        // offset 28
-          kExprGetLocal, 0,
-        kExprCallIndirect, kArity0, sig_index,
+        // offset 30
+        kExprLocalGet, 0,
+        kExprCallIndirect, sig_index, kTableZero,
       kExprEnd,
   ])
   .exportAs("main");
+builder.appendToTable([0]);
 
-var module = builder.instantiate();
+let buffer = builder.toBuffer();
 
-function testWasmTrap(value, reason, position) {
-  try {
-    module.exports.main(value);
-    fail("expected wasm exception");
-  } catch (e) {
-    assertEquals(kTrapMsgs[reason], e.message, "trap reason");
-    assertEquals(3, e.stack.length, "number of frames");
-    assertEquals(0, e.stack[0].getLineNumber(), "wasmFunctionIndex");
-    assertEquals(position, e.stack[0].getPosition(), "position");
-  }
-}
+// Test async compilation and instantiation.
+assertPromiseResult(WebAssembly.instantiate(buffer), pair => {
+  testTrapLocations(pair.instance, 5);
+});
 
-// The actual tests:
-testWasmTrap(0, kTrapDivByZero,      12);
-testWasmTrap(1, kTrapMemOutOfBounds, 13);
-testWasmTrap(2, kTrapUnreachable,    26);
-testWasmTrap(3, kTrapFuncInvalid,    30);
+// Test sync compilation and instantiation.
+testTrapLocations(builder.instantiate(), 4);

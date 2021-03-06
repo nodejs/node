@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -64,11 +64,13 @@
 #define LOW_Z             ((UChar)0x007A)
 
 #define CAP_A             ((UChar)0x0041)
+#define CAP_B             ((UChar)0x0042)
 #define CAP_C             ((UChar)0x0043)
 #define CAP_D             ((UChar)0x0044)
 #define CAP_E             ((UChar)0x0045)
 #define CAP_F             ((UChar)0x0046)
 #define CAP_G             ((UChar)0x0047)
+#define CAP_J             ((UChar)0x004A)
 #define CAP_H             ((UChar)0x0048)
 #define CAP_K             ((UChar)0x004B)
 #define CAP_L             ((UChar)0x004C)
@@ -88,7 +90,7 @@
 #define MAX_E_COUNT      5
 #define MAX_M_COUNT      5
 //#define MAX_INTERVAL_INDEX 4
-#define MAX_POSITIVE_INT  56632;
+#define MAX_POSITIVE_INT  56632
 
 
 #endif /* #if !UCONFIG_NO_FORMATTING */

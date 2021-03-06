@@ -32,7 +32,7 @@ SHA1_RE = re.compile('^[a-fA-F0-9]{40}$')
 ROLL_DEPS_GIT_SVN_ID_RE = re.compile('^git-svn-id: .*@([0-9]+) .*$')
 
 # Regular expression that matches a single commit footer line.
-COMMIT_FOOTER_ENTRY_RE = re.compile(r'([^:]+):\s+(.+)')
+COMMIT_FOOTER_ENTRY_RE = re.compile(r'([^:]+):\s*(.*)')
 
 # Footer metadata key for commit position.
 COMMIT_POSITION_FOOTER_KEY = 'Cr-Commit-Position'
@@ -67,9 +67,9 @@ def GetCommitMessageFooterMap(message):
   for line in lines:
     m = COMMIT_FOOTER_ENTRY_RE.match(line)
     if not m:
-      # If any single line isn't valid, the entire footer is invalid.
-      footers.clear()
-      return footers
+      # If any single line isn't valid, continue anyway for compatibility with
+      # Gerrit (which itself uses JGit for this).
+      continue
     footers[m.group(1)] = m.group(2).strip()
   return footers
 
@@ -205,21 +205,28 @@ class GitRecipesMixin(object):
     args.append(Quoted(patch_file))
     self.Git(MakeArgs(args), **kwargs)
 
-  def GitUpload(self, reviewer="", author="", force=False, cq=False,
-                bypass_hooks=False, cc="", **kwargs):
+  def GitUpload(self, reviewer="", force=False, cq=False,
+                cq_dry_run=False, bypass_hooks=False, cc="", tbr_reviewer="",
+                no_autocc=False, message_file=None, **kwargs):
     args = ["cl upload --send-mail"]
-    if author:
-      args += ["--email", Quoted(author)]
     if reviewer:
       args += ["-r", Quoted(reviewer)]
+    if tbr_reviewer:
+      args += ["--tbrs", Quoted(tbr_reviewer)]
     if force:
       args.append("-f")
     if cq:
       args.append("--use-commit-queue")
+    if cq_dry_run:
+      args.append("--cq-dry-run")
     if bypass_hooks:
       args.append("--bypass-hooks")
+    if no_autocc:
+      args.append("--no-autocc")
     if cc:
       args += ["--cc", Quoted(cc)]
+    if message_file:
+      args += ["--message-file", Quoted(message_file)]
     # TODO(machenbach): Check output in forced mode. Verify that all required
     # base files were uploaded, if not retry.
     self.Git(MakeArgs(args), pipe=False, **kwargs)
@@ -241,10 +248,6 @@ class GitRecipesMixin(object):
   def GitCLLand(self, **kwargs):
     self.Git(
         "cl land -f --bypass-hooks", retry_on=lambda x: x is None, **kwargs)
-
-  def GitCLAddComment(self, message, **kwargs):
-    args = ["cl", "comments", "-a", Quoted(message)]
-    self.Git(MakeArgs(args), **kwargs)
 
   def GitDiff(self, loc1, loc2, **kwargs):
     return self.Git(MakeArgs(["diff", loc1, loc2]), **kwargs)

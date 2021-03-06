@@ -2,22 +2,19 @@
 const common = require('../common');
 const assert = require('assert');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
 const https = require('https');
 const crypto = require('crypto');
-
-const fs = require('fs');
+const fixtures = require('../common/fixtures');
 
 const options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem')
 };
 
-const ca = fs.readFileSync(common.fixturesDir + '/keys/ca1-cert.pem');
+const ca = fixtures.readKey('ca1-cert.pem');
 
 const clientSessions = {};
 let serverRequests = 0;
@@ -115,16 +112,16 @@ const server = https.createServer(options, function(req, res) {
 
 process.on('exit', function() {
   assert.strictEqual(serverRequests, 6);
-  assert.strictEqual(clientSessions['first'].toString('hex'),
+  assert.strictEqual(clientSessions.first.toString('hex'),
                      clientSessions['first-reuse'].toString('hex'));
-  assert.notEqual(clientSessions['first'].toString('hex'),
-                  clientSessions['cipher-change'].toString('hex'));
-  assert.notEqual(clientSessions['first'].toString('hex'),
-                  clientSessions['before-drop'].toString('hex'));
-  assert.notEqual(clientSessions['cipher-change'].toString('hex'),
-                  clientSessions['before-drop'].toString('hex'));
-  assert.notEqual(clientSessions['before-drop'].toString('hex'),
-                  clientSessions['after-drop'].toString('hex'));
+  assert.notStrictEqual(clientSessions.first.toString('hex'),
+                        clientSessions['cipher-change'].toString('hex'));
+  assert.notStrictEqual(clientSessions.first.toString('hex'),
+                        clientSessions['before-drop'].toString('hex'));
+  assert.notStrictEqual(clientSessions['cipher-change'].toString('hex'),
+                        clientSessions['before-drop'].toString('hex'));
+  assert.notStrictEqual(clientSessions['before-drop'].toString('hex'),
+                        clientSessions['after-drop'].toString('hex'));
   assert.strictEqual(clientSessions['after-drop'].toString('hex'),
                      clientSessions['after-drop-reuse'].toString('hex'));
 });

@@ -35,17 +35,32 @@ assertEquals(s, s.substr(void 0));
 assertEquals(s, s.substr(null));
 assertEquals(s, s.substr(false));
 assertEquals(s, s.substr(0.9));
-assertEquals(s, s.substr({ valueOf: function() { return 0; } }));
-assertEquals(s, s.substr({ toString: function() { return '0'; } }));
+assertEquals(s, s.substr({
+  valueOf: function() {
+    return 0;
+  }
+}));
+assertEquals(s, s.substr({
+  toString: function() {
+    return '0';
+  }
+}));
 
 var s1 = s.substring(1);
 assertEquals(s1, s.substr(1));
 assertEquals(s1, s.substr('1'));
 assertEquals(s1, s.substr(true));
 assertEquals(s1, s.substr(1.1));
-assertEquals(s1, s.substr({ valueOf: function() { return 1; } }));
-assertEquals(s1, s.substr({ toString: function() { return '1'; } }));
-
+assertEquals(s1, s.substr({
+  valueOf: function() {
+    return 1;
+  }
+}));
+assertEquals(s1, s.substr({
+  toString: function() {
+    return '1';
+  }
+}));
 
 assertEquals(s.substring(s.length - 1), s.substr(-1));
 assertEquals(s.substring(s.length - 1), s.substr(-1.2));
@@ -73,16 +88,16 @@ for (var i = 0; i < 25; i++) {
 /x/.exec(x);  // Try to force a flatten.
 for (var i = 5; i < 25; i++) {
   for (var j = 0; j < 25; j++) {
-    var z = x.substring(i, i+j);
+    var z = x.substring(i, i + j);
     var w = Math.random() * 42;  // Allocate something new in new-space.
     assertEquals(j, z.length);
     for (var k = 0; k < j; k++) {
-      assertEquals(x.charAt(i+k), z.charAt(k));
+      assertEquals(x.charAt(i + k), z.charAt(k));
     }
   }
 }
 // Then two-byte strings.
-x = "UC16\u2028";  // Non-ascii char forces two-byte string.
+x = 'UC16\u2028';  // Non-ascii char forces two-byte string.
 for (var i = 0; i < 25; i++) {
   x += (i >> 4).toString(16) + (i & 0x0f).toString(16);
 }
@@ -93,7 +108,7 @@ for (var i = 5; i < 25; i++) {
     var w = Math.random() * 42;  // Allocate something new in new-space.
     assertEquals(j, z.length);
     for (var k = 0; k < j; k++) {
-      assertEquals(x.charAt(i+k), z.charAt(k));
+      assertEquals(x.charAt(i + k), z.charAt(k));
     }
   }
 }
@@ -105,7 +120,7 @@ var xl = x.length;
 var cache = [];
 for (var i = 0; i < 1000; i++) {
   var z = x.substring(i % xl);
-  assertEquals(xl - (i % xl), z.length);
+  assertEquals(xl - i % xl, z.length);
   cache.push(z);
 }
 
@@ -117,7 +132,7 @@ var xl = x.length;
 var cache = [];
 for (var i = 0; i < 1000; i++) {
   var z = x.substring(i % xl);
-  assertEquals(xl - (i % xl), z.length);
+  assertEquals(xl - i % xl, z.length);
   cache.push(z);
 }
 
@@ -135,28 +150,28 @@ for (var i = 63; i >= 0; i--) {
   var z = cache.pop();
   assertTrue(/\u2028123456789ABCDEF/.test(z));
   assertEquals(xl - offset, z.length);
-  assertEquals(x.charAt(i*(i+1)/2), z.charAt(0));
+  assertEquals(x.charAt(i * (i + 1) / 2), z.charAt(0));
   offset -= i;
 }
 
 // Test charAt for different strings.
 function f(s1, s2, s3, i) {
-  assertEquals(String.fromCharCode(97+i%11), s1.charAt(i%11));
-  assertEquals(String.fromCharCode(97+i%11), s2.charAt(i%11));
-  assertEquals(String.fromCharCode(98+i%11), s3.charAt(i%11));
+  assertEquals(String.fromCharCode(97 + i % 11), s1.charAt(i % 11));
+  assertEquals(String.fromCharCode(97 + i % 11), s2.charAt(i % 11));
+  assertEquals(String.fromCharCode(98 + i % 11), s3.charAt(i % 11));
   assertEquals(String.fromCharCode(101), s3.charAt(3));
 }
 
 flat = "abcdefghijkl12345";
 cons = flat + flat.toUpperCase();
 slice = "abcdefghijklmn12345".slice(1, -1);
-for ( var i = 0; i < 1000; i++) {
+for (var i = 0; i < 1000; i++) {
   f(flat, cons, slice, i);
 }
 flat = "abcdefghijkl1\u20232345";
 cons = flat + flat.toUpperCase();
 slice = "abcdefghijklmn1\u20232345".slice(1, -1);
-for ( var i = 0; i < 1000; i++) {
+for (var i = 0; i < 1000; i++) {
   f(flat, cons, slice, i);
 }
 
@@ -180,35 +195,38 @@ assertEquals("c\u1234def", slice.substr(1, 5));
 // Concatenate substrings.
 var ascii = 'abcdefghijklmnop';
 var utf = '\u03B1\u03B2\u03B3\u03B4\u03B5\u03B6\u03B7\u03B8\u03B9\u03BA\u03BB';
-assertEquals("klmno", ascii.substring(10,15) + ascii.substring(16));
-assertEquals("\u03B4\u03B7", utf.substring(3,4) + utf.substring(6,7));
-assertEquals("klp", ascii.substring(10,12) + ascii.substring(15,16));
-assertEquals("\u03B1\u03B4\u03B5", utf.substring(0,1) + utf.substring(5,3));
+assertEquals('klmno', ascii.substring(10, 15) + ascii.substring(16));
+assertEquals('\u03B4\u03B7', utf.substring(3, 4) + utf.substring(6, 7));
+assertEquals('klp', ascii.substring(10, 12) + ascii.substring(15, 16));
+assertEquals('\u03B1\u03B4\u03B5', utf.substring(0, 1) + utf.substring(5, 3));
 assertEquals("", ascii.substring(16) + utf.substring(16));
-assertEquals("bcdef\u03B4\u03B5\u03B6\u03B7\u03B8\u03B9",
-    ascii.substring(1,6) + utf.substring(3,9));
-assertEquals("\u03B4\u03B5\u03B6\u03B7\u03B8\u03B9abcdefghijklmnop",
-    utf.substring(3,9) + ascii);
-assertEquals("\u03B2\u03B3\u03B4\u03B5\u03B4\u03B5\u03B6\u03B7",
-    utf.substring(5,1) + utf.substring(3,7));
+assertEquals(
+    'bcdef\u03B4\u03B5\u03B6\u03B7\u03B8\u03B9',
+    ascii.substring(1, 6) + utf.substring(3, 9));
+assertEquals(
+    '\u03B4\u03B5\u03B6\u03B7\u03B8\u03B9abcdefghijklmnop',
+    utf.substring(3, 9) + ascii);
+assertEquals(
+    '\u03B2\u03B3\u03B4\u03B5\u03B4\u03B5\u03B6\u03B7',
+    utf.substring(5, 1) + utf.substring(3, 7));
 
 // Externalizing strings.
 var a = "internalized dummy";
 a = "123456789" + "qwertyuiopasdfghjklzxcvbnm";
-var b = "23456789qwertyuiopasdfghjklzxcvbn"
-assertEquals(a.slice(1,-1), b);
+var b = '23456789qwertyuiopasdfghjklzxcvbn';
+assertEquals(a.slice(1, -1), b);
 
 assertTrue(isOneByteString(a));
 externalizeString(a, true);
 assertFalse(isOneByteString(a));
 
-assertEquals(a.slice(1,-1), b);
+assertEquals(a.slice(1, -1), b);
 assertTrue(/3456789qwe/.test(a));
 assertEquals(5, a.indexOf("678"));
 assertEquals("12345", a.split("6")[0]);
 
 // Create a slice with an external string as parent string.
-var c = a.slice(1,-1);
+var c = a.slice(1, -1);
 
 function test_crankshaft() {
   for (var i = 0; i < 20; i++) {
@@ -219,8 +237,8 @@ function test_crankshaft() {
     assertEquals(4, c.indexOf("678"));
     assertEquals("2345", c.split("6")[0]);
   }
-}
-
+};
+%PrepareFunctionForOptimization(test_crankshaft);
 test_crankshaft();
 %OptimizeFunctionOnNextCall(test_crankshaft);
 test_crankshaft();

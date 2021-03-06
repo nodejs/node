@@ -55,9 +55,38 @@ API
 Threads
 ^^^^^^^
 
+.. c:type:: uv_thread_options_t
+
+    Options for spawning a new thread (passed to :c:func:`uv_thread_create_ex`).
+
+    ::
+
+        typedef struct uv_thread_options_s {
+          enum {
+            UV_THREAD_NO_FLAGS = 0x00,
+            UV_THREAD_HAS_STACK_SIZE = 0x01
+          } flags;
+          size_t stack_size;
+        } uv_thread_options_t;
+
+    More fields may be added to this struct at any time, so its exact
+    layout and size should not be relied upon.
+
+    .. versionadded:: 1.26.0
+
 .. c:function:: int uv_thread_create(uv_thread_t* tid, uv_thread_cb entry, void* arg)
 
     .. versionchanged:: 1.4.1 returns a UV_E* error code on failure
+
+.. c:function:: int uv_thread_create_ex(uv_thread_t* tid, const uv_thread_options_t* params, uv_thread_cb entry, void* arg)
+
+    Like :c:func:`uv_thread_create`, but additionally specifies options for creating a new thread.
+
+    If `UV_THREAD_HAS_STACK_SIZE` is set, `stack_size` specifies a stack size for the new thread.
+    `0` indicates that the default value should be used, i.e. behaves as if the flag was not set.
+    Other values will be rounded up to the nearest page boundary.
+
+    .. versionadded:: 1.26.0
 
 .. c:function:: uv_thread_t uv_thread_self(void)
 .. c:function:: int uv_thread_join(uv_thread_t *tid)
@@ -91,6 +120,7 @@ Functions return 0 on success or an error code < 0 (unless the
 return type is void, of course).
 
 .. c:function:: int uv_mutex_init(uv_mutex_t* handle)
+.. c:function:: int uv_mutex_init_recursive(uv_mutex_t* handle)
 .. c:function:: void uv_mutex_destroy(uv_mutex_t* handle)
 .. c:function:: void uv_mutex_lock(uv_mutex_t* handle)
 .. c:function:: int uv_mutex_trylock(uv_mutex_t* handle)
@@ -130,8 +160,15 @@ Functions return 0 on success or an error code < 0 (unless the
 return type is void, of course).
 
 .. note::
-    Callers should be prepared to deal with spurious wakeups on :c:func:`uv_cond_wait` and
-    :c:func:`uv_cond_timedwait`.
+    1. Callers should be prepared to deal with spurious wakeups on :c:func:`uv_cond_wait`
+       and :c:func:`uv_cond_timedwait`.
+    2. The timeout parameter for :c:func:`uv_cond_timedwait` is relative to the time
+       at which function is called.
+    3. On z/OS, the timeout parameter for :c:func:`uv_cond_timedwait` is converted to an
+       absolute system time at which the wait expires. If the current system clock time
+       passes the absolute time calculated before the condition is signaled, an ETIMEDOUT
+       error results. After the wait begins, the wait time is not affected by changes
+       to the system clock.
 
 .. c:function:: int uv_cond_init(uv_cond_t* cond)
 .. c:function:: void uv_cond_destroy(uv_cond_t* cond)

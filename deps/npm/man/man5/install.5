@@ -1,0 +1,96 @@
+.TH "INSTALL" "5" "March 2021" "" ""
+.SH "NAME"
+\fBinstall\fR \- Download and install node and npm
+.SS Description
+.P
+To publish and install packages to and from the public npm registry, you
+must install Node\.js and the npm command line interface using either a Node
+version manager or a Node installer\. \fBWe strongly recommend using a Node
+version manager to install Node\.js and npm\.\fR We do not recommend using a
+Node installer, since the Node installation process installs npm in a
+directory with local permissions and can cause permissions errors when you
+run npm packages globally\.
+.SS Overview
+.RS 0
+.IP \(bu 2
+Checking your version of npm and
+Node\.js \fI#checking\-your\-version\-of\-npm\-and\-node\-js\fR
+.IP \(bu 2
+Using a Node version manager to install Node\.js and
+npm \fI#using\-a\-node\-version\-manager\-to\-install\-node\-js\-and\-npm\fR
+.IP \(bu 2
+Using a Node installer to install Node\.js and
+npm \fI#using\-a\-node\-installer\-to\-install\-node\-js\-and\-npm\fR
+
+.RE
+.SS Checking your version of npm and Node\.js
+.P
+To see if you already have Node\.js and npm installed and check the
+installed version, run the following commands:
+.P
+.RS 2
+.nf
+node \-v
+npm \-v
+.fi
+.RE
+.SS Using a Node version manager to install Node\.js and npm
+.P
+Node version managers allow you to install and switch between multiple
+versions of Node\.js and npm on your system so you can test your
+applications on multiple versions of npm to ensure they work for users on
+different versions\.
+.SS OSX or Linux Node version managers
+.RS 0
+.IP \(bu 2
+nvm \fIhttps://github\.com/creationix/nvm\fR
+.IP \(bu 2
+n \fIhttps://github\.com/tj/n\fR
+
+.RE
+.SS Windows Node version managers
+.RS 0
+.IP \(bu 2
+nodist \fIhttps://github\.com/marcelklehr/nodist\fR
+.IP \(bu 2
+nvm\-windows \fIhttps://github\.com/coreybutler/nvm\-windows\fR
+
+.RE
+.SS Using a Node installer to install Node\.js and npm
+.P
+If you are unable to use a Node version manager, you can use a Node
+installer to install both Node\.js and npm on your system\.
+.RS 0
+.IP \(bu 2
+Node\.js installer \fIhttps://nodejs\.org/en/download/\fR
+.IP \(bu 2
+NodeSource installer \fIhttps://github\.com/nodesource/distributions\fR\|\. If
+you use Linux, we recommend that you use a NodeSource installer\.
+
+.RE
+.SS OS X or Windows Node installers
+.P
+If you're using OS X or Windows, use one of the installers from the
+Node\.js download page \fIhttps://nodejs\.org/en/download/\fR\|\. Be sure to
+install the version labeled \fBLTS\fR\|\. Other versions have not yet been
+tested with npm\.
+.SS Linux or other operating systems Node installers
+.P
+If you're using Linux or another operating system, use one of the following
+installers:
+.RS 0
+.IP \(bu 2
+NodeSource installer \fIhttps://github\.com/nodesource/distributions\fR
+(recommended)
+.IP \(bu 2
+One of the installers on the Node\.js download
+page \fIhttps://nodejs\.org/en/download/\fR
+
+.RE
+.P
+Or see this page \fIhttps://nodejs\.org/en/download/package\-manager/\fR to
+install npm for Linux in the way many Linux developers prefer\.
+.SS Less\-common operating systems
+.P
+For more information on installing Node\.js on a variety of operating
+systems, see this page \fIhttps://nodejs\.org/en/download/package\-manager/\fR\|\.

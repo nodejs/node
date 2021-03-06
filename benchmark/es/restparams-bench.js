@@ -5,13 +5,13 @@ const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
   method: ['copy', 'rest', 'arguments'],
-  millions: [100]
+  n: [1e8]
 });
 
 function copyArguments() {
-  var len = arguments.length;
-  var args = new Array(len);
-  for (var i = 0; i < len; i++)
+  const len = arguments.length;
+  const args = new Array(len);
+  for (let i = 0; i < len; i++)
     args[i] = arguments[i];
   assert.strictEqual(args[0], 1);
   assert.strictEqual(args[1], 2);
@@ -34,52 +34,36 @@ function useArguments() {
 }
 
 function runCopyArguments(n) {
-
-  common.v8ForceOptimization(copyArguments, 1, 2, 'a', 'b');
-
-  var i = 0;
-  bench.start();
-  for (; i < n; i++)
+  for (let i = 0; i < n; i++)
     copyArguments(1, 2, 'a', 'b');
-  bench.end(n / 1e6);
 }
 
 function runRestArguments(n) {
-
-  common.v8ForceOptimization(restArguments, 1, 2, 'a', 'b');
-
-  var i = 0;
-  bench.start();
-  for (; i < n; i++)
+  for (let i = 0; i < n; i++)
     restArguments(1, 2, 'a', 'b');
-  bench.end(n / 1e6);
 }
 
 function runUseArguments(n) {
-
-  common.v8ForceOptimization(useArguments, 1, 2, 'a', 'b');
-
-  var i = 0;
-  bench.start();
-  for (; i < n; i++)
+  for (let i = 0; i < n; i++)
     useArguments(1, 2, 'a', 'b');
-  bench.end(n / 1e6);
 }
 
-function main(conf) {
-  const n = +conf.millions * 1e6;
-
-  switch (conf.method) {
+function main({ n, method }) {
+  let fn;
+  switch (method) {
     case 'copy':
-      runCopyArguments(n);
+      fn = runCopyArguments;
       break;
     case 'rest':
-      runRestArguments(n);
+      fn = runRestArguments;
       break;
     case 'arguments':
-      runUseArguments(n);
+      fn = runUseArguments;
       break;
     default:
-      throw new Error('Unexpected method');
+      throw new Error(`Unexpected method "${method}"`);
   }
+  bench.start();
+  fn(n);
+  bench.end(n);
 }

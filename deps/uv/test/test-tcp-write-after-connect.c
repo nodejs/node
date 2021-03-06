@@ -43,6 +43,11 @@ static void connect_cb(uv_connect_t *req, int status) {
 
 
 TEST_IMPL(tcp_write_after_connect) {
+/* TODO(gengjiawen): Fix test on QEMU. */
+#if defined(__QEMU__)
+  RETURN_SKIP("Test does not currently work in QEMU");
+#endif
+
   struct sockaddr_in sa;
   ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &sa));
   ASSERT(0 == uv_loop_init(&loop));
@@ -65,4 +70,8 @@ TEST_IMPL(tcp_write_after_connect) {
   return 0;
 }
 
-#endif
+#else
+
+typedef int file_has_no_tests; /* ISO C forbids an empty translation unit. */
+
+#endif /* !_WIN32 */

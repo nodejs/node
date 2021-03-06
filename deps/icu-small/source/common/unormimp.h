@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -8,7 +8,7 @@
 *
 *******************************************************************************
 *   file name:  unormimp.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -418,7 +418,7 @@ enum {
  * The same bit is used for NFC and NFKC; (c) differs for them.
  * As usual, we build the "not skippable" flags so that unassigned
  * code points get a 0 bit.
- * This bit is only valid after (a)..(e) test FALSE; test NFD_NO before (f) as well.
+ * This bit is only valid after (a)..(e) test false; test NFD_NO before (f) as well.
  * Test Hangul LV syllables entirely in code.
  *
  *

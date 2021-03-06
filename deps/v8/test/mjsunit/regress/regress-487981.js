@@ -4,19 +4,21 @@
 
 // Flags:  --allow-natives-syntax --stress-compaction
 
-// To reliably reproduce the crash use --verify-heap --random-seed=-133185440
+// To reliably reproduce the crash use --verify-heap
 
 function __f_2(o) {
   return o.field.b.x;
 }
 
+%PrepareFunctionForOptimization(__f_2);
+
 try {
   %OptimizeFunctionOnNextCall(__f_2);
   __v_1 = __f_2();
-} catch(e) { }
+} catch (e) { }
 
 function __f_3() { __f_3(/./.test()); };
 
 try {
-__f_3();
-} catch(e) { }
+  __f_3();
+} catch (e) { }

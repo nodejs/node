@@ -1,24 +1,22 @@
 'use strict';
 
 const common = require('../common');
-const assert = require('assert');
-
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
+const assert = require('assert');
+const tls = require('tls');
 
 // Ensure accessing ._external doesn't hit an assert in the accessor method.
-const tls = require('tls');
 {
   const pctx = tls.createSecureContext().context;
   const cctx = Object.create(pctx);
-  assert.throws(() => cctx._external, /incompatible receiver/);
-  pctx._external;
+  assert.throws(() => cctx._external, TypeError);
+  pctx._external; // eslint-disable-line no-unused-expressions
 }
 {
   const pctx = tls.createSecurePair().credentials.context;
   const cctx = Object.create(pctx);
-  assert.throws(() => cctx._external, /incompatible receiver/);
-  pctx._external;
+  assert.throws(() => cctx._external, TypeError);
+  pctx._external; // eslint-disable-line no-unused-expressions
 }

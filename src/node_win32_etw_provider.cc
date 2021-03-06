@@ -1,10 +1,32 @@
-#include "node_dtrace.h"
-#include "node_win32_etw_provider.h"
-#include "node_etw_provider.h"
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+#include "node_win32_etw_provider.h"  // NOLINT(build/include_inline)
 #include "node_win32_etw_provider-inl.h"
+
+#include "node_etw_provider.h"
 
 namespace node {
 
+using v8::Isolate;
 using v8::JitCodeEvent;
 using v8::V8;
 
@@ -86,7 +108,7 @@ void CodeAddressNotification(const JitCodeEvent* jevent) {
       }
       break;
     case JitCodeEvent::CODE_REMOVED:
-      NODE_V8SYMBOL_REMOVE(jevent->code_start, 0);
+      NODE_V8SYMBOL_REMOVE(jevent->code_start, nullptr);
       break;
     case JitCodeEvent::CODE_MOVED:
       NODE_V8SYMBOL_MOVE(jevent->code_start, jevent->new_code_start);
@@ -106,11 +128,11 @@ void CodeAddressNotification(const JitCodeEvent* jevent) {
 void etw_events_change_async(uv_async_t* handle) {
   if (events_enabled > 0) {
     NODE_V8SYMBOL_RESET();
-    v8::Isolate::GetCurrent()->SetJitCodeEventHandler(
+    Isolate::GetCurrent()->SetJitCodeEventHandler(
         v8::kJitCodeEventEnumExisting,
         CodeAddressNotification);
   } else {
-    v8::Isolate::GetCurrent()->SetJitCodeEventHandler(
+    Isolate::GetCurrent()->SetJitCodeEventHandler(
         v8::kJitCodeEventDefault,
         nullptr);
   }
@@ -178,7 +200,7 @@ void shutdown_etw() {
   }
 
   events_enabled = 0;
-  v8::Isolate::GetCurrent()->SetJitCodeEventHandler(
+  Isolate::GetCurrent()->SetJitCodeEventHandler(
       v8::kJitCodeEventDefault,
       nullptr);
 

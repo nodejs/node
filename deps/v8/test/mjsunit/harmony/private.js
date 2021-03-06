@@ -57,8 +57,6 @@ function TestType() {
     assertEquals("symbol", typeof symbols[i])
     assertTrue(typeof symbols[i] === "symbol")
     assertTrue(%SymbolIsPrivate(symbols[i]))
-    assertEquals(null, %_ClassOf(symbols[i]))
-    assertEquals("Symbol", %_ClassOf(Object(symbols[i])))
   }
 }
 TestType()
@@ -295,7 +293,7 @@ function TestKeyDelete(obj) {
 }
 
 
-var objs = [{}, [], Object.create(null), Object(1), new Map, function(){}]
+var objs = [{}, [], Object.create({}), Object(1), new Map, function(){}]
 
 for (var i in objs) {
   var obj = objs[i]
@@ -340,19 +338,37 @@ function TestGetOwnPropertySymbols() {
 TestGetOwnPropertySymbols()
 
 
-function TestSealAndFreeze(freeze) {
+function TestSealAndFreeze(factory, freeze, isFrozen) {
   var sym = %CreatePrivateSymbol("private")
-  var obj = {}
+  var obj = factory();
   obj[sym] = 1
   freeze(obj)
+  assertTrue(isFrozen(obj))
   obj[sym] = 2
   assertEquals(2, obj[sym])
   assertTrue(delete obj[sym])
   assertEquals(undefined, obj[sym])
 }
-TestSealAndFreeze(Object.seal)
-TestSealAndFreeze(Object.freeze)
-TestSealAndFreeze(Object.preventExtensions)
+
+var fastObj = () => {
+  var obj = {}
+  assertTrue(%HasFastProperties(obj))
+  return obj
+}
+var dictObj = () => {
+  var obj = Object.create(null)
+  obj.a = 1
+  delete obj.a
+  assertFalse(%HasFastProperties(obj))
+  return obj
+}
+
+TestSealAndFreeze(fastObj, Object.seal, Object.isSealed)
+TestSealAndFreeze(fastObj, Object.freeze,  Object.isFrozen)
+TestSealAndFreeze(fastObj, Object.preventExtensions, obj => !Object.isExtensible(obj))
+TestSealAndFreeze(dictObj, Object.seal, Object.isSealed)
+TestSealAndFreeze(dictObj, Object.freeze,  Object.isFrozen)
+TestSealAndFreeze(dictObj, Object.preventExtensions, obj => !Object.isExtensible(obj))
 
 
 var s = %CreatePrivateSymbol("s");

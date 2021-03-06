@@ -9,7 +9,7 @@ array = new Int32Array(100);
 var dummy2 = new Int32Array(100);
 
 array[-17] = 0;
-function fun(base,cond) {
+function fun(base, cond) {
   array[base - 1] = 1;
   array[base - 2] = 2;
   if (cond) {
@@ -19,11 +19,12 @@ function fun(base,cond) {
     array[base - 6] = 5;
     array[base - 100] = 777;
   }
-}
-fun(5,true);
-fun(7,false);
+};
+%PrepareFunctionForOptimization(fun);
+fun(5, true);
+fun(7, false);
 %OptimizeFunctionOnNextCall(fun);
-fun(7,false);
+fun(7, false);
 
 for (var i = 0; i < dummy.length; i++) {
   assertEquals(0, dummy[i]);

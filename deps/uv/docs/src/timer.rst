@@ -45,6 +45,8 @@ API
     .. note::
         Does not update the event loop's concept of "now". See :c:func:`uv_update_time` for more information.
 
+        If the timer is already active, it is simply updated.
+
 .. c:function:: int uv_timer_stop(uv_timer_t* handle)
 
     Stop the timer, the callback will not be called anymore.
@@ -75,5 +77,12 @@ API
 .. c:function:: uint64_t uv_timer_get_repeat(const uv_timer_t* handle)
 
     Get the timer repeat value.
+
+.. c:function:: uint64_t uv_timer_get_due_in(const uv_timer_t* handle)
+
+    Get the timer due value or 0 if it has expired. The time is relative to
+    :c:func:`uv_now()`.
+
+    .. versionadded:: 1.40.0
 
 .. seealso:: The :c:type:`uv_handle_t` API functions also apply.

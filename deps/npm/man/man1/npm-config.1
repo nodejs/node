@@ -1,56 +1,68 @@
-.TH "NPM\-CONFIG" "1" "November 2016" "" ""
+.TH "NPM\-CONFIG" "1" "March 2021" "" ""
 .SH "NAME"
 \fBnpm-config\fR \- Manage the npm configuration files
-.SH SYNOPSIS
+.SS Synopsis
 .P
 .RS 2
 .nf
-npm config set <key> <value> [\-g|\-\-global]
-npm config get <key>
-npm config delete <key>
-npm config list
+npm config set <key>=<value> [<key>=<value> \.\.\.]
+npm config get [<key> [<key> \.\.\.]]
+npm config delete <key> [<key> \.\.\.]
+npm config list [\-\-json]
 npm config edit
-npm get <key>
-npm set <key> <value> [\-g|\-\-global]
+npm set <key>=<value> [<key>=<value> \.\.\.]
+npm get [<key> [<key> \.\.\.]]
 
-aliases: c
+alias: c
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 npm gets its config settings from the command line, environment
 variables, \fBnpmrc\fP files, and in some cases, the \fBpackage\.json\fP file\.
 .P
-See npm help 5 npmrc for more information about the npmrc files\.
+See npm help npmrc for more information about the npmrc
+files\.
 .P
-See npm help 7 \fBnpm\-config\fP for a more thorough discussion of the mechanisms
-involved\.
+See npm help config(7) for a more thorough explanation of the
+mechanisms involved, and a full list of config options available\.
 .P
 The \fBnpm config\fP command can be used to update and edit the contents
 of the user and global npmrc files\.
-.SH Sub\-commands
+.SS Sub\-commands
 .P
 Config supports the following sub\-commands:
 .SS set
 .P
 .RS 2
 .nf
-npm config set key value
+npm config set key=value [key=value\.\.\.]
+npm set key=value [key=value\.\.\.]
 .fi
 .RE
 .P
-Sets the config key to the value\.
+Sets each of the config keys to the value provided\.
 .P
-If value is omitted, then it sets it to "true"\.
+If value is omitted, then it sets it to an empty string\.
+.P
+Note: for backwards compatibility, \fBnpm config set key value\fP is supported
+as an alias for \fBnpm config set key=value\fP\|\.
 .SS get
 .P
 .RS 2
 .nf
-npm config get key
+npm config get [key \.\.\.]
+npm get [key \.\.\.]
 .fi
 .RE
 .P
-Echo the config value to stdout\.
+Echo the config value(s) to stdout\.
+.P
+If multiple keys are provided, then the values will be prefixed with the
+key names\.
+.P
+If no keys are provided, then this command behaves the same as \fBnpm config
+list\fP\|\.
 .SS list
 .P
 .RS 2
@@ -59,16 +71,17 @@ npm config list
 .fi
 .RE
 .P
-Show all the config settings\.
+Show all the config settings\. Use \fB\-l\fP to also show defaults\. Use \fB\-\-json\fP
+to show the settings in json format\.
 .SS delete
 .P
 .RS 2
 .nf
-npm config delete key
+npm config delete key [key \.\.\.]
 .fi
 .RE
 .P
-Deletes the key from all configuration files\.
+Deletes the specified keys from all configuration files\.
 .SS edit
 .P
 .RS 2
@@ -79,18 +92,17 @@ npm config edit
 .P
 Opens the config file in an editor\.  Use the \fB\-\-global\fP flag to edit the
 global config\.
-.SH SEE ALSO
+.SS See Also
 .RS 0
 .IP \(bu 2
-npm help 5 folders
+npm help folders
 .IP \(bu 2
-npm help 7 config
+npm help config
 .IP \(bu 2
-npm help 5 package\.json
+npm help package\.json
 .IP \(bu 2
-npm help 5 npmrc
+npm help npmrc
 .IP \(bu 2
 npm help npm
 
 .RE
-

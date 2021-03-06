@@ -43,9 +43,11 @@ assertFalse(!!"..foo*bar".match(sticky));
 
 var stickyplain = /foobar/y;
 
-assertTrue(!!"foobar".match(stickyplain));
+assertTrue(!!"foobarfoobar".match(stickyplain));
 assertEquals(6, stickyplain.lastIndex);
-assertFalse(!!"..foobar".match(stickyplain));
+assertTrue(!!"foobarfoobar".match(stickyplain));
+assertEquals(12, stickyplain.lastIndex);
+assertFalse(!!"..foobarfoobar".match(stickyplain));
 
 var global = /foo.bar/g;
 
@@ -128,3 +130,10 @@ mhat.lastIndex = 2;
 assertFalse(mhat.test("..foo"));
 mhat.lastIndex = 2;
 assertTrue(mhat.test(".\nfoo"));
+
+// Check that we don't apply incorrect optimization to sticky regexps that
+// are anchored at end.
+var stickyanchored = /bar$/y;
+assertFalse(stickyanchored.test("foobar"));
+stickyanchored.lastIndex = 3;
+assertTrue(stickyanchored.test("foobar"));

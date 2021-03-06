@@ -1,78 +1,35 @@
-/* crypto/ui/ui.h */
 /*
- * Written by Richard Levitte (richard@levitte.org) for the OpenSSL project
- * 2001.
- */
-/* ====================================================================
- * Copyright (c) 2001 The OpenSSL Project.  All rights reserved.
+ * Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    openssl-core@openssl.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #ifndef HEADER_UI_H
 # define HEADER_UI_H
 
-# ifndef OPENSSL_NO_DEPRECATED
+# include <openssl/opensslconf.h>
+
+# if OPENSSL_API_COMPAT < 0x10100000L
 #  include <openssl/crypto.h>
 # endif
 # include <openssl/safestack.h>
+# include <openssl/pem.h>
 # include <openssl/ossl_typ.h>
+# include <openssl/uierr.h>
 
-#ifdef  __cplusplus
+/* For compatibility reasons, the macro OPENSSL_NO_UI is currently retained */
+# if OPENSSL_API_COMPAT < 0x10200000L
+#  ifdef OPENSSL_NO_UI_CONSOLE
+#   define OPENSSL_NO_UI
+#  endif
+# endif
+
+# ifdef  __cplusplus
 extern "C" {
-#endif
-
-/* Declared already in ossl_typ.h */
-/* typedef struct ui_st UI; */
-/* typedef struct ui_method_st UI_METHOD; */
+# endif
 
 /*
  * All the following functions return -1 or NULL on error and in some cases
@@ -128,7 +85,7 @@ void UI_free(UI *ui);
    added, so the result is *not* a string.
 
    On success, the all return an index of the added information.  That index
-   is usefull when retrieving results with UI_get0_result(). */
+   is useful when retrieving results with UI_get0_result(). */
 int UI_add_input_string(UI *ui, const char *prompt, int flags,
                         char *result_buf, int minsize, int maxsize);
 int UI_dup_input_string(UI *ui, const char *prompt, int flags,
@@ -207,17 +164,24 @@ char *UI_construct_prompt(UI *ui_method,
  * methods may not, however.
  */
 void *UI_add_user_data(UI *ui, void *user_data);
+/*
+ * Alternatively, this function is used to duplicate the user data.
+ * This uses the duplicator method function.  The destroy function will
+ * be used to free the user data in this case.
+ */
+int UI_dup_user_data(UI *ui, void *user_data);
 /* We need a user data retrieving function as well.  */
 void *UI_get0_user_data(UI *ui);
 
 /* Return the result associated with a prompt given with the index i. */
 const char *UI_get0_result(UI *ui, int i);
+int UI_get_result_length(UI *ui, int i);
 
 /* When all strings have been added, process the whole thing. */
 int UI_process(UI *ui);
 
 /*
- * Give a user interface parametrised control commands.  This can be used to
+ * Give a user interface parameterised control commands.  This can be used to
  * send down an integer, a data pointer or a function pointer, as well as be
  * used to get information from a UI.
  */
@@ -240,8 +204,9 @@ int UI_ctrl(UI *ui, int cmd, long i, void *p, void (*f) (void));
 /* Some methods may use extra data */
 # define UI_set_app_data(s,arg)         UI_set_ex_data(s,0,arg)
 # define UI_get_app_data(s)             UI_get_ex_data(s,0)
-int UI_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
-                        CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func);
+
+# define UI_get_ex_new_index(l, p, newf, dupf, freef) \
+    CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_UI, l, p, newf, dupf, freef)
 int UI_set_ex_data(UI *r, int idx, void *arg);
 void *UI_get_ex_data(UI *r, int idx);
 
@@ -251,8 +216,18 @@ const UI_METHOD *UI_get_default_method(void);
 const UI_METHOD *UI_get_method(UI *ui);
 const UI_METHOD *UI_set_method(UI *ui, const UI_METHOD *meth);
 
+# ifndef OPENSSL_NO_UI_CONSOLE
+
 /* The method with all the built-in thingies */
 UI_METHOD *UI_OpenSSL(void);
+
+# endif
+
+/*
+ * NULL method.  Literally does nothing, but may serve as a placeholder
+ * to avoid internal default.
+ */
+const UI_METHOD *UI_null(void);
 
 /* ---------- For method writers ---------- */
 /*-
@@ -269,7 +244,7 @@ UI_METHOD *UI_OpenSSL(void);
                         display a dialog box after it has been built.
         a reader        This function is called to read a given prompt,
                         maybe from the tty, maybe from a field in a
-                        window.  Note that it's called wth all string
+                        window.  Note that it's called with all string
                         structures, not only the prompt ones, so it must
                         check such things itself.
         a closer        This function closes the session, maybe by closing
@@ -302,7 +277,7 @@ UI_METHOD *UI_OpenSSL(void);
  * about a string or a prompt, including test data for a verification prompt.
  */
 typedef struct ui_string_st UI_STRING;
-DECLARE_STACK_OF(UI_STRING)
+DEFINE_STACK_OF(UI_STRING)
 
 /*
  * The different types of strings that are currently supported. This is only
@@ -318,7 +293,7 @@ enum UI_string_types {
 };
 
 /* Create and manipulate methods */
-UI_METHOD *UI_create_method(char *name);
+UI_METHOD *UI_create_method(const char *name);
 void UI_destroy_method(UI_METHOD *ui_method);
 int UI_method_set_opener(UI_METHOD *method, int (*opener) (UI *ui));
 int UI_method_set_writer(UI_METHOD *method,
@@ -327,20 +302,26 @@ int UI_method_set_flusher(UI_METHOD *method, int (*flusher) (UI *ui));
 int UI_method_set_reader(UI_METHOD *method,
                          int (*reader) (UI *ui, UI_STRING *uis));
 int UI_method_set_closer(UI_METHOD *method, int (*closer) (UI *ui));
+int UI_method_set_data_duplicator(UI_METHOD *method,
+                                  void *(*duplicator) (UI *ui, void *ui_data),
+                                  void (*destructor)(UI *ui, void *ui_data));
 int UI_method_set_prompt_constructor(UI_METHOD *method,
                                      char *(*prompt_constructor) (UI *ui,
                                                                   const char
                                                                   *object_desc,
                                                                   const char
                                                                   *object_name));
-int (*UI_method_get_opener(UI_METHOD *method)) (UI *);
-int (*UI_method_get_writer(UI_METHOD *method)) (UI *, UI_STRING *);
-int (*UI_method_get_flusher(UI_METHOD *method)) (UI *);
-int (*UI_method_get_reader(UI_METHOD *method)) (UI *, UI_STRING *);
-int (*UI_method_get_closer(UI_METHOD *method)) (UI *);
-char *(*UI_method_get_prompt_constructor(UI_METHOD *method)) (UI *,
-                                                              const char *,
-                                                              const char *);
+int UI_method_set_ex_data(UI_METHOD *method, int idx, void *data);
+int (*UI_method_get_opener(const UI_METHOD *method)) (UI *);
+int (*UI_method_get_writer(const UI_METHOD *method)) (UI *, UI_STRING *);
+int (*UI_method_get_flusher(const UI_METHOD *method)) (UI *);
+int (*UI_method_get_reader(const UI_METHOD *method)) (UI *, UI_STRING *);
+int (*UI_method_get_closer(const UI_METHOD *method)) (UI *);
+char *(*UI_method_get_prompt_constructor(const UI_METHOD *method))
+    (UI *, const char *, const char *);
+void *(*UI_method_get_data_duplicator(const UI_METHOD *method)) (UI *, void *);
+void (*UI_method_get_data_destructor(const UI_METHOD *method)) (UI *, void *);
+const void *UI_method_get_ex_data(const UI_METHOD *method, int idx);
 
 /*
  * The following functions are helpers for method writers to access relevant
@@ -354,12 +335,13 @@ int UI_get_input_flags(UI_STRING *uis);
 /* Return the actual string to output (the prompt, info or error) */
 const char *UI_get0_output_string(UI_STRING *uis);
 /*
- * Return the optional action string to output (the boolean promtp
+ * Return the optional action string to output (the boolean prompt
  * instruction)
  */
 const char *UI_get0_action_string(UI_STRING *uis);
 /* Return the result of a prompt */
 const char *UI_get0_result_string(UI_STRING *uis);
+int UI_get_result_string_length(UI_STRING *uis);
 /*
  * Return the string to test the result against.  Only useful with verifies.
  */
@@ -370,46 +352,17 @@ int UI_get_result_minsize(UI_STRING *uis);
 int UI_get_result_maxsize(UI_STRING *uis);
 /* Set the result of a UI_STRING. */
 int UI_set_result(UI *ui, UI_STRING *uis, const char *result);
+int UI_set_result_ex(UI *ui, UI_STRING *uis, const char *result, int len);
 
 /* A couple of popular utility functions */
 int UI_UTIL_read_pw_string(char *buf, int length, const char *prompt,
                            int verify);
 int UI_UTIL_read_pw(char *buf, char *buff, int size, const char *prompt,
                     int verify);
+UI_METHOD *UI_UTIL_wrap_read_pem_callback(pem_password_cb *cb, int rwflag);
 
-/* BEGIN ERROR CODES */
-/*
- * The following lines are auto generated by the script mkerr.pl. Any changes
- * made after this point may be overwritten when the script is next run.
- */
-void ERR_load_UI_strings(void);
 
-/* Error codes for the UI functions. */
-
-/* Function codes. */
-# define UI_F_GENERAL_ALLOCATE_BOOLEAN                    108
-# define UI_F_GENERAL_ALLOCATE_PROMPT                     109
-# define UI_F_GENERAL_ALLOCATE_STRING                     100
-# define UI_F_UI_CTRL                                     111
-# define UI_F_UI_DUP_ERROR_STRING                         101
-# define UI_F_UI_DUP_INFO_STRING                          102
-# define UI_F_UI_DUP_INPUT_BOOLEAN                        110
-# define UI_F_UI_DUP_INPUT_STRING                         103
-# define UI_F_UI_DUP_VERIFY_STRING                        106
-# define UI_F_UI_GET0_RESULT                              107
-# define UI_F_UI_NEW_METHOD                               104
-# define UI_F_UI_SET_RESULT                               105
-
-/* Reason codes. */
-# define UI_R_COMMON_OK_AND_CANCEL_CHARACTERS             104
-# define UI_R_INDEX_TOO_LARGE                             102
-# define UI_R_INDEX_TOO_SMALL                             103
-# define UI_R_NO_RESULT_BUFFER                            105
-# define UI_R_RESULT_TOO_LARGE                            100
-# define UI_R_RESULT_TOO_SMALL                            101
-# define UI_R_UNKNOWN_CONTROL_COMMAND                     106
-
-#ifdef  __cplusplus
+# ifdef  __cplusplus
 }
-#endif
+# endif
 #endif

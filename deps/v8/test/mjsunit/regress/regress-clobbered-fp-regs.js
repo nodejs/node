@@ -37,7 +37,7 @@ function store(a, x, y) {
   var f7 = 0.7 * y;
   var f8 = 0.8 * y;
   a[0] = x;
-  var sum = (f1 + f2 + f3 + f4 + f5 + f6 + f7 + f8);
+  var sum = f1 + f2 + f3 + f4 + f5 + f6 + f7 + f8;
   assertEquals(1, y);
   var expected = 3.6;
   if (Math.abs(expected - sum) > 0.01) {
@@ -46,9 +46,11 @@ function store(a, x, y) {
 }
 
 // Generate TransitionElementsKindStub.
+;
+%PrepareFunctionForOptimization(store);
 store([1], 1, 1);
 store([1], 1.1, 1);
 store([1], 1.1, 1);
 %OptimizeFunctionOnNextCall(store);
 // This will trap on allocation site in TransitionElementsKindStub.
-store([1], 1, 1)
+store([1], 1, 1);

@@ -39,6 +39,8 @@ assertThrows('Intl.NumberFormat(undefined, {minimumFractionDigits: -1})');
 assertThrows('Intl.NumberFormat(undefined, {maximumFractionDigits: 21})');
 
 assertThrows('Intl.NumberFormat(undefined, {minimumSignificantDigits: 0})');
+assertThrows('Intl.NumberFormat(undefined, {minimumSignificantDigits: 22})');
+assertThrows('Intl.NumberFormat(undefined, {maximumSignificantDigits: 0})');
 assertThrows('Intl.NumberFormat(undefined, {maximumSignificantDigits: 22})');
 assertThrows('Intl.NumberFormat(undefined, ' +
     '{minimumSignificantDigits: 5, maximumSignificantDigits: 2})');

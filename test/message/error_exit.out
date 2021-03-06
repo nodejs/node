@@ -1,16 +1,22 @@
 Exiting with code=1
-
-assert.js:*
-  throw new assert.AssertionError({
+node:assert:*
+  throw new AssertionError(obj);
   ^
-AssertionError: 1 == 2
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+1 !== 2
+
     at Object.<anonymous> (*test*message*error_exit.js:*:*)
-    at Module._compile (module.js:*:*)
-    at Object.Module._extensions..js (module.js:*:*)
-    at Module.load (module.js:*:*)
-    at tryModuleLoad (module.js:*:*)
-    at Function.Module._load (module.js:*:*)
-    at Module.runMain (module.js:*:*)
-    at run (bootstrap_node.js:*:*)
-    at startup (bootstrap_node.js:*:*)
-    at bootstrap_node.js:*:*
+    at Module._compile (node:internal/modules/cjs/loader:*:*)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:*:*)
+    at Module.load (node:internal/modules/cjs/loader:*:*)
+    at Function.Module._load (node:internal/modules/cjs/loader:*:*)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:*:*)
+    at node:internal/main/run_main_module:*:* {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 1,
+  expected: 2,
+  operator: 'strictEqual'
+}

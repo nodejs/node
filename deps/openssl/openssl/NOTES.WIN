@@ -1,0 +1,180 @@
+
+ NOTES FOR THE WINDOWS PLATFORMS
+ ===============================
+
+ Windows targets can be classified as "native", ones that use Windows API
+ directly, and "hosted" which rely on POSIX-compatible layer. "Native"
+ targets are VC-* (where "VC" stems from abbreviating Microsoft Visual C
+ compiler) and mingw[64]. "Hosted" platforms are Cygwin and MSYS[2]. Even
+ though the latter is not directly supported by OpenSSL Team, it's #1
+ popular choice for building MinGW targets. In the nutshell MinGW builds
+ are always cross-compiled. On Linux and Cygwin they look exactly as such
+ and require --cross-compile-prefix option. While on MSYS[2] it's solved
+ rather by placing gcc that produces "MinGW binary" code 1st on $PATH.
+ This is customarily source of confusion. "Hosted" applications "live" in
+ emulated filesystem name space with POSIX-y root, mount points, /dev
+ and even /proc. Confusion is intensified by the fact that MSYS2 shell
+ (or rather emulated execve(2) call) examines the binary it's about to
+ start, and if it's found *not* to be linked with MSYS2 POSIX-y thing,
+ command line arguments that look like filenames get translated from
+ emulated name space to "native". For example '/c/some/where' becomes
+ 'c:\some\where', '/dev/null' - 'nul'. This creates an illusion that
+ there is no difference between MSYS2 shell and "MinGW binary", but
+ there is. Just keep in mind that "MinGW binary" "experiences" Windows
+ system in exactly same way as one produced by VC, and in its essence
+ is indistinguishable from the latter. (Which by the way is why
+ it's referred to in quotes here, as "MinGW binary", it's just as
+ "native" as it can get.)
+
+ Visual C++ builds, aka VC-*
+ ==============================
+
+ Requirement details
+ -------------------
+
+ In addition to the requirements and instructions listed in INSTALL,
+ these are required as well:
+
+ - Perl. We recommend ActiveState Perl, available from
+   https://www.activestate.com/ActivePerl. Another viable alternative
+   appears to be Strawberry Perl, http://strawberryperl.com.
+   You also need the perl module Text::Template, available on CPAN.
+   Please read NOTES.PERL for more information.
+
+ - Microsoft Visual C compiler. Since we can't test them all, there is
+   unavoidable uncertainty about which versions are supported. Latest
+   version along with couple of previous are certainly supported. On
+   the other hand oldest one is known not to work. Everything between
+   falls into best-effort category.
+
+ - Netwide Assembler, aka NASM, available from https://www.nasm.us,
+   is required. Note that NASM is the only supported assembler. Even
+   though Microsoft provided assembler is NOT supported, contemporary
+   64-bit version is exercised through continuous integration of
+   VC-WIN64A-masm target.
+
+
+ Installation directories
+ ------------------------
+
+ The default installation directories are derived from environment
+ variables.
+
+ For VC-WIN32, the following defaults are use:
+
+     PREFIX:      %ProgramFiles(x86)%\OpenSSL
+     OPENSSLDIR:  %CommonProgramFiles(x86)%\SSL
+
+ For VC-WIN64, the following defaults are use:
+
+     PREFIX:      %ProgramW6432%\OpenSSL
+     OPENSSLDIR:  %CommonProgramW6432%\SSL
+
+ Should those environment variables not exist (on a pure Win32
+ installation for examples), these fallbacks are used:
+
+     PREFIX:      %ProgramFiles%\OpenSSL
+     OPENSSLDIR:  %CommonProgramFiles%\SSL
+
+ ALSO NOTE that those directories are usually write protected, even if
+ your account is in the Administrators group.  To work around that,
+ start the command prompt by right-clicking on it and choosing "Run as
+ Administrator" before running 'nmake install'.  The other solution
+ is, of course, to choose a different set of directories by using
+ --prefix and --openssldir when configuring.
+
+ mingw and mingw64
+ =================
+
+ * MSYS2 shell and development environment installation:
+
+   Download MSYS2 from https://msys2.github.io/ and follow installation
+   instructions. Once up and running install even make, perl, (git if
+   needed,) mingw-w64-i686-gcc and/or mingw-w64-x86_64-gcc. You should
+   have corresponding MinGW items on your start menu, use *them*, not
+   generic MSYS2. As implied in opening note, difference between them
+   is which compiler is found 1st on $PATH. At this point ./config
+   should recognize correct target, roll as if it was Unix...
+
+ * It is also possible to build mingw[64] on Linux or Cygwin by
+   configuring with corresponding --cross-compile-prefix= option. For
+   example
+
+     ./Configure mingw --cross-compile-prefix=i686-w64-mingw32- ...
+
+   or
+
+     ./Configure mingw64 --cross-compile-prefix=x86_64-w64-mingw32- ...
+
+   This naturally implies that you've installed corresponding add-on
+   packages.
+
+ Independently of the method chosen to build for mingw, the installation
+ paths are similar to those used when building with VC-* targets, except
+ that in case the fallbacks mentioned there aren't possible (typically
+ when cross compiling on Linux), the paths will be the following:
+
+ For mingw:
+
+     PREFIX:      C:/Program Files (x86)/OpenSSL
+     OPENSSLDIR   C:/Program Files (x86)/Common Files/SSL
+
+ For mingw64:
+
+     PREFIX:      C:/Program Files/OpenSSL
+     OPENSSLDIR   C:/Program Files/Common Files/SSL
+
+ Linking your application
+ ========================
+
+ This section applies to all "native" builds.
+
+ If you link with static OpenSSL libraries then you're expected to
+ additionally link your application with WS2_32.LIB, GDI32.LIB,
+ ADVAPI32.LIB, CRYPT32.LIB and USER32.LIB. Those developing
+ noninteractive service applications might feel concerned about
+ linking with GDI32.LIB and USER32.LIB, as they are justly associated
+ with interactive desktop, which is not available to service
+ processes. The toolkit is designed to detect in which context it's
+ currently executed, GUI, console app or service, and act accordingly,
+ namely whether or not to actually make GUI calls. Additionally those
+ who wish to /DELAYLOAD:GDI32.DLL and /DELAYLOAD:USER32.DLL and
+ actually keep them off service process should consider implementing
+ and exporting from .exe image in question own _OPENSSL_isservice not
+ relying on USER32.DLL. E.g., on Windows Vista and later you could:
+
+	__declspec(dllexport) __cdecl BOOL _OPENSSL_isservice(void)
+	{   DWORD sess;
+	    if (ProcessIdToSessionId(GetCurrentProcessId(),&sess))
+	        return sess==0;
+	    return FALSE;
+	}
+
+ If you link with OpenSSL .DLLs, then you're expected to include into
+ your application code small "shim" snippet, which provides glue between
+ OpenSSL BIO layer and your compiler run-time. See the OPENSSL_Applink
+ manual page for further details.
+
+ Cygwin, "hosted" environment
+ ============================
+
+ Cygwin implements a Posix/Unix runtime system (cygwin1.dll) on top of the
+ Windows subsystem and provides a bash shell and GNU tools environment.
+ Consequently, a make of OpenSSL with Cygwin is virtually identical to the
+ Unix procedure.
+
+ To build OpenSSL using Cygwin, you need to:
+
+ * Install Cygwin (see https://cygwin.com/)
+
+ * Install Cygwin Perl and ensure it is in the path. Recall that
+   as least 5.10.0 is required.
+
+ * Run the Cygwin bash shell
+
+ Apart from that, follow the Unix instructions in INSTALL.
+
+ NOTE: "make test" and normal file operations may fail in directories
+ mounted as text (i.e. mount -t c:\somewhere /home) due to Cygwin
+ stripping of carriage returns. To avoid this ensure that a binary
+ mount is used, e.g. mount -b c:\somewhere /home.

@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: mixed
-execute: yes
 wrap: no
 test function name: f
 
@@ -17,16 +15,16 @@ frame size: 1
 parameter count: 2
 bytecode array length: 14
 bytecodes: [
-                B(CreateFunctionContext), U8(1),
+  /*   10 E> */ B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(0),
                 B(Ldar), R(arg0),
-                B(StaContextSlot), R(context), U8(4),
-  /*   10 E> */ B(StackCheck),
-  /*   19 S> */ B(CreateClosure), U8(0), U8(2),
-  /*   52 S> */ B(Return),
+                B(StaCurrentContextSlot), U8(2),
+  /*   19 S> */ B(CreateClosure), U8(1), U8(0), U8(2),
+  /*   51 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::SHARED_FUNCTION_INFO_TYPE,
+  SCOPE_INFO_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
 ]
@@ -38,20 +36,20 @@ snippet: "
 "
 frame size: 2
 parameter count: 2
-bytecode array length: 19
+bytecode array length: 18
 bytecodes: [
-                B(CreateFunctionContext), U8(1),
+  /*   10 E> */ B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(1),
                 B(Ldar), R(arg0),
-                B(StaContextSlot), R(context), U8(4),
-  /*   10 E> */ B(StackCheck),
-  /*   27 S> */ B(CreateClosure), U8(0), U8(2),
+                B(StaCurrentContextSlot), U8(2),
+  /*   27 S> */ B(CreateClosure), U8(1), U8(0), U8(2),
                 B(Star), R(0),
-  /*   53 S> */ B(LdaContextSlot), R(context), U8(4),
-  /*   66 S> */ B(Return),
+  /*   53 S> */ B(LdaCurrentContextSlot), U8(2),
+  /*   65 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::SHARED_FUNCTION_INFO_TYPE,
+  SCOPE_INFO_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
 ]
@@ -63,20 +61,20 @@ snippet: "
 "
 frame size: 1
 parameter count: 5
-bytecode array length: 19
+bytecode array length: 18
 bytecodes: [
-                B(CreateFunctionContext), U8(2),
+  /*   10 E> */ B(CreateFunctionContext), U8(0), U8(2),
                 B(PushContext), R(0),
                 B(Ldar), R(arg0),
-                B(StaContextSlot), R(context), U8(5),
+                B(StaCurrentContextSlot), U8(3),
                 B(Ldar), R(arg2),
-                B(StaContextSlot), R(context), U8(4),
-  /*   10 E> */ B(StackCheck),
-  /*   29 S> */ B(CreateClosure), U8(0), U8(2),
-  /*   61 S> */ B(Return),
+                B(StaCurrentContextSlot), U8(2),
+  /*   29 S> */ B(CreateClosure), U8(1), U8(0), U8(2),
+  /*   60 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::SHARED_FUNCTION_INFO_TYPE,
+  SCOPE_INFO_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
 ]
@@ -90,16 +88,16 @@ frame size: 1
 parameter count: 1
 bytecode array length: 14
 bytecodes: [
-                B(CreateFunctionContext), U8(1),
+  /*   10 E> */ B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(0),
-  /*   10 E> */ B(StackCheck),
   /*   26 S> */ B(Ldar), R(this),
-  /*   26 E> */ B(StaContextSlot), R(context), U8(4),
-  /*   32 S> */ B(CreateClosure), U8(0), U8(2),
-  /*   65 S> */ B(Return),
+  /*   26 E> */ B(StaCurrentContextSlot), U8(2),
+  /*   32 S> */ B(CreateClosure), U8(1), U8(0), U8(2),
+  /*   64 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::SHARED_FUNCTION_INFO_TYPE,
+  SCOPE_INFO_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
 ]

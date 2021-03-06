@@ -34,6 +34,7 @@ function foo() {
   return Math.sqrt(2.6415) ? 88 : 99;
 }
 
+%PrepareFunctionForOptimization(foo);
 assertEquals(88, foo());
 assertEquals(88, foo());
 %OptimizeFunctionOnNextCall(foo)

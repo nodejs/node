@@ -14,14 +14,16 @@ function Outer() {
 }
 function KeepMapAlive(o) {
   return o.o;
-}
+};
+%PrepareFunctionForOptimization(KeepMapAlive);
 function SetInner(o, i) {
   o.inner_field = i;
-}
+};
+%PrepareFunctionForOptimization(SetInner);
 function Crash(o) {
   return o.inner_field.property;
-}
-
+};
+%PrepareFunctionForOptimization(Crash);
 var inner = new Inner();
 var outer = new Outer();
 

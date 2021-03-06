@@ -38,8 +38,8 @@ function deopt() {
 
 function outer(should_deopt) {
   inner(should_deopt);
-}
-
+};
+%PrepareFunctionForOptimization(outer);
 function inner(should_deopt) {
   if (should_deopt) deopt();
 }

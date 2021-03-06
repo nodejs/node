@@ -171,6 +171,7 @@
     HEAPF32[i] = 1.0;
   }
 
+  %PrepareFunctionForOptimization(__ZNK4Math7frustum10clipstatusERKNS_4bboxE);
   __ZNK4Math7frustum10clipstatusERKNS_4bboxE(0, 0);
   __ZNK4Math7frustum10clipstatusERKNS_4bboxE(0, 0);
   __ZNK4Math7frustum10clipstatusERKNS_4bboxE(0, 0);

@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turbo-type-feedback
+// Flags: --allow-natives-syntax
 
 function f(x) {
   var s = x ? "0" : "1";
   return 1 + Number(s);
 }
 
+%PrepareFunctionForOptimization(f);
 f(0);
 f(0);
 %OptimizeFunctionOnNextCall(f);

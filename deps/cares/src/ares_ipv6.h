@@ -32,6 +32,13 @@ struct sockaddr_in6
 };
 #endif
 
+typedef union
+{
+  struct sockaddr     sa;
+  struct sockaddr_in  sa4;
+  struct sockaddr_in6 sa6;
+} ares_sockaddr;
+
 #ifndef HAVE_STRUCT_ADDRINFO
 struct addrinfo
 {
@@ -47,16 +54,16 @@ struct addrinfo
 #endif
 
 #ifndef NS_IN6ADDRSZ
-#if SIZEOF_STRUCT_IN6_ADDR == 0
+#ifndef HAVE_STRUCT_IN6_ADDR
 /* We cannot have it set to zero, so we pick a fixed value here */
 #define NS_IN6ADDRSZ 16
 #else
-#define NS_IN6ADDRSZ SIZEOF_STRUCT_IN6_ADDR
+#define NS_IN6ADDRSZ sizeof(struct in6_addr)
 #endif
 #endif
 
 #ifndef NS_INADDRSZ
-#define NS_INADDRSZ SIZEOF_STRUCT_IN_ADDR
+#define NS_INADDRSZ sizeof(struct in_addr)
 #endif
 
 #ifndef NS_INT16SZ

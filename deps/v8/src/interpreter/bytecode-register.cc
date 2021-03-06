@@ -8,46 +8,42 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-static const int kLastParamRegisterIndex =
+static const int kFirstParamRegisterIndex =
     (InterpreterFrameConstants::kRegisterFileFromFp -
-     InterpreterFrameConstants::kLastParamFromFp) /
-    kPointerSize;
+     InterpreterFrameConstants::kFirstParamFromFp) /
+    kSystemPointerSize;
 static const int kFunctionClosureRegisterIndex =
     (InterpreterFrameConstants::kRegisterFileFromFp -
      StandardFrameConstants::kFunctionOffset) /
-    kPointerSize;
+    kSystemPointerSize;
 static const int kCurrentContextRegisterIndex =
     (InterpreterFrameConstants::kRegisterFileFromFp -
      StandardFrameConstants::kContextOffset) /
-    kPointerSize;
-static const int kNewTargetRegisterIndex =
-    (InterpreterFrameConstants::kRegisterFileFromFp -
-     InterpreterFrameConstants::kNewTargetFromFp) /
-    kPointerSize;
+    kSystemPointerSize;
 static const int kBytecodeArrayRegisterIndex =
     (InterpreterFrameConstants::kRegisterFileFromFp -
      InterpreterFrameConstants::kBytecodeArrayFromFp) /
-    kPointerSize;
+    kSystemPointerSize;
 static const int kBytecodeOffsetRegisterIndex =
     (InterpreterFrameConstants::kRegisterFileFromFp -
      InterpreterFrameConstants::kBytecodeOffsetFromFp) /
-    kPointerSize;
+    kSystemPointerSize;
 static const int kCallerPCOffsetRegisterIndex =
     (InterpreterFrameConstants::kRegisterFileFromFp -
-     InterpreterFrameConstants::kCallerPCOffsetFromFp) /
-    kPointerSize;
+     InterpreterFrameConstants::kCallerPCOffset) /
+    kSystemPointerSize;
 
 Register Register::FromParameterIndex(int index, int parameter_count) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, parameter_count);
-  int register_index = kLastParamRegisterIndex - parameter_count + index + 1;
+  int register_index = kFirstParamRegisterIndex - index;
   DCHECK_LT(register_index, 0);
   return Register(register_index);
 }
 
 int Register::ToParameterIndex(int parameter_count) const {
   DCHECK(is_parameter());
-  return index() - kLastParamRegisterIndex + parameter_count - 1;
+  return kFirstParamRegisterIndex - index();
 }
 
 Register Register::function_closure() {
@@ -64,12 +60,6 @@ Register Register::current_context() {
 
 bool Register::is_current_context() const {
   return index() == kCurrentContextRegisterIndex;
-}
-
-Register Register::new_target() { return Register(kNewTargetRegisterIndex); }
-
-bool Register::is_new_target() const {
-  return index() == kNewTargetRegisterIndex;
 }
 
 Register Register::bytecode_array() {
@@ -121,13 +111,11 @@ bool Register::AreContiguous(Register reg1, Register reg2, Register reg3,
   return true;
 }
 
-std::string Register::ToString(int parameter_count) {
+std::string Register::ToString(int parameter_count) const {
   if (is_current_context()) {
     return std::string("<context>");
   } else if (is_function_closure()) {
     return std::string("<closure>");
-  } else if (is_new_target()) {
-    return std::string("<new.target>");
   } else if (is_parameter()) {
     int parameter_index = ToParameterIndex(parameter_count);
     if (parameter_index == 0) {

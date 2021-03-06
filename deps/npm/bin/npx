@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+
+# This is used by the Node.js installer, which expects the cygwin/mingw
+# shell script to already be present in the npm dependency folder.
+
+(set -o igncr) 2>/dev/null && set -o igncr; # cygwin encoding fix
+
+basedir=`dirname "$0"`
+
+case `uname` in
+  *CYGWIN*) basedir=`cygpath -w "$basedir"`;;
+esac
+
+NODE_EXE="$basedir/node.exe"
+if ! [ -x "$NODE_EXE" ]; then
+  NODE_EXE=node
+fi
+
+# these paths are passed to node.exe, so they need to match whatever
+# kind of paths Node.js thinks it's using, typically win32 paths.
+CLI_BASEDIR="$("$NODE_EXE" -p 'require("path").dirname(process.execPath)')"
+if [ $? -ne 0 ]; then
+  # if this didn't work, then everything else below will fail
+  echo "Could not determine Node.js install directory" >&2
+  exit 1
+fi
+NPM_CLI_JS="$CLI_BASEDIR/node_modules/npm/bin/npm-cli.js"
+NPX_CLI_JS="$CLI_BASEDIR/node_modules/npm/bin/npx-cli.js"
+NPM_PREFIX=`"$NODE_EXE" "$NPM_CLI_JS" prefix -g`
+NPM_PREFIX_NPX_CLI_JS="$NPM_PREFIX/node_modules/npm/bin/npx-cli.js"
+
+# a path that will fail -f test on any posix bash
+NPX_WSL_PATH="/.."
+
+# WSL can run Windows binaries, so we have to give it the win32 path
+# however, WSL bash tests against posix paths, so we need to construct that
+# to know if npm is installed globally.
+if [ `uname` = 'Linux' ] && type wslpath &>/dev/null ; then
+  NPX_WSL_PATH=`wslpath "$NPM_PREFIX_NPX_CLI_JS"`
+fi
+if [ -f "$NPM_PREFIX_NPX_CLI_JS" ] || [ -f "$NPX_WSL_PATH" ]; then
+  NPX_CLI_JS="$NPM_PREFIX_NPX_CLI_JS"
+fi
+
+"$NODE_EXE" "$NPX_CLI_JS" "$@"

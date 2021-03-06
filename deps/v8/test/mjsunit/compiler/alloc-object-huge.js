@@ -25,9 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --inline-construct
-// Flags: --max-inlined-source-size=999999 --max-inlined-nodes=999999
-// Flags: --max-inlined-nodes-cumulative=999999
+// Flags: --allow-natives-syntax
+// Flags: --max-inlined-bytecode-size=999999
+// Flags: --max-inlined-bytecode-size-cumulative=999999
 
 // Test that huge constructors (more than 256 this assignments) are
 // handled correctly.
@@ -36,6 +36,7 @@
 function test() {
   return new huge();
 }
+%PrepareFunctionForOptimization(test);
 test();
 test();
 %OptimizeFunctionOnNextCall(test);

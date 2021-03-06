@@ -25,19 +25,32 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 var s = "test test test";
 
 assertEquals(0, s.indexOf("t"));
 assertEquals(3, s.indexOf("t", 1));
 assertEquals(5, s.indexOf("t", 4));
+assertEquals(5, s.indexOf("t", 4.1));
+assertEquals(0, s.indexOf("t", 0));
+assertEquals(0, s.indexOf("t", -1));
+assertEquals(0, s.indexOf("t", -1));
+assertEquals(0, s.indexOf("t", -1.1));
+assertEquals(0, s.indexOf("t", -1073741825));
 assertEquals(1, s.indexOf("e"));
 assertEquals(2, s.indexOf("s"));
 
 assertEquals(5, s.indexOf("test", 4));
 assertEquals(5, s.indexOf("test", 5));
 assertEquals(10, s.indexOf("test", 6));
+assertEquals(10, s.indexOf("test", 6.0));
 assertEquals(0, s.indexOf("test", 0));
+assertEquals(0, s.indexOf("test", 0.0));
 assertEquals(0, s.indexOf("test", -1));
+assertEquals(-1, s.indexOf("not found", -1));
+assertEquals(0, s.indexOf("test", -1.0));
+assertEquals(0, s.indexOf("test", -1073741825));
 assertEquals(0, s.indexOf("test"));
 assertEquals(-1, s.indexOf("notpresent"));
 assertEquals(-1, s.indexOf());
@@ -137,3 +150,160 @@ for (var lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
     assertEquals(index, allCharsString.indexOf(pattern));
   }
 }
+
+(function nonStringReceivers() {
+  let indexOf = String.prototype.indexOf;
+  assertThrows(() => indexOf.call(null), TypeError);
+  assertThrows(() => indexOf.call(undefined), TypeError);
+
+  assertEquals(-1, indexOf.call(1));
+  assertEquals(0, indexOf.call(1, "1"));
+
+  assertEquals(-1, indexOf.call(1.2));
+  assertEquals(0, indexOf.call(1.2, "1"));
+  assertEquals(1, indexOf.call(1.2, "."));
+  assertEquals(2, indexOf.call(1.2, "2"));
+  assertEquals(-1, indexOf.call(1.2, "1", 2));
+
+  assertEquals(-1, indexOf.call({}));
+  assertEquals(0, indexOf.call({}, "[object Object]"));
+  assertEquals(-1, indexOf.call({}, "[object", 1));
+
+  assertEquals(-1, indexOf.call([]));
+  assertEquals(0, indexOf.call([1,2], "1,2"));
+
+  assertEquals(-1, indexOf.call(this));
+})();
+
+(function nonStringSearchString() {
+
+  assertEquals(-1, "".indexOf(1));
+  assertEquals(2, "_0123".indexOf(1));
+
+  assertEquals(-1, "".indexOf(1.2));
+  assertEquals(1, "01.2".indexOf(1.2));
+  assertEquals(1, "01.2".indexOf(1.2, 1));
+  assertEquals(-1, "01.2".indexOf(1.2, 2));
+
+  assertEquals(-1, "".indexOf(null));
+  assertEquals(0, "null".indexOf(null));
+
+  assertEquals(-1, "".indexOf(undefined));
+  assertEquals(1, "_undefined_".indexOf(undefined));
+
+  assertEquals(0, "".indexOf([]));
+  assertEquals(0, "123".indexOf([]));
+  assertEquals(2, "1,2,3".indexOf([2,3]));
+
+  assertEquals(-1, "".indexOf({}));
+  assertEquals(-1, "".indexOf(this));
+})();
+
+(function nonStringPosition() {
+  assertEquals(0, "aba".indexOf("a", false));
+  assertEquals(2, "aba".indexOf("a", true));
+  assertEquals(2, "aba".indexOf("a", "1"));
+  assertEquals(2, "aba".indexOf("a", "1.00000"));
+  assertEquals(2, "aba".indexOf("a", "2.00000"));
+  assertEquals(-1, "aba".indexOf("a", "3.00000"));
+})();
+
+(function optimize() {
+  function f() {
+    return 'abc'.indexOf('a');
+  }
+  %PrepareFunctionForOptimization(f);
+  assertEquals(0, f());
+  assertEquals(0, f());
+  assertEquals(0, f());
+  %OptimizeFunctionOnNextCall(f);
+  assertEquals(0, f());
+
+  function f2() {
+    return 'abc'.indexOf('a', 1);
+  }
+  %PrepareFunctionForOptimization(f2);
+  assertEquals(-1, f2());
+  assertEquals(-1, f2());
+  assertEquals(-1, f2());
+  %OptimizeFunctionOnNextCall(f2);
+  assertEquals(-1, f2());
+
+  function f3() {
+    return 'abc'.indexOf('a');
+  }
+  %PrepareFunctionForOptimization(f3);
+  assertEquals(0, f3());
+  assertEquals(0, f3());
+  assertEquals(0, f3());
+  %OptimizeFunctionOnNextCall(f3);
+  assertEquals(0, f3());
+
+  function f4() {
+    return 'abcbc'.indexOf('bc', 2);
+  }
+  %PrepareFunctionForOptimization(f4);
+  assertEquals(3, f4());
+  assertEquals(3, f4());
+  assertEquals(3, f4());
+  %OptimizeFunctionOnNextCall(f4);
+  assertEquals(3, f4());
+
+  function f5() {
+    return 'abcbc'.indexOf('b', -1);
+  }
+  %PrepareFunctionForOptimization(f5);
+  assertEquals(1, f5());
+  assertEquals(1, f5());
+  assertEquals(1, f5());
+  %OptimizeFunctionOnNextCall(f5);
+  assertEquals(1, f5());
+
+  function f6() {
+    return 'abcbc'.indexOf('b', -10737418);
+  }
+  %PrepareFunctionForOptimization(f6);
+  assertEquals(1, f6());
+  assertEquals(1, f6());
+  assertEquals(1, f6());
+  %OptimizeFunctionOnNextCall(f6);
+  assertEquals(1, f6());
+})();
+
+(function optimizeOSR() {
+  function f() {
+    var result;
+    for (var i = 0; i < 100000; i++) {
+      result = 'abc'.indexOf('a');
+    }
+    return result;
+  }
+  assertEquals(0, f());
+
+  function f2() {
+    var result;
+    for (var i = 0; i < 100000; i++) {
+      result = 'abc'.indexOf('a', 1);
+    }
+    return result;
+  }
+  assertEquals(-1, f2());
+
+  function f3() {
+    var result;
+    for (var i = 0; i < 100000; i++) {
+      result = 'abc'.indexOf('a');
+    }
+    return result;
+  }
+  assertEquals(0, f3());
+
+  function f4() {
+    var result;
+    for (var i = 0; i < 100000; i++) {
+      result = 'abcbc'.indexOf('bc', 2);
+    }
+    return result;
+  }
+  assertEquals(3, f4());
+})();

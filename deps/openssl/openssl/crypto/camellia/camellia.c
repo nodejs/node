@@ -1,4 +1,12 @@
-/* crypto/camellia/camellia.c */
+/*
+ * Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
 /* ====================================================================
  * Copyright 2006 NTT (Nippon Telegraph and Telephone Corporation) .
  * ALL RIGHTS RESERVED.
@@ -12,57 +20,6 @@
  * The Camellia Code included herein is developed by
  * NTT (Nippon Telegraph and Telephone Corporation), and is contributed
  * to the OpenSSL project.
- *
- * The Camellia Code is licensed pursuant to the OpenSSL open source
- * license provided below.
- */
-/* ====================================================================
- * Copyright (c) 2006 The OpenSSL Project.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    openssl-core@openssl.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
  */
 
 /*
@@ -82,56 +39,16 @@
  * words reasonable performance even with not so modern compilers.
  */
 
-#include "camellia.h"
-#include "cmll_locl.h"
+#include <openssl/camellia.h>
+#include "cmll_local.h"
 #include <string.h>
 #include <stdlib.h>
 
-/* 32-bit rotations */
-#if !defined(PEDANTIC) && !defined(OPENSSL_NO_ASM) && !defined(OPENSSL_NO_INLINE_ASM)
-# if defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_AMD64) || defined(_M_X64))
-#  define RightRotate(x, s) _lrotr(x, s)
-#  define LeftRotate(x, s)  _lrotl(x, s)
-#  if _MSC_VER >= 1400
-#   define SWAP(x) _byteswap_ulong(x)
-#  else
-#   define SWAP(x) (_lrotl(x, 8) & 0x00ff00ff | _lrotr(x, 8) & 0xff00ff00)
-#  endif
-#  define GETU32(p)   SWAP(*((u32 *)(p)))
-#  define PUTU32(p,v) (*((u32 *)(p)) = SWAP((v)))
-# elif defined(__GNUC__) && __GNUC__>=2
-#  if defined(__i386) || defined(__x86_64)
-#   define RightRotate(x,s) ({u32 ret; asm ("rorl %1,%0":"=r"(ret):"I"(s),"0"(x):"cc"); ret; })
-#   define LeftRotate(x,s)  ({u32 ret; asm ("roll %1,%0":"=r"(ret):"I"(s),"0"(x):"cc"); ret; })
-#   if defined(B_ENDIAN)        /* stratus.com does it */
-#    define GETU32(p)   (*(u32 *)(p))
-#    define PUTU32(p,v) (*(u32 *)(p)=(v))
-#   else
-#    define GETU32(p)   ({u32 r=*(const u32 *)(p); asm("bswapl %0":"=r"(r):"0"(r)); r; })
-#    define PUTU32(p,v) ({u32 r=(v); asm("bswapl %0":"=r"(r):"0"(r)); *(u32 *)(p)=r; })
-#   endif
-#  elif defined(_ARCH_PPC) || defined(_ARCH_PPC64) || \
-        defined(__powerpc) || defined(__ppc__) || defined(__powerpc64__)
-#   define LeftRotate(x,s)  ({u32 ret; asm ("rlwinm %0,%1,%2,0,31":"=r"(ret):"r"(x),"I"(s)); ret; })
-#   define RightRotate(x,s) LeftRotate(x,(32-s))
-#  elif defined(__s390x__)
-#   define LeftRotate(x,s)  ({u32 ret; asm ("rll %0,%1,%2":"=r"(ret):"r"(x),"I"(s)); ret; })
-#   define RightRotate(x,s) LeftRotate(x,(32-s))
-#   define GETU32(p)   (*(u32 *)(p))
-#   define PUTU32(p,v) (*(u32 *)(p)=(v))
-#  endif
-# endif
-#endif
+#define RightRotate(x, s) ( ((x) >> (s)) + ((x) << (32 - s)) )
+#define LeftRotate(x, s)  ( ((x) << (s)) + ((x) >> (32 - s)) )
 
-#if !defined(RightRotate) && !defined(LeftRotate)
-# define RightRotate(x, s) ( ((x) >> (s)) + ((x) << (32 - s)) )
-# define LeftRotate(x, s)  ( ((x) << (s)) + ((x) >> (32 - s)) )
-#endif
-
-#if !defined(GETU32) && !defined(PUTU32)
-# define GETU32(p)   (((u32)(p)[0] << 24) ^ ((u32)(p)[1] << 16) ^ ((u32)(p)[2] <<  8) ^ ((u32)(p)[3]))
-# define PUTU32(p,v) ((p)[0] = (u8)((v) >> 24), (p)[1] = (u8)((v) >> 16), (p)[2] = (u8)((v) >>  8), (p)[3] = (u8)(v))
-#endif
+#define GETU32(p)   (((u32)(p)[0] << 24) ^ ((u32)(p)[1] << 16) ^ ((u32)(p)[2] <<  8) ^ ((u32)(p)[3]))
+#define PUTU32(p,v) ((p)[0] = (u8)((v) >> 24), (p)[1] = (u8)((v) >> 16), (p)[2] = (u8)((v) >>  8), (p)[3] = (u8)(v))
 
 /* S-box data */
 #define SBOX1_1110 Camellia_SBOX[0]

@@ -5,15 +5,15 @@
 #ifndef V8_REGEXP_IA32_REGEXP_MACRO_ASSEMBLER_IA32_H_
 #define V8_REGEXP_IA32_REGEXP_MACRO_ASSEMBLER_IA32_H_
 
-#include "src/ia32/assembler-ia32.h"
-#include "src/macro-assembler.h"
+#include "src/codegen/ia32/assembler-ia32.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/regexp/regexp-macro-assembler.h"
 
 namespace v8 {
 namespace internal {
 
-#ifndef V8_INTERPRETED_REGEXP
-class RegExpMacroAssemblerIA32: public NativeRegExpMacroAssembler {
+class V8_EXPORT_PRIVATE RegExpMacroAssemblerIA32
+    : public NativeRegExpMacroAssembler {
  public:
   RegExpMacroAssemblerIA32(Isolate* isolate, Zone* zone, Mode mode,
                            int registers_to_save);
@@ -23,7 +23,7 @@ class RegExpMacroAssemblerIA32: public NativeRegExpMacroAssembler {
   virtual void AdvanceRegister(int reg, int by);
   virtual void Backtrack();
   virtual void Bind(Label* label);
-  virtual void CheckAtStart(Label* on_at_start);
+  virtual void CheckAtStart(int cp_offset, Label* on_at_start);
   virtual void CheckCharacter(uint32_t c, Label* on_equal);
   virtual void CheckCharacterAfterAnd(uint32_t c,
                                       uint32_t mask,
@@ -66,10 +66,8 @@ class RegExpMacroAssemblerIA32: public NativeRegExpMacroAssembler {
   virtual void IfRegisterLT(int reg, int comparand, Label* if_lt);
   virtual void IfRegisterEqPos(int reg, Label* if_eq);
   virtual IrregexpImplementation Implementation();
-  virtual void LoadCurrentCharacter(int cp_offset,
-                                    Label* on_end_of_input,
-                                    bool check_bounds = true,
-                                    int characters = 1);
+  virtual void LoadCurrentCharacterUnchecked(int cp_offset,
+                                             int character_count);
   virtual void PopCurrentPosition();
   virtual void PopRegister(int register_index);
   virtual void PushBacktrack(Label* label);
@@ -88,46 +86,45 @@ class RegExpMacroAssemblerIA32: public NativeRegExpMacroAssembler {
   // Called from RegExp if the stack-guard is triggered.
   // If the code object is relocated, the return address is fixed before
   // returning.
-  static int CheckStackGuardState(Address* return_address,
-                                  Code* re_code,
+  // {raw_code} is an Address because this is called via ExternalReference.
+  static int CheckStackGuardState(Address* return_address, Address raw_code,
                                   Address re_frame);
 
  private:
+  Operand StaticVariable(const ExternalReference& ext);
   // Offsets from ebp of function parameters and stored registers.
   static const int kFramePointer = 0;
   // Above the frame pointer - function parameters and return address.
-  static const int kReturn_eip = kFramePointer + kPointerSize;
-  static const int kFrameAlign = kReturn_eip + kPointerSize;
+  static const int kReturn_eip = kFramePointer + kSystemPointerSize;
+  static const int kFrameAlign = kReturn_eip + kSystemPointerSize;
   // Parameters.
   static const int kInputString = kFrameAlign;
-  static const int kStartIndex = kInputString + kPointerSize;
-  static const int kInputStart = kStartIndex + kPointerSize;
-  static const int kInputEnd = kInputStart + kPointerSize;
-  static const int kRegisterOutput = kInputEnd + kPointerSize;
+  static const int kStartIndex = kInputString + kSystemPointerSize;
+  static const int kInputStart = kStartIndex + kSystemPointerSize;
+  static const int kInputEnd = kInputStart + kSystemPointerSize;
+  static const int kRegisterOutput = kInputEnd + kSystemPointerSize;
   // For the case of global regular expression, we have room to store at least
   // one set of capture results.  For the case of non-global regexp, we ignore
   // this value.
-  static const int kNumOutputRegisters = kRegisterOutput + kPointerSize;
-  static const int kStackHighEnd = kNumOutputRegisters + kPointerSize;
-  static const int kDirectCall = kStackHighEnd + kPointerSize;
-  static const int kIsolate = kDirectCall + kPointerSize;
+  static const int kNumOutputRegisters = kRegisterOutput + kSystemPointerSize;
+  static const int kStackHighEnd = kNumOutputRegisters + kSystemPointerSize;
+  static const int kDirectCall = kStackHighEnd + kSystemPointerSize;
+  static const int kIsolate = kDirectCall + kSystemPointerSize;
   // Below the frame pointer - local stack variables.
   // When adding local variables remember to push space for them in
   // the frame in GetCode.
-  static const int kBackup_esi = kFramePointer - kPointerSize;
-  static const int kBackup_edi = kBackup_esi - kPointerSize;
-  static const int kBackup_ebx = kBackup_edi - kPointerSize;
-  static const int kSuccessfulCaptures = kBackup_ebx - kPointerSize;
-  static const int kStringStartMinusOne = kSuccessfulCaptures - kPointerSize;
+  static const int kBackup_esi = kFramePointer - kSystemPointerSize;
+  static const int kBackup_edi = kBackup_esi - kSystemPointerSize;
+  static const int kBackup_ebx = kBackup_edi - kSystemPointerSize;
+  static const int kSuccessfulCaptures = kBackup_ebx - kSystemPointerSize;
+  static const int kStringStartMinusOne =
+      kSuccessfulCaptures - kSystemPointerSize;
+  static const int kBacktrackCount = kStringStartMinusOne - kSystemPointerSize;
   // First register address. Following registers are below it on the stack.
-  static const int kRegisterZero = kStringStartMinusOne - kPointerSize;
+  static const int kRegisterZero = kBacktrackCount - kSystemPointerSize;
 
   // Initial size of code buffer.
-  static const size_t kRegExpCodeSize = 1024;
-
-  // Load a number of characters at the given offset from the
-  // current position, into the current-character register.
-  void LoadCurrentCharacterUnchecked(int cp_offset, int character_count);
+  static const int kRegExpCodeSize = 1024;
 
   // Check whether preemption has been requested.
   void CheckPreemption();
@@ -152,7 +149,7 @@ class RegExpMacroAssemblerIA32: public NativeRegExpMacroAssembler {
   inline int char_size() { return static_cast<int>(mode_); }
 
   // Equivalent to a conditional branch to the label, unless the label
-  // is NULL, in which case it is a conditional Backtrack.
+  // is nullptr, in which case it is a conditional Backtrack.
   void BranchOrBacktrack(Condition condition, Label* to);
 
   // Call and return internally in the generated code in a way that
@@ -195,8 +192,8 @@ class RegExpMacroAssemblerIA32: public NativeRegExpMacroAssembler {
   Label exit_label_;
   Label check_preempt_label_;
   Label stack_overflow_label_;
+  Label fallback_label_;
 };
-#endif  // V8_INTERPRETED_REGEXP
 
 }  // namespace internal
 }  // namespace v8

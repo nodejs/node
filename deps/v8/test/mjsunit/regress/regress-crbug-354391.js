@@ -6,8 +6,8 @@
 
 function load(a, i) {
   return a[i];
-}
-
+};
+%PrepareFunctionForOptimization(load);
 function f2(a, b, c, d, index) {
   return load(arguments, index);
 }

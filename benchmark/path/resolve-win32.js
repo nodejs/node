@@ -1,32 +1,30 @@
 'use strict';
-var common = require('../common.js');
-var path = require('path');
-var v8 = require('v8');
+const common = require('../common.js');
+const { win32 } = require('path');
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   paths: [
     '',
     ['', ''].join('|'),
     ['c:/ignore', 'd:\\a/b\\c/d', '\\e.exe'].join('|'),
-    ['c:/blah\\blah', 'd:/games', 'c:../a'].join('|')
+    ['c:/blah\\blah', 'd:/games', 'c:../a'].join('|'),
   ],
-  n: [1e6]
+  n: [1e5]
 });
 
-function main(conf) {
-  var n = +conf.n;
-  var p = path.win32;
-  var args = ('' + conf.paths).split('|');
-
-  // Force optimization before starting the benchmark
-  p.resolve.apply(null, args);
-  v8.setFlagsFromString('--allow_natives_syntax');
-  eval('%OptimizeFunctionOnNextCall(p.resolve)');
-  p.resolve.apply(null, args);
+function main({ n, paths }) {
+  const args = paths.split('|');
+  const copy = [...args];
+  const orig = copy[0];
 
   bench.start();
-  for (var i = 0; i < n; i++) {
-    p.resolve.apply(null, args);
+  for (let i = 0; i < n; i++) {
+    if (i % 3 === 0) {
+      copy[0] = `${orig}${i}`;
+      win32.resolve(...copy);
+    } else {
+      win32.resolve(...args);
+    }
   }
   bench.end(n);
 }

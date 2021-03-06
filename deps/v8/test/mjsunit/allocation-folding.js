@@ -38,6 +38,7 @@ function f() {
   return elem2;
 }
 
+%PrepareFunctionForOptimization(f);
 f(); f(); f();
 %OptimizeFunctionOnNextCall(f);
 var result = f();
@@ -54,6 +55,7 @@ function doubles() {
   return elem2;
 }
 
+%PrepareFunctionForOptimization(doubles);
 doubles(); doubles(); doubles();
 %OptimizeFunctionOnNextCall(doubles);
 result = doubles();
@@ -70,6 +72,7 @@ function doubles_int() {
   return elem2;
 }
 
+%PrepareFunctionForOptimization(doubles_int);
 doubles_int(); doubles_int(); doubles_int();
 %OptimizeFunctionOnNextCall(doubles_int);
 result = doubles_int();
@@ -91,6 +94,7 @@ function branch_int(left) {
   return elem2;
 }
 
+%PrepareFunctionForOptimization(branch_int);
 branch_int(1); branch_int(1); branch_int(1);
 %OptimizeFunctionOnNextCall(branch_int);
 result = branch_int(1);
@@ -110,6 +114,7 @@ function boom() {
   return [ a1, a2, a3 ];
 }
 
+%PrepareFunctionForOptimization(boom);
 boom(); boom(); boom();
 %OptimizeFunctionOnNextCall(boom);
 boom();

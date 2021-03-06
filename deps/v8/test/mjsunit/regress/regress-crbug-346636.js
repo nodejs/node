@@ -6,15 +6,15 @@
 
 function assertSame(expected, found) {
   if (found === expected) {
-    if (expected !== 0 || (1 / expected) == (1 / found)) return;
+    if (expected !== 0 || 1 / expected == 1 / found) return;
   }
   return;
 };
 
 function foo(x) {
   return x.bar;
-}
-
+};
+%PrepareFunctionForOptimization(foo);
 function getter1() {
   assertSame(this, this);
 }

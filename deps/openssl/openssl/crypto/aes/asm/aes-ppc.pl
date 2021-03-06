@@ -1,7 +1,14 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2007-2020 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 # ====================================================================
-# Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
+# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
 # details see http://www.openssl.org/~appro/cryptogams/.
@@ -19,7 +26,7 @@
 # February 2010
 #
 # Rescheduling instructions to favour Power6 pipeline gave 10%
-# performance improvement on the platfrom in question (and marginal
+# performance improvement on the platform in question (and marginal
 # improvement even on others). It should be noted that Power6 fails
 # to process byte in 18 cycles, only in 23, because it fails to issue
 # 4 load instructions in two cycles, only in 3. As result non-compact
@@ -1426,10 +1433,10 @@ $code.=<<___;
 	xor	$s1,$s1,$acc05
 	xor	$s2,$s2,$acc06
 	xor	$s3,$s3,$acc07
-	xor	$s0,$s0,$acc08		# ^= ROTATE(r8,8)	
-	xor	$s1,$s1,$acc09	
-	xor	$s2,$s2,$acc10	
-	xor	$s3,$s3,$acc11	
+	xor	$s0,$s0,$acc08		# ^= ROTATE(r8,8)
+	xor	$s1,$s1,$acc09
+	xor	$s2,$s2,$acc10
+	xor	$s3,$s3,$acc11
 
 	b	Ldec_compact_loop
 .align	4
@@ -1449,4 +1456,4 @@ ___
 
 $code =~ s/\`([^\`]*)\`/eval $1/gem;
 print $code;
-close STDOUT;
+close STDOUT or die "error closing STDOUT: $!";

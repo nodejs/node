@@ -51,8 +51,8 @@ namespace internal {
 // POSIX doesn't define any async-signal safe function for converting
 // an integer to ASCII. We'll have to define our own version.
 // itoa_r() converts a (signed) integer to ASCII. It returns "buf", if the
-// conversion was successful or NULL otherwise. It never writes more than "sz"
-// bytes. Output will be truncated as needed, and a NUL character is always
+// conversion was successful or nullptr otherwise. It never writes more than
+// "sz" bytes. Output will be truncated as needed, and a NUL character is always
 // appended.
 char* itoa_r(intptr_t i, char* buf, size_t sz, int base, size_t padding);
 
@@ -61,7 +61,7 @@ char* itoa_r(intptr_t i, char* buf, size_t sz, int base, size_t padding);
 namespace {
 
 volatile sig_atomic_t in_signal_handler = 0;
-bool dump_stack_in_signal_handler = 1;
+bool dump_stack_in_signal_handler = true;
 
 // The prefix used for mangled symbols, per the Itanium C++ ABI:
 // http://www.codesourcery.com/cxx-abi/abi.html#mangling
@@ -72,6 +72,7 @@ const char kMangledSymbolPrefix[] = "_Z";
 const char kSymbolCharacters[] =
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_";
 
+#if HAVE_EXECINFO_H
 // Demangles C++ symbols in the given text. Example:
 //
 // "out/Debug/base_unittests(_ZN10StackTraceC1Ev+0x20) [0x817778c]"
@@ -81,7 +82,6 @@ void DemangleSymbols(std::string* text) {
   // Note: code in this function is NOT async-signal safe (std::string uses
   // malloc internally).
 
-#if HAVE_EXECINFO_H
 
   std::string::size_type search_from = 0;
   while (search_from < text->size()) {
@@ -104,7 +104,7 @@ void DemangleSymbols(std::string* text) {
     // Try to demangle the mangled symbol candidate.
     int status = 0;
     std::unique_ptr<char, FreeDeleter> demangled_symbol(
-        abi::__cxa_demangle(mangled_symbol.c_str(), NULL, 0, &status));
+        abi::__cxa_demangle(mangled_symbol.c_str(), nullptr, nullptr, &status));
     if (status == 0) {  // Demangling is successful.
       // Remove the mangled symbol.
       text->erase(mangled_start, mangled_end - mangled_start);
@@ -117,18 +117,18 @@ void DemangleSymbols(std::string* text) {
       search_from = mangled_start + 2;
     }
   }
-
-#endif  // HAVE_EXECINFO_H
 }
+#endif  // HAVE_EXECINFO_H
 
 class BacktraceOutputHandler {
  public:
   virtual void HandleOutput(const char* output) = 0;
 
  protected:
-  virtual ~BacktraceOutputHandler() {}
+  virtual ~BacktraceOutputHandler() = default;
 };
 
+#if HAVE_EXECINFO_H
 void OutputPointer(void* pointer, BacktraceOutputHandler* handler) {
   // This should be more than enough to store a 64-bit number in hex:
   // 16 hex digits + 1 for null-terminator.
@@ -139,7 +139,6 @@ void OutputPointer(void* pointer, BacktraceOutputHandler* handler) {
   handler->HandleOutput(buf);
 }
 
-#if HAVE_EXECINFO_H
 void ProcessBacktrace(void* const* trace, size_t size,
                       BacktraceOutputHandler* handler) {
   // NOTE: This code MUST be async-signal safe (it's used by in-process
@@ -267,28 +266,29 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
 
 class PrintBacktraceOutputHandler : public BacktraceOutputHandler {
  public:
-  PrintBacktraceOutputHandler() {}
+  PrintBacktraceOutputHandler() = default;
+  PrintBacktraceOutputHandler(const PrintBacktraceOutputHandler&) = delete;
+  PrintBacktraceOutputHandler& operator=(const PrintBacktraceOutputHandler&) =
+      delete;
 
   void HandleOutput(const char* output) override {
     // NOTE: This code MUST be async-signal safe (it's used by in-process
     // stack dumping signal handler). NO malloc or stdio is allowed here.
     PrintToStderr(output);
   }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(PrintBacktraceOutputHandler);
 };
 
 class StreamBacktraceOutputHandler : public BacktraceOutputHandler {
  public:
   explicit StreamBacktraceOutputHandler(std::ostream* os) : os_(os) {}
+  StreamBacktraceOutputHandler(const StreamBacktraceOutputHandler&) = delete;
+  StreamBacktraceOutputHandler& operator=(const StreamBacktraceOutputHandler&) =
+      delete;
 
   void HandleOutput(const char* output) override { (*os_) << output; }
 
  private:
   std::ostream* os_;
-
-  DISALLOW_COPY_AND_ASSIGN(StreamBacktraceOutputHandler);
 };
 
 void WarmUpBacktrace() {
@@ -334,7 +334,7 @@ bool EnableInProcessStackDumping() {
   memset(&sigpipe_action, 0, sizeof(sigpipe_action));
   sigpipe_action.sa_handler = SIG_IGN;
   sigemptyset(&sigpipe_action.sa_mask);
-  bool success = (sigaction(SIGPIPE, &sigpipe_action, NULL) == 0);
+  bool success = (sigaction(SIGPIPE, &sigpipe_action, nullptr) == 0);
 
   // Avoid hangs during backtrace initialization, see above.
   WarmUpBacktrace();
@@ -345,12 +345,12 @@ bool EnableInProcessStackDumping() {
   action.sa_sigaction = &StackDumpSignalHandler;
   sigemptyset(&action.sa_mask);
 
-  success &= (sigaction(SIGILL, &action, NULL) == 0);
-  success &= (sigaction(SIGABRT, &action, NULL) == 0);
-  success &= (sigaction(SIGFPE, &action, NULL) == 0);
-  success &= (sigaction(SIGBUS, &action, NULL) == 0);
-  success &= (sigaction(SIGSEGV, &action, NULL) == 0);
-  success &= (sigaction(SIGSYS, &action, NULL) == 0);
+  success &= (sigaction(SIGILL, &action, nullptr) == 0);
+  success &= (sigaction(SIGABRT, &action, nullptr) == 0);
+  success &= (sigaction(SIGFPE, &action, nullptr) == 0);
+  success &= (sigaction(SIGBUS, &action, nullptr) == 0);
+  success &= (sigaction(SIGSEGV, &action, nullptr) == 0);
+  success &= (sigaction(SIGSYS, &action, nullptr) == 0);
 
   dump_stack_in_signal_handler = true;
 
@@ -397,11 +397,11 @@ namespace internal {
 char* itoa_r(intptr_t i, char* buf, size_t sz, int base, size_t padding) {
   // Make sure we can write at least one NUL byte.
   size_t n = 1;
-  if (n > sz) return NULL;
+  if (n > sz) return nullptr;
 
   if (base < 2 || base > 16) {
-    buf[0] = '\000';
-    return NULL;
+    buf[0] = '\0';
+    return nullptr;
   }
 
   char* start = buf;
@@ -415,8 +415,8 @@ char* itoa_r(intptr_t i, char* buf, size_t sz, int base, size_t padding) {
 
     // Make sure we can write the '-' character.
     if (++n > sz) {
-      buf[0] = '\000';
-      return NULL;
+      buf[0] = '\0';
+      return nullptr;
     }
     *start++ = '-';
   }
@@ -427,8 +427,8 @@ char* itoa_r(intptr_t i, char* buf, size_t sz, int base, size_t padding) {
   do {
     // Make sure there is still enough space left in our output buffer.
     if (++n > sz) {
-      buf[0] = '\000';
-      return NULL;
+      buf[0] = '\0';
+      return nullptr;
     }
 
     // Output the next digit.
@@ -439,7 +439,7 @@ char* itoa_r(intptr_t i, char* buf, size_t sz, int base, size_t padding) {
   } while (j > 0 || padding > 0);
 
   // Terminate the output with a NUL character.
-  *ptr = '\000';
+  *ptr = '\0';
 
   // Conversion to ASCII actually resulted in the digits being in reverse
   // order. We can't easily generate them in forward order, as we can't tell

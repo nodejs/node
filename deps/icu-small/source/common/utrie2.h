@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -8,7 +8,7 @@
 *
 ******************************************************************************
 *   file name:  utrie2.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -20,8 +20,8 @@
 #define __UTRIE2_H__
 
 #include "unicode/utypes.h"
+#include "unicode/utf8.h"
 #include "putilimp.h"
-#include "udataswp.h"
 
 U_CDECL_BEGIN
 
@@ -54,6 +54,8 @@ typedef struct UTrie UTrie;
  *   is truncated, omitting both the BMP portion and the high range.
  * - There is a special small index for 2-byte UTF-8, and the initial data
  *   entries are designed for fast 1/2-byte UTF-8 lookup.
+ *   Starting with ICU 60, C0 and C1 are not recognized as UTF-8 lead bytes any more at all,
+ *   and the associated 2-byte indexes are unused.
  */
 
 /**
@@ -159,13 +161,13 @@ UTrie2EnumValue(const void *context, uint32_t value);
  * of code points with the same value as retrieved from the trie and
  * transformed by the UTrie2EnumValue function.
  *
- * The callback function can stop the enumeration by returning FALSE.
+ * The callback function can stop the enumeration by returning false.
  *
  * @param context an opaque pointer, as passed into utrie2_enum()
  * @param start the first code point in a contiguous range with value
  * @param end the last code point in a contiguous range with value (inclusive)
  * @param value the value that is set for all code points in [start..end]
- * @return FALSE to stop the enumeration
+ * @return false to stop the enumeration
  */
 typedef UBool U_CALLCONV
 UTrie2EnumRange(const void *context, UChar32 start, UChar32 end, uint32_t value);
@@ -254,7 +256,7 @@ utrie2_set32(UTrie2 *trie, UChar32 c, uint32_t value, UErrorCode *pErrorCode);
 /**
  * Set a value in a range of code points [start..end].
  * All code points c with start<=c<=end will get the value if
- * overwrite is TRUE or if the old value is the initial value.
+ * overwrite is true or if the old value is the initial value.
  *
  * @param trie the unfrozen trie
  * @param start the first code point to get the value
@@ -296,7 +298,7 @@ utrie2_freeze(UTrie2 *trie, UTrie2ValueBits valueBits, UErrorCode *pErrorCode);
  * Test if the trie is frozen. (See utrie2_freeze().)
  *
  * @param trie the trie
- * @return TRUE if the trie is frozen, that is, immutable, ready for serialization
+ * @return true if the trie is frozen, that is, immutable, ready for serialization
  *         and for use with fast macros
  */
 U_CAPI UBool U_EXPORT2
@@ -326,40 +328,6 @@ utrie2_serialize(const UTrie2 *trie,
                  UErrorCode *pErrorCode);
 
 /* Public UTrie2 API: miscellaneous functions ------------------------------- */
-
-/**
- * Get the UTrie version from 32-bit-aligned memory containing the serialized form
- * of either a UTrie (version 1) or a UTrie2 (version 2).
- *
- * @param data a pointer to 32-bit-aligned memory containing the serialized form
- *             of a UTrie, version 1 or 2
- * @param length the number of bytes available at data;
- *               can be more than necessary (see return value)
- * @param anyEndianOk If FALSE, only platform-endian serialized forms are recognized.
- *                    If TRUE, opposite-endian serialized forms are recognized as well.
- * @return the UTrie version of the serialized form, or 0 if it is not
- *         recognized as a serialized UTrie
- */
-U_CAPI int32_t U_EXPORT2
-utrie2_getVersion(const void *data, int32_t length, UBool anyEndianOk);
-
-/**
- * Swap a serialized UTrie2.
- * @internal
- */
-U_CAPI int32_t U_EXPORT2
-utrie2_swap(const UDataSwapper *ds,
-            const void *inData, int32_t length, void *outData,
-            UErrorCode *pErrorCode);
-
-/**
- * Swap a serialized UTrie or UTrie2.
- * @internal
- */
-U_CAPI int32_t U_EXPORT2
-utrie2_swapAnyVersion(const UDataSwapper *ds,
-                      const void *inData, int32_t length, void *outData,
-                      UErrorCode *pErrorCode);
 
 /**
  * Build a UTrie2 (version 2) from a UTrie (version 1).
@@ -702,10 +670,14 @@ struct UTrie2 {
     /* private: used by builder and unserialization functions */
     void *memory;           /* serialized bytes; NULL if not frozen yet */
     int32_t length;         /* number of serialized bytes at memory; 0 if not frozen yet */
-    UBool isMemoryOwned;    /* TRUE if the trie owns the memory */
+    UBool isMemoryOwned;    /* true if the trie owns the memory */
     UBool padding1;
     int16_t padding2;
     UNewTrie2 *newTrie;     /* builder object; NULL when frozen */
+
+#ifdef UTRIE2_DEBUG
+    const char *name;
+#endif
 };
 
 /**
@@ -824,7 +796,7 @@ enum {
  * Do not call directly.
  * @internal
  */
-U_INTERNAL int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 utrie2_internalU8NextIndex(const UTrie2 *trie, UChar32 c,
                            const uint8_t *src, const uint8_t *limit);
 
@@ -833,7 +805,7 @@ utrie2_internalU8NextIndex(const UTrie2 *trie, UChar32 c,
  * Do not call directly.
  * @internal
  */
-U_INTERNAL int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 utrie2_internalU8PrevIndex(const UTrie2 *trie, UChar32 c,
                            const uint8_t *start, const uint8_t *src);
 
@@ -899,7 +871,7 @@ utrie2_internalU8PrevIndex(const UTrie2 *trie, UChar32 c,
     (trie)->data[_UTRIE2_INDEX_FROM_CP(trie, asciiOffset, c)]
 
 /** Internal next-post-increment: get the next code point (c) and its data. */
-#define _UTRIE2_U16_NEXT(trie, data, src, limit, c, result) { \
+#define _UTRIE2_U16_NEXT(trie, data, src, limit, c, result) UPRV_BLOCK_MACRO_BEGIN { \
     { \
         uint16_t __c2; \
         (c)=*(src)++; \
@@ -913,10 +885,10 @@ utrie2_internalU8PrevIndex(const UTrie2 *trie, UChar32 c,
             (result)=_UTRIE2_GET_FROM_SUPP((trie), data, (c)); \
         } \
     } \
-}
+} UPRV_BLOCK_MACRO_END
 
 /** Internal pre-decrement-previous: get the previous code point (c) and its data */
-#define _UTRIE2_U16_PREV(trie, data, start, src, c, result) { \
+#define _UTRIE2_U16_PREV(trie, data, start, src, c, result) UPRV_BLOCK_MACRO_BEGIN { \
     { \
         uint16_t __c2; \
         (c)=*--(src); \
@@ -928,34 +900,34 @@ utrie2_internalU8PrevIndex(const UTrie2 *trie, UChar32 c,
             (result)=_UTRIE2_GET_FROM_SUPP((trie), data, (c)); \
         } \
     } \
-}
+} UPRV_BLOCK_MACRO_END
 
 /** Internal UTF-8 next-post-increment: get the next code point's data. */
-#define _UTRIE2_U8_NEXT(trie, ascii, data, src, limit, result) { \
+#define _UTRIE2_U8_NEXT(trie, ascii, data, src, limit, result) UPRV_BLOCK_MACRO_BEGIN { \
     uint8_t __lead=(uint8_t)*(src)++; \
-    if(__lead<0xc0) { \
+    if(U8_IS_SINGLE(__lead)) { \
         (result)=(trie)->ascii[__lead]; \
     } else { \
         uint8_t __t1, __t2; \
-        if( /* handle U+0000..U+07FF inline */ \
-            __lead<0xe0 && (src)<(limit) && \
+        if( /* handle U+0800..U+FFFF inline */ \
+            0xe0<=__lead && __lead<0xf0 && ((src)+1)<(limit) && \
+            U8_IS_VALID_LEAD3_AND_T1(__lead, __t1=(uint8_t)*(src)) && \
+            (__t2=(uint8_t)(*((src)+1)-0x80))<= 0x3f \
+        ) { \
+            (src)+=2; \
+            (result)=(trie)->data[ \
+                ((int32_t)((trie)->index[((__lead-0xe0)<<(12-UTRIE2_SHIFT_2))+ \
+                                         ((__t1&0x3f)<<(6-UTRIE2_SHIFT_2))+(__t2>>UTRIE2_SHIFT_2)]) \
+                <<UTRIE2_INDEX_SHIFT)+ \
+                (__t2&UTRIE2_DATA_MASK)]; \
+        } else if( /* handle U+0080..U+07FF inline */ \
+            __lead<0xe0 && __lead>=0xc2 && (src)<(limit) && \
             (__t1=(uint8_t)(*(src)-0x80))<=0x3f \
         ) { \
             ++(src); \
             (result)=(trie)->data[ \
                 (trie)->index[(UTRIE2_UTF8_2B_INDEX_2_OFFSET-0xc0)+__lead]+ \
                 __t1]; \
-        } else if( /* handle U+0000..U+CFFF inline */ \
-            __lead<0xed && ((src)+1)<(limit) && \
-            (__t1=(uint8_t)(*(src)-0x80))<=0x3f && (__lead>0xe0 || __t1>=0x20) && \
-            (__t2=(uint8_t)(*((src)+1)-0x80))<= 0x3f \
-        ) { \
-            (src)+=2; \
-            (result)=(trie)->data[ \
-                ((int32_t)((trie)->index[((__lead-0xe0)<<(12-UTRIE2_SHIFT_2))+ \
-                                         (__t1<<(6-UTRIE2_SHIFT_2))+(__t2>>UTRIE2_SHIFT_2)]) \
-                <<UTRIE2_INDEX_SHIFT)+ \
-                (__t2&UTRIE2_DATA_MASK)]; \
         } else { \
             int32_t __index=utrie2_internalU8NextIndex((trie), __lead, (const uint8_t *)(src), \
                                                                        (const uint8_t *)(limit)); \
@@ -963,12 +935,12 @@ utrie2_internalU8PrevIndex(const UTrie2 *trie, UChar32 c,
             (result)=(trie)->data[__index>>3]; \
         } \
     } \
-}
+} UPRV_BLOCK_MACRO_END
 
 /** Internal UTF-8 pre-decrement-previous: get the previous code point's data. */
-#define _UTRIE2_U8_PREV(trie, ascii, data, start, src, result) { \
+#define _UTRIE2_U8_PREV(trie, ascii, data, start, src, result) UPRV_BLOCK_MACRO_BEGIN { \
     uint8_t __b=(uint8_t)*--(src); \
-    if(__b<0x80) { \
+    if(U8_IS_SINGLE(__b)) { \
         (result)=(trie)->ascii[__b]; \
     } else { \
         int32_t __index=utrie2_internalU8PrevIndex((trie), __b, (const uint8_t *)(start), \
@@ -976,15 +948,8 @@ utrie2_internalU8PrevIndex(const UTrie2 *trie, UChar32 c,
         (src)-=__index&7; \
         (result)=(trie)->data[__index>>3]; \
     } \
-}
+} UPRV_BLOCK_MACRO_END
 
 U_CDECL_END
-
-/**
- * Work around MSVC 2003 optimization bugs.
- */
-#if defined (U_HAVE_MSVC_2003_OR_EARLIER)
-#pragma optimize("", off)
-#endif
 
 #endif

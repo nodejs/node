@@ -5,7 +5,7 @@
 #include "src/extensions/trigger-failure-extension.h"
 
 #include "src/base/logging.h"
-#include "src/checks.h"
+#include "src/common/checks.h"
 
 namespace v8 {
 namespace internal {
@@ -20,16 +20,18 @@ const char* const TriggerFailureExtension::kSource =
 v8::Local<v8::FunctionTemplate>
 TriggerFailureExtension::GetNativeFunctionTemplate(v8::Isolate* isolate,
                                                    v8::Local<v8::String> str) {
-  if (strcmp(*v8::String::Utf8Value(str), "triggerCheckFalse") == 0) {
+  if (strcmp(*v8::String::Utf8Value(isolate, str), "triggerCheckFalse") == 0) {
     return v8::FunctionTemplate::New(
         isolate,
         TriggerFailureExtension::TriggerCheckFalse);
-  } else if (strcmp(*v8::String::Utf8Value(str), "triggerAssertFalse") == 0) {
+  } else if (strcmp(*v8::String::Utf8Value(isolate, str),
+                    "triggerAssertFalse") == 0) {
     return v8::FunctionTemplate::New(
         isolate,
         TriggerFailureExtension::TriggerAssertFalse);
   } else {
-    CHECK_EQ(0, strcmp(*v8::String::Utf8Value(str), "triggerSlowAssertFalse"));
+    CHECK_EQ(0, strcmp(*v8::String::Utf8Value(isolate, str),
+                       "triggerSlowAssertFalse"));
     return v8::FunctionTemplate::New(
         isolate,
         TriggerFailureExtension::TriggerSlowAssertFalse);

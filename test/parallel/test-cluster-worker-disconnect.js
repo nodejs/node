@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 const common = require('../common');
 const assert = require('assert');
@@ -7,17 +28,13 @@ if (cluster.isWorker) {
   const http = require('http');
   http.Server(() => {
 
-  }).listen(common.PORT, '127.0.0.1');
-  const worker = cluster.worker;
-  assert.strictEqual(worker.exitedAfterDisconnect, worker.suicide);
+  }).listen(0, '127.0.0.1');
 
   cluster.worker.on('disconnect', common.mustCall(() => {
-    assert.strictEqual(cluster.worker.exitedAfterDisconnect,
-                       cluster.worker.suicide);
     process.exit(42);
   }));
 
-} else if (cluster.isMaster) {
+} else if (cluster.isPrimary) {
 
   const checks = {
     cluster: {
@@ -40,7 +57,8 @@ if (cluster.isWorker) {
 
   // Disconnect worker when it is ready
   worker.once('listening', common.mustCall(() => {
-    worker.disconnect();
+    const w = worker.disconnect();
+    assert.strictEqual(worker, w, `${worker.id} did not return a reference`);
   }));
 
   // Check cluster events
@@ -79,10 +97,8 @@ if (cluster.isWorker) {
     assert.ok(c.emitExit, 'Exit event did not emit');
 
     // flags
-    assert.strictEqual(w.state, 'disconnected',
-                       'The state property was not set');
-    assert.strictEqual(w.voluntaryMode, true,
-                       'Voluntary exit mode was not set');
+    assert.strictEqual(w.state, 'disconnected');
+    assert.strictEqual(w.voluntaryMode, true);
 
     // is process alive
     assert.ok(w.died, 'The worker did not die');

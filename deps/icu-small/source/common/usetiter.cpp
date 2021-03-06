@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
@@ -116,7 +116,7 @@ void UnicodeSetIterator::reset() {
         stringCount = 0;
     } else {
         endRange = set->getRangeCount() - 1;
-        stringCount = set->strings->size();
+        stringCount = set->stringsSize();
     }
     range = 0;
     endElement = -1;

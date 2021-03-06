@@ -15,6 +15,7 @@ function f(a, i, bool) {
   }
   return result;
 }
+%PrepareFunctionForOptimization(f);
 
 function f2(a, c, x, i, d) {
   return a[x + c] + a[x - 0] + a[i - d];

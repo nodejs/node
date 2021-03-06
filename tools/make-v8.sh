@@ -1,47 +1,42 @@
-#!/bin/bash
+#!/bin/sh
 
-# Get V8 branch from v8/include/v8-version.h
-MAJOR=$(grep V8_MAJOR_VERSION deps/v8/include/v8-version.h | cut -d ' ' -f 3)
-MINOR=$(grep V8_MINOR_VERSION deps/v8/include/v8-version.h | cut -d ' ' -f 3)
-BRANCH=$MAJOR.$MINOR
+set -xe
 
-# clean up if someone presses ctrl-c
-trap cleanup INT
+BUILD_ARCH_TYPE=$1
+V8_BUILD_OPTIONS=$2
 
-function cleanup() {
-  trap - INT
-  rm .gclient || true
-  rm .gclient_entries || true
-  rm -rf _bad_scm/ || true
-  find v8 -name ".git" | xargs rm -rf || true
-  echo "git cleanup"
-  git reset --hard HEAD
-  git clean -fdq
-  # unstash local changes
-  git stash pop
-  exit 0
-}
+cd deps/v8 || exit
+find . -type d -name .git -print0 | xargs -0 rm -rf
+tools/node/fetch_deps.py .
 
-cd deps
-# stash local changes
-git stash
-rm -rf v8
+ARCH="`arch`"
+if [ "$ARCH" = "s390x" ] || [ "$ARCH" = "ppc64le" ]; then
+  TARGET_ARCH=$ARCH
+  if [ "$ARCH" = "ppc64le" ]; then
+    TARGET_ARCH="ppc64"
+  fi
+  # set paths manually for now to use locally installed gn
+  export BUILD_TOOLS=/home/iojs/build-tools
+  export LD_LIBRARY_PATH=$BUILD_TOOLS:$LD_LIBRARY_PATH
+  # Avoid linking to ccache symbolic links as ccache decides which
+  # binary to run based on the name of the link (we always name them gcc/g++).
+  # shellcheck disable=SC2154
+  CC_PATH=`command -v "$CC" gcc | grep -v ccache | head -n 1`
+  # shellcheck disable=SC2154
+  CXX_PATH=`command -v "$CXX" g++ | grep -v ccache | head -n 1`
+  rm -f "$BUILD_TOOLS/g++"
+  rm -f "$BUILD_TOOLS/gcc"
+  ln -s "$CXX_PATH" "$BUILD_TOOLS/g++"
+  ln -s "$CC_PATH" "$BUILD_TOOLS/gcc"
+  export PATH=$BUILD_TOOLS:$PATH
 
-echo "Fetching V8 from chromium.googlesource.com"
-fetch v8
-if [ "$?" -ne 0 ]; then
-  echo "V8 fetch failed"
-  exit 1
+  g++ --version
+  gcc --version
+  export PKG_CONFIG_PATH=$BUILD_TOOLS/pkg-config
+  gn gen -v "out.gn/$BUILD_ARCH_TYPE" --args="is_component_build=false is_debug=false use_goma=false goma_dir=\"None\" use_custom_libcxx=false v8_target_cpu=\"$TARGET_ARCH\" target_cpu=\"$TARGET_ARCH\" v8_enable_backtrace=true"
+  ninja -v -C "out.gn/$BUILD_ARCH_TYPE" d8 cctest inspector-test
+else
+  # shellcheck disable=SC2086
+  PATH=~/_depot_tools:$PATH tools/dev/v8gen.py "$BUILD_ARCH_TYPE" --no-goma $V8_BUILD_OPTIONS
+  PATH=~/_depot_tools:$PATH ninja -C "out.gn/$BUILD_ARCH_TYPE/" d8 cctest inspector-test
 fi
-echo "V8 fetched"
-
-cd v8
-
-echo "Checking out branch:$BRANCH"
-git checkout remotes/branch-heads/$BRANCH
-
-echo "Sync dependencies"
-gclient sync
-
-cd ..
-cleanup

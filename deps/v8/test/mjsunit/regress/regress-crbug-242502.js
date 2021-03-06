@@ -33,14 +33,14 @@ function f() {
 
 function call(o) {
   return o['']();
-}
-
+};
+%PrepareFunctionForOptimization(call);
 function test() {
-  var o1 = %ToFastProperties(Object.create({ foo:1 }, { '': { value:f }}));
-  var o2 = %ToFastProperties(Object.create({ bar:1 }, { '': { value:f }}));
-  var o3 = %ToFastProperties(Object.create({ baz:1 }, { '': { value:f }}));
-  var o4 = %ToFastProperties(Object.create({ qux:1 }, { '': { value:f }}));
-  var o5 = %ToFastProperties(Object.create({ loo:1 }, { '': { value:f }}));
+  var o1 = %ToFastProperties(Object.create({foo: 1}, {'': {value: f}}));
+  var o2 = %ToFastProperties(Object.create({bar: 1}, {'': {value: f}}));
+  var o3 = %ToFastProperties(Object.create({baz: 1}, {'': {value: f}}));
+  var o4 = %ToFastProperties(Object.create({qux: 1}, {'': {value: f}}));
+  var o5 = %ToFastProperties(Object.create({loo: 1}, {'': {value: f}}));
   // Called twice on o1 to turn monomorphic.
   assertEquals(23, call(o1));
   assertEquals(23, call(o1));

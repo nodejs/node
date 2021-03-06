@@ -18,9 +18,6 @@ const globalTest = (useGlobal, cb, output) => (err, repl) => {
   if (err)
     return cb(err);
 
-  // The REPL registers 'module' and 'require' globals
-  common.allowGlobals(repl.context.module, repl.context.require);
-
   let str = '';
   output.on('data', (data) => (str += data));
   global.lunch = 'tacos';
@@ -32,8 +29,7 @@ const globalTest = (useGlobal, cb, output) => (err, repl) => {
 
 // Test how the global object behaves in each state for useGlobal
 for (const [option, expected] of globalTestCases) {
-  runRepl(option, globalTest, common.mustCall((err, output) => {
-    assert.ifError(err);
+  runRepl(option, globalTest, common.mustSucceed((output) => {
     assert.strictEqual(output, expected);
   }));
 }
@@ -53,7 +49,7 @@ const processTest = (useGlobal, cb, output) => (err, repl) => {
   let str = '';
   output.on('data', (data) => (str += data));
 
-  // if useGlobal is false, then `let process` should work
+  // If useGlobal is false, then `let process` should work
   repl.write('let process;\n');
   repl.write('21 * 2;\n');
   repl.close();
@@ -61,8 +57,7 @@ const processTest = (useGlobal, cb, output) => (err, repl) => {
 };
 
 for (const option of processTestCases) {
-  runRepl(option, processTest, common.mustCall((err, output) => {
-    assert.ifError(err);
+  runRepl(option, processTest, common.mustSucceed((output) => {
     assert.strictEqual(output, 'undefined\n42');
   }));
 }
@@ -80,7 +75,7 @@ function runRepl(useGlobal, testFunc, cb) {
   };
 
   repl.createInternalRepl(
-      process.env,
-      opts,
-      testFunc(useGlobal, cb, opts.output));
+    process.env,
+    opts,
+    testFunc(useGlobal, cb, opts.output));
 }

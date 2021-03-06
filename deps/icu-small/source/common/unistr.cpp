@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -218,9 +218,10 @@ UnicodeString::UnicodeString(const UChar *text,
 }
 
 UnicodeString::UnicodeString(UBool isTerminated,
-                             const UChar *text,
+                             ConstChar16Ptr textPtr,
                              int32_t textLength) {
   fUnion.fFields.fLengthAndFlags = kReadonlyAlias;
+  const UChar *text = textPtr;
   if(text == NULL) {
     // treat as an empty string, do not alias
     setToEmpty();
@@ -234,7 +235,8 @@ UnicodeString::UnicodeString(UBool isTerminated,
       // text is terminated, or else it would have failed the above test
       textLength = u_strlen(text);
     }
-    setArray((UChar *)text, textLength, isTerminated ? textLength + 1 : textLength);
+    setArray(const_cast<UChar *>(text), textLength,
+             isTerminated ? textLength + 1 : textLength);
   }
 }
 
@@ -306,12 +308,9 @@ UnicodeString::UnicodeString(const UnicodeString& that) {
   copyFrom(that);
 }
 
-#if U_HAVE_RVALUE_REFERENCES
 UnicodeString::UnicodeString(UnicodeString &&src) U_NOEXCEPT {
-  fUnion.fFields.fLengthAndFlags = kShortString;
-  moveFrom(src);
+  copyFieldsFrom(src, TRUE);
 }
-#endif
 
 UnicodeString::UnicodeString(const UnicodeString& that,
                              int32_t srcStart) {
@@ -333,7 +332,7 @@ Replaceable::clone() const {
 }
 
 // UnicodeString overrides clone() with a real implementation
-Replaceable *
+UnicodeString *
 UnicodeString::clone() const {
   return new UnicodeString(*this);
 }
@@ -572,7 +571,7 @@ UnicodeString::copyFrom(const UnicodeString &src, UBool fastCopy) {
   return *this;
 }
 
-UnicodeString &UnicodeString::moveFrom(UnicodeString &src) U_NOEXCEPT {
+UnicodeString &UnicodeString::operator=(UnicodeString &&src) U_NOEXCEPT {
   // No explicit check for self move assignment, consistent with standard library.
   // Self move assignment causes no crash nor leak but might make the object bogus.
   releaseArray();
@@ -580,7 +579,7 @@ UnicodeString &UnicodeString::moveFrom(UnicodeString &src) U_NOEXCEPT {
   return *this;
 }
 
-// Same as moveFrom() except without memory management.
+// Same as move assignment except without memory management.
 void UnicodeString::copyFieldsFrom(UnicodeString &src, UBool setSrcToBogus) U_NOEXCEPT {
   int16_t lengthAndFlags = fUnion.fFields.fLengthAndFlags = src.fUnion.fFields.fLengthAndFlags;
   if(lengthAndFlags & kUsingStackBuffer) {
@@ -873,7 +872,7 @@ UnicodeString::doExtract(int32_t start,
 }
 
 int32_t
-UnicodeString::extract(UChar *dest, int32_t destCapacity,
+UnicodeString::extract(Char16Ptr dest, int32_t destCapacity,
                        UErrorCode &errorCode) const {
   int32_t len = length();
   if(U_SUCCESS(errorCode)) {
@@ -1215,10 +1214,10 @@ UnicodeString::unBogus() {
   }
 }
 
-const UChar *
+const char16_t *
 UnicodeString::getTerminatedBuffer() {
   if(!isWritable()) {
-    return 0;
+    return nullptr;
   }
   UChar *array = getArrayStart();
   int32_t len = length();
@@ -1249,14 +1248,14 @@ UnicodeString::getTerminatedBuffer() {
     array[len] = 0;
     return array;
   } else {
-    return NULL;
+    return nullptr;
   }
 }
 
 // setTo() analogous to the readonly-aliasing constructor with the same signature
 UnicodeString &
 UnicodeString::setTo(UBool isTerminated,
-                     const UChar *text,
+                     ConstChar16Ptr textPtr,
                      int32_t textLength)
 {
   if(fUnion.fFields.fLengthAndFlags & kOpenGetBuffer) {
@@ -1264,6 +1263,7 @@ UnicodeString::setTo(UBool isTerminated,
     return *this;
   }
 
+  const UChar *text = textPtr;
   if(text == NULL) {
     // treat as an empty string, do not alias
     releaseArray();
@@ -1446,10 +1446,15 @@ UnicodeString::doReplace(int32_t start,
   }
 
   if(srcChars == 0) {
-    srcStart = srcLength = 0;
-  } else if(srcLength < 0) {
-    // get the srcLength if necessary
-    srcLength = u_strlen(srcChars + srcStart);
+    srcLength = 0;
+  } else {
+    // Perform all remaining operations relative to srcChars + srcStart.
+    // From this point forward, do not use srcStart.
+    srcChars += srcStart;
+    if (srcLength < 0) {
+      // get the srcLength if necessary
+      srcLength = u_strlen(srcChars);
+    }
   }
 
   // pin the indices to legal values
@@ -1464,17 +1469,28 @@ UnicodeString::doReplace(int32_t start,
   }
   newLength += srcLength;
 
+  // Check for insertion into ourself
+  const UChar *oldArray = getArrayStart();
+  if (isBufferWritable() &&
+      oldArray < srcChars + srcLength &&
+      srcChars < oldArray + oldLength) {
+    // Copy into a new UnicodeString and start over
+    UnicodeString copy(srcChars, srcLength);
+    if (copy.isBogus()) {
+      setToBogus();
+      return *this;
+    }
+    return doReplace(start, length, copy.getArrayStart(), 0, srcLength);
+  }
+
   // cloneArrayIfNeeded(doCopyArray=FALSE) may change fArray but will not copy the current contents;
   // therefore we need to keep the current fArray
   UChar oldStackBuffer[US_STACKBUF_SIZE];
-  UChar *oldArray;
   if((fUnion.fFields.fLengthAndFlags&kUsingStackBuffer) && (newLength > US_STACKBUF_SIZE)) {
     // copy the stack buffer contents because it will be overwritten with
     // fUnion.fFields values
-    u_memcpy(oldStackBuffer, fUnion.fStackFields.fBuffer, oldLength);
+    u_memcpy(oldStackBuffer, oldArray, oldLength);
     oldArray = oldStackBuffer;
-  } else {
-    oldArray = getArrayStart();
   }
 
   // clone our array and allocate a bigger array if needed
@@ -1502,7 +1518,7 @@ UnicodeString::doReplace(int32_t start,
   }
 
   // now fill in the hole with the new string
-  us_arrayCopy(srcChars, srcStart, newArray, start, srcLength);
+  us_arrayCopy(srcChars, 0, newArray, start, srcLength);
 
   setLength(newLength);
 
@@ -1535,15 +1551,38 @@ UnicodeString::doAppend(const UChar *srcChars, int32_t srcStart, int32_t srcLeng
     return *this;
   }
 
+  // Perform all remaining operations relative to srcChars + srcStart.
+  // From this point forward, do not use srcStart.
+  srcChars += srcStart;
+
   if(srcLength < 0) {
     // get the srcLength if necessary
-    if((srcLength = u_strlen(srcChars + srcStart)) == 0) {
+    if((srcLength = u_strlen(srcChars)) == 0) {
       return *this;
     }
   }
 
   int32_t oldLength = length();
-  int32_t newLength = oldLength + srcLength;
+  int32_t newLength;
+  if (uprv_add32_overflow(oldLength, srcLength, &newLength)) {
+    setToBogus();
+    return *this;
+  }
+
+  // Check for append onto ourself
+  const UChar* oldArray = getArrayStart();
+  if (isBufferWritable() &&
+      oldArray < srcChars + srcLength &&
+      srcChars < oldArray + oldLength) {
+    // Copy into a new UnicodeString and start over
+    UnicodeString copy(srcChars, srcLength);
+    if (copy.isBogus()) {
+      setToBogus();
+      return *this;
+    }
+    return doAppend(copy.getArrayStart(), 0, srcLength);
+  }
+
   // optimize append() onto a large-enough, owned string
   if((newLength <= getCapacity() && isBufferWritable()) ||
       cloneArrayIfNeeded(newLength, getGrowCapacity(newLength))) {
@@ -1555,8 +1594,8 @@ UnicodeString::doAppend(const UChar *srcChars, int32_t srcStart, int32_t srcLeng
     // or
     //   str.appendString(buffer, length)
     // or similar.
-    if(srcChars + srcStart != newArray + oldLength) {
-      us_arrayCopy(srcChars, srcStart, newArray, oldLength, srcLength);
+    if(srcChars != newArray + oldLength) {
+      us_arrayCopy(srcChars, 0, newArray, oldLength, srcLength);
     }
     setLength(newLength);
   }
@@ -1713,14 +1752,14 @@ UnicodeString::doHashCode() const
 // External Buffer
 //========================================
 
-UChar *
+char16_t *
 UnicodeString::getBuffer(int32_t minCapacity) {
   if(minCapacity>=-1 && cloneArrayIfNeeded(minCapacity)) {
     fUnion.fFields.fLengthAndFlags|=kOpenGetBuffer;
     setZeroLength();
     return getArrayStart();
   } else {
-    return 0;
+    return nullptr;
   }
 }
 

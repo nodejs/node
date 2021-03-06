@@ -1,31 +1,31 @@
 'use strict';
 
 const common = require('../common');
+if (!common.isLinux)
+  common.skip('Test is linux specific.');
+
 const path = require('path');
 const fs = require('fs');
 const assert = require('assert');
 
-if (!common.isLinux) {
-  common.skip('Test is linux specific.');
-  return;
-}
-
-common.refreshTmpDir();
+const tmpdir = require('../common/tmpdir');
+tmpdir.refresh();
 const filename = '\uD83D\uDC04';
-const root = Buffer.from(`${common.tmpDir}${path.sep}`);
+const root = Buffer.from(`${tmpdir.path}${path.sep}`);
 const filebuff = Buffer.from(filename, 'ucs2');
 const fullpath = Buffer.concat([root, filebuff]);
 
-fs.closeSync(fs.openSync(fullpath, 'w+'));
+try {
+  fs.closeSync(fs.openSync(fullpath, 'w+'));
+} catch (e) {
+  if (e.code === 'EINVAL')
+    common.skip('test requires filesystem that supports UCS2');
+  throw e;
+}
 
-fs.readdir(common.tmpDir, 'ucs2', (err, list) => {
-  if (err) throw err;
-  assert.equal(1, list.length);
+fs.readdir(tmpdir.path, 'ucs2', common.mustSucceed((list) => {
+  assert.strictEqual(list.length, 1);
   const fn = list[0];
-  assert.deepStrictEqual(filebuff, Buffer.from(fn, 'ucs2'));
+  assert.deepStrictEqual(Buffer.from(fn, 'ucs2'), filebuff);
   assert.strictEqual(fn, filename);
-});
-
-process.on('exit', () => {
-  fs.unlinkSync(fullpath);
-});
+}));

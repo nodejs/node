@@ -3,10 +3,13 @@
 # This is mostly being used for generation of certificate requests.
 #
 
+# Note that you can include other files from the main configuration
+# file using the .include directive.
+#.include filename
+
 # This definition stops the following lines choking if HOME isn't
 # defined.
 HOME			= .
-RANDFILE		= $ENV::HOME/.rnd
 
 # Extra OBJECT IDENTIFIER info:
 #oid_file		= $ENV::HOME/.oid
@@ -15,7 +18,7 @@ oid_section		= new_oids
 # To use this configuration file with the "-extfile" option of the
 # "openssl x509" utility, name here the section containing the
 # X.509v3 extensions to use:
-# extensions		= 
+# extensions		=
 # (Alternatively, use a configuration file that has only
 # X.509v3 extensions in its main [= default] section.)
 
@@ -44,7 +47,7 @@ certs		= $dir/certs		# Where the issued certs are kept
 crl_dir		= $dir/crl		# Where the issued crl are kept
 database	= $dir/index.txt	# database index file.
 #unique_subject	= no			# Set to 'no' to allow creation of
-					# several ctificates with same subject.
+					# several certs with same subject.
 new_certs_dir	= $dir/newcerts		# default place for new certs.
 
 certificate	= $dir/cacert.pem 	# The CA certificate
@@ -53,9 +56,8 @@ crlnumber	= $dir/crlnumber	# the current crl number
 					# must be commented out to leave a V1 CRL
 crl		= $dir/crl.pem 		# The current CRL
 private_key	= $dir/private/cakey.pem# The private key
-RANDFILE	= $dir/private/.rand	# private random number file
 
-x509_extensions	= usr_cert		# The extentions to add to the cert
+x509_extensions	= usr_cert		# The extensions to add to the cert
 
 # Comment out the following two lines for the "traditional"
 # (and highly broken) format.
@@ -107,13 +109,13 @@ default_bits		= 2048
 default_keyfile 	= privkey.pem
 distinguished_name	= req_distinguished_name
 attributes		= req_attributes
-x509_extensions	= v3_ca	# The extentions to add to the self signed cert
+x509_extensions	= v3_ca	# The extensions to add to the self signed cert
 
 # Passwords for private keys if not present they will be prompted for
 # input_password = secret
 # output_password = secret
 
-# This sets a mask for permitted string types. There are several options. 
+# This sets a mask for permitted string types. There are several options.
 # default: PrintableString, T61String, BMPString.
 # pkix	 : PrintableString, BMPString (PKIX recommendation before 2004)
 # utf8only: only UTF8Strings (PKIX recommendation after 2004).
@@ -233,11 +235,7 @@ subjectKeyIdentifier=hash
 
 authorityKeyIdentifier=keyid:always,issuer
 
-# This is what PKIX recommends but some broken software chokes on critical
-# extensions.
-#basicConstraints = critical,CA:true
-# So we do this instead.
-basicConstraints = CA:true
+basicConstraints = critical,CA:true
 
 # Key usage: this is typical for a CA certificate. However since it will
 # prevent it being used as an test self-signed certificate it is best
@@ -335,11 +333,11 @@ signer_cert	= $dir/tsacert.pem 	# The TSA signing certificate
 certs		= $dir/cacert.pem	# Certificate chain to include in reply
 					# (optional)
 signer_key	= $dir/private/tsakey.pem # The TSA private key (optional)
-
+signer_digest  = sha256			# Signing digest to use. (Optional)
 default_policy	= tsa_policy1		# Policy if request did not specify it
 					# (optional)
 other_policies	= tsa_policy2, tsa_policy3	# acceptable policies (optional)
-digests		= md5, sha1		# Acceptable message digests (mandatory)
+digests     = sha1, sha256, sha384, sha512  # Acceptable message digests (mandatory)
 accuracy	= secs:1, millisecs:500, microsecs:100	# (optional)
 clock_precision_digits  = 0	# number of digits after dot. (optional)
 ordering		= yes	# Is ordering defined for timestamps?
@@ -348,3 +346,5 @@ tsa_name		= yes	# Must the TSA name be included in the reply?
 				# (optional, default: no)
 ess_cert_id_chain	= no	# Must the ESS cert id chain be included?
 				# (optional, default: no)
+ess_cert_id_alg		= sha1	# algorithm to compute certificate
+				# identifier (optional, default: sha1)

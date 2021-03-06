@@ -205,84 +205,55 @@ function f64_tan(a) {
   return +Math_tan(+a);
 }
 
-function f64_exp(a, b) {
+function f64_exp(a) {
   a = +a;
-  b = +b;
-  return +Math_exp(+a, +b);
+  return +Math_exp(+a);
 }
 
-function f64_log(a, b) {
+function f64_log(a) {
   a = +a;
-  b = +b;
-  return +Math_log(+a, +b);
+  return +Math_log(+a);
 }
 
-function f64_atan2(a) {
+function f64_atan2(a, b) {
   a = +a;
-  return +Math_atan2(+a);
+  b = +b;
+  return +Math_atan2(+a, +b);
+}
+
+function f64_neg(a) {
+  a = +a;
+  return +(-a);
 }
 
 
 var inputs = [
-  0, 1, 2, 3, 4,
+  0, 1,
   NaN,
   Infinity,
   -Infinity,
-  10, 20, 30, 31, 32, 33, 100, 2000,
-  30000, 400000, 5000000,
-  100000000, 2000000000,
   2147483646,
   2147483647,
   2147483648,
   2147483649,
-  0x273a798e, 0x187937a3, 0xece3af83, 0x5495a16b, 0x0b668ecc, 0x11223344,
-  0x0000af73, 0x0000116b, 0x00658ecc, 0x002b3b4c,
-  0x88776655, 0x70000000, 0x07200000, 0x7fffffff, 0x56123761, 0x7fffff00,
-  0xeeeeeeee, 0xfffffffd, 0xf0000000, 0x007fffff, 0x003fffff, 0x001fffff,
-  -0,
-  -1, -2, -3, -4,
-  -10, -20, -30, -31, -32, -33, -100, -2000,
-  -30000, -400000, -5000000,
-  -100000000, -2000000000,
+  4026531840, // 0xf0000000
+  4294967293, // 0xfffffffd
+  4294967295, // 0xffffffff
+  -0, -1,
   -2147483646,
   -2147483647,
   -2147483648,
   -2147483649,
   0.1,
   1.1e-2,
-  1.2e-4,
-  1.3e-8,
-  1.4e-11,
-  1.5e-12,
   1.6e-13
 ];
 
 var funcs = [
-  f64_add,
-  f64_sub,
-  f64_mul,
-  f64_div,
-  f64_eq,
-  f64_ne,
-  f64_lt,
-  f64_lteq,
-  f64_gt,
-  f64_gteq,
-  f64_ceil,
-  f64_floor,
-// TODO(bradnelson) f64_sqrt,
-  f64_abs,
-// TODO(bradnelson) f64_min is wrong for -0
-// TODO(bradnelson) f64_max is wrong for -0
-// TODO(bradnelson) f64_acos,
-// TODO(bradnelson) f64_asin,
-// TODO(bradnelson) f64_atan,
-// TODO(bradnelson) f64_cos,
-// TODO(bradnelson) f64_sin,
-// TODO(bradnelson) f64_tan,
-// TODO(bradnelson) f64_exp,
-// TODO(bradnelson) f64_log,
-// TODO(bradnelson) f64_atan2,
+  f64_add,  f64_sub, f64_mul,  f64_div,  f64_eq,    f64_ne,   f64_lt,
+  f64_lteq, f64_gt,  f64_gteq, f64_ceil, f64_floor, f64_sqrt, f64_abs,
+  f64_neg,  f64_min, f64_max,  f64_acos, f64_asin,  f64_atan, f64_cos,
+  f64_sin,  f64_tan, f64_exp,  f64_log,  f64_atan2,
 ];
 
 (function () {

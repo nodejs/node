@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
  ********************************************************************************
@@ -230,7 +230,7 @@ class U_I18N_API IslamicCalendar : public Calendar {
   // TODO: copy c'tor, etc
 
   // clone
-  virtual Calendar* clone() const;
+  virtual IslamicCalendar* clone() const;
 
  private:
   /**
@@ -395,7 +395,7 @@ class U_I18N_API IslamicCalendar : public Calendar {
 
 
   /**
-   * Returns TRUE because the Islamic Calendar does have a default century
+   * Returns true because the Islamic Calendar does have a default century
    * @internal
    */
   virtual UBool haveDefaultCentury() const;

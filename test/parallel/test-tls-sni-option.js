@@ -1,35 +1,44 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 const common = require('../common');
-if (!process.features.tls_sni) {
-  common.skip('node compiled without OpenSSL or ' +
-              'with old OpenSSL version.');
-  return;
-}
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
 const assert = require('assert');
-const fs = require('fs');
-
-if (!common.hasCrypto) {
-  common.skip('missing crypto');
-  return;
-}
-var tls = require('tls');
-
-function filenamePEM(n) {
-  return require('path').join(common.fixturesDir, 'keys', n + '.pem');
-}
+const tls = require('tls');
+const fixtures = require('../common/fixtures');
 
 function loadPEM(n) {
-  return fs.readFileSync(filenamePEM(n));
+  return fixtures.readKey(`${n}.pem`);
 }
 
-var serverOptions = {
+const serverOptions = {
   key: loadPEM('agent2-key'),
   cert: loadPEM('agent2-cert'),
   requestCert: true,
   rejectUnauthorized: false,
   SNICallback: function(servername, callback) {
-    var context = SNIContexts[servername];
+    const context = SNIContexts[servername];
 
     // Just to test asynchronous callback
     setTimeout(function() {
@@ -45,7 +54,7 @@ var serverOptions = {
   }
 };
 
-var SNIContexts = {
+const SNIContexts = {
   'a.example.com': {
     key: loadPEM('agent1-key'),
     cert: loadPEM('agent1-cert'),
@@ -60,111 +69,106 @@ var SNIContexts = {
   }
 };
 
-var clientsOptions = [{
+test({
   port: undefined,
   key: loadPEM('agent1-key'),
   cert: loadPEM('agent1-cert'),
   ca: [loadPEM('ca1-cert')],
   servername: 'a.example.com',
   rejectUnauthorized: false
-}, {
+},
+     true,
+     { sni: 'a.example.com', authorized: false },
+     null,
+     null);
+
+test({
   port: undefined,
   key: loadPEM('agent4-key'),
   cert: loadPEM('agent4-cert'),
   ca: [loadPEM('ca1-cert')],
   servername: 'a.example.com',
   rejectUnauthorized: false
-}, {
+},
+     true,
+     { sni: 'a.example.com', authorized: true },
+     null,
+     null);
+
+test({
   port: undefined,
   key: loadPEM('agent2-key'),
   cert: loadPEM('agent2-cert'),
   ca: [loadPEM('ca2-cert')],
   servername: 'b.example.com',
   rejectUnauthorized: false
-}, {
+},
+     true,
+     { sni: 'b.example.com', authorized: false },
+     null,
+     null);
+
+test({
   port: undefined,
   key: loadPEM('agent3-key'),
   cert: loadPEM('agent3-cert'),
   ca: [loadPEM('ca1-cert')],
   servername: 'c.wrong.com',
   rejectUnauthorized: false
-}, {
+},
+     false,
+     { sni: 'c.wrong.com', authorized: false },
+     null,
+     null);
+
+test({
   port: undefined,
   key: loadPEM('agent3-key'),
   cert: loadPEM('agent3-cert'),
   ca: [loadPEM('ca1-cert')],
   servername: 'c.another.com',
   rejectUnauthorized: false
-}];
+},
+     false,
+     null,
+     'Client network socket disconnected before secure TLS ' +
+       'connection was established',
+     'Invalid SNI context');
 
-const serverResults = [];
-const clientResults = [];
-const serverErrors = [];
-const clientErrors = [];
-let serverError;
-let clientError;
+function test(options, clientResult, serverResult, clientError, serverError) {
+  const server = tls.createServer(serverOptions, (c) => {
+    assert.deepStrictEqual(
+      serverResult,
+      { sni: c.servername, authorized: c.authorized }
+    );
+  });
 
-var server = tls.createServer(serverOptions, function(c) {
-  serverResults.push({ sni: c.servername, authorized: c.authorized });
-});
-
-server.on('tlsClientError', function(err) {
-  serverResults.push(null);
-  serverError = err.message;
-});
-
-server.listen(0, startTest);
-
-function startTest() {
-  function connectClient(i, callback) {
-    var options = clientsOptions[i];
-    clientError = null;
-    serverError = null;
-
-    options.port = server.address().port;
-    var client = tls.connect(options, function() {
-      clientResults.push(
-          /Hostname\/IP doesn't/.test(client.authorizationError || ''));
-      client.destroy();
-
-      next();
-    });
-
-    client.on('error', function(err) {
-      clientResults.push(false);
-      clientError = err.message;
-      next();
-    });
-
-    function next() {
-      clientErrors.push(clientError);
-      serverErrors.push(serverError);
-
-      if (i === clientsOptions.length - 1)
-        callback();
-      else
-        connectClient(i + 1, callback);
-    }
+  if (serverResult) {
+    assert(!serverError);
+    server.on('tlsClientError', common.mustNotCall());
+  } else {
+    assert(serverError);
+    server.on('tlsClientError', common.mustCall((err) => {
+      assert.strictEqual(err.message, serverError);
+    }));
   }
 
-  connectClient(0, function() {
-    server.close();
+  server.listen(0, () => {
+    options.port = server.address().port;
+    const client = tls.connect(options, () => {
+      const result = client.authorizationError &&
+        (client.authorizationError === 'ERR_TLS_CERT_ALTNAME_INVALID');
+      assert.strictEqual(result, clientResult);
+      client.end();
+    });
+
+    client.on('close', common.mustCall(() => server.close()));
+
+    if (clientError)
+      client.on('error', common.mustCall((err) => {
+        assert.strictEqual(err.message, clientError);
+      }));
+    else
+      client.on('error', common.mustNotCall());
   });
 }
-
-process.on('exit', function() {
-  assert.deepStrictEqual(serverResults, [
-    { sni: 'a.example.com', authorized: false },
-    { sni: 'a.example.com', authorized: true },
-    { sni: 'b.example.com', authorized: false },
-    { sni: 'c.wrong.com', authorized: false },
-    null
-  ]);
-  assert.deepStrictEqual(clientResults, [true, true, true, false, false]);
-  assert.deepStrictEqual(clientErrors, [
-    null, null, null, null, 'socket hang up'
-  ]);
-  assert.deepStrictEqual(serverErrors, [
-    null, null, null, null, 'Invalid SNI context'
-  ]);
-});

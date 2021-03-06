@@ -4,7 +4,7 @@
 
 #include <stdlib.h>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 
 namespace {
@@ -27,8 +27,6 @@ TEST(Unscopables) {
 
   v8::Local<v8::FunctionTemplate> t0 = v8::FunctionTemplate::New(isolate);
   v8::Local<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New(isolate);
-
-  t1->SetHiddenPrototype(true);
 
   v8::Local<v8::Object> object = t0->GetFunction(current_context)
                                      .ToLocalChecked()

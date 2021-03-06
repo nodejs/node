@@ -13,6 +13,7 @@ function test(array) {
   return array;
 }
 
+%PrepareFunctionForOptimization(test);
 var result = test(["0",,2]);
 assertEquals(["element 1","element 1"], result);
 assertTrue(result.hasOwnProperty("0"));

@@ -4,8 +4,10 @@
 
 // Flags: --allow-natives-syntax --verify-heap
 
-function test(x) { [x,,]; }
-
+function test(x) {
+  [x, , ];
+};
+%PrepareFunctionForOptimization(test);
 test(0);
 test(0);
 %OptimizeFunctionOnNextCall(test);

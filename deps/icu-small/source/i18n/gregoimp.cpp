@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
  **********************************************************************
@@ -23,6 +23,11 @@
 U_NAMESPACE_BEGIN
 
 int32_t ClockMath::floorDivide(int32_t numerator, int32_t denominator) {
+    return (numerator >= 0) ?
+        numerator / denominator : ((numerator + 1) / denominator) - 1;
+}
+
+int64_t ClockMath::floorDivide(int64_t numerator, int64_t denominator) {
     return (numerator >= 0) ?
         numerator / denominator : ((numerator + 1) / denominator) - 1;
 }

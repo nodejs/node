@@ -1,0 +1,250 @@
+<html><head>
+<title>npm-run-script</title>
+<style>
+body {
+    background-color: #ffffff;
+    color: #24292e;
+
+    margin: 0;
+
+    line-height: 1.5;
+
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+#rainbar {
+    height: 10px;
+    background-image: linear-gradient(139deg, #fb8817, #ff4b01, #c12127, #e02aff);
+}
+
+a {
+    text-decoration: none;
+    color: #0366d6;
+}
+a:hover {
+    text-decoration: underline;
+}
+
+pre {
+    margin: 1em 0px;
+    padding: 1em;
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+
+    display: block;
+    overflow: auto;
+
+    white-space: pre;
+
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+code {
+    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 85%;
+    padding: 0.2em 0.4em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+pre > code {
+    padding: 0;
+    background-color: inherit;
+    color: inherit;
+}
+h1, h2, h3 {
+    font-weight: 600;
+}
+
+#logobar {
+    background-color: #333333;
+    margin: 0 auto;
+    padding: 1em 4em;
+}
+#logobar .logo {
+    float: left;
+}
+#logobar .title {
+    font-weight: 600;
+    color: #dddddd;
+    float: left;
+    margin: 5px 0 0 1em;
+}
+#logobar:after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+#content {
+    margin: 0 auto;
+    padding: 0 4em;
+}
+
+#table_of_contents > h2 {
+    font-size: 1.17em;
+}
+#table_of_contents ul:first-child {
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+    padding: 1em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+#table_of_contents ul {
+    list-style-type: none;
+    padding-left: 1.5em;
+}
+#table_of_contents li {
+    font-size: 0.9em;
+}
+#table_of_contents li a {
+    color: #000000;
+}
+
+header.title {
+    border-bottom: solid 1px #e1e4e8;
+}
+header.title > h1 {
+    margin-bottom: 0.25em;
+}
+header.title > .description {
+    display: block;
+    margin-bottom: 0.5em;
+    line-height: 1;
+}
+
+footer#edit {
+    border-top: solid 1px #e1e4e8;
+    margin: 3em 0 4em 0;
+    padding-top: 2em;
+}
+</style>
+</head>
+<body>
+<div id="banner">
+<div id="rainbar"></div>
+<div id="logobar">
+<svg class="logo" role="img" height="32" width="32" viewBox="0 0 700 700">
+<polygon fill="#cb0000" points="0,700 700,700 700,0 0,0"></polygon>
+<polygon fill="#ffffff" points="150,550 350,550 350,250 450,250 450,550 550,550 550,150 150,150"></polygon>
+</svg>
+<div class="title">
+npm command-line interface
+</div>
+</div>
+</div>
+
+<section id="content">
+<header class="title">
+<h1 id="npm-run-script">npm-run-script</h1>
+<span class="description">Run arbitrary package scripts</span>
+</header>
+
+<section id="table_of_contents">
+<h2 id="table-of-contents">Table of contents</h2>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#if-present">if-present</a></li><li><a href="#ignore-scripts">ignore-scripts</a></li><li><a href="#script-shell">script-shell</a></li><li><a href="#silent">silent</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+</section>
+
+<div id="_content"><h3 id="synopsis">Synopsis</h3>
+<pre lang="bash"><code>npm run-script &lt;command&gt; [--if-present] [--silent] [-- &lt;args&gt;]
+
+aliases: run, rum, urn
+</code></pre>
+<h3 id="description">Description</h3>
+<p>This runs an arbitrary command from a package’s <code>"scripts"</code> object.  If no
+<code>"command"</code> is provided, it will list the available scripts.</p>
+<p><code>run[-script]</code> is used by the test, start, restart, and stop commands, but
+can be called directly, as well. When the scripts in the package are
+printed out, they’re separated into lifecycle (test, start, restart) and
+directly-run scripts.</p>
+<p>Any positional arguments are passed to the specified script.  Use <code>--</code> to
+pass <code>-</code>-prefixed flags and options which would otherwise be parsed by npm.</p>
+<p>For example:</p>
+<pre lang="bash"><code>npm run test -- --grep="pattern"
+</code></pre>
+<p>The arguments will only be passed to the script specified after <code>npm run</code>
+and not to any <code>pre</code> or <code>post</code> script.</p>
+<p>The <code>env</code> script is a special built-in command that can be used to list
+environment variables that will be available to the script at runtime. If an
+“env” command is defined in your package, it will take precedence over the
+built-in.</p>
+<p>In addition to the shell’s pre-existing <code>PATH</code>, <code>npm run</code> adds
+<code>node_modules/.bin</code> to the <code>PATH</code> provided to scripts. Any binaries
+provided by locally-installed dependencies can be used without the
+<code>node_modules/.bin</code> prefix. For example, if there is a <code>devDependency</code> on
+<code>tap</code> in your package, you should write:</p>
+<pre lang="bash"><code>"scripts": {"test": "tap test/*.js"}
+</code></pre>
+<p>instead of</p>
+<pre lang="bash"><code>"scripts": {"test": "node_modules/.bin/tap test/*.js"}
+</code></pre>
+<p>The actual shell your script is run within is platform dependent. By default,
+on Unix-like systems it is the <code>/bin/sh</code> command, on Windows it is
+<code>cmd.exe</code>.
+The actual shell referred to by <code>/bin/sh</code> also depends on the system.
+You can customize the shell with the <code>script-shell</code> configuration.</p>
+<p>Scripts are run from the root of the package folder, regardless of what the
+current working directory is when <code>npm run</code> is called. If you want your
+script to use different behavior based on what subdirectory you’re in, you
+can use the <code>INIT_CWD</code> environment variable, which holds the full path you
+were in when you ran <code>npm run</code>.</p>
+<p><code>npm run</code> sets the <code>NODE</code> environment variable to the <code>node</code> executable
+with which <code>npm</code> is executed. Also, if the <code>--scripts-prepend-node-path</code> is
+passed, the directory within which <code>node</code> resides is added to the <code>PATH</code>.
+If <code>--scripts-prepend-node-path=auto</code> is passed (which has been the default
+in <code>npm</code> v3), this is only performed when that <code>node</code> executable is not
+found in the <code>PATH</code>.</p>
+<p>If you try to run a script without having a <code>node_modules</code> directory and it
+fails, you will be given a warning to run <code>npm install</code>, just in case you’ve
+forgotten.</p>
+<h3 id="configuration">Configuration</h3>
+<h4 id="if-present">if-present</h4>
+<ul>
+<li>Type: Boolean</li>
+<li>Default: false</li>
+</ul>
+<p>You can use the <code>--if-present</code> flag to avoid exiting with a non-zero exit code
+when the script is undefined. This lets you run potentially undefined scripts
+without breaking the execution chain.</p>
+<h4 id="ignore-scripts">ignore-scripts</h4>
+<ul>
+<li>Type: Boolean</li>
+<li>Default: false</li>
+</ul>
+<p>Skips running <code>pre</code> and <code>post</code> scripts.</p>
+<h4 id="script-shell">script-shell</h4>
+<ul>
+<li>Type: String</li>
+<li>Default: <code>null</code></li>
+</ul>
+<p>Optional custom script to use to execute the command. If not defined defaults
+to <code>/bin/sh</code> on Unix, defaults to <code>env.comspec</code> or <code>cmd.exe</code> on Windows.</p>
+<h4 id="silent">silent</h4>
+<ul>
+<li>Type: Boolean</li>
+<li>Default: false</li>
+</ul>
+<p>You can use the <code>--silent</code> flag to prevent showing <code>npm ERR!</code> output on error.</p>
+<h3 id="see-also">See Also</h3>
+<ul>
+<li><a href="../using-npm/scripts.html">npm scripts</a></li>
+<li><a href="../commands/npm-test.html">npm test</a></li>
+<li><a href="../commands/npm-start.html">npm start</a></li>
+<li><a href="../commands/npm-restart.html">npm restart</a></li>
+<li><a href="../commands/npm-stop.html">npm stop</a></li>
+<li><a href="../commands/npm-config.html">npm config</a></li>
+</ul>
+</div>
+
+<footer id="edit">
+<a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-run-script.md">
+<svg role="img" viewBox="0 0 16 16" width="16" height="16" fill="currentcolor" style="vertical-align: text-bottom; margin-right: 0.3em;">
+<path fill-rule="evenodd" d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25a1.75 1.75 0 01.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354l-1.086-1.086zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064l6.286-6.286z"></path>
+</svg>
+Edit this page on GitHub
+</a>
+</footer>
+</section>
+
+
+
+</body></html>

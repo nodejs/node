@@ -7,7 +7,9 @@
 #include <cmath>
 
 #include "base/trace_event/common/trace_event_common.h"
+#include "include/v8-platform.h"
 #include "src/base/platform/platform.h"
+#include "src/libplatform/tracing/recorder.h"
 
 namespace v8 {
 namespace platform {
@@ -58,7 +60,7 @@ void JSONTraceWriter::AppendArgValue(uint8_t type,
                                      TraceObject::ArgValue value) {
   switch (type) {
     case TRACE_VALUE_TYPE_BOOL:
-      stream_ << (value.as_bool ? "true" : "false");
+      stream_ << (value.as_uint ? "true" : "false");
       break;
     case TRACE_VALUE_TYPE_UINT:
       stream_ << value.as_uint;
@@ -101,19 +103,28 @@ void JSONTraceWriter::AppendArgValue(uint8_t type,
     case TRACE_VALUE_TYPE_STRING:
     case TRACE_VALUE_TYPE_COPY_STRING:
       if (value.as_string == nullptr) {
-        stream_ << "\"NULL\"";
+        stream_ << "\"nullptr\"";
       } else {
         WriteJSONStringToStream(value.as_string, stream_);
       }
       break;
     default:
       UNREACHABLE();
-      break;
   }
 }
 
-JSONTraceWriter::JSONTraceWriter(std::ostream& stream) : stream_(stream) {
-  stream_ << "{\"traceEvents\":[";
+void JSONTraceWriter::AppendArgValue(ConvertableToTraceFormat* value) {
+  std::string arg_stringified;
+  value->AppendAsTraceFormat(&arg_stringified);
+  stream_ << arg_stringified;
+}
+
+JSONTraceWriter::JSONTraceWriter(std::ostream& stream)
+    : JSONTraceWriter(stream, "traceEvents") {}
+
+JSONTraceWriter::JSONTraceWriter(std::ostream& stream, const std::string& tag)
+    : stream_(stream) {
+  stream_ << "{\"" << tag << "\":[";
 }
 
 JSONTraceWriter::~JSONTraceWriter() { stream_ << "]}"; }
@@ -131,6 +142,17 @@ void JSONTraceWriter::AppendTraceEvent(TraceObject* trace_event) {
           << "\",\"name\":\"" << trace_event->name()
           << "\",\"dur\":" << trace_event->duration()
           << ",\"tdur\":" << trace_event->cpu_duration();
+  if (trace_event->flags() &
+      (TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT)) {
+    stream_ << ",\"bind_id\":\"0x" << std::hex << trace_event->bind_id() << "\""
+            << std::dec;
+    if (trace_event->flags() & TRACE_EVENT_FLAG_FLOW_IN) {
+      stream_ << ",\"flow_in\":true";
+    }
+    if (trace_event->flags() & TRACE_EVENT_FLAG_FLOW_OUT) {
+      stream_ << ",\"flow_out\":true";
+    }
+  }
   if (trace_event->flags() & TRACE_EVENT_FLAG_HAS_ID) {
     if (trace_event->scope() != nullptr) {
       stream_ << ",\"scope\":\"" << trace_event->scope() << "\"";
@@ -143,10 +165,16 @@ void JSONTraceWriter::AppendTraceEvent(TraceObject* trace_event) {
   const char** arg_names = trace_event->arg_names();
   const uint8_t* arg_types = trace_event->arg_types();
   TraceObject::ArgValue* arg_values = trace_event->arg_values();
+  std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables =
+      trace_event->arg_convertables();
   for (int i = 0; i < trace_event->num_args(); ++i) {
     if (i > 0) stream_ << ",";
     stream_ << "\"" << arg_names[i] << "\":";
-    AppendArgValue(arg_types[i], arg_values[i]);
+    if (arg_types[i] == TRACE_VALUE_TYPE_CONVERTABLE) {
+      AppendArgValue(arg_convertables[i].get());
+    } else {
+      AppendArgValue(arg_types[i], arg_values[i]);
+    }
   }
   stream_ << "}}";
   // TODO(fmeawad): Add support for Flow Events.
@@ -156,6 +184,32 @@ void JSONTraceWriter::Flush() {}
 
 TraceWriter* TraceWriter::CreateJSONTraceWriter(std::ostream& stream) {
   return new JSONTraceWriter(stream);
+}
+
+TraceWriter* TraceWriter::CreateJSONTraceWriter(std::ostream& stream,
+                                                const std::string& tag) {
+  return new JSONTraceWriter(stream, tag);
+}
+
+SystemInstrumentationTraceWriter::SystemInstrumentationTraceWriter() {
+  recorder_ = std::make_unique<Recorder>();
+}
+
+SystemInstrumentationTraceWriter::~SystemInstrumentationTraceWriter() {
+  recorder_.reset(nullptr);
+}
+
+void SystemInstrumentationTraceWriter::AppendTraceEvent(
+    TraceObject* trace_event) {
+  if (recorder_->IsEnabled()) {
+    recorder_->AddEvent(trace_event);
+  }
+}
+
+void SystemInstrumentationTraceWriter::Flush() {}
+
+TraceWriter* TraceWriter::CreateSystemInstrumentationTraceWriter() {
+  return new SystemInstrumentationTraceWriter();
 }
 
 }  // namespace tracing

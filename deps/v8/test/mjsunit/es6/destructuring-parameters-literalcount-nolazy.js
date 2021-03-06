@@ -20,6 +20,7 @@ function g({x = {a:10,b:20}},
   assertSame(0, n.length);
   assertTrue(p.test("abc"));
 }
+%PrepareFunctionForOptimization(g);
 g({},{});
 %OptimizeFunctionOnNextCall(g);
 g({},{});
@@ -35,6 +36,7 @@ var h = ({x = {a:10,b:20}},
     assertSame(0, n.length);
     assertTrue(p.test("abc"));
   };
+%PrepareFunctionForOptimization(h);
 h({},{});
 %OptimizeFunctionOnNextCall(h);
 h({},{});

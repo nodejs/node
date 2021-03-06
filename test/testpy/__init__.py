@@ -27,13 +27,13 @@
 
 import test
 import os
-from os.path import join, dirname, exists
 import re
+from functools import reduce
+from io import open
 
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
-FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
-
+LS_RE = re.compile(r'^test-.*\.m?js$')
 
 class SimpleTestCase(test.TestCase):
 
@@ -43,7 +43,6 @@ class SimpleTestCase(test.TestCase):
     self.config = config
     self.arch = arch
     self.mode = mode
-    self.tmpdir = join(dirname(self.config.root), 'tmp')
     if additional is not None:
       self.additional_flags = additional
     else:
@@ -58,19 +57,30 @@ class SimpleTestCase(test.TestCase):
 
   def GetCommand(self):
     result = [self.config.context.GetVm(self.arch, self.mode)]
-    source = open(self.file).read()
+    source = open(self.file, encoding='utf8').read()
     flags_match = FLAGS_PATTERN.search(source)
     if flags_match:
-      # PORT should match the definition in test/common.js.
-      env = { 'PORT': int(os.getenv('NODE_COMMON_PORT', '12346')) }
-      env['PORT'] += self.thread_id * 100
-      result += flags_match.group(1).strip().format(**env).split()
-    files_match = FILES_PATTERN.search(source);
-    additional_files = []
-    if files_match:
-      additional_files += files_match.group(1).strip().split()
-    for a_file in additional_files:
-      result.append(join(dirname(self.config.root), '..', a_file))
+      flags = flags_match.group(1).strip().split()
+      # The following block reads config.gypi to extract the v8_enable_inspector
+      # value. This is done to check if the inspector is disabled in which case
+      # the '--inspect' flag cannot be passed to the node process as it will
+      # cause node to exit and report the test as failed. The use case
+      # is currently when Node is configured --without-ssl and the tests should
+      # still be runnable but skip any tests that require ssl (which includes the
+      # inspector related tests). Also, if there is no ssl support the options
+      # '--use-bundled-ca' and '--use-openssl-ca' will also cause a similar
+      # failure so such tests are also skipped.
+      if (any(flag.startswith('--inspect') for flag in flags) and
+          not self.context.v8_enable_inspector):
+        print(': Skipping as node was compiled without inspector support')
+      elif (('--use-bundled-ca' in flags or
+          '--use-openssl-ca' in flags or
+          '--tls-v1.0' in flags or
+          '--tls-v1.1' in flags) and
+          not self.context.node_has_crypto):
+        print(': Skipping as node was compiled without crypto support')
+      else:
+        result += flags
 
     if self.additional_flags:
       result += self.additional_flags
@@ -82,38 +92,31 @@ class SimpleTestCase(test.TestCase):
   def GetSource(self):
     return open(self.file).read()
 
-class SimpleTestConfiguration(test.TestConfiguration):
 
+class SimpleTestConfiguration(test.TestConfiguration):
   def __init__(self, context, root, section, additional=None):
-    super(SimpleTestConfiguration, self).__init__(context, root)
-    self.section = section
+    super(SimpleTestConfiguration, self).__init__(context, root, section)
     if additional is not None:
       self.additional_flags = additional
     else:
       self.additional_flags = []
 
   def Ls(self, path):
-    def SelectTest(name):
-      return name.startswith('test-') and name.endswith('.js')
-    return [f[:-3] for f in os.listdir(path) if SelectTest(f)]
+    return [f for f in os.listdir(path) if LS_RE.match(f)]
 
   def ListTests(self, current_path, path, arch, mode):
-    all_tests = [current_path + [t] for t in self.Ls(join(self.root))]
+    all_tests = [current_path + [t] for t in self.Ls(os.path.join(self.root))]
     result = []
-    for test in all_tests:
-      if self.Contains(path, test):
-        file_path = join(self.root, reduce(join, test[1:], "") + ".js")
-        result.append(SimpleTestCase(test, file_path, arch, mode, self.context,
-                                     self, self.additional_flags))
+    for tst in all_tests:
+      if self.Contains(path, tst):
+        file_path = os.path.join(self.root, reduce(os.path.join, tst[1:], ""))
+        test_name = tst[:-1] + [os.path.splitext(tst[-1])[0]]
+        result.append(SimpleTestCase(test_name, file_path, arch, mode,
+                                     self.context, self, self.additional_flags))
     return result
 
   def GetBuildRequirements(self):
     return ['sample', 'sample=shell']
-
-  def GetTestStatus(self, sections, defs):
-    status_file = join(self.root, '%s.status' % (self.section))
-    if exists(status_file):
-      test.ReadConfigurationInto(status_file, sections, defs)
 
 class ParallelTestConfiguration(SimpleTestConfiguration):
   def __init__(self, context, root, section, additional=None):
@@ -123,8 +126,8 @@ class ParallelTestConfiguration(SimpleTestConfiguration):
   def ListTests(self, current_path, path, arch, mode):
     result = super(ParallelTestConfiguration, self).ListTests(
          current_path, path, arch, mode)
-    for test in result:
-      test.parallel = True
+    for tst in result:
+      tst.parallel = True
     return result
 
 class AddonTestConfiguration(SimpleTestConfiguration):
@@ -137,18 +140,30 @@ class AddonTestConfiguration(SimpleTestConfiguration):
 
     result = []
     for subpath in os.listdir(path):
-      if os.path.isdir(join(path, subpath)):
-        for f in os.listdir(join(path, subpath)):
+      if os.path.isdir(os.path.join(path, subpath)):
+        for f in os.listdir(os.path.join(path, subpath)):
           if SelectTest(f):
             result.append([subpath, f[:-3]])
     return result
 
   def ListTests(self, current_path, path, arch, mode):
-    all_tests = [current_path + t for t in self.Ls(join(self.root))]
+    all_tests = [current_path + t for t in self.Ls(os.path.join(self.root))]
     result = []
-    for test in all_tests:
-      if self.Contains(path, test):
-        file_path = join(self.root, reduce(join, test[1:], "") + ".js")
+    for tst in all_tests:
+      if self.Contains(path, tst):
+        file_path = os.path.join(self.root, reduce(os.path.join, tst[1:], "") + ".js")
         result.append(
-            SimpleTestCase(test, file_path, arch, mode, self.context, self))
+            SimpleTestCase(tst, file_path, arch, mode, self.context, self, self.additional_flags))
+    return result
+
+class AbortTestConfiguration(SimpleTestConfiguration):
+  def __init__(self, context, root, section, additional=None):
+    super(AbortTestConfiguration, self).__init__(context, root, section,
+                                                 additional)
+
+  def ListTests(self, current_path, path, arch, mode):
+    result = super(AbortTestConfiguration, self).ListTests(
+         current_path, path, arch, mode)
+    for tst in result:
+      tst.disable_core_files = True
     return result

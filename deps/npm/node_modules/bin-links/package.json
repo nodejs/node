@@ -1,0 +1,46 @@
+{
+  "name": "bin-links",
+  "version": "2.2.1",
+  "description": "JavaScript package binary linker",
+  "main": "index.js",
+  "scripts": {
+    "preversion": "npm t",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push --follow-tags",
+    "snap": "tap",
+    "test": "tap"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/npm/bin-links.git"
+  },
+  "keywords": [
+    "npm",
+    "link",
+    "bins"
+  ],
+  "license": "ISC",
+  "dependencies": {
+    "cmd-shim": "^4.0.1",
+    "mkdirp": "^1.0.3",
+    "npm-normalize-package-bin": "^1.0.0",
+    "read-cmd-shim": "^2.0.0",
+    "rimraf": "^3.0.0",
+    "write-file-atomic": "^3.0.3"
+  },
+  "devDependencies": {
+    "require-inject": "^1.4.4",
+    "tap": "^14.10.6"
+  },
+  "tap": {
+    "check-coverage": true,
+    "coverage-map": "map.js"
+  },
+  "files": [
+    "index.js",
+    "lib/*.js"
+  ],
+  "engines": {
+    "node": ">=10"
+  }
+}

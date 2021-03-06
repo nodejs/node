@@ -1,0 +1,238 @@
+.TH "NPM\-EXEC" "1" "March 2021" "" ""
+.SH "NAME"
+\fBnpm-exec\fR \- Run a command from a local or remote npm package
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm exec \-\- <pkg>[@<version>] [args\.\.\.]
+npm exec \-\-package=<pkg>[@<version>] \-\- <cmd> [args\.\.\.]
+npm exec \-c '<cmd> [args\.\.\.]'
+npm exec \-\-package=foo \-c '<cmd> [args\.\.\.]'
+
+npx <pkg>[@<specifier>] [args\.\.\.]
+npx \-p <pkg>[@<specifier>] <cmd> [args\.\.\.]
+npx \-c '<cmd> [args\.\.\.]'
+npx \-p <pkg>[@<specifier>] \-c '<cmd> [args\.\.\.]'
+Run without \-\-call or positional args to open interactive subshell
+
+alias: npm x, npx
+
+common options:
+\-\-package=<pkg> (may be specified multiple times)
+\-p is a shorthand for \-\-package only when using npx executable
+\-c <cmd> \-\-call=<cmd> (may not be mixed with positional arguments)
+.fi
+.RE
+.SS Description
+.P
+This command allows you to run an arbitrary command from an npm package
+(either one installed locally, or fetched remotely), in a similar context
+as running it via \fBnpm run\fP\|\.
+.P
+Run without positional arguments or \fB\-\-call\fP, this allows you to
+interactively run commands in the same sort of shell environment that
+\fBpackage\.json\fP scripts are run\.  Interactive mode is not supported in CI
+environments when standard input is a TTY, to prevent hangs\.
+.P
+Whatever packages are specified by the \fB\-\-package\fP option will be
+provided in the \fBPATH\fP of the executed command, along with any locally
+installed package executables\.  The \fB\-\-package\fP option may be
+specified multiple times, to execute the supplied command in an environment
+where all specified packages are available\.
+.P
+If any requested packages are not present in the local project
+dependencies, then they are installed to a folder in the npm cache, which
+is added to the \fBPATH\fP environment variable in the executed process\.  A
+prompt is printed (which can be suppressed by providing either \fB\-\-yes\fP or
+\fB\-\-no\fP)\.
+.P
+Package names provided without a specifier will be matched with whatever
+version exists in the local project\.  Package names with a specifier will
+only be considered a match if they have the exact same name and version as
+the local dependency\.
+.P
+If no \fB\-c\fP or \fB\-\-call\fP option is provided, then the positional arguments
+are used to generate the command string\.  If no \fB\-\-package\fP options
+are provided, then npm will attempt to determine the executable name from
+the package specifier provided as the first positional argument according
+to the following heuristic:
+.RS 0
+.IP \(bu 2
+If the package has a single entry in its \fBbin\fP field in \fBpackage\.json\fP,
+or if all entries are aliases of the same command, then that command
+will be used\.
+.IP \(bu 2
+If the package has multiple \fBbin\fP entries, and one of them matches the
+unscoped portion of the \fBname\fP field, then that command will be used\.
+.IP \(bu 2
+If this does not result in exactly one option (either because there are
+no bin entries, or none of them match the \fBname\fP of the package), then
+\fBnpm exec\fP exits with an error\.
+
+.RE
+.P
+To run a binary \fIother than\fR the named binary, specify one or more
+\fB\-\-package\fP options, which will prevent npm from inferring the package from
+the first command argument\.
+.SS \fBnpx\fP vs \fBnpm exec\fP
+.P
+When run via the \fBnpx\fP binary, all flags and options \fImust\fR be set prior to
+any positional arguments\.  When run via \fBnpm exec\fP, a double\-hyphen \fB\-\-\fP
+flag can be used to suppress npm's parsing of switches and options that
+should be sent to the executed command\.
+.P
+For example:
+.P
+.RS 2
+.nf
+$ npx foo@latest bar \-\-package=@npmcli/foo
+.fi
+.RE
+.P
+In this case, npm will resolve the \fBfoo\fP package name, and run the
+following command:
+.P
+.RS 2
+.nf
+$ foo bar \-\-package=@npmcli/foo
+.fi
+.RE
+.P
+Since the \fB\-\-package\fP option comes \fIafter\fR the positional arguments, it is
+treated as an argument to the executed command\.
+.P
+In contrast, due to npm's argument parsing logic, running this command is
+different:
+.P
+.RS 2
+.nf
+$ npm exec foo@latest bar \-\-package=@npmcli/foo
+.fi
+.RE
+.P
+In this case, npm will parse the \fB\-\-package\fP option first, resolving the
+\fB@npmcli/foo\fP package\.  Then, it will execute the following command in that
+context:
+.P
+.RS 2
+.nf
+$ foo@latest bar
+.fi
+.RE
+.P
+The double\-hyphen character is recommended to explicitly tell npm to stop
+parsing command line options and switches\.  The following command would
+thus be equivalent to the \fBnpx\fP command above:
+.P
+.RS 2
+.nf
+$ npm exec \-\- foo@latest bar \-\-package=@npmcli/foo
+.fi
+.RE
+.SS Examples
+.P
+Run the version of \fBtap\fP in the local dependencies, with the provided
+arguments:
+.P
+.RS 2
+.nf
+$ npm exec \-\- tap \-\-bail test/foo\.js
+$ npx tap \-\-bail test/foo\.js
+.fi
+.RE
+.P
+Run a command \fIother than\fR the command whose name matches the package name
+by specifying a \fB\-\-package\fP option:
+.P
+.RS 2
+.nf
+$ npm exec \-\-package=foo \-\- bar \-\-bar\-argument
+# ~ or ~
+$ npx \-\-package=foo bar \-\-bar\-argument
+.fi
+.RE
+.P
+Run an arbitrary shell script, in the context of the current project:
+.P
+.RS 2
+.nf
+$ npm x \-c 'eslint && say "hooray, lint passed"'
+$ npx \-c 'eslint && say "hooray, lint passed"'
+.fi
+.RE
+.SS Compatibility with Older npx Versions
+.P
+The \fBnpx\fP binary was rewritten in npm v7\.0\.0, and the standalone \fBnpx\fP
+package deprecated at that time\.  \fBnpx\fP uses the \fBnpm exec\fP
+command instead of a separate argument parser and install process, with
+some affordances to maintain backwards compatibility with the arguments it
+accepted in previous versions\.
+.P
+This resulted in some shifts in its functionality:
+.RS 0
+.IP \(bu 2
+Any \fBnpm\fP config value may be provided\.
+.IP \(bu 2
+To prevent security and user\-experience problems from mistyping package
+names, \fBnpx\fP prompts before installing anything\.  Suppress this
+prompt with the \fB\-y\fP or \fB\-\-yes\fP option\.
+.IP \(bu 2
+The \fB\-\-no\-install\fP option is deprecated, and will be converted to \fB\-\-no\fP\|\.
+.IP \(bu 2
+Shell fallback functionality is removed, as it is not advisable\.
+.IP \(bu 2
+The \fB\-p\fP argument is a shorthand for \fB\-\-parseable\fP in npm, but shorthand
+for \fB\-\-package\fP in npx\.  This is maintained, but only for the \fBnpx\fP
+executable\.
+.IP \(bu 2
+The \fB\-\-ignore\-existing\fP option is removed\.  Locally installed bins are
+always present in the executed process \fBPATH\fP\|\.
+.IP \(bu 2
+The \fB\-\-npm\fP option is removed\.  \fBnpx\fP will always use the \fBnpm\fP it ships
+with\.
+.IP \(bu 2
+The \fB\-\-node\-arg\fP and \fB\-n\fP options are removed\.
+.IP \(bu 2
+The \fB\-\-always\-spawn\fP option is redundant, and thus removed\.
+.IP \(bu 2
+The \fB\-\-shell\fP option is replaced with \fB\-\-script\-shell\fP, but maintained
+in the \fBnpx\fP executable for backwards compatibility\.
+
+.RE
+.SS A note on caching
+.P
+The npm cli utilizes its internal package cache when using the package
+name specified\.  You can use the following to change how and when the
+cli uses this cache\. See npm help \fBcache\fP for more on
+how the cache works\.
+.SS prefer\-online
+.P
+Forces staleness checks for packages, making the cli look for updates
+immediately even if the package is already in the cache\.
+.SS prefer\-offline
+.P
+Bypasses staleness checks for packages\.  Missing data will still be
+requested from the server\. To force full offline mode, use \fBoffline\fP\|\.
+.SS offline
+.P
+Forces full offline mode\. Any packages not locally cached will result in
+an error\.
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help run\-script
+.IP \(bu 2
+npm help scripts
+.IP \(bu 2
+npm help test
+.IP \(bu 2
+npm help start
+.IP \(bu 2
+npm help restart
+.IP \(bu 2
+npm help stop
+.IP \(bu 2
+npm help config
+
+.RE

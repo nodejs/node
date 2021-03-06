@@ -1,125 +1,16 @@
-/* crypto/bn/bn_prime.c */
-/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
- * All rights reserved.
+/*
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * This package is an SSL implementation written
- * by Eric Young (eay@cryptsoft.com).
- * The implementation was written so as to conform with Netscapes SSL.
- *
- * This library is free for commercial and non-commercial use as long as
- * the following conditions are aheared to.  The following conditions
- * apply to all code found in this distribution, be it the RC4, RSA,
- * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
- * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@cryptsoft.com).
- *
- * Copyright remains Eric Young's, and as such any Copyright notices in
- * the code are not to be removed.
- * If this package is used in a product, Eric Young should be given attribution
- * as the author of the parts of the library used.
- * This can be in the form of a textual message at program startup or
- * in documentation (online or textual) provided with the package.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    "This product includes cryptographic software written by
- *     Eric Young (eay@cryptsoft.com)"
- *    The word 'cryptographic' can be left out if the rouines from the library
- *    being used are not cryptographic related :-).
- * 4. If you include any Windows specific code (or a derivative thereof) from
- *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
- *
- * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- * The licence and distribution terms for any publically available version or
- * derivative of this code cannot be changed.  i.e. this code cannot simply be
- * copied and put under another distribution licence
- * [including the GNU Public Licence.]
- */
-/* ====================================================================
- * Copyright (c) 1998-2001 The OpenSSL Project.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    openssl-core@openssl.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
 
 #include <stdio.h>
 #include <time.h>
-#include "cryptlib.h"
-#include "bn_lcl.h"
-#include <openssl/rand.h>
-
-/*
- * NB: these functions have been "upgraded", the deprecated versions (which
- * are compatibility wrappers using these functions) are in bn_depr.c. -
- * Geoff
- */
+#include "internal/cryptlib.h"
+#include "bn_local.h"
 
 /*
  * The quick sieve algorithm approach to weeding out primes is Philip
@@ -131,12 +22,12 @@
 static int witness(BIGNUM *w, const BIGNUM *a, const BIGNUM *a1,
                    const BIGNUM *a1_odd, int k, BN_CTX *ctx,
                    BN_MONT_CTX *mont);
-static int probable_prime(BIGNUM *rnd, int bits);
-static int probable_prime_dh(BIGNUM *rnd, int bits,
+static int probable_prime(BIGNUM *rnd, int bits, int safe, prime_t *mods);
+static int probable_prime_dh(BIGNUM *rnd, int bits, int safe, prime_t *mods,
                              const BIGNUM *add, const BIGNUM *rem,
                              BN_CTX *ctx);
-static int probable_prime_dh_safe(BIGNUM *rnd, int bits, const BIGNUM *add,
-                                  const BIGNUM *rem, BN_CTX *ctx);
+
+#define square(x) ((BN_ULONG)(x) * (BN_ULONG)(x))
 
 int BN_GENCB_call(BN_GENCB *cb, int a, int b)
 {
@@ -166,31 +57,45 @@ int BN_generate_prime_ex(BIGNUM *ret, int bits, int safe,
     BIGNUM *t;
     int found = 0;
     int i, j, c1 = 0;
-    BN_CTX *ctx;
+    BN_CTX *ctx = NULL;
+    prime_t *mods = NULL;
     int checks = BN_prime_checks_for_size(bits);
+
+    if (bits < 2) {
+        /* There are no prime numbers this small. */
+        BNerr(BN_F_BN_GENERATE_PRIME_EX, BN_R_BITS_TOO_SMALL);
+        return 0;
+    } else if (add == NULL && safe && bits < 6 && bits != 3) {
+        /*
+         * The smallest safe prime (7) is three bits.
+         * But the following two safe primes with less than 6 bits (11, 23)
+         * are unreachable for BN_rand with BN_RAND_TOP_TWO.
+         */
+        BNerr(BN_F_BN_GENERATE_PRIME_EX, BN_R_BITS_TOO_SMALL);
+        return 0;
+    }
+
+    mods = OPENSSL_zalloc(sizeof(*mods) * NUMPRIMES);
+    if (mods == NULL)
+        goto err;
 
     ctx = BN_CTX_new();
     if (ctx == NULL)
         goto err;
     BN_CTX_start(ctx);
     t = BN_CTX_get(ctx);
-    if (!t)
+    if (t == NULL)
         goto err;
  loop:
     /* make a random number and set the top and bottom bits */
     if (add == NULL) {
-        if (!probable_prime(ret, bits))
+        if (!probable_prime(ret, bits, safe, mods))
             goto err;
     } else {
-        if (safe) {
-            if (!probable_prime_dh_safe(ret, bits, add, rem, ctx))
-                goto err;
-        } else {
-            if (!probable_prime_dh(ret, bits, add, rem, ctx))
-                goto err;
-        }
+        if (!probable_prime_dh(ret, bits, safe, mods, add, rem, ctx))
+            goto err;
     }
-    /* if (BN_mod_word(ret,(BN_ULONG)3) == 1) goto loop; */
+
     if (!BN_GENCB_call(cb, 0, c1++))
         /* aborted */
         goto err;
@@ -230,10 +135,9 @@ int BN_generate_prime_ex(BIGNUM *ret, int bits, int safe,
     /* we have a prime :-) */
     found = 1;
  err:
-    if (ctx != NULL) {
-        BN_CTX_end(ctx);
-        BN_CTX_free(ctx);
-    }
+    OPENSSL_free(mods);
+    BN_CTX_end(ctx);
+    BN_CTX_free(ctx);
     bn_check_top(ret);
     return found;
 }
@@ -250,24 +154,29 @@ int BN_is_prime_fasttest_ex(const BIGNUM *a, int checks, BN_CTX *ctx_passed,
     int i, j, ret = -1;
     int k;
     BN_CTX *ctx = NULL;
-    BIGNUM *A1, *A1_odd, *check; /* taken from ctx */
+    BIGNUM *A1, *A1_odd, *A3, *check; /* taken from ctx */
     BN_MONT_CTX *mont = NULL;
-    const BIGNUM *A = NULL;
 
-    if (BN_cmp(a, BN_value_one()) <= 0)
+    /* Take care of the really small primes 2 & 3 */
+    if (BN_is_word(a, 2) || BN_is_word(a, 3))
+        return 1;
+
+    /* Check odd and bigger than 1 */
+    if (!BN_is_odd(a) || BN_cmp(a, BN_value_one()) <= 0)
         return 0;
 
     if (checks == BN_prime_checks)
         checks = BN_prime_checks_for_size(BN_num_bits(a));
 
     /* first look for small factors */
-    if (!BN_is_odd(a))
-        /* a is even => a is prime if and only if a == 2 */
-        return BN_is_word(a, 2);
     if (do_trial_division) {
-        for (i = 1; i < NUMPRIMES; i++)
-            if (BN_mod_word(a, primes[i]) == 0)
-                return 0;
+        for (i = 1; i < NUMPRIMES; i++) {
+            BN_ULONG mod = BN_mod_word(a, primes[i]);
+            if (mod == (BN_ULONG)-1)
+                goto err;
+            if (mod == 0)
+                return BN_is_word(a, primes[i]);
+        }
         if (!BN_GENCB_call(cb, 1, -1))
             goto err;
     }
@@ -278,31 +187,19 @@ int BN_is_prime_fasttest_ex(const BIGNUM *a, int checks, BN_CTX *ctx_passed,
         goto err;
     BN_CTX_start(ctx);
 
-    /* A := abs(a) */
-    if (a->neg) {
-        BIGNUM *t;
-        if ((t = BN_CTX_get(ctx)) == NULL)
-            goto err;
-        BN_copy(t, a);
-        t->neg = 0;
-        A = t;
-    } else
-        A = a;
     A1 = BN_CTX_get(ctx);
+    A3 = BN_CTX_get(ctx);
     A1_odd = BN_CTX_get(ctx);
     check = BN_CTX_get(ctx);
     if (check == NULL)
         goto err;
 
-    /* compute A1 := A - 1 */
-    if (!BN_copy(A1, A))
+    /* compute A1 := a - 1 */
+    if (!BN_copy(A1, a) || !BN_sub_word(A1, 1))
         goto err;
-    if (!BN_sub_word(A1, 1))
+    /* compute A3 := a - 3 */
+    if (!BN_copy(A3, a) || !BN_sub_word(A3, 3))
         goto err;
-    if (BN_is_zero(A1)) {
-        ret = 0;
-        goto err;
-    }
 
     /* write  A1  as  A1_odd * 2^k */
     k = 1;
@@ -311,21 +208,19 @@ int BN_is_prime_fasttest_ex(const BIGNUM *a, int checks, BN_CTX *ctx_passed,
     if (!BN_rshift(A1_odd, A1, k))
         goto err;
 
-    /* Montgomery setup for computations mod A */
+    /* Montgomery setup for computations mod a */
     mont = BN_MONT_CTX_new();
     if (mont == NULL)
         goto err;
-    if (!BN_MONT_CTX_set(mont, A, ctx))
+    if (!BN_MONT_CTX_set(mont, a, ctx))
         goto err;
 
     for (i = 0; i < checks; i++) {
-        if (!BN_pseudo_rand_range(check, A1))
+        /* 1 < check < a-1 */
+        if (!BN_priv_rand_range(check, A3) || !BN_add_word(check, 2))
             goto err;
-        if (!BN_add_word(check, 1))
-            goto err;
-        /* now 1 <= check < A */
 
-        j = witness(check, A, A1, A1_odd, k, ctx, mont);
+        j = witness(check, a, A1, A1_odd, k, ctx, mont);
         if (j == -1)
             goto err;
         if (j) {
@@ -342,10 +237,9 @@ int BN_is_prime_fasttest_ex(const BIGNUM *a, int checks, BN_CTX *ctx_passed,
         if (ctx_passed == NULL)
             BN_CTX_free(ctx);
     }
-    if (mont != NULL)
-        BN_MONT_CTX_free(mont);
+    BN_MONT_CTX_free(mont);
 
-    return (ret);
+    return ret;
 }
 
 static int witness(BIGNUM *w, const BIGNUM *a, const BIGNUM *a1,
@@ -375,50 +269,72 @@ static int witness(BIGNUM *w, const BIGNUM *a, const BIGNUM *a1,
     return 1;
 }
 
-static int probable_prime(BIGNUM *rnd, int bits)
+static int probable_prime(BIGNUM *rnd, int bits, int safe, prime_t *mods)
 {
     int i;
-    prime_t mods[NUMPRIMES];
-    BN_ULONG delta, maxdelta;
+    BN_ULONG delta;
+    BN_ULONG maxdelta = BN_MASK2 - primes[NUMPRIMES - 1];
 
  again:
-    if (!BN_rand(rnd, bits, 1, 1))
-        return (0);
-    /* we now have a random number 'rand' to test. */
-    for (i = 1; i < NUMPRIMES; i++)
-        mods[i] = (prime_t) BN_mod_word(rnd, (BN_ULONG)primes[i]);
-    maxdelta = BN_MASK2 - primes[NUMPRIMES - 1];
+    /* TODO: Not all primes are private */
+    if (!BN_priv_rand(rnd, bits, BN_RAND_TOP_TWO, BN_RAND_BOTTOM_ODD))
+        return 0;
+    if (safe && !BN_set_bit(rnd, 1))
+        return 0;
+    /* we now have a random number 'rnd' to test. */
+    for (i = 1; i < NUMPRIMES; i++) {
+        BN_ULONG mod = BN_mod_word(rnd, (BN_ULONG)primes[i]);
+        if (mod == (BN_ULONG)-1)
+            return 0;
+        mods[i] = (prime_t) mod;
+    }
     delta = 0;
- loop:for (i = 1; i < NUMPRIMES; i++) {
+ loop:
+    for (i = 1; i < NUMPRIMES; i++) {
         /*
-         * check that rnd is not a prime and also that gcd(rnd-1,primes) == 1
-         * (except for 2)
+         * check that rnd is a prime and also that
+         * gcd(rnd-1,primes) == 1 (except for 2)
+         * do the second check only if we are interested in safe primes
+         * in the case that the candidate prime is a single word then
+         * we check only the primes up to sqrt(rnd)
          */
-        if (((mods[i] + delta) % primes[i]) <= 1) {
-            delta += 2;
+        if (bits <= 31 && delta <= 0x7fffffff
+                && square(primes[i]) > BN_get_word(rnd) + delta)
+            break;
+        if (safe ? (mods[i] + delta) % primes[i] <= 1
+                 : (mods[i] + delta) % primes[i] == 0) {
+            delta += safe ? 4 : 2;
             if (delta > maxdelta)
                 goto again;
             goto loop;
         }
     }
     if (!BN_add_word(rnd, delta))
-        return (0);
+        return 0;
+    if (BN_num_bits(rnd) != bits)
+        goto again;
     bn_check_top(rnd);
-    return (1);
+    return 1;
 }
 
-static int probable_prime_dh(BIGNUM *rnd, int bits,
+static int probable_prime_dh(BIGNUM *rnd, int bits, int safe, prime_t *mods,
                              const BIGNUM *add, const BIGNUM *rem,
                              BN_CTX *ctx)
 {
     int i, ret = 0;
     BIGNUM *t1;
+    BN_ULONG delta;
+    BN_ULONG maxdelta = BN_MASK2 - primes[NUMPRIMES - 1];
 
     BN_CTX_start(ctx);
     if ((t1 = BN_CTX_get(ctx)) == NULL)
         goto err;
 
-    if (!BN_rand(rnd, bits, 0, 1))
+    if (maxdelta > BN_MASK2 - BN_get_word(add))
+        maxdelta = BN_MASK2 - BN_get_word(add);
+
+ again:
+    if (!BN_rand(rnd, bits, BN_RAND_TOP_ONE, BN_RAND_BOTTOM_ODD))
         goto err;
 
     /* we need ((rnd-rem) % add) == 0 */
@@ -428,88 +344,48 @@ static int probable_prime_dh(BIGNUM *rnd, int bits,
     if (!BN_sub(rnd, rnd, t1))
         goto err;
     if (rem == NULL) {
-        if (!BN_add_word(rnd, 1))
+        if (!BN_add_word(rnd, safe ? 3u : 1u))
             goto err;
     } else {
         if (!BN_add(rnd, rnd, rem))
             goto err;
     }
 
-    /* we now have a random number 'rand' to test. */
+    if (BN_num_bits(rnd) < bits
+            || BN_get_word(rnd) < (safe ? 5u : 3u)) {
+        if (!BN_add(rnd, rnd, add))
+            goto err;
+    }
 
- loop:for (i = 1; i < NUMPRIMES; i++) {
+    /* we now have a random number 'rnd' to test. */
+    for (i = 1; i < NUMPRIMES; i++) {
+        BN_ULONG mod = BN_mod_word(rnd, (BN_ULONG)primes[i]);
+        if (mod == (BN_ULONG)-1)
+            goto err;
+        mods[i] = (prime_t) mod;
+    }
+    delta = 0;
+ loop:
+    for (i = 1; i < NUMPRIMES; i++) {
         /* check that rnd is a prime */
-        if (BN_mod_word(rnd, (BN_ULONG)primes[i]) <= 1) {
-            if (!BN_add(rnd, rnd, add))
-                goto err;
+        if (bits <= 31 && delta <= 0x7fffffff
+                && square(primes[i]) > BN_get_word(rnd) + delta)
+            break;
+        /* rnd mod p == 1 implies q = (rnd-1)/2 is divisible by p */
+        if (safe ? (mods[i] + delta) % primes[i] <= 1
+                 : (mods[i] + delta) % primes[i] == 0) {
+            delta += BN_get_word(add);
+            if (delta > maxdelta)
+                goto again;
             goto loop;
         }
     }
+    if (!BN_add_word(rnd, delta))
+        goto err;
     ret = 1;
+
  err:
     BN_CTX_end(ctx);
     bn_check_top(rnd);
-    return (ret);
-}
-
-static int probable_prime_dh_safe(BIGNUM *p, int bits, const BIGNUM *padd,
-                                  const BIGNUM *rem, BN_CTX *ctx)
-{
-    int i, ret = 0;
-    BIGNUM *t1, *qadd, *q;
-
-    bits--;
-    BN_CTX_start(ctx);
-    t1 = BN_CTX_get(ctx);
-    q = BN_CTX_get(ctx);
-    qadd = BN_CTX_get(ctx);
-    if (qadd == NULL)
-        goto err;
-
-    if (!BN_rshift1(qadd, padd))
-        goto err;
-
-    if (!BN_rand(q, bits, 0, 1))
-        goto err;
-
-    /* we need ((rnd-rem) % add) == 0 */
-    if (!BN_mod(t1, q, qadd, ctx))
-        goto err;
-    if (!BN_sub(q, q, t1))
-        goto err;
-    if (rem == NULL) {
-        if (!BN_add_word(q, 1))
-            goto err;
-    } else {
-        if (!BN_rshift1(t1, rem))
-            goto err;
-        if (!BN_add(q, q, t1))
-            goto err;
-    }
-
-    /* we now have a random number 'rand' to test. */
-    if (!BN_lshift1(p, q))
-        goto err;
-    if (!BN_add_word(p, 1))
-        goto err;
-
- loop:for (i = 1; i < NUMPRIMES; i++) {
-        /* check that p and q are prime */
-        /*
-         * check that for p and q gcd(p-1,primes) == 1 (except for 2)
-         */
-        if ((BN_mod_word(p, (BN_ULONG)primes[i]) == 0) ||
-            (BN_mod_word(q, (BN_ULONG)primes[i]) == 0)) {
-            if (!BN_add(p, p, padd))
-                goto err;
-            if (!BN_add(q, q, qadd))
-                goto err;
-            goto loop;
-        }
-    }
-    ret = 1;
- err:
-    BN_CTX_end(ctx);
-    bn_check_top(p);
-    return (ret);
+    return ret;
 }

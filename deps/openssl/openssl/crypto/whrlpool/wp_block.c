@@ -1,13 +1,14 @@
+/*
+ * Copyright 2005-2020 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
 /**
  * The Whirlpool hashing function.
- *
- * <P>
- * <b>References</b>
- *
- * <P>
- * The Whirlpool algorithm was developed by
- * <a href="mailto:pbarreto@scopus.com.br">Paulo S. L. M. Barreto</a> and
- * <a href="mailto:vincent.rijmen@cryptomathic.com">Vincent Rijmen</a>.
  *
  * See
  *      P.S.L.M. Barreto, V. Rijmen,
@@ -35,7 +36,7 @@
  *
  */
 
-#include "wp_locl.h"
+#include "wp_local.h"
 #include <string.h>
 
 typedef unsigned char u8;
@@ -50,15 +51,30 @@ typedef unsigned long long u64;
 #define ROUNDS  10
 
 #define STRICT_ALIGNMENT
-#if defined(__i386) || defined(__i386__) || \
-    defined(__x86_64) || defined(__x86_64__) || \
-    defined(_M_IX86) || defined(_M_AMD64) || defined(_M_X64)
+#if !defined(PEDANTIC) && (defined(__i386) || defined(__i386__) || \
+                           defined(__x86_64) || defined(__x86_64__) || \
+                           defined(_M_IX86) || defined(_M_AMD64) || \
+                           defined(_M_X64))
 /*
  * Well, formally there're couple of other architectures, which permit
  * unaligned loads, specifically those not crossing cache lines, IA-64 and
  * PowerPC...
  */
 # undef STRICT_ALIGNMENT
+#endif
+
+#ifndef STRICT_ALIGNMENT
+# ifdef __GNUC__
+typedef u64 u64_a1 __attribute((__aligned__(1)));
+# else
+typedef u64 u64_a1;
+# endif
+#endif
+
+#if defined(__GNUC__) && !defined(STRICT_ALIGNMENT)
+typedef u64 u64_aX __attribute((__aligned__(1)));
+#else
+typedef u64 u64_aX;
 #endif
 
 #undef SMALL_REGISTER_BANK
@@ -73,7 +89,7 @@ typedef unsigned long long u64;
 #   define OPENSSL_SMALL_FOOTPRINT
 #  endif
 #  define GO_FOR_MMX(ctx,inp,num)     do {                    \
-        extern unsigned int OPENSSL_ia32cap_P[];                \
+        extern unsigned long OPENSSL_ia32cap_P[];               \
         void whirlpool_block_mmx(void *,const void *,size_t);   \
         if (!(OPENSSL_ia32cap_P[0] & (1<<23)))  break;          \
         whirlpool_block_mmx(ctx->H.c,inp,num);  return;         \
@@ -82,17 +98,19 @@ typedef unsigned long long u64;
 #endif
 
 #undef ROTATE
-#if defined(_MSC_VER)
-# if defined(_WIN64)            /* applies to both IA-64 and AMD64 */
-#  pragma intrinsic(_rotl64)
-#  define ROTATE(a,n) _rotl64((a),n)
-# endif
-#elif defined(__GNUC__) && __GNUC__>=2
-# if defined(__x86_64) || defined(__x86_64__)
-#  if defined(L_ENDIAN)
-#   define ROTATE(a,n)       ({ u64 ret; asm ("rolq %1,%0"   \
+#ifndef PEDANTIC
+# if defined(_MSC_VER)
+#  if defined(_WIN64)            /* applies to both IA-64 and AMD64 */
+#   include <stdlib.h>
+#   pragma intrinsic(_rotl64)
+#   define ROTATE(a,n) _rotl64((a),n)
+#  endif
+# elif defined(__GNUC__) && __GNUC__>=2
+#  if defined(__x86_64) || defined(__x86_64__)
+#   if defined(L_ENDIAN)
+#    define ROTATE(a,n)       ({ u64 ret; asm ("rolq %1,%0"   \
                                    : "=r"(ret) : "J"(n),"0"(a) : "cc"); ret; })
-#  elif defined(B_ENDIAN)
+#   elif defined(B_ENDIAN)
        /*
         * Most will argue that x86_64 is always little-endian. Well, yes, but
         * then we have stratus.com who has modified gcc to "emulate"
@@ -100,16 +118,17 @@ typedef unsigned long long u64;
         * won't do same for x86_64? Naturally no. And this line is waiting
         * ready for that brave soul:-)
         */
-#   define ROTATE(a,n)       ({ u64 ret; asm ("rorq %1,%0"   \
+#    define ROTATE(a,n)       ({ u64 ret; asm ("rorq %1,%0"   \
                                    : "=r"(ret) : "J"(n),"0"(a) : "cc"); ret; })
-#  endif
-# elif defined(__ia64) || defined(__ia64__)
-#  if defined(L_ENDIAN)
-#   define ROTATE(a,n)       ({ u64 ret; asm ("shrp %0=%1,%1,%2"     \
+#   endif
+#  elif defined(__ia64) || defined(__ia64__)
+#   if defined(L_ENDIAN)
+#    define ROTATE(a,n)       ({ u64 ret; asm ("shrp %0=%1,%1,%2"     \
                                    : "=r"(ret) : "r"(a),"M"(64-(n))); ret; })
-#  elif defined(B_ENDIAN)
-#   define ROTATE(a,n)       ({ u64 ret; asm ("shrp %0=%1,%1,%2"     \
+#   elif defined(B_ENDIAN)
+#    define ROTATE(a,n)       ({ u64 ret; asm ("shrp %0=%1,%1,%2"     \
                                    : "=r"(ret) : "r"(a),"M"(n)); ret; })
+#   endif
 #  endif
 # endif
 #endif
@@ -143,7 +162,7 @@ typedef unsigned long long u64;
  * one quadword load. One can argue that that many single-byte loads
  * is too excessive, as one could load a quadword and "milk" it for
  * eight 8-bit values instead. Well, yes, but in order to do so *and*
- * avoid excessive loads you have to accomodate a handful of 64-bit
+ * avoid excessive loads you have to accommodate a handful of 64-bit
  * values in the register bank and issue a bunch of shifts and mask.
  * It's a tradeoff: loads vs. shift and mask in big register bank[!].
  * On most CPUs eight single-byte loads are faster and I let other
@@ -186,13 +205,13 @@ typedef unsigned long long u64;
 # define LL(c0,c1,c2,c3,c4,c5,c6,c7)   c0,c1,c2,c3,c4,c5,c6,c7, \
                                         c0,c1,c2,c3,c4,c5,c6,c7
 # define C0(K,i)       (((u64*)(Cx.c+0))[2*K.c[(i)*8+0]])
-# define C1(K,i)       (((u64*)(Cx.c+7))[2*K.c[(i)*8+1]])
-# define C2(K,i)       (((u64*)(Cx.c+6))[2*K.c[(i)*8+2]])
-# define C3(K,i)       (((u64*)(Cx.c+5))[2*K.c[(i)*8+3]])
-# define C4(K,i)       (((u64*)(Cx.c+4))[2*K.c[(i)*8+4]])
-# define C5(K,i)       (((u64*)(Cx.c+3))[2*K.c[(i)*8+5]])
-# define C6(K,i)       (((u64*)(Cx.c+2))[2*K.c[(i)*8+6]])
-# define C7(K,i)       (((u64*)(Cx.c+1))[2*K.c[(i)*8+7]])
+# define C1(K,i)       (((u64_a1*)(Cx.c+7))[2*K.c[(i)*8+1]])
+# define C2(K,i)       (((u64_a1*)(Cx.c+6))[2*K.c[(i)*8+2]])
+# define C3(K,i)       (((u64_a1*)(Cx.c+5))[2*K.c[(i)*8+3]])
+# define C4(K,i)       (((u64_a1*)(Cx.c+4))[2*K.c[(i)*8+4]])
+# define C5(K,i)       (((u64_a1*)(Cx.c+3))[2*K.c[(i)*8+5]])
+# define C6(K,i)       (((u64_a1*)(Cx.c+2))[2*K.c[(i)*8+6]])
+# define C7(K,i)       (((u64_a1*)(Cx.c+1))[2*K.c[(i)*8+7]])
 #endif
 
 static const
@@ -526,7 +545,7 @@ void whirlpool_block(WHIRLPOOL_CTX *ctx, const void *inp, size_t n)
         } else
 # endif
         {
-            const u64 *pa = (const u64 *)p;
+            const u64_aX *pa = (const u64_aX *)p;
             S.q[0] = (K.q[0] = H->q[0]) ^ pa[0];
             S.q[1] = (K.q[1] = H->q[1]) ^ pa[1];
             S.q[2] = (K.q[2] = H->q[2]) ^ pa[2];
@@ -764,7 +783,7 @@ void whirlpool_block(WHIRLPOOL_CTX *ctx, const void *inp, size_t n)
         } else
 # endif
         {
-            const u64 *pa = (const u64 *)p;
+            const u64_aX *pa = (const u64_aX *)p;
             H->q[0] ^= S.q[0] ^ pa[0];
             H->q[1] ^= S.q[1] ^ pa[1];
             H->q[2] ^= S.q[2] ^ pa[2];

@@ -1,0 +1,13 @@
+Test for step-into remote async task
+Setup debugger agents..
+Pause before stack trace is captured..
+Run stepInto with breakOnAsyncCall flag
+Trigger external async task on another context group
+Dump stack trace
+boo (target.js:1:22)
+call (framework.js:3:2)
+(anonymous) (target.js:0:0)
+-- remote-task --
+store (utils.js:2:25)
+foo (source.js:1:13)
+(anonymous) (source.js:2:6)

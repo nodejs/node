@@ -109,11 +109,26 @@
   'js1_5/extensions/regress-452565': [FAIL],
   'js1_5/extensions/scope-001': [FAIL],
   # To add insult to injury, these tests time out in debug mode
-  'js1_5/Regress/regress-360969-03': [FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
-  'js1_5/Regress/regress-360969-04': [FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
+  'js1_5/Regress/regress-360969-03': [FAIL, ['mode == debug', NO_VARIANTS]],
+  'js1_5/Regress/regress-360969-04': [FAIL, ['mode == debug', NO_VARIANTS]],
 
   # Function declarations are no longer allowed as the body of a with statement.
   'js1_5/Regress/regress-326453': [FAIL],
+
+  # Invalid according to ES2015 syntax. (Details: crbug.com/726625)
+  'ecma_3/extensions/regress-368516': [FAIL],
+
+  # Function.prototype.toString revision.
+  # (https://chromium-review.googlesource.com/c/546941#message-5dc0f5efe277388501e8870e39ec70383dfc7db8)
+  'js1_5/Scope/regress-185485': [FAIL],
+
+  # Georgina is bicameral as of Unicode 11, but the test assumes that it's unicameral.
+  # no_i18n build has an old ICU data and Georgian is treated as unicameral.
+  'ecma/String/15.5.4.12-3': [FAIL, ['no_i18n == True', PASS]],
+
+  # Expecations in this test don't match the spec.
+  # See also https://bugs.chromium.org/p/v8/issues/detail?id=9446
+  'js1_5/Regress/regress-248444': [FAIL],
 
   ##################### SKIPPED TESTS #####################
 
@@ -122,11 +137,11 @@
   # time to do so.
   'js1_5/Regress/regress-271716-n': [SKIP],
 
-  # BUG(960): This test has an insane amount of output when it times out,
+  # BUG(960): This test has an excessive amount of output when it times out,
   # messing up ability to see other failures on the waterfall.
   'js1_5/extensions/regress-342960': [SKIP],
 
-  # This test uses a unitialized variable. A Bug has been filed:
+  # This test uses an uninitialized variable. A Bug has been filed:
   # https://bugzilla.mozilla.org/show_bug.cgi?id=575575
   'js1_5/Array/regress-465980-02': [SKIP],
 
@@ -138,8 +153,8 @@
   'ecma_3/Date/15.9.3.2-1': [SKIP],
   'js1_2/function/Number': [SKIP],
 
-  # TODO(2018): Temporarily allow timeout in debug mode.
-  'js1_5/GC/regress-203278-2': [PASS, ['mode == debug', TIMEOUT, NO_VARIANTS, FAIL]],
+  # TODO(2018): Might timeout in debug mode.
+  'js1_5/GC/regress-203278-2': [PASS, SLOW, ['mode == debug', NO_VARIANTS, FAIL]],
 
   # These tests use invalid LHS expressions in assignments.
   'js1_5/Regress/regress-319391': [SKIP],
@@ -147,7 +162,23 @@
   'js1_5/Regress/regress-462292': [SKIP],
   'js1_5/decompilation/regress-443071-01': [SKIP],
 
+  # This test checks that 'unshift' doesn't cause a OOM. Since the range error
+  # will get thrown at the end of the operation, this test runs for a long time.
+  # https://crbug.com/v8/8120
+  'ecma_3/Array/regress-322135-04': [SKIP],
+
+  # These tests try to sort very large arrays. Array#sort pre-processing does
+  # not support huge sparse Arrays, so these tests run a very long time.
+  # https://crbug.com/v8/8714
+  'js1_5/Array/regress-330812': [SKIP],
+  'js1_5/Regress/regress-422348': [SKIP],
+  'js1_5/Array/regress-157652': [SKIP],
+
   ##################### SLOW TESTS #####################
+
+  # Compiles a long chain of && or || operations, can time out under slower
+  # variants.
+  'js1_5/Expressions/regress-394673': [PASS, NO_VARIANTS],
 
   # This takes a long time to run (~100 seconds). It should only be run
   # by the really patient.
@@ -169,6 +200,11 @@
   # characters. This takes a long time to run (~32 seconds).
   'js1_5/GC/regress-348532': [SKIP],
 
+  # Takes a really long time to run, creating an Array of length
+  # 2^32 - 1. Related to removal of "sparse" array support for
+  # splice and friends:
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8131.
+  'ecma_3/Array/regress-322135-03': [SKIP],
 
   # Runs for too long: huge array with getters and setters. As it says
   # in the test: "This test will probably run out of memory".
@@ -177,21 +213,28 @@
   # Slow with arm64 simulator in debug.
   'ecma_3/Statements/regress-302439': [PASS, ['mode == debug', SLOW]],
 
+  # More slow tests.
+  'ecma/Date/15.9.5.9': [PASS, SLOW],
+  'ecma/Expressions/11.7.2': [PASS, SLOW],
+
   ##################### FLAKY TESTS #####################
 
   # These tests time out in debug mode but pass in product mode
-  'js1_5/Regress/regress-360969-05': [PASS, ['mode == debug', TIMEOUT, NO_VARIANTS]],
-  'js1_5/Regress/regress-360969-06': [PASS, ['mode == debug', TIMEOUT, NO_VARIANTS]],
-  'js1_5/extensions/regress-365527': [PASS, SLOW, ['mode == debug', TIMEOUT, NO_VARIANTS]],
+  'js1_5/Regress/regress-360969-05': [PASS, SLOW, ['mode == debug', NO_VARIANTS]],
+  'js1_5/Regress/regress-360969-06': [PASS, SLOW, ['mode == debug', NO_VARIANTS]],
+  'js1_5/extensions/regress-365527': [PASS, SLOW, ['mode == debug', NO_VARIANTS]],
 
   'js1_5/Regress/regress-280769-3': [PASS, ['mode == debug', FAIL]],
   'js1_5/Regress/regress-203278-1': [PASS, ['mode == debug', FAIL]],
   'js1_5/Regress/regress-244470': [PASS, ['mode == debug', FAIL]],
   'ecma_3/RegExp/regress-209067': [PASS, ['mode == debug', FAIL]],
-  'js1_5/GC/regress-278725': [PASS, ['mode == debug', FAIL]],
+  'js1_5/GC/regress-278725': [PASS, SLOW, ['mode == debug', FAIL]],
   # http://b/issue?id=1206983
   'js1_5/Regress/regress-367561-03': [PASS, ['mode == debug', FAIL], NO_VARIANTS],
-  'ecma/Date/15.9.5.10-2': [PASS, FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
+  'ecma/FunctionObjects/15.3.1.1-3': [PASS, FAIL, ['mode == debug', NO_VARIANTS]],
+  'ecma/FunctionObjects/15.3.2.1-3': [PASS, FAIL, ['mode == debug', NO_VARIANTS]],
+  'ecma/FunctionObjects/15.3.5-1': [PASS, FAIL, ['mode == debug', NO_VARIANTS]],
+  'ecma/Date/15.9.5.10-2': [PASS, FAIL, ['mode == debug', NO_VARIANTS]],
 
   # These tests create two Date objects just after each other and
   # expects them to match.  Sometimes this happens on the border
@@ -211,7 +254,22 @@
 
   # 1050186: Arm/MIPS vm is broken; probably unrelated to dates
   'ecma/Array/15.4.4.5-3': [PASS, ['arch == arm or arch == mipsel or arch == mips', FAIL]],
-  'ecma/Date/15.9.5.22-2': [PASS, ['arch == arm or arch == mipsel or arch == mips', FAIL]],
+
+  # These 4 tests made an incorrect assumption that the timezone offset of any
+  # given timezone has not changed over time. With icu-timezone-data enabled
+  # and https://github.com/tc39/ecma262/pull/778 implemented, the historical
+  # timezone offset is handled properly and these tests are broken in i18n
+  # build. It's non-trivial to fix them because they strive to work in *any*
+  # timezone.
+  # TODO(jshin): Add equivalent tests with a specific timezone using TZ variable
+  # on Linux to mjsunit.
+
+  'ecma/Date/15.9.5.16': [PASS,  ['no_i18n == False', FAIL]],
+  'ecma/Date/15.9.5.18': [PASS,  ['no_i18n == False', FAIL]],
+  'ecma/Date/15.9.5.22-1': [PASS, ['no_i18n == False', FAIL]],
+
+  # 1050186: Arm/MIPS vm is broken;  probably unrelated to dates
+  'ecma/Date/15.9.5.22-2': [PASS, ['no_i18n == False or arch == arm or arch == mipsel or arch == mips', FAIL]],
 
   # Flaky test that fails due to what appears to be a bug in the test.
   # Occurs depending on current time
@@ -242,7 +300,7 @@
   'js1_5/Array/regress-99120-01': [PASS, FAIL, NO_VARIANTS],
   'js1_5/Array/regress-99120-02': [PASS, FAIL],
   'js1_5/Regress/regress-347306-01': [PASS, FAIL],
-  'js1_5/Regress/regress-416628': [PASS, FAIL, ['mode == debug', TIMEOUT], NO_VARIANTS],
+  'js1_5/Regress/regress-416628': [PASS, FAIL, NO_VARIANTS],
 
 
   # The following two tests assume that daylight savings time starts first
@@ -263,7 +321,7 @@
 
   # Tests that sorting arrays of ints is less than 3 times as fast
   # as sorting arrays of strings.
-  'js1_5/extensions/regress-371636': [PASS, FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
+  'js1_5/extensions/regress-371636': [PASS, FAIL, ['mode == debug', NO_VARIANTS]],
 
 
   # Tests depend on GC timings. Inherently flaky.
@@ -274,7 +332,6 @@
 
   # Test that depends on timer resolution. Fails every now and then
   # if we're unlucky enough to get a context switch at a bad time.
-  # TODO(mstarzinger): Switch off TF on windows due to timeouts.
   'js1_5/extensions/regress-363258': [PASS, FAIL, ['system == windows', NO_VARIANTS]],
 
 
@@ -291,12 +348,16 @@
   # This section is for tests that fail in both V8 and JSC.  Thus they
   # have been determined to be incompatible between Mozilla and V8/JSC.
 
+  # d8 does not implement a window object.
+  'js1_5/Regress/regress-317476': [FAIL],
+  'js1_5/Regress/regress-314401': [FAIL],
+
+  # d8 implements setTimeout, but not clearTimeout.
+  'js1_5/GC/regress-319980-01': [FAIL],
+
   # Any local 'arguments' variable should not be allowed to shadow the value
   # returned via the indirect 'arguments' property accessor.
   'js1_4/Functions/function-001': [FAIL_OK],
-
-  # toPrecision argument restricted to range 1..21 in JSC/V8 and ECMA-262
-  'js1_5/Regress/regress-452346': [FAIL_OK],
 
   # Fail because it calls builtins as functions and do not expect the
   # builtin to have undefined as the receiver.
@@ -458,7 +519,6 @@
   'ecma_3/extensions/regress-274152': [FAIL_OK],
   'js1_5/Regress/regress-372364': [FAIL_OK],
   'js1_5/Regress/regress-420919': [FAIL_OK],
-  'js1_5/Regress/regress-422348': [FAIL_OK],
   'js1_5/Regress/regress-410852': [FAIL_OK],
   'ecma_3/RegExp/regress-375715-04': [FAIL_OK],
   'js1_5/decompilation/regress-456964-01': [FAIL_OK],
@@ -659,22 +719,13 @@
   # than 4Mbytes of stack space.
   'js1_5/Array/regress-350256-02': [FAIL],
 
-
   # This test seems designed to fail (it produces a 700Mbyte string).
   # We fail on out of memory.  The important thing is not to crash.
-  'js1_5/Regress/regress-303213': [FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
+  'js1_5/Regress/regress-303213': [FAIL, SLOW, ['mode == debug', NO_VARIANTS]],
 
   # This test fails since we now throw in String.prototype.match when apply
   # is given null or undefined as this argument (and so does firefox nightly).
   'js1_5/Regress/regress-295052': [FAIL],
-
-  # Bug 1202592: New ecma_3/String/15.5.4.11 is failing.
-  'ecma_3/String/15.5.4.11': [FAIL],
-
-  # Bug 1202597: New js1_5/Expressions/regress-394673 is failing.
-  # Marked as: Will not fix. V8 throws an acceptable RangeError.
-  'js1_5/Expressions/regress-394673': [FAIL],
-
 
   # Bug 762: http://code.google.com/p/v8/issues/detail?id=762
   # We do not correctly handle assignments within "with"
@@ -804,7 +855,12 @@
   # In the 64-bit version, this test takes longer to run out of memory
   # than it does in the 32-bit version when attempting to generate a huge
   # error message in debug mode.
-  'js1_5/extensions/regress-336410-1': [FAIL_OK, ['mode == debug and arch == x64', TIMEOUT, NO_VARIANTS]],
+  'js1_5/extensions/regress-336410-1': [FAIL_OK, ['mode == debug and arch == x64', NO_VARIANTS]],
+
+  # These tests fail due to __defineGetter__ & friends throwing
+  # for undefined receivers.
+  'js1_5/extensions/regress-313500': [SKIP],
+  'js1_5/extensions/regress-325269': [SKIP],
 
   ##################### DECOMPILATION TESTS #####################
 
@@ -869,10 +925,10 @@
 
 ['no_i18n == True and mode == debug', {
   # Tests too slow for no18n debug.
-  'ecma_3/Statements/regress-302439': [PASS, FAST_VARIANTS],
+  'ecma_3/Statements/regress-302439': [PASS, NO_VARIANTS],
   'js1_5/Regress/regress-98901': [SKIP],
-  'ecma_3/RegExp/perlstress-001': [PASS, FAST_VARIANTS],
-  'js1_5/extensions/regress-311161': [FAIL_OK, FAST_VARIANTS],
+  'ecma_3/RegExp/perlstress-001': [PASS, NO_VARIANTS],
+  'js1_5/extensions/regress-311161': [FAIL_OK, NO_VARIANTS],
 }],  # 'no_i18n == True and mode == debug'
 
 
@@ -890,8 +946,8 @@
   'js1_5/Regress/regress-404755': [SKIP],
   'js1_5/Regress/regress-451322': [SKIP],
 
-  # BUG(1040): Allow this test to timeout.
-  'js1_5/GC/regress-203278-2': [PASS, TIMEOUT, NO_VARIANTS],
+  # BUG(1040): This test might time out.
+  'js1_5/GC/regress-203278-2': [PASS, SLOW, NO_VARIANTS],
 }],  # 'arch == arm or arch == arm64'
 
 
@@ -918,18 +974,18 @@
   'js1_5/Regress/regress-451322': [SKIP],
 
 
-  # BUG(1040): Allow this test to timeout.
-  'js1_5/GC/regress-203278-2': [PASS, TIMEOUT, NO_VARIANTS],
+  # BUG(1040): This test might time out.
+  'js1_5/GC/regress-203278-2': [PASS, SLOW, NO_VARIANTS],
 }],  # 'arch == mipsel or arch == mips64el or arch == mips64'
 
-['arch == mipsel and simulator_run == True', {
+['arch == mipsel and simulator_run', {
   # Crashes due to C stack overflow.
   'js1_5/extensions/regress-355497': [SKIP],
-}], # 'arch == mipsel and simulator_run == True'
+}], # 'arch == mipsel and simulator_run'
 
-['arch == mips64el and simulator_run == True', {
-  'js1_5/extensions/regress-355497': [FAIL_OK, 'Flags: --sim-stack-size=512'],
-}], # 'arch == mips64el and simulator_run == True'
+['arch == mips64el and simulator_run', {
+  'js1_5/extensions/regress-355497': [FAIL_OK, '--sim-stack-size=512'],
+}], # 'arch == mips64el and simulator_run'
 
 ['arch == mips', {
 
@@ -946,17 +1002,22 @@
   'js1_5/Regress/regress-451322': [SKIP],
 
 
-  # BUG(1040): Allow this test to timeout.
-  'js1_5/GC/regress-203278-2': [PASS, TIMEOUT, NO_VARIANTS],
+  # BUG(1040): This test might time out.
+  'js1_5/GC/regress-203278-2': [PASS, SLOW, NO_VARIANTS],
 }],  # 'arch == mips'
 
-['arch == arm and simulator_run == True', {
+['arch == arm and simulator_run', {
 
   #BUG(3837): Crashes due to C stack overflow.
   'js1_5/extensions/regress-355497': [SKIP],
-}],  # 'arch == arm and simulator_run == True'
+}],  # 'arch == arm and simulator_run'
 
-['arch == arm64 and simulator_run == True', {
+['arch == arm64', {
+  # BUG(v8:9863)
+  'js1_5/Regress/regress-80981': [SKIP],
+}], # 'arch == arm64'
+
+['arch == arm64 and simulator_run', {
 
   'js1_5/GC/regress-203278-2': [SKIP],
 
@@ -977,6 +1038,34 @@
   'js1_5/extensions/regress-336410-1': [SKIP],
 
   #BUG(3152): Avoid C stack overflow.
-  'js1_5/extensions/regress-355497': [FAIL_OK, 'Flags: --sim-stack-size=512'],
-}],  # 'arch == arm64 and simulator_run == True'
+  'js1_5/extensions/regress-355497': [FAIL_OK, '--sim-stack-size=512'],
+}],  # 'arch == arm64 and simulator_run'
+
+['system == android', {
+  # https://crbug.com/v8/8146
+  'ecma/Array/15.4.4.5-3': [FAIL],
+}],  # 'system == android'
+
+['tsan', {
+  # https://crbug.com/v8/7632
+  'ecma_3/RegExp/regress-85721': [SKIP],
+}],  # tsan
+
+##############################################################################
+['variant == stress', {
+  # Slow tests.
+  'js1_5/Regress/regress-360969-05': [SKIP],
+  'js1_5/Regress/regress-360969-06': [SKIP],
+}],  # variant == stress
+
+##############################################################################
+['variant == no_wasm_traps', {
+  '*': [SKIP],
+}],  # variant == no_wasm_traps
+
+################################################################################
+['variant == stress_snapshot', {
+  '*': [SKIP],  # only relevant for mjsunit tests.
+}],
+
 ]

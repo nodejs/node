@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -38,7 +38,7 @@
 
 /**
  * Platform utilities isolates the platform dependencies of the
- * libarary.  For each platform which this code is ported to, these
+ * library.  For each platform which this code is ported to, these
  * functions may have to be re-implemented.
  */
 
@@ -53,7 +53,7 @@
  * The data directory is determined as follows:
  *    If u_setDataDirectory() has been called, that is it, otherwise
  *    if the ICU_DATA environment variable is set, use that, otherwise
- *    If a data directory was specifed at ICU build time
+ *    If a data directory was specified at ICU build time
  *      <code>
  * \code
  *        #define ICU_DATA_DIR "path"
@@ -66,7 +66,7 @@
  *
  * @stable ICU 2.0
  */
-U_STABLE const char* U_EXPORT2 u_getDataDirectory(void);
+U_CAPI const char* U_EXPORT2 u_getDataDirectory(void);
 
 
 /**
@@ -88,18 +88,18 @@ U_STABLE const char* U_EXPORT2 u_getDataDirectory(void);
  * @see u_init
  * @stable ICU 2.0
  */
-U_STABLE void U_EXPORT2 u_setDataDirectory(const char *directory);
+U_CAPI void U_EXPORT2 u_setDataDirectory(const char *directory);
 
 #ifndef U_HIDE_INTERNAL_API
 /**
   * Return the time zone files override directory, or an empty string if
-  * no directory was specified. Certain time zone resources will be preferrentially
+  * no directory was specified. Certain time zone resources will be preferentially
   * loaded from individual files in this directory.
   *
   * @return the time zone data override directory.
   * @internal
   */
-U_INTERNAL const char * U_EXPORT2 u_getTimeZoneFilesDirectory(UErrorCode *status);
+U_CAPI const char * U_EXPORT2 u_getTimeZoneFilesDirectory(UErrorCode *status);
 
 /**
   * Set the time zone files override directory.
@@ -109,7 +109,7 @@ U_INTERNAL const char * U_EXPORT2 u_getTimeZoneFilesDirectory(UErrorCode *status
   *   will access the time zone data.
   * @internal
   */
-U_INTERNAL void U_EXPORT2 u_setTimeZoneFilesDirectory(const char *path, UErrorCode *status);
+U_CAPI void U_EXPORT2 u_setTimeZoneFilesDirectory(const char *path, UErrorCode *status);
 #endif  /* U_HIDE_INTERNAL_API */
 
 
@@ -155,7 +155,7 @@ U_INTERNAL void U_EXPORT2 u_setTimeZoneFilesDirectory(const char *path, UErrorCo
  * @see U_CHARSET_FAMILY
  * @stable ICU 2.0
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 u_charsToUChars(const char *cs, UChar *us, int32_t length);
 
 /**
@@ -177,7 +177,7 @@ u_charsToUChars(const char *cs, UChar *us, int32_t length);
  * @see U_CHARSET_FAMILY
  * @stable ICU 2.0
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 u_UCharsToChars(const UChar *us, char *cs, int32_t length);
 
 #endif

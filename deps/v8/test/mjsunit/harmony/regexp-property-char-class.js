@@ -2,16 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-regexp-property
-
 assertThrows("/[\\p]/u");
 assertThrows("/[\\p{garbage}]/u");
 assertThrows("/[\\p{}]/u");
 assertThrows("/[\\p{]/u");
 assertThrows("/[\\p}]/u");
+assertThrows("/^[\\p{Lu}-\\p{Ll}]+$/u");
 
 assertTrue(/^[\p{Lu}\p{Ll}]+$/u.test("ABCabc"));
-assertTrue(/^[\p{Lu}-\p{Ll}]+$/u.test("ABC-abc"));
+assertTrue(/^[\p{Lu}-]+$/u.test("ABC-"));
 assertFalse(/^[\P{Lu}\p{Ll}]+$/u.test("ABCabc"));
 assertTrue(/^[\P{Lu}\p{Ll}]+$/u.test("abc"));
 assertTrue(/^[\P{Lu}]+$/u.test("abc123"));

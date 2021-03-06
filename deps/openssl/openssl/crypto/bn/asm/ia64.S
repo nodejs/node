@@ -1,11 +1,18 @@
 .explicit
 .text
 .ident	"ia64.S, Version 2.1"
-.ident	"IA-64 ISA artwork by Andy Polyakov <appro@fy.chalmers.se>"
+.ident	"IA-64 ISA artwork by Andy Polyakov <appro@openssl.org>"
+
+// Copyright 2001-2019 The OpenSSL Project Authors. All Rights Reserved.
+//
+// Licensed under the OpenSSL license (the "License").  You may not use
+// this file except in compliance with the License.  You can obtain a copy
+// in the file LICENSE in the source distribution or at
+// https://www.openssl.org/source/license.html
 
 //
 // ====================================================================
-// Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
+// Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 // project.
 //
 // Rights for redistribution and usage in source and binary forms are
@@ -13,7 +20,7 @@
 // disclaimed.
 // ====================================================================
 //
-// Version 2.x is Itanium2 re-tune. Few words about how Itanum2 is
+// Version 2.x is Itanium2 re-tune. Few words about how Itanium2 is
 // different from Itanium to this module viewpoint. Most notably, is it
 // "wider" than Itanium? Can you experience loop scalability as
 // discussed in commentary sections? Not really:-( Itanium2 has 6
@@ -22,7 +29,7 @@
 // ports is the same, i.e. 2, while I need 4. In other words, to this
 // module Itanium2 remains effectively as "wide" as Itanium. Yet it's
 // essentially different in respect to this module, and a re-tune was
-// required. Well, because some intruction latencies has changed. Most
+// required. Well, because some instruction latencies has changed. Most
 // noticeably those intensively used:
 //
 //			Itanium	Itanium2
@@ -41,7 +48,7 @@
 // on Itanium2! What to do? Reschedule loops for Itanium2? But then
 // Itanium would exhibit anti-scalability. So I've chosen to reschedule
 // for worst latency for every instruction aiming for best *all-round*
-// performance.  
+// performance.
 
 // Q.	How much faster does it get?
 // A.	Here is the output from 'openssl speed rsa dsa' for vanilla
@@ -134,7 +141,7 @@
 //	User Mask I want to excuse the kernel from preserving upper
 //	(f32-f128) FP register bank over process context switch, thus
 //	minimizing bus bandwidth consumption during the switch (i.e.
-//	after PKI opration completes and the program is off doing
+//	after PKI operation completes and the program is off doing
 //	something else like bulk symmetric encryption). Having said
 //	this, I also want to point out that it might be good idea
 //	to compile the whole toolkit (as well as majority of the
@@ -150,12 +157,15 @@
 #else
 #define	ADDP	add
 #endif
+#ifdef __VMS
+.alias abort, "decc$abort"
+#endif
 
 #if 1
 //
 // bn_[add|sub]_words routines.
 //
-// Loops are spinning in 2*(n+5) ticks on Itanuim (provided that the
+// Loops are spinning in 2*(n+5) ticks on Itanium (provided that the
 // data reside in L1 cache, i.e. 2 ticks away). It's possible to
 // compress the epilogue and get down to 2*n+6, but at the cost of
 // scalability (the neat feature of this implementation is that it
@@ -363,7 +373,7 @@ bn_mul_words:
 // The loop therefore spins at the latency of xma minus 1, or in other
 // words at 6*(n+4) ticks:-( Compare to the "production" loop above
 // that runs in 2*(n+11) where the low latency problem is worked around
-// by moving the dependency to one-tick latent interger ALU. Note that
+// by moving the dependency to one-tick latent integer ALU. Note that
 // "distance" between ldf8 and xma is not latency of ldf8, but the
 // *difference* between xma and ldf8 latencies.
 .L_bn_mul_words_ctop:
@@ -425,7 +435,7 @@ bn_mul_add_words:
 // version was performing *all* additions in IALU and was starving
 // for those even on Itanium 2. In this version one addition is
 // moved to FPU and is folded with multiplication. This is at cost
-// of propogating the result from previous call to this subroutine
+// of propagating the result from previous call to this subroutine
 // to L2 cache... In other words negligible even for shorter keys.
 // *Overall* performance improvement [over previous version] varies
 // from 11 to 22 percent depending on key length.
@@ -462,7 +472,7 @@ bn_mul_add_words:
 .global	bn_sqr_words#
 .proc	bn_sqr_words#
 .align	64
-.skip	32	// makes the loop body aligned at 64-byte boundary 
+.skip	32	// makes the loop body aligned at 64-byte boundary
 bn_sqr_words:
 	.prologue
 	.save	ar.pfs,r2
@@ -493,9 +503,9 @@ bn_sqr_words:
 // possible to compress the epilogue (I'm getting tired to write this
 // comment over and over) and get down to 2*n+16 at the cost of
 // scalability. The decision will very likely be reconsidered after the
-// benchmark program is profiled. I.e. if perfomance gain on Itanium
+// benchmark program is profiled. I.e. if performance gain on Itanium
 // will appear larger than loss on "wider" IA-64, then the loop should
-// be explicitely split and the epilogue compressed.
+// be explicitly split and the epilogue compressed.
 .L_bn_sqr_words_ctop:
 { .mfi;	(p16)	ldf8		f32=[r33],8
 	(p25)	xmpy.lu		f42=f41,f41
@@ -929,7 +939,7 @@ bn_mul_comba8:
 		xma.hu	f118=f39,f127,f117	}
 { .mfi;		xma.lu	f117=f39,f127,f117	};;//
 //-------------------------------------------------//
-// Leaving muliplier's heaven... Quite a ride, huh?
+// Leaving multiplier's heaven... Quite a ride, huh?
 
 { .mii;	getf.sig	r31=f47
 	add		r25=r25,r24
@@ -1421,6 +1431,7 @@ bn_div_words:
 	mov		ar.ec=0		// don't rotate at exit
 	mov		pr.rot=0	}
 { .mii;	mov		L=r33		// save l
+	mov		r25=r0		// needed if abort is called on VMS
 	mov		r36=r0		};;
 
 .L_divw_shift:	// -vv- note signed comparison
@@ -1522,9 +1533,8 @@ bn_div_words:
 // output:	f8 = (int)(a/b)
 // clobbered:	f8,f9,f10,f11,pred
 pred=p15
-// One can argue that this snippet is copyrighted to Intel
-// Corporation, as it's essentially identical to one of those
-// found in "Divide, Square Root and Remainder" section at
+// This snippet is based on text found in the "Divide, Square
+// Root and Remainder" section at
 // http://www.intel.com/software/products/opensource/libraries/num.htm.
 // Yes, I admit that the referred code was used as template,
 // but after I realized that there hardly is any other instruction

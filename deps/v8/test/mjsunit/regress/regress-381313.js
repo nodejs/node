@@ -32,10 +32,10 @@ function f(x, deopt) {
 
   deopt + 0;
 
-  return a0 + a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8 + a9 +
-         a10 + a11 + a12 + a13 + a14 + a15 + a16 + a17 + a18 + a19;
-}
-
+  return a0 + a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8 + a9 + a10 + a11 + a12 +
+      a13 + a14 + a15 + a16 + a17 + a18 + a19;
+};
+%PrepareFunctionForOptimization(f);
 f(0.5, 0);
 f(0.5, 0);
 %OptimizeFunctionOnNextCall(f);

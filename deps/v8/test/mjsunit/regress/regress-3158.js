@@ -9,8 +9,8 @@ delete Array.prototype[0];
 
 function foo(a, i) {
   return a[i];
-}
-
+};
+%PrepareFunctionForOptimization(foo);
 var a = new Array(100000);
 a[3] = 'x';
 

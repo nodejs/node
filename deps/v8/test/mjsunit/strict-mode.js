@@ -147,11 +147,11 @@ function foo(eval) {\
 })();
 
 // Octal literal
-CheckStrictMode("var x = 012");
-CheckStrictMode("012");
-CheckStrictMode("'Hello octal\\032'");
-CheckStrictMode("function octal() { return 012; }");
-CheckStrictMode("function octal() { return '\\032'; }");
+CheckStrictMode("var x = 012", SyntaxError);
+CheckStrictMode("012", SyntaxError);
+CheckStrictMode("'Hello octal\\032'", SyntaxError);
+CheckStrictMode("function octal() { return 012; }", SyntaxError);
+CheckStrictMode("function octal() { return '\\032'; }", SyntaxError);
 
 (function ValidEscape() {
   "use strict";
@@ -1111,14 +1111,14 @@ function CheckArgumentsPillDescriptor(func, name) {
   }
 
   var args = strict();
-  CheckArgumentsPillDescriptor(args, "caller");
+  assertEquals(undefined, Object.getOwnPropertyDescriptor(args, "caller"));
   CheckArgumentsPillDescriptor(args, "callee");
 
   args = strict(17, "value", strict);
   assertEquals(17, args[0])
   assertEquals("value", args[1])
   assertEquals(strict, args[2]);
-  CheckArgumentsPillDescriptor(args, "caller");
+  assertEquals(undefined, Object.getOwnPropertyDescriptor(args, "caller"));
   CheckArgumentsPillDescriptor(args, "callee");
 
   function outer() {
@@ -1130,14 +1130,14 @@ function CheckArgumentsPillDescriptor(func, name) {
   }
 
   var args = outer()();
-  CheckArgumentsPillDescriptor(args, "caller");
+  assertEquals(undefined, Object.getOwnPropertyDescriptor(args, "caller"));
   CheckArgumentsPillDescriptor(args, "callee");
 
   args = outer()(17, "value", strict);
   assertEquals(17, args[0])
   assertEquals("value", args[1])
   assertEquals(strict, args[2]);
-  CheckArgumentsPillDescriptor(args, "caller");
+  assertEquals(undefined, Object.getOwnPropertyDescriptor(args, "caller"));
   CheckArgumentsPillDescriptor(args, "callee");
 })();
 

@@ -25,9 +25,8 @@ std::ostream& operator<<(std::ostream& os,
 
 // Some abbreviations...
 
-typedef MagicNumbersForDivision<uint32_t> M32;
-typedef MagicNumbersForDivision<uint64_t> M64;
-
+using M32 = MagicNumbersForDivision<uint32_t>;
+using M64 = MagicNumbersForDivision<uint64_t>;
 
 static M32 s32(int32_t d) {
   return SignedDivisionByConstant<uint32_t>(static_cast<uint32_t>(d));

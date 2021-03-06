@@ -1,80 +1,43 @@
-/* crypto/rand/randfile.c */
-/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
- * All rights reserved.
+/*
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * This package is an SSL implementation written
- * by Eric Young (eay@cryptsoft.com).
- * The implementation was written so as to conform with Netscapes SSL.
- *
- * This library is free for commercial and non-commercial use as long as
- * the following conditions are aheared to.  The following conditions
- * apply to all code found in this distribution, be it the RC4, RSA,
- * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
- * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@cryptsoft.com).
- *
- * Copyright remains Eric Young's, and as such any Copyright notices in
- * the code are not to be removed.
- * If this package is used in a product, Eric Young should be given attribution
- * as the author of the parts of the library used.
- * This can be in the form of a textual message at program startup or
- * in documentation (online or textual) provided with the package.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    "This product includes cryptographic software written by
- *     Eric Young (eay@cryptsoft.com)"
- *    The word 'cryptographic' can be left out if the rouines from the library
- *    being used are not cryptographic related :-).
- * 4. If you include any Windows specific code (or a derivative thereof) from
- *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
- *
- * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- * The licence and distribution terms for any publically available version or
- * derivative of this code cannot be changed.  i.e. this code cannot simply be
- * copied and put under another distribution licence
- * [including the GNU Public Licence.]
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
  */
+
+#include "internal/cryptlib.h"
 
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "e_os.h"
 #include <openssl/crypto.h>
 #include <openssl/rand.h>
+#include <openssl/rand_drbg.h>
 #include <openssl/buffer.h>
 
 #ifdef OPENSSL_SYS_VMS
 # include <unixio.h>
 #endif
-#ifndef NO_SYS_TYPES_H
-# include <sys/types.h>
-#endif
+#include <sys/types.h>
 #ifndef OPENSSL_NO_POSIX_IO
 # include <sys/stat.h>
 # include <fcntl.h>
+# if defined(_WIN32) && !defined(_WIN32_WCE)
+#  include <windows.h>
+#  include <io.h>
+#  define stat    _stat
+#  define chmod   _chmod
+#  define open    _open
+#  define fdopen  _fdopen
+#  define fstat   _fstat
+#  define fileno  _fileno
+# endif
+#endif
+
 /*
  * Following should not be needed, and we could have been stricter
  * and demand S_IS*. But some systems just don't comply... Formally
@@ -82,176 +45,153 @@
  * would look like ((m) & MASK == TYPE), but since MASK availability
  * is as questionable, we settle for this poor-man fallback...
  */
-# if !defined(S_ISBLK)
-#  if defined(_S_IFBLK)
-#   define S_ISBLK(m) ((m) & _S_IFBLK)
-#  elif defined(S_IFBLK)
-#   define S_ISBLK(m) ((m) & S_IFBLK)
-#  elif defined(_WIN32)
-#   define S_ISBLK(m) 0 /* no concept of block devices on Windows */
-#  endif
+# if !defined(S_ISREG)
+#   define S_ISREG(m) ((m) & S_IFREG)
 # endif
-# if !defined(S_ISCHR)
-#  if defined(_S_IFCHR)
-#   define S_ISCHR(m) ((m) & _S_IFCHR)
-#  elif defined(S_IFCHR)
-#   define S_ISCHR(m) ((m) & S_IFCHR)
-#  endif
-# endif
-#endif
 
-#ifdef _WIN32
-# define stat    _stat
-# define chmod   _chmod
-# define open    _open
-# define fdopen  _fdopen
-#endif
+#define RAND_BUF_SIZE 1024
+#define RFILE ".rnd"
 
-#undef BUFSIZE
-#define BUFSIZE 1024
-#define RAND_DATA 1024
-
-#if (defined(OPENSSL_SYS_VMS) && (defined(__alpha) || defined(__ia64)))
+#ifdef OPENSSL_SYS_VMS
 /*
+ * __FILE_ptr32 is a type provided by DEC C headers (types.h specifically)
+ * to make sure the FILE* is a 32-bit pointer no matter what.  We know that
+ * stdio functions return this type (a study of stdio.h proves it).
+ *
  * This declaration is a nasty hack to get around vms' extension to fopen for
- * passing in sharing options being disabled by our /STANDARD=ANSI89
+ * passing in sharing options being disabled by /STANDARD=ANSI89
  */
-static FILE *(*const vms_fopen)(const char *, const char *, ...) =
-    (FILE *(*)(const char *, const char *, ...))fopen;
-# define VMS_OPEN_ATTRS "shr=get,put,upd,del","ctx=bin,stm","rfm=stm","rat=none","mrs=0"
+static __FILE_ptr32 (*const vms_fopen)(const char *, const char *, ...) =
+        (__FILE_ptr32 (*)(const char *, const char *, ...))fopen;
+# define VMS_OPEN_ATTRS \
+        "shr=get,put,upd,del","ctx=bin,stm","rfm=stm","rat=none","mrs=0"
+# define openssl_fopen(fname, mode) vms_fopen((fname), (mode), VMS_OPEN_ATTRS)
 #endif
-
-/* #define RFILE ".rnd" - defined in ../../e_os.h */
 
 /*
  * Note that these functions are intended for seed files only. Entropy
- * devices and EGD sockets are handled in rand_unix.c
+ * devices and EGD sockets are handled in rand_unix.c  If |bytes| is
+ * -1 read the complete file; otherwise read the specified amount.
  */
-
 int RAND_load_file(const char *file, long bytes)
 {
-    /*-
-     * If bytes >= 0, read up to 'bytes' bytes.
-     * if bytes == -1, read complete file.
+    /*
+     * The load buffer size exceeds the chunk size by the comfortable amount
+     * of 'RAND_DRBG_STRENGTH' bytes (not bits!). This is done on purpose
+     * to avoid calling RAND_add() with a small final chunk. Instead, such
+     * a small final chunk will be added together with the previous chunk
+     * (unless it's the only one).
      */
+#define RAND_LOAD_BUF_SIZE (RAND_BUF_SIZE + RAND_DRBG_STRENGTH)
+    unsigned char buf[RAND_LOAD_BUF_SIZE];
 
-    MS_STATIC unsigned char buf[BUFSIZE];
 #ifndef OPENSSL_NO_POSIX_IO
     struct stat sb;
 #endif
-    int i, ret = 0, n;
-/*
- * If setvbuf() is to be called, then the FILE pointer
- * to it must be 32 bit.
-*/
-
-#if !defined OPENSSL_NO_SETVBUF_IONBF && defined(OPENSSL_SYS_VMS) && defined(__VMS_VER) && (__VMS_VER >= 70000000)
-    /* For 64-bit-->32 bit API Support*/
-#if __INITIAL_POINTER_SIZE == 64
-#pragma __required_pointer_size __save
-#pragma __required_pointer_size 32
-#endif
-    FILE *in; /* setvbuf() requires 32-bit pointers */
-#if __INITIAL_POINTER_SIZE == 64
-#pragma __required_pointer_size __restore
-#endif
-#else
+    int i, n, ret = 0;
     FILE *in;
-#endif /* OPENSSL_SYS_VMS */
 
-    if (file == NULL)
-        return (0);
+    if (bytes == 0)
+        return 0;
+
+    if ((in = openssl_fopen(file, "rb")) == NULL) {
+        RANDerr(RAND_F_RAND_LOAD_FILE, RAND_R_CANNOT_OPEN_FILE);
+        ERR_add_error_data(2, "Filename=", file);
+        return -1;
+    }
 
 #ifndef OPENSSL_NO_POSIX_IO
-# ifdef PURIFY
-    /*
-     * struct stat can have padding and unused fields that may not be
-     * initialized in the call to stat(). We need to clear the entire
-     * structure before calling RAND_add() to avoid complaints from
-     * applications such as Valgrind.
-     */
-    memset(&sb, 0, sizeof(sb));
-# endif
-    if (stat(file, &sb) < 0)
-        return (0);
-    RAND_add(&sb, sizeof(sb), 0.0);
-#endif
-    if (bytes == 0)
-        return (ret);
+    if (fstat(fileno(in), &sb) < 0) {
+        RANDerr(RAND_F_RAND_LOAD_FILE, RAND_R_INTERNAL_ERROR);
+        ERR_add_error_data(2, "Filename=", file);
+        fclose(in);
+        return -1;
+    }
 
-#ifdef OPENSSL_SYS_VMS
-    in = vms_fopen(file, "rb", VMS_OPEN_ATTRS);
-#else
-    in = fopen(file, "rb");
-#endif
-    if (in == NULL)
-        goto err;
-#if defined(S_ISBLK) && defined(S_ISCHR) && !defined(OPENSSL_NO_POSIX_IO)
-    if (S_ISBLK(sb.st_mode) || S_ISCHR(sb.st_mode)) {
-        /*
-         * this file is a device. we don't want read an infinite number of
-         * bytes from a random device, nor do we want to use buffered I/O
-         * because we will waste system entropy.
-         */
-        bytes = (bytes == -1) ? 2048 : bytes; /* ok, is 2048 enough? */
-# ifndef OPENSSL_NO_SETVBUF_IONBF
-        setvbuf(in, NULL, _IONBF, 0); /* don't do buffered reads */
-# endif                         /* ndef OPENSSL_NO_SETVBUF_IONBF */
-    }
-#endif
-    for (;;) {
-        if (bytes > 0)
-            n = (bytes < BUFSIZE) ? (int)bytes : BUFSIZE;
+    if (bytes < 0) {
+        if (S_ISREG(sb.st_mode))
+            bytes = sb.st_size;
         else
-            n = BUFSIZE;
-        i = fread(buf, 1, n, in);
-        if (i <= 0)
-            break;
-#ifdef PURIFY
-        RAND_add(buf, i, (double)i);
-#else
-        /* even if n != i, use the full array */
-        RAND_add(buf, n, (double)i);
-#endif
-        ret += i;
-        if (bytes > 0) {
-            bytes -= n;
-            if (bytes <= 0)
-                break;
-        }
+            bytes = RAND_DRBG_STRENGTH;
     }
+#endif
+    /*
+     * On VMS, setbuf() will only take 32-bit pointers, and a compilation
+     * with /POINTER_SIZE=64 will give off a MAYLOSEDATA2 warning here.
+     * However, we trust that the C RTL will never give us a FILE pointer
+     * above the first 4 GB of memory, so we simply turn off the warning
+     * temporarily.
+     */
+#if defined(OPENSSL_SYS_VMS) && defined(__DECC)
+# pragma environment save
+# pragma message disable maylosedata2
+#endif
+    /*
+     * Don't buffer, because even if |file| is regular file, we have
+     * no control over the buffer, so why would we want a copy of its
+     * contents lying around?
+     */
+    setbuf(in, NULL);
+#if defined(OPENSSL_SYS_VMS) && defined(__DECC)
+# pragma environment restore
+#endif
+
+    for ( ; ; ) {
+        if (bytes > 0)
+            n = (bytes <= RAND_LOAD_BUF_SIZE) ? (int)bytes : RAND_BUF_SIZE;
+        else
+            n = RAND_LOAD_BUF_SIZE;
+        i = fread(buf, 1, n, in);
+#ifdef EINTR
+        if (ferror(in) && errno == EINTR){
+            clearerr(in);
+            if (i == 0)
+                continue;
+        }
+#endif
+        if (i == 0)
+            break;
+
+        RAND_add(buf, i, (double)i);
+        ret += i;
+
+        /* If given a bytecount, and we did it, break. */
+        if (bytes > 0 && (bytes -= i) <= 0)
+            break;
+    }
+
+    OPENSSL_cleanse(buf, sizeof(buf));
     fclose(in);
-    OPENSSL_cleanse(buf, BUFSIZE);
- err:
-    return (ret);
+    if (!RAND_status()) {
+        RANDerr(RAND_F_RAND_LOAD_FILE, RAND_R_RESEED_ERROR);
+        ERR_add_error_data(2, "Filename=", file);
+        return -1;
+    }
+
+    return ret;
 }
 
 int RAND_write_file(const char *file)
 {
-    unsigned char buf[BUFSIZE];
-    int i, ret = 0, rand_err = 0;
+    unsigned char buf[RAND_BUF_SIZE];
+    int ret = -1;
     FILE *out = NULL;
-    int n;
 #ifndef OPENSSL_NO_POSIX_IO
     struct stat sb;
 
-    i = stat(file, &sb);
-    if (i != -1) {
-# if defined(S_ISBLK) && defined(S_ISCHR)
-        if (S_ISBLK(sb.st_mode) || S_ISCHR(sb.st_mode)) {
-            /*
-             * this file is a device. we don't write back to it. we
-             * "succeed" on the assumption this is some sort of random
-             * device. Otherwise attempting to write to and chmod the device
-             * causes problems.
-             */
-            return (1);
-        }
-# endif
+    if (stat(file, &sb) >= 0 && !S_ISREG(sb.st_mode)) {
+        RANDerr(RAND_F_RAND_WRITE_FILE, RAND_R_NOT_A_REGULAR_FILE);
+        ERR_add_error_data(2, "Filename=", file);
+        return -1;
     }
 #endif
 
-#if defined(O_CREAT) && !defined(OPENSSL_NO_POSIX_IO) && !defined(OPENSSL_SYS_VMS)
+    /* Collect enough random data. */
+    if (RAND_priv_bytes(buf, (int)sizeof(buf)) != 1)
+        return  -1;
+
+#if defined(O_CREAT) && !defined(OPENSSL_NO_POSIX_IO) && \
+    !defined(OPENSSL_SYS_VMS) && !defined(OPENSSL_SYS_WINDOWS)
     {
 # ifndef O_BINARY
 #  define O_BINARY 0
@@ -266,7 +206,7 @@ int RAND_write_file(const char *file)
     }
 #endif
 
-#if (defined(OPENSSL_SYS_VMS) && (defined(__alpha) || defined(__ia64)))
+#ifdef OPENSSL_SYS_VMS
     /*
      * VMS NOTE: Prior versions of this routine created a _new_ version of
      * the rand file for each call into this routine, then deleted all
@@ -284,89 +224,91 @@ int RAND_write_file(const char *file)
      * application level. Also consider whether or not you NEED a persistent
      * rand file in a concurrent use situation.
      */
-
-    out = vms_fopen(file, "rb+", VMS_OPEN_ATTRS);
-    if (out == NULL)
-        out = vms_fopen(file, "wb", VMS_OPEN_ATTRS);
-#else
-    if (out == NULL)
-        out = fopen(file, "wb");
+    out = openssl_fopen(file, "rb+");
 #endif
-    if (out == NULL)
-        goto err;
 
-#ifndef NO_CHMOD
-    chmod(file, 0600);
-#endif
-    n = RAND_DATA;
-    for (;;) {
-        i = (n > BUFSIZE) ? BUFSIZE : n;
-        n -= BUFSIZE;
-        if (RAND_bytes(buf, i) <= 0)
-            rand_err = 1;
-        i = fwrite(buf, 1, i, out);
-        if (i <= 0) {
-            ret = 0;
-            break;
-        }
-        ret += i;
-        if (n <= 0)
-            break;
+    if (out == NULL)
+        out = openssl_fopen(file, "wb");
+    if (out == NULL) {
+        RANDerr(RAND_F_RAND_WRITE_FILE, RAND_R_CANNOT_OPEN_FILE);
+        ERR_add_error_data(2, "Filename=", file);
+        return -1;
     }
 
+#if !defined(NO_CHMOD) && !defined(OPENSSL_NO_POSIX_IO)
+    /*
+     * Yes it's late to do this (see above comment), but better than nothing.
+     */
+    chmod(file, 0600);
+#endif
+
+    ret = fwrite(buf, 1, RAND_BUF_SIZE, out);
     fclose(out);
-    OPENSSL_cleanse(buf, BUFSIZE);
- err:
-    return (rand_err ? -1 : ret);
+    OPENSSL_cleanse(buf, RAND_BUF_SIZE);
+    return ret;
 }
 
 const char *RAND_file_name(char *buf, size_t size)
 {
     char *s = NULL;
-#ifdef __OpenBSD__
-    struct stat sb;
-#endif
+    size_t len;
+    int use_randfile = 1;
 
-    if (OPENSSL_issetugid() == 0)
-        s = getenv("RANDFILE");
-    if (s != NULL && *s && strlen(s) + 1 < size) {
-        if (BUF_strlcpy(buf, s, size) >= size)
-            return NULL;
-    } else {
-        if (OPENSSL_issetugid() == 0)
-            s = getenv("HOME");
-#ifdef DEFAULT_HOME
-        if (s == NULL) {
-            s = DEFAULT_HOME;
-        }
-#endif
-        if (s && *s && strlen(s) + strlen(RFILE) + 2 < size) {
-            BUF_strlcpy(buf, s, size);
-#ifndef OPENSSL_SYS_VMS
-            BUF_strlcat(buf, "/", size);
-#endif
-            BUF_strlcat(buf, RFILE, size);
-        } else
-            buf[0] = '\0';      /* no file name */
+#if defined(_WIN32) && defined(CP_UTF8) && !defined(_WIN32_WCE)
+    DWORD envlen;
+    WCHAR *var;
+
+    /* Look up various environment variables. */
+    if ((envlen = GetEnvironmentVariableW(var = L"RANDFILE", NULL, 0)) == 0) {
+        use_randfile = 0;
+        if ((envlen = GetEnvironmentVariableW(var = L"HOME", NULL, 0)) == 0
+                && (envlen = GetEnvironmentVariableW(var = L"USERPROFILE",
+                                                  NULL, 0)) == 0)
+            envlen = GetEnvironmentVariableW(var = L"SYSTEMROOT", NULL, 0);
     }
 
-#ifdef __OpenBSD__
-    /*
-     * given that all random loads just fail if the file can't be seen on a
-     * stat, we stat the file we're returning, if it fails, use /dev/arandom
-     * instead. this allows the user to use their own source for good random
-     * data, but defaults to something hopefully decent if that isn't
-     * available.
-     */
+    /* If we got a value, allocate space to hold it and then get it. */
+    if (envlen != 0) {
+        int sz;
+        WCHAR *val = _alloca(envlen * sizeof(WCHAR));
 
-    if (!buf[0])
-        if (BUF_strlcpy(buf, "/dev/arandom", size) >= size) {
-            return (NULL);
+        if (GetEnvironmentVariableW(var, val, envlen) < envlen
+                && (sz = WideCharToMultiByte(CP_UTF8, 0, val, -1, NULL, 0,
+                                             NULL, NULL)) != 0) {
+            s = _alloca(sz);
+            if (WideCharToMultiByte(CP_UTF8, 0, val, -1, s, sz,
+                                    NULL, NULL) == 0)
+                s = NULL;
         }
-    if (stat(buf, &sb) == -1)
-        if (BUF_strlcpy(buf, "/dev/arandom", size) >= size) {
-            return (NULL);
-        }
+    }
+#else
+    if ((s = ossl_safe_getenv("RANDFILE")) == NULL || *s == '\0') {
+        use_randfile = 0;
+        s = ossl_safe_getenv("HOME");
+    }
 #endif
-    return (buf);
+
+#ifdef DEFAULT_HOME
+    if (!use_randfile && s == NULL)
+        s = DEFAULT_HOME;
+#endif
+    if (s == NULL || *s == '\0')
+        return NULL;
+
+    len = strlen(s);
+    if (use_randfile) {
+        if (len + 1 >= size)
+            return NULL;
+        strcpy(buf, s);
+    } else {
+        if (len + 1 + strlen(RFILE) + 1 >= size)
+            return NULL;
+        strcpy(buf, s);
+#ifndef OPENSSL_SYS_VMS
+        strcat(buf, "/");
+#endif
+        strcat(buf, RFILE);
+    }
+
+    return buf;
 }

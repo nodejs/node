@@ -25,63 +25,63 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/v8.h"
 #include "test/cctest/cctest.h"
 
-#include "src/base/platform/platform.h"
-#include "src/isolate.h"
+#include "src/execution/thread-id.h"
 
+namespace v8 {
+namespace internal {
 
-class ThreadIdValidationThread : public v8::base::Thread {
+// {ThreadId} must be trivially copyable to be stored in {std::atomic}.
+ASSERT_TRIVIALLY_COPYABLE(i::ThreadId);
+using AtomicThreadId = std::atomic<i::ThreadId>;
+
+class ThreadIdValidationThread : public base::Thread {
  public:
-  ThreadIdValidationThread(v8::base::Thread* thread_to_start,
-                           i::List<i::ThreadId>* refs, unsigned int thread_no,
-                           v8::base::Semaphore* semaphore)
+  ThreadIdValidationThread(base::Thread* thread_to_start, AtomicThreadId* refs,
+                           unsigned int thread_no, base::Semaphore* semaphore)
       : Thread(Options("ThreadRefValidationThread")),
         refs_(refs),
         thread_no_(thread_no),
         thread_to_start_(thread_to_start),
         semaphore_(semaphore) {}
 
-  void Run() {
+  void Run() override {
     i::ThreadId thread_id = i::ThreadId::Current();
-    for (int i = 0; i < thread_no_; i++) {
-      CHECK(!(*refs_)[i].Equals(thread_id));
-    }
     CHECK(thread_id.IsValid());
-    (*refs_)[thread_no_] = thread_id;
-    if (thread_to_start_ != NULL) {
-      thread_to_start_->Start();
+    for (int i = 0; i < thread_no_; i++) {
+      CHECK_NE(refs_[i].load(std::memory_order_relaxed), thread_id);
+    }
+    refs_[thread_no_].store(thread_id, std::memory_order_relaxed);
+    if (thread_to_start_ != nullptr) {
+      CHECK(thread_to_start_->Start());
     }
     semaphore_->Signal();
   }
 
  private:
-  i::List<i::ThreadId>* refs_;
-  int thread_no_;
-  v8::base::Thread* thread_to_start_;
-  v8::base::Semaphore* semaphore_;
+  AtomicThreadId* const refs_;
+  const int thread_no_;
+  base::Thread* const thread_to_start_;
+  base::Semaphore* const semaphore_;
 };
 
-
 TEST(ThreadIdValidation) {
-  const int kNThreads = 100;
-  i::List<ThreadIdValidationThread*> threads(kNThreads);
-  i::List<i::ThreadId> refs(kNThreads);
-  v8::base::Semaphore semaphore(0);
-  ThreadIdValidationThread* prev = NULL;
+  constexpr int kNThreads = 100;
+  std::unique_ptr<ThreadIdValidationThread> threads[kNThreads];
+  AtomicThreadId refs[kNThreads];
+  base::Semaphore semaphore(0);
   for (int i = kNThreads - 1; i >= 0; i--) {
-    ThreadIdValidationThread* newThread =
-        new ThreadIdValidationThread(prev, &refs, i, &semaphore);
-    threads.Add(newThread);
-    prev = newThread;
-    refs.Add(i::ThreadId::Invalid());
+    ThreadIdValidationThread* prev =
+        i == kNThreads - 1 ? nullptr : threads[i + 1].get();
+    threads[i] =
+        std::make_unique<ThreadIdValidationThread>(prev, refs, i, &semaphore);
   }
-  prev->Start();
+  CHECK(threads[0]->Start());
   for (int i = 0; i < kNThreads; i++) {
     semaphore.Wait();
   }
-  for (int i = 0; i < kNThreads; i++) {
-    delete threads[i];
-  }
 }
+
+}  // namespace internal
+}  // namespace v8

@@ -1,0 +1,55 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-proxy-gen.h'
+
+namespace proxy {
+
+// ES #sec-proxy-object-internal-methods-and-internal-slots-isextensible
+// https://tc39.github.io/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-isextensible
+transitioning builtin ProxyIsExtensible(implicit context: Context)(
+    proxy: JSProxy): JSAny {
+  PerformStackCheck();
+  const kTrapName: constexpr string = 'isExtensible';
+  try {
+    // 1. Let handler be O.[[ProxyHandler]].
+    // 2. If handler is null, throw a TypeError exception.
+    // 3. Assert: Type(handler) is Object.
+    assert(proxy.handler == Null || Is<JSReceiver>(proxy.handler));
+    const handler =
+        Cast<JSReceiver>(proxy.handler) otherwise ThrowProxyHandlerRevoked;
+
+    // 4. Let target be O.[[ProxyTarget]].
+    const target = proxy.target;
+
+    // 5. Let trap be ? GetMethod(handler, "isExtensible").
+    // 6. If trap is undefined, then (see 6.a below).
+    const trap: Callable = GetMethod(handler, kTrapName)
+        otherwise goto TrapUndefined(target);
+
+    // 7. Let booleanTrapResult be ToBoolean(? Call(trap, handler, «
+    // target»)).
+    const trapResult = ToBoolean(Call(context, trap, handler, target));
+
+    // 8. Let targetResult be ? IsExtensible(target).
+    const targetResult: bool =
+        ToBoolean(object::ObjectIsExtensibleImpl(target));
+
+    // 9. If SameValue(booleanTrapResult, targetResult) is false, throw a
+    // TypeError exception.
+    if (trapResult != targetResult) {
+      ThrowTypeError(
+          MessageTemplate::kProxyIsExtensibleInconsistent,
+          SelectBooleanConstant(targetResult));
+    }
+    // 10. Return booleanTrapResult.
+    return SelectBooleanConstant(trapResult);
+  } label TrapUndefined(target: JSAny) {
+    // 6.a. Return ? IsExtensible(target).
+    return object::ObjectIsExtensibleImpl(target);
+  } label ThrowProxyHandlerRevoked deferred {
+    ThrowTypeError(MessageTemplate::kProxyRevoked, kTrapName);
+  }
+}
+}

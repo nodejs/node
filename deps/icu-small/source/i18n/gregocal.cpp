@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -185,7 +185,7 @@ fIsGregorian(TRUE), fInvertGregorian(FALSE)
 // -------------------------------------
 
 GregorianCalendar::GregorianCalendar(const Locale& aLocale, UErrorCode& status)
-:   Calendar(TimeZone::createDefault(), aLocale, status),
+:   Calendar(TimeZone::forLocaleOrDefault(aLocale), aLocale, status),
 fGregorianCutover(kPapalCutover),
 fCutoverJulianDay(kCutoverJulianDay), fNormalizedGregorianCutover(fGregorianCutover), fGregorianCutoverYear(1582),
 fIsGregorian(TRUE), fInvertGregorian(FALSE)
@@ -286,7 +286,7 @@ fIsGregorian(source.fIsGregorian), fInvertGregorian(source.fInvertGregorian)
 
 // -------------------------------------
 
-Calendar* GregorianCalendar::clone() const
+GregorianCalendar* GregorianCalendar::clone() const
 {
     return new GregorianCalendar(*this);
 }
@@ -324,26 +324,26 @@ GregorianCalendar::setGregorianChange(UDate date, UErrorCode& status)
     if (U_FAILURE(status))
         return;
 
-    fGregorianCutover = date;
-
     // Precompute two internal variables which we use to do the actual
     // cutover computations.  These are the normalized cutover, which is the
     // midnight at or before the cutover, and the cutover year.  The
     // normalized cutover is in pure date milliseconds; it contains no time
     // of day or timezone component, and it used to compare against other
     // pure date values.
-    int32_t cutoverDay = (int32_t)ClockMath::floorDivide(fGregorianCutover, (double)kOneDay);
-    fNormalizedGregorianCutover = cutoverDay * kOneDay;
+    double cutoverDay = ClockMath::floorDivide(date, (double)kOneDay);
 
-    // Handle the rare case of numeric overflow.  If the user specifies a
-    // change of UDate(Long.MIN_VALUE), in order to get a pure Gregorian
-    // calendar, then the epoch day is -106751991168, which when multiplied
-    // by ONE_DAY gives 9223372036794351616 -- the negative value is too
-    // large for 64 bits, and overflows into a positive value.  We correct
-    // this by using the next day, which for all intents is semantically
-    // equivalent.
-    if (cutoverDay < 0 && fNormalizedGregorianCutover > 0) {
-        fNormalizedGregorianCutover = (cutoverDay + 1) * kOneDay;
+    // Handle the rare case of numeric overflow where the user specifies a time
+    // outside of INT32_MIN .. INT32_MAX number of days.
+
+    if (cutoverDay <= INT32_MIN) {
+        cutoverDay = INT32_MIN;
+        fGregorianCutover = fNormalizedGregorianCutover = cutoverDay * kOneDay;
+    } else if (cutoverDay >= INT32_MAX) {
+        cutoverDay = INT32_MAX;
+        fGregorianCutover = fNormalizedGregorianCutover = cutoverDay * kOneDay;
+    } else {
+        fNormalizedGregorianCutover = cutoverDay * kOneDay;
+        fGregorianCutover = date;
     }
 
     // Normalize the year so BC values are represented as 0 and negative
@@ -360,7 +360,7 @@ GregorianCalendar::setGregorianChange(UDate date, UErrorCode& status)
     fGregorianCutoverYear = cal->get(UCAL_YEAR, status);
     if (cal->get(UCAL_ERA, status) == BC)
         fGregorianCutoverYear = 1 - fGregorianCutoverYear;
-    fCutoverJulianDay = cutoverDay;
+    fCutoverJulianDay = (int32_t)cutoverDay;
     delete cal;
 }
 
@@ -541,8 +541,8 @@ int32_t GregorianCalendar::handleComputeMonthStart(int32_t eyear, int32_t month,
     }
 
     UBool isLeap = eyear%4 == 0;
-    int32_t y = eyear-1;
-    int32_t julianDay = 365*y + ClockMath::floorDivide(y, 4) + (kJan1_1JulianDay - 3);
+    int64_t y = (int64_t)eyear-1;
+    int64_t julianDay = 365*y + ClockMath::floorDivide(y, (int64_t)4) + (kJan1_1JulianDay - 3);
 
     nonConstThis->fIsGregorian = (eyear >= fGregorianCutoverYear);
 #if defined (U_DEBUG_CAL)
@@ -572,7 +572,7 @@ int32_t GregorianCalendar::handleComputeMonthStart(int32_t eyear, int32_t month,
         julianDay += isLeap?kLeapNumDays[month]:kNumDays[month];
     }
 
-    return julianDay;
+    return static_cast<int32_t>(julianDay);
 }
 
 int32_t GregorianCalendar::handleGetMonthLength(int32_t extendedYear, int32_t month)  const

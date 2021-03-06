@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --ignition --turbo-from-bytecode --always-opt --allow-natives-syntax
+// Flags: --always-opt --allow-natives-syntax
 
 try {
-} catch(e) {; }
+} catch (e) {
+  ;
+}
 (function __f_12() {
 })();
 (function __f_6() {
@@ -15,8 +17,9 @@ try {
     try {
     } catch (e) {
     }
-  }
- __f_4();
+  };
+  %PrepareFunctionForOptimization(__f_4);
+  __f_4();
   %OptimizeFunctionOnNextCall(__f_4);
- __f_4();
+  __f_4();
 })();

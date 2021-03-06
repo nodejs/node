@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 require('../common');
 const punycode = require('punycode');
@@ -6,18 +27,35 @@ const assert = require('assert');
 assert.strictEqual(punycode.encode('ü'), 'tda');
 assert.strictEqual(punycode.encode('Goethe'), 'Goethe-');
 assert.strictEqual(punycode.encode('Bücher'), 'Bcher-kva');
-assert.strictEqual(punycode.encode(
-    'Willst du die Blüthe des frühen, die Früchte des späteren Jahres'),
-    'Willst du die Blthe des frhen, die Frchte des spteren Jahres-x9e96lkal');
+assert.strictEqual(
+  punycode.encode(
+    'Willst du die Blüthe des frühen, die Früchte des späteren Jahres'
+  ),
+  'Willst du die Blthe des frhen, die Frchte des spteren Jahres-x9e96lkal'
+);
 assert.strictEqual(punycode.encode('日本語'), 'wgv71a119e');
+assert.strictEqual(punycode.encode('𩸽'), 'x73l');
 
 assert.strictEqual(punycode.decode('tda'), 'ü');
 assert.strictEqual(punycode.decode('Goethe-'), 'Goethe');
 assert.strictEqual(punycode.decode('Bcher-kva'), 'Bücher');
-assert.strictEqual(punycode.decode(
-    'Willst du die Blthe des frhen, die Frchte des spteren Jahres-x9e96lkal'),
-    'Willst du die Blüthe des frühen, die Früchte des späteren Jahres');
+assert.strictEqual(
+  punycode.decode(
+    'Willst du die Blthe des frhen, die Frchte des spteren Jahres-x9e96lkal'
+  ),
+  'Willst du die Blüthe des frühen, die Früchte des späteren Jahres'
+);
 assert.strictEqual(punycode.decode('wgv71a119e'), '日本語');
+assert.strictEqual(punycode.decode('x73l'), '𩸽');
+assert.throws(() => {
+  punycode.decode(' ');
+}, /^RangeError: Invalid input$/);
+assert.throws(() => {
+  punycode.decode('α-');
+}, /^RangeError: Illegal input >= 0x80 \(not a basic code point\)$/);
+assert.throws(() => {
+  punycode.decode('あ');
+}, /^RangeError: Overflow: input needs wider integers to process$/);
 
 // http://tools.ietf.org/html/rfc3492#section-7.1
 const tests = [
@@ -162,10 +200,7 @@ const tests = [
 let errors = 0;
 const handleError = (error, name) => {
   console.error(
-    'FAIL: %s expected %j, got %j',
-    name,
-    error.expected,
-    error.actual
+    `FAIL: ${name} expected ${error.expected}, got ${error.actual}`
   );
   errors++;
 };
@@ -182,19 +217,19 @@ const testBattery = {
   ),
   toASCII: (test) => assert.strictEqual(
     punycode.toASCII(test.decoded),
-    regexNonASCII.test(test.decoded)
-      ? `xn--${test.encoded}`
-      : test.decoded
+    regexNonASCII.test(test.decoded) ?
+      `xn--${test.encoded}` :
+      test.decoded
   ),
   toUnicode: (test) => assert.strictEqual(
     punycode.toUnicode(
-      regexNonASCII.test(test.decoded)
-        ? `xn--${test.encoded}`
-        : test.decoded
+      regexNonASCII.test(test.decoded) ?
+        `xn--${test.encoded}` :
+        test.decoded
     ),
-    regexNonASCII.test(test.decoded)
-      ? test.decoded.toLowerCase()
-      : test.decoded
+    regexNonASCII.test(test.decoded) ?
+      test.decoded.toLowerCase() :
+      test.decoded
   )
 };
 
@@ -210,15 +245,21 @@ tests.forEach((testCase) => {
 
 // BMP code point
 assert.strictEqual(punycode.ucs2.encode([0x61]), 'a');
-// supplementary code point (surrogate pair)
+// Supplementary code point (surrogate pair)
 assert.strictEqual(punycode.ucs2.encode([0x1D306]), '\uD834\uDF06');
 // high surrogate
 assert.strictEqual(punycode.ucs2.encode([0xD800]), '\uD800');
-// high surrogate followed by non-surrogates
+// High surrogate followed by non-surrogates
 assert.strictEqual(punycode.ucs2.encode([0xD800, 0x61, 0x62]), '\uD800ab');
 // low surrogate
 assert.strictEqual(punycode.ucs2.encode([0xDC00]), '\uDC00');
-// low surrogate followed by non-surrogates
+// Low surrogate followed by non-surrogates
 assert.strictEqual(punycode.ucs2.encode([0xDC00, 0x61, 0x62]), '\uDC00ab');
 
 assert.strictEqual(errors, 0);
+
+// test map domain
+assert.strictEqual(punycode.toASCII('Bücher@日本語.com'),
+                   'Bücher@xn--wgv71a119e.com');
+assert.strictEqual(punycode.toUnicode('Bücher@xn--wgv71a119e.com'),
+                   'Bücher@日本語.com');

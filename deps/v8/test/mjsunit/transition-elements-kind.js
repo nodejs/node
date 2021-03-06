@@ -35,9 +35,10 @@ var a = foo();
 a[0] = 1.1;
 
 // Emit a TransitionElementsKindStub which transitions from double to object.
-function store(a,x) {
+function store(a, x) {
   a[0] = x;
-}
+};
+%PrepareFunctionForOptimization(store);
 store([1.1], 'a');
 store([1.1], 1.1);
 %OptimizeFunctionOnNextCall(store);

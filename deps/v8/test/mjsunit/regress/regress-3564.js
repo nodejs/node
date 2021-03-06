@@ -5,7 +5,11 @@
 // Flags: --allow-natives-syntax
 
 function MyWrapper(v) {
-  return { valueOf: function() { return v } };
+  return {
+    valueOf: function() {
+      return v;
+    }
+  };
 }
 
 function f() {
@@ -16,8 +20,8 @@ function f() {
   assertFalse("a" > "x");
   assertFalse("a" > new String("y"));
   assertFalse("a" > new MyWrapper("z"));
-}
-
+};
+%PrepareFunctionForOptimization(f);
 f();
 f();
 %OptimizeFunctionOnNextCall(f);

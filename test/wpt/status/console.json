@@ -1,0 +1,5 @@
+{
+  "idlharness.any.js": {
+    "fail": ".table, .dir and .timeLog parameter lengths are wrong"
+  }
+}

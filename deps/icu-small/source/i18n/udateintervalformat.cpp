@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *****************************************************************************************
@@ -18,8 +18,20 @@
 #include "unicode/timezone.h"
 #include "unicode/locid.h"
 #include "unicode/unistr.h"
+#include "unicode/udisplaycontext.h"
+#include "formattedval_impl.h"
 
 U_NAMESPACE_USE
+
+
+// Magic number: FDIV in ASCII
+UPRV_FORMATTED_VALUE_CAPI_AUTO_IMPL(
+    FormattedDateInterval,
+    UFormattedDateInterval,
+    UFormattedDateIntervalImpl,
+    UFormattedDateIntervalApiHelper,
+    udtitvfmt,
+    0x46444956)
 
 
 U_CAPI UDateIntervalFormat* U_EXPORT2
@@ -102,6 +114,62 @@ udtitvfmt_format(const UDateIntervalFormat* formatter,
     }
 
     return res.extract(result, resultCapacity, *status);
+}
+
+
+U_CAPI void U_EXPORT2
+udtitvfmt_formatToResult(
+                const UDateIntervalFormat* formatter,
+                UDate           fromDate,
+                UDate           toDate,
+                UFormattedDateInterval* result,
+                UErrorCode*     status) {
+    if (U_FAILURE(*status)) {
+        return;
+    }
+    auto* resultImpl = UFormattedDateIntervalApiHelper::validate(result, *status);
+    DateInterval interval = DateInterval(fromDate,toDate);
+    if (resultImpl != nullptr) {
+        resultImpl->fImpl = reinterpret_cast<const DateIntervalFormat*>(formatter)
+            ->formatToValue(interval, *status);
+    }
+}
+
+U_CAPI void U_EXPORT2
+udtitvfmt_formatCalendarToResult(
+                const UDateIntervalFormat* formatter,
+                UCalendar*      fromCalendar,
+                UCalendar*      toCalendar,
+                UFormattedDateInterval* result,
+                UErrorCode*     status) {
+    if (U_FAILURE(*status)) {
+        return;
+    }
+    auto* resultImpl = UFormattedDateIntervalApiHelper::validate(result, *status);
+    if (resultImpl != nullptr) {
+        resultImpl->fImpl = reinterpret_cast<const DateIntervalFormat*>(formatter)
+            ->formatToValue(*(Calendar *)fromCalendar, *(Calendar *)toCalendar, *status);
+    }
+}
+
+U_CAPI void U_EXPORT2
+udtitvfmt_setContext(UDateIntervalFormat* formatter,
+                     UDisplayContext value,
+                     UErrorCode* status) {
+    if (U_FAILURE(*status)) {
+        return;
+    }
+    reinterpret_cast<DateIntervalFormat*>(formatter)->setContext( value, *status );
+}
+
+U_CAPI UDisplayContext U_EXPORT2
+udtitvfmt_getContext(const UDateIntervalFormat* formatter,
+                     UDisplayContextType type,
+                     UErrorCode* status) {
+    if (U_FAILURE(*status)) {
+        return (UDisplayContext)0;
+    }
+    return reinterpret_cast<const DateIntervalFormat*>(formatter)->getContext( type, *status );
 }
 
 

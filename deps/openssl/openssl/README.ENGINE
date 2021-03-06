@@ -13,11 +13,9 @@
   There are currently built-in ENGINE implementations for the following
   crypto devices:
 
-      o CryptoSwift
-      o Compaq Atalla
+      o Microsoft CryptoAPI
+      o VIA Padlock
       o nCipher CHIL
-      o Nuron
-      o Broadcom uBSec
 
   In addition, dynamic binding to external ENGINE implementations is now
   provided by a special ENGINE called "dynamic". See the "DYNAMIC ENGINE"

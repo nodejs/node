@@ -25,12 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --opt
 
 function div(g) {
   return (g/-1) ^ 1
 }
-
+%PrepareFunctionForOptimization(div);
 var kMinInt = 1 << 31;
 var expected_MinInt = div(kMinInt);
 var expected_minus_zero = div(0);
@@ -42,6 +42,7 @@ function mul(g) {
   return (g * -1) ^ 1
 }
 
+%PrepareFunctionForOptimization(mul);
 expected_MinInt = mul(kMinInt);
 expected_minus_zero = mul(0);
 %OptimizeFunctionOnNextCall(mul);

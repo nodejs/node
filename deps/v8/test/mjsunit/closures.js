@@ -35,9 +35,10 @@ function test(n) {
   function MyFunction() {
     var result = n * 2 + arguments.length;
     return result;
-  }
+  };
+  %PrepareFunctionForOptimization(MyFunction);
   for (var i = 0; i < 5; ++i) MyFunction();
-  %OptimizeFunctionOnNextCall(MyFunction)
+  %OptimizeFunctionOnNextCall(MyFunction);
   runner(MyFunction, n * 2);
 }
 

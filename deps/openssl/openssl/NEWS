@@ -5,23 +5,221 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
-  Major changes between OpenSSL 1.0.2i and OpenSSL 1.0.2j [26 Sep 2016]
+  Major changes between OpenSSL 1.1.1i and OpenSSL 1.1.1j [16 Feb 2021]
+
+      o Fixed a NULL pointer deref in the X509_issuer_and_serial_hash()
+        function (CVE-2021-23841)
+      o Fixed the RSA_padding_check_SSLv23() function and the RSA_SSLV23_PADDING
+        padding mode to correctly check for rollback attacks
+      o Fixed an overflow in the EVP_CipherUpdate, EVP_EncryptUpdate and
+        EVP_DecryptUpdate functions (CVE-2021-23840)
+      o Fixed SRP_Calc_client_key so that it runs in constant time
+
+  Major changes between OpenSSL 1.1.1h and OpenSSL 1.1.1i [8 Dec 2020]
+
+      o Fixed NULL pointer deref in GENERAL_NAME_cmp (CVE-2020-1971)
+
+  Major changes between OpenSSL 1.1.1g and OpenSSL 1.1.1h [22 Sep 2020]
+
+      o Disallow explicit curve parameters in verifications chains when
+        X509_V_FLAG_X509_STRICT is used
+      o Enable 'MinProtocol' and 'MaxProtocol' to configure both TLS and DTLS
+        contexts
+      o Oracle Developer Studio will start reporting deprecation warnings
+
+  Major changes between OpenSSL 1.1.1f and OpenSSL 1.1.1g [21 Apr 2020]
+
+      o Fixed segmentation fault in SSL_check_chain() (CVE-2020-1967)
+
+  Major changes between OpenSSL 1.1.1e and OpenSSL 1.1.1f [31 Mar 2020]
+
+      o Revert the unexpected EOF reporting via SSL_ERROR_SSL
+
+  Major changes between OpenSSL 1.1.1d and OpenSSL 1.1.1e [17 Mar 2020]
+
+      o Fixed an overflow bug in the x64_64 Montgomery squaring procedure
+        used in exponentiation with 512-bit moduli (CVE-2019-1551)
+      o Properly detect unexpected EOF while reading in libssl and report
+        it via SSL_ERROR_SSL
+
+  Major changes between OpenSSL 1.1.1c and OpenSSL 1.1.1d [10 Sep 2019]
+
+      o Fixed a fork protection issue (CVE-2019-1549)
+      o Fixed a padding oracle in PKCS7_dataDecode and CMS_decrypt_set1_pkey
+        (CVE-2019-1563)
+      o For built-in EC curves, ensure an EC_GROUP built from the curve name is
+        used even when parsing explicit parameters
+      o Compute ECC cofactors if not provided during EC_GROUP construction
+        (CVE-2019-1547)
+      o Early start up entropy quality from the DEVRANDOM seed source has been
+        improved for older Linux systems
+      o Correct the extended master secret constant on EBCDIC systems
+      o Use Windows installation paths in the mingw builds (CVE-2019-1552)
+      o Changed DH_check to accept parameters with order q and 2q subgroups
+      o Significantly reduce secure memory usage by the randomness pools
+      o Revert the DEVRANDOM_WAIT feature for Linux systems
+
+  Major changes between OpenSSL 1.1.1b and OpenSSL 1.1.1c [28 May 2019]
+
+      o Prevent over long nonces in ChaCha20-Poly1305 (CVE-2019-1543)
+
+  Major changes between OpenSSL 1.1.1a and OpenSSL 1.1.1b [26 Feb 2019]
+
+      o Change the info callback signals for the start and end of a post-handshake
+        message exchange in TLSv1.3.
+      o Fix a bug in DTLS over SCTP. This breaks interoperability with older versions
+        of OpenSSL like OpenSSL 1.1.0 and OpenSSL 1.0.2.
+
+  Major changes between OpenSSL 1.1.1 and OpenSSL 1.1.1a [20 Nov 2018]
+
+      o Timing vulnerability in DSA signature generation (CVE-2018-0734)
+      o Timing vulnerability in ECDSA signature generation (CVE-2018-0735)
+
+  Major changes between OpenSSL 1.1.0i and OpenSSL 1.1.1 [11 Sep 2018]
+
+      o Support for TLSv1.3 added (see https://wiki.openssl.org/index.php/TLS1.3
+        for further important information). The TLSv1.3 implementation includes:
+          o Fully compliant implementation of RFC8446 (TLSv1.3) on by default
+          o Early data (0-RTT)
+          o Post-handshake authentication and key update
+          o Middlebox Compatibility Mode
+          o TLSv1.3 PSKs
+          o Support for all five RFC8446 ciphersuites
+          o RSA-PSS signature algorithms (backported to TLSv1.2)
+          o Configurable session ticket support
+          o Stateless server support
+          o Rewrite of the packet construction code for "safer" packet handling
+          o Rewrite of the extension handling code
+      o Complete rewrite of the OpenSSL random number generator to introduce the
+        following capabilities
+          o The default RAND method now utilizes an AES-CTR DRBG according to
+            NIST standard SP 800-90Ar1.
+          o Support for multiple DRBG instances with seed chaining.
+          o There is a public and private DRBG instance.
+          o The DRBG instances are fork-safe.
+          o Keep all global DRBG instances on the secure heap if it is enabled.
+          o The public and private DRBG instance are per thread for lock free
+            operation
+      o Support for various new cryptographic algorithms including:
+          o SHA3
+          o SHA512/224 and SHA512/256
+          o EdDSA (both Ed25519 and Ed448) including X509 and TLS support
+          o X448 (adding to the existing X25519 support in 1.1.0)
+          o Multi-prime RSA
+          o SM2
+          o SM3
+          o SM4
+          o SipHash
+          o ARIA (including TLS support)
+      o Significant Side-Channel attack security improvements
+      o Add a new ClientHello callback to provide the ability to adjust the SSL
+        object at an early stage.
+      o Add 'Maximum Fragment Length' TLS extension negotiation and support
+      o A new STORE module, which implements a uniform and URI based reader of
+        stores that can contain keys, certificates, CRLs and numerous other
+        objects.
+      o Move the display of configuration data to configdata.pm.
+      o Allow GNU style "make variables" to be used with Configure.
+      o Claim the namespaces OSSL and OPENSSL, represented as symbol prefixes
+      o Rewrite of devcrypto engine
+
+  Major changes between OpenSSL 1.1.0h and OpenSSL 1.1.0i [under development]
+
+      o Client DoS due to large DH parameter (CVE-2018-0732)
+      o Cache timing vulnerability in RSA Key Generation (CVE-2018-0737)
+
+  Major changes between OpenSSL 1.1.0g and OpenSSL 1.1.0h [under development]
+
+      o Constructed ASN.1 types with a recursive definition could exceed the
+        stack (CVE-2018-0739)
+      o Incorrect CRYPTO_memcmp on HP-UX PA-RISC (CVE-2018-0733)
+      o rsaz_1024_mul_avx2 overflow bug on x86_64 (CVE-2017-3738)
+
+  Major changes between OpenSSL 1.1.0f and OpenSSL 1.1.0g [2 Nov 2017]
+
+      o bn_sqrx8x_internal carry bug on x86_64 (CVE-2017-3736)
+      o Malformed X.509 IPAddressFamily could cause OOB read (CVE-2017-3735)
+
+  Major changes between OpenSSL 1.1.0e and OpenSSL 1.1.0f [25 May 2017]
+
+      o config now recognises 64-bit mingw and chooses mingw64 instead of mingw
+
+  Major changes between OpenSSL 1.1.0d and OpenSSL 1.1.0e [16 Feb 2017]
+
+      o Encrypt-Then-Mac renegotiation crash (CVE-2017-3733)
+
+  Major changes between OpenSSL 1.1.0c and OpenSSL 1.1.0d [26 Jan 2017]
+
+      o Truncated packet could crash via OOB read (CVE-2017-3731)
+      o Bad (EC)DHE parameters cause a client crash (CVE-2017-3730)
+      o BN_mod_exp may produce incorrect results on x86_64 (CVE-2017-3732)
+
+  Major changes between OpenSSL 1.1.0b and OpenSSL 1.1.0c [10 Nov 2016]
+
+      o ChaCha20/Poly1305 heap-buffer-overflow (CVE-2016-7054)
+      o CMS Null dereference (CVE-2016-7053)
+      o Montgomery multiplication may produce incorrect results (CVE-2016-7055)
+
+  Major changes between OpenSSL 1.1.0a and OpenSSL 1.1.0b [26 Sep 2016]
 
       o Fix Use After Free for large message sizes (CVE-2016-6309)
 
-  Major changes between OpenSSL 1.0.2h and OpenSSL 1.0.2i [22 Sep 2016]
+  Major changes between OpenSSL 1.1.0 and OpenSSL 1.1.0a [22 Sep 2016]
 
       o OCSP Status Request extension unbounded memory growth (CVE-2016-6304)
-      o SWEET32 Mitigation (CVE-2016-2183)
-      o OOB write in MDC2_Update() (CVE-2016-6303)
-      o Malformed SHA512 ticket DoS (CVE-2016-6302)
-      o OOB write in BN_bn2dec() (CVE-2016-2182)
-      o OOB read in TS_OBJ_print_bio() (CVE-2016-2180)
-      o Pointer arithmetic undefined behaviour (CVE-2016-2177)
-      o Constant time flag not preserved in DSA signing (CVE-2016-2178)
-      o DTLS buffered message DoS (CVE-2016-2179)
-      o DTLS replay protection DoS (CVE-2016-2181)
-      o Certificate message OOB reads (CVE-2016-6306)
+      o SSL_peek() hang on empty record (CVE-2016-6305)
+      o Excessive allocation of memory in tls_get_message_header()
+       (CVE-2016-6307)
+      o Excessive allocation of memory in dtls1_preprocess_fragment()
+       (CVE-2016-6308)
+
+  Major changes between OpenSSL 1.0.2h and OpenSSL 1.1.0 [25 Aug 2016]
+
+      o Copyright text was shrunk to a boilerplate that points to the license
+      o "shared" builds are now the default when possible
+      o Added support for "pipelining"
+      o Added the AFALG engine
+      o New threading API implemented
+      o Support for ChaCha20 and Poly1305 added to libcrypto and libssl
+      o Support for extended master secret
+      o CCM ciphersuites
+      o Reworked test suite, now based on perl, Test::Harness and Test::More
+      o *Most* libcrypto and libssl public structures were made opaque,
+        including:
+        BIGNUM and associated types, EC_KEY and EC_KEY_METHOD,
+        DH and DH_METHOD, DSA and DSA_METHOD, RSA and RSA_METHOD,
+        BIO and BIO_METHOD, EVP_MD_CTX, EVP_MD, EVP_CIPHER_CTX,
+        EVP_CIPHER, EVP_PKEY and associated types, HMAC_CTX,
+        X509, X509_CRL, X509_OBJECT, X509_STORE_CTX, X509_STORE,
+        X509_LOOKUP, X509_LOOKUP_METHOD
+      o libssl internal structures made opaque
+      o SSLv2 support removed
+      o Kerberos ciphersuite support removed
+      o RC4 removed from DEFAULT ciphersuites in libssl
+      o 40 and 56 bit cipher support removed from libssl
+      o All public header files moved to include/openssl, no more symlinking
+      o SSL/TLS state machine, version negotiation and record layer rewritten
+      o EC revision: now operations use new EC_KEY_METHOD.
+      o Support for OCB mode added to libcrypto
+      o Support for asynchronous crypto operations added to libcrypto and libssl
+      o Deprecated interfaces can now be disabled at build time either
+        relative to the latest release via the "no-deprecated" Configure
+        argument, or via the "--api=1.1.0|1.0.0|0.9.8" option.
+      o Application software can be compiled with -DOPENSSL_API_COMPAT=version
+        to ensure that features deprecated in that version are not exposed.
+      o Support for RFC6698/RFC7671 DANE TLSA peer authentication
+      o Change of Configure to use --prefix as the main installation
+        directory location rather than --openssldir.  The latter becomes
+        the directory for certs, private key and openssl.cnf exclusively.
+      o Reworked BIO networking library, with full support for IPv6.
+      o New "unified" build system
+      o New security levels
+      o Support for scrypt algorithm
+      o Support for X25519
+      o Extended SSL_CONF support using configuration files
+      o KDF algorithm support. Implement TLS PRF as a KDF.
+      o Support for Certificate Transparency
+      o HKDF support.
 
   Major changes between OpenSSL 1.0.2g and OpenSSL 1.0.2h [3 May 2016]
 
@@ -292,7 +490,7 @@
       o Compression memory leak fixed.
       o Compression session resumption fixed.
       o Ticket and SNI coexistence fixes.
-      o Many fixes to DTLS handling. 
+      o Many fixes to DTLS handling.
 
   Major changes between OpenSSL 0.9.8k and OpenSSL 0.9.8l [5 Nov 2009]:
 
@@ -323,9 +521,9 @@
   Major changes between OpenSSL 0.9.8e and OpenSSL 0.9.8f [11 Oct 2007]:
 
       o Add gcc 4.2 support.
-      o Add support for AES and SSE2 assembly lanugauge optimization
+      o Add support for AES and SSE2 assembly language optimization
         for VC++ build.
-      o Support for RFC4507bis and server name extensions if explicitly 
+      o Support for RFC4507bis and server name extensions if explicitly
         selected at compile time.
       o DTLS improvements.
       o RFC4507bis support.
@@ -406,8 +604,8 @@
       o New STORE structure and library to provide an interface to all
         sorts of data repositories.  Supports storage of public and
         private keys, certificates, CRLs, numbers and arbitrary blobs.
-	This library is unfortunately unfinished and unused withing
-	OpenSSL.
+        This library is unfortunately unfinished and unused within
+        OpenSSL.
       o New control functions for the error stack.
       o Changed the PKCS#7 library to support one-pass S/MIME
         processing.
@@ -418,12 +616,12 @@
         affected functions.
       o Improved platform support for PowerPC.
       o New FIPS 180-2 algorithms (SHA-224, -256, -384 and -512).
-      o New X509_VERIFY_PARAM structure to support parametrisation
+      o New X509_VERIFY_PARAM structure to support parameterisation
         of X.509 path validation.
       o Major overhaul of RC4 performance on Intel P4, IA-64 and
         AMD64.
       o Changed the Configure script to have some algorithms disabled
-        by default.  Those can be explicitely enabled with the new
+        by default.  Those can be explicitly enabled with the new
         argument form 'enable-xxx'.
       o Change the default digest in 'openssl' commands from MD5 to
         SHA-1.
@@ -457,7 +655,7 @@
 
   Major changes between OpenSSL 0.9.7h and OpenSSL 0.9.7i [14 Oct 2005]:
 
-      o Give EVP_MAX_MD_SIZE it's old value, except for a FIPS build.
+      o Give EVP_MAX_MD_SIZE its old value, except for a FIPS build.
 
   Major changes between OpenSSL 0.9.7g and OpenSSL 0.9.7h [11 Oct 2005]:
 
@@ -505,7 +703,7 @@
   Major changes between OpenSSL 0.9.7a and OpenSSL 0.9.7b [10 Apr 2003]:
 
       o Security: counter the Klima-Pokorny-Rosa extension of
-        Bleichbacher's attack 
+        Bleichbacher's attack
       o Security: make RSA blinding default.
       o Configuration: Irix fixes, AIX fixes, better mingw support.
       o Support for new platforms: linux-ia64-ecc.
@@ -565,7 +763,7 @@
       o SSL/TLS: allow optional cipher choice according to server's preference.
       o SSL/TLS: allow server to explicitly set new session ids.
       o SSL/TLS: support Kerberos cipher suites (RFC2712).
-	Only supports MIT Kerberos for now.
+        Only supports MIT Kerberos for now.
       o SSL/TLS: allow more precise control of renegotiations and sessions.
       o SSL/TLS: add callback to retrieve SSL/TLS messages.
       o SSL/TLS: support AES cipher suites (RFC3268).
@@ -578,7 +776,7 @@
   Major changes between OpenSSL 0.9.6i and OpenSSL 0.9.6j [10 Apr 2003]:
 
       o Security: counter the Klima-Pokorny-Rosa extension of
-        Bleichbacher's attack 
+        Bleichbacher's attack
       o Security: make RSA blinding default.
       o Build: shared library support fixes.
 
@@ -690,7 +888,7 @@
 
   Major changes between OpenSSL 0.9.5 and OpenSSL 0.9.5a [1 Apr 2000]:
 
-      o Bug fixes for Win32, SuSE Linux, NeXTSTEP and FreeBSD 2.2.8 
+      o Bug fixes for Win32, SuSE Linux, NeXTSTEP and FreeBSD 2.2.8
       o Shared library support for HPUX and Solaris-gcc
       o Support of Linux/IA64
       o Assembler support for Mingw32
@@ -704,7 +902,7 @@
       o Automation of 'req' application
       o Fixes to make s_client, s_server work under Windows
       o Support for multiple fieldnames in SPKACs
-      o New SPKAC command line utilty and associated library functions
+      o New SPKAC command line utility and associated library functions
       o Options to allow passwords to be obtained from various sources
       o New public key PEM format and options to handle it
       o Many other fixes and enhancements to command line utilities
@@ -786,8 +984,7 @@
       o Added BIO proxy and filtering functionality
       o Extended Big Number (BN) library
       o Added RIPE MD160 message digest
-      o Addeed support for RC2/64bit cipher
+      o Added support for RC2/64bit cipher
       o Extended ASN.1 parser routines
-      o Adjustations of the source tree for CVS
+      o Adjustments of the source tree for CVS
       o Support for various new platforms
-

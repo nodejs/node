@@ -25,13 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --expose-gc
-// Flags: --noalways-opt
+// Flags: --allow-natives-syntax --expose-gc --opt --no-always-opt --deopt-every-n-times=0
 
 var elements_kind = {
-  fast_smi_only            :  'fast smi only elements',
-  fast                     :  'fast elements',
-  fast_double              :  'fast double elements',
+  packed_smi               :  'packed smi elements',
+  packed                   :  'packed elements',
+  packed_double            :  'packed double elements',
   dictionary               :  'dictionary elements',
   external_byte            :  'external byte elements',
   external_unsigned_byte   :  'external unsigned byte elements',
@@ -45,14 +44,14 @@ var elements_kind = {
 }
 
 function getKind(obj) {
-  if (%HasFastSmiElements(obj)) return elements_kind.fast_smi_only;
-  if (%HasFastObjectElements(obj)) return elements_kind.fast;
-  if (%HasFastDoubleElements(obj)) return elements_kind.fast_double;
+  if (%HasSmiElements(obj)) return elements_kind.packed_smi;
+  if (%HasObjectElements(obj)) return elements_kind.packed;
+  if (%HasDoubleElements(obj)) return elements_kind.packed_double;
   if (%HasDictionaryElements(obj)) return elements_kind.dictionary;
 }
 
 function isHoley(obj) {
-  if (%HasFastHoleyElements(obj)) return true;
+  if (%HasHoleyElements(obj)) return true;
   return false;
 }
 
@@ -63,16 +62,17 @@ function assertKind(expected, obj, name_opt) {
 function get_literal(x) {
   var literal = [1, 2, x];
   return literal;
-}
+};
 
+%PrepareFunctionForOptimization(get_literal);
 get_literal(3);
 // It's important to store a from before we crankshaft get_literal, because
 // mementos won't be created from crankshafted code at all.
 a = get_literal(3);
-  %OptimizeFunctionOnNextCall(get_literal);
+%OptimizeFunctionOnNextCall(get_literal);
 get_literal(3);
 assertOptimized(get_literal);
-assertTrue(%HasFastSmiElements(a));
+assertTrue(%HasSmiElements(a));
 // a has a memento so the transition caused by the store will affect the
 // boilerplate.
 a[0] = 3.5;
@@ -80,20 +80,21 @@ a[0] = 3.5;
 // We should have transitioned the boilerplate array to double, and
 // crankshafted code should de-opt on the unexpected elements kind
 b = get_literal(3);
-assertTrue(%HasFastDoubleElements(b));
+assertTrue(%HasDoubleElements(b));
 assertEquals([1, 2, 3], b);
 assertUnoptimized(get_literal);
 
 // Optimize again
+%PrepareFunctionForOptimization(get_literal);
 get_literal(3);
-  %OptimizeFunctionOnNextCall(get_literal);
+%OptimizeFunctionOnNextCall(get_literal);
 b = get_literal(3);
-assertTrue(%HasFastDoubleElements(b));
+assertTrue(%HasDoubleElements(b));
 assertOptimized(get_literal);
 
 
 // Test: make sure allocation site information is updated through a
-// transition from SMI->DOUBLE->FAST
+// transition from SMI->DOUBLE->PACKED
 (function() {
   function bar(a, b, c) {
     return [a, b, c];
@@ -103,5 +104,136 @@ assertOptimized(get_literal);
   a[0] = 3.5;
   a[1] = 'hi';
   b = bar(1, 2, 3);
-  assertKind(elements_kind.fast, b);
+  assertKind(elements_kind.packed, b);
+})();
+
+
+(function changeOptimizedEmptyArrayKind() {
+  function f() {
+    return new Array();
+  };
+  %PrepareFunctionForOptimization(f);
+  var a = f();
+  assertKind('packed smi elements', a);
+  a = f();
+  assertKind('packed smi elements', a);
+  a = f();
+  a.push(0.5);
+  assertKind('packed double elements', a);
+  %OptimizeFunctionOnNextCall(f);
+  a = f();
+  assertKind('packed double elements', a);
+})();
+
+(function changeOptimizedArrayLiteralKind() {
+  function f() {
+    return [1, 2];
+  };
+  %PrepareFunctionForOptimization(f);
+  var a = f();
+  assertKind('packed smi elements', a);
+
+  a = f();
+  a.push(0.5);
+  assertKind('packed double elements', a);
+
+  a = f();
+  assertKind('packed double elements', a);
+  assertFalse(isHoley(a));
+
+  a = f();
+  a.push(undefined);
+  assertKind('packed elements', a);
+  assertFalse(isHoley(a));
+
+  a = f();
+  assertKind('packed elements', a);
+  assertFalse(isHoley(a));
+
+  %OptimizeFunctionOnNextCall(f);
+
+  a = f();
+  assertKind('packed elements', a);
+  assertFalse(isHoley(a));
+
+  a = f();
+  assertKind('packed elements', a);
+  assertFalse(isHoley(a));
+})();
+
+(function changeOptimizedEmptyArrayLiteralKind() {
+  function f() {
+    return [];
+  };
+  %PrepareFunctionForOptimization(f);
+  var a = f();
+  assertKind('packed smi elements', a);
+  assertFalse(isHoley(a));
+
+  a = f();
+  a.push(0.5);
+  assertKind('packed double elements', a);
+  assertFalse(isHoley(a));
+
+  a = f();
+  assertKind('packed double elements', a);
+  assertFalse(isHoley(a));
+
+  %OptimizeFunctionOnNextCall(f);
+
+  a = f();
+  assertKind('packed double elements', a);
+  assertFalse(isHoley(a));
+
+  a = f();
+  assertKind('packed double elements', a);
+  assertFalse(isHoley(a));
+})();
+
+(function changeEmptyArrayLiteralKind2() {
+  function f() {
+    var literal = [];
+    %HeapObjectVerify(literal);
+    return literal;
+  };
+  %PrepareFunctionForOptimization(f);
+  var a = f();
+  assertKind('packed smi elements', a);
+  assertFalse(isHoley(a));
+
+  a = f();
+  a.push(0.5);
+  assertKind('packed double elements', a);
+  assertFalse(isHoley(a));
+
+  a = f();
+  assertKind('packed double elements', a);
+  assertFalse(isHoley(a));
+
+  a = f();
+  a.push(undefined);
+  assertKind('packed elements', a);
+  assertFalse(isHoley(a));
+
+  a = f();
+  assertKind('packed elements', a);
+  assertFalse(isHoley(a));
+
+  a = f();
+  a[10] = 1;
+  assertKind('packed elements', a);
+  assertTrue(isHoley(a));
+
+  a = f();
+  assertKind('packed elements', a);
+  assertTrue(isHoley(a));
+
+  a = f();
+  a[10000] = 1;
+  assertKind('dictionary elements', a);
+  assertFalse(isHoley(a));
+
+  a = f();
+  assertKind('packed elements', a);
+  assertTrue(isHoley(a));
 })();

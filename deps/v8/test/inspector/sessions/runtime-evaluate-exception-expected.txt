@@ -1,0 +1,277 @@
+Tests that all sessions get exception notifications.
+Throwing in 2
+Throwing in 1
+Throwing in setTimeout 1
+From session 1
+{
+    method : Runtime.exceptionThrown
+    params : {
+        exceptionDetails : {
+            columnNumber : 19
+            exception : {
+                type : string
+                value : error3
+            }
+            exceptionId : <exceptionId>
+            executionContextId : <executionContextId>
+            lineNumber : 0
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 19
+                        functionName : 
+                        lineNumber : 0
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Uncaught error3
+        }
+        timestamp : <timestamp>
+    }
+}
+From session 2
+{
+    method : Runtime.exceptionThrown
+    params : {
+        exceptionDetails : {
+            columnNumber : 19
+            exception : {
+                type : string
+                value : error3
+            }
+            exceptionId : <exceptionId>
+            executionContextId : <executionContextId>
+            lineNumber : 0
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 19
+                        functionName : 
+                        lineNumber : 0
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Uncaught error3
+        }
+        timestamp : <timestamp>
+    }
+}
+Throwing in setTimeout 2
+From session 1
+{
+    method : Runtime.exceptionThrown
+    params : {
+        exceptionDetails : {
+            columnNumber : 19
+            exception : {
+                type : string
+                value : error4
+            }
+            exceptionId : <exceptionId>
+            executionContextId : <executionContextId>
+            lineNumber : 0
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 19
+                        functionName : 
+                        lineNumber : 0
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Uncaught error4
+        }
+        timestamp : <timestamp>
+    }
+}
+From session 2
+{
+    method : Runtime.exceptionThrown
+    params : {
+        exceptionDetails : {
+            columnNumber : 19
+            exception : {
+                type : string
+                value : error4
+            }
+            exceptionId : <exceptionId>
+            executionContextId : <executionContextId>
+            lineNumber : 0
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 19
+                        functionName : 
+                        lineNumber : 0
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Uncaught error4
+        }
+        timestamp : <timestamp>
+    }
+}
+Rejecting in 2
+From session 1
+{
+    method : Runtime.exceptionThrown
+    params : {
+        exceptionDetails : {
+            columnNumber : 40
+            exception : {
+                type : string
+                value : error5
+            }
+            exceptionId : <exceptionId>
+            executionContextId : <executionContextId>
+            lineNumber : 0
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 40
+                        functionName : 
+                        lineNumber : 0
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Uncaught error5
+        }
+        timestamp : <timestamp>
+    }
+}
+From session 2
+{
+    method : Runtime.exceptionThrown
+    params : {
+        exceptionDetails : {
+            columnNumber : 40
+            exception : {
+                type : string
+                value : error5
+            }
+            exceptionId : <exceptionId>
+            executionContextId : <executionContextId>
+            lineNumber : 0
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 40
+                        functionName : 
+                        lineNumber : 0
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Uncaught error5
+        }
+        timestamp : <timestamp>
+    }
+}
+Revoking in 2
+From session 1
+{
+    method : Runtime.exceptionRevoked
+    params : {
+        exceptionId : <exceptionId>
+        reason : Handler added to rejected promise
+    }
+}
+id matching: true
+From session 2
+{
+    method : Runtime.exceptionRevoked
+    params : {
+        exceptionId : <exceptionId>
+        reason : Handler added to rejected promise
+    }
+}
+id matching: true
+Rejecting in 1
+From session 1
+{
+    method : Runtime.exceptionThrown
+    params : {
+        exceptionDetails : {
+            columnNumber : 40
+            exception : {
+                type : string
+                value : error6
+            }
+            exceptionId : <exceptionId>
+            executionContextId : <executionContextId>
+            lineNumber : 0
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 40
+                        functionName : 
+                        lineNumber : 0
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Uncaught error6
+        }
+        timestamp : <timestamp>
+    }
+}
+From session 2
+{
+    method : Runtime.exceptionThrown
+    params : {
+        exceptionDetails : {
+            columnNumber : 40
+            exception : {
+                type : string
+                value : error6
+            }
+            exceptionId : <exceptionId>
+            executionContextId : <executionContextId>
+            lineNumber : 0
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 40
+                        functionName : 
+                        lineNumber : 0
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Uncaught error6
+        }
+        timestamp : <timestamp>
+    }
+}
+Revoking in 1
+From session 1
+{
+    method : Runtime.exceptionRevoked
+    params : {
+        exceptionId : <exceptionId>
+        reason : Handler added to rejected promise
+    }
+}
+id matching: true
+From session 2
+{
+    method : Runtime.exceptionRevoked
+    params : {
+        exceptionId : <exceptionId>
+        reason : Handler added to rejected promise
+    }
+}
+id matching: true

@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -192,7 +192,7 @@ public:
      * @return    return a polymorphic copy of this calendar.
      * @internal
      */
-    virtual Calendar* clone(void) const;
+    virtual HebrewCalendar* clone() const;
 
 public:
     /**
@@ -386,7 +386,7 @@ public:
   virtual UBool inDaylightTime(UErrorCode& status) const;
 
     /**
-     * Returns TRUE because the Hebrew Calendar does have a default century
+     * Returns true because the Hebrew Calendar does have a default century
      * @internal
      */
     virtual UBool haveDefaultCentury() const;

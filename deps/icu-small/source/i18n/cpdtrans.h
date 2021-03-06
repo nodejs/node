@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
@@ -98,7 +98,7 @@ public:
     /**
      * Transliterator API.
      */
-    virtual Transliterator* clone(void) const;
+    virtual CompoundTransliterator* clone() const;
 
     /**
      * Returns the number of transliterators in this chain.
@@ -131,7 +131,7 @@ public:
      * to recreate this transliterator.
      * @param result the string to receive the rules.  Previous
      * contents will be deleted.
-     * @param escapeUnprintable if TRUE then convert unprintable
+     * @param escapeUnprintable if true then convert unprintable
      * character to their hex escape representations, \uxxxx or
      * \Uxxxxxxxx.  Unprintable characters are those other than
      * U+000A, U+0020..U+007E.

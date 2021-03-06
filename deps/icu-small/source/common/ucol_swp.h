@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -8,7 +8,7 @@
 *
 *******************************************************************************
 *   file name:  ucol_swp.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -31,7 +31,7 @@
  * Does the data look like a collation binary?
  * @internal
  */
-U_INTERNAL UBool U_EXPORT2
+U_CAPI UBool U_EXPORT2
 ucol_looksLikeCollationBinary(const UDataSwapper *ds,
                               const void *inData, int32_t length);
 

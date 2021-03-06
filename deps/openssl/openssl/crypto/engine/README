@@ -9,7 +9,7 @@ for masochists" document *and* a rather extensive commit log message. (I'd get
 lynched for sticking all this in CHANGES or the commit mails :-).
 
 ENGINE_TABLE underlies this restructuring, as described in the internal header
-"eng_int.h", implemented in eng_table.c, and used in each of the "class" files;
+"eng_local.h", implemented in eng_table.c, and used in each of the "class" files;
 tb_rsa.c, tb_dsa.c, etc.
 
 However, "EVP_CIPHER" underlies the motivation and design of ENGINE_TABLE so
@@ -26,7 +26,7 @@ algorithm/mode pair are;
      EVP_EncryptInit(&ctx, cipher, key, iv);
      [ ... use EVP_EncryptUpdate() and EVP_EncryptFinal() ...]
 
-(ii) indirectly; 
+(ii) indirectly;
      OpenSSL_add_all_ciphers();
      cipher = EVP_get_cipherbyname("des_cbc");
      EVP_EncryptInit(&ctx, cipher, key, iv);
@@ -122,7 +122,7 @@ use by EVP_MD code. Ditto for tb_rsa.c, tb_dsa.c, etc. These instantiations of
 ENGINE_TABLE essentially provide linker-separation of the classes so that even
 if ENGINEs implement *all* possible algorithms, an application using only
 EVP_CIPHER code will link at most code relating to EVP_CIPHER, tb_cipher.c, core
-ENGINE code that is independant of class, and of course the ENGINE
+ENGINE code that is independent of class, and of course the ENGINE
 implementation that the application loaded. It will *not* however link any
 class-specific ENGINE code for digests, RSA, etc nor will it bleed over into
 other APIs, such as the RSA/DSA/etc library code.
@@ -161,7 +161,7 @@ actually qualitatively different depending on 'nid' (the "des_cbc" EVP_CIPHER is
 not an interoperable implementation of "aes_256_cbc"), RSA_METHODs are
 necessarily interoperable and don't have different flavours, only different
 implementations. In other words, the ENGINE_TABLE for RSA will either be empty,
-or will have a single ENGING_PILE hashed to by the 'nid' 1 and that pile
+or will have a single ENGINE_PILE hashed to by the 'nid' 1 and that pile
 represents ENGINEs that implement the single "type" of RSA there is.
 
 Cleanup - the registration and unregistration may pose questions about how
@@ -188,7 +188,7 @@ state will be unchanged. Thus, no cleanup is required unless registration takes
 place. ENGINE_cleanup() will simply iterate across a list of registered cleanup
 callbacks calling each in turn, and will then internally delete its own storage
 (a STACK). When a cleanup callback is next registered (eg. if the cleanup() is
-part of a gracefull restart and the application wants to cleanup all state then
+part of a graceful restart and the application wants to cleanup all state then
 start again), the internal STACK storage will be freshly allocated. This is much
 the same as the situation in the ENGINE_TABLE instantiations ... NULL is the
 initialised state, so only modification operations (not queries) will cause that
@@ -204,8 +204,8 @@ exists) - the idea of providing an ENGINE_cpy() function probably wasn't a good
 one and now certainly doesn't make sense in any generalised way. Some of the
 RSA, DSA, DH, and RAND functions that were fiddled during the original ENGINE
 changes have now, as a consequence, been reverted back. This is because the
-hooking of ENGINE is now automatic (and passive, it can interally use a NULL
+hooking of ENGINE is now automatic (and passive, it can internally use a NULL
 ENGINE pointer to simply ignore ENGINE from then on).
 
-Hell, that should be enough for now ... comments welcome: geoff@openssl.org
+Hell, that should be enough for now ... comments welcome.
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -66,7 +66,7 @@ private:
     // Sets period type for all hours in [startHour, limitHour).
     void add(int32_t startHour, int32_t limitHour, DayPeriod period);
 
-    // Returns TRUE if for all i, DayPeriodForHour[i] has a type other than UNKNOWN.
+    // Returns true if for all i, DayPeriodForHour[i] has a type other than UNKNOWN.
     // Values of HasNoon and HasMidnight do not affect the return value.
     UBool allHoursAreSet();
 

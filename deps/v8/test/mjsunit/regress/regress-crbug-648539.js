@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --harmony-tailcalls
+// Flags: --allow-natives-syntax
 
 function f() {
   "use strict";
@@ -10,7 +10,8 @@ function f() {
 }
 function g() {
   return f();
-}
+};
+%PrepareFunctionForOptimization(g);
 assertThrows(g, TypeError);
 assertThrows(g, TypeError);
 %OptimizeFunctionOnNextCall(g);

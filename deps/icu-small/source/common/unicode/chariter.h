@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ********************************************************************
@@ -13,6 +13,9 @@
 #define CHARITER_H
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
+
 #include "unicode/uobject.h"
 #include "unicode/unistr.h"
 /**
@@ -62,7 +65,7 @@ U_NAMESPACE_BEGIN
  * check for the end of the iteration. When there are no more
  * characters in the text object:
  * <ul>
- * <li>The hasNext() function returns FALSE.</li>
+ * <li>The hasNext() function returns false.</li>
  * <li>nextPostInc() and next32PostInc() return DONE
  *     when one attempts to read beyond the end of the text object.</li>
  * </ul>
@@ -78,7 +81,7 @@ U_NAMESPACE_BEGIN
  * }
  *
  * void function1(ForwardCharacterIterator &it) {
- *     UChar c;
+ *     char16_t c;
  *     while((c=it.nextPostInc())!=ForwardCharacterIterator::DONE) {
  *         // use c
  *      }
@@ -149,7 +152,7 @@ public:
      * @return the current code unit.
      * @stable ICU 2.0
      */
-    virtual UChar         nextPostInc(void) = 0;
+    virtual char16_t         nextPostInc(void) = 0;
 
     /**
      * Gets the current code point for returning and advances to the next code point
@@ -162,11 +165,11 @@ public:
     virtual UChar32       next32PostInc(void) = 0;
 
     /**
-     * Returns FALSE if there are no more code units or code points
+     * Returns false if there are no more code units or code points
      * at or after the current position in the iteration range.
      * This is used with nextPostInc() or next32PostInc() in forward
      * iteration.
-     * @returns FALSE if there are no more code units or code points
+     * @returns false if there are no more code units or code points
      * at or after the current position in the iteration range.
      * @stable ICU 2.0
      */
@@ -230,7 +233,7 @@ protected:
  * showing a way to convert simple for() loops:
  * \code
  * void forward2(CharacterIterator &it) {
- *     UChar c;
+ *     char16_t c;
  *     for(c=it.firstPostInc(); c!=CharacterIterator::DONE; c=it.nextPostInc()) {
  *          // use c
  *      }
@@ -249,7 +252,7 @@ protected:
  * Backward iteration with a more traditional for() loop:
  * \code
  * void backward2(CharacterIterator &it) {
- *     UChar c;
+ *     char16_t c;
  *     for(c=it.last(); c!=CharacterIterator::DONE; c=it.previous()) {
  *         // use c
  *      }
@@ -266,7 +269,7 @@ protected:
  *      // get the position
  *      int32_t pos=it.getIndex();
  *      // get the previous code unit
- *      UChar u=it.previous();
+ *      char16_t u=it.previous();
  *      // move back one more code unit
  *      it.move(-1, CharacterIterator::kCurrent);
  *      // set the position back to where it was
@@ -283,7 +286,7 @@ protected:
  * Function processing characters, in this example simple output
  * <pre>
  * \code
- *  void processChar( UChar c )
+ *  void processChar( char16_t c )
  *  {
  *      cout << " " << c;
  *  }
@@ -294,7 +297,7 @@ protected:
  * \code
  *  void traverseForward(CharacterIterator& iter)
  *  {
- *      for(UChar c = iter.first(); c != CharacterIterator.DONE; c = iter.next()) {
+ *      for(char16_t c = iter.first(); c != CharacterIterator.DONE; c = iter.next()) {
  *          processChar(c);
  *      }
  *  }
@@ -305,7 +308,7 @@ protected:
  * \code
  *  void traverseBackward(CharacterIterator& iter)
  *  {
- *      for(UChar c = iter.last(); c != CharacterIterator.DONE; c = iter.previous()) {
+ *      for(char16_t c = iter.last(); c != CharacterIterator.DONE; c = iter.previous()) {
  *          processChar(c);
  *      }
  *  }
@@ -317,7 +320,7 @@ protected:
  * \code
  * void traverseOut(CharacterIterator& iter, int32_t pos)
  * {
- *      UChar c;
+ *      char16_t c;
  *      for (c = iter.setIndex(pos);
  *      c != CharacterIterator.DONE && (Unicode::isLetter(c) || Unicode::isDigit(c));
  *          c = iter.next()) {}
@@ -377,7 +380,7 @@ public:
      * @return a pointer to a new CharacterIterator
      * @stable ICU 2.0
      */
-    virtual CharacterIterator* clone(void) const = 0;
+    virtual CharacterIterator* clone() const = 0;
 
     /**
      * Sets the iterator to refer to the first code unit in its
@@ -386,7 +389,7 @@ public:
      * @return the first code unit in its iteration range.
      * @stable ICU 2.0
      */
-    virtual UChar         first(void) = 0;
+    virtual char16_t         first(void) = 0;
 
     /**
      * Sets the iterator to refer to the first code unit in its
@@ -396,7 +399,7 @@ public:
      * @return the first code unit in its iteration range.
      * @stable ICU 2.0
      */
-    virtual UChar         firstPostInc(void);
+    virtual char16_t         firstPostInc(void);
 
     /**
      * Sets the iterator to refer to the first code point in its
@@ -435,7 +438,7 @@ public:
      * @return the last code unit.
      * @stable ICU 2.0
      */
-    virtual UChar         last(void) = 0;
+    virtual char16_t         last(void) = 0;
 
     /**
      * Sets the iterator to refer to the last code point in its
@@ -463,7 +466,7 @@ public:
      * @return the "position"-th code unit.
      * @stable ICU 2.0
      */
-    virtual UChar         setIndex(int32_t position) = 0;
+    virtual char16_t         setIndex(int32_t position) = 0;
 
     /**
      * Sets the iterator to refer to the beginning of the code point
@@ -483,7 +486,7 @@ public:
      * @return the current code unit.
      * @stable ICU 2.0
      */
-    virtual UChar         current(void) const = 0;
+    virtual char16_t         current(void) const = 0;
 
     /**
      * Returns the code point the iterator currently refers to.
@@ -499,7 +502,7 @@ public:
      * @return the next code unit.
      * @stable ICU 2.0
      */
-    virtual UChar         next(void) = 0;
+    virtual char16_t         next(void) = 0;
 
     /**
      * Advances to the next code point in the iteration range
@@ -520,7 +523,7 @@ public:
      * @return the previous code unit.
      * @stable ICU 2.0
      */
-    virtual UChar         previous(void) = 0;
+    virtual char16_t         previous(void) = 0;
 
     /**
      * Advances to the previous code point in the iteration range
@@ -532,12 +535,12 @@ public:
     virtual UChar32       previous32(void) = 0;
 
     /**
-     * Returns FALSE if there are no more code units or code points
+     * Returns false if there are no more code units or code points
      * before the current position in the iteration range.
      * This is used with previous() or previous32() in backward
      * iteration.
-     * @return FALSE if there are no more code units or code points
-     * before the current position in the iteration range, return TRUE otherwise.
+     * @return false if there are no more code units or code points
+     * before the current position in the iteration range, return true otherwise.
      * @stable ICU 2.0
      */
     virtual UBool        hasPrevious() = 0;
@@ -569,7 +572,7 @@ public:
      * Returns the numeric index in the underlying text-storage
      * object of the character the iterator currently refers to
      * (i.e., the character returned by current()).
-     * @return the numberic index in the text-storage object of
+     * @return the numeric index in the text-storage object of
      * the character the iterator currently refers to
      * @stable ICU 2.0
      */
@@ -607,6 +610,10 @@ public:
      * @return the new position
      * @stable ICU 2.0
      */
+#ifdef move32
+     // One of the system headers right now is sometimes defining a conflicting macro we don't use
+#undef move32
+#endif
     virtual int32_t      move32(int32_t delta, EOrigin origin) = 0;
 
     /**
@@ -721,4 +728,7 @@ CharacterIterator::getLength(void) const {
 }
 
 U_NAMESPACE_END
+
+#endif /* U_SHOW_CPLUSPLUS_API */
+
 #endif

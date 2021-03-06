@@ -9,7 +9,7 @@ var fieldsToFix = ['name','version','description','repository','modules','script
                   ,'files','bin','man','bugs','keywords','readme','homepage','license']
 var otherThingsToFix = ['dependencies','people', 'typos']
 
-var thingsToFix = fieldsToFix.map(function(fieldName) { 
+var thingsToFix = fieldsToFix.map(function(fieldName) {
   return ucFirst(fieldName) + "Field"
 })
 // two ways to do this in CoffeeScript on only one line, sub-70 chars:
@@ -22,8 +22,8 @@ function normalize (data, warn, strict) {
   if(!strict) strict = false
   if(!warn || data.private) warn = function(msg) { /* noop */ }
 
-  if (data.scripts && 
-      data.scripts.install === "node-gyp rebuild" && 
+  if (data.scripts &&
+      data.scripts.install === "node-gyp rebuild" &&
       !data.scripts.preinstall) {
     data.gypfile = true
   }

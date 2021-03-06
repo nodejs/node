@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: mixed
-execute: yes
 wrap: no
 test function name: f
 
@@ -15,11 +13,10 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 4
+bytecode array length: 3
 bytecodes: [
-  /*   10 E> */ B(StackCheck),
   /*   15 S> */ B(Ldar), R(this),
-  /*   28 S> */ B(Return),
+  /*   27 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -33,11 +30,10 @@ snippet: "
 "
 frame size: 0
 parameter count: 2
-bytecode array length: 4
+bytecode array length: 3
 bytecodes: [
-  /*   10 E> */ B(StackCheck),
   /*   19 S> */ B(Ldar), R(arg0),
-  /*   32 S> */ B(Return),
+  /*   31 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -51,11 +47,10 @@ snippet: "
 "
 frame size: 0
 parameter count: 2
-bytecode array length: 4
+bytecode array length: 3
 bytecodes: [
-  /*   10 E> */ B(StackCheck),
   /*   19 S> */ B(Ldar), R(this),
-  /*   32 S> */ B(Return),
+  /*   31 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -69,11 +64,10 @@ snippet: "
 "
 frame size: 0
 parameter count: 8
-bytecode array length: 4
+bytecode array length: 3
 bytecodes: [
-  /*   10 E> */ B(StackCheck),
   /*   55 S> */ B(Ldar), R(arg3),
-  /*   68 S> */ B(Return),
+  /*   67 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -87,11 +81,10 @@ snippet: "
 "
 frame size: 0
 parameter count: 8
-bytecode array length: 4
+bytecode array length: 3
 bytecodes: [
-  /*   10 E> */ B(StackCheck),
   /*   55 S> */ B(Ldar), R(this),
-  /*   68 S> */ B(Return),
+  /*   67 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -105,10 +98,9 @@ snippet: "
 "
 frame size: 0
 parameter count: 2
-bytecode array length: 7
+bytecode array length: 6
 bytecodes: [
-  /*   10 E> */ B(StackCheck),
-  /*   19 S> */ B(LdaSmi), U8(1),
+  /*   19 S> */ B(LdaSmi), I8(1),
                 B(Star), R(arg0),
                 B(LdaUndefined),
   /*   29 S> */ B(Return),
@@ -125,10 +117,9 @@ snippet: "
 "
 frame size: 0
 parameter count: 5
-bytecode array length: 7
+bytecode array length: 6
 bytecodes: [
-  /*   10 E> */ B(StackCheck),
-  /*   37 S> */ B(LdaSmi), U8(1),
+  /*   37 S> */ B(LdaSmi), I8(1),
                 B(Star), R(arg1),
                 B(LdaUndefined),
   /*   47 S> */ B(Return),

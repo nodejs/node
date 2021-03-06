@@ -16,5 +16,6 @@
     }
     return a;
   }
+  %PrepareFunctionForOptimization(f);
   assertEquals(18, f());
 })();

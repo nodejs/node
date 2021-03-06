@@ -316,6 +316,7 @@
 
   assertFalse(Array.prototype.includes.call(arrayLikeWithTraps, "c", 2.1));
   assertFalse(Array.prototype.includes.call(arrayLikeWithTraps, "c", +Infinity));
+  assertFalse(["a", "b", "c"].includes("a", +Infinity));
   assertTrue(["a", "b", "c"].includes("a", -Infinity));
   assertTrue(["a", "b", "c"].includes("c", 2.9));
   assertTrue(["a", "b", "c"].includes("c", NaN));
@@ -626,6 +627,34 @@
   };
 
   assertFalse(Array.prototype.includes.call(arrayLike, "c"));
+})();
+
+
+// Array.prototype.includes accesses out-of-bounds if length is changed late.
+(function () {
+  let arr = [1, 2, 3];
+  assertTrue(arr.includes(undefined, {
+    toString: function () {
+      arr.length = 0;
+      return 0;
+    }
+  }));
+
+  arr = [1, 2, 3];
+  assertFalse(arr.includes(undefined, {
+    toString: function () {
+      arr.length = 0;
+      return 10;
+    }
+  }));
+
+  arr = [1, 2, 3];
+  assertFalse(arr.includes(4, {
+    toString: function () {
+      arr.push(4);
+      return 0;
+    }
+  }));
 })();
 
 

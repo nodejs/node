@@ -1,3 +1,10 @@
+! Copyright 2005-2016 The OpenSSL Project Authors. All Rights Reserved.
+!
+! Licensed under the OpenSSL license (the "License").  You may not use
+! this file except in compliance with the License.  You can obtain a copy
+! in the file LICENSE in the source distribution or at
+! https://www.openssl.org/source/license.html
+
 #if defined(__SUNPRO_C) && defined(__sparcv9)
 # define ABI64  /* They've said -xarch=v9 at command line */
 #elif defined(__GNUC__) && defined(__arch64__)
@@ -287,7 +294,7 @@ _sparcv9_vis1_instrument:
 	sub	%o3,%o2,%o2
 	sub	%o4,%o3,%o3
 
-	! find minumum value
+	! find minimum value
 	cmp	%o0,%o1
 	.word	0x38680002	!bgu,a	%xcc,.+8
 	mov	%o1,%o0
@@ -344,6 +351,14 @@ _sparcv9_random:
 	.word	0x91b002a0	!random	%o0
 .type	_sparcv9_random,#function
 .size	_sparcv9_random,.-_sparcv9_vis3_probe
+
+.global	_sparcv9_fjaesx_probe
+.align	8
+_sparcv9_fjaesx_probe:
+	.word	0x81b09206	!faesencx %f2,%f6,%f0
+	retl
+	nop
+.size	_sparcv9_fjaesx_probe,.-_sparcv9_fjaesx_probe
 
 .global	OPENSSL_cleanse
 .align	32
@@ -428,8 +443,41 @@ OPENSSL_cleanse:
 .type	OPENSSL_cleanse,#function
 .size	OPENSSL_cleanse,.-OPENSSL_cleanse
 
+.global	CRYPTO_memcmp
+.align	16
+CRYPTO_memcmp:
+	cmp	%o2,0
+#ifdef ABI64
+	beq,pn	%xcc,.Lno_data
+#else
+	beq	.Lno_data
+#endif
+	xor	%g1,%g1,%g1
+	nop
+
+.Loop_cmp:
+	ldub	[%o0],%o3
+	add	%o0,1,%o0
+	ldub	[%o1],%o4
+	add	%o1,1,%o1
+	subcc	%o2,1,%o2
+	xor	%o3,%o4,%o4
+#ifdef ABI64
+	bnz	%xcc,.Loop_cmp
+#else
+	bnz	.Loop_cmp
+#endif
+	or	%o4,%g1,%g1
+
+	sub	%g0,%g1,%g1
+	srl	%g1,31,%g1
+.Lno_data:
+	retl
+	mov	%g1,%o0
+.type	CRYPTO_memcmp,#function
+.size	CRYPTO_memcmp,.-CRYPTO_memcmp
+
 .global	_sparcv9_vis1_instrument_bus
-.weak	_sparcv9_vis1_instrument_bus
 .align	8
 _sparcv9_vis1_instrument_bus:
 	mov	%o1,%o3					! save cnt
@@ -468,7 +516,6 @@ _sparcv9_vis1_instrument_bus:
 .size	_sparcv9_vis1_instrument_bus,.-_sparcv9_vis1_instrument_bus
 
 .global	_sparcv9_vis1_instrument_bus2
-.weak	_sparcv9_vis1_instrument_bus2
 .align	8
 _sparcv9_vis1_instrument_bus2:
 	mov	%o1,%o3					! save cnt

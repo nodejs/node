@@ -25,10 +25,13 @@
 #include "uv-common.h"
 
 #include <assert.h>
+#include <limits.h> /* _POSIX_PATH_MAX, PATH_MAX */
 #include <stdlib.h> /* abort */
 #include <string.h> /* strrchr */
-#include <fcntl.h>  /* O_CLOEXEC, may be */
+#include <fcntl.h>  /* O_CLOEXEC and O_NONBLOCK, if supported. */
 #include <stdio.h>
+#include <errno.h>
+#include <sys/socket.h>
 
 #if defined(__STRICT_ANSI__)
 # define inline __inline
@@ -37,6 +40,10 @@
 #if defined(__linux__)
 # include "linux-syscalls.h"
 #endif /* __linux__ */
+
+#if defined(__MVS__)
+# include "os390-syscalls.h"
+#endif /* __MVS__ */
 
 #if defined(__sun)
 # include <sys/port.h>
@@ -53,6 +60,12 @@
 
 #if defined(__APPLE__) && !TARGET_OS_IPHONE
 # include <AvailabilityMacros.h>
+#endif
+
+#if defined(PATH_MAX)
+# define UV__PATH_MAX PATH_MAX
+#else
+# define UV__PATH_MAX 8192
 #endif
 
 #if defined(__ANDROID__)
@@ -90,12 +103,9 @@ int uv__pthread_sigmask(int how, const sigset_t* set, sigset_t* oset);
  */
 #if defined(__clang__) ||                                                     \
     defined(__GNUC__) ||                                                      \
-    defined(__INTEL_COMPILER) ||                                              \
-    defined(__SUNPRO_C)
-# define UV_DESTRUCTOR(declaration) __attribute__((destructor)) declaration
+    defined(__INTEL_COMPILER)
 # define UV_UNUSED(declaration)     __attribute__((unused)) declaration
 #else
-# define UV_DESTRUCTOR(declaration) declaration
 # define UV_UNUSED(declaration)     declaration
 #endif
 
@@ -104,6 +114,12 @@ int uv__pthread_sigmask(int how, const sigset_t* set, sigset_t* oset);
 # define UV__POLLRDHUP POLLRDHUP
 #else
 # define UV__POLLRDHUP 0x2000
+#endif
+
+#ifdef POLLPRI
+# define UV__POLLPRI POLLPRI
+#else
+# define UV__POLLPRI 0
 #endif
 
 #if !defined(O_CLOEXEC) && defined(__FreeBSD__)
@@ -116,29 +132,15 @@ int uv__pthread_sigmask(int how, const sigset_t* set, sigset_t* oset);
 
 typedef struct uv__stream_queued_fds_s uv__stream_queued_fds_t;
 
-/* handle flags */
-enum {
-  UV_CLOSING              = 0x01,   /* uv_close() called but not finished. */
-  UV_CLOSED               = 0x02,   /* close(2) finished. */
-  UV_STREAM_READING       = 0x04,   /* uv_read_start() called. */
-  UV_STREAM_SHUTTING      = 0x08,   /* uv_shutdown() called but not complete. */
-  UV_STREAM_SHUT          = 0x10,   /* Write side closed. */
-  UV_STREAM_READABLE      = 0x20,   /* The stream is readable */
-  UV_STREAM_WRITABLE      = 0x40,   /* The stream is writable */
-  UV_STREAM_BLOCKING      = 0x80,   /* Synchronous writes. */
-  UV_STREAM_READ_PARTIAL  = 0x100,  /* read(2) read less than requested. */
-  UV_STREAM_READ_EOF      = 0x200,  /* read(2) read EOF. */
-  UV_TCP_NODELAY          = 0x400,  /* Disable Nagle. */
-  UV_TCP_KEEPALIVE        = 0x800,  /* Turn on keep-alive. */
-  UV_TCP_SINGLE_ACCEPT    = 0x1000, /* Only accept() when idle. */
-  UV_HANDLE_IPV6          = 0x10000, /* Handle is bound to a IPv6 socket. */
-  UV_UDP_PROCESSING       = 0x20000, /* Handle is running the send callback queue. */
-  UV_HANDLE_BOUND         = 0x40000  /* Handle is bound to an address and port */
-};
-
 /* loop flags */
 enum {
   UV_LOOP_BLOCK_SIGPROF = 1
+};
+
+/* flags of excluding ifaddr */
+enum {
+  UV__EXCLUDE_IFPHYS,
+  UV__EXCLUDE_IFADDR
 };
 
 typedef enum {
@@ -158,11 +160,25 @@ struct uv__stream_queued_fds_s {
     defined(__DragonFly__) || \
     defined(__FreeBSD__) || \
     defined(__FreeBSD_kernel__) || \
-    defined(__linux__)
+    defined(__linux__) || \
+    defined(__OpenBSD__) || \
+    defined(__NetBSD__)
 #define uv__cloexec uv__cloexec_ioctl
 #define uv__nonblock uv__nonblock_ioctl
 #else
 #define uv__cloexec uv__cloexec_fcntl
+#define uv__nonblock uv__nonblock_fcntl
+#endif
+
+/* On Linux, uv__nonblock_fcntl() and uv__nonblock_ioctl() do not commute
+ * when O_NDELAY is not equal to O_NONBLOCK.  Case in point: linux/sparc32
+ * and linux/sparc64, where O_NDELAY is O_NONBLOCK + another bit.
+ *
+ * Libuv uses uv__nonblock_fcntl() directly sometimes so ensure that it
+ * commutes with uv__nonblock().
+ */
+#if defined(__linux__) && O_NDELAY != O_NONBLOCK
+#undef uv__nonblock
 #define uv__nonblock uv__nonblock_fcntl
 #endif
 
@@ -171,10 +187,10 @@ int uv__cloexec_ioctl(int fd, int set);
 int uv__cloexec_fcntl(int fd, int set);
 int uv__nonblock_ioctl(int fd, int set);
 int uv__nonblock_fcntl(int fd, int set);
-int uv__close(int fd);
+int uv__close(int fd); /* preserves errno */
 int uv__close_nocheckstdio(int fd);
+int uv__close_nocancel(int fd);
 int uv__socket(int domain, int type, int protocol);
-int uv__dup(int fd);
 ssize_t uv__recvmsg(int fd, struct msghdr *msg, int flags);
 void uv__make_close_pending(uv_handle_t* handle);
 int uv__getiovmax(void);
@@ -187,12 +203,13 @@ void uv__io_feed(uv_loop_t* loop, uv__io_t* w);
 int uv__io_active(const uv__io_t* w, unsigned int events);
 int uv__io_check_fd(uv_loop_t* loop, int fd);
 void uv__io_poll(uv_loop_t* loop, int timeout); /* in milliseconds or -1 */
+int uv__io_fork(uv_loop_t* loop);
+int uv__fd_exists(uv_loop_t* loop, int fd);
 
 /* async */
-void uv__async_send(struct uv__async* wa);
-void uv__async_init(struct uv__async* wa);
-int uv__async_start(uv_loop_t* loop, struct uv__async* wa, uv__async_cb cb);
-void uv__async_stop(uv_loop_t* loop, struct uv__async* wa);
+void uv__async_stop(uv_loop_t* loop);
+int uv__async_fork(uv_loop_t* loop);
+
 
 /* loop */
 void uv__run_idle(uv_loop_t* loop);
@@ -220,14 +237,11 @@ int uv__tcp_keepalive(int fd, int on, unsigned int delay);
 /* pipe */
 int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb);
 
-/* timer */
-void uv__run_timers(uv_loop_t* loop);
-int uv__next_timeout(const uv_loop_t* loop);
-
 /* signal */
 void uv__signal_close(uv_signal_t* handle);
 void uv__signal_global_once_init(void);
 void uv__signal_loop_cleanup(uv_loop_t* loop);
+int uv__signal_loop_fork(uv_loop_t* loop);
 
 /* platform specific */
 uint64_t uv__hrtime(uv_clocktype_t type);
@@ -247,13 +261,19 @@ void uv__prepare_close(uv_prepare_t* handle);
 void uv__process_close(uv_process_t* handle);
 void uv__stream_close(uv_stream_t* handle);
 void uv__tcp_close(uv_tcp_t* handle);
-void uv__timer_close(uv_timer_t* handle);
 void uv__udp_close(uv_udp_t* handle);
 void uv__udp_finish_close(uv_udp_t* handle);
 uv_handle_type uv__handle_type(int fd);
 FILE* uv__open_file(const char* path);
 int uv__getpwuid_r(uv_passwd_t* pwd);
+int uv__search_path(const char* prog, char* buf, size_t* buflen);
 
+/* random */
+int uv__random_devurandom(void* buf, size_t buflen);
+int uv__random_getrandom(void* buf, size_t buflen);
+int uv__random_getentropy(void* buf, size_t buflen);
+int uv__random_readpath(const char* path, void* buf, size_t buflen);
+int uv__random_sysctl(void* buf, size_t buflen);
 
 #if defined(__APPLE__)
 int uv___stream_fd(const uv_stream_t* handle);
@@ -262,13 +282,6 @@ int uv___stream_fd(const uv_stream_t* handle);
 #define uv__stream_fd(handle) ((handle)->io_watcher.fd)
 #endif /* defined(__APPLE__) */
 
-#ifdef UV__O_NONBLOCK
-# define UV__F_NONBLOCK UV__O_NONBLOCK
-#else
-# define UV__F_NONBLOCK 1
-#endif
-
-int uv__make_socketpair(int fds[2], int flags);
 int uv__make_pipe(int fds[2], int flags);
 
 #if defined(__APPLE__)
@@ -277,34 +290,7 @@ int uv__fsevents_init(uv_fs_event_t* handle);
 int uv__fsevents_close(uv_fs_event_t* handle);
 void uv__fsevents_loop_delete(uv_loop_t* loop);
 
-/* OSX < 10.7 has no file events, polyfill them */
-#ifndef MAC_OS_X_VERSION_10_7
-
-static const int kFSEventStreamCreateFlagFileEvents = 0x00000010;
-static const int kFSEventStreamEventFlagItemCreated = 0x00000100;
-static const int kFSEventStreamEventFlagItemRemoved = 0x00000200;
-static const int kFSEventStreamEventFlagItemInodeMetaMod = 0x00000400;
-static const int kFSEventStreamEventFlagItemRenamed = 0x00000800;
-static const int kFSEventStreamEventFlagItemModified = 0x00001000;
-static const int kFSEventStreamEventFlagItemFinderInfoMod = 0x00002000;
-static const int kFSEventStreamEventFlagItemChangeOwner = 0x00004000;
-static const int kFSEventStreamEventFlagItemXattrMod = 0x00008000;
-static const int kFSEventStreamEventFlagItemIsFile = 0x00010000;
-static const int kFSEventStreamEventFlagItemIsDir = 0x00020000;
-static const int kFSEventStreamEventFlagItemIsSymlink = 0x00040000;
-
-#endif /* __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1070 */
-
 #endif /* defined(__APPLE__) */
-
-UV_UNUSED(static void uv__req_init(uv_loop_t* loop,
-                                   uv_req_t* req,
-                                   uv_req_type type)) {
-  req->type = type;
-  uv__req_register(loop, req);
-}
-#define uv__req_init(loop, req, type) \
-  uv__req_init((loop), (uv_req_t*)(req), (type))
 
 UV_UNUSED(static void uv__update_time(uv_loop_t* loop)) {
   /* Use a fast time source if available.  We only need millisecond precision.
@@ -321,5 +307,32 @@ UV_UNUSED(static char* uv__basename_r(const char* path)) {
 
   return s + 1;
 }
+
+#if defined(__linux__)
+int uv__inotify_fork(uv_loop_t* loop, void* old_watchers);
+#endif
+
+typedef int (*uv__peersockfunc)(int, struct sockaddr*, socklen_t*);
+
+int uv__getsockpeername(const uv_handle_t* handle,
+                        uv__peersockfunc func,
+                        struct sockaddr* name,
+                        int* namelen);
+
+#if defined(__linux__)            ||                                      \
+    defined(__FreeBSD__)          ||                                      \
+    defined(__FreeBSD_kernel__)
+#define HAVE_MMSG 1
+struct uv__mmsghdr {
+  struct msghdr msg_hdr;
+  unsigned int msg_len;
+};
+
+int uv__recvmmsg(int fd, struct uv__mmsghdr* mmsg, unsigned int vlen);
+int uv__sendmmsg(int fd, struct uv__mmsghdr* mmsg, unsigned int vlen);
+#else
+#define HAVE_MMSG 0
+#endif
+
 
 #endif /* UV_UNIX_INTERNAL_H_ */

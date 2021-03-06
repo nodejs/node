@@ -117,6 +117,7 @@ assertEquals(Infinity, 1/Math.max(ZERO, -0));
 assertEquals(Infinity, 1/Math.max(-0, ZERO));
 
 function run(crankshaft_test) {
+  %PrepareFunctionForOptimization(crankshaft_test);
   crankshaft_test(1);
   crankshaft_test(1);
   %OptimizeFunctionOnNextCall(crankshaft_test);
@@ -184,6 +185,7 @@ function f(o) {
   return Math.min(o.a, o.b);
 }
 
+%PrepareFunctionForOptimization(f);
 assertEquals(1, f(o));
 assertEquals(1, f(o));
 %OptimizeFunctionOnNextCall(f);

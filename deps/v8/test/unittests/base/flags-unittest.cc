@@ -17,8 +17,7 @@ enum Flag1 {
   kFlag1Second = 1u << 2,
   kFlag1All = kFlag1None | kFlag1First | kFlag1Second
 };
-typedef Flags<Flag1> Flags1;
-
+using Flags1 = Flags<Flag1>;
 
 DEFINE_OPERATORS_FOR_FLAGS(Flags1)
 
@@ -61,7 +60,7 @@ enum Option {
   kOption2 = 2,
   kAllOptions = kNoOptions | kOption1 | kOption2
 };
-typedef Flags<Option> Options;
+using Options = Flags<Option>;
 
 }  // namespace foo
 
@@ -83,7 +82,7 @@ namespace {
 
 struct Foo {
   enum Enum { kEnum1 = 1, kEnum2 = 2 };
-  typedef Flags<Enum, uint32_t> Enums;
+  using Enums = Flags<Enum, uint32_t>;
 };
 
 

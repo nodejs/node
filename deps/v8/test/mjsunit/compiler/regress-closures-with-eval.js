@@ -29,6 +29,7 @@
 
 // Verifies that closures in presence of eval work fine.
 function withEval(expr, filter) {
+  %PrepareFunctionForOptimization(filter);
   function walk(v) {
     for (var i in v) {
       for (var i in v) {}
@@ -47,8 +48,9 @@ function makeTagInfoJSON(n) {
   return a;
 }
 
-var expr = '([' + makeTagInfoJSON(128).join(', ') + '])'
+var expr = '([' + makeTagInfoJSON(128).join(', ') + '])';
 
+%PrepareFunctionForOptimization(withEval);
 for (var n = 0; n < 5; n++) {
   withEval(expr, function(a) { return a; });
 }

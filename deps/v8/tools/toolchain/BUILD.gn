@@ -1,0 +1,93 @@
+# Copyright 2018 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/toolchain/gcc_toolchain.gni")
+
+gcc_toolchain("mips-bundled") {
+  toolprefix = rebase_path("//tools/mips_toolchain/bin/mips-mti-linux-gnu-",
+                           root_build_dir)
+  cc = "${toolprefix}gcc"
+  cxx = "${toolprefix}g++"
+
+  readelf = "${toolprefix}readelf"
+  nm = "${toolprefix}nm"
+  ar = "${toolprefix}ar"
+  ld = cxx
+
+  # Flag that sets endianness
+  extra_ldflags = "-EB"
+  extra_cppflags = "-EB"
+
+  toolchain_args = {
+    current_cpu = "mips"
+    current_os = "linux"
+    is_clang = false
+  }
+}
+
+gcc_toolchain("mips64-bundled") {
+  toolprefix = rebase_path("//tools/mips_toolchain/bin/mips-mti-linux-gnu-",
+                           root_build_dir)
+  cc = "${toolprefix}gcc"
+  cxx = "${toolprefix}g++"
+
+  readelf = "${toolprefix}readelf"
+  nm = "${toolprefix}nm"
+  ar = "${toolprefix}ar"
+  ld = cxx
+
+  # Flag that sets endianness and ABI
+  extra_ldflags = "-EB -mabi=64"
+  extra_cppflags = "-EB -mabi=64"
+
+  toolchain_args = {
+    current_cpu = "mips64"
+    current_os = "linux"
+    is_clang = false
+  }
+}
+
+gcc_toolchain("mipsel-bundled") {
+  toolprefix = rebase_path("//tools/mips_toolchain/bin/mips-mti-linux-gnu-",
+                           root_build_dir)
+  cc = "${toolprefix}gcc"
+  cxx = "${toolprefix}g++"
+
+  readelf = "${toolprefix}readelf"
+  nm = "${toolprefix}nm"
+  ar = "${toolprefix}ar"
+  ld = cxx
+
+  # Flag that sets endianness
+  extra_ldflags = "-EL"
+  extra_cppflags = "-EL"
+
+  toolchain_args = {
+    current_cpu = "mipsel"
+    current_os = "linux"
+    is_clang = false
+  }
+}
+
+gcc_toolchain("mips64el-bundled") {
+  toolprefix = rebase_path("//tools/mips_toolchain/bin/mips-mti-linux-gnu-",
+                           root_build_dir)
+  cc = "${toolprefix}gcc"
+  cxx = "${toolprefix}g++"
+
+  readelf = "${toolprefix}readelf"
+  nm = "${toolprefix}nm"
+  ar = "${toolprefix}ar"
+  ld = cxx
+
+  # Flag that sets endianness and ABI
+  extra_ldflags = "-EL -mabi=64"
+  extra_cppflags = "-EL -mabi=64"
+
+  toolchain_args = {
+    current_cpu = "mips64el"
+    current_os = "linux"
+    is_clang = false
+  }
+}

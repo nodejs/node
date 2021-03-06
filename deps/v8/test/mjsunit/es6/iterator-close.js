@@ -115,21 +115,21 @@ function* g() { yield 42; return 88 };
   }, TypeError);
 
 
-  assertThrows(() => {
+  assertThrowsEquals(() => {
     for (var x of g()) { throw 666; }
-  }, TypeError);
+  }, 666);
 
-  assertThrows(() => {
+  assertThrowsEquals(() => {
     for (let x of g()) { throw 666; }
-  }, TypeError);
+  }, 666);
 
-  assertThrows(() => {
+  assertThrowsEquals(() => {
     for (const x of g()) { throw 666; }
-  }, TypeError);
+  }, 666);
 
-  assertThrows(() => {
+  assertThrowsEquals(() => {
     for (x of g()) { throw 666; }
-  }, TypeError);
+  }, 666);
 
 
   assertThrows(() => {

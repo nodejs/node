@@ -26,62 +26,113 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <stdlib.h>
+#include <cinttypes>
+#include <cstdlib>
 
-#include "src/v8.h"
+// The C++ style guide recommends using <re2> instead of <regex>. However, the
+// former isn't available in V8.
+#include <regex>  // NOLINT(build/c++11)
 
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/debug/debug.h"
-#include "src/disasm.h"
-#include "src/disassembler.h"
-#include "src/macro-assembler.h"
+#include "src/diagnostics/disasm.h"
+#include "src/diagnostics/disassembler.h"
+#include "src/execution/frames-inl.h"
+#include "src/init/v8.h"
+#include "src/numbers/double.h"
+#include "src/objects/objects-inl.h"
+#include "src/utils/boxed-float.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
+enum UseRegex { kRawString, kRegexString };
 
-bool DisassembleAndCompare(byte* pc, const char* compare_string) {
+template <typename... S>
+bool DisassembleAndCompare(byte* begin, UseRegex use_regex,
+                           S... expected_strings) {
   disasm::NameConverter converter;
   disasm::Disassembler disasm(converter);
-  EmbeddedVector<char, 128> disasm_buffer;
+  EmbeddedVector<char, 128> buffer;
 
-  disasm.InstructionDecode(disasm_buffer, pc);
+  std::vector<std::string> expected_disassembly = {expected_strings...};
+  size_t n_expected = expected_disassembly.size();
+  byte* end = begin + (n_expected * kInstrSize);
 
-  if (strcmp(compare_string, disasm_buffer.start()) != 0) {
-    fprintf(stderr,
-            "expected: \n"
-            "%s\n"
-            "disassembled: \n"
-            "%s\n\n",
-            compare_string, disasm_buffer.start());
+  std::vector<std::string> disassembly;
+  for (byte* pc = begin; pc < end;) {
+    pc += disasm.InstructionDecode(buffer, pc);
+    disassembly.emplace_back(buffer.begin());
+  }
+
+  bool test_passed = true;
+
+  for (size_t i = 0; i < disassembly.size(); i++) {
+    if (use_regex == kRawString) {
+      if (expected_disassembly[i] != disassembly[i]) {
+        fprintf(stderr,
+                "expected: \n"
+                "%s\n"
+                "disassembled: \n"
+                "%s\n\n",
+                expected_disassembly[i].c_str(), disassembly[i].c_str());
+        test_passed = false;
+      }
+    } else {
+      DCHECK_EQ(use_regex, kRegexString);
+      if (!std::regex_match(disassembly[i],
+                            std::regex(expected_disassembly[i]))) {
+        fprintf(stderr,
+                "expected (regex): \n"
+                "%s\n"
+                "disassembled: \n"
+                "%s\n\n",
+                expected_disassembly[i].c_str(), disassembly[i].c_str());
+        test_passed = false;
+      }
+    }
+  }
+
+  // Fail after printing expected disassembly if we expected a different number
+  // of instructions.
+  if (disassembly.size() != expected_disassembly.size()) {
     return false;
   }
-  return true;
-}
 
+  return test_passed;
+}
 
 // Set up V8 to a state where we can at least run the assembler and
 // disassembler. Declare the variables and allocate the data structures used
 // in the rest of the macros.
-#define SET_UP()                                          \
-  CcTest::InitializeVM();                                 \
-  Isolate* isolate = CcTest::i_isolate();                  \
-  HandleScope scope(isolate);                             \
-  byte *buffer = reinterpret_cast<byte*>(malloc(4*1024)); \
-  Assembler assm(isolate, buffer, 4*1024);                \
+#define SET_UP()                                             \
+  CcTest::InitializeVM();                                    \
+  Isolate* isolate = CcTest::i_isolate();                    \
+  HandleScope scope(isolate);                                \
+  byte* buffer = reinterpret_cast<byte*>(malloc(4 * 1024));  \
+  Assembler assm(AssemblerOptions{},                         \
+                 ExternalAssemblerBuffer(buffer, 4 * 1024)); \
   bool failure = false;
-
 
 // This macro assembles one instruction using the preallocated assembler and
 // disassembles the generated instruction, comparing the output to the expected
 // value. If the comparison fails an error message is printed, but the test
 // continues to run until the end.
-#define COMPARE(asm_, compare_string) \
-  { \
-    int pc_offset = assm.pc_offset(); \
-    byte *progcounter = &buffer[pc_offset]; \
-    assm.asm_; \
-    if (!DisassembleAndCompare(progcounter, compare_string)) failure = true; \
+#define BASE_COMPARE(asm_, use_regex, ...)                             \
+  {                                                                    \
+    int pc_offset = assm.pc_offset();                                  \
+    byte* progcounter = &buffer[pc_offset];                            \
+    assm.asm_;                                                         \
+    if (!DisassembleAndCompare(progcounter, use_regex, __VA_ARGS__)) { \
+      failure = true;                                                  \
+    }                                                                  \
   }
+
+#define COMPARE(asm_, ...) BASE_COMPARE(asm_, kRawString, __VA_ARGS__)
+
+#define COMPARE_REGEX(asm_, ...) BASE_COMPARE(asm_, kRegexString, __VA_ARGS__)
 
 // Force emission of any pending literals into a pool.
 #define EMIT_PENDING_LITERALS() \
@@ -90,9 +141,9 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 
 // Verify that all invocations of the COMPARE macro passed successfully.
 // Exit with a failure if at least one of the tests failed.
-#define VERIFY_RUN() \
-if (failure) { \
-    V8_Fatal(__FILE__, __LINE__, "ARM Disassembler tests failed.\n"); \
+#define VERIFY_RUN()                           \
+  if (failure) {                               \
+    FATAL("ARM Disassembler tests failed.\n"); \
   }
 
 // clang-format off
@@ -251,7 +302,7 @@ TEST(Type0) {
           "e3e03000       mvn r3, #0");
   COMPARE(mov(r4, Operand(-2), SetCC, al),
           "e3f04001       mvns r4, #1");
-  COMPARE(mov(r5, Operand(0x0ffffff0), SetCC, ne),
+  COMPARE(mov(r5, Operand(0x0FFFFFF0), SetCC, ne),
           "13f052ff       mvnnes r5, #-268435441");
   COMPARE(mov(r6, Operand(-1), LeaveCC, ne),
           "13e06000       mvnne r6, #0");
@@ -261,7 +312,7 @@ TEST(Type0) {
           "e3a03000       mov r3, #0");
   COMPARE(mvn(r4, Operand(-2), SetCC, al),
           "e3b04001       movs r4, #1");
-  COMPARE(mvn(r5, Operand(0x0ffffff0), SetCC, ne),
+  COMPARE(mvn(r5, Operand(0x0FFFFFF0), SetCC, ne),
           "13b052ff       movnes r5, #-268435441");
   COMPARE(mvn(r6, Operand(-1), LeaveCC, ne),
           "13a06000       movne r6, #0");
@@ -270,37 +321,39 @@ TEST(Type0) {
   if (CpuFeatures::IsSupported(ARMv7)) {
     COMPARE(mov(r5, Operand(0x01234), LeaveCC, ne),
             "13015234       movwne r5, #4660");
-    // We only disassemble one instruction so the eor instruction is not here.
     COMPARE(eor(r5, r4, Operand(0x1234), LeaveCC, ne),
-            "1301c234       movwne ip, #4660");
-    // Movw can't do setcc, so first move to ip, then the following instruction
-    // moves to r5.  Mov immediate with setcc is pretty strange anyway.
+            "13015234       movwne r5, #4660",
+            "10245005       eorne r5, r4, r5");
+    // Movw can't do setcc, so first move to r5, then the following instruction
+    // sets the flags. Mov immediate with setcc is pretty strange anyway.
     COMPARE(mov(r5, Operand(0x01234), SetCC, ne),
-            "1301c234       movwne ip, #4660");
+            "13015234       movwne r5, #4660",
+            "11b05005       movnes r5, r5");
     // Emit a literal pool now, otherwise this could be dumped later, in the
     // middle of a different test.
     EMIT_PENDING_LITERALS();
 
-    // We only disassemble one instruction so the eor instruction is not here.
     // The eor does the setcc so we get a movw here.
     COMPARE(eor(r5, r4, Operand(0x1234), SetCC, ne),
-            "1301c234       movwne ip, #4660");
+            "13015234       movwne r5, #4660",
+            "10345005       eornes r5, r4, r5");
 
     COMPARE(movt(r5, 0x4321, ne),
             "13445321       movtne r5, #17185");
-    COMPARE(movw(r5, 0xabcd, eq),
+    COMPARE(movw(r5, 0xABCD, eq),
             "030a5bcd       movweq r5, #43981");
   }
 
   // Eor doesn't have an eor-negative variant, but we can do an mvn followed by
   // an eor to get the same effect.
-  COMPARE(eor(r5, r4, Operand(0xffffff34), SetCC, ne),
-          "13e0c0cb       mvnne ip, #203");
+  COMPARE(eor(r5, r4, Operand(0xFFFFFF34), SetCC, ne),
+          "13e050cb       mvnne r5, #203",
+          "10345005       eornes r5, r4, r5");
 
   // and <-> bic.
-  COMPARE(and_(r3, r5, Operand(0xfc03ffff)),
+  COMPARE(and_(r3, r5, Operand(0xFC03FFFF)),
           "e3c537ff       bic r3, r5, #66846720");
-  COMPARE(bic(r3, r5, Operand(0xfc03ffff)),
+  COMPARE(bic(r3, r5, Operand(0xFC03FFFF)),
           "e20537ff       and r3, r5, #66846720");
 
   // sub <-> add.
@@ -320,7 +373,7 @@ TEST(Type0) {
           "e12fff3c       blx ip");
   COMPARE(bkpt(0),
           "e1200070       bkpt 0");
-  COMPARE(bkpt(0xffff),
+  COMPARE(bkpt(0xFFFF),
           "e12fff7f       bkpt 65535");
   COMPARE(clz(r6, r7),
           "e16f6f17       clz r6, r7");
@@ -432,6 +485,9 @@ TEST(Type3) {
 
     COMPARE(rbit(r1, r2), "e6ff1f32       rbit r1, r2");
     COMPARE(rbit(r10, ip), "e6ffaf3c       rbit r10, ip");
+
+    COMPARE(rev(r1, r2), "e6bf1f32       rev r1, r2");
+    COMPARE(rev(r10, ip), "e6bfaf3c       rev r10, ip");
   }
 
   COMPARE(usat(r0, 1, Operand(r1)),
@@ -491,7 +547,7 @@ TEST(msr_mrs_disasm) {
           "e169f007       msr SPSR_fc, r7");
   // MSR with no mask is UNPREDICTABLE, and checked by the assembler, but check
   // that the disassembler does something sensible.
-  COMPARE(dd(0xe120f008), "e120f008       msr CPSR_(none), r8");
+  COMPARE(dd(0xE120F008), "e120f008       msr CPSR_(none), r8");
 
   COMPARE(mrs(r0, CPSR),     "e10f0000       mrs r0, CPSR");
   COMPARE(mrs(r1, SPSR),     "e14f1000       mrs r1, SPSR");
@@ -505,12 +561,14 @@ TEST(msr_mrs_disasm) {
 TEST(Vfp) {
   SET_UP();
 
-  if (CpuFeatures::IsSupported(VFP3)) {
-    CpuFeatureScope scope(&assm, VFP3);
+  if (CpuFeatures::IsSupported(VFPv3)) {
+    CpuFeatureScope scope(&assm, VFPv3);
     COMPARE(vmov(d0, r2, r3),
             "ec432b10       vmov d0, r2, r3");
     COMPARE(vmov(r2, r3, d0),
             "ec532b10       vmov r2, r3, d0");
+    COMPARE(vmov(r4, ip, d1),
+            "ec5c4b11       vmov r4, ip, d1");
     COMPARE(vmov(d0, d1),
             "eeb00b41       vmov.f64 d0, d1");
     COMPARE(vmov(d3, d3, eq),
@@ -609,24 +667,24 @@ TEST(Vfp) {
     COMPARE(vsqrt(s2, s3, ne),
             "1eb11ae1       vsqrtne.f32 s2, s3");
 
-    COMPARE(vmov(d0, 1.0),
+    COMPARE(vmov(d0, Double(1.0)),
             "eeb70b00       vmov.f64 d0, #1");
-    COMPARE(vmov(d2, -13.0),
+    COMPARE(vmov(d2, Double(-13.0)),
             "eeba2b0a       vmov.f64 d2, #-13");
 
-    COMPARE(vmov(s1, -1.0),
+    COMPARE(vmov(s1, Float32(-1.0f)),
             "eeff0a00       vmov.f32 s1, #-1");
-    COMPARE(vmov(s3, 13.0),
+    COMPARE(vmov(s3, Float32(13.0f)),
             "eef21a0a       vmov.f32 s3, #13");
 
-    COMPARE(vmov(d0, VmovIndexLo, r0),
+    COMPARE(vmov(NeonS32, d0, 0, r0),
             "ee000b10       vmov.32 d0[0], r0");
-    COMPARE(vmov(d0, VmovIndexHi, r0),
+    COMPARE(vmov(NeonS32, d0, 1, r0),
             "ee200b10       vmov.32 d0[1], r0");
 
-    COMPARE(vmov(r2, VmovIndexLo, d15),
+    COMPARE(vmov(NeonS32, r2, d15, 0),
             "ee1f2b10       vmov.32 r2, d15[0]");
-    COMPARE(vmov(r3, VmovIndexHi, d14),
+    COMPARE(vmov(NeonS32, r3, d14, 1),
             "ee3e3b10       vmov.32 r3, d14[1]");
 
     COMPARE(vldr(s0, r0, 0),
@@ -639,6 +697,8 @@ TEST(Vfp) {
             "ed958a05       vldr s16, [r5 + 4*5]");
     COMPARE(vldr(s31, r10, 1020),
             "eddafaff       vldr s31, [r10 + 4*255]");
+    COMPARE(vldr(s31, ip, 1020),
+            "eddcfaff       vldr s31, [ip + 4*255]");
 
     COMPARE(vstr(s0, r0, 0),
             "ed800a00       vstr s0, [r0 + 4*0]");
@@ -737,6 +797,7 @@ TEST(Vfp) {
             "eeba9bcf       vcvt.f64.s32 d9, d9, #2");
 
     if (CpuFeatures::IsSupported(VFP32DREGS)) {
+      CpuFeatureScope scope(&assm, VFP32DREGS);
       COMPARE(vmov(d3, d27),
               "eeb03b6b       vmov.f64 d3, d27");
       COMPARE(vmov(d18, d7),
@@ -774,12 +835,12 @@ TEST(Vfp) {
       COMPARE(vsqrt(d16, d17),
               "eef10be1       vsqrt.f64 d16, d17");
 
-      COMPARE(vmov(d30, 16.0),
+      COMPARE(vmov(d30, Double(16.0)),
               "eef3eb00       vmov.f64 d30, #16");
 
-      COMPARE(vmov(d31, VmovIndexLo, r7),
+      COMPARE(vmov(NeonS32, d31, 0, r7),
               "ee0f7b90       vmov.32 d31[0], r7");
-      COMPARE(vmov(d31, VmovIndexHi, r7),
+      COMPARE(vmov(NeonS32, d31, 1, r7),
               "ee2f7b90       vmov.32 d31[1], r7");
 
       COMPARE(vldr(d25, r0, 0),
@@ -840,6 +901,7 @@ TEST(ARMv8_vrintX_disasm) {
   SET_UP();
 
   if (CpuFeatures::IsSupported(ARMv8)) {
+    CpuFeatureScope scope(&assm, ARMv8);
     COMPARE(vrinta(d0, d0), "feb80b40       vrinta.f64.f64 d0, d0");
     COMPARE(vrinta(d2, d3), "feb82b43       vrinta.f64.f64 d2, d3");
 
@@ -854,6 +916,27 @@ TEST(ARMv8_vrintX_disasm) {
 
     COMPARE(vrintz(d0, d0), "eeb60bc0       vrintz.f64.f64 d0, d0");
     COMPARE(vrintz(d2, d3, ne), "1eb62bc3       vrintzne.f64.f64 d2, d3");
+
+    // Advanced SIMD
+    COMPARE(vrintm(NeonS32, q0, q3), "f3ba06c6       vrintm.f32 q0, q3");
+    COMPARE(vrintn(NeonS32, q0, q3), "f3ba0446       vrintn.f32 q0, q3");
+    COMPARE(vrintp(NeonS32, q0, q3), "f3ba07c6       vrintp.f32 q0, q3");
+    COMPARE(vrintz(NeonS32, q0, q3), "f3ba05c6       vrintz.f32 q0, q3");
+  }
+
+  VERIFY_RUN();
+}
+
+
+TEST(ARMv8_vminmax_disasm) {
+  SET_UP();
+
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    CpuFeatureScope scope(&assm, ARMv8);
+    COMPARE(vmaxnm(d0, d1, d2), "fe810b02       vmaxnm.f64 d0, d1, d2");
+    COMPARE(vminnm(d3, d4, d5), "fe843b45       vminnm.f64 d3, d4, d5");
+    COMPARE(vmaxnm(s6, s7, s8), "fe833a84       vmaxnm.f32 s6, s7, s8");
+    COMPARE(vminnm(s9, s10, s11), "fec54a65       vminnm.f32 s9, s10, s11");
   }
 
   VERIFY_RUN();
@@ -864,6 +947,7 @@ TEST(ARMv8_vselX_disasm) {
   SET_UP();
 
   if (CpuFeatures::IsSupported(ARMv8)) {
+    CpuFeatureScope scope(&assm, ARMv8);
     // Native instructions.
     COMPARE(vsel(eq, d0, d1, d2),
             "fe010b02       vseleq.f64 d0, d1, d2");
@@ -910,14 +994,370 @@ TEST(Neon) {
 
   if (CpuFeatures::IsSupported(NEON)) {
     CpuFeatureScope scope(&assm, NEON);
+      COMPARE(vld1(Neon8, NeonListOperand(d4, 1), NeonMemOperand(r1)),
+              "f421470f       vld1.8 {d4}, [r1]");
+      COMPARE(vld1(Neon8, NeonListOperand(d4, 2), NeonMemOperand(r1)),
+              "f4214a0f       vld1.8 {d4, d5}, [r1]");
+      COMPARE(vld1(Neon8, NeonListOperand(d4, 3), NeonMemOperand(r1)),
+              "f421460f       vld1.8 {d4, d5, d6}, [r1]");
       COMPARE(vld1(Neon8, NeonListOperand(d4, 4), NeonMemOperand(r1)),
               "f421420f       vld1.8 {d4, d5, d6, d7}, [r1]");
+      COMPARE(vld1s(Neon32, NeonListOperand(d4, 1), 0, NeonMemOperand(r1)),
+              "f4a1480f       vld1.32 {d4[0]}, [r1]");
+      COMPARE(vld1s(Neon16, NeonListOperand(d4, 1), 3, NeonMemOperand(r1)),
+              "f4a144cf       vld1.16 {d4[3]}, [r1]");
+      COMPARE(vld1r(Neon8, NeonListOperand(d4, 1), NeonMemOperand(r1)),
+              "f4a14c0f       vld1.8 {d4}, [r1]");
+      COMPARE(vld1r(Neon16, NeonListOperand(d4, 2), NeonMemOperand(r1)),
+              "f4a14c6f       vld1.16 {d4, d5}, [r1]");
+      COMPARE(vst1(Neon8, NeonListOperand(d4, 1), NeonMemOperand(r6)),
+              "f406470f       vst1.8 {d4}, [r6]")
+      COMPARE(vst1(Neon8, NeonListOperand(q4), NeonMemOperand(r6)),
+              "f4068a0f       vst1.8 {d8, d9}, [r6]")
+      COMPARE(vst1(Neon8, NeonListOperand(d4, 3), NeonMemOperand(r6)),
+              "f406460f       vst1.8 {d4, d5, d6}, [r6]")
       COMPARE(vst1(Neon16, NeonListOperand(d17, 4), NeonMemOperand(r9)),
               "f449124f       vst1.16 {d17, d18, d19, d20}, [r9]");
-      COMPARE(vmovl(NeonU8, q3, d1),
-              "f3886a11       vmovl.u8 q3, d1");
-      COMPARE(vmovl(NeonU8, q4, d2),
-              "f3888a12       vmovl.u8 q4, d2");
+      COMPARE(vst1s(Neon8, NeonListOperand(d4), 1, NeonMemOperand(r1)),
+              "f481402f       vst1.8 {d4[1]}, [r1]");
+      COMPARE(vst1s(Neon16, NeonListOperand(d4), 2, NeonMemOperand(r1)),
+              "f481448f       vst1.16 {d4[2]}, [r1]");
+      COMPARE(vst1s(Neon32, NeonListOperand(d4), 0, NeonMemOperand(r1)),
+              "f481480f       vst1.32 {d4[0]}, [r1]");
+      COMPARE(vmovl(NeonU8, q3, d1), "f3886a11       vmovl.u8 q3, d1");
+      COMPARE(vmovl(NeonU8, q4, d2), "f3888a12       vmovl.u8 q4, d2");
+      COMPARE(vmovl(NeonS16, q4, d2), "f2908a12       vmovl.s16 q4, d2");
+      COMPARE(vmovl(NeonU32, q4, d2), "f3a08a12       vmovl.u32 q4, d2");
+
+      COMPARE(vqmovn(NeonU8, NeonU8, d16, q8),
+              "f3f202e0       vqmovn.u16 d16, q8");
+      COMPARE(vqmovn(NeonS16, NeonS16, d16, q8),
+              "f3f602a0       vqmovn.s32 d16, q8");
+      COMPARE(vqmovn(NeonU32, NeonU32, d2, q4),
+              "f3ba22c8       vqmovn.u64 d2, q4");
+      COMPARE(vqmovn(NeonU32, NeonS32, d2, q4),
+              "f3ba2248       vqmovun.s64 d2, q4");
+
+      COMPARE(vmov(NeonS8, d0, 0, r0), "ee400b10       vmov.8 d0[0], r0");
+      COMPARE(vmov(NeonU8, d1, 1, r1), "ee411b30       vmov.8 d1[1], r1");
+      COMPARE(vmov(NeonS8, d2, 2, r2), "ee422b50       vmov.8 d2[2], r2");
+      COMPARE(vmov(NeonU8, d3, 3, r8), "ee438b70       vmov.8 d3[3], r8");
+      COMPARE(vmov(NeonU8, d3, 3, ip), "ee43cb70       vmov.8 d3[3], ip");
+      COMPARE(vmov(NeonS8, d4, 4, r0), "ee640b10       vmov.8 d4[4], r0");
+      COMPARE(vmov(NeonU8, d5, 5, r1), "ee651b30       vmov.8 d5[5], r1");
+      COMPARE(vmov(NeonS8, d6, 6, r2), "ee662b50       vmov.8 d6[6], r2");
+      COMPARE(vmov(NeonU8, d7, 7, r8), "ee678b70       vmov.8 d7[7], r8");
+      COMPARE(vmov(NeonS16, d0, 0, r0), "ee000b30       vmov.16 d0[0], r0");
+      COMPARE(vmov(NeonS16, d1, 1, r1), "ee011b70       vmov.16 d1[1], r1");
+      COMPARE(vmov(NeonS16, d2, 2, r2), "ee222b30       vmov.16 d2[2], r2");
+      COMPARE(vmov(NeonS16, d3, 3, r7), "ee237b70       vmov.16 d3[3], r7");
+      COMPARE(vmov(NeonS16, d3, 3, ip), "ee23cb70       vmov.16 d3[3], ip");
+      COMPARE(vmov(NeonS32, d0, 0, r0), "ee000b10       vmov.32 d0[0], r0");
+      COMPARE(vmov(NeonU32, d0, 1, r0), "ee200b10       vmov.32 d0[1], r0");
+
+      COMPARE(vmov(NeonS8, r0, d0, 0), "ee500b10       vmov.s8 r0, d0[0]");
+      COMPARE(vmov(NeonU8, r1, d1, 1), "eed11b30       vmov.u8 r1, d1[1]");
+      COMPARE(vmov(NeonS8, r2, d2, 2), "ee522b50       vmov.s8 r2, d2[2]");
+      COMPARE(vmov(NeonU8, r8, d3, 3), "eed38b70       vmov.u8 r8, d3[3]");
+      COMPARE(vmov(NeonS8, r0, d4, 4), "ee740b10       vmov.s8 r0, d4[4]");
+      COMPARE(vmov(NeonU8, r1, d5, 5), "eef51b30       vmov.u8 r1, d5[5]");
+      COMPARE(vmov(NeonS8, r2, d6, 6), "ee762b50       vmov.s8 r2, d6[6]");
+      COMPARE(vmov(NeonU8, r8, d7, 7), "eef78b70       vmov.u8 r8, d7[7]");
+      COMPARE(vmov(NeonU8, ip, d7, 7), "eef7cb70       vmov.u8 ip, d7[7]");
+      COMPARE(vmov(NeonS16, r0, d0, 0), "ee100b30       vmov.s16 r0, d0[0]");
+      COMPARE(vmov(NeonU16, r1, d1, 1), "ee911b70       vmov.u16 r1, d1[1]");
+      COMPARE(vmov(NeonS16, r2, d2, 2), "ee322b30       vmov.s16 r2, d2[2]");
+      COMPARE(vmov(NeonU16, r7, d3, 3), "eeb37b70       vmov.u16 r7, d3[3]");
+      COMPARE(vmov(NeonS32, r2, d15, 0), "ee1f2b10       vmov.32 r2, d15[0]");
+      COMPARE(vmov(NeonS32, r3, d14, 1), "ee3e3b10       vmov.32 r3, d14[1]");
+
+      COMPARE(vmov(q0, q15),
+              "f22e01fe       vmov q0, q15");
+      COMPARE(vmov(q8, q9),
+              "f26201f2       vmov q8, q9");
+      COMPARE(vmov(q1, 0),
+              "f2802050       vmov.i32 q1, 0");
+      COMPARE(vmov(q1, 0x0000001200000012),
+              "f2812052       vmov.i32 q1, 18");
+      COMPARE(vmov(q0, 0xffffffffffffffff),
+              "f3870e5f       vmov.i8 q0, 255");
+      COMPARE(vmov(d0, 0xffffffffffffffff),
+              "f3870e1f       vmov.i8 q0, 255");
+      COMPARE(vmvn(q0, q15),
+              "f3b005ee       vmvn q0, q15");
+      COMPARE(vmvn(q8, q9),
+              "f3f005e2       vmvn q8, q9");
+      COMPARE(vswp(d0, d31),
+              "f3b2002f       vswp d0, d31");
+      COMPARE(vswp(d16, d14),
+              "f3f2000e       vswp d16, d14");
+      COMPARE(vswp(q0, q15),
+              "f3b2006e       vswp q0, q15");
+      COMPARE(vswp(q8, q9),
+              "f3f20062       vswp q8, q9");
+      COMPARE(vdup(Neon8, q0, r0),
+              "eee00b10       vdup.8 q0, r0");
+      COMPARE(vdup(Neon16, q1, r4),
+              "eea24b30       vdup.16 q1, r4");
+      COMPARE(vdup(Neon32, q15, r1),
+              "eeae1b90       vdup.32 q15, r1");
+      COMPARE(vdup(Neon32, q0, d1, 1),
+              "f3bc0c41       vdup.32 q0, d1[1]");
+      COMPARE(vdup(Neon32, q15, d1, 0),
+              "f3f4ec41       vdup.32 q15, d1[0]");
+      COMPARE(vdup(Neon16, q7, d8, 3),
+              "f3beec48       vdup.16 q7, d8[3]");
+      COMPARE(vdup(Neon32, d0, d30, 0),
+              "f3b40c2e       vdup.32 d0, d30[0]");
+      COMPARE(vcvt_f32_s32(q15, q1),
+              "f3fbe642       vcvt.f32.s32 q15, q1");
+      COMPARE(vcvt_f32_u32(q8, q9),
+              "f3fb06e2       vcvt.f32.u32 q8, q9");
+      COMPARE(vcvt_s32_f32(q15, q1),
+              "f3fbe742       vcvt.s32.f32 q15, q1");
+      COMPARE(vcvt_u32_f32(q8, q9),
+              "f3fb07e2       vcvt.u32.f32 q8, q9");
+      COMPARE(vclt(Neon8, q1, q3, 0),
+              "f3b12246       vclt.s8 q1, q3, #0");
+      COMPARE(vclt(Neon16, q1, q3, 0),
+              "f3b52246       vclt.s16 q1, q3, #0");
+      COMPARE(vclt(Neon32, q1, q3, 0),
+              "f3b92246       vclt.s32 q1, q3, #0");
+      COMPARE(vabs(q0, q1),
+              "f3b90742       vabs.f32 q0, q1");
+      COMPARE(vabs(Neon8, q6, q7),
+              "f3b1c34e       vabs.s8 q6, q7");
+      COMPARE(vabs(Neon16, q0, q1),
+              "f3b50342       vabs.s16 q0, q1");
+      COMPARE(vabs(Neon32, q0, q1),
+              "f3b90342       vabs.s32 q0, q1");
+      COMPARE(vneg(q0, q1),
+              "f3b907c2       vneg.f32 q0, q1");
+      COMPARE(vneg(Neon8, q6, q7),
+              "f3b1c3ce       vneg.s8 q6, q7");
+      COMPARE(vneg(Neon16, q0, q1),
+              "f3b503c2       vneg.s16 q0, q1");
+      COMPARE(vneg(Neon32, q0, q1),
+              "f3b903c2       vneg.s32 q0, q1");
+      COMPARE(veor(d0, d1, d2),
+              "f3010112       veor d0, d1, d2");
+      COMPARE(veor(d0, d30, d31),
+              "f30e01bf       veor d0, d30, d31");
+      COMPARE(veor(q0, q1, q2),
+              "f3020154       veor q0, q1, q2");
+      COMPARE(veor(q15, q0, q8),
+              "f340e170       veor q15, q0, q8");
+      COMPARE(vand(q15, q0, q8),
+              "f240e170       vand q15, q0, q8");
+      COMPARE(vbic(q15, q0, q8),
+              "f250e170       vbic q15, q0, q8");
+      COMPARE(vorr(q15, q0, q8),
+              "f260e170       vorr q15, q0, q8");
+      COMPARE(vmin(q15, q0, q8),
+              "f260ef60       vmin.f32 q15, q0, q8");
+      COMPARE(vmax(q15, q0, q8),
+              "f240ef60       vmax.f32 q15, q0, q8");
+      COMPARE(vmax(NeonS8, q0, q1, q2),
+              "f2020644       vmax.s8 q0, q1, q2");
+      COMPARE(vmin(NeonU16, q1, q2, q8),
+              "f3142670       vmin.u16 q1, q2, q8");
+      COMPARE(vmax(NeonS32, q15, q0, q8),
+              "f260e660       vmax.s32 q15, q0, q8");
+      COMPARE(vpadd(d0, d1, d2),
+              "f3010d02       vpadd.f32 d0, d1, d2");
+      COMPARE(vpadd(Neon8, d0, d1, d2),
+              "f2010b12       vpadd.i8 d0, d1, d2");
+      COMPARE(vpadd(Neon16, d0, d1, d2),
+              "f2110b12       vpadd.i16 d0, d1, d2");
+      COMPARE(vpadd(Neon32, d0, d1, d2),
+              "f2210b12       vpadd.i32 d0, d1, d2");
+      COMPARE(vpaddl(NeonS8, q0, q1),
+              "f3b00242       vpaddl.s8 q0, q1");
+      COMPARE(vpaddl(NeonS16, q0, q1),
+              "f3b40242       vpaddl.s16 q0, q1");
+      COMPARE(vpaddl(NeonS32, q0, q1),
+              "f3b80242       vpaddl.s32 q0, q1");
+      COMPARE(vpaddl(NeonU8, q14, q15),
+              "f3f0c2ee       vpaddl.u8 q14, q15");
+      COMPARE(vpaddl(NeonU16, q14, q15),
+              "f3f4c2ee       vpaddl.u16 q14, q15");
+      COMPARE(vpaddl(NeonU32, q14, q15),
+              "f3f8c2ee       vpaddl.u32 q14, q15");
+      COMPARE(vpmax(NeonS8, d0, d1, d2),
+              "f2010a02       vpmax.s8 d0, d1, d2");
+      COMPARE(vpmin(NeonU16, d1, d2, d8),
+              "f3121a18       vpmin.u16 d1, d2, d8");
+      COMPARE(vpmax(NeonS32, d15, d0, d8),
+              "f220fa08       vpmax.s32 d15, d0, d8");
+      COMPARE(vadd(q15, q0, q8),
+              "f240ed60       vadd.f32 q15, q0, q8");
+      COMPARE(vadd(Neon8, q0, q1, q2),
+              "f2020844       vadd.i8 q0, q1, q2");
+      COMPARE(vadd(Neon16, q1, q2, q8),
+              "f2142860       vadd.i16 q1, q2, q8");
+      COMPARE(vadd(Neon32, q15, q0, q8),
+              "f260e860       vadd.i32 q15, q0, q8");
+      COMPARE(vqadd(NeonU8, q0, q1, q2),
+              "f3020054       vqadd.u8 q0, q1, q2");
+      COMPARE(vqadd(NeonS16, q1, q2, q8),
+              "f2142070       vqadd.s16 q1, q2, q8");
+      COMPARE(vqadd(NeonU32, q15, q0, q8),
+              "f360e070       vqadd.u32 q15, q0, q8");
+      COMPARE(vsub(q15, q0, q8),
+              "f260ed60       vsub.f32 q15, q0, q8");
+      COMPARE(vsub(Neon8, q0, q1, q2),
+              "f3020844       vsub.i8 q0, q1, q2");
+      COMPARE(vsub(Neon16, q1, q2, q8),
+              "f3142860       vsub.i16 q1, q2, q8");
+      COMPARE(vsub(Neon32, q15, q0, q8),
+              "f360e860       vsub.i32 q15, q0, q8");
+      COMPARE(vqsub(NeonU8, q0, q1, q2),
+              "f3020254       vqsub.u8 q0, q1, q2");
+      COMPARE(vqsub(NeonS16, q1, q2, q8),
+              "f2142270       vqsub.s16 q1, q2, q8");
+      COMPARE(vqsub(NeonU32, q15, q0, q8),
+              "f360e270       vqsub.u32 q15, q0, q8");
+      COMPARE(vmul(q0, q1, q2),
+              "f3020d54       vmul.f32 q0, q1, q2");
+      COMPARE(vmul(Neon8, q0, q1, q2),
+              "f2020954       vmul.i8 q0, q1, q2");
+      COMPARE(vmul(Neon16, q1, q2, q8),
+              "f2142970       vmul.i16 q1, q2, q8");
+      COMPARE(vmul(Neon32, q15, q0, q8),
+              "f260e970       vmul.i32 q15, q0, q8");
+
+      COMPARE(vqrdmulh(NeonS16, q0, q1, q8),
+              "f3120b60       vqrdmulh.s16 q0, q1, q8");
+      COMPARE(vqrdmulh(NeonS32, q15, q0, q8),
+              "f360eb60       vqrdmulh.s32 q15, q0, q8");
+
+      COMPARE(vmull(NeonU8, q15, d0, d8),
+              "f3c0ec08       vmull.u8 q15, d0, d8");
+      COMPARE(vmull(NeonS16, q15, d0, d8),
+              "f2d0ec08       vmull.s16 q15, d0, d8");
+      COMPARE(vmull(NeonU32, q15, d0, d8),
+              "f3e0ec08       vmull.u32 q15, d0, d8");
+      COMPARE(vmlal(NeonU32, q15, d0, d8),
+              "f3e0e808       vmlal.u32 q15, d0, d8");
+
+      COMPARE(vshl(NeonS8, q15, q0, 6),
+              "f2cee550       vshl.i8 q15, q0, #6");
+      COMPARE(vshl(NeonU16, q15, q0, 10),
+              "f2dae550       vshl.i16 q15, q0, #10");
+      COMPARE(vshl(NeonS32, q15, q0, 17),
+              "f2f1e550       vshl.i32 q15, q0, #17");
+      COMPARE(vshl(NeonS64, q15, q0, 40),
+              "f2e8e5d0       vshl.i64 q15, q0, #40");
+      COMPARE(vshl(NeonS8, q15, q0, q1),
+              "f242e440       vshl.s8 q15, q0, q1");
+      COMPARE(vshl(NeonU16, q15, q2, q3),
+              "f356e444       vshl.u16 q15, q2, q3");
+      COMPARE(vshl(NeonS32, q15, q4, q5),
+              "f26ae448       vshl.s32 q15, q4, q5");
+      COMPARE(vshr(NeonS8, q15, q0, 6),
+              "f2cae050       vshr.s8 q15, q0, #6");
+      COMPARE(vshr(NeonU16, q15, q0, 10),
+              "f3d6e050       vshr.u16 q15, q0, #10");
+      COMPARE(vshr(NeonS32, q15, q0, 17),
+              "f2efe050       vshr.s32 q15, q0, #17");
+      COMPARE(vshr(NeonS64, q15, q0, 40),
+              "f2d8e0d0       vshr.s64 q15, q0, #40");
+      COMPARE(vshr(NeonU64, q15, q0, 40),
+              "f3d8e0d0       vshr.u64 q15, q0, #40");
+      COMPARE(vsli(Neon64, d2, d0, 32),
+              "f3a02590       vsli.64 d2, d0, #32");
+      COMPARE(vsli(Neon32, d7, d8, 17),
+              "f3b17518       vsli.32 d7, d8, #17");
+      COMPARE(vsri(Neon64, d2, d0, 32),
+              "f3a02490       vsri.64 d2, d0, #32");
+      COMPARE(vsri(Neon16, d7, d8, 8),
+              "f3987418       vsri.16 d7, d8, #8");
+      COMPARE(vrecpe(q15, q0),
+              "f3fbe540       vrecpe.f32 q15, q0");
+      COMPARE(vrecps(q15, q0, q8),
+              "f240ef70       vrecps.f32 q15, q0, q8");
+      COMPARE(vrsqrte(q15, q0),
+              "f3fbe5c0       vrsqrte.f32 q15, q0");
+      COMPARE(vrsqrts(q15, q0, q8),
+              "f260ef70       vrsqrts.f32 q15, q0, q8");
+      COMPARE(vtst(Neon8, q0, q1, q2),
+              "f2020854       vtst.i8 q0, q1, q2");
+      COMPARE(vtst(Neon16, q1, q2, q8),
+              "f2142870       vtst.i16 q1, q2, q8");
+      COMPARE(vtst(Neon32, q15, q0, q8),
+              "f260e870       vtst.i32 q15, q0, q8");
+      COMPARE(vceq(q0, q1, q2),
+              "f2020e44       vceq.f32 q0, q1, q2");
+      COMPARE(vcge(q0, q1, q2),
+              "f3020e44       vcge.f32 q0, q1, q2");
+      COMPARE(vcgt(q0, q1, q2),
+              "f3220e44       vcgt.f32 q0, q1, q2");
+      COMPARE(vceq(Neon8, q0, q1, q2),
+              "f3020854       vceq.i8 q0, q1, q2");
+      COMPARE(vceq(Neon16, q1, q2, q8),
+              "f3142870       vceq.i16 q1, q2, q8");
+      COMPARE(vceq(Neon32, q15, q0, q8),
+              "f360e870       vceq.i32 q15, q0, q8");
+      COMPARE(vcge(NeonS8, q0, q1, q2),
+              "f2020354       vcge.s8 q0, q1, q2");
+      COMPARE(vcge(NeonU16, q1, q2, q8),
+              "f3142370       vcge.u16 q1, q2, q8");
+      COMPARE(vcge(NeonS32, q15, q0, q8),
+              "f260e370       vcge.s32 q15, q0, q8");
+      COMPARE(vcgt(NeonS8, q0, q1, q2),
+              "f2020344       vcgt.s8 q0, q1, q2");
+      COMPARE(vcgt(NeonU16, q1, q2, q8),
+              "f3142360       vcgt.u16 q1, q2, q8");
+      COMPARE(vcgt(NeonS32, q15, q0, q8),
+              "f260e360       vcgt.s32 q15, q0, q8");
+      COMPARE(vrhadd(NeonU8, q0, q1, q2),
+              "f3020144       vrhadd.u8 q0, q1, q2");
+      COMPARE(vrhadd(NeonU16, q1, q2, q8),
+              "f3142160       vrhadd.u16 q1, q2, q8");
+      COMPARE(vrhadd(NeonU32, q15, q0, q8),
+              "f360e160       vrhadd.u32 q15, q0, q8");
+      COMPARE(vbsl(q0, q1, q2),
+              "f3120154       vbsl q0, q1, q2");
+      COMPARE(vbsl(q15, q0, q8),
+              "f350e170       vbsl q15, q0, q8");
+      COMPARE(vext(q15, q0, q8, 3),
+              "f2f0e360       vext.8 q15, q0, q8, #3");
+      COMPARE(vzip(Neon16, d15, d0),
+              "f3b6f180       vzip.16 d15, d0");
+      COMPARE(vzip(Neon16, q15, q0),
+              "f3f6e1c0       vzip.16 q15, q0");
+      COMPARE(vuzp(Neon16, d15, d0),
+              "f3b6f100       vuzp.16 d15, d0");
+      COMPARE(vuzp(Neon16, q15, q0),
+              "f3f6e140       vuzp.16 q15, q0");
+      COMPARE(vrev16(Neon8, q15, q0),
+              "f3f0e140       vrev16.8 q15, q0");
+      COMPARE(vrev32(Neon8, q15, q0),
+              "f3f0e0c0       vrev32.8 q15, q0");
+      COMPARE(vrev64(Neon8, q15, q0),
+              "f3f0e040       vrev64.8 q15, q0");
+      COMPARE(vtrn(Neon16, d15, d0),
+              "f3b6f080       vtrn.16 d15, d0");
+      COMPARE(vtrn(Neon16, q15, q0),
+              "f3f6e0c0       vtrn.16 q15, q0");
+      COMPARE(vtbl(d0, NeonListOperand(d1, 1), d2),
+              "f3b10802       vtbl.8 d0, {d1}, d2");
+      COMPARE(vtbl(d31, NeonListOperand(d0, 2), d4),
+              "f3f0f904       vtbl.8 d31, {d0, d1}, d4");
+      COMPARE(vtbl(d15, NeonListOperand(d1, 3), d5),
+              "f3b1fa05       vtbl.8 d15, {d1, d2, d3}, d5");
+      COMPARE(vtbl(d15, NeonListOperand(d1, 4), d5),
+              "f3b1fb05       vtbl.8 d15, {d1, d2, d3, d4}, d5");
+      COMPARE(vtbx(d0, NeonListOperand(d1, 1), d2),
+              "f3b10842       vtbx.8 d0, {d1}, d2");
+      COMPARE(vtbx(d31, NeonListOperand(d0, 2), d4),
+              "f3f0f944       vtbx.8 d31, {d0, d1}, d4");
+      COMPARE(vtbx(d15, NeonListOperand(d1, 3), d5),
+              "f3b1fa45       vtbx.8 d15, {d1, d2, d3}, d5");
+      COMPARE(vtbx(d15, NeonListOperand(d1, 4), d5),
+              "f3b1fb45       vtbx.8 d15, {d1, d2, d3, d4}, d5");
+      COMPARE(vcnt(q1, q2),
+              "f3b02544       vcnt.8 q1, q2");
   }
 
   VERIFY_RUN();
@@ -1123,9 +1563,83 @@ TEST(LoadStore) {
 
     COMPARE(pld(MemOperand(r1, 0)),
             "f5d1f000       pld [r1]");
+    COMPARE(pld(MemOperand(ip, 64)),
+            "f5dcf040       pld [ip, #+64]");
     COMPARE(pld(MemOperand(r2, 128)),
             "f5d2f080       pld [r2, #+128]");
   }
+
+  // Test out-of-bound immediates.
+  COMPARE(ldrb(r6, MemOperand(r7, 42 << 12)),
+          "e3a06a2a       mov r6, #172032",
+          "e7d76006       ldrb r6, [r7, +r6]");
+  COMPARE(ldrh(r6, MemOperand(r7, 42 << 8, PostIndex)),
+          "e3a06c2a       mov r6, #10752",
+          "e09760b6       ldrh r6, [r7], +r6");
+  // Make sure ip is used if the destination is the same as the base.
+  COMPARE(ldr(r8, MemOperand(r8, 42 << 12, PreIndex)),
+          "e3a0ca2a       mov ip, #172032",
+          "e7b8800c       ldr r8, [r8, +ip]!");
+  COMPARE(strb(r6, MemOperand(r7, 42 << 12)),
+          "e3a0ca2a       mov ip, #172032",
+          "e7c7600c       strb r6, [r7, +ip]");
+  COMPARE(strh(r6, MemOperand(r7, 42 << 8, PostIndex)),
+          "e3a0cc2a       mov ip, #10752",
+          "e08760bc       strh r6, [r7], +ip");
+  COMPARE(str(r6, MemOperand(r7, 42 << 12, PreIndex)),
+          "e3a0ca2a       mov ip, #172032",
+          "e7a7600c       str r6, [r7, +ip]!");
+
+  // Test scaled operands for instructions that do not support it natively.
+  COMPARE(ldrh(r0, MemOperand(r1, r2, LSL, 2)),
+          "e1a00102       mov r0, r2, lsl #2",
+          "e19100b0       ldrh r0, [r1, +r0]");
+  COMPARE(strh(r3, MemOperand(r4, r5, LSR, 3)),
+          "e1a0c1a5       mov ip, r5, lsr #3",
+          "e18430bc       strh r3, [r4, +ip]");
+  // Make sure ip is used if the destination is the same as the base.
+  COMPARE(ldrsb(r6, MemOperand(r6, r8, ASR, 4)),
+          "e1a0c248       mov ip, r8, asr #4",
+          "e19660dc       ldrsb r6, [r6, +ip]");
+  COMPARE(ldrsh(r9, MemOperand(sp, r10, ROR, 5)),
+          "e1a092ea       mov r9, r10, ror #5",
+          "e19d90f9       ldrsh r9, [sp, +r9]");
+
+  VERIFY_RUN();
+}
+
+
+static void TestLoadLiteral(byte* buffer, Assembler* assm, bool* failure,
+                            int offset) {
+  int pc_offset = assm->pc_offset();
+  byte *progcounter = &buffer[pc_offset];
+  assm->ldr_pcrel(r0, offset);
+
+  const char *expected_string_template =
+    (offset >= 0) ?
+    "e59f0%03x       ldr r0, [pc, #+%d] (addr 0x%08" PRIxPTR ")" :
+    "e51f0%03x       ldr r0, [pc, #%d] (addr 0x%08" PRIxPTR ")";
+  char expected_string[80];
+  snprintf(expected_string, sizeof(expected_string), expected_string_template,
+    abs(offset), offset,
+    reinterpret_cast<uintptr_t>(
+      progcounter + Instruction::kPcLoadDelta + offset));
+  if (!DisassembleAndCompare(progcounter, kRawString, expected_string)) {
+    *failure = true;
+  }
+}
+
+
+TEST(LoadLiteral) {
+  SET_UP();
+
+  TestLoadLiteral(buffer, &assm, &failure, 0);
+  TestLoadLiteral(buffer, &assm, &failure, 1);
+  TestLoadLiteral(buffer, &assm, &failure, 4);
+  TestLoadLiteral(buffer, &assm, &failure, 4095);
+  TestLoadLiteral(buffer, &assm, &failure, -1);
+  TestLoadLiteral(buffer, &assm, &failure, -4);
+  TestLoadLiteral(buffer, &assm, &failure, -4095);
 
   VERIFY_RUN();
 }
@@ -1165,9 +1679,35 @@ TEST(Barrier) {
     COMPARE(dsb(ISH),
             "f57ff04b       dsb ish");
 
-    COMPARE(isb(ISH),
-            "f57ff06b       isb ish");
+    COMPARE(isb(SY),
+            "f57ff06f       isb sy");
+  } else {
+    // ARMv6 uses CP15 to implement barriers. The BarrierOption argument is
+    // ignored.
+    COMPARE(dmb(ISH),
+            "ee070fba       mcr (CP15DMB)");
+    COMPARE(dsb(OSH),
+            "ee070f9a       mcr (CP15DSB)");
+    COMPARE(isb(SY),
+            "ee070f95       mcr (CP15ISB)");
   }
+
+  // ARMv6 barriers.
+  // Details available in ARM DDI 0406C.b, B3-1750.
+  COMPARE(mcr(p15, 0, r0, cr7, cr10, 5), "ee070fba       mcr (CP15DMB)");
+  COMPARE(mcr(p15, 0, r0, cr7, cr10, 4), "ee070f9a       mcr (CP15DSB)");
+  COMPARE(mcr(p15, 0, r0, cr7, cr5, 4), "ee070f95       mcr (CP15ISB)");
+  // Rt is ignored.
+  COMPARE(mcr(p15, 0, lr, cr7, cr10, 5), "ee07efba       mcr (CP15DMB)");
+  COMPARE(mcr(p15, 0, lr, cr7, cr10, 4), "ee07ef9a       mcr (CP15DSB)");
+  COMPARE(mcr(p15, 0, lr, cr7, cr5, 4), "ee07ef95       mcr (CP15ISB)");
+  // The mcr instruction can be conditional.
+  COMPARE(mcr(p15, 0, r0, cr7, cr10, 5, eq), "0e070fba       mcreq (CP15DMB)");
+  COMPARE(mcr(p15, 0, r0, cr7, cr10, 4, ne), "1e070f9a       mcrne (CP15DSB)");
+  COMPARE(mcr(p15, 0, r0, cr7, cr5, 4, mi), "4e070f95       mcrmi (CP15ISB)");
+
+  // Conditional speculation barrier.
+  COMPARE(csdb(), "e320f014       csdb");
 
   VERIFY_RUN();
 }
@@ -1182,6 +1722,56 @@ TEST(LoadStoreExclusive) {
   COMPARE(strexh(r0, r1, r2), "e1e20f91       strexh r0, r1, [r2]");
   COMPARE(ldrex(r0, r1), "e1910f9f       ldrex r0, [r1]");
   COMPARE(strex(r0, r1, r2), "e1820f91       strex r0, r1, [r2]");
+  COMPARE(ldrexd(r0, r1, r2), "e1b20f9f       ldrexd r0, [r2]");
+  COMPARE(strexd(r0, r2, r3, r4),
+          "e1a40f92       strexd r0, r2, [r4]");
 
   VERIFY_RUN();
 }
+
+TEST(SplitAddImmediate) {
+  SET_UP();
+
+  if (CpuFeatures::IsSupported(ARMv7)) {
+    // Re-use the destination as a scratch.
+    COMPARE(add(r0, r1, Operand(0x12345678)),
+            "e3050678       movw r0, #22136",
+            "e3410234       movt r0, #4660",
+            "e0810000       add r0, r1, r0");
+
+    // Use ip as a scratch.
+    COMPARE(add(r0, r0, Operand(0x12345678)),
+            "e305c678       movw ip, #22136",
+            "e341c234       movt ip, #4660",
+            "e080000c       add r0, r0, ip");
+  } else {
+    // Re-use the destination as a scratch.
+    COMPARE_REGEX(add(r0, r1, Operand(0x12345678)),
+                  "e59f0[0-9a-f]{3}       "
+                      "ldr r0, \\[pc, #\\+[0-9]+\\] \\(addr 0x[0-9a-f]{8}\\)",
+                  "e0810000       add r0, r1, r0");
+
+    // Use ip as a scratch.
+    COMPARE_REGEX(add(r0, r0, Operand(0x12345678)),
+                  "e59fc[0-9a-f]{3}       "
+                      "ldr ip, \\[pc, #\\+[0-9]+\\] \\(addr 0x[0-9a-f]{8}\\)",
+                  "e080000c       add r0, r0, ip");
+  }
+
+  // If ip is not available, split the operation into multiple additions.
+  {
+    UseScratchRegisterScope temps(&assm);
+    Register reserved = temps.Acquire();
+    USE(reserved);
+    COMPARE(add(r2, r2, Operand(0x12345678)),
+            "e2822f9e       add r2, r2, #632",
+            "e2822b15       add r2, r2, #21504",
+            "e282278d       add r2, r2, #36962304",
+            "e2822201       add r2, r2, #268435456");
+  }
+
+  VERIFY_RUN();
+}
+
+}  // namespace internal
+}  // namespace v8

@@ -1,46 +1,189 @@
-// Copyright 2016 the V8 project authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
+// Copyright 2019 the V8 project authors. All rights reserved.  Use of
+// this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_WASM_DEBUG_H_
-#define V8_WASM_DEBUG_H_
+#ifndef V8_WASM_WASM_DEBUG_H_
+#define V8_WASM_WASM_DEBUG_H_
 
-#include "src/handles.h"
-#include "src/objects.h"
+#include <algorithm>
+#include <memory>
+#include <vector>
+
+#include "include/v8-internal.h"
+#include "src/base/iterator.h"
+#include "src/base/logging.h"
+#include "src/base/macros.h"
+#include "src/wasm/value-type.h"
 
 namespace v8 {
 namespace internal {
+
+template <typename T>
+class Handle;
+template <typename T>
+class Vector;
+class WasmFrame;
+
 namespace wasm {
 
-class WasmDebugInfo : public FixedArray {
+class DebugInfoImpl;
+class LocalNames;
+class NativeModule;
+class WasmCode;
+class WireBytesRef;
+class WasmValue;
+struct WasmFunction;
+
+// Side table storing information used to inspect Liftoff frames at runtime.
+// This table is only created on demand for debugging, so it is not optimized
+// for memory size.
+class DebugSideTable {
  public:
-  static Handle<WasmDebugInfo> New(Handle<JSObject> wasm);
+  class Entry {
+   public:
+    enum ValueKind : int8_t { kConstant, kRegister, kStack };
+    struct Value {
+      ValueType type;
+      ValueKind kind;
+      union {
+        int32_t i32_const;  // if kind == kConstant
+        int reg_code;       // if kind == kRegister
+        int stack_offset;   // if kind == kStack
+      };
+    };
 
-  static bool IsDebugInfo(Object* object);
-  static WasmDebugInfo* cast(Object* object);
+    Entry(int pc_offset, std::vector<Value> values)
+        : pc_offset_(pc_offset), values_(std::move(values)) {}
 
-  JSObject* wasm_object();
+    // Constructor for map lookups (only initializes the {pc_offset_}).
+    explicit Entry(int pc_offset) : pc_offset_(pc_offset) {}
 
-  bool SetBreakPoint(int byte_offset);
+    int pc_offset() const { return pc_offset_; }
 
-  // Get the Script for the specified function.
-  static Script* GetFunctionScript(Handle<WasmDebugInfo> debug_info,
-                                   int func_index);
+    int num_values() const { return static_cast<int>(values_.size()); }
+    ValueType value_type(int index) const { return values_[index].type; }
 
-  // Disassemble the specified function from this module.
-  static Handle<String> DisassembleFunction(Handle<WasmDebugInfo> debug_info,
-                                            int func_index);
+    auto values() const {
+      return base::make_iterator_range(values_.begin(), values_.end());
+    }
 
-  // Get the offset table for the specified function, mapping from byte offsets
-  // to position in the disassembly.
-  // Returns an array with three entries per instruction: byte offset, line and
-  // column.
-  static Handle<FixedArray> GetFunctionOffsetTable(
-      Handle<WasmDebugInfo> debug_info, int func_index);
+    int stack_offset(int index) const {
+      DCHECK_EQ(kStack, values_[index].kind);
+      return values_[index].stack_offset;
+    }
+
+    bool is_constant(int index) const {
+      return values_[index].kind == kConstant;
+    }
+
+    bool is_register(int index) const {
+      return values_[index].kind == kRegister;
+    }
+
+    int32_t i32_constant(int index) const {
+      DCHECK_EQ(kConstant, values_[index].kind);
+      return values_[index].i32_const;
+    }
+
+    int32_t register_code(int index) const {
+      DCHECK_EQ(kRegister, values_[index].kind);
+      return values_[index].reg_code;
+    }
+
+    void Print(std::ostream&) const;
+
+   private:
+    int pc_offset_;
+    std::vector<Value> values_;
+  };
+
+  // Technically it would be fine to copy this class, but there should not be a
+  // reason to do so, hence mark it move only.
+  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(DebugSideTable);
+
+  explicit DebugSideTable(int num_locals, std::vector<Entry> entries)
+      : num_locals_(num_locals), entries_(std::move(entries)) {
+    DCHECK(
+        std::is_sorted(entries_.begin(), entries_.end(), EntryPositionLess{}));
+  }
+
+  const Entry* GetEntry(int pc_offset) const {
+    auto it = std::lower_bound(entries_.begin(), entries_.end(),
+                               Entry{pc_offset}, EntryPositionLess{});
+    if (it == entries_.end() || it->pc_offset() != pc_offset) return nullptr;
+    DCHECK_LE(num_locals_, it->num_values());
+    return &*it;
+  }
+
+  auto entries() const {
+    return base::make_iterator_range(entries_.begin(), entries_.end());
+  }
+
+  int num_locals() const { return num_locals_; }
+
+  void Print(std::ostream&) const;
+
+ private:
+  struct EntryPositionLess {
+    bool operator()(const Entry& a, const Entry& b) const {
+      return a.pc_offset() < b.pc_offset();
+    }
+  };
+
+  int num_locals_;
+  std::vector<Entry> entries_;
+};
+
+// Debug info per NativeModule, created lazily on demand.
+// Implementation in {wasm-debug.cc} using PIMPL.
+class V8_EXPORT_PRIVATE DebugInfo {
+ public:
+  explicit DebugInfo(NativeModule*);
+  ~DebugInfo();
+
+  // For the frame inspection methods below:
+  // {fp} is the frame pointer of the Liftoff frame, {debug_break_fp} that of
+  // the {WasmDebugBreak} frame (if any).
+  int GetNumLocals(Address pc);
+  WasmValue GetLocalValue(int local, Address pc, Address fp,
+                          Address debug_break_fp);
+  int GetStackDepth(Address pc);
+
+  const wasm::WasmFunction& GetFunctionAtAddress(Address pc);
+
+  WasmValue GetStackValue(int index, Address pc, Address fp,
+                          Address debug_break_fp);
+
+  WireBytesRef GetLocalName(int func_index, int local_index);
+
+  void SetBreakpoint(int func_index, int offset, Isolate* current_isolate);
+
+  // Returns true if we stay inside the passed frame (or a called frame) after
+  // the step. False if the frame will return after the step.
+  bool PrepareStep(WasmFrame*);
+
+  void PrepareStepOutTo(WasmFrame*);
+
+  void ClearStepping(Isolate*);
+
+  bool IsStepping(WasmFrame*);
+
+  void RemoveBreakpoint(int func_index, int offset, Isolate* current_isolate);
+
+  void RemoveDebugSideTables(Vector<WasmCode* const>);
+
+  // Return the debug side table for the given code object, but only if it has
+  // already been created. This will never trigger generation of the table.
+  DebugSideTable* GetDebugSideTableIfExists(const WasmCode*) const;
+
+  void RemoveIsolate(Isolate*);
+
+ private:
+  std::unique_ptr<DebugInfoImpl> impl_;
 };
 
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_WASM_DEBUG_H_
+#endif  // V8_WASM_WASM_DEBUG_H_

@@ -1,0 +1,74 @@
+version: 1.0.{build}
+skip_branch_with_pr: true
+build: off
+
+environment:
+  matrix:
+    #- nodejs_version: "15"
+    - nodejs_version: "14"
+    - nodejs_version: "13"
+    - nodejs_version: "12"
+    - nodejs_version: "11"
+    - nodejs_version: "10"
+    - nodejs_version: "9"
+    - nodejs_version: "8"
+    - nodejs_version: "7"
+    - nodejs_version: "6"
+    - nodejs_version: "5"
+    - nodejs_version: "4"
+    - nodejs_version: "3"
+    - nodejs_version: "2"
+    - nodejs_version: "1"
+    - nodejs_version: "0.12"
+    - nodejs_version: "0.10"
+    - nodejs_version: "0.8"
+    - nodejs_version: "0.6"
+matrix:
+  # fast_finish: true
+  allow_failures:
+    - nodejs_version: "5" # due to windows npm bug, registry-side
+    - nodejs_version: "0.8"
+      # platform: x86 # x64 has started failing on the registry side, around early November 2020
+    - nodejs_version: "0.6"
+
+platform:
+  - x86
+  - x64
+
+# Install scripts. (runs after repo cloning)
+install:
+  # Fix symlinks in working copy (see https://github.com/appveyor/ci/issues/650#issuecomment-186592582) / https://github.com/charleskorn/batect/commit/d08986802ec43086902958c4ee7e57ff3e71dbef
+  - git config core.symlinks true
+  - git reset --hard
+  # Get the latest stable version of Node.js or io.js
+  - ps: if ($env:nodejs_version -ne '0.6') { Install-Product node $env:nodejs_version $env:platform }
+  - ps: Update-NodeJsInstallation (Get-NodeJsLatestBuild $env:nodejs_version) $env:platform
+  - IF %nodejs_version% EQU 0.6 npm config set strict-ssl false && npm -g install npm@1.3
+  - IF %nodejs_version% EQU 0.8 npm config set strict-ssl false && npm -g install npm@1.4.28 && npm install -g npm@4.5
+  - IF %nodejs_version% EQU 1 npm -g install npm@2.9
+  - IF %nodejs_version% EQU 2 npm -g install npm@4
+  - IF %nodejs_version% EQU 3 npm -g install npm@4
+  - IF %nodejs_version% EQU 4 npm -g install npm@5.3
+  - IF %nodejs_version% EQU 5 npm -g install npm@5.3
+  - IF %nodejs_version% EQU 6 npm -g install npm@6.9
+  - IF %nodejs_version% EQU 7 npm -g install npm@6
+  - IF %nodejs_version% EQU 8 npm -g install npm@6
+  - IF %nodejs_version% EQU 9 npm -g install npm@6.9
+  - IF %nodejs_version% EQU 10 npm -g install npm@7
+  - IF %nodejs_version% EQU 11 npm -g install npm@7
+  - IF %nodejs_version% EQU 12 npm -g install npm@7
+  - IF %nodejs_version% EQU 13 npm -g install npm@7
+  - IF %nodejs_version% EQU 14 npm -g install npm@7
+  - IF %nodejs_version% EQU 15 npm -g install npm@7
+  - set PATH=%APPDATA%\npm;%PATH%
+  #- IF %nodejs_version% NEQ 0.6 AND %nodejs_version% NEQ 0.8 npm -g install npm
+  # install modules
+  - npm install
+
+# Post-install test scripts.
+test_script:
+ # Output useful info for debugging.
+ - node --version
+ - npm --version
+ # run tests
+ - npm run tests-only

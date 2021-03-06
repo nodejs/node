@@ -5,6 +5,7 @@
 // Flags: --allow-natives-syntax
 
 function optimize(crankshaft_test) {
+  %PrepareFunctionForOptimization(crankshaft_test);
   crankshaft_test();
   crankshaft_test();
   %OptimizeFunctionOnNextCall(crankshaft_test);

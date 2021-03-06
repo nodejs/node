@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: number
-execute: yes
 wrap: yes
 
 ---
@@ -15,15 +13,14 @@ frame size: 1
 parameter count: 1
 bytecode array length: 17
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
-  /*   42 S> */ B(LdaSmi), U8(1),
+  /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star), R(0),
-  /*   45 S> */ B(JumpIfToBooleanTrue), U8(7),
+  /*   45 S> */ B(JumpIfToBooleanTrue), U8(8),
                 B(LdaZero),
-  /*   56 E> */ B(TestLessThan), R(0),
+  /*   56 E> */ B(TestLessThan), R(0), U8(0),
                 B(JumpIfFalse), U8(5),
-  /*   63 S> */ B(LdaSmi), U8(1),
-  /*   75 S> */ B(Return),
+  /*   63 S> */ B(LdaSmi), I8(1),
+  /*   72 S> */ B(Return),
                 B(LdaUndefined),
   /*   75 S> */ B(Return),
 ]
@@ -40,15 +37,14 @@ frame size: 1
 parameter count: 1
 bytecode array length: 17
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
-  /*   42 S> */ B(LdaSmi), U8(1),
+  /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star), R(0),
-  /*   45 S> */ B(JumpIfToBooleanFalse), U8(10),
+  /*   45 S> */ B(JumpIfToBooleanFalse), U8(11),
                 B(LdaZero),
-  /*   56 E> */ B(TestLessThan), R(0),
+  /*   56 E> */ B(TestLessThan), R(0), U8(0),
                 B(JumpIfFalse), U8(5),
-  /*   63 S> */ B(LdaSmi), U8(1),
-  /*   75 S> */ B(Return),
+  /*   63 S> */ B(LdaSmi), I8(1),
+  /*   72 S> */ B(Return),
                 B(LdaUndefined),
   /*   75 S> */ B(Return),
 ]
@@ -65,16 +61,15 @@ frame size: 1
 parameter count: 1
 bytecode array length: 22
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
-  /*   42 S> */ B(LdaSmi), U8(1),
+  /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star), R(0),
-  /*   45 S> */ B(JumpIfToBooleanTrue), U8(7),
+  /*   45 S> */ B(JumpIfToBooleanTrue), U8(8),
                 B(LdaZero),
-  /*   57 E> */ B(TestLessThan), R(0),
+  /*   57 E> */ B(TestLessThan), R(0), U8(0),
                 B(JumpIfFalse), U8(6),
-                B(LdaSmi), U8(2),
+                B(LdaSmi), I8(2),
                 B(Jump), U8(4),
-                B(LdaSmi), U8(3),
+                B(LdaSmi), I8(3),
                 B(Star), R(0),
                 B(LdaUndefined),
   /*   71 S> */ B(Return),

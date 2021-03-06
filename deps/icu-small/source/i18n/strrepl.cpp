@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
@@ -87,7 +87,7 @@ StringReplacer::~StringReplacer() {
 /**
  * Implement UnicodeFunctor
  */
-UnicodeFunctor* StringReplacer::clone() const {
+StringReplacer* StringReplacer::clone() const {
     return new StringReplacer(*this);
 }
 

@@ -7,14 +7,15 @@ const bench = common.createBenchmark(main, {
   v: ['crypto', 'tls']
 });
 
-function main(conf) {
-  const n = +conf.n;
-  const v = conf.v;
+function main({ n, v }) {
   const method = require(v).getCiphers;
-  var i = 0;
-
-  common.v8ForceOptimization(method);
+  let i = 0;
+  // First call to getCiphers will dominate the results
+  if (n > 1) {
+    for (; i < n; i++)
+      method();
+  }
   bench.start();
-  for (; i < n; i++) method();
+  for (i = 0; i < n; i++) method();
   bench.end(n);
 }

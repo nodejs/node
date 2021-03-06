@@ -12,9 +12,6 @@
     <String Id="NodeRuntime_Title">Node.js-Laufzeitumgebung</String>
     <String Id="NodeRuntime_Description">Installation der [ProductName]-Laufzeitumgebung (node.exe).</String>
 
-    <String Id="NodePerfCtrSupport_Title">Performance Counter</String>
-    <String Id="NodePerfCtrSupport_Description">Installiert Unterstützung für [ProductName]-spezifische Performance Counter.</String>
-
     <String Id="NodeEtwSupport_Title">Event Tracing (ETW)</String>
     <String Id="NodeEtwSupport_Description">Installiert Unterstützung für Event Tracing (ETW)-Events, generiert von [ProductName].</String>
 

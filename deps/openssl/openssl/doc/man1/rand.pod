@@ -1,0 +1,95 @@
+=pod
+
+=head1 NAME
+
+openssl-rand,
+rand - generate pseudo-random bytes
+
+=head1 SYNOPSIS
+
+B<openssl rand>
+[B<-help>]
+[B<-out> I<file>]
+[B<-rand file...>]
+[B<-writerand file>]
+[B<-base64>]
+[B<-hex>]
+I<num>
+
+=head1 DESCRIPTION
+
+This command generates I<num> random bytes using a cryptographically
+secure pseudo random number generator (CSPRNG).
+
+The random bytes are generated using the L<RAND_bytes(3)> function,
+which provides a security level of 256 bits, provided it managed to
+seed itself successfully from a trusted operating system entropy source.
+Otherwise, the command will fail with a nonzero error code.
+For more details, see L<RAND_bytes(3)>, L<RAND(7)>, and L<RAND_DRBG(7)>.
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-help>
+
+Print out a usage message.
+
+=item B<-out file>
+
+Write to I<file> instead of standard output.
+
+=item B<-rand file...>
+
+A file or files containing random data used to seed the random number
+generator.
+Multiple files can be specified separated by an OS-dependent character.
+The separator is B<;> for MS-Windows, B<,> for OpenVMS, and B<:> for
+all others.
+Explicitly specifying a seed file is in general not necessary, see the
+L</NOTES> section for more information.
+
+=item [B<-writerand file>]
+
+Writes random data to the specified I<file> upon exit.
+This can be used with a subsequent B<-rand> flag.
+
+=item B<-base64>
+
+Perform base64 encoding on the output.
+
+=item B<-hex>
+
+Show the output as a hex string.
+
+=back
+
+=head1 NOTES
+
+Prior to OpenSSL 1.1.1, it was common for applications to store information
+about the state of the random-number generator in a file that was loaded
+at startup and rewritten upon exit. On modern operating systems, this is
+generally no longer necessary as OpenSSL will seed itself from a trusted
+entropy source provided by the operating system. The B<-rand>  and
+B<-writerand>  flags are still supported for special platforms or
+circumstances that might require them.
+
+It is generally an error to use the same seed file more than once and
+every use of B<-rand> should be paired with B<-writerand>.
+
+=head1 SEE ALSO
+
+L<RAND_bytes(3)>,
+L<RAND(7)>,
+L<RAND_DRBG(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

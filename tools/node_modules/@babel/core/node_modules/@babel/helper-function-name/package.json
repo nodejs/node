@@ -1,0 +1,20 @@
+{
+  "name": "@babel/helper-function-name",
+  "version": "7.12.11",
+  "description": "Helper function to change the property 'name' of every function",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/babel/babel.git",
+    "directory": "packages/babel-helper-function-name"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "@babel/helper-get-function-arity": "^7.12.10",
+    "@babel/template": "^7.12.7",
+    "@babel/types": "^7.12.11"
+  }
+}

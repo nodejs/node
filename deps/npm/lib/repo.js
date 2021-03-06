@@ -1,51 +1,80 @@
-module.exports = repo
+const log = require('npmlog')
+const pacote = require('pacote')
+const { URL } = require('url')
 
-repo.usage = 'npm repo [<pkg>]'
+const hostedFromMani = require('./utils/hosted-git-info-from-manifest.js')
+const openUrl = require('./utils/open-url.js')
+const usageUtil = require('./utils/usage.js')
 
-var npm = require('./npm.js')
-var opener = require('opener')
-var hostedGitInfo = require('hosted-git-info')
-var url_ = require('url')
-var fetchPackageMetadata = require('./fetch-package-metadata.js')
+class Repo {
+  constructor (npm) {
+    this.npm = npm
+  }
 
-repo.completion = function (opts, cb) {
-  // FIXME: there used to be registry completion here, but it stopped making
-  // sense somewhere around 50,000 packages on the registry
-  cb()
-}
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  get usage () {
+    return usageUtil('repo', 'npm repo [<pkgname> [<pkgname> ...]]')
+  }
 
-function repo (args, cb) {
-  var n = args.length ? args[0] : '.'
-  fetchPackageMetadata(n, '.', function (er, d) {
-    if (er) return cb(er)
-    getUrlAndOpen(d, cb)
-  })
-}
+  exec (args, cb) {
+    this.repo(args).then(() => cb()).catch(cb)
+  }
 
-function getUrlAndOpen (d, cb) {
-  var r = d.repository
-  if (!r) return cb(new Error('no repository'))
-  // XXX remove this when npm@v1.3.10 from node 0.10 is deprecated
-  // from https://github.com/npm/npm-www/issues/418
-  var info = hostedGitInfo.fromUrl(r.url)
-  var url = info ? info.browse() : unknownHostedUrl(r.url)
+  async repo (args) {
+    if (!args || !args.length)
+      args = ['.']
 
-  if (!url) return cb(new Error('no repository: could not get url'))
+    await Promise.all(args.map(pkg => this.get(pkg)))
+  }
 
-  opener(url, { command: npm.config.get('browser') }, cb)
-}
+  async get (pkg) {
+    const opts = { ...this.npm.flatOptions, fullMetadata: true }
+    const mani = await pacote.manifest(pkg, opts)
 
-function unknownHostedUrl (url) {
-  try {
-    var idx = url.indexOf('@')
-    if (idx !== -1) {
-      url = url.slice(idx + 1).replace(/:([^\d]+)/, '/$1')
+    const r = mani.repository
+    const rurl = !r ? null
+      : typeof r === 'string' ? r
+      : typeof r === 'object' && typeof r.url === 'string' ? r.url
+      : null
+
+    if (!rurl) {
+      throw Object.assign(new Error('no repository'), {
+        pkgid: pkg,
+      })
     }
-    url = url_.parse(url)
-    var protocol = url.protocol === 'https:'
-                 ? 'https:'
-                 : 'http:'
-    return protocol + '//' + (url.host || '') +
-      url.path.replace(/\.git$/, '')
-  } catch (e) {}
+
+    const info = hostedFromMani(mani)
+    const url = info ?
+      info.browse(mani.repository.directory) : unknownHostedUrl(rurl)
+
+    if (!url) {
+      throw Object.assign(new Error('no repository: could not get url'), {
+        pkgid: pkg,
+      })
+    }
+
+    log.silly('docs', 'url', url)
+    await openUrl(this.npm, url, `${mani.name} repo available at the following URL`)
+  }
+}
+module.exports = Repo
+
+const unknownHostedUrl = url => {
+  try {
+    const {
+      protocol,
+      hostname,
+      pathname,
+    } = new URL(url)
+
+    /* istanbul ignore next - URL ctor should prevent this */
+    if (!protocol || !hostname)
+      return null
+
+    const proto = /(git\+)http:$/.test(protocol) ? 'http:' : 'https:'
+    const path = pathname.replace(/\.git$/, '')
+    return `${proto}//${hostname}${path}`
+  } catch (e) {
+    return null
+  }
 }

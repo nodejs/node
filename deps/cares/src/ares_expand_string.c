@@ -41,7 +41,7 @@ int ares_expand_string(const unsigned char *encoded,
 {
   unsigned char *q;
   union {
-    ssize_t sig;
+    ares_ssize_t sig;
      size_t uns;
   } elen;
 

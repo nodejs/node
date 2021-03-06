@@ -1,61 +1,30 @@
-#!/usr/bin/env perl
-
-##############################################################################
-#                                                                            #
-#  Copyright (c) 2012, Intel Corporation                                     #
-#                                                                            #
-#  All rights reserved.                                                      #
-#                                                                            #
-#  Redistribution and use in source and binary forms, with or without        #
-#  modification, are permitted provided that the following conditions are    #
-#  met:                                                                      #
-#                                                                            #
-#  *  Redistributions of source code must retain the above copyright         #
-#     notice, this list of conditions and the following disclaimer.          #
-#                                                                            #
-#  *  Redistributions in binary form must reproduce the above copyright      #
-#     notice, this list of conditions and the following disclaimer in the    #
-#     documentation and/or other materials provided with the                 #
-#     distribution.                                                          #
-#                                                                            #
-#  *  Neither the name of the Intel Corporation nor the names of its         #
-#     contributors may be used to endorse or promote products derived from   #
-#     this software without specific prior written permission.               #
-#                                                                            #
-#                                                                            #
-#  THIS SOFTWARE IS PROVIDED BY INTEL CORPORATION ""AS IS"" AND ANY          #
-#  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE         #
-#  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR        #
-#  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL INTEL CORPORATION OR            #
-#  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,     #
-#  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,       #
-#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR        #
-#  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF    #
-#  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING      #
-#  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS        #
-#  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.              #
-#                                                                            #
-##############################################################################
-# Developers and authors:                                                    #
-# Shay Gueron (1, 2), and Vlad Krasnov (1)                                   #
-# (1) Intel Corporation, Israel Development Center, Haifa, Israel            #
-# (2) University of Haifa, Israel                                            #
-##############################################################################
-# Reference:                                                                 #
-# [1] S. Gueron, V. Krasnov: "Software Implementation of Modular             #
-#     Exponentiation,  Using Advanced Vector Instructions Architectures",    #
-#     F. Ozbudak and F. Rodriguez-Henriquez (Eds.): WAIFI 2012, LNCS 7369,   #
-#     pp. 119?135, 2012. Springer-Verlag Berlin Heidelberg 2012              #
-# [2] S. Gueron: "Efficient Software Implementations of Modular              #
-#     Exponentiation", Journal of Cryptographic Engineering 2:31-43 (2012).  #
-# [3] S. Gueron, V. Krasnov: "Speeding up Big-numbers Squaring",IEEE         #
-#     Proceedings of 9th International Conference on Information Technology: #
-#     New Generations (ITNG 2012), pp.821-823 (2012)                         #
-# [4] S. Gueron, V. Krasnov: "[PATCH] Efficient and side channel analysis    #
-#     resistant 1024-bit modular exponentiation, for optimizing RSA2048      #
-#     on AVX2 capable x86_64 platforms",                                     #
-#     http://rt.openssl.org/Ticket/Display.html?id=2850&user=guest&pass=guest#
-##############################################################################
+#! /usr/bin/env perl
+# Copyright 2013-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright (c) 2012, Intel Corporation. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+#
+# Originally written by Shay Gueron (1, 2), and Vlad Krasnov (1)
+# (1) Intel Corporation, Israel Development Center, Haifa, Israel
+# (2) University of Haifa, Israel
+#
+# References:
+# [1] S. Gueron, V. Krasnov: "Software Implementation of Modular
+#     Exponentiation,  Using Advanced Vector Instructions Architectures",
+#     F. Ozbudak and F. Rodriguez-Henriquez (Eds.): WAIFI 2012, LNCS 7369,
+#     pp. 119?135, 2012. Springer-Verlag Berlin Heidelberg 2012
+# [2] S. Gueron: "Efficient Software Implementations of Modular
+#     Exponentiation", Journal of Cryptographic Engineering 2:31-43 (2012).
+# [3] S. Gueron, V. Krasnov: "Speeding up Big-numbers Squaring",IEEE
+#     Proceedings of 9th International Conference on Information Technology:
+#     New Generations (ITNG 2012), pp.821-823 (2012)
+# [4] S. Gueron, V. Krasnov: "[PATCH] Efficient and side channel analysis
+#     resistant 1024-bit modular exponentiation, for optimizing RSA2048
+#     on AVX2 capable x86_64 platforms",
+#     http://rt.openssl.org/Ticket/Display.html?id=2850&user=guest&pass=guest
 #
 # +13% improvement over original submission by <appro@openssl.org>
 #
@@ -97,13 +66,13 @@ if (!$avx && $win64 && ($flavour =~ /masm/ || $ENV{ASM} =~ /ml64/) &&
 	$addx = ($1>=11);
 }
 
-if (!$avx && `$ENV{CC} -v 2>&1` =~ /(^clang version|based on LLVM) ([3-9])\.([0-9]+)/) {
+if (!$avx && `$ENV{CC} -v 2>&1` =~ /((?:clang|LLVM) version|based on LLVM) ([0-9]+)\.([0-9]+)/) {
 	my $ver = $2 + $3/100.0;	# 3.1->3.01, 3.10->3.10
 	$avx = ($ver>=3.0) + ($ver>=3.01);
 	$addx = ($ver>=3.03);
 }
 
-open OUT,"| \"$^X\" $xlate $flavour $output";
+open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
 *STDOUT = *OUT;
 
 if ($avx>1) {{{
@@ -161,13 +130,21 @@ $code.=<<___;
 .type	rsaz_1024_sqr_avx2,\@function,5
 .align	64
 rsaz_1024_sqr_avx2:		# 702 cycles, 14% faster than rsaz_1024_mul_avx2
+.cfi_startproc
 	lea	(%rsp), %rax
+.cfi_def_cfa_register	%rax
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 	vzeroupper
 ___
 $code.=<<___ if ($win64);
@@ -186,6 +163,7 @@ $code.=<<___ if ($win64);
 ___
 $code.=<<___;
 	mov	%rax,%rbp
+.cfi_def_cfa_register	%rbp
 	mov	%rdx, $np			# reassigned argument
 	sub	\$$FrameSize, %rsp
 	mov	$np, $tmp
@@ -239,7 +217,7 @@ $code.=<<___;
 	vmovdqu		32*8-128($ap), $ACC8
 
 	lea	192(%rsp), $tp0			# 64+128=192
-	vpbroadcastq	.Land_mask(%rip), $AND_MASK
+	vmovdqu	.Land_mask(%rip), $AND_MASK
 	jmp	.LOOP_GRANDE_SQR_1024
 
 .align	32
@@ -375,7 +353,7 @@ $code.=<<___;
 	vpaddq		$TEMP1, $ACC1, $ACC1
 	vpmuludq	32*7-128($aap), $B2, $ACC2
 	 vpbroadcastq	32*5-128($tpa), $B2
-	vpaddq		32*11-448($tp1), $ACC2, $ACC2	
+	vpaddq		32*11-448($tp1), $ACC2, $ACC2
 
 	vmovdqu		$ACC6, 32*6-192($tp0)
 	vmovdqu		$ACC7, 32*7-192($tp0)
@@ -434,7 +412,7 @@ $code.=<<___;
 	vmovdqu		$ACC7, 32*16-448($tp1)
 	lea		8($tp1), $tp1
 
-	dec	$i        
+	dec	$i
 	jnz	.LOOP_SQR_1024
 ___
 $ZERO = $ACC9;
@@ -779,7 +757,7 @@ $code.=<<___;
 	vpblendd	\$3, $TEMP4, $TEMP5, $TEMP4
 	vpaddq		$TEMP3, $ACC7, $ACC7
 	vpaddq		$TEMP4, $ACC8, $ACC8
-     
+
 	vpsrlq		\$29, $ACC4, $TEMP1
 	vpand		$AND_MASK, $ACC4, $ACC4
 	vpsrlq		\$29, $ACC5, $TEMP2
@@ -818,8 +796,10 @@ $code.=<<___;
 
 	vzeroall
 	mov	%rbp, %rax
+.cfi_def_cfa_register	%rax
 ___
 $code.=<<___ if ($win64);
+.Lsqr_1024_in_tail:
 	movaps	-0xd8(%rax),%xmm6
 	movaps	-0xc8(%rax),%xmm7
 	movaps	-0xb8(%rax),%xmm8
@@ -833,14 +813,22 @@ $code.=<<___ if ($win64);
 ___
 $code.=<<___;
 	mov	-48(%rax),%r15
+.cfi_restore	%r15
 	mov	-40(%rax),%r14
+.cfi_restore	%r14
 	mov	-32(%rax),%r13
+.cfi_restore	%r13
 	mov	-24(%rax),%r12
+.cfi_restore	%r12
 	mov	-16(%rax),%rbp
+.cfi_restore	%rbp
 	mov	-8(%rax),%rbx
+.cfi_restore	%rbx
 	lea	(%rax),%rsp		# restore %rsp
+.cfi_def_cfa_register	%rsp
 .Lsqr_1024_epilogue:
 	ret
+.cfi_endproc
 .size	rsaz_1024_sqr_avx2,.-rsaz_1024_sqr_avx2
 ___
 }
@@ -893,13 +881,21 @@ $code.=<<___;
 .type	rsaz_1024_mul_avx2,\@function,5
 .align	64
 rsaz_1024_mul_avx2:
+.cfi_startproc
 	lea	(%rsp), %rax
+.cfi_def_cfa_register	%rax
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 ___
 $code.=<<___ if ($win64);
 	vzeroupper
@@ -918,6 +914,7 @@ $code.=<<___ if ($win64);
 ___
 $code.=<<___;
 	mov	%rax,%rbp
+.cfi_def_cfa_register	%rbp
 	vzeroall
 	mov	%rdx, $bp	# reassigned argument
 	sub	\$64,%rsp
@@ -1070,10 +1067,10 @@ $code.=<<___;
 	vpmuludq	32*6-128($np),$Yi,$TEMP1
 	vpaddq		$TEMP1,$ACC6,$ACC6
 	vpmuludq	32*7-128($np),$Yi,$TEMP2
-	 vpblendd	\$3, $ZERO, $ACC9, $ACC9	# correct $ACC3
+	 vpblendd	\$3, $ZERO, $ACC9, $TEMP1	# correct $ACC3
 	vpaddq		$TEMP2,$ACC7,$ACC7
 	vpmuludq	32*8-128($np),$Yi,$TEMP0
-	 vpaddq		$ACC9, $ACC3, $ACC3		# correct $ACC3
+	 vpaddq		$TEMP1, $ACC3, $ACC3		# correct $ACC3
 	vpaddq		$TEMP0,$ACC8,$ACC8
 
 	mov	%rbx, %rax
@@ -1086,7 +1083,9 @@ $code.=<<___;
 	 vmovdqu	-8+32*2-128($ap),$TEMP2
 
 	mov	$r1, %rax
+	 vpblendd	\$0xfc, $ZERO, $ACC9, $ACC9	# correct $ACC3
 	imull	$n0, %eax
+	 vpaddq		$ACC9,$ACC4,$ACC4		# correct $ACC3
 	and	\$0x1fffffff, %eax
 
 	 imulq	16-128($ap),%rbx
@@ -1322,15 +1321,12 @@ ___
 #	But as we underutilize resources, it's possible to correct in
 #	each iteration with marginal performance loss. But then, as
 #	we do it in each iteration, we can correct less digits, and
-#	avoid performance penalties completely. Also note that we
-#	correct only three digits out of four. This works because
-#	most significant digit is subjected to less additions.
+#	avoid performance penalties completely.
 
 $TEMP0 = $ACC9;
 $TEMP3 = $Bi;
 $TEMP4 = $Yi;
 $code.=<<___;
-	vpermq		\$0, $AND_MASK, $AND_MASK
 	vpaddq		(%rsp), $TEMP1, $ACC0
 
 	vpsrlq		\$29, $ACC0, $TEMP1
@@ -1444,15 +1440,17 @@ $code.=<<___;
 	vpaddq		$TEMP4, $ACC8, $ACC8
 
 	vmovdqu		$ACC4, 128-128($rp)
-	vmovdqu		$ACC5, 160-128($rp)    
+	vmovdqu		$ACC5, 160-128($rp)
 	vmovdqu		$ACC6, 192-128($rp)
 	vmovdqu		$ACC7, 224-128($rp)
 	vmovdqu		$ACC8, 256-128($rp)
 	vzeroupper
 
 	mov	%rbp, %rax
+.cfi_def_cfa_register	%rax
 ___
 $code.=<<___ if ($win64);
+.Lmul_1024_in_tail:
 	movaps	-0xd8(%rax),%xmm6
 	movaps	-0xc8(%rax),%xmm7
 	movaps	-0xb8(%rax),%xmm8
@@ -1466,14 +1464,22 @@ $code.=<<___ if ($win64);
 ___
 $code.=<<___;
 	mov	-48(%rax),%r15
+.cfi_restore	%r15
 	mov	-40(%rax),%r14
+.cfi_restore	%r14
 	mov	-32(%rax),%r13
+.cfi_restore	%r13
 	mov	-24(%rax),%r12
+.cfi_restore	%r12
 	mov	-16(%rax),%rbp
+.cfi_restore	%rbp
 	mov	-8(%rax),%rbx
+.cfi_restore	%rbx
 	lea	(%rax),%rsp		# restore %rsp
+.cfi_def_cfa_register	%rsp
 .Lmul_1024_epilogue:
 	ret
+.cfi_endproc
 .size	rsaz_1024_mul_avx2,.-rsaz_1024_mul_avx2
 ___
 }
@@ -1486,6 +1492,7 @@ $code.=<<___;
 .type	rsaz_1024_red2norm_avx2,\@abi-omnipotent
 .align	32
 rsaz_1024_red2norm_avx2:
+.cfi_startproc
 	sub	\$-128,$inp	# size optimization
 	xor	%rax,%rax
 ___
@@ -1519,12 +1526,14 @@ ___
 }
 $code.=<<___;
 	ret
+.cfi_endproc
 .size	rsaz_1024_red2norm_avx2,.-rsaz_1024_red2norm_avx2
 
 .globl	rsaz_1024_norm2red_avx2
 .type	rsaz_1024_norm2red_avx2,\@abi-omnipotent
 .align	32
 rsaz_1024_norm2red_avx2:
+.cfi_startproc
 	sub	\$-128,$out	# size optimization
 	mov	($inp),@T[0]
 	mov	\$0x1fffffff,%eax
@@ -1556,6 +1565,7 @@ $code.=<<___;
 	mov	@T[0],`8*($j+2)-128`($out)
 	mov	@T[0],`8*($j+3)-128`($out)
 	ret
+.cfi_endproc
 .size	rsaz_1024_norm2red_avx2,.-rsaz_1024_norm2red_avx2
 ___
 }
@@ -1567,6 +1577,7 @@ $code.=<<___;
 .type	rsaz_1024_scatter5_avx2,\@abi-omnipotent
 .align	32
 rsaz_1024_scatter5_avx2:
+.cfi_startproc
 	vzeroupper
 	vmovdqu	.Lscatter_permd(%rip),%ymm5
 	shl	\$4,$power
@@ -1586,14 +1597,17 @@ rsaz_1024_scatter5_avx2:
 
 	vzeroupper
 	ret
+.cfi_endproc
 .size	rsaz_1024_scatter5_avx2,.-rsaz_1024_scatter5_avx2
 
 .globl	rsaz_1024_gather5_avx2
 .type	rsaz_1024_gather5_avx2,\@abi-omnipotent
 .align	32
 rsaz_1024_gather5_avx2:
+.cfi_startproc
 	vzeroupper
 	mov	%rsp,%r11
+.cfi_def_cfa_register	%r11
 ___
 $code.=<<___ if ($win64);
 	lea	-0x88(%rsp),%rax
@@ -1731,11 +1745,13 @@ $code.=<<___ if ($win64);
 	movaps	-0x38(%r11),%xmm13
 	movaps	-0x28(%r11),%xmm14
 	movaps	-0x18(%r11),%xmm15
-.LSEH_end_rsaz_1024_gather5:
 ___
 $code.=<<___;
 	lea	(%r11),%rsp
+.cfi_def_cfa_register	%rsp
 	ret
+.cfi_endproc
+.LSEH_end_rsaz_1024_gather5:
 .size	rsaz_1024_gather5_avx2,.-rsaz_1024_gather5_avx2
 ___
 }
@@ -1763,7 +1779,7 @@ $code.=<<___;
 
 .align	64
 .Land_mask:
-	.quad	0x1fffffff,0x1fffffff,0x1fffffff,-1
+	.quad	0x1fffffff,0x1fffffff,0x1fffffff,0x1fffffff
 .Lscatter_permd:
 	.long	0,2,4,6,7,7,7,7
 .Lgather_permd:
@@ -1808,14 +1824,17 @@ rsaz_se_handler:
 	cmp	%r10,%rbx		# context->Rip<prologue label
 	jb	.Lcommon_seh_tail
 
-	mov	152($context),%rax	# pull context->Rsp
-
 	mov	4(%r11),%r10d		# HandlerData[1]
 	lea	(%rsi,%r10),%r10	# epilogue label
 	cmp	%r10,%rbx		# context->Rip>=epilogue label
 	jae	.Lcommon_seh_tail
 
-	mov	160($context),%rax	# pull context->Rbp
+	mov	160($context),%rbp	# pull context->Rbp
+
+	mov	8(%r11),%r10d		# HandlerData[2]
+	lea	(%rsi,%r10),%r10	# "in tail" label
+	cmp	%r10,%rbx		# context->Rip>="in tail" label
+	cmovc	%rbp,%rax
 
 	mov	-48(%rax),%r15
 	mov	-40(%rax),%r14
@@ -1893,11 +1912,13 @@ rsaz_se_handler:
 .LSEH_info_rsaz_1024_sqr_avx2:
 	.byte	9,0,0,0
 	.rva	rsaz_se_handler
-	.rva	.Lsqr_1024_body,.Lsqr_1024_epilogue
+	.rva	.Lsqr_1024_body,.Lsqr_1024_epilogue,.Lsqr_1024_in_tail
+	.long	0
 .LSEH_info_rsaz_1024_mul_avx2:
 	.byte	9,0,0,0
 	.rva	rsaz_se_handler
-	.rva	.Lmul_1024_body,.Lmul_1024_epilogue
+	.rva	.Lmul_1024_body,.Lmul_1024_epilogue,.Lmul_1024_in_tail
+	.long	0
 .LSEH_info_rsaz_1024_gather5:
 	.byte	0x01,0x36,0x17,0x0b
 	.byte	0x36,0xf8,0x09,0x00	# vmovaps 0x90(rsp),xmm15
@@ -1958,4 +1979,4 @@ rsaz_1024_gather5_avx2:
 ___
 }}}
 
-close STDOUT;
+close STDOUT or die "error closing STDOUT: $!";

@@ -5,25 +5,34 @@
 #ifndef V8_COMPILER_TYPER_H_
 #define V8_COMPILER_TYPER_H_
 
+#include "src/common/globals.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/operation-typer.h"
-#include "src/types.h"
 
 namespace v8 {
 namespace internal {
 
-// Forward declarations.
-class TypeCache;
+class TickCounter;
 
 namespace compiler {
 
+// Forward declarations.
 class LoopVariableOptimizer;
-class OperationTyper;
 
-class Typer {
+class V8_EXPORT_PRIVATE Typer {
  public:
-  Typer(Isolate* isolate, Graph* graph);
+  enum Flag : uint8_t {
+    kNoFlags = 0,
+    kThisIsReceiver = 1u << 0,       // Parameter this is an Object.
+    kNewTargetIsReceiver = 1u << 1,  // Parameter new.target is an Object.
+  };
+  using Flags = base::Flags<Flag>;
+
+  Typer(JSHeapBroker* broker, Flags flags, Graph* graph,
+        TickCounter* tick_counter);
   ~Typer();
+  Typer(const Typer&) = delete;
+  Typer& operator=(const Typer&) = delete;
 
   void Run();
   // TODO(bmeurer,jarin): Remove this once we have a notion of "roots" on Graph.
@@ -34,25 +43,25 @@ class Typer {
   class Visitor;
   class Decorator;
 
+  Flags flags() const { return flags_; }
   Graph* graph() const { return graph_; }
   Zone* zone() const { return graph()->zone(); }
-  Isolate* isolate() const { return isolate_; }
   OperationTyper* operation_typer() { return &operation_typer_; }
+  JSHeapBroker* broker() const { return broker_; }
 
-  Isolate* const isolate_;
+  Flags const flags_;
   Graph* const graph_;
   Decorator* decorator_;
-  TypeCache const& cache_;
+  TypeCache const* cache_;
+  JSHeapBroker* broker_;
   OperationTyper operation_typer_;
+  TickCounter* const tick_counter_;
 
-  Type* singleton_false_;
-  Type* singleton_true_;
-  Type* singleton_the_hole_;
-  Type* falsish_;
-  Type* truish_;
-
-  DISALLOW_COPY_AND_ASSIGN(Typer);
+  Type singleton_false_;
+  Type singleton_true_;
 };
+
+DEFINE_OPERATORS_FOR_FLAGS(Typer::Flags)
 
 }  // namespace compiler
 }  // namespace internal

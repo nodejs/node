@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --experimental-stack-trace-frames
+
 var realms = [Realm.current(), Realm.create()];
 
 // Check stack trace filtering across security contexts.
@@ -34,17 +36,17 @@ function assertNotIn(thrower, error) {
 
 Realm.eval(realms[1], script);
 assertSame(2, Realm.shared.error_0.length);
-assertSame(3, Realm.shared.error_1.length);
+assertSame(4, Realm.shared.error_1.length);
 
-assertTrue(Realm.shared.thrower_1 === Realm.shared.error_1[1].getFunction());
+assertTrue(Realm.shared.thrower_1 === Realm.shared.error_1[2].getFunction());
 assertNotIn(Realm.shared.thrower_0, Realm.shared.error_0);
 assertNotIn(Realm.shared.thrower_0, Realm.shared.error_1);
 
 Realm.eval(realms[0], script);
-assertSame(4, Realm.shared.error_0.length);
-assertSame(3, Realm.shared.error_1.length);
+assertSame(6, Realm.shared.error_0.length);
+assertSame(4, Realm.shared.error_1.length);
 
-assertTrue(Realm.shared.thrower_0 === Realm.shared.error_0[1].getFunction());
+assertTrue(Realm.shared.thrower_0 === Realm.shared.error_0[2].getFunction());
 assertNotIn(Realm.shared.thrower_1, Realm.shared.error_0);
 assertNotIn(Realm.shared.thrower_1, Realm.shared.error_1);
 
@@ -96,6 +98,8 @@ var ctor_a_script =
 var ctor_b_script = "Function.bind(this, 'return 1;')";
 var ctor_c_script =
     "(function() { return Function.call(this, 'return 1;'); })";
+// Also check Promise constructor.
+var promise_ctor_script = "Promise";
 Realm.shared = {
   ctor_0 : Realm.eval(realms[0], ctor_script),
   ctor_1 : Realm.eval(realms[1], ctor_script),
@@ -105,9 +109,12 @@ Realm.shared = {
   ctor_b_1 : Realm.eval(realms[1], ctor_b_script),
   ctor_c_0 : Realm.eval(realms[0], ctor_c_script),
   ctor_c_1 : Realm.eval(realms[1], ctor_c_script),
+  promise_ctor_0 : Realm.eval(realms[0], promise_ctor_script),
+  promise_ctor_1 : Realm.eval(realms[1], promise_ctor_script),
 }
 var script_0 = "                                                               \
   var ctor_0 = Realm.shared.ctor_0;                                            \
+  var promise_ctor_0 = Realm.shared.promise_ctor_0;                            \
   Realm.shared.direct_0 = ctor_0('return 1');                                  \
   Realm.shared.indirect_0 = (function() { return ctor_0('return 1;'); })();    \
   Realm.shared.apply_0 = ctor_0.apply(this, ['return 1']);                     \
@@ -118,6 +125,7 @@ var script_0 = "                                                               \
   Realm.shared.a_0 = Realm.shared.ctor_a_0();                                  \
   Realm.shared.b_0 = Realm.shared.ctor_b_0();                                  \
   Realm.shared.c_0 = Realm.shared.ctor_c_0();                                  \
+  Realm.shared.p_0 = new promise_ctor_0((res,rej) => res(1));                  \
 ";
 script = script_0 + script_0.replace(/_0/g, "_1");
 Realm.eval(realms[0], script);
@@ -131,6 +139,7 @@ assertSame(1, Realm.shared.reflect_0());
 assertSame(1, Realm.shared.a_0());
 assertSame(1, Realm.shared.b_0());
 assertSame(1, Realm.shared.c_0());
+assertInstanceof(Realm.shared.p_0, Realm.shared.promise_ctor_0);
 assertSame(undefined, Realm.shared.direct_1);
 assertSame(undefined, Realm.shared.indirect_1);
 assertSame(undefined, Realm.shared.apply_1);
@@ -141,6 +150,7 @@ assertSame(undefined, Realm.shared.reflect_1);
 assertSame(undefined, Realm.shared.a_1);
 assertSame(undefined, Realm.shared.b_1);
 assertSame(undefined, Realm.shared.c_1);
+assertSame(undefined, Realm.shared.p_1);
 Realm.eval(realms[1], script);
 assertSame(undefined, Realm.shared.direct_0);
 assertSame(undefined, Realm.shared.indirect_0);
@@ -152,6 +162,7 @@ assertSame(undefined, Realm.shared.reflect_0);
 assertSame(undefined, Realm.shared.a_0);
 assertSame(undefined, Realm.shared.b_0);
 assertSame(undefined, Realm.shared.c_0);
+assertSame(undefined, Realm.shared.p_0);
 assertSame(1, Realm.shared.direct_1());
 assertSame(1, Realm.shared.indirect_1());
 assertSame(1, Realm.shared.apply_1());
@@ -162,3 +173,4 @@ assertSame(1, Realm.shared.reflect_1());
 assertSame(1, Realm.shared.a_1());
 assertSame(1, Realm.shared.b_1());
 assertSame(1, Realm.shared.c_1());
+assertInstanceof(Realm.shared.p_1, Realm.shared.promise_ctor_1);

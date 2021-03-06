@@ -1,4 +1,0 @@
-*%(basename)s:12: SyntaxError: Unexpected expression inside tail call
-  return continue new f()  ;
-                  ^^^^^^^
-SyntaxError: Unexpected expression inside tail call

@@ -5,16 +5,19 @@ const assert = require('assert');
 const dgram = require('dgram');
 const multicastAddress = '224.0.0.114';
 
-const setup = () => {
-  return dgram.createSocket({type: 'udp4', reuseAddr: true});
-};
+const setup = dgram.createSocket.bind(dgram, { type: 'udp4', reuseAddr: true });
 
 // addMembership() on closed socket should throw
 {
   const socket = setup();
   socket.close(common.mustCall(() => {
-    assert.throws(() => { socket.addMembership(multicastAddress); },
-                  /Not running/);
+    assert.throws(() => {
+      socket.addMembership(multicastAddress);
+    }, {
+      code: 'ERR_SOCKET_DGRAM_NOT_RUNNING',
+      name: 'Error',
+      message: /^Not running$/
+    });
   }));
 }
 
@@ -22,66 +25,130 @@ const setup = () => {
 {
   const socket = setup();
   socket.close(common.mustCall(() => {
-    assert.throws(() => { socket.dropMembership(multicastAddress); },
-                  /Not running/);
+    assert.throws(() => {
+      socket.dropMembership(multicastAddress);
+    }, {
+      code: 'ERR_SOCKET_DGRAM_NOT_RUNNING',
+      name: 'Error',
+      message: /^Not running$/
+    });
   }));
 }
 
 // addMembership() with no argument should throw
 {
   const socket = setup();
-  assert.throws(() => { socket.addMembership(); },
-                /multicast address must be specified/);
+  assert.throws(() => {
+    socket.addMembership();
+  }, {
+    code: 'ERR_MISSING_ARGS',
+    name: 'TypeError',
+    message: /^The "multicastAddress" argument must be specified$/
+  });
   socket.close();
 }
 
 // dropMembership() with no argument should throw
 {
   const socket = setup();
-  assert.throws(() => { socket.dropMembership(); },
-                /multicast address must be specified/);
+  assert.throws(() => {
+    socket.dropMembership();
+  }, {
+    code: 'ERR_MISSING_ARGS',
+    name: 'TypeError',
+    message: /^The "multicastAddress" argument must be specified$/
+  });
   socket.close();
 }
 
 // addMembership() with invalid multicast address should throw
 {
   const socket = setup();
-  assert.throws(() => { socket.addMembership('256.256.256.256'); }, /EINVAL/);
+  assert.throws(() => { socket.addMembership('256.256.256.256'); },
+                /^Error: addMembership EINVAL$/);
   socket.close();
 }
 
 // dropMembership() with invalid multicast address should throw
 {
   const socket = setup();
-  assert.throws(() => { socket.dropMembership('256.256.256.256'); }, /EINVAL/);
+  assert.throws(() => { socket.dropMembership('256.256.256.256'); },
+                /^Error: dropMembership EINVAL$/);
   socket.close();
 }
 
-// addMembership() with valid socket and multicast address should not throw
+// addSourceSpecificMembership with invalid sourceAddress should throw
 {
   const socket = setup();
-  assert.doesNotThrow(() => { socket.addMembership(multicastAddress); });
+  assert.throws(() => {
+    socket.addSourceSpecificMembership(0, multicastAddress);
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "sourceAddress" argument must be of type string. ' +
+    'Received type number (0)'
+  });
   socket.close();
 }
 
-// dropMembership() without previous addMembership should throw
+// addSourceSpecificMembership with invalid sourceAddress should throw
 {
   const socket = setup();
-  assert.throws(
-    () => { socket.dropMembership(multicastAddress); },
-    /EADDRNOTAVAIL/
-  );
+  assert.throws(() => {
+    socket.addSourceSpecificMembership(multicastAddress, 0);
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "groupAddress" argument must be of type string. ' +
+    'Received type number (0)'
+  });
   socket.close();
 }
 
-// dropMembership() after addMembership() should not throw
+// addSourceSpecificMembership with invalid groupAddress should throw
 {
   const socket = setup();
-  assert.doesNotThrow(
-    () => {
-      socket.addMembership(multicastAddress);
-      socket.dropMembership(multicastAddress);
-    }
-  );
+  assert.throws(() => {
+    socket.addSourceSpecificMembership(multicastAddress, '0');
+  }, {
+    code: 'EINVAL',
+    message: 'addSourceSpecificMembership EINVAL'
+  });
+  socket.close();
+}
+
+// dropSourceSpecificMembership with invalid sourceAddress should throw
+{
+  const socket = setup();
+  assert.throws(() => {
+    socket.dropSourceSpecificMembership(0, multicastAddress);
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "sourceAddress" argument must be of type string. ' +
+    'Received type number (0)'
+  });
+  socket.close();
+}
+
+// dropSourceSpecificMembership with invalid groupAddress should throw
+{
+  const socket = setup();
+  assert.throws(() => {
+    socket.dropSourceSpecificMembership(multicastAddress, 0);
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "groupAddress" argument must be of type string. ' +
+    'Received type number (0)'
+  });
+  socket.close();
+}
+
+// dropSourceSpecificMembership with invalid UDP should throw
+{
+  const socket = setup();
+  assert.throws(() => {
+    socket.dropSourceSpecificMembership(multicastAddress, '0');
+  }, {
+    code: 'EINVAL',
+    message: 'dropSourceSpecificMembership EINVAL'
+  });
   socket.close();
 }

@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: mixed
-execute: yes
 wrap: yes
 
 ---
@@ -15,12 +13,11 @@ frame size: 0
 parameter count: 1
 bytecode array length: 5
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(CreateClosure), U8(0), U8(2),
-  /*   55 S> */ B(Return),
+  /*   34 S> */ B(CreateClosure), U8(0), U8(0), U8(2),
+  /*   54 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::SHARED_FUNCTION_INFO_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
 ]
@@ -29,19 +26,17 @@ handlers: [
 snippet: "
   return (function(){ })()
 "
-frame size: 2
+frame size: 1
 parameter count: 1
-bytecode array length: 14
+bytecode array length: 10
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(LdrUndefined), R(1),
-                B(CreateClosure), U8(0), U8(2),
+  /*   34 S> */ B(CreateClosure), U8(0), U8(0), U8(2),
                 B(Star), R(0),
-  /*   56 E> */ B(Call), R(0), R(1), U8(1), U8(1),
-  /*   59 S> */ B(Return),
+  /*   56 E> */ B(CallUndefinedReceiver0), R(0), U8(0),
+  /*   58 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::SHARED_FUNCTION_INFO_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
 ]
@@ -50,21 +45,19 @@ handlers: [
 snippet: "
   return (function(x){ return x; })(1)
 "
-frame size: 3
+frame size: 2
 parameter count: 1
-bytecode array length: 18
+bytecode array length: 15
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(LdrUndefined), R(1),
-                B(CreateClosure), U8(0), U8(2),
+  /*   34 S> */ B(CreateClosure), U8(0), U8(0), U8(2),
                 B(Star), R(0),
-                B(LdaSmi), U8(1),
-                B(Star), R(2),
-  /*   67 E> */ B(Call), R(0), R(1), U8(2), U8(1),
-  /*   71 S> */ B(Return),
+                B(LdaSmi), I8(1),
+                B(Star), R(1),
+  /*   67 E> */ B(CallUndefinedReceiver1), R(0), R(1), U8(0),
+  /*   70 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::SHARED_FUNCTION_INFO_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
 ]

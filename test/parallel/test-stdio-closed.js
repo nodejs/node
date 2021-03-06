@@ -2,28 +2,29 @@
 const common = require('../common');
 const assert = require('assert');
 const spawn = require('child_process').spawn;
+const fs = require('fs');
+const fixtures = require('../common/fixtures');
 
 if (common.isWindows) {
-  common.skip('platform not supported.');
+  if (process.argv[2] === 'child') {
+    /* eslint-disable no-unused-expressions */
+    process.stdin;
+    process.stdout;
+    process.stderr;
+    return;
+    /* eslint-enable no-unused-expressions */
+  }
+  const python = process.env.PYTHON || 'python';
+  const script = fixtures.path('spawn_closed_stdio.py');
+  const proc = spawn(python, [script, process.execPath, __filename, 'child']);
+  proc.on('exit', common.mustCall(function(exitCode) {
+    assert.strictEqual(exitCode, 0);
+  }));
   return;
 }
 
 if (process.argv[2] === 'child') {
-  try {
-    process.stdout.write('stdout', function() {
-      try {
-        process.stderr.write('stderr', function() {
-          process.exit(42);
-        });
-      } catch (e) {
-        process.exit(84);
-      }
-    });
-  } catch (e) {
-    assert.strictEqual(e.code, 'EBADF');
-    assert.strictEqual(e.message, 'EBADF: bad file descriptor, write');
-    process.exit(126);
-  }
+  [0, 1, 2].forEach((i) => fs.fstatSync(i));
   return;
 }
 
@@ -32,5 +33,5 @@ const cmd = `"${process.execPath}" "${__filename}" child 1>&- 2>&-`;
 const proc = spawn('/bin/sh', ['-c', cmd], { stdio: 'inherit' });
 
 proc.on('exit', common.mustCall(function(exitCode) {
-  assert.strictEqual(exitCode, common.isAix ? 126 : 42);
+  assert.strictEqual(exitCode, 0);
 }));

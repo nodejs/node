@@ -1,489 +1,505 @@
-// show the installed versions of packages
-//
-// --parseable creates output like this:
-// <fullpath>:<name@ver>:<realpath>:<flags>
-// Flags are a :-separated list of zero or more indicators
+const { resolve } = require('path')
+const { EOL } = require('os')
 
-module.exports = exports = ls
+const archy = require('archy')
+const chalk = require('chalk')
+const Arborist = require('@npmcli/arborist')
+const { breadth } = require('treeverse')
+const npa = require('npm-package-arg')
 
-var path = require('path')
-var url = require('url')
-var readPackageTree = require('read-package-tree')
-var log = require('npmlog')
-var archy = require('archy')
-var semver = require('semver')
-var color = require('ansicolors')
-var npa = require('npm-package-arg')
-var iferr = require('iferr')
-var npm = require('./npm.js')
-var mutateIntoLogicalTree = require('./install/mutate-into-logical-tree.js')
-var recalculateMetadata = require('./install/deps.js').recalculateMetadata
-var packageId = require('./utils/package-id.js')
-var usage = require('./utils/usage')
-var output = require('./utils/output.js')
+const usageUtil = require('./utils/usage.js')
+const completion = require('./utils/completion/installed-deep.js')
+const output = require('./utils/output.js')
 
-ls.usage = usage(
-  'ls',
-  'npm ls [[<@scope>/]<pkg> ...]'
-)
+const _depth = Symbol('depth')
+const _dedupe = Symbol('dedupe')
+const _filteredBy = Symbol('filteredBy')
+const _include = Symbol('include')
+const _invalid = Symbol('invalid')
+const _name = Symbol('name')
+const _missing = Symbol('missing')
+const _parent = Symbol('parent')
+const _problems = Symbol('problems')
+const _required = Symbol('required')
+const _type = Symbol('type')
 
-ls.completion = require('./utils/completion/installed-deep.js')
-
-function ls (args, silent, cb) {
-  if (typeof cb !== 'function') {
-    cb = silent
-    silent = false
-  }
-  var dir = path.resolve(npm.dir, '..')
-  readPackageTree(dir, andRecalculateMetadata(iferr(cb, function (physicalTree) {
-    lsFromTree(dir, physicalTree, args, silent, cb)
-  })))
-}
-
-function andRecalculateMetadata (next) {
-  return function (er, tree) {
-    recalculateMetadata(tree || {}, log, next)
-  }
-}
-
-function inList (list, value) {
-  return list.indexOf(value) !== -1
-}
-
-var lsFromTree = ls.fromTree = function (dir, physicalTree, args, silent, cb) {
-  if (typeof cb !== 'function') {
-    cb = silent
-    silent = false
+class LS {
+  constructor (npm) {
+    this.npm = npm
   }
 
-  // npm ls 'foo@~1.3' bar 'baz@<2'
-  if (!args) {
-    args = []
-  } else {
-    args = args.map(function (a) {
-      var p = npa(a)
-      var name = p.name
-      // When version spec is missing, we'll skip using it when filtering.
-      // Otherwise, `semver.validRange` would return '*', which won't
-      // match prerelease versions.
-      var ver = (p.rawSpec &&
-                 (semver.validRange(p.rawSpec) || ''))
-      return [ name, ver, a ]
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  get usage () {
+    return usageUtil(
+      'ls',
+      'npm ls [[<@scope>/]<pkg> ...]'
+    )
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  async completion (opts) {
+    return completion(this.npm, opts)
+  }
+
+  exec (args, cb) {
+    this.ls(args).then(() => cb()).catch(cb)
+  }
+
+  async ls (args) {
+    const {
+      all,
+      color,
+      depth,
+      json,
+      long,
+      global,
+      parseable,
+      prefix,
+      unicode,
+    } = this.npm.flatOptions
+    const path = global ? resolve(this.npm.globalDir, '..') : prefix
+    const dev = this.npm.config.get('dev')
+    const development = this.npm.config.get('development')
+    const link = this.npm.config.get('link')
+    const only = this.npm.config.get('only')
+    const prod = this.npm.config.get('prod')
+    const production = this.npm.config.get('production')
+
+    const arb = new Arborist({
+      global,
+      ...this.npm.flatOptions,
+      legacyPeerDeps: false,
+      path,
     })
-  }
+    const tree = await this.initTree({arb, args })
 
-  var data = mutateIntoLogicalTree.asReadInstalled(physicalTree)
+    const seenItems = new Set()
+    const seenNodes = new Map()
+    const problems = new Set()
 
-  pruneNestedExtraneous(data)
-  filterByEnv(data)
-  var bfs = filterFound(bfsify(data), args)
-  var lite = getLite(bfs)
+    // defines special handling of printed depth when filtering with args
+    const filterDefaultDepth = depth === null ? Infinity : depth
+    const depthToPrint = (all || args.length)
+      ? filterDefaultDepth
+      : (depth || 0)
 
-  if (silent) return cb(null, data, lite)
+    // add root node of tree to list of seenNodes
+    seenNodes.set(tree.path, tree)
 
-  var long = npm.config.get('long')
-  var json = npm.config.get('json')
-  var out
-  if (json) {
-    var seen = []
-    var d = long ? bfs : lite
-    // the raw data can be circular
-    out = JSON.stringify(d, function (k, o) {
-      if (typeof o === 'object') {
-        if (inList(seen, o)) return '[Circular]'
-        seen.push(o)
-      }
-      return o
-    }, 2)
-  } else if (npm.config.get('parseable')) {
-    out = makeParseable(bfs, long, dir)
-  } else if (data) {
-    out = makeArchy(bfs, long, dir)
-  }
-  output(out)
+    // tree traversal happens here, using treeverse.breadth
+    const result = await breadth({
+      tree,
+      // recursive method, `node` is going to be the current elem (starting from
+      // the `tree` obj) that was just visited in the `visit` method below
+      // `nodeResult` is going to be the returned `item` from `visit`
+      getChildren (node, nodeResult) {
+        const seenPaths = new Set()
+        const shouldSkipChildren =
+          !(node instanceof Arborist.Node) || (node[_depth] > depthToPrint)
+        return (shouldSkipChildren)
+          ? []
+          : [...(node.target || node).edgesOut.values()]
+            .filter(filterByEdgesTypes({
+              dev,
+              development,
+              link,
+              node,
+              prod,
+              production,
+              only,
+              tree,
+            }))
+            .map(mapEdgesToNodes({ seenPaths }))
+            .concat(appendExtraneousChildren({ node, seenPaths }))
+            .sort(sortAlphabetically)
+            .map(augmentNodesWithMetadata({
+              args,
+              currentDepth: node[_depth],
+              nodeResult,
+              seenNodes,
+            }))
+      },
+      // visit each `node` of the `tree`, returning an `item` - these are
+      // the elements that will be used to build the final output
+      visit (node) {
+        node[_problems] = getProblems(node, { global })
 
-  if (args.length && !data._found) process.exitCode = 1
+        const item = json
+          ? getJsonOutputItem(node, { global, long })
+          : parseable
+            ? null
+            : getHumanOutputItem(node, { args, color, global, long })
 
-  var er
-  // if any errors were found, then complain and exit status 1
-  if (lite.problems && lite.problems.length) {
-    er = lite.problems.join('\n')
-  }
-  cb(er, data, lite)
-}
-
-function pruneNestedExtraneous (data, visited) {
-  visited = visited || []
-  visited.push(data)
-  for (var i in data.dependencies) {
-    if (data.dependencies[i].extraneous) {
-      data.dependencies[i].dependencies = {}
-    } else if (visited.indexOf(data.dependencies[i]) === -1) {
-      pruneNestedExtraneous(data.dependencies[i], visited)
-    }
-  }
-}
-
-function filterByEnv (data) {
-  var dev = npm.config.get('dev') || /^dev(elopment)?$/.test(npm.config.get('only'))
-  var production = npm.config.get('production') || /^prod(uction)?$/.test(npm.config.get('only'))
-  var dependencies = {}
-  var devKeys = Object.keys(data.devDependencies || [])
-  var prodKeys = Object.keys(data._dependencies || [])
-  Object.keys(data.dependencies).forEach(function (name) {
-    if (!dev && inList(devKeys, name) && data.dependencies[name].missing) {
-      return
-    }
-
-    if ((dev && inList(devKeys, name)) ||            // only --dev
-        (production && inList(prodKeys, name)) ||    // only --production
-        (!dev && !production)) {                            // no --production|--dev|--only=xxx
-      dependencies[name] = data.dependencies[name]
-    }
-  })
-  data.dependencies = dependencies
-}
-
-function alphasort (a, b) {
-  a = a.toLowerCase()
-  b = b.toLowerCase()
-  return a > b ? 1
-       : a < b ? -1 : 0
-}
-
-function isCruft (data) {
-  return data.extraneous && data.error && data.error.code === 'ENOTDIR'
-}
-
-function getLite (data, noname, depth) {
-  var lite = {}
-
-  if (isCruft(data)) return lite
-
-  var maxDepth = npm.config.get('depth')
-
-  if (typeof depth === 'undefined') depth = 0
-  if (!noname && data.name) lite.name = data.name
-  if (data.version) lite.version = data.version
-  if (data.extraneous) {
-    lite.extraneous = true
-    lite.problems = lite.problems || []
-    lite.problems.push('extraneous: ' + packageId(data) + ' ' + (data.path || ''))
-  }
-
-  if (data.error && data.path !== path.resolve(npm.globalDir, '..') &&
-      (data.error.code !== 'ENOENT' || noname)) {
-    lite.invalid = true
-    lite.problems = lite.problems || []
-    var message = data.error.message
-    lite.problems.push('error in ' + data.path + ': ' + message)
-  }
-
-  if (data._from) {
-    lite.from = data._from
-  }
-
-  if (data._resolved) {
-    lite.resolved = data._resolved
-  }
-
-  if (data.invalid) {
-    lite.invalid = true
-    lite.problems = lite.problems || []
-    lite.problems.push('invalid: ' +
-                       packageId(data) +
-                       ' ' + (data.path || ''))
-  }
-
-  if (data.peerInvalid) {
-    lite.peerInvalid = true
-    lite.problems = lite.problems || []
-    lite.problems.push('peer dep not met: ' +
-                       packageId(data) +
-                       ' ' + (data.path || ''))
-  }
-
-  var deps = (data.dependencies && Object.keys(data.dependencies)) || []
-  if (deps.length) {
-    lite.dependencies = deps.map(function (d) {
-      var dep = data.dependencies[d]
-      if (dep.missing && !dep.optional) {
-        lite.problems = lite.problems || []
-        var p
-        if (data.depth > maxDepth) {
-          p = 'max depth reached: '
-        } else {
-          p = 'missing: '
+        // loop through list of node problems to add them to global list
+        if (node[_include]) {
+          for (const problem of node[_problems])
+            problems.add(problem)
         }
-        p += d + '@' + dep.requiredBy +
-            ', required by ' +
-            packageId(data)
-        lite.problems.push(p)
-        return [d, { required: dep.requiredBy, missing: true }]
-      } else if (dep.peerMissing) {
-        lite.problems = lite.problems || []
-        dep.peerMissing.forEach(function (missing) {
-          var pdm = 'peer dep missing: ' +
-              missing.requires +
-              ', required by ' +
-              missing.requiredBy
-          lite.problems.push(pdm)
-        })
-        return [d, { required: dep, peerMissing: true }]
-      } else if (npm.config.get('json')) {
-        if (depth === maxDepth) delete dep.dependencies
-        return [d, getLite(dep, true, depth + 1)]
-      }
-      return [d, getLite(dep, true)]
-    }).reduce(function (deps, d) {
-      if (d[1].problems) {
-        lite.problems = lite.problems || []
-        lite.problems.push.apply(lite.problems, d[1].problems)
-      }
-      deps[d[0]] = d[1]
-      return deps
-    }, {})
-  }
-  return lite
-}
 
-function bfsify (root) {
-  // walk over the data, and turn it from this:
-  // +-- a
-  // |   `-- b
-  // |       `-- a (truncated)
-  // `--b (truncated)
-  // into this:
-  // +-- a
-  // `-- b
-  // which looks nicer
-  var queue = [root]
-  var seen = [root]
+        seenItems.add(item)
 
-  while (queue.length) {
-    var current = queue.shift()
-    var deps = current.dependencies = current.dependencies || {}
-    Object.keys(deps).forEach(function (d) {
-      var dep = deps[d]
-      if (dep.missing) return
-      if (inList(seen, dep)) {
-        if (npm.config.get('parseable') || !npm.config.get('long')) {
-          delete deps[d]
-          return
-        } else {
-          dep = deps[d] = Object.create(dep)
-          dep.dependencies = {}
-        }
-      }
-      queue.push(dep)
-      seen.push(dep)
+        // return a promise so we don't blow the stack
+        return Promise.resolve(item)
+      },
     })
-  }
 
-  return root
-}
+    // handle the special case of a broken package.json in the root folder
+    const [rootError] = tree.errors.filter(e =>
+      e.code === 'EJSONPARSE' && e.path === resolve(path, 'package.json'))
 
-function filterFound (root, args) {
-  if (!args.length) return root
-  var deps = root.dependencies
-  if (deps) {
-    Object.keys(deps).forEach(function (depName) {
-      var dep = filterFound(deps[depName], args)
-      if (dep.peerMissing) return
+    output(
+      json
+        ? jsonOutput({ path, problems, result, rootError, seenItems })
+        : parseable
+          ? parseableOutput({ seenNodes, global, long })
+          : humanOutput({ color, result, seenItems, unicode })
+    )
 
-      // see if this one itself matches
-      var found = false
-      for (var ii = 0; !found && ii < args.length; ii++) {
-        var argName = args[ii][0]
-        var argVersion = args[ii][1]
-        var argRaw = args[ii][2]
-        if (depName === argName && argVersion) {
-          found = semver.satisfies(dep.version, argVersion, true)
-        } else if (depName === argName) {
-          // If version is missing from arg, just do a name match.
-          found = true
-        } else if (dep.path === argRaw) {
-          found = true
-        }
-      }
-      // included explicitly
-      if (found) dep._found = true
-      // included because a child was included
-      if (dep._found && !root._found) root._found = 1
-      // not included
-      if (!dep._found) delete deps[depName]
-    })
-  }
-  if (!root._found) root._found = false
-  return root
-}
+    // if filtering items, should exit with error code on no results
+    if (result && !result[_include] && args.length)
+      process.exitCode = 1
 
-function makeArchy (data, long, dir) {
-  var out = makeArchy_(data, long, dir, 0)
-  return archy(out, '', { unicode: npm.config.get('unicode') })
-}
-
-function makeArchy_ (data, long, dir, depth, parent, d) {
-  if (data.missing) {
-    if (depth - 1 <= npm.config.get('depth')) {
-      // just missing
-      var unmet = 'UNMET ' + (data.optional ? 'OPTIONAL ' : '') + 'DEPENDENCY'
-      if (npm.color) {
-        if (data.optional) {
-          unmet = color.bgBlack(color.yellow(unmet))
-        } else {
-          unmet = color.bgBlack(color.red(unmet))
-        }
-      }
-      data = unmet + ' ' + d + '@' + data.requiredBy
-    } else {
-      data = d + '@' + data.requiredBy
+    if (rootError) {
+      throw Object.assign(
+        new Error('Failed to parse root package.json'),
+        { code: 'EJSONPARSE' }
+      )
     }
-    return data
-  }
 
-  var out = {}
-  // the top level is a bit special.
-  out.label = data._id || ''
-  if (data._found === true && data._id) {
-    if (npm.color) {
-      out.label = color.bgBlack(color.yellow(out.label.trim())) + ' '
-    } else {
-      out.label = out.label.trim() + ' '
+    if (problems.size) {
+      throw Object.assign(
+        new Error([...problems].join(EOL)),
+        { code: 'ELSPROBLEMS' }
+      )
     }
   }
-  if (data.link) out.label += ' -> ' + data.link
 
-  if (data.invalid) {
-    if (data.realName !== data.name) out.label += ' (' + data.realName + ')'
-    var invalid = 'invalid'
-    if (npm.color) invalid = color.bgBlack(color.red(invalid))
-    out.label += ' ' + invalid
+  async initTree ({ arb, args }) {
+    const tree = await arb.loadActual()
+    tree[_include] = args.length === 0
+    tree[_depth] = 0
+
+    return tree
   }
+}
+module.exports = LS
 
-  if (data.peerInvalid) {
-    var peerInvalid = 'peer invalid'
-    if (npm.color) peerInvalid = color.bgBlack(color.red(peerInvalid))
-    out.label += ' ' + peerInvalid
+const isGitNode = (node) => {
+  if (!node.resolved)
+    return
+
+  try {
+    const { type } = npa(node.resolved)
+    return type === 'git' || type === 'hosted'
+  } catch (err) {
+    return false
   }
+}
 
-  if (data.peerMissing) {
-    var peerMissing = 'UNMET PEER DEPENDENCY'
-    if (npm.color) peerMissing = color.bgBlack(color.red(peerMissing))
-    out.label = peerMissing + ' ' + out.label
-  }
+const isOptional = (node) =>
+  node[_type] === 'optional' || node[_type] === 'peerOptional'
 
-  if (data.extraneous && data.path !== dir) {
-    var extraneous = 'extraneous'
-    if (npm.color) extraneous = color.bgBlack(color.green(extraneous))
-    out.label += ' ' + extraneous
-  }
+const isExtraneous = (node, { global }) =>
+  node.extraneous && !global
 
-  if (data.error && depth) {
-    var message = data.error.message
-    if (message.indexOf('\n')) message = message.slice(0, message.indexOf('\n'))
-    var error = 'error: ' + message
-    if (npm.color) error = color.bgRed(color.brightWhite(error))
-    out.label += ' ' + error
-  }
+const getProblems = (node, { global }) => {
+  const problems = new Set()
 
-  // add giturl to name@version
-  if (data._resolved) {
-    try {
-      var type = npa(data._resolved).type
-      var isGit = type === 'git' || type === 'hosted'
-      if (isGit) {
-        out.label += ' (' + data._resolved + ')'
-      }
-    } catch (ex) {
-      // npa threw an exception then it ain't git so whatev
+  if (node[_missing] && !isOptional(node))
+    problems.add(`missing: ${node.pkgid}, required by ${node[_missing]}`)
+
+  if (node[_invalid])
+    problems.add(`invalid: ${node.pkgid} ${node.path}`)
+
+  if (isExtraneous(node, { global }))
+    problems.add(`extraneous: ${node.pkgid} ${node.path}`)
+
+  return problems
+}
+
+// annotates _parent and _include metadata into the resulting
+// item obj allowing for filtering out results during output
+const augmentItemWithIncludeMetadata = (node, item) => {
+  item[_parent] = node[_parent]
+  item[_include] = node[_include]
+
+  // append current item to its parent.nodes which is the
+  // structure expected by archy in order to print tree
+  if (node[_include]) {
+    // includes all ancestors of included node
+    let p = node[_parent]
+    while (p) {
+      p[_include] = true
+      p = p[_parent]
     }
   }
+
+  return item
+}
+
+const getHumanOutputItem = (node, { args, color, global, long }) => {
+  const { pkgid, path } = node
+  let printable = pkgid
+
+  // special formatting for top-level package name
+  if (node.isRoot) {
+    const hasNoPackageJson = !Object.keys(node.package).length
+    if (hasNoPackageJson || global)
+      printable = path
+    else
+      printable += `${long ? EOL : ' '}${path}`
+  }
+
+  const highlightDepName =
+    color && args.length && node[_filteredBy]
+  const missingColor = isOptional(node)
+    ? chalk.yellow.bgBlack
+    : chalk.red.bgBlack
+  const missingMsg = `UNMET ${isOptional(node) ? 'OPTIONAL ' : ''}DEPENDENCY`
+  const label =
+    (
+      node[_missing]
+        ? (color ? missingColor(missingMsg) : missingMsg) + ' '
+        : ''
+    ) +
+    `${highlightDepName ? chalk.yellow.bgBlack(printable) : printable}` +
+    (
+      node[_dedupe]
+        ? ' ' + (color ? chalk.gray('deduped') : 'deduped')
+        : ''
+    ) +
+    (
+      node[_invalid]
+        ? ' ' + (color ? chalk.red.bgBlack('invalid') : 'invalid')
+        : ''
+    ) +
+    (
+      isExtraneous(node, { global })
+        ? ' ' + (color ? chalk.green.bgBlack('extraneous') : 'extraneous')
+        : ''
+    ) +
+    (isGitNode(node) ? ` (${node.resolved})` : '') +
+    (node.isLink ? ` -> ${node.realpath}` : '') +
+    (long ? `${EOL}${node.package.description || ''}` : '')
+
+  return augmentItemWithIncludeMetadata(node, { label, nodes: [] })
+}
+
+const getJsonOutputItem = (node, { global, long }) => {
+  const item = {}
+
+  if (node.version)
+    item.version = node.version
+
+  if (node.resolved)
+    item.resolved = node.resolved
+
+  item[_name] = node.name
+
+  // special formatting for top-level package name
+  const hasPackageJson =
+    node && node.package && Object.keys(node.package).length
+  if (node.isRoot && hasPackageJson)
+    item.name = node.package.name || node.name
 
   if (long) {
-    if (dir === data.path) out.label += '\n' + dir
-    out.label += '\n' + getExtras(data, dir)
-  } else if (dir === data.path) {
-    if (out.label) out.label += ' '
-    out.label += dir
-  }
-
-  // now all the children.
-  out.nodes = []
-  if (depth <= npm.config.get('depth')) {
-    out.nodes = Object.keys(data.dependencies || {})
-      .sort(alphasort).filter(function (d) {
-        return !isCruft(data.dependencies[d])
-      }).map(function (d) {
-        return makeArchy_(data.dependencies[d], long, dir, depth + 1, data, d)
-      })
-  }
-
-  if (out.nodes.length === 0 && data.path === dir) {
-    out.nodes = ['(empty)']
-  }
-
-  return out
-}
-
-function getExtras (data) {
-  var extras = []
-
-  if (data.description) extras.push(data.description)
-  if (data.repository) extras.push(data.repository.url)
-  if (data.homepage) extras.push(data.homepage)
-  if (data._from) {
-    var from = data._from
-    if (from.indexOf(data.name + '@') === 0) {
-      from = from.substr(data.name.length + 1)
+    item.name = item[_name]
+    const { dependencies, ...packageInfo } = node.package
+    Object.assign(item, packageInfo)
+    item.extraneous = false
+    item.path = node.path
+    item._dependencies = {
+      ...node.package.dependencies,
+      ...node.package.optionalDependencies,
     }
-    var u = url.parse(from)
-    if (u.protocol) extras.push(from)
+    item.devDependencies = node.package.devDependencies || {}
+    item.peerDependencies = node.package.peerDependencies || {}
   }
-  return extras.join('\n')
+
+  // augment json output items with extra metadata
+  if (isExtraneous(node, { global }))
+    item.extraneous = true
+
+  if (node[_invalid])
+    item.invalid = true
+
+  if (node[_missing] && !isOptional(node)) {
+    item.required = node[_required]
+    item.missing = true
+  }
+  if (node[_include] && node[_problems] && node[_problems].size)
+    item.problems = [...node[_problems]]
+
+  return augmentItemWithIncludeMetadata(node, item)
 }
 
-function makeParseable (data, long, dir, depth, parent, d) {
-  depth = depth || 0
-  if (depth > npm.config.get('depth')) return [ makeParseable_(data, long, dir, depth, parent, d) ]
-  return [ makeParseable_(data, long, dir, depth, parent, d) ]
-  .concat(Object.keys(data.dependencies || {})
-    .sort(alphasort).map(function (d) {
-      return makeParseable(data.dependencies[d], long, dir, depth + 1, data, d)
-    }))
-  .filter(function (x) { return x })
-  .join('\n')
+const filterByEdgesTypes = ({
+  dev,
+  development,
+  link,
+  node,
+  prod,
+  production,
+  only,
+  tree,
+}) => {
+  // filter deps by type, allows for: `npm ls --dev`, `npm ls --prod`,
+  // `npm ls --link`, `npm ls --only=dev`, etc
+  const filterDev = node === tree &&
+    (dev || development || /^dev(elopment)?$/.test(only))
+  const filterProd = node === tree &&
+    (prod || production || /^prod(uction)?$/.test(only))
+  const filterLink = node === tree && link
+
+  return (edge) =>
+    (filterDev ? edge.dev : true) &&
+    (filterProd ? (!edge.dev && !edge.peer && !edge.peerOptional) : true) &&
+    (filterLink ? (edge.to && edge.to.isLink) : true)
 }
 
-function makeParseable_ (data, long, dir, depth, parent, d) {
-  if (data.hasOwnProperty('_found') && data._found !== true) return ''
+const appendExtraneousChildren = ({ node, seenPaths }) =>
+  // extraneous children are not represented
+  // in edges out, so here we add them to the list:
+  [...node.children.values()]
+    .filter(i => !seenPaths.has(i.path) && i.extraneous)
 
-  if (data.missing) {
-    if (depth < npm.config.get('depth')) {
-      data = npm.config.get('long')
-           ? path.resolve(parent.path, 'node_modules', d) +
-             ':' + d + '@' + JSON.stringify(data.requiredBy) + ':INVALID:MISSING'
-           : ''
-    } else {
-      data = path.resolve(dir || '', 'node_modules', d || '') +
-             (npm.config.get('long')
-             ? ':' + d + '@' + JSON.stringify(data.requiredBy) +
-               ':' + // no realpath resolved
-               ':MAXDEPTH'
-             : '')
+const mapEdgesToNodes = ({ seenPaths }) => (edge) => {
+  let node = edge.to
+
+  // if the edge is linking to a missing node, we go ahead
+  // and create a new obj that will represent the missing node
+  if (edge.missing || (edge.optional && !node)) {
+    const { name, spec } = edge
+    const pkgid = `${name}@${spec}`
+    node = { name, pkgid, [_missing]: edge.from.pkgid }
+  }
+
+  // keeps track of a set of seen paths to avoid the edge case in which a tree
+  // item would appear twice given that it's a children of an extraneous item,
+  // so it's marked extraneous but it will ALSO show up in edgesOuts of
+  // its parent so it ends up as two diff nodes if we don't track it
+  if (node.path)
+    seenPaths.add(node.path)
+
+  node[_required] = edge.spec
+  node[_type] = edge.type
+  node[_invalid] = edge.invalid
+
+  return node
+}
+
+const filterByPositionalArgs = (args, { node }) =>
+  args.length > 0 ? args.some(
+    (spec) => (node.satisfies && node.satisfies(spec))
+  ) : true
+
+const augmentNodesWithMetadata = ({
+  args,
+  currentDepth,
+  nodeResult,
+  seenNodes,
+}) => (node) => {
+  // if the original edge was a deduped dep, treeverse will fail to
+  // revisit that node in tree traversal logic, so we make it so that
+  // we have a diff obj for deduped nodes:
+  if (seenNodes.has(node.path)) {
+    node = {
+      name: node.name,
+      version: node.version,
+      pkgid: node.pkgid,
+      package: node.package,
+      path: node.path,
+      isLink: node.isLink,
+      realpath: node.realpath,
+      [_invalid]: node[_invalid],
+      [_missing]: node[_missing],
+      [_dedupe]: true,
     }
-
-    return data
+  } else {
+    // keeps track of already seen nodes in order to check for dedupes
+    seenNodes.set(node.path, node)
   }
 
-  if (!npm.config.get('long')) return data.path
+  // _parent is going to be a ref to a treeverse-visited node (returned from
+  // getHumanOutputItem, getJsonOutputItem, etc) so that we have an easy
+  // shortcut to place new nodes in their right place during tree traversal
+  node[_parent] = nodeResult
+  // _include is the property that allow us to filter based on position args
+  // e.g: `npm ls foo`, `npm ls simple-output@2`
+  // _filteredBy is used to apply extra color info to the item that
+  // was used in args in order to filter
+  node[_filteredBy] = node[_include] =
+    filterByPositionalArgs(args, { node: seenNodes.get(node.path) })
+  // _depth keeps track of how many levels deep tree traversal currently is
+  // so that we can `npm ls --depth=1`
+  node[_depth] = currentDepth + 1
 
-  return data.path +
-         ':' + (data._id || '') +
-         ':' + (data.realPath !== data.path ? data.realPath : '') +
-         (data.extraneous ? ':EXTRANEOUS' : '') +
-         (data.error && data.path !== path.resolve(npm.globalDir, '..') ? ':ERROR' : '') +
-         (data.invalid ? ':INVALID' : '') +
-         (data.peerInvalid ? ':PEERINVALID' : '') +
-         (data.peerMissing ? ':PEERINVALID:MISSING' : '')
+  return node
+}
+
+const sortAlphabetically = (a, b) =>
+  a.pkgid.localeCompare(b.pkgid)
+
+const humanOutput = ({ color, result, seenItems, unicode }) => {
+  // we need to traverse the entire tree in order to determine which items
+  // should be included (since a nested transitive included dep will make it
+  // so that all its ancestors should be displayed)
+  // here is where we put items in their expected place for archy output
+  for (const item of seenItems) {
+    if (item[_include] && item[_parent])
+      item[_parent].nodes.push(item)
+  }
+
+  if (!result.nodes.length)
+    result.nodes = ['(empty)']
+
+  const archyOutput = archy(result, '', { unicode })
+  return color ? chalk.reset(archyOutput) : archyOutput
+}
+
+const jsonOutput = ({ path, problems, result, rootError, seenItems }) => {
+  if (problems.size)
+    result.problems = [...problems]
+
+  if (rootError) {
+    result.problems = [
+      ...(result.problems || []),
+      ...[`error in ${path}: Failed to parse root package.json`],
+    ]
+    result.invalid = true
+  }
+
+  // we need to traverse the entire tree in order to determine which items
+  // should be included (since a nested transitive included dep will make it
+  // so that all its ancestors should be displayed)
+  // here is where we put items in their expected place for json output
+  for (const item of seenItems) {
+    // append current item to its parent item.dependencies obj in order
+    // to provide a json object structure that represents the installed tree
+    if (item[_include] && item[_parent]) {
+      if (!item[_parent].dependencies)
+        item[_parent].dependencies = {}
+
+      item[_parent].dependencies[item[_name]] = item
+    }
+  }
+
+  return JSON.stringify(result, null, 2)
+}
+
+const parseableOutput = ({ global, long, seenNodes }) => {
+  let out = ''
+  for (const node of seenNodes.values()) {
+    if (node.path && node[_include]) {
+      out += node.path
+      if (long) {
+        out += `:${node.pkgid}`
+        out += node.path !== node.realpath ? `:${node.realpath}` : ''
+        out += isExtraneous(node, { global }) ? ':EXTRANEOUS' : ''
+        out += node[_invalid] ? ':INVALID' : ''
+      }
+      out += EOL
+    }
+  }
+  return out.trim()
 }

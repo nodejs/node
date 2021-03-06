@@ -27,16 +27,20 @@
 
 # This is Makefile for clang plugin part of gcmole tool. See README.
 
-LLVM_INCLUDE:=$(LLVM_SRC_ROOT)/include
-CLANG_INCLUDE:=$(LLVM_SRC_ROOT)/tools/clang/include
+LLVM_SRC_INCLUDE:=$(LLVM_SRC_ROOT)/include
+LLVM_BUILD_INCLUDE:=$(BUILD_ROOT)/include
+CLANG_SRC_INCLUDE:=$(CLANG_SRC_ROOT)/include
+CLANG_BUILD_INCLUDE:=$(BUILD_ROOT)/tools/clang/include
 
 libgcmole.so: gcmole.cc
-	$(CXX) -I$(LLVM_INCLUDE) -I$(CLANG_INCLUDE) -I. -D_DEBUG              \
+	$(CXX) -I$(LLVM_BUILD_INCLUDE) -I$(LLVM_SRC_INCLUDE)                  \
+	-I$(CLANG_BUILD_INCLUDE) -I$(CLANG_SRC_INCLUDE) -I. -D_DEBUG          \
 	-D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS         \
 	-D__STDC_LIMIT_MACROS -O3 -fomit-frame-pointer -fno-exceptions        \
 	-fno-rtti -fPIC -Woverloaded-virtual -Wcast-qual -fno-strict-aliasing \
 	-pedantic -Wno-long-long -Wall -W -Wno-unused-parameter               \
-	-Wwrite-strings -std=c++0x -shared -o libgcmole.so gcmole.cc
+	-Wwrite-strings -static-libstdc++ -std=c++0x -shared -o libgcmole.so  \
+	gcmole.cc
 
 clean:
 	$(RM) libgcmole.so

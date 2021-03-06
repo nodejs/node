@@ -3,20 +3,83 @@
 # found in the LICENSE file.
 
 [
-['byteorder == big', {
-  # TODO(mips-team): Fix Wasm for big-endian.
-  'WasmModuleVerifyTest*': [SKIP],
-  'WasmFunctionVerifyTest*': [SKIP],
-  'WasmDecoderTest.TableSwitch*': [SKIP],
-  'WasmDecoderTest.AllLoadMemCombinations': [SKIP],
-  'AstDecoderTest.AllLoadMemCombinations': [SKIP],
-  'AstDecoderTest.AllStoreMemCombinations': [SKIP],
-}],  # 'byteorder == big'
-['arch == x87', {
-  'Ieee754.Expm1': [SKIP],
-  'Ieee754.Cos': [SKIP],
-  'Ieee754.Tan': [SKIP],
-  'Ieee754.Acosh': [SKIP],
-  'Ieee754.Asinh': [SKIP],
-}],  # 'arch == x87'
+##############################################################################
+['system == macos and asan', {
+  # BUG(820416).
+  'BitsDeathTest*': [SKIP],
+  'LiveRangeUnitTest*': [SKIP],
+  'LoggingDeathTest*': [SKIP],
+  'LoggingTest.CompareClassTypes': [SKIP],
+  'LoggingTest.CompareWithDifferentSignedness': [SKIP],
+  'LoggingTest.CompareWithReferenceType': [SKIP],
+  'RandomNumberGenerator.NextSampleInvalidParam': [SKIP],
+  'RandomNumberGenerator.NextSampleSlowInvalidParam1': [SKIP],
+  'RandomNumberGenerator.NextSampleSlowInvalidParam2': [SKIP],
+}],  # system == macos and asan
+
+['system == macos and arch == arm64 and not simulator_run', {
+  # Throwing C++ exceptions doesn't work; probably because the unittests
+  # binary is built with -fno-exceptions?
+  'LanguageServerJson.LexerError': [SKIP],
+  'LanguageServerJson.ParserError': [SKIP],
+  'Torque.DoubleUnderScorePrefixIllegalForIdentifiers': [SKIP],
+  'Torque.Enums': [SKIP],
+  'Torque.ImportNonExistentFile': [SKIP],
+
+  # Test uses fancy signal handling. Needs investigation.
+  'MemoryAllocationPermissionsTest.DoTest': [SKIP],
+
+  # cppgc::internal::kGuardPageSize is smaller than kAppleArmPageSize.
+  'PageMemoryRegionTest.PlatformUsesGuardPages': [FAIL],
+
+  # Time tick resolution appears to be ~42 microseconds. Tests expect 1 us.
+  'TimeTicks.NowResolution': [FAIL],
+  'RuntimeCallStatsTest.BasicJavaScript': [SKIP],
+  'RuntimeCallStatsTest.FunctionLengthGetter': [SKIP],
+}],  # system == macos and arch == arm64 and not simulator_run
+
+##############################################################################
+['lite_mode or variant == jitless', {
+  # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
+  'ValueSerializerTestWithSharedArrayBufferClone.RoundTripWebAssemblyMemory': [SKIP],
+  'ValueSerializerTestWithWasm.*': [SKIP],
+}], # lite_mode or variant == jitless
+
+##############################################################################
+['system == aix', {
+  # PASE does not support detecting physical memory size
+  'SysInfoTest.AmountOfPhysicalMemory': [SKIP],
+}],  # system == aix
+
+##############################################################################
+['system == windows and asan', {
+  # BUG(893437).
+  'Torque*': [SKIP],
+
+  # Hangs on asan.
+  'PageMemoryRegionDeathTest*': [SKIP],
+}],  # system == windows and asan
+
+['system == windows and arch == x64 and mode == release', {
+  # BUG(992783).
+  'Torque.ConditionalFields': [SKIP],
+  'Torque.UsingUnderscorePrefixedIdentifierError': [SKIP],
+}],  # system == windows and arch == x64 and mode == release
+
+['tsan == True', {
+  # https://crbug.com/v8/9380
+  # The test is broken and needs to be fixed to use separate isolates.
+  'BackingStoreTest.RacyGrowWasmMemoryInPlace': [SKIP],
+}],  # tsan == True
+
+##############################################################################
+['not pointer_compression', {
+  # Tests are irrelevant without pointer compression
+  'DecompressionOptimizerTest.*': [SKIP],
+}], # not pointer_compression
+
+################################################################################
+['variant == stress_snapshot', {
+  '*': [SKIP],  # only relevant for mjsunit tests.
+}],
 ]

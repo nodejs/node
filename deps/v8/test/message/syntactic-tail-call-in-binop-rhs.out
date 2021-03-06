@@ -1,4 +1,0 @@
-*%(basename)s:13: SyntaxError: Tail call expression is not allowed here
-  return b + continue f()  ;
-             ^^^^^^^^^^^^
-SyntaxError: Tail call expression is not allowed here

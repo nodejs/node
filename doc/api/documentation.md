@@ -1,91 +1,69 @@
-# About this Documentation
+# About this documentation
 
+<!--introduced_in=v0.10.0-->
 <!-- type=misc -->
 
-The goal of this documentation is to comprehensively explain the Node.js
-API, both from a reference as well as a conceptual point of view.  Each
-section describes a built-in module or high-level concept.
+Welcome to the official API reference documentation for Node.js!
 
-Where appropriate, property types, method arguments, and the arguments
-provided to event handlers are detailed in a list underneath the topic
-heading.
+Node.js is a JavaScript runtime built on the [V8 JavaScript engine][].
 
-Every `.html` document has a corresponding `.json` document presenting
-the same information in a structured manner.  This feature is
-experimental, and added for the benefit of IDEs and other utilities that
-wish to do programmatic things with the documentation.
+## Contributing
 
-Every `.html` and `.json` file is generated based on the corresponding
-`.md` file in the `doc/api/` folder in Node.js's source tree.  The
-documentation is generated using the `tools/doc/generate.js` program.
-The HTML template is located at `doc/template.html`.
+Report errors in this documentation in [the issue tracker][]. See
+[the contributing guide][] for directions on how to submit pull requests.
 
-
-If you find an error in this documentation, please [submit an issue][]
-or see [the contributing guide][] for directions on how to submit a patch.
-
-## Stability Index
+## Stability index
 
 <!--type=misc-->
 
-Throughout the documentation, you will see indications of a section's
-stability.  The Node.js API is still somewhat changing, and as it
-matures, certain parts are more reliable than others.  Some are so
-proven, and so relied upon, that they are unlikely to ever change at
-all.  Others are brand new and experimental, or known to be hazardous
-and in the process of being redesigned.
+Throughout the documentation are indications of a section's stability. Some APIs
+are so proven and so relied upon that they are unlikely to ever change at all.
+Others are brand new and experimental, or known to be hazardous.
 
 The stability indices are as follows:
 
-```txt
-Stability: 0 - Deprecated
-This feature is known to be problematic, and changes are
-planned.  Do not rely on it.  Use of the feature may cause warnings.  Backwards
-compatibility should not be expected.
-```
+> Stability: 0 - Deprecated. The feature may emit warnings. Backward
+> compatibility is not guaranteed.
 
-```txt
-Stability: 1 - Experimental
-This feature is subject to change, and is gated by a command line flag.
-It may change or be removed in future versions.
-```
+<!-- separator -->
 
-```txt
-Stability: 2 - Stable
-The API has proven satisfactory. Compatibility with the npm ecosystem
-is a high priority, and will not be broken unless absolutely necessary.
-```
+> Stability: 1 - Experimental. The feature is not subject to
+> [Semantic Versioning][] rules. Non-backward compatible changes or removal may
+> occur in any future release. Use of the feature is not recommended in
+> production environments.
 
-```txt
-Stability: 3 - Locked
-Only fixes related to security, performance, or bug fixes will be accepted.
-Please do not suggest API changes in this area; they will be refused.
-```
+<!-- separator -->
 
-## JSON Output
+> Stability: 2 - Stable. Compatibility with the npm ecosystem is a high
+> priority.
 
-> Stability: 1 - Experimental
+Use caution when making use of Experimental features, particularly within
+modules. Users may not be aware that experimental features are being used.
+Bugs or behavior changes may surprise users when Experimental API
+modifications occur. To avoid surprises, use of an Experimental feature may need
+a command-line flag. Experimental features may also emit a [warning][].
 
-Every HTML file in the markdown has a corresponding JSON file with the
-same data.
+## Stability overview
+<!-- STABILITY_OVERVIEW_SLOT -->
 
-This feature was added in Node.js v0.6.12.  It is experimental.
+## JSON output
+<!-- YAML
+added: v0.6.12
+-->
 
-## Syscalls and man pages
+Every `.html` document has a corresponding `.json` document. This is for IDEs
+and other utilities that consume the documentation.
 
-System calls like open(2) and read(2) define the interface between user programs
-and the underlying operating system. Node functions which simply wrap a syscall,
-like `fs.open()`, will document that. The docs link to the corresponding man
-pages (short for manual pages) which describe how the syscalls work.
+## System calls and man pages
 
-**Caveat:** some syscalls, like lchown(2), are BSD-specific. That means, for
-example, that `fs.lchown()` only works on Mac OS X and other BSD-derived systems,
-and is not available on Linux.
+Node.js functions which wrap a system call will document that. The docs link
+to the corresponding man pages which describe how the system call works.
 
-Most Unix syscalls have Windows equivalents, but behavior may differ on Windows
-relative to Linux and OS X. For an example of the subtle ways in which it's
-sometimes impossible to replace Unix syscall semantics on Windows, see [Node
-issue 4760](https://github.com/nodejs/node/issues/4760).
+Most Unix system calls have Windows analogues. Still, behavior differences may
+be unavoidable.
 
-[submit an issue]: https://github.com/nodejs/node/issues/new
-[the contributing guide]: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
+[Semantic Versioning]: https://semver.org/
+[V8 JavaScript engine]: https://v8.dev/
+[the contributing guide]: https://github.com/nodejs/node/blob/HEAD/CONTRIBUTING.md
+[the issue tracker]: https://github.com/nodejs/node/issues/new
+[warning]: process.md#process_event_warning

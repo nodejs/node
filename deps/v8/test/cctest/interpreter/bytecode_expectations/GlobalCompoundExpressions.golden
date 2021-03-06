@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: string
-execute: yes
 wrap: no
 test function name: f
 
@@ -14,18 +12,17 @@ snippet: "
   function f() { return global &= 1; }
   f();
 "
-frame size: 1
+frame size: 0
 parameter count: 1
-bytecode array length: 12
+bytecode array length: 10
 bytecodes: [
-  /*   26 E> */ B(StackCheck),
-  /*   31 S> */ B(LdrGlobal), U8(1), R(0),
-                B(BitwiseAndSmi), U8(1), R(0), U8(3),
-  /*   45 E> */ B(StaGlobalSloppy), U8(0), U8(4),
-  /*   51 S> */ B(Return),
+  /*   31 S> */ B(LdaGlobal), U8(0), U8(0),
+                B(BitwiseAndSmi), I8(1), U8(2),
+  /*   45 E> */ B(StaGlobal), U8(0), U8(3),
+  /*   50 S> */ B(Return),
 ]
 constant pool: [
-  "global",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["global"],
 ]
 handlers: [
 ]
@@ -36,18 +33,17 @@ snippet: "
   function f() { return unallocated += 1; }
   f();
 "
-frame size: 1
+frame size: 0
 parameter count: 1
-bytecode array length: 12
+bytecode array length: 10
 bytecodes: [
-  /*   27 E> */ B(StackCheck),
-  /*   32 S> */ B(LdrGlobal), U8(1), R(0),
-                B(AddSmi), U8(1), R(0), U8(3),
-  /*   51 E> */ B(StaGlobalSloppy), U8(0), U8(4),
-  /*   57 S> */ B(Return),
+  /*   32 S> */ B(LdaGlobal), U8(0), U8(0),
+                B(AddSmi), I8(1), U8(2),
+  /*   51 E> */ B(StaGlobal), U8(0), U8(3),
+  /*   56 S> */ B(Return),
 ]
 constant pool: [
-  "unallocated",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["unallocated"],
 ]
 handlers: [
 ]

@@ -32,16 +32,16 @@ function lazyDeopt() {
   return "deopt";
 }
 
-var x = { toString : lazyDeopt };
+var x = {toString: lazyDeopt};
 
 function g(x) {
   return "result";
 }
 
 function test(x) {
-  return g(void(x == ""));
-}
-
+  return g(void (x == ''));
+};
+%PrepareFunctionForOptimization(test);
 test(x);
 %OptimizeFunctionOnNextCall(test);
 assertEquals("result", test(x));

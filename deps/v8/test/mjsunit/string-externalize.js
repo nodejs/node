@@ -25,9 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-externalize-string --expose-gc
+// Flags: --expose-externalize-string --expose-gc --allow-natives-syntax
 
 var size = 1024;
+
+function dont_inline() { return "A"; }
+%NeverOptimizeFunction(dont_inline);
+
+function dont_inline2() { return "\u1234"; }
+%NeverOptimizeFunction(dont_inline2);
 
 function test() {
   var str = "";
@@ -39,21 +45,19 @@ function test() {
   assertTrue(isOneByteString(str));
 
   var twoByteExternalWithOneByteData =
-      "AA" + (function() { return "A"; })();
+      "AAAA" + dont_inline();
   externalizeString(twoByteExternalWithOneByteData, true /* force two-byte */);
   assertFalse(isOneByteString(twoByteExternalWithOneByteData));
 
   var realTwoByteExternalString =
-      "\u1234\u1234\u1234\u1234" + (function() { return "\u1234"; })();
+      "\u1234\u1234\u1234\u1234" + dont_inline2();
   externalizeString(realTwoByteExternalString);
   assertFalse(isOneByteString(realTwoByteExternalString));
 
-  assertTrue(isOneByteString(["a", twoByteExternalWithOneByteData].join("")));
+  assertFalse(isOneByteString(["a", twoByteExternalWithOneByteData].join("")));
 
-  // Appending a two-byte string that contains only ascii chars should
-  // still produce an ascii cons.
   var str1 = str + twoByteExternalWithOneByteData;
-  assertTrue(isOneByteString(str1));
+  assertFalse(isOneByteString(str1));
 
   // Force flattening of the string.
   var old_length = str1.length - twoByteExternalWithOneByteData.length;
@@ -64,11 +68,11 @@ function test() {
     assertEquals("A", str1[i]);
   }
 
-  // Flattened string should still be ascii.
-  assertTrue(isOneByteString(str1));
+  // Flattened string should still be two-byte.
+  assertFalse(isOneByteString(str1));
 
-  // Lower-casing an ascii string should produce ascii.
-  assertTrue(isOneByteString(str1.toLowerCase()));
+  // Lower-casing an ascii string should produce two-byte.
+  assertFalse(isOneByteString(str1.toLowerCase()));
 
   assertFalse(isOneByteString(["a", realTwoByteExternalString].join("")));
 

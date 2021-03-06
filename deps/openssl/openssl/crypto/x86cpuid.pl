@@ -1,10 +1,20 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2004-2020 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
 
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 push(@INC, "${dir}perlasm", "perlasm");
 require "x86asm.pl";
 
-&asm_init($ARGV[0],"x86cpuid");
+$output = pop;
+open OUT,">$output";
+*STDOUT=*OUT;
+
+&asm_init($ARGV[0]);
 
 for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 
@@ -20,10 +30,10 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 	&pop	("eax");
 	&xor	("ecx","eax");
 	&xor	("eax","eax");
+	&mov	("esi",&wparam(0));
+	&mov	(&DWP(8,"esi"),"eax");	# clear extended feature flags
 	&bt	("ecx",21);
 	&jnc	(&label("nocpuid"));
-	&mov	("esi",&wparam(0));
-	&mov	(&DWP(8,"esi"),"eax");	# clear 3rd word
 	&cpuid	();
 	&mov	("edi","eax");		# max value for standard query level
 
@@ -79,28 +89,18 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 	&ja	(&label("generic"));
 	&and	("edx",0xefffffff);	# clear hyper-threading bit
 	&jmp	(&label("generic"));
-	
+
 &set_label("intel");
-	&cmp	("edi",7);
-	&jb	(&label("cacheinfo"));
-
-	&mov	("esi",&wparam(0));
-	&mov	("eax",7);
-	&xor	("ecx","ecx");
-	&cpuid	();
-	&mov	(&DWP(8,"esi"),"ebx");
-
-&set_label("cacheinfo");
 	&cmp	("edi",4);
-	&mov	("edi",-1);
+	&mov	("esi",-1);
 	&jb	(&label("nocacheinfo"));
 
 	&mov	("eax",4);
 	&mov	("ecx",0);		# query L1D
 	&cpuid	();
-	&mov	("edi","eax");
-	&shr	("edi",14);
-	&and	("edi",0xfff);		# number of cores -1 per L1D
+	&mov	("esi","eax");
+	&shr	("esi",14);
+	&and	("esi",0xfff);		# number of cores -1 per L1D
 
 &set_label("nocacheinfo");
 	&mov	("eax",1);
@@ -110,7 +110,7 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 	&cmp	("ebp",0);
 	&jne	(&label("notintel"));
 	&or	("edx",1<<30);		# set reserved bit#30 on Intel CPUs
-	&and	(&HB("eax"),15);	# familiy ID
+	&and	(&HB("eax"),15);	# family ID
 	&cmp	(&HB("eax"),15);	# P4?
 	&jne	(&label("notintel"));
 	&or	("edx",1<<20);		# set reserved bit#20 to engage RC4_CHAR
@@ -118,7 +118,7 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 	&bt	("edx",28);		# test hyper-threading bit
 	&jnc	(&label("generic"));
 	&and	("edx",0xefffffff);
-	&cmp	("edi",0);
+	&cmp	("esi",0);
 	&je	(&label("generic"));
 
 	&or	("edx",0x10000000);
@@ -130,10 +130,19 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 &set_label("generic");
 	&and	("ebp",1<<11);		# isolate AMD XOP flag
 	&and	("ecx",0xfffff7ff);	# force 11th bit to 0
-	&mov	("esi","edx");
+	&mov	("esi","edx");		# %ebp:%esi is copy of %ecx:%edx
 	&or	("ebp","ecx");		# merge AMD XOP flag
 
-	&bt	("ecx",27);		# check OSXSAVE bit
+	&cmp	("edi",7);
+	&mov	("edi",&wparam(0));
+	&jb	(&label("no_extended_info"));
+	&mov	("eax",7);
+	&xor	("ecx","ecx");
+	&cpuid	();
+	&mov	(&DWP(8,"edi"),"ebx");	# save extended feature flag
+&set_label("no_extended_info");
+
+	&bt	("ebp",27);		# check OSXSAVE bit
 	&jnc	(&label("clear_avx"));
 	&xor	("ecx","ecx");
 	&data_byte(0x0f,0x01,0xd0);	# xgetbv
@@ -147,7 +156,6 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 	&and	("esi",0xfeffffff);	# clear FXSR
 &set_label("clear_avx");
 	&and	("ebp",0xefffe7ff);	# clear AVX, FMA and AMD XOP bits
-	&mov	("edi",&wparam(0));
 	&and	(&DWP(8,"edi"),0xffffffdf);	# clear AVX2
 &set_label("done");
 	&mov	("eax","esi");
@@ -275,51 +283,12 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 &set_label("spin");
 	&lea	("ebx",&DWP(0,"eax","ecx"));
 	&nop	();
-	&data_word(0x1ab10ff0);	# lock;	cmpxchg	%ebx,(%edx)	# %eax is envolved and is always reloaded
+	&data_word(0x1ab10ff0);	# lock;	cmpxchg	%ebx,(%edx)	# %eax is involved and is always reloaded
 	&jne	(&label("spin"));
 	&mov	("eax","ebx");	# OpenSSL expects the new value
 	&pop	("ebx");
 	&ret	();
 &function_end_B("OPENSSL_atomic_add");
-
-# This function can become handy under Win32 in situations when
-# we don't know which calling convention, __stdcall or __cdecl(*),
-# indirect callee is using. In C it can be deployed as
-#
-#ifdef OPENSSL_CPUID_OBJ
-#	type OPENSSL_indirect_call(void *f,...);
-#	...
-#	OPENSSL_indirect_call(func,[up to $max arguments]);
-#endif
-#
-# (*)	it's designed to work even for __fastcall if number of
-#	arguments is 1 or 2!
-&function_begin_B("OPENSSL_indirect_call");
-	{
-	my ($max,$i)=(7,);	# $max has to be chosen as 4*n-1
-				# in order to preserve eventual
-				# stack alignment
-	&push	("ebp");
-	&mov	("ebp","esp");
-	&sub	("esp",$max*4);
-	&mov	("ecx",&DWP(12,"ebp"));
-	&mov	(&DWP(0,"esp"),"ecx");
-	&mov	("edx",&DWP(16,"ebp"));
-	&mov	(&DWP(4,"esp"),"edx");
-	for($i=2;$i<$max;$i++)
-		{
-		# Some copies will be redundant/bogus...
-		&mov	("eax",&DWP(12+$i*4,"ebp"));
-		&mov	(&DWP(0+$i*4,"esp"),"eax");
-		}
-	&call_ptr	(&DWP(8,"ebp"));# make the call...
-	&mov	("esp","ebp");	# ... and just restore the stack pointer
-				# without paying attention to what we called,
-				# (__cdecl *func) or (__stdcall *one).
-	&pop	("ebp");
-	&ret	();
-	}
-&function_end_B("OPENSSL_indirect_call");
 
 &function_begin_B("OPENSSL_cleanse");
 	&mov	("edx",&wparam(0));
@@ -355,29 +324,180 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 	&ret	();
 &function_end_B("OPENSSL_cleanse");
 
-&function_begin_B("OPENSSL_ia32_rdrand");
-	&mov	("ecx",8);
+&function_begin_B("CRYPTO_memcmp");
+	&push	("esi");
+	&push	("edi");
+	&mov	("esi",&wparam(0));
+	&mov	("edi",&wparam(1));
+	&mov	("ecx",&wparam(2));
+	&xor	("eax","eax");
+	&xor	("edx","edx");
+	&cmp	("ecx",0);
+	&je	(&label("no_data"));
 &set_label("loop");
-	&rdrand	("eax");
-	&jc	(&label("break"));
-	&loop	(&label("loop"));
-&set_label("break");
-	&cmp	("eax",0);
-	&cmove	("eax","ecx");
+	&mov	("dl",&BP(0,"esi"));
+	&lea	("esi",&DWP(1,"esi"));
+	&xor	("dl",&BP(0,"edi"));
+	&lea	("edi",&DWP(1,"edi"));
+	&or	("al","dl");
+	&dec	("ecx");
+	&jnz	(&label("loop"));
+	&neg	("eax");
+	&shr	("eax",31);
+&set_label("no_data");
+	&pop	("edi");
+	&pop	("esi");
 	&ret	();
-&function_end_B("OPENSSL_ia32_rdrand");
+&function_end_B("CRYPTO_memcmp");
+{
+my $lasttick = "esi";
+my $lastdiff = "ebx";
+my $out = "edi";
+my $cnt = "ecx";
+my $max = "ebp";
 
-&function_begin_B("OPENSSL_ia32_rdseed");
+&function_begin("OPENSSL_instrument_bus");
+    &mov	("eax",0);
+    if ($sse2) {
+	&picmeup("edx","OPENSSL_ia32cap_P");
+	&bt	(&DWP(0,"edx"),4);
+	&jnc	(&label("nogo"));	# no TSC
+	&bt	(&DWP(0,"edx"),19);
+	&jnc	(&label("nogo"));	# no CLFLUSH
+
+	&mov	($out,&wparam(0));	# load arguments
+	&mov	($cnt,&wparam(1));
+
+	# collect 1st tick
+	&rdtsc	();
+	&mov	($lasttick,"eax");	# lasttick = tick
+	&mov	($lastdiff,0);		# lastdiff = 0
+	&clflush(&DWP(0,$out));
+	&data_byte(0xf0);		# lock
+	&add	(&DWP(0,$out),$lastdiff);
+	&jmp	(&label("loop"));
+
+&set_label("loop",16);
+	&rdtsc	();
+	&mov	("edx","eax");		# put aside tick (yes, I neglect edx)
+	&sub	("eax",$lasttick);	# diff
+	&mov	($lasttick,"edx");	# lasttick = tick
+	&mov	($lastdiff,"eax");	# lastdiff = diff
+	&clflush(&DWP(0,$out));
+	&data_byte(0xf0);		# lock
+	&add	(&DWP(0,$out),"eax");	# accumulate diff
+	&lea	($out,&DWP(4,$out));	# ++$out
+	&sub	($cnt,1);		# --$cnt
+	&jnz	(&label("loop"));
+
+	&mov	("eax",&wparam(1));
+&set_label("nogo");
+    }
+&function_end("OPENSSL_instrument_bus");
+
+&function_begin("OPENSSL_instrument_bus2");
+    &mov	("eax",0);
+    if ($sse2) {
+	&picmeup("edx","OPENSSL_ia32cap_P");
+	&bt	(&DWP(0,"edx"),4);
+	&jnc	(&label("nogo"));	# no TSC
+	&bt	(&DWP(0,"edx"),19);
+	&jnc	(&label("nogo"));	# no CLFLUSH
+
+	&mov	($out,&wparam(0));	# load arguments
+	&mov	($cnt,&wparam(1));
+	&mov	($max,&wparam(2));
+
+	&rdtsc	();			# collect 1st tick
+	&mov	($lasttick,"eax");	# lasttick = tick
+	&mov	($lastdiff,0);		# lastdiff = 0
+
+	&clflush(&DWP(0,$out));
+	&data_byte(0xf0);		# lock
+	&add	(&DWP(0,$out),$lastdiff);
+
+	&rdtsc	();			# collect 1st diff
+	&mov	("edx","eax");		# put aside tick (yes, I neglect edx)
+	&sub	("eax",$lasttick);	# diff
+	&mov	($lasttick,"edx");	# lasttick = tick
+	&mov	($lastdiff,"eax");	# lastdiff = diff
+	&jmp	(&label("loop2"));
+
+&set_label("loop2",16);
+	&clflush(&DWP(0,$out));
+	&data_byte(0xf0);		# lock
+	&add	(&DWP(0,$out),"eax");	# accumulate diff
+
+	&sub	($max,1);
+	&jz	(&label("done2"));
+
+	&rdtsc	();
+	&mov	("edx","eax");		# put aside tick (yes, I neglect edx)
+	&sub	("eax",$lasttick);	# diff
+	&mov	($lasttick,"edx");	# lasttick = tick
+	&cmp	("eax",$lastdiff);
+	&mov	($lastdiff,"eax");	# lastdiff = diff
+	&mov	("edx",0);
+	&setne	("dl");
+	&sub	($cnt,"edx");		# conditional --$cnt
+	&lea	($out,&DWP(0,$out,"edx",4));	# conditional ++$out
+	&jnz	(&label("loop2"));
+
+&set_label("done2");
+	&mov	("eax",&wparam(1));
+	&sub	("eax",$cnt);
+&set_label("nogo");
+    }
+&function_end("OPENSSL_instrument_bus2");
+}
+
+sub gen_random {
+my $rdop = shift;
+&function_begin_B("OPENSSL_ia32_${rdop}_bytes");
+	&push	("edi");
+	&push	("ebx");
+	&xor	("eax","eax");		# return value
+	&mov	("edi",&wparam(0));
+	&mov	("ebx",&wparam(1));
+
+	&cmp	("ebx",0);
+	&je	(&label("done"));
+
 	&mov	("ecx",8);
 &set_label("loop");
-	&rdseed	("eax");
+	&${rdop}("edx");
 	&jc	(&label("break"));
 	&loop	(&label("loop"));
-&set_label("break");
-	&cmp	("eax",0);
-	&cmove	("eax","ecx");
+	&jmp	(&label("done"));
+
+&set_label("break",16);
+	&cmp	("ebx",4);
+	&jb	(&label("tail"));
+	&mov	(&DWP(0,"edi"),"edx");
+	&lea	("edi",&DWP(4,"edi"));
+	&add	("eax",4);
+	&sub	("ebx",4);
+	&jz	(&label("done"));
+	&mov	("ecx",8);
+	&jmp	(&label("loop"));
+
+&set_label("tail",16);
+	&mov	(&BP(0,"edi"),"dl");
+	&lea	("edi",&DWP(1,"edi"));
+	&inc	("eax");
+	&shr	("edx",8);
+	&dec	("ebx");
+	&jnz	(&label("tail"));
+
+&set_label("done");
+	&xor	("edx","edx");		# Clear random value from registers
+	&pop	("ebx");
+	&pop	("edi");
 	&ret	();
-&function_end_B("OPENSSL_ia32_rdseed");
+&function_end_B("OPENSSL_ia32_${rdop}_bytes");
+}
+&gen_random("rdrand");
+&gen_random("rdseed");
 
 &initseg("OPENSSL_cpuid_setup");
 
@@ -385,3 +505,5 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 &hidden("OPENSSL_ia32cap_P");
 
 &asm_finish();
+
+close STDOUT or die "error closing STDOUT: $!";

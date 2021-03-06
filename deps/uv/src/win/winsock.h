@@ -54,6 +54,14 @@
 # define SIO_BASE_HANDLE 0x48000022
 #endif
 
+#ifndef MCAST_JOIN_SOURCE_GROUP
+# define MCAST_JOIN_SOURCE_GROUP 45
+#endif
+
+#ifndef MCAST_LEAVE_SOURCE_GROUP
+# define MCAST_LEAVE_SOURCE_GROUP 46
+#endif
+
 /*
  * TDI defines that are only in the DDK.
  * We only need receive flags so far.
@@ -186,5 +194,8 @@ typedef struct _IP_ADAPTER_UNICAST_ADDRESS_LH {
 } IP_ADAPTER_UNICAST_ADDRESS_LH,*PIP_ADAPTER_UNICAST_ADDRESS_LH;
 
 #endif
+
+int uv__convert_to_localhost_if_unspecified(const struct sockaddr* addr,
+                                            struct sockaddr_storage* storage);
 
 #endif /* UV_WIN_WINSOCK_H_ */

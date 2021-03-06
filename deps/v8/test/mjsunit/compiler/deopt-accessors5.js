@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --harmony-tailcalls
+// Flags: --allow-natives-syntax
 
 "use strict";
 
@@ -17,6 +17,7 @@ function test() {
   assertEquals(1, o.q = 1);
 }
 
+%PrepareFunctionForOptimization(test);
 test();
 test();
 %OptimizeFunctionOnNextCall(test);

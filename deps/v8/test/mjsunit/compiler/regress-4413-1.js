@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turbo-asm
+// Flags: --allow-natives-syntax
 
 var foo = (function(stdlib) {
   "use asm";
@@ -11,5 +11,6 @@ var foo = (function(stdlib) {
   return foo;
 })(this);
 
+%PrepareFunctionForOptimization(foo);
 %OptimizeFunctionOnNextCall(foo);
 foo();

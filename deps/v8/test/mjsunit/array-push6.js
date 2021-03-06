@@ -8,6 +8,8 @@ function push_wrapper(array, value) {
   array.push(value);
 }
 
+%PrepareFunctionForOptimization(push_wrapper);
+
 // Test that optimization of Array.push() for non-Arrays works correctly.
 var object = { x : 8, length: 3 };
 object[18] = 5;

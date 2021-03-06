@@ -3,6 +3,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import json
 import optparse
 import os
@@ -12,7 +15,7 @@ import subprocess
 import sys
 
 
-BLACKLIST = [
+SKIPLIST = [
   # Skip special d8 functions.
   "load", "os", "print", "read", "readline", "quit"
 ]
@@ -117,7 +120,7 @@ def GenerateTests(options):
 
   os.makedirs(options.outdir)
   for obj_name in objects:
-    if obj_name in BLACKLIST: continue
+    if obj_name in SKIPLIST: continue
     obj = objects[obj_name]
     VisitObject(obj, "", options)
 

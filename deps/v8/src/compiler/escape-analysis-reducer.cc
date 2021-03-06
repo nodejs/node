@@ -1,12 +1,14 @@
-// Copyright 2015 the V8 project authors. All rights reserved.
+// Copyright 2017 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "src/compiler/escape-analysis-reducer.h"
 
 #include "src/compiler/all-nodes.h"
-#include "src/compiler/js-graph.h"
-#include "src/counters.h"
+#include "src/compiler/node-matchers.h"
+#include "src/compiler/simplified-operator.h"
+#include "src/compiler/type-cache.h"
+#include "src/execution/frame-constants.h"
 
 namespace v8 {
 namespace internal {
@@ -21,325 +23,413 @@ namespace compiler {
 #define TRACE(...)
 #endif  // DEBUG
 
-EscapeAnalysisReducer::EscapeAnalysisReducer(Editor* editor, JSGraph* jsgraph,
-                                             EscapeAnalysis* escape_analysis,
-                                             Zone* zone)
+EscapeAnalysisReducer::EscapeAnalysisReducer(
+    Editor* editor, JSGraph* jsgraph, EscapeAnalysisResult analysis_result,
+    Zone* zone)
     : AdvancedReducer(editor),
       jsgraph_(jsgraph),
-      escape_analysis_(escape_analysis),
-      zone_(zone),
-      fully_reduced_(static_cast<int>(jsgraph->graph()->NodeCount() * 2), zone),
-      exists_virtual_allocate_(escape_analysis->ExistsVirtualAllocate()) {}
+      analysis_result_(analysis_result),
+      object_id_cache_(zone),
+      node_cache_(jsgraph->graph(), zone),
+      arguments_elements_(zone),
+      zone_(zone) {}
+
+Reduction EscapeAnalysisReducer::ReplaceNode(Node* original,
+                                             Node* replacement) {
+  const VirtualObject* vobject =
+      analysis_result().GetVirtualObject(replacement);
+  if (replacement->opcode() == IrOpcode::kDead ||
+      (vobject && !vobject->HasEscaped())) {
+    RelaxEffectsAndControls(original);
+    return Replace(replacement);
+  }
+  Type const replacement_type = NodeProperties::GetType(replacement);
+  Type const original_type = NodeProperties::GetType(original);
+  if (replacement_type.Is(original_type)) {
+    RelaxEffectsAndControls(original);
+    return Replace(replacement);
+  }
+
+  // We need to guard the replacement if we would widen the type otherwise.
+  DCHECK_EQ(1, original->op()->EffectOutputCount());
+  DCHECK_EQ(1, original->op()->EffectInputCount());
+  DCHECK_EQ(1, original->op()->ControlInputCount());
+  Node* effect = NodeProperties::GetEffectInput(original);
+  Node* control = NodeProperties::GetControlInput(original);
+  original->TrimInputCount(0);
+  original->AppendInput(jsgraph()->zone(), replacement);
+  original->AppendInput(jsgraph()->zone(), effect);
+  original->AppendInput(jsgraph()->zone(), control);
+  NodeProperties::SetType(
+      original,
+      Type::Intersect(original_type, replacement_type, jsgraph()->zone()));
+  NodeProperties::ChangeOp(original,
+                           jsgraph()->common()->TypeGuard(original_type));
+  ReplaceWithValue(original, original, original, control);
+  return NoChange();
+}
+
+Node* EscapeAnalysisReducer::ObjectIdNode(const VirtualObject* vobject) {
+  VirtualObject::Id id = vobject->id();
+  if (id >= object_id_cache_.size()) object_id_cache_.resize(id + 1);
+  if (!object_id_cache_[id]) {
+    Node* node = jsgraph()->graph()->NewNode(jsgraph()->common()->ObjectId(id));
+    NodeProperties::SetType(node, Type::Object());
+    object_id_cache_[id] = node;
+  }
+  return object_id_cache_[id];
+}
 
 Reduction EscapeAnalysisReducer::Reduce(Node* node) {
-  if (node->id() < static_cast<NodeId>(fully_reduced_.length()) &&
-      fully_reduced_.Contains(node->id())) {
-    return NoChange();
+  if (Node* replacement = analysis_result().GetReplacementOf(node)) {
+    DCHECK(node->opcode() != IrOpcode::kAllocate &&
+           node->opcode() != IrOpcode::kFinishRegion);
+    DCHECK_NE(replacement, node);
+    return ReplaceNode(node, replacement);
   }
 
   switch (node->opcode()) {
-    case IrOpcode::kLoadField:
-    case IrOpcode::kLoadElement:
-      return ReduceLoad(node);
-    case IrOpcode::kStoreField:
-    case IrOpcode::kStoreElement:
-      return ReduceStore(node);
     case IrOpcode::kAllocate:
-      return ReduceAllocate(node);
-    case IrOpcode::kFinishRegion:
-      return ReduceFinishRegion(node);
-    case IrOpcode::kReferenceEqual:
-      return ReduceReferenceEqual(node);
-    case IrOpcode::kObjectIsSmi:
-      return ReduceObjectIsSmi(node);
-    // FrameStates and Value nodes are preprocessed here,
-    // and visited via ReduceFrameStateUses from their user nodes.
-    case IrOpcode::kFrameState:
-    case IrOpcode::kStateValues: {
-      if (node->id() >= static_cast<NodeId>(fully_reduced_.length()) ||
-          fully_reduced_.Contains(node->id())) {
-        break;
-      }
-      bool depends_on_object_state = false;
-      for (int i = 0; i < node->InputCount(); i++) {
-        Node* input = node->InputAt(i);
-        switch (input->opcode()) {
-          case IrOpcode::kAllocate:
-          case IrOpcode::kFinishRegion:
-            depends_on_object_state =
-                depends_on_object_state || escape_analysis()->IsVirtual(input);
-            break;
-          case IrOpcode::kFrameState:
-          case IrOpcode::kStateValues:
-            depends_on_object_state =
-                depends_on_object_state ||
-                input->id() >= static_cast<NodeId>(fully_reduced_.length()) ||
-                !fully_reduced_.Contains(input->id());
-            break;
-          default:
-            break;
-        }
-      }
-      if (!depends_on_object_state) {
-        fully_reduced_.Add(node->id());
+    case IrOpcode::kTypeGuard: {
+      const VirtualObject* vobject = analysis_result().GetVirtualObject(node);
+      if (vobject && !vobject->HasEscaped()) {
+        RelaxEffectsAndControls(node);
       }
       return NoChange();
     }
-    default:
+    case IrOpcode::kFinishRegion: {
+      Node* effect = NodeProperties::GetEffectInput(node, 0);
+      if (effect->opcode() == IrOpcode::kBeginRegion) {
+        RelaxEffectsAndControls(effect);
+        RelaxEffectsAndControls(node);
+      }
+      return NoChange();
+    }
+    case IrOpcode::kNewArgumentsElements:
+      arguments_elements_.insert(node);
+      return NoChange();
+    default: {
       // TODO(sigurds): Change this to GetFrameStateInputCount once
       // it is working. For now we use EffectInputCount > 0 to determine
       // whether a node might have a frame state input.
-      if (exists_virtual_allocate_ && node->op()->EffectInputCount() > 0) {
-        return ReduceFrameStateUses(node);
+      if (node->op()->EffectInputCount() > 0) {
+        ReduceFrameStateInputs(node);
       }
-      break;
-  }
-  return NoChange();
-}
-
-
-Reduction EscapeAnalysisReducer::ReduceLoad(Node* node) {
-  DCHECK(node->opcode() == IrOpcode::kLoadField ||
-         node->opcode() == IrOpcode::kLoadElement);
-  if (node->id() < static_cast<NodeId>(fully_reduced_.length())) {
-    fully_reduced_.Add(node->id());
-  }
-  if (Node* rep = escape_analysis()->GetReplacement(node)) {
-    isolate()->counters()->turbo_escape_loads_replaced()->Increment();
-    TRACE("Replaced #%d (%s) with #%d (%s)\n", node->id(),
-          node->op()->mnemonic(), rep->id(), rep->op()->mnemonic());
-    ReplaceWithValue(node, rep);
-    return Replace(rep);
-  }
-  return NoChange();
-}
-
-
-Reduction EscapeAnalysisReducer::ReduceStore(Node* node) {
-  DCHECK(node->opcode() == IrOpcode::kStoreField ||
-         node->opcode() == IrOpcode::kStoreElement);
-  if (node->id() < static_cast<NodeId>(fully_reduced_.length())) {
-    fully_reduced_.Add(node->id());
-  }
-  if (escape_analysis()->IsVirtual(NodeProperties::GetValueInput(node, 0))) {
-    TRACE("Removed #%d (%s) from effect chain\n", node->id(),
-          node->op()->mnemonic());
-    RelaxEffectsAndControls(node);
-    return Changed(node);
-  }
-  return NoChange();
-}
-
-
-Reduction EscapeAnalysisReducer::ReduceAllocate(Node* node) {
-  DCHECK_EQ(node->opcode(), IrOpcode::kAllocate);
-  if (node->id() < static_cast<NodeId>(fully_reduced_.length())) {
-    fully_reduced_.Add(node->id());
-  }
-  if (escape_analysis()->IsVirtual(node)) {
-    RelaxEffectsAndControls(node);
-    isolate()->counters()->turbo_escape_allocs_replaced()->Increment();
-    TRACE("Removed allocate #%d from effect chain\n", node->id());
-    return Changed(node);
-  }
-  return NoChange();
-}
-
-
-Reduction EscapeAnalysisReducer::ReduceFinishRegion(Node* node) {
-  DCHECK_EQ(node->opcode(), IrOpcode::kFinishRegion);
-  Node* effect = NodeProperties::GetEffectInput(node, 0);
-  if (effect->opcode() == IrOpcode::kBeginRegion) {
-    // We only add it now to remove empty Begin/Finish region pairs
-    // in the process.
-    if (node->id() < static_cast<NodeId>(fully_reduced_.length())) {
-      fully_reduced_.Add(node->id());
+      return NoChange();
     }
-    RelaxEffectsAndControls(effect);
-    RelaxEffectsAndControls(node);
-#ifdef DEBUG
-    if (FLAG_trace_turbo_escape) {
-      PrintF("Removed region #%d / #%d from effect chain,", effect->id(),
-             node->id());
-      PrintF(" %d user(s) of #%d remain(s):", node->UseCount(), node->id());
-      for (Edge edge : node->use_edges()) {
-        PrintF(" #%d", edge.from()->id());
-      }
-      PrintF("\n");
+  }
+}
+
+// While doing DFS on the FrameState tree, we have to recognize duplicate
+// occurrences of virtual objects.
+class Deduplicator {
+ public:
+  explicit Deduplicator(Zone* zone) : is_duplicate_(zone) {}
+  bool SeenBefore(const VirtualObject* vobject) {
+    VirtualObject::Id id = vobject->id();
+    if (id >= is_duplicate_.size()) {
+      is_duplicate_.resize(id + 1);
     }
-#endif  // DEBUG
-    return Changed(node);
+    bool is_duplicate = is_duplicate_[id];
+    is_duplicate_[id] = true;
+    return is_duplicate;
   }
-  return NoChange();
-}
 
+ private:
+  ZoneVector<bool> is_duplicate_;
+};
 
-Reduction EscapeAnalysisReducer::ReduceReferenceEqual(Node* node) {
-  DCHECK_EQ(node->opcode(), IrOpcode::kReferenceEqual);
-  Node* left = NodeProperties::GetValueInput(node, 0);
-  Node* right = NodeProperties::GetValueInput(node, 1);
-  if (escape_analysis()->IsVirtual(left)) {
-    if (escape_analysis()->IsVirtual(right) &&
-        escape_analysis()->CompareVirtualObjects(left, right)) {
-      ReplaceWithValue(node, jsgraph()->TrueConstant());
-      TRACE("Replaced ref eq #%d with true\n", node->id());
-      Replace(jsgraph()->TrueConstant());
-    }
-    // Right-hand side is not a virtual object, or a different one.
-    ReplaceWithValue(node, jsgraph()->FalseConstant());
-    TRACE("Replaced ref eq #%d with false\n", node->id());
-    return Replace(jsgraph()->FalseConstant());
-  } else if (escape_analysis()->IsVirtual(right)) {
-    // Left-hand side is not a virtual object.
-    ReplaceWithValue(node, jsgraph()->FalseConstant());
-    TRACE("Replaced ref eq #%d with false\n", node->id());
-    return Replace(jsgraph()->FalseConstant());
-  }
-  return NoChange();
-}
-
-
-Reduction EscapeAnalysisReducer::ReduceObjectIsSmi(Node* node) {
-  DCHECK_EQ(node->opcode(), IrOpcode::kObjectIsSmi);
-  Node* input = NodeProperties::GetValueInput(node, 0);
-  if (escape_analysis()->IsVirtual(input)) {
-    ReplaceWithValue(node, jsgraph()->FalseConstant());
-    TRACE("Replaced ObjectIsSmi #%d with false\n", node->id());
-    return Replace(jsgraph()->FalseConstant());
-  }
-  return NoChange();
-}
-
-
-Reduction EscapeAnalysisReducer::ReduceFrameStateUses(Node* node) {
+void EscapeAnalysisReducer::ReduceFrameStateInputs(Node* node) {
   DCHECK_GE(node->op()->EffectInputCount(), 1);
-  if (node->id() < static_cast<NodeId>(fully_reduced_.length())) {
-    fully_reduced_.Add(node->id());
-  }
-  bool changed = false;
   for (int i = 0; i < node->InputCount(); ++i) {
     Node* input = node->InputAt(i);
     if (input->opcode() == IrOpcode::kFrameState) {
-      if (Node* ret = ReduceDeoptState(input, node, false)) {
+      Deduplicator deduplicator(zone());
+      if (Node* ret = ReduceDeoptState(input, node, &deduplicator)) {
         node->ReplaceInput(i, ret);
-        changed = true;
       }
     }
   }
-  if (changed) {
-    return Changed(node);
-  }
-  return NoChange();
 }
 
-
-// Returns the clone if it duplicated the node, and null otherwise.
 Node* EscapeAnalysisReducer::ReduceDeoptState(Node* node, Node* effect,
-                                              bool multiple_users) {
-  DCHECK(node->opcode() == IrOpcode::kFrameState ||
-         node->opcode() == IrOpcode::kStateValues);
-  if (node->id() < static_cast<NodeId>(fully_reduced_.length()) &&
-      fully_reduced_.Contains(node->id())) {
-    return nullptr;
-  }
-  TRACE("Reducing %s %d\n", node->op()->mnemonic(), node->id());
-  Node* clone = nullptr;
-  bool node_multiused = node->UseCount() > 1;
-  bool multiple_users_rec = multiple_users || node_multiused;
-  for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
-    Node* input = NodeProperties::GetValueInput(node, i);
-    if (input->opcode() == IrOpcode::kStateValues) {
-      if (Node* ret = ReduceDeoptState(input, effect, multiple_users_rec)) {
-        if (node_multiused || (multiple_users && !clone)) {
-          TRACE("  Cloning #%d", node->id());
-          node = clone = jsgraph()->graph()->CloneNode(node);
-          TRACE(" to #%d\n", node->id());
-          node_multiused = false;
-        }
-        NodeProperties::ReplaceValueInput(node, ret, i);
-      }
-    } else {
-      if (Node* ret = ReduceStateValueInput(node, i, effect, node_multiused,
-                                            clone, multiple_users)) {
-        DCHECK_NULL(clone);
-        node_multiused = false;  // Don't clone anymore.
-        node = clone = ret;
-      }
-    }
-  }
+                                              Deduplicator* deduplicator) {
   if (node->opcode() == IrOpcode::kFrameState) {
-    Node* outer_frame_state = NodeProperties::GetFrameStateInput(node);
-    if (outer_frame_state->opcode() == IrOpcode::kFrameState) {
-      if (Node* ret =
-              ReduceDeoptState(outer_frame_state, effect, multiple_users_rec)) {
-        if (node_multiused || (multiple_users && !clone)) {
-          TRACE("    Cloning #%d", node->id());
-          node = clone = jsgraph()->graph()->CloneNode(node);
-          TRACE(" to #%d\n", node->id());
-        }
-        NodeProperties::ReplaceFrameStateInput(node, ret);
-      }
+    NodeHashCache::Constructor new_node(&node_cache_, node);
+    // This input order is important to match the DFS traversal used in the
+    // instruction selector. Otherwise, the instruction selector might find a
+    // duplicate node before the original one.
+    for (int input_id : {kFrameStateOuterStateInput, kFrameStateFunctionInput,
+                         kFrameStateParametersInput, kFrameStateContextInput,
+                         kFrameStateLocalsInput, kFrameStateStackInput}) {
+      Node* input = node->InputAt(input_id);
+      new_node.ReplaceInput(ReduceDeoptState(input, effect, deduplicator),
+                            input_id);
     }
-  }
-  if (node->id() < static_cast<NodeId>(fully_reduced_.length())) {
-    fully_reduced_.Add(node->id());
-  }
-  return clone;
-}
-
-
-// Returns the clone if it duplicated the node, and null otherwise.
-Node* EscapeAnalysisReducer::ReduceStateValueInput(Node* node, int node_index,
-                                                   Node* effect,
-                                                   bool node_multiused,
-                                                   bool already_cloned,
-                                                   bool multiple_users) {
-  Node* input = NodeProperties::GetValueInput(node, node_index);
-  if (node->id() < static_cast<NodeId>(fully_reduced_.length()) &&
-      fully_reduced_.Contains(node->id())) {
-    return nullptr;
-  }
-  TRACE("Reducing State Input #%d (%s)\n", input->id(),
-        input->op()->mnemonic());
-  Node* clone = nullptr;
-  if (input->opcode() == IrOpcode::kFinishRegion ||
-      input->opcode() == IrOpcode::kAllocate) {
-    if (escape_analysis()->IsVirtual(input)) {
-      if (Node* object_state =
-              escape_analysis()->GetOrCreateObjectState(effect, input)) {
-        if (node_multiused || (multiple_users && !already_cloned)) {
-          TRACE("Cloning #%d", node->id());
-          node = clone = jsgraph()->graph()->CloneNode(node);
-          TRACE(" to #%d\n", node->id());
-          node_multiused = false;
-          already_cloned = true;
-        }
-        NodeProperties::ReplaceValueInput(node, object_state, node_index);
-        TRACE("Replaced state #%d input #%d with object state #%d\n",
-              node->id(), input->id(), object_state->id());
-      } else {
-        TRACE("No object state replacement for #%d at effect #%d available.\n",
-              input->id(), effect->id());
-        UNREACHABLE();
-      }
+    return new_node.Get();
+  } else if (node->opcode() == IrOpcode::kStateValues) {
+    NodeHashCache::Constructor new_node(&node_cache_, node);
+    for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
+      Node* input = NodeProperties::GetValueInput(node, i);
+      new_node.ReplaceValueInput(ReduceDeoptState(input, effect, deduplicator),
+                                 i);
     }
+    return new_node.Get();
+  } else if (const VirtualObject* vobject = analysis_result().GetVirtualObject(
+                 SkipValueIdentities(node))) {
+    if (vobject->HasEscaped()) return node;
+    if (deduplicator->SeenBefore(vobject)) {
+      return ObjectIdNode(vobject);
+    } else {
+      std::vector<Node*> inputs;
+      for (int offset = 0; offset < vobject->size(); offset += kTaggedSize) {
+        Node* field =
+            analysis_result().GetVirtualObjectField(vobject, offset, effect);
+        CHECK_NOT_NULL(field);
+        if (field != jsgraph()->Dead()) {
+          inputs.push_back(ReduceDeoptState(field, effect, deduplicator));
+        }
+      }
+      int num_inputs = static_cast<int>(inputs.size());
+      NodeHashCache::Constructor new_node(
+          &node_cache_,
+          jsgraph()->common()->ObjectState(vobject->id(), num_inputs),
+          num_inputs, &inputs.front(), NodeProperties::GetType(node));
+      return new_node.Get();
+    }
+  } else {
+    return node;
   }
-  return clone;
 }
-
 
 void EscapeAnalysisReducer::VerifyReplacement() const {
-#ifdef DEBUG
   AllNodes all(zone(), jsgraph()->graph());
   for (Node* node : all.reachable) {
     if (node->opcode() == IrOpcode::kAllocate) {
-      CHECK(!escape_analysis_->IsVirtual(node));
+      if (const VirtualObject* vobject =
+              analysis_result().GetVirtualObject(node)) {
+        if (!vobject->HasEscaped()) {
+          FATAL("Escape analysis failed to remove node %s#%d\n",
+                node->op()->mnemonic(), node->id());
+        }
+      }
     }
   }
-#endif  // DEBUG
 }
 
-Isolate* EscapeAnalysisReducer::isolate() const { return jsgraph_->isolate(); }
+void EscapeAnalysisReducer::Finalize() {
+  for (Node* node : arguments_elements_) {
+    const NewArgumentsElementsParameters& params =
+        NewArgumentsElementsParametersOf(node->op());
+    ArgumentsStateType type = params.arguments_type();
+    int mapped_count = type == CreateArgumentsType::kMappedArguments
+                           ? params.formal_parameter_count()
+                           : 0;
+
+    Node* arguments_frame = NodeProperties::GetValueInput(node, 0);
+    if (arguments_frame->opcode() != IrOpcode::kArgumentsFrame) continue;
+    Node* arguments_length = NodeProperties::GetValueInput(node, 1);
+    if (arguments_length->opcode() != IrOpcode::kArgumentsLength) continue;
+
+    Node* arguments_length_state = nullptr;
+    for (Edge edge : arguments_length->use_edges()) {
+      Node* use = edge.from();
+      switch (use->opcode()) {
+        case IrOpcode::kObjectState:
+        case IrOpcode::kTypedObjectState:
+        case IrOpcode::kStateValues:
+        case IrOpcode::kTypedStateValues:
+          if (!arguments_length_state) {
+            arguments_length_state = jsgraph()->graph()->NewNode(
+                jsgraph()->common()->ArgumentsLengthState());
+            NodeProperties::SetType(arguments_length_state,
+                                    Type::OtherInternal());
+          }
+          edge.UpdateTo(arguments_length_state);
+          break;
+        default:
+          break;
+      }
+    }
+
+    bool escaping_use = false;
+    ZoneVector<Node*> loads(zone());
+    for (Edge edge : node->use_edges()) {
+      Node* use = edge.from();
+      if (!NodeProperties::IsValueEdge(edge)) continue;
+      if (use->use_edges().empty()) {
+        // A node without uses is dead, so we don't have to care about it.
+        continue;
+      }
+      switch (use->opcode()) {
+        case IrOpcode::kStateValues:
+        case IrOpcode::kTypedStateValues:
+        case IrOpcode::kObjectState:
+        case IrOpcode::kTypedObjectState:
+          break;
+        case IrOpcode::kLoadElement:
+          if (mapped_count == 0) {
+            loads.push_back(use);
+          } else {
+            escaping_use = true;
+          }
+          break;
+        case IrOpcode::kLoadField:
+          if (FieldAccessOf(use->op()).offset == FixedArray::kLengthOffset) {
+            loads.push_back(use);
+          } else {
+            escaping_use = true;
+          }
+          break;
+        default:
+          // If the arguments elements node node is used by an unhandled node,
+          // then we cannot remove this allocation.
+          escaping_use = true;
+          break;
+      }
+      if (escaping_use) break;
+    }
+    if (!escaping_use) {
+      Node* arguments_elements_state = jsgraph()->graph()->NewNode(
+          jsgraph()->common()->ArgumentsElementsState(type));
+      NodeProperties::SetType(arguments_elements_state, Type::OtherInternal());
+      ReplaceWithValue(node, arguments_elements_state);
+
+      for (Node* load : loads) {
+        switch (load->opcode()) {
+          case IrOpcode::kLoadElement: {
+            Node* index = NodeProperties::GetValueInput(load, 1);
+            Node* formal_parameter_count =
+                jsgraph()->Constant(params.formal_parameter_count());
+            NodeProperties::SetType(
+                formal_parameter_count,
+                Type::Constant(params.formal_parameter_count(),
+                               jsgraph()->graph()->zone()));
+            Node* offset_to_first_elem = jsgraph()->Constant(
+                CommonFrameConstants::kFixedSlotCountAboveFp);
+            if (!NodeProperties::IsTyped(offset_to_first_elem)) {
+              NodeProperties::SetType(
+                  offset_to_first_elem,
+                  Type::Constant(CommonFrameConstants::kFixedSlotCountAboveFp,
+                                 jsgraph()->graph()->zone()));
+            }
+
+            Node* offset = jsgraph()->graph()->NewNode(
+                jsgraph()->simplified()->NumberAdd(), index,
+                offset_to_first_elem);
+            if (type == CreateArgumentsType::kRestParameter) {
+              // In the case of rest parameters we should skip the formal
+              // parameters.
+              NodeProperties::SetType(offset,
+                                      TypeCache::Get()->kArgumentsLengthType);
+              offset = jsgraph()->graph()->NewNode(
+                  jsgraph()->simplified()->NumberAdd(), offset,
+                  formal_parameter_count);
+            }
+            NodeProperties::SetType(offset,
+                                    TypeCache::Get()->kArgumentsLengthType);
+            NodeProperties::ReplaceValueInput(load, arguments_frame, 0);
+            NodeProperties::ReplaceValueInput(load, offset, 1);
+            NodeProperties::ChangeOp(
+                load, jsgraph()->simplified()->LoadStackArgument());
+            break;
+          }
+          case IrOpcode::kLoadField: {
+            DCHECK_EQ(FieldAccessOf(load->op()).offset,
+                      FixedArray::kLengthOffset);
+            Node* length = NodeProperties::GetValueInput(node, 1);
+            ReplaceWithValue(load, length);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+      }
+    }
+  }
+}
+
+Node* NodeHashCache::Query(Node* node) {
+  auto it = cache_.find(node);
+  if (it != cache_.end()) {
+    return *it;
+  } else {
+    return nullptr;
+  }
+}
+
+NodeHashCache::Constructor::Constructor(NodeHashCache* cache,
+                                        const Operator* op, int input_count,
+                                        Node** inputs, Type type)
+    : node_cache_(cache), from_(nullptr) {
+  if (node_cache_->temp_nodes_.size() > 0) {
+    tmp_ = node_cache_->temp_nodes_.back();
+    node_cache_->temp_nodes_.pop_back();
+    int tmp_input_count = tmp_->InputCount();
+    if (input_count <= tmp_input_count) {
+      tmp_->TrimInputCount(input_count);
+    }
+    for (int i = 0; i < input_count; ++i) {
+      if (i < tmp_input_count) {
+        tmp_->ReplaceInput(i, inputs[i]);
+      } else {
+        tmp_->AppendInput(node_cache_->graph_->zone(), inputs[i]);
+      }
+    }
+    NodeProperties::ChangeOp(tmp_, op);
+  } else {
+    tmp_ = node_cache_->graph_->NewNode(op, input_count, inputs);
+  }
+  NodeProperties::SetType(tmp_, type);
+}
+
+Node* NodeHashCache::Constructor::Get() {
+  DCHECK(tmp_ || from_);
+  Node* node;
+  if (!tmp_) {
+    node = node_cache_->Query(from_);
+    if (!node) node = from_;
+  } else {
+    node = node_cache_->Query(tmp_);
+    if (node) {
+      node_cache_->temp_nodes_.push_back(tmp_);
+    } else {
+      node = tmp_;
+      node_cache_->Insert(node);
+    }
+  }
+  tmp_ = from_ = nullptr;
+  return node;
+}
+
+Node* NodeHashCache::Constructor::MutableNode() {
+  DCHECK(tmp_ || from_);
+  if (!tmp_) {
+    if (node_cache_->temp_nodes_.empty()) {
+      tmp_ = node_cache_->graph_->CloneNode(from_);
+    } else {
+      tmp_ = node_cache_->temp_nodes_.back();
+      node_cache_->temp_nodes_.pop_back();
+      int from_input_count = from_->InputCount();
+      int tmp_input_count = tmp_->InputCount();
+      if (from_input_count <= tmp_input_count) {
+        tmp_->TrimInputCount(from_input_count);
+      }
+      for (int i = 0; i < from_input_count; ++i) {
+        if (i < tmp_input_count) {
+          tmp_->ReplaceInput(i, from_->InputAt(i));
+        } else {
+          tmp_->AppendInput(node_cache_->graph_->zone(), from_->InputAt(i));
+        }
+      }
+      NodeProperties::SetType(tmp_, NodeProperties::GetType(from_));
+      NodeProperties::ChangeOp(tmp_, from_->op());
+    }
+  }
+  return tmp_;
+}
+
+#undef TRACE
 
 }  // namespace compiler
 }  // namespace internal

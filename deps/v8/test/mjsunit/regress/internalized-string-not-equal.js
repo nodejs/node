@@ -30,9 +30,10 @@
 // A bug in r15773, when masks for internalized string and string types
 // were reorganized.
 function equal(o1, o2) {
-  return (o1 == o2);
-}
-var a = "abc";
+  return o1 == o2;
+};
+%PrepareFunctionForOptimization(equal);
+var a = 'abc';
 var b = "abc";
 equal(a, b);
 equal(a, b);

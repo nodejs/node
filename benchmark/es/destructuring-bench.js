@@ -5,39 +5,39 @@ const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
   method: ['swap', 'destructure'],
-  millions: [100]
+  n: [1e8]
 });
 
 function runSwapManual(n) {
-  var i = 0, x, y, r;
+  let x, y, r;
   bench.start();
-  for (; i < n; i++) {
-    x = 1, y = 2;
+  for (let i = 0; i < n; i++) {
+    x = 1;
+    y = 2;
     r = x;
     x = y;
     y = r;
     assert.strictEqual(x, 2);
     assert.strictEqual(y, 1);
   }
-  bench.end(n / 1e6);
+  bench.end(n);
 }
 
 function runSwapDestructured(n) {
-  var i = 0, x, y;
+  let x, y;
   bench.start();
-  for (; i < n; i++) {
-    x = 1, y = 2;
+  for (let i = 0; i < n; i++) {
+    x = 1;
+    y = 2;
     [x, y] = [y, x];
     assert.strictEqual(x, 2);
     assert.strictEqual(y, 1);
   }
-  bench.end(n / 1e6);
+  bench.end(n);
 }
 
-function main(conf) {
-  const n = +conf.millions * 1e6;
-
-  switch (conf.method) {
+function main({ n, method }) {
+  switch (method) {
     case 'swap':
       runSwapManual(n);
       break;
@@ -45,6 +45,6 @@ function main(conf) {
       runSwapDestructured(n);
       break;
     default:
-      throw new Error('Unexpected method');
+      throw new Error(`Unexpected method "${method}"`);
   }
 }

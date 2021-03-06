@@ -87,7 +87,7 @@ EOF
 
 fi
 
-flags='--debug-code --expose-gc --verify-gc'
+flags='--expose-gc --verify-gc'
 python -u "$jsfunfuzz_dir/jsfunfuzz/multi_timed_run.py" 300 \
     "$d8" $flags "$jsfunfuzz_dir/jsfunfuzz/jsfunfuzz.js"
 exit_code=$(cat w* | grep " looking good" -c)

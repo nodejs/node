@@ -5,7 +5,7 @@
 #ifndef V8_HEAP_INCREMENTAL_MARKING_JOB_H_
 #define V8_HEAP_INCREMENTAL_MARKING_JOB_H_
 
-#include "src/cancelable-task.h"
+#include "src/tasks/cancelable-task.h"
 
 namespace v8 {
 namespace internal {
@@ -14,67 +14,41 @@ class Heap;
 class Isolate;
 
 // The incremental marking job uses platform tasks to perform incremental
-// marking steps. The job posts an idle and a delayed task with a large delay.
-// The delayed task performs steps only if the idle task is not making progress.
-// We expect this to be a rare event since incremental marking should finish
-// quickly with the help of the mutator and the idle task.
-// The delayed task guarantees that we eventually finish incremental marking
-// even if the mutator becomes idle and the platform stops running idle tasks,
-// which can happen for background tabs in Chrome.
-class IncrementalMarkingJob {
+// marking steps. The job posts a foreground task that makes a small (~1ms)
+// step and posts another task until the marking is completed.
+class IncrementalMarkingJob final {
  public:
-  class IdleTask : public CancelableIdleTask {
-   public:
-    explicit IdleTask(Isolate* isolate, IncrementalMarkingJob* job)
-        : CancelableIdleTask(isolate), job_(job) {}
-    enum Progress { kDone, kMoreWork };
-    static Progress Step(Heap* heap, double deadline_in_ms);
-    // CancelableIdleTask overrides.
-    void RunInternal(double deadline_in_seconds) override;
+  enum class TaskType { kNormal, kDelayed };
 
-   private:
-    IncrementalMarkingJob* job_;
-  };
-
-  class DelayedTask : public CancelableTask {
-   public:
-    explicit DelayedTask(Isolate* isolate, IncrementalMarkingJob* job)
-        : CancelableTask(isolate), job_(job) {}
-    static void Step(Heap* heap);
-    // CancelableTask overrides.
-    void RunInternal() override;
-
-   private:
-    IncrementalMarkingJob* job_;
-  };
-
-  // Delay of the delayed task.
-  static const double kLongDelayInSeconds;
-  static const double kShortDelayInSeconds;
-
-  IncrementalMarkingJob()
-      : idle_task_pending_(false),
-        delayed_task_pending_(false),
-        made_progress_since_last_delayed_task_(false) {}
-
-  bool ShouldForceMarkingStep() {
-    return !made_progress_since_last_delayed_task_;
-  }
-
-  bool IdleTaskPending() { return idle_task_pending_; }
+  IncrementalMarkingJob() V8_NOEXCEPT = default;
 
   void Start(Heap* heap);
 
-  void NotifyIdleTask();
-  void NotifyDelayedTask();
-  void NotifyIdleTaskProgress();
-  void ScheduleIdleTask(Heap* heap);
-  void ScheduleDelayedTask(Heap* heap);
+  void ScheduleTask(Heap* heap, TaskType task_type = TaskType::kNormal);
+
+  double CurrentTimeToTask(Heap* heap) const;
 
  private:
-  bool idle_task_pending_;
-  bool delayed_task_pending_;
-  bool made_progress_since_last_delayed_task_;
+  class Task;
+  static constexpr double kDelayInSeconds = 10.0 / 1000.0;
+
+  bool IsTaskPending(TaskType task_type) const {
+    return task_type == TaskType::kNormal ? normal_task_pending_
+                                          : delayed_task_pending_;
+  }
+
+  void SetTaskPending(TaskType task_type, bool value) {
+    if (task_type == TaskType::kNormal) {
+      normal_task_pending_ = value;
+    } else {
+      delayed_task_pending_ = value;
+    }
+  }
+
+  base::Mutex mutex_;
+  double scheduled_time_ = 0.0;
+  bool normal_task_pending_ = false;
+  bool delayed_task_pending_ = false;
 };
 }  // namespace internal
 }  // namespace v8

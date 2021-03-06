@@ -2,60 +2,85 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/handles.h"
-#include "src/interface-descriptors.h"
-#include "src/isolate.h"
+#ifndef V8_TEST_CCTEST_COMPILER_CODE_ASSEMBLER_TESTER_H_
+#define V8_TEST_CCTEST_COMPILER_CODE_ASSEMBLER_TESTER_H_
+
+#include "src/codegen/interface-descriptors.h"
+#include "src/compiler/code-assembler.h"
+#include "src/compiler/raw-machine-assembler.h"
+#include "src/execution/isolate.h"
+#include "src/handles/handles.h"
 #include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-class ZoneHolder {
+class CodeAssemblerTester {
  public:
-  explicit ZoneHolder(Isolate* isolate) : zone_(isolate->allocator()) {}
-  Zone* zone() { return &zone_; }
+  CodeAssemblerTester(Isolate* isolate,
+                      const CallInterfaceDescriptor& descriptor,
+                      const char* name = "test")
+      : zone_(isolate->allocator(), ZONE_NAME, kCompressGraphZone),
+        scope_(isolate),
+        state_(isolate, &zone_, descriptor, CodeKind::FOR_TESTING, name,
+               PoisoningMitigationLevel::kDontPoison, Builtins::kNoBuiltinId) {}
 
- private:
-  Zone zone_;
-};
-
-// Inherit from ZoneHolder in order to create a zone that can be passed to
-// CodeAssembler base class constructor.
-template <typename CodeAssemblerT>
-class CodeAssemblerTesterImpl : private ZoneHolder, public CodeAssemblerT {
- public:
-  // Test generating code for a stub.
-  CodeAssemblerTesterImpl(Isolate* isolate,
-                          const CallInterfaceDescriptor& descriptor)
-      : ZoneHolder(isolate),
-        CodeAssemblerT(isolate, ZoneHolder::zone(), descriptor,
-                       Code::ComputeFlags(Code::STUB), "test"),
-        scope_(isolate) {}
+  // Test generating code for a stub. Assumes VoidDescriptor call interface.
+  explicit CodeAssemblerTester(Isolate* isolate, const char* name = "test")
+      : CodeAssemblerTester(isolate, VoidDescriptor{}, name) {}
 
   // Test generating code for a JS function (e.g. builtins).
-  CodeAssemblerTesterImpl(Isolate* isolate, int parameter_count)
-      : ZoneHolder(isolate),
-        CodeAssemblerT(isolate, ZoneHolder::zone(), parameter_count,
-                       Code::ComputeFlags(Code::FUNCTION), "test"),
-        scope_(isolate) {}
+  CodeAssemblerTester(Isolate* isolate, int parameter_count,
+                      CodeKind kind = CodeKind::BUILTIN,
+                      const char* name = "test")
+      : zone_(isolate->allocator(), ZONE_NAME, kCompressGraphZone),
+        scope_(isolate),
+        state_(isolate, &zone_, parameter_count, kind, name,
+               PoisoningMitigationLevel::kDontPoison) {}
 
-  // This constructor is intended to be used for creating code objects with
-  // specific flags.
-  CodeAssemblerTesterImpl(Isolate* isolate, Code::Flags flags)
-      : ZoneHolder(isolate),
-        CodeAssemblerT(isolate, ZoneHolder::zone(), 0, flags, "test"),
-        scope_(isolate) {}
+  CodeAssemblerTester(Isolate* isolate, CodeKind kind,
+                      const char* name = "test")
+      : CodeAssemblerTester(isolate, 0, kind, name) {}
+
+  CodeAssemblerTester(Isolate* isolate, CallDescriptor* call_descriptor,
+                      const char* name = "test")
+      : zone_(isolate->allocator(), ZONE_NAME, kCompressGraphZone),
+        scope_(isolate),
+        state_(isolate, &zone_, call_descriptor, CodeKind::FOR_TESTING, name,
+               PoisoningMitigationLevel::kDontPoison, Builtins::kNoBuiltinId) {}
+
+  CodeAssemblerState* state() { return &state_; }
+
+  // Direct low-level access to the machine assembler, for testing only.
+  RawMachineAssembler* raw_assembler_for_testing() {
+    return state_.raw_assembler_.get();
+  }
+
+  Handle<Code> GenerateCode() {
+    return GenerateCode(AssemblerOptions::Default(scope_.isolate()));
+  }
+
+  Handle<Code> GenerateCode(const AssemblerOptions& options) {
+    if (state_.InsideBlock()) {
+      CodeAssembler(&state_).Unreachable();
+    }
+    return CodeAssembler::GenerateCode(&state_, options, nullptr);
+  }
 
   Handle<Code> GenerateCodeCloseAndEscape() {
-    return scope_.CloseAndEscape(CodeAssemblerT::GenerateCode());
+    return scope_.CloseAndEscape(GenerateCode());
   }
 
  private:
+  Zone zone_;
   HandleScope scope_;
   LocalContext context_;
+  CodeAssemblerState state_;
 };
 
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_TEST_CCTEST_COMPILER_CODE_ASSEMBLER_TESTER_H_

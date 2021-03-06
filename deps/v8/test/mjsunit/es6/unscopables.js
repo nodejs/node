@@ -96,7 +96,10 @@ function TestArrayPrototypeUnscopables() {
   var fill = 'local fill';
   var find = 'local find';
   var findIndex = 'local findIndex';
+  var flat = 'local flat';
+  var flatMap = 'local flatMap';
   var keys = 'local keys';
+  var includes = 'local includes';
   var values = 'local values';
 
   var array = [];
@@ -108,6 +111,9 @@ function TestArrayPrototypeUnscopables() {
     assertEquals('local fill', fill);
     assertEquals('local find', find);
     assertEquals('local findIndex', findIndex);
+    assertEquals('local flat', flat);
+    assertEquals('local flatMap', flatMap);
+    assertEquals('local includes', includes);
     assertEquals('local keys', keys);
     assertEquals('local values', values);
     assertEquals(42, toString);
@@ -519,7 +525,7 @@ function TestUnscopablesGetter2() {
 TestUnscopablesGetter2();
 
 
-function TestSetterOnBlacklisted(object, proto) {
+function TestSetterOnBlocklisted(object, proto) {
   var x = 'local';
   Object.defineProperty(proto, 'x', {
     set: function(x) {
@@ -558,7 +564,7 @@ function TestSetterOnBlacklisted(object, proto) {
 
   assertEquals(2, object.x);
 }
-runTest(TestSetterOnBlacklisted);
+runTest(TestSetterOnBlocklisted);
 
 
 function TestObjectsAsUnscopables(object, unscopables) {

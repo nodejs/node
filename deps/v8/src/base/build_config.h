@@ -21,7 +21,7 @@
 #elif defined(_M_IX86) || defined(__i386__)
 #define V8_HOST_ARCH_IA32 1
 #define V8_HOST_ARCH_32_BIT 1
-#elif defined(__AARCH64EL__)
+#elif defined(__AARCH64EL__) || defined(_M_ARM64)
 #define V8_HOST_ARCH_ARM64 1
 #define V8_HOST_ARCH_64_BIT 1
 #elif defined(__ARMEL__)
@@ -33,13 +33,12 @@
 #elif defined(__MIPSEB__) || defined(__MIPSEL__)
 #define V8_HOST_ARCH_MIPS 1
 #define V8_HOST_ARCH_32_BIT 1
+#elif defined(__PPC64__) || defined(_ARCH_PPC64)
+#define V8_HOST_ARCH_PPC64 1
+#define V8_HOST_ARCH_64_BIT 1
 #elif defined(__PPC__) || defined(_ARCH_PPC)
 #define V8_HOST_ARCH_PPC 1
-#if defined(__PPC64__) || defined(_ARCH_PPC64)
-#define V8_HOST_ARCH_64_BIT 1
-#else
 #define V8_HOST_ARCH_32_BIT 1
-#endif
 #elif defined(__s390__) || defined(__s390x__)
 #define V8_HOST_ARCH_S390 1
 #if defined(__s390x__)
@@ -55,27 +54,35 @@
     defined(__ARM_ARCH_7R__) || \
     defined(__ARM_ARCH_7__)
 # define CAN_USE_ARMV7_INSTRUCTIONS 1
+#ifdef __ARM_ARCH_EXT_IDIV__
+#define CAN_USE_SUDIV 1
+#endif
 # ifndef CAN_USE_VFP3_INSTRUCTIONS
-#  define CAN_USE_VFP3_INSTRUCTIONS
+#define CAN_USE_VFP3_INSTRUCTIONS 1
 # endif
 #endif
 
 #if defined(__ARM_ARCH_8A__)
+#define CAN_USE_ARMV7_INSTRUCTIONS 1
+#define CAN_USE_SUDIV 1
 # define CAN_USE_ARMV8_INSTRUCTIONS 1
+#ifndef CAN_USE_VFP3_INSTRUCTIONS
+#define CAN_USE_VFP3_INSTRUCTIONS 1
+#endif
 #endif
 
 
 // Target architecture detection. This may be set externally. If not, detect
 // in the same way as the host architecture, that is, target the native
 // environment as presented by the compiler.
-#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_X87 &&   \
-    !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS && \
-    !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_PPC && !V8_TARGET_ARCH_S390
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM &&      \
+    !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64 && \
+    !V8_TARGET_ARCH_PPC && !V8_TARGET_ARCH_PPC64 && !V8_TARGET_ARCH_S390
 #if defined(_M_X64) || defined(__x86_64__)
 #define V8_TARGET_ARCH_X64 1
 #elif defined(_M_IX86) || defined(__i386__)
 #define V8_TARGET_ARCH_IA32 1
-#elif defined(__AARCH64EL__)
+#elif defined(__AARCH64EL__) || defined(_M_ARM64)
 #define V8_TARGET_ARCH_ARM64 1
 #elif defined(__ARMEL__)
 #define V8_TARGET_ARCH_ARM 1
@@ -83,6 +90,10 @@
 #define V8_TARGET_ARCH_MIPS64 1
 #elif defined(__MIPSEB__) || defined(__MIPSEL__)
 #define V8_TARGET_ARCH_MIPS 1
+#elif defined(_ARCH_PPC64)
+#define V8_TARGET_ARCH_PPC64 1
+#elif defined(_ARCH_PPC)
+#define V8_TARGET_ARCH_PPC 1
 #else
 #error Target architecture was not detected as supported by v8
 #endif
@@ -108,19 +119,15 @@
 #elif V8_TARGET_ARCH_MIPS64
 #define V8_TARGET_ARCH_64_BIT 1
 #elif V8_TARGET_ARCH_PPC
-#if V8_TARGET_ARCH_PPC64
-#define V8_TARGET_ARCH_64_BIT 1
-#else
 #define V8_TARGET_ARCH_32_BIT 1
-#endif
+#elif V8_TARGET_ARCH_PPC64
+#define V8_TARGET_ARCH_64_BIT 1
 #elif V8_TARGET_ARCH_S390
 #if V8_TARGET_ARCH_S390X
 #define V8_TARGET_ARCH_64_BIT 1
 #else
 #define V8_TARGET_ARCH_32_BIT 1
 #endif
-#elif V8_TARGET_ARCH_X87
-#define V8_TARGET_ARCH_32_BIT 1
 #else
 #error Unknown target architecture pointer size
 #endif
@@ -171,8 +178,8 @@
 #else
 #define V8_TARGET_LITTLE_ENDIAN 1
 #endif
-#elif V8_TARGET_ARCH_X87
-#define V8_TARGET_LITTLE_ENDIAN 1
+#elif __BIG_ENDIAN__  // FOR PPCGR on AIX
+#define V8_TARGET_BIG_ENDIAN 1
 #elif V8_TARGET_ARCH_PPC_LE
 #define V8_TARGET_LITTLE_ENDIAN 1
 #elif V8_TARGET_ARCH_PPC_BE
@@ -187,20 +194,24 @@
 #error Unknown target architecture endianness
 #endif
 
-#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X64) || \
-    defined(V8_TARGET_ARCH_X87)
-#define V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK 1
+#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X64)
+#define V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK true
 #else
-#define V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK 0
+#define V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK false
 #endif
+constexpr int kReturnAddressStackSlotCount =
+    V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK ? 1 : 0;
 
-// Number of bits to represent the page size for paged spaces. The value of 20
-// gives 1Mb bytes per page.
-#if V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX
-// Bump up for Power Linux due to larger (64K) page size.
-const int kPageSizeBits = 22;
+// Number of bits to represent the page size for paged spaces.
+#if defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_PPC64)
+// PPC has large (64KB) physical pages.
+const int kPageSizeBits = 19;
 #else
-const int kPageSizeBits = 20;
+// Arm64 supports up to 64k OS pages on Linux, however 4k pages are more common
+// so we keep the V8 page size at 256k. Nonetheless, we need to make sure we
+// don't decrease it further in the future due to reserving 3 OS pages for every
+// executable V8 page.
+const int kPageSizeBits = 18;
 #endif
 
 #endif  // V8_BASE_BUILD_CONFIG_H_

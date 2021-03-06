@@ -94,8 +94,8 @@ TEST(Semaphore, ProducerConsumer) {
   Semaphore used_space(0);
   ProducerThread producer_thread(buffer, &free_space, &used_space);
   ConsumerThread consumer_thread(buffer, &free_space, &used_space);
-  producer_thread.Start();
-  consumer_thread.Start();
+  CHECK(producer_thread.Start());
+  CHECK(consumer_thread.Start());
   producer_thread.Join();
   consumer_thread.Join();
 }
@@ -106,8 +106,8 @@ TEST(Semaphore, WaitAndSignal) {
   WaitAndSignalThread t1(&semaphore);
   WaitAndSignalThread t2(&semaphore);
 
-  t1.Start();
-  t2.Start();
+  CHECK(t1.Start());
+  CHECK(t2.Start());
 
   // Make something available.
   semaphore.Signal();

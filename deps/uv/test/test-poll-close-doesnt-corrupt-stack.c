@@ -31,11 +31,9 @@
 # define NO_INLINE __attribute__ ((noinline))
 #endif
 
-
-uv_os_sock_t sock;
-uv_poll_t handle;
-
 #ifdef _WIN32
+static uv_os_sock_t sock;
+static uv_poll_t handle;
 static int close_cb_called = 0;
 
 
@@ -49,7 +47,7 @@ static void poll_cb(uv_poll_t* h, int status, int events) {
 }
 
 
-static void NO_INLINE close_socket_and_verify_stack() {
+static void NO_INLINE close_socket_and_verify_stack(void) {
   const uint32_t MARKER = 0xDEADBEEF;
   const int VERIFY_AFTER = 10; /* ms */
   int r;

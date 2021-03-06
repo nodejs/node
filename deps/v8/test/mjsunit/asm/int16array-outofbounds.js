@@ -8,19 +8,22 @@ function Module(stdlib, foreign, heap) {
   function load(i) {
     i = i|0;
     i = MEM16[i >> 1] | 0;
-    return i;
+    return i | 0;
   }
   function loadm1() {
-    return MEM16[-1] | 0;
+    var i = -1 << 1;
+    return MEM16[i >> 1] | 0;
+    return 0;
   }
   function store(i, v) {
-    i = i|0;
-    v = v|0;
+    i = i | 0;
+    v = v | 0;
     MEM16[i >> 1] = v;
   }
   function storem1(v) {
-    v = v|0;
-    MEM16[-1] = v;
+    v = v | 0;
+    var i = -1 << 1;
+    MEM16[i >> 1] = v;
   }
   return {load: load, loadm1: loadm1, store: store, storem1: storem1};
 }

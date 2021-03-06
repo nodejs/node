@@ -1,0 +1,9 @@
+<!doctype html>
+<title>Negative timeout in setTimeout</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+ setup({ single_test: true });
+ setTimeout(done, -100);
+ setTimeout(assert_unreached, 10);
+</script>

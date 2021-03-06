@@ -1,38 +1,55 @@
-#include "node.h"
-#include "v8.h"
-#include "env.h"
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 #include "env-inl.h"
 #include "string_bytes.h"
-
-#include <errno.h>
-#include <string.h>
 
 #ifdef __MINGW32__
 # include <io.h>
 #endif  // __MINGW32__
 
 #ifdef __POSIX__
-# include <limits.h>        // PATH_MAX on Solaris.
-# include <netdb.h>         // MAXHOSTNAMELEN on Solaris.
 # include <unistd.h>        // gethostname, sysconf
-# include <sys/param.h>     // MAXHOSTNAMELEN on Linux and the BSDs.
-# include <sys/utsname.h>
+# include <climits>         // PATH_MAX on Solaris.
 #endif  // __POSIX__
 
-// Add Windows fallback.
-#ifndef MAXHOSTNAMELEN
-# define MAXHOSTNAMELEN 256
-#endif  // MAXHOSTNAMELEN
+#include <array>
+#include <cerrno>
+#include <cstring>
 
 namespace node {
 namespace os {
 
 using v8::Array;
+using v8::ArrayBuffer;
 using v8::Boolean;
 using v8::Context;
+using v8::Float64Array;
 using v8::FunctionCallbackInfo;
+using v8::Int32;
 using v8::Integer;
+using v8::Isolate;
 using v8::Local;
+using v8::MaybeLocal;
+using v8::NewStringType;
 using v8::Null;
 using v8::Number;
 using v8::Object;
@@ -42,126 +59,90 @@ using v8::Value;
 
 static void GetHostname(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  char buf[MAXHOSTNAMELEN + 1];
+  char buf[UV_MAXHOSTNAMESIZE];
+  size_t size = sizeof(buf);
+  int r = uv_os_gethostname(buf, &size);
 
-  if (gethostname(buf, sizeof(buf))) {
-#ifdef __POSIX__
-    int errorno = errno;
-#else  // __MINGW32__
-    int errorno = WSAGetLastError();
-#endif  // __POSIX__
-    return env->ThrowErrnoException(errorno, "gethostname");
+  if (r != 0) {
+    CHECK_GE(args.Length(), 1);
+    env->CollectUVExceptionInfo(args[args.Length() - 1], r,
+                                "uv_os_gethostname");
+    return args.GetReturnValue().SetUndefined();
   }
-  buf[sizeof(buf) - 1] = '\0';
 
-  args.GetReturnValue().Set(OneByteString(env->isolate(), buf));
+  args.GetReturnValue().Set(
+      String::NewFromUtf8(env->isolate(), buf).ToLocalChecked());
 }
 
-
-static void GetOSType(const FunctionCallbackInfo<Value>& args) {
+static void GetOSInformation(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  const char* rval;
+  uv_utsname_t info;
+  int err = uv_os_uname(&info);
 
-#ifdef __POSIX__
-  struct utsname info;
-  if (uname(&info) < 0) {
-    return env->ThrowErrnoException(errno, "uname");
+  if (err != 0) {
+    CHECK_GE(args.Length(), 1);
+    env->CollectUVExceptionInfo(args[args.Length() - 1], err, "uv_os_uname");
+    return args.GetReturnValue().SetUndefined();
   }
-  rval = info.sysname;
-#else  // __MINGW32__
-  rval ="Windows_NT";
-#endif  // __POSIX__
 
-  args.GetReturnValue().Set(OneByteString(env->isolate(), rval));
+  // [sysname, version, release]
+  Local<Value> osInformation[] = {
+    String::NewFromUtf8(env->isolate(), info.sysname).ToLocalChecked(),
+    String::NewFromUtf8(env->isolate(), info.version).ToLocalChecked(),
+    String::NewFromUtf8(env->isolate(), info.release).ToLocalChecked()
+  };
+
+  args.GetReturnValue().Set(Array::New(env->isolate(),
+                                       osInformation,
+                                       arraysize(osInformation)));
 }
-
-
-static void GetOSRelease(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  const char* rval;
-
-#ifdef __POSIX__
-  struct utsname info;
-  if (uname(&info) < 0) {
-    return env->ThrowErrnoException(errno, "uname");
-  }
-  rval = info.release;
-#else  // Windows
-  char release[256];
-  OSVERSIONINFOW info;
-
-  info.dwOSVersionInfoSize = sizeof(info);
-
-  // Don't complain that GetVersionEx is deprecated; there is no alternative.
-  #pragma warning(suppress : 4996)
-  if (GetVersionExW(&info) == 0)
-    return;
-
-  snprintf(release,
-           sizeof(release),
-           "%d.%d.%d",
-           static_cast<int>(info.dwMajorVersion),
-           static_cast<int>(info.dwMinorVersion),
-           static_cast<int>(info.dwBuildNumber));
-  rval = release;
-#endif  // __POSIX__
-
-  args.GetReturnValue().Set(OneByteString(env->isolate(), rval));
-}
-
 
 static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
   uv_cpu_info_t* cpu_infos;
-  int count, i;
+  int count;
 
   int err = uv_cpu_info(&cpu_infos, &count);
   if (err)
     return;
 
-  Local<Array> cpus = Array::New(env->isolate());
-  for (i = 0; i < count; i++) {
+  // It's faster to create an array packed with all the data and
+  // assemble them into objects in JS than to call Object::Set() repeatedly
+  // The array is in the format
+  // [model, speed, (5 entries of cpu_times), model2, speed2, ...]
+  std::vector<Local<Value>> result;
+  result.reserve(count * 7);
+  for (int i = 0; i < count; i++) {
     uv_cpu_info_t* ci = cpu_infos + i;
-
-    Local<Object> times_info = Object::New(env->isolate());
-    times_info->Set(env->user_string(),
-                    Number::New(env->isolate(), ci->cpu_times.user));
-    times_info->Set(env->nice_string(),
-                    Number::New(env->isolate(), ci->cpu_times.nice));
-    times_info->Set(env->sys_string(),
-                    Number::New(env->isolate(), ci->cpu_times.sys));
-    times_info->Set(env->idle_string(),
-                    Number::New(env->isolate(), ci->cpu_times.idle));
-    times_info->Set(env->irq_string(),
-                    Number::New(env->isolate(), ci->cpu_times.irq));
-
-    Local<Object> cpu_info = Object::New(env->isolate());
-    cpu_info->Set(env->model_string(),
-                  OneByteString(env->isolate(), ci->model));
-    cpu_info->Set(env->speed_string(),
-                  Number::New(env->isolate(), ci->speed));
-    cpu_info->Set(env->times_string(), times_info);
-
-    (*cpus)->Set(i, cpu_info);
+    result.emplace_back(OneByteString(isolate, ci->model));
+    result.emplace_back(Number::New(isolate, ci->speed));
+    result.emplace_back(
+        Number::New(isolate, static_cast<double>(ci->cpu_times.user)));
+    result.emplace_back(
+        Number::New(isolate, static_cast<double>(ci->cpu_times.nice)));
+    result.emplace_back(
+        Number::New(isolate, static_cast<double>(ci->cpu_times.sys)));
+    result.emplace_back(
+        Number::New(isolate, static_cast<double>(ci->cpu_times.idle)));
+    result.emplace_back(
+        Number::New(isolate, static_cast<double>(ci->cpu_times.irq)));
   }
 
   uv_free_cpu_info(cpu_infos, count);
-  args.GetReturnValue().Set(cpus);
+  args.GetReturnValue().Set(Array::New(isolate, result.data(), result.size()));
 }
 
 
 static void GetFreeMemory(const FunctionCallbackInfo<Value>& args) {
-  double amount = uv_get_free_memory();
-  if (amount < 0)
-    return;
+  double amount = static_cast<double>(uv_get_free_memory());
   args.GetReturnValue().Set(amount);
 }
 
 
 static void GetTotalMemory(const FunctionCallbackInfo<Value>& args) {
-  double amount = uv_get_total_memory();
-  if (amount < 0)
-    return;
+  double amount = static_cast<double>(uv_get_total_memory());
   args.GetReturnValue().Set(amount);
 }
 
@@ -175,59 +156,52 @@ static void GetUptime(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetLoadAvg(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  double loadavg[3];
+  CHECK(args[0]->IsFloat64Array());
+  Local<Float64Array> array = args[0].As<Float64Array>();
+  CHECK_EQ(array->Length(), 3);
+  Local<ArrayBuffer> ab = array->Buffer();
+  double* loadavg = static_cast<double*>(ab->GetBackingStore()->Data());
   uv_loadavg(loadavg);
-  Local<Array> loads = Array::New(env->isolate(), 3);
-  loads->Set(0, Number::New(env->isolate(), loadavg[0]));
-  loads->Set(1, Number::New(env->isolate(), loadavg[1]));
-  loads->Set(2, Number::New(env->isolate(), loadavg[2]));
-  args.GetReturnValue().Set(loads);
 }
 
 
 static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
   uv_interface_address_t* interfaces;
   int count, i;
   char ip[INET6_ADDRSTRLEN];
   char netmask[INET6_ADDRSTRLEN];
-  char mac[18];
-  Local<Object> ret, o;
+  std::array<char, 18> mac;
   Local<String> name, family;
-  Local<Array> ifarr;
 
   int err = uv_interface_addresses(&interfaces, &count);
 
-  ret = Object::New(env->isolate());
+  if (err == UV_ENOSYS)
+    return args.GetReturnValue().SetUndefined();
 
-  if (err == UV_ENOSYS) {
-    return args.GetReturnValue().Set(ret);
-  } else if (err) {
-    return env->ThrowUVException(err, "uv_interface_addresses");
+  if (err) {
+    CHECK_GE(args.Length(), 1);
+    env->CollectUVExceptionInfo(args[args.Length() - 1], errno,
+                                "uv_interface_addresses");
+    return args.GetReturnValue().SetUndefined();
   }
 
+  Local<Value> no_scope_id = Integer::New(isolate, -1);
+  std::vector<Local<Value>> result;
+  result.reserve(count * 7);
   for (i = 0; i < count; i++) {
     const char* const raw_name = interfaces[i].name;
 
-    // On Windows, the interface name is the UTF8-encoded friendly name and may
-    // contain non-ASCII characters.  On UNIX, it's just a binary string with
-    // no particular encoding but we treat it as a one-byte Latin-1 string.
-#ifdef _WIN32
-    name = String::NewFromUtf8(env->isolate(), raw_name);
-#else
-    name = OneByteString(env->isolate(), raw_name);
-#endif
+    // Use UTF-8 on both Windows and Unixes (While it may be true that UNIX
+    // systems are somewhat encoding-agnostic here, it’s more than reasonable
+    // to assume UTF8 as the default as well. It’s what people will expect if
+    // they name the interface from any input that uses UTF-8, which should be
+    // the most frequent case by far these days.)
+    name = String::NewFromUtf8(isolate, raw_name).ToLocalChecked();
 
-    if (ret->Has(env->context(), name).FromJust()) {
-      ifarr = Local<Array>::Cast(ret->Get(name));
-    } else {
-      ifarr = Array::New(env->isolate());
-      ret->Set(name, ifarr);
-    }
-
-    snprintf(mac,
-             18,
+    snprintf(mac.data(),
+             mac.size(),
              "%02x:%02x:%02x:%02x:%02x:%02x",
              static_cast<unsigned char>(interfaces[i].phys_addr[0]),
              static_cast<unsigned char>(interfaces[i].phys_addr[1]),
@@ -249,27 +223,23 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
       family = env->unknown_string();
     }
 
-    o = Object::New(env->isolate());
-    o->Set(env->address_string(), OneByteString(env->isolate(), ip));
-    o->Set(env->netmask_string(), OneByteString(env->isolate(), netmask));
-    o->Set(env->family_string(), family);
-    o->Set(env->mac_string(), FIXED_ONE_BYTE_STRING(env->isolate(), mac));
-
+    result.emplace_back(name);
+    result.emplace_back(OneByteString(isolate, ip));
+    result.emplace_back(OneByteString(isolate, netmask));
+    result.emplace_back(family);
+    result.emplace_back(FIXED_ONE_BYTE_STRING(isolate, mac));
+    result.emplace_back(
+        interfaces[i].is_internal ? True(isolate) : False(isolate));
     if (interfaces[i].address.address4.sin_family == AF_INET6) {
       uint32_t scopeid = interfaces[i].address.address6.sin6_scope_id;
-      o->Set(env->scopeid_string(),
-             Integer::NewFromUnsigned(env->isolate(), scopeid));
+      result.emplace_back(Integer::NewFromUnsigned(isolate, scopeid));
+    } else {
+      result.emplace_back(no_scope_id);
     }
-
-    const bool internal = interfaces[i].is_internal;
-    o->Set(env->internal_string(),
-           internal ? True(env->isolate()) : False(env->isolate()));
-
-    ifarr->Set(ifarr->Length(), o);
   }
 
   uv_free_interface_addresses(interfaces, count);
-  args.GetReturnValue().Set(ret);
+  args.GetReturnValue().Set(Array::New(isolate, result.data(), result.size()));
 }
 
 
@@ -281,13 +251,15 @@ static void GetHomeDirectory(const FunctionCallbackInfo<Value>& args) {
   const int err = uv_os_homedir(buf, &len);
 
   if (err) {
-    return env->ThrowUVException(err, "uv_os_homedir");
+    CHECK_GE(args.Length(), 1);
+    env->CollectUVExceptionInfo(args[args.Length() - 1], err, "uv_os_homedir");
+    return args.GetReturnValue().SetUndefined();
   }
 
   Local<String> home = String::NewFromUtf8(env->isolate(),
                                            buf,
-                                           String::kNormalString,
-                                           len);
+                                           NewStringType::kNormal,
+                                           len).ToLocalChecked();
   args.GetReturnValue().Set(home);
 }
 
@@ -299,7 +271,12 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 
   if (args[0]->IsObject()) {
     Local<Object> options = args[0].As<Object>();
-    Local<Value> encoding_opt = options->Get(env->encoding_string());
+    MaybeLocal<Value> maybe_encoding = options->Get(env->context(),
+                                                    env->encoding_string());
+    Local<Value> encoding_opt;
+    if (!maybe_encoding.ToLocal(&encoding_opt))
+        return;
+
     encoding = ParseEncoding(env->isolate(), encoding_opt, UTF8);
   } else {
     encoding = UTF8;
@@ -308,59 +285,101 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
   const int err = uv_os_get_passwd(&pwd);
 
   if (err) {
-    return env->ThrowUVException(err, "uv_os_get_passwd");
+    CHECK_GE(args.Length(), 2);
+    env->CollectUVExceptionInfo(args[args.Length() - 1], err,
+                                "uv_os_get_passwd");
+    return args.GetReturnValue().SetUndefined();
   }
+
+  auto free_passwd = OnScopeLeave([&]() { uv_os_free_passwd(&pwd); });
+
+  Local<Value> error;
 
   Local<Value> uid = Number::New(env->isolate(), pwd.uid);
   Local<Value> gid = Number::New(env->isolate(), pwd.gid);
-  Local<Value> username = StringBytes::Encode(env->isolate(),
-                                              pwd.username,
-                                              encoding);
-  Local<Value> homedir = StringBytes::Encode(env->isolate(),
-                                             pwd.homedir,
-                                             encoding);
-  Local<Value> shell;
+  MaybeLocal<Value> username = StringBytes::Encode(env->isolate(),
+                                                   pwd.username,
+                                                   encoding,
+                                                   &error);
+  MaybeLocal<Value> homedir = StringBytes::Encode(env->isolate(),
+                                                  pwd.homedir,
+                                                  encoding,
+                                                  &error);
+  MaybeLocal<Value> shell;
 
-  if (pwd.shell == NULL)
+  if (pwd.shell == nullptr)
     shell = Null(env->isolate());
   else
-    shell = StringBytes::Encode(env->isolate(), pwd.shell, encoding);
+    shell = StringBytes::Encode(env->isolate(), pwd.shell, encoding, &error);
 
-  uv_os_free_passwd(&pwd);
-
-  if (username.IsEmpty()) {
-    return env->ThrowUVException(UV_EINVAL,
-                                 "uv_os_get_passwd",
-                                 "Invalid character encoding for username");
-  }
-
-  if (homedir.IsEmpty()) {
-    return env->ThrowUVException(UV_EINVAL,
-                                 "uv_os_get_passwd",
-                                 "Invalid character encoding for homedir");
-  }
-
-  if (shell.IsEmpty()) {
-    return env->ThrowUVException(UV_EINVAL,
-                                 "uv_os_get_passwd",
-                                 "Invalid character encoding for shell");
+  if (username.IsEmpty() || homedir.IsEmpty() || shell.IsEmpty()) {
+    CHECK(!error.IsEmpty());
+    env->isolate()->ThrowException(error);
+    return;
   }
 
   Local<Object> entry = Object::New(env->isolate());
 
-  entry->Set(env->uid_string(), uid);
-  entry->Set(env->gid_string(), gid);
-  entry->Set(env->username_string(), username);
-  entry->Set(env->homedir_string(), homedir);
-  entry->Set(env->shell_string(), shell);
+  entry->Set(env->context(), env->uid_string(), uid).Check();
+  entry->Set(env->context(), env->gid_string(), gid).Check();
+  entry->Set(env->context(),
+             env->username_string(),
+             username.ToLocalChecked()).Check();
+  entry->Set(env->context(),
+             env->homedir_string(),
+             homedir.ToLocalChecked()).Check();
+  entry->Set(env->context(),
+             env->shell_string(),
+             shell.ToLocalChecked()).Check();
 
   args.GetReturnValue().Set(entry);
 }
 
 
+static void SetPriority(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK_EQ(args.Length(), 3);
+  CHECK(args[0]->IsInt32());
+  CHECK(args[1]->IsInt32());
+
+  const int pid = args[0].As<Int32>()->Value();
+  const int priority = args[1].As<Int32>()->Value();
+  const int err = uv_os_setpriority(pid, priority);
+
+  if (err) {
+    CHECK(args[2]->IsObject());
+    env->CollectUVExceptionInfo(args[2], err, "uv_os_setpriority");
+  }
+
+  args.GetReturnValue().Set(err);
+}
+
+
+static void GetPriority(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK_EQ(args.Length(), 2);
+  CHECK(args[0]->IsInt32());
+
+  const int pid = args[0].As<Int32>()->Value();
+  int priority;
+  const int err = uv_os_getpriority(pid, &priority);
+
+  if (err) {
+    CHECK(args[1]->IsObject());
+    env->CollectUVExceptionInfo(args[1], err, "uv_os_getpriority");
+    return;
+  }
+
+  args.GetReturnValue().Set(priority);
+}
+
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
-                Local<Context> context) {
+                Local<Context> context,
+                void* priv) {
   Environment* env = Environment::GetCurrent(context);
   env->SetMethod(target, "getHostname", GetHostname);
   env->SetMethod(target, "getLoadAvg", GetLoadAvg);
@@ -368,16 +387,18 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "getTotalMem", GetTotalMemory);
   env->SetMethod(target, "getFreeMem", GetFreeMemory);
   env->SetMethod(target, "getCPUs", GetCPUInfo);
-  env->SetMethod(target, "getOSType", GetOSType);
-  env->SetMethod(target, "getOSRelease", GetOSRelease);
   env->SetMethod(target, "getInterfaceAddresses", GetInterfaceAddresses);
   env->SetMethod(target, "getHomeDirectory", GetHomeDirectory);
   env->SetMethod(target, "getUserInfo", GetUserInfo);
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "isBigEndian"),
-              Boolean::New(env->isolate(), IsBigEndian()));
+  env->SetMethod(target, "setPriority", SetPriority);
+  env->SetMethod(target, "getPriority", GetPriority);
+  env->SetMethod(target, "getOSInformation", GetOSInformation);
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "isBigEndian"),
+              Boolean::New(env->isolate(), IsBigEndian())).Check();
 }
 
 }  // namespace os
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(os, node::os::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(os, node::os::Initialize)

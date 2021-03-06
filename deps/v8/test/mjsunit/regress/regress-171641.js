@@ -32,8 +32,8 @@ function foo(k, p) {
     p = Math.min(p, i);
   }
   m = Math.floor((k | 0) / p);
-}
-
+};
+%PrepareFunctionForOptimization(foo);
 foo(0, 1);
 foo(0, 1);
 %OptimizeFunctionOnNextCall(foo);

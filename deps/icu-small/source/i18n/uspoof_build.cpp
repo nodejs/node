@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
  ***************************************************************************
@@ -6,7 +6,7 @@
  * and others. All Rights Reserved.
  ***************************************************************************
  *   file name:  uspoof_build.cpp
- *   encoding:   US-ASCII
+ *   encoding:   UTF-8
  *   tab size:   8 (not used)
  *   indentation:4
  *
@@ -71,7 +71,28 @@ uspoof_openFromSource(const char *confusables,  int32_t confusablesLen,
 
     // Set up a shell of a spoof detector, with empty data.
     SpoofData *newSpoofData = new SpoofData(*status);
+
+    if (newSpoofData == NULL) {
+        *status = U_MEMORY_ALLOCATION_ERROR;
+        return NULL;
+    }
+
+    if (U_FAILURE(*status)) {
+        delete newSpoofData;
+        return NULL;
+    }
     SpoofImpl *This = new SpoofImpl(newSpoofData, *status);
+
+    if (This == NULL) {
+        *status = U_MEMORY_ALLOCATION_ERROR;
+        delete newSpoofData; // explicit delete as the destructor for SpoofImpl won't be called.
+        return NULL;
+    }
+
+    if (U_FAILURE(*status)) {
+        delete This; // no delete for newSpoofData, as the SpoofImpl destructor will delete it.
+        return NULL;
+    }
 
     // Compile the binary data from the source (text) format.
     ConfusabledataBuilder::buildConfusableData(This, confusables, confusablesLen, errorType, pe, *status);

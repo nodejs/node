@@ -9,6 +9,7 @@
     if (o == 'warmup') { return g() }
     with (o) { return x }
   }
+  %PrepareFunctionForOptimization(f);
   function g() {
     // Only a marker function serving as weak embedded object.
   }

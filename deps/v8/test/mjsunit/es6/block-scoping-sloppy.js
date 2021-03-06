@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --opt
 // Test functionality of block scopes.
 
 // Hoisting of var declarations.
@@ -37,10 +37,11 @@ function f1() {
   assertEquals(1, x)
   assertEquals(undefined, y)
 }
+%PrepareFunctionForOptimization(f1);
 for (var j = 0; j < 5; ++j) f1();
 %OptimizeFunctionOnNextCall(f1);
 f1();
-assertTrue(%GetOptimizationStatus(f1) != 2);
+assertOptimized(f1);
 
 // Dynamic lookup in and through block contexts.
 function f2(one) {
@@ -85,6 +86,7 @@ function f3(one) {
     assertEquals(8, b.foo());
   }
 }
+%PrepareFunctionForOptimization(f3);
 for (var j = 0; j < 5; ++j) f3(1);
 %OptimizeFunctionOnNextCall(f3);
 f3(1);

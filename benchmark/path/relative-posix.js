@@ -1,9 +1,8 @@
 'use strict';
-var common = require('../common.js');
-var path = require('path');
-var v8 = require('v8');
+const common = require('../common.js');
+const { posix } = require('path');
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   paths: [
     ['/data/orandea/test/aaa', '/data/orandea/impl/bbb'].join('|'),
     ['/', '/var'].join('|'),
@@ -11,31 +10,25 @@ var bench = common.createBenchmark(main, {
     ['/var', '/bin'].join('|'),
     ['/foo/bar/baz/quux', '/'].join('|'),
     ['/foo/bar/baz/quux', '/foo/bar/baz/quux'].join('|'),
-    ['/foo/bar/baz/quux', '/var/log'].join('|')
+    ['/foo/bar/baz/quux', '/var/log'].join('|'),
   ],
-  n: [1e6]
+  n: [1e5]
 });
 
-function main(conf) {
-  var n = +conf.n;
-  var p = path.posix;
-  var from = '' + conf.paths;
-  var to = '';
-  var delimIdx = from.indexOf('|');
+function main({ n, paths }) {
+  let to = '';
+  const delimIdx = paths.indexOf('|');
   if (delimIdx > -1) {
-    to = from.slice(delimIdx + 1);
-    from = from.slice(0, delimIdx);
+    to = paths.slice(delimIdx + 1);
+    paths = paths.slice(0, delimIdx);
   }
 
-  // Force optimization before starting the benchmark
-  p.relative(from, to);
-  v8.setFlagsFromString('--allow_natives_syntax');
-  eval('%OptimizeFunctionOnNextCall(p.relative)');
-  p.relative(from, to);
-
   bench.start();
-  for (var i = 0; i < n; i++) {
-    p.relative(from, to);
+  for (let i = 0; i < n; i++) {
+    if (i % 3 === 0)
+      posix.relative(`${paths}${i}`, `${to}${i}`);
+    else
+      posix.relative(paths, to);
   }
   bench.end(n);
 }

@@ -1,0 +1,41 @@
+{
+  "name": "@npmcli/git",
+  "version": "2.0.6",
+  "main": "lib/index.js",
+  "files": [
+    "lib/*.js"
+  ],
+  "description": "a util for spawning git from npm CLI contexts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/git"
+  },
+  "author": "Isaac Z. Schlueter <i@izs.me> (https://izs.me)",
+  "license": "ISC",
+  "scripts": {
+    "test": "tap",
+    "snap": "tap",
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags"
+  },
+  "tap": {
+    "check-coverage": true,
+    "coverage-map": "map.js"
+  },
+  "devDependencies": {
+    "slash": "^3.0.0",
+    "tap": "^14.10.6"
+  },
+  "dependencies": {
+    "@npmcli/promise-spawn": "^1.1.0",
+    "lru-cache": "^6.0.0",
+    "mkdirp": "^1.0.3",
+    "npm-pick-manifest": "^6.0.0",
+    "promise-inflight": "^1.0.1",
+    "promise-retry": "^2.0.1",
+    "semver": "^7.3.2",
+    "unique-filename": "^1.1.1",
+    "which": "^2.0.2"
+  }
+}

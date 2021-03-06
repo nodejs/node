@@ -7,7 +7,7 @@
 #include <map>
 #include <string>
 #include "include/v8.h"
-#include "src/simulator.h"
+#include "src/flags/flags.h"
 #include "test/cctest/cctest.h"
 
 namespace {
@@ -16,10 +16,10 @@ class Sample {
  public:
   enum { kFramesLimit = 255 };
 
-  Sample() {}
+  Sample() = default;
 
-  typedef const void* const* const_iterator;
-  const_iterator begin() const { return data_.start(); }
+  using const_iterator = const void* const*;
+  const_iterator begin() const { return data_.begin(); }
   const_iterator end() const { return &data_[data_.length()]; }
 
   int size() const { return data_.length(); }
@@ -30,62 +30,6 @@ class Sample {
 };
 
 
-#if defined(USE_SIMULATOR)
-class SimulatorHelper {
- public:
-  inline bool Init(v8::Isolate* isolate) {
-    simulator_ = reinterpret_cast<v8::internal::Isolate*>(isolate)
-                     ->thread_local_top()
-                     ->simulator_;
-    // Check if there is active simulator.
-    return simulator_ != NULL;
-  }
-
-  inline void FillRegisters(v8::RegisterState* state) {
-#if V8_TARGET_ARCH_ARM
-    state->pc = reinterpret_cast<void*>(simulator_->get_pc());
-    state->sp = reinterpret_cast<void*>(
-        simulator_->get_register(v8::internal::Simulator::sp));
-    state->fp = reinterpret_cast<void*>(
-        simulator_->get_register(v8::internal::Simulator::r11));
-#elif V8_TARGET_ARCH_ARM64
-    if (simulator_->sp() == 0 || simulator_->fp() == 0) {
-      // It's possible that the simulator is interrupted while it is updating
-      // the sp or fp register. ARM64 simulator does this in two steps:
-      // first setting it to zero and then setting it to a new value.
-      // Bailout if sp/fp doesn't contain the new value.
-      return;
-    }
-    state->pc = reinterpret_cast<void*>(simulator_->pc());
-    state->sp = reinterpret_cast<void*>(simulator_->sp());
-    state->fp = reinterpret_cast<void*>(simulator_->fp());
-#elif V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
-    state->pc = reinterpret_cast<void*>(simulator_->get_pc());
-    state->sp = reinterpret_cast<void*>(
-        simulator_->get_register(v8::internal::Simulator::sp));
-    state->fp = reinterpret_cast<void*>(
-        simulator_->get_register(v8::internal::Simulator::fp));
-#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
-    state->pc = reinterpret_cast<void*>(simulator_->get_pc());
-    state->sp = reinterpret_cast<void*>(
-        simulator_->get_register(v8::internal::Simulator::sp));
-    state->fp = reinterpret_cast<void*>(
-        simulator_->get_register(v8::internal::Simulator::fp));
-#elif V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
-    state->pc = reinterpret_cast<void*>(simulator_->get_pc());
-    state->sp = reinterpret_cast<void*>(
-        simulator_->get_register(v8::internal::Simulator::sp));
-    state->fp = reinterpret_cast<void*>(
-        simulator_->get_register(v8::internal::Simulator::fp));
-#endif
-  }
-
- private:
-  v8::internal::Simulator* simulator_;
-};
-#endif  // USE_SIMULATOR
-
-
 class SamplingTestHelper {
  public:
   struct CodeEventEntry {
@@ -93,7 +37,7 @@ class SamplingTestHelper {
     const void* code_start;
     size_t code_len;
   };
-  typedef std::map<const void*, CodeEventEntry> CodeEntries;
+  using CodeEntries = std::map<const void*, CodeEventEntry>;
 
   explicit SamplingTestHelper(const std::string& test_function)
       : sample_is_taken_(false), isolate_(CcTest::isolate()) {
@@ -101,28 +45,28 @@ class SamplingTestHelper {
     instance_ = this;
     v8::HandleScope scope(isolate_);
     v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate_);
-    global->Set(v8_str("CollectSample"),
+    global->Set(isolate_, "CollectSample",
                 v8::FunctionTemplate::New(isolate_, CollectSample));
-    LocalContext env(isolate_, NULL, global);
+    LocalContext env(isolate_, nullptr, global);
     isolate_->SetJitCodeEventHandler(v8::kJitCodeEventDefault,
                                      JitCodeEventHandler);
     CompileRun(v8_str(test_function.c_str()));
   }
 
   ~SamplingTestHelper() {
-    isolate_->SetJitCodeEventHandler(v8::kJitCodeEventDefault, NULL);
-    instance_ = NULL;
+    isolate_->SetJitCodeEventHandler(v8::kJitCodeEventDefault, nullptr);
+    instance_ = nullptr;
   }
 
   Sample& sample() { return sample_; }
 
   const CodeEventEntry* FindEventEntry(const void* address) {
     CodeEntries::const_iterator it = code_entries_.upper_bound(address);
-    if (it == code_entries_.begin()) return NULL;
+    if (it == code_entries_.begin()) return nullptr;
     const CodeEventEntry& entry = (--it)->second;
     const void* code_end =
         static_cast<const uint8_t*>(entry.code_start) + entry.code_len;
-    return address < code_end ? &entry : NULL;
+    return address < code_end ? &entry : nullptr;
   }
 
  private:
@@ -142,12 +86,12 @@ class SamplingTestHelper {
     if (!simulator_helper.Init(isolate_)) return;
     simulator_helper.FillRegisters(&state);
 #else
-    state.pc = NULL;
+    state.pc = nullptr;
     state.fp = &state;
     state.sp = &state;
 #endif
     v8::SampleInfo info;
-    isolate_->GetStackSample(state, sample_.data().start(),
+    isolate_->GetStackSample(state, sample_.data().begin(),
                              static_cast<size_t>(sample_.size()), &info);
     size_t frames_count = info.frames_count;
     CHECK_LE(frames_count, static_cast<size_t>(sample_.size()));

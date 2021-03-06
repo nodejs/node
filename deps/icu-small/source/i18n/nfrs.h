@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -6,7 +6,7 @@
 *   Corporation and others.  All Rights Reserved.
 ******************************************************************************
 *   file name:  nfrs.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -36,7 +36,7 @@ public:
     void parseRules(UnicodeString& rules, UErrorCode& status);
     void setNonNumericalRule(NFRule *rule);
     void setBestFractionRule(int32_t originalIndex, NFRule *newRule, UBool rememberRule);
-    void makeIntoFractionRuleSet() { fIsFractionRuleSet = TRUE; }
+    void makeIntoFractionRuleSet() { fIsFractionRuleSet = true; }
 
     ~NFRuleSet();
 
@@ -55,7 +55,7 @@ public:
     void  format(int64_t number, UnicodeString& toAppendTo, int32_t pos, int32_t recursionCount, UErrorCode& status) const;
     void  format(double number, UnicodeString& toAppendTo, int32_t pos, int32_t recursionCount, UErrorCode& status) const;
 
-    UBool parse(const UnicodeString& text, ParsePosition& pos, double upperBound, Formattable& result) const;
+    UBool parse(const UnicodeString& text, ParsePosition& pos, double upperBound, uint32_t nonNumericalExecutedRuleMask, Formattable& result) const;
 
     void appendRules(UnicodeString& result) const; // toString
 
@@ -88,14 +88,16 @@ private:
 int64_t util64_fromDouble(double d);
 
 // raise radix to the power exponent, only non-negative exponents
-int64_t util64_pow(int32_t radix, uint32_t exponent);
+// Arithmetic is performed in unsigned space since overflow in
+// signed space is undefined behavior.
+uint64_t util64_pow(uint32_t radix, uint16_t exponent);
 
 // convert n to digit string in buffer, return length of string
-uint32_t util64_tou(int64_t n, UChar* buffer, uint32_t buflen, uint32_t radix = 10, UBool raw = FALSE);
+uint32_t util64_tou(int64_t n, UChar* buffer, uint32_t buflen, uint32_t radix = 10, UBool raw = false);
 
 #ifdef RBNF_DEBUG
 int64_t util64_utoi(const UChar* str, uint32_t radix = 10);
-uint32_t util64_toa(int64_t n, char* buffer, uint32_t buflen, uint32_t radix = 10, UBool raw = FALSE);
+uint32_t util64_toa(int64_t n, char* buffer, uint32_t buflen, uint32_t radix = 10, UBool raw = false);
 int64_t util64_atoi(const char* str, uint32_t radix);
 #endif
 

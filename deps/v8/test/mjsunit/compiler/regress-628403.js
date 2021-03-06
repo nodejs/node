@@ -20,6 +20,7 @@ function f(a) {
 }
 
 %NeverOptimizeFunction(g);
+%PrepareFunctionForOptimization(f);
 f();
 f();
 %OptimizeFunctionOnNextCall(f);

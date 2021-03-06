@@ -1,9 +1,8 @@
 'use strict';
-var common = require('../common.js');
-var path = require('path');
-var v8 = require('v8');
+const common = require('../common.js');
+const { posix } = require('path');
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   pathext: [
     '',
     '/',
@@ -14,31 +13,22 @@ var bench = common.createBenchmark(main, {
     'foo/bar.',
     ['foo/bar.', '.'].join('|'),
     '/foo/bar/baz/asdf/quux.html',
-    ['/foo/bar/baz/asdf/quux.html', '.html'].join('|')
+    ['/foo/bar/baz/asdf/quux.html', '.html'].join('|'),
   ],
-  n: [1e6]
+  n: [1e5]
 });
 
-function main(conf) {
-  var n = +conf.n;
-  var p = path.posix;
-  var input = '' + conf.pathext;
-  var ext;
-  var extIdx = input.indexOf('|');
+function main({ n, pathext }) {
+  let ext;
+  const extIdx = pathext.indexOf('|');
   if (extIdx !== -1) {
-    ext = input.slice(extIdx + 1);
-    input = input.slice(0, extIdx);
+    ext = pathext.slice(extIdx + 1);
+    pathext = pathext.slice(0, extIdx);
   }
 
-  // Force optimization before starting the benchmark
-  p.basename(input, ext);
-  v8.setFlagsFromString('--allow_natives_syntax');
-  eval('%OptimizeFunctionOnNextCall(p.basename)');
-  p.basename(input, ext);
-
   bench.start();
-  for (var i = 0; i < n; i++) {
-    p.basename(input, ext);
+  for (let i = 0; i < n; i++) {
+    posix.basename(i % 3 === 0 ? `${pathext}${i}` : pathext, ext);
   }
   bench.end(n);
 }

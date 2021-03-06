@@ -1,7 +1,14 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2005-2020 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 #
 # ====================================================================
-# Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
+# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
 # details see http://www.openssl.org/~appro/cryptogams/.
@@ -41,7 +48,7 @@
 
 # April 2005
 #
-# P4 EM64T core appears to be "allergic" to 64-bit inc/dec. Replacing 
+# P4 EM64T core appears to be "allergic" to 64-bit inc/dec. Replacing
 # those with add/sub results in 50% performance improvement of folded
 # loop...
 
@@ -50,7 +57,7 @@
 # As was shown by Zou Nanhai loop unrolling can improve Intel EM64T
 # performance by >30% [unlike P4 32-bit case that is]. But this is
 # provided that loads are reordered even more aggressively! Both code
-# pathes, AMD64 and EM64T, reorder loads in essentially same manner
+# paths, AMD64 and EM64T, reorder loads in essentially same manner
 # as my IA-64 implementation. On Opteron this resulted in modest 5%
 # improvement [I had to test it], while final Intel P4 performance
 # achieves respectful 432MBps on 2.8GHz processor now. For reference.
@@ -81,7 +88,7 @@
 # The only code path that was not modified is P4-specific one. Non-P4
 # Intel code path optimization is heavily based on submission by Maxim
 # Perminov, Maxim Locktyukhin and Jim Guilford of Intel. I've used
-# some of the ideas even in attempt to optmize the original RC4_INT
+# some of the ideas even in attempt to optimize the original RC4_INT
 # code path... Current performance in cycles per processed byte (less
 # is better) and improvement coefficients relative to previous
 # version of this module are:
@@ -92,6 +99,9 @@
 # Westmere	4.2/+60%
 # Sandy Bridge	4.2/+120%
 # Atom		9.3/+80%
+# VIA Nano	6.4/+4%
+# Ivy Bridge	4.1/+30%
+# Bulldozer	4.5/+30%(*)
 #
 # (*)	But corresponding loop has less instructions, which should have
 #	positive effect on upcoming Bulldozer, which has one less ALU.
@@ -112,7 +122,7 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}../../perlasm/x86_64-xlate.pl" and -f $xlate) or
 die "can't locate x86_64-xlate.pl";
 
-open OUT,"| \"$^X\" $xlate $flavour $output";
+open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
 *STDOUT=*OUT;
 
 $dat="%rdi";	    # arg1
@@ -128,13 +138,18 @@ $code=<<___;
 .globl	RC4
 .type	RC4,\@function,4
 .align	16
-RC4:	or	$len,$len
+RC4:
+.cfi_startproc
+	or	$len,$len
 	jne	.Lentry
 	ret
 .Lentry:
 	push	%rbx
+.cfi_push	%rbx
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 .Lprologue:
 	mov	$len,%r11
 	mov	$inp,%r12
@@ -417,11 +432,16 @@ $code.=<<___;
 	movl	$YY#d,-4($dat)
 
 	mov	(%rsp),%r13
+.cfi_restore	%r13
 	mov	8(%rsp),%r12
+.cfi_restore	%r12
 	mov	16(%rsp),%rbx
+.cfi_restore	%rbx
 	add	\$24,%rsp
+.cfi_adjust_cfa_offset	-24
 .Lepilogue:
 	ret
+.cfi_endproc
 .size	RC4,.-RC4
 ___
 }
@@ -430,10 +450,11 @@ $idx="%r8";
 $ido="%r9";
 
 $code.=<<___;
-.globl	private_RC4_set_key
-.type	private_RC4_set_key,\@function,3
+.globl	RC4_set_key
+.type	RC4_set_key,\@function,3
 .align	16
-private_RC4_set_key:
+RC4_set_key:
+.cfi_startproc
 	lea	8($dat),$dat
 	lea	($inp,$len),$inp
 	neg	$len
@@ -500,12 +521,14 @@ private_RC4_set_key:
 	mov	%eax,-8($dat)
 	mov	%eax,-4($dat)
 	ret
-.size	private_RC4_set_key,.-private_RC4_set_key
+.cfi_endproc
+.size	RC4_set_key,.-RC4_set_key
 
 .globl	RC4_options
 .type	RC4_options,\@abi-omnipotent
 .align	16
 RC4_options:
+.cfi_startproc
 	lea	.Lopts(%rip),%rax
 	mov	OPENSSL_ia32cap_P(%rip),%edx
 	bt	\$20,%edx
@@ -518,6 +541,7 @@ RC4_options:
 	add	\$12,%rax
 .Ldone:
 	ret
+.cfi_endproc
 .align	64
 .Lopts:
 .asciz	"rc4(8x,int)"
@@ -645,16 +669,16 @@ key_se_handler:
 	.rva	.LSEH_end_RC4
 	.rva	.LSEH_info_RC4
 
-	.rva	.LSEH_begin_private_RC4_set_key
-	.rva	.LSEH_end_private_RC4_set_key
-	.rva	.LSEH_info_private_RC4_set_key
+	.rva	.LSEH_begin_RC4_set_key
+	.rva	.LSEH_end_RC4_set_key
+	.rva	.LSEH_info_RC4_set_key
 
 .section	.xdata
 .align	8
 .LSEH_info_RC4:
 	.byte	9,0,0,0
 	.rva	stream_se_handler
-.LSEH_info_private_RC4_set_key:
+.LSEH_info_RC4_set_key:
 	.byte	9,0,0,0
 	.rva	key_se_handler
 ___
@@ -674,4 +698,4 @@ $code =~ s/\`([^\`]*)\`/eval $1/gem;
 
 print $code;
 
-close STDOUT;
+close STDOUT or die "error closing STDOUT: $!";

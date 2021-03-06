@@ -1,403 +1,300 @@
-;(function () {
-  // windows: running 'npm blah' in this folder will invoke WSH, not node.
-  /*globals WScript*/
-  if (typeof WScript !== 'undefined') {
-    WScript.echo(
-      'npm does not work when run\n' +
-      'with the Windows Scripting Host\n\n' +
-      '"cd" to a different directory,\n' +
-      'or type "npm.cmd <args>",\n' +
-      'or type "node npm <args>".'
-    )
-    WScript.quit(1)
-    return
-  }
+// The order of the code in this file is relevant, because a lot of things
+// require('npm.js'), but also we need to use some of those modules.  So,
+// we define and instantiate the singleton ahead of loading any modules
+// required for its methods.
 
-  var gfs = require('graceful-fs')
-  // Patch the global fs module here at the app level
-  var fs = gfs.gracefulify(require('fs'))
+// these are all dependencies used in the ctor
+const EventEmitter = require('events')
+const { resolve, dirname } = require('path')
+const Config = require('@npmcli/config')
 
-  var EventEmitter = require('events').EventEmitter
-  var npm = module.exports = new EventEmitter()
-  var npmconf = require('./config/core.js')
-  var log = require('npmlog')
+// Patch the global fs module here at the app level
+require('graceful-fs').gracefulify(require('fs'))
 
-  var tty = require('tty')
-  var path = require('path')
-  var abbrev = require('abbrev')
-  var which = require('which')
-  var CachingRegClient = require('./cache/caching-client.js')
-  var parseJSON = require('./utils/parse-json.js')
-  var aliases = require('./config/cmd-list').aliases
-  var cmdList = require('./config/cmd-list').cmdList
-  var plumbing = require('./config/cmd-list').plumbing
-  var output = require('./utils/output.js')
+const procLogListener = require('./utils/proc-log-listener.js')
 
-  npm.config = {
-    loaded: false,
-    get: function () {
-      throw new Error('npm.load() required')
-    },
-    set: function () {
-      throw new Error('npm.load() required')
-    }
-  }
-
-  npm.commands = {}
-
-  npm.rollbacks = []
-
-  try {
-    // startup, ok to do this synchronously
-    var j = parseJSON(fs.readFileSync(
-      path.join(__dirname, '../package.json')) + '')
-    npm.version = j.version
-  } catch (ex) {
-    try {
-      log.info('error reading version', ex)
-    } catch (er) {}
-    npm.version = ex
-  }
-
-  var commandCache = {}
-  var aliasNames = Object.keys(aliases)
-
-  var littleGuys = [ 'isntall', 'verison' ]
-  var fullList = cmdList.concat(aliasNames).filter(function (c) {
-    return plumbing.indexOf(c) === -1
-  })
-  var abbrevs = abbrev(fullList)
-
-  // we have our reasons
-  fullList = npm.fullList = fullList.filter(function (c) {
-    return littleGuys.indexOf(c) === -1
-  })
-
-  Object.keys(abbrevs).concat(plumbing).forEach(function addCommand (c) {
-    Object.defineProperty(npm.commands, c, { get: function () {
-      if (!loaded) {
-        throw new Error(
-          'Call npm.load(config, cb) before using this command.\n' +
-            'See the README.md or cli.js for example usage.'
-        )
-      }
-      var a = npm.deref(c)
-      if (c === 'la' || c === 'll') {
-        npm.config.set('long', true)
-      }
-
-      npm.command = c
-      if (commandCache[a]) return commandCache[a]
-
-      var cmd = require(path.join(__dirname, a + '.js'))
-
-      commandCache[a] = function () {
-        var args = Array.prototype.slice.call(arguments, 0)
-        if (typeof args[args.length - 1] !== 'function') {
-          args.push(defaultCb)
-        }
-        if (args.length === 1) args.unshift([])
-
-        // Options are prefixed by a hyphen-minus (-, \u2d).
-        // Other dash-type chars look similar but are invalid.
-        Array(args[0]).forEach(function (arg) {
-          if (/^[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/.test(arg)) {
-            log.error('arg', 'Argument starts with non-ascii dash, this is probably invalid:', arg)
-          }
+const proxyCmds = new Proxy({}, {
+  get: (target, cmd) => {
+    const actual = deref(cmd)
+    if (actual && !Reflect.has(target, actual)) {
+      const Impl = require(`./${actual}.js`)
+      const impl = new Impl(npm)
+      // Our existing npm.commands[x] act like a function with attributes, but
+      // our modules have non-inumerable attributes so we can't just assign
+      // them to an anonymous function like we used to.  This acts like that
+      // old way of doing things, until we can make breaking changes to the
+      // npm.commands[x] api
+      target[actual] = new Proxy(
+        (args, cb) => npm[_runCmd](cmd, impl, args, cb),
+        {
+          get: (target, attr, receiver) => {
+            return Reflect.get(impl, attr, receiver)
+          },
         })
+    }
+    return target[actual]
+  },
+})
 
-        npm.registry.version = npm.version
-        if (!npm.registry.refer) {
-          npm.registry.refer = [a].concat(args[0]).map(function (arg) {
-            // exclude anything that might be a URL, path, or private module
-            // Those things will always have a slash in them somewhere
-            if (arg && arg.match && arg.match(/\/|\\/)) {
-              return '[REDACTED]'
-            } else {
-              return arg
-            }
-          }).filter(function (arg) {
-            return arg && arg.match
-          }).join(' ')
-        }
+const { types, defaults, shorthands } = require('./utils/config.js')
+const { shellouts } = require('./utils/cmd-list.js')
 
-        cmd.apply(npm, args)
-      }
+let warnedNonDashArg = false
+const _runCmd = Symbol('_runCmd')
+const _load = Symbol('_load')
+const _flatOptions = Symbol('_flatOptions')
+const _tmpFolder = Symbol('_tmpFolder')
+const _title = Symbol('_title')
+const npm = module.exports = new class extends EventEmitter {
+  constructor () {
+    super()
+    require('./utils/perf.js')
+    this.modes = {
+      exec: 0o755,
+      file: 0o644,
+      umask: 0o22,
+    }
+    this.started = Date.now()
+    this.command = null
+    this.commands = proxyCmds
+    procLogListener()
+    process.emit('time', 'npm')
+    this.version = require('../package.json').version
+    this.config = new Config({
+      npmPath: dirname(__dirname),
+      types,
+      defaults,
+      shorthands,
+    })
+    this[_title] = process.title
+    this.updateNotification = null
+  }
 
-      Object.keys(cmd).forEach(function (k) {
-        commandCache[a][k] = cmd[k]
+  get shelloutCommands () {
+    return shellouts
+  }
+
+  deref (c) {
+    return deref(c)
+  }
+
+  // this will only ever be called with cmd set to the canonical command name
+  [_runCmd] (cmd, impl, args, cb) {
+    if (!this.loaded) {
+      throw new Error(
+        'Call npm.load(cb) before using this command.\n' +
+        'See the README.md or bin/npm-cli.js for example usage.'
+      )
+    }
+
+    process.emit('time', `command:${cmd}`)
+    // since 'test', 'start', 'stop', etc. commands re-enter this function
+    // to call the run-script command, we need to only set it one time.
+    if (!this.command) {
+      process.env.npm_command = cmd
+      this.command = cmd
+    }
+
+    // Options are prefixed by a hyphen-minus (-, \u2d).
+    // Other dash-type chars look similar but are invalid.
+    if (!warnedNonDashArg) {
+      args.filter(arg => /^[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/.test(arg))
+        .forEach(arg => {
+          warnedNonDashArg = true
+          log.error('arg', 'Argument starts with non-ascii dash, this is probably invalid:', arg)
+        })
+    }
+
+    if (this.config.get('usage')) {
+      console.log(impl.usage)
+      cb()
+    } else {
+      impl.exec(args, er => {
+        process.emit('timeEnd', `command:${cmd}`)
+        cb(er)
       })
-
-      return commandCache[a]
-    }, enumerable: fullList.indexOf(c) !== -1, configurable: true })
-
-    // make css-case commands callable via camelCase as well
-    if (c.match(/\-([a-z])/)) {
-      addCommand(c.replace(/\-([a-z])/g, function (a, b) {
-        return b.toUpperCase()
-      }))
     }
-  })
-
-  function defaultCb (er, data) {
-    log.disableProgress()
-    if (er) console.error(er.stack || er.message)
-    else output(data)
   }
 
-  npm.deref = function (c) {
-    if (!c) return ''
-    if (c.match(/[A-Z]/)) {
-      c = c.replace(/([A-Z])/g, function (m) {
-        return '-' + m.toLowerCase()
-      })
+  // call with parsed CLI options and a callback when done loading
+  // XXX promisify this and stop taking a callback
+  load (cb) {
+    if (!cb || typeof cb !== 'function')
+      throw new TypeError('must call as: npm.load(callback)')
+
+    this.once('load', cb)
+    if (this.loaded || this.loadErr) {
+      this.emit('load', this.loadErr)
+      return
     }
-    if (plumbing.indexOf(c) !== -1) return c
-    var a = abbrevs[c]
-    if (aliases[a]) a = aliases[a]
-    return a
-  }
+    if (this.loading)
+      return
 
-  var loaded = false
-  var loading = false
-  var loadErr = null
-  var loadListeners = []
+    this.loading = true
 
-  function loadCb (er) {
-    loadListeners.forEach(function (cb) {
-      process.nextTick(cb.bind(npm, er, npm))
+    process.emit('time', 'npm:load')
+    this.log.pause()
+    return this[_load]().catch(er => er).then((er) => {
+      this.loading = false
+      this.loadErr = er
+      if (!er && this.config.get('force'))
+        this.log.warn('using --force', 'Recommended protections disabled.')
+
+      if (!er && !this[_flatOptions])
+        this[_flatOptions] = require('./utils/flat-options.js')(this)
+
+      process.emit('timeEnd', 'npm:load')
+      this.emit('load', er)
     })
-    loadListeners.length = 0
   }
 
-  npm.load = function (cli, cb_) {
-    if (!cb_ && typeof cli === 'function') {
-      cb_ = cli
-      cli = {}
-    }
-    if (!cb_) cb_ = function () {}
-    if (!cli) cli = {}
-    loadListeners.push(cb_)
-    if (loaded || loadErr) return cb(loadErr)
-    if (loading) return
-    loading = true
-    var onload = true
+  get loaded () {
+    return this.config.loaded
+  }
 
-    function cb (er) {
-      if (loadErr) return
-      loadErr = er
-      if (er) return cb_(er)
-      if (npm.config.get('force')) {
-        log.warn('using --force', 'I sure hope you know what you are doing.')
-      }
-      npm.config.loaded = true
-      loaded = true
-      loadCb(loadErr = er)
-      onload = onload && npm.config.get('onload-script')
-      if (onload) {
-        try {
-          require(onload)
-        } catch (err) {
-          log.warn('onload-script', 'failed to require onload script', onload)
-          log.warn('onload-script', err)
-        }
-        onload = false
-      }
+  get title () {
+    return this[_title]
+  }
+
+  set title (t) {
+    process.title = t
+    this[_title] = t
+  }
+
+  async [_load] () {
+    const node = await which(process.argv[0]).catch(er => null)
+    if (node && node.toUpperCase() !== process.execPath.toUpperCase()) {
+      log.verbose('node symlink', node)
+      process.execPath = node
+      this.config.execPath = node
     }
 
-    log.pause()
+    await this.config.load()
+    this.argv = this.config.parsedArgv.remain
+    // note: this MUST be shorter than the actual argv length, because it
+    // uses the same memory, so node will truncate it if it's too long.
+    // if it's a token revocation, then the argv contains a secret, so
+    // don't show that.  (Regrettable historical choice to put it there.)
+    // Any other secrets are configs only, so showing only the positional
+    // args keeps those from being leaked.
+    const tokrev = deref(this.argv[0]) === 'token' && this.argv[1] === 'revoke'
+    this.title = tokrev ? 'npm token revoke' + (this.argv[2] ? ' ***' : '')
+      : ['npm', ...this.argv].join(' ')
 
-    load(npm, cli, cb)
+    this.color = setupLog(this.config)
+    process.env.COLOR = this.color ? '1' : '0'
+
+    cleanUpLogFiles(this.cache, this.config.get('logs-max'), log.warn)
+
+    log.resume()
+    const umask = this.config.get('umask')
+    this.modes = {
+      exec: 0o777 & (~umask),
+      file: 0o666 & (~umask),
+      umask,
+    }
+
+    const configScope = this.config.get('scope')
+    if (configScope && !/^@/.test(configScope))
+      this.config.set('scope', `@${configScope}`, this.config.find('scope'))
+
+    this.projectScope = this.config.get('scope') ||
+      getProjectScope(this.prefix)
   }
 
-  function load (npm, cli, cb) {
-    which(process.argv[0], function (er, node) {
-      if (!er && node.toUpperCase() !== process.execPath.toUpperCase()) {
-        log.verbose('node symlink', node)
-        process.execPath = node
-        process.installPrefix = path.resolve(node, '..', '..')
-      }
-
-      // look up configs
-      var builtin = path.resolve(__dirname, '..', 'npmrc')
-      npmconf.load(cli, builtin, function (er, config) {
-        if (er === config) er = null
-
-        npm.config = config
-        if (er) return cb(er)
-
-        // if the 'project' config is not a filename, and we're
-        // not in global mode, then that means that it collided
-        // with either the default or effective userland config
-        if (!config.get('global') &&
-            config.sources.project &&
-            config.sources.project.type !== 'ini') {
-          log.verbose(
-            'config',
-            'Skipping project config: %s. (matches userconfig)',
-            config.localPrefix + '/.npmrc'
-          )
-        }
-
-        // Include npm-version and node-version in user-agent
-        var ua = config.get('user-agent') || ''
-        ua = ua.replace(/\{node-version\}/gi, process.version)
-        ua = ua.replace(/\{npm-version\}/gi, npm.version)
-        ua = ua.replace(/\{platform\}/gi, process.platform)
-        ua = ua.replace(/\{arch\}/gi, process.arch)
-        config.set('user-agent', ua)
-
-        var color = config.get('color')
-
-        log.level = config.get('loglevel')
-        log.heading = config.get('heading') || 'npm'
-        log.stream = config.get('logstream')
-
-        switch (color) {
-          case 'always':
-            log.enableColor()
-            npm.color = true
-            break
-          case false:
-            log.disableColor()
-            npm.color = false
-            break
-          default:
-            if (process.stdout.isTTY) npm.color = true
-            else if (!tty.isatty) npm.color = true
-            else if (tty.isatty(1)) npm.color = true
-            else npm.color = false
-            break
-        }
-
-        if (config.get('unicode')) {
-          log.enableUnicode()
-        } else {
-          log.disableUnicode()
-        }
-
-        if (config.get('progress') && (process.stderr.isTTY || (tty.isatty && tty.isatty(2)))) {
-          log.enableProgress()
-        } else {
-          log.disableProgress()
-        }
-
-        log.resume()
-
-        // at this point the configs are all set.
-        // go ahead and spin up the registry client.
-        npm.registry = new CachingRegClient(npm.config)
-
-        var umask = npm.config.get('umask')
-        npm.modes = {
-          exec: parseInt('0777', 8) & (~umask),
-          file: parseInt('0666', 8) & (~umask),
-          umask: umask
-        }
-
-        var gp = Object.getOwnPropertyDescriptor(config, 'globalPrefix')
-        Object.defineProperty(npm, 'globalPrefix', gp)
-
-        var lp = Object.getOwnPropertyDescriptor(config, 'localPrefix')
-        Object.defineProperty(npm, 'localPrefix', lp)
-
-        return cb(null, npm)
-      })
-    })
+  get flatOptions () {
+    return this[_flatOptions]
   }
 
-  Object.defineProperty(npm, 'prefix',
-    {
-      get: function () {
-        return npm.config.get('global') ? npm.globalPrefix : npm.localPrefix
-      },
-      set: function (r) {
-        var k = npm.config.get('global') ? 'globalPrefix' : 'localPrefix'
-        npm[k] = r
-        return r
-      },
-      enumerable: true
-    })
-
-  Object.defineProperty(npm, 'bin',
-    {
-      get: function () {
-        if (npm.config.get('global')) return npm.globalBin
-        return path.resolve(npm.root, '.bin')
-      },
-      enumerable: true
-    })
-
-  Object.defineProperty(npm, 'globalBin',
-    {
-      get: function () {
-        var b = npm.globalPrefix
-        if (process.platform !== 'win32') b = path.resolve(b, 'bin')
-        return b
-      }
-    })
-
-  Object.defineProperty(npm, 'dir',
-    {
-      get: function () {
-        if (npm.config.get('global')) return npm.globalDir
-        return path.resolve(npm.prefix, 'node_modules')
-      },
-      enumerable: true
-    })
-
-  Object.defineProperty(npm, 'globalDir',
-    {
-      get: function () {
-        return (process.platform !== 'win32')
-             ? path.resolve(npm.globalPrefix, 'lib', 'node_modules')
-             : path.resolve(npm.globalPrefix, 'node_modules')
-      },
-      enumerable: true
-    })
-
-  Object.defineProperty(npm, 'root',
-    { get: function () { return npm.dir } })
-
-  Object.defineProperty(npm, 'cache',
-    { get: function () { return npm.config.get('cache') },
-      set: function (r) { return npm.config.set('cache', r) },
-      enumerable: true
-    })
-
-  var tmpFolder
-  var rand = require('crypto').randomBytes(4).toString('hex')
-  Object.defineProperty(npm, 'tmp',
-    {
-      get: function () {
-        if (!tmpFolder) tmpFolder = 'npm-' + process.pid + '-' + rand
-        return path.resolve(npm.config.get('tmp'), tmpFolder)
-      },
-      enumerable: true
-    })
-
-  // the better to repl you with
-  Object.getOwnPropertyNames(npm.commands).forEach(function (n) {
-    if (npm.hasOwnProperty(n) || n === 'config') return
-
-    Object.defineProperty(npm, n, { get: function () {
-      return function () {
-        var args = Array.prototype.slice.call(arguments, 0)
-        var cb = defaultCb
-
-        if (args.length === 1 && Array.isArray(args[0])) {
-          args = args[0]
-        }
-
-        if (typeof args[args.length - 1] === 'function') {
-          cb = args.pop()
-        }
-        npm.commands[n](args, cb)
-      }
-    }, enumerable: false, configurable: true })
-  })
-
-  if (require.main === module) {
-    require('../bin/npm-cli.js')
+  get lockfileVersion () {
+    return 2
   }
-})()
+
+  get log () {
+    return log
+  }
+
+  get cache () {
+    return this.config.get('cache')
+  }
+
+  set cache (r) {
+    this.config.set('cache', r)
+  }
+
+  get globalPrefix () {
+    return this.config.globalPrefix
+  }
+
+  set globalPrefix (r) {
+    this.config.globalPrefix = r
+  }
+
+  get localPrefix () {
+    return this.config.localPrefix
+  }
+
+  set localPrefix (r) {
+    this.config.localPrefix = r
+  }
+
+  get globalDir () {
+    return process.platform !== 'win32'
+      ? resolve(this.globalPrefix, 'lib', 'node_modules')
+      : resolve(this.globalPrefix, 'node_modules')
+  }
+
+  get localDir () {
+    return resolve(this.localPrefix, 'node_modules')
+  }
+
+  get dir () {
+    return (this.config.get('global')) ? this.globalDir : this.localDir
+  }
+
+  get globalBin () {
+    const b = this.globalPrefix
+    return process.platform !== 'win32' ? resolve(b, 'bin') : b
+  }
+
+  get localBin () {
+    return resolve(this.dir, '.bin')
+  }
+
+  get bin () {
+    return this.config.get('global') ? this.globalBin : this.localBin
+  }
+
+  get prefix () {
+    return this.config.get('global') ? this.globalPrefix : this.localPrefix
+  }
+
+  set prefix (r) {
+    const k = this.config.get('global') ? 'globalPrefix' : 'localPrefix'
+    this[k] = r
+  }
+
+  // XXX add logging to see if we actually use this
+  get tmp () {
+    if (!this[_tmpFolder]) {
+      const rand = require('crypto').randomBytes(4).toString('hex')
+      this[_tmpFolder] = `npm-${process.pid}-${rand}`
+    }
+    return resolve(this.config.get('tmp'), this[_tmpFolder])
+  }
+}()
+
+// now load everything required by the class methods
+
+const log = require('npmlog')
+const { promisify } = require('util')
+
+const which = promisify(require('which'))
+
+const deref = require('./utils/deref-command.js')
+const setupLog = require('./utils/setup-log.js')
+const cleanUpLogFiles = require('./utils/cleanup-log-files.js')
+const getProjectScope = require('./utils/get-project-scope.js')
+
+if (require.main === module)
+  require('./cli.js')(process)

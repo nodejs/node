@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -26,7 +26,7 @@
 #include "unicode/utypes.h"
 
 #ifndef U_I18N_IMPLEMENTATION
-#error U_I18N_IMPLEMENTATION not set - must be set for all ICU source files in i18n/ - see http://userguide.icu-project.org/howtouseicu
+#error U_I18N_IMPLEMENTATION not set - must be set for all ICU source files in i18n/ - see https://unicode-org.github.io/icu/userguide/howtouseicu
 #endif
 
 /*

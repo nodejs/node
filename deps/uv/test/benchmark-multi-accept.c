@@ -218,8 +218,12 @@ static void send_listen_handles(uv_handle_type type,
   }
   else
     ASSERT(0);
-
-  ASSERT(0 == uv_pipe_init(loop, &ctx.ipc_pipe, 1));
+  /* We need to initialize this pipe with ipc=0 - this is not a uv_pipe we'll
+   * be sending handles over, it's just for listening for new connections.
+   * If we accept a connection then the connected pipe must be initialized
+   * with ipc=1.
+   */
+  ASSERT(0 == uv_pipe_init(loop, &ctx.ipc_pipe, 0));
   ASSERT(0 == uv_pipe_bind(&ctx.ipc_pipe, IPC_PIPE_NAME));
   ASSERT(0 == uv_listen((uv_stream_t*) &ctx.ipc_pipe, 128, ipc_connection_cb));
 

@@ -5,90 +5,93 @@
 #ifndef V8_PROFILER_PROFILER_LISTENER_H_
 #define V8_PROFILER_PROFILER_LISTENER_H_
 
+#include <memory>
 #include <vector>
 
-#include "src/code-events.h"
+#include "include/v8-profiler.h"
+#include "src/logging/code-events.h"
 #include "src/profiler/profile-generator.h"
 
 namespace v8 {
 namespace internal {
 
 class CodeEventsContainer;
+class CodeDeoptEventRecord;
 
 class CodeEventObserver {
  public:
   virtual void CodeEventHandler(const CodeEventsContainer& evt_rec) = 0;
-  virtual ~CodeEventObserver() {}
+  virtual ~CodeEventObserver() = default;
 };
 
-class ProfilerListener : public CodeEventListener {
+class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener {
  public:
-  explicit ProfilerListener(Isolate* isolate);
+  ProfilerListener(Isolate*, CodeEventObserver*,
+                   StringsStorage& function_and_resource_names,
+                   CpuProfilingNamingMode mode = kDebugNaming);
   ~ProfilerListener() override;
+  ProfilerListener(const ProfilerListener&) = delete;
+  ProfilerListener& operator=(const ProfilerListener&) = delete;
 
-  void CallbackEvent(Name* name, Address entry_point) override;
-  void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                       AbstractCode* code, const char* comment) override;
-  void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                       AbstractCode* code, Name* name) override;
-  void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                       AbstractCode* code, SharedFunctionInfo* shared,
-                       Name* script_name) override;
-  void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                       AbstractCode* code, SharedFunctionInfo* shared,
-                       Name* script_name, int line, int column) override;
-  void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                       AbstractCode* code, int args_count) override;
-  void CodeMovingGCEvent() override {}
-  void CodeMoveEvent(AbstractCode* from, Address to) override;
-  void CodeDisableOptEvent(AbstractCode* code,
-                           SharedFunctionInfo* shared) override;
-  void CodeDeoptEvent(Code* code, Address pc, int fp_to_sp_delta) override;
-  void GetterCallbackEvent(Name* name, Address entry_point) override;
-  void RegExpCodeCreateEvent(AbstractCode* code, String* source) override;
-  void SetterCallbackEvent(Name* name, Address entry_point) override;
+  void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+                       const char* name) override;
+  void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+                       Handle<Name> name) override;
+  void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+                       Handle<SharedFunctionInfo> shared,
+                       Handle<Name> script_name) override;
+  void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+                       Handle<SharedFunctionInfo> shared,
+                       Handle<Name> script_name, int line, int column) override;
+  void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
+                       wasm::WasmName name, const char* source_url,
+                       int code_offset, int script_id) override;
+
+  void CallbackEvent(Handle<Name> name, Address entry_point) override;
+  void GetterCallbackEvent(Handle<Name> name, Address entry_point) override;
+  void SetterCallbackEvent(Handle<Name> name, Address entry_point) override;
+  void RegExpCodeCreateEvent(Handle<AbstractCode> code,
+                             Handle<String> source) override;
+  void CodeMoveEvent(AbstractCode from, AbstractCode to) override;
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
+  void CodeMovingGCEvent() override {}
+  void CodeDisableOptEvent(Handle<AbstractCode> code,
+                           Handle<SharedFunctionInfo> shared) override;
+  void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
+                      int fp_to_sp_delta, bool reuse_code) override;
+  void CodeDependencyChangeEvent(Handle<Code> code,
+                                 Handle<SharedFunctionInfo> sfi,
+                                 const char* reason) override {}
 
-  CodeEntry* NewCodeEntry(
-      CodeEventListener::LogEventsAndTags tag, const char* name,
-      const char* name_prefix = CodeEntry::kEmptyNamePrefix,
-      const char* resource_name = CodeEntry::kEmptyResourceName,
-      int line_number = v8::CpuProfileNode::kNoLineNumberInfo,
-      int column_number = v8::CpuProfileNode::kNoColumnNumberInfo,
-      JITLineInfoTable* line_info = NULL, Address instruction_start = NULL);
-
-  void AddObserver(CodeEventObserver* observer);
-  void RemoveObserver(CodeEventObserver* observer);
-  V8_INLINE bool HasObservers() { return !observers_.empty(); }
-
-  const char* GetName(Name* name) {
+  const char* GetName(Name name) {
     return function_and_resource_names_.GetName(name);
   }
   const char* GetName(int args_count) {
     return function_and_resource_names_.GetName(args_count);
   }
-  const char* GetFunctionName(Name* name) {
-    return function_and_resource_names_.GetFunctionName(name);
+  const char* GetName(const char* name) {
+    return function_and_resource_names_.GetCopy(name);
   }
-  const char* GetFunctionName(const char* name) {
-    return function_and_resource_names_.GetFunctionName(name);
+  const char* GetName(Vector<const char> name);
+  const char* GetConsName(const char* prefix, Name name) {
+    return function_and_resource_names_.GetConsName(prefix, name);
   }
+
+  void set_observer(CodeEventObserver* observer) { observer_ = observer; }
 
  private:
-  void RecordInliningInfo(CodeEntry* entry, AbstractCode* abstract_code);
-  void RecordDeoptInlinedFrames(CodeEntry* entry, AbstractCode* abstract_code);
-  Name* InferScriptName(Name* name, SharedFunctionInfo* info);
+  const char* GetFunctionName(SharedFunctionInfo);
+
+  void AttachDeoptInlinedFrames(Handle<Code> code, CodeDeoptEventRecord* rec);
+  Name InferScriptName(Name name, SharedFunctionInfo info);
   V8_INLINE void DispatchCodeEvent(const CodeEventsContainer& evt_rec) {
-    for (auto observer : observers_) {
-      observer->CodeEventHandler(evt_rec);
-    }
+    observer_->CodeEventHandler(evt_rec);
   }
 
-  StringsStorage function_and_resource_names_;
-  std::vector<CodeEntry*> code_entries_;
-  std::vector<CodeEventObserver*> observers_;
-
-  DISALLOW_COPY_AND_ASSIGN(ProfilerListener);
+  Isolate* isolate_;
+  CodeEventObserver* observer_;
+  StringsStorage& function_and_resource_names_;
+  const CpuProfilingNamingMode naming_mode_;
 };
 
 }  // namespace internal

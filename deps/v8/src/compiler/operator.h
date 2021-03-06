@@ -7,10 +7,13 @@
 
 #include <ostream>  // NOLINT(readability/streams)
 
+#include "src/base/compiler-specific.h"
 #include "src/base/flags.h"
 #include "src/base/functional.h"
-#include "src/handles.h"
-#include "src/zone.h"
+#include "src/common/globals.h"
+#include "src/handles/handles.h"
+#include "src/objects/feedback-cell.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -28,9 +31,9 @@ namespace compiler {
 // as the name for a named field access, the ID of a runtime function, etc.
 // Static parameters are private to the operator and only semantically
 // meaningful to the operator itself.
-class Operator : public ZoneObject {
+class V8_EXPORT_PRIVATE Operator : public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  typedef uint16_t Opcode;
+  using Opcode = uint16_t;
 
   // Properties inform the operator-independent optimizer about legal
   // transformations for nodes that have this operator.
@@ -45,9 +48,9 @@ class Operator : public ZoneObject {
     kNoThrow = 1 << 5,      // Can never generate an exception.
     kNoDeopt = 1 << 6,      // Can never generate an eager deoptimization exit.
     kFoldable = kNoRead | kNoWrite,
-    kKontrol = kNoDeopt | kFoldable | kNoThrow,
     kEliminatable = kNoDeopt | kNoWrite | kNoThrow,
-    kPure = kNoDeopt | kNoRead | kNoWrite | kNoThrow | kIdempotent
+    kKontrol = kNoDeopt | kFoldable | kNoThrow,
+    kPure = kKontrol | kIdempotent
   };
 
 // List of all bits, for the visualizer.
@@ -55,15 +58,15 @@ class Operator : public ZoneObject {
   V(Commutative)                  \
   V(Associative) V(Idempotent) V(NoRead) V(NoWrite) V(NoThrow) V(NoDeopt)
 
-  typedef base::Flags<Property, uint8_t> Properties;
+  using Properties = base::Flags<Property, uint8_t>;
   enum class PrintVerbosity { kVerbose, kSilent };
 
   // Constructor.
   Operator(Opcode opcode, Properties properties, const char* mnemonic,
            size_t value_in, size_t effect_in, size_t control_in,
            size_t value_out, size_t effect_out, size_t control_out);
-
-  virtual ~Operator() {}
+  Operator(const Operator&) = delete;
+  Operator& operator=(const Operator&) = delete;
 
   // A small integer unique to all instances of a particular kind of operator,
   // useful for quick matching for specific kinds of operators. For fast access
@@ -92,9 +95,6 @@ class Operator : public ZoneObject {
   }
 
   Properties properties() const { return properties_; }
-
-  // TODO(bmeurer): Use bit fields below?
-  static const size_t kMaxControlOutputCount = (1u << 16) - 1;
 
   // TODO(titzer): convert return values here to size_t.
   int ValueInputCount() const { return value_in_; }
@@ -134,23 +134,21 @@ class Operator : public ZoneObject {
   virtual void PrintToImpl(std::ostream& os, PrintVerbosity verbose) const;
 
  private:
+  const char* mnemonic_;
   Opcode opcode_;
   Properties properties_;
-  const char* mnemonic_;
   uint32_t value_in_;
-  uint16_t effect_in_;
-  uint16_t control_in_;
-  uint16_t value_out_;
+  uint32_t effect_in_;
+  uint32_t control_in_;
+  uint32_t value_out_;
   uint8_t effect_out_;
-  uint16_t control_out_;
-
-  DISALLOW_COPY_AND_ASSIGN(Operator);
+  uint32_t control_out_;
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(Operator::Properties)
 
-std::ostream& operator<<(std::ostream& os, const Operator& op);
-
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const Operator& op);
 
 // Default equality function for below Operator1<*> class.
 template <typename T>
@@ -198,7 +196,7 @@ class Operator1 : public Operator {
     os << "[" << parameter() << "]";
   }
 
-  virtual void PrintToImpl(std::ostream& os, PrintVerbosity verbose) const {
+  void PrintToImpl(std::ostream& os, PrintVerbosity verbose) const override {
     os << mnemonic();
     PrintParameter(os, verbose);
   }
@@ -231,20 +229,10 @@ struct OpEqualTo<double> : public base::bit_equal_to<double> {};
 template <>
 struct OpHash<double> : public base::bit_hash<double> {};
 
-template <>
-struct OpEqualTo<Handle<HeapObject>> : public Handle<HeapObject>::equal_to {};
-template <>
-struct OpHash<Handle<HeapObject>> : public Handle<HeapObject>::hash {};
-
-template <>
-struct OpEqualTo<Handle<String>> : public Handle<String>::equal_to {};
-template <>
-struct OpHash<Handle<String>> : public Handle<String>::hash {};
-
-template <>
-struct OpEqualTo<Handle<ScopeInfo>> : public Handle<ScopeInfo>::equal_to {};
-template <>
-struct OpHash<Handle<ScopeInfo>> : public Handle<ScopeInfo>::hash {};
+template <class T>
+struct OpEqualTo<Handle<T>> : public Handle<T>::equal_to {};
+template <class T>
+struct OpHash<Handle<T>> : public Handle<T>::hash {};
 
 }  // namespace compiler
 }  // namespace internal

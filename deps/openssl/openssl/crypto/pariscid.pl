@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2009-2020 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 $flavour = shift;
 $output = shift;
@@ -131,6 +138,37 @@ L\$done
 ___
 }
 {
+my ($in1,$in2,$len)=("%r26","%r25","%r24");
+
+$code.=<<___;
+	.EXPORT	CRYPTO_memcmp,ENTRY,ARGW0=GR,ARGW1=GR,ARGW1=GR
+	.ALIGN	8
+CRYPTO_memcmp
+	.PROC
+	.CALLINFO	NO_CALLS
+	.ENTRY
+	cmpib,*=	0,$len,L\$no_data
+	xor		$rv,$rv,$rv
+
+L\$oop_cmp
+	ldb		0($in1),%r19
+	ldb		0($in2),%r20
+	ldo		1($in1),$in1
+	ldo		1($in2),$in2
+	xor		%r19,%r20,%r29
+	addib,*<>	-1,$len,L\$oop_cmp
+	or		%r29,$rv,$rv
+
+	sub		%r0,$rv,%r29
+	extru		%r29,0,1,$rv
+L\$no_data
+	bv		($rp)
+	.EXIT
+	nop
+	.PROCEND
+___
+}
+{
 my ($out,$cnt,$max)=("%r26","%r25","%r24");
 my ($tick,$lasttick)=("%r23","%r22");
 my ($diff,$lastdiff)=("%r21","%r20");
@@ -217,9 +255,22 @@ L\$done2
 	.PROCEND
 ___
 }
-$code =~ s/cmpib,\*/comib,/gm	if ($SIZE_T==4);
-$code =~ s/,\*/,/gm		if ($SIZE_T==4);
-$code =~ s/\bbv\b/bve/gm	if ($SIZE_T==8);
-print $code;
-close STDOUT;
+
+if (`$ENV{CC} -Wa,-v -c -o /dev/null -x assembler /dev/null 2>&1`
+	=~ /GNU assembler/) {
+    $gnuas = 1;
+}
+
+foreach(split("\n",$code)) {
+
+	s/(\.LEVEL\s+2\.0)W/$1w/	if ($gnuas && $SIZE_T==8);
+	s/\.SPACE\s+\$TEXT\$/.text/	if ($gnuas && $SIZE_T==8);
+	s/\.SUBSPA.*//			if ($gnuas && $SIZE_T==8);
+	s/cmpib,\*/comib,/		if ($SIZE_T==4);
+	s/,\*/,/			if ($SIZE_T==4);
+	s/\bbv\b/bve/			if ($SIZE_T==8);
+
+	print $_,"\n";
+}
+close STDOUT or die "error closing STDOUT: $!";
 

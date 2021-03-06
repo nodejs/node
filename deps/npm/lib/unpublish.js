@@ -1,118 +1,113 @@
+const path = require('path')
+const util = require('util')
+const log = require('npmlog')
+const npa = require('npm-package-arg')
+const libaccess = require('libnpmaccess')
+const npmFetch = require('npm-registry-fetch')
+const libunpub = require('libnpmpublish').unpublish
+const readJson = util.promisify(require('read-package-json'))
 
-module.exports = unpublish
+const usageUtil = require('./utils/usage.js')
+const output = require('./utils/output.js')
+const otplease = require('./utils/otplease.js')
+const getIdentity = require('./utils/get-identity.js')
 
-var log = require('npmlog')
-var npm = require('./npm.js')
-var readJson = require('read-package-json')
-var path = require('path')
-var mapToRegistry = require('./utils/map-to-registry.js')
-var npa = require('npm-package-arg')
-var getPublishConfig = require('./utils/get-publish-config.js')
-var output = require('./utils/output.js')
-
-unpublish.usage = 'npm unpublish [<@scope>/]<pkg>[@<version>]'
-
-unpublish.completion = function (opts, cb) {
-  if (opts.conf.argv.remain.length >= 3) return cb()
-  npm.commands.whoami([], true, function (er, username) {
-    if (er) return cb()
-
-    var un = encodeURIComponent(username)
-    if (!un) return cb()
-    var byUser = '-/by-user/' + un
-    mapToRegistry(byUser, npm.config, function (er, uri, auth) {
-      if (er) return cb(er)
-
-      npm.registry.get(uri, { auth: auth }, function (er, pkgs) {
-        // do a bit of filtering at this point, so that we don't need
-        // to fetch versions for more than one thing, but also don't
-        // accidentally a whole project.
-        pkgs = pkgs[un]
-        if (!pkgs || !pkgs.length) return cb()
-        var pp = npa(opts.partialWord).name
-        pkgs = pkgs.filter(function (p) {
-          return p.indexOf(pp) === 0
-        })
-        if (pkgs.length > 1) return cb(null, pkgs)
-        mapToRegistry(pkgs[0], npm.config, function (er, uri, auth) {
-          if (er) return cb(er)
-
-          npm.registry.get(uri, { auth: auth }, function (er, d) {
-            if (er) return cb(er)
-            var vers = Object.keys(d.versions)
-            if (!vers.length) return cb(null, pkgs)
-            return cb(null, vers.map(function (v) {
-              return pkgs[0] + '@' + v
-            }))
-          })
-        })
-      })
-    })
-  })
-}
-
-function unpublish (args, cb) {
-  if (args.length > 1) return cb(unpublish.usage)
-
-  var thing = args.length ? npa(args[0]) : {}
-  var project = thing.name
-  var version = thing.rawSpec
-
-  log.silly('unpublish', 'args[0]', args[0])
-  log.silly('unpublish', 'thing', thing)
-  if (!version && !npm.config.get('force')) {
-    return cb(
-      'Refusing to delete entire project.\n' +
-      'Run with --force to do this.\n' +
-      unpublish.usage
-    )
+class Unpublish {
+  constructor (npm) {
+    this.npm = npm
   }
 
-  if (!project || path.resolve(project) === npm.localPrefix) {
-    // if there's a package.json in the current folder, then
-    // read the package name and version out of that.
-    var cwdJson = path.join(npm.localPrefix, 'package.json')
-    return readJson(cwdJson, function (er, data) {
-      if (er && er.code !== 'ENOENT' && er.code !== 'ENOTDIR') return cb(er)
-      if (er) return cb('Usage:\n' + unpublish.usage)
-      log.verbose('unpublish', data)
-      gotProject(data.name, data.version, data.publishConfig, cb)
-    })
-  }
-  return gotProject(project, version, cb)
-}
-
-function gotProject (project, version, publishConfig, cb_) {
-  if (typeof cb_ !== 'function') {
-    cb_ = publishConfig
-    publishConfig = null
+  get usage () {
+    return usageUtil('unpublish', 'npm unpublish [<@scope>/]<pkg>[@<version>]')
   }
 
-  function cb (er) {
-    if (er) return cb_(er)
-    output('- ' + project + (version ? '@' + version : ''))
-    cb_()
+  async completion (args) {
+    const { partialWord, conf } = args
+
+    if (conf.argv.remain.length >= 3)
+      return []
+
+    const opts = this.npm.flatOptions
+    const username = await getIdentity(this.npm, { ...opts }).catch(() => null)
+    if (!username)
+      return []
+
+    const access = await libaccess.lsPackages(username, opts)
+    // do a bit of filtering at this point, so that we don't need
+    // to fetch versions for more than one thing, but also don't
+    // accidentally unpublish a whole project
+    let pkgs = Object.keys(access || {})
+    if (!partialWord || !pkgs.length)
+      return pkgs
+
+    const pp = npa(partialWord).name
+    pkgs = pkgs.filter(p => !p.indexOf(pp))
+    if (pkgs.length > 1)
+      return pkgs
+
+    const json = await npmFetch.json(npa(pkgs[0]).escapedName, opts)
+    const versions = Object.keys(json.versions)
+    if (!versions.length)
+      return pkgs
+    else
+      return versions.map(v => `${pkgs[0]}@${v}`)
   }
 
-  var mappedConfig = getPublishConfig(publishConfig, npm.config, npm.registry)
-  var config = mappedConfig.config
-  var registry = mappedConfig.client
+  exec (args, cb) {
+    this.unpublish(args).then(() => cb()).catch(cb)
+  }
 
-  // remove from the cache first
-  npm.commands.cache(['clean', project, version], function (er) {
-    if (er) {
-      log.error('unpublish', 'Failed to clean cache')
-      return cb(er)
+  async unpublish (args) {
+    if (args.length > 1)
+      throw new Error(this.usage)
+
+    const spec = args.length && npa(args[0])
+    const opts = this.npm.flatOptions
+    const { force, silent, loglevel } = opts
+    let pkgName
+    let pkgVersion
+
+    log.silly('unpublish', 'args[0]', args[0])
+    log.silly('unpublish', 'spec', spec)
+
+    if (!spec.rawSpec && !force) {
+      throw new Error(
+        'Refusing to delete entire project.\n' +
+        'Run with --force to do this.\n' +
+        this.usage
+      )
     }
 
-    mapToRegistry(project, config, function (er, uri, auth) {
-      if (er) return cb(er)
-
-      var params = {
-        version: version,
-        auth: auth
+    if (!spec || path.resolve(spec.name) === this.npm.localPrefix) {
+      // if there's a package.json in the current folder, then
+      // read the package name and version out of that.
+      const pkgJson = path.join(this.npm.localPrefix, 'package.json')
+      let manifest
+      try {
+        manifest = await readJson(pkgJson)
+      } catch (err) {
+        if (err && err.code !== 'ENOENT' && err.code !== 'ENOTDIR')
+          throw err
+        else
+          throw new Error(`Usage: ${this.usage}`)
       }
-      registry.unpublish(uri, params, cb)
-    })
-  })
+
+      log.verbose('unpublish', manifest)
+
+      const { name, version, publishConfig } = manifest
+      const pkgJsonSpec = npa.resolve(name, version)
+      const optsWithPub = { ...opts, publishConfig }
+      await otplease(opts, opts => libunpub(pkgJsonSpec, optsWithPub))
+      pkgName = name
+      pkgVersion = version ? `@${version}` : ''
+    } else {
+      await otplease(opts, opts => libunpub(spec, opts))
+      pkgName = spec.name
+      pkgVersion = spec.type === 'version' ? `@${spec.rawSpec}` : ''
+    }
+
+    if (!silent && loglevel !== 'silent')
+      output(`- ${pkgName}${pkgVersion}`)
+  }
 }
+module.exports = Unpublish

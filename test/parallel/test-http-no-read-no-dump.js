@@ -11,6 +11,10 @@ const server = http.createServer((req, res) => {
   res.writeHead(200);
   res.flushHeaders();
 
+  req.on('close', common.mustCall(() => {
+    req.on('end', common.mustNotCall());
+  }));
+
   req.connection.on('pause', () => {
     res.end();
     onPause();
@@ -36,10 +40,9 @@ const server = http.createServer((req, res) => {
     };
   }));
 
-  /* What happens here is that the server `end`s the response before we send
-   * `something`, and the client thought that this is a green light for sending
-   * next GET request
-   */
+  // What happens here is that the server `end`s the response before we send
+  // `something`, and the client thought that this is a green light for sending
+  // next GET request
   post.write('initial');
 
   http.request({

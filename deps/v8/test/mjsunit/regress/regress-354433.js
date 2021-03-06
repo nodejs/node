@@ -47,6 +47,7 @@ function __f_5(fun,a,b) {
 }
 
 function __f_8(a,b) { return a%b };
+%PrepareFunctionForOptimization(__f_8);
 
 __f_5(__f_8, 1 << 30, 1);
 __f_5(__f_8, 1, 1 << 30);

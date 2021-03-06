@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --gc-interval=439 --random-seed=-423594851
+// Flags: --allow-natives-syntax --gc-interval=439
 
 var __v_3;
 function __f_2() {

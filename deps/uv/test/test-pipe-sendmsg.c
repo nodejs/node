@@ -102,6 +102,9 @@ static void read_cb(uv_stream_t* handle,
 
 
 TEST_IMPL(pipe_sendmsg) {
+#if defined(NO_SEND_HANDLE_ON_PIPE)
+  RETURN_SKIP(NO_SEND_HANDLE_ON_PIPE);
+#endif
   uv_pipe_t p;
   int r;
   int fds[2];

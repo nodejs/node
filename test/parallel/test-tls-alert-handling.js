@@ -1,91 +1,95 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
 
-if (!common.opensslCli) {
-  common.skip('node compiled without OpenSSL CLI.');
-  return;
-}
-
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
-var tls = require('tls');
-var net = require('net');
-var fs = require('fs');
+if (!common.opensslCli)
+  common.skip('node compiled without OpenSSL CLI');
 
-var success = false;
+const assert = require('assert');
+const net = require('net');
+const tls = require('tls');
+const fixtures = require('../common/fixtures');
 
-function filenamePEM(n) {
-  return require('path').join(common.fixturesDir, 'keys', n + '.pem');
+let clientClosed = false;
+let errorReceived = false;
+function canCloseServer() {
+  return clientClosed && errorReceived;
 }
 
 function loadPEM(n) {
-  return fs.readFileSync(filenamePEM(n));
+  return fixtures.readKey(`${n}.pem`, 'utf-8');
 }
 
-var opts = {
+const opts = {
   key: loadPEM('agent2-key'),
   cert: loadPEM('agent2-cert')
 };
 
-var max_iter = 20;
-var iter = 0;
+const max_iter = 20;
+let iter = 0;
 
-var server = tls.createServer(opts, function(s) {
+const errorHandler = common.mustCall((err) => {
+  assert.strictEqual(err.code, 'ERR_SSL_WRONG_VERSION_NUMBER');
+  assert.strictEqual(err.library, 'SSL routines');
+  assert.strictEqual(err.function, 'ssl3_get_record');
+  assert.strictEqual(err.reason, 'wrong version number');
+  errorReceived = true;
+  if (canCloseServer())
+    server.close();
+});
+const server = tls.createServer(opts, common.mustCall(function(s) {
   s.pipe(s);
-  s.on('error', function(e) {
-    // ignore error
-  });
-});
+  s.on('error', errorHandler);
+}, 2));
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   sendClient();
-});
+}));
 
+server.on('tlsClientError', common.mustNotCall());
+
+server.on('error', common.mustNotCall());
 
 function sendClient() {
-  var client = tls.connect(server.address().port, {
+  const client = tls.connect(server.address().port, {
     rejectUnauthorized: false
   });
-  client.on('data', function(chunk) {
+  client.on('data', common.mustCall(function() {
     if (iter++ === 2) sendBADTLSRecord();
     if (iter < max_iter) {
       client.write('a');
       return;
     }
     client.end();
-    server.close();
-    success = true;
-  });
-  client.write('a');
-  client.on('error', function(e) {
-    // ignore error
-  });
-  client.on('close', function() {
-    server.close();
-  });
+  }, max_iter));
+  client.write('a', common.mustCall());
+  client.on('error', common.mustNotCall());
+  client.on('close', common.mustCall(function() {
+    clientClosed = true;
+    if (canCloseServer())
+      server.close();
+  }));
 }
 
 
 function sendBADTLSRecord() {
-  var BAD_RECORD = Buffer.from([0xff, 0xff, 0xff, 0xff, 0xff, 0xff]);
-  var socket = net.connect(server.address().port);
-  var client = tls.connect({
+  const BAD_RECORD = Buffer.from([0xff, 0xff, 0xff, 0xff, 0xff, 0xff]);
+  const socket = net.connect(server.address().port);
+  const client = tls.connect({
     socket: socket,
     rejectUnauthorized: false
-  }, function() {
-    socket.write(BAD_RECORD);
-    socket.end();
-  });
-  client.on('error', function(e) {
-    // ignore error
-  });
+  }, common.mustCall(function() {
+    client.write('x');
+    client.on('data', (data) => {
+      socket.end(BAD_RECORD);
+    });
+  }));
+  client.on('error', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION');
+    assert.strictEqual(err.library, 'SSL routines');
+    assert.strictEqual(err.function, 'ssl3_read_bytes');
+    assert.strictEqual(err.reason, 'tlsv1 alert protocol version');
+  }));
 }
-
-process.on('exit', function() {
-  assert.strictEqual(iter, max_iter);
-  assert(success);
-});

@@ -3,4 +3,4 @@
 # records starting with a I followed by the g and N values and the id.
 # The exact values ... you have to dig this out from the source of srp.c
 # or srp_vfy.c
-# The last value of an I is used as the default group for new users.  
+# The last value of an I is used as the default group for new users.

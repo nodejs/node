@@ -34,7 +34,9 @@ var O = 0;
 var result = new Float64Array(2);
 
 function spill() {
-  try { } catch (e) { }
+  try {
+  } catch (e) {
+  }
 }
 
 function buggy() {
@@ -45,13 +47,13 @@ function buggy() {
   spill();  // At this point initial values for phi1 and phi2 are spilled.
 
   var xmm1 = v;
-  var xmm2 = v*v*v;
-  var xmm3 = v*v*v*v;
-  var xmm4 = v*v*v*v*v;
-  var xmm5 = v*v*v*v*v*v;
-  var xmm6 = v*v*v*v*v*v*v;
-  var xmm7 = v*v*v*v*v*v*v*v;
-  var xmm8 = v*v*v*v*v*v*v*v*v;
+  var xmm2 = v * v * v;
+  var xmm3 = v * v * v * v;
+  var xmm4 = v * v * v * v * v;
+  var xmm5 = v * v * v * v * v * v;
+  var xmm6 = v * v * v * v * v * v * v;
+  var xmm7 = v * v * v * v * v * v * v * v;
+  var xmm8 = v * v * v * v * v * v * v * v * v;
 
   // All registers are blocked and phis for phi1 and phi2 are spilled because
   // their left (incoming) value is spilled, there are no free registers,
@@ -73,10 +75,10 @@ function buggy() {
   // Now we want to get values of phi1 and phi2. However we would like to
   // do it in a way that does not produce any uses of phi1&phi2 that have
   // a register beneficial policy. How? We just hide these uses behind phis.
-  result[0] = (O === 0) ? phi1 : phi2;
-  result[1] = (O !== 0) ? phi1 : phi2;
-}
-
+  result[0] = O === 0 ? phi1 : phi2;
+  result[1] = O !== 0 ? phi1 : phi2;
+};
+%PrepareFunctionForOptimization(buggy);
 function test() {
   buggy();
   assertArrayEquals([X + K, X - K], result);

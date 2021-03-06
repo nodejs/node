@@ -44,7 +44,9 @@
 for (var i = -310; i <= 308; i += 0.5) {
   assertEquals(i, Math.log10(Math.pow(10, i)));
   // Square roots are tested below.
-  if (i != -0.5 && i != 0.5) assertEquals(i, Math.log2(Math.pow(2, i)));
+  if (i != -0.5 && i != 0.5 ) {
+    assertEqualsDelta(i, Math.log2(Math.pow(2, i)), Number.EPSILON);
+  }
 }
 
 // Test denormals.

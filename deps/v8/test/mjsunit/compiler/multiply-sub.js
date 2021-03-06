@@ -40,16 +40,19 @@ function h(a, b, c, d) {
   return a * b - c * d;
 }
 
+%PrepareFunctionForOptimization(f);
 assertEquals(-5.41, f(1.1, 2.1, 3.1));
 assertEquals(-5.41, f(1.1, 2.1, 3.1));
 %OptimizeFunctionOnNextCall(f);
 assertEquals(-5.41, f(1.1, 2.1, 3.1));
 
+%PrepareFunctionForOptimization(g);
 assertEquals(8.36, g(2.2, 3.3, -1.1));
 assertEquals(8.36, g(2.2, 3.3, -1.1));
 %OptimizeFunctionOnNextCall(g);
 assertEquals(8.36, g(2.2, 3.3, -1.1));
 
+%PrepareFunctionForOptimization(h);
 assertEquals(-1.5, h(1.5, 3.0, 12, 0.5));
 assertEquals(-1.5, h(1.5, 3.0, 12, 0.5));
 %OptimizeFunctionOnNextCall(h);

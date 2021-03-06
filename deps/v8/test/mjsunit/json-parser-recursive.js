@@ -30,4 +30,5 @@ for (var i = 0; i < 100000; i++) {
   str = "[1," + str + "]";
 }
 
-assertThrows(function() { JSON.parse(str); }, RangeError);
+// Make sure we don't overflow on very deeply nested JSON objects.
+JSON.parse(str);

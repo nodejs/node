@@ -29,13 +29,17 @@
 
 function f(a, i) {
   return a[i] + 0.5;
-}
-var arr = [0.0,,];
+};
+%PrepareFunctionForOptimization(f);
+var arr = [
+  0.0,
+  ,
+];
 assertEquals(0.5, f(arr, 0));
 assertEquals(0.5, f(arr, 0));
 %OptimizeFunctionOnNextCall(f);
 assertEquals(0.5, f(arr, 0));
 assertEquals(NaN, f(arr, 1));
-arr.__proto__ = [1.5,1.5,1.5];
+arr.__proto__ = [1.5, 1.5, 1.5];
 assertEquals(2, f(arr, 1));
 assertEquals(0.5, f(arr, 0));

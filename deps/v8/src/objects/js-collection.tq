@@ -1,0 +1,43 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@abstract
+@generateCppClass
+extern class JSCollection extends JSObject {
+  // The backing hash table.
+  table: Object;
+}
+@generateCppClass
+extern class JSSet extends JSCollection {
+}
+@generateCppClass
+extern class JSMap extends JSCollection {
+}
+
+@abstract
+@generateCppClass
+extern class JSWeakCollection extends JSObject {
+  // The backing hash table mapping keys to values.
+  table: Object;
+}
+@generateCppClass
+extern class JSWeakSet extends JSWeakCollection {
+}
+@generateCppClass
+extern class JSWeakMap extends JSWeakCollection {
+}
+
+@abstract extern class JSMapIterator extends JSCollectionIterator;
+extern class JSMapKeyIterator extends JSMapIterator
+    generates 'TNode<JSMapIterator>';
+extern class JSMapKeyValueIterator extends JSMapIterator
+    generates 'TNode<JSMapIterator>';
+extern class JSMapValueIterator extends JSMapIterator
+    generates 'TNode<JSMapIterator>';
+
+@abstract extern class JSSetIterator extends JSCollectionIterator;
+extern class JSSetKeyValueIterator extends JSSetIterator
+    generates 'TNode<JSSetIterator>';
+extern class JSSetValueIterator extends JSSetIterator
+    generates 'TNode<JSSetIterator>';

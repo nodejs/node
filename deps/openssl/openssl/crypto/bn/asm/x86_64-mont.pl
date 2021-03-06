@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2005-2020 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 # ====================================================================
 # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
@@ -50,7 +57,7 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}../../perlasm/x86_64-xlate.pl" and -f $xlate) or
 die "can't locate x86_64-xlate.pl";
 
-open OUT,"| \"$^X\" $xlate $flavour $output";
+open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
 *STDOUT=*OUT;
 
 if (`$ENV{CC} -Wa,-v -c -o /dev/null -x assembler /dev/null 2>&1`
@@ -68,7 +75,7 @@ if (!$addx && $win64 && ($flavour =~ /masm/ || $ENV{ASM} =~ /ml64/) &&
 	$addx = ($1>=12);
 }
 
-if (!$addx && `$ENV{CC} -v 2>&1` =~ /((?:^clang|LLVM) version|.*based on LLVM) ([3-9])\.([0-9]+)/) {
+if (!$addx && `$ENV{CC} -v 2>&1` =~ /((?:clang|LLVM) version|.*based on LLVM) ([0-9]+)\.([0-9]+)/) {
 	my $ver = $2 + $3/100.0;	# 3.1->3.01, 3.10->3.10
 	$addx = ($ver>=3.03);
 }
@@ -97,8 +104,10 @@ $code=<<___;
 .type	bn_mul_mont,\@function,6
 .align	16
 bn_mul_mont:
+.cfi_startproc
 	mov	${num}d,${num}d
 	mov	%rsp,%rax
+.cfi_def_cfa_register	%rax
 	test	\$3,${num}d
 	jnz	.Lmul_enter
 	cmp	\$8,${num}d
@@ -117,11 +126,17 @@ $code.=<<___;
 .align	16
 .Lmul_enter:
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 
 	neg	$num
 	mov	%rsp,%r11
@@ -129,7 +144,9 @@ $code.=<<___;
 	neg	$num			# restore $num
 	and	\$-1024,%r10		# minimize TLB usage
 
-	# Some OSes, *cough*-dows, insist on stack being "wired" to
+	# An OS-agnostic version of __chkstk.
+	#
+	# Some OSes (Windows) insist on stack being "wired" to
 	# physical memory in strictly sequential manner, i.e. if stack
 	# allocation spans two pages, then reference to farmost one can
 	# be punishable by SEGV. But page walking can do good even on
@@ -152,6 +169,7 @@ $code.=<<___;
 .Lmul_page_walk_done:
 
 	mov	%rax,8(%rsp,$num,8)	# tp[num+1]=%rsp
+.cfi_cfa_expression	%rsp+8,$num,8,mul,plus,deref,+8
 .Lmul_body:
 	mov	$bp,%r12		# reassign $bp
 ___
@@ -293,45 +311,54 @@ $code.=<<___;
 
 	xor	$i,$i			# i=0 and clear CF!
 	mov	(%rsp),%rax		# tp[0]
-	lea	(%rsp),$ap		# borrow ap for tp
 	mov	$num,$j			# j=num
-	jmp	.Lsub
+
 .align	16
 .Lsub:	sbb	($np,$i,8),%rax
 	mov	%rax,($rp,$i,8)		# rp[i]=tp[i]-np[i]
-	mov	8($ap,$i,8),%rax	# tp[i+1]
+	mov	8(%rsp,$i,8),%rax	# tp[i+1]
 	lea	1($i),$i		# i++
-	dec	$j			# doesnn't affect CF!
+	dec	$j			# doesn't affect CF!
 	jnz	.Lsub
 
 	sbb	\$0,%rax		# handle upmost overflow bit
+	mov	\$-1,%rbx
+	xor	%rax,%rbx		# not %rax
 	xor	$i,$i
-	and	%rax,$ap
-	not	%rax
-	mov	$rp,$np
-	and	%rax,$np
 	mov	$num,$j			# j=num
-	or	$np,$ap			# ap=borrow?tp:rp
-.align	16
-.Lcopy:					# copy or in-place refresh
-	mov	($ap,$i,8),%rax
-	mov	$i,(%rsp,$i,8)		# zap temporary vector
-	mov	%rax,($rp,$i,8)		# rp[i]=tp[i]
+
+.Lcopy:					# conditional copy
+	mov	($rp,$i,8),%rcx
+	mov	(%rsp,$i,8),%rdx
+	and	%rbx,%rcx
+	and	%rax,%rdx
+	mov	$num,(%rsp,$i,8)	# zap temporary vector
+	or	%rcx,%rdx
+	mov	%rdx,($rp,$i,8)		# rp[i]=tp[i]
 	lea	1($i),$i
 	sub	\$1,$j
 	jnz	.Lcopy
 
 	mov	8(%rsp,$num,8),%rsi	# restore %rsp
+.cfi_def_cfa	%rsi,8
 	mov	\$1,%rax
 	mov	-48(%rsi),%r15
+.cfi_restore	%r15
 	mov	-40(%rsi),%r14
+.cfi_restore	%r14
 	mov	-32(%rsi),%r13
+.cfi_restore	%r13
 	mov	-24(%rsi),%r12
+.cfi_restore	%r12
 	mov	-16(%rsi),%rbp
+.cfi_restore	%rbp
 	mov	-8(%rsi),%rbx
+.cfi_restore	%rbx
 	lea	(%rsi),%rsp
+.cfi_def_cfa_register	%rsp
 .Lmul_epilogue:
 	ret
+.cfi_endproc
 .size	bn_mul_mont,.-bn_mul_mont
 ___
 {{{
@@ -341,8 +368,10 @@ $code.=<<___;
 .type	bn_mul4x_mont,\@function,6
 .align	16
 bn_mul4x_mont:
+.cfi_startproc
 	mov	${num}d,${num}d
 	mov	%rsp,%rax
+.cfi_def_cfa_register	%rax
 .Lmul4x_enter:
 ___
 $code.=<<___ if ($addx);
@@ -352,11 +381,17 @@ $code.=<<___ if ($addx);
 ___
 $code.=<<___;
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 
 	neg	$num
 	mov	%rsp,%r11
@@ -380,6 +415,7 @@ $code.=<<___;
 .Lmul4x_page_walk_done:
 
 	mov	%rax,8(%rsp,$num,8)	# tp[num+1]=%rsp
+.cfi_cfa_expression	%rsp+8,$num,8,mul,plus,deref,+8
 .Lmul4x_body:
 	mov	$rp,16(%rsp,$num,8)	# tp[num+2]=$rp
 	mov	%rdx,%r12		# reassign $bp
@@ -686,10 +722,10 @@ ___
 my @ri=("%rax","%rdx",$m0,$m1);
 $code.=<<___;
 	mov	16(%rsp,$num,8),$rp	# restore $rp
+	lea	-4($num),$j
 	mov	0(%rsp),@ri[0]		# tp[0]
-	pxor	%xmm0,%xmm0
 	mov	8(%rsp),@ri[1]		# tp[1]
-	shr	\$2,$num		# num/=4
+	shr	\$2,$j			# j=num/4-1
 	lea	(%rsp),$ap		# borrow ap for tp
 	xor	$i,$i			# i=0 and clear CF!
 
@@ -697,9 +733,7 @@ $code.=<<___;
 	mov	16($ap),@ri[2]		# tp[2]
 	mov	24($ap),@ri[3]		# tp[3]
 	sbb	8($np),@ri[1]
-	lea	-1($num),$j		# j=num/4-1
-	jmp	.Lsub4x
-.align	16
+
 .Lsub4x:
 	mov	@ri[0],0($rp,$i,8)	# rp[i]=tp[i]-np[i]
 	mov	@ri[1],8($rp,$i,8)	# rp[i]=tp[i]-np[i]
@@ -714,7 +748,7 @@ $code.=<<___;
 	mov	56($ap,$i,8),@ri[3]
 	sbb	40($np,$i,8),@ri[1]
 	lea	4($i),$i		# i++
-	dec	$j			# doesnn't affect CF!
+	dec	$j			# doesn't affect CF!
 	jnz	.Lsub4x
 
 	mov	@ri[0],0($rp,$i,8)	# rp[i]=tp[i]-np[i]
@@ -726,48 +760,58 @@ $code.=<<___;
 
 	sbb	\$0,@ri[0]		# handle upmost overflow bit
 	mov	@ri[3],24($rp,$i,8)	# rp[i]=tp[i]-np[i]
-	xor	$i,$i			# i=0
-	and	@ri[0],$ap
-	not	@ri[0]
-	mov	$rp,$np
-	and	@ri[0],$np
-	lea	-1($num),$j
-	or	$np,$ap			# ap=borrow?tp:rp
+	pxor	%xmm0,%xmm0
+	movq	@ri[0],%xmm4
+	pcmpeqd	%xmm5,%xmm5
+	pshufd	\$0,%xmm4,%xmm4
+	mov	$num,$j
+	pxor	%xmm4,%xmm5
+	shr	\$2,$j			# j=num/4
+	xor	%eax,%eax		# i=0
 
-	movdqu	($ap),%xmm1
-	movdqa	%xmm0,(%rsp)
-	movdqu	%xmm1,($rp)
 	jmp	.Lcopy4x
 .align	16
-.Lcopy4x:					# copy or in-place refresh
-	movdqu	16($ap,$i),%xmm2
-	movdqu	32($ap,$i),%xmm1
-	movdqa	%xmm0,16(%rsp,$i)
-	movdqu	%xmm2,16($rp,$i)
-	movdqa	%xmm0,32(%rsp,$i)
-	movdqu	%xmm1,32($rp,$i)
-	lea	32($i),$i
+.Lcopy4x:				# conditional copy
+	movdqa	(%rsp,%rax),%xmm1
+	movdqu	($rp,%rax),%xmm2
+	pand	%xmm4,%xmm1
+	pand	%xmm5,%xmm2
+	movdqa	16(%rsp,%rax),%xmm3
+	movdqa	%xmm0,(%rsp,%rax)
+	por	%xmm2,%xmm1
+	movdqu	16($rp,%rax),%xmm2
+	movdqu	%xmm1,($rp,%rax)
+	pand	%xmm4,%xmm3
+	pand	%xmm5,%xmm2
+	movdqa	%xmm0,16(%rsp,%rax)
+	por	%xmm2,%xmm3
+	movdqu	%xmm3,16($rp,%rax)
+	lea	32(%rax),%rax
 	dec	$j
 	jnz	.Lcopy4x
-
-	shl	\$2,$num
-	movdqu	16($ap,$i),%xmm2
-	movdqa	%xmm0,16(%rsp,$i)
-	movdqu	%xmm2,16($rp,$i)
 ___
 }
 $code.=<<___;
 	mov	8(%rsp,$num,8),%rsi	# restore %rsp
+.cfi_def_cfa	%rsi, 8
 	mov	\$1,%rax
 	mov	-48(%rsi),%r15
+.cfi_restore	%r15
 	mov	-40(%rsi),%r14
+.cfi_restore	%r14
 	mov	-32(%rsi),%r13
+.cfi_restore	%r13
 	mov	-24(%rsi),%r12
+.cfi_restore	%r12
 	mov	-16(%rsi),%rbp
+.cfi_restore	%rbp
 	mov	-8(%rsi),%rbx
+.cfi_restore	%rbx
 	lea	(%rsi),%rsp
+.cfi_def_cfa_register	%rsp
 .Lmul4x_epilogue:
 	ret
+.cfi_endproc
 .size	bn_mul4x_mont,.-bn_mul4x_mont
 ___
 }}}
@@ -795,14 +839,22 @@ $code.=<<___;
 .type	bn_sqr8x_mont,\@function,6
 .align	32
 bn_sqr8x_mont:
+.cfi_startproc
 	mov	%rsp,%rax
+.cfi_def_cfa_register	%rax
 .Lsqr8x_enter:
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 .Lsqr8x_prologue:
 
 	mov	${num}d,%r10d
@@ -858,6 +910,7 @@ bn_sqr8x_mont:
 
 	mov	$n0,  32(%rsp)
 	mov	%rax, 40(%rsp)		# save original %rsp
+.cfi_cfa_expression	%rsp+40,deref,+8
 .Lsqr8x_body:
 
 	movq	$nptr, %xmm2		# save pointer to modulus
@@ -927,6 +980,7 @@ $code.=<<___;
 	pxor	%xmm0,%xmm0
 	pshufd	\$0,%xmm1,%xmm1
 	mov	40(%rsp),%rsi		# restore %rsp
+.cfi_def_cfa	%rsi,8
 	jmp	.Lsqr8x_cond_copy
 
 .align	32
@@ -956,14 +1010,22 @@ $code.=<<___;
 
 	mov	\$1,%rax
 	mov	-48(%rsi),%r15
+.cfi_restore	%r15
 	mov	-40(%rsi),%r14
+.cfi_restore	%r14
 	mov	-32(%rsi),%r13
+.cfi_restore	%r13
 	mov	-24(%rsi),%r12
+.cfi_restore	%r12
 	mov	-16(%rsi),%rbp
+.cfi_restore	%rbp
 	mov	-8(%rsi),%rbx
+.cfi_restore	%rbx
 	lea	(%rsi),%rsp
+.cfi_def_cfa_register	%rsp
 .Lsqr8x_epilogue:
 	ret
+.cfi_endproc
 .size	bn_sqr8x_mont,.-bn_sqr8x_mont
 ___
 }}}
@@ -975,14 +1037,22 @@ $code.=<<___;
 .type	bn_mulx4x_mont,\@function,6
 .align	32
 bn_mulx4x_mont:
+.cfi_startproc
 	mov	%rsp,%rax
+.cfi_def_cfa_register	%rax
 .Lmulx4x_enter:
 	push	%rbx
+.cfi_push	%rbx
 	push	%rbp
+.cfi_push	%rbp
 	push	%r12
+.cfi_push	%r12
 	push	%r13
+.cfi_push	%r13
 	push	%r14
+.cfi_push	%r14
 	push	%r15
+.cfi_push	%r15
 .Lmulx4x_prologue:
 
 	shl	\$3,${num}d		# convert $num to bytes
@@ -1028,6 +1098,7 @@ bn_mulx4x_mont:
 	mov	$n0, 24(%rsp)		# save *n0
 	mov	$rp, 32(%rsp)		# save $rp
 	mov	%rax,40(%rsp)		# save original %rsp
+.cfi_cfa_expression	%rsp+40,deref,+8
 	mov	$num,48(%rsp)		# inner counter
 	jmp	.Lmulx4x_body
 
@@ -1148,18 +1219,17 @@ $code.=<<___;
 	mulx	2*8($aptr),%r15,%r13	# ...
 	adox	-3*8($tptr),%r11
 	adcx	%r15,%r12
-	adox	$zero,%r12
+	adox	-2*8($tptr),%r12
 	adcx	$zero,%r13
+	adox	$zero,%r13
 
 	mov	$bptr,8(%rsp)		# off-load &b[i]
-	.byte	0x67
 	mov	$mi,%r15
 	imulq	24(%rsp),$mi		# "t[0]"*n0
 	xor	%ebp,%ebp		# xor	$zero,$zero	# cf=0, of=0
 
 	mulx	3*8($aptr),%rax,%r14
 	 mov	$mi,%rdx
-	adox	-2*8($tptr),%r12
 	adcx	%rax,%r13
 	adox	-1*8($tptr),%r13
 	adcx	$zero,%r14
@@ -1278,6 +1348,7 @@ $code.=<<___;
 	pxor	%xmm0,%xmm0
 	pshufd	\$0,%xmm1,%xmm1
 	mov	40(%rsp),%rsi		# restore %rsp
+.cfi_def_cfa	%rsi,8
 	jmp	.Lmulx4x_cond_copy
 
 .align	32
@@ -1307,14 +1378,22 @@ $code.=<<___;
 
 	mov	\$1,%rax
 	mov	-48(%rsi),%r15
+.cfi_restore	%r15
 	mov	-40(%rsi),%r14
+.cfi_restore	%r14
 	mov	-32(%rsi),%r13
+.cfi_restore	%r13
 	mov	-24(%rsi),%r12
+.cfi_restore	%r12
 	mov	-16(%rsi),%rbp
+.cfi_restore	%rbp
 	mov	-8(%rsi),%rbx
+.cfi_restore	%rbx
 	lea	(%rsi),%rsp
+.cfi_def_cfa_register	%rsp
 .Lmulx4x_epilogue:
 	ret
+.cfi_endproc
 .size	bn_mulx4x_mont,.-bn_mulx4x_mont
 ___
 }}}
@@ -1393,12 +1472,12 @@ sqr_handler:
 
 	mov	0(%r11),%r10d		# HandlerData[0]
 	lea	(%rsi,%r10),%r10	# end of prologue label
-	cmp	%r10,%rbx		# context->Rip<.Lsqr_body
+	cmp	%r10,%rbx		# context->Rip<.Lsqr_prologue
 	jb	.Lcommon_seh_tail
 
 	mov	4(%r11),%r10d		# HandlerData[1]
 	lea	(%rsi,%r10),%r10	# body label
-	cmp	%r10,%rbx		# context->Rip>=.Lsqr_epilogue
+	cmp	%r10,%rbx		# context->Rip<.Lsqr_body
 	jb	.Lcommon_pop_regs
 
 	mov	152($context),%rax	# pull context->Rsp
@@ -1510,4 +1589,4 @@ ___
 }
 
 print $code;
-close STDOUT;
+close STDOUT or die "error closing STDOUT: $!";

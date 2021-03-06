@@ -23,7 +23,7 @@
 #include "task.h"
 #include <string.h>
 
-#define PATHMAX 1024
+#define PATHMAX 4096
 #define SMALLPATH 1
 
 TEST_IMPL(homedir) {

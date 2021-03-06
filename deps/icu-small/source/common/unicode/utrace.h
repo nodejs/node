@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -8,7 +8,7 @@
 *
 *******************************************************************************
 *   file name:  utrace.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -66,6 +66,7 @@ typedef enum UTraceFunctionNumber {
     UTRACE_FUNCTION_START=0,
     UTRACE_U_INIT=UTRACE_FUNCTION_START,
     UTRACE_U_CLEANUP,
+
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal collation trace location.
@@ -83,6 +84,7 @@ typedef enum UTraceFunctionNumber {
     UTRACE_UCNV_FLUSH_CACHE,
     UTRACE_UCNV_LOAD,
     UTRACE_UCNV_UNLOAD,
+
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal collation trace location.
@@ -101,13 +103,141 @@ typedef enum UTraceFunctionNumber {
     UTRACE_UCOL_STRCOLLITER,
     UTRACE_UCOL_OPEN_FROM_SHORT_STRING,
     UTRACE_UCOL_STRCOLLUTF8, /**< @stable ICU 50 */
+
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal collation trace location.
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-    UTRACE_COLLATION_LIMIT
+    UTRACE_COLLATION_LIMIT,
 #endif  // U_HIDE_DEPRECATED_API
+
+    /**
+     * The lowest resource/data location.
+     * @stable ICU 65
+     */
+    UTRACE_UDATA_START=0x3000,
+
+    /**
+     * Indicates that a value was read from a resource bundle. Provides three
+     * C-style strings to UTraceData: type, file name, and resource path. The
+     * possible types are:
+     *
+     * - "string" (a string value was accessed)
+     * - "binary" (a binary value was accessed)
+     * - "intvector" (a integer vector value was accessed)
+     * - "int" (a signed integer value was accessed)
+     * - "uint" (a unsigned integer value was accessed)
+     * - "get" (a path was loaded, but the value was not accessed)
+     * - "getalias" (a path was loaded, and an alias was resolved)
+     *
+     * @stable ICU 65
+     */
+    UTRACE_UDATA_RESOURCE=UTRACE_UDATA_START,
+
+    /**
+     * Indicates that a resource bundle was opened.
+     *
+     * Provides one C-style string to UTraceData: file name.
+     * @stable ICU 65
+     */
+    UTRACE_UDATA_BUNDLE,
+
+    /**
+     * Indicates that a data file was opened, but not *.res files.
+     *
+     * Provides one C-style string to UTraceData: file name.
+     *
+     * @stable ICU 65
+     */
+    UTRACE_UDATA_DATA_FILE,
+
+    /**
+     * Indicates that a *.res file was opened.
+     *
+     * This differs from UTRACE_UDATA_BUNDLE because a res file is typically
+     * opened only once per application runtime, but the bundle corresponding
+     * to that res file may be opened many times.
+     *
+     * Provides one C-style string to UTraceData: file name.
+     *
+     * @stable ICU 65
+     */
+    UTRACE_UDATA_RES_FILE,
+
+#ifndef U_HIDE_INTERNAL_API
+    /**
+     * One more than the highest normal resource/data trace location.
+     * @internal The numeric value may change over time, see ICU ticket #12420.
+     */
+    UTRACE_RES_DATA_LIMIT,
+#endif  // U_HIDE_INTERNAL_API
+
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * The lowest break iterator location.
+     * @draft ICU 67
+     */
+    UTRACE_UBRK_START=0x4000,
+
+    /**
+     * Indicates that a character instance of break iterator was created.
+     *
+     * @draft ICU 67
+     */
+    UTRACE_UBRK_CREATE_CHARACTER = UTRACE_UBRK_START,
+
+    /**
+     * Indicates that a word instance of break iterator was created.
+     *
+     * @draft ICU 67
+     */
+    UTRACE_UBRK_CREATE_WORD,
+
+    /**
+     * Indicates that a line instance of break iterator was created.
+     *
+     * Provides one C-style string to UTraceData: the lb value ("",
+     * "loose", "strict", or "normal").
+     *
+     * @draft ICU 67
+     */
+    UTRACE_UBRK_CREATE_LINE,
+
+    /**
+     * Indicates that a sentence instance of break iterator was created.
+     *
+     * @draft ICU 67
+     */
+    UTRACE_UBRK_CREATE_SENTENCE,
+
+    /**
+     * Indicates that a title instance of break iterator was created.
+     *
+     * @draft ICU 67
+     */
+    UTRACE_UBRK_CREATE_TITLE,
+
+    /**
+     * Indicates that an internal dictionary break engine was created.
+     *
+     * Provides one C-style string to UTraceData: the script code of what
+     * the break engine cover ("Hani", "Khmr", "Laoo", "Mymr", or "Thai").
+     *
+     * @draft ICU 67
+     */
+    UTRACE_UBRK_CREATE_BREAK_ENGINE,
+
+#endif  // U_HIDE_DRAFT_API
+
+#ifndef U_HIDE_INTERNAL_API
+    /**
+     * One more than the highest normal break iterator trace location.
+     * @internal The numeric value may change over time, see ICU ticket #12420.
+     */
+    UTRACE_UBRK_LIMIT,
+#endif  // U_HIDE_INTERNAL_API
+
 } UTraceFunctionNumber;
 
 /**
@@ -115,7 +245,7 @@ typedef enum UTraceFunctionNumber {
  * @param traceLevel A UTraceLevel value.
  * @stable ICU 2.8
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 utrace_setLevel(int32_t traceLevel);
 
 /**
@@ -123,7 +253,7 @@ utrace_setLevel(int32_t traceLevel);
  * @return The UTraceLevel value being used by ICU.
  * @stable ICU 2.8
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 utrace_getLevel(void);
 
 /* Trace function pointers types  ----------------------------- */
@@ -183,7 +313,7 @@ UTraceData(const void *context, int32_t fnNumber, int32_t level,
   *  tracing functions must themselves filter by checking that the
   *  current thread is the desired thread.
   *
-  *  @param context an uninterpretted pointer.  Whatever is passed in
+  *  @param context an uninterpreted pointer.  Whatever is passed in
   *                 here will in turn be passed to each of the tracing
   *                 functions UTraceEntry, UTraceExit and UTraceData.
   *                 ICU does not use or alter this pointer.
@@ -197,7 +327,7 @@ UTraceData(const void *context, int32_t fnNumber, int32_t level,
   *
   *  @stable ICU 2.8
   */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 utrace_setFunctions(const void *context,
                     UTraceEntry *e, UTraceExit *x, UTraceData *d);
 
@@ -211,7 +341,7 @@ utrace_setFunctions(const void *context,
   * @param d        The currently installed UTraceData function.
   * @stable ICU 2.8
   */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 utrace_getFunctions(const void **context,
                     UTraceEntry **e, UTraceExit **x, UTraceData **d);
 
@@ -320,7 +450,7 @@ utrace_getFunctions(const void **context,
   *                 human readable form.  Note that a UTraceData function may choose
   *                 to not format the data;  it could, for example, save it in
   *                 in the raw form it was received (more compact), leaving
-  *                 formatting for a later trace analyis tool.
+  *                 formatting for a later trace analysis tool.
   *  @param outBuf  pointer to a buffer to receive the formatted output.  Output
   *                 will be nul terminated if there is space in the buffer -
   *                 if the length of the requested output < the output buffer size.
@@ -333,7 +463,7 @@ utrace_getFunctions(const void **context,
   *                 If buffer capacity is insufficient, the required capacity is returned.
   *  @stable ICU 2.8
   */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 utrace_vformat(char *outBuf, int32_t capacity,
               int32_t indent, const char *fmt,  va_list args);
 
@@ -354,7 +484,7 @@ utrace_vformat(char *outBuf, int32_t capacity,
   *                 If buffer capacity is insufficient, the required capacity is returned.
   *  @stable ICU 2.8
   */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 utrace_format(char *outBuf, int32_t capacity,
               int32_t indent, const char *fmt,  ...);
 
@@ -371,7 +501,7 @@ utrace_format(char *outBuf, int32_t capacity,
  * @see UTraceFunctionNumber
  * @stable ICU 2.8
  */
-U_STABLE const char * U_EXPORT2
+U_CAPI const char * U_EXPORT2
 utrace_functionName(int32_t fnNumber);
 
 U_CDECL_END

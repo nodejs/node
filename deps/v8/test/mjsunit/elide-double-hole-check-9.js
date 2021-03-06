@@ -37,9 +37,9 @@ function set_proto_elements() {
 function f(a, i) {
   set_proto_elements();
   return a[i] + 0.5;
-}
-
-var arr = [0.0,,2.5];
+};
+%PrepareFunctionForOptimization(f);
+var arr = [0.0, , 2.5];
 assertEquals(0.5, f(arr, 0));
 assertEquals(0.5, f(arr, 0));
 %OptimizeFunctionOnNextCall(f);

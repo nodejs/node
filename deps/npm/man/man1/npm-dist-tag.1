@@ -1,7 +1,7 @@
-.TH "NPM\-DIST\-TAG" "1" "November 2016" "" ""
+.TH "NPM\-DIST\-TAG" "1" "March 2021" "" ""
 .SH "NAME"
 \fBnpm-dist-tag\fR \- Modify package distribution tags
-.SH SYNOPSIS
+.SS Synopsis
 .P
 .RS 2
 .nf
@@ -12,21 +12,24 @@ npm dist\-tag ls [<pkg>]
 aliases: dist\-tags
 .fi
 .RE
-.SH DESCRIPTION
+.SS Description
 .P
 Add, remove, and enumerate distribution tags on a package:
 .RS 0
 .IP \(bu 2
-add:
-Tags the specified version of the package with the specified tag, or the
-\fB\-\-tag\fP config if not specified\.
+add: Tags the specified version of the package with the specified tag, or
+the \fB\-\-tag\fP config if not specified\. If you have two\-factor
+authentication on auth\-and\-writes then you’ll need to include a one\-time
+password on the command line with \fB\-\-otp <one\-time password>\fP, or at the
+OTP prompt\.
 .IP \(bu 2
-rm:
-Clear a tag that is no longer in use from the package\.
+rm: Clear a tag that is no longer in use from the package\. If you have
+two\-factor authentication on auth\-and\-writes then you’ll need to include
+a one\-time password on the command line with \fB\-\-otp <one\-time password>\fP,
+or at the OTP prompt\.
 .IP \(bu 2
-ls:
-Show all of the dist\-tags for a package, defaulting to the package in
-the current prefix\.
+ls: Show all of the dist\-tags for a package, defaulting to the package in
+the current prefix\. This is the default action if none is specified\.
 
 .RE
 .P
@@ -47,49 +50,48 @@ npm install \-\-tag <tag>
 .fi
 .RE
 .P
-This also applies to \fBnpm dedupe\fP\|\.
+(This also applies to any other commands that resolve and install
+dependencies, such as \fBnpm dedupe\fP, \fBnpm update\fP, and \fBnpm audit fix\fP\|\.)
 .P
 Publishing a package sets the \fBlatest\fP tag to the published version unless the
 \fB\-\-tag\fP option is used\. For example, \fBnpm publish \-\-tag=beta\fP\|\.
 .P
 By default, \fBnpm install <pkg>\fP (without any \fB@<version>\fP or \fB@<tag>\fP
 specifier) installs the \fBlatest\fP tag\.
-.SH PURPOSE
+.SS Purpose
 .P
 Tags can be used to provide an alias instead of version numbers\.
 .P
 For example, a project might choose to have multiple streams of development
-and use a different tag for each stream,
-e\.g\., \fBstable\fP, \fBbeta\fP, \fBdev\fP, \fBcanary\fP\|\.
+and use a different tag for each stream, e\.g\., \fBstable\fP, \fBbeta\fP, \fBdev\fP,
+\fBcanary\fP\|\.
 .P
-By default, the \fBlatest\fP tag is used by npm to identify the current version of
-a package, and \fBnpm install <pkg>\fP (without any \fB@<version>\fP or \fB@<tag>\fP
-specifier) installs the \fBlatest\fP tag\. Typically, projects only use the \fBlatest\fP
-tag for stable release versions, and use other tags for unstable versions such
-as prereleases\.
+By default, the \fBlatest\fP tag is used by npm to identify the current version
+of a package, and \fBnpm install <pkg>\fP (without any \fB@<version>\fP or \fB@<tag>\fP
+specifier) installs the \fBlatest\fP tag\. Typically, projects only use the
+\fBlatest\fP tag for stable release versions, and use other tags for unstable
+versions such as prereleases\.
 .P
 The \fBnext\fP tag is used by some projects to identify the upcoming version\.
 .P
-By default, other than \fBlatest\fP, no tag has any special significance to npm
-itself\.
-.SH CAVEATS
+Other than \fBlatest\fP, no tag has any special significance to npm itself\.
+.SS Caveats
 .P
-This command used to be known as \fBnpm tag\fP, which only created new tags, and so
-had a different syntax\.
+This command used to be known as \fBnpm tag\fP, which only created new tags,
+and so had a different syntax\.
 .P
-Tags must share a namespace with version numbers, because they are specified in
-the same slot: \fBnpm install <pkg>@<version>\fP vs \fBnpm install <pkg>@<tag>\fP\|\.
+Tags must share a namespace with version numbers, because they are
+specified in the same slot: \fBnpm install <pkg>@<version>\fP vs
+\fBnpm install <pkg>@<tag>\fP\|\.
 .P
 Tags that can be interpreted as valid semver ranges will be rejected\. For
-example, \fBv1\.4\fP cannot be used as a tag, because it is interpreted by semver as
-\fB>=1\.4\.0 <1\.5\.0\fP\|\.  See https://github\.com/npm/npm/issues/6082\|\.
+example, \fBv1\.4\fP cannot be used as a tag, because it is interpreted by
+semver as \fB>=1\.4\.0 <1\.5\.0\fP\|\.  See https://github\.com/npm/npm/issues/6082\|\.
 .P
-The simplest way to avoid semver problems with tags is to use tags that do not
-begin with a number or the letter \fBv\fP\|\.
-.SH SEE ALSO
+The simplest way to avoid semver problems with tags is to use tags that do
+not begin with a number or the letter \fBv\fP\|\.
+.SS See Also
 .RS 0
-.IP \(bu 2
-npm help tag
 .IP \(bu 2
 npm help publish
 .IP \(bu 2
@@ -97,13 +99,10 @@ npm help install
 .IP \(bu 2
 npm help dedupe
 .IP \(bu 2
-npm help 7 registry
+npm help registry
 .IP \(bu 2
 npm help config
 .IP \(bu 2
-npm help 7 config
-.IP \(bu 2
-npm help 5 npmrc
+npm help npmrc
 
 .RE
-

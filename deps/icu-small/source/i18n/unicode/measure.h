@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
@@ -14,6 +14,8 @@
 #define __MEASURE_H__
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
 
 /**
  * \file
@@ -46,7 +48,7 @@ class U_I18N_API Measure: public UObject {
      * Construct an object with the given numeric amount and the given
      * unit.  After this call, the caller must not delete the given
      * unit object.
-     * @param number a numeric object; amount.isNumeric() must be TRUE
+     * @param number a numeric object; amount.isNumeric() must be true
      * @param adoptedUnit the unit object, which must not be NULL
      * @param ec input-output error code. If the amount or the unit
      * is invalid, then this will be set to a failing value.
@@ -72,7 +74,7 @@ class U_I18N_API Measure: public UObject {
      * have the same class as returned by getDynamicClassID().
      * @stable ICU 3.0
      */
-    virtual UObject* clone() const;
+    virtual Measure* clone() const;
 
     /**
      * Destructor
@@ -158,4 +160,7 @@ inline const MeasureUnit& Measure::getUnit() const {
 U_NAMESPACE_END
 
 #endif // !UCONFIG_NO_FORMATTING
+
+#endif /* U_SHOW_CPLUSPLUS_API */
+
 #endif // __MEASURE_H__

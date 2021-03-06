@@ -13,6 +13,7 @@ function OSRInsideTry(x) {
   }
   return x + 2;
 }
+%PrepareFunctionForOptimization(OSRInsideTry);
 assertEquals(24, OSRInsideTry(23));
 
 
@@ -25,6 +26,7 @@ function OSRInsideCatch(x) {
   }
   return x + 2;
 }
+%PrepareFunctionForOptimization(OSRInsideCatch);
 assertEquals(24, OSRInsideCatch(23));
 
 
@@ -37,6 +39,7 @@ function OSRInsideFinally_Return(x) {
   }
   return x + 2;
 }
+%PrepareFunctionForOptimization(OSRInsideFinally_Return);
 assertEquals(24, OSRInsideFinally_Return(23));
 
 
@@ -48,4 +51,5 @@ function OSRInsideFinally_ReThrow(x) {
   }
   return x + 2;
 }
+%PrepareFunctionForOptimization(OSRInsideFinally_ReThrow);
 assertThrows("OSRInsideFinally_ReThrow(new Error)", Error);

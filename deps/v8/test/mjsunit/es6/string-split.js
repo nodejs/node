@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var pattern = {};
+var pattern = {toString: () => ""};
 var limit = { value: 3 };
 pattern[Symbol.split] = function(string, limit) {
   return string.length * limit.value;
@@ -15,5 +15,8 @@ assertEquals(15, "abcde".split(pattern, limit));
 // Non-callable override.
 pattern[Symbol.split] = "dumdidum";
 assertThrows(() => "abcde".split(pattern, limit), TypeError);
+// Null override.
+pattern[Symbol.split] = null;
+assertEquals(["a", "b", "c", "d", "e"], "abcde".split(pattern));
 
 assertEquals("[Symbol.split]", RegExp.prototype[Symbol.split].name);

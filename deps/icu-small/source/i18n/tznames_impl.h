@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
  *******************************************************************************
@@ -26,6 +26,9 @@
 #include "uhash.h"
 #include "uvector.h"
 #include "umutex.h"
+
+// Some zone display names involving supplementary characters can be over 50 chars, 100 UTF-16 code units, 200 UTF-8 bytes
+#define ZONE_NAME_U16_MAX 128
 
 U_NAMESPACE_BEGIN
 
@@ -89,9 +92,9 @@ struct CharacterNode {
     UBool    fHasValuesVector;
     UBool    fPadding;
 
-    // No value:   fValues == NULL               and  fHasValuesVector == FALSE
-    // One value:  fValues == value              and  fHasValuesVector == FALSE
-    // >=2 values: fValues == UVector of values  and  fHasValuesVector == TRUE
+    // No value:   fValues == NULL               and  fHasValuesVector == false
+    // One value:  fValues == value              and  fHasValuesVector == false
+    // >=2 values: fValues == UVector of values  and  fHasValuesVector == true
 };
 
 inline UBool CharacterNode::hasValues() const {
@@ -171,7 +174,7 @@ public:
     virtual ~TimeZoneNamesImpl();
 
     virtual UBool operator==(const TimeZoneNames& other) const;
-    virtual TimeZoneNames* clone() const;
+    virtual TimeZoneNamesImpl* clone() const;
 
     StringEnumeration* getAvailableMetaZoneIDs(UErrorCode& status) const;
     StringEnumeration* getAvailableMetaZoneIDs(const UnicodeString& tzID, UErrorCode& status) const;
@@ -233,7 +236,7 @@ public:
     virtual ~TZDBTimeZoneNames();
 
     virtual UBool operator==(const TimeZoneNames& other) const;
-    virtual TimeZoneNames* clone() const;
+    virtual TZDBTimeZoneNames* clone() const;
 
     StringEnumeration* getAvailableMetaZoneIDs(UErrorCode& status) const;
     StringEnumeration* getAvailableMetaZoneIDs(const UnicodeString& tzID, UErrorCode& status) const;
@@ -246,6 +249,8 @@ public:
 
     TimeZoneNames::MatchInfoCollection* find(const UnicodeString& text, int32_t start, uint32_t types, UErrorCode& status) const;
 
+    // When TZDBNames for the metazone is not available, this method returns NULL,
+    // but does NOT set U_MISSING_RESOURCE_ERROR to status.
     static const TZDBNames* getMetaZoneNames(const UnicodeString& mzId, UErrorCode& status);
 
 private:

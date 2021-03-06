@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --dead-code-elimination
+// Flags: --allow-natives-syntax
 
 // This tests that stores on captured objects are correctly tracked even
 // when DCE is enabled. We cannot delete simulations of captured objects
@@ -35,7 +35,7 @@ function constructor() {
   this.x = 0;
 }
 
-var deopt = { deopt:false };
+var deopt = {deopt: false};
 function boogeyman(mode, value) {
   var object = new constructor();
   if (mode) {
@@ -45,8 +45,8 @@ function boogeyman(mode, value) {
   }
   deopt.deopt;
   assertEquals(value, object.x);
-}
-
+};
+%PrepareFunctionForOptimization(boogeyman);
 boogeyman(true, 1);
 boogeyman(true, 1);
 boogeyman(false, 2);

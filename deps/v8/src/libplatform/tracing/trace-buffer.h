@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef SRC_LIBPLATFORM_TRACING_TRACE_BUFFER_H_
-#define SRC_LIBPLATFORM_TRACING_TRACE_BUFFER_H_
+#ifndef V8_LIBPLATFORM_TRACING_TRACE_BUFFER_H_
+#define V8_LIBPLATFORM_TRACING_TRACE_BUFFER_H_
 
 #include <memory>
 #include <vector>
@@ -17,8 +17,9 @@ namespace tracing {
 
 class TraceBufferRingBuffer : public TraceBuffer {
  public:
+  // Takes ownership of |trace_writer|.
   TraceBufferRingBuffer(size_t max_chunks, TraceWriter* trace_writer);
-  ~TraceBufferRingBuffer();
+  ~TraceBufferRingBuffer() override = default;
 
   TraceObject* AddTraceEvent(uint64_t* handle) override;
   TraceObject* GetEventByHandle(uint64_t handle) override;
@@ -45,4 +46,4 @@ class TraceBufferRingBuffer : public TraceBuffer {
 }  // namespace platform
 }  // namespace v8
 
-#endif  // SRC_LIBPLATFORM_TRACING_TRACE_BUFFER_H_
+#endif  // V8_LIBPLATFORM_TRACING_TRACE_BUFFER_H_

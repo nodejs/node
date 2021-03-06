@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
 function ID(x) {
   return x;
 }
@@ -67,13 +66,25 @@ function assertIteratorResult(value, done, result) {
     *['a']() {
       yield 1;
       yield 2;
+    },
+    async ['b']() {
+      return 42;
+    },
+    async *['c']() {
+      yield 1;
+      yield 2;
     }
   };
+  assertEquals('a', object.a.name);
+  assertEquals('b', object.b.name);
+  assertEquals('c', object.c.name);
+
   var iter = object.a();
   assertIteratorResult(1, false, iter.next());
   assertIteratorResult(2, false, iter.next());
   assertIteratorResult(undefined, true, iter.next());
-  assertArrayEquals(['a'], Object.keys(object));
+
+  assertArrayEquals(['a', 'b', 'c'], Object.keys(object));
 })();
 
 

@@ -1,7 +1,28 @@
-'use strict';
-// test compressing and uncompressing a string with zlib
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-require('../common');
+'use strict';
+// Test compressing and uncompressing a string with zlib
+
+const common = require('../common');
 const assert = require('assert');
 const zlib = require('zlib');
 
@@ -33,32 +54,28 @@ const expectedBase64Gzip = 'H4sIAAAAAAAAA11RS05DMQy8yhzg6d2BPSAkJPZu4laWkjiN4' +
                            'mHo33kJO8xfkckmLjE5XMKBQ4gxIsfvCZ44doUThF2mcZq8q2' +
                            'sHnHNzRtagj5AQAA';
 
-zlib.deflate(inputString, function(err, buffer) {
-  assert.equal(buffer.toString('base64'), expectedBase64Deflate,
-               'deflate encoded string should match');
-});
+zlib.deflate(inputString, common.mustCall((err, buffer) => {
+  assert.strictEqual(buffer.toString('base64'), expectedBase64Deflate);
+}));
 
-zlib.gzip(inputString, function(err, buffer) {
+zlib.gzip(inputString, common.mustCall((err, buffer) => {
   // Can't actually guarantee that we'll get exactly the same
   // deflated bytes when we compress a string, since the header
   // depends on stuff other than the input string itself.
   // However, decrypting it should definitely yield the same
   // result that we're expecting, and this should match what we get
   // from inflating the known valid deflate data.
-  zlib.gunzip(buffer, function(err, gunzipped) {
-    assert.equal(gunzipped.toString(), inputString,
-                 'Should get original string after gzip/gunzip');
-  });
-});
+  zlib.gunzip(buffer, common.mustCall((err, gunzipped) => {
+    assert.strictEqual(gunzipped.toString(), inputString);
+  }));
+}));
 
-var buffer = Buffer.from(expectedBase64Deflate, 'base64');
-zlib.unzip(buffer, function(err, buffer) {
-  assert.equal(buffer.toString(), inputString,
-               'decoded inflated string should match');
-});
+let buffer = Buffer.from(expectedBase64Deflate, 'base64');
+zlib.unzip(buffer, common.mustCall((err, buffer) => {
+  assert.strictEqual(buffer.toString(), inputString);
+}));
 
 buffer = Buffer.from(expectedBase64Gzip, 'base64');
-zlib.unzip(buffer, function(err, buffer) {
-  assert.equal(buffer.toString(), inputString,
-               'decoded gunzipped string should match');
-});
+zlib.unzip(buffer, common.mustCall((err, buffer) => {
+  assert.strictEqual(buffer.toString(), inputString);
+}));

@@ -73,6 +73,31 @@
   assertEquals(3, count);
   for (var i in a) assertEquals(2, a[i]);
 
+  // Skip over missing properties.
+  a = {
+    "0": 0,
+    "2": 2,
+    length: 3
+  };
+  var received = [];
+  assertArrayEquals([2],
+      Array.prototype.filter.call(a, function(n) {
+        received.push(n);
+        return n == 2;
+      }));
+  assertArrayEquals([0, 2], received);
+
+  // Modify array prototype
+  a = [0, , 2];
+  received = [];
+  assertArrayEquals([2],
+      Array.prototype.filter.call(a, function(n) {
+        a.__proto__ = null;
+        received.push(n);
+        return n == 2;
+      }));
+  assertArrayEquals([0, 2], received);
+
   // Create a new object in each function call when receiver is a
   // primitive value. See ECMA-262, Annex C.
   a = [];
@@ -130,6 +155,26 @@
   a[15] = 2;
   a.forEach(function(n) { count++; });
   assertEquals(1, count);
+
+  // Skip over missing properties.
+  a = {
+    "0": 0,
+    "2": 2,
+    length: 3
+  };
+  var received = [];
+  Array.prototype.forEach.call(a, function(n) { received.push(n); });
+  assertArrayEquals([0, 2], received);
+
+  // Modify array prototype
+  a = [0, , 2];
+  received = [];
+  Array.prototype.forEach.call(a, function(n) {
+    a.__proto__ = null;
+    received.push(n);
+    return n == 2;
+  });
+  assertArrayEquals([0, 2], received);
 
   // Create a new object in each function call when receiver is a
   // primitive value. See ECMA-262, Annex C.
@@ -194,6 +239,31 @@
   assertTrue(a.every(function(n) { count++; return n == 2; }));
   assertEquals(2, count);
 
+  // Skip over missing properties.
+  a = {
+    "0": 2,
+    "2": 2,
+    length: 3
+  };
+  var received = [];
+  assertTrue(
+      Array.prototype.every.call(a, function(n) {
+        received.push(n);
+        return n == 2;
+      }));
+  assertArrayEquals([2, 2], received);
+
+  // Modify array prototype
+  a = [2, , 2];
+  received = [];
+  assertTrue(
+      Array.prototype.every.call(a, function(n) {
+        a.__proto__ = null;
+        received.push(n);
+        return n == 2;
+      }));
+  assertArrayEquals([2, 2], received);
+
   // Create a new object in each function call when receiver is a
   // primitive value. See ECMA-262, Annex C.
   a = [];
@@ -251,6 +321,31 @@
   a[15] = 2;
   a = a.map(function(n) { return 2*n; });
   for (var i in a) assertEquals(4, a[i]);
+
+  // Skip over missing properties.
+  a = {
+    "0": 1,
+    "2": 2,
+    length: 3
+  };
+  var received = [];
+  assertArrayEquals([2, , 4],
+      Array.prototype.map.call(a, function(n) {
+        received.push(n);
+        return n * 2;
+      }));
+  assertArrayEquals([1, 2], received);
+
+  // Modify array prototype
+  a = [1, , 2];
+  received = [];
+  assertArrayEquals([2, , 4],
+      Array.prototype.map.call(a, function(n) {
+        a.__proto__ = null;
+        received.push(n);
+        return n * 2;
+      }));
+  assertArrayEquals([1, 2], received);
 
   // Create a new object in each function call when receiver is a
   // primitive value. See ECMA-262, Annex C.

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --opt
 
 function foo(a) {
   var sum = 0;
@@ -16,13 +16,16 @@ function foo(a) {
   }
   return sum;
 }
+%PrepareFunctionForOptimization(foo);
 
 var a = new Int32Array(10);
 
+%PrepareFunctionForOptimization(foo);
 foo(a);
 foo(a);
 %OptimizeFunctionOnNextCall(foo);
 foo(a);
+%PrepareFunctionForOptimization(foo);
 %OptimizeFunctionOnNextCall(foo);
 foo(a);
 assertOptimized(foo);

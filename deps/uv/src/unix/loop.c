@@ -20,7 +20,7 @@
  */
 
 #include "uv.h"
-#include "tree.h"
+#include "uv/tree.h"
 #include "internal.h"
 #include "heap-inl.h"
 #include <stdlib.h>
@@ -28,24 +28,34 @@
 #include <unistd.h>
 
 int uv_loop_init(uv_loop_t* loop) {
+  uv__loop_internal_fields_t* lfields;
   void* saved_data;
   int err;
 
-  uv__signal_global_once_init();
 
   saved_data = loop->data;
   memset(loop, 0, sizeof(*loop));
   loop->data = saved_data;
 
+  lfields = (uv__loop_internal_fields_t*) uv__calloc(1, sizeof(*lfields));
+  if (lfields == NULL)
+    return UV_ENOMEM;
+  loop->internal_fields = lfields;
+
+  err = uv_mutex_init(&lfields->loop_metrics.lock);
+  if (err)
+    goto fail_metrics_mutex_init;
+
   heap_init((struct heap*) &loop->timer_heap);
   QUEUE_INIT(&loop->wq);
-  QUEUE_INIT(&loop->active_reqs);
   QUEUE_INIT(&loop->idle_handles);
   QUEUE_INIT(&loop->async_handles);
   QUEUE_INIT(&loop->check_handles);
   QUEUE_INIT(&loop->prepare_handles);
   QUEUE_INIT(&loop->handle_queue);
 
+  loop->active_handles = 0;
+  loop->active_reqs.count = 0;
   loop->nfds = 0;
   loop->watchers = NULL;
   loop->nwatchers = 0;
@@ -54,7 +64,8 @@ int uv_loop_init(uv_loop_t* loop) {
 
   loop->closing_handles = NULL;
   uv__update_time(loop);
-  uv__async_init(&loop->async_watcher);
+  loop->async_io_watcher.fd = -1;
+  loop->async_wfd = -1;
   loop->signal_pipefd[0] = -1;
   loop->signal_pipefd[1] = -1;
   loop->backend_fd = -1;
@@ -65,14 +76,15 @@ int uv_loop_init(uv_loop_t* loop) {
 
   err = uv__platform_loop_init(loop);
   if (err)
-    return err;
+    goto fail_platform_init;
 
+  uv__signal_global_once_init();
   err = uv_signal_init(loop, &loop->child_watcher);
   if (err)
     goto fail_signal_init;
 
   uv__handle_unref(&loop->child_watcher);
-  loop->child_watcher.flags |= UV__HANDLE_INTERNAL;
+  loop->child_watcher.flags |= UV_HANDLE_INTERNAL;
   QUEUE_INIT(&loop->process_handles);
 
   err = uv_rwlock_init(&loop->cloexec_lock);
@@ -88,7 +100,7 @@ int uv_loop_init(uv_loop_t* loop) {
     goto fail_async_init;
 
   uv__handle_unref(&loop->wq_async);
-  loop->wq_async.flags |= UV__HANDLE_INTERNAL;
+  loop->wq_async.flags |= UV_HANDLE_INTERNAL;
 
   return 0;
 
@@ -104,14 +116,58 @@ fail_rwlock_init:
 fail_signal_init:
   uv__platform_loop_delete(loop);
 
+fail_platform_init:
+  uv_mutex_destroy(&lfields->loop_metrics.lock);
+
+fail_metrics_mutex_init:
+  uv__free(lfields);
+  loop->internal_fields = NULL;
+
+  uv__free(loop->watchers);
+  loop->nwatchers = 0;
   return err;
 }
 
 
+int uv_loop_fork(uv_loop_t* loop) {
+  int err;
+  unsigned int i;
+  uv__io_t* w;
+
+  err = uv__io_fork(loop);
+  if (err)
+    return err;
+
+  err = uv__async_fork(loop);
+  if (err)
+    return err;
+
+  err = uv__signal_loop_fork(loop);
+  if (err)
+    return err;
+
+  /* Rearm all the watchers that aren't re-queued by the above. */
+  for (i = 0; i < loop->nwatchers; i++) {
+    w = loop->watchers[i];
+    if (w == NULL)
+      continue;
+
+    if (w->pevents != 0 && QUEUE_EMPTY(&w->watcher_queue)) {
+      w->events = 0; /* Force re-registration in uv__io_poll. */
+      QUEUE_INSERT_TAIL(&loop->watcher_queue, &w->watcher_queue);
+    }
+  }
+
+  return 0;
+}
+
+
 void uv__loop_close(uv_loop_t* loop) {
+  uv__loop_internal_fields_t* lfields;
+
   uv__signal_loop_cleanup(loop);
   uv__platform_loop_delete(loop);
-  uv__async_stop(loop, &loop->async_watcher);
+  uv__async_stop(loop);
 
   if (loop->emfile_fd != -1) {
     uv__close(loop->emfile_fd);
@@ -144,10 +200,23 @@ void uv__loop_close(uv_loop_t* loop) {
   uv__free(loop->watchers);
   loop->watchers = NULL;
   loop->nwatchers = 0;
+
+  lfields = uv__get_internal_fields(loop);
+  uv_mutex_destroy(&lfields->loop_metrics.lock);
+  uv__free(lfields);
+  loop->internal_fields = NULL;
 }
 
 
 int uv__loop_configure(uv_loop_t* loop, uv_loop_option option, va_list ap) {
+  uv__loop_internal_fields_t* lfields;
+
+  lfields = uv__get_internal_fields(loop);
+  if (option == UV_METRICS_IDLE_TIME) {
+    lfields->flags |= UV_METRICS_IDLE_TIME;
+    return 0;
+  }
+
   if (option != UV_LOOP_BLOCK_SIGNAL)
     return UV_ENOSYS;
 

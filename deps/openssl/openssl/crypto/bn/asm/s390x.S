@@ -1,11 +1,11 @@
 .ident "s390x.S, version 1.1"
 // ====================================================================
-// Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
-// project.
+// Copyright 2007-2016 The OpenSSL Project Authors. All Rights Reserved.
 //
-// Rights for redistribution and usage in source and binary forms are
-// granted according to the OpenSSL license. Warranty of any kind is
-// disclaimed.
+// Licensed under the OpenSSL license (the "License").  You may not use
+// this file except in compliance with the License.  You can obtain a copy
+// in the file LICENSE in the source distribution or at
+// https://www.openssl.org/source/license.html
 // ====================================================================
 
 .text
@@ -511,7 +511,7 @@ bn_mul_comba4:
 	lghi	zero,0
 
 	mul_add_c(0,0,c1,c2,c3);
-	stg	c1,0*8(%r3)
+	stg	c1,0*8(%r2)
 	lghi	c1,0
 
 	mul_add_c(0,1,c2,c3,c1);

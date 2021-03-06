@@ -4,39 +4,37 @@
  */
 'use strict';
 
-var path = require('path');
+const { isRequireCall, isString } = require('./rules-utils.js');
 
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
-  // trim required module names
-  var requiredModules = context.options;
+  // Trim required module names
+  const options = context.options[0];
+  const requiredModules = options ? Object.keys(options).map((x) => {
+    return [ x, new RegExp(options[x]) ];
+  }) : [];
+  const isESM = context.parserOptions.sourceType === 'module';
 
-  var foundModules = [];
+  const foundModules = [];
 
-  // if no modules are required we don't need to check the CallExpressions
+  // If no modules are required we don't need to check the CallExpressions
   if (requiredModules.length === 0) {
     return {};
   }
 
   /**
-   * Function to check if a node is a string literal.
-   * @param {ASTNode} node The node to check.
-   * @returns {boolean} If the node is a string literal.
+   * Function to check if the path is a required module and return its name.
+   * @param {String} str The path to check
+   * @returns {undefined|String} required module name or undefined
    */
-  function isString(node) {
-    return node && node.type === 'Literal' && typeof node.value === 'string';
-  }
-
-  /**
-   * Function to check if a node is a require call.
-   * @param {ASTNode} node The node to check.
-   * @returns {boolean} If the node is a require call.
-   */
-  function isRequireCall(node) {
-    return node.callee.type === 'Identifier' && node.callee.name === 'require';
+  function getRequiredModuleName(str) {
+    const match = requiredModules.find(([, test]) => {
+      return test.test(str);
+    });
+    return match ? match[0] : undefined;
   }
 
   /**
@@ -45,55 +43,59 @@ module.exports = function(context) {
    * @param {ASTNode} node The node to check
    * @returns {undefined|String} required module name or undefined
    */
-  function getRequiredModuleName(node) {
-    var moduleName;
-
-    // node has arguments and first argument is string
+  function getRequiredModuleNameFromCall(node) {
+    // Node has arguments and first argument is string
     if (node.arguments.length && isString(node.arguments[0])) {
-      var argValue = path.basename(node.arguments[0].value.trim());
-
-      // check if value is in required modules array
-      if (requiredModules.indexOf(argValue) !== -1) {
-        moduleName = argValue;
-      }
+      return getRequiredModuleName(node.arguments[0].value.trim());
     }
 
-    return moduleName;
+    return undefined;
   }
 
-  return {
-    'CallExpression': function(node) {
+  const rules = {
+    'Program:exit'(node) {
+      if (foundModules.length < requiredModules.length) {
+        const missingModules = requiredModules.filter(
+          ([module]) => foundModules.indexOf(module) === -1
+        );
+        missingModules.forEach(([moduleName]) => {
+          context.report(
+            node,
+            'Mandatory module "{{moduleName}}" must be loaded.',
+            { moduleName: moduleName }
+          );
+        });
+      }
+    }
+  };
+
+  if (isESM) {
+    rules.ImportDeclaration = (node) => {
+      const requiredModuleName = getRequiredModuleName(node.source.value);
+      if (requiredModuleName) {
+        foundModules.push(requiredModuleName);
+      }
+    };
+  } else {
+    rules.CallExpression = (node) => {
       if (isRequireCall(node)) {
-        var requiredModuleName = getRequiredModuleName(node);
+        const requiredModuleName = getRequiredModuleNameFromCall(node);
 
         if (requiredModuleName) {
           foundModules.push(requiredModuleName);
         }
       }
-    },
-    'Program:exit': function(node) {
-      if (foundModules.length < requiredModules.length) {
-        var missingModules = requiredModules.filter(
-          function(module) {
-            return foundModules.indexOf(module === -1);
-          }
-          );
-        missingModules.forEach(function(moduleName) {
-          context.report(
-            node,
-            'Mandatory module "{{moduleName}}" must be loaded.',
-            { moduleName: moduleName }
-            );
-        });
-      }
-    }
-  };
+    };
+  }
+
+  return rules;
 };
 
-module.exports.schema = {
-  'type': 'array',
-  'additionalItems': {
-    'type': 'string'
-  },
-  'uniqueItems': true
+module.exports.meta = {
+  schema: [{
+    'type': 'object',
+    'additionalProperties': {
+      'type': 'string'
+    },
+  }],
 };

@@ -25,8 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --random-seed=17 --allow-natives-syntax
-// Flags: --expose-externalize-string
+// Flags: --allow-natives-syntax --expose-externalize-string
 
 assertEquals("ΚΟΣΜΟΣ ΚΟΣΜΟΣ".toLowerCase(), "κοσμος κοσμος");
 
@@ -59,8 +58,9 @@ function test(length) {
     strLower += String.fromCharCode(charCodeToLower(c));
     strUpper += String.fromCharCode(charCodeToUpper(c));
   }
-  %FlattenString(strLower);
-  %FlattenString(strUpper);
+  str = %FlattenString(str);
+  strLower = %FlattenString(strLower);
+  strUpper = %FlattenString(strUpper);
   // Sequential string.
   assertEquals(strLower, str.toLowerCase());
   assertEquals(strUpper, str.toUpperCase());

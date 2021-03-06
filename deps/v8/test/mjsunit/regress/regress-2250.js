@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --opt
 
 // The original problem from the bug: In the example below SMI check for b
 // generated for inlining of equals invocation (marked with (*)) will be hoisted
@@ -53,6 +53,7 @@ function test() {
     ;
 }
 
+%PrepareFunctionForOptimization(test);
 eq({}, {});
 eq({}, {});
 eq(1, 1);
@@ -60,6 +61,7 @@ eq(1, 1);
 test();
 %OptimizeFunctionOnNextCall(test);
 test();
+%PrepareFunctionForOptimization(test);
 %OptimizeFunctionOnNextCall(test);
 // Second compilation should have noticed that LICM wasn't a good idea, and now
 // function should no longer deopt when called.

@@ -1,5 +1,5 @@
 'use strict';
-// Flags: --expose_internals
+// Flags: --expose-internals
 const common = require('../common');
 const assert = require('assert');
 const cp = require('child_process');
@@ -27,7 +27,7 @@ ChildProcess.prototype.spawn = function() {
 };
 
 function createChild(options, callback) {
-  const cmd = `${process.execPath} ${__filename} child`;
+  const cmd = `"${process.execPath}" "${__filename}" child`;
 
   return cp.exec(cmd, options, common.mustCall(callback));
 }

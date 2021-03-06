@@ -37,3 +37,10 @@ dateArray.forEach(dtf.format);
 
 // Formatting a date should work in a direct call.
 dtf.format();
+
+// format should be bound properly even if created from a non-instance
+var legacy = Intl.DateTimeFormat.call(
+    Object.create(Intl.DateTimeFormat));
+var boundFormat = legacy.format;
+assertEquals(dtf.format(12345), legacy.format(12345));
+assertEquals(dtf.format(54321), boundFormat(54321));

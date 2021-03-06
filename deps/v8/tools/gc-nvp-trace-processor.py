@@ -37,9 +37,20 @@
 #
 
 
+# for py2/py3 compatibility
 from __future__ import with_statement
+from __future__ import print_function
+from functools import reduce
+
 import sys, types, subprocess, math
 import gc_nvp_common
+
+
+try:
+  long        # Python 2
+except NameError:
+  long = int  # Python 3
+
 
 def flatten(l):
   flat = []
@@ -62,7 +73,7 @@ class Item(object):
     self.title = title
     self.axis = axis
     self.props = keywords
-    if type(field) is types.ListType:
+    if type(field) is list:
       self.field = field
     else:
       self.field = [field]
@@ -135,7 +146,7 @@ def is_y2_used(plot):
 
 def get_field(trace_line, field):
   t = type(field)
-  if t is types.StringType:
+  if t is bytes:
     return trace_line[field]
   elif t is types.FunctionType:
     return field(trace_line)
@@ -177,7 +188,7 @@ def plot_all(plots, trace, prefix):
     outfilename = "%s_%d.png" % (prefix, len(charts))
     charts.append(outfilename)
     script = generate_script_and_datafile(plot, trace, '~datafile', outfilename)
-    print 'Plotting %s...' % outfilename
+    print('Plotting %s...' % outfilename)
     gnuplot(script)
 
   return charts
@@ -350,10 +361,10 @@ def process_trace(filename):
       out.write('<img src="%s">' % chart)
       out.write('</body></html>')
 
-  print "%s generated." % (filename + '.html')
+  print("%s generated." % (filename + '.html'))
 
 if len(sys.argv) != 2:
-  print "Usage: %s <GC-trace-filename>" % sys.argv[0]
+  print("Usage: %s <GC-trace-filename>" % sys.argv[0])
   sys.exit(1)
 
 process_trace(sys.argv[1])

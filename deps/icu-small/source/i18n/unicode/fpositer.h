@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ********************************************************************************
@@ -19,6 +19,9 @@
 #define FPOSITER_H
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
+
 #include "unicode/uobject.h"
 
 /**
@@ -93,20 +96,20 @@ public:
 
     /**
      * If the current position is valid, updates the FieldPosition values, advances the iterator,
-     * and returns TRUE, otherwise returns FALSE.
+     * and returns true, otherwise returns false.
      * @stable ICU 4.4
      */
     UBool next(FieldPosition& fp);
 
 private:
-    friend class FieldPositionIteratorHandler;
-
     /**
      * Sets the data used by the iterator, and resets the position.
      * Returns U_ILLEGAL_ARGUMENT_ERROR in status if the data is not valid
      * (length is not a multiple of 3, or start >= limit for any run).
      */
     void setData(UVector32 *adopt, UErrorCode& status);
+
+    friend class FieldPositionIteratorHandler;
 
     UVector32 *data;
     int32_t pos;
@@ -115,5 +118,7 @@ private:
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif // FPOSITER_H

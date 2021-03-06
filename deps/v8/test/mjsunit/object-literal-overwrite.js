@@ -33,51 +33,33 @@
 
 // Tests for the full code generator (if active).
 
-var foo1 = {
-  bar: 6,
-  bar: 7
-};
+var foo1 = {bar: 6, bar: 7};
 
-var foo2 = {
-  bar: function(a){},
-  bar: 7
-};
+var foo2 = {bar: function(a) {}, bar: 7};
 
-var foo3 = {
-  bar: function(a){},
-  bar: function(b){},
-  bar: 7
-};
+var foo3 = {bar: function(a) {}, bar: function(b) {}, bar: 7};
 
 var foo4 = {
-  bar: function(b){},
+  bar: function(b) {},
   bar: 4,
-  bar: function(){return 7},
+  bar: function() {
+    return 7;
+  }
 };
 
-var foo5 = {
-  13: function(a){},
-  13: 7
-}
+var foo5 = {13: function(a) {}, 13: 7};
 
-var foo6 = {
-  14.31: function(a){},
-  14.31: 7
-}
+var foo6 = {14.31: function(a) {}, 14.31: 7};
 
-var foo7 = {
-  15: 6,
-  15: 7
-}
+var foo7 = {15: 6, 15: 7};
 
 function foo8(i) {
-  var obj = {
-    x: {a: i},
-    x: 7
-  };
+  var obj = {x: {a: i}, x: 7};
+
   return obj.x;
 };
-
+%PrepareFunctionForOptimization(foo8);
+;
 assertEquals(7, foo1.bar);
 assertEquals(7, foo2.bar);
 assertEquals(7, foo3.bar);
@@ -95,18 +77,23 @@ assertEquals(7, foo8(1));
 // Test for the classic code generator.
 
 function fun(x) {
-  var inner = { j: function(x) { return x; }, j: 7 };
+  var inner = {
+    j: function(x) {
+      return x;
+    },
+    j: 7
+  };
   return inner.j;
 }
 
-assertEquals(7, fun(7) );
+assertEquals(7, fun(7));
 
 // Check that the initializers of computed properties are executed, even if
 // no store instructions are generated for the literals.
 
 var glob1 = 0;
 
-var bar1 = { x: glob1++, x: glob1++, x: glob1++, x: 7};
+var bar1 = {x: glob1++, x: glob1++, x: glob1++, x: 7};
 
 assertEquals(3, glob1);
 
@@ -114,7 +101,7 @@ assertEquals(3, glob1);
 var glob2 = 0;
 
 function fun2() {
-  var r = { y: glob2++, y: glob2++, y: glob2++, y: 7};
+  var r = {y: glob2++, y: glob2++, y: glob2++, y: 7};
   return r.y;
 }
 
@@ -125,7 +112,7 @@ assertEquals(3, glob2);
 var glob3 = 0;
 
 function fun3() {
-  var r = { 113: glob3++, 113: glob3++, 113: glob3++, 113: 7};
+  var r = {113: glob3++, 113: glob3++, 113: glob3++, 113: 7};
   return r[113];
 }
 

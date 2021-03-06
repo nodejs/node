@@ -34,6 +34,7 @@
 # include <malloc.h> /* malloc */
 #else
 # include <net/if.h> /* if_nametoindex */
+# include <sys/un.h> /* AF_UNIX, sockaddr_un */
 #endif
 
 
@@ -72,7 +73,9 @@ char* uv__strndup(const char* s, size_t n) {
 }
 
 void* uv__malloc(size_t size) {
-  return uv__allocator.local_malloc(size);
+  if (size > 0)
+    return uv__allocator.local_malloc(size);
+  return NULL;
 }
 
 void uv__free(void* ptr) {
@@ -91,7 +94,21 @@ void* uv__calloc(size_t count, size_t size) {
 }
 
 void* uv__realloc(void* ptr, size_t size) {
-  return uv__allocator.local_realloc(ptr, size);
+  if (size > 0)
+    return uv__allocator.local_realloc(ptr, size);
+  uv__free(ptr);
+  return NULL;
+}
+
+void* uv__reallocf(void* ptr, size_t size) {
+  void* newptr;
+
+  newptr = uv__realloc(ptr, size);
+  if (newptr == NULL)
+    if (size > 0)
+      uv__free(ptr);
+
+  return newptr;
 }
 
 int uv_replace_allocator(uv_malloc_func malloc_func,
@@ -155,6 +172,18 @@ static const char* uv__unknown_err_code(int err) {
   return copy != NULL ? copy : "Unknown system error";
 }
 
+#define UV_ERR_NAME_GEN_R(name, _) \
+case UV_## name: \
+  uv__strscpy(buf, #name, buflen); break;
+char* uv_err_name_r(int err, char* buf, size_t buflen) {
+  switch (err) {
+    UV_ERRNO_MAP(UV_ERR_NAME_GEN_R)
+    default: snprintf(buf, buflen, "Unknown system error %d", err);
+  }
+  return buf;
+}
+#undef UV_ERR_NAME_GEN_R
+
 
 #define UV_ERR_NAME_GEN(name, _) case UV_ ## name: return #name;
 const char* uv_err_name(int err) {
@@ -164,6 +193,19 @@ const char* uv_err_name(int err) {
   return uv__unknown_err_code(err);
 }
 #undef UV_ERR_NAME_GEN
+
+
+#define UV_STRERROR_GEN_R(name, msg) \
+case UV_ ## name: \
+  snprintf(buf, buflen, "%s", msg); break;
+char* uv_strerror_r(int err, char* buf, size_t buflen) {
+  switch (err) {
+    UV_ERRNO_MAP(UV_STRERROR_GEN_R)
+    default: snprintf(buf, buflen, "Unknown system error %d", err);
+  }
+  return buf;
+}
+#undef UV_STRERROR_GEN_R
 
 
 #define UV_STRERROR_GEN(name, msg) case UV_ ## name: return msg;
@@ -180,6 +222,9 @@ int uv_ip4_addr(const char* ip, int port, struct sockaddr_in* addr) {
   memset(addr, 0, sizeof(*addr));
   addr->sin_family = AF_INET;
   addr->sin_port = htons(port);
+#ifdef SIN6_LEN
+  addr->sin_len = sizeof(*addr);
+#endif
   return uv_inet_pton(AF_INET, ip, &(addr->sin_addr.s_addr));
 }
 
@@ -192,6 +237,9 @@ int uv_ip6_addr(const char* ip, int port, struct sockaddr_in6* addr) {
   memset(addr, 0, sizeof(*addr));
   addr->sin6_family = AF_INET6;
   addr->sin6_port = htons(port);
+#ifdef SIN6_LEN
+  addr->sin6_len = sizeof(*addr);
+#endif
 
   zone_index = strchr(ip, '%');
   if (zone_index != NULL) {
@@ -245,6 +293,36 @@ int uv_tcp_bind(uv_tcp_t* handle,
 }
 
 
+int uv_udp_init_ex(uv_loop_t* loop, uv_udp_t* handle, unsigned flags) {
+  unsigned extra_flags;
+  int domain;
+  int rc;
+
+  /* Use the lower 8 bits for the domain. */
+  domain = flags & 0xFF;
+  if (domain != AF_INET && domain != AF_INET6 && domain != AF_UNSPEC)
+    return UV_EINVAL;
+
+  /* Use the higher bits for extra flags. */
+  extra_flags = flags & ~0xFF;
+  if (extra_flags & ~UV_UDP_RECVMMSG)
+    return UV_EINVAL;
+
+  rc = uv__udp_init_ex(loop, handle, flags, domain);
+
+  if (rc == 0)
+    if (extra_flags & UV_UDP_RECVMMSG)
+      handle->flags |= UV_HANDLE_UDP_RECVMMSG;
+
+  return rc;
+}
+
+
+int uv_udp_init(uv_loop_t* loop, uv_udp_t* handle) {
+  return uv_udp_init_ex(loop, handle, AF_UNSPEC);
+}
+
+
 int uv_udp_bind(uv_udp_t* handle,
                 const struct sockaddr* addr,
                 unsigned int flags) {
@@ -284,16 +362,19 @@ int uv_tcp_connect(uv_connect_t* req,
 }
 
 
-int uv_udp_send(uv_udp_send_t* req,
-                uv_udp_t* handle,
-                const uv_buf_t bufs[],
-                unsigned int nbufs,
-                const struct sockaddr* addr,
-                uv_udp_send_cb send_cb) {
+int uv_udp_connect(uv_udp_t* handle, const struct sockaddr* addr) {
   unsigned int addrlen;
 
   if (handle->type != UV_UDP)
     return UV_EINVAL;
+
+  /* Disconnect the handle */
+  if (addr == NULL) {
+    if (!(handle->flags & UV_HANDLE_UDP_CONNECTED))
+      return UV_ENOTCONN;
+
+    return uv__udp_disconnect(handle);
+  }
 
   if (addr->sa_family == AF_INET)
     addrlen = sizeof(struct sockaddr_in);
@@ -301,6 +382,70 @@ int uv_udp_send(uv_udp_send_t* req,
     addrlen = sizeof(struct sockaddr_in6);
   else
     return UV_EINVAL;
+
+  if (handle->flags & UV_HANDLE_UDP_CONNECTED)
+    return UV_EISCONN;
+
+  return uv__udp_connect(handle, addr, addrlen);
+}
+
+
+int uv__udp_is_connected(uv_udp_t* handle) {
+  struct sockaddr_storage addr;
+  int addrlen;
+  if (handle->type != UV_UDP)
+    return 0;
+
+  addrlen = sizeof(addr);
+  if (uv_udp_getpeername(handle, (struct sockaddr*) &addr, &addrlen) != 0)
+    return 0;
+
+  return addrlen > 0;
+}
+
+
+int uv__udp_check_before_send(uv_udp_t* handle, const struct sockaddr* addr) {
+  unsigned int addrlen;
+
+  if (handle->type != UV_UDP)
+    return UV_EINVAL;
+
+  if (addr != NULL && (handle->flags & UV_HANDLE_UDP_CONNECTED))
+    return UV_EISCONN;
+
+  if (addr == NULL && !(handle->flags & UV_HANDLE_UDP_CONNECTED))
+    return UV_EDESTADDRREQ;
+
+  if (addr != NULL) {
+    if (addr->sa_family == AF_INET)
+      addrlen = sizeof(struct sockaddr_in);
+    else if (addr->sa_family == AF_INET6)
+      addrlen = sizeof(struct sockaddr_in6);
+#if defined(AF_UNIX) && !defined(_WIN32)
+    else if (addr->sa_family == AF_UNIX)
+      addrlen = sizeof(struct sockaddr_un);
+#endif
+    else
+      return UV_EINVAL;
+  } else {
+    addrlen = 0;
+  }
+
+  return addrlen;
+}
+
+
+int uv_udp_send(uv_udp_send_t* req,
+                uv_udp_t* handle,
+                const uv_buf_t bufs[],
+                unsigned int nbufs,
+                const struct sockaddr* addr,
+                uv_udp_send_cb send_cb) {
+  int addrlen;
+
+  addrlen = uv__udp_check_before_send(handle, addr);
+  if (addrlen < 0)
+    return addrlen;
 
   return uv__udp_send(req, handle, bufs, nbufs, addr, addrlen, send_cb);
 }
@@ -310,17 +455,11 @@ int uv_udp_try_send(uv_udp_t* handle,
                     const uv_buf_t bufs[],
                     unsigned int nbufs,
                     const struct sockaddr* addr) {
-  unsigned int addrlen;
+  int addrlen;
 
-  if (handle->type != UV_UDP)
-    return UV_EINVAL;
-
-  if (addr->sa_family == AF_INET)
-    addrlen = sizeof(struct sockaddr_in);
-  else if (addr->sa_family == AF_INET6)
-    addrlen = sizeof(struct sockaddr_in6);
-  else
-    return UV_EINVAL;
+  addrlen = uv__udp_check_before_send(handle, addr);
+  if (addrlen < 0)
+    return addrlen;
 
   return uv__udp_try_send(handle, bufs, nbufs, addr, addrlen);
 }
@@ -357,7 +496,7 @@ void uv_walk(uv_loop_t* loop, uv_walk_cb walk_cb, void* arg) {
     QUEUE_REMOVE(q);
     QUEUE_INSERT_TAIL(&loop->handle_queue, q);
 
-    if (h->flags & UV__HANDLE_INTERNAL) continue;
+    if (h->flags & UV_HANDLE_INTERNAL) continue;
     walk_cb(h, arg);
   }
 }
@@ -386,9 +525,9 @@ static void uv__print_handles(uv_loop_t* loop, int only_active, FILE* stream) {
 
     fprintf(stream,
             "[%c%c%c] %-8s %p\n",
-            "R-"[!(h->flags & UV__HANDLE_REF)],
-            "A-"[!(h->flags & UV__HANDLE_ACTIVE)],
-            "I-"[!(h->flags & UV__HANDLE_INTERNAL)],
+            "R-"[!(h->flags & UV_HANDLE_REF)],
+            "A-"[!(h->flags & UV_HANDLE_ACTIVE)],
+            "I-"[!(h->flags & UV_HANDLE_INTERNAL)],
             type,
             (void*)h);
   }
@@ -512,8 +651,18 @@ void uv__fs_scandir_cleanup(uv_fs_t* req) {
 int uv_fs_scandir_next(uv_fs_t* req, uv_dirent_t* ent) {
   uv__dirent_t** dents;
   uv__dirent_t* dent;
+  unsigned int* nbufs;
 
-  unsigned int* nbufs = uv__get_nbufs(req);
+  /* Check to see if req passed */
+  if (req->result < 0)
+    return req->result;
+
+  /* Ptr will be null if req was canceled or no files found */
+  if (!req->ptr)
+    return UV_EOF;
+
+  nbufs = uv__get_nbufs(req);
+  assert(nbufs);
 
   dents = req->ptr;
 
@@ -531,37 +680,66 @@ int uv_fs_scandir_next(uv_fs_t* req, uv_dirent_t* ent) {
   dent = dents[(*nbufs)++];
 
   ent->name = dent->d_name;
+  ent->type = uv__fs_get_dirent_type(dent);
+
+  return 0;
+}
+
+uv_dirent_type_t uv__fs_get_dirent_type(uv__dirent_t* dent) {
+  uv_dirent_type_t type;
+
 #ifdef HAVE_DIRENT_TYPES
   switch (dent->d_type) {
     case UV__DT_DIR:
-      ent->type = UV_DIRENT_DIR;
+      type = UV_DIRENT_DIR;
       break;
     case UV__DT_FILE:
-      ent->type = UV_DIRENT_FILE;
+      type = UV_DIRENT_FILE;
       break;
     case UV__DT_LINK:
-      ent->type = UV_DIRENT_LINK;
+      type = UV_DIRENT_LINK;
       break;
     case UV__DT_FIFO:
-      ent->type = UV_DIRENT_FIFO;
+      type = UV_DIRENT_FIFO;
       break;
     case UV__DT_SOCKET:
-      ent->type = UV_DIRENT_SOCKET;
+      type = UV_DIRENT_SOCKET;
       break;
     case UV__DT_CHAR:
-      ent->type = UV_DIRENT_CHAR;
+      type = UV_DIRENT_CHAR;
       break;
     case UV__DT_BLOCK:
-      ent->type = UV_DIRENT_BLOCK;
+      type = UV_DIRENT_BLOCK;
       break;
     default:
-      ent->type = UV_DIRENT_UNKNOWN;
+      type = UV_DIRENT_UNKNOWN;
   }
 #else
-  ent->type = UV_DIRENT_UNKNOWN;
+  type = UV_DIRENT_UNKNOWN;
 #endif
 
-  return 0;
+  return type;
+}
+
+void uv__fs_readdir_cleanup(uv_fs_t* req) {
+  uv_dir_t* dir;
+  uv_dirent_t* dirents;
+  int i;
+
+  if (req->ptr == NULL)
+    return;
+
+  dir = req->ptr;
+  dirents = dir->dirents;
+  req->ptr = NULL;
+
+  if (dirents == NULL)
+    return;
+
+  for (i = 0; i < req->result; ++i) {
+    uv__free((char*) dirents[i].name);
+    dirents[i].name = NULL;
+  }
 }
 
 
@@ -617,12 +795,12 @@ int uv_loop_close(uv_loop_t* loop) {
   void* saved_data;
 #endif
 
-  if (!QUEUE_EMPTY(&(loop)->active_reqs))
+  if (uv__has_active_reqs(loop))
     return UV_EBUSY;
 
   QUEUE_FOREACH(q, &loop->handle_queue) {
     h = QUEUE_DATA(q, uv_handle_t, handle_queue);
-    if (!(h->flags & UV__HANDLE_INTERNAL))
+    if (!(h->flags & UV_HANDLE_INTERNAL))
       return UV_EBUSY;
   }
 
@@ -651,4 +829,119 @@ void uv_loop_delete(uv_loop_t* loop) {
   assert(err == 0);
   if (loop != default_loop)
     uv__free(loop);
+}
+
+
+int uv_read_start(uv_stream_t* stream,
+                  uv_alloc_cb alloc_cb,
+                  uv_read_cb read_cb) {
+  if (stream == NULL || alloc_cb == NULL || read_cb == NULL)
+    return UV_EINVAL;
+
+  if (stream->flags & UV_HANDLE_CLOSING)
+    return UV_EINVAL;
+
+  if (stream->flags & UV_HANDLE_READING)
+    return UV_EALREADY;
+
+  if (!(stream->flags & UV_HANDLE_READABLE))
+    return UV_ENOTCONN;
+
+  return uv__read_start(stream, alloc_cb, read_cb);
+}
+
+
+void uv_os_free_environ(uv_env_item_t* envitems, int count) {
+  int i;
+
+  for (i = 0; i < count; i++) {
+    uv__free(envitems[i].name);
+  }
+
+  uv__free(envitems);
+}
+
+
+void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
+  int i;
+
+  for (i = 0; i < count; i++)
+    uv__free(cpu_infos[i].model);
+
+  uv__free(cpu_infos);
+}
+
+
+#ifdef __GNUC__  /* Also covers __clang__ and __INTEL_COMPILER. */
+__attribute__((destructor))
+#endif
+void uv_library_shutdown(void) {
+  static int was_shutdown;
+
+  if (uv__load_relaxed(&was_shutdown))
+    return;
+
+  uv__process_title_cleanup();
+  uv__signal_cleanup();
+  uv__threadpool_cleanup();
+  uv__store_relaxed(&was_shutdown, 1);
+}
+
+
+void uv__metrics_update_idle_time(uv_loop_t* loop) {
+  uv__loop_metrics_t* loop_metrics;
+  uint64_t entry_time;
+  uint64_t exit_time;
+
+  if (!(uv__get_internal_fields(loop)->flags & UV_METRICS_IDLE_TIME))
+    return;
+
+  loop_metrics = uv__get_loop_metrics(loop);
+
+  /* The thread running uv__metrics_update_idle_time() is always the same
+   * thread that sets provider_entry_time. So it's unnecessary to lock before
+   * retrieving this value.
+   */
+  if (loop_metrics->provider_entry_time == 0)
+    return;
+
+  exit_time = uv_hrtime();
+
+  uv_mutex_lock(&loop_metrics->lock);
+  entry_time = loop_metrics->provider_entry_time;
+  loop_metrics->provider_entry_time = 0;
+  loop_metrics->provider_idle_time += exit_time - entry_time;
+  uv_mutex_unlock(&loop_metrics->lock);
+}
+
+
+void uv__metrics_set_provider_entry_time(uv_loop_t* loop) {
+  uv__loop_metrics_t* loop_metrics;
+  uint64_t now;
+
+  if (!(uv__get_internal_fields(loop)->flags & UV_METRICS_IDLE_TIME))
+    return;
+
+  now = uv_hrtime();
+  loop_metrics = uv__get_loop_metrics(loop);
+  uv_mutex_lock(&loop_metrics->lock);
+  loop_metrics->provider_entry_time = now;
+  uv_mutex_unlock(&loop_metrics->lock);
+}
+
+
+uint64_t uv_metrics_idle_time(uv_loop_t* loop) {
+  uv__loop_metrics_t* loop_metrics;
+  uint64_t entry_time;
+  uint64_t idle_time;
+
+  loop_metrics = uv__get_loop_metrics(loop);
+  uv_mutex_lock(&loop_metrics->lock);
+  idle_time = loop_metrics->provider_idle_time;
+  entry_time = loop_metrics->provider_entry_time;
+  uv_mutex_unlock(&loop_metrics->lock);
+
+  if (entry_time > 0)
+    idle_time += uv_hrtime() - entry_time;
+  return idle_time;
 }

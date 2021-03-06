@@ -43,6 +43,8 @@ function test_params1(a, b) {
   return i + j + k + l;
 }
 
+%PrepareFunctionForOptimization(test_params1);
+
 assertEquals(14, test_params1(new B(3, 4), new B(4, 5)));
 assertEquals(110, test_params1(new B(11, 7), new B(44, 8)));
 
@@ -62,6 +64,8 @@ function test_params2(a, b) {
   var l = o.x;
   return i + j + k + l;
 }
+
+%PrepareFunctionForOptimization(test_params2);
 
 assertEquals(14, test_params2(3, 4));
 assertEquals(110, test_params2(11, 44));

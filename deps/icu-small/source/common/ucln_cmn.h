@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -6,7 +6,7 @@
 *                Corporation and others. All Rights Reserved.
 ******************************************************************************
 *   file name:  ucln_cmn.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -22,8 +22,6 @@
 
 /* These are the cleanup functions for various APIs. */
 /* @return true if cleanup complete successfully.*/
-U_CFUNC UBool umtx_cleanup(void);
-
 U_CFUNC UBool utrace_cleanup(void);
 
 U_CFUNC UBool ucln_lib_cleanup(void);
@@ -33,17 +31,23 @@ Please keep the order of enums declared in same order
 as the cleanup functions are suppose to be called. */
 typedef enum ECleanupCommonType {
     UCLN_COMMON_START = -1,
+    UCLN_COMMON_NUMPARSE_UNISETS,
     UCLN_COMMON_USPREP,
     UCLN_COMMON_BREAKITERATOR,
-    UCLN_COMMON_BREAKITERATOR_DICT,
+    UCLN_COMMON_RBBI,
     UCLN_COMMON_SERVICE,
     UCLN_COMMON_LOCALE_KEY_TYPE,
     UCLN_COMMON_LOCALE,
+    UCLN_COMMON_LOCALE_ALIAS,
+    UCLN_COMMON_LOCALE_KNOWN_CANONICALIZED,
     UCLN_COMMON_LOCALE_AVAILABLE,
+    UCLN_COMMON_LIKELY_SUBTAGS,
+    UCLN_COMMON_LOCALE_DISTANCE,
     UCLN_COMMON_ULOC,
     UCLN_COMMON_CURRENCY,
     UCLN_COMMON_LOADED_NORMALIZER2,
     UCLN_COMMON_NORMALIZER2,
+    UCLN_COMMON_CHARACTERPROPERTIES,
     UCLN_COMMON_USET,
     UCLN_COMMON_UNAMES,
     UCLN_COMMON_UPROPS,
@@ -51,7 +55,6 @@ typedef enum ECleanupCommonType {
     UCLN_COMMON_UCNV_IO,
     UCLN_COMMON_UDATA,
     UCLN_COMMON_PUTIL,
-    UCLN_COMMON_LIST_FORMATTER,
     UCLN_COMMON_UINIT,
 
     /*
@@ -61,6 +64,7 @@ typedef enum ECleanupCommonType {
     */
     UCLN_COMMON_UNIFIED_CACHE,
     UCLN_COMMON_URES,
+    UCLN_COMMON_MUTEX,    // Mutexes should be the last to be cleaned up.
     UCLN_COMMON_COUNT /* This must be last */
 } ECleanupCommonType;
 

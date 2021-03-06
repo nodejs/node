@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -6,7 +6,7 @@
 *   Corporation and others.  All Rights Reserved.
 *******************************************************************************
 *   file name:  appendable.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -19,10 +19,13 @@
 
 /**
  * \file
- * \brief C++ API: Appendable class: Sink for Unicode code points and 16-bit code units (UChars).
+ * \brief C++ API: Appendable class: Sink for Unicode code points and 16-bit code units (char16_ts).
  */
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
+
 #include "unicode/uobject.h"
 
 U_NAMESPACE_BEGIN
@@ -34,15 +37,15 @@ class UnicodeString;
  * Combines elements of Java Appendable and ICU4C ByteSink.
  *
  * This class can be used in APIs where it does not matter whether the actual destination is
- * a UnicodeString, a UChar[] array, a UnicodeSet, or any other object
+ * a UnicodeString, a char16_t[] array, a UnicodeSet, or any other object
  * that receives and processes characters and/or strings.
  *
- * Implementation classes must implement at least appendCodeUnit(UChar).
+ * Implementation classes must implement at least appendCodeUnit(char16_t).
  * The base class provides default implementations for the other methods.
  *
  * The methods do not take UErrorCode parameters.
  * If an error occurs (e.g., out-of-memory),
- * in addition to returning FALSE from failing operations,
+ * in addition to returning false from failing operations,
  * the implementation must prevent unexpected behavior (e.g., crashes)
  * from further calls and should make the error condition available separately
  * (e.g., store a UErrorCode, make/keep a UnicodeString bogus).
@@ -59,37 +62,37 @@ public:
     /**
      * Appends a 16-bit code unit.
      * @param c code unit
-     * @return TRUE if the operation succeeded
+     * @return true if the operation succeeded
      * @stable ICU 4.8
      */
-    virtual UBool appendCodeUnit(UChar c) = 0;
+    virtual UBool appendCodeUnit(char16_t c) = 0;
 
     /**
      * Appends a code point.
-     * The default implementation calls appendCodeUnit(UChar) once or twice.
+     * The default implementation calls appendCodeUnit(char16_t) once or twice.
      * @param c code point 0..0x10ffff
-     * @return TRUE if the operation succeeded
+     * @return true if the operation succeeded
      * @stable ICU 4.8
      */
     virtual UBool appendCodePoint(UChar32 c);
 
     /**
      * Appends a string.
-     * The default implementation calls appendCodeUnit(UChar) for each code unit.
+     * The default implementation calls appendCodeUnit(char16_t) for each code unit.
      * @param s string, must not be NULL if length!=0
      * @param length string length, or -1 if NUL-terminated
-     * @return TRUE if the operation succeeded
+     * @return true if the operation succeeded
      * @stable ICU 4.8
      */
-    virtual UBool appendString(const UChar *s, int32_t length);
+    virtual UBool appendString(const char16_t *s, int32_t length);
 
     /**
      * Tells the object that the caller is going to append roughly
-     * appendCapacity UChars. A subclass might use this to pre-allocate
+     * appendCapacity char16_ts. A subclass might use this to pre-allocate
      * a larger buffer if necessary.
-     * The default implementation does nothing. (It always returns TRUE.)
-     * @param appendCapacity estimated number of UChars that will be appended
-     * @return TRUE if the operation succeeded
+     * The default implementation does nothing. (It always returns true.)
+     * @param appendCapacity estimated number of char16_ts that will be appended
+     * @return true if the operation succeeded
      * @stable ICU 4.8
      */
     virtual UBool reserveAppendCapacity(int32_t appendCapacity);
@@ -102,19 +105,19 @@ public:
      * The returned buffer is only valid until the next operation
      * on this Appendable.
      *
-     * After writing at most *resultCapacity UChars, call appendString() with the
-     * pointer returned from this function and the number of UChars written.
-     * Many appendString() implementations will avoid copying UChars if this function
+     * After writing at most *resultCapacity char16_ts, call appendString() with the
+     * pointer returned from this function and the number of char16_ts written.
+     * Many appendString() implementations will avoid copying char16_ts if this function
      * returned an internal buffer.
      *
      * Partial usage example:
      * \code
      *  int32_t capacity;
-     *  UChar* buffer = app.getAppendBuffer(..., &capacity);
-     *  ... Write n UChars into buffer, with n <= capacity.
+     *  char16_t* buffer = app.getAppendBuffer(..., &capacity);
+     *  ... Write n char16_ts into buffer, with n <= capacity.
      *  app.appendString(buffer, n);
      * \endcode
-     * In many implementations, that call to append will avoid copying UChars.
+     * In many implementations, that call to append will avoid copying char16_ts.
      *
      * If the Appendable allocates or reallocates an internal buffer, it should use
      * the desiredCapacityHint if appropriate.
@@ -138,9 +141,9 @@ public:
      * @return a buffer with *resultCapacity>=minCapacity
      * @stable ICU 4.8
      */
-    virtual UChar *getAppendBuffer(int32_t minCapacity,
+    virtual char16_t *getAppendBuffer(int32_t minCapacity,
                                    int32_t desiredCapacityHint,
-                                   UChar *scratch, int32_t scratchCapacity,
+                                   char16_t *scratch, int32_t scratchCapacity,
                                    int32_t *resultCapacity);
 };
 
@@ -168,15 +171,15 @@ public:
     /**
      * Appends a 16-bit code unit to the string.
      * @param c code unit
-     * @return TRUE if the operation succeeded
+     * @return true if the operation succeeded
      * @stable ICU 4.8
      */
-    virtual UBool appendCodeUnit(UChar c);
+    virtual UBool appendCodeUnit(char16_t c);
 
     /**
      * Appends a code point to the string.
      * @param c code point 0..0x10ffff
-     * @return TRUE if the operation succeeded
+     * @return true if the operation succeeded
      * @stable ICU 4.8
      */
     virtual UBool appendCodePoint(UChar32 c);
@@ -185,16 +188,16 @@ public:
      * Appends a string to the UnicodeString.
      * @param s string, must not be NULL if length!=0
      * @param length string length, or -1 if NUL-terminated
-     * @return TRUE if the operation succeeded
+     * @return true if the operation succeeded
      * @stable ICU 4.8
      */
-    virtual UBool appendString(const UChar *s, int32_t length);
+    virtual UBool appendString(const char16_t *s, int32_t length);
 
     /**
      * Tells the UnicodeString that the caller is going to append roughly
-     * appendCapacity UChars.
-     * @param appendCapacity estimated number of UChars that will be appended
-     * @return TRUE if the operation succeeded
+     * appendCapacity char16_ts.
+     * @param appendCapacity estimated number of char16_ts that will be appended
+     * @return true if the operation succeeded
      * @stable ICU 4.8
      */
     virtual UBool reserveAppendCapacity(int32_t appendCapacity);
@@ -220,9 +223,9 @@ public:
      * @return a buffer with *resultCapacity>=minCapacity
      * @stable ICU 4.8
      */
-    virtual UChar *getAppendBuffer(int32_t minCapacity,
+    virtual char16_t *getAppendBuffer(int32_t minCapacity,
                                    int32_t desiredCapacityHint,
-                                   UChar *scratch, int32_t scratchCapacity,
+                                   char16_t *scratch, int32_t scratchCapacity,
                                    int32_t *resultCapacity);
 
 private:
@@ -230,5 +233,7 @@ private:
 };
 
 U_NAMESPACE_END
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif  // __APPENDABLE_H__
