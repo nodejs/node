@@ -696,15 +696,15 @@ code will also work:
 
 ```js
 // ./index.js
-module.exports = 42
+module.exports = 42;
 ```
 
 ```js
 // ./other.js
-console.log(require('@my/package'))
+console.log(require('@my/package'));
 ```
 
-```sh
+```bash
 node other.js
 # 42
 ```
