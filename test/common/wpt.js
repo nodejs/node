@@ -389,6 +389,11 @@ class WPTRunner {
       });
 
       worker.on('error', (err) => {
+        if (!this.inProgress.has(testFileName)) {
+          // The test is already finished. Ignore errors that occur after it.
+          // This can happen normally, for example in timers tests.
+          return;
+        }
         this.fail(
           testFileName,
           {
