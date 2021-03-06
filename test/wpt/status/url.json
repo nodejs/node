@@ -20,9 +20,9 @@
     "fail": "FormData is not defined"
   },
   "url-constructor.any.js": {
-    "fail": "TODO: support relative fetch()"
+    "requires": ["small-icu"]
   },
   "url-origin.any.js": {
-    "fail": "TODO: support relative fetch()"
+    "requires": ["small-icu"]
   }
 }
