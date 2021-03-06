@@ -8,8 +8,6 @@ prefix parallel
 
 [$system==win32]
 # https://github.com/nodejs/node/issues/20750
-test-http2-pipe: PASS,FLAKY
-# https://github.com/nodejs/node/issues/20750
 test-stream-pipeline-http2: PASS,FLAKY
 # https://github.com/nodejs/node/issues/24497
 test-timers-immediate-queue: PASS,FLAKY
