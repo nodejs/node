@@ -365,7 +365,7 @@ class WPTRunner {
       const worker = new Worker(workerPath, {
         execArgv: this.flags,
         workerData: {
-          filename: testFileName,
+          testRelativePath: relativePath,
           wptRunner: __filename,
           wptPath: this.path,
           initScript: this.initScript,
