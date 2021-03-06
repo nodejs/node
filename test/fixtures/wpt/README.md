@@ -10,7 +10,7 @@ See [test/wpt](../../wpt/README.md) for information on how these tests are run.
 
 Last update:
 
-- common: https://github.com/web-platform-tests/wpt/tree/3586ff740b/common
+- common: https://github.com/web-platform-tests/wpt/tree/bb97a68974/common
 - console: https://github.com/web-platform-tests/wpt/tree/3b1f72e99a/console
 - dom/abort: https://github.com/web-platform-tests/wpt/tree/625e1310ce/dom/abort
 - encoding: https://github.com/web-platform-tests/wpt/tree/35f70910d3/encoding
@@ -18,9 +18,9 @@ Last update:
 - hr-time: https://github.com/web-platform-tests/wpt/tree/9910784394/hr-time
 - html/webappapis/microtask-queuing: https://github.com/web-platform-tests/wpt/tree/2c5c3c4c27/html/webappapis/microtask-queuing
 - html/webappapis/timers: https://github.com/web-platform-tests/wpt/tree/5873f2d8f1/html/webappapis/timers
-- interfaces: https://github.com/web-platform-tests/wpt/tree/8602e9c9a1/interfaces
-- resources: https://github.com/web-platform-tests/wpt/tree/e366371a19/resources
-- url: https://github.com/web-platform-tests/wpt/tree/59d28c8f2d/url
+- interfaces: https://github.com/web-platform-tests/wpt/tree/79fa4cf76e/interfaces
+- resources: https://github.com/web-platform-tests/wpt/tree/972ca5b669/resources
+- url: https://github.com/web-platform-tests/wpt/tree/33f2e3f2e7/url
 
 [Web Platform Tests]: https://github.com/web-platform-tests/wpt
 [`git node wpt`]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md#git-node-wpt
