@@ -704,9 +704,9 @@ module.exports = 42;
 console.log(require('@my/package'));
 ```
 
-```bash
-node other.js
-# 42
+```console
+$ node other.js
+42
 ```
 
 ## Dual CommonJS/ES module packages
