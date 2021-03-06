@@ -683,6 +683,32 @@ and in a CommonJS one. For example, this code will also work:
 const { something } = require('a-package/foo'); // Loads from ./foo.js.
 ```
 
+Finally, self-referencing also works with scoped packages. For example, this
+code will also work:
+
+```json
+// package.json
+{
+  "name": "@my/package",
+  "exports": "./index.js"
+}
+```
+
+```js
+// ./index.js
+module.exports = 42
+```
+
+```js
+// ./other.js
+console.log(require('@my/package'))
+```
+
+```sh
+node other.js
+# 42
+```
+
 ## Dual CommonJS/ES module packages
 
 Prior to the introduction of support for ES modules in Node.js, it was a common
