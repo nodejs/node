@@ -106,7 +106,7 @@ describing a security issue, take the following steps:
   pull request to the issue. Add screenshots of discussion from the pull request
   to the issue.
 * Open a ticket with GitHub asking that the pull requests be deleted through
-  [GitHub suppport](https://support.github.com/contact)
+  [GitHub support](https://support.github.com/contact)
   using Node.js(team) as the account organization.
 * Open a new issue in the repository in which the issue was originally
   reported with a brief FYI to the originator: "FYI @xxxx we asked GitHub
