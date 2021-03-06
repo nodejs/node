@@ -397,6 +397,8 @@ interface HTMLSourceElement : HTMLElement {
   [CEReactions] attribute USVString srcset;
   [CEReactions] attribute DOMString sizes;
   [CEReactions] attribute DOMString media;
+  [CEReactions] attribute unsigned long width;
+  [CEReactions] attribute unsigned long height;
 };
 
 [Exposed=Window,
@@ -467,7 +469,6 @@ interface HTMLObjectElement : HTMLElement {
   [CEReactions] attribute USVString data;
   [CEReactions] attribute DOMString type;
   [CEReactions] attribute DOMString name;
-  [CEReactions] attribute DOMString useMap;
   readonly attribute HTMLFormElement? form;
   [CEReactions] attribute DOMString width;
   [CEReactions] attribute DOMString height;
@@ -2524,6 +2525,7 @@ partial interface HTMLObjectElement {
   [CEReactions] attribute unsigned long vspace;
   [CEReactions] attribute DOMString codeBase;
   [CEReactions] attribute DOMString codeType;
+  [CEReactions] attribute DOMString useMap;
 
   [CEReactions] attribute [LegacyNullToEmptyString] DOMString border;
 };
