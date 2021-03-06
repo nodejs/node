@@ -21,19 +21,19 @@ The Node.js project uses an [open governance model](./GOVERNANCE.md). The
 # Table of contents
 
 * [Support](#support)
-* [Release Types](#release-types)
+* [Release types](#release-types)
   * [Download](#download)
-    * [Current and LTS Releases](#current-and-lts-releases)
-    * [Nightly Releases](#nightly-releases)
-    * [API Documentation](#api-documentation)
-  * [Verifying Binaries](#verifying-binaries)
+    * [Current and LTS releases](#current-and-lts-releases)
+    * [Nightly releases](#nightly-releases)
+    * [API documentation](#api-documentation)
+  * [Verifying binaries](#verifying-binaries)
 * [Building Node.js](#building-nodejs)
 * [Security](#security)
 * [Contributing to Node.js](#contributing-to-nodejs)
-* [Current Project Team Members](#current-project-team-members)
+* [Current project team members](#current-project-team-members)
   * [TSC (Technical Steering Committee)](#tsc-technical-steering-committee)
   * [Collaborators](#collaborators)
-  * [Release Keys](#release-keys)
+  * [Release keys](#release-keys)
 * [License](#license)
 
 ## Support
