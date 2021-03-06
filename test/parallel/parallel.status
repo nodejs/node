@@ -17,8 +17,6 @@ test-worker-memory: PASS,FLAKY
 [$system==macos]
 
 [$arch==arm || $arch==arm64]
-# https://github.com/nodejs/node/issues/26610
-test-async-hooks-http-parser-destroy: PASS,FLAKY
 # https://github.com/nodejs/node/pull/31178
 test-crypto-dh-stateless: SKIP
 test-crypto-keygen: SKIP
