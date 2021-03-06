@@ -299,6 +299,7 @@ class WPTRunner {
 
     this.results = {};
     this.inProgress = new Set();
+    this.workers = new Map();
     this.unexpectedFailures = [];
   }
 
@@ -376,6 +377,7 @@ class WPTRunner {
           scriptsToRun,
         },
       });
+      this.workers.set(testFileName, worker);
 
       worker.on('message', (message) => {
         switch (message.type) {
@@ -501,6 +503,9 @@ class WPTRunner {
       this.resultCallback(filename, { status: 2, name: 'Unknown' });
     }
     this.inProgress.delete(filename);
+    // Always force termination of the worker. Some tests allocate resources
+    // that would otherwise keep it alive.
+    this.workers.get(filename).terminate();
   }
 
   addTestResult(filename, item) {

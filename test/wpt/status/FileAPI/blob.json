@@ -1,6 +1,6 @@
 {
   "Blob-constructor.any.js": {
-    "skip": "https://github.com/nodejs/node/issues/37358"
+    "skip": "Depends on File API"
   },
   "Blob-constructor-dom.window.js": {
     "skip": "Depends on DOM API"
