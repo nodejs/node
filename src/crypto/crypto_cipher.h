@@ -227,18 +227,18 @@ class CipherJob final : public CryptoJob<CipherTraits> {
       // Success!
       return;
     }
-    CryptoErrorVector* errors = CryptoJob<CipherTraits>::errors();
+    CryptoErrorStore* errors = CryptoJob<CipherTraits>::errors();
     errors->Capture();
-    if (errors->empty()) {
+    if (errors->Empty()) {
       switch (status) {
         case WebCryptoCipherStatus::OK:
           UNREACHABLE();
           break;
         case WebCryptoCipherStatus::INVALID_KEY_TYPE:
-          errors->emplace_back("Invalid key type.");
+          errors->Insert(NodeCryptoError::INVALID_KEY_TYPE);
           break;
         case WebCryptoCipherStatus::FAILED:
-          errors->emplace_back("Cipher job failed.");
+          errors->Insert(NodeCryptoError::CIPHER_JOB_FAILED);
           break;
       }
     }
@@ -248,17 +248,17 @@ class CipherJob final : public CryptoJob<CipherTraits> {
       v8::Local<v8::Value>* err,
       v8::Local<v8::Value>* result) override {
     Environment* env = AsyncWrap::env();
-    CryptoErrorVector* errors = CryptoJob<CipherTraits>::errors();
+    CryptoErrorStore* errors = CryptoJob<CipherTraits>::errors();
     if (out_.size() > 0) {
-      CHECK(errors->empty());
+      CHECK(errors->Empty());
       *err = v8::Undefined(env->isolate());
       *result = out_.ToArrayBuffer(env);
       return v8::Just(!result->IsEmpty());
     }
 
-    if (errors->empty())
+    if (errors->Empty())
       errors->Capture();
-    CHECK(!errors->empty());
+    CHECK(!errors->Empty());
     *result = v8::Undefined(env->isolate());
     return v8::Just(errors->ToException(env).ToLocal(err));
   }
