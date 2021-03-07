@@ -82,10 +82,10 @@ class KeyGenJob final : public CryptoJob<KeyGenTraits> {
         // Success!
         break;
       case KeyGenJobStatus::FAILED: {
-        CryptoErrorVector* errors = CryptoJob<KeyGenTraits>::errors();
+        CryptoErrorStore* errors = CryptoJob<KeyGenTraits>::errors();
         errors->Capture();
-        if (errors->empty())
-          errors->push_back(std::string("Key generation job failed"));
+        if (errors->Empty())
+          errors->Insert(NodeCryptoError::KEY_GENERATION_JOB_FAILED);
       }
     }
   }
@@ -94,7 +94,7 @@ class KeyGenJob final : public CryptoJob<KeyGenTraits> {
       v8::Local<v8::Value>* err,
       v8::Local<v8::Value>* result) override {
     Environment* env = AsyncWrap::env();
-    CryptoErrorVector* errors = CryptoJob<KeyGenTraits>::errors();
+    CryptoErrorStore* errors = CryptoJob<KeyGenTraits>::errors();
     AdditionalParams* params = CryptoJob<KeyGenTraits>::params();
     if (status_ == KeyGenJobStatus::OK &&
         LIKELY(!KeyGenTraits::EncodeKey(env, params, result).IsNothing())) {
@@ -102,9 +102,9 @@ class KeyGenJob final : public CryptoJob<KeyGenTraits> {
       return v8::Just(true);
     }
 
-    if (errors->empty())
+    if (errors->Empty())
       errors->Capture();
-    CHECK(!errors->empty());
+    CHECK(!errors->Empty());
     *result = Undefined(env->isolate());
     return v8::Just(errors->ToException(env).ToLocal(err));
   }
