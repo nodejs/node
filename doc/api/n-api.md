@@ -608,6 +608,7 @@ For more details, review the [Object lifetime management][].
 #### napi_type_tag
 <!-- YAML
 added: v12.19.0
+napiVersion: 8
 -->
 
 A 128-bit value stored as two unsigned 64-bit integers. It serves as a UUID
@@ -1620,9 +1621,8 @@ changes:
   - version: v12.19.0
     pr-url: https://github.com/nodejs/node/pull/34819
     description: Changed signature of the `hook` callback.
+napiVersion: 8
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 NAPI_EXTERN napi_status napi_add_async_cleanup_hook(
@@ -1660,8 +1660,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/34819
     description: Removed `env` parameter.
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 NAPI_EXTERN napi_status napi_remove_async_cleanup_hook(
@@ -4095,9 +4093,8 @@ specification).
 #### napi_object_freeze
 <!-- YAML
 added: v12.20.0
+napiVersion: 8
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 napi_status napi_object_freeze(napi_env env,
@@ -4120,9 +4117,8 @@ ECMA-262 specification.
 #### napi_object_seal
 <!-- YAML
 added: v12.20.0
+napiVersion: 8
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 napi_status napi_object_seal(napi_env env,
@@ -4776,9 +4772,8 @@ JavaScript object becomes garbage-collected.
 ### napi_type_tag_object
 <!-- YAML
 added: v12.19.0
+napiVersion: 8
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 napi_status napi_type_tag_object(napi_env env,
@@ -4803,9 +4798,8 @@ If the object already has an associated type tag, this API will return
 ### napi_check_object_type_tag
 <!-- YAML
 added: v12.19.0
+napiVersion: 8
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 napi_status napi_check_object_type_tag(napi_env env,
