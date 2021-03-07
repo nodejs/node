@@ -551,7 +551,7 @@ void SecureContext::SetEngineKey(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_EQ(args.Length(), 2);
 
-  CryptoErrorVector errors;
+  CryptoErrorStore errors;
   Utf8Value engine_id(env->isolate(), args[1]);
   EnginePointer engine = LoadEngineById(*engine_id, &errors);
   if (!engine) {
@@ -987,7 +987,7 @@ void SecureContext::SetClientCertEngine(
   // support multiple calls to SetClientCertEngine.
   CHECK(!sc->client_cert_engine_provided_);
 
-  CryptoErrorVector errors;
+  CryptoErrorStore errors;
   const Utf8Value engine_id(env->isolate(), args[0]);
   EnginePointer engine = LoadEngineById(*engine_id, &errors);
   if (!engine) {
