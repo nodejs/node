@@ -112,7 +112,7 @@ Legacy assertion mode uses the [Abstract Equality Comparison][] in:
 
 To use legacy assertion mode:
 
-```cjs
+```mjs
 import assert from 'assert';
 ```
 
