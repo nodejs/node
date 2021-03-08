@@ -231,6 +231,14 @@ bool IsOneShot(const ManagedEVPPKey& key) {
       return false;
   }
 }
+
+bool UseP1363Encoding(const SignConfiguration& params) {
+  switch (EVP_PKEY_id(params.key->GetAsymmetricKey().get())) {
+    case EVP_PKEY_EC:
+    case EVP_PKEY_DSA: return params.dsa_encoding == kSigEncP1363;
+  }
+  return false;
+}
 }  // namespace
 
 SignBase::Error SignBase::Init(const char* sign_type) {
@@ -295,6 +303,8 @@ void Sign::Initialize(Environment* env, Local<Object> target) {
 
   NODE_DEFINE_CONSTANT(target, kSignJobModeSign);
   NODE_DEFINE_CONSTANT(target, kSignJobModeVerify);
+  NODE_DEFINE_CONSTANT(target, kSigEncDER);
+  NODE_DEFINE_CONSTANT(target, kSigEncP1363);
   NODE_DEFINE_CONSTANT(target, RSA_PKCS1_PSS_PADDING);
 }
 
@@ -679,7 +689,8 @@ SignConfiguration::SignConfiguration(SignConfiguration&& other) noexcept
       digest(other.digest),
       flags(other.flags),
       padding(other.padding),
-      salt_length(other.salt_length) {}
+      salt_length(other.salt_length),
+      dsa_encoding(other.dsa_encoding) {}
 
 SignConfiguration& SignConfiguration::operator=(
     SignConfiguration&& other) noexcept {
@@ -742,6 +753,16 @@ Maybe<bool> SignTraits::AdditionalConfig(
     params->padding = args[offset + 5].As<Uint32>()->Value();
   }
 
+  if (args[offset + 7]->IsUint32()) {  // DSA Encoding
+    params->dsa_encoding =
+        static_cast<DSASigEnc>(args[offset + 7].As<Uint32>()->Value());
+    if (params->dsa_encoding != kSigEncDER &&
+        params->dsa_encoding != kSigEncP1363) {
+      THROW_ERR_OUT_OF_RANGE(env, "invalid signature encoding");
+      return Nothing<bool>();
+    }
+  }
+
   if (params->mode == SignConfiguration::kVerify) {
     ArrayBufferOrViewContents<char> signature(args[offset + 6]);
     if (UNLIKELY(!signature.CheckSizeInt32())) {
@@ -752,7 +773,7 @@ Maybe<bool> SignTraits::AdditionalConfig(
     // the signature from WebCrypto format into DER format...
     ManagedEVPPKey m_pkey = params->key->GetAsymmetricKey();
     Mutex::ScopedLock lock(*m_pkey.mutex());
-    if (EVP_PKEY_id(m_pkey.get()) == EVP_PKEY_EC) {
+    if (UseP1363Encoding(*params)) {
       params->signature =
           ConvertFromWebCryptoSignature(m_pkey, signature.ToByteSource());
     } else {
@@ -849,9 +870,7 @@ bool SignTraits::DeriveBits(
         if (!EVP_DigestSignFinal(context.get(), data, &len))
           return false;
 
-        // If this is an EC key (assuming ECDSA) we have to
-        // convert the signature in to the proper format.
-        if (EVP_PKEY_id(params.key->GetAsymmetricKey().get()) == EVP_PKEY_EC) {
+        if (UseP1363Encoding(params)) {
           *out = ConvertToWebCryptoSignature(
               params.key->GetAsymmetricKey(), buf);
         } else {
