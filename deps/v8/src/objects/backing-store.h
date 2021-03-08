@@ -219,15 +219,20 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
 #endif  // V8_ENABLE_WEBASSEMBLY
 };
 
-// A global, per-process mapping from buffer addresses to backing stores
-// of wasm memory objects.
+// A global, per-process mapping from buffer addresses to backing stores.
+// This is generally only used for dealing with an embedder that has not
+// migrated to the new API which should use proper pointers to manage
+// backing stores.
 class GlobalBackingStoreRegistry {
  public:
   // Register a backing store in the global registry. A mapping from the
   // {buffer_start} to the backing store object will be added. The backing
   // store will automatically unregister itself upon destruction.
-  // Only wasm memory backing stores are supported.
   static void Register(std::shared_ptr<BackingStore> backing_store);
+
+  // Look up a backing store based on the {buffer_start} pointer.
+  static std::shared_ptr<BackingStore> Lookup(void* buffer_start,
+                                              size_t length);
 
  private:
   friend class BackingStore;
