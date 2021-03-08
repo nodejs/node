@@ -1340,6 +1340,7 @@ The `http` module `OutgoingMessage.prototype._headers` and
 the public methods (e.g. `OutgoingMessage.prototype.getHeader()`,
 `OutgoingMessage.prototype.getHeaders()`,
 `OutgoingMessage.prototype.getHeaderNames()`,
+`OutgoingMessage.prototype.getRawHeaderNames()`,
 `OutgoingMessage.prototype.hasHeader()`,
 `OutgoingMessage.prototype.removeHeader()`,
 `OutgoingMessage.prototype.setHeader()`) for working with outgoing headers.
