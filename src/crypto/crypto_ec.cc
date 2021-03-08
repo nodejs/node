@@ -15,6 +15,8 @@
 #include <openssl/ec.h>
 #include <openssl/ecdh.h>
 
+#include <algorithm>
+
 namespace node {
 
 using v8::Array;
@@ -959,19 +961,22 @@ ByteSource ConvertToWebCryptoSignature(
         return ByteSource();
 
       DSA_SIG_get0(dsasig.get(), &pr, &ps);
-      len = BN_num_bytes(pr);
+      len = std::max(BN_num_bytes(pr), BN_num_bytes(ps));
     }
   }
 
   CHECK_GT(len, 0);
 
   char* outdata = MallocOpenSSL<char>(len * 2);
+  memset(outdata, 0, len * 2);
   ByteSource out = ByteSource::Allocated(outdata, len * 2);
   unsigned char* ptr = reinterpret_cast<unsigned char*>(outdata);
 
-  if (!BN_bn2binpad(pr, ptr, len) || !BN_bn2binpad(ps, ptr + len, len)) {
+  if (BN_bn2binpad(pr, ptr, len) <= 0 ||
+    BN_bn2binpad(ps, ptr + len, len) <= 0) {
     return ByteSource();
   }
+
   return out;
 }
 
