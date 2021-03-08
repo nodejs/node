@@ -76,11 +76,11 @@ test('rsa_public.pem', 'rsa_private.pem', 'sha256', false,
      });
 
 // RSA w/ PSS_PADDING and PSS_SALTLEN_DIGEST
-// test('rsa_public.pem', 'rsa_private.pem', 'sha256', false,
-//      {
-//        padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-//        saltLength: crypto.constants.RSA_PSS_SALTLEN_DIGEST
-//      });
+test('rsa_public.pem', 'rsa_private.pem', 'sha256', false,
+     {
+       padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+       saltLength: crypto.constants.RSA_PSS_SALTLEN_DIGEST
+     });
 
 // ED25519
 test('ed25519_public.pem', 'ed25519_private.pem', undefined, true);

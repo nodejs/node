@@ -744,9 +744,9 @@ Maybe<bool> SignTraits::AdditionalConfig(
     }
   }
 
-  if (args[offset + 4]->IsUint32()) {  // Salt length
+  if (args[offset + 4]->IsInt32()) {  // Salt length
     params->flags |= SignConfiguration::kHasSaltLength;
-    params->salt_length = args[offset + 4].As<Uint32>()->Value();
+    params->salt_length = args[offset + 4].As<Int32>()->Value();
   }
   if (args[offset + 5]->IsUint32()) {  // Padding
     params->flags |= SignConfiguration::kHasPadding;
