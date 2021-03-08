@@ -65,7 +65,7 @@ assert.rejects(
     ['sign']),
   {
     message: /NODE-ED25519 raw keys must be exactly 32-bytes/
-  });
+  }).then(common.mustCall());
 
 assert.rejects(
   subtle.importKey(
@@ -79,7 +79,7 @@ assert.rejects(
     ['sign']),
   {
     message: /NODE-ED448 raw keys must be exactly 57-bytes/
-  });
+  }).then(common.mustCall());
 
 const testVectors = {
   'NODE-ED25519': [
@@ -331,7 +331,7 @@ assert.rejects(
     ['sign', 'verify']),
   {
     message: /Unsupported named curves for ECDSA/
-  });
+  }).then(common.mustCall());
 
 assert.rejects(
   subtle.generateKey(
@@ -343,7 +343,7 @@ assert.rejects(
     ['sign', 'verify']),
   {
     message: /Unsupported named curves for ECDSA/
-  });
+  }).then(common.mustCall());
 
 assert.rejects(
   subtle.generateKey(
@@ -355,7 +355,7 @@ assert.rejects(
     ['sign', 'verify']),
   {
     message: /Unsupported named curves for ECDSA/
-  });
+  }).then(common.mustCall());
 
 assert.rejects(
   subtle.generateKey(
@@ -367,7 +367,7 @@ assert.rejects(
     ['sign', 'verify']),
   {
     message: /Unsupported named curves for ECDSA/
-  });
+  }).then(common.mustCall());
 
 {
   for (const asymmetricKeyType of ['ed25519', 'ed448']) {
@@ -398,7 +398,7 @@ assert.rejects(
         ),
         {
           message: /Invalid algorithm name/
-        });
+        }).then(common.mustCall());
 
       assert.rejects(
         subtle.importKey(
@@ -413,7 +413,7 @@ assert.rejects(
         ),
         {
           message: /Invalid algorithm name/
-        });
+        }).then(common.mustCall());
     }
   }
 }
