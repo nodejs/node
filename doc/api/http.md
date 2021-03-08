@@ -777,6 +777,24 @@ const cookie = request.getHeader('Cookie');
 // 'cookie' is of type string[]
 ```
 
+### `request.getRawHeaderNames()`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {string[]}
+
+Returns an array containing the unique names of the current outgoing raw
+headers. Header names are returned with their exact casing being set.
+
+```js
+request.setHeader('Foo', 'bar');
+request.setHeader('Set-Cookie', ['foo=bar', 'bar=baz']);
+
+const headerNames = request.getRawHeaderNames();
+// headerNames === ['Foo', 'Set-Cookie']
+```
+
 ### `request.maxHeadersCount`
 
 * {number} **Default:** `2000`
