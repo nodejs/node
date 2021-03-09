@@ -614,7 +614,7 @@ WebCryptoKeyExportStatus EC_Raw_Export(
   CHECK(m_pkey);
   Mutex::ScopedLock lock(*m_pkey.mutex());
 
-  EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(m_pkey.get());
+  const EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(m_pkey.get());
 
   unsigned char* data;
   size_t len = 0;
@@ -703,7 +703,7 @@ Maybe<bool> ExportJWKEcKey(
   Mutex::ScopedLock lock(*m_pkey.mutex());
   CHECK_EQ(EVP_PKEY_id(m_pkey.get()), EVP_PKEY_EC);
 
-  EC_KEY* ec = EVP_PKEY_get0_EC_KEY(m_pkey.get());
+  const EC_KEY* ec = EVP_PKEY_get0_EC_KEY(m_pkey.get());
   CHECK_NOT_NULL(ec);
 
   const EC_POINT* pub = EC_KEY_get0_public_key(ec);
@@ -910,7 +910,7 @@ Maybe<bool> GetEcKeyDetail(
   Mutex::ScopedLock lock(*m_pkey.mutex());
   CHECK_EQ(EVP_PKEY_id(m_pkey.get()), EVP_PKEY_EC);
 
-  EC_KEY* ec = EVP_PKEY_get0_EC_KEY(m_pkey.get());
+  const EC_KEY* ec = EVP_PKEY_get0_EC_KEY(m_pkey.get());
   CHECK_NOT_NULL(ec);
 
   const EC_GROUP* group = EC_KEY_get0_group(ec);
