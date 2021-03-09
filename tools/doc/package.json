@@ -11,6 +11,7 @@
     "js-yaml": "4.1.0",
     "rehype-raw": "5.1.0",
     "rehype-stringify": "8.0.0",
+    "remark-frontmatter": "^3.0.0",
     "remark-gfm": "^1.0.0",
     "remark-html": "13.0.1",
     "remark-parse": "^9.0.0",
