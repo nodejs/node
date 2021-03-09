@@ -284,6 +284,50 @@ shared_optgroup.add_argument('--shared-nghttp2-libpath',
     dest='shared_nghttp2_libpath',
     help='a directory to search for the shared nghttp2 DLLs')
 
+shared_optgroup.add_argument('--shared-nghttp3',
+    action='store_true',
+    dest='shared_nghttp3',
+    default=None,
+    help='link to a shared nghttp3 DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-nghttp3-includes',
+    action='store',
+    dest='shared_nghttp3_includes',
+    help='directory containing nghttp3 header files')
+
+shared_optgroup.add_argument('--shared-nghttp3-libname',
+    action='store',
+    dest='shared_nghttp3_libname',
+    default='nghttp3',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-nghttp3-libpath',
+    action='store',
+    dest='shared_nghttp3_libpath',
+    help='a directory to search for the shared nghttp3 DLLs')
+
+shared_optgroup.add_argument('--shared-ngtcp2',
+    action='store_true',
+    dest='shared_ngtcp2',
+    default=None,
+    help='link to a shared ngtcp2 DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-ngtcp2-includes',
+    action='store',
+    dest='shared_ngtcp2_includes',
+    help='directory containing ngtcp2 header files')
+
+shared_optgroup.add_argument('--shared-ngtcp2-libname',
+    action='store',
+    dest='shared_ngtcp2_libname',
+    default='ngtcp2',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-ngtcp2-libpath',
+    action='store',
+    dest='shared_ngtcp2_libpath',
+    help='a directory to search for the shared tcp2 DLLs')
+
 shared_optgroup.add_argument('--shared-openssl',
     action='store_true',
     dest='shared_openssl',
@@ -1347,6 +1391,8 @@ def configure_openssl(o):
   variables = o['variables']
   variables['node_use_openssl'] = b(not options.without_ssl)
   variables['node_shared_openssl'] = b(options.shared_openssl)
+  variables['node_shared_ngtcp2'] = b(options.shared_ngtcp2)
+  variables['node_shared_nghttp3'] = b(options.shared_nghttp3)
   variables['openssl_is_fips'] = b(options.openssl_is_fips)
   variables['openssl_fips'] = ''
   variables['openssl_quic'] = b(True)
@@ -1836,6 +1882,8 @@ configure_library('libuv', output)
 configure_library('brotli', output, pkgname=['libbrotlidec', 'libbrotlienc'])
 configure_library('cares', output, pkgname='libcares')
 configure_library('nghttp2', output, pkgname='libnghttp2')
+configure_library('nghttp3', output, pkgname='libnghttp3')
+configure_library('ngtcp2', output, pkgname='libngtcp2')
 configure_v8(output)
 configure_openssl(output)
 configure_intl(output)
