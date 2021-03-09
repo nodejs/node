@@ -38,6 +38,7 @@ import nodedownload
 sys.path.insert(0, 'tools')
 import getmoduleversion
 import getnapibuildversion
+import getsharedopensslhasquic
 from gyp_node import run_gyp
 
 # parse our options
@@ -1348,6 +1349,7 @@ def configure_openssl(o):
   variables['node_shared_openssl'] = b(options.shared_openssl)
   variables['openssl_is_fips'] = b(options.openssl_is_fips)
   variables['openssl_fips'] = ''
+  variables['openssl_quic'] = b(True)
 
   if options.openssl_no_asm:
     variables['openssl_no_asm'] = 1
@@ -1402,6 +1404,9 @@ def configure_openssl(o):
 
   if options.openssl_fips or options.openssl_fips == '':
      error('FIPS is not supported in this version of Node.js')
+
+  if options.shared_openssl:
+    variables['openssl_quic'] = b(getsharedopensslhasquic.get_has_quic(options.__dict__['shared_openssl_includes']))
 
   configure_library('openssl', o)
 
