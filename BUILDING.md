@@ -116,7 +116,7 @@ platforms. This is true regardless of entries in the table below.
 | macOS            | x64              | >= 10.13                        | Tier 1       |                                   |
 | macOS            | arm64            | >= 11                           | Experimental |                                   |
 | SmartOS          | x64              | >= 18                           | Tier 2       |                                   |
-| AIX              | ppc64be >=power7 | >= 7.2 TL02                     | Tier 2       |                                   |
+| AIX              | ppc64be >=power7 | >= 7.2 TL04                     | Tier 2       |                                   |
 | FreeBSD          | x64              | >= 11                           | Experimental | Downgraded as of Node.js 12  <sup>[7](#fn7)</sup>     |
 
 <em id="fn1">1</em>: GCC 6 is not provided on the base platform. Users will
@@ -171,7 +171,7 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 
 | Binary package        | Platform and Toolchain                                                                                        |
 | --------------------- | ------------------------------------------------------------------------------------------------------------- |
-| aix-ppc64             | AIX 7.1 TL05 on PPC64BE with GCC 6                                                                            |
+| aix-ppc64             | AIX 7.2 TL04 on PPC64BE with GCC 8                                                                            |
 | darwin-x64 (and .pkg) | macOS 10.15, Xcode Command Line Tools 11 with -mmacosx-version-min=10.13                                      |
 | linux-arm64           | CentOS 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                                                       |
 | linux-armv7l          | Cross-compiled on Ubuntu 18.04 x64 with [custom GCC toolchain](https://github.com/rvagg/rpi-newer-crosstools) |
