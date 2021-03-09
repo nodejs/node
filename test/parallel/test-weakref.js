@@ -1,6 +1,6 @@
 'use strict';
 
-// Flags: --expose-gc --harmony-weak-refs
+// Flags: --expose-gc
 
 require('../common');
 const assert = require('assert');
