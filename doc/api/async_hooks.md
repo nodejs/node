@@ -1030,6 +1030,8 @@ added:
  - v12.17.0
 -->
 
+> Stability: 2 - Stable
+
 Creates a new instance of `AsyncLocalStorage`. Store is only provided within a
 `run()` call or after an `enterWith()` call.
 
@@ -1061,6 +1063,8 @@ added:
  - v13.10.0
  - v12.17.0
 -->
+
+> Stability: 2 - Stable
 
 * Returns: {any}
 
@@ -1122,6 +1126,8 @@ added:
  - v13.10.0
  - v12.17.0
 -->
+
+> Stability: 2 - Stable
 
 * `store` {any}
 * `callback` {Function}
@@ -1209,7 +1215,7 @@ In this example, the store is only available in the callback function and the
 functions called by `foo`. Outside of `run`, calling `getStore` will return
 `undefined`.
 
-### Troubleshooting
+### Troubleshooting: Context loss
 
 In most cases your application or library code should have no issues with
 `AsyncLocalStorage`. But in rare cases you may face situations when the
@@ -1221,7 +1227,12 @@ If your code is callback-based, it is enough to promisify it with
 
 If you need to keep using callback-based API, or your code assumes
 a custom thenable implementation, use the [`AsyncResource`][] class
-to associate the asynchronous operation with the correct execution context.
+to associate the asynchronous operation with the correct execution context. To
+do so, you will need to identify the function call responsible for the
+context loss. You can do that by logging the content of
+`asyncLocalStorage.getStore()` after the calls you suspect are responsible for
+the loss. When the code logs `undefined`, the last callback called is probably
+responsible for the context loss.
 
 [Hook Callbacks]: #async_hooks_hook_callbacks
 [PromiseHooks]: https://docs.google.com/document/d/1rda3yKGHimKIhg5YeoAmCOtyURgsbTH_qaYR79FELlk/edit
