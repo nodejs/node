@@ -27,6 +27,7 @@ import htmlStringify from 'rehype-stringify';
 import gfm from 'remark-gfm';
 import markdown from 'remark-parse';
 import remark2rehype from 'remark-rehype';
+import frontmatter from 'remark-frontmatter';
 import unified from 'unified';
 
 import * as html from './html.mjs';
@@ -82,6 +83,7 @@ async function main() {
   const input = await fs.readFile(filename, 'utf8');
 
   const content = await unified()
+    .use(frontmatter)
     .use(replaceLinks, { filename, linksMapper })
     .use(markdown)
     .use(gfm)
