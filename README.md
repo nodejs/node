@@ -591,6 +591,8 @@ maintaining the Node.js project.
 
 ### Triagers
 
+* [marsonya](https://github.com/marsonya) -
+**Akhil Marsonya** &lt;akhil.marsonya27@gmail.com&gt; (he/him)
 * [PoojaDurgad](https://github.com/PoojaDurgad) -
 **Pooja Durgad** &lt;Pooja.D.P@ibm.com&gt;
 * [RaisinTen](https://github.com/RaisinTen) -
