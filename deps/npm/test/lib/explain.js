@@ -4,15 +4,15 @@ const npm = {
   prefix: null,
   color: true,
   flatOptions: {},
+  output: (...args) => {
+    OUTPUT.push(args)
+  },
 }
 const { resolve } = require('path')
 
 const OUTPUT = []
 
 const Explain = requireInject('../../lib/explain.js', {
-  '../../lib/utils/output.js': (...args) => {
-    OUTPUT.push(args)
-  },
 
   // keep the snapshots pared down a bit, since this has its own tests.
   '../../lib/utils/explain-dep.js': {

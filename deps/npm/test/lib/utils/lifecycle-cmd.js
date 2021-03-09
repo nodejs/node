@@ -10,7 +10,12 @@ const npm = {
   },
 }
 t.test('create a lifecycle command', t => {
-  const cmd = new LifecycleCmd(npm, 'test-stage')
+  class TestStage extends LifecycleCmd {
+    static get name () {
+      return 'test-stage'
+    }
+  }
+  const cmd = new TestStage(npm)
   t.match(cmd.usage, /test-stage/)
   cmd.exec(['some', 'args'], (er, result) => {
     t.same(runArgs, ['test-stage', 'some', 'args'])

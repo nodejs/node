@@ -1,14 +1,14 @@
-const output = require('./utils/output.js')
-const usageUtil = require('./utils/usage.js')
+const BaseCommand = require('./base-command.js')
 
-class Prefix {
-  constructor (npm) {
-    this.npm = npm
+class Prefix extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'prefix'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil('prefix', 'npm prefix [-g]')
+  static get usage () {
+    return ['[-g]']
   }
 
   exec (args, cb) {
@@ -16,7 +16,7 @@ class Prefix {
   }
 
   async prefix (args) {
-    return output(this.npm.prefix)
+    return this.npm.output(this.npm.prefix)
   }
 }
 module.exports = Prefix

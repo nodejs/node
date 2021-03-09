@@ -2,18 +2,18 @@ const { resolve } = require('path')
 const Arborist = require('@npmcli/arborist')
 const npa = require('npm-package-arg')
 const semver = require('semver')
-const usageUtil = require('./utils/usage.js')
-const output = require('./utils/output.js')
 const completion = require('./utils/completion/installed-deep.js')
 
-class Rebuild {
-  constructor (npm) {
-    this.npm = npm
+const BaseCommand = require('./base-command.js')
+class Rebuild extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'rebuild'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil('rebuild', 'npm rebuild [[<@scope>/]<name>[@<version>] ...]')
+  static get usage () {
+    return ['[[<@scope>/]<name>[@<version>] ...]']
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
@@ -52,7 +52,7 @@ class Rebuild {
     } else
       await arb.rebuild()
 
-    output('rebuilt dependencies successfully')
+    this.npm.output('rebuilt dependencies successfully')
   }
 
   isNode (specs, node) {

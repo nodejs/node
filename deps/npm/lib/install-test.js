@@ -1,23 +1,12 @@
 // npm install-test
 // Runs `npm install` and then runs `npm test`
 
-const usageUtil = require('./utils/usage.js')
+const Install = require('./install.js')
 
-class InstallTest {
-  constructor (npm) {
-    this.npm = npm
-  }
-
-  get usage () {
-    return usageUtil(
-      'install-test',
-      'npm install-test [args]' +
-      '\nSame args as `npm install`'
-    )
-  }
-
-  async completion (opts) {
-    return this.npm.commands.install.completion(opts)
+class InstallTest extends Install {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'install-test'
   }
 
   exec (args, cb) {

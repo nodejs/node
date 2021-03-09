@@ -2,16 +2,20 @@ const { test } = require('tap')
 const requireInject = require('require-inject')
 
 test('bin', (t) => {
-  t.plan(3)
+  t.plan(4)
   const dir = '/bin/dir'
 
-  const Bin = requireInject('../../lib/bin.js', {
-    '../../lib/utils/output.js': (output) => {
+  const Bin = require('../../lib/bin.js')
+
+  const npm = {
+    bin: dir,
+    flatOptions: { global: false },
+    output: (output) => {
       t.equal(output, dir, 'prints the correct directory')
     },
-  })
-
-  const bin = new Bin({ bin: dir, flatOptions: { global: false } })
+  }
+  const bin = new Bin(npm)
+  t.match(bin.usage, 'bin', 'usage has command name in it')
 
   bin.exec([], (err) => {
     t.ifError(err, 'npm bin')
@@ -33,12 +37,16 @@ test('bin -g', (t) => {
 
   const Bin = requireInject('../../lib/bin.js', {
     '../../lib/utils/path.js': [dir],
-    '../../lib/utils/output.js': (output) => {
-      t.equal(output, dir, 'prints the correct directory')
-    },
   })
 
-  const bin = new Bin({ bin: dir, flatOptions: { global: true } })
+  const npm = {
+    bin: dir,
+    flatOptions: { global: true },
+    output: (output) => {
+      t.equal(output, dir, 'prints the correct directory')
+    },
+  }
+  const bin = new Bin(npm)
 
   bin.exec([], (err) => {
     t.ifError(err, 'npm bin')
@@ -60,11 +68,15 @@ test('bin -g (not in path)', (t) => {
 
   const Bin = requireInject('../../lib/bin.js', {
     '../../lib/utils/path.js': ['/not/my/dir'],
-    '../../lib/utils/output.js': (output) => {
+  })
+  const npm = {
+    bin: dir,
+    flatOptions: { global: true },
+    output: (output) => {
       t.equal(output, dir, 'prints the correct directory')
     },
-  })
-  const bin = new Bin({ bin: dir, flatOptions: { global: true } })
+  }
+  const bin = new Bin(npm)
 
   bin.exec([], (err) => {
     t.ifError(err, 'npm bin')

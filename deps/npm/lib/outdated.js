@@ -9,20 +9,18 @@ const pickManifest = require('npm-pick-manifest')
 
 const Arborist = require('@npmcli/arborist')
 
-const output = require('./utils/output.js')
-const usageUtil = require('./utils/usage.js')
 const ansiTrim = require('./utils/ansi-trim.js')
+const BaseCommand = require('./base-command.js')
 
-class Outdated {
-  constructor (npm) {
-    this.npm = npm
+class Outdated extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'outdated'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil('outdated',
-      'npm outdated [[<@scope>/]<pkg> ...]'
-    )
+  static get usage () {
+    return ['[[<@scope>/]<pkg> ...]']
   }
 
   exec (args, cb) {
@@ -75,9 +73,9 @@ class Outdated {
 
     // display results
     if (this.opts.json)
-      output(this.makeJSON(outdated))
+      this.npm.output(this.makeJSON(outdated))
     else if (this.opts.parseable)
-      output(this.makeParseable(outdated))
+      this.npm.output(this.makeParseable(outdated))
     else {
       const outList = outdated.map(x => this.makePretty(x))
       const outHead = ['Package',
@@ -99,7 +97,7 @@ class Outdated {
         align: ['l', 'r', 'r', 'r', 'l'],
         stringLength: s => ansiTrim(s).length,
       }
-      output(table(outTable, tableOpts))
+      this.npm.output(table(outTable, tableOpts))
     }
   }
 

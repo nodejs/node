@@ -1,22 +1,21 @@
 const hookApi = require('libnpmhook')
-const output = require('./utils/output.js')
 const otplease = require('./utils/otplease.js')
 const relativeDate = require('tiny-relative-date')
 const Table = require('cli-table3')
-const usageUtil = require('./utils/usage.js')
 
-class Hook {
-  constructor (npm) {
-    this.npm = npm
+const BaseCommand = require('./base-command.js')
+class Hook extends BaseCommand {
+  static get name () {
+    return 'hook'
   }
 
-  get usage () {
-    return usageUtil('hook', [
-      'npm hook add <pkg> <url> <secret> [--type=<type>]',
-      'npm hook ls [pkg]',
-      'npm hook rm <id>',
-      'npm hook update <id> <url> <secret>',
-    ].join('\n'))
+  static get usage () {
+    return [
+      'add <pkg> <url> <secret> [--type=<type>]',
+      'ls [pkg]',
+      'rm <id>',
+      'update <id> <url> <secret>',
+    ]
   }
 
   exec (args, cb) {
@@ -44,12 +43,12 @@ class Hook {
   async add (pkg, uri, secret, opts) {
     const hook = await hookApi.add(pkg, uri, secret, opts)
     if (opts.json)
-      output(JSON.stringify(hook, null, 2))
+      this.npm.output(JSON.stringify(hook, null, 2))
     else if (opts.parseable) {
-      output(Object.keys(hook).join('\t'))
-      output(Object.keys(hook).map(k => hook[k]).join('\t'))
+      this.npm.output(Object.keys(hook).join('\t'))
+      this.npm.output(Object.keys(hook).map(k => hook[k]).join('\t'))
     } else if (!opts.silent && opts.loglevel !== 'silent') {
-      output(`+ ${this.hookName(hook)} ${
+      this.npm.output(`+ ${this.hookName(hook)} ${
         opts.unicode ? ' ➜ ' : ' -> '
       } ${hook.endpoint}`)
     }
@@ -58,19 +57,19 @@ class Hook {
   async ls (pkg, opts) {
     const hooks = await hookApi.ls({ ...opts, package: pkg })
     if (opts.json)
-      output(JSON.stringify(hooks, null, 2))
+      this.npm.output(JSON.stringify(hooks, null, 2))
     else if (opts.parseable) {
-      output(Object.keys(hooks[0]).join('\t'))
+      this.npm.output(Object.keys(hooks[0]).join('\t'))
       hooks.forEach(hook => {
-        output(Object.keys(hook).map(k => hook[k]).join('\t'))
+        this.npm.output(Object.keys(hook).map(k => hook[k]).join('\t'))
       })
     } else if (!hooks.length)
-      output("You don't have any hooks configured yet.")
+      this.npm.output("You don't have any hooks configured yet.")
     else if (!opts.silent && opts.loglevel !== 'silent') {
       if (hooks.length === 1)
-        output('You have one hook configured.')
+        this.npm.output('You have one hook configured.')
       else
-        output(`You have ${hooks.length} hooks configured.`)
+        this.npm.output(`You have ${hooks.length} hooks configured.`)
 
       const table = new Table({ head: ['id', 'target', 'endpoint'] })
       hooks.forEach((hook) => {
@@ -90,19 +89,19 @@ class Hook {
         } else
           table.push([{ colSpan: 2, content: 'never triggered' }])
       })
-      output(table.toString())
+      this.npm.output(table.toString())
     }
   }
 
   async rm (id, opts) {
     const hook = await hookApi.rm(id, opts)
     if (opts.json)
-      output(JSON.stringify(hook, null, 2))
+      this.npm.output(JSON.stringify(hook, null, 2))
     else if (opts.parseable) {
-      output(Object.keys(hook).join('\t'))
-      output(Object.keys(hook).map(k => hook[k]).join('\t'))
+      this.npm.output(Object.keys(hook).join('\t'))
+      this.npm.output(Object.keys(hook).map(k => hook[k]).join('\t'))
     } else if (!opts.silent && opts.loglevel !== 'silent') {
-      output(`- ${this.hookName(hook)} ${
+      this.npm.output(`- ${this.hookName(hook)} ${
         opts.unicode ? ' ✘ ' : ' X '
       } ${hook.endpoint}`)
     }
@@ -111,12 +110,12 @@ class Hook {
   async update (id, uri, secret, opts) {
     const hook = await hookApi.update(id, uri, secret, opts)
     if (opts.json)
-      output(JSON.stringify(hook, null, 2))
+      this.npm.output(JSON.stringify(hook, null, 2))
     else if (opts.parseable) {
-      output(Object.keys(hook).join('\t'))
-      output(Object.keys(hook).map(k => hook[k]).join('\t'))
+      this.npm.output(Object.keys(hook).join('\t'))
+      this.npm.output(Object.keys(hook).map(k => hook[k]).join('\t'))
     } else if (!opts.silent && opts.loglevel !== 'silent') {
-      output(`+ ${this.hookName(hook)} ${
+      this.npm.output(`+ ${this.hookName(hook)} ${
         opts.unicode ? ' ➜ ' : ' -> '
       } ${hook.endpoint}`)
     }

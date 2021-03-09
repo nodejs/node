@@ -1,5 +1,4 @@
 const t = require('tap')
-const requireInject = require('require-inject')
 
 const log = require('npmlog')
 log.level = 'warn'
@@ -13,22 +12,13 @@ const npm = {
   started: Date.now(),
   flatOptions: settings,
 }
-const getReifyOutput = tester =>
-  requireInject(
-    '../../../lib/utils/reify-output.js',
-    {
-      '../../../lib/utils/output.js': tester,
-    }
-  )
-
+const reifyOutput = require('../../../lib/utils/reify-output.js')
 t.test('missing info', (t) => {
   t.plan(1)
-  const reifyOutput = getReifyOutput(
-    out => t.doesNotHave(
-      out,
-      'looking for funding',
-      'should not print fund message if missing info'
-    )
+  npm.output = out => t.doesNotHave(
+    out,
+    'looking for funding',
+    'should not print fund message if missing info'
   )
 
   reifyOutput(npm, {
@@ -43,12 +33,10 @@ t.test('missing info', (t) => {
 
 t.test('even more missing info', t => {
   t.plan(1)
-  const reifyOutput = getReifyOutput(
-    out => t.doesNotHave(
-      out,
-      'looking for funding',
-      'should not print fund message if missing info'
-    )
+  npm.output = out => t.doesNotHave(
+    out,
+    'looking for funding',
+    'should not print fund message if missing info'
   )
 
   reifyOutput(npm, {
@@ -60,17 +48,15 @@ t.test('even more missing info', t => {
 
 t.test('single package', (t) => {
   t.plan(1)
-  const reifyOutput = getReifyOutput(
-    out => {
-      if (out.endsWith('looking for funding')) {
-        t.match(
-          out,
-          '1 package is looking for funding',
-          'should print single package message'
-        )
-      }
+  npm.output = out => {
+    if (out.endsWith('looking for funding')) {
+      t.match(
+        out,
+        '1 package is looking for funding',
+        'should print single package message'
+      )
     }
-  )
+  }
 
   reifyOutput(npm, {
     // a report with an error is the same as no report at all, if
@@ -110,12 +96,10 @@ t.test('no message when funding config is false', (t) => {
     settings.fund = true
   })
   settings.fund = false
-  const reifyOutput = getReifyOutput(
-    out => {
-      if (out.endsWith('looking for funding'))
-        t.fail('should not print funding info', { actual: out })
-    }
-  )
+  npm.output = out => {
+    if (out.endsWith('looking for funding'))
+      t.fail('should not print funding info', { actual: out })
+  }
 
   reifyOutput(npm, {
     actualTree: {
@@ -147,17 +131,15 @@ t.test('no message when funding config is false', (t) => {
 
 t.test('print appropriate message for many packages', (t) => {
   t.plan(1)
-  const reifyOutput = getReifyOutput(
-    out => {
-      if (out.endsWith('looking for funding')) {
-        t.match(
-          out,
-          '3 packages are looking for funding',
-          'should print single package message'
-        )
-      }
+  npm.output = out => {
+    if (out.endsWith('looking for funding')) {
+      t.match(
+        out,
+        '3 packages are looking for funding',
+        'should print single package message'
+      )
     }
-  )
+  }
 
   reifyOutput(npm, {
     actualTree: {
@@ -206,9 +188,9 @@ t.test('print appropriate message for many packages', (t) => {
 })
 
 t.test('no output when silent', t => {
-  const reifyOutput = getReifyOutput(out => {
+  npm.output = out => {
     t.fail('should not get output when silent', { actual: out })
-  })
+  }
   t.teardown(() => log.level = 'warn')
   log.level = 'silent'
   reifyOutput(npm, {
@@ -235,9 +217,9 @@ t.test('no output when silent', t => {
 
 t.test('packages changed message', t => {
   const output = []
-  const reifyOutput = getReifyOutput(out => {
+  npm.output = out => {
     output.push(out)
-  })
+  }
 
   // return a test function that builds up the mock and snapshots output
   const testCase = (t, added, removed, changed, audited, json, command) => {
@@ -311,9 +293,7 @@ t.test('packages changed message', t => {
 t.test('added packages should be looked up within returned tree', t => {
   t.test('has added pkg in inventory', t => {
     t.plan(1)
-    const reifyOutput = getReifyOutput(
-      out => t.matchSnapshot(out)
-    )
+    npm.output = out => t.matchSnapshot(out)
 
     reifyOutput(npm, {
       actualTree: {
@@ -332,9 +312,7 @@ t.test('added packages should be looked up within returned tree', t => {
 
   t.test('missing added pkg in inventory', t => {
     t.plan(1)
-    const reifyOutput = getReifyOutput(
-      out => t.matchSnapshot(out)
-    )
+    npm.output = out => t.matchSnapshot(out)
 
     reifyOutput(npm, {
       actualTree: {

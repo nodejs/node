@@ -431,11 +431,13 @@ module.exports = cls => class IdealTreeBuilder extends cls {
     // ie, doing `foo@bar` we just return foo
     // but if it's a url or git, we don't know the name until we
     // fetch it and look in its manifest.
-    return Promise.all(add.map(rawSpec =>
-      this[_retrieveSpecName](npa(rawSpec))
+    return Promise.all(add.map(rawSpec => {
+      // We do NOT provide the path here, because user-additions need
+      // to be resolved relative to the CWD the user is in.
+      return this[_retrieveSpecName](npa(rawSpec))
         .then(add => this[_updateFilePath](add))
         .then(add => this[_followSymlinkPath](add))
-    )).then(add => {
+    })).then(add => {
       this[_resolvedAdd] = add
       // now add is a list of spec objects with names.
       // find a home for each of them!

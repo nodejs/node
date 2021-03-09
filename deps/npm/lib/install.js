@@ -3,35 +3,33 @@
 const fs = require('fs')
 const util = require('util')
 const readdir = util.promisify(fs.readdir)
-const usageUtil = require('./utils/usage.js')
 const reifyFinish = require('./utils/reify-finish.js')
 const log = require('npmlog')
 const { resolve, join } = require('path')
 const Arborist = require('@npmcli/arborist')
 const runScript = require('@npmcli/run-script')
 
-class Install {
-  constructor (npm) {
-    this.npm = npm
+const BaseCommand = require('./base-command.js')
+class Install extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'install'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil(
-      'install',
-      'npm install (with no args, in package dir)' +
-      '\nnpm install [<@scope>/]<pkg>' +
-      '\nnpm install [<@scope>/]<pkg>@<tag>' +
-      '\nnpm install [<@scope>/]<pkg>@<version>' +
-      '\nnpm install [<@scope>/]<pkg>@<version range>' +
-      '\nnpm install <alias>@npm:<name>' +
-      '\nnpm install <folder>' +
-      '\nnpm install <tarball file>' +
-      '\nnpm install <tarball url>' +
-      '\nnpm install <git:// url>' +
-      '\nnpm install <github username>/<github project>',
-      '[--save-prod|--save-dev|--save-optional|--save-peer] [--save-exact] [--no-save]'
-    )
+  static get usage () {
+    return [
+      '[<@scope>/]<pkg>',
+      '[<@scope>/]<pkg>@<tag>',
+      '[<@scope>/]<pkg>@<version>',
+      '[<@scope>/]<pkg>@<version range>',
+      '<alias>@npm:<name>',
+      '<folder>',
+      '<tarball file>',
+      '<tarball url>',
+      '<git:// url>',
+      '<github username>/<github project> [--save-prod|--save-dev|--save-optional|--save-peer] [--save-exact] [--no-save]',
+    ]
   }
 
   async completion (opts) {

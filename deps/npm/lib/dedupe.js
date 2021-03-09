@@ -1,16 +1,13 @@
 // dedupe duplicated packages, or find them in the tree
 const Arborist = require('@npmcli/arborist')
-const usageUtil = require('./utils/usage.js')
 const reifyFinish = require('./utils/reify-finish.js')
 
-class Dedupe {
-  constructor (npm) {
-    this.npm = npm
-  }
+const BaseCommand = require('./base-command.js')
 
+class Dedupe extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil('dedupe', 'npm dedupe')
+  static get name () {
+    return 'dedupe'
   }
 
   exec (args, cb) {

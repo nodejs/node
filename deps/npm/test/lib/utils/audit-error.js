@@ -1,20 +1,18 @@
 const t = require('tap')
-const requireInject = require('require-inject')
 
 const LOGS = []
+const OUTPUT = []
+const output = (...msg) => OUTPUT.push(msg)
+const auditError = require('../../../lib/utils/audit-error.js')
+
 const npm = {
   command: null,
   flatOptions: {},
   log: {
     warn: (...msg) => LOGS.push(msg),
   },
+  output,
 }
-const OUTPUT = []
-const output = (...msg) => OUTPUT.push(msg)
-const auditError = requireInject('../../../lib/utils/audit-error.js', {
-  '../../../lib/utils/output.js': output,
-})
-
 t.afterEach(cb => {
   npm.flatOptions = {}
   OUTPUT.length = 0
