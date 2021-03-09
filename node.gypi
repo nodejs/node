@@ -326,6 +326,9 @@
             # For tests
             './deps/openssl/openssl.gyp:openssl-cli',
           ],
+          # Set 1.0.0 as the API compability level to avoid the
+          # deprecation warnings when using OpenSSL 3.0.
+	        'defines': ['OPENSSL_API_COMPAT=0x10000000L'],
           'conditions': [
             # -force_load or --whole-archive are not applicable for
             # the static library
@@ -360,16 +363,17 @@
                 }],
               ],
             }],
-          ],
-        }, {
-          # Set 1.0.0 as the API compability level to avoid the
-          # deprecation warnings when using OpenSSL 3.0.
-	  'defines': ['OPENSSL_API_COMPAT=0x10000000L'],
-	}]]
-
+          ]
+        }],
+        [ 'openssl_quic=="true" and node_shared_ngtcp2=="false"', {
+          'dependencies': [ './deps/ngtcp2/ngtcp2.gyp:ngtcp2' ]
+        }],
+        [ 'openssl_quic=="true" and node_shared_nghttp3=="false"', {
+          'dependencies': [ './deps/ngtcp2/ngtcp2.gyp:nghttp3' ]
+        }]
+      ]
     }, {
       'defines': [ 'HAVE_OPENSSL=0' ]
     }],
-
   ],
 }
