@@ -4,6 +4,7 @@
 const common = require('../common');
 
 const { ok, strictEqual, throws } = require('assert');
+const { getEventListeners } = require('events');
 
 {
   // Tests that abort is fired with the correct event type on AbortControllers
@@ -66,4 +67,12 @@ const { ok, strictEqual, throws } = require('assert');
   const ac = new AbortController();
   strictEqual(toString(ac), '[object AbortController]');
   strictEqual(toString(ac.signal), '[object AbortSignal]');
+}
+
+{
+  const ac = new AbortController();
+  ac.signal.addEventListener('abort', () => {});  // Intentionally ignored
+  ac.abort();
+  ac.signal.addEventListener('abort', () => {});  // Intentionally ignored
+  strictEqual(getEventListeners(ac.signal, 'abort').length, 1);
 }
