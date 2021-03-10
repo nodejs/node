@@ -65,6 +65,15 @@ added: REPLACEME
 The `AbortSignal` is used to notify observers when the
 `abortController.abort()` method is called.
 
+#### Static method: `AbortSignal.abort()`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {AbortSignal}
+
+Returns a new already aborted `AbortSignal`.
+
 #### Event: `'abort'`
 <!-- YAML
 added: REPLACEME

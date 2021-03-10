@@ -68,3 +68,8 @@ const { Event } = require('internal/event_target');
   strictEqual(toString(ac), '[object AbortController]');
   strictEqual(toString(ac.signal), '[object AbortSignal]');
 }
+
+{
+  const signal = AbortSignal.abort();
+  ok(signal.aborted);
+}
