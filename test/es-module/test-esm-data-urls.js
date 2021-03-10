@@ -99,7 +99,7 @@ function createBase64URL(mime, body) {
       await import(plainESMURL);
       common.mustNotCall()();
     } catch (e) {
-      assert.strictEqual(e.code, 'ERR_INVALID_RETURN_PROPERTY_VALUE');
+      assert.strictEqual(e.code, 'ERR_INVALID_MODULE_SPECIFIER');
     }
   }
   {
