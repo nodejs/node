@@ -25,7 +25,11 @@ const {
   controller.abort();
   et.dispatchEvent(new Event('test'));
   strictEqual(count, 2, 'Aborting on the controller removes the listener');
-  et.addEventListener('test', handler, { signal: controller.signal });
+  // See: https://github.com/nodejs/node/pull/37696 , adding an event listener
+  // should always return undefined.
+  strictEqual(
+    et.addEventListener('test', handler, { signal: controller.signal }),
+    undefined);
   et.dispatchEvent(new Event('test'));
   strictEqual(count, 2, 'Passing an aborted signal never adds the handler');
 }
