@@ -1,11 +1,11 @@
 # Issues
 
-* [Asking for General Help](#asking-for-general-help)
+* [Asking for general help](#asking-for-general-help)
 * [Discussing non-technical topics](#discussing-non-technical-topics)
-* [Submitting a Bug Report](#submitting-a-bug-report)
-* [Triaging a Bug Report](#triaging-a-bug-report)
+* [Submitting a bug report](#submitting-a-bug-report)
+* [Triaging a bug report](#triaging-a-bug-report)
 
-## Asking for General Help
+## Asking for general help
 
 Because the level of activity in the `nodejs/node` repository is so high,
 questions or requests for general help using Node.js should be directed at
@@ -16,7 +16,7 @@ the [Node.js help repository][].
 Discussion of non-technical topics (such as intellectual property and trademark)
 should be directed to the [Technical Steering Committee (TSC) repository][].
 
-## Submitting a Bug Report
+## Submitting a bug report
 
 When opening a new issue in the `nodejs/node` issue tracker, users will be
 presented with a choice of issue templates. If you believe that you have
@@ -37,7 +37,7 @@ Node.js changed that broke the module.
 
 See [How to create a Minimal, Complete, and Verifiable example](https://stackoverflow.com/help/mcve).
 
-## Triaging a Bug Report
+## Triaging a bug report
 
 Once an issue has been opened, it is common for there to be discussion
 around it. Some contributors may have differing opinions about the issue,
