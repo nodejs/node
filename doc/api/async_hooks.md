@@ -1028,6 +1028,9 @@ from each other. It is safe to instantiate this class multiple times.
 added:
  - v13.10.0
  - v12.17.0
+ - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37675
+    description: AsyncLocalStorage is now Stable. Previously, it had been Experimental.
 -->
 
 > Stability: 2 - Stable
@@ -1062,6 +1065,9 @@ in the current process.
 added:
  - v13.10.0
  - v12.17.0
+ - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37675
+    description: AsyncLocalStorage is now Stable. Previously, it had been Experimental.
 -->
 
 > Stability: 2 - Stable
@@ -1125,6 +1131,9 @@ asyncLocalStorage.getStore(); // Returns the same object
 added:
  - v13.10.0
  - v12.17.0
+ - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37675
+    description: AsyncLocalStorage is now Stable. Previously, it had been Experimental.
 -->
 
 > Stability: 2 - Stable
