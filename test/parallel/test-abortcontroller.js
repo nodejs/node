@@ -67,3 +67,8 @@ const { ok, strictEqual, throws } = require('assert');
   strictEqual(toString(ac), '[object AbortController]');
   strictEqual(toString(ac.signal), '[object AbortSignal]');
 }
+
+{
+  const signal = AbortSignal.abort();
+  ok(signal.aborted);
+}
