@@ -20,7 +20,7 @@ function test(ca) {
 
   server.addContext('agent3', { ca, cert, key });
 
-  const host = common.localhostIPv4;
+  const host = common.localhostIP;
   server.listen(0, host, common.mustCall(() => {
     const socket = tls.connect({
       servername: 'agent3',

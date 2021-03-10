@@ -326,7 +326,8 @@ class InspectorSession {
 }
 
 class NodeInstance extends EventEmitter {
-  constructor(inspectorFlags = ['--inspect-brk=0', '--expose-internals'],
+  constructor(inspectorFlags = ['--inspect-brk=localhost:0',
+                                '--expose-internals'],
               scriptContents = '',
               scriptFile = _MAINSCRIPT) {
     super();
@@ -363,7 +364,7 @@ class NodeInstance extends EventEmitter {
 
   static async startViaSignal(scriptContents) {
     const instance = new NodeInstance(
-      ['--expose-internals'],
+      ['--inspect=localhost', '--expose-internals'],
       `${scriptContents}\nprocess._rawDebug('started');`, undefined);
     const msg = 'Timed out waiting for process to start';
     while (await fires(instance.nextStderrString(), msg, TIMEOUT) !==

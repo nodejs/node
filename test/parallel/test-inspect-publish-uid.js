@@ -18,7 +18,7 @@ async function testArg(argValue) {
   const hasStderr = argValue.split(',').includes('stderr');
 
   const nodeProcess = spawnSync(process.execPath, [
-    '--inspect=0',
+    '--inspect=localhost:0',
     `--inspect-publish-uid=${argValue}`,
     '-e', `(${scriptMain.toString()})(${hasHttp ? 200 : 404})`
   ]);

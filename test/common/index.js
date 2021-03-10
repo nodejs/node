@@ -823,6 +823,10 @@ const common = {
     return localhostIPv4;
   },
 
+  get localhostIP() {
+    return this.hasIPv6 ? '::1' : this.localhostIPv4;
+  },
+
   // opensslCli defined lazily to reduce overhead of spawnSync
   get opensslCli() {
     if (opensslCli !== null) return opensslCli;

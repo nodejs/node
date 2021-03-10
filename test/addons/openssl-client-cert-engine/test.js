@@ -32,10 +32,10 @@ const serverOptions = {
 const server = https.createServer(serverOptions, common.mustCall((req, res) => {
   res.writeHead(200);
   res.end('hello world');
-})).listen(0, common.localhostIPv4, common.mustCall(() => {
+})).listen(0, common.localhostIP, common.mustCall(() => {
   const clientOptions = {
     method: 'GET',
-    host: common.localhostIPv4,
+    host: common.localhostIP,
     port: server.address().port,
     path: '/test',
     clientCertEngine: engine,  // `engine` will provide key+cert

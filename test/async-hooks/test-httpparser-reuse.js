@@ -49,7 +49,7 @@ const server = http.createServer((req, res) => {
 
 server.listen(0, common.mustCall(() => {
   const PORT = server.address().port;
-  const url = `http://127.0.0.1:${PORT}`;
+  const url = `http://localhost:${PORT}`;
   http.get(url, common.mustCall(() => {
     server.close(common.mustCall(() => {
       server.listen(PORT, common.mustCall(() => {

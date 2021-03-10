@@ -19,7 +19,7 @@ server.listen(0, function() {
   // be mutable / modified
   const options = {
     host: undefined,
-    hostname: common.localhostIPv4,
+    hostname: common.localhostIP,
     port: undefined,
     defaultPort: undefined,
     path: undefined,
@@ -31,7 +31,7 @@ server.listen(0, function() {
     res.resume();
     server.close();
     assert.strictEqual(options.host, undefined);
-    assert.strictEqual(options.hostname, common.localhostIPv4);
+    assert.strictEqual(options.hostname, common.localhostIP);
     assert.strictEqual(options.port, undefined);
     assert.strictEqual(options.defaultPort, undefined);
     assert.strictEqual(options.path, undefined);

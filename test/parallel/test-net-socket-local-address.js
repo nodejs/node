@@ -22,7 +22,7 @@ server.on('close', common.mustCall(() => {
   assert.strictEqual(conns, 2);
 }));
 
-server.listen(0, common.localhostIPv4, connect);
+server.listen(0, common.localhostIP, connect);
 
 function connect() {
   if (conns === 2) {
@@ -34,7 +34,7 @@ function connect() {
   client.once('close', connect);
   assert.strictEqual(
     client,
-    client.connect(server.address().port, common.localhostIPv4, () => {
+    client.connect(server.address().port, common.localhostIP, () => {
       clientLocalPorts.push(client.localPort);
     })
   );

@@ -7,13 +7,13 @@ const assert = require('assert');
 const net = require('net');
 
 const server1 = net.createServer(common.mustNotCall());
-server1.listen(0, common.localhostIPv4, common.mustCall(() => {
+server1.listen(0, common.localhostIP, common.mustCall(() => {
   const server2 = net.createServer(common.mustNotCall());
-  server2.listen(0, common.localhostIPv4, common.mustCall(() => {
+  server2.listen(0, common.localhostIP, common.mustCall(() => {
     const client = net.connect({
-      host: common.localhostIPv4,
+      host: common.localhostIP,
       port: server1.address().port,
-      localAddress: common.localhostIPv4,
+      localAddress: common.localhostIP,
       localPort: server2.address().port
     }, common.mustNotCall());
 

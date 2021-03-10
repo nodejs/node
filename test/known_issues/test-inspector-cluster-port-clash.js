@@ -52,7 +52,7 @@ if (cluster.isPrimary) {
 
   // Block one of the ports with a listening socket.
   const server = net.createServer();
-  server.listen(clashPort, common.localhostIPv4, common.mustCall(() => {
+  server.listen(clashPort, common.localhostIP, common.mustCall(() => {
     // Try to fork 3 workers. No.2 should fail.
     Promise.all([serialFork(), serialFork(), serialFork()])
       .then(common.mustNotCall())

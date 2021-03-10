@@ -25,7 +25,7 @@ const assert = require('assert');
 const net = require('net');
 
 const server = net.createServer(common.mustCall(function(socket) {
-  assert.strictEqual(socket.localAddress, common.localhostIPv4);
+  assert.strictEqual(socket.localAddress, common.localhostIP);
   assert.strictEqual(socket.localPort, this.address().port);
   socket.on('end', function() {
     server.close();
@@ -33,9 +33,9 @@ const server = net.createServer(common.mustCall(function(socket) {
   socket.resume();
 }));
 
-server.listen(0, common.localhostIPv4, function() {
+server.listen(0, common.localhostIP, function() {
   const client = net.createConnection(this.address()
-                    .port, common.localhostIPv4);
+                    .port, common.localhostIP);
   client.on('connect', function() {
     client.end();
   });

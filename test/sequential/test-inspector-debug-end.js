@@ -14,7 +14,7 @@ async function testNoServerNoCrash() {
 
 async function testNoSessionNoCrash() {
   console.log('Test there\'s no crash stopping server without connecting');
-  const instance = new NodeInstance('--inspect=0',
+  const instance = new NodeInstance('--inspect=localhost:0',
                                     'process._debugEnd();process.exit(42);');
   strictEqual((await instance.expectShutdown()).exitCode, 42);
 }
@@ -28,7 +28,7 @@ async function testSessionNoCrash() {
                       process.exit(42);
                   });`;
 
-  const instance = new NodeInstance('--inspect-brk=0', script);
+  const instance = new NodeInstance('--inspect-brk=localhost:0', script);
   const session = await instance.connectInspectorSession();
   await session.send({ 'method': 'Runtime.runIfWaitingForDebugger' });
   await session.waitForServerDisconnect();

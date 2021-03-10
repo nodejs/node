@@ -17,13 +17,13 @@ const assert = require('assert');
     res.end();
   }));
 
-  server.listen(0, 'localhost', common.mustCall(() => {
+  server.listen(0, common.localhostIP, common.mustCall(() => {
     const port = server.address().port;
     const req = https.get({
       host: 'localhost',
       pathname: '/',
       port,
-      family: 4,
+      family: common.hasIPv6 ? 6 : 4,
       localPort: common.PORT,
       rejectUnauthorized: false,
     }, common.mustCall(() => {

@@ -29,8 +29,8 @@ if (cluster.isPrimary) {
     }));
   }
 
-  test(['--inspect-brk']);
-  test([`--inspect-brk=${debuggerPort}`]);
+  test(['--inspect-brk=localhost']);
+  test([`--inspect-brk=localhost:${debuggerPort}`]);
 } else {
   // Cluster worker is at a breakpoint, should not reach here.
   assert.fail('Test failed: cluster worker should be at a breakpoint.');

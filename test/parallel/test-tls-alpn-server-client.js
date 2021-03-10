@@ -12,7 +12,7 @@ function loadPEM(n) {
   return fixtures.readKey(`${n}.pem`);
 }
 
-const serverIP = common.localhostIPv4;
+const serverIP = common.localhostIP;
 
 function checkResults(result, expected) {
   assert.strictEqual(result.server.ALPN, expected.server.ALPN);

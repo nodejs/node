@@ -16,14 +16,15 @@ const server = net.createServer((c) => {
   let errored = false;
   tls.connect({
     port: port,
-    localAddress: common.localhostIPv4
-  }, common.localhostIPv4)
+    localAddress: common.localhostIP,
+    family: common.hasIPv6 ? 6 : 4,
+  }, common.localhostIP)
     .once('error', common.mustCall((e) => {
       assert.strictEqual(e.code, 'ECONNRESET');
       assert.strictEqual(e.path, undefined);
       assert.strictEqual(e.host, undefined);
       assert.strictEqual(e.port, port);
-      assert.strictEqual(e.localAddress, common.localhostIPv4);
+      assert.match(e.localAddress, /^(127\.0\.0\.1|::1)$/);
       server.close();
       errored = true;
     }))
