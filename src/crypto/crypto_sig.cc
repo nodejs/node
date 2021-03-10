@@ -232,12 +232,15 @@ bool IsOneShot(const ManagedEVPPKey& key) {
   }
 }
 
-bool UseP1363Encoding(const SignConfiguration& params) {
-  switch (EVP_PKEY_id(params.key->GetAsymmetricKey().get())) {
+bool UseP1363Encoding(const ManagedEVPPKey& key,
+                      const DSASigEnc& dsa_encoding) {
+  switch (EVP_PKEY_id(key.get())) {
     case EVP_PKEY_EC:
-    case EVP_PKEY_DSA: return params.dsa_encoding == kSigEncP1363;
+    case EVP_PKEY_DSA:
+      return dsa_encoding == kSigEncP1363;
+    default:
+      return false;
   }
-  return false;
 }
 }  // namespace
 
@@ -773,7 +776,7 @@ Maybe<bool> SignTraits::AdditionalConfig(
     // the signature from WebCrypto format into DER format...
     ManagedEVPPKey m_pkey = params->key->GetAsymmetricKey();
     Mutex::ScopedLock lock(*m_pkey.mutex());
-    if (UseP1363Encoding(*params)) {
+    if (UseP1363Encoding(m_pkey, params->dsa_encoding)) {
       params->signature =
           ConvertFromWebCryptoSignature(m_pkey, signature.ToByteSource());
     } else {
@@ -870,7 +873,7 @@ bool SignTraits::DeriveBits(
         if (!EVP_DigestSignFinal(context.get(), data, &len))
           return false;
 
-        if (UseP1363Encoding(params)) {
+        if (UseP1363Encoding(m_pkey, params.dsa_encoding)) {
           *out = ConvertToWebCryptoSignature(
               params.key->GetAsymmetricKey(), buf);
         } else {
