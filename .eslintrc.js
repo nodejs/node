@@ -283,6 +283,7 @@ module.exports = {
   },
   globals: {
     AbortController: 'readable',
+    AbortSignal: 'readable',
     Atomics: 'readable',
     BigInt: 'readable',
     BigInt64Array: 'readable',
