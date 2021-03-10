@@ -1,0 +1,17 @@
+*icu.jsx:3
+    ("********", throw Error("an error"));
+                       ^
+
+Error: an error
+    at Object.createElement (*icu.js:5:7)
+        -> *icu.jsx:3:23
+    at Object.<anonymous> (*icu.js:8:82)
+        -> *icu.jsx:9:5
+    at Module._compile (internal/modules/cjs/loader.js:*
+    at Object.Module._extensions..js (internal/modules/cjs/loader.js:*
+    at Module.load (internal/modules/cjs/loader.js:*
+    at Function.Module._load (internal/modules/cjs/loader.js:*
+    at Module.require (internal/modules/cjs/loader.js:*
+    at require (internal/modules/cjs/helpers.js:*
+    at Object.<anonymous> (*source_map_throw_icu.js:*
+    at Module._compile (internal/modules/cjs/loader.js:*
