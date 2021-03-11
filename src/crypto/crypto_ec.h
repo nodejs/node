@@ -162,15 +162,6 @@ v8::Maybe<bool> GetEcKeyDetail(
     Environment* env,
     std::shared_ptr<KeyObjectData> key,
     v8::Local<v8::Object> target);
-
-ByteSource ConvertToWebCryptoSignature(
-  const ManagedEVPPKey& key,
-  const ByteSource& signature);
-
-ByteSource ConvertFromWebCryptoSignature(
-    const ManagedEVPPKey& key,
-    const ByteSource& signature);
-
 }  // namespace crypto
 }  // namespace node
 
