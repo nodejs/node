@@ -1,6 +1,5 @@
 const didYouMean = require('./did-you-mean.js')
 const { dirname } = require('path')
-const output = require('./output.js')
 const { cmdList } = require('./cmd-list')
 
 module.exports = (npm, valid = true) => {
@@ -8,7 +7,7 @@ module.exports = (npm, valid = true) => {
   const usesBrowser = npm.config.get('viewer') === 'browser'
     ? ' (in a browser)' : ''
   npm.log.level = 'silent'
-  output(`
+  npm.output(`
 Usage: npm <command>
 
 npm install        install all the dependencies in your project
@@ -34,7 +33,7 @@ npm@${npm.version} ${dirname(dirname(__dirname))}
 `)
 
   if (npm.argv.length >= 1)
-    output(didYouMean(npm.argv[0], cmdList))
+    npm.output(didYouMean(npm.argv[0], cmdList))
 
   if (!valid)
     process.exitCode = 1

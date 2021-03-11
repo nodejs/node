@@ -1,22 +1,23 @@
 const fs = require('fs')
 const path = require('path')
 const color = require('ansicolors')
-const output = require('./utils/output.js')
-const usageUtil = require('./utils/usage.js')
 const npmUsage = require('./utils/npm-usage.js')
 const { promisify } = require('util')
 const glob = promisify(require('glob'))
 const readFile = promisify(fs.readFile)
 const didYouMean = require('./utils/did-you-mean.js')
 const { cmdList } = require('./utils/cmd-list.js')
+const BaseCommand = require('./base-command.js')
 
-class HelpSearch {
-  constructor (npm) {
-    this.npm = npm
+class HelpSearch extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'help-search'
   }
 
-  get usage () {
-    return usageUtil('help-search', 'npm help-search <text>')
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return ['<text>']
   }
 
   exec (args, cb) {
@@ -44,8 +45,8 @@ class HelpSearch {
     if (!formatted.trim())
       npmUsage(this.npm, false)
     else {
-      output(formatted)
-      output(didYouMean(args[0], cmdList))
+      this.npm.output(formatted)
+      this.npm.output(didYouMean(args[0], cmdList))
     }
   }
 

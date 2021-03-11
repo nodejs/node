@@ -8,21 +8,21 @@ const npa = require('npm-package-arg')
 const rpj = require('read-package-json-fast')
 const semver = require('semver')
 
-const usageUtil = require('./utils/usage.js')
 const reifyFinish = require('./utils/reify-finish.js')
 
-class Link {
-  constructor (npm) {
-    this.npm = npm
+const BaseCommand = require('./base-command.js')
+class Link extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'link'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil(
-      'link',
-      'npm link (in package dir)' +
-      '\nnpm link [<@scope>/]<pkg>[@<version>]'
-    )
+  static get usage () {
+    return [
+      '(in package dir)',
+      '[<@scope>/]<pkg>[@<version>]',
+    ]
   }
 
   async completion (opts) {

@@ -1,14 +1,10 @@
 // dedupe duplicated packages, or find them in the tree
-const usageUtil = require('./utils/usage.js')
+const BaseCommand = require('./base-command.js')
 
-class FindDupes {
-  constructor (npm) {
-    this.npm = npm
-  }
-
+class FindDupes extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil('find-dupes', 'npm find-dupes')
+  static get name () {
+    return 'find-dupes'
   }
 
   exec (args, cb) {

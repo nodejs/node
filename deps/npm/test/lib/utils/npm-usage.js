@@ -3,10 +3,10 @@ const t = require('tap')
 const OUTPUT = []
 const output = (...msg) => OUTPUT.push(msg)
 const requireInject = require('require-inject')
-const usage = requireInject('../../../lib/utils/npm-usage.js', {
-  '../../../lib/utils/output.js': output,
-})
+const usage = require('../../../lib/utils/npm-usage.js')
+
 const npm = requireInject('../../../lib/npm.js')
+npm.output = output
 
 t.test('usage', t => {
   t.afterEach((cb) => {

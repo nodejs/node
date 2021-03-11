@@ -1,27 +1,28 @@
 const cacache = require('cacache')
 const { promisify } = require('util')
 const log = require('npmlog')
-const output = require('./utils/output.js')
 const pacote = require('pacote')
 const path = require('path')
 const rimraf = promisify(require('rimraf'))
+const BaseCommand = require('./base-command.js')
 
-const usageUtil = require('./utils/usage.js')
-class Cache {
-  constructor (npm) {
-    this.npm = npm
+class Cache extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'cache'
   }
 
-  get usage () {
-    return usageUtil('cache',
-      'npm cache add <tarball file>' +
-      '\nnpm cache add <folder>' +
-      '\nnpm cache add <tarball url>' +
-      '\nnpm cache add <git url>' +
-      '\nnpm cache add <name>@<version>' +
-      '\nnpm cache clean' +
-      '\nnpm cache verify'
-    )
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return [
+      'add <tarball file>',
+      'add <folder>',
+      'add <tarball url>',
+      'add <git url>',
+      'add <name>@<version>',
+      'clean',
+      'verify',
+    ]
   }
 
   async completion (opts) {
@@ -116,13 +117,13 @@ with --force.`)
       ? `~${cache.substr(process.env.HOME.length)}`
       : cache
     const stats = await cacache.verify(cache)
-    output(`Cache verified and compressed (${prefix})`)
-    output(`Content verified: ${stats.verifiedContent} (${stats.keptSize} bytes)`)
-    stats.badContentCount && output(`Corrupted content removed: ${stats.badContentCount}`)
-    stats.reclaimedCount && output(`Content garbage-collected: ${stats.reclaimedCount} (${stats.reclaimedSize} bytes)`)
-    stats.missingContent && output(`Missing content: ${stats.missingContent}`)
-    output(`Index entries: ${stats.totalEntries}`)
-    output(`Finished in ${stats.runTime.total / 1000}s`)
+    this.npm.output(`Cache verified and compressed (${prefix})`)
+    this.npm.output(`Content verified: ${stats.verifiedContent} (${stats.keptSize} bytes)`)
+    stats.badContentCount && this.npm.output(`Corrupted content removed: ${stats.badContentCount}`)
+    stats.reclaimedCount && this.npm.output(`Content garbage-collected: ${stats.reclaimedCount} (${stats.reclaimedSize} bytes)`)
+    stats.missingContent && this.npm.output(`Missing content: ${stats.missingContent}`)
+    this.npm.output(`Index entries: ${stats.totalEntries}`)
+    this.npm.output(`Finished in ${stats.runTime.total / 1000}s`)
   }
 }
 

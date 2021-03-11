@@ -1,21 +1,21 @@
-const usageUtil = require('./utils/usage.js')
 const { explainNode } = require('./utils/explain-dep.js')
 const completion = require('./utils/completion/installed-deep.js')
-const output = require('./utils/output.js')
 const Arborist = require('@npmcli/arborist')
 const npa = require('npm-package-arg')
 const semver = require('semver')
 const { relative, resolve } = require('path')
 const validName = require('validate-npm-package-name')
+const BaseCommand = require('./base-command.js')
 
-class Explain {
-  constructor (npm) {
-    this.npm = npm
+class Explain extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'explain'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil('explain', 'npm explain <folder | specifier>')
+  static get usage () {
+    return ['<folder | specifier>']
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
@@ -59,9 +59,9 @@ class Explain {
     }
 
     if (this.npm.flatOptions.json)
-      output(JSON.stringify(expls, null, 2))
+      this.npm.output(JSON.stringify(expls, null, 2))
     else {
-      output(expls.map(expl => {
+      this.npm.output(expls.map(expl => {
         return explainNode(expl, Infinity, this.npm.color)
       }).join('\n\n'))
     }

@@ -11,14 +11,13 @@ const npm = {
   },
   prefix: '',
   version: '1.0.0',
-}
-const mocks = {
-  libnpmversion: noop,
-  '../../lib/utils/output.js': (...msg) => {
+  output: (...msg) => {
     for (const m of msg)
       result.push(m)
   },
-  '../../lib/utils/usage.js': () => 'usage instructions',
+}
+const mocks = {
+  libnpmversion: noop,
 }
 
 const Version = requireInject('../../lib/version.js', mocks)
@@ -65,7 +64,7 @@ t.test('too many args', t => {
   version.exec(['foo', 'bar'], err => {
     t.match(
       err,
-      'usage instructions',
+      'npm version',
       'should throw usage instructions error'
     )
 

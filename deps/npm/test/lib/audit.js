@@ -14,6 +14,9 @@ t.test('should audit using Arborist', t => {
     flatOptions: {
       json: false,
     },
+    output: () => {
+      OUTPUT_CALLED = true
+    },
   }
   const Audit = requireInject('../../lib/audit.js', {
     'npm-audit-report': () => {
@@ -36,9 +39,6 @@ t.test('should audit using Arborist', t => {
         throw new Error('got wrong object passed to reify-output')
 
       REIFY_FINISH_CALLED = true
-    },
-    '../../lib/utils/output.js': () => {
-      OUTPUT_CALLED = true
     },
   })
 
@@ -70,6 +70,7 @@ t.test('should audit - json', t => {
     flatOptions: {
       json: true,
     },
+    output: () => {},
   }
 
   const Audit = requireInject('../../lib/audit.js', {
@@ -83,7 +84,6 @@ t.test('should audit - json', t => {
       }
     },
     '../../lib/utils/reify-output.js': () => {},
-    '../../lib/utils/output.js': () => {},
   })
   const audit = new Audit(npm)
 
@@ -106,6 +106,9 @@ t.test('report endpoint error', t => {
         },
         log: {
           warn: (...warning) => LOGS.push(warning),
+        },
+        output: (...msg) => {
+          OUTPUT.push(msg)
         },
       }
       const Audit = requireInject('../../lib/audit.js', {
@@ -130,9 +133,6 @@ t.test('report endpoint error', t => {
           }
         },
         '../../lib/utils/reify-output.js': () => {},
-        '../../lib/utils/output.js': (...msg) => {
-          OUTPUT.push(msg)
-        },
       })
       const audit = new Audit(npm)
 

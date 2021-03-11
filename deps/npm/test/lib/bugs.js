@@ -55,6 +55,11 @@ const Bugs = requireInject('../../lib/bugs.js', {
 
 const bugs = new Bugs({ flatOptions: {} })
 
+t.test('usage', (t) => {
+  t.match(bugs.usage, 'bugs', 'usage has command name in it')
+  t.end()
+})
+
 t.test('open bugs urls', t => {
   const expect = {
     nobugs: 'https://www.npmjs.com/package/nobugs',
