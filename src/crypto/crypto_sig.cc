@@ -117,6 +117,21 @@ unsigned int GetBytesOfRS(const ManagedEVPPKey& pkey) {
   return (bits + 7) / 8;
 }
 
+bool ExtractP1363(
+    const unsigned char* sig_data,
+    unsigned char* out,
+    size_t len,
+    size_t n) {
+  ECDSASigPointer asn1_sig(d2i_ECDSA_SIG(nullptr, &sig_data, len));
+  if (!asn1_sig)
+    return false;
+
+  const BIGNUM* pr = ECDSA_SIG_get0_r(asn1_sig.get());
+  const BIGNUM* ps = ECDSA_SIG_get0_s(asn1_sig.get());
+
+  return BN_bn2binpad(pr, out, n) > 0 && BN_bn2binpad(ps, out + n, n) > 0;
+}
+
 // Returns the maximum size of each of the integers (r, s) of the DSA signature.
 AllocatedBuffer ConvertSignatureToP1363(Environment* env,
                                         const ManagedEVPPKey& pkey,
@@ -128,33 +143,49 @@ AllocatedBuffer ConvertSignatureToP1363(Environment* env,
   const unsigned char* sig_data =
       reinterpret_cast<unsigned char*>(signature.data());
 
-  ECDSASigPointer asn1_sig(d2i_ECDSA_SIG(nullptr, &sig_data, signature.size()));
-  if (!asn1_sig)
-    return AllocatedBuffer();
-
   AllocatedBuffer buf = AllocatedBuffer::AllocateManaged(env, 2 * n);
   unsigned char* data = reinterpret_cast<unsigned char*>(buf.data());
 
-  const BIGNUM* r = ECDSA_SIG_get0_r(asn1_sig.get());
-  const BIGNUM* s = ECDSA_SIG_get0_s(asn1_sig.get());
-  CHECK_EQ(n, static_cast<unsigned int>(BN_bn2binpad(r, data, n)));
-  CHECK_EQ(n, static_cast<unsigned int>(BN_bn2binpad(s, data + n, n)));
+  if (!ExtractP1363(sig_data, data, signature.size(), n))
+    return std::move(signature);
 
   return buf;
 }
 
+// Returns the maximum size of each of the integers (r, s) of the DSA signature.
+ByteSource ConvertSignatureToP1363(
+    Environment* env,
+    const ManagedEVPPKey& pkey,
+    const ByteSource& signature) {
+  unsigned int n = GetBytesOfRS(pkey);
+  if (n == kNoDsaSignature)
+    return ByteSource();
+
+  const unsigned char* sig_data =
+      reinterpret_cast<const unsigned char*>(signature.get());
+
+  char* outdata = MallocOpenSSL<char>(n * 2);
+  memset(outdata, 0, n * 2);
+  ByteSource out = ByteSource::Allocated(outdata, n * 2);
+  unsigned char* ptr = reinterpret_cast<unsigned char*>(outdata);
+
+  if (!ExtractP1363(sig_data, ptr, signature.size(), n))
+    return ByteSource();
+
+  return out;
+}
 
 ByteSource ConvertSignatureToDER(
       const ManagedEVPPKey& pkey,
-      const ArrayBufferOrViewContents<char>& signature) {
+      ByteSource&& out) {
   unsigned int n = GetBytesOfRS(pkey);
   if (n == kNoDsaSignature)
-    return signature.ToByteSource();
+    return std::move(out);
 
   const unsigned char* sig_data =
-      reinterpret_cast<const  unsigned char*>(signature.data());
+      reinterpret_cast<const unsigned char*>(out.get());
 
-  if (signature.size() != 2 * n)
+  if (out.size() != 2 * n)
     return ByteSource();
 
   ECDSASigPointer asn1_sig(ECDSA_SIG_new());
@@ -511,7 +542,7 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
 
   ByteSource signature = hbuf.ToByteSource();
   if (dsa_sig_enc == kSigEncP1363) {
-    signature = ConvertSignatureToDER(pkey, hbuf);
+    signature = ConvertSignatureToDER(pkey, hbuf.ToByteSource());
     if (signature.get() == nullptr)
       return crypto::CheckThrow(env, Error::kSignMalformedSignature);
   }
@@ -657,7 +688,7 @@ void Verify::VerifySync(const FunctionCallbackInfo<Value>& args) {
 
   ByteSource sig_bytes = ByteSource::Foreign(sig.data(), sig.size());
   if (dsa_sig_enc == kSigEncP1363) {
-    sig_bytes = ConvertSignatureToDER(key, sig);
+    sig_bytes = ConvertSignatureToDER(key, sig.ToByteSource());
     if (!sig_bytes)
       return crypto::CheckThrow(env, SignBase::Error::kSignMalformedSignature);
   }
@@ -778,7 +809,7 @@ Maybe<bool> SignTraits::AdditionalConfig(
     Mutex::ScopedLock lock(*m_pkey.mutex());
     if (UseP1363Encoding(m_pkey, params->dsa_encoding)) {
       params->signature =
-          ConvertFromWebCryptoSignature(m_pkey, signature.ToByteSource());
+          ConvertSignatureToDER(m_pkey, signature.ToByteSource());
     } else {
       params->signature = mode == kCryptoJobAsync
           ? signature.ToCopy()
@@ -874,8 +905,10 @@ bool SignTraits::DeriveBits(
           return false;
 
         if (UseP1363Encoding(m_pkey, params.dsa_encoding)) {
-          *out = ConvertToWebCryptoSignature(
-              params.key->GetAsymmetricKey(), buf);
+          *out = ConvertSignatureToP1363(
+              env,
+              params.key->GetAsymmetricKey(),
+              buf);
         } else {
           buf.Resize(len);
           *out = std::move(buf);
