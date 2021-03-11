@@ -3,6 +3,10 @@ const requireInject = require('require-inject')
 
 const Access = require('../../lib/access.js')
 
+const npm = {
+  output: () => null,
+}
+
 test('completion', t => {
   const access = new Access({ flatOptions: {} })
   const testComp = (argv, expect) => {
@@ -37,7 +41,7 @@ test('completion', t => {
 test('subcommand required', t => {
   const access = new Access({ flatOptions: {} })
   access.exec([], (err) => {
-    t.equal(err, '\nUsage: Subcommand is required.\n\n' + access.usage)
+    t.match(err, access.usageError('Subcommand is required.'))
     t.end()
   })
 })
@@ -457,9 +461,8 @@ test('npm access ls-packages with no team', (t) => {
       },
     },
     '../../lib/utils/get-identity.js': () => Promise.resolve('foo'),
-    '../../lib/utils/output.js': () => null,
   })
-  const access = new Access({})
+  const access = new Access(npm)
   access.exec([
     'ls-packages',
   ], (err) => {
@@ -477,9 +480,8 @@ test('access ls-packages on team', (t) => {
         return {}
       },
     },
-    '../../lib/utils/output.js': () => null,
   })
-  const access = new Access({})
+  const access = new Access(npm)
   access.exec([
     'ls-packages',
     'myorg:myteam',
@@ -503,9 +505,8 @@ test('access ls-collaborators on current', (t) => {
         return {}
       },
     },
-    '../../lib/utils/output.js': () => null,
   })
-  const access = new Access({ prefix })
+  const access = new Access({ prefix, ...npm })
   access.exec([
     'ls-collaborators',
   ], (err) => {
@@ -523,9 +524,8 @@ test('access ls-collaborators on spec', (t) => {
         return {}
       },
     },
-    '../../lib/utils/output.js': () => null,
   })
-  const access = new Access({})
+  const access = new Access(npm)
   access.exec([
     'ls-collaborators',
     'yargs',

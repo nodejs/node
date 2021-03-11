@@ -1,6 +1,8 @@
 const { test } = require('tap')
 const requireInject = require('require-inject')
 
+const OUTPUT = []
+const output = (...args) => OUTPUT.push(args)
 const npm = {
   _config: {
     json: false,
@@ -12,10 +14,8 @@ const npm = {
       npm._config[k] = v
     },
   },
+  output,
 }
-
-const OUTPUT = []
-const output = (...args) => OUTPUT.push(args)
 
 let openerUrl = null
 let openerOpts = null
@@ -27,7 +27,6 @@ const opener = (url, opts, cb) => {
 }
 
 const openUrl = requireInject('../../../lib/utils/open-url.js', {
-  '../../../lib/utils/output.js': output,
   opener,
 })
 

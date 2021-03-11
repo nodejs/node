@@ -1,15 +1,13 @@
-const output = require('./utils/output.js')
 const envPath = require('./utils/path.js')
-const usageUtil = require('./utils/usage.js')
+const BaseCommand = require('./base-command.js')
 
-class Bin {
-  constructor (npm) {
-    this.npm = npm
+class Bin extends BaseCommand {
+  static get name () {
+    return 'bin'
   }
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil('bin', 'npm bin [-g]')
+  static get usage () {
+    return ['[-g]']
   }
 
   exec (args, cb) {
@@ -18,7 +16,7 @@ class Bin {
 
   async bin (args) {
     const b = this.npm.bin
-    output(b)
+    this.npm.output(b)
     if (this.npm.flatOptions.global && !envPath.includes(b))
       console.error('(not in PATH env variable)')
   }

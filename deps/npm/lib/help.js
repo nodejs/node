@@ -4,18 +4,18 @@ const path = require('path')
 const log = require('npmlog')
 const openUrl = require('./utils/open-url.js')
 const glob = require('glob')
-const output = require('./utils/output.js')
 
-const usage = require('./utils/usage.js')
+const BaseCommand = require('./base-command.js')
 
-class Help {
-  constructor (npm) {
-    this.npm = npm
+class Help extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'help'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usage('help', 'npm help <term> [<terms..>]')
+  static get usage () {
+    return ['<term> [<terms..>]']
   }
 
   async completion (opts) {
@@ -70,7 +70,7 @@ class Help {
       this.npm.commands[section].usage) {
       this.npm.config.set('loglevel', 'silent')
       log.level = 'silent'
-      output(this.npm.commands[section].usage)
+      this.npm.output(this.npm.commands[section].usage)
       return
     }
 

@@ -5,22 +5,23 @@ const log = require('npmlog')
 const profile = require('npm-profile')
 
 const otplease = require('./utils/otplease.js')
-const output = require('./utils/output.js')
 const pulseTillDone = require('./utils/pulse-till-done.js')
 const readUserInfo = require('./utils/read-user-info.js')
-const usageUtil = require('./utils/usage.js')
 
-class Token {
-  constructor (npm) {
-    this.npm = npm
+const BaseCommand = require('./base-command.js')
+class Token extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'token'
   }
 
-  get usage () {
-    return usageUtil('token',
-      'npm token list\n' +
-      'npm token revoke <id|token>\n' +
-      'npm token create [--read-only] [--cidr=list]'
-    )
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return [
+      'list',
+      'revoke <id|token>',
+      'create [--read-only] [--cidr=list]',
+    ]
   }
 
   async completion (opts) {
@@ -64,12 +65,12 @@ class Token {
     log.info('token', 'getting list')
     const tokens = await pulseTillDone.withPromise(profile.listTokens(conf))
     if (conf.json) {
-      output(JSON.stringify(tokens, null, 2))
+      this.npm.output(JSON.stringify(tokens, null, 2))
       return
     } else if (conf.parseable) {
-      output(['key', 'token', 'created', 'readonly', 'CIDR whitelist'].join('\t'))
+      this.npm.output(['key', 'token', 'created', 'readonly', 'CIDR whitelist'].join('\t'))
       tokens.forEach((token) => {
-        output([
+        this.npm.output([
           token.key,
           token.token,
           token.created,
@@ -95,7 +96,7 @@ class Token {
         token.cidr_whitelist ? token.cidr_whitelist.join(', ') : '',
       ])
     })
-    output(table.toString())
+    this.npm.output(table.toString())
   }
 
   async rm (args) {
@@ -127,11 +128,11 @@ class Token {
       })
     }))
     if (conf.json)
-      output(JSON.stringify(toRemove))
+      this.npm.output(JSON.stringify(toRemove))
     else if (conf.parseable)
-      output(toRemove.join('\t'))
+      this.npm.output(toRemove.join('\t'))
     else
-      output('Removed ' + toRemove.length + ' token' + (toRemove.length !== 1 ? 's' : ''))
+      this.npm.output('Removed ' + toRemove.length + ' token' + (toRemove.length !== 1 ? 's' : ''))
   }
 
   async create (args) {
@@ -149,14 +150,14 @@ class Token {
       delete result.key
       delete result.updated
       if (conf.json)
-        output(JSON.stringify(result))
+        this.npm.output(JSON.stringify(result))
       else if (conf.parseable)
-        Object.keys(result).forEach((k) => output(k + '\t' + result[k]))
+        Object.keys(result).forEach((k) => this.npm.output(k + '\t' + result[k]))
       else {
         const table = new Table()
         for (const k of Object.keys(result))
           table.push({ [ansistyles.bright(k)]: String(result[k]) })
-        output(table.toString())
+        this.npm.output(table.toString())
       }
     })
   }
@@ -187,12 +188,6 @@ class Token {
     if (conf.otp)
       conf.auth.otp = conf.otp
     return conf
-  }
-
-  usageError (msg) {
-    return Object.assign(new Error(`\nUsage: ${msg}\n\n` + this.usage), {
-      code: 'EUSAGE',
-    })
   }
 
   invalidCIDRError (msg) {

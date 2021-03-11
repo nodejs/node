@@ -1,6 +1,7 @@
 const pacote = require('pacote')
 
 const formatDiff = require('./lib/format-diff.js')
+const getTarball = require('./lib/tarball.js')
 const untar = require('./lib/untar.js')
 
 const argsError = () =>
@@ -25,8 +26,8 @@ const diff = async (specs, opts = {}) => {
 
   // fetches tarball using pacote
   const [a, b] = await Promise.all([
-    pacote.tarball(aManifest._resolved, opts),
-    pacote.tarball(bManifest._resolved, opts),
+    getTarball(aManifest, opts),
+    getTarball(bManifest, opts),
   ])
 
   // read all files

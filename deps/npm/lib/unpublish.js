@@ -7,18 +7,19 @@ const npmFetch = require('npm-registry-fetch')
 const libunpub = require('libnpmpublish').unpublish
 const readJson = util.promisify(require('read-package-json'))
 
-const usageUtil = require('./utils/usage.js')
-const output = require('./utils/output.js')
 const otplease = require('./utils/otplease.js')
 const getIdentity = require('./utils/get-identity.js')
 
-class Unpublish {
-  constructor (npm) {
-    this.npm = npm
+const BaseCommand = require('./base-command.js')
+class Unpublish extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'unpublish'
   }
 
-  get usage () {
-    return usageUtil('unpublish', 'npm unpublish [<@scope>/]<pkg>[@<version>]')
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return ['[<@scope>/]<pkg>[@<version>]']
   }
 
   async completion (args) {
@@ -107,7 +108,7 @@ class Unpublish {
     }
 
     if (!silent && loglevel !== 'silent')
-      output(`- ${pkgName}${pkgVersion}`)
+      this.npm.output(`- ${pkgName}${pkgVersion}`)
   }
 }
 module.exports = Unpublish

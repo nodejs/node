@@ -14,22 +14,19 @@ const style = require('ansistyles')
 const { inspect, promisify } = require('util')
 const { packument } = require('pacote')
 
-const usageUtil = require('./utils/usage.js')
-
 const readFile = promisify(fs.readFile)
 const readJson = async file => jsonParse(await readFile(file, 'utf8'))
 
-class View {
-  constructor (npm) {
-    this.npm = npm
+const BaseCommand = require('./base-command.js')
+class View extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'view'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil(
-      'view',
-      'npm view [<@scope>/]<pkg>[@<version>] [<field>[.subfield]...]'
-    )
+  static get usage () {
+    return ['[<@scope>/]<pkg>[@<version>] [<field>[.subfield]...]']
   }
 
   async completion (opts) {

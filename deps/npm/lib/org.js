@@ -1,21 +1,21 @@
 const liborg = require('libnpmorg')
-const usageUtil = require('./utils/usage.js')
-const output = require('./utils/output.js')
 const otplease = require('./utils/otplease.js')
 const Table = require('cli-table3')
+const BaseCommand = require('./base-command.js')
 
-class Org {
-  constructor (npm) {
-    this.npm = npm
+class Org extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'org'
   }
 
-  get usage () {
-    return usageUtil(
-      'org',
-      'npm org set orgname username [developer | admin | owner]\n' +
-      'npm org rm orgname username\n' +
-      'npm org ls orgname [<username>]'
-    )
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return [
+      'set orgname username [developer | admin | owner]',
+      'rm orgname username',
+      'ls orgname [<username>]',
+    ]
   }
 
   async completion (opts) {
@@ -72,17 +72,17 @@ class Org {
 
     return liborg.set(org, user, role, opts).then(memDeets => {
       if (opts.json)
-        output(JSON.stringify(memDeets, null, 2))
+        this.npm.output(JSON.stringify(memDeets, null, 2))
       else if (opts.parseable) {
-        output(['org', 'orgsize', 'user', 'role'].join('\t'))
-        output([
+        this.npm.output(['org', 'orgsize', 'user', 'role'].join('\t'))
+        this.npm.output([
           memDeets.org.name,
           memDeets.org.size,
           memDeets.user,
           memDeets.role,
         ].join('\t'))
       } else if (!opts.silent && opts.loglevel !== 'silent')
-        output(`Added ${memDeets.user} as ${memDeets.role} to ${memDeets.org.name}. You now have ${memDeets.org.size} member${memDeets.org.size === 1 ? '' : 's'} in this org.`)
+        this.npm.output(`Added ${memDeets.user} as ${memDeets.role} to ${memDeets.org.name}. You now have ${memDeets.org.size} member${memDeets.org.size === 1 ? '' : 's'} in this org.`)
 
       return memDeets
     })
@@ -102,17 +102,17 @@ class Org {
       org = org.replace(/^[~@]?/, '')
       const userCount = Object.keys(roster).length
       if (opts.json) {
-        output(JSON.stringify({
+        this.npm.output(JSON.stringify({
           user,
           org,
           userCount,
           deleted: true,
         }))
       } else if (opts.parseable) {
-        output(['user', 'org', 'userCount', 'deleted'].join('\t'))
-        output([user, org, userCount, true].join('\t'))
+        this.npm.output(['user', 'org', 'userCount', 'deleted'].join('\t'))
+        this.npm.output([user, org, userCount, true].join('\t'))
       } else if (!opts.silent && opts.loglevel !== 'silent')
-        output(`Successfully removed ${user} from ${org}. You now have ${userCount} member${userCount === 1 ? '' : 's'} in this org.`)
+        this.npm.output(`Successfully removed ${user} from ${org}. You now have ${userCount} member${userCount === 1 ? '' : 's'} in this org.`)
     })
   }
 
@@ -129,18 +129,18 @@ class Org {
         roster = newRoster
       }
       if (opts.json)
-        output(JSON.stringify(roster, null, 2))
+        this.npm.output(JSON.stringify(roster, null, 2))
       else if (opts.parseable) {
-        output(['user', 'role'].join('\t'))
+        this.npm.output(['user', 'role'].join('\t'))
         Object.keys(roster).forEach(user => {
-          output([user, roster[user]].join('\t'))
+          this.npm.output([user, roster[user]].join('\t'))
         })
       } else if (!opts.silent && opts.loglevel !== 'silent') {
         const table = new Table({ head: ['user', 'role'] })
         Object.keys(roster).sort().forEach(user => {
           table.push([user, roster[user]])
         })
-        output(table.toString())
+        this.npm.output(table.toString())
       }
     })
   }

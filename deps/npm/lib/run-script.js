@@ -2,9 +2,7 @@ const runScript = require('@npmcli/run-script')
 const { isServerPackage } = runScript
 const readJson = require('read-package-json-fast')
 const { resolve } = require('path')
-const output = require('./utils/output.js')
 const log = require('npmlog')
-const usageUtil = require('./utils/usage.js')
 const didYouMean = require('./utils/did-you-mean.js')
 const isWindowsShell = require('./utils/is-windows-shell.js')
 
@@ -19,17 +17,16 @@ const cmdList = [
   'version',
 ].reduce((l, p) => l.concat(['pre' + p, p, 'post' + p]), [])
 
-class RunScript {
-  constructor (npm) {
-    this.npm = npm
+const BaseCommand = require('./base-command.js')
+class RunScript extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'run-script'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil(
-      'run-script',
-      'npm run-script <command> [-- <args>]'
-    )
+  static get usage () {
+    return ['<command> [-- <args>]']
   }
 
   async completion (opts) {
@@ -117,13 +114,13 @@ class RunScript {
       return allScripts
 
     if (this.npm.flatOptions.json) {
-      output(JSON.stringify(scripts, null, 2))
+      this.npm.output(JSON.stringify(scripts, null, 2))
       return allScripts
     }
 
     if (this.npm.flatOptions.parseable) {
       for (const [script, cmd] of Object.entries(scripts))
-        output(`${script}:${cmd}`)
+        this.npm.output(`${script}:${cmd}`)
 
       return allScripts
     }
@@ -138,18 +135,18 @@ class RunScript {
     }
 
     if (cmds.length)
-      output(`Lifecycle scripts included in ${name}:`)
+      this.npm.output(`Lifecycle scripts included in ${name}:`)
 
     for (const script of cmds)
-      output(prefix + script + indent + scripts[script])
+      this.npm.output(prefix + script + indent + scripts[script])
 
     if (!cmds.length && runScripts.length)
-      output(`Scripts available in ${name} via \`npm run-script\`:`)
+      this.npm.output(`Scripts available in ${name} via \`npm run-script\`:`)
     else if (runScripts.length)
-      output('\navailable via `npm run-script`:')
+      this.npm.output('\navailable via `npm run-script`:')
 
     for (const script of runScripts)
-      output(prefix + script + indent + scripts[script])
+      this.npm.output(prefix + script + indent + scripts[script])
 
     return allScripts
   }

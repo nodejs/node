@@ -55,6 +55,7 @@ const npm = {
       LOG_WARN.push(args)
     },
   },
+  output,
 }
 
 const RUN_SCRIPTS = []
@@ -93,7 +94,6 @@ const mocks = {
   pacote,
   read,
   'mkdirp-infer-owner': mkdirp,
-  '../../lib/utils/output.js': output,
 }
 const Exec = requireInject('../../lib/exec.js', mocks)
 const exec = new Exec(npm)
