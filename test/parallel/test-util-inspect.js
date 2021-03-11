@@ -3095,3 +3095,10 @@ assert.strictEqual(
     ']'
   );
 }
+
+{
+  assert.strictEqual(
+    util.inspect({ ['__proto__']: { a: 1 } }),
+    "{ ['__proto__']: { a: 1 } }"
+  );
+}
