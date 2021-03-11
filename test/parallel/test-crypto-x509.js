@@ -110,7 +110,8 @@ const der = Buffer.from(
   assert(x509.publicKey);
   assert.strictEqual(x509.publicKey.type, 'public');
 
-  assert.strictEqual(x509.toString().replaceAll('\r\n', '\n'), cert.toString());
+  assert.strictEqual(x509.toString().replaceAll('\r\n', '\n'),
+                     cert.toString().replaceAll('\r\n', '\n'));
   assert.strictEqual(x509.toJSON(), x509.toString());
 
   assert(x509.checkPrivateKey(privateKey));
