@@ -72,3 +72,63 @@ const { ok, strictEqual, throws } = require('assert');
   const signal = AbortSignal.abort();
   ok(signal.aborted);
 }
+
+{
+  // Test that AbortController properties and methods validate the receiver
+  const acSignalGet = Object.getOwnPropertyDescriptor(
+    AbortController.prototype,
+    'signal'
+  ).get;
+  const acAbort = AbortController.prototype.abort;
+
+  const goodController = new AbortController();
+  ok(acSignalGet.call(goodController));
+  acAbort.call(goodController);
+
+  const badAbortControllers = [
+    null,
+    undefined,
+    0,
+    NaN,
+    true,
+    'AbortController',
+    Object.create(AbortController.prototype)
+  ];
+  for (const badController of badAbortControllers) {
+    throws(
+      () => acSignalGet.call(badController),
+      { code: 'ERR_INVALID_THIS', name: 'TypeError' }
+    );
+    throws(
+      () => acAbort.call(badController),
+      { code: 'ERR_INVALID_THIS', name: 'TypeError' }
+    );
+  }
+}
+
+{
+  // Test that AbortSignal properties validate the receiver
+  const signalAbortedGet = Object.getOwnPropertyDescriptor(
+    AbortSignal.prototype,
+    'aborted'
+  ).get;
+
+  const goodSignal = new AbortController().signal;
+  strictEqual(signalAbortedGet.call(goodSignal), false);
+
+  const badAbortSignals = [
+    null,
+    undefined,
+    0,
+    NaN,
+    true,
+    'AbortSignal',
+    Object.create(AbortSignal.prototype)
+  ];
+  for (const badSignal of badAbortSignals) {
+    throws(
+      () => signalAbortedGet.call(badSignal),
+      { code: 'ERR_INVALID_THIS', name: 'TypeError' }
+    );
+  }
+}
