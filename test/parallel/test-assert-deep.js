@@ -1194,3 +1194,13 @@ assert.throws(
   Object.setPrototypeOf(b, null);
   assertNotDeepOrStrict(a, b, assert.AssertionError);
 }
+
+{
+  // Verify commutativity
+  // Regression test for https://github.com/nodejs/node/issues/37710
+  const a = { x: 1 };
+  const b = { y: 1 };
+  Object.defineProperty(b, 'x', { value: 1 });
+
+  assertNotDeepOrStrict(a, b);
+}
