@@ -1,3 +1,8 @@
+1.1.0
+- Support for Babel reexport conflict filter (https://github.com/guybedford/cjs-module-lexer/issues/36, @nicolo-ribaudo)
+- Support trailing commas in getter patterns (https://github.com/guybedford/cjs-module-lexer/issues/31)
+- Support for RollupJS reexports property checks (https://github.com/guybedford/cjs-module-lexer/issues/38)
+
 1.0.0
 - Unsafe getter tracking (https://github.com/guybedford/cjs-module-lexer/pull/29)
 
