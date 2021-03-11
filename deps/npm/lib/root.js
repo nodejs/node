@@ -1,14 +1,13 @@
-const output = require('./utils/output.js')
-const usageUtil = require('./utils/usage.js')
-
-class Root {
-  constructor (npm) {
-    this.npm = npm
+const BaseCommand = require('./base-command.js')
+class Root extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'root'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil('root', 'npm root [-g]')
+  static get usage () {
+    return ['[-g]']
   }
 
   exec (args, cb) {
@@ -16,7 +15,7 @@ class Root {
   }
 
   async root () {
-    output(this.npm.dir)
+    this.npm.output(this.npm.dir)
   }
 }
 module.exports = Root

@@ -15,8 +15,18 @@ node_modules/npm-registry-mock
 /coverage/
 
 # don't need these in the npm package.
+Makefile
+.licensee.json
+.mailmap
+changelogs/*
+configure
+make.bat
+scripts
 html/*.png
 docs/nav.yml
+docs/config.json
+docs/dockhand.js
+docs/template.html
 
 # don't ignore .npmignore files
 # these are used in some tests.

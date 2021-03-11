@@ -4,16 +4,17 @@ const { URL } = require('url')
 
 const hostedFromMani = require('./utils/hosted-git-info-from-manifest.js')
 const openUrl = require('./utils/open-url.js')
-const usageUtil = require('./utils/usage.js')
 
-class Repo {
-  constructor (npm) {
-    this.npm = npm
+const BaseCommand = require('./base-command.js')
+class Repo extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'repo'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil('repo', 'npm repo [<pkgname> [<pkgname> ...]]')
+  static get usage () {
+    return ['[<pkgname> [<pkgname> ...]]']
   }
 
   exec (args, cb) {

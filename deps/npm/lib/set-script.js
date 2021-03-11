@@ -1,17 +1,18 @@
 const log = require('npmlog')
-const usageUtil = require('./utils/usage.js')
 const fs = require('fs')
 const parseJSON = require('json-parse-even-better-errors')
 const rpj = require('read-package-json-fast')
 
-class SetScript {
-  constructor (npm) {
-    this.npm = npm
+const BaseCommand = require('./base-command.js')
+class SetScript extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'set-script'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil('set-script', 'npm set-script [<script>] [<command>]')
+  static get usage () {
+    return ['[<script>] [<command>]']
   }
 
   exec (args, cb) {

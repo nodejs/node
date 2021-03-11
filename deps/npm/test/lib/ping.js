@@ -81,12 +81,6 @@ test('pings and returns json', (t) => {
       t.equal(spec, flatOptions, 'passes flatOptions')
       return details
     },
-    '../../lib/utils/output.js': function (spec) {
-      const parsed = JSON.parse(spec)
-      t.equal(parsed.registry, flatOptions.registry, 'returns the correct registry url')
-      t.match(parsed.details, details, 'prints returned details')
-      t.type(parsed.time, 'number', 'returns time as a number')
-    },
     npmlog: {
       notice: (type, spec) => {
         ++noticeCalls
@@ -100,7 +94,15 @@ test('pings and returns json', (t) => {
       },
     },
   })
-  const ping = new Ping({ flatOptions })
+  const ping = new Ping({
+    flatOptions,
+    output: function (spec) {
+      const parsed = JSON.parse(spec)
+      t.equal(parsed.registry, flatOptions.registry, 'returns the correct registry url')
+      t.match(parsed.details, details, 'prints returned details')
+      t.type(parsed.time, 'number', 'returns time as a number')
+    },
+  })
 
   ping.exec([], (err) => {
     t.equal(noticeCalls, 2, 'should have logged 2 lines')

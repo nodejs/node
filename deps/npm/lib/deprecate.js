@@ -4,18 +4,17 @@ const npa = require('npm-package-arg')
 const semver = require('semver')
 const getIdentity = require('./utils/get-identity.js')
 const libaccess = require('libnpmaccess')
-const usageUtil = require('./utils/usage.js')
+const BaseCommand = require('./base-command.js')
 
-class Deprecate {
-  constructor (npm) {
-    this.npm = npm
+class Deprecate extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'deprecate'
   }
 
-  get usage () {
-    return usageUtil(
-      'deprecate',
-      'npm deprecate <pkg>[@<version>] <message>'
-    )
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return ['<pkg>[@<version>] <message>']
   }
 
   async completion (opts) {
@@ -70,12 +69,6 @@ class Deprecate {
       body: packument,
       ignoreBody: true,
     }))
-  }
-
-  usageError () {
-    return Object.assign(new Error(`\nUsage: ${this.usage}`), {
-      code: 'EUSAGE',
-    })
   }
 }
 

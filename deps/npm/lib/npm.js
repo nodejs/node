@@ -282,6 +282,13 @@ const npm = module.exports = new class extends EventEmitter {
     }
     return resolve(this.config.get('tmp'), this[_tmpFolder])
   }
+
+  // output to stdout in a progress bar compatible way
+  output (...msg) {
+    this.log.clearProgress()
+    console.log(...msg)
+    this.log.showProgress()
+  }
 }()
 
 // now load everything required by the class methods
