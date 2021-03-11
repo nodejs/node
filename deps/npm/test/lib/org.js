@@ -2,6 +2,7 @@ const { test } = require('tap')
 const requireInject = require('require-inject')
 const ansiTrim = require('../../lib/utils/ansi-trim.js')
 
+const output = []
 const npm = {
   flatOptions: {
     json: false,
@@ -9,9 +10,10 @@ const npm = {
     silent: false,
     loglevel: 'info',
   },
+  output: (msg) => {
+    output.push(msg)
+  },
 }
-
-const output = []
 
 let orgSize = 1
 let orgSetArgs = null
@@ -41,9 +43,6 @@ const libnpmorg = {
 
 const Org = requireInject('../../lib/org.js', {
   '../../lib/utils/otplease.js': async (opts, fn) => fn(opts),
-  '../../lib/utils/output.js': (msg) => {
-    output.push(msg)
-  },
   libnpmorg,
 })
 const org = new Org(npm)

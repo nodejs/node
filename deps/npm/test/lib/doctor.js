@@ -104,6 +104,9 @@ const npm = {
     },
   },
   version: '7.1.0',
+  output: (data) => {
+    output.push(data)
+  },
 }
 
 let latestNpm = npm.version
@@ -123,9 +126,6 @@ const cacache = {
 const Doctor = requireInject('../../lib/doctor.js', {
   '../../lib/utils/is-windows.js': false,
   '../../lib/utils/ping.js': ping,
-  '../../lib/utils/output.js': (data) => {
-    output.push(data)
-  },
   cacache,
   pacote,
   'make-fetch-happen': fetch,
@@ -285,9 +285,6 @@ test('node versions', t => {
         const WinDoctor = requireInject('../../lib/doctor.js', {
           '../../lib/utils/is-windows.js': true,
           '../../lib/utils/ping.js': ping,
-          '../../lib/utils/output.js': (data) => {
-            output.push(data)
-          },
           cacache,
           pacote,
           'make-fetch-happen': fetch,
@@ -566,9 +563,6 @@ test('node versions', t => {
         const Doctor = requireInject('../../lib/doctor.js', {
           '../../lib/utils/is-windows.js': false,
           '../../lib/utils/ping.js': ping,
-          '../../lib/utils/output.js': (data) => {
-            output.push(data)
-          },
           cacache,
           pacote,
           'make-fetch-happen': fetch,

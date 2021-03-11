@@ -3,7 +3,6 @@
 // prints a JSON version of the error if it's --json
 // returns 'true' if there was an error, false otherwise
 
-const output = require('./output.js')
 const auditError = (npm, report) => {
   if (!report || !report.error)
     return false
@@ -18,7 +17,7 @@ const auditError = (npm, report) => {
   const { body: errBody } = error
   const body = Buffer.isBuffer(errBody) ? errBody.toString() : errBody
   if (npm.flatOptions.json) {
-    output(JSON.stringify({
+    npm.output(JSON.stringify({
       message: error.message,
       method: error.method,
       uri: error.uri,
@@ -27,7 +26,7 @@ const auditError = (npm, report) => {
       body,
     }, null, 2))
   } else
-    output(body)
+    npm.output(body)
 
   throw 'audit endpoint returned an error'
 }

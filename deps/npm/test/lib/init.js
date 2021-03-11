@@ -14,13 +14,13 @@ const npm = {
   config: { set () {} },
   flatOptions: {},
   log: npmLog,
+  output: (...msg) => {
+    result += msg.join('\n')
+  },
 }
 const mocks = {
   'init-package-json': (dir, initFile, config, cb) => cb(null, 'data'),
   '../../lib/utils/usage.js': () => 'usage instructions',
-  '../../lib/utils/output.js': (...msg) => {
-    result += msg.join('\n')
-  },
 }
 const Init = requireInject('../../lib/init.js', mocks)
 const init = new Init(npm)

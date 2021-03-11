@@ -10,9 +10,7 @@ const semver = require('semver')
 const { promisify } = require('util')
 const ansiTrim = require('./utils/ansi-trim.js')
 const isWindows = require('./utils/is-windows.js')
-const output = require('./utils/output.js')
 const ping = require('./utils/ping.js')
-const usageUtil = require('./utils/usage.js')
 const { defaults: { registry: defaultRegistry } } = require('./utils/config.js')
 const lstat = promisify(fs.lstat)
 const readdir = promisify(fs.readdir)
@@ -32,14 +30,11 @@ const maskLabel = mask => {
   return label.join(', ')
 }
 
-class Doctor {
-  constructor (npm) {
-    this.npm = npm
-  }
-
+const BaseCommand = require('./base-command.js')
+class Doctor extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil('doctor', 'npm doctor')
+  static get name () {
+    return 'doctor'
   }
 
   exec (args, cb) {
@@ -111,7 +106,7 @@ class Doctor {
     const silent = this.npm.log.levels[this.npm.log.level] >
       this.npm.log.levels.error
     if (!silent) {
-      output(table(outTable, tableOpts))
+      this.npm.output(table(outTable, tableOpts))
       if (!allOk)
         console.error('')
     }

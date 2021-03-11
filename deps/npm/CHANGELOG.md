@@ -1,3 +1,48 @@
+## v7.6.3 (2021-03-11)
+
+### DOCUMENTATION
+
+* [`8c44e999b`](https://github.com/npm/cli/commit/8c44e999bdf7639893535c55beebf7996da2c47f)
+  [#2855](https://github.com/npm/cli/issues/2855)
+  Correct "npm COMMAND help" to "npm help COMMAND"
+  ([@dwardu](https://github.com/dwardu))
+
+### DEPENDENCIES
+
+* [`57ed390d6`](https://github.com/npm/cli/commit/57ed390d64a44ae0a1b2c4afd79d690170b194ec)
+  `@npmcli/arborist@2.2.8`
+    * Respect link deps when calculating peerDep sets
+
+## v7.6.2 (2021-03-09)
+
+### BUG FIXES
+
+* [`e0a3a5218`](https://github.com/npm/cli/commit/e0a3a5218cac7ca5850930aaaad8a939ddf75d4d)
+  [#2831](https://github.com/npm/cli/issues/2831)
+  Fix cb() never called in search with --json option
+  ([@fraqe](https://github.com/fraqe))
+* [`85a8694dd`](https://github.com/npm/cli/commit/85a8694dd9b4a924a474ba75261914511a216868)
+  [#2795](https://github.com/npm/cli/issues/2795)
+  fix(npm.output): make output go through npm.output
+  ([@wraithgar](https://github.com/wraithgar))
+* [`9fe0df5b5`](https://github.com/npm/cli/commit/9fe0df5b5d7606e5841288d9931be6c04767c9ca)
+  [#2821](https://github.com/npm/cli/issues/2821)
+  fix(usage): clean up usage declarations
+  ([@wraithgar](https://github.com/wraithgar))
+
+### DEPENDENCIES
+
+* [`7f470b5c2`](https://github.com/npm/cli/commit/7f470b5c25d544e36d97b28e28ae20dfa1d4ab31)
+  `@npmcli/arborist@2.2.7`
+    * fix(install): Do not revert a file: dep to version on bare name re-install
+* [`e9b7fc275`](https://github.com/npm/cli/commit/e9b7fc275a0bdf8f00dbcf5dd2283675776fc459)
+  `libnpmdiff@2.0.4`
+    * fix(diff): Gracefully handle packages with prepare script
+* [`c7314aa62`](https://github.com/npm/cli/commit/c7314aa62195b7f0d8886776692e8a2c892413ed)
+  `byte-size@7.0.1`
+* [`864f48d43`](https://github.com/npm/cli/commit/864f48d4327269f521161cf89888ea2b6db5fdab)
+  `pacote@11.3.0`
+
 ## v7.6.1 (2021-03-04)
 
 ### BUG FIXES

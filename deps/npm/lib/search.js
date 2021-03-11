@@ -5,8 +5,6 @@ const log = require('npmlog')
 
 const formatPackageStream = require('./search/format-package-stream.js')
 const packageFilter = require('./search/package-filter.js')
-const output = require('./utils/output.js')
-const usageUtil = require('./utils/usage.js')
 
 function prepareIncludes (args) {
   return args
@@ -26,17 +24,16 @@ function prepareExcludes (searchexclude) {
     .filter(s => s)
 }
 
-class Search {
-  constructor (npm) {
-    this.npm = npm
+const BaseCommand = require('./base-command.js')
+class Search extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'search'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil(
-      'search',
-      'npm search [-l|--long] [--json] [--parseable] [--no-description] [search terms ...]'
-    )
+  static get usage () {
+    return ['[-l|--long] [--json] [--parseable] [--no-description] [search terms ...]']
   }
 
   exec (args, cb) {
@@ -83,12 +80,12 @@ class Search {
     p.on('data', chunk => {
       if (!anyOutput)
         anyOutput = true
-      output(chunk.toString('utf8'))
+      this.npm.output(chunk.toString('utf8'))
     })
 
     await p.promise()
     if (!anyOutput && !opts.json && !opts.parseable)
-      output('No matches found for ' + (args.map(JSON.stringify).join(' ')))
+      this.npm.output('No matches found for ' + (args.map(JSON.stringify).join(' ')))
 
     log.silly('search', 'search completed')
     log.clearProgress()

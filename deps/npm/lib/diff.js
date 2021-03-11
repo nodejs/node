@@ -8,24 +8,24 @@ const npmlog = require('npmlog')
 const pacote = require('pacote')
 const pickManifest = require('npm-pick-manifest')
 
-const usageUtil = require('./utils/usage.js')
-const output = require('./utils/output.js')
 const readLocalPkg = require('./utils/read-local-package.js')
+const BaseCommand = require('./base-command.js')
 
-class Diff {
-  constructor (npm) {
-    this.npm = npm
+class Diff extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'diff'
   }
 
-  get usage () {
-    return usageUtil(
-      'diff',
-      'npm diff [...<paths>]' +
-      '\nnpm diff --diff=<pkg-name> [...<paths>]' +
-      '\nnpm diff --diff=<version-a> [--diff=<version-b>] [...<paths>]' +
-      '\nnpm diff --diff=<spec-a> [--diff=<spec-b>] [...<paths>]' +
-      '\nnpm diff [--diff-ignore-all-space] [--diff-name-only] [...<paths>] [...<paths>]'
-    )
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return [
+      '[...<paths>]',
+      '--diff=<pkg-name> [...<paths>]',
+      '--diff=<version-a> [--diff=<version-b>] [...<paths>]',
+      '--diff=<spec-a> [--diff=<spec-b>] [...<paths>]',
+      '[--diff-ignore-all-space] [--diff-name-only] [...<paths>] [...<paths>]',
+    ]
   }
 
   get where () {
@@ -55,7 +55,7 @@ class Diff {
       diffFiles: args,
       where: this.where,
     })
-    return output(res)
+    return this.npm.output(res)
   }
 
   async retrieveSpecs ([a, b]) {

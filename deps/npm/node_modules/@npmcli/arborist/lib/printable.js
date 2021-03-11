@@ -63,6 +63,13 @@ class ArboristNode {
   }
 }
 
+class ArboristVirtualNode extends ArboristNode {
+  constructor (tree, path) {
+    super(tree, path)
+    this.sourceReference = printableTree(tree.sourceReference, path)
+  }
+}
+
 class ArboristLink extends ArboristNode {
   constructor (tree, path) {
     super(tree, path)
@@ -119,10 +126,14 @@ class EdgeIn extends Edge {
 }
 
 const printableTree = (tree, path = []) => {
-  if (path.includes(tree))
-    return { location: tree.location }
+  const Cls = tree.isLink ? ArboristLink
+    : tree.sourceReference ? ArboristVirtualNode
+    : ArboristNode
+  if (path.includes(tree)) {
+    const obj = Object.create(Cls.prototype)
+    return Object.assign(obj, { location: tree.location })
+  }
   path.push(tree)
-  const Cls = tree.isLink ? ArboristLink : ArboristNode
   return new Cls(tree, path)
 }
 

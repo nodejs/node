@@ -18,7 +18,6 @@ t.afterEach(cb => {
 
 t.test('should pack current directory with no arguments', (t) => {
   const Pack = requireInject('../../lib/pack.js', {
-    '../../lib/utils/output.js': output,
     libnpmpack,
     npmlog: {
       notice: () => {},
@@ -32,6 +31,7 @@ t.test('should pack current directory with no arguments', (t) => {
       json: false,
       dryRun: false,
     },
+    output,
   })
 
   pack.exec([], er => {
@@ -53,7 +53,6 @@ t.test('should pack given directory', (t) => {
   })
 
   const Pack = requireInject('../../lib/pack.js', {
-    '../../lib/utils/output.js': output,
     libnpmpack,
     npmlog: {
       notice: () => {},
@@ -67,6 +66,7 @@ t.test('should pack given directory', (t) => {
       json: true,
       dryRun: true,
     },
+    output,
   })
 
   pack.exec([testDir], er => {
@@ -88,7 +88,6 @@ t.test('should pack given directory for scoped package', (t) => {
   })
 
   const Pack = requireInject('../../lib/pack.js', {
-    '../../lib/utils/output.js': output,
     libnpmpack,
     npmlog: {
       notice: () => {},
@@ -102,6 +101,7 @@ t.test('should pack given directory for scoped package', (t) => {
       json: true,
       dryRun: true,
     },
+    output,
   })
 
   return pack.exec([testDir], er => {
@@ -116,7 +116,6 @@ t.test('should pack given directory for scoped package', (t) => {
 
 t.test('should log pack contents', (t) => {
   const Pack = requireInject('../../lib/pack.js', {
-    '../../lib/utils/output.js': output,
     '../../lib/utils/tar.js': {
       ...require('../../lib/utils/tar.js'),
       logTar: () => {
@@ -136,6 +135,7 @@ t.test('should log pack contents', (t) => {
       json: false,
       dryRun: false,
     },
+    output,
   })
 
   pack.exec([], er => {

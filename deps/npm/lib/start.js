@@ -2,8 +2,9 @@ const LifecycleCmd = require('./utils/lifecycle-cmd.js')
 
 // This ends up calling run-script(['start', ...args])
 class Start extends LifecycleCmd {
-  constructor (npm) {
-    super(npm, 'start')
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'start'
   }
 }
 module.exports = Start
