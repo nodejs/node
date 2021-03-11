@@ -14,6 +14,7 @@ const npmConfig = {
 }
 
 let helpSearchArgs = null
+const OUTPUT = []
 const npm = {
   config: {
     get: (key) => npmConfig[key],
@@ -34,11 +35,9 @@ const npm = {
     },
   },
   deref: (cmd) => {},
-}
-
-const OUTPUT = []
-const output = (msg) => {
-  OUTPUT.push(msg)
+  output: msg => {
+    OUTPUT.push(msg)
+  },
 }
 
 const globDefaults = [
@@ -74,7 +73,6 @@ const openUrl = async (npm, url, msg) => {
 const Help = requireInject('../../lib/help.js', {
   '../../lib/utils/npm-usage.js': npmUsage,
   '../../lib/utils/open-url.js': openUrl,
-  '../../lib/utils/output.js': output,
   child_process: {
     spawn,
   },

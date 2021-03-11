@@ -61,6 +61,9 @@ const npm = {
     },
     setCredentialsByURI,
   },
+  output: msg => {
+    result = msg
+  },
 }
 
 const AddUser = requireInject('../../lib/adduser.js', {
@@ -70,14 +73,15 @@ const AddUser = requireInject('../../lib/adduser.js', {
       registryOutput = msg
     },
   },
-  '../../lib/utils/output.js': msg => {
-    result = msg
-  },
   '../../lib/auth/legacy.js': authDummy,
 })
 
 const adduser = new AddUser(npm)
 
+test('usage', (t) => {
+  t.match(adduser.usage, 'adduser', 'usage has command name in it')
+  t.end()
+})
 test('simple login', (t) => {
   adduser.exec([], (err) => {
     t.ifError(err, 'npm adduser')

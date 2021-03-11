@@ -3,21 +3,19 @@ const path = require('path')
 const Arborist = require('@npmcli/arborist')
 const log = require('npmlog')
 
-const usageUtil = require('./utils/usage.js')
 const reifyFinish = require('./utils/reify-finish.js')
 const completion = require('./utils/completion/installed-deep.js')
 
-class Update {
-  constructor (npm) {
-    this.npm = npm
+const BaseCommand = require('./base-command.js')
+class Update extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'update'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil(
-      'update',
-      'npm update [-g] [<pkg>...]'
-    )
+  static get usage () {
+    return ['[-g] [<pkg>...]']
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */

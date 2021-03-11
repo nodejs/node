@@ -21,6 +21,7 @@ const npm = {
       return cb(npmHelpErr)
     },
   },
+  output,
 }
 
 let npmUsageArg = null
@@ -45,7 +46,6 @@ const glob = (p, cb) =>
 
 const HelpSearch = requireInject('../../lib/help-search.js', {
   '../../lib/utils/npm-usage.js': npmUsage,
-  '../../lib/utils/output.js': output,
   glob,
 })
 const helpSearch = new HelpSearch(npm)

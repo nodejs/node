@@ -18,6 +18,7 @@ const npm = {
       npm.config.settings[k] = v
     },
   },
+  output: (...msg) => output.push(msg),
 }
 
 const output = []
@@ -40,7 +41,6 @@ const getRS = windows => {
     }),
     npmlog,
     '../../lib/utils/is-windows-shell.js': windows,
-    '../../lib/utils/output.js': (...msg) => output.push(msg),
   })
   return new RunScript(npm)
 }

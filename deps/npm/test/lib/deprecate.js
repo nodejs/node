@@ -60,14 +60,14 @@ test('completion', async t => {
 
 test('no args', t => {
   deprecate.exec([], (err) => {
-    t.match(err, /Usage: npm deprecate/, 'logs usage')
+    t.match(err, 'Usage:', 'logs usage')
     t.end()
   })
 })
 
 test('only one arg', t => {
   deprecate.exec(['foo'], (err) => {
-    t.match(err, /Usage: npm deprecate/, 'logs usage')
+    t.match(err, 'Usage:', 'logs usage')
     t.end()
   })
 })

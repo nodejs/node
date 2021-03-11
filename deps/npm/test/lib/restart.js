@@ -10,7 +10,6 @@ const npm = {
 }
 const Restart = require('../../lib/restart.js')
 const restart = new Restart(npm)
-t.equal(restart.usage, 'npm restart [-- <args>]')
 restart.exec(['foo'], () => {
   t.match(runArgs, ['restart', 'foo'])
   t.end()

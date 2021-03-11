@@ -10,13 +10,15 @@ const libnpmteam = {
   async lsUsers () {},
   async rm () {},
 }
-const npm = { flatOptions: {} }
+const npm = {
+  flatOptions: {},
+  output: (...msg) => {
+    result += msg.join('\n')
+  },
+}
 const mocks = {
   libnpmteam,
   'cli-columns': a => a.join(' '),
-  '../../lib/utils/output.js': (...msg) => {
-    result += msg.join('\n')
-  },
   '../../lib/utils/otplease.js': async (opts, fn) => fn(opts),
   '../../lib/utils/usage.js': () => 'usage instructions',
 }

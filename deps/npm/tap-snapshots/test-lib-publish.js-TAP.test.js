@@ -6,8 +6,10 @@
  */
 'use strict'
 exports[`test/lib/publish.js TAP shows usage with wrong set of arguments > should print usage 1`] = `
+npm publish
+
+Usage:
 npm publish [<folder>] [--tag <tag>] [--access <public|restricted>] [--dry-run]
 
-Publishes '.' if no argument supplied
-Sets tag \`latest\` if no --tag specified
+Run "npm help publish" for more info
 `

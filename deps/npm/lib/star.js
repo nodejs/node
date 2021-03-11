@@ -2,21 +2,18 @@ const fetch = require('npm-registry-fetch')
 const log = require('npmlog')
 const npa = require('npm-package-arg')
 
-const output = require('./utils/output.js')
-const usageUtil = require('./utils/usage.js')
 const getIdentity = require('./utils/get-identity')
 
-class Star {
-  constructor (npm) {
-    this.npm = npm
+const BaseCommand = require('./base-command.js')
+class Star extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'star'
   }
 
-  get usage () {
-    return usageUtil(
-      'star',
-      'npm star [<pkg>...]\n' +
-      'npm unstar [<pkg>...]'
-    )
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return ['[<pkg>...]']
   }
 
   exec (args, cb) {
@@ -73,7 +70,7 @@ class Star {
         body,
       })
 
-      output(show + ' ' + pkg.name)
+      this.npm.output(show + ' ' + pkg.name)
       log.verbose('star', data)
       return data
     }

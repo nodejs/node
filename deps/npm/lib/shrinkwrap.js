@@ -5,16 +5,11 @@ const { unlink } = fs.promises || { unlink: util.promisify(fs.unlink) }
 const Arborist = require('@npmcli/arborist')
 const log = require('npmlog')
 
-const usageUtil = require('./utils/usage.js')
-
-class Shrinkwrap {
-  constructor (npm) {
-    this.npm = npm
-  }
-
+const BaseCommand = require('./base-command.js')
+class Shrinkwrap extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil('shrinkwrap', 'npm shrinkwrap')
+  static get name () {
+    return 'shrinkwrap'
   }
 
   exec (args, cb) {

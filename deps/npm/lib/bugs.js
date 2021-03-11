@@ -1,17 +1,16 @@
 const log = require('npmlog')
 const pacote = require('pacote')
 const openUrl = require('./utils/open-url.js')
-const usageUtil = require('./utils/usage.js')
 const hostedFromMani = require('./utils/hosted-git-info-from-manifest.js')
+const BaseCommand = require('./base-command.js')
 
-class Bugs {
-  constructor (npm) {
-    this.npm = npm
+class Bugs extends BaseCommand {
+  static get name () {
+    return 'bugs'
   }
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil('bugs', 'npm bugs [<pkgname>]')
+  static get usage () {
+    return ['[<pkgname>]']
   }
 
   exec (args, cb) {

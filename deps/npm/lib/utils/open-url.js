@@ -1,4 +1,3 @@
-const output = require('./output.js')
 const opener = require('opener')
 
 const { URL } = require('url')
@@ -16,7 +15,7 @@ const open = async (npm, url, errMsg) => {
       }, null, 2)
       : `${errMsg}:\n  ${url}\n`
 
-    output(alternateMsg)
+    npm.output(alternateMsg)
   }
 
   if (browser === false) {

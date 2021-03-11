@@ -1,21 +1,15 @@
 const libversion = require('libnpmversion')
-const output = require('./utils/output.js')
-const usageUtil = require('./utils/usage.js')
 
-class Version {
-  constructor (npm) {
-    this.npm = npm
+const BaseCommand = require('./base-command.js')
+class Version extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'version'
   }
 
-  get usage () {
-    return usageUtil(
-      'version',
-      'npm version [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease [--preid=<prerelease-id>] | from-git]\n' +
-      '(run in package dir)\n\n' +
-      `'npm -v' or 'npm --version' to print npm version (${this.npm.version})\n` +
-      `'npm view <pkg> version' to view a package's published version\n` +
-      `'npm ls' to inspect current package/dependency versions\n`
-    )
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return ['[<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease [--preid=<prerelease-id>] | from-git]']
   }
 
   async completion (opts) {
@@ -56,7 +50,7 @@ class Version {
       ...this.npm.flatOptions,
       path: this.npm.prefix,
     })
-    return output(`${prefix}${version}`)
+    return this.npm.output(`${prefix}${version}`)
   }
 
   async list () {
@@ -78,9 +72,9 @@ class Version {
       results[key] = version
 
     if (this.npm.flatOptions.json)
-      output(JSON.stringify(results, null, 2))
+      this.npm.output(JSON.stringify(results, null, 2))
     else
-      output(results)
+      this.npm.output(results)
   }
 }
 module.exports = Version

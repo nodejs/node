@@ -2,20 +2,19 @@ const { resolve } = require('path')
 const Arborist = require('@npmcli/arborist')
 const rpj = require('read-package-json-fast')
 
-const usageUtil = require('./utils/usage.js')
 const reifyFinish = require('./utils/reify-finish.js')
 const completion = require('./utils/completion/installed-shallow.js')
 
-class Uninstall {
-  constructor (npm) {
-    this.npm = npm
+const BaseCommand = require('./base-command.js')
+class Uninstall extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'uninstall'
   }
 
-  get usage () {
-    return usageUtil(
-      'uninstall',
-      'npm uninstall [<@scope>/]<pkg>[@<version>]... [-S|--save|--no-save]'
-    )
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return ['[<@scope>/]<pkg>[@<version>]... [-S|--save|--no-save]']
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */

@@ -6,6 +6,7 @@ const rpj = require('read-package-json-fast')
 const { updateDepSpec } = require('../dep-spec.js')
 const AuditReport = require('../audit-report.js')
 const {subset} = require('semver')
+const npa = require('npm-package-arg')
 
 const {dirname, resolve, relative} = require('path')
 const {depth: dfwalk} = require('treeverse')
@@ -881,11 +882,17 @@ module.exports = cls => class Reifier extends cls {
 
     process.emit('time', 'reify:save')
 
+    // resolvedAdd is the list of user add requests, but with names added
+    // to things like git repos and tarball file/urls.  However, if the
+    // user requested 'foo@', and we have a foo@file:../foo, then we should
+    // end up saving the spec we actually used, not whatever they gave us.
     if (this[_resolvedAdd]) {
       const root = this.idealTree
       const pkg = root.package
-      for (const req of this[_resolvedAdd]) {
-        const {name, rawSpec, subSpec} = req
+      for (const { name } of this[_resolvedAdd]) {
+        const req = npa(root.edgesOut.get(name).spec, root.realpath)
+        const {rawSpec, subSpec} = req
+
         const spec = subSpec ? subSpec.rawSpec : rawSpec
         const child = root.children.get(name)
 
@@ -910,6 +917,15 @@ module.exports = cls => class Reifier extends cls {
           const save = h.https && h.auth ? `git+${h.https(opt)}`
             : h.shortcut(opt)
           updateDepSpec(pkg, name, save)
+        } else if (req.type === 'directory' || req.type === 'file') {
+          // save the relative path in package.json
+          // Normally saveSpec is updated with the proper relative
+          // path already, but it's possible to specify a full absolute
+          // path initially, in which case we can end up with the wrong
+          // thing, so just get the ultimate fetchSpec and relativize it.
+          const p = req.fetchSpec.replace(/^file:/, '')
+          const rel = relpath(root.realpath, p)
+          updateDepSpec(pkg, name, `file:${rel}`)
         } else
           updateDepSpec(pkg, name, req.saveSpec)
       }

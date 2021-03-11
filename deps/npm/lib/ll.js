@@ -1,13 +1,14 @@
 const LS = require('./ls.js')
-const usageUtil = require('./utils/usage.js')
 
 class LL extends LS {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil(
-      'll',
-      'npm ll [[<@scope>/]<pkg> ...]'
-    )
+  static get name () {
+    return 'll'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return ['[[<@scope>/]<pkg> ...]']
   }
 
   exec (args, cb) {

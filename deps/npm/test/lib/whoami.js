@@ -5,11 +5,13 @@ test('whoami', (t) => {
   t.plan(3)
   const Whoami = requireInject('../../lib/whoami.js', {
     '../../lib/utils/get-identity.js': () => Promise.resolve('foo'),
-    '../../lib/utils/output.js': (output) => {
+  })
+  const whoami = new Whoami({
+    flatOptions: {},
+    output: (output) => {
       t.equal(output, 'foo', 'should output the username')
     },
   })
-  const whoami = new Whoami({ flatOptions: {} })
 
   whoami.exec([], (err) => {
     t.ifError(err, 'npm whoami')
@@ -21,11 +23,13 @@ test('whoami json', (t) => {
   t.plan(3)
   const Whoami = requireInject('../../lib/whoami.js', {
     '../../lib/utils/get-identity.js': () => Promise.resolve('foo'),
-    '../../lib/utils/output.js': (output) => {
+  })
+  const whoami = new Whoami({
+    flatOptions: { json: true },
+    output: (output) => {
       t.equal(output, '"foo"', 'should output the username as json')
     },
   })
-  const whoami = new Whoami({ flatOptions: { json: true } })
 
   whoami.exec([], (err) => {
     t.ifError(err, 'npm whoami')

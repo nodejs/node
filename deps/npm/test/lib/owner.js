@@ -6,7 +6,12 @@ let readLocalPkgResponse = null
 
 const noop = () => null
 
-const npm = { flatOptions: {} }
+const npm = {
+  flatOptions: {},
+  output: (msg) => {
+    result = result ? `${result}\n${msg}` : msg
+  },
+}
 const npmFetch = { json: noop }
 const npmlog = { error: noop, info: noop, verbose: noop }
 const pacote = { packument: noop }
@@ -15,9 +20,6 @@ const mocks = {
   npmlog,
   'npm-registry-fetch': npmFetch,
   pacote,
-  '../../lib/utils/output.js': (...msg) => {
-    result += msg.join('\n')
-  },
   '../../lib/utils/otplease.js': async (opts, fn) => fn({ otp: '123456', opts }),
   '../../lib/utils/read-local-package.js': async () => readLocalPkgResponse,
   '../../lib/utils/usage.js': () => 'usage instructions',
@@ -40,11 +42,7 @@ t.test('owner no args', t => {
   })
 
   owner.exec([], err => {
-    t.equal(
-      err.message,
-      'usage instructions',
-      'should throw usage instructions'
-    )
+    t.match(err, /usage instructions/, 'should not error out on empty locations')
     t.end()
   })
 })
@@ -87,11 +85,7 @@ t.test('owner ls no args no cwd package', t => {
   })
 
   owner.exec(['ls'], err => {
-    t.equal(
-      err.message,
-      'usage instructions',
-      'should throw usage instructions if no cwd package available'
-    )
+    t.match(err, /usage instructions/, 'should throw usage instructions if no cwd package available')
     t.end()
   })
 })
@@ -467,11 +461,7 @@ t.test('owner add no user', t => {
   })
 
   owner.exec(['add'], err => {
-    t.equal(
-      err.message,
-      'usage instructions',
-      'should throw usage instructions if no user provided'
-    )
+    t.match(err, /usage instructions/, 'should throw usage instructions if user provided')
     t.end()
   })
 })
@@ -483,11 +473,7 @@ t.test('owner add <user> no cwd package', t => {
   })
 
   owner.exec(['add', 'foo'], err => {
-    t.equal(
-      err.message,
-      'usage instructions',
-      'should throw usage instructions if no user provided'
-    )
+    t.match(err, /usage instructions/, 'should throw usage instructions if no user provided')
     t.end()
   })
 })
@@ -674,11 +660,7 @@ t.test('owner rm no user', t => {
   })
 
   owner.exec(['rm'], err => {
-    t.equal(
-      err.message,
-      'usage instructions',
-      'should throw usage instructions if no user provided to rm'
-    )
+    t.match(err, /usage instructions/, 'should throw usage instructions if no user provided to rm')
     t.end()
   })
 })
@@ -690,11 +672,7 @@ t.test('owner rm <user> no cwd package', t => {
   })
 
   owner.exec(['rm', 'foo'], err => {
-    t.equal(
-      err.message,
-      'usage instructions',
-      'should throw usage instructions if no user provided to rm'
-    )
+    t.match(err, /usage instructions/, 'should throw usage instructions if no user provided to rm')
     t.end()
   })
 })

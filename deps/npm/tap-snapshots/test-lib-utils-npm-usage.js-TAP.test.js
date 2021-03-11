@@ -207,7 +207,10 @@ npm help npm       more involved overview
 
 All commands:
 
-    access          npm access public [<package>]
+    access          npm access
+
+                    Usage:
+                    npm access public [<package>]
                     npm access restricted [<package>]
                     npm access grant <read-only|read-write> <scope:team> [<package>]
                     npm access revoke <scope:team> [<package>]
@@ -217,20 +220,45 @@ All commands:
                     npm access ls-collaborators [<package> [<user>]]
                     npm access edit [<package>]
 
-    adduser         npm adduser [--registry=url] [--scope=@orgname] [--always-auth]
+                    Run "npm help access" for more info
+
+    adduser         npm adduser
+
+                    Usage:
+                    npm adduser [--registry=url] [--scope=@orgname] [--always-auth]
 
                     aliases: login, add-user
 
-    audit           npm audit [--json] [--production]
+                    Run "npm help adduser" for more info
+
+    audit           npm audit
+
+                    Usage:
+                    npm audit [--json] [--production]
                     npm audit fix [--force|--package-lock-only|--dry-run|--production|--only=(dev|prod)]
 
-    bin             npm bin [-g]
+                    Run "npm help audit" for more info
 
-    bugs            npm bugs [<pkgname>]
+    bin             npm bin
+
+                    Usage:
+                    npm bin [-g]
+
+                    Run "npm help bin" for more info
+
+    bugs            npm bugs
+
+                    Usage:
+                    npm bugs [<pkgname>]
 
                     alias: issues
 
-    cache           npm cache add <tarball file>
+                    Run "npm help bugs" for more info
+
+    cache           npm cache
+
+                    Usage:
+                    npm cache add <tarball file>
                     npm cache add <folder>
                     npm cache add <tarball url>
                     npm cache add <git url>
@@ -238,39 +266,76 @@ All commands:
                     npm cache clean
                     npm cache verify
 
+                    Run "npm help cache" for more info
+
     ci              npm ci
+
+                    Usage:
+                    npm ci
 
                     aliases: clean-install, ic, install-clean, isntall-clean
 
-    completion      source <(npm completion)
+                    Run "npm help ci" for more info
 
-    config          npm config set <key>=<value> [<key>=<value> ...]
+    completion      npm completion
+
+                    npm command completion script. save to ~/.bashrc or ~/.zshrc
+
+                    Usage:
+                    npm completion
+
+                    Run "npm help completion" for more info
+
+    config          npm config
+
+                    Usage:
+                    npm config set <key>=<value> [<key>=<value> ...]
                     npm config get [<key> [<key> ...]]
                     npm config delete <key> [<key> ...]
                     npm config list [--json]
                     npm config edit
-                    npm set <key>=<value> [<key>=<value> ...]
-                    npm get [<key> [<key> ...]]
 
                     alias: c
 
+                    Run "npm help config" for more info
+
     dedupe          npm dedupe
+
+                    Usage:
+                    npm dedupe
 
                     alias: ddp
 
-    deprecate       npm deprecate <pkg>[@<version>] <message>
+                    Run "npm help dedupe" for more info
 
-    diff            npm diff [...<paths>]
+    deprecate       npm deprecate
+
+                    Usage:
+                    npm deprecate <pkg>[@<version>] <message>
+
+                    Run "npm help deprecate" for more info
+
+    diff            npm diff
+
+                    Usage:
+                    npm diff [...<paths>]
                     npm diff --diff=<pkg-name> [...<paths>]
                     npm diff --diff=<version-a> [--diff=<version-b>] [...<paths>]
                     npm diff --diff=<spec-a> [--diff=<spec-b>] [...<paths>]
                     npm diff [--diff-ignore-all-space] [--diff-name-only] [...<paths>] [...<paths>]
 
-    dist-tag        npm dist-tag add <pkg>@<version> [<tag>]
+                    Run "npm help diff" for more info
+
+    dist-tag        npm dist-tag
+
+                    Usage:
+                    npm dist-tag add <pkg>@<version> [<tag>]
                     npm dist-tag rm <pkg> <tag>
                     npm dist-tag ls [<pkg>]
 
                     alias: dist-tags
+
+                    Run "npm help dist-tag" for more info
 
     docs            npm docs [<pkgname> [<pkgname> ...]]
 
@@ -278,59 +343,102 @@ All commands:
 
     doctor          npm doctor
 
-    edit            npm edit <pkg>[/<subpkg>...]
+                    Usage:
+                    npm doctor
 
-    exec            Run a command from a local or remote npm package.
+                    Run "npm help doctor" for more info
 
+    edit            npm edit
+
+                    Usage:
+                    npm edit <pkg>[/<subpkg>...]
+
+                    Run "npm help edit" for more info
+
+    exec            npm exec
+
+                    Run a command from a local or remote npm package.
+
+                    Usage:
                     npm exec -- <pkg>[@<version>] [args...]
                     npm exec --package=<pkg>[@<version>] -- <cmd> [args...]
                     npm exec -c '<cmd> [args...]'
                     npm exec --package=foo -c '<cmd> [args...]'
 
-                    npx <pkg>[@<specifier>] [args...]
-                    npx -p <pkg>[@<specifier>] <cmd> [args...]
-                    npx -c '<cmd> [args...]'
-                    npx -p <pkg>[@<specifier>] -c '<cmd> [args...]'
-                    Run without --call or positional args to open interactive subshell
-
-
                     alias: x
-                    common options:
-                    --package=<pkg> (may be specified multiple times)
-                    -p is a shorthand for --package only when using npx executable
-                    -c <cmd> --call=<cmd> (may not be mixed with positional arguments)
 
-    explain         npm explain <folder | specifier>
+                    Run "npm help exec" for more info
+
+    explain         npm explain
+
+                    Usage:
+                    npm explain <folder | specifier>
 
                     alias: why
 
-    explore         npm explore <pkg> [ -- <command>]
+                    Run "npm help explain" for more info
+
+    explore         npm explore
+
+                    Usage:
+                    npm explore <pkg> [ -- <command>]
+
+                    Run "npm help explore" for more info
 
     find-dupes      npm find-dupes
 
+                    Usage:
+                    npm find-dupes
+
+                    Run "npm help find-dupes" for more info
+
     fund            npm fund
 
-                    common options: npm fund [--json] [--browser] [--unicode] [[<@scope>/]<pkg> [--which=<fundingSourceNumber>]
+                    Usage:
+                    npm fund [--json] [--browser] [--unicode] [[<@scope>/]<pkg> [--which=<fundingSourceNumber>]
 
-    get             npm get [<key> ...] (See \`npm config\`)
+                    Run "npm help fund" for more info
 
-    help            npm help <term> [<terms..>]
+    get             npm get
+
+                    Usage:
+                    npm get [<key> ...] (See \`npm config\`)
+
+                    Run "npm help get" for more info
+
+    help            npm help
+
+                    Usage:
+                    npm help <term> [<terms..>]
 
                     alias: hlep
 
-    hook            npm hook add <pkg> <url> <secret> [--type=<type>]
+                    Run "npm help help" for more info
+
+    hook            npm hook
+
+                    Usage:
+                    npm hook add <pkg> <url> <secret> [--type=<type>]
                     npm hook ls [pkg]
                     npm hook rm <id>
                     npm hook update <id> <url> <secret>
 
-    init
+                    Run "npm help hook" for more info
+
+    init            npm init
+
+                    Usage:
                     npm init [--force|-f|--yes|-y|--scope]
                     npm init <@scope> (same as \`npx <@scope>/create\`)
                     npm init [<@scope>/]<name> (same as \`npx [<@scope>/]create-<name>\`)
 
                     aliases: create, innit
 
-    install         npm install (with no args, in package dir)
+                    Run "npm help init" for more info
+
+    install         npm install
+
+                    Usage:
                     npm install [<@scope>/]<pkg>
                     npm install [<@scope>/]<pkg>@<tag>
                     npm install [<@scope>/]<pkg>@<version>
@@ -340,151 +448,343 @@ All commands:
                     npm install <tarball file>
                     npm install <tarball url>
                     npm install <git:// url>
-                    npm install <github username>/<github project>
+                    npm install <github username>/<github project> [--save-prod|--save-dev|--save-optional|--save-peer] [--save-exact] [--no-save]
 
                     aliases: i, in, ins, inst, insta, instal, isnt, isnta, isntal, add
-                    common options: [--save-prod|--save-dev|--save-optional|--save-peer] [--save-exact] [--no-save]
 
-    install-ci-test npm install-ci-test [args]
-                    Same args as \`npm ci\`
+                    Run "npm help install" for more info
+
+    install-ci-test npm install-ci-test
+
+                    Usage:
+                    npm install-ci-test
 
                     alias: cit
 
-    install-test    npm install-test [args]
-                    Same args as \`npm install\`
+                    Run "npm help install-ci-test" for more info
+
+    install-test    npm install-test
+
+                    Usage:
+                    npm install-test [<@scope>/]<pkg>
+                    npm install-test [<@scope>/]<pkg>@<tag>
+                    npm install-test [<@scope>/]<pkg>@<version>
+                    npm install-test [<@scope>/]<pkg>@<version range>
+                    npm install-test <alias>@npm:<name>
+                    npm install-test <folder>
+                    npm install-test <tarball file>
+                    npm install-test <tarball url>
+                    npm install-test <git:// url>
+                    npm install-test <github username>/<github project> [--save-prod|--save-dev|--save-optional|--save-peer] [--save-exact] [--no-save]
 
                     alias: it
 
-    link            npm link (in package dir)
+                    Run "npm help install-test" for more info
+
+    link            npm link
+
+                    Usage:
+                    npm link (in package dir)
                     npm link [<@scope>/]<pkg>[@<version>]
 
                     alias: ln
 
-    ll              npm ll [[<@scope>/]<pkg> ...]
+                    Run "npm help link" for more info
+
+    ll              npm ll
+
+                    Usage:
+                    npm ll [[<@scope>/]<pkg> ...]
 
                     alias: la
 
-    login           npm adduser [--registry=url] [--scope=@orgname] [--always-auth]
+                    Run "npm help ll" for more info
+
+    login           npm adduser
+
+                    Usage:
+                    npm adduser [--registry=url] [--scope=@orgname] [--always-auth]
 
                     aliases: login, add-user
 
-    logout          npm logout [--registry=<url>] [--scope=<@scope>]
+                    Run "npm help adduser" for more info
 
-    ls              npm ls [[<@scope>/]<pkg> ...]
+    logout          npm logout
+
+                    Usage:
+                    npm logout [--registry=<url>] [--scope=<@scope>]
+
+                    Run "npm help logout" for more info
+
+    ls              npm ls
+
+                    Usage:
+                    npm ls npm ls [[<@scope>/]<pkg> ...]
 
                     alias: list
 
-    org             npm org set orgname username [developer | admin | owner]
+                    Run "npm help ls" for more info
+
+    org             npm org
+
+                    Usage:
+                    npm org set orgname username [developer | admin | owner]
                     npm org rm orgname username
                     npm org ls orgname [<username>]
 
                     alias: ogr
 
-    outdated        npm outdated [[<@scope>/]<pkg> ...]
+                    Run "npm help org" for more info
 
-    owner           npm owner add <user> [<@scope>/]<pkg>
+    outdated        npm outdated
+
+                    Usage:
+                    npm outdated [[<@scope>/]<pkg> ...]
+
+                    Run "npm help outdated" for more info
+
+    owner           npm owner
+
+                    Usage:
+                    npm owner add <user> [<@scope>/]<pkg>
                     npm owner rm <user> [<@scope>/]<pkg>
                     npm owner ls [<@scope>/]<pkg>
 
                     alias: author
 
-    pack            npm pack [[<@scope>/]<pkg>...] [--dry-run]
+                    Run "npm help owner" for more info
+
+    pack            npm pack
+
+                    Usage:
+                    npm pack [[<@scope>/]<pkg>...] [--dry-run]
+
+                    Run "npm help pack" for more info
 
     ping            npm ping
+
                     ping registry
 
-    prefix          npm prefix [-g]
+                    Usage:
+                    npm ping
 
-    profile         npm profile enable-2fa [auth-only|auth-and-writes]
+                    Run "npm help ping" for more info
 
+    prefix          npm prefix
 
-                    common options: npm profile disable-2fa
+                    Usage:
+                    npm prefix [-g]
 
+                    Run "npm help prefix" for more info
 
-    prune           npm prune [[<@scope>/]<pkg>...] [--production]
+    profile         npm profile
 
-    publish         npm publish [<folder>] [--tag <tag>] [--access <public|restricted>] [--dry-run]
+                    Usage:
+                    npm profile enable-2fa [auth-only|auth-and-writes]
+                    npm profile disable-2fa
+                    npm profile get [<key>]
+                    npm profile set <key> <value>
 
-                    Publishes '.' if no argument supplied
-                    Sets tag \`latest\` if no --tag specified
+                    Run "npm help profile" for more info
 
-    rebuild         npm rebuild [[<@scope>/]<name>[@<version>] ...]
+    prune           npm prune
+
+                    Usage:
+                    npm prune [[<@scope>/]<pkg>...] [--production]
+
+                    Run "npm help prune" for more info
+
+    publish         npm publish
+
+                    Usage:
+                    npm publish [<folder>] [--tag <tag>] [--access <public|restricted>] [--dry-run]
+
+                    Run "npm help publish" for more info
+
+    rebuild         npm rebuild
+
+                    Usage:
+                    npm rebuild [[<@scope>/]<name>[@<version>] ...]
 
                     alias: rb
 
-    repo            npm repo [<pkgname> [<pkgname> ...]]
+                    Run "npm help rebuild" for more info
 
-    restart         npm restart [-- <args>]
+    repo            npm repo
 
-    root            npm root [-g]
+                    Usage:
+                    npm repo [<pkgname> [<pkgname> ...]]
 
-    run-script      npm run-script <command> [-- <args>]
+                    Run "npm help repo" for more info
+
+    restart         npm restart
+
+                    Usage:
+                    npm restart [-- <args>]
+
+                    Run "npm help restart" for more info
+
+    root            npm root
+
+                    Usage:
+                    npm root [-g]
+
+                    Run "npm help root" for more info
+
+    run-script      npm run-script
+
+                    Usage:
+                    npm run-script <command> [-- <args>]
 
                     aliases: run, rum, urn
 
-    search          npm search [-l|--long] [--json] [--parseable] [--no-description] [search terms ...]
+                    Run "npm help run-script" for more info
+
+    search          npm search
+
+                    Usage:
+                    npm search [-l|--long] [--json] [--parseable] [--no-description] [search terms ...]
 
                     aliases: s, se, find
 
-    set             npm set <key>=<value> [<key>=<value> ...] (See \`npm config\`)
+                    Run "npm help search" for more info
 
-    set-script      npm set-script [<script>] [<command>]
+    set             npm set
+
+                    Usage:
+                    npm set <key>=<value> [<key>=<value> ...] (See \`npm config\`)
+
+                    Run "npm help set" for more info
+
+    set-script      npm set-script
+
+                    Usage:
+                    npm set-script [<script>] [<command>]
+
+                    Run "npm help set-script" for more info
 
     shrinkwrap      npm shrinkwrap
 
-    star            npm star [<pkg>...]
-                    npm unstar [<pkg>...]
+                    Usage:
+                    npm shrinkwrap
 
-    stars           npm stars [<user>]
+                    Run "npm help shrinkwrap" for more info
 
-    start           npm start [-- <args>]
+    star            npm star
 
-    stop            npm stop [-- <args>]
+                    Usage:
+                    npm star [<pkg>...]
 
-    team            npm team create <scope:team> [--otp <otpcode>]
+                    Run "npm help star" for more info
+
+    stars           npm stars
+
+                    Usage:
+                    npm stars [<user>]
+
+                    Run "npm help stars" for more info
+
+    start           npm start
+
+                    Usage:
+                    npm start [-- <args>]
+
+                    Run "npm help start" for more info
+
+    stop            npm stop
+
+                    Usage:
+                    npm stop [-- <args>]
+
+                    Run "npm help stop" for more info
+
+    team            npm team
+
+                    Usage:
+                    npm team create <scope:team> [--otp <otpcode>]
                     npm team destroy <scope:team> [--otp <otpcode>]
                     npm team add <scope:team> <user> [--otp <otpcode>]
                     npm team rm <scope:team> <user> [--otp <otpcode>]
                     npm team ls <scope>|<scope:team>
 
+                    Run "npm help team" for more info
 
-    test            npm test [-- <args>]
+    test            npm test
+
+                    Usage:
+                    npm test [-- <args>]
 
                     aliases: tst, t
 
-    token           npm token list
+                    Run "npm help test" for more info
+
+    token           npm token
+
+                    Usage:
+                    npm token list
                     npm token revoke <id|token>
                     npm token create [--read-only] [--cidr=list]
 
-    uninstall       npm uninstall [<@scope>/]<pkg>[@<version>]... [-S|--save|--no-save]
+                    Run "npm help token" for more info
+
+    uninstall       npm uninstall
+
+                    Usage:
+                    npm uninstall [<@scope>/]<pkg>[@<version>]... [-S|--save|--no-save]
 
                     aliases: un, unlink, remove, rm, r
 
-    unpublish       npm unpublish [<@scope>/]<pkg>[@<version>]
+                    Run "npm help uninstall" for more info
 
-    unstar          npm star [<pkg>...]
+    unpublish       npm unpublish
+
+                    Usage:
+                    npm unpublish [<@scope>/]<pkg>[@<version>]
+
+                    Run "npm help unpublish" for more info
+
+    unstar          npm unstar
+
+                    Usage:
                     npm unstar [<pkg>...]
 
-    update          npm update [-g] [<pkg>...]
+                    Run "npm help unstar" for more info
+
+    update          npm update
+
+                    Usage:
+                    npm update [-g] [<pkg>...]
 
                     aliases: up, upgrade, udpate
 
-    version         npm version [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease [--preid=<prerelease-id>] | from-git]
-                    (run in package dir)
+                    Run "npm help update" for more info
 
-                    'npm -v' or 'npm --version' to print npm version ({VERSION})
-                    'npm view <pkg> version' to view a package's published version
-                    'npm ls' to inspect current package/dependency versions
+    version         npm version
 
+                    Usage:
+                    npm version [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease [--preid=<prerelease-id>] | from-git]
 
                     alias: verison
 
-    view            npm view [<@scope>/]<pkg>[@<version>] [<field>[.subfield]...]
+                    Run "npm help version" for more info
+
+    view            npm view
+
+                    Usage:
+                    npm view [<@scope>/]<pkg>[@<version>] [<field>[.subfield]...]
 
                     aliases: v, info, show
 
-    whoami          npm whoami [--registry <registry>]
-                    (just prints username according to given registry)
+                    Run "npm help view" for more info
+
+    whoami          npm whoami
+
+                    prints username according to given registry
+
+                    Usage:
+                    npm whoami [--registry <registry>]
+
+                    Run "npm help whoami" for more info
 
 Specify configs in the ini-formatted file:
     /some/config/file/.npmrc

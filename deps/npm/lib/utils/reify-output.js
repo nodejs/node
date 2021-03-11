@@ -10,7 +10,6 @@
 //   run `npm audit fix` to fix them, or `npm audit` for details
 
 const log = require('npmlog')
-const output = require('./output.js')
 const { depth } = require('treeverse')
 const ms = require('ms')
 const auditReport = require('npm-audit-report')
@@ -72,10 +71,10 @@ const reifyOutput = (npm, arb) => {
       summary.audit = npm.command === 'audit' ? auditReport
         : auditReport.toJSON().metadata
     }
-    output(JSON.stringify(summary, 0, 2))
+    npm.output(JSON.stringify(summary, 0, 2))
   } else {
     packagesChangedMessage(npm, summary)
-    packagesFundingMessage(summary)
+    packagesFundingMessage(npm, summary)
     printAuditReport(npm, auditReport)
   }
 }
@@ -98,7 +97,7 @@ const printAuditReport = (npm, report) => {
     auditLevel,
   })
   process.exitCode = process.exitCode || res.exitCode
-  output('\n' + res.report)
+  npm.output('\n' + res.report)
 }
 
 const packagesChangedMessage = (npm, { added, removed, changed, audited }) => {
@@ -136,18 +135,18 @@ const packagesChangedMessage = (npm, { added, removed, changed, audited }) => {
     msg.push(`audited ${audited} package${audited === 1 ? '' : 's'}`)
 
   msg.push(` in ${ms(Date.now() - npm.started)}`)
-  output(msg.join(''))
+  npm.output(msg.join(''))
 }
 
-const packagesFundingMessage = ({ funding }) => {
+const packagesFundingMessage = (npm, { funding }) => {
   if (!funding)
     return
 
-  output('')
+  npm.output('')
   const pkg = funding === 1 ? 'package' : 'packages'
   const is = funding === 1 ? 'is' : 'are'
-  output(`${funding} ${pkg} ${is} looking for funding`)
-  output('  run `npm fund` for details')
+  npm.output(`${funding} ${pkg} ${is} looking for funding`)
+  npm.output('  run `npm fund` for details')
 }
 
 module.exports = reifyOutput

@@ -10,6 +10,9 @@ const npm = {
     silent: false,
     loglevel: 'silly',
   },
+  output: (...msg) => {
+    result += msg.join('\n')
+  },
 }
 const mocks = {
   npmlog: { silly () {}, verbose () {} },
@@ -18,9 +21,6 @@ const mocks = {
   'npm-package-arg': noop,
   'npm-registry-fetch': { json: noop },
   'read-package-json': cb => cb(),
-  '../../lib/utils/output.js': (...msg) => {
-    result += msg.join('\n')
-  },
   '../../lib/utils/otplease.js': async (opts, fn) => fn(opts),
   '../../lib/utils/usage.js': () => 'usage instructions',
   '../../lib/utils/get-identity.js': async () => 'foo',

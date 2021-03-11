@@ -8,7 +8,13 @@ const flatOptions = {
   parseable: false,
   registry: 'https://registry.npmjs.org/',
 }
-const npm = { config: {}, flatOptions: { ...flatOptions }}
+const npm = {
+  config: {},
+  flatOptions: { ...flatOptions },
+  output: (...msg) => {
+    result = result ? `${result}\n${msg.join('\n')}` : msg.join('\n')
+  },
+}
 const mocks = {
   ansistyles: { bright: a => a },
   npmlog: {
@@ -31,9 +37,6 @@ const mocks = {
           .map(i => i.join(': ')))
         .join('\n')
     }
-  },
-  '../../lib/utils/output.js': (...msg) => {
-    result += msg.join('\n')
   },
   '../../lib/utils/pulse-till-done.js': {
     withPromise: async a => a,

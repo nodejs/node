@@ -1,5 +1,3 @@
-const output = require('./utils/output.js')
-const usageUtil = require('./utils/usage.js')
 const { promisify } = require('util')
 const read = promisify(require('read'))
 const mkdirp = require('mkdirp-infer-owner')
@@ -13,6 +11,7 @@ const pacote = require('pacote')
 const npa = require('npm-package-arg')
 const fileExists = require('./utils/file-exists.js')
 const PATH = require('./utils/path.js')
+const BaseCommand = require('./base-command.js')
 
 // it's like this:
 //
@@ -39,31 +38,25 @@ const PATH = require('./utils/path.js')
 // runScript({ pkg, event: 'npx', ... })
 // process.env.npm_lifecycle_event = 'npx'
 
-class Exec {
-  constructor (npm) {
-    this.npm = npm
+class Exec extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'exec'
   }
 
-  get usage () {
-    return usageUtil('exec',
-      'Run a command from a local or remote npm package.\n\n' +
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Run a command from a local or remote npm package.'
+  }
 
-      'npm exec -- <pkg>[@<version>] [args...]\n' +
-      'npm exec --package=<pkg>[@<version>] -- <cmd> [args...]\n' +
-      'npm exec -c \'<cmd> [args...]\'\n' +
-      'npm exec --package=foo -c \'<cmd> [args...]\'\n' +
-      '\n' +
-      'npx <pkg>[@<specifier>] [args...]\n' +
-      'npx -p <pkg>[@<specifier>] <cmd> [args...]\n' +
-      'npx -c \'<cmd> [args...]\'\n' +
-      'npx -p <pkg>[@<specifier>] -c \'<cmd> [args...]\'' +
-      '\n' +
-      'Run without --call or positional args to open interactive subshell\n',
-
-      '\n--package=<pkg> (may be specified multiple times)\n' +
-      '-p is a shorthand for --package only when using npx executable\n' +
-      '-c <cmd> --call=<cmd> (may not be mixed with positional arguments)'
-    )
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return [
+      '-- <pkg>[@<version>] [args...]',
+      '--package=<pkg>[@<version>] -- <cmd> [args...]',
+      '-c \'<cmd> [args...]\'',
+      '--package=foo -c \'<cmd> [args...]\'',
+    ]
   }
 
   exec (args, cb) {
@@ -224,7 +217,7 @@ class Exec {
         if (process.stdin.isTTY) {
           if (ciDetect())
             return this.npm.log.warn('exec', 'Interactive mode disabled in CI environment')
-          output(`\nEntering npm script environment\nType 'exit' or ^D when finished\n`)
+          this.npm.output(`\nEntering npm script environment\nType 'exit' or ^D when finished\n`)
         }
       }
       return await runScript({

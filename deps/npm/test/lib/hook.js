@@ -1,6 +1,7 @@
 const { test } = require('tap')
 const requireInject = require('require-inject')
 
+const output = []
 const npm = {
   flatOptions: {
     json: false,
@@ -8,6 +9,9 @@ const npm = {
     silent: false,
     loglevel: 'info',
     unicode: false,
+  },
+  output: (msg) => {
+    output.push(msg)
   },
 }
 
@@ -51,12 +55,8 @@ const libnpmhook = {
   },
 }
 
-const output = []
 const Hook = requireInject('../../lib/hook.js', {
   '../../lib/utils/otplease.js': async (opts, fn) => fn(opts),
-  '../../lib/utils/output.js': (msg) => {
-    output.push(msg)
-  },
   libnpmhook,
 })
 const hook = new Hook(npm)

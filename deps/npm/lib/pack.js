@@ -7,18 +7,18 @@ const npa = require('npm-package-arg')
 const { getContents, logTar } = require('./utils/tar.js')
 
 const writeFile = util.promisify(require('fs').writeFile)
-const output = require('./utils/output.js')
 
-const usageUtil = require('./utils/usage.js')
+const BaseCommand = require('./base-command.js')
 
-class Pack {
-  constructor (npm) {
-    this.npm = npm
+class Pack extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'pack'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil('pack', 'npm pack [[<@scope>/]<pkg>...] [--dry-run]')
+  static get usage () {
+    return ['[[<@scope>/]<pkg>...] [--dry-run]']
   }
 
   exec (args, cb) {
@@ -49,7 +49,7 @@ class Pack {
 
     for (const tar of tarballs) {
       logTar(tar, { log, unicode })
-      output(tar.filename.replace(/^@/, '').replace(/\//, '-'))
+      this.npm.output(tar.filename.replace(/^@/, '').replace(/\//, '-'))
     }
   }
 }

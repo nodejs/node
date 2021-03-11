@@ -7,7 +7,6 @@ const fs = require('fs')
 const readdir = util.promisify(fs.readdir)
 
 const log = require('npmlog')
-const usageUtil = require('./utils/usage.js')
 
 const removeNodeModules = async where => {
   const rimrafOpts = { glob: false }
@@ -18,15 +17,12 @@ const removeNodeModules = async where => {
   await Promise.all(entries.map(f => rimraf(`${path}/${f}`, rimrafOpts)))
   process.emit('timeEnd', 'npm-ci:rm')
 }
+const BaseCommand = require('./base-command.js')
 
-class CI {
-  constructor (npm) {
-    this.npm = npm
-  }
-
+class CI extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil('ci', 'npm ci')
+  static get name () {
+    return 'ci'
   }
 
   exec (args, cb) {

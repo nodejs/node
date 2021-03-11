@@ -1,6 +1,4 @@
 const { defaults, types } = require('./utils/config.js')
-const usageUtil = require('./utils/usage.js')
-const output = require('./utils/output.js')
 
 const mkdirp = require('mkdirp-infer-owner')
 const { dirname } = require('path')
@@ -29,22 +27,22 @@ const keyValues = args => {
 
 const publicVar = k => !/^(\/\/[^:]+:)?_/.test(k)
 
-class Config {
-  constructor (npm) {
-    this.npm = npm
+const BaseCommand = require('./base-command.js')
+class Config extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'config'
   }
 
-  get usage () {
-    return usageUtil(
-      'config',
-      'npm config set <key>=<value> [<key>=<value> ...]' +
-      '\nnpm config get [<key> [<key> ...]]' +
-      '\nnpm config delete <key> [<key> ...]' +
-      '\nnpm config list [--json]' +
-      '\nnpm config edit' +
-      '\nnpm set <key>=<value> [<key>=<value> ...]' +
-      '\nnpm get [<key> [<key> ...]]'
-    )
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return [
+      'set <key>=<value> [<key>=<value> ...]',
+      'get [<key> [<key> ...]]',
+      'delete <key> [<key> ...]',
+      'list [--json]',
+      'edit',
+    ]
   }
 
   async completion (opts) {
@@ -142,7 +140,7 @@ class Config {
       const pref = keys.length > 1 ? `${key}=` : ''
       out.push(pref + this.npm.config.get(key))
     }
-    output(out.join('\n'))
+    this.npm.output(out.join('\n'))
   }
 
   async del (keys) {
@@ -241,7 +239,7 @@ ${defData}
       )
     }
 
-    output(msg.join('\n').trim())
+    this.npm.output(msg.join('\n').trim())
   }
 
   async listJson () {
@@ -252,11 +250,7 @@ ${defData}
 
       publicConf[key] = this.npm.config.get(key)
     }
-    output(JSON.stringify(publicConf, null, 2))
-  }
-
-  usageError () {
-    return Object.assign(new Error(this.usage), { code: 'EUSAGE' })
+    this.npm.output(JSON.stringify(publicConf, null, 2))
   }
 }
 

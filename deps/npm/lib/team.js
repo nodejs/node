@@ -1,24 +1,24 @@
 const columns = require('cli-columns')
 const libteam = require('libnpmteam')
 
-const output = require('./utils/output.js')
 const otplease = require('./utils/otplease.js')
-const usageUtil = require('./utils/usage.js')
 
-class Team {
-  constructor (npm) {
-    this.npm = npm
+const BaseCommand = require('./base-command.js')
+class Team extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'team'
   }
 
-  get usage () {
-    return usageUtil(
-      'team',
-      'npm team create <scope:team> [--otp <otpcode>]\n' +
-      'npm team destroy <scope:team> [--otp <otpcode>]\n' +
-      'npm team add <scope:team> <user> [--otp <otpcode>]\n' +
-      'npm team rm <scope:team> <user> [--otp <otpcode>]\n' +
-      'npm team ls <scope>|<scope:team>\n'
-    )
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return [
+      'create <scope:team> [--otp <otpcode>]',
+      'destroy <scope:team> [--otp <otpcode>]',
+      'add <scope:team> <user> [--otp <otpcode>]',
+      'rm <scope:team> <user> [--otp <otpcode>]',
+      'ls <scope>|<scope:team>',
+    ]
   }
 
   async completion (opts) {
@@ -66,82 +66,82 @@ class Team {
   async create (entity, opts) {
     await libteam.create(entity, opts)
     if (opts.json) {
-      output(JSON.stringify({
+      this.npm.output(JSON.stringify({
         created: true,
         team: entity,
       }))
     } else if (opts.parseable)
-      output(`${entity}\tcreated`)
+      this.npm.output(`${entity}\tcreated`)
     else if (!opts.silent && opts.loglevel !== 'silent')
-      output(`+@${entity}`)
+      this.npm.output(`+@${entity}`)
   }
 
   async destroy (entity, opts) {
     await libteam.destroy(entity, opts)
     if (opts.json) {
-      output(JSON.stringify({
+      this.npm.output(JSON.stringify({
         deleted: true,
         team: entity,
       }))
     } else if (opts.parseable)
-      output(`${entity}\tdeleted`)
+      this.npm.output(`${entity}\tdeleted`)
     else if (!opts.silent && opts.loglevel !== 'silent')
-      output(`-@${entity}`)
+      this.npm.output(`-@${entity}`)
   }
 
   async add (entity, user, opts) {
     await libteam.add(user, entity, opts)
     if (opts.json) {
-      output(JSON.stringify({
+      this.npm.output(JSON.stringify({
         added: true,
         team: entity,
         user,
       }))
     } else if (opts.parseable)
-      output(`${user}\t${entity}\tadded`)
+      this.npm.output(`${user}\t${entity}\tadded`)
     else if (!opts.silent && opts.loglevel !== 'silent')
-      output(`${user} added to @${entity}`)
+      this.npm.output(`${user} added to @${entity}`)
   }
 
   async rm (entity, user, opts) {
     await libteam.rm(user, entity, opts)
     if (opts.json) {
-      output(JSON.stringify({
+      this.npm.output(JSON.stringify({
         removed: true,
         team: entity,
         user,
       }))
     } else if (opts.parseable)
-      output(`${user}\t${entity}\tremoved`)
+      this.npm.output(`${user}\t${entity}\tremoved`)
     else if (!opts.silent && opts.loglevel !== 'silent')
-      output(`${user} removed from @${entity}`)
+      this.npm.output(`${user} removed from @${entity}`)
   }
 
   async listUsers (entity, opts) {
     const users = (await libteam.lsUsers(entity, opts)).sort()
     if (opts.json)
-      output(JSON.stringify(users, null, 2))
+      this.npm.output(JSON.stringify(users, null, 2))
     else if (opts.parseable)
-      output(users.join('\n'))
+      this.npm.output(users.join('\n'))
     else if (!opts.silent && opts.loglevel !== 'silent') {
       const plural = users.length === 1 ? '' : 's'
       const more = users.length === 0 ? '' : ':\n'
-      output(`\n@${entity} has ${users.length} user${plural}${more}`)
-      output(columns(users, { padding: 1 }))
+      this.npm.output(`\n@${entity} has ${users.length} user${plural}${more}`)
+      this.npm.output(columns(users, { padding: 1 }))
     }
   }
 
   async listTeams (entity, opts) {
     const teams = (await libteam.lsTeams(entity, opts)).sort()
     if (opts.json)
-      output(JSON.stringify(teams, null, 2))
+      this.npm.output(JSON.stringify(teams, null, 2))
     else if (opts.parseable)
-      output(teams.join('\n'))
+      this.npm.output(teams.join('\n'))
     else if (!opts.silent && opts.loglevel !== 'silent') {
       const plural = teams.length === 1 ? '' : 's'
       const more = teams.length === 0 ? '' : ':\n'
-      output(`\n@${entity} has ${teams.length} team${plural}${more}`)
-      output(columns(teams.map(t => `@${t}`), { padding: 1 }))
+      this.npm.output(`\n@${entity} has ${teams.length} team${plural}${more}`)
+      this.npm.output(columns(teams.map(t => `@${t}`), { padding: 1 }))
     }
   }
 }

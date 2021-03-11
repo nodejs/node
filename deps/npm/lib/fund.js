@@ -12,27 +12,24 @@ const {
 } = require('libnpmfund')
 
 const completion = require('./utils/completion/installed-deep.js')
-const output = require('./utils/output.js')
 const openUrl = require('./utils/open-url.js')
-const usageUtil = require('./utils/usage.js')
 
 const getPrintableName = ({ name, version }) => {
   const printableVersion = version ? `@${version}` : ''
   return `${name}${printableVersion}`
 }
 
-class Fund {
-  constructor (npm) {
-    this.npm = npm
+const BaseCommand = require('./base-command.js')
+
+class Fund extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'fund'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil(
-      'fund',
-      'npm fund',
-      'npm fund [--json] [--browser] [--unicode] [[<@scope>/]<pkg> [--which=<fundingSourceNumber>]'
-    )
+  static get usage () {
+    return ['[--json] [--browser] [--unicode] [[<@scope>/]<pkg> [--which=<fundingSourceNumber>]']
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
@@ -85,7 +82,7 @@ class Fund {
       ? this.printJSON
       : this.printHuman
 
-    output(
+    this.npm.output(
       print(
         getFundingInfo(tree),
         opts
@@ -206,9 +203,9 @@ class Fund {
       validSources.forEach(({ type, url }, i) => {
         const typePrefix = type ? `${type} funding` : 'Funding'
         const msg = `${typePrefix} available at the following URL`
-        output(`${i + 1}: ${msg}: ${url}`)
+        this.npm.output(`${i + 1}: ${msg}: ${url}`)
       })
-      output('Run `npm fund [<@scope>/]<pkg> --which=1`, for example, to open the first funding URL listed in that package')
+      this.npm.output('Run `npm fund [<@scope>/]<pkg> --which=1`, for example, to open the first funding URL listed in that package')
     } else {
       const noFundingError = new Error(`No valid funding method available for: ${spec}`)
       noFundingError.code = 'ENOFUND'

@@ -1,19 +1,20 @@
-const output = require('./utils/output.js')
 const getIdentity = require('./utils/get-identity.js')
-const usageUtil = require('./utils/usage.js')
 
-class Whoami {
-  constructor (npm) {
-    this.npm = npm
+const BaseCommand = require('./base-command.js')
+class Whoami extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'whoami'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil(
-      'whoami',
-      'npm whoami [--registry <registry>]\n' +
-      '(just prints username according to given registry)'
-    )
+  static get description () {
+    return 'prints username according to given registry'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return ['[--registry <registry>]']
   }
 
   exec (args, cb) {
@@ -23,7 +24,7 @@ class Whoami {
   async whoami (args) {
     const opts = this.npm.flatOptions
     const username = await getIdentity(this.npm, opts)
-    output(opts.json ? JSON.stringify(username) : username)
+    this.npm.output(opts.json ? JSON.stringify(username) : username)
   }
 }
 module.exports = Whoami

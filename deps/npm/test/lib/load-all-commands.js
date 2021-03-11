@@ -1,6 +1,6 @@
 // Thanks to nyc not working properly with proxies this
-// doesn't affect coverage. but it does ensure that every command
-// has a usage, and if it has completion it is a function
+// doesn't affect coverage. but it does ensure that every command has a usage
+// that contains its name, and if it has completion it is a function
 const npm = require('../../lib/npm.js')
 const t = require('tap')
 const { cmdList } = require('../../lib/utils/cmd-list.js')

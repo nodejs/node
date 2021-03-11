@@ -1,19 +1,17 @@
 const log = require('npmlog')
 const getAuth = require('npm-registry-fetch/auth.js')
 const npmFetch = require('npm-registry-fetch')
-const usageUtil = require('./utils/usage.js')
+const BaseCommand = require('./base-command.js')
 
-class Logout {
-  constructor (npm) {
-    this.npm = npm
+class Logout extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'logout'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil(
-      'logout',
-      'npm logout [--registry=<url>] [--scope=<@scope>]'
-    )
+  static get usage () {
+    return ['[--registry=<url>] [--scope=<@scope>]']
   }
 
   exec (args, cb) {

@@ -1,18 +1,18 @@
 const log = require('npmlog')
 const fetch = require('npm-registry-fetch')
 
-const output = require('./utils/output.js')
 const getIdentity = require('./utils/get-identity.js')
-const usageUtil = require('./utils/usage.js')
 
-class Stars {
-  constructor (npm) {
-    this.npm = npm
+const BaseCommand = require('./base-command.js')
+class Stars extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'stars'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil('stars', 'npm stars [<user>]')
+  static get usage () {
+    return ['[<user>]']
   }
 
   exec (args, cb) {
@@ -36,7 +36,7 @@ class Stars {
       log.warn('stars', 'user has not starred any packages')
 
     for (const row of rows)
-      output(row.value)
+      this.npm.output(row.value)
   }
 }
 module.exports = Stars

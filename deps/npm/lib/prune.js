@@ -1,18 +1,17 @@
 // prune extraneous packages
 const Arborist = require('@npmcli/arborist')
-const usageUtil = require('./utils/usage.js')
 const reifyFinish = require('./utils/reify-finish.js')
 
-class Prune {
-  constructor (npm) {
-    this.npm = npm
+const BaseCommand = require('./base-command.js')
+class Prune extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'prune'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil('prune',
-      'npm prune [[<@scope>/]<pkg>...] [--production]'
-    )
+  static get usage () {
+    return ['[[<@scope>/]<pkg>...] [--production]']
   }
 
   exec (args, cb) {

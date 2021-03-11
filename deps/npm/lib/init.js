@@ -1,22 +1,21 @@
 const initJson = require('init-package-json')
 const npa = require('npm-package-arg')
 
-const usageUtil = require('./utils/usage.js')
-const output = require('./utils/output.js')
+const BaseCommand = require('./base-command.js')
 
-class Init {
-  constructor (npm) {
-    this.npm = npm
+class Init extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'init'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil(
-      'init',
-      '\nnpm init [--force|-f|--yes|-y|--scope]' +
-      '\nnpm init <@scope> (same as `npx <@scope>/create`)' +
-      '\nnpm init [<@scope>/]<name> (same as `npx [<@scope>/]create-<name>`)'
-    )
+  static get usage () {
+    return [
+      '[--force|-f|--yes|-y|--scope]',
+      '<@scope> (same as `npx <@scope>/create`)',
+      '[<@scope>/]<name> (same as `npx [<@scope>/]create-<name>`)',
+    ]
   }
 
   exec (args, cb) {
@@ -61,7 +60,7 @@ class Init {
     this.npm.log.disableProgress()
     const initFile = this.npm.config.get('init-module')
     if (!this.npm.flatOptions.yes && !this.npm.flatOptions.force) {
-      output([
+      this.npm.output([
         'This utility will walk you through creating a package.json file.',
         'It only covers the most common items, and tries to guess sensible defaults.',
         '',

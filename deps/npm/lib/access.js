@@ -3,10 +3,9 @@ const path = require('path')
 const libaccess = require('libnpmaccess')
 const readPackageJson = require('read-package-json-fast')
 
-const output = require('./utils/output.js')
 const otplease = require('./utils/otplease.js')
-const usageUtil = require('./utils/usage.js')
 const getIdentity = require('./utils/get-identity.js')
+const BaseCommand = require('./base-command.js')
 
 const subcommands = [
   'public',
@@ -20,24 +19,23 @@ const subcommands = [
   '2fa-not-required',
 ]
 
-class Access {
-  constructor (npm) {
-    this.npm = npm
+class Access extends BaseCommand {
+  static get name () {
+    return 'access'
   }
 
-  get usage () {
-    return usageUtil(
-      'access',
-      'npm access public [<package>]\n' +
-      'npm access restricted [<package>]\n' +
-      'npm access grant <read-only|read-write> <scope:team> [<package>]\n' +
-      'npm access revoke <scope:team> [<package>]\n' +
-      'npm access 2fa-required [<package>]\n' +
-      'npm access 2fa-not-required [<package>]\n' +
-      'npm access ls-packages [<user>|<scope>|<scope:team>]\n' +
-      'npm access ls-collaborators [<package> [<user>]]\n' +
-      'npm access edit [<package>]'
-    )
+  static get usage () {
+    return [
+      'public [<package>]',
+      'restricted [<package>]',
+      'grant <read-only|read-write> <scope:team> [<package>]',
+      'revoke <scope:team> [<package>]',
+      '2fa-required [<package>]',
+      '2fa-not-required [<package>]',
+      'ls-packages [<user>|<scope>|<scope:team>]',
+      'ls-collaborators [<package> [<user>]]',
+      'edit [<package>]',
+    ]
   }
 
   async completion (opts) {
@@ -67,12 +65,7 @@ class Access {
   }
 
   exec (args, cb) {
-    this.access(args)
-      .then(x => cb(null, x))
-      .catch(err => err.code === 'EUSAGE'
-        ? cb(err.message)
-        : cb(err)
-      )
+    this.access(args).then(() => cb()).catch(cb)
   }
 
   async access ([cmd, ...args]) {
@@ -157,7 +150,7 @@ class Access {
     const pkgs = await libaccess.lsPackages(owner, opts)
 
     // TODO - print these out nicely (breaking change)
-    output(JSON.stringify(pkgs, null, 2))
+    this.npm.output(JSON.stringify(pkgs, null, 2))
   }
 
   get ['ls-collaborators'] () {
@@ -169,7 +162,7 @@ class Access {
     const collabs = await libaccess.lsCollaborators(pkgName, usr, opts)
 
     // TODO - print these out nicely (breaking change)
-    output(JSON.stringify(collabs, null, 2))
+    this.npm.output(JSON.stringify(collabs, null, 2))
   }
 
   async edit () {
@@ -202,12 +195,6 @@ class Access {
       else
         return name
     }
-  }
-
-  usageError (msg) {
-    return Object.assign(new Error(`\nUsage: ${msg}\n\n` + this.usage), {
-      code: 'EUSAGE',
-    })
   }
 }
 

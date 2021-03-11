@@ -357,7 +357,7 @@ t.test('loading as main will load the cli', t => {
   p.on('close', (code, signal) => {
     t.equal(code, 0)
     t.equal(signal, null)
-    t.equal(Buffer.concat(out).toString().trim(), ls.usage)
+    t.match(Buffer.concat(out).toString(), ls.usage)
     t.end()
   })
 })

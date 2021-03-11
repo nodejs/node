@@ -55,9 +55,6 @@ const getExplore = (windows) => {
     },
     'read-package-json-fast': mockRPJ,
     '@npmcli/run-script': mockRunScript,
-    '../../lib/utils/output.js': out => {
-      output.push(out)
-    },
   })
   const npm = {
     dir: windows ? 'c:\\npm\\dir' : '/npm/dir',
@@ -68,6 +65,9 @@ const getExplore = (windows) => {
     },
     flatOptions: {
       shell: 'shell-command',
+    },
+    output: out => {
+      output.push(out)
     },
   }
   return new Explore(npm)
@@ -338,7 +338,7 @@ t.test('usage if no pkg provided', t => {
   for (const args of noPkg) {
     t.test(JSON.stringify(args), t => {
       posixExplore.exec(args, er => {
-        t.equal(er, 'npm explore <pkg> [ -- <command>]')
+        t.match(er, 'Usage:')
         t.strictSame({
           ERROR_HANDLER_CALLED: null,
           RPJ_CALLED,

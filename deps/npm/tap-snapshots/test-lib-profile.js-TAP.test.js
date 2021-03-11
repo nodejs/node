@@ -9,7 +9,11 @@ exports[`test/lib/profile.js TAP enable-2fa from token and set otp, retries on p
 Scan into your authenticator app:
 qrcode
  Or enter code:
-12342FA successfully enabled. Below are your recovery codes, please print these out.You will need these to recover access to your account if you lose your authentication device.	123456	789101
+1234
+2FA successfully enabled. Below are your recovery codes, please print these out.
+You will need these to recover access to your account if you lose your authentication device.
+	123456
+	789101
 `
 
 exports[`test/lib/profile.js TAP profile get <key> --parseable > should output parseable result value 1`] = `
@@ -29,7 +33,17 @@ foo	foo@github.com (verified)	https://github.com/npm
 `
 
 exports[`test/lib/profile.js TAP profile get no args --parseable > should output all profile info as parseable result 1`] = `
-tfa	auth-and-writesname	fooemail	foo@github.comemail_verified	truecreated	2015-02-26T01:26:37.384Zupdated	2020-08-12T16:19:35.326Zfullname	Foo Barhomepage	https://github.comfreenode	foobartwitter	https://twitter.com/npmjsgithub	https://github.com/npm
+tfa	auth-and-writes
+name	foo
+email	foo@github.com
+email_verified	true
+created	2015-02-26T01:26:37.384Z
+updated	2020-08-12T16:19:35.326Z
+fullname	Foo Bar
+homepage	https://github.com
+freenode	foobar
+twitter	https://twitter.com/npmjs
+github	https://github.com/npm
 `
 
 exports[`test/lib/profile.js TAP profile get no args default output > should output table with contents 1`] = `

@@ -1,19 +1,12 @@
 // npm install-ci-test
 // Runs `npm ci` and then runs `npm test`
 
-const usageUtil = require('./utils/usage.js')
+const CI = require('./ci.js')
 
-class InstallCITest {
-  constructor (npm) {
-    this.npm = npm
-  }
-
-  get usage () {
-    return usageUtil(
-      'install-ci-test',
-      'npm install-ci-test [args]' +
-      '\nSame args as `npm ci`'
-    )
+class InstallCITest extends CI {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'install-ci-test'
   }
 
   exec (args, cb) {

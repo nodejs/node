@@ -68,17 +68,8 @@ const packument = spec => {
 }
 
 let logs
-const cleanLogs = (done) => {
-  logs = ''
-  const fn = (...args) => {
-    logs += '\n'
-    args.map(el => {
-      logs += el
-      return logs
-    })
-  }
-  console.log = fn
-  done()
+const output = (msg) => {
+  logs = `${logs}\n${msg}`
 }
 
 const globalDir = t.testdir({
@@ -102,10 +93,14 @@ const outdated = (dir, opts) => {
     prefix: dir,
     globalDir: `${globalDir}/node_modules`,
     flatOptions: opts,
+    output,
   })
 }
 
-t.beforeEach(cleanLogs)
+t.beforeEach((done) => {
+  logs = ''
+  done()
+})
 
 const redactCwd = (path) => {
   const normalizePath = p => p

@@ -134,9 +134,6 @@ t.test('if loglevel=info and json, should not output package contents', (t) => {
 
   log.level = 'info'
   const Publish = requireInject('../../lib/publish.js', {
-    '../../lib/utils/output.js': () => {
-      t.pass('output is called')
-    },
     '../../lib/utils/tar.js': {
       getContents: () => ({
         id: 'someid',
@@ -162,6 +159,9 @@ t.test('if loglevel=info and json, should not output package contents', (t) => {
         return { token: 'some.registry.token' }
       },
     },
+    output: () => {
+      t.pass('output is called')
+    },
   })
 
   publish.exec([testDir], (er) => {
@@ -184,9 +184,6 @@ t.test('if loglevel=silent and dry-run, should not output package contents or pu
 
   log.level = 'silent'
   const Publish = requireInject('../../lib/publish.js', {
-    '../../lib/utils/output.js': () => {
-      throw new Error('should not output in dry run mode')
-    },
     '../../lib/utils/tar.js': {
       getContents: () => ({
         id: 'someid',
@@ -210,6 +207,9 @@ t.test('if loglevel=silent and dry-run, should not output package contents or pu
       getCredentialsByURI: () => {
         throw new Error('should not call getCredentialsByURI in dry run')
       },
+    },
+    output: () => {
+      throw new Error('should not output in dry run mode')
     },
   })
 
@@ -241,9 +241,6 @@ t.test('if loglevel=info and dry-run, should not publish, should log package con
         t.pass('logTar is called')
       },
     },
-    '../../lib/utils/output.js': () => {
-      t.pass('output fn is called')
-    },
     libnpmpublish: {
       publish: () => {
         throw new Error('should not call libnpmpublish in dry run')
@@ -258,7 +255,11 @@ t.test('if loglevel=info and dry-run, should not publish, should log package con
       ...config,
       getCredentialsByURI: () => {
         throw new Error('should not call getCredentialsByURI in dry run')
-      }},
+      },
+    },
+    output: () => {
+      t.pass('output fn is called')
+    },
   })
 
   publish.exec([testDir], (er) => {

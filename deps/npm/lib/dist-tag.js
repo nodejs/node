@@ -3,23 +3,23 @@ const npa = require('npm-package-arg')
 const regFetch = require('npm-registry-fetch')
 const semver = require('semver')
 
-const output = require('./utils/output.js')
 const otplease = require('./utils/otplease.js')
 const readLocalPkgName = require('./utils/read-local-package.js')
-const usageUtil = require('./utils/usage.js')
+const BaseCommand = require('./base-command.js')
 
-class DistTag {
-  constructor (npm) {
-    this.npm = npm
+class DistTag extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'dist-tag'
   }
 
-  get usage () {
-    return usageUtil(
-      'dist-tag',
-      'npm dist-tag add <pkg>@<version> [<tag>]' +
-      '\nnpm dist-tag rm <pkg> <tag>' +
-      '\nnpm dist-tag ls [<pkg>]'
-    )
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return [
+      'add <pkg>@<version> [<tag>]',
+      'rm <pkg> <tag>',
+      'ls [<pkg>]',
+    ]
   }
 
   async completion (opts) {
@@ -91,7 +91,7 @@ class DistTag {
       spec,
     }
     await otplease(reqOpts, reqOpts => regFetch(url, reqOpts))
-    output(`+${t}: ${spec.name}@${version}`)
+    this.npm.output(`+${t}: ${spec.name}@${version}`)
   }
 
   async remove (spec, tag, opts) {
@@ -116,7 +116,7 @@ class DistTag {
       spec,
     }
     await otplease(reqOpts, reqOpts => regFetch(url, reqOpts))
-    output(`-${tag}: ${spec.name}@${version}`)
+    this.npm.output(`-${tag}: ${spec.name}@${version}`)
   }
 
   async list (spec, opts) {
@@ -133,7 +133,7 @@ class DistTag {
       const tags = await this.fetchTags(spec, opts)
       const msg =
         Object.keys(tags).map(k => `${k}: ${tags[k]}`).sort().join('\n')
-      output(msg)
+      this.npm.output(msg)
       return tags
     } catch (err) {
       log.error('dist-tag ls', "Couldn't get dist-tag data for", spec)

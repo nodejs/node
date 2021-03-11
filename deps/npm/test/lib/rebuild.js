@@ -1,7 +1,6 @@
 const fs = require('fs')
 const { resolve } = require('path')
 const t = require('tap')
-const requireInject = require('require-inject')
 
 let result = ''
 
@@ -11,15 +10,11 @@ const npm = {
     global: false,
   },
   prefix: '',
-}
-const mocks = {
-  '../../lib/utils/output.js': (...msg) => {
+  output: (...msg) => {
     result += msg.join('\n')
   },
-  '../../lib/utils/usage.js': () => 'usage instructions',
 }
-
-const Rebuild = requireInject('../../lib/rebuild.js', mocks)
+const Rebuild = require('../../lib/rebuild.js')
 const rebuild = new Rebuild(npm)
 
 t.afterEach(cb => {

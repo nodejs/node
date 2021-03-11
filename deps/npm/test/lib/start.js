@@ -10,7 +10,6 @@ const npm = {
 }
 const Start = require('../../lib/start.js')
 const start = new Start(npm)
-t.equal(start.usage, 'npm start [-- <args>]')
 start.exec(['foo'], () => {
   t.match(runArgs, ['start', 'foo'])
   t.end()

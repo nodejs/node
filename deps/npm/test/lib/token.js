@@ -7,9 +7,11 @@ const mocks = {
   log: {},
   readUserInfo: {},
 }
+const npm = {
+  output: (...args) => mocks.output(...args),
+}
 
 const Token = requireInject('../../lib/token.js', {
-  '../../lib/utils/output.js': (...args) => mocks.output(...args),
   '../../lib/utils/otplease.js': (opts, fn) => {
     return Promise.resolve().then(() => fn(opts))
   },
@@ -17,11 +19,14 @@ const Token = requireInject('../../lib/token.js', {
   'npm-profile': mocks.profile,
   npmlog: mocks.log,
 })
-const token = new Token({})
+
+const token = new Token(npm)
 
 const tokenWithMocks = (mockRequests) => {
   for (const mod in mockRequests) {
-    if (mod !== 'npm') {
+    if (mod === 'npm')
+      mockRequests.npm = { ...npm, ...mockRequests.npm }
+    else {
       if (typeof mockRequests[mod] === 'function')
         mocks[mod] = mockRequests[mod]
       else {
@@ -44,7 +49,7 @@ const tokenWithMocks = (mockRequests) => {
     }
   }
 
-  const token = new Token(mockRequests.npm || {})
+  const token = new Token(mockRequests.npm || npm)
   return [token, reset]
 }
 

@@ -58,9 +58,6 @@ const DistTag = requireInject('../../lib/dist-tag.js', {
   get 'npm-registry-fetch' () {
     return npmRegistryFetchMock
   },
-  '../../lib/utils/output.js': msg => {
-    result = msg
-  },
 })
 
 const distTag = new DistTag({
@@ -69,6 +66,9 @@ const distTag = new DistTag({
     get (key) {
       return _flatOptions[key]
     },
+  },
+  output: msg => {
+    result = msg
   },
 })
 

@@ -41,6 +41,7 @@ const readFile = promisify(fs.readFile)
 const writeFile = promisify(fs.writeFile)
 const stat = promisify(fs.stat)
 const readdir_ = promisify(fs.readdir)
+const readlink = promisify(fs.readlink)
 
 // XXX remove when drop support for node v10
 const lstat = promisify(fs.lstat)
@@ -176,10 +177,19 @@ const assertNoNewer = async (path, data, lockTime, dir = path, seen = null) => {
     : readdir(parent, { withFileTypes: true })
 
   return children.catch(() => [])
-    .then(ents => Promise.all(
-      ents.filter(ent => ent.isDirectory() && !/^\./.test(ent.name))
-        .map(ent => assertNoNewer(path, data, lockTime, resolve(parent, ent.name), seen))
-    )).then(() => {
+    .then(ents => Promise.all(ents.map(async ent => {
+      const child = resolve(parent, ent.name)
+      if (ent.isDirectory() && !/^\./.test(ent.name))
+        await assertNoNewer(path, data, lockTime, child, seen)
+      else if (ent.isSymbolicLink()) {
+        const target = resolve(parent, await readlink(child))
+        const tstat = await stat(target).catch(() => null)
+        seen.add(relpath(path, child))
+        if (tstat && tstat.isDirectory() && !seen.has(relpath(path, target)))
+          await assertNoNewer(path, data, lockTime, target, seen)
+      }
+    })))
+    .then(() => {
       if (dir !== path)
         return
 

@@ -168,6 +168,18 @@ resolved, and other properties, as they are determined.
   times (even just to validate the cache) for a given packument, since it
   is unlikely to change in the span of a single command.
 
+
+### Advanced API
+
+Each different type of fetcher is exposed for more advanced usage such as
+using helper methods from this classes:
+
+* `DirFetcher`
+* `FileFetcher`
+* `GitFetcher`
+* `RegistryFetcher`
+* `RemoteFetcher`
+
 ## Extracted File Modes
 
 Files are extracted with a mode matching the following formula:

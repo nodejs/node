@@ -23,12 +23,12 @@ const npm = {
   get prefix () {
     return this.flatOptions.prefix
   },
+  output: noop,
 }
 const mocks = {
   npmlog: { info: noop, verbose: noop },
   libnpmdiff: (...args) => libnpmdiff(...args),
   'npm-registry-fetch': async () => ({}),
-  '../../lib/utils/output.js': noop,
   '../../lib/utils/read-local-package.js': async () => rlp(),
   '../../lib/utils/usage.js': () => 'usage instructions',
 }

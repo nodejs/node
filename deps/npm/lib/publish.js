@@ -9,9 +9,7 @@ const npa = require('npm-package-arg')
 const npmFetch = require('npm-registry-fetch')
 
 const { flatten } = require('./utils/flat-options.js')
-const output = require('./utils/output.js')
 const otplease = require('./utils/otplease.js')
-const usageUtil = require('./utils/usage.js')
 const { getContents, logTar } = require('./utils/tar.js')
 
 // this is the only case in the CLI where we use the old full slow
@@ -19,16 +17,18 @@ const { getContents, logTar } = require('./utils/tar.js')
 // defaults and metadata, like git sha's and default scripts and all that.
 const readJson = util.promisify(require('read-package-json'))
 
-class Publish {
-  constructor (npm) {
-    this.npm = npm
+const BaseCommand = require('./base-command.js')
+class Publish extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'publish'
   }
 
-  get usage () {
-    return usageUtil('publish',
-      'npm publish [<folder>] [--tag <tag>] [--access <public|restricted>] [--dry-run]' +
-      '\n\nPublishes \'.\' if no argument supplied' +
-      '\nSets tag `latest` if no --tag specified')
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return [
+      '[<folder>] [--tag <tag>] [--access <public|restricted>] [--dry-run]',
+    ]
   }
 
   exec (args, cb) {
@@ -115,9 +115,9 @@ class Publish {
 
     const silent = log.level === 'silent'
     if (!silent && json)
-      output(JSON.stringify(pkgContents, null, 2))
+      this.npm.output(JSON.stringify(pkgContents, null, 2))
     else if (!silent)
-      output(`+ ${pkgContents.id}`)
+      this.npm.output(`+ ${pkgContents.id}`)
 
     return pkgContents
   }

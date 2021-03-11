@@ -1,16 +1,16 @@
 const log = require('npmlog')
-const output = require('./utils/output.js')
-const usageUtil = require('./utils/usage.js')
 const pingUtil = require('./utils/ping.js')
+const BaseCommand = require('./base-command.js')
 
-class Ping {
-  constructor (npm) {
-    this.npm = npm
+class Ping extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'ping'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil('ping', 'npm ping\nping registry')
+  static get description () {
+    return 'ping registry'
   }
 
   exec (args, cb) {
@@ -24,7 +24,7 @@ class Ping {
     const time = Date.now() - start
     log.notice('PONG', `${time / 1000}ms`)
     if (this.npm.flatOptions.json) {
-      output(JSON.stringify({
+      this.npm.output(JSON.stringify({
         registry: this.npm.flatOptions.registry,
         time,
         details,

@@ -7,9 +7,7 @@ const Arborist = require('@npmcli/arborist')
 const { breadth } = require('treeverse')
 const npa = require('npm-package-arg')
 
-const usageUtil = require('./utils/usage.js')
 const completion = require('./utils/completion/installed-deep.js')
-const output = require('./utils/output.js')
 
 const _depth = Symbol('depth')
 const _dedupe = Symbol('dedupe')
@@ -22,18 +20,17 @@ const _parent = Symbol('parent')
 const _problems = Symbol('problems')
 const _required = Symbol('required')
 const _type = Symbol('type')
+const BaseCommand = require('./base-command.js')
 
-class LS {
-  constructor (npm) {
-    this.npm = npm
+class LS extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'ls'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil(
-      'ls',
-      'npm ls [[<@scope>/]<pkg> ...]'
-    )
+  static get usage () {
+    return ['npm ls [[<@scope>/]<pkg> ...]']
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
@@ -147,7 +144,7 @@ class LS {
     const [rootError] = tree.errors.filter(e =>
       e.code === 'EJSONPARSE' && e.path === resolve(path, 'package.json'))
 
-    output(
+    this.npm.output(
       json
         ? jsonOutput({ path, problems, result, rootError, seenItems })
         : parseable

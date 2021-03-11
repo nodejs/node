@@ -1,7 +1,6 @@
 const log = require('npmlog')
-const output = require('./utils/output.js')
-const usageUtil = require('./utils/usage.js')
 const replaceInfo = require('./utils/replace-info.js')
+const BaseCommand = require('./base-command.js')
 const authTypes = {
   legacy: require('./auth/legacy.js'),
   oauth: require('./auth/oauth.js'),
@@ -9,17 +8,13 @@ const authTypes = {
   sso: require('./auth/sso.js'),
 }
 
-class AddUser {
-  constructor (npm) {
-    this.npm = npm
+class AddUser extends BaseCommand {
+  static get name () {
+    return 'adduser'
   }
 
-  /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil(
-      'adduser',
-      'npm adduser [--registry=url] [--scope=@orgname] [--always-auth]'
-    )
+  static get usage () {
+    return ['[--registry=url] [--scope=@orgname] [--always-auth]']
   }
 
   exec (args, cb) {
@@ -49,7 +44,7 @@ class AddUser {
       scope,
     })
 
-    output(message)
+    this.npm.output(message)
   }
 
   getRegistry ({ scope, registry }) {

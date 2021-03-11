@@ -1,8 +1,6 @@
-const { resolve } = require('path')
-
 const t = require('tap')
-const requireInject = require('require-inject')
 
+const { resolve } = require('path')
 const { utimesSync } = require('fs')
 const touchHiddenPackageLock = prefix => {
   const later = new Date(Date.now() + 10000)
@@ -106,11 +104,7 @@ const _flatOptions = {
   },
   production: false,
 }
-const LS = requireInject('../../lib/ls.js', {
-  '../../lib/utils/output.js': msg => {
-    result = msg
-  },
-})
+const LS = require('../../lib/ls.js')
 const ls = new LS({
   flatOptions: _flatOptions,
   limit: {
@@ -126,6 +120,9 @@ const ls = new LS({
     get (key) {
       return _flatOptions[key]
     },
+  },
+  output: msg => {
+    result = msg
   },
 })
 

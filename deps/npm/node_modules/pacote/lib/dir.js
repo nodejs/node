@@ -4,11 +4,10 @@ const cacache = require('cacache')
 const Minipass = require('minipass')
 const { promisify } = require('util')
 const readPackageJson = require('read-package-json-fast')
-const isPackageBin = require('./util/is-package-bin.js')
+const tarCreateOptions = require('./util/tar-create-options.js')
 const packlist = require('npm-packlist')
 const tar = require('tar')
 const _prepareDir = Symbol('_prepareDir')
-const _tarcOpts = Symbol('_tarcOpts')
 const { resolve } = require('path')
 
 const runScript = require('@npmcli/run-script')
@@ -19,6 +18,11 @@ class DirFetcher extends Fetcher {
     super(spec, opts)
     // just the fully resolved filename
     this.resolved = this.spec.fetchSpec
+  }
+
+  // exposes tarCreateOptions as public API
+  static tarCreateOptions (manifest) {
+    return tarCreateOptions(manifest)
   }
 
   get types () {
@@ -65,33 +69,10 @@ class DirFetcher extends Fetcher {
     // pipe to the stream, and proxy errors the chain.
     this[_prepareDir]()
       .then(() => packlist({ path: this.resolved }))
-      .then(files => tar.c(this[_tarcOpts](), files)
+      .then(files => tar.c(tarCreateOptions(this.package), files)
         .on('error', er => stream.emit('error', er)).pipe(stream))
       .catch(er => stream.emit('error', er))
     return stream
-  }
-
-  [_tarcOpts] () {
-    return {
-      cwd: this.resolved,
-      prefix: 'package/',
-      portable: true,
-      gzip: true,
-
-      // ensure that package bins are always executable
-      // Note that npm-packlist is already filtering out
-      // anything that is not a regular file, ignored by
-      // .npmignore or package.json "files", etc.
-      filter: (path, stat) => {
-        if (isPackageBin(this.package, path))
-          stat.mode |= 0o111
-        return true
-      },
-
-      // Provide a specific date in the 1980s for the benefit of zip,
-      // which is confounded by files dated at the Unix epoch 0.
-      mtime: new Date('1985-10-26T08:15:00.000Z'),
-    }
   }
 
   manifest () {

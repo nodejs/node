@@ -1,23 +1,21 @@
 const Arborist = require('@npmcli/arborist')
 const auditReport = require('npm-audit-report')
-const output = require('./utils/output.js')
 const reifyFinish = require('./utils/reify-finish.js')
 const auditError = require('./utils/audit-error.js')
-const usageUtil = require('./utils/usage.js')
+const BaseCommand = require('./base-command.js')
 
-class Audit {
-  constructor (npm) {
-    this.npm = npm
+class Audit extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'audit'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil(
-      'audit',
-      'npm audit [--json] [--production]' +
-      '\nnpm audit fix ' +
-      '[--force|--package-lock-only|--dry-run|--production|--only=(dev|prod)]'
-    )
+  static get usage () {
+    return [
+      '[--json] [--production]',
+      'fix [--force|--package-lock-only|--dry-run|--production|--only=(dev|prod)]',
+    ]
   }
 
   async completion (opts) {
@@ -57,7 +55,7 @@ class Audit {
         reporter,
       })
       process.exitCode = process.exitCode || result.exitCode
-      output(result.report)
+      this.npm.output(result.report)
     }
   }
 }

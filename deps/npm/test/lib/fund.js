@@ -202,9 +202,6 @@ const openUrl = async (npm, url, msg) => {
 }
 const Fund = requireInject('../../lib/fund.js', {
   '../../lib/utils/open-url.js': openUrl,
-  '../../lib/utils/output.js': msg => {
-    result += msg + '\n'
-  },
   pacote: {
     manifest: (arg) => arg.name === 'ntl'
       ? Promise.resolve({
@@ -217,6 +214,9 @@ const fund = new Fund({
   flatOptions: _flatOptions,
   get prefix () {
     return _flatOptions.prefix
+  },
+  output: msg => {
+    result += msg + '\n'
   },
 })
 

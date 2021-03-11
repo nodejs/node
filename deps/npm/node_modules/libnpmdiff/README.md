@@ -86,7 +86,7 @@ Fetches the registry tarballs and compare files between a spec `a` and spec `b`.
 - `diffSrcPrefix <String>`: Prefix to be used in the filenames from `a`. Defaults to `a/`.
 - `diffDstPrefix <String>`: Prefix to be used in the filenames from `b`. Defaults to `b/`.
 - `diffText <Boolean>`: Should treat all files as text and try to print diff for binary files. Defaults to `false`.
-- ...`cache`, `registry` and other common options accepted by [pacote](https://github.com/npm/pacote#options)
+- ...`cache`, `registry`, `where` and other common options accepted by [pacote](https://github.com/npm/pacote#options)
 
 Returns a `Promise` that fullfils with a `String` containing the resulting patch diffs.
 

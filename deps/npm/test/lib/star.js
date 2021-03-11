@@ -4,15 +4,18 @@ const t = require('tap')
 let result = ''
 
 const noop = () => null
-const npm = { config: { get () {} }, flatOptions: { unicode: false } }
+const npm = {
+  config: { get () {} },
+  flatOptions: { unicode: false },
+  output: (...msg) => {
+    result += msg.join('\n')
+  },
+}
 const npmFetch = { json: noop }
 const npmlog = { error: noop, info: noop, verbose: noop }
 const mocks = {
   npmlog,
   'npm-registry-fetch': npmFetch,
-  '../../lib/utils/output.js': (...msg) => {
-    result += msg.join('\n')
-  },
   '../../lib/utils/get-identity.js': async () => 'foo',
   '../../lib/utils/usage.js': () => 'usage instructions',
 }
