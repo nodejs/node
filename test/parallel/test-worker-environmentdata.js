@@ -3,7 +3,6 @@
 require('../common');
 const {
   Worker,
-  isMainThread,
   getEnvironmentData,
   setEnvironmentData,
   threadId,
@@ -14,7 +13,8 @@ const {
   strictEqual,
 } = require('assert');
 
-if (isMainThread) {
+if (!process.env.HAS_STARTED_WORKER) {
+  process.env.HAS_STARTED_WORKER = 1;
   setEnvironmentData('foo', 'bar');
   setEnvironmentData('hello', { value: 'world' });
   setEnvironmentData(1, 2);
@@ -28,6 +28,6 @@ if (isMainThread) {
   strictEqual(getEnvironmentData(1), undefined);
 
   // Recurse to make sure the environment data is inherited
-  if (threadId === 1)
+  if (threadId <= 2)
     new Worker(__filename);
 }
