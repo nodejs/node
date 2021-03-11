@@ -14,6 +14,9 @@ server.listen(0, common.mustCall(function() {
   server.once('request', common.mustCall(function(request, response) {
     assert.strictEqual(response.req, request);
 
+    // Verify that writing to response.req is allowed.
+    response.req = null;
+
     response.on('finish', common.mustCall(function() {
       process.nextTick(() => {
         server.close();
