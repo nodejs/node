@@ -240,3 +240,48 @@ const { getEventListeners } = require('events');
     req.on('close', common.mustCall(() => server.close()));
   }));
 }
+
+
+// Destroy ClientHttpSession with AbortSignal
+{
+  function testH2ConnectAbort(secure) {
+    const server = secure ? h2.createSecureServer() : h2.createServer();
+    const controller = new AbortController();
+
+    server.on('stream', common.mustNotCall());
+    server.listen(0, common.mustCall(() => {
+      const { signal } = controller;
+      const protocol = secure ? 'https' : 'http';
+      const client = h2.connect(`${protocol}://localhost:${server.address().port}`, {
+        signal,
+      });
+      client.on('close', common.mustCall());
+      assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
+
+      client.on('error', common.mustCall(common.mustCall((err) => {
+        assert.strictEqual(err.code, 'ABORT_ERR');
+        assert.strictEqual(err.name, 'AbortError');
+      })));
+
+      const req = client.request({}, {});
+      assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
+
+      req.on('error', common.mustCall((err) => {
+        assert.strictEqual(err.code, 'ERR_HTTP2_STREAM_CANCEL');
+        assert.strictEqual(err.name, 'Error');
+        assert.strictEqual(req.aborted, false);
+        assert.strictEqual(req.destroyed, true);
+      }));
+      req.on('close', common.mustCall(() => server.close()));
+
+      assert.strictEqual(req.aborted, false);
+      assert.strictEqual(req.destroyed, false);
+      // Signal listener attached
+      assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
+
+      controller.abort();
+    }));
+  }
+  testH2ConnectAbort(false);
+  testH2ConnectAbort(true);
+}
