@@ -328,15 +328,15 @@ function getCacheDir() {
   return cacheDir;
 }
 
-function getParentName() {
-  // `module.parent.filename` is undefined or null when:
+function getMainName() {
+  // `require.main.filename` is undefined or null when:
   //    * node -e 'require("v8-compile-cache")'
   //    * node -r 'v8-compile-cache'
   //    * Or, requiring from the REPL.
-  const parentName = module.parent && typeof module.parent.filename === 'string'
-    ? module.parent.filename
+  const mainName = require.main && typeof require.main.filename === 'string'
+    ? require.main.filename
     : process.cwd();
-  return parentName;
+  return mainName;
 }
 
 //------------------------------------------------------------------------------
@@ -345,7 +345,7 @@ function getParentName() {
 
 if (!process.env.DISABLE_V8_COMPILE_CACHE && supportsCachedData()) {
   const cacheDir = getCacheDir();
-  const prefix = getParentName();
+  const prefix = getMainName();
   const blobStore = new FileSystemBlobStore(cacheDir, prefix);
 
   const nativeCompileCache = new NativeCompileCache();
@@ -367,5 +367,5 @@ module.exports.__TEST__ = {
   slashEscape,
   supportsCachedData,
   getCacheDir,
-  getParentName,
+  getMainName,
 };

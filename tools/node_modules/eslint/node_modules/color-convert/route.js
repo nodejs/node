@@ -1,7 +1,7 @@
-const conversions = require('./conversions');
+var conversions = require('./conversions');
 
 /*
-	This function routes a model to all other models.
+	this function routes a model to all other models.
 
 	all functions that are routed have a property `.conversion` attached
 	to the returned synthetic function. This property is an array
@@ -12,11 +12,11 @@ const conversions = require('./conversions');
 */
 
 function buildGraph() {
-	const graph = {};
+	var graph = {};
 	// https://jsperf.com/object-keys-vs-for-in-with-closure/3
-	const models = Object.keys(conversions);
+	var models = Object.keys(conversions);
 
-	for (let len = models.length, i = 0; i < len; i++) {
+	for (var len = models.length, i = 0; i < len; i++) {
 		graph[models[i]] = {
 			// http://jsperf.com/1-vs-infinity
 			// micro-opt, but this is simple.
@@ -30,18 +30,18 @@ function buildGraph() {
 
 // https://en.wikipedia.org/wiki/Breadth-first_search
 function deriveBFS(fromModel) {
-	const graph = buildGraph();
-	const queue = [fromModel]; // Unshift -> queue -> pop
+	var graph = buildGraph();
+	var queue = [fromModel]; // unshift -> queue -> pop
 
 	graph[fromModel].distance = 0;
 
 	while (queue.length) {
-		const current = queue.pop();
-		const adjacents = Object.keys(conversions[current]);
+		var current = queue.pop();
+		var adjacents = Object.keys(conversions[current]);
 
-		for (let len = adjacents.length, i = 0; i < len; i++) {
-			const adjacent = adjacents[i];
-			const node = graph[adjacent];
+		for (var len = adjacents.length, i = 0; i < len; i++) {
+			var adjacent = adjacents[i];
+			var node = graph[adjacent];
 
 			if (node.distance === -1) {
 				node.distance = graph[current].distance + 1;
@@ -61,10 +61,10 @@ function link(from, to) {
 }
 
 function wrapConversion(toModel, graph) {
-	const path = [graph[toModel].parent, toModel];
-	let fn = conversions[graph[toModel].parent][toModel];
+	var path = [graph[toModel].parent, toModel];
+	var fn = conversions[graph[toModel].parent][toModel];
 
-	let cur = graph[toModel].parent;
+	var cur = graph[toModel].parent;
 	while (graph[cur].parent) {
 		path.unshift(graph[cur].parent);
 		fn = link(conversions[graph[cur].parent][cur], fn);
@@ -76,16 +76,16 @@ function wrapConversion(toModel, graph) {
 }
 
 module.exports = function (fromModel) {
-	const graph = deriveBFS(fromModel);
-	const conversion = {};
+	var graph = deriveBFS(fromModel);
+	var conversion = {};
 
-	const models = Object.keys(graph);
-	for (let len = models.length, i = 0; i < len; i++) {
-		const toModel = models[i];
-		const node = graph[toModel];
+	var models = Object.keys(graph);
+	for (var len = models.length, i = 0; i < len; i++) {
+		var toModel = models[i];
+		var node = graph[toModel];
 
 		if (node.parent === null) {
-			// No possible conversion, or this node is the source model.
+			// no possible conversion, or this node is the source model.
 			continue;
 		}
 
