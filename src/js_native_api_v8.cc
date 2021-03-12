@@ -270,6 +270,20 @@ class RefBase : protected Finalizer, RefTracker {
 
  protected:
   inline void Finalize(bool is_env_teardown = false) override {
+    // In addition to being called during environment teardown, this method is
+    // also the entry point for the garbage collector. During environment
+    // teardown we have to remove the garbage collector's reference to this
+    // method so that, if, as part of the user's callback, JS gets executed,
+    // resulting in a garbage collection pass, this method is not re-entered as
+    // part of that pass, because that'll cause a double free (as seen in
+    // https://github.com/nodejs/node/issues/37236).
+    //
+    // Since this class does not have access to the V8 persistent reference,
+    // this method is overridden in the `Reference` class below. Therein the
+    // weak callback is removed, ensuring that the garbage collector does not
+    // re-enter this method, and the method chains up to continue the process of
+    // environment-teardown-induced finalization.
+
     // During environment teardown we have to convert a strong reference to
     // a weak reference to force the deferring behavior if the user's finalizer
     // happens to delete this reference so that the code in this function that
