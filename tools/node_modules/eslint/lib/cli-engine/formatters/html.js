@@ -72,7 +72,7 @@ function renderMessages(messages, parentIndex, rulesMeta) {
      * @param {Object} message Message.
      * @returns {string} HTML (table row) describing a message.
      */
-    return lodash.map(messages, message => {
+    return messages.map(message => {
         const lineNumber = message.line || 0;
         const columnNumber = message.column || 0;
         let ruleUrl;
@@ -103,7 +103,7 @@ function renderMessages(messages, parentIndex, rulesMeta) {
  * @returns {string} HTML string describing the results.
  */
 function renderResults(results, rulesMeta) {
-    return lodash.map(results, (result, index) => resultTemplate({
+    return results.map((result, index) => resultTemplate({
         index,
         color: renderColor(result.errorCount, result.warningCount),
         filePath: result.filePath,
