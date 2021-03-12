@@ -649,9 +649,15 @@ static int uv__fsevents_loop_init(uv_loop_t* loop) {
   if (pthread_attr_init(attr))
     attr = NULL;
 
+  /**
+   * macOS 10.15 FSEvents uses alloca() stack allocations, requiring a larger
+   * stack size. Leave this as the default 512KB size in that case.
+   */
+  #if MAC_OS_X_VERSION_MAX_ALLOWED < 101500
   if (attr != NULL)
     if (pthread_attr_setstacksize(attr, 4 * PTHREAD_STACK_MIN))
       abort();
+  #endif
 
   loop->cf_state = state;
 
