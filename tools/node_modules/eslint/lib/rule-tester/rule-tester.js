@@ -427,12 +427,12 @@ class RuleTester {
             scenarioErrors = [],
             linter = this.linter;
 
-        if (lodash.isNil(test) || typeof test !== "object") {
+        if (!test || typeof test !== "object") {
             throw new TypeError(`Test Scenarios for rule ${ruleName} : Could not find test scenario object`);
         }
 
         requiredScenarios.forEach(scenarioType => {
-            if (lodash.isNil(test[scenarioType])) {
+            if (!test[scenarioType]) {
                 scenarioErrors.push(`Could not find any ${scenarioType} test scenarios`);
             }
         });

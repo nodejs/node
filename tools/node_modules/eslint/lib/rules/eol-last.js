@@ -54,7 +54,7 @@ module.exports = {
                     },
                     LF = "\n",
                     CRLF = `\r${LF}`,
-                    endsWithNewline = lodash.endsWith(src, LF);
+                    endsWithNewline = src.endsWith(LF);
 
                 /*
                  * Empty source is always valid: No content in file so we don't
