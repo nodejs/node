@@ -4208,6 +4208,8 @@ TEST(RunTruncateFloat32ToInt32) {
         CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
 #elif V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
         CHECK_FLOAT_EQ(0, m.Call(i));
+#elif V8_TARGET_ARCH_RISCV64
+        CHECK_FLOAT_EQ(std::numeric_limits<int32_t>::max(), m.Call(i));
 #endif
       }
     }

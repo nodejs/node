@@ -14,64 +14,30 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-namespace {
-
-class OnHeapBytecodeArray final : public AbstractBytecodeArray {
- public:
-  explicit OnHeapBytecodeArray(Handle<BytecodeArray> bytecode_array)
-      : array_(bytecode_array) {}
-
-  int length() const override { return array_->length(); }
-
-  int parameter_count() const override { return array_->parameter_count(); }
-
-  uint8_t get(int index) const override { return array_->get(index); }
-
-  void set(int index, uint8_t value) override {
-    return array_->set(index, value);
-  }
-
-  Address GetFirstBytecodeAddress() const override {
-    return array_->GetFirstBytecodeAddress();
-  }
-
-  Handle<Object> GetConstantAtIndex(int index,
-                                    Isolate* isolate) const override {
-    return handle(array_->constant_pool().get(index), isolate);
-  }
-
-  bool IsConstantAtIndexSmi(int index) const override {
-    return array_->constant_pool().get(index).IsSmi();
-  }
-
-  Smi GetConstantAtIndexAsSmi(int index) const override {
-    return Smi::cast(array_->constant_pool().get(index));
-  }
-
- private:
-  Handle<BytecodeArray> array_;
-};
-
-}  // namespace
-
 BytecodeArrayAccessor::BytecodeArrayAccessor(
-    std::unique_ptr<AbstractBytecodeArray> bytecode_array, int initial_offset)
-    : bytecode_array_(std::move(bytecode_array)),
-      bytecode_length_(bytecode_array_->length()),
-      bytecode_offset_(initial_offset),
+    Handle<BytecodeArray> bytecode_array, int initial_offset)
+    : bytecode_array_(bytecode_array),
+      start_(reinterpret_cast<uint8_t*>(
+          bytecode_array_->GetFirstBytecodeAddress())),
+      end_(start_ + bytecode_array_->length()),
+      cursor_(start_ + initial_offset),
       operand_scale_(OperandScale::kSingle),
-      prefix_offset_(0) {
+      prefix_size_(0),
+      local_heap_(LocalHeap::Current()
+                      ? LocalHeap::Current()
+                      : Isolate::Current()->main_thread_local_heap()) {
+  local_heap_->AddGCEpilogueCallback(UpdatePointersCallback, this);
   UpdateOperandScale();
 }
 
-BytecodeArrayAccessor::BytecodeArrayAccessor(
-    Handle<BytecodeArray> bytecode_array, int initial_offset)
-    : BytecodeArrayAccessor(
-          std::make_unique<OnHeapBytecodeArray>(bytecode_array),
-          initial_offset) {}
+BytecodeArrayAccessor::~BytecodeArrayAccessor() {
+  local_heap_->RemoveGCEpilogueCallback(UpdatePointersCallback, this);
+}
 
 void BytecodeArrayAccessor::SetOffset(int offset) {
-  bytecode_offset_ = offset;
+  if (offset < 0) return;
+  cursor_ = reinterpret_cast<uint8_t*>(
+      bytecode_array()->GetFirstBytecodeAddress() + offset);
   UpdateOperandScale();
 }
 
@@ -79,45 +45,16 @@ void BytecodeArrayAccessor::ApplyDebugBreak() {
   // Get the raw bytecode from the bytecode array. This may give us a
   // scaling prefix, which we can patch with the matching debug-break
   // variant.
-  interpreter::Bytecode bytecode =
-      interpreter::Bytecodes::FromByte(bytecode_array()->get(bytecode_offset_));
+  uint8_t* cursor = cursor_ - prefix_size_;
+  interpreter::Bytecode bytecode = interpreter::Bytecodes::FromByte(*cursor);
   if (interpreter::Bytecodes::IsDebugBreak(bytecode)) return;
   interpreter::Bytecode debugbreak =
       interpreter::Bytecodes::GetDebugBreak(bytecode);
-  bytecode_array()->set(bytecode_offset_,
-                        interpreter::Bytecodes::ToByte(debugbreak));
-}
-
-void BytecodeArrayAccessor::UpdateOperandScale() {
-  if (OffsetInBounds()) {
-    uint8_t current_byte = bytecode_array()->get(bytecode_offset_);
-    Bytecode current_bytecode = Bytecodes::FromByte(current_byte);
-    if (Bytecodes::IsPrefixScalingBytecode(current_bytecode)) {
-      operand_scale_ =
-          Bytecodes::PrefixBytecodeToOperandScale(current_bytecode);
-      prefix_offset_ = 1;
-    } else {
-      operand_scale_ = OperandScale::kSingle;
-      prefix_offset_ = 0;
-    }
-  }
-}
-
-bool BytecodeArrayAccessor::OffsetInBounds() const {
-  return bytecode_offset_ >= 0 && bytecode_offset_ < bytecode_length_;
-}
-
-Bytecode BytecodeArrayAccessor::current_bytecode() const {
-  DCHECK(OffsetInBounds());
-  uint8_t current_byte =
-      bytecode_array()->get(bytecode_offset_ + current_prefix_offset());
-  Bytecode current_bytecode = Bytecodes::FromByte(current_byte);
-  DCHECK(!Bytecodes::IsPrefixScalingBytecode(current_bytecode));
-  return current_bytecode;
+  *cursor = interpreter::Bytecodes::ToByte(debugbreak);
 }
 
 int BytecodeArrayAccessor::current_bytecode_size() const {
-  return current_prefix_offset() +
+  return prefix_size_ +
          Bytecodes::Size(current_bytecode(), current_operand_scale());
 }
 
@@ -129,8 +66,7 @@ uint32_t BytecodeArrayAccessor::GetUnsignedOperand(
             Bytecodes::GetOperandType(current_bytecode(), operand_index));
   DCHECK(Bytecodes::IsUnsignedOperandType(operand_type));
   Address operand_start =
-      bytecode_array()->GetFirstBytecodeAddress() + bytecode_offset_ +
-      current_prefix_offset() +
+      reinterpret_cast<Address>(cursor_) +
       Bytecodes::GetOperandOffset(current_bytecode(), operand_index,
                                   current_operand_scale());
   return BytecodeDecoder::DecodeUnsignedOperand(operand_start, operand_type,
@@ -145,8 +81,7 @@ int32_t BytecodeArrayAccessor::GetSignedOperand(
             Bytecodes::GetOperandType(current_bytecode(), operand_index));
   DCHECK(!Bytecodes::IsUnsignedOperandType(operand_type));
   Address operand_start =
-      bytecode_array()->GetFirstBytecodeAddress() + bytecode_offset_ +
-      current_prefix_offset() +
+      reinterpret_cast<Address>(cursor_) +
       Bytecodes::GetOperandOffset(current_bytecode(), operand_index,
                                   current_operand_scale());
   return BytecodeDecoder::DecodeSignedOperand(operand_start, operand_type,
@@ -207,12 +142,25 @@ Register BytecodeArrayAccessor::GetRegisterOperand(int operand_index) const {
   OperandType operand_type =
       Bytecodes::GetOperandType(current_bytecode(), operand_index);
   Address operand_start =
-      bytecode_array()->GetFirstBytecodeAddress() + bytecode_offset_ +
-      current_prefix_offset() +
+      reinterpret_cast<Address>(cursor_) +
       Bytecodes::GetOperandOffset(current_bytecode(), operand_index,
                                   current_operand_scale());
   return BytecodeDecoder::DecodeRegisterOperand(operand_start, operand_type,
                                                 current_operand_scale());
+}
+
+std::pair<Register, Register> BytecodeArrayAccessor::GetRegisterPairOperand(
+    int operand_index) const {
+  Register first = GetRegisterOperand(operand_index);
+  Register second(first.index() + 1);
+  return std::make_pair(first, second);
+}
+
+RegisterList BytecodeArrayAccessor::GetRegisterListOperand(
+    int operand_index) const {
+  Register first = GetRegisterOperand(operand_index);
+  uint32_t count = GetRegisterCountOperand(operand_index + 1);
+  return RegisterList(first.index(), count);
 }
 
 int BytecodeArrayAccessor::GetRegisterOperandRange(int operand_index) const {
@@ -256,23 +204,31 @@ Runtime::FunctionId BytecodeArrayAccessor::GetIntrinsicIdOperand(
       static_cast<IntrinsicsHelper::IntrinsicId>(raw_id));
 }
 
+template <typename LocalIsolate>
 Handle<Object> BytecodeArrayAccessor::GetConstantAtIndex(
-    int index, Isolate* isolate) const {
-  return bytecode_array()->GetConstantAtIndex(index, isolate);
+    int index, LocalIsolate* isolate) const {
+  return handle(bytecode_array()->constant_pool().get(index), isolate);
 }
 
 bool BytecodeArrayAccessor::IsConstantAtIndexSmi(int index) const {
-  return bytecode_array()->IsConstantAtIndexSmi(index);
+  return bytecode_array()->constant_pool().get(index).IsSmi();
 }
 
 Smi BytecodeArrayAccessor::GetConstantAtIndexAsSmi(int index) const {
-  return bytecode_array()->GetConstantAtIndexAsSmi(index);
+  return Smi::cast(bytecode_array()->constant_pool().get(index));
 }
 
+template <typename LocalIsolate>
 Handle<Object> BytecodeArrayAccessor::GetConstantForIndexOperand(
-    int operand_index, Isolate* isolate) const {
+    int operand_index, LocalIsolate* isolate) const {
   return GetConstantAtIndex(GetIndexOperand(operand_index), isolate);
 }
+
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<Object> BytecodeArrayAccessor::GetConstantForIndexOperand(
+        int operand_index, Isolate* isolate) const;
+template Handle<Object> BytecodeArrayAccessor::GetConstantForIndexOperand(
+    int operand_index, LocalIsolate* isolate) const;
 
 int BytecodeArrayAccessor::GetRelativeJumpTargetOffset() const {
   Bytecode bytecode = current_bytecode();
@@ -312,19 +268,25 @@ JumpTableTargetOffsets BytecodeArrayAccessor::GetJumpTableTargetOffsets()
 }
 
 int BytecodeArrayAccessor::GetAbsoluteOffset(int relative_offset) const {
-  return current_offset() + relative_offset + current_prefix_offset();
-}
-
-bool BytecodeArrayAccessor::OffsetWithinBytecode(int offset) const {
-  return current_offset() <= offset &&
-         offset < current_offset() + current_bytecode_size();
+  return current_offset() + relative_offset + prefix_size_;
 }
 
 std::ostream& BytecodeArrayAccessor::PrintTo(std::ostream& os) const {
-  const uint8_t* bytecode_addr = reinterpret_cast<const uint8_t*>(
-      bytecode_array()->GetFirstBytecodeAddress() + bytecode_offset_);
-  return BytecodeDecoder::Decode(os, bytecode_addr,
+  return BytecodeDecoder::Decode(os, cursor_ - prefix_size_,
                                  bytecode_array()->parameter_count());
+}
+
+void BytecodeArrayAccessor::UpdatePointers() {
+  DisallowGarbageCollection no_gc;
+  uint8_t* start =
+      reinterpret_cast<uint8_t*>(bytecode_array_->GetFirstBytecodeAddress());
+  if (start != start_) {
+    start_ = start;
+    uint8_t* end = start + bytecode_array_->length();
+    size_t distance_to_end = end_ - cursor_;
+    cursor_ = end - distance_to_end;
+    end_ = end;
+  }
 }
 
 JumpTableTargetOffsets::JumpTableTargetOffsets(

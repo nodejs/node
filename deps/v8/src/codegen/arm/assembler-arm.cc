@@ -43,6 +43,7 @@
 #include "src/base/overflowing-math.h"
 #include "src/codegen/arm/assembler-arm-inl.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/string-constants.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -247,6 +248,12 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 
   DCHECK_IMPLIES(IsSupported(ARMv7_SUDIV), IsSupported(ARMv7));
   DCHECK_IMPLIES(IsSupported(ARMv8), IsSupported(ARMv7_SUDIV));
+
+  // Set a static value on whether Simd is supported.
+  // This variable is only used for certain archs to query SupportWasmSimd128()
+  // at runtime in builtins using an extern ref. Other callers should use
+  // CpuFeatures::SupportWasmSimd128().
+  CpuFeatures::supports_wasm_simd_128_ = CpuFeatures::SupportsWasmSimd128();
 }
 
 void CpuFeatures::PrintTarget() {
@@ -3994,6 +4001,7 @@ enum UnaryOp {
   VRSQRTE,
   VPADDL_S,
   VPADDL_U,
+  VCEQ0,
   VCLT0,
   VCNT
 };
@@ -4069,6 +4077,10 @@ static Instr EncodeNeonUnaryOp(UnaryOp op, NeonRegType reg_type, NeonSize size,
       break;
     case VPADDL_U:
       op_encoding = 0x5 * B7;
+      break;
+    case VCEQ0:
+      // Only support integers.
+      op_encoding = 0x1 * B16 | 0x2 * B7;
       break;
     case VCLT0:
       // Only support signed integers.
@@ -4803,6 +4815,15 @@ void Assembler::vceq(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
   emit(EncodeNeonBinOp(VCEQ, size, dst, src1, src2));
 }
 
+void Assembler::vceq(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
+                     int value) {
+  DCHECK(IsEnabled(NEON));
+  DCHECK_EQ(0, value);
+  // Qd = vceq(Qn, Qm, #0) Vector Compare Equal to Zero.
+  // Instruction details available in ARM DDI 0406C.d, A8-847.
+  emit(EncodeNeonUnaryOp(VCEQ0, NEON_Q, size, dst.code(), src1.code()));
+}
+
 void Assembler::vcge(QwNeonRegister dst, QwNeonRegister src1,
                      QwNeonRegister src2) {
   DCHECK(IsEnabled(NEON));
@@ -5395,6 +5416,21 @@ Register UseScratchRegisterScope::Acquire() {
   Register reg = Register::from_code(index);
   *available &= ~reg.bit();
   return reg;
+}
+
+LoadStoreLaneParams::LoadStoreLaneParams(MachineRepresentation rep,
+                                         uint8_t laneidx) {
+  if (rep == MachineRepresentation::kWord8) {
+    *this = LoadStoreLaneParams(laneidx, Neon8, 8);
+  } else if (rep == MachineRepresentation::kWord16) {
+    *this = LoadStoreLaneParams(laneidx, Neon16, 4);
+  } else if (rep == MachineRepresentation::kWord32) {
+    *this = LoadStoreLaneParams(laneidx, Neon32, 2);
+  } else if (rep == MachineRepresentation::kWord64) {
+    *this = LoadStoreLaneParams(laneidx, Neon64, 1);
+  } else {
+    UNREACHABLE();
+  }
 }
 
 }  // namespace internal

@@ -82,7 +82,9 @@ class TestEmbedderHeapTracer final : public v8::EmbedderHeapTracer {
   void TracePrologue(EmbedderHeapTracer::TraceFlags) final {
     if (prologue_behavior_ == TracePrologueBehavior::kCallV8WriteBarrier) {
       auto local = array_.Get(isolate());
-      local->Set(local->CreationContext(), 0, v8::Object::New(isolate()))
+      local
+          ->Set(local->GetCreationContext().ToLocalChecked(), 0,
+                v8::Object::New(isolate()))
           .Check();
     }
   }
@@ -128,12 +130,12 @@ TEST(V8RegisteringEmbedderReference) {
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
 
-  void* first_field = reinterpret_cast<void*>(0x2);
-  v8::Local<v8::Object> api_object =
-      ConstructTraceableJSApiObject(context, first_field, nullptr);
+  void* first_and_second_field = reinterpret_cast<void*>(0x2);
+  v8::Local<v8::Object> api_object = ConstructTraceableJSApiObject(
+      context, first_and_second_field, first_and_second_field);
   CHECK(!api_object.IsEmpty());
   CcTest::CollectGarbage(i::OLD_SPACE);
-  CHECK(tracer.IsRegisteredFromV8(first_field));
+  CHECK(tracer.IsRegisteredFromV8(first_and_second_field));
 }
 
 TEST(EmbedderRegisteringV8Reference) {
@@ -182,11 +184,11 @@ TEST(TracingInRevivedSubgraph) {
   v8::Context::Scope context_scope(context);
 
   v8::Global<v8::Object> g;
-  void* first_field = reinterpret_cast<void*>(0x4);
+  void* first_and_second_field = reinterpret_cast<void*>(0x4);
   {
     v8::HandleScope inner_scope(isolate);
-    v8::Local<v8::Object> api_object =
-        ConstructTraceableJSApiObject(context, first_field, nullptr);
+    v8::Local<v8::Object> api_object = ConstructTraceableJSApiObject(
+        context, first_and_second_field, first_and_second_field);
     CHECK(!api_object.IsEmpty());
     v8::Local<v8::Object> o =
         v8::Local<v8::Object>::New(isolate, v8::Object::New(isolate));
@@ -195,7 +197,7 @@ TEST(TracingInRevivedSubgraph) {
     g.SetWeak(&g, ResurrectingFinalizer, v8::WeakCallbackType::kFinalizer);
   }
   CcTest::CollectGarbage(i::OLD_SPACE);
-  CHECK(tracer.IsRegisteredFromV8(first_field));
+  CHECK(tracer.IsRegisteredFromV8(first_and_second_field));
 }
 
 TEST(TracingInEphemerons) {
@@ -211,13 +213,13 @@ TEST(TracingInEphemerons) {
 
   v8::Local<v8::Object> key =
       v8::Local<v8::Object>::New(isolate, v8::Object::New(isolate));
-  void* first_field = reinterpret_cast<void*>(0x8);
+  void* first_and_second_field = reinterpret_cast<void*>(0x8);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   Handle<JSWeakMap> weak_map = i_isolate->factory()->NewJSWeakMap();
   {
     v8::HandleScope inner_scope(isolate);
-    v8::Local<v8::Object> api_object =
-        ConstructTraceableJSApiObject(context, first_field, nullptr);
+    v8::Local<v8::Object> api_object = ConstructTraceableJSApiObject(
+        context, first_and_second_field, first_and_second_field);
     CHECK(!api_object.IsEmpty());
     Handle<JSObject> js_key =
         handle(JSObject::cast(*v8::Utils::OpenHandle(*key)), i_isolate);
@@ -226,7 +228,7 @@ TEST(TracingInEphemerons) {
     JSWeakCollection::Set(weak_map, js_key, js_api_object, hash);
   }
   CcTest::CollectGarbage(i::OLD_SPACE);
-  CHECK(tracer.IsRegisteredFromV8(first_field));
+  CHECK(tracer.IsRegisteredFromV8(first_and_second_field));
 }
 
 TEST(FinalizeTracingIsNoopWhenNotMarking) {

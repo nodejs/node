@@ -48,7 +48,7 @@ class Pipeline : public AllStatic {
   static V8_EXPORT_PRIVATE std::unique_ptr<OptimizedCompilationJob>
   NewCompilationJob(Isolate* isolate, Handle<JSFunction> function,
                     CodeKind code_kind, bool has_script,
-                    BailoutId osr_offset = BailoutId::None(),
+                    BytecodeOffset osr_offset = BytecodeOffset::None(),
                     JavaScriptFrame* osr_frame = nullptr);
 
   // Run the pipeline for the WebAssembly compilation info.

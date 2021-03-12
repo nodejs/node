@@ -135,7 +135,7 @@ class BytecodeGraphTester {
     Handle<Code> code =
         Pipeline::GenerateCodeForTesting(&compilation_info, isolate_)
             .ToHandleChecked();
-    function->set_code(*code);
+    function->set_code(*code, kReleaseStore);
 
     return function;
   }

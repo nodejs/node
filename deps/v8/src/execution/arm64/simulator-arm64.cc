@@ -4,6 +4,8 @@
 
 #include "src/execution/arm64/simulator-arm64.h"
 
+#include "src/execution/isolate.h"
+
 #if defined(USE_SIMULATOR)
 
 #include <stdlib.h>
@@ -378,7 +380,6 @@ Simulator::~Simulator() {
   delete[] reinterpret_cast<byte*>(stack_);
   delete disassembler_decoder_;
   delete print_disasm_;
-  DeleteArray(last_debugger_input_);
   delete decoder_;
 }
 
@@ -3291,6 +3292,17 @@ bool Simulator::PrintValue(const char* desc) {
 }
 
 void Simulator::Debug() {
+  bool done = false;
+  while (!done) {
+    // Disassemble the next instruction to execute before doing anything else.
+    PrintInstructionsAt(pc_, 1);
+    // Read the command line.
+    ArrayUniquePtr<char> line(ReadLine("sim> "));
+    done = ExecDebugCommand(std::move(line));
+  }
+}
+
+bool Simulator::ExecDebugCommand(ArrayUniquePtr<char> line_ptr) {
 #define COMMAND_SIZE 63
 #define ARG_SIZE 255
 
@@ -3307,291 +3319,313 @@ void Simulator::Debug() {
   arg1[ARG_SIZE] = 0;
   arg2[ARG_SIZE] = 0;
 
-  bool done = false;
   bool cleared_log_disasm_bit = false;
 
-  while (!done) {
-    // Disassemble the next instruction to execute before doing anything else.
-    PrintInstructionsAt(pc_, 1);
-    // Read the command line.
-    char* line = ReadLine("sim> ");
-    if (line == nullptr) {
-      break;
-    } else {
-      // Repeat last command by default.
-      char* last_input = last_debugger_input();
-      if (strcmp(line, "\n") == 0 && (last_input != nullptr)) {
-        DeleteArray(line);
-        line = last_input;
-      } else {
-        // Update the latest command ran
-        set_last_debugger_input(line);
-      }
+  if (line_ptr == nullptr) return false;
 
-      // Use sscanf to parse the individual parts of the command line. At the
-      // moment no command expects more than two parameters.
-      int argc = SScanF(line,
-                        "%" XSTR(COMMAND_SIZE) "s "
-                        "%" XSTR(ARG_SIZE) "s "
-                        "%" XSTR(ARG_SIZE) "s",
-                        cmd, arg1, arg2);
-
-      // stepi / si ------------------------------------------------------------
-      if ((strcmp(cmd, "si") == 0) || (strcmp(cmd, "stepi") == 0)) {
-        // We are about to execute instructions, after which by default we
-        // should increment the pc_. If it was set when reaching this debug
-        // instruction, it has not been cleared because this instruction has not
-        // completed yet. So clear it manually.
-        pc_modified_ = false;
-
-        if (argc == 1) {
-          ExecuteInstruction();
-        } else {
-          int64_t number_of_instructions_to_execute = 1;
-          GetValue(arg1, &number_of_instructions_to_execute);
-
-          set_log_parameters(log_parameters() | LOG_DISASM);
-          while (number_of_instructions_to_execute-- > 0) {
-            ExecuteInstruction();
-          }
-          set_log_parameters(log_parameters() & ~LOG_DISASM);
-          PrintF("\n");
-        }
-
-        // If it was necessary, the pc has already been updated or incremented
-        // when executing the instruction. So we do not want it to be updated
-        // again. It will be cleared when exiting.
-        pc_modified_ = true;
-
-        // next / n
-        // --------------------------------------------------------------
-      } else if ((strcmp(cmd, "next") == 0) || (strcmp(cmd, "n") == 0)) {
-        // Tell the simulator to break after the next executed BL.
-        break_on_next_ = true;
-        // Continue.
-        done = true;
-
-        // continue / cont / c
-        // ---------------------------------------------------
-      } else if ((strcmp(cmd, "continue") == 0) || (strcmp(cmd, "cont") == 0) ||
-                 (strcmp(cmd, "c") == 0)) {
-        // Leave the debugger shell.
-        done = true;
-
-        // disassemble / disasm / di
-        // ---------------------------------------------
-      } else if (strcmp(cmd, "disassemble") == 0 ||
-                 strcmp(cmd, "disasm") == 0 || strcmp(cmd, "di") == 0) {
-        int64_t n_of_instrs_to_disasm = 10;                // default value.
-        int64_t address = reinterpret_cast<int64_t>(pc_);  // default value.
-        if (argc >= 2) {  // disasm <n of instrs>
-          GetValue(arg1, &n_of_instrs_to_disasm);
-        }
-        if (argc >= 3) {  // disasm <n of instrs> <address>
-          GetValue(arg2, &address);
-        }
-
-        // Disassemble.
-        PrintInstructionsAt(reinterpret_cast<Instruction*>(address),
-                            n_of_instrs_to_disasm);
-        PrintF("\n");
-
-        // print / p
-        // -------------------------------------------------------------
-      } else if ((strcmp(cmd, "print") == 0) || (strcmp(cmd, "p") == 0)) {
-        if (argc == 2) {
-          if (strcmp(arg1, "all") == 0) {
-            PrintRegisters();
-            PrintVRegisters();
-          } else {
-            if (!PrintValue(arg1)) {
-              PrintF("%s unrecognized\n", arg1);
-            }
-          }
-        } else {
-          PrintF(
-              "print <register>\n"
-              "    Print the content of a register. (alias 'p')\n"
-              "    'print all' will print all registers.\n"
-              "    Use 'printobject' to get more details about the value.\n");
-        }
-
-        // printobject / po
-        // ------------------------------------------------------
-      } else if ((strcmp(cmd, "printobject") == 0) ||
-                 (strcmp(cmd, "po") == 0)) {
-        if (argc == 2) {
-          int64_t value;
-          StdoutStream os;
-          if (GetValue(arg1, &value)) {
-            Object obj(value);
-            os << arg1 << ": \n";
-#ifdef DEBUG
-            obj.Print(os);
-            os << "\n";
-#else
-            os << Brief(obj) << "\n";
-#endif
-          } else {
-            os << arg1 << " unrecognized\n";
-          }
-        } else {
-          PrintF(
-              "printobject <value>\n"
-              "printobject <register>\n"
-              "    Print details about the value. (alias 'po')\n");
-        }
-
-        // stack / mem
-        // ----------------------------------------------------------
-      } else if (strcmp(cmd, "stack") == 0 || strcmp(cmd, "mem") == 0 ||
-                 strcmp(cmd, "dump") == 0) {
-        int64_t* cur = nullptr;
-        int64_t* end = nullptr;
-        int next_arg = 1;
-
-        if (strcmp(cmd, "stack") == 0) {
-          cur = reinterpret_cast<int64_t*>(sp());
-
-        } else {  // "mem"
-          int64_t value;
-          if (!GetValue(arg1, &value)) {
-            PrintF("%s unrecognized\n", arg1);
-            continue;
-          }
-          cur = reinterpret_cast<int64_t*>(value);
-          next_arg++;
-        }
-
-        int64_t words = 0;
-        if (argc == next_arg) {
-          words = 10;
-        } else if (argc == next_arg + 1) {
-          if (!GetValue(argv[next_arg], &words)) {
-            PrintF("%s unrecognized\n", argv[next_arg]);
-            PrintF("Printing 10 double words by default");
-            words = 10;
-          }
-        } else {
-          UNREACHABLE();
-        }
-        end = cur + words;
-
-        bool skip_obj_print = (strcmp(cmd, "dump") == 0);
-        while (cur < end) {
-          PrintF("  0x%016" PRIx64 ":  0x%016" PRIx64 " %10" PRId64,
-                 reinterpret_cast<uint64_t>(cur), *cur, *cur);
-          if (!skip_obj_print) {
-            Object obj(*cur);
-            Heap* current_heap = isolate_->heap();
-            if (obj.IsSmi() ||
-                IsValidHeapObject(current_heap, HeapObject::cast(obj))) {
-              PrintF(" (");
-              if (obj.IsSmi()) {
-                PrintF("smi %" PRId32, Smi::ToInt(obj));
-              } else {
-                obj.ShortPrint();
-              }
-              PrintF(")");
-            }
-          }
-          PrintF("\n");
-          cur++;
-        }
-
-        // trace / t
-        // -------------------------------------------------------------
-      } else if (strcmp(cmd, "trace") == 0 || strcmp(cmd, "t") == 0) {
-        if ((log_parameters() & LOG_ALL) != LOG_ALL) {
-          PrintF("Enabling disassembly, registers and memory write tracing\n");
-          set_log_parameters(log_parameters() | LOG_ALL);
-        } else {
-          PrintF("Disabling disassembly, registers and memory write tracing\n");
-          set_log_parameters(log_parameters() & ~LOG_ALL);
-        }
-
-        // break / b
-        // -------------------------------------------------------------
-      } else if (strcmp(cmd, "break") == 0 || strcmp(cmd, "b") == 0) {
-        if (argc == 2) {
-          int64_t value;
-          if (GetValue(arg1, &value)) {
-            SetBreakpoint(reinterpret_cast<Instruction*>(value));
-          } else {
-            PrintF("%s unrecognized\n", arg1);
-          }
-        } else {
-          ListBreakpoints();
-          PrintF("Use `break <address>` to set or disable a breakpoint\n");
-        }
-
-        // gdb
-        // -------------------------------------------------------------------
-      } else if (strcmp(cmd, "gdb") == 0) {
-        PrintF("Relinquishing control to gdb.\n");
-        base::OS::DebugBreak();
-        PrintF("Regaining control from gdb.\n");
-
-        // sysregs
-        // ---------------------------------------------------------------
-      } else if (strcmp(cmd, "sysregs") == 0) {
-        PrintSystemRegisters();
-
-        // help / h
-        // --------------------------------------------------------------
-      } else if (strcmp(cmd, "help") == 0 || strcmp(cmd, "h") == 0) {
-        PrintF(
-            "stepi / si\n"
-            "    stepi <n>\n"
-            "    Step <n> instructions.\n"
-            "next / n\n"
-            "    Continue execution until a BL instruction is reached.\n"
-            "    At this point a breakpoint is set just after this BL.\n"
-            "    Then execution is resumed. It will probably later hit the\n"
-            "    breakpoint just set.\n"
-            "continue / cont / c\n"
-            "    Continue execution from here.\n"
-            "disassemble / disasm / di\n"
-            "    disassemble <n> <address>\n"
-            "    Disassemble <n> instructions from current <address>.\n"
-            "    By default <n> is 20 and <address> is the current pc.\n"
-            "print / p\n"
-            "    print <register>\n"
-            "    Print the content of a register.\n"
-            "    'print all' will print all registers.\n"
-            "    Use 'printobject' to get more details about the value.\n"
-            "printobject / po\n"
-            "    printobject <value>\n"
-            "    printobject <register>\n"
-            "    Print details about the value.\n"
-            "stack\n"
-            "    stack [<words>]\n"
-            "    Dump stack content, default dump 10 words\n"
-            "mem\n"
-            "    mem <address> [<words>]\n"
-            "    Dump memory content, default dump 10 words\n"
-            "dump\n"
-            "    dump <address> [<words>]\n"
-            "    Dump memory content without pretty printing JS objects, "
-            "default dump 10 words\n"
-            "trace / t\n"
-            "    Toggle disassembly and register tracing\n"
-            "break / b\n"
-            "    break : list all breakpoints\n"
-            "    break <address> : set / enable / disable a breakpoint.\n"
-            "gdb\n"
-            "    Enter gdb.\n"
-            "sysregs\n"
-            "    Print all system registers (including NZCV).\n");
-      } else {
-        PrintF("Unknown command: %s\n", cmd);
-        PrintF("Use 'help' for more information.\n");
-      }
-    }
-    if (cleared_log_disasm_bit == true) {
-      set_log_parameters(log_parameters_ | LOG_DISASM);
-    }
+  // Repeat last command by default.
+  const char* line = line_ptr.get();
+  const char* last_input = last_debugger_input();
+  if (strcmp(line, "\n") == 0 && (last_input != nullptr)) {
+    line_ptr.reset();
+    line = last_input;
+  } else {
+    // Update the latest command ran
+    set_last_debugger_input(std::move(line_ptr));
   }
+
+  // Use sscanf to parse the individual parts of the command line. At the
+  // moment no command expects more than two parameters.
+  int argc = SScanF(line,
+                      "%" XSTR(COMMAND_SIZE) "s "
+                      "%" XSTR(ARG_SIZE) "s "
+                      "%" XSTR(ARG_SIZE) "s",
+                      cmd, arg1, arg2);
+
+  // stepi / si ------------------------------------------------------------
+  if ((strcmp(cmd, "si") == 0) || (strcmp(cmd, "stepi") == 0)) {
+    // We are about to execute instructions, after which by default we
+    // should increment the pc_. If it was set when reaching this debug
+    // instruction, it has not been cleared because this instruction has not
+    // completed yet. So clear it manually.
+    pc_modified_ = false;
+
+    if (argc == 1) {
+      ExecuteInstruction();
+    } else {
+      int64_t number_of_instructions_to_execute = 1;
+      GetValue(arg1, &number_of_instructions_to_execute);
+
+      set_log_parameters(log_parameters() | LOG_DISASM);
+      while (number_of_instructions_to_execute-- > 0) {
+        ExecuteInstruction();
+      }
+      set_log_parameters(log_parameters() & ~LOG_DISASM);
+      PrintF("\n");
+    }
+
+    // If it was necessary, the pc has already been updated or incremented
+    // when executing the instruction. So we do not want it to be updated
+    // again. It will be cleared when exiting.
+    pc_modified_ = true;
+
+    // next / n
+    // --------------------------------------------------------------
+  } else if ((strcmp(cmd, "next") == 0) || (strcmp(cmd, "n") == 0)) {
+    // Tell the simulator to break after the next executed BL.
+    break_on_next_ = true;
+    // Continue.
+    return true;
+
+    // continue / cont / c
+    // ---------------------------------------------------
+  } else if ((strcmp(cmd, "continue") == 0) || (strcmp(cmd, "cont") == 0) ||
+             (strcmp(cmd, "c") == 0)) {
+    // Leave the debugger shell.
+    return true;
+
+    // disassemble / disasm / di
+    // ---------------------------------------------
+  } else if (strcmp(cmd, "disassemble") == 0 || strcmp(cmd, "disasm") == 0 ||
+             strcmp(cmd, "di") == 0) {
+    int64_t n_of_instrs_to_disasm = 10;                // default value.
+    int64_t address = reinterpret_cast<int64_t>(pc_);  // default value.
+    if (argc >= 2) {                                   // disasm <n of instrs>
+      GetValue(arg1, &n_of_instrs_to_disasm);
+    }
+    if (argc >= 3) {  // disasm <n of instrs> <address>
+      GetValue(arg2, &address);
+    }
+
+    // Disassemble.
+    PrintInstructionsAt(reinterpret_cast<Instruction*>(address),
+                        n_of_instrs_to_disasm);
+    PrintF("\n");
+
+    // print / p
+    // -------------------------------------------------------------
+  } else if ((strcmp(cmd, "print") == 0) || (strcmp(cmd, "p") == 0)) {
+    if (argc == 2) {
+      if (strcmp(arg1, "all") == 0) {
+        PrintRegisters();
+        PrintVRegisters();
+      } else {
+        if (!PrintValue(arg1)) {
+          PrintF("%s unrecognized\n", arg1);
+        }
+      }
+    } else {
+      PrintF(
+          "print <register>\n"
+          "    Print the content of a register. (alias 'p')\n"
+          "    'print all' will print all registers.\n"
+          "    Use 'printobject' to get more details about the value.\n");
+    }
+
+    // printobject / po
+    // ------------------------------------------------------
+  } else if ((strcmp(cmd, "printobject") == 0) || (strcmp(cmd, "po") == 0)) {
+    if (argc == 2) {
+      int64_t value;
+      StdoutStream os;
+      if (GetValue(arg1, &value)) {
+        Object obj(value);
+        os << arg1 << ": \n";
+#ifdef DEBUG
+        obj.Print(os);
+        os << "\n";
+#else
+        os << Brief(obj) << "\n";
+#endif
+      } else {
+        os << arg1 << " unrecognized\n";
+      }
+    } else {
+      PrintF(
+          "printobject <value>\n"
+          "printobject <register>\n"
+          "    Print details about the value. (alias 'po')\n");
+    }
+
+    // stack / mem
+    // ----------------------------------------------------------
+  } else if (strcmp(cmd, "stack") == 0 || strcmp(cmd, "mem") == 0 ||
+             strcmp(cmd, "dump") == 0) {
+    int64_t* cur = nullptr;
+    int64_t* end = nullptr;
+    int next_arg = 1;
+
+    if (strcmp(cmd, "stack") == 0) {
+      cur = reinterpret_cast<int64_t*>(sp());
+
+    } else {  // "mem"
+      int64_t value;
+      if (!GetValue(arg1, &value)) {
+        PrintF("%s unrecognized\n", arg1);
+        return false;
+      }
+      cur = reinterpret_cast<int64_t*>(value);
+      next_arg++;
+    }
+
+    int64_t words = 0;
+    if (argc == next_arg) {
+      words = 10;
+    } else if (argc == next_arg + 1) {
+      if (!GetValue(argv[next_arg], &words)) {
+        PrintF("%s unrecognized\n", argv[next_arg]);
+        PrintF("Printing 10 double words by default");
+        words = 10;
+      }
+    } else {
+      UNREACHABLE();
+    }
+    end = cur + words;
+
+    bool skip_obj_print = (strcmp(cmd, "dump") == 0);
+    while (cur < end) {
+      PrintF("  0x%016" PRIx64 ":  0x%016" PRIx64 " %10" PRId64,
+             reinterpret_cast<uint64_t>(cur), *cur, *cur);
+      if (!skip_obj_print) {
+        Object obj(*cur);
+        Heap* current_heap = isolate_->heap();
+        if (obj.IsSmi() ||
+            IsValidHeapObject(current_heap, HeapObject::cast(obj))) {
+          PrintF(" (");
+          if (obj.IsSmi()) {
+            PrintF("smi %" PRId32, Smi::ToInt(obj));
+          } else {
+            obj.ShortPrint();
+          }
+          PrintF(")");
+        }
+      }
+      PrintF("\n");
+      cur++;
+    }
+
+    // trace / t
+    // -------------------------------------------------------------
+  } else if (strcmp(cmd, "trace") == 0 || strcmp(cmd, "t") == 0) {
+    if ((log_parameters() & LOG_ALL) != LOG_ALL) {
+      PrintF("Enabling disassembly, registers and memory write tracing\n");
+      set_log_parameters(log_parameters() | LOG_ALL);
+    } else {
+      PrintF("Disabling disassembly, registers and memory write tracing\n");
+      set_log_parameters(log_parameters() & ~LOG_ALL);
+    }
+
+    // break / b
+    // -------------------------------------------------------------
+  } else if (strcmp(cmd, "break") == 0 || strcmp(cmd, "b") == 0) {
+    if (argc == 2) {
+      int64_t value;
+      if (GetValue(arg1, &value)) {
+        SetBreakpoint(reinterpret_cast<Instruction*>(value));
+      } else {
+        PrintF("%s unrecognized\n", arg1);
+      }
+    } else {
+      ListBreakpoints();
+      PrintF("Use `break <address>` to set or disable a breakpoint\n");
+    }
+
+    // backtrace / bt
+    // ---------------------------------------------------------------
+  } else if (strcmp(cmd, "backtrace") == 0 || strcmp(cmd, "bt") == 0) {
+    Address pc = reinterpret_cast<Address>(pc_);
+    Address lr = reinterpret_cast<Address>(this->lr());
+    Address sp = static_cast<Address>(this->sp());
+    Address fp = static_cast<Address>(this->fp());
+
+    int i = 0;
+    while (true) {
+      PrintF("#%d: " V8PRIxPTR_FMT " (sp=" V8PRIxPTR_FMT ", fp=" V8PRIxPTR_FMT
+             ")\n",
+             i, pc, sp, fp);
+      pc = lr;
+      sp = fp;
+      if (pc == reinterpret_cast<Address>(kEndOfSimAddress)) {
+        break;
+      }
+      lr = *(reinterpret_cast<Address*>(fp) + 1);
+      fp = *reinterpret_cast<Address*>(fp);
+      i++;
+      if (i > 100) {
+        PrintF("Too many frames\n");
+        break;
+      }
+    }
+
+    // gdb
+    // -------------------------------------------------------------------
+  } else if (strcmp(cmd, "gdb") == 0) {
+    PrintF("Relinquishing control to gdb.\n");
+    base::OS::DebugBreak();
+    PrintF("Regaining control from gdb.\n");
+
+    // sysregs
+    // ---------------------------------------------------------------
+  } else if (strcmp(cmd, "sysregs") == 0) {
+    PrintSystemRegisters();
+
+    // help / h
+    // --------------------------------------------------------------
+  } else if (strcmp(cmd, "help") == 0 || strcmp(cmd, "h") == 0) {
+    PrintF(
+        "stepi / si\n"
+        "    stepi <n>\n"
+        "    Step <n> instructions.\n"
+        "next / n\n"
+        "    Continue execution until a BL instruction is reached.\n"
+        "    At this point a breakpoint is set just after this BL.\n"
+        "    Then execution is resumed. It will probably later hit the\n"
+        "    breakpoint just set.\n"
+        "continue / cont / c\n"
+        "    Continue execution from here.\n"
+        "disassemble / disasm / di\n"
+        "    disassemble <n> <address>\n"
+        "    Disassemble <n> instructions from current <address>.\n"
+        "    By default <n> is 20 and <address> is the current pc.\n"
+        "print / p\n"
+        "    print <register>\n"
+        "    Print the content of a register.\n"
+        "    'print all' will print all registers.\n"
+        "    Use 'printobject' to get more details about the value.\n"
+        "printobject / po\n"
+        "    printobject <value>\n"
+        "    printobject <register>\n"
+        "    Print details about the value.\n"
+        "stack\n"
+        "    stack [<words>]\n"
+        "    Dump stack content, default dump 10 words\n"
+        "mem\n"
+        "    mem <address> [<words>]\n"
+        "    Dump memory content, default dump 10 words\n"
+        "dump\n"
+        "    dump <address> [<words>]\n"
+        "    Dump memory content without pretty printing JS objects, "
+        "default dump 10 words\n"
+        "trace / t\n"
+        "    Toggle disassembly and register tracing\n"
+        "break / b\n"
+        "    break : list all breakpoints\n"
+        "    break <address> : set / enable / disable a breakpoint.\n"
+        "backtrace / bt\n"
+        "    Walk the frame pointers, dumping the pc/sp/fp for each frame.\n"
+        "gdb\n"
+        "    Enter gdb.\n"
+        "sysregs\n"
+        "    Print all system registers (including NZCV).\n");
+  } else {
+    PrintF("Unknown command: %s\n", cmd);
+    PrintF("Use 'help' for more information.\n");
+  }
+
+  if (cleared_log_disasm_bit == true) {
+    set_log_parameters(log_parameters_ | LOG_DISASM);
+  }
+  return false;
 }
 
 void Simulator::VisitException(Instruction* instr) {
@@ -6136,5 +6170,27 @@ void Simulator::GlobalMonitor::RemoveProcessor(Processor* processor) {
 
 }  // namespace internal
 }  // namespace v8
+
+//
+// The following functions are used by our gdb macros.
+//
+V8_EXPORT_PRIVATE extern bool _v8_internal_Simulator_ExecDebugCommand(
+    const char* command) {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (!isolate) {
+    fprintf(stderr, "No V8 Isolate found\n");
+    return false;
+  }
+  i::Simulator* simulator = i::Simulator::current(isolate);
+  if (!simulator) {
+    fprintf(stderr, "No Arm64 simulator found\n");
+    return false;
+  }
+  // Copy the command so that the simulator can take ownership of it.
+  size_t len = strlen(command);
+  i::ArrayUniquePtr<char> command_copy(i::NewArray<char>(len + 1));
+  i::MemCopy(command_copy.get(), command, len + 1);
+  return simulator->ExecDebugCommand(std::move(command_copy));
+}
 
 #endif  // USE_SIMULATOR

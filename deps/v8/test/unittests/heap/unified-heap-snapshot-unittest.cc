@@ -265,6 +265,7 @@ namespace {
 
 class GCedWithJSRef : public cppgc::GarbageCollected<GCedWithJSRef> {
  public:
+  static uint16_t kWrappableType;
   static constexpr const char kExpectedName[] =
       "v8::internal::(anonymous namespace)::GCedWithJSRef";
 
@@ -285,7 +286,11 @@ class GCedWithJSRef : public cppgc::GarbageCollected<GCedWithJSRef> {
  private:
   TracedReference<v8::Object> v8_object_;
 };
+
 constexpr const char GCedWithJSRef::kExpectedName[];
+
+// static
+uint16_t GCedWithJSRef::kWrappableType = WrapperHelper::kTracedEmbedderId;
 
 class V8_NODISCARD JsTestingScope {
  public:
@@ -311,7 +316,8 @@ cppgc::Persistent<GCedWithJSRef> SetupWrapperWrappablePair(
   cppgc::Persistent<GCedWithJSRef> gc_w_js_ref =
       cppgc::MakeGarbageCollected<GCedWithJSRef>(allocation_handle);
   v8::Local<v8::Object> wrapper_object = WrapperHelper::CreateWrapper(
-      testing_scope.context(), gc_w_js_ref.Get(), name);
+      testing_scope.context(), &GCedWithJSRef::kWrappableType,
+      gc_w_js_ref.Get(), name);
   gc_w_js_ref->SetV8Object(testing_scope.isolate(), wrapper_object);
   return std::move(gc_w_js_ref);
 }
@@ -356,7 +362,7 @@ TEST_F(UnifiedHeapSnapshotTest, MergedWrapperNode) {
       testing_scope, allocation_handle(), "MergedObject");
   gc_w_js_ref->SetWrapperClassId(1);  // Any class id will do.
   v8::Local<v8::Object> next_object = WrapperHelper::CreateWrapper(
-      testing_scope.context(), nullptr, "NextObject");
+      testing_scope.context(), nullptr, nullptr, "NextObject");
   v8::Local<v8::Object> wrapper_object =
       gc_w_js_ref->wrapper().Get(v8_isolate());
   // Chain another object to `wrapper_object`. Since `wrapper_object` should be

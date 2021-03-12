@@ -14,6 +14,13 @@ extern class InterpreterData extends Struct {
   interpreter_trampoline: Code;
 }
 
+@generateCppClass
+@generatePrint
+extern class BaselineData extends Struct {
+  baseline_code: Code;
+  data: BytecodeArray|InterpreterData;
+}
+
 type FunctionKind extends uint8 constexpr 'FunctionKind';
 type FunctionSyntaxKind extends uint8 constexpr 'FunctionSyntaxKind';
 type BailoutReason extends uint8 constexpr 'BailoutReason';
@@ -27,7 +34,6 @@ bitfield struct SharedFunctionInfoFlags extends uint32 {
   is_class_constructor: bool: 1 bit;
   has_duplicate_parameters: bool: 1 bit;
   allow_lazy_compilation: bool: 1 bit;
-  needs_home_object: bool: 1 bit;
   is_asm_wasm_broken: bool: 1 bit;
   function_map_index: uint32: 5 bit;
   disabled_optimization_reason: BailoutReason: 4 bit;
@@ -43,7 +49,6 @@ bitfield struct SharedFunctionInfoFlags extends uint32 {
 bitfield struct SharedFunctionInfoFlags2 extends uint8 {
   class_scope_has_private_brand: bool: 1 bit;
   has_static_private_methods_or_accessors: bool: 1 bit;
-  has_optimized_at_least_once: bool: 1 bit;
   may_have_cached_code: bool: 1 bit;
 }
 
@@ -99,7 +104,7 @@ class UncompiledDataWithPreparseData extends UncompiledData {
 @export
 class OnHeapBasicBlockProfilerData extends HeapObject {
   block_ids: ByteArray;  // Stored as 4-byte ints
-  counts: ByteArray;     // Stored as 8-byte floats
+  counts: ByteArray;     // Stored as 4-byte unsigned ints
   name: String;
   schedule: String;
   code: String;

@@ -198,6 +198,9 @@ namespace compiler {
   V(Arm64F64x2Qfms)                         \
   V(Arm64F64x2Pmin)                         \
   V(Arm64F64x2Pmax)                         \
+  V(Arm64F64x2ConvertLowI32x4S)             \
+  V(Arm64F64x2ConvertLowI32x4U)             \
+  V(Arm64F64x2PromoteLowF32x4)              \
   V(Arm64F32x4Splat)                        \
   V(Arm64F32x4ExtractLane)                  \
   V(Arm64F32x4ReplaceLane)                  \
@@ -223,9 +226,11 @@ namespace compiler {
   V(Arm64F32x4Qfms)                         \
   V(Arm64F32x4Pmin)                         \
   V(Arm64F32x4Pmax)                         \
+  V(Arm64F32x4DemoteF64x2Zero)              \
   V(Arm64I64x2Splat)                        \
   V(Arm64I64x2ExtractLane)                  \
   V(Arm64I64x2ReplaceLane)                  \
+  V(Arm64I64x2Abs)                          \
   V(Arm64I64x2Neg)                          \
   V(Arm64I64x2Shl)                          \
   V(Arm64I64x2ShrS)                         \
@@ -233,6 +238,9 @@ namespace compiler {
   V(Arm64I64x2Sub)                          \
   V(Arm64I64x2Mul)                          \
   V(Arm64I64x2Eq)                           \
+  V(Arm64I64x2Ne)                           \
+  V(Arm64I64x2GtS)                          \
+  V(Arm64I64x2GeS)                          \
   V(Arm64I64x2ShrU)                         \
   V(Arm64I64x2BitMask)                      \
   V(Arm64I32x4Splat)                        \
@@ -263,6 +271,8 @@ namespace compiler {
   V(Arm64I32x4Abs)                          \
   V(Arm64I32x4BitMask)                      \
   V(Arm64I32x4DotI16x8S)                    \
+  V(Arm64I32x4TruncSatF64x2SZero)           \
+  V(Arm64I32x4TruncSatF64x2UZero)           \
   V(Arm64I16x8Splat)                        \
   V(Arm64I16x8ExtractLaneU)                 \
   V(Arm64I16x8ExtractLaneS)                 \
@@ -368,6 +378,7 @@ namespace compiler {
   V(Arm64S8x4Reverse)                       \
   V(Arm64S8x2Reverse)                       \
   V(Arm64V128AnyTrue)                       \
+  V(Arm64V64x2AllTrue)                      \
   V(Arm64V32x4AllTrue)                      \
   V(Arm64V16x8AllTrue)                      \
   V(Arm64V8x16AllTrue)                      \
@@ -380,8 +391,6 @@ namespace compiler {
   V(Arm64S128Load16x4U)                     \
   V(Arm64S128Load32x2S)                     \
   V(Arm64S128Load32x2U)                     \
-  V(Arm64S128Load32Zero)                    \
-  V(Arm64S128Load64Zero)                    \
   V(Arm64Word64AtomicLoadUint8)             \
   V(Arm64Word64AtomicLoadUint16)            \
   V(Arm64Word64AtomicLoadUint32)            \

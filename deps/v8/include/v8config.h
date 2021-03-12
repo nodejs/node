@@ -5,6 +5,14 @@
 #ifndef V8CONFIG_H_
 #define V8CONFIG_H_
 
+#ifdef V8_GN_HEADER
+#if __cplusplus >= 201703L && !__has_include("v8-gn.h")
+#error Missing v8-gn.h. The configuration for v8 is missing from the include \
+path. Add it with -I<path> to the command line
+#endif
+#include "v8-gn.h"  // NOLINT(build/include_directory)
+#endif
+
 // clang-format off
 
 // Platform headers for feature detection below.

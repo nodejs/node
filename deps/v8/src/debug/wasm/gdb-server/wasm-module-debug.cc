@@ -96,6 +96,7 @@ std::vector<wasm_addr_t> WasmModuleDebug::GetCallStack(
       case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
       case StackFrame::OPTIMIZED:
       case StackFrame::INTERPRETED:
+      case StackFrame::BASELINE:
       case StackFrame::BUILTIN:
       case StackFrame::WASM: {
         // A standard frame may include many summarized frames, due to inlining.
@@ -154,6 +155,7 @@ std::vector<FrameSummary> WasmModuleDebug::FindWasmFrame(
       case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
       case StackFrame::OPTIMIZED:
       case StackFrame::INTERPRETED:
+      case StackFrame::BASELINE:
       case StackFrame::BUILTIN:
       case StackFrame::WASM: {
         // A standard frame may include many summarized frames, due to inlining.

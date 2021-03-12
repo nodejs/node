@@ -7,21 +7,6 @@
 load("test/mjsunit/wasm/wasm-module-builder.js");
 load("test/mjsunit/wasm/exceptions-utils.js");
 
-// First we just test that "exnref" local variables are allowed.
-(function TestLocalExnRef() {
-  print(arguments.callee.name);
-  let builder = new WasmModuleBuilder();
-  builder.addFunction("push_and_drop_exnref", kSig_v_v)
-      .addLocals(kWasmExnRef, 1)
-      .addBody([
-        kExprLocalGet, 0,
-        kExprDrop,
-      ]).exportFunc();
-  let instance = builder.instantiate();
-
-  assertDoesNotThrow(instance.exports.push_and_drop_exnref);
-})();
-
 // The following method doesn't attempt to catch an raised exception.
 (function TestThrowSimple() {
   print(arguments.callee.name);
@@ -249,7 +234,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
         kExprCatch, except,
         kExprEnd,
         // Calling through JS produces a wrapped exceptions which does not match
-        // the br_on_exn.
+        // the catch.
         kExprTry, kWasmStmt,
           kExprCallFunction, imp,
         kExprCatch, except,

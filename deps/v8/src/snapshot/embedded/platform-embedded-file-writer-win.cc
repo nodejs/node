@@ -566,8 +566,15 @@ int PlatformEmbeddedFileWriterWin::IndentedDataDirective(
 
 #else
 
+// The directives for text section prefix come from the COFF
+// (Common Object File Format) standards:
+// https://llvm.org/docs/Extensions.html
+//
+// .text$hot means this section contains hot code.
+// x means executable section.
+// r means read-only section.
 void PlatformEmbeddedFileWriterWin::SectionText() {
-  fprintf(fp_, ".section .text\n");
+  fprintf(fp_, ".section .text$hot,\"xr\"\n");
 }
 
 void PlatformEmbeddedFileWriterWin::SectionData() {

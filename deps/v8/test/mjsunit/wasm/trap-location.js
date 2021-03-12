@@ -23,16 +23,16 @@ function testTrapLocations(instance, expected_stack_length) {
       // function.
       assertTrue(
           e.stack[1].toString().startsWith(function_name), 'stack depth');
-      assertEquals(0, e.stack[0].getLineNumber(), 'wasmFunctionIndex');
+      assertEquals(1, e.stack[0].getLineNumber(), 'wasmFunctionIndex');
       assertEquals(position, e.stack[0].getPosition(), 'position');
     }
   }
 
   // The actual tests:
-  testWasmTrap(0, kTrapDivByZero, 14);
-  testWasmTrap(1, kTrapMemOutOfBounds, 15);
-  testWasmTrap(2, kTrapUnreachable, 28);
-  testWasmTrap(3, kTrapTableOutOfBounds, 32);
+  testWasmTrap(0, kTrapDivByZero, 73);
+  testWasmTrap(1, kTrapMemOutOfBounds, 74);
+  testWasmTrap(2, kTrapUnreachable, 87);
+  testWasmTrap(3, kTrapTableOutOfBounds, 91);
 }
 
 var builder = new WasmModuleBuilder();

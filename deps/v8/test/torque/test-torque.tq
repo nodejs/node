@@ -711,9 +711,6 @@ macro TestFrame1(implicit context: Context)() {
     case (_f: StandardFrame): {
       unreachable;
     }
-    case (_f: ArgumentsAdaptorFrame): {
-      unreachable;
-    }
     case (_f: StubFrame): {
     }
   }
@@ -1352,5 +1349,65 @@ macro TestOffHeapSlice(ptr: RawPtr<char8>, length: intptr) {
   for (let i: intptr = 0; i < onHeapSlice.length; ++i) {
     check(*onHeapSlice.AtIndex(i) == *offHeapSlice.AtIndex(i));
   }
+}
+
+struct TwoValues {
+  a: Smi;
+  b: Map;
+}
+
+builtin ReturnTwoValues(implicit context: Context)(
+    value: Smi, obj: HeapObject): TwoValues {
+  return TwoValues{a: value + 1, b: obj.map};
+}
+
+@export
+macro TestCallMultiReturnBuiltin(implicit context: Context)() {
+  const result = ReturnTwoValues(444, FromConstexpr<String>('hi'));
+  check(result.a == 445);
+  check(result.b == FromConstexpr<String>('hi').map);
+}
+
+@export
+macro TestRunLazyTwice(lazySmi: Lazy<Smi>): Smi {
+  const firstResult = RunLazy(lazySmi);
+  const secondResult = RunLazy(lazySmi);
+  return firstResult + secondResult;
+}
+
+macro GetLazySmi(): Smi {
+  return 3;
+}
+
+macro AddTwoSmiValues(a: Smi, b: Smi): Smi {
+  return a + b;
+}
+
+macro AddSmiAndConstexprValues(a: Smi, b: constexpr int31): Smi {
+  return a + b;
+}
+
+@export
+macro TestCreateLazyNodeFromTorque() {
+  const lazy = %MakeLazy<Smi>('GetLazySmi');
+  const result = TestRunLazyTwice(lazy);
+  check(result == 6);
+
+  // The macro can also be referred to using namespace qualifications.
+  const lazy2 = %MakeLazy<Smi>('test::GetLazySmi');
+  const result2 = TestRunLazyTwice(lazy2);
+  check(result2 == 6);
+
+  // We can save params to the macro. The most common usage is likely a
+  // single-arg macro that just returns the arg, but we can use any number of
+  // params.
+  const lazy3 = %MakeLazy<Smi>('AddTwoSmiValues', 5, 6);
+  const result3 = TestRunLazyTwice(lazy3);
+  check(result3 == 22);
+
+  // It's okay if some of the params are constexpr and some aren't.
+  const lazy4 = %MakeLazy<Smi>('AddSmiAndConstexprValues', 7, 8);
+  const result4 = TestRunLazyTwice(lazy4);
+  check(result4 == 30);
 }
 }

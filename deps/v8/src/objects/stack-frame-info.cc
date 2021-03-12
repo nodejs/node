@@ -4,238 +4,510 @@
 
 #include "src/objects/stack-frame-info.h"
 
+#include "src/objects/shared-function-info.h"
 #include "src/objects/stack-frame-info-inl.h"
 #include "src/strings/string-builder-inl.h"
 
 namespace v8 {
 namespace internal {
 
-// static
-int StackTraceFrame::GetLineNumber(Handle<StackTraceFrame> frame) {
-  int line = GetFrameInfo(frame)->line_number();
-  return line != StackFrameBase::kNone ? line : Message::kNoLineNumberInfo;
+bool StackFrameInfo::IsPromiseAll() const {
+  if (!IsAsync()) return false;
+  JSFunction fun = JSFunction::cast(function());
+  return fun == fun.native_context().promise_all();
+}
+
+bool StackFrameInfo::IsPromiseAny() const {
+  if (!IsAsync()) return false;
+  JSFunction fun = JSFunction::cast(function());
+  return fun == fun.native_context().promise_any();
+}
+
+bool StackFrameInfo::IsNative() const {
+  if (auto script = GetScript()) {
+    return script->type() == Script::TYPE_NATIVE;
+  }
+  return false;
+}
+
+bool StackFrameInfo::IsEval() const {
+  if (auto script = GetScript()) {
+    return script->compilation_type() == Script::COMPILATION_TYPE_EVAL;
+  }
+  return false;
+}
+
+bool StackFrameInfo::IsUserJavaScript() const {
+  return !IsWasm() && GetSharedFunctionInfo().IsUserJavaScript();
+}
+
+bool StackFrameInfo::IsMethodCall() const {
+  return !IsWasm() && !IsToplevel() && !IsConstructor();
+}
+
+bool StackFrameInfo::IsToplevel() const {
+  return receiver_or_instance().IsJSGlobalProxy() ||
+         receiver_or_instance().IsNullOrUndefined();
 }
 
 // static
-int StackTraceFrame::GetOneBasedLineNumber(Handle<StackTraceFrame> frame) {
-  // JavaScript line numbers are already 1-based. Wasm line numbers need
-  // to be adjusted.
-  int line = StackTraceFrame::GetLineNumber(frame);
-  if (StackTraceFrame::IsWasm(frame) && line >= 0) line++;
-  return line;
+int StackFrameInfo::GetLineNumber(Handle<StackFrameInfo> info) {
+  Isolate* isolate = info->GetIsolate();
+  if (info->IsWasm() && !info->IsAsmJsWasm()) {
+    return 1;
+  }
+  Handle<Script> script;
+  if (GetScript(isolate, info).ToHandle(&script)) {
+    int position = GetSourcePosition(info);
+    return Script::GetLineNumber(script, position) + 1;
+  }
+  return Message::kNoLineNumberInfo;
 }
 
 // static
-int StackTraceFrame::GetColumnNumber(Handle<StackTraceFrame> frame) {
-  int column = GetFrameInfo(frame)->column_number();
-  return column != StackFrameBase::kNone ? column : Message::kNoColumnInfo;
+int StackFrameInfo::GetColumnNumber(Handle<StackFrameInfo> info) {
+  Isolate* isolate = info->GetIsolate();
+  int position = GetSourcePosition(info);
+  if (info->IsWasm() && !info->IsAsmJsWasm()) {
+    return position + 1;
+  }
+  Handle<Script> script;
+  if (GetScript(isolate, info).ToHandle(&script)) {
+    return Script::GetColumnNumber(script, position) + 1;
+  }
+  return Message::kNoColumnInfo;
 }
 
 // static
-int StackTraceFrame::GetOneBasedColumnNumber(Handle<StackTraceFrame> frame) {
-  // JavaScript colun numbers are already 1-based. Wasm column numbers need
-  // to be adjusted.
-  int column = StackTraceFrame::GetColumnNumber(frame);
-  if (StackTraceFrame::IsWasm(frame) && column >= 0) column++;
-  return column;
+int StackFrameInfo::GetEnclosingLineNumber(Handle<StackFrameInfo> info) {
+  Isolate* isolate = info->GetIsolate();
+  if (info->IsWasm() && !info->IsAsmJsWasm()) {
+    return 1;
+  }
+  Handle<Script> script;
+  if (GetScript(isolate, info).ToHandle(&script)) {
+    int position;
+    if (info->IsAsmJsWasm()) {
+      auto module = info->GetWasmInstance().module();
+      auto func_index = info->GetWasmFunctionIndex();
+      position = wasm::GetSourcePosition(module, func_index, 0,
+                                         info->IsAsmJsAtNumberConversion());
+    } else {
+      position = info->GetSharedFunctionInfo().function_token_position();
+    }
+    return Script::GetLineNumber(script, position) + 1;
+  }
+  return Message::kNoLineNumberInfo;
 }
 
 // static
-int StackTraceFrame::GetScriptId(Handle<StackTraceFrame> frame) {
-  Isolate* isolate = frame->GetIsolate();
+int StackFrameInfo::GetEnclosingColumnNumber(Handle<StackFrameInfo> info) {
+  Isolate* isolate = info->GetIsolate();
+  if (info->IsWasm() && !info->IsAsmJsWasm()) {
+    auto module = info->GetWasmInstance().module();
+    auto func_index = info->GetWasmFunctionIndex();
+    return GetWasmFunctionOffset(module, func_index);
+  }
+  Handle<Script> script;
+  if (GetScript(isolate, info).ToHandle(&script)) {
+    int position;
+    if (info->IsAsmJsWasm()) {
+      auto module = info->GetWasmInstance().module();
+      auto func_index = info->GetWasmFunctionIndex();
+      position = wasm::GetSourcePosition(module, func_index, 0,
+                                         info->IsAsmJsAtNumberConversion());
+    } else {
+      position = info->GetSharedFunctionInfo().function_token_position();
+    }
+    return Script::GetColumnNumber(script, position) + 1;
+  }
+  return Message::kNoColumnInfo;
+}
 
-  // Use FrameInfo if it's already there, but avoid initializing it for just
-  // the script id, as it is much more expensive than just getting this
-  // directly. See GetScriptNameOrSourceUrl() for more detail.
-  int id;
-  if (!frame->frame_info().IsUndefined()) {
-    id = GetFrameInfo(frame)->script_id();
+int StackFrameInfo::GetScriptId() const {
+  if (auto script = GetScript()) {
+    return script->id();
+  }
+  return Message::kNoScriptIdInfo;
+}
+
+Object StackFrameInfo::GetScriptName() const {
+  if (auto script = GetScript()) {
+    return script->name();
+  }
+  return ReadOnlyRoots(GetIsolate()).null_value();
+}
+
+Object StackFrameInfo::GetScriptNameOrSourceURL() const {
+  if (auto script = GetScript()) {
+    return script->GetNameOrSourceURL();
+  }
+  return ReadOnlyRoots(GetIsolate()).null_value();
+}
+
+namespace {
+
+MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
+  Handle<Object> sourceURL(script->GetNameOrSourceURL(), isolate);
+  if (sourceURL->IsString()) return Handle<String>::cast(sourceURL);
+
+  IncrementalStringBuilder builder(isolate);
+  builder.AppendCString("eval at ");
+  if (script->has_eval_from_shared()) {
+    Handle<SharedFunctionInfo> eval_shared(script->eval_from_shared(), isolate);
+    auto eval_name = SharedFunctionInfo::DebugName(eval_shared);
+    if (eval_name->length() != 0) {
+      builder.AppendString(eval_name);
+    } else {
+      builder.AppendCString("<anonymous>");
+    }
+    if (eval_shared->script().IsScript()) {
+      Handle<Script> eval_script(Script::cast(eval_shared->script()), isolate);
+      builder.AppendCString(" (");
+      if (eval_script->compilation_type() == Script::COMPILATION_TYPE_EVAL) {
+        // Eval script originated from another eval.
+        Handle<String> str;
+        ASSIGN_RETURN_ON_EXCEPTION(
+            isolate, str, FormatEvalOrigin(isolate, eval_script), String);
+        builder.AppendString(str);
+      } else {
+        // eval script originated from "real" source.
+        Handle<Object> eval_script_name(eval_script->name(), isolate);
+        if (eval_script_name->IsString()) {
+          builder.AppendString(Handle<String>::cast(eval_script_name));
+          Script::PositionInfo info;
+          if (Script::GetPositionInfo(eval_script,
+                                      Script::GetEvalPosition(isolate, script),
+                                      &info, Script::NO_OFFSET)) {
+            builder.AppendCString(":");
+            builder.AppendInt(info.line + 1);
+            builder.AppendCString(":");
+            builder.AppendInt(info.column + 1);
+          }
+        } else {
+          builder.AppendCString("unknown source");
+        }
+      }
+      builder.AppendCString(")");
+    }
   } else {
-    FrameArrayIterator it(
-        isolate, handle(FrameArray::cast(frame->frame_array()), isolate),
-        frame->frame_index());
-    DCHECK(it.HasFrame());
-    id = it.Frame()->GetScriptId();
+    builder.AppendCString("<anonymous>");
   }
-  return id != StackFrameBase::kNone ? id : Message::kNoScriptIdInfo;
+  return builder.Finish().ToHandleChecked();
 }
 
-// static
-int StackTraceFrame::GetPromiseCombinatorIndex(Handle<StackTraceFrame> frame) {
-  return GetFrameInfo(frame)->promise_combinator_index();
-}
+}  // namespace
 
 // static
-int StackTraceFrame::GetFunctionOffset(Handle<StackTraceFrame> frame) {
-  DCHECK(IsWasm(frame));
-  return GetFrameInfo(frame)->function_offset();
-}
-
-// static
-int StackTraceFrame::GetWasmFunctionIndex(Handle<StackTraceFrame> frame) {
-  return GetFrameInfo(frame)->wasm_function_index();
-}
-
-// static
-Handle<Object> StackTraceFrame::GetFileName(Handle<StackTraceFrame> frame) {
-  Isolate* isolate = frame->GetIsolate();
-
-  // Use FrameInfo if it's already there, but avoid initializing it for just
-  // the file name, as it is much more expensive than just getting this
-  // directly. See GetScriptNameOrSourceUrl() for more detail.
-  if (!frame->frame_info().IsUndefined()) {
-    auto name = GetFrameInfo(frame)->script_name();
-    return handle(name, isolate);
+Handle<PrimitiveHeapObject> StackFrameInfo::GetEvalOrigin(
+    Handle<StackFrameInfo> info) {
+  auto isolate = info->GetIsolate();
+  Handle<Script> script;
+  if (!GetScript(isolate, info).ToHandle(&script) ||
+      script->compilation_type() != Script::COMPILATION_TYPE_EVAL) {
+    return isolate->factory()->undefined_value();
   }
-  FrameArrayIterator it(isolate,
-                        handle(FrameArray::cast(frame->frame_array()), isolate),
-                        frame->frame_index());
-  DCHECK(it.HasFrame());
-  return it.Frame()->GetFileName();
+  return FormatEvalOrigin(isolate, script).ToHandleChecked();
 }
 
 // static
-Handle<Object> StackTraceFrame::GetScriptNameOrSourceUrl(
-    Handle<StackTraceFrame> frame) {
-  Isolate* isolate = frame->GetIsolate();
-  // TODO(caseq, szuend): the logic below is a workaround for crbug.com/1057211.
-  // We should probably have a dedicated API for the scenario described in the
-  // bug above and make getters of this class behave consistently.
-  // See https://bit.ly/2wkbuIy for further discussion.
-  // Use FrameInfo if it's already there, but avoid initializing it for just
-  // the script name, as it is much more expensive than just getting this
-  // directly.
-  if (!frame->frame_info().IsUndefined()) {
-    auto name = GetFrameInfo(frame)->script_name_or_source_url();
-    return handle(name, isolate);
+Handle<Object> StackFrameInfo::GetFunctionName(Handle<StackFrameInfo> info) {
+  Isolate* isolate = info->GetIsolate();
+  if (info->IsWasm()) {
+    Handle<WasmModuleObject> module_object(
+        info->GetWasmInstance().module_object(), isolate);
+    uint32_t func_index = info->GetWasmFunctionIndex();
+    Handle<String> name;
+    if (WasmModuleObject::GetFunctionNameOrNull(isolate, module_object,
+                                                func_index)
+            .ToHandle(&name)) {
+      return name;
+    }
+  } else {
+    Handle<JSFunction> function(JSFunction::cast(info->function()), isolate);
+    Handle<String> name = JSFunction::GetDebugName(function);
+    if (name->length() != 0) return name;
+    if (info->IsEval()) return isolate->factory()->eval_string();
   }
-  FrameArrayIterator it(isolate,
-                        handle(FrameArray::cast(frame->frame_array()), isolate),
-                        frame->frame_index());
-  DCHECK(it.HasFrame());
-  return it.Frame()->GetScriptNameOrSourceUrl();
+  return isolate->factory()->null_value();
 }
+
+namespace {
+
+PrimitiveHeapObject InferMethodNameFromFastObject(Isolate* isolate,
+                                                  JSObject receiver,
+                                                  JSFunction fun,
+                                                  PrimitiveHeapObject name) {
+  ReadOnlyRoots roots(isolate);
+  Map map = receiver.map();
+  DescriptorArray descriptors = map.instance_descriptors(kRelaxedLoad);
+  for (auto i : map.IterateOwnDescriptors()) {
+    PrimitiveHeapObject key = descriptors.GetKey(i);
+    if (key.IsSymbol()) continue;
+    auto details = descriptors.GetDetails(i);
+    if (details.IsDontEnum()) continue;
+    Object value;
+    if (details.location() == kField) {
+      auto field_index = FieldIndex::ForPropertyIndex(
+          map, details.field_index(), details.representation());
+      if (field_index.is_double()) continue;
+      value = receiver.RawFastPropertyAt(isolate, field_index);
+    } else {
+      value = descriptors.GetStrongValue(i);
+    }
+    if (value != fun) {
+      if (!value.IsAccessorPair()) continue;
+      auto pair = AccessorPair::cast(value);
+      if (pair.getter() != fun && pair.setter() != fun) continue;
+    }
+    if (name != key) {
+      name = name.IsUndefined(isolate) ? key : roots.null_value();
+    }
+  }
+  return name;
+}
+
+template <typename Dictionary>
+PrimitiveHeapObject InferMethodNameFromDictionary(Isolate* isolate,
+                                                  Dictionary dictionary,
+                                                  JSFunction fun,
+                                                  PrimitiveHeapObject name) {
+  ReadOnlyRoots roots(isolate);
+  for (auto i : dictionary.IterateEntries()) {
+    Object key;
+    if (!dictionary.ToKey(roots, i, &key)) continue;
+    if (key.IsSymbol()) continue;
+    auto details = dictionary.DetailsAt(i);
+    if (details.IsDontEnum()) continue;
+    auto value = dictionary.ValueAt(i);
+    if (value != fun) {
+      if (!value.IsAccessorPair()) continue;
+      auto pair = AccessorPair::cast(value);
+      if (pair.getter() != fun && pair.setter() != fun) continue;
+    }
+    if (name != key) {
+      name = name.IsUndefined(isolate) ? PrimitiveHeapObject::cast(key)
+                                       : roots.null_value();
+    }
+  }
+  return name;
+}
+
+PrimitiveHeapObject InferMethodName(Isolate* isolate, JSReceiver receiver,
+                                    JSFunction fun) {
+  DisallowGarbageCollection no_gc;
+  ReadOnlyRoots roots(isolate);
+  PrimitiveHeapObject name = roots.undefined_value();
+  for (PrototypeIterator it(isolate, receiver, kStartAtReceiver); !it.IsAtEnd();
+       it.Advance()) {
+    auto current = it.GetCurrent();
+    if (!current.IsJSObject()) break;
+    auto object = JSObject::cast(current);
+    if (object.IsAccessCheckNeeded()) break;
+    if (object.HasFastProperties()) {
+      name = InferMethodNameFromFastObject(isolate, object, fun, name);
+    } else if (object.IsJSGlobalObject()) {
+      name = InferMethodNameFromDictionary(
+          isolate, JSGlobalObject::cast(object).global_dictionary(kAcquireLoad),
+          fun, name);
+    } else if (V8_DICT_MODE_PROTOTYPES_BOOL) {
+      name = InferMethodNameFromDictionary(
+          isolate, object.property_dictionary_ordered(), fun, name);
+    } else {
+      name = InferMethodNameFromDictionary(
+          isolate, object.property_dictionary(), fun, name);
+    }
+  }
+  if (name.IsUndefined(isolate)) return roots.null_value();
+  return name;
+}
+
+}  // namespace
 
 // static
-Handle<Object> StackTraceFrame::GetFunctionName(Handle<StackTraceFrame> frame) {
-  auto name = GetFrameInfo(frame)->function_name();
-  return handle(name, frame->GetIsolate());
-}
-
-// static
-Handle<Object> StackTraceFrame::GetMethodName(Handle<StackTraceFrame> frame) {
-  auto name = GetFrameInfo(frame)->method_name();
-  return handle(name, frame->GetIsolate());
-}
-
-// static
-Handle<Object> StackTraceFrame::GetTypeName(Handle<StackTraceFrame> frame) {
-  auto name = GetFrameInfo(frame)->type_name();
-  return handle(name, frame->GetIsolate());
-}
-
-// static
-Handle<Object> StackTraceFrame::GetEvalOrigin(Handle<StackTraceFrame> frame) {
-  auto origin = GetFrameInfo(frame)->eval_origin();
-  return handle(origin, frame->GetIsolate());
-}
-
-// static
-Handle<Object> StackTraceFrame::GetWasmModuleName(
-    Handle<StackTraceFrame> frame) {
-  auto module = GetFrameInfo(frame)->wasm_module_name();
-  return handle(module, frame->GetIsolate());
-}
-
-// static
-Handle<WasmInstanceObject> StackTraceFrame::GetWasmInstance(
-    Handle<StackTraceFrame> frame) {
-  Object instance = GetFrameInfo(frame)->wasm_instance();
-  return handle(WasmInstanceObject::cast(instance), frame->GetIsolate());
-}
-
-// static
-bool StackTraceFrame::IsEval(Handle<StackTraceFrame> frame) {
-  return GetFrameInfo(frame)->is_eval();
-}
-
-// static
-bool StackTraceFrame::IsConstructor(Handle<StackTraceFrame> frame) {
-  return GetFrameInfo(frame)->is_constructor();
-}
-
-// static
-bool StackTraceFrame::IsWasm(Handle<StackTraceFrame> frame) {
-  return GetFrameInfo(frame)->is_wasm();
-}
-
-// static
-bool StackTraceFrame::IsAsmJsWasm(Handle<StackTraceFrame> frame) {
-  return GetFrameInfo(frame)->is_asmjs_wasm();
-}
-
-// static
-bool StackTraceFrame::IsUserJavaScript(Handle<StackTraceFrame> frame) {
-  return GetFrameInfo(frame)->is_user_java_script();
-}
-
-// static
-bool StackTraceFrame::IsToplevel(Handle<StackTraceFrame> frame) {
-  return GetFrameInfo(frame)->is_toplevel();
-}
-
-// static
-bool StackTraceFrame::IsAsync(Handle<StackTraceFrame> frame) {
-  return GetFrameInfo(frame)->is_async();
-}
-
-// static
-bool StackTraceFrame::IsPromiseAll(Handle<StackTraceFrame> frame) {
-  return GetFrameInfo(frame)->is_promise_all();
-}
-
-// static
-bool StackTraceFrame::IsPromiseAny(Handle<StackTraceFrame> frame) {
-  return GetFrameInfo(frame)->is_promise_any();
-}
-
-// static
-Handle<StackFrameInfo> StackTraceFrame::GetFrameInfo(
-    Handle<StackTraceFrame> frame) {
-  if (frame->frame_info().IsUndefined()) InitializeFrameInfo(frame);
-  return handle(StackFrameInfo::cast(frame->frame_info()), frame->GetIsolate());
-}
-
-// static
-void StackTraceFrame::InitializeFrameInfo(Handle<StackTraceFrame> frame) {
-  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"),
-               "SymbolizeStackFrame", "frameIndex", frame->frame_index());
-
-  Isolate* isolate = frame->GetIsolate();
-  Handle<StackFrameInfo> frame_info = isolate->factory()->NewStackFrameInfo(
-      handle(FrameArray::cast(frame->frame_array()), isolate),
-      frame->frame_index());
-  frame->set_frame_info(*frame_info);
-
-  // After initializing, we no longer need to keep a reference
-  // to the frame_array.
-  frame->set_frame_array(ReadOnlyRoots(isolate).undefined_value());
-  frame->set_frame_index(-1);
-}
-
-Handle<FrameArray> GetFrameArrayFromStackTrace(Isolate* isolate,
-                                               Handle<FixedArray> stack_trace) {
-  // For the empty case, a empty FrameArray needs to be allocated so the rest
-  // of the code doesn't has to be special cased everywhere.
-  if (stack_trace->length() == 0) {
-    return isolate->factory()->NewFrameArray(0);
+Handle<Object> StackFrameInfo::GetMethodName(Handle<StackFrameInfo> info) {
+  Isolate* isolate = info->GetIsolate();
+  Handle<Object> receiver_or_instance(info->receiver_or_instance(), isolate);
+  if (info->IsWasm() || receiver_or_instance->IsNullOrUndefined(isolate)) {
+    return isolate->factory()->null_value();
   }
 
-  // Retrieve the FrameArray from the first StackTraceFrame.
-  DCHECK_GT(stack_trace->length(), 0);
-  Handle<StackTraceFrame> frame(StackTraceFrame::cast(stack_trace->get(0)),
-                                isolate);
-  return handle(FrameArray::cast(frame->frame_array()), isolate);
+  Handle<JSReceiver> receiver =
+      JSReceiver::ToObject(isolate, receiver_or_instance).ToHandleChecked();
+  Handle<JSFunction> function =
+      handle(JSFunction::cast(info->function()), isolate);
+  Handle<String> name(function->shared().Name(), isolate);
+  name = String::Flatten(isolate, name);
+
+  // The static initializer function is not a method, so don't add a
+  // class name, just return the function name.
+  if (name->HasOneBytePrefix(CStrVector("<static_fields_initializer>"))) {
+    return name;
+  }
+
+  // ES2015 gives getters and setters name prefixes which must
+  // be stripped to find the property name.
+  if (name->HasOneBytePrefix(CStrVector("get ")) ||
+      name->HasOneBytePrefix(CStrVector("set "))) {
+    name = isolate->factory()->NewProperSubString(name, 4, name->length());
+  } else if (name->length() == 0) {
+    // The function doesn't have a meaningful "name" property, however
+    // the parser does store an inferred name "o.foo" for the common
+    // case of `o.foo = function() {...}`, so see if we can derive a
+    // property name to guess from that.
+    name = handle(function->shared().inferred_name(), isolate);
+    for (int index = name->length(); --index >= 0;) {
+      if (name->Get(index, isolate) == '.') {
+        name = isolate->factory()->NewProperSubString(name, index + 1,
+                                                      name->length());
+        break;
+      }
+    }
+  }
+
+  if (name->length() != 0) {
+    LookupIterator::Key key(isolate, Handle<Name>::cast(name));
+    LookupIterator it(isolate, receiver, key,
+                      LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
+    if (it.state() == LookupIterator::DATA) {
+      if (it.GetDataValue().is_identical_to(function)) {
+        return name;
+      }
+    } else if (it.state() == LookupIterator::ACCESSOR) {
+      Handle<Object> accessors = it.GetAccessors();
+      if (accessors->IsAccessorPair()) {
+        Handle<AccessorPair> pair = Handle<AccessorPair>::cast(accessors);
+        if (pair->getter() == *function || pair->setter() == *function) {
+          return name;
+        }
+      }
+    }
+  }
+
+  return handle(InferMethodName(isolate, *receiver, *function), isolate);
+}
+
+// static
+Handle<Object> StackFrameInfo::GetTypeName(Handle<StackFrameInfo> info) {
+  Isolate* isolate = info->GetIsolate();
+  if (!info->IsMethodCall()) {
+    return isolate->factory()->null_value();
+  }
+  Handle<JSReceiver> receiver =
+      JSReceiver::ToObject(isolate,
+                           handle(info->receiver_or_instance(), isolate))
+          .ToHandleChecked();
+  if (receiver->IsJSProxy()) {
+    return isolate->factory()->Proxy_string();
+  }
+  return JSReceiver::GetConstructorName(receiver);
+}
+
+uint32_t StackFrameInfo::GetWasmFunctionIndex() const {
+  DCHECK(IsWasm());
+  return Smi::ToInt(Smi::cast(function()));
+}
+
+WasmInstanceObject StackFrameInfo::GetWasmInstance() const {
+  DCHECK(IsWasm());
+  return WasmInstanceObject::cast(receiver_or_instance());
+}
+
+// static
+int StackFrameInfo::GetSourcePosition(Handle<StackFrameInfo> info) {
+  if (info->flags() & kIsSourcePositionComputed) {
+    return info->code_offset_or_source_position();
+  }
+  DCHECK(!info->IsPromiseAll());
+  DCHECK(!info->IsPromiseAny());
+  int source_position =
+      ComputeSourcePosition(info, info->code_offset_or_source_position());
+  info->set_code_offset_or_source_position(source_position);
+  info->set_flags(info->flags() | kIsSourcePositionComputed);
+  return source_position;
+}
+
+// static
+bool StackFrameInfo::ComputeLocation(Handle<StackFrameInfo> info,
+                                     MessageLocation* location) {
+  Isolate* isolate = info->GetIsolate();
+  if (info->IsWasm()) {
+    int pos = GetSourcePosition(info);
+    Handle<Script> script(info->GetWasmInstance().module_object().script(),
+                          isolate);
+    *location = MessageLocation(script, pos, pos + 1);
+    return true;
+  }
+
+  Handle<SharedFunctionInfo> shared(info->GetSharedFunctionInfo(), isolate);
+  if (!shared->IsSubjectToDebugging()) return false;
+  Handle<Script> script(Script::cast(shared->script()), isolate);
+  if (script->source().IsUndefined()) return false;
+  if (info->flags() & kIsSourcePositionComputed ||
+      (shared->HasBytecodeArray() &&
+       shared->GetBytecodeArray(isolate).HasSourcePositionTable())) {
+    int pos = GetSourcePosition(info);
+    *location = MessageLocation(script, pos, pos + 1, shared);
+  } else {
+    int code_offset = info->code_offset_or_source_position();
+    *location = MessageLocation(script, shared, code_offset);
+  }
+  return true;
+}
+
+// static
+int StackFrameInfo::ComputeSourcePosition(Handle<StackFrameInfo> info,
+                                          int offset) {
+  Isolate* isolate = info->GetIsolate();
+  if (info->IsWasm()) {
+    auto code_ref = Managed<wasm::GlobalWasmCodeRef>::cast(info->code_object());
+    int byte_offset = code_ref.get()->code()->GetSourcePositionBefore(offset);
+    auto module = info->GetWasmInstance().module();
+    uint32_t func_index = info->GetWasmFunctionIndex();
+    return wasm::GetSourcePosition(module, func_index, byte_offset,
+                                   info->IsAsmJsAtNumberConversion());
+  }
+  Handle<SharedFunctionInfo> shared(info->GetSharedFunctionInfo(), isolate);
+  SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared);
+  return AbstractCode::cast(info->code_object()).SourcePosition(offset);
+}
+
+// static
+Handle<Object> StackFrameInfo::GetWasmModuleName(Handle<StackFrameInfo> info) {
+  Isolate* isolate = info->GetIsolate();
+  if (info->IsWasm()) {
+    Handle<String> name;
+    auto module_object =
+        handle(info->GetWasmInstance().module_object(), isolate);
+    if (WasmModuleObject::GetModuleNameOrNull(isolate, module_object)
+            .ToHandle(&name)) {
+      return name;
+    }
+  }
+  return isolate->factory()->null_value();
+}
+
+base::Optional<Script> StackFrameInfo::GetScript() const {
+  if (IsWasm()) {
+    return GetWasmInstance().module_object().script();
+  }
+  Object script = GetSharedFunctionInfo().script();
+  if (script.IsScript()) return Script::cast(script);
+  return base::nullopt;
+}
+
+SharedFunctionInfo StackFrameInfo::GetSharedFunctionInfo() const {
+  DCHECK(!IsWasm());
+  return JSFunction::cast(function()).shared();
+}
+
+// static
+MaybeHandle<Script> StackFrameInfo::GetScript(Isolate* isolate,
+                                              Handle<StackFrameInfo> info) {
+  if (auto script = info->GetScript()) {
+    return handle(*script, isolate);
+  }
+  return kNullMaybeHandle;
 }
 
 namespace {
@@ -244,18 +516,18 @@ bool IsNonEmptyString(Handle<Object> object) {
   return (object->IsString() && String::cast(*object).length() > 0);
 }
 
-void AppendFileLocation(Isolate* isolate, Handle<StackTraceFrame> frame,
+void AppendFileLocation(Isolate* isolate, Handle<StackFrameInfo> frame,
                         IncrementalStringBuilder* builder) {
-  Handle<Object> file_name = StackTraceFrame::GetScriptNameOrSourceUrl(frame);
-  if (!file_name->IsString() && StackTraceFrame::IsEval(frame)) {
-    Handle<Object> eval_origin = StackTraceFrame::GetEvalOrigin(frame);
-    DCHECK(eval_origin->IsString());
-    builder->AppendString(Handle<String>::cast(eval_origin));
+  Handle<Object> script_name_or_source_url(frame->GetScriptNameOrSourceURL(),
+                                           isolate);
+  if (!script_name_or_source_url->IsString() && frame->IsEval()) {
+    builder->AppendString(
+        Handle<String>::cast(StackFrameInfo::GetEvalOrigin(frame)));
     builder->AppendCString(", ");  // Expecting source position to follow.
   }
 
-  if (IsNonEmptyString(file_name)) {
-    builder->AppendString(Handle<String>::cast(file_name));
+  if (IsNonEmptyString(script_name_or_source_url)) {
+    builder->AppendString(Handle<String>::cast(script_name_or_source_url));
   } else {
     // Source code does not originate from a file and is not native, but we
     // can still get the source position inside the source string, e.g. in
@@ -263,12 +535,12 @@ void AppendFileLocation(Isolate* isolate, Handle<StackTraceFrame> frame,
     builder->AppendCString("<anonymous>");
   }
 
-  int line_number = StackTraceFrame::GetLineNumber(frame);
+  int line_number = StackFrameInfo::GetLineNumber(frame);
   if (line_number != Message::kNoLineNumberInfo) {
     builder->AppendCharacter(':');
     builder->AppendInt(line_number);
 
-    int column_number = StackTraceFrame::GetColumnNumber(frame);
+    int column_number = StackFrameInfo::GetColumnNumber(frame);
     if (column_number != Message::kNoColumnInfo) {
       builder->AppendCharacter(':');
       builder->AppendInt(column_number);
@@ -313,11 +585,11 @@ bool StringEndsWithMethodName(Isolate* isolate, Handle<String> subject,
   return true;
 }
 
-void AppendMethodCall(Isolate* isolate, Handle<StackTraceFrame> frame,
+void AppendMethodCall(Isolate* isolate, Handle<StackFrameInfo> frame,
                       IncrementalStringBuilder* builder) {
-  Handle<Object> type_name = StackTraceFrame::GetTypeName(frame);
-  Handle<Object> method_name = StackTraceFrame::GetMethodName(frame);
-  Handle<Object> function_name = StackTraceFrame::GetFunctionName(frame);
+  Handle<Object> type_name = StackFrameInfo::GetTypeName(frame);
+  Handle<Object> method_name = StackFrameInfo::GetMethodName(frame);
+  Handle<Object> function_name = StackFrameInfo::GetFunctionName(frame);
 
   if (IsNonEmptyString(function_name)) {
     Handle<String> function_string = Handle<String>::cast(function_name);
@@ -353,39 +625,23 @@ void AppendMethodCall(Isolate* isolate, Handle<StackTraceFrame> frame,
   }
 }
 
-void SerializeJSStackFrame(Isolate* isolate, Handle<StackTraceFrame> frame,
+void SerializeJSStackFrame(Isolate* isolate, Handle<StackFrameInfo> frame,
                            IncrementalStringBuilder* builder) {
-  Handle<Object> function_name = StackTraceFrame::GetFunctionName(frame);
-
-  const bool is_toplevel = StackTraceFrame::IsToplevel(frame);
-  const bool is_async = StackTraceFrame::IsAsync(frame);
-  const bool is_promise_all = StackTraceFrame::IsPromiseAll(frame);
-  const bool is_promise_any = StackTraceFrame::IsPromiseAny(frame);
-  const bool is_constructor = StackTraceFrame::IsConstructor(frame);
-  // Note: Keep the {is_method_call} predicate in sync with the corresponding
-  //       predicate in factory.cc where the StackFrameInfo is created.
-  //       Otherwise necessary fields for serialzing this frame might be
-  //       missing.
-  const bool is_method_call = !(is_toplevel || is_constructor);
-
-  if (is_async) {
+  Handle<Object> function_name = StackFrameInfo::GetFunctionName(frame);
+  if (frame->IsAsync()) {
     builder->AppendCString("async ");
+    if (frame->IsPromiseAll() || frame->IsPromiseAny()) {
+      builder->AppendCString("Promise.");
+      builder->AppendString(Handle<String>::cast(function_name));
+      builder->AppendCString(" (index ");
+      builder->AppendInt(StackFrameInfo::GetSourcePosition(frame));
+      builder->AppendCString(")");
+      return;
+    }
   }
-  if (is_promise_all) {
-    builder->AppendCString("Promise.all (index ");
-    builder->AppendInt(StackTraceFrame::GetPromiseCombinatorIndex(frame));
-    builder->AppendCString(")");
-    return;
-  }
-  if (is_promise_any) {
-    builder->AppendCString("Promise.any (index ");
-    builder->AppendInt(StackTraceFrame::GetPromiseCombinatorIndex(frame));
-    builder->AppendCString(")");
-    return;
-  }
-  if (is_method_call) {
+  if (frame->IsMethodCall()) {
     AppendMethodCall(isolate, frame, builder);
-  } else if (is_constructor) {
+  } else if (frame->IsConstructor()) {
     builder->AppendCString("new ");
     if (IsNonEmptyString(function_name)) {
       builder->AppendString(Handle<String>::cast(function_name));
@@ -398,46 +654,21 @@ void SerializeJSStackFrame(Isolate* isolate, Handle<StackTraceFrame> frame,
     AppendFileLocation(isolate, frame, builder);
     return;
   }
-
   builder->AppendCString(" (");
   AppendFileLocation(isolate, frame, builder);
   builder->AppendCString(")");
 }
 
-void SerializeAsmJsWasmStackFrame(Isolate* isolate,
-                                  Handle<StackTraceFrame> frame,
-                                  IncrementalStringBuilder* builder) {
-  // The string should look exactly as the respective javascript frame string.
-  // Keep this method in line to
-  // JSStackFrame::ToString(IncrementalStringBuilder&).
-  Handle<Object> function_name = StackTraceFrame::GetFunctionName(frame);
-
-  if (IsNonEmptyString(function_name)) {
-    builder->AppendString(Handle<String>::cast(function_name));
-    builder->AppendCString(" (");
-  }
-
-  AppendFileLocation(isolate, frame, builder);
-
-  if (IsNonEmptyString(function_name)) builder->AppendCString(")");
-
-  return;
+bool IsAnonymousWasmScript(Isolate* isolate, Handle<Object> url) {
+  Handle<String> prefix =
+      isolate->factory()->NewStringFromStaticChars("wasm://wasm/");
+  return StringIndexOf(isolate, Handle<String>::cast(url), prefix) == 0;
 }
 
-bool IsAnonymousWasmScript(Isolate* isolate, Handle<StackTraceFrame> frame,
-                           Handle<Object> url) {
-  DCHECK(url->IsString());
-  Handle<String> anonymous_prefix =
-      isolate->factory()->InternalizeString(StaticCharVector("wasm://wasm/"));
-  return (StackTraceFrame::IsWasm(frame) &&
-          StringIndexOf(isolate, Handle<String>::cast(url), anonymous_prefix) >=
-              0);
-}
-
-void SerializeWasmStackFrame(Isolate* isolate, Handle<StackTraceFrame> frame,
+void SerializeWasmStackFrame(Isolate* isolate, Handle<StackFrameInfo> frame,
                              IncrementalStringBuilder* builder) {
-  Handle<Object> module_name = StackTraceFrame::GetWasmModuleName(frame);
-  Handle<Object> function_name = StackTraceFrame::GetFunctionName(frame);
+  Handle<Object> module_name = StackFrameInfo::GetWasmModuleName(frame);
+  Handle<Object> function_name = StackFrameInfo::GetFunctionName(frame);
   const bool has_name = !module_name->IsNull() || !function_name->IsNull();
   if (has_name) {
     if (module_name->IsNull()) {
@@ -452,22 +683,22 @@ void SerializeWasmStackFrame(Isolate* isolate, Handle<StackTraceFrame> frame,
     builder->AppendCString(" (");
   }
 
-  Handle<Object> url = StackTraceFrame::GetScriptNameOrSourceUrl(frame);
-  if (IsNonEmptyString(url) && !IsAnonymousWasmScript(isolate, frame, url)) {
+  Handle<Object> url(frame->GetScriptNameOrSourceURL(), isolate);
+  if (IsNonEmptyString(url) && !IsAnonymousWasmScript(isolate, url)) {
     builder->AppendString(Handle<String>::cast(url));
   } else {
     builder->AppendCString("<anonymous>");
   }
   builder->AppendCString(":");
 
-  const int wasm_func_index = StackTraceFrame::GetWasmFunctionIndex(frame);
+  const int wasm_func_index = frame->GetWasmFunctionIndex();
   builder->AppendCString("wasm-function[");
   builder->AppendInt(wasm_func_index);
   builder->AppendCString("]:");
 
   char buffer[16];
   SNPrintF(ArrayVector(buffer), "0x%x",
-           StackTraceFrame::GetColumnNumber(frame));
+           StackFrameInfo::GetColumnNumber(frame) - 1);
   builder->AppendCString(buffer);
 
   if (has_name) builder->AppendCString(")");
@@ -475,22 +706,22 @@ void SerializeWasmStackFrame(Isolate* isolate, Handle<StackTraceFrame> frame,
 
 }  // namespace
 
-void SerializeStackTraceFrame(Isolate* isolate, Handle<StackTraceFrame> frame,
-                              IncrementalStringBuilder* builder) {
+void SerializeStackFrameInfo(Isolate* isolate, Handle<StackFrameInfo> frame,
+                             IncrementalStringBuilder* builder) {
   // Ordering here is important, as AsmJs frames are also marked as Wasm.
-  if (StackTraceFrame::IsAsmJsWasm(frame)) {
-    SerializeAsmJsWasmStackFrame(isolate, frame, builder);
-  } else if (StackTraceFrame::IsWasm(frame)) {
+  if (frame->IsAsmJsWasm()) {
+    SerializeJSStackFrame(isolate, frame, builder);
+  } else if (frame->IsWasm()) {
     SerializeWasmStackFrame(isolate, frame, builder);
   } else {
     SerializeJSStackFrame(isolate, frame, builder);
   }
 }
 
-MaybeHandle<String> SerializeStackTraceFrame(Isolate* isolate,
-                                             Handle<StackTraceFrame> frame) {
+MaybeHandle<String> SerializeStackFrameInfo(Isolate* isolate,
+                                            Handle<StackFrameInfo> frame) {
   IncrementalStringBuilder builder(isolate);
-  SerializeStackTraceFrame(isolate, frame, &builder);
+  SerializeStackFrameInfo(isolate, frame, &builder);
   return builder.Finish();
 }
 

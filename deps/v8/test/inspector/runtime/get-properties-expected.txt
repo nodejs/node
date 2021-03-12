@@ -105,6 +105,16 @@ Running test: testArrayBuffer
 [[ArrayBufferByteLength]]
 [[ArrayBufferData]]
 
+Running test: testArrayBufferFromWebAssemblyMemory
+[[Int8Array]]
+[[Uint8Array]]
+[[Int16Array]]
+[[Int32Array]]
+[[ArrayBufferByteLength]]
+[[ArrayBufferData]]
+[[WebAssemblyMemory]]
+  __proto__ own object undefined
+
 Running test: testDetachedArrayBuffer
 [[IsDetached]] true
 

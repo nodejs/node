@@ -245,11 +245,56 @@ MaybeHandle<Object> Module::Evaluate(Isolate* isolate, Handle<Module> module) {
   PrintStatusMessage(*module, "Evaluating module ");
 #endif  // DEBUG
   STACK_CHECK(isolate, MaybeHandle<Object>());
-  if (FLAG_harmony_top_level_await && module->IsSourceTextModule()) {
+  if (FLAG_harmony_top_level_await) {
+    return Module::EvaluateMaybeAsync(isolate, module);
+  } else {
+    return Module::InnerEvaluate(isolate, module);
+  }
+}
+
+MaybeHandle<Object> Module::EvaluateMaybeAsync(Isolate* isolate,
+                                               Handle<Module> module) {
+  // In the event of errored evaluation, return a rejected promise.
+  if (module->status() == kErrored) {
+    // If we have a top level capability we assume it has already been
+    // rejected, and return it here. Otherwise create a new promise and
+    // reject it with the module's exception.
+    if (module->top_level_capability().IsJSPromise()) {
+      Handle<JSPromise> top_level_capability(
+          JSPromise::cast(module->top_level_capability()), isolate);
+      DCHECK(top_level_capability->status() == Promise::kRejected &&
+             top_level_capability->result() == module->exception());
+      return top_level_capability;
+    }
+    Handle<JSPromise> capability = isolate->factory()->NewJSPromise();
+    JSPromise::Reject(capability, handle(module->exception(), isolate));
+    return capability;
+  }
+
+  // Start of Evaluate () Concrete Method
+  // 2. Assert: module.[[Status]] is "linked" or "evaluated".
+  CHECK(module->status() == kInstantiated || module->status() == kEvaluated);
+
+  // 3. If module.[[Status]] is "evaluated", set module to
+  //    module.[[CycleRoot]].
+  // A Synthetic Module has no children so it is its own cycle root.
+  if (module->status() == kEvaluated && module->IsSourceTextModule()) {
+    module = Handle<SourceTextModule>::cast(module)->GetCycleRoot(isolate);
+  }
+
+  // 4. If module.[[TopLevelCapability]] is not undefined, then
+  //    a. Return module.[[TopLevelCapability]].[[Promise]].
+  if (module->top_level_capability().IsJSPromise()) {
+    return handle(JSPromise::cast(module->top_level_capability()), isolate);
+  }
+  DCHECK(module->top_level_capability().IsUndefined());
+
+  if (module->IsSourceTextModule()) {
     return SourceTextModule::EvaluateMaybeAsync(
         isolate, Handle<SourceTextModule>::cast(module));
   } else {
-    return Module::InnerEvaluate(isolate, module);
+    return SyntheticModule::Evaluate(isolate,
+                                     Handle<SyntheticModule>::cast(module));
   }
 }
 

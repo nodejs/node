@@ -32,6 +32,10 @@ static const int kCallerPCOffsetRegisterIndex =
     (InterpreterFrameConstants::kRegisterFileFromFp -
      InterpreterFrameConstants::kCallerPCOffset) /
     kSystemPointerSize;
+static const int kArgumentCountRegisterIndex =
+    (InterpreterFrameConstants::kRegisterFileFromFp -
+     InterpreterFrameConstants::kArgCOffset) /
+    kSystemPointerSize;
 
 Register Register::FromParameterIndex(int index, int parameter_count) {
   DCHECK_GE(index, 0);
@@ -81,6 +85,11 @@ bool Register::is_bytecode_offset() const {
 // static
 Register Register::virtual_accumulator() {
   return Register(kCallerPCOffsetRegisterIndex);
+}
+
+// static
+Register Register::argument_count() {
+  return Register(kArgumentCountRegisterIndex);
 }
 
 OperandSize Register::SizeOfOperand() const {

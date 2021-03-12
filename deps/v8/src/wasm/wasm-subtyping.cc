@@ -258,8 +258,7 @@ bool ArrayIsSubtypeOf(uint32_t subtype_index, uint32_t supertype_index,
   }
 }
 
-// TODO(7748): Expand this with function subtyping once the hiccups
-// with 'exact types' have been cleared.
+// TODO(7748): Expand this with function subtyping when it is introduced.
 bool FunctionIsSubtypeOf(uint32_t subtype_index, uint32_t supertype_index,
                          const WasmModule* sub_module,
                          const WasmModule* super_module) {
@@ -274,15 +273,34 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
     const WasmModule* super_module) {
   DCHECK(subtype != supertype || sub_module != super_module);
 
-  if (!subtype.is_reference_type()) return subtype == supertype;
-
-  if (subtype.is_rtt()) {
-    return subtype.heap_type().is_generic()
-               ? subtype == supertype
-               : (supertype.is_rtt() && subtype.depth() == supertype.depth() &&
-                  supertype.has_index() &&
-                  EquivalentIndices(subtype.ref_index(), supertype.ref_index(),
-                                    sub_module, super_module));
+  switch (subtype.kind()) {
+    case kI32:
+    case kI64:
+    case kF32:
+    case kF64:
+    case kS128:
+    case kI8:
+    case kI16:
+    case kStmt:
+    case kBottom:
+      return subtype == supertype;
+    case kRtt:
+      return supertype.kind() == kRtt &&
+             EquivalentIndices(subtype.ref_index(), supertype.ref_index(),
+                               sub_module, super_module);
+    case kRttWithDepth:
+      return (supertype.kind() == kRtt &&
+              ((sub_module == super_module &&
+                subtype.ref_index() == supertype.ref_index()) ||
+               EquivalentIndices(subtype.ref_index(), supertype.ref_index(),
+                                 sub_module, super_module))) ||
+             (supertype.kind() == kRttWithDepth &&
+              supertype.depth() == subtype.depth() &&
+              EquivalentIndices(subtype.ref_index(), supertype.ref_index(),
+                                sub_module, super_module));
+    case kRef:
+    case kOptRef:
+      break;
   }
 
   DCHECK(subtype.is_object_reference_type());
@@ -303,12 +321,12 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
     case HeapType::kFunc:
     case HeapType::kExtern:
     case HeapType::kEq:
-    case HeapType::kExn:
       return sub_heap == super_heap || super_heap == HeapType::kAny;
     case HeapType::kAny:
       return super_heap == HeapType::kAny;
     case HeapType::kI31:
-      return super_heap == HeapType::kI31 || super_heap == HeapType::kEq ||
+    case HeapType::kData:
+      return super_heap == sub_heap || super_heap == HeapType::kEq ||
              super_heap == HeapType::kAny;
     case HeapType::kBottom:
       UNREACHABLE();
@@ -324,9 +342,9 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
     case HeapType::kFunc:
       return sub_module->has_signature(sub_index);
     case HeapType::kEq:
+    case HeapType::kData:
       return !sub_module->has_signature(sub_index);
     case HeapType::kExtern:
-    case HeapType::kExn:
     case HeapType::kI31:
       return false;
     case HeapType::kAny:

@@ -47,7 +47,6 @@ class BuildFlags : public ContextualClass<BuildFlags> {
   BuildFlags() {
     build_flags_["V8_SFI_HAS_UNIQUE_ID"] = V8_SFI_HAS_UNIQUE_ID;
     build_flags_["TAGGED_SIZE_8_BYTES"] = TAGGED_SIZE_8_BYTES;
-    build_flags_["V8_DOUBLE_FIELDS_UNBOXING"] = V8_DOUBLE_FIELDS_UNBOXING;
     build_flags_["TRUE_FOR_TESTING"] = true;
     build_flags_["FALSE_FOR_TESTING"] = false;
   }
@@ -983,7 +982,7 @@ base::Optional<ParseResult> MakeClassDeclaration(
   std::vector<Declaration*> result;
 
   result.push_back(MakeNode<ClassDeclaration>(
-      name, flags, extends, std::move(generates), std::move(methods), fields,
+      name, flags, extends, generates, std::move(methods), fields,
       MakeInstanceTypeConstraints(annotations)));
 
   Identifier* constexpr_name =
@@ -993,7 +992,8 @@ base::Optional<ParseResult> MakeClassDeclaration(
   AbstractTypeFlags abstract_type_flags(AbstractTypeFlag::kConstexpr);
   if (transient) abstract_type_flags |= AbstractTypeFlag::kTransient;
   TypeDeclaration* constexpr_decl = MakeNode<AbstractTypeDeclaration>(
-      constexpr_name, abstract_type_flags, constexpr_extends, name->value);
+      constexpr_name, abstract_type_flags, constexpr_extends,
+      generates ? UnwrapTNodeTypeName(*generates) : name->value);
   constexpr_decl->pos = name->pos;
   result.push_back(constexpr_decl);
 
@@ -1311,6 +1311,7 @@ base::Optional<ParseResult> MakeEnumDeclaration(
       name_type_expression->pos = name_identifier->pos;
 
       std::vector<Declaration*> entry_decls;
+      entry_decls.reserve(entries.size());
       for (const auto& entry : entries) {
         entry_decls.push_back(MakeNode<AbstractTypeDeclaration>(
             entry.name, AbstractTypeFlag::kNone,
@@ -1829,22 +1830,11 @@ base::Optional<ParseResult> MakeAssignmentExpression(
 base::Optional<ParseResult> MakeNumberLiteralExpression(
     ParseResultIterator* child_results) {
   auto number = child_results->NextAs<std::string>();
-  // TODO(tebbi): Support 64bit literals.
+  // TODO(turbofan): Support 64bit literals.
   // Meanwhile, we type it as constexpr float64 when out of int32 range.
   double value = 0;
   try {
-#if defined(V8_OS_SOLARIS)
-    // stod() on Solaris does not currently support hex strings. Use strtol()
-    // specifically for hex literals until stod() support is available.
-    if (number.find("0x") == std::string::npos &&
-        number.find("0X") == std::string::npos) {
-      value = std::stod(number);
-    } else {
-      value = static_cast<double>(strtol(number.c_str(), nullptr, 0));
-    }
-#else
     value = std::stod(number);
-#endif  // !defined(V8_OS_SOLARIS)
   } catch (const std::out_of_range&) {
     Error("double literal out-of-range").Throw();
   }
@@ -1954,10 +1944,23 @@ base::Optional<ParseResult> MakeAnnotation(ParseResultIterator* child_results) {
 
 base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
   AnnotationSet annotations(child_results,
-                            {ANNOTATION_NO_VERIFIER, ANNOTATION_RELAXED_WRITE},
+                            {ANNOTATION_NO_VERIFIER, ANNOTATION_RELAXED_WRITE,
+                             ANNOTATION_RELAXED_READ, ANNOTATION_RELEASE_WRITE,
+                             ANNOTATION_ACQUIRE_READ},
                             {ANNOTATION_IF, ANNOTATION_IFNOT});
   bool generate_verify = !annotations.Contains(ANNOTATION_NO_VERIFIER);
-  bool relaxed_write = annotations.Contains(ANNOTATION_RELAXED_WRITE);
+  FieldSynchronization write_synchronization = FieldSynchronization::kNone;
+  if (annotations.Contains(ANNOTATION_RELEASE_WRITE)) {
+    write_synchronization = FieldSynchronization::kAcquireRelease;
+  } else if (annotations.Contains(ANNOTATION_RELAXED_WRITE)) {
+    write_synchronization = FieldSynchronization::kRelaxed;
+  }
+  FieldSynchronization read_synchronization = FieldSynchronization::kNone;
+  if (annotations.Contains(ANNOTATION_ACQUIRE_READ)) {
+    read_synchronization = FieldSynchronization::kAcquireRelease;
+  } else if (annotations.Contains(ANNOTATION_RELAXED_READ)) {
+    read_synchronization = FieldSynchronization::kRelaxed;
+  }
   std::vector<ConditionalAnnotation> conditions;
   base::Optional<std::string> if_condition =
       annotations.GetStringParam(ANNOTATION_IF);
@@ -1981,7 +1984,8 @@ base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
                                           weak,
                                           const_qualified,
                                           generate_verify,
-                                          relaxed_write}};
+                                          read_synchronization,
+                                          write_synchronization}};
 }
 
 base::Optional<ParseResult> MakeStructField(

@@ -43,7 +43,6 @@
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/foreign-inl.h"
-#include "src/objects/frame-array-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
@@ -331,6 +330,15 @@ Handle<Tuple2> Factory::NewTuple2(Handle<Object> value1, Handle<Object> value2,
   return result;
 }
 
+Handle<BaselineData> Factory::NewBaselineData(
+    Handle<Code> code, Handle<HeapObject> function_data) {
+  Handle<BaselineData> baseline_data = Handle<BaselineData>::cast(
+      NewStruct(BASELINE_DATA_TYPE, AllocationType::kOld));
+  baseline_data->set_baseline_code(*code);
+  baseline_data->set_data(*function_data);
+  return baseline_data;
+}
+
 Handle<Oddball> Factory::NewOddball(Handle<Map> map, const char* to_string,
                                     Handle<Object> to_number,
                                     const char* type_of, byte kind) {
@@ -424,8 +432,8 @@ Handle<FeedbackVector> Factory::NewFeedbackVector(
                                                  *feedback_vector_map());
   Handle<FeedbackVector> vector(FeedbackVector::cast(result), isolate());
   vector->set_shared_function_info(*shared);
-  vector->set_maybe_optimized_code(
-      HeapObjectReference::ClearedValue(isolate()));
+  vector->set_maybe_optimized_code(HeapObjectReference::ClearedValue(isolate()),
+                                   kReleaseStore);
   vector->set_length(length);
   vector->set_invocation_count(0);
   vector->set_profiler_ticks(0);
@@ -466,14 +474,6 @@ Handle<FixedArrayBase> Factory::NewFixedDoubleArrayWithHoles(int length) {
     Handle<FixedDoubleArray>::cast(array)->FillWithHoles(0, length);
   }
   return array;
-}
-
-Handle<FrameArray> Factory::NewFrameArray(int number_of_frames) {
-  DCHECK_LE(0, number_of_frames);
-  Handle<FixedArray> result =
-      NewFixedArrayWithHoles(FrameArray::LengthFor(number_of_frames));
-  result->set(FrameArray::kFrameCountIndex, Smi::zero());
-  return Handle<FrameArray>::cast(result);
 }
 
 template <typename T>
@@ -551,6 +551,27 @@ Handle<PropertyDescriptorObject> Factory::NewPropertyDescriptorObject() {
   object->set_get(*the_hole_value(), SKIP_WRITE_BARRIER);
   object->set_set(*the_hole_value(), SKIP_WRITE_BARRIER);
   return object;
+}
+
+Handle<SwissNameDictionary> Factory::CreateCanonicalEmptySwissNameDictionary() {
+  // This function is only supposed to be used to create the canonical empty
+  // version and should not be used afterwards.
+  DCHECK_EQ(kNullAddress, ReadOnlyRoots(isolate()).at(
+                              RootIndex::kEmptySwissPropertyDictionary));
+
+  ReadOnlyRoots roots(isolate());
+
+  Handle<ByteArray> empty_meta_table =
+      NewByteArray(SwissNameDictionary::kMetaTableEnumerationTableStartOffset,
+                   AllocationType::kReadOnly);
+
+  Map map = roots.swiss_name_dictionary_map();
+  int size = SwissNameDictionary::SizeFor(0);
+  HeapObject obj =
+      AllocateRawWithImmortalMap(size, AllocationType::kReadOnly, map);
+  SwissNameDictionary result = SwissNameDictionary::cast(obj);
+  result.Initialize(isolate(), *empty_meta_table, 0);
+  return handle(result, isolate());
 }
 
 // Internalized strings are created in the old generation (data space).
@@ -1308,16 +1329,15 @@ Handle<Foreign> Factory::NewForeign(Address addr) {
 }
 
 Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(Address type_address,
-                                              Handle<Map> parent) {
+                                              Handle<Map> opt_parent) {
   Handle<ArrayList> subtypes = ArrayList::New(isolate(), 0);
   Handle<FixedArray> supertypes;
-  if (parent->IsWasmStructMap() || parent->IsWasmArrayMap()) {
-    supertypes = CopyFixedArrayAndGrow(
-        handle(parent->wasm_type_info().supertypes(), isolate()), 1);
-    supertypes->set(supertypes->length() - 1, *parent);
+  if (opt_parent.is_null()) {
+    supertypes = NewUninitializedFixedArray(0);
   } else {
-    supertypes = NewUninitializedFixedArray(1);
-    supertypes->set(0, *parent);
+    supertypes = CopyFixedArrayAndGrow(
+        handle(opt_parent->wasm_type_info().supertypes(), isolate()), 1);
+    supertypes->set(supertypes->length() - 1, *opt_parent);
   }
   Map map = *wasm_type_info_map();
   HeapObject result = AllocateRawWithImmortalMap(map.instance_size(),
@@ -1325,7 +1345,6 @@ Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(Address type_address,
   Handle<WasmTypeInfo> info(WasmTypeInfo::cast(result), isolate());
   info->AllocateExternalPointerEntries(isolate());
   info->set_foreign_address(isolate(), type_address);
-  info->set_parent(*parent);
   info->set_supertypes(*supertypes);
   info->set_subtypes(*subtypes);
   return info;
@@ -1374,6 +1393,8 @@ Handle<FeedbackCell> Factory::NewManyClosuresCell(Handle<HeapObject> value) {
 }
 
 Handle<PropertyCell> Factory::NewPropertyCell(Handle<Name> name,
+                                              PropertyDetails details,
+                                              Handle<Object> value,
                                               AllocationType allocation) {
   DCHECK(name->IsUniqueName());
   STATIC_ASSERT(PropertyCell::kSize <= kMaxRegularHeapObjectSize);
@@ -1382,10 +1403,16 @@ Handle<PropertyCell> Factory::NewPropertyCell(Handle<Name> name,
   Handle<PropertyCell> cell(PropertyCell::cast(result), isolate());
   cell->set_dependent_code(DependentCode::cast(*empty_weak_fixed_array()),
                            SKIP_WRITE_BARRIER);
-  cell->set_property_details(PropertyDetails(Smi::zero()));
   cell->set_name(*name);
-  cell->set_value(*the_hole_value());
+  cell->set_value(*value);
+  cell->set_property_details_raw(details.AsSmi());
   return cell;
+}
+
+Handle<PropertyCell> Factory::NewProtector() {
+  return NewPropertyCell(
+      empty_string(), PropertyDetails::Empty(PropertyCellType::kConstantType),
+      handle(Smi::FromInt(Protectors::kProtectorValid), isolate()));
 }
 
 Handle<TransitionArray> Factory::NewTransitionArray(int number_of_transitions,
@@ -1445,7 +1472,7 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
                            int inobject_properties) {
   map.set_instance_type(type);
   map.set_prototype(*null_value(), SKIP_WRITE_BARRIER);
-  map.set_constructor_or_backpointer(*null_value(), SKIP_WRITE_BARRIER);
+  map.set_constructor_or_back_pointer(*null_value(), SKIP_WRITE_BARRIER);
   map.set_instance_size(instance_size);
   if (map.IsJSObjectMap()) {
     DCHECK(!ReadOnlyHeap::Contains(map));
@@ -1463,12 +1490,7 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
   map.set_raw_transitions(MaybeObject::FromSmi(Smi::zero()));
   map.SetInObjectUnusedPropertyFields(inobject_properties);
   map.SetInstanceDescriptors(isolate(), *empty_descriptor_array(), 0);
-  if (FLAG_unbox_double_fields) {
-    map.set_layout_descriptor(LayoutDescriptor::FastPointerLayout(),
-                              kReleaseStore);
-  }
-  // Must be called only after |instance_type|, |instance_size| and
-  // |layout_descriptor| are set.
+  // Must be called only after |instance_type| and |instance_size| are set.
   map.set_visitor_id(Map::GetVisitorId(map));
   map.set_bit_field(0);
   map.set_bit_field2(Map::Bits2::NewTargetIsBaseBit::encode(true));
@@ -1482,7 +1504,7 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
   map.clear_padding();
   map.set_elements_kind(elements_kind);
   isolate()->counters()->maps_created()->Increment();
-  if (FLAG_trace_maps) LOG(isolate(), MapCreate(map));
+  if (FLAG_log_maps) LOG(isolate(), MapCreate(map));
   return map;
 }
 
@@ -2052,8 +2074,8 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
     PropertyDetails d(kAccessor, details.attributes(),
                       PropertyCellType::kMutable);
     Handle<Name> name(descs->GetKey(i), isolate());
-    Handle<PropertyCell> cell = NewPropertyCell(name);
-    cell->set_value(descs->GetStrongValue(i));
+    Handle<Object> value(descs->GetStrongValue(i), isolate());
+    Handle<PropertyCell> cell = NewPropertyCell(name, d, value);
     // |dictionary| already contains enough space for all properties.
     USE(GlobalDictionary::Add(isolate(), dictionary, name, cell, d));
   }
@@ -2125,7 +2147,7 @@ Handle<JSObject> Factory::NewJSObjectFromMap(
     Handle<AllocationSite> allocation_site) {
   // JSFunctions should be allocated using AllocateFunction to be
   // properly initialized.
-  DCHECK(map->instance_type() != JS_FUNCTION_TYPE);
+  DCHECK(!InstanceTypeChecker::IsJSFunction((map->instance_type())));
 
   // Both types of global objects should be allocated using
   // AllocateGlobalObject to be properly initialized.
@@ -2337,10 +2359,10 @@ Handle<SourceTextModule> Factory::NewSourceTextModule(
   module->set_requested_modules(*requested_modules);
   module->set_status(Module::kUninstantiated);
   module->set_exception(roots.the_hole_value());
+  module->set_top_level_capability(roots.undefined_value());
   module->set_import_meta(roots.the_hole_value());
   module->set_dfs_index(-1);
   module->set_dfs_ancestor_index(-1);
-  module->set_top_level_capability(roots.undefined_value());
   module->set_flags(0);
   module->set_async(IsAsyncModule(sfi->kind()));
   module->set_async_evaluating(false);
@@ -2367,6 +2389,7 @@ Handle<SyntheticModule> Factory::NewSyntheticModule(
   module->set_module_namespace(roots.undefined_value());
   module->set_status(Module::kUninstantiated);
   module->set_exception(roots.the_hole_value());
+  module->set_top_level_capability(roots.undefined_value());
   module->set_name(*module_name);
   module->set_export_names(*export_names);
   module->set_exports(*exports);
@@ -2572,7 +2595,8 @@ MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
       isolate(), prototype,
       JSReceiver::GetPrototype(isolate(), target_function), JSBoundFunction);
 
-  SaveAndSwitchContext save(isolate(), *target_function->GetCreationContext());
+  SaveAndSwitchContext save(
+      isolate(), *target_function->GetCreationContext().ToHandleChecked());
 
   // Create the [[BoundArguments]] for the result.
   Handle<FixedArray> bound_arguments;
@@ -2936,99 +2960,18 @@ Handle<BreakPoint> Factory::NewBreakPoint(int id, Handle<String> condition) {
   return new_break_point;
 }
 
-Handle<StackTraceFrame> Factory::NewStackTraceFrame(
-    Handle<FrameArray> frame_array, int index) {
-  Handle<StackTraceFrame> frame = Handle<StackTraceFrame>::cast(
-      NewStruct(STACK_TRACE_FRAME_TYPE, AllocationType::kYoung));
-  frame->set_frame_array(*frame_array);
-  frame->set_frame_index(index);
-  frame->set_frame_info(*undefined_value());
-
-  return frame;
-}
-
 Handle<StackFrameInfo> Factory::NewStackFrameInfo(
-    Handle<FrameArray> frame_array, int index) {
-  FrameArrayIterator it(isolate(), frame_array, index);
-  DCHECK(it.HasFrame());
-
-  const bool is_wasm = frame_array->IsAnyWasmFrame(index);
-  StackFrameBase* frame = it.Frame();
-
-  int line = frame->GetLineNumber();
-  int column = frame->GetColumnNumber();
-  int wasm_function_index = frame->GetWasmFunctionIndex();
-
-  const int script_id = frame->GetScriptId();
-
-  Handle<Object> script_name = frame->GetFileName();
-  Handle<Object> script_or_url = frame->GetScriptNameOrSourceUrl();
-
-  // TODO(szuend): Adjust this, once it is decided what name to use in both
-  //               "simple" and "detailed" stack traces. This code is for
-  //               backwards compatibility to fullfill test expectations.
-  Handle<PrimitiveHeapObject> function_name = frame->GetFunctionName();
-  bool is_user_java_script = false;
-  if (!is_wasm) {
-    Handle<Object> function = frame->GetFunction();
-    if (function->IsJSFunction()) {
-      Handle<JSFunction> fun = Handle<JSFunction>::cast(function);
-
-      is_user_java_script = fun->shared().IsUserJavaScript();
-    }
-  }
-
-  Handle<PrimitiveHeapObject> method_name = undefined_value();
-  Handle<PrimitiveHeapObject> type_name = undefined_value();
-  Handle<PrimitiveHeapObject> eval_origin = frame->GetEvalOrigin();
-  Handle<PrimitiveHeapObject> wasm_module_name = frame->GetWasmModuleName();
-  Handle<HeapObject> wasm_instance = frame->GetWasmInstance();
-
-  // MethodName and TypeName are expensive to look up, so they are only
-  // included when they are strictly needed by the stack trace
-  // serialization code.
-  // Note: The {is_method_call} predicate needs to be kept in sync with
-  //       the corresponding predicate in the stack trace serialization code
-  //       in stack-frame-info.cc.
-  const bool is_toplevel = frame->IsToplevel();
-  const bool is_constructor = frame->IsConstructor();
-  const bool is_method_call = !(is_toplevel || is_constructor);
-  if (is_method_call) {
-    method_name = frame->GetMethodName();
-    type_name = frame->GetTypeName();
-  }
-
-  Handle<StackFrameInfo> info = Handle<StackFrameInfo>::cast(
-      NewStruct(STACK_FRAME_INFO_TYPE, AllocationType::kYoung));
-
-  DisallowGarbageCollection no_gc;
-
-  info->set_flag(0);
-  info->set_is_wasm(is_wasm);
-  info->set_is_asmjs_wasm(frame_array->IsAsmJsWasmFrame(index));
-  info->set_is_user_java_script(is_user_java_script);
-  info->set_line_number(line);
-  info->set_column_number(column);
-  info->set_wasm_function_index(wasm_function_index);
-  info->set_script_id(script_id);
-
-  info->set_script_name(*script_name);
-  info->set_script_name_or_source_url(*script_or_url);
-  info->set_function_name(*function_name);
-  info->set_method_name(*method_name);
-  info->set_type_name(*type_name);
-  info->set_eval_origin(*eval_origin);
-  info->set_wasm_module_name(*wasm_module_name);
-  info->set_wasm_instance(*wasm_instance);
-
-  info->set_is_eval(frame->IsEval());
-  info->set_is_constructor(is_constructor);
-  info->set_is_toplevel(is_toplevel);
-  info->set_is_async(frame->IsAsync());
-  info->set_is_promise_all(frame->IsPromiseAll());
-  info->set_is_promise_any(frame->IsPromiseAny());
-  info->set_promise_combinator_index(frame->GetPromiseIndex());
-
+    Handle<Object> receiver_or_instance, Handle<Object> function,
+    Handle<HeapObject> code_object, int code_offset_or_source_position,
+    int flags, Handle<FixedArray> parameters) {
+  Handle<StackFrameInfo> info =
+      Handle<StackFrameInfo>::cast(NewStruct(STACK_FRAME_INFO_TYPE));
+  info->set_receiver_or_instance(*receiver_or_instance);
+  info->set_function(*function);
+  info->set_code_object(*code_object);
+  info->set_code_offset_or_source_position(code_offset_or_source_position);
+  info->set_flags(flags);
+  info->set_parameters(*parameters);
   return info;
 }
 
@@ -3326,7 +3269,6 @@ Handle<Map> Factory::CreateStrictFunctionMap(
   } else {
     ++descriptors_count;  // name accessor.
   }
-  if (IsFunctionModeWithHomeObject(function_mode)) ++inobject_properties_count;
   descriptors_count += inobject_properties_count;
 
   Handle<Map> map = NewMap(
@@ -3369,15 +3311,6 @@ Handle<Map> Factory::CreateStrictFunctionMap(
     // Add name accessor.
     Descriptor d = Descriptor::AccessorConstant(
         name_string(), function_name_accessor(), roc_attribs);
-    map->AppendDescriptor(isolate(), &d);
-  }
-
-  STATIC_ASSERT(JSFunction::kMaybeHomeObjectDescriptorIndex == 2);
-  if (IsFunctionModeWithHomeObject(function_mode)) {
-    // Add home object field.
-    Handle<Name> name = isolate()->factory()->home_object_symbol();
-    Descriptor d = Descriptor::DataField(isolate(), name, field_index++,
-                                         DONT_ENUM, Representation::Tagged());
     map->AppendDescriptor(isolate(), &d);
   }
 
@@ -3494,10 +3427,12 @@ Handle<JSFunction> Factory::JSFunctionBuilder::Build() {
 
   Handle<JSFunction> result = BuildRaw(code);
 
-  if (have_cached_code) {
+  if (have_cached_code || code->kind() == CodeKind::BASELINE) {
     IsCompiledScope is_compiled_scope(sfi_->is_compiled_scope(isolate_));
     JSFunction::EnsureFeedbackVector(result, &is_compiled_scope);
-    if (FLAG_trace_turbo_nci) CompilationCacheCode::TraceHit(sfi_, code);
+    if (FLAG_trace_turbo_nci && have_cached_code) {
+      CompilationCacheCode::TraceHit(sfi_, code);
+    }
   }
 
   Compiler::PostInstantiation(result);
@@ -3511,7 +3446,7 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(Handle<Code> code) {
   Handle<Map> map = maybe_map_.ToHandleChecked();
   Handle<FeedbackCell> feedback_cell = maybe_feedback_cell_.ToHandleChecked();
 
-  DCHECK_EQ(JS_FUNCTION_TYPE, map->instance_type());
+  DCHECK(InstanceTypeChecker::IsJSFunction(map->instance_type()));
 
   // Allocation.
   Handle<JSFunction> function(
@@ -3523,7 +3458,7 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(Handle<Code> code) {
   function->set_shared(*sfi_);
   function->set_context(*context_);
   function->set_raw_feedback_cell(*feedback_cell);
-  function->set_code(*code);
+  function->set_code(*code, kReleaseStore);
   if (map->has_prototype_slot()) {
     function->set_prototype_or_initial_map(
         ReadOnlyRoots(isolate).the_hole_value());

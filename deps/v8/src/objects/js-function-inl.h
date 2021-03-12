@@ -29,6 +29,8 @@ OBJECT_CONSTRUCTORS_IMPL(JSFunction, JSFunctionOrBoundFunction)
 CAST_ACCESSOR(JSFunction)
 
 ACCESSORS(JSFunction, raw_feedback_cell, FeedbackCell, kFeedbackCellOffset)
+RELEASE_ACQUIRE_ACCESSORS(JSFunction, raw_feedback_cell, FeedbackCell,
+                          kFeedbackCellOffset)
 
 FeedbackVector JSFunction::feedback_vector() const {
   DCHECK(has_feedback_vector());
@@ -50,7 +52,7 @@ void JSFunction::ClearOptimizationMarker() {
 }
 
 bool JSFunction::ChecksOptimizationMarker() {
-  return code().checks_optimization_marker();
+  return code(kAcquireLoad).checks_optimization_marker();
 }
 
 bool JSFunction::IsMarkedForOptimization() {
@@ -64,6 +66,20 @@ bool JSFunction::IsMarkedForConcurrentOptimization() {
              OptimizationMarker::kCompileOptimizedConcurrent;
 }
 
+void JSFunction::SetInterruptBudget() {
+  if (!has_feedback_vector()) {
+    DCHECK(shared().is_compiled());
+    int budget = FLAG_budget_for_feedback_vector_allocation;
+    if (FLAG_feedback_allocation_on_bytecode_size) {
+      budget = shared().GetBytecodeArray(GetIsolate()).length() *
+               FLAG_scale_factor_for_feedback_allocation;
+    }
+    raw_feedback_cell().set_interrupt_budget(budget);
+    return;
+  }
+  FeedbackVector::SetInterruptBudget(raw_feedback_cell());
+}
+
 void JSFunction::MarkForOptimization(ConcurrencyMode mode) {
   Isolate* isolate = GetIsolate();
   if (!isolate->concurrent_recompilation_enabled() ||
@@ -72,7 +88,7 @@ void JSFunction::MarkForOptimization(ConcurrencyMode mode) {
   }
 
   DCHECK(!is_compiled() || ActiveTierIsIgnition() || ActiveTierIsNCI() ||
-         ActiveTierIsMidtierTurboprop());
+         ActiveTierIsMidtierTurboprop() || ActiveTierIsBaseline());
   DCHECK(!ActiveTierIsTurbofan());
   DCHECK(shared().IsInterpreted());
   DCHECK(shared().allows_lazy_compilation() ||
@@ -116,7 +132,7 @@ AbstractCode JSFunction::abstract_code(LocalIsolate* isolate) {
   if (ActiveTierIsIgnition()) {
     return AbstractCode::cast(shared().GetBytecodeArray(isolate));
   } else {
-    return AbstractCode::cast(code());
+    return AbstractCode::cast(code(kAcquireLoad));
   }
 }
 
@@ -134,10 +150,7 @@ void JSFunction::set_code(Code value) {
 #endif
 }
 
-void JSFunction::set_code_no_write_barrier(Code value) {
-  DCHECK(!ObjectInYoungGeneration(value));
-  RELAXED_WRITE_FIELD(*this, kCodeOffset, value);
-}
+RELEASE_ACQUIRE_ACCESSORS(JSFunction, code, Code, kCodeOffset)
 
 // TODO(ishell): Why relaxed read but release store?
 DEF_GETTER(JSFunction, shared, SharedFunctionInfo) {
@@ -253,7 +266,7 @@ DEF_GETTER(JSFunction, prototype, Object) {
 }
 
 bool JSFunction::is_compiled() const {
-  return code().builtin_index() != Builtins::kCompileLazy &&
+  return code(kAcquireLoad).builtin_index() != Builtins::kCompileLazy &&
          shared().is_compiled();
 }
 

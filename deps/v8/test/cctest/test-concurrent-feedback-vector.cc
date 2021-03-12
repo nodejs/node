@@ -156,7 +156,6 @@ static void CheckedWait(base::Semaphore& semaphore) {
 // Verify that a LoadIC can be cycled through different states and safely
 // read on a background thread.
 TEST(CheckLoadICStates) {
-  heap::EnsureFlagLocalHeapsEnabled();
   CcTest::InitializeVM();
   FLAG_lazy_feedback_allocation = false;
   Isolate* isolate = CcTest::i_isolate();

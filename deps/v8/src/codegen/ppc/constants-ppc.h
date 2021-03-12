@@ -2393,6 +2393,8 @@ using Instr = uint32_t;
   V(vbpermq, VBPERMQ, 0x1000054C)
 
 #define PPC_VX_OPCODE_C_FORM_LIST(V)       \
+  /* Vector Unpack Low Signed Word */      \
+  V(vupklsw, VUPKLSW, 0x100006CE)          \
   /* Vector Unpack High Signed Word */     \
   V(vupkhsw, VUPKHSW, 0x1000064E)          \
   /* Vector Unpack Low Signed Halfword */  \
@@ -2559,8 +2561,6 @@ using Instr = uint32_t;
   V(vupkhpx, VUPKHPX, 0x1000034E)                                         \
   /* Vector Unpack Low Pixel */                                           \
   V(vupklpx, VUPKLPX, 0x100003CE)                                         \
-  /* Vector Unpack Low Signed Word */                                     \
-  V(vupklsw, VUPKLSW, 0x100006CE)                                         \
   /* Vector AES Cipher */                                                 \
   V(vcipher, VCIPHER, 0x10000508)                                         \
   /* Vector AES Cipher Last */                                            \

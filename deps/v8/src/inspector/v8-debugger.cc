@@ -43,8 +43,10 @@ class MatchPrototypePredicate : public v8::debug::QueryObjectPredicate {
 
   bool Filter(v8::Local<v8::Object> object) override {
     if (object->IsModuleNamespaceObject()) return false;
-    v8::Local<v8::Context> objectContext =
-        v8::debug::GetCreationContext(object);
+    v8::Local<v8::Context> objectContext;
+    if (!v8::debug::GetCreationContext(object).ToLocal(&objectContext)) {
+      return false;
+    }
     if (objectContext != m_context) return false;
     if (!m_inspector->client()->isInspectableHeapObject(object)) return false;
     // Get prototype chain for current object until first visited prototype.

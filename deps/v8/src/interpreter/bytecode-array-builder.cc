@@ -197,7 +197,10 @@ void BytecodeArrayBuilder::OutputLdarRaw(Register reg) {
 
 void BytecodeArrayBuilder::OutputStarRaw(Register reg) {
   uint32_t operand = static_cast<uint32_t>(reg.ToOperand());
-  BytecodeNode node(BytecodeNode::Star(BytecodeSourceInfo(), operand));
+  base::Optional<Bytecode> short_code = reg.TryToShortStar();
+  BytecodeNode node = short_code
+                          ? BytecodeNode(*short_code)
+                          : BytecodeNode::Star(BytecodeSourceInfo(), operand);
   Write(&node);
 }
 
@@ -327,7 +330,7 @@ class OperandHelper<OperandType::kRegOutTriple> {
 
 }  // namespace
 
-template <Bytecode bytecode, AccumulatorUse accumulator_use,
+template <Bytecode bytecode, ImplicitRegisterUse implicit_register_use,
           OperandType... operand_types>
 class BytecodeNodeBuilder {
  public:
@@ -336,7 +339,7 @@ class BytecodeNodeBuilder {
                                      Operands... operands) {
     static_assert(sizeof...(Operands) <= Bytecodes::kMaxOperands,
                   "too many operands for bytecode");
-    builder->PrepareToOutputBytecode<bytecode, accumulator_use>();
+    builder->PrepareToOutputBytecode<bytecode, implicit_register_use>();
     // The "OperandHelper<operand_types>::Convert(builder, operands)..." will
     // expand both the OperandType... and Operands... parameter packs e.g. for:
     //   BytecodeNodeBuilder<OperandType::kReg, OperandType::kImm>::Make<
@@ -344,7 +347,8 @@ class BytecodeNodeBuilder {
     // the code will expand into:
     //    OperandHelper<OperandType::kReg>::Convert(builder, reg),
     //    OperandHelper<OperandType::kImm>::Convert(builder, immediate),
-    return BytecodeNode::Create<bytecode, accumulator_use, operand_types...>(
+    return BytecodeNode::Create<bytecode, implicit_register_use,
+                                operand_types...>(
         builder->CurrentSourcePosition(bytecode),
         OperandHelper<operand_types>::Convert(builder, operands)...);
   }
@@ -645,18 +649,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(AstBigInt bigint) {
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(AstSymbol symbol) {
-  size_t entry;
-  switch (symbol) {
-    case AstSymbol::kHomeObjectSymbol:
-      entry = HomeObjectSymbolConstantPoolEntry();
-      break;
-      // No default case so that we get a warning if AstSymbol changes
-  }
-  OutputLdaConstant(entry);
-  return *this;
-}
-
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadUndefined() {
   OutputLdaUndefined();
   return *this;
@@ -707,7 +699,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreAccumulatorInRegister(
     SetDeferredSourceInfo(CurrentSourcePosition(Bytecode::kStar));
     register_optimizer_->DoStar(reg);
   } else {
-    OutputStar(reg);
+    OutputStarRaw(reg);
   }
   return *this;
 }
@@ -939,12 +931,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreInArrayLiteral(
     Register array, Register index, int feedback_slot) {
   OutputStaInArrayLiteral(array, index, feedback_slot);
   return *this;
-}
-
-BytecodeArrayBuilder& BytecodeArrayBuilder::StoreHomeObjectProperty(
-    Register object, int feedback_slot, LanguageMode language_mode) {
-  size_t name_index = HomeObjectSymbolConstantPoolEntry();
-  return StoreNamedProperty(object, name_index, feedback_slot, language_mode);
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreClassFieldsInitializer(
@@ -1616,10 +1602,10 @@ bool BytecodeArrayBuilder::RegisterListIsValid(RegisterList reg_list) const {
   }
 }
 
-template <Bytecode bytecode, AccumulatorUse accumulator_use>
+template <Bytecode bytecode, ImplicitRegisterUse implicit_register_use>
 void BytecodeArrayBuilder::PrepareToOutputBytecode() {
   if (register_optimizer_)
-    register_optimizer_->PrepareForBytecode<bytecode, accumulator_use>();
+    register_optimizer_->PrepareForBytecode<bytecode, implicit_register_use>();
 }
 
 uint32_t BytecodeArrayBuilder::GetInputRegisterOperand(Register reg) {

@@ -1153,12 +1153,12 @@ TEST(ScopeUsesArgumentsSuperThis) {
         CHECK_NOT_NULL(scope->AsDeclarationScope()->arguments());
       }
       if (IsClassConstructor(scope->AsDeclarationScope()->function_kind())) {
-        CHECK_EQ((source_data[i].expected & SUPER_PROPERTY) != 0 ||
-                     (source_data[i].expected & EVAL) != 0,
-                 scope->AsDeclarationScope()->NeedsHomeObject());
+        CHECK_IMPLIES((source_data[i].expected & SUPER_PROPERTY) != 0 ||
+                          (source_data[i].expected & EVAL) != 0,
+                      scope->GetHomeObjectScope()->needs_home_object());
       } else {
-        CHECK_EQ((source_data[i].expected & SUPER_PROPERTY) != 0,
-                 scope->AsDeclarationScope()->NeedsHomeObject());
+        CHECK_IMPLIES((source_data[i].expected & SUPER_PROPERTY) != 0,
+                      scope->GetHomeObjectScope()->needs_home_object());
       }
       if ((source_data[i].expected & THIS) != 0) {
         // Currently the is_used() flag is conservative; all variables in a

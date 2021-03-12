@@ -31,7 +31,9 @@ enum FunctionKind : uint8_t {
   // END constructable functions.
   // BEGIN accessors
   kGetterFunction,
+  kStaticGetterFunction,
   kSetterFunction,
+  kStaticSetterFunction,
   // END accessors
   // BEGIN arrow functions
   kArrowFunction,
@@ -41,20 +43,25 @@ enum FunctionKind : uint8_t {
   kAsyncFunction,
   // BEGIN concise methods 1
   kAsyncConciseMethod,
+  kStaticAsyncConciseMethod,
   // BEGIN generators
   kAsyncConciseGeneratorMethod,
+  kStaticAsyncConciseGeneratorMethod,
   // END concise methods 1
   kAsyncGeneratorFunction,
   // END async functions
   kGeneratorFunction,
   // BEGIN concise methods 2
   kConciseGeneratorMethod,
+  kStaticConciseGeneratorMethod,
   // END generators
   kConciseMethod,
+  kStaticConciseMethod,
   kClassMembersInitializerFunction,
+  kClassStaticInitializerFunction,
   // END concise methods 2
 
-  kLastFunctionKind = kClassMembersInitializerFunction,
+  kLastFunctionKind = kClassStaticInitializerFunction,
 };
 
 constexpr int kFunctionKindBitSize = 5;
@@ -81,7 +88,7 @@ inline bool IsAsyncGeneratorFunction(FunctionKind kind) {
 
 inline bool IsGeneratorFunction(FunctionKind kind) {
   return base::IsInRange(kind, FunctionKind::kAsyncConciseGeneratorMethod,
-                         FunctionKind::kConciseGeneratorMethod);
+                         FunctionKind::kStaticConciseGeneratorMethod);
 }
 
 inline bool IsAsyncFunction(FunctionKind kind) {
@@ -95,31 +102,33 @@ inline bool IsResumableFunction(FunctionKind kind) {
 
 inline bool IsConciseMethod(FunctionKind kind) {
   return base::IsInRange(kind, FunctionKind::kAsyncConciseMethod,
-                         FunctionKind::kAsyncConciseGeneratorMethod) ||
+                         FunctionKind::kStaticAsyncConciseGeneratorMethod) ||
          base::IsInRange(kind, FunctionKind::kConciseGeneratorMethod,
-                         FunctionKind::kClassMembersInitializerFunction);
+                         FunctionKind::kClassStaticInitializerFunction);
 }
 
 inline bool IsStrictFunctionWithoutPrototype(FunctionKind kind) {
   return base::IsInRange(kind, FunctionKind::kGetterFunction,
                          FunctionKind::kAsyncArrowFunction) ||
          base::IsInRange(kind, FunctionKind::kAsyncConciseMethod,
-                         FunctionKind::kAsyncConciseGeneratorMethod) ||
+                         FunctionKind::kStaticAsyncConciseGeneratorMethod) ||
          base::IsInRange(kind, FunctionKind::kConciseGeneratorMethod,
-                         FunctionKind::kClassMembersInitializerFunction);
+                         FunctionKind::kClassStaticInitializerFunction);
 }
 
 inline bool IsGetterFunction(FunctionKind kind) {
-  return kind == FunctionKind::kGetterFunction;
+  return base::IsInRange(kind, FunctionKind::kGetterFunction,
+                         FunctionKind::kStaticGetterFunction);
 }
 
 inline bool IsSetterFunction(FunctionKind kind) {
-  return kind == FunctionKind::kSetterFunction;
+  return base::IsInRange(kind, FunctionKind::kSetterFunction,
+                         FunctionKind::kStaticSetterFunction);
 }
 
 inline bool IsAccessorFunction(FunctionKind kind) {
   return base::IsInRange(kind, FunctionKind::kGetterFunction,
-                         FunctionKind::kSetterFunction);
+                         FunctionKind::kStaticSetterFunction);
 }
 
 inline bool IsDefaultConstructor(FunctionKind kind) {
@@ -143,12 +152,33 @@ inline bool IsClassConstructor(FunctionKind kind) {
 }
 
 inline bool IsClassMembersInitializerFunction(FunctionKind kind) {
-  return kind == FunctionKind::kClassMembersInitializerFunction;
+  return base::IsInRange(kind, FunctionKind::kClassMembersInitializerFunction,
+                         FunctionKind::kClassStaticInitializerFunction);
 }
 
 inline bool IsConstructable(FunctionKind kind) {
   return base::IsInRange(kind, FunctionKind::kNormalFunction,
                          FunctionKind::kDerivedConstructor);
+}
+
+inline bool IsStatic(FunctionKind kind) {
+  switch (kind) {
+    case FunctionKind::kStaticGetterFunction:
+    case FunctionKind::kStaticSetterFunction:
+    case FunctionKind::kStaticConciseMethod:
+    case FunctionKind::kStaticConciseGeneratorMethod:
+    case FunctionKind::kStaticAsyncConciseMethod:
+    case FunctionKind::kStaticAsyncConciseGeneratorMethod:
+    case FunctionKind::kClassStaticInitializerFunction:
+      return true;
+    default:
+      return false;
+  }
+}
+
+inline bool BindsSuper(FunctionKind kind) {
+  return IsConciseMethod(kind) || IsAccessorFunction(kind) ||
+         IsClassConstructor(kind);
 }
 
 inline const char* FunctionKind2String(FunctionKind kind) {
@@ -161,14 +191,20 @@ inline const char* FunctionKind2String(FunctionKind kind) {
       return "GeneratorFunction";
     case FunctionKind::kConciseMethod:
       return "ConciseMethod";
+    case FunctionKind::kStaticConciseMethod:
+      return "StaticConciseMethod";
     case FunctionKind::kDerivedConstructor:
       return "DerivedConstructor";
     case FunctionKind::kBaseConstructor:
       return "BaseConstructor";
     case FunctionKind::kGetterFunction:
       return "GetterFunction";
+    case FunctionKind::kStaticGetterFunction:
+      return "StaticGetterFunction";
     case FunctionKind::kSetterFunction:
       return "SetterFunction";
+    case FunctionKind::kStaticSetterFunction:
+      return "StaticSetterFunction";
     case FunctionKind::kAsyncFunction:
       return "AsyncFunction";
     case FunctionKind::kModule:
@@ -177,6 +213,8 @@ inline const char* FunctionKind2String(FunctionKind kind) {
       return "AsyncModule";
     case FunctionKind::kClassMembersInitializerFunction:
       return "ClassMembersInitializerFunction";
+    case FunctionKind::kClassStaticInitializerFunction:
+      return "ClassStaticInitializerFunction";
     case FunctionKind::kDefaultBaseConstructor:
       return "DefaultBaseConstructor";
     case FunctionKind::kDefaultDerivedConstructor:
@@ -185,10 +223,16 @@ inline const char* FunctionKind2String(FunctionKind kind) {
       return "AsyncArrowFunction";
     case FunctionKind::kAsyncConciseMethod:
       return "AsyncConciseMethod";
+    case FunctionKind::kStaticAsyncConciseMethod:
+      return "StaticAsyncConciseMethod";
     case FunctionKind::kConciseGeneratorMethod:
       return "ConciseGeneratorMethod";
+    case FunctionKind::kStaticConciseGeneratorMethod:
+      return "StaticConciseGeneratorMethod";
     case FunctionKind::kAsyncConciseGeneratorMethod:
       return "AsyncConciseGeneratorMethod";
+    case FunctionKind::kStaticAsyncConciseGeneratorMethod:
+      return "StaticAsyncConciseGeneratorMethod";
     case FunctionKind::kAsyncGeneratorFunction:
       return "AsyncGeneratorFunction";
   }

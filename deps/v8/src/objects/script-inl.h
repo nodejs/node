@@ -107,6 +107,12 @@ void Script::set_is_repl_mode(bool value) {
   set_flags(IsReplModeBit::update(flags(), value));
 }
 
+bool Script::break_on_entry() const { return BreakOnEntryBit::decode(flags()); }
+
+void Script::set_break_on_entry(bool value) {
+  set_flags(BreakOnEntryBit::update(flags(), value));
+}
+
 ScriptOriginOptions Script::origin_options() {
   return ScriptOriginOptions(OriginOptionsBits::decode(flags()));
 }

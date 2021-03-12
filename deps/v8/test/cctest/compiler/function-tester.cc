@@ -45,7 +45,7 @@ FunctionTester::FunctionTester(Handle<Code> code, int param_count)
       flags_(0) {
   CHECK(!code.is_null());
   Compile(function);
-  function->set_code(*code);
+  function->set_code(*code, kReleaseStore);
 }
 
 FunctionTester::FunctionTester(Handle<Code> code) : FunctionTester(code, 0) {}
@@ -158,7 +158,7 @@ Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
       Pipeline::GenerateCodeForTesting(&info, isolate, call_descriptor, graph,
                                        AssemblerOptions::Default(isolate))
           .ToHandleChecked();
-  function->set_code(*code);
+  function->set_code(*code, kReleaseStore);
   return function;
 }
 

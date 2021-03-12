@@ -27,6 +27,7 @@
 
 #include "test/cctest/cctest.h"
 
+#include "include/cppgc/platform.h"
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
 #include "src/codegen/compiler.h"
@@ -263,7 +264,7 @@ i::Handle<i::JSFunction> Optimize(
   i::Handle<i::SharedFunctionInfo> shared(function->shared(), isolate);
   i::IsCompiledScope is_compiled_scope(shared->is_compiled_scope(isolate));
   CHECK(is_compiled_scope.is_compiled() ||
-        i::Compiler::Compile(function, i::Compiler::CLEAR_EXCEPTION,
+        i::Compiler::Compile(isolate, function, i::Compiler::CLEAR_EXCEPTION,
                              &is_compiled_scope));
 
   CHECK_NOT_NULL(zone);
@@ -282,7 +283,7 @@ i::Handle<i::JSFunction> Optimize(
       i::compiler::Pipeline::GenerateCodeForTesting(&info, isolate, out_broker)
           .ToHandleChecked();
   info.native_context().AddOptimizedCode(*code);
-  function->set_code(*code);
+  function->set_code(*code, v8::kReleaseStore);
 
   return function;
 }
@@ -333,6 +334,7 @@ int main(int argc, char* argv[]) {
   v8::V8::InitializeICUDefaultLocation(argv[0]);
   std::unique_ptr<v8::Platform> platform(v8::platform::NewDefaultPlatform());
   v8::V8::InitializePlatform(platform.get());
+  cppgc::InitializeProcess(platform->GetPageAllocator());
   using HelpOptions = v8::internal::FlagList::HelpOptions;
   v8::internal::FlagList::SetFlagsFromCommandLine(
       &argc, argv, true, HelpOptions(HelpOptions::kExit, usage.c_str()));

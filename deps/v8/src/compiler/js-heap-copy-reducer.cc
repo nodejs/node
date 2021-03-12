@@ -29,8 +29,10 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kCheckClosure: {
       FeedbackCellRef cell(broker(), FeedbackCellOf(node->op()));
-      FeedbackVectorRef feedback_vector = cell.value().AsFeedbackVector();
-      feedback_vector.Serialize();
+      base::Optional<FeedbackVectorRef> feedback_vector = cell.value();
+      if (feedback_vector.has_value()) {
+        feedback_vector->Serialize();
+      }
       break;
     }
     case IrOpcode::kHeapConstant: {

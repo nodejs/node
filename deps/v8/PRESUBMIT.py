@@ -64,6 +64,8 @@ _TEST_CODE_EXCLUDED_PATHS = (
     r'src[\\\/]extensions[\\\/]gc-extension\.cc',
     # Runtime functions used for testing.
     r'src[\\\/]runtime[\\\/]runtime-test\.cc',
+    # Testing helpers.
+    r'src[\\\/]heap[\\\/]cppgc[\\\/]testing\.cc',
 )
 
 
@@ -480,8 +482,10 @@ def _CheckNoexceptAnnotations(input_api, output_api):
   def FilterFile(affected_file):
     return input_api.FilterSourceFile(
         affected_file,
-        files_to_check=(r'src/.*', r'test/.*'))
-
+        files_to_check=(r'src[\\\/].*', r'test[\\\/].*'),
+        # Skip api.cc since we cannot easily add the 'noexcept' annotation to
+        # public methods.
+        files_to_skip=(r'src[\\\/]api[\\\/]api\.cc',))
 
   # matches any class name.
   class_name = r'\b([A-Z][A-Za-z0-9_:]*)(?:::\1)?'

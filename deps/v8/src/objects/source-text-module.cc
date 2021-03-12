@@ -624,40 +624,6 @@ MaybeHandle<JSObject> SourceTextModule::GetImportMeta(
 
 MaybeHandle<Object> SourceTextModule::EvaluateMaybeAsync(
     Isolate* isolate, Handle<SourceTextModule> module) {
-  // In the event of errored evaluation, return a rejected promise.
-  if (module->status() == kErrored) {
-    // If we have a top level capability we assume it has already been
-    // rejected, and return it here. Otherwise create a new promise and
-    // reject it with the module's exception.
-    if (module->top_level_capability().IsJSPromise()) {
-      Handle<JSPromise> top_level_capability(
-          JSPromise::cast(module->top_level_capability()), isolate);
-      DCHECK(top_level_capability->status() == Promise::kRejected &&
-             top_level_capability->result() == module->exception());
-      return top_level_capability;
-    }
-    Handle<JSPromise> capability = isolate->factory()->NewJSPromise();
-    JSPromise::Reject(capability, handle(module->exception(), isolate));
-    return capability;
-  }
-
-  // Start of Evaluate () Concrete Method
-  // 2. Assert: module.[[Status]] is "linked" or "evaluated".
-  CHECK(module->status() == kInstantiated || module->status() == kEvaluated);
-
-  // 3. If module.[[Status]] is "evaluated", set module to
-  //    module.[[CycleRoot]].
-  if (module->status() == kEvaluated) {
-    module = module->GetCycleRoot(isolate);
-  }
-
-  // 4. If module.[[TopLevelCapability]] is not undefined, then
-  //    a. Return module.[[TopLevelCapability]].[[Promise]].
-  if (module->top_level_capability().IsJSPromise()) {
-    return handle(JSPromise::cast(module->top_level_capability()), isolate);
-  }
-  DCHECK(module->top_level_capability().IsUndefined());
-
   // 6. Let capability be ! NewPromiseCapability(%Promise%).
   Handle<JSPromise> capability = isolate->factory()->NewJSPromise();
 

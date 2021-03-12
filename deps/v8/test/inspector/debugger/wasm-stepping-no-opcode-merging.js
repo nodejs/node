@@ -56,8 +56,8 @@ async function printPauseLocationAndStep(msg) {
     if (scope.type == 'module') continue;
     let scope_properties =
         await Protocol.Runtime.getProperties({objectId: scope.object.objectId});
-    scopes[scope.type] = scope_properties.result.result.map(
-        elem => WasmInspectorTest.getWasmValue(elem.value));
+    scopes[scope.type] = await Promise.all(scope_properties.result.result.map(
+        elem => WasmInspectorTest.getWasmValue(elem.value)));
   }
   let values = scopes['local'].concat(scopes['wasm-expression-stack']).join(', ');
   InspectorTest.log(`Paused at offset ${loc.columnNumber}: [${values}]`);

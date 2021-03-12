@@ -72,7 +72,6 @@ class LocalHandlesThread final : public v8::base::Thread {
 };
 
 TEST(CreateLocalHandles) {
-  heap::EnsureFlagLocalHeapsEnabled();
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
 
@@ -100,7 +99,6 @@ TEST(CreateLocalHandles) {
 }
 
 TEST(CreateLocalHandlesWithoutLocalHandleScope) {
-  heap::EnsureFlagLocalHeapsEnabled();
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handle_scope(isolate);
@@ -109,7 +107,6 @@ TEST(CreateLocalHandlesWithoutLocalHandleScope) {
 }
 
 TEST(DereferenceLocalHandle) {
-  heap::EnsureFlagLocalHeapsEnabled();
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
 
@@ -133,7 +130,6 @@ TEST(DereferenceLocalHandle) {
 }
 
 TEST(DereferenceLocalHandleFailsWhenDisallowed) {
-  heap::EnsureFlagLocalHeapsEnabled();
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
 

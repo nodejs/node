@@ -737,16 +737,15 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
   var_holder = receiver_heap_object;
   TNode<Uint16T> receiver_instance_type = LoadMapInstanceType(receiver_map);
   GotoIf(IsPrimitiveInstanceType(receiver_instance_type), &if_primitive);
+  GotoIf(IsFunctionInstanceType(receiver_instance_type), &if_function);
   const struct {
     InstanceType value;
     Label* label;
   } kJumpTable[] = {{JS_OBJECT_TYPE, &if_object},
                     {JS_ARRAY_TYPE, &if_array},
-                    {JS_FUNCTION_TYPE, &if_function},
                     {JS_REG_EXP_TYPE, &if_regexp},
                     {JS_ARGUMENTS_OBJECT_TYPE, &if_arguments},
                     {JS_DATE_TYPE, &if_date},
-                    {JS_BOUND_FUNCTION_TYPE, &if_function},
                     {JS_API_OBJECT_TYPE, &if_object},
                     {JS_SPECIAL_API_OBJECT_TYPE, &if_object},
                     {JS_PROXY_TYPE, &if_proxy},
@@ -1172,11 +1171,21 @@ TF_BUILTIN(InstanceOf_WithFeedback, ObjectBuiltinsAssembler) {
   auto object = Parameter<Object>(Descriptor::kLeft);
   auto callable = Parameter<Object>(Descriptor::kRight);
   auto context = Parameter<Context>(Descriptor::kContext);
-  auto maybe_feedback_vector =
-      Parameter<HeapObject>(Descriptor::kMaybeFeedbackVector);
+  auto feedback_vector = Parameter<HeapObject>(Descriptor::kFeedbackVector);
   auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
 
-  CollectInstanceOfFeedback(callable, context, maybe_feedback_vector, slot);
+  CollectInstanceOfFeedback(callable, context, feedback_vector, slot);
+  Return(InstanceOf(object, callable, context));
+}
+
+TF_BUILTIN(InstanceOf_Baseline, ObjectBuiltinsAssembler) {
+  auto object = Parameter<Object>(Descriptor::kLeft);
+  auto callable = Parameter<Object>(Descriptor::kRight);
+  auto context = LoadContextFromBaseline();
+  auto feedback_vector = LoadFeedbackVectorFromBaseline();
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+
+  CollectInstanceOfFeedback(callable, context, feedback_vector, slot);
   Return(InstanceOf(object, callable, context));
 }
 

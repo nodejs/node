@@ -117,6 +117,10 @@
   'debug/debug-stepout-scope-part8': [SKIP],
 }],  # 'arch == arm and mode == debug'
 
+['mode != debug', {
+  # Test uses a flag only available in debug mode
+  'debug/wasm/debug-enabled-tier-down-wasm-unsupported-liftoff': [SKIP],
+}],
 ##############################################################################
 ['arch == s390 or arch == s390x', {
 
@@ -127,20 +131,19 @@
 }],  # 'arch == s390 or arch == s390x'
 
 ##############################################################################
-['lite_mode or variant == jitless', {
-  # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
+# TODO(v8:7777): Change this once wasm is supported in jitless mode.
+['not has_webassembly or variant == jitless', {
   'debug/wasm/*': [SKIP],
   'regress/regress-crbug-840288': [SKIP],
   'regress/regress-crbug-1032042': [SKIP],
-  'wasm-*': [SKIP],
-}], # lite_mode or variant == jitless
+}],  # not has_webassembly or variant == jitless
 
 ##############################################################################
-['variant == turboprop or variant == nci or variant == nci_as_midtier', {
+['variant == turboprop or variant == turboprop_as_toptier', {
   # Deopts differently than TurboFan.
   'debug/debug-optimize': [SKIP],
   'debug/debug-compile-optimized': [SKIP],
-}],  # variant == turboprop or variant == nci or variant == nci_as_midtier
+}],  # variant == turboprop or variant == turboprop_as_toptier
 
 ##############################################################################
 # Liftoff needs to be enabled before running these tests.

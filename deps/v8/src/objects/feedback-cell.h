@@ -28,13 +28,17 @@ class FeedbackCell : public TorqueGeneratedFeedbackCell<FeedbackCell, Struct> {
   static const int kUnalignedSize = kSize;
   static const int kAlignedSize = RoundUp<kObjectAlignment>(int{kSize});
 
+  using TorqueGeneratedFeedbackCell<FeedbackCell, Struct>::value;
+  using TorqueGeneratedFeedbackCell<FeedbackCell, Struct>::set_value;
+
+  DECL_RELEASE_ACQUIRE_ACCESSORS(value, HeapObject)
+
   inline void clear_padding();
   inline void reset_feedback_vector(
       base::Optional<std::function<void(HeapObject object, ObjectSlot slot,
                                         HeapObject target)>>
           gc_notify_updated_slot = base::nullopt);
   inline void SetInitialInterruptBudget();
-  inline void SetInterruptBudget();
 
   // The closure count is encoded in the cell's map, which distinguishes
   // between zero, one, or many closures. This function records a new closure

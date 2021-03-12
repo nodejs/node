@@ -191,7 +191,7 @@ function TestStoreToConstantFieldOfConstantObject(the_value, other_value) {
   assertOptimized(store);
   // Storing other value deoptimizes because of failed value check.
   store(other_value);
-  assertOptimized(store);
+  assertUnoptimized(store);
   assertEquals(other_value, constant_object.a.v);
 }
 

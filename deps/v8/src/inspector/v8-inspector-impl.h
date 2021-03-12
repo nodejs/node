@@ -75,7 +75,7 @@ class V8InspectorImpl : public V8Inspector {
   v8::MaybeLocal<v8::Script> compileScript(v8::Local<v8::Context>,
                                            const String16& code,
                                            const String16& fileName);
-  v8::Local<v8::Context> regexContext();
+  v8::MaybeLocal<v8::Context> regexContext();
 
   // V8Inspector implementation.
   std::unique_ptr<V8InspectorSession> connect(int contextGroupId,

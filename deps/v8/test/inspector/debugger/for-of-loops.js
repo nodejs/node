@@ -45,7 +45,7 @@ InspectorTest.runAsyncTestSuite([
     let {params:{scriptId}} = await Protocol.Debugger.onceScriptParsed();
     let {result:{locations}} = await Protocol.Debugger.getPossibleBreakpoints({
       start: {lineNumber: 0, columnNumber : 0, scriptId}});
-    session.logBreakLocations(locations);
+    await session.logBreakLocations(locations);
   },
 
   async function testStepInto() {
@@ -65,18 +65,39 @@ InspectorTest.runAsyncTestSuite([
   },
 
   async function testStepIntoAfterBreakpoint() {
-    Protocol.Debugger.setBreakpointByUrl({lineNumber: 25, url: 'test.js'});
+    const {result: {breakpointId}} = await Protocol.Debugger.setBreakpointByUrl({
+      lineNumber: 25, columnNumber: 11, url: 'test.js'
+    });
     Protocol.Runtime.evaluate({
       expression: 'testFunction()//# sourceURL=expr.js'});
     await awaitPausedAndDump();
     Protocol.Debugger.stepInto();
     await awaitPausedAndDump();
     await Protocol.Debugger.resume();
+    await Protocol.Debugger.removeBreakpoint({breakpointId});
 
     async function awaitPausedAndDump() {
       let {params:{callFrames}} = await Protocol.Debugger.oncePaused();
       session.logCallFrames(callFrames);
       session.logSourceLocation(callFrames[0].location);
+    }
+  },
+
+  async function testSetBreakpoint() {
+    const SOURCE_LOCATIONS = [
+      {lineNumber: 25, columnNumber: 0},
+      {lineNumber: 25, columnNumber: 11},
+      {lineNumber: 25, columnNumber: 16},
+      {lineNumber: 25, columnNumber: 28},
+    ];
+    for (const {lineNumber, columnNumber} of SOURCE_LOCATIONS) {
+      const url = 'test.js';
+      InspectorTest.log(`Setting breakpoint at ${url}:${lineNumber}:${columnNumber}`);
+      const {result: {breakpointId, locations}} = await Protocol.Debugger.setBreakpointByUrl({
+        lineNumber, columnNumber, url
+      });
+      locations.forEach(location => session.logSourceLocation(location));
+      await Protocol.Debugger.removeBreakpoint({breakpointId});
     }
   }
 ]);

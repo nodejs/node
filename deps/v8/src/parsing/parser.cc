@@ -281,14 +281,14 @@ Expression* Parser::NewThrowError(Runtime::FunctionId id,
 }
 
 Expression* Parser::NewSuperPropertyReference(int pos) {
-  // this_function[home_object_symbol]
-  VariableProxy* this_function_proxy =
-      NewUnresolved(ast_value_factory()->this_function_string(), pos);
-  Expression* home_object_symbol_literal = factory()->NewSymbolLiteral(
-      AstSymbol::kHomeObjectSymbol, kNoSourcePosition);
-  Expression* home_object = factory()->NewProperty(
-      this_function_proxy, home_object_symbol_literal, pos);
-  return factory()->NewSuperPropertyReference(home_object, pos);
+  const AstRawString* home_object_name;
+  if (IsStatic(scope()->GetReceiverScope()->function_kind())) {
+    home_object_name = ast_value_factory_->dot_static_home_object_string();
+  } else {
+    home_object_name = ast_value_factory_->dot_home_object_string();
+  }
+  return factory()->NewSuperPropertyReference(
+      NewUnresolved(home_object_name, pos), pos);
 }
 
 Expression* Parser::NewSuperCallReference(int pos) {
@@ -3026,7 +3026,8 @@ void Parser::DeclarePublicClassField(ClassScope* scope,
                                      bool is_static, bool is_computed_name,
                                      ClassInfo* class_info) {
   if (is_static) {
-    class_info->static_fields->Add(property, zone());
+    class_info->static_elements->Add(
+        factory()->NewClassLiteralStaticElement(property), zone());
   } else {
     class_info->instance_fields->Add(property, zone());
   }
@@ -3049,7 +3050,8 @@ void Parser::DeclarePrivateClassMember(ClassScope* scope,
                                        bool is_static, ClassInfo* class_info) {
   if (kind == ClassLiteralProperty::Kind::FIELD) {
     if (is_static) {
-      class_info->static_fields->Add(property, zone());
+      class_info->static_elements->Add(
+          factory()->NewClassLiteralStaticElement(property), zone());
     } else {
       class_info->instance_fields->Add(property, zone());
     }
@@ -3089,16 +3091,18 @@ void Parser::DeclarePublicClassMethod(const AstRawString* class_name,
   class_info->public_members->Add(property, zone());
 }
 
+void Parser::AddClassStaticBlock(Block* block, ClassInfo* class_info) {
+  DCHECK(class_info->has_static_elements);
+  class_info->static_elements->Add(
+      factory()->NewClassLiteralStaticElement(block), zone());
+}
+
 FunctionLiteral* Parser::CreateInitializerFunction(
-    const char* name, DeclarationScope* scope,
-    ZonePtrList<ClassLiteral::Property>* fields) {
-  DCHECK_EQ(scope->function_kind(),
-            FunctionKind::kClassMembersInitializerFunction);
+    const char* name, DeclarationScope* scope, Statement* initializer_stmt) {
+  DCHECK(IsClassMembersInitializerFunction(scope->function_kind()));
   // function() { .. class fields initializer .. }
   ScopedPtrList<Statement> statements(pointer_buffer());
-  InitializeClassMembersStatement* stmt =
-      factory()->NewInitializeClassMembersStatement(fields, kNoSourcePosition);
-  statements.Add(stmt);
+  statements.Add(initializer_stmt);
   FunctionLiteral* result = factory()->NewFunctionLiteral(
       ast_value_factory()->GetOneByteString(name), scope, statements, 0, 0, 0,
       FunctionLiteral::kNoDuplicateParameters,
@@ -3139,18 +3143,20 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
     block_scope->class_variable()->set_initializer_position(end_pos);
   }
 
-  FunctionLiteral* static_fields_initializer = nullptr;
-  if (class_info->has_static_class_fields) {
-    static_fields_initializer = CreateInitializerFunction(
-        "<static_fields_initializer>", class_info->static_fields_scope,
-        class_info->static_fields);
+  FunctionLiteral* static_initializer = nullptr;
+  if (class_info->has_static_elements) {
+    static_initializer = CreateInitializerFunction(
+        "<static_initializer>", class_info->static_elements_scope,
+        factory()->NewInitializeClassStaticElementsStatement(
+            class_info->static_elements, kNoSourcePosition));
   }
 
   FunctionLiteral* instance_members_initializer_function = nullptr;
   if (class_info->has_instance_members) {
     instance_members_initializer_function = CreateInitializerFunction(
         "<instance_members_initializer>", class_info->instance_members_scope,
-        class_info->instance_fields);
+        factory()->NewInitializeClassMembersStatement(
+            class_info->instance_fields, kNoSourcePosition));
     class_info->constructor->set_requires_instance_members_initializer(true);
     class_info->constructor->add_expected_properties(
         class_info->instance_fields->length());
@@ -3165,10 +3171,11 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
   ClassLiteral* class_literal = factory()->NewClassLiteral(
       block_scope, class_info->extends, class_info->constructor,
       class_info->public_members, class_info->private_members,
-      static_fields_initializer, instance_members_initializer_function, pos,
-      end_pos, class_info->has_name_static_property,
+      static_initializer, instance_members_initializer_function, pos, end_pos,
+      class_info->has_name_static_property,
       class_info->has_static_computed_names, class_info->is_anonymous,
-      class_info->has_private_methods);
+      class_info->has_private_methods, class_info->home_object_variable,
+      class_info->static_home_object_variable);
 
   AddFunctionForNameInference(class_info->constructor);
   return class_literal;

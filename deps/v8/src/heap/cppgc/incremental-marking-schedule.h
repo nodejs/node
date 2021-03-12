@@ -23,7 +23,7 @@ class V8_EXPORT_PRIVATE IncrementalMarkingSchedule {
 
   void NotifyIncrementalMarkingStart();
 
-  void UpdateIncrementalMarkedBytes(size_t);
+  void UpdateMutatorThreadMarkedBytes(size_t);
   void AddConcurrentlyMarkedBytes(size_t);
 
   size_t GetOverallMarkedBytes() const;
@@ -42,7 +42,7 @@ class V8_EXPORT_PRIVATE IncrementalMarkingSchedule {
 
   v8::base::TimeTicks incremental_marking_start_time_;
 
-  size_t incrementally_marked_bytes_ = 0;
+  size_t mutator_thread_marked_bytes_ = 0;
   std::atomic_size_t concurrently_marked_bytes_{0};
 
   // Using -1 as sentinel to denote

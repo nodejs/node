@@ -58,11 +58,6 @@ def jco(debugger, param, *args):
     param = str(current_frame(debugger).FindRegister("pc").value)
   ptr_arg_cmd(debugger, 'jco', param, "_v8_internal_Print_Code({})")
 
-def jld(debugger, param, *args):
-  """Print a v8 LayoutDescriptor object"""
-  ptr_arg_cmd(debugger, 'jld', param,
-              "_v8_internal_Print_LayoutDescriptor({})")
-
 def jtt(debugger, param, *args):
   """Print the transition tree of a v8 Map"""
   ptr_arg_cmd(debugger, 'jtt', param, "_v8_internal_Print_TransitionTree({})")

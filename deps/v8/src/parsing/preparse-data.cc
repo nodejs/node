@@ -306,7 +306,7 @@ bool PreparseDataBuilder::SaveDataForSkippableFunction(
 
   uint8_t language_and_super =
       LanguageField::encode(function_scope->language_mode()) |
-      UsesSuperField::encode(function_scope->NeedsHomeObject());
+      UsesSuperField::encode(function_scope->uses_super_property());
   byte_data_.WriteQuarter(language_and_super);
   return has_data;
 }
@@ -361,7 +361,7 @@ void PreparseDataBuilder::SaveDataForScope(Scope* scope) {
   byte_data_.WriteUint8(scope->scope_type());
 #endif
 
-  uint8_t eval_and_private_recalc =
+  uint8_t scope_data_flags =
       ScopeSloppyEvalCanExtendVarsBit::encode(
           scope->is_declaration_scope() &&
           scope->AsDeclarationScope()->sloppy_eval_can_extend_vars()) |
@@ -374,7 +374,7 @@ void PreparseDataBuilder::SaveDataForScope(Scope* scope) {
           scope->is_class_scope() &&
           scope->AsClassScope()->should_save_class_variable_index());
   byte_data_.Reserve(kUint8Size);
-  byte_data_.WriteUint8(eval_and_private_recalc);
+  byte_data_.WriteUint8(scope_data_flags);
 
   if (scope->is_function_scope()) {
     Variable* function = scope->AsDeclarationScope()->function_var();

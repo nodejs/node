@@ -142,6 +142,8 @@ class V8_EXPORT_PRIVATE CompilationState {
   bool top_tier_compilation_finished() const;
   bool recompilation_finished() const;
 
+  void set_compilation_id(int compilation_id);
+
   // Override {operator delete} to avoid implicit instantiation of {operator
   // delete} with {size_t} argument. The {size_t} argument would be incorrect.
   void operator delete(void* ptr) { ::operator delete(ptr); }

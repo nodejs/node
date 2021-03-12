@@ -73,7 +73,8 @@ ConcurrentMarkingTask::ConcurrentMarkingTask(
 
 void ConcurrentMarkingTask::Run(JobDelegate* job_delegate) {
   StatsCollector::EnabledConcurrentScope stats_scope(
-      concurrent_marker_.heap(), StatsCollector::kConcurrentMark);
+      concurrent_marker_.heap().stats_collector(),
+      StatsCollector::kConcurrentMark);
 
   if (!HasWorkForConcurrentMarking(concurrent_marker_.marking_worklists()))
     return;
@@ -150,17 +151,18 @@ void ConcurrentMarkingTask::ProcessWorklists(
 
     {
       StatsCollector::DisabledConcurrentScope stats_scope(
-          concurrent_marker_.heap(),
+          concurrent_marker_.heap().stats_collector(),
           StatsCollector::kConcurrentMarkProcessEphemerons);
       if (!DrainWorklistWithYielding(
               job_delegate, concurrent_marking_state,
               concurrent_marker_.incremental_marking_schedule(),
               concurrent_marking_state
                   .ephemeron_pairs_for_processing_worklist(),
-              [&concurrent_marking_state](
+              [&concurrent_marking_state, &concurrent_marking_visitor](
                   const MarkingWorklists::EphemeronPairItem& item) {
-                concurrent_marking_state.ProcessEphemeron(item.key,
-                                                          item.value_desc);
+                concurrent_marking_state.ProcessEphemeron(
+                    item.key, item.value, item.value_desc,
+                    concurrent_marking_visitor);
               })) {
         return;
       }

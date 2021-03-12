@@ -14,7 +14,7 @@ namespace internal {
 
 class BytecodeArray;
 class Isolate;
-class InterpretedFrame;
+class UnoptimizedFrame;
 class JavaScriptFrame;
 class JSFunction;
 enum class CodeKind;
@@ -31,7 +31,7 @@ class RuntimeProfiler {
 
   void NotifyICChanged() { any_ic_changed_ = true; }
 
-  void AttemptOnStackReplacement(InterpretedFrame* frame,
+  void AttemptOnStackReplacement(UnoptimizedFrame* frame,
                                  int nesting_levels = 1);
 
  private:
@@ -45,7 +45,7 @@ class RuntimeProfiler {
 
   // Potentially attempts OSR from and returns whether no other
   // optimization attempts should be made.
-  bool MaybeOSR(JSFunction function, InterpretedFrame* frame);
+  bool MaybeOSR(JSFunction function, UnoptimizedFrame* frame);
   OptimizationReason ShouldOptimize(JSFunction function,
                                     BytecodeArray bytecode_array);
   void Optimize(JSFunction function, OptimizationReason reason,
@@ -65,6 +65,7 @@ class RuntimeProfiler {
 
   Isolate* isolate_;
   bool any_ic_changed_;
+  unsigned int current_global_ticks_;
 };
 
 }  // namespace internal

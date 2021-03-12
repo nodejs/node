@@ -324,6 +324,12 @@ V8_EXPORT_PRIVATE inline constexpr int ElementSizeInBytes(
   return 1 << ElementSizeLog2Of(rep);
 }
 
+V8_EXPORT_PRIVATE inline constexpr int ElementSizeInPointers(
+    MachineRepresentation rep) {
+  return (ElementSizeInBytes(rep) + kSystemPointerSize - 1) /
+         kSystemPointerSize;
+}
+
 // Converts representation to bit for representation masks.
 V8_EXPORT_PRIVATE inline constexpr int RepresentationBit(
     MachineRepresentation rep) {

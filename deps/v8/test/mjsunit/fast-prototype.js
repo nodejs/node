@@ -78,14 +78,16 @@ function test(use_new, add_first, set__proto__) {
     assertFalse(%HasFastProperties(proto));
     DoProtoMagic(proto, set__proto__);
     // Making it a prototype makes it fast again.
-    assertTrue(%HasFastProperties(proto));
+    assertEquals(!%IsDictPropertyConstTrackingEnabled(),
+                 %HasFastProperties(proto));
   } else {
     DoProtoMagic(proto, set__proto__);
     // Still fast
-    assertTrue(%HasFastProperties(proto));
+    assertEquals(!%IsDictPropertyConstTrackingEnabled(),
+                 %HasFastProperties(proto));
     AddProps(proto);
-    // Still fast.
-    assertTrue(%HasFastProperties(proto));
+    assertEquals(!%IsDictPropertyConstTrackingEnabled(),
+                 %HasFastProperties(proto));
   }
   return proto;
 }
@@ -111,15 +113,19 @@ function test_fast_prototype() {
     assertTrue(key == 'a');
     break;
   }
-  assertTrue(%HasFastProperties(x));
+  if (!%IsDictPropertyConstTrackingEnabled())
+    assertTrue(%HasFastProperties(x));
   delete x.b;
   for (key in x) {
     assertTrue(key == 'a');
     break;
   }
-  assertTrue(%HasFastProperties(x));
+
+  assertEquals(!%IsDictPropertyConstTrackingEnabled(),
+               %HasFastProperties(x));
   x.d = 4;
-  assertTrue(%HasFastProperties(x));
+  assertEquals(!%IsDictPropertyConstTrackingEnabled(),
+               %HasFastProperties(x));
   for (key in x) {
     assertTrue(key == 'a');
     break;

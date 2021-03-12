@@ -437,7 +437,7 @@ std::string CanonicalizeTimeZoneID(const std::string& input) {
         title[1] = 'S';
       }
       return title;
-    } else if (memcmp(upper.c_str(), "SYSTEMV/", 8) == 0) {
+    } else if (strncmp(upper.c_str(), "SYSTEMV/", 8) == 0) {
       upper.replace(0, 8, "SystemV/");
       return upper;
     }
@@ -1107,6 +1107,7 @@ icu::UnicodeString ReplaceHourCycleInPattern(icu::UnicodeString pattern,
   }
   bool replace = true;
   icu::UnicodeString result;
+  char16_t last = u'\0';
   for (int32_t i = 0; i < pattern.length(); i++) {
     char16_t ch = pattern.charAt(i);
     switch (ch) {
@@ -1121,12 +1122,17 @@ icu::UnicodeString ReplaceHourCycleInPattern(icu::UnicodeString pattern,
       case 'K':
         V8_FALLTHROUGH;
       case 'k':
+        // If the previous field is a day, add a space before the hour.
+        if (replace && last == u'd') {
+          result.append(' ');
+        }
         result.append(replace ? replacement : ch);
         break;
       default:
         result.append(ch);
         break;
     }
+    last = ch;
   }
   return result;
 }

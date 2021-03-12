@@ -47,28 +47,22 @@ builtin BytecodeBudgetInterruptFromCode(implicit context: Context)(
   tail runtime::BytecodeBudgetInterruptFromCode(feedbackCell);
 }
 
-extern transitioning macro ForInPrepareForTorque(
-    Map | FixedArray, uintptr, Undefined | FeedbackVector): FixedArray;
-
-transitioning builtin ForInPrepare(implicit _context: Context)(
-    enumerator: Map|FixedArray, slot: uintptr,
-    maybeFeedbackVector: Undefined|FeedbackVector): FixedArray {
-  return ForInPrepareForTorque(enumerator, slot, maybeFeedbackVector);
-}
-
 extern transitioning builtin ForInFilter(implicit context: Context)(
     JSAny, HeapObject): JSAny;
 extern enum ForInFeedback extends uint31 { kAny, ...}
 extern macro UpdateFeedback(
-    SmiTagged<ForInFeedback>, Undefined | FeedbackVector, uintptr);
+    SmiTagged<ForInFeedback>, Undefined | FeedbackVector, uintptr,
+    constexpr UpdateFeedbackMode);
 
 @export
 transitioning macro ForInNextSlow(
     context: Context, slot: uintptr, receiver: JSAnyNotSmi, key: JSAny,
-    cacheType: Object, maybeFeedbackVector: Undefined|FeedbackVector): JSAny {
+    cacheType: Object, maybeFeedbackVector: Undefined|FeedbackVector,
+    guaranteedFeedback: constexpr UpdateFeedbackMode): JSAny {
   assert(receiver.map != cacheType);  // Handled on the fast path.
   UpdateFeedback(
-      SmiTag<ForInFeedback>(ForInFeedback::kAny), maybeFeedbackVector, slot);
+      SmiTag<ForInFeedback>(ForInFeedback::kAny), maybeFeedbackVector, slot,
+      guaranteedFeedback);
   return ForInFilter(key, receiver);
 }
 
@@ -77,7 +71,7 @@ transitioning macro ForInNextSlow(
 transitioning builtin ForInNext(
     context: Context, slot: uintptr, receiver: JSAnyNotSmi,
     cacheArray: FixedArray, cacheType: Object, cacheIndex: Smi,
-    maybeFeedbackVector: Undefined|FeedbackVector): JSAny {
+    feedbackVector: FeedbackVector): JSAny {
   // Load the next key from the enumeration array.
   const key = UnsafeCast<JSAny>(cacheArray.objects[cacheIndex]);
 
@@ -87,7 +81,16 @@ transitioning builtin ForInNext(
   }
 
   return ForInNextSlow(
-      context, slot, receiver, key, cacheType, maybeFeedbackVector);
+      context, slot, receiver, key, cacheType, feedbackVector,
+      UpdateFeedbackMode::kGuaranteedFeedback);
+}
+
+extern macro GetImportMetaObject(Context): Object;
+extern macro LoadContextFromBaseline(): Context;
+
+builtin GetImportMetaObjectBaseline(): Object {
+  const context: Context = LoadContextFromBaseline();
+  return GetImportMetaObject(context);
 }
 
 }  // namespace internal

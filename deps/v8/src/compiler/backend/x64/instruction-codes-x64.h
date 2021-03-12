@@ -174,6 +174,9 @@ namespace compiler {
   V(X64F64x2Pmin)                         \
   V(X64F64x2Pmax)                         \
   V(X64F64x2Round)                        \
+  V(X64F64x2ConvertLowI32x4S)             \
+  V(X64F64x2ConvertLowI32x4U)             \
+  V(X64F64x2PromoteLowF32x4)              \
   V(X64F32x4Splat)                        \
   V(X64F32x4ExtractLane)                  \
   V(X64F32x4ReplaceLane)                  \
@@ -200,8 +203,10 @@ namespace compiler {
   V(X64F32x4Pmin)                         \
   V(X64F32x4Pmax)                         \
   V(X64F32x4Round)                        \
+  V(X64F32x4DemoteF64x2Zero)              \
   V(X64I64x2Splat)                        \
   V(X64I64x2ExtractLane)                  \
+  V(X64I64x2Abs)                          \
   V(X64I64x2Neg)                          \
   V(X64I64x2BitMask)                      \
   V(X64I64x2Shl)                          \
@@ -210,6 +215,9 @@ namespace compiler {
   V(X64I64x2Sub)                          \
   V(X64I64x2Mul)                          \
   V(X64I64x2Eq)                           \
+  V(X64I64x2GtS)                          \
+  V(X64I64x2GeS)                          \
+  V(X64I64x2Ne)                           \
   V(X64I64x2ShrU)                         \
   V(X64I64x2SignSelect)                   \
   V(X64I64x2ExtMulLowI32x4S)              \
@@ -256,6 +264,8 @@ namespace compiler {
   V(X64I32x4ExtMulHighI16x8U)             \
   V(X64I32x4ExtAddPairwiseI16x8S)         \
   V(X64I32x4ExtAddPairwiseI16x8U)         \
+  V(X64I32x4TruncSatF64x2SZero)           \
+  V(X64I32x4TruncSatF64x2UZero)           \
   V(X64I16x8Splat)                        \
   V(X64I16x8ExtractLaneS)                 \
   V(X64I16x8SConvertI8x16Low)             \
@@ -343,6 +353,7 @@ namespace compiler {
   V(X64S128AndNot)                        \
   V(X64I8x16Swizzle)                      \
   V(X64I8x16Shuffle)                      \
+  V(X64I8x16Popcnt)                       \
   V(X64S128Load8Splat)                    \
   V(X64S128Load16Splat)                   \
   V(X64S128Load32Splat)                   \
@@ -382,20 +393,13 @@ namespace compiler {
   V(X64S8x8Reverse)                       \
   V(X64S8x4Reverse)                       \
   V(X64S8x2Reverse)                       \
-  V(X64V32x4AnyTrue)                      \
+  V(X64V128AnyTrue)                       \
+  V(X64V64x2AllTrue)                      \
   V(X64V32x4AllTrue)                      \
-  V(X64V16x8AnyTrue)                      \
   V(X64V16x8AllTrue)                      \
-  V(X64V8x16AnyTrue)                      \
   V(X64V8x16AllTrue)                      \
-  V(X64Word64AtomicLoadUint8)             \
-  V(X64Word64AtomicLoadUint16)            \
-  V(X64Word64AtomicLoadUint32)            \
-  V(X64Word64AtomicLoadUint64)            \
-  V(X64Word64AtomicStoreWord8)            \
-  V(X64Word64AtomicStoreWord16)           \
-  V(X64Word64AtomicStoreWord32)           \
-  V(X64Word64AtomicStoreWord64)           \
+  V(X64Prefetch)                          \
+  V(X64PrefetchNta)                       \
   V(X64Word64AtomicAddUint8)              \
   V(X64Word64AtomicAddUint16)             \
   V(X64Word64AtomicAddUint32)             \

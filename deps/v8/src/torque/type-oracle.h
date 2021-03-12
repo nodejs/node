@@ -114,6 +114,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Declarations::LookupGlobalUniqueGenericType(SMI_TAGGED_TYPE_STRING);
   }
 
+  static GenericType* GetLazyGeneric() {
+    return Declarations::LookupGlobalUniqueGenericType(LAZY_TYPE_STRING);
+  }
+
   static const Type* GetReferenceType(const Type* referenced_type,
                                       bool is_const) {
     return GetGenericTypeInstance(GetReferenceGeneric(is_const),

@@ -499,17 +499,15 @@ class ModuleDecoderImpl : public Decoder {
         }
         break;
       case kDataCountSectionCode:
-        if (enabled_features_.has_bulk_memory()) {
-          DecodeDataCountSection();
-        } else {
-          errorf(pc(), "unexpected section <%s>", SectionName(section_code));
-        }
+        DecodeDataCountSection();
         break;
       case kExceptionSectionCode:
         if (enabled_features_.has_eh()) {
           DecodeExceptionSection();
         } else {
-          errorf(pc(), "unexpected section <%s>", SectionName(section_code));
+          errorf(pc(),
+                 "unexpected section <%s> (enable with --experimental-wasm-eh)",
+                 SectionName(section_code));
         }
         break;
       default:
@@ -619,9 +617,10 @@ class ModuleDecoderImpl : public Decoder {
           const byte* type_position = pc();
           ValueType type = consume_reference_type();
           if (!WasmTable::IsValidTableType(type, module_.get())) {
-            error(type_position,
-                  "Currently, only nullable exnref, externref, and "
-                  "function references are allowed as table types");
+            error(
+                type_position,
+                "Currently, only externref and function references are allowed "
+                "as table types");
             break;
           }
           table->type = type;
@@ -719,8 +718,8 @@ class ModuleDecoderImpl : public Decoder {
       ValueType table_type = consume_reference_type();
       if (!WasmTable::IsValidTableType(table_type, module_.get())) {
         error(type_position,
-              "Currently, only nullable exnref, externref, and "
-              "function references are allowed as table types");
+              "Currently, only externref and function references are allowed "
+              "as table types");
         continue;
       }
       table->type = table_type;
@@ -1250,7 +1249,7 @@ class ModuleDecoderImpl : public Decoder {
 
     WasmSectionIterator section_iter(&decoder);
 
-    while (ok() && section_iter.more()) {
+    while (ok()) {
       // Shift the offset by the section header length
       offset += section_iter.payload_start() - section_iter.section_start();
       if (section_iter.section_code() != SectionCode::kUnknownSectionCode) {
@@ -1259,6 +1258,7 @@ class ModuleDecoderImpl : public Decoder {
       }
       // Shift the offset by the remaining section payload
       offset += section_iter.payload_length();
+      if (!section_iter.more()) break;
       section_iter.advance(true);
     }
 
@@ -1371,8 +1371,7 @@ class ModuleDecoderImpl : public Decoder {
       case WasmInitExpr::kRefNullConst:
         return ValueType::Ref(expr.immediate().heap_type, kNullable);
       case WasmInitExpr::kRttCanon: {
-        uint8_t depth = expr.immediate().heap_type == HeapType::kAny ? 0 : 1;
-        return ValueType::Rtt(expr.immediate().heap_type, depth);
+        return ValueType::Rtt(expr.immediate().heap_type, 0);
       }
       case WasmInitExpr::kRttSub: {
         ValueType operand_type = TypeOf(*expr.operand());
@@ -1770,18 +1769,21 @@ class ModuleDecoderImpl : public Decoder {
           opcode = read_prefixed_opcode<validate>(pc(), &len);
           switch (opcode) {
             case kExprRttCanon: {
-              HeapTypeImmediate<validate> imm(enabled_features_, this, pc() + 2,
-                                              module_.get());
-              if (V8_UNLIKELY(failed())) return {};
+              TypeIndexImmediate<validate> imm(this, pc() + 2);
+              if (V8_UNLIKELY(imm.index >= module_->types.capacity())) {
+                errorf(pc() + 2, "type index %u is out of bounds", imm.index);
+                return {};
+              }
               len += imm.length;
-              stack.push_back(
-                  WasmInitExpr::RttCanon(imm.type.representation()));
+              stack.push_back(WasmInitExpr::RttCanon(imm.index));
               break;
             }
             case kExprRttSub: {
-              HeapTypeImmediate<validate> imm(enabled_features_, this, pc() + 2,
-                                              module_.get());
-              if (V8_UNLIKELY(failed())) return {};
+              TypeIndexImmediate<validate> imm(this, pc() + 2);
+              if (V8_UNLIKELY(imm.index >= module_->types.capacity())) {
+                errorf(pc() + 2, "type index %u is out of bounds", imm.index);
+                return {};
+              }
               len += imm.length;
               if (stack.empty()) {
                 error(pc(), "calling rtt.sub without arguments");
@@ -1790,17 +1792,15 @@ class ModuleDecoderImpl : public Decoder {
               WasmInitExpr parent = std::move(stack.back());
               stack.pop_back();
               ValueType parent_type = TypeOf(parent);
-              if (V8_UNLIKELY(
-                      parent_type.kind() != ValueType::kRtt ||
-                      !IsSubtypeOf(
-                          ValueType::Ref(imm.type, kNonNullable),
-                          ValueType::Ref(parent_type.heap_type(), kNonNullable),
-                          module_.get()))) {
+              if (V8_UNLIKELY(!parent_type.is_rtt() ||
+                              !IsHeapSubtypeOf(imm.index,
+                                               parent_type.ref_index(),
+                                               module_.get()))) {
                 error(pc(), "rtt.sub requires a supertype rtt on stack");
                 return {};
               }
-              stack.push_back(WasmInitExpr::RttSub(imm.type.representation(),
-                                                   std::move(parent)));
+              stack.push_back(
+                  WasmInitExpr::RttSub(imm.index, std::move(parent)));
               break;
             }
             default: {
@@ -1972,21 +1972,7 @@ class ModuleDecoderImpl : public Decoder {
                                       ValueType* type, uint32_t* table_index,
                                       WasmInitExpr* offset) {
     const byte* pos = pc();
-    uint32_t flag;
-    if (enabled_features_.has_bulk_memory() ||
-        enabled_features_.has_reftypes()) {
-      flag = consume_u32v("flag");
-    } else {
-      uint32_t table_index = consume_u32v("table index");
-      // The only valid flag value without bulk_memory or externref is '0'.
-      if (table_index != 0) {
-        error(
-            "Element segments with table indices require "
-            "--experimental-wasm-bulk-memory or --experimental-wasm-reftypes");
-        return;
-      }
-      flag = 0;
-    }
+    uint32_t flag = consume_u32v("flag");
 
     // The mask for the bit in the flag which indicates if the segment is
     // active or not.
@@ -2020,24 +2006,6 @@ class ModuleDecoderImpl : public Decoder {
         !enabled_features_.has_reftypes()) {
       error(
           "Declarative element segments require --experimental-wasm-reftypes");
-      return;
-    }
-    if (*status == WasmElemSegment::kStatusPassive &&
-        !enabled_features_.has_bulk_memory()) {
-      error("Passive element segments require --experimental-wasm-bulk-memory");
-      return;
-    }
-    if (*functions_as_elements && !enabled_features_.has_bulk_memory()) {
-      error(
-          "Illegal segment flag. Did you forget "
-          "--experimental-wasm-bulk-memory?");
-      return;
-    }
-    if (flag != 0 && !enabled_features_.has_bulk_memory() &&
-        !enabled_features_.has_reftypes()) {
-      error(
-          "Invalid segment flag. Enable with --experimental-wasm-bulk-memory "
-          "or --experimental-wasm-reftypes");
       return;
     }
     if ((flag & kFullMask) != flag) {
@@ -2088,21 +2056,9 @@ class ModuleDecoderImpl : public Decoder {
     uint32_t flag = consume_u32v("flag");
 
     // Some flag values are only valid for specific proposals.
-    if (flag == SegmentFlags::kPassive) {
-      if (!enabled_features_.has_bulk_memory()) {
-        error(
-            "Passive element segments require --experimental-wasm-bulk-memory");
-        return;
-      }
-    } else if (flag == SegmentFlags::kActiveWithIndex) {
-      if (!(enabled_features_.has_bulk_memory() ||
-            enabled_features_.has_reftypes())) {
-        error(
-            "Element segments with table indices require "
-            "--experimental-wasm-bulk-memory or --experimental-wasm-reftypes");
-        return;
-      }
-    } else if (flag != SegmentFlags::kActiveNoIndex) {
+    if (flag != SegmentFlags::kActiveNoIndex &&
+        flag != SegmentFlags::kPassive &&
+        flag != SegmentFlags::kActiveWithIndex) {
       errorf(pos, "illegal flag value %u. Must be 0, 1, or 2", flag);
       return;
     }
@@ -2456,37 +2412,6 @@ void DecodeFunctionNames(const byte* module_start, const byte* module_end,
   for (const WasmExport& exp : export_table) {
     if (exp.kind == kExternalFunction && names->count(exp.index) == 0) {
       names->insert(std::make_pair(exp.index, exp.name));
-    }
-  }
-}
-
-void GenerateNamesFromImportsAndExports(
-    ImportExportKindCode kind, const Vector<const WasmImport> import_table,
-    const Vector<const WasmExport> export_table,
-    std::unordered_map<uint32_t, std::pair<WireBytesRef, WireBytesRef>>*
-        names) {
-  DCHECK_NOT_NULL(names);
-  DCHECK(names->empty());
-  DCHECK(kind == kExternalGlobal || kind == kExternalMemory ||
-         kind == kExternalTable);
-
-  // Extract from import table.
-  for (const WasmImport& imp : import_table) {
-    if (imp.kind != kind) continue;
-    if (!imp.module_name.is_set() || !imp.field_name.is_set()) continue;
-    if (names->count(imp.index) == 0) {
-      names->insert(std::make_pair(
-          imp.index, std::make_pair(imp.module_name, imp.field_name)));
-    }
-  }
-
-  // Extract from export table.
-  for (const WasmExport& exp : export_table) {
-    if (exp.kind != kind) continue;
-    if (!exp.name.is_set()) continue;
-    if (names->count(exp.index) == 0) {
-      names->insert(
-          std::make_pair(exp.index, std::make_pair(WireBytesRef(), exp.name)));
     }
   }
 }

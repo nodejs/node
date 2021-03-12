@@ -61,6 +61,10 @@ static void FloodWithInc(Isolate* isolate, TestingAssemblerBuffer* buffer) {
   for (int i = 0; i < kNumInstr; ++i) {
     __ agfi(r2, Operand(1));
   }
+#elif V8_TARGET_ARCH_RISCV64
+  for (int i = 0; i < kNumInstr; ++i) {
+    __ Add32(a0, a0, Operand(1));
+  }
 #else
 #error Unsupported architecture
 #endif
@@ -173,7 +177,8 @@ TEST(TestFlushICacheOfWritableAndExecutable) {
   HandleScope handles(isolate);
 
   for (int i = 0; i < kNumIterations; ++i) {
-    auto buffer = AllocateAssemblerBuffer(kBufferSize);
+    auto buffer = AllocateAssemblerBuffer(kBufferSize, nullptr,
+                                          VirtualMemory::kMapAsJittable);
 
     // Allow calling the function from C++.
     auto f = GeneratedCode<F0>::FromBuffer(isolate, buffer->start());

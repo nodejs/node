@@ -48,6 +48,9 @@ InterpreterAssemblerTest::InterpreterAssemblerForTest::
   if (Bytecodes::WritesAccumulator(bytecode())) {
     SetAccumulator(NullConstant());
   }
+  if (Bytecodes::WritesImplicitRegister(bytecode())) {
+    StoreRegisterForShortStar(NullConstant(), IntPtrConstant(2));
+  }
 }
 
 Matcher<Node*> InterpreterAssemblerTest::InterpreterAssemblerForTest::IsLoad(

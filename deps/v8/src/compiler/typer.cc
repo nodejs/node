@@ -680,10 +680,7 @@ Type Typer::Visitor::TypeIfException(Node* node) { return Type::NonInternal(); }
 // Common operators.
 
 Type Typer::Visitor::TypeParameter(Node* node) {
-  Node* const start = node->InputAt(0);
-  DCHECK_EQ(IrOpcode::kStart, start->opcode());
-  int const parameter_count = start->op()->ValueOutputCount() - 4;
-  DCHECK_LE(1, parameter_count);
+  StartNode start{node->InputAt(0)};
   int const index = ParameterIndexOf(node->op());
   if (index == Linkage::kJSCallClosureParamIndex) {
     return Type::Function();
@@ -694,15 +691,15 @@ Type Typer::Visitor::TypeParameter(Node* node) {
       // Parameter[this] can be the_hole for derived class constructors.
       return Type::Union(Type::Hole(), Type::NonInternal(), typer_->zone());
     }
-  } else if (index == Linkage::GetJSCallNewTargetParamIndex(parameter_count)) {
+  } else if (index == start.NewTargetParameterIndex()) {
     if (typer_->flags() & Typer::kNewTargetIsReceiver) {
       return Type::Receiver();
     } else {
       return Type::Union(Type::Receiver(), Type::Undefined(), typer_->zone());
     }
-  } else if (index == Linkage::GetJSCallArgCountParamIndex(parameter_count)) {
+  } else if (index == start.ArgCountParameterIndex()) {
     return Type::Range(0.0, FixedArray::kMaxLength, typer_->zone());
-  } else if (index == Linkage::GetJSCallContextParamIndex(parameter_count)) {
+  } else if (index == start.ContextParameterIndex()) {
     return Type::OtherInternal();
   }
   return Type::NonInternal();
@@ -991,6 +988,15 @@ Type Typer::Visitor::TypeTypedObjectState(Node* node) {
 Type Typer::Visitor::TypeCall(Node* node) { return Type::Any(); }
 
 Type Typer::Visitor::TypeFastApiCall(Node* node) { return Type::Any(); }
+
+Type Typer::Visitor::TypeJSWasmCall(Node* node) {
+  const JSWasmCallParameters& op_params = JSWasmCallParametersOf(node->op());
+  const wasm::FunctionSig* wasm_signature = op_params.signature();
+  if (wasm_signature->return_count() > 0) {
+    return JSWasmCallNode::TypeForWasmReturnType(wasm_signature->GetReturn());
+  }
+  return Type::Any();
+}
 
 Type Typer::Visitor::TypeProjection(Node* node) {
   Type const type = Operand(node, 0);
@@ -2321,10 +2327,6 @@ Type Typer::Visitor::TypeArgumentsLength(Node* node) {
 
 Type Typer::Visitor::TypeRestLength(Node* node) {
   return TypeCache::Get()->kArgumentsLengthType;
-}
-
-Type Typer::Visitor::TypeArgumentsFrame(Node* node) {
-  return Type::ExternalPointer();
 }
 
 Type Typer::Visitor::TypeNewDoubleElements(Node* node) {

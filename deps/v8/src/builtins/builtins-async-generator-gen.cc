@@ -242,10 +242,10 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwait(bool is_catchable) {
   TNode<JSPromise> outer_promise = LoadObjectField<JSPromise>(
       request, AsyncGeneratorRequest::kPromiseOffset);
 
-  SetGeneratorAwaiting(async_generator_object);
   Await(context, async_generator_object, value, outer_promise,
         AsyncGeneratorAwaitResolveSharedFunConstant(),
         AsyncGeneratorAwaitRejectSharedFunConstant(), is_catchable);
+  SetGeneratorAwaiting(async_generator_object);
   Return(UndefinedConstant());
 }
 
@@ -570,10 +570,10 @@ TF_BUILTIN(AsyncGeneratorYield, AsyncGeneratorBuiltinsAssembler) {
   const TNode<JSPromise> outer_promise =
       LoadPromiseFromAsyncGeneratorRequest(request);
 
-  SetGeneratorAwaiting(generator);
   Await(context, generator, value, outer_promise,
         AsyncGeneratorYieldResolveSharedFunConstant(),
         AsyncGeneratorAwaitRejectSharedFunConstant(), is_caught);
+  SetGeneratorAwaiting(generator);
   Return(UndefinedConstant());
 }
 

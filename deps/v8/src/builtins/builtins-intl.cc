@@ -280,16 +280,14 @@ Object LegacyFormatConstructor(BuiltinArguments args, Isolate* isolate,
   // 4. Let this be the this value.
   if (args.new_target()->IsUndefined(isolate)) {
     Handle<Object> receiver = args.receiver();
-
-    // 5. If NewTarget is undefined and ? InstanceofOperator(this, %<T>%)
+    // 5. If NewTarget is undefined and ? OrdinaryHasInstance(%<T>%, this)
     // is true, then Look up the intrinsic value that has been stored on
     // the context.
-    Handle<Object> is_instance_of_obj;
+    Handle<Object> ordinary_has_instance_obj;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, is_instance_of_obj,
-        Object::InstanceOf(isolate, receiver, constructor));
-
-    if (is_instance_of_obj->BooleanValue(isolate)) {
+        isolate, ordinary_has_instance_obj,
+        Object::OrdinaryHasInstance(isolate, constructor, receiver));
+    if (ordinary_has_instance_obj->BooleanValue(isolate)) {
       if (!receiver->IsJSReceiver()) {
         THROW_NEW_ERROR_RETURN_FAILURE(
             isolate,

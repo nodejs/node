@@ -13,26 +13,26 @@
 namespace v8 {
 namespace internal {
 
-class Isolate;
-
 namespace TorqueRuntimeMacroShims {
 namespace CodeStubAssembler {
 
-inline intptr_t ChangeInt32ToIntPtr(Isolate* isolate, int32_t i) { return i; }
-inline uintptr_t ChangeUint32ToWord(Isolate* isolate, uint32_t u) { return u; }
-inline intptr_t IntPtrAdd(Isolate* isolate, intptr_t a, intptr_t b) {
-  return a + b;
-}
-inline intptr_t IntPtrMul(Isolate* isolate, intptr_t a, intptr_t b) {
-  return a * b;
-}
-inline intptr_t Signed(Isolate* isolate, uintptr_t u) {
-  return static_cast<intptr_t>(u);
-}
+inline bool BoolConstant(bool b) { return b; }
+inline intptr_t ChangeInt32ToIntPtr(int32_t i) { return i; }
+inline uintptr_t ChangeUint32ToWord(uint32_t u) { return u; }
+inline intptr_t IntPtrAdd(intptr_t a, intptr_t b) { return a + b; }
+inline intptr_t IntPtrMul(intptr_t a, intptr_t b) { return a * b; }
+inline intptr_t Signed(uintptr_t u) { return static_cast<intptr_t>(u); }
 template <typename Smi>
-inline int32_t SmiUntag(Isolate* isolate, Smi s) {
+inline int32_t SmiUntag(Smi s) {
   return s.value();
 }
+inline bool UintPtrLessThan(uintptr_t a, uintptr_t b) { return a < b; }
+inline uint32_t Unsigned(int32_t s) { return static_cast<uint32_t>(s); }
+#if V8_HOST_ARCH_64_BIT
+inline uintptr_t Unsigned(intptr_t s) { return static_cast<uintptr_t>(s); }
+#endif
+inline bool Word32Equal(uint32_t a, uint32_t b) { return a == b; }
+inline bool Word32NotEqual(uint32_t a, uint32_t b) { return a != b; }
 
 }  // namespace CodeStubAssembler
 }  // namespace TorqueRuntimeMacroShims

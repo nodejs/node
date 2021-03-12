@@ -1300,7 +1300,8 @@ class StateValueList {
 
 class FrameStateDescriptor : public ZoneObject {
  public:
-  FrameStateDescriptor(Zone* zone, FrameStateType type, BailoutId bailout_id,
+  FrameStateDescriptor(Zone* zone, FrameStateType type,
+                       BytecodeOffset bailout_id,
                        OutputFrameStateCombine state_combine,
                        size_t parameters_count, size_t locals_count,
                        size_t stack_count,
@@ -1308,7 +1309,7 @@ class FrameStateDescriptor : public ZoneObject {
                        FrameStateDescriptor* outer_state = nullptr);
 
   FrameStateType type() const { return type_; }
-  BailoutId bailout_id() const { return bailout_id_; }
+  BytecodeOffset bailout_id() const { return bailout_id_; }
   OutputFrameStateCombine state_combine() const { return frame_state_combine_; }
   size_t parameters_count() const { return parameters_count_; }
   size_t locals_count() const { return locals_count_; }
@@ -1318,6 +1319,7 @@ class FrameStateDescriptor : public ZoneObject {
   bool HasContext() const {
     return FrameStateFunctionInfo::IsJSFunctionType(type_) ||
            type_ == FrameStateType::kBuiltinContinuation ||
+           type_ == FrameStateType::kJSToWasmBuiltinContinuation ||
            type_ == FrameStateType::kConstructStub;
   }
 
@@ -1346,7 +1348,7 @@ class FrameStateDescriptor : public ZoneObject {
 
  private:
   FrameStateType type_;
-  BailoutId bailout_id_;
+  BytecodeOffset bailout_id_;
   OutputFrameStateCombine frame_state_combine_;
   const size_t parameters_count_;
   const size_t locals_count_;
@@ -1355,6 +1357,23 @@ class FrameStateDescriptor : public ZoneObject {
   StateValueList values_;
   MaybeHandle<SharedFunctionInfo> const shared_info_;
   FrameStateDescriptor* const outer_state_;
+};
+
+class JSToWasmFrameStateDescriptor : public FrameStateDescriptor {
+ public:
+  JSToWasmFrameStateDescriptor(Zone* zone, FrameStateType type,
+                               BytecodeOffset bailout_id,
+                               OutputFrameStateCombine state_combine,
+                               size_t parameters_count, size_t locals_count,
+                               size_t stack_count,
+                               MaybeHandle<SharedFunctionInfo> shared_info,
+                               FrameStateDescriptor* outer_state,
+                               const wasm::FunctionSig* wasm_signature);
+
+  base::Optional<wasm::ValueKind> return_type() const { return return_type_; }
+
+ private:
+  base::Optional<wasm::ValueKind> return_type_;
 };
 
 // A deoptimization entry is a pair of the reason why we deoptimize and the

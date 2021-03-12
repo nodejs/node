@@ -36,14 +36,18 @@ let workerHelpers = assertTrue.toString() + assertIsWasmSharedMemory.toString();
 
 (function TestPostMessageWithGrow() {
   print(arguments.callee.name);
-  let worker = new Worker(workerHelpers +
-    `onmessage = function(obj) {
-       assertIsWasmSharedMemory(obj.memory);
-       assertTrue(1 === obj.memory.grow(1));
-       assertTrue(obj.memory.buffer.byteLength === obj.expected_size);
-       assertIsWasmSharedMemory(obj.memory);
-       postMessage("OK");
-     }`, {type: 'string'});
+  function workerCode(workerHelpers) {
+    eval(workerHelpers);
+    onmessage = function(obj) {
+      assertIsWasmSharedMemory(obj.memory);
+      assertTrue(1 === obj.memory.grow(1));
+      assertTrue(obj.memory.buffer.byteLength === obj.expected_size);
+      assertIsWasmSharedMemory(obj.memory);
+      postMessage("OK");
+    }
+  }
+  let worker = new Worker(workerCode,
+                          {type: 'function', arguments: [workerHelpers]});
 
   let memory = new WebAssembly.Memory({initial: 1, maximum: 5, shared: true});
   let obj = {memory: memory, expected_size: 2 * kPageSize};
@@ -59,17 +63,21 @@ let workerHelpers = assertTrue.toString() + assertIsWasmSharedMemory.toString();
 // operations are performed on the same memory object.
 (function TestWorkersWithGrowEarlyWorkerTerminate() {
   print(arguments.callee.name);
-  let workerScript = workerHelpers +
-    `onmessage = function(obj) {
+  function workerCode(workerHelpers) {
+    eval(workerHelpers);
+    onmessage = function(obj) {
        assertIsWasmSharedMemory(obj.memory);
        obj.memory.grow(1);
        assertIsWasmSharedMemory(obj.memory);
        assertTrue(obj.memory.buffer.byteLength === obj.expected_size);
        postMessage("OK");
-     };`;
+    };
+  }
 
-  let workers = [new Worker(workerScript, {type: 'string'}),
-                 new Worker(workerScript, {type: 'string'})];
+  let workers = [new Worker(workerCode,
+                            {type: 'function', arguments: [workerHelpers]}),
+                 new Worker(workerCode,
+                            {type: 'function', arguments: [workerHelpers]})];
   let memory = new WebAssembly.Memory({initial: 1, maximum: 5, shared: true});
   let expected_pages = 1;
   for (let worker of workers) {
@@ -86,21 +94,24 @@ let workerHelpers = assertTrue.toString() + assertIsWasmSharedMemory.toString();
 // PostMessage of Multiple memories and grow
 (function TestGrowSharedWithMultipleMemories() {
   print(arguments.callee.name);
-  let workerScript = workerHelpers +
-    `onmessage = function(obj) {
-       let expected_size = 0;
-       let kPageSize = 0x10000;
-       for (let memory of obj.memories) {
-         assertIsWasmSharedMemory(memory);
-         assertTrue(expected_size === memory.grow(2));
-         expected_size+=2;
-         assertIsWasmSharedMemory(memory);
-         assertTrue(memory.buffer.byteLength === expected_size * kPageSize);
-       }
-       postMessage("OK");
-     };`;
+  function workerCode(workerHelpers) {
+    eval(workerHelpers);
+    onmessage = function(obj) {
+      let expected_size = 0;
+      let kPageSize = 0x10000;
+      for (let memory of obj.memories) {
+        assertIsWasmSharedMemory(memory);
+        assertTrue(expected_size === memory.grow(2));
+        expected_size+=2;
+        assertIsWasmSharedMemory(memory);
+        assertTrue(memory.buffer.byteLength === expected_size * kPageSize);
+      }
+      postMessage("OK");
+    };
+  }
 
-  let worker = new Worker(workerScript, {type: 'string'});
+  let worker = new Worker(workerCode,
+                          {type: 'function', arguments: [workerHelpers]});
   let memories = [new WebAssembly.Memory({initial: 0, maximum: 2, shared: true}),
                   new WebAssembly.Memory({initial: 2, maximum: 10, shared: true}),
                   new WebAssembly.Memory({initial: 4, maximum: 12, shared: true})];
@@ -116,21 +127,25 @@ let workerHelpers = assertTrue.toString() + assertIsWasmSharedMemory.toString();
 // SharedMemory Object shared between different instances
 (function TestPostMessageJSAndWasmInterop() {
   print(arguments.callee.name);
-  let worker = new Worker(workerHelpers +
-    `onmessage = function(obj) {
-       let kPageSize = 0x10000;
-       assertIsWasmSharedMemory(obj.memory);
-       let instance = new WebAssembly.Instance(
-           obj.module, {m: {memory: obj.memory}});
-       assertTrue(5 === obj.memory.grow(10));
-       assertIsWasmSharedMemory(obj.memory);
-       assertTrue(obj.memory.buffer.byteLength === 15 * kPageSize);
-       assertTrue(15 === instance.exports.grow(5));
-       assertIsWasmSharedMemory(obj.memory);
-       assertTrue(obj.memory.buffer.byteLength === 20 * kPageSize);
-       postMessage("OK");
-     }`, {type: 'string'});
+  function workerCode(workerHelpers) {
+    eval(workerHelpers);
+    onmessage = function(obj) {
+      let kPageSize = 0x10000;
+      assertIsWasmSharedMemory(obj.memory);
+      let instance = new WebAssembly.Instance(
+          obj.module, {m: {memory: obj.memory}});
+      assertTrue(5 === obj.memory.grow(10));
+      assertIsWasmSharedMemory(obj.memory);
+      assertTrue(obj.memory.buffer.byteLength === 15 * kPageSize);
+      assertTrue(15 === instance.exports.grow(5));
+      assertIsWasmSharedMemory(obj.memory);
+      assertTrue(obj.memory.buffer.byteLength === 20 * kPageSize);
+      postMessage("OK");
+    }
+  }
 
+  let worker = new Worker(workerCode,
+                          {type: 'function', arguments: [workerHelpers]});
   let memory = new WebAssembly.Memory({initial: 5, maximum: 50, shared: true});
   var builder = new WasmModuleBuilder();
   builder.addImportedMemory("m", "memory", 5, 100, "shared");
@@ -148,21 +163,25 @@ let workerHelpers = assertTrue.toString() + assertIsWasmSharedMemory.toString();
 
 (function TestConsecutiveJSAndWasmSharedGrow() {
   print(arguments.callee.name);
-  let worker = new Worker(workerHelpers +
-    `onmessage = function(obj) {
-       let kPageSize = 0x10000;
-       assertIsWasmSharedMemory(obj.memory);
-       let instance = new WebAssembly.Instance(
-           obj.module, {m: {memory: obj.memory}});
-       assertTrue(5 === obj.memory.grow(10));
-       assertIsWasmSharedMemory(obj.memory);
-       assertTrue(obj.memory.buffer.byteLength === 15 * kPageSize);
-       assertTrue(15 === instance.exports.grow(5));
-       assertIsWasmSharedMemory(obj.memory);
-       assertTrue(obj.memory.buffer.byteLength === 20 * kPageSize);
-       postMessage("OK");
-     }`, {type: 'string'});
+  function workerCode(workerHelpers) {
+    eval(workerHelpers);
+    onmessage = function(obj) {
+      let kPageSize = 0x10000;
+      assertIsWasmSharedMemory(obj.memory);
+      let instance = new WebAssembly.Instance(
+          obj.module, {m: {memory: obj.memory}});
+      assertTrue(5 === obj.memory.grow(10));
+      assertIsWasmSharedMemory(obj.memory);
+      assertTrue(obj.memory.buffer.byteLength === 15 * kPageSize);
+      assertTrue(15 === instance.exports.grow(5));
+      assertIsWasmSharedMemory(obj.memory);
+      assertTrue(obj.memory.buffer.byteLength === 20 * kPageSize);
+      postMessage("OK");
+    }
+  }
 
+  let worker = new Worker(workerCode,
+                          {type: 'function', arguments: [workerHelpers]});
   let memory = new WebAssembly.Memory({initial: 5, maximum: 50, shared: true});
   var builder = new WasmModuleBuilder();
   builder.addImportedMemory("m", "memory", 5, 100, "shared");
@@ -179,21 +198,25 @@ let workerHelpers = assertTrue.toString() + assertIsWasmSharedMemory.toString();
 
 (function TestConsecutiveWasmSharedGrow() {
   print(arguments.callee.name);
-  let worker = new Worker(workerHelpers +
-    `onmessage = function(obj) {
-       let kPageSize = 0x10000;
-       assertIsWasmSharedMemory(obj.memory);
-       let instance = new WebAssembly.Instance(
-           obj.module, {m: {memory: obj.memory}});
-       assertTrue(5 === obj.memory.grow(10));
-       assertIsWasmSharedMemory(obj.memory);
-       assertTrue(obj.memory.buffer.byteLength === 15 * kPageSize);
-       assertTrue(17 === instance.exports.grow_twice(2));
-       assertIsWasmSharedMemory(obj.memory);
-       assertTrue(obj.memory.buffer.byteLength === 19 * kPageSize);
-       postMessage("OK");
-     }`, {type: 'string'});
+  function workerCode(workerHelpers) {
+    eval(workerHelpers);
+    onmessage = function(obj) {
+      let kPageSize = 0x10000;
+      assertIsWasmSharedMemory(obj.memory);
+      let instance = new WebAssembly.Instance(
+          obj.module, {m: {memory: obj.memory}});
+      assertTrue(5 === obj.memory.grow(10));
+      assertIsWasmSharedMemory(obj.memory);
+      assertTrue(obj.memory.buffer.byteLength === 15 * kPageSize);
+      assertTrue(17 === instance.exports.grow_twice(2));
+      assertIsWasmSharedMemory(obj.memory);
+      assertTrue(obj.memory.buffer.byteLength === 19 * kPageSize);
+      postMessage("OK");
+    }
+  }
 
+  let worker = new Worker(workerCode,
+                          {type: 'function', arguments: [workerHelpers]});
   let memory = new WebAssembly.Memory({initial: 5, maximum: 50, shared: true});
   var builder = new WasmModuleBuilder();
   builder.addImportedMemory("m", "memory", 5, 100, "shared");
@@ -217,22 +240,26 @@ let workerHelpers = assertTrue.toString() + assertIsWasmSharedMemory.toString();
 
 (function TestConsecutiveSharedGrowAndMemorySize() {
   print(arguments.callee.name);
-  let worker = new Worker(workerHelpers +
-    `onmessage = function(obj) {
-       let kPageSize = 0x10000;
-       assertIsWasmSharedMemory(obj.memory);
-       let instance = new WebAssembly.Instance(
-           obj.module, {m: {memory: obj.memory}});
-       assertTrue(5 === obj.memory.grow(10));
-       assertTrue(15 === instance.exports.memory_size());
-       assertIsWasmSharedMemory(obj.memory);
-       assertTrue(obj.memory.buffer.byteLength === 15 * kPageSize);
-       assertTrue(19 === instance.exports.grow_and_size(2));
-       assertIsWasmSharedMemory(obj.memory);
-       assertTrue(obj.memory.buffer.byteLength === 19 * kPageSize);
-       postMessage("OK");
-     }`, {type: 'string'});
+  function workerCode(workerHelpers) {
+    eval(workerHelpers);
+    onmessage = function(obj) {
+      let kPageSize = 0x10000;
+      assertIsWasmSharedMemory(obj.memory);
+      let instance = new WebAssembly.Instance(
+          obj.module, {m: {memory: obj.memory}});
+      assertTrue(5 === obj.memory.grow(10));
+      assertTrue(15 === instance.exports.memory_size());
+      assertIsWasmSharedMemory(obj.memory);
+      assertTrue(obj.memory.buffer.byteLength === 15 * kPageSize);
+      assertTrue(19 === instance.exports.grow_and_size(2));
+      assertIsWasmSharedMemory(obj.memory);
+      assertTrue(obj.memory.buffer.byteLength === 19 * kPageSize);
+      postMessage("OK");
+    }
+  }
 
+  let worker = new Worker(workerCode,
+                          {type: 'function', arguments: [workerHelpers]});
   let memory = new WebAssembly.Memory({initial: 5, maximum: 50, shared: true});
   var builder = new WasmModuleBuilder();
   builder.addImportedMemory("m", "memory", 5, 100, "shared");
@@ -266,32 +293,36 @@ let workerHelpers = assertTrue.toString() + assertIsWasmSharedMemory.toString();
 // integrity checking and bounds checks testing are needed.
 (function TestSpotCheckMemoryWithSharedGrow() {
   print(arguments.callee.name);
-  let worker = new Worker(workerHelpers +
-    `onmessage = function(obj) {
-       let kPageSize = 0x10000;
-       assertIsWasmSharedMemory(obj.memory);
-       let instance = new WebAssembly.Instance(
-           obj.module, {m: {memory: obj.memory}});
-       assertTrue(5 === obj.memory.grow(10));
-       assertIsWasmSharedMemory(obj.memory);
-       assertTrue(obj.memory.buffer.byteLength === 15 * kPageSize);
-       // Store again, and verify that the previous stores are still reflected.
-       instance.exports.atomic_store(15 * kPageSize - 4, 0xACED);
-       assertTrue(0xACED === instance.exports.atomic_load(0));
-       assertTrue(0xACED === instance.exports.atomic_load(5 * kPageSize - 4));
-       assertTrue(0xACED === instance.exports.atomic_load(15 * kPageSize - 4));
-       assertTrue(15 === instance.exports.grow(2));
-       assertIsWasmSharedMemory(obj.memory);
-       assertTrue(obj.memory.buffer.byteLength === 17 * kPageSize);
-       // Validate previous writes.
-       instance.exports.atomic_store(17 * kPageSize - 4, 0xACED);
-       assertTrue(0xACED === instance.exports.atomic_load(0));
-       assertTrue(0xACED === instance.exports.atomic_load(5 * kPageSize - 4));
-       assertTrue(0xACED === instance.exports.atomic_load(15 * kPageSize - 4));
-       assertTrue(0xACED === instance.exports.atomic_load(17 * kPageSize - 4));
-       postMessage("OK");
-     }`, {type: 'string'});
+  function workerCode(workerHelpers) {
+    eval(workerHelpers);
+    onmessage = function(obj) {
+      let kPageSize = 0x10000;
+      assertIsWasmSharedMemory(obj.memory);
+      let instance = new WebAssembly.Instance(
+          obj.module, {m: {memory: obj.memory}});
+      assertTrue(5 === obj.memory.grow(10));
+      assertIsWasmSharedMemory(obj.memory);
+      assertTrue(obj.memory.buffer.byteLength === 15 * kPageSize);
+      // Store again, and verify that the previous stores are still reflected.
+      instance.exports.atomic_store(15 * kPageSize - 4, 0xACED);
+      assertTrue(0xACED === instance.exports.atomic_load(0));
+      assertTrue(0xACED === instance.exports.atomic_load(5 * kPageSize - 4));
+      assertTrue(0xACED === instance.exports.atomic_load(15 * kPageSize - 4));
+      assertTrue(15 === instance.exports.grow(2));
+      assertIsWasmSharedMemory(obj.memory);
+      assertTrue(obj.memory.buffer.byteLength === 17 * kPageSize);
+      // Validate previous writes.
+      instance.exports.atomic_store(17 * kPageSize - 4, 0xACED);
+      assertTrue(0xACED === instance.exports.atomic_load(0));
+      assertTrue(0xACED === instance.exports.atomic_load(5 * kPageSize - 4));
+      assertTrue(0xACED === instance.exports.atomic_load(15 * kPageSize - 4));
+      assertTrue(0xACED === instance.exports.atomic_load(17 * kPageSize - 4));
+      postMessage("OK");
+    }
+  }
 
+  let worker = new Worker(workerCode,
+                          {type: 'function', arguments: [workerHelpers]});
   let memory = new WebAssembly.Memory({initial: 5, maximum: 50, shared: true});
   var builder = new WasmModuleBuilder();
   builder.addImportedMemory("m", "memory", 5, 100, "shared");

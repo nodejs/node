@@ -52,7 +52,7 @@ class ExceptionHandlerFallbackTest : public ::testing::Test {
   void TearDown() override {
     // be a good citizen and remove the exception handler.
     ULONG result = RemoveVectoredExceptionHandler(registered_handler_);
-    CHECK(result);
+    EXPECT_TRUE(result);
   }
 
  private:
@@ -61,9 +61,9 @@ class ExceptionHandlerFallbackTest : public ::testing::Test {
     v8::PageAllocator* page_allocator = i::GetPlatformPageAllocator();
     // Make the allocated memory accessible so that from now on memory accesses
     // do not cause an exception anymore.
-    CHECK(i::SetPermissions(page_allocator, g_start_address,
-                            page_allocator->AllocatePageSize(),
-                            v8::PageAllocator::kReadWrite));
+    EXPECT_TRUE(i::SetPermissions(page_allocator, g_start_address,
+                                  page_allocator->AllocatePageSize(),
+                                  v8::PageAllocator::kReadWrite));
     // The memory access should work now, we can continue execution.
     return EXCEPTION_CONTINUE_EXECUTION;
   }
@@ -74,7 +74,7 @@ class ExceptionHandlerFallbackTest : public ::testing::Test {
 
 TEST_F(ExceptionHandlerFallbackTest, DoTest) {
   constexpr bool use_default_handler = true;
-  CHECK(v8::V8::EnableWebAssemblyTrapHandler(use_default_handler));
+  EXPECT_TRUE(v8::V8::EnableWebAssemblyTrapHandler(use_default_handler));
   // In the original test setup the test memory is protected against any kind of
   // access. Therefore the access here causes an access violation exception,
   // which should be caught by the exception handler we install above. In the
@@ -83,8 +83,8 @@ TEST_F(ExceptionHandlerFallbackTest, DoTest) {
   // memory access again. This time we expect the memory access to work.
   constexpr int test_value = 42;
   WriteToTestMemory(test_value);
-  CHECK_EQ(test_value, ReadFromTestMemory());
-  CHECK(g_handler_got_executed);
+  EXPECT_EQ(test_value, ReadFromTestMemory());
+  EXPECT_TRUE(g_handler_got_executed);
   v8::internal::trap_handler::RemoveTrapHandler();
 }
 

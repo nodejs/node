@@ -1081,8 +1081,9 @@ Reduction LoadElimination::ReduceLoadElement(Node* node) {
         // Make sure we don't resurrect dead {replacement} nodes.
         // Skip lowering if the type of the {replacement} node is not a subtype
         // of the original {node}'s type.
-        // TODO(tebbi): We should insert a {TypeGuard} for the intersection of
-        // these two types here once we properly handle {Type::None} everywhere.
+        // TODO(turbofan): We should insert a {TypeGuard} for the intersection
+        // of these two types here once we properly handle {Type::None}
+        // everywhere.
         if (!replacement->IsDead() && NodeProperties::GetType(replacement)
                                           .Is(NodeProperties::GetType(node))) {
           ReplaceWithValue(node, replacement, effect);

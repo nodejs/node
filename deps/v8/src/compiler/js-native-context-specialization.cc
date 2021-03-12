@@ -802,9 +802,9 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
     Node* node, Node* lookup_start_object, Node* receiver, Node* value,
     NameRef const& name, AccessMode access_mode, Node* key,
     PropertyCellRef const& property_cell, Node* effect) {
-  Node* control = NodeProperties::GetControlInput(node);
-  if (effect == nullptr) {
-    effect = NodeProperties::GetEffectInput(node);
+  if (!property_cell.Serialize()) {
+    TRACE_BROKER_MISSING(broker(), "usable data for " << property_cell);
+    return NoChange();
   }
 
   ObjectRef property_cell_value = property_cell.value();
@@ -818,6 +818,11 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
   PropertyDetails property_details = property_cell.property_details();
   PropertyCellType property_cell_type = property_details.cell_type();
   DCHECK_EQ(kData, property_details.kind());
+
+  Node* control = NodeProperties::GetControlInput(node);
+  if (effect == nullptr) {
+    effect = NodeProperties::GetEffectInput(node);
+  }
 
   // We have additional constraints for stores.
   if (access_mode == AccessMode::kStore) {
@@ -923,10 +928,6 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
     DCHECK_EQ(receiver, lookup_start_object);
     DCHECK(!property_details.IsReadOnly());
     switch (property_details.cell_type()) {
-      case PropertyCellType::kUndefined: {
-        UNREACHABLE();
-        break;
-      }
       case PropertyCellType::kConstant: {
         // Record a code dependency on the cell, and just deoptimize if the new
         // value doesn't match the previous value stored inside the cell.
@@ -997,6 +998,8 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
             jsgraph()->Constant(property_cell), value, effect, control);
         break;
       }
+      case PropertyCellType::kUndefined:
+        UNREACHABLE();
     }
   }
 
@@ -1950,26 +1953,36 @@ Reduction JSNativeContextSpecialization::ReduceElementLoadFromHeapConstant(
   NumberMatcher mkey(key);
   if (mkey.IsInteger() && mkey.IsInRange(0.0, kMaxUInt32 - 1.0)) {
     uint32_t index = static_cast<uint32_t>(mkey.ResolvedValue());
-    base::Optional<ObjectRef> element =
-        receiver_ref.GetOwnConstantElement(index);
-    if (!element.has_value() && receiver_ref.IsJSArray()) {
-      // We didn't find a constant element, but if the receiver is a cow-array
-      // we can exploit the fact that any future write to the element will
-      // replace the whole elements storage.
-      element = receiver_ref.AsJSArray().GetOwnCowElement(index);
-      if (element.has_value()) {
-        Node* elements = effect = graph()->NewNode(
-            simplified()->LoadField(AccessBuilder::ForJSObjectElements()),
-            receiver, effect, control);
-        FixedArrayRef array_elements =
-            receiver_ref.AsJSArray().elements().AsFixedArray();
-        Node* check = graph()->NewNode(simplified()->ReferenceEqual(), elements,
-                                       jsgraph()->Constant(array_elements));
-        effect = graph()->NewNode(
-            simplified()->CheckIf(DeoptimizeReason::kCowArrayElementsChanged),
-            check, effect, control);
+    base::Optional<ObjectRef> element;
+
+    if (receiver_ref.IsJSObject()) {
+      element = receiver_ref.AsJSObject().GetOwnConstantElement(index);
+      if (!element.has_value() && receiver_ref.IsJSArray()) {
+        // We didn't find a constant element, but if the receiver is a cow-array
+        // we can exploit the fact that any future write to the element will
+        // replace the whole elements storage.
+        JSArrayRef array_ref = receiver_ref.AsJSArray();
+        base::Optional<FixedArrayBaseRef> array_elements = array_ref.elements();
+        if (array_elements.has_value()) {
+          element = array_ref.GetOwnCowElement(*array_elements, index);
+          if (element.has_value()) {
+            Node* elements = effect = graph()->NewNode(
+                simplified()->LoadField(AccessBuilder::ForJSObjectElements()),
+                receiver, effect, control);
+            Node* check =
+                graph()->NewNode(simplified()->ReferenceEqual(), elements,
+                                 jsgraph()->Constant(*array_elements));
+            effect = graph()->NewNode(
+                simplified()->CheckIf(
+                    DeoptimizeReason::kCowArrayElementsChanged),
+                check, effect, control);
+          }
+        }
       }
+    } else if (receiver_ref.IsString()) {
+      element = receiver_ref.AsString().GetCharAsStringOrUndefined(index);
     }
+
     if (element.has_value()) {
       Node* value = access_mode == AccessMode::kHas
                         ? jsgraph()->TrueConstant()
@@ -2469,43 +2482,40 @@ JSNativeContextSpecialization::BuildPropertyStore(
         value = effect =
             graph()->NewNode(simplified()->CheckNumber(FeedbackSource()), value,
                              effect, control);
-        if (!field_index.is_inobject() || !FLAG_unbox_double_fields) {
-          if (access_info.HasTransitionMap()) {
-            // Allocate a HeapNumber for the new property.
-            AllocationBuilder a(jsgraph(), effect, control);
-            a.Allocate(HeapNumber::kSize, AllocationType::kYoung,
-                       Type::OtherInternal());
-            a.Store(AccessBuilder::ForMap(),
-                    MapRef(broker(), factory()->heap_number_map()));
-            FieldAccess value_field_access =
-                AccessBuilder::ForHeapNumberValue();
-            value_field_access.const_field_info = field_access.const_field_info;
-            a.Store(value_field_access, value);
-            value = effect = a.Finish();
+        if (access_info.HasTransitionMap()) {
+          // Allocate a HeapNumber for the new property.
+          AllocationBuilder a(jsgraph(), effect, control);
+          a.Allocate(HeapNumber::kSize, AllocationType::kYoung,
+                     Type::OtherInternal());
+          a.Store(AccessBuilder::ForMap(),
+                  MapRef(broker(), factory()->heap_number_map()));
+          FieldAccess value_field_access = AccessBuilder::ForHeapNumberValue();
+          value_field_access.const_field_info = field_access.const_field_info;
+          a.Store(value_field_access, value);
+          value = effect = a.Finish();
 
-            field_access.type = Type::Any();
-            field_access.machine_type = MachineType::TaggedPointer();
-            field_access.write_barrier_kind = kPointerWriteBarrier;
-          } else {
-            // We just store directly to the HeapNumber.
-            FieldAccess const storage_access = {
-                kTaggedBase,
-                field_index.offset(),
-                name.object(),
-                MaybeHandle<Map>(),
-                Type::OtherInternal(),
-                MachineType::TaggedPointer(),
-                kPointerWriteBarrier,
-                LoadSensitivity::kUnsafe,
-                access_info.GetConstFieldInfo(),
-                access_mode == AccessMode::kStoreInLiteral};
-            storage = effect =
-                graph()->NewNode(simplified()->LoadField(storage_access),
-                                 storage, effect, control);
-            field_access.offset = HeapNumber::kValueOffset;
-            field_access.name = MaybeHandle<Name>();
-            field_access.machine_type = MachineType::Float64();
-          }
+          field_access.type = Type::Any();
+          field_access.machine_type = MachineType::TaggedPointer();
+          field_access.write_barrier_kind = kPointerWriteBarrier;
+        } else {
+          // We just store directly to the HeapNumber.
+          FieldAccess const storage_access = {
+              kTaggedBase,
+              field_index.offset(),
+              name.object(),
+              MaybeHandle<Map>(),
+              Type::OtherInternal(),
+              MachineType::TaggedPointer(),
+              kPointerWriteBarrier,
+              LoadSensitivity::kUnsafe,
+              access_info.GetConstFieldInfo(),
+              access_mode == AccessMode::kStoreInLiteral};
+          storage = effect =
+              graph()->NewNode(simplified()->LoadField(storage_access), storage,
+                               effect, control);
+          field_access.offset = HeapNumber::kValueOffset;
+          field_access.name = MaybeHandle<Name>();
+          field_access.machine_type = MachineType::Float64();
         }
         if (store_to_existing_constant_field) {
           DCHECK(!access_info.HasTransitionMap());

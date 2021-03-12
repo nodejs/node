@@ -361,6 +361,9 @@ InstructionOperand InstructionSequenceTest::ConvertInputOp(TestOperand op) {
     case kSlot:
       return Unallocated(op, UnallocatedOperand::MUST_HAVE_SLOT,
                          UnallocatedOperand::USED_AT_START);
+    case kDeoptArg:
+      return Unallocated(op, UnallocatedOperand::REGISTER_OR_SLOT,
+                         UnallocatedOperand::USED_AT_END);
     case kFixedRegister: {
       MachineRepresentation rep = GetCanonicalRep(op);
       CHECK(0 <= op.value_ && op.value_ < GetNumRegs(rep));

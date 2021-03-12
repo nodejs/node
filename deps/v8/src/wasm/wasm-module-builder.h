@@ -250,6 +250,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
                            bool mutability, Vector<const char> module = {});
   void AddDataSegment(const byte* data, uint32_t size, uint32_t dest);
   uint32_t AddSignature(FunctionSig* sig);
+  uint32_t AddException(FunctionSig* type);
   uint32_t AddStructType(StructType* type);
   uint32_t AddArrayType(ArrayType* type);
   // In the current implementation, it's supported to have uninitialized slots
@@ -282,6 +283,12 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   FunctionSig* GetSignature(uint32_t index) {
     DCHECK(types_[index].kind == Type::kFunctionSig);
     return types_[index].sig;
+  }
+
+  int NumExceptions() { return static_cast<int>(exceptions_.size()); }
+
+  FunctionSig* GetExceptionType(int index) {
+    return types_[exceptions_[index]].sig;
   }
 
  private:
@@ -351,6 +358,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   ZoneVector<WasmDataSegment> data_segments_;
   ZoneVector<uint32_t> indirect_functions_;
   ZoneVector<WasmGlobal> globals_;
+  ZoneVector<int> exceptions_;
   ZoneUnorderedMap<FunctionSig, uint32_t> signature_map_;
   int start_function_index_;
   uint32_t max_table_size_ = 0;

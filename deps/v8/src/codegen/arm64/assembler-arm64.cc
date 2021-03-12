@@ -44,7 +44,7 @@ namespace internal {
 namespace {
 
 #ifdef USE_SIMULATOR
-static unsigned SimulatorFeaturesFromCommandLine() {
+unsigned SimulatorFeaturesFromCommandLine() {
   if (strcmp(FLAG_sim_arm64_optional_features, "none") == 0) {
     return 0;
   }
@@ -62,9 +62,17 @@ static unsigned SimulatorFeaturesFromCommandLine() {
 }
 #endif  // USE_SIMULATOR
 
-static constexpr unsigned CpuFeaturesFromCompiler() {
+constexpr unsigned CpuFeaturesFromCompiler() {
   unsigned features = 0;
 #if defined(__ARM_FEATURE_JCVT)
+  features |= 1u << JSCVT;
+#endif
+  return features;
+}
+
+constexpr unsigned CpuFeaturesFromTargetOS() {
+  unsigned features = 0;
+#if defined(V8_TARGET_OS_MACOSX)
   features |= 1u << JSCVT;
 #endif
   return features;
@@ -79,6 +87,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) {
     supported_ |= CpuFeaturesFromCompiler();
+    supported_ |= CpuFeaturesFromTargetOS();
     return;
   }
 
@@ -101,6 +110,12 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= CpuFeaturesFromCompiler();
   supported_ |= runtime;
 #endif  // USE_SIMULATOR
+
+  // Set a static value on whether Simd is supported.
+  // This variable is only used for certain archs to query SupportWasmSimd128()
+  // at runtime in builtins using an extern ref. Other callers should use
+  // CpuFeatures::SupportWasmSimd128().
+  CpuFeatures::supports_wasm_simd_128_ = CpuFeatures::SupportsWasmSimd128();
 }
 
 void CpuFeatures::PrintTarget() {}
@@ -565,8 +580,7 @@ void Assembler::bind(Label* label) {
       // Internal references do not get patched to an instruction but directly
       // to an address.
       internal_reference_positions_.push_back(linkoffset);
-      PatchingAssembler patcher(options(), reinterpret_cast<byte*>(link), 2);
-      patcher.dc64(reinterpret_cast<uintptr_t>(pc_));
+      base::Memcpy(link, &pc_, kSystemPointerSize);
     } else {
       link->SetImmPCOffsetTarget(options(),
                                  reinterpret_cast<Instruction*>(pc_));

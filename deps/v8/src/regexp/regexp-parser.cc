@@ -1829,6 +1829,15 @@ bool RegExpParser::ParseRegExp(Isolate* isolate, Zone* zone,
   return success;
 }
 
+bool RegExpParser::VerifyRegExpSyntax(Isolate* isolate, Zone* zone,
+                                      FlatStringReader* input,
+                                      JSRegExp::Flags flags,
+                                      RegExpCompileData* result,
+                                      const DisallowGarbageCollection& no_gc) {
+  RegExpParser parser(input, flags, isolate, zone);
+  return parser.Parse(result, no_gc);
+}
+
 RegExpBuilder::RegExpBuilder(Zone* zone, JSRegExp::Flags flags)
     : zone_(zone),
       pending_empty_(false),

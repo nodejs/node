@@ -4375,7 +4375,6 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
   DCHECK_EQ(actual_parameter_count, a0);
   DCHECK_EQ(expected_parameter_count, a2);
 
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
   // If the expected parameter count is equal to the adaptor sentinel, no need
   // to push undefined value as arguments.
   Branch(&regular_invoke, eq, expected_parameter_count,
@@ -4429,20 +4428,7 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     CallRuntime(Runtime::kThrowStackOverflow);
     break_(0xCC);
   }
-#else
-  // Check whether the expected and actual arguments count match. The registers
-  // are set up according to contract with ArgumentsAdaptorTrampoline:
-  Branch(&regular_invoke, eq, expected_parameter_count,
-         Operand(actual_parameter_count));
 
-  Handle<Code> adaptor = BUILTIN_CODE(isolate(), ArgumentsAdaptorTrampoline);
-  if (flag == CALL_FUNCTION) {
-    Call(adaptor);
-    Branch(done);
-  } else {
-    Jump(adaptor, RelocInfo::CODE_TARGET);
-  }
-#endif
   bind(&regular_invoke);
 }
 
@@ -4571,6 +4557,13 @@ void MacroAssembler::GetObjectType(Register object, Register map,
                                    Register type_reg) {
   LoadMap(map, object);
   lhu(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
+}
+
+void MacroAssembler::GetInstanceTypeRange(Register map, Register type_reg,
+                                          InstanceType lower_limit,
+                                          Register range) {
+  lhu(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  Subu(range, type_reg, Operand(lower_limit));
 }
 
 // -----------------------------------------------------------------------------
@@ -5072,9 +5065,12 @@ void MacroAssembler::AssertFunction(Register object) {
     SmiTst(object, t8);
     Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, t8,
           Operand(zero_reg));
-    GetObjectType(object, t8, t8);
-    Check(eq, AbortReason::kOperandIsNotAFunction, t8,
-          Operand(JS_FUNCTION_TYPE));
+    push(object);
+    LoadMap(object, object);
+    GetInstanceTypeRange(object, object, FIRST_JS_FUNCTION_TYPE, t8);
+    Check(ls, AbortReason::kOperandIsNotAFunction, t8,
+          Operand(LAST_JS_FUNCTION_TYPE - FIRST_JS_FUNCTION_TYPE));
+    pop(object);
   }
 }
 

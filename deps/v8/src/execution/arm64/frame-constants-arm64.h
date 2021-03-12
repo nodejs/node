@@ -18,20 +18,17 @@ namespace internal {
 //         BOTTOM OF THE STACK   HIGHEST ADDRESS
 //  slot      Entry frame
 //       +---------------------+-----------------------
-// -20   | saved register d15  |
+// -19   | saved register d15  |
 // ...   |        ...          |
-// -13   | saved register d8   |
+// -12   | saved register d8   |
 //       |- - - - - - - - - - -|
-// -12   |   saved lr (x30)    |
-//       |- - - - - - - - - - -|
-// -11   |   saved fp (x29)    |
-//       |- - - - - - - - - - -|
-// -10   | saved register x28  |
+// -11   | saved register x28  |
 // ...   |        ...          |
-//  -1   | saved register x19  |
+//  -2   | saved register x19  |
 //       |- - - - - - - - - - -|
-//   0   |  bad frame pointer  |  <-- frame ptr
-//       |   (0xFFF.. FF)      |
+//  -1   |   saved lr (x30)    |
+//       |- - - - - - - - - - -|
+//   0   |   saved fp (x29)    |  <-- frame ptr
 //       |- - - - - - - - - - -|
 //   1   | stack frame marker  |
 //       |      (ENTRY)        |
@@ -41,10 +38,8 @@ namespace internal {
 //       |- - - - - - - - - - -|
 //   3   |     C entry FP      |
 //       |- - - - - - - - - - -|
-//   4   |   JS entry frame    |
+//   4   |   JS entry frame    |  <-- stack ptr
 //       |       marker        |
-//       |- - - - - - - - - - -|
-//   5   |      padding        |  <-- stack ptr
 //  -----+---------------------+-----------------------
 //          TOP OF THE STACK     LOWEST ADDRESS
 //
@@ -53,16 +48,15 @@ class EntryFrameConstants : public AllStatic {
   // This is the offset to where JSEntry pushes the current value of
   // Isolate::c_entry_fp onto the stack.
   static constexpr int kCallerFPOffset = -3 * kSystemPointerSize;
-  static constexpr int kFixedFrameSize = 6 * kSystemPointerSize;
+  static constexpr int kFixedFrameSize = 4 * kSystemPointerSize;
 
   // The following constants are defined so we can static-assert their values
   // near the relevant JSEntry assembly code, not because they're actually very
   // useful.
   static constexpr int kCalleeSavedRegisterBytesPushedBeforeFpLrPair =
-      8 * kSystemPointerSize;
-  static constexpr int kCalleeSavedRegisterBytesPushedAfterFpLrPair =
-      10 * kSystemPointerSize;
-  static constexpr int kOffsetToCalleeSavedRegisters = 1 * kSystemPointerSize;
+      18 * kSystemPointerSize;
+  static constexpr int kCalleeSavedRegisterBytesPushedAfterFpLrPair = 0;
+  static constexpr int kOffsetToCalleeSavedRegisters = 0;
 
   // These offsets refer to the immediate caller (a native frame), not to the
   // previous JS exit frame like kCallerFPOffset above.
@@ -82,12 +76,16 @@ class WasmCompileLazyFrameConstants : public TypedFrameConstants {
   static constexpr int kNumberOfSavedFpParamRegs = 8;
 
   // FP-relative.
+  // The instance is pushed as part of the saved registers. Being in {r7}, it is
+  // the first register pushed (highest register code in
+  // {wasm::kGpParamRegisters}). Because of padding of the frame header, it is
+  // actually one word further down the stack though (thus at position {1}).
   static constexpr int kWasmInstanceOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
   static constexpr int kFixedFrameSizeFromFp =
       // Header is padded to 16 byte (see {MacroAssembler::EnterFrame}).
       RoundUp<16>(TypedFrameConstants::kFixedFrameSizeFromFp) +
       kNumberOfSavedGpParamRegs * kSystemPointerSize +
-      kNumberOfSavedFpParamRegs * kDoubleSize;
+      kNumberOfSavedFpParamRegs * kSimd128Size;
 };
 
 // Frame constructed by the {WasmDebugBreak} builtin.

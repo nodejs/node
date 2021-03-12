@@ -61,7 +61,6 @@ void StressConcurrentAllocatorTask::RunInternal() {
 
 // static
 void StressConcurrentAllocatorTask::Schedule(Isolate* isolate) {
-  CHECK(FLAG_local_heaps && FLAG_concurrent_allocation);
   auto task = std::make_unique<StressConcurrentAllocatorTask>(isolate);
   const double kDelayInSeconds = 0.1;
   V8::GetCurrentPlatform()->CallDelayedOnWorkerThread(std::move(task),

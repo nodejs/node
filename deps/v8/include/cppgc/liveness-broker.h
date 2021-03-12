@@ -50,6 +50,12 @@ class V8_EXPORT LivenessBroker final {
   }
 
   template <typename T>
+  bool IsHeapObjectAlive(const WeakMember<T>& weak_member) const {
+    return (weak_member != kSentinelPointer) &&
+           IsHeapObjectAlive<T>(weak_member.Get());
+  }
+
+  template <typename T>
   bool IsHeapObjectAlive(const UntracedMember<T>& untraced_member) const {
     return (untraced_member != kSentinelPointer) &&
            IsHeapObjectAlive<T>(untraced_member.Get());

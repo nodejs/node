@@ -5,14 +5,10 @@
 [
 [ALWAYS, {
   'skip-stack-guard-page': [PASS, ['((arch == ppc or arch == ppc64 or arch == s390 or arch == s390x) and simulator_run)', SKIP]],
-  # TODO(wasm) Investigate failing spec tests after update.
-  'binary': [FAIL],
-  'proposals/bulk-memory-operations/binary': [FAIL],
   # TODO(v8:10994): Failing spec test after update.
-  'proposals/simd/binary': [FAIL],
+  'proposals/simd/imports': [FAIL],
   'proposals/simd/data': [FAIL],
   'proposals/js-types/data': [FAIL],
-  'proposals/reference-types/binary': [FAIL],
 
   # TODO(v8:9144): The MVP behavior when bounds-checking segments changed in
   # the bulk-memory proposal. Since we've enabled bulk-memory by default, we
@@ -22,8 +18,9 @@
   'data': [FAIL],
 
   # TODO(wasm): Roll newest tests into "js-types" repository.
-  'proposals/js-types/exports': [FAIL],
+  'proposals/js-types/elem': [FAIL],
   'proposals/js-types/globals': [FAIL],
+  'proposals/js-types/imports': [FAIL],
   'proposals/js-types/linking': [FAIL],
 
   # TODO(wasm): Roll newest tests into "tail-call" repository.
@@ -39,6 +36,18 @@
 
   # This test requires the reftypes flag to be disabled.
   'proposals/bulk-memory-operations/imports': [FAIL],
+
+  # TODO(v8:11401): Fix memory64 spec tests / the v8 implementation (whatever
+  # is broken).
+  'proposals/memory64/address64': [FAIL],
+  'proposals/memory64/data': [FAIL],
+  'proposals/memory64/elem': [FAIL],
+  'proposals/memory64/float_memory64': [FAIL],
+  'proposals/memory64/imports': [FAIL],
+  'proposals/memory64/load64': [FAIL],
+  'proposals/memory64/memory64': [FAIL],
+  'proposals/memory64/memory_grow64': [FAIL],
+  'proposals/memory64/memory_trap64': [FAIL],
 }],  # ALWAYS
 
 ['arch == arm and not simulator_run', {
@@ -96,6 +105,57 @@
   'proposals/tail-call/skip-stack-guard-page': '--sim-stack-size=8192',
 }],  # '(arch == mipsel or arch == mips64el) and simulator_run'
 
+['arch == riscv64', {
+  'conversions': [SKIP],
+  'proposals/JS-BigInt-integration/conversions': [SKIP],
+  'proposals/bulk-memory-operations/conversions': [SKIP],
+  'proposals/js-types/conversions': [SKIP],
+  'proposals/multi-value/conversions': [SKIP],
+  'proposals/reference-types/conversions': [SKIP],
+
+  'f32': [SKIP],
+  'f64': [SKIP],
+  'proposals/multi-value/f64': [SKIP],
+  'proposals/JS-BigInt-integration/f64': [SKIP],
+  'proposals/JS-BigInt-integration/f32': [SKIP],
+  'proposals/bulk-memory-operations/f32': [SKIP],
+  'proposals/bulk-memory-operations/f64': [SKIP],
+  'proposals/js-types/f32': [SKIP],
+  'proposals/js-types/f64': [SKIP],
+  'proposals/multi-value/f32': [SKIP],
+  'proposals/reference-types/f32': [SKIP],
+  'proposals/reference-types/f64': [SKIP],
+
+   # the following all fail w/ symptons captured in issue #166
+   'float_exprs': [SKIP],
+   'proposals/tail-call/conversions': [SKIP],
+   'proposals/tail-call/float_exprs': [SKIP],
+   'proposals/tail-call/f64': [SKIP],
+   'proposals/tail-call/f32': [SKIP],
+
+   # These tests need larger stack size on simulator.
+   'skip-stack-guard-page': '--sim-stack-size=8192',
+   'proposals/tail-call/skip-stack-guard-page': '--sim-stack-size=8192',
+
+   # SIMD is not fully implemented yet.
+   'proposals/simd/*': [SKIP],
+
+   # See issue #403
+   'proposals/js-types/exports': [SKIP],
+   'proposals/js-types/imports': [SKIP],
+
+   # riscv64 don't implemented some wasm atomic func
+   'left-to-right': [SKIP],
+   'float_misc': [SKIP],
+   'f64_bitwise': [SKIP],
+   'f32_bitwise': [SKIP],
+   'proposals/tail-call/f32_bitwise': [SKIP],
+   'proposals/tail-call/f64_bitwise': [SKIP],
+   'proposals/tail-call/float_misc': [SKIP],
+   'proposals/tail-call/left-to-right': [SKIP],
+
+}],  # 'arch == riscv64
+
 ['arch == ppc or arch == ppc64', {
   # These tests fail because ppc float min and max doesn't convert sNaN to qNaN.
   'f32': [SKIP],
@@ -131,14 +191,19 @@
 }],  # 'arch == s390 or arch == s390x'
 
 ##############################################################################
-['lite_mode or variant == jitless', {
-  # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
+# TODO(v8:7777): Change this once wasm is supported in jitless mode.
+['not has_webassembly or variant == jitless', {
   '*': [SKIP],
-}], # lite_mode or variant == jitless
+}],  # not has_webassembly or variant == jitless
 
 ################################################################################
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
+
+##############################################################################
+['no_simd_sse == True', {
+  'proposals/simd/*': [SKIP],
+}],  # no_simd_sse == True
 
 ]

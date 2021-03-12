@@ -16,9 +16,9 @@ namespace compiler {
 
 OsrHelper::OsrHelper(OptimizedCompilationInfo* info)
     : parameter_count_(info->bytecode_array()->parameter_count()),
-      stack_slot_count_(InterpreterFrameConstants::RegisterStackSlotCount(
+      stack_slot_count_(UnoptimizedFrameConstants::RegisterStackSlotCount(
                             info->bytecode_array()->register_count()) +
-                        InterpreterFrameConstants::kExtraSlotCount) {}
+                        UnoptimizedFrameConstants::kExtraSlotCount) {}
 
 void OsrHelper::SetupFrame(Frame* frame) {
   // The optimized frame will subsume the unoptimized frame. Do so by reserving

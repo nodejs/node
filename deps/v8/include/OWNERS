@@ -16,6 +16,7 @@ per-file v8-inspector-protocol.h=pfeldman@chromium.org
 per-file v8-inspector-protocol.h=kozyatinskiy@chromium.org
 per-file js_protocol.pdl=dgozman@chromium.org
 per-file js_protocol.pdl=pfeldman@chromium.org
+per-file js_protocol.pdl=bmeurer@chromium.org
 
 # For branch updates:
 per-file v8-version.h=file:../INFRA_OWNERS

@@ -16,7 +16,7 @@ namespace compiler {
 // results in an O(1) copy operation. It is the equivalent of functional lists
 // in ML-like languages, with the only difference that it also caches the length
 // of the list in each node.
-// TODO(tebbi): Use this implementation also for RedundancyElimination.
+// TODO(turbofan): Use this implementation also for RedundancyElimination.
 template <class A>
 class FunctionalList {
  private:

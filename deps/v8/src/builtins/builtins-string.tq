@@ -116,9 +116,7 @@ IfInBounds(String, uintptr, uintptr), IfOutOfBounds {
       const index: uintptr = Unsigned(Convert<intptr>(indexSmi));
       // Max string length fits Smi range, so we can do an unsigned bounds
       // check.
-      const kMaxStringLengthFitsSmi: constexpr bool =
-          kStringMaxLengthUintptr < kSmiMaxValue;
-      static_assert(kMaxStringLengthFitsSmi);
+      StaticAssertStringLengthFitsSmi();
       if (index >= length) goto IfOutOfBounds;
       goto IfInBounds(string, index, length);
     }

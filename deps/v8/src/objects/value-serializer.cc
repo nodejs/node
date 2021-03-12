@@ -1667,6 +1667,9 @@ MaybeHandle<JSRegExp> ValueDeserializer::ReadJSRegExp() {
   if (!FLAG_enable_experimental_regexp_engine) {
     bad_flags_mask |= JSRegExp::kLinear;
   }
+  if (!FLAG_harmony_regexp_match_indices) {
+    bad_flags_mask |= JSRegExp::kHasIndices;
+  }
   if ((raw_flags & bad_flags_mask) ||
       !JSRegExp::New(isolate_, pattern, static_cast<JSRegExp::Flags>(raw_flags))
            .ToHandle(&regexp)) {

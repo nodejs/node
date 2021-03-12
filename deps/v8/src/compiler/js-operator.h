@@ -7,6 +7,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/codegen/tnode.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/node-properties.h"
@@ -24,6 +25,10 @@ class ObjectBoilerplateDescription;
 class ArrayBoilerplateDescription;
 class FeedbackCell;
 class SharedFunctionInfo;
+
+namespace wasm {
+class ValueType;
+}
 
 namespace compiler {
 
@@ -816,6 +821,35 @@ size_t hash_value(ForInParameters const&);
 std::ostream& operator<<(std::ostream&, ForInParameters const&);
 const ForInParameters& ForInParametersOf(const Operator* op);
 
+class JSWasmCallParameters {
+ public:
+  explicit JSWasmCallParameters(const wasm::WasmModule* module,
+                                const wasm::FunctionSig* signature,
+                                FeedbackSource const& feedback)
+      : module_(module), signature_(signature), feedback_(feedback) {
+    DCHECK_NOT_NULL(module);
+    DCHECK_NOT_NULL(signature);
+  }
+
+  const wasm::WasmModule* module() const { return module_; }
+  const wasm::FunctionSig* signature() const { return signature_; }
+  FeedbackSource const& feedback() const { return feedback_; }
+  int input_count() const;
+  int arity_without_implicit_args() const;
+
+ private:
+  const wasm::WasmModule* const module_;
+  const wasm::FunctionSig* const signature_;
+  const FeedbackSource feedback_;
+};
+
+JSWasmCallParameters const& JSWasmCallParametersOf(const Operator* op)
+    V8_WARN_UNUSED_RESULT;
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
+                                           JSWasmCallParameters const&);
+size_t hash_value(JSWasmCallParameters const&);
+bool operator==(JSWasmCallParameters const&, JSWasmCallParameters const&);
+
 int RegisterCountOf(Operator const* op) V8_WARN_UNUSED_RESULT;
 
 int GeneratorStoreValueCountOf(const Operator* op) V8_WARN_UNUSED_RESULT;
@@ -924,6 +958,10 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CallRuntime(Runtime::FunctionId id);
   const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);
   const Operator* CallRuntime(const Runtime::Function* function, size_t arity);
+
+  const Operator* CallWasm(const wasm::WasmModule* wasm_module,
+                           const wasm::FunctionSig* wasm_signature,
+                           FeedbackSource const& feedback);
 
   const Operator* ConstructForwardVarargs(size_t arity, uint32_t start_index);
   const Operator* Construct(uint32_t arity,
@@ -1247,7 +1285,8 @@ class JSCallOrConstructNode : public JSNodeWrapperBase {
                      node->opcode() == IrOpcode::kJSCallWithSpread ||
                      node->opcode() == IrOpcode::kJSConstruct ||
                      node->opcode() == IrOpcode::kJSConstructWithArrayLike ||
-                     node->opcode() == IrOpcode::kJSConstructWithSpread);
+                     node->opcode() == IrOpcode::kJSConstructWithSpread ||
+                     node->opcode() == IrOpcode::kJSWasmCall);
   }
 
 #define INPUTS(V)              \
@@ -1259,8 +1298,8 @@ class JSCallOrConstructNode : public JSNodeWrapperBase {
   // Besides actual arguments, JSCall nodes (and variants) also take the
   // following. Note that we rely on the fact that all variants (JSCall,
   // JSCallWithArrayLike, JSCallWithSpread, JSConstruct,
-  // JSConstructWithArrayLike, JSConstructWithSpread) have the same underlying
-  // node layout.
+  // JSConstructWithArrayLike, JSConstructWithSpread, JSWasmCall) have the same
+  // underlying node layout.
   static constexpr int kTargetInputCount = 1;
   static constexpr int kReceiverOrNewTargetInputCount = 1;
   static constexpr int kFeedbackVectorInputCount = 1;
@@ -1354,6 +1393,35 @@ class JSCallNodeBase final : public JSCallOrConstructNode {
 using JSCallNode = JSCallNodeBase<IrOpcode::kJSCall>;
 using JSCallWithSpreadNode = JSCallNodeBase<IrOpcode::kJSCallWithSpread>;
 using JSCallWithArrayLikeNode = JSCallNodeBase<IrOpcode::kJSCallWithArrayLike>;
+
+class JSWasmCallNode final : public JSCallOrConstructNode {
+ public:
+  explicit constexpr JSWasmCallNode(Node* node) : JSCallOrConstructNode(node) {
+    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kJSWasmCall);
+  }
+
+  const JSWasmCallParameters& Parameters() const {
+    return OpParameter<JSWasmCallParameters>(node()->op());
+  }
+
+#define INPUTS(V)              \
+  V(Target, target, 0, Object) \
+  V(Receiver, receiver, 1, Object)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+
+  static constexpr int kReceiverInputCount = 1;
+  STATIC_ASSERT(kReceiverInputCount ==
+                JSCallOrConstructNode::kReceiverOrNewTargetInputCount);
+
+  int ArgumentCount() const override {
+    // Note: The count reported by this function depends only on the parameter
+    // count, thus adding/removing inputs will not affect it.
+    return Parameters().arity_without_implicit_args();
+  }
+
+  static Type TypeForWasmReturnType(const wasm::ValueType& type);
+};
 
 template <int kOpcode>
 class JSConstructNodeBase final : public JSCallOrConstructNode {

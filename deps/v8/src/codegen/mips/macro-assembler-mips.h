@@ -227,7 +227,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     // TODO(mips): Implement.
     UNIMPLEMENTED();
   }
-  void JumpCodeObject(Register code_object) override {
+  void JumpCodeObject(Register code_object,
+                      JumpMode jump_mode = JumpMode::kJump) override {
     // TODO(mips): Implement.
     UNIMPLEMENTED();
   }
@@ -1040,6 +1041,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Support functions.
 
   void GetObjectType(Register function, Register map, Register type_reg);
+
+  void GetInstanceTypeRange(Register map, Register type_reg,
+                            InstanceType lower_limit, Register range);
 
   // -------------------------------------------------------------------------
   // Runtime calls.

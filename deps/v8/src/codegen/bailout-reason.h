@@ -21,6 +21,7 @@ namespace internal {
   V(kExpectedOptimizationSentinel,                                             \
     "Expected optimized code cell or optimization sentinel")                   \
   V(kExpectedUndefinedOrCell, "Expected undefined or cell in register")        \
+  V(kExpectedFeedbackVector, "Expected feedback vector")                       \
   V(kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry,                      \
     "The function_data field should be a BytecodeArray on interpreter entry")  \
   V(kInputStringTooLong, "Input string too long")                              \

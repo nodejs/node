@@ -23,7 +23,7 @@ constexpr GCInfo GetEmptyGCInfo() { return {nullptr, nullptr, nullptr, false}; }
 TEST(GCInfoTableTest, InitialEmpty) {
   v8::base::PageAllocator page_allocator;
   GCInfoTable table(&page_allocator);
-  EXPECT_EQ(GCInfoTable::kMinIndex, table.NumberOfGCInfosForTesting());
+  EXPECT_EQ(GCInfoTable::kMinIndex, table.NumberOfGCInfos());
 }
 
 TEST(GCInfoTableTest, ResizeToMaxIndex) {

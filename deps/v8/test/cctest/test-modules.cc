@@ -26,8 +26,8 @@ using v8::String;
 using v8::Value;
 
 ScriptOrigin ModuleOrigin(Local<v8::Value> resource_name, Isolate* isolate) {
-  ScriptOrigin origin(resource_name, 0, 0, false, -1, Local<v8::Value>(), false,
-                      false, true);
+  ScriptOrigin origin(isolate, resource_name, 0, 0, false, -1,
+                      Local<v8::Value>(), false, false, true);
   return origin;
 }
 
@@ -148,13 +148,13 @@ MaybeLocal<Module> ResolveCallbackWithImportAssertions(
   } else if (specifier->StrictEquals(v8_str("./bar.js"))) {
     CHECK_EQ(3, import_assertions->Length());
     Local<String> assertion_key =
-        import_assertions->Get(context, 0).As<Value>().As<String>();
+        import_assertions->Get(env.local(), 0).As<Value>().As<String>();
     CHECK(v8_str("a")->StrictEquals(assertion_key));
     Local<String> assertion_value =
-        import_assertions->Get(context, 1).As<Value>().As<String>();
+        import_assertions->Get(env.local(), 1).As<Value>().As<String>();
     CHECK(v8_str("b")->StrictEquals(assertion_value));
     Local<Data> assertion_source_offset_object =
-        import_assertions->Get(context, 2);
+        import_assertions->Get(env.local(), 2);
     Local<Int32> assertion_source_offset_int32 =
         assertion_source_offset_object.As<Value>()
             ->ToInt32(context)
@@ -176,25 +176,18 @@ TEST(ModuleInstantiationWithImportAssertions) {
   bool prev_top_level_await = i::FLAG_harmony_top_level_await;
   bool prev_import_assertions = i::FLAG_harmony_import_assertions;
   i::FLAG_harmony_import_assertions = true;
-
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  create_params.supported_import_assertions = {"extra0", "a", "extra1"};
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
-
   for (auto top_level_await : {true, false}) {
     i::FLAG_harmony_top_level_await = top_level_await;
-    v8::Isolate::Scope isolate_scope(isolate);
+    Isolate* isolate = CcTest::isolate();
     HandleScope scope(isolate);
-    Local<v8::Context> context = v8::Context::New(isolate);
-    v8::Context::Scope context_scope(context);
+    LocalContext env;
     v8::TryCatch try_catch(isolate);
 
     Local<Module> module;
     {
       Local<String> source_text = v8_str(
           "import './foo.js' assert { };\n"
-          "export {} from './bar.js' assert { a: 'b', c: 'd' };");
+          "export {} from './bar.js' assert { a: 'b' };");
       ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
       ScriptCompiler::Source source(source_text, origin);
       module = ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
@@ -202,7 +195,7 @@ TEST(ModuleInstantiationWithImportAssertions) {
       Local<FixedArray> module_requests = module->GetModuleRequests();
       CHECK_EQ(2, module_requests->Length());
       Local<ModuleRequest> module_request_0 =
-          module_requests->Get(context, 0).As<ModuleRequest>();
+          module_requests->Get(env.local(), 0).As<ModuleRequest>();
       CHECK(v8_str("./foo.js")->StrictEquals(module_request_0->GetSpecifier()));
       int offset = module_request_0->GetSourceOffset();
       CHECK_EQ(7, offset);
@@ -212,7 +205,7 @@ TEST(ModuleInstantiationWithImportAssertions) {
       CHECK_EQ(0, module_request_0->GetImportAssertions()->Length());
 
       Local<ModuleRequest> module_request_1 =
-          module_requests->Get(context, 1).As<ModuleRequest>();
+          module_requests->Get(env.local(), 1).As<ModuleRequest>();
       CHECK(v8_str("./bar.js")->StrictEquals(module_request_1->GetSpecifier()));
       offset = module_request_1->GetSourceOffset();
       CHECK_EQ(45, offset);
@@ -224,13 +217,13 @@ TEST(ModuleInstantiationWithImportAssertions) {
           module_request_1->GetImportAssertions();
       CHECK_EQ(3, import_assertions_1->Length());
       Local<String> assertion_key =
-          import_assertions_1->Get(context, 0).As<String>();
+          import_assertions_1->Get(env.local(), 0).As<String>();
       CHECK(v8_str("a")->StrictEquals(assertion_key));
       Local<String> assertion_value =
-          import_assertions_1->Get(context, 1).As<String>();
+          import_assertions_1->Get(env.local(), 1).As<String>();
       CHECK(v8_str("b")->StrictEquals(assertion_value));
       int32_t assertion_source_offset =
-          import_assertions_1->Get(context, 2).As<Int32>()->Value();
+          import_assertions_1->Get(env.local(), 2).As<Int32>()->Value();
       CHECK_EQ(65, assertion_source_offset);
       loc = module->SourceOffsetToLocation(assertion_source_offset);
       CHECK_EQ(1, loc.GetLineNumber());
@@ -255,72 +248,6 @@ TEST(ModuleInstantiationWithImportAssertions) {
           ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
     }
 
-    CHECK(
-        module->InstantiateModule(context, ResolveCallbackWithImportAssertions)
-            .FromJust());
-    CHECK_EQ(Module::kInstantiated, module->GetStatus());
-
-    MaybeLocal<Value> result = module->Evaluate(context);
-    CHECK_EQ(Module::kEvaluated, module->GetStatus());
-    if (i::FLAG_harmony_top_level_await) {
-      Local<Promise> promise = Local<Promise>::Cast(result.ToLocalChecked());
-      CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
-      CHECK(promise->Result()->IsUndefined());
-    } else {
-      CHECK(!result.IsEmpty());
-      ExpectInt32("Object.expando", 42);
-    }
-    CHECK(!try_catch.HasCaught());
-  }
-
-  isolate->Dispose();
-  i::FLAG_harmony_top_level_await = prev_top_level_await;
-  i::FLAG_harmony_import_assertions = prev_import_assertions;
-}
-
-TEST(ModuleInstantiationWithImportAssertionsWithoutSupportedAssertions) {
-  bool prev_top_level_await = i::FLAG_harmony_top_level_await;
-  bool prev_import_assertions = i::FLAG_harmony_import_assertions;
-  i::FLAG_harmony_import_assertions = true;
-  for (auto top_level_await : {true, false}) {
-    i::FLAG_harmony_top_level_await = top_level_await;
-    Isolate* isolate = CcTest::isolate();
-    HandleScope scope(isolate);
-    LocalContext env;
-    v8::TryCatch try_catch(isolate);
-
-    Local<Module> module;
-    {
-      Local<String> source_text =
-          v8_str("import './foo.js' assert { a: 'b' };");
-      ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
-      ScriptCompiler::Source source(source_text, origin);
-      module = ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
-      CHECK_EQ(Module::kUninstantiated, module->GetStatus());
-      Local<FixedArray> module_requests = module->GetModuleRequests();
-      CHECK_EQ(1, module_requests->Length());
-      Local<ModuleRequest> module_request_0 =
-          module_requests->Get(env.local(), 0).As<ModuleRequest>();
-      CHECK(v8_str("./foo.js")->StrictEquals(module_request_0->GetSpecifier()));
-      int offset = module_request_0->GetSourceOffset();
-      CHECK_EQ(7, offset);
-      Location loc = module->SourceOffsetToLocation(offset);
-      CHECK_EQ(0, loc.GetLineNumber());
-      CHECK_EQ(7, loc.GetColumnNumber());
-      // No supported assertions were provided in the Isolate's CreateParams, so
-      // no import assertions should be visible on the API surface.
-      CHECK_EQ(0, module_request_0->GetImportAssertions()->Length());
-    }
-
-    // foo.js
-    {
-      Local<String> source_text = v8_str("Object.expando = 40");
-      ScriptOrigin origin = ModuleOrigin(v8_str("foo.js"), CcTest::isolate());
-      ScriptCompiler::Source source(source_text, origin);
-      fooModule =
-          ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
-    }
-
     CHECK(module
               ->InstantiateModule(env.local(),
                                   ResolveCallbackWithImportAssertions)
@@ -335,7 +262,7 @@ TEST(ModuleInstantiationWithImportAssertionsWithoutSupportedAssertions) {
       CHECK(promise->Result()->IsUndefined());
     } else {
       CHECK(!result.IsEmpty());
-      ExpectInt32("Object.expando", 40);
+      ExpectInt32("Object.expando", 42);
     }
     CHECK(!try_catch.HasCaught());
   }
@@ -816,7 +743,7 @@ TEST(ModuleNamespace) {
     Local<Value> ns = module->GetModuleNamespace();
     CHECK_EQ(Module::kInstantiated, module->GetStatus());
     Local<v8::Object> nsobj = ns->ToObject(env.local()).ToLocalChecked();
-    CHECK_EQ(nsobj->CreationContext(), env.local());
+    CHECK_EQ(nsobj->GetCreationContext().ToLocalChecked(), env.local());
 
     // a, b
     CHECK(nsobj->Get(env.local(), v8_str("a")).ToLocalChecked()->IsUndefined());
@@ -1011,7 +938,7 @@ void DoHostImportModuleDynamically(void* import_data) {
 
 v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackResolve(
     Local<Context> context, Local<v8::ScriptOrModule> referrer,
-    Local<String> specifier) {
+    Local<String> specifier, Local<FixedArray> import_assertions) {
   Isolate* isolate = context->GetIsolate();
   Local<v8::Promise::Resolver> resolver =
       v8::Promise::Resolver::New(context).ToLocalChecked();
@@ -1024,7 +951,7 @@ v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackResolve(
 
 v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackReject(
     Local<Context> context, Local<v8::ScriptOrModule> referrer,
-    Local<String> specifier) {
+    Local<String> specifier, Local<FixedArray> import_assertions) {
   Isolate* isolate = context->GetIsolate();
   Local<v8::Promise::Resolver> resolver =
       v8::Promise::Resolver::New(context).ToLocalChecked();

@@ -18,20 +18,20 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 35
+bytecode array length: 32
 bytecodes: [
   /*   56 S> */ B(LdaCurrentContextSlot), U8(3),
                 B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(1),
-                B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(268),
-                B(Star), R(2),
+                B(JumpIfTrue), U8(16),
+                B(Wide), B(LdaSmi), I16(272),
+                B(Star2),
                 B(LdaConstant), U8(0),
-                B(Star), R(3),
+                B(Star3),
                 B(CallRuntime), U16(Runtime::kNewTypeError), R(2), U8(2),
                 B(Throw),
                 B(LdaImmutableCurrentContextSlot), U8(2),
-                B(Star), R(0),
+                B(Star0),
   /*   70 E> */ B(CallAnyReceiver), R(0), R(1), U8(1), U8(0),
   /*   73 S> */ B(Return),
 ]
@@ -53,12 +53,12 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 16
+bytecode array length: 14
 bytecodes: [
-  /*   56 S> */ B(Wide), B(LdaSmi), I16(270),
-                B(Star), R(0),
+  /*   56 S> */ B(Wide), B(LdaSmi), I16(274),
+                B(Star0),
                 B(LdaConstant), U8(0),
-                B(Star), R(1),
+                B(Star1),
   /*   64 E> */ B(CallRuntime), U16(Runtime::kNewTypeError), R(0), U8(2),
                 B(Throw),
 ]
@@ -80,12 +80,12 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 16
+bytecode array length: 14
 bytecodes: [
-  /*   56 S> */ B(Wide), B(LdaSmi), I16(270),
-                B(Star), R(0),
+  /*   56 S> */ B(Wide), B(LdaSmi), I16(274),
+                B(Star0),
                 B(LdaConstant), U8(0),
-                B(Star), R(1),
+                B(Star1),
                 B(CallRuntime), U16(Runtime::kNewTypeError), R(0), U8(2),
                 B(Throw),
 ]
@@ -113,59 +113,59 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 142
+bytecode array length: 127
 bytecodes: [
   /*   90 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
-                B(Star), R(1),
+                B(Star1),
                 B(LdaCurrentContextSlot), U8(3),
   /*   94 E> */ B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(0),
-                B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(268),
-                B(Star), R(2),
+                B(JumpIfTrue), U8(16),
+                B(Wide), B(LdaSmi), I16(272),
+                B(Star2),
                 B(LdaConstant), U8(0),
-                B(Star), R(3),
+                B(Star3),
                 B(CallRuntime), U16(Runtime::kNewTypeError), R(2), U8(2),
                 B(Throw),
                 B(CallRuntime), U16(Runtime::kLoadPrivateGetter), R(1), U8(1),
-                B(Star), R(2),
+                B(Star2),
                 B(CallProperty0), R(2), R(0), U8(0),
                 B(Inc), U8(2),
-                B(Star), R(2),
+                B(Star2),
   /*   97 E> */ B(CallRuntime), U16(Runtime::kLoadPrivateSetter), R(1), U8(1),
-                B(Star), R(3),
+                B(Star3),
                 B(CallProperty1), R(3), R(0), R(2), U8(3),
   /*  105 S> */ B(LdaSmi), I8(1),
-                B(Star), R(0),
+                B(Star0),
                 B(LdaImmutableCurrentContextSlot), U8(2),
-                B(Star), R(2),
+                B(Star2),
                 B(LdaCurrentContextSlot), U8(3),
   /*  109 E> */ B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(1),
-                B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(269),
-                B(Star), R(3),
+                B(JumpIfTrue), U8(16),
+                B(Wide), B(LdaSmi), I16(273),
+                B(Star3),
                 B(LdaConstant), U8(0),
-                B(Star), R(4),
+                B(Star4),
                 B(CallRuntime), U16(Runtime::kNewTypeError), R(3), U8(2),
                 B(Throw),
                 B(CallRuntime), U16(Runtime::kLoadPrivateSetter), R(2), U8(1),
-                B(Star), R(3),
+                B(Star3),
                 B(CallProperty1), R(3), R(1), R(0), U8(5),
   /*  122 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
-                B(Star), R(1),
+                B(Star1),
                 B(LdaCurrentContextSlot), U8(3),
   /*  133 E> */ B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(0),
-                B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(268),
-                B(Star), R(2),
+                B(JumpIfTrue), U8(16),
+                B(Wide), B(LdaSmi), I16(272),
+                B(Star2),
                 B(LdaConstant), U8(0),
-                B(Star), R(3),
+                B(Star3),
                 B(CallRuntime), U16(Runtime::kNewTypeError), R(2), U8(2),
                 B(Throw),
                 B(CallRuntime), U16(Runtime::kLoadPrivateGetter), R(1), U8(1),
-                B(Star), R(2),
+                B(Star2),
                 B(CallProperty0), R(2), R(0), U8(7),
   /*  137 S> */ B(Return),
 ]
@@ -186,12 +186,12 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 16
+bytecode array length: 14
 bytecodes: [
-  /*   60 S> */ B(Wide), B(LdaSmi), I16(272),
-                B(Star), R(0),
+  /*   60 S> */ B(Wide), B(LdaSmi), I16(276),
+                B(Star0),
                 B(LdaConstant), U8(0),
-                B(Star), R(1),
+                B(Star1),
                 B(CallRuntime), U16(Runtime::kNewTypeError), R(0), U8(2),
                 B(Throw),
 ]
@@ -212,12 +212,12 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 16
+bytecode array length: 14
 bytecodes: [
-  /*   53 S> */ B(Wide), B(LdaSmi), I16(271),
-                B(Star), R(0),
+  /*   53 S> */ B(Wide), B(LdaSmi), I16(275),
+                B(Star0),
                 B(LdaConstant), U8(0),
-                B(Star), R(1),
+                B(Star1),
                 B(CallRuntime), U16(Runtime::kNewTypeError), R(0), U8(2),
                 B(Throw),
 ]
@@ -238,12 +238,12 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 16
+bytecode array length: 14
 bytecodes: [
-  /*   60 S> */ B(Wide), B(LdaSmi), I16(272),
-                B(Star), R(0),
+  /*   60 S> */ B(Wide), B(LdaSmi), I16(276),
+                B(Star0),
                 B(LdaConstant), U8(0),
-                B(Star), R(1),
+                B(Star1),
   /*   68 E> */ B(CallRuntime), U16(Runtime::kNewTypeError), R(0), U8(2),
                 B(Throw),
 ]
@@ -264,12 +264,12 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 16
+bytecode array length: 14
 bytecodes: [
-  /*   46 S> */ B(Wide), B(LdaSmi), I16(271),
-                B(Star), R(1),
+  /*   46 S> */ B(Wide), B(LdaSmi), I16(275),
+                B(Star1),
                 B(LdaConstant), U8(0),
-                B(Star), R(2),
+                B(Star2),
                 B(CallRuntime), U16(Runtime::kNewTypeError), R(1), U8(2),
                 B(Throw),
 ]

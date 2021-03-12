@@ -46,38 +46,44 @@
 #else
 #define V8_HOST_ARCH_32_BIT 1
 #endif
+#elif defined(__riscv) || defined(__riscv__)
+#if __riscv_xlen == 64
+#define V8_HOST_ARCH_RISCV64 1
+#define V8_HOST_ARCH_64_BIT 1
+#else
+#error "Cannot detect Riscv's bitwidth"
+#endif
 #else
 #error "Host architecture was not detected as supported by v8"
 #endif
 
-#if defined(__ARM_ARCH_7A__) || \
-    defined(__ARM_ARCH_7R__) || \
+#if defined(__ARM_ARCH_7A__) || defined(__ARM_ARCH_7R__) || \
     defined(__ARM_ARCH_7__)
-# define CAN_USE_ARMV7_INSTRUCTIONS 1
+#define CAN_USE_ARMV7_INSTRUCTIONS 1
 #ifdef __ARM_ARCH_EXT_IDIV__
 #define CAN_USE_SUDIV 1
 #endif
-# ifndef CAN_USE_VFP3_INSTRUCTIONS
-#define CAN_USE_VFP3_INSTRUCTIONS 1
-# endif
-#endif
-
-#if defined(__ARM_ARCH_8A__)
-#define CAN_USE_ARMV7_INSTRUCTIONS 1
-#define CAN_USE_SUDIV 1
-# define CAN_USE_ARMV8_INSTRUCTIONS 1
 #ifndef CAN_USE_VFP3_INSTRUCTIONS
 #define CAN_USE_VFP3_INSTRUCTIONS 1
 #endif
 #endif
 
+#if defined(__ARM_ARCH_8A__)
+#define CAN_USE_ARMV7_INSTRUCTIONS 1
+#define CAN_USE_SUDIV 1
+#define CAN_USE_ARMV8_INSTRUCTIONS 1
+#ifndef CAN_USE_VFP3_INSTRUCTIONS
+#define CAN_USE_VFP3_INSTRUCTIONS 1
+#endif
+#endif
 
 // Target architecture detection. This may be set externally. If not, detect
 // in the same way as the host architecture, that is, target the native
 // environment as presented by the compiler.
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM &&      \
     !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64 && \
-    !V8_TARGET_ARCH_PPC && !V8_TARGET_ARCH_PPC64 && !V8_TARGET_ARCH_S390
+    !V8_TARGET_ARCH_PPC && !V8_TARGET_ARCH_PPC64 && !V8_TARGET_ARCH_S390 &&    \
+    !V8_TARGET_ARCH_RISCV64
 #if defined(_M_X64) || defined(__x86_64__)
 #define V8_TARGET_ARCH_X64 1
 #elif defined(_M_IX86) || defined(__i386__)
@@ -94,6 +100,10 @@
 #define V8_TARGET_ARCH_PPC64 1
 #elif defined(_ARCH_PPC)
 #define V8_TARGET_ARCH_PPC 1
+#elif defined(__riscv) || defined(__riscv__)
+#if __riscv_xlen == 64
+#define V8_TARGET_ARCH_RISCV64 1
+#endif
 #else
 #error Target architecture was not detected as supported by v8
 #endif
@@ -128,6 +138,8 @@
 #else
 #define V8_TARGET_ARCH_32_BIT 1
 #endif
+#elif V8_TARGET_ARCH_RISCV64
+#define V8_TARGET_ARCH_64_BIT 1
 #else
 #error Unknown target architecture pointer size
 #endif
@@ -155,6 +167,9 @@
 #endif
 #if (V8_TARGET_ARCH_MIPS64 && !(V8_HOST_ARCH_X64 || V8_HOST_ARCH_MIPS64))
 #error Target architecture mips64 is only supported on mips64 and x64 host
+#endif
+#if (V8_TARGET_ARCH_RISCV64 && !(V8_HOST_ARCH_X64 || V8_HOST_ARCH_RISCV64))
+#error Target architecture riscv64 is only supported on riscv64 and x64 host
 #endif
 
 // Determine architecture endianness.
@@ -190,6 +205,8 @@
 #else
 #define V8_TARGET_BIG_ENDIAN 1
 #endif
+#elif V8_TARGET_ARCH_RISCV64
+#define V8_TARGET_LITTLE_ENDIAN 1
 #else
 #error Unknown target architecture endianness
 #endif

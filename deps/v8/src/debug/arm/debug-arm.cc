@@ -37,13 +37,12 @@ void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
   // - Restart the frame by calling the function.
   __ mov(fp, r1);
   __ ldr(r1, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
+  __ ldr(r0, MemOperand(fp, StandardFrameConstants::kArgCOffset));
   __ LeaveFrame(StackFrame::INTERNAL);
 
-  __ ldr(r0, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
-  __ ldrh(r0,
-          FieldMemOperand(r0, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ mov(r2, r0);
-
+  // The arguments are already in the stack (including any necessary padding),
+  // we should not try to massage the arguments again.
+  __ mov(r2, Operand(kDontAdaptArgumentsSentinel));
   __ InvokeFunction(r1, r2, r0, JUMP_FUNCTION);
 }
 

@@ -5,12 +5,12 @@
 #ifndef V8_OBJECTS_CODE_INL_H_
 #define V8_OBJECTS_CODE_INL_H_
 
-#include "src/objects/code.h"
-
 #include "src/base/memory.h"
 #include "src/codegen/code-desc.h"
+#include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"
 #include "src/interpreter/bytecode-register.h"
+#include "src/objects/code.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/map-inl.h"
@@ -329,6 +329,67 @@ CodeKind Code::kind() const {
   return KindField::decode(ReadField<uint32_t>(kFlagsOffset));
 }
 
+namespace detail {
+
+// TODO(v8:11429): Extract out of header, to generic helper, and merge with
+// TranslationArray de/encoding.
+inline int ReadUint(ByteArray array, int* index) {
+  int byte = 0;
+  int value = 0;
+  int shift = 0;
+  do {
+    byte = array.get((*index)++);
+    value += (byte & ((1 << 7) - 1)) << shift;
+    shift += 7;
+  } while (byte & (1 << 7));
+  return value;
+}
+
+}  // namespace detail
+
+int Code::GetBytecodeOffsetForBaselinePC(Address baseline_pc) {
+  DisallowGarbageCollection no_gc;
+  CHECK(!is_baseline_prologue_builtin());
+  if (is_baseline_leave_frame_builtin()) return kFunctionExitBytecodeOffset;
+  CHECK_EQ(kind(), CodeKind::BASELINE);
+  ByteArray data = ByteArray::cast(source_position_table());
+  Address lookup_pc = 0;
+  Address pc = baseline_pc - InstructionStart();
+  int index = 0;
+  int offset = 0;
+  while (pc > lookup_pc) {
+    lookup_pc += detail::ReadUint(data, &index);
+    offset += detail::ReadUint(data, &index);
+  }
+  CHECK_EQ(pc, lookup_pc);
+  return offset;
+}
+
+uintptr_t Code::GetBaselinePCForBytecodeOffset(int bytecode_offset,
+                                               bool precise) {
+  DisallowGarbageCollection no_gc;
+  CHECK_EQ(kind(), CodeKind::BASELINE);
+  ByteArray data = ByteArray::cast(source_position_table());
+  intptr_t pc = 0;
+  int index = 0;
+  int offset = 0;
+  // TODO(v8:11429,cbruni): clean up
+  // Return the offset for the last bytecode that matches
+  while (offset < bytecode_offset && index < data.length()) {
+    int delta_pc = detail::ReadUint(data, &index);
+    int delta_offset = detail::ReadUint(data, &index);
+    if (!precise && (bytecode_offset < offset + delta_offset)) break;
+    pc += delta_pc;
+    offset += delta_offset;
+  }
+  if (precise) {
+    CHECK_EQ(offset, bytecode_offset);
+  } else {
+    CHECK_LE(offset, bytecode_offset);
+  }
+  return pc;
+}
+
 void Code::initialize_flags(CodeKind kind, bool is_turbofanned, int stack_slots,
                             bool is_off_heap_trampoline) {
   CHECK(0 <= stack_slots && stack_slots < StackSlotsField::kMax);
@@ -352,6 +413,14 @@ inline bool Code::is_interpreter_trampoline_builtin() const {
           index == Builtins::kInterpreterEnterBytecodeDispatch);
 }
 
+inline bool Code::is_baseline_leave_frame_builtin() const {
+  return builtin_index() == Builtins::kBaselineLeaveFrame;
+}
+
+inline bool Code::is_baseline_prologue_builtin() const {
+  return builtin_index() == Builtins::kBaselineOutOfLinePrologue;
+}
+
 inline bool Code::checks_optimization_marker() const {
   bool checks_marker =
       (builtin_index() == Builtins::kCompileLazy ||
@@ -361,7 +430,7 @@ inline bool Code::checks_optimization_marker() const {
          (CodeKindCanDeoptimize(kind()) && marked_for_deoptimization());
 }
 
-inline bool Code::has_tagged_params() const {
+inline bool Code::has_tagged_outgoing_params() const {
   return kind() != CodeKind::JS_TO_WASM_FUNCTION &&
          kind() != CodeKind::C_WASM_ENTRY && kind() != CodeKind::WASM_FUNCTION;
 }
@@ -655,7 +724,7 @@ void BytecodeArray::set_parameter_count(int32_t number_of_parameters) {
   // Parameter count is stored as the size on stack of the parameters to allow
   // it to be used directly by generated code.
   WriteField<int32_t>(kParameterSizeOffset,
-                  (number_of_parameters << kSystemPointerSizeLog2));
+                      (number_of_parameters << kSystemPointerSizeLog2));
 }
 
 interpreter::Register BytecodeArray::incoming_new_target_or_generator_register()
@@ -678,7 +747,7 @@ void BytecodeArray::set_incoming_new_target_or_generator_register(
            register_count());
     DCHECK_NE(0, incoming_new_target_or_generator_register.ToOperand());
     WriteField<int32_t>(kIncomingNewTargetOrGeneratorRegisterOffset,
-                    incoming_new_target_or_generator_register.ToOperand());
+                        incoming_new_target_or_generator_register.ToOperand());
   }
 }
 
@@ -762,7 +831,7 @@ int BytecodeArray::SizeIncludingMetadata() {
   return size;
 }
 
-DEFINE_DEOPT_ELEMENT_ACCESSORS(TranslationByteArray, ByteArray)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(TranslationByteArray, TranslationArray)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(InlinedFunctionCount, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(LiteralArray, FixedArray)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrBytecodeOffset, Smi)
@@ -777,11 +846,11 @@ DEFINE_DEOPT_ENTRY_ACCESSORS(BytecodeOffsetRaw, Smi)
 DEFINE_DEOPT_ENTRY_ACCESSORS(TranslationIndex, Smi)
 DEFINE_DEOPT_ENTRY_ACCESSORS(Pc, Smi)
 
-BailoutId DeoptimizationData::BytecodeOffset(int i) {
-  return BailoutId(BytecodeOffsetRaw(i).value());
+BytecodeOffset DeoptimizationData::GetBytecodeOffset(int i) {
+  return BytecodeOffset(BytecodeOffsetRaw(i).value());
 }
 
-void DeoptimizationData::SetBytecodeOffset(int i, BailoutId value) {
+void DeoptimizationData::SetBytecodeOffset(int i, BytecodeOffset value) {
   SetBytecodeOffsetRaw(i, Smi::FromInt(value.ToInt()));
 }
 

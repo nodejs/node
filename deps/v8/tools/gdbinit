@@ -38,15 +38,6 @@ Print a v8 Code object from an internal code address
 Usage: jco pc
 end
 
-# Print LayoutDescriptor.
-define jld
-call (void) _v8_internal_Print_LayoutDescriptor((void*)($arg0))
-end
-document jld
-Print a v8 LayoutDescriptor object
-Usage: jld tagged_ptr
-end
-
 # Print TransitionTree.
 define jtt
 call (void) _v8_internal_Print_TransitionTree((void*)($arg0))
@@ -84,6 +75,24 @@ end
 document jss
 Skip the jitted stack on x64 to where we entered JS last.
 Usage: jss
+end
+
+# Execute a simulator command.
+python
+import gdb
+
+class SimCommand(gdb.Command):
+  """Sim the current program."""
+
+  def __init__ (self):
+    super (SimCommand, self).__init__ ("sim", gdb.COMMAND_SUPPORT)
+
+  def invoke (self, arg, from_tty):
+    arg_c_string = gdb.Value(arg)
+    cmd_func = gdb.selected_frame().read_var("_v8_internal_Simulator_ExecDebugCommand")
+    cmd_func(arg_c_string)
+
+SimCommand()
 end
 
 # Print stack trace with assertion scopes.

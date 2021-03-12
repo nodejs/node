@@ -133,8 +133,11 @@ class AstPrinter final : public AstVisitor<AstPrinter> {
                            const char* prefix = "");
   void PrintObjectProperties(
       const ZonePtrList<ObjectLiteral::Property>* properties);
+  void PrintClassProperty(ClassLiteral::Property* property);
   void PrintClassProperties(
       const ZonePtrList<ClassLiteral::Property>* properties);
+  void PrintClassStaticElements(
+      const ZonePtrList<ClassLiteral::StaticElement>* static_elements);
 
   void inc_indent() { indent_++; }
   void dec_indent() { indent_--; }

@@ -79,7 +79,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=4895
   'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/tonumber-value-detached-buffer': [FAIL],
   'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/BigInt/tonumber-value-detached-buffer': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/GetOwnProperty/BigInt/index-prop-desc': [FAIL],
   # Some TypedArray methods throw due to the same bug, from Get
   'built-ins/TypedArray/prototype/every/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/every/BigInt/callbackfn-detachbuffer': [FAIL],
@@ -581,6 +580,13 @@
   'built-ins/String/prototype/at/*': [FAIL],
   'built-ins/TypedArray/prototype/at/*': [FAIL],
 
+  # Temporarily disabled until upstream tests are changed to use /d
+  'built-ins/RegExp/match-indices/*': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=11411
+  'intl402/DateTimeFormat/prototype/formatRange/date-same-returns-single-date': [FAIL],
+  'intl402/DateTimeFormat/prototype/formatRangeToParts/date-same-returns-single-date': [FAIL],
+
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
@@ -730,6 +736,8 @@
   'built-ins/ArrayBuffer/length-is-too-large-throws': [SKIP],
   'built-ins/SharedArrayBuffer/allocation-limit': [SKIP],
   'built-ins/SharedArrayBuffer/length-is-too-large-throws': [SKIP],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=11438
+  'intl402/DateTimeFormat/timezone-invalid' : [SKIP],
 }],  # asan == True or msan == True or tsan == True
 
 ['system == android', {

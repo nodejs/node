@@ -21,29 +21,34 @@ async function compileModule(builder) {
   return [result.result, params.scriptId];
 }
 
-async function instantiateModule({objectId}) {
+async function instantiateModule({objectId}, importObject) {
   const {result: {result}} = await Protocol.Runtime.callFunctionOn({
-    functionDeclaration: 'function() { return new WebAssembly.Instance(this); }',
+    arguments: importObject ? [importObject] : [],
+    functionDeclaration: 'function(importObject) { return new WebAssembly.Instance(this, importObject); }',
     objectId
   });
   return result;
 }
 
 async function dumpOnCallFrame(callFrameId, expression) {
-  const {result: {result}} = await Protocol.Debugger.evaluateOnCallFrame({
+  const {result: {result: object}} = await Protocol.Debugger.evaluateOnCallFrame({
     callFrameId, expression
   });
-  if ('description' in result) {
-    InspectorTest.log(`> ${expression} = ${result.description}`);
+  if (object.type === 'object' && object.subtype === 'wasmvalue') {
+    const {result: {result: properties}} = await Protocol.Runtime.getProperties({objectId: object.objectId, ownProperties: true})
+    const valueProperty = properties.find(p => p.name === 'value');
+    InspectorTest.log(`> ${expression} = ${object.description} {${valueProperty.value.description}}`);
+  } else if ('description' in object) {
+    InspectorTest.log(`> ${expression} = ${object.description}`);
   } else {
-    InspectorTest.log(`> ${expression} = ${JSON.stringify(result.value)}`);
+    InspectorTest.log(`> ${expression} = ${JSON.stringify(object.value)}`);
   }
 }
 
 async function dumpKeysOnCallFrame(callFrameId, object, keys) {
   for (const key of keys) {
     await dumpOnCallFrame(callFrameId, `${object}[${JSON.stringify(key)}]`);
-    if (typeof key === 'string') {
+    if (typeof key === 'string' && key.indexOf('.') < 0) {
       await dumpOnCallFrame(callFrameId, `${key}`);
     }
   }
@@ -150,23 +155,24 @@ InspectorTest.runAsyncTestSuite([
 
   async function testFunctions() {
     const builder = new WasmModuleBuilder();
+    builder.addImport('foo', 'bar', kSig_v_v);
     const main = builder.addFunction('main', kSig_i_v)
                         .addBody([
                           kExprI32Const, 0,
                         ]).exportFunc();
-    builder.addFunction('func1', kSig_i_v)
+    builder.addFunction('func2', kSig_i_v)
            .addBody([
              kExprI32Const, 1,
            ]);
     builder.addFunction(undefined, kSig_i_v)
            .addBody([
              kExprI32Const, 2,
-           ]).exportAs('func1');
+           ]).exportAs('func2');
     builder.addFunction(undefined, kSig_i_v)
            .addBody([
              kExprI32Const, 3,
            ]);
-    const KEYS = [0, 1, 2, 3, '$main', '$func1', '$func3'];
+    const KEYS = [0, 1, 2, 3, 4, '$foo.bar', '$main', '$func2', '$func4'];
 
     InspectorTest.log('Compile module.');
     const [module, scriptId] = await compileModule(builder);
@@ -177,7 +183,10 @@ InspectorTest.runAsyncTestSuite([
     });
 
     InspectorTest.log('Instantiate module.');
-    const instance = await instantiateModule(module);
+    const {result: { result: importObject }} = await Protocol.Runtime.evaluate({
+      expression: `({foo: {bar() { }}})`
+    });
+    const instance = await instantiateModule(module, importObject);
 
     InspectorTest.log('Call main.');
     const callMainPromise = Protocol.Runtime.callFunctionOn({

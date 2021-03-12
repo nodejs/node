@@ -37,7 +37,7 @@ class ConcurrentMarkingTest : public testing::TestWithHeap {
     Heap* heap = Heap::From(GetHeap());
     heap->DisableHeapGrowingForTesting();
     heap->StartIncrementalGarbageCollection(ConcurrentPreciseConfig);
-    heap->marker()->DisableIncrementalMarkingForTesting();
+    heap->marker()->SetMainThreadMarkingDisabledForTesting(true);
   }
 
   bool SingleStep(Config::StackState stack_state) {
@@ -52,7 +52,9 @@ class ConcurrentMarkingTest : public testing::TestWithHeap {
   }
 
   void FinishGC() {
-    Heap::From(GetHeap())->FinalizeIncrementalGarbageCollectionIfRunning(
+    Heap* heap = Heap::From(GetHeap());
+    heap->marker()->SetMainThreadMarkingDisabledForTesting(false);
+    heap->FinalizeIncrementalGarbageCollectionIfRunning(
         ConcurrentPreciseConfig);
   }
 };

@@ -57,6 +57,25 @@ InspectorTest.runAsyncTestSuite([
     }
   },
 
+  async function testArrayBufferFromWebAssemblyMemory() {
+    let objectId = await evaluateToObjectId('new WebAssembly.Memory({initial: 1}).buffer');
+    let props = await Protocol.Runtime.getProperties({ objectId, ownProperties: true });
+    for (let prop of props.result.result) {
+      if (prop.name === '__proto__')
+        continue;
+      InspectorTest.log(prop.name);
+      await logGetPropertiesResult(prop.value.objectId);
+    }
+    for (let prop of props.result.internalProperties) {
+      InspectorTest.log(prop.name);
+      // Skip printing the values of the virtual typed arrays.
+      if (/\[\[.*Array\]\]/.test(prop.name))
+        continue;
+      if (prop.value.objectId)
+        await logGetPropertiesResult(prop.value.objectId);
+    }
+  },
+
   async function testDetachedArrayBuffer() {
     await Protocol.Runtime.evaluate({ expression: 'var a = new ArrayBuffer(16)' });
     await Protocol.Runtime.evaluate({ expression: 'var b = new Uint32Array(a)' });
