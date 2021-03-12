@@ -82,7 +82,7 @@ function normalizeOptionValue(value) {
 function normalizeOptions(options) {
     const isNodeSpecificOption = lodash.overSome([lodash.isPlainObject, lodash.isString]);
 
-    if (lodash.isPlainObject(options) && lodash.some(options, isNodeSpecificOption)) {
+    if (lodash.isPlainObject(options) && Object.values(options).some(isNodeSpecificOption)) {
         return {
             ObjectExpression: normalizeOptionValue(options.ObjectExpression),
             ObjectPattern: normalizeOptionValue(options.ObjectPattern),

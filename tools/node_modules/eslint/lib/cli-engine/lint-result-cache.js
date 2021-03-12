@@ -67,7 +67,6 @@ class LintResultCache {
     /**
      * Creates a new LintResultCache instance.
      * @param {string} cacheFileLocation The cache file location.
-     *   configuration lookup by file path).
      * @param {"metadata" | "content"} cacheStrategy The cache strategy to use.
      */
     constructor(cacheFileLocation, cacheStrategy) {
