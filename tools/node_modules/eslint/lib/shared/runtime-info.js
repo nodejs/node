@@ -11,7 +11,6 @@
 
 const path = require("path");
 const spawn = require("cross-spawn");
-const { isEmpty } = require("lodash");
 const log = require("../shared/logging");
 const packageJson = require("../../package.json");
 
@@ -107,7 +106,7 @@ function environment() {
              * Checking globally returns an empty JSON object, while local checks
              * include the name and version of the local project.
              */
-            if (isEmpty(parsedStdout) || !(parsedStdout.dependencies && parsedStdout.dependencies.eslint)) {
+            if (Object.keys(parsedStdout).length === 0 || !(parsedStdout.dependencies && parsedStdout.dependencies.eslint)) {
                 return "Not found";
             }
 

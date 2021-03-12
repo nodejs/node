@@ -10,7 +10,7 @@ if [[ $GITHUB_REF == refs/tags/v* ]]; then
   git config --global user.name "$GIT_USER_NAME"
   git config --global user.email "$GIT_USER_EMAIL"
 
-  git clone https://${GH_TOKEN_PUBLIC}@github.com/ajv-validator/ajv-dist.git ../ajv-dist
+  git clone https://"${GH_TOKEN_PUBLIC}"@github.com/ajv-validator/ajv-dist.git ../ajv-dist
 
   rm -rf ../ajv-dist/dist
   mkdir ../ajv-dist/dist
@@ -22,7 +22,7 @@ if [[ $GITHUB_REF == refs/tags/v* ]]; then
   sed -E "s/\"version\": \"([^\"]*)\"/\"version\": \"$VERSION\"/" package.json > new_package.json
   mv new_package.json package.json
 
-  if [[ `git status --porcelain` ]]; then
+  if [[ $(git status --porcelain) ]]; then
     echo "Changes detected. Updating master branch..."
     git add -A
     git commit -m "$VERSION: updated by ajv workflow https://github.com/ajv-validator/ajv/actions/runs/$GITHUB_RUN_ID"
