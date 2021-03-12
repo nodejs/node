@@ -496,6 +496,10 @@ it to interact with the client.
 ### `new net.Socket([options])`
 <!-- YAML
 added: v0.3.4
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37735
+    description: AbortSignal support was added.
 -->
 
 * `options` {Object} Available options are:
@@ -508,6 +512,8 @@ added: v0.3.4
     otherwise ignored. **Default:** `false`.
   * `writable` {boolean} Allow writes on the socket when an `fd` is passed,
     otherwise ignored. **Default:** `false`.
+  * `signal` {AbortSignal} An Abort signal that may be used to destroy the
+    socket.
 * Returns: {net.Socket}
 
 Creates a new socket object.
