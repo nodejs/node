@@ -8,9 +8,8 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const h2 = require('http2');
 const { kSocket } = require('internal/http2/util');
-const { kEvents } = require('internal/event_target');
 const Countdown = require('../common/countdown');
-
+const { getEventListeners } = require('events');
 {
   const server = h2.createServer();
   server.listen(0, common.mustCall(() => {
@@ -180,11 +179,11 @@ const Countdown = require('../common/countdown');
     client.on('close', common.mustCall());
 
     const { signal } = controller;
-    assert.strictEqual(signal[kEvents].get('abort'), undefined);
+    assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
 
     client.on('error', common.mustCall(() => {
       // After underlying stream dies, signal listener detached
-      assert.strictEqual(signal[kEvents].get('abort'), undefined);
+      assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
     }));
 
     const req = client.request({}, { signal });
@@ -198,7 +197,7 @@ const Countdown = require('../common/countdown');
     assert.strictEqual(req.aborted, false);
     assert.strictEqual(req.destroyed, false);
     // Signal listener attached
-    assert.strictEqual(signal[kEvents].get('abort').size, 1);
+    assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
 
     controller.abort();
 
@@ -219,16 +218,16 @@ const Countdown = require('../common/countdown');
     const { signal } = controller;
     controller.abort();
 
-    assert.strictEqual(signal[kEvents].get('abort'), undefined);
+    assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
 
     client.on('error', common.mustCall(() => {
       // After underlying stream dies, signal listener detached
-      assert.strictEqual(signal[kEvents].get('abort'), undefined);
+      assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
     }));
 
     const req = client.request({}, { signal });
     // Signal already aborted, so no event listener attached.
-    assert.strictEqual(signal[kEvents].get('abort'), undefined);
+    assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
 
     assert.strictEqual(req.aborted, false);
     // Destroyed on same tick as request made
