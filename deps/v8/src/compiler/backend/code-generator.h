@@ -160,8 +160,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   void AssembleSourcePosition(SourcePosition source_position);
 
   // Record a safepoint with the given pointer map.
-  void RecordSafepoint(ReferenceMap* references,
-                       Safepoint::DeoptMode deopt_mode);
+  void RecordSafepoint(ReferenceMap* references);
 
   Zone* zone() const { return zone_; }
   TurboAssembler* tasm() { return &tasm_; }
@@ -298,10 +297,6 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   // Generates code to manipulate the stack in preparation for a tail call.
   void AssemblePrepareTailCall();
 
-  // Generates code to pop current frame if it is an arguments adaptor frame.
-  void AssemblePopArgumentsAdaptorFrame(Register args_reg, Register scratch1,
-                                        Register scratch2, Register scratch3);
-
   enum PushTypeFlag {
     kImmediatePush = 0x1,
     kRegisterPush = 0x2,
@@ -398,16 +393,14 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
                                        OutputFrameStateCombine state_combine);
   void BuildTranslationForFrameStateDescriptor(
       FrameStateDescriptor* descriptor, InstructionOperandIterator* iter,
-      Translation* translation, OutputFrameStateCombine state_combine);
+      OutputFrameStateCombine state_combine);
   void TranslateStateValueDescriptor(StateValueDescriptor* desc,
                                      StateValueList* nested,
-                                     Translation* translation,
                                      InstructionOperandIterator* iter);
   void TranslateFrameStateDescriptorOperands(FrameStateDescriptor* desc,
-                                             InstructionOperandIterator* iter,
-                                             Translation* translation);
-  void AddTranslationForOperand(Translation* translation, Instruction* instr,
-                                InstructionOperand* op, MachineType type);
+                                             InstructionOperandIterator* iter);
+  void AddTranslationForOperand(Instruction* instr, InstructionOperand* op,
+                                MachineType type);
   void MarkLazyDeoptSite();
 
   void PrepareForDeoptimizationExits(ZoneDeque<DeoptimizationExit*>* exits);
@@ -448,7 +441,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   ZoneDeque<DeoptimizationExit*> deoptimization_exits_;
   ZoneDeque<DeoptimizationLiteral> deoptimization_literals_;
   size_t inlined_function_count_ = 0;
-  TranslationBuffer translations_;
+  TranslationArrayBuilder translations_;
   int handler_table_offset_ = 0;
   int last_lazy_deopt_pc_ = 0;
 

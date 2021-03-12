@@ -46,29 +46,6 @@ WireBytesRef LazilyGeneratedNames::LookupFunctionName(
   return it->second;
 }
 
-std::pair<WireBytesRef, WireBytesRef>
-LazilyGeneratedNames::LookupNameFromImportsAndExports(
-    ImportExportKindCode kind, uint32_t index,
-    Vector<const WasmImport> import_table,
-    Vector<const WasmExport> export_table) const {
-  base::MutexGuard lock(&mutex_);
-  DCHECK(kind == kExternalGlobal || kind == kExternalMemory ||
-         kind == kExternalTable);
-  auto& names = kind == kExternalGlobal
-                    ? global_names_
-                    : kind == kExternalMemory ? memory_names_ : table_names_;
-  if (!names) {
-    names.reset(
-        new std::unordered_map<uint32_t,
-                               std::pair<WireBytesRef, WireBytesRef>>());
-    GenerateNamesFromImportsAndExports(kind, import_table, export_table,
-                                       names.get());
-  }
-  auto it = names->find(index);
-  if (it == names->end()) return {};
-  return it->second;
-}
-
 // static
 int MaxNumExportWrappers(const WasmModule* module) {
   // For each signature there may exist a wrapper, both for imported and
@@ -139,7 +116,7 @@ void LazilyGeneratedNames::AddForTesting(int function_index,
 
 AsmJsOffsetInformation::AsmJsOffsetInformation(
     Vector<const byte> encoded_offsets)
-    : encoded_offsets_(OwnedVector<uint8_t>::Of(encoded_offsets)) {}
+    : encoded_offsets_(OwnedVector<const uint8_t>::Of(encoded_offsets)) {}
 
 AsmJsOffsetInformation::~AsmJsOffsetInformation() = default;
 

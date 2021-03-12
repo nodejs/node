@@ -65,7 +65,7 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
   bool EnsureAllRegistersAreFlushed() const;
 
   // Prepares for |bytecode|.
-  template <Bytecode bytecode, AccumulatorUse accumulator_use>
+  template <Bytecode bytecode, ImplicitRegisterUse implicit_register_use>
   V8_INLINE void PrepareForBytecode() {
     if (Bytecodes::IsJump(bytecode) || Bytecodes::IsSwitch(bytecode) ||
         bytecode == Bytecode::kDebugger ||
@@ -85,13 +85,13 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
     // Materialize the accumulator if it is read by the bytecode. The
     // accumulator is special and no other register can be materialized
     // in it's place.
-    if (BytecodeOperands::ReadsAccumulator(accumulator_use)) {
+    if (BytecodeOperands::ReadsAccumulator(implicit_register_use)) {
       Materialize(accumulator_info_);
     }
 
     // Materialize an equivalent to the accumulator if it will be
     // clobbered when the bytecode is dispatched.
-    if (BytecodeOperands::WritesAccumulator(accumulator_use)) {
+    if (BytecodeOperands::WritesAccumulator(implicit_register_use)) {
       PrepareOutputRegister(accumulator_);
     }
   }

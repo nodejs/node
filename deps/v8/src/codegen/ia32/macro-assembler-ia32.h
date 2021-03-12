@@ -96,7 +96,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void AllocateStackSpace(int bytes);
 #else
   void AllocateStackSpace(Register bytes) { sub(esp, bytes); }
-  void AllocateStackSpace(int bytes) { sub(esp, Immediate(bytes)); }
+  void AllocateStackSpace(int bytes) {
+    DCHECK_GE(bytes, 0);
+    if (bytes == 0) return;
+    sub(esp, Immediate(bytes));
+  }
 #endif
 
   // Print a message to stdout and abort execution.
@@ -141,7 +145,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void LoadCodeObjectEntry(Register destination, Register code_object) override;
   void CallCodeObject(Register code_object) override;
-  void JumpCodeObject(Register code_object) override;
+  void JumpCodeObject(Register code_object,
+                      JumpMode jump_mode = JumpMode::kJump) override;
   void Jump(const ExternalReference& reference) override;
 
   void RetpolineCall(Register reg);
@@ -324,6 +329,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP2_WITH_TYPE(Movd, movd, Operand, XMMRegister)
   AVX_OP2_WITH_TYPE(Cvtdq2ps, cvtdq2ps, XMMRegister, Operand)
   AVX_OP2_WITH_TYPE(Cvtdq2ps, cvtdq2ps, XMMRegister, XMMRegister)
+  AVX_OP2_WITH_TYPE(Cvtdq2pd, cvtdq2pd, XMMRegister, XMMRegister)
+  AVX_OP2_WITH_TYPE(Cvtps2pd, cvtps2pd, XMMRegister, XMMRegister)
+  AVX_OP2_WITH_TYPE(Cvtpd2ps, cvtpd2ps, XMMRegister, XMMRegister)
   AVX_OP2_WITH_TYPE(Cvttps2dq, cvttps2dq, XMMRegister, XMMRegister)
   AVX_OP2_WITH_TYPE(Sqrtps, sqrtps, XMMRegister, XMMRegister)
   AVX_OP2_WITH_TYPE(Sqrtpd, sqrtpd, XMMRegister, XMMRegister)
@@ -406,6 +414,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_PACKED_OP3_WITH_TYPE(macro_name, name, XMMRegister, XMMRegister) \
   AVX_PACKED_OP3_WITH_TYPE(macro_name, name, XMMRegister, Operand)
 
+  AVX_PACKED_OP3(Unpcklps, unpcklps)
   AVX_PACKED_OP3(Addps, addps)
   AVX_PACKED_OP3(Addpd, addpd)
   AVX_PACKED_OP3(Subps, subps)
@@ -442,6 +451,17 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_PACKED_OP3(Pavgb, pavgb)
   AVX_PACKED_OP3(Pavgw, pavgw)
   AVX_PACKED_OP3(Pand, pand)
+  AVX_PACKED_OP3(Pminub, pminub)
+  AVX_PACKED_OP3(Pmaxub, pmaxub)
+  AVX_PACKED_OP3(Paddusb, paddusb)
+  AVX_PACKED_OP3(Psubusb, psubusb)
+  AVX_PACKED_OP3(Pcmpgtb, pcmpgtb)
+  AVX_PACKED_OP3(Pcmpeqb, pcmpeqb)
+  AVX_PACKED_OP3(Paddb, paddb)
+  AVX_PACKED_OP3(Paddsb, paddsb)
+  AVX_PACKED_OP3(Psubb, psubb)
+  AVX_PACKED_OP3(Psubsb, psubsb)
+
 #undef AVX_PACKED_OP3
 
   AVX_PACKED_OP3_WITH_TYPE(Psllw, psllw, XMMRegister, uint8_t)
@@ -453,9 +473,25 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_PACKED_OP3_WITH_TYPE(Psraw, psraw, XMMRegister, uint8_t)
   AVX_PACKED_OP3_WITH_TYPE(Psrad, psrad, XMMRegister, uint8_t)
 
-  AVX_PACKED_OP3_WITH_TYPE(Movlps, movlps, XMMRegister, Operand)
-  AVX_PACKED_OP3_WITH_TYPE(Movhps, movhps, XMMRegister, Operand)
 #undef AVX_PACKED_OP3_WITH_TYPE
+
+// Macro for instructions that have 2 operands for AVX version and 1 operand for
+// SSE version. Will move src1 to dst if dst != src1.
+#define AVX_OP3_WITH_MOVE(macro_name, name, dst_type, src_type) \
+  void macro_name(dst_type dst, dst_type src1, src_type src2) { \
+    if (CpuFeatures::IsSupported(AVX)) {                        \
+      CpuFeatureScope scope(this, AVX);                         \
+      v##name(dst, src1, src2);                                 \
+    } else {                                                    \
+      if (dst != src1) {                                        \
+        movaps(dst, src1);                                      \
+      }                                                         \
+      name(dst, src2);                                          \
+    }                                                           \
+  }
+  AVX_OP3_WITH_MOVE(Movlps, movlps, XMMRegister, Operand)
+  AVX_OP3_WITH_MOVE(Movhps, movhps, XMMRegister, Operand)
+#undef AVX_OP3_WITH_MOVE
 
 // Non-SSE2 instructions.
 #define AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, dst_type, src_type, \
@@ -526,13 +562,18 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP3_WITH_TYPE_SCOPE(macro_name, name, XMMRegister, Operand, SSE4_1)
 
   AVX_OP3_XO_SSE4(Pmaxsd, pmaxsd)
+  AVX_OP3_XO_SSE4(Pminsb, pminsb)
+  AVX_OP3_XO_SSE4(Pmaxsb, pmaxsb)
   AVX_OP3_WITH_TYPE_SCOPE(Pmaddubsw, pmaddubsw, XMMRegister, XMMRegister, SSSE3)
-  AVX_OP3_WITH_TYPE_SCOPE(Pmulhrsw, pmulhrsw, XMMRegister, XMMRegister, SSSE3)
+  AVX_OP3_WITH_TYPE_SCOPE(Pmaddubsw, pmaddubsw, XMMRegister, Operand, SSSE3)
 
 #undef AVX_OP3_XO_SSE4
 #undef AVX_OP3_WITH_TYPE_SCOPE
 
   void Haddps(XMMRegister dst, XMMRegister src1, Operand src2);
+  void Pcmpeqq(XMMRegister dst, Operand src);
+  void Pcmpeqq(XMMRegister dst, XMMRegister src) { Pcmpeqq(dst, Operand(src)); }
+  void Pcmpeqq(XMMRegister dst, XMMRegister src1, Operand src2);
   void Pcmpeqq(XMMRegister dst, XMMRegister src1, XMMRegister src2);
   void Pshufb(XMMRegister dst, XMMRegister src) { Pshufb(dst, dst, src); }
   void Pshufb(XMMRegister dst, Operand src) { Pshufb(dst, dst, src); }
@@ -568,14 +609,20 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     Pinsrb(dst, Operand(src), imm8);
   }
   void Pinsrb(XMMRegister dst, Operand src, int8_t imm8);
+  // Moves src1 to dst if AVX is not supported.
+  void Pinsrb(XMMRegister dst, XMMRegister src1, Operand src2, int8_t imm8);
   void Pinsrd(XMMRegister dst, Register src, uint8_t imm8) {
     Pinsrd(dst, Operand(src), imm8);
   }
   void Pinsrd(XMMRegister dst, Operand src, uint8_t imm8);
+  // Moves src1 to dst if AVX is not supported.
+  void Pinsrd(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8);
   void Pinsrw(XMMRegister dst, Register src, int8_t imm8) {
     Pinsrw(dst, Operand(src), imm8);
   }
   void Pinsrw(XMMRegister dst, Operand src, int8_t imm8);
+  // Moves src1 to dst if AVX is not supported.
+  void Pinsrw(XMMRegister dst, XMMRegister src1, Operand src2, int8_t imm8);
   void Vbroadcastss(XMMRegister dst, Operand src);
   void Extractps(Operand dst, XMMRegister src, uint8_t imm8);
 
@@ -612,6 +659,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Roundps(XMMRegister dst, XMMRegister src, RoundingMode mode);
   void Roundpd(XMMRegister dst, XMMRegister src, RoundingMode mode);
 
+  // Handles SSE and AVX. On SSE, moves src to dst if they are not equal.
+  void Pmulhrsw(XMMRegister dst, XMMRegister src1, XMMRegister src2);
+
   // These Wasm SIMD ops do not have direct lowerings on IA32. These
   // helpers are optimized to produce the fastest and smallest codegen.
   // Defined here to allow usage on both TurboFan and Liftoff.
@@ -625,6 +675,38 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Requires dst == mask when AVX is not supported.
   void S128Select(XMMRegister dst, XMMRegister mask, XMMRegister src1,
                   XMMRegister src2, XMMRegister scratch);
+  void I64x2SConvertI32x4High(XMMRegister dst, XMMRegister src);
+  void I64x2UConvertI32x4High(XMMRegister dst, XMMRegister src,
+                              XMMRegister scratch);
+  void I32x4SConvertI16x8High(XMMRegister dst, XMMRegister src);
+  void I32x4UConvertI16x8High(XMMRegister dst, XMMRegister src,
+                              XMMRegister scratch);
+  void I16x8SConvertI8x16High(XMMRegister dst, XMMRegister src);
+  void I16x8UConvertI8x16High(XMMRegister dst, XMMRegister src,
+                              XMMRegister scratch);
+  void I16x8Q15MulRSatS(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                        XMMRegister scratch);
+  void S128Store32Lane(Operand dst, XMMRegister src, uint8_t laneidx);
+  void I8x16Popcnt(XMMRegister dst, XMMRegister src, XMMRegister tmp1,
+                   XMMRegister tmp2, Register scratch);
+  void F64x2ConvertLowI32x4U(XMMRegister dst, XMMRegister src, Register tmp);
+  void I32x4TruncSatF64x2SZero(XMMRegister dst, XMMRegister src,
+                               XMMRegister scratch, Register tmp);
+  void I32x4TruncSatF64x2UZero(XMMRegister dst, XMMRegister src,
+                               XMMRegister scratch, Register tmp);
+  void I64x2Abs(XMMRegister dst, XMMRegister src, XMMRegister scratch);
+  void I64x2GtS(XMMRegister dst, XMMRegister src0, XMMRegister src1,
+                XMMRegister scratch);
+  void I64x2GeS(XMMRegister dst, XMMRegister src0, XMMRegister src1,
+                XMMRegister scratch);
+  void I16x8ExtAddPairwiseI8x16S(XMMRegister dst, XMMRegister src,
+                                 XMMRegister tmp, Register scratch);
+  void I16x8ExtAddPairwiseI8x16U(XMMRegister dst, XMMRegister src,
+                                 Register scratch);
+  void I32x4ExtAddPairwiseI16x8S(XMMRegister dst, XMMRegister src,
+                                 Register scratch);
+  void I32x4ExtAddPairwiseI16x8U(XMMRegister dst, XMMRegister src,
+                                 XMMRegister tmp);
 
   void Push(Register src) { push(src); }
   void Push(Operand src) { push(src); }
@@ -803,6 +885,15 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Compare instance type for map.
   void CmpInstanceType(Register map, InstanceType type);
 
+  // Compare instance type ranges for a map (lower_limit and higher_limit
+  // inclusive).
+  //
+  // Always use unsigned comparisons: below_equal for a positive
+  // result.
+  void CmpInstanceTypeRange(Register map, Register scratch,
+                            InstanceType lower_limit,
+                            InstanceType higher_limit);
+
   // Smi tagging support.
   void SmiTag(Register reg) {
     STATIC_ASSERT(kSmiTag == 0);
@@ -840,7 +931,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void AssertNotSmi(Register object);
 
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
-  void AssertFunction(Register object);
+  void AssertFunction(Register object, Register scratch);
 
   // Abort execution if argument is not a Constructor, enabled via --debug-code.
   void AssertConstructor(Register object);

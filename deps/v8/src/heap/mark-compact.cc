@@ -494,12 +494,13 @@ void MarkCompactCollector::StartMarking() {
       contexts.push_back(context->ptr());
     }
   }
+  bytecode_flush_mode_ = Heap::GetBytecodeFlushMode(isolate());
   marking_worklists()->CreateContextWorklists(contexts);
   local_marking_worklists_ =
       std::make_unique<MarkingWorklists::Local>(marking_worklists());
   marking_visitor_ = std::make_unique<MarkingVisitor>(
       marking_state(), local_marking_worklists(), weak_objects(), heap_,
-      epoch(), Heap::GetBytecodeFlushMode(),
+      epoch(), bytecode_flush_mode(),
       heap_->local_embedder_heap_tracer()->InUse(),
       heap_->is_current_gc_forced());
 // Marking bits are cleared by the sweeper.
@@ -857,11 +858,9 @@ void MarkCompactCollector::Prepare() {
     space->PrepareForMarkCompact();
   }
 
-  if (FLAG_local_heaps) {
-    // Fill and reset all background thread LABs
-    heap_->safepoint()->IterateLocalHeaps(
-        [](LocalHeap* local_heap) { local_heap->FreeLinearAllocationArea(); });
-  }
+  // Fill and reset all background thread LABs
+  heap_->safepoint()->IterateLocalHeaps(
+      [](LocalHeap* local_heap) { local_heap->FreeLinearAllocationArea(); });
 
   // All objects are guaranteed to be initialized in atomic pause
   heap()->new_lo_space()->ResetPendingObject();
@@ -1873,9 +1872,7 @@ void MarkCompactCollector::ProcessEphemeronMarking() {
 void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
   for (StackFrameIterator it(isolate(), isolate()->thread_local_top());
        !it.done(); it.Advance()) {
-    if (it.frame()->type() == StackFrame::INTERPRETED) {
-      return;
-    }
+    if (it.frame()->is_unoptimized()) return;
     if (it.frame()->type() == StackFrame::OPTIMIZED) {
       Code code = it.frame()->LookupCode();
       if (!code.CanDeoptAt(it.frame()->pc())) {
@@ -2116,7 +2113,7 @@ void MarkCompactCollector::MarkDependentCodeForDeoptimization() {
 
 void MarkCompactCollector::ClearPotentialSimpleMapTransition(Map dead_target) {
   DCHECK(non_atomic_marking_state()->IsWhite(dead_target));
-  Object potential_parent = dead_target.constructor_or_backpointer();
+  Object potential_parent = dead_target.constructor_or_back_pointer();
   if (potential_parent.IsMap()) {
     Map parent = Map::cast(potential_parent);
     DisallowGarbageCollection no_gc_obviously;
@@ -2208,6 +2205,8 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   // performing the unusual task of decompiling.
   shared_info.set_function_data(uncompiled_data, kReleaseStore);
   DCHECK(!shared_info.is_compiled());
+
+  PROFILE(heap()->isolate(), BytecodeFlushEvent(compiled_data_start));
 }
 
 void MarkCompactCollector::ClearOldBytecodeCandidates() {
@@ -2254,14 +2253,14 @@ void MarkCompactCollector::ClearFullMapTransitions() {
       // filled. Allow it.
       if (array.GetTargetIfExists(0, isolate(), &map)) {
         DCHECK(!map.is_null());  // Weak pointers aren't cleared yet.
-        Object constructor_or_backpointer = map.constructor_or_backpointer();
-        if (constructor_or_backpointer.IsSmi()) {
+        Object constructor_or_back_pointer = map.constructor_or_back_pointer();
+        if (constructor_or_back_pointer.IsSmi()) {
           DCHECK(isolate()->has_active_deserializer());
-          DCHECK_EQ(constructor_or_backpointer,
+          DCHECK_EQ(constructor_or_back_pointer,
                     Deserializer::uninitialized_field_value());
           continue;
         }
-        Map parent = Map::cast(map.constructor_or_backpointer());
+        Map parent = Map::cast(map.constructor_or_back_pointer());
         bool parent_is_alive =
             non_atomic_marking_state()->IsBlackOrGrey(parent);
         DescriptorArray descriptors =
@@ -2323,7 +2322,7 @@ bool MarkCompactCollector::CompactTransitionArray(Map map,
   // Compact all live transitions to the left.
   for (int i = 0; i < num_transitions; ++i) {
     Map target = transitions.GetTarget(i);
-    DCHECK_EQ(target.constructor_or_backpointer(), map);
+    DCHECK_EQ(target.constructor_or_back_pointer(), map);
     if (non_atomic_marking_state()->IsWhite(target)) {
       if (!descriptors.is_null() &&
           target.instance_descriptors(kRelaxedLoad) == descriptors) {
@@ -2398,13 +2397,6 @@ void MarkCompactCollector::TrimDescriptorArray(Map map,
 
     TrimEnumCache(map, descriptors);
     descriptors.Sort();
-
-    if (FLAG_unbox_double_fields) {
-      LayoutDescriptor layout_descriptor = map.layout_descriptor(kAcquireLoad);
-      layout_descriptor = layout_descriptor.Trim(heap_, map, descriptors,
-                                                 number_of_own_descriptors);
-      SLOW_DCHECK(layout_descriptor.IsConsistentWithMap(map, true));
-    }
   }
   DCHECK(descriptors.number_of_descriptors() == number_of_own_descriptors);
   map.set_owns_descriptors(true);
@@ -3502,12 +3494,10 @@ class PointersUpdatingJob : public v8::JobTask {
   explicit PointersUpdatingJob(
       Isolate* isolate,
       std::vector<std::unique_ptr<UpdatingItem>> updating_items,
-      base::Optional<size_t> slots, GCTracer::Scope::ScopeId scope,
-      GCTracer::Scope::ScopeId background_scope)
+      GCTracer::Scope::ScopeId scope, GCTracer::Scope::ScopeId background_scope)
       : updating_items_(std::move(updating_items)),
         remaining_updating_items_(updating_items_.size()),
         generator_(updating_items_.size()),
-        slots_(slots),
         tracer_(isolate->heap()->tracer()),
         scope_(scope),
         background_scope_(background_scope) {}
@@ -3542,17 +3532,7 @@ class PointersUpdatingJob : public v8::JobTask {
     size_t items = remaining_updating_items_.load(std::memory_order_relaxed);
     if (!FLAG_parallel_pointer_update) return items > 0;
     const size_t kMaxPointerUpdateTasks = 8;
-    const size_t kSlotsPerTask = 600;
-    size_t wanted_tasks = items;
-    // Limit the number of update tasks as task creation often dominates the
-    // actual work that is being done.
-    if (slots_ && *slots_ > 0) {
-      // Round up to ensure enough workers for all items.
-      wanted_tasks = std::min<size_t>(
-          items, (*slots_ + kSlotsPerTask - 1) / kSlotsPerTask);
-    }
-    size_t max_concurrency =
-        std::min<size_t>(kMaxPointerUpdateTasks, wanted_tasks);
+    size_t max_concurrency = std::min<size_t>(kMaxPointerUpdateTasks, items);
     DCHECK_IMPLIES(items > 0, max_concurrency > 0);
     return max_concurrency;
   }
@@ -3561,7 +3541,6 @@ class PointersUpdatingJob : public v8::JobTask {
   std::vector<std::unique_ptr<UpdatingItem>> updating_items_;
   std::atomic<size_t> remaining_updating_items_{0};
   IndexGenerator generator_;
-  const base::Optional<size_t> slots_;
 
   GCTracer* tracer_;
   GCTracer::Scope::ScopeId scope_;
@@ -3951,6 +3930,8 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
                                       RememberedSetUpdatingMode::ALL);
     CollectRememberedSetUpdatingItems(&updating_items, heap()->code_lo_space(),
                                       RememberedSetUpdatingMode::ALL);
+    CollectRememberedSetUpdatingItems(&updating_items, heap()->map_space(),
+                                      RememberedSetUpdatingMode::ALL);
 
     CollectToSpaceUpdatingItems(&updating_items);
     updating_items.push_back(
@@ -3959,33 +3940,10 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     V8::GetCurrentPlatform()
         ->PostJob(v8::TaskPriority::kUserBlocking,
                   std::make_unique<PointersUpdatingJob>(
-                      isolate(), std::move(updating_items), old_to_new_slots_,
+                      isolate(), std::move(updating_items),
                       GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_PARALLEL,
                       GCTracer::Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS))
         ->Join();
-  }
-
-  {
-    // - Update pointers in map space in a separate phase to avoid data races
-    //   with Map->LayoutDescriptor edge.
-    // - Update array buffer trackers in the second phase to have access to
-    //   byte length which is potentially a HeapNumber.
-    TRACE_GC(heap()->tracer(),
-             GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAP_SPACE);
-    std::vector<std::unique_ptr<UpdatingItem>> updating_items;
-
-    CollectRememberedSetUpdatingItems(&updating_items, heap()->map_space(),
-                                      RememberedSetUpdatingMode::ALL);
-    if (!updating_items.empty()) {
-      V8::GetCurrentPlatform()
-          ->PostJob(
-              v8::TaskPriority::kUserBlocking,
-              std::make_unique<PointersUpdatingJob>(
-                  isolate(), std::move(updating_items), old_to_new_slots_,
-                  GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_PARALLEL,
-                  GCTracer::Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS))
-          ->Join();
-    }
   }
 
   {
@@ -4480,7 +4438,7 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
         ->PostJob(
             v8::TaskPriority::kUserBlocking,
             std::make_unique<PointersUpdatingJob>(
-                isolate(), std::move(updating_items), old_to_new_slots_,
+                isolate(), std::move(updating_items),
                 GCTracer::Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_PARALLEL,
                 GCTracer::Scope::MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS))
         ->Join();
@@ -4763,10 +4721,6 @@ class YoungGenerationMarkingTask {
                               Page::kPageSize);
   }
 
-  int slots() const { return slots_; }
-
-  void IncrementSlots() { ++slots_; }
-
   void MarkObject(Object object) {
     if (!Heap::InYoungGeneration(object)) return;
     HeapObject heap_object = HeapObject::cast(object);
@@ -4799,7 +4753,6 @@ class YoungGenerationMarkingTask {
   MinorMarkCompactCollector::MarkingState* marking_state_;
   YoungGenerationMarkingVisitor visitor_;
   std::unordered_map<Page*, intptr_t, Page::Hasher> local_live_bytes_;
-  int slots_ = 0;
 };
 
 class PageMarkingItem : public ParallelWorkItem {
@@ -4864,7 +4817,6 @@ class PageMarkingItem : public ParallelWorkItem {
       USE(success);
       DCHECK(success);
       task->MarkObject(heap_object);
-      task->IncrementSlots();
       return KEEP_SLOT;
     }
     return REMOVE_SLOT;
@@ -4878,14 +4830,13 @@ class YoungGenerationMarkingJob : public v8::JobTask {
   YoungGenerationMarkingJob(
       Isolate* isolate, MinorMarkCompactCollector* collector,
       MinorMarkCompactCollector::MarkingWorklist* global_worklist,
-      std::vector<PageMarkingItem> marking_items, std::atomic<int>* slots)
+      std::vector<PageMarkingItem> marking_items)
       : isolate_(isolate),
         collector_(collector),
         global_worklist_(global_worklist),
         marking_items_(std::move(marking_items)),
         remaining_marking_items_(marking_items_.size()),
-        generator_(marking_items_.size()),
-        slots_(slots) {}
+        generator_(marking_items_.size()) {}
 
   void Run(JobDelegate* delegate) override {
     if (delegate->IsJoiningThread()) {
@@ -4921,7 +4872,6 @@ class YoungGenerationMarkingJob : public v8::JobTask {
       ProcessMarkingItems(&task);
       task.EmptyMarkingWorklist();
       task.FlushLiveBytes();
-      *slots_ += task.slots();
     }
     if (FLAG_trace_minor_mc_parallel_marking) {
       PrintIsolate(collector_->isolate(), "marking[%p]: time=%f\n",
@@ -4952,12 +4902,10 @@ class YoungGenerationMarkingJob : public v8::JobTask {
   std::vector<PageMarkingItem> marking_items_;
   std::atomic_size_t remaining_marking_items_{0};
   IndexGenerator generator_;
-  std::atomic<int>* slots_;
 };
 
 void MinorMarkCompactCollector::MarkRootSetInParallel(
     RootMarkingVisitor* root_visitor) {
-  std::atomic<int> slots;
   {
     std::vector<PageMarkingItem> marking_items;
 
@@ -4992,14 +4940,12 @@ void MinorMarkCompactCollector::MarkRootSetInParallel(
       V8::GetCurrentPlatform()
           ->PostJob(v8::TaskPriority::kUserBlocking,
                     std::make_unique<YoungGenerationMarkingJob>(
-                        isolate(), this, worklist(), std::move(marking_items),
-                        &slots))
+                        isolate(), this, worklist(), std::move(marking_items)))
           ->Join();
 
       DCHECK(worklist()->IsEmpty());
     }
   }
-  old_to_new_slots_ = slots;
 }
 
 void MinorMarkCompactCollector::MarkLiveObjects() {

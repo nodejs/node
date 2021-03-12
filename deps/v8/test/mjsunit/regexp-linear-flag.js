@@ -33,3 +33,10 @@ assertFalse((/asdf/ymsg).linear);
 // unmodified regexps slow.
 assertTrue(%RegexpIsUnmodified(/asdf/));
 assertTrue(%RegexpIsUnmodified(/asdf/l));
+
+// Redefined .linear should reflect in flags.
+{
+  let re = /./;
+  Object.defineProperty(re, "linear", { get: function() { return true; } });
+  assertEquals("l", re.flags);
+}

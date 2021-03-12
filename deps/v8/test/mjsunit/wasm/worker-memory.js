@@ -19,34 +19,39 @@
 })();
 
 // Can't use assert in a worker.
-let workerHelpers =
-  `function assertTrue(value, msg) {
+function workerHelpersHelper() {
+  assertTrue = function(value, msg) {
     if (!value) {
       postMessage("Error: " + msg);
       throw new Error("Exit");  // To stop testing.
     }
    }
 
-   function assertIsWasmMemory(memory, expectedSize) {
-      assertTrue(memory instanceof WebAssembly.Memory,
-                 "object is not a WebAssembly.Memory");
+  assertIsWasmMemory = function(memory, expectedSize) {
+    assertTrue(memory instanceof WebAssembly.Memory,
+               "object is not a WebAssembly.Memory");
 
-      assertTrue(memory.buffer instanceof SharedArrayBuffer,
-                 "object.buffer is not a SharedArrayBuffer");
+    assertTrue(memory.buffer instanceof SharedArrayBuffer,
+               "object.buffer is not a SharedArrayBuffer");
 
-      assertTrue(memory.buffer.byteLength == expectedSize,
-                 "object.buffer.byteLength is not " + expectedSize + " bytes");
-   }
-`;
+    assertTrue(memory.buffer.byteLength == expectedSize,
+               "object.buffer.byteLength is not " + expectedSize + " bytes");
+  }
+}
+
+let workerHelpers = "(" + workerHelpersHelper.toString() + ")()";
 
 (function TestPostMessageSharedMemory() {
-  let workerScript = workerHelpers +
-    `onmessage = function(memory) {
-       assertIsWasmMemory(memory, 65536);
-       postMessage("OK");
-     };`;
+  function workerCode(workerHelpers) {
+    eval(workerHelpers);
+    onmessage = function(memory) {
+      assertIsWasmMemory(memory, 65536);
+      postMessage("OK");
+    };
+  }
 
-  let worker = new Worker(workerScript, {type: 'string'});
+  let worker = new Worker(workerCode,
+                         {type: 'function', arguments: [workerHelpers]});
   let memory = new WebAssembly.Memory({initial: 1, maximum: 2, shared: true});
   worker.postMessage(memory);
   assertEquals("OK", worker.getMessage());
@@ -54,8 +59,9 @@ let workerHelpers =
 })();
 
 (function TestPostMessageComplexObjectWithSharedMemory() {
-  let workerScript = workerHelpers +
-    `onmessage = function(obj) {
+  function workerCode(workerHelpers) {
+    eval(workerHelpers);
+    onmessage = function(obj) {
        assertIsWasmMemory(obj.memories[0], 65536);
        assertIsWasmMemory(obj.memories[1], 65536);
        assertTrue(obj.buffer instanceof SharedArrayBuffer,
@@ -65,9 +71,11 @@ let workerHelpers =
                   "buffers aren't equal");
        assertTrue(obj.foo === 1, "foo is not 1");
        postMessage("OK");
-     };`;
+    };
+  }
 
-  let worker = new Worker(workerScript, {type: 'string'});
+  let worker = new Worker(workerCode,
+                          {type: 'function', arguments: [workerHelpers]});
   let memory = new WebAssembly.Memory({initial: 1, maximum: 2, shared: true});
   let obj = {memories: [memory, memory], buffer: memory.buffer, foo: 1};
   worker.postMessage(obj);
@@ -76,14 +84,18 @@ let workerHelpers =
 })();
 
 (function TestTwoWorkers() {
-  let workerScript = workerHelpers +
-    `onmessage = function(memory) {
+  function workerCode(workerHelpers) {
+    eval(workerHelpers);
+    onmessage = function(memory) {
        assertIsWasmMemory(memory, 65536);
        postMessage("OK");
-     };`;
+    };
+  }
 
-  let workers = [new Worker(workerScript, {type: 'string'}),
-                 new Worker(workerScript, {type: 'string'})];
+  let workers = [new Worker(workerCode,
+                            {type: 'function', arguments: [workerHelpers]}),
+                 new Worker(workerCode,
+                            {type: 'function', arguments: [workerHelpers]})];
   let memory = new WebAssembly.Memory({initial: 1, maximum: 2, shared: true});
   for (let worker of workers) {
     worker.postMessage(memory);

@@ -89,6 +89,7 @@ type SmiTagged<T : type extends uint31> extends Smi;
 type String extends HeapObject;
 type HeapNumber extends HeapObject;
 type FixedArrayBase extends HeapObject;
+type Lazy<T: type>;
 
 struct float64_or_hole {
   is_hole: bool;

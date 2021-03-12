@@ -380,17 +380,7 @@ std::unique_ptr<Handle<Object>[]> GetCallerArguments(Isolate* isolate,
 
     return param_data;
   } else {
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
     int args_count = frame->GetActualArgumentCount();
-#else
-    if (it.frame()->has_adapted_arguments()) {
-      it.AdvanceOneFrame();
-      DCHECK(it.frame()->is_arguments_adaptor());
-    }
-    frame = it.frame();
-    int args_count = frame->ComputeParametersCount();
-#endif
-
     *total_argc = args_count;
     std::unique_ptr<Handle<Object>[]> param_data(
         NewArray<Handle<Object>>(*total_argc));

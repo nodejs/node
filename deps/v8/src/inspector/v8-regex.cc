@@ -18,7 +18,12 @@ V8Regex::V8Regex(V8InspectorImpl* inspector, const String16& pattern,
     : m_inspector(inspector) {
   v8::Isolate* isolate = m_inspector->isolate();
   v8::HandleScope handleScope(isolate);
-  v8::Local<v8::Context> context = m_inspector->regexContext();
+  v8::Local<v8::Context> context;
+  if (!m_inspector->regexContext().ToLocal(&context)) {
+    DCHECK(isolate->IsExecutionTerminating());
+    m_errorMessage = "terminated";
+    return;
+  }
   v8::Context::Scope contextScope(context);
   v8::TryCatch tryCatch(isolate);
 
@@ -48,7 +53,11 @@ int V8Regex::match(const String16& string, int startFrom,
 
   v8::Isolate* isolate = m_inspector->isolate();
   v8::HandleScope handleScope(isolate);
-  v8::Local<v8::Context> context = m_inspector->regexContext();
+  v8::Local<v8::Context> context;
+  if (!m_inspector->regexContext().ToLocal(&context)) {
+    DCHECK(isolate->IsExecutionTerminating());
+    return -1;
+  }
   v8::Context::Scope contextScope(context);
   v8::MicrotasksScope microtasks(isolate,
                                  v8::MicrotasksScope::kDoNotRunMicrotasks);

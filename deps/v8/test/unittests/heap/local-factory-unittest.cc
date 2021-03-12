@@ -63,7 +63,6 @@ class LocalFactoryTest : public TestWithIsolateAndZone {
                 REPLMode::kNo),
             &state_),
         local_isolate_(isolate()->main_thread_local_isolate()) {
-    FLAG_concurrent_allocation = true;
   }
 
   FunctionLiteral* ParseProgram(const char* source) {

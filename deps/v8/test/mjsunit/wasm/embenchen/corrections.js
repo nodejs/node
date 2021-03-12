@@ -1,5 +1,5 @@
 // Modified embenchen to direct to asm-wasm.
-// Flags: --validate-asm --allow-natives-syntax
+// Flags: --validate-asm --allow-natives-syntax --wasm-loop-unrolling
 
 var EXPECTED_OUTPUT = 'final: 40006013:58243.\n';
 var Module = {

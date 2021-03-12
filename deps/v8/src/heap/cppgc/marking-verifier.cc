@@ -45,6 +45,9 @@ void VerificationState::VerifyMarked(const void* base_object_payload) const {
 void MarkingVerifierBase::VisitInConstructionConservatively(
     HeapObjectHeader& header, TraceConservativelyCallback callback) {
   CHECK(header.IsMarked());
+  if (in_construction_objects_->find(&header) !=
+      in_construction_objects_->end())
+    return;
   in_construction_objects_->insert(&header);
   callback(this, header);
 }

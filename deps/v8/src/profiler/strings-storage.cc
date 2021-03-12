@@ -27,6 +27,7 @@ StringsStorage::~StringsStorage() {
 }
 
 const char* StringsStorage::GetCopy(const char* src) {
+  base::MutexGuard guard(&mutex_);
   int len = static_cast<int>(strlen(src));
   base::HashMap::Entry* entry = GetEntry(src, len);
   if (entry->value == nullptr) {

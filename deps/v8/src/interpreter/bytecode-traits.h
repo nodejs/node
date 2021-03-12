@@ -76,7 +76,7 @@ struct SumHelper<value, values...> {
   static const int kValue = value + SumHelper<values...>::kValue;
 };
 
-template <AccumulatorUse accumulator_use, OperandType... operands>
+template <ImplicitRegisterUse implicit_register_use, OperandType... operands>
 struct BytecodeTraits {
   static const OperandType kOperandTypes[];
   static const OperandTypeInfo kOperandTypeInfos[];
@@ -89,33 +89,33 @@ struct BytecodeTraits {
       1, OperandScaler<operands, OperandScale::kDouble>::kSize...>::kValue;
   static const int kQuadrupleScaleSize = SumHelper<
       1, OperandScaler<operands, OperandScale::kQuadruple>::kSize...>::kValue;
-  static const AccumulatorUse kAccumulatorUse = accumulator_use;
+  static const ImplicitRegisterUse kImplicitRegisterUse = implicit_register_use;
   static const int kOperandCount = sizeof...(operands);
 };
 
-template <AccumulatorUse accumulator_use, OperandType... operands>
+template <ImplicitRegisterUse implicit_register_use, OperandType... operands>
 STATIC_CONST_MEMBER_DEFINITION const OperandType
-    BytecodeTraits<accumulator_use, operands...>::kOperandTypes[] = {
+    BytecodeTraits<implicit_register_use, operands...>::kOperandTypes[] = {
         operands...};
-template <AccumulatorUse accumulator_use, OperandType... operands>
+template <ImplicitRegisterUse implicit_register_use, OperandType... operands>
 STATIC_CONST_MEMBER_DEFINITION const OperandTypeInfo
-    BytecodeTraits<accumulator_use, operands...>::kOperandTypeInfos[] = {
+    BytecodeTraits<implicit_register_use, operands...>::kOperandTypeInfos[] = {
         OperandTraits<operands>::kOperandTypeInfo...};
-template <AccumulatorUse accumulator_use, OperandType... operands>
-STATIC_CONST_MEMBER_DEFINITION const OperandSize
-    BytecodeTraits<accumulator_use, operands...>::kSingleScaleOperandSizes[] = {
-        OperandScaler<operands, OperandScale::kSingle>::kOperandSize...};
-template <AccumulatorUse accumulator_use, OperandType... operands>
-STATIC_CONST_MEMBER_DEFINITION const OperandSize
-    BytecodeTraits<accumulator_use, operands...>::kDoubleScaleOperandSizes[] = {
-        OperandScaler<operands, OperandScale::kDouble>::kOperandSize...};
-template <AccumulatorUse accumulator_use, OperandType... operands>
+template <ImplicitRegisterUse implicit_register_use, OperandType... operands>
 STATIC_CONST_MEMBER_DEFINITION const OperandSize BytecodeTraits<
-    accumulator_use, operands...>::kQuadrupleScaleOperandSizes[] = {
+    implicit_register_use, operands...>::kSingleScaleOperandSizes[] = {
+    OperandScaler<operands, OperandScale::kSingle>::kOperandSize...};
+template <ImplicitRegisterUse implicit_register_use, OperandType... operands>
+STATIC_CONST_MEMBER_DEFINITION const OperandSize BytecodeTraits<
+    implicit_register_use, operands...>::kDoubleScaleOperandSizes[] = {
+    OperandScaler<operands, OperandScale::kDouble>::kOperandSize...};
+template <ImplicitRegisterUse implicit_register_use, OperandType... operands>
+STATIC_CONST_MEMBER_DEFINITION const OperandSize BytecodeTraits<
+    implicit_register_use, operands...>::kQuadrupleScaleOperandSizes[] = {
     OperandScaler<operands, OperandScale::kQuadruple>::kOperandSize...};
 
-template <AccumulatorUse accumulator_use>
-struct BytecodeTraits<accumulator_use> {
+template <ImplicitRegisterUse implicit_register_use>
+struct BytecodeTraits<implicit_register_use> {
   static const OperandType kOperandTypes[];
   static const OperandTypeInfo kOperandTypeInfos[];
   static const OperandSize kSingleScaleOperandSizes[];
@@ -124,28 +124,29 @@ struct BytecodeTraits<accumulator_use> {
   static const int kSingleScaleSize = 1;
   static const int kDoubleScaleSize = 1;
   static const int kQuadrupleScaleSize = 1;
-  static const AccumulatorUse kAccumulatorUse = accumulator_use;
+  static const ImplicitRegisterUse kImplicitRegisterUse = implicit_register_use;
   static const int kOperandCount = 0;
 };
 
-template <AccumulatorUse accumulator_use>
+template <ImplicitRegisterUse implicit_register_use>
 STATIC_CONST_MEMBER_DEFINITION const OperandType
-    BytecodeTraits<accumulator_use>::kOperandTypes[] = {OperandType::kNone};
-template <AccumulatorUse accumulator_use>
+    BytecodeTraits<implicit_register_use>::kOperandTypes[] = {
+        OperandType::kNone};
+template <ImplicitRegisterUse implicit_register_use>
 STATIC_CONST_MEMBER_DEFINITION const OperandTypeInfo
-    BytecodeTraits<accumulator_use>::kOperandTypeInfos[] = {
+    BytecodeTraits<implicit_register_use>::kOperandTypeInfos[] = {
         OperandTypeInfo::kNone};
-template <AccumulatorUse accumulator_use>
+template <ImplicitRegisterUse implicit_register_use>
 STATIC_CONST_MEMBER_DEFINITION const OperandSize
-    BytecodeTraits<accumulator_use>::kSingleScaleOperandSizes[] = {
+    BytecodeTraits<implicit_register_use>::kSingleScaleOperandSizes[] = {
         OperandSize::kNone};
-template <AccumulatorUse accumulator_use>
+template <ImplicitRegisterUse implicit_register_use>
 STATIC_CONST_MEMBER_DEFINITION const OperandSize
-    BytecodeTraits<accumulator_use>::kDoubleScaleOperandSizes[] = {
+    BytecodeTraits<implicit_register_use>::kDoubleScaleOperandSizes[] = {
         OperandSize::kNone};
-template <AccumulatorUse accumulator_use>
+template <ImplicitRegisterUse implicit_register_use>
 STATIC_CONST_MEMBER_DEFINITION const OperandSize
-    BytecodeTraits<accumulator_use>::kQuadrupleScaleOperandSizes[] = {
+    BytecodeTraits<implicit_register_use>::kQuadrupleScaleOperandSizes[] = {
         OperandSize::kNone};
 
 }  // namespace interpreter

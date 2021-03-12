@@ -16,8 +16,8 @@ extern runtime WasmFunctionTableGet(
 extern runtime WasmFunctionTableSet(
     Context, WasmInstanceObject, Smi, Smi, Object): JSAny;
 extern runtime ThrowWasmError(Context, Smi): JSAny;
-extern runtime Throw(Context, Object): JSAny;
-extern runtime ReThrow(Context, Object): JSAny;
+extern runtime WasmThrow(Context, Object, FixedArray): JSAny;
+extern runtime WasmReThrow(Context, Object): JSAny;
 extern runtime WasmTriggerTierUp(Context, WasmInstanceObject): JSAny;
 extern runtime WasmStackGuard(Context): JSAny;
 extern runtime ThrowWasmStackOverflow(Context): JSAny;
@@ -192,13 +192,19 @@ builtin WasmRefFunc(index: uint32): Object {
   }
 }
 
-builtin WasmThrow(exception: Object): JSAny {
-  tail runtime::Throw(LoadContextFromFrame(), exception);
+builtin WasmAllocateFixedArray(size: intptr): FixedArray {
+  if (size == 0) return kEmptyFixedArray;
+  return UnsafeCast<FixedArray>(AllocateFixedArray(
+      ElementsKind::PACKED_ELEMENTS, size, AllocationFlag::kNone));
+}
+
+builtin WasmThrow(tag: Object, values: FixedArray): JSAny {
+  tail runtime::WasmThrow(LoadContextFromFrame(), tag, values);
 }
 
 builtin WasmRethrow(exception: Object): JSAny {
   if (exception == Null) tail ThrowWasmTrapRethrowNull();
-  tail runtime::ReThrow(LoadContextFromFrame(), exception);
+  tail runtime::WasmReThrow(LoadContextFromFrame(), exception);
 }
 
 builtin WasmTriggerTierUp(): JSAny {
@@ -229,6 +235,11 @@ builtin WasmTraceExit(info: Smi): JSAny {
 builtin WasmAllocateJSArray(implicit context: Context)(size: Smi): JSArray {
   const map: Map = GetFastPackedElementsJSArrayMap();
   return AllocateJSArray(ElementsKind::PACKED_ELEMENTS, map, size, size);
+}
+
+builtin WasmAllocatePair(first: Object, second: Object): Tuple2 {
+  const tuple2Map: Map = %GetClassMapConstant<Tuple2>();
+  return new Tuple2{map: tuple2Map, value1: first, value2: second};
 }
 
 builtin WasmAllocateRtt(typeIndex: intptr, parent: Map): Map {
@@ -271,6 +282,23 @@ transitioning builtin WasmAllocateObjectWrapper(implicit context: Context)(
   const symbol = WasmWrappedObjectSymbolConstant();
   CreateDataProperty(wrapper, symbol, obj);
   return wrapper;
+}
+
+builtin WasmSubtypeCheck(objectSupertypes: FixedArray, rtt: Map): int32 {
+  const rttSupertypeLength: Smi =
+      %RawDownCast<WasmTypeInfo>(
+          rtt.constructor_or_back_pointer_or_native_context)
+          .supertypes.length;
+
+  if (objectSupertypes.length <= rttSupertypeLength) {
+    return 0;
+  }
+
+  const supertype: Map = %RawDownCast<Map>(
+      LoadFixedArrayElement(objectSupertypes, rttSupertypeLength));
+
+  if (supertype == rtt) return 1;
+  return 0;
 }
 
 builtin WasmInt32ToNumber(value: int32): Number {

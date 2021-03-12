@@ -88,11 +88,11 @@ Error.prepareStackTrace = function(error, frames) {
   module.exports.main();
 
   verifyStack(stack, [
-      // isWasm           function   line  pos        file  offset funcIndex
-      [   false,           "STACK",    38,   0, "stack.js"],
-      [    true,            "main",     0,   1,       null, '0x86',        1],
-      [   false, "testStackFrames",    88,   0, "stack.js"],
-      [   false,              null,    97,   0, "stack.js"]
+      // isWasm           function   line   pos        file  offset funcIndex
+      [   false,           "STACK",    38,    0, "stack.js"],
+      [    true,            "main",     1, 0x86,       null, '0x86',        1],
+      [   false, "testStackFrames",    88,    0, "stack.js"],
+      [   false,              null,    97,    0, "stack.js"]
   ]);
 })();
 
@@ -104,7 +104,7 @@ Error.prepareStackTrace = function(error, frames) {
     assertContains("unreachable", e.message);
     verifyStack(e.stack, [
         // isWasm               function   line  pos        file  offset funcIndex
-        [    true,    "exec_unreachable",    0,    1,       null, '0x8b',        2],
+        [    true,    "exec_unreachable",    1, 0x8b,       null, '0x8b',        2],
         [   false, "testWasmUnreachable",  101,    0, "stack.js"],
         [   false,                  null,  112,    0, "stack.js"]
     ]);
@@ -118,11 +118,11 @@ Error.prepareStackTrace = function(error, frames) {
   } catch (e) {
     assertContains("out of bounds", e.message);
     verifyStack(e.stack, [
-        // isWasm                  function   line  pos        file  offset funcIndex
-        [    true,      "mem_out_of_bounds",     0,   3,       null, '0x91',        3],
-        [    true, "call_mem_out_of_bounds",     0,   1,       null, '0x97',        4],
-        [   false, "testWasmMemOutOfBounds",   116,   0, "stack.js"],
-        [   false,                     null,   128,   0, "stack.js"]
+        // isWasm                  function   line   pos        file  offset funcIndex
+        [    true,      "mem_out_of_bounds",     1, 0x91,       null, '0x91',        3],
+        [    true, "call_mem_out_of_bounds",     1, 0x97,       null, '0x97',        4],
+        [   false, "testWasmMemOutOfBounds",   116,    0, "stack.js"],
+        [   false,                     null,   128,    0, "stack.js"]
     ]);
   }
 })();
@@ -147,11 +147,11 @@ Error.prepareStackTrace = function(error, frames) {
     assertEquals("Maximum call stack size exceeded", e.message, "trap reason");
     assertTrue(e.stack.length >= 4, "expected at least 4 stack entries");
     verifyStack(e.stack.splice(0, 4), [
-        // isWasm     function  line  pos  file  offset funcIndex
-        [    true, "recursion",    0,   0, null, '0x34',        0],
-        [    true, "recursion",    0,   3, null, '0x37',        0],
-        [    true, "recursion",    0,   3, null, '0x37',        0],
-        [    true, "recursion",    0,   3, null, '0x37',        0]
+        // isWasm     function  line   pos  file  offset funcIndex
+        [    true, "recursion",    1, 0x34, null, '0x34',        0],
+        [    true, "recursion",    1, 0x37, null, '0x37',        0],
+        [    true, "recursion",    1, 0x37, null, '0x37',        0],
+        [    true, "recursion",    1, 0x37, null, '0x37',        0]
     ]);
   }
 })();
@@ -175,10 +175,10 @@ Error.prepareStackTrace = function(error, frames) {
     assertEquals('unreachable', e.message, 'trap reason');
     let hexOffset = '0x' + (unreachable_pos + 0x25).toString(16);
     verifyStack(e.stack, [
-      // isWasm         function line                  pos        file     offset funcIndex
-      [    true,          'main',   0, unreachable_pos + 1,       null, hexOffset,        0],
-      [   false, 'testBigOffset', 172,                   0, 'stack.js'],
-      [   false,            null, 184,                   0, 'stack.js']
+      // isWasm         function line                     pos        file     offset funcIndex
+      [    true,          'main',   1, unreachable_pos + 0x25,       null, hexOffset,        0],
+      [   false, 'testBigOffset', 172,                      0, 'stack.js'],
+      [   false,            null, 184,                      0, 'stack.js']
     ]);
   }
 })();

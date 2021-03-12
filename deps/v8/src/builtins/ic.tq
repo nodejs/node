@@ -25,11 +25,12 @@ macro CollectInstanceOfFeedback(
 @export
 macro CollectConstructFeedback(implicit context: Context)(
     target: JSAny, newTarget: JSAny,
-    maybeFeedbackVector: Undefined|FeedbackVector,
-    slotId: uintptr): never labels ConstructGeneric,
+    maybeFeedbackVector: Undefined|FeedbackVector, slotId: uintptr,
+    updateFeedbackMode: constexpr UpdateFeedbackMode):
+    never labels ConstructGeneric,
     ConstructArray(AllocationSite) {
   callable::CollectConstructFeedback(
-      target, newTarget, maybeFeedbackVector, slotId)
+      target, newTarget, maybeFeedbackVector, slotId, updateFeedbackMode)
       otherwise ConstructGeneric, ConstructArray;
 }
 

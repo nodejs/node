@@ -80,7 +80,7 @@ extern shape JSStrictArgumentsObject extends JSArgumentsObject {
 class SloppyArgumentsElements extends FixedArrayBase {
   context: Context;
   arguments: FixedArray|NumberDictionary;
-  mapped_entries[length]: Smi|TheHole;
+  @relaxedRead mapped_entries[length]: Smi|TheHole;
 }
 
 macro NewSloppyArgumentsElements<Iterator: type>(
@@ -315,6 +315,21 @@ builtin NewRestArgumentsElements(
     argumentCount: Smi): FixedArray {
   return arguments::NewRestArgumentsElements(
       frame, formalParameterCount, Convert<intptr>(argumentCount));
+}
+
+builtin FastNewSloppyArguments(implicit context: Context)(f: JSFunction):
+    JSSloppyArgumentsObject {
+  return EmitFastNewSloppyArguments(f);
+}
+
+builtin FastNewStrictArguments(implicit context: Context)(f: JSFunction):
+    JSStrictArgumentsObject {
+  return EmitFastNewStrictArguments(f);
+}
+
+builtin FastNewRestArguments(implicit context: Context)(f: JSFunction):
+    JSArray {
+  return EmitFastNewRestArguments(f);
 }
 
 macro

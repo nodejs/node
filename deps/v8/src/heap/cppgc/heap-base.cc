@@ -4,12 +4,14 @@
 
 #include "src/heap/cppgc/heap-base.h"
 
+#include "include/cppgc/heap-consistency.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/platform/platform.h"
 #include "src/heap/base/stack.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
+#include "src/heap/cppgc/heap-statistics-collector.h"
 #include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/marking-verifier.h"
@@ -56,7 +58,8 @@ class ObjectSizeCounter : private HeapVisitor<ObjectSizeCounter> {
 HeapBase::HeapBase(
     std::shared_ptr<cppgc::Platform> platform,
     const std::vector<std::unique_ptr<CustomSpaceBase>>& custom_spaces,
-    StackSupport stack_support)
+    StackSupport stack_support,
+    std::unique_ptr<MetricRecorder> histogram_recorder)
     : raw_heap_(this, custom_spaces),
       platform_(std::move(platform)),
 #if defined(CPPGC_CAGED_HEAP)
@@ -66,7 +69,8 @@ HeapBase::HeapBase(
       page_backend_(
           std::make_unique<PageBackend>(platform_->GetPageAllocator())),
 #endif
-      stats_collector_(std::make_unique<StatsCollector>()),
+      stats_collector_(std::make_unique<StatsCollector>(
+          std::move(histogram_recorder), platform_.get())),
       stack_(std::make_unique<heap::base::Stack>(
           v8::base::Stack::GetStackStart())),
       prefinalizer_handler_(std::make_unique<PreFinalizerHandler>(*this)),
@@ -75,6 +79,8 @@ HeapBase::HeapBase(
                         stats_collector_.get()),
       sweeper_(&raw_heap_, platform_.get(), stats_collector_.get()),
       stack_support_(stack_support) {
+  stats_collector_->RegisterObserver(
+      &allocation_observer_for_PROCESS_HEAP_STATISTICS_);
 }
 
 HeapBase::~HeapBase() = default;
@@ -83,14 +89,62 @@ size_t HeapBase::ObjectPayloadSize() const {
   return ObjectSizeCounter().GetSize(const_cast<RawHeap*>(&raw_heap()));
 }
 
-HeapBase::NoGCScope::NoGCScope(HeapBase& heap) : heap_(heap) {
-  heap_.no_gc_scope_++;
-}
-
-HeapBase::NoGCScope::~NoGCScope() { heap_.no_gc_scope_--; }
-
 void HeapBase::AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded() {
   if (marker_) marker_->AdvanceMarkingOnAllocation();
+}
+void HeapBase::ExecutePreFinalizers() {
+  // Pre finalizers are forbidden from allocating objects.
+  cppgc::subtle::DisallowGarbageCollectionScope no_gc_scope(*this);
+  prefinalizer_handler_->InvokePreFinalizers();
+}
+
+void HeapBase::Terminate() {
+  DCHECK(!IsMarking());
+  CHECK(!in_disallow_gc_scope());
+
+  sweeper().FinishIfRunning();
+
+  constexpr size_t kMaxTerminationGCs = 20;
+  size_t gc_count = 0;
+  do {
+    CHECK_LT(gc_count++, kMaxTerminationGCs);
+
+    // Clear root sets.
+    strong_persistent_region_.ClearAllUsedNodes();
+    strong_cross_thread_persistent_region_.ClearAllUsedNodes();
+    // Clear weak root sets, as the GC below does not execute weakness
+    // callbacks.
+    weak_persistent_region_.ClearAllUsedNodes();
+    weak_cross_thread_persistent_region_.ClearAllUsedNodes();
+
+    stats_collector()->NotifyMarkingStarted(
+        GarbageCollector::Config::CollectionType::kMajor,
+        GarbageCollector::Config::IsForcedGC::kForced);
+    stats_collector()->NotifyMarkingCompleted(0);
+    object_allocator().ResetLinearAllocationBuffers();
+    ExecutePreFinalizers();
+    sweeper().Start(
+        {Sweeper::SweepingConfig::SweepingType::kAtomic,
+         Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep});
+    sweeper().NotifyDoneIfNeeded();
+  } while (strong_persistent_region_.NodesInUse() > 0);
+
+  object_allocator().Terminate();
+  disallow_gc_scope_++;
+}
+
+HeapStatistics HeapBase::CollectStatistics(
+    HeapStatistics::DetailLevel detail_level) {
+  if (detail_level == HeapStatistics::DetailLevel::kBrief) {
+    return {stats_collector_->allocated_memory_size(),
+            stats_collector_->allocated_object_size(),
+            HeapStatistics::DetailLevel::kBrief,
+            {}};
+  }
+
+  sweeper_.FinishIfRunning();
+  object_allocator_.ResetLinearAllocationBuffers();
+  return HeapStatisticsCollector().CollectStatistics(this);
 }
 
 }  // namespace internal

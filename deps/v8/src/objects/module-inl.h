@@ -33,6 +33,7 @@ CAST_ACCESSOR(Module)
 ACCESSORS(Module, exports, ObjectHashTable, kExportsOffset)
 ACCESSORS(Module, module_namespace, HeapObject, kModuleNamespaceOffset)
 ACCESSORS(Module, exception, Object, kExceptionOffset)
+ACCESSORS(Module, top_level_capability, HeapObject, kTopLevelCapabilityOffset)
 SMI_ACCESSORS(Module, status, kStatusOffset)
 SMI_ACCESSORS(Module, hash, kHashOffset)
 
@@ -41,8 +42,6 @@ BOOL_ACCESSORS(SourceTextModule, flags, async_evaluating,
                AsyncEvaluatingBit::kShift)
 ACCESSORS(SourceTextModule, async_parent_modules, ArrayList,
           kAsyncParentModulesOffset)
-ACCESSORS(SourceTextModule, top_level_capability, HeapObject,
-          kTopLevelCapabilityOffset)
 
 struct Module::Hash {
   V8_INLINE size_t operator()(Module const& module) const {

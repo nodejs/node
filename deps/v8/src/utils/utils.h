@@ -8,6 +8,7 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <cmath>
 #include <string>
 #include <type_traits>
@@ -17,6 +18,7 @@
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
+#include "src/base/safe_conversions.h"
 #include "src/base/v8-fallthrough.h"
 #include "src/common/globals.h"
 #include "src/utils/allocation.h"
@@ -123,15 +125,6 @@ inline double Modulo(double x, double y) {
 }
 
 template <typename T>
-T Saturate(int64_t value) {
-  static_assert(sizeof(int64_t) > sizeof(T), "T must be int32_t or smaller");
-  int64_t min = static_cast<int64_t>(std::numeric_limits<T>::min());
-  int64_t max = static_cast<int64_t>(std::numeric_limits<T>::max());
-  int64_t clamped = std::max(min, std::min(max, value));
-  return static_cast<T>(clamped);
-}
-
-template <typename T>
 T SaturateAdd(T a, T b) {
   if (std::is_signed<T>::value) {
     if (a > 0 && b > 0) {
@@ -187,7 +180,7 @@ T SaturateRoundingQMul(T a, T b) {
   int64_t product = a * b;
   product += round_const;
   product >>= (size_in_bits - 1);
-  return Saturate<T>(product);
+  return base::saturated_cast<T>(product);
 }
 
 // Multiply two numbers, returning a result that is twice as wide, no overflow.
@@ -569,29 +562,34 @@ class FeedbackSlot {
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, FeedbackSlot);
 
-class BailoutId {
+class BytecodeOffset {
  public:
-  explicit BailoutId(int id) : id_(id) {}
+  explicit BytecodeOffset(int id) : id_(id) {}
   int ToInt() const { return id_; }
 
-  static BailoutId None() { return BailoutId(kNoneId); }
+  static BytecodeOffset None() { return BytecodeOffset(kNoneId); }
 
   // Special bailout id support for deopting into the {JSConstructStub} stub.
   // The following hard-coded deoptimization points are supported by the stub:
   //  - {ConstructStubCreate} maps to {construct_stub_create_deopt_pc_offset}.
   //  - {ConstructStubInvoke} maps to {construct_stub_invoke_deopt_pc_offset}.
-  static BailoutId ConstructStubCreate() { return BailoutId(1); }
-  static BailoutId ConstructStubInvoke() { return BailoutId(2); }
+  static BytecodeOffset ConstructStubCreate() { return BytecodeOffset(1); }
+  static BytecodeOffset ConstructStubInvoke() { return BytecodeOffset(2); }
   bool IsValidForConstructStub() const {
     return id_ == ConstructStubCreate().ToInt() ||
            id_ == ConstructStubInvoke().ToInt();
   }
 
   bool IsNone() const { return id_ == kNoneId; }
-  bool operator==(const BailoutId& other) const { return id_ == other.id_; }
-  bool operator!=(const BailoutId& other) const { return id_ != other.id_; }
-  friend size_t hash_value(BailoutId);
-  V8_EXPORT_PRIVATE friend std::ostream& operator<<(std::ostream&, BailoutId);
+  bool operator==(const BytecodeOffset& other) const {
+    return id_ == other.id_;
+  }
+  bool operator!=(const BytecodeOffset& other) const {
+    return id_ != other.id_;
+  }
+  friend size_t hash_value(BytecodeOffset);
+  V8_EXPORT_PRIVATE friend std::ostream& operator<<(std::ostream&,
+                                                    BytecodeOffset);
 
  private:
   friend class Builtins;
@@ -600,7 +598,7 @@ class BailoutId {
 
   // Using 0 could disguise errors.
   // Builtin continuations bailout ids start here. If you need to add a
-  // non-builtin BailoutId, add it before this id so that this Id has the
+  // non-builtin BytecodeOffset, add it before this id so that this Id has the
   // highest number.
   static const int kFirstBuiltinContinuationId = 1;
 

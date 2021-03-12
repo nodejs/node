@@ -21,6 +21,7 @@
 #include "src/objects/scope-info.h"
 #include "src/objects/slots.h"
 #include "src/objects/string.h"
+#include "src/objects/swiss-name-dictionary.h"
 #include "src/roots/roots.h"
 
 namespace v8 {

@@ -98,6 +98,12 @@ void EmptyTest() {
     EXPECT_EQ(nullptr, empty.Get());
     EXPECT_EQ(nullptr, empty.Release());
   }
+  {
+    // Move-constructs empty from another Member that is created from nullptr.
+    MemberType<const GCed> empty = nullptr;
+    EXPECT_EQ(nullptr, empty.Get());
+    EXPECT_EQ(nullptr, empty.Release());
+  }
 }
 
 TEST_F(MemberTest, Empty) {

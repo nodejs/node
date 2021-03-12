@@ -13,14 +13,17 @@ namespace torque {
 
 class CCGenerator : public TorqueCodeGenerator {
  public:
-  CCGenerator(const ControlFlowGraph& cfg, std::ostream& out)
-      : TorqueCodeGenerator(cfg, out) {}
+  CCGenerator(const ControlFlowGraph& cfg, std::ostream& out,
+              bool is_cc_debug = false)
+      : TorqueCodeGenerator(cfg, out), is_cc_debug_(is_cc_debug) {}
   base::Optional<Stack<std::string>> EmitGraph(Stack<std::string> parameters);
 
   static void EmitCCValue(VisitResult result, const Stack<std::string>& values,
                           std::ostream& out);
 
  private:
+  bool is_cc_debug_;
+
   void EmitSourcePosition(SourcePosition pos,
                           bool always_emit = false) override;
 

@@ -115,24 +115,22 @@ PrintSig PrintReturns(const FunctionSig* sig) {
 }
 const char* ValueTypeToConstantName(ValueType type) {
   switch (type.kind()) {
-    case ValueType::kI32:
+    case kI32:
       return "kWasmI32";
-    case ValueType::kI64:
+    case kI64:
       return "kWasmI64";
-    case ValueType::kF32:
+    case kF32:
       return "kWasmF32";
-    case ValueType::kF64:
+    case kF64:
       return "kWasmF64";
-    case ValueType::kS128:
+    case kS128:
       return "kWasmS128";
-    case ValueType::kOptRef:
+    case kOptRef:
       switch (type.heap_representation()) {
         case HeapType::kExtern:
           return "kWasmExternRef";
         case HeapType::kFunc:
           return "kWasmFuncRef";
-        case HeapType::kExn:
-          return "kWasmExnRef";
         case HeapType::kAny:
         case HeapType::kI31:
         case HeapType::kBottom:

@@ -10,6 +10,7 @@
 #include <type_traits>
 
 #include "cppgc/internal/pointer-policies.h"
+#include "cppgc/sentinel-pointer.h"
 #include "cppgc/type-traits.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
 
@@ -19,28 +20,30 @@ class Visitor;
 
 namespace internal {
 
+// MemberBase always refers to the object as const object and defers to
+// BasicMember on casting to the right type as needed.
 class MemberBase {
  protected:
   MemberBase() = default;
-  explicit MemberBase(void* value) : raw_(value) {}
+  explicit MemberBase(const void* value) : raw_(value) {}
 
-  void** GetRawSlot() const { return &raw_; }
-  void* GetRaw() const { return raw_; }
+  const void** GetRawSlot() const { return &raw_; }
+  const void* GetRaw() const { return raw_; }
   void SetRaw(void* value) { raw_ = value; }
 
-  void* GetRawAtomic() const {
-    return reinterpret_cast<const std::atomic<void*>*>(&raw_)->load(
+  const void* GetRawAtomic() const {
+    return reinterpret_cast<const std::atomic<const void*>*>(&raw_)->load(
         std::memory_order_relaxed);
   }
-  void SetRawAtomic(void* value) {
-    reinterpret_cast<std::atomic<void*>*>(&raw_)->store(
+  void SetRawAtomic(const void* value) {
+    reinterpret_cast<std::atomic<const void*>*>(&raw_)->store(
         value, std::memory_order_relaxed);
   }
 
   void ClearFromGC() const { raw_ = nullptr; }
 
  private:
-  mutable void* raw_ = nullptr;
+  mutable const void* raw_ = nullptr;
 };
 
 // The basic class from which all Member classes are 'generated'.
@@ -167,7 +170,11 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
   // based on their actual types.
   V8_CLANG_NO_SANITIZE("cfi-unrelated-cast") T* Get() const {
     // Executed by the mutator, hence non atomic load.
-    return static_cast<T*>(MemberBase::GetRaw());
+    //
+    // The const_cast below removes the constness from MemberBase storage. The
+    // following static_cast re-adds any constness if specified through the
+    // user-visible template parameter T.
+    return static_cast<T*>(const_cast<void*>(MemberBase::GetRaw()));
   }
 
   void Clear() { SetRawAtomic(nullptr); }
@@ -179,12 +186,12 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
   }
 
   const T** GetSlotForTesting() const {
-    return reinterpret_cast<const T**>(const_cast<const void**>(GetRawSlot()));
+    return reinterpret_cast<const T**>(GetRawSlot());
   }
 
  private:
-  T* GetRawAtomic() const {
-    return static_cast<T*>(MemberBase::GetRawAtomic());
+  const T* GetRawAtomic() const {
+    return static_cast<const T*>(MemberBase::GetRawAtomic());
   }
 
   void InitializingWriteBarrier() const {
@@ -197,6 +204,8 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
   void ClearFromGC() const { MemberBase::ClearFromGC(); }
 
   friend class cppgc::Visitor;
+  template <typename U>
+  friend struct cppgc::TraceTrait;
 };
 
 template <typename T1, typename WeaknessTag1, typename WriteBarrierPolicy1,

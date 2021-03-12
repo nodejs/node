@@ -46,11 +46,7 @@ int main(int argc, char* argv[]) {
   // backend allocation.
   auto cppgc_platform = std::make_shared<cppgc::DefaultPlatform>();
   // Initialize the process. This must happen before any cppgc::Heap::Create()
-  // calls. cppgc::DefaultPlatform::InitializeProcess initializes both cppgc
-  // and v8 (if cppgc is not used as a standalone) as needed.
-  // If using a platform other than cppgc::DefaultPlatform, should call
-  // cppgc::InitializeProcess (for standalone builds) or
-  // v8::V8::InitializePlatform (for non-standalone builds) directly.
+  // calls.
   cppgc::DefaultPlatform::InitializeProcess(cppgc_platform.get());
   // Create a managed heap.
   std::unique_ptr<cppgc::Heap> heap = cppgc::Heap::Create(cppgc_platform);

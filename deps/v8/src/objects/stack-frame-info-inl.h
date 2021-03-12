@@ -8,7 +8,6 @@
 #include "src/objects/stack-frame-info.h"
 
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/frame-array-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/struct-inl.h"
 
@@ -21,24 +20,15 @@ namespace internal {
 #include "torque-generated/src/objects/stack-frame-info-tq-inl.inc"
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(StackFrameInfo)
-
 NEVER_READ_ONLY_SPACE_IMPL(StackFrameInfo)
 
-SMI_ACCESSORS_CHECKED(StackFrameInfo, function_offset,
-                      kPromiseCombinatorIndexOffset, is_wasm())
-BOOL_ACCESSORS(StackFrameInfo, flag, is_eval, IsEvalBit::kShift)
-BOOL_ACCESSORS(StackFrameInfo, flag, is_constructor, IsConstructorBit::kShift)
-BOOL_ACCESSORS(StackFrameInfo, flag, is_wasm, IsWasmBit::kShift)
-BOOL_ACCESSORS(StackFrameInfo, flag, is_asmjs_wasm, IsAsmJsWasmBit::kShift)
-BOOL_ACCESSORS(StackFrameInfo, flag, is_user_java_script,
-               IsUserJavaScriptBit::kShift)
-BOOL_ACCESSORS(StackFrameInfo, flag, is_toplevel, IsToplevelBit::kShift)
-BOOL_ACCESSORS(StackFrameInfo, flag, is_async, IsAsyncBit::kShift)
-BOOL_ACCESSORS(StackFrameInfo, flag, is_promise_all, IsPromiseAllBit::kShift)
-BOOL_ACCESSORS(StackFrameInfo, flag, is_promise_any, IsPromiseAnyBit::kShift)
-
-TQ_OBJECT_CONSTRUCTORS_IMPL(StackTraceFrame)
-NEVER_READ_ONLY_SPACE_IMPL(StackTraceFrame)
+BOOL_GETTER(StackFrameInfo, flags, IsWasm, IsWasmBit::kShift)
+BOOL_GETTER(StackFrameInfo, flags, IsAsmJsWasm, IsAsmJsWasmBit::kShift)
+BOOL_GETTER(StackFrameInfo, flags, IsStrict, IsStrictBit::kShift)
+BOOL_GETTER(StackFrameInfo, flags, IsConstructor, IsConstructorBit::kShift)
+BOOL_GETTER(StackFrameInfo, flags, IsAsmJsAtNumberConversion,
+            IsAsmJsAtNumberConversionBit::kShift)
+BOOL_GETTER(StackFrameInfo, flags, IsAsync, IsAsyncBit::kShift)
 
 }  // namespace internal
 }  // namespace v8

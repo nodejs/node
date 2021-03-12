@@ -4,6 +4,7 @@
 
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/garbage-collected.h"
+#include "include/cppgc/heap-consistency.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap.h"
 #include "test/benchmarks/cpp/cppgc/utils.h"
@@ -21,7 +22,7 @@ class TinyObject final : public cppgc::GarbageCollected<TinyObject> {
 };
 
 BENCHMARK_F(Allocate, Tiny)(benchmark::State& st) {
-  Heap::NoGCScope no_gc(*Heap::From(&heap()));
+  subtle::NoGarbageCollectionScope no_gc(*Heap::From(&heap()));
   for (auto _ : st) {
     benchmark::DoNotOptimize(
         cppgc::MakeGarbageCollected<TinyObject>(heap().GetAllocationHandle()));
@@ -36,7 +37,7 @@ class LargeObject final : public GarbageCollected<LargeObject> {
 };
 
 BENCHMARK_F(Allocate, Large)(benchmark::State& st) {
-  Heap::NoGCScope no_gc(*Heap::From(&heap()));
+  subtle::NoGarbageCollectionScope no_gc(*Heap::From(&heap()));
   for (auto _ : st) {
     benchmark::DoNotOptimize(
         cppgc::MakeGarbageCollected<LargeObject>(heap().GetAllocationHandle()));

@@ -26,7 +26,6 @@
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/js-regexp-inl.h"
-#include "src/objects/layout-descriptor.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/objects-body-descriptors.h"
 #include "src/objects/objects-inl.h"
@@ -636,7 +635,7 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject object) {
   } else if (object.IsContext()) {
     return AddEntry(object, HeapEntry::kObject, "system / Context");
   } else if (object.IsFixedArray() || object.IsFixedDoubleArray() ||
-             object.IsByteArray()) {
+             object.IsByteArray() || object.IsScopeInfo()) {
     return AddEntry(object, HeapEntry::kArray, "");
   } else if (object.IsHeapNumber()) {
     return AddEntry(object, HeapEntry::kHeapNumber, "number");
@@ -646,6 +645,10 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject object) {
 
 HeapEntry* V8HeapExplorer::AddEntry(HeapObject object, HeapEntry::Type type,
                                     const char* name) {
+  if (FLAG_heap_profiler_show_hidden_objects && type == HeapEntry::kHidden) {
+    type = HeapEntry::kNative;
+  }
+
   return AddEntry(object.address(), type, name, object.Size());
 }
 
@@ -665,27 +668,35 @@ HeapEntry* V8HeapExplorer::AddEntry(Address address,
 }
 
 const char* V8HeapExplorer::GetSystemEntryName(HeapObject object) {
-  switch (object.map().instance_type()) {
-    case MAP_TYPE:
-      switch (Map::cast(object).instance_type()) {
+  if (object.IsMap()) {
+    switch (Map::cast(object).instance_type()) {
 #define MAKE_STRING_MAP_CASE(instance_type, size, name, Name) \
         case instance_type: return "system / Map (" #Name ")";
       STRING_TYPE_LIST(MAKE_STRING_MAP_CASE)
 #undef MAKE_STRING_MAP_CASE
         default: return "system / Map";
-      }
-    case CELL_TYPE: return "system / Cell";
-    case PROPERTY_CELL_TYPE: return "system / PropertyCell";
-    case FOREIGN_TYPE: return "system / Foreign";
-    case ODDBALL_TYPE: return "system / Oddball";
-    case ALLOCATION_SITE_TYPE:
-      return "system / AllocationSite";
-#define MAKE_STRUCT_CASE(TYPE, Name, name) \
-  case TYPE:                               \
+    }
+  }
+
+  switch (object.map().instance_type()) {
+#define MAKE_TORQUE_CASE(Name, TYPE) \
+  case TYPE:                         \
     return "system / " #Name;
-      STRUCT_LIST(MAKE_STRUCT_CASE)
-#undef MAKE_STRUCT_CASE
-    default: return "system";
+    // The following lists include every non-String instance type.
+    // This includes a few types that already have non-"system" names assigned
+    // by AddEntry, but this is a convenient way to avoid manual upkeep here.
+    TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
+    TORQUE_INSTANCE_CHECKERS_MULTIPLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
+    TORQUE_INSTANCE_CHECKERS_SINGLE_ONLY_DECLARED(MAKE_TORQUE_CASE)
+    TORQUE_INSTANCE_CHECKERS_MULTIPLE_ONLY_DECLARED(MAKE_TORQUE_CASE)
+#undef MAKE_TORQUE_CASE
+
+    // Strings were already handled by AddEntry.
+#define MAKE_STRING_CASE(instance_type, size, name, Name) \
+  case instance_type:                                     \
+    UNREACHABLE();
+    STRING_TYPE_LIST(MAKE_STRING_CASE)
+#undef MAKE_STRING_CASE
   }
 }
 
@@ -1073,29 +1084,24 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map map) {
                        Map::kInstanceDescriptorsOffset);
   SetInternalReference(entry, "prototype", map.prototype(),
                        Map::kPrototypeOffset);
-  if (FLAG_unbox_double_fields) {
-    SetInternalReference(entry, "layout_descriptor",
-                         map.layout_descriptor(kAcquireLoad),
-                         Map::kLayoutDescriptorOffset);
-  }
   if (map.IsContextMap()) {
     Object native_context = map.native_context();
     TagObject(native_context, "(native context)");
     SetInternalReference(entry, "native_context", native_context,
                          Map::kConstructorOrBackPointerOrNativeContextOffset);
   } else {
-    Object constructor_or_backpointer = map.constructor_or_backpointer();
-    if (constructor_or_backpointer.IsMap()) {
-      TagObject(constructor_or_backpointer, "(back pointer)");
-      SetInternalReference(entry, "back_pointer", constructor_or_backpointer,
+    Object constructor_or_back_pointer = map.constructor_or_back_pointer();
+    if (constructor_or_back_pointer.IsMap()) {
+      TagObject(constructor_or_back_pointer, "(back pointer)");
+      SetInternalReference(entry, "back_pointer", constructor_or_back_pointer,
                            Map::kConstructorOrBackPointerOrNativeContextOffset);
-    } else if (constructor_or_backpointer.IsFunctionTemplateInfo()) {
-      TagObject(constructor_or_backpointer, "(constructor function data)");
+    } else if (constructor_or_back_pointer.IsFunctionTemplateInfo()) {
+      TagObject(constructor_or_back_pointer, "(constructor function data)");
       SetInternalReference(entry, "constructor_function_data",
-                           constructor_or_backpointer,
+                           constructor_or_back_pointer,
                            Map::kConstructorOrBackPointerOrNativeContextOffset);
     } else {
-      SetInternalReference(entry, "constructor", constructor_or_backpointer,
+      SetInternalReference(entry, "constructor", constructor_or_back_pointer,
                            Map::kConstructorOrBackPointerOrNativeContextOffset);
     }
   }

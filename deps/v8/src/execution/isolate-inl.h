@@ -114,6 +114,11 @@ Isolate::ExceptionScope::~ExceptionScope() {
   isolate_->set_pending_exception(*pending_exception_);
 }
 
+bool Isolate::IsAnyInitialArrayPrototype(JSArray array) {
+  DisallowGarbageCollection no_gc;
+  return IsInAnyContext(array, Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
+}
+
 #define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name)    \
   Handle<type> Isolate::name() {                            \
     return Handle<type>(raw_native_context().name(), this); \

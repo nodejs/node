@@ -18,6 +18,18 @@ namespace torque {
 
 DEFINE_CONTEXTUAL_VARIABLE(CurrentScope)
 
+QualifiedName QualifiedName::Parse(std::string qualified_name) {
+  std::vector<std::string> qualifications;
+  while (true) {
+    size_t namespace_delimiter_index = qualified_name.find("::");
+    if (namespace_delimiter_index == std::string::npos) break;
+    qualifications.push_back(
+        qualified_name.substr(0, namespace_delimiter_index));
+    qualified_name = qualified_name.substr(namespace_delimiter_index + 2);
+  }
+  return QualifiedName(qualifications, qualified_name);
+}
+
 std::ostream& operator<<(std::ostream& os, const QualifiedName& name) {
   for (const std::string& qualifier : name.namespace_qualification) {
     os << qualifier << "::";

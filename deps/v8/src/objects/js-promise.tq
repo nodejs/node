@@ -35,3 +35,7 @@ extern class JSPromise extends JSObject {
   reactions_or_result: Zero|PromiseReaction|JSAny;
   flags: SmiTagged<JSPromiseFlags>;
 }
+
+@doNotGenerateCast
+extern class JSPromiseConstructor extends JSFunction
+    generates 'TNode<JSFunction>';

@@ -842,10 +842,10 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
                                          &var_name_index, &not_found);
     BIND(&dictionary_found);
     {
-      Label overwrite(this);
+      Label check_const(this), overwrite(this), done(this);
       TNode<Uint32T> details =
           LoadDetailsByKeyIndex(properties, var_name_index.value());
-      JumpIfDataProperty(details, &overwrite,
+      JumpIfDataProperty(details, &check_const,
                          ShouldReconfigureExisting() ? nullptr : &readonly);
 
       if (ShouldCallSetter()) {
@@ -860,13 +860,30 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
         Goto(slow);
       }
 
+      BIND(&check_const);
+      {
+        if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
+          GotoIfNot(IsPropertyDetailsConst(details), &overwrite);
+          TNode<Object> prev_value =
+              LoadValueByKeyIndex(properties, var_name_index.value());
+
+          BranchIfSameValue(prev_value, p->value(), &done, slow,
+                            SameValueMode::kNumbersOnly);
+        } else {
+          Goto(&overwrite);
+        }
+      }
+
       BIND(&overwrite);
       {
         CheckForAssociatedProtector(name, slow);
         StoreValueByKeyIndex<NameDictionary>(properties, var_name_index.value(),
                                              p->value());
-        exit_point->Return(p->value());
+        Goto(&done);
       }
+
+      BIND(&done);
+      exit_point->Return(p->value());
     }
 
     BIND(&not_found);

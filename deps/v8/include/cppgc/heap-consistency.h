@@ -8,6 +8,7 @@
 #include <cstddef>
 
 #include "cppgc/internal/write-barrier.h"
+#include "cppgc/macros.h"
 #include "cppgc/trace-trait.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
 
@@ -49,17 +50,22 @@ class HeapConsistency final {
   /**
    * Gets the required write barrier type for a specific write.
    *
-   * \param slot Slot containing the pointer to some part of an object object
-   *   that has been allocated using `MakeGarbageCollected()`. Does not consider
-   *   the value of `slot`.
+   * \param slot Slot to some part of an object. The object must not necessarily
+       have been allocated using `MakeGarbageCollected()` but can also live
+       off-heap or on stack.
    * \param params Parameters that may be used for actual write barrier calls.
    *   Only filled if return value indicates that a write barrier is needed. The
    *   contents of the `params` are an implementation detail.
+   * \param callback Callback returning the corresponding heap handle. The
+   *   callback is only invoked if the heap cannot otherwise be figured out. The
+   *   callback must not allocate.
    * \returns whether a write barrier is needed and which barrier to invoke.
    */
+  template <typename HeapHandleCallback>
   static V8_INLINE WriteBarrierType
-  GetWriteBarrierType(const void* slot, WriteBarrierParams& params) {
-    return internal::WriteBarrier::GetWriteBarrierType(slot, params);
+  GetWriteBarrierType(const void* slot, WriteBarrierParams& params,
+                      HeapHandleCallback callback) {
+    return internal::WriteBarrier::GetWriteBarrierType(slot, params, callback);
   }
 
   /**
@@ -80,7 +86,6 @@ class HeapConsistency final {
    * elements if they have not yet been processed.
    *
    * \param params The parameters retrieved from `GetWriteBarrierType()`.
-   * \param heap The corresponding heap.
    * \param first_element Pointer to the first element that should be processed.
    *   The slot itself must reside in an object that has been allocated using
    *   `MakeGarbageCollected()`.
@@ -91,11 +96,11 @@ class HeapConsistency final {
    *   element if necessary.
    */
   static V8_INLINE void DijkstraWriteBarrierRange(
-      const WriteBarrierParams& params, HeapHandle& heap,
-      const void* first_element, size_t element_size, size_t number_of_elements,
+      const WriteBarrierParams& params, const void* first_element,
+      size_t element_size, size_t number_of_elements,
       TraceCallback trace_callback) {
     internal::WriteBarrier::DijkstraMarkingBarrierRange(
-        params, heap, first_element, element_size, number_of_elements,
+        params, first_element, element_size, number_of_elements,
         trace_callback);
   }
 
@@ -129,6 +134,100 @@ class HeapConsistency final {
 
  private:
   HeapConsistency() = delete;
+};
+
+/**
+ * Disallows garbage collection finalizations. Any garbage collection triggers
+ * result in a crash when in this scope.
+ *
+ * Note that the garbage collector already covers paths that can lead to garbage
+ * collections, so user code does not require checking
+ * `IsGarbageCollectionAllowed()` before allocations.
+ */
+class V8_EXPORT V8_NODISCARD DisallowGarbageCollectionScope final {
+  CPPGC_STACK_ALLOCATED();
+
+ public:
+  /**
+   * \returns whether garbage collections are currently allowed.
+   */
+  static bool IsGarbageCollectionAllowed(HeapHandle& heap_handle);
+
+  /**
+   * Enters a disallow garbage collection scope. Must be paired with `Leave()`.
+   * Prefer a scope instance of `DisallowGarbageCollectionScope`.
+   *
+   * \param heap_handle The corresponding heap.
+   */
+  static void Enter(HeapHandle& heap_handle);
+
+  /**
+   * Leaves a disallow garbage collection scope. Must be paired with `Enter()`.
+   * Prefer a scope instance of `DisallowGarbageCollectionScope`.
+   *
+   * \param heap_handle The corresponding heap.
+   */
+  static void Leave(HeapHandle& heap_handle);
+
+  /**
+   * Constructs a scoped object that automatically enters and leaves a disallow
+   * garbage collection scope based on its lifetime.
+   *
+   * \param heap_handle The corresponding heap.
+   */
+  explicit DisallowGarbageCollectionScope(HeapHandle& heap_handle);
+  ~DisallowGarbageCollectionScope();
+
+  DisallowGarbageCollectionScope(const DisallowGarbageCollectionScope&) =
+      delete;
+  DisallowGarbageCollectionScope& operator=(
+      const DisallowGarbageCollectionScope&) = delete;
+
+ private:
+  HeapHandle& heap_handle_;
+};
+
+/**
+ * Avoids invoking garbage collection finalizations. Already running garbage
+ * collection phase are unaffected by this scope.
+ *
+ * Should only be used temporarily as the scope has an impact on memory usage
+ * and follow up garbage collections.
+ */
+class V8_EXPORT V8_NODISCARD NoGarbageCollectionScope final {
+  CPPGC_STACK_ALLOCATED();
+
+ public:
+  /**
+   * Enters a no garbage collection scope. Must be paired with `Leave()`. Prefer
+   * a scope instance of `NoGarbageCollectionScope`.
+   *
+   * \param heap_handle The corresponding heap.
+   */
+  static void Enter(HeapHandle& heap_handle);
+
+  /**
+   * Leaves a no garbage collection scope. Must be paired with `Enter()`. Prefer
+   * a scope instance of `NoGarbageCollectionScope`.
+   *
+   * \param heap_handle The corresponding heap.
+   */
+  static void Leave(HeapHandle& heap_handle);
+
+  /**
+   * Constructs a scoped object that automatically enters and leaves a no
+   * garbage collection scope based on its lifetime.
+   *
+   * \param heap_handle The corresponding heap.
+   */
+  explicit NoGarbageCollectionScope(HeapHandle& heap_handle);
+  ~NoGarbageCollectionScope();
+
+  NoGarbageCollectionScope(const NoGarbageCollectionScope&) = delete;
+  NoGarbageCollectionScope& operator=(const NoGarbageCollectionScope&) = delete;
+
+ private:
+  HeapHandle& heap_handle_;
 };
 
 }  // namespace subtle

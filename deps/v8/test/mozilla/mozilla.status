@@ -1068,4 +1068,10 @@
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
 
+################################################################################
+['variant == stress_concurrent_inlining', {
+  # Timeout during TurboFan optimization.
+  'ecma/FunctionObjects/15.3.1.1-3': [SKIP],
+}],
+
 ]

@@ -294,26 +294,26 @@ class IncrementalMarkingTest : public testing::TestWithHeap {
   }
 
   void FinishMarking() {
-    marker_->FinishMarking(MarkingConfig::StackState::kMayContainHeapPointers);
+    GetMarkerRef()->FinishMarking(
+        MarkingConfig::StackState::kMayContainHeapPointers);
     // Pretend do finish sweeping as StatsCollector verifies that Notify*
     // methods are called in the right order.
+    GetMarkerRef().reset();
     Heap::From(GetHeap())->stats_collector()->NotifySweepingCompleted();
   }
 
   void InitializeMarker(HeapBase& heap, cppgc::Platform* platform,
                         MarkingConfig config) {
-    marker_ =
+    GetMarkerRef() =
         MarkerFactory::CreateAndStartMarking<Marker>(heap, platform, config);
   }
 
-  Marker* marker() const { return marker_.get(); }
+  MarkerBase* marker() const { return GetMarkerRef().get(); }
 
  private:
   bool SingleStep(MarkingConfig::StackState stack_state) {
-    return marker_->IncrementalMarkingStepForTesting(stack_state);
+    return GetMarkerRef()->IncrementalMarkingStepForTesting(stack_state);
   }
-
-  std::unique_ptr<Marker> marker_;
 };
 
 constexpr IncrementalMarkingTest::MarkingConfig
@@ -348,9 +348,8 @@ TEST_F(IncrementalMarkingTest,
   InitializeMarker(*Heap::From(GetHeap()), GetPlatformHandle().get(),
                    IncrementalPreciseMarkingConfig);
   root->SetChild(MakeGarbageCollected<GCed>(GetAllocationHandle()));
-  HeapObjectHeader& header = HeapObjectHeader::FromPayload(root->child());
-  EXPECT_FALSE(header.IsMarked());
   FinishSteps(MarkingConfig::StackState::kNoHeapPointers);
+  HeapObjectHeader& header = HeapObjectHeader::FromPayload(root->child());
   EXPECT_TRUE(header.IsMarked());
   FinishMarking();
 }

@@ -39,6 +39,10 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
 
   SetTracingFlags(shared->PassesFilter(FLAG_trace_turbo_filter));
   ConfigureFlags();
+
+  if (isolate->node_observer()) {
+    SetNodeObserver(isolate->node_observer());
+  }
 }
 
 OptimizedCompilationInfo::OptimizedCompilationInfo(

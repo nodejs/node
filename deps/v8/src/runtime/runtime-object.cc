@@ -164,12 +164,12 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
       receiver->SetProperties(ReadOnlyRoots(isolate).empty_fixed_array());
     } else {
       Object filler = ReadOnlyRoots(isolate).one_pointer_filler_map();
-      JSObject::cast(*receiver).RawFastPropertyAtPut(index, filler);
+      JSObject::cast(*receiver).FastPropertyAtPut(index, filler);
       // We must clear any recorded slot for the deleted property, because
       // subsequent object modifications might put a raw double there.
       // Slot clearing is the reason why this entire function cannot currently
       // be implemented in the DeleteProperty stub.
-      if (index.is_inobject() && !receiver_map->IsUnboxedDoubleField(index)) {
+      if (index.is_inobject()) {
         // We need to clear the recorded slot in this case because in-object
         // slack tracking might not be finished. This ensures that we don't
         // have recorded slots in free space.
@@ -358,6 +358,38 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
   return ReadOnlyRoots(isolate).false_value();
 }
 
+RUNTIME_FUNCTION(Runtime_HasOwnConstDataProperty) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, property, 1);
+
+  bool success;
+  LookupIterator::Key key(isolate, property, &success);
+  if (!success) return ReadOnlyRoots(isolate).undefined_value();
+
+  if (object->IsJSObject()) {
+    Handle<JSObject> js_obj = Handle<JSObject>::cast(object);
+    LookupIterator it(isolate, js_obj, key, js_obj, LookupIterator::OWN);
+
+    switch (it.state()) {
+      case LookupIterator::NOT_FOUND:
+        return isolate->heap()->ToBoolean(false);
+      case LookupIterator::DATA:
+        return isolate->heap()->ToBoolean(it.constness() ==
+                                          PropertyConstness::kConst);
+      default:
+        return ReadOnlyRoots(isolate).undefined_value();
+    }
+  }
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_IsDictPropertyConstTrackingEnabled) {
+  return isolate->heap()->ToBoolean(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
+}
+
 RUNTIME_FUNCTION(Runtime_AddDictionaryProperty) {
   HandleScope scope(isolate);
   Handle<JSObject> receiver = args.at<JSObject>(0);
@@ -366,7 +398,8 @@ RUNTIME_FUNCTION(Runtime_AddDictionaryProperty) {
 
   DCHECK(name->IsUniqueName());
 
-  PropertyDetails property_details(kData, NONE, PropertyCellType::kNoCell);
+  PropertyDetails property_details(
+      kData, NONE, PropertyDetails::kConstIfDictConstnessTracking);
   if (V8_DICT_MODE_PROTOTYPES_BOOL) {
     Handle<OrderedNameDictionary> dictionary(
         receiver->property_dictionary_ordered(), isolate);

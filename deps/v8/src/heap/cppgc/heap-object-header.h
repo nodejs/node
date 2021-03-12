@@ -73,6 +73,9 @@ class HeapObjectHeader {
   inline void SetSize(size_t size);
 
   template <AccessMode mode = AccessMode::kNonAtomic>
+  inline size_t PayloadSize() const;
+
+  template <AccessMode mode = AccessMode::kNonAtomic>
   inline bool IsLargeObject() const;
 
   template <AccessMode = AccessMode::kNonAtomic>
@@ -199,6 +202,11 @@ size_t HeapObjectHeader::GetSize() const {
 void HeapObjectHeader::SetSize(size_t size) {
   DCHECK(!IsMarked());
   encoded_low_ |= EncodeSize(size);
+}
+
+template <AccessMode mode>
+size_t HeapObjectHeader::PayloadSize() const {
+  return GetSize<mode>() - sizeof(HeapObjectHeader);
 }
 
 template <AccessMode mode>

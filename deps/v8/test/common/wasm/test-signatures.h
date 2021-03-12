@@ -47,6 +47,7 @@ class TestSignatures {
         sig_v_iii(0, 3, kIntTypes4),
         sig_v_e(0, 1, kExternRefTypes4),
         sig_v_c(0, 1, kFuncTypes4),
+        sig_v_d(0, 1, kDoubleTypes4),
         sig_s_i(1, 1, kSimd128IntTypes4),
         sig_s_s(1, 1, kSimd128Types4),
         sig_s_ss(1, 2, kSimd128Types4),
@@ -111,6 +112,7 @@ class TestSignatures {
   FunctionSig* v_iii() { return &sig_v_iii; }
   FunctionSig* v_e() { return &sig_v_e; }
   FunctionSig* v_c() { return &sig_v_c; }
+  FunctionSig* v_d() { return &sig_v_d; }
   FunctionSig* s_i() { return &sig_s_i; }
   FunctionSig* s_s() { return &sig_s_s; }
   FunctionSig* s_ss() { return &sig_s_ss; }
@@ -178,6 +180,7 @@ class TestSignatures {
   FunctionSig sig_v_iii;
   FunctionSig sig_v_e;
   FunctionSig sig_v_c;
+  FunctionSig sig_v_d;
   FunctionSig sig_s_i;
   FunctionSig sig_s_s;
   FunctionSig sig_s_ss;

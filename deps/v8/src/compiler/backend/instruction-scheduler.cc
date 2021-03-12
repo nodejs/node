@@ -305,7 +305,6 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
 
     case kArchPrepareCallCFunction:
     case kArchPrepareTailCall:
-    case kArchTailCallCodeObjectFromJSFunction:
     case kArchTailCallCodeObject:
     case kArchTailCallAddress:
     case kArchTailCallWasm:

@@ -19,10 +19,10 @@ namespace internal {
 
 namespace {
 
-#define DOUBLE_VALUE 12345.123456789
-#define STRING_VALUE "12345.123456789"
+#define DOUBLE_VALUE 28.123456789
+#define STRING_VALUE "28.123456789"
 #define ARRAY_VALUE \
-  { '1', '2', '3', '4', '5', '.', '1', '2', '3', '4', '5', '6', '7', '8', '9' }
+  { '2', '8', '.', '1', '2', '3', '4', '5', '6', '7', '8', '9' }
 
 // Adapted from cctest/test-api.cc, and
 // test/cctest/heap/test-external-string-tracker.cc.
@@ -100,7 +100,6 @@ class ConcurrentStringThread final : public v8::base::Thread {
 
 // Inspect a one byte string, while the main thread externalizes it.
 TEST(InspectOneByteExternalizing) {
-  heap::EnsureFlagLocalHeapsEnabled();
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
 
@@ -146,7 +145,6 @@ TEST(InspectOneByteExternalizing) {
 // Inspect a one byte string, while the main thread externalizes it into a two
 // bytes string.
 TEST(InspectOneIntoTwoByteExternalizing) {
-  heap::EnsureFlagLocalHeapsEnabled();
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
 
@@ -189,7 +187,6 @@ TEST(InspectOneIntoTwoByteExternalizing) {
 
 // Inspect a two byte string, while the main thread externalizes it.
 TEST(InspectTwoByteExternalizing) {
-  heap::EnsureFlagLocalHeapsEnabled();
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
 
@@ -202,8 +199,7 @@ TEST(InspectTwoByteExternalizing) {
   // TODO(solanes): Can we have only one raw string?
   const char* raw_string = STRING_VALUE;
   // TODO(solanes): Is this the best way to create a two byte string from chars?
-  const int kLength = 15;
-  DCHECK_EQ(kLength, strlen(raw_string));
+  const int kLength = 12;
   const uint16_t two_byte_array[kLength] = ARRAY_VALUE;
   Handle<String> two_bytes_string;
   {

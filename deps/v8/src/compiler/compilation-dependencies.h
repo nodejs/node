@@ -45,21 +45,9 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   // Record the assumption that {map} stays stable.
   void DependOnStableMap(const MapRef& map);
 
-  // Record the assumption that {target_map} can be transitioned to, i.e., that
-  // it does not become deprecated.
-  void DependOnTransition(const MapRef& target_map);
-
   // Return the pretenure mode of {site} and record the assumption that it does
   // not change.
   AllocationType DependOnPretenureMode(const AllocationSiteRef& site);
-
-  // Record the assumption that the field representation of a field does not
-  // change. The field is identified by the arguments.
-  void DependOnFieldRepresentation(const MapRef& map, InternalIndex descriptor);
-
-  // Record the assumption that the field type of a field does not change. The
-  // field is identified by the arguments.
-  void DependOnFieldType(const MapRef& map, InternalIndex descriptor);
 
   // Return a field's constness and, if kConst, record the assumption that it
   // remains kConst. The field is identified by the arguments.
@@ -110,22 +98,27 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   SlackTrackingPrediction DependOnInitialMapInstanceSizePrediction(
       const JSFunctionRef& function);
 
-  // The methods below allow for gathering dependencies without actually
-  // recording them. They can be recorded at a later time (or they can be
-  // ignored). For example,
-  //   DependOnTransition(map);
-  // is equivalent to:
-  //   RecordDependency(TransitionDependencyOffTheRecord(map));
+  // Records {dependency} if not null.
   void RecordDependency(CompilationDependency const* dependency);
+
+  // The methods below allow for gathering dependencies without actually
+  // recording them. They can be recorded at a later time via RecordDependency
+  // (or they can be ignored).
+
+  // Gather the assumption that {target_map} can be transitioned to, i.e., that
+  // it does not become deprecated.
   CompilationDependency const* TransitionDependencyOffTheRecord(
       const MapRef& target_map) const;
+
+  // Gather the assumption that the field representation of a field does not
+  // change. The field is identified by the arguments.
   CompilationDependency const* FieldRepresentationDependencyOffTheRecord(
       const MapRef& map, InternalIndex descriptor) const;
+
+  // Gather the assumption that the field type of a field does not change. The
+  // field is identified by the arguments.
   CompilationDependency const* FieldTypeDependencyOffTheRecord(
       const MapRef& map, InternalIndex descriptor) const;
-
-  // Exposed only for testing purposes.
-  bool AreValid() const;
 
  private:
   Zone* const zone_;

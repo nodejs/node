@@ -10,15 +10,18 @@
 
 namespace cppgc {
 
-// Indicator for the stack state of the embedder.
+/**
+ *  Indicator for the stack state of the embedder.
+ */
 enum class EmbedderStackState {
+  /**
+   * Stack may contain interesting heap pointers.
+   */
   kMayContainHeapPointers,
+  /**
+   * Stack does not contain any interesting heap pointers.
+   */
   kNoHeapPointers,
-  kUnknown V8_ENUM_DEPRECATED("Use kMayContainHeapPointers") =
-      kMayContainHeapPointers,
-  kNonEmpty V8_ENUM_DEPRECATED("Use kMayContainHeapPointers") =
-      kMayContainHeapPointers,
-  kEmpty V8_ENUM_DEPRECATED("Use kNoHeapPointers") = kNoHeapPointers,
 };
 
 }  // namespace cppgc

@@ -26,6 +26,9 @@ AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
   DCHECK(state == Heap::TEAR_DOWN || state == Heap::NOT_IN_GC);
 #endif
 
+  // Each allocation is supposed to be a safepoint.
+  Safepoint();
+
   bool large_object = size_in_bytes > Heap::MaxRegularHeapObjectSize(type);
   CHECK_EQ(type, AllocationType::kOld);
 

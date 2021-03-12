@@ -573,7 +573,7 @@ void GCTracer::PrintNVP() const {
           "mutator=%.1f "
           "gc=%s "
           "reduce_memory=%d "
-          "stop_the_world=%.2f "
+          "time_to_safepoint=%.2f "
           "heap.prologue=%.2f "
           "heap.epilogue=%.2f "
           "heap.epilogue.reduce_new_space=%.2f "
@@ -593,6 +593,7 @@ void GCTracer::PrintNVP() const {
           "scavenge.sweep_array_buffers=%.2f "
           "background.scavenge.parallel=%.2f "
           "background.unmapper=%.2f "
+          "unmapper=%.2f "
           "incremental.steps_count=%d "
           "incremental.steps_took=%.1f "
           "scavenge_throughput=%.f "
@@ -614,7 +615,7 @@ void GCTracer::PrintNVP() const {
           "unmapper_chunks=%d "
           "context_disposal_rate=%.1f\n",
           duration, spent_in_mutator, current_.TypeName(true),
-          current_.reduce_memory, current_.scopes[Scope::STOP_THE_WORLD],
+          current_.reduce_memory, current_.scopes[Scope::TIME_TO_SAFEPOINT],
           current_.scopes[Scope::HEAP_PROLOGUE],
           current_.scopes[Scope::HEAP_EPILOGUE],
           current_.scopes[Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE],
@@ -636,6 +637,7 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::SCAVENGER_SWEEP_ARRAY_BUFFERS],
           current_.scopes[Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL],
           current_.scopes[Scope::BACKGROUND_UNMAPPER],
+          current_.scopes[Scope::UNMAPPER],
           current_.incremental_marking_scopes[GCTracer::Scope::MC_INCREMENTAL]
               .steps,
           current_.scopes[Scope::MC_INCREMENTAL],
@@ -660,7 +662,7 @@ void GCTracer::PrintNVP() const {
           "reduce_memory=%d "
           "minor_mc=%.2f "
           "finish_sweeping=%.2f "
-          "stop_the_world=%.2f "
+          "time_to_safepoint=%.2f "
           "mark=%.2f "
           "mark.seed=%.2f "
           "mark.roots=%.2f "
@@ -678,12 +680,13 @@ void GCTracer::PrintNVP() const {
           "background.evacuate.copy=%.2f "
           "background.evacuate.update_pointers=%.2f "
           "background.unmapper=%.2f "
+          "unmapper=%.2f "
           "update_marking_deque=%.2f "
           "reset_liveness=%.2f\n",
           duration, spent_in_mutator, "mmc", current_.reduce_memory,
           current_.scopes[Scope::MINOR_MC],
           current_.scopes[Scope::MINOR_MC_SWEEPING],
-          current_.scopes[Scope::STOP_THE_WORLD],
+          current_.scopes[Scope::TIME_TO_SAFEPOINT],
           current_.scopes[Scope::MINOR_MC_MARK],
           current_.scopes[Scope::MINOR_MC_MARK_SEED],
           current_.scopes[Scope::MINOR_MC_MARK_ROOTS],
@@ -702,6 +705,7 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MINOR_MC_BACKGROUND_EVACUATE_COPY],
           current_.scopes[Scope::MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS],
           current_.scopes[Scope::BACKGROUND_UNMAPPER],
+          current_.scopes[Scope::UNMAPPER],
           current_.scopes[Scope::MINOR_MC_MARKING_DEQUE],
           current_.scopes[Scope::MINOR_MC_RESET_LIVENESS]);
       break;
@@ -712,7 +716,7 @@ void GCTracer::PrintNVP() const {
           "mutator=%.1f "
           "gc=%s "
           "reduce_memory=%d "
-          "stop_the_world=%.2f "
+          "time_to_safepoint=%.2f "
           "heap.prologue=%.2f "
           "heap.embedder_tracing_epilogue=%.2f "
           "heap.epilogue=%.2f "
@@ -740,7 +744,6 @@ void GCTracer::PrintNVP() const {
           "evacuate.update_pointers=%.1f "
           "evacuate.update_pointers.to_new_roots=%.1f "
           "evacuate.update_pointers.slots.main=%.1f "
-          "evacuate.update_pointers.slots.map_space=%.1f "
           "evacuate.update_pointers.weak=%.1f "
           "finish=%.1f "
           "finish.sweep_array_buffers=%.1f "
@@ -784,6 +787,7 @@ void GCTracer::PrintNVP() const {
           "background.evacuate.copy=%.1f "
           "background.evacuate.update_pointers=%.1f "
           "background.unmapper=%.1f "
+          "unmapper=%.1f "
           "total_size_before=%zu "
           "total_size_after=%zu "
           "holes_size_before=%zu "
@@ -803,7 +807,7 @@ void GCTracer::PrintNVP() const {
           "context_disposal_rate=%.1f "
           "compaction_speed=%.f\n",
           duration, spent_in_mutator, current_.TypeName(true),
-          current_.reduce_memory, current_.scopes[Scope::STOP_THE_WORLD],
+          current_.reduce_memory, current_.scopes[Scope::TIME_TO_SAFEPOINT],
           current_.scopes[Scope::HEAP_PROLOGUE],
           current_.scopes[Scope::HEAP_EMBEDDER_TRACING_EPILOGUE],
           current_.scopes[Scope::HEAP_EPILOGUE],
@@ -831,7 +835,6 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN],
-          current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAP_SPACE],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_WEAK],
           current_.scopes[Scope::MC_FINISH],
           current_.scopes[Scope::MC_FINISH_SWEEP_ARRAY_BUFFERS],
@@ -882,9 +885,10 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_BACKGROUND_EVACUATE_COPY],
           current_.scopes[Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS],
           current_.scopes[Scope::BACKGROUND_UNMAPPER],
-          current_.start_object_size, current_.end_object_size,
-          current_.start_holes_size, current_.end_holes_size,
-          allocated_since_last_gc, heap_->promoted_objects_size(),
+          current_.scopes[Scope::UNMAPPER], current_.start_object_size,
+          current_.end_object_size, current_.start_holes_size,
+          current_.end_holes_size, allocated_since_last_gc,
+          heap_->promoted_objects_size(),
           heap_->semi_space_copied_object_size(),
           heap_->nodes_died_in_new_space_, heap_->nodes_copied_in_new_space_,
           heap_->nodes_promoted_, heap_->promotion_ratio_,

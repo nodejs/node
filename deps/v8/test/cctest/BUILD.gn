@@ -60,6 +60,8 @@ v8_header_set("cctest_headers") {
     "../..:internal_config_base",
   ]
 
+  deps = [ "../..:v8_config_headers" ]
+
   sources = [ "cctest.h" ]
 }
 
@@ -88,7 +90,7 @@ v8_source_set("cctest_sources") {
     "compiler/codegen-tester.h",
     "compiler/function-tester.cc",
     "compiler/function-tester.h",
-    "compiler/graph-builder-tester.h",
+    "compiler/node-observer-tester.h",
     "compiler/serializer-tester.cc",
     "compiler/serializer-tester.h",
     "compiler/test-basic-block-profiler.cc",
@@ -128,6 +130,7 @@ v8_source_set("cctest_sources") {
     "compiler/test-run-tail-calls.cc",
     "compiler/test-run-unwinding-info.cc",
     "compiler/test-run-variables.cc",
+    "compiler/test-sloppy-equality.cc",
     "compiler/value-helper.cc",
     "compiler/value-helper.h",
     "disasm-regex-helper.cc",
@@ -211,6 +214,7 @@ v8_source_set("cctest_sources") {
     "test-compiler.cc",
     "test-concurrent-descriptor-array.cc",
     "test-concurrent-feedback-vector.cc",
+    "test-concurrent-js-array.cc",
     "test-concurrent-prototype.cc",
     "test-concurrent-script-context-table.cc",
     "test-concurrent-string.cc",
@@ -247,6 +251,7 @@ v8_source_set("cctest_sources") {
     "test-inobject-slack-tracking.cc",
     "test-inspector.cc",
     "test-intl.cc",
+    "test-js-to-wasm.cc",
     "test-js-weak-refs.cc",
     "test-liveedit.cc",
     "test-local-handles.cc",
@@ -261,6 +266,7 @@ v8_source_set("cctest_sources") {
     "test-persistent-handles.cc",
     "test-platform.cc",
     "test-profile-generator.cc",
+    "test-property-details.cc",
     "test-random-number-generator.cc",
     "test-regexp.cc",
     "test-representation.cc",
@@ -270,6 +276,7 @@ v8_source_set("cctest_sources") {
     "test-smi-lexicographic-compare.cc",
     "test-strings.cc",
     "test-strtod.cc",
+    "test-swiss-name-dictionary.cc",
     "test-symbols.cc",
     "test-thread-termination.cc",
     "test-threads.cc",
@@ -279,7 +286,6 @@ v8_source_set("cctest_sources") {
     "test-transitions.h",
     "test-typedarrays.cc",
     "test-types.cc",
-    "test-unboxed-doubles.cc",
     "test-unscopables-hidden-prototype.cc",
     "test-unwinder-code-pages.cc",
     "test-usecounters.cc",
@@ -406,6 +412,14 @@ v8_source_set("cctest_sources") {
       "test-assembler-s390.cc",
       "test-disasm-s390.cc",
     ]
+  } else if (v8_current_cpu == "riscv64") {
+    sources += [  ### gcmole(arch:riscv64) ###
+      "test-assembler-riscv64.cc",
+      "test-disasm-riscv64.cc",
+      "test-helper-riscv64.cc",
+      "test-macro-assembler-riscv64.cc",
+      "test-simple-riscv64.cc",
+    ]
   }
 
   if (v8_use_perfetto) {
@@ -434,7 +448,10 @@ v8_source_set("cctest_sources") {
   ]
 
   defines = []
-  deps = [ "../..:run_torque" ]
+  deps = [
+    "../..:run_torque",
+    "../..:v8_shared_internal_headers",
+  ]
 
   if (v8_enable_i18n_support) {
     defines += [ "V8_INTL_SUPPORT" ]
@@ -448,7 +465,8 @@ v8_source_set("cctest_sources") {
       v8_current_cpu == "arm" || v8_current_cpu == "arm64" ||
       v8_current_cpu == "s390" || v8_current_cpu == "s390x" ||
       v8_current_cpu == "mips" || v8_current_cpu == "mips64" ||
-      v8_current_cpu == "mipsel" || v8_current_cpu == "mipsel64") {
+      v8_current_cpu == "mipsel" || v8_current_cpu == "mipsel64" ||
+      v8_current_cpu == "riscv64") {
     # Disable fmadd/fmsub so that expected results match generated code in
     # RunFloat64MulAndFloat64Add1 and friends.
     if (!is_win) {

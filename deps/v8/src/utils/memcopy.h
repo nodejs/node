@@ -255,6 +255,11 @@ inline void MemsetPointer(T** dest, U* value, size_t counter) {
                 reinterpret_cast<Address>(value), counter);
 }
 
+template <typename T>
+inline void MemsetPointer(T** dest, std::nullptr_t, size_t counter) {
+  MemsetPointer(reinterpret_cast<Address*>(dest), Address{0}, counter);
+}
+
 // Copy from 8bit/16bit chars to 8bit/16bit chars. Values are zero-extended if
 // needed. Ranges are not allowed to overlap.
 // The separate declaration is needed for the V8_NONNULL, which is not allowed

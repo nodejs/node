@@ -102,6 +102,18 @@ constexpr Register kGpReturnRegisters[] = {r2, r3};
 constexpr DoubleRegister kFpParamRegisters[] = {d0, d2};
 constexpr DoubleRegister kFpReturnRegisters[] = {d0, d2};
 
+#elif V8_TARGET_ARCH_RISCV64
+// ===========================================================================
+// == riscv64 =================================================================
+// ===========================================================================
+// Note that kGpParamRegisters and kFpParamRegisters are used in
+// Builtins::Generate_WasmCompileLazy (builtins-riscv64.cc)
+constexpr Register kGpParamRegisters[] = {a0, a2, a3, a4, a5, a6};
+constexpr Register kGpReturnRegisters[] = {a0, a1};
+constexpr DoubleRegister kFpParamRegisters[] = {fa0, fa1, fa2, fa3,
+                                                fa4, fa5, fa6};
+constexpr DoubleRegister kFpReturnRegisters[] = {fa0, fa1};
+
 #else
 // ===========================================================================
 // == unknown ================================================================

@@ -5,13 +5,13 @@
 #ifndef V8_OBJECTS_COMPRESSED_SLOTS_H_
 #define V8_OBJECTS_COMPRESSED_SLOTS_H_
 
-#ifdef V8_COMPRESS_POINTERS
-
+#include "include/v8config.h"
 #include "src/objects/slots.h"
 
 namespace v8 {
 namespace internal {
 
+#ifdef V8_COMPRESS_POINTERS
 // A CompressedObjectSlot instance describes a kTaggedSize-sized field ("slot")
 // holding a compressed tagged pointer (smi or heap object).
 // Its address() is the address of the slot.
@@ -141,9 +141,9 @@ class OffHeapCompressedObjectSlot
   inline void Release_CompareAndSwap(Object old, Object target) const;
 };
 
+#endif  // V8_COMPRESS_POINTERS
+
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_COMPRESS_POINTERS
 
 #endif  // V8_OBJECTS_COMPRESSED_SLOTS_H_

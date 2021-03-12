@@ -36,13 +36,11 @@ class FieldStatsCollector : public ObjectVisitor {
   FieldStatsCollector(size_t* tagged_fields_count,
                       size_t* embedder_fields_count,
                       size_t* inobject_smi_fields_count,
-                      size_t* unboxed_double_fields_count,
                       size_t* boxed_double_fields_count,
                       size_t* string_data_count, size_t* raw_fields_count)
       : tagged_fields_count_(tagged_fields_count),
         embedder_fields_count_(embedder_fields_count),
         inobject_smi_fields_count_(inobject_smi_fields_count),
-        unboxed_double_fields_count_(unboxed_double_fields_count),
         boxed_double_fields_count_(boxed_double_fields_count),
         string_data_count_(string_data_count),
         raw_fields_count_(raw_fields_count) {}
@@ -68,20 +66,9 @@ class FieldStatsCollector : public ObjectVisitor {
       *embedder_fields_count_ += field_stats.embedded_fields_count_;
 
       // Smi fields are also included into pointer words.
-      DCHECK_LE(
-          field_stats.unboxed_double_fields_count_ * kDoubleSize / kTaggedSize,
-          raw_fields_count_in_object);
       tagged_fields_count_in_object -= field_stats.smi_fields_count_;
       *tagged_fields_count_ -= field_stats.smi_fields_count_;
       *inobject_smi_fields_count_ += field_stats.smi_fields_count_;
-
-      // The rest are data words.
-      DCHECK_LE(
-          field_stats.unboxed_double_fields_count_ * kDoubleSize / kTaggedSize,
-          raw_fields_count_in_object);
-      raw_fields_count_in_object -=
-          field_stats.unboxed_double_fields_count_ * kDoubleSize / kTaggedSize;
-      *unboxed_double_fields_count_ += field_stats.unboxed_double_fields_count_;
     } else if (host.IsHeapNumber()) {
       DCHECK_LE(kDoubleSize / kTaggedSize, raw_fields_count_in_object);
       raw_fields_count_in_object -= kDoubleSize / kTaggedSize;
@@ -117,14 +104,10 @@ class FieldStatsCollector : public ObjectVisitor {
 
  private:
   struct JSObjectFieldStats {
-    JSObjectFieldStats()
-        : embedded_fields_count_(0),
-          smi_fields_count_(0),
-          unboxed_double_fields_count_(0) {}
+    JSObjectFieldStats() : embedded_fields_count_(0), smi_fields_count_(0) {}
 
     unsigned embedded_fields_count_ : kDescriptorIndexBitCount;
     unsigned smi_fields_count_ : kDescriptorIndexBitCount;
-    unsigned unboxed_double_fields_count_ : kDescriptorIndexBitCount;
   };
   std::unordered_map<Map, JSObjectFieldStats, Object::Hasher>
       field_stats_cache_;
@@ -134,7 +117,6 @@ class FieldStatsCollector : public ObjectVisitor {
   size_t* const tagged_fields_count_;
   size_t* const embedder_fields_count_;
   size_t* const inobject_smi_fields_count_;
-  size_t* const unboxed_double_fields_count_;
   size_t* const boxed_double_fields_count_;
   size_t* const string_data_count_;
   size_t* const raw_fields_count_;
@@ -157,10 +139,6 @@ FieldStatsCollector::GetInobjectFieldStats(Map map) {
         FieldIndex index = FieldIndex::ForDescriptor(map, descriptor);
         // Stop on first out-of-object field.
         if (!index.is_inobject()) break;
-        if (details.representation().IsDouble() &&
-            map.IsUnboxedDoubleField(index)) {
-          ++stats.unboxed_double_fields_count_;
-        }
         if (details.representation().IsSmi()) {
           ++stats.smi_fields_count_;
         }
@@ -184,7 +162,6 @@ void ObjectStats::ClearObjectStats(bool clear_last_time_stats) {
   tagged_fields_count_ = 0;
   embedder_fields_count_ = 0;
   inobject_smi_fields_count_ = 0;
-  unboxed_double_fields_count_ = 0;
   boxed_double_fields_count_ = 0;
   string_data_count_ = 0;
   raw_fields_count_ = 0;
@@ -247,8 +224,6 @@ void ObjectStats::PrintJSON(const char* key) {
          embedder_fields_count_ * kEmbedderDataSlotSize);
   PrintF(", \"inobject_smi_fields\": %zu",
          inobject_smi_fields_count_ * kTaggedSize);
-  PrintF(", \"unboxed_double_fields\": %zu",
-         unboxed_double_fields_count_ * kDoubleSize);
   PrintF(", \"boxed_double_fields\": %zu",
          boxed_double_fields_count_ * kDoubleSize);
   PrintF(", \"string_data\": %zu", string_data_count_ * kTaggedSize);
@@ -307,8 +282,6 @@ void ObjectStats::Dump(std::stringstream& stream) {
          << (embedder_fields_count_ * kEmbedderDataSlotSize);
   stream << ",\"inobject_smi_fields\": "
          << (inobject_smi_fields_count_ * kTaggedSize);
-  stream << ",\"unboxed_double_fields\": "
-         << (unboxed_double_fields_count_ * kDoubleSize);
   stream << ",\"boxed_double_fields\": "
          << (boxed_double_fields_count_ * kDoubleSize);
   stream << ",\"string_data\": " << (string_data_count_ * kTaggedSize);
@@ -475,7 +448,6 @@ ObjectStatsCollectorImpl::ObjectStatsCollectorImpl(Heap* heap,
       field_stats_collector_(
           &stats->tagged_fields_count_, &stats->embedder_fields_count_,
           &stats->inobject_smi_fields_count_,
-          &stats->unboxed_double_fields_count_,
           &stats->boxed_double_fields_count_, &stats->string_data_count_,
           &stats->raw_fields_count_) {}
 

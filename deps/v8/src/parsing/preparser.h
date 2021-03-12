@@ -567,7 +567,7 @@ class PreParserFactory {
   }
   PreParserExpression NewObjectLiteral(
       const PreParserExpressionList& properties, int boilerplate_properties,
-      int pos, bool has_rest_property) {
+      int pos, bool has_rest_property, Variable* home_object = nullptr) {
     return PreParserExpression::ObjectLiteral();
   }
   PreParserExpression NewVariableProxy(void* variable) {
@@ -876,6 +876,7 @@ struct ParserTypes<PreParser> {
 
   // Return types for traversing functions.
   using ClassLiteralProperty = PreParserExpression;
+  using ClassLiteralStaticElement = PreParserExpression;
   using Expression = PreParserExpression;
   using FunctionLiteral = PreParserExpression;
   using ObjectLiteralProperty = PreParserExpression;
@@ -885,6 +886,7 @@ struct ParserTypes<PreParser> {
   using FormalParameters = PreParserFormalParameters;
   using Identifier = PreParserIdentifier;
   using ClassPropertyList = PreParserPropertyList;
+  using ClassStaticElementList = PreParserPropertyList;
   using StatementList = PreParserScopedStatementList;
   using Block = PreParserBlock;
   using BreakableStatement = PreParserStatement;
@@ -1239,6 +1241,11 @@ class PreParser : public ParserBase<PreParser> {
     }
   }
 
+  V8_INLINE void AddClassStaticBlock(PreParserBlock block,
+                                     ClassInfo* class_info) {
+    DCHECK(class_info->has_static_elements);
+  }
+
   V8_INLINE PreParserExpression
   RewriteClassLiteral(ClassScope* scope, const PreParserIdentifier& name,
                       ClassInfo* class_info, int pos, int end_pos) {
@@ -1260,7 +1267,7 @@ class PreParser : public ParserBase<PreParser> {
       FunctionState function_state(&function_state_, &scope_, function_scope);
       GetNextFunctionLiteralId();
     }
-    if (class_info->has_static_class_fields) {
+    if (class_info->has_static_elements) {
       GetNextFunctionLiteralId();
     }
     if (class_info->has_instance_members) {
@@ -1544,9 +1551,6 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE PreParserExpression NewSuperPropertyReference(int pos) {
-    scope()->NewUnresolved(factory()->ast_node_factory(),
-                           ast_value_factory()->this_function_string(), pos,
-                           NORMAL_VARIABLE);
     return PreParserExpression::Default();
   }
 
@@ -1601,6 +1605,10 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE PreParserPropertyList NewClassPropertyList(int size) const {
+    return PreParserPropertyList();
+  }
+
+  V8_INLINE PreParserPropertyList NewClassStaticElementList(int size) const {
     return PreParserPropertyList();
   }
 

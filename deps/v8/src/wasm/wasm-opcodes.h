@@ -47,7 +47,8 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(Let, 0x17, _ /* typed_funcref prototype */) \
   V(Delegate, 0x18, _ /* eh_prototype */)       \
   V(CatchAll, 0x19, _ /* eh_prototype */)       \
-  V(BrOnNull, 0xd4, _ /* gc prototype */)
+  V(BrOnNull, 0xd4, _ /* gc prototype */)       \
+  V(NopForTestingUnsupportedInLiftoff, 0x16, _)
 
 // Constants, locals, globals, and calls.
 #define FOREACH_MISC_OPCODE(V)                            \
@@ -295,6 +296,16 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(S128Load32Zero, 0xfdfc, s_i)   \
   V(S128Load64Zero, 0xfdfd, s_i)
 
+#define FOREACH_SIMD_MEM_1_OPERAND_OPCODE(V) \
+  V(S128Load8Lane, 0xfd58, s_is)             \
+  V(S128Load16Lane, 0xfd59, s_is)            \
+  V(S128Load32Lane, 0xfd5a, s_is)            \
+  V(S128Load64Lane, 0xfd5b, s_is)            \
+  V(S128Store8Lane, 0xfd5c, v_is)            \
+  V(S128Store16Lane, 0xfd5d, v_is)           \
+  V(S128Store32Lane, 0xfd5e, v_is)           \
+  V(S128Store64Lane, 0xfd5f, v_is)
+
 #define FOREACH_SIMD_CONST_OPCODE(V) V(S128Const, 0xfd0c, _)
 
 #define FOREACH_SIMD_MASK_OPERAND_OPCODE(V) V(I8x16Shuffle, 0xfd0d, s_ss)
@@ -337,6 +348,12 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I32x4LeU, 0xfd3e, s_ss)                  \
   V(I32x4GeS, 0xfd3f, s_ss)                  \
   V(I32x4GeU, 0xfd40, s_ss)                  \
+  V(I64x2Eq, 0xfdc0, s_ss)                   \
+  V(I64x2LtS, 0xfd74, s_ss)                  \
+  V(I64x2GtS, 0xfd7a, s_ss)                  \
+  V(I64x2LeS, 0xfdee, s_ss)                  \
+  V(I64x2GeS, 0xfde2, s_ss)                  \
+  V(I64x2Ne, 0xfdd0, s_ss)                   \
   V(F32x4Eq, 0xfd41, s_ss)                   \
   V(F32x4Ne, 0xfd42, s_ss)                   \
   V(F32x4Lt, 0xfd43, s_ss)                   \
@@ -357,7 +374,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(S128Select, 0xfd52, s_sss)               \
   V(I8x16Abs, 0xfd60, s_s)                   \
   V(I8x16Neg, 0xfd61, s_s)                   \
-  V(V8x16AnyTrue, 0xfd62, i_s)               \
+  V(V128AnyTrue, 0xfd62, i_s)                \
   V(V8x16AllTrue, 0xfd63, i_s)               \
   V(I8x16BitMask, 0xfd64, i_s)               \
   V(I8x16SConvertI16x8, 0xfd65, s_ss)        \
@@ -376,9 +393,9 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I8x16MaxS, 0xfd78, s_ss)                 \
   V(I8x16MaxU, 0xfd79, s_ss)                 \
   V(I8x16RoundingAverageU, 0xfd7b, s_ss)     \
+  V(I8x16Popcnt, 0xfd7c, s_s)                \
   V(I16x8Abs, 0xfd80, s_s)                   \
   V(I16x8Neg, 0xfd81, s_s)                   \
-  V(V16x8AnyTrue, 0xfd82, i_s)               \
   V(V16x8AllTrue, 0xfd83, i_s)               \
   V(I16x8BitMask, 0xfd84, i_s)               \
   V(I16x8SConvertI32x4, 0xfd85, s_ss)        \
@@ -406,9 +423,11 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I16x8ExtMulHighI8x16S, 0xfd9d, s_ss)     \
   V(I16x8ExtMulLowI8x16U, 0xfd9e, s_ss)      \
   V(I16x8ExtMulHighI8x16U, 0xfd9f, s_ss)     \
+  V(I16x8Q15MulRSatS, 0xfd9c, s_ss)          \
+  V(I16x8ExtAddPairwiseI8x16S, 0xfdc2, s_s)  \
+  V(I16x8ExtAddPairwiseI8x16U, 0xfdc3, s_s)  \
   V(I32x4Abs, 0xfda0, s_s)                   \
   V(I32x4Neg, 0xfda1, s_s)                   \
-  V(V32x4AnyTrue, 0xfda2, i_s)               \
   V(V32x4AllTrue, 0xfda3, i_s)               \
   V(I32x4BitMask, 0xfda4, i_s)               \
   V(I32x4SConvertI16x8Low, 0xfda7, s_s)      \
@@ -430,7 +449,13 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I32x4ExtMulHighI16x8S, 0xfdbd, s_ss)     \
   V(I32x4ExtMulLowI16x8U, 0xfdbe, s_ss)      \
   V(I32x4ExtMulHighI16x8U, 0xfdbf, s_ss)     \
+  V(I32x4TruncSatF64x2SZero, 0xfd55, s_s)    \
+  V(I32x4TruncSatF64x2UZero, 0xfd56, s_s)    \
+  V(I32x4ExtAddPairwiseI16x8S, 0xfda5, s_s)  \
+  V(I32x4ExtAddPairwiseI16x8U, 0xfda6, s_s)  \
+  V(I64x2Abs, 0xfda2, s_s)                   \
   V(I64x2Neg, 0xfdc1, s_s)                   \
+  V(V64x2AllTrue, 0xfdcf, i_s)               \
   V(I64x2BitMask, 0xfdc4, i_s)               \
   V(I64x2Shl, 0xfdcb, s_si)                  \
   V(I64x2ShrS, 0xfdcc, s_si)                 \
@@ -442,6 +467,10 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I64x2ExtMulHighI32x4S, 0xfdd3, s_ss)     \
   V(I64x2ExtMulLowI32x4U, 0xfdd6, s_ss)      \
   V(I64x2ExtMulHighI32x4U, 0xfdd7, s_ss)     \
+  V(I64x2SConvertI32x4Low, 0xfdc7, s_s)      \
+  V(I64x2SConvertI32x4High, 0xfdc8, s_s)     \
+  V(I64x2UConvertI32x4Low, 0xfdc9, s_s)      \
+  V(I64x2UConvertI32x4High, 0xfdca, s_s)     \
   V(F32x4Abs, 0xfde0, s_s)                   \
   V(F32x4Neg, 0xfde1, s_s)                   \
   V(F32x4Sqrt, 0xfde3, s_s)                  \
@@ -453,6 +482,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(F32x4Max, 0xfde9, s_ss)                  \
   V(F32x4Pmin, 0xfdea, s_ss)                 \
   V(F32x4Pmax, 0xfdeb, s_ss)                 \
+  V(F32x4DemoteF64x2Zero, 0xfd57, s_s)       \
   V(F64x2Abs, 0xfdec, s_s)                   \
   V(F64x2Neg, 0xfded, s_s)                   \
   V(F64x2Sqrt, 0xfdef, s_s)                  \
@@ -475,38 +505,22 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(F64x2Ceil, 0xfddc, s_s)                  \
   V(F64x2Floor, 0xfddd, s_s)                 \
   V(F64x2Trunc, 0xfdde, s_s)                 \
-  V(F64x2NearestInt, 0xfddf, s_s)
+  V(F64x2NearestInt, 0xfddf, s_s)            \
+  V(F64x2ConvertLowI32x4S, 0xfd53, s_s)      \
+  V(F64x2ConvertLowI32x4U, 0xfd54, s_s)      \
+  V(F64x2PromoteLowF32x4, 0xfd69, s_s)
 
 #define FOREACH_SIMD_POST_MVP_MEM_OPCODE(V) \
-  V(S128Load8Lane, 0xfd58, s_is)            \
-  V(S128Load16Lane, 0xfd59, s_is)           \
-  V(S128Load32Lane, 0xfd5a, s_is)           \
-  V(S128Load64Lane, 0xfd5b, s_is)           \
-  V(S128Store8Lane, 0xfd5c, v_is)           \
-  V(S128Store16Lane, 0xfd5d, v_is)          \
-  V(S128Store32Lane, 0xfd5e, v_is)          \
-  V(S128Store64Lane, 0xfd5f, v_is)          \
   V(PrefetchT, 0xfdc5, v_i)                 \
   V(PrefetchNT, 0xfdc6, v_i)
 
 #define FOREACH_SIMD_POST_MVP_OPCODE(V)     \
   V(I8x16Mul, 0xfd75, s_ss)                 \
-  V(I8x16Popcnt, 0xfd7c, s_s)               \
   V(I8x16SignSelect, 0xfd7d, s_sss)         \
   V(I16x8SignSelect, 0xfd7e, s_sss)         \
   V(I32x4SignSelect, 0xfd7f, s_sss)         \
   V(I64x2SignSelect, 0xfd94, s_sss)         \
-  V(I16x8Q15MulRSatS, 0xfd9c, s_ss)         \
-  V(I32x4ExtAddPairwiseI16x8S, 0xfda5, s_s) \
-  V(I32x4ExtAddPairwiseI16x8U, 0xfda6, s_s) \
-  V(I16x8ExtAddPairwiseI8x16S, 0xfdc2, s_s) \
-  V(I16x8ExtAddPairwiseI8x16U, 0xfdc3, s_s) \
-  V(I64x2Eq, 0xfdc0, s_ss)                  \
   V(F32x4Qfma, 0xfdb4, s_sss)               \
-  V(I64x2SConvertI32x4Low, 0xfdc7, s_s)     \
-  V(I64x2SConvertI32x4High, 0xfdc8, s_s)    \
-  V(I64x2UConvertI32x4Low, 0xfdc9, s_s)     \
-  V(I64x2UConvertI32x4High, 0xfdca, s_s)    \
   V(F32x4Qfms, 0xfdd4, s_sss)               \
   V(F64x2Qfma, 0xfdfe, s_sss)               \
   V(F64x2Qfms, 0xfdff, s_sss)               \
@@ -542,12 +556,13 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V) \
   FOREACH_SIMD_1_OPERAND_2_PARAM_OPCODE(V)
 
-#define FOREACH_SIMD_OPCODE(V)        \
-  FOREACH_SIMD_0_OPERAND_OPCODE(V)    \
-  FOREACH_SIMD_1_OPERAND_OPCODE(V)    \
-  FOREACH_SIMD_MASK_OPERAND_OPCODE(V) \
-  FOREACH_SIMD_MEM_OPCODE(V)          \
-  FOREACH_SIMD_POST_MVP_MEM_OPCODE(V) \
+#define FOREACH_SIMD_OPCODE(V)         \
+  FOREACH_SIMD_0_OPERAND_OPCODE(V)     \
+  FOREACH_SIMD_1_OPERAND_OPCODE(V)     \
+  FOREACH_SIMD_MASK_OPERAND_OPCODE(V)  \
+  FOREACH_SIMD_MEM_OPCODE(V)           \
+  FOREACH_SIMD_MEM_1_OPERAND_OPCODE(V) \
+  FOREACH_SIMD_POST_MVP_MEM_OPCODE(V)  \
   FOREACH_SIMD_CONST_OPCODE(V)
 
 #define FOREACH_NUMERIC_OPCODE(V)                         \
@@ -663,7 +678,16 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(RttSub, 0xfb31, _)           \
   V(RefTest, 0xfb40, _)          \
   V(RefCast, 0xfb41, _)          \
-  V(BrOnCast, 0xfb42, _)
+  V(BrOnCast, 0xfb42, _)         \
+  V(RefIsFunc, 0xfb50, _)        \
+  V(RefIsData, 0xfb51, _)        \
+  V(RefIsI31, 0xfb52, _)         \
+  V(RefAsFunc, 0xfb58, _)        \
+  V(RefAsData, 0xfb59, _)        \
+  V(RefAsI31, 0xfb5a, _)         \
+  V(BrOnFunc, 0xfb60, _)         \
+  V(BrOnData, 0xfb61, _)         \
+  V(BrOnI31, 0xfb62, _)
 
 #define FOREACH_ATOMIC_0_OPERAND_OPCODE(V)                      \
   /* AtomicFence does not target a particular linear memory. */ \
@@ -853,18 +877,17 @@ class WasmInitExpr {
     return expr;
   }
 
-  static WasmInitExpr RttCanon(HeapType::Representation heap_type) {
+  static WasmInitExpr RttCanon(uint32_t index) {
     WasmInitExpr expr;
     expr.kind_ = kRttCanon;
-    expr.immediate_.heap_type = heap_type;
+    expr.immediate_.index = index;
     return expr;
   }
 
-  static WasmInitExpr RttSub(HeapType::Representation heap_type,
-                             WasmInitExpr supertype) {
+  static WasmInitExpr RttSub(uint32_t index, WasmInitExpr supertype) {
     WasmInitExpr expr;
     expr.kind_ = kRttSub;
-    expr.immediate_.heap_type = heap_type;
+    expr.immediate_.index = index;
     expr.operand_ = std::make_unique<WasmInitExpr>(std::move(supertype));
     return expr;
   }
@@ -880,6 +903,7 @@ class WasmInitExpr {
         return true;
       case kGlobalGet:
       case kRefFuncConst:
+      case kRttCanon:
         return immediate().index == other.immediate().index;
       case kI32Const:
         return immediate().i32_const == other.immediate().i32_const;
@@ -892,10 +916,9 @@ class WasmInitExpr {
       case kS128Const:
         return immediate().s128_const == other.immediate().s128_const;
       case kRefNullConst:
-      case kRttCanon:
         return immediate().heap_type == other.immediate().heap_type;
       case kRttSub:
-        return immediate().heap_type == other.immediate().heap_type &&
+        return immediate().index == other.immediate().index &&
                *operand() == *other.operand();
     }
   }

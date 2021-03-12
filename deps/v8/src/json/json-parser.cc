@@ -520,8 +520,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       Map::GeneralizeField(isolate(), target, descriptor_index,
                            details.constness(), expected_representation,
                            value_type);
-    } else if (!FLAG_unbox_double_fields &&
-               expected_representation.IsDouble() && value->IsSmi()) {
+    } else if (expected_representation.IsDouble() && value->IsSmi()) {
       new_mutable_double++;
     }
 
@@ -581,18 +580,6 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       descriptor++;
 
       if (details.representation().IsDouble()) {
-        if (object->IsUnboxedDoubleField(index)) {
-          uint64_t bits;
-          if (value.IsSmi()) {
-            bits = bit_cast<uint64_t>(static_cast<double>(Smi::ToInt(value)));
-          } else {
-            DCHECK(value.IsHeapNumber());
-            bits = HeapNumber::cast(value).value_as_bits();
-          }
-          object->RawFastDoublePropertyAsBitsAtPut(index, bits);
-          continue;
-        }
-
         if (value.IsSmi()) {
           if (kTaggedSize != kDoubleSize) {
             // Write alignment filler.

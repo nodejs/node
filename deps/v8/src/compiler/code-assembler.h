@@ -742,7 +742,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
         Load(MachineTypeOf<Type>::value, base, needs_poisoning));
   }
   template <class Type>
-  TNode<Type> Load(Node* base, SloppyTNode<WordT> offset,
+  TNode<Type> Load(Node* base, TNode<WordT> offset,
                    LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
     return UncheckedCast<Type>(
         Load(MachineTypeOf<Type>::value, base, offset, needs_poisoning));
@@ -996,17 +996,17 @@ class V8_EXPORT_PRIVATE CodeAssembler {
         IntPtrSub(static_cast<Node*>(left), static_cast<Node*>(right)));
   }
 
-  TNode<WordT> WordShl(SloppyTNode<WordT> value, int shift);
-  TNode<WordT> WordShr(SloppyTNode<WordT> value, int shift);
-  TNode<WordT> WordSar(SloppyTNode<WordT> value, int shift);
+  TNode<WordT> WordShl(TNode<WordT> value, int shift);
+  TNode<WordT> WordShr(TNode<WordT> value, int shift);
+  TNode<WordT> WordSar(TNode<WordT> value, int shift);
   TNode<IntPtrT> WordShr(TNode<IntPtrT> value, int shift) {
-    return UncheckedCast<IntPtrT>(WordShr(static_cast<Node*>(value), shift));
+    return UncheckedCast<IntPtrT>(WordShr(TNode<WordT>(value), shift));
   }
   TNode<IntPtrT> WordSar(TNode<IntPtrT> value, int shift) {
-    return UncheckedCast<IntPtrT>(WordSar(static_cast<Node*>(value), shift));
+    return UncheckedCast<IntPtrT>(WordSar(TNode<WordT>(value), shift));
   }
-  TNode<Word32T> Word32Shr(SloppyTNode<Word32T> value, int shift);
-  TNode<Word32T> Word32Sar(SloppyTNode<Word32T> value, int shift);
+  TNode<Word32T> Word32Shr(TNode<Word32T> value, int shift);
+  TNode<Word32T> Word32Sar(TNode<Word32T> value, int shift);
 
 // Unary
 #define DECLARE_CODE_ASSEMBLER_UNARY_OP(name, ResType, ArgType) \
@@ -1040,7 +1040,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // range, make sure that overflow detection is easy. In particular, return
   // int_min instead of int_max on arm platforms by using parameter
   // kSetOverflowToMin.
-  TNode<Int32T> TruncateFloat32ToInt32(SloppyTNode<Float32T> value);
+  TNode<Int32T> TruncateFloat32ToInt32(TNode<Float32T> value);
 
   // Projections
   template <int index, class T1, class T2>

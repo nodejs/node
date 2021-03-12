@@ -381,7 +381,8 @@ void FeedbackVector::SaturatingIncrementProfilerTicks() {
 
 // static
 void FeedbackVector::SetOptimizedCode(Handle<FeedbackVector> vector,
-                                      Handle<Code> code) {
+                                      Handle<Code> code,
+                                      FeedbackCell feedback_cell) {
   DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
   // We should only set optimized code only when there is no valid optimized
   // code or we are tiering up.
@@ -394,18 +395,46 @@ void FeedbackVector::SetOptimizedCode(Handle<FeedbackVector> vector,
   // re-mark the function for non-concurrent optimization after an OSR. We
   // should avoid these cases and also check that marker isn't
   // kCompileOptimized or kCompileOptimizedConcurrent.
-  vector->set_maybe_optimized_code(HeapObjectReference::Weak(*code));
+  vector->set_maybe_optimized_code(HeapObjectReference::Weak(*code),
+                                   kReleaseStore);
   int32_t state = vector->flags();
   state = OptimizationTierBits::update(state, GetTierForCodeKind(code->kind()));
   state = OptimizationMarkerBits::update(state, OptimizationMarker::kNone);
   vector->set_flags(state);
+  // With FLAG_turboprop, we would have an interrupt budget necessary for
+  // tiering up to Turboprop code. Once we install turboprop code, set it to a
+  // higher value as required for tiering up from Turboprop to TurboFan.
+  if (FLAG_turboprop) {
+    FeedbackVector::SetInterruptBudget(feedback_cell);
+  }
 }
 
-void FeedbackVector::ClearOptimizedCode() {
+// static
+void FeedbackVector::SetInterruptBudget(FeedbackCell feedback_cell) {
+  DCHECK(feedback_cell.value().IsFeedbackVector());
+  FeedbackVector vector = FeedbackVector::cast(feedback_cell.value());
+  // Set the interrupt budget as required for tiering up to next level. Without
+  // Turboprop, this is used only to tier up to TurboFan and hence always set to
+  // FLAG_interrupt_budget. With Turboprop, we use this budget to both tier up
+  // to Turboprop and TurboFan. When there is no optimized code, set it to
+  // FLAG_interrupt_budget required for tiering up to Turboprop. When there is
+  // optimized code, set it to a higher value required for tiering up from
+  // Turboprop to TurboFan.
+  if (FLAG_turboprop && vector.has_optimized_code()) {
+    feedback_cell.set_interrupt_budget(
+        FLAG_interrupt_budget *
+        FLAG_interrupt_budget_scale_factor_for_top_tier);
+  } else {
+    feedback_cell.set_interrupt_budget(FLAG_interrupt_budget);
+  }
+}
+
+void FeedbackVector::ClearOptimizedCode(FeedbackCell feedback_cell) {
   DCHECK(has_optimized_code());
   DCHECK_NE(optimization_tier(), OptimizationTier::kNone);
-  set_maybe_optimized_code(HeapObjectReference::ClearedValue(GetIsolate()));
-  ClearOptimizationTier();
+  set_maybe_optimized_code(HeapObjectReference::ClearedValue(GetIsolate()),
+                           kReleaseStore);
+  ClearOptimizationTier(feedback_cell);
 }
 
 void FeedbackVector::ClearOptimizationMarker() {
@@ -418,10 +447,15 @@ void FeedbackVector::SetOptimizationMarker(OptimizationMarker marker) {
   set_flags(state);
 }
 
-void FeedbackVector::ClearOptimizationTier() {
+void FeedbackVector::ClearOptimizationTier(FeedbackCell feedback_cell) {
   int32_t state = flags();
   state = OptimizationTierBits::update(state, OptimizationTier::kNone);
   set_flags(state);
+  // We are discarding the optimized code, adjust the interrupt budget
+  // so we have the correct budget required for the tier up.
+  if (FLAG_turboprop) {
+    FeedbackVector::SetInterruptBudget(feedback_cell);
+  }
 }
 
 void FeedbackVector::InitializeOptimizationState() {
@@ -434,10 +468,10 @@ void FeedbackVector::InitializeOptimizationState() {
 }
 
 void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
-    SharedFunctionInfo shared, const char* reason) {
-  MaybeObject slot = maybe_optimized_code();
+    FeedbackCell feedback_cell, SharedFunctionInfo shared, const char* reason) {
+  MaybeObject slot = maybe_optimized_code(kAcquireLoad);
   if (slot->IsCleared()) {
-    ClearOptimizationTier();
+    ClearOptimizationTier(feedback_cell);
     return;
   }
 
@@ -447,7 +481,7 @@ void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
     if (!code.deopt_already_counted()) {
       code.set_deopt_already_counted(true);
     }
-    ClearOptimizedCode();
+    ClearOptimizedCode(feedback_cell);
   }
 }
 

@@ -127,7 +127,7 @@ class V8_EXPORT_PRIVATE BytecodeNode final {
   bool operator!=(const BytecodeNode& other) const { return !(*this == other); }
 
  private:
-  template <Bytecode bytecode, AccumulatorUse accumulator_use,
+  template <Bytecode bytecode, ImplicitRegisterUse implicit_register_use,
             OperandType... operand_types>
   friend class BytecodeNodeBuilder;
 
@@ -148,12 +148,12 @@ class V8_EXPORT_PRIVATE BytecodeNode final {
     operands_[4] = operand4;
   }
 
-  template <Bytecode bytecode, AccumulatorUse accum_use>
+  template <Bytecode bytecode, ImplicitRegisterUse accum_use>
   V8_INLINE static BytecodeNode Create(BytecodeSourceInfo source_info) {
     return BytecodeNode(bytecode, 0, OperandScale::kSingle, source_info);
   }
 
-  template <Bytecode bytecode, AccumulatorUse accum_use,
+  template <Bytecode bytecode, ImplicitRegisterUse accum_use,
             OperandType operand0_type>
   V8_INLINE static BytecodeNode Create(BytecodeSourceInfo source_info,
                                        uint32_t operand0) {
@@ -163,7 +163,7 @@ class V8_EXPORT_PRIVATE BytecodeNode final {
     return BytecodeNode(bytecode, 1, scale, source_info, operand0);
   }
 
-  template <Bytecode bytecode, AccumulatorUse accum_use,
+  template <Bytecode bytecode, ImplicitRegisterUse accum_use,
             OperandType operand0_type, OperandType operand1_type>
   V8_INLINE static BytecodeNode Create(BytecodeSourceInfo source_info,
                                        uint32_t operand0, uint32_t operand1) {
@@ -175,7 +175,7 @@ class V8_EXPORT_PRIVATE BytecodeNode final {
     return BytecodeNode(bytecode, 2, scale, source_info, operand0, operand1);
   }
 
-  template <Bytecode bytecode, AccumulatorUse accum_use,
+  template <Bytecode bytecode, ImplicitRegisterUse accum_use,
             OperandType operand0_type, OperandType operand1_type,
             OperandType operand2_type>
   V8_INLINE static BytecodeNode Create(BytecodeSourceInfo source_info,
@@ -192,7 +192,7 @@ class V8_EXPORT_PRIVATE BytecodeNode final {
                         operand2);
   }
 
-  template <Bytecode bytecode, AccumulatorUse accum_use,
+  template <Bytecode bytecode, ImplicitRegisterUse accum_use,
             OperandType operand0_type, OperandType operand1_type,
             OperandType operand2_type, OperandType operand3_type>
   V8_INLINE static BytecodeNode Create(BytecodeSourceInfo source_info,
@@ -211,7 +211,7 @@ class V8_EXPORT_PRIVATE BytecodeNode final {
                         operand2, operand3);
   }
 
-  template <Bytecode bytecode, AccumulatorUse accum_use,
+  template <Bytecode bytecode, ImplicitRegisterUse accum_use,
             OperandType operand0_type, OperandType operand1_type,
             OperandType operand2_type, OperandType operand3_type,
             OperandType operand4_type>

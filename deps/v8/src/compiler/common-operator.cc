@@ -1528,7 +1528,7 @@ MachineRepresentation DeadValueRepresentationOf(Operator const* op) {
 }
 
 const Operator* CommonOperatorBuilder::FrameState(
-    BailoutId bailout_id, OutputFrameStateCombine state_combine,
+    BytecodeOffset bailout_id, OutputFrameStateCombine state_combine,
     const FrameStateFunctionInfo* function_info) {
   FrameStateInfo state_info(bailout_id, state_combine, function_info);
   return zone()->New<Operator1<FrameStateInfo>>(  // --
@@ -1623,6 +1623,17 @@ CommonOperatorBuilder::CreateFrameStateFunctionInfo(
     Handle<SharedFunctionInfo> shared_info) {
   return zone()->New<FrameStateFunctionInfo>(type, parameter_count, local_count,
                                              shared_info);
+}
+
+const FrameStateFunctionInfo*
+CommonOperatorBuilder::CreateJSToWasmFrameStateFunctionInfo(
+    FrameStateType type, int parameter_count, int local_count,
+    Handle<SharedFunctionInfo> shared_info,
+    const wasm::FunctionSig* signature) {
+  DCHECK_EQ(type, FrameStateType::kJSToWasmBuiltinContinuation);
+  DCHECK_NOT_NULL(signature);
+  return zone()->New<JSToWasmFrameStateFunctionInfo>(
+      type, parameter_count, local_count, shared_info, signature);
 }
 
 const Operator* CommonOperatorBuilder::DeadValue(MachineRepresentation rep) {

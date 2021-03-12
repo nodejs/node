@@ -86,16 +86,28 @@ class RegExp final : public AllStatic {
     kFromJs = 1,
   };
 
+  enum class ExecQuirks {
+    kNone,
+    // Used to work around an issue in the RegExpPrototypeSplit fast path,
+    // which diverges from the spec by not creating a sticky copy of the RegExp
+    // instance and calling `exec` in a loop. If called in this context, we
+    // must not update the last_match_info on a successful match at the subject
+    // string end. See crbug.com/1075514 for more information.
+    kTreatMatchAtEndAsFailure,
+  };
+
   // See ECMA-262 section 15.10.6.2.
   // This function calls the garbage collector if necessary.
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Exec(
       Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
-      int index, Handle<RegExpMatchInfo> last_match_info);
+      int index, Handle<RegExpMatchInfo> last_match_info,
+      ExecQuirks exec_quirks = ExecQuirks::kNone);
 
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
   ExperimentalOneshotExec(Isolate* isolate, Handle<JSRegExp> regexp,
                           Handle<String> subject, int index,
-                          Handle<RegExpMatchInfo> last_match_info);
+                          Handle<RegExpMatchInfo> last_match_info,
+                          ExecQuirks exec_quirks = ExecQuirks::kNone);
 
   // Integral return values used throughout regexp code layers.
   static constexpr int kInternalRegExpFailure = 0;

@@ -34,17 +34,15 @@ void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
   // - Look up current function on the frame.
   // - Leave the frame.
   // - Restart the frame by calling the function.
-
   __ movq(rbp, rbx);
   __ movq(rdi, Operand(rbp, StandardFrameConstants::kFunctionOffset));
+  __ movq(rax, Operand(rbp, StandardFrameConstants::kArgCOffset));
   __ leave();
 
-  __ LoadTaggedPointerField(
-      rbx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  __ movzxwq(
-      rbx, FieldOperand(rbx, SharedFunctionInfo::kFormalParameterCountOffset));
-
-  __ InvokeFunction(rdi, no_reg, rbx, rbx, JUMP_FUNCTION);
+  // The arguments are already in the stack (including any necessary padding),
+  // we should not try to massage the arguments again.
+  __ movq(rbx, Immediate(kDontAdaptArgumentsSentinel));
+  __ InvokeFunction(rdi, no_reg, rbx, rax, JUMP_FUNCTION);
 }
 
 const bool LiveEdit::kFrameDropperSupported = true;

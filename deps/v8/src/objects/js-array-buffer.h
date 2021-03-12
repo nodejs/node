@@ -254,7 +254,10 @@ class JSTypedArray
   static constexpr size_t kMaxLength = v8::TypedArray::kMaxLength;
 
   // [length]: length of typed array in elements.
-  DECL_PRIMITIVE_ACCESSORS(length, size_t)
+  DECL_PRIMITIVE_GETTER(length, size_t)
+
+  DECL_GETTER(base_pointer, Object)
+  DECL_ACQUIRE_GETTER(base_pointer, Object)
 
   // ES6 9.4.5.3
   V8_WARN_UNUSED_RESULT static Maybe<bool> DefineOwnProperty(
@@ -272,6 +275,10 @@ class JSTypedArray
   // When sandbox is not enabled, it's a no-op.
   inline void AllocateExternalPointerEntries(Isolate* isolate);
 
+  // The `DataPtr` is `base_ptr + external_pointer`, and `base_ptr` is nullptr
+  // for off-heap typed arrays.
+  static constexpr bool kOffHeapDataPtrEqualsExternalPointer = true;
+
   // Use with care: returns raw pointer into heap.
   inline void* DataPtr();
 
@@ -281,6 +288,7 @@ class JSTypedArray
 
   // Whether the buffer's backing store is on-heap or off-heap.
   inline bool is_on_heap() const;
+  inline bool is_on_heap(AcquireLoadTag tag) const;
 
   // Note: this is a pointer compression specific optimization.
   // Normally, on-heap typed arrays contain HeapObject value in |base_pointer|
@@ -335,10 +343,15 @@ class JSTypedArray
 
  private:
   friend class Deserializer;
+  friend class Factory;
 
-  // [external_pointer]: TODO(v8:4153)
+  DECL_PRIMITIVE_SETTER(length, size_t)
+
   DECL_GETTER(external_pointer, Address)
   DECL_GETTER(external_pointer_raw, ExternalPointer_t)
+
+  DECL_SETTER(base_pointer, Object)
+  DECL_RELEASE_SETTER(base_pointer, Object)
 
   inline void set_external_pointer(Isolate* isolate, Address value);
 

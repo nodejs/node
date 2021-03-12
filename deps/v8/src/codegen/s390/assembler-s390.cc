@@ -241,6 +241,12 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= (1u << VECTOR_ENHANCE_FACILITY_1);
 #endif
   supported_ |= (1u << FPU);
+
+  // Set a static value on whether Simd is supported.
+  // This variable is only used for certain archs to query SupportWasmSimd128()
+  // at runtime in builtins using an extern ref. Other callers should use
+  // CpuFeatures::SupportWasmSimd128().
+  CpuFeatures::supports_wasm_simd_128_ = CpuFeatures::SupportsWasmSimd128();
 }
 
 void CpuFeatures::PrintTarget() {

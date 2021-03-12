@@ -26,6 +26,8 @@ namespace v8 {
 
 class D8Console;
 
+enum class ModuleType { kJavaScript, kJSON, kInvalid };
+
 namespace internal {
 class CancelableTaskManager;
 }  // namespace internal
@@ -534,7 +536,7 @@ class Shell : public i::AllStatic {
   static void RemoveDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
   static MaybeLocal<Promise> HostImportModuleDynamically(
       Local<Context> context, Local<ScriptOrModule> referrer,
-      Local<String> specifier);
+      Local<String> specifier, Local<FixedArray> import_assertions);
   static void ModuleResolutionSuccessCallback(
       const v8::FunctionCallbackInfo<v8::Value>& info);
   static void ModuleResolutionFailureCallback(
@@ -630,7 +632,11 @@ class Shell : public i::AllStatic {
                            int index);
   static MaybeLocal<Module> FetchModuleTree(v8::Local<v8::Module> origin_module,
                                             v8::Local<v8::Context> context,
-                                            const std::string& file_name);
+                                            const std::string& file_name,
+                                            ModuleType module_type);
+
+  static MaybeLocal<Value> JSONModuleEvaluationSteps(Local<Context> context,
+                                                     Local<Module> module);
 
   template <class T>
   static MaybeLocal<T> CompileString(Isolate* isolate, Local<Context> context,

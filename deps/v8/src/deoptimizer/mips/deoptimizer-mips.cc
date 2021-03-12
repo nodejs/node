@@ -17,13 +17,6 @@ const int Deoptimizer::kEagerWithResumeImmedArgs1PcOffset = 2 * kInstrSize;
 const int Deoptimizer::kEagerWithResumeImmedArgs2PcOffset =
     2 * kInstrSize + kSystemPointerSize;
 
-// Maximum size of a table entry generated below.
-#ifdef _MIPS_ARCH_MIPS32R6
-const int Deoptimizer::table_entry_size_ = 2 * kInstrSize;
-#else
-const int Deoptimizer::table_entry_size_ = 3 * kInstrSize;
-#endif
-
 Float32 RegisterValues::GetFloatRegister(unsigned n) const {
   return Float32::FromBits(
       static_cast<uint32_t>(double_registers_[n].get_bits()));

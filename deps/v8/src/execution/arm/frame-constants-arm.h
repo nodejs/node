@@ -16,20 +16,17 @@ namespace internal {
 // The layout of an EntryFrame is as follows:
 //            TOP OF THE STACK     LOWEST ADDRESS
 //         +---------------------+-----------------------
-//   0     |  bad frame pointer  |  <-- frame ptr
-//         |   (0xFFF.. FF)      |
+//   0     |   saved fp (r11)    |  <-- frame ptr
 //         |- - - - - - - - - - -|
-//  1..2   | saved register d8   |
+//   1     |   saved lr (r14)    |
+//         |- - - - - - - - - - -|
+//  2..3   | saved register d8   |
 //  ...    |        ...          |
-//  15..16 | saved register d15  |
+//  16..17 | saved register d15  |
 //         |- - - - - - - - - - -|
-//  17     | saved register r4   |
+//  18     | saved register r4   |
 //  ...    |        ...          |
-//  23     | saved register r10  |
-//         |- - - - - - - - - - -|
-//  24     |   saved fp (r11)    |
-//         |- - - - - - - - - - -|
-//  25     |   saved lr (r14)    |
+//  24     | saved register r10  |
 //    -----+---------------------+-----------------------
 //           BOTTOM OF THE STACK   HIGHEST ADDRESS
 class EntryFrameConstants : public AllStatic {
@@ -43,19 +40,19 @@ class EntryFrameConstants : public AllStatic {
   static constexpr int kArgvOffset = +1 * kSystemPointerSize;
 
   // These offsets refer to the immediate caller (i.e a native frame).
-  static constexpr int kDirectCallerRRegistersOffset =
-      /* bad frame pointer (-1) */
-      kPointerSize +
-      /* d8...d15 */
-      kNumDoubleCalleeSaved * kDoubleSize;
-  static constexpr int kDirectCallerFPOffset =
-      kDirectCallerRRegistersOffset +
-      /* r4...r10 (i.e. callee saved without fp) */
-      (kNumCalleeSaved - 1) * kPointerSize;
+  static constexpr int kDirectCallerFPOffset = 0;
   static constexpr int kDirectCallerPCOffset =
       kDirectCallerFPOffset + 1 * kSystemPointerSize;
+  static constexpr int kDirectCallerGeneralRegistersOffset =
+      kDirectCallerPCOffset +
+      /* saved caller PC */
+      kSystemPointerSize +
+      /* d8...d15 */
+      kNumDoubleCalleeSaved * kDoubleSize;
   static constexpr int kDirectCallerSPOffset =
-      kDirectCallerPCOffset + 1 * kSystemPointerSize;
+      kDirectCallerGeneralRegistersOffset +
+      /* r4...r10 (i.e. callee saved without fp) */
+      (kNumCalleeSaved - 1) * kSystemPointerSize;
 };
 
 class WasmCompileLazyFrameConstants : public TypedFrameConstants {
@@ -64,7 +61,10 @@ class WasmCompileLazyFrameConstants : public TypedFrameConstants {
   static constexpr int kNumberOfSavedFpParamRegs = 8;
 
   // FP-relative.
-  static constexpr int kWasmInstanceOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
+  // The instance is pushed as part of the saved registers. Being in {r3}, it is
+  // at position 1 in the list [r0, r2, r3, r6] (kGpParamRegisters sorted by
+  // number and indexed zero-based from the back).
+  static constexpr int kWasmInstanceOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
   static constexpr int kFixedFrameSizeFromFp =
       TypedFrameConstants::kFixedFrameSizeFromFp +
       kNumberOfSavedGpParamRegs * kPointerSize +

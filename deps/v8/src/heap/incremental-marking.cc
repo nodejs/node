@@ -261,11 +261,9 @@ void IncrementalMarking::StartBlackAllocation() {
   heap()->old_space()->MarkLinearAllocationAreaBlack();
   heap()->map_space()->MarkLinearAllocationAreaBlack();
   heap()->code_space()->MarkLinearAllocationAreaBlack();
-  if (FLAG_local_heaps) {
-    heap()->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
-      local_heap->MarkLinearAllocationAreaBlack();
-    });
-  }
+  heap()->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
+    local_heap->MarkLinearAllocationAreaBlack();
+  });
   if (FLAG_trace_incremental_marking) {
     heap()->isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Black allocation started\n");
@@ -277,11 +275,8 @@ void IncrementalMarking::PauseBlackAllocation() {
   heap()->old_space()->UnmarkLinearAllocationArea();
   heap()->map_space()->UnmarkLinearAllocationArea();
   heap()->code_space()->UnmarkLinearAllocationArea();
-  if (FLAG_local_heaps) {
-    heap()->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
-      local_heap->UnmarkLinearAllocationArea();
-    });
-  }
+  heap()->safepoint()->IterateLocalHeaps(
+      [](LocalHeap* local_heap) { local_heap->UnmarkLinearAllocationArea(); });
   if (FLAG_trace_incremental_marking) {
     heap()->isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Black allocation paused\n");
@@ -600,19 +595,17 @@ void IncrementalMarking::Stop() {
   is_compacting_ = false;
   FinishBlackAllocation();
 
-  if (FLAG_local_heaps) {
-    // Merge live bytes counters of background threads
-    for (auto pair : background_live_bytes_) {
-      MemoryChunk* memory_chunk = pair.first;
-      intptr_t live_bytes = pair.second;
+  // Merge live bytes counters of background threads
+  for (auto pair : background_live_bytes_) {
+    MemoryChunk* memory_chunk = pair.first;
+    intptr_t live_bytes = pair.second;
 
-      if (live_bytes) {
-        marking_state()->IncrementLiveBytes(memory_chunk, live_bytes);
-      }
+    if (live_bytes) {
+      marking_state()->IncrementLiveBytes(memory_chunk, live_bytes);
     }
-
-    background_live_bytes_.clear();
   }
+
+  background_live_bytes_.clear();
 }
 
 
@@ -876,7 +869,8 @@ void IncrementalMarking::AdvanceOnAllocation() {
   HistogramTimerScope incremental_marking_scope(
       heap_->isolate()->counters()->gc_incremental_marking());
   TRACE_EVENT0("v8", "V8.GCIncrementalMarking");
-  TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL);
+  TRACE_GC_EPOCH(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL,
+                 ThreadKind::kMain);
   ScheduleBytesToMarkBasedOnAllocation();
   Step(kMaxStepSizeInMs, GC_VIA_STACK_GUARD, StepOrigin::kV8);
 }

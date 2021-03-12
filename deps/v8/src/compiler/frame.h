@@ -51,13 +51,13 @@ class CallDescriptor;
 //
 //  slot      JS frame
 //       +-----------------+--------------------------------
-//  -n-1 |   parameter 0   |                            ^
+//  -n-1 |  parameter n    |                            ^
 //       |- - - - - - - - -|                            |
-//  -n   |                 |                          Caller
+//  -n   |  parameter n-1  |                          Caller
 //  ...  |       ...       |                       frame slots
-//  -2   |  parameter n-1  |                       (slot < 0)
+//  -2   |  parameter 1    |                       (slot < 0)
 //       |- - - - - - - - -|                            |
-//  -1   |   parameter n   |                            v
+//  -1   |  parameter 0    |                            v
 //  -----+-----------------+--------------------------------
 //   0   |   return addr   |   ^                        ^
 //       |- - - - - - - - -|   |                        |

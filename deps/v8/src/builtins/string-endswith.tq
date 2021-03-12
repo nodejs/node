@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(tebbi): This could be replaced with a fast C-call to
+// TODO(turbofan): This could be replaced with a fast C-call to
 // CompareCharsUnsigned.
 macro IsSubstringAt<A: type, B: type>(
     string: ConstSlice<A>, searchStr: ConstSlice<B>, start: intptr): bool {

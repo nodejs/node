@@ -36,7 +36,7 @@ class BasicBlockProfilerData {
     DCHECK_EQ(block_ids_.size(), counts_.size());
     return block_ids_.size();
   }
-  const double* counts() const { return &counts_[0]; }
+  const uint32_t* counts() const { return &counts_[0]; }
 
   void SetCode(const std::ostringstream& os);
   void SetFunctionName(std::unique_ptr<char[]> name);
@@ -62,7 +62,7 @@ class BasicBlockProfilerData {
 
   // These vectors are indexed by reverse post-order block number.
   std::vector<int32_t> block_ids_;
-  std::vector<double> counts_;
+  std::vector<uint32_t> counts_;
   std::string function_name_;
   std::string schedule_;
   std::string code_;

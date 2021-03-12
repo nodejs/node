@@ -32,7 +32,7 @@ macro StoreElement<ElementsAccessor : type extends ElementsKind, T: type>(
 StoreElement<array::FastPackedSmiElements, Smi>(implicit context: Context)(
     elements: FixedArrayBase, index: Smi, value: Smi) {
   const elems: FixedArray = UnsafeCast<FixedArray>(elements);
-  StoreFixedArrayElement(elems, index, value, SKIP_WRITE_BARRIER);
+  StoreFixedArrayElement(elems, index, value);
 }
 
 StoreElement<array::FastPackedObjectElements, JSAny>(implicit context: Context)(

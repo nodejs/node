@@ -44,7 +44,6 @@ bool CanConsiderForInlining(JSHeapBroker* broker,
                              << feedback_vector << " (missing data)");
     return false;
   }
-
   TRACE("Considering " << shared << " for inlining with " << feedback_vector);
   return true;
 }
@@ -57,12 +56,13 @@ bool CanConsiderForInlining(JSHeapBroker* broker,
     return false;
   }
 
-  if (!function.serialized()) {
+  if (!function.serialized() || !function.serialized_code_and_feedback()) {
     TRACE_BROKER_MISSING(
         broker, "data for " << function << " (cannot consider for inlining)");
     TRACE("Cannot consider " << function << " for inlining (missing data)");
     return false;
   }
+
   return CanConsiderForInlining(broker, function.shared(),
                                 function.feedback_vector());
 }
@@ -111,12 +111,9 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
   if (m.IsCheckClosure()) {
     DCHECK(!out.functions[0].has_value());
     FeedbackCellRef feedback_cell(broker(), FeedbackCellOf(m.op()));
-    SharedFunctionInfoRef shared_info =
-        feedback_cell.shared_function_info().value();
+    SharedFunctionInfoRef shared_info = *feedback_cell.shared_function_info();
     out.shared_info = shared_info;
-    if (feedback_cell.value().IsFeedbackVector() &&
-        CanConsiderForInlining(broker(), shared_info,
-                               feedback_cell.value().AsFeedbackVector())) {
+    if (CanConsiderForInlining(broker(), shared_info, *feedback_cell.value())) {
       out.bytecode[0] = shared_info.GetBytecodeArray();
     }
     out.num_functions = 1;
@@ -129,9 +126,8 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
     FeedbackCellRef feedback_cell = n.GetFeedbackCellRefChecked(broker());
     SharedFunctionInfoRef shared_info(broker(), p.shared_info());
     out.shared_info = shared_info;
-    if (feedback_cell.value().IsFeedbackVector() &&
-        CanConsiderForInlining(broker(), shared_info,
-                               feedback_cell.value().AsFeedbackVector())) {
+    if (feedback_cell.value().has_value() &&
+        CanConsiderForInlining(broker(), shared_info, *feedback_cell.value())) {
       out.bytecode[0] = shared_info.GetBytecodeArray();
     }
     out.num_functions = 1;
@@ -142,6 +138,12 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
 }
 
 Reduction JSInliningHeuristic::Reduce(Node* node) {
+  if (mode() == kWasmOnly) {
+    return (node->opcode() == IrOpcode::kJSWasmCall)
+               ? inliner_.ReduceJSWasmCall(node)
+               : NoChange();
+  }
+  DCHECK_EQ(mode(), kJSOnly);
   if (!IrOpcode::IsInlineeOpcode(node->opcode())) return NoChange();
 
   if (total_inlined_bytecode_size_ >= FLAG_max_inlined_bytecode_size_absolute) {
@@ -165,8 +167,8 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
 
   bool can_inline_candidate = false, candidate_is_small = true;
   candidate.total_size = 0;
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
-  FrameStateInfo const& frame_info = FrameStateInfoOf(frame_state->op());
+  FrameState frame_state{NodeProperties::GetFrameStateInput(node)};
+  FrameStateInfo const& frame_info = frame_state.frame_state_info();
   Handle<SharedFunctionInfo> frame_shared_info;
   for (int i = 0; i < candidate.num_functions; ++i) {
     if (!candidate.bytecode[i].has_value()) {
@@ -202,10 +204,8 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
       unsigned inlined_bytecode_size = 0;
       if (candidate.functions[i].has_value()) {
         JSFunctionRef function = candidate.functions[i].value();
-        if (function.HasAttachedOptimizedCode()) {
-          inlined_bytecode_size = function.code().inlined_bytecode_size();
-          candidate.total_size += inlined_bytecode_size;
-        }
+        inlined_bytecode_size = function.code().GetInlinedBytecodeSize();
+        candidate.total_size += inlined_bytecode_size;
       }
       candidate_is_small = candidate_is_small &&
                            IsSmall(bytecode.length() + inlined_bytecode_size);
@@ -335,19 +335,18 @@ Node* JSInliningHeuristic::DuplicateStateValuesAndRename(Node* state_values,
 
 namespace {
 
-bool CollectFrameStateUniqueUses(Node* node, Node* frame_state,
+bool CollectFrameStateUniqueUses(Node* node, FrameState frame_state,
                                  NodeAndIndex* uses_buffer, size_t* use_count,
                                  size_t max_uses) {
   // Only accumulate states that are not shared with other users.
   if (frame_state->UseCount() > 1) return true;
-  if (frame_state->InputAt(kFrameStateStackInput) == node) {
+  if (frame_state.stack() == node) {
     if (*use_count >= max_uses) return false;
-    uses_buffer[*use_count] = {frame_state, kFrameStateStackInput};
+    uses_buffer[*use_count] = {frame_state, FrameState::kFrameStateStackInput};
     (*use_count)++;
   }
-  if (!CollectStateValuesOwnedUses(node,
-                                   frame_state->InputAt(kFrameStateLocalsInput),
-                                   uses_buffer, use_count, max_uses)) {
+  if (!CollectStateValuesOwnedUses(node, frame_state.locals(), uses_buffer,
+                                   use_count, max_uses)) {
     return false;
   }
   return true;
@@ -355,28 +354,28 @@ bool CollectFrameStateUniqueUses(Node* node, Node* frame_state,
 
 }  // namespace
 
-Node* JSInliningHeuristic::DuplicateFrameStateAndRename(Node* frame_state,
-                                                        Node* from, Node* to,
-                                                        StateCloneMode mode) {
+FrameState JSInliningHeuristic::DuplicateFrameStateAndRename(
+    FrameState frame_state, Node* from, Node* to, StateCloneMode mode) {
   // Only rename in states that are not shared with other users. This needs to
   // be in sync with the condition in {DuplicateFrameStateAndRename}.
   if (frame_state->UseCount() > 1) return frame_state;
-  Node* copy = mode == kChangeInPlace ? frame_state : nullptr;
-  if (frame_state->InputAt(kFrameStateStackInput) == from) {
+  Node* copy =
+      mode == kChangeInPlace ? static_cast<Node*>(frame_state) : nullptr;
+  if (frame_state.stack() == from) {
     if (!copy) {
       copy = graph()->CloneNode(frame_state);
     }
-    copy->ReplaceInput(kFrameStateStackInput, to);
+    copy->ReplaceInput(FrameState::kFrameStateStackInput, to);
   }
-  Node* locals = frame_state->InputAt(kFrameStateLocalsInput);
+  Node* locals = frame_state.locals();
   Node* new_locals = DuplicateStateValuesAndRename(locals, from, to, mode);
   if (new_locals != locals) {
     if (!copy) {
       copy = graph()->CloneNode(frame_state);
     }
-    copy->ReplaceInput(kFrameStateLocalsInput, new_locals);
+    copy->ReplaceInput(FrameState::kFrameStateLocalsInput, new_locals);
   }
-  return copy ? copy : frame_state;
+  return copy != nullptr ? FrameState{copy} : frame_state;
 }
 
 bool JSInliningHeuristic::TryReuseDispatch(Node* node, Node* callee,
@@ -538,14 +537,15 @@ bool JSInliningHeuristic::TryReuseDispatch(Node* node, Node* callee,
   Node* checkpoint_state = nullptr;
   if (checkpoint) {
     checkpoint_state = checkpoint->InputAt(0);
-    if (!CollectFrameStateUniqueUses(callee, checkpoint_state, replaceable_uses,
-                                     &replaceable_uses_count, kMaxUses)) {
+    if (!CollectFrameStateUniqueUses(callee, FrameState{checkpoint_state},
+                                     replaceable_uses, &replaceable_uses_count,
+                                     kMaxUses)) {
       return false;
     }
   }
 
   // Collect the uses to check case 3.
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  FrameState frame_state{NodeProperties::GetFrameStateInput(node)};
   if (!CollectFrameStateUniqueUses(callee, frame_state, replaceable_uses,
                                    &replaceable_uses_count, kMaxUses)) {
     return false;
@@ -582,15 +582,15 @@ bool JSInliningHeuristic::TryReuseDispatch(Node* node, Node* callee,
 
     if (checkpoint) {
       // Duplicate the checkpoint.
-      Node* new_checkpoint_state = DuplicateFrameStateAndRename(
-          checkpoint_state, callee, target,
+      FrameState new_checkpoint_state = DuplicateFrameStateAndRename(
+          FrameState{checkpoint_state}, callee, target,
           (i == num_calls - 1) ? kChangeInPlace : kCloneState);
       effect = graph()->NewNode(checkpoint->op(), new_checkpoint_state, effect,
                                 control);
     }
 
     // Duplicate the call.
-    Node* new_lazy_frame_state = DuplicateFrameStateAndRename(
+    FrameState new_lazy_frame_state = DuplicateFrameStateAndRename(
         frame_state, callee, target,
         (i == num_calls - 1) ? kChangeInPlace : kCloneState);
     inputs[0] = target;
@@ -670,6 +670,7 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate,
                                                bool small_function) {
   int const num_calls = candidate.num_functions;
   Node* const node = candidate.node;
+  DCHECK_NE(node->opcode(), IrOpcode::kJSWasmCall);
   if (num_calls == 1) {
     Reduction const reduction = inliner_.ReduceJSCall(node);
     if (reduction.Changed()) {
@@ -788,9 +789,11 @@ void JSInliningHeuristic::PrintCandidates() {
         os << ", bytecode size: " << candidate.bytecode[i]->length();
         if (candidate.functions[i].has_value()) {
           JSFunctionRef function = candidate.functions[i].value();
-          if (function.HasAttachedOptimizedCode()) {
+          unsigned inlined_bytecode_size =
+              function.code().GetInlinedBytecodeSize();
+          if (inlined_bytecode_size > 0) {
             os << ", existing opt code's inlined bytecode size: "
-               << function.code().inlined_bytecode_size();
+               << inlined_bytecode_size;
           }
         }
       } else {

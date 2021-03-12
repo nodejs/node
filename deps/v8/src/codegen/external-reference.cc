@@ -75,6 +75,72 @@ constexpr struct alignas(16) {
 } double_negate_constant = {uint64_t{0x8000000000000000},
                             uint64_t{0x8000000000000000}};
 
+constexpr struct alignas(16) {
+  uint64_t a;
+  uint64_t b;
+} wasm_i8x16_swizzle_mask = {uint64_t{0x70707070'70707070},
+                             uint64_t{0x70707070'70707070}};
+
+constexpr struct alignas(16) {
+  uint64_t a;
+  uint64_t b;
+} wasm_i8x16_popcnt_mask = {uint64_t{0x03020201'02010100},
+                            uint64_t{0x04030302'03020201}};
+
+constexpr struct alignas(16) {
+  uint64_t a;
+  uint64_t b;
+} wasm_i8x16_splat_0x01 = {uint64_t{0x01010101'01010101},
+                           uint64_t{0x01010101'01010101}};
+
+constexpr struct alignas(16) {
+  uint64_t a;
+  uint64_t b;
+} wasm_i8x16_splat_0x0f = {uint64_t{0x0F0F0F0F'0F0F0F0F},
+                           uint64_t{0x0F0F0F0F'0F0F0F0F}};
+
+constexpr struct alignas(16) {
+  uint64_t a;
+  uint64_t b;
+} wasm_i8x16_splat_0x33 = {uint64_t{0x33333333'33333333},
+                           uint64_t{0x33333333'33333333}};
+
+constexpr struct alignas(16) {
+  uint64_t a;
+  uint64_t b;
+} wasm_i8x16_splat_0x55 = {uint64_t{0x55555555'55555555},
+                           uint64_t{0x55555555'55555555}};
+
+constexpr struct alignas(16) {
+  uint64_t a;
+  uint64_t b;
+} wasm_i16x8_splat_0x0001 = {uint64_t{0x00010001'00010001},
+                             uint64_t{0x00010001'00010001}};
+
+constexpr struct alignas(16) {
+  uint64_t a;
+  uint64_t b;
+} wasm_f64x2_convert_low_i32x4_u_int_mask = {uint64_t{0x4330000043300000},
+                                             uint64_t{0x4330000043300000}};
+
+constexpr struct alignas(16) {
+  uint64_t a;
+  uint64_t b;
+} wasm_double_2_power_52 = {uint64_t{0x4330000000000000},
+                            uint64_t{0x4330000000000000}};
+
+constexpr struct alignas(16) {
+  uint64_t a;
+  uint64_t b;
+} wasm_int32_max_as_double = {uint64_t{0x41dfffffffc00000},
+                              uint64_t{0x41dfffffffc00000}};
+
+constexpr struct alignas(16) {
+  uint64_t a;
+  uint64_t b;
+} wasm_uint32_max_as_double = {uint64_t{0x41efffffffe00000},
+                               uint64_t{0x41efffffffe00000}};
+
 // Implementation of ExternalReference
 
 static ExternalReference::Type BuiltinCallTypeForResultSize(int result_size) {
@@ -432,6 +498,11 @@ ExternalReference ExternalReference::address_of_builtin_subclassing_flag() {
   return ExternalReference(&FLAG_builtin_subclassing);
 }
 
+ExternalReference
+ExternalReference::address_of_harmony_regexp_match_indices_flag() {
+  return ExternalReference(&FLAG_harmony_regexp_match_indices);
+}
+
 ExternalReference ExternalReference::address_of_runtime_stats_flag() {
   return ExternalReference(&TracingFlags::runtime_stats);
 }
@@ -480,9 +551,67 @@ ExternalReference ExternalReference::address_of_double_neg_constant() {
   return ExternalReference(reinterpret_cast<Address>(&double_negate_constant));
 }
 
+ExternalReference ExternalReference::address_of_wasm_i8x16_swizzle_mask() {
+  return ExternalReference(reinterpret_cast<Address>(&wasm_i8x16_swizzle_mask));
+}
+
+ExternalReference ExternalReference::address_of_wasm_i8x16_popcnt_mask() {
+  return ExternalReference(reinterpret_cast<Address>(&wasm_i8x16_popcnt_mask));
+}
+
+ExternalReference ExternalReference::address_of_wasm_i8x16_splat_0x01() {
+  return ExternalReference(reinterpret_cast<Address>(&wasm_i8x16_splat_0x01));
+}
+
+ExternalReference ExternalReference::address_of_wasm_i8x16_splat_0x0f() {
+  return ExternalReference(reinterpret_cast<Address>(&wasm_i8x16_splat_0x0f));
+}
+
+ExternalReference ExternalReference::address_of_wasm_i8x16_splat_0x33() {
+  return ExternalReference(reinterpret_cast<Address>(&wasm_i8x16_splat_0x33));
+}
+
+ExternalReference ExternalReference::address_of_wasm_i8x16_splat_0x55() {
+  return ExternalReference(reinterpret_cast<Address>(&wasm_i8x16_splat_0x55));
+}
+
+ExternalReference ExternalReference::address_of_wasm_i16x8_splat_0x0001() {
+  return ExternalReference(reinterpret_cast<Address>(&wasm_i16x8_splat_0x0001));
+}
+
+ExternalReference
+ExternalReference::address_of_wasm_f64x2_convert_low_i32x4_u_int_mask() {
+  return ExternalReference(
+      reinterpret_cast<Address>(&wasm_f64x2_convert_low_i32x4_u_int_mask));
+}
+
+ExternalReference ExternalReference::supports_wasm_simd_128_address() {
+  return ExternalReference(
+      reinterpret_cast<Address>(&CpuFeatures::supports_wasm_simd_128_));
+}
+
+ExternalReference ExternalReference::address_of_wasm_double_2_power_52() {
+  return ExternalReference(reinterpret_cast<Address>(&wasm_double_2_power_52));
+}
+
+ExternalReference ExternalReference::address_of_wasm_int32_max_as_double() {
+  return ExternalReference(
+      reinterpret_cast<Address>(&wasm_int32_max_as_double));
+}
+
+ExternalReference ExternalReference::address_of_wasm_uint32_max_as_double() {
+  return ExternalReference(
+      reinterpret_cast<Address>(&wasm_uint32_max_as_double));
+}
+
 ExternalReference
 ExternalReference::address_of_enable_experimental_regexp_engine() {
   return ExternalReference(&FLAG_enable_experimental_regexp_engine);
+}
+
+ExternalReference ExternalReference::thread_in_wasm_flag_address_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->thread_in_wasm_flag_address_address());
 }
 
 ExternalReference ExternalReference::is_profiling_address(Isolate* isolate) {
@@ -519,6 +648,8 @@ ExternalReference ExternalReference::invoke_accessor_getter_callback() {
 #define re_stack_check_func RegExpMacroAssemblerMIPS::CheckStackGuardState
 #elif V8_TARGET_ARCH_S390
 #define re_stack_check_func RegExpMacroAssemblerS390::CheckStackGuardState
+#elif V8_TARGET_ARCH_RISCV64
+#define re_stack_check_func RegExpMacroAssemblerRISCV::CheckStackGuardState
 #else
 UNREACHABLE();
 #endif

@@ -20,6 +20,7 @@ namespace compiler {
 class Graph;
 class JSHeapBroker;
 class Node;
+class ObserveNodeManager;
 
 // NodeIds are identifying numbers for nodes that can be used to index auxiliary
 // out-of-line data associated with each node.
@@ -58,7 +59,7 @@ class V8_EXPORT_PRIVATE Reducer {
   virtual const char* reducer_name() const = 0;
 
   // Try to reduce a node if possible.
-  virtual Reduction Reduce(Node* node) = 0;
+  Reduction Reduce(Node* node, ObserveNodeManager* observe_node_manager);
 
   // Invoked by the {GraphReducer} when all nodes are done.  Can be used to
   // do additional reductions at the end, which in turn can cause a new round
@@ -69,6 +70,9 @@ class V8_EXPORT_PRIVATE Reducer {
   static Reduction NoChange() { return Reduction(); }
   static Reduction Replace(Node* node) { return Reduction(node); }
   static Reduction Changed(Node* node) { return Reduction(node); }
+
+ private:
+  virtual Reduction Reduce(Node* node) = 0;
 };
 
 
@@ -136,7 +140,8 @@ class V8_EXPORT_PRIVATE GraphReducer
     : public NON_EXPORTED_BASE(AdvancedReducer::Editor) {
  public:
   GraphReducer(Zone* zone, Graph* graph, TickCounter* tick_counter,
-               JSHeapBroker* broker, Node* dead = nullptr);
+               JSHeapBroker* broker, Node* dead = nullptr,
+               ObserveNodeManager* observe_node_manager = nullptr);
   ~GraphReducer() override;
 
   GraphReducer(const GraphReducer&) = delete;
@@ -193,6 +198,7 @@ class V8_EXPORT_PRIVATE GraphReducer
   ZoneStack<NodeState> stack_;
   TickCounter* const tick_counter_;
   JSHeapBroker* const broker_;
+  ObserveNodeManager* const observe_node_manager_;
 };
 
 }  // namespace compiler

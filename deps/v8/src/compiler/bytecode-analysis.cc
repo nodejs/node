@@ -79,7 +79,7 @@ ResumeJumpTarget ResumeJumpTarget::AtLoopHeader(int loop_header_offset,
 }
 
 BytecodeAnalysis::BytecodeAnalysis(Handle<BytecodeArray> bytecode_array,
-                                   Zone* zone, BailoutId osr_bailout_id,
+                                   Zone* zone, BytecodeOffset osr_bailout_id,
                                    bool analyze_liveness)
     : bytecode_array_(bytecode_array),
       zone_(zone),
@@ -164,6 +164,11 @@ void UpdateInLiveness(Bytecode bytecode, BytecodeLivenessState* in_liveness,
         DCHECK(!Bytecodes::IsRegisterOutputOperandType(operand_types[i]));
         break;
     }
+  }
+
+  if (Bytecodes::WritesImplicitRegister(bytecode)) {
+    in_liveness->MarkRegisterDead(
+        interpreter::Register::FromShortStar(bytecode).index());
   }
 
   if (Bytecodes::ReadsAccumulator(bytecode)) {
@@ -307,6 +312,10 @@ void UpdateAssignments(Bytecode bytecode, BytecodeLoopAssignments* assignments,
         DCHECK(!Bytecodes::IsRegisterOutputOperandType(operand_types[i]));
         break;
     }
+  }
+
+  if (Bytecodes::WritesImplicitRegister(bytecode)) {
+    assignments->Add(interpreter::Register::FromShortStar(bytecode));
   }
 }
 

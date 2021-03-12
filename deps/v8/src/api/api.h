@@ -122,7 +122,7 @@ class RegisteredExtension {
   V(Context, Context)                          \
   V(External, Object)                          \
   V(StackTrace, FixedArray)                    \
-  V(StackFrame, StackTraceFrame)               \
+  V(StackFrame, StackFrameInfo)                \
   V(Proxy, JSProxy)                            \
   V(debug::GeneratorObject, JSGeneratorObject) \
   V(debug::Script, Script)                     \
@@ -218,7 +218,7 @@ class Utils {
   static inline Local<StackTrace> StackTraceToLocal(
       v8::internal::Handle<v8::internal::FixedArray> obj);
   static inline Local<StackFrame> StackFrameToLocal(
-      v8::internal::Handle<v8::internal::StackTraceFrame> obj);
+      v8::internal::Handle<v8::internal::StackFrameInfo> obj);
   static inline Local<Number> NumberToLocal(
       v8::internal::Handle<v8::internal::Object> obj);
   static inline Local<Integer> IntegerToLocal(

@@ -32,15 +32,6 @@ class Log {
  public:
   explicit Log(Logger* logger, std::string log_file_name);
 
-  static bool InitLogAtStart() {
-    return FLAG_log || FLAG_log_all || FLAG_log_api || FLAG_log_code ||
-           FLAG_log_handles || FLAG_log_suspect || FLAG_ll_prof ||
-           FLAG_perf_basic_prof || FLAG_perf_prof || FLAG_log_source_code ||
-           FLAG_gdbjit || FLAG_log_internal_timer_events || FLAG_prof_cpp ||
-           FLAG_trace_ic || FLAG_log_function_events || FLAG_trace_zone_stats ||
-           FLAG_turbo_profiling_log_builtins;
-  }
-
   V8_EXPORT_PRIVATE static bool IsLoggingToConsole(std::string file_name);
   V8_EXPORT_PRIVATE static bool IsLoggingToTemporaryFile(std::string file_name);
 

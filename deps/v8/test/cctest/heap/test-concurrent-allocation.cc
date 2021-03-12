@@ -83,8 +83,6 @@ class ConcurrentAllocationThread final : public v8::base::Thread {
 
 UNINITIALIZED_TEST(ConcurrentAllocationInOldSpace) {
   FLAG_max_old_space_size = 32;
-  FLAG_concurrent_allocation = true;
-  FLAG_local_heaps = true;
   FLAG_stress_concurrent_allocation = false;
 
   v8::Isolate::CreateParams create_params;
@@ -118,8 +116,6 @@ UNINITIALIZED_TEST(ConcurrentAllocationInOldSpace) {
 
 UNINITIALIZED_TEST(ConcurrentAllocationInOldSpaceFromMainThread) {
   FLAG_max_old_space_size = 4;
-  FLAG_concurrent_allocation = true;
-  FLAG_local_heaps = true;
   FLAG_stress_concurrent_allocation = false;
 
   v8::Isolate::CreateParams create_params;
@@ -167,8 +163,6 @@ class LargeObjectConcurrentAllocationThread final : public v8::base::Thread {
 
 UNINITIALIZED_TEST(ConcurrentAllocationInLargeSpace) {
   FLAG_max_old_space_size = 32;
-  FLAG_concurrent_allocation = true;
-  FLAG_local_heaps = true;
   FLAG_stress_concurrent_allocation = false;
 
   v8::Isolate::CreateParams create_params;
@@ -243,9 +237,6 @@ class ConcurrentBlackAllocationThread final : public v8::base::Thread {
 };
 
 UNINITIALIZED_TEST(ConcurrentBlackAllocation) {
-  FLAG_concurrent_allocation = true;
-  FLAG_local_heaps = true;
-
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -310,8 +301,6 @@ UNINITIALIZED_TEST(ConcurrentWriteBarrier) {
     return;
   }
   ManualGCScope manual_gc_scope;
-  FLAG_concurrent_allocation = true;
-  FLAG_local_heaps = true;
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -377,8 +366,6 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
   }
   FLAG_manual_evacuation_candidates_selection = true;
   ManualGCScope manual_gc_scope;
-  FLAG_concurrent_allocation = true;
-  FLAG_local_heaps = true;
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -393,7 +380,15 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
     i::byte buffer[i::Assembler::kDefaultBufferSize];
     MacroAssembler masm(i_isolate, v8::internal::CodeObjectRequired::kYes,
                         ExternalAssemblerBuffer(buffer, sizeof(buffer)));
+#if V8_TARGET_ARCH_ARM64
+    // Arm64 requires stack alignment.
+    UseScratchRegisterScope temps(&masm);
+    Register tmp = temps.AcquireX();
+    masm.Mov(tmp, Operand(ReadOnlyRoots(heap).undefined_value_handle()));
+    masm.Push(tmp, padreg);
+#else
     masm.Push(ReadOnlyRoots(heap).undefined_value_handle());
+#endif
     CodeDesc desc;
     masm.GetCode(i_isolate, &desc);
     Handle<Code> code_handle =

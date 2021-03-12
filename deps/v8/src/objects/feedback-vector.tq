@@ -8,6 +8,7 @@ type OptimizationTier extends uint16 constexpr 'OptimizationTier';
 bitfield struct FeedbackVectorFlags extends uint32 {
   optimization_marker: OptimizationMarker: 3 bit;
   optimization_tier: OptimizationTier: 2 bit;
+  global_ticks_at_last_runtime_profiler_interrupt: uint32: 24 bit;
 }
 
 @generateBodyDescriptor
@@ -23,7 +24,7 @@ extern class FeedbackVector extends HeapObject {
   shared_function_info: SharedFunctionInfo;
   maybe_optimized_code: Weak<Code>;
   closure_feedback_cell_array: ClosureFeedbackCellArray;
-  raw_feedback_slots[length]: MaybeObject;
+  @relaxedRead raw_feedback_slots[length]: MaybeObject;
 }
 
 extern class FeedbackMetadata extends HeapObject;

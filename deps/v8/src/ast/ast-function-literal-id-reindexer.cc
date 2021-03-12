@@ -40,8 +40,8 @@ void AstFunctionLiteralIdReindexer::VisitClassLiteral(ClassLiteral* expr) {
     Visit(expr->extends());
   }
   Visit(expr->constructor());
-  if (expr->static_fields_initializer() != nullptr) {
-    Visit(expr->static_fields_initializer());
+  if (expr->static_initializer() != nullptr) {
+    Visit(expr->static_initializer());
   }
   if (expr->instance_members_initializer_function() != nullptr) {
     Visit(expr->instance_members_initializer_function());

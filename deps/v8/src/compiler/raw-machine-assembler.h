@@ -1053,7 +1053,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 
   // A post-processing pass to add effect and control edges so that the graph
   // can be optimized and re-scheduled.
-  // TODO(tebbi): Move this to a separate class.
+  // TODO(turbofan): Move this to a separate class.
   void MakeReschedulable();
   Node* CreateNodeFromPredecessors(const std::vector<BasicBlock*>& predecessors,
                                    const std::vector<Node*>& sidetable,

@@ -217,7 +217,7 @@ void TransitionsAccessor::Reload() {
 int TransitionsAccessor::Capacity() { return transitions().Capacity(); }
 
 void TransitionsAccessor::Initialize() {
-  raw_transitions_ = map_.raw_transitions(isolate_);
+  raw_transitions_ = map_.raw_transitions(isolate_, kAcquireLoad);
   HeapObject heap_object;
   if (raw_transitions_->IsSmi() || raw_transitions_->IsCleared()) {
     encoding_ = kUninitialized;

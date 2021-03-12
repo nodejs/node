@@ -191,5 +191,26 @@ bool FreeList::IsConsistent(size_t index) const {
           !free_list_tails_[index]->Next());
 }
 
+void FreeList::CollectStatistics(
+    HeapStatistics::FreeListStatistics& free_list_stats) {
+  std::vector<size_t>& bucket_size = free_list_stats.bucket_size;
+  std::vector<size_t>& free_count = free_list_stats.free_count;
+  std::vector<size_t>& free_size = free_list_stats.free_size;
+  DCHECK(bucket_size.empty());
+  DCHECK(free_count.empty());
+  DCHECK(free_size.empty());
+  for (size_t i = 0; i < kPageSizeLog2; ++i) {
+    size_t entry_count = 0;
+    size_t entry_size = 0;
+    for (Entry* entry = free_list_heads_[i]; entry; entry = entry->Next()) {
+      ++entry_count;
+      entry_size += entry->GetSize();
+    }
+    bucket_size.push_back(static_cast<size_t>(1) << i);
+    free_count.push_back(entry_count);
+    free_size.push_back(entry_size);
+  }
+}
+
 }  // namespace internal
 }  // namespace cppgc

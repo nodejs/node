@@ -299,25 +299,27 @@ function getSequence(start, end) {
 }
 
 function spawnWorkers() {
+  function workerCode() {
+    onmessage = function(msg) {
+      if (msg.module) {
+        let module = msg.module;
+        let mem = msg.mem;
+        this.instance = new WebAssembly.Instance(module, {m: {imported_mem: mem}});
+        postMessage({instantiated: true});
+      } else {
+        let address = msg.address;
+        let sequence = msg.sequence;
+        let index = msg.index;
+        let spin = msg.spin;
+        let result = instance.exports["worker" + index](address, sequence, spin);
+        postMessage({index: index, sequence: sequence, result: result});
+      }
+    }
+  }
+
   let workers = [];
   for (let i = 0; i < kNumberOfWorker; i++) {
-    let worker = new Worker(
-        `onmessage = function(msg) {
-            if (msg.module) {
-              let module = msg.module;
-              let mem = msg.mem;
-              this.instance = new WebAssembly.Instance(module, {m: {imported_mem: mem}});
-              postMessage({instantiated: true});
-            } else {
-              let address = msg.address;
-              let sequence = msg.sequence;
-              let index = msg.index;
-              let spin = msg.spin;
-              let result = instance.exports["worker" + index](address, sequence, spin);
-              postMessage({index: index, sequence: sequence, result: result});
-            }
-        }`,
-        {type: 'string'});
+    let worker = new Worker(workerCode, {type: 'function'});
     workers.push(worker);
   }
   return workers;

@@ -82,6 +82,10 @@ Code SharedFunctionInfo::GetCode() const {
     // Having a bytecode array means we are a compiled, interpreted function.
     DCHECK(HasBytecodeArray());
     return isolate->builtins()->builtin(Builtins::kInterpreterEntryTrampoline);
+  } else if (data.IsBaselineData()) {
+    // Having BaselineData means we are a compiled, baseline function.
+    DCHECK(HasBaselineData());
+    return baseline_data().baseline_code();
   } else if (data.IsAsmWasmData()) {
     // Having AsmWasmData means we are an asm.js/wasm function.
     DCHECK(HasAsmWasmData());
@@ -452,7 +456,6 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   shared_info->set_function_literal_id(lit->function_literal_id());
   // FunctionKind must have already been set.
   DCHECK(lit->kind() == shared_info->kind());
-  shared_info->set_needs_home_object(lit->scope()->NeedsHomeObject());
   DCHECK_IMPLIES(lit->requires_instance_members_initializer(),
                  IsClassConstructor(lit->kind()));
   shared_info->set_requires_instance_members_initializer(

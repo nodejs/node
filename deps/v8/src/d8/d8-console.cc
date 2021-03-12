@@ -112,6 +112,7 @@ void D8Console::TimeEnd(const debug::ConsoleCallArguments& args,
     auto find = timers_.find(string);
     if (find != timers_.end()) {
       delta = now - find->second;
+      timers_.erase(find);
     }
     printf("console.timeEnd: %s, %f\n", *utf8, delta.InMillisecondsF());
   }

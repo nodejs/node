@@ -309,12 +309,14 @@ class WasmMemoryObject : public JSObject {
   inline bool has_maximum_pages();
 
   V8_EXPORT_PRIVATE static Handle<WasmMemoryObject> New(
-      Isolate* isolate, MaybeHandle<JSArrayBuffer> buffer, uint32_t maximum);
+      Isolate* isolate, MaybeHandle<JSArrayBuffer> buffer, int maximum);
 
   V8_EXPORT_PRIVATE static MaybeHandle<WasmMemoryObject> New(Isolate* isolate,
-                                                             uint32_t initial,
-                                                             uint32_t maximum,
+                                                             int initial,
+                                                             int maximum,
                                                              SharedFlag shared);
+
+  static constexpr int kNoMaximum = -1;
 
   void update_instances(Isolate* isolate, Handle<JSArrayBuffer> buffer);
 
@@ -339,8 +341,8 @@ class WasmGlobalObject : public JSObject {
   DECL_INT32_ACCESSORS(offset)
   DECL_INT_ACCESSORS(raw_type)
   DECL_PRIMITIVE_ACCESSORS(type, wasm::ValueType)
-  // TODO(7748): Once we improve the encoding of mutability/type, turn this back
-  // into a boolean accessor.
+  // TODO(7748): If we encode mutability in raw_type, turn this into a boolean
+  // accessor.
   DECL_INT_ACCESSORS(is_mutable)
 
   // Dispatched behavior.
@@ -418,6 +420,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(dropped_elem_segments, byte*)
   DECL_PRIMITIVE_ACCESSORS(hook_on_function_call_address, Address)
   DECL_PRIMITIVE_ACCESSORS(num_liftoff_function_calls_array, uint32_t*)
+  DECL_PRIMITIVE_ACCESSORS(break_on_entry, uint8_t)
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic. Depending on the V8 build mode there could be no padding.
@@ -466,6 +469,9 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   V(kDroppedElemSegmentsOffset, kSystemPointerSize)                       \
   V(kHookOnFunctionCallAddressOffset, kSystemPointerSize)                 \
   V(kNumLiftoffFunctionCallsArrayOffset, kSystemPointerSize)              \
+  V(kBreakOnEntryOffset, kUInt8Size)                                      \
+  /* More padding to make the header pointer-size aligned */              \
+  V(kHeaderPaddingOffset, POINTER_SIZE_PADDING(kHeaderPaddingOffset))     \
   V(kHeaderSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
@@ -573,29 +579,9 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   static wasm::WasmValue GetGlobalValue(Handle<WasmInstanceObject>,
                                         const wasm::WasmGlobal&);
 
-  // Get the name of a global in the given instance by index.
-  static MaybeHandle<String> GetGlobalNameOrNull(Isolate*,
-                                                 Handle<WasmInstanceObject>,
-                                                 uint32_t global_index);
-
-  // Get the name of a memory in the given instance by index.
-  static MaybeHandle<String> GetMemoryNameOrNull(Isolate*,
-                                                 Handle<WasmInstanceObject>,
-                                                 uint32_t memory_index);
-
-  // Get the name of a table in the given instance by index.
-  static MaybeHandle<String> GetTableNameOrNull(Isolate*,
-                                                Handle<WasmInstanceObject>,
-                                                uint32_t table_index);
-
   OBJECT_CONSTRUCTORS(WasmInstanceObject, JSObject);
 
  private:
-  // Get the name in the given instance by index and kind.
-  static MaybeHandle<String> GetNameFromImportsAndExportsOrNull(
-      Isolate*, Handle<WasmInstanceObject>, wasm::ImportExportKindCode kind,
-      uint32_t index);
-
   static void InitDataSegmentArrays(Handle<WasmInstanceObject>,
                                     Handle<WasmModuleObject>);
   static void InitElemSegmentArrays(Handle<WasmInstanceObject>,
@@ -815,6 +801,10 @@ class WasmJSFunctionData : public Struct {
 
 class WasmScript : public AllStatic {
  public:
+  // Position used for storing "on entry" breakpoints (a.k.a. instrumentation
+  // breakpoints). This would be an illegal position for any other breakpoint.
+  static constexpr int kOnEntryBreakpointPosition = -1;
+
   // Set a breakpoint on the given byte position inside the given module.
   // This will affect all live and future instances of the module.
   // The passed position might be modified to point to the next breakable
@@ -858,7 +848,8 @@ class WasmScript : public AllStatic {
   // Return an empty handle if no breakpoint is hit at that location, or a
   // FixedArray with all hit breakpoint objects.
   static MaybeHandle<FixedArray> CheckBreakPoints(Isolate*, Handle<Script>,
-                                                  int position);
+                                                  int position,
+                                                  StackFrameId stack_frame_id);
 
  private:
   // Helper functions that update the breakpoint info list.
@@ -953,11 +944,9 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, HeapObject> {
 namespace wasm {
 
 Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
-                            int struct_index, Handle<Map> rtt_parent);
+                            int struct_index, MaybeHandle<Map> rtt_parent);
 Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
-                           int array_index, Handle<Map> rtt_parent);
-Handle<Map> CreateGenericRtt(Isolate* isolate, const WasmModule* module,
-                             Handle<Map> rtt_parent);
+                           int array_index, MaybeHandle<Map> rtt_parent);
 Handle<Map> AllocateSubRtt(Isolate* isolate,
                            Handle<WasmInstanceObject> instance, uint32_t type,
                            Handle<Map> parent);

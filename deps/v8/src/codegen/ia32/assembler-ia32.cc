@@ -130,6 +130,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;
 
+  if (cpu.has_sse42() && FLAG_enable_sse4_2) supported_ |= 1u << SSE4_2;
   if (cpu.has_sse41() && FLAG_enable_sse4_1) supported_ |= 1u << SSE4_1;
   if (cpu.has_ssse3() && FLAG_enable_ssse3) supported_ |= 1u << SSSE3;
   if (cpu.has_sse3() && FLAG_enable_sse3) supported_ |= 1u << SSE3;
@@ -153,6 +154,12 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   } else if (strcmp(FLAG_mcpu, "atom") == 0) {
     supported_ |= 1u << ATOM;
   }
+
+  // Set a static value on whether Simd is supported.
+  // This variable is only used for certain archs to query SupportWasmSimd128()
+  // at runtime in builtins using an extern ref. Other callers should use
+  // CpuFeatures::SupportWasmSimd128().
+  CpuFeatures::supports_wasm_simd_128_ = CpuFeatures::SupportsWasmSimd128();
 }
 
 void CpuFeatures::PrintTarget() {}
@@ -2171,11 +2178,42 @@ void Assembler::cvtdq2ps(XMMRegister dst, Operand src) {
   emit_sse_operand(dst, src);
 }
 
+void Assembler::cvtdq2pd(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xF3);
+  EMIT(0x0F);
+  EMIT(0xE6);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::cvtps2pd(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0x5A);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::cvtpd2ps(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x5A);
+  emit_sse_operand(dst, src);
+}
+
 void Assembler::cvttps2dq(XMMRegister dst, Operand src) {
   EnsureSpace ensure_space(this);
   EMIT(0xF3);
   EMIT(0x0F);
   EMIT(0x5B);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::cvttpd2dq(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0xE6);
   emit_sse_operand(dst, src);
 }
 
@@ -2479,6 +2517,14 @@ void Assembler::movdqa(XMMRegister dst, Operand src) {
   emit_sse_operand(dst, src);
 }
 
+void Assembler::movdqa(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x6F);
+  emit_sse_operand(dst, src);
+}
+
 void Assembler::movdqu(Operand dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   EMIT(0xF3);
@@ -2583,6 +2629,16 @@ void Assembler::extractps(Register dst, XMMRegister src, byte imm8) {
   EMIT(0x17);
   emit_sse_operand(src, dst);
   EMIT(imm8);
+}
+
+void Assembler::pcmpgtq(XMMRegister dst, XMMRegister src) {
+  DCHECK(IsEnabled(SSE4_2));
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x38);
+  EMIT(0x37);
+  emit_sse_operand(dst, src);
 }
 
 void Assembler::psllw(XMMRegister reg, uint8_t shift) {
@@ -3111,6 +3167,10 @@ void Assembler::vpmovmskb(Register dst, XMMRegister src) {
 void Assembler::vextractps(Operand dst, XMMRegister src, byte imm8) {
   vinstr(0x17, src, xmm0, dst, k66, k0F3A, VexW::kWIG);
   EMIT(imm8);
+}
+
+void Assembler::vpcmpgtq(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+  vinstr(0x37, dst, src1, src2, k66, k0F38, VexW::kWIG);
 }
 
 void Assembler::bmi1(byte op, Register reg, Register vreg, Operand rm) {

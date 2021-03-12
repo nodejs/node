@@ -34,16 +34,14 @@ void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
   // - Restart the frame by calling the function.
   __ mov(ebp, eax);
   __ mov(edi, Operand(ebp, StandardFrameConstants::kFunctionOffset));
+  __ mov(eax, Operand(ebp, StandardFrameConstants::kArgCOffset));
   __ leave();
 
-  __ mov(eax, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-  __ movzx_w(
-      eax, FieldOperand(eax, SharedFunctionInfo::kFormalParameterCountOffset));
-
-  // The expected and actual argument counts don't matter as long as they match
-  // and we don't enter the ArgumentsAdaptorTrampoline.
+  // The arguments are already in the stack (including any necessary padding),
+  // we should not try to massage the arguments again.
+  __ mov(ecx, Immediate(kDontAdaptArgumentsSentinel));
   __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
-  __ InvokeFunctionCode(edi, no_reg, eax, eax, JUMP_FUNCTION);
+  __ InvokeFunctionCode(edi, no_reg, ecx, eax, JUMP_FUNCTION);
 }
 
 const bool LiveEdit::kFrameDropperSupported = true;

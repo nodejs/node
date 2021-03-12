@@ -107,6 +107,13 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   inline bool is_repl_mode() const;
   inline void set_is_repl_mode(bool value);
 
+  // [break_on_entry] (wasm only): whether an instrumentation breakpoint is set
+  // for this script; this information will be transferred to existing and
+  // future instances to make sure that we stop before executing any code in
+  // this wasm module.
+  inline bool break_on_entry() const;
+  inline void set_break_on_entry(bool value);
+
   // [origin_options]: optional attributes set by the embedder via ScriptOrigin,
   // and used by the embedder to make decisions about the script. V8 just passes
   // this through. Encoded in the 'flags' field.

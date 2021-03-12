@@ -233,10 +233,14 @@ class TestingModuleBuilder {
 
   void SetExecutable() { native_module_->SetExecutable(true); }
 
-  void TierDown() {
+  void SetTieredDown() {
     native_module_->SetTieringState(kTieredDown);
-    native_module_->RecompileForTiering();
     execution_tier_ = TestExecutionTier::kLiftoff;
+  }
+
+  void TierDown() {
+    SetTieredDown();
+    native_module_->RecompileForTiering();
   }
 
   CompilationEnv CreateCompilationEnv();

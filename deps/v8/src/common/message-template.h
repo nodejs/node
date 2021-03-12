@@ -27,8 +27,9 @@ namespace internal {
   T(ApplyNonFunction,                                                          \
     "Function.prototype.apply was called on %, which is a % and not a "        \
     "function")                                                                \
-  T(ArgumentsDisallowedInInitializer,                                          \
-    "'arguments' is not allowed in class field initializer")                   \
+  T(ArgumentsDisallowedInInitializerAndStaticBlock,                            \
+    "'arguments' is not allowed in class field initializer or static "         \
+    "initialization block")                                                    \
   T(ArrayBufferTooShort,                                                       \
     "Derived ArrayBuffer constructor created a buffer which was too small")    \
   T(ArrayBufferSpeciesThis,                                                    \
@@ -125,10 +126,14 @@ namespace internal {
   T(NonCoercibleWithProperty,                                                  \
     "Cannot destructure property '%' of '%' as it is %.")                      \
   T(NonExtensibleProto, "% is not extensible")                                 \
+  T(NonObjectAssertOption, "The 'assert' option must be an object")            \
   T(NonObjectInInstanceOfCheck,                                                \
     "Right-hand side of 'instanceof' is not an object")                        \
   T(NonObjectPropertyLoad, "Cannot read property '%' of %")                    \
   T(NonObjectPropertyStore, "Cannot set property '%' of %")                    \
+  T(NonObjectImportArgument,                                                   \
+    "The second argument to import() must be an object")                       \
+  T(NonStringImportAssertionValue, "Import assertion value must be a string")  \
   T(NoSetterInCallback, "Cannot set property % of % which has only a getter")  \
   T(NotAnIterator, "% is not an iterator")                                     \
   T(NotAPromise, "% is not a promise")                                         \
@@ -387,6 +392,7 @@ namespace internal {
   T(ForInOfLoopInitializer,                                                    \
     "% loop variable declaration may not have an initializer.")                \
   T(ForOfLet, "The left-hand side of a for-of loop may not start with 'let'.") \
+  T(ForOfAsync, "The left-hand side of a for-of loop may not be 'async'.")     \
   T(ForInOfLoopMultiBindings,                                                  \
     "Invalid left-hand side in % loop: Must have a single binding.")           \
   T(GeneratorInSingleStatementContext,                                         \

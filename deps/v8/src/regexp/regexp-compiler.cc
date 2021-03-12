@@ -954,17 +954,18 @@ static void EmitDoubleBoundaryTest(RegExpMacroAssembler* masm, int first,
 // even_label is for ranges[i] to ranges[i + 1] where i - start_index is even.
 // odd_label is for ranges[i] to ranges[i + 1] where i - start_index is odd.
 static void EmitUseLookupTable(RegExpMacroAssembler* masm,
-                               ZoneList<int>* ranges, int start_index,
-                               int end_index, int min_char, Label* fall_through,
-                               Label* even_label, Label* odd_label) {
-  static const int kSize = RegExpMacroAssembler::kTableSize;
-  static const int kMask = RegExpMacroAssembler::kTableMask;
+                               ZoneList<uc32>* ranges, uint32_t start_index,
+                               uint32_t end_index, uc32 min_char,
+                               Label* fall_through, Label* even_label,
+                               Label* odd_label) {
+  static const uint32_t kSize = RegExpMacroAssembler::kTableSize;
+  static const uint32_t kMask = RegExpMacroAssembler::kTableMask;
 
-  int base = (min_char & ~kMask);
+  uc32 base = (min_char & ~kMask);
   USE(base);
 
   // Assert that everything is on one kTableSize page.
-  for (int i = start_index; i <= end_index; i++) {
+  for (uint32_t i = start_index; i <= end_index; i++) {
     DCHECK_EQ(ranges->at(i) & ~kMask, base);
   }
   DCHECK(start_index == 0 || (ranges->at(start_index - 1) & ~kMask) <= base);
@@ -982,33 +983,35 @@ static void EmitUseLookupTable(RegExpMacroAssembler* masm,
     on_bit_clear = odd_label;
     bit = 0;
   }
-  for (int i = 0; i < (ranges->at(start_index) & kMask) && i < kSize; i++) {
+  for (uint32_t i = 0; i < (ranges->at(start_index) & kMask) && i < kSize;
+       i++) {
     templ[i] = bit;
   }
-  int j = 0;
+  uint32_t j = 0;
   bit ^= 1;
-  for (int i = start_index; i < end_index; i++) {
+  for (uint32_t i = start_index; i < end_index; i++) {
     for (j = (ranges->at(i) & kMask); j < (ranges->at(i + 1) & kMask); j++) {
       templ[j] = bit;
     }
     bit ^= 1;
   }
-  for (int i = j; i < kSize; i++) {
+  for (uint32_t i = j; i < kSize; i++) {
     templ[i] = bit;
   }
   Factory* factory = masm->isolate()->factory();
   // TODO(erikcorry): Cache these.
   Handle<ByteArray> ba = factory->NewByteArray(kSize, AllocationType::kOld);
-  for (int i = 0; i < kSize; i++) {
+  for (uint32_t i = 0; i < kSize; i++) {
     ba->set(i, templ[i]);
   }
   masm->CheckBitInTable(ba, on_bit_set);
   if (on_bit_clear != fall_through) masm->GoTo(on_bit_clear);
 }
 
-static void CutOutRange(RegExpMacroAssembler* masm, ZoneList<int>* ranges,
-                        int start_index, int end_index, int cut_index,
-                        Label* even_label, Label* odd_label) {
+static void CutOutRange(RegExpMacroAssembler* masm, ZoneList<uc32>* ranges,
+                        uint32_t start_index, uint32_t end_index,
+                        uint32_t cut_index, Label* even_label,
+                        Label* odd_label) {
   bool odd = (((cut_index - start_index) & 1) == 1);
   Label* in_range_label = odd ? odd_label : even_label;
   Label dummy;
@@ -1019,24 +1022,24 @@ static void CutOutRange(RegExpMacroAssembler* masm, ZoneList<int>* ranges,
   // Cut out the single range by rewriting the array.  This creates a new
   // range that is a merger of the two ranges on either side of the one we
   // are cutting out.  The oddity of the labels is preserved.
-  for (int j = cut_index; j > start_index; j--) {
+  for (uint32_t j = cut_index; j > start_index; j--) {
     ranges->at(j) = ranges->at(j - 1);
   }
-  for (int j = cut_index + 1; j < end_index; j++) {
+  for (uint32_t j = cut_index + 1; j < end_index; j++) {
     ranges->at(j) = ranges->at(j + 1);
   }
 }
 
 // Unicode case.  Split the search space into kSize spaces that are handled
 // with recursion.
-static void SplitSearchSpace(ZoneList<int>* ranges, int start_index,
-                             int end_index, int* new_start_index,
-                             int* new_end_index, int* border) {
-  static const int kSize = RegExpMacroAssembler::kTableSize;
-  static const int kMask = RegExpMacroAssembler::kTableMask;
+static void SplitSearchSpace(ZoneList<uc32>* ranges, uint32_t start_index,
+                             uint32_t end_index, uint32_t* new_start_index,
+                             uint32_t* new_end_index, uc32* border) {
+  static const uint32_t kSize = RegExpMacroAssembler::kTableSize;
+  static const uint32_t kMask = RegExpMacroAssembler::kTableMask;
 
-  int first = ranges->at(start_index);
-  int last = ranges->at(end_index) - 1;
+  uc32 first = ranges->at(start_index);
+  uc32 last = ranges->at(end_index) - 1;
 
   *new_start_index = start_index;
   *border = (ranges->at(start_index) & ~kMask) + kSize;
@@ -1055,7 +1058,7 @@ static void SplitSearchSpace(ZoneList<int>* ranges, int start_index,
   // 128-character space can take up a lot of space in the ranges array if,
   // for example, we only want to match every second character (eg. the lower
   // case characters on some Unicode pages).
-  int binary_chop_index = (end_index + start_index) / 2;
+  uint32_t binary_chop_index = (end_index + start_index) / 2;
   // The first test ensures that we get to the code that handles the Latin1
   // range with a single not-taken branch, speeding up this important
   // character range (even non-Latin1 charset-based text has spaces and
@@ -1064,8 +1067,8 @@ static void SplitSearchSpace(ZoneList<int>* ranges, int start_index,
       end_index - start_index > (*new_start_index - start_index) * 2 &&
       last - first > kSize * 2 && binary_chop_index > *new_start_index &&
       ranges->at(binary_chop_index) >= first + 2 * kSize) {
-    int scan_forward_for_section_border = binary_chop_index;
-    int new_border = (ranges->at(binary_chop_index) | kMask) + 1;
+    uint32_t scan_forward_for_section_border = binary_chop_index;
+    uint32_t new_border = (ranges->at(binary_chop_index) | kMask) + 1;
 
     while (scan_forward_for_section_border < end_index) {
       if (ranges->at(scan_forward_for_section_border) > new_border) {
@@ -1095,15 +1098,15 @@ static void SplitSearchSpace(ZoneList<int>* ranges, int start_index,
 // know that the character is in the range of min_char to max_char inclusive.
 // Either label can be nullptr indicating backtracking.  Either label can also
 // be equal to the fall_through label.
-static void GenerateBranches(RegExpMacroAssembler* masm, ZoneList<int>* ranges,
-                             int start_index, int end_index, uc32 min_char,
-                             uc32 max_char, Label* fall_through,
+static void GenerateBranches(RegExpMacroAssembler* masm, ZoneList<uc32>* ranges,
+                             uint32_t start_index, uint32_t end_index,
+                             uc32 min_char, uc32 max_char, Label* fall_through,
                              Label* even_label, Label* odd_label) {
   DCHECK_LE(min_char, String::kMaxUtf16CodeUnit);
   DCHECK_LE(max_char, String::kMaxUtf16CodeUnit);
 
-  int first = ranges->at(start_index);
-  int last = ranges->at(end_index) - 1;
+  uc32 first = ranges->at(start_index);
+  uc32 last = ranges->at(end_index) - 1;
 
   DCHECK_LT(min_char, first);
 
@@ -1127,9 +1130,9 @@ static void GenerateBranches(RegExpMacroAssembler* masm, ZoneList<int>* ranges,
   if (end_index - start_index <= 6) {
     // It is faster to test for individual characters, so we look for those
     // first, then try arbitrary ranges in the second round.
-    static int kNoCutIndex = -1;
-    int cut = kNoCutIndex;
-    for (int i = start_index; i < end_index; i++) {
+    static uint32_t kNoCutIndex = -1;
+    uint32_t cut = kNoCutIndex;
+    for (uint32_t i = start_index; i < end_index; i++) {
       if (ranges->at(i) == ranges->at(i + 1) - 1) {
         cut = i;
         break;
@@ -1154,16 +1157,16 @@ static void GenerateBranches(RegExpMacroAssembler* masm, ZoneList<int>* ranges,
     return;
   }
 
-  if ((min_char >> kBits) != static_cast<uc32>(first >> kBits)) {
+  if ((min_char >> kBits) != first >> kBits) {
     masm->CheckCharacterLT(first, odd_label);
     GenerateBranches(masm, ranges, start_index + 1, end_index, first, max_char,
                      fall_through, odd_label, even_label);
     return;
   }
 
-  int new_start_index = 0;
-  int new_end_index = 0;
-  int border = 0;
+  uint32_t new_start_index = 0;
+  uint32_t new_end_index = 0;
+  uc32 border = 0;
 
   SplitSearchSpace(ranges, start_index, end_index, &new_start_index,
                    &new_end_index, &border);
@@ -1260,9 +1263,8 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
   // entry at zero which goes to the failure label, but if there
   // was already one there we fall through for success on that entry.
   // Subsequent entries have alternating meaning (success/failure).
-  // TODO(jgruber,v8:10568): Change `range_boundaries` to a ZoneList<uc32>.
-  ZoneList<int>* range_boundaries =
-      zone->New<ZoneList<int>>(last_valid_range, zone);
+  ZoneList<uc32>* range_boundaries =
+      zone->New<ZoneList<uc32>>(last_valid_range, zone);
 
   bool zeroth_entry_is_failure = !cc->is_negated();
 
@@ -1277,7 +1279,7 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
     range_boundaries->Add(range.to() + 1, zone);
   }
   int end_index = range_boundaries->length() - 1;
-  if (static_cast<uc32>(range_boundaries->at(end_index)) > max_char) {
+  if (range_boundaries->at(end_index) > max_char) {
     end_index--;
   }
 

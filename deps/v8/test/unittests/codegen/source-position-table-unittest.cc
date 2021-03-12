@@ -61,7 +61,7 @@ TEST_F(SourcePositionTableTest, EncodeExpression) {
   CHECK(!builder()->ToSourcePositionTable(isolate()).is_null());
 }
 
-TEST_F(SourcePositionTableTest, EncodeAscending) {
+TEST_F(SourcePositionTableTest, EncodeAscendingPositive) {
   int code_offset = 0;
   int source_position = 0;
   for (size_t i = 0; i < arraysize(offsets); i++) {
@@ -74,7 +74,13 @@ TEST_F(SourcePositionTableTest, EncodeAscending) {
     }
   }
 
-  // Also test negative offsets for source positions:
+  CHECK(!builder()->ToSourcePositionTable(isolate()).is_null());
+}
+
+TEST_F(SourcePositionTableTest, EncodeAscendingNegative) {
+  int code_offset = 0;
+  // Start with a big source position, then decrement it.
+  int source_position = 1 << 26;
   for (size_t i = 0; i < arraysize(offsets); i++) {
     code_offset += offsets[i];
     source_position -= offsets[i];

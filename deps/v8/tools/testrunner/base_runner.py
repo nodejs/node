@@ -113,6 +113,7 @@ SLOW_ARCHS = [
   "mips64el",
   "s390",
   "s390x",
+  "riscv64"
 ]
 
 
@@ -169,6 +170,7 @@ class BuildConfig(object):
 
     self.asan = build_config['is_asan']
     self.cfi_vptr = build_config['is_cfi']
+    self.control_flow_integrity = build_config['v8_control_flow_integrity']
     self.concurrent_marking = build_config['v8_enable_concurrent_marking']
     self.dcheck_always_on = build_config['dcheck_always_on']
     self.gcov_coverage = build_config['is_gcov_coverage']
@@ -187,6 +189,7 @@ class BuildConfig(object):
     self.verify_csa = build_config['v8_enable_verify_csa']
     self.lite_mode = build_config['v8_enable_lite_mode']
     self.pointer_compression = build_config['v8_enable_pointer_compression']
+    self.webassembly = build_config['v8_enable_webassembly']
     # Export only for MIPS target
     if self.arch in ['mips', 'mipsel', 'mips64', 'mips64el']:
       self.mips_arch_variant = build_config['mips_arch_variant']
@@ -204,6 +207,8 @@ class BuildConfig(object):
       detected_options.append('asan')
     if self.cfi_vptr:
       detected_options.append('cfi_vptr')
+    if self.control_flow_integrity:
+      detected_options.append('control_flow_integrity')
     if self.dcheck_always_on:
       detected_options.append('dcheck_always_on')
     if self.gcov_coverage:
@@ -224,6 +229,8 @@ class BuildConfig(object):
       detected_options.append('lite_mode')
     if self.pointer_compression:
       detected_options.append('pointer_compression')
+    if self.webassembly:
+      detected_options.append('webassembly')
 
     return '\n'.join(detected_options)
 
@@ -351,9 +358,6 @@ class BaseTestRunner(object):
                       help="Path to a file for storing json results.")
     parser.add_option('--slow-tests-cutoff', type="int", default=100,
                       help='Collect N slowest tests')
-    parser.add_option("--junitout", help="File name of the JUnit output")
-    parser.add_option("--junittestsuite", default="v8tests",
-                      help="The testsuite name in the JUnit output file")
     parser.add_option("--exit-after-n-failures", type="int", default=100,
                       help="Exit after the first N failures instead of "
                            "running all tests. Pass 0 to disable this feature.")
@@ -634,11 +638,24 @@ class BaseTestRunner(object):
       self.build_config.arch in ['mipsel', 'mips', 'mips64', 'mips64el'] and
       self.build_config.mips_arch_variant)
 
+    no_simd_sse = any(
+        i in options.extra_flags for i in ['--noenable-sse3',
+                                           '--no-enable-sse3'
+                                           '--noenable-ssse3',
+                                           '--no-enable-ssse3',
+                                           '--noenable-sse4-1',
+                                           '--no-enable-sse4_1'])
+
+    # Set no_simd_sse on architectures without Simd enabled.
+    if self.build_config.arch == 'ppc64':
+       no_simd_sse = True
+
     return {
       "arch": self.build_config.arch,
       "asan": self.build_config.asan,
       "byteorder": sys.byteorder,
       "cfi_vptr": self.build_config.cfi_vptr,
+      "control_flow_integrity": self.build_config.control_flow_integrity,
       "concurrent_marking": self.build_config.concurrent_marking,
       "dcheck_always_on": self.build_config.dcheck_always_on,
       "deopt_fuzzer": False,
@@ -646,6 +663,7 @@ class BaseTestRunner(object):
       "gc_fuzzer": False,
       "gc_stress": False,
       "gcov_coverage": self.build_config.gcov_coverage,
+      "has_webassembly": self.build_config.webassembly,
       "isolates": options.isolates,
       "is_clang": self.build_config.is_clang,
       "is_full_debug": self.build_config.is_full_debug,
@@ -654,6 +672,7 @@ class BaseTestRunner(object):
       "msan": self.build_config.msan,
       "no_harness": options.no_harness,
       "no_i18n": self.build_config.no_i18n,
+      "no_simd_sse": no_simd_sse,
       "novfp3": False,
       "optimize_for_size": "--optimize-for-size" in options.extra_flags,
       "predictable": self.build_config.predictable,
@@ -760,9 +779,6 @@ class BaseTestRunner(object):
 
   def _create_progress_indicators(self, test_count, options):
     procs = [PROGRESS_INDICATORS[options.progress]()]
-    if options.junitout:
-      procs.append(progress.JUnitTestProgressIndicator(options.junitout,
-                                                       options.junittestsuite))
     if options.json_test_results:
       procs.append(progress.JsonTestProgressIndicator(self.framework_name))
 

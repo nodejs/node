@@ -389,12 +389,15 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   bool UsesOnlyRegisters() const;
 
-  // Returns the first stack slot that is not used by the stack parameters.
-  int GetFirstUnusedStackSlot() const;
-
   int GetStackParameterDelta(const CallDescriptor* tail_caller) const;
 
-  // Returns the number of slots to the first return value slot.
+  // Returns the first stack slot that is not used by the stack parameters,
+  // which is the return slot area, or a padding slot for frame alignment.
+  int GetFirstUnusedStackSlot() const;
+
+  // If there are return stack slots, returns the first slot of the last one.
+  // Otherwise, return the first unused slot before the parameters. This is the
+  // slot where returns would go if there were any.
   int GetOffsetToReturns() const;
 
   int GetTaggedParameterSlots() const;

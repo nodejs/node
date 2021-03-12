@@ -65,14 +65,27 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // whereas successful compilation ensures the {is_compiled} predicate on the
   // given function holds (except for live-edit, which compiles the world).
 
-  static bool Compile(Handle<SharedFunctionInfo> shared,
+  static bool Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared,
                       ClearExceptionFlag flag,
                       IsCompiledScope* is_compiled_scope);
-  static bool Compile(Handle<JSFunction> function, ClearExceptionFlag flag,
+  static bool Compile(Isolate* isolate, Handle<JSFunction> function,
+                      ClearExceptionFlag flag,
                       IsCompiledScope* is_compiled_scope);
-  static bool CompileOptimized(Handle<JSFunction> function,
+  static bool CompileBaseline(Isolate* isolate, Handle<JSFunction> function,
+                              ClearExceptionFlag flag,
+                              IsCompiledScope* is_compiled_scope);
+  static bool CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
                                ConcurrencyMode mode, CodeKind code_kind);
+  static MaybeHandle<SharedFunctionInfo> CompileToplevel(
+      ParseInfo* parse_info, Handle<Script> script, Isolate* isolate,
+      IsCompiledScope* is_compiled_scope);
 
+  static void LogFunctionCompilation(Isolate* isolate,
+                                     CodeEventListener::LogEventsAndTags tag,
+                                     Handle<SharedFunctionInfo> shared,
+                                     Handle<Script> script,
+                                     Handle<AbstractCode> abstract_code,
+                                     CodeKind kind, double time_taken_ms);
   // Collect source positions for a function that has already been compiled to
   // bytecode, but for which source positions were not collected (e.g. because
   // they were not immediately needed).
@@ -192,7 +205,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
 
   // Generate and return optimized code for OSR, or empty handle on failure.
   V8_WARN_UNUSED_RESULT static MaybeHandle<Code> GetOptimizedCodeForOSR(
-      Handle<JSFunction> function, BailoutId osr_offset,
+      Handle<JSFunction> function, BytecodeOffset osr_offset,
       JavaScriptFrame* osr_frame);
 };
 

@@ -57,6 +57,14 @@ void DeleteArray(T* array) {
   delete[] array;
 }
 
+template <typename T>
+struct ArrayDeleter {
+  void operator()(T* array) { DeleteArray(array); }
+};
+
+template <typename T>
+using ArrayUniquePtr = std::unique_ptr<T, ArrayDeleter<T>>;
+
 // The normal strdup functions use malloc.  These versions of StrDup
 // and StrNDup uses new and calls the FatalProcessOutOfMemory handler
 // if allocation fails.

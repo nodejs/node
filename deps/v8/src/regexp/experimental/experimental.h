@@ -36,9 +36,10 @@ class ExperimentalRegExp final : public AllStatic {
                                     Address backtrack_stack,
                                     RegExp::CallOrigin call_origin,
                                     Isolate* isolate, Address regexp);
-  static MaybeHandle<Object> Exec(Isolate* isolate, Handle<JSRegExp> regexp,
-                                  Handle<String> subject, int index,
-                                  Handle<RegExpMatchInfo> last_match_info);
+  static MaybeHandle<Object> Exec(
+      Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
+      int index, Handle<RegExpMatchInfo> last_match_info,
+      RegExp::ExecQuirks exec_quirks = RegExp::ExecQuirks::kNone);
   static int32_t ExecRaw(Isolate* isolate, RegExp::CallOrigin call_origin,
                          JSRegExp regexp, String subject,
                          int32_t* output_registers,
@@ -48,7 +49,8 @@ class ExperimentalRegExp final : public AllStatic {
   // its type tag.  The regexp itself is not changed (apart from lastIndex).
   static MaybeHandle<Object> OneshotExec(
       Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
-      int index, Handle<RegExpMatchInfo> last_match_info);
+      int index, Handle<RegExpMatchInfo> last_match_info,
+      RegExp::ExecQuirks exec_quirks = RegExp::ExecQuirks::kNone);
   static int32_t OneshotExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
                                 Handle<String> subject,
                                 int32_t* output_registers,

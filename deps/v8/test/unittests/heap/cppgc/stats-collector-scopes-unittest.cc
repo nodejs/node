@@ -109,7 +109,8 @@ TEST_F(CppgcTracingScopesTest, DisabledScope) {
   ResetDelegatingTracingController();
   {
     StatsCollector::DisabledScope scope(
-        *Heap::From(GetHeap()), StatsCollector::kMarkProcessMarkingWorklist);
+        Heap::From(GetHeap())->stats_collector(),
+        StatsCollector::kMarkProcessMarkingWorklist);
   }
   EXPECT_EQ(0u, DelegatingTracingControllerImpl::AddTraceEvent_callcount);
   EndGC();
@@ -121,7 +122,8 @@ TEST_F(CppgcTracingScopesTest, EnabledScope) {
     ResetDelegatingTracingController("CppGC.MarkProcessMarkingWorklist");
     {
       StatsCollector::EnabledScope scope(
-          *Heap::From(GetHeap()), StatsCollector::kMarkProcessMarkingWorklist);
+          Heap::From(GetHeap())->stats_collector(),
+          StatsCollector::kMarkProcessMarkingWorklist);
     }
     EXPECT_EQ(2u, DelegatingTracingControllerImpl::AddTraceEvent_callcount);
     EndGC();
@@ -131,7 +133,7 @@ TEST_F(CppgcTracingScopesTest, EnabledScope) {
     ResetDelegatingTracingController("CppGC.MarkProcessWriteBarrierWorklist");
     {
       StatsCollector::EnabledScope scope(
-          *Heap::From(GetHeap()),
+          Heap::From(GetHeap())->stats_collector(),
           StatsCollector::kMarkProcessWriteBarrierWorklist);
     }
     EXPECT_EQ(2u, DelegatingTracingControllerImpl::AddTraceEvent_callcount);
@@ -146,7 +148,8 @@ TEST_F(CppgcTracingScopesTest, EnabledScopeWithArgs) {
     ResetDelegatingTracingController();
     {
       StatsCollector::EnabledScope scope(
-          *Heap::From(GetHeap()), StatsCollector::kMarkProcessMarkingWorklist);
+          Heap::From(GetHeap())->stats_collector(),
+          StatsCollector::kMarkProcessMarkingWorklist);
     }
     EXPECT_EQ(2, DelegatingTracingControllerImpl::stored_num_args);
     EndGC();
@@ -156,8 +159,8 @@ TEST_F(CppgcTracingScopesTest, EnabledScopeWithArgs) {
     ResetDelegatingTracingController();
     {
       StatsCollector::EnabledScope scope(
-          *Heap::From(GetHeap()), StatsCollector::kMarkProcessMarkingWorklist,
-          "arg1", 1);
+          Heap::From(GetHeap())->stats_collector(),
+          StatsCollector::kMarkProcessMarkingWorklist, "arg1", 1);
     }
     EXPECT_EQ(3, DelegatingTracingControllerImpl::stored_num_args);
     EndGC();
@@ -167,8 +170,8 @@ TEST_F(CppgcTracingScopesTest, EnabledScopeWithArgs) {
     ResetDelegatingTracingController();
     {
       StatsCollector::EnabledScope scope(
-          *Heap::From(GetHeap()), StatsCollector::kMarkProcessMarkingWorklist,
-          "arg1", 1, "arg2", 2);
+          Heap::From(GetHeap())->stats_collector(),
+          StatsCollector::kMarkProcessMarkingWorklist, "arg1", 1, "arg2", 2);
     }
     EXPECT_EQ(4, DelegatingTracingControllerImpl::stored_num_args);
     EndGC();
@@ -181,8 +184,9 @@ TEST_F(CppgcTracingScopesTest, CheckScopeArgs) {
     ResetDelegatingTracingController();
     {
       StatsCollector::EnabledScope scope(
-          *Heap::From(GetHeap()), StatsCollector::kMarkProcessMarkingWorklist,
-          "uint_arg", 13u, "bool_arg", false);
+          Heap::From(GetHeap())->stats_collector(),
+          StatsCollector::kMarkProcessMarkingWorklist, "uint_arg", 13u,
+          "bool_arg", false);
     }
     FindArgument("uint_arg", TRACE_VALUE_TYPE_UINT, 13);
     FindArgument("bool_arg", TRACE_VALUE_TYPE_BOOL, false);
@@ -193,8 +197,9 @@ TEST_F(CppgcTracingScopesTest, CheckScopeArgs) {
     ResetDelegatingTracingController();
     {
       StatsCollector::EnabledScope scope(
-          *Heap::From(GetHeap()), StatsCollector::kMarkProcessMarkingWorklist,
-          "neg_int_arg", -5, "pos_int_arg", 7);
+          Heap::From(GetHeap())->stats_collector(),
+          StatsCollector::kMarkProcessMarkingWorklist, "neg_int_arg", -5,
+          "pos_int_arg", 7);
     }
     FindArgument("neg_int_arg", TRACE_VALUE_TYPE_INT, -5);
     FindArgument("pos_int_arg", TRACE_VALUE_TYPE_INT, 7);
@@ -207,8 +212,9 @@ TEST_F(CppgcTracingScopesTest, CheckScopeArgs) {
     const char* string_value = "test";
     {
       StatsCollector::EnabledScope scope(
-          *Heap::From(GetHeap()), StatsCollector::kMarkProcessMarkingWorklist,
-          "string_arg", string_value, "double_arg", double_value);
+          Heap::From(GetHeap())->stats_collector(),
+          StatsCollector::kMarkProcessMarkingWorklist, "string_arg",
+          string_value, "double_arg", double_value);
     }
     FindArgument("string_arg", TRACE_VALUE_TYPE_STRING,
                  reinterpret_cast<uint64_t>(string_value));
@@ -227,16 +233,17 @@ TEST_F(CppgcTracingScopesTest, InitalScopesAreZero) {
   stats_collector->NotifySweepingCompleted();
   const StatsCollector::Event& event =
       stats_collector->GetPreviousEventForTesting();
-  for (int i = 0; i < StatsCollector::kNumScopeIds; ++i) {
+  for (int i = 0; i < StatsCollector::kNumHistogramScopeIds; ++i) {
     EXPECT_TRUE(event.scope_data[i].IsZero());
   }
-  for (int i = 0; i < StatsCollector::kNumConcurrentScopeIds; ++i) {
+  for (int i = 0; i < StatsCollector::kNumHistogramConcurrentScopeIds; ++i) {
     EXPECT_EQ(0, event.concurrent_scope_data[i]);
   }
 }
 
 TEST_F(CppgcTracingScopesTest, TestIndividualScopes) {
-  for (int scope_id = 0; scope_id < StatsCollector::kNumScopeIds; ++scope_id) {
+  for (int scope_id = 0; scope_id < StatsCollector::kNumHistogramScopeIds;
+       ++scope_id) {
     StatsCollector* stats_collector = Heap::From(GetHeap())->stats_collector();
     stats_collector->NotifyMarkingStarted(
         GarbageCollector::Config::CollectionType::kMajor,
@@ -244,7 +251,7 @@ TEST_F(CppgcTracingScopesTest, TestIndividualScopes) {
     DelegatingTracingControllerImpl::check_expectations = false;
     {
       StatsCollector::EnabledScope scope(
-          *Heap::From(GetHeap()),
+          Heap::From(GetHeap())->stats_collector(),
           static_cast<StatsCollector::ScopeId>(scope_id));
       v8::base::TimeTicks time = v8::base::TimeTicks::Now();
       while (time == v8::base::TimeTicks::Now()) {
@@ -255,21 +262,21 @@ TEST_F(CppgcTracingScopesTest, TestIndividualScopes) {
     stats_collector->NotifySweepingCompleted();
     const StatsCollector::Event& event =
         stats_collector->GetPreviousEventForTesting();
-    for (int i = 0; i < StatsCollector::kNumScopeIds; ++i) {
+    for (int i = 0; i < StatsCollector::kNumHistogramScopeIds; ++i) {
       if (i == scope_id)
         EXPECT_LT(v8::base::TimeDelta(), event.scope_data[i]);
       else
         EXPECT_TRUE(event.scope_data[i].IsZero());
     }
-    for (int i = 0; i < StatsCollector::kNumConcurrentScopeIds; ++i) {
+    for (int i = 0; i < StatsCollector::kNumHistogramConcurrentScopeIds; ++i) {
       EXPECT_EQ(0, event.concurrent_scope_data[i]);
     }
   }
 }
 
 TEST_F(CppgcTracingScopesTest, TestIndividualConcurrentScopes) {
-  for (int scope_id = 0; scope_id < StatsCollector::kNumConcurrentScopeIds;
-       ++scope_id) {
+  for (int scope_id = 0;
+       scope_id < StatsCollector::kNumHistogramConcurrentScopeIds; ++scope_id) {
     StatsCollector* stats_collector = Heap::From(GetHeap())->stats_collector();
     stats_collector->NotifyMarkingStarted(
         GarbageCollector::Config::CollectionType::kMajor,
@@ -277,7 +284,7 @@ TEST_F(CppgcTracingScopesTest, TestIndividualConcurrentScopes) {
     DelegatingTracingControllerImpl::check_expectations = false;
     {
       StatsCollector::EnabledConcurrentScope scope(
-          *Heap::From(GetHeap()),
+          Heap::From(GetHeap())->stats_collector(),
           static_cast<StatsCollector::ConcurrentScopeId>(scope_id));
       v8::base::TimeTicks time = v8::base::TimeTicks::Now();
       while (time == v8::base::TimeTicks::Now()) {
@@ -288,10 +295,10 @@ TEST_F(CppgcTracingScopesTest, TestIndividualConcurrentScopes) {
     stats_collector->NotifySweepingCompleted();
     const StatsCollector::Event& event =
         stats_collector->GetPreviousEventForTesting();
-    for (int i = 0; i < StatsCollector::kNumScopeIds; ++i) {
+    for (int i = 0; i < StatsCollector::kNumHistogramScopeIds; ++i) {
       EXPECT_TRUE(event.scope_data[i].IsZero());
     }
-    for (int i = 0; i < StatsCollector::kNumConcurrentScopeIds; ++i) {
+    for (int i = 0; i < StatsCollector::kNumHistogramConcurrentScopeIds; ++i) {
       if (i == scope_id)
         EXPECT_LT(0, event.concurrent_scope_data[i]);
       else

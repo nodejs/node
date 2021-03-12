@@ -258,7 +258,7 @@ Cast<Boolean>(o: HeapObject): Boolean labels CastError {
   return Cast<Boolean>(o) otherwise CastError;
 }
 
-// TODO(tebbi): These trivial casts for union types should be generated
+// TODO(turbofan): These trivial casts for union types should be generated
 // automatically.
 
 Cast<JSPrimitive>(o: Object): JSPrimitive labels CastError {

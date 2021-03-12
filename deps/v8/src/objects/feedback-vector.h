@@ -26,6 +26,8 @@ namespace internal {
 
 class IsCompiledScope;
 
+enum class UpdateFeedbackMode { kOptionalFeedback, kGuaranteedFeedback };
+
 enum class FeedbackSlotKind : uint8_t {
   // This kind means that the slot points to the middle of other slot
   // which occupies more than one feedback vector element.
@@ -166,7 +168,9 @@ class ClosureFeedbackCellArray : public FixedArray {
 
   V8_EXPORT_PRIVATE static Handle<ClosureFeedbackCellArray> New(
       Isolate* isolate, Handle<SharedFunctionInfo> shared);
+
   inline Handle<FeedbackCell> GetFeedbackCell(int index);
+  inline FeedbackCell cell(int index);
 
   DECL_VERIFIER(ClosureFeedbackCellArray)
   DECL_PRINTER(ClosureFeedbackCellArray)
@@ -194,6 +198,11 @@ class FeedbackVector
   STATIC_ASSERT(OptimizationTier::kLastOptimizationTier <
                 OptimizationTierBits::kMax);
 
+  static const bool kFeedbackVectorMaybeOptimizedCodeIsStoreRelease = true;
+  using TorqueGeneratedFeedbackVector<FeedbackVector,
+                                      HeapObject>::maybe_optimized_code;
+  DECL_RELEASE_ACQUIRE_WEAK_ACCESSORS(maybe_optimized_code)
+
   static constexpr uint32_t kHasCompileOptimizedOrLogFirstExecutionMarker =
       kNoneOrInOptimizationQueueMask << OptimizationMarkerBits::kShift;
   static constexpr uint32_t kHasNoTopTierCodeOrCompileOptimizedMarkerMask =
@@ -217,17 +226,25 @@ class FeedbackVector
   inline bool has_optimization_marker() const;
   inline OptimizationMarker optimization_marker() const;
   inline OptimizationTier optimization_tier() const;
-  void ClearOptimizedCode();
-  void EvictOptimizedCodeMarkedForDeoptimization(SharedFunctionInfo shared,
+  inline int global_ticks_at_last_runtime_profiler_interrupt() const;
+  inline void set_global_ticks_at_last_runtime_profiler_interrupt(int ticks);
+  void ClearOptimizedCode(FeedbackCell feedback_cell);
+  void EvictOptimizedCodeMarkedForDeoptimization(FeedbackCell feedback_cell,
+                                                 SharedFunctionInfo shared,
                                                  const char* reason);
-  static void SetOptimizedCode(Handle<FeedbackVector> vector,
-                               Handle<Code> code);
+  static void SetOptimizedCode(Handle<FeedbackVector> vector, Handle<Code> code,
+                               FeedbackCell feedback_cell);
   void SetOptimizationMarker(OptimizationMarker marker);
-  void ClearOptimizationTier();
+  void ClearOptimizationTier(FeedbackCell feedback_cell);
   void InitializeOptimizationState();
 
   // Clears the optimization marker in the feedback vector.
   void ClearOptimizationMarker();
+
+  // Sets the interrupt budget based on the optimized code available on the
+  // feedback vector. This function expects that the feedback cell contains a
+  // feedback vector.
+  static void SetInterruptBudget(FeedbackCell feedback_cell);
 
   // Conversion from a slot to an integer index to the underlying array.
   static int GetIndex(FeedbackSlot slot) { return slot.ToInt(); }
@@ -247,6 +264,7 @@ class FeedbackVector
   // Returns the feedback cell at |index| that is used to create the
   // closure.
   inline Handle<FeedbackCell> GetClosureFeedbackCell(int index) const;
+  inline FeedbackCell closure_feedback_cell(int index) const;
 
   // Gives access to raw memory which stores the array's data.
   inline MaybeObjectSlot slots_start();

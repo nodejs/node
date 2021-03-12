@@ -568,10 +568,9 @@ Node* NodeProperties::GetOuterContext(Node* node, size_t* depth) {
 }
 
 // static
-Type NodeProperties::GetTypeOrAny(Node* node) {
+Type NodeProperties::GetTypeOrAny(const Node* node) {
   return IsTyped(node) ? node->type() : Type::Any();
 }
-
 
 // static
 bool NodeProperties::AllValueInputsAreTyped(Node* node) {

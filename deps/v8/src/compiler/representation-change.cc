@@ -1105,7 +1105,7 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
     // BigInts are only represented as tagged pointer and word64.
     if (!CanBeTaggedPointer(output_rep) &&
         output_rep != MachineRepresentation::kWord64) {
-      DCHECK(!output_type.Is(Type::BigInt()));
+      DCHECK(!output_type.Equals(Type::BigInt()));
       Node* unreachable =
           InsertUnconditionalDeopt(use_node, DeoptimizeReason::kNotABigInt);
       return jsgraph()->graph()->NewNode(

@@ -6,7 +6,6 @@
 #define V8_EXECUTION_PROTECTORS_INL_H_
 
 #include "src/execution/protectors.h"
-#include "src/objects/contexts-inl.h"
 #include "src/objects/property-cell-inl.h"
 #include "src/objects/smi.h"
 

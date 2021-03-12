@@ -180,11 +180,11 @@ Object.defineProperty(non_enum, "b", { value: 2, enumerable: false });
 non_enum.c = 3;
 TestStringify('{"a":1,"c":3}', non_enum);
 
-var str = "external_string";
+var str = "external";
 try {
   externalizeString(str, true);
 } catch (e) { }
-TestStringify("\"external_string\"", str, null, 0);
+TestStringify("\"external\"", str, null, 0);
 
 var o = {};
 o.somespecialproperty = 10;

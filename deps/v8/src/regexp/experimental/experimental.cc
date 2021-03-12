@@ -214,7 +214,8 @@ int32_t ExperimentalRegExp::MatchForCallFromJs(
 
 MaybeHandle<Object> ExperimentalRegExp::Exec(
     Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
-    int subject_index, Handle<RegExpMatchInfo> last_match_info) {
+    int subject_index, Handle<RegExpMatchInfo> last_match_info,
+    RegExp::ExecQuirks exec_quirks) {
   DCHECK(FLAG_enable_experimental_regexp_engine);
   DCHECK_EQ(regexp->TypeTag(), JSRegExp::EXPERIMENTAL);
 #ifdef VERIFY_HEAP
@@ -248,6 +249,11 @@ MaybeHandle<Object> ExperimentalRegExp::Exec(
 
   if (num_matches > 0) {
     DCHECK_EQ(num_matches, 1);
+    if (exec_quirks == RegExp::ExecQuirks::kTreatMatchAtEndAsFailure) {
+      if (output_registers[0] >= subject->length()) {
+        return isolate->factory()->null_value();
+      }
+    }
     return RegExp::SetLastMatchInfo(isolate, last_match_info, subject,
                                     capture_count, output_registers);
   } else if (num_matches == 0) {
@@ -285,7 +291,8 @@ int32_t ExperimentalRegExp::OneshotExecRaw(Isolate* isolate,
 
 MaybeHandle<Object> ExperimentalRegExp::OneshotExec(
     Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
-    int subject_index, Handle<RegExpMatchInfo> last_match_info) {
+    int subject_index, Handle<RegExpMatchInfo> last_match_info,
+    RegExp::ExecQuirks exec_quirks) {
   DCHECK(FLAG_enable_experimental_regexp_engine_on_excessive_backtracks);
   DCHECK_NE(regexp->TypeTag(), JSRegExp::NOT_COMPILED);
 
@@ -306,6 +313,11 @@ MaybeHandle<Object> ExperimentalRegExp::OneshotExec(
 
   if (num_matches > 0) {
     DCHECK_EQ(num_matches, 1);
+    if (exec_quirks == RegExp::ExecQuirks::kTreatMatchAtEndAsFailure) {
+      if (output_registers[0] >= subject->length()) {
+        return isolate->factory()->null_value();
+      }
+    }
     return RegExp::SetLastMatchInfo(isolate, last_match_info, subject,
                                     capture_count, output_registers);
   } else if (num_matches == 0) {

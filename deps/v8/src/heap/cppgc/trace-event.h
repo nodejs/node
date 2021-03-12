@@ -116,7 +116,7 @@ enum CategoryGroupEnabledFlags {
 #define INTERNAL_TRACE_EVENT_ADD(phase, category_group, name, flags, ...)    \
   DCHECK_NOT_NULL(name);                                                     \
   do {                                                                       \
-    cppgc::Platform* platform = heap_.platform();                            \
+    cppgc::Platform* platform = stats_collector_->platform_;                 \
     INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category_group);                  \
     if (INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED_FOR_RECORDING_MODE()) {  \
       cppgc::internal::AddTraceEvent(                                        \

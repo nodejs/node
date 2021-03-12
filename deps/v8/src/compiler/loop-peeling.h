@@ -43,7 +43,9 @@ class V8_EXPORT_PRIVATE LoopPeeler {
         tmp_zone_(tmp_zone),
         source_positions_(source_positions),
         node_origins_(node_origins) {}
-  bool CanPeel(LoopTree::Loop* loop);
+  bool CanPeel(LoopTree::Loop* loop) {
+    return LoopFinder::HasMarkedExits(loop_tree_, loop);
+  }
   PeeledIteration* Peel(LoopTree::Loop* loop);
   void PeelInnerLoopsOfTree();
 

@@ -5,6 +5,7 @@
 let {session, contextGroup, Protocol} = InspectorTest.start('Tests side-effect-free evaluation');
 
 contextGroup.addScript(`
+var someGlobalDate = new Date();
 function testFunction()
 {
   var o = 0;
@@ -15,43 +16,40 @@ function testFunction()
 }
 //# sourceURL=foo.js`);
 
-Protocol.Debugger.enable();
+InspectorTest.runAsyncTestSuite([
+  async function basicTest() {
+    Protocol.Debugger.enable();
+    Protocol.Runtime.evaluate({ 'expression': 'setTimeout(testFunction, 0)' });
+    const {params:{callFrames:[{callFrameId: topFrameId}]}} = await Protocol.Debugger.oncePaused();
+    InspectorTest.log('Paused on "debugger;"');
+    const {result:{result:{value: fResult}}} = await Protocol.Debugger.evaluateOnCallFrame({ callFrameId: topFrameId, expression: 'f()' });
+    InspectorTest.log('f() returns ' + fResult);
+    const {result:{result:{value: gResult}}} = await Protocol.Debugger.evaluateOnCallFrame({ callFrameId: topFrameId, expression: 'g()' });
+    InspectorTest.log('g() returns ' + gResult);
+    const {result:{result:{value: fResultSideEffect}}} = await Protocol.Debugger.evaluateOnCallFrame({ callFrameId: topFrameId, expression: 'f()', throwOnSideEffect: true});
+    InspectorTest.log('f() returns ' + fResultSideEffect);
+    const {result:{result:{className}}} = await Protocol.Debugger.evaluateOnCallFrame({ callFrameId: topFrameId, expression: 'g()', throwOnSideEffect: true});
+    InspectorTest.log('g() throws ' + className);
+  },
 
-Protocol.Debugger.oncePaused().then(debuggerPaused);
-
-Protocol.Runtime.evaluate({ "expression": "setTimeout(testFunction, 0)" });
-
-var topFrameId;
-
-function debuggerPaused(messageObject)
-{
-  InspectorTest.log("Paused on 'debugger;'");
-
-  topFrameId = messageObject.params.callFrames[0].callFrameId;
-  Protocol.Debugger.evaluateOnCallFrame({ callFrameId: topFrameId, expression: "f()"}).then(evaluatedFirst);
-}
-
-function evaluatedFirst(response)
-{
-  InspectorTest.log("f() returns " + response.result.result.value);
-  Protocol.Debugger.evaluateOnCallFrame({ callFrameId: topFrameId, expression: "g()"}).then(evaluatedSecond);
-}
-
-function evaluatedSecond(response)
-{
-  InspectorTest.log("g() returns " + response.result.result.value);
-  Protocol.Debugger.evaluateOnCallFrame({ callFrameId: topFrameId, expression: "f()", throwOnSideEffect: true}).then(evaluatedThird);
-}
-
-function evaluatedThird(response)
-{
-  InspectorTest.log("f() returns " + response.result.result.value);
-  Protocol.Debugger.evaluateOnCallFrame({ callFrameId: topFrameId, expression: "g()", throwOnSideEffect: true}).then(evaluatedFourth);
-  InspectorTest.completeTest();
-}
-
-function evaluatedFourth(response)
-{
-  InspectorTest.log("g() throws " + response.result.result.className);
-  InspectorTest.completeTest();
-}
+  async function testDate() {
+    const check = async (expression) => {
+      const {result:{exceptionDetails}} = await Protocol.Runtime.evaluate({expression, throwOnSideEffect: true});
+      InspectorTest.log(expression + ' : ' + (exceptionDetails ? 'throws' : 'ok'));
+    };
+    // setters are only ok on temporary objects
+    await check('someGlobalDate.setDate(10)');
+    await check('new Date().setDate(10)');
+    await check('someGlobalDate.setFullYear(1991)');
+    await check('new Date().setFullYear(1991)');
+    await check('someGlobalDate.setHours(0)');
+    await check('new Date().setHours(0)');
+    // getters are ok on any Date
+    await check('someGlobalDate.getDate()');
+    await check('new Date().getDate()');
+    await check('someGlobalDate.getFullYear()');
+    await check('new Date().getFullYear()');
+    await check('someGlobalDate.getHours()');
+    await check('new Date().getHours()');
+  }
+]);

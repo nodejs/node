@@ -65,6 +65,10 @@ class Module : public HeapObject {
   Object GetException();
   DECL_ACCESSORS(exception, Object)
 
+  // The top level promise capability of this module. Will only be defined
+  // for cycle roots.
+  DECL_ACCESSORS(top_level_capability, HeapObject)
+
   // Returns if this module or any transitively requested module is [[Async]],
   // i.e. has a top-level await.
   V8_WARN_UNUSED_RESULT bool IsGraphAsync(Isolate* isolate) const;
@@ -131,6 +135,9 @@ class Module : public HeapObject {
       Isolate* isolate, Handle<Module> module,
       ZoneForwardList<Handle<SourceTextModule>>* stack, unsigned* dfs_index,
       Zone* zone);
+
+  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> EvaluateMaybeAsync(
+      Isolate* isolate, Handle<Module> module);
 
   static V8_WARN_UNUSED_RESULT MaybeHandle<Object> InnerEvaluate(
       Isolate* isolate, Handle<Module> module);

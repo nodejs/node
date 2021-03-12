@@ -6,7 +6,6 @@
 
 #include "test/cctest/test-api.h"
 
-#include "include/v8-util.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/platform.h"
 #include "src/codegen/compilation-cache.h"
@@ -18,29 +17,17 @@
 #include "src/strings/unicode-inl.h"
 #include "src/utils/utils.h"
 
-using ::v8::Boolean;
-using ::v8::BooleanObject;
 using ::v8::Context;
-using ::v8::Extension;
 using ::v8::Function;
 using ::v8::FunctionTemplate;
-using ::v8::HandleScope;
 using ::v8::Local;
 using ::v8::Name;
-using ::v8::Message;
-using ::v8::MessageCallback;
 using ::v8::Object;
 using ::v8::ObjectTemplate;
-using ::v8::Persistent;
 using ::v8::Script;
-using ::v8::StackTrace;
 using ::v8::String;
 using ::v8::Symbol;
-using ::v8::TryCatch;
-using ::v8::Undefined;
-using ::v8::V8;
 using ::v8::Value;
-
 
 namespace {
 

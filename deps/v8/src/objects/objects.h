@@ -92,7 +92,6 @@
 //       - ByteArray
 //       - BytecodeArray
 //       - FixedArray
-//         - FrameArray
 //         - HashTable
 //           - Dictionary
 //           - StringTable
@@ -167,7 +166,6 @@
 //       - BreakPointInfo
 //       - CachedTemplateObject
 //       - StackFrameInfo
-//       - StackTraceFrame
 //       - CodeCache
 //       - PropertyDescriptorObject
 //       - PrototypeInfo
@@ -188,6 +186,7 @@
 //     - UncompiledData
 //       - UncompiledDataWithoutPreparseData
 //       - UncompiledDataWithPreparseData
+//     - SwissNameDictionary
 //
 // Formats of Object::ptr_:
 //  Smi:        [31 bit signed int] 0

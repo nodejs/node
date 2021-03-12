@@ -101,7 +101,10 @@ PromisePrototypeCatch(
     js-implicit context: Context, receiver: JSAny)(onRejected: JSAny): JSAny {
   // 1. Let promise be the this value.
   // 2. Return ? Invoke(promise, "then", « undefined, onRejected »).
-  const nativeContext = LoadNativeContext(context);
+  // This builtin is attached to JSFunction created by the bootstrapper so
+  // `context` is the native context.
+  check(Is<NativeContext>(context));
+  const nativeContext = UnsafeCast<NativeContext>(context);
   return UnsafeCast<JSAny>(
       InvokeThen(nativeContext, receiver, Undefined, onRejected));
 }

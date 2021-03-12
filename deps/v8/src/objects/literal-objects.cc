@@ -13,6 +13,7 @@
 #include "src/heap/local-factory-inl.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/js-regexp.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
@@ -172,7 +173,7 @@ void AddToDictionaryTemplate(LocalIsolate* isolate,
     Handle<Object> value_handle;
     PropertyDetails details(
         value_kind != ClassBoilerplate::kData ? kAccessor : kData, DONT_ENUM,
-        PropertyCellType::kNoCell, enum_order);
+        PropertyDetails::kConstIfDictConstnessTracking, enum_order);
     if (value_kind == ClassBoilerplate::kData) {
       value_handle = handle(value, isolate);
     } else {
@@ -223,8 +224,9 @@ void AddToDictionaryTemplate(LocalIsolate* isolate,
           // Either both getter and setter were defined before the computed
           // method or just one of them was defined before while the other one
           // was not defined yet, so overwrite property to kData.
-          PropertyDetails details(kData, DONT_ENUM, PropertyCellType::kNoCell,
-                                  enum_order_existing);
+          PropertyDetails details(
+              kData, DONT_ENUM, PropertyDetails::kConstIfDictConstnessTracking,
+              enum_order_existing);
           dictionary->DetailsAtPut(entry, details);
           dictionary->ValueAtPut(entry, value);
 
@@ -280,8 +282,9 @@ void AddToDictionaryTemplate(LocalIsolate* isolate,
         if (!existing_value.IsSmi() || Smi::ToInt(existing_value) < key_index) {
           // Overwrite existing value because it was defined before the computed
           // one (AccessorInfo "length" property is always defined before).
-          PropertyDetails details(kData, DONT_ENUM, PropertyCellType::kNoCell,
-                                  enum_order_existing);
+          PropertyDetails details(
+              kData, DONT_ENUM, PropertyDetails::kConstIfDictConstnessTracking,
+              enum_order_existing);
           dictionary->DetailsAtPut(entry, details);
           dictionary->ValueAtPut(entry, value);
         } else {
@@ -291,9 +294,11 @@ void AddToDictionaryTemplate(LocalIsolate* isolate,
             // The enum index is unused by elements dictionaries,
             // which is why we don't need to update the property details if
             // |is_elements_dictionary| holds.
+            PropertyDetails details(
+                kData, DONT_ENUM,
+                PropertyDetails::kConstIfDictConstnessTracking,
+                enum_order_computed);
 
-            PropertyDetails details(kData, DONT_ENUM, PropertyCellType::kNoCell,
-                                    enum_order_computed);
             dictionary->DetailsAtPut(entry, details);
           }
         }
@@ -319,9 +324,10 @@ void AddToDictionaryTemplate(LocalIsolate* isolate,
             // which is why we don't need to update the property details if
             // |is_elements_dictionary| holds.
 
-            PropertyDetails details(kAccessor, DONT_ENUM,
-                                    PropertyCellType::kNoCell,
-                                    enum_order_computed);
+            PropertyDetails details(
+                kAccessor, DONT_ENUM,
+                PropertyDetails::kConstIfDictConstnessTracking,
+                enum_order_computed);
             dictionary->DetailsAtPut(entry, details);
           }
         }
@@ -335,9 +341,10 @@ void AddToDictionaryTemplate(LocalIsolate* isolate,
           // the computed accessor property.
           Handle<AccessorPair> pair(isolate->factory()->NewAccessorPair());
           pair->set(component, value);
-          PropertyDetails details(kAccessor, DONT_ENUM,
-                                  PropertyCellType::kNoCell,
-                                  enum_order_existing);
+          PropertyDetails details(
+              kAccessor, DONT_ENUM,
+              PropertyDetails::kConstIfDictConstnessTracking,
+              enum_order_existing);
           dictionary->DetailsAtPut(entry, details);
           dictionary->ValueAtPut(entry, *pair);
         } else {
@@ -349,9 +356,11 @@ void AddToDictionaryTemplate(LocalIsolate* isolate,
             // The enum index is unused by elements dictionaries,
             // which is why we don't need to update the property details if
             // |is_elements_dictionary| holds.
+            PropertyDetails details(
+                kData, DONT_ENUM,
+                PropertyDetails::kConstIfDictConstnessTracking,
+                enum_order_computed);
 
-            PropertyDetails details(kData, DONT_ENUM, PropertyCellType::kNoCell,
-                                    enum_order_computed);
             dictionary->DetailsAtPut(entry, details);
           }
         }
@@ -626,14 +635,6 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
     static_desc.AddConstant(isolate, factory->prototype_string(),
                             factory->function_prototype_accessor(), attribs);
   }
-  if (FunctionLiteral::NeedsHomeObject(expr->constructor())) {
-    PropertyAttributes attribs =
-        static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
-    Handle<Object> value(
-        Smi::FromInt(ClassBoilerplate::kPrototypeArgumentIndex), isolate);
-    static_desc.AddConstant(isolate, factory->home_object_symbol(), value,
-                            attribs);
-  }
   {
     Handle<ClassPositions> class_positions = factory->NewClassPositions(
         expr->start_position(), expr->end_position());
@@ -741,6 +742,21 @@ template Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
     Isolate* isolate, ClassLiteral* expr);
 template Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
     LocalIsolate* isolate, ClassLiteral* expr);
+
+void ArrayBoilerplateDescription::BriefPrintDetails(std::ostream& os) {
+  os << " " << ElementsKindToString(elements_kind()) << ", "
+     << Brief(constant_elements());
+}
+
+void RegExpBoilerplateDescription::BriefPrintDetails(std::ostream& os) {
+  // Note: keep boilerplate layout synced with JSRegExp layout.
+  STATIC_ASSERT(JSRegExp::kDataOffset == JSObject::kHeaderSize);
+  STATIC_ASSERT(JSRegExp::kSourceOffset == JSRegExp::kDataOffset + kTaggedSize);
+  STATIC_ASSERT(JSRegExp::kFlagsOffset ==
+                JSRegExp::kSourceOffset + kTaggedSize);
+  STATIC_ASSERT(JSRegExp::kHeaderSize == JSRegExp::kFlagsOffset + kTaggedSize);
+  os << " " << Brief(data()) << ", " << Brief(source()) << ", " << flags();
+}
 
 }  // namespace internal
 }  // namespace v8

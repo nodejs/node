@@ -328,6 +328,16 @@ TEST(OldLargeObjectSpace) {
 
   CHECK(lo->Contains(ho));
 
+  CHECK_EQ(0, Heap::GetFillToAlign(ho.address(), kWordAligned));
+  // All large objects have the same alignment because they start at the
+  // same offset within a page. Fixed double arrays have the most strict
+  // alignment requirements.
+  CHECK_EQ(
+      0, Heap::GetFillToAlign(
+             ho.address(),
+             HeapObject::RequiredAlignment(
+                 ReadOnlyRoots(CcTest::i_isolate()).fixed_double_array_map())));
+
   while (true) {
     {
       AllocationResult allocation = lo->AllocateRaw(lo_size);

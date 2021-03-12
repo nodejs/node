@@ -37,7 +37,6 @@ extern class SourceTextModule extends Module {
   cycle_root: SourceTextModule|TheHole;
 
   async_parent_modules: ArrayList;
-  top_level_capability: JSPromise|Undefined;
 
   // TODO(neis): Don't store those in the module object?
   dfs_index: Smi;

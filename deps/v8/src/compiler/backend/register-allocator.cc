@@ -2650,7 +2650,7 @@ bool LiveRangeBundle::TryAddRange(LiveRange* range) {
 LiveRangeBundle* LiveRangeBundle::TryMerge(LiveRangeBundle* lhs,
                                            LiveRangeBundle* rhs,
                                            bool trace_alloc) {
-  if (rhs == lhs) return nullptr;
+  if (rhs == lhs) return lhs;
 
   auto iter1 = lhs->uses_.begin();
   auto iter2 = rhs->uses_.begin();

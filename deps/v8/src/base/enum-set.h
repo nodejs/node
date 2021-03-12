@@ -27,31 +27,47 @@ class EnumSet {
     bits_ = bits;
   }
 
-  bool empty() const { return bits_ == 0; }
-  bool contains(E element) const { return (bits_ & Mask(element)) != 0; }
-  bool contains_any(EnumSet set) const { return (bits_ & set.bits_) != 0; }
+  constexpr bool empty() const { return bits_ == 0; }
+  constexpr bool contains(E element) const {
+    return (bits_ & Mask(element)) != 0;
+  }
+  constexpr bool contains_any(EnumSet set) const {
+    return (bits_ & set.bits_) != 0;
+  }
   void Add(E element) { bits_ |= Mask(element); }
   void Add(EnumSet set) { bits_ |= set.bits_; }
   void Remove(E element) { bits_ &= ~Mask(element); }
   void Remove(EnumSet set) { bits_ &= ~set.bits_; }
   void RemoveAll() { bits_ = 0; }
   void Intersect(EnumSet set) { bits_ &= set.bits_; }
-  T ToIntegral() const { return bits_; }
+  constexpr T ToIntegral() const { return bits_; }
 
-  bool operator==(EnumSet set) const { return bits_ == set.bits_; }
-  bool operator!=(EnumSet set) const { return bits_ != set.bits_; }
+  constexpr bool operator==(EnumSet set) const { return bits_ == set.bits_; }
+  constexpr bool operator!=(EnumSet set) const { return bits_ != set.bits_; }
 
-  EnumSet operator|(EnumSet set) const { return EnumSet(bits_ | set.bits_); }
-  EnumSet operator&(EnumSet set) const { return EnumSet(bits_ & set.bits_); }
-  EnumSet operator-(EnumSet set) const { return EnumSet(bits_ & ~set.bits_); }
+  constexpr EnumSet operator|(EnumSet set) const {
+    return EnumSet(bits_ | set.bits_);
+  }
+  constexpr EnumSet operator&(EnumSet set) const {
+    return EnumSet(bits_ & set.bits_);
+  }
+  constexpr EnumSet operator-(EnumSet set) const {
+    return EnumSet(bits_ & ~set.bits_);
+  }
 
   EnumSet& operator|=(EnumSet set) { return *this = *this | set; }
   EnumSet& operator&=(EnumSet set) { return *this = *this & set; }
   EnumSet& operator-=(EnumSet set) { return *this = *this - set; }
 
-  EnumSet operator|(E element) const { return EnumSet(bits_ | Mask(element)); }
-  EnumSet operator&(E element) const { return EnumSet(bits_ & Mask(element)); }
-  EnumSet operator-(E element) const { return EnumSet(bits_ & ~Mask(element)); }
+  constexpr EnumSet operator|(E element) const {
+    return EnumSet(bits_ | Mask(element));
+  }
+  constexpr EnumSet operator&(E element) const {
+    return EnumSet(bits_ & Mask(element));
+  }
+  constexpr EnumSet operator-(E element) const {
+    return EnumSet(bits_ & ~Mask(element));
+  }
 
   EnumSet& operator|=(E element) { return *this = *this | element; }
   EnumSet& operator&=(E element) { return *this = *this & element; }

@@ -12,78 +12,6 @@
 namespace v8 {
 namespace internal {
 
-MaybeHandle<JSArray> JSRegExpResult::GetAndCacheIndices(
-    Isolate* isolate, Handle<JSRegExpResult> regexp_result) {
-  // Check for cached indices. We do a slow lookup and set of
-  // the cached_indices_or_match_info and names fields just in
-  // case they have been migrated to dictionaries.
-  Handle<Object> indices_or_regexp(
-      GetProperty(
-          isolate, regexp_result,
-          isolate->factory()->regexp_result_cached_indices_or_regexp_symbol())
-          .ToHandleChecked());
-  if (indices_or_regexp->IsJSRegExp()) {
-    // Build and cache indices for next lookup.
-    // TODO(joshualitt): Instead of caching the indices, we could call
-    // ReconfigureToDataProperty on 'indices' setting its value to this
-    // newly created array. However, care would have to be taken to ensure
-    // a new map is not created each time.
-
-    // Grab regexp, its last_index, and the original subject string from the
-    // result and the re-execute the regexp to generate a new MatchInfo.
-    Handle<JSRegExp> regexp(JSRegExp::cast(*indices_or_regexp), isolate);
-    Handle<Object> input_object(
-        GetProperty(isolate, regexp_result,
-                    isolate->factory()->regexp_result_regexp_input_symbol())
-            .ToHandleChecked());
-    Handle<String> subject(String::cast(*input_object), isolate);
-    Handle<Object> last_index_object(
-        GetProperty(
-            isolate, regexp_result,
-            isolate->factory()->regexp_result_regexp_last_index_symbol())
-            .ToHandleChecked());
-
-    int capture_count = regexp->CaptureCount();
-    Handle<RegExpMatchInfo> match_info =
-        RegExpMatchInfo::New(isolate, capture_count);
-
-    int last_index = Smi::ToInt(*last_index_object);
-    Handle<Object> result;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, result,
-        RegExp::Exec(isolate, regexp, subject, last_index, match_info),
-        JSArray);
-    DCHECK_EQ(*result, *match_info);
-
-    Handle<Object> maybe_names(
-        GetProperty(isolate, regexp_result,
-                    isolate->factory()->regexp_result_names_symbol())
-            .ToHandleChecked());
-    indices_or_regexp =
-        JSRegExpResultIndices::BuildIndices(isolate, match_info, maybe_names);
-
-    // Cache the result and clear the names array, last_index and subject.
-    SetProperty(
-        isolate, regexp_result,
-        isolate->factory()->regexp_result_cached_indices_or_regexp_symbol(),
-        indices_or_regexp)
-        .ToHandleChecked();
-    SetProperty(isolate, regexp_result,
-                isolate->factory()->regexp_result_names_symbol(),
-                isolate->factory()->undefined_value())
-        .ToHandleChecked();
-    SetProperty(isolate, regexp_result,
-                isolate->factory()->regexp_result_regexp_last_index_symbol(),
-                isolate->factory()->undefined_value())
-        .ToHandleChecked();
-    SetProperty(isolate, regexp_result,
-                isolate->factory()->regexp_result_regexp_input_symbol(),
-                isolate->factory()->undefined_value())
-        .ToHandleChecked();
-  }
-  return Handle<JSArray>::cast(indices_or_regexp);
-}
-
 Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
     Isolate* isolate, Handle<RegExpMatchInfo> match_info,
     Handle<Object> maybe_names) {
@@ -127,8 +55,8 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   FieldIndex groups_index = FieldIndex::ForDescriptor(
       indices->map(), InternalIndex(kGroupsDescriptorIndex));
   if (maybe_names->IsUndefined(isolate)) {
-    indices->RawFastPropertyAtPut(groups_index,
-                                  ReadOnlyRoots(isolate).undefined_value());
+    indices->FastPropertyAtPut(groups_index,
+                               ReadOnlyRoots(isolate).undefined_value());
     return indices;
   }
 
@@ -174,7 +102,7 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   Handle<JSObject> js_group_names =
       isolate->factory()->NewSlowJSObjectWithPropertiesAndElements(
           null, group_names, elements);
-  indices->RawFastPropertyAtPut(groups_index, *js_group_names);
+  indices->FastPropertyAtPut(groups_index, *js_group_names);
   return indices;
 }
 
@@ -232,12 +160,6 @@ MaybeHandle<JSRegExp> JSRegExp::New(Isolate* isolate, Handle<String> pattern,
       Handle<JSRegExp>::cast(isolate->factory()->NewJSObject(constructor));
 
   return JSRegExp::Initialize(regexp, pattern, flags, backtrack_limit);
-}
-
-// static
-Handle<JSRegExp> JSRegExp::Copy(Handle<JSRegExp> regexp) {
-  Isolate* const isolate = regexp->GetIsolate();
-  return Handle<JSRegExp>::cast(isolate->factory()->CopyJSObject(regexp));
 }
 
 Object JSRegExp::Code(bool is_latin1) const {
@@ -488,14 +410,16 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
   if (constructor.IsJSFunction() &&
       JSFunction::cast(constructor).initial_map() == map) {
     // If we still have the original map, set in-object properties directly.
-    regexp->InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex, Smi::zero(),
+    regexp->InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex,
+                                  Smi::FromInt(kInitialLastIndexValue),
                                   SKIP_WRITE_BARRIER);
   } else {
     // Map has changed, so use generic, but slower, method.
     RETURN_ON_EXCEPTION(
         isolate,
-        Object::SetProperty(isolate, regexp, factory->lastIndex_string(),
-                            Handle<Smi>(Smi::zero(), isolate)),
+        Object::SetProperty(
+            isolate, regexp, factory->lastIndex_string(),
+            Handle<Smi>(Smi::FromInt(kInitialLastIndexValue), isolate)),
         JSRegExp);
   }
 

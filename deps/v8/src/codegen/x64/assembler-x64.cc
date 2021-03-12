@@ -108,6 +108,12 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   } else if (strcmp(FLAG_mcpu, "atom") == 0) {
     supported_ |= 1u << ATOM;
   }
+
+  // Set a static value on whether Simd is supported.
+  // This variable is only used for certain archs to query SupportWasmSimd128()
+  // at runtime in builtins using an extern ref. Other callers should use
+  // CpuFeatures::SupportWasmSimd128().
+  CpuFeatures::supports_wasm_simd_128_ = CpuFeatures::SupportsWasmSimd128();
 }
 
 void CpuFeatures::PrintTarget() {}
@@ -1186,6 +1192,16 @@ void Assembler::cpuid() {
   EnsureSpace ensure_space(this);
   emit(0x0F);
   emit(0xA2);
+}
+
+void Assembler::prefetch(Operand src, int level) {
+  DCHECK(is_uint2(level));
+  EnsureSpace ensure_space(this);
+  emit(0x0F);
+  emit(0x18);
+  // Emit hint number in Reg position of RegR/M.
+  XMMRegister code = XMMRegister::from_code(level);
+  emit_sse_operand(code, src);
 }
 
 void Assembler::cqo() {
@@ -2919,6 +2935,15 @@ void Assembler::movaps(XMMRegister dst, XMMRegister src) {
   }
 }
 
+void Assembler::movaps(XMMRegister dst, Operand src) {
+  DCHECK(!IsEnabled(AVX));
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x28);
+  emit_sse_operand(dst, src);
+}
+
 void Assembler::shufps(XMMRegister dst, XMMRegister src, byte imm8) {
   DCHECK(is_uint8(imm8));
   EnsureSpace ensure_space(this);
@@ -3086,6 +3111,10 @@ void Assembler::cmppd(XMMRegister dst, Operand src, int8_t cmp) {
   emit(0xC2);
   emit_sse_operand(dst, src);
   emit(cmp);
+}
+
+void Assembler::cvtdq2pd(XMMRegister dst, XMMRegister src) {
+  sse2_instr(dst, src, 0xF3, 0x0F, 0xE6);
 }
 
 void Assembler::cvttss2si(Register dst, Operand src) {
@@ -3501,6 +3530,14 @@ void Assembler::vmovq(Register dst, XMMRegister src) {
   emit_vex_prefix(src, xmm0, idst, kL128, k66, k0F, kW1);
   emit(0x7E);
   emit_sse_operand(src, dst);
+}
+
+void Assembler::vmovdqa(XMMRegister dst, Operand src) {
+  DCHECK(IsEnabled(AVX));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(dst, xmm0, src, kL128, k66, k0F, kWIG);
+  emit(0x6F);
+  emit_sse_operand(dst, src);
 }
 
 void Assembler::vmovdqa(XMMRegister dst, XMMRegister src) {

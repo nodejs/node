@@ -20,7 +20,7 @@ namespace interpreter {
 // in its stack-frame. Register hold parameters, this, and expression values.
 class V8_EXPORT_PRIVATE Register final {
  public:
-  explicit Register(int index = kInvalidIndex) : index_(index) {}
+  constexpr explicit Register(int index = kInvalidIndex) : index_(index) {}
 
   int index() const { return index_; }
   bool is_parameter() const { return index() < 0; }
@@ -48,6 +48,9 @@ class V8_EXPORT_PRIVATE Register final {
   static Register bytecode_offset();
   bool is_bytecode_offset() const;
 
+  // Returns the register for the argument count.
+  static Register argument_count();
+
   // Returns a register that can be used to represent the accumulator
   // within code in the interpreter, but should never be emitted in
   // bytecode.
@@ -55,9 +58,28 @@ class V8_EXPORT_PRIVATE Register final {
 
   OperandSize SizeOfOperand() const;
 
-  int32_t ToOperand() const { return kRegisterFileStartOffset - index_; }
+  constexpr int32_t ToOperand() const {
+    return kRegisterFileStartOffset - index_;
+  }
   static Register FromOperand(int32_t operand) {
     return Register(kRegisterFileStartOffset - operand);
+  }
+
+  static Register FromShortStar(Bytecode bytecode) {
+    DCHECK(Bytecodes::IsShortStar(bytecode));
+    return Register(static_cast<int>(Bytecode::kStar0) -
+                    static_cast<int>(bytecode));
+  }
+
+  const base::Optional<Bytecode> TryToShortStar() const {
+    if (index() >= 0 && index() < Bytecodes::kShortStarCount) {
+      Bytecode bytecode =
+          static_cast<Bytecode>(static_cast<int>(Bytecode::kStar0) - index());
+      DCHECK_GE(bytecode, Bytecode::kFirstShortStar);
+      DCHECK_LE(bytecode, Bytecode::kLastShortStar);
+      return bytecode;
+    }
+    return {};
   }
 
   static bool AreContiguous(Register reg1, Register reg2,
@@ -110,6 +132,10 @@ class RegisterList {
     DCHECK_LT(new_count, register_count_);
     return RegisterList(first_reg_index_, new_count);
   }
+  const RegisterList PopLeft() {
+    DCHECK_GE(register_count_, 0);
+    return RegisterList(first_reg_index_ + 1, register_count_ - 1);
+  }
 
   const Register operator[](size_t i) const {
     DCHECK_LT(static_cast<int>(i), register_count_);
@@ -131,6 +157,7 @@ class RegisterList {
   friend class BytecodeDecoder;
   friend class InterpreterTester;
   friend class BytecodeUtils;
+  friend class BytecodeArrayAccessor;
 
   RegisterList(int first_reg_index, int register_count)
       : first_reg_index_(first_reg_index), register_count_(register_count) {}

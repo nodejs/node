@@ -6,6 +6,8 @@
 
 #include <algorithm>
 
+#include "include/v8-profiler.h"
+#include "src/base/lazy-instance.h"
 #include "src/codegen/source-position.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/profiler/cpu-profiler.h"
@@ -81,49 +83,58 @@ const char* const CodeEntry::kGarbageCollectorEntryName = "(garbage collector)";
 const char* const CodeEntry::kUnresolvedFunctionName = "(unresolved function)";
 const char* const CodeEntry::kRootEntryName = "(root)";
 
-base::LazyDynamicInstance<CodeEntry, CodeEntry::ProgramEntryCreateTrait>::type
-    CodeEntry::kProgramEntry = LAZY_DYNAMIC_INSTANCE_INITIALIZER;
-
-base::LazyDynamicInstance<CodeEntry, CodeEntry::IdleEntryCreateTrait>::type
-    CodeEntry::kIdleEntry = LAZY_DYNAMIC_INSTANCE_INITIALIZER;
-
-base::LazyDynamicInstance<CodeEntry, CodeEntry::GCEntryCreateTrait>::type
-    CodeEntry::kGCEntry = LAZY_DYNAMIC_INSTANCE_INITIALIZER;
-
-base::LazyDynamicInstance<CodeEntry,
-                          CodeEntry::UnresolvedEntryCreateTrait>::type
-    CodeEntry::kUnresolvedEntry = LAZY_DYNAMIC_INSTANCE_INITIALIZER;
-
-base::LazyDynamicInstance<CodeEntry, CodeEntry::RootEntryCreateTrait>::type
-    CodeEntry::kRootEntry = LAZY_DYNAMIC_INSTANCE_INITIALIZER;
-
-CodeEntry* CodeEntry::ProgramEntryCreateTrait::Create() {
-  return new CodeEntry(CodeEventListener::FUNCTION_TAG,
-                       CodeEntry::kProgramEntryName);
+// static
+CodeEntry* CodeEntry::program_entry() {
+  static base::LeakyObject<CodeEntry> kProgramEntry(
+      CodeEventListener::FUNCTION_TAG, CodeEntry::kProgramEntryName,
+      CodeEntry::kEmptyResourceName, v8::CpuProfileNode::kNoLineNumberInfo,
+      v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
+      CodeEntry::CodeType::OTHER);
+  return kProgramEntry.get();
 }
 
-CodeEntry* CodeEntry::IdleEntryCreateTrait::Create() {
-  return new CodeEntry(CodeEventListener::FUNCTION_TAG,
-                       CodeEntry::kIdleEntryName);
+// static
+CodeEntry* CodeEntry::idle_entry() {
+  static base::LeakyObject<CodeEntry> kIdleEntry(
+      CodeEventListener::FUNCTION_TAG, CodeEntry::kIdleEntryName,
+      CodeEntry::kEmptyResourceName, v8::CpuProfileNode::kNoLineNumberInfo,
+      v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
+      CodeEntry::CodeType::OTHER);
+  return kIdleEntry.get();
 }
 
-CodeEntry* CodeEntry::GCEntryCreateTrait::Create() {
-  return new CodeEntry(CodeEventListener::BUILTIN_TAG,
-                       CodeEntry::kGarbageCollectorEntryName);
+// static
+CodeEntry* CodeEntry::gc_entry() {
+  static base::LeakyObject<CodeEntry> kGcEntry(
+      CodeEventListener::BUILTIN_TAG, CodeEntry::kGarbageCollectorEntryName,
+      CodeEntry::kEmptyResourceName, v8::CpuProfileNode::kNoLineNumberInfo,
+      v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
+      CodeEntry::CodeType::OTHER);
+  return kGcEntry.get();
 }
 
-CodeEntry* CodeEntry::UnresolvedEntryCreateTrait::Create() {
-  return new CodeEntry(CodeEventListener::FUNCTION_TAG,
-                       CodeEntry::kUnresolvedFunctionName);
+// static
+CodeEntry* CodeEntry::unresolved_entry() {
+  static base::LeakyObject<CodeEntry> kUnresolvedEntry(
+      CodeEventListener::FUNCTION_TAG, CodeEntry::kUnresolvedFunctionName,
+      CodeEntry::kEmptyResourceName, v8::CpuProfileNode::kNoLineNumberInfo,
+      v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
+      CodeEntry::CodeType::OTHER);
+  return kUnresolvedEntry.get();
 }
 
-CodeEntry* CodeEntry::RootEntryCreateTrait::Create() {
-  return new CodeEntry(CodeEventListener::FUNCTION_TAG,
-                       CodeEntry::kRootEntryName);
+// static
+CodeEntry* CodeEntry::root_entry() {
+  static base::LeakyObject<CodeEntry> kRootEntry(
+      CodeEventListener::FUNCTION_TAG, CodeEntry::kRootEntryName,
+      CodeEntry::kEmptyResourceName, v8::CpuProfileNode::kNoLineNumberInfo,
+      v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
+      CodeEntry::CodeType::OTHER);
+  return kRootEntry.get();
 }
 
 uint32_t CodeEntry::GetHash() const {
-  uint32_t hash = ComputeUnseededHash(tag());
+  uint32_t hash = 0;
   if (script_id_ != v8::UnboundScript::kNoScriptId) {
     hash ^= ComputeUnseededHash(static_cast<uint32_t>(script_id_));
     hash ^= ComputeUnseededHash(static_cast<uint32_t>(position_));
@@ -285,6 +296,49 @@ void CodeEntry::print() const {
     }
   }
   base::OS::Print("\n");
+}
+
+CpuProfileNode::SourceType ProfileNode::source_type() const {
+  // Handle metadata and VM state code entry types.
+  if (entry_ == CodeEntry::program_entry() ||
+      entry_ == CodeEntry::idle_entry() || entry_ == CodeEntry::gc_entry() ||
+      entry_ == CodeEntry::root_entry()) {
+    return CpuProfileNode::kInternal;
+  }
+  if (entry_ == CodeEntry::unresolved_entry())
+    return CpuProfileNode::kUnresolved;
+
+  // Otherwise, resolve based on logger tag.
+  switch (entry_->tag()) {
+    case CodeEventListener::EVAL_TAG:
+    case CodeEventListener::SCRIPT_TAG:
+    case CodeEventListener::LAZY_COMPILE_TAG:
+    case CodeEventListener::FUNCTION_TAG:
+    case CodeEventListener::INTERPRETED_FUNCTION_TAG:
+      return CpuProfileNode::kScript;
+    case CodeEventListener::BUILTIN_TAG:
+    case CodeEventListener::HANDLER_TAG:
+    case CodeEventListener::BYTECODE_HANDLER_TAG:
+    case CodeEventListener::NATIVE_FUNCTION_TAG:
+    case CodeEventListener::NATIVE_SCRIPT_TAG:
+    case CodeEventListener::NATIVE_LAZY_COMPILE_TAG:
+      return CpuProfileNode::kBuiltin;
+    case CodeEventListener::CALLBACK_TAG:
+      return CpuProfileNode::kCallback;
+    case CodeEventListener::REG_EXP_TAG:
+    case CodeEventListener::STUB_TAG:
+    case CodeEventListener::CODE_CREATION_EVENT:
+    case CodeEventListener::CODE_DISABLE_OPT_EVENT:
+    case CodeEventListener::CODE_MOVE_EVENT:
+    case CodeEventListener::CODE_DELETE_EVENT:
+    case CodeEventListener::CODE_MOVING_GC:
+    case CodeEventListener::SHARED_FUNC_MOVE_EVENT:
+    case CodeEventListener::SNAPSHOT_CODE_NAME_EVENT:
+    case CodeEventListener::TICK_EVENT:
+    case CodeEventListener::BYTECODE_FLUSH_EVENT:
+    case CodeEventListener::NUMBER_OF_LOG_EVENTS:
+      return CpuProfileNode::kInternal;
+  }
 }
 
 void ProfileNode::CollectDeoptInfo(CodeEntry* entry) {
@@ -486,9 +540,11 @@ using v8::tracing::TracedValue;
 std::atomic<uint32_t> CpuProfile::last_id_;
 
 CpuProfile::CpuProfile(CpuProfiler* profiler, const char* title,
-                       CpuProfilingOptions options)
+                       CpuProfilingOptions options,
+                       std::unique_ptr<DiscardedSamplesDelegate> delegate)
     : title_(title),
       options_(options),
+      delegate_(std::move(delegate)),
       start_time_(base::TimeTicks::HighResolutionNow()),
       top_down_(profiler->isolate()),
       profiler_(profiler),
@@ -535,8 +591,19 @@ void CpuProfile::AddPath(base::TimeTicks timestamp,
       (options_.max_samples() == CpuProfilingOptions::kNoSampleLimit ||
        samples_.size() < options_.max_samples());
 
-  if (should_record_sample)
+  if (should_record_sample) {
     samples_.push_back({top_frame_node, timestamp, src_line});
+  }
+
+  if (!should_record_sample && delegate_ != nullptr) {
+    const auto task_runner = V8::GetCurrentPlatform()->GetForegroundTaskRunner(
+        reinterpret_cast<v8::Isolate*>(profiler_->isolate()));
+
+    task_runner->PostTask(std::make_unique<CpuProfileMaxSamplesCallbackTask>(
+        std::move(delegate_)));
+    // std::move ensures that the delegate_ will be null on the next sample,
+    // so we don't post a task multiple times.
+  }
 
   const int kSamplesFlushCount = 100;
   const int kNodesFlushCount = 10;
@@ -562,6 +629,7 @@ void BuildNodeValue(const ProfileNode* node, TracedValue* value) {
   if (entry->column_number()) {
     value->SetInteger("columnNumber", entry->column_number() - 1);
   }
+  value->SetString("codeType", entry->code_type_string());
   value->EndDictionary();
   value->SetInteger("id", node->id());
   if (node->parent()) {
@@ -748,7 +816,8 @@ CpuProfilesCollection::CpuProfilesCollection(Isolate* isolate)
     : profiler_(nullptr), current_profiles_semaphore_(1) {}
 
 CpuProfilingStatus CpuProfilesCollection::StartProfiling(
-    const char* title, CpuProfilingOptions options) {
+    const char* title, CpuProfilingOptions options,
+    std::unique_ptr<DiscardedSamplesDelegate> delegate) {
   current_profiles_semaphore_.Wait();
 
   if (static_cast<int>(current_profiles_.size()) >= kMaxSimultaneousProfiles) {
@@ -764,7 +833,9 @@ CpuProfilingStatus CpuProfilesCollection::StartProfiling(
       return CpuProfilingStatus::kAlreadyStarted;
     }
   }
-  current_profiles_.emplace_back(new CpuProfile(profiler_, title, options));
+
+  current_profiles_.emplace_back(
+      new CpuProfile(profiler_, title, options, std::move(delegate)));
   current_profiles_semaphore_.Signal();
   return CpuProfilingStatus::kStarted;
 }

@@ -63,8 +63,7 @@ class JSFunction : public JSFunctionOrBoundFunction {
 
   static const int kLengthDescriptorIndex = 0;
   static const int kNameDescriptorIndex = 1;
-  // Home object descriptor index when function has a [[HomeObject]] slot.
-  static const int kMaybeHomeObjectDescriptorIndex = 2;
+
   // Fast binding requires length and name accessors.
   static const int kMinDescriptorsForFastBind = 2;
 
@@ -83,9 +82,13 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // when the function is invoked, e.g. foo() or new foo(). See
   // [[Call]] and [[Construct]] description in ECMA-262, section
   // 8.6.2, page 27.
+  // Release/Acquire accessors are used when storing a newly-created
+  // optimized code object, or when reading from the background thread.
+  // Storing a builtin doesn't require release semantics because these objects
+  // are fully initialized.
   inline Code code() const;
   inline void set_code(Code code);
-  inline void set_code_no_write_barrier(Code code);
+  DECL_RELEASE_ACQUIRE_ACCESSORS(code, Code)
 
   // Get the abstract code associated with the function, which will either be
   // a Code object or a BytecodeArray.
@@ -112,11 +115,15 @@ class JSFunction : public JSFunctionOrBoundFunction {
   V8_EXPORT_PRIVATE bool HasAttachedOptimizedCode() const;
   bool HasAvailableOptimizedCode() const;
 
+  bool HasAttachedCodeKind(CodeKind kind) const;
   bool HasAvailableCodeKind(CodeKind kind) const;
 
+  CodeKind GetActiveTier() const;
   V8_EXPORT_PRIVATE bool ActiveTierIsIgnition() const;
   bool ActiveTierIsTurbofan() const;
   bool ActiveTierIsNCI() const;
+  bool ActiveTierIsBaseline() const;
+  bool ActiveTierIsIgnitionOrBaseline() const;
   bool ActiveTierIsMidtierTurboprop() const;
   bool ActiveTierIsToptierTurboprop() const;
 
@@ -151,6 +158,10 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // Clears the optimization marker in the function's feedback vector.
   inline void ClearOptimizationMarker();
 
+  // Sets the interrupt budget based on whether the function has a feedback
+  // vector and any optimized code.
+  inline void SetInterruptBudget();
+
   // If slack tracking is active, it computes instance size of the initial map
   // with minimum permissible object slack.  If it is not active, it simply
   // returns the initial map's instance size.
@@ -164,6 +175,11 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // feedback_vector, instead use feedback_vector() which correctly deals with
   // the JSFunction's bytecode being flushed.
   DECL_ACCESSORS(raw_feedback_cell, FeedbackCell)
+
+  // [raw_feedback_cell] (synchronized version) When this is initialized from a
+  // newly allocated object (instead of a root sentinel), it should
+  // be written with release store semantics.
+  DECL_RELEASE_ACQUIRE_ACCESSORS(raw_feedback_cell, FeedbackCell)
 
   // Functions related to feedback vector. feedback_vector() can be used once
   // the function has feedback vectors allocated. feedback vectors may not be
@@ -179,14 +195,16 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // lazily.
   inline bool has_closure_feedback_cell_array() const;
   inline ClosureFeedbackCellArray closure_feedback_cell_array() const;
-  static void EnsureClosureFeedbackCellArray(Handle<JSFunction> function);
+  static void EnsureClosureFeedbackCellArray(
+      Handle<JSFunction> function, bool reset_budget_for_feedback_allocation);
 
   // Initializes the feedback cell of |function|. In lite mode, this would be
   // initialized to the closure feedback cell array that holds the feedback
   // cells for create closure calls from this function. In the regular mode,
   // this allocates feedback vector.
   static void InitializeFeedbackCell(Handle<JSFunction> function,
-                                     IsCompiledScope* compiled_scope);
+                                     IsCompiledScope* compiled_scope,
+                                     bool reset_budget_for_feedback_allocation);
 
   // Unconditionally clear the type feedback vector.
   void ClearTypeFeedbackInfo();
@@ -256,8 +274,6 @@ class JSFunction : public JSFunctionOrBoundFunction {
   DECL_PRINTER(JSFunction)
   DECL_VERIFIER(JSFunction)
 
-  // The function's name if it is configured, otherwise shared function info
-  // debug name.
   static Handle<String> GetName(Handle<JSFunction> function);
 
   // ES6 section 9.2.11 SetFunctionName
@@ -268,8 +284,7 @@ class JSFunction : public JSFunctionOrBoundFunction {
                                             Handle<Name> name,
                                             Handle<String> prefix);
 
-  // The function's displayName if it is set, otherwise name if it is
-  // configured, otherwise shared function info
+  // The function's name if it is configured, otherwise shared function info
   // debug name.
   static Handle<String> GetDebugName(Handle<JSFunction> function);
 

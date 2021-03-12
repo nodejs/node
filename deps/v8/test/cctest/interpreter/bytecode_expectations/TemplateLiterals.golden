@@ -13,19 +13,19 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 27
+bytecode array length: 23
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
-                B(Star), R(0),
+                B(Star0),
   /*   53 S> */ B(LdaSmi), I8(2),
-                B(Star), R(1),
+                B(Star1),
   /*   56 S> */ B(Ldar), R(0),
                 B(ToString),
-                B(Star), R(2),
+                B(Star2),
                 B(Ldar), R(1),
   /*   70 E> */ B(ToString),
                 B(Add), R(2), U8(0),
-                B(Star), R(2),
+                B(Star2),
                 B(LdaConstant), U8(0),
                 B(Add), R(2), U8(0),
   /*   80 S> */ B(Return),
@@ -44,18 +44,18 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 27
+bytecode array length: 23
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
-                B(Star), R(0),
+                B(Star0),
   /*   53 S> */ B(LdaSmi), I8(2),
-                B(Star), R(1),
+                B(Star1),
   /*   56 S> */ B(LdaConstant), U8(0),
-                B(Star), R(2),
+                B(Star2),
                 B(Ldar), R(0),
   /*   72 E> */ B(ToString),
                 B(Add), R(2), U8(0),
-                B(Star), R(2),
+                B(Star2),
                 B(Ldar), R(1),
   /*   76 E> */ B(ToString),
                 B(Add), R(2), U8(0),
@@ -75,18 +75,18 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 27
+bytecode array length: 23
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
-                B(Star), R(0),
+                B(Star0),
   /*   53 S> */ B(LdaSmi), I8(2),
-                B(Star), R(1),
+                B(Star1),
   /*   56 S> */ B(Ldar), R(0),
                 B(ToString),
-                B(Star), R(2),
+                B(Star2),
                 B(LdaConstant), U8(0),
                 B(Add), R(2), U8(0),
-                B(Star), R(2),
+                B(Star2),
                 B(Ldar), R(1),
   /*   76 E> */ B(ToString),
                 B(Add), R(2), U8(0),
@@ -106,28 +106,28 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 49
+bytecode array length: 42
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
-                B(Star), R(0),
+                B(Star0),
   /*   53 S> */ B(LdaSmi), I8(2),
-                B(Star), R(1),
+                B(Star1),
   /*   56 S> */ B(LdaConstant), U8(0),
-                B(Star), R(2),
+                B(Star2),
                 B(Ldar), R(0),
   /*   69 E> */ B(ToString),
                 B(Add), R(2), U8(0),
-                B(Star), R(2),
+                B(Star2),
                 B(LdaConstant), U8(1),
                 B(Add), R(2), U8(0),
-                B(Star), R(2),
+                B(Star2),
                 B(Ldar), R(1),
   /*   76 E> */ B(ToString),
                 B(Add), R(2), U8(0),
-                B(Star), R(2),
+                B(Star2),
                 B(LdaConstant), U8(2),
                 B(Add), R(2), U8(0),
-                B(Star), R(2),
+                B(Star2),
                 B(LdaSmi), I8(1),
                 B(ToString),
                 B(Add), R(2), U8(0),
@@ -149,20 +149,20 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 34
+bytecode array length: 29
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
-                B(Star), R(0),
+                B(Star0),
   /*   53 S> */ B(LdaSmi), I8(2),
-                B(Star), R(1),
+                B(Star1),
   /*   56 S> */ B(Ldar), R(0),
                 B(ToString),
-                B(Star), R(2),
+                B(Star2),
                 B(LdaConstant), U8(0),
                 B(Add), R(2), U8(1),
-                B(Star), R(2),
+                B(Star2),
                 B(LdaConstant), U8(0),
-                B(Star), R(3),
+                B(Star3),
                 B(Ldar), R(1),
   /*   87 E> */ B(ToString),
                 B(Add), R(3), U8(2),
@@ -184,24 +184,24 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 44
+bytecode array length: 38
 bytecodes: [
   /*   30 E> */ B(CreateClosure), U8(0), U8(0), U8(2),
-                B(Star), R(2),
+                B(Star2),
   /*   42 S> */ B(LdaSmi), I8(1),
-                B(Star), R(0),
+                B(Star0),
   /*   53 S> */ B(LdaSmi), I8(2),
-                B(Star), R(1),
+                B(Star1),
   /*   80 S> */ B(LdaConstant), U8(1),
-                B(Star), R(3),
+                B(Star3),
   /*   96 E> */ B(CallUndefinedReceiver2), R(2), R(0), R(1), U8(1),
                 B(ToString),
                 B(Add), R(3), U8(0),
-                B(Star), R(3),
+                B(Star3),
                 B(Ldar), R(0),
   /*  108 E> */ B(ToString),
                 B(Add), R(3), U8(0),
-                B(Star), R(3),
+                B(Star3),
                 B(Ldar), R(1),
   /*  112 E> */ B(ToString),
                 B(Add), R(3), U8(0),

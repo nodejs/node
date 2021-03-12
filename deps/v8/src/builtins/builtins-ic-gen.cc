@@ -27,24 +27,33 @@ IC_BUILTIN(LoadIC_Megamorphic)
 IC_BUILTIN(LoadIC_Noninlined)
 IC_BUILTIN(LoadIC_NoFeedback)
 IC_BUILTIN(LoadICTrampoline)
+IC_BUILTIN(LoadICBaseline)
 IC_BUILTIN(LoadICTrampoline_Megamorphic)
 IC_BUILTIN(LoadSuperIC)
+IC_BUILTIN(LoadSuperICBaseline)
 IC_BUILTIN(KeyedLoadIC)
 IC_BUILTIN(KeyedLoadIC_Megamorphic)
 IC_BUILTIN(KeyedLoadIC_PolymorphicName)
 IC_BUILTIN(KeyedLoadICTrampoline)
+IC_BUILTIN(KeyedLoadICBaseline)
 IC_BUILTIN(KeyedLoadICTrampoline_Megamorphic)
 IC_BUILTIN(LoadGlobalIC_NoFeedback)
 IC_BUILTIN(StoreGlobalIC)
 IC_BUILTIN(StoreGlobalICTrampoline)
+IC_BUILTIN(StoreGlobalICBaseline)
 IC_BUILTIN(StoreIC)
 IC_BUILTIN(StoreICTrampoline)
+IC_BUILTIN(StoreICBaseline)
 IC_BUILTIN(KeyedStoreIC)
 IC_BUILTIN(KeyedStoreICTrampoline)
+IC_BUILTIN(KeyedStoreICBaseline)
 IC_BUILTIN(StoreInArrayLiteralIC)
+IC_BUILTIN(StoreInArrayLiteralICBaseline)
 IC_BUILTIN(CloneObjectIC)
+IC_BUILTIN(CloneObjectICBaseline)
 IC_BUILTIN(CloneObjectIC_Slow)
 IC_BUILTIN(KeyedHasIC)
+IC_BUILTIN(KeyedHasICBaseline)
 IC_BUILTIN(KeyedHasIC_Megamorphic)
 IC_BUILTIN(KeyedHasIC_PolymorphicName)
 
@@ -53,6 +62,17 @@ IC_BUILTIN_PARAM(LoadGlobalICInsideTypeof, LoadGlobalIC, INSIDE_TYPEOF)
 IC_BUILTIN_PARAM(LoadGlobalICTrampoline, LoadGlobalICTrampoline,
                  NOT_INSIDE_TYPEOF)
 IC_BUILTIN_PARAM(LoadGlobalICInsideTypeofTrampoline, LoadGlobalICTrampoline,
+                 INSIDE_TYPEOF)
+IC_BUILTIN_PARAM(LoadGlobalICBaseline, LoadGlobalICBaseline, NOT_INSIDE_TYPEOF)
+IC_BUILTIN_PARAM(LoadGlobalICInsideTypeofBaseline, LoadGlobalICBaseline,
+                 INSIDE_TYPEOF)
+IC_BUILTIN_PARAM(LookupGlobalICBaseline, LookupGlobalICBaseline,
+                 NOT_INSIDE_TYPEOF)
+IC_BUILTIN_PARAM(LookupGlobalICInsideTypeofBaseline, LookupGlobalICBaseline,
+                 INSIDE_TYPEOF)
+IC_BUILTIN_PARAM(LookupContextBaseline, LookupContextBaseline,
+                 NOT_INSIDE_TYPEOF)
+IC_BUILTIN_PARAM(LookupContextInsideTypeofBaseline, LookupContextBaseline,
                  INSIDE_TYPEOF)
 
 TF_BUILTIN(DynamicCheckMaps, CodeStubAssembler) {

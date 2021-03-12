@@ -61,7 +61,7 @@ class BytecodeAnalysisTest : public TestWithIsolateAndZone {
       Handle<BytecodeArray> bytecode,
       const std::vector<std::pair<std::string, std::string>>&
           expected_liveness) {
-    BytecodeAnalysis analysis(bytecode, zone(), BailoutId::None(), true);
+    BytecodeAnalysis analysis(bytecode, zone(), BytecodeOffset::None(), true);
 
     interpreter::BytecodeArrayIterator iterator(bytecode);
     for (auto liveness : expected_liveness) {
@@ -92,8 +92,6 @@ SaveFlags* BytecodeAnalysisTest::save_flags_ = nullptr;
 TEST_F(BytecodeAnalysisTest, EmptyBlock) {
   interpreter::BytecodeArrayBuilder builder(zone(), 3, 3);
   std::vector<std::pair<std::string, std::string>> expected_liveness;
-
-  interpreter::Register reg_0(0);
 
   builder.Return();
   expected_liveness.emplace_back("...L", "....");
@@ -229,7 +227,6 @@ TEST_F(BytecodeAnalysisTest, SimpleLoop) {
   std::vector<std::pair<std::string, std::string>> expected_liveness;
 
   interpreter::Register reg_0(0);
-  interpreter::Register reg_1(1);
   interpreter::Register reg_2(2);
 
   // Kill r0.

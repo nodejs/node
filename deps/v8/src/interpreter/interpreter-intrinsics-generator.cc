@@ -261,43 +261,8 @@ TNode<Object> IntrinsicsGenerator::Call(
 TNode<Object> IntrinsicsGenerator::CreateAsyncFromSyncIterator(
     const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
     int arg_count) {
-  InterpreterAssembler::Label not_receiver(
-      assembler_, InterpreterAssembler::Label::kDeferred);
-  InterpreterAssembler::Label done(assembler_);
-  InterpreterAssembler::TVariable<Object> return_value(assembler_);
-
   TNode<Object> sync_iterator = __ LoadRegisterFromRegisterList(args, 0);
-
-  __ GotoIf(__ TaggedIsSmi(sync_iterator), &not_receiver);
-  __ GotoIfNot(__ IsJSReceiver(__ CAST(sync_iterator)), &not_receiver);
-
-  const TNode<Object> next =
-      __ GetProperty(context, sync_iterator, factory()->next_string());
-
-  const TNode<NativeContext> native_context = __ LoadNativeContext(context);
-  const TNode<Map> map = __ CAST(__ LoadContextElement(
-      native_context, Context::ASYNC_FROM_SYNC_ITERATOR_MAP_INDEX));
-  const TNode<JSObject> iterator = __ AllocateJSObjectFromMap(map);
-
-  __ StoreObjectFieldNoWriteBarrier(
-      iterator, JSAsyncFromSyncIterator::kSyncIteratorOffset, sync_iterator);
-  __ StoreObjectFieldNoWriteBarrier(iterator,
-                                    JSAsyncFromSyncIterator::kNextOffset, next);
-
-  return_value = iterator;
-  __ Goto(&done);
-
-  __ BIND(&not_receiver);
-  {
-    return_value =
-        __ CallRuntime(Runtime::kThrowSymbolIteratorInvalid, context);
-
-    // Unreachable due to the Throw in runtime call.
-    __ Goto(&done);
-  }
-
-  __ BIND(&done);
-  return return_value.value();
+  return __ CreateAsyncFromSyncIterator(context, sync_iterator);
 }
 
 TNode<Object> IntrinsicsGenerator::CreateJSGeneratorObject(
@@ -332,23 +297,7 @@ TNode<Object> IntrinsicsGenerator::GeneratorClose(
 TNode<Object> IntrinsicsGenerator::GetImportMetaObject(
     const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
     int arg_count) {
-  const TNode<Context> module_context = __ LoadModuleContext(context);
-  const TNode<HeapObject> module =
-      __ CAST(__ LoadContextElement(module_context, Context::EXTENSION_INDEX));
-  const TNode<Object> import_meta =
-      __ LoadObjectField(module, SourceTextModule::kImportMetaOffset);
-
-  InterpreterAssembler::TVariable<Object> return_value(assembler_);
-  return_value = import_meta;
-
-  InterpreterAssembler::Label end(assembler_);
-  __ GotoIfNot(__ IsTheHole(import_meta), &end);
-
-  return_value = __ CallRuntime(Runtime::kGetImportMetaObject, context);
-  __ Goto(&end);
-
-  __ BIND(&end);
-  return return_value.value();
+  return __ GetImportMetaObject(context);
 }
 
 TNode<Object> IntrinsicsGenerator::AsyncFunctionAwaitCaught(

@@ -904,41 +904,6 @@ TEST(EmptyMemoryEmptyDataSegment) {
   Cleanup();
 }
 
-TEST(MemoryWithOOBEmptyDataSegment) {
-  {
-    FlagScope<bool> no_bulk_memory(
-        &v8::internal::FLAG_experimental_wasm_bulk_memory, false);
-    Isolate* isolate = CcTest::InitIsolateOnce();
-    HandleScope scope(isolate);
-    testing::SetupIsolateForWasmModule(isolate);
-
-    ErrorThrower thrower(isolate, "Run_WasmModule_InitDataAtTheUpperLimit");
-
-    const byte data[] = {
-        WASM_MODULE_HEADER,      // --
-        kMemorySectionCode,      // --
-        U32V_1(4),               // section size
-        ENTRY_COUNT(1),          // --
-        kWithMaximum,            // --
-        1,                       // initial size
-        1,                       // maximum size
-        kDataSectionCode,        // --
-        U32V_1(9),               // section size
-        ENTRY_COUNT(1),          // --
-        0,                       // linear memory index
-        WASM_I32V_4(0x2468ACE),  // destination offset
-        kExprEnd,
-        U32V_1(0),  // source size
-    };
-
-    CompileAndInstantiateForTesting(
-        isolate, &thrower, ModuleWireBytes(data, data + arraysize(data)));
-    // It should not be possible to instantiate this module.
-    CHECK(thrower.error());
-  }
-  Cleanup();
-}
-
 #undef EMIT_CODE_WITH_END
 
 }  // namespace test_run_wasm_module

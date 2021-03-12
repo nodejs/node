@@ -44,8 +44,6 @@ class JavaScriptFrame;
     kHasSideEffectToReceiver)                                                 \
   V(_, function_prototype, FunctionPrototype, kHasNoSideEffect,               \
     kHasSideEffectToReceiver)                                                 \
-  V(_, regexp_result_indices, RegExpResultIndices, kHasSideEffectToReceiver,  \
-    kHasSideEffectToReceiver)                                                 \
   V(_, string_length, StringLength, kHasNoSideEffect, kHasSideEffectToReceiver)
 
 #define ACCESSOR_SETTER_LIST(V) \

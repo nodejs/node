@@ -92,9 +92,10 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
     params.push_back(__ IntPtrConstant(i + 42));
   }
   DCHECK_EQ(param_count + 1, params.size());
-  Node* raw_result = tester.raw_assembler_for_testing()->CallN(
-      caller_descriptor, param_count + 1, params.data());
-  __ Return(__ SmiTag(raw_result));
+  TNode<IntPtrT> intptr_result =
+      __ UncheckedCast<IntPtrT>(tester.raw_assembler_for_testing()->CallN(
+          caller_descriptor, param_count + 1, params.data()));
+  __ Return(__ SmiTag(intptr_result));
   return tester.GenerateCodeCloseAndEscape();
 }
 

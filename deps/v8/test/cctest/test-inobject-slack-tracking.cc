@@ -80,15 +80,11 @@ static Object GetFieldValue(JSObject obj, int property_index) {
 }
 
 static double GetDoubleFieldValue(JSObject obj, FieldIndex field_index) {
-  if (obj.IsUnboxedDoubleField(field_index)) {
-    return obj.RawFastDoublePropertyAt(field_index);
+  Object value = obj.RawFastPropertyAt(field_index);
+  if (value.IsHeapNumber()) {
+    return HeapNumber::cast(value).value();
   } else {
-    Object value = obj.RawFastPropertyAt(field_index);
-    if (value.IsHeapNumber()) {
-      return HeapNumber::cast(value).value();
-    } else {
-      return value.Number();
-    }
+    return value.Number();
   }
 }
 

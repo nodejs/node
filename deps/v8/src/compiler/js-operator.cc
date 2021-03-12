@@ -676,6 +676,50 @@ ForInParameters const& ForInParametersOf(const Operator* op) {
   return OpParameter<ForInParameters>(op);
 }
 
+JSWasmCallParameters const& JSWasmCallParametersOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kJSWasmCall, op->opcode());
+  return OpParameter<JSWasmCallParameters>(op);
+}
+
+std::ostream& operator<<(std::ostream& os, JSWasmCallParameters const& p) {
+  return os << p.module() << ", " << p.signature() << ", " << p.feedback();
+}
+
+size_t hash_value(JSWasmCallParameters const& p) {
+  return base::hash_combine(p.module(), p.signature(),
+                            FeedbackSource::Hash()(p.feedback()));
+}
+
+bool operator==(JSWasmCallParameters const& lhs,
+                JSWasmCallParameters const& rhs) {
+  return lhs.module() == rhs.module() && lhs.signature() == rhs.signature() &&
+         lhs.feedback() == rhs.feedback();
+}
+
+int JSWasmCallParameters::arity_without_implicit_args() const {
+  return static_cast<int>(signature_->parameter_count());
+}
+
+int JSWasmCallParameters::input_count() const {
+  return static_cast<int>(signature_->parameter_count()) +
+         JSWasmCallNode::kExtraInputCount;
+}
+
+// static
+Type JSWasmCallNode::TypeForWasmReturnType(const wasm::ValueType& type) {
+  switch (type.kind()) {
+    case wasm::kI32:
+      return Type::Signed32();
+    case wasm::kI64:
+      return Type::BigInt();
+    case wasm::kF32:
+    case wasm::kF64:
+      return Type::Number();
+    default:
+      UNREACHABLE();
+  }
+}
+
 #define CACHED_OP_LIST(V)                                                \
   V(ToLength, Operator::kNoProperties, 1, 1)                             \
   V(ToName, Operator::kNoProperties, 1, 1)                               \
@@ -872,6 +916,17 @@ const Operator* JSOperatorBuilder::CallRuntime(const Runtime::Function* f,
       "JSCallRuntime",                                    // name
       parameters.arity(), 1, 1, f->result_size, 1, 2,     // inputs/outputs
       parameters);                                        // parameter
+}
+
+const Operator* JSOperatorBuilder::CallWasm(
+    const wasm::WasmModule* wasm_module,
+    const wasm::FunctionSig* wasm_signature, FeedbackSource const& feedback) {
+  JSWasmCallParameters parameters(wasm_module, wasm_signature, feedback);
+  return zone()->New<Operator1<JSWasmCallParameters>>(
+      IrOpcode::kJSWasmCall, Operator::kNoProperties,  // opcode
+      "JSWasmCall",                                    // name
+      parameters.input_count(), 1, 1, 1, 1, 2,         // inputs/outputs
+      parameters);                                     // parameter
 }
 
 const Operator* JSOperatorBuilder::ConstructForwardVarargs(

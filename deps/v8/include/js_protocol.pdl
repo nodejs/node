@@ -1030,6 +1030,7 @@ domain Runtime
         arraybuffer
         dataview
         webassemblymemory
+        wasmvalue
       # Object class (constructor) name. Specified for `object` type values only.
       optional string className
       # Remote object value in case of primitive values or JSON values (if it was requested).
@@ -1088,6 +1089,7 @@ domain Runtime
         arraybuffer
         dataview
         webassemblymemory
+        wasmvalue
       # String representation of the object.
       optional string description
       # True iff some of the properties or entries of the original object did not fit.
@@ -1136,6 +1138,7 @@ domain Runtime
         arraybuffer
         dataview
         webassemblymemory
+        wasmvalue
 
   experimental type EntryPreview extends object
     properties

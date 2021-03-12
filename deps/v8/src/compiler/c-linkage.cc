@@ -31,6 +31,7 @@ namespace {
 #define STACK_SHADOW_WORDS 4
 #define PARAM_REGISTERS rcx, rdx, r8, r9
 #define FP_PARAM_REGISTERS xmm0, xmm1, xmm2, xmm3
+#define FP_RETURN_REGISTER xmm0
 #define CALLEE_SAVE_REGISTERS                                             \
   rbx.bit() | rdi.bit() | rsi.bit() | r12.bit() | r13.bit() | r14.bit() | \
       r15.bit()
@@ -43,6 +44,7 @@ namespace {
 // == x64 other ==============================================================
 #define PARAM_REGISTERS rdi, rsi, rdx, rcx, r8, r9
 #define FP_PARAM_REGISTERS xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7
+#define FP_RETURN_REGISTER xmm0
 #define CALLEE_SAVE_REGISTERS \
   rbx.bit() | r12.bit() | r13.bit() | r14.bit() | r15.bit()
 #endif  // V8_TARGET_OS_WIN
@@ -58,7 +60,6 @@ namespace {
   (1 << d8.code()) | (1 << d9.code()) | (1 << d10.code()) |       \
       (1 << d11.code()) | (1 << d12.code()) | (1 << d13.code()) | \
       (1 << d14.code()) | (1 << d15.code())
-
 
 #elif V8_TARGET_ARCH_ARM64
 // ===========================================================================
@@ -130,6 +131,19 @@ namespace {
   d8.bit() | d9.bit() | d10.bit() | d11.bit() | d12.bit() | d13.bit() | \
       d14.bit() | d15.bit()
 
+#elif V8_TARGET_ARCH_RISCV64
+// ===========================================================================
+// == riscv64 =================================================================
+// ===========================================================================
+#define PARAM_REGISTERS a0, a1, a2, a3, a4, a5, a6, a7
+// fp is not part of CALLEE_SAVE_REGISTERS (similar to how MIPS64 or PPC defines
+// it)
+#define CALLEE_SAVE_REGISTERS                                                  \
+  s1.bit() | s2.bit() | s3.bit() | s4.bit() | s5.bit() | s6.bit() | s7.bit() | \
+      s8.bit() | s9.bit() | s10.bit() | s11.bit()
+#define CALLEE_SAVE_FP_REGISTERS                                          \
+  fs0.bit() | fs1.bit() | fs2.bit() | fs3.bit() | fs4.bit() | fs5.bit() | \
+      fs6.bit() | fs7.bit() | fs8.bit() | fs9.bit() | fs10.bit() | fs11.bit()
 #else
 // ===========================================================================
 // == unknown ================================================================
@@ -236,24 +250,36 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,
 #ifndef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
   // Check the types of the signature.
   for (size_t i = 0; i < msig->parameter_count(); i++) {
-    MachineRepresentation rep = msig->GetParam(i).representation();
-    CHECK_NE(MachineRepresentation::kFloat32, rep);
-    CHECK_NE(MachineRepresentation::kFloat64, rep);
+    MachineType type = msig->GetParam(i);
+    CHECK(!IsFloatingPoint(type.representation()));
   }
-#endif
 
-  // Add return location(s). We don't support FP returns for now.
+  // Check the return types.
   for (size_t i = 0; i < locations.return_count_; i++) {
     MachineType type = msig->GetReturn(i);
     CHECK(!IsFloatingPoint(type.representation()));
   }
+#endif
 
   CHECK_GE(2, locations.return_count_);
   if (locations.return_count_ > 0) {
-    locations.AddReturn(LinkageLocation::ForRegister(kReturnRegister0.code(),
-                                                     msig->GetReturn(0)));
+#ifdef FP_RETURN_REGISTER
+    const v8::internal::DoubleRegister kFPReturnRegister = FP_RETURN_REGISTER;
+    auto reg = IsFloatingPoint(msig->GetReturn(0).representation())
+                   ? kFPReturnRegister.code()
+                   : kReturnRegister0.code();
+#else
+    auto reg = kReturnRegister0.code();
+#endif
+    // TODO(chromium:1052746): Use the correctly sized register here (e.g. "al"
+    // if the return type is kBit), so we don't have to use a hacky bitwise AND
+    // elsewhere.
+    locations.AddReturn(LinkageLocation::ForRegister(reg, msig->GetReturn(0)));
   }
+
   if (locations.return_count_ > 1) {
+    DCHECK(!IsFloatingPoint(msig->GetReturn(0).representation()));
+
     locations.AddReturn(LinkageLocation::ForRegister(kReturnRegister1.code(),
                                                      msig->GetReturn(1)));
   }

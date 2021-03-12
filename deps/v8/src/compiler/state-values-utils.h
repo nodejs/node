@@ -126,6 +126,17 @@ class V8_EXPORT_PRIVATE StateValuesAccess {
 
   size_t size() const;
   iterator begin() const { return iterator(node_); }
+  iterator begin_without_receiver() const {
+    return ++begin();  // Skip the receiver.
+  }
+  iterator begin_without_receiver_and_skip(int n_skips) {
+    iterator it = begin_without_receiver();
+    while (n_skips > 0 && !it.done()) {
+      ++it;
+      --n_skips;
+    }
+    return it;
+  }
   iterator end() const { return iterator(); }
 
  private:

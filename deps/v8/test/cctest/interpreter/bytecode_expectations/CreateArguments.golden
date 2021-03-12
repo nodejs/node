@@ -13,10 +13,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 4
+bytecode array length: 3
 bytecodes: [
   /*   10 E> */ B(CreateMappedArguments),
-                B(Star), R(0),
+                B(Star0),
   /*   32 S> */ B(Return),
 ]
 constant pool: [
@@ -31,10 +31,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 8
+bytecode array length: 7
 bytecodes: [
   /*   10 E> */ B(CreateMappedArguments),
-                B(Star), R(0),
+                B(Star0),
   /*   15 S> */ B(LdaZero),
   /*   31 E> */ B(LdaKeyedProperty), R(0), U8(0),
   /*   35 S> */ B(Return),
@@ -51,10 +51,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 4
+bytecode array length: 3
 bytecodes: [
   /*   10 E> */ B(CreateUnmappedArguments),
-                B(Star), R(0),
+                B(Star0),
   /*   46 S> */ B(Return),
 ]
 constant pool: [
@@ -69,14 +69,14 @@ snippet: "
 "
 frame size: 2
 parameter count: 2
-bytecode array length: 17
+bytecode array length: 16
 bytecodes: [
   /*   10 E> */ B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(1),
                 B(Ldar), R(arg0),
                 B(StaCurrentContextSlot), U8(2),
                 B(CreateMappedArguments),
-                B(Star), R(0),
+                B(Star0),
   /*   16 S> */ B(LdaZero),
   /*   32 E> */ B(LdaKeyedProperty), R(0), U8(0),
   /*   36 S> */ B(Return),
@@ -94,7 +94,7 @@ snippet: "
 "
 frame size: 2
 parameter count: 4
-bytecode array length: 21
+bytecode array length: 20
 bytecodes: [
   /*   10 E> */ B(CreateFunctionContext), U8(0), U8(3),
                 B(PushContext), R(1),
@@ -105,7 +105,7 @@ bytecodes: [
                 B(Ldar), R(arg2),
                 B(StaCurrentContextSlot), U8(2),
                 B(CreateMappedArguments),
-                B(Star), R(0),
+                B(Star0),
   /*   39 S> */ B(Return),
 ]
 constant pool: [
@@ -121,10 +121,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 4
-bytecode array length: 4
+bytecode array length: 3
 bytecodes: [
   /*   10 E> */ B(CreateUnmappedArguments),
-                B(Star), R(0),
+                B(Star0),
   /*   53 S> */ B(Return),
 ]
 constant pool: [

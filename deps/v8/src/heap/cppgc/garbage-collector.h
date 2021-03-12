@@ -42,6 +42,13 @@ class GarbageCollector {
               MarkingType::kIncremental, SweepingType::kAtomic};
     }
 
+    static constexpr Config
+    PreciseIncrementalMarkingConcurrentSweepingConfig() {
+      return {CollectionType::kMajor, StackState::kNoHeapPointers,
+              MarkingType::kIncremental,
+              SweepingType::kIncrementalAndConcurrent};
+    }
+
     static constexpr Config MinorPreciseAtomicConfig() {
       return {CollectionType::kMinor, StackState::kNoHeapPointers,
               MarkingType::kAtomic, SweepingType::kAtomic};

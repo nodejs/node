@@ -43,7 +43,7 @@ export class SourcePosition {
   }
 
   toString() {
-   return `${this.script.name}:${this.line}:${this.column}`;
+    return `${this.script.name}:${this.line}:${this.column}`;
   }
 
   toStringLong() {
@@ -79,7 +79,7 @@ export class Script {
   addSourcePosition(line, column, entry) {
     let sourcePosition = this.lineToColumn.get(line)?.get(column);
     if (sourcePosition === undefined) {
-      sourcePosition = new SourcePosition(this, line, column, )
+      sourcePosition = new SourcePosition(this, line, column,)
       this._addSourcePosition(line, column, sourcePosition);
     }
     sourcePosition.addEntry(entry);
@@ -110,13 +110,13 @@ export class Script {
 
 
 class SourceInfo {
-   script;
-   start;
-   end;
-   positions;
-   inlined ;
-   fns;
-   disassemble;
+  script;
+  start;
+  end;
+  positions;
+  inlined;
+  fns;
+  disassemble;
 
   setSourcePositionInfo(script, startPos, endPos, sourcePositionTable, inliningPositions, inlinedFunctions) {
     this.script = script;
@@ -181,9 +181,10 @@ export class Profile {
   static CodeState = {
     COMPILED: 0,
     IGNITION: 1,
-    NATIVE_CONTEXT_INDEPENDENT: 2,
-    TURBOPROP: 3,
-    TURBOFAN: 4,
+    BASELINE: 2,
+    NATIVE_CONTEXT_INDEPENDENT: 3,
+    TURBOPROP: 4,
+    TURBOFAN: 5,
   }
 
   /**
@@ -195,6 +196,8 @@ export class Profile {
         return this.CodeState.COMPILED;
       case '~':
         return this.CodeState.IGNITION;
+      case '^':
+        return this.CodeState.BASELINE;
       case '-':
         return this.CodeState.NATIVE_CONTEXT_INDEPENDENT;
       case '+':
@@ -210,6 +213,8 @@ export class Profile {
       return "Builtin";
     } else if (state === this.CodeState.IGNITION) {
       return "Unopt";
+    } else if (state === this.CodeState.BASELINE) {
+      return "Baseline";
     } else if (state === this.CodeState.NATIVE_CONTEXT_INDEPENDENT) {
       return "NCI";
     } else if (state === this.CodeState.TURBOPROP) {
@@ -232,7 +237,7 @@ export class Profile {
    *     during stack strace processing, specifies a position of the frame
    *     containing the address.
    */
-  handleUnknownCode(operation, addr, opt_stackPos) {}
+  handleUnknownCode(operation, addr, opt_stackPos) { }
 
   /**
    * Registers a library.
@@ -255,7 +260,7 @@ export class Profile {
    * @param {number} endAddr Ending address.
    */
   addStaticCode(name, startAddr, endAddr) {
-      const entry = new CodeEntry(endAddr - startAddr, name, 'CPP');
+    const entry = new CodeEntry(endAddr - startAddr, name, 'CPP');
     this.codeMap_.addStaticCode(startAddr, entry);
     return entry;
   }
@@ -370,8 +375,8 @@ export class Profile {
     }
 
     this.getOrCreateSourceInfo(entry).setSourcePositionInfo(
-          script, startPos, endPos, sourcePositionTable, inliningPositions,
-          inlinedFunctions);
+      script, startPos, endPos, sourcePositionTable, inliningPositions,
+      inlinedFunctions);
   }
 
   addDisassemble(start, kind, disassemble) {
@@ -646,7 +651,7 @@ class DynamicCodeEntry extends CodeEntry {
   constructor(size, type, name) {
     super(size, name, type);
   }
-  
+
   getName() {
     return this.type + ': ' + this.name;
   }
@@ -693,7 +698,7 @@ class DynamicFuncCodeEntry extends CodeEntry {
     return this.source?.getSourceCode();
   }
 
-  static STATE_PREFIX = ["", "~", "-", "+", "*"];
+  static STATE_PREFIX = ["", "~", "^", "-", "+", "*"];
   getState() {
     return DynamicFuncCodeEntry.STATE_PREFIX[this.state];
   }
@@ -726,7 +731,7 @@ class DynamicFuncCodeEntry extends CodeEntry {
  * @constructor
  */
 class FunctionEntry extends CodeEntry {
-  
+
   // Contains the list of generated code for this function.
   _codeEntries = new Set();
 
@@ -754,7 +759,7 @@ class FunctionEntry extends CodeEntry {
   getName() {
     let name = this.name;
     if (name.length == 0) {
-       return '<anonymous>';
+      return '<anonymous>';
     } else if (name.charAt(0) == ' ') {
       // An anonymous function with location: " aaa.js:10".
       return `<anonymous>${name}`;
@@ -888,7 +893,7 @@ class CallTree {
    * @param {function(CallTreeNode)} exit A function called
    *     after visiting node's children.
    */
-    traverseInDepth(enter, exit) {
+  traverseInDepth(enter, exit) {
     function traverse(node) {
       enter(node);
       node.forEachChild(traverse);
@@ -905,7 +910,7 @@ class CallTree {
  * @param {string} label Node label.
  * @param {CallTreeNode} opt_parent Node parent.
  */
- class CallTreeNode {
+class CallTreeNode {
   /**
    * Node self weight (how many times this node was the last node in
    * a call path).

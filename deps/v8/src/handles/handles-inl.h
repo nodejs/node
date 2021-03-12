@@ -178,6 +178,8 @@ Address* HandleScope::CreateHandle(Isolate* isolate, Address value) {
 
 Address* HandleScope::GetHandle(Isolate* isolate, Address value) {
   DCHECK(AllowHandleAllocation::IsAllowed());
+  DCHECK_WITH_MSG(isolate->thread_id() == ThreadId::Current(),
+                  "main-thread handle can only be created on the main thread.");
   HandleScopeData* data = isolate->handle_scope_data();
   CanonicalHandleScope* canonical = data->canonical_scope;
   return canonical ? canonical->Lookup(value) : CreateHandle(isolate, value);

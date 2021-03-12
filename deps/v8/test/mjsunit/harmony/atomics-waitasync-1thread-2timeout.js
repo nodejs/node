@@ -6,7 +6,7 @@
 
 load("test/mjsunit/harmony/atomics-waitasync-helpers.js");
 
-const script = `
+function workerCode() {
   const sab = new SharedArrayBuffer(16);
   const i32a = new Int32Array(sab);
 
@@ -28,7 +28,8 @@ const script = `
         postMessage("notify return value " + notify_return_value);
       },
       () => { postMessage("unexpected"); });
-  }`;
+  };
+}
 
 const expected_messages = [
   "fast timed-out",
@@ -36,4 +37,4 @@ const expected_messages = [
   "slow ok"
 ];
 
-runTestWithWorker(script, expected_messages);
+runTestWithWorker(workerCode, expected_messages);

@@ -104,6 +104,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   Zone* zone() const { return zone_; }
   bool tracing_enabled() const { return tracing_enabled_; }
   bool is_concurrent_inlining() const { return is_concurrent_inlining_; }
+  bool is_isolate_bootstrapping() const { return is_isolate_bootstrapping_; }
   bool is_native_context_independent() const {
     return code_kind_ == CodeKind::NATIVE_CONTEXT_INDEPENDENT;
   }
@@ -148,9 +149,21 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   Handle<Object> GetRootHandle(Object object);
 
   // Never returns nullptr.
-  ObjectData* GetOrCreateData(Handle<Object>);
+  ObjectData* GetOrCreateData(
+      Handle<Object>,
+      ObjectRef::BackgroundSerialization background_serialization =
+          ObjectRef::BackgroundSerialization::kDisallowed);
   // Like the previous but wraps argument in handle first (for convenience).
-  ObjectData* GetOrCreateData(Object);
+  ObjectData* GetOrCreateData(
+      Object, ObjectRef::BackgroundSerialization background_serialization =
+                  ObjectRef::BackgroundSerialization::kDisallowed);
+
+  // Gets data only if we have it. However, thin wrappers will be created for
+  // smis, read-only objects and never-serialized objects.
+  ObjectData* TryGetOrCreateData(
+      Handle<Object>, bool crash_on_error = false,
+      ObjectRef::BackgroundSerialization background_serialization =
+          ObjectRef::BackgroundSerialization::kDisallowed);
 
   // Check if {object} is any native context's %ArrayPrototype% or
   // %ObjectPrototype%.
@@ -300,6 +313,16 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   friend class HeapObjectRef;
   friend class ObjectRef;
   friend class ObjectData;
+  friend class PropertyCellData;
+
+  bool IsMainThread() const {
+    return local_isolate() == nullptr || local_isolate()->is_main_thread();
+  }
+
+  // If this returns false, the object is guaranteed to be fully initialized and
+  // thus safe to read from a memory safety perspective. The converse does not
+  // necessarily hold.
+  bool ObjectMayBeUninitialized(Handle<Object> object) const;
 
   bool CanUseFeedback(const FeedbackNexus& nexus) const;
   const ProcessedFeedback& NewInsufficientFeedback(FeedbackSlotKind kind) const;
@@ -369,6 +392,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   BrokerMode mode_ = kDisabled;
   bool const tracing_enabled_;
   bool const is_concurrent_inlining_;
+  bool const is_isolate_bootstrapping_;
   CodeKind const code_kind_;
   std::unique_ptr<PersistentHandles> ph_;
   LocalIsolate* local_isolate_ = nullptr;
@@ -442,23 +466,6 @@ Reduction NoChangeBecauseOfMissingData(JSHeapBroker* broker,
 // Miscellaneous definitions that should be moved elsewhere once concurrent
 // compilation is finished.
 bool CanInlineElementAccess(MapRef const& map);
-
-class OffHeapBytecodeArray final : public interpreter::AbstractBytecodeArray {
- public:
-  explicit OffHeapBytecodeArray(BytecodeArrayRef bytecode_array);
-
-  int length() const override;
-  int parameter_count() const override;
-  uint8_t get(int index) const override;
-  void set(int index, uint8_t value) override;
-  Address GetFirstBytecodeAddress() const override;
-  Handle<Object> GetConstantAtIndex(int index, Isolate* isolate) const override;
-  bool IsConstantAtIndexSmi(int index) const override;
-  Smi GetConstantAtIndexAsSmi(int index) const override;
-
- private:
-  BytecodeArrayRef array_;
-};
 
 // Scope that unparks the LocalHeap, if:
 //   a) We have a JSHeapBroker,

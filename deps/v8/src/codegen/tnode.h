@@ -368,7 +368,7 @@ class TNode {
 // SloppyTNode<T> is a variant of TNode<T> and allows implicit casts from
 // Node*. It is intended for function arguments as long as some call sites
 // still use untyped Node* arguments.
-// TODO(tebbi): Delete this class once transition is finished.
+// TODO(turbofan): Delete this class once transition is finished.
 template <class T>
 class SloppyTNode : public TNode<T> {
  public:

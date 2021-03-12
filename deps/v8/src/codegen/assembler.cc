@@ -122,10 +122,37 @@ class ExternalAssemblerBufferImpl : public AssemblerBuffer {
     FATAL("Cannot grow external assembler buffer");
   }
 
+  void* operator new(std::size_t count);
+  void operator delete(void* ptr) noexcept;
+
  private:
   byte* const start_;
   const int size_;
 };
+
+static thread_local std::aligned_storage_t<sizeof(ExternalAssemblerBufferImpl),
+                                           alignof(ExternalAssemblerBufferImpl)>
+    tls_singleton_storage;
+
+static thread_local bool tls_singleton_taken{false};
+
+void* ExternalAssemblerBufferImpl::operator new(std::size_t count) {
+  DCHECK_EQ(count, sizeof(ExternalAssemblerBufferImpl));
+  if (V8_LIKELY(!tls_singleton_taken)) {
+    tls_singleton_taken = true;
+    return &tls_singleton_storage;
+  }
+  return ::operator new(count);
+}
+
+void ExternalAssemblerBufferImpl::operator delete(void* ptr) noexcept {
+  if (V8_LIKELY(ptr == &tls_singleton_storage)) {
+    DCHECK(tls_singleton_taken);
+    tls_singleton_taken = false;
+    return;
+  }
+  ::operator delete(ptr);
+}
 
 }  // namespace
 
@@ -181,6 +208,7 @@ CpuFeatureScope::~CpuFeatureScope() {
 #endif
 
 bool CpuFeatures::initialized_ = false;
+bool CpuFeatures::supports_wasm_simd_128_ = false;
 unsigned CpuFeatures::supported_ = 0;
 unsigned CpuFeatures::icache_line_size_ = 0;
 unsigned CpuFeatures::dcache_line_size_ = 0;

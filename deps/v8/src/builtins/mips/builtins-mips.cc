@@ -375,11 +375,17 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ li(t3, Operand(-1));  // Push a bad frame pointer to fail if it is used.
   __ li(t2, Operand(StackFrame::TypeToMarker(type)));
   __ li(t1, Operand(StackFrame::TypeToMarker(type)));
-  __ li(t0, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
+  __ li(t4, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
                                       masm->isolate()));
-  __ lw(t0, MemOperand(t0));
+  __ lw(t0, MemOperand(t4));
   __ Push(t3, t2, t1, t0);
   pushed_stack_space += 4 * kPointerSize;
+
+  // Clear c_entry_fp, now we've pushed its previous value to the stack.
+  // If the c_entry_fp is not already zero and we don't clear it, the
+  // SafeStackFrameIterator will assume we are executing C++ and miss the JS
+  // frames on top.
+  __ Sw(zero_reg, MemOperand(t4));
 
   // Set up frame pointer for the frame to be pushed.
   __ addiu(fp, sp, -EntryFrameConstants::kCallerFPOffset);
@@ -766,7 +772,6 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ lw(params_size,
         FieldMemOperand(params_size, BytecodeArray::kParameterSizeOffset));
 
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
   Register actual_params_size = scratch2;
   // Compute the size of the actual parameters + receiver (in bytes).
   __ Lw(actual_params_size,
@@ -778,7 +783,6 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   // arguments.
   __ slt(t2, params_size, actual_params_size);
   __ movn(params_size, actual_params_size, t2);
-#endif
 
   // Leave the frame (also dropping the register file).
   __ LeaveFrame(StackFrame::INTERPRETED);
@@ -914,7 +918,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   __ Addu(scratch2, bytecode_array, bytecode_offset);
   __ lbu(bytecode, MemOperand(scratch2));
   __ Addu(bytecode_size_table, bytecode_size_table,
-          Operand(kIntSize * interpreter::Bytecodes::kBytecodeCount));
+          Operand(kByteSize * interpreter::Bytecodes::kBytecodeCount));
   __ jmp(&process_bytecode);
 
   __ bind(&extra_wide);
@@ -923,7 +927,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   __ Addu(scratch2, bytecode_array, bytecode_offset);
   __ lbu(bytecode, MemOperand(scratch2));
   __ Addu(bytecode_size_table, bytecode_size_table,
-          Operand(2 * kIntSize * interpreter::Bytecodes::kBytecodeCount));
+          Operand(2 * kByteSize * interpreter::Bytecodes::kBytecodeCount));
 
   __ bind(&process_bytecode);
 
@@ -946,11 +950,33 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 
   __ bind(&not_jump_loop);
   // Otherwise, load the size of the current bytecode and advance the offset.
-  __ Lsa(scratch2, bytecode_size_table, bytecode, 2);
-  __ lw(scratch2, MemOperand(scratch2));
+  __ Addu(scratch2, bytecode_size_table, bytecode);
+  __ lb(scratch2, MemOperand(scratch2));
   __ Addu(bytecode_offset, bytecode_offset, scratch2);
 
   __ bind(&end);
+}
+
+static void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
+    MacroAssembler* masm, Register optimization_state,
+    Register feedback_vector) {
+  Label maybe_has_optimized_code;
+  // Check if optimized code marker is available
+  __ andi(t1, optimization_state,
+          FeedbackVector::kHasCompileOptimizedOrLogFirstExecutionMarker);
+  __ Branch(&maybe_has_optimized_code, eq, t1, Operand(zero_reg));
+
+  Register optimization_marker = optimization_state;
+  __ DecodeField<FeedbackVector::OptimizationMarkerBits>(optimization_marker);
+  MaybeOptimizeCode(masm, feedback_vector, optimization_marker);
+
+  __ bind(&maybe_has_optimized_code);
+  Register optimized_code_entry = optimization_state;
+  __ Lw(optimization_marker,
+        FieldMemOperand(feedback_vector,
+                        FeedbackVector::kMaybeOptimizedCodeOffset));
+
+  TailCallOptimizedCodeSlot(masm, optimized_code_entry, t1, t3);
 }
 
 // Generate code for entering a JS function with the interpreter.
@@ -1156,26 +1182,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ jmp(&after_stack_check_interrupt);
 
   __ bind(&has_optimized_code_or_marker);
-
-  Label maybe_has_optimized_code;
-  // Check if optimized code marker is available
-  __ andi(t1, optimization_state,
-          FeedbackVector::kHasCompileOptimizedOrLogFirstExecutionMarker);
-  __ Branch(&maybe_has_optimized_code, eq, t1, Operand(zero_reg));
-
-  Register optimization_marker = optimization_state;
-  __ DecodeField<FeedbackVector::OptimizationMarkerBits>(optimization_marker);
-  MaybeOptimizeCode(masm, feedback_vector, optimization_marker);
-  // Fall through if there's no runnable optimized code.
-  __ jmp(&not_optimized);
-
-  __ bind(&maybe_has_optimized_code);
-  Register optimized_code_entry = optimization_state;
-  __ Lw(optimization_marker,
-         FieldMemOperand(feedback_vector,
-                         FeedbackVector::kMaybeOptimizedCodeOffset));
-
-  TailCallOptimizedCodeSlot(masm, optimized_code_entry, t1, t3);
+  MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(masm, optimization_state,
+                                               feedback_vector);
 
   __ bind(&compile_lazy);
   GenerateTailCallToReturnedCode(masm, Runtime::kCompileLazy);
@@ -1735,29 +1743,6 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
           RelocInfo::CODE_TARGET);
 }
 
-static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
-  __ sll(a0, a0, kSmiTagSize);
-  __ li(t0, Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ MultiPush(a0.bit() | a1.bit() | t0.bit() | fp.bit() | ra.bit());
-  __ Push(Smi::zero());  // Padding.
-  __ Addu(fp, sp,
-          Operand(ArgumentsAdaptorFrameConstants::kFixedFrameSizeFromFp));
-}
-
-static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- v0 : result being passed through
-  // -----------------------------------
-  // Get the number of arguments passed (as a smi), tear down the frame and
-  // then tear down the parameters.
-  __ lw(a1, MemOperand(fp, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ mov(sp, fp);
-  __ MultiPop(fp.bit() | ra.bit());
-  __ Lsa(sp, sp, a1, kPointerSizeLog2 - kSmiTagSize);
-  // Adjust for the receiver.
-  __ Addu(sp, sp, Operand(kPointerSize));
-}
-
 // static
 void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
                                                Handle<Code> code) {
@@ -1864,37 +1849,8 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     __ bind(&new_target_constructor);
   }
 
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
-  // TODO(victorgomes): Remove this copy when all the arguments adaptor frame
-  // code is erased.
-  __ mov(t3, fp);
-  __ Lw(t2, MemOperand(fp, StandardFrameConstants::kArgCOffset));
-#else
-
-  // Check if we have an arguments adaptor frame below the function frame.
-  Label arguments_adaptor, arguments_done;
-  __ lw(t3, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ lw(t2, MemOperand(t3, CommonFrameConstants::kContextOrFrameTypeOffset));
-  __ Branch(&arguments_adaptor, eq, t2,
-            Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
-  {
-    __ lw(t2, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
-    __ lw(t2, FieldMemOperand(t2, JSFunction::kSharedFunctionInfoOffset));
-    __ lhu(t2, FieldMemOperand(
-                   t2, SharedFunctionInfo::kFormalParameterCountOffset));
-    __ mov(t3, fp);
-  }
-  __ Branch(&arguments_done);
-  __ bind(&arguments_adaptor);
-  {
-    // Just get the length from the ArgumentsAdaptorFrame.
-    __ lw(t2, MemOperand(t3, ArgumentsAdaptorFrameConstants::kLengthOffset));
-    __ SmiUntag(t2);
-  }
-  __ bind(&arguments_done);
-#endif
-
   Label stack_done, stack_overflow;
+  __ Lw(t2, MemOperand(fp, StandardFrameConstants::kArgCOffset));
   __ Subu(t2, t2, a2);
   __ Branch(&stack_done, le, t2, Operand(zero_reg));
   {
@@ -1903,7 +1859,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
 
     // Forward the arguments from the caller frame.
     // Point to the first argument to copy (skipping the receiver).
-    __ Addu(t3, t3,
+    __ Addu(t3, fp,
             Operand(CommonFrameConstants::kFixedFrameSizeAboveFp +
                     kSystemPointerSize));
     __ Lsa(t3, t3, a2, kSystemPointerSizeLog2);
@@ -2138,9 +2094,11 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   Label non_callable, non_smi;
   __ JumpIfSmi(a1, &non_callable);
   __ bind(&non_smi);
-  __ GetObjectType(a1, t1, t2);
+  __ LoadMap(t1, a1);
+  __ GetInstanceTypeRange(t1, t2, FIRST_JS_FUNCTION_TYPE, t8);
   __ Jump(masm->isolate()->builtins()->CallFunction(mode),
-          RelocInfo::CODE_TARGET, eq, t2, Operand(JS_FUNCTION_TYPE));
+          RelocInfo::CODE_TARGET, ls, t8,
+          Operand(LAST_JS_FUNCTION_TYPE - FIRST_JS_FUNCTION_TYPE));
   __ Jump(BUILTIN_CODE(masm->isolate(), CallBoundFunction),
           RelocInfo::CODE_TARGET, eq, t2, Operand(JS_BOUND_FUNCTION_TYPE));
 
@@ -2297,9 +2255,10 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   __ Branch(&non_constructor, eq, t3, Operand(zero_reg));
 
   // Dispatch based on instance type.
-  __ lhu(t2, FieldMemOperand(t1, Map::kInstanceTypeOffset));
+  __ GetInstanceTypeRange(t1, t2, FIRST_JS_FUNCTION_TYPE, t8);
   __ Jump(BUILTIN_CODE(masm->isolate(), ConstructFunction),
-          RelocInfo::CODE_TARGET, eq, t2, Operand(JS_FUNCTION_TYPE));
+          RelocInfo::CODE_TARGET, ls, t8,
+          Operand(LAST_JS_FUNCTION_TYPE - FIRST_JS_FUNCTION_TYPE));
 
   // Only dispatch to bound functions after checking whether they are
   // constructors.
@@ -2329,128 +2288,6 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
           RelocInfo::CODE_TARGET);
 }
 
-void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
-  // State setup as expected by MacroAssembler::InvokePrologue.
-  // ----------- S t a t e -------------
-  //  -- a0: actual arguments count
-  //  -- a1: function (passed through to callee)
-  //  -- a2: expected arguments count
-  //  -- a3: new target (passed through to callee)
-  // -----------------------------------
-
-  Label invoke, dont_adapt_arguments, stack_overflow;
-
-  Label enough, too_few;
-  __ Branch(&dont_adapt_arguments, eq, a2,
-            Operand(kDontAdaptArgumentsSentinel));
-  // We use Uless as the number of argument should always be greater than 0.
-  __ Branch(&too_few, Uless, a0, Operand(a2));
-
-  {  // Enough parameters: actual >= expected.
-    // a0: actual number of arguments as a smi
-    // a1: function
-    // a2: expected number of arguments
-    // a3: new target (passed through to callee)
-    __ bind(&enough);
-    EnterArgumentsAdaptorFrame(masm);
-    __ StackOverflowCheck(a2, t1, kScratchReg, &stack_overflow);
-
-    // Calculate copy start address into a0 and copy end address into t1.
-    __ Lsa(a0, fp, a2, kPointerSizeLog2);
-    // Adjust for return address and receiver.
-    __ Addu(a0, a0, Operand(2 * kPointerSize));
-    // Compute copy end address.
-    __ sll(t1, a2, kPointerSizeLog2);
-    __ subu(t1, a0, t1);
-
-    // Copy the arguments (including the receiver) to the new stack frame.
-    // a0: copy start address
-    // a1: function
-    // a2: expected number of arguments
-    // a3: new target (passed through to callee)
-    // t1: copy end address
-
-    Label copy;
-    __ bind(&copy);
-    __ lw(t0, MemOperand(a0));
-    __ push(t0);
-    __ Branch(USE_DELAY_SLOT, &copy, ne, a0, Operand(t1));
-    __ addiu(a0, a0, -kPointerSize);  // In delay slot.
-
-    __ jmp(&invoke);
-  }
-
-  {  // Too few parameters: Actual < expected.
-    __ bind(&too_few);
-    EnterArgumentsAdaptorFrame(masm);
-    __ StackOverflowCheck(a2, t1, kScratchReg, &stack_overflow);
-
-    // Fill the remaining expected arguments with undefined.
-    __ LoadRoot(t0, RootIndex::kUndefinedValue);
-    __ SmiUntag(t2, a0);
-    __ Subu(t2, a2, Operand(t2));
-    __ sll(t1, t2, kSystemPointerSizeLog2);
-    __ Subu(t1, fp, t1);
-    // Adjust for frame.
-    __ Subu(t1, t1,
-            Operand(ArgumentsAdaptorFrameConstants::kFixedFrameSizeFromFp +
-                    kSystemPointerSize));
-
-    Label fill;
-    __ bind(&fill);
-    __ push(t0);
-    __ Branch(&fill, ne, sp, Operand(t1));
-
-    // Calculate copy start address into a0 and copy end address is fp.
-    __ Lsa(a0, fp, a0, kPointerSizeLog2 - kSmiTagSize);
-
-    // Copy the arguments (including the receiver) to the new stack frame.
-    Label copy;
-    __ bind(&copy);
-
-    // Adjust load for return address and receiver.
-    __ Lw(t0, MemOperand(a0, 2 * kSystemPointerSize));
-    __ push(t0);
-
-    __ Branch(USE_DELAY_SLOT, &copy, ne, a0, Operand(fp));
-    __ Subu(a0, a0, Operand(kSystemPointerSize));
-  }
-
-  // Call the entry point.
-  __ bind(&invoke);
-  __ mov(a0, a2);
-  // a0 : expected number of arguments
-  // a1 : function (passed through to callee)
-  // a3 : new target (passed through to callee)
-  static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
-  __ lw(a2, FieldMemOperand(a1, JSFunction::kCodeOffset));
-  __ Addu(a2, a2, Code::kHeaderSize - kHeapObjectTag);
-  __ Call(a2);
-
-  // Store offset of return address for deoptimizer.
-  masm->isolate()->heap()->SetArgumentsAdaptorDeoptPCOffset(masm->pc_offset());
-
-  // Exit frame and return.
-  LeaveArgumentsAdaptorFrame(masm);
-  __ Ret();
-
-  // -------------------------------------------
-  // Don't adapt arguments.
-  // -------------------------------------------
-  __ bind(&dont_adapt_arguments);
-  static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
-  __ lw(a2, FieldMemOperand(a1, JSFunction::kCodeOffset));
-  __ Addu(a2, a2, Code::kHeaderSize - kHeapObjectTag);
-  __ Jump(a2);
-
-  __ bind(&stack_overflow);
-  {
-    FrameScope frame(masm, StackFrame::MANUAL);
-    __ CallRuntime(Runtime::kThrowStackOverflow);
-    __ break_(0xCC);
-  }
-}
-
 void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   // The function index was put in t0 by the jump table trampoline.
   // Convert to Smi for the runtime call.
@@ -2459,7 +2296,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
     FrameScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
 
-    // Save all parameter registers (see wasm-linkage.cc). They might be
+    // Save all parameter registers (see wasm-linkage.h). They might be
     // overwritten in the runtime call below. We don't have any callee-saved
     // registers in wasm, so no need to store anything else.
     constexpr RegList gp_regs = Register::ListOf(a0, a2, a3);
@@ -2639,6 +2476,15 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // with both configurations. It is safe to always do this, because the
   // underlying register is caller-saved and can be arbitrarily clobbered.
   __ ResetSpeculationPoisonRegister();
+
+  // Clear c_entry_fp, like we do in `LeaveExitFrame`.
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ li(scratch, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
+                                             masm->isolate()));
+    __ Sw(zero_reg, MemOperand(scratch));
+  }
 
   // Compute the handler entry address and jump to it.
   __ li(t9, pending_handler_entrypoint_address);

@@ -21,6 +21,8 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(FeedbackCell)
 
+RELEASE_ACQUIRE_ACCESSORS(FeedbackCell, value, HeapObject, kValueOffset)
+
 void FeedbackCell::clear_padding() {
   if (FeedbackCell::kAlignedSize == FeedbackCell::kUnalignedSize) return;
   DCHECK_GE(FeedbackCell::kAlignedSize, FeedbackCell::kUnalignedSize);
@@ -53,9 +55,6 @@ void FeedbackCell::SetInitialInterruptBudget() {
   }
 }
 
-void FeedbackCell::SetInterruptBudget() {
-  set_interrupt_budget(FLAG_interrupt_budget);
-}
 
 void FeedbackCell::IncrementClosureCount(Isolate* isolate) {
   ReadOnlyRoots r(isolate);

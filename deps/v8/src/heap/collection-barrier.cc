@@ -70,9 +70,13 @@ void CollectionBarrier::StopTimeToCollectionTimer() {
     DCHECK(timer_.IsStarted());
     base::TimeDelta delta = timer_.Elapsed();
     TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                         "V8.TimeToCollection", TRACE_EVENT_SCOPE_THREAD,
-                         "duration", delta.InMillisecondsF());
-    heap_->isolate()->counters()->time_to_collection()->AddTimedSample(delta);
+                         "V8.GC.TimeToCollectionOnBackground",
+                         TRACE_EVENT_SCOPE_THREAD, "duration",
+                         delta.InMillisecondsF());
+    heap_->isolate()
+        ->counters()
+        ->gc_time_to_collection_on_background()
+        ->AddTimedSample(delta);
     timer_.Stop();
   } else {
     DCHECK_EQ(old_state, RequestState::kDefault);

@@ -26,4 +26,5 @@ per-file WATCHLIST=file:COMMON_OWNERS
 per-file *-mips*=file:MIPS_OWNERS
 per-file *-mips64*=file:MIPS_OWNERS
 per-file *-ppc*=file:PPC_OWNERS
+per-file *-riscv64*=file:RISCV_OWNERS
 per-file *-s390*=file:S390_OWNERS

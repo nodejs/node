@@ -61,6 +61,7 @@ class Decoder {
 
   virtual ~Decoder() = default;
 
+  // Ensures there are at least {length} bytes left to read, starting at {pc}.
   bool validate_size(const byte* pc, uint32_t length, const char* msg) {
     DCHECK_LE(start_, pc);
     if (V8_UNLIKELY(pc > end_ || length > static_cast<uint32_t>(end_ - pc))) {

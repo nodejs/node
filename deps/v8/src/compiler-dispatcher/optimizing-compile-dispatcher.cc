@@ -27,7 +27,7 @@ void DisposeCompilationJob(OptimizedCompilationJob* job,
                            bool restore_function_code) {
   if (restore_function_code) {
     Handle<JSFunction> function = job->compilation_info()->closure();
-    function->set_code(function->shared().GetCode());
+    function->set_code(function->shared().GetCode(), kReleaseStore);
     if (function->IsInOptimizationQueue()) {
       function->ClearOptimizationMarker();
     }

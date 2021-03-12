@@ -10,7 +10,7 @@
 namespace v8 {
 namespace internal {
 
-class BailoutId;
+class BytecodeOffset;
 class Zone;
 
 namespace compiler {
@@ -31,7 +31,7 @@ using SerializerForBackgroundCompilationFlags =
 void RunSerializerForBackgroundCompilation(
     ZoneStats* zone_stats, JSHeapBroker* broker,
     CompilationDependencies* dependencies, Handle<JSFunction> closure,
-    SerializerForBackgroundCompilationFlags flags, BailoutId osr_offset);
+    SerializerForBackgroundCompilationFlags flags, BytecodeOffset osr_offset);
 
 }  // namespace compiler
 }  // namespace internal

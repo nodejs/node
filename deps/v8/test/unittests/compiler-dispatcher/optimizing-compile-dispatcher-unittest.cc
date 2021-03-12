@@ -76,8 +76,8 @@ TEST_F(OptimizingCompileDispatcherTest, NonBlockingFlush) {
   Handle<JSFunction> fun =
       RunJS<JSFunction>("function f() { function g() {}; return g;}; f();");
   IsCompiledScope is_compiled_scope;
-  ASSERT_TRUE(
-      Compiler::Compile(fun, Compiler::CLEAR_EXCEPTION, &is_compiled_scope));
+  ASSERT_TRUE(Compiler::Compile(i_isolate(), fun, Compiler::CLEAR_EXCEPTION,
+                                &is_compiled_scope));
   BlockingCompilationJob* job = new BlockingCompilationJob(i_isolate(), fun);
 
   OptimizingCompileDispatcher dispatcher(i_isolate());

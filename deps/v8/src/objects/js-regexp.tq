@@ -10,6 +10,7 @@ bitfield struct JSRegExpFlags extends uint31 {
   unicode: bool: 1 bit;
   dot_all: bool: 1 bit;
   linear: bool: 1 bit;
+  has_indices: bool: 1 bit;
 }
 
 @generateCppClass
@@ -34,6 +35,10 @@ RegExpBuiltinsAssembler::FastLoadLastIndex(FastJSRegExp): Smi;
 extern operator '.lastIndex=' macro
 RegExpBuiltinsAssembler::FastStoreLastIndex(FastJSRegExp, Smi): void;
 
+@doNotGenerateCast
+extern class JSRegExpConstructor extends JSFunction
+    generates 'TNode<JSFunction>';
+
 extern shape JSRegExpResult extends JSArray {
   // In-object properties:
   // The below fields are externally exposed.
@@ -42,10 +47,13 @@ extern shape JSRegExpResult extends JSArray {
   groups: JSAny;
 
   // The below fields are for internal use only.
-  cached_indices_or_regexp: JSRegExpResultIndices|JSRegExp;
   names: FixedArray|Undefined;
   regexp_input: String;
   regexp_last_index: Smi;
+}
+
+extern shape JSRegExpResultWithIndices extends JSRegExpResult {
+  indices: JSAny;
 }
 
 extern shape JSRegExpResultIndices extends JSArray {

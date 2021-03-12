@@ -23,6 +23,8 @@
 #include "src/compiler/backend/ppc/instruction-codes-ppc.h"
 #elif V8_TARGET_ARCH_S390
 #include "src/compiler/backend/s390/instruction-codes-s390.h"
+#elif V8_TARGET_ARCH_RISCV64
+#include "src/compiler/backend/riscv64/instruction-codes-riscv64.h"
 #else
 #define TARGET_ARCH_OPCODE_LIST(V)
 #define TARGET_ADDRESSING_MODE_LIST(V)
@@ -67,7 +69,6 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   /* Tail call opcodes are grouped together to make IsTailCall fast */     \
   /* and Arch call opcodes are grouped together to make */                 \
   /* IsCallWithDescriptorFlags fast */                                     \
-  V(ArchTailCallCodeObjectFromJSFunction)                                  \
   V(ArchTailCallCodeObject)                                                \
   V(ArchTailCallAddress)                                                   \
   V(ArchTailCallWasm)                                                      \
@@ -281,6 +282,10 @@ using FlagsModeField = base::BitField<FlagsMode, 14, 3>;
 using FlagsConditionField = base::BitField<FlagsCondition, 17, 5>;
 using DeoptImmedArgsCountField = base::BitField<int, 22, 2>;
 using DeoptFrameStateOffsetField = base::BitField<int, 24, 8>;
+// LaneSizeField and AccessModeField are helper types to encode/decode a lane
+// size, an access mode, or both inside the overlapping MiscField.
+using LaneSizeField = base::BitField<int, 22, 8>;
+using AccessModeField = base::BitField<MemoryAccessMode, 30, 2>;
 using MiscField = base::BitField<int, 22, 10>;
 
 }  // namespace compiler

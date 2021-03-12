@@ -15,6 +15,7 @@
 #include "src/codegen/arm64/assembler-arm64.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"
+#include "src/objects/tagged-index.h"
 
 // Simulator specific helpers.
 #if USE_SIMULATOR
@@ -200,9 +201,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     mov(rd, vn, vn_index);
   }
 
-  // This is required for compatibility with architecture independent code.
+  // These are required for compatibility with architecture independent code.
   // Remove if not needed.
   void Move(Register dst, Smi src);
+  void Move(Register dst, MemOperand src);
+  void Move(Register dst, Register src);
 
   // Move src0 to dst0 and src1 to dst1, handling possible overlaps.
   void MovePair(Register dst0, Register src0, Register dst1, Register src1);
@@ -261,8 +264,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   V(faddp, Faddp)                \
   V(fcvtas, Fcvtas)              \
   V(fcvtau, Fcvtau)              \
+  V(fcvtl, Fcvtl)                \
   V(fcvtms, Fcvtms)              \
   V(fcvtmu, Fcvtmu)              \
+  V(fcvtn, Fcvtn)                \
   V(fcvtns, Fcvtns)              \
   V(fcvtnu, Fcvtnu)              \
   V(fcvtps, Fcvtps)              \
@@ -832,14 +837,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   template <StoreLRMode lr_mode = kDontStoreLR>
   void Push(const Register& src0, const VRegister& src1);
 
-  // This is a convenience method for pushing a single Handle<Object>.
-  inline void Push(Handle<HeapObject> object);
-  inline void Push(Smi smi);
-
-  // Aliases of Push and Pop, required for V8 compatibility.
-  inline void push(Register src) { Push(src); }
-  inline void pop(Register dst) { Pop(dst); }
-
   void SaveRegisters(RegList registers);
   void RestoreRegisters(RegList registers);
 
@@ -976,12 +973,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadEntryFromBuiltinIndex(Register builtin_index);
   void LoadEntryFromBuiltinIndex(Builtins::Name builtin_index,
                                  Register destination);
+  MemOperand EntryFromBuiltinIndexAsOperand(Builtins::Name builtin_index);
   void CallBuiltinByIndex(Register builtin_index) override;
   void CallBuiltin(int builtin_index);
 
   void LoadCodeObjectEntry(Register destination, Register code_object) override;
   void CallCodeObject(Register code_object) override;
-  void JumpCodeObject(Register code_object) override;
+  void JumpCodeObject(Register code_object,
+                      JumpMode jump_mode = JumpMode::kJump) override;
 
   // Generates an instruction sequence s.t. the return address points to the
   // instruction following the call.
@@ -1269,6 +1268,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Load an object from the root table.
   void LoadRoot(Register destination, RootIndex index) override;
+  void PushRoot(RootIndex index);
 
   inline void Ret(const Register& xn = lr);
 
@@ -1349,6 +1349,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadAnyTaggedField(const Register& destination,
                           const MemOperand& field_operand);
 
+  // Loads a field containing a tagged signed value and decompresses it if
+  // necessary.
+  void LoadTaggedSignedField(const Register& destination,
+                             const MemOperand& field_operand);
+
   // Loads a field containing smi value and untags it.
   void SmiUntagField(Register dst, const MemOperand& src);
 
@@ -1370,6 +1375,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void RestoreFPAndLR();
 
   void StoreReturnAddressInWasmExitFrame(Label* return_location);
+
+  // Wasm SIMD helpers. These instructions don't have direct lowering to native
+  // instructions. These helpers allow us to define the optimal code sequence,
+  // and be used in both TurboFan and Liftoff.
+  void I64x2BitMask(Register dst, VRegister src);
+  void V64x2AllTrue(Register dst, VRegister src);
 
  protected:
   // The actual Push and Pop implementations. These don't generate any code
@@ -1907,6 +1918,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // object type should be compared with the given type.  This both
   // sets the flags and leaves the object type in the type_reg register.
   void CompareInstanceType(Register map, Register type_reg, InstanceType type);
+
+  // Compare instance type ranges for a map (lower_limit and higher_limit
+  // inclusive).
+  //
+  // Always use unsigned comparisons: ls for a positive result.
+  void CompareInstanceTypeRange(Register map, Register type_reg,
+                                InstanceType lower_limit,
+                                InstanceType higher_limit);
 
   // Load the elements kind field from a map, and return it in the result
   // register.

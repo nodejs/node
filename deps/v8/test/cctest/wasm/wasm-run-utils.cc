@@ -335,6 +335,7 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   auto native_module = isolate_->wasm_engine()->NewNativeModule(
       isolate_, enabled_features_, test_module_, code_size_estimate);
   native_module->SetWireBytes(OwnedVector<const uint8_t>());
+  native_module->compilation_state()->set_compilation_id(0);
   constexpr Vector<const char> kNoSourceUrl{"", 0};
   Handle<Script> script = isolate_->wasm_engine()->GetOrCreateScript(
       isolate_, native_module, kNoSourceUrl);

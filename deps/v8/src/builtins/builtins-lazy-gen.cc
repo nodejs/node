@@ -143,13 +143,28 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
                                                 isolate(), CompileLazy))));
   StoreObjectField(function, JSFunction::kCodeOffset, sfi_code);
 
+  Label tailcall_code(this);
+  Label baseline(this);
+
+  TVARIABLE(Code, code);
+
+  // Check if we have baseline code.
+  // TODO(v8:11429): We already know if we have baseline code in
+  // GetSharedFunctionInfoCode, make that jump to here.
+  TNode<Uint32T> code_flags =
+      LoadObjectField<Uint32T>(sfi_code, Code::kFlagsOffset);
+  TNode<Uint32T> code_kind = DecodeWord32<Code::KindField>(code_flags);
+  TNode<BoolT> is_baseline =
+      IsEqualInWord32<Code::KindField>(code_kind, CodeKind::BASELINE);
+  GotoIf(is_baseline, &baseline);
+
   // Finally, check for presence of an NCI cached Code object - if an entry
   // possibly exists, call into runtime to query the cache.
   TNode<Uint8T> flags2 =
       LoadObjectField<Uint8T>(shared, SharedFunctionInfo::kFlags2Offset);
   TNode<BoolT> may_have_cached_code =
       IsSetWord32<SharedFunctionInfo::MayHaveCachedCodeBit>(flags2);
-  TNode<Code> code = Select<Code>(
+  code = Select<Code>(
       may_have_cached_code,
       [=]() {
         return CAST(CallRuntime(Runtime::kTryInstallNCICode,
@@ -157,9 +172,21 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
                                 function));
       },
       [=]() { return sfi_code; });
+  Goto(&tailcall_code);
 
+  BIND(&baseline);
+  // Ensure we have a feedback vector.
+  code = Select<Code>(
+      IsFeedbackVector(feedback_cell_value), [=]() { return sfi_code; },
+      [=]() {
+        return CAST(CallRuntime(Runtime::kInstallBaselineCode,
+                                Parameter<Context>(Descriptor::kContext),
+                                function));
+      });
+  Goto(&tailcall_code);
+  BIND(&tailcall_code);
   // Jump to the selected code entry.
-  GenerateTailCallToJSCode(code, function);
+  GenerateTailCallToJSCode(code.value(), function);
 
   BIND(&compile_function);
   GenerateTailCallToReturnedCode(Runtime::kCompileLazy, function);

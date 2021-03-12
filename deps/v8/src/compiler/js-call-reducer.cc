@@ -2049,13 +2049,11 @@ struct PromiseCtorFrameStateParams {
 
 // Remnant of old-style JSCallReducer code. Could be ported to graph assembler,
 // but probably not worth the effort.
-FrameState CreateArtificialFrameState(Node* node, Node* outer_frame_state,
-                                      int parameter_count, BailoutId bailout_id,
-                                      FrameStateType frame_state_type,
-                                      const SharedFunctionInfoRef& shared,
-                                      Node* context,
-                                      CommonOperatorBuilder* common,
-                                      Graph* graph) {
+FrameState CreateArtificialFrameState(
+    Node* node, Node* outer_frame_state, int parameter_count,
+    BytecodeOffset bailout_id, FrameStateType frame_state_type,
+    const SharedFunctionInfoRef& shared, Node* context,
+    CommonOperatorBuilder* common, Graph* graph) {
   const FrameStateFunctionInfo* state_info =
       common->CreateFrameStateFunctionInfo(
           frame_state_type, parameter_count + 1, 0, shared.object());
@@ -2089,7 +2087,7 @@ FrameState PromiseConstructorFrameState(
   DCHECK_EQ(1, params.shared.internal_formal_parameter_count());
   return CreateArtificialFrameState(
       params.node_ptr, params.outer_frame_state, 1,
-      BailoutId::ConstructStubInvoke(), FrameStateType::kConstructStub,
+      BytecodeOffset::ConstructStubInvoke(), FrameStateType::kConstructStub,
       params.shared, params.context, common, graph);
 }
 
@@ -3244,7 +3242,8 @@ class IteratingArrayBuiltinHelper {
     }
 
     // TODO(jgruber): May only be needed for holey elements kinds.
-    if (!dependencies->DependOnNoElementsProtector()) UNREACHABLE();
+    if (!dependencies->DependOnNoElementsProtector()) return;
+
     has_stability_dependency_ = inference_.RelyOnMapsPreferStability(
         dependencies, jsgraph, &effect_, control_, p.feedback());
 
@@ -3430,9 +3429,90 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
   return ReplaceWithSubgraph(&a, subgraph);
 }
 
+namespace {
+
+bool CanInlineJSToWasmCall(const wasm::FunctionSig* wasm_signature) {
+  DCHECK(FLAG_turbo_inline_js_wasm_calls);
+  if (wasm_signature->return_count() > 1) {
+    return false;
+  }
+
+  for (auto type : wasm_signature->all()) {
+#if defined(V8_TARGET_ARCH_32_BIT)
+    if (type == wasm::kWasmI64) return false;
+#endif
+    if (type != wasm::kWasmI32 && type != wasm::kWasmI64 &&
+        type != wasm::kWasmF32 && type != wasm::kWasmF64) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+}  // namespace
+
+Reduction JSCallReducer::ReduceCallWasmFunction(
+    Node* node, const SharedFunctionInfoRef& shared) {
+  JSCallNode n(node);
+  const CallParameters& p = n.Parameters();
+
+  // Avoid deoptimization loops
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
+
+  // TODO(paolosev@microsoft.com): Enable inlining for calls in try/catch.
+  if (NodeProperties::IsExceptionalCall(node)) {
+    return NoChange();
+  }
+
+  const wasm::FunctionSig* wasm_signature = shared.wasm_function_signature();
+  if (!CanInlineJSToWasmCall(wasm_signature)) {
+    return NoChange();
+  }
+
+  // Signal TurboFan that it should run the 'wasm-inlining' phase.
+  has_wasm_calls_ = true;
+
+  const wasm::WasmModule* wasm_module = shared.wasm_module();
+  const Operator* op =
+      javascript()->CallWasm(wasm_module, wasm_signature, p.feedback());
+
+  // Remove additional inputs
+  size_t actual_arity = n.ArgumentCount();
+  DCHECK(JSCallNode::kFeedbackVectorIsLastInput);
+  DCHECK_EQ(actual_arity + JSWasmCallNode::kExtraInputCount - 1,
+            n.FeedbackVectorIndex());
+  size_t expected_arity = wasm_signature->parameter_count();
+
+  while (actual_arity > expected_arity) {
+    int removal_index =
+        static_cast<int>(n.FirstArgumentIndex() + expected_arity);
+    DCHECK_LT(removal_index, static_cast<int>(node->InputCount()));
+    node->RemoveInput(removal_index);
+    actual_arity--;
+  }
+
+  // Add missing inputs
+  while (actual_arity < expected_arity) {
+    int insertion_index = n.ArgumentIndex(n.ArgumentCount());
+    node->InsertInput(graph()->zone(), insertion_index,
+                      jsgraph()->UndefinedConstant());
+    actual_arity++;
+  }
+
+  NodeProperties::ChangeOp(node, op);
+  return Changed(node);
+}
+
 #ifndef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
 namespace {
 bool HasFPParamsInSignature(const CFunctionInfo* c_signature) {
+  if (c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kFloat32 ||
+      c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kFloat64) {
+    return true;
+  }
   for (unsigned int i = 0; i < c_signature->ArgumentCount(); ++i) {
     if (c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kFloat32 ||
         c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kFloat64) {
@@ -3447,6 +3527,10 @@ bool HasFPParamsInSignature(const CFunctionInfo* c_signature) {
 #ifndef V8_TARGET_ARCH_64_BIT
 namespace {
 bool Has64BitIntegerParamsInSignature(const CFunctionInfo* c_signature) {
+  if (c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kInt64 ||
+      c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kUint64) {
+    return true;
+  }
   for (unsigned int i = 0; i < c_signature->ArgumentCount(); ++i) {
     if (c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kInt64 ||
         c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kUint64) {
@@ -3804,13 +3888,13 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   // we can only optimize this in case the {node} was already inlined into
   // some other function (and same for the {arguments_list}).
   CreateArgumentsType const type = CreateArgumentsTypeOf(arguments_list->op());
-  Node* frame_state = NodeProperties::GetFrameStateInput(arguments_list);
-  int start_index = 0;
+  FrameState frame_state =
+      FrameState{NodeProperties::GetFrameStateInput(arguments_list)};
 
   int formal_parameter_count;
   {
     Handle<SharedFunctionInfo> shared;
-    if (!FrameStateInfoOf(frame_state->op()).shared_info().ToHandle(&shared)) {
+    if (!frame_state.frame_state_info().shared_info().ToHandle(&shared)) {
       return NoChange();
     }
     formal_parameter_count = SharedFunctionInfoRef(broker(), shared)
@@ -3828,8 +3912,6 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
         return NoChange();
       }
     }
-  } else if (type == CreateArgumentsType::kRestParameter) {
-    start_index = formal_parameter_count;
   }
 
   // TODO(jgruber,v8:8888): Attempt to remove this restriction. The reason it
@@ -3846,13 +3928,19 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   // Remove the {arguments_list} input from the {node}.
   node->RemoveInput(arraylike_or_spread_index);
 
+  // The index of the first relevant parameter. Only non-zero when looking at
+  // rest parameters, in which case it is set to the index of the first rest
+  // parameter.
+  const int start_index = (type == CreateArgumentsType::kRestParameter)
+                              ? formal_parameter_count
+                              : 0;
+
   // After removing the arraylike or spread object, the argument count is:
   int argc =
       arraylike_or_spread_index - JSCallOrConstructNode::FirstArgumentIndex();
   // Check if are spreading to inlined arguments or to the arguments of
   // the outermost function.
-  Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
-  if (outer_state->opcode() != IrOpcode::kFrameState) {
+  if (!frame_state.has_outer_frame_state()) {
     Operator const* op;
     if (IsCallWithArrayLikeOrSpread(node)) {
       static constexpr int kTargetAndReceiver = 2;
@@ -3867,40 +3955,22 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
     NodeProperties::ChangeOp(node, op);
     return Changed(node);
   }
+  FrameState outer_state = frame_state.outer_frame_state();
   // Get to the actual frame state from which to extract the arguments;
   // we can only optimize this in case the {node} was already inlined into
   // some other function (and same for the {arg_array}).
-  FrameStateInfo outer_info = FrameStateInfoOf(outer_state->op());
+  FrameStateInfo outer_info = outer_state.frame_state_info();
   if (outer_info.type() == FrameStateType::kArgumentsAdaptor) {
     // Need to take the parameters from the arguments adaptor.
     frame_state = outer_state;
   }
   // Add the actual parameters to the {node}, skipping the receiver.
-  const int argument_count =
-      FrameStateInfoOf(frame_state->op()).parameter_count() -
-      1;  // Minus receiver.
-  if (start_index < argument_count) {
-    Node* const parameters = frame_state->InputAt(kFrameStateParametersInput);
-    StateValuesAccess parameters_access(parameters);
-    auto parameters_it = ++parameters_access.begin();  // Skip the receiver.
-    for (int i = 0; i < start_index; i++) {
-      // A non-zero start_index implies that there are rest arguments. Skip
-      // them.
-      ++parameters_it;
-    }
-    for (int i = start_index; i < argument_count; ++i, ++parameters_it) {
-      Node* parameter_node = parameters_it.node();
-      DCHECK_NOT_NULL(parameter_node);
-      node->InsertInput(graph()->zone(),
-                        JSCallOrConstructNode::ArgumentIndex(argc++),
-                        parameter_node);
-    }
-    // TODO(jgruber): Currently, each use-site does the awkward dance above,
-    // iterating based on the FrameStateInfo's parameter count minus one, and
-    // manually advancing the iterator past the receiver. Consider wrapping all
-    // this in an understandable iterator s.t. one only needs to iterate from
-    // the beginning until done().
-    DCHECK(parameters_it.done());
+  StateValuesAccess parameters_access(frame_state.parameters());
+  for (auto it = parameters_access.begin_without_receiver_and_skip(start_index);
+       !it.done(); ++it) {
+    DCHECK_NOT_NULL(it.node());
+    node->InsertInput(graph()->zone(),
+                      JSCallOrConstructNode::ArgumentIndex(argc++), it.node());
   }
 
   if (IsCallWithArrayLikeOrSpread(node)) {
@@ -4089,8 +4159,13 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     return ReduceJSCall(node, SharedFunctionInfoRef(broker(), p.shared_info()));
   } else if (target->opcode() == IrOpcode::kCheckClosure) {
     FeedbackCellRef cell(broker(), FeedbackCellOf(target->op()));
-    return ReduceJSCall(node,
-                        cell.value().AsFeedbackVector().shared_function_info());
+    if (cell.shared_function_info().has_value()) {
+      return ReduceJSCall(node, *cell.shared_function_info());
+    } else {
+      TRACE_BROKER_MISSING(broker(), "Unable to reduce JSCall. FeedbackCell "
+                                         << cell << " has no FeedbackVector");
+      return NoChange();
+    }
   }
 
   // If {target} is the result of a JSCreateBoundFunction operation,
@@ -4169,11 +4244,10 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
   } else if (feedback_target.has_value() && feedback_target->IsFeedbackCell()) {
     FeedbackCellRef feedback_cell(
         broker(), feedback_target.value().AsFeedbackCell().object());
-    if (feedback_cell.value().IsFeedbackVector()) {
+    if (feedback_cell.value().has_value()) {
       // Check that {target} is a closure with given {feedback_cell},
       // which uniquely identifies a given function inside a native context.
-      FeedbackVectorRef feedback_vector =
-          feedback_cell.value().AsFeedbackVector();
+      FeedbackVectorRef feedback_vector = *feedback_cell.value();
       if (!feedback_vector.serialized()) {
         TRACE_BROKER_MISSING(
             broker(), "feedback vector, not serialized: " << feedback_vector);
@@ -4555,6 +4629,11 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
   if (shared.function_template_info().has_value()) {
     return ReduceCallApiFunction(node, shared);
   }
+
+  if ((flags() & kInlineJSToWasmCalls) && shared.wasm_function_signature()) {
+    return ReduceCallWasmFunction(node, shared);
+  }
+
   return NoChange();
 }
 
@@ -5094,7 +5173,9 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
   if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, &kinds, true)) {
     return inference.NoChange();
   }
-  if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
+  if (!dependencies()->DependOnNoElementsProtector()) {
+    return inference.NoChange();
+  }
   inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
                                       control, p.feedback());
 
@@ -5229,7 +5310,9 @@ Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
   if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, &kinds)) {
     return inference.NoChange();
   }
-  if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
+  if (!dependencies()->DependOnNoElementsProtector()) {
+    return inference.NoChange();
+  }
   inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
                                       control, p.feedback());
 
@@ -5273,7 +5356,7 @@ Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
     Node* efalse = effect;
     Node* vfalse;
     {
-      // TODO(tebbi): We should trim the backing store if the capacity is too
+      // TODO(turbofan): We should trim the backing store if the capacity is too
       // big, as implemented in elements.cc:ElementsAccessorBase::SetLengthImpl.
 
       // Load the elements backing store from the {receiver}.
@@ -5367,7 +5450,9 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
   if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, &kinds)) {
     return inference.NoChange();
   }
-  if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
+  if (!dependencies()->DependOnNoElementsProtector()) {
+    return inference.NoChange();
+  }
   inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
                                       control, p.feedback());
 
@@ -5605,8 +5690,8 @@ Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
 
   if (!dependencies()->DependOnArraySpeciesProtector())
     return inference.NoChange();
-  if (can_be_holey) {
-    if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
+  if (can_be_holey && !dependencies()->DependOnNoElementsProtector()) {
+    return inference.NoChange();
   }
   inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
                                       control, p.feedback());
@@ -5765,9 +5850,11 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
     }
   }
 
-  if (IsHoleyElementsKind(elements_kind)) {
-    if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
+  if (IsHoleyElementsKind(elements_kind) &&
+      !dependencies()->DependOnNoElementsProtector()) {
+    return inference.NoChange();
   }
+
   // Since the map inference was done relative to {iterator_effect} rather than
   // {effect}, we need to guard the use of the map(s) even when the inference
   // was reliable.
@@ -6663,7 +6750,7 @@ Reduction JSCallReducer::ReduceTypedArrayConstructor(
   // Insert a construct stub frame into the chain of frame states. This will
   // reconstruct the proper frame when deoptimizing within the constructor.
   frame_state = CreateArtificialFrameState(
-      node, frame_state, arity, BailoutId::ConstructStubInvoke(),
+      node, frame_state, arity, BytecodeOffset::ConstructStubInvoke(),
       FrameStateType::kConstructStub, shared, context, common(), graph());
 
   // This continuation just returns the newly created JSTypedArray. We

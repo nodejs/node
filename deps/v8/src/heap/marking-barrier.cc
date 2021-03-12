@@ -94,36 +94,27 @@ void MarkingBarrier::RecordRelocSlot(Code host, RelocInfo* rinfo,
 // static
 void MarkingBarrier::ActivateAll(Heap* heap, bool is_compacting) {
   heap->marking_barrier()->Activate(is_compacting);
-  if (FLAG_local_heaps) {
-    heap->safepoint()->IterateLocalHeaps(
-        [is_compacting](LocalHeap* local_heap) {
-          local_heap->marking_barrier()->Activate(is_compacting);
-        });
-  }
+  heap->safepoint()->IterateLocalHeaps([is_compacting](LocalHeap* local_heap) {
+    local_heap->marking_barrier()->Activate(is_compacting);
+  });
 }
 
 // static
 void MarkingBarrier::DeactivateAll(Heap* heap) {
   heap->marking_barrier()->Deactivate();
-  if (FLAG_local_heaps) {
-    heap->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
-      local_heap->marking_barrier()->Deactivate();
-    });
-  }
+  heap->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
+    local_heap->marking_barrier()->Deactivate();
+  });
 }
 
 // static
 void MarkingBarrier::PublishAll(Heap* heap) {
   heap->marking_barrier()->Publish();
-  if (FLAG_local_heaps) {
-    heap->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
-      local_heap->marking_barrier()->Publish();
-    });
-  }
+  heap->safepoint()->IterateLocalHeaps(
+      [](LocalHeap* local_heap) { local_heap->marking_barrier()->Publish(); });
 }
 
 void MarkingBarrier::Publish() {
-  DCHECK_IMPLIES(!is_main_thread_barrier_, FLAG_local_heaps);
   if (is_activated_) {
     worklist_.Publish();
     for (auto& it : typed_slots_map_) {
@@ -153,7 +144,6 @@ void MarkingBarrier::DeactivateSpace(NewSpace* space) {
 void MarkingBarrier::Deactivate() {
   is_activated_ = false;
   is_compacting_ = false;
-  DCHECK_IMPLIES(!is_main_thread_barrier_, FLAG_local_heaps);
   if (is_main_thread_barrier_) {
     DeactivateSpace(heap_->old_space());
     DeactivateSpace(heap_->map_space());
@@ -191,7 +181,6 @@ void MarkingBarrier::ActivateSpace(NewSpace* space) {
 void MarkingBarrier::Activate(bool is_compacting) {
   DCHECK(!is_activated_);
   DCHECK(worklist_.IsLocalEmpty());
-  DCHECK_IMPLIES(!is_main_thread_barrier_, FLAG_local_heaps);
   is_compacting_ = is_compacting;
   is_activated_ = true;
   if (is_main_thread_barrier_) {

@@ -113,7 +113,7 @@ inline bool EnsureJSArrayWithWritableFastElements(Isolate* isolate,
 
   // Adding elements to the array prototype would break code that makes sure
   // it has no elements. Handle that elsewhere.
-  if (isolate->IsAnyInitialArrayPrototype(array)) return false;
+  if (isolate->IsAnyInitialArrayPrototype(*array)) return false;
 
   // Need to ensure that the arguments passed in args can be contained in
   // the array.
@@ -609,7 +609,7 @@ BUILTIN(ArrayUnshift) {
   DCHECK(array->map().is_extensible());
   DCHECK(!IsDictionaryElementsKind(array->GetElementsKind()));
   DCHECK(IsJSArrayFastElementMovingAllowed(isolate, *array));
-  DCHECK(!isolate->IsAnyInitialArrayPrototype(array));
+  DCHECK(!isolate->IsAnyInitialArrayPrototype(*array));
 
   MatchArrayElementsKindToArguments(isolate, array, &args, 1,
                                     args.length() - 1);

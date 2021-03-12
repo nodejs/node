@@ -51,7 +51,7 @@ extern class FunctionTemplateInfo extends TemplateInfo {
   // If any of the setters declared by DECL_RARE_ACCESSORS are used then a
   // FunctionTemplateRareData will be stored here. Until then this contains
   // undefined.
-  rare_data: FunctionTemplateRareData|Undefined;
+  @acquireRead @releaseWrite rare_data: FunctionTemplateRareData|Undefined;
   shared_function_info: SharedFunctionInfo|Undefined;
   // Internal field to store a flag bitfield.
   flag: SmiTagged<FunctionTemplateInfoFlags>;

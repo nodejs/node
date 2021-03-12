@@ -22,7 +22,7 @@ TEST_F(WasmCallDescriptorTest, TestExternRefIsGrouped) {
 
   for (size_t i = 0; i < kMaxCount; i += 2) {
     params[i] = kWasmExternRef;
-    CHECK_LT(i + 1, kMaxCount);
+    EXPECT_TRUE(i + 1 < kMaxCount);
     params[i + 1] = kWasmI32;
   }
 
@@ -32,7 +32,7 @@ TEST_F(WasmCallDescriptorTest, TestExternRefIsGrouped) {
         compiler::GetWasmCallDescriptor(zone(), &sig);
 
     // The WasmInstance is the implicit first parameter.
-    CHECK_EQ(count + 1, desc->ParameterCount());
+    EXPECT_EQ(count + 1, desc->ParameterCount());
 
     bool has_untagged_stack_param = false;
     bool has_tagged_register_param = false;
@@ -45,7 +45,7 @@ TEST_F(WasmCallDescriptorTest, TestExternRefIsGrouped) {
         if (location.IsRegister()) {
           has_tagged_register_param = true;
         } else {
-          CHECK(location.IsCallerFrameSlot());
+          EXPECT_TRUE(location.IsCallerFrameSlot());
           max_tagged_stack_location =
               std::max(max_tagged_stack_location, location.AsCallerFrameSlot());
         }
@@ -55,14 +55,14 @@ TEST_F(WasmCallDescriptorTest, TestExternRefIsGrouped) {
           min_untagged_stack_location = std::min(min_untagged_stack_location,
                                                  location.AsCallerFrameSlot());
         } else {
-          CHECK(location.IsRegister());
+          EXPECT_TRUE(location.IsRegister());
         }
       }
     }
     // There should never be a tagged parameter in a register and an untagged
     // parameter on the stack at the same time.
-    CHECK_EQ(false, has_tagged_register_param && has_untagged_stack_param);
-    CHECK_LT(max_tagged_stack_location, min_untagged_stack_location);
+    EXPECT_EQ(false, has_tagged_register_param && has_untagged_stack_param);
+    EXPECT_TRUE(max_tagged_stack_location < min_untagged_stack_location);
   }
 }
 

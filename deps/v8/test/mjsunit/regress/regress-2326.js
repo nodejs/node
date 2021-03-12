@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// This tests that we do not share optimized code across closures that
-// were optimized using OSR (for a particular OSR entry AST id) even if
+// This tests that we do not share optimized code across closures that were
+// optimized using OSR (for a particular OSR entry bytecode offset) even if
 // caching of optimized code kicks in.
 
 function makeClosure() {

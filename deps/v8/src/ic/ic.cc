@@ -432,7 +432,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name,
   LookupForRead(&it, IsAnyHas());
 
   if (name->IsPrivate()) {
-    if (name->IsPrivateName() && !it.IsFound()) {
+    if (!IsAnyHas() && name->IsPrivateName() && !it.IsFound()) {
       Handle<String> name_string(
           String::cast(Symbol::cast(*name).description()), isolate());
       if (name->IsPrivateBrand()) {
@@ -862,13 +862,14 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
 
       Handle<Object> accessors = lookup->GetAccessors();
       if (accessors->IsAccessorPair()) {
-        if (lookup->TryLookupCachedProperty()) {
+        Handle<AccessorPair> accessor_pair =
+            Handle<AccessorPair>::cast(accessors);
+        if (lookup->TryLookupCachedProperty(accessor_pair)) {
           DCHECK_EQ(LookupIterator::DATA, lookup->state());
           return ComputeHandler(lookup);
         }
 
-        Handle<Object> getter(AccessorPair::cast(*accessors).getter(),
-                              isolate());
+        Handle<Object> getter(accessor_pair->getter(), isolate());
         if (!getter->IsJSFunction() && !getter->IsFunctionTemplateInfo()) {
           TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
           return LoadHandler::LoadSlow(isolate());
@@ -887,14 +888,16 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
 
         CallOptimization call_optimization(isolate(), getter);
         if (call_optimization.is_simple_api_call()) {
-          if (!call_optimization.IsCompatibleReceiverMap(map, holder) ||
+          CallOptimization::HolderLookup holder_lookup;
+          Handle<JSObject> api_holder =
+              call_optimization.LookupHolderOfExpectedType(map, &holder_lookup);
+
+          if (!call_optimization.IsCompatibleReceiverMap(api_holder, holder,
+                                                         holder_lookup) ||
               !holder->HasFastProperties()) {
             TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
             return LoadHandler::LoadSlow(isolate());
           }
-
-          CallOptimization::HolderLookup holder_lookup;
-          call_optimization.LookupHolderOfExpectedType(map, &holder_lookup);
 
           smi_handler = LoadHandler::LoadApiGetter(
               isolate(), holder_lookup == CallOptimization::kHolderIsReceiver);
@@ -993,7 +996,8 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
       }
       if (lookup->constness() == PropertyConstness::kConst &&
           !holder_is_lookup_start_object) {
-        DCHECK(!lookup->is_dictionary_holder());
+        DCHECK_IMPLIES(!V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
+                       !lookup->is_dictionary_holder());
 
         Handle<Object> value = lookup->GetDataValue();
 
@@ -1745,11 +1749,12 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
 
         CallOptimization call_optimization(isolate(), setter);
         if (call_optimization.is_simple_api_call()) {
-          if (call_optimization.IsCompatibleReceiver(receiver, holder)) {
-            CallOptimization::HolderLookup holder_lookup;
-            call_optimization.LookupHolderOfExpectedType(
-                lookup_start_object_map(), &holder_lookup);
-
+          CallOptimization::HolderLookup holder_lookup;
+          Handle<JSObject> api_holder =
+              call_optimization.LookupHolderOfExpectedType(
+                  lookup_start_object_map(), &holder_lookup);
+          if (call_optimization.IsCompatibleReceiverMap(api_holder, holder,
+                                                        holder_lookup)) {
             Handle<Smi> smi_handler = StoreHandler::StoreApiSetter(
                 isolate(),
                 holder_lookup == CallOptimization::kHolderIsReceiver);
@@ -1803,6 +1808,8 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
         }
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreNormalDH);
         DCHECK(holder.is_identical_to(receiver));
+        DCHECK_IMPLIES(!V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
+                       lookup->constness() == PropertyConstness::kMutable);
         // TODO(v8:11167) don't create slow hanlder once OrderedNameDictionary
         // supported.
         Handle<Smi> handler = V8_DICT_MODE_PROTOTYPES_BOOL
@@ -2766,9 +2773,7 @@ static Handle<Map> FastCloneObjectMap(Isolate* isolate, Handle<Map> source_map,
   int slack = 0;
   Handle<DescriptorArray> descriptors = DescriptorArray::CopyForFastObjectClone(
       isolate, source_descriptors, size, slack);
-  Handle<LayoutDescriptor> layout =
-      LayoutDescriptor::New(isolate, map, descriptors, size);
-  map->InitializeDescriptors(isolate, *descriptors, *layout);
+  map->InitializeDescriptors(isolate, *descriptors);
   map->CopyUnusedPropertyFieldsAdjustedForInstanceSize(*source_map);
 
   // Update bitfields

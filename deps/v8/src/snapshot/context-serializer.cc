@@ -176,7 +176,9 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
     // serialize optimized code anyway.
     Handle<JSFunction> closure = Handle<JSFunction>::cast(obj);
     closure->ResetIfBytecodeFlushed();
-    if (closure->is_compiled()) closure->set_code(closure->shared().GetCode());
+    if (closure->is_compiled()) {
+      closure->set_code(closure->shared().GetCode(), kReleaseStore);
+    }
   }
 
   CheckRehashability(*obj);

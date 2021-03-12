@@ -31,6 +31,10 @@ extern class JSArray extends JSObject {
   length: Number;
 }
 
+@doNotGenerateCast
+extern class JSArrayConstructor extends JSFunction
+    generates 'TNode<JSFunction>';
+
 macro NewJSArray(implicit context: Context)(
     map: Map, elements: FixedArrayBase): JSArray {
   return new JSArray{

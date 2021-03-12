@@ -10,7 +10,7 @@
 
 #include <array>
 
-#include "include/cppgc/internal/process-heap.h"
+#include "include/cppgc/internal/write-barrier.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/bits.h"
 #include "src/base/macros.h"
@@ -217,7 +217,7 @@ bool PlatformAwareObjectStartBitmap::ShouldForceNonAtomic() {
 #if defined(V8_TARGET_ARCH_ARM)
   // Use non-atomic accesses on ARMv7 when marking is not active.
   if (mode == AccessMode::kAtomic) {
-    if (V8_LIKELY(!ProcessHeap::IsAnyIncrementalOrConcurrentMarking()))
+    if (V8_LIKELY(!WriteBarrier::IsAnyIncrementalOrConcurrentMarking()))
       return true;
   }
 #endif  // defined(V8_TARGET_ARCH_ARM)

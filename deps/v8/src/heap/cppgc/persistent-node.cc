@@ -13,24 +13,37 @@
 namespace cppgc {
 namespace internal {
 
-PersistentRegion::~PersistentRegion() {
+PersistentRegion::~PersistentRegion() { ClearAllUsedNodes(); }
+
+void PersistentRegion::ClearAllUsedNodes() {
   for (auto& slots : nodes_) {
     for (auto& node : *slots) {
       if (node.IsUsed()) {
         static_cast<PersistentBase*>(node.owner())->ClearFromGC();
+        // Add nodes back to the free list to allow reusing for subsequent
+        // creation calls.
+        node.InitializeAsFreeNode(free_list_head_);
+        free_list_head_ = &node;
+        CPPGC_DCHECK(nodes_in_use_ > 0);
+        nodes_in_use_--;
       }
     }
   }
+  CPPGC_DCHECK(0u == nodes_in_use_);
 }
 
 size_t PersistentRegion::NodesInUse() const {
-  return std::accumulate(
+#ifdef DEBUG
+  const size_t accumulated_nodes_in_use_ = std::accumulate(
       nodes_.cbegin(), nodes_.cend(), 0u, [](size_t acc, const auto& slots) {
         return acc + std::count_if(slots->cbegin(), slots->cend(),
                                    [](const PersistentNode& node) {
                                      return node.IsUsed();
                                    });
       });
+  DCHECK_EQ(accumulated_nodes_in_use_, nodes_in_use_);
+#endif  // DEBUG
+  return nodes_in_use_;
 }
 
 void PersistentRegion::EnsureNodeSlots() {
@@ -75,6 +88,11 @@ PersistentRegionLock::PersistentRegionLock() {
 
 PersistentRegionLock::~PersistentRegionLock() {
   g_process_mutex.Pointer()->Unlock();
+}
+
+// static
+void PersistentRegionLock::AssertLocked() {
+  return g_process_mutex.Pointer()->AssertHeld();
 }
 
 }  // namespace internal

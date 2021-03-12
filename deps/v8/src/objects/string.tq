@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include 'src/builtins/builtins-string-gen.h'
+
 @abstract
 @generateCppClass
 @reserveBitsInInstanceType(6)
@@ -305,4 +307,88 @@ macro TwoStringsToSlices<Result: type, Functor: type>(
       return Call(f, s1Slice, s2Slice);
     }
   }
+}
+
+macro StaticAssertStringLengthFitsSmi(): void {
+  const kMaxStringLengthFitsSmi: constexpr bool =
+      kStringMaxLengthUintptr < kSmiMaxValue;
+  static_assert(kMaxStringLengthFitsSmi);
+}
+
+extern macro StringBuiltinsAssembler::SearchOneByteStringInTwoByteString(
+    RawPtr<char16>, intptr, RawPtr<char8>, intptr, intptr): intptr;
+extern macro StringBuiltinsAssembler::SearchOneByteStringInOneByteString(
+    RawPtr<char8>, intptr, RawPtr<char8>, intptr, intptr): intptr;
+extern macro StringBuiltinsAssembler::SearchTwoByteStringInTwoByteString(
+    RawPtr<char16>, intptr, RawPtr<char16>, intptr, intptr): intptr;
+extern macro StringBuiltinsAssembler::SearchTwoByteStringInOneByteString(
+    RawPtr<char8>, intptr, RawPtr<char16>, intptr, intptr): intptr;
+extern macro StringBuiltinsAssembler::SearchOneByteInOneByteString(
+    RawPtr<char8>, intptr, RawPtr<char8>, intptr): intptr;
+
+macro AbstractStringIndexOf(
+    subject: RawPtr<char16>, subjectLen: intptr, search: RawPtr<char8>,
+    searchLen: intptr, fromIndex: intptr): intptr {
+  return SearchOneByteStringInTwoByteString(
+      subject, subjectLen, search, searchLen, fromIndex);
+}
+macro AbstractStringIndexOf(
+    subject: RawPtr<char8>, subjectLen: intptr, search: RawPtr<char8>,
+    searchLen: intptr, fromIndex: intptr): intptr {
+  if (searchLen == 1) {
+    return SearchOneByteInOneByteString(subject, subjectLen, search, fromIndex);
+  }
+  return SearchOneByteStringInOneByteString(
+      subject, subjectLen, search, searchLen, fromIndex);
+}
+macro AbstractStringIndexOf(
+    subject: RawPtr<char16>, subjectLen: intptr, search: RawPtr<char16>,
+    searchLen: intptr, fromIndex: intptr): intptr {
+  return SearchTwoByteStringInTwoByteString(
+      subject, subjectLen, search, searchLen, fromIndex);
+}
+macro AbstractStringIndexOf(
+    subject: RawPtr<char8>, subjectLen: intptr, search: RawPtr<char16>,
+    searchLen: intptr, fromIndex: intptr): intptr {
+  return SearchTwoByteStringInOneByteString(
+      subject, subjectLen, search, searchLen, fromIndex);
+}
+
+struct AbstractStringIndexOfFunctor {
+  fromIndex: Smi;
+}
+// Ideally, this would be a method of AbstractStringIndexOfFunctor, but
+// currently methods don't support templates.
+macro Call<A: type, B: type>(
+    self: AbstractStringIndexOfFunctor, string: ConstSlice<A>,
+    searchStr: ConstSlice<B>): Smi {
+  return Convert<Smi>(AbstractStringIndexOf(
+      string.GCUnsafeStartPointer(), string.length,
+      searchStr.GCUnsafeStartPointer(), searchStr.length,
+      Convert<intptr>(self.fromIndex)));
+}
+
+macro AbstractStringIndexOf(implicit context: Context)(
+    string: String, searchString: String, fromIndex: Smi): Smi {
+  // Special case the empty string.
+  const searchStringLength = searchString.length_intptr;
+  const stringLength = string.length_intptr;
+  if (searchStringLength == 0 && SmiUntag(fromIndex) <= stringLength) {
+    return fromIndex;
+  }
+
+  // Don't bother to search if the searchString would go past the end
+  // of the string. This is actually necessary because of runtime
+  // checks.
+  if (SmiUntag(fromIndex) + searchStringLength > stringLength) {
+    return -1;
+  }
+
+  return TwoStringsToSlices<Smi>(
+      string, searchString, AbstractStringIndexOfFunctor{fromIndex: fromIndex});
+}
+
+builtin StringIndexOf(implicit context: Context)(
+    s: String, searchString: String, start: Smi): Smi {
+  return AbstractStringIndexOf(s, searchString, SmiMax(start, 0));
 }

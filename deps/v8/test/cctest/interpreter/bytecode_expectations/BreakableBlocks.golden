@@ -17,12 +17,12 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 13
+bytecode array length: 11
 bytecodes: [
   /*   42 S> */ B(LdaZero),
-                B(Star), R(0),
+                B(Star0),
   /*   62 S> */ B(AddSmi), I8(1), U8(0),
-                B(Star), R(0),
+                B(Star0),
   /*   69 S> */ B(Jump), U8(2),
   /*   97 S> */ B(Ldar), R(0),
   /*  106 S> */ B(Return),
@@ -47,38 +47,38 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 66
+bytecode array length: 59
 bytecodes: [
   /*   44 S> */ B(LdaZero),
-                B(Star), R(0),
+                B(Star0),
   /*   71 S> */ B(LdaZero),
-                B(Star), R(1),
+                B(Star1),
   /*   76 S> */ B(LdaSmi), I8(10),
   /*   76 E> */ B(TestLessThan), R(1), U8(0),
-                B(JumpIfFalse), U8(52),
+                B(JumpIfFalse), U8(47),
   /*  106 S> */ B(LdaZero),
-                B(Star), R(2),
+                B(Star2),
   /*  111 S> */ B(LdaSmi), I8(3),
   /*  111 E> */ B(TestLessThan), R(2), U8(1),
-                B(JumpIfFalse), U8(33),
+                B(JumpIfFalse), U8(30),
   /*  129 S> */ B(Ldar), R(0),
                 B(Inc), U8(2),
-                B(Star), R(0),
+                B(Star0),
   /*  142 S> */ B(Ldar), R(2),
   /*  148 E> */ B(Add), R(1), U8(3),
-                B(Star), R(3),
+                B(Star3),
                 B(LdaSmi), I8(12),
   /*  152 E> */ B(TestEqual), R(3), U8(4),
                 B(JumpIfFalse), U8(4),
-  /*  161 S> */ B(Jump), U8(20),
+  /*  161 S> */ B(Jump), U8(18),
   /*  118 S> */ B(Ldar), R(2),
                 B(Inc), U8(5),
-                B(Star), R(2),
-  /*   93 E> */ B(JumpLoop), U8(35), I8(1),
+                B(Star2),
+  /*   93 E> */ B(JumpLoop), U8(32), I8(1),
   /*   84 S> */ B(Ldar), R(1),
                 B(Inc), U8(6),
-                B(Star), R(1),
-  /*   58 E> */ B(JumpLoop), U8(54), I8(0),
+                B(Star1),
+  /*   58 E> */ B(JumpLoop), U8(49), I8(0),
   /*  188 S> */ B(Ldar), R(0),
   /*  199 S> */ B(Return),
 ]
@@ -97,14 +97,14 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 28
+bytecode array length: 27
 bytecodes: [
   /*   30 E> */ B(CreateBlockContext), U8(0),
                 B(PushContext), R(2),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(2),
                 B(CreateClosure), U8(1), U8(0), U8(2),
-                B(Star), R(1),
+                B(Star1),
   /*   53 S> */ B(LdaSmi), I8(10),
   /*   53 E> */ B(StaCurrentContextSlot), U8(2),
   /*   85 S> */ B(Mov), R(1), R(0),
@@ -136,7 +136,7 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 52
+bytecode array length: 51
 bytecodes: [
   /*   30 E> */ B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(2),
@@ -149,7 +149,7 @@ bytecodes: [
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(2),
                 B(CreateClosure), U8(2), U8(0), U8(2),
-                B(Star), R(1),
+                B(Star1),
   /*   76 S> */ B(LdaSmi), I8(2),
   /*   76 E> */ B(StaCurrentContextSlot), U8(2),
   /*  113 S> */ B(Mov), R(1), R(0),

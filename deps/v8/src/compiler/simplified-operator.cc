@@ -972,13 +972,6 @@ struct SimplifiedOperatorGlobalCache final {
   FindOrderedHashMapEntryForInt32KeyOperator
       kFindOrderedHashMapEntryForInt32Key;
 
-  struct ArgumentsFrameOperator final : public Operator {
-    ArgumentsFrameOperator()
-        : Operator(IrOpcode::kArgumentsFrame, Operator::kPure, "ArgumentsFrame",
-                   0, 0, 0, 1, 0, 0) {}
-  };
-  ArgumentsFrameOperator kArgumentsFrame;
-
   template <CheckForMinusZeroMode kMode>
   struct ChangeFloat64ToTaggedOperator final
       : public Operator1<CheckForMinusZeroMode> {
@@ -1225,7 +1218,6 @@ SimplifiedOperatorBuilder::SimplifiedOperatorBuilder(Zone* zone)
 PURE_OP_LIST(GET_FROM_CACHE)
 EFFECT_DEPENDENT_OP_LIST(GET_FROM_CACHE)
 CHECKED_OP_LIST(GET_FROM_CACHE)
-GET_FROM_CACHE(ArgumentsFrame)
 GET_FROM_CACHE(FindOrderedHashMapEntry)
 GET_FROM_CACHE(FindOrderedHashMapEntryForInt32Key)
 GET_FROM_CACHE(LoadFieldByIndex)
@@ -1637,14 +1629,12 @@ const Operator* SimplifiedOperatorBuilder::TransitionElementsKind(
       transition);                                    // parameter
 }
 
-const Operator* SimplifiedOperatorBuilder::ArgumentsLength(
-    int formal_parameter_count) {
-  return zone()->New<Operator1<int>>(  // --
-      IrOpcode::kArgumentsLength,      // opcode
-      Operator::kPure,                 // flags
-      "ArgumentsLength",               // name
-      1, 0, 0, 1, 0, 0,                // counts
-      formal_parameter_count);         // parameter
+const Operator* SimplifiedOperatorBuilder::ArgumentsLength() {
+  return zone()->New<Operator>(    // --
+      IrOpcode::kArgumentsLength,  // opcode
+      Operator::kPure,             // flags
+      "ArgumentsLength",           // name
+      0, 0, 0, 1, 0, 0);           // counts
 }
 
 const Operator* SimplifiedOperatorBuilder::RestLength(
@@ -1653,7 +1643,7 @@ const Operator* SimplifiedOperatorBuilder::RestLength(
       IrOpcode::kRestLength,           // opcode
       Operator::kPure,                 // flags
       "RestLength",                    // name
-      1, 0, 0, 1, 0, 0,                // counts
+      0, 0, 0, 1, 0, 0,                // counts
       formal_parameter_count);         // parameter
 }
 
@@ -1775,7 +1765,7 @@ const Operator* SimplifiedOperatorBuilder::NewArgumentsElements(
       IrOpcode::kNewArgumentsElements,                            // opcode
       Operator::kEliminatable,                                    // flags
       "NewArgumentsElements",                                     // name
-      2, 1, 0, 1, 1, 0,                                           // counts
+      1, 1, 0, 1, 1, 0,                                           // counts
       NewArgumentsElementsParameters(type,
                                      formal_parameter_count));  // parameter
 }
@@ -1948,6 +1938,11 @@ const Operator* SimplifiedOperatorBuilder::FastApiCall(
       IrOpcode::kFastApiCall, Operator::kNoThrow, "FastApiCall",
       value_input_count, 1, 1, 1, 1, 0,
       FastApiCallParameters(signature, feedback, descriptor));
+}
+
+int FastApiCallNode::FastCallExtraInputCount() const {
+  return kFastTargetInputCount + kEffectAndControlInputCount +
+         (Parameters().signature()->HasOptions() ? 1 : 0);
 }
 
 int FastApiCallNode::FastCallArgumentCount() const {

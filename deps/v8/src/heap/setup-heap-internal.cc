@@ -24,7 +24,6 @@
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/js-weak-refs.h"
-#include "src/objects/layout-descriptor.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/lookup-cache.h"
 #include "src/objects/map.h"
@@ -163,12 +162,6 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
       SKIP_WRITE_BARRIER);
   map.set_instance_type(instance_type);
   map.set_instance_size(instance_size);
-  // Initialize to only containing tagged fields.
-  if (FLAG_unbox_double_fields) {
-    map.set_layout_descriptor(LayoutDescriptor::FastPointerLayout(),
-                              kReleaseStore);
-  }
-  // GetVisitorId requires a properly initialized LayoutDescriptor.
   map.set_visitor_id(Map::GetVisitorId(map));
   map.set_inobject_properties_start_or_constructor_function_index(0);
   DCHECK(!map.IsJSObjectMap());
@@ -192,12 +185,8 @@ void Heap::FinalizePartialMap(Map map) {
   map.set_dependent_code(DependentCode::cast(roots.empty_weak_fixed_array()));
   map.set_raw_transitions(MaybeObject::FromSmi(Smi::zero()));
   map.SetInstanceDescriptors(isolate(), roots.empty_descriptor_array(), 0);
-  if (FLAG_unbox_double_fields) {
-    map.set_layout_descriptor(LayoutDescriptor::FastPointerLayout(),
-                              kReleaseStore);
-  }
   map.set_prototype(roots.null_value());
-  map.set_constructor_or_backpointer(roots.null_value());
+  map.set_constructor_or_back_pointer(roots.null_value());
 }
 
 AllocationResult Heap::Allocate(Map map, AllocationType allocation_type) {
@@ -470,6 +459,7 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(ORDERED_HASH_SET_TYPE, ordered_hash_set)
     ALLOCATE_VARSIZE_MAP(ORDERED_NAME_DICTIONARY_TYPE, ordered_name_dictionary)
     ALLOCATE_VARSIZE_MAP(NAME_DICTIONARY_TYPE, name_dictionary)
+    ALLOCATE_VARSIZE_MAP(SWISS_NAME_DICTIONARY_TYPE, swiss_name_dictionary)
     ALLOCATE_VARSIZE_MAP(GLOBAL_DICTIONARY_TYPE, global_dictionary)
     ALLOCATE_VARSIZE_MAP(NUMBER_DICTIONARY_TYPE, number_dictionary)
     ALLOCATE_VARSIZE_MAP(SIMPLE_NUMBER_DICTIONARY_TYPE,
@@ -504,14 +494,6 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(CODE_DATA_CONTAINER_TYPE, CodeDataContainer::kSize,
                  code_data_container)
 
-    // The wasm_rttcanon_* maps are never used for real objects, only as
-    // sentinels. They are maps so that they fit in with their subtype maps
-    // (which are real maps).
-    ALLOCATE_MAP(WASM_STRUCT_TYPE, 0, wasm_rttcanon_eqref)
-    ALLOCATE_MAP(WASM_STRUCT_TYPE, 0, wasm_rttcanon_externref)
-    ALLOCATE_MAP(WASM_STRUCT_TYPE, 0, wasm_rttcanon_funcref)
-    ALLOCATE_MAP(WASM_STRUCT_TYPE, 0, wasm_rttcanon_i31ref)
-    ALLOCATE_MAP(WASM_STRUCT_TYPE, 0, wasm_rttcanon_anyref)
     ALLOCATE_MAP(WASM_TYPE_INFO_TYPE, WasmTypeInfo::kSize, wasm_type_info)
 
     ALLOCATE_MAP(WEAK_CELL_TYPE, WeakCell::kSize, weak_cell)
@@ -532,16 +514,16 @@ bool Heap::CreateInitialMaps() {
                     AllocationType::kReadOnly);
     if (!alloc.To(&obj)) return false;
     obj.set_map_after_allocation(roots.scope_info_map(), SKIP_WRITE_BARRIER);
-    FixedArray::cast(obj).set_length(ScopeInfo::kVariablePartIndex);
+    ScopeInfo::cast(obj).set_length(ScopeInfo::kVariablePartIndex);
     int flags = ScopeInfo::IsEmptyBit::encode(true);
     DCHECK_EQ(ScopeInfo::LanguageModeBit::decode(flags), LanguageMode::kSloppy);
     DCHECK_EQ(ScopeInfo::ReceiverVariableBits::decode(flags),
               VariableAllocationInfo::NONE);
     DCHECK_EQ(ScopeInfo::FunctionVariableBits::decode(flags),
               VariableAllocationInfo::NONE);
-    ScopeInfo::cast(obj).SetFlags(flags);
-    ScopeInfo::cast(obj).SetContextLocalCount(0);
-    ScopeInfo::cast(obj).SetParameterCount(0);
+    ScopeInfo::cast(obj).set_flags(flags);
+    ScopeInfo::cast(obj).set_context_local_count(0);
+    ScopeInfo::cast(obj).set_parameter_count(0);
   }
   set_empty_scope_info(ScopeInfo::cast(obj));
 
@@ -620,74 +602,6 @@ bool Heap::CreateInitialMaps() {
     FixedArray::cast(obj).set_length(0);
     set_empty_closure_feedback_cell_array(ClosureFeedbackCellArray::cast(obj));
   }
-
-  // Set up the WasmTypeInfo objects for built-in generic Wasm RTTs.
-  // anyref:
-  {
-    /* Subtypes. We do not cache subtypes for (rtt.canon any). */
-    int slot_count = ArrayList::kHeaderFields;
-    if (!AllocateRaw(ArrayList::SizeFor(slot_count), AllocationType::kOld)
-             .To(&obj)) {
-      return false;
-    }
-    obj.set_map_after_allocation(roots.array_list_map());
-    ArrayList subtypes = ArrayList::cast(obj);
-    subtypes.set_length(slot_count);
-    subtypes.SetLength(0);
-    /* TypeInfo */
-    if (!AllocateRaw(WasmTypeInfo::kSize, AllocationType::kOld).To(&obj)) {
-      return false;
-    }
-    obj.set_map_after_allocation(roots.wasm_type_info_map(),
-                                 SKIP_WRITE_BARRIER);
-    WasmTypeInfo type_info = WasmTypeInfo::cast(obj);
-    type_info.set_subtypes(subtypes);
-    type_info.set_supertypes(roots.empty_fixed_array());
-    type_info.set_parent(roots.null_map());
-    type_info.clear_foreign_address(isolate());
-    wasm_rttcanon_anyref_map().set_wasm_type_info(type_info);
-  }
-
-  // Rest of builtin types:
-#define ALLOCATE_TYPE_INFO(which)                                              \
-  {                                                                            \
-    /* Subtypes */                                                             \
-    int slot_count = ArrayList::kHeaderFields;                                 \
-    if (!AllocateRaw(ArrayList::SizeFor(slot_count), AllocationType::kOld)     \
-             .To(&obj)) {                                                      \
-      return false;                                                            \
-    }                                                                          \
-    obj.set_map_after_allocation(roots.array_list_map());                      \
-    ArrayList subtypes = ArrayList::cast(obj);                                 \
-    subtypes.set_length(slot_count);                                           \
-    subtypes.SetLength(0);                                                     \
-    /* Supertypes */                                                           \
-    if (!AllocateRaw(FixedArray::SizeFor(1), AllocationType::kOld).To(&obj)) { \
-      return false;                                                            \
-    }                                                                          \
-    obj.set_map_after_allocation(roots.fixed_array_map(), SKIP_WRITE_BARRIER); \
-    FixedArray supertypes = FixedArray::cast(obj);                             \
-    supertypes.set_length(1);                                                  \
-    supertypes.set(0, wasm_rttcanon_anyref_map());                             \
-    /* TypeInfo */                                                             \
-    if (!AllocateRaw(WasmTypeInfo::kSize, AllocationType::kOld).To(&obj)) {    \
-      return false;                                                            \
-    }                                                                          \
-    obj.set_map_after_allocation(roots.wasm_type_info_map(),                   \
-                                 SKIP_WRITE_BARRIER);                          \
-    WasmTypeInfo type_info = WasmTypeInfo::cast(obj);                          \
-    type_info.set_subtypes(subtypes);                                          \
-    type_info.set_supertypes(supertypes);                                      \
-    type_info.set_parent(wasm_rttcanon_anyref_map());                          \
-    type_info.clear_foreign_address(isolate());                                \
-    wasm_rttcanon_##which##_map().set_wasm_type_info(type_info);               \
-  }
-
-  ALLOCATE_TYPE_INFO(eqref)
-  ALLOCATE_TYPE_INFO(externref)
-  ALLOCATE_TYPE_INFO(funcref)
-  ALLOCATE_TYPE_INFO(i31ref)
-#undef ALLOCATE_TYPE_INFO
 
   DCHECK(!InYoungGeneration(roots.empty_fixed_array()));
 
@@ -905,6 +819,11 @@ void Heap::CreateInitialObjects() {
           .ToHandleChecked();
   set_empty_ordered_property_dictionary(*empty_ordered_property_dictionary);
 
+  // Allocate the empty SwissNameDictionary
+  Handle<SwissNameDictionary> empty_swiss_property_dictionary =
+      factory->CreateCanonicalEmptySwissNameDictionary();
+  set_empty_swiss_property_dictionary(*empty_swiss_property_dictionary);
+
   // Allocate the empty FeedbackMetadata.
   Handle<FeedbackMetadata> empty_feedback_metadata =
       factory->NewFeedbackMetadata(0, 0, AllocationType::kReadOnly);
@@ -931,125 +850,23 @@ void Heap::CreateInitialObjects() {
   script->set_origin_options(ScriptOriginOptions(true, false));
   set_empty_script(*script);
 
-  {
-    Handle<PropertyCell> cell = factory->NewPropertyCell(
-        factory->empty_string(), AllocationType::kReadOnly);
-    cell->set_value(roots.the_hole_value());
-    set_empty_property_cell(*cell);
-  }
-
   // Protectors
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_array_constructor_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_no_elements_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_array_iterator_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_map_iterator_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_set_iterator_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_is_concat_spreadable_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_array_species_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_typed_array_species_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_promise_species_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_regexp_species_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_string_iterator_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_string_length_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_array_buffer_detaching_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_promise_hook_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_promise_resolve_protector(*cell);
-  }
-
-  {
-    Handle<PropertyCell> cell =
-        factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-    set_promise_then_protector(*cell);
-  }
+  set_array_buffer_detaching_protector(*factory->NewProtector());
+  set_array_constructor_protector(*factory->NewProtector());
+  set_array_iterator_protector(*factory->NewProtector());
+  set_array_species_protector(*factory->NewProtector());
+  set_is_concat_spreadable_protector(*factory->NewProtector());
+  set_map_iterator_protector(*factory->NewProtector());
+  set_no_elements_protector(*factory->NewProtector());
+  set_promise_hook_protector(*factory->NewProtector());
+  set_promise_resolve_protector(*factory->NewProtector());
+  set_promise_species_protector(*factory->NewProtector());
+  set_promise_then_protector(*factory->NewProtector());
+  set_regexp_species_protector(*factory->NewProtector());
+  set_set_iterator_protector(*factory->NewProtector());
+  set_string_iterator_protector(*factory->NewProtector());
+  set_string_length_protector(*factory->NewProtector());
+  set_typed_array_species_protector(*factory->NewProtector());
 
   set_serialized_objects(roots.empty_fixed_array());
   set_serialized_global_proxy_sizes(roots.empty_fixed_array());

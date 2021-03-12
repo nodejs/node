@@ -334,20 +334,24 @@ void GenerateFieldValueAccessor(const Field& field,
 //     0,                                    // Bitfield size (0=not a bitfield)
 //     0));                                  // Bitfield shift
 // // The line above is repeated for other struct fields. Omitted here.
-// Value<uint16_t> indexed_field_count =
-//     GetNumberOfAllDescriptorsValue(accessor);  // Fetch the array length.
-// result.push_back(std::make_unique<ObjectProperty>(
+// // Fetch the slice.
+// auto indexed_field_slice_descriptors =
+//     TqDebugFieldSliceDescriptorArrayDescriptors(accessor, address_);
+// if (indexed_field_slice_descriptors.validity == d::MemoryAccessResult::kOk) {
+//   result.push_back(std::make_unique<ObjectProperty>(
 //     "descriptors",                                 // Field name
 //     "",                                            // Field type
 //     "",                                            // Decompressed type
-//     GetDescriptorsAddress(),                       // Field address
-//     indexed_field_count.value,                     // Number of values
-//     24,                                            // Size of value
+//     address_ - i::kHeapObjectTag +
+//     std::get<1>(indexed_field_slice_descriptors.value), // Field address
+//     std::get<2>(indexed_field_slice_descriptors.value), // Number of values
+//     12,                                            // Size of value
 //     std::move(descriptors_struct_field_list),      // Struct fields
-//     GetArrayKind(indexed_field_count.validity)));  // Field kind
+//     GetArrayKind(indexed_field_slice_descriptors.validity)));  // Field kind
+// }
 void GenerateGetPropsChunkForField(const Field& field,
-                                   base::Optional<NameAndType> array_length,
-                                   std::ostream& get_props_impl) {
+                                   std::ostream& get_props_impl,
+                                   std::string class_name) {
   DebugFieldType debug_field_type(field);
 
   // If the current field is a struct or bitfield struct, create a vector
@@ -376,27 +380,31 @@ void GenerateGetPropsChunkForField(const Field& field,
 
   // If the field is indexed, emit a fetch of the array length, and change
   // count_value and property_kind to be the correct values for an array.
-  if (array_length) {
-    const Type* index_type = array_length->type;
-    std::string index_type_name;
-    if (index_type == TypeOracle::GetSmiType()) {
-      index_type_name = "uintptr_t";
-      count_value =
-          "i::PlatformSmiTagging::SmiToInt(indexed_field_count.value)";
-    } else if (!index_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-      index_type_name = index_type->GetConstexprGeneratedTypeName();
-      count_value = "indexed_field_count.value";
-    } else {
-      Error("Unsupported index type: ", index_type);
-      return;
-    }
-    get_props_impl << "  Value<" << index_type_name
-                   << "> indexed_field_count = Get"
-                   << CamelifyString(array_length->name)
-                   << "Value(accessor);\n";
-    property_kind = "GetArrayKind(indexed_field_count.validity)";
-  }
+  if (field.index) {
+    std::string indexed_field_slice =
+        "indexed_field_slice_" + field.name_and_type.name;
+    get_props_impl << "  auto " << indexed_field_slice << " = "
+                   << "TqDebugFieldSlice" << class_name
+                   << CamelifyString(field.name_and_type.name)
+                   << "(accessor, address_);\n";
+    std::string validity = indexed_field_slice + ".validity";
+    std::string value = indexed_field_slice + ".value";
+    property_kind = "GetArrayKind(" + validity + ")";
 
+    get_props_impl << "  if (" << validity
+                   << " == d::MemoryAccessResult::kOk) {\n"
+                   << "    result.push_back(std::make_unique<ObjectProperty>(\""
+                   << field.name_and_type.name << "\", "
+                   << debug_field_type.GetTypeString(kAsStoredInHeap) << ", "
+                   << debug_field_type.GetTypeString(kUncompressed) << ", "
+                   << "address_ - i::kHeapObjectTag + std::get<1>(" << value
+                   << "), "
+                   << "std::get<2>(" << value << ")"
+                   << ", " << debug_field_type.GetSize() << ", "
+                   << struct_field_list << ", " << property_kind << "));\n"
+                   << "  }\n";
+    return;
+  }
   get_props_impl << "  result.push_back(std::make_unique<ObjectProperty>(\""
                  << field.name_and_type.name << "\", "
                  << debug_field_type.GetTypeString(kAsStoredInHeap) << ", "
@@ -499,21 +507,11 @@ void GenerateClassDebugReader(const ClassType& type, std::ostream& h_contents,
 
   for (const Field& field : type.fields()) {
     if (field.name_and_type.type == TypeOracle::GetVoidType()) continue;
-    if (!field.offset.has_value()) {
-      // Fields with dynamic offset are currently unsupported.
-      continue;
+    if (field.offset.has_value()) {
+      GenerateFieldAddressAccessor(field, name, h_contents, cc_contents);
+      GenerateFieldValueAccessor(field, name, h_contents, cc_contents);
     }
-    GenerateFieldAddressAccessor(field, name, h_contents, cc_contents);
-    GenerateFieldValueAccessor(field, name, h_contents, cc_contents);
-    base::Optional<NameAndType> array_length;
-    if (field.index) {
-      array_length = ExtractSimpleFieldArraySize(type, *field.index);
-      if (!array_length) {
-        // Unsupported complex array length, skipping this field.
-        continue;
-      }
-    }
-    GenerateGetPropsChunkForField(field, array_length, get_props_impl);
+    GenerateGetPropsChunkForField(field, get_props_impl, name);
   }
 
   h_contents << "};\n";
@@ -556,6 +554,9 @@ void ImplementationVisitor::GenerateClassDebugReaders(
       cc_contents << "#include " << StringLiteralQuote(include_path) << "\n";
     }
     cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n";
+    cc_contents << "#include \"torque-generated/"
+                << "debug-macros"
+                << ".h\"\n";
     cc_contents << "#include \"include/v8-internal.h\"\n\n";
     cc_contents << "namespace i = v8::internal;\n\n";
 

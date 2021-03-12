@@ -2275,6 +2275,10 @@ void Decoder::DecodeAdvancedSIMDTwoOrThreeRegisters(Instruction* instr) {
       Format(instr, q ? "vcnt.8 'Qd, 'Qm" : "vcnt.8 'Dd, 'Dm");
     } else if (opc1 == 0 && opc2 == 0b1011) {
       Format(instr, "vmvn 'Qd, 'Qm");
+    } else if (opc1 == 0b01 && opc2 == 0b0010) {
+      DCHECK_NE(0b11, size);
+      Format(instr,
+             q ? "vceq.s'size2 'Qd, 'Qm, #0" : "vceq.s.'size2 'Dd, 'Dm, #0");
     } else if (opc1 == 0b01 && opc2 == 0b0100) {
       DCHECK_NE(0b11, size);
       Format(instr,

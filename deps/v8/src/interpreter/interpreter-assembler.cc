@@ -42,12 +42,12 @@ InterpreterAssembler::InterpreterAssembler(CodeAssemblerState* state,
       TVARIABLE_CONSTRUCTOR(
           accumulator_,
           Parameter<Object>(InterpreterDispatchDescriptor::kAccumulator)),
-      accumulator_use_(AccumulatorUse::kNone),
+      implicit_register_use_(ImplicitRegisterUse::kNone),
       made_call_(false),
       reloaded_frame_ptr_(false),
       bytecode_array_valid_(true) {
-#ifdef V8_TRACE_IGNITION
-  TraceBytecode(Runtime::kInterpreterTraceBytecodeEntry);
+#ifdef V8_TRACE_UNOPTIMIZED
+  TraceBytecode(Runtime::kTraceUnoptimizedBytecodeEntry);
 #endif
   RegisterCallGenerationCallbacks([this] { CallPrologue(); },
                                   [this] { CallEpilogue(); });
@@ -64,7 +64,8 @@ InterpreterAssembler::~InterpreterAssembler() {
   // If the following check fails the handler does not use the
   // accumulator in the way described in the bytecode definitions in
   // bytecodes.h.
-  DCHECK_EQ(accumulator_use_, Bytecodes::GetAccumulatorUse(bytecode_));
+  DCHECK_EQ(implicit_register_use_,
+            Bytecodes::GetImplicitRegisterUse(bytecode_));
   UnregisterCallGenerationCallbacks();
 }
 
@@ -154,13 +155,15 @@ TNode<Object> InterpreterAssembler::GetAccumulatorUnchecked() {
 
 TNode<Object> InterpreterAssembler::GetAccumulator() {
   DCHECK(Bytecodes::ReadsAccumulator(bytecode_));
-  accumulator_use_ = accumulator_use_ | AccumulatorUse::kRead;
+  implicit_register_use_ =
+      implicit_register_use_ | ImplicitRegisterUse::kReadAccumulator;
   return TaggedPoisonOnSpeculation(GetAccumulatorUnchecked());
 }
 
 void InterpreterAssembler::SetAccumulator(TNode<Object> value) {
   DCHECK(Bytecodes::WritesAccumulator(bytecode_));
-  accumulator_use_ = accumulator_use_ | AccumulatorUse::kWrite;
+  implicit_register_use_ =
+      implicit_register_use_ | ImplicitRegisterUse::kWriteAccumulator;
   accumulator_ = value;
 }
 
@@ -197,41 +200,6 @@ TNode<Context> InterpreterAssembler::GetContextAtDepth(TNode<Context> context,
 
   BIND(&context_found);
   return cur_context.value();
-}
-
-void InterpreterAssembler::GotoIfHasContextExtensionUpToDepth(
-    TNode<Context> context, TNode<Uint32T> depth, Label* target) {
-  TVARIABLE(Context, cur_context, context);
-  TVARIABLE(Uint32T, cur_depth, depth);
-
-  Label context_search(this, {&cur_depth, &cur_context});
-  Label no_extension(this);
-
-  // Loop until the depth is 0.
-  Goto(&context_search);
-  BIND(&context_search);
-  {
-    // Check if context has an extension slot.
-    TNode<BoolT> has_extension =
-        LoadScopeInfoHasExtensionField(LoadScopeInfo(cur_context.value()));
-    GotoIfNot(has_extension, &no_extension);
-
-    // Jump to the target if the extension slot is not an undefined value.
-    TNode<Object> extension_slot =
-        LoadContextElement(cur_context.value(), Context::EXTENSION_INDEX);
-    Branch(TaggedNotEqual(extension_slot, UndefinedConstant()), target,
-           &no_extension);
-
-    BIND(&no_extension);
-    {
-      cur_depth = Unsigned(Int32Sub(cur_depth.value(), Int32Constant(1)));
-      cur_context = CAST(
-          LoadContextElement(cur_context.value(), Context::PREVIOUS_INDEX));
-
-      GotoIf(Word32NotEqual(cur_depth.value(), Int32Constant(0)),
-             &context_search);
-    }
-  }
 }
 
 TNode<IntPtrT> InterpreterAssembler::RegisterLocation(
@@ -328,6 +296,35 @@ void InterpreterAssembler::StoreRegister(TNode<Object> value,
                                          TNode<IntPtrT> reg_index) {
   StoreFullTaggedNoWriteBarrier(GetInterpretedFramePointer(),
                                 RegisterFrameOffset(reg_index), value);
+}
+
+void InterpreterAssembler::StoreRegisterForShortStar(TNode<Object> value,
+                                                     TNode<WordT> opcode) {
+  DCHECK(Bytecodes::IsShortStar(bytecode_));
+  implicit_register_use_ =
+      implicit_register_use_ | ImplicitRegisterUse::kWriteShortStar;
+
+  CSA_ASSERT(
+      this, UintPtrGreaterThanOrEqual(opcode, UintPtrConstant(static_cast<int>(
+                                                  Bytecode::kFirstShortStar))));
+  CSA_ASSERT(
+      this,
+      UintPtrLessThanOrEqual(
+          opcode, UintPtrConstant(static_cast<int>(Bytecode::kLastShortStar))));
+
+  // Compute the constant that we can add to a Bytecode value to map the range
+  // [Bytecode::kStar15, Bytecode::kStar0] to the range
+  // [Register(15).ToOperand(), Register(0).ToOperand()].
+  constexpr int short_star_to_operand =
+      Register(0).ToOperand() - static_cast<int>(Bytecode::kStar0);
+  // Make sure the values count in the right direction.
+  STATIC_ASSERT(short_star_to_operand ==
+                Register(1).ToOperand() - static_cast<int>(Bytecode::kStar1));
+
+  TNode<IntPtrT> offset =
+      IntPtrAdd(RegisterFrameOffset(Signed(opcode)),
+                IntPtrConstant(short_star_to_operand * kSystemPointerSize));
+  StoreFullTaggedNoWriteBarrier(GetInterpretedFramePointer(), offset, value);
 }
 
 void InterpreterAssembler::StoreRegisterAtOperandIndex(TNode<Object> value,
@@ -726,8 +723,7 @@ void InterpreterAssembler::CallPrologue() {
   made_call_ = true;
 }
 
-void InterpreterAssembler::CallEpilogue() {
-}
+void InterpreterAssembler::CallEpilogue() {}
 
 void InterpreterAssembler::CallJSAndDispatch(
     TNode<Object> function, TNode<Context> context, const RegListNodePair& args,
@@ -755,7 +751,8 @@ void InterpreterAssembler::CallJSAndDispatch(
                                    args_count, args.base_reg_location(),
                                    function);
   // TailCallStubThenDispatch updates accumulator with result.
-  accumulator_use_ = accumulator_use_ | AccumulatorUse::kWrite;
+  implicit_register_use_ =
+      implicit_register_use_ | ImplicitRegisterUse::kWriteAccumulator;
 }
 
 template <class... TArgs>
@@ -781,7 +778,8 @@ void InterpreterAssembler::CallJSAndDispatch(TNode<Object> function,
                                      context, function, arg_count, args...);
   }
   // TailCallStubThenDispatch updates accumulator with result.
-  accumulator_use_ = accumulator_use_ | AccumulatorUse::kWrite;
+  implicit_register_use_ =
+      implicit_register_use_ | ImplicitRegisterUse::kWriteAccumulator;
 }
 
 // Instantiate CallJSAndDispatch() for argument counts used by interpreter
@@ -818,7 +816,8 @@ void InterpreterAssembler::CallJSWithSpreadAndDispatch(
                                    args_count, args.base_reg_location(),
                                    function);
   // TailCallStubThenDispatch updates accumulator with result.
-  accumulator_use_ = accumulator_use_ | AccumulatorUse::kWrite;
+  implicit_register_use_ =
+      implicit_register_use_ | ImplicitRegisterUse::kWriteAccumulator;
 }
 
 TNode<Object> InterpreterAssembler::Construct(
@@ -832,8 +831,8 @@ TNode<Object> InterpreterAssembler::Construct(
       construct_array(this, &var_site);
 
   CollectConstructFeedback(context, target, new_target, maybe_feedback_vector,
-                           slot_id, &construct_generic, &construct_array,
-                           &var_site);
+                           slot_id, UpdateFeedbackMode::kOptionalFeedback,
+                           &construct_generic, &construct_array, &var_site);
 
   BIND(&construct_generic);
   {
@@ -929,8 +928,8 @@ TNode<Object> InterpreterAssembler::ConstructWithSpread(
         TNode<Uint16T> current_instance_type = LoadInstanceType(current);
         GotoIf(InstanceTypeEqual(current_instance_type, JS_BOUND_FUNCTION_TYPE),
                &if_boundfunction);
-        Branch(InstanceTypeEqual(current_instance_type, JS_FUNCTION_TYPE),
-               &if_function, &mark_megamorphic);
+        Branch(IsJSFunctionInstanceType(current_instance_type), &if_function,
+               &mark_megamorphic);
 
         BIND(&if_function);
         {
@@ -1078,8 +1077,8 @@ TNode<IntPtrT> InterpreterAssembler::Advance(int delta) {
 
 TNode<IntPtrT> InterpreterAssembler::Advance(TNode<IntPtrT> delta,
                                              bool backward) {
-#ifdef V8_TRACE_IGNITION
-  TraceBytecode(Runtime::kInterpreterTraceBytecodeExit);
+#ifdef V8_TRACE_UNOPTIMIZED
+  TraceBytecode(Runtime::kTraceUnoptimizedBytecodeExit);
 #endif
   TNode<IntPtrT> next_offset = backward ? IntPtrSub(BytecodeOffset(), delta)
                                         : IntPtrAdd(BytecodeOffset(), delta);
@@ -1135,46 +1134,58 @@ TNode<WordT> InterpreterAssembler::LoadBytecode(
   return ChangeUint32ToWord(bytecode);
 }
 
-TNode<WordT> InterpreterAssembler::StarDispatchLookahead(
-    TNode<WordT> target_bytecode) {
+void InterpreterAssembler::StarDispatchLookahead(TNode<WordT> target_bytecode) {
   Label do_inline_star(this), done(this);
 
-  TVARIABLE(WordT, var_bytecode, target_bytecode);
-
-  TNode<Int32T> star_bytecode =
-      Int32Constant(static_cast<int>(Bytecode::kStar));
-  TNode<BoolT> is_star =
-      Word32Equal(TruncateWordToInt32(target_bytecode), star_bytecode);
+  // Check whether the following opcode is one of the short Star codes. All
+  // opcodes higher than the short Star variants are invalid, and invalid
+  // opcodes are never deliberately written, so we can use a one-sided check.
+  // This is no less secure than the normal-length Star handler, which performs
+  // no validation on its operand.
+  STATIC_ASSERT(static_cast<int>(Bytecode::kLastShortStar) + 1 ==
+                static_cast<int>(Bytecode::kIllegal));
+  STATIC_ASSERT(Bytecode::kIllegal == Bytecode::kLast);
+  TNode<Int32T> first_short_star_bytecode =
+      Int32Constant(static_cast<int>(Bytecode::kFirstShortStar));
+  TNode<BoolT> is_star = Uint32GreaterThanOrEqual(
+      TruncateWordToInt32(target_bytecode), first_short_star_bytecode);
   Branch(is_star, &do_inline_star, &done);
 
   BIND(&do_inline_star);
   {
-    InlineStar();
-    var_bytecode = LoadBytecode(BytecodeOffset());
-    Goto(&done);
+    InlineShortStar(target_bytecode);
+
+    // Rather than merging control flow to a single indirect jump, we can get
+    // better branch prediction by duplicating it. This is because the
+    // instruction following a merged X + StarN is a bad predictor of the
+    // instruction following a non-merged X, and vice versa.
+    DispatchToBytecode(LoadBytecode(BytecodeOffset()), BytecodeOffset());
   }
   BIND(&done);
-  return var_bytecode.value();
 }
 
-void InterpreterAssembler::InlineStar() {
+void InterpreterAssembler::InlineShortStar(TNode<WordT> target_bytecode) {
   Bytecode previous_bytecode = bytecode_;
-  AccumulatorUse previous_acc_use = accumulator_use_;
+  ImplicitRegisterUse previous_acc_use = implicit_register_use_;
 
-  bytecode_ = Bytecode::kStar;
-  accumulator_use_ = AccumulatorUse::kNone;
+  // At this point we don't know statically what bytecode we're executing, but
+  // kStar0 has the right attributes (namely, no operands) for any of the short
+  // Star codes.
+  bytecode_ = Bytecode::kStar0;
+  implicit_register_use_ = ImplicitRegisterUse::kNone;
 
-#ifdef V8_TRACE_IGNITION
-  TraceBytecode(Runtime::kInterpreterTraceBytecodeEntry);
+#ifdef V8_TRACE_UNOPTIMIZED
+  TraceBytecode(Runtime::kTraceUnoptimizedBytecodeEntry);
 #endif
-  StoreRegister(GetAccumulator(),
-                BytecodeOperandReg(0, LoadSensitivity::kSafe));
 
-  DCHECK_EQ(accumulator_use_, Bytecodes::GetAccumulatorUse(bytecode_));
+  StoreRegisterForShortStar(GetAccumulator(), target_bytecode);
+
+  DCHECK_EQ(implicit_register_use_,
+            Bytecodes::GetImplicitRegisterUse(bytecode_));
 
   Advance();
   bytecode_ = previous_bytecode;
-  accumulator_use_ = previous_acc_use;
+  implicit_register_use_ = previous_acc_use;
 }
 
 void InterpreterAssembler::Dispatch() {
@@ -1182,9 +1193,13 @@ void InterpreterAssembler::Dispatch() {
   DCHECK_IMPLIES(Bytecodes::MakesCallAlongCriticalPath(bytecode_), made_call_);
   TNode<IntPtrT> target_offset = Advance();
   TNode<WordT> target_bytecode = LoadBytecode(target_offset);
+  DispatchToBytecodeWithOptionalStarLookahead(target_bytecode);
+}
 
+void InterpreterAssembler::DispatchToBytecodeWithOptionalStarLookahead(
+    TNode<WordT> target_bytecode) {
   if (Bytecodes::IsStarLookahead(bytecode_, operand_scale_)) {
-    target_bytecode = StarDispatchLookahead(target_bytecode);
+    StarDispatchLookahead(target_bytecode);
   }
   DispatchToBytecode(target_bytecode, BytecodeOffset());
 }
@@ -1349,7 +1364,7 @@ void InterpreterAssembler::TraceBytecodeDispatch(TNode<WordT> target_bytecode) {
 
 // static
 bool InterpreterAssembler::TargetSupportsUnalignedAccess() {
-#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_RISCV64
   return false;
 #elif V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390 || \
     V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_PPC ||   \
@@ -1552,7 +1567,8 @@ void InterpreterAssembler::ToNumberOrNumeric(Object::Conversion mode) {
   TNode<UintPtrT> slot_index = BytecodeOperandIdx(0);
   TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
 
-  UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector, slot_index);
+  MaybeUpdateFeedback(var_type_feedback.value(), maybe_feedback_vector,
+                      slot_index);
 
   SetAccumulator(var_result.value());
   Dispatch();

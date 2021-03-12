@@ -108,6 +108,7 @@ class Symbol;
   V(Map, small_ordered_hash_set_map, SmallOrderedHashSetMap)                   \
   V(Map, small_ordered_name_dictionary_map, SmallOrderedNameDictionaryMap)     \
   V(Map, source_text_module_map, SourceTextModuleMap)                          \
+  V(Map, swiss_name_dictionary_map, SwissNameDictionaryMap)                    \
   V(Map, synthetic_module_map, SyntheticModuleMap)                             \
   V(Map, wasm_type_info_map, WasmTypeInfoMap)                                  \
   V(Map, weak_fixed_array_map, WeakFixedArrayMap)                              \
@@ -129,6 +130,10 @@ class Symbol;
   V(Map, external_internalized_string_map, ExternalInternalizedStringMap)      \
   V(Map, external_one_byte_internalized_string_map,                            \
     ExternalOneByteInternalizedStringMap)                                      \
+  V(Map, uncached_external_internalized_string_map,                            \
+    UncachedExternalInternalizedStringMap)                                     \
+  V(Map, uncached_external_one_byte_internalized_string_map,                   \
+    UncachedExternalOneByteInternalizedStringMap)                              \
   V(Map, uncached_external_one_byte_string_map,                                \
     UncachedExternalOneByteStringMap)                                          \
   /* Oddball maps */                                                           \
@@ -159,10 +164,11 @@ class Symbol;
   V(OrderedHashMap, empty_ordered_hash_map, EmptyOrderedHashMap)               \
   V(OrderedHashSet, empty_ordered_hash_set, EmptyOrderedHashSet)               \
   V(FeedbackMetadata, empty_feedback_metadata, EmptyFeedbackMetadata)          \
-  V(PropertyCell, empty_property_cell, EmptyPropertyCell)                      \
   V(NameDictionary, empty_property_dictionary, EmptyPropertyDictionary)        \
   V(OrderedNameDictionary, empty_ordered_property_dictionary,                  \
     EmptyOrderedPropertyDictionary)                                            \
+  V(SwissNameDictionary, empty_swiss_property_dictionary,                      \
+    EmptySwissPropertyDictionary)                                              \
   V(InterceptorInfo, noop_interceptor_info, NoOpInterceptorInfo)               \
   V(WeakFixedArray, empty_weak_fixed_array, EmptyWeakFixedArray)               \
   V(WeakArrayList, empty_weak_array_list, EmptyWeakArrayList)                  \
@@ -197,11 +203,6 @@ class Symbol;
   /* Maps */                                                                   \
   V(Map, external_map, ExternalMap)                                            \
   V(Map, message_object_map, JSMessageObjectMap)                               \
-  V(Map, wasm_rttcanon_eqref_map, WasmRttEqrefMap)                             \
-  V(Map, wasm_rttcanon_externref_map, WasmRttExternrefMap)                     \
-  V(Map, wasm_rttcanon_funcref_map, WasmRttFuncrefMap)                         \
-  V(Map, wasm_rttcanon_i31ref_map, WasmRttI31refMap)                           \
-  V(Map, wasm_rttcanon_anyref_map, WasmRttAnyrefMap)                           \
   /* Canonical empty values */                                                 \
   V(Script, empty_script, EmptyScript)                                         \
   V(FeedbackCell, many_closures_cell, ManyClosuresCell)                        \
@@ -309,7 +310,6 @@ class Symbol;
   /* To distinguish the function templates, so that we can find them in the */ \
   /* function cache of the native context. */                                  \
   V(Smi, next_template_serial_number, NextTemplateSerialNumber)                \
-  V(Smi, arguments_adaptor_deopt_pc_offset, ArgumentsAdaptorDeoptPCOffset)     \
   V(Smi, construct_stub_create_deopt_pc_offset,                                \
     ConstructStubCreateDeoptPCOffset)                                          \
   V(Smi, construct_stub_invoke_deopt_pc_offset,                                \

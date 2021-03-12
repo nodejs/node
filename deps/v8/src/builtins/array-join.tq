@@ -163,7 +163,7 @@ struct Buffer {
     const nofSeparatorsInt: intptr = nofSeparators;
     const sepsLen: intptr = separatorLength * nofSeparatorsInt;
     // Detect integer overflow
-    // TODO(tebbi): Replace with overflow-checked multiplication.
+    // TODO(turbofan): Replace with overflow-checked multiplication.
     if (sepsLen / separatorLength != nofSeparatorsInt) deferred {
         ThrowInvalidStringLength(context);
       }

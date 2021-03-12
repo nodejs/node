@@ -42,6 +42,7 @@
   /* Exception handling proposal. */                                           \
   /* https://github.com/WebAssembly/exception-handling */                      \
   /* V8 side owner: thibaudm */                                                \
+  /* Staged in v8.9 */                                                         \
   V(eh, "exception handling opcodes", false)                                   \
                                                                                \
   /* Reference Types, a.k.a. reftypes proposal. */                             \
@@ -80,13 +81,6 @@
 // Shipped features (enabled by default). Remove the feature flag once they hit
 // stable and are expected to stay enabled.
 #define FOREACH_WASM_SHIPPED_FEATURE_FLAG(V) /*          (force 80 columns) */ \
-  /* Bulk memory operations. */                                                \
-  /* https://github.com/webassembly/bulk-memory-operations */                  \
-  /* V8 side owner: binji */                                                   \
-  /* Shipped in v7.5. */                                                       \
-  /* ITS: https://groups.google.com/forum/#!topic/v8-users/zM05lYEBVog */      \
-  V(bulk_memory, "bulk memory opcodes", true)                                  \
-                                                                               \
   /* Multi-value proposal. */                                                  \
   /* https://github.com/WebAssembly/multi-value */                             \
   /* V8 side owner: thibaudm */                                                \

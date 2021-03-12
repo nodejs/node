@@ -430,10 +430,6 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
     it.rinfo()->Print(nullptr, os);
   }
   os << "\n";
-
-  if (code_comments_size() > 0) {
-    PrintCodeCommentsSection(os, code_comments(), code_comments_size());
-  }
 #endif  // ENABLE_DISASSEMBLER
 }
 
@@ -874,10 +870,12 @@ void NativeModule::LogWasmCodes(Isolate* isolate, Script script) {
 
   // Log all owned code, not just the current entries in the code table. This
   // will also include import wrappers.
-  WasmCodeRefScope code_ref_scope;
   base::MutexGuard lock(&allocation_mutex_);
   for (auto& owned_entry : owned_code_) {
     owned_entry.second->LogCode(isolate, source_url.get(), script.id());
+  }
+  for (auto& owned_entry : new_owned_code_) {
+    owned_entry->LogCode(isolate, source_url.get(), script.id());
   }
 }
 
@@ -1133,6 +1131,10 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
   // The caller must hold the {allocation_mutex_}, thus we fail to lock it here.
   DCHECK(!allocation_mutex_.TryLock());
 
+  // Add the code to the surrounding code ref scope, so the returned pointer is
+  // guaranteed to be valid.
+  WasmCodeRefScope::AddRef(code.get());
+
   if (!code->IsAnonymous() &&
       code->index() >= module_->num_imported_functions) {
     DCHECK_LT(code->index(), num_functions());
@@ -1169,36 +1171,43 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
         WasmCodeRefScope::AddRef(prior_code);
         // The code is added to the current {WasmCodeRefScope}, hence the ref
         // count cannot drop to zero here.
-        CHECK(!prior_code->DecRef());
+        prior_code->DecRefOnLiveCode();
       }
 
       PatchJumpTablesLocked(slot_idx, code->instruction_start());
+    } else {
+      // The code tables does not hold a reference to the code, hence decrement
+      // the initial ref count of 1. The code was added to the
+      // {WasmCodeRefScope} though, so it cannot die here.
+      code->DecRefOnLiveCode();
     }
     if (!code->for_debugging() && tiering_state_ == kTieredDown &&
         code->tier() == ExecutionTier::kTurbofan) {
       liftoff_bailout_count_.fetch_add(1);
     }
   }
-  WasmCodeRefScope::AddRef(code.get());
   WasmCode* result = code.get();
-  owned_code_.emplace(result->instruction_start(), std::move(code));
+  new_owned_code_.emplace_back(std::move(code));
   return result;
 }
 
-std::unique_ptr<WasmCode> NativeModule::AllocateDeserializedCode(
-    int index, Vector<const byte> instructions, int stack_slots,
+Vector<uint8_t> NativeModule::AllocateForDeserializedCode(
+    size_t total_code_size) {
+  return code_allocator_.AllocateForCode(this, total_code_size);
+}
+
+std::unique_ptr<WasmCode> NativeModule::AddDeserializedCode(
+    int index, Vector<byte> instructions, int stack_slots,
     int tagged_parameter_slots, int safepoint_table_offset,
     int handler_table_offset, int constant_pool_offset,
     int code_comments_offset, int unpadded_binary_size,
     Vector<const byte> protected_instructions_data,
     Vector<const byte> reloc_info, Vector<const byte> source_position_table,
     WasmCode::Kind kind, ExecutionTier tier) {
-  Vector<uint8_t> dst_code_bytes =
-      code_allocator_.AllocateForCode(this, instructions.size());
-  UpdateCodeSize(dst_code_bytes.size(), tier, kNoDebugging);
+  UpdateCodeSize(instructions.size(), tier, kNoDebugging);
 
   return std::unique_ptr<WasmCode>{new WasmCode{
-      this, index, dst_code_bytes, stack_slots, tagged_parameter_slots,
+      this, index, instructions, stack_slots, tagged_parameter_slots,
       safepoint_table_offset, handler_table_offset, constant_pool_offset,
       code_comments_offset, unpadded_binary_size, protected_instructions_data,
       reloc_info, source_position_table, kind, tier, kNoDebugging}};
@@ -1208,6 +1217,9 @@ std::vector<WasmCode*> NativeModule::SnapshotCodeTable() const {
   base::MutexGuard lock(&allocation_mutex_);
   WasmCode** start = code_table_.get();
   WasmCode** end = start + module_->num_declared_functions;
+  for (WasmCode* code : VectorOf(start, end - start)) {
+    if (code) WasmCodeRefScope::AddRef(code);
+  }
   return std::vector<WasmCode*>{start, end};
 }
 
@@ -1447,8 +1459,34 @@ void NativeModule::SetWireBytes(OwnedVector<const uint8_t> wire_bytes) {
   }
 }
 
+void NativeModule::TransferNewOwnedCodeLocked() const {
+  // The caller holds the allocation mutex.
+  DCHECK(!allocation_mutex_.TryLock());
+  DCHECK(!new_owned_code_.empty());
+  // Sort the {new_owned_code_} vector reversed, such that the position of the
+  // previously inserted element can be used as a hint for the next element. If
+  // elements in {new_owned_code_} are adjacent, this will guarantee
+  // constant-time insertion into the map.
+  std::sort(new_owned_code_.begin(), new_owned_code_.end(),
+            [](const std::unique_ptr<WasmCode>& a,
+               const std::unique_ptr<WasmCode>& b) {
+              return a->instruction_start() > b->instruction_start();
+            });
+  auto insertion_hint = owned_code_.end();
+  for (auto& code : new_owned_code_) {
+    DCHECK_EQ(0, owned_code_.count(code->instruction_start()));
+    // Check plausibility of the insertion hint.
+    DCHECK(insertion_hint == owned_code_.end() ||
+           insertion_hint->first > code->instruction_start());
+    insertion_hint = owned_code_.emplace_hint(
+        insertion_hint, code->instruction_start(), std::move(code));
+  }
+  new_owned_code_.clear();
+}
+
 WasmCode* NativeModule::Lookup(Address pc) const {
   base::MutexGuard lock(&allocation_mutex_);
+  if (!new_owned_code_.empty()) TransferNewOwnedCodeLocked();
   auto iter = owned_code_.upper_bound(pc);
   if (iter == owned_code_.begin()) return nullptr;
   --iter;
@@ -1912,6 +1950,11 @@ std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
       code_allocator_.AllocateForCode(this, total_code_space);
   // Lookup the jump tables to use once, then use for all code objects.
   auto jump_tables = FindJumpTablesForRegion(base::AddressRegionOf(code_space));
+  // If we happen to have a {total_code_space} which is bigger than
+  // {kMaxCodeSpaceSize}, we would not find valid jump tables for the whole
+  // region. If this ever happens, we need to handle this case (by splitting the
+  // {results} vector in smaller chunks).
+  CHECK(jump_tables.is_valid());
 
   std::vector<std::unique_ptr<WasmCode>> generated_code;
   generated_code.reserve(results.size());
@@ -1985,6 +2028,7 @@ void NativeModule::FreeCode(Vector<WasmCode* const> codes) {
   DebugInfo* debug_info = nullptr;
   {
     base::MutexGuard guard(&allocation_mutex_);
+    if (!new_owned_code_.empty()) TransferNewOwnedCodeLocked();
     debug_info = debug_info_.get();
     // Free the {WasmCode} objects. This will also unregister trap handler data.
     for (WasmCode* code : codes) {
@@ -2095,10 +2139,7 @@ WasmCodeRefScope::WasmCodeRefScope()
 WasmCodeRefScope::~WasmCodeRefScope() {
   DCHECK_EQ(this, current_code_refs_scope);
   current_code_refs_scope = previous_scope_;
-  std::vector<WasmCode*> code_ptrs;
-  code_ptrs.reserve(code_ptrs_.size());
-  code_ptrs.assign(code_ptrs_.begin(), code_ptrs_.end());
-  WasmCode::DecrementRefCount(VectorOf(code_ptrs));
+  WasmCode::DecrementRefCount(VectorOf(code_ptrs_));
 }
 
 // static
@@ -2106,9 +2147,8 @@ void WasmCodeRefScope::AddRef(WasmCode* code) {
   DCHECK_NOT_NULL(code);
   WasmCodeRefScope* current_scope = current_code_refs_scope;
   DCHECK_NOT_NULL(current_scope);
-  auto entry = current_scope->code_ptrs_.insert(code);
-  // If we added a new entry, increment the ref counter.
-  if (entry.second) code->IncRef();
+  current_scope->code_ptrs_.push_back(code);
+  code->IncRef();
 }
 
 const char* GetRuntimeStubName(WasmCode::RuntimeStubId stub_id) {

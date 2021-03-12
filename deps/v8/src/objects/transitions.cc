@@ -429,13 +429,14 @@ void TransitionsAccessor::SetMigrationTarget(Map migration_target) {
   // sake.
   if (encoding() != kUninitialized) return;
   DCHECK(map_.is_deprecated());
-  map_.set_raw_transitions(MaybeObject::FromObject(migration_target));
+  map_.set_raw_transitions(MaybeObject::FromObject(migration_target),
+                           kReleaseStore);
   MarkNeedsReload();
 }
 
 Map TransitionsAccessor::GetMigrationTarget() {
   if (encoding() == kMigrationTarget) {
-    return map_.raw_transitions()->cast<Map>();
+    return map_.raw_transitions(kAcquireLoad)->cast<Map>();
   }
   return Map();
 }
@@ -449,7 +450,7 @@ void TransitionsAccessor::ReplaceTransitions(MaybeObject new_transitions) {
     DCHECK(old_transitions != new_transitions->GetHeapObjectAssumeStrong());
 #endif
   }
-  map_.set_raw_transitions(new_transitions);
+  map_.set_raw_transitions(new_transitions, kReleaseStore);
   MarkNeedsReload();
 }
 

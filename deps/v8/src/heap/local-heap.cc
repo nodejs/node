@@ -52,7 +52,7 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
       marking_barrier_(new MarkingBarrier(this)),
       old_space_allocator_(this, heap->old_space()) {
   heap_->safepoint()->AddLocalHeap(this, [this] {
-    if (FLAG_local_heaps && !is_main_thread()) {
+    if (!is_main_thread()) {
       WriteBarrier::SetForThread(marking_barrier_.get());
       if (heap_->incremental_marking()->IsMarking()) {
         marking_barrier_->Activate(
@@ -75,7 +75,7 @@ LocalHeap::~LocalHeap() {
   heap_->safepoint()->RemoveLocalHeap(this, [this] {
     old_space_allocator_.FreeLinearAllocationArea();
 
-    if (FLAG_local_heaps && !is_main_thread()) {
+    if (!is_main_thread()) {
       marking_barrier_->Publish();
       WriteBarrier::ClearForThread(marking_barrier_.get());
     }
@@ -85,6 +85,8 @@ LocalHeap::~LocalHeap() {
     DCHECK_EQ(current_local_heap, this);
     current_local_heap = nullptr;
   }
+
+  DCHECK(gc_epilogue_callbacks_.empty());
 }
 
 void LocalHeap::EnsurePersistentHandles() {
@@ -133,7 +135,7 @@ bool LocalHeap::IsParked() {
 
 void LocalHeap::Park() {
   base::MutexGuard guard(&state_mutex_);
-  CHECK(state_ == ThreadState::Running);
+  CHECK_EQ(ThreadState::Running, state_);
   state_ = ThreadState::Parked;
   state_change_.NotifyAll();
 }
@@ -202,6 +204,32 @@ Address LocalHeap::PerformCollectionAndAllocateAgain(
   }
 
   heap_->FatalProcessOutOfMemory("LocalHeap: allocation failed");
+}
+
+void LocalHeap::AddGCEpilogueCallback(GCEpilogueCallback* callback,
+                                      void* data) {
+  DCHECK(!IsParked());
+  std::pair<GCEpilogueCallback*, void*> callback_and_data(callback, data);
+  DCHECK_EQ(std::find(gc_epilogue_callbacks_.begin(),
+                      gc_epilogue_callbacks_.end(), callback_and_data),
+            gc_epilogue_callbacks_.end());
+  gc_epilogue_callbacks_.push_back(callback_and_data);
+}
+
+void LocalHeap::RemoveGCEpilogueCallback(GCEpilogueCallback* callback,
+                                         void* data) {
+  DCHECK(!IsParked());
+  std::pair<GCEpilogueCallback*, void*> callback_and_data(callback, data);
+  auto it = std::find(gc_epilogue_callbacks_.begin(),
+                      gc_epilogue_callbacks_.end(), callback_and_data);
+  *it = gc_epilogue_callbacks_.back();
+  gc_epilogue_callbacks_.pop_back();
+}
+
+void LocalHeap::InvokeGCEpilogueCallbacksInSafepoint() {
+  for (auto callback_and_data : gc_epilogue_callbacks_) {
+    callback_and_data.first(callback_and_data.second);
+  }
 }
 
 }  // namespace internal

@@ -8,7 +8,6 @@ type PodArrayOfWasmValueType extends ByteArray
 @useParentTypeChecker
 type ManagedWasmNativeModule extends Foreign
     constexpr 'Managed<wasm::NativeModule>';
-type WasmValueType extends uint8 constexpr 'wasm::ValueType::Kind';
 
 extern class WasmInstanceObject extends JSObject;
 
@@ -106,7 +105,6 @@ extern class AsmWasmData extends Struct {
 
 @generateCppClass
 extern class WasmTypeInfo extends Foreign {
-  parent: Map;
   supertypes: FixedArray;
   subtypes: ArrayList;
 }

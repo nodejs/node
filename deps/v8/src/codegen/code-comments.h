@@ -62,9 +62,6 @@ class V8_EXPORT_PRIVATE CodeCommentsIterator {
   Address current_entry_;
 };
 
-void PrintCodeCommentsSection(std::ostream& out, Address code_comments_start,
-                              uint32_t code_comments_size);
-
 }  // namespace internal
 }  // namespace v8
 

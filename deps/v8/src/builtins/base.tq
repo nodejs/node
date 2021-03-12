@@ -70,9 +70,9 @@ macro WeakToStrong<T: type>(x: Weak<T>): T labels ClearedWeakPointer {
 // Doesn't include PrivateSymbol.
 type PropertyKey = String|PublicSymbol;
 
-// TODO(tebbi): PrivateSymbol is only exposed to JavaScript through the debugger
-// API. We should reconsider this and try not to expose it at all. Then JSAny
-// would not need to contain it.
+// TODO(turbofan): PrivateSymbol is only exposed to JavaScript through the
+// debugger API. We should reconsider this and try not to expose it at all. Then
+// JSAny would not need to contain it.
 
 // A JavaScript primitive value as defined in
 // https://tc39.es/ecma262/#sec-primitive-value.
@@ -111,6 +111,32 @@ type float64 generates 'TNode<Float64T>' constexpr 'double';
 type bool generates 'TNode<BoolT>' constexpr 'bool';
 type bint generates 'TNode<BInt>' constexpr 'BInt';
 type string constexpr 'const char*';
+
+// Represents a std::function which produces the generated TNode type of T.
+// Useful for passing values to and from CSA code that uses LazyNode<T>, which
+// is a typedef for std::function<TNode<T>()>. Can be created with %MakeLazy and
+// accessed with RunLazy.
+type Lazy<T: type>;
+
+// Makes a Lazy. The first parameter is the name of a macro, which is looked up
+// in the context where %MakeLazy is called, as a workaround for the fact that
+// macros can't be used as values directly. The other parameters are saved and
+// passed to the macro when somebody runs the resulting Lazy object. Torque
+// syntax doesn't allow for arbitrary-length generic macros, but the internals
+// support any number of parameters, so if you need more parameters, feel free
+// to add additional declarations here.
+intrinsic %MakeLazy<T: type>(getter: constexpr string): Lazy<T>;
+intrinsic %MakeLazy<T: type, A1: type>(
+    getter: constexpr string, arg1: A1): Lazy<T>;
+intrinsic %MakeLazy<T: type, A1: type, A2: type>(
+    getter: constexpr string, arg1: A1, arg2: A2): Lazy<T>;
+intrinsic %MakeLazy<T: type, A1: type, A2: type, A3: type>(
+    getter: constexpr string, arg1: A1, arg2: A2, arg3: A3): Lazy<T>;
+
+// Executes a Lazy and returns the result. The CSA-side definition is a
+// template, but Torque doesn't understand how to use templates for extern
+// macros, so just add whatever overload definitions you need here.
+extern macro RunLazy(Lazy<Smi>): Smi;
 
 // A Smi value containing a bitfield struct as its integer data.
 @useParentTypeChecker type SmiTagged<T : type extends uint31> extends Smi;
@@ -228,6 +254,10 @@ type Callable = JSFunction|JSBoundFunction|CallableJSProxy|CallableApiObject;
 type WriteBarrierMode
     generates 'TNode<Int32T>' constexpr 'WriteBarrierMode';
 
+extern enum UpdateFeedbackMode { kOptionalFeedback, kGuaranteedFeedback }
+extern operator '==' macro UpdateFeedbackModeEqual(
+    constexpr UpdateFeedbackMode, constexpr UpdateFeedbackMode): constexpr bool;
+
 extern enum UnicodeEncoding { UTF16, UTF32 }
 
 // Promise constants
@@ -236,8 +266,6 @@ extern enum PromiseState extends int31 constexpr 'Promise::PromiseState' {
   kFulfilled,
   kRejected
 }
-
-type FrameArray extends FixedArray;
 
 const kTaggedSize: constexpr int31 generates 'kTaggedSize';
 const kDoubleSize: constexpr int31 generates 'kDoubleSize';
@@ -430,6 +458,8 @@ const kNameDictionaryInitialCapacity:
     constexpr int32 generates 'NameDictionary::kInitialCapacity';
 const kOrderedNameDictionaryInitialCapacity:
     constexpr int32 generates 'OrderedNameDictionary::kInitialCapacity';
+const kSwissNameDictionaryGroupWidth:
+    constexpr int32 generates 'SwissNameDictionary::kGroupWidth';
 
 const kWasmArrayHeaderSize:
     constexpr int32 generates 'WasmArray::kHeaderSize';
@@ -463,6 +493,7 @@ extern macro NameStringConstant(): String;
 extern macro NullConstant(): Null;
 extern macro NumberStringConstant(): String;
 extern macro ReturnStringConstant(): String;
+extern macro SearchSymbolConstant(): Symbol;
 extern macro StringStringConstant(): String;
 extern macro TheHoleConstant(): TheHole;
 extern macro ToPrimitiveSymbolConstant(): PublicSymbol;
@@ -1301,7 +1332,7 @@ macro CheckIntegerIndexAdditionOverflow(
   }
 }
 
-// TODO(tebbi): Define enum here once they appear in Torque.
+// TODO(turbofan): Define enum here once they appear in Torque.
 //
 // The value is a SafeInteger that fits into uintptr range, so no bounds checks
 // are necessary.

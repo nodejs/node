@@ -137,26 +137,21 @@ class Simulator : public SimulatorBase {
   void set_high_register(int reg, uint32_t value);
 
   double get_double_from_register_pair(int reg);
+
+  // Unlike Integer values, Floating Point values are located on the left most
+  // side of a native 64 bit register. As FP registers are a subset of vector
+  // registers, 64 and 32 bit FP values need to be located on first lane (lane
+  // number 0) of a vector register.
   template <class T>
   T get_fpr(int dreg) {
     DCHECK(dreg >= 0 && dreg < kNumFPRs);
-    if (sizeof(T) == 8) {
-      return get_simd_register_by_lane<T>(dreg, 0);
-    } else {
-      DCHECK_EQ(sizeof(T), 4);
-      return get_simd_register_by_lane<T>(dreg, 1);
-    }
+    return get_simd_register_by_lane<T>(dreg, 0);
   }
 
   template <class T>
   void set_fpr(int dreg, const T val) {
     DCHECK(dreg >= 0 && dreg < kNumFPRs);
-    if (sizeof(T) == 8) {
-      set_simd_register_by_lane(dreg, 0, val);
-    } else {
-      DCHECK_EQ(sizeof(T), 4);
-      set_simd_register_by_lane(dreg, 1, val);
-    }
+    set_simd_register_by_lane<T>(dreg, 0, val);
   }
 
   // Special case of set_register and get_register to access the raw PC value.
@@ -412,8 +407,27 @@ class Simulator : public SimulatorBase {
     set_simd_register_by_lane(reg, 0, v);
   }
 
+  // Vector register lane numbers on IBM machines are reversed compared to
+  // x64. For example, doing an I32x4 extract_lane with lane number 0 on x64
+  // will be equal to lane number 3 on IBM machines. Vector registers are only
+  // used for compiling Wasm code at the moment. Wasm is also little endian
+  // enforced. On s390 native, we manually do a reverse byte whenever values are
+  // loaded/stored from memory to a Simd register. On the simulator however, we
+  // do not reverse the bytes and data is just copied as is from one memory
+  // location to another location which represents a register. To keep the Wasm
+  // simulation accurate, we need to make sure accessing a lane is correctly
+  // simulated and as such we reverse the lane number on the getters and setters
+  // below. We need to be careful when getting/setting values on the Low or High
+  // side of a simulated register. In the simulation, "Low" is equal to the MSB
+  // and "High" is equal to the LSB on memory. "force_ibm_lane_numbering" could
+  // be used to disabled automatic lane number reversal and help with accessing
+  // the Low or High side of a simulated register.
   template <class T>
-  T get_simd_register_by_lane(int reg, int lane) {
+  T get_simd_register_by_lane(int reg, int lane,
+                              bool force_ibm_lane_numbering = true) {
+    if (force_ibm_lane_numbering) {
+      lane = (kSimd128Size / sizeof(T)) - 1 - lane;
+    }
     CHECK_LE(lane, kSimd128Size / sizeof(T));
     CHECK_LT(reg, kNumFPRs);
     CHECK_GE(lane, 0);
@@ -422,7 +436,11 @@ class Simulator : public SimulatorBase {
   }
 
   template <class T>
-  void set_simd_register_by_lane(int reg, int lane, const T& value) {
+  void set_simd_register_by_lane(int reg, int lane, const T& value,
+                                 bool force_ibm_lane_numbering = true) {
+    if (force_ibm_lane_numbering) {
+      lane = (kSimd128Size / sizeof(T)) - 1 - lane;
+    }
     CHECK_LE(lane, kSimd128Size / sizeof(T));
     CHECK_LT(reg, kNumFPRs);
     CHECK_GE(lane, 0);

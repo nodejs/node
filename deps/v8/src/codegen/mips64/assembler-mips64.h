@@ -36,12 +36,14 @@
 #define V8_CODEGEN_MIPS64_ASSEMBLER_MIPS64_H_
 
 #include <stdio.h>
+
 #include <memory>
 #include <set>
 
 #include "src/codegen/assembler.h"
 #include "src/codegen/external-reference.h"
 #include "src/codegen/label.h"
+#include "src/codegen/machine-type.h"
 #include "src/codegen/mips64/constants-mips64.h"
 #include "src/codegen/mips64/register-mips64.h"
 #include "src/objects/contexts.h"
@@ -1949,6 +1951,20 @@ class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
  private:
   RegList* available_;
   RegList old_available_;
+};
+
+// Helper struct for load lane and store lane to indicate what memory size
+// to be encoded in the opcode, and the new lane index.
+class LoadStoreLaneParams {
+ public:
+  MSASize sz;
+  uint8_t laneidx;
+
+  LoadStoreLaneParams(MachineRepresentation rep, uint8_t laneidx);
+
+ private:
+  LoadStoreLaneParams(uint8_t laneidx, MSASize sz, int lanes)
+      : sz(sz), laneidx(laneidx % lanes) {}
 };
 
 }  // namespace internal

@@ -12,7 +12,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   let module = builder.toModule();
 
-  let workerScript = `
+  function workerCode() {
     onmessage = function(module) {
       try {
         let instance = new WebAssembly.Instance(module);
@@ -22,9 +22,9 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
         postMessage('ERROR: ' + e);
       }
     }
-  `;
+  }
 
-  let worker = new Worker(workerScript, {type: 'string'});
+  let worker = new Worker(workerCode, {type: 'function'});
   worker.postMessage(module);
   assertEquals(42, worker.getMessage());
   worker.terminate();

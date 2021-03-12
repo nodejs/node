@@ -204,7 +204,12 @@ int StackFrame::columnNumber() const { return m_columnNumber; }
 
 std::unique_ptr<protocol::Runtime::CallFrame> StackFrame::buildInspectorObject(
     V8InspectorClient* client) const {
-  String16 frameUrl = m_sourceURL;
+  String16 frameUrl;
+  const char* dataURIPrefix = "data:";
+  if (m_sourceURL.substring(0, strlen(dataURIPrefix)) != dataURIPrefix) {
+    frameUrl = m_sourceURL;
+  }
+
   if (client && !m_hasSourceURLComment && frameUrl.length() > 0) {
     std::unique_ptr<StringBuffer> url =
         client->resourceNameToUrl(toStringView(m_sourceURL));

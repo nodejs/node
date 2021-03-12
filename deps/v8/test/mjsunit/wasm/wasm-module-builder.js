@@ -76,10 +76,12 @@ let kWasmFunctionTypeForm = 0x60;
 let kWasmStructTypeForm = 0x5f;
 let kWasmArrayTypeForm = 0x5e;
 
-let kLimitsNoMaximum = 0
-let kLimitsHasMaximum = 1;
-let kLimitsSharedNoMaximum = 2;
-let kLimitsSharedHasMaximum = 3;
+let kLimitsNoMaximum = 0x00;
+let kLimitsWithMaximum = 0x01;
+let kLimitsSharedNoMaximum = 0x02;
+let kLimitsSharedWithMaximum = 0x03;
+let kLimitsMemory64NoMaximum = 0x04;
+let kLimitsMemory64WithMaximum = 0x05;
 
 // Segment flags
 let kActiveNoIndex = 0;
@@ -118,7 +120,6 @@ let kWasmRtt = 0x69;
 function wasmRtt(index, depth) {
   return {opcode: kWasmRtt, index: index, depth: depth};
 }
-let kWasmExnRef = 0x68;
 
 let kExternalFunction = 0;
 let kExternalTable = 1;
@@ -168,17 +169,14 @@ let kSig_f_d = makeSig([kWasmF64], [kWasmF32]);
 let kSig_d_d = makeSig([kWasmF64], [kWasmF64]);
 let kSig_r_r = makeSig([kWasmExternRef], [kWasmExternRef]);
 let kSig_a_a = makeSig([kWasmAnyFunc], [kWasmAnyFunc]);
-let kSig_e_e = makeSig([kWasmExnRef], [kWasmExnRef]);
 let kSig_i_r = makeSig([kWasmExternRef], [kWasmI32]);
 let kSig_v_r = makeSig([kWasmExternRef], []);
 let kSig_v_a = makeSig([kWasmAnyFunc], []);
-let kSig_v_e = makeSig([kWasmExnRef], []);
 let kSig_v_rr = makeSig([kWasmExternRef, kWasmExternRef], []);
 let kSig_v_aa = makeSig([kWasmAnyFunc, kWasmAnyFunc], []);
 let kSig_r_v = makeSig([], [kWasmExternRef]);
 let kSig_a_v = makeSig([], [kWasmAnyFunc]);
 let kSig_a_i = makeSig([kWasmI32], [kWasmAnyFunc]);
-let kSig_e_v = makeSig([], [kWasmExnRef]);
 let kSig_s_i = makeSig([kWasmI32], [kWasmS128]);
 let kSig_i_s = makeSig([kWasmS128], [kWasmI32]);
 
@@ -626,7 +624,7 @@ let kExprS128Xor = 0x51;
 let kExprS128Select = 0x52;
 let kExprI8x16Abs = 0x60;
 let kExprI8x16Neg = 0x61;
-let kExprV8x16AnyTrue = 0x62;
+let kExprV128AnyTrue = 0x62;
 let kExprV8x16AllTrue = 0x63;
 let kExprI8x16SConvertI16x8 = 0x65;
 let kExprI8x16UConvertI16x8 = 0x66;
@@ -646,7 +644,6 @@ let kExprI8x16MaxU = 0x79;
 let kExprI8x16RoundingAverageU = 0x7b;
 let kExprI16x8Abs = 0x80;
 let kExprI16x8Neg = 0x81;
-let kExprV16x8AnyTrue = 0x82;
 let kExprV16x8AllTrue = 0x83;
 let kExprI16x8SConvertI32x4 = 0x85;
 let kExprI16x8UConvertI32x4 = 0x86;
@@ -671,7 +668,6 @@ let kExprI16x8MaxU = 0x99;
 let kExprI16x8RoundingAverageU = 0x9b;
 let kExprI32x4Abs = 0xa0;
 let kExprI32x4Neg = 0xa1;
-let kExprV32x4AnyTrue = 0xa2;
 let kExprV32x4AllTrue = 0xa3;
 let kExprI32x4SConvertI16x8Low = 0xa7;
 let kExprI32x4SConvertI16x8High = 0xa8;
@@ -1025,7 +1021,24 @@ class WasmModuleBuilder {
   }
 
   addMemory(min, max, exported, shared) {
-    this.memory = {min: min, max: max, exported: exported, shared: shared};
+    this.memory = {
+      min: min,
+      max: max,
+      exported: exported,
+      shared: shared || false,
+      is_memory64: false
+    };
+    return this;
+  }
+
+  addMemory64(min, max, exported) {
+    this.memory = {
+      min: min,
+      max: max,
+      exported: exported,
+      shared: false,
+      is_memory64: true
+    };
     return this;
   }
 
@@ -1364,12 +1377,22 @@ class WasmModuleBuilder {
       binary.emit_section(kMemorySectionCode, section => {
         section.emit_u8(1);  // one memory entry
         const has_max = wasm.memory.max !== undefined;
-        const is_shared = wasm.memory.shared !== undefined;
-        section.emit_u8(is_shared
-          ? (has_max ? kLimitsSharedHasMaximum : kLimitsSharedNoMaximum)
-          : (has_max ? kLimitsHasMaximum : kLimitsNoMaximum));
-        section.emit_u32v(wasm.memory.min);
-        if (has_max) section.emit_u32v(wasm.memory.max);
+        if (wasm.memory.is_memory64) {
+          assertFalse(
+              wasm.memory.shared, 'sharing memory64 is not supported (yet)');
+          section.emit_u8(
+              has_max ? kLimitsMemory64WithMaximum : kLimitsMemory64NoMaximum);
+          section.emit_u64v(wasm.memory.min);
+          if (has_max) section.emit_u64v(wasm.memory.max);
+        } else {
+          section.emit_u8(
+              wasm.memory.shared ?
+                  (has_max ? kLimitsSharedWithMaximum :
+                             kLimitsSharedNoMaximum) :
+                  (has_max ? kLimitsWithMaximum : kLimitsNoMaximum));
+          section.emit_u32v(wasm.memory.min);
+          if (has_max) section.emit_u32v(wasm.memory.max);
+        }
       });
     }
 
@@ -1426,10 +1449,6 @@ class WasmModuleBuilder {
                 section.emit_u8(kExprRefNull);
                 section.emit_u8(kWasmAnyFunc);
               }
-              break;
-            case kWasmExnRef:
-              section.emit_u8(kExprRefNull);
-              section.emit_u8(kWasmExnRef);
               break;
             default:
               if (global.function_index !== undefined) {

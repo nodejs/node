@@ -56,10 +56,10 @@ void* ZipOpenFunc(void *opaque, const char* filename, int mode) {
     creation_disposition = CREATE_ALWAYS;
   }
 
-  base::string16 filename16 = base::UTF8ToUTF16(filename);
+  std::wstring filenamew = base::UTF8ToWide(filename);
   if ((filename != NULL) && (desired_access != 0)) {
-    file = CreateFile(filename16.c_str(), desired_access, share_mode,
-        NULL, creation_disposition, flags_and_attributes, NULL);
+    file = CreateFile(filenamew.c_str(), desired_access, share_mode, NULL,
+                      creation_disposition, flags_and_attributes, NULL);
   }
 
   if (file == INVALID_HANDLE_VALUE)

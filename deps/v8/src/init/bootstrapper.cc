@@ -239,7 +239,8 @@ class Genesis {
   bool InstallExtrasBindings();
 
   Handle<JSFunction> InstallTypedArray(const char* name,
-                                       ElementsKind elements_kind);
+                                       ElementsKind elements_kind,
+                                       InstanceType type);
   void InitializeNormalizedMapCaches();
 
   enum ExtensionTraversalState { UNVISITED, VISITED, INSTALLED };
@@ -296,10 +297,6 @@ class Genesis {
   Handle<NativeContext> native_context_;
   Handle<JSGlobalProxy> global_proxy_;
 
-  // Temporary function maps needed only during bootstrapping.
-  Handle<Map> strict_function_with_home_object_map_;
-  Handle<Map> strict_function_with_name_and_home_object_map_;
-
   // %ThrowTypeError%. See ES#sec-%throwtypeerror% for details.
   Handle<JSFunction> restricted_properties_thrower_;
 
@@ -349,7 +346,7 @@ Handle<JSGlobalProxy> Bootstrapper::NewRemoteContext(
 }
 
 void Bootstrapper::LogAllMaps() {
-  if (!FLAG_trace_maps || isolate_->initialized_from_snapshot()) return;
+  if (!FLAG_log_maps || isolate_->initialized_from_snapshot()) return;
   // Log all created Map objects that are on the heap. For snapshots the Map
   // logging happens during deserialization in order to avoid printing Maps
   // multiple times during partial deserialization.
@@ -516,6 +513,24 @@ V8_NOINLINE Handle<JSFunction> InstallFunction(
   return InstallFunction(isolate, target,
                          isolate->factory()->InternalizeUtf8String(name), type,
                          instance_size, inobject_properties, prototype, call);
+}
+
+// This installs an instance type (|constructor_type|) on the constructor map
+// which will be used for protector cell checks -- this is separate from |type|
+// which is used to set the instance type of the object created by this
+// constructor. If protector cell checks are not required, continue to use the
+// default JS_FUNCTION_TYPE by directly calling InstallFunction.
+V8_NOINLINE Handle<JSFunction> InstallConstructor(
+    Isolate* isolate, Handle<JSObject> target, const char* name,
+    InstanceType type, int instance_size, int inobject_properties,
+    Handle<HeapObject> prototype, Builtins::Name call,
+    InstanceType constructor_type) {
+  Handle<JSFunction> function = InstallFunction(
+      isolate, target, isolate->factory()->InternalizeUtf8String(name), type,
+      instance_size, inobject_properties, prototype, call);
+  DCHECK(InstanceTypeChecker::IsJSFunction(constructor_type));
+  function->map().set_instance_type(constructor_type);
+  return function;
 }
 
 V8_NOINLINE Handle<JSFunction> SimpleCreateFunction(Isolate* isolate,
@@ -774,13 +789,6 @@ void Genesis::CreateStrictModeFunctionMaps(Handle<JSFunction> empty) {
   map = factory->CreateStrictFunctionMap(METHOD_WITH_NAME, empty);
   native_context()->set_method_with_name_map(*map);
 
-  map = factory->CreateStrictFunctionMap(METHOD_WITH_HOME_OBJECT, empty);
-  native_context()->set_method_with_home_object_map(*map);
-
-  map =
-      factory->CreateStrictFunctionMap(METHOD_WITH_NAME_AND_HOME_OBJECT, empty);
-  native_context()->set_method_with_name_and_home_object_map(*map);
-
   //
   // Allocate maps for strict functions with writable prototype.
   //
@@ -791,12 +799,6 @@ void Genesis::CreateStrictModeFunctionMaps(Handle<JSFunction> empty) {
   map = factory->CreateStrictFunctionMap(
       FUNCTION_WITH_NAME_AND_WRITEABLE_PROTOTYPE, empty);
   native_context()->set_strict_function_with_name_map(*map);
-
-  strict_function_with_home_object_map_ = factory->CreateStrictFunctionMap(
-      FUNCTION_WITH_HOME_OBJECT_AND_WRITEABLE_PROTOTYPE, empty);
-  strict_function_with_name_and_home_object_map_ =
-      factory->CreateStrictFunctionMap(
-          FUNCTION_WITH_NAME_AND_HOME_OBJECT_AND_WRITEABLE_PROTOTYPE, empty);
 
   //
   // Allocate maps for strict functions with readonly prototype.
@@ -960,12 +962,14 @@ void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
     Handle<JSFunction> call_async_module_fulfilled =
         SimpleCreateFunction(isolate(), factory()->empty_string(),
                              Builtins::kCallAsyncModuleFulfilled, 1, false);
+    call_async_module_fulfilled->shared().set_native(false);
     native_context()->set_call_async_module_fulfilled(
         *call_async_module_fulfilled);
 
     Handle<JSFunction> call_async_module_rejected =
         SimpleCreateFunction(isolate(), factory()->empty_string(),
                              Builtins::kCallAsyncModuleRejected, 1, false);
+    call_async_module_rejected->shared().set_native(false);
     native_context()->set_call_async_module_rejected(
         *call_async_module_rejected);
   }
@@ -985,17 +989,6 @@ void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
       isolate(), isolate()->strict_function_with_name_map(),
       generator_function_prototype, "GeneratorFunction with name");
   native_context()->set_generator_function_with_name_map(*map);
-
-  map = CreateNonConstructorMap(
-      isolate(), strict_function_with_home_object_map_,
-      generator_function_prototype, "GeneratorFunction with home object");
-  native_context()->set_generator_function_with_home_object_map(*map);
-
-  map = CreateNonConstructorMap(isolate(),
-                                strict_function_with_name_and_home_object_map_,
-                                generator_function_prototype,
-                                "GeneratorFunction with name and home object");
-  native_context()->set_generator_function_with_name_and_home_object_map(*map);
 
   Handle<JSFunction> object_function(native_context()->object_function(),
                                      isolate());
@@ -1100,19 +1093,6 @@ void Genesis::CreateAsyncIteratorMaps(Handle<JSFunction> empty) {
       async_generator_function_prototype, "AsyncGeneratorFunction with name");
   native_context()->set_async_generator_function_with_name_map(*map);
 
-  map =
-      CreateNonConstructorMap(isolate(), strict_function_with_home_object_map_,
-                              async_generator_function_prototype,
-                              "AsyncGeneratorFunction with home object");
-  native_context()->set_async_generator_function_with_home_object_map(*map);
-
-  map = CreateNonConstructorMap(
-      isolate(), strict_function_with_name_and_home_object_map_,
-      async_generator_function_prototype,
-      "AsyncGeneratorFunction with name and home object");
-  native_context()->set_async_generator_function_with_name_and_home_object_map(
-      *map);
-
   Handle<JSFunction> object_function(native_context()->object_function(),
                                      isolate());
   Handle<Map> async_generator_object_prototype_map = Map::Create(isolate(), 0);
@@ -1140,16 +1120,6 @@ void Genesis::CreateAsyncFunctionMaps(Handle<JSFunction> empty) {
                   "AsyncFunction with name");
   Map::SetPrototype(isolate(), map, async_function_prototype);
   native_context()->set_async_function_with_name_map(*map);
-
-  map = Map::Copy(isolate(), isolate()->method_with_home_object_map(),
-                  "AsyncFunction with home object");
-  Map::SetPrototype(isolate(), map, async_function_prototype);
-  native_context()->set_async_function_with_home_object_map(*map);
-
-  map = Map::Copy(isolate(), isolate()->method_with_name_and_home_object_map(),
-                  "AsyncFunction with name and home object");
-  Map::SetPrototype(isolate(), map, async_function_prototype);
-  native_context()->set_async_function_with_name_and_home_object_map(*map);
 }
 
 void Genesis::CreateJSProxyMaps() {
@@ -1690,9 +1660,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
       isolate_->strict_function_map()->SetConstructor(*function_fun);
       isolate_->strict_function_with_name_map()->SetConstructor(*function_fun);
-      strict_function_with_home_object_map_->SetConstructor(*function_fun);
-      strict_function_with_name_and_home_object_map_->SetConstructor(
-          *function_fun);
       isolate_->strict_function_with_readonly_prototype_map()->SetConstructor(
           *function_fun);
 
@@ -1702,9 +1669,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   Handle<JSFunction> array_prototype_to_string_fun;
   {  // --- A r r a y ---
-    Handle<JSFunction> array_function = InstallFunction(
+    Handle<JSFunction> array_function = InstallConstructor(
         isolate_, global, "Array", JS_ARRAY_TYPE, JSArray::kHeaderSize, 0,
-        isolate_->initial_object_prototype(), Builtins::kArrayConstructor);
+        isolate_->initial_object_prototype(), Builtins::kArrayConstructor,
+        JS_ARRAY_CONSTRUCTOR_TYPE);
     array_function->shared().DontAdaptArguments();
 
     // This seems a bit hackish, but we need to make sure Array.length
@@ -2390,10 +2358,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {  // -- P r o m i s e
-    Handle<JSFunction> promise_fun = InstallFunction(
+    Handle<JSFunction> promise_fun = InstallConstructor(
         isolate_, global, "Promise", JS_PROMISE_TYPE,
         JSPromise::kSizeWithEmbedderFields, 0, factory->the_hole_value(),
-        Builtins::kPromiseConstructor);
+        Builtins::kPromiseConstructor, JS_PROMISE_CONSTRUCTOR_TYPE);
     InstallWithIntrinsicDefaultProto(isolate_, promise_fun,
                                      Context::PROMISE_FUNCTION_INDEX);
 
@@ -2453,14 +2421,13 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // -- R e g E x p
     // Builtin functions for RegExp.prototype.
-    Handle<JSFunction> regexp_fun = InstallFunction(
+    Handle<JSFunction> regexp_fun = InstallConstructor(
         isolate_, global, "RegExp", JS_REG_EXP_TYPE,
         JSRegExp::kHeaderSize + JSRegExp::kInObjectFieldCount * kTaggedSize,
         JSRegExp::kInObjectFieldCount, factory->the_hole_value(),
-        Builtins::kRegExpConstructor);
+        Builtins::kRegExpConstructor, JS_REG_EXP_CONSTRUCTOR_TYPE);
     InstallWithIntrinsicDefaultProto(isolate_, regexp_fun,
                                      Context::REGEXP_FUNCTION_INDEX);
-
     Handle<SharedFunctionInfo> shared(regexp_fun->shared(), isolate_);
     shared->set_internal_formal_parameter_count(2);
     shared->set_length(2);
@@ -2638,12 +2605,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     native_context()->set_regexp_last_match_info(*last_match_info);
 
     // Install the species protector cell.
-    {
-      Handle<PropertyCell> cell =
-          factory->NewPropertyCell(factory->empty_string());
-      cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
-      native_context()->set_regexp_species_protector(*cell);
-    }
+    Handle<PropertyCell> cell = factory->NewProtector();
+    native_context()->set_regexp_species_protector(*cell);
 
     DCHECK(regexp_fun->HasFastProperties());
   }
@@ -3432,12 +3395,12 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {// -- T y p e d A r r a y s
-#define INSTALL_TYPED_ARRAY(Type, type, TYPE, ctype)                   \
-  {                                                                    \
-    Handle<JSFunction> fun =                                           \
-        InstallTypedArray(#Type "Array", TYPE##_ELEMENTS);             \
-    InstallWithIntrinsicDefaultProto(isolate_, fun,                    \
-                                     Context::TYPE##_ARRAY_FUN_INDEX); \
+#define INSTALL_TYPED_ARRAY(Type, type, TYPE, ctype)                          \
+  {                                                                           \
+    Handle<JSFunction> fun = InstallTypedArray(                               \
+        #Type "Array", TYPE##_ELEMENTS, TYPE##_TYPED_ARRAY_CONSTRUCTOR_TYPE); \
+    InstallWithIntrinsicDefaultProto(isolate_, fun,                           \
+                                     Context::TYPE##_ARRAY_FUN_INDEX);        \
   }
   TYPED_ARRAYS(INSTALL_TYPED_ARRAY)
 #undef INSTALL_TYPED_ARRAY
@@ -4012,17 +3975,18 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 }  // NOLINT(readability/fn_size)
 
 Handle<JSFunction> Genesis::InstallTypedArray(const char* name,
-                                              ElementsKind elements_kind) {
+                                              ElementsKind elements_kind,
+                                              InstanceType type) {
   Handle<JSObject> global =
       Handle<JSObject>(native_context()->global_object(), isolate());
 
   Handle<JSObject> typed_array_prototype = isolate()->typed_array_prototype();
   Handle<JSFunction> typed_array_function = isolate()->typed_array_function();
 
-  Handle<JSFunction> result = InstallFunction(
+  Handle<JSFunction> result = InstallConstructor(
       isolate(), global, name, JS_TYPED_ARRAY_TYPE,
       JSTypedArray::kSizeWithEmbedderFields, 0, factory()->the_hole_value(),
-      Builtins::kTypedArrayConstructor);
+      Builtins::kTypedArrayConstructor, type);
   result->initial_map().set_elements_kind(elements_kind);
 
   result->shared().DontAdaptArguments();
@@ -4352,6 +4316,8 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_sequence)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_top_level_await)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_logical_assignment)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_import_assertions)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_private_brand_checks)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_class_static_blocks)
 
 #ifdef V8_INTL_SUPPORT
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_displaynames_date_types)
@@ -4470,13 +4436,31 @@ void Genesis::InitializeGlobal_harmony_weak_refs_with_cleanup_some() {
 void Genesis::InitializeGlobal_harmony_regexp_match_indices() {
   if (!FLAG_harmony_regexp_match_indices) return;
 
-  // Add indices accessor to JSRegExpResult's initial map.
-  Handle<Map> initial_map(native_context()->regexp_result_map(), isolate());
-  Descriptor d = Descriptor::AccessorConstant(
-      factory()->indices_string(), factory()->regexp_result_indices_accessor(),
-      NONE);
-  Map::EnsureDescriptorSlack(isolate(), initial_map, 1);
-  initial_map->AppendDescriptor(isolate(), &d);
+  Handle<Map> source_map(native_context()->regexp_result_map(), isolate());
+  Handle<Map> initial_map =
+      Map::Copy(isolate(), source_map, "JSRegExpResult with indices");
+  initial_map->set_instance_size(JSRegExpResultWithIndices::kSize);
+  DCHECK_EQ(initial_map->GetInObjectProperties(),
+            JSRegExpResultWithIndices::kInObjectPropertyCount);
+
+  // indices descriptor
+  {
+    Descriptor d =
+        Descriptor::DataField(isolate(), factory()->indices_string(),
+                              JSRegExpResultWithIndices::kIndicesIndex, NONE,
+                              Representation::Tagged());
+    Map::EnsureDescriptorSlack(isolate(), initial_map, 1);
+    initial_map->AppendDescriptor(isolate(), &d);
+  }
+
+  native_context()->set_regexp_result_with_indices_map(*initial_map);
+
+  Handle<JSObject> prototype(native_context()->regexp_prototype(), isolate());
+  SimpleInstallGetter(isolate(), prototype, factory()->has_indices_string(),
+                      Builtins::kRegExpPrototypeHasIndicesGetter, true);
+
+  // Store regexp prototype map again after change.
+  native_context()->set_regexp_prototype_map(prototype->map());
 }
 
 void Genesis::InitializeGlobal_harmony_string_replaceall() {
@@ -4609,6 +4593,9 @@ bool Genesis::InstallABunchOfRandomThings() {
       isolate(), ApiNatives::kInitialFunctionCacheSize);
   native_context()->set_slow_template_instantiations_cache(
       *slow_template_instantiations_cache);
+
+  auto wasm_debug_maps = isolate()->factory()->empty_fixed_array();
+  native_context()->set_wasm_debug_maps(*wasm_debug_maps);
 
   // Store the map for the %ObjectPrototype% after the natives has been compiled
   // and the Object function has been set up.
@@ -4818,16 +4805,6 @@ bool Genesis::InstallABunchOfRandomThings() {
     // symbols to prevent their use in Javascript.
     {
       PropertyAttributes attribs = DONT_ENUM;
-
-      // cached_indices_or_regexp descriptor.
-      {
-        Descriptor d = Descriptor::DataField(
-            isolate(),
-            factory()->regexp_result_cached_indices_or_regexp_symbol(),
-            JSRegExpResult::kCachedIndicesOrRegExpIndex, attribs,
-            Representation::Tagged());
-        initial_map->AppendDescriptor(isolate(), &d);
-      }
 
       // names descriptor.
       {
@@ -5084,10 +5061,14 @@ bool Genesis::InstallExtension(Isolate* isolate,
       return false;
     }
   }
-  // We do not expect this to throw an exception. Change this if it does.
   bool result = CompileExtension(isolate, extension);
-  DCHECK(isolate->has_pending_exception() != result);
   if (!result) {
+    // If this failed, it either threw an exception, or the isolate is
+    // terminating.
+    DCHECK(isolate->has_pending_exception() ||
+           (isolate->has_scheduled_exception() &&
+            isolate->scheduled_exception() ==
+                ReadOnlyRoots(isolate).termination_exception()));
     // We print out the name of the extension that fail to install.
     // When an error is thrown during bootstrapping we automatically print
     // the line number at which this happened to the console in the isolate

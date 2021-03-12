@@ -595,6 +595,8 @@ void LowLevelLogger::LogCodeInfo() {
   const char arch[] = "arm64";
 #elif V8_TARGET_ARCH_S390
   const char arch[] = "s390";
+#elif V8_TARGET_ARCH_RISCV64
+  const char arch[] = "riscv64";
 #else
   const char arch[] = "unknown";
 #endif
@@ -886,7 +888,7 @@ class Ticker : public sampler::Sampler {
       : sampler::Sampler(reinterpret_cast<v8::Isolate*>(isolate)),
         sampling_thread_(
             std::make_unique<SamplingThread>(this, interval_microseconds)),
-        threadId_(ThreadId::Current()) {}
+        perThreadData_(isolate->FindPerThreadDataForThisThread()) {}
 
   ~Ticker() override {
     if (IsActive()) Stop();
@@ -908,8 +910,9 @@ class Ticker : public sampler::Sampler {
   void SampleStack(const v8::RegisterState& state) override {
     if (!profiler_) return;
     Isolate* isolate = reinterpret_cast<Isolate*>(this->isolate());
-    if (v8::Locker::IsActive() &&
-        !isolate->thread_manager()->IsLockedByThread(threadId_))
+    if (v8::Locker::IsActive() && (!isolate->thread_manager()->IsLockedByThread(
+                                       perThreadData_->thread_id()) ||
+                                   perThreadData_->thread_state() != nullptr))
       return;
     TickSample sample;
     sample.Init(isolate, state, TickSample::kIncludeCEntryFrame, true);
@@ -919,7 +922,7 @@ class Ticker : public sampler::Sampler {
  private:
   Profiler* profiler_ = nullptr;
   std::unique_ptr<SamplingThread> sampling_thread_;
-  ThreadId threadId_;
+  Isolate::PerIsolateThreadData* perThreadData_;
 };
 
 //
@@ -1029,10 +1032,7 @@ void Logger::UncheckedStringEvent(const char* name, const char* value) {
 }
 
 void Logger::IntPtrTEvent(const char* name, intptr_t value) {
-  if (FLAG_log) UncheckedIntPtrTEvent(name, value);
-}
-
-void Logger::UncheckedIntPtrTEvent(const char* name, intptr_t value) {
+  if (!FLAG_log) return;
   MSG_BUILDER();
   msg << name << kNext;
   msg.AppendFormatString("%" V8PRIdPTR, value);
@@ -1088,7 +1088,7 @@ void Logger::TimerEvent(Logger::StartEnd se, const char* name) {
 }
 
 void Logger::BasicBlockCounterEvent(const char* name, int block_id,
-                                    double count) {
+                                    uint32_t count) {
   if (!FLAG_turbo_profiling_log_builtins) return;
   MSG_BUILDER();
   msg << ProfileDataFromFileConstants::kBlockCounterMarker << kNext << name
@@ -1221,15 +1221,18 @@ void Logger::LogSourceCodeInformation(Handle<AbstractCode> code,
       << reinterpret_cast<void*>(code->InstructionStart()) << Logger::kNext
       << script.id() << Logger::kNext << shared->StartPosition()
       << Logger::kNext << shared->EndPosition() << Logger::kNext;
-
-  SourcePositionTableIterator iterator(code->source_position_table());
+  // TODO(v8:11429): Clean-up baseline-replated code in source position
+  // iteration.
   bool hasInlined = false;
-  for (; !iterator.done(); iterator.Advance()) {
-    SourcePosition pos = iterator.source_position();
-    msg << "C" << iterator.code_offset() << "O" << pos.ScriptOffset();
-    if (pos.isInlined()) {
-      msg << "I" << pos.InliningId();
-      hasInlined = true;
+  if (code->kind() != CodeKind::BASELINE) {
+    SourcePositionTableIterator iterator(code->source_position_table());
+    for (; !iterator.done(); iterator.Advance()) {
+      SourcePosition pos = iterator.source_position();
+      msg << "C" << iterator.code_offset() << "O" << pos.ScriptOffset();
+      if (pos.isInlined()) {
+        msg << "I" << pos.InliningId();
+        hasInlined = true;
+      }
     }
   }
   msg << Logger::kNext;
@@ -1469,7 +1472,7 @@ void Logger::ProcessDeoptEvent(Handle<Code> code, SourcePosition position,
 
 void Logger::CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
                             int fp_to_sp_delta, bool reuse_code) {
-  if (!is_logging()) return;
+  if (!is_logging() || !FLAG_log_deopt) return;
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(*code, pc);
   ProcessDeoptEvent(code, info.position,
                     Deoptimizer::MessageFor(kind, reuse_code),
@@ -1479,7 +1482,7 @@ void Logger::CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
 void Logger::CodeDependencyChangeEvent(Handle<Code> code,
                                        Handle<SharedFunctionInfo> sfi,
                                        const char* reason) {
-  if (!is_logging()) return;
+  if (!is_logging() || !FLAG_log_deopt) return;
   SourcePosition position(sfi->StartPosition(), -1);
   ProcessDeoptEvent(code, position, "dependency-change", reason);
 }
@@ -1487,41 +1490,41 @@ void Logger::CodeDependencyChangeEvent(Handle<Code> code,
 namespace {
 
 void CodeLinePosEvent(
-    JitLogger* jit_logger, Address code_start,
+    JitLogger& jit_logger, Address code_start,
     SourcePositionTableIterator& iter) {  // NOLINT(runtime/references)
-  if (jit_logger) {
-    void* jit_handler_data = jit_logger->StartCodePosInfoEvent();
-    for (; !iter.done(); iter.Advance()) {
-      if (iter.is_statement()) {
-        jit_logger->AddCodeLinePosInfoEvent(
-            jit_handler_data, iter.code_offset(),
-            iter.source_position().ScriptOffset(),
-            JitCodeEvent::STATEMENT_POSITION);
-      }
-      jit_logger->AddCodeLinePosInfoEvent(jit_handler_data, iter.code_offset(),
-                                          iter.source_position().ScriptOffset(),
-                                          JitCodeEvent::POSITION);
+  void* jit_handler_data = jit_logger.StartCodePosInfoEvent();
+  for (; !iter.done(); iter.Advance()) {
+    if (iter.is_statement()) {
+      jit_logger.AddCodeLinePosInfoEvent(jit_handler_data, iter.code_offset(),
+                                         iter.source_position().ScriptOffset(),
+                                         JitCodeEvent::STATEMENT_POSITION);
     }
-    jit_logger->EndCodePosInfoEvent(code_start, jit_handler_data);
+    jit_logger.AddCodeLinePosInfoEvent(jit_handler_data, iter.code_offset(),
+                                       iter.source_position().ScriptOffset(),
+                                       JitCodeEvent::POSITION);
   }
+  jit_logger.EndCodePosInfoEvent(code_start, jit_handler_data);
 }
 
 }  // namespace
 
 void Logger::CodeLinePosInfoRecordEvent(Address code_start,
                                         ByteArray source_position_table) {
+  if (!jit_logger_) return;
   SourcePositionTableIterator iter(source_position_table);
-  CodeLinePosEvent(jit_logger_.get(), code_start, iter);
+  CodeLinePosEvent(*jit_logger_, code_start, iter);
 }
 
 void Logger::CodeLinePosInfoRecordEvent(
     Address code_start, Vector<const byte> source_position_table) {
+  if (!jit_logger_) return;
   SourcePositionTableIterator iter(source_position_table);
-  CodeLinePosEvent(jit_logger_.get(), code_start, iter);
+  CodeLinePosEvent(*jit_logger_, code_start, iter);
 }
 
 void Logger::CodeNameEvent(Address addr, int pos, const char* code_name) {
   if (code_name == nullptr) return;  // Not a code object.
+  if (!is_listening_to_code_events()) return;
   MSG_BUILDER();
   msg << kLogEventsNames[CodeEventListener::SNAPSHOT_CODE_NAME_EVENT] << kNext
       << pos << kNext << code_name;
@@ -1726,7 +1729,7 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
 void Logger::ICEvent(const char* type, bool keyed, Handle<Map> map,
                      Handle<Object> key, char old_state, char new_state,
                      const char* modifier, const char* slow_stub_reason) {
-  if (!FLAG_trace_ic) return;
+  if (!FLAG_log_ic) return;
   MSG_BUILDER();
   if (keyed) msg << "Keyed";
   int line;
@@ -1752,7 +1755,7 @@ void Logger::ICEvent(const char* type, bool keyed, Handle<Map> map,
 
 void Logger::MapEvent(const char* type, Handle<Map> from, Handle<Map> to,
                       const char* reason, Handle<HeapObject> name_or_sfi) {
-  if (!FLAG_trace_maps) return;
+  if (!FLAG_log_maps) return;
   if (!to.is_null()) MapDetails(*to);
   int line = -1;
   int column = -1;
@@ -1783,7 +1786,7 @@ void Logger::MapEvent(const char* type, Handle<Map> from, Handle<Map> to,
 }
 
 void Logger::MapCreate(Map map) {
-  if (!FLAG_trace_maps) return;
+  if (!FLAG_log_maps) return;
   DisallowGarbageCollection no_gc;
   MSG_BUILDER();
   msg << "map-create" << kNext << Time() << kNext << AsHex::Address(map.ptr());
@@ -1791,12 +1794,12 @@ void Logger::MapCreate(Map map) {
 }
 
 void Logger::MapDetails(Map map) {
-  if (!FLAG_trace_maps) return;
+  if (!FLAG_log_maps) return;
   DisallowGarbageCollection no_gc;
   MSG_BUILDER();
   msg << "map-details" << kNext << Time() << kNext << AsHex::Address(map.ptr())
       << kNext;
-  if (FLAG_trace_maps_details) {
+  if (FLAG_log_maps_details) {
     std::ostringstream buffer;
     map.PrintMapDetails(buffer);
     msg << buffer.str().c_str();
@@ -2007,21 +2010,16 @@ bool Logger::SetUp(Isolate* isolate) {
         std::make_unique<LowLevelLogger>(isolate, log_file_name.str().c_str());
     AddCodeEventListener(ll_logger_.get());
   }
-
   ticker_ = std::make_unique<Ticker>(isolate, FLAG_prof_sampling_interval);
-
-  if (Log::InitLogAtStart()) UpdateIsLogging(true);
-
+  if (FLAG_log) UpdateIsLogging(true);
   timer_.Start();
-
   if (FLAG_prof_cpp) {
-    UpdateIsLogging(true);
+    CHECK(FLAG_log);
+    CHECK(is_logging());
     profiler_ = std::make_unique<Profiler>(isolate);
     profiler_->Engage();
   }
-
   if (is_logging_) AddCodeEventListener(this);
-
   return true;
 }
 
@@ -2107,6 +2105,7 @@ void ExistingCodeLogger::LogCodeObject(Object object) {
   switch (abstract_code->kind()) {
     case CodeKind::INTERPRETED_FUNCTION:
     case CodeKind::TURBOFAN:
+    case CodeKind::BASELINE:
     case CodeKind::NATIVE_CONTEXT_INDEPENDENT:
     case CodeKind::TURBOPROP:
       return;  // We log this later using LogCompiledFunctions.
@@ -2178,12 +2177,21 @@ void ExistingCodeLogger::LogCompiledFunctions() {
   // During iteration, there can be heap allocation due to
   // GetScriptLineNumber call.
   for (auto& pair : compiled_funcs) {
-    SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate_, pair.first);
-    if (pair.first->function_data(kAcquireLoad).IsInterpreterData()) {
+    Handle<SharedFunctionInfo> shared = pair.first;
+    SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate_, shared);
+    if (shared->HasInterpreterData()) {
       LogExistingFunction(
-          pair.first,
+          shared,
           Handle<AbstractCode>(
-              AbstractCode::cast(pair.first->InterpreterTrampoline()),
+              AbstractCode::cast(shared->InterpreterTrampoline()), isolate_),
+          CodeEventListener::INTERPRETED_FUNCTION_TAG);
+    }
+    if (shared->HasBaselineData()) {
+      // TODO(v8:11429): Add a tag for baseline code. Or use CodeKind?
+      LogExistingFunction(
+          shared,
+          Handle<AbstractCode>(
+              AbstractCode::cast(shared->baseline_data().baseline_code()),
               isolate_),
           CodeEventListener::INTERPRETED_FUNCTION_TAG);
     }

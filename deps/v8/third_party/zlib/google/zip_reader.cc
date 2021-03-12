@@ -334,9 +334,9 @@ void ZipReader::ExtractCurrentEntryToFilePathAsync(
   base::SequencedTaskRunnerHandle::Get()->PostTask(
       FROM_HERE,
       base::BindOnce(&ZipReader::ExtractChunk, weak_ptr_factory_.GetWeakPtr(),
-                     Passed(std::move(output_file)),
-                     std::move(success_callback), std::move(failure_callback),
-                     progress_callback, 0 /* initial offset */));
+                     std::move(output_file), std::move(success_callback),
+                     std::move(failure_callback), progress_callback,
+                     0 /* initial offset */));
 }
 
 bool ZipReader::ExtractCurrentEntryToString(uint64_t max_read_bytes,
@@ -436,9 +436,9 @@ void ZipReader::ExtractChunk(base::File output_file,
     base::SequencedTaskRunnerHandle::Get()->PostTask(
         FROM_HERE,
         base::BindOnce(&ZipReader::ExtractChunk, weak_ptr_factory_.GetWeakPtr(),
-                       Passed(std::move(output_file)),
-                       std::move(success_callback), std::move(failure_callback),
-                       progress_callback, current_progress));
+                       std::move(output_file), std::move(success_callback),
+                       std::move(failure_callback), progress_callback,
+                       current_progress));
   }
 }
 

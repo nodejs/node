@@ -25,9 +25,9 @@ void MarkingVisitorBase::VisitWeak(const void* object, TraceDescriptor desc,
                                                weak_member);
 }
 
-void MarkingVisitorBase::VisitEphemeron(const void* key,
+void MarkingVisitorBase::VisitEphemeron(const void* key, const void* value,
                                         TraceDescriptor value_desc) {
-  marking_state_.ProcessEphemeron(key, value_desc);
+  marking_state_.ProcessEphemeron(key, value, value_desc, *this);
 }
 
 void MarkingVisitorBase::VisitWeakContainer(const void* object,
@@ -65,7 +65,9 @@ void ConservativeMarkingVisitor::VisitFullyConstructedConservatively(
 void ConservativeMarkingVisitor::VisitInConstructionConservatively(
     HeapObjectHeader& header, TraceConservativelyCallback callback) {
   DCHECK(!marking_state_.IsMarkedWeakContainer(header));
-  marking_state_.MarkNoPush(header);
+  // In construction objects found through conservative can be marked if they
+  // hold a reference to themselves.
+  if (!marking_state_.MarkNoPush(header)) return;
   marking_state_.AccountMarkedBytes(header);
   callback(this, header);
 }

@@ -73,7 +73,7 @@ V8_EXPORT_PRIVATE bool GetPrivateMembers(Local<Context> context,
  * Forwards to v8::Object::CreationContext, but with special handling for
  * JSGlobalProxy objects.
  */
-Local<Context> GetCreationContext(Local<Object> value);
+MaybeLocal<Context> GetCreationContext(Local<Object> value);
 
 enum ExceptionBreakState {
   NoBreakOnException = 0,
@@ -592,12 +592,17 @@ struct PropertyDescriptor {
 
 class PropertyIterator {
  public:
-  static std::unique_ptr<PropertyIterator> Create(v8::Local<v8::Object> object);
+  // Creating a PropertyIterator can potentially throw an exception.
+  // The returned std::unique_ptr is empty iff that happens.
+  V8_WARN_UNUSED_RESULT static std::unique_ptr<PropertyIterator> Create(
+      v8::Local<v8::Context> context, v8::Local<v8::Object> object);
 
   virtual ~PropertyIterator() = default;
 
   virtual bool Done() const = 0;
-  virtual void Advance() = 0;
+  // Returns |Nothing| should |Advance| throw an exception,
+  // |true| otherwise.
+  V8_WARN_UNUSED_RESULT virtual Maybe<bool> Advance() = 0;
 
   virtual v8::Local<v8::Name> name() const = 0;
 
@@ -611,11 +616,28 @@ class PropertyIterator {
   virtual bool is_array_index() = 0;
 };
 
+class V8_EXPORT_PRIVATE WasmValueObject : public v8::Object {
+ public:
+  WasmValueObject() = delete;
+  static bool IsWasmValueObject(v8::Local<v8::Value> obj);
+  V8_INLINE static WasmValueObject* Cast(v8::Value* obj);
+
+ private:
+  static void CheckCast(v8::Value* obj);
+};
+
 AccessorPair* AccessorPair::Cast(v8::Value* value) {
 #ifdef V8_ENABLE_CHECKS
   CheckCast(value);
 #endif
   return static_cast<AccessorPair*>(value);
+}
+
+WasmValueObject* WasmValueObject::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<WasmValueObject*>(value);
 }
 
 MaybeLocal<Message> GetMessageFromPromise(Local<Promise> promise);

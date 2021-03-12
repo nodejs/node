@@ -184,6 +184,23 @@ std::string Type::GetGeneratedTNodeTypeName() const {
   return result;
 }
 
+std::string AbstractType::GetGeneratedTypeNameImpl() const {
+  // A special case that is not very well represented by the "generates"
+  // syntax in the .tq files: Lazy<T> represents a std::function that
+  // produces a TNode of the wrapped type.
+  if (base::Optional<const Type*> type_wrapped_in_lazy =
+          Type::MatchUnaryGeneric(this, TypeOracle::GetLazyGeneric())) {
+    DCHECK(!IsConstexpr());
+    return "std::function<" + (*type_wrapped_in_lazy)->GetGeneratedTypeName() +
+           "()>";
+  }
+
+  if (generated_type_.empty()) {
+    return parent()->GetGeneratedTypeName();
+  }
+  return IsConstexpr() ? generated_type_ : "TNode<" + generated_type_ + ">";
+}
+
 std::string AbstractType::GetGeneratedTNodeTypeNameImpl() const {
   if (generated_type_.empty()) return parent()->GetGeneratedTNodeTypeName();
   return generated_type_;
@@ -1295,6 +1312,26 @@ std::string Type::GetRuntimeType() const {
       if (!first) result << ", ";
       first = false;
       result << field_type->GetRuntimeType();
+    }
+    result << ">";
+    return result.str();
+  }
+  return ConstexprVersion()->GetGeneratedTypeName();
+}
+
+std::string Type::GetDebugType() const {
+  if (IsSubtypeOf(TypeOracle::GetSmiType())) return "uintptr_t";
+  if (IsSubtypeOf(TypeOracle::GetTaggedType())) {
+    return "uintptr_t";
+  }
+  if (base::Optional<const StructType*> struct_type = StructSupertype()) {
+    std::stringstream result;
+    result << "std::tuple<";
+    bool first = true;
+    for (const Type* field_type : LowerType(*struct_type)) {
+      if (!first) result << ", ";
+      first = false;
+      result << field_type->GetDebugType();
     }
     result << ">";
     return result.str();

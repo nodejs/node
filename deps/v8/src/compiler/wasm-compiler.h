@@ -10,6 +10,7 @@
 
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything from src/compiler here!
+#include "src/base/small-vector.h"
 #include "src/runtime/runtime.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/function-compiler.h"
@@ -36,6 +37,9 @@ class WasmDecorator;
 class WasmGraphAssembler;
 enum class TrapId : uint32_t;
 struct Int64LoweringSpecialCase;
+template <size_t VarCount>
+class GraphAssemblerLabel;
+enum class BranchHint : uint8_t;
 }  // namespace compiler
 
 namespace wasm {
@@ -148,6 +152,21 @@ enum CWasmEntryParameters {
 V8_EXPORT_PRIVATE Handle<Code> CompileCWasmEntry(
     Isolate*, const wasm::FunctionSig*, const wasm::WasmModule* module);
 
+class JSWasmCallData {
+ public:
+  explicit JSWasmCallData(const wasm::FunctionSig* wasm_signature);
+
+  bool arg_needs_conversion(size_t index) const {
+    DCHECK_LT(index, arg_needs_conversion_.size());
+    return arg_needs_conversion_[index];
+  }
+  bool result_needs_conversion() const { return result_needs_conversion_; }
+
+ private:
+  bool result_needs_conversion_;
+  std::vector<bool> arg_needs_conversion_;
+};
+
 // Values from the instance object are cached between Wasm-level function calls.
 // This struct allows the SSA environment handling this cache to be defined
 // and manipulated in wasm-compiler.{h,cc} instead of inside the Wasm decoder.
@@ -162,12 +181,14 @@ struct WasmInstanceCacheNodes {
 // the wasm decoder from the internal details of TurboFan.
 class WasmGraphBuilder {
  public:
+  enum ReferenceKind : bool {  // --
+    kArrayOrStruct = true,
+    kFunction = false
+  };
   struct ObjectReferenceKnowledge {
     bool object_can_be_null;
-    bool object_must_be_data_ref;
-    bool object_can_be_i31;
-    bool rtt_is_i31;
-    uint8_t rtt_depth;
+    ReferenceKind reference_kind;
+    int8_t rtt_depth;
   };
   enum EnforceBoundsCheck : bool {  // --
     kNeedsBoundsCheck = true,
@@ -201,6 +222,8 @@ class WasmGraphBuilder {
   Node* LoopExitValue(Node* value, MachineRepresentation representation);
   Node* TerminateThrow(Node* effect, Node* control);
   Node* Merge(unsigned count, Node** controls);
+  template <typename... Nodes>
+  Node* Merge(Node* fst, Nodes*... args);
   Node* Phi(wasm::ValueType type, unsigned count, Node** vals_and_control);
   Node* CreateOrMergeIntoPhi(MachineRepresentation rep, Node* merge,
                              Node* tnode, Node* fnode);
@@ -434,14 +457,32 @@ class WasmGraphBuilder {
   Node* I31New(Node* input);
   Node* I31GetS(Node* input);
   Node* I31GetU(Node* input);
-  Node* RttCanon(wasm::HeapType type);
-  Node* RttSub(wasm::HeapType type, Node* parent_rtt);
+  Node* RttCanon(uint32_t type_index);
+  Node* RttSub(uint32_t type_index, Node* parent_rtt);
+
   Node* RefTest(Node* object, Node* rtt, ObjectReferenceKnowledge config);
   Node* RefCast(Node* object, Node* rtt, ObjectReferenceKnowledge config,
                 wasm::WasmCodePosition position);
   Node* BrOnCast(Node* object, Node* rtt, ObjectReferenceKnowledge config,
                  Node** match_control, Node** match_effect,
                  Node** no_match_control, Node** no_match_effect);
+  Node* RefIsData(Node* object, bool object_can_be_null);
+  Node* RefAsData(Node* object, bool object_can_be_null,
+                  wasm::WasmCodePosition position);
+  Node* BrOnData(Node* object, Node* rtt, ObjectReferenceKnowledge config,
+                 Node** match_control, Node** match_effect,
+                 Node** no_match_control, Node** no_match_effect);
+  Node* RefIsFunc(Node* object, bool object_can_be_null);
+  Node* RefAsFunc(Node* object, bool object_can_be_null,
+                  wasm::WasmCodePosition position);
+  Node* BrOnFunc(Node* object, Node* rtt, ObjectReferenceKnowledge config,
+                 Node** match_control, Node** match_effect,
+                 Node** no_match_control, Node** no_match_effect);
+  Node* RefIsI31(Node* object);
+  Node* RefAsI31(Node* object, wasm::WasmCodePosition position);
+  Node* BrOnI31(Node* object, Node* rtt, ObjectReferenceKnowledge config,
+                Node** match_control, Node** match_effect,
+                Node** no_match_control, Node** no_match_effect);
 
   bool has_simd() const { return has_simd_; }
 
@@ -490,7 +531,7 @@ class WasmGraphBuilder {
   Node* BuildCCall(MachineSignature* sig, Node* function, Args... args);
   Node* BuildCallNode(const wasm::FunctionSig* sig, Vector<Node*> args,
                       wasm::WasmCodePosition position, Node* instance_node,
-                      const Operator* op);
+                      const Operator* op, Node* frame_state = nullptr);
   // Helper function for {BuildIndirectCall}.
   void LoadIndirectFunctionTable(uint32_t table_index, Node** ift_size,
                                  Node** ift_sig_ids, Node** ift_targets,
@@ -501,7 +542,8 @@ class WasmGraphBuilder {
                           IsReturnCall continuation);
   Node* BuildWasmCall(const wasm::FunctionSig* sig, Vector<Node*> args,
                       Vector<Node*> rets, wasm::WasmCodePosition position,
-                      Node* instance_node, UseRetpoline use_retpoline);
+                      Node* instance_node, UseRetpoline use_retpoline,
+                      Node* frame_state = nullptr);
   Node* BuildWasmReturnCall(const wasm::FunctionSig* sig, Vector<Node*> args,
                             wasm::WasmCodePosition position,
                             Node* instance_node, UseRetpoline use_retpoline);
@@ -514,7 +556,6 @@ class WasmGraphBuilder {
   Node* BuildCallRef(uint32_t sig_index, Vector<Node*> args, Vector<Node*> rets,
                      CheckForNull null_check, IsReturnCall continuation,
                      wasm::WasmCodePosition position);
-  Node* GetBuiltinPointerTarget(int builtin_id);
 
   Node* BuildF32CopySign(Node* left, Node* right);
   Node* BuildF64CopySign(Node* left, Node* right);
@@ -573,6 +614,7 @@ class WasmGraphBuilder {
 
   Node* BuildTruncateIntPtrToInt32(Node* value);
   Node* BuildChangeInt32ToIntPtr(Node* value);
+  Node* BuildChangeIntPtrToInt64(Node* value);
   Node* BuildChangeInt32ToSmi(Node* value);
   Node* BuildChangeUint31ToSmi(Node* value);
   Node* BuildSmiShiftBitsConstant();
@@ -581,6 +623,36 @@ class WasmGraphBuilder {
   Node* BuildChangeSmiToIntPtr(Node* value);
   // generates {index > max ? Smi(max) : Smi(index)}
   Node* BuildConvertUint32ToSmiWithSaturation(Node* index, uint32_t maxval);
+
+  using BranchBuilder = std::function<void(Node*, BranchHint)>;
+  struct Callbacks {
+    BranchBuilder succeed_if;
+    BranchBuilder fail_if;
+    BranchBuilder fail_if_not;
+  };
+
+  // This type is used to collect control/effect nodes we need to merge at the
+  // end of BrOn* functions. Nodes are collected in {TypeCheck} etc. by calling
+  // the passed callbacks succeed_if, fail_if and fail_if_not. We have up to 5
+  // control nodes to merge; the EffectPhi needs an additional input.
+  using SmallNodeVector = base::SmallVector<Node*, 6>;
+
+  Callbacks TestCallbacks(GraphAssemblerLabel<1>* label);
+  Callbacks CastCallbacks(GraphAssemblerLabel<0>* label,
+                          wasm::WasmCodePosition position);
+  Callbacks BranchCallbacks(SmallNodeVector& no_match_controls,
+                            SmallNodeVector& no_match_effects,
+                            SmallNodeVector& match_controls,
+                            SmallNodeVector& match_effects);
+
+  void TypeCheck(Node* object, Node* rtt, ObjectReferenceKnowledge config,
+                 bool null_succeeds, Callbacks callbacks);
+  void DataCheck(Node* object, bool object_can_be_null, Callbacks callbacks);
+  void FuncCheck(Node* object, bool object_can_be_null, Callbacks callbacks);
+
+  Node* BrOnCastAbs(Node** match_control, Node** match_effect,
+                    Node** no_match_control, Node** no_match_effect,
+                    std::function<void(Callbacks)> type_checker);
 
   // Asm.js specific functionality.
   Node* BuildI32AsmjsSConvertF32(Node* input);
@@ -643,6 +715,7 @@ class WasmGraphBuilder {
   WasmInstanceCacheNodes* instance_cache_ = nullptr;
 
   SetOncePointer<Node> instance_node_;
+  SetOncePointer<Node> ref_null_node_;
   SetOncePointer<Node> globals_start_;
   SetOncePointer<Node> imported_mutable_globals_;
   SetOncePointer<Node> stack_check_code_node_;
@@ -666,11 +739,17 @@ class WasmGraphBuilder {
 
 enum WasmCallKind { kWasmFunction, kWasmImportWrapper, kWasmCapiFunction };
 
+V8_EXPORT_PRIVATE void BuildInlinedJSToWasmWrapper(
+    Zone* zone, MachineGraph* mcgraph, const wasm::FunctionSig* signature,
+    const wasm::WasmModule* module, compiler::SourcePositionTable* spt,
+    StubCallMode stub_mode, wasm::WasmFeatures features,
+    const JSWasmCallData* js_wasm_call_data, Node* frame_state);
+
 V8_EXPORT_PRIVATE CallDescriptor* GetWasmCallDescriptor(
     Zone* zone, const wasm::FunctionSig* signature,
     WasmGraphBuilder::UseRetpoline use_retpoline =
         WasmGraphBuilder::kNoRetpoline,
-    WasmCallKind kind = kWasmFunction);
+    WasmCallKind kind = kWasmFunction, bool need_frame_state = false);
 
 V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptor(
     Zone* zone, const CallDescriptor* call_descriptor);

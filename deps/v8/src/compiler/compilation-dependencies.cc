@@ -256,8 +256,6 @@ class FieldConstnessDependency final : public CompilationDependency {
 
 class GlobalPropertyDependency final : public CompilationDependency {
  public:
-  // TODO(neis): Once the concurrent compiler frontend is always-on, we no
-  // longer need to explicitly store the type and the read_only flag.
   GlobalPropertyDependency(const PropertyCellRef& cell, PropertyCellType type,
                            bool read_only)
       : cell_(cell), type_(type), read_only_(read_only) {
@@ -404,10 +402,6 @@ void CompilationDependencies::DependOnStableMap(const MapRef& map) {
   }
 }
 
-void CompilationDependencies::DependOnTransition(const MapRef& target_map) {
-  RecordDependency(TransitionDependencyOffTheRecord(target_map));
-}
-
 AllocationType CompilationDependencies::DependOnPretenureMode(
     const AllocationSiteRef& site) {
   DCHECK(!site.IsNeverSerializedHeapObject());
@@ -441,26 +435,15 @@ PropertyConstness CompilationDependencies::DependOnFieldConstness(
   return PropertyConstness::kConst;
 }
 
-void CompilationDependencies::DependOnFieldRepresentation(
-    const MapRef& map, InternalIndex descriptor) {
-  RecordDependency(FieldRepresentationDependencyOffTheRecord(map, descriptor));
-}
-
-void CompilationDependencies::DependOnFieldType(const MapRef& map,
-                                                InternalIndex descriptor) {
-  RecordDependency(FieldTypeDependencyOffTheRecord(map, descriptor));
-}
-
 void CompilationDependencies::DependOnGlobalProperty(
     const PropertyCellRef& cell) {
-  DCHECK(!cell.IsNeverSerializedHeapObject());
   PropertyCellType type = cell.property_details().cell_type();
   bool read_only = cell.property_details().IsReadOnly();
   RecordDependency(zone_->New<GlobalPropertyDependency>(cell, type, read_only));
 }
 
 bool CompilationDependencies::DependOnProtector(const PropertyCellRef& cell) {
-  DCHECK(!cell.IsNeverSerializedHeapObject());
+  cell.SerializeAsProtector();
   if (cell.value().AsSmi() != Protectors::kProtectorValid) return false;
   RecordDependency(zone_->New<ProtectorDependency>(cell));
   return true;
@@ -512,13 +495,6 @@ void CompilationDependencies::DependOnElementsKind(
   if (AllocationSite::ShouldTrack(kind)) {
     RecordDependency(zone_->New<ElementsKindDependency>(site, kind));
   }
-}
-
-bool CompilationDependencies::AreValid() const {
-  for (auto dep : dependencies_) {
-    if (!dep->IsValid()) return false;
-  }
-  return true;
 }
 
 bool CompilationDependencies::Commit(Handle<Code> code) {

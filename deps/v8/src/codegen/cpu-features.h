@@ -68,6 +68,11 @@ enum CpuFeature {
   VECTOR_ENHANCE_FACILITY_1,
   VECTOR_ENHANCE_FACILITY_2,
   MISC_INSTR_EXT2,
+
+#elif V8_TARGET_ARCH_RISCV64
+  FPU,
+  FP64FPU,
+  RISCV_SIMD,
 #endif
 
   NUMBER_OF_CPU_FEATURES
@@ -133,6 +138,10 @@ class V8_EXPORT_PRIVATE CpuFeatures : public AllStatic {
   static unsigned icache_line_size_;
   static unsigned dcache_line_size_;
   static bool initialized_;
+  // This variable is only used for certain archs to query SupportWasmSimd128()
+  // at runtime in builtins using an extern ref. Other callers should use
+  // CpuFeatures::SupportWasmSimd128().
+  static bool supports_wasm_simd_128_;
 };
 
 }  // namespace internal

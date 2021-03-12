@@ -5,6 +5,7 @@
 #ifndef V8_UNITTESTS_HEAP_CPPGC_TESTS_H_
 #define V8_UNITTESTS_HEAP_CPPGC_TESTS_H_
 
+#include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/heap.h"
 #include "include/cppgc/platform.h"
 #include "src/heap/cppgc/heap.h"
@@ -85,6 +86,10 @@ class TestWithHeap : public TestWithPlatform {
     return Heap::From(GetHeap())->marker_;
   }
 
+  const std::unique_ptr<MarkerBase>& GetMarkerRef() const {
+    return Heap::From(GetHeap())->marker_;
+  }
+
   void ResetLinearAllocationBuffers();
 
  private:
@@ -101,7 +106,7 @@ class TestSupportingAllocationOnly : public TestWithHeap {
   TestSupportingAllocationOnly();
 
  private:
-  Heap::NoGCScope no_gc_scope_;
+  subtle::NoGarbageCollectionScope no_gc_scope_;
 };
 
 }  // namespace testing

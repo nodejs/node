@@ -561,6 +561,8 @@ class ImplementationVisitor {
 
   void BeginGeneratedFiles();
   void EndGeneratedFiles();
+  void BeginDebugMacrosFile();
+  void EndDebugMacrosFile();
 
   void GenerateImplementation(const std::string& dir);
 
@@ -768,19 +770,31 @@ class ImplementationVisitor {
 
   std::ostream& csa_ccfile() {
     if (auto* streams = CurrentFileStreams::Get()) {
-      return output_type_ == OutputType::kCSA
-                 ? streams->csa_ccfile
-                 : streams
-                       ->class_definition_inline_headerfile_macro_definitions;
+      switch (output_type_) {
+        case OutputType::kCSA:
+          return streams->csa_ccfile;
+        case OutputType::kCC:
+          return streams->class_definition_inline_headerfile_macro_definitions;
+        case OutputType::kCCDebug:
+          return debug_macros_cc_;
+        default:
+          UNREACHABLE();
+      }
     }
     return null_stream_;
   }
   std::ostream& csa_headerfile() {
     if (auto* streams = CurrentFileStreams::Get()) {
-      return output_type_ == OutputType::kCSA
-                 ? streams->csa_headerfile
-                 : streams
-                       ->class_definition_inline_headerfile_macro_declarations;
+      switch (output_type_) {
+        case OutputType::kCSA:
+          return streams->csa_headerfile;
+        case OutputType::kCC:
+          return streams->class_definition_inline_headerfile_macro_declarations;
+        case OutputType::kCCDebug:
+          return debug_macros_h_;
+        default:
+          UNREACHABLE();
+      }
     }
     return null_stream_;
   }
@@ -831,6 +845,11 @@ class ImplementationVisitor {
   // the value to load.
   std::unordered_map<const Expression*, const Identifier*>
       bitfield_expressions_;
+
+  // The contents of the debug macros output files. These contain all Torque
+  // macros that have been generated using the C++ backend with debug purpose.
+  std::stringstream debug_macros_cc_;
+  std::stringstream debug_macros_h_;
 
   OutputType output_type_ = OutputType::kCSA;
 };

@@ -64,6 +64,13 @@ template <typename T>
 class MakeGarbageCollectedTraitBase
     : private internal::MakeGarbageCollectedTraitInternal {
  private:
+  static_assert(internal::IsGarbageCollectedType<T>::value,
+                "T needs to be a garbage collected object");
+  static_assert(!IsGarbageCollectedWithMixinTypeV<T> ||
+                    sizeof(T) <=
+                        internal::api_constants::kLargeObjectSizeThreshold,
+                "GarbageCollectedMixin may not be a large object");
+
   template <typename U, typename CustomSpace>
   struct SpacePolicy {
     static void* Allocate(AllocationHandle& handle, size_t size) {
@@ -153,12 +160,6 @@ class MakeGarbageCollectedTrait : public MakeGarbageCollectedTraitBase<T> {
  public:
   template <typename... Args>
   static T* Call(AllocationHandle& handle, Args&&... args) {
-    static_assert(internal::IsGarbageCollectedType<T>::value,
-                  "T needs to be a garbage collected object");
-    static_assert(
-        !internal::IsGarbageCollectedMixinType<T>::value ||
-            sizeof(T) <= internal::api_constants::kLargeObjectSizeThreshold,
-        "GarbageCollectedMixin may not be a large object");
     void* memory =
         MakeGarbageCollectedTraitBase<T>::Allocate(handle, sizeof(T));
     T* object = ::new (memory) T(std::forward<Args>(args)...);
@@ -169,12 +170,6 @@ class MakeGarbageCollectedTrait : public MakeGarbageCollectedTraitBase<T> {
   template <typename... Args>
   static T* Call(AllocationHandle& handle, AdditionalBytes additional_bytes,
                  Args&&... args) {
-    static_assert(internal::IsGarbageCollectedType<T>::value,
-                  "T needs to be a garbage collected object");
-    static_assert(
-        !internal::IsGarbageCollectedMixinType<T>::value ||
-            sizeof(T) <= internal::api_constants::kLargeObjectSizeThreshold,
-        "GarbageCollectedMixin may not be a large object");
     void* memory = MakeGarbageCollectedTraitBase<T>::Allocate(
         handle, sizeof(T) + additional_bytes.value);
     T* object = ::new (memory) T(std::forward<Args>(args)...);

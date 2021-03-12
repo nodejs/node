@@ -9,6 +9,7 @@
 #include "include/v8.h"
 #include "src/base/macros.h"
 #include "src/heap/cppgc/heap-base.h"
+#include "src/heap/cppgc/stats-collector.h"
 
 namespace v8 {
 
@@ -17,9 +18,11 @@ class Isolate;
 namespace internal {
 
 // A C++ heap implementation used with V8 to implement unified heap.
-class V8_EXPORT_PRIVATE CppHeap final : public cppgc::internal::HeapBase,
-                                        public v8::CppHeap,
-                                        public v8::EmbedderHeapTracer {
+class V8_EXPORT_PRIVATE CppHeap final
+    : public cppgc::internal::HeapBase,
+      public v8::CppHeap,
+      public v8::EmbedderHeapTracer,
+      public cppgc::internal::StatsCollector::AllocationObserver {
  public:
   static CppHeap* From(v8::CppHeap* heap) {
     return static_cast<CppHeap*>(heap);
@@ -28,9 +31,12 @@ class V8_EXPORT_PRIVATE CppHeap final : public cppgc::internal::HeapBase,
     return static_cast<const CppHeap*>(heap);
   }
 
-  CppHeap(v8::Isolate* isolate,
-          const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>&
-              custom_spaces);
+  CppHeap(
+      v8::Platform* platform,
+      const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>& custom_spaces,
+      const v8::WrapperDescriptor& wrapper_descriptor,
+      std::unique_ptr<cppgc::internal::MetricRecorder> metric_recorder =
+          nullptr);
   ~CppHeap() final;
 
   CppHeap(const CppHeap&) = delete;
@@ -39,6 +45,12 @@ class V8_EXPORT_PRIVATE CppHeap final : public cppgc::internal::HeapBase,
   HeapBase& AsBase() { return *this; }
   const HeapBase& AsBase() const { return *this; }
 
+  void AttachIsolate(Isolate* isolate);
+  void DetachIsolate();
+
+  void Terminate();
+
+  // v8::EmbedderHeapTracer interface.
   void RegisterV8References(
       const std::vector<std::pair<void*, void*> >& embedder_fields) final;
   void TracePrologue(TraceFlags flags) final;
@@ -47,6 +59,11 @@ class V8_EXPORT_PRIVATE CppHeap final : public cppgc::internal::HeapBase,
   void TraceEpilogue(TraceSummary* trace_summary) final;
   void EnterFinalPause(EmbedderStackState stack_state) final;
 
+  // StatsCollector::AllocationObserver interface.
+  void AllocatedObjectSizeIncreased(size_t) final;
+  void AllocatedObjectSizeDecreased(size_t) final;
+  void ResetAllocatedObjectSize(size_t) final {}
+
  private:
   void FinalizeIncrementalGarbageCollectionIfNeeded(
       cppgc::Heap::StackState) final {
@@ -54,11 +71,18 @@ class V8_EXPORT_PRIVATE CppHeap final : public cppgc::internal::HeapBase,
     // finalization is not needed) thus this method is left empty.
   }
 
-  void PostGarbageCollection() final {}
+  void ReportBufferedAllocationSizeIfPossible();
 
-  Isolate& isolate_;
+  Isolate* isolate_ = nullptr;
   bool marking_done_ = false;
-  bool is_in_final_pause_ = false;
+  TraceFlags current_flags_ = TraceFlags::kNoFlags;
+
+  // Buffered allocated bytes. Reporting allocated bytes to V8 can trigger a GC
+  // atomic pause. Allocated bytes are buffer in case this is temporarily
+  // prohibited.
+  int64_t buffered_allocated_bytes_ = 0;
+
+  v8::WrapperDescriptor wrapper_descriptor_;
 };
 
 }  // namespace internal

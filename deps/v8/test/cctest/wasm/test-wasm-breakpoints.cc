@@ -179,16 +179,16 @@ struct WasmValWrapper {
 #ifdef DEBUG
 std::ostream& operator<<(std::ostream& out, const WasmValWrapper& wrapper) {
   switch (wrapper.val.type().kind()) {
-    case ValueType::kI32:
+    case kI32:
       out << "i32: " << wrapper.val.to<int32_t>();
       break;
-    case ValueType::kI64:
+    case kI64:
       out << "i64: " << wrapper.val.to<int64_t>();
       break;
-    case ValueType::kF32:
+    case kF32:
       out << "f32: " << wrapper.val.to<float>();
       break;
-    case ValueType::kF64:
+    case kF64:
       out << "f64: " << wrapper.val.to<double>();
       break;
     default:

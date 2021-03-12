@@ -361,7 +361,7 @@ class String : public TorqueGeneratedString<String, Name> {
       v8::String::ExternalStringResource* resource);
   V8_EXPORT_PRIVATE bool MakeExternal(
       v8::String::ExternalOneByteStringResource* resource);
-  V8_EXPORT_PRIVATE bool SupportsExternalization();
+  bool SupportsExternalization();
 
   // Conversion.
   // "array index": an index allowed by the ES spec for JSArrays.
@@ -512,9 +512,16 @@ class String : public TorqueGeneratedString<String, Name> {
     return NonOneByteStart(chars, length) >= length;
   }
 
+  // May only be called when a SharedStringAccessGuard is not needed (i.e. on
+  // the main thread or on read-only strings).
   template <class Visitor>
   static inline ConsString VisitFlat(Visitor* visitor, String string,
                                      int offset = 0);
+
+  template <class Visitor>
+  static inline ConsString VisitFlat(
+      Visitor* visitor, String string, int offset,
+      const SharedStringAccessGuardIfNeeded& access_guard);
 
   template <typename LocalIsolate>
   static Handle<FixedArray> CalculateLineEnds(LocalIsolate* isolate,
@@ -857,6 +864,10 @@ class ExternalOneByteString : public ExternalString {
   STATIC_ASSERT(kSize == kSizeOfAllExternalStrings);
 
   OBJECT_CONSTRUCTORS(ExternalOneByteString, ExternalString);
+
+ private:
+  // The underlying resource as a non-const pointer.
+  DECL_GETTER(mutable_resource, Resource*)
 };
 
 // The ExternalTwoByteString class is an external string backed by a UTF-16
@@ -902,6 +913,10 @@ class ExternalTwoByteString : public ExternalString {
   STATIC_ASSERT(kSize == kSizeOfAllExternalStrings);
 
   OBJECT_CONSTRUCTORS(ExternalTwoByteString, ExternalString);
+
+ private:
+  // The underlying resource as a non-const pointer.
+  DECL_GETTER(mutable_resource, Resource*)
 };
 
 // A flat string reader provides random access to the contents of a
@@ -975,26 +990,7 @@ class ConsStringIterator {
   int consumed_;
 };
 
-class StringCharacterStream {
- public:
-  inline explicit StringCharacterStream(String string, int offset = 0);
-  StringCharacterStream(const StringCharacterStream&) = delete;
-  StringCharacterStream& operator=(const StringCharacterStream&) = delete;
-  inline uint16_t GetNext();
-  inline bool HasMore();
-  inline void Reset(String string, int offset = 0);
-  inline void VisitOneByteString(const uint8_t* chars, int length);
-  inline void VisitTwoByteString(const uint16_t* chars, int length);
-
- private:
-  ConsStringIterator iter_;
-  bool is_one_byte_;
-  union {
-    const uint8_t* buffer8_;
-    const uint16_t* buffer16_;
-  };
-  const uint8_t* end_;
-};
+class StringCharacterStream;
 
 template <typename Char>
 struct CharTraits;

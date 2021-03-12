@@ -165,8 +165,10 @@ bool RegExpBytecodeGenerator::Succeed() {
 void RegExpBytecodeGenerator::Fail() { Emit(BC_FAIL, 0); }
 
 void RegExpBytecodeGenerator::AdvanceCurrentPosition(int by) {
-  DCHECK_LE(kMinCPOffset, by);
-  DCHECK_GE(kMaxCPOffset, by);
+  // TODO(chromium:1166138): Turn back into DCHECKs once the underlying issue
+  // is fixed.
+  CHECK_LE(kMinCPOffset, by);
+  CHECK_GE(kMaxCPOffset, by);
   advance_current_start_ = pc_;
   advance_current_offset_ = by;
   Emit(BC_ADVANCE_CP, by);

@@ -4,6 +4,12 @@
 
 [
 ##############################################################################
+[ALWAYS, {
+  # https://crbug.com/v8/11413
+  'RuntimeCallStatsTest.GarbageCollection': [PASS, ['verify_csa', SKIP]],
+}],  # ALWAYS
+
+##############################################################################
 ['system == macos and asan', {
   # BUG(820416).
   'BitsDeathTest*': [SKIP],
@@ -39,11 +45,11 @@
 }],  # system == macos and arch == arm64 and not simulator_run
 
 ##############################################################################
-['lite_mode or variant == jitless', {
-  # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
+# TODO(v8:7777): Change this once wasm is supported in jitless mode.
+['not has_webassembly or variant == jitless', {
   'ValueSerializerTestWithSharedArrayBufferClone.RoundTripWebAssemblyMemory': [SKIP],
   'ValueSerializerTestWithWasm.*': [SKIP],
-}], # lite_mode or variant == jitless
+}],  # not has_webassembly or variant == jitless
 
 ##############################################################################
 ['system == aix', {
@@ -76,10 +82,16 @@
 ['not pointer_compression', {
   # Tests are irrelevant without pointer compression
   'DecompressionOptimizerTest.*': [SKIP],
-}], # not pointer_compression
+}],  # not pointer_compression
 
 ################################################################################
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
+
+################################################################################
+['is_clang == False and arch == riscv64',{
+  'LoggingTest.SourceLocation':[SKIP]  # issue-174
+}],
+
 ]

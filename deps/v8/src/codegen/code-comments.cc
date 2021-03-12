@@ -87,20 +87,5 @@ uint32_t CodeCommentsWriter::section_size() const {
   return kOffsetToFirstCommentEntry + static_cast<uint32_t>(byte_count_);
 }
 
-void PrintCodeCommentsSection(std::ostream& out, Address code_comments_start,
-                              uint32_t code_comments_size) {
-  CodeCommentsIterator it(code_comments_start, code_comments_size);
-  out << "CodeComments (size = " << it.size() << ")\n";
-  if (it.HasCurrent()) {
-    out << std::setw(6) << "pc" << std::setw(6) << "len"
-        << " comment\n";
-  }
-  for (; it.HasCurrent(); it.Next()) {
-    out << std::hex << std::setw(6) << it.GetPCOffset() << std::dec
-        << std::setw(6) << it.GetCommentSize() << " (" << it.GetComment()
-        << ")\n";
-  }
-}
-
 }  // namespace internal
 }  // namespace v8

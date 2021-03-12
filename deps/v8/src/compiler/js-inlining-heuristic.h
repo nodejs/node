@@ -13,17 +13,20 @@ namespace compiler {
 
 class JSInliningHeuristic final : public AdvancedReducer {
  public:
+  enum Mode { kJSOnly, kWasmOnly };
+
   JSInliningHeuristic(Editor* editor, Zone* local_zone,
                       OptimizedCompilationInfo* info, JSGraph* jsgraph,
                       JSHeapBroker* broker,
-                      SourcePositionTable* source_positions)
+                      SourcePositionTable* source_positions, Mode mode)
       : AdvancedReducer(editor),
         inliner_(editor, local_zone, info, jsgraph, broker, source_positions),
         candidates_(local_zone),
         seen_(local_zone),
         source_positions_(source_positions),
         jsgraph_(jsgraph),
-        broker_(broker) {}
+        broker_(broker),
+        mode_(mode) {}
 
   const char* reducer_name() const override { return "JSInliningHeuristic"; }
 
@@ -78,8 +81,8 @@ class JSInliningHeuristic final : public AdvancedReducer {
   bool TryReuseDispatch(Node* node, Node* callee, Node** if_successes,
                         Node** calls, Node** inputs, int input_count);
   enum StateCloneMode { kCloneState, kChangeInPlace };
-  Node* DuplicateFrameStateAndRename(Node* frame_state, Node* from, Node* to,
-                                     StateCloneMode mode);
+  FrameState DuplicateFrameStateAndRename(FrameState frame_state, Node* from,
+                                          Node* to, StateCloneMode mode);
   Node* DuplicateStateValuesAndRename(Node* state_values, Node* from, Node* to,
                                       StateCloneMode mode);
   Candidate CollectFunctions(Node* node, int functions_size);
@@ -91,6 +94,7 @@ class JSInliningHeuristic final : public AdvancedReducer {
   JSHeapBroker* broker() const { return broker_; }
   Isolate* isolate() const { return jsgraph_->isolate(); }
   SimplifiedOperatorBuilder* simplified() const;
+  Mode mode() const { return mode_; }
 
   JSInliner inliner_;
   Candidates candidates_;
@@ -99,6 +103,7 @@ class JSInliningHeuristic final : public AdvancedReducer {
   JSGraph* const jsgraph_;
   JSHeapBroker* const broker_;
   int total_inlined_bytecode_size_ = 0;
+  const Mode mode_;
 };
 
 }  // namespace compiler

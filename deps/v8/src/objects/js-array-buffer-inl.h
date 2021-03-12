@@ -27,6 +27,10 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSArrayBufferView)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSTypedArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSDataView)
 
+ACCESSORS(JSTypedArray, base_pointer, Object, kBasePointerOffset)
+RELEASE_ACQUIRE_ACCESSORS(JSTypedArray, base_pointer, Object,
+                          kBasePointerOffset)
+
 void JSArrayBuffer::AllocateExternalPointerEntries(Isolate* isolate) {
   InitExternalPointerField(kBackingStoreOffset, isolate);
 }
@@ -253,15 +257,22 @@ void* JSTypedArray::DataPtr() {
   // so that the addition with |external_pointer| (which already contains
   // compensated offset value) will decompress the tagged value.
   // See JSTypedArray::ExternalPointerCompensationForOnHeapArray() for details.
+  STATIC_ASSERT(kOffHeapDataPtrEqualsExternalPointer);
   return reinterpret_cast<void*>(external_pointer() +
                                  static_cast<Tagged_t>(base_pointer().ptr()));
 }
 
 void JSTypedArray::SetOffHeapDataPtr(Isolate* isolate, void* base,
                                      Address offset) {
-  set_base_pointer(Smi::zero(), SKIP_WRITE_BARRIER);
   Address address = reinterpret_cast<Address>(base) + offset;
   set_external_pointer(isolate, address);
+  // This is the only spot in which the `base_pointer` field can be mutated
+  // after object initialization. Note this can happen at most once, when
+  // `JSTypedArray::GetBuffer` transitions from an on- to off-heap
+  // representation.
+  // To play well with Turbofan concurrency requirements, `base_pointer` is set
+  // with a release store, after external_pointer has been set.
+  set_base_pointer(Smi::zero(), kReleaseStore, SKIP_WRITE_BARRIER);
   DCHECK_EQ(address, reinterpret_cast<Address>(DataPtr()));
 }
 
@@ -274,10 +285,17 @@ void JSTypedArray::SetOnHeapDataPtr(Isolate* isolate, HeapObject base,
 }
 
 bool JSTypedArray::is_on_heap() const {
+  // Keep synced with `is_on_heap(AcquireLoadTag)`.
   DisallowGarbageCollection no_gc;
-  // Checking that buffer()->backing_store() is not nullptr is not sufficient;
-  // it will be nullptr when byte_length is 0 as well.
-  return base_pointer() == elements();
+  return base_pointer() != Smi::zero();
+}
+
+bool JSTypedArray::is_on_heap(AcquireLoadTag tag) const {
+  // Keep synced with `is_on_heap()`.
+  // Note: For Turbofan concurrency requirements, it's important that this
+  // function reads only `base_pointer`.
+  DisallowGarbageCollection no_gc;
+  return base_pointer(tag) != Smi::zero();
 }
 
 // static

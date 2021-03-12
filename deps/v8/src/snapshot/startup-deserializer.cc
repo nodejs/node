@@ -99,7 +99,7 @@ void StartupDeserializer::DeserializeStringTable() {
 }
 
 void StartupDeserializer::LogNewMapEvents() {
-  if (FLAG_trace_maps) LOG(isolate(), LogAllMaps());
+  if (FLAG_log_maps) LOG(isolate(), LogAllMaps());
 }
 
 void StartupDeserializer::FlushICache() {

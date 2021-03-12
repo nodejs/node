@@ -1273,25 +1273,13 @@ void RegExpMacroAssemblerS390::LoadCurrentCharacterUnchecked(int cp_offset,
   if (mode_ == LATIN1) {
     // using load reverse for big-endian platforms
     if (characters == 4) {
-#if V8_TARGET_LITTLE_ENDIAN
-      __ LoadU32(current_character(),
-                MemOperand(current_input_offset(), end_of_input_address(),
-                           cp_offset * char_size()));
-#else
-      __ LoadLogicalReversedWordP(current_character(),
-                MemOperand(current_input_offset(), end_of_input_address(),
-                           cp_offset * char_size()));
-#endif
+      __ LoadU32LE(current_character(),
+                   MemOperand(current_input_offset(), end_of_input_address(),
+                              cp_offset * char_size()));
     } else if (characters == 2) {
-#if V8_TARGET_LITTLE_ENDIAN
-      __ LoadU16(current_character(),
-                MemOperand(current_input_offset(), end_of_input_address(),
-                           cp_offset * char_size()));
-#else
-      __ LoadLogicalReversedHalfWordP(current_character(),
-                MemOperand(current_input_offset(), end_of_input_address(),
-                           cp_offset * char_size()));
-#endif
+      __ LoadU16LE(current_character(),
+                   MemOperand(current_input_offset(), end_of_input_address(),
+                              cp_offset * char_size()));
     } else {
       DCHECK_EQ(1, characters);
       __ LoadU8(current_character(),

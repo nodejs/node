@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --expose-gc --no-always-opt
+// Flags: --allow-natives-syntax --expose-gc --no-always-opt --opt
 
 var a = new Int32Array(1024);
 
@@ -97,29 +97,69 @@ test_base(a, 3, true);
 check_test_base(a, 3, true);
 test_base(a, 3, false);
 check_test_base(a, 3, false);
+assertOptimized(test_base);
+
+function test_base_for_dictionary_map(a, base, condition) {
+  a[base + 1] = 1;
+  a[base + 4] = 2;
+  a[base + 3] = 3;
+  a[base + 2] = 4;
+  a[base + 4] = base + 4;
+  if (condition) {
+    a[base + 1] = 1;
+    a[base + 2] = 2;
+    a[base + 2] = 3;
+    a[base + 2] = 4;
+    a[base + 4] = base + 4;
+  } else {
+    a[base + 6] = 1;
+    a[base + 4] = 2;
+    a[base + 3] = 3;
+    a[base + 2] = 4;
+    a[base + 4] = base - 4;
+  }
+}
 
 // Test that we deopt on failed bounds checks.
 var dictionary_map_array = new Int32Array(128);
-test_base(dictionary_map_array, 5, true);
-%PrepareFunctionForOptimization(test_base);
-test_base(dictionary_map_array, 6, true);
-test_base(dictionary_map_array, 5, false);
-test_base(dictionary_map_array, 6, false);
-%OptimizeFunctionOnNextCall(test_base);
-test_base(dictionary_map_array, -2, true);
-assertUnoptimized(test_base);
+test_base_for_dictionary_map(dictionary_map_array, 5, true);
+%PrepareFunctionForOptimization(test_base_for_dictionary_map);
+test_base_for_dictionary_map(dictionary_map_array, 6, true);
+test_base_for_dictionary_map(dictionary_map_array, 5, false);
+test_base_for_dictionary_map(dictionary_map_array, 6, false);
+%OptimizeFunctionOnNextCall(test_base_for_dictionary_map);
+test_base_for_dictionary_map(dictionary_map_array, -2, true);
+assertUnoptimized(test_base_for_dictionary_map);
 
-// Forget about the dictionary_map_array's map.
-%ClearFunctionFeedback(test_base);
-%PrepareFunctionForOptimization(test_base);
+function test_base_for_oob(a, base, condition) {
+  a[base + 1] = 1;
+  a[base + 4] = 2;
+  a[base + 3] = 3;
+  a[base + 2] = 4;
+  a[base + 4] = base + 4;
+  if (condition) {
+    a[base + 1] = 1;
+    a[base + 2] = 2;
+    a[base + 2] = 3;
+    a[base + 2] = 4;
+    a[base + 4] = base + 4;
+  } else {
+    a[base + 6] = 1;
+    a[base + 4] = 2;
+    a[base + 3] = 3;
+    a[base + 2] = 4;
+    a[base + 4] = base - 4;
+  }
+}
 
-test_base(a, 5, true);
-test_base(a, 6, true);
-test_base(a, 5, false);
-test_base(a, 6, false);
-%OptimizeFunctionOnNextCall(test_base);
-test_base(a, 2048, true);
-assertUnoptimized(test_base);
+%PrepareFunctionForOptimization(test_base_for_oob);
+test_base_for_oob(a, 5, true);
+test_base_for_oob(a, 6, true);
+test_base_for_oob(a, 5, false);
+test_base_for_oob(a, 6, false);
+%OptimizeFunctionOnNextCall(test_base_for_oob);
+test_base_for_oob(a, 2048, true);
+assertUnoptimized(test_base_for_oob);
 
 function test_minus(base,cond) {
   a[base - 1] = 1;
@@ -178,7 +218,7 @@ short_test(short_a, 50);
 %OptimizeFunctionOnNextCall(short_test);
 short_a.length = 10;
 short_test(short_a, 0);
-assertUnoptimized(test_base);
+assertUnoptimized(short_test);
 
 
 // A test for when we would modify a phi index.

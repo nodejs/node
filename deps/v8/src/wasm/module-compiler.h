@@ -43,7 +43,7 @@ struct WasmModule;
 std::shared_ptr<NativeModule> CompileToNativeModule(
     Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
     std::shared_ptr<const WasmModule> module, const ModuleWireBytes& wire_bytes,
-    Handle<FixedArray>* export_wrappers_out);
+    Handle<FixedArray>* export_wrappers_out, int compilation_id);
 
 void RecompileNativeModule(NativeModule* native_module,
                            TieringState new_tiering_state);
@@ -113,7 +113,8 @@ class AsyncCompileJob {
                   std::unique_ptr<byte[]> bytes_copy, size_t length,
                   Handle<Context> context, Handle<Context> incumbent_context,
                   const char* api_method_name,
-                  std::shared_ptr<CompilationResultResolver> resolver);
+                  std::shared_ptr<CompilationResultResolver> resolver,
+                  int compilation_id);
   ~AsyncCompileJob();
 
   void Start();
@@ -236,6 +237,9 @@ class AsyncCompileJob {
   // compilation. The AsyncCompileJob does not actively use the
   // StreamingDecoder.
   std::shared_ptr<StreamingDecoder> stream_;
+
+  // The compilation id to identify trace events linked to this compilation.
+  const int compilation_id_;
 };
 
 }  // namespace wasm

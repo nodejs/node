@@ -12,7 +12,7 @@ void GetCalleeSavedRegistersFromEntryFrame(void* fp,
                                            RegisterState* register_state) {
   const i::Address base_addr =
       reinterpret_cast<i::Address>(fp) +
-      i::EntryFrameConstants::kDirectCallerRRegistersOffset;
+      i::EntryFrameConstants::kDirectCallerGeneralRegistersOffset;
 
   if (!register_state->callee_saved) {
     register_state->callee_saved = std::make_unique<CalleeSavedRegisters>();

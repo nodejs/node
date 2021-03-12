@@ -731,6 +731,11 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   // Start the debugging command line.
   void Debug();
 
+  // Executes a single debug command. Takes ownership of the command (so that it
+  // can store it for repeat executions), and returns true if the debugger
+  // should resume execution after this command completes.
+  bool ExecDebugCommand(ArrayUniquePtr<char> command);
+
   bool GetValue(const char* desc, int64_t* value);
 
   bool PrintValue(const char* desc);
@@ -2327,12 +2332,11 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   static const char* vreg_names[];
 
   // Debugger input.
-  void set_last_debugger_input(char* input) {
-    DeleteArray(last_debugger_input_);
-    last_debugger_input_ = input;
+  void set_last_debugger_input(ArrayUniquePtr<char> input) {
+    last_debugger_input_ = std::move(input);
   }
-  char* last_debugger_input() { return last_debugger_input_; }
-  char* last_debugger_input_;
+  const char* last_debugger_input() { return last_debugger_input_.get(); }
+  ArrayUniquePtr<char> last_debugger_input_;
 
   // Synchronization primitives. See ARM DDI 0487A.a, B2.10. Pair types not
   // implemented.

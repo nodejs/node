@@ -85,6 +85,12 @@ namespace internal {
   HR(wasm_modules_per_engine, V8.WasmModulesPerEngine, 1, 1024, 30)            \
   /* bailout reason if Liftoff failed, or {kSuccess} (per function) */         \
   HR(liftoff_bailout_reasons, V8.LiftoffBailoutReasons, 0, 20, 21)             \
+  /* number of thrown exceptions per isolate */                                \
+  HR(wasm_throw_count, V8.WasmThrowCount, 0, 100000, 30)                       \
+  /* number of rethrown exceptions per isolate */                              \
+  HR(wasm_rethrow_count, V8.WasmReThrowCount, 0, 100000, 30)                   \
+  /* number of caught exceptions per isolate */                                \
+  HR(wasm_catch_count, V8.WasmCatchCount, 0, 100000, 30)                       \
   /* Ticks observed in a single Turbofan compilation, in 1K */                 \
   HR(turbofan_ticks, V8.TurboFan1KTicks, 0, 100000, 200)                       \
   /* Backtracks observed in a single regexp interpreter execution */           \
@@ -140,8 +146,9 @@ namespace internal {
   HT(gc_scavenger_foreground, V8.GCScavengerForeground, 10000, MILLISECOND)    \
   HT(measure_memory_delay_ms, V8.MeasureMemoryDelayMilliseconds, 100000,       \
      MILLISECOND)                                                              \
-  HT(stop_the_world, V8.StopTheWorld, 10000, MICROSECOND)                      \
-  HT(time_to_collection, V8.TimeToCollection, 10000, MICROSECOND)              \
+  HT(gc_time_to_safepoint, V8.GC.TimeToSafepoint, 10000000, MICROSECOND)       \
+  HT(gc_time_to_collection_on_background, V8.GC.TimeToCollectionOnBackground,  \
+     10000000, MICROSECOND)                                                    \
   /* TurboFan timers. */                                                       \
   HT(turbofan_optimize_prepare, V8.TurboFanOptimizePrepare, 1000000,           \
      MICROSECOND)                                                              \
@@ -188,6 +195,12 @@ namespace internal {
      V8.WasmInstantiateModuleMicroSeconds.wasm, 10000000, MICROSECOND)         \
   HT(wasm_instantiate_asm_module_time,                                         \
      V8.WasmInstantiateModuleMicroSeconds.asm, 10000000, MICROSECOND)          \
+  HT(wasm_time_between_throws, V8.WasmTimeBetweenThrowsMilliseconds, 1000,     \
+     MILLISECOND)                                                              \
+  HT(wasm_time_between_rethrows, V8.WasmTimeBetweenRethrowsMilliseconds, 1000, \
+     MILLISECOND)                                                              \
+  HT(wasm_time_between_catch, V8.WasmTimeBetweenCatchMilliseconds, 1000,       \
+     MILLISECOND)                                                              \
   /* Total compilation time incl. caching/parsing for various cache states. */ \
   HT(compile_script_with_produce_cache,                                        \
      V8.CompileScriptMicroSeconds.ProduceCache, 1000000, MICROSECOND)          \
@@ -314,12 +327,10 @@ namespace internal {
   /* Total count of functions compiled using the baseline compiler. */         \
   SC(total_baseline_compile_count, V8.TotalBaselineCompileCount)
 
-#define STATS_COUNTER_TS_LIST(SC)                                    \
-  SC(wasm_generated_code_size, V8.WasmGeneratedCodeBytes)            \
-  SC(wasm_reloc_size, V8.WasmRelocBytes)                             \
-  SC(wasm_lazily_compiled_functions, V8.WasmLazilyCompiledFunctions) \
-  SC(liftoff_compiled_functions, V8.LiftoffCompiledFunctions)        \
-  SC(liftoff_unsupported_functions, V8.LiftoffUnsupportedFunctions)
+#define STATS_COUNTER_TS_LIST(SC)                         \
+  SC(wasm_generated_code_size, V8.WasmGeneratedCodeBytes) \
+  SC(wasm_reloc_size, V8.WasmRelocBytes)                  \
+  SC(wasm_lazily_compiled_functions, V8.WasmLazilyCompiledFunctions)
 
 // List of counters that can be incremented from generated code. We need them in
 // a separate list to be able to relocate them.

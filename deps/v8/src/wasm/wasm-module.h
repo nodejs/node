@@ -187,30 +187,15 @@ class V8_EXPORT_PRIVATE LazilyGeneratedNames {
                                   uint32_t function_index,
                                   Vector<const WasmExport> export_table) const;
 
-  // For memory and global.
-  std::pair<WireBytesRef, WireBytesRef> LookupNameFromImportsAndExports(
-      ImportExportKindCode kind, uint32_t index,
-      const Vector<const WasmImport> import_table,
-      const Vector<const WasmExport> export_table) const;
-
   void AddForTesting(int function_index, WireBytesRef name);
 
  private:
-  // {function_names_}, {global_names_}, {memory_names_} and {table_names_} are
-  // populated lazily after decoding, and therefore need a mutex to protect
-  // concurrent modifications from multiple {WasmModuleObject}.
+  // {function_names_} are populated lazily after decoding, and
+  // therefore need a mutex to protect concurrent modifications
+  // from multiple {WasmModuleObject}.
   mutable base::Mutex mutex_;
   mutable std::unique_ptr<std::unordered_map<uint32_t, WireBytesRef>>
       function_names_;
-  mutable std::unique_ptr<
-      std::unordered_map<uint32_t, std::pair<WireBytesRef, WireBytesRef>>>
-      global_names_;
-  mutable std::unique_ptr<
-      std::unordered_map<uint32_t, std::pair<WireBytesRef, WireBytesRef>>>
-      memory_names_;
-  mutable std::unique_ptr<
-      std::unordered_map<uint32_t, std::pair<WireBytesRef, WireBytesRef>>>
-      table_names_;
 };
 
 class V8_EXPORT_PRIVATE AsmJsOffsetInformation {
@@ -372,7 +357,6 @@ struct WasmTable {
     if (!type.is_nullable()) return false;
     HeapType heap_type = type.heap_type();
     return heap_type == HeapType::kFunc || heap_type == HeapType::kExtern ||
-           heap_type == HeapType::kExn ||
            (module != nullptr && heap_type.is_index() &&
             module->has_signature(heap_type.ref_index()));
   }
@@ -493,14 +477,6 @@ inline int declared_function_index(const WasmModule* module, int func_index) {
   int declared_idx = func_index - module->num_imported_functions;
   DCHECK_GT(module->num_declared_functions, declared_idx);
   return declared_idx;
-}
-
-inline bool is_data_ref_type(ValueType type, const WasmModule* module) {
-  // TODO(7748): When we implement dataref (=any struct or array), support
-  // that here.
-  if (!type.has_index()) return false;
-  uint32_t index = type.ref_index();
-  return module->has_struct(index) || module->has_array(index);
 }
 
 // TruncatedUserString makes it easy to output names up to a certain length, and

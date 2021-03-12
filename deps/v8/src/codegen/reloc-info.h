@@ -70,7 +70,7 @@ class RelocInfo {
     EXTERNAL_REFERENCE,  // The address of an external C++ function.
     INTERNAL_REFERENCE,  // An address inside the same function.
 
-    // Encoded internal reference, used only on MIPS, MIPS64 and PPC.
+    // Encoded internal reference, used only on RISCV64, MIPS, MIPS64 and PPC.
     INTERNAL_REFERENCE_ENCODED,
 
     // An off-heap instruction stream target. See http://goo.gl/Z2HUiM.

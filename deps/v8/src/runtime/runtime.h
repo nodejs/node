@@ -82,7 +82,6 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_CLASSES(F, I)    \
   F(DefineClass, -1 /* >= 3 */, 1)          \
-  F(HomeObjectSymbol, 0, 1)                 \
   F(LoadFromSuper, 3, 1)                    \
   F(LoadKeyedFromSuper, 3, 1)               \
   F(StoreKeyedToSuper, 4, 1)                \
@@ -106,12 +105,15 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_COMPILER(F, I) \
   F(CompileForOnStackReplacement, 0, 1)   \
   F(CompileLazy, 1, 1)                    \
+  F(CompileBaseline, 1, 1)                \
   F(CompileOptimized_Concurrent, 1, 1)    \
   F(CompileOptimized_NotConcurrent, 1, 1) \
+  F(InstallBaselineCode, 1, 1)            \
   F(HealOptimizedCodeSlot, 1, 1)          \
   F(FunctionFirstExecution, 1, 1)         \
   F(InstantiateAsmJs, 4, 1)               \
   F(NotifyDeoptimized, 0, 1)              \
+  F(ObserveNode, 1, 1)                    \
   F(ResolvePossiblyDirectEval, 6, 1)      \
   F(TryInstallNCICode, 1, 1)
 
@@ -150,24 +152,23 @@ namespace internal {
   F(ForInEnumerate, 1, 1)              \
   F(ForInHasProperty, 2, 1)
 
-#ifdef V8_TRACE_IGNITION
-#define FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F, I) \
-  F(InterpreterTraceBytecodeEntry, 3, 1)           \
-  F(InterpreterTraceBytecodeExit, 3, 1)
+#ifdef V8_TRACE_UNOPTIMIZED
+#define FOR_EACH_INTRINSIC_TRACE_UNOPTIMIZED(F, I) \
+  F(TraceUnoptimizedBytecodeEntry, 3, 1)           \
+  F(TraceUnoptimizedBytecodeExit, 3, 1)
 #else
-#define FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F, I)
+#define FOR_EACH_INTRINSIC_TRACE_UNOPTIMIZED(F, I)
 #endif
 
 #ifdef V8_TRACE_FEEDBACK_UPDATES
-#define FOR_EACH_INTRINSIC_INTERPRETER_TRACE_FEEDBACK(F, I) \
-  F(InterpreterTraceUpdateFeedback, 3, 1)
+#define FOR_EACH_INTRINSIC_TRACE_FEEDBACK(F, I) F(TraceUpdateFeedback, 3, 1)
 #else
-#define FOR_EACH_INTRINSIC_INTERPRETER_TRACE_FEEDBACK(F, I)
+#define FOR_EACH_INTRINSIC_TRACE_FEEDBACK(F, I)
 #endif
 
-#define FOR_EACH_INTRINSIC_INTERPRETER(F, I) \
-  FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F, I) \
-  FOR_EACH_INTRINSIC_INTERPRETER_TRACE_FEEDBACK(F, I)
+#define FOR_EACH_INTRINSIC_TRACE(F, I)       \
+  FOR_EACH_INTRINSIC_TRACE_UNOPTIMIZED(F, I) \
+  FOR_EACH_INTRINSIC_TRACE_FEEDBACK(F, I)
 
 #define FOR_EACH_INTRINSIC_FUNCTION(F, I)  \
   I(Call, -1 /* >= 2 */, 1)                \
@@ -266,9 +267,9 @@ namespace internal {
   F(CreateObjectLiteralWithoutAllocationSite, 2, 1) \
   F(CreateRegExpLiteral, 4, 1)
 
-#define FOR_EACH_INTRINSIC_MODULE(F, I) \
-  F(DynamicImportCall, 2, 1)            \
-  I(GetImportMetaObject, 0, 1)          \
+#define FOR_EACH_INTRINSIC_MODULE(F, I)    \
+  F(DynamicImportCall, -1 /* [2, 3] */, 1) \
+  I(GetImportMetaObject, 0, 1)             \
   F(GetModuleNamespace, 1, 1)
 
 #define FOR_EACH_INTRINSIC_NUMBERS(F, I) \
@@ -384,15 +385,18 @@ namespace internal {
   F(JSProxyGetTarget, 1, 1)            \
   F(SetPropertyWithReceiver, 4, 1)
 
-#define FOR_EACH_INTRINSIC_REGEXP(F, I)             \
-  I(IsRegExp, 1, 1)                                 \
-  F(RegExpExec, 4, 1)                               \
-  F(RegExpExperimentalOneshotExec, 4, 1)            \
-  F(RegExpExecMultiple, 4, 1)                       \
-  F(RegExpInitializeAndCompile, 3, 1)               \
-  F(RegExpReplaceRT, 3, 1)                          \
-  F(RegExpSplit, 3, 1)                              \
-  F(StringReplaceNonGlobalRegExpWithFunction, 3, 1) \
+#define FOR_EACH_INTRINSIC_REGEXP(F, I)                          \
+  I(IsRegExp, 1, 1)                                              \
+  F(RegExpBuildIndices, 3, 1)                                    \
+  F(RegExpExec, 4, 1)                                            \
+  F(RegExpExecTreatMatchAtEndAsFailure, 4, 1)                    \
+  F(RegExpExperimentalOneshotExec, 4, 1)                         \
+  F(RegExpExperimentalOneshotExecTreatMatchAtEndAsFailure, 4, 1) \
+  F(RegExpExecMultiple, 4, 1)                                    \
+  F(RegExpInitializeAndCompile, 3, 1)                            \
+  F(RegExpReplaceRT, 3, 1)                                       \
+  F(RegExpSplit, 3, 1)                                           \
+  F(StringReplaceNonGlobalRegExpWithFunction, 3, 1)              \
   F(StringSplit, 3, 1)
 
 #define FOR_EACH_INTRINSIC_SCOPES(F, I)     \
@@ -430,9 +434,6 @@ namespace internal {
   F(StringEscapeQuotes, 1, 1)             \
   F(StringGreaterThan, 2, 1)              \
   F(StringGreaterThanOrEqual, 2, 1)       \
-  F(StringIncludes, 3, 1)                 \
-  F(StringIndexOf, 3, 1)                  \
-  F(StringIndexOfUnchecked, 3, 1)         \
   F(StringLastIndexOf, 2, 1)              \
   F(StringLessThan, 2, 1)                 \
   F(StringLessThanOrEqual, 2, 1)          \
@@ -469,6 +470,8 @@ namespace internal {
   F(DisallowWasmCodegen, 1, 1)                \
   F(DisassembleFunction, 1, 1)                \
   F(DynamicCheckMapsEnabled, 0, 1)            \
+  F(IsTopTierTurboprop, 0, 1)                 \
+  F(IsMidTierTurboprop, 0, 1)                 \
   F(EnableCodeLoggingForTesting, 0, 1)        \
   F(EnsureFeedbackVectorForFunction, 1, 1)    \
   F(FreezeWasmLazyCompilation, 1, 1)          \
@@ -485,6 +488,7 @@ namespace internal {
   F(HasElementsInALargeObjectSpace, 1, 1)     \
   F(HasFastElements, 1, 1)                    \
   F(HasFastProperties, 1, 1)                  \
+  F(HasOwnConstDataProperty, 2, 1)            \
   F(HasFixedBigInt64Elements, 1, 1)           \
   F(HasFixedBigUint64Elements, 1, 1)          \
   F(HasFixedFloat32Elements, 1, 1)            \
@@ -510,6 +514,7 @@ namespace internal {
   F(IsAsmWasmCode, 1, 1)                      \
   F(IsBeingInterpreted, 0, 1)                 \
   F(IsConcurrentRecompilationSupported, 0, 1) \
+  F(IsDictPropertyConstTrackingEnabled, 0, 1) \
   F(IsLiftoffFunction, 1, 1)                  \
   F(IsThreadInWasm, 0, 1)                     \
   F(IsWasmCode, 1, 1)                         \
@@ -523,6 +528,7 @@ namespace internal {
   F(NeverOptimizeFunction, 1, 1)              \
   F(NotifyContextDisposed, 0, 1)              \
   F(OptimizeFunctionOnNextCall, -1, 1)        \
+  F(TierupFunctionOnNextCall, -1, 1)          \
   F(OptimizeOsr, -1, 1)                       \
   F(NewRegExpWithBacktrackLimit, 3, 1)        \
   F(PrepareFunctionForOptimization, -1, 1)    \
@@ -536,7 +542,6 @@ namespace internal {
   F(SetIteratorProtector, 0, 1)               \
   F(SetWasmCompileControls, 2, 1)             \
   F(SetWasmInstantiateControls, 0, 1)         \
-  F(SetWasmThreadsEnabled, 1, 1)              \
   F(SimulateNewspaceFull, 0, 1)               \
   F(ScheduleGCInStackCheck, 0, 1)             \
   F(StringIteratorProtector, 0, 1)            \
@@ -548,9 +553,9 @@ namespace internal {
   F(UnblockConcurrentRecompilation, 0, 1)     \
   F(WasmGetNumberOfInstances, 1, 1)           \
   F(WasmNumCodeSpaces, 1, 1)                  \
-  F(WasmTierDownModule, 1, 1)                 \
+  F(WasmTierDown, 0, 1)                       \
+  F(WasmTierUp, 0, 1)                         \
   F(WasmTierUpFunction, 2, 1)                 \
-  F(WasmTierUpModule, 1, 1)                   \
   F(WasmTraceEnter, 0, 1)                     \
   F(WasmTraceExit, 1, 1)                      \
   F(WasmTraceMemory, 1, 1)                    \
@@ -566,28 +571,29 @@ namespace internal {
   F(TypedArraySet, 2, 1)                    \
   F(TypedArraySortFast, 1, 1)
 
-#define FOR_EACH_INTRINSIC_WASM(F, I) \
-  F(ThrowWasmError, 1, 1)             \
-  F(ThrowWasmStackOverflow, 0, 1)     \
-  F(WasmI32AtomicWait, 4, 1)          \
-  F(WasmI64AtomicWait, 5, 1)          \
-  F(WasmAtomicNotify, 3, 1)           \
-  F(WasmMemoryGrow, 2, 1)             \
-  F(WasmStackGuard, 0, 1)             \
-  F(WasmThrowCreate, 2, 1)            \
-  F(WasmThrowJSTypeError, 0, 1)       \
-  F(WasmRefFunc, 1, 1)                \
-  F(WasmFunctionTableGet, 3, 1)       \
-  F(WasmFunctionTableSet, 4, 1)       \
-  F(WasmTableInit, 6, 1)              \
-  F(WasmTableCopy, 6, 1)              \
-  F(WasmTableGrow, 3, 1)              \
-  F(WasmTableFill, 4, 1)              \
-  F(WasmIsValidRefValue, 3, 1)        \
-  F(WasmCompileLazy, 2, 1)            \
-  F(WasmCompileWrapper, 2, 1)         \
-  F(WasmTriggerTierUp, 1, 1)          \
-  F(WasmDebugBreak, 0, 1)             \
+#define FOR_EACH_INTRINSIC_WASM(F, I)   \
+  F(ThrowWasmError, 1, 1)               \
+  F(ThrowWasmStackOverflow, 0, 1)       \
+  F(WasmI32AtomicWait, 4, 1)            \
+  F(WasmI64AtomicWait, 5, 1)            \
+  F(WasmAtomicNotify, 3, 1)             \
+  F(WasmMemoryGrow, 2, 1)               \
+  F(WasmStackGuard, 0, 1)               \
+  F(WasmThrow, 2, 1)                    \
+  F(WasmReThrow, 1, 1)                  \
+  F(WasmThrowJSTypeError, 0, 1)         \
+  F(WasmRefFunc, 1, 1)                  \
+  F(WasmFunctionTableGet, 3, 1)         \
+  F(WasmFunctionTableSet, 4, 1)         \
+  F(WasmTableInit, 6, 1)                \
+  F(WasmTableCopy, 6, 1)                \
+  F(WasmTableGrow, 3, 1)                \
+  F(WasmTableFill, 4, 1)                \
+  F(WasmIsValidRefValue, 3, 1)          \
+  F(WasmCompileLazy, 2, 1)              \
+  F(WasmCompileWrapper, 2, 1)           \
+  F(WasmTriggerTierUp, 1, 1)            \
+  F(WasmDebugBreak, 0, 1)               \
   F(WasmAllocateRtt, 2, 1)
 
 #define FOR_EACH_INTRINSIC_WEAKREF(F, I)                             \
@@ -640,7 +646,7 @@ namespace internal {
   FOR_EACH_INTRINSIC_GENERATOR(F, I)                \
   FOR_EACH_INTRINSIC_IC(F, I)                       \
   FOR_EACH_INTRINSIC_INTERNAL(F, I)                 \
-  FOR_EACH_INTRINSIC_INTERPRETER(F, I)              \
+  FOR_EACH_INTRINSIC_TRACE(F, I)                    \
   FOR_EACH_INTRINSIC_INTL(F, I)                     \
   FOR_EACH_INTRINSIC_LITERALS(F, I)                 \
   FOR_EACH_INTRINSIC_MODULE(F, I)                   \
@@ -841,6 +847,7 @@ enum class OptimizationStatus {
   kTopmostFrameIsTurboFanned = 1 << 11,
   kLiteMode = 1 << 12,
   kMarkedForDeoptimization = 1 << 13,
+  kBaseline = 1 << 14,
 };
 
 }  // namespace internal

@@ -10,6 +10,7 @@
 #include "cppgc/internal/api-constants.h"
 #include "cppgc/internal/logging.h"
 #include "cppgc/platform.h"
+#include "v8config.h"  // NOLINT(build/include_directory)
 
 namespace cppgc {
 namespace internal {
@@ -54,7 +55,7 @@ static_assert(sizeof(AgeTable) == 1 * api_constants::kMB,
 struct CagedHeapLocalData final {
   explicit CagedHeapLocalData(HeapBase* heap_base) : heap_base(heap_base) {}
 
-  bool is_marking_in_progress = false;
+  bool is_incremental_marking_in_progress = false;
   HeapBase* heap_base = nullptr;
 #if defined(CPPGC_YOUNG_GENERATION)
   AgeTable age_table;

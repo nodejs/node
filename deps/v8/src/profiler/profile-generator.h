@@ -59,6 +59,8 @@ struct CodeEntryAndLineNumber;
 
 class CodeEntry {
  public:
+  enum class CodeType { JS, WASM, OTHER };
+
   // CodeEntry may reference strings (|name|, |resource_name|) managed by a
   // StringsStorage instance. These must be freed via ReleaseStrings.
   inline CodeEntry(CodeEventListener::LogEventsAndTags tag, const char* name,
@@ -66,7 +68,8 @@ class CodeEntry {
                    int line_number = v8::CpuProfileNode::kNoLineNumberInfo,
                    int column_number = v8::CpuProfileNode::kNoColumnNumberInfo,
                    std::unique_ptr<SourcePositionTable> line_info = nullptr,
-                   bool is_shared_cross_origin = false);
+                   bool is_shared_cross_origin = false,
+                   CodeType code_type = CodeType::JS);
   CodeEntry(const CodeEntry&) = delete;
   CodeEntry& operator=(const CodeEntry&) = delete;
 
@@ -101,6 +104,17 @@ class CodeEntry {
   }
   void mark_used() { bit_field_ = UsedField::update(bit_field_, true); }
   bool used() const { return UsedField::decode(bit_field_); }
+
+  const char* code_type_string() const {
+    switch (CodeTypeField::decode(bit_field_)) {
+      case CodeType::JS:
+        return "JS";
+      case CodeType::WASM:
+        return "wasm";
+      case CodeType::OTHER:
+        return "other";
+    }
+  }
 
   void FillFunctionInfo(SharedFunctionInfo shared);
 
@@ -148,21 +162,17 @@ class CodeEntry {
 
   V8_EXPORT_PRIVATE static const char* const kProgramEntryName;
   V8_EXPORT_PRIVATE static const char* const kIdleEntryName;
-  static const char* const kGarbageCollectorEntryName;
+  V8_EXPORT_PRIVATE static const char* const kGarbageCollectorEntryName;
   // Used to represent frames for which we have no reliable way to
   // detect function.
   V8_EXPORT_PRIVATE static const char* const kUnresolvedFunctionName;
   V8_EXPORT_PRIVATE static const char* const kRootEntryName;
 
-  V8_INLINE static CodeEntry* program_entry() {
-    return kProgramEntry.Pointer();
-  }
-  V8_INLINE static CodeEntry* idle_entry() { return kIdleEntry.Pointer(); }
-  V8_INLINE static CodeEntry* gc_entry() { return kGCEntry.Pointer(); }
-  V8_INLINE static CodeEntry* unresolved_entry() {
-    return kUnresolvedEntry.Pointer();
-  }
-  V8_INLINE static CodeEntry* root_entry() { return kRootEntry.Pointer(); }
+  V8_EXPORT_PRIVATE static CodeEntry* program_entry();
+  V8_EXPORT_PRIVATE static CodeEntry* idle_entry();
+  V8_EXPORT_PRIVATE static CodeEntry* gc_entry();
+  V8_EXPORT_PRIVATE static CodeEntry* unresolved_entry();
+  V8_EXPORT_PRIVATE static CodeEntry* root_entry();
 
   // Releases strings owned by this CodeEntry, which may be allocated in the
   // provided StringsStorage instance. This instance is not stored directly
@@ -185,41 +195,17 @@ class CodeEntry {
 
   RareData* EnsureRareData();
 
-  struct V8_EXPORT_PRIVATE ProgramEntryCreateTrait {
-    static CodeEntry* Create();
-  };
-  struct V8_EXPORT_PRIVATE IdleEntryCreateTrait {
-    static CodeEntry* Create();
-  };
-  struct V8_EXPORT_PRIVATE GCEntryCreateTrait {
-    static CodeEntry* Create();
-  };
-  struct V8_EXPORT_PRIVATE UnresolvedEntryCreateTrait {
-    static CodeEntry* Create();
-  };
-  struct V8_EXPORT_PRIVATE RootEntryCreateTrait {
-    static CodeEntry* Create();
-  };
-
-  V8_EXPORT_PRIVATE static base::LazyDynamicInstance<
-      CodeEntry, ProgramEntryCreateTrait>::type kProgramEntry;
-  V8_EXPORT_PRIVATE static base::LazyDynamicInstance<
-      CodeEntry, IdleEntryCreateTrait>::type kIdleEntry;
-  V8_EXPORT_PRIVATE static base::LazyDynamicInstance<
-      CodeEntry, GCEntryCreateTrait>::type kGCEntry;
-  V8_EXPORT_PRIVATE static base::LazyDynamicInstance<
-      CodeEntry, UnresolvedEntryCreateTrait>::type kUnresolvedEntry;
-  V8_EXPORT_PRIVATE static base::LazyDynamicInstance<
-      CodeEntry, RootEntryCreateTrait>::type kRootEntry;
-
   using TagField = base::BitField<CodeEventListener::LogEventsAndTags, 0, 8>;
-  using BuiltinIdField = base::BitField<Builtins::Name, 8, 22>;
+  using BuiltinIdField = base::BitField<Builtins::Name, 8, 20>;
   static_assert(Builtins::builtin_count <= BuiltinIdField::kNumValues,
                 "builtin_count exceeds size of bitfield");
+  using CodeTypeField = base::BitField<CodeType, 28, 2>;
   using UsedField = base::BitField<bool, 30, 1>;
   using SharedCrossOriginField = base::BitField<bool, 31, 1>;
 
-  uint32_t bit_field_;
+  // Atomic because Used is written from the profiler thread while CodeType is
+  // read from the main thread.
+  std::atomic<std::uint32_t> bit_field_;
   const char* name_;
   const char* resource_name_;
   int line_number_;
@@ -358,8 +344,9 @@ class CpuProfile {
     int line;
   };
 
-  V8_EXPORT_PRIVATE CpuProfile(CpuProfiler* profiler, const char* title,
-                               CpuProfilingOptions options);
+  V8_EXPORT_PRIVATE CpuProfile(
+      CpuProfiler* profiler, const char* title, CpuProfilingOptions options,
+      std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
   CpuProfile(const CpuProfile&) = delete;
   CpuProfile& operator=(const CpuProfile&) = delete;
 
@@ -395,6 +382,7 @@ class CpuProfile {
 
   const char* title_;
   const CpuProfilingOptions options_;
+  std::unique_ptr<DiscardedSamplesDelegate> delegate_;
   base::TimeTicks start_time_;
   base::TimeTicks end_time_;
   std::deque<SampleInfo> samples_;
@@ -409,6 +397,18 @@ class CpuProfile {
   static std::atomic<uint32_t> last_id_;
 };
 
+class CpuProfileMaxSamplesCallbackTask : public v8::Task {
+ public:
+  CpuProfileMaxSamplesCallbackTask(
+      std::unique_ptr<DiscardedSamplesDelegate> delegate)
+      : delegate_(std::move(delegate)) {}
+
+  void Run() override { delegate_->Notify(); }
+
+ private:
+  std::unique_ptr<DiscardedSamplesDelegate> delegate_;
+};
+
 class V8_EXPORT_PRIVATE CodeMap {
  public:
   // Creates a new CodeMap with an associated StringsStorage to store the
@@ -420,6 +420,7 @@ class V8_EXPORT_PRIVATE CodeMap {
 
   void AddCode(Address addr, CodeEntry* entry, unsigned size);
   void MoveCode(Address from, Address to);
+  void ClearCodesInRange(Address start, Address end);
   CodeEntry* FindEntry(Address addr, Address* out_instruction_start = nullptr);
   void Print();
 
@@ -431,7 +432,6 @@ class V8_EXPORT_PRIVATE CodeMap {
     unsigned size;
   };
 
-  void ClearCodesInRange(Address start, Address end);
   void DeleteCodeEntry(CodeEntry*);
 
   std::map<Address, CodeEntryMapInfo> code_map_;
@@ -447,8 +447,9 @@ class V8_EXPORT_PRIVATE CpuProfilesCollection {
   CpuProfilesCollection& operator=(const CpuProfilesCollection&) = delete;
 
   void set_cpu_profiler(CpuProfiler* profiler) { profiler_ = profiler; }
-  CpuProfilingStatus StartProfiling(const char* title,
-                                    CpuProfilingOptions options = {});
+  CpuProfilingStatus StartProfiling(
+      const char* title, CpuProfilingOptions options = {},
+      std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
 
   CpuProfile* StopProfiling(const char* title);
   std::vector<std::unique_ptr<CpuProfile>>* profiles() {

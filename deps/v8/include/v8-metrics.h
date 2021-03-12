@@ -10,6 +10,58 @@
 namespace v8 {
 namespace metrics {
 
+struct GarbageCollectionPhases {
+  int64_t compact_wall_clock_duration_in_us = -1;
+  int64_t mark_wall_clock_duration_in_us = -1;
+  int64_t sweep_wall_clock_duration_in_us = -1;
+  int64_t weak_wall_clock_duration_in_us = -1;
+};
+
+struct GarbageCollectionSizes {
+  int64_t bytes_before = -1;
+  int64_t bytes_after = -1;
+  int64_t bytes_freed = -1;
+};
+
+struct GarbageCollectionFullCycle {
+  GarbageCollectionPhases total;
+  GarbageCollectionPhases total_cpp;
+  GarbageCollectionPhases main_thread;
+  GarbageCollectionPhases main_thread_cpp;
+  GarbageCollectionPhases main_thread_atomic;
+  GarbageCollectionPhases main_thread_atomic_cpp;
+  GarbageCollectionPhases main_thread_incremental;
+  GarbageCollectionPhases main_thread_incremental_cpp;
+  GarbageCollectionSizes objects;
+  GarbageCollectionSizes objects_cpp;
+  GarbageCollectionSizes memory;
+  GarbageCollectionSizes memory_cpp;
+  double collection_rate_in_percent;
+  double collection_rate_cpp_in_percent;
+  double efficiency_in_bytes_per_us;
+  double efficiency_cpp_in_bytes_per_us;
+  double main_thread_efficiency_in_bytes_per_us;
+  double main_thread_efficiency_cpp_in_bytes_per_us;
+};
+
+struct GarbageCollectionFullMainThreadIncrementalMark {
+  int64_t wall_clock_duration_in_us = -1;
+  int64_t cpp_wall_clock_duration_in_us = -1;
+};
+
+struct GarbageCollectionFullMainThreadIncrementalSweep {
+  int64_t wall_clock_duration_in_us = -1;
+  int64_t cpp_wall_clock_duration_in_us = -1;
+};
+
+struct GarbageCollectionYoungCycle {
+  int64_t total_wall_clock_duration_in_us = -1;
+  int64_t main_thread_wall_clock_duration_in_us = -1;
+  double collection_rate_in_percent;
+  double efficiency_in_bytes_per_us;
+  double main_thread_efficiency_in_bytes_per_us;
+};
+
 struct WasmModuleDecoded {
   bool async = false;
   bool streamed = false;
@@ -48,10 +100,14 @@ struct WasmModulesPerIsolate {
   size_t count = 0;
 };
 
-#define V8_MAIN_THREAD_METRICS_EVENTS(V) \
-  V(WasmModuleDecoded)                   \
-  V(WasmModuleCompiled)                  \
-  V(WasmModuleInstantiated)              \
+#define V8_MAIN_THREAD_METRICS_EVENTS(V)             \
+  V(GarbageCollectionFullCycle)                      \
+  V(GarbageCollectionFullMainThreadIncrementalMark)  \
+  V(GarbageCollectionFullMainThreadIncrementalSweep) \
+  V(GarbageCollectionYoungCycle)                     \
+  V(WasmModuleDecoded)                               \
+  V(WasmModuleCompiled)                              \
+  V(WasmModuleInstantiated)                          \
   V(WasmModuleTieredUp)
 
 #define V8_THREAD_SAFE_METRICS_EVENTS(V) V(WasmModulesPerIsolate)

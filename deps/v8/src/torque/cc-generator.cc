@@ -21,22 +21,6 @@ base::Optional<Stack<std::string>> CCGenerator::EmitGraph(
                           parameters.Peek(i));
   }
 
-  // C++ doesn't have parameterized labels like CSA, so we must pre-declare all
-  // phi values so they're in scope for both the blocks that define them and the
-  // blocks that read them.
-  for (Block* block : cfg_.blocks()) {
-    if (block->IsDead()) continue;
-
-    DCHECK_EQ(block->InputTypes().Size(), block->InputDefinitions().Size());
-    for (BottomOffset i = {0}; i < block->InputTypes().AboveTop(); ++i) {
-      DefinitionLocation input_def = block->InputDefinitions().Peek(i);
-      if (block->InputDefinitions().Peek(i).IsPhiFromBlock(block)) {
-        out() << "  " << block->InputTypes().Peek(i)->GetRuntimeType() << " "
-              << DefinitionToVariable(input_def) << ";\n";
-      }
-    }
-  }
-
   // Redirect the output of non-declarations into a buffer and only output
   // declarations right away.
   std::stringstream out_buffer;
@@ -74,8 +58,10 @@ Stack<std::string> CCGenerator::EmitBlock(const Block* block) {
     const auto& def = block->InputDefinitions().Peek(i);
     stack.Push(DefinitionToVariable(def));
     if (def.IsPhiFromBlock(block)) {
-      decls() << "  " << block->InputTypes().Peek(i)->GetRuntimeType() << " "
-              << stack.Top() << "{}; USE(" << stack.Top() << ");\n";
+      decls() << "  "
+              << (is_cc_debug_ ? block->InputTypes().Peek(i)->GetDebugType()
+                               : block->InputTypes().Peek(i)->GetRuntimeType())
+              << " " << stack.Top() << "{}; USE(" << stack.Top() << ");\n";
     }
   }
 
@@ -151,8 +137,10 @@ void CCGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
   for (std::size_t i = 0; i < lowered.size(); ++i) {
     results.push_back(DefinitionToVariable(instruction.GetValueDefinition(i)));
     stack->Push(results.back());
-    decls() << "  " << lowered[i]->GetRuntimeType() << " " << stack->Top()
-            << "{}; USE(" << stack->Top() << ");\n";
+    decls() << "  "
+            << (is_cc_debug_ ? lowered[i]->GetDebugType()
+                             : lowered[i]->GetRuntimeType())
+            << " " << stack->Top() << "{}; USE(" << stack->Top() << ");\n";
   }
 
   out() << "  ";
@@ -194,7 +182,16 @@ void CCGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
     if (return_type->IsConstexpr()) {
       ReportError("%FromConstexpr must return a non-constexpr type");
     }
-    // Nothing to do here; constexpr expressions are already valid C++.
+    if (return_type->IsSubtypeOf(TypeOracle::GetSmiType())) {
+      if (is_cc_debug_) {
+        out() << "Internals::IntToSmi";
+      } else {
+        out() << "Smi::FromInt";
+      }
+    }
+    // Wrap the raw constexpr value in a static_cast to ensure that
+    // enums get properly casted to their backing integral value.
+    out() << "(CastToUnderlyingTypeIfEnum";
   } else {
     ReportError("no built in intrinsic with name " +
                 instruction.intrinsic->ExternalName());
@@ -202,6 +199,9 @@ void CCGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
 
   out() << "(";
   PrintCommaSeparatedList(out(), args);
+  if (instruction.intrinsic->ExternalName() == "%FromConstexpr") {
+    out() << ")";
+  }
   out() << ");\n";
 }
 
@@ -220,35 +220,50 @@ void CCGenerator::EmitInstruction(const CallCsaMacroInstruction& instruction,
   for (std::size_t i = 0; i < lowered.size(); ++i) {
     results.push_back(DefinitionToVariable(instruction.GetValueDefinition(i)));
     stack->Push(results.back());
-    decls() << "  " << lowered[i]->GetRuntimeType() << " " << stack->Top()
-            << "{}; USE(" << stack->Top() << ");\n";
+    decls() << "  "
+            << (is_cc_debug_ ? lowered[i]->GetDebugType()
+                             : lowered[i]->GetRuntimeType())
+            << " " << stack->Top() << "{}; USE(" << stack->Top() << ");\n";
   }
 
   // We should have inlined any calls requiring complex control flow.
   CHECK(!instruction.catch_block);
-  out() << "  ";
+  out() << (is_cc_debug_ ? "  ASSIGN_OR_RETURN(" : "  ");
   if (return_type->StructSupertype().has_value()) {
     out() << "std::tie(";
     PrintCommaSeparatedList(out(), results);
-    out() << ") = ";
+    out() << (is_cc_debug_ ? "), " : ") = ");
   } else {
     if (results.size() == 1) {
-      out() << results[0] << " = ";
+      out() << results[0] << (is_cc_debug_ ? ", " : " = ");
     } else {
       DCHECK_EQ(0, results.size());
     }
   }
 
-  out() << instruction.macro->CCName() << "(isolate";
-  if (!args.empty()) out() << ", ";
+  if (is_cc_debug_) {
+    out() << instruction.macro->CCDebugName() << "(accessor";
+    if (!args.empty()) out() << ", ";
+  } else {
+    out() << instruction.macro->CCName() << "(";
+  }
   PrintCommaSeparatedList(out(), args);
-  out() << ");\n";
+  if (is_cc_debug_) {
+    out() << "));\n";
+  } else {
+    out() << ");\n";
+  }
 }
 
 void CCGenerator::EmitInstruction(
     const CallCsaMacroAndBranchInstruction& instruction,
     Stack<std::string>* stack) {
   ReportError("Not supported in C++ output: CallCsaMacroAndBranch");
+}
+
+void CCGenerator::EmitInstruction(const MakeLazyNodeInstruction& instruction,
+                                  Stack<std::string>* stack) {
+  ReportError("Not supported in C++ output: MakeLazyNode");
 }
 
 void CCGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
@@ -364,16 +379,44 @@ void CCGenerator::EmitInstruction(const LoadReferenceInstruction& instruction,
   std::string object = stack->Pop();
   stack->Push(result_name);
 
-  std::string result_type = instruction.type->GetRuntimeType();
-  decls() << "  " << result_type << " " << result_name << "{}; USE("
-          << result_name << ");\n";
-  out() << "  " << result_name << " = ";
-  if (instruction.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-    out() << "TaggedField<" << result_type << ">::load(isolate, " << object
-          << ", static_cast<int>(" << offset << "));\n";
+  if (!is_cc_debug_) {
+    std::string result_type = instruction.type->GetRuntimeType();
+    decls() << "  " << result_type << " " << result_name << "{}; USE("
+            << result_name << ");\n";
+    out() << "  " << result_name << " = ";
+    if (instruction.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+      // Currently, all of the tagged loads we emit are for smi values, so there
+      // is no point in providing an IsolateRoot. If at some point we start
+      // emitting loads for tagged fields which might be HeapObjects, then we
+      // should plumb an IsolateRoot through the generated functions that need
+      // it.
+      if (!instruction.type->IsSubtypeOf(TypeOracle::GetSmiType())) {
+        Error(
+            "Not supported in C++ output: LoadReference on non-smi tagged "
+            "value");
+      }
+
+      // References and slices can cause some values to have the Torque type
+      // HeapObject|TaggedZeroPattern, which is output as "Object". TaggedField
+      // requires HeapObject, so we need a cast.
+      out() << "TaggedField<" << result_type
+            << ">::load(*static_cast<HeapObject*>(&" << object
+            << "), static_cast<int>(" << offset << "));\n";
+    } else {
+      out() << "(" << object << ").ReadField<" << result_type << ">(" << offset
+            << ");\n";
+    }
   } else {
-    out() << "(" << object << ").ReadField<" << result_type << ">(" << offset
-          << ");\n";
+    std::string result_type = instruction.type->GetDebugType();
+    decls() << "  " << result_type << " " << result_name << "{}; USE("
+            << result_name << ");\n";
+    if (instruction.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+      out() << "  READ_TAGGED_FIELD_OR_FAIL(" << result_name << ", accessor, "
+            << object << ", static_cast<int>(" << offset << "));\n";
+    } else {
+      out() << "  READ_FIELD_OR_FAIL(" << result_type << ", " << result_name
+            << ", accessor, " << object << ", " << offset << ");\n";
+    }
   }
 }
 
@@ -411,13 +454,17 @@ void CCGenerator::EmitInstruction(const LoadBitFieldInstruction& instruction,
       Type::MatchUnaryGeneric(struct_type, TypeOracle::GetSmiTaggedGeneric());
   if (smi_tagged_type) {
     // Get the untagged value and its type.
-    bit_field_struct = bit_field_struct + ".value()";
+    if (is_cc_debug_) {
+      bit_field_struct = "Internals::SmiValue(" + bit_field_struct + ")";
+    } else {
+      bit_field_struct = bit_field_struct + ".value()";
+    }
     struct_type = *smi_tagged_type;
   }
 
-  out() << "  " << result_name << " = "
+  out() << "  " << result_name << " = CastToUnderlyingTypeIfEnum("
         << GetBitFieldSpecialization(struct_type, instruction.bit_field)
-        << "::decode(" << bit_field_struct << ");\n";
+        << "::decode(" << bit_field_struct << "));\n";
 }
 
 void CCGenerator::EmitInstruction(const StoreBitFieldInstruction& instruction,

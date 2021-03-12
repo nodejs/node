@@ -5,6 +5,7 @@
 #ifndef INCLUDE_CPPGC_EPHEMERON_PAIR_H_
 #define INCLUDE_CPPGC_EPHEMERON_PAIR_H_
 
+#include "cppgc/liveness-broker.h"
 #include "cppgc/member.h"
 
 namespace cppgc {
@@ -18,6 +19,10 @@ struct EphemeronPair {
   EphemeronPair(K* k, V* v) : key(k), value(v) {}
   WeakMember<K> key;
   Member<V> value;
+
+  void ClearValueIfKeyIsDead(const LivenessBroker& broker) {
+    if (!broker.IsHeapObjectAlive(key)) value = nullptr;
+  }
 };
 
 }  // namespace cppgc
