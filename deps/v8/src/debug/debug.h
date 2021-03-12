@@ -265,6 +265,9 @@ class V8_EXPORT_PRIVATE Debug {
   void SetBreakOnNextFunctionCall();
   void ClearBreakOnNextFunctionCall();
 
+  void DiscardBaselineCode(SharedFunctionInfo shared);
+  void DiscardAllBaselineCode();
+
   void DeoptimizeFunction(Handle<SharedFunctionInfo> shared);
   void PrepareFunctionForDebugExecution(Handle<SharedFunctionInfo> shared);
   void InstallDebugBreakTrampoline();

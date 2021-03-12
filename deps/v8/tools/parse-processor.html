@@ -78,6 +78,12 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     overflow: hidden;
     text-decoration: none;
     color: white;
+    transition: auto ease-in-out 0.8s;
+    max-width: 500px;
+  }
+  .script-size:hover {
+    max-width: 100000px !important;
+    transition: auto ease-in-out 0.8s;
   }
   .script-size.eval {
     background-color: #ee6300fc;
@@ -106,7 +112,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 <script src="https://www.gstatic.com/charts/loader.js"></script>
 <script type="module">
 
-import { ParseProcessor, kSecondsToMillis } from "./parse-processor.mjs";
+import { ParseProcessor, kSecondsToMillis, BYTES, PERCENT } from "./parse-processor.mjs";
 
 google.charts.load('current', {packages: ['corechart']});
 
@@ -231,10 +237,10 @@ function renderScriptSizes(parseProcessor) {
   let scriptsDiv = $('#scripts');
   parseProcessor.scripts.forEach(
     script => {
-      let scriptDiv = a('#script'+script.id, '', 'script-size');
+      let scriptDiv = a(`#script${script.id}`, '', 'script-size');
       let scriptId = div('script-details');
       scriptId.classList.add('id');
-      scriptId.innerText = script.id;
+      scriptId.innerText = `id=${script.id}`;
       scriptDiv.appendChild(scriptId);
       let scriptSize = div('script-details');
       scriptSize.innerText = BYTES(script.bytesTotal);
@@ -252,7 +258,7 @@ function renderScriptSizes(parseProcessor) {
         scriptDiv.classList.add('deserialized');
       }
       scriptDiv.appendChild(scriptUrl);
-      scriptDiv.style.width = script.bytesTotal * 0.001;
+      scriptDiv.style.maxWidth = `${script.bytesTotal * 0.001}px`;
       scriptsDiv.appendChild(scriptDiv);
     });
 }
@@ -262,19 +268,33 @@ const kMaxTime = 120 * kSecondsToMillis;
 const kTimeIncrement = 1;
 const kSelectionTimespan = 2;
 // TODO(cbruni): support compilation cache hit.
+class Series {
+  constructor(metricName, description, color, lineStyle, isArea=false) {
+    this.metricName = metricName;
+    this.description = description;
+    this.color = color;
+    this.lineStyle = lineStyle;
+    this.isArea = isArea;
+  }
+}
 const series = [
-    ['firstParseEvent', 'Any Parse', 'area'],
-    ['execution', '1st Exec', 'area'],
-    ['firstCompileEvent', 'Any Compile', 'area'],
-    ['compile', 'Eager Compile'],
-    ['lazyCompile', 'Lazy Compile'],
-    ['parse', 'Parsing'],
-    ['preparse', 'Preparse'],
-    ['resolution', 'Preparse with Var. Resolution'],
-    ['deserialization', 'Deserialization'],
-    ['optimization', 'Optimize'],
+    new Series('firstParseEvent', 'Any Parse', '#4D4D4D', undefined, true),
+    new Series('execution', '1st Exec', '#fff700',undefined, true),
+    new Series('firstCompileEvent', 'Any Compile', '#5DA5DA', undefined, true),
+
+    new Series('compile', 'Eager Compile', '#FAA43A'),
+    new Series('lazyCompile', 'Lazy Compile','#FAA43A', 'dash'),
+
+    new Series('parse', 'Parsing', '#F17CB0'),
+    new Series('preparse', 'Preparse', '#B2912F'),
+    new Series('resolution', 'Preparse with Var. Resolution', '#B276B2'),
+
+    new Series('deserialization', 'Deserialization', '#DECF3F'),
+
+    new Series('baseline', 'Baseline', '#606611', 'dash'),
+    new Series('optimize', 'Optimize', '#F15854'),
 ];
-const metricNames = series.map(each => each[0]);
+const metricNames = series.map(each => each.metricName);
 // Display cumulative values (useuful for bytes).
 const kCumulative = true;
 // Include durations in the graphs.
@@ -291,20 +311,18 @@ function appendGraph(script, parentNode, start, end) {
   // The series are interleave bytes processed, time spent and thus have two
   // different vAxes.
   let seriesOptions = [];
-  let colors = ['#4D4D4D', '#fff700', '#5DA5DA', '#FAA43A', '#60BD68',
-      '#F17CB0', '#B2912F', '#B276B2', '#DECF3F', '#F15854'];
-  series.forEach(([metric, description, type]) => {
-    let color = colors.shift();
+  series.forEach(series => {
     // Add the bytes column.
-    data.addColumn('number', description);
-    let options = {targetAxisIndex: 0, color: color};
-    if (type == 'area') options.type = 'area';
+    data.addColumn('number', series.description);
+    let options = {targetAxisIndex: 0, color: series.color};
+    if (series.isArea) options.type = 'area';
+    if (series.lineStyle === 'dash') options.lineDashStyle = [4, 4];
     seriesOptions.push(options)
     // Add the time column.
     if (kUseDuration) {
-      data.addColumn('number', description + ' Duration');
+      data.addColumn('number', series.description + ' Duration');
       seriesOptions.push(
-          {targetAxisIndex: 1, color: color, lineDashStyle: [3, 2]});
+          {targetAxisIndex: 1, color: series.color, lineDashStyle: [3, 2]});
     }
   });
 

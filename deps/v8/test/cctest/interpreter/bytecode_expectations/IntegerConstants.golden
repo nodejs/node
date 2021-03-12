@@ -27,10 +27,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 11
+bytecode array length: 10
 bytecodes: [
   /*   42 S> */ B(Wide), B(LdaSmi), I16(1234),
-                B(Star), R(0),
+                B(Star0),
   /*   48 S> */ B(Wide), B(LdaSmi), I16(5678),
   /*   60 S> */ B(Return),
 ]
@@ -45,10 +45,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 11
+bytecode array length: 10
 bytecodes: [
   /*   42 S> */ B(Wide), B(LdaSmi), I16(1234),
-                B(Star), R(0),
+                B(Star0),
   /*   48 S> */ B(Wide), B(LdaSmi), I16(1234),
   /*   60 S> */ B(Return),
 ]

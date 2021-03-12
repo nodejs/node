@@ -4,6 +4,7 @@
 
 #include "src/wasm/function-body-decoder.h"
 
+#include "src/codegen/assembler-inl.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles.h"
 #include "src/objects/objects-inl.h"
@@ -70,6 +71,8 @@ unsigned OpcodeLength(const byte* pc, const byte* end) {
                                               &no_features, no_sig, pc, end, 0);
   return WasmDecoder<Decoder::kNoValidation>::OpcodeLength(&decoder, pc);
 }
+
+bool CheckHardwareSupportsSimd() { return CpuFeatures::SupportsWasmSimd128(); }
 
 std::pair<uint32_t, uint32_t> StackEffect(const WasmModule* module,
                                           const FunctionSig* sig,

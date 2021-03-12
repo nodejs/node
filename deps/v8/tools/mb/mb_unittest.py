@@ -107,12 +107,12 @@ class FakeFile(object):
 
 TEST_CONFIG = """\
 {
-  'masters': {
+  'builder_groups': {
     'chromium': {},
-    'fake_master': {
+    'fake_builder_group': {
       'fake_builder': 'rel_bot',
       'fake_debug_builder': 'debug_goma',
-      'fake_args_bot': '//build/args/bots/fake_master/fake_args_bot.gn',
+      'fake_args_bot': '//build/args/bots/fake_builder_group/fake_args_bot.gn',
       'fake_multi_phase': { 'phase_1': 'phase_1', 'phase_2': 'phase_2'},
       'fake_args_file': 'args_file_goma',
       'fake_args_file_twice': 'args_file_twice',
@@ -155,7 +155,7 @@ TEST_CONFIG = """\
 
 TRYSERVER_CONFIG = """\
 {
-  'masters': {
+  'builder_groups': {
     'not_a_tryserver': {
       'fake_builder': 'fake_config',
     },
@@ -190,7 +190,7 @@ class UnitTest(unittest.TestCase):
         },
       }''')
     mbw.files.setdefault(
-        mbw.ToAbsPath('//build/args/bots/fake_master/fake_args_bot.gn'),
+        mbw.ToAbsPath('//build/args/bots/fake_builder_group/fake_args_bot.gn'),
         'is_debug = false\n')
     if files:
       for path, contents in files.items():
@@ -334,18 +334,18 @@ class UnitTest(unittest.TestCase):
                   '--check\n', mbw.out)
 
     mbw = self.fake_mbw()
-    self.check(['gen', '-m', 'fake_master', '-b', 'fake_args_bot',
+    self.check(['gen', '-m', 'fake_builder_group', '-b', 'fake_args_bot',
                 '//out/Debug'],
                mbw=mbw, ret=0)
     # TODO(almuthanna): disable test temporarily to
     #   solve this issue https://crbug.com/v8/11102
     # self.assertEqual(
     #     mbw.files['/fake_src/out/Debug/args.gn'],
-    #     'import("//build/args/bots/fake_master/fake_args_bot.gn")\n')
+    #     'import("//build/args/bots/fake_builder_group/fake_args_bot.gn")\n')
 
   def test_gen_args_file_mixins(self):
     mbw = self.fake_mbw()
-    self.check(['gen', '-m', 'fake_master', '-b', 'fake_args_file',
+    self.check(['gen', '-m', 'fake_builder_group', '-b', 'fake_args_file',
                 '//out/Debug'], mbw=mbw, ret=0)
 
     self.assertEqual(
@@ -354,7 +354,7 @@ class UnitTest(unittest.TestCase):
          'use_goma = true\n'))
 
     mbw = self.fake_mbw()
-    self.check(['gen', '-m', 'fake_master', '-b', 'fake_args_file_twice',
+    self.check(['gen', '-m', 'fake_builder_group', '-b', 'fake_args_file_twice',
                 '//out/Debug'], mbw=mbw, ret=1)
 
   def test_gen_fails(self):
@@ -582,26 +582,31 @@ class UnitTest(unittest.TestCase):
 
   def test_multiple_phases(self):
     # Check that not passing a --phase to a multi-phase builder fails.
-    mbw = self.check(['lookup', '-m', 'fake_master', '-b', 'fake_multi_phase'],
+    mbw = self.check(['lookup', '-m', 'fake_builder_group',
+                      '-b', 'fake_multi_phase'],
                      ret=1)
     self.assertIn('Must specify a build --phase', mbw.out)
 
     # Check that passing a --phase to a single-phase builder fails.
-    mbw = self.check(['lookup', '-m', 'fake_master', '-b', 'fake_builder',
+    mbw = self.check(['lookup', '-m', 'fake_builder_group',
+                      '-b', 'fake_builder',
                       '--phase', 'phase_1'], ret=1)
     self.assertIn('Must not specify a build --phase', mbw.out)
 
     # Check that passing a wrong phase key to a multi-phase builder fails.
-    mbw = self.check(['lookup', '-m', 'fake_master', '-b', 'fake_multi_phase',
+    mbw = self.check(['lookup', '-m', 'fake_builder_group',
+                      '-b', 'fake_multi_phase',
                       '--phase', 'wrong_phase'], ret=1)
     self.assertIn('Phase wrong_phase doesn\'t exist', mbw.out)
 
     # Check that passing a correct phase key to a multi-phase builder passes.
-    mbw = self.check(['lookup', '-m', 'fake_master', '-b', 'fake_multi_phase',
+    mbw = self.check(['lookup', '-m', 'fake_builder_group',
+                      '-b', 'fake_multi_phase',
                       '--phase', 'phase_1'], ret=0)
     self.assertIn('phase = 1', mbw.out)
 
-    mbw = self.check(['lookup', '-m', 'fake_master', '-b', 'fake_multi_phase',
+    mbw = self.check(['lookup', '-m', 'fake_builder_group',
+                      '-b', 'fake_multi_phase',
                       '--phase', 'phase_2'], ret=0)
     self.assertIn('phase = 2', mbw.out)
 
@@ -612,7 +617,7 @@ class UnitTest(unittest.TestCase):
           'enable_antidoom_banana = true\n'
         )
     }
-    self.check(['lookup', '-m', 'fake_master', '-b', 'fake_args_file',
+    self.check(['lookup', '-m', 'fake_builder_group', '-b', 'fake_args_file',
                 '--recursive'], files=files, ret=0,
                out=('enable_antidoom_banana = true\n'
                     'enable_doom_melon = true\n'
@@ -633,9 +638,9 @@ class UnitTest(unittest.TestCase):
                     '\tbuilder = luci_builder1\n'
                     '[bucket "luci.luci_tryserver2"]\n'
                     '\tbuilder = luci_builder2\n'
-                    '[bucket "master.tryserver.chromium.linux"]\n'
+                    '[bucket "builder_group.tryserver.chromium.linux"]\n'
                     '\tbuilder = try_builder\n'
-                    '[bucket "master.tryserver.chromium.mac"]\n'
+                    '[bucket "builder_group.tryserver.chromium.mac"]\n'
                     '\tbuilder = try_builder2\n'))
 
 

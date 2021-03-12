@@ -17,7 +17,7 @@ const int OSROptimizedCodeCache::kMaxLength;
 
 void OSROptimizedCodeCache::AddOptimizedCode(
     Handle<NativeContext> native_context, Handle<SharedFunctionInfo> shared,
-    Handle<Code> code, BailoutId osr_offset) {
+    Handle<Code> code, BytecodeOffset osr_offset) {
   DCHECK(!osr_offset.IsNone());
   DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
   STATIC_ASSERT(kEntryLength == 3);
@@ -91,7 +91,7 @@ void OSROptimizedCodeCache::Compact(Handle<NativeContext> native_context) {
 }
 
 Code OSROptimizedCodeCache::GetOptimizedCode(Handle<SharedFunctionInfo> shared,
-                                             BailoutId osr_offset,
+                                             BytecodeOffset osr_offset,
                                              Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   int index = FindEntry(shared, osr_offset);
@@ -157,21 +157,21 @@ SharedFunctionInfo OSROptimizedCodeCache::GetSFIFromEntry(int index) {
                              : SharedFunctionInfo::cast(sfi_entry);
 }
 
-BailoutId OSROptimizedCodeCache::GetBailoutIdFromEntry(int index) {
+BytecodeOffset OSROptimizedCodeCache::GetBytecodeOffsetFromEntry(int index) {
   DCHECK_LE(index + OSRCodeCacheConstants::kEntryLength, length());
   DCHECK_EQ(index % kEntryLength, 0);
   Smi osr_offset_entry;
   Get(index + kOsrIdOffset)->ToSmi(&osr_offset_entry);
-  return BailoutId(osr_offset_entry.value());
+  return BytecodeOffset(osr_offset_entry.value());
 }
 
 int OSROptimizedCodeCache::FindEntry(Handle<SharedFunctionInfo> shared,
-                                     BailoutId osr_offset) {
+                                     BytecodeOffset osr_offset) {
   DisallowGarbageCollection no_gc;
   DCHECK(!osr_offset.IsNone());
   for (int index = 0; index < length(); index += kEntryLength) {
     if (GetSFIFromEntry(index) != *shared) continue;
-    if (GetBailoutIdFromEntry(index) != osr_offset) continue;
+    if (GetBytecodeOffsetFromEntry(index) != osr_offset) continue;
     return index;
   }
   return -1;
@@ -188,7 +188,8 @@ void OSROptimizedCodeCache::ClearEntry(int index, Isolate* isolate) {
 
 void OSROptimizedCodeCache::InitializeEntry(int entry,
                                             SharedFunctionInfo shared,
-                                            Code code, BailoutId osr_offset) {
+                                            Code code,
+                                            BytecodeOffset osr_offset) {
   Set(entry + OSRCodeCacheConstants::kSharedOffset,
       HeapObjectReference::Weak(shared));
   Set(entry + OSRCodeCacheConstants::kCachedCodeOffset,

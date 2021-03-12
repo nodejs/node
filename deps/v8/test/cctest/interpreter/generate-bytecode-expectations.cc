@@ -467,7 +467,7 @@ bool WriteExpectationsFile(const std::vector<std::string>& snippet_list,
                            const std::string& output_filename) {
   std::ofstream output_file_handle;
   if (!options.write_to_stdout()) {
-    output_file_handle.open(output_filename.c_str());
+    output_file_handle.open(output_filename.c_str(), std::ios::binary);
     if (!output_file_handle.is_open()) {
       REPORT_ERROR("Could not open " << output_filename << " for writing.");
       return false;

@@ -214,6 +214,7 @@ enum ContextLookupFlags {
   V(REGEXP_PROTOTYPE_MAP_INDEX, Map, regexp_prototype_map)                     \
   V(REGEXP_REPLACE_FUNCTION_INDEX, JSFunction, regexp_replace_function)        \
   V(REGEXP_RESULT_MAP_INDEX, Map, regexp_result_map)                           \
+  V(REGEXP_RESULT_WITH_INDICES_MAP_INDEX, Map, regexp_result_with_indices_map) \
   V(REGEXP_RESULT_INDICES_MAP_INDEX, Map, regexp_result_indices_map)           \
   V(REGEXP_SEARCH_FUNCTION_INDEX, JSFunction, regexp_search_function)          \
   V(REGEXP_SPLIT_FUNCTION_INDEX, JSFunction, regexp_split_function)            \
@@ -236,6 +237,7 @@ enum ContextLookupFlags {
   V(SLOW_TEMPLATE_INSTANTIATIONS_CACHE_INDEX, SimpleNumberDictionary,          \
     slow_template_instantiations_cache)                                        \
   V(ATOMICS_WAITASYNC_PROMISES, OrderedHashSet, atomics_waitasync_promises)    \
+  V(WASM_DEBUG_MAPS, FixedArray, wasm_debug_maps)                              \
   /* Fast Path Protectors */                                                   \
   V(REGEXP_SPECIES_PROTECTOR_INDEX, PropertyCell, regexp_species_protector)    \
   /* All *_FUNCTION_MAP_INDEX definitions used by Context::FunctionMapIndex */ \
@@ -253,29 +255,14 @@ enum ContextLookupFlags {
   V(STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX, Map,                          \
     strict_function_without_prototype_map)                                     \
   V(METHOD_WITH_NAME_MAP_INDEX, Map, method_with_name_map)                     \
-  V(METHOD_WITH_HOME_OBJECT_MAP_INDEX, Map, method_with_home_object_map)       \
-  V(METHOD_WITH_NAME_AND_HOME_OBJECT_MAP_INDEX, Map,                           \
-    method_with_name_and_home_object_map)                                      \
   V(ASYNC_FUNCTION_MAP_INDEX, Map, async_function_map)                         \
   V(ASYNC_FUNCTION_WITH_NAME_MAP_INDEX, Map, async_function_with_name_map)     \
-  V(ASYNC_FUNCTION_WITH_HOME_OBJECT_MAP_INDEX, Map,                            \
-    async_function_with_home_object_map)                                       \
-  V(ASYNC_FUNCTION_WITH_NAME_AND_HOME_OBJECT_MAP_INDEX, Map,                   \
-    async_function_with_name_and_home_object_map)                              \
   V(GENERATOR_FUNCTION_MAP_INDEX, Map, generator_function_map)                 \
   V(GENERATOR_FUNCTION_WITH_NAME_MAP_INDEX, Map,                               \
     generator_function_with_name_map)                                          \
-  V(GENERATOR_FUNCTION_WITH_HOME_OBJECT_MAP_INDEX, Map,                        \
-    generator_function_with_home_object_map)                                   \
-  V(GENERATOR_FUNCTION_WITH_NAME_AND_HOME_OBJECT_MAP_INDEX, Map,               \
-    generator_function_with_name_and_home_object_map)                          \
   V(ASYNC_GENERATOR_FUNCTION_MAP_INDEX, Map, async_generator_function_map)     \
   V(ASYNC_GENERATOR_FUNCTION_WITH_NAME_MAP_INDEX, Map,                         \
     async_generator_function_with_name_map)                                    \
-  V(ASYNC_GENERATOR_FUNCTION_WITH_HOME_OBJECT_MAP_INDEX, Map,                  \
-    async_generator_function_with_home_object_map)                             \
-  V(ASYNC_GENERATOR_FUNCTION_WITH_NAME_AND_HOME_OBJECT_MAP_INDEX, Map,         \
-    async_generator_function_with_name_and_home_object_map)                    \
   V(CLASS_FUNCTION_MAP_INDEX, Map, class_function_map)                         \
   V(STRING_FUNCTION_INDEX, JSFunction, string_function)                        \
   V(STRING_FUNCTION_PROTOTYPE_MAP_INDEX, Map, string_function_prototype_map)   \
@@ -400,7 +387,7 @@ class ScriptContextTable : public FixedArray {
 // [ previous       ]  A pointer to the previous context.
 //
 // [ extension      ]  Additional data. This slot is only available when
-//                     extension_bit is set. Check using has_extension.
+//                     ScopeInfo::HasContextExtensionSlot returns true.
 //
 //                     For native contexts, it contains the global object.
 //                     For module contexts, it contains the module object.
@@ -486,7 +473,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
     SCOPE_INFO_INDEX,
     PREVIOUS_INDEX,
 
-    // This slot only exists if the extension_flag bit is set.
+    // This slot only exists if ScopeInfo::HasContextExtensionSlot returns true.
     EXTENSION_INDEX,
 
 // These slots are only in native contexts.
@@ -624,8 +611,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
                                bool* is_sloppy_function_name = nullptr);
 
   static inline int FunctionMapIndex(LanguageMode language_mode,
-                                     FunctionKind kind, bool has_shared_name,
-                                     bool needs_home_object);
+                                     FunctionKind kind, bool has_shared_name);
 
   static int ArrayMapIndex(ElementsKind elements_kind) {
     DCHECK(IsFastElementsKind(elements_kind));

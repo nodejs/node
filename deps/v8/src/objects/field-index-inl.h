@@ -39,7 +39,7 @@ FieldIndex FieldIndex::ForPropertyIndex(Map map, int property_index,
                     first_inobject_offset);
 }
 
-// Returns the index format accepted by the HLoadFieldByIndex instruction.
+// Returns the index format accepted by the LoadFieldByIndex instruction.
 // (In-object: zero-based from (object start + JSObject::kHeaderSize),
 // out-of-object: zero-based from FixedArray::kHeaderSize.)
 int FieldIndex::GetLoadByFieldIndex() const {

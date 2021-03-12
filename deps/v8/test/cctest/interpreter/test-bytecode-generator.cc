@@ -2592,10 +2592,6 @@ TEST(ClassDeclarations) {
 }
 
 TEST(ClassAndSuperClass) {
-  // Different bytecodes are generated with and without --future temporarily,
-  // see crbug.com/v8/9237 . TODO(marja): remove this hack once --super-ic is on
-  // by default.
-  FLAG_super_ic = false;
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
   printer.set_wrap(false);

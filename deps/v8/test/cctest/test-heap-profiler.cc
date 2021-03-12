@@ -4072,7 +4072,8 @@ TEST(WeakReference) {
           .Build();
   CHECK(code->IsCode());
 
-  fv->set_maybe_optimized_code(i::HeapObjectReference::Weak(*code));
+  fv->set_maybe_optimized_code(i::HeapObjectReference::Weak(*code),
+                               v8::kReleaseStore);
   fv->set_flags(i::FeedbackVector::OptimizationTierBits::encode(
                     i::OptimizationTier::kTopTier) |
                 i::FeedbackVector::OptimizationMarkerBits::encode(

@@ -6,6 +6,7 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/tnode.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 
@@ -18,6 +19,34 @@ TF_BUILTIN(ToNumber, CodeStubAssembler) {
   auto input = Parameter<Object>(Descriptor::kArgument);
 
   Return(ToNumber(context, input));
+}
+
+TF_BUILTIN(ToNumber_Baseline, CodeStubAssembler) {
+  auto input = Parameter<Object>(Descriptor::kArgument);
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  auto context = [this] { return LoadContextFromBaseline(); };
+
+  TVARIABLE(Smi, var_type_feedback);
+  TNode<Number> result = CAST(ToNumberOrNumeric(
+      context, input, &var_type_feedback, Object::Conversion::kToNumber));
+
+  auto feedback_vector = LoadFeedbackVectorFromBaseline();
+  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot);
+  Return(result);
+}
+
+TF_BUILTIN(ToNumeric_Baseline, CodeStubAssembler) {
+  auto input = Parameter<Object>(Descriptor::kArgument);
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  auto context = [this] { return LoadContextFromBaseline(); };
+
+  TVARIABLE(Smi, var_type_feedback);
+  TNode<Numeric> result = ToNumberOrNumeric(context, input, &var_type_feedback,
+                                            Object::Conversion::kToNumeric);
+
+  auto feedback_vector = LoadFeedbackVectorFromBaseline();
+  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot);
+  Return(result);
 }
 
 TF_BUILTIN(PlainPrimitiveToNumber, CodeStubAssembler) {

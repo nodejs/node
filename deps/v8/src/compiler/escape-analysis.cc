@@ -133,7 +133,7 @@ class VariableTracker {
     Maybe<Node*> Get(Variable var) {
       Node* node = current_state_.Get(var);
       if (node && node->opcode() == IrOpcode::kDead) {
-        // TODO(tebbi): We use {Dead} as a sentinel for uninitialized memory.
+        // TODO(turbofan): We use {Dead} as a sentinel for uninitialized memory.
         // Reading uninitialized memory can only happen in unreachable code. In
         // this case, we have to mark the object as escaping to avoid dead nodes
         // in the graph. This is a workaround that should be removed once we can
@@ -479,8 +479,8 @@ VariableTracker::State VariableTracker::MergeInputs(Node* effect_phi) {
             Node* phi = graph_->graph()->NewNode(
                 graph_->common()->Phi(MachineRepresentation::kTagged, arity),
                 arity + 1, &buffer_.front());
-            // TODO(tebbi): Computing precise types here is tricky, because of
-            // the necessary revisitations. If we really need this, we should
+            // TODO(turbofan): Computing precise types here is tricky, because
+            // of the necessary revisitations. If we really need this, we should
             // probably do it afterwards.
             NodeProperties::SetType(phi, Type::Any());
             reducer_->AddRoot(phi);
@@ -711,7 +711,7 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
       } else if (right_object && !right_object->HasEscaped()) {
         replacement = jsgraph->FalseConstant();
       }
-      // TODO(tebbi) This is a workaround for uninhabited types. If we
+      // TODO(turbofan) This is a workaround for uninhabited types. If we
       // replaced a value of uninhabited type with a constant, we would
       // widen the type of the node. This could produce inconsistent
       // types (which might confuse representation selection). We get

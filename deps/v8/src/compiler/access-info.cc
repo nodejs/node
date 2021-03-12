@@ -394,11 +394,9 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
                                                                   descriptor));
   } else if (details_representation.IsDouble()) {
     field_type = type_cache_->kFloat64;
-    if (!FLAG_unbox_double_fields) {
-      unrecorded_dependencies.push_back(
-          dependencies()->FieldRepresentationDependencyOffTheRecord(
-              map_ref, descriptor));
-    }
+    unrecorded_dependencies.push_back(
+        dependencies()->FieldRepresentationDependencyOffTheRecord(map_ref,
+                                                                  descriptor));
   } else if (details_representation.IsHeapObject()) {
     // Extract the field type from the property details (make sure its
     // representation is TaggedPointer to reflect the heap object case).
@@ -433,7 +431,8 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   PropertyConstness constness;
   if (details.IsReadOnly() && !details.IsConfigurable()) {
     constness = PropertyConstness::kConst;
-  } else if (broker()->is_turboprop() && !map->is_prototype_map()) {
+  } else if (broker()->is_turboprop() && !map->is_prototype_map() &&
+             !IsAnyStore(access_mode)) {
     // The constness feedback is too unstable for the aggresive compilation
     // of turboprop.
     constness = PropertyConstness::kMutable;
@@ -861,12 +860,10 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
             transition_map_ref, number));
   } else if (details_representation.IsDouble()) {
     field_type = type_cache_->kFloat64;
-    if (!FLAG_unbox_double_fields) {
-      transition_map_ref.SerializeOwnDescriptor(number);
-      unrecorded_dependencies.push_back(
-          dependencies()->FieldRepresentationDependencyOffTheRecord(
-              transition_map_ref, number));
-    }
+    transition_map_ref.SerializeOwnDescriptor(number);
+    unrecorded_dependencies.push_back(
+        dependencies()->FieldRepresentationDependencyOffTheRecord(
+            transition_map_ref, number));
   } else if (details_representation.IsHeapObject()) {
     // Extract the field type from the property details (make sure its
     // representation is TaggedPointer to reflect the heap object case).

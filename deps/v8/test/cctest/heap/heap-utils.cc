@@ -243,12 +243,6 @@ bool InCorrectGeneration(HeapObject object) {
                                 : i::Heap::InYoungGeneration(object);
 }
 
-void EnsureFlagLocalHeapsEnabled() {
-  // Avoid data race in concurrent thread by only setting the flag to true if
-  // not already enabled.
-  if (!FLAG_local_heaps) FLAG_local_heaps = true;
-}
-
 void GrowNewSpace(Heap* heap) {
   SafepointScope scope(heap);
   if (!heap->new_space()->IsAtMaximumCapacity()) {

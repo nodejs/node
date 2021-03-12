@@ -96,6 +96,8 @@ namespace internal {
 
 template <typename T>
 struct TraceTraitImpl<T, false> {
+  static_assert(IsGarbageCollectedTypeV<T>,
+                "T must be of type GarbageCollected or GarbageCollectedMixin");
   static TraceDescriptor GetTraceDescriptor(const void* self) {
     return {self, TraceTrait<T>::Trace};
   }

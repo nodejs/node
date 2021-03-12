@@ -22,6 +22,7 @@
 #include "src/objects/source-text-module.h"
 #include "src/objects/string-inl.h"
 #include "src/objects/string.h"
+#include "src/objects/swiss-name-dictionary-inl.h"
 #include "src/objects/template-objects-inl.h"
 
 namespace v8 {
@@ -385,6 +386,20 @@ FactoryBase<Impl>::NewArrayBoilerplateDescription(
 }
 
 template <typename Impl>
+Handle<RegExpBoilerplateDescription>
+FactoryBase<Impl>::NewRegExpBoilerplateDescription(Handle<FixedArray> data,
+                                                   Handle<String> source,
+                                                   Smi flags) {
+  Handle<RegExpBoilerplateDescription> result =
+      Handle<RegExpBoilerplateDescription>::cast(NewStruct(
+          REG_EXP_BOILERPLATE_DESCRIPTION_TYPE, AllocationType::kOld));
+  result->set_data(*data);
+  result->set_source(*source);
+  result->set_flags(flags.value());
+  return result;
+}
+
+template <typename Impl>
 Handle<TemplateObjectDescription>
 FactoryBase<Impl>::NewTemplateObjectDescription(
     Handle<FixedArray> raw_strings, Handle<FixedArray> cooked_strings) {
@@ -676,8 +691,11 @@ template <typename Impl>
 Handle<ScopeInfo> FactoryBase<Impl>::NewScopeInfo(int length,
                                                   AllocationType type) {
   DCHECK(type == AllocationType::kOld || type == AllocationType::kReadOnly);
-  return Handle<ScopeInfo>::cast(NewFixedArrayWithMap(
-      read_only_roots().scope_info_map_handle(), length, type));
+  Handle<HeapObject> result =
+      Handle<HeapObject>::cast(NewFixedArray(length, type));
+  result->set_map_after_allocation(*read_only_roots().scope_info_map_handle(),
+                                   SKIP_WRITE_BARRIER);
+  return Handle<ScopeInfo>::cast(result);
 }
 
 template <typename Impl>
@@ -829,6 +847,43 @@ template <typename Impl>
 HeapObject FactoryBase<Impl>::AllocateRaw(int size, AllocationType allocation,
                                           AllocationAlignment alignment) {
   return impl()->AllocateRaw(size, allocation, alignment);
+}
+
+template <typename Impl>
+Handle<SwissNameDictionary>
+FactoryBase<Impl>::NewSwissNameDictionaryWithCapacity(
+    int capacity, AllocationType allocation) {
+  DCHECK(SwissNameDictionary::IsValidCapacity(capacity));
+
+  if (capacity == 0) {
+    DCHECK_NE(read_only_roots().at(RootIndex::kEmptySwissPropertyDictionary),
+              kNullAddress);
+
+    return read_only_roots().empty_swiss_property_dictionary_handle();
+  }
+
+  if (capacity > SwissNameDictionary::MaxCapacity()) {
+    isolate()->FatalProcessOutOfHeapMemory("invalid table size");
+  }
+
+  int meta_table_length = SwissNameDictionary::MetaTableSizeFor(capacity);
+  Handle<ByteArray> meta_table =
+      impl()->NewByteArray(meta_table_length, allocation);
+
+  Map map = read_only_roots().swiss_name_dictionary_map();
+  int size = SwissNameDictionary::SizeFor(capacity);
+  HeapObject result = AllocateRawWithImmortalMap(size, allocation, map);
+  Handle<SwissNameDictionary> table(SwissNameDictionary::cast(result),
+                                    isolate());
+  table->Initialize(isolate(), *meta_table, capacity);
+  return table;
+}
+
+template <typename Impl>
+Handle<SwissNameDictionary> FactoryBase<Impl>::NewSwissNameDictionary(
+    int at_least_space_for, AllocationType allocation) {
+  return NewSwissNameDictionaryWithCapacity(
+      SwissNameDictionary::CapacityFor(at_least_space_for), allocation);
 }
 
 // Instantiate FactoryBase for the two variants we want.

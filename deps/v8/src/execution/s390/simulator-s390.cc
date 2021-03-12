@@ -778,20 +778,25 @@ void Simulator::EvalTableInit() {
   V(vuplh, VUPLH, 0xE7D5) /* type = VRR_A VECTOR UNPACK LOGICAL HIGH  */       \
   V(vupl, VUPL, 0xE7D6)   /* type = VRR_A VECTOR UNPACK LOW  */                \
   V(vuph, VUPH, 0xE7D7)   /* type = VRR_A VECTOR UNPACK HIGH  */               \
-  V(vmnl, VMNL, 0xE7FC)   /* type = VRR_C VECTOR MINIMUM LOGICAL  */           \
-  V(vmxl, VMXL, 0xE7FD)   /* type = VRR_C VECTOR MAXIMUM LOGICAL  */           \
-  V(vmn, VMN, 0xE7FE)     /* type = VRR_C VECTOR MINIMUM  */                   \
-  V(vmx, VMX, 0xE7FF)     /* type = VRR_C VECTOR MAXIMUM  */                   \
-  V(vceq, VCEQ, 0xE7F8)   /* type = VRR_B VECTOR COMPARE EQUAL  */             \
-  V(vx, VX, 0xE76D)       /* type = VRR_C VECTOR EXCLUSIVE OR  */              \
-  V(vchl, VCHL, 0xE7F9)   /* type = VRR_B VECTOR COMPARE HIGH LOGICAL  */      \
-  V(vch, VCH, 0xE7FB)     /* type = VRR_B VECTOR COMPARE HIGH  */              \
-  V(vo, VO, 0xE76A)       /* type = VRR_C VECTOR OR  */                        \
-  V(vn, VN, 0xE768)       /* type = VRR_C VECTOR AND  */                       \
-  V(vno, VNO, 0xE768B)    /* type = VRR_C VECTOR NOR  */                       \
-  V(vlc, VLC, 0xE7DE)     /* type = VRR_A VECTOR LOAD COMPLEMENT  */           \
-  V(vsel, VSEL, 0xE78D)   /* type = VRR_E VECTOR SELECT  */                    \
-  V(vperm, VPERM, 0xE78C) /* type = VRR_E VECTOR PERMUTE  */                   \
+  V(vpopct, VPOPCT, 0xE750) /* type = VRR_A VECTOR POPULATION COUNT  */        \
+  V(vcdg, VCDG, 0xE7C3)     /* VECTOR FP CONVERT FROM FIXED  */                \
+  V(vcdlg, VCDLG, 0xE7C1)   /* VECTOR FP CONVERT FROM LOGICAL  */              \
+  V(vcgd, VCGD, 0xE7C2)     /* VECTOR FP CONVERT TO FIXED */                   \
+  V(vclgd, VCLGD, 0xE7C0)   /* VECTOR FP CONVERT TO LOGICAL */                 \
+  V(vmnl, VMNL, 0xE7FC)     /* type = VRR_C VECTOR MINIMUM LOGICAL  */         \
+  V(vmxl, VMXL, 0xE7FD)     /* type = VRR_C VECTOR MAXIMUM LOGICAL  */         \
+  V(vmn, VMN, 0xE7FE)       /* type = VRR_C VECTOR MINIMUM  */                 \
+  V(vmx, VMX, 0xE7FF)       /* type = VRR_C VECTOR MAXIMUM  */                 \
+  V(vceq, VCEQ, 0xE7F8)     /* type = VRR_B VECTOR COMPARE EQUAL  */           \
+  V(vx, VX, 0xE76D)         /* type = VRR_C VECTOR EXCLUSIVE OR  */            \
+  V(vchl, VCHL, 0xE7F9)     /* type = VRR_B VECTOR COMPARE HIGH LOGICAL  */    \
+  V(vch, VCH, 0xE7FB)       /* type = VRR_B VECTOR COMPARE HIGH  */            \
+  V(vo, VO, 0xE76A)         /* type = VRR_C VECTOR OR  */                      \
+  V(vn, VN, 0xE768)         /* type = VRR_C VECTOR AND  */                     \
+  V(vno, VNO, 0xE768B)      /* type = VRR_C VECTOR NOR  */                     \
+  V(vlc, VLC, 0xE7DE)       /* type = VRR_A VECTOR LOAD COMPLEMENT  */         \
+  V(vsel, VSEL, 0xE78D)     /* type = VRR_E VECTOR SELECT  */                  \
+  V(vperm, VPERM, 0xE78C)   /* type = VRR_E VECTOR PERMUTE  */                 \
   V(vbperm, VBPERM, 0xE785) /* type = VRR_C VECTOR BIT PERMUTE   */            \
   V(vtm, VTM, 0xE7D8)       /* type = VRR_A VECTOR TEST UNDER MASK  */         \
   V(vesl, VESL, 0xE730)     /* type = VRS_A VECTOR ELEMENT SHIFT LEFT  */      \
@@ -1653,6 +1658,56 @@ T Simulator::get_high_register(int reg) const {
   if (reg >= kNumGPRs) return 0;
   // End stupid code.
   return static_cast<T>(registers_[reg] >> 32);
+}
+
+template <class T, class R>
+static R ComputeSignedRoundingResult(T a, T n) {
+  constexpr T NINF = -std::numeric_limits<T>::infinity();
+  constexpr T PINF = std::numeric_limits<T>::infinity();
+  constexpr long double MN =
+      static_cast<long double>(std::numeric_limits<R>::min());
+  constexpr long double MP =
+      static_cast<long double>(std::numeric_limits<R>::max());
+
+  if (NINF <= a && a < MN && n < MN) {
+    return std::numeric_limits<R>::min();
+  } else if (NINF < a && a < MN && n == MN) {
+    return std::numeric_limits<R>::min();
+  } else if (MN <= a && a < 0.0) {
+    return static_cast<R>(n);
+  } else if (a == 0.0) {
+    return 0;
+  } else if (0.0 < a && a <= MP) {
+    return static_cast<R>(n);
+  } else if (MP < a && a <= PINF && n == MP) {
+    return std::numeric_limits<R>::max();
+  } else if (MP < a && a <= PINF && n > MP) {
+    return std::numeric_limits<R>::max();
+  } else if (std::isnan(a)) {
+    return std::numeric_limits<R>::min();
+  }
+  UNIMPLEMENTED();
+  return 0;
+}
+
+template <class T, class R>
+static R ComputeLogicalRoundingResult(T a, T n) {
+  constexpr T NINF = -std::numeric_limits<T>::infinity();
+  constexpr T PINF = std::numeric_limits<T>::infinity();
+  constexpr long double MP =
+      static_cast<long double>(std::numeric_limits<R>::max());
+
+  if (NINF <= a && a <= 0.0) {
+    return 0;
+  } else if (0.0 < a && a <= MP) {
+    return static_cast<R>(n);
+  } else if (MP < a && a <= PINF) {
+    return std::numeric_limits<R>::max();
+  } else if (std::isnan(a)) {
+    return 0;
+  }
+  UNIMPLEMENTED();
+  return 0;
 }
 
 void Simulator::set_low_register(int reg, uint32_t value) {
@@ -3418,11 +3473,10 @@ EVALUATE(VPKLS) {
 template <class S, class D>
 void VectorUnpackHigh(Simulator* sim, int dst, int src) {
   constexpr size_t kItemCount = kSimd128Size / sizeof(D);
-  D value = 0;
-  for (size_t i = 0; i < kItemCount; i++) {
-    value = sim->get_simd_register_by_lane<S>(src, i + kItemCount);
-    sim->set_simd_register_by_lane<D>(dst, i, value);
-  }
+  D temps[kItemCount] = {0};
+  // About overwriting if src and dst are the same register.
+  FOR_EACH_LANE(i, D) { temps[i] = sim->get_simd_register_by_lane<S>(src, i); }
+  FOR_EACH_LANE(i, D) { sim->set_simd_register_by_lane<D>(dst, i, temps[i]); }
 }
 
 #define CASE(i, S, D)                     \
@@ -3461,13 +3515,121 @@ EVALUATE(VUPLH) {
 }
 #undef CASE
 
+template <class S>
+void VectorPopulationCount(Simulator* sim, int dst, int src) {
+  FOR_EACH_LANE(i, S) {
+    sim->set_simd_register_by_lane<S>(
+        dst, i,
+        base::bits::CountPopulation(sim->get_simd_register_by_lane<S>(src, i)));
+  }
+}
+
+#define CASE(i, S)                          \
+  case i:                                   \
+    VectorPopulationCount<S>(this, r1, r2); \
+    break;
+EVALUATE(VPOPCT) {
+  DCHECK_OPCODE(VPOPCT);
+  DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
+  USE(m5);
+  USE(m4);
+  switch (m3) {
+    CASE(0, uint8_t);
+    default:
+      UNREACHABLE();
+  }
+  return length;
+}
+#undef CASE
+
+#define CASE(i, S, D)                                                          \
+  case i: {                                                                    \
+    FOR_EACH_LANE(index, S) {                                                  \
+      set_simd_register_by_lane<D>(                                            \
+          r1, index, static_cast<D>(get_simd_register_by_lane<S>(r2, index))); \
+    }                                                                          \
+    break;                                                                     \
+  }
+EVALUATE(VCDG) {
+  DCHECK_OPCODE(VCDG);
+  DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
+  USE(m4);
+  USE(m5);
+  switch (m3) {
+    CASE(2, int32_t, float);
+    CASE(3, int64_t, double);
+    default:
+      UNREACHABLE();
+  }
+  return length;
+}
+
+EVALUATE(VCDLG) {
+  DCHECK_OPCODE(VCDLG);
+  DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
+  USE(m4);
+  USE(m5);
+  switch (m3) {
+    CASE(2, uint32_t, float);
+    CASE(3, uint64_t, double);
+    default:
+      UNREACHABLE();
+  }
+  return length;
+}
+#undef CASE
+
+#define CASE(i, S, D, type)                                           \
+  case i: {                                                           \
+    FOR_EACH_LANE(index, S) {                                         \
+      S a = get_simd_register_by_lane<S>(r2, index);                  \
+      S n = ComputeRounding<S>(a, m5);                                \
+      set_simd_register_by_lane<D>(                                   \
+          r1, index,                                                  \
+          static_cast<D>(Compute##type##RoundingResult<S, D>(a, n))); \
+    }                                                                 \
+    break;                                                            \
+  }
+EVALUATE(VCGD) {
+  DCHECK_OPCODE(VCDG);
+  DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
+  USE(m4);
+  switch (m3) {
+    CASE(2, float, int32_t, Signed);
+    CASE(3, double, int64_t, Signed);
+    default:
+      UNREACHABLE();
+  }
+  return length;
+}
+
+EVALUATE(VCLGD) {
+  DCHECK_OPCODE(VCLGD);
+  DECODE_VRR_A_INSTRUCTION(r1, r2, m5, m4, m3);
+  USE(m4);
+  switch (m3) {
+    CASE(2, float, uint32_t, Logical);
+    CASE(3, double, uint64_t, Logical);
+    default:
+      UNREACHABLE();
+  }
+  return length;
+}
+#undef CASE
+
 template <class S, class D>
 void VectorUnpackLow(Simulator* sim, int dst, int src) {
   constexpr size_t kItemCount = kSimd128Size / sizeof(D);
   D temps[kItemCount] = {0};
   // About overwriting if src and dst are the same register.
-  FOR_EACH_LANE(i, D) { temps[i] = sim->get_simd_register_by_lane<S>(src, i); }
-  FOR_EACH_LANE(i, D) { sim->set_simd_register_by_lane<D>(dst, i, temps[i]); }
+  // Using the "false" argument here to make sure we use the "Low" side of the
+  // Simd register, being simulated by the LSB in memory.
+  FOR_EACH_LANE(i, D) {
+    temps[i] = sim->get_simd_register_by_lane<S>(src, i, false);
+  }
+  FOR_EACH_LANE(i, D) {
+    sim->set_simd_register_by_lane<D>(dst, i, temps[i], false);
+  }
 }
 
 #define CASE(i, S, D)                    \
@@ -3714,6 +3876,7 @@ EVALUATE(VPERM) {
   DECODE_VRR_E_INSTRUCTION(r1, r2, r3, r4, m6, m5);
   USE(m5);
   USE(m6);
+  int8_t temp[kSimd128Size] = {0};
   for (int i = 0; i < kSimd128Size; i++) {
     int8_t lane_num = get_simd_register_by_lane<int8_t>(r4, i);
     // Get the five least significant bits.
@@ -3723,8 +3886,10 @@ EVALUATE(VPERM) {
       lane_num = lane_num - kSimd128Size;
       reg = r3;
     }
-    int8_t result = get_simd_register_by_lane<int8_t>(reg, lane_num);
-    set_simd_register_by_lane<int8_t>(r1, i, result);
+    temp[i] = get_simd_register_by_lane<int8_t>(reg, lane_num);
+  }
+  for (int i = 0; i < kSimd128Size; i++) {
+    set_simd_register_by_lane<int8_t>(r1, i, temp[i]);
   }
   return length;
 }
@@ -5382,11 +5547,13 @@ EVALUATE(SRL) {
   DCHECK_OPCODE(SRL);
   DECODE_RS_A_INSTRUCTION_NO_R3(r1, b2, d2);
   // only takes rightmost 6bits
-  int64_t b2_val = b2 == 0 ? 0 : get_register(b2);
-  int shiftBits = (b2_val + d2) & 0x3F;
+  uint32_t b2_val = b2 == 0 ? 0 : get_low_register<uint32_t>(b2);
+  uint32_t shiftBits = (b2_val + d2) & 0x3F;
   uint32_t r1_val = get_low_register<uint32_t>(r1);
   uint32_t alu_out = 0;
-  alu_out = r1_val >> shiftBits;
+  if (shiftBits < 32u) {
+    alu_out = r1_val >> shiftBits;
+  }
   set_low_register(r1, alu_out);
   return length;
 }
@@ -5395,11 +5562,13 @@ EVALUATE(SLL) {
   DCHECK_OPCODE(SLL);
   DECODE_RS_A_INSTRUCTION_NO_R3(r1, b2, d2)
   // only takes rightmost 6bits
-  int64_t b2_val = b2 == 0 ? 0 : get_register(b2);
-  int shiftBits = (b2_val + d2) & 0x3F;
+  uint32_t b2_val = b2 == 0 ? 0 : get_low_register<uint32_t>(b2);
+  uint32_t shiftBits = (b2_val + d2) & 0x3F;
   uint32_t r1_val = get_low_register<uint32_t>(r1);
   uint32_t alu_out = 0;
-  alu_out = r1_val << shiftBits;
+  if (shiftBits < 32u) {
+    alu_out = r1_val << shiftBits;
+  }
   set_low_register(r1, alu_out);
   return length;
 }
@@ -5411,9 +5580,11 @@ EVALUATE(SRA) {
   int64_t b2_val = b2 == 0 ? 0 : get_register(b2);
   int shiftBits = (b2_val + d2) & 0x3F;
   int32_t r1_val = get_low_register<int32_t>(r1);
-  int32_t alu_out = 0;
+  int32_t alu_out = -1;
   bool isOF = false;
-  alu_out = r1_val >> shiftBits;
+  if (shiftBits < 32) {
+    alu_out = r1_val >> shiftBits;
+  }
   set_low_register(r1, alu_out);
   SetS390ConditionCode<int32_t>(alu_out, 0);
   SetS390OverflowCode(isOF);
@@ -5430,7 +5601,9 @@ EVALUATE(SLA) {
   int32_t alu_out = 0;
   bool isOF = false;
   isOF = CheckOverflowForShiftLeft(r1_val, shiftBits);
-  alu_out = r1_val << shiftBits;
+  if (shiftBits < 32) {
+    alu_out = r1_val << shiftBits;
+  }
   set_low_register(r1, alu_out);
   SetS390ConditionCode<int32_t>(alu_out, 0);
   SetS390OverflowCode(isOF);
@@ -7411,36 +7584,6 @@ static int ComputeSignedRoundingConditionCode(T a, T n) {
   return 0;
 }
 
-template <class T, class R>
-static R ComputeSignedRoundingResult(T a, T n) {
-  constexpr T NINF = -std::numeric_limits<T>::infinity();
-  constexpr T PINF = std::numeric_limits<T>::infinity();
-  constexpr long double MN =
-      static_cast<long double>(std::numeric_limits<R>::min());
-  constexpr long double MP =
-      static_cast<long double>(std::numeric_limits<R>::max());
-
-  if (NINF <= a && a < MN && n < MN) {
-    return std::numeric_limits<R>::min();
-  } else if (NINF < a && a < MN && n == MN) {
-    return std::numeric_limits<R>::min();
-  } else if (MN <= a && a < 0.0) {
-    return static_cast<R>(n);
-  } else if (a == 0.0) {
-    return 0;
-  } else if (0.0 < a && a <= MP) {
-    return static_cast<R>(n);
-  } else if (MP < a && a <= PINF && n == MP) {
-    return std::numeric_limits<R>::max();
-  } else if (MP < a && a <= PINF && n > MP) {
-    return std::numeric_limits<R>::max();
-  } else if (std::isnan(a)) {
-    return std::numeric_limits<R>::min();
-  }
-  UNIMPLEMENTED();
-  return 0;
-}
-
 EVALUATE(CFDBRA) {
   DCHECK_OPCODE(CFDBRA);
   DECODE_RRF_E_INSTRUCTION(r1, r2, m3, m4);
@@ -7526,26 +7669,6 @@ static int ComputeLogicalRoundingConditionCode(T a, T n) {
     return n == MP ? 0x2 : 0x1;
   } else if (std::isnan(a)) {
     return 0x1;
-  }
-  UNIMPLEMENTED();
-  return 0;
-}
-
-template <class T, class R>
-static R ComputeLogicalRoundingResult(T a, T n) {
-  constexpr T NINF = -std::numeric_limits<T>::infinity();
-  constexpr T PINF = std::numeric_limits<T>::infinity();
-  constexpr long double MP =
-      static_cast<long double>(std::numeric_limits<R>::max());
-
-  if (NINF <= a && a <= 0.0) {
-    return 0;
-  } else if (0.0 < a && a <= MP) {
-    return static_cast<R>(n);
-  } else if (MP < a && a <= PINF) {
-    return std::numeric_limits<R>::max();
-  } else if (std::isnan(a)) {
-    return 0;
   }
   UNIMPLEMENTED();
   return 0;
@@ -10418,9 +10541,11 @@ EVALUATE(SRAK) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int shiftBits = (b2_val + d2) & 0x3F;
   int32_t r3_val = get_low_register<int32_t>(r3);
-  int32_t alu_out = 0;
+  int32_t alu_out = -1;
   bool isOF = false;
-  alu_out = r3_val >> shiftBits;
+  if (shiftBits < 32) {
+    alu_out = r3_val >> shiftBits;
+  }
   set_low_register(r1, alu_out);
   SetS390ConditionCode<int32_t>(alu_out, 0);
   SetS390OverflowCode(isOF);
@@ -10438,7 +10563,9 @@ EVALUATE(SLAK) {
   int32_t alu_out = 0;
   bool isOF = false;
   isOF = CheckOverflowForShiftLeft(r3_val, shiftBits);
-  alu_out = r3_val << shiftBits;
+  if (shiftBits < 32) {
+    alu_out = r3_val << shiftBits;
+  }
   set_low_register(r1, alu_out);
   SetS390ConditionCode<int32_t>(alu_out, 0);
   SetS390OverflowCode(isOF);
@@ -10454,12 +10581,14 @@ EVALUATE(SRLK) {
   // unchanged in general register R3.
   DECODE_RSY_A_INSTRUCTION(r1, r3, b2, d2);
   // only takes rightmost 6 bits
-  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
-  int shiftBits = (b2_val + d2) & 0x3F;
+  uint32_t b2_val = b2 == 0 ? 0 : get_low_register<uint32_t>(b2);
+  uint32_t shiftBits = (b2_val + d2) & 0x3F;
   // unsigned
   uint32_t r3_val = get_low_register<uint32_t>(r3);
   uint32_t alu_out = 0;
-  alu_out = r3_val >> shiftBits;
+  if (shiftBits < 32u) {
+    alu_out = r3_val >> shiftBits;
+  }
   set_low_register(r1, alu_out);
   return length;
 }
@@ -10473,12 +10602,14 @@ EVALUATE(SLLK) {
   // unchanged in general register R3.
   DECODE_RSY_A_INSTRUCTION(r1, r3, b2, d2);
   // only takes rightmost 6 bits
-  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
-  int shiftBits = (b2_val + d2) & 0x3F;
+  uint32_t b2_val = b2 == 0 ? 0 : get_low_register<uint32_t>(b2);
+  uint32_t shiftBits = (b2_val + d2) & 0x3F;
   // unsigned
   uint32_t r3_val = get_low_register<uint32_t>(r3);
   uint32_t alu_out = 0;
-  alu_out = r3_val << shiftBits;
+  if (shiftBits < 32u) {
+    alu_out = r3_val << shiftBits;
+  }
   set_low_register(r1, alu_out);
   return length;
 }

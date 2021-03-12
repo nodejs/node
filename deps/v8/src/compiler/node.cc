@@ -499,3 +499,7 @@ bool Node::Uses::empty() const { return begin() == end(); }
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
+
+V8_EXPORT_PRIVATE extern void _v8_internal_Node_Print(void* object) {
+  reinterpret_cast<i::compiler::Node*>(object)->Print();
+}

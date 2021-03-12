@@ -16,10 +16,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 10
+bytecode array length: 9
 bytecodes: [
   /*   39 S> */ B(LdaGlobal), U8(0), U8(0),
-                B(Star), R(0),
+                B(Star0),
                 B(LdaConstant), U8(1),
                 B(DeletePropertySloppy), R(0),
   /*   57 S> */ B(Return),
@@ -42,10 +42,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 10
+bytecode array length: 9
 bytecodes: [
   /*   51 S> */ B(LdaGlobal), U8(0), U8(0),
-                B(Star), R(0),
+                B(Star0),
                 B(LdaSmi), I8(1),
                 B(DeletePropertyStrict), R(0),
   /*   70 S> */ B(Return),
@@ -66,10 +66,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 10
+bytecode array length: 9
 bytecodes: [
   /*   39 S> */ B(LdaConstant), U8(0),
-                B(Star), R(0),
+                B(Star0),
                 B(CallRuntime), U16(Runtime::kDeleteLookupSlot), R(0), U8(1),
   /*   55 S> */ B(Return),
 ]
@@ -89,10 +89,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 10
+bytecode array length: 9
 bytecodes: [
   /*   25 S> */ B(LdaConstant), U8(0),
-                B(Star), R(0),
+                B(Star0),
                 B(CallRuntime), U16(Runtime::kDeleteLookupSlot), R(0), U8(1),
   /*   41 S> */ B(Return),
 ]

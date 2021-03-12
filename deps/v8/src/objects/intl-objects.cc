@@ -617,15 +617,15 @@ MaybeHandle<Object> Intl::LegacyUnwrapReceiver(Isolate* isolate,
                                                Handle<JSReceiver> receiver,
                                                Handle<JSFunction> constructor,
                                                bool has_initialized_slot) {
-  Handle<Object> obj_is_instance_of;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, obj_is_instance_of,
-                             Object::InstanceOf(isolate, receiver, constructor),
-                             Object);
-  bool is_instance_of = obj_is_instance_of->BooleanValue(isolate);
+  Handle<Object> obj_ordinary_has_instance;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, obj_ordinary_has_instance,
+      Object::OrdinaryHasInstance(isolate, constructor, receiver), Object);
+  bool ordinary_has_instance = obj_ordinary_has_instance->BooleanValue(isolate);
 
   // 2. If receiver does not have an [[Initialized...]] internal slot
-  //    and ? InstanceofOperator(receiver, constructor) is true, then
-  if (!has_initialized_slot && is_instance_of) {
+  //    and ? OrdinaryHasInstance(constructor, receiver) is true, then
+  if (!has_initialized_slot && ordinary_has_instance) {
     // 2. a. Let new_receiver be ? Get(receiver, %Intl%.[[FallbackSymbol]]).
     Handle<Object> new_receiver;
     ASSIGN_RETURN_ON_EXCEPTION(

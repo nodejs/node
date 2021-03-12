@@ -29,6 +29,9 @@ namespace {
 // MIPS64 has a user space of 2^40 bytes on most processors,
 // address space limits needs to be smaller.
 constexpr size_t kAddressSpaceLimit = 0x8000000000L;  // 512 GiB
+#elif V8_TARGET_ARCH_RISCV64
+// RISC-V64 has a user space of 256GB on the Sv39 scheme.
+constexpr size_t kAddressSpaceLimit = 0x4000000000L;  // 256 GiB
 #elif V8_TARGET_ARCH_64_BIT
 constexpr size_t kAddressSpaceLimit = 0x10100000000L;  // 1 TiB + 4 GiB
 #else

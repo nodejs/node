@@ -56,11 +56,11 @@ enum LiftoffBailoutReason : int8_t {
 V8_EXPORT_PRIVATE WasmCompilationResult ExecuteLiftoffCompilation(
     AccountingAllocator*, CompilationEnv*, const FunctionBody&, int func_index,
     ForDebugging, Counters*, WasmFeatures* detected_features,
-    Vector<int> breakpoints = {}, std::unique_ptr<DebugSideTable>* = nullptr,
-    int dead_breakpoint = 0);
+    Vector<const int> breakpoints = {},
+    std::unique_ptr<DebugSideTable>* = nullptr, int dead_breakpoint = 0);
 
 V8_EXPORT_PRIVATE std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
-    AccountingAllocator*, CompilationEnv*, const FunctionBody&, int func_index);
+    const WasmCode*);
 
 }  // namespace wasm
 }  // namespace internal

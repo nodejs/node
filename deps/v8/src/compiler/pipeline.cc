@@ -60,6 +60,7 @@
 #include "src/compiler/machine-graph-verifier.h"
 #include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/memory-optimizer.h"
+#include "src/compiler/node-observer.h"
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/osr.h"
 #include "src/compiler/pipeline-statistics.h"
@@ -174,6 +175,10 @@ class PipelineData {
     javascript_ = graph_zone_->New<JSOperatorBuilder>(graph_zone_);
     jsgraph_ = graph_zone_->New<JSGraph>(isolate_, graph_, common_, javascript_,
                                          simplified_, machine_);
+    observe_node_manager_ =
+        info->node_observer()
+            ? graph_zone_->New<ObserveNodeManager>(graph_zone_)
+            : nullptr;
     dependencies_ =
         info_->zone()->New<CompilationDependencies>(broker_, info_->zone());
   }
@@ -345,6 +350,10 @@ class PipelineData {
     schedule_ = schedule;
   }
   void reset_schedule() { schedule_ = nullptr; }
+
+  ObserveNodeManager* observe_node_manager() const {
+    return observe_node_manager_;
+  }
 
   Zone* instruction_zone() const { return instruction_zone_; }
   Zone* codegen_zone() const { return codegen_zone_; }
@@ -567,6 +576,12 @@ class PipelineData {
     runtime_call_stats_ = stats;
   }
 
+  // Used to skip the "wasm-inlining" phase when there are no JS-to-Wasm calls.
+  bool has_js_wasm_calls() const { return has_js_wasm_calls_; }
+  void set_has_js_wasm_calls(bool has_js_wasm_calls) {
+    has_js_wasm_calls_ = has_js_wasm_calls;
+  }
+
  private:
   Isolate* const isolate_;
   wasm::WasmEngine* const wasm_engine_ = nullptr;
@@ -600,6 +615,7 @@ class PipelineData {
   JSGraph* jsgraph_ = nullptr;
   MachineGraph* mcgraph_ = nullptr;
   Schedule* schedule_ = nullptr;
+  ObserveNodeManager* observe_node_manager_ = nullptr;
 
   // All objects in the following group of fields are allocated in
   // instruction_zone_. They are all set to nullptr when the instruction_zone_
@@ -639,6 +655,8 @@ class PipelineData {
 
   RuntimeCallStats* runtime_call_stats_ = nullptr;
   const ProfileDataFromFile* profile_data_ = nullptr;
+
+  bool has_js_wasm_calls_ = false;
 };
 
 class PipelineImpl final {
@@ -693,6 +711,8 @@ class PipelineImpl final {
   Isolate* isolate() const;
   CodeGenerator* code_generator() const;
 
+  ObserveNodeManager* observe_node_manager() const;
+
  private:
   PipelineData* const data_;
 };
@@ -712,7 +732,7 @@ class SourcePositionWrapper final : public Reducer {
   Reduction Reduce(Node* node) final {
     SourcePosition const pos = table_->GetSourcePosition(node);
     SourcePositionTable::Scope position(table_, pos);
-    return reducer_->Reduce(node);
+    return reducer_->Reduce(node, nullptr);
   }
 
   void Finalize() final { reducer_->Finalize(); }
@@ -734,7 +754,7 @@ class NodeOriginsWrapper final : public Reducer {
 
   Reduction Reduce(Node* node) final {
     NodeOriginTable::Scope position(table_, reducer_name(), node);
-    return reducer_->Reduce(node);
+    return reducer_->Reduce(node, nullptr);
   }
 
   void Finalize() final { reducer_->Finalize(); }
@@ -1029,7 +1049,7 @@ class PipelineCompilationJob final : public OptimizedCompilationJob {
  public:
   PipelineCompilationJob(Isolate* isolate,
                          Handle<SharedFunctionInfo> shared_info,
-                         Handle<JSFunction> function, BailoutId osr_offset,
+                         Handle<JSFunction> function, BytecodeOffset osr_offset,
                          JavaScriptFrame* osr_frame, CodeKind code_kind);
   ~PipelineCompilationJob() final;
   PipelineCompilationJob(const PipelineCompilationJob&) = delete;
@@ -1067,7 +1087,7 @@ bool ShouldUseConcurrentInlining(CodeKind code_kind, bool is_osr) {
 
 PipelineCompilationJob::PipelineCompilationJob(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
-    Handle<JSFunction> function, BailoutId osr_offset,
+    Handle<JSFunction> function, BytecodeOffset osr_offset,
     JavaScriptFrame* osr_frame, CodeKind code_kind)
     // Note that the OptimizedCompilationInfo is not initialized at the time
     // we pass it to the CompilationJob constructor, but it is not
@@ -1181,6 +1201,10 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
       CHECK(!isolate->has_pending_exception());
       return AbortOptimization(BailoutReason::kGraphBuildingFailed);
     }
+  }
+
+  if (FLAG_turbo_direct_heap_access) {
+    isolate->heap()->PublishPendingAllocations();
   }
 
   return SUCCEEDED;
@@ -1422,7 +1446,9 @@ struct GraphBuilderPhase {
         closure.raw_feedback_cell(), data->info()->osr_offset(),
         data->jsgraph(), frequency, data->source_positions(),
         SourcePosition::kNotInlined, data->info()->code_kind(), flags,
-        &data->info()->tick_counter());
+        &data->info()->tick_counter(),
+        ObserveNodeInfo{data->observe_node_manager(),
+                        data->info()->node_observer()});
   }
 };
 
@@ -1432,7 +1458,8 @@ struct InliningPhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     OptimizedCompilationInfo* info = data->info();
     GraphReducer graph_reducer(temp_zone, data->graph(), &info->tick_counter(),
-                               data->broker(), data->jsgraph()->Dead());
+                               data->broker(), data->jsgraph()->Dead(),
+                               data->observe_node_manager());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common(), temp_zone);
     CheckpointElimination checkpoint_elimination(&graph_reducer);
@@ -1442,6 +1469,9 @@ struct InliningPhase {
     JSCallReducer::Flags call_reducer_flags = JSCallReducer::kNoFlags;
     if (data->info()->bailout_on_uninitialized()) {
       call_reducer_flags |= JSCallReducer::kBailoutOnUninitialized;
+    }
+    if (FLAG_turbo_inline_js_wasm_calls && data->info()->inlining()) {
+      call_reducer_flags |= JSCallReducer::kInlineJSToWasmCalls;
     }
     JSCallReducer call_reducer(&graph_reducer, data->jsgraph(), data->broker(),
                                temp_zone, call_reducer_flags,
@@ -1463,9 +1493,9 @@ struct InliningPhase {
     JSNativeContextSpecialization native_context_specialization(
         &graph_reducer, data->jsgraph(), data->broker(), flags,
         data->dependencies(), temp_zone, info->zone());
-    JSInliningHeuristic inlining(&graph_reducer,
-                                 temp_zone, data->info(), data->jsgraph(),
-                                 data->broker(), data->source_positions());
+    JSInliningHeuristic inlining(
+        &graph_reducer, temp_zone, data->info(), data->jsgraph(),
+        data->broker(), data->source_positions(), JSInliningHeuristic::kJSOnly);
 
     JSIntrinsicLowering intrinsic_lowering(&graph_reducer, data->jsgraph(),
                                            data->broker());
@@ -1483,9 +1513,37 @@ struct InliningPhase {
     }
     graph_reducer.ReduceGraph();
     info->set_inlined_bytecode_size(inlining.total_inlined_bytecode_size());
+
+    // Skip the "wasm-inlining" phase if there are no Wasm functions calls.
+    if (call_reducer.has_wasm_calls()) {
+      data->set_has_js_wasm_calls(true);
+    }
   }
 };
 
+struct WasmInliningPhase {
+  DECL_PIPELINE_PHASE_CONSTANTS(WasmInlining)
+  void Run(PipelineData* data, Zone* temp_zone) {
+    DCHECK(data->has_js_wasm_calls());
+
+    OptimizedCompilationInfo* info = data->info();
+    GraphReducer graph_reducer(temp_zone, data->graph(), &info->tick_counter(),
+                               data->broker(), data->jsgraph()->Dead());
+    DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
+                                              data->common(), temp_zone);
+    CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
+                                         data->broker(), data->common(),
+                                         data->machine(), temp_zone);
+    JSInliningHeuristic inlining(&graph_reducer, temp_zone, data->info(),
+                                 data->jsgraph(), data->broker(),
+                                 data->source_positions(),
+                                 JSInliningHeuristic::kWasmOnly);
+    AddReducer(data, &graph_reducer, &dead_code_elimination);
+    AddReducer(data, &graph_reducer, &common_reducer);
+    AddReducer(data, &graph_reducer, &inlining);
+    graph_reducer.ReduceGraph();
+  }
+};
 
 struct TyperPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(Typer)
@@ -1530,9 +1588,9 @@ struct UntyperPhase {
       NodeProperties::RemoveType(node);
     }
 
-    GraphReducer graph_reducer(temp_zone, data->graph(),
-                               &data->info()->tick_counter(), data->broker(),
-                               data->jsgraph()->Dead());
+    GraphReducer graph_reducer(
+        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
+        data->jsgraph()->Dead(), data->observe_node_manager());
     RemoveTypeReducer remove_type_reducer;
     AddReducer(data, &graph_reducer, &remove_type_reducer);
     graph_reducer.ReduceGraph();
@@ -1551,9 +1609,9 @@ struct CopyMetadataForConcurrentCompilePhase {
   DECL_MAIN_THREAD_PIPELINE_PHASE_CONSTANTS(SerializeMetadata)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    GraphReducer graph_reducer(temp_zone, data->graph(),
-                               &data->info()->tick_counter(), data->broker(),
-                               data->jsgraph()->Dead());
+    GraphReducer graph_reducer(
+        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
+        data->jsgraph()->Dead(), data->observe_node_manager());
     JSHeapCopyReducer heap_copy_reducer(data->broker());
     AddReducer(data, &graph_reducer, &heap_copy_reducer);
     graph_reducer.ReduceGraph();
@@ -1597,9 +1655,9 @@ struct TypedLoweringPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(TypedLowering)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    GraphReducer graph_reducer(temp_zone, data->graph(),
-                               &data->info()->tick_counter(), data->broker(),
-                               data->jsgraph()->Dead());
+    GraphReducer graph_reducer(
+        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
+        data->jsgraph()->Dead(), data->observe_node_manager());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common(), temp_zone);
     JSCreateLowering create_lowering(&graph_reducer, data->dependencies(),
@@ -1648,7 +1706,7 @@ struct EscapeAnalysisPhase {
 
     GraphReducer reducer(temp_zone, data->graph(),
                          &data->info()->tick_counter(), data->broker(),
-                         data->jsgraph()->Dead());
+                         data->jsgraph()->Dead(), data->observe_node_manager());
     EscapeAnalysisReducer escape_reducer(&reducer, data->jsgraph(),
                                          escape_analysis.analysis_result(),
                                          temp_zone);
@@ -1659,7 +1717,8 @@ struct EscapeAnalysisPhase {
     UnparkedScopeIfNeeded scope(data->broker());
 
     reducer.ReduceGraph();
-    // TODO(tebbi): Turn this into a debug mode check once we have confidence.
+    // TODO(turbofan): Turn this into a debug mode check once we have
+    // confidence.
     escape_reducer.VerifyReplacement();
   }
 };
@@ -1668,9 +1727,9 @@ struct TypeAssertionsPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(TypeAssertions)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    GraphReducer graph_reducer(temp_zone, data->graph(),
-                               &data->info()->tick_counter(), data->broker(),
-                               data->jsgraph()->Dead());
+    GraphReducer graph_reducer(
+        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
+        data->jsgraph()->Dead(), data->observe_node_manager());
     AddTypeAssertionsReducer type_assertions(&graph_reducer, data->jsgraph(),
                                              temp_zone);
     AddReducer(data, &graph_reducer, &type_assertions);
@@ -1682,10 +1741,10 @@ struct SimplifiedLoweringPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(SimplifiedLowering)
 
   void Run(PipelineData* data, Zone* temp_zone, Linkage* linkage) {
-    SimplifiedLowering lowering(data->jsgraph(), data->broker(), temp_zone,
-                                data->source_positions(), data->node_origins(),
-                                data->info()->GetPoisoningMitigationLevel(),
-                                &data->info()->tick_counter(), linkage);
+    SimplifiedLowering lowering(
+        data->jsgraph(), data->broker(), temp_zone, data->source_positions(),
+        data->node_origins(), data->info()->GetPoisoningMitigationLevel(),
+        &data->info()->tick_counter(), linkage, data->observe_node_manager());
 
     // RepresentationChanger accesses the heap.
     UnparkedScopeIfNeeded scope(data->broker());
@@ -1701,7 +1760,10 @@ struct LoopPeelingPhase {
     GraphTrimmer trimmer(temp_zone, data->graph());
     NodeVector roots(temp_zone);
     data->jsgraph()->GetCachedNodes(&roots);
-    trimmer.TrimGraph(roots.begin(), roots.end());
+    {
+      UnparkedScopeIfNeeded scope(data->broker(), FLAG_trace_turbo_trimming);
+      trimmer.TrimGraph(roots.begin(), roots.end());
+    }
 
     LoopTree* loop_tree = LoopFinder::BuildLoopTree(
         data->jsgraph()->graph(), &data->info()->tick_counter(), temp_zone);
@@ -1726,9 +1788,9 @@ struct GenericLoweringPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(GenericLowering)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    GraphReducer graph_reducer(temp_zone, data->graph(),
-                               &data->info()->tick_counter(), data->broker(),
-                               data->jsgraph()->Dead());
+    GraphReducer graph_reducer(
+        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
+        data->jsgraph()->Dead(), data->observe_node_manager());
     JSGenericLowering generic_lowering(data->jsgraph(), &graph_reducer,
                                        data->broker());
     AddReducer(data, &graph_reducer, &generic_lowering);
@@ -1744,9 +1806,9 @@ struct EarlyOptimizationPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(EarlyOptimization)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    GraphReducer graph_reducer(temp_zone, data->graph(),
-                               &data->info()->tick_counter(), data->broker(),
-                               data->jsgraph()->Dead());
+    GraphReducer graph_reducer(
+        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
+        data->jsgraph()->Dead(), data->observe_node_manager());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common(), temp_zone);
     SimplifiedOperatorReducer simple_reducer(&graph_reducer, data->jsgraph(),
@@ -1789,7 +1851,10 @@ struct EffectControlLinearizationPhase {
       GraphTrimmer trimmer(temp_zone, data->graph());
       NodeVector roots(temp_zone);
       data->jsgraph()->GetCachedNodes(&roots);
-      trimmer.TrimGraph(roots.begin(), roots.end());
+      {
+        UnparkedScopeIfNeeded scope(data->broker(), FLAG_trace_turbo_trimming);
+        trimmer.TrimGraph(roots.begin(), roots.end());
+      }
 
       // Schedule the graph without node splitting so that we can
       // fix the effect and control flow for nodes with low-level side
@@ -1824,7 +1889,8 @@ struct EffectControlLinearizationPhase {
       // it, to eliminate conditional deopts with a constant condition.
       GraphReducer graph_reducer(temp_zone, data->graph(),
                                  &data->info()->tick_counter(), data->broker(),
-                                 data->jsgraph()->Dead());
+                                 data->jsgraph()->Dead(),
+                                 data->observe_node_manager());
       DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                                 data->common(), temp_zone);
       CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
@@ -1844,7 +1910,10 @@ struct StoreStoreEliminationPhase {
     GraphTrimmer trimmer(temp_zone, data->graph());
     NodeVector roots(temp_zone);
     data->jsgraph()->GetCachedNodes(&roots);
-    trimmer.TrimGraph(roots.begin(), roots.end());
+    {
+      UnparkedScopeIfNeeded scope(data->broker(), FLAG_trace_turbo_trimming);
+      trimmer.TrimGraph(roots.begin(), roots.end());
+    }
 
     StoreStoreElimination::Run(data->jsgraph(), &data->info()->tick_counter(),
                                temp_zone);
@@ -1855,9 +1924,9 @@ struct LoadEliminationPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(LoadElimination)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    GraphReducer graph_reducer(temp_zone, data->graph(),
-                               &data->info()->tick_counter(), data->broker(),
-                               data->jsgraph()->Dead());
+    GraphReducer graph_reducer(
+        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
+        data->jsgraph()->Dead(), data->observe_node_manager());
     BranchElimination branch_condition_elimination(&graph_reducer,
                                                    data->jsgraph(), temp_zone,
                                                    BranchElimination::kEARLY);
@@ -1904,7 +1973,10 @@ struct MemoryOptimizationPhase {
     GraphTrimmer trimmer(temp_zone, data->graph());
     NodeVector roots(temp_zone);
     data->jsgraph()->GetCachedNodes(&roots);
-    trimmer.TrimGraph(roots.begin(), roots.end());
+    {
+      UnparkedScopeIfNeeded scope(data->broker(), FLAG_trace_turbo_trimming);
+      trimmer.TrimGraph(roots.begin(), roots.end());
+    }
 
     // Optimize allocations and load/store operations.
     MemoryOptimizer optimizer(
@@ -1921,9 +1993,9 @@ struct LateOptimizationPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(LateOptimization)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    GraphReducer graph_reducer(temp_zone, data->graph(),
-                               &data->info()->tick_counter(), data->broker(),
-                               data->jsgraph()->Dead());
+    GraphReducer graph_reducer(
+        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
+        data->jsgraph()->Dead(), data->observe_node_manager());
     BranchElimination branch_condition_elimination(&graph_reducer,
                                                    data->jsgraph(), temp_zone);
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
@@ -1949,9 +2021,9 @@ struct MachineOperatorOptimizationPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(MachineOperatorOptimization)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    GraphReducer graph_reducer(temp_zone, data->graph(),
-                               &data->info()->tick_counter(), data->broker(),
-                               data->jsgraph()->Dead());
+    GraphReducer graph_reducer(
+        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
+        data->jsgraph()->Dead(), data->observe_node_manager());
     ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
     MachineOperatorReducer machine_reducer(&graph_reducer, data->jsgraph());
 
@@ -2021,9 +2093,9 @@ struct CsaEarlyOptimizationPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(CSAEarlyOptimization)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    GraphReducer graph_reducer(temp_zone, data->graph(),
-                               &data->info()->tick_counter(), data->broker(),
-                               data->jsgraph()->Dead());
+    GraphReducer graph_reducer(
+        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
+        data->jsgraph()->Dead(), data->observe_node_manager());
     MachineOperatorReducer machine_reducer(&graph_reducer, data->jsgraph());
     BranchElimination branch_condition_elimination(&graph_reducer,
                                                    data->jsgraph(), temp_zone);
@@ -2049,9 +2121,9 @@ struct CsaOptimizationPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(CSAOptimization)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    GraphReducer graph_reducer(temp_zone, data->graph(),
-                               &data->info()->tick_counter(), data->broker(),
-                               data->jsgraph()->Dead());
+    GraphReducer graph_reducer(
+        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
+        data->jsgraph()->Dead(), data->observe_node_manager());
     BranchElimination branch_condition_elimination(&graph_reducer,
                                                    data->jsgraph(), temp_zone);
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
@@ -2077,6 +2149,7 @@ struct EarlyGraphTrimmingPhase {
     GraphTrimmer trimmer(temp_zone, data->graph());
     NodeVector roots(temp_zone);
     data->jsgraph()->GetCachedNodes(&roots);
+    UnparkedScopeIfNeeded scope(data->broker(), FLAG_trace_turbo_trimming);
     trimmer.TrimGraph(roots.begin(), roots.end());
   }
 };
@@ -2091,6 +2164,7 @@ struct LateGraphTrimmingPhase {
     if (data->jsgraph()) {
       data->jsgraph()->GetCachedNodes(&roots);
     }
+    UnparkedScopeIfNeeded scope(data->broker(), FLAG_trace_turbo_trimming);
     trimmer.TrimGraph(roots.begin(), roots.end());
   }
 };
@@ -2302,7 +2376,7 @@ struct ResolveControlFlowPhase {
 };
 
 struct MidTierRegisterOutputDefinitionPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(MidTierRegisterAllocator)
+  DECL_PIPELINE_PHASE_CONSTANTS(MidTierRegisterOutputDefinition)
 
   void Run(PipelineData* data, Zone* temp_zone) {
     DefineOutputs(data->mid_tier_register_allocator_data());
@@ -2583,6 +2657,12 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   // might even conflict with the representation/truncation logic.
   Run<SimplifiedLoweringPhase>(linkage);
   RunPrintAndVerify(SimplifiedLoweringPhase::phase_name(), true);
+
+  if (data->has_js_wasm_calls()) {
+    DCHECK(FLAG_turbo_inline_js_wasm_calls);
+    Run<WasmInliningPhase>();
+    RunPrintAndVerify(WasmInliningPhase::phase_name(), true);
+  }
 
   // From now on it is invalid to look at types on the nodes, because the types
   // on the nodes might not make sense after representation selection due to the
@@ -3116,7 +3196,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
 // static
 std::unique_ptr<OptimizedCompilationJob> Pipeline::NewCompilationJob(
     Isolate* isolate, Handle<JSFunction> function, CodeKind code_kind,
-    bool has_script, BailoutId osr_offset, JavaScriptFrame* osr_frame) {
+    bool has_script, BytecodeOffset osr_offset, JavaScriptFrame* osr_frame) {
   Handle<SharedFunctionInfo> shared =
       handle(function->shared(), function->GetIsolate());
   return std::make_unique<PipelineCompilationJob>(
@@ -3155,6 +3235,11 @@ void Pipeline::GenerateCodeForWasmFunction(
 
   pipeline.RunPrintAndVerify("V8.WasmMachineCode", true);
 
+  if (FLAG_wasm_loop_unrolling) {
+    pipeline.Run<LoopExitEliminationPhase>();
+    pipeline.RunPrintAndVerify("V8.LoopExitEliminationPhase", true);
+  }
+
   data.BeginPhaseKind("V8.WasmOptimization");
   const bool is_asm_js = is_asmjs_module(module);
   if (FLAG_turbo_splitting && !is_asm_js) {
@@ -3163,9 +3248,9 @@ void Pipeline::GenerateCodeForWasmFunction(
   if (FLAG_wasm_opt || is_asm_js) {
     PipelineRunScope scope(&data, "V8.WasmFullOptimization",
                            RuntimeCallCounterId::kOptimizeWasmFullOptimization);
-    GraphReducer graph_reducer(scope.zone(), data.graph(),
-                               &data.info()->tick_counter(), data.broker(),
-                               data.mcgraph()->Dead());
+    GraphReducer graph_reducer(
+        scope.zone(), data.graph(), &data.info()->tick_counter(), data.broker(),
+        data.mcgraph()->Dead(), data.observe_node_manager());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data.graph(),
                                               data.common(), scope.zone());
     ValueNumberingReducer value_numbering(scope.zone(), data.graph()->zone());
@@ -3183,9 +3268,9 @@ void Pipeline::GenerateCodeForWasmFunction(
   } else {
     PipelineRunScope scope(&data, "V8.OptimizeWasmBaseOptimization",
                            RuntimeCallCounterId::kOptimizeWasmBaseOptimization);
-    GraphReducer graph_reducer(scope.zone(), data.graph(),
-                               &data.info()->tick_counter(), data.broker(),
-                               data.mcgraph()->Dead());
+    GraphReducer graph_reducer(
+        scope.zone(), data.graph(), &data.info()->tick_counter(), data.broker(),
+        data.mcgraph()->Dead(), data.observe_node_manager());
     ValueNumberingReducer value_numbering(scope.zone(), data.graph()->zone());
     AddReducer(&data, &graph_reducer, &value_numbering);
     graph_reducer.ReduceGraph();
@@ -3752,6 +3837,10 @@ Isolate* PipelineImpl::isolate() const { return data_->isolate(); }
 
 CodeGenerator* PipelineImpl::code_generator() const {
   return data_->code_generator();
+}
+
+ObserveNodeManager* PipelineImpl::observe_node_manager() const {
+  return data_->observe_node_manager();
 }
 
 }  // namespace compiler

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/api/api.h"
+#include "src/baseline/baseline.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-stub-assembler.h"
@@ -687,6 +688,20 @@ TF_BUILTIN(ForInEnumerate, CodeStubAssembler) {
   TailCallRuntime(Runtime::kForInEnumerate, context, receiver);
 }
 
+TF_BUILTIN(ForInPrepare, CodeStubAssembler) {
+  // The {enumerator} is either a Map or a FixedArray.
+  auto enumerator = Parameter<HeapObject>(Descriptor::kEnumerator);
+  auto index = Parameter<TaggedIndex>(Descriptor::kVectorIndex);
+  auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
+  TNode<UintPtrT> vector_index = Unsigned(TaggedIndexToIntPtr(index));
+
+  TNode<FixedArray> cache_array;
+  TNode<Smi> cache_length;
+  ForInPrepare(enumerator, vector_index, feedback_vector, &cache_array,
+               &cache_length, UpdateFeedbackMode::kGuaranteedFeedback);
+  Return(cache_array, cache_length);
+}
+
 TF_BUILTIN(ForInFilter, CodeStubAssembler) {
   auto key = Parameter<String>(Descriptor::kKey);
   auto object = Parameter<HeapObject>(Descriptor::kObject);
@@ -750,7 +765,6 @@ TF_BUILTIN(AdaptorWithBuiltinExitFrame, CodeStubAssembler) {
 
   TVARIABLE(Int32T, pushed_argc, actual_argc);
 
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
   TNode<SharedFunctionInfo> shared = LoadJSFunctionSharedFunctionInfo(target);
 
   TNode<Int32T> formal_count =
@@ -770,7 +784,6 @@ TF_BUILTIN(AdaptorWithBuiltinExitFrame, CodeStubAssembler) {
   pushed_argc = formal_count;
   Goto(&done_argc);
   BIND(&done_argc);
-#endif
 
   // Update arguments count for CEntry to contain the number of arguments
   // including the receiver and the extra arguments.
@@ -910,6 +923,28 @@ void Builtins::Generate_MemMove(MacroAssembler* masm) {
   masm->Call(BUILTIN_CODE(masm->isolate(), Illegal), RelocInfo::CODE_TARGET);
 }
 #endif  // V8_TARGET_ARCH_IA32
+
+// TODO(v8:11421): Remove #if once baseline compiler is ported to other
+// architectures.
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+void Builtins::Generate_BaselineLeaveFrame(MacroAssembler* masm) {
+  EmitReturnBaseline(masm);
+}
+#else
+// Stub out implementations of arch-specific baseline builtins.
+void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
+  masm->Trap();
+}
+void Builtins::Generate_BaselineLeaveFrame(MacroAssembler* masm) {
+  masm->Trap();
+}
+void Builtins::Generate_BaselineOnStackReplacement(MacroAssembler* masm) {
+  masm->Trap();
+}
+void Builtins::Generate_TailCallOptimizedCodeSlot(MacroAssembler* masm) {
+  masm->Trap();
+}
+#endif
 
 // ES6 [[Get]] operation.
 TF_BUILTIN(GetProperty, CodeStubAssembler) {
@@ -1089,7 +1124,6 @@ TF_BUILTIN(InstantiateAsmJs, CodeStubAssembler) {
       Runtime::kInstantiateAsmJs, context, function, stdlib, foreign, heap);
   GotoIf(TaggedIsSmi(maybe_result_or_smi_zero), &tailcall_to_function);
 
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
   TNode<SharedFunctionInfo> shared = LoadJSFunctionSharedFunctionInfo(function);
   TNode<Int32T> parameter_count =
       UncheckedCast<Int32T>(LoadSharedFunctionInfoFormalParameterCount(shared));
@@ -1103,7 +1137,6 @@ TF_BUILTIN(InstantiateAsmJs, CodeStubAssembler) {
   PopAndReturn(Int32Add(parameter_count, Int32Constant(1)),
                maybe_result_or_smi_zero);
   BIND(&argc_ge_param_count);
-#endif
   args.PopAndReturn(maybe_result_or_smi_zero);
 
   BIND(&tailcall_to_function);

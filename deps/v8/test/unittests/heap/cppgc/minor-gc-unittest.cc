@@ -89,7 +89,7 @@ TYPED_TEST(MinorGCTestForType, MinorCollection) {
   EXPECT_EQ(1u, TestFixture::DestructedObjects());
 
   {
-    Heap::NoGCScope no_gc_scope_(*Heap::From(this->GetHeap()));
+    subtle::NoGarbageCollectionScope no_gc_scope(*Heap::From(this->GetHeap()));
 
     Type* prev = nullptr;
     for (size_t i = 0; i < 64; ++i) {
@@ -144,7 +144,7 @@ void InterGenerationalPointerTest(MinorGCTest* test, cppgc::Heap* heap) {
   Type2* young = nullptr;
 
   {
-    Heap::NoGCScope no_gc_scope_(*Heap::From(heap));
+    subtle::NoGarbageCollectionScope no_gc_scope(*Heap::From(heap));
 
     // Allocate young objects.
     for (size_t i = 0; i < 64; ++i) {

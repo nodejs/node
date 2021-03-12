@@ -9,52 +9,6 @@ extern macro ReplaceSymbolConstant(): Symbol;
 extern macro StringBuiltinsAssembler::GetSubstitution(
     implicit context: Context)(String, Smi, Smi, String): String;
 
-extern builtin
-StringIndexOf(implicit context: Context)(String, String, Smi): Smi;
-
-// TODO(tebbi): This could be replaced with a fast C-call to StringSearchRaw.
-macro AbstractStringIndexOf<A: type, B: type>(
-    string: ConstSlice<A>, searchString: ConstSlice<B>, fromIndex: Smi): Smi {
-  for (let i: intptr = SmiUntag(fromIndex);
-       i <= string.length - searchString.length; i++) {
-    if (IsSubstringAt(string, searchString, i)) {
-      return SmiTag(i);
-    }
-  }
-  return -1;
-}
-
-struct AbstractStringIndexOfFunctor {
-  fromIndex: Smi;
-}
-// Ideally, this would be a method of AbstractStringIndexOfFunctor, but
-// currently methods don't support templates.
-macro Call<A: type, B: type>(
-    self: AbstractStringIndexOfFunctor, string: ConstSlice<A>,
-    searchStr: ConstSlice<B>): Smi {
-  return AbstractStringIndexOf(string, searchStr, self.fromIndex);
-}
-
-macro AbstractStringIndexOf(implicit context: Context)(
-    string: String, searchString: String, fromIndex: Smi): Smi {
-  // Special case the empty string.
-  const searchStringLength = searchString.length_intptr;
-  const stringLength = string.length_intptr;
-  if (searchStringLength == 0 && SmiUntag(fromIndex) <= stringLength) {
-    return fromIndex;
-  }
-
-  // Don't bother to search if the searchString would go past the end
-  // of the string. This is actually necessary because of runtime
-  // checks.
-  if (SmiUntag(fromIndex) + searchStringLength > stringLength) {
-    return -1;
-  }
-
-  return TwoStringsToSlices<Smi>(
-      string, searchString, AbstractStringIndexOfFunctor{fromIndex: fromIndex});
-}
-
 transitioning macro
 ThrowIfNotGlobal(implicit context: Context)(searchValue: JSAny): void {
   let shouldThrow: bool;

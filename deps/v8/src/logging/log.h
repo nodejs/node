@@ -35,7 +35,7 @@ struct TickSample;
 //
 // --log-all
 // Log all events to the file, default is off.  This is the same as combining
-// --log-api, --log-code, and --log-regexp.
+// --log-api and --log-code.
 //
 // --log-api
 // Log API events to the logfile, default is off.  --log-api implies --log.
@@ -43,10 +43,6 @@ struct TickSample;
 // --log-code
 // Log code (create, move, and delete) events to the logfile, default is off.
 // --log-code implies --log.
-//
-// --log-regexp
-// Log creation and use of regular expressions, Default is off.
-// --log-regexp implies --log.
 //
 // --logfile <filename>
 // Specify the name of the logfile, default is "v8.log".
@@ -72,10 +68,9 @@ class SourcePosition;
 class Ticker;
 
 #undef LOG
-#define LOG(isolate, Call)                  \
-  do {                                      \
-    auto&& logger = (isolate)->logger();    \
-    if (logger->is_logging()) logger->Call; \
+#define LOG(isolate, Call)                                 \
+  do {                                                     \
+    if (v8::internal::FLAG_log) (isolate)->logger()->Call; \
   } while (false)
 
 #define LOG_CODE_EVENT(isolate, Call)                        \
@@ -219,6 +214,7 @@ class Logger : public CodeEventListener {
   void CodeDependencyChangeEvent(Handle<Code> code,
                                  Handle<SharedFunctionInfo> sfi,
                                  const char* reason) override;
+  void BytecodeFlushEvent(Address compiled_data_start) override {}
 
   void ProcessDeoptEvent(Handle<Code> code, SourcePosition position,
                          const char* kind, const char* reason);
@@ -248,7 +244,7 @@ class Logger : public CodeEventListener {
 
   V8_EXPORT_PRIVATE void TimerEvent(StartEnd se, const char* name);
 
-  void BasicBlockCounterEvent(const char* name, int block_id, double count);
+  void BasicBlockCounterEvent(const char* name, int block_id, uint32_t count);
 
   void BuiltinHashEvent(const char* name, int hash);
 
@@ -304,9 +300,6 @@ class Logger : public CodeEventListener {
 
   // Logs a StringEvent regardless of whether FLAG_log is true.
   void UncheckedStringEvent(const char* name, const char* value);
-
-  // Logs an IntPtrTEvent regardless of whether FLAG_log is true.
-  void UncheckedIntPtrTEvent(const char* name, intptr_t value);
 
   // Logs a scripts sources. Keeps track of all logged scripts to ensure that
   // each script is logged only once.
@@ -419,6 +412,7 @@ class V8_EXPORT_PRIVATE CodeEventLogger : public CodeEventListener {
   void CodeDependencyChangeEvent(Handle<Code> code,
                                  Handle<SharedFunctionInfo> sfi,
                                  const char* reason) override {}
+  void BytecodeFlushEvent(Address compiled_data_start) override {}
 
  protected:
   Isolate* isolate_;
@@ -482,6 +476,7 @@ class ExternalCodeEventListener : public CodeEventListener {
   void CodeDependencyChangeEvent(Handle<Code> code,
                                  Handle<SharedFunctionInfo> sfi,
                                  const char* reason) override {}
+  void BytecodeFlushEvent(Address compiled_data_start) override {}
 
   void StartListening(v8::CodeEventHandler* code_event_handler);
   void StopListening();

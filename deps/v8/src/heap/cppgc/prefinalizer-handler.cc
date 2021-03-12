@@ -49,7 +49,7 @@ void PreFinalizerHandler::RegisterPrefinalizer(PreFinalizer pre_finalizer) {
 
 void PreFinalizerHandler::InvokePreFinalizers() {
   StatsCollector::DisabledScope stats_scope(
-      heap_, StatsCollector::kSweepInvokePreFinalizers);
+      heap_.stats_collector(), StatsCollector::kSweepInvokePreFinalizers);
 
   DCHECK(CurrentThreadIsCreationThread());
   LivenessBroker liveness_broker = LivenessBrokerFactory::Create();

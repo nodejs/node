@@ -121,6 +121,12 @@ void Serializer::SerializeObject(Handle<HeapObject> obj) {
   // indirection and serialize the actual string directly.
   if (obj->IsThinString(isolate())) {
     obj = handle(ThinString::cast(*obj).actual(isolate()), isolate());
+  } else if (obj->IsBaselineData()) {
+    // For now just serialize the BytecodeArray instead of baseline data.
+    // TODO(v8:11429,pthier): Handle BaselineData in cases we want to serialize
+    // Baseline code.
+    obj = handle(Handle<BaselineData>::cast(obj)->GetActiveBytecodeArray(),
+                 isolate());
   }
   SerializeObjectImpl(obj);
 }
@@ -638,7 +644,7 @@ void Serializer::ObjectSerializer::Serialize() {
   RecursionScope recursion(serializer_);
 
   // Defer objects as "pending" if they cannot be serialized now, or if we
-  // exceed a certain recursion depth. Some objects cannot be deferred
+  // exceed a certain recursion depth. Some objects cannot be deferred.
   if ((recursion.ExceedsMaximum() && CanBeDeferred(*object_)) ||
       serializer_->MustBeDeferred(*object_)) {
     DCHECK(CanBeDeferred(*object_));

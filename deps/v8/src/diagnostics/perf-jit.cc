@@ -27,6 +27,8 @@
 
 #include "src/diagnostics/perf-jit.h"
 
+#include "src/common/assert-scope.h"
+
 // Only compile the {PerfJitLogger} on Linux.
 #if V8_OS_LINUX
 
@@ -211,7 +213,8 @@ void PerfJitLogger::LogRecordedBuffer(
       (abstract_code->kind() != CodeKind::INTERPRETED_FUNCTION &&
        abstract_code->kind() != CodeKind::TURBOFAN &&
        abstract_code->kind() != CodeKind::NATIVE_CONTEXT_INDEPENDENT &&
-       abstract_code->kind() != CodeKind::TURBOPROP)) {
+       abstract_code->kind() != CodeKind::TURBOPROP &&
+       abstract_code->kind() != CodeKind::BASELINE)) {
     return;
   }
 
@@ -335,9 +338,17 @@ SourcePositionInfo GetSourcePositionInfo(Handle<Code> code,
 
 void PerfJitLogger::LogWriteDebugInfo(Handle<Code> code,
                                       Handle<SharedFunctionInfo> shared) {
+  DisallowGarbageCollection no_gc;
+  // TODO(v8:11429,cbruni): add proper baseline source position iterator
+  bool is_baseline = code->kind() == CodeKind::BASELINE;
+  ByteArray source_position_table = code->SourcePositionTable();
+  if (is_baseline) {
+    source_position_table =
+        shared->GetBytecodeArray(shared->GetIsolate()).SourcePositionTable();
+  }
   // Compute the entry count and get the name of the script.
   uint32_t entry_count = 0;
-  for (SourcePositionTableIterator iterator(code->SourcePositionTable());
+  for (SourcePositionTableIterator iterator(source_position_table);
        !iterator.done(); iterator.Advance()) {
     entry_count++;
   }
@@ -358,7 +369,7 @@ void PerfJitLogger::LogWriteDebugInfo(Handle<Code> code,
   size += entry_count * sizeof(PerfJitDebugEntry);
   // Add the size of the name after each entry.
 
-  for (SourcePositionTableIterator iterator(code->SourcePositionTable());
+  for (SourcePositionTableIterator iterator(source_position_table);
        !iterator.done(); iterator.Advance()) {
     SourcePositionInfo info(
         GetSourcePositionInfo(code, shared, iterator.source_position()));
@@ -371,7 +382,7 @@ void PerfJitLogger::LogWriteDebugInfo(Handle<Code> code,
 
   Address code_start = code->InstructionStart();
 
-  for (SourcePositionTableIterator iterator(code->SourcePositionTable());
+  for (SourcePositionTableIterator iterator(source_position_table);
        !iterator.done(); iterator.Advance()) {
     SourcePositionInfo info(
         GetSourcePositionInfo(code, shared, iterator.source_position()));

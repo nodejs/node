@@ -179,13 +179,6 @@ void DecodeFunctionNames(const byte* module_start, const byte* module_end,
                          std::unordered_map<uint32_t, WireBytesRef>* names,
                          const Vector<const WasmExport> export_table);
 
-// Decode the global or memory names from import table and export table. Returns
-// the result as an unordered map.
-void GenerateNamesFromImportsAndExports(
-    ImportExportKindCode kind, const Vector<const WasmImport> import_table,
-    const Vector<const WasmExport> export_table,
-    std::unordered_map<uint32_t, std::pair<WireBytesRef, WireBytesRef>>* names);
-
 // Decode the local names assignment from the name section.
 // The result will be empty if no name section is present. On encountering an
 // error in the name section, returns all information decoded up to the first

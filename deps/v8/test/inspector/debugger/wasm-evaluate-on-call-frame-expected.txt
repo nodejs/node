@@ -18,33 +18,33 @@ Debugger paused in main.
 > globals = Globals
 > typeof globals = "object"
 > Object.keys(globals) = Array(2)
-> globals[0] = 0
-> globals[1] = 1
-> globals[2] = 2n
-> globals[3] = 3n
-> globals["$global0"] = 0
-> $global0 = 0
-> globals["$global3"] = 2n
-> $global3 = 2n
+> globals[0] = i32 {0}
+> globals[1] = i32 {1}
+> globals[2] = i64 {2n}
+> globals[3] = i64 {3n}
+> globals["$global0"] = i32 {0}
+> $global0 = i32 {0}
+> globals["$global3"] = i64 {2n}
+> $global3 = i64 {2n}
 Stepping twice in main.
 Debugger paused in main.
-> globals[0] = 0
-> globals[1] = 1
-> globals[2] = 2n
-> globals[3] = 42n
-> globals["$global0"] = 0
-> $global0 = 0
-> globals["$global3"] = 2n
-> $global3 = 2n
+> globals[0] = i32 {0}
+> globals[1] = i32 {1}
+> globals[2] = i64 {2n}
+> globals[3] = i64 {42n}
+> globals["$global0"] = i32 {0}
+> $global0 = i32 {0}
+> globals["$global3"] = i64 {2n}
+> $global3 = i64 {2n}
 Changing global from JavaScript.
-> globals[0] = 0
-> globals[1] = 21
-> globals[2] = 2n
-> globals[3] = 42n
-> globals["$global0"] = 0
-> $global0 = 0
-> globals["$global3"] = 2n
-> $global3 = 2n
+> globals[0] = i32 {0}
+> globals[1] = i32 {21}
+> globals[2] = i64 {2n}
+> globals[3] = i64 {42n}
+> globals["$global0"] = i32 {0}
+> $global0 = i32 {0}
+> globals["$global3"] = i64 {2n}
+> $global3 = i64 {2n}
 
 Running test: testFunctions
 Compile module.
@@ -54,17 +54,19 @@ Call main.
 Debugger paused in main.
 > functions = Functions
 > typeof functions = "object"
-> Object.keys(functions) = Array(3)
+> Object.keys(functions) = Array(4)
 > functions[0] = function 0() { [native code] }
 > functions[1] = function 1() { [native code] }
 > functions[2] = function 2() { [native code] }
 > functions[3] = function 3() { [native code] }
-> functions["$main"] = function 0() { [native code] }
-> $main = function 0() { [native code] }
-> functions["$func1"] = function 1() { [native code] }
-> $func1 = function 1() { [native code] }
-> functions["$func3"] = function 3() { [native code] }
-> $func3 = function 3() { [native code] }
+> functions[4] = function 4() { [native code] }
+> functions["$foo.bar"] = function 0() { [native code] }
+> functions["$main"] = function 1() { [native code] }
+> $main = function 1() { [native code] }
+> functions["$func2"] = function 2() { [native code] }
+> $func2 = function 2() { [native code] }
+> functions["$func4"] = function 4() { [native code] }
+> $func4 = function 4() { [native code] }
 
 Running test: testLocals
 Compile module.
@@ -75,22 +77,22 @@ Debugger paused in main.
 > locals = Locals
 > typeof locals = "object"
 > Object.keys(locals) = Array(2)
-> locals[0] = 3
-> locals[1] = 6
-> locals[2] = 0
-> locals["$x"] = 3
-> $x = 3
-> locals["$var2"] = 0
-> $var2 = 0
+> locals[0] = i32 {3}
+> locals[1] = i32 {6}
+> locals[2] = i32 {0}
+> locals["$x"] = i32 {3}
+> $x = i32 {3}
+> locals["$var2"] = i32 {0}
+> $var2 = i32 {0}
 Stepping twice in main.
 Debugger paused in main.
-> locals[0] = 3
-> locals[1] = 6
-> locals[2] = 42
-> locals["$x"] = 3
-> $x = 3
-> locals["$var2"] = 42
-> $var2 = 42
+> locals[0] = i32 {3}
+> locals[1] = i32 {6}
+> locals[2] = i32 {42}
+> locals["$x"] = i32 {3}
+> $x = i32 {3}
+> locals["$var2"] = i32 {42}
+> $var2 = i32 {42}
 
 Running test: testMemories
 Compile module.
@@ -131,5 +133,5 @@ Stepping twice in main.
 Debugger paused in main.
 > stack = Stack
 > Object.keys(stack) = Array(2)
-> stack[0] = 5
-> stack[1] = 42
+> stack[0] = i32 {5}
+> stack[1] = i32 {42}

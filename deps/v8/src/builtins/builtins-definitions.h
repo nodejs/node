@@ -40,7 +40,6 @@ namespace internal {
   TFC(AdaptorWithBuiltinExitFrame, CppBuiltinAdaptor)                          \
                                                                                \
   /* Calls */                                                                  \
-  ASM(ArgumentsAdaptorTrampoline, ArgumentsAdaptor)                            \
   /* ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList) */              \
   ASM(CallFunction_ReceiverIsNullOrUndefined, CallTrampoline)                  \
   ASM(CallFunction_ReceiverIsNotNullOrUndefined, CallTrampoline)               \
@@ -51,6 +50,9 @@ namespace internal {
   ASM(Call_ReceiverIsNullOrUndefined, CallTrampoline)                          \
   ASM(Call_ReceiverIsNotNullOrUndefined, CallTrampoline)                       \
   ASM(Call_ReceiverIsAny, CallTrampoline)                                      \
+  TFC(Call_ReceiverIsNullOrUndefined_Baseline, CallTrampoline_Baseline)        \
+  TFC(Call_ReceiverIsNotNullOrUndefined_Baseline, CallTrampoline_Baseline)     \
+  TFC(Call_ReceiverIsAny_Baseline, CallTrampoline_Baseline)                    \
   TFC(Call_ReceiverIsNullOrUndefined_WithFeedback,                             \
       CallTrampoline_WithFeedback)                                             \
   TFC(Call_ReceiverIsNotNullOrUndefined_WithFeedback,                          \
@@ -61,6 +63,7 @@ namespace internal {
   TFC(CallProxy, CallTrampoline)                                               \
   ASM(CallVarargs, CallVarargs)                                                \
   TFC(CallWithSpread, CallWithSpread)                                          \
+  TFC(CallWithSpread_Baseline, CallWithSpread_Baseline)                        \
   TFC(CallWithSpread_WithFeedback, CallWithSpread_WithFeedback)                \
   TFC(CallWithArrayLike, CallWithArrayLike)                                    \
   TFC(CallWithArrayLike_WithFeedback, CallWithArrayLike_WithFeedback)          \
@@ -83,12 +86,14 @@ namespace internal {
   ASM(Construct, JSTrampoline)                                                 \
   ASM(ConstructVarargs, ConstructVarargs)                                      \
   TFC(ConstructWithSpread, ConstructWithSpread)                                \
+  TFC(ConstructWithSpread_Baseline, ConstructWithSpread_Baseline)              \
   TFC(ConstructWithSpread_WithFeedback, ConstructWithSpread_WithFeedback)      \
   TFC(ConstructWithArrayLike, ConstructWithArrayLike)                          \
   TFC(ConstructWithArrayLike_WithFeedback,                                     \
       ConstructWithArrayLike_WithFeedback)                                     \
   ASM(ConstructForwardVarargs, ConstructForwardVarargs)                        \
   ASM(ConstructFunctionForwardVarargs, ConstructForwardVarargs)                \
+  TFC(Construct_Baseline, Construct_Baseline)                                  \
   TFC(Construct_WithFeedback, Construct_WithFeedback)                          \
   ASM(JSConstructStubGeneric, Dummy)                                           \
   ASM(JSBuiltinsConstructStub, Dummy)                                          \
@@ -111,7 +116,6 @@ namespace internal {
   TFC(StringEqual, Compare)                                                    \
   TFC(StringGreaterThan, Compare)                                              \
   TFC(StringGreaterThanOrEqual, Compare)                                       \
-  TFS(StringIndexOf, kReceiver, kSearchString, kPosition)                      \
   TFC(StringLessThan, Compare)                                                 \
   TFC(StringLessThanOrEqual, Compare)                                          \
   TFC(StringSubstring, StringSubstring)                                        \
@@ -132,6 +136,11 @@ namespace internal {
   ASM(InterpreterEnterBytecodeAdvance, Dummy)                                  \
   ASM(InterpreterEnterBytecodeDispatch, Dummy)                                 \
   ASM(InterpreterOnStackReplacement, ContextOnly)                              \
+                                                                               \
+  /* Baseline Compiler */                                                      \
+  ASM(BaselineOutOfLinePrologue, BaselineOutOfLinePrologue)                    \
+  ASM(BaselineOnStackReplacement, ContextOnly)                                 \
+  ASM(BaselineLeaveFrame, BaselineLeaveFrame)                                  \
                                                                                \
   /* Code life-cycle */                                                        \
   TFC(CompileLazy, JSTrampoline)                                               \
@@ -193,6 +202,8 @@ namespace internal {
                                                                                \
   /* Type conversions */                                                       \
   TFC(ToNumber, TypeConversion)                                                \
+  TFC(ToNumber_Baseline, TypeConversion_Baseline)                              \
+  TFC(ToNumeric_Baseline, TypeConversion_Baseline)                             \
   TFC(PlainPrimitiveToNumber, TypeConversionNoContext)                         \
   TFC(ToNumberConvertBigInt, TypeConversion)                                   \
   TFC(Typeof, Typeof)                                                          \
@@ -202,7 +213,9 @@ namespace internal {
   TFC(I32PairToBigInt, I32PairToBigInt)                                        \
                                                                                \
   /* Type conversions continuations */                                         \
-  TFC(ToBooleanLazyDeoptContinuation, TypeConversionStackParameter)            \
+  TFC(ToBooleanLazyDeoptContinuation, SingleParameterOnStack)                  \
+                                                                               \
+  ASM(TailCallOptimizedCodeSlot, TailCallOptimizedCodeSlot)                    \
                                                                                \
   /* Handlers */                                                               \
   TFH(KeyedLoadIC_PolymorphicName, LoadWithVector)                             \
@@ -543,26 +556,41 @@ namespace internal {
   TFH(LoadIC_Megamorphic, LoadWithVector)                                      \
   TFH(LoadIC_Noninlined, LoadWithVector)                                       \
   TFH(LoadICTrampoline, Load)                                                  \
+  TFH(LoadICBaseline, LoadBaseline)                                            \
   TFH(LoadICTrampoline_Megamorphic, Load)                                      \
   TFH(LoadSuperIC, LoadWithReceiverAndVector)                                  \
+  TFH(LoadSuperICBaseline, LoadWithReceiverBaseline)                           \
   TFH(KeyedLoadIC, LoadWithVector)                                             \
   TFH(KeyedLoadIC_Megamorphic, LoadWithVector)                                 \
   TFH(KeyedLoadICTrampoline, Load)                                             \
+  TFH(KeyedLoadICBaseline, LoadBaseline)                                       \
   TFH(KeyedLoadICTrampoline_Megamorphic, Load)                                 \
   TFH(StoreGlobalIC, StoreGlobalWithVector)                                    \
   TFH(StoreGlobalICTrampoline, StoreGlobal)                                    \
+  TFH(StoreGlobalICBaseline, StoreGlobalBaseline)                              \
   TFH(StoreIC, StoreWithVector)                                                \
   TFH(StoreICTrampoline, Store)                                                \
+  TFH(StoreICBaseline, StoreBaseline)                                          \
   TFH(KeyedStoreIC, StoreWithVector)                                           \
   TFH(KeyedStoreICTrampoline, Store)                                           \
+  TFH(KeyedStoreICBaseline, StoreBaseline)                                     \
   TFH(StoreInArrayLiteralIC, StoreWithVector)                                  \
+  TFH(StoreInArrayLiteralICBaseline, StoreBaseline)                            \
+  TFH(LookupContextBaseline, LookupBaseline)                                   \
+  TFH(LookupContextInsideTypeofBaseline, LookupBaseline)                       \
   TFH(LoadGlobalIC, LoadGlobalWithVector)                                      \
   TFH(LoadGlobalICInsideTypeof, LoadGlobalWithVector)                          \
   TFH(LoadGlobalICTrampoline, LoadGlobal)                                      \
+  TFH(LoadGlobalICBaseline, LoadGlobalBaseline)                                \
   TFH(LoadGlobalICInsideTypeofTrampoline, LoadGlobal)                          \
+  TFH(LoadGlobalICInsideTypeofBaseline, LoadGlobalBaseline)                    \
+  TFH(LookupGlobalICBaseline, LookupBaseline)                                  \
+  TFH(LookupGlobalICInsideTypeofBaseline, LookupBaseline)                      \
   TFH(CloneObjectIC, CloneObjectWithVector)                                    \
+  TFH(CloneObjectICBaseline, CloneObjectBaseline)                              \
   TFH(CloneObjectIC_Slow, CloneObjectWithVector)                               \
   TFH(KeyedHasIC, LoadWithVector)                                              \
+  TFH(KeyedHasICBaseline, LoadBaseline)                                        \
   TFH(KeyedHasIC_Megamorphic, LoadWithVector)                                  \
                                                                                \
   /* IterableToList */                                                         \
@@ -608,6 +636,19 @@ namespace internal {
   TFC(SameValueNumbersOnly, Compare)                                           \
                                                                                \
   /* Binary ops with feedback collection */                                    \
+  TFC(Add_Baseline, BinaryOp_Baseline)                                         \
+  TFC(Subtract_Baseline, BinaryOp_Baseline)                                    \
+  TFC(Multiply_Baseline, BinaryOp_Baseline)                                    \
+  TFC(Divide_Baseline, BinaryOp_Baseline)                                      \
+  TFC(Modulus_Baseline, BinaryOp_Baseline)                                     \
+  TFC(Exponentiate_Baseline, BinaryOp_Baseline)                                \
+  TFC(BitwiseAnd_Baseline, BinaryOp_Baseline)                                  \
+  TFC(BitwiseOr_Baseline, BinaryOp_Baseline)                                   \
+  TFC(BitwiseXor_Baseline, BinaryOp_Baseline)                                  \
+  TFC(ShiftLeft_Baseline, BinaryOp_Baseline)                                   \
+  TFC(ShiftRight_Baseline, BinaryOp_Baseline)                                  \
+  TFC(ShiftRightLogical_Baseline, BinaryOp_Baseline)                           \
+                                                                               \
   TFC(Add_WithFeedback, BinaryOp_WithFeedback)                                 \
   TFC(Subtract_WithFeedback, BinaryOp_WithFeedback)                            \
   TFC(Multiply_WithFeedback, BinaryOp_WithFeedback)                            \
@@ -622,6 +663,13 @@ namespace internal {
   TFC(ShiftRightLogical_WithFeedback, BinaryOp_WithFeedback)                   \
                                                                                \
   /* Compare ops with feedback collection */                                   \
+  TFC(Equal_Baseline, Compare_Baseline)                                        \
+  TFC(StrictEqual_Baseline, Compare_Baseline)                                  \
+  TFC(LessThan_Baseline, Compare_Baseline)                                     \
+  TFC(GreaterThan_Baseline, Compare_Baseline)                                  \
+  TFC(LessThanOrEqual_Baseline, Compare_Baseline)                              \
+  TFC(GreaterThanOrEqual_Baseline, Compare_Baseline)                           \
+                                                                               \
   TFC(Equal_WithFeedback, Compare_WithFeedback)                                \
   TFC(StrictEqual_WithFeedback, Compare_WithFeedback)                          \
   TFC(LessThan_WithFeedback, Compare_WithFeedback)                             \
@@ -630,6 +678,10 @@ namespace internal {
   TFC(GreaterThanOrEqual_WithFeedback, Compare_WithFeedback)                   \
                                                                                \
   /* Unary ops with feedback collection */                                     \
+  TFC(BitwiseNot_Baseline, UnaryOp_Baseline)                                   \
+  TFC(Decrement_Baseline, UnaryOp_Baseline)                                    \
+  TFC(Increment_Baseline, UnaryOp_Baseline)                                    \
+  TFC(Negate_Baseline, UnaryOp_Baseline)                                       \
   TFC(BitwiseNot_WithFeedback, UnaryOp_WithFeedback)                           \
   TFC(Decrement_WithFeedback, UnaryOp_WithFeedback)                            \
   TFC(Increment_WithFeedback, UnaryOp_WithFeedback)                            \
@@ -670,9 +722,11 @@ namespace internal {
   TFC(OrdinaryHasInstance, Compare)                                            \
   TFC(InstanceOf, Compare)                                                     \
   TFC(InstanceOf_WithFeedback, Compare_WithFeedback)                           \
+  TFC(InstanceOf_Baseline, Compare_Baseline)                                   \
                                                                                \
   /* for-in */                                                                 \
   TFS(ForInEnumerate, kReceiver)                                               \
+  TFC(ForInPrepare, ForInPrepare)                                              \
   TFS(ForInFilter, kKey, kObject)                                              \
                                                                                \
   /* Reflect */                                                                \
@@ -751,22 +805,14 @@ namespace internal {
   CPP(StringFromCodePoint)                                                     \
   /* ES6 #sec-string.fromcharcode */                                           \
   TFJ(StringFromCharCode, kDontAdaptArgumentsSentinel)                         \
-  /* ES6 #sec-string.prototype.includes */                                     \
-  TFJ(StringPrototypeIncludes, kDontAdaptArgumentsSentinel)                    \
-  /* ES6 #sec-string.prototype.indexof */                                      \
-  TFJ(StringPrototypeIndexOf, kDontAdaptArgumentsSentinel)                     \
   /* ES6 #sec-string.prototype.lastindexof */                                  \
   CPP(StringPrototypeLastIndexOf)                                              \
-  /* ES6 #sec-string.prototype.match */                                        \
-  TFJ(StringPrototypeMatch, 1, kReceiver, kRegexp)                             \
   /* ES #sec-string.prototype.matchAll */                                      \
   TFJ(StringPrototypeMatchAll, 1, kReceiver, kRegexp)                          \
   /* ES6 #sec-string.prototype.localecompare */                                \
   CPP(StringPrototypeLocaleCompare)                                            \
   /* ES6 #sec-string.prototype.replace */                                      \
   TFJ(StringPrototypeReplace, 2, kReceiver, kSearch, kReplace)                 \
-  /* ES6 #sec-string.prototype.search */                                       \
-  TFJ(StringPrototypeSearch, 1, kReceiver, kRegexp)                            \
   /* ES6 #sec-string.prototype.split */                                        \
   TFJ(StringPrototypeSplit, kDontAdaptArgumentsSentinel)                       \
   /* ES6 #sec-string.raw */                                                    \
@@ -816,7 +862,7 @@ namespace internal {
   TFC(WasmFloat64ToNumber, WasmFloat64ToNumber)                                \
   TFC(WasmI32AtomicWait32, WasmI32AtomicWait32)                                \
   TFC(WasmI64AtomicWait32, WasmI64AtomicWait32)                                \
-  TFS(WasmAllocatePair, kValue1, kValue2)                                      \
+  TFC(JSToWasmLazyDeoptContinuation, SingleParameterOnStack)                   \
                                                                                \
   /* WeakMap */                                                                \
   TFJ(WeakMapConstructor, kDontAdaptArgumentsSentinel)                         \

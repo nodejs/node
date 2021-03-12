@@ -13,7 +13,7 @@ class Context extends HeapObject {
     return *ContextSlot(this, ContextSlot::SCOPE_INFO_INDEX);
   }
   const length: Smi;
-  @relaxedWrite elements[length]: Object;
+  @relaxedRead @relaxedWrite elements[length]: Object;
 }
 
 extern class AwaitContext extends Context generates 'TNode<Context>';

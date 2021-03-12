@@ -392,22 +392,62 @@ MaybeHandle<JSLocale> Construct(Isolate* isolate,
 
 MaybeHandle<JSLocale> JSLocale::Maximize(Isolate* isolate,
                                          Handle<JSLocale> locale) {
-  icu::Locale icu_locale(*(locale->icu_locale().raw()));
+  // ICU has limitation on the length of the locale while addLikelySubtags
+  // is called. Work around the issue by only perform addLikelySubtags
+  // on the base locale and merge the extension if needed.
+  icu::Locale source(*(locale->icu_locale().raw()));
+  icu::Locale result = icu::Locale::createFromName(source.getBaseName());
   UErrorCode status = U_ZERO_ERROR;
-  icu_locale.addLikelySubtags(status);
+  result.addLikelySubtags(status);
+  if (strlen(source.getBaseName()) != strlen(result.getBaseName())) {
+    // Base name is changed
+    if (strlen(source.getBaseName()) != strlen(source.getName())) {
+      // the source has extensions, get the extensions from the source.
+      result = icu::LocaleBuilder()
+                   .setLocale(source)
+                   .setLanguage(result.getLanguage())
+                   .setRegion(result.getCountry())
+                   .setScript(result.getScript())
+                   .setVariant(result.getVariant())
+                   .build(status);
+    }
+  } else {
+    // Base name is not changed
+    result = source;
+  }
   DCHECK(U_SUCCESS(status));
-  DCHECK(!icu_locale.isBogus());
-  return Construct(isolate, icu_locale);
+  DCHECK(!result.isBogus());
+  return Construct(isolate, result);
 }
 
 MaybeHandle<JSLocale> JSLocale::Minimize(Isolate* isolate,
                                          Handle<JSLocale> locale) {
-  icu::Locale icu_locale(*(locale->icu_locale().raw()));
+  // ICU has limitation on the length of the locale while minimizeSubtags
+  // is called. Work around the issue by only perform addLikelySubtags
+  // on the base locale and merge the extension if needed.
+  icu::Locale source(*(locale->icu_locale().raw()));
+  icu::Locale result = icu::Locale::createFromName(source.getBaseName());
   UErrorCode status = U_ZERO_ERROR;
-  icu_locale.minimizeSubtags(status);
+  result.minimizeSubtags(status);
+  if (strlen(source.getBaseName()) != strlen(result.getBaseName())) {
+    // Base name is changed
+    if (strlen(source.getBaseName()) != strlen(source.getName())) {
+      // the source has extensions, get the extensions from the source.
+      result = icu::LocaleBuilder()
+                   .setLocale(source)
+                   .setLanguage(result.getLanguage())
+                   .setRegion(result.getCountry())
+                   .setScript(result.getScript())
+                   .setVariant(result.getVariant())
+                   .build(status);
+    }
+  } else {
+    // Base name is not changed
+    result = source;
+  }
   DCHECK(U_SUCCESS(status));
-  DCHECK(!icu_locale.isBogus());
-  return Construct(isolate, icu_locale);
+  DCHECK(!result.isBogus());
+  return Construct(isolate, result);
 }
 
 Handle<Object> JSLocale::Language(Isolate* isolate, Handle<JSLocale> locale) {

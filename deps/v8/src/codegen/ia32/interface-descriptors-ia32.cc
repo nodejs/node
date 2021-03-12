@@ -89,6 +89,15 @@ const Register ApiGetterDescriptor::CallbackRegister() { return eax; }
 const Register GrowArrayElementsDescriptor::ObjectRegister() { return eax; }
 const Register GrowArrayElementsDescriptor::KeyRegister() { return ecx; }
 
+const Register BaselineLeaveFrameDescriptor::ParamsSizeRegister() {
+  // TODO(v8:11421): Implement on this platform.
+  UNREACHABLE();
+}
+const Register BaselineLeaveFrameDescriptor::WeightRegister() {
+  // TODO(v8:11421): Implement on this platform.
+  UNREACHABLE();
+}
+
 // static
 const Register TypeConversionDescriptor::ArgumentRegister() { return eax; }
 
@@ -213,21 +222,22 @@ void CompareDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+void Compare_BaselineDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // TODO(v8:11421): Implement on this platform.
+  InitializePlatformUnimplemented(data, kParameterCount);
+}
+
 void BinaryOpDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {edx, eax};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-void ArgumentsAdaptorDescriptor::InitializePlatformSpecific(
+void BinaryOp_BaselineDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {
-      edi,  // JSFunction
-      edx,  // the new target
-      eax,  // actual number of arguments
-      ecx,  // expected number of arguments
-  };
-  data->InitializePlatformSpecific(arraysize(registers), registers);
+  // TODO(v8:11421): Implement on this platform.
+  InitializePlatformUnimplemented(data, kParameterCount);
 }
 
 void ApiCallbackDescriptor::InitializePlatformSpecific(

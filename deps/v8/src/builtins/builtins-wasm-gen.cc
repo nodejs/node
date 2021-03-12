@@ -107,26 +107,19 @@ TF_BUILTIN(WasmI64AtomicWait32, WasmBuiltinsAssembler) {
   Return(Unsigned(SmiToInt32(result_smi)));
 }
 
-TF_BUILTIN(WasmAllocatePair, WasmBuiltinsAssembler) {
-  TNode<WasmInstanceObject> instance = LoadInstanceFromFrame();
-  TNode<HeapObject> value1 = Parameter<HeapObject>(Descriptor::kValue1);
-  TNode<HeapObject> value2 = Parameter<HeapObject>(Descriptor::kValue2);
+TF_BUILTIN(JSToWasmLazyDeoptContinuation, WasmBuiltinsAssembler) {
+  // Reset thread_in_wasm_flag.
+  TNode<ExternalReference> thread_in_wasm_flag_address_address =
+      ExternalConstant(
+          ExternalReference::thread_in_wasm_flag_address_address(isolate()));
+  auto thread_in_wasm_flag_address =
+      Load<RawPtrT>(thread_in_wasm_flag_address_address);
+  StoreNoWriteBarrier(MachineRepresentation::kWord32,
+                      thread_in_wasm_flag_address, Int32Constant(0));
 
-  TNode<IntPtrT> roots = LoadObjectField<IntPtrT>(
-      instance, WasmInstanceObject::kIsolateRootOffset);
-  TNode<Map> map = CAST(Load(
-      MachineType::AnyTagged(), roots,
-      IntPtrConstant(IsolateData::root_slot_offset(RootIndex::kTuple2Map))));
-
-  TNode<IntPtrT> instance_size =
-      TimesTaggedSize(LoadMapInstanceSizeInWords(map));
-  TNode<Tuple2> result = UncheckedCast<Tuple2>(Allocate(instance_size));
-
-  StoreMap(result, map);
-  StoreObjectField(result, Tuple2::kValue1Offset, value1);
-  StoreObjectField(result, Tuple2::kValue2Offset, value2);
-
-  Return(result);
+  // Return the argument.
+  auto value = Parameter<Object>(Descriptor::kArgument);
+  Return(value);
 }
 
 }  // namespace internal

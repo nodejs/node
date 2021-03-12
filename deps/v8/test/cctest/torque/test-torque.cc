@@ -881,6 +881,58 @@ TEST(TestOffHeapSlice) {
   ft.Call();
 }
 
+TEST(TestCallMultiReturnBuiltin) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  CodeAssemblerTester asm_tester(isolate, 1);
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    Handle<Context> context =
+        Utils::OpenHandle(*v8::Isolate::GetCurrent()->GetCurrentContext());
+    m.TestCallMultiReturnBuiltin(
+        m.UncheckedCast<Context>(m.HeapConstant(context)));
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
+}
+
+TEST(TestRunLazyTwice) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  const int kNumParams = 0;
+  int lazyNumber = 3;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    CodeStubAssembler::LazyNode<Smi> lazy = [&]() {
+      return m.SmiConstant(lazyNumber++);
+    };
+    m.Return(m.TestRunLazyTwice(lazy));
+  }
+  CHECK_EQ(lazyNumber, 5);
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  Handle<Object> result = ft.Call().ToHandleChecked();
+  CHECK_EQ(7, Handle<Smi>::cast(result)->value());
+}
+
+TEST(TestCreateLazyNodeFromTorque) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  const int kNumParams = 0;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    m.TestCreateLazyNodeFromTorque();
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  ft.Call();
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

@@ -108,10 +108,7 @@ void VisitSimdShiftRRR(InstructionSelector* selector, ArchOpcode opcode,
                      g.UseImmediate(node->InputAt(1)));
     }
   } else {
-    InstructionOperand temps[] = {g.TempSimd128Register(), g.TempRegister()};
-    selector->Emit(opcode, g.DefineAsRegister(node),
-                   g.UseUniqueRegister(node->InputAt(0)),
-                   g.UseRegister(node->InputAt(1)), arraysize(temps), temps);
+    VisitRRR(selector, opcode, node);
   }
 }
 
@@ -511,41 +508,9 @@ void InstructionSelector::VisitAbortCSAAssert(Node* node) {
   Emit(kArchAbortCSAAssert, g.NoOutput(), g.UseFixed(node->InputAt(0), r1));
 }
 
-namespace {
-// Helper struct for load lane and store lane to indicate which opcode to use
-// and what memory size to be encoded in the opcode, and the new lane index.
-struct LoadStoreLaneParams {
-  bool low_op;
-  NeonSize sz;
-  uint8_t laneidx;
-  LoadStoreLaneParams(uint8_t laneidx, NeonSize sz, int lanes)
-      : low_op(laneidx < lanes), sz(sz), laneidx(laneidx % lanes) {}
-};
-
-// The register mapping on ARM (1 Q to 2 D), means that loading/storing high
-// lanes of a Q register is equivalent to loading/storing the high D reg, modulo
-// number of lanes in a D reg. This function decides, based on the laneidx and
-// load/store size, whether the low or high D reg is accessed, and what the new
-// lane index is.
-LoadStoreLaneParams GetLoadStoreLaneParams(MachineRepresentation rep,
-                                           uint8_t laneidx) {
-  if (rep == MachineRepresentation::kWord8) {
-    return LoadStoreLaneParams(laneidx, Neon8, 8);
-  } else if (rep == MachineRepresentation::kWord16) {
-    return LoadStoreLaneParams(laneidx, Neon16, 4);
-  } else if (rep == MachineRepresentation::kWord32) {
-    return LoadStoreLaneParams(laneidx, Neon32, 2);
-  } else if (rep == MachineRepresentation::kWord64) {
-    return LoadStoreLaneParams(laneidx, Neon64, 1);
-  } else {
-    UNREACHABLE();
-  }
-}
-}  // namespace
-
 void InstructionSelector::VisitStoreLane(Node* node) {
   StoreLaneParameters params = StoreLaneParametersOf(node->op());
-  LoadStoreLaneParams f = GetLoadStoreLaneParams(params.rep, params.laneidx);
+  LoadStoreLaneParams f(params.rep, params.laneidx);
   InstructionCode opcode =
       f.low_op ? kArmS128StoreLaneLow : kArmS128StoreLaneHigh;
   opcode |= MiscField::encode(f.sz);
@@ -563,8 +528,7 @@ void InstructionSelector::VisitStoreLane(Node* node) {
 
 void InstructionSelector::VisitLoadLane(Node* node) {
   LoadLaneParameters params = LoadLaneParametersOf(node->op());
-  LoadStoreLaneParams f =
-      GetLoadStoreLaneParams(params.rep.representation(), params.laneidx);
+  LoadStoreLaneParams f(params.rep.representation(), params.laneidx);
   InstructionCode opcode =
       f.low_op ? kArmS128LoadLaneLow : kArmS128LoadLaneHigh;
   opcode |= MiscField::encode(f.sz);
@@ -673,7 +637,7 @@ void InstructionSelector::VisitLoad(Node* node) {
   }
   if (node->opcode() == IrOpcode::kPoisonedLoad) {
     CHECK_NE(poisoning_level_, PoisoningMitigationLevel::kDontPoison);
-    opcode |= MiscField::encode(kMemoryAccessPoisoned);
+    opcode |= AccessModeField::encode(kMemoryAccessPoisoned);
   }
 
   InstructionOperand output = g.DefineAsRegister(node);
@@ -1741,10 +1705,14 @@ void InstructionSelector::EmitPrepareArguments(
     }
   } else {
     // Push any stack arguments.
+    int stack_decrement = 0;
     for (PushParameter input : base::Reversed(*arguments)) {
+      stack_decrement += kSystemPointerSize;
       // Skip any alignment holes in pushed nodes.
       if (input.node == nullptr) continue;
-      Emit(kArmPush, g.NoOutput(), g.UseRegister(input.node));
+      InstructionOperand decrement = g.UseImmediate(stack_decrement);
+      stack_decrement = 0;
+      Emit(kArmPush, g.NoOutput(), decrement, g.UseRegister(input.node));
     }
   }
 }
@@ -1775,8 +1743,6 @@ void InstructionSelector::EmitPrepareResults(
 }
 
 bool InstructionSelector::IsTailCallAddressImmediate() { return false; }
-
-int InstructionSelector::GetTempsCountForTailCallFromJSFunction() { return 3; }
 
 namespace {
 
@@ -2605,6 +2571,7 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(F32x4Neg, kArmF32x4Neg)                             \
   V(F32x4RecipApprox, kArmF32x4RecipApprox)             \
   V(F32x4RecipSqrtApprox, kArmF32x4RecipSqrtApprox)     \
+  V(I64x2Abs, kArmI64x2Abs)                             \
   V(I64x2SConvertI32x4Low, kArmI64x2SConvertI32x4Low)   \
   V(I64x2SConvertI32x4High, kArmI64x2SConvertI32x4High) \
   V(I64x2UConvertI32x4Low, kArmI64x2UConvertI32x4Low)   \
@@ -2627,11 +2594,10 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I8x16Abs, kArmI8x16Abs)                             \
   V(I8x16Popcnt, kArmVcnt)                              \
   V(S128Not, kArmS128Not)                               \
-  V(V32x4AnyTrue, kArmV32x4AnyTrue)                     \
+  V(V64x2AllTrue, kArmV64x2AllTrue)                     \
   V(V32x4AllTrue, kArmV32x4AllTrue)                     \
-  V(V16x8AnyTrue, kArmV16x8AnyTrue)                     \
   V(V16x8AllTrue, kArmV16x8AllTrue)                     \
-  V(V8x16AnyTrue, kArmV8x16AnyTrue)                     \
+  V(V128AnyTrue, kArmV128AnyTrue)                       \
   V(V8x16AllTrue, kArmV8x16AllTrue)
 
 #define SIMD_SHIFT_OP_LIST(V) \
@@ -2679,6 +2645,9 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I32x4MaxS, kArmI32x4MaxS)                         \
   V(I32x4Eq, kArmI32x4Eq)                             \
   V(I64x2Eq, kArmI64x2Eq)                             \
+  V(I64x2Ne, kArmI64x2Ne)                             \
+  V(I64x2GtS, kArmI64x2GtS)                           \
+  V(I64x2GeS, kArmI64x2GeS)                           \
   V(I32x4Ne, kArmI32x4Ne)                             \
   V(I32x4GtS, kArmI32x4GtS)                           \
   V(I32x4GeS, kArmI32x4GeS)                           \
@@ -2844,8 +2813,7 @@ void InstructionSelector::VisitI64x2Neg(Node* node) {
 
 void InstructionSelector::VisitI64x2Mul(Node* node) {
   ArmOperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempSimd128Register(),
-                                g.TempSimd128Register()};
+  InstructionOperand temps[] = {g.TempSimd128Register()};
   Emit(kArmI64x2Mul, g.DefineAsRegister(node),
        g.UseUniqueRegister(node->InputAt(0)),
        g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
@@ -3053,8 +3021,7 @@ namespace {
 template <ArchOpcode opcode>
 void VisitBitMask(InstructionSelector* selector, Node* node) {
   ArmOperandGenerator g(selector);
-  InstructionOperand temps[] = {g.TempSimd128Register(),
-                                g.TempSimd128Register()};
+  InstructionOperand temps[] = {g.TempSimd128Register()};
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(node->InputAt(0)), arraysize(temps), temps);
 }
@@ -3180,6 +3147,45 @@ void InstructionSelector::VisitTruncateFloat32ToUint32(Node* node) {
   }
 
   Emit(opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+}
+
+// TODO(v8:9780)
+// These double precision conversion instructions need a low Q register (q0-q7)
+// because the codegen accesses the S registers they overlap with.
+void InstructionSelector::VisitF64x2ConvertLowI32x4S(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmF64x2ConvertLowI32x4S, g.DefineAsRegister(node),
+       g.UseFixed(node->InputAt(0), q0));
+}
+
+void InstructionSelector::VisitF64x2ConvertLowI32x4U(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmF64x2ConvertLowI32x4U, g.DefineAsRegister(node),
+       g.UseFixed(node->InputAt(0), q0));
+}
+
+void InstructionSelector::VisitI32x4TruncSatF64x2SZero(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmI32x4TruncSatF64x2SZero, g.DefineAsFixed(node, q0),
+       g.UseUniqueRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitI32x4TruncSatF64x2UZero(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmI32x4TruncSatF64x2UZero, g.DefineAsFixed(node, q0),
+       g.UseUniqueRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitF32x4DemoteF64x2Zero(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmF32x4DemoteF64x2Zero, g.DefineAsFixed(node, q0),
+       g.UseUniqueRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitF64x2PromoteLowF32x4(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmF64x2PromoteLowF32x4, g.DefineAsRegister(node),
+       g.UseFixed(node->InputAt(0), q0));
 }
 
 // static

@@ -63,16 +63,16 @@ auto ReadLebU64(const byte_t** pos) -> uint64_t {
 
 ValKind V8ValueTypeToWasm(i::wasm::ValueType v8_valtype) {
   switch (v8_valtype.kind()) {
-    case i::wasm::ValueType::kI32:
+    case i::wasm::kI32:
       return I32;
-    case i::wasm::ValueType::kI64:
+    case i::wasm::kI64:
       return I64;
-    case i::wasm::ValueType::kF32:
+    case i::wasm::kF32:
       return F32;
-    case i::wasm::ValueType::kF64:
+    case i::wasm::kF64:
       return F64;
-    case i::wasm::ValueType::kRef:
-    case i::wasm::ValueType::kOptRef:
+    case i::wasm::kRef:
+    case i::wasm::kOptRef:
       switch (v8_valtype.heap_representation()) {
         case i::wasm::HeapType::kFunc:
           return FUNCREF;
@@ -886,13 +886,13 @@ own<Instance> GetInstance(StoreImpl* store,
 
 own<Frame> CreateFrameFromInternal(i::Handle<i::FixedArray> frames, int index,
                                    i::Isolate* isolate, StoreImpl* store) {
-  i::Handle<i::StackTraceFrame> frame(
-      i::StackTraceFrame::cast(frames->get(index)), isolate);
-  i::Handle<i::WasmInstanceObject> instance =
-      i::StackTraceFrame::GetWasmInstance(frame);
-  uint32_t func_index = i::StackTraceFrame::GetWasmFunctionIndex(frame);
-  size_t func_offset = i::StackTraceFrame::GetFunctionOffset(frame);
-  size_t module_offset = i::StackTraceFrame::GetColumnNumber(frame);
+  i::Handle<i::StackFrameInfo> frame(
+      i::StackFrameInfo::cast(frames->get(index)), isolate);
+  i::Handle<i::WasmInstanceObject> instance(frame->GetWasmInstance(), isolate);
+  uint32_t func_index = frame->GetWasmFunctionIndex();
+  size_t module_offset = i::StackFrameInfo::GetSourcePosition(frame);
+  size_t func_offset = module_offset - i::wasm::GetWasmFunctionOffset(
+                                           instance->module(), func_index);
   return own<Frame>(seal<Frame>(new (std::nothrow) FrameImpl(
       GetInstance(store, instance), func_index, func_offset, module_offset)));
 }
@@ -1402,31 +1402,32 @@ void PushArgs(const i::wasm::FunctionSig* sig, const Val args[],
   for (size_t i = 0; i < sig->parameter_count(); i++) {
     i::wasm::ValueType type = sig->GetParam(i);
     switch (type.kind()) {
-      case i::wasm::ValueType::kI32:
+      case i::wasm::kI32:
         packer->Push(args[i].i32());
         break;
-      case i::wasm::ValueType::kI64:
+      case i::wasm::kI64:
         packer->Push(args[i].i64());
         break;
-      case i::wasm::ValueType::kF32:
+      case i::wasm::kF32:
         packer->Push(args[i].f32());
         break;
-      case i::wasm::ValueType::kF64:
+      case i::wasm::kF64:
         packer->Push(args[i].f64());
         break;
-      case i::wasm::ValueType::kRef:
-      case i::wasm::ValueType::kOptRef:
+      case i::wasm::kRef:
+      case i::wasm::kOptRef:
         // TODO(7748): Make sure this works for all heap types.
         packer->Push(WasmRefToV8(store->i_isolate(), args[i].ref())->ptr());
         break;
-      case i::wasm::ValueType::kRtt:
-      case i::wasm::ValueType::kS128:
+      case i::wasm::kRtt:
+      case i::wasm::kRttWithDepth:
+      case i::wasm::kS128:
         // TODO(7748): Implement.
         UNIMPLEMENTED();
-      case i::wasm::ValueType::kI8:
-      case i::wasm::ValueType::kI16:
-      case i::wasm::ValueType::kStmt:
-      case i::wasm::ValueType::kBottom:
+      case i::wasm::kI8:
+      case i::wasm::kI16:
+      case i::wasm::kStmt:
+      case i::wasm::kBottom:
         UNREACHABLE();
         break;
     }
@@ -1439,34 +1440,35 @@ void PopArgs(const i::wasm::FunctionSig* sig, Val results[],
   for (size_t i = 0; i < sig->return_count(); i++) {
     i::wasm::ValueType type = sig->GetReturn(i);
     switch (type.kind()) {
-      case i::wasm::ValueType::kI32:
+      case i::wasm::kI32:
         results[i] = Val(packer->Pop<int32_t>());
         break;
-      case i::wasm::ValueType::kI64:
+      case i::wasm::kI64:
         results[i] = Val(packer->Pop<int64_t>());
         break;
-      case i::wasm::ValueType::kF32:
+      case i::wasm::kF32:
         results[i] = Val(packer->Pop<float>());
         break;
-      case i::wasm::ValueType::kF64:
+      case i::wasm::kF64:
         results[i] = Val(packer->Pop<double>());
         break;
-      case i::wasm::ValueType::kRef:
-      case i::wasm::ValueType::kOptRef: {
+      case i::wasm::kRef:
+      case i::wasm::kOptRef: {
         // TODO(7748): Make sure this works for all heap types.
         i::Address raw = packer->Pop<i::Address>();
         i::Handle<i::Object> obj(i::Object(raw), store->i_isolate());
         results[i] = Val(V8RefValueToWasm(store, obj));
         break;
       }
-      case i::wasm::ValueType::kRtt:
-      case i::wasm::ValueType::kS128:
+      case i::wasm::kRtt:
+      case i::wasm::kRttWithDepth:
+      case i::wasm::kS128:
         // TODO(7748): Implement.
         UNIMPLEMENTED();
-      case i::wasm::ValueType::kI8:
-      case i::wasm::ValueType::kI16:
-      case i::wasm::ValueType::kStmt:
-      case i::wasm::ValueType::kBottom:
+      case i::wasm::kI8:
+      case i::wasm::kI16:
+      case i::wasm::kStmt:
+      case i::wasm::kBottom:
         UNREACHABLE();
         break;
     }
@@ -1708,29 +1710,30 @@ auto Global::type() const -> own<GlobalType> {
 auto Global::get() const -> Val {
   i::Handle<i::WasmGlobalObject> v8_global = impl(this)->v8_object();
   switch (v8_global->type().kind()) {
-    case i::wasm::ValueType::kI32:
+    case i::wasm::kI32:
       return Val(v8_global->GetI32());
-    case i::wasm::ValueType::kI64:
+    case i::wasm::kI64:
       return Val(v8_global->GetI64());
-    case i::wasm::ValueType::kF32:
+    case i::wasm::kF32:
       return Val(v8_global->GetF32());
-    case i::wasm::ValueType::kF64:
+    case i::wasm::kF64:
       return Val(v8_global->GetF64());
-    case i::wasm::ValueType::kRef:
-    case i::wasm::ValueType::kOptRef: {
+    case i::wasm::kRef:
+    case i::wasm::kOptRef: {
       // TODO(7748): Make sure this works for all heap types.
       StoreImpl* store = impl(this)->store();
       i::HandleScope scope(store->i_isolate());
       return Val(V8RefValueToWasm(store, v8_global->GetRef()));
     }
-    case i::wasm::ValueType::kRtt:
-    case i::wasm::ValueType::kS128:
+    case i::wasm::kRtt:
+    case i::wasm::kRttWithDepth:
+    case i::wasm::kS128:
       // TODO(7748): Implement these.
       UNIMPLEMENTED();
-    case i::wasm::ValueType::kI8:
-    case i::wasm::ValueType::kI16:
-    case i::wasm::ValueType::kStmt:
-    case i::wasm::ValueType::kBottom:
+    case i::wasm::kI8:
+    case i::wasm::kI16:
+    case i::wasm::kStmt:
+    case i::wasm::kBottom:
       UNREACHABLE();
   }
 }

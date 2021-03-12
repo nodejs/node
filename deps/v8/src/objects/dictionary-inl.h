@@ -322,16 +322,7 @@ template <typename Dictionary>
 void GlobalDictionaryShape::DetailsAtPut(Dictionary dict, InternalIndex entry,
                                          PropertyDetails value) {
   DCHECK(entry.is_found());
-  PropertyCell cell = dict.CellAt(entry);
-  // Deopt when when making a writable property read-only. The reverse direction
-  // is uninteresting because Turbofan does not currently rely on read-only
-  // unless the property is also configurable, in which case it will stay
-  // read-only forever.
-  if (!cell.property_details().IsReadOnly() && value.IsReadOnly()) {
-    cell.dependent_code().DeoptimizeDependentCodeGroup(
-        DependentCode::kPropertyCellChangedGroup);
-  }
-  cell.set_property_details(value);
+  dict.CellAt(entry).UpdatePropertyDetailsExceptCellType(value);
 }
 
 }  // namespace internal

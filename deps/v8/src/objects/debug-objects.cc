@@ -356,38 +356,15 @@ int BreakPointInfo::GetBreakPointCount(Isolate* isolate) {
   return FixedArray::cast(break_points()).length();
 }
 
-int CoverageInfo::SlotFieldOffset(int slot_index, int field_offset) const {
-  DCHECK_LT(field_offset, Slot::kSize);
-  DCHECK_LT(slot_index, slot_count());
-  return kSlotsOffset + slot_index * Slot::kSize + field_offset;
-}
-
-int CoverageInfo::StartSourcePosition(int slot_index) const {
-  return ReadField<int32_t>(
-      SlotFieldOffset(slot_index, Slot::kStartSourcePositionOffset));
-}
-
-int CoverageInfo::EndSourcePosition(int slot_index) const {
-  return ReadField<int32_t>(
-      SlotFieldOffset(slot_index, Slot::kEndSourcePositionOffset));
-}
-
-int CoverageInfo::BlockCount(int slot_index) const {
-  return ReadField<int32_t>(
-      SlotFieldOffset(slot_index, Slot::kBlockCountOffset));
-}
-
 void CoverageInfo::InitializeSlot(int slot_index, int from_pos, int to_pos) {
-  WriteField<int32_t>(
-      SlotFieldOffset(slot_index, Slot::kStartSourcePositionOffset), from_pos);
-  WriteField<int32_t>(
-      SlotFieldOffset(slot_index, Slot::kEndSourcePositionOffset), to_pos);
+  set_slots_start_source_position(slot_index, from_pos);
+  set_slots_end_source_position(slot_index, to_pos);
   ResetBlockCount(slot_index);
-  WriteField<int32_t>(SlotFieldOffset(slot_index, Slot::kPaddingOffset), 0);
+  set_slots_padding(slot_index, 0);
 }
 
 void CoverageInfo::ResetBlockCount(int slot_index) {
-  WriteField<int32_t>(SlotFieldOffset(slot_index, Slot::kBlockCountOffset), 0);
+  set_slots_block_count(slot_index, 0);
 }
 
 void CoverageInfo::CoverageInfoPrint(std::ostream& os,
@@ -406,8 +383,8 @@ void CoverageInfo::CoverageInfoPrint(std::ostream& os,
   os << "):" << std::endl;
 
   for (int i = 0; i < slot_count(); i++) {
-    os << "{" << StartSourcePosition(i) << "," << EndSourcePosition(i) << "}"
-       << std::endl;
+    os << "{" << slots_start_source_position(i) << ","
+       << slots_end_source_position(i) << "}" << std::endl;
   }
 }
 

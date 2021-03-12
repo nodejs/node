@@ -5,6 +5,8 @@
 #include "src/codegen/source-position-table.h"
 
 #include "src/base/export-template.h"
+#include "src/base/logging.h"
+#include "src/common/assert-scope.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
@@ -36,7 +38,10 @@ using ValueBits = base::BitField8<unsigned, 0, 7>;
 void AddAndSetEntry(PositionTableEntry* value,
                     const PositionTableEntry& other) {
   value->code_offset += other.code_offset;
+  DCHECK_IMPLIES(value->code_offset != kFunctionEntryBytecodeOffset,
+                 value->code_offset >= 0);
   value->source_position += other.source_position;
+  DCHECK_LE(0, value->source_position);
   value->is_statement = other.is_statement;
 }
 
@@ -69,7 +74,11 @@ void EncodeInt(ZoneVector<byte>* bytes, T value) {
 // Encode a PositionTableEntry.
 void EncodeEntry(ZoneVector<byte>* bytes, const PositionTableEntry& entry) {
   // We only accept ascending code offsets.
-  DCHECK_GE(entry.code_offset, 0);
+  DCHECK_LE(0, entry.code_offset);
+  // All but the first entry must be *strictly* ascending (no two entries for
+  // the same position).
+  // TODO(11496): This DCHECK fails tests.
+  // DCHECK_IMPLIES(!bytes->empty(), entry.code_offset > 0);
   // Since code_offset is not negative, we use sign to encode is_statement.
   EncodeInt(bytes,
             entry.is_statement ? entry.code_offset : -entry.code_offset - 1);

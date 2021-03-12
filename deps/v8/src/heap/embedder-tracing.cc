@@ -4,6 +4,7 @@
 
 #include "src/heap/embedder-tracing.h"
 
+#include "include/v8-cppgc.h"
 #include "src/base/logging.h"
 #include "src/heap/gc-tracer.h"
 #include "src/objects/embedder-data-slot.h"
@@ -74,9 +75,33 @@ void LocalEmbedderHeapTracer::SetEmbedderStackStateForNextFinalization(
   }
 }
 
+namespace {
+
+bool ExtractWrappableInfo(Isolate* isolate, JSObject js_object,
+                          const WrapperDescriptor& wrapper_descriptor,
+                          LocalEmbedderHeapTracer::WrapperInfo* info) {
+  DCHECK(js_object.IsApiWrapper());
+  if (js_object.GetEmbedderFieldCount() < 2) return false;
+
+  if (EmbedderDataSlot(js_object, wrapper_descriptor.wrappable_type_index)
+          .ToAlignedPointerSafe(isolate, &info->first) &&
+      info->first &&
+      EmbedderDataSlot(js_object, wrapper_descriptor.wrappable_instance_index)
+          .ToAlignedPointerSafe(isolate, &info->second) &&
+      info->second) {
+    return (wrapper_descriptor.embedder_id_for_garbage_collected ==
+            WrapperDescriptor::kUnknownEmbedderId) ||
+           (*static_cast<uint16_t*>(info->first) ==
+            wrapper_descriptor.embedder_id_for_garbage_collected);
+  }
+  return false;
+}
+
+}  // namespace
+
 LocalEmbedderHeapTracer::ProcessingScope::ProcessingScope(
     LocalEmbedderHeapTracer* tracer)
-    : tracer_(tracer) {
+    : tracer_(tracer), wrapper_descriptor_(tracer->wrapper_descriptor_) {
   wrapper_cache_.reserve(kWrapperCacheSize);
 }
 
@@ -86,19 +111,11 @@ LocalEmbedderHeapTracer::ProcessingScope::~ProcessingScope() {
   }
 }
 
-// static
 LocalEmbedderHeapTracer::WrapperInfo
 LocalEmbedderHeapTracer::ExtractWrapperInfo(Isolate* isolate,
                                             JSObject js_object) {
-  DCHECK_GE(js_object.GetEmbedderFieldCount(), 2);
-  DCHECK(js_object.IsApiWrapper());
-
   WrapperInfo info;
-  if (EmbedderDataSlot(js_object, 0)
-          .ToAlignedPointerSafe(isolate, &info.first) &&
-      info.first &&
-      EmbedderDataSlot(js_object, 1)
-          .ToAlignedPointerSafe(isolate, &info.second)) {
+  if (ExtractWrappableInfo(isolate, js_object, wrapper_descriptor_, &info)) {
     return info;
   }
   return {nullptr, nullptr};
@@ -107,14 +124,12 @@ LocalEmbedderHeapTracer::ExtractWrapperInfo(Isolate* isolate,
 void LocalEmbedderHeapTracer::ProcessingScope::TracePossibleWrapper(
     JSObject js_object) {
   DCHECK(js_object.IsApiWrapper());
-  if (js_object.GetEmbedderFieldCount() < 2) return;
-
-  WrapperInfo info =
-      LocalEmbedderHeapTracer::ExtractWrapperInfo(tracer_->isolate_, js_object);
-  if (VerboseWrapperInfo(info).is_valid()) {
+  WrapperInfo info;
+  if (ExtractWrappableInfo(tracer_->isolate_, js_object, wrapper_descriptor_,
+                           &info)) {
     wrapper_cache_.push_back(std::move(info));
+    FlushWrapperCacheIfFull();
   }
-  FlushWrapperCacheIfFull();
 }
 
 void LocalEmbedderHeapTracer::ProcessingScope::FlushWrapperCacheIfFull() {

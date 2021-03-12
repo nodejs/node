@@ -227,7 +227,7 @@ class JSReceiver : public HeapObject {
   // returned instead.
   static Handle<String> GetConstructorName(Handle<JSReceiver> receiver);
 
-  V8_EXPORT_PRIVATE Handle<NativeContext> GetCreationContext();
+  V8_EXPORT_PRIVATE MaybeHandle<NativeContext> GetCreationContext();
 
   V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
   GetPropertyAttributes(Handle<JSReceiver> object, Handle<Name> name);
@@ -310,6 +310,19 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // Notice: This is NOT 19.1.2.2 Object.create ( O, Properties )
   static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> ObjectCreate(
       Isolate* isolate, Handle<Object> prototype);
+
+  DECL_ACCESSORS(elements, FixedArrayBase)
+  DECL_RELAXED_GETTER(elements, FixedArrayBase)
+
+  // Acquire/release semantics on this field are explicitly forbidden to avoid
+  // confusion, since the default setter uses relaxed semantics. If
+  // acquire/release semantics ever become necessary, the default setter should
+  // be reverted to non-atomic behavior, and setters with explicit tags
+  // introduced and used when required.
+  FixedArrayBase elements(IsolateRoot isolate,
+                          AcquireLoadTag tag) const = delete;
+  void set_elements(FixedArrayBase value, ReleaseStoreTag tag,
+                    WriteBarrierMode mode = UPDATE_WRITE_BARRIER) = delete;
 
   inline void initialize_elements();
   static inline void SetMapAndElements(Handle<JSObject> object, Handle<Map> map,
@@ -630,26 +643,18 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                                                   int unused_property_fields,
                                                   const char* reason);
 
-  inline bool IsUnboxedDoubleField(FieldIndex index) const;
-  inline bool IsUnboxedDoubleField(IsolateRoot isolate, FieldIndex index) const;
-
   // Access fast-case object properties at index.
   static Handle<Object> FastPropertyAt(Handle<JSObject> object,
                                        Representation representation,
                                        FieldIndex index);
   inline Object RawFastPropertyAt(FieldIndex index) const;
   inline Object RawFastPropertyAt(IsolateRoot isolate, FieldIndex index) const;
-  inline double RawFastDoublePropertyAt(FieldIndex index) const;
-  inline uint64_t RawFastDoublePropertyAsBitsAt(FieldIndex index) const;
 
-  inline void FastPropertyAtPut(FieldIndex index, Object value);
-  inline void RawFastPropertyAtPut(
-      FieldIndex index, Object value,
-      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void FastPropertyAtPut(FieldIndex index, Object value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void RawFastInobjectPropertyAtPut(
       FieldIndex index, Object value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void RawFastDoublePropertyAsBitsAtPut(FieldIndex index, uint64_t bits);
   inline void WriteToField(InternalIndex descriptor, PropertyDetails details,
                            Object value);
 

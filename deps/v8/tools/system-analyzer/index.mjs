@@ -248,7 +248,7 @@ class App {
 
   focusSourcePosition(sourcePosition) {
     if (!sourcePosition) return;
-    this._view.sourcePanel.focusedSourcePositions = [sourcePosition];
+    this._view.scriptPanel.focusedSourcePositions = [sourcePosition];
   }
 
   handleToolTip(event) {

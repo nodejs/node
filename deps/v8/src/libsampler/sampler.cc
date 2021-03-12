@@ -87,7 +87,7 @@ using mcontext_t = struct sigcontext;
 
 struct ucontext_t {
   uint64_t uc_flags;
-  struct ucontext *uc_link;
+  struct ucontext* uc_link;
   stack_t uc_stack;
   mcontext_t uc_mcontext;
   // Other fields are not used by V8, don't define them here.
@@ -153,7 +153,7 @@ struct mcontext_t {
 
 struct ucontext_t {
   uint64_t uc_flags;
-  struct ucontext *uc_link;
+  struct ucontext* uc_link;
   stack_t uc_stack;
   mcontext_t uc_mcontext;
   // Other fields are not used by V8, don't define them here.
@@ -162,7 +162,6 @@ enum { REG_RBP = 10, REG_RSP = 15, REG_RIP = 16 };
 #endif
 
 #endif  // V8_OS_ANDROID && !defined(__BIONIC_HAVE_UCONTEXT_T)
-
 
 namespace v8 {
 namespace sampler {
@@ -262,11 +261,9 @@ class Sampler::PlatformData {
   // not work in this case. We're using OpenThread because DuplicateHandle
   // for some reason doesn't work in Chrome's sandbox.
   PlatformData()
-      : profiled_thread_(OpenThread(THREAD_GET_CONTEXT |
-                                    THREAD_SUSPEND_RESUME |
-                                    THREAD_QUERY_INFORMATION,
-                                    false,
-                                    GetCurrentThreadId())) {}
+      : profiled_thread_(OpenThread(THREAD_GET_CONTEXT | THREAD_SUSPEND_RESUME |
+                                        THREAD_QUERY_INFORMATION,
+                                    false, GetCurrentThreadId())) {}
 
   ~PlatformData() {
     if (profiled_thread_ != nullptr) {
@@ -303,7 +300,6 @@ class Sampler::PlatformData {
 };
 
 #endif  // USE_SIGNALS
-
 
 #if defined(USE_SIGNALS)
 class SignalHandler {
@@ -358,7 +354,6 @@ base::LazyMutex SignalHandler::mutex_ = LAZY_MUTEX_INITIALIZER;
 int SignalHandler::client_count_ = 0;
 struct sigaction SignalHandler::old_signal_handler_;
 bool SignalHandler::signal_handler_installed_ = false;
-
 
 void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
                                          void* context) {
@@ -418,10 +413,8 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
 #elif V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64
 #if V8_LIBC_GLIBC
   state->pc = reinterpret_cast<void*>(ucontext->uc_mcontext.regs->nip);
-  state->sp =
-      reinterpret_cast<void*>(ucontext->uc_mcontext.regs->gpr[PT_R1]);
-  state->fp =
-      reinterpret_cast<void*>(ucontext->uc_mcontext.regs->gpr[PT_R31]);
+  state->sp = reinterpret_cast<void*>(ucontext->uc_mcontext.regs->gpr[PT_R1]);
+  state->fp = reinterpret_cast<void*>(ucontext->uc_mcontext.regs->gpr[PT_R31]);
   state->lr = reinterpret_cast<void*>(ucontext->uc_mcontext.regs->link);
 #else
   // Some C libraries, notably Musl, define the regs member as a void pointer
@@ -442,6 +435,12 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
   state->sp = reinterpret_cast<void*>(ucontext->uc_mcontext.gregs[15]);
   state->fp = reinterpret_cast<void*>(ucontext->uc_mcontext.gregs[11]);
   state->lr = reinterpret_cast<void*>(ucontext->uc_mcontext.gregs[14]);
+#elif V8_HOST_ARCH_RISCV64
+  // Spec CH.25 RISC-V Assembly Programmer’s Handbook
+  state->pc = reinterpret_cast<void*>(mcontext.__gregs[REG_PC]);
+  state->sp = reinterpret_cast<void*>(mcontext.__gregs[REG_SP]);
+  state->fp = reinterpret_cast<void*>(mcontext.__gregs[REG_S0]);
+  state->lr = reinterpret_cast<void*>(mcontext.__gregs[REG_RA]);
 #endif  // V8_HOST_ARCH_*
 #elif V8_OS_IOS
 
@@ -537,9 +536,7 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
 Sampler::Sampler(Isolate* isolate)
     : isolate_(isolate), data_(std::make_unique<PlatformData>()) {}
 
-Sampler::~Sampler() {
-  DCHECK(!IsActive());
-}
+Sampler::~Sampler() { DCHECK(!IsActive()); }
 
 void Sampler::Start() {
   DCHECK(!IsActive());

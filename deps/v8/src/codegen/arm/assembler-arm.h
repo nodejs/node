@@ -41,6 +41,7 @@
 #define V8_CODEGEN_ARM_ASSEMBLER_ARM_H_
 
 #include <stdio.h>
+
 #include <memory>
 #include <vector>
 
@@ -48,6 +49,7 @@
 #include "src/codegen/arm/register-arm.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/constant-pool.h"
+#include "src/codegen/machine-type.h"
 #include "src/numbers/double.h"
 #include "src/utils/boxed-float.h"
 
@@ -949,6 +951,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vceq(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vceq(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
             QwNeonRegister src2);
+  void vceq(NeonSize size, QwNeonRegister dst, QwNeonRegister src, int value);
   void vcge(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vcge(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
             QwNeonRegister src2);
@@ -1392,6 +1395,25 @@ class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
   // Available scratch registers at the start of this scope.
   RegList old_available_;
   VfpRegList old_available_vfp_;
+};
+
+// Helper struct for load lane and store lane to indicate which opcode to use
+// and what memory size to be encoded in the opcode, and the new lane index.
+class LoadStoreLaneParams {
+ public:
+  bool low_op;
+  NeonSize sz;
+  uint8_t laneidx;
+  // The register mapping on ARM (1 Q to 2 D), means that loading/storing high
+  // lanes of a Q register is equivalent to loading/storing the high D reg,
+  // modulo number of lanes in a D reg. This constructor decides, based on the
+  // laneidx and load/store size, whether the low or high D reg is accessed, and
+  // what the new lane index is.
+  LoadStoreLaneParams(MachineRepresentation rep, uint8_t laneidx);
+
+ private:
+  LoadStoreLaneParams(uint8_t laneidx, NeonSize sz, int lanes)
+      : low_op(laneidx < lanes), sz(sz), laneidx(laneidx % lanes) {}
 };
 
 }  // namespace internal

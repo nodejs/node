@@ -2848,7 +2848,8 @@ TEST(PauseInScript) {
   const char* src = "(function (evt) {})";
   const char* script_name = "StepInHandlerTest";
 
-  v8::ScriptOrigin origin(v8_str(env->GetIsolate(), script_name));
+  v8::ScriptOrigin origin(env->GetIsolate(),
+                          v8_str(env->GetIsolate(), script_name));
   v8::Local<v8::Script> script =
       v8::Script::Compile(context, v8_str(env->GetIsolate(), src), &origin)
           .ToLocalChecked();
@@ -3225,7 +3226,7 @@ TEST(DebugScriptLineEndsAreAscending) {
                                         "  debugger;\n"
                                         "}\n");
 
-  v8::ScriptOrigin origin1 = v8::ScriptOrigin(v8_str(isolate, "name"));
+  v8::ScriptOrigin origin1 = v8::ScriptOrigin(isolate, v8_str(isolate, "name"));
   v8::Local<v8::Script> script1 =
       v8::Script::Compile(env.local(), script, &origin1).ToLocalChecked();
   USE(script1);

@@ -39,7 +39,6 @@
 #include "src/heap/heap-inl.h"
 #include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/string.h"
 #include "src/strings/unicode-decoder.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -1902,6 +1901,20 @@ TEST(StringEquals) {
   CHECK(!bar_str->StringEquals(foo_str2));
 }
 
+class OneByteStringResource : public v8::String::ExternalOneByteStringResource {
+ public:
+  // Takes ownership of |data|.
+  OneByteStringResource(char* data, size_t length)
+      : data_(data), length_(length) {}
+  ~OneByteStringResource() override { delete[] data_; }
+  const char* data() const override { return data_; }
+  size_t length() const override { return length_; }
+
+ private:
+  char* data_;
+  size_t length_;
+};
+
 TEST(Regress876759) {
   // Thin strings are used in conjunction with young gen
   if (FLAG_single_generation) return;
@@ -1936,9 +1949,9 @@ TEST(Regress876759) {
   Handle<String> grandparent =
       handle(ThinString::cast(*parent).actual(), isolate);
   CHECK_EQ(*parent, SlicedString::cast(*sliced).parent());
-  OneByteResource* resource =
-      new OneByteResource(external_one_byte_buf, kLength);
-  CHECK(grandparent->MakeExternal(resource));
+  OneByteStringResource* resource =
+      new OneByteStringResource(external_one_byte_buf, kLength);
+  grandparent->MakeExternal(resource);
   // The grandparent string becomes one-byte, but the child strings are still
   // two-byte.
   CHECK(grandparent->IsOneByteRepresentation());
@@ -1946,71 +1959,6 @@ TEST(Regress876759) {
   CHECK(sliced->IsTwoByteRepresentation());
   // The *Underneath version returns the correct representation.
   CHECK(String::IsOneByteRepresentationUnderneath(*sliced));
-}
-
-// Show that small internal strings are not externalizable since it would make
-// them external and uncached through MakeExternal. One byte version.
-TEST(MakeExternalCreationFailureOneByte) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
-// Due to different size restrictions the string needs to be small but not too
-// small. One of these restrictions is whether pointer compression is enabled.
-#ifdef V8_COMPRESS_POINTERS
-  const char* raw_small = "small string";
-#elif V8_TARGET_ARCH_32_BIT
-  const char* raw_small = "smol";
-#else
-  const char* raw_small = "smalls";
-#endif  // V8_COMPRESS_POINTERS
-
-  HandleScope handle_scope(isolate);
-  Handle<String> one_byte_string =
-      factory->InternalizeString(factory->NewStringFromAsciiChecked(raw_small));
-  CHECK(one_byte_string->IsOneByteRepresentation());
-  CHECK(!one_byte_string->IsExternalString());
-  CHECK(!one_byte_string->SupportsExternalization());
-}
-
-// Show that small internal strings are not externalizable since it would make
-// them external and uncached through MakeExternal. Two byte version.
-TEST(MakeExternalCreationFailureTwoByte) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
-  // Due to different size restrictions the string needs to be small but not too
-  // small.
-  const char* raw_small = "smalls";
-  const int kLength = 6;
-  DCHECK_EQ(kLength, strlen(raw_small));
-  const uint16_t two_byte_array[kLength] = {'s', 'm', 'a', 'l', 'l', 's'};
-
-  HandleScope handle_scope(isolate);
-  Handle<String> two_bytes_string;
-  {
-    Handle<SeqTwoByteString> raw =
-        factory->NewRawTwoByteString(kLength).ToHandleChecked();
-    DisallowGarbageCollection no_gc;
-    CopyChars(raw->GetChars(no_gc), two_byte_array, kLength);
-    two_bytes_string = raw;
-  }
-  two_bytes_string = factory->InternalizeString(two_bytes_string);
-  CHECK(two_bytes_string->IsTwoByteRepresentation());
-  CHECK(!two_bytes_string->IsExternalString());
-  if (COMPRESS_POINTERS_BOOL) {
-    CHECK(!two_bytes_string->SupportsExternalization());
-  } else {
-    // Without pointer compression, there is no string size that can cause a
-    // failure for a two byte string. It needs to be bigger than 5 chars to
-    // support externalization, but at that point is bigger than the limit and
-    // it is not uncached anymore.
-    // As a note, since pointer compression is only enabled for 64 bits, all
-    // target 32 bit archs fall in this case.
-    CHECK(two_bytes_string->MakeExternal(
-        new Resource(AsciiToTwoByteString(raw_small), strlen(raw_small))));
-    auto external = Handle<ExternalString>::cast(two_bytes_string);
-    CHECK(!external->is_uncached());
-  }
 }
 
 // Show that it is possible to internalize an external string without a copy, as
@@ -2142,6 +2090,7 @@ TEST(InternalizeExternalStringUncachedWithCopyTwoByte) {
   CHECK(external->is_uncached());
 
   // Internalize succesfully, with a copy.
+  CHECK(!external->IsInternalizedString());
   Handle<String> internal = factory->InternalizeString(external);
   CHECK(!external->IsInternalizedString());
   CHECK(internal->IsInternalizedString());

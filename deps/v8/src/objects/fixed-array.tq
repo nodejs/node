@@ -26,7 +26,7 @@ extern class FixedDoubleArray extends FixedArrayBase {
 @generateCppClass
 extern class WeakFixedArray extends HeapObject {
   const length: Smi;
-  objects[length]: MaybeObject;
+  @relaxedRead objects[length]: MaybeObject;
 }
 
 @generateCppClass
@@ -51,7 +51,7 @@ extern class TemplateList extends FixedArray {
 extern class WeakArrayList extends HeapObject {
   const capacity: Smi;
   length: Smi;
-  objects[capacity]: MaybeObject;
+  @relaxedRead objects[capacity]: MaybeObject;
 }
 
 extern operator '.length_intptr' macro LoadAndUntagFixedArrayBaseLength(
@@ -125,7 +125,7 @@ extern macro CopyFixedArrayElements(
 macro ExtractFixedArray(
     source: FixedArray, first: intptr, count: intptr,
     capacity: intptr): FixedArray {
-  // TODO(tebbi): This should be optimized to use memcpy for initialization.
+  // TODO(turbofan): This should be optimized to use memcpy for initialization.
   return NewFixedArray(
       capacity,
       IteratorSequence<Object>(
@@ -135,7 +135,7 @@ macro ExtractFixedArray(
 macro ExtractFixedDoubleArray(
     source: FixedDoubleArray, first: intptr, count: intptr,
     capacity: intptr): FixedDoubleArray|EmptyFixedArray {
-  // TODO(tebbi): This should be optimized to use memcpy for initialization.
+  // TODO(turbofan): This should be optimized to use memcpy for initialization.
   return NewFixedDoubleArray(
       capacity,
       IteratorSequence<float64_or_hole>(

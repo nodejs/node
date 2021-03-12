@@ -20,6 +20,9 @@ class V8_EXPORT_PRIVATE Compactor final {
   explicit Compactor(RawHeap&);
   ~Compactor() { DCHECK(!is_enabled_); }
 
+  Compactor(const Compactor&) = delete;
+  Compactor& operator=(const Compactor&) = delete;
+
   void InitializeIfShouldCompact(GarbageCollector::Config::MarkingType,
                                  GarbageCollector::Config::StackState);
   // Returns true is compaction was cancelled.
@@ -32,12 +35,11 @@ class V8_EXPORT_PRIVATE Compactor final {
   }
 
   void EnableForNextGCForTesting() { enable_for_next_gc_for_testing_ = true; }
-
   bool IsEnabledForTesting() const { return is_enabled_; }
 
  private:
   bool ShouldCompact(GarbageCollector::Config::MarkingType,
-                     GarbageCollector::Config::StackState);
+                     GarbageCollector::Config::StackState) const;
 
   RawHeap& heap_;
   // Compactor does not own the compactable spaces. The heap owns all spaces.
@@ -46,7 +48,6 @@ class V8_EXPORT_PRIVATE Compactor final {
   std::unique_ptr<CompactionWorklists> compaction_worklists_;
 
   bool is_enabled_ = false;
-
   bool enable_for_next_gc_for_testing_ = false;
 };
 

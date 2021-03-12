@@ -64,6 +64,17 @@ declare_args() {
   # Enable WebAssembly debugging via GDB-remote protocol.
   v8_enable_wasm_gdb_remote_debugging = false
 
+  # Lite mode disables a number of performance optimizations to reduce memory
+  # at the cost of performance.
+  # Sets -DV8_LITE_MODE.
+  v8_enable_lite_mode = false
+
+  # Include support for WebAssembly. If disabled, the 'WebAssembly' global
+  # will not be available, and embedder APIs to generate WebAssembly modules
+  # will fail. Also, asm.js will not be translated to WebAssembly and will be
+  # executed as standard JavaScript instead.
+  v8_enable_webassembly = ""
+
   # Add fuzzilli fuzzer support.
   v8_fuzzilli = false
 
@@ -97,6 +108,13 @@ if (v8_enable_backtrace == "") {
 if (build_with_chromium && use_perfetto_client_library) {
   v8_use_perfetto = true
 }
+
+# WebAssembly is enabled by default, except in lite mode.
+if (v8_enable_webassembly == "") {
+  v8_enable_webassembly = !v8_enable_lite_mode
+}
+assert(!(v8_enable_webassembly && v8_enable_lite_mode),
+       "Webassembly is not available in lite mode.")
 
 # Points to // in v8 stand-alone or to //v8/ in chromium. We need absolute
 # paths for all configs in templates as they are shared in different

@@ -39,12 +39,30 @@ uint32_t EvalUint32InitExpr(Handle<WasmInstanceObject> instance,
     case WasmInitExpr::kI32Const:
       return expr.immediate().i32_const;
     case WasmInitExpr::kGlobalGet: {
-      uint32_t offset =
-          instance->module()->globals[expr.immediate().index].offset;
+      const auto& global = instance->module()->globals[expr.immediate().index];
+      DCHECK_EQ(kWasmI32, global.type);
       auto raw_addr = reinterpret_cast<Address>(
                           instance->untagged_globals_buffer().backing_store()) +
-                      offset;
+                      global.offset;
       return ReadLittleEndianValue<uint32_t>(raw_addr);
+    }
+    default:
+      UNREACHABLE();
+  }
+}
+
+uint64_t EvalUint64InitExpr(Handle<WasmInstanceObject> instance,
+                            const WasmInitExpr& expr) {
+  switch (expr.kind()) {
+    case WasmInitExpr::kI64Const:
+      return expr.immediate().i64_const;
+    case WasmInitExpr::kGlobalGet: {
+      const auto& global = instance->module()->globals[expr.immediate().index];
+      DCHECK_EQ(kWasmI64, global.type);
+      auto raw_addr = reinterpret_cast<Address>(
+                          instance->untagged_globals_buffer().backing_store()) +
+                      global.offset;
+      return ReadLittleEndianValue<uint64_t>(raw_addr);
     }
     default:
       UNREACHABLE();
@@ -101,7 +119,7 @@ class CompileImportWrapperJob final : public JobTask {
 
 // TODO(jkummerow): Move these elsewhere.
 Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
-                            int struct_index, Handle<Map> rtt_parent) {
+                            int struct_index, Handle<Map> opt_rtt_parent) {
   const wasm::StructType* type = module->struct_type(struct_index);
   const int inobject_properties = 0;
   DCHECK_LE(type->total_fields_size(), kMaxInt - WasmStruct::kHeaderSize);
@@ -111,7 +129,7 @@ Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
   // TODO(jkummerow): If NO_ELEMENTS were supported, we could use that here.
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
   Handle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      reinterpret_cast<Address>(type), rtt_parent);
+      reinterpret_cast<Address>(type), opt_rtt_parent);
   Handle<Map> map = isolate->factory()->NewMap(
       instance_type, instance_size, elements_kind, inobject_properties);
   map->set_wasm_type_info(*type_info);
@@ -119,28 +137,14 @@ Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
 }
 
 Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
-                           int array_index, Handle<Map> rtt_parent) {
+                           int array_index, Handle<Map> opt_rtt_parent) {
   const wasm::ArrayType* type = module->array_type(array_index);
   const int inobject_properties = 0;
   const int instance_size = kVariableSizeSentinel;
   const InstanceType instance_type = WASM_ARRAY_TYPE;
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
   Handle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      reinterpret_cast<Address>(type), rtt_parent);
-  Handle<Map> map = isolate->factory()->NewMap(
-      instance_type, instance_size, elements_kind, inobject_properties);
-  map->set_wasm_type_info(*type_info);
-  return map;
-}
-
-Handle<Map> CreateGenericRtt(Isolate* isolate, const WasmModule* module,
-                             Handle<Map> rtt_parent) {
-  const int inobject_properties = 0;
-  const int instance_size = 0;
-  const InstanceType instance_type = WASM_STRUCT_TYPE;  // Fake; good enough.
-  const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
-  Handle<WasmTypeInfo> type_info =
-      isolate->factory()->NewWasmTypeInfo(0, rtt_parent);
+      reinterpret_cast<Address>(type), opt_rtt_parent);
   Handle<Map> map = isolate->factory()->NewMap(
       instance_type, instance_size, elements_kind, inobject_properties);
   map->set_wasm_type_info(*type_info);
@@ -180,31 +184,34 @@ class RttSubtypes : public ArrayList {
 Handle<Map> AllocateSubRtt(Isolate* isolate,
                            Handle<WasmInstanceObject> instance, uint32_t type,
                            Handle<Map> parent) {
-  // Check for an existing RTT first.
-  DCHECK(parent->IsWasmStructMap() || parent->IsWasmArrayMap());
-  Handle<ArrayList> cache(parent->wasm_type_info().subtypes(), isolate);
-  Map maybe_cached = RttSubtypes::SearchSubtype(cache, type);
-  if (!maybe_cached.is_null()) return handle(maybe_cached, isolate);
+  DCHECK(parent->IsWasmStructMap() || parent->IsWasmArrayMap() ||
+         parent->IsJSFunctionMap());
 
-  // Allocate a fresh RTT otherwise.
   const wasm::WasmModule* module = instance->module();
-  Handle<Map> rtt;
-  if (wasm::HeapType(type).is_generic()) {
-    rtt = wasm::CreateGenericRtt(isolate, module, parent);
-  } else if (module->has_struct(type)) {
-    rtt = wasm::CreateStructMap(isolate, module, type, parent);
-  } else if (module->has_array(type)) {
-    rtt = wasm::CreateArrayMap(isolate, module, type, parent);
-  } else {
-    DCHECK(module->has_signature(type));
+  if (module->has_signature(type)) {
     // Currently, parent rtts for functions are meaningless,
     // since (rtt.test func rtt) iff (func.map == rtt).
     // Therefore, we simply create a fresh function map here.
     // TODO(7748): Canonicalize rtts to make them work for identical function
     // types.
-    rtt = Map::Copy(isolate, isolate->wasm_exported_function_map(),
-                    "fresh function map for AllocateSubRtt");
+    return Map::Copy(isolate, isolate->wasm_exported_function_map(),
+                     "fresh function map for AllocateSubRtt");
   }
+
+  // Check for an existing RTT first.
+  Handle<ArrayList> cache(parent->wasm_type_info().subtypes(), isolate);
+  Map maybe_cached = RttSubtypes::SearchSubtype(cache, type);
+  if (!maybe_cached.is_null()) return handle(maybe_cached, isolate);
+
+  // Allocate a fresh RTT otherwise.
+  Handle<Map> rtt;
+  if (module->has_struct(type)) {
+    rtt = wasm::CreateStructMap(isolate, module, type, parent);
+  } else {
+    DCHECK(module->has_array(type));
+    rtt = wasm::CreateArrayMap(isolate, module, type, parent);
+  }
+
   cache = RttSubtypes::Insert(isolate, cache, type, rtt);
   parent->wasm_type_info().set_subtypes(*cache);
   return rtt;
@@ -458,9 +465,9 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     // The maximum number of pages isn't strictly necessary for memory
     // objects used for asm.js, as they are never visible, but we might
     // as well make it accurate.
-    auto maximum_pages = static_cast<uint32_t>(
-        RoundUp(buffer->byte_length(), wasm::kWasmPageSize) /
-        wasm::kWasmPageSize);
+    auto maximum_pages =
+        static_cast<int>(RoundUp(buffer->byte_length(), wasm::kWasmPageSize) /
+                         wasm::kWasmPageSize);
     memory_object_ =
         WasmMemoryObject::New(isolate_, memory_buffer_, maximum_pages);
   } else {
@@ -610,18 +617,16 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   if (enabled_.has_gc()) {
     Handle<FixedArray> maps = isolate_->factory()->NewUninitializedFixedArray(
         static_cast<int>(module_->type_kinds.size()));
-    Handle<Map> anyref_map =
-        Handle<Map>::cast(isolate_->root_handle(RootIndex::kWasmRttAnyrefMap));
     for (int map_index = 0;
          map_index < static_cast<int>(module_->type_kinds.size());
          map_index++) {
       Handle<Map> map;
       switch (module_->type_kinds[map_index]) {
         case kWasmStructTypeCode:
-          map = CreateStructMap(isolate_, module_, map_index, anyref_map);
+          map = CreateStructMap(isolate_, module_, map_index, Handle<Map>());
           break;
         case kWasmArrayTypeCode:
-          map = CreateArrayMap(isolate_, module_, map_index, anyref_map);
+          map = CreateArrayMap(isolate_, module_, map_index, Handle<Map>());
           break;
         case kWasmFunctionTypeCode:
           // TODO(7748): Think about canonicalizing rtts to make them work for
@@ -653,45 +658,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   if (exceptions_count > 0) {
     InitializeExceptions(instance);
-  }
-
-  // The bulk memory proposal changes the MVP behavior here; the segments are
-  // written as if `memory.init` and `table.init` are executed directly, and
-  // not bounds checked ahead of time.
-  if (!enabled_.has_bulk_memory()) {
-    //--------------------------------------------------------------------------
-    // Check that indirect function table segments are within bounds.
-    //--------------------------------------------------------------------------
-    for (const WasmElemSegment& elem_segment : module_->elem_segments) {
-      if (elem_segment.status != WasmElemSegment::kStatusActive) continue;
-      DCHECK_LT(elem_segment.table_index, table_count);
-      uint32_t base = EvalUint32InitExpr(instance, elem_segment.offset);
-      // Because of imported tables, {table_size} has to come from the table
-      // object itself.
-      auto table_object = handle(WasmTableObject::cast(instance->tables().get(
-                                     elem_segment.table_index)),
-                                 isolate_);
-      uint32_t table_size = table_object->current_length();
-      if (!base::IsInBounds<uint32_t>(
-              base, static_cast<uint32_t>(elem_segment.entries.size()),
-              table_size)) {
-        thrower_->LinkError("table initializer is out of bounds");
-        return {};
-      }
-    }
-
-    //--------------------------------------------------------------------------
-    // Check that memory segments are within bounds.
-    //--------------------------------------------------------------------------
-    for (const WasmDataSegment& seg : module_->data_segments) {
-      if (!seg.active) continue;
-      uint32_t base = EvalUint32InitExpr(instance, seg.dest_addr);
-      if (!base::IsInBounds<uint64_t>(base, seg.source.length(),
-                                      instance->memory_size())) {
-        thrower_->LinkError("data segment is out of bounds");
-        return {};
-      }
-    }
   }
 
   //--------------------------------------------------------------------------
@@ -862,33 +828,28 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
   for (const WasmDataSegment& segment : module_->data_segments) {
     uint32_t size = segment.source.length();
 
-    if (enabled_.has_bulk_memory()) {
-      // Passive segments are not copied during instantiation.
-      if (!segment.active) continue;
+    // Passive segments are not copied during instantiation.
+    if (!segment.active) continue;
 
-      uint32_t dest_offset = EvalUint32InitExpr(instance, segment.dest_addr);
-      bool ok = base::ClampToBounds(
-          dest_offset, &size, static_cast<uint32_t>(instance->memory_size()));
-      if (!ok) {
-        thrower_->RuntimeError("data segment is out of bounds");
-        return;
-      }
-      // No need to copy empty segments.
-      if (size == 0) continue;
-      std::memcpy(instance->memory_start() + dest_offset,
-                  wire_bytes.begin() + segment.source.offset(), size);
+    size_t dest_offset;
+    if (module_->is_memory64) {
+      uint64_t dest_offset_64 = EvalUint64InitExpr(instance, segment.dest_addr);
+      // Clamp to {std::numeric_limits<size_t>::max()}, which is always an
+      // invalid offset.
+      DCHECK_GT(std::numeric_limits<size_t>::max(), instance->memory_size());
+      dest_offset = static_cast<size_t>(std::min(
+          dest_offset_64, uint64_t{std::numeric_limits<size_t>::max()}));
     } else {
-      DCHECK(segment.active);
-      // Segments of size == 0 are just nops.
-      if (size == 0) continue;
-
-      uint32_t dest_offset = EvalUint32InitExpr(instance, segment.dest_addr);
-      DCHECK(base::IsInBounds<uint64_t>(dest_offset, size,
-                                        instance->memory_size()));
-      byte* dest = instance->memory_start() + dest_offset;
-      const byte* src = wire_bytes.begin() + segment.source.offset();
-      base::Memcpy(dest, src, size);
+      dest_offset = EvalUint32InitExpr(instance, segment.dest_addr);
     }
+
+    if (!base::IsInBounds<size_t>(dest_offset, size, instance->memory_size())) {
+      thrower_->RuntimeError("data segment is out of bounds");
+      return;
+    }
+
+    std::memcpy(instance->memory_start() + dest_offset,
+                wire_bytes.begin() + segment.source.offset(), size);
   }
 }
 
@@ -897,20 +858,20 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global, double num) {
         raw_buffer_ptr(untagged_globals_, 0), global.offset, num,
         global.type.name().c_str());
   switch (global.type.kind()) {
-    case ValueType::kI32:
+    case kI32:
       WriteLittleEndianValue<int32_t>(GetRawGlobalPtr<int32_t>(global),
                                       DoubleToInt32(num));
       break;
-    case ValueType::kI64:
+    case kI64:
       // The Wasm-BigInt proposal currently says that i64 globals may
       // only be initialized with BigInts. See:
       // https://github.com/WebAssembly/JS-BigInt-integration/issues/12
       UNREACHABLE();
-    case ValueType::kF32:
+    case kF32:
       WriteLittleEndianValue<float>(GetRawGlobalPtr<float>(global),
                                     DoubleToFloat32(num));
       break;
-    case ValueType::kF64:
+    case kF64:
       WriteLittleEndianValue<double>(GetRawGlobalPtr<double>(global), num);
       break;
     default:
@@ -931,41 +892,42 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
   TRACE("init [globals_start=%p + %u] = ", raw_buffer_ptr(untagged_globals_, 0),
         global.offset);
   switch (global.type.kind()) {
-    case ValueType::kI32: {
+    case kI32: {
       int32_t num = value->GetI32();
       WriteLittleEndianValue<int32_t>(GetRawGlobalPtr<int32_t>(global), num);
       TRACE("%d", num);
       break;
     }
-    case ValueType::kI64: {
+    case kI64: {
       int64_t num = value->GetI64();
       WriteLittleEndianValue<int64_t>(GetRawGlobalPtr<int64_t>(global), num);
       TRACE("%" PRId64, num);
       break;
     }
-    case ValueType::kF32: {
+    case kF32: {
       float num = value->GetF32();
       WriteLittleEndianValue<float>(GetRawGlobalPtr<float>(global), num);
       TRACE("%f", num);
       break;
     }
-    case ValueType::kF64: {
+    case kF64: {
       double num = value->GetF64();
       WriteLittleEndianValue<double>(GetRawGlobalPtr<double>(global), num);
       TRACE("%lf", num);
       break;
     }
-    case ValueType::kRtt:
-    case ValueType::kRef:
-    case ValueType::kOptRef: {
+    case kRtt:
+    case kRttWithDepth:
+    case kRef:
+    case kOptRef: {
       tagged_globals_->set(global.offset, *value->GetRef());
       break;
     }
-    case ValueType::kStmt:
-    case ValueType::kS128:
-    case ValueType::kBottom:
-    case ValueType::kI8:
-    case ValueType::kI16:
+    case kStmt:
+    case kS128:
+    case kBottom:
+    case kI8:
+    case kI16:
       UNREACHABLE();
   }
   TRACE(", type = %s (from WebAssembly.Global)\n", global.type.name().c_str());
@@ -1579,28 +1541,11 @@ Handle<Object> InstanceBuilder::RecursivelyEvaluateGlobalInitializer(
       return handle(tagged_globals_->get(old_offset), isolate_);
     }
     case WasmInitExpr::kRttCanon: {
-      switch (init.immediate().heap_type) {
-        case wasm::HeapType::kEq:
-          return isolate_->root_handle(RootIndex::kWasmRttEqrefMap);
-        case wasm::HeapType::kExtern:
-          return isolate_->root_handle(RootIndex::kWasmRttExternrefMap);
-        case wasm::HeapType::kFunc:
-          return isolate_->root_handle(RootIndex::kWasmRttFuncrefMap);
-        case wasm::HeapType::kI31:
-          return isolate_->root_handle(RootIndex::kWasmRttI31refMap);
-        case wasm::HeapType::kAny:
-          return isolate_->root_handle(RootIndex::kWasmRttAnyrefMap);
-        case wasm::HeapType::kExn:
-          UNIMPLEMENTED();  // TODO(jkummerow): This is going away?
-        case wasm::HeapType::kBottom:
-          UNREACHABLE();
-      }
-      // Non-generic types fall through.
-      int map_index = init.immediate().heap_type;
+      int map_index = init.immediate().index;
       return handle(instance->managed_object_maps().get(map_index), isolate_);
     }
     case WasmInitExpr::kRttSub: {
-      uint32_t type = static_cast<uint32_t>(init.immediate().heap_type);
+      uint32_t type = init.immediate().index;
       Handle<Object> parent =
           RecursivelyEvaluateGlobalInitializer(*init.operand(), instance);
       return AllocateSubRtt(isolate_, instance, type,
@@ -1661,7 +1606,7 @@ void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
             module_->globals[global.init.immediate().index].offset;
         TRACE("init [globals+%u] = [globals+%d]\n", global.offset, old_offset);
         if (global.type.is_reference_type()) {
-          DCHECK(enabled_.has_reftypes() || enabled_.has_eh());
+          DCHECK(enabled_.has_reftypes());
           tagged_globals_->set(new_offset, tagged_globals_->get(old_offset));
         } else {
           size_t size = (global.type == kWasmI64 || global.type == kWasmF64)
@@ -1687,10 +1632,11 @@ void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
 
 // Allocate memory for a module instance as a new JSArrayBuffer.
 bool InstanceBuilder::AllocateMemory() {
-  uint32_t initial_pages = module_->initial_pages;
-  uint32_t maximum_pages =
-      module_->has_maximum_pages ? module_->maximum_pages : max_mem_pages();
-  if (initial_pages > max_mem_pages()) {
+  int initial_pages = static_cast<int>(module_->initial_pages);
+  int maximum_pages = module_->has_maximum_pages
+                          ? static_cast<int>(module_->maximum_pages)
+                          : WasmMemoryObject::kNoMaximum;
+  if (initial_pages > static_cast<int>(max_mem_pages())) {
     thrower_->RangeError("Out of memory: wasm memory too large");
     return false;
   }
@@ -1740,12 +1686,18 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
   Handle<JSObject> exports_object;
   MaybeHandle<String> single_function_name;
   bool is_asm_js = is_asmjs_module(module_);
+  // TODO(clemensb): Remove this #if once this compilation unit is fully
+  // excluded from non-wasm builds.
   if (is_asm_js) {
+#if V8_ENABLE_WEBASSEMBLY
     Handle<JSFunction> object_function = Handle<JSFunction>(
         isolate_->native_context()->object_function(), isolate_);
     exports_object = isolate_->factory()->NewJSObject(object_function);
     single_function_name =
         isolate_->factory()->InternalizeUtf8String(AsmJs::kSingleFunctionName);
+#else
+    UNREACHABLE();
+#endif
   } else {
     exports_object = isolate_->factory()->NewJSObjectWithNullProto();
   }
@@ -1994,16 +1946,12 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
     // a dropped passive segment and an active segment have the same
     // behavior.
     instance->dropped_elem_segments()[segment_index] = 1;
-    if (enabled_.has_bulk_memory()) {
-      if (!success) {
-        thrower_->RuntimeError("table initializer is out of bounds");
-        // Break out instead of returning; we don't want to continue to
-        // initialize any further element segments, but still need to add
-        // dispatch tables below.
-        break;
-      }
-    } else {
-      CHECK(success);
+    if (!success) {
+      thrower_->RuntimeError("table initializer is out of bounds");
+      // Break out instead of returning; we don't want to continue to
+      // initialize any further element segments, but still need to add
+      // dispatch tables below.
+      break;
     }
   }
 

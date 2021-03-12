@@ -109,10 +109,6 @@ class SourceTextModule
   // an async child.
   DECL_BOOLEAN_ACCESSORS(async_evaluating)
 
-  // The top level promise capability of this module. Will only be defined
-  // for cycle roots.
-  DECL_ACCESSORS(top_level_capability, HeapObject)
-
   // The parent modules of a given async dependency, use async_parent_modules()
   // to retrieve the ArrayList representation.
   DECL_ACCESSORS(async_parent_modules, ArrayList)

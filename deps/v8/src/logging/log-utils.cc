@@ -25,7 +25,7 @@ const char* const Log::kLogToConsole = "-";
 // static
 FILE* Log::CreateOutputHandle(std::string file_name) {
   // If we're logging anything, we need to open the log file.
-  if (!Log::InitLogAtStart()) {
+  if (!FLAG_log) {
     return nullptr;
   } else if (Log::IsLoggingToConsole(file_name)) {
     return stdout;

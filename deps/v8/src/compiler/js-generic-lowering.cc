@@ -873,7 +873,7 @@ void JSGenericLowering::LowerJSConstruct(Node* node) {
         zone(), callable.descriptor(), stack_argument_count, flags);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
     Node* stub_arity = jsgraph()->Int32Constant(arg_count);
-    Node* slot = jsgraph()->Int32Constant(p.feedback().index());
+    Node* slot = jsgraph()->UintPtrConstant(p.feedback().index());
     Node* receiver = jsgraph()->UndefinedConstant();
     Node* feedback_vector = node->RemoveInput(n.FeedbackVectorIndex());
     // Register argument inputs are followed by stack argument inputs (such as
@@ -935,7 +935,7 @@ void JSGenericLowering::LowerJSConstructWithArrayLike(Node* node) {
         zone(), callable.descriptor(), stack_argument_count, flags);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
     Node* receiver = jsgraph()->UndefinedConstant();
-    Node* slot = jsgraph()->Int32Constant(p.feedback().index());
+    Node* slot = jsgraph()->UintPtrConstant(p.feedback().index());
     Node* feedback_vector = node->RemoveInput(n.FeedbackVectorIndex());
     // Register argument inputs are followed by stack argument inputs (such as
     // feedback_vector). Both are listed in ascending order. Note that
@@ -997,7 +997,7 @@ void JSGenericLowering::LowerJSConstructWithSpread(Node* node) {
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         zone(), callable.descriptor(), stack_argument_count, flags);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    Node* slot = jsgraph()->Int32Constant(p.feedback().index());
+    Node* slot = jsgraph()->UintPtrConstant(p.feedback().index());
 
     // The single available register is needed for `slot`, thus `spread` remains
     // on the stack here.
@@ -1088,7 +1088,7 @@ void JSGenericLowering::LowerJSCall(Node* node) {
         zone(), callable.descriptor(), arg_count + 1, flags);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
     Node* stub_arity = jsgraph()->Int32Constant(arg_count);
-    Node* slot = jsgraph()->Int32Constant(p.feedback().index());
+    Node* slot = jsgraph()->UintPtrConstant(p.feedback().index());
     node->InsertInput(zone(), 0, stub_code);
     node->InsertInput(zone(), 2, stub_arity);
     node->InsertInput(zone(), 3, slot);
@@ -1128,7 +1128,7 @@ void JSGenericLowering::LowerJSCallWithArrayLike(Node* node) {
     Node* receiver = n.receiver();
     Node* arguments_list = n.Argument(0);
     Node* feedback_vector = n.feedback_vector();
-    Node* slot = jsgraph()->Int32Constant(p.feedback().index());
+    Node* slot = jsgraph()->UintPtrConstant(p.feedback().index());
 
     // Shuffling inputs.
     // Before: {target, receiver, arguments_list, vector}.
@@ -1193,7 +1193,7 @@ void JSGenericLowering::LowerJSCallWithSpread(Node* node) {
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         zone(), callable.descriptor(), stack_argument_count, flags);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    Node* slot = jsgraph()->Int32Constant(p.feedback().index());
+    Node* slot = jsgraph()->UintPtrConstant(p.feedback().index());
 
     // We pass the spread in a register, not on the stack.
     Node* stub_arity = jsgraph()->Int32Constant(arg_count - kTheSpread);
@@ -1250,6 +1250,9 @@ void JSGenericLowering::LowerJSCallRuntime(Node* node) {
   const CallRuntimeParameters& p = CallRuntimeParametersOf(node->op());
   ReplaceWithRuntimeCall(node, p.id(), static_cast<int>(p.arity()));
 }
+
+// Will be lowered in SimplifiedLowering.
+void JSGenericLowering::LowerJSWasmCall(Node* node) {}
 
 void JSGenericLowering::LowerJSForInPrepare(Node* node) {
   JSForInPrepareNode n(node);

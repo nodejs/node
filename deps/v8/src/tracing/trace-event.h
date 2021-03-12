@@ -8,6 +8,9 @@
 #include <stddef.h>
 #include <memory>
 
+// Include first to ensure that V8_USE_PERFETTO can be defined before use.
+#include "v8config.h"  // NOLINT(build/include_directory)
+
 #if defined(V8_USE_PERFETTO)
 #include "protos/perfetto/trace/track_event/debug_annotation.pbzero.h"
 #include "src/tracing/trace-categories.h"

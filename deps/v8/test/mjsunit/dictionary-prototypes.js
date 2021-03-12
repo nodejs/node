@@ -360,7 +360,8 @@ function TestAddingPropertyToAlmostDictionaryPrototype() {
   for (let i = 0; i < 2; ++i) {
     o.x0;
   }
-  assertTrue(%HasFastProperties(Bar.prototype));
+  if (!%IsDictPropertyConstTrackingEnabled())
+    assertTrue(%HasFastProperties(Bar.prototype));
 
   for (let i = 0; i < 11; ++i) {
     // First, the property is looked up from Foo.

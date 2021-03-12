@@ -103,7 +103,9 @@ struct ParserTypes<Parser> {
   using Block = v8::internal::Block*;
   using BreakableStatement = v8::internal::BreakableStatement*;
   using ClassLiteralProperty = ClassLiteral::Property*;
+  using ClassLiteralStaticElement = ClassLiteral::StaticElement*;
   using ClassPropertyList = ZonePtrList<ClassLiteral::Property>*;
+  using ClassStaticElementList = ZonePtrList<ClassLiteral::StaticElement>*;
   using Expression = v8::internal::Expression*;
   using ExpressionList = ScopedPtrList<v8::internal::Expression>;
   using FormalParameters = ParserFormalParameters;
@@ -313,9 +315,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Variable* CreatePrivateNameVariable(ClassScope* scope, VariableMode mode,
                                       IsStaticFlag is_static_flag,
                                       const AstRawString* name);
-  FunctionLiteral* CreateInitializerFunction(
-      const char* name, DeclarationScope* scope,
-      ZonePtrList<ClassLiteral::Property>* fields);
+  FunctionLiteral* CreateInitializerFunction(const char* name,
+                                             DeclarationScope* scope,
+                                             Statement* initializer_stmt);
 
   bool IdentifierEquals(const AstRawString* identifier,
                         const AstRawString* other) {
@@ -347,6 +349,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                          const AstRawString* property_name, bool is_static,
                          bool is_computed_name, bool is_private,
                          ClassInfo* class_info);
+  void AddClassStaticBlock(Block* block, ClassInfo* class_info);
   Expression* RewriteClassLiteral(ClassScope* block_scope,
                                   const AstRawString* name,
                                   ClassInfo* class_info, int pos, int end_pos);
@@ -557,7 +560,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return property != nullptr && property->IsPrivateReference();
   }
 
-  // This returns true if the expression is an indentifier (wrapped
+  // This returns true if the expression is an identifier (wrapped
   // inside a variable proxy).  We exclude the case of 'this', which
   // has been converted to a variable proxy.
   V8_INLINE static bool IsIdentifier(Expression* expression) {
@@ -841,6 +844,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   V8_INLINE ZonePtrList<ClassLiteral::Property>* NewClassPropertyList(
       int size) const {
     return zone()->New<ZonePtrList<ClassLiteral::Property>>(size, zone());
+  }
+  V8_INLINE ZonePtrList<ClassLiteral::StaticElement>* NewClassStaticElementList(
+      int size) const {
+    return zone()->New<ZonePtrList<ClassLiteral::StaticElement>>(size, zone());
   }
   V8_INLINE ZonePtrList<Statement>* NewStatementList(int size) const {
     return zone()->New<ZonePtrList<Statement>>(size, zone());

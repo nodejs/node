@@ -308,10 +308,10 @@ bool HasEmbedderDataBackref(Isolate* isolate, v8::Local<v8::Value> v8_value,
     return false;
 
   JSObject js_object = JSObject::cast(*v8_object);
-  return js_object.GetEmbedderFieldCount() >= 2 &&
-         LocalEmbedderHeapTracer::VerboseWrapperInfo(
-             LocalEmbedderHeapTracer::ExtractWrapperInfo(isolate, js_object))
-                 .instance() == expected_backref;
+  return LocalEmbedderHeapTracer::VerboseWrapperInfo(
+             isolate->heap()->local_embedder_heap_tracer()->ExtractWrapperInfo(
+                 isolate, js_object))
+             .instance() == expected_backref;
 }
 
 // The following implements a snapshotting algorithm for C++ objects that also

@@ -116,7 +116,27 @@ MaybeHandle<Object> SyntheticModule::Evaluate(Isolate* isolate,
   }
 
   module->SetStatus(kEvaluated);
-  return Utils::OpenHandle(*result);
+
+  Handle<Object> result_from_callback = Utils::OpenHandle(*result);
+
+  if (FLAG_harmony_top_level_await) {
+    Handle<JSPromise> capability;
+    if (result_from_callback->IsJSPromise()) {
+      capability = Handle<JSPromise>::cast(result_from_callback);
+    } else {
+      // The host's evaluation steps should have returned a resolved Promise,
+      // but as an allowance to hosts that have not yet finished the migration
+      // to top-level await, create a Promise if the callback result didn't give
+      // us one.
+      capability = isolate->factory()->NewJSPromise();
+      JSPromise::Resolve(capability, isolate->factory()->undefined_value())
+          .ToHandleChecked();
+    }
+
+    module->set_top_level_capability(*capability);
+  }
+
+  return result_from_callback;
 }
 
 }  // namespace internal

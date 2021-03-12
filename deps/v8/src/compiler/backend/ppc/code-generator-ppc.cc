@@ -276,8 +276,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
 
 void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
                                    PPCOperandConverter const& i) {
-  const MemoryAccessMode access_mode =
-      static_cast<MemoryAccessMode>(MiscField::decode(instr->opcode()));
+  const MemoryAccessMode access_mode = AccessModeField::decode(instr->opcode());
   if (access_mode == kMemoryAccessPoisoned) {
     Register value = i.OutputRegister();
     codegen->tasm()->and_(value, value, kSpeculationPoisonRegister);
@@ -697,30 +696,6 @@ void CodeGenerator::AssemblePrepareTailCall() {
   frame_access_state()->SetFrameAccessToSP();
 }
 
-void CodeGenerator::AssemblePopArgumentsAdaptorFrame(Register args_reg,
-                                                     Register scratch1,
-                                                     Register scratch2,
-                                                     Register scratch3) {
-  DCHECK(!AreAliased(args_reg, scratch1, scratch2, scratch3));
-  Label done;
-
-  // Check if current frame is an arguments adaptor frame.
-  __ LoadP(scratch1, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  __ cmpi(scratch1,
-          Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ bne(&done);
-
-  // Load arguments count from current arguments adaptor frame (note, it
-  // does not include receiver).
-  Register caller_args_count_reg = scratch1;
-  __ LoadP(caller_args_count_reg,
-           MemOperand(fp, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ SmiUntag(caller_args_count_reg);
-
-  __ PrepareForTailCall(args_reg, caller_args_count_reg, scratch2, scratch3);
-  __ bind(&done);
-}
-
 namespace {
 
 void FlushPendingPushRegisters(TurboAssembler* tasm,
@@ -915,13 +890,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       frame_access_state()->ClearSPDelta();
       break;
     }
-    case kArchTailCallCodeObjectFromJSFunction:
     case kArchTailCallCodeObject: {
-      if (opcode == kArchTailCallCodeObjectFromJSFunction) {
-        AssemblePopArgumentsAdaptorFrame(kJavaScriptCallArgCountRegister,
-                                         i.TempRegister(0), i.TempRegister(1),
-                                         i.TempRegister(2));
-      }
       if (HasRegisterInput(instr, 0)) {
         Register reg = i.InputRegister(0);
         DCHECK_IMPLIES(
@@ -1076,7 +1045,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // f5ab7d3.
       if (isWasmCapiFunction) {
         CHECK_EQ(offset, __ SizeOfCodeGeneratedSince(&start_call));
-        RecordSafepoint(instr->reference_map(), Safepoint::kNoLazyDeopt);
+        RecordSafepoint(instr->reference_map());
       }
       frame_access_state()->SetFrameAccessToDefault();
       // Ideally, we should decrement SP delta to match the change of stack
@@ -1741,39 +1710,42 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ CanonicalizeNaN(result, value);
       break;
     }
-    case kPPC_Push:
-      if (instr->InputAt(0)->IsFPRegister()) {
-        LocationOperand* op = LocationOperand::cast(instr->InputAt(0));
-        switch (op->representation()) {
-          case MachineRepresentation::kFloat32:
-            __ StoreSingleU(i.InputDoubleRegister(0),
-                            MemOperand(sp, -kSystemPointerSize), r0);
-            frame_access_state()->IncreaseSPDelta(1);
-            break;
-          case MachineRepresentation::kFloat64:
-            __ StoreDoubleU(i.InputDoubleRegister(0),
-                            MemOperand(sp, -kDoubleSize), r0);
-            frame_access_state()->IncreaseSPDelta(kDoubleSize /
-                                                  kSystemPointerSize);
-            break;
-          case MachineRepresentation::kSimd128: {
-            __ addi(sp, sp, Operand(-kSimd128Size));
-            __ StoreSimd128(i.InputSimd128Register(0), MemOperand(r0, sp), r0,
-                            kScratchSimd128Reg);
-            frame_access_state()->IncreaseSPDelta(kSimd128Size /
-                                                  kSystemPointerSize);
-            break;
-          }
-          default:
-            UNREACHABLE();
-            break;
-        }
-      } else {
-        __ StorePU(i.InputRegister(0), MemOperand(sp, -kSystemPointerSize), r0);
-        frame_access_state()->IncreaseSPDelta(1);
+    case kPPC_Push: {
+      int stack_decrement = i.InputInt32(0);
+      int slots = stack_decrement / kSystemPointerSize;
+      LocationOperand* op = LocationOperand::cast(instr->InputAt(1));
+      MachineRepresentation rep = op->representation();
+      int pushed_slots = ElementSizeInPointers(rep);
+      // Slot-sized arguments are never padded but there may be a gap if
+      // the slot allocator reclaimed other padding slots. Adjust the stack
+      // here to skip any gap.
+      if (slots > pushed_slots) {
+        __ addi(sp, sp,
+                Operand(-((slots - pushed_slots) * kSystemPointerSize)));
       }
+      switch (rep) {
+        case MachineRepresentation::kFloat32:
+          __ StoreSingleU(i.InputDoubleRegister(1),
+                          MemOperand(sp, -kSystemPointerSize), r0);
+          break;
+        case MachineRepresentation::kFloat64:
+          __ StoreDoubleU(i.InputDoubleRegister(1),
+                          MemOperand(sp, -kDoubleSize), r0);
+          break;
+        case MachineRepresentation::kSimd128:
+          __ addi(sp, sp, Operand(-kSimd128Size));
+          __ StoreSimd128(i.InputSimd128Register(1), MemOperand(r0, sp), r0,
+                          kScratchSimd128Reg);
+          break;
+        default:
+          __ StorePU(i.InputRegister(1), MemOperand(sp, -kSystemPointerSize),
+                     r0);
+          break;
+      }
+      frame_access_state()->IncreaseSPDelta(slots);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
+    }
     case kPPC_PushFrame: {
       int num_slots = i.InputInt32(1);
       if (instr->InputAt(0)->IsFPRegister()) {
@@ -3046,10 +3018,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vsububm(i.OutputSimd128Register(), tempFPReg1, kScratchSimd128Reg);
       break;
     }
-    case kPPC_V64x2AnyTrue:
-    case kPPC_V32x4AnyTrue:
-    case kPPC_V16x8AnyTrue:
-    case kPPC_V8x16AnyTrue: {
+    case kPPC_V128AnyTrue: {
       Simd128Register src = i.InputSimd128Register(0);
       Register dst = i.OutputRegister();
       constexpr int bit_number = 24;
@@ -3111,6 +3080,40 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ xvcvuxwsp(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
+
+    case kPPC_I64x2SConvertI32x4Low: {
+      __ vupklsw(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kPPC_I64x2SConvertI32x4High: {
+      __ vupkhsw(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kPPC_I64x2UConvertI32x4Low: {
+      constexpr int lane_width_in_bytes = 8;
+      __ vupklsw(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      // Zero extend.
+      __ mov(ip, Operand(0xFFFFFFFF));
+      __ mtvsrd(kScratchSimd128Reg, ip);
+      __ vinsertd(kScratchSimd128Reg, kScratchSimd128Reg,
+                  Operand(1 * lane_width_in_bytes));
+      __ vand(i.OutputSimd128Register(), kScratchSimd128Reg,
+              i.OutputSimd128Register());
+      break;
+    }
+    case kPPC_I64x2UConvertI32x4High: {
+      constexpr int lane_width_in_bytes = 8;
+      __ vupkhsw(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      // Zero extend.
+      __ mov(ip, Operand(0xFFFFFFFF));
+      __ mtvsrd(kScratchSimd128Reg, ip);
+      __ vinsertd(kScratchSimd128Reg, kScratchSimd128Reg,
+                  Operand(1 * lane_width_in_bytes));
+      __ vand(i.OutputSimd128Register(), kScratchSimd128Reg,
+              i.OutputSimd128Register());
+      break;
+    }
+
     case kPPC_I32x4SConvertI16x8Low: {
       __ vupklsh(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
@@ -3720,6 +3723,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                     i.InputSimd128Register(1), kScratchSimd128Reg);
       break;
     }
+#define SIGN_SELECT(compare_gt)                                        \
+  Simd128Register src0 = i.InputSimd128Register(0);                    \
+  Simd128Register src1 = i.InputSimd128Register(1);                    \
+  Simd128Register src2 = i.InputSimd128Register(2);                    \
+  Simd128Register dst = i.OutputSimd128Register();                     \
+  __ vxor(kScratchSimd128Reg, kScratchSimd128Reg, kScratchSimd128Reg); \
+  __ compare_gt(kScratchSimd128Reg, kScratchSimd128Reg, src2);         \
+  __ vsel(dst, src1, src0, kScratchSimd128Reg);
+    case kPPC_I8x16SignSelect: {
+      SIGN_SELECT(vcmpgtsb)
+      break;
+    }
+    case kPPC_I16x8SignSelect: {
+      SIGN_SELECT(vcmpgtsh)
+      break;
+    }
+    case kPPC_I32x4SignSelect: {
+      SIGN_SELECT(vcmpgtsw)
+      break;
+    }
+    case kPPC_I64x2SignSelect: {
+      SIGN_SELECT(vcmpgtsd)
+      break;
+    }
+#undef SIGN_SELECT
     case kPPC_StoreCompressTagged: {
       ASSEMBLE_STORE_INTEGER(StoreTaggedField, StoreTaggedFieldX);
       break;
@@ -3833,7 +3861,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
         ReferenceMap* reference_map =
             gen_->zone()->New<ReferenceMap>(gen_->zone());
-        gen_->RecordSafepoint(reference_map, Safepoint::kNoLazyDeopt);
+        gen_->RecordSafepoint(reference_map);
         if (FLAG_debug_code) {
           __ stop();
         }
@@ -4073,7 +4101,7 @@ void CodeGenerator::AssembleConstructFrame() {
       __ Call(wasm::WasmCode::kWasmStackOverflow, RelocInfo::WASM_STUB_CALL);
       // We come from WebAssembly, there are no references for the GC.
       ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
-      RecordSafepoint(reference_map, Safepoint::kNoLazyDeopt);
+      RecordSafepoint(reference_map);
       if (FLAG_debug_code) {
         __ stop();
       }
@@ -4152,7 +4180,6 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   }
 
   Register argc_reg = r6;
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
   // Functions with JS linkage have at least one parameter (the receiver).
   // If {parameter_count} == 0, it means it is a builtin with
   // kDontAdaptArgumentsSentinel, which takes care of JS arguments popping
@@ -4160,9 +4187,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   const bool drop_jsargs = frame_access_state()->has_frame() &&
                            call_descriptor->IsJSFunctionCall() &&
                            parameter_count != 0;
-#else
-  const bool drop_jsargs = false;
-#endif
+
   if (call_descriptor->IsCFunctionCall()) {
     AssembleDeconstructFrame();
   } else if (frame_access_state()->has_frame()) {

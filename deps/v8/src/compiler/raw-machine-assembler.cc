@@ -384,6 +384,7 @@ Node* RawMachineAssembler::CreateNodeFromPredecessors(
     return sidetable[predecessors.front()->id().ToSize()];
   }
   std::vector<Node*> inputs;
+  inputs.reserve(predecessors.size());
   for (BasicBlock* predecessor : predecessors) {
     inputs.push_back(sidetable[predecessor->id().ToSize()]);
   }
@@ -410,6 +411,7 @@ void RawMachineAssembler::MakePhiBinary(Node* phi, int split_point,
     left_input = NodeProperties::GetValueInput(phi, 0);
   } else {
     std::vector<Node*> inputs;
+    inputs.reserve(left_input_count);
     for (int i = 0; i < left_input_count; ++i) {
       inputs.push_back(NodeProperties::GetValueInput(phi, i));
     }

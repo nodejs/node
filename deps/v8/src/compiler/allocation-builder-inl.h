@@ -27,11 +27,21 @@ void AllocationBuilder::AllocateContext(int variadic_part_length, MapRef map) {
         jsgraph()->Constant(variadic_part_length));
 }
 
+// static
+bool AllocationBuilder::CanAllocateArray(int length, MapRef map,
+                                         AllocationType allocation) {
+  DCHECK(map.instance_type() == FIXED_ARRAY_TYPE ||
+         map.instance_type() == FIXED_DOUBLE_ARRAY_TYPE);
+  int const size = (map.instance_type() == FIXED_ARRAY_TYPE)
+                       ? FixedArray::SizeFor(length)
+                       : FixedDoubleArray::SizeFor(length);
+  return size <= Heap::MaxRegularHeapObjectSize(allocation);
+}
+
 // Compound allocation of a FixedArray.
 void AllocationBuilder::AllocateArray(int length, MapRef map,
                                       AllocationType allocation) {
-  DCHECK(map.instance_type() == FIXED_ARRAY_TYPE ||
-         map.instance_type() == FIXED_DOUBLE_ARRAY_TYPE);
+  DCHECK(CanAllocateArray(length, map, allocation));
   int size = (map.instance_type() == FIXED_ARRAY_TYPE)
                  ? FixedArray::SizeFor(length)
                  : FixedDoubleArray::SizeFor(length);
@@ -40,8 +50,16 @@ void AllocationBuilder::AllocateArray(int length, MapRef map,
   Store(AccessBuilder::ForFixedArrayLength(), jsgraph()->Constant(length));
 }
 
+// static
+bool AllocationBuilder::CanAllocateSloppyArgumentElements(
+    int length, MapRef map, AllocationType allocation) {
+  int const size = SloppyArgumentsElements::SizeFor(length);
+  return size <= Heap::MaxRegularHeapObjectSize(allocation);
+}
+
 void AllocationBuilder::AllocateSloppyArgumentElements(
     int length, MapRef map, AllocationType allocation) {
+  DCHECK(CanAllocateSloppyArgumentElements(length, map, allocation));
   int size = SloppyArgumentsElements::SizeFor(length);
   Allocate(size, allocation, Type::OtherInternal());
   Store(AccessBuilder::ForMap(), map);

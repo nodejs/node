@@ -6,7 +6,7 @@
 #include <memory>
 
 #include "src/common/globals.h"
-#include "src/compiler/node.h"
+#include "src/debug/debug-wasm-objects-inl.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/heap/heap-inl.h"                // For InOldSpace.
@@ -100,9 +100,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
   }
 
   switch (instance_type) {
-    case FIXED_ARRAY_TYPE:
-      FixedArray::cast(*this).FixedArrayPrint(os);
-      break;
     case AWAIT_CONTEXT_TYPE:
     case BLOCK_CONTEXT_TYPE:
     case CATCH_CONTEXT_TYPE:
@@ -166,7 +163,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_ITERATOR_PROTOTYPE_TYPE:
     case JS_MAP_ITERATOR_PROTOTYPE_TYPE:
     case JS_OBJECT_PROTOTYPE_TYPE:
-    case JS_OBJECT_TYPE:
     case JS_PROMISE_PROTOTYPE_TYPE:
     case JS_REG_EXP_PROTOTYPE_TYPE:
     case JS_SET_ITERATOR_PROTOTYPE_TYPE:
@@ -179,8 +175,8 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case WASM_INSTANCE_OBJECT_TYPE:
       WasmInstanceObject::cast(*this).WasmInstanceObjectPrint(os);
       break;
-    case JS_GENERATOR_OBJECT_TYPE:
-      JSGeneratorObject::cast(*this).JSGeneratorObjectPrint(os);
+    case WASM_VALUE_OBJECT_TYPE:
+      WasmValueObject::cast(*this).WasmValueObjectPrint(os);
       break;
     case CODE_TYPE:
       Code::cast(*this).CodePrint(os);
@@ -207,9 +203,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       TORQUE_INSTANCE_CHECKERS_MULTIPLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
 #undef MAKE_TORQUE_CASE
 
-    case FOREIGN_TYPE:
-      Foreign::cast(*this).ForeignPrint(os);
-      break;
     case ALLOCATION_SITE_TYPE:
       AllocationSite::cast(*this).AllocationSitePrint(os);
       break;
@@ -219,19 +212,24 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case STORE_HANDLER_TYPE:
       StoreHandler::cast(*this).StoreHandlerPrint(os);
       break;
-    case SCOPE_INFO_TYPE:
-      ScopeInfo::cast(*this).ScopeInfoPrint(os);
-      break;
     case FEEDBACK_METADATA_TYPE:
       FeedbackMetadata::cast(*this).FeedbackMetadataPrint(os);
       break;
-    case WEAK_FIXED_ARRAY_TYPE:
-      WeakFixedArray::cast(*this).WeakFixedArrayPrint(os);
+    case JS_PROMISE_CONSTRUCTOR_TYPE:
+    case JS_REG_EXP_CONSTRUCTOR_TYPE:
+    case JS_ARRAY_CONSTRUCTOR_TYPE:
+#define TYPED_ARRAY_CONSTRUCTORS_SWITCH(Type, type, TYPE, Ctype) \
+  case TYPE##_TYPED_ARRAY_CONSTRUCTOR_TYPE:
+      TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTORS_SWITCH)
+#undef TYPED_ARRAY_CONSTRUCTORS_SWITCH
+      JSFunction::cast(*this).JSFunctionPrint(os);
       break;
     case INTERNALIZED_STRING_TYPE:
     case EXTERNAL_INTERNALIZED_STRING_TYPE:
     case ONE_BYTE_INTERNALIZED_STRING_TYPE:
     case EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
+    case UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE:
+    case UNCACHED_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
     case STRING_TYPE:
     case CONS_STRING_TYPE:
     case EXTERNAL_STRING_TYPE:
@@ -279,11 +277,7 @@ bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
       switch (details.location()) {
         case kField: {
           FieldIndex field_index = FieldIndex::ForDescriptor(map(), i);
-          if (IsUnboxedDoubleField(field_index)) {
-            os << "<unboxed double> " << RawFastDoublePropertyAt(field_index);
-          } else {
-            os << Brief(RawFastPropertyAt(field_index));
-          }
+          os << Brief(RawFastPropertyAt(field_index));
           break;
         }
         case kDescriptor:
@@ -917,18 +911,18 @@ void GlobalDictionary::GlobalDictionaryPrint(std::ostream& os) {
 
 void SmallOrderedHashSet::SmallOrderedHashSetPrint(std::ostream& os) {
   PrintHeader(os, "SmallOrderedHashSet");
-  // TODO(tebbi): Print all fields.
+  // TODO(turbofan): Print all fields.
 }
 
 void SmallOrderedHashMap::SmallOrderedHashMapPrint(std::ostream& os) {
   PrintHeader(os, "SmallOrderedHashMap");
-  // TODO(tebbi): Print all fields.
+  // TODO(turbofan): Print all fields.
 }
 
 void SmallOrderedNameDictionary::SmallOrderedNameDictionaryPrint(
     std::ostream& os) {
   PrintHeader(os, "SmallOrderedNameDictionary");
-  // TODO(tebbi): Print all fields.
+  // TODO(turbofan): Print all fields.
 }
 
 void OrderedHashSet::OrderedHashSetPrint(std::ostream& os) {
@@ -944,6 +938,74 @@ void OrderedHashMap::OrderedHashMapPrint(std::ostream& os) {
 void OrderedNameDictionary::OrderedNameDictionaryPrint(std::ostream& os) {
   PrintOrderedHashTableHeaderAndBuckets(os, *this, "OrderedNameDictionary");
   PrintDictionaryContentsFull(os, *this);
+}
+
+void print_hex_byte(std::ostream& os, int value) {
+  os << "0x" << std::setfill('0') << std::setw(2) << std::right << std::hex
+     << (value & 0xff) << std::setfill(' ');
+}
+
+void SwissNameDictionary::SwissNameDictionaryPrint(std::ostream& os) {
+  this->PrintHeader(os, "SwissNameDictionary");
+  os << "\n - meta table ByteArray: "
+     << reinterpret_cast<void*>(this->meta_table().ptr());
+  os << "\n - capacity: " << this->Capacity();
+  os << "\n - elements: " << this->NumberOfElements();
+  os << "\n - deleted: " << this->NumberOfDeletedElements();
+
+  std::ios_base::fmtflags sav_flags = os.flags();
+  os << "\n - ctrl table (omitting buckets where key is hole value): {";
+  for (int i = 0; i < this->Capacity() + kGroupWidth; i++) {
+    ctrl_t ctrl = CtrlTable()[i];
+
+    if (ctrl == Ctrl::kEmpty) continue;
+
+    os << "\n   " << std::setw(12) << std::dec << i << ": ";
+    switch (ctrl) {
+      case Ctrl::kEmpty:
+        UNREACHABLE();
+        break;
+      case Ctrl::kDeleted:
+        print_hex_byte(os, ctrl);
+        os << " (= kDeleted)";
+        break;
+      case Ctrl::kSentinel:
+        print_hex_byte(os, ctrl);
+        os << " (= kSentinel)";
+        break;
+      default:
+        print_hex_byte(os, ctrl);
+        os << " (= H2 of a key)";
+        break;
+    }
+  }
+  os << "\n }";
+
+  os << "\n - enumeration table: {";
+  for (int enum_index = 0; enum_index < this->UsedCapacity(); enum_index++) {
+    int entry = EntryForEnumerationIndex(enum_index);
+    os << "\n   " << std::setw(12) << std::dec << enum_index << ": " << entry;
+  }
+  os << "\n }";
+
+  os << "\n - data table (omitting slots where key is the hole): {";
+  for (int bucket = 0; bucket < this->Capacity(); ++bucket) {
+    Object k;
+    if (!this->ToKey(this->GetReadOnlyRoots(), bucket, &k)) continue;
+
+    Object value = this->ValueAtRaw(bucket);
+    PropertyDetails details = this->DetailsAt(bucket);
+    os << "\n   " << std::setw(12) << std::dec << bucket << ": ";
+    if (k.IsString()) {
+      String::cast(k).PrintUC16(os);
+    } else {
+      os << Brief(k);
+    }
+    os << " -> " << Brief(value);
+    details.PrintAsSlowTo(os, false);
+  }
+  os << "\n }\n";
+  os.flags(sav_flags);
 }
 
 void PropertyArray::PropertyArrayPrint(std::ostream& os) {  // NOLINT
@@ -1059,6 +1121,8 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
   os << "\n - optimization tier: " << optimization_tier();
   os << "\n - invocation count: " << invocation_count();
   os << "\n - profiler ticks: " << profiler_ticks();
+  os << "\n - closure feedback cell array: ";
+  closure_feedback_cell_array().ClosureFeedbackCellArrayPrint(os);
 
   FeedbackMetadataIterator iter(metadata());
   while (iter.HasNext()) {
@@ -1426,6 +1490,9 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
     os << "feedback metadata is not available in SFI\n";
   } else if (has_feedback_vector()) {
     feedback_vector().FeedbackVectorPrint(os);
+  } else if (has_closure_feedback_cell_array()) {
+    os << "No feedback vector, but we have a closure feedback cell array\n";
+    closure_feedback_cell_array().ClosureFeedbackCellArrayPrint(os);
   } else {
     os << "not available\n";
   }
@@ -1462,16 +1529,13 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   }
   os << "\n - kind: " << kind();
   os << "\n - syntax kind: " << syntax_kind();
-  if (needs_home_object()) {
-    os << "\n - needs_home_object";
-  }
   os << "\n - function_map_index: " << function_map_index();
   os << "\n - formal_parameter_count: " << internal_formal_parameter_count();
   os << "\n - expected_nof_properties: " << expected_nof_properties();
   os << "\n - language_mode: " << language_mode();
   os << "\n - data: " << Brief(function_data(kAcquireLoad));
   os << "\n - code (from data): ";
-    os << Brief(GetCode());
+  os << Brief(GetCode());
   PrintSourceCode(os);
   // Script files are often large, thus only print their {Brief} representation.
   os << "\n - script: " << Brief(script());
@@ -1518,11 +1582,11 @@ void PropertyCell::PropertyCellPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "PropertyCell");
   os << "\n - name: ";
   name().NamePrint(os);
-  os << "\n - value: " << Brief(value());
+  os << "\n - value: " << Brief(value(kAcquireLoad));
   os << "\n - details: ";
-  property_details().PrintAsSlowTo(os, true);
-  PropertyCellType cell_type = property_details().cell_type();
-  os << "\n - cell_type: " << cell_type;
+  PropertyDetails details = property_details(kAcquireLoad);
+  details.PrintAsSlowTo(os, true);
+  os << "\n - cell_type: " << details.cell_type();
   os << "\n";
 }
 
@@ -1709,6 +1773,15 @@ void ArrayBoilerplateDescription::ArrayBoilerplateDescriptionPrint(
   os << "\n";
 }
 
+void RegExpBoilerplateDescription::RegExpBoilerplateDescriptionPrint(
+    std::ostream& os) {  // NOLINT
+  PrintHeader(os, "RegExpBoilerplateDescription");
+  os << "\n - data: " << Brief(data());
+  os << "\n - source: " << Brief(source());
+  os << "\n - flags: " << flags();
+  os << "\n";
+}
+
 void AsmWasmData::AsmWasmDataPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "AsmWasmData");
   os << "\n - native module: " << Brief(managed_native_module());
@@ -1720,7 +1793,6 @@ void AsmWasmData::AsmWasmDataPrint(std::ostream& os) {  // NOLINT
 void WasmTypeInfo::WasmTypeInfoPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "WasmTypeInfo");
   os << "\n - type address: " << reinterpret_cast<void*>(foreign_address());
-  os << "\n - parent: " << Brief(parent());
   os << "\n";
 }
 
@@ -1734,26 +1806,27 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {  // NOLINT
     uint32_t field_offset = struct_type->field_offset(i);
     Address field_address = RawField(field_offset).address();
     switch (field.kind()) {
-      case wasm::ValueType::kI32:
+      case wasm::kI32:
         os << base::ReadUnalignedValue<int32_t>(field_address);
         break;
-      case wasm::ValueType::kI64:
+      case wasm::kI64:
         os << base::ReadUnalignedValue<int64_t>(field_address);
         break;
-      case wasm::ValueType::kF32:
+      case wasm::kF32:
         os << base::ReadUnalignedValue<float>(field_address);
         break;
-      case wasm::ValueType::kF64:
+      case wasm::kF64:
         os << base::ReadUnalignedValue<double>(field_address);
         break;
-      case wasm::ValueType::kI8:
-      case wasm::ValueType::kI16:
-      case wasm::ValueType::kS128:
-      case wasm::ValueType::kRef:
-      case wasm::ValueType::kOptRef:
-      case wasm::ValueType::kRtt:
-      case wasm::ValueType::kBottom:
-      case wasm::ValueType::kStmt:
+      case wasm::kI8:
+      case wasm::kI16:
+      case wasm::kS128:
+      case wasm::kRef:
+      case wasm::kOptRef:
+      case wasm::kRtt:
+      case wasm::kRttWithDepth:
+      case wasm::kBottom:
+      case wasm::kStmt:
         os << "UNIMPLEMENTED";  // TODO(7748): Implement.
         break;
     }
@@ -1769,30 +1842,31 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {  // NOLINT
   os << "\n - length: " << len;
   Address data_ptr = ptr() + WasmArray::kHeaderSize - kHeapObjectTag;
   switch (array_type->element_type().kind()) {
-    case wasm::ValueType::kI32:
+    case wasm::kI32:
       PrintTypedArrayElements(os, reinterpret_cast<int32_t*>(data_ptr), len,
                               true);
       break;
-    case wasm::ValueType::kI64:
+    case wasm::kI64:
       PrintTypedArrayElements(os, reinterpret_cast<int64_t*>(data_ptr), len,
                               true);
       break;
-    case wasm::ValueType::kF32:
+    case wasm::kF32:
       PrintTypedArrayElements(os, reinterpret_cast<float*>(data_ptr), len,
                               true);
       break;
-    case wasm::ValueType::kF64:
+    case wasm::kF64:
       PrintTypedArrayElements(os, reinterpret_cast<double*>(data_ptr), len,
                               true);
       break;
-    case wasm::ValueType::kI8:
-    case wasm::ValueType::kI16:
-    case wasm::ValueType::kS128:
-    case wasm::ValueType::kRef:
-    case wasm::ValueType::kOptRef:
-    case wasm::ValueType::kRtt:
-    case wasm::ValueType::kBottom:
-    case wasm::ValueType::kStmt:
+    case wasm::kI8:
+    case wasm::kI16:
+    case wasm::kS128:
+    case wasm::kRef:
+    case wasm::kOptRef:
+    case wasm::kRtt:
+    case wasm::kRttWithDepth:
+    case wasm::kBottom:
+    case wasm::kStmt:
       os << "\n   Printing elements of this type is unimplemented, sorry";
       // TODO(7748): Implement.
       break;
@@ -1885,6 +1959,12 @@ void WasmTableObject::WasmTableObjectPrint(std::ostream& os) {  // NOLINT
   os << "\n - maximum_length: " << Brief(maximum_length());
   os << "\n - dispatch_tables: " << Brief(dispatch_tables());
   os << "\n - raw_type: " << raw_type();
+  os << "\n";
+}
+
+void WasmValueObject::WasmValueObjectPrint(std::ostream& os) {  // NOLINT
+  PrintHeader(os, "WasmValueObject");
+  os << "\n - value: " << Brief(value());
   os << "\n";
 }
 
@@ -2261,67 +2341,15 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
-void StackTraceFrame::StackTraceFramePrint(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "StackTraceFrame");
-  os << "\n - frame_index: " << frame_index();
-  os << "\n - frame_info: " << Brief(frame_info());
-  os << "\n";
-}
-
 void StackFrameInfo::StackFrameInfoPrint(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "StackFrame");
-  os << "\n - line_number: " << line_number();
-  os << "\n - column_number: " << column_number();
-  os << "\n - script_id: " << script_id();
-  os << "\n - script_name: " << Brief(script_name());
-  os << "\n - script_name_or_source_url: "
-     << Brief(script_name_or_source_url());
-  os << "\n - function_name: " << Brief(function_name());
-  os << "\n - is_eval: " << (is_eval() ? "true" : "false");
-  os << "\n - is_constructor: " << (is_constructor() ? "true" : "false");
-  os << "\n";
-}
-
-static void PrintBitMask(std::ostream& os, uint32_t value) {  // NOLINT
-  for (int i = 0; i < 32; i++) {
-    if ((i & 7) == 0) os << " ";
-    os << (((value & 1) == 0) ? "_" : "x");
-    value >>= 1;
-  }
-}
-
-void LayoutDescriptor::Print() {
-  StdoutStream os;
-  this->Print(os);
-  os << std::flush;
-}
-
-void LayoutDescriptor::ShortPrint(std::ostream& os) {
-  if (IsSmi()) {
-    // Print tagged value for easy use with "jld" gdb macro.
-    os << reinterpret_cast<void*>(ptr());
-  } else {
-    os << Brief(*this);
-  }
-}
-
-void LayoutDescriptor::Print(std::ostream& os) {  // NOLINT
-  os << "Layout descriptor: ";
-  if (IsFastPointerLayout()) {
-    os << "<all tagged>";
-  } else if (IsSmi()) {
-    os << "fast";
-    PrintBitMask(os, static_cast<uint32_t>(Smi::ToInt(*this)));
-  } else if (IsOddball() && IsUninitialized()) {
-    os << "<uninitialized>";
-  } else {
-    os << "slow";
-    int num_words = number_of_layout_words();
-    for (int i = 0; i < num_words; i++) {
-      if (i > 0) os << " |";
-      PrintBitMask(os, get_layout_word(i));
-    }
-  }
+  PrintHeader(os, "StackFrameInfo");
+  os << "\n - receiver_or_instance: " << Brief(receiver_or_instance());
+  os << "\n - function: " << Brief(function());
+  os << "\n - code_object: " << Brief(code_object());
+  os << "\n - code_offset_or_source_position: "
+     << code_offset_or_source_position();
+  os << "\n - flags: " << flags();
+  os << "\n - parameters: " << Brief(parameters());
   os << "\n";
 }
 
@@ -2488,10 +2516,6 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   os << "\n - instance descriptors " << (owns_descriptors() ? "(own) " : "")
      << "#" << NumberOfOwnDescriptors() << ": "
      << Brief(instance_descriptors(kRelaxedLoad));
-  if (FLAG_unbox_double_fields) {
-    os << "\n - layout descriptor: ";
-    layout_descriptor(kAcquireLoad).ShortPrint(os);
-  }
 
   // Read-only maps can't have transitions, which is fortunate because we need
   // the isolate to iterate over the transitions.
@@ -2747,12 +2771,12 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
   }
 
   if (!isolate->heap()->InSpaceSlow(address, i::CODE_SPACE) &&
-      !isolate->heap()->InSpaceSlow(address, i::LO_SPACE) &&
+      !isolate->heap()->InSpaceSlow(address, i::CODE_LO_SPACE) &&
       !i::InstructionStream::PcIsOffHeap(isolate, address) &&
       !i::ReadOnlyHeap::Contains(address)) {
     i::PrintF(
-        "%p is not within the current isolate's large object, code, read_only "
-        "or embedded spaces\n",
+        "%p is not within the current isolate's code, read_only or embedded "
+        "spaces\n",
         object);
     return;
   }
@@ -2768,16 +2792,6 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
 #else   // ENABLE_DISASSEMBLER
   code.Print();
 #endif  // ENABLE_DISASSEMBLER
-}
-
-V8_EXPORT_PRIVATE extern void _v8_internal_Print_LayoutDescriptor(
-    void* object) {
-  i::Object o(GetObjectFromRaw(object));
-  if (!o.IsLayoutDescriptor()) {
-    printf("Please provide a layout descriptor\n");
-  } else {
-    i::LayoutDescriptor::cast(o).Print();
-  }
 }
 
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_StackTrace() {
@@ -2797,8 +2811,4 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_TransitionTree(void* object) {
     transitions.PrintTransitionTree();
 #endif
   }
-}
-
-V8_EXPORT_PRIVATE extern void _v8_internal_Node_Print(void* object) {
-  reinterpret_cast<i::compiler::Node*>(object)->Print();
 }

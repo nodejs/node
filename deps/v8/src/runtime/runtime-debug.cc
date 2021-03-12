@@ -10,6 +10,7 @@
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug-scopes.h"
+#include "src/debug/debug-wasm-objects.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
 #include "src/execution/arguments-inl.h"
@@ -325,7 +326,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
         kExternalInt32Array,
     };
     Handle<FixedArray> result =
-        factory->NewFixedArray((2 + arraysize(kTypes)) * 2);
+        factory->NewFixedArray((3 + arraysize(kTypes)) * 2);
     int index = 0;
     for (auto type : kTypes) {
       switch (type) {
@@ -349,36 +350,41 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
     }
     Handle<String> byte_length_str =
         factory->NewStringFromAsciiChecked("[[ArrayBufferByteLength]]");
-    result->set(index++, *byte_length_str);
     Handle<Object> byte_length_obj = factory->NewNumberFromSize(byte_length);
+    result->set(index++, *byte_length_str);
     result->set(index++, *byte_length_obj);
+
     Handle<String> buffer_data_str =
         factory->NewStringFromAsciiChecked("[[ArrayBufferData]]");
-    result->set(index++, *buffer_data_str);
     // Use the backing store pointer as a unique ID
     EmbeddedVector<char, 32> buffer_data_vec;
     int len =
         SNPrintF(buffer_data_vec, V8PRIxPTR_FMT,
                  reinterpret_cast<Address>(js_array_buffer->backing_store()));
-    Handle<String> buffer_id =
+    Handle<String> buffer_data_obj =
         factory->InternalizeUtf8String(buffer_data_vec.SubVector(0, len));
-    result->set(index++, *buffer_id);
+    result->set(index++, *buffer_data_str);
+    result->set(index++, *buffer_data_obj);
+
+    Handle<Symbol> memory_symbol = factory->array_buffer_wasm_memory_symbol();
+    Handle<Object> memory_object =
+        JSObject::GetDataProperty(js_array_buffer, memory_symbol);
+    if (!memory_object->IsUndefined(isolate)) {
+      Handle<String> buffer_memory_str =
+          factory->NewStringFromAsciiChecked("[[WebAssemblyMemory]]");
+      Handle<WasmMemoryObject> buffer_memory_obj =
+          Handle<WasmMemoryObject>::cast(memory_object);
+      result->set(index++, *buffer_memory_str);
+      result->set(index++, *buffer_memory_obj);
+    }
 
     return factory->NewJSArrayWithElements(result, PACKED_ELEMENTS, index);
+  } else if (object->IsWasmInstanceObject()) {
+    return GetWasmInstanceObjectInternalProperties(
+        Handle<WasmInstanceObject>::cast(object));
   } else if (object->IsWasmModuleObject()) {
-    auto module_object = Handle<WasmModuleObject>::cast(object);
-    Handle<FixedArray> result = factory->NewFixedArray(2 * 2);
-    Handle<String> exports_str =
-        factory->NewStringFromStaticChars("[[Exports]]");
-    Handle<JSArray> exports_obj = wasm::GetExports(isolate, module_object);
-    result->set(0, *exports_str);
-    result->set(1, *exports_obj);
-    Handle<String> imports_str =
-        factory->NewStringFromStaticChars("[[Imports]]");
-    Handle<JSArray> imports_obj = wasm::GetImports(isolate, module_object);
-    result->set(2, *imports_str);
-    result->set(3, *imports_obj);
-    return factory->NewJSArrayWithElements(result, PACKED_ELEMENTS);
+    return GetWasmModuleObjectInternalProperties(
+        Handle<WasmModuleObject>::cast(object));
   }
   return factory->NewJSArray(0);
 }

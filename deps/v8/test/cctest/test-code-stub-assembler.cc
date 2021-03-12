@@ -65,7 +65,7 @@ TEST(CallCFunction) {
 
     MachineType type_intptr = MachineType::IntPtr();
 
-    Node* const result =
+    TNode<IntPtrT> const result = m.UncheckedCast<IntPtrT>(
         m.CallCFunction(fun_constant, type_intptr,
                         std::make_pair(type_intptr, m.IntPtrConstant(0)),
                         std::make_pair(type_intptr, m.IntPtrConstant(1)),
@@ -76,7 +76,7 @@ TEST(CallCFunction) {
                         std::make_pair(type_intptr, m.IntPtrConstant(6)),
                         std::make_pair(type_intptr, m.IntPtrConstant(7)),
                         std::make_pair(type_intptr, m.IntPtrConstant(8)),
-                        std::make_pair(type_intptr, m.IntPtrConstant(9)));
+                        std::make_pair(type_intptr, m.IntPtrConstant(9))));
     m.Return(m.SmiTag(result));
   }
 
@@ -99,11 +99,12 @@ TEST(CallCFunctionWithCallerSavedRegisters) {
 
     MachineType type_intptr = MachineType::IntPtr();
 
-    Node* const result = m.CallCFunctionWithCallerSavedRegisters(
-        fun_constant, type_intptr, kSaveFPRegs,
-        std::make_pair(type_intptr, m.IntPtrConstant(0)),
-        std::make_pair(type_intptr, m.IntPtrConstant(1)),
-        std::make_pair(type_intptr, m.IntPtrConstant(2)));
+    TNode<IntPtrT> const result =
+        m.UncheckedCast<IntPtrT>(m.CallCFunctionWithCallerSavedRegisters(
+            fun_constant, type_intptr, kSaveFPRegs,
+            std::make_pair(type_intptr, m.IntPtrConstant(0)),
+            std::make_pair(type_intptr, m.IntPtrConstant(1)),
+            std::make_pair(type_intptr, m.IntPtrConstant(2))));
     m.Return(m.SmiTag(result));
   }
 
@@ -881,7 +882,8 @@ void TestNameDictionaryLookup() {
   };
 
   for (size_t i = 0; i < arraysize(keys); i++) {
-    Handle<Object> value = factory->NewPropertyCell(keys[i]);
+    Handle<Object> value =
+        factory->NewPropertyCell(keys[i], fake_details, keys[i]);
     dictionary =
         Dictionary::Add(isolate, dictionary, keys[i], value, fake_details);
   }
@@ -2747,7 +2749,8 @@ TEST(CreatePromiseResolvingFunctions) {
       m.NewJSPromise(context, m.UndefinedConstant());
   PromiseResolvingFunctions funcs = m.CreatePromiseResolvingFunctions(
       context, promise, m.BooleanConstant(false), native_context);
-  Node *resolve = funcs.resolve, *reject = funcs.reject;
+  TNode<JSFunction> resolve = funcs.resolve;
+  TNode<JSFunction> reject = funcs.reject;
   TNode<IntPtrT> const kSize = m.IntPtrConstant(2);
   TNode<FixedArray> const arr =
       m.Cast(m.AllocateFixedArray(PACKED_ELEMENTS, kSize));
@@ -3853,8 +3856,8 @@ TEST(InstructionSchedulingCallerSavedRegisters) {
   CodeStubAssembler m(asm_tester.state());
 
   {
-    Node* x = m.SmiUntag(m.Parameter<Smi>(1));
-    Node* y = m.WordOr(m.WordShr(x, 1), m.IntPtrConstant(1));
+    TNode<IntPtrT> x = m.SmiUntag(m.Parameter<Smi>(1));
+    TNode<WordT> y = m.WordOr(m.WordShr(x, 1), m.IntPtrConstant(1));
     TNode<ExternalReference> isolate_ptr =
         m.ExternalConstant(ExternalReference::isolate_address(isolate));
     m.CallCFunctionWithCallerSavedRegisters(

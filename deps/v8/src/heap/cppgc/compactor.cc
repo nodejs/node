@@ -435,7 +435,7 @@ Compactor::Compactor(RawHeap& heap) : heap_(heap) {
 
 bool Compactor::ShouldCompact(
     GarbageCollector::Config::MarkingType marking_type,
-    GarbageCollector::Config::StackState stack_state) {
+    GarbageCollector::Config::StackState stack_state) const {
   if (compactable_spaces_.empty() ||
       (marking_type == GarbageCollector::Config::MarkingType::kAtomic &&
        stack_state ==
@@ -484,8 +484,8 @@ bool Compactor::CancelIfShouldNotCompact(
 Compactor::CompactableSpaceHandling Compactor::CompactSpacesIfEnabled() {
   if (!is_enabled_) return CompactableSpaceHandling::kSweep;
 
-  StatsCollector::DisabledScope stats_scope(*heap_.heap(),
-                                            StatsCollector::kAtomicCompact);
+  StatsCollector::EnabledScope stats_scope(heap_.heap()->stats_collector(),
+                                           StatsCollector::kAtomicCompact);
 
   MovableReferences movable_references(*heap_.heap());
 

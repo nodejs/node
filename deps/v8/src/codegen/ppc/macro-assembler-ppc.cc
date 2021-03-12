@@ -429,6 +429,21 @@ void TurboAssembler::MultiPushDoubles(RegList dregs, Register location) {
   }
 }
 
+void TurboAssembler::MultiPushV128(RegList dregs, Register location) {
+  int16_t num_to_push = base::bits::CountPopulation(dregs);
+  int16_t stack_offset = num_to_push * kSimd128Size;
+
+  subi(location, location, Operand(stack_offset));
+  for (int16_t i = Simd128Register::kNumRegisters - 1; i >= 0; i--) {
+    if ((dregs & (1 << i)) != 0) {
+      Simd128Register dreg = Simd128Register::from_code(i);
+      stack_offset -= kSimd128Size;
+      li(ip, Operand(stack_offset));
+      StoreSimd128(dreg, MemOperand(location, ip), r0, kScratchSimd128Reg);
+    }
+  }
+}
+
 void TurboAssembler::MultiPopDoubles(RegList dregs, Register location) {
   int16_t stack_offset = 0;
 
@@ -437,6 +452,20 @@ void TurboAssembler::MultiPopDoubles(RegList dregs, Register location) {
       DoubleRegister dreg = DoubleRegister::from_code(i);
       lfd(dreg, MemOperand(location, stack_offset));
       stack_offset += kDoubleSize;
+    }
+  }
+  addi(location, location, Operand(stack_offset));
+}
+
+void TurboAssembler::MultiPopV128(RegList dregs, Register location) {
+  int16_t stack_offset = 0;
+
+  for (int16_t i = 0; i < Simd128Register::kNumRegisters; i++) {
+    if ((dregs & (1 << i)) != 0) {
+      Simd128Register dreg = Simd128Register::from_code(i);
+      li(ip, Operand(stack_offset));
+      LoadSimd128(dreg, MemOperand(location, ip), r0, kScratchSimd128Reg);
+      stack_offset += kSimd128Size;
     }
   }
   addi(location, location, Operand(stack_offset));
@@ -1391,7 +1420,6 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
   DCHECK_EQ(actual_parameter_count, r3);
   DCHECK_EQ(expected_parameter_count, r5);
 
-#ifdef V8_NO_ARGUMENTS_ADAPTOR
   // If the expected parameter count is equal to the adaptor sentinel, no need
   // to push undefined value as arguments.
   mov(r0, Operand(kDontAdaptArgumentsSentinel));
@@ -1441,24 +1469,12 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
 
   bind(&stack_overflow);
   {
-    FrameScope frame(this, StackFrame::MANUAL);
+    FrameScope frame(this,
+                     has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
     CallRuntime(Runtime::kThrowStackOverflow);
     bkpt(0);
   }
-#else
-  // Check whether the expected and actual arguments count match. If not,
-  // setup registers according to contract with ArgumentsAdaptorTrampoline.
-  cmp(expected_parameter_count, actual_parameter_count);
-  beq(&regular_invoke);
 
-  Handle<Code> adaptor = BUILTIN_CODE(isolate(), ArgumentsAdaptorTrampoline);
-  if (flag == CALL_FUNCTION) {
-    Call(adaptor);
-    b(done);
-  } else {
-    Jump(adaptor, RelocInfo::CODE_TARGET);
-  }
-#endif
   bind(&regular_invoke);
 }
 
@@ -1639,6 +1655,18 @@ void MacroAssembler::CompareInstanceType(Register map, Register type_reg,
   STATIC_ASSERT(LAST_TYPE <= 0xFFFF);
   lhz(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
   cmpi(type_reg, Operand(type));
+}
+
+void MacroAssembler::CompareInstanceTypeRange(Register map, Register type_reg,
+                                              InstanceType lower_limit,
+                                              InstanceType higher_limit) {
+  DCHECK_LT(lower_limit, higher_limit);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  LoadHalfWord(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  mov(scratch, Operand(lower_limit));
+  sub(scratch, type_reg, scratch);
+  cmpli(scratch, Operand(higher_limit - lower_limit));
 }
 
 void MacroAssembler::CompareRoot(Register obj, RootIndex index) {
@@ -1983,9 +2011,11 @@ void MacroAssembler::AssertFunction(Register object) {
     TestIfSmi(object, r0);
     Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, cr0);
     push(object);
-    CompareObjectType(object, object, object, JS_FUNCTION_TYPE);
+    LoadMap(object, object);
+    CompareInstanceTypeRange(object, object, FIRST_JS_FUNCTION_TYPE,
+                             LAST_JS_FUNCTION_TYPE);
     pop(object);
-    Check(eq, AbortReason::kOperandIsNotAFunction);
+    Check(le, AbortReason::kOperandIsNotAFunction);
   }
 }
 
@@ -3307,7 +3337,8 @@ void TurboAssembler::CallCodeObject(Register code_object) {
   Call(code_object);
 }
 
-void TurboAssembler::JumpCodeObject(Register code_object) {
+void TurboAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
+  DCHECK_EQ(JumpMode::kJump, jump_mode);
   LoadCodeObjectEntry(code_object, code_object);
   Jump(code_object);
 }

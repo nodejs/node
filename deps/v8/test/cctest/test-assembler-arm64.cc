@@ -10888,6 +10888,26 @@ TEST(fcvtmu) {
   CHECK_EQUAL_64(0x0UL, x30);
 }
 
+TEST(fcvtn) {
+  INIT_V8();
+  SETUP();
+  START();
+
+  double src[2] = {1.0f, 1.0f};
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+
+  __ Mov(x0, src_base);
+  __ Ldr(q0, MemOperand(x0, 0));
+
+  __ Fcvtn(q0.V2S(), q0.V2D());
+
+  END();
+  RUN();
+
+  // Ensure top half is cleared.
+  CHECK_EQUAL_128(0, 0x3f800000'3f800000, q0);
+}
+
 TEST(fcvtns) {
   INIT_V8();
   SETUP();
@@ -11841,9 +11861,7 @@ TEST(system_msr) {
 }
 
 TEST(system_pauth_b) {
-#ifdef DEBUG
   i::FLAG_sim_abort_on_bad_auth = false;
-#endif
   SETUP();
   START();
 

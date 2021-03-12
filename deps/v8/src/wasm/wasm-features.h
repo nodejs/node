@@ -35,7 +35,7 @@ class WasmFeatures : public base::EnumSet<WasmFeature> {
 
   // Simplified getters. Use {has_foo()} instead of {contains(kFeature_foo)}.
 #define DECL_FEATURE_GETTER(feat, ...) \
-  bool has_##feat() const { return contains(kFeature_##feat); }
+  constexpr bool has_##feat() const { return contains(kFeature_##feat); }
   FOREACH_WASM_FEATURE(DECL_FEATURE_GETTER)
 #undef DECL_FEATURE_GETTER
 

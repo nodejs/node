@@ -21,7 +21,7 @@ class Operator;
 class CommonOperatorBuilder;
 
 // A facade that simplifies access to the different kinds of inputs to a node.
-class V8_EXPORT_PRIVATE NodeProperties final {
+class V8_EXPORT_PRIVATE NodeProperties {
  public:
   // ---------------------------------------------------------------------------
   // Input layout.
@@ -244,12 +244,12 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   // ---------------------------------------------------------------------------
   // Type.
 
-  static bool IsTyped(Node* node) { return !node->type().IsInvalid(); }
+  static bool IsTyped(const Node* node) { return !node->type().IsInvalid(); }
   static Type GetType(Node* node) {
     DCHECK(IsTyped(node));
     return node->type();
   }
-  static Type GetTypeOrAny(Node* node);
+  static Type GetTypeOrAny(const Node* node);
   static void SetType(Node* node, Type type) {
     DCHECK(!type.IsInvalid());
     node->set_type(type);

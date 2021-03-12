@@ -1191,7 +1191,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     isolate->compilation_cache()->Remove(sfi);
     for (auto& js_function : data->js_functions) {
       js_function->set_shared(*new_sfi);
-      js_function->set_code(js_function->shared().GetCode());
+      js_function->set_code(js_function->shared().GetCode(), kReleaseStore);
 
       js_function->set_raw_feedback_cell(
           *isolate->factory()->many_closures_cell());

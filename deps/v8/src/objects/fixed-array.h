@@ -111,30 +111,26 @@ class FixedArray
       Isolate* isolate, Handle<FixedArray> array, int index,
       Handle<Object> value);
 
-  // Synchronized setters and getters.
-  inline Object synchronized_get(int index) const;
-  inline Object synchronized_get(IsolateRoot isolate, int index) const;
-  // Currently only Smis are written with release semantics, hence we can avoid
-  // a write barrier.
-  inline void synchronized_set(int index, Smi value);
+  // Relaxed accessors.
+  inline Object get(int index, RelaxedLoadTag) const;
+  inline Object get(IsolateRoot isolate, int index, RelaxedLoadTag) const;
+  inline void set(int index, Object value, RelaxedStoreTag,
+                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void set(int index, Smi value, RelaxedStoreTag);
+
+  // Acquire/release accessors.
+  inline Object get(int index, AcquireLoadTag) const;
+  inline Object get(IsolateRoot isolate, int index, AcquireLoadTag) const;
+  inline void set(int index, Object value, ReleaseStoreTag,
+                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void set(int index, Smi value, ReleaseStoreTag);
 
   // Setter that uses write barrier.
   inline void set(int index, Object value);
   inline bool is_the_hole(Isolate* isolate, int index);
 
   // Setter that doesn't need write barrier.
-#if defined(_WIN32) && !defined(_WIN64)
-  inline void set(int index, Smi value) {
-    DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
-    DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-    DCHECK(Object(value).IsSmi());
-    int offset = OffsetOfElementAt(index);
-    RELAXED_WRITE_FIELD(*this, offset, value);
-  }
-#else
   inline void set(int index, Smi value);
-#endif
-
   // Setter with explicit barrier mode.
   inline void set(int index, Object value, WriteBarrierMode mode);
 

@@ -44,7 +44,6 @@ class BasicCrossThreadPersistent final : public PersistentBase,
       T* raw, const SourceLocation& loc = SourceLocation::Current())
       : PersistentBase(raw), LocationPolicy(loc) {
     if (!IsValid(raw)) return;
-    PersistentRegionLock guard;
     PersistentRegion& region = this->GetPersistentRegion(raw);
     SetNode(region.AllocateNode(this, &Trace));
     this->CheckPointer(raw);
@@ -162,13 +161,24 @@ class BasicCrossThreadPersistent final : public PersistentBase,
   // heterogeneous assignments between different Member and Persistent handles
   // based on their actual types.
   V8_CLANG_NO_SANITIZE("cfi-unrelated-cast") T* Get() const {
-    return static_cast<T*>(GetValue());
+    return static_cast<T*>(const_cast<void*>(GetValue()));
   }
 
   /**
    * Clears the stored object.
    */
-  void Clear() { Assign(nullptr); }
+  void Clear() {
+    // Simplified version of `Assign()` to allow calling without a complete type
+    // `T`.
+    const void* old_value = GetValue();
+    if (IsValid(old_value)) {
+      PersistentRegionLock guard;
+      PersistentRegion& region = this->GetPersistentRegion(old_value);
+      region.FreeNode(GetNode());
+      SetNode(nullptr);
+    }
+    SetValue(nullptr);
+  }
 
   /**
    * Returns a pointer to the stored object and releases it.
@@ -209,8 +219,31 @@ class BasicCrossThreadPersistent final : public PersistentBase,
   T* operator->() const { return Get(); }
   T& operator*() const { return *Get(); }
 
+  template <typename U, typename OtherWeaknessPolicy = WeaknessPolicy,
+            typename OtherLocationPolicy = LocationPolicy,
+            typename OtherCheckingPolicy = CheckingPolicy>
+  BasicCrossThreadPersistent<U, OtherWeaknessPolicy, OtherLocationPolicy,
+                             OtherCheckingPolicy>
+  To() const {
+    PersistentRegionLock guard;
+    return BasicCrossThreadPersistent<U, OtherWeaknessPolicy,
+                                      OtherLocationPolicy, OtherCheckingPolicy>(
+        static_cast<U*>(Get()));
+  }
+
+  template <typename U = T,
+            typename = typename std::enable_if<!BasicCrossThreadPersistent<
+                U, WeaknessPolicy>::IsStrongPersistent::value>::type>
+  BasicCrossThreadPersistent<U, internal::StrongCrossThreadPersistentPolicy>
+  Lock() const {
+    return BasicCrossThreadPersistent<
+        U, internal::StrongCrossThreadPersistentPolicy>(*this);
+  }
+
  private:
-  static bool IsValid(void* ptr) { return ptr && ptr != kSentinelPointer; }
+  static bool IsValid(const void* ptr) {
+    return ptr && ptr != kSentinelPointer;
+  }
 
   static void Trace(Visitor* v, const void* ptr) {
     const auto* handle = static_cast<const BasicCrossThreadPersistent*>(ptr);
@@ -218,7 +251,7 @@ class BasicCrossThreadPersistent final : public PersistentBase,
   }
 
   void Assign(T* ptr) {
-    void* old_value = GetValue();
+    const void* old_value = GetValue();
     if (IsValid(old_value)) {
       PersistentRegionLock guard;
       PersistentRegion& region = this->GetPersistentRegion(old_value);
@@ -238,7 +271,8 @@ class BasicCrossThreadPersistent final : public PersistentBase,
   }
 
   void AssignUnsafe(T* ptr) {
-    void* old_value = GetValue();
+    PersistentRegionLock::AssertLocked();
+    const void* old_value = GetValue();
     if (IsValid(old_value)) {
       PersistentRegion& region = this->GetPersistentRegion(old_value);
       if (IsValid(ptr) && (&region == &this->GetPersistentRegion(ptr))) {

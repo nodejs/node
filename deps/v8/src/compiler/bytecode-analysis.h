@@ -99,7 +99,7 @@ struct V8_EXPORT_PRIVATE LoopInfo {
 class V8_EXPORT_PRIVATE BytecodeAnalysis : public ZoneObject {
  public:
   BytecodeAnalysis(Handle<BytecodeArray> bytecode_array, Zone* zone,
-                   BailoutId osr_bailout_id, bool analyze_liveness);
+                   BytecodeOffset osr_bailout_id, bool analyze_liveness);
   BytecodeAnalysis(const BytecodeAnalysis&) = delete;
   BytecodeAnalysis& operator=(const BytecodeAnalysis&) = delete;
 
@@ -128,7 +128,7 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis : public ZoneObject {
     return osr_entry_point_;
   }
   // Return the osr_bailout_id (for verification purposes).
-  BailoutId osr_bailout_id() const { return osr_bailout_id_; }
+  BytecodeOffset osr_bailout_id() const { return osr_bailout_id_; }
 
   // Return whether liveness analysis was performed (for verification purposes).
   bool liveness_analyzed() const { return analyze_liveness_; }
@@ -167,7 +167,7 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis : public ZoneObject {
 
   Handle<BytecodeArray> const bytecode_array_;
   Zone* const zone_;
-  BailoutId const osr_bailout_id_;
+  BytecodeOffset const osr_bailout_id_;
   bool const analyze_liveness_;
   ZoneStack<LoopStackEntry> loop_stack_;
   ZoneVector<int> loop_end_index_queue_;

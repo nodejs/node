@@ -1,0 +1,37 @@
+Test instrumentation breakpoints in wasm.
+
+Running test: testBreakInStartFunction
+Setting instrumentation breakpoint
+{
+    id : <messageId>
+    result : {
+        breakpointId : <breakpointId>
+    }
+}
+Compiling wasm module.
+Paused at v8://test/compile_module with reason "instrumentation".
+Instantiating module.
+Paused at v8://test/instantiate with reason "instrumentation".
+Paused at wasm://wasm/20da547a with reason "instrumentation".
+Script wasm://wasm/20da547a byte offset 26: Wasm opcode 0x01 (kExprNop)
+Instantiating a second time (should trigger no breakpoint).
+Paused at v8://test/instantiate2 with reason "instrumentation".
+Done.
+
+Running test: testBreakInStartFunctionCompileTwice
+Setting instrumentation breakpoint
+{
+    id : <messageId>
+    result : {
+        breakpointId : <breakpointId>
+    }
+}
+Instantiating module.
+Paused at v8://test/instantiate with reason "instrumentation".
+Paused at wasm://wasm/20da547a with reason "instrumentation".
+Script wasm://wasm/20da547a byte offset 26: Wasm opcode 0x01 (kExprNop)
+Instantiating a second time (should trigger another breakpoint).
+Paused at v8://test/instantiate with reason "instrumentation".
+Paused at wasm://wasm/20da547a with reason "instrumentation".
+Script wasm://wasm/20da547a byte offset 26: Wasm opcode 0x01 (kExprNop)
+Done.

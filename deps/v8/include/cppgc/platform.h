@@ -126,11 +126,18 @@ class V8_EXPORT Platform {
 /**
  * Process-global initialization of the garbage collector. Must be called before
  * creating a Heap.
+ *
+ * Can be called multiple times when paired with `ShutdownProcess()`.
+ *
+ * \param page_allocator The allocator used for maintaining meta data. Must not
+ *   change between multiple calls to InitializeProcess.
  */
-V8_EXPORT void InitializeProcess(PageAllocator*);
+V8_EXPORT void InitializeProcess(PageAllocator* page_allocator);
 
 /**
- * Must be called after destroying the last used heap.
+ * Must be called after destroying the last used heap. Some process-global
+ * metadata may not be returned and reused upon a subsequent
+ * `InitializeProcess()` call.
  */
 V8_EXPORT void ShutdownProcess();
 

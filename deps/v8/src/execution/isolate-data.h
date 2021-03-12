@@ -13,7 +13,7 @@
 #include "src/execution/thread-local-top.h"
 #include "src/roots/roots.h"
 #include "src/utils/utils.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {
 namespace internal {

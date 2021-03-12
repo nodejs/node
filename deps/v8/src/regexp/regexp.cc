@@ -76,7 +76,8 @@ class RegExpImpl final : public AllStatic {
   // Returns an empty handle in case of an exception.
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> IrregexpExec(
       Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
-      int index, Handle<RegExpMatchInfo> last_match_info);
+      int index, Handle<RegExpMatchInfo> last_match_info,
+      RegExp::ExecQuirks exec_quirks = RegExp::ExecQuirks::kNone);
 
   static bool CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
                               Handle<String> sample_subject, bool is_one_byte);
@@ -268,15 +269,17 @@ bool RegExp::EnsureFullyCompiled(Isolate* isolate, Handle<JSRegExp> re,
 // static
 MaybeHandle<Object> RegExp::ExperimentalOneshotExec(
     Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
-    int index, Handle<RegExpMatchInfo> last_match_info) {
+    int index, Handle<RegExpMatchInfo> last_match_info,
+    RegExp::ExecQuirks exec_quirks) {
   return ExperimentalRegExp::OneshotExec(isolate, regexp, subject, index,
-                                         last_match_info);
+                                         last_match_info, exec_quirks);
 }
 
 // static
 MaybeHandle<Object> RegExp::Exec(Isolate* isolate, Handle<JSRegExp> regexp,
                                  Handle<String> subject, int index,
-                                 Handle<RegExpMatchInfo> last_match_info) {
+                                 Handle<RegExpMatchInfo> last_match_info,
+                                 ExecQuirks exec_quirks) {
   switch (regexp->TypeTag()) {
     case JSRegExp::NOT_COMPILED:
       UNREACHABLE();
@@ -285,10 +288,10 @@ MaybeHandle<Object> RegExp::Exec(Isolate* isolate, Handle<JSRegExp> regexp,
                                   last_match_info);
     case JSRegExp::IRREGEXP:
       return RegExpImpl::IrregexpExec(isolate, regexp, subject, index,
-                                      last_match_info);
+                                      last_match_info, exec_quirks);
     case JSRegExp::EXPERIMENTAL:
       return ExperimentalRegExp::Exec(isolate, regexp, subject, index,
-                                      last_match_info);
+                                      last_match_info, exec_quirks);
   }
 }
 
@@ -641,7 +644,8 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
 
 MaybeHandle<Object> RegExpImpl::IrregexpExec(
     Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
-    int previous_index, Handle<RegExpMatchInfo> last_match_info) {
+    int previous_index, Handle<RegExpMatchInfo> last_match_info,
+    RegExp::ExecQuirks exec_quirks) {
   DCHECK_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
 
   subject = String::Flatten(isolate, subject);
@@ -691,6 +695,11 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(
                                   output_registers, required_registers);
 
   if (res == RegExp::RE_SUCCESS) {
+    if (exec_quirks == RegExp::ExecQuirks::kTreatMatchAtEndAsFailure) {
+      if (output_registers[0] >= subject->length()) {
+        return isolate->factory()->null_value();
+      }
+    }
     int capture_count = regexp->CaptureCount();
     return RegExp::SetLastMatchInfo(isolate, last_match_info, subject,
                                     capture_count, output_registers);
@@ -847,6 +856,9 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
 #elif V8_TARGET_ARCH_MIPS64
     macro_assembler.reset(new RegExpMacroAssemblerMIPS(isolate, zone, mode,
                                                        output_register_count));
+#elif V8_TARGET_ARCH_RISCV64
+    macro_assembler.reset(new RegExpMacroAssemblerRISCV(isolate, zone, mode,
+                                                        output_register_count));
 #else
 #error "Unsupported architecture"
 #endif

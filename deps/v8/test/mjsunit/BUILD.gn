@@ -12,7 +12,6 @@ group("v8_mjsunit") {
 
   data = [
     "./",
-    "../../tools/arguments.js",
     "../../tools/arguments.mjs",
     "../../tools/clusterfuzz/v8_mock.js",
     "../../tools/clusterfuzz/v8_mock_archs.js",

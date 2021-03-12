@@ -61,6 +61,29 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                             String::Encoding from_encoding,
                             String::Encoding to_encoding);
 
+  // Torque wrapper methods for CallSearchStringRaw for each combination of
+  // search and subject character widths (char8/char16). This is a workaround
+  // for Torque's current lack of support for extern macros with generics.
+  TNode<IntPtrT> SearchOneByteStringInTwoByteString(
+      const TNode<RawPtrT> subject_ptr, const TNode<IntPtrT> subject_length,
+      const TNode<RawPtrT> search_ptr, const TNode<IntPtrT> search_length,
+      const TNode<IntPtrT> start_position);
+  TNode<IntPtrT> SearchOneByteStringInOneByteString(
+      const TNode<RawPtrT> subject_ptr, const TNode<IntPtrT> subject_length,
+      const TNode<RawPtrT> search_ptr, const TNode<IntPtrT> search_length,
+      const TNode<IntPtrT> start_position);
+  TNode<IntPtrT> SearchTwoByteStringInTwoByteString(
+      const TNode<RawPtrT> subject_ptr, const TNode<IntPtrT> subject_length,
+      const TNode<RawPtrT> search_ptr, const TNode<IntPtrT> search_length,
+      const TNode<IntPtrT> start_position);
+  TNode<IntPtrT> SearchTwoByteStringInOneByteString(
+      const TNode<RawPtrT> subject_ptr, const TNode<IntPtrT> subject_length,
+      const TNode<RawPtrT> search_ptr, const TNode<IntPtrT> search_length,
+      const TNode<IntPtrT> start_position);
+  TNode<IntPtrT> SearchOneByteInOneByteString(
+      const TNode<RawPtrT> subject_ptr, const TNode<IntPtrT> subject_length,
+      const TNode<RawPtrT> search_ptr, const TNode<IntPtrT> start_position);
+
  protected:
   void StringEqual_Loop(TNode<String> lhs, TNode<Word32T> lhs_instance_type,
                         MachineType lhs_type, TNode<String> rhs,
@@ -70,11 +93,6 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   TNode<RawPtrT> DirectStringData(TNode<String> string,
                                   TNode<Word32T> string_instance_type);
 
-  void DispatchOnStringEncodings(const TNode<Word32T> lhs_instance_type,
-                                 const TNode<Word32T> rhs_instance_type,
-                                 Label* if_one_one, Label* if_one_two,
-                                 Label* if_two_one, Label* if_two_two);
-
   template <typename SubjectChar, typename PatternChar>
   TNode<IntPtrT> CallSearchStringRaw(const TNode<RawPtrT> subject_ptr,
                                      const TNode<IntPtrT> subject_length,
@@ -82,21 +100,12 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                                      const TNode<IntPtrT> search_length,
                                      const TNode<IntPtrT> start_position);
 
-  TNode<RawPtrT> PointerToStringDataAtIndex(TNode<RawPtrT> string_data,
-                                            TNode<IntPtrT> index,
-                                            String::Encoding encoding);
-
   void GenerateStringEqual(TNode<String> left, TNode<String> right);
   void GenerateStringRelationalComparison(TNode<String> left,
                                           TNode<String> right, Operation op);
 
   using StringAtAccessor = std::function<TNode<Object>(
       TNode<String> receiver, TNode<IntPtrT> length, TNode<IntPtrT> index)>;
-
-  void StringIndexOf(const TNode<String> subject_string,
-                     const TNode<String> search_string,
-                     const TNode<Smi> position,
-                     const std::function<void(TNode<Smi>)>& f_return);
 
   const TNode<Smi> IndexOfDollarChar(const TNode<Context> context,
                                      const TNode<String> string);
@@ -170,18 +179,6 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                                              TNode<Int32T> from_instance_type,
                                              TNode<IntPtrT> from_index,
                                              TNode<IntPtrT> character_count);
-};
-
-class StringIncludesIndexOfAssembler : public StringBuiltinsAssembler {
- public:
-  explicit StringIncludesIndexOfAssembler(compiler::CodeAssemblerState* state)
-      : StringBuiltinsAssembler(state) {}
-
- protected:
-  enum SearchVariant { kIncludes, kIndexOf };
-
-  void Generate(SearchVariant variant, TNode<IntPtrT> argc,
-                TNode<Context> context);
 };
 
 }  // namespace internal

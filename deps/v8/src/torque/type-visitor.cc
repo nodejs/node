@@ -63,12 +63,7 @@ std::string ComputeGeneratesType(base::Optional<std::string> opt_gen,
   if (!opt_gen) return "";
   const std::string& generates = *opt_gen;
   if (enforce_tnode_type) {
-    if (generates.length() < 7 || generates.substr(0, 6) != "TNode<" ||
-        generates.substr(generates.length() - 1, 1) != ">") {
-      ReportError("generated type \"", generates,
-                  "\" should be of the form \"TNode<...>\"");
-    }
-    return generates.substr(6, generates.length() - 7);
+    return UnwrapTNodeTypeName(generates);
   }
   return generates;
 }
@@ -213,7 +208,8 @@ const StructType* TypeVisitor::ComputeType(
             false,
             field.const_qualified,
             false,
-            false};
+            FieldSynchronization::kNone,
+            FieldSynchronization::kNone};
     auto optional_size = SizeOf(f.name_and_type.type);
     struct_type->RegisterField(f);
     // Offsets are assigned based on an assumption of no space between members.
@@ -434,7 +430,8 @@ void TypeVisitor::VisitClassFieldsAndMethods(
          field_expression.weak,
          field_expression.const_qualified,
          field_expression.generate_verify,
-         field_expression.relaxed_write});
+         field_expression.read_synchronization,
+         field_expression.write_synchronization});
     ResidueClass field_size = std::get<0>(field.GetFieldSizeInformation());
     if (field.index) {
       // Validate that a value at any index in a packed array is aligned

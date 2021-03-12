@@ -64,16 +64,48 @@ void Builtins::Generate_CallFunctionForwardVarargs(MacroAssembler* masm) {
       masm->isolate()->builtins()->CallFunction());
 }
 
+TF_BUILTIN(Call_ReceiverIsNullOrUndefined_Baseline,
+           CallOrConstructBuiltinsAssembler) {
+  auto target = Parameter<Object>(Descriptor::kFunction);
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
+  auto context = LoadContextFromBaseline();
+  auto feedback_vector = LoadFeedbackVectorFromBaseline();
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  CollectCallFeedback(target, context, feedback_vector, slot);
+  TailCallBuiltin(Builtins::kCall_ReceiverIsNullOrUndefined, context, target,
+                  argc);
+}
+
+TF_BUILTIN(Call_ReceiverIsNotNullOrUndefined_Baseline,
+           CallOrConstructBuiltinsAssembler) {
+  auto target = Parameter<Object>(Descriptor::kFunction);
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
+  auto context = LoadContextFromBaseline();
+  auto feedback_vector = LoadFeedbackVectorFromBaseline();
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  CollectCallFeedback(target, context, feedback_vector, slot);
+  TailCallBuiltin(Builtins::kCall_ReceiverIsNotNullOrUndefined, context, target,
+                  argc);
+}
+
+TF_BUILTIN(Call_ReceiverIsAny_Baseline, CallOrConstructBuiltinsAssembler) {
+  auto target = Parameter<Object>(Descriptor::kFunction);
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
+  auto context = LoadContextFromBaseline();
+  auto feedback_vector = LoadFeedbackVectorFromBaseline();
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  CollectCallFeedback(target, context, feedback_vector, slot);
+  TailCallBuiltin(Builtins::kCall_ReceiverIsAny, context, target, argc);
+}
+
 TF_BUILTIN(Call_ReceiverIsNullOrUndefined_WithFeedback,
            CallOrConstructBuiltinsAssembler) {
   auto target = Parameter<Object>(Descriptor::kFunction);
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
-  auto maybe_feedback_vector =
-      Parameter<HeapObject>(Descriptor::kMaybeFeedbackVector);
-  auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
-  CollectCallFeedback(target, context, maybe_feedback_vector,
-                      Unsigned(ChangeInt32ToIntPtr(slot)));
+  auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  CollectCallFeedback(target, context, feedback_vector, slot);
   TailCallBuiltin(Builtins::kCall_ReceiverIsNullOrUndefined, context, target,
                   argc);
 }
@@ -83,11 +115,9 @@ TF_BUILTIN(Call_ReceiverIsNotNullOrUndefined_WithFeedback,
   auto target = Parameter<Object>(Descriptor::kFunction);
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
-  auto maybe_feedback_vector =
-      Parameter<HeapObject>(Descriptor::kMaybeFeedbackVector);
-  auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
-  CollectCallFeedback(target, context, maybe_feedback_vector,
-                      Unsigned(ChangeInt32ToIntPtr(slot)));
+  auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  CollectCallFeedback(target, context, feedback_vector, slot);
   TailCallBuiltin(Builtins::kCall_ReceiverIsNotNullOrUndefined, context, target,
                   argc);
 }
@@ -96,11 +126,9 @@ TF_BUILTIN(Call_ReceiverIsAny_WithFeedback, CallOrConstructBuiltinsAssembler) {
   auto target = Parameter<Object>(Descriptor::kFunction);
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
-  auto maybe_feedback_vector =
-      Parameter<HeapObject>(Descriptor::kMaybeFeedbackVector);
-  auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
-  CollectCallFeedback(target, context, maybe_feedback_vector,
-                      Unsigned(ChangeInt32ToIntPtr(slot)));
+  auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  CollectCallFeedback(target, context, feedback_vector, slot);
   TailCallBuiltin(Builtins::kCall_ReceiverIsAny, context, target, argc);
 }
 
@@ -434,11 +462,9 @@ TF_BUILTIN(CallWithArrayLike_WithFeedback, CallOrConstructBuiltinsAssembler) {
   base::Optional<TNode<Object>> new_target = base::nullopt;
   auto arguments_list = Parameter<Object>(Descriptor::kArgumentsList);
   auto context = Parameter<Context>(Descriptor::kContext);
-  auto maybe_feedback_vector =
-      Parameter<HeapObject>(Descriptor::kMaybeFeedbackVector);
-  auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
-  CollectCallFeedback(target, context, maybe_feedback_vector,
-                      Unsigned(ChangeInt32ToIntPtr(slot)));
+  auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  CollectCallFeedback(target, context, feedback_vector, slot);
   CallOrConstructWithArrayLike(target, new_target, arguments_list, context);
 }
 
@@ -451,17 +477,27 @@ TF_BUILTIN(CallWithSpread, CallOrConstructBuiltinsAssembler) {
   CallOrConstructWithSpread(target, new_target, spread, args_count, context);
 }
 
+TF_BUILTIN(CallWithSpread_Baseline, CallOrConstructBuiltinsAssembler) {
+  auto target = Parameter<Object>(Descriptor::kTarget);
+  base::Optional<TNode<Object>> new_target = base::nullopt;
+  auto spread = Parameter<Object>(Descriptor::kSpread);
+  auto args_count = UncheckedParameter<Int32T>(Descriptor::kArgumentsCount);
+  auto context = LoadContextFromBaseline();
+  auto feedback_vector = LoadFeedbackVectorFromBaseline();
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  CollectCallFeedback(target, context, feedback_vector, slot);
+  CallOrConstructWithSpread(target, new_target, spread, args_count, context);
+}
+
 TF_BUILTIN(CallWithSpread_WithFeedback, CallOrConstructBuiltinsAssembler) {
   auto target = Parameter<Object>(Descriptor::kTarget);
   base::Optional<TNode<Object>> new_target = base::nullopt;
   auto spread = Parameter<Object>(Descriptor::kSpread);
   auto args_count = UncheckedParameter<Int32T>(Descriptor::kArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
-  auto maybe_feedback_vector =
-      Parameter<HeapObject>(Descriptor::kMaybeFeedbackVector);
-  auto slot = UncheckedParameter<Int32T>(Descriptor::kSlot);
-  CollectCallFeedback(target, context, maybe_feedback_vector,
-                      Unsigned(ChangeInt32ToIntPtr(slot)));
+  auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  CollectCallFeedback(target, context, feedback_vector, slot);
   CallOrConstructWithSpread(target, new_target, spread, args_count, context);
 }
 
@@ -517,8 +553,7 @@ TNode<JSReceiver> CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
       //
       var_template = CAST(constructor);
       TNode<Uint16T> template_type = LoadInstanceType(var_template.value());
-      GotoIf(InstanceTypeEqual(template_type, JS_FUNCTION_TYPE),
-             &template_from_closure);
+      GotoIf(IsJSFunctionInstanceType(template_type), &template_from_closure);
       Branch(InstanceTypeEqual(template_type, MAP_TYPE), &template_map_loop,
              &template_loop);
     }

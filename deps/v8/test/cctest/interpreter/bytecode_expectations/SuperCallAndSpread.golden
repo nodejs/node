@@ -19,10 +19,10 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 20
+bytecode array length: 19
 bytecodes: [
   /*   93 E> */ B(CreateRestParameter),
-                B(Star), R(2),
+                B(Star2),
                 B(Mov), R(closure), R(1),
   /*   93 S> */ B(Ldar), R(1),
                 B(GetSuperConstructor), R(4),
@@ -51,21 +51,21 @@ snippet: "
 "
 frame size: 9
 parameter count: 1
-bytecode array length: 41
+bytecode array length: 38
 bytecodes: [
   /*  128 E> */ B(CreateRestParameter),
-                B(Star), R(3),
+                B(Star3),
                 B(Mov), R(closure), R(1),
                 B(Mov), R(3), R(2),
   /*  140 S> */ B(Ldar), R(closure),
                 B(GetSuperConstructor), R(5),
                 B(LdaSmi), I8(1),
-                B(Star), R(6),
+                B(Star6),
   /*  152 E> */ B(ThrowIfNotSuperConstructor), R(5),
                 B(Ldar), R(0),
                 B(Mov), R(3), R(7),
   /*  140 E> */ B(ConstructWithSpread), R(5), R(6), U8(2), U8(0),
-                B(Star), R(8),
+                B(Star8),
                 B(Ldar), R(this),
                 B(ThrowSuperAlreadyCalledIfNotHole),
                 B(Mov), R(8), R(this),
@@ -93,49 +93,49 @@ snippet: "
 "
 frame size: 11
 parameter count: 1
-bytecode array length: 120
+bytecode array length: 111
 bytecodes: [
   /*  128 E> */ B(CreateRestParameter),
-                B(Star), R(3),
+                B(Star3),
                 B(Mov), R(closure), R(1),
                 B(Mov), R(3), R(2),
   /*  140 S> */ B(Ldar), R(closure),
                 B(GetSuperConstructor), R(5),
                 B(CreateEmptyArrayLiteral), U8(0),
-                B(Star), R(7),
+                B(Star7),
                 B(LdaZero),
-                B(Star), R(6),
+                B(Star6),
                 B(LdaSmi), I8(1),
                 B(StaInArrayLiteral), R(7), R(6), U8(1),
                 B(Ldar), R(6),
                 B(Inc), U8(3),
-  /*  152 S> */ B(Star), R(6),
+  /*  152 S> */ B(Star6),
   /*  152 E> */ B(GetIterator), R(3), U8(4), U8(6),
                 B(Mov), R(1), R(4),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
-                B(Star), R(9),
+                B(Star9),
                 B(LdaNamedProperty), R(9), U8(0), U8(8),
-                B(Star), R(8),
+                B(Star8),
                 B(CallProperty0), R(8), R(9), U8(14),
-                B(Star), R(10),
+                B(Star10),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(10), U8(1),
                 B(LdaNamedProperty), R(10), U8(1), U8(16),
-                B(JumpIfToBooleanTrue), U8(19),
+                B(JumpIfToBooleanTrue), U8(18),
                 B(LdaNamedProperty), R(10), U8(2), U8(10),
                 B(StaInArrayLiteral), R(7), R(6), U8(1),
                 B(Ldar), R(6),
                 B(Inc), U8(3),
-                B(Star), R(6),
-                B(JumpLoop), U8(33), I8(0),
+                B(Star6),
+                B(JumpLoop), U8(31), I8(0),
                 B(LdaSmi), I8(1),
                 B(StaInArrayLiteral), R(7), R(6), U8(1),
                 B(ThrowIfNotSuperConstructor), R(5),
                 B(Mov), R(5), R(6),
                 B(Mov), R(0), R(8),
   /*  140 E> */ B(CallJSRuntime), U8(%reflect_construct), R(6), U8(3),
-                B(Star), R(9),
+                B(Star9),
                 B(Ldar), R(this),
                 B(ThrowSuperAlreadyCalledIfNotHole),
                 B(Mov), R(9), R(this),

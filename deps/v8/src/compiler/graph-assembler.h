@@ -34,6 +34,7 @@ class BasicBlock;
   V(BitcastInt32ToFloat32)               \
   V(BitcastWord32ToWord64)               \
   V(BitcastInt64ToFloat64)               \
+  V(ChangeFloat32ToFloat64)              \
   V(ChangeFloat64ToInt32)                \
   V(ChangeFloat64ToInt64)                \
   V(ChangeFloat64ToUint32)               \
@@ -47,6 +48,7 @@ class BasicBlock;
   V(Float64ExtractLowWord32)             \
   V(Float64SilenceNaN)                   \
   V(RoundFloat64ToInt32)                 \
+  V(RoundInt32ToFloat32)                 \
   V(TruncateFloat64ToFloat32)            \
   V(TruncateFloat64ToWord32)             \
   V(TruncateInt64ToInt32)                \
@@ -89,6 +91,9 @@ class BasicBlock;
   V(Word64And)                            \
   V(Word64Equal)                          \
   V(Word64Or)                             \
+  V(Word64Sar)                            \
+  V(Word64SarShiftOutZeros)               \
+  V(Word64Shl)                            \
   V(Word64Shr)                            \
   V(WordAnd)                              \
   V(WordEqual)                            \
@@ -105,8 +110,12 @@ class BasicBlock;
   V(Int32Mod)                                \
   V(Int32MulWithOverflow)                    \
   V(Int32SubWithOverflow)                    \
+  V(Int64Div)                                \
+  V(Int64Mod)                                \
   V(Uint32Div)                               \
-  V(Uint32Mod)
+  V(Uint32Mod)                               \
+  V(Uint64Div)                               \
+  V(Uint64Mod)
 
 #define JSGRAPH_SINGLETON_CONSTANT_LIST(V)      \
   V(AllocateInOldGenerationStub, Code)          \
@@ -369,6 +378,22 @@ class V8_EXPORT_PRIVATE GraphAssembler {
                       BranchHint hint, Vars...);
 
   // Control helpers.
+
+  // {GotoIf(c, l, h)} is equivalent to {BranchWithHint(c, l, templ, h);
+  // Bind(templ)}.
+  template <typename... Vars>
+  void GotoIf(Node* condition, GraphAssemblerLabel<sizeof...(Vars)>* label,
+              BranchHint hint, Vars...);
+
+  // {GotoIfNot(c, l, h)} is equivalent to {BranchWithHint(c, templ, l, h);
+  // Bind(templ)}.
+  // The branch hint refers to the expected outcome of the provided condition,
+  // so {GotoIfNot(..., BranchHint::kTrue)} means "optimize for the case where
+  // the branch is *not* taken".
+  template <typename... Vars>
+  void GotoIfNot(Node* condition, GraphAssemblerLabel<sizeof...(Vars)>* label,
+                 BranchHint hint, Vars...);
+
   // {GotoIf(c, l)} is equivalent to {Branch(c, l, templ);Bind(templ)}.
   template <typename... Vars>
   void GotoIf(Node* condition, GraphAssemblerLabel<sizeof...(Vars)>* label,
@@ -747,9 +772,7 @@ void GraphAssembler::Goto(GraphAssemblerLabel<sizeof...(Vars)>* label,
 template <typename... Vars>
 void GraphAssembler::GotoIf(Node* condition,
                             GraphAssemblerLabel<sizeof...(Vars)>* label,
-                            Vars... vars) {
-  BranchHint hint =
-      label->IsDeferred() ? BranchHint::kFalse : BranchHint::kNone;
+                            BranchHint hint, Vars... vars) {
   Node* branch = graph()->NewNode(common()->Branch(hint), condition, control());
 
   control_ = graph()->NewNode(common()->IfTrue(), branch);
@@ -762,8 +785,7 @@ void GraphAssembler::GotoIf(Node* condition,
 template <typename... Vars>
 void GraphAssembler::GotoIfNot(Node* condition,
                                GraphAssemblerLabel<sizeof...(Vars)>* label,
-                               Vars... vars) {
-  BranchHint hint = label->IsDeferred() ? BranchHint::kTrue : BranchHint::kNone;
+                               BranchHint hint, Vars... vars) {
   Node* branch = graph()->NewNode(common()->Branch(hint), condition, control());
 
   control_ = graph()->NewNode(common()->IfFalse(), branch);
@@ -771,6 +793,23 @@ void GraphAssembler::GotoIfNot(Node* condition,
 
   GotoIfBasicBlock(label->basic_block(), branch, IrOpcode::kIfFalse);
   control_ = AddNode(graph()->NewNode(common()->IfTrue(), branch));
+}
+
+template <typename... Vars>
+void GraphAssembler::GotoIf(Node* condition,
+                            GraphAssemblerLabel<sizeof...(Vars)>* label,
+                            Vars... vars) {
+  BranchHint hint =
+      label->IsDeferred() ? BranchHint::kFalse : BranchHint::kNone;
+  return GotoIf(condition, label, hint, vars...);
+}
+
+template <typename... Vars>
+void GraphAssembler::GotoIfNot(Node* condition,
+                               GraphAssemblerLabel<sizeof...(Vars)>* label,
+                               Vars... vars) {
+  BranchHint hint = label->IsDeferred() ? BranchHint::kTrue : BranchHint::kNone;
+  return GotoIfNot(condition, label, hint, vars...);
 }
 
 template <typename... Args>
