@@ -17,6 +17,7 @@ async function main({ n }) {
 
   bench.start();
   s.on('data', (data) => {
+    // eslint-disable-next-line no-unused-expressions
     data;
   });
   s.on('close', () => {
