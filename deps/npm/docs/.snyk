@@ -12,3 +12,11 @@ patch:
         patched: '2021-03-12T23:55:57.363Z'
     - gatsby > babel-plugin-lodash > @babel/helper-module-imports > @babel/types > lodash:
         patched: '2021-03-12T23:55:57.363Z'
+=======
+        patched: '2021-03-13T00:00:36.182Z'
+    - gatsby > babel-plugin-lodash > lodash:
+        patched: '2021-03-13T00:00:36.182Z'
+    - gatsby > babel-plugin-lodash > @babel/types > lodash:
+        patched: '2021-03-13T00:00:36.182Z'
+    - gatsby > babel-plugin-lodash > @babel/helper-module-imports > @babel/types > lodash:
+        patched: '2021-03-13T00:00:36.182Z'
