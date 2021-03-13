@@ -1337,3 +1337,19 @@ const net = require('net');
     assert.strictEqual(res, '123');
   }));
 }
+
+{
+  const content = 'abc';
+  pipeline(Buffer.from(content), PassThrough({ objectMode: true }),
+           common.mustSucceed(() => {}));
+
+  let res = '';
+  pipeline(Buffer.from(content), async function*(previous) {
+    for await (const val of previous) {
+      res += String.fromCharCode(val);
+      yield val;
+    }
+  }, common.mustSucceed(() => {
+    assert.strictEqual(res, content);
+  }));
+}
