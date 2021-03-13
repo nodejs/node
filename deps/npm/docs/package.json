@@ -33,13 +33,17 @@
     "react-dom": "^16.9.0",
     "react-helmet": "^5.2.1",
     "rebass": "^4.0.5",
-    "styled-components": "^4.4.0"
+    "styled-components": "^4.4.0",
+    "snyk": "^1.485.0"
   },
   "scripts": {
     "develop": "gatsby develop",
     "start": "npm run develop",
     "build": "gatsby build",
     "build:static": "GATSBY_IS_STATIC=true gatsby build --prefix-paths",
-    "serve": "gatsby serve"
-  }
+    "serve": "gatsby serve",
+    "snyk-protect": "snyk protect",
+    "prepare": "npm run snyk-protect"
+  },
+  "snyk": true
 }
