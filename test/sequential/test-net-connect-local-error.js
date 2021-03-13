@@ -11,7 +11,7 @@ const optionsIPv4 = {
   port: common.PORT,
   localPort: common.PORT + 1,
   localAddress: common.localhostIPv4,
-  family: 4
+  family: 4,
 };
 
 const optionsIPv6 = {
@@ -19,7 +19,7 @@ const optionsIPv6 = {
   port: common.PORT + 2,
   localPort: common.PORT + 3,
   localAddress: '::1',
-  family: 6
+  family: 6,
 };
 
 function onError(err, options) {
