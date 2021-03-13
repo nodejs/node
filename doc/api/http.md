@@ -2810,6 +2810,7 @@ changes:
     `hostname`. Valid values are `4` or `6`. When unspecified, both IP v4 and
     v6 will be used.
   * `headers` {Object} An object containing request headers.
+  * `hints` {number} Optional [`dns.lookup()` hints][].
   * `host` {string} A domain name or IP address of the server to issue the
     request to. **Default:** `'localhost'`.
   * `hostname` {string} Alias for `host`. To support [`url.parse()`][],
@@ -3126,6 +3127,7 @@ try {
 [`agent.getName()`]: #http_agent_getname_options
 [`destroy()`]: #http_agent_destroy
 [`dns.lookup()`]: dns.md#dns_dns_lookup_hostname_options_callback
+[`dns.lookup()` hints]: dns.md#dns_supported_getaddrinfo_flags
 [`getHeader(name)`]: #http_request_getheader_name
 [`http.Agent`]: #http_class_http_agent
 [`http.ClientRequest`]: #http_class_http_clientrequest
