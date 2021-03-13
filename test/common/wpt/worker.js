@@ -7,6 +7,8 @@ const { parentPort, workerData } = require('worker_threads');
 
 const { ResourceLoader } = require(workerData.wptRunner);
 const resource = new ResourceLoader(workerData.wptPath);
+let testsStarted = 0;
+let testsEnded = 0;
 
 global.self = global;
 global.GLOBAL = {
@@ -30,7 +32,13 @@ runInThisContext(workerData.harness.code, {
 });
 
 // eslint-disable-next-line no-undef
+add_test_state_callback((changed, all) => {
+  testsStarted = all.tests.length;
+});
+
+// eslint-disable-next-line no-undef
 add_result_callback((result) => {
+  testsEnded++;
   parentPort.postMessage({
     type: 'result',
     result: {
@@ -48,6 +56,12 @@ add_completion_callback((_, status) => {
     type: 'completion',
     status,
   });
+});
+
+process.on('uncaughtException', (err) => {
+  if (testsStarted === 0 || testsStarted !== testsEnded) {
+    throw err;
+  }
 });
 
 for (const scriptToRun of workerData.scriptsToRun) {
