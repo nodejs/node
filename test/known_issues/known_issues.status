@@ -15,16 +15,32 @@ test-vm-timeout-escape-queuemicrotask: SKIP
 [$system==win32]
 
 [$system==linux]
+# Windows-specific test
+test-path-posix-relative-on-windows: SKIP
 
 [$system==macos]
+# Windows-specific test
+test-path-posix-relative-on-windows: SKIP
 
 [$system==solaris]
+# Windows-specific test
+test-path-posix-relative-on-windows: SKIP
 
 [$system==freebsd]
+# Windows-specific test
+test-path-posix-relative-on-windows: SKIP
 
 [$system==aix]
+# Windows-specific test
+test-path-posix-relative-on-windows: SKIP
 
 [$arch==arm]
 # The Raspberry Pis are too slow to run this test.
 # See https://github.com/nodejs/build/issues/2227#issuecomment-608334574
 test-crypto-authenticated-stream: SKIP
+# Windows-specific test
+test-path-posix-relative-on-windows: SKIP
+
+[$system==ibmi]
+# Windows-specific test
+test-path-posix-relative-on-windows: SKIP
