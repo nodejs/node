@@ -34,7 +34,7 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
     .on('lookup', common.mustCall(function(err, ip, type, host) {
       assert.strictEqual(err, null);
       assert.match(ip, /^(127\.0\.0\.1|::1)$/);
-      assert.strictEqual(type.toString(), /^(4|6)$/);
+      assert.match(type.toString(), /^(4|6)$/);
       assert.strictEqual(host, 'localhost');
     }));
 }));
