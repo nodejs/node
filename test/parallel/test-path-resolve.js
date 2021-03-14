@@ -9,6 +9,14 @@ const failures = [];
 const slashRE = /\//g;
 const backslashRE = /\\/g;
 
+const posixyCwd = common.isWindows ?
+  (() => {
+    const _ = process.cwd()
+      .replaceAll(path.sep, path.posix.sep);
+    return _.slice(_.indexOf(path.posix.sep));
+  })() :
+  process.cwd();
+
 const resolveTests = [
   [ path.win32.resolve,
     // Arguments                               result
@@ -31,8 +39,8 @@ const resolveTests = [
     // Arguments                    result
     [[['/var/lib', '../', 'file/'], '/var/file'],
      [['/var/lib', '/../', 'file/'], '/file'],
-     [['a/b/c/', '../../..'], process.cwd()],
-     [['.'], process.cwd()],
+     [['a/b/c/', '../../..'], posixyCwd],
+     [['.'], posixyCwd],
      [['/some/dir', '.', '/absolute/'], '/absolute'],
      [['/foo/tmp.3/', '../tmp.3/cycles/root.js'], '/foo/tmp.3/cycles/root.js'],
     ],
