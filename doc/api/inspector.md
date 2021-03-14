@@ -2,7 +2,7 @@
 
 <!--introduced_in=v8.0.0-->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 <!-- source_link=lib/inspector.js -->
 
