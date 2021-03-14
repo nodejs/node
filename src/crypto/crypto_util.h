@@ -159,13 +159,18 @@ void Decode(const v8::FunctionCallbackInfo<v8::Value>& args,
   }
 }
 
+#define NODE_CRYPTO_ERROR_CODES_MAP(V)                                        \
+    V(CIPHER_JOB_FAILED, "Cipher job failed")                                 \
+    V(DERIVING_BITS_FAILED, "Deriving bits failed")                           \
+    V(ENGINE_NOT_FOUND, "Engine \"%s\" was not found")                        \
+    V(INVALID_KEY_TYPE, "Invalid key type")                                   \
+    V(KEY_GENERATION_JOB_FAILED, "Key generation job failed")                 \
+    V(OK, "Ok")                                                               \
+
 enum class NodeCryptoError {
-  CIPHER_JOB_FAILED,
-  DERIVING_BITS_FAILED,
-  ENGINE_NOT_FOUND,
-  INVALID_KEY_TYPE,
-  KEY_GENERATION_JOB_FAILED,
-  OK
+#define V(CODE, DESCRIPTION) CODE,
+  NODE_CRYPTO_ERROR_CODES_MAP(V)
+#undef V
 };
 
 // Utility struct used to harvest error information from openssl's error stack
@@ -194,24 +199,10 @@ template <typename... Args>
 void CryptoErrorStore::Insert(const NodeCryptoError error, Args&&... args) {
   const char* error_string = nullptr;
   switch (error) {
-    case NodeCryptoError::CIPHER_JOB_FAILED:
-      error_string = "Cipher job failed";
-      break;
-    case NodeCryptoError::DERIVING_BITS_FAILED:
-      error_string = "Deriving bits failed";
-      break;
-    case NodeCryptoError::ENGINE_NOT_FOUND:
-      error_string = "Engine \"%s\" was not found";
-      break;
-    case NodeCryptoError::INVALID_KEY_TYPE:
-      error_string = "Invalid key type";
-      break;
-    case NodeCryptoError::KEY_GENERATION_JOB_FAILED:
-      error_string = "Key generation failed";
-      break;
-    case NodeCryptoError::OK:
-      error_string = "Ok";
-      break;
+#define V(CODE, DESCRIPTION) \
+    case NodeCryptoError::CODE: error_string = DESCRIPTION; break;
+    NODE_CRYPTO_ERROR_CODES_MAP(V)
+#undef V
   }
   errors_.emplace_back(SPrintF(error_string,
                                std::forward<Args>(args)...));
