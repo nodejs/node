@@ -26,11 +26,14 @@ const env = {
   console.log(child.stdout.toString());
   const stderr = child.stderr.toString();
   console.log(stderr);
-  // There should be one snapshot taken and then after the
-  // snapshot heap limit callback is popped, the OOM callback
-  // becomes effective.
-  assert(stderr.includes('ERR_WORKER_OUT_OF_MEMORY'));
-  const list = fs.readdirSync(tmpdir.path)
-    .filter((file) => file.endsWith('.heapsnapshot'));
-  assert.strictEqual(list.length, 1);
+  const risky = /Not generating snapshots because it's too risky/.test(stderr);
+  if (!risky) {
+    // There should be one snapshot taken and then after the
+    // snapshot heap limit callback is popped, the OOM callback
+    // becomes effective.
+    assert(stderr.includes('ERR_WORKER_OUT_OF_MEMORY'));
+    const list = fs.readdirSync(tmpdir.path)
+      .filter((file) => file.endsWith('.heapsnapshot'));
+    assert.strictEqual(list.length, 1);
+  }
 }
