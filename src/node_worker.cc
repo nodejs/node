@@ -416,6 +416,27 @@ Worker::~Worker() {
   Debug(this, "Worker %llu destroyed", thread_id_.id);
 }
 
+void AddPreloads(
+    Environment* env,
+    PerIsolateOptions* opts,
+    std::vector<std::string>* exec_argv,
+    Local<Array> preloads) {
+  uint32_t len = preloads->Length();
+  int idx = 0;
+  for (uint32_t i = 0; i < len; i++) {
+    Local<Value> module;
+    if (!preloads->Get(env->context(), i).ToLocal(&module))
+      return;
+    Utf8Value mod(env->isolate(), module);
+    std::string preload_arg = std::string(mod.out(), mod.length());
+    exec_argv->emplace(exec_argv->begin() + idx++, std::string("-r"));
+    exec_argv->emplace(exec_argv->begin() + idx++, preload_arg);
+    CHECK_NOT_NULL(opts);
+    CHECK_NOT_NULL(opts->get_per_env_options());
+    opts->get_per_env_options()->preload_modules.push_back(preload_arg);
+  }
+}
+
 void Worker::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
@@ -453,7 +474,7 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
     env_vars = env->env_vars();
   }
 
-  if (args[1]->IsObject() || args[2]->IsArray()) {
+  if (args[1]->IsObject() || args[2]->IsArray() || args[5]->IsArray()) {
     per_isolate_opts.reset(new PerIsolateOptions());
 
     HandleEnvOptions(per_isolate_opts->per_env, [&env_vars](const char* name) {
@@ -494,11 +515,13 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
 #endif
   }
 
+  // Process the execArgv arguments
   if (args[2]->IsArray()) {
     Local<Array> array = args[2].As<Array>();
     // The first argument is reserved for program name, but we don't need it
     // in workers.
     std::vector<std::string> exec_argv = {""};
+
     uint32_t length = array->Length();
     for (uint32_t i = 0; i < length; i++) {
       Local<Value> arg;
@@ -544,6 +567,14 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
     }
   } else {
     exec_argv_out = env->exec_argv();
+  }
+
+  if (args[5]->IsArray()) {
+    AddPreloads(
+        env,
+        per_isolate_opts.get(),
+        &exec_argv_out,
+        args[5].As<Array>());
   }
 
   Worker* worker = new Worker(env,
