@@ -74,8 +74,7 @@ const { ok, strictEqual, throws } = require('assert');
 }
 
 {
-  // Test that AbortController properties and methods
-  // validate the receiver object
+  // Test that AbortController properties and methods validate the receiver
   const acSignalGet = Object.getOwnPropertyDescriptor(
     AbortController.prototype,
     'signal'
@@ -107,8 +106,7 @@ const { ok, strictEqual, throws } = require('assert');
 }
 
 {
-  // Test that AbortSignal properties
-  // validate the receiver object
+  // Test that AbortSignal properties validate the receiver
   const signalAbortedGet = Object.getOwnPropertyDescriptor(
     AbortSignal.prototype,
     'aborted'
