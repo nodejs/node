@@ -58,12 +58,17 @@ const env = {
     env,
   });
   console.log(child.stdout.toString());
-  console.log(child.stderr.toString());
+  const stderr = child.stderr.toString();
+  console.log(stderr);
   assert(common.nodeProcessAborted(child.status, child.signal),
          'process should have aborted, but did not');
   const list = fs.readdirSync(tmpdir.path)
     .filter((file) => file.endsWith('.heapsnapshot'));
-  assert.strictEqual(list.length, 1);
+  const risky = [...stderr.matchAll(
+    /Not generating snapshots because it's too risky/g)].length;
+  assert(list.length + risky > 0 && list.length <= 3,
+         `Generated ${list.length} snapshots ` +
+                     `and ${risky} was too risky`);
 }
 
 {
@@ -79,10 +84,15 @@ const env = {
     env,
   });
   console.log(child.stdout.toString());
-  console.log(child.stderr.toString());
+  const stderr = child.stderr.toString();
+  console.log(stderr);
   assert(common.nodeProcessAborted(child.status, child.signal),
          'process should have aborted, but did not');
   const list = fs.readdirSync(tmpdir.path)
     .filter((file) => file.endsWith('.heapsnapshot'));
-  assert(list.length > 0 && list.length <= 3);
+  const risky = [...stderr.matchAll(
+    /Not generating snapshots because it's too risky/g)].length;
+  assert(list.length + risky > 0 && list.length <= 3,
+         `Generated ${list.length} snapshots ` +
+        `and ${risky} was too risky`);
 }
