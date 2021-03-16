@@ -47,6 +47,9 @@ const hostObject = new (internalBinding('js_stream').JSStream)();
   }
 }
 
+/*
+// TODO(v8:11570): We disable the following test, while https://chromium-review.googlesource.com/c/v8/v8/+/2739980 is being merged
+// After merging, a follow-up PR will be made to re-enable this test with changed behavior
 {
   const ser = new v8.DefaultSerializer();
   ser._getDataCloneError = common.mustCall((message) => {
@@ -60,6 +63,7 @@ const hostObject = new (internalBinding('js_stream').JSStream)();
     ser.writeValue(new Proxy({}, {}));
   }, /foobar/);
 }
+*/
 
 {
   const ser = new v8.DefaultSerializer();
