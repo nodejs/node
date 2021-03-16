@@ -87,6 +87,7 @@ const { ok, strictEqual, throws } = require('assert');
 
   const badAbortControllers = [
     null,
+    undefined,
     0,
     NaN,
     true,
@@ -117,6 +118,7 @@ const { ok, strictEqual, throws } = require('assert');
 
   const badAbortSignals = [
     null,
+    undefined,
     0,
     NaN,
     true,
