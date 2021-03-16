@@ -84,17 +84,16 @@ for line in pipe:
     for i in range(0, 3):
       # 6-character margin, 2-characters + 1 space for each field
       idx = 6 + i * 3
-      octetstr = line[idx:idx+3]
+      octetstr = line[idx:idx+3].decode("utf-8")
       if curr_octet > octets:
         break
-
       if not numpattern.match(octetstr):
         break
 
-      curr_val += int('0x%s' % octetstr, 16) << (curr_octet * 8)
+      curr_val += int('0x%s' % octetstr[0:octetstr.find("'")], 16) << (curr_octet * 8)
       curr_octet += 1
 
-  match = pattern.match(line)
+  match = pattern.match(line.decode("utf-8"))
   if match is None:
     continue
 
