@@ -160,9 +160,9 @@ the native addon.
 
 #### node-gyp
 
-[node-gyp][] is a build system based on Google's [GYP][] tool and comes
-bundled with npm. GYP, and therefore node-gyp, requires that Python be
-installed.
+[node-gyp][] is a build system based on the [gyp-next][] fork of
+Google's [GYP][] tool and comes bundled with npm. GYP, and therefore node-gyp,
+requires that Python be installed.
 
 Historically, node-gyp has been the tool of choice for building native
 addons. It has widespread adoption and documentation. However, some
@@ -6091,6 +6091,7 @@ the add-on's file name during loading.
 [context-aware addons]: addons.md#addons_context_aware_addons
 [docs]: https://github.com/nodejs/node-addon-api#api-documentation
 [global scope]: globals.md
+[gyp-next]: https://github.com/nodejs/gyp-next
 [module scope]: modules.md#modules_the_module_scope
 [node-gyp]: https://github.com/nodejs/node-gyp
 [node-pre-gyp]: https://github.com/mapbox/node-pre-gyp
