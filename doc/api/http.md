@@ -2296,7 +2296,7 @@ will result in a `TypeError` being thrown.
 ### `outgoingMessage.connection`
 <!-- YAML
 added: v0.3.0
-deprecated: REPLACEME
+deprecated: v15.12.0
 -->
 
 > Stability: 0 - Deprecated: Use [`outgoingMessage.socket`][] instead.
