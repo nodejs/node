@@ -3164,7 +3164,7 @@ input.on('readable', () => {
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: REPLACEME
+  - version: v15.12.0
     pr-url: https://github.com/nodejs/node/pull/37254
     description: The key can also be a JWK object.
   - version: v15.0.0
@@ -3197,7 +3197,7 @@ of the passphrase is limited to 1024 bytes.
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: REPLACEME
+  - version: v15.12.0
     pr-url: https://github.com/nodejs/node/pull/37254
     description: The key can also be a JWK object.
   - version: v15.0.0
@@ -4956,7 +4956,7 @@ Throws an error if FIPS mode is not available.
 <!-- YAML
 added: v12.0.0
 changes:
-  - version: REPLACEME
+  - version: v15.12.0
     pr-url: https://github.com/nodejs/node/pull/37500
     description: Optional callback argument added.
   - version:
@@ -5036,7 +5036,7 @@ not introduce timing vulnerabilities.
 <!-- YAML
 added: v12.0.0
 changes:
-  - version: REPLACEME
+  - version: v15.12.0
     pr-url: https://github.com/nodejs/node/pull/37500
     description: Optional callback argument added.
   - version: v15.0.0
