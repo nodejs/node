@@ -1,7 +1,7 @@
 -include config.mk
 
 BUILDTYPE ?= Release
-PYTHON ?= python
+PYTHON ?= python3
 DESTDIR ?=
 SIGN ?=
 PREFIX ?= /usr/local
