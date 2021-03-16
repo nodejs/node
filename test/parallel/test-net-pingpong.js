@@ -81,11 +81,11 @@ function pingPongTest(port, host) {
   }
 
 
-  server.listen(port, host, common.mustCall(function() {
+  server.listen(port, '127.0.0.1', common.mustCall(function() {
     if (this.address().port)
       port = this.address().port;
 
-    const client = net.createConnection(port, host);
+    const client = net.createConnection(port, '127.0.0.1');
 
     client.setEncoding('ascii');
     client.on('connect', common.mustCall(function() {
@@ -130,6 +130,4 @@ const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 pingPongTest(common.PIPE);
 pingPongTest(0);
-pingPongTest(0, 'localhost');
-if (common.hasIPv6)
-  pingPongTest(0, '::1');
+pingPongTest(0, '127.0.0.1');
