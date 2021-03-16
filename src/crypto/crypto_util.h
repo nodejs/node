@@ -207,7 +207,6 @@ void CryptoErrorStore::Insert(const NodeCryptoError error, Args&&... args) {
   errors_.emplace_back(SPrintF(error_string,
                                std::forward<Args>(args)...));
 }
-#undef NODE_CRYPTO_ERROR_CODES_MAP
 
 template <typename T>
 T* MallocOpenSSL(size_t count) {
