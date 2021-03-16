@@ -70,7 +70,7 @@ Stack::StackSlot Stack::GetStackStart() {
   pthread_attr_t attr;
   int error;
   pthread_attr_init(&attr);
-  error = pthread_attr_get_np(pthread_self(), &attr);
+  error = 0;
   if (!error) {
     void* base;
     size_t size;
