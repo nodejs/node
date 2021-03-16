@@ -393,7 +393,7 @@ class NodeInstance extends EventEmitter {
     console.log('[test]', `Testing ${path}`);
     const headers = hostHeaderValue ? { 'Host': hostHeaderValue } : null;
     return this.portPromise.then((port) => new Promise((resolve, reject) => {
-      const req = http.get({ host, port, path, headers }, (res) => {
+      const req = http.get({ host, family: 4, port, path, headers }, (res) => {
         let response = '';
         res.setEncoding('utf8');
         res
@@ -418,6 +418,7 @@ class NodeInstance extends EventEmitter {
     const devtoolsUrl = response[0].webSocketDebuggerUrl;
     const port = await this.portPromise;
     return http.get({
+      family: 4,
       port,
       path: parseURL(devtoolsUrl).path,
       headers: {

@@ -67,6 +67,7 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
 
   headers.forEach(function(h) {
     const req = http.get({
+      host: '127.0.0.1',
       port: port,
       headers: h
     });

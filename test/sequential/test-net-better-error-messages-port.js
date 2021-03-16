@@ -3,7 +3,7 @@ const common = require('../common');
 const net = require('net');
 const assert = require('assert');
 
-const c = net.createConnection(common.PORT);
+const c = net.createConnection(common.PORT, common.localhostIPv4);
 
 c.on('connect', common.mustNotCall());
 

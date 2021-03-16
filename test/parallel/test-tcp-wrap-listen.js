@@ -84,7 +84,7 @@ server.onconnection = (err, client) => {
 
 const net = require('net');
 
-const c = net.createConnection(port);
+const c = net.createConnection(port, '127.0.0.1');
 
 c.on('connect', common.mustCall(() => { c.end('hello world'); }));
 

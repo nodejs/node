@@ -111,7 +111,7 @@ if (cluster.isWorker) {
   // When a TCP server is listening in the worker connect to it
   worker.on('listening', function(address) {
 
-    client = net.connect(address.port, function() {
+    client = net.connect(address.port, '127.0.0.1', function() {
       // Send message to worker.
       worker.send('message from primary');
     });

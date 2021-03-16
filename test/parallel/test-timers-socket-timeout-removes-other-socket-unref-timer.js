@@ -32,12 +32,14 @@ server.listen(0, common.localhostIPv4, common.mustCall(() => {
   const countdown = new Countdown(2, () => server.close());
 
   {
-    const client = net.connect({ port: server.address().port });
+    const client = net.connect({ port: server.address().port,
+                                 host: '127.0.0.1' });
     client.on('end', () => countdown.dec());
   }
 
   {
-    const client = net.connect({ port: server.address().port });
+    const client = net.connect({ port: server.address().port,
+                                 host: '127.0.0.1' });
     client.on('end', () => countdown.dec());
   }
 }));

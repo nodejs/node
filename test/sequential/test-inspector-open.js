@@ -80,7 +80,7 @@ function reopenAfterClose(msg) {
 }
 
 function ping(port, callback) {
-  net.connect(port)
+  net.connect(port, '127.0.0.1')
     .on('connect', function() { close(this); })
     .on('error', function(err) { close(this, err); });
 
