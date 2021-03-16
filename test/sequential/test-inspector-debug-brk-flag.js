@@ -27,8 +27,7 @@ async function testBreakpointOnStart(session) {
 }
 
 async function runTests() {
-  const child = new NodeInstance(['--inspect=localhost',
-                                  '--inspect-brk=localhost']);
+  const child = new NodeInstance(['--inspect', '--inspect-brk']);
   const session = await child.connectInspectorSession();
 
   await testBreakpointOnStart(session);

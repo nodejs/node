@@ -46,8 +46,7 @@ const server = https.createServer(options, common.mustCall((req, res) => {
 }, 3));
 
 server.listen(0, common.mustCall(() => {
-  const localhost = common.hasIPv6 ? '[::1]' : common.localhostIPv4;
-  const u = `https://${localhost}:${server.address().port}/foo?bar`;
+  const u = `https://${common.localhostIPv4}:${server.address().port}/foo?bar`;
   https.get(u, common.mustCall(() => {
     https.get(url.parse(u), common.mustCall(() => {
       https.get(new URL(u), common.mustCall(() => {

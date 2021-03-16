@@ -45,7 +45,7 @@ async function checkAsyncStackTrace(session) {
 }
 
 async function runTests() {
-  const instance = new NodeInstance(['--inspect=localhost:0'], script);
+  const instance = new NodeInstance(['--inspect=0'], script);
   const session = await instance.connectInspectorSession();
   await session.send([
     { 'method': 'Runtime.enable' },

@@ -12,7 +12,7 @@ const assert = require('assert');
 
 const server = http2.createServer((req, res) => {
   console.log(`Connect from: ${req.connection.remoteAddress}`);
-  assert.match(req.connection.remoteAddress, /^(127\.0\.0\.2|::1)$/);
+  assert.strictEqual(req.connection.remoteAddress, '127.0.0.2');
 
   req.on('end', common.mustCall(() => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -21,8 +21,8 @@ const server = http2.createServer((req, res) => {
   req.resume();
 });
 
-server.listen(0, 'localhost', common.mustCall(() => {
-  const options = { localAddress: common.hasIPv6 ? '::1' : '127.0.0.2' };
+server.listen(0, '127.0.0.1', common.mustCall(() => {
+  const options = { localAddress: '127.0.0.2' };
 
   const client = http2.connect(
     'http://localhost:' + server.address().port,

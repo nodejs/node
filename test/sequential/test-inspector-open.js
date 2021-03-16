@@ -98,10 +98,10 @@ function beChild() {
   process.on('message', (msg) => {
     if (msg.cmd === 'open') {
       if (msg.args[0] === kFirstOpen) {
-        inspector.open(0, 'localhost', undefined);
+        inspector.open(0, false, undefined);
       } else if (msg.args[0] === kOpenWhileOpen) {
         assert.throws(() => {
-          inspector.open(0, 'localhost', undefined);
+          inspector.open(0, false, undefined);
         }, {
           code: 'ERR_INSPECTOR_ALREADY_ACTIVATED'
         });

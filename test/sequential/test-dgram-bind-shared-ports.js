@@ -73,10 +73,9 @@ if (cluster.isPrimary) {
   }), 1);
 
   const isSecondWorker = process.env.WORKER2_NAME === WORKER2_NAME;
-  const type = common.hasIPv6 ? 'udp6' : 'udp4';
-  const socket1 = dgram.createSocket(type, common.mustNotCall());
-  const socket2 = dgram.createSocket(type, common.mustNotCall());
-  const socket3 = dgram.createSocket(type, common.mustNotCall());
+  const socket1 = dgram.createSocket('udp4', common.mustNotCall());
+  const socket2 = dgram.createSocket('udp4', common.mustNotCall());
+  const socket3 = dgram.createSocket('udp4', common.mustNotCall());
 
   socket1.on('error', (err) => assert.fail(err));
   socket2.on('error', (err) => assert.fail(err));
@@ -97,7 +96,7 @@ if (cluster.isPrimary) {
       common.mustCall((err) => {
         process.send(`socket3:${err.code}`);
       });
-  const address = common.localhostIP;
+  const address = common.localhostIPv4;
   const opt1 = { address, port: 0, exclusive: false };
   const opt2 = { address, port: common.PORT, exclusive: false };
   const opt3 = { address, port: common.PORT + 1, exclusive: true };

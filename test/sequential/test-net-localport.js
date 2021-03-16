@@ -11,7 +11,7 @@ const server = net.createServer(function(socket) {
   });
 }).listen(0).on('listening', function() {
   const client = net.connect({
-    host: 'localhost',
+    host: '127.0.0.1',
     port: this.address().port,
     localPort: common.PORT,
   }).on('connect', function() {

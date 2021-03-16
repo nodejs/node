@@ -19,7 +19,7 @@ const repl = require('repl');
     });
   });
 
-  const host = common.localhostIP;
+  const host = common.localhostIPv4;
   const port = 0;
   const options = { host, port };
 
@@ -49,7 +49,7 @@ const repl = require('repl');
     });
   });
 
-  const host = common.localhostIP;
+  const host = common.localhostIPv4;
   const port = 0;
   const options = { host, port };
 

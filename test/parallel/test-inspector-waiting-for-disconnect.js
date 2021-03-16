@@ -12,8 +12,7 @@ function mainContextDestroyed(notification) {
 }
 
 async function runTest() {
-  const child = new NodeInstance(['--inspect-brk=localhost:0', '-e',
-                                  'process.exit(55)']);
+  const child = new NodeInstance(['--inspect-brk=0', '-e', 'process.exit(55)']);
   const session = await child.connectInspectorSession();
   const oldStyleSession = await child.connectInspectorSession();
   await oldStyleSession.send([

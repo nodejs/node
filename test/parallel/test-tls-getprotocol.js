@@ -24,11 +24,11 @@ const serverConfig = {
 
 const server = tls.createServer(serverConfig, common.mustCall(function() {
 
-}, clientConfigs.length)).listen(0, common.localhostIP, function() {
+}, clientConfigs.length)).listen(0, common.localhostIPv4, function() {
   let connected = 0;
   clientConfigs.forEach(function(v) {
     tls.connect({
-      host: common.localhostIP,
+      host: common.localhostIPv4,
       port: server.address().port,
       rejectUnauthorized: false,
       secureProtocol: v.secureProtocol

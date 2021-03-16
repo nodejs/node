@@ -10,10 +10,10 @@ server.on('request', function(req, res) {
   res.flushHeaders();
   res.flushHeaders(); // Should be idempotent.
 });
-server.listen(0, common.localhostIP, function() {
+server.listen(0, common.localhostIPv4, function() {
   const req = http.request({
     method: 'GET',
-    host: common.localhostIP,
+    host: common.localhostIPv4,
     port: this.address().port,
   }, onResponse);
 

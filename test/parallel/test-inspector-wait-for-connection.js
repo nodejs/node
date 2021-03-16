@@ -42,7 +42,7 @@ async function runTests() {
 
   function main(prefix) {
     const inspector = require('inspector');
-    inspector.open(0, 'localhost', false);
+    inspector.open(0, undefined, false);
     process._ws = inspector.url();
     console.log('before wait for debugger');
     inspector.waitForDebugger();

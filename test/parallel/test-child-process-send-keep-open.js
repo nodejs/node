@@ -36,7 +36,7 @@ if (process.argv[2] !== 'child') {
   });
 
   server.listen(0, () => {
-    const socket = net.connect(server.address().port, common.localhostIP);
+    const socket = net.connect(server.address().port, common.localhostIPv4);
     socket.setEncoding('utf8');
     socket.on('data', (data) => result += data);
   });

@@ -42,7 +42,7 @@ if (process.argv[2] === 'server') {
     });
   });
 
-  server.listen(common.PORT, 'localhost', function() {
+  server.listen(common.PORT, '127.0.0.1', function() {
     console.log('Server running.');
   });
 
@@ -54,7 +54,7 @@ if (process.argv[2] === 'server') {
   serverProcess.stderr.pipe(process.stdout);
 
   serverProcess.stdout.once('data', function() {
-    const client = net.createConnection(common.PORT, 'localhost');
+    const client = net.createConnection(common.PORT, '127.0.0.1');
     client.on('connect', function() {
       const alot = Buffer.allocUnsafe(1024);
       const alittle = Buffer.allocUnsafe(1);

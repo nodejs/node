@@ -12,7 +12,7 @@ if (cluster.isWorker) {
     // Wait for any data, then close connection
     socket.write('.');
     socket.on('data', () => {});
-  }).listen(0, common.localhostIP);
+  }).listen(0, common.localhostIPv4);
 
   server.once('close', function() {
     serverClosed = true;
@@ -34,7 +34,7 @@ if (cluster.isWorker) {
 
   // Disconnect worker when it is ready
   worker.once('listening', function(address) {
-    const socket = net.createConnection(address.port, common.localhostIP);
+    const socket = net.createConnection(address.port, common.localhostIPv4);
 
     socket.on('connect', function() {
       socket.on('data', function() {

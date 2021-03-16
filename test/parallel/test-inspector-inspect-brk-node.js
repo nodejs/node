@@ -8,8 +8,7 @@ common.skipIfInspectorDisabled();
 const { NodeInstance } = require('../common/inspector-helper.js');
 
 async function runTest() {
-  const child = new NodeInstance(['--inspect-brk-node=localhost:0',
-                                  '-p', '42']);
+  const child = new NodeInstance(['--inspect-brk-node=0', '-p', '42']);
   const session = await child.connectInspectorSession();
   await session.send({ method: 'Runtime.enable' });
   await session.send({ method: 'Debugger.enable' });

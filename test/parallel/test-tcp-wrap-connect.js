@@ -1,6 +1,6 @@
 // Flags: --expose-internals
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const { internalBinding } = require('internal/test/binding');
 const {
@@ -14,9 +14,7 @@ function makeConnection() {
   const client = new TCP(TCPConstants.SOCKET);
 
   const req = new TCPConnectWrap();
-  const err = common.hasIPv6 ?
-    client.connect6(req, '::1', this.address().port) :
-    client.connect(req, '127.0.0.1', this.address().port);
+  const err = client.connect(req, '127.0.0.1', this.address().port);
   assert.strictEqual(err, 0);
 
   req.oncomplete = function(status, client_, req_, readable, writable) {

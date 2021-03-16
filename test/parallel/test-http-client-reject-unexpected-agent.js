@@ -6,7 +6,7 @@ const http = require('http');
 const baseOptions = {
   method: 'GET',
   port: undefined,
-  host: common.localhostIP,
+  host: common.localhostIPv4,
 };
 
 const failingAgentOptions = [

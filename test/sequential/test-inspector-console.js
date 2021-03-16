@@ -8,7 +8,7 @@ const assert = require('assert');
 
 async function runTest() {
   const script = 'require(\'inspector\').console.log(\'hello world\');';
-  const child = new NodeInstance('--inspect-brk=localhost:0', script, '');
+  const child = new NodeInstance('--inspect-brk=0', script, '');
 
   let out = '';
   child.on('stdout', (line) => out += line);

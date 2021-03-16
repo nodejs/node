@@ -13,7 +13,7 @@ if (!common.isMainThread)
 const hooks = initHooks();
 
 hooks.enable();
-dns.lookupService(common.localhostIP, 80, common.mustCall(onlookupService));
+dns.lookupService('127.0.0.1', 80, common.mustCall(onlookupService));
 function onlookupService() {
   // We don't care about the error here in order to allow
   // tests to run offline (lookup will fail in that case and the err be set)
