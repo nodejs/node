@@ -261,6 +261,14 @@ If the wrapped function returns a promise, a finally handler will be attached
 to the promise and the duration will be reported once the finally handler is
 invoked.
 
+### `performance.toJSON()`
+<!-- YAML
+added: REPLACEME
+-->
+
+An object which is JSON representation of the `performance` object. It
+is similar to [`window.performance.toJSON`][] in browsers.
+
 ## Class: `PerformanceEntry`
 <!-- YAML
 added: v8.5.0
@@ -1025,4 +1033,5 @@ require('some-module');
 [`child_process.spawnSync()`]: child_process.md#child_process_child_process_spawnsync_command_args_options
 [`process.hrtime()`]: process.md#process_process_hrtime_time
 [`timeOrigin`]: https://w3c.github.io/hr-time/#dom-performance-timeorigin
+[`window.performance.toJSON`]: https://developer.mozilla.org/en-US/docs/Web/API/Performance/toJSON
 [`window.performance`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/performance
