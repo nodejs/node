@@ -63,7 +63,7 @@ specifically `argv` and `execArgv` options.
 
 ## `worker.getEnvironmentData(key)`
 <!-- YAML
-added: REPLACEME
+added: v15.12.0
 -->
 
 > Stability: 1 - Experimental
@@ -212,7 +212,7 @@ if (isMainThread) {
 <!-- YAML
 added: v12.3.0
 changes:
-  - version: REPLACEME
+  - version: v15.12.0
     pr-url: https://github.com/nodejs/node/pull/37535
     description: The port argument can also refer to a `BroadcastChannel` now.
 -->
@@ -280,7 +280,7 @@ new Worker('process.env.SET_IN_WORKER = "foo"', { eval: true, env: SHARE_ENV })
 
 ## `worker.setEnvironmentData(key[, value])`
 <!--YAML
-added: REPLACEME
+added: v15.12.0
 -->
 
 > Stability: 1 - Experimental

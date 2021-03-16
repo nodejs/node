@@ -69,7 +69,7 @@ The `AbortSignal` is used to notify observers when the
 
 #### Static method: `AbortSignal.abort()`
 <!-- YAML
-added: REPLACEME
+added: v15.12.0
 -->
 
 * Returns: {AbortSignal}
