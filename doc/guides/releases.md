@@ -175,10 +175,10 @@ duplicate or not.
 For a list of commits that could be landed in a patch release on v1.x:
 
 ```console
-$ branch-diff v1.x-staging master --exclude-label=semver-major,semver-minor,dont-land-on-v1.x,backport-requested-v1.x --filter-release --format=simple
+$ branch-diff v1.x-staging master --exclude-label=semver-major,semver-minor,dont-land-on-v1.x,backport-requested-v1.x,backport-blocked-v1.x --filter-release --format=simple
 ```
 
-Previous release commits and version bumps do not need to be
+Previously released commits and version bumps do not need to be
 cherry-picked.
 
 Carefully review the list of commits:
@@ -187,8 +187,16 @@ Carefully review the list of commits:
 * Checking semver status - Commits labeled as `semver-minor` or `semver-major`
 should only be cherry-picked when appropriate for the type of release being
 made.
-* If you think it's risky so should wait for a while, add the `baking-for-lts`
-tag.
+* If you think it's risky and the change should wait for a while, add the
+`baking-for-lts` tag.
+
+When you are ready to cherry-pick commits, you can automate with the following
+command. (For semver-minor releases, make sure to remove the `semver-minor` tag
+from `exclude-label`.)
+
+```console
+$ branch-diff v1.x-staging master --exclude-label=semver-major,semver-minor,dont-land-on-v1.x,backport-requested-v1.x,backport-blocked-v1.x --filter-release --format=sha --reverse | xargs git cherry-pick
+```
 
 When cherry-picking commits, if there are simple conflicts you can resolve
 them. Otherwise, add the `backport-requested-vN.x` label to the original PR
@@ -196,8 +204,13 @@ and post a comment stating that it does not land cleanly and will require a
 backport PR. You can refer the owner of the PR to the "[Backporting to Release
  Lines](https://github.com/nodejs/node/blob/HEAD/doc/guides/backporting-to-release-lines.md)" guide.
 
-If commits were cherry-picked in this step, check that the test still pass and
-push to the staging branch to keep it up-to-date.
+If commits were cherry-picked in this step, check that the test still pass.
+
+```console
+$ make test
+```
+
+Then, push to the staging branch to keep it up-to-date.
 
 ```console
 $ git push upstream v1.x-staging
@@ -274,8 +287,10 @@ in the repository was not on the current branch you may have to supply a
 `--start-ref` argument:
 
 ```console
-$ changelog-maker --group --start-ref v1.2.2
+$ changelog-maker --group --filter-release --start-ref v1.2.2
 ```
+
+`--filter-release` will remove the release commit from the previous release.
 
 #### Step 2: Update the appropriate doc/changelogs/CHANGELOG_*.md file
 
