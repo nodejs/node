@@ -37,6 +37,12 @@ The stability indices are as follows:
 > Stability: 2 - Stable. Compatibility with the npm ecosystem is a high
 > priority.
 
+<!-- separator -->
+
+> Stability: 3 - Legacy. The feature is no longer recommended for use. While it
+likely will not be removed, and is still covered by semantic-versioning
+guarantees, use of the feature should be avoided.
+
 Use caution when making use of Experimental features, particularly within
 modules. Users may not be aware that experimental features are being used.
 Bugs or behavior changes may surprise users when Experimental API
