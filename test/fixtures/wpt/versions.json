@@ -19,6 +19,10 @@
     "commit": "8ada332aeac03764f73ec7ff66f682c5c0b454b4",
     "path": "interfaces"
   },
+  "html/webappapis/atob": {
+    "commit": "f267e1dca6f57a9f4d69f32a6920adfdb3268656",
+    "path": "html/webappapis/atob"
+  },
   "html/webappapis/microtask-queuing": {
     "commit": "0c3bed38df6d9dcd1441873728fb5c1bb59c92df",
     "path": "html/webappapis/microtask-queuing"
