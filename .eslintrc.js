@@ -329,5 +329,7 @@ module.exports = {
     TextDecoder: 'readable',
     queueMicrotask: 'readable',
     globalThis: 'readable',
+    btoa: 'readable',
+    atob: 'readable',
   },
 };

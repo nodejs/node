@@ -3282,6 +3282,8 @@ accessed using `require('buffer')`.
 added: REPLACEME
 -->
 
+> Stability: 3 - Legacy. Use `Buffer.from(data, 'base64')` instead.
+
 * `data` {any} The Base64-encoded input string.
 
 Decodes a string of Base64-encoded data into bytes, and encodes those bytes
@@ -3300,6 +3302,8 @@ and binary data should be performed using `Buffer.from(str, 'base64')` and
 <!-- YAML
 added: REPLACEME
 -->
+
+> Stability: 3 - Legacy. Use `buf.toString('base64')` instead.
 
 * `data` {any} An ASCII (Latin1) string.
 
