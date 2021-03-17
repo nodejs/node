@@ -593,6 +593,8 @@ maintaining the Node.js project.
 
 ### Triagers
 
+* [Ayase-252](https://github.com/Ayase-252) -
+**Qingyu Deng** &lt;i@ayase-lab.com&gt;
 * [marsonya](https://github.com/marsonya) -
 **Akhil Marsonya** &lt;akhil.marsonya27@gmail.com&gt; (he/him)
 * [PoojaDurgad](https://github.com/PoojaDurgad) -
