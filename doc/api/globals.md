@@ -146,6 +146,24 @@ This variable may appear to be global but is not. See [`__dirname`][].
 
 This variable may appear to be global but is not. See [`__filename`][].
 
+## `atob(data)`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 3 - Legacy. Use `Buffer.from(data, 'base64')` instead.
+
+Global alias for [`buffer.atob()`][].
+
+## `btoa(data)`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 3 - Legacy. Use `buf.toString('base64')` instead.
+
+Global alias for [`buffer.btoa()`][].
+
 ## `clearImmediate(immediateObject)`
 <!-- YAML
 added: v0.9.1
@@ -402,6 +420,8 @@ The object that acts as the namespace for all W3C
 [`URL`]: url.md#url_class_url
 [`__dirname`]: modules.md#modules_dirname
 [`__filename`]: modules.md#modules_filename
+[`buffer.atob()`]: buffer.md#buffer_buffer_atob_data
+[`buffer.btoa()`]: buffer.md#buffer_buffer_btoa_data
 [`clearImmediate`]: timers.md#timers_clearimmediate_immediate
 [`clearInterval`]: timers.md#timers_clearinterval_timeout
 [`clearTimeout`]: timers.md#timers_cleartimeout_timeout

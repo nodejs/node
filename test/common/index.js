@@ -38,6 +38,11 @@ const bits = ['arm64', 'mips', 'mipsel', 'ppc64', 's390x', 'x64']
   .includes(process.arch) ? 64 : 32;
 const hasIntl = !!process.config.variables.v8_enable_i18n_support;
 
+const {
+  atob,
+  btoa
+} = require('buffer');
+
 // Some tests assume a umask of 0o022 so set that up front. Tests that need a
 // different umask will set it themselves.
 //
@@ -257,6 +262,8 @@ function platformTimeout(ms) {
 }
 
 let knownGlobals = [
+  atob,
+  btoa,
   clearImmediate,
   clearInterval,
   clearTimeout,
