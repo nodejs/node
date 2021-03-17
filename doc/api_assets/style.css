@@ -782,7 +782,7 @@ kbd {
 .js-flavor-selector:checked {
   background-image: url(./js-flavor-esm.svg);
 }
-.js-flavor-selector:not(:checked) ~ .esm,
+.js-flavor-selector:not(:checked) ~ .mjs,
 .js-flavor-selector:checked ~ .cjs {
   display: none;
 }
