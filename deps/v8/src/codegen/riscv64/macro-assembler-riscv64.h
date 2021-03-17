@@ -150,6 +150,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 #undef COND_TYPED_ARGS
 #undef COND_ARGS
 
+  void AllocateStackSpace(Register bytes) { Sub64(sp, sp, bytes); }
+
+  void AllocateStackSpace(int bytes) {
+    DCHECK_GE(bytes, 0);
+    if (bytes == 0) return;
+    Sub64(sp, sp, Operand(bytes));
+  }
+
   inline void NegateBool(Register rd, Register rs) { Xor(rd, rs, 1); }
 
   // Compare float, if any operand is NaN, result is false except for NE
@@ -219,7 +227,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void LoadCodeObjectEntry(Register destination, Register code_object) override;
   void CallCodeObject(Register code_object) override;
-  void JumpCodeObject(Register code_object) override;
+  void JumpCodeObject(Register code_object,
+                      JumpMode jump_mode = JumpMode::kJump) override;
 
   // Generates an instruction sequence s.t. the return address points to the
   // instruction following the call.

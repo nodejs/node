@@ -75,5 +75,8 @@
   'wasm-trace-memory': [SKIP],
 }],
 
-
+['arch == riscv64', {
+  # Tests that require Simd enabled.
+  'wasm-trace-memory': [SKIP],
+}],
 ]

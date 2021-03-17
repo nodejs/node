@@ -1838,7 +1838,7 @@ float Simulator::RoundF2FHelper(float input_val, int rmode) {
   float rounded = 0;
   switch (rmode) {
     case RNE: {  // Round to Nearest, tiest to Even
-      rounded = std::floorf(input_val);
+      rounded = std::floor(input_val);
       float error = input_val - rounded;
 
       // Take care of correctly handling the range [-0.5, -0.0], which must
@@ -1858,7 +1858,7 @@ float Simulator::RoundF2FHelper(float input_val, int rmode) {
       rounded = std::truncf(input_val);
       break;
     case RDN:  // Round Down (towards -infinity)
-      rounded = floorf(input_val);
+      rounded = floor(input_val);
       break;
     case RUP:  // Round Up (towards +infinity)
       rounded = ceilf(input_val);

@@ -124,6 +124,7 @@
 ['arch == riscv64', {
   # SIMD support is still in progress.
   'debugger/wasm-scope-info*': [SKIP],
+  'debugger/wasm-step-after-trap': [SKIP],
 }],  # 'arch == riscv64'
 
 ################################################################################

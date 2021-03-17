@@ -273,6 +273,11 @@
           }],
         ],
       }],
+      ['v8_target_arch=="riscv64"', {
+        'defines': [
+          'V8_TARGET_ARCH_RISCV64',
+        ],
+      }],
       ['v8_target_arch=="s390x"', {
         'defines': [
           'V8_TARGET_ARCH_S390',

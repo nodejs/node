@@ -850,7 +850,7 @@ void Decoder::DecodeRAType(Instruction* instr) {
   // Special handling for A extension instructions because it uses func5
   // For all A extension instruction, V8 simulator is pure sequential. No
   // Memory address lock or other synchronizaiton behaviors.
-  switch (instr->InstructionBits() & kRATypeMask) {
+  switch (uint32_t(instr->InstructionBits() & kRATypeMask)) {
     case RO_LR_W:
       Format(instr, "lr.w'a    'rd, ('rs1)");
       break;
@@ -930,8 +930,8 @@ void Decoder::DecodeRFPType(Instruction* instr) {
   // OP_FP instructions (F/D) uses func7 first. Some further uses fun3 and rs2()
 
   // kRATypeMask is only for func7
-  switch (instr->InstructionBits() & kRFPTypeMask) {
-    // TODO(riscv): Add macro for RISCV F extension
+  switch (uint32_t(instr->InstructionBits() & kRFPTypeMask)) {
+    // TODO: Add macro for RISCV F extension
     case RO_FADD_S:
       Format(instr, "fadd.s    'fd, 'fs1, 'fs2");
       break;
