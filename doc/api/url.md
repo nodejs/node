@@ -1075,18 +1075,29 @@ console.log(urlToHttpOptions(myUrl));
 
 ## Legacy URL API
 <!-- YAML
-deprecated: v11.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37784
+    description: Deprecation revoked. Status changed to "Legacy".
+  - version: v11.0.0
+    pr-url: https://github.com/nodejs/node/pull/22715
+    description: This API is deprecated.
 -->
+
+> Stability: 3 - Legacy: Use the WHATWG URL API instead.
 
 ### Legacy `urlObject`
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37784
+    description: Deprecation revoked. Status changed to "Legacy".
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22715
     description: The Legacy URL API is deprecated. Use the WHATWG URL API.
 -->
 
-> Stability: 0 - Deprecated: Use the WHATWG URL API instead.
+> Stability: 3 - Legacy: Use the WHATWG URL API instead.
 
 The legacy `urlObject` (`require('url').Url`) is created and returned by the
 `url.parse()` function.
@@ -1192,6 +1203,9 @@ forward-slash characters (`/`) are required following the colon in the
 <!-- YAML
 added: v0.1.25
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37784
+    description: Deprecation revoked. Status changed to "Legacy".
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22715
     description: The Legacy URL API is deprecated. Use the WHATWG URL API.
@@ -1203,7 +1217,7 @@ changes:
                  times.
 -->
 
-> Stability: 0 - Deprecated: Use the WHATWG URL API instead.
+> Stability: 3 - Legacy: Use the WHATWG URL API instead.
 
 * `urlObject` {Object|string} A URL object (as returned by `url.parse()` or
   constructed otherwise). If a string, it is converted to an object by passing
@@ -1285,6 +1299,9 @@ The formatting process operates as follows:
 <!-- YAML
 added: v0.1.25
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37784
+    description: Deprecation revoked. Status changed to "Legacy".
   - version: v11.14.0
     pr-url: https://github.com/nodejs/node/pull/26941
     description: The `pathname` property on the returned URL object is now `/`
@@ -1299,7 +1316,7 @@ changes:
                  when no query string is present.
 -->
 
-> Stability: 0 - Deprecated: Use the WHATWG URL API instead.
+> Stability: 3 - Legacy: Use the WHATWG URL API instead.
 
 * `urlString` {string} The URL string to parse.
 * `parseQueryString` {boolean} If `true`, the `query` property will always
@@ -1329,6 +1346,9 @@ incorrect handling of usernames and passwords have been identified.
 <!-- YAML
 added: v0.1.25
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37784
+    description: Deprecation revoked. Status changed to "Legacy".
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22715
     description: The Legacy URL API is deprecated. Use the WHATWG URL API.
@@ -1347,7 +1367,7 @@ changes:
                  contains a hostname.
 -->
 
-> Stability: 0 - Deprecated: Use the WHATWG URL API instead.
+> Stability: 3 - Legacy: Use the WHATWG URL API instead.
 
 * `from` {string} The Base URL being resolved against.
 * `to` {string} The HREF URL being resolved.
