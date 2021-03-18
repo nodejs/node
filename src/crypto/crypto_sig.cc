@@ -847,7 +847,7 @@ bool SignTraits::DeriveBits(
       }
       break;
     case SignConfiguration::kVerify:
-      CHECK_EQ(params.key->GetKeyType(), kKeyTypePublic);
+      CHECK_NE(params.key->GetKeyType(), kKeyTypeSecret);
       if (!EVP_DigestVerifyInit(
               context.get(),
               &ctx,
