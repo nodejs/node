@@ -578,7 +578,7 @@ added: v0.9.12
   process. **Default:** `'SIGTERM'`
 
 This function will kill the worker. In the primary worker, it does this by
-disconnecting the `worker.process`, and once disconnected, killing with 
+disconnecting the `worker.process`, and once disconnected, killing with
 `signal`. In the worker, it does it by killing the process with `signal`.
 
 The `kill()` function kills the worker process without waiting for a graceful
