@@ -24,9 +24,7 @@ const fixtures = require('../common/fixtures');
 {
   // Signal aborted before creating the watcher
   const file = fixtures.path('empty.js');
-  const ac = new AbortController();
-  const { signal } = ac;
-  ac.abort();
+  const signal = AbortSignal.abort();
   const watcher = fs.watch(file, { signal });
   watcher.once('close', common.mustCall());
 }

@@ -448,11 +448,10 @@ const assert = require('assert');
 }
 
 {
-  const ac = new AbortController();
-  ac.abort();
+  const signal = AbortSignal.abort();
 
   const write = new Writable({
-    signal: ac.signal,
+    signal,
     write(chunk, enc, cb) { cb(); }
   });
 

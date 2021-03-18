@@ -69,9 +69,7 @@ const execOpts = { encoding: 'utf8', shell: true };
 
 {
   // Verify that does not spawn a child if already aborted
-  const ac = new AbortController();
-  const { signal } = ac;
-  ac.abort();
+  const signal = AbortSignal.abort();
 
   const check = common.mustCall((err) => {
     assert.strictEqual(err.code, 'ABORT_ERR');

@@ -29,10 +29,7 @@ const aliveScript = fixtures.path('child-process-stay-alive-forever.js');
 
 {
   // Verify that passing an already-aborted signal works.
-  const controller = new AbortController();
-  const { signal } = controller;
-
-  controller.abort();
+  const signal = AbortSignal.abort();
 
   const cp = spawn(process.execPath, [aliveScript], {
     signal,
