@@ -970,7 +970,7 @@
             'src/crypto/crypto_tls.h',
             'src/crypto/crypto_clienthello.h',
             'src/crypto/crypto_context.h',
-            'src/crypto/crypto_ecdh.h',
+            'src/crypto/crypto_ec.h',
             'src/crypto/crypto_hkdf.h',
             'src/crypto/crypto_pbkdf2.h',
             'src/crypto/crypto_sig.h',
