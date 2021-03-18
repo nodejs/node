@@ -139,6 +139,15 @@ tools/*/*.i.tmp
 # === Rules for Windows vcbuild.bat ===
 /temp-vcbuild
 
+# === Rules for CMake ===
+cmake-build-debug/
+CMakeCache.txt
+CMakeFiles
+CTestTestfile.cmake
+cmake_install.cmake
+install_manifest.txt
+*.cbp
+
 # === Global Rules ===
 # Keep last to avoid being excluded
 *.pyc
