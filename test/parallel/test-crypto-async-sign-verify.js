@@ -52,7 +52,9 @@ function test(
     }));
   }
 
-  for (const key of [publicPem, publicKey, publicDer]) {
+  const verifyInputs = [
+    publicPem, publicKey, publicDer, privatePem, privateKey, privateDer];
+  for (const key of verifyInputs) {
     crypto.verify(algorithm, data, key, expected, common.mustSucceed(
       (verified) => assert.strictEqual(verified, true)));
 
