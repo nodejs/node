@@ -2469,7 +2469,7 @@ Module.createRequireFromPath() is deprecated. Please use [`module.createRequire(
 ### DEP0131: Legacy HTTP parser
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v12.22.0
     pr-url: https://github.com/nodejs/node/pull/37603
     description: Runtime deprecation.
   - version: v12.3.0
