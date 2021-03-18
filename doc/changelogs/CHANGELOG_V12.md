@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#12.22.0">12.22.0</a><br/>
 <a href="#12.21.0">12.21.0</a><br/>
 <a href="#12.20.2">12.20.2</a><br/>
 <a href="#12.20.1">12.20.1</a><br/>
@@ -71,6 +72,71 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="12.22.0"></a>
+## 2021-03-30, Version 12.22.0 'Erbium' (LTS), @richardlau
+
+### Notable changes
+
+#### The legacy HTTP parser is runtime deprecated
+
+The legacy HTTP parser, selected by the `--http-parser=legacy` command line
+option, is deprecated with the pending End-of-Life of Node.js 10.x (where it
+is the only HTTP parser implementation provided) at the end of April 2021. It
+will now warn on use but otherwise continue to function and may be removed in
+a future Node.js 12.x release.
+
+The default HTTP parser based on llhttp is not affected. By default it is
+stricter than the now deprecated legacy HTTP parser. If interoperability with
+HTTP implementations that send invalid HTTP headers is required, the HTTP
+parser can be started in a less secure mode with the
+[`--insecure-http-parser`](https://nodejs.org/docs/latest-v12.x/api/cli.html#cli_insecure_http_parser)
+command line option.
+
+Contributed by Beth Griggs [#37603](https://github.com/nodejs/node/pull/37603).
+
+#### ES Modules
+
+ES Modules are now considered stable.
+
+Contributed by Guy Bedford [#35781](https://github.com/nodejs/node/pull/35781)
+
+#### node-api
+
+Updated to node-api version 8 and added an experimental API to allow retrieval of the add-on file name.
+
+Contributed by Gabriel Schulhof [#37652](https://github.com/nodejs/node/pull/37652) and [#37195](https://github.com/nodejs/node/pull/37195).
+
+#### New API's to control code coverage data collection
+
+`v8.stopCoverage()` and `v8.takeCoverage()` have been added.
+
+Contributed by Joyee Cheung [#33807](https://github.com/nodejs/node/pull/33807).
+
+#### New API to monitor event loop utilization by Worker threads
+
+`worker.performance.eventLoopUtilization()` has been added.
+
+Contributed by Trevor Norris [#35664](https://github.com/nodejs/node/pull/35664).
+
+### Commits
+
+* [[`1872625990`](https://github.com/nodejs/node/commit/1872625990)] - **(SEMVER-MINOR)** **deps**: update to cjs-module-lexer@1.1.0 (Guy Bedford) [#37712](https://github.com/nodejs/node/pull/37712)
+* [[`dfa04d9035`](https://github.com/nodejs/node/commit/dfa04d9035)] - **deps**: V8: cherry-pick beebee4f80ff (Peter Marshall) [#37293](https://github.com/nodejs/node/pull/37293)
+* [[`bf8733fe22`](https://github.com/nodejs/node/commit/bf8733fe22)] - **doc**: mark modules implementation as stable (Guy Bedford) [#35781](https://github.com/nodejs/node/pull/35781)
+* [[`0a35d49f56`](https://github.com/nodejs/node/commit/0a35d49f56)] - ***Revert*** "**embedding**: make Stop() stop Workers" (Anna Henningsen) [#32623](https://github.com/nodejs/node/pull/32623)
+* [[`a0b610450a`](https://github.com/nodejs/node/commit/a0b610450a)] - **(SEMVER-MINOR)** **http**: runtime deprecate legacy HTTP parser (Beth Griggs) [#37603](https://github.com/nodejs/node/pull/37603)
+* [[`2da24ac302`](https://github.com/nodejs/node/commit/2da24ac302)] - **lib**: add URI handling functions to primordials (Antoine du Hamel) [#37394](https://github.com/nodejs/node/pull/37394)
+* [[`7b0ed4ba92`](https://github.com/nodejs/node/commit/7b0ed4ba92)] - **module**: improve support of data: URLs (Antoine du Hamel) [#37392](https://github.com/nodejs/node/pull/37392)
+* [[`93dd799a86`](https://github.com/nodejs/node/commit/93dd799a86)] - **(SEMVER-MINOR)** **node-api**: define version 8 (Gabriel Schulhof) [#37652](https://github.com/nodejs/node/pull/37652)
+* [[`f5692093d3`](https://github.com/nodejs/node/commit/f5692093d3)] - **(SEMVER-MINOR)** **node-api**: allow retrieval of add-on file name (Gabriel Schulhof) [#37195](https://github.com/nodejs/node/pull/37195)
+* [[`6cef0e3678`](https://github.com/nodejs/node/commit/6cef0e3678)] - **src,test**: add regression test for nested Worker termination (Anna Henningsen) [#32623](https://github.com/nodejs/node/pull/32623)
+* [[`364bf03a68`](https://github.com/nodejs/node/commit/364bf03a68)] - **test**: fix races in test-performance-eventlooputil (Gerhard Stoebich) [#36028](https://github.com/nodejs/node/pull/36028)
+* [[`d7a4ccdf09`](https://github.com/nodejs/node/commit/d7a4ccdf09)] - **test**: correct test-worker-eventlooputil (Gerhard Stoebich) [#35891](https://github.com/nodejs/node/pull/35891)
+* [[`0f6d44500c`](https://github.com/nodejs/node/commit/0f6d44500c)] - **test**: add cpu-profiler-crash test (Santiago Gimeno) [#37293](https://github.com/nodejs/node/pull/37293)
+* [[`86f34ee18c`](https://github.com/nodejs/node/commit/86f34ee18c)] - **(SEMVER-MINOR)** **v8**: implement v8.stopCoverage() (Joyee Cheung) [#33807](https://github.com/nodejs/node/pull/33807)
+* [[`8ddea3f16d`](https://github.com/nodejs/node/commit/8ddea3f16d)] - **(SEMVER-MINOR)** **v8**: implement v8.takeCoverage() (Joyee Cheung) [#33807](https://github.com/nodejs/node/pull/33807)
+* [[`eec7542781`](https://github.com/nodejs/node/commit/eec7542781)] - **(SEMVER-MINOR)** **worker**: add eventLoopUtilization() (Trevor Norris) [#35664](https://github.com/nodejs/node/pull/35664)
 
 <a id="12.21.0"></a>
 ## 2021-02-23, Version 12.21.0 'Erbium' (LTS), @richardlau

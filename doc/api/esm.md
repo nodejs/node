@@ -7,6 +7,7 @@ added: v8.5.0
 changes:
   - version:
     - v15.3.0
+    - v12.22.0
     pr-url: https://github.com/nodejs/node/pull/35781
     description: Stabilize modules implementation.
   - version:
