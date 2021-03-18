@@ -58,9 +58,7 @@ async function doReadAndCancel() {
     const fileHandle = await open(filePathForHandle, 'w+');
     const buffer = Buffer.from('Dogs running'.repeat(10000), 'utf8');
     fs.writeFileSync(filePathForHandle, buffer);
-    const controller = new AbortController();
-    const { signal } = controller;
-    controller.abort();
+    const signal = AbortSignal.abort();
     await assert.rejects(readFile(fileHandle, { signal }), {
       name: 'AbortError'
     });

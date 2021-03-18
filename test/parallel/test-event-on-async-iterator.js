@@ -248,28 +248,26 @@ async function nodeEventTarget() {
 
 async function abortableOnBefore() {
   const ee = new EventEmitter();
-  const ac = new AbortController();
-  ac.abort();
+  const abortedSignal = AbortSignal.abort();
   [1, {}, null, false, 'hi'].forEach((signal) => {
     assert.throws(() => on(ee, 'foo', { signal }), {
       code: 'ERR_INVALID_ARG_TYPE'
     });
   });
-  assert.throws(() => on(ee, 'foo', { signal: ac.signal }), {
+  assert.throws(() => on(ee, 'foo', { signal: abortedSignal }), {
     name: 'AbortError'
   });
 }
 
 async function eventTargetAbortableOnBefore() {
   const et = new EventTarget();
-  const ac = new AbortController();
-  ac.abort();
+  const abortedSignal = AbortSignal.abort();
   [1, {}, null, false, 'hi'].forEach((signal) => {
     assert.throws(() => on(et, 'foo', { signal }), {
       code: 'ERR_INVALID_ARG_TYPE'
     });
   });
-  assert.throws(() => on(et, 'foo', { signal: ac.signal }), {
+  assert.throws(() => on(et, 'foo', { signal: abortedSignal }), {
     name: 'AbortError'
   });
 }

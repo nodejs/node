@@ -54,9 +54,7 @@ for (const e of fileInfo) {
 }
 {
   // Test cancellation, before
-  const controller = new AbortController();
-  const signal = controller.signal;
-  controller.abort();
+  const signal = AbortSignal.abort();
   fs.readFile(fileInfo[0].name, { signal }, common.mustCall((err, buf) => {
     assert.strictEqual(err.name, 'AbortError');
   }));

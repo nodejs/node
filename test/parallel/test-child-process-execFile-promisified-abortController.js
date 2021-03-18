@@ -29,9 +29,7 @@ const invalidArgTypeError = {
 
 {
   // Verify that the signal option works properly when already aborted
-  const ac = new AbortController();
-  const { signal } = ac;
-  ac.abort();
+  const signal = AbortSignal.abort();
 
   assert.rejects(
     promisified(process.execPath, [echoFixture, 0], { signal }),

@@ -26,8 +26,7 @@ const net = require('net');
 {
   // Test close with pre-aborted signal.
   const server = net.createServer();
-  const controller = new AbortController();
-  controller.abort();
+  const signal = AbortSignal.abort();
   server.on('close', common.mustCall());
-  server.listen({ port: 0, signal: controller.signal });
+  server.listen({ port: 0, signal });
 }
