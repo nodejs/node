@@ -23,5 +23,4 @@ async function main({ n }) {
   s.on('close', () => {
     bench.end(n);
   });
-
 }
