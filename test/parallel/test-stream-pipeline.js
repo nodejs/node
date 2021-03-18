@@ -487,9 +487,7 @@ const net = require('net');
   // Check pre-aborted signal
   const pipelinePromise = promisify(pipeline);
   async function run() {
-    const ac = new AbortController();
-    const { signal } = ac;
-    ac.abort();
+    const signal = AbortSignal.abort();
     async function* producer() {
       yield '5';
       await Promise.resolve();

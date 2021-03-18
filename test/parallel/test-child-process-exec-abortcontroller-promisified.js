@@ -37,9 +37,7 @@ const waitCommand = common.isLinux ?
 }
 
 {
-  const ac = new AbortController();
-  const { signal } = ac;
-  ac.abort();
+  const signal = AbortSignal.abort(); // Abort in advance
   const promise = execPromisifed(waitCommand, { signal });
 
   assert.rejects(promise, /AbortError/, 'pre aborted signal failed')

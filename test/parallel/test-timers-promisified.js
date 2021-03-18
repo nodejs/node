@@ -98,9 +98,7 @@ process.on('multipleResolves', common.mustNotCall());
 }
 
 {
-  const ac = new AbortController();
-  const signal = ac.signal;
-  ac.abort(); // Abort in advance
+  const signal = AbortSignal.abort(); // Abort in advance
   assert.rejects(setPromiseTimeout(10, undefined, { signal }), /AbortError/)
     .then(common.mustCall());
 }
@@ -114,17 +112,13 @@ process.on('multipleResolves', common.mustNotCall());
 }
 
 {
-  const ac = new AbortController();
-  const signal = ac.signal;
-  ac.abort(); // Abort in advance
+  const signal = AbortSignal.abort(); // Abort in advance
   assert.rejects(setPromiseImmediate(10, { signal }), /AbortError/)
     .then(common.mustCall());
 }
 
 {
-  const ac = new AbortController();
-  const { signal } = ac;
-  ac.abort(); // Abort in advance
+  const signal = AbortSignal.abort(); // Abort in advance
 
   const iterable = setInterval(1, undefined, { signal });
   const iterator = iterable[Symbol.asyncIterator]();
