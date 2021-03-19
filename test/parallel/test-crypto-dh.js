@@ -471,3 +471,9 @@ assert.throws(
   'crypto.getDiffieHellman(\'modp1\').setPublicKey(\'\') ' +
   'failed to throw the expected error.'
 );
+assert.throws(
+  () => crypto.createDiffieHellman('', true),
+  {
+    code: 'ERR_INVALID_ARG_TYPE'
+  }
+);
