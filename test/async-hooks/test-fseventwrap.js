@@ -11,7 +11,7 @@ if (!common.isMainThread)
   common.skip('Worker bootstrapping works differently -> different async IDs');
 
 if (common.isIBMi)
-  common.skip('IBMi does not suppport fs.watch()');
+  common.skip('IBMi does not support fs.watch()');
 
 const hooks = initHooks();
 
