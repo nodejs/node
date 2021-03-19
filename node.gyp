@@ -168,6 +168,7 @@
       'lib/internal/idna.js',
       'lib/internal/inspector_async_hook.js',
       'lib/internal/js_stream_socket.js',
+      'lib/internal/legacy/processbinding.js',
       'lib/internal/linkedlist.js',
       'lib/internal/main/check_syntax.js',
       'lib/internal/main/eval_string.js',
