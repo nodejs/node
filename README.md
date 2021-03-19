@@ -353,6 +353,8 @@ For information about the governance of the Node.js project, see
 **Chengzhong Wu** &lt;legendecas@gmail.com&gt; (he/him)
 * [Leko](https://github.com/Leko) -
 **Shingo Inoue** &lt;leko.noor@gmail.com&gt; (he/him)
+* [linkgoron](https://github.com/linkgoron) -
+**Nitzan Uziely** &lt;linkgoron@gmail.com&gt;
 * [lpinca](https://github.com/lpinca) -
 **Luigi Pinca** &lt;luigipinca@gmail.com&gt; (he/him)
 * [lundibundi](https://github.com/lundibundi) -
