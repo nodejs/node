@@ -829,6 +829,7 @@ bool SignTraits::DeriveBits(
     Environment* env,
     const SignConfiguration& params,
     ByteSource* out) {
+  ClearErrorOnReturn clear_error_on_return;
   EVPMDPointer context(EVP_MD_CTX_new());
   EVP_PKEY_CTX* ctx = nullptr;
 
