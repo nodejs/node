@@ -4,6 +4,7 @@
   --black1: #090c15;
   --black2: #2c3437;
   --black3: #0d111d;
+  --blue1: #00f;
   --white: #ffffff;
   --white-smoke: #f2f2f2;
   --grey-smoke: #e9edf0;
@@ -263,6 +264,10 @@ ol.version-picker li:last-child a {
   background-color: var(--green2);
 }
 
+.api_stability_3 {
+  background-color: var(--blue1);
+}
+
 .module_stability {
   vertical-align: middle;
 }
@@ -372,7 +377,7 @@ dd + dt.pre {
 #apicontent {
   padding-top: 1rem;
 }
-  
+
 #apicontent section {
   content-visibility: auto;
   contain-intrinsic-size: 1px 5000px;
