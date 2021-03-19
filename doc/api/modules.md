@@ -656,6 +656,7 @@ native modules and if a name matching a native module is added to the cache,
 only `node:`-prefixed require calls are going to receive the native module.
 Use with care!
 
+<!-- eslint-disable node-core/no-duplicate-requires -->
 ```js
 const assert = require('assert');
 const realFs = require('fs');
