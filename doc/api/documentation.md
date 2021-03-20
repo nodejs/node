@@ -40,8 +40,8 @@ The stability indices are as follows:
 <!-- separator -->
 
 > Stability: 3 - Legacy. The feature is no longer recommended for use. While it
-likely will not be removed, and is still covered by semantic-versioning
-guarantees, use of the feature should be avoided.
+> likely will not be removed, and is still covered by semantic-versioning
+> guarantees, use of the feature should be avoided.
 
 Use caution when making use of Experimental features, particularly within
 modules. Users may not be aware that experimental features are being used.
