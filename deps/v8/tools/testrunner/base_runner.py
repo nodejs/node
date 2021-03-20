@@ -653,6 +653,10 @@ class BaseTestRunner(object):
     if self.build_config.arch == 'ppc64':
        no_simd_sse = True
 
+    if self.build_config.arch == 'mips64el' or \
+       self.build_config.arch == 'mipsel':
+       no_simd_sse = not simd_mips
+
     return {
       "arch": self.build_config.arch,
       "asan": self.build_config.asan,

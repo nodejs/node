@@ -1282,7 +1282,8 @@ Address TranslatedState::DecompressIfNeeded(intptr_t value) {
   }
 }
 
-TranslatedState::TranslatedState(const JavaScriptFrame* frame) {
+TranslatedState::TranslatedState(const JavaScriptFrame* frame)
+    : purpose_(kFrameInspection) {
   int deopt_index = Safepoint::kNoDeoptimizationIndex;
   DeoptimizationData data =
       static_cast<const OptimizedFrame*>(frame)->GetDeoptimizationData(
@@ -1672,23 +1673,61 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
     }
 
     default:
-      CHECK(map->IsJSObjectMap());
       EnsureJSObjectAllocated(slot, map);
-      TranslatedValue* properties_slot = &(frame->values_[value_index]);
-      value_index++;
+      int remaining_children_count = slot->GetChildrenCount() - 1;
+
+      TranslatedValue* properties_slot = frame->ValueAt(value_index);
+      value_index++, remaining_children_count--;
       if (properties_slot->kind() == TranslatedValue::kCapturedObject) {
-        // If we are materializing the property array, make sure we put
-        // the mutable heap numbers at the right places.
+        // We are materializing the property array, so make sure we put the
+        // mutable heap numbers at the right places.
         EnsurePropertiesAllocatedAndMarked(properties_slot, map);
         EnsureChildrenAllocated(properties_slot->GetChildrenCount(), frame,
                                 &value_index, worklist);
+      } else {
+        CHECK_EQ(properties_slot->kind(), TranslatedValue::kTagged);
       }
-      // Make sure all the remaining children (after the map and properties) are
-      // allocated.
-      return EnsureChildrenAllocated(slot->GetChildrenCount() - 2, frame,
+
+      TranslatedValue* elements_slot = frame->ValueAt(value_index);
+      value_index++, remaining_children_count--;
+      if (elements_slot->kind() == TranslatedValue::kCapturedObject ||
+          !map->IsJSArrayMap()) {
+        // Handle this case with the other remaining children below.
+        value_index--, remaining_children_count++;
+      } else {
+        CHECK_EQ(elements_slot->kind(), TranslatedValue::kTagged);
+        elements_slot->GetValue();
+        if (purpose_ == kFrameInspection) {
+          // We are materializing a JSArray for the purpose of frame inspection.
+          // If we were to construct it with the above elements value then an
+          // actual deopt later on might create another JSArray instance with
+          // the same elements store. That would violate the key assumption
+          // behind left-trimming.
+          elements_slot->ReplaceElementsArrayWithCopy();
+        }
+      }
+
+      // Make sure all the remaining children (after the map, properties store,
+      // and possibly elements store) are allocated.
+      return EnsureChildrenAllocated(remaining_children_count, frame,
                                      &value_index, worklist);
   }
   UNREACHABLE();
+}
+
+void TranslatedValue::ReplaceElementsArrayWithCopy() {
+  DCHECK_EQ(kind(), TranslatedValue::kTagged);
+  DCHECK_EQ(materialization_state(), TranslatedValue::kFinished);
+  auto elements = Handle<FixedArrayBase>::cast(GetValue());
+  DCHECK(elements->IsFixedArray() || elements->IsFixedDoubleArray());
+  if (elements->IsFixedDoubleArray()) {
+    DCHECK(!elements->IsCowArray());
+    set_storage(isolate()->factory()->CopyFixedDoubleArray(
+        Handle<FixedDoubleArray>::cast(elements)));
+  } else if (!elements->IsCowArray()) {
+    set_storage(isolate()->factory()->CopyFixedArray(
+        Handle<FixedArray>::cast(elements)));
+  }
 }
 
 void TranslatedState::EnsureChildrenAllocated(int count, TranslatedFrame* frame,
@@ -1755,6 +1794,7 @@ Handle<ByteArray> TranslatedState::AllocateStorageFor(TranslatedValue* slot) {
 
 void TranslatedState::EnsureJSObjectAllocated(TranslatedValue* slot,
                                               Handle<Map> map) {
+  CHECK(map->IsJSObjectMap());
   CHECK_EQ(map->instance_size(), slot->GetChildrenCount() * kTaggedSize);
 
   Handle<ByteArray> object_storage = AllocateStorageFor(slot);
