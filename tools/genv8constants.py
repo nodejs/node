@@ -73,6 +73,7 @@ def out_define():
   out_reset()
 
 for line in pipe:
+  line = line.decode('utf-8')
   if curr_sym != None:
     #
     # This bit of code has nasty knowledge of the objdump text output
