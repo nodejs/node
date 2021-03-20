@@ -70,10 +70,10 @@
 }],
 
 ################################################################################
-['arch == ppc64', {
+['arch == ppc64 or arch == mips64el or arch == mipsel', {
   # Tests that require Simd enabled.
   'wasm-trace-memory': [SKIP],
-}],
+}], # arch == ppc64 or arch == mips64el or arch == mipsel
 
 
 ]

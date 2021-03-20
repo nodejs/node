@@ -1478,7 +1478,9 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
                                       bool with_result) {
   const RegisterConfiguration* config(RegisterConfiguration::Default());
   int allocatable_register_count = config->num_allocatable_general_registers();
-  Register scratch = t3;
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+
   if (with_result) {
   if (java_script_builtin) {
     __ mov(scratch, v0);
@@ -2363,24 +2365,41 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // Save all parameter registers (see wasm-linkage.h). They might be
     // overwritten in the runtime call below. We don't have any callee-saved
     // registers in wasm, so no need to store anything else.
-    constexpr RegList gp_regs =
-        Register::ListOf(a0, a2, a3, a4, a5, a6, a7);
-    constexpr RegList fp_regs =
-        DoubleRegister::ListOf(f2, f4, f6, f8, f10, f12, f14);
-    constexpr int16_t num_to_push = base::bits::CountPopulation(gp_regs) +
-                                    base::bits::CountPopulation(fp_regs);
-    // The number of regs to be pushed before kWasmInstanceRegister should be
-    // equal to kNumberOfSavedAllParamRegs.
-    STATIC_ASSERT(num_to_push ==
-                  WasmCompileLazyFrameConstants::kNumberOfSavedAllParamRegs);
-    __ MultiPush(gp_regs);
-    if (CpuFeatures::IsSupported(MIPS_SIMD)) {
-      __ MultiPushMSA(fp_regs);
-    } else {
-      __ MultiPushFPU(fp_regs);
-      __ Dsubu(sp, sp, base::bits::CountPopulation(fp_regs) * kDoubleSize);
+    RegList gp_regs = 0;
+    for (Register gp_param_reg : wasm::kGpParamRegisters) {
+      gp_regs |= gp_param_reg.bit();
     }
 
+    RegList fp_regs = 0;
+    for (DoubleRegister fp_param_reg : wasm::kFpParamRegisters) {
+      fp_regs |= fp_param_reg.bit();
+    }
+
+    CHECK_EQ(NumRegs(gp_regs), arraysize(wasm::kGpParamRegisters));
+    CHECK_EQ(NumRegs(fp_regs), arraysize(wasm::kFpParamRegisters));
+    CHECK_EQ(WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs,
+             NumRegs(gp_regs));
+    CHECK_EQ(WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs,
+             NumRegs(fp_regs));
+
+    __ MultiPush(gp_regs);
+    // Check if machine has simd enabled, if so push vector registers. If not
+    // then only push double registers.
+    Label push_doubles, simd_pushed;
+    __ li(a1, ExternalReference::supports_wasm_simd_128_address());
+    // If > 0 then simd is available.
+    __ Lbu(a1, MemOperand(a1));
+    __ Branch(&push_doubles, le, a1, Operand(zero_reg));
+    // Save vector registers.
+    __ MultiPushMSA(fp_regs);
+    __ Branch(&simd_pushed);
+    __ bind(&push_doubles);
+    __ MultiPushFPU(fp_regs);
+    // kFixedFrameSizeFromFp is hard coded to include space for Simd
+    // registers, so we still need to allocate extra (unused) space on the stack
+    // as if they were saved.
+    __ Dsubu(sp, sp, base::bits::CountPopulation(fp_regs) * kDoubleSize);
+    __ bind(&simd_pushed);
     // Pass instance and function index as an explicit arguments to the runtime
     // function.
     __ Push(kWasmInstanceRegister, kWasmCompileLazyFuncIndexRegister);
@@ -2390,12 +2409,18 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kWasmCompileLazy, 2);
 
     // Restore registers.
-    if (CpuFeatures::IsSupported(MIPS_SIMD)) {
-      __ MultiPopMSA(fp_regs);
-    } else {
-      __ Daddu(sp, sp, base::bits::CountPopulation(fp_regs) * kDoubleSize);
-      __ MultiPopFPU(fp_regs);
-    }
+    Label pop_doubles, simd_popped;
+    __ li(a1, ExternalReference::supports_wasm_simd_128_address());
+    // If > 0 then simd is available.
+    __ Lbu(a1, MemOperand(a1));
+    __ Branch(&pop_doubles, le, a1, Operand(zero_reg));
+    // Pop vector registers.
+    __ MultiPopMSA(fp_regs);
+    __ Branch(&simd_popped);
+    __ bind(&pop_doubles);
+    __ Daddu(sp, sp, base::bits::CountPopulation(fp_regs) * kDoubleSize);
+    __ MultiPopFPU(fp_regs);
+    __ bind(&simd_popped);
     __ MultiPop(gp_regs);
   }
   // Finally, jump to the entrypoint.
