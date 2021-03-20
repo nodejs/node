@@ -420,9 +420,6 @@ added: v10.0.0
 Change the file system timestamps of the object referenced by the {FileHandle}
 then resolves the promise with no arguments upon success.
 
-This function does not work on AIX versions before 7.1, it will reject the
-promise with an error using code `UV_ENOSYS`.
-
 #### `filehandle.write(buffer[, offset[, length[, position]]])`
 <!-- YAML
 added: v10.0.0
@@ -2336,9 +2333,6 @@ changes:
 
 Change the file system timestamps of the object referenced by the supplied file
 descriptor. See [`fs.utimes()`][].
-
-This function does not work on AIX versions before 7.1, it will return the
-error `UV_ENOSYS`.
 
 ### `fs.lchmod(path, mode, callback)`
 <!-- YAML
