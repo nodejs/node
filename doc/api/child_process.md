@@ -1088,6 +1088,8 @@ added: REPLACEME
 -->
 
 The `'spawn'` event is emitted once the child process has spawned successfully.
+If the child process does not spawn successfully, the `'spawn'` event is not
+emitted and the `'error'` event is emitted instead.
 
 If emitted, the `'spawn'` event comes before all other events and before any
 data is received via `stdout` or `stderr`.
