@@ -66,10 +66,19 @@ const gtocHTML = unified()
 const templatePath = path.join(docPath, 'template.html');
 const template = fs.readFileSync(templatePath, 'utf8');
 
-function wrapSections(content) {
+function processContent(content) {
+  content = content.toString();
+  // Increment header tag levels to avoid multiple h1 tags in a doc.
+  // This means we can't already have an <h6>.
+  if (content.includes('<h6>')) {
+    throw new Error('Cannot increment a level 6 header');
+  }
+  // `++level` to convert the string to a number and increment it.
+  content = content.replace(/(?<=<\/?h)[1-5](?=[^<>]*>)/g, (level) => ++level);
+  // Wrap h3 tags in section tags.
   let firstTime = true;
-  return content.toString()
-    .replace(/<h2/g, (heading) => {
+  return content
+    .replace(/<h3/g, (heading) => {
       if (firstTime) {
         firstTime = false;
         return '<section>' + heading;
@@ -91,7 +100,7 @@ function toHTML({ input, content, filename, nodeVersion, versions }) {
                      .replace('__GTOC__', gtocHTML.replace(
                        `class="nav-${id}"`, `class="nav-${id} active"`))
                      .replace('__EDIT_ON_GITHUB__', editOnGitHub(filename))
-                     .replace('__CONTENT__', wrapSections(content));
+                     .replace('__CONTENT__', processContent(content));
 
   const docCreated = input.match(
     /<!--\s*introduced_in\s*=\s*v([0-9]+)\.([0-9]+)\.[0-9]+\s*-->/);
