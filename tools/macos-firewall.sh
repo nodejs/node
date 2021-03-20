@@ -27,8 +27,6 @@ then
   # linked to either out/Debug/node or out/Release/node depending on the
   # BUILDTYPE.
   $SFW --remove "$NODE_DEBUG"
-  $SFW --remove "$NODE_DEBUG"
-  $SFW --remove "$NODE_RELEASE"
   $SFW --remove "$NODE_RELEASE"
   $SFW --remove "$NODE_LINK"
   $SFW --remove "$CCTEST_DEBUG"
