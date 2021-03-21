@@ -89,3 +89,23 @@ const dep = fixtures.path('policy', 'parent.js');
   );
   assert.strictEqual(status, 1);
 }
+{
+  // Regression test for https://github.com/nodejs/node/issues/37812
+  const depPolicy = fixtures.path(
+    'policy',
+    'dependencies',
+    'dependencies-missing-export-policy.json');
+  const { status, stderr } = spawnSync(
+    process.execPath,
+    [
+      '--experimental-policy',
+      depPolicy,
+      fixtures.path('policy', 'bad-main.mjs'),
+    ]
+  );
+  assert.strictEqual(status, 1);
+  assert.match(
+    `${stderr}`,
+    /SyntaxError: Named export 'doesNotExist' not found\./,
+    'Should give the real SyntaxError and position');
+}
