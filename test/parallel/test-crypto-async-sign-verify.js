@@ -4,6 +4,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
+const util = require('util');
 const crypto = require('crypto');
 const fixtures = require('../common/fixtures');
 
@@ -108,3 +109,35 @@ test('dsa_public.pem', 'dsa_private.pem', 'sha256',
 // DSA w/ ieee-p1363 signature encoding
 test('dsa_public.pem', 'dsa_private.pem', 'sha256', false,
      { dsaEncoding: 'ieee-p1363' });
+
+// Test Parallel Execution w/ KeyObject is threadsafe in openssl3
+{
+  const publicKey = {
+    key: crypto.createPublicKey(
+      fixtures.readKey('ec_p256_public.pem')),
+    dsaEncoding: 'ieee-p1363',
+  };
+  const privateKey = {
+    key: crypto.createPrivateKey(
+      fixtures.readKey('ec_p256_private.pem')),
+    dsaEncoding: 'ieee-p1363',
+  };
+
+  const sign = util.promisify(crypto.sign);
+  const verify = util.promisify(crypto.verify);
+
+  const data = Buffer.from('hello world');
+
+  Promise.all([
+    sign('sha256', data, privateKey),
+    sign('sha256', data, privateKey),
+    sign('sha256', data, privateKey),
+  ]).then(([signature]) => {
+    return Promise.all([
+      verify('sha256', data, publicKey, signature),
+      verify('sha256', data, publicKey, signature),
+      verify('sha256', data, publicKey, signature),
+    ]).then(common.mustCall());
+  })
+  .catch(common.mustNotCall());
+}
