@@ -254,13 +254,6 @@ let asyncTest = Promise.resolve();
     {},  // No handleEvent function
     false
   ].forEach((i) => throws(() => target.addEventListener('foo', i), err(i)));
-
-  [
-    'foo',
-    1,
-    {},  // No handleEvent function
-    false
-  ].forEach((i) => throws(() => target.addEventListener('foo', i), err(i)));
 }
 
 {
