@@ -111,7 +111,7 @@ struct SignConfiguration final : public MemoryRetainer {
 
   CryptoJobMode job_mode;
   Mode mode;
-  std::shared_ptr<KeyObjectData> key;
+  ManagedEVPPKey key;
   ByteSource data;
   ByteSource signature;
   const EVP_MD* digest = nullptr;
