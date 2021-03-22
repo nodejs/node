@@ -398,6 +398,7 @@ bool SourceTextModule::MaybeTransitionComponent(
   DCHECK_LE(module->dfs_ancestor_index(), module->dfs_index());
   if (module->dfs_ancestor_index() == module->dfs_index()) {
     // This is the root of its strongly connected component.
+    Handle<SourceTextModule> cycle_root = module;
     Handle<SourceTextModule> ancestor;
     do {
       ancestor = stack->front();
@@ -407,6 +408,9 @@ bool SourceTextModule::MaybeTransitionComponent(
       if (new_status == kInstantiated) {
         if (!SourceTextModule::RunInitializationCode(isolate, ancestor))
           return false;
+      } else if (new_status == kEvaluated) {
+        DCHECK(ancestor->cycle_root().IsTheHole(isolate));
+        ancestor->set_cycle_root(*cycle_root);
       }
       ancestor->SetStatus(new_status);
     } while (*ancestor != *module);
@@ -617,9 +621,9 @@ MaybeHandle<Object> SourceTextModule::EvaluateMaybeAsync(
   CHECK(module->status() == kInstantiated || module->status() == kEvaluated);
 
   // 3. If module.[[Status]] is "evaluated", set module to
-  //    GetAsyncCycleRoot(module).
+  //    module.[[CycleRoot]].
   if (module->status() == kEvaluated) {
-    module = GetAsyncCycleRoot(isolate, module);
+    module = module->GetCycleRoot(isolate);
   }
 
   // 4. If module.[[TopLevelCapability]] is not undefined, then
@@ -734,37 +738,27 @@ void SourceTextModule::AsyncModuleExecutionFulfilled(
   for (int i = 0; i < module->AsyncParentModuleCount(); i++) {
     Handle<SourceTextModule> m = module->GetAsyncParentModule(isolate, i);
 
-    //  a. If module.[[DFSIndex]] is not equal to module.[[DFSAncestorIndex]],
-    //     then
-    if (module->dfs_index() != module->dfs_ancestor_index()) {
-      //   i. Assert: m.[[DFSAncestorIndex]] is equal to
-      //      module.[[DFSAncestorIndex]].
-      DCHECK_LE(m->dfs_ancestor_index(), module->dfs_ancestor_index());
-    }
-    //  b. Decrement m.[[PendingAsyncDependencies]] by 1.
+    //  a. Decrement m.[[PendingAsyncDependencies]] by 1.
     m->DecrementPendingAsyncDependencies();
 
-    //  c. If m.[[PendingAsyncDependencies]] is 0 and m.[[EvaluationError]] is
+    //  b. If m.[[PendingAsyncDependencies]] is 0 and m.[[EvaluationError]] is
     //     undefined, then
     if (!m->HasPendingAsyncDependencies() && m->status() == kEvaluated) {
       //   i. Assert: m.[[AsyncEvaluating]] is true.
       DCHECK(m->async_evaluating());
 
-      //  ii. Let cycleRoot be ! GetAsyncCycleRoot(m).
-      auto cycle_root = GetAsyncCycleRoot(isolate, m);
-
-      // iii. If cycleRoot.[[EvaluationError]] is not undefined,
+      // ii. If m.[[CycleRoot]].[[EvaluationError]] is not undefined,
       //      return undefined.
-      if (cycle_root->status() == kErrored) {
+      if (m->GetCycleRoot(isolate)->status() == kErrored) {
         return;
       }
 
-      //  iv. If m.[[Async]] is true, then
+      //  iii. If m.[[Async]] is true, then
       if (m->async()) {
         //    1. Perform ! ExecuteAsyncModule(m).
         ExecuteAsyncModule(isolate, m);
       } else {
-        // v. Otherwise,
+        // iv. Otherwise,
         //    1. Let result be m.ExecuteModule().
         //    2. If result is a normal completion,
         Handle<Object> unused_result;
@@ -1044,8 +1038,8 @@ MaybeHandle<Object> SourceTextModule::InnerModuleEvaluation(
                      required_module->dfs_ancestor_index()));
       } else {
         //   iv. Otherwise,
-        //      1. Set requiredModule to GetAsyncCycleRoot(requiredModule).
-        required_module = GetAsyncCycleRoot(isolate, required_module);
+        //      1. Set requiredModule to requiredModule.[[CycleRoot]].
+        required_module = required_module->GetCycleRoot(isolate);
 
         //      2. Assert: requiredModule.[[Status]] is "evaluated".
         CHECK_GE(required_module->status(), kEvaluated);
@@ -1101,43 +1095,6 @@ MaybeHandle<Object> SourceTextModule::InnerModuleEvaluation(
 
   CHECK(MaybeTransitionComponent(isolate, module, stack, kEvaluated));
   return result;
-}
-
-Handle<SourceTextModule> SourceTextModule::GetAsyncCycleRoot(
-    Isolate* isolate, Handle<SourceTextModule> module) {
-  // 1. Assert: module.[[Status]] is "evaluated".
-  CHECK_GE(module->status(), kEvaluated);
-
-  // 2. If module.[[AsyncParentModules]] is an empty List, return module.
-  if (module->AsyncParentModuleCount() == 0) {
-    return module;
-  }
-
-  // 3. Repeat, while module.[[DFSIndex]] is greater than
-  //    module.[[DFSAncestorIndex]],
-  while (module->dfs_index() > module->dfs_ancestor_index()) {
-    //  a. Assert: module.[[AsyncParentModules]] is a non-empty List.
-    DCHECK_GT(module->AsyncParentModuleCount(), 0);
-
-    //  b. Let nextCycleModule be the first element of
-    //     module.[[AsyncParentModules]].
-    Handle<SourceTextModule> next_cycle_module =
-        module->GetAsyncParentModule(isolate, 0);
-
-    //  c. Assert: nextCycleModule.[[DFSAncestorIndex]] is less than or equal
-    //     to module.[[DFSAncestorIndex]].
-    DCHECK_LE(next_cycle_module->dfs_ancestor_index(),
-              module->dfs_ancestor_index());
-
-    //  d. Set module to nextCycleModule
-    module = next_cycle_module;
-  }
-
-  // 4. Assert: module.[[DFSIndex]] is equal to module.[[DFSAncestorIndex]].
-  DCHECK_EQ(module->dfs_index(), module->dfs_ancestor_index());
-
-  // 5. Return module.
-  return module;
 }
 
 void SourceTextModule::Reset(Isolate* isolate,
