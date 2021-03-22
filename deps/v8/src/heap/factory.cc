@@ -2504,7 +2504,7 @@ Handle<SourceTextModule> Factory::NewSourceTextModule(
   module->set_top_level_capability(roots.undefined_value());
   module->set_flags(0);
   module->set_async(IsAsyncModule(code->kind()));
-  module->set_async_evaluating(false);
+  module->set_async_evaluating_ordinal(SourceTextModule::kNotAsyncEvaluated);
   module->set_cycle_root(roots.the_hole_value());
   module->set_async_parent_modules(*async_parent_modules);
   module->set_pending_async_dependencies(0);
