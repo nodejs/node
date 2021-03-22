@@ -7,6 +7,7 @@
 
 #include "src/objects/module.h"
 #include "src/objects/promise.h"
+#include "src/zone/zone-containers.h"
 #include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -73,9 +74,15 @@ class SourceTextModule
       SubclassBodyDescriptor<Module::BodyDescriptor,
                              FixedBodyDescriptor<kCodeOffset, kSize, kSize>>;
 
+  static constexpr unsigned kFirstAsyncEvaluatingOrdinal = 2;
+
  private:
   friend class Factory;
   friend class Module;
+
+  struct AsyncEvaluatingOrdinalCompare;
+  using AsyncParentCompletionSet =
+      ZoneSet<Handle<SourceTextModule>, AsyncEvaluatingOrdinalCompare>;
 
   // Appends a tuple of module and generator to the async parent modules
   // ArrayList.
@@ -94,6 +101,8 @@ class SourceTextModule
   // Returns the number of async parent modules for a given async child.
   inline int AsyncParentModuleCount();
 
+  inline bool IsAsyncEvaluating() const;
+
   inline bool HasPendingAsyncDependencies();
   inline void IncrementPendingAsyncDependencies();
   inline void DecrementPendingAsyncDependencies();
@@ -101,13 +110,26 @@ class SourceTextModule
   // Bits for flags.
   DEFINE_TORQUE_GENERATED_SOURCE_TEXT_MODULE_FLAGS()
 
-  // async_evaluating, top_level_capability, pending_async_dependencies, and
-  // async_parent_modules are used exclusively during evaluation of async
+  // async_evaluating_ordinal, top_level_capability, pending_async_dependencies,
+  // and async_parent_modules are used exclusively during evaluation of async
   // modules and the modules which depend on them.
   //
-  // Whether or not this module is async and evaluating or currently evaluating
-  // an async child.
-  DECL_BOOLEAN_ACCESSORS(async_evaluating)
+  // If >1, this module is async and evaluating or currently evaluating an async
+  // child. The integer is an ordinal for when this module first started async
+  // evaluation and is used for sorting async parent modules when determining
+  // which parent module can start executing after an async evaluation
+  // completes.
+  //
+  // If 1, this module has finished async evaluating.
+  //
+  // If 0, this module is not async or has not been async evaluated.
+  static constexpr unsigned kNotAsyncEvaluated = 0;
+  static constexpr unsigned kAsyncEvaluateDidFinish = 1;
+  STATIC_ASSERT(kNotAsyncEvaluated < kAsyncEvaluateDidFinish);
+  STATIC_ASSERT(kAsyncEvaluateDidFinish < kFirstAsyncEvaluatingOrdinal);
+  STATIC_ASSERT(kMaxModuleAsyncEvaluatingOrdinal ==
+                AsyncEvaluatingOrdinalBits::kMax);
+  DECL_PRIMITIVE_ACCESSORS(async_evaluating_ordinal, unsigned)
 
   // The parent modules of a given async dependency, use async_parent_modules()
   // to retrieve the ArrayList representation.
@@ -150,6 +172,10 @@ class SourceTextModule
   static void FetchStarExports(Isolate* isolate,
                                Handle<SourceTextModule> module, Zone* zone,
                                UnorderedModuleSet* visited);
+
+  static void GatherAsyncParentCompletions(Isolate* isolate, Zone* zone,
+                                           Handle<SourceTextModule> start,
+                                           AsyncParentCompletionSet* exec_list);
 
   // Implementation of spec concrete method Evaluate.
   static V8_WARN_UNUSED_RESULT MaybeHandle<Object> EvaluateMaybeAsync(

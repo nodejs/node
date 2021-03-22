@@ -356,6 +356,9 @@ constexpr int kUC16Size = sizeof(uc16);  // NOLINT
 // 128 bit SIMD value size.
 constexpr int kSimd128Size = 16;
 
+// Maximum ordinal used for tracking asynchronous module evaluation order.
+constexpr unsigned kMaxModuleAsyncEvaluatingOrdinal = (1 << 30) - 1;
+
 // FUNCTION_ADDR(f) gets the address of a C function f.
 #define FUNCTION_ADDR(f) (reinterpret_cast<v8::internal::Address>(f))
 

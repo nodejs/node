@@ -1369,6 +1369,22 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return id;
   }
 
+  // https://github.com/tc39/proposal-top-level-await/pull/159
+  // TODO(syg): Update to actual spec link once merged.
+  //
+  // According to the spec, modules that depend on async modules (i.e. modules
+  // with top-level await) must be evaluated in order in which their
+  // [[AsyncEvaluating]] flags were set to true. V8 tracks this global total
+  // order with next_module_async_evaluating_ordinal_. Each module that sets its
+  // [[AsyncEvaluating]] to true grabs the next ordinal.
+  unsigned NextModuleAsyncEvaluatingOrdinal() {
+    unsigned ordinal = next_module_async_evaluating_ordinal_++;
+    CHECK_LT(ordinal, kMaxModuleAsyncEvaluatingOrdinal);
+    return ordinal;
+  }
+
+  inline void DidFinishModuleAsyncEvaluation(unsigned ordinal);
+
   void AddNearHeapLimitCallback(v8::NearHeapLimitCallback, void* data);
   void RemoveNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
                                    size_t heap_limit);
@@ -1969,6 +1985,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #if V8_SFI_HAS_UNIQUE_ID
   std::atomic<int> next_unique_sfi_id_;
 #endif
+
+  unsigned next_module_async_evaluating_ordinal_;
 
   // Vector of callbacks before a Call starts execution.
   std::vector<BeforeCallEnteredCallback> before_call_entered_callbacks_;
