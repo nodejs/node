@@ -555,6 +555,13 @@ void Environment::InitializeLibuv() {
 
   uv_check_start(immediate_check_handle(), CheckImmediate);
 
+  // Inform V8's CPU profiler when we're idle.  The profiler is sampling-based
+  // but not all samples are created equal; mark the wall clock time spent in
+  // epoll_wait() and friends so profiling tools can filter it out.  The samples
+  // still end up in v8.log but with state=IDLE rather than state=EXTERNAL.
+  uv_prepare_init(event_loop(), &idle_prepare_handle_);
+  uv_check_init(event_loop(), &idle_check_handle_);
+
   uv_async_init(
       event_loop(),
       &task_queues_async_,
@@ -565,6 +572,8 @@ void Environment::InitializeLibuv() {
         Context::Scope context_scope(env->context());
         env->RunAndClearNativeImmediates();
       });
+  uv_unref(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
+  uv_unref(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
   uv_unref(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
 
   {
@@ -581,6 +590,8 @@ void Environment::InitializeLibuv() {
   // the one environment per process setup, but will be called in
   // FreeEnvironment.
   RegisterHandleCleanups();
+
+  StartProfilerIdleNotifier();
 }
 
 void Environment::ExitEnv() {
@@ -608,6 +619,8 @@ void Environment::RegisterHandleCleanups() {
   register_handle(reinterpret_cast<uv_handle_t*>(timer_handle()));
   register_handle(reinterpret_cast<uv_handle_t*>(immediate_check_handle()));
   register_handle(reinterpret_cast<uv_handle_t*>(immediate_idle_handle()));
+  register_handle(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
+  register_handle(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
   register_handle(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
 }
 
@@ -637,6 +650,17 @@ void Environment::CleanupHandles() {
          !handle_wrap_queue_.IsEmpty()) {
     uv_run(event_loop(), UV_RUN_ONCE);
   }
+}
+
+void Environment::StartProfilerIdleNotifier() {
+  uv_prepare_start(&idle_prepare_handle_, [](uv_prepare_t* handle) {
+    Environment* env = ContainerOf(&Environment::idle_prepare_handle_, handle);
+    env->isolate()->SetIdle(true);
+  });
+  uv_check_start(&idle_check_handle_, [](uv_check_t* handle) {
+    Environment* env = ContainerOf(&Environment::idle_check_handle_, handle);
+    env->isolate()->SetIdle(false);
+  });
 }
 
 void Environment::PrintSyncTrace() const {
