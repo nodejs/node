@@ -60,6 +60,8 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
   // If you hit this assertion, you forgot to enter the v8::Context first.
   CHECK_EQ(Environment::GetCurrent(env->isolate()), env);
 
+  env->isolate()->SetIdle(false);
+
   env->async_hooks()->push_async_context(
     async_context_.async_id, async_context_.trigger_async_id, object);
 
@@ -80,6 +82,8 @@ InternalCallbackScope::~InternalCallbackScope() {
 void InternalCallbackScope::Close() {
   if (closed_) return;
   closed_ = true;
+
+  auto idle = OnScopeLeave([&]() { env_->isolate()->SetIdle(true); });
 
   if (!env_->can_call_into_js()) return;
   auto perform_stopping_check = [&]() {
