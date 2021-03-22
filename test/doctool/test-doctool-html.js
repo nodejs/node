@@ -44,7 +44,7 @@ function toHTML({ input, filename, nodeVersion, versions }) {
     .use(html.preprocessText, { nodeVersion })
     .use(html.preprocessElements, { filename })
     .use(html.buildToc, { filename, apilinks: {} })
-    .use(remark2rehype, { allowDangerousHTML: true })
+    .use(remark2rehype, { allowDangerousHtml: true })
     .use(raw)
     .use(htmlStringify)
     .processSync(input);
