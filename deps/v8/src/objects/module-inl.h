@@ -111,6 +111,14 @@ class UnorderedModuleSet
             ZoneAllocator<Handle<Module>>(zone)) {}
 };
 
+Handle<SourceTextModule> SourceTextModule::GetCycleRoot(
+    Isolate* isolate) const {
+  CHECK_GE(status(), kEvaluated);
+  DCHECK(!cycle_root().IsTheHole(isolate));
+  Handle<SourceTextModule> root(SourceTextModule::cast(cycle_root()), isolate);
+  return root;
+}
+
 void SourceTextModule::AddAsyncParentModule(Isolate* isolate,
                                             Handle<SourceTextModule> module,
                                             Handle<SourceTextModule> parent) {
