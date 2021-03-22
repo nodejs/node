@@ -1523,7 +1523,7 @@ void SourceTextModule::SourceTextModuleVerify(Isolate* isolate) {
     }
     CHECK(!AsyncParentModuleCount());
     CHECK(!pending_async_dependencies());
-    CHECK(!async_evaluating());
+    CHECK(!IsAsyncEvaluating());
   }
 
   CHECK_EQ(requested_modules().length(), info().module_requests().length());

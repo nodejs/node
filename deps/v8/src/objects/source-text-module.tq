@@ -6,7 +6,7 @@ type SourceTextModuleInfo extends FixedArray;
 
 bitfield struct SourceTextModuleFlags extends uint31 {
   async: bool: 1 bit;
-  async_evaluating: bool: 1 bit;
+  async_evaluating_ordinal: uint32: 30 bit;
 }
 
 @generateCppClass
