@@ -66,6 +66,7 @@
 #include "src/objects/prototype.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
+#include "src/objects/source-text-module.h"
 #include "src/objects/stack-frame-info-inl.h"
 #include "src/objects/visitors.h"
 #include "src/profiler/heap-profiler.h"
@@ -2792,6 +2793,8 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
 #if V8_SFI_HAS_UNIQUE_ID
       next_unique_sfi_id_(0),
 #endif
+      next_module_async_evaluating_ordinal_(
+          SourceTextModule::kFirstAsyncEvaluatingOrdinal),
       cancelable_task_manager_(new CancelableTaskManager()) {
   TRACE_ISOLATE(constructor);
   CheckIsolateLayout();

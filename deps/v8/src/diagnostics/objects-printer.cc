@@ -1622,6 +1622,7 @@ void SourceTextModule::SourceTextModulePrint(std::ostream& os) {  // NOLINT
   os << "\n - script: " << Brief(script());
   os << "\n - import_meta: " << Brief(import_meta());
   os << "\n - cycle_root: " << Brief(cycle_root());
+  os << "\n - async_evaluating_ordinal: " << async_evaluating_ordinal();
   os << "\n";
 }
 

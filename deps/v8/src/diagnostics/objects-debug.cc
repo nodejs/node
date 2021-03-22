@@ -1351,7 +1351,8 @@ void SourceTextModule::SourceTextModuleVerify(Isolate* isolate) {
           (status() == kPreInstantiating && code().IsSharedFunctionInfo()) ||
           (status() == kUninstantiated && code().IsSharedFunctionInfo()));
     CHECK(top_level_capability().IsUndefined() && !AsyncParentModuleCount() &&
-          !pending_async_dependencies() && !async_evaluating());
+          !pending_async_dependencies());
+    CHECK(!IsAsyncEvaluating());
   }
 
   CHECK_EQ(requested_modules().length(), info().module_requests().length());

@@ -12,6 +12,7 @@
 #include "src/objects/property-cell.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/source-text-module.h"
 
 namespace v8 {
 namespace internal {
@@ -115,6 +116,36 @@ Isolate::ExceptionScope::ExceptionScope(Isolate* isolate)
 
 Isolate::ExceptionScope::~ExceptionScope() {
   isolate_->set_pending_exception(*pending_exception_);
+}
+
+void Isolate::DidFinishModuleAsyncEvaluation(unsigned ordinal) {
+  // To address overflow, the ordinal is reset when the async module with the
+  // largest vended ordinal finishes evaluating. Modules are evaluated in
+  // ascending order of their async_evaluating_ordinal.
+  //
+  // While the specification imposes a global total ordering, the intention is
+  // that for each async module, all its parents are totally ordered by when
+  // they first had their [[AsyncEvaluating]] bit set.
+  //
+  // The module with largest vended ordinal finishes evaluating implies that the
+  // async dependency as well as all other modules in that module's graph
+  // depending on async dependencies are finished evaluating.
+  //
+  // If the async dependency participates in other module graphs (e.g. via
+  // dynamic import, or other <script type=module> tags), those module graphs
+  // must have been evaluated either before or after the async dependency is
+  // settled, as the concrete Evaluate() method on cyclic module records is
+  // neither reentrant nor performs microtask checkpoints during its
+  // evaluation. If before, then all modules that depend on the async
+  // dependencies were given an ordinal that ensure they are relatively ordered,
+  // before the global ordinal was reset. If after, then the async evaluating
+  // ordering does not apply, as the dependency is no longer asynchronous.
+  //
+  // https://tc39.es/ecma262/#sec-moduleevaluation
+  if (ordinal + 1 == next_module_async_evaluating_ordinal_) {
+    next_module_async_evaluating_ordinal_ =
+        SourceTextModule::kFirstAsyncEvaluatingOrdinal;
+  }
 }
 
 #define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name)    \
