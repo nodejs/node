@@ -4682,30 +4682,30 @@
   },
   "Allowed host code points",
   {
-    "input": "http://\u001F!\"$&'()*+,-.;=_`{|}~/",
+    "input": "http://\u001F!\"$&'()*+,-.;=_`{}~/",
     "base": "about:blank",
-    "href": "http://\u001F!\"$&'()*+,-.;=_`{|}~/",
-    "origin": "http://\u001F!\"$&'()*+,-.;=_`{|}~",
+    "href": "http://\u001F!\"$&'()*+,-.;=_`{}~/",
+    "origin": "http://\u001F!\"$&'()*+,-.;=_`{}~",
     "protocol": "http:",
     "username": "",
     "password": "",
-    "host": "\u001F!\"$&'()*+,-.;=_`{|}~",
-    "hostname": "\u001F!\"$&'()*+,-.;=_`{|}~",
+    "host": "\u001F!\"$&'()*+,-.;=_`{}~",
+    "hostname": "\u001F!\"$&'()*+,-.;=_`{}~",
     "port": "",
     "pathname": "/",
     "search": "",
     "hash": ""
   },
   {
-    "input": "sc://\u001F!\"$&'()*+,-.;=_`{|}~/",
+    "input": "sc://\u001F!\"$&'()*+,-.;=_`{}~/",
     "base": "about:blank",
-    "href": "sc://%1F!\"$&'()*+,-.;=_`{|}~/",
+    "href": "sc://%1F!\"$&'()*+,-.;=_`{}~/",
     "origin": "null",
     "protocol": "sc:",
     "username": "",
     "password": "",
-    "host": "%1F!\"$&'()*+,-.;=_`{|}~",
-    "hostname": "%1F!\"$&'()*+,-.;=_`{|}~",
+    "host": "%1F!\"$&'()*+,-.;=_`{}~",
+    "hostname": "%1F!\"$&'()*+,-.;=_`{}~",
     "port": "",
     "pathname": "/",
     "search": "",
@@ -5199,6 +5199,56 @@
     "hostname": "",
     "port": "",
     "pathname": "/C%7C/",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "file://%43%3A",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "file://%43%7C",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "file://%43|",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "file://C%7C",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "file://%43%7C/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "https://%43%7C/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "asdf://%43|/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "asdf://%43%7C/",
+    "base": "about:blank",
+    "href": "asdf://%43%7C/",
+    "origin": "null",
+    "protocol": "asdf:",
+    "username": "",
+    "password": "",
+    "host": "%43%7C",
+    "hostname": "%43%7C",
+    "port": "",
+    "pathname": "/",
     "search": "",
     "hash": ""
   },

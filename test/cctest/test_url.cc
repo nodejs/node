@@ -44,6 +44,11 @@ TEST_F(URLTest, Simple2) {
   EXPECT_EQ(simple.fragment(), "fragment");
 }
 
+TEST_F(URLTest, ForbiddenHostCodePoint) {
+  URL error("https://exa|mple.org:81/a/b/c?query#fragment");
+  EXPECT_TRUE(error.flags() & URL_FLAGS_FAILED);
+}
+
 TEST_F(URLTest, NoBase1) {
   URL error("123noscheme");
   EXPECT_TRUE(error.flags() & URL_FLAGS_FAILED);
