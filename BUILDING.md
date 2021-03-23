@@ -119,14 +119,14 @@ platforms. This is true regardless of entries in the table below.
 | AIX              | ppc64be >=power7 | >= 7.2 TL04                     | Tier 2       |                                   |
 | FreeBSD          | x64              | >= 11                           | Experimental | Downgraded as of Node.js 12  <sup>[7](#fn7)</sup>     |
 
-<em id="fn1">1</em>: GCC 6 is not provided on the base platform. Users will
+<em id="fn1">1</em>: GCC 8 is not provided on the base platform. Users will
   need the
   [Toolchain test builds PPA](https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test?field.series_filter=xenial)
   or similar to source a newer compiler.
 
-<em id="fn2">2</em>: GCC 6 is not provided on the base platform. Users will
+<em id="fn2">2</em>: GCC 8 is not provided on the base platform. Users will
   need the
-  [devtoolset-6](https://www.softwarecollections.org/en/scls/rhscl/devtoolset-6/)
+  [devtoolset-8](https://www.softwarecollections.org/en/scls/rhscl/devtoolset-8/)
   or later to source a newer compiler.
 
 <em id="fn3">3</em>: Older kernel versions may work for ARM64. However the
@@ -161,7 +161,7 @@ Depending on the host platform, the selection of toolchains may vary.
 
 | Operating System | Compiler Versions                                              |
 | ---------------- | -------------------------------------------------------------- |
-| Linux            | GCC >= 6.3                                                     |
+| Linux            | GCC >= 8.3                                                     |
 | Windows          | Visual Studio >= 2019 with the Windows 10 SDK on a 64-bit host |
 | macOS            | Xcode >= 10 (Apple LLVM >= 10)                                 |
 
@@ -235,7 +235,7 @@ test with Python 3.
 
 #### Unix prerequisites
 
-* `gcc` and `g++` >= 6.3 or newer, or
+* `gcc` and `g++` >= 8.3 or newer, or
 * GNU Make 3.81 or newer
 * Python (see note above)
   * Python 2.7
