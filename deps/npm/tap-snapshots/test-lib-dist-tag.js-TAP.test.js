@@ -8,6 +8,8 @@
 exports[`test/lib/dist-tag.js TAP add missing args > should exit usage error message 1`] = `
 npm dist-tag
 
+Modify package distribution tags
+
 Usage:
 npm dist-tag add <pkg>@<version> [<tag>]
 npm dist-tag rm <pkg> <tag>
@@ -20,6 +22,8 @@ Run "npm help dist-tag" for more info
 
 exports[`test/lib/dist-tag.js TAP add missing pkg name > should exit usage error message 1`] = `
 npm dist-tag
+
+Modify package distribution tags
 
 Usage:
 npm dist-tag add <pkg>@<version> [<tag>]
@@ -43,6 +47,8 @@ dist-tag add 1.0.0 to @scoped/another@7.7.7
 exports[`test/lib/dist-tag.js TAP borked cmd usage > should show usage error 1`] = `
 npm dist-tag
 
+Modify package distribution tags
+
 Usage:
 npm dist-tag add <pkg>@<version> [<tag>]
 npm dist-tag rm <pkg> <tag>
@@ -61,6 +67,8 @@ latest: 1.0.0
 
 exports[`test/lib/dist-tag.js TAP ls on missing name in current package > should throw usage error message 1`] = `
 npm dist-tag
+
+Modify package distribution tags
 
 Usage:
 npm dist-tag add <pkg>@<version> [<tag>]
@@ -110,6 +118,8 @@ exports[`test/lib/dist-tag.js TAP remove existing tag > should return success ms
 
 exports[`test/lib/dist-tag.js TAP remove missing pkg name > should exit usage error message 1`] = `
 npm dist-tag
+
+Modify package distribution tags
 
 Usage:
 npm dist-tag add <pkg>@<version> [<tag>]

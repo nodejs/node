@@ -3,24 +3,6 @@ const isWindows = require('./is-windows.js')
 const setPATH = require('./set-path.js')
 const {resolve} = require('path')
 const npm_config_node_gyp = require.resolve('node-gyp/bin/node-gyp.js')
-const { quoteForShell, ShellString, ShellStringText, ShellStringUnquoted } = require('puka')
-
-const escapeCmd = cmd => {
-  const result = []
-  const parsed = ShellString.sh([cmd])
-  for (const child of parsed.children) {
-    if (child instanceof ShellStringText) {
-      const children = child.contents.filter(segment => segment !== null).map(segment => quoteForShell(segment, false, isWindows && 'win32'))
-      result.push(...children)
-    } else if (child instanceof ShellStringUnquoted) {
-      result.push(child.value)
-    } else {
-      result.push(isWindows ? '&' : ';')
-    }
-  }
-
-  return result.join('')
-}
 
 const makeSpawnArgs = options => {
   const {
@@ -34,7 +16,7 @@ const makeSpawnArgs = options => {
   } = options
 
   const isCmd = /(?:^|\\)cmd(?:\.exe)?$/i.test(scriptShell)
-  const args = isCmd ? ['/d', '/s', '/c', escapeCmd(cmd)] : ['-c', cmd]
+  const args = isCmd ? ['/d', '/s', '/c', cmd] : ['-c', cmd]
 
   const spawnOpts = {
     env: setPATH(path, {

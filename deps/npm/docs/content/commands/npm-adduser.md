@@ -12,6 +12,8 @@ npm adduser [--registry=url] [--scope=@orgname] [--always-auth] [--auth-type=leg
 aliases: login, add-user
 ```
 
+Note: This command is unaware of workspaces.
+
 ### Description
 
 Create or verify a user named `<username>` in the specified registry, and

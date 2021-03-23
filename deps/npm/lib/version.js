@@ -2,6 +2,10 @@ const libversion = require('libnpmversion')
 
 const BaseCommand = require('./base-command.js')
 class Version extends BaseCommand {
+  static get description () {
+    return 'Bump a package version'
+  }
+
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'version'
@@ -45,7 +49,7 @@ class Version extends BaseCommand {
   }
 
   async change (args) {
-    const prefix = this.npm.flatOptions.tagVersionPrefix
+    const prefix = this.npm.config.get('tag-version-prefix')
     const version = await libversion(args[0], {
       ...this.npm.flatOptions,
       path: this.npm.prefix,
@@ -71,7 +75,7 @@ class Version extends BaseCommand {
     for (const [key, version] of Object.entries(process.versions))
       results[key] = version
 
-    if (this.npm.flatOptions.json)
+    if (this.npm.config.get('json'))
       this.npm.output(JSON.stringify(results, null, 2))
     else
       this.npm.output(results)

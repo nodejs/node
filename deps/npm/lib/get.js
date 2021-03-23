@@ -2,6 +2,11 @@ const BaseCommand = require('./base-command.js')
 
 class Get extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Get a value from the npm configuration'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'get'
   }

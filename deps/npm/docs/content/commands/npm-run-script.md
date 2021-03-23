@@ -8,6 +8,8 @@ description: Run arbitrary package scripts
 
 ```bash
 npm run-script <command> [--if-present] [--silent] [-- <args>]
+npm run-script <command> [--workspace=<workspace-name>]
+npm run-script <command> [--workspaces]
 
 aliases: run, rum, urn
 ```
@@ -78,6 +80,65 @@ If you try to run a script without having a `node_modules` directory and it
 fails, you will be given a warning to run `npm install`, just in case you've
 forgotten.
 
+### Workspaces support
+
+You may use the `workspace` or `workspaces` configs in order to run an
+arbitrary command from a package's `"scripts"` object in the context of the
+specified workspaces. If no `"command"` is provided, it will list the available
+scripts for each of these configured workspaces.
+
+Given a project with configured workspaces, e.g:
+
+```
+.
++-- package.json
+`-- packages
+   +-- a
+   |   `-- package.json
+   +-- b
+   |   `-- package.json
+   `-- c
+       `-- package.json
+```
+
+Assuming the workspace configuration is properly set up at the root level
+`package.json` file. e.g:
+
+```
+{
+    "workspaces": [ "./packages/*" ]
+}
+```
+
+And that each of the configured workspaces has a configured `test` script,
+we can run tests in all of them using the `workspaces` config:
+
+```
+npm test --workspaces
+```
+
+#### Filtering workspaces
+
+It's also possible to run a script in a single workspace using the `workspace`
+config along with a name or directory path:
+
+```
+npm test --workspace=a
+```
+
+The `workspace` config can also be specified multiple times in order to run a
+specific script in the context of multiple workspaces. When defining values for
+the `workspace` config in the command line, it also possible to use `-w` as a
+shorthand, e.g:
+
+```
+npm test -w a -w b
+```
+
+This last command will run `test` in both `./packages/a` and `./packages/b`
+packages.
+
+
 ### Configuration
 
 #### if-present
@@ -110,6 +171,30 @@ to `/bin/sh` on Unix, defaults to `env.comspec` or `cmd.exe` on Windows.
 * Default: false
 
 You can use the `--silent` flag to prevent showing `npm ERR!` output on error.
+
+#### workspace
+
+* Alias: `-w`
+* Type: Array
+* Default: `[]`
+
+Enable running scripts in the context of workspaces while also filtering by
+the provided names or paths provided.
+
+Valid values for the `workspace` config are either:
+- Workspace names
+- Path to a workspace directory
+- Path to a parent workspace directory (will result to selecting all of the
+children workspaces)
+
+#### workspaces
+
+* Alias: `-ws`
+* Type: Boolean
+* Default: `false`
+
+Run scripts in the context of all configured workspaces for the current
+project.
 
 ### See Also
 

@@ -47,7 +47,6 @@ const envReplace = require('./env-replace.js')
 const parseField = require('./parse-field.js')
 const typeDescription = require('./type-description.js')
 const setEnvs = require('./set-envs.js')
-const getUserAgent = require('./get-user-agent.js')
 
 // types that can be saved back to
 const confFileTypes = new Set([
@@ -69,6 +68,9 @@ const _get = Symbol('get')
 const _find = Symbol('find')
 const _loadObject = Symbol('loadObject')
 const _loadFile = Symbol('loadFile')
+const _checkDeprecated = Symbol('checkDeprecated')
+const _flatten = Symbol('flatten')
+const _flatOptions = Symbol('flatOptions')
 
 class Config {
   static get typeDefs () {
@@ -76,9 +78,9 @@ class Config {
   }
 
   constructor ({
-    types,
+    definitions,
     shorthands,
-    defaults,
+    flatten,
     npmPath,
 
     // options just to override in tests, mostly
@@ -89,10 +91,27 @@ class Config {
     execPath = process.execPath,
     cwd = process.cwd(),
   }) {
-    this.npmPath = npmPath
+
+    // turn the definitions into nopt's weirdo syntax
+    this.definitions = definitions
+    const types = {}
+    const defaults = {}
+    this.deprecated = {}
+    for (const [key, def] of Object.entries(definitions)) {
+      defaults[key] = def.default
+      types[key] = def.type
+      if (def.deprecated)
+        this.deprecated[key] = def.deprecated.trim().replace(/\n +/, '\n')
+    }
+
+    // populated the first time we flatten the object
+    this[_flatOptions] = null
+    this[_flatten] = flatten
     this.types = types
     this.shorthands = shorthands
     this.defaults = defaults
+
+    this.npmPath = npmPath
     this.log = log
     this.argv = argv
     this.env = env
@@ -183,10 +202,31 @@ class Config {
       if (!email)
         throw new Error('Cannot set _auth without first setting email')
     }
-    this.data.get(where).data[key] = val
+    this[_checkDeprecated](key)
+    const { data } = this.data.get(where)
+    data[key] = val
 
     // this is now dirty, the next call to this.valid will have to check it
     this.data.get(where)[_valid] = null
+
+    // the flat options are invalidated, regenerate next time they're needed
+    this[_flatOptions] = null
+  }
+
+  get flat () {
+    if (this[_flatOptions])
+      return this[_flatOptions]
+
+    // create the object for flat options passed to deps
+    process.emit('time', 'config:load:flatten')
+    this[_flatOptions] = {}
+    // walk from least priority to highest
+    for (const { data } of this.data.values()) {
+      this[_flatten](data, this[_flatOptions])
+    }
+    process.emit('timeEnd', 'config:load:flatten')
+
+    return this[_flatOptions]
   }
 
   delete (key, where = 'cli') {
@@ -233,11 +273,6 @@ class Config {
     await this.loadGlobalConfig()
     process.emit('timeEnd', 'config:load:global')
 
-    // now the extras
-    process.emit('time', 'config:load:cafile')
-    await this.loadCAFile()
-    process.emit('timeEnd', 'config:load:cafile')
-
     // warn if anything is not valid
     process.emit('time', 'config:load:validate')
     this.validate()
@@ -249,10 +284,6 @@ class Config {
 
     // set proper globalPrefix now that everything is loaded
     this.globalPrefix = this.get('prefix')
-
-    process.emit('time', 'config:load:setUserAgent')
-    this.setUserAgent()
-    process.emit('timeEnd', 'config:load:setUserAgent')
 
     process.emit('time', 'config:load:setEnvs')
     this.setEnvs()
@@ -376,13 +407,13 @@ class Config {
     this.data.get(where)[_valid] = false
 
     if (Array.isArray(type)) {
-      if (type.indexOf(typeDefs.url.type) !== -1)
+      if (type.includes(typeDefs.url.type))
         type = typeDefs.url.type
       else {
         /* istanbul ignore if - no actual configs matching this, but
          * path types SHOULD be handled this way, like URLs, for the
          * same reason */
-        if (type.indexOf(typeDefs.path.type) !== -1)
+        if (type.includes(typeDefs.path.type))
           type = typeDefs.path.type
       }
     }
@@ -428,8 +459,18 @@ class Config {
       for (const [key, value] of Object.entries(obj)) {
         const k = envReplace(key, this.env)
         const v = this.parseField(value, k)
+        if (where !== 'default')
+          this[_checkDeprecated](k, where, obj, [key, value])
         conf.data[k] = v
       }
+    }
+  }
+
+  [_checkDeprecated] (key, where, obj, kv) {
+    // XXX a future npm version will make this a warning.
+    // An even more future npm version will make this an error.
+    if (this.deprecated[key]) {
+      this.log.verbose('config', key, this.deprecated[key])
     }
   }
 
@@ -673,48 +714,6 @@ class Config {
     creds.password = authSplit.join(':')
     creds.auth = auth
     return creds
-  }
-
-  async loadCAFile () {
-    const where = this[_find]('cafile')
-
-    /* istanbul ignore if - it'll always be set in the defaults */
-    if (!where)
-      return
-
-    const cafile = this[_get]('cafile', where)
-    const ca = this[_get]('ca', where)
-
-    // if you have a ca, or cafile is set to null, then nothing to do here.
-    if (ca || !cafile)
-      return
-
-    const raw = await readFile(cafile, 'utf8').catch(er => {
-      if (er.code !== 'ENOENT')
-        throw er
-    })
-    if (!raw)
-      return
-
-    const delim = '-----END CERTIFICATE-----'
-    const output = raw.replace(/\r\n/g, '\n').split(delim)
-      .filter(section => section.trim())
-      .map(section => section.trimLeft() + delim)
-
-    // make it non-enumerable so we don't save it back by accident
-    const { data } = this.data.get(where)
-    Object.defineProperty(data, 'ca', {
-      value: output,
-      enumerable: false,
-      configurable: true,
-      writable: true,
-    })
-  }
-
-  // the user-agent configuration is a template that gets populated
-  // with some variables, that takes place here
-  setUserAgent () {
-    this.set('user-agent', getUserAgent(this))
   }
 
   // set up the environment object we have with npm_config_* environs

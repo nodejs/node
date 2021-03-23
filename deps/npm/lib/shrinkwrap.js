@@ -8,6 +8,11 @@ const log = require('npmlog')
 const BaseCommand = require('./base-command.js')
 class Shrinkwrap extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Lock down dependency versions for publication'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'shrinkwrap'
   }
@@ -24,7 +29,7 @@ class Shrinkwrap extends BaseCommand {
     //
     // loadVirtual, fall back to loadActual
     // rename shrinkwrap file type, and tree.meta.save()
-    if (this.npm.flatOptions.global) {
+    if (this.npm.config.get('global')) {
       const er = new Error('`npm shrinkwrap` does not work for global packages')
       er.code = 'ESHRINKWRAPGLOBAL'
       throw er

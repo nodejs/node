@@ -6,6 +6,11 @@ const rpj = require('read-package-json-fast')
 const BaseCommand = require('./base-command.js')
 class SetScript extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Set tasks in the scripts section of package.json'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'set-script'
   }

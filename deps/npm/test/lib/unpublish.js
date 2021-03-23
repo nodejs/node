@@ -1,19 +1,21 @@
 const t = require('tap')
 const requireInject = require('require-inject')
+const mockNpm = require('../fixtures/mock-npm')
 
 let result = ''
 const noop = () => null
-const npm = {
+const config = {
+  force: false,
+  silent: false,
+  loglevel: 'silly',
+}
+const npm = mockNpm({
   localPrefix: '',
-  flatOptions: {
-    force: false,
-    silent: false,
-    loglevel: 'silly',
-  },
+  config,
   output: (...msg) => {
     result += msg.join('\n')
   },
-}
+})
 const mocks = {
   npmlog: { silly () {}, verbose () {} },
   libnpmaccess: { lsPackages: noop },
@@ -28,16 +30,16 @@ const mocks = {
 
 t.afterEach(cb => {
   result = ''
-  npm.flatOptions.force = false
-  npm.flatOptions.loglevel = 'silly'
-  npm.flatOptions.silent = false
+  config.force = false
+  config.loglevel = 'silly'
+  config.silent = false
   cb()
 })
 
 t.test('no args --force', t => {
   t.plan(9)
 
-  npm.flatOptions.force = true
+  config.force = true
 
   const npmlog = {
     silly (title) {
@@ -67,9 +69,6 @@ t.test('no args --force', t => {
       t.deepEqual(
         opts,
         {
-          force: true,
-          silent: false,
-          loglevel: 'silly',
           publishConfig: undefined,
         },
         'should unpublish with expected opts'
@@ -102,7 +101,7 @@ t.test('no args --force', t => {
 })
 
 t.test('no args --force missing package.json', t => {
-  npm.flatOptions.force = true
+  config.force = true
 
   const Unpublish = requireInject('../../lib/unpublish.js', {
     ...mocks,
@@ -124,7 +123,7 @@ t.test('no args --force missing package.json', t => {
 })
 
 t.test('no args --force unknown error reading package.json', t => {
-  npm.flatOptions.force = true
+  config.force = true
 
   const Unpublish = requireInject('../../lib/unpublish.js', {
     ...mocks,
@@ -200,11 +199,7 @@ t.test('unpublish <pkg>@version', t => {
       t.equal(spec, pa, 'should unpublish expected parsed spec')
       t.deepEqual(
         opts,
-        {
-          force: false,
-          silent: false,
-          loglevel: 'silly',
-        },
+        {},
         'should unpublish with expected opts'
       )
     },
@@ -231,7 +226,7 @@ t.test('unpublish <pkg>@version', t => {
 })
 
 t.test('no version found in package.json', t => {
-  npm.flatOptions.force = true
+  config.force = true
 
   const npa = () => ({
     name: 'pkg',
@@ -263,7 +258,7 @@ t.test('no version found in package.json', t => {
 })
 
 t.test('unpublish <pkg> --force no version set', t => {
-  npm.flatOptions.force = true
+  config.force = true
 
   const Unpublish = requireInject('../../lib/unpublish.js', {
     ...mocks,
@@ -289,7 +284,7 @@ t.test('unpublish <pkg> --force no version set', t => {
 })
 
 t.test('silent', t => {
-  npm.flatOptions.loglevel = 'silent'
+  config.loglevel = 'silent'
 
   const npa = () => ({
     name: 'pkg',

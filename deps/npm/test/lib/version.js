@@ -1,21 +1,23 @@
 const t = require('tap')
 const requireInject = require('require-inject')
+const mockNpm = require('../fixtures/mock-npm')
 
 let result = []
 
 const noop = () => null
-const npm = {
-  flatOptions: {
-    tagVersionPrefix: 'v',
-    json: false,
-  },
+const config = {
+  'tag-version-prefix': 'v',
+  json: false,
+}
+const npm = mockNpm({
+  config,
   prefix: '',
   version: '1.0.0',
   output: (...msg) => {
     for (const m of msg)
       result.push(m)
   },
-}
+})
 const mocks = {
   libnpmversion: noop,
 }
@@ -25,7 +27,7 @@ const version = new Version(npm)
 
 const _processVersions = process.versions
 t.afterEach(cb => {
-  npm.flatOptions.json = false
+  config.json = false
   npm.prefix = ''
   process.versions = _processVersions
   result = []
@@ -116,7 +118,7 @@ t.test('failure reading package.json', t => {
 
 t.test('--json option', t => {
   const prefix = t.testdir({})
-  npm.flatOptions.json = true
+  config.json = true
   npm.prefix = prefix
   Object.defineProperty(process, 'versions', { value: {} })
 
@@ -140,8 +142,6 @@ t.test('with one arg', t => {
       t.deepEqual(
         opts,
         {
-          tagVersionPrefix: 'v',
-          json: false,
           path: '',
         },
         'should forward expected options'

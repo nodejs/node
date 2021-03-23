@@ -1,5 +1,6 @@
 const t = require('tap')
 const requireInject = require('require-inject')
+const mockNpm = require('../fixtures/mock-npm')
 
 const packument = spec => {
   const mocks = {
@@ -89,12 +90,13 @@ const outdated = (dir, opts) => {
       packument,
     },
   })
-  return new Outdated({
+  const npm = mockNpm({
+    ...opts,
     prefix: dir,
     globalDir: `${globalDir}/node_modules`,
-    flatOptions: opts,
     output,
   })
+  return new Outdated(npm)
 }
 
 t.beforeEach((done) => {
@@ -173,7 +175,7 @@ t.test('should display outdated deps', t => {
 
   t.test('outdated global', t => {
     outdated(null, {
-      global: true,
+      config: { global: true },
     }).exec([], () => {
       t.matchSnapshot(logs)
       t.end()
@@ -182,7 +184,9 @@ t.test('should display outdated deps', t => {
 
   t.test('outdated', t => {
     outdated(testDir, {
-      global: false,
+      config: {
+        global: false,
+      },
       color: true,
     }).exec([], () => {
       t.matchSnapshot(logs)
@@ -192,9 +196,11 @@ t.test('should display outdated deps', t => {
 
   t.test('outdated --omit=dev', t => {
     outdated(testDir, {
-      global: false,
+      config: {
+        global: false,
+        omit: ['dev'],
+      },
       color: true,
-      omit: ['dev'],
     }).exec([], () => {
       t.matchSnapshot(logs)
       t.end()
@@ -203,9 +209,11 @@ t.test('should display outdated deps', t => {
 
   t.test('outdated --omit=dev --omit=peer', t => {
     outdated(testDir, {
-      global: false,
+      config: {
+        global: false,
+        omit: ['dev', 'peer'],
+      },
       color: true,
-      omit: ['dev', 'peer'],
     }).exec([], () => {
       t.matchSnapshot(logs)
       t.end()
@@ -214,9 +222,11 @@ t.test('should display outdated deps', t => {
 
   t.test('outdated --omit=prod', t => {
     outdated(testDir, {
-      global: false,
+      config: {
+        global: false,
+        omit: ['prod'],
+      },
       color: true,
-      omit: ['prod'],
     }).exec([], () => {
       t.matchSnapshot(logs)
       t.end()
@@ -225,8 +235,10 @@ t.test('should display outdated deps', t => {
 
   t.test('outdated --long', t => {
     outdated(testDir, {
-      global: false,
-      long: true,
+      config: {
+        global: false,
+        long: true,
+      },
     }).exec([], () => {
       t.matchSnapshot(logs)
       t.end()
@@ -235,8 +247,10 @@ t.test('should display outdated deps', t => {
 
   t.test('outdated --json', t => {
     outdated(testDir, {
-      global: false,
-      json: true,
+      config: {
+        global: false,
+        json: true,
+      },
     }).exec([], () => {
       t.matchSnapshot(logs)
       t.end()
@@ -245,9 +259,11 @@ t.test('should display outdated deps', t => {
 
   t.test('outdated --json --long', t => {
     outdated(testDir, {
-      global: false,
-      json: true,
-      long: true,
+      config: {
+        global: false,
+        json: true,
+        long: true,
+      },
     }).exec([], () => {
       t.matchSnapshot(logs)
       t.end()
@@ -256,8 +272,10 @@ t.test('should display outdated deps', t => {
 
   t.test('outdated --parseable', t => {
     outdated(testDir, {
-      global: false,
-      parseable: true,
+      config: {
+        global: false,
+        parseable: true,
+      },
     }).exec([], () => {
       t.matchSnapshot(logs)
       t.end()
@@ -266,9 +284,11 @@ t.test('should display outdated deps', t => {
 
   t.test('outdated --parseable --long', t => {
     outdated(testDir, {
-      global: false,
-      parseable: true,
-      long: true,
+      config: {
+        global: false,
+        parseable: true,
+        long: true,
+      },
     }).exec([], () => {
       t.matchSnapshot(logs)
       t.end()
@@ -277,7 +297,9 @@ t.test('should display outdated deps', t => {
 
   t.test('outdated --all', t => {
     outdated(testDir, {
-      all: true,
+      config: {
+        all: true,
+      },
     }).exec([], () => {
       t.matchSnapshot(logs)
       t.end()
@@ -286,7 +308,9 @@ t.test('should display outdated deps', t => {
 
   t.test('outdated specific dep', t => {
     outdated(testDir, {
-      global: false,
+      config: {
+        global: false,
+      },
     }).exec(['alpha'], () => {
       t.matchSnapshot(logs)
       t.end()

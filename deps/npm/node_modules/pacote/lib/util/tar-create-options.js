@@ -4,7 +4,13 @@ const tarCreateOptions = manifest => ({
   cwd: manifest._resolved,
   prefix: 'package/',
   portable: true,
-  gzip: true,
+  gzip: {
+    // forcing the level to 9 seems to avoid some
+    // platform specific optimizations that cause
+    // integrity mismatch errors due to differing
+    // end results after compression
+    level: 9
+  },
 
   // ensure that package bins are always executable
   // Note that npm-packlist is already filtering out

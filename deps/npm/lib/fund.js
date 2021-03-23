@@ -23,13 +23,28 @@ const BaseCommand = require('./base-command.js')
 
 class Fund extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Retrieve funding information'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'fund'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'json',
+      'browser',
+      'unicode',
+      'which',
+    ]
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get usage () {
-    return ['[--json] [--browser] [--unicode] [[<@scope>/]<pkg> [--which=<fundingSourceNumber>]']
+    return ['[[<@scope>/]<pkg>]']
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
@@ -42,14 +57,13 @@ class Fund extends BaseCommand {
   }
 
   async fund (args) {
-    const opts = this.npm.flatOptions
     const spec = args[0]
-    const numberArg = opts.which
+    const numberArg = this.npm.config.get('which')
 
     const fundingSourceNumber = numberArg && parseInt(numberArg, 10)
 
     const badFundingSourceNumber =
-      numberArg !== undefined &&
+      numberArg !== null &&
       (String(fundingSourceNumber) !== numberArg || fundingSourceNumber < 1)
 
     if (badFundingSourceNumber) {
@@ -58,14 +72,14 @@ class Fund extends BaseCommand {
       throw err
     }
 
-    if (opts.global) {
+    if (this.npm.config.get('global')) {
       const err = new Error('`npm fund` does not support global packages')
       err.code = 'EFUNDGLOBAL'
       throw err
     }
 
     const where = this.npm.prefix
-    const arb = new Arborist({ ...opts, path: where })
+    const arb = new Arborist({ ...this.npm.flatOptions, path: where })
     const tree = await arb.loadActual()
 
     if (spec) {
@@ -78,23 +92,19 @@ class Fund extends BaseCommand {
       return
     }
 
-    const print = opts.json
-      ? this.printJSON
-      : this.printHuman
-
-    this.npm.output(
-      print(
-        getFundingInfo(tree),
-        opts
-      )
-    )
+    if (this.npm.config.get('json'))
+      this.npm.output(this.printJSON(getFundingInfo(tree)))
+    else
+      this.npm.output(this.printHuman(getFundingInfo(tree)))
   }
 
   printJSON (fundingInfo) {
     return JSON.stringify(fundingInfo, null, 2)
   }
 
-  printHuman (fundingInfo, { color, unicode }) {
+  printHuman (fundingInfo) {
+    const color = !!this.npm.color
+    const unicode = this.npm.config.get('unicode')
     const seenUrls = new Map()
 
     const tree = obj =>

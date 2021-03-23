@@ -20,10 +20,10 @@ bundle-dep
 name:          my-cool-pkg                             
 version:       1.0.0                                   
 filename:      my-cool-pkg-1.0.0.tgz                   
-package size:  222 B                                   
+package size:  216 B
 unpacked size: 101 B                                   
-shasum:        fe3a2f6064ade3bc21640874530586343f2d832f
-integrity:     sha512-ehndP8xBQL4yo[...]kWinZ4k1SCqUA==
+shasum:        a604258e06adecec0b18f48e901c5802f19f7dab
+integrity:     sha512-fnN6NmI8DerTt[...]6rH17jx7OIFig==
 bundled deps:  1                                       
 bundled files: 0                                       
 own files:     2                                       

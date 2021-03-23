@@ -10,6 +10,8 @@ description: Remove an item from your favorite packages
 npm unstar [<pkg>...]
 ```
 
+Note: This command is unaware of workspaces.
+
 ### Description
 
 "Unstarring" a package is the opposite of [`npm star`](/commands/npm-star),

@@ -1,14 +1,15 @@
 const { test } = require('tap')
 const requireInject = require('require-inject')
+const mockNpm = require('../fixtures/mock-npm')
 
 test('pings', (t) => {
   t.plan(8)
 
-  const flatOptions = { registry: 'https://registry.npmjs.org' }
+  const registry = 'https://registry.npmjs.org'
   let noticeCalls = 0
   const Ping = requireInject('../../lib/ping.js', {
     '../../lib/utils/ping.js': function (spec) {
-      t.equal(spec, flatOptions, 'passes flatOptions')
+      t.equal(spec.registry, registry, 'passes flatOptions')
       return {}
     },
     npmlog: {
@@ -16,7 +17,7 @@ test('pings', (t) => {
         ++noticeCalls
         if (noticeCalls === 1) {
           t.equal(type, 'PING', 'should log a PING')
-          t.equal(spec, flatOptions.registry, 'should log the registry url')
+          t.equal(spec, registry, 'should log the registry url')
         } else {
           t.equal(type, 'PONG', 'should log a PONG')
           t.match(spec, /\d+ms/, 'should log the elapsed milliseconds')
@@ -24,7 +25,11 @@ test('pings', (t) => {
       },
     },
   })
-  const ping = new Ping({ flatOptions })
+  const npm = mockNpm({
+    config: { registry },
+    flatOptions: { registry },
+  })
+  const ping = new Ping(npm)
 
   ping.exec([], (err) => {
     t.equal(noticeCalls, 2, 'should have logged 2 lines')
@@ -36,12 +41,12 @@ test('pings', (t) => {
 test('pings and logs details', (t) => {
   t.plan(10)
 
-  const flatOptions = { registry: 'https://registry.npmjs.org' }
+  const registry = 'https://registry.npmjs.org'
   const details = { extra: 'data' }
   let noticeCalls = 0
   const Ping = requireInject('../../lib/ping.js', {
     '../../lib/utils/ping.js': function (spec) {
-      t.equal(spec, flatOptions, 'passes flatOptions')
+      t.equal(spec.registry, registry, 'passes flatOptions')
       return details
     },
     npmlog: {
@@ -49,7 +54,7 @@ test('pings and logs details', (t) => {
         ++noticeCalls
         if (noticeCalls === 1) {
           t.equal(type, 'PING', 'should log a PING')
-          t.equal(spec, flatOptions.registry, 'should log the registry url')
+          t.equal(spec, registry, 'should log the registry url')
         } else if (noticeCalls === 2) {
           t.equal(type, 'PONG', 'should log a PONG')
           t.match(spec, /\d+ms/, 'should log the elapsed milliseconds')
@@ -61,7 +66,11 @@ test('pings and logs details', (t) => {
       },
     },
   })
-  const ping = new Ping({ flatOptions })
+  const npm = mockNpm({
+    config: { registry },
+    flatOptions: { registry },
+  })
+  const ping = new Ping(npm)
 
   ping.exec([], (err) => {
     t.equal(noticeCalls, 3, 'should have logged 3 lines')
@@ -73,12 +82,12 @@ test('pings and logs details', (t) => {
 test('pings and returns json', (t) => {
   t.plan(11)
 
-  const flatOptions = { registry: 'https://registry.npmjs.org', json: true }
+  const registry = 'https://registry.npmjs.org'
   const details = { extra: 'data' }
   let noticeCalls = 0
   const Ping = requireInject('../../lib/ping.js', {
     '../../lib/utils/ping.js': function (spec) {
-      t.equal(spec, flatOptions, 'passes flatOptions')
+      t.equal(spec.registry, registry, 'passes flatOptions')
       return details
     },
     npmlog: {
@@ -86,7 +95,7 @@ test('pings and returns json', (t) => {
         ++noticeCalls
         if (noticeCalls === 1) {
           t.equal(type, 'PING', 'should log a PING')
-          t.equal(spec, flatOptions.registry, 'should log the registry url')
+          t.equal(spec, registry, 'should log the registry url')
         } else {
           t.equal(type, 'PONG', 'should log a PONG')
           t.match(spec, /\d+ms/, 'should log the elapsed milliseconds')
@@ -94,15 +103,17 @@ test('pings and returns json', (t) => {
       },
     },
   })
-  const ping = new Ping({
-    flatOptions,
+  const npm = mockNpm({
+    config: { registry, json: true },
+    flatOptions: { registry },
     output: function (spec) {
       const parsed = JSON.parse(spec)
-      t.equal(parsed.registry, flatOptions.registry, 'returns the correct registry url')
+      t.equal(parsed.registry, registry, 'returns the correct registry url')
       t.match(parsed.details, details, 'prints returned details')
       t.type(parsed.time, 'number', 'returns time as a number')
     },
   })
+  const ping = new Ping(npm)
 
   ping.exec([], (err) => {
     t.equal(noticeCalls, 2, 'should have logged 2 lines')

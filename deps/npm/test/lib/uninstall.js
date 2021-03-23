@@ -2,18 +2,18 @@ const fs = require('fs')
 const { resolve } = require('path')
 const t = require('tap')
 const requireInject = require('require-inject')
+const mockNpm = require('../fixtures/mock-npm')
 
-const npm = {
+const npm = mockNpm({
   globalDir: '',
-  flatOptions: {
+  config: {
     global: false,
     prefix: '',
   },
   localPrefix: '',
-}
+})
 const mocks = {
   '../../lib/utils/reify-finish.js': () => Promise.resolve(),
-  '../../lib/utils/usage.js': () => 'usage instructions',
 }
 
 const Uninstall = requireInject('../../lib/uninstall.js', mocks)
@@ -85,13 +85,13 @@ t.test('remove single installed lib', t => {
   const b = resolve(path, 'node_modules/b')
   t.ok(() => fs.statSync(b))
 
-  npm.flatOptions.prefix = path
+  npm.config.set('prefix', path)
 
   uninstall.exec(['b'], err => {
     if (err)
       throw err
 
-    t.throws(() => fs.statSync(b), 'should have removed package from nm')
+    t.throws(() => fs.statSync(b), 'should have removed package from npm')
     t.end()
   })
 })
@@ -148,7 +148,7 @@ t.test('remove multiple installed libs', t => {
   t.ok(() => fs.statSync(a))
   t.ok(() => fs.statSync(b))
 
-  npm.flatOptions.prefix = path
+  npm.config.set('prefix', path)
 
   uninstall.exec(['b'], err => {
     if (err)
@@ -195,8 +195,8 @@ t.test('no args global', t => {
 
   npm.localPrefix = resolve(path, 'projects', 'a')
   npm.globalDir = resolve(path, 'lib', 'node_modules')
-  npm.flatOptions.global = true
-  npm.flatOptions.prefix = path
+  npm.config.set('global', true)
+  npm.config.set('prefix', path)
 
   const a = resolve(path, 'lib/node_modules/a')
   t.ok(() => fs.statSync(a))
@@ -221,8 +221,7 @@ t.test('no args global but no package.json', t => {
   uninstall.exec([], err => {
     t.match(
       err,
-      'usage instructions',
-      'should throw usage instructions'
+      'npm uninstall'
     )
 
     t.end()

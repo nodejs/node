@@ -1,25 +1,27 @@
 const fs = require('fs')
 const { resolve } = require('path')
+const mockNpm = require('../fixtures/mock-npm')
 const t = require('tap')
 
 let result = ''
 
-const npm = {
+const config = {
+  global: false,
+}
+const npm = mockNpm({
   globalDir: '',
-  flatOptions: {
-    global: false,
-  },
+  config,
   prefix: '',
   output: (...msg) => {
     result += msg.join('\n')
   },
-}
+})
 const Rebuild = require('../../lib/rebuild.js')
 const rebuild = new Rebuild(npm)
 
 t.afterEach(cb => {
   npm.prefix = ''
-  npm.flatOptions.global = false
+  config.global = false
   npm.globalDir = ''
   result = ''
   cb()
@@ -34,7 +36,7 @@ t.test('no args', t => {
           version: '1.0.0',
           bin: 'cwd',
           scripts: {
-            preinstall: `node -e 'require("fs").writeFileSync("cwd", "")'`,
+            preinstall: "node -e \"require('fs').writeFileSync('cwd', '')\"",
           },
         }),
       },
@@ -44,7 +46,7 @@ t.test('no args', t => {
           version: '1.0.0',
           bin: 'cwd',
           scripts: {
-            preinstall: `node -e 'require("fs").writeFileSync("cwd", "")'`,
+            preinstall: "node -e \"require('fs').writeFileSync('cwd', '')\"",
           },
         }),
       },
@@ -237,7 +239,7 @@ t.test('global prefix', t => {
     },
   })
 
-  npm.flatOptions.global = true
+  config.global = true
   npm.globalDir = resolve(globalPath, 'lib', 'node_modules')
 
   rebuild.exec([], err => {

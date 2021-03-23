@@ -9,12 +9,20 @@ const authTypes = {
 }
 
 class AddUser extends BaseCommand {
+  static get description () {
+    return 'Add a registry user account'
+  }
+
   static get name () {
     return 'adduser'
   }
 
-  static get usage () {
-    return ['[--registry=url] [--scope=@orgname] [--always-auth]']
+  static get params () {
+    return [
+      'registry',
+      'scope',
+      'always-auth',
+    ]
   }
 
   exec (args, cb) {

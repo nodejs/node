@@ -1,17 +1,23 @@
 const log = require('npmlog')
 const pacote = require('pacote')
 const openUrl = require('./utils/open-url.js')
-const usageUtil = require('./utils/usage.js')
 const hostedFromMani = require('./utils/hosted-git-info-from-manifest.js')
 
-class Docs {
-  constructor (npm) {
-    this.npm = npm
+const BaseCommand = require('./base-command.js')
+class Docs extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Open documentation for a package in a web browser'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  get usage () {
-    return usageUtil('docs', 'npm docs [<pkgname> [<pkgname> ...]]')
+  static get name () {
+    return 'docs'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return ['[<pkgname> [<pkgname> ...]]']
   }
 
   exec (args, cb) {

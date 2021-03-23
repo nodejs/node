@@ -5,6 +5,10 @@ const hostedFromMani = require('./utils/hosted-git-info-from-manifest.js')
 const BaseCommand = require('./base-command.js')
 
 class Bugs extends BaseCommand {
+  static get description () {
+    return 'Report bugs for a package in a web browser'
+  }
+
   static get name () {
     return 'bugs'
   }

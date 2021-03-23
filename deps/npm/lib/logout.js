@@ -5,13 +5,21 @@ const BaseCommand = require('./base-command.js')
 
 class Logout extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Log out of the registry'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'logout'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
-    return ['[--registry=<url>] [--scope=<@scope>]']
+  static get params () {
+    return [
+      'registry',
+      'scope',
+    ]
   }
 
   exec (args, cb) {
@@ -19,9 +27,10 @@ class Logout extends BaseCommand {
   }
 
   async logout (args) {
-    const { registry, scope } = this.npm.flatOptions
+    const registry = this.npm.config.get('registry')
+    const scope = this.npm.config.get('scope')
     const regRef = scope ? `${scope}:registry` : 'registry'
-    const reg = this.npm.flatOptions[regRef] || registry
+    const reg = this.npm.config.get(regRef) || registry
 
     const auth = getAuth(reg, this.npm.flatOptions)
 

@@ -1,9 +1,18 @@
 // Base class for npm.commands[cmd]
 const usageUtil = require('./utils/usage.js')
+const ConfigDefinitions = require('./utils/config/definitions.js')
 
 class BaseCommand {
   constructor (npm) {
     this.npm = npm
+  }
+
+  get name () {
+    return this.constructor.name
+  }
+
+  get description () {
+    return this.constructor.description
   }
 
   get usage () {
@@ -16,6 +25,9 @@ class BaseCommand {
       usage = `${usage}npm ${this.constructor.name}`
     else
       usage = `${usage}${this.constructor.usage.map(u => `npm ${this.constructor.name} ${u}`).join('\n')}`
+
+    if (this.constructor.params)
+      usage = `${usage}\n\nOptions:\n[${this.constructor.params.map(p => ConfigDefinitions[p].usage).join('] [')}]`
 
     // Mostly this just appends aliases, this could be more clear
     usage = usageUtil(this.constructor.name, usage)
@@ -33,6 +45,13 @@ class BaseCommand {
     return Object.assign(new Error(`\nUsage: ${msg}\n\n${this.usage}`), {
       code: 'EUSAGE',
     })
+  }
+
+  execWorkspaces (args, filters, cb) {
+    throw Object.assign(
+      new Error('This command does not support workspaces.'),
+      { code: 'ENOWORKSPACES' }
+    )
   }
 }
 module.exports = BaseCommand

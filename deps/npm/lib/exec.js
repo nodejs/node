@@ -1,5 +1,6 @@
 const { promisify } = require('util')
 const read = promisify(require('read'))
+const chalk = require('chalk')
 const mkdirp = require('mkdirp-infer-owner')
 const readPackageJson = require('read-package-json-fast')
 const Arborist = require('@npmcli/arborist')
@@ -12,6 +13,7 @@ const npa = require('npm-package-arg')
 const fileExists = require('./utils/file-exists.js')
 const PATH = require('./utils/path.js')
 const BaseCommand = require('./base-command.js')
+const getWorkspaces = require('./workspaces/get-workspaces.js')
 
 // it's like this:
 //
@@ -24,7 +26,7 @@ const BaseCommand = require('./base-command.js')
 //
 // npm x -p pkg@version -- foo --registry=/dev/null
 //
-// const pkg = npm.flatOptions.package || getPackageFrom(args[0])
+// const pkg = npm.config.get('package') || getPackageFrom(args[0])
 // const cmd = getCommand(pkg, args[0])
 // --> npm x -c 'cmd ...args.slice(1)'
 //
@@ -38,15 +40,22 @@ const BaseCommand = require('./base-command.js')
 // runScript({ pkg, event: 'npx', ... })
 // process.env.npm_lifecycle_event = 'npx'
 
+const nocolor = {
+  reset: s => s,
+  bold: s => s,
+  dim: s => s,
+  green: s => s,
+}
+
 class Exec extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'exec'
+  static get description () {
+    return 'Run a command from a local or remote npm package'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get description () {
-    return 'Run a command from a local or remote npm package.'
+  static get name () {
+    return 'exec'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
@@ -60,17 +69,27 @@ class Exec extends BaseCommand {
   }
 
   exec (args, cb) {
-    this._exec(args).then(() => cb()).catch(cb)
+    const path = this.npm.localPrefix
+    const runPath = process.cwd()
+    this._exec(args, { path, runPath }).then(() => cb()).catch(cb)
+  }
+
+  execWorkspaces (args, filters, cb) {
+    this._execWorkspaces(args, filters).then(() => cb()).catch(cb)
   }
 
   // When commands go async and we can dump the boilerplate exec methods this
   // can be named correctly
-  async _exec (args) {
-    const { package: packages, call, shell } = this.npm.flatOptions
+  async _exec (_args, { locationMsg, path, runPath }) {
+    const call = this.npm.config.get('call')
+    const shell = this.npm.config.get('shell')
+    // dereferenced because we manipulate it later
+    const packages = [...this.npm.config.get('package')]
 
-    if (call && args.length)
+    if (call && _args.length)
       throw this.usage
 
+    const args = [..._args]
     const pathArr = [...PATH]
 
     // nothing to maybe install, skip the arborist dance
@@ -78,8 +97,11 @@ class Exec extends BaseCommand {
       return await this.run({
         args,
         call,
+        locationMsg,
         shell,
+        path,
         pathArr,
+        runPath,
       })
     }
 
@@ -102,7 +124,10 @@ class Exec extends BaseCommand {
         return await this.run({
           args,
           call,
+          locationMsg,
+          path,
           pathArr,
+          runPath,
           shell,
         })
       }
@@ -117,11 +142,11 @@ class Exec extends BaseCommand {
     // node_modules/${name}/package.json, and only pacote fetch if
     // that fails.
     const manis = await Promise.all(packages.map(async p => {
-      const spec = npa(p, this.npm.localPrefix)
+      const spec = npa(p, path)
       if (spec.type === 'tag' && spec.rawSpec === '') {
         // fall through to the pacote.manifest() approach
         try {
-          const pj = resolve(this.npm.localPrefix, 'node_modules', spec.name)
+          const pj = resolve(path, 'node_modules', spec.name)
           return await readPackageJson(pj)
         } catch (er) {}
       }
@@ -140,7 +165,7 @@ class Exec extends BaseCommand {
     // figure out whether we need to install stuff, or if local is fine
     const localArb = new Arborist({
       ...this.npm.flatOptions,
-      path: this.npm.localPrefix,
+      path,
     })
     const tree = await localArb.loadActual()
 
@@ -165,10 +190,10 @@ class Exec extends BaseCommand {
 
       // no need to install if already present
       if (add.length) {
-        if (!this.npm.flatOptions.yes) {
+        if (!this.npm.config.get('yes')) {
           // set -n to always say no
-          if (this.npm.flatOptions.yes === false)
-            throw 'canceled'
+          if (this.npm.config.get('yes') === false)
+            throw new Error('canceled')
 
           if (!process.stdin.isTTY || ciDetect()) {
             this.npm.log.warn('exec', `The following package${
@@ -184,7 +209,7 @@ class Exec extends BaseCommand {
           }Ok to proceed? `
             const confirm = await read({ prompt, default: 'y' })
             if (confirm.trim().toLowerCase().charAt(0) !== 'y')
-              throw 'canceled'
+              throw new Error('canceled')
           }
         }
         await arb.reify({ ...this.npm.flatOptions, add })
@@ -192,16 +217,24 @@ class Exec extends BaseCommand {
       pathArr.unshift(resolve(installDir, 'node_modules/.bin'))
     }
 
-    return await this.run({ args, call, pathArr, shell })
+    return await this.run({
+      args,
+      call,
+      locationMsg,
+      path,
+      pathArr,
+      runPath,
+      shell,
+    })
   }
 
-  async run ({ args, call, pathArr, shell }) {
+  async run ({ args, call, locationMsg, path, pathArr, runPath, shell }) {
     // turn list of args into command string
     const script = call || args.shift() || shell
 
     // do the fakey runScript dance
     // still should work if no package.json in cwd
-    const realPkg = await readPackageJson(`${this.npm.localPrefix}/package.json`)
+    const realPkg = await readPackageJson(`${path}/package.json`)
       .catch(() => ({}))
     const pkg = {
       ...realPkg,
@@ -217,7 +250,19 @@ class Exec extends BaseCommand {
         if (process.stdin.isTTY) {
           if (ciDetect())
             return this.npm.log.warn('exec', 'Interactive mode disabled in CI environment')
-          this.npm.output(`\nEntering npm script environment\nType 'exit' or ^D when finished\n`)
+
+          const color = this.npm.config.get('color')
+          const colorize = color ? chalk : nocolor
+
+          locationMsg = locationMsg || ` at location:\n${colorize.dim(runPath)}`
+
+          this.npm.output(`${
+            colorize.reset('\nEntering npm script environment')
+          }${
+            colorize.reset(locationMsg)
+          }${
+            colorize.bold('\nType \'exit\' or ^D when finished\n')
+          }`)
         }
       }
       return await runScript({
@@ -225,7 +270,7 @@ class Exec extends BaseCommand {
         pkg,
         banner: false,
         // we always run in cwd, not --prefix
-        path: process.cwd(),
+        path: runPath,
         stdioString: true,
         event: 'npx',
         args,
@@ -284,6 +329,29 @@ class Exec extends BaseCommand {
       .update(packages.sort((a, b) => a.localeCompare(b)).join('\n'))
       .digest('hex')
       .slice(0, 16)
+  }
+
+  async workspaces (filters) {
+    return getWorkspaces(filters, { path: this.npm.localPrefix })
+  }
+
+  async _execWorkspaces (args, filters) {
+    const workspaces = await this.workspaces(filters)
+    const getLocationMsg = async path => {
+      const color = this.npm.config.get('color')
+      const colorize = color ? chalk : nocolor
+      const { _id } = await readPackageJson(`${path}/package.json`)
+      return ` in workspace ${colorize.green(_id)} at location:\n${colorize.dim(path)}`
+    }
+
+    for (const workspacePath of workspaces.values()) {
+      const locationMsg = await getLocationMsg(workspacePath)
+      await this._exec(args, {
+        locationMsg,
+        path: workspacePath,
+        runPath: workspacePath,
+      })
+    }
   }
 }
 module.exports = Exec

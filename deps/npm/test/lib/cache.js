@@ -1,22 +1,11 @@
 const t = require('tap')
 const requireInject = require('require-inject')
+const mockNpm = require('../fixtures/mock-npm')
 const path = require('path')
 
 const usageUtil = () => 'usage instructions'
 
-const flatOptions = {
-  force: false,
-}
-
 let outputOutput = []
-
-const npm = {
-  flatOptions,
-  cache: '/fake/path',
-  output: (msg) => {
-    outputOutput.push(msg)
-  },
-}
 
 let rimrafPath = ''
 const rimraf = (path, cb) => {
@@ -66,6 +55,14 @@ const Cache = requireInject('../../lib/cache.js', {
   '../../lib/utils/usage.js': usageUtil,
 })
 
+const npm = mockNpm({
+  cache: '/fake/path',
+  flatOptions: { force: false },
+  config: { force: false },
+  output: (msg) => {
+    outputOutput.push(msg)
+  },
+})
 const cache = new Cache(npm)
 
 t.test('cache no args', t => {
@@ -83,10 +80,12 @@ t.test('cache clean', t => {
 })
 
 t.test('cache clean (force)', t => {
-  flatOptions.force = true
+  npm.config.set('force', true)
+  npm.flatOptions.force = true
   t.teardown(() => {
     rimrafPath = ''
-    flatOptions.force = false
+    npm.config.force = false
+    npm.flatOptions.force = false
   })
 
   cache.exec(['clear'], err => {
@@ -131,7 +130,7 @@ t.test('cache add pkg only', t => {
       ['silly', 'cache add', 'spec', 'mypkg'],
     ], 'logs correctly')
     t.equal(tarballStreamSpec, 'mypkg', 'passes the correct spec to pacote')
-    t.same(tarballStreamOpts, flatOptions, 'passes the correct options to pacote')
+    t.same(tarballStreamOpts, npm.flatOptions, 'passes the correct options to pacote')
     t.end()
   })
 })
@@ -150,7 +149,7 @@ t.test('cache add pkg w/ spec modifier', t => {
       ['silly', 'cache add', 'spec', 'mypkg@latest'],
     ], 'logs correctly')
     t.equal(tarballStreamSpec, 'mypkg@latest', 'passes the correct spec to pacote')
-    t.same(tarballStreamOpts, flatOptions, 'passes the correct options to pacote')
+    t.same(tarballStreamOpts, npm.flatOptions, 'passes the correct options to pacote')
     t.end()
   })
 })

@@ -6,6 +6,8 @@
 .RS 2
 .nf
 npm run\-script <command> [\-\-if\-present] [\-\-silent] [\-\- <args>]
+npm run\-script <command> [\-\-workspace=<workspace\-name>]
+npm run\-script <command> [\-\-workspaces]
 
 aliases: run, rum, urn
 .fi
@@ -81,6 +83,72 @@ found in the \fBPATH\fP\|\.
 If you try to run a script without having a \fBnode_modules\fP directory and it
 fails, you will be given a warning to run \fBnpm install\fP, just in case you've
 forgotten\.
+.SS Workspaces support
+.P
+You may use the \fBworkspace\fP or \fBworkspaces\fP configs in order to run an
+arbitrary command from a package's \fB"scripts"\fP object in the context of the
+specified workspaces\. If no \fB"command"\fP is provided, it will list the available
+scripts for each of these configured workspaces\.
+.P
+Given a project with configured workspaces, e\.g:
+.P
+.RS 2
+.nf
+\|\.
++\-\- package\.json
+`\-\- packages
+   +\-\- a
+   |   `\-\- package\.json
+   +\-\- b
+   |   `\-\- package\.json
+   `\-\- c
+       `\-\- package\.json
+.fi
+.RE
+.P
+Assuming the workspace configuration is properly set up at the root level
+\fBpackage\.json\fP file\. e\.g:
+.P
+.RS 2
+.nf
+{
+    "workspaces": [ "\./packages/*" ]
+}
+.fi
+.RE
+.P
+And that each of the configured workspaces has a configured \fBtest\fP script,
+we can run tests in all of them using the \fBworkspaces\fP config:
+.P
+.RS 2
+.nf
+npm test \-\-workspaces
+.fi
+.RE
+.SS Filtering workspaces
+.P
+It's also possible to run a script in a single workspace using the \fBworkspace\fP
+config along with a name or directory path:
+.P
+.RS 2
+.nf
+npm test \-\-workspace=a
+.fi
+.RE
+.P
+The \fBworkspace\fP config can also be specified multiple times in order to run a
+specific script in the context of multiple workspaces\. When defining values for
+the \fBworkspace\fP config in the command line, it also possible to use \fB\-w\fP as a
+shorthand, e\.g:
+.P
+.RS 2
+.nf
+npm test \-w a \-w b
+.fi
+.RE
+.P
+This last command will run \fBtest\fP in both \fB\|\./packages/a\fP and \fB\|\./packages/b\fP
+packages\.
 .SS Configuration
 .SS if\-present
 .RS 0
@@ -125,6 +193,44 @@ Default: false
 .RE
 .P
 You can use the \fB\-\-silent\fP flag to prevent showing \fBnpm ERR!\fP output on error\.
+.SS workspace
+.RS 0
+.IP \(bu 2
+Alias: \fB\-w\fP
+.IP \(bu 2
+Type: Array
+.IP \(bu 2
+Default: \fB[]\fP
+
+.RE
+.P
+Enable running scripts in the context of workspaces while also filtering by
+the provided names or paths provided\.
+.P
+Valid values for the \fBworkspace\fP config are either:
+.RS 0
+.IP \(bu 2
+Workspace names
+.IP \(bu 2
+Path to a workspace directory
+.IP \(bu 2
+Path to a parent workspace directory (will result to selecting all of the
+children workspaces)
+
+.RE
+.SS workspaces
+.RS 0
+.IP \(bu 2
+Alias: \fB\-ws\fP
+.IP \(bu 2
+Type: Boolean
+.IP \(bu 2
+Default: \fBfalse\fP
+
+.RE
+.P
+Run scripts in the context of all configured workspaces for the current
+project\.
 .SS See Also
 .RS 0
 .IP \(bu 2

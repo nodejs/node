@@ -8,6 +8,10 @@ const completion = require('./utils/completion/installed-shallow.js')
 const BaseCommand = require('./base-command.js')
 
 class Explore extends BaseCommand {
+  static get description () {
+    return 'Browse an installed package'
+  }
+
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'explore'

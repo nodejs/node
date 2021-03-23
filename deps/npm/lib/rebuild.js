@@ -7,6 +7,11 @@ const completion = require('./utils/completion/installed-deep.js')
 const BaseCommand = require('./base-command.js')
 class Rebuild extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Rebuild a package'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'rebuild'
   }
@@ -27,7 +32,7 @@ class Rebuild extends BaseCommand {
 
   async rebuild (args) {
     const globalTop = resolve(this.npm.globalDir, '..')
-    const where = this.npm.flatOptions.global ? globalTop : this.npm.prefix
+    const where = this.npm.config.get('global') ? globalTop : this.npm.prefix
     const arb = new Arborist({
       ...this.npm.flatOptions,
       path: where,

@@ -1,5 +1,6 @@
 const t = require('tap')
 const requireInject = require('require-inject')
+const mockNpm = require('../fixtures/mock-npm')
 
 let logs
 const cleanLogs = (done) => {
@@ -243,34 +244,33 @@ t.test('should log package info', t => {
       packument,
     },
   })
-  const view = new View({
-    flatOptions: {
-      global: false,
-    },
+  const npm = mockNpm({
+    config: { global: false },
   })
+  const view = new View(npm)
 
   const ViewJson = requireInject('../../lib/view.js', {
     pacote: {
       packument,
     },
   })
-  const viewJson = new ViewJson({
-    flatOptions: {
-      json: true,
-    },
+  const jsonNpm = mockNpm({
+    config: { json: true },
   })
+  const viewJson = new ViewJson(jsonNpm)
 
   const ViewUnicode = requireInject('../../lib/view.js', {
     pacote: {
       packument,
     },
   })
-  const viewUnicode = new ViewUnicode({
-    flatOptions: {
+  const unicodeNpm = mockNpm({
+    config: {
       global: false,
       unicode: true,
     },
   })
+  const viewUnicode = new ViewUnicode(unicodeNpm)
 
   t.test('package with license, bugs, repository and other fields', t => {
     view.exec(['green@1.0.0'], () => {
@@ -351,13 +351,14 @@ t.test('should log info of package in current working dir', t => {
       packument,
     },
   })
-  const view = new View({
+  const npm = mockNpm({
     prefix: testDir,
-    flatOptions: {
-      defaultTag: '1.0.0',
+    config: {
+      tag: '1.0.0',
       global: false,
     },
   })
+  const view = new View(npm)
 
   t.test('specific version', t => {
     view.exec(['.@1.0.0'], () => {
@@ -382,23 +383,24 @@ t.test('should log info by field name', t => {
       packument,
     },
   })
-  const viewJson = new ViewJson({
-    flatOptions: {
+  const jsonNpm = mockNpm({
+    config: {
       json: true,
       global: false,
     },
   })
+
+  const viewJson = new ViewJson(jsonNpm)
 
   const View = requireInject('../../lib/view.js', {
     pacote: {
       packument,
     },
   })
-  const view = new View({
-    flatOptions: {
-      global: false,
-    },
+  const npm = mockNpm({
+    config: { global: false },
   })
+  const view = new View(npm)
 
   t.test('readme', t => {
     view.exec(['yellow@1.0.0', 'readme'], () => {
@@ -468,11 +470,10 @@ t.test('should log info by field name', t => {
 
 t.test('throw error if global mode', (t) => {
   const View = requireInject('../../lib/view.js')
-  const view = new View({
-    flatOptions: {
-      global: true,
-    },
+  const npm = mockNpm({
+    config: { global: true },
   })
+  const view = new View(npm)
   view.exec([], (err) => {
     t.equals(err.message, 'Cannot use view command in global mode.')
     t.end()
@@ -483,12 +484,11 @@ t.test('throw ENOENT error if package.json misisng', (t) => {
   const testDir = t.testdir({})
 
   const View = requireInject('../../lib/view.js')
-  const view = new View({
+  const npm = mockNpm({
     prefix: testDir,
-    flatOptions: {
-      global: false,
-    },
+    config: { global: false },
   })
+  const view = new View(npm)
   view.exec([], (err) => {
     t.match(err, { code: 'ENOENT' })
     t.end()
@@ -501,12 +501,11 @@ t.test('throw EJSONPARSE error if package.json not json', (t) => {
   })
 
   const View = requireInject('../../lib/view.js')
-  const view = new View({
+  const npm = mockNpm({
     prefix: testDir,
-    flatOptions: {
-      global: false,
-    },
+    config: { global: false },
   })
+  const view = new View(npm)
   view.exec([], (err) => {
     t.match(err, { code: 'EJSONPARSE' })
     t.end()
@@ -519,12 +518,11 @@ t.test('throw error if package.json has no name', (t) => {
   })
 
   const View = requireInject('../../lib/view.js')
-  const view = new View({
+  const npm = mockNpm({
     prefix: testDir,
-    flatOptions: {
-      global: false,
-    },
+    config: { global: false },
   })
+  const view = new View(npm)
   view.exec([], (err) => {
     t.equals(err.message, 'Invalid package.json, no "name" field')
     t.end()
@@ -537,12 +535,13 @@ t.test('throws when unpublished', (t) => {
       packument,
     },
   })
-  const view = new View({
-    flatOptions: {
-      defaultTag: '1.0.1',
+  const npm = mockNpm({
+    config: {
+      tag: '1.0.1',
       global: false,
     },
   })
+  const view = new View(npm)
   view.exec(['red'], (err) => {
     t.equals(err.code, 'E404')
     t.end()
@@ -555,12 +554,13 @@ t.test('completion', async t => {
       packument,
     },
   })
-  const view = new View({
-    flatOptions: {
-      defaultTag: '1.0.1',
+  const npm = mockNpm({
+    config: {
+      tag: '1.0.1',
       global: false,
     },
   })
+  const view = new View(npm)
   const res = await view.completion({
     conf: { argv: { remain: ['npm', 'view', 'green@1.0.0'] } },
   })
@@ -570,11 +570,13 @@ t.test('completion', async t => {
 
 t.test('no registry completion', async t => {
   const View = requireInject('../../lib/view.js')
-  const view = new View({
-    flatOptions: {
-      defaultTag: '1.0.1',
+  const npm = mockNpm({
+    config: {
+      tag: '1.0.1',
+      global: false,
     },
   })
+  const view = new View(npm)
   const res = await view.completion({conf: { argv: { remain: ['npm', 'view'] } } })
   t.notOk(res, 'there is no package completion')
   t.end()

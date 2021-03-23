@@ -8,6 +8,11 @@ const openUrl = require('./utils/open-url.js')
 const BaseCommand = require('./base-command.js')
 class Repo extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Open package repository page in the browser'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'repo'
   }

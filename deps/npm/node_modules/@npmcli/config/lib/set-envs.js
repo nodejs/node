@@ -50,11 +50,13 @@ const setEnvs = (config) => {
     platform,
     env,
     defaults,
+    definitions,
     list: [cliConf, envConf],
   } = config
 
   env.INIT_CWD = process.cwd()
 
+  // if the key is deprecated, skip it always.
   // if the key is the default value,
   //   if the environ is NOT the default value,
   //     set the environ
@@ -65,6 +67,10 @@ const setEnvs = (config) => {
   const cliSet = new Set(Object.keys(cliConf))
   const envSet = new Set(Object.keys(envConf))
   for (const key in cliConf) {
+    const { deprecated } = definitions[key] || {}
+    if (deprecated)
+      continue
+
     if (sameConfigValue(defaults[key], cliConf[key])) {
       // config is the default, if the env thought different, then we
       // have to set it BACK to the default in the environment.

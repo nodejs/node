@@ -10,5 +10,9 @@ class LifecycleCmd extends BaseCommand {
   exec (args, cb) {
     this.npm.commands['run-script']([this.constructor.name, ...args], cb)
   }
+
+  execWorkspaces (args, filters, cb) {
+    this.npm.commands['run-script']([this.constructor.name, ...args], cb)
+  }
 }
 module.exports = LifecycleCmd

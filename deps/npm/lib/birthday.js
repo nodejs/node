@@ -1,16 +1,9 @@
-class Birthday {
-  constructor (npm) {
-    this.npm = npm
-    Object.defineProperty(this.npm, 'flatOptions', {
-      value: {
-        ...npm.flatOptions,
-        package: ['@npmcli/npm-birthday'],
-        yes: true,
-      },
-    })
-  }
+const BaseCommand = require('./base-command.js')
 
+class Birthday extends BaseCommand {
   exec (args, cb) {
+    this.npm.config.set('package', ['@npmcli/npm-birthday'])
+    this.npm.config.set('yes', true)
     return this.npm.commands.exec(['npm-birthday'], cb)
   }
 }

@@ -1,16 +1,21 @@
 const t = require('tap')
 const fs = require('fs')
 const requireInject = require('require-inject')
+const mockNpm = require('../fixtures/mock-npm')
 
-const npm = {
+const config = {
+  global: false,
+}
+const flatOptions = {
+  depth: 0,
+}
+const npm = mockNpm({
+  config,
+  flatOptions,
   lockfileVersion: 2,
   globalDir: '',
-  flatOptions: {
-    depth: 0,
-    global: false,
-  },
   prefix: '',
-}
+})
 const tree = {
   meta: {
     hiddenLockfile: null,
@@ -32,11 +37,12 @@ const mocks = {
     }
   },
   '../../lib/utils/usage.js': () => 'usage instructions',
+  '../../lib/utils/config/definitions.js': {},
 }
 
 t.afterEach(cb => {
   npm.prefix = ''
-  npm.flatOptions.global = false
+  config.global = false
   npm.globalDir = ''
   cb()
 })
@@ -50,7 +56,7 @@ t.test('no args', t => {
     constructor (args) {
       t.deepEqual(
         args,
-        { ...npm.flatOptions, path: npm.prefix },
+        { ...flatOptions, path: npm.prefix },
         'should call arborist constructor with expected args'
       )
     }
@@ -101,7 +107,7 @@ t.test('no virtual tree', t => {
     constructor (args) {
       t.deepEqual(
         args,
-        { ...npm.flatOptions, path: npm.prefix },
+        { ...flatOptions, path: npm.prefix },
         'should call arborist constructor with expected args'
       )
     }
@@ -156,7 +162,7 @@ t.test('existing package-json file', t => {
     constructor (args) {
       t.deepEqual(
         args,
-        { ...npm.flatOptions, path: npm.prefix },
+        { ...flatOptions, path: npm.prefix },
         'should call arborist constructor with expected args'
       )
     }
@@ -218,7 +224,7 @@ t.test('update shrinkwrap file version', t => {
     constructor (args) {
       t.deepEqual(
         args,
-        { ...npm.flatOptions, path: npm.prefix },
+        { ...flatOptions, path: npm.prefix },
         'should call arborist constructor with expected args'
       )
     }
@@ -272,7 +278,7 @@ t.test('update to date shrinkwrap file', t => {
     constructor (args) {
       t.deepEqual(
         args,
-        { ...npm.flatOptions, path: npm.prefix },
+        { ...flatOptions, path: npm.prefix },
         'should call arborist constructor with expected args'
       )
     }
@@ -320,7 +326,7 @@ t.test('update to date shrinkwrap file', t => {
 t.test('shrinkwrap --global', t => {
   const Shrinkwrap = requireInject('../../lib/shrinkwrap.js', mocks)
 
-  npm.flatOptions.global = true
+  config.global = true
   const shrinkwrap = new Shrinkwrap(npm)
 
   shrinkwrap.exec([], err => {

@@ -5,6 +5,7 @@ const readdir = util.promisify(fs.readdir)
 const { test } = require('tap')
 
 const requireInject = require('require-inject')
+const mockNpm = require('../fixtures/mock-npm')
 
 test('should ignore scripts with --ignore-scripts', (t) => {
   const SCRIPTS = []
@@ -22,17 +23,15 @@ test('should ignore scripts with --ignore-scripts', (t) => {
     },
   })
 
-  const ci = new CI({
+  const npm = mockNpm({
     globalDir: 'path/to/node_modules/',
     prefix: 'foo',
-    flatOptions: {
-      global: false,
-      ignoreScripts: true,
-    },
     config: {
-      get: () => false,
+      global: false,
+      'ignore-scripts': true,
     },
   })
+  const ci = new CI(npm)
 
   ci.exec([], er => {
     if (er)
@@ -115,12 +114,13 @@ test('should use Arborist and run-script', (t) => {
     },
   })
 
-  const ci = new CI({
+  const npm = mockNpm({
     prefix: path,
-    flatOptions: {
+    config: {
       global: false,
     },
   })
+  const ci = new CI(npm)
 
   ci.exec(null, er => {
     if (er)
@@ -146,12 +146,13 @@ test('should pass flatOptions to Arborist.reify', (t) => {
       }
     },
   })
-  const ci = new CI({
+  const npm = mockNpm({
     prefix: 'foo',
     flatOptions: {
       production: true,
     },
   })
+  const ci = new CI(npm)
   ci.exec(null, er => {
     if (er)
       throw er
@@ -173,14 +174,15 @@ test('should throw if package-lock.json or npm-shrinkwrap missing', (t) => {
       },
     },
   })
-  const ci = new CI({
+  const npm = mockNpm({
     prefix: testDir,
-    flatOptions: {
+    config: {
       global: false,
     },
   })
+  const ci = new CI(npm)
   ci.exec(null, (err, res) => {
-    t.ok(err, 'throws error when there is no package-lock')
+    t.match(err, /package-lock.json/, 'throws error when there is no package-lock')
     t.notOk(res)
     t.end()
   })
@@ -191,12 +193,13 @@ test('should throw ECIGLOBAL', (t) => {
     '@npmcli/run-script': opts => {},
     '../../lib/utils/reify-finish.js': async () => {},
   })
-  const ci = new CI({
+  const npm = mockNpm({
     prefix: 'foo',
-    flatOptions: {
+    config: {
       global: true,
     },
   })
+  const ci = new CI(npm)
   ci.exec(null, (err, res) => {
     t.equals(err.code, 'ECIGLOBAL', 'throws error with global packages')
     t.notOk(res)
@@ -227,12 +230,13 @@ test('should remove existing node_modules before installing', (t) => {
     },
   })
 
-  const ci = new CI({
+  const npm = mockNpm({
     prefix: testDir,
-    flatOptions: {
+    config: {
       global: false,
     },
   })
+  const ci = new CI(npm)
 
   ci.exec(null, er => {
     if (er)

@@ -12,6 +12,10 @@ const getIdentity = require('./utils/get-identity.js')
 
 const BaseCommand = require('./base-command.js')
 class Unpublish extends BaseCommand {
+  static get description () {
+    return 'Remove a package from the registry'
+  }
+
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'unpublish'
@@ -63,8 +67,9 @@ class Unpublish extends BaseCommand {
       throw new Error(this.usage)
 
     const spec = args.length && npa(args[0])
-    const opts = this.npm.flatOptions
-    const { force, silent, loglevel } = opts
+    const force = this.npm.config.get('force')
+    const silent = this.npm.config.get('silent')
+    const loglevel = this.npm.config.get('loglevel')
     let pkgName
     let pkgVersion
 
@@ -79,6 +84,7 @@ class Unpublish extends BaseCommand {
       )
     }
 
+    const opts = this.npm.flatOptions
     if (!spec || path.resolve(spec.name) === this.npm.localPrefix) {
       // if there's a package.json in the current folder, then
       // read the package name and version out of that.

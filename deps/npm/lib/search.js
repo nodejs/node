@@ -27,13 +27,28 @@ function prepareExcludes (searchexclude) {
 const BaseCommand = require('./base-command.js')
 class Search extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Search for pacakges'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'search'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'long',
+      'json',
+      'parseable',
+      'description',
+    ]
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get usage () {
-    return ['[-l|--long] [--json] [--parseable] [--no-description] [search terms ...]']
+    return ['[search terms ...]']
   }
 
   exec (args, cb) {
@@ -84,7 +99,7 @@ class Search extends BaseCommand {
     })
 
     await p.promise()
-    if (!anyOutput && !opts.json && !opts.parseable)
+    if (!anyOutput && !this.npm.config.get('json') && !this.npm.config.get('parseable'))
       this.npm.output('No matches found for ' + (args.map(JSON.stringify).join(' ')))
 
     log.silly('search', 'search completed')

@@ -1,4 +1,5 @@
-const { defaults, types } = require('./utils/config.js')
+// don't expand so that we only assemble the set of defaults when needed
+const configDefs = require('./utils/config/index.js')
 
 const mkdirp = require('mkdirp-infer-owner')
 const { dirname } = require('path')
@@ -29,6 +30,10 @@ const publicVar = k => !/^(\/\/[^:]+:)?_/.test(k)
 
 const BaseCommand = require('./base-command.js')
 class Config extends BaseCommand {
+  static get description () {
+    return 'Manage the npm configuration files'
+  }
+
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'config'
@@ -70,7 +75,7 @@ class Config extends BaseCommand {
       case 'get':
       case 'delete':
       case 'rm':
-        return Object.keys(types)
+        return Object.keys(configDefs.definitions)
       case 'edit':
       case 'list':
       case 'ls':
@@ -100,7 +105,7 @@ class Config extends BaseCommand {
           break
         case 'list':
         case 'ls':
-          await (this.npm.flatOptions.json ? this.listJson() : this.list())
+          await (this.npm.config.get('json') ? this.listJson() : this.list())
           break
         case 'edit':
           await this.edit()
@@ -117,7 +122,7 @@ class Config extends BaseCommand {
     if (!args.length)
       throw this.usageError()
 
-    const where = this.npm.flatOptions.global ? 'global' : 'user'
+    const where = this.npm.config.get('global') ? 'global' : 'user'
     for (const [key, val] of Object.entries(keyValues(args))) {
       this.npm.log.info('config', 'set %j %j', key, val)
       this.npm.config.set(key, val || '', where)
@@ -147,14 +152,15 @@ class Config extends BaseCommand {
     if (!keys.length)
       throw this.usageError()
 
-    const where = this.npm.flatOptions.global ? 'global' : 'user'
+    const where = this.npm.config.get('global') ? 'global' : 'user'
     for (const key of keys)
       this.npm.config.delete(key, where)
     await this.npm.config.save(where)
   }
 
   async edit () {
-    const { editor: e, global } = this.npm.flatOptions
+    const global = this.npm.config.get('global')
+    const e = this.npm.config.get('editor')
     const where = global ? 'global' : 'user'
     const file = this.npm.config.data.get(where).source
 
@@ -165,7 +171,8 @@ class Config extends BaseCommand {
     const data = (
       await readFile(file, 'utf8').catch(() => '')
     ).replace(/\r\n/g, '\n')
-    const defData = Object.entries(defaults).reduce((str, [key, val]) => {
+    const entries = Object.entries(configDefs.defaults)
+    const defData = entries.reduce((str, [key, val]) => {
       const obj = { [key]: val }
       const i = ini.stringify(obj)
         .replace(/\r\n/g, '\n') // normalizes output from ini.stringify
@@ -210,7 +217,7 @@ ${defData}
 
   async list () {
     const msg = []
-    const { long } = this.npm.flatOptions
+    const long = this.npm.config.get('long')
     for (const [where, { data, source }] of this.npm.config.data.entries()) {
       if (where === 'default' && !long)
         continue

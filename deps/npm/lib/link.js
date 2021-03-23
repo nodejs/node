@@ -13,6 +13,11 @@ const reifyFinish = require('./utils/reify-finish.js')
 const BaseCommand = require('./base-command.js')
 class Link extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Symlink a package folder'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'link'
   }
@@ -96,7 +101,13 @@ class Link extends BaseCommand {
     // npm link should not save=true by default unless you're
     // using any of --save-dev or other types
     const save =
-      Boolean(this.npm.config.find('save') !== 'default' || this.npm.flatOptions.saveType)
+      Boolean(
+        this.npm.config.find('save') !== 'default' ||
+        this.npm.config.get('save-optional') ||
+        this.npm.config.get('save-peer') ||
+        this.npm.config.get('save-dev') ||
+        this.npm.config.get('save-prod')
+      )
 
     // create a new arborist instance for the local prefix and
     // reify all the pending names as symlinks there

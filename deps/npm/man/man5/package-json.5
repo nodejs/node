@@ -373,6 +373,8 @@ This should be a module relative to the root of your package folder\.
 .P
 For most modules, it makes the most sense to have a main script and often
 not much else\.
+.P
+If \fBmain\fP is not set it defaults to \fBindex\.js\fP in the packages root folder\.
 .SS browser
 .P
 If your module is meant to be used client\-side the browser field should be
@@ -620,8 +622,7 @@ tarball or git URL\.
 \fBPlease do not put test harnesses or transpilers or other "development"
 time tools in your \fBdependencies\fP object\.\fR  See \fBdevDependencies\fP, below\.
 .P
-See semver \fI[/using\-npm/semver](https://github\.com/npm/node\-semver#versions)\fR
-for more details about specifying version ranges\.
+See npm help semver for more details about specifying version ranges\.
 .RS 0
 .IP \(bu 2
 \fBversion\fP Must match \fBversion\fP exactly

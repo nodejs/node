@@ -10,6 +10,8 @@ description: Tab Completion for npm
 source <(npm completion)
 ```
 
+Note: This command is unaware of workspaces.
+
 ### Description
 
 Enables tab-completion in all npm commands.

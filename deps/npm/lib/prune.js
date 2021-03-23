@@ -5,13 +5,23 @@ const reifyFinish = require('./utils/reify-finish.js')
 const BaseCommand = require('./base-command.js')
 class Prune extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Remove extraneous packages'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'prune'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return ['production']
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get usage () {
-    return ['[[<@scope>/]<pkg>...] [--production]']
+    return ['[[<@scope>/]<pkg>...]']
   }
 
   exec (args, cb) {

@@ -5,6 +5,10 @@ const otplease = require('./utils/otplease.js')
 
 const BaseCommand = require('./base-command.js')
 class Team extends BaseCommand {
+  static get description () {
+    return 'Manage organization teams and team memberships'
+  }
+
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'team'

@@ -71,7 +71,7 @@ const addSingle = ({pkg, spec, saveBundle, saveType}) => {
       pkg.devDependencies[name] = pkg.peerDependencies[name]
   }
 
-  if (saveBundle) {
+  if (saveBundle && saveType !== 'peer' && saveType !== 'peerOptional') {
     // keep it sorted, keep it unique
     const bd = new Set(pkg.bundleDependencies || [])
     bd.add(spec.name)

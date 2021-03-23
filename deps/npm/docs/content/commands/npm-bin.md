@@ -10,6 +10,8 @@ description: Display npm bin folder
 npm bin [-g|--global]
 ```
 
+Note: This command is unaware of workspaces.
+
 ### Description
 
 Print the folder where npm will install executables.

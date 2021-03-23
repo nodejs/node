@@ -6,16 +6,29 @@ const BaseCommand = require('./base-command.js')
 
 class Audit extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Run a security audit'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'audit'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get usage () {
+  static get params () {
     return [
-      '[--json] [--production]',
-      'fix [--force|--package-lock-only|--dry-run|--production|--only=(dev|prod)]',
+      'dry-run',
+      'force',
+      'json',
+      'package-lock-only',
+      'production',
     ]
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get usage () {
+    return ['[fix]']
   }
 
   async completion (opts) {
@@ -37,11 +50,14 @@ class Audit extends BaseCommand {
   }
 
   async audit (args) {
-    const arb = new Arborist({
+    const reporter = this.npm.config.get('json') ? 'json' : 'detail'
+    const opts = {
       ...this.npm.flatOptions,
       audit: true,
       path: this.npm.prefix,
-    })
+      reporter,
+    }
+    const arb = new Arborist(opts)
     const fix = args[0] === 'fix'
     await arb.audit({ fix })
     if (fix)
@@ -49,11 +65,7 @@ class Audit extends BaseCommand {
     else {
       // will throw if there's an error, because this is an audit command
       auditError(this.npm, arb.auditReport)
-      const reporter = this.npm.flatOptions.json ? 'json' : 'detail'
-      const result = auditReport(arb.auditReport, {
-        ...this.npm.flatOptions,
-        reporter,
-      })
+      const result = auditReport(arb.auditReport, opts)
       process.exitCode = process.exitCode || result.exitCode
       this.npm.output(result.report)
     }

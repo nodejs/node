@@ -1,12 +1,5 @@
 const t = require('tap')
-
-const OUTPUT = []
-const output = (...msg) => OUTPUT.push(msg)
-const requireInject = require('require-inject')
-const usage = require('../../../lib/utils/npm-usage.js')
-
-const npm = requireInject('../../../lib/npm.js')
-npm.output = output
+const npm = require('../../../lib/npm.js')
 
 t.test('usage', t => {
   t.afterEach((cb) => {
@@ -29,61 +22,19 @@ t.test('usage', t => {
     npm.config.set('userconfig', '/some/config/file/.npmrc')
 
     t.test('basic usage', t => {
-      usage(npm)
-      t.equal(OUTPUT.length, 1)
-      t.equal(OUTPUT[0].length, 1)
-      t.matchSnapshot(OUTPUT[0][0])
-      OUTPUT.length = 0
+      t.matchSnapshot(npm.usage)
       t.end()
     })
 
     t.test('with browser', t => {
       npm.config.set('viewer', 'browser')
-      usage(npm)
-      t.equal(OUTPUT.length, 1)
-      t.equal(OUTPUT[0].length, 1)
-      t.matchSnapshot(OUTPUT[0][0])
-      OUTPUT.length = 0
-      npm.config.set('viewer', null)
+      t.matchSnapshot(npm.usage)
       t.end()
     })
 
     t.test('with long', t => {
       npm.config.set('long', true)
-      usage(npm)
-      t.equal(OUTPUT.length, 1)
-      t.equal(OUTPUT[0].length, 1)
-      t.matchSnapshot(OUTPUT[0][0])
-      OUTPUT.length = 0
-      npm.config.set('long', false)
-      t.end()
-    })
-
-    t.test('did you mean?', t => {
-      npm.argv.push('unistnall')
-      usage(npm)
-      t.equal(OUTPUT.length, 2)
-      t.equal(OUTPUT[0].length, 1)
-      t.equal(OUTPUT[1].length, 1)
-      t.matchSnapshot(OUTPUT[0][0])
-      t.matchSnapshot(OUTPUT[1][0])
-      OUTPUT.length = 0
-      npm.argv.length = 0
-      t.end()
-    })
-
-    t.test('did you mean?', t => {
-      npm.argv.push('unistnall')
-      const { exitCode } = process
-      t.teardown(() => {
-        if (t.passing())
-          process.exitCode = exitCode
-      })
-      // make sure it fails when invalid
-      usage(npm, false)
-      t.equal(process.exitCode, 1)
-      OUTPUT.length = 0
-      npm.argv.length = 0
+      t.matchSnapshot(npm.usage)
       t.end()
     })
 
@@ -106,11 +57,7 @@ t.test('usage', t => {
             configurable: true,
             writable: true,
           })
-          usage(npm)
-          t.equal(OUTPUT.length, 1)
-          t.equal(OUTPUT[0].length, 1)
-          t.matchSnapshot(OUTPUT[0][0])
-          OUTPUT.length = 0
+          t.matchSnapshot(npm.usage)
           t.end()
         })
       }

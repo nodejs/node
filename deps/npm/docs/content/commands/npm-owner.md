@@ -14,6 +14,8 @@ npm owner ls [<@scope>/]<pkg>
 aliases: author
 ```
 
+Note: This command is unaware of workspaces.
+
 ### Description
 
 Manage ownership of published packages.

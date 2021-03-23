@@ -6,6 +6,11 @@ const getIdentity = require('./utils/get-identity.js')
 const BaseCommand = require('./base-command.js')
 class Stars extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'View packages marked as favorites'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'stars'
   }

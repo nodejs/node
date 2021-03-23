@@ -7,14 +7,23 @@ const completion = require('./utils/completion/installed-shallow.js')
 
 const BaseCommand = require('./base-command.js')
 class Uninstall extends BaseCommand {
+  static get description () {
+    return 'Remove a package'
+  }
+
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'uninstall'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return ['save']
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get usage () {
-    return ['[<@scope>/]<pkg>[@<version>]... [-S|--save|--no-save]']
+    return ['[<@scope>/]<pkg>...']
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
@@ -28,7 +37,8 @@ class Uninstall extends BaseCommand {
 
   async uninstall (args) {
     // the /path/to/node_modules/..
-    const { global, prefix } = this.npm.flatOptions
+    const global = this.npm.config.get('global')
+    const prefix = this.npm.config.get('prefix')
     const path = global ? resolve(this.npm.globalDir, '..') : prefix
 
     if (!args.length) {

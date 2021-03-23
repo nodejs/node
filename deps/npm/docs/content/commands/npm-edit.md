@@ -10,6 +10,8 @@ description: Edit an installed package
 npm edit <pkg>
 ```
 
+Note: This command is unaware of workspaces.
+
 ### Description
 
 Selects a dependency in the current project and opens the package folder in

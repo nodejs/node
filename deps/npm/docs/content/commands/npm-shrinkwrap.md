@@ -10,6 +10,8 @@ description: Lock down dependency versions for publication
 npm shrinkwrap
 ```
 
+Note: This command is unaware of workspaces.
+
 ### Description
 
 This command repurposes `package-lock.json` into a publishable

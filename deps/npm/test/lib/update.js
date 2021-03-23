@@ -1,16 +1,18 @@
 const { resolve } = require('path')
 const t = require('tap')
 const requireInject = require('require-inject')
+const mockNpm = require('../fixtures/mock-npm')
 
-const noop = () => null
-const npm = {
-  globalDir: '',
-  flatOptions: {
-    depth: 0,
-    global: false,
-  },
-  prefix: '',
+const config = {
+  depth: 0,
+  global: false,
 }
+const noop = () => null
+const npm = mockNpm({
+  globalDir: '',
+  config,
+  prefix: '',
+})
 const mocks = {
   npmlog: { warn () {} },
   '@npmcli/arborist': class {
@@ -22,7 +24,7 @@ const mocks = {
 
 t.afterEach(cb => {
   npm.prefix = ''
-  npm.flatOptions.global = false
+  config.global = false
   npm.globalDir = ''
   cb()
 })
@@ -99,7 +101,7 @@ t.test('update --depth=<number>', t => {
   t.plan(2)
 
   npm.prefix = '/project/a'
-  npm.flatOptions.depth = 1
+  config.depth = 1
 
   const Update = requireInject('../../lib/update.js', {
     ...mocks,
@@ -131,7 +133,7 @@ t.test('update --global', t => {
 
   npm.prefix = '/project/a'
   npm.globalDir = resolve(process.cwd(), 'global/lib/node_modules')
-  npm.flatOptions.global = true
+  config.global = true
 
   class Arborist {
     constructor (args) {

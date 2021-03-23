@@ -9,7 +9,9 @@ description: Manage your authentication tokens
   npm token list [--json|--parseable]
   npm token create [--read-only] [--cidr=1.1.1.1/24,2.2.2.2/16]
   npm token revoke <id|token>
-  ```
+```
+
+Note: This command is unaware of workspaces.
 
 ### Description
 

@@ -31,6 +31,7 @@ test.test('fails when package.json not found', (t) => {
 })
 test.test('fails on invalid JSON', (t) => {
   const SetScript = requireInject('../../lib/set-script.js', {
+    '../../lib/utils/config/definitions.js': {},
     fs: {
       readFile: () => {}, // read-package-json-fast explodes w/o this
       readFileSync: (name, charcode) => {
@@ -45,6 +46,7 @@ test.test('fails on invalid JSON', (t) => {
 test.test('creates scripts object', (t) => {
   var mockFile = ''
   const SetScript = requireInject('../../lib/set-script.js', {
+    '../../lib/utils/config/definitions.js': {},
     fs: {
       readFileSync: (name, charcode) => {
         return '{}'
@@ -70,6 +72,7 @@ test.test('creates scripts object', (t) => {
 test.test('warns before overwriting', (t) => {
   var warningListened = ''
   const SetScript = requireInject('../../lib/set-script.js', {
+    '../../lib/utils/config/definitions.js': {},
     fs: {
       readFileSync: (name, charcode) => {
         return JSON.stringify({
@@ -102,6 +105,7 @@ test.test('warns before overwriting', (t) => {
 test.test('provided indentation and eol is used', (t) => {
   var mockFile = ''
   const SetScript = requireInject('../../lib/set-script.js', {
+    '../../lib/utils/config/definitions.js': {},
     fs: {
       readFileSync: (name, charcode) => {
         return '{}'
@@ -128,6 +132,7 @@ test.test('provided indentation and eol is used', (t) => {
 test.test('goes to default when undefined indent and eol provided', (t) => {
   var mockFile = ''
   const SetScript = requireInject('../../lib/set-script.js', {
+    '../../lib/utils/config/definitions.js': {},
     fs: {
       readFileSync: (name, charcode) => {
         return '{}'

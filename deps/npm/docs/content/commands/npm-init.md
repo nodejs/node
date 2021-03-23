@@ -1,7 +1,7 @@
 ---
 title: npm-init
 section: 1
-description: create a package.json file
+description: Create a package.json file
 ---
 
 ### Synopsis

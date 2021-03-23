@@ -1,5 +1,6 @@
 const t = require('tap')
 const requireInject = require('require-inject')
+const mockNpm = require('../fixtures/mock-npm')
 
 const OUTPUT = []
 const output = (...msg) => OUTPUT.push(msg)
@@ -25,14 +26,15 @@ t.test('should pack current directory with no arguments', (t) => {
       clearProgress: () => {},
     },
   })
-  const pack = new Pack({
-    flatOptions: {
+  const npm = mockNpm({
+    config: {
       unicode: false,
       json: false,
-      dryRun: false,
+      'dry-run': false,
     },
     output,
   })
+  const pack = new Pack(npm)
 
   pack.exec([], er => {
     if (er)
@@ -60,14 +62,15 @@ t.test('should pack given directory', (t) => {
       clearProgress: () => {},
     },
   })
-  const pack = new Pack({
-    flatOptions: {
+  const npm = mockNpm({
+    config: {
       unicode: true,
       json: true,
-      dryRun: true,
+      'dry-run': true,
     },
     output,
   })
+  const pack = new Pack(npm)
 
   pack.exec([testDir], er => {
     if (er)
@@ -95,14 +98,15 @@ t.test('should pack given directory for scoped package', (t) => {
       clearProgress: () => {},
     },
   })
-  const pack = new Pack({
-    flatOptions: {
+  const npm = mockNpm({
+    config: {
       unicode: true,
       json: true,
-      dryRun: true,
+      'dry-run': true,
     },
     output,
   })
+  const pack = new Pack(npm)
 
   return pack.exec([testDir], er => {
     if (er)
@@ -129,14 +133,15 @@ t.test('should log pack contents', (t) => {
       clearProgress: () => {},
     },
   })
-  const pack = new Pack({
-    flatOptions: {
+  const npm = mockNpm({
+    config: {
       unicode: false,
       json: false,
-      dryRun: false,
+      'dry-run': false,
     },
     output,
   })
+  const pack = new Pack(npm)
 
   pack.exec([], er => {
     if (er)

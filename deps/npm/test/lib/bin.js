@@ -1,5 +1,6 @@
 const { test } = require('tap')
 const requireInject = require('require-inject')
+const mockNpm = require('../fixtures/mock-npm')
 
 test('bin', (t) => {
   t.plan(4)
@@ -7,13 +8,13 @@ test('bin', (t) => {
 
   const Bin = require('../../lib/bin.js')
 
-  const npm = {
+  const npm = mockNpm({
     bin: dir,
-    flatOptions: { global: false },
+    config: { global: false },
     output: (output) => {
       t.equal(output, dir, 'prints the correct directory')
     },
-  }
+  })
   const bin = new Bin(npm)
   t.match(bin.usage, 'bin', 'usage has command name in it')
 
@@ -39,13 +40,13 @@ test('bin -g', (t) => {
     '../../lib/utils/path.js': [dir],
   })
 
-  const npm = {
+  const npm = mockNpm({
     bin: dir,
-    flatOptions: { global: true },
+    config: { global: true },
     output: (output) => {
       t.equal(output, dir, 'prints the correct directory')
     },
-  }
+  })
   const bin = new Bin(npm)
 
   bin.exec([], (err) => {
@@ -69,13 +70,13 @@ test('bin -g (not in path)', (t) => {
   const Bin = requireInject('../../lib/bin.js', {
     '../../lib/utils/path.js': ['/not/my/dir'],
   })
-  const npm = {
+  const npm = mockNpm({
     bin: dir,
-    flatOptions: { global: true },
+    config: { global: true },
     output: (output) => {
       t.equal(output, dir, 'prints the correct directory')
     },
-  }
+  })
   const bin = new Bin(npm)
 
   bin.exec([], (err) => {

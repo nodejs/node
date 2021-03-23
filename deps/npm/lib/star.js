@@ -6,6 +6,10 @@ const getIdentity = require('./utils/get-identity')
 
 const BaseCommand = require('./base-command.js')
 class Star extends BaseCommand {
+  static get description () {
+    return 'Mark your favorite packages'
+  }
+
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'star'
@@ -26,7 +30,7 @@ class Star extends BaseCommand {
 
     // if we're unstarring, then show an empty star image
     // otherwise, show the full star image
-    const { unicode } = this.npm.flatOptions
+    const unicode = this.npm.config.get('unicode')
     const unstar = this.npm.config.get('star.unstar')
     const full = unicode ? '\u2605 ' : '(*)'
     const empty = unicode ? '\u2606 ' : '( )'

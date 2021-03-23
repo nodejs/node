@@ -5,6 +5,10 @@ const Table = require('cli-table3')
 
 const BaseCommand = require('./base-command.js')
 class Hook extends BaseCommand {
+  static get description () {
+    return 'Manage registry hooks'
+  }
+
   static get name () {
     return 'hook'
   }

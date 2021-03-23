@@ -8,7 +8,7 @@ const pacote = require('pacote')
 const npa = require('npm-package-arg')
 const npmFetch = require('npm-registry-fetch')
 
-const { flatten } = require('./utils/flat-options.js')
+const flatten = require('./utils/config/flatten.js')
 const otplease = require('./utils/otplease.js')
 const { getContents, logTar } = require('./utils/tar.js')
 
@@ -19,15 +19,24 @@ const readJson = util.promisify(require('read-package-json'))
 
 const BaseCommand = require('./base-command.js')
 class Publish extends BaseCommand {
+  static get description () {
+    return 'Publish a package'
+  }
+
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'publish'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return ['tag', 'access', 'dry-run']
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get usage () {
     return [
-      '[<folder>] [--tag <tag>] [--access <public|restricted>] [--dry-run]',
+      '[<folder>]',
     ]
   }
 
@@ -43,11 +52,15 @@ class Publish extends BaseCommand {
 
     log.verbose('publish', args)
 
-    const opts = { ...this.npm.flatOptions }
-    const { unicode, dryRun, json, defaultTag } = opts
+    const unicode = this.npm.config.get('unicode')
+    const dryRun = this.npm.config.get('dry-run')
+    const json = this.npm.config.get('json')
+    const defaultTag = this.npm.config.get('tag')
 
     if (semver.validRange(defaultTag))
       throw new Error('Tag name must not be a valid SemVer range: ' + defaultTag.trim())
+
+    const opts = { ...this.npm.flatOptions }
 
     // you can publish name@version, ./foo.tgz, etc.
     // even though the default is the 'file:.' cwd.
@@ -137,7 +150,8 @@ class Publish extends BaseCommand {
   publishConfigToOpts (publishConfig) {
     // create a new object that inherits from the config stack
     // then squash the css-case into camelCase opts, like we do
-    return flatten({...this.npm.config.list[0], ...publishConfig})
+    // this is Object.assign()'ed onto the base npm.flatOptions
+    return flatten(publishConfig, {})
   }
 }
 module.exports = Publish

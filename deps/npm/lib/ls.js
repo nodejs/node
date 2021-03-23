@@ -24,6 +24,11 @@ const BaseCommand = require('./base-command.js')
 
 class LS extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'List installed packages'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'ls'
   }
@@ -43,24 +48,22 @@ class LS extends BaseCommand {
   }
 
   async ls (args) {
-    const {
-      all,
-      color,
-      depth,
-      json,
-      long,
-      global,
-      parseable,
-      prefix,
-      unicode,
-    } = this.npm.flatOptions
-    const path = global ? resolve(this.npm.globalDir, '..') : prefix
+    const all = this.npm.config.get('all')
+    const color = !!this.npm.color
+    const depth = this.npm.config.get('depth')
     const dev = this.npm.config.get('dev')
     const development = this.npm.config.get('development')
+    const global = this.npm.config.get('global')
+    const json = this.npm.config.get('json')
     const link = this.npm.config.get('link')
+    const long = this.npm.config.get('long')
     const only = this.npm.config.get('only')
+    const parseable = this.npm.config.get('parseable')
     const prod = this.npm.config.get('prod')
     const production = this.npm.config.get('production')
+    const unicode = this.npm.config.get('unicode')
+
+    const path = global ? resolve(this.npm.globalDir, '..') : this.npm.prefix
 
     const arb = new Arborist({
       global,
