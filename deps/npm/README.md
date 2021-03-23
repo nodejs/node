@@ -28,6 +28,7 @@ If you're looking to manage multiple versions of **`node`** &/or **`npm`**, cons
 * [**`n`**](https://github.com/tj/n)
 * [**`volta`**](https://github.com/volta-cli/volta)
 * [**`nodenv`**](https://github.com/nodenv/nodenv)
+* [**`asdf-nodejs`**](https://github.com/asdf-vm/asdf-nodejs)
 
 ### Usage
 

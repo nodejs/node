@@ -38,7 +38,7 @@ We expect that every new feature or bug fix comes with corresponding tests that 
 **You can find out what the current test coverage percentage is by running...**
 
 ```bash
-$ npm run test-coverage
+$ npm run check-coverage
 ```
 
 ## Performance & Benchmarks

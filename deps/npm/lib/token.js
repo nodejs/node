@@ -10,6 +10,10 @@ const readUserInfo = require('./utils/read-user-info.js')
 
 const BaseCommand = require('./base-command.js')
 class Token extends BaseCommand {
+  static get description () {
+    return 'Manage your authentication tokens'
+  }
+
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'token'

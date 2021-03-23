@@ -141,11 +141,13 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#if-present">if-present</a></li><li><a href="#ignore-scripts">ignore-scripts</a></li><li><a href="#script-shell">script-shell</a></li><li><a href="#silent">silent</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#workspaces-support">Workspaces support</a></li><ul><li><a href="#filtering-workspaces">Filtering workspaces</a></li></ul><li><a href="#configuration">Configuration</a></li><ul><li><a href="#if-present">if-present</a></li><li><a href="#ignore-scripts">ignore-scripts</a></li><li><a href="#script-shell">script-shell</a></li><li><a href="#silent">silent</a></li><li><a href="#workspace">workspace</a></li><li><a href="#workspaces">workspaces</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
 <pre lang="bash"><code>npm run-script &lt;command&gt; [--if-present] [--silent] [-- &lt;args&gt;]
+npm run-script &lt;command&gt; [--workspace=&lt;workspace-name&gt;]
+npm run-script &lt;command&gt; [--workspaces]
 
 aliases: run, rum, urn
 </code></pre>
@@ -196,6 +198,45 @@ found in the <code>PATH</code>.</p>
 <p>If you try to run a script without having a <code>node_modules</code> directory and it
 fails, you will be given a warning to run <code>npm install</code>, just in case you’ve
 forgotten.</p>
+<h3 id="workspaces-support">Workspaces support</h3>
+<p>You may use the <code>workspace</code> or <code>workspaces</code> configs in order to run an
+arbitrary command from a package’s <code>"scripts"</code> object in the context of the
+specified workspaces. If no <code>"command"</code> is provided, it will list the available
+scripts for each of these configured workspaces.</p>
+<p>Given a project with configured workspaces, e.g:</p>
+<pre><code>.
++-- package.json
+`-- packages
+   +-- a
+   |   `-- package.json
+   +-- b
+   |   `-- package.json
+   `-- c
+       `-- package.json
+</code></pre>
+<p>Assuming the workspace configuration is properly set up at the root level
+<code>package.json</code> file. e.g:</p>
+<pre><code>{
+    "workspaces": [ "./packages/*" ]
+}
+</code></pre>
+<p>And that each of the configured workspaces has a configured <code>test</code> script,
+we can run tests in all of them using the <code>workspaces</code> config:</p>
+<pre><code>npm test --workspaces
+</code></pre>
+<h4 id="filtering-workspaces">Filtering workspaces</h4>
+<p>It’s also possible to run a script in a single workspace using the <code>workspace</code>
+config along with a name or directory path:</p>
+<pre><code>npm test --workspace=a
+</code></pre>
+<p>The <code>workspace</code> config can also be specified multiple times in order to run a
+specific script in the context of multiple workspaces. When defining values for
+the <code>workspace</code> config in the command line, it also possible to use <code>-w</code> as a
+shorthand, e.g:</p>
+<pre><code>npm test -w a -w b
+</code></pre>
+<p>This last command will run <code>test</code> in both <code>./packages/a</code> and <code>./packages/b</code>
+packages.</p>
 <h3 id="configuration">Configuration</h3>
 <h4 id="if-present">if-present</h4>
 <ul>
@@ -224,6 +265,29 @@ to <code>/bin/sh</code> on Unix, defaults to <code>env.comspec</code> or <code>c
 <li>Default: false</li>
 </ul>
 <p>You can use the <code>--silent</code> flag to prevent showing <code>npm ERR!</code> output on error.</p>
+<h4 id="workspace">workspace</h4>
+<ul>
+<li>Alias: <code>-w</code></li>
+<li>Type: Array</li>
+<li>Default: <code>[]</code></li>
+</ul>
+<p>Enable running scripts in the context of workspaces while also filtering by
+the provided names or paths provided.</p>
+<p>Valid values for the <code>workspace</code> config are either:</p>
+<ul>
+<li>Workspace names</li>
+<li>Path to a workspace directory</li>
+<li>Path to a parent workspace directory (will result to selecting all of the
+children workspaces)</li>
+</ul>
+<h4 id="workspaces">workspaces</h4>
+<ul>
+<li>Alias: <code>-ws</code></li>
+<li>Type: Boolean</li>
+<li>Default: <code>false</code></li>
+</ul>
+<p>Run scripts in the context of all configured workspaces for the current
+project.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../using-npm/scripts.html">npm scripts</a></li>

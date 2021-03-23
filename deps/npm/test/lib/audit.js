@@ -1,5 +1,6 @@
 const t = require('tap')
 const requireInject = require('require-inject')
+const mockNpm = require('../fixtures/mock-npm')
 
 t.test('should audit using Arborist', t => {
   let ARB_ARGS = null
@@ -9,15 +10,15 @@ t.test('should audit using Arborist', t => {
   let OUTPUT_CALLED = false
   let ARB_OBJ = null
 
-  const npm = {
+  const npm = mockNpm({
     prefix: 'foo',
-    flatOptions: {
+    config: {
       json: false,
     },
     output: () => {
       OUTPUT_CALLED = true
     },
-  }
+  })
   const Audit = requireInject('../../lib/audit.js', {
     'npm-audit-report': () => {
       AUDIT_REPORT_CALLED = true
@@ -65,13 +66,13 @@ t.test('should audit using Arborist', t => {
 })
 
 t.test('should audit - json', t => {
-  const npm = {
+  const npm = mockNpm({
     prefix: 'foo',
-    flatOptions: {
+    config: {
       json: true,
     },
     output: () => {},
-  }
+  })
 
   const Audit = requireInject('../../lib/audit.js', {
     'npm-audit-report': () => ({
@@ -98,9 +99,12 @@ t.test('report endpoint error', t => {
     t.test(`json=${json}`, t => {
       const OUTPUT = []
       const LOGS = []
-      const npm = {
+      const npm = mockNpm({
         prefix: 'foo',
         command: 'audit',
+        config: {
+          json,
+        },
         flatOptions: {
           json,
         },
@@ -110,7 +114,7 @@ t.test('report endpoint error', t => {
         output: (...msg) => {
           OUTPUT.push(msg)
         },
-      }
+      })
       const Audit = requireInject('../../lib/audit.js', {
         'npm-audit-report': () => {
           throw new Error('should not call audit report when there are errors')

@@ -10,6 +10,8 @@ description: Browse an installed package
 npm explore <pkg> [ -- <command>]
 ```
 
+Note: This command is unaware of workspaces.
+
 ### Description
 
 Spawn a subshell in the directory of the installed package specified.

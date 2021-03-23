@@ -6,6 +6,11 @@ const BaseCommand = require('./base-command.js')
 
 class Dedupe extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Reduce duplication in the package tree'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'dedupe'
   }
@@ -23,12 +28,13 @@ class Dedupe extends BaseCommand {
 
     const dryRun = this.npm.config.get('dry-run')
     const where = this.npm.prefix
-    const arb = new Arborist({
+    const opts = {
       ...this.npm.flatOptions,
       path: where,
       dryRun,
-    })
-    await arb.dedupe(this.npm.flatOptions)
+    }
+    const arb = new Arborist(opts)
+    await arb.dedupe(opts)
     await reifyFinish(this.npm, arb)
   }
 }

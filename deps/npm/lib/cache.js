@@ -7,6 +7,10 @@ const rimraf = promisify(require('rimraf'))
 const BaseCommand = require('./base-command.js')
 
 class Cache extends BaseCommand {
+  static get description () {
+    return 'Manipulates packages cache'
+  }
+
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'cache'
@@ -63,7 +67,7 @@ class Cache extends BaseCommand {
       throw new Error('npm cache clear does not accept arguments')
 
     const cachePath = path.join(this.npm.cache, '_cacache')
-    if (!this.npm.flatOptions.force) {
+    if (!this.npm.config.get('force')) {
       throw new Error(`As of npm@5, the npm cache self-heals from corruption issues
 by treating integrity mismatches as cache misses.  As a result,
 data extracted from the cache is guaranteed to be valid.  If you
@@ -100,7 +104,6 @@ with --force.`)
       throw Object.assign(new Error(usage), { code: 'EUSAGE' })
 
     log.silly('cache add', 'spec', spec)
-    const opts = { ...this.npm.flatOptions }
 
     // we ask pacote for the thing, and then just throw the data
     // away so that it tee-pipes it into the cache like it does
@@ -108,7 +111,7 @@ with --force.`)
     await pacote.tarball.stream(spec, stream => {
       stream.resume()
       return stream.promise()
-    }, opts)
+    }, this.npm.flatOptions)
   }
 
   async verify () {

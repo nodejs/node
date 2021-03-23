@@ -10,6 +10,8 @@ description: Search npm help documentation
 npm help-search <text>
 ```
 
+Note: This command is unaware of workspaces.
+
 ### Description
 
 This command will search the npm markdown documentation files for the terms

@@ -7,6 +7,10 @@ const libaccess = require('libnpmaccess')
 const BaseCommand = require('./base-command.js')
 
 class Deprecate extends BaseCommand {
+  static get description () {
+    return 'Deprecate a version of a package'
+  }
+
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'deprecate'

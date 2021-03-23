@@ -18,6 +18,8 @@ npm get [<key> [<key> ...]]
 alias: c
 ```
 
+Note: This command is unaware of workspaces.
+
 ### Description
 
 npm gets its config settings from the command line, environment

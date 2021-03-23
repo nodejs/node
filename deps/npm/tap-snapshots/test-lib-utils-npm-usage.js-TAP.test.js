@@ -6,44 +6,9 @@
  */
 'use strict'
 exports[`test/lib/utils/npm-usage.js TAP usage basic usage > must match snapshot 1`] = `
+npm <command>
 
-Usage: npm <command>
-
-npm install        install all the dependencies in your project
-npm install <foo>  add the <foo> dependency to your project
-npm test           run this project's tests
-npm run <foo>      run the script named <foo>
-npm <command> -h   quick help on <command>
-npm -l             display usage info for all commands
-npm help <term>    search for help on <term>
-npm help npm       more involved overview
-
-All commands:
-
-    access, adduser, audit, bin, bugs, cache, ci, completion,
-    config, dedupe, deprecate, diff, dist-tag, docs, doctor,
-    edit, exec, explain, explore, find-dupes, fund, get, help,
-    hook, init, install, install-ci-test, install-test, link,
-    ll, login, logout, ls, org, outdated, owner, pack, ping,
-    prefix, profile, prune, publish, rebuild, repo, restart,
-    root, run-script, search, set, set-script, shrinkwrap, star,
-    stars, start, stop, team, test, token, uninstall, unpublish,
-    unstar, update, version, view, whoami
-
-Specify configs in the ini-formatted file:
-    /some/config/file/.npmrc
-or on the command line via: npm <command> --key=value
-
-More configuration info: npm help config
-Configuration fields: npm help 7 config
-
-npm@{VERSION} {BASEDIR}
-
-`
-
-exports[`test/lib/utils/npm-usage.js TAP usage did you mean? > must match snapshot 1`] = `
-
-Usage: npm <command>
+Usage:
 
 npm install        install all the dependencies in your project
 npm install <foo>  add the <foo> dependency to your project
@@ -74,19 +39,12 @@ More configuration info: npm help config
 Configuration fields: npm help 7 config
 
 npm@{VERSION} {BASEDIR}
-
-`
-
-exports[`test/lib/utils/npm-usage.js TAP usage did you mean? > must match snapshot 2`] = `
-
-Did you mean one of these?
-    install
-    uninstall
 `
 
 exports[`test/lib/utils/npm-usage.js TAP usage set process.stdout.columns columns=0 > must match snapshot 1`] = `
+npm <command>
 
-Usage: npm <command>
+Usage:
 
 npm install        install all the dependencies in your project
 npm install <foo>  add the <foo> dependency to your project
@@ -117,12 +75,12 @@ More configuration info: npm help config
 Configuration fields: npm help 7 config
 
 npm@{VERSION} {BASEDIR}
-
 `
 
 exports[`test/lib/utils/npm-usage.js TAP usage set process.stdout.columns columns=90 > must match snapshot 1`] = `
+npm <command>
 
-Usage: npm <command>
+Usage:
 
 npm install        install all the dependencies in your project
 npm install <foo>  add the <foo> dependency to your project
@@ -153,12 +111,12 @@ More configuration info: npm help config
 Configuration fields: npm help 7 config
 
 npm@{VERSION} {BASEDIR}
-
 `
 
 exports[`test/lib/utils/npm-usage.js TAP usage with browser > must match snapshot 1`] = `
+npm <command>
 
-Usage: npm <command>
+Usage:
 
 npm install        install all the dependencies in your project
 npm install <foo>  add the <foo> dependency to your project
@@ -189,12 +147,12 @@ More configuration info: npm help config
 Configuration fields: npm help 7 config
 
 npm@{VERSION} {BASEDIR}
-
 `
 
 exports[`test/lib/utils/npm-usage.js TAP usage with long > must match snapshot 1`] = `
+npm <command>
 
-Usage: npm <command>
+Usage:
 
 npm install        install all the dependencies in your project
 npm install <foo>  add the <foo> dependency to your project
@@ -208,6 +166,8 @@ npm help npm       more involved overview
 All commands:
 
     access          npm access
+
+                    Set access level on published packages
 
                     Usage:
                     npm access public [<package>]
@@ -224,8 +184,13 @@ All commands:
 
     adduser         npm adduser
 
+                    Add a registry user account
+
                     Usage:
-                    npm adduser [--registry=url] [--scope=@orgname] [--always-auth]
+                    npm adduser
+
+                    Options:
+                    [--registry <registry>] [--scope <@scope>] [--always-auth]
 
                     aliases: login, add-user
 
@@ -233,20 +198,31 @@ All commands:
 
     audit           npm audit
 
+                    Run a security audit
+
                     Usage:
-                    npm audit [--json] [--production]
-                    npm audit fix [--force|--package-lock-only|--dry-run|--production|--only=(dev|prod)]
+                    npm audit [fix]
+
+                    Options:
+                    [--dry-run] [-f|--force] [--json] [--package-lock-only] [--production]
 
                     Run "npm help audit" for more info
 
     bin             npm bin
 
+                    Display npm bin folder
+
                     Usage:
-                    npm bin [-g]
+                    npm bin
+
+                    Options:
+                    [-g|--global]
 
                     Run "npm help bin" for more info
 
     bugs            npm bugs
+
+                    Report bugs for a package in a web browser
 
                     Usage:
                     npm bugs [<pkgname>]
@@ -256,6 +232,8 @@ All commands:
                     Run "npm help bugs" for more info
 
     cache           npm cache
+
+                    Manipulates packages cache
 
                     Usage:
                     npm cache add <tarball file>
@@ -270,6 +248,8 @@ All commands:
 
     ci              npm ci
 
+                    Install a project with a clean slate
+
                     Usage:
                     npm ci
 
@@ -279,7 +259,7 @@ All commands:
 
     completion      npm completion
 
-                    npm command completion script. save to ~/.bashrc or ~/.zshrc
+                    Tab Completion for npm
 
                     Usage:
                     npm completion
@@ -287,6 +267,8 @@ All commands:
                     Run "npm help completion" for more info
 
     config          npm config
+
+                    Manage the npm configuration files
 
                     Usage:
                     npm config set <key>=<value> [<key>=<value> ...]
@@ -301,6 +283,8 @@ All commands:
 
     dedupe          npm dedupe
 
+                    Reduce duplication in the package tree
+
                     Usage:
                     npm dedupe
 
@@ -310,12 +294,16 @@ All commands:
 
     deprecate       npm deprecate
 
+                    Deprecate a version of a package
+
                     Usage:
                     npm deprecate <pkg>[@<version>] <message>
 
                     Run "npm help deprecate" for more info
 
     diff            npm diff
+
+                    The registry diff command
 
                     Usage:
                     npm diff [...<paths>]
@@ -328,6 +316,8 @@ All commands:
 
     dist-tag        npm dist-tag
 
+                    Modify package distribution tags
+
                     Usage:
                     npm dist-tag add <pkg>@<version> [<tag>]
                     npm dist-tag rm <pkg> <tag>
@@ -337,11 +327,20 @@ All commands:
 
                     Run "npm help dist-tag" for more info
 
-    docs            npm docs [<pkgname> [<pkgname> ...]]
+    docs            npm docs
+
+                    Open documentation for a package in a web browser
+
+                    Usage:
+                    npm docs [<pkgname> [<pkgname> ...]]
 
                     alias: home
 
+                    Run "npm help docs" for more info
+
     doctor          npm doctor
+
+                    Check your npm environment
 
                     Usage:
                     npm doctor
@@ -350,6 +349,8 @@ All commands:
 
     edit            npm edit
 
+                    Edit an installed package
+
                     Usage:
                     npm edit <pkg>[/<subpkg>...]
 
@@ -357,7 +358,7 @@ All commands:
 
     exec            npm exec
 
-                    Run a command from a local or remote npm package.
+                    Run a command from a local or remote npm package
 
                     Usage:
                     npm exec -- <pkg>[@<version>] [args...]
@@ -371,6 +372,8 @@ All commands:
 
     explain         npm explain
 
+                    Explain installed packages
+
                     Usage:
                     npm explain <folder | specifier>
 
@@ -380,12 +383,16 @@ All commands:
 
     explore         npm explore
 
+                    Browse an installed package
+
                     Usage:
                     npm explore <pkg> [ -- <command>]
 
                     Run "npm help explore" for more info
 
     find-dupes      npm find-dupes
+
+                    Find duplication in the package tree
 
                     Usage:
                     npm find-dupes
@@ -394,12 +401,19 @@ All commands:
 
     fund            npm fund
 
+                    Retrieve funding information
+
                     Usage:
-                    npm fund [--json] [--browser] [--unicode] [[<@scope>/]<pkg> [--which=<fundingSourceNumber>]
+                    npm fund [[<@scope>/]<pkg>]
+
+                    Options:
+                    [--json] [--browser|--browser <browser>] [--unicode] [--which <fundingSourceNumber>]
 
                     Run "npm help fund" for more info
 
     get             npm get
+
+                    Get a value from the npm configuration
 
                     Usage:
                     npm get [<key> ...] (See \`npm config\`)
@@ -407,6 +421,8 @@ All commands:
                     Run "npm help get" for more info
 
     help            npm help
+
+                    Get help on npm
 
                     Usage:
                     npm help <term> [<terms..>]
@@ -417,6 +433,8 @@ All commands:
 
     hook            npm hook
 
+                    Manage registry hooks
+
                     Usage:
                     npm hook add <pkg> <url> <secret> [--type=<type>]
                     npm hook ls [pkg]
@@ -426,6 +444,8 @@ All commands:
                     Run "npm help hook" for more info
 
     init            npm init
+
+                    Create a package.json file
 
                     Usage:
                     npm init [--force|-f|--yes|-y|--scope]
@@ -438,6 +458,8 @@ All commands:
 
     install         npm install
 
+                    Install a package
+
                     Usage:
                     npm install [<@scope>/]<pkg>
                     npm install [<@scope>/]<pkg>@<tag>
@@ -448,13 +470,18 @@ All commands:
                     npm install <tarball file>
                     npm install <tarball url>
                     npm install <git:// url>
-                    npm install <github username>/<github project> [--save-prod|--save-dev|--save-optional|--save-peer] [--save-exact] [--no-save]
+                    npm install <github username>/<github project>
+
+                    Options:
+                    [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer] [-E|--save-exact]
 
                     aliases: i, in, ins, inst, insta, instal, isnt, isnta, isntal, add
 
                     Run "npm help install" for more info
 
     install-ci-test npm install-ci-test
+
+                    Install a project with a clean slate and run tests
 
                     Usage:
                     npm install-ci-test
@@ -464,6 +491,8 @@ All commands:
                     Run "npm help install-ci-test" for more info
 
     install-test    npm install-test
+
+                    Install package(s) and run tests
 
                     Usage:
                     npm install-test [<@scope>/]<pkg>
@@ -475,13 +504,18 @@ All commands:
                     npm install-test <tarball file>
                     npm install-test <tarball url>
                     npm install-test <git:// url>
-                    npm install-test <github username>/<github project> [--save-prod|--save-dev|--save-optional|--save-peer] [--save-exact] [--no-save]
+                    npm install-test <github username>/<github project>
+
+                    Options:
+                    [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer] [-E|--save-exact]
 
                     alias: it
 
                     Run "npm help install-test" for more info
 
     link            npm link
+
+                    Symlink a package folder
 
                     Usage:
                     npm link (in package dir)
@@ -493,6 +527,8 @@ All commands:
 
     ll              npm ll
 
+                    List installed packages
+
                     Usage:
                     npm ll [[<@scope>/]<pkg> ...]
 
@@ -502,8 +538,13 @@ All commands:
 
     login           npm adduser
 
+                    Add a registry user account
+
                     Usage:
-                    npm adduser [--registry=url] [--scope=@orgname] [--always-auth]
+                    npm adduser
+
+                    Options:
+                    [--registry <registry>] [--scope <@scope>] [--always-auth]
 
                     aliases: login, add-user
 
@@ -511,12 +552,19 @@ All commands:
 
     logout          npm logout
 
+                    Log out of the registry
+
                     Usage:
-                    npm logout [--registry=<url>] [--scope=<@scope>]
+                    npm logout
+
+                    Options:
+                    [--registry <registry>] [--scope <@scope>]
 
                     Run "npm help logout" for more info
 
     ls              npm ls
+
+                    List installed packages
 
                     Usage:
                     npm ls npm ls [[<@scope>/]<pkg> ...]
@@ -526,6 +574,8 @@ All commands:
                     Run "npm help ls" for more info
 
     org             npm org
+
+                    Manage orgs
 
                     Usage:
                     npm org set orgname username [developer | admin | owner]
@@ -538,12 +588,16 @@ All commands:
 
     outdated        npm outdated
 
+                    Check for outdated packages
+
                     Usage:
                     npm outdated [[<@scope>/]<pkg> ...]
 
                     Run "npm help outdated" for more info
 
     owner           npm owner
+
+                    Manage package owners
 
                     Usage:
                     npm owner add <user> [<@scope>/]<pkg>
@@ -556,21 +610,31 @@ All commands:
 
     pack            npm pack
 
+                    Create a tarball from a package
+
                     Usage:
-                    npm pack [[<@scope>/]<pkg>...] [--dry-run]
+                    npm pack [[<@scope>/]<pkg>...]
+
+                    Options:
+                    [--dry-run]
 
                     Run "npm help pack" for more info
 
     ping            npm ping
 
-                    ping registry
+                    Ping npm registry
 
                     Usage:
                     npm ping
 
+                    Options:
+                    [--registry <registry>]
+
                     Run "npm help ping" for more info
 
     prefix          npm prefix
+
+                    Display prefix
 
                     Usage:
                     npm prefix [-g]
@@ -578,6 +642,8 @@ All commands:
                     Run "npm help prefix" for more info
 
     profile         npm profile
+
+                    Change settings on your registry profile
 
                     Usage:
                     npm profile enable-2fa [auth-only|auth-and-writes]
@@ -589,19 +655,31 @@ All commands:
 
     prune           npm prune
 
+                    Remove extraneous packages
+
                     Usage:
-                    npm prune [[<@scope>/]<pkg>...] [--production]
+                    npm prune [[<@scope>/]<pkg>...]
+
+                    Options:
+                    [--production]
 
                     Run "npm help prune" for more info
 
     publish         npm publish
 
+                    Publish a package
+
                     Usage:
-                    npm publish [<folder>] [--tag <tag>] [--access <public|restricted>] [--dry-run]
+                    npm publish [<folder>]
+
+                    Options:
+                    [--tag <tag>] [--access <restricted|public>] [--dry-run]
 
                     Run "npm help publish" for more info
 
     rebuild         npm rebuild
+
+                    Rebuild a package
 
                     Usage:
                     npm rebuild [[<@scope>/]<name>[@<version>] ...]
@@ -612,12 +690,16 @@ All commands:
 
     repo            npm repo
 
+                    Open package repository page in the browser
+
                     Usage:
                     npm repo [<pkgname> [<pkgname> ...]]
 
                     Run "npm help repo" for more info
 
     restart         npm restart
+
+                    Restart a package
 
                     Usage:
                     npm restart [-- <args>]
@@ -626,12 +708,19 @@ All commands:
 
     root            npm root
 
+                    Display npm root
+
                     Usage:
-                    npm root [-g]
+                    npm root
+
+                    Options:
+                    [-g|--global]
 
                     Run "npm help root" for more info
 
     run-script      npm run-script
+
+                    Run arbitrary package scripts
 
                     Usage:
                     npm run-script <command> [-- <args>]
@@ -642,14 +731,21 @@ All commands:
 
     search          npm search
 
+                    Search for pacakges
+
                     Usage:
-                    npm search [-l|--long] [--json] [--parseable] [--no-description] [search terms ...]
+                    npm search [search terms ...]
+
+                    Options:
+                    [-l|--long] [--json] [-p|--parseable] [--no-description]
 
                     aliases: s, se, find
 
                     Run "npm help search" for more info
 
     set             npm set
+
+                    Set a value in the npm configuration
 
                     Usage:
                     npm set <key>=<value> [<key>=<value> ...] (See \`npm config\`)
@@ -658,12 +754,16 @@ All commands:
 
     set-script      npm set-script
 
+                    Set tasks in the scripts section of package.json
+
                     Usage:
                     npm set-script [<script>] [<command>]
 
                     Run "npm help set-script" for more info
 
     shrinkwrap      npm shrinkwrap
+
+                    Lock down dependency versions for publication
 
                     Usage:
                     npm shrinkwrap
@@ -672,12 +772,16 @@ All commands:
 
     star            npm star
 
+                    Mark your favorite packages
+
                     Usage:
                     npm star [<pkg>...]
 
                     Run "npm help star" for more info
 
     stars           npm stars
+
+                    View packages marked as favorites
 
                     Usage:
                     npm stars [<user>]
@@ -686,6 +790,8 @@ All commands:
 
     start           npm start
 
+                    Start a package
+
                     Usage:
                     npm start [-- <args>]
 
@@ -693,12 +799,16 @@ All commands:
 
     stop            npm stop
 
+                    Stop a package
+
                     Usage:
                     npm stop [-- <args>]
 
                     Run "npm help stop" for more info
 
     team            npm team
+
+                    Manage organization teams and team memberships
 
                     Usage:
                     npm team create <scope:team> [--otp <otpcode>]
@@ -711,6 +821,8 @@ All commands:
 
     test            npm test
 
+                    Test a package
+
                     Usage:
                     npm test [-- <args>]
 
@@ -719,6 +831,8 @@ All commands:
                     Run "npm help test" for more info
 
     token           npm token
+
+                    Manage your authentication tokens
 
                     Usage:
                     npm token list
@@ -729,14 +843,21 @@ All commands:
 
     uninstall       npm uninstall
 
+                    Remove a package
+
                     Usage:
-                    npm uninstall [<@scope>/]<pkg>[@<version>]... [-S|--save|--no-save]
+                    npm uninstall [<@scope>/]<pkg>...
+
+                    Options:
+                    [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer]
 
                     aliases: un, unlink, remove, rm, r
 
                     Run "npm help uninstall" for more info
 
     unpublish       npm unpublish
+
+                    Remove a package from the registry
 
                     Usage:
                     npm unpublish [<@scope>/]<pkg>[@<version>]
@@ -745,6 +866,8 @@ All commands:
 
     unstar          npm unstar
 
+                    Remove an item from your favorite packages
+
                     Usage:
                     npm unstar [<pkg>...]
 
@@ -752,14 +875,21 @@ All commands:
 
     update          npm update
 
+                    Update packages
+
                     Usage:
-                    npm update [-g] [<pkg>...]
+                    npm update [<pkg>...]
+
+                    Options:
+                    [-g|--global]
 
                     aliases: up, upgrade, udpate
 
                     Run "npm help update" for more info
 
     version         npm version
+
+                    Bump a package version
 
                     Usage:
                     npm version [<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease [--preid=<prerelease-id>] | from-git]
@@ -770,6 +900,8 @@ All commands:
 
     view            npm view
 
+                    View registry info
+
                     Usage:
                     npm view [<@scope>/]<pkg>[@<version>] [<field>[.subfield]...]
 
@@ -779,10 +911,13 @@ All commands:
 
     whoami          npm whoami
 
-                    prints username according to given registry
+                    Display npm username
 
                     Usage:
-                    npm whoami [--registry <registry>]
+                    npm whoami
+
+                    Options:
+                    [--registry <registry>]
 
                     Run "npm help whoami" for more info
 
@@ -794,5 +929,4 @@ More configuration info: npm help config
 Configuration fields: npm help 7 config
 
 npm@{VERSION} {BASEDIR}
-
 `

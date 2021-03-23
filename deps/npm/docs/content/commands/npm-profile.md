@@ -14,6 +14,8 @@ npm profile enable-2fa [auth-and-writes|auth-only]
 npm profile disable-2fa
 ```
 
+Note: This command is unaware of workspaces.
+
 ### Description
 
 Change your profile information on the registry.  Note that this command

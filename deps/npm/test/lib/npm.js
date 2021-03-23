@@ -42,7 +42,7 @@ const npmlog = require('npmlog')
 
 const npmPath = resolve(__dirname, '..', '..')
 const Config = require('@npmcli/config')
-const { types, defaults, shorthands } = require('../../lib/utils/config.js')
+const { definitions, shorthands, flatten } = require('../../lib/utils/config')
 const freshConfig = (opts = {}) => {
   for (const env of Object.keys(process.env).filter(e => /^npm_/.test(e)))
     delete process.env[env]
@@ -50,12 +50,12 @@ const freshConfig = (opts = {}) => {
   process.env.npm_config_cache = CACHE
 
   npm.config = new Config({
-    types,
-    defaults,
+    definitions,
     shorthands,
     npmPath,
     log: npmlog,
     ...opts,
+    flatten,
   })
 }
 
@@ -145,6 +145,7 @@ t.test('npm.load', t => {
 
     t.equal(npm.loading, false, 'not loading yet')
     const p = npm.load(first).then(() => {
+      t.ok(npm.usage, 'has usage')
       npm.config.set('prefix', dir)
       t.match(npm, {
         loaded: true,
@@ -160,7 +161,7 @@ t.test('npm.load', t => {
       npm.load(third)
       t.equal(thirdCalled, true, 'third callbback got called')
       t.match(logs, [
-        ['timing', 'npm:load', /Completed in [0-9]+ms/],
+        ['timing', 'npm:load', /Completed in [0-9.]+ms/],
       ])
       logs.length = 0
 
@@ -289,6 +290,11 @@ t.test('npm.load', t => {
       t.equal(npm.config.get('scope'), '@foo', 'added the @ sign to scope')
       t.match(logs.filter(l => l[0] !== 'timing' || !/^config:/.test(l[1])), [
         [
+          'timing',
+          'npm:load:whichnode',
+          /Completed in [0-9.]+ms/,
+        ],
+        [
           'verbose',
           'node symlink',
           resolve(dir, 'bin', node),
@@ -296,7 +302,7 @@ t.test('npm.load', t => {
         [
           'timing',
           'npm:load',
-          /Completed in [0-9]+ms/,
+          /Completed in [0-9.]+ms/,
         ],
       ])
       logs.length = 0
@@ -306,6 +312,9 @@ t.test('npm.load', t => {
     await npm.commands.ll([], (er) => {
       if (er)
         throw er
+
+      t.equal(npm.command, 'll', 'command set to first npm command')
+      t.equal(npm.flatOptions.npmCommand, 'll', 'npmCommand flatOption set')
 
       t.same(consoleLogs, [[npm.commands.ll.usage]], 'print usage')
       consoleLogs.length = 0
@@ -318,6 +327,9 @@ t.test('npm.load', t => {
       if (er)
         throw er
 
+      t.strictSame([npm.command, npm.flatOptions.npmCommand], ['ll', 'll'],
+        'does not change npm.command when another command is called')
+
       t.match(logs, [
         [
           'error',
@@ -328,12 +340,12 @@ t.test('npm.load', t => {
         [
           'timing',
           'command:config',
-          /Completed in [0-9]+ms/,
+          /Completed in [0-9.]+ms/,
         ],
         [
           'timing',
           'command:get',
-          /Completed in [0-9]+ms/,
+          /Completed in [0-9.]+ms/,
         ],
       ])
       t.same(consoleLogs, [['scope=@foo\n\u2010not-a-dash=undefined']])
@@ -341,6 +353,84 @@ t.test('npm.load', t => {
 
     // need this here or node 10 will improperly end the promise ahead of time
     await new Promise((res) => setTimeout(res))
+  })
+
+  t.test('workpaces-aware configs and commands', async t => {
+    const dir = t.testdir({
+      packages: {
+        a: {
+          'package.json': JSON.stringify({
+            name: 'a',
+            version: '1.0.0',
+            scripts: { test: 'echo test a' },
+          }),
+        },
+        b: {
+          'package.json': JSON.stringify({
+            name: 'b',
+            version: '1.0.0',
+            scripts: { test: 'echo test b' },
+          }),
+        },
+      },
+      'package.json': JSON.stringify({
+        name: 'root',
+        version: '1.0.0',
+        workspaces: ['./packages/*'],
+      }),
+      '.npmrc': '',
+    })
+
+    const { log } = console
+    const consoleLogs = []
+    console.log = (...msg) => consoleLogs.push(msg)
+
+    const { execPath } = process
+    t.teardown(() => {
+      console.log = log
+    })
+
+    freshConfig({
+      argv: [
+        execPath,
+        process.argv[1],
+        '--userconfig',
+        resolve(dir, '.npmrc'),
+        '--color',
+        'false',
+        '--workspaces',
+        'true',
+      ],
+    })
+
+    await npm.load(er => {
+      if (er)
+        throw er
+    })
+
+    npm.localPrefix = dir
+
+    await new Promise((res, rej) => {
+      npm.commands['run-script']([], er => {
+        if (er)
+          rej(er)
+
+        t.match(
+          consoleLogs,
+          [
+            ['Lifecycle scripts included in a@1.0.0:'],
+            ['  test\n    echo test a'],
+            [''],
+            ['Lifecycle scripts included in b@1.0.0:'],
+            ['  test\n    echo test b'],
+            [''],
+          ],
+          'should exec workspaces version of commands'
+        )
+
+        res()
+      })
+    })
   })
 
   t.end()

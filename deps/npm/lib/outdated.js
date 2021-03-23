@@ -14,6 +14,11 @@ const BaseCommand = require('./base-command.js')
 
 class Outdated extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Check for outdated packages'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'outdated'
   }
@@ -28,15 +33,13 @@ class Outdated extends BaseCommand {
   }
 
   async outdated (args) {
-    this.opts = this.npm.flatOptions
-
     const global = path.resolve(this.npm.globalDir, '..')
-    const where = this.opts.global
+    const where = this.npm.config.get('global')
       ? global
       : this.npm.prefix
 
     const arb = new Arborist({
-      ...this.opts,
+      ...this.npm.flatOptions,
       path: where,
     })
 
@@ -51,7 +54,7 @@ class Outdated extends BaseCommand {
         this.getEdges(nodes, 'edgesIn')
       }
     } else {
-      if (this.opts.all) {
+      if (this.npm.config.get('all')) {
         // all deps in tree
         const nodes = this.tree.inventory.values()
         this.getEdges(nodes, 'edgesOut')
@@ -68,13 +71,13 @@ class Outdated extends BaseCommand {
     const outdated = this.list.sort((a, b) => a.name.localeCompare(b.name))
 
     // return if no outdated packages
-    if (outdated.length === 0 && !this.opts.json)
+    if (outdated.length === 0 && !this.npm.config.get('json'))
       return
 
     // display results
-    if (this.opts.json)
+    if (this.npm.config.get('json'))
       this.npm.output(this.makeJSON(outdated))
-    else if (this.opts.parseable)
+    else if (this.npm.config.get('parseable'))
       this.npm.output(this.makeParseable(outdated))
     else {
       const outList = outdated.map(x => this.makePretty(x))
@@ -86,11 +89,11 @@ class Outdated extends BaseCommand {
         'Depended by',
       ]
 
-      if (this.opts.long)
+      if (this.npm.config.get('long'))
         outHead.push('Package Type', 'Homepage')
       const outTable = [outHead].concat(outList)
 
-      if (this.opts.color)
+      if (this.npm.color)
         outTable[0] = outTable[0].map(heading => styles.underline(heading))
 
       const tableOpts = {
@@ -117,7 +120,7 @@ class Outdated extends BaseCommand {
   }
 
   getEdgesOut (node) {
-    if (this.opts.global) {
+    if (this.npm.config.get('global')) {
       for (const child of node.children.values())
         this.edges.add(child)
     } else {
@@ -129,7 +132,7 @@ class Outdated extends BaseCommand {
   async getPackument (spec) {
     const packument = await pacote.packument(spec, {
       ...this.npm.flatOptions,
-      fullMetadata: this.npm.flatOptions.long,
+      fullMetadata: this.npm.config.get('long'),
       preferOnline: true,
     })
     return packument
@@ -146,7 +149,7 @@ class Outdated extends BaseCommand {
       : edge.dev ? 'devDependencies'
       : 'dependencies'
 
-    for (const omitType of this.opts.omit || []) {
+    for (const omitType of this.npm.config.get('omit') || []) {
       if (node[omitType])
         return
     }
@@ -213,12 +216,12 @@ class Outdated extends BaseCommand {
 
     const columns = [name, current, wanted, latest, location, dependent]
 
-    if (this.opts.long) {
+    if (this.npm.config.get('long')) {
       columns[6] = type
       columns[7] = homepage
     }
 
-    if (this.opts.color) {
+    if (this.npm.color) {
       columns[0] = color[current === wanted ? 'yellow' : 'red'](columns[0]) // current
       columns[2] = color.green(columns[2]) // wanted
       columns[3] = color.magenta(columns[3]) // latest
@@ -248,7 +251,7 @@ class Outdated extends BaseCommand {
         name + '@' + latest,
         dependent,
       ]
-      if (this.opts.long)
+      if (this.npm.config.get('long'))
         out.push(type, homepage)
 
       return out.join(':')
@@ -275,7 +278,7 @@ class Outdated extends BaseCommand {
         dependent,
         location: path,
       }
-      if (this.opts.long) {
+      if (this.npm.config.get('long')) {
         out[name].type = type
         out[name].homepage = homepage
       }
