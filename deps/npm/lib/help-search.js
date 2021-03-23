@@ -1,15 +1,16 @@
 const fs = require('fs')
 const path = require('path')
 const color = require('ansicolors')
-const npmUsage = require('./utils/npm-usage.js')
 const { promisify } = require('util')
 const glob = promisify(require('glob'))
 const readFile = promisify(fs.readFile)
-const didYouMean = require('./utils/did-you-mean.js')
-const { cmdList } = require('./utils/cmd-list.js')
 const BaseCommand = require('./base-command.js')
 
 class HelpSearch extends BaseCommand {
+  static get description () {
+    return 'Search npm help documentation'
+  }
+
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'help-search'
@@ -26,28 +27,17 @@ class HelpSearch extends BaseCommand {
 
   async helpSearch (args) {
     if (!args.length)
-      throw this.usage
+      return this.npm.output(this.usage)
 
     const docPath = path.resolve(__dirname, '..', 'docs/content')
-
     const files = await glob(`${docPath}/*/*.md`)
     const data = await this.readFiles(files)
     const results = await this.searchFiles(args, data, files)
-    // if only one result, then just show that help section.
-    if (results.length === 1) {
-      return this.npm.commands.help([path.basename(results[0].file, '.md')], er => {
-        if (er)
-          throw er
-      })
-    }
-
     const formatted = this.formatResults(args, results)
     if (!formatted.trim())
-      npmUsage(this.npm, false)
-    else {
+      this.npm.output(`No matches in help for: ${args.join(' ')}\n`)
+    else
       this.npm.output(formatted)
-      this.npm.output(didYouMean(args[0], cmdList))
-    }
   }
 
   async readFiles (files) {
@@ -166,7 +156,7 @@ class HelpSearch extends BaseCommand {
       out.push(' '.repeat((Math.max(1, cols - out.join(' ').length - r.length - 1))))
       out.push(r)
 
-      if (!this.npm.flatOptions.long)
+      if (!this.npm.config.get('long'))
         return out.join('')
 
       out.unshift('\n\n')
@@ -198,7 +188,7 @@ class HelpSearch extends BaseCommand {
       return out.join('')
     }).join('\n')
 
-    const finalOut = results.length && !this.npm.flatOptions.long
+    const finalOut = results.length && !this.npm.config.get('long')
       ? 'Top hits for ' + (args.map(JSON.stringify).join(' ')) + '\n' +
       '—'.repeat(cols - 1) + '\n' +
       out + '\n' +

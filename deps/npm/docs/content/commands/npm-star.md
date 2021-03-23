@@ -10,6 +10,8 @@ description: Mark your favorite packages
 npm star [<pkg>...]
 ```
 
+Note: This command is unaware of workspaces.
+
 ### Description
 
 "Starring" a package means that you have some interest in it.  It's

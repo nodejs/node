@@ -1,17 +1,9 @@
 const requireInject = require('require-inject')
+const mockNpm = require('../fixtures/mock-npm')
 const { test } = require('tap')
 
-let prefix
 let result = ''
 let log = ''
-
-// these declared opts are used in ./utils/read-local-package.js
-const _flatOptions = {
-  global: false,
-  get prefix () {
-    return prefix
-  },
-}
 
 const routeMap = {
   '/-/package/@scoped%2fpkg/dist-tags': {
@@ -60,20 +52,18 @@ const DistTag = requireInject('../../lib/dist-tag.js', {
   },
 })
 
-const distTag = new DistTag({
-  flatOptions: _flatOptions,
+const npm = mockNpm({
   config: {
-    get (key) {
-      return _flatOptions[key]
-    },
+    global: false,
   },
   output: msg => {
     result = msg
   },
 })
+const distTag = new DistTag(npm)
 
 test('ls in current package', (t) => {
-  prefix = t.testdir({
+  npm.prefix = t.testdir({
     'package.json': JSON.stringify({
       name: '@scoped/pkg',
     }),
@@ -91,7 +81,7 @@ test('ls in current package', (t) => {
 })
 
 test('no args in current package', (t) => {
-  prefix = t.testdir({
+  npm.prefix = t.testdir({
     'package.json': JSON.stringify({
       name: '@scoped/pkg',
     }),
@@ -109,7 +99,7 @@ test('no args in current package', (t) => {
 })
 
 test('borked cmd usage', (t) => {
-  prefix = t.testdir({})
+  npm.prefix = t.testdir({})
   distTag.exec(['borked', '@scoped/pkg'], (err) => {
     t.matchSnapshot(err, 'should show usage error')
     result = ''
@@ -119,7 +109,7 @@ test('borked cmd usage', (t) => {
 })
 
 test('ls on named package', (t) => {
-  prefix = t.testdir({})
+  npm.prefix = t.testdir({})
   distTag.exec(['ls', '@scoped/another'], (err) => {
     t.ifError(err, 'npm dist-tags ls')
     t.matchSnapshot(
@@ -133,7 +123,7 @@ test('ls on named package', (t) => {
 })
 
 test('ls on missing package', (t) => {
-  prefix = t.testdir({})
+  npm.prefix = t.testdir({})
   distTag.exec(['ls', 'foo'], (err) => {
     t.matchSnapshot(
       log,
@@ -150,7 +140,7 @@ test('ls on missing package', (t) => {
 })
 
 test('ls on missing name in current package', (t) => {
-  prefix = t.testdir({
+  npm.prefix = t.testdir({
     'package.json': JSON.stringify({
       version: '1.0.0',
     }),
@@ -167,7 +157,7 @@ test('ls on missing name in current package', (t) => {
 })
 
 test('only named package arg', (t) => {
-  prefix = t.testdir({})
+  npm.prefix = t.testdir({})
   distTag.exec(['@scoped/another'], (err) => {
     t.ifError(err, 'npm dist-tags ls')
     t.matchSnapshot(
@@ -186,7 +176,7 @@ test('add new tag', (t) => {
     t.equal(opts.method, 'PUT', 'should trigger request to add new tag')
     t.equal(opts.body, '7.7.7', 'should point to expected version')
   }
-  prefix = t.testdir({})
+  npm.prefix = t.testdir({})
   distTag.exec(['add', '@scoped/another@7.7.7', 'c'], (err) => {
     t.ifError(err, 'npm dist-tags add')
     t.matchSnapshot(
@@ -201,7 +191,7 @@ test('add new tag', (t) => {
 })
 
 test('add using valid semver range as name', (t) => {
-  prefix = t.testdir({})
+  npm.prefix = t.testdir({})
   distTag.exec(['add', '@scoped/another@7.7.7', '1.0.0'], (err) => {
     t.match(
       err,
@@ -219,7 +209,7 @@ test('add using valid semver range as name', (t) => {
 })
 
 test('add missing args', (t) => {
-  prefix = t.testdir({})
+  npm.prefix = t.testdir({})
   distTag.exec(['add', '@scoped/another@7.7.7'], (err) => {
     t.matchSnapshot(err, 'should exit usage error message')
     result = ''
@@ -229,7 +219,7 @@ test('add missing args', (t) => {
 })
 
 test('add missing pkg name', (t) => {
-  prefix = t.testdir({})
+  npm.prefix = t.testdir({})
   distTag.exec(['add', null], (err) => {
     t.matchSnapshot(err, 'should exit usage error message')
     result = ''
@@ -239,7 +229,7 @@ test('add missing pkg name', (t) => {
 })
 
 test('set existing version', (t) => {
-  prefix = t.testdir({})
+  npm.prefix = t.testdir({})
   distTag.exec(['set', '@scoped/another@0.6.0', 'b'], (err) => {
     t.ifError(err, 'npm dist-tags set')
     t.matchSnapshot(
@@ -256,7 +246,7 @@ test('remove existing tag', (t) => {
   npmRegistryFetchMock = async (url, opts) => {
     t.equal(opts.method, 'DELETE', 'should trigger request to remove tag')
   }
-  prefix = t.testdir({})
+  npm.prefix = t.testdir({})
   distTag.exec(['rm', '@scoped/another', 'c'], (err) => {
     t.ifError(err, 'npm dist-tags rm')
     t.matchSnapshot(log, 'should log remove info')
@@ -269,7 +259,7 @@ test('remove existing tag', (t) => {
 })
 
 test('remove non-existing tag', (t) => {
-  prefix = t.testdir({})
+  npm.prefix = t.testdir({})
   distTag.exec(['rm', '@scoped/another', 'nonexistent'], (err) => {
     t.match(
       err,
@@ -284,7 +274,7 @@ test('remove non-existing tag', (t) => {
 })
 
 test('remove missing pkg name', (t) => {
-  prefix = t.testdir({})
+  npm.prefix = t.testdir({})
   distTag.exec(['rm', null], (err) => {
     t.matchSnapshot(err, 'should exit usage error message')
     result = ''

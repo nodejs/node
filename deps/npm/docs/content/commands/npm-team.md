@@ -16,6 +16,8 @@ npm team rm <scope:team> <user>
 npm team ls <scope>|<scope:team>
 ```
 
+Note: This command is unaware of workspaces.
+
 ### Description
 
 Used to manage teams in organizations, and change team memberships. Does not

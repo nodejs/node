@@ -8,6 +8,10 @@ const readLocalPkg = require('./utils/read-local-package.js')
 const BaseCommand = require('./base-command.js')
 
 class Owner extends BaseCommand {
+  static get description () {
+    return 'Manage package owners'
+  }
+
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'owner'

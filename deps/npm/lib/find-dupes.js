@@ -3,6 +3,11 @@ const BaseCommand = require('./base-command.js')
 
 class FindDupes extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Find duplication in the package tree'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'find-dupes'
   }

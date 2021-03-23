@@ -1,13 +1,22 @@
-const npmUsage = require('./utils/npm-usage.js')
 const { spawn } = require('child_process')
 const path = require('path')
-const log = require('npmlog')
 const openUrl = require('./utils/open-url.js')
-const glob = require('glob')
+const { promisify } = require('util')
+const glob = promisify(require('glob'))
 
 const BaseCommand = require('./base-command.js')
 
+// Strips out the number from foo.7 or foo.7. or foo.7.tgz
+// We don't currently compress our man pages but if we ever did this would
+// seemlessly continue supporting it
+const manNumberRegex = /\.(\d+)(\..*)?$/
+
 class Help extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Get help on npm'
+  }
+
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'help'
@@ -22,13 +31,7 @@ class Help extends BaseCommand {
     if (opts.conf.argv.remain.length > 2)
       return []
     const g = path.resolve(__dirname, '../man/man[0-9]/*.[0-9]')
-    const files = await new Promise((resolve, reject) => {
-      glob(g, function (er, files) {
-        if (er)
-          return reject(er)
-        resolve(files)
-      })
-    })
+    const files = await glob(g)
 
     return Object.keys(files.reduce(function (acc, file) {
       file = path.basename(file).replace(/\.[0-9]+$/, '')
@@ -43,81 +46,45 @@ class Help extends BaseCommand {
   }
 
   async help (args) {
-    const argv = this.npm.config.parsedArgv.cooked
+    // By default we search all of our man subdirectories, but if the user has
+    // asked for a specific one we limit the search to just there
+    let manSearch = 'man*'
+    if (/^\d+$/.test(args[0]))
+      manSearch = `man${args.shift()}`
 
-    let argnum = 0
-    if (args.length === 2 && ~~args[0])
-      argnum = ~~args.shift()
+    if (!args.length)
+      return this.npm.output(this.npm.usage)
 
     // npm help foo bar baz: search topics
-    if (args.length > 1 && args[0])
+    if (args.length > 1)
       return this.helpSearch(args)
 
-    const affordances = {
-      'find-dupes': 'dedupe',
-    }
-    let section = affordances[args[0]] || this.npm.deref(args[0]) || args[0]
+    let section = this.npm.deref(args[0]) || args[0]
 
-    // npm help <noargs>:  show basic usage
-    if (!section) {
-      npmUsage(this.npm, argv[0] === 'help')
-      return
-    }
+    // support `npm help package.json`
+    section = section.replace('.json', '-json')
 
-    // npm <command> -h: show command usage
-    if (this.npm.config.get('usage') &&
-      this.npm.commands[section] &&
-      this.npm.commands[section].usage) {
-      this.npm.config.set('loglevel', 'silent')
-      log.level = 'silent'
-      this.npm.output(this.npm.commands[section].usage)
-      return
-    }
-
-    let pref = [1, 5, 7]
-    if (argnum)
-      pref = [argnum].concat(pref.filter(n => n !== argnum))
-
-    // npm help <section>: Try to find the path
     const manroot = path.resolve(__dirname, '..', 'man')
+    // find either section.n or npm-section.n
+    const f = `${manroot}/${manSearch}/?(npm-)${section}.[0-9]*`
+    let mans = await glob(f)
+    mans = mans.sort((a, b) => {
+      // Because of the glob we know the manNumberRegex will pass
+      const aManNumber = a.match(manNumberRegex)[1]
+      const bManNumber = b.match(manNumberRegex)[1]
 
-    // legacy
-    if (section === 'global')
-      section = 'folders'
-    else if (section.match(/.*json/))
-      section = section.replace('.json', '-json')
+      // man number sort first so that 1 aka commands are preferred
+      if (aManNumber !== bManNumber)
+        return aManNumber - bManNumber
 
-    // find either /section.n or /npm-section.n
-    // The glob is used in the glob.  The regexp is used much
-    // further down.  Globs and regexps are different
-    const compextglob = '.+(gz|bz2|lzma|[FYzZ]|xz)'
-    const compextre = '\\.(gz|bz2|lzma|[FYzZ]|xz)$'
-    const f = '+(npm-' + section + '|' + section + ').[0-9]?(' + compextglob + ')'
-    return new Promise((resolve, reject) => {
-      glob(manroot + '/*/' + f, async (er, mans) => {
-        if (er)
-          return reject(er)
-
-        if (!mans.length) {
-          this.helpSearch(args).then(resolve).catch(reject)
-          return
-        }
-
-        mans = mans.map((man) => {
-          const ext = path.extname(man)
-          if (man.match(new RegExp(compextre)))
-            man = path.basename(man, ext)
-
-          return man
-        })
-
-        this.viewMan(this.pickMan(mans, pref), (err) => {
-          if (err)
-            return reject(err)
-          return resolve()
-        })
-      })
+      return a.localeCompare(b)
     })
+    const man = mans[0]
+
+    if (man)
+      await this.viewMan(man)
+    else
+      return this.helpSearch(args)
   }
 
   helpSearch (args) {
@@ -133,32 +100,11 @@ class Help extends BaseCommand {
     })
   }
 
-  pickMan (mans, pref_) {
-    const nre = /([0-9]+)$/
-    const pref = {}
-    pref_.forEach((sect, i) => pref[sect] = i)
-    mans = mans.sort((a, b) => {
-      const an = a.match(nre)[1]
-      const bn = b.match(nre)[1]
-      return an === bn ? (a > b ? -1 : 1)
-        : pref[an] < pref[bn] ? -1
-        : 1
-    })
-    return mans[0]
-  }
-
-  viewMan (man, cb) {
-    const nre = /([0-9]+)$/
-    const num = man.match(nre)[1]
-    const section = path.basename(man, '.' + num)
-
-    // at this point, we know that the specified man page exists
-    const manpath = path.join(__dirname, '..', 'man')
+  async viewMan (man) {
     const env = {}
     Object.keys(process.env).forEach(function (i) {
       env[i] = process.env[i]
     })
-    env.MANPATH = manpath
     const viewer = this.npm.config.get('viewer')
 
     const opts = {
@@ -175,48 +121,39 @@ class Help extends BaseCommand {
         break
 
       case 'browser':
-        bin = false
-        try {
-          const url = this.htmlMan(man)
-          openUrl(this.npm, url, 'help available at the following URL').then(
-            () => cb()
-          ).catch(cb)
-        } catch (err) {
-          cb(err)
-        }
-        break
+        await openUrl(this.npm, this.htmlMan(man), 'help available at the following URL')
+        return
 
       default:
-        args.push(num, section)
+        args.push(man)
         break
     }
 
-    if (bin) {
-      const proc = spawn(bin, args, opts)
+    const proc = spawn(bin, args, opts)
+    return new Promise((resolve, reject) => {
       proc.on('exit', (code) => {
         if (code)
-          return cb(new Error(`help process exited with code: ${code}`))
+          return reject(new Error(`help process exited with code: ${code}`))
 
-        return cb()
+        return resolve()
       })
-    }
+    })
   }
 
+  // Returns the path to the html version of the man page
   htmlMan (man) {
-    let sect = +man.match(/([0-9]+)$/)[1]
-    const f = path.basename(man).replace(/[.]([0-9]+)$/, '')
+    let sect = man.match(manNumberRegex)[1]
+    const f = path.basename(man).replace(manNumberRegex, '')
     switch (sect) {
-      case 1:
+      case '1':
         sect = 'commands'
         break
-      case 5:
+      case '5':
         sect = 'configuring-npm'
         break
-      case 7:
+      case '7':
         sect = 'using-npm'
         break
-      default:
-        throw new Error('invalid man section: ' + sect)
     }
     return 'file://' + path.resolve(__dirname, '..', 'docs', 'output', sect, f + '.html')
   }

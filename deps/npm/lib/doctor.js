@@ -11,7 +11,7 @@ const { promisify } = require('util')
 const ansiTrim = require('./utils/ansi-trim.js')
 const isWindows = require('./utils/is-windows.js')
 const ping = require('./utils/ping.js')
-const { defaults: { registry: defaultRegistry } } = require('./utils/config.js')
+const { registry: { default: defaultRegistry } } = require('./utils/config/definitions.js')
 const lstat = promisify(fs.lstat)
 const readdir = promisify(fs.readdir)
 const access = promisify(fs.access)
@@ -32,6 +32,11 @@ const maskLabel = mask => {
 
 const BaseCommand = require('./base-command.js')
 class Doctor extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Check your npm environment'
+  }
+
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'doctor'

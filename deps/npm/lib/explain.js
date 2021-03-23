@@ -8,6 +8,10 @@ const validName = require('validate-npm-package-name')
 const BaseCommand = require('./base-command.js')
 
 class Explain extends BaseCommand {
+  static get description () {
+    return 'Explain installed packages'
+  }
+
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'explain'

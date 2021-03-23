@@ -10,6 +10,8 @@ description: Display prefix
 npm prefix [-g]
 ```
 
+Note: This command is unaware of workspaces.
+
 ### Description
 
 Print the local prefix to standard output. This is the closest parent directory

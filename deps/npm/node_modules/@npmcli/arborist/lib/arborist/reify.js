@@ -890,7 +890,7 @@ module.exports = cls => class Reifier extends cls {
       const root = this.idealTree
       const pkg = root.package
       for (const { name } of this[_resolvedAdd]) {
-        const req = npa(root.edgesOut.get(name).spec, root.realpath)
+        const req = npa.resolve(name, root.edgesOut.get(name).spec, root.realpath)
         const {rawSpec, subSpec} = req
 
         const spec = subSpec ? subSpec.rawSpec : rawSpec

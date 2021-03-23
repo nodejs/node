@@ -20,6 +20,11 @@ const readJson = async file => jsonParse(await readFile(file, 'utf8'))
 const BaseCommand = require('./base-command.js')
 class View extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'View registry info'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'view'
   }
@@ -41,9 +46,9 @@ class View extends BaseCommand {
       fullMetadata: true,
       preferOnline: true,
     }
-    const { defaultTag } = config
     const spec = npa(opts.conf.argv.remain[2])
     const pckmnt = await packument(spec, config)
+    const defaultTag = this.npm.config.get('tag')
     const dv = pckmnt.versions[pckmnt['dist-tags'][defaultTag]]
     pckmnt.versions = Object.keys(pckmnt.versions).sort(semver.compareLoose)
 
@@ -99,7 +104,7 @@ class View extends BaseCommand {
     const name = nv.name
     const local = (name === '.' || !name)
 
-    if (opts.global && local)
+    if (this.npm.config.get('global') && local)
       throw new Error('Cannot use view command in global mode.')
 
     if (local) {
@@ -114,7 +119,7 @@ class View extends BaseCommand {
     }
 
     // get the data about this package
-    let version = nv.rawSpec || this.npm.flatOptions.defaultTag
+    let version = nv.rawSpec || this.npm.config.get('tag')
 
     const pckmnt = await packument(nv, opts)
 
@@ -159,42 +164,43 @@ class View extends BaseCommand {
     }
 
     if (
-      !opts.json &&
+      !this.npm.config.get('json') &&
       args.length === 1 &&
       args[0] === ''
     ) {
       // general view
       pckmnt.version = version
       await Promise.all(
-        results.map((v) => this.prettyView(pckmnt, v[Object.keys(v)[0]][''], opts))
+        results.map((v) => this.prettyView(pckmnt, v[Object.keys(v)[0]]['']))
       )
       return retval
     } else {
       // view by field name
-      await this.printData(retval, pckmnt._id, opts)
+      await this.printData(retval, pckmnt._id)
       return retval
     }
   }
 
-  async printData (data, name, opts) {
+  async printData (data, name) {
     const versions = Object.keys(data)
     let msg = ''
     let msgJson = []
     const includeVersions = versions.length > 1
     let includeFields
+    const json = this.npm.config.get('json')
 
     versions.forEach((v) => {
       const fields = Object.keys(data[v])
       includeFields = includeFields || (fields.length > 1)
-      if (opts.json)
+      if (json)
         msgJson.push({})
       fields.forEach((f) => {
         let d = cleanup(data[v][f])
-        if (fields.length === 1 && opts.json)
+        if (fields.length === 1 && json)
           msgJson[msgJson.length - 1][f] = d
 
         if (includeVersions || includeFields || typeof d !== 'string') {
-          if (opts.json)
+          if (json)
             msgJson[msgJson.length - 1][f] = d
           else {
             d = inspect(d, {
@@ -204,10 +210,10 @@ class View extends BaseCommand {
               maxArrayLength: null,
             })
           }
-        } else if (typeof d === 'string' && opts.json)
+        } else if (typeof d === 'string' && json)
           d = JSON.stringify(d)
 
-        if (!opts.json) {
+        if (!json) {
           if (f && includeFields)
             f += ' = '
           msg += (includeVersions ? name + '@' + v + ' ' : '') +
@@ -216,7 +222,7 @@ class View extends BaseCommand {
       })
     })
 
-    if (opts.json) {
+    if (json) {
       if (msgJson.length && Object.keys(msgJson[0]).length === 1) {
         const k = Object.keys(msgJson[0])[0]
         msgJson = msgJson.map(m => m[k])
@@ -236,9 +242,9 @@ class View extends BaseCommand {
       console.log(msg.trim())
   }
 
-  async prettyView (packument, manifest, opts) {
+  async prettyView (packument, manifest) {
     // More modern, pretty printing of default view
-    const unicode = opts.unicode
+    const unicode = this.npm.config.get('unicode')
     const tags = []
 
     Object.keys(packument['dist-tags']).forEach((t) => {

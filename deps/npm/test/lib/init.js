@@ -1,5 +1,6 @@
 const t = require('tap')
 const requireInject = require('require-inject')
+const mockNpm = require('../fixtures/mock-npm')
 
 let result = ''
 const npmLog = {
@@ -10,14 +11,17 @@ const npmLog = {
   resume: () => null,
   silly: () => null,
 }
-const npm = {
-  config: { set () {} },
-  flatOptions: {},
+const config = {
+  'init-module': '~/.npm-init.js',
+}
+const npm = mockNpm({
+  config,
   log: npmLog,
+  commands: {},
   output: (...msg) => {
     result += msg.join('\n')
   },
-}
+})
 const mocks = {
   'init-package-json': (dir, initFile, config, cb) => cb(null, 'data'),
   '../../lib/utils/usage.js': () => 'usage instructions',
@@ -27,19 +31,13 @@ const init = new Init(npm)
 
 t.afterEach(cb => {
   result = ''
-  npm.config = { get: () => '', set () {} }
+  config.package = undefined
   npm.commands = {}
-  Object.defineProperty(npm, 'flatOptions', { value: {} })
   npm.log = npmLog
   cb()
 })
 
 t.test('classic npm init no args', t => {
-  npm.config = {
-    get () {
-      return '~/.npm-init.js'
-    },
-  }
   init.exec([], err => {
     t.ifError(err, 'npm init no args')
     t.matchSnapshot(result, 'should print helper info')
@@ -49,9 +47,7 @@ t.test('classic npm init no args', t => {
 
 t.test('classic npm init -y', t => {
   t.plan(7)
-  npm.config = {
-    get: () => '~/.npm-init.js',
-  }
+  config.yes = true
   Object.defineProperty(npm, 'flatOptions', { value: { yes: true} })
   npm.log = { ...npm.log }
   npm.log.silly = (title, msg) => {
@@ -72,14 +68,9 @@ t.test('classic npm init -y', t => {
 })
 
 t.test('npm init <arg>', t => {
-  t.plan(4)
-  npm.config = {
-    set (key, val) {
-      t.equal(key, 'package', 'should set package key')
-      t.deepEqual(val, [], 'should set empty array value')
-    },
-  }
+  t.plan(3)
   npm.commands.exec = (arr, cb) => {
+    t.deepEqual(config.package, [], 'should set empty array value')
     t.deepEqual(
       arr,
       ['create-react-app'],
@@ -178,20 +169,9 @@ t.test('npm init exec error', t => {
 })
 
 t.test('should not rewrite flatOptions', t => {
-  t.plan(4)
-  Object.defineProperty(npm, 'flatOptions', {
-    get: () => ({}),
-    set () {
-      throw new Error('Should not set flatOptions')
-    },
-  })
-  npm.config = {
-    set (key, val) {
-      t.equal(key, 'package', 'should set package key')
-      t.deepEqual(val, [], 'should set empty array value')
-    },
-  }
+  t.plan(3)
   npm.commands.exec = (arr, cb) => {
+    t.deepEqual(config.package, [], 'should set empty array value')
     t.deepEqual(
       arr,
       ['create-react-app', 'my-app'],

@@ -8,6 +8,10 @@ const readLocalPkgName = require('./utils/read-local-package.js')
 const BaseCommand = require('./base-command.js')
 
 class DistTag extends BaseCommand {
+  static get description () {
+    return 'Modify package distribution tags'
+  }
+
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'dist-tag'
@@ -61,7 +65,7 @@ class DistTag extends BaseCommand {
   async add (spec, tag, opts) {
     spec = npa(spec || '')
     const version = spec.rawSpec
-    const defaultTag = tag || opts.defaultTag
+    const defaultTag = tag || this.npm.config.get('tag')
 
     log.verbose('dist-tag add', defaultTag, 'to', spec.name + '@' + version)
 

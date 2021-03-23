@@ -1,30 +1,35 @@
 const { resolve } = require('path')
 const t = require('tap')
 const requireInject = require('require-inject')
+const mockNpm = require('../fixtures/mock-npm')
 
 const noop = () => null
 let libnpmdiff = noop
 let rlp = () => 'foo'
-const defaultFlatOptions = {
-  defaultTag: 'latest',
+
+const config = {
+  global: false,
+  tag: 'latest',
   diff: [],
+}
+const flatOptions = {
+  global: false,
   diffUnified: null,
   diffIgnoreAllSpace: false,
   diffNoPrefix: false,
   diffSrcPrefix: '',
   diffDstPrefix: '',
   diffText: false,
-  prefix: '.',
   savePrefix: '^',
 }
-const npm = {
+const npm = mockNpm({
   globalDir: __dirname,
-  flatOptions: { ...defaultFlatOptions },
-  get prefix () {
-    return this.flatOptions.prefix
-  },
+  prefix: '.',
+  config,
+  flatOptions,
   output: noop,
-}
+})
+
 const mocks = {
   npmlog: { info: noop, verbose: noop },
   libnpmdiff: (...args) => libnpmdiff(...args),
@@ -34,10 +39,21 @@ const mocks = {
 }
 
 t.afterEach(cb => {
-  npm.flatOptions = { ...defaultFlatOptions }
+  config.global = false
+  config.tag = 'latest'
+  config.diff = []
+  flatOptions.global = false
+  flatOptions.diffUnified = null
+  flatOptions.diffIgnoreAllSpace = false
+  flatOptions.diffNoPrefix = false
+  flatOptions.diffSrcPrefix = ''
+  flatOptions.diffDstPrefix = ''
+  flatOptions.diffText = false
+  flatOptions.savePrefix = '^'
+  npm.globalDir = __dirname
+  npm.prefix = '..'
   libnpmdiff = noop
   rlp = () => 'foo'
-  npm.globalDir = __dirname
   cb()
 })
 
@@ -55,7 +71,7 @@ t.test('no args', t => {
       t.match(opts, npm.flatOptions, 'should forward flat options')
     }
 
-    npm.flatOptions.prefix = path
+    npm.prefix = path
     diff.exec([], err => {
       if (err)
         throw err
@@ -102,10 +118,11 @@ t.test('single arg', t => {
       t.equal(a, 'foo@1.0.0', 'should forward single spec')
       t.equal(b, `file:${path}`, 'should compare to cwd')
       t.match(opts, npm.flatOptions, 'should forward flat options')
+      t.end()
     }
 
-    npm.flatOptions.diff = ['foo@1.0.0']
-    npm.flatOptions.prefix = path
+    config.diff = ['foo@1.0.0']
+    npm.prefix = path
     diff.exec([], err => {
       if (err)
         throw err
@@ -118,8 +135,8 @@ t.test('single arg', t => {
       throw new Error('ERR')
     }
 
-    npm.flatOptions.diff = ['foo@1.0.0']
-    npm.flatOptions.prefix = path
+    config.diff = ['foo@1.0.0']
+    npm.prefix = path
     diff.exec([], err => {
       t.match(
         err,
@@ -140,8 +157,8 @@ t.test('single arg', t => {
       t.match(opts, npm.flatOptions, 'should forward flat options')
     }
 
-    npm.flatOptions.diff = ['foo@~1.0.0']
-    npm.flatOptions.prefix = path
+    config.diff = ['foo@~1.0.0']
+    npm.prefix = path
     diff.exec([], err => {
       if (err)
         throw err
@@ -158,8 +175,8 @@ t.test('single arg', t => {
       t.match(opts, npm.flatOptions, 'should forward flat options')
     }
 
-    npm.flatOptions.diff = ['2.1.4']
-    npm.flatOptions.prefix = path
+    config.diff = ['2.1.4']
+    npm.prefix = path
     diff.exec([], err => {
       if (err)
         throw err
@@ -171,7 +188,7 @@ t.test('single arg', t => {
       throw new Error('ERR')
     }
 
-    npm.flatOptions.diff = ['2.1.4']
+    config.diff = ['2.1.4']
     diff.exec([], err => {
       t.match(
         err,
@@ -198,8 +215,8 @@ t.test('single arg', t => {
       }, 'should forward flatOptions and diffFiles')
     }
 
-    npm.flatOptions.diff = ['2.1.4']
-    npm.flatOptions.prefix = path
+    config.diff = ['2.1.4']
+    npm.prefix = path
     diff.exec(['./foo.js', './bar.js'], err => {
       if (err)
         throw err
@@ -221,8 +238,8 @@ t.test('single arg', t => {
       t.equal(b, `file:${path}`, 'should compare to cwd')
     }
 
-    npm.flatOptions.diff = ['bar@1.0.0']
-    npm.flatOptions.prefix = path
+    config.diff = ['bar@1.0.0']
+    npm.prefix = path
 
     diff.exec([], err => {
       if (err)
@@ -248,8 +265,8 @@ t.test('single arg', t => {
       t.match(opts, npm.flatOptions, 'should forward flat options')
     }
 
-    npm.flatOptions.diff = ['simple-output']
-    npm.flatOptions.prefix = path
+    config.diff = ['simple-output']
+    npm.prefix = path
     diff.exec([], err => {
       if (err)
         throw err
@@ -262,8 +279,8 @@ t.test('single arg', t => {
       throw new Error('ERR')
     }
 
-    npm.flatOptions.diff = ['bar']
-    npm.flatOptions.prefix = path
+    config.diff = ['bar']
+    npm.prefix = path
     diff.exec([], err => {
       t.match(
         err,
@@ -294,8 +311,8 @@ t.test('single arg', t => {
       }),
     })
 
-    npm.flatOptions.diff = ['bar']
-    npm.flatOptions.prefix = path
+    config.diff = ['bar']
+    npm.prefix = path
 
     const Diff = requireInject('../../lib/diff.js', {
       ...mocks,
@@ -355,9 +372,10 @@ t.test('single arg', t => {
       },
     })
 
-    npm.flatOptions.global = true
-    npm.flatOptions.diff = ['lorem']
-    npm.flatOptions.prefix = resolve(path, 'project')
+    config.global = true
+    flatOptions.global = true
+    config.diff = ['lorem']
+    npm.prefix = resolve(path, 'project')
     npm.globalDir = resolve(path, 'globalDir/lib/node_modules')
 
     const Diff = requireInject('../../lib/diff.js', {
@@ -409,8 +427,8 @@ t.test('single arg', t => {
       t.equal(b, 'bar@2.0.0', 'should have expected comparison spec')
     }
 
-    npm.flatOptions.diff = ['bar@2.0.0']
-    npm.flatOptions.prefix = path
+    config.diff = ['bar@2.0.0']
+    npm.prefix = path
 
     diff.exec([], err => {
       if (err)
@@ -466,8 +484,8 @@ t.test('single arg', t => {
     })
     const diff = new Diff(npm)
 
-    npm.flatOptions.diff = ['lorem']
-    npm.flatOptions.prefix = path
+    config.diff = ['lorem']
+    npm.prefix = path
 
     diff.exec([], err => {
       if (err)
@@ -499,8 +517,8 @@ t.test('single arg', t => {
     })
     const diff = new Diff(npm)
 
-    npm.flatOptions.diff = ['lorem']
-    npm.flatOptions.prefix = path
+    config.diff = ['lorem']
+    npm.prefix = path
 
     diff.exec([], err => {
       if (err)
@@ -518,8 +536,8 @@ t.test('single arg', t => {
       t.equal(b, `file:${path}`, 'should compare to cwd')
     }
 
-    npm.flatOptions.diff = ['bar']
-    npm.flatOptions.prefix = path
+    config.diff = ['bar']
+    npm.prefix = path
 
     diff.exec([], err => {
       if (err)
@@ -537,8 +555,8 @@ t.test('single arg', t => {
       t.equal(b, `file:${path}`, 'should compare to cwd')
     }
 
-    npm.flatOptions.diff = ['my-project']
-    npm.flatOptions.prefix = path
+    config.diff = ['my-project']
+    npm.prefix = path
     diff.exec([], err => {
       if (err)
         throw err
@@ -555,8 +573,8 @@ t.test('single arg', t => {
       t.equal(b, `file:${path}`, 'should compare to cwd')
     }
 
-    npm.flatOptions.diff = ['/path/to/other-dir']
-    npm.flatOptions.prefix = path
+    config.diff = ['/path/to/other-dir']
+    npm.prefix = path
     diff.exec([], err => {
       if (err)
         throw err
@@ -566,7 +584,7 @@ t.test('single arg', t => {
   t.test('unsupported spec type', t => {
     rlp = async () => 'my-project'
 
-    npm.flatOptions.diff = ['git+https://github.com/user/foo']
+    config.diff = ['git+https://github.com/user/foo']
 
     diff.exec([], err => {
       t.match(
@@ -591,7 +609,7 @@ t.test('first arg is a qualified spec', t => {
       t.match(opts, npm.flatOptions, 'should forward flat options')
     }
 
-    npm.flatOptions.diff = ['bar@1.0.0', 'bar@^2.0.0']
+    config.diff = ['bar@1.0.0', 'bar@^2.0.0']
     diff.exec([], err => {
       if (err)
         throw err
@@ -624,8 +642,8 @@ t.test('first arg is a qualified spec', t => {
       t.equal(b, `bar@file:${resolve(path, 'node_modules/bar')}`, 'should target local node_modules pkg')
     }
 
-    npm.flatOptions.prefix = path
-    npm.flatOptions.diff = ['bar@2.0.0', 'bar']
+    npm.prefix = path
+    config.diff = ['bar@2.0.0', 'bar']
     diff.exec([], err => {
       if (err)
         throw err
@@ -635,7 +653,7 @@ t.test('first arg is a qualified spec', t => {
   t.test('second arg is a valid semver version', t => {
     t.plan(2)
 
-    npm.flatOptions.diff = ['bar@1.0.0', '2.0.0']
+    config.diff = ['bar@1.0.0', '2.0.0']
 
     libnpmdiff = async ([a, b], opts) => {
       t.equal(a, 'bar@1.0.0', 'should set expected first spec')
@@ -656,7 +674,7 @@ t.test('first arg is a qualified spec', t => {
       t.equal(b, 'bar-fork@latest', 'should target latest tag if not a dep')
     }
 
-    npm.flatOptions.diff = ['bar@1.0.0', 'bar-fork']
+    config.diff = ['bar@1.0.0', 'bar-fork']
     diff.exec([], err => {
       if (err)
         throw err
@@ -693,8 +711,8 @@ t.test('first arg is a known dependency name', t => {
       t.equal(b, 'bar@2.0.0', 'should set expected second spec')
     }
 
-    npm.flatOptions.prefix = path
-    npm.flatOptions.diff = ['bar', 'bar@2.0.0']
+    npm.prefix = path
+    config.diff = ['bar', 'bar@2.0.0']
     diff.exec([], err => {
       if (err)
         throw err
@@ -733,8 +751,8 @@ t.test('first arg is a known dependency name', t => {
       t.equal(b, `bar-fork@file:${resolve(path, 'node_modules/bar-fork')}`, 'should target fork local node_modules pkg')
     }
 
-    npm.flatOptions.prefix = path
-    npm.flatOptions.diff = ['bar', 'bar-fork']
+    npm.prefix = path
+    config.diff = ['bar', 'bar-fork']
     diff.exec([], err => {
       if (err)
         throw err
@@ -767,8 +785,8 @@ t.test('first arg is a known dependency name', t => {
       t.equal(b, 'bar@2.0.0', 'should use package name from first arg')
     }
 
-    npm.flatOptions.prefix = path
-    npm.flatOptions.diff = ['bar', '2.0.0']
+    npm.prefix = path
+    config.diff = ['bar', '2.0.0']
     diff.exec([], err => {
       if (err)
         throw err
@@ -801,8 +819,8 @@ t.test('first arg is a known dependency name', t => {
       t.equal(b, 'bar-fork@latest', 'should set expected second spec')
     }
 
-    npm.flatOptions.prefix = path
-    npm.flatOptions.diff = ['bar', 'bar-fork']
+    npm.prefix = path
+    config.diff = ['bar', 'bar-fork']
     diff.exec([], err => {
       if (err)
         throw err
@@ -816,7 +834,7 @@ t.test('first arg is a valid semver range', t => {
   t.test('second arg is a qualified spec', t => {
     t.plan(2)
 
-    npm.flatOptions.diff = ['1.0.0', 'bar@2.0.0']
+    config.diff = ['1.0.0', 'bar@2.0.0']
 
     libnpmdiff = async ([a, b], opts) => {
       t.equal(a, 'bar@1.0.0', 'should use name from second arg')
@@ -855,8 +873,8 @@ t.test('first arg is a valid semver range', t => {
       t.equal(b, `bar@file:${resolve(path, 'node_modules/bar')}`, 'should set expected second spec from nm')
     }
 
-    npm.flatOptions.prefix = path
-    npm.flatOptions.diff = ['1.0.0', 'bar']
+    npm.prefix = path
+    config.diff = ['1.0.0', 'bar']
     diff.exec([], err => {
       if (err)
         throw err
@@ -872,7 +890,7 @@ t.test('first arg is a valid semver range', t => {
       t.equal(b, 'my-project@2.0.0', 'should use name from project dir')
     }
 
-    npm.flatOptions.diff = ['1.0.0', '2.0.0']
+    config.diff = ['1.0.0', '2.0.0']
     diff.exec([], err => {
       if (err)
         throw err
@@ -885,8 +903,8 @@ t.test('first arg is a valid semver range', t => {
       throw new Error('ERR')
     }
 
-    npm.flatOptions.diff = ['1.0.0', '2.0.0']
-    npm.flatOptions.prefix = path
+    config.diff = ['1.0.0', '2.0.0']
+    npm.prefix = path
     diff.exec([], err => {
       t.match(
         err,
@@ -906,7 +924,7 @@ t.test('first arg is a valid semver range', t => {
       t.equal(b, 'bar@latest', 'should compare against latest tag')
     }
 
-    npm.flatOptions.diff = ['1.0.0', 'bar']
+    config.diff = ['1.0.0', 'bar']
     diff.exec([], err => {
       if (err)
         throw err
@@ -937,8 +955,8 @@ t.test('first arg is a valid semver range', t => {
     })
     const diff = new Diff(npm)
 
-    npm.flatOptions.diff = ['1.0.0', 'lorem@2.0.0']
-    npm.flatOptions.prefix = path
+    config.diff = ['1.0.0', 'lorem@2.0.0']
+    npm.prefix = path
 
     diff.exec([], err => {
       if (err)
@@ -960,7 +978,7 @@ t.test('first arg is an unknown dependency name', t => {
       t.match(opts, { where: '.' }, 'should forward pacote options')
     }
 
-    npm.flatOptions.diff = ['bar', 'bar@2.0.0']
+    config.diff = ['bar', 'bar@2.0.0']
     diff.exec([], err => {
       if (err)
         throw err
@@ -993,8 +1011,8 @@ t.test('first arg is an unknown dependency name', t => {
       t.equal(b, `bar@file:${resolve(path, 'node_modules/bar')}`, 'should target local node_modules pkg')
     }
 
-    npm.flatOptions.prefix = path
-    npm.flatOptions.diff = ['bar-fork', 'bar']
+    npm.prefix = path
+    config.diff = ['bar-fork', 'bar']
     diff.exec([], err => {
       if (err)
         throw err
@@ -1009,7 +1027,7 @@ t.test('first arg is an unknown dependency name', t => {
       t.equal(b, 'bar@^1.0.0', 'should use name from first arg')
     }
 
-    npm.flatOptions.diff = ['bar', '^1.0.0']
+    config.diff = ['bar', '^1.0.0']
     diff.exec([], err => {
       if (err)
         throw err
@@ -1024,7 +1042,7 @@ t.test('first arg is an unknown dependency name', t => {
       t.equal(b, 'bar-fork@latest', 'should use latest tag')
     }
 
-    npm.flatOptions.diff = ['bar', 'bar-fork']
+    config.diff = ['bar', 'bar-fork']
     diff.exec([], err => {
       if (err)
         throw err
@@ -1043,8 +1061,8 @@ t.test('first arg is an unknown dependency name', t => {
       t.equal(b, 'bar-fork@latest', 'should use latest tag')
     }
 
-    npm.flatOptions.diff = ['bar', 'bar-fork']
-    npm.flatOptions.prefix = path
+    config.diff = ['bar', 'bar-fork']
+    npm.prefix = path
 
     diff.exec([], err => {
       if (err)
@@ -1059,7 +1077,7 @@ t.test('various options', t => {
   t.test('using --name-only option', t => {
     t.plan(1)
 
-    npm.flatOptions.diffNameOnly = true
+    flatOptions.diffNameOnly = true
 
     libnpmdiff = async ([a, b], opts) => {
       t.match(opts, {
@@ -1077,7 +1095,7 @@ t.test('various options', t => {
   t.test('set files after both versions', t => {
     t.plan(3)
 
-    npm.flatOptions.diff = ['2.1.4', '3.0.0']
+    config.diff = ['2.1.4', '3.0.0']
 
     libnpmdiff = async ([a, b], opts) => {
       t.equal(a, 'foo@2.1.4', 'should use expected spec')
@@ -1114,7 +1132,7 @@ t.test('various options', t => {
       }, 'should forward all remaining items as filenames')
     }
 
-    npm.flatOptions.prefix = path
+    npm.prefix = path
     diff.exec(['./foo.js', './bar.js'], err => {
       if (err)
         throw err
@@ -1124,12 +1142,12 @@ t.test('various options', t => {
   t.test('using diff option', t => {
     t.plan(1)
 
-    npm.flatOptions.diffContext = 5
-    npm.flatOptions.diffIgnoreWhitespace = true
-    npm.flatOptions.diffNoPrefix = false
-    npm.flatOptions.diffSrcPrefix = 'foo/'
-    npm.flatOptions.diffDstPrefix = 'bar/'
-    npm.flatOptions.diffText = true
+    flatOptions.diffContext = 5
+    flatOptions.diffIgnoreWhitespace = true
+    flatOptions.diffNoPrefix = false
+    flatOptions.diffSrcPrefix = 'foo/'
+    flatOptions.diffDstPrefix = 'bar/'
+    flatOptions.diffText = true
 
     libnpmdiff = async ([a, b], opts) => {
       t.match(opts, {
@@ -1153,7 +1171,7 @@ t.test('various options', t => {
 })
 
 t.test('too many args', t => {
-  npm.flatOptions.diff = ['a', 'b', 'c']
+  config.diff = ['a', 'b', 'c']
   diff.exec([], err => {
     t.match(
       err,

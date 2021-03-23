@@ -392,6 +392,7 @@ be returned.</p>
 <p>This should be a module relative to the root of your package folder.</p>
 <p>For most modules, it makes the most sense to have a main script and often
 not much else.</p>
+<p>If <code>main</code> is not set it defaults to <code>index.js</code> in the packages root folder.</p>
 <h3 id="browser">browser</h3>
 <p>If your module is meant to be used client-side the browser field should be
 used instead of the main field. This is helpful to hint users that it might
@@ -565,8 +566,7 @@ space-separated descriptors.  Dependencies can also be identified with a
 tarball or git URL.</p>
 <p><strong>Please do not put test harnesses or transpilers or other “development”
 time tools in your <code>dependencies</code> object.</strong>  See <code>devDependencies</code>, below.</p>
-<p>See <a href="%5B/using-npm/semver%5D(https://github.com/npm/node-semver#versions)">semver</a>
-for more details about specifying version ranges.</p>
+<p>See <a href="../using-npm/semver#versions.html">semver</a> for more details about specifying version ranges.</p>
 <ul>
 <li><code>version</code> Must match <code>version</code> exactly</li>
 <li><code>&gt;version</code> Must be greater than <code>version</code></li>

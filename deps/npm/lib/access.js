@@ -20,6 +20,10 @@ const subcommands = [
 ]
 
 class Access extends BaseCommand {
+  static get description () {
+    return 'Set access level on published packages'
+  }
+
   static get name () {
     return 'access'
   }
@@ -75,7 +79,7 @@ class Access extends BaseCommand {
     if (!subcommands.includes(cmd) || !this[cmd])
       throw this.usageError(`${cmd} is not a recognized subcommand.`)
 
-    return this[cmd](args, { ...this.npm.flatOptions })
+    return this[cmd](args, this.npm.flatOptions)
   }
 
   public ([pkg], opts) {

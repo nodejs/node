@@ -1,4 +1,5 @@
 const t = require('tap')
+
 const requireInject = require('require-inject')
 const { EventEmitter } = require('events')
 
@@ -22,12 +23,21 @@ const redactCwd = (path) => {
 t.cleanSnapshot = (str) => redactCwd(str)
 
 let result = ''
-const types = {
-  'init-author-name': String,
-  'init-version': String,
-  'init.author.name': String,
-  'init.version': String,
-}
+
+const configDefs = require('../../lib/utils/config')
+const definitions = Object.entries(configDefs.definitions)
+  .filter(([key, def]) => {
+    return [
+      'init-author-name',
+      'init.author.name',
+      'init-version',
+      'init.version',
+    ].includes(key)
+  }).reduce((defs, [key, def]) => {
+    defs[key] = def
+    return defs
+  }, {})
+
 const defaults = {
   'init-author-name': '',
   'init-version': '1.0.0',
@@ -35,7 +45,7 @@ const defaults = {
   'init.version': '1.0.0',
 }
 
-const flatOptions = {
+const cliConfig = {
   editor: 'vi',
   json: false,
   long: false,
@@ -43,7 +53,6 @@ const flatOptions = {
 }
 
 const npm = {
-  flatOptions,
   log: {
     info: () => null,
     enableProgress: () => null,
@@ -53,10 +62,10 @@ const npm = {
     data: new Map(Object.entries({
       default: { data: defaults, source: 'default values' },
       global: { data: {}, source: '/etc/npmrc' },
-      cli: { data: flatOptions, source: 'command line options' },
+      cli: { data: cliConfig, source: 'command line options' },
     })),
     get (key) {
-      return flatOptions[key]
+      return cliConfig[key]
     },
     validate () {
       return true
@@ -70,7 +79,7 @@ const npm = {
 const usageUtil = () => 'usage instructions'
 
 const mocks = {
-  '../../lib/utils/config.js': { defaults, types },
+  '../../lib/utils/config/index.js': { defaults, definitions },
   '../../lib/utils/usage.js': usageUtil,
 }
 
@@ -110,13 +119,13 @@ t.test('config list overrides', t => {
     },
     source: '~/.npmrc',
   })
-  flatOptions['init.author.name'] = 'Bar'
+  cliConfig['init.author.name'] = 'Bar'
   npm.config.find = () => 'cli'
   result = ''
   t.teardown(() => {
     result = ''
     npm.config.data.delete('user')
-    delete flatOptions['init.author.name']
+    delete cliConfig['init.author.name']
     delete npm.config.find
   })
 
@@ -129,12 +138,12 @@ t.test('config list overrides', t => {
 t.test('config list --long', t => {
   t.plan(2)
 
-  npm.config.find = key => key in flatOptions ? 'cli' : 'default'
-  flatOptions.long = true
+  npm.config.find = key => key in cliConfig ? 'cli' : 'default'
+  cliConfig.long = true
   result = ''
   t.teardown(() => {
     delete npm.config.find
-    flatOptions.long = false
+    cliConfig.long = false
     result = ''
   })
 
@@ -147,7 +156,7 @@ t.test('config list --long', t => {
 t.test('config list --json', t => {
   t.plan(2)
 
-  flatOptions.json = true
+  cliConfig.json = true
   result = ''
   npm.config.list = [{
     '//private-reg.npmjs.org/:_authThoken': 'f00ba1',
@@ -158,7 +167,7 @@ t.test('config list --json', t => {
 
   t.teardown(() => {
     delete npm.config.list
-    flatOptions.json = false
+    cliConfig.json = false
     npm.config.get = npmConfigGet
     result = ''
   })
@@ -246,13 +255,13 @@ t.test('config delete key --global', t => {
     t.equal(where, 'global', 'should save global config post-delete')
   }
 
-  flatOptions.global = true
+  cliConfig.global = true
   config.exec(['delete', 'foo'], (err) => {
     t.ifError(err, 'npm config delete key --global')
   })
 
   t.teardown(() => {
-    flatOptions.global = false
+    cliConfig.global = false
     delete npm.config.delete
     delete npm.config.save
   })
@@ -401,13 +410,13 @@ t.test('config set key --global', t => {
     t.equal(where, 'global', 'should save global config')
   }
 
-  flatOptions.global = true
+  cliConfig.global = true
   config.exec(['set', 'foo', 'bar'], (err) => {
     t.ifError(err, 'npm config set key --global')
   })
 
   t.teardown(() => {
-    flatOptions.global = false
+    cliConfig.global = false
     delete npm.config.set
     delete npm.config.save
   })
@@ -555,7 +564,7 @@ sign-git-commit=true`
 t.test('config edit --global', t => {
   t.plan(6)
 
-  flatOptions.global = true
+  cliConfig.global = true
   const npmrc = 'init.author.name=Foo'
   npm.config.data.set('global', {
     source: '/etc/npmrc',
@@ -595,7 +604,7 @@ t.test('config edit --global', t => {
   })
 
   t.teardown(() => {
-    flatOptions.global = false
+    cliConfig.global = false
     npm.config.data.delete('user')
     delete npm.config.save
   })
@@ -612,7 +621,7 @@ t.test('completion', t => {
   testComp(['npm', 'config'], ['get', 'set', 'delete', 'ls', 'rm', 'edit', 'list'])
   testComp(['npm', 'config', 'set', 'foo'], [])
 
-  const possibleConfigKeys = [...Object.keys(types)]
+  const possibleConfigKeys = [...Object.keys(definitions)]
   testComp(['npm', 'config', 'get'], possibleConfigKeys)
   testComp(['npm', 'config', 'set'], possibleConfigKeys)
   testComp(['npm', 'config', 'delete'], possibleConfigKeys)

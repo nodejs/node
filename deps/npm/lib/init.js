@@ -5,6 +5,11 @@ const BaseCommand = require('./base-command.js')
 
 class Init extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Create a package.json file'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'init'
   }
@@ -59,7 +64,7 @@ class Init extends BaseCommand {
     this.npm.log.pause()
     this.npm.log.disableProgress()
     const initFile = this.npm.config.get('init-module')
-    if (!this.npm.flatOptions.yes && !this.npm.flatOptions.force) {
+    if (!this.npm.config.get('yes') && !this.npm.config.get('force')) {
       this.npm.output([
         'This utility will walk you through creating a package.json file.',
         'It only covers the most common items, and tries to guess sensible defaults.',

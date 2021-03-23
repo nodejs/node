@@ -1,10 +1,12 @@
+const { resolve } = require('path')
+const chalk = require('chalk')
 const runScript = require('@npmcli/run-script')
 const { isServerPackage } = runScript
-const readJson = require('read-package-json-fast')
-const { resolve } = require('path')
+const rpj = require('read-package-json-fast')
 const log = require('npmlog')
 const didYouMean = require('./utils/did-you-mean.js')
 const isWindowsShell = require('./utils/is-windows-shell.js')
+const getWorkspaces = require('./workspaces/get-workspaces.js')
 
 const cmdList = [
   'publish',
@@ -17,8 +19,21 @@ const cmdList = [
   'version',
 ].reduce((l, p) => l.concat(['pre' + p, p, 'post' + p]), [])
 
+const nocolor = {
+  reset: s => s,
+  bold: s => s,
+  dim: s => s,
+  blue: s => s,
+  green: s => s,
+}
+
 const BaseCommand = require('./base-command.js')
 class RunScript extends BaseCommand {
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Run arbitrary package scripts'
+  }
+
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'run-script'
@@ -34,7 +49,7 @@ class RunScript extends BaseCommand {
     if (argv.length === 2) {
       // find the script name
       const json = resolve(this.npm.localPrefix, 'package.json')
-      const { scripts = {} } = await readJson(json).catch(er => ({}))
+      const { scripts = {} } = await rpj(json).catch(er => ({}))
       return Object.keys(scripts)
     }
   }
@@ -46,12 +61,19 @@ class RunScript extends BaseCommand {
       this.list(args).then(() => cb()).catch(cb)
   }
 
-  async run (args) {
-    const path = this.npm.localPrefix
-    const event = args.shift()
-    const { scriptShell } = this.npm.flatOptions
+  execWorkspaces (args, filters, cb) {
+    if (args.length)
+      this.runWorkspaces(args, filters).then(() => cb()).catch(cb)
+    else
+      this.listWorkspaces(args, filters).then(() => cb()).catch(cb)
+  }
 
-    const pkg = await readJson(`${path}/package.json`)
+  async run ([event, ...args], { path = this.npm.localPrefix, pkg } = {}) {
+    // this || undefined is because runScript will be unhappy with the default
+    // null value
+    const scriptShell = this.npm.config.get('script-shell') || undefined
+
+    pkg = pkg || (await rpj(`${path}/package.json`))
     const { scripts = {} } = pkg
 
     if (event === 'restart' && !scripts.restart)
@@ -68,14 +90,13 @@ class RunScript extends BaseCommand {
       if (this.npm.config.get('if-present'))
         return
 
-      const suggestions = didYouMean(event, Object.keys(scripts))
-      throw new Error(`missing script: ${event}${
-      suggestions ? `\n${suggestions}` : ''}`)
+      const suggestions = await didYouMean(this.npm, path, event)
+      throw new Error(`Missing script: "${event}"${suggestions}\n\nTo see a list of scripts, run:\n  npm run`)
     }
 
     // positional args only added to the main event, not pre/post
     const events = [[event, args]]
-    if (!this.npm.flatOptions.ignoreScripts) {
+    if (!this.npm.config.get('ignore-scripts')) {
       if (scripts[`pre${event}`])
         events.unshift([`pre${event}`, []])
 
@@ -102,9 +123,11 @@ class RunScript extends BaseCommand {
     }
   }
 
-  async list () {
-    const path = this.npm.localPrefix
-    const { scripts, name } = await readJson(`${path}/package.json`)
+  async list (args, path) {
+    path = path || this.npm.localPrefix
+    const { scripts, name, _id } = await rpj(`${path}/package.json`)
+    const pkgid = _id || name
+    const color = !!this.npm.color
 
     if (!scripts)
       return []
@@ -113,12 +136,12 @@ class RunScript extends BaseCommand {
     if (log.level === 'silent')
       return allScripts
 
-    if (this.npm.flatOptions.json) {
+    if (this.npm.config.get('json')) {
       this.npm.output(JSON.stringify(scripts, null, 2))
       return allScripts
     }
 
-    if (this.npm.flatOptions.parseable) {
+    if (this.npm.config.get('parseable')) {
       for (const [script, cmd] of Object.entries(scripts))
         this.npm.output(`${script}:${cmd}`)
 
@@ -133,22 +156,96 @@ class RunScript extends BaseCommand {
       const list = cmdList.includes(script) ? cmds : runScripts
       list.push(script)
     }
+    const colorize = color ? chalk : nocolor
 
-    if (cmds.length)
-      this.npm.output(`Lifecycle scripts included in ${name}:`)
+    if (cmds.length) {
+      this.npm.output(`${
+        colorize.reset(colorize.bold('Lifecycle scripts'))} included in ${
+        colorize.green(pkgid)}:`)
+    }
 
     for (const script of cmds)
-      this.npm.output(prefix + script + indent + scripts[script])
+      this.npm.output(prefix + script + indent + colorize.dim(scripts[script]))
 
-    if (!cmds.length && runScripts.length)
-      this.npm.output(`Scripts available in ${name} via \`npm run-script\`:`)
-    else if (runScripts.length)
-      this.npm.output('\navailable via `npm run-script`:')
+    if (!cmds.length && runScripts.length) {
+      this.npm.output(`${
+        colorize.bold('Scripts')
+      } available in ${colorize.green(pkgid)} via \`${
+        colorize.blue('npm run-script')}\`:`)
+    } else if (runScripts.length)
+      this.npm.output(`\navailable via \`${colorize.blue('npm run-script')}\`:`)
 
     for (const script of runScripts)
-      this.npm.output(prefix + script + indent + scripts[script])
+      this.npm.output(prefix + script + indent + colorize.dim(scripts[script]))
 
+    this.npm.output('')
     return allScripts
   }
+
+  async workspaces (filters) {
+    return getWorkspaces(filters, { path: this.npm.localPrefix })
+  }
+
+  async runWorkspaces (args, filters) {
+    const res = []
+    const workspaces = await this.workspaces(filters)
+
+    for (const workspacePath of workspaces.values()) {
+      const pkg = await rpj(`${workspacePath}/package.json`)
+      const runResult = await this.run(args, {
+        path: workspacePath,
+        pkg,
+      }).catch(err => {
+        log.error(`Lifecycle script \`${args[0]}\` failed with error:`)
+        log.error(err)
+        log.error(`  in workspace: ${pkg._id || pkg.name}`)
+        log.error(`  at location: ${workspacePath}`)
+
+        const scriptMissing = err.message.startsWith('Missing script')
+
+        // avoids exiting with error code in case there's scripts missing
+        // in some workspaces since other scripts might have succeeded
+        if (!scriptMissing)
+          process.exitCode = 1
+
+        return scriptMissing
+      })
+      res.push(runResult)
+    }
+
+    // in case **all** tests are missing, then it should exit with error code
+    if (res.every(Boolean))
+      throw new Error(`Missing script: ${args[0]}`)
+  }
+
+  async listWorkspaces (args, filters) {
+    const workspaces = await this.workspaces(filters)
+
+    if (log.level === 'silent')
+      return
+
+    if (this.npm.config.get('json')) {
+      const res = {}
+      for (const workspacePath of workspaces.values()) {
+        const { scripts, name } = await rpj(`${workspacePath}/package.json`)
+        res[name] = { ...scripts }
+      }
+      this.npm.output(JSON.stringify(res, null, 2))
+      return
+    }
+
+    if (this.npm.config.get('parseable')) {
+      for (const workspacePath of workspaces.values()) {
+        const { scripts, name } = await rpj(`${workspacePath}/package.json`)
+        for (const [script, cmd] of Object.entries(scripts || {}))
+          this.npm.output(`${name}:${script}:${cmd}`)
+      }
+      return
+    }
+
+    for (const workspacePath of workspaces.values())
+      await this.list(args, workspacePath)
+  }
 }
+
 module.exports = RunScript

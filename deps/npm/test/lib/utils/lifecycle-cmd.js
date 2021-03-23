@@ -10,6 +10,7 @@ const npm = {
   },
 }
 t.test('create a lifecycle command', t => {
+  t.plan(5)
   class TestStage extends LifecycleCmd {
     static get name () {
       return 'test-stage'
@@ -20,6 +21,9 @@ t.test('create a lifecycle command', t => {
   cmd.exec(['some', 'args'], (er, result) => {
     t.same(runArgs, ['test-stage', 'some', 'args'])
     t.strictSame(result, 'called npm.commands.run')
-    t.end()
+  })
+  cmd.execWorkspaces(['some', 'args'], [], (er, result) => {
+    t.same(runArgs, ['test-stage', 'some', 'args'])
+    t.strictSame(result, 'called npm.commands.run')
   })
 })

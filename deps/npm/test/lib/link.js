@@ -3,6 +3,7 @@ const { resolve } = require('path')
 const Arborist = require('@npmcli/arborist')
 const t = require('tap')
 const requireInject = require('require-inject')
+const mockNpm = require('../fixtures/mock-npm')
 
 const redactCwd = (path) => {
   const normalizePath = p => p
@@ -15,17 +16,13 @@ const redactCwd = (path) => {
 t.cleanSnapshot = (str) => redactCwd(str)
 
 let reifyOutput
-const npm = {
+const config = {}
+const npm = mockNpm({
   globalDir: null,
   prefix: null,
-  flatOptions: {},
-  config: {
-    get () {
-      return false
-    },
-    find () {},
-  },
-}
+  config,
+})
+
 const printLinks = async (opts) => {
   let res = ''
   const arb = new Arborist(opts)

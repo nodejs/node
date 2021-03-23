@@ -1,6 +1,7 @@
 const Minipass = require('minipass')
 const t = require('tap')
 const requireInject = require('require-inject')
+const mockNpm = require('../fixtures/mock-npm')
 const libnpmsearchResultFixture =
   require('../fixtures/libnpmsearch-stream-result.js')
 
@@ -12,12 +13,17 @@ const flatOptions = {
     opts: '',
   },
 }
-const npm = {
+const config = {
+  json: false,
+  parseable: false,
+}
+const npm = mockNpm({
+  config,
   flatOptions: { ...flatOptions },
   output: (...msg) => {
     result += msg.join('\n')
   },
-}
+})
 const npmlog = {
   silly () {},
   clearProgress () {},
@@ -29,12 +35,13 @@ const mocks = {
   npmlog,
   libnpmsearch,
   '../../lib/utils/usage.js': () => 'usage instructions',
-  // '../../lib/search/format-package-stream.js': a => a,
 }
 
 t.afterEach(cb => {
   result = ''
-  npm.flatOptions = flatOptions
+  config.json = false
+  config.parseable = false
+  npm.flatOptions = { ...flatOptions }
   cb()
 })
 
@@ -86,7 +93,8 @@ t.test('search <name> --json', (t) => {
   const src = new Minipass()
   src.objectMode = true
 
-  flatOptions.json = true
+  npm.flatOptions.json = true
+  config.json = true
   const libnpmsearch = {
     stream () {
       return src
@@ -114,7 +122,7 @@ t.test('search <name> --json', (t) => {
       'should have expected search results as json'
     )
 
-    flatOptions.json = false
+    config.json = false
     t.end()
   })
 
