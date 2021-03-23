@@ -1,4 +1,5 @@
 const t = require('tap')
+const mockNpm = require('../fixtures/mock-npm')
 
 const { resolve } = require('path')
 const { utimesSync } = require('fs')
@@ -84,12 +85,9 @@ const diffDepTypesNmFixture = {
   },
 }
 
-let prefix
-let globalDir = 'MISSING_GLOBAL_DIR'
 let result = ''
-// note this _flatOptions representations is for tests-only and does not
-// represent exactly the properties found in the actual flatOptions obj
-const _flatOptions = {
+const LS = require('../../lib/ls.js')
+const config = {
   all: true,
   color: false,
   dev: false,
@@ -99,32 +97,18 @@ const _flatOptions = {
   link: false,
   only: null,
   parseable: false,
-  get prefix () {
-    return prefix
-  },
   production: false,
 }
-const LS = require('../../lib/ls.js')
-const ls = new LS({
-  flatOptions: _flatOptions,
-  limit: {
-    fetch: 3,
-  },
-  get prefix () {
-    return _flatOptions.prefix
-  },
-  get globalDir () {
-    return globalDir
-  },
-  config: {
-    get (key) {
-      return _flatOptions[key]
-    },
-  },
+const flatOptions = {
+}
+const npm = mockNpm({
+  config,
+  flatOptions,
   output: msg => {
     result = msg
   },
 })
+const ls = new LS(npm)
 
 const redactCwd = res =>
   res && res.replace(/\\+/g, '/').replace(new RegExp(__dirname.replace(/\\+/g, '/'), 'gi'), '{CWD}')
@@ -138,10 +122,10 @@ const cleanUpResult = (done, t) => {
 
 t.test('ls', (t) => {
   t.beforeEach(cleanUpResult)
-  _flatOptions.json = false
-  _flatOptions.unicode = false
+  config.json = false
+  config.unicode = false
   t.test('no args', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -160,7 +144,7 @@ t.test('ls', (t) => {
   })
 
   t.test('missing package.json', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       ...simpleNmFixture,
     })
     ls.exec([], (err) => {
@@ -175,7 +159,7 @@ t.test('ls', (t) => {
   })
 
   t.test('extraneous deps', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -198,8 +182,8 @@ t.test('ls', (t) => {
   })
 
   t.test('with filter arg', (t) => {
-    _flatOptions.color = true
-    prefix = t.testdir({
+    npm.color = true
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -213,15 +197,15 @@ t.test('ls', (t) => {
     ls.exec(['lorem'], (err) => {
       t.ifError(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should output tree contaning only occurrences of filtered by package and colored output')
-      _flatOptions.color = false
+      npm.color = false
       t.end()
     })
   })
 
   t.test('with dot filter arg', (t) => {
-    _flatOptions.all = false
-    _flatOptions.depth = 0
-    prefix = t.testdir({
+    config.all = false
+    config.depth = 0
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -235,14 +219,14 @@ t.test('ls', (t) => {
     ls.exec(['.'], (err) => {
       t.ifError(err, 'should not throw on missing dep above current level')
       t.matchSnapshot(redactCwd(result), 'should output tree contaning only occurrences of filtered by package and colored output')
-      _flatOptions.all = true
-      _flatOptions.depth = Infinity
+      config.all = true
+      config.depth = Infinity
       t.end()
     })
   })
 
   t.test('with filter arg nested dep', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -261,7 +245,7 @@ t.test('ls', (t) => {
   })
 
   t.test('with multiple filter args', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -289,7 +273,7 @@ t.test('ls', (t) => {
   })
 
   t.test('with missing filter arg', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -314,9 +298,9 @@ t.test('ls', (t) => {
   })
 
   t.test('default --depth value should be 0', (t) => {
-    _flatOptions.all = false
-    _flatOptions.depth = undefined
-    prefix = t.testdir({
+    config.all = false
+    config.depth = undefined
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -330,16 +314,16 @@ t.test('ls', (t) => {
     ls.exec([], (err) => {
       t.ifError(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should output tree containing only top-level dependencies')
-      _flatOptions.all = true
-      _flatOptions.depth = Infinity
+      config.all = true
+      config.depth = Infinity
       t.end()
     })
   })
 
   t.test('--depth=0', (t) => {
-    _flatOptions.all = false
-    _flatOptions.depth = 0
-    prefix = t.testdir({
+    config.all = false
+    config.depth = 0
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -353,16 +337,16 @@ t.test('ls', (t) => {
     ls.exec([], (err) => {
       t.ifError(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should output tree containing only top-level dependencies')
-      _flatOptions.all = true
-      _flatOptions.depth = Infinity
+      config.all = true
+      config.depth = Infinity
       t.end()
     })
   })
 
   t.test('--depth=1', (t) => {
-    _flatOptions.all = false
-    _flatOptions.depth = 1
-    prefix = t.testdir({
+    config.all = false
+    config.depth = 1
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -414,14 +398,14 @@ t.test('ls', (t) => {
     ls.exec([], (err) => {
       t.ifError(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should output tree containing top-level deps and their deps only')
-      _flatOptions.all = true
-      _flatOptions.depth = Infinity
+      config.all = true
+      config.depth = Infinity
       t.end()
     })
   })
 
   t.test('missing/invalid/extraneous', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -447,8 +431,8 @@ t.test('ls', (t) => {
   })
 
   t.test('colored output', (t) => {
-    _flatOptions.color = true
-    prefix = t.testdir({
+    npm.color = true
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -462,14 +446,14 @@ t.test('ls', (t) => {
     ls.exec([], (err) => {
       t.equal(err.code, 'ELSPROBLEMS', 'should have error code')
       t.matchSnapshot(redactCwd(result), 'should output tree containing color info')
-      _flatOptions.color = false
+      npm.color = false
       t.end()
     })
   })
 
   t.test('--dev', (t) => {
-    _flatOptions.dev = true
-    prefix = t.testdir({
+    config.dev = true
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -491,14 +475,14 @@ t.test('ls', (t) => {
     })
     ls.exec([], () => {
       t.matchSnapshot(redactCwd(result), 'should output tree containing dev deps')
-      _flatOptions.dev = false
+      config.dev = false
       t.end()
     })
   })
 
   t.test('--only=development', (t) => {
-    _flatOptions.only = 'development'
-    prefix = t.testdir({
+    config.only = 'development'
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -520,14 +504,14 @@ t.test('ls', (t) => {
     })
     ls.exec([], () => {
       t.matchSnapshot(redactCwd(result), 'should output tree containing only development deps')
-      _flatOptions.only = null
+      config.only = null
       t.end()
     })
   })
 
   t.test('--link', (t) => {
-    _flatOptions.link = true
-    prefix = t.testdir({
+    config.link = true
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -559,13 +543,13 @@ t.test('ls', (t) => {
     })
     ls.exec([], () => {
       t.matchSnapshot(redactCwd(result), 'should output tree containing linked deps')
-      _flatOptions.link = false
+      config.link = false
       t.end()
     })
   })
 
   t.test('print deduped symlinks', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'print-deduped-symlinks',
         version: '1.0.0',
@@ -595,14 +579,14 @@ t.test('ls', (t) => {
     })
     ls.exec([], () => {
       t.matchSnapshot(redactCwd(result), 'should output tree containing linked deps')
-      _flatOptions.link = false
+      config.link = false
       t.end()
     })
   })
 
   t.test('--production', (t) => {
-    _flatOptions.production = true
-    prefix = t.testdir({
+    config.production = true
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -624,14 +608,14 @@ t.test('ls', (t) => {
     })
     ls.exec([], () => {
       t.matchSnapshot(redactCwd(result), 'should output tree containing production deps')
-      _flatOptions.production = false
+      config.production = false
       t.end()
     })
   })
 
   t.test('--only=prod', (t) => {
-    _flatOptions.only = 'prod'
-    prefix = t.testdir({
+    config.only = 'prod'
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -653,14 +637,14 @@ t.test('ls', (t) => {
     })
     ls.exec([], () => {
       t.matchSnapshot(redactCwd(result), 'should output tree containing only prod deps')
-      _flatOptions.only = null
+      config.only = null
       t.end()
     })
   })
 
   t.test('--long', (t) => {
-    _flatOptions.long = true
-    prefix = t.testdir({
+    config.long = true
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -682,16 +666,16 @@ t.test('ls', (t) => {
     })
     ls.exec([], () => {
       t.matchSnapshot(redactCwd(result), 'should output tree info with descriptions')
-      _flatOptions.long = true
+      config.long = true
       t.end()
     })
   })
 
   t.test('--long --depth=0', (t) => {
-    _flatOptions.all = false
-    _flatOptions.depth = 0
-    _flatOptions.long = true
-    prefix = t.testdir({
+    config.all = false
+    config.depth = 0
+    config.long = true
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -713,15 +697,15 @@ t.test('ls', (t) => {
     })
     ls.exec([], () => {
       t.matchSnapshot(redactCwd(result), 'should output tree containing top-level deps with descriptions')
-      _flatOptions.all = true
-      _flatOptions.depth = Infinity
-      _flatOptions.long = false
+      config.all = true
+      config.depth = Infinity
+      config.long = false
       t.end()
     })
   })
 
   t.test('json read problems', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': '{broken json',
     })
     ls.exec([], (err) => {
@@ -732,7 +716,7 @@ t.test('ls', (t) => {
   })
 
   t.test('empty location', (t) => {
-    prefix = t.testdir({})
+    npm.prefix = t.testdir({})
     ls.exec([], (err) => {
       t.ifError(err, 'should not error out on empty locations')
       t.matchSnapshot(redactCwd(result), 'should print empty result')
@@ -741,7 +725,7 @@ t.test('ls', (t) => {
   })
 
   t.test('invalid peer dep', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -768,8 +752,8 @@ t.test('ls', (t) => {
   })
 
   t.test('invalid deduped dep', (t) => {
-    _flatOptions.color = true
-    prefix = t.testdir({
+    npm.color = true
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'invalid-deduped-dep',
         version: '1.0.0',
@@ -798,13 +782,13 @@ t.test('ls', (t) => {
     })
     ls.exec([], () => {
       t.matchSnapshot(redactCwd(result), 'should output tree signaling mismatching peer dep in problems')
-      _flatOptions.color = false
+      npm.color = false
       t.end()
     })
   })
 
   t.test('deduped missing dep', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -834,7 +818,7 @@ t.test('ls', (t) => {
   })
 
   t.test('unmet peer dep', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -852,8 +836,8 @@ t.test('ls', (t) => {
   })
 
   t.test('unmet optional dep', (t) => {
-    _flatOptions.color = true
-    prefix = t.testdir({
+    npm.color = true
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -878,13 +862,13 @@ t.test('ls', (t) => {
       t.match(err.code, 'ELSPROBLEMS', 'should have ELSPROBLEMS error code')
       t.match(err.message, /invalid: optional-dep@1.0.0/, 'should have invalid dep error msg')
       t.matchSnapshot(redactCwd(result), 'should output tree with empty entry for missing optional deps')
-      _flatOptions.color = false
+      npm.color = false
       t.end()
     })
   })
 
   t.test('cycle deps', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -921,8 +905,8 @@ t.test('ls', (t) => {
   })
 
   t.test('cycle deps with filter args', (t) => {
-    _flatOptions.color = true
-    prefix = t.testdir({
+    npm.color = true
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -954,13 +938,13 @@ t.test('ls', (t) => {
     ls.exec(['a'], (err) => {
       t.ifError(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should print tree output containing deduped ref')
-      _flatOptions.color = false
+      npm.color = false
       t.end()
     })
   })
 
   t.test('with no args dedupe entries', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'dedupe-entries',
         version: '1.0.0',
@@ -1007,9 +991,9 @@ t.test('ls', (t) => {
   })
 
   t.test('with no args dedupe entries and not displaying all', (t) => {
-    _flatOptions.all = false
-    _flatOptions.depth = 0
-    prefix = t.testdir({
+    config.all = false
+    config.depth = 0
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'dedupe-entries',
         version: '1.0.0',
@@ -1051,15 +1035,15 @@ t.test('ls', (t) => {
     ls.exec([], (err) => {
       t.ifError(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should print tree output containing deduped ref')
-      _flatOptions.all = true
-      _flatOptions.depth = Infinity
+      config.all = true
+      config.depth = Infinity
       t.end()
     })
   })
 
   t.test('with args and dedupe entries', (t) => {
-    _flatOptions.color = true
-    prefix = t.testdir({
+    npm.color = true
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'dedupe-entries',
         version: '1.0.0',
@@ -1101,13 +1085,13 @@ t.test('ls', (t) => {
     ls.exec(['@npmcli/b'], (err) => {
       t.ifError(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should print tree output containing deduped ref')
-      _flatOptions.color = false
+      npm.color = false
       t.end()
     })
   })
 
   t.test('with args and different order of items', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'dedupe-entries',
         version: '1.0.0',
@@ -1154,7 +1138,7 @@ t.test('ls', (t) => {
   })
 
   t.test('using aliases', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -1189,7 +1173,7 @@ t.test('ls', (t) => {
         },
       },
     })
-    touchHiddenPackageLock(prefix)
+    touchHiddenPackageLock(npm.prefix)
     ls.exec([], () => {
       t.matchSnapshot(redactCwd(result), 'should output tree containing aliases')
       t.end()
@@ -1197,7 +1181,7 @@ t.test('ls', (t) => {
   })
 
   t.test('resolved points to git ref', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -1235,7 +1219,7 @@ t.test('ls', (t) => {
         },
       },
     })
-    touchHiddenPackageLock(prefix)
+    touchHiddenPackageLock(npm.prefix)
     ls.exec([], (err) => {
       t.ifError(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should output tree containing git refs')
@@ -1244,7 +1228,7 @@ t.test('ls', (t) => {
   })
 
   t.test('broken resolved field', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       node_modules: {
         a: {
           'package.json': JSON.stringify({
@@ -1288,7 +1272,7 @@ t.test('ls', (t) => {
   })
 
   t.test('from and resolved properties', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -1334,7 +1318,7 @@ t.test('ls', (t) => {
         },
       },
     })
-    touchHiddenPackageLock(prefix)
+    touchHiddenPackageLock(npm.prefix)
     ls.exec([], () => {
       t.matchSnapshot(redactCwd(result), 'should not be printed in tree output')
       t.end()
@@ -1342,7 +1326,7 @@ t.test('ls', (t) => {
   })
 
   t.test('global', (t) => {
-    _flatOptions.global = true
+    config.global = true
     const fixtures = t.testdir({
       node_modules: {
         a: {
@@ -1369,18 +1353,18 @@ t.test('ls', (t) => {
     })
 
     // mimics lib/npm.js globalDir getter but pointing to fixtures
-    globalDir = resolve(fixtures, 'node_modules')
+    npm.globalDir = resolve(fixtures, 'node_modules')
 
     ls.exec([], () => {
       t.matchSnapshot(redactCwd(result), 'should print tree and not mark top-level items extraneous')
-      globalDir = 'MISSING_GLOBAL_DIR'
-      _flatOptions.global = false
+      npm.globalDir = 'MISSING_GLOBAL_DIR'
+      config.global = false
       t.end()
     })
   })
 
   t.test('filtering by child of missing dep', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'filter-by-child-of-missing-dep',
         version: '1.0.0',
@@ -1432,7 +1416,7 @@ t.test('ls', (t) => {
   })
 
   t.test('loading a tree containing workspaces', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'filter-by-child-of-missing-dep',
         version: '1.0.0',
@@ -1483,8 +1467,8 @@ t.test('ls', (t) => {
   })
 
   t.test('filter pkg arg using depth option', (t) => {
-    _flatOptions.depth = 0
-    prefix = t.testdir({
+    config.depth = 0
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-pkg-arg-filter-with-depth-opt',
         version: '1.0.0',
@@ -1540,7 +1524,7 @@ t.test('ls', (t) => {
         t.matchSnapshot(redactCwd(result), 'should print empty results msg')
 
         // if no --depth config is defined, should print path to dep
-        _flatOptions.depth = null // default config value
+        config.depth = null // default config value
         ls.exec(['d'], (err) => {
           t.ifError(err, 'should NOT have ELSPROBLEMS error code when filter')
           t.matchSnapshot(redactCwd(result), 'should print expected result')
@@ -1550,7 +1534,7 @@ t.test('ls', (t) => {
   })
 
   t.teardown(() => {
-    _flatOptions.depth = Infinity
+    config.depth = Infinity
   })
 
   t.end()
@@ -1558,11 +1542,11 @@ t.test('ls', (t) => {
 
 t.test('ls --parseable', (t) => {
   t.beforeEach(cleanUpResult)
-  _flatOptions.json = false
-  _flatOptions.unicode = false
-  _flatOptions.parseable = true
+  config.json = false
+  config.unicode = false
+  config.parseable = true
   t.test('no args', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -1581,7 +1565,7 @@ t.test('ls --parseable', (t) => {
   })
 
   t.test('missing package.json', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       ...simpleNmFixture,
     })
     ls.exec([], (err) => {
@@ -1596,7 +1580,7 @@ t.test('ls --parseable', (t) => {
   })
 
   t.test('extraneous deps', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -1614,7 +1598,7 @@ t.test('ls --parseable', (t) => {
   })
 
   t.test('with filter arg', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -1633,7 +1617,7 @@ t.test('ls --parseable', (t) => {
   })
 
   t.test('with filter arg nested dep', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -1652,7 +1636,7 @@ t.test('ls --parseable', (t) => {
   })
 
   t.test('with multiple filter args', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -1680,7 +1664,7 @@ t.test('ls --parseable', (t) => {
   })
 
   t.test('with missing filter arg', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -1705,9 +1689,9 @@ t.test('ls --parseable', (t) => {
   })
 
   t.test('default --depth value should be 0', (t) => {
-    _flatOptions.all = false
-    _flatOptions.depth = undefined
-    prefix = t.testdir({
+    config.all = false
+    config.depth = undefined
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -1721,16 +1705,16 @@ t.test('ls --parseable', (t) => {
     ls.exec([], (err) => {
       t.ifError(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should output parseable output containing only top-level dependencies')
-      _flatOptions.all = true
-      _flatOptions.depth = Infinity
+      config.all = true
+      config.depth = Infinity
       t.end()
     })
   })
 
   t.test('--depth=0', (t) => {
-    _flatOptions.all = false
-    _flatOptions.depth = 0
-    prefix = t.testdir({
+    config.all = false
+    config.depth = 0
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -1744,16 +1728,16 @@ t.test('ls --parseable', (t) => {
     ls.exec([], (err) => {
       t.ifError(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should output tree containing only top-level dependencies')
-      _flatOptions.all = true
-      _flatOptions.depth = Infinity
+      config.all = true
+      config.depth = Infinity
       t.end()
     })
   })
 
   t.test('--depth=1', (t) => {
-    _flatOptions.all = false
-    _flatOptions.depth = 1
-    prefix = t.testdir({
+    config.all = false
+    config.depth = 1
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -1767,14 +1751,14 @@ t.test('ls --parseable', (t) => {
     ls.exec([], (err) => {
       t.ifError(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should output parseable containing top-level deps and their deps only')
-      _flatOptions.all = true
-      _flatOptions.depth = Infinity
+      config.all = true
+      config.depth = Infinity
       t.end()
     })
   })
 
   t.test('missing/invalid/extraneous', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -1793,8 +1777,8 @@ t.test('ls --parseable', (t) => {
   })
 
   t.test('--dev', (t) => {
-    _flatOptions.dev = true
-    prefix = t.testdir({
+    config.dev = true
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -1816,14 +1800,14 @@ t.test('ls --parseable', (t) => {
     })
     ls.exec([], () => {
       t.matchSnapshot(redactCwd(result), 'should output tree containing dev deps')
-      _flatOptions.dev = false
+      config.dev = false
       t.end()
     })
   })
 
   t.test('--only=development', (t) => {
-    _flatOptions.only = 'development'
-    prefix = t.testdir({
+    config.only = 'development'
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -1845,14 +1829,14 @@ t.test('ls --parseable', (t) => {
     })
     ls.exec([], () => {
       t.matchSnapshot(redactCwd(result), 'should output tree containing only development deps')
-      _flatOptions.only = null
+      config.only = null
       t.end()
     })
   })
 
   t.test('--link', (t) => {
-    _flatOptions.link = true
-    prefix = t.testdir({
+    config.link = true
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -1884,14 +1868,14 @@ t.test('ls --parseable', (t) => {
     })
     ls.exec([], () => {
       t.matchSnapshot(redactCwd(result), 'should output tree containing linked deps')
-      _flatOptions.link = false
+      config.link = false
       t.end()
     })
   })
 
   t.test('--production', (t) => {
-    _flatOptions.production = true
-    prefix = t.testdir({
+    config.production = true
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -1913,14 +1897,14 @@ t.test('ls --parseable', (t) => {
     })
     ls.exec([], () => {
       t.matchSnapshot(redactCwd(result), 'should output tree containing production deps')
-      _flatOptions.production = false
+      config.production = false
       t.end()
     })
   })
 
   t.test('--only=prod', (t) => {
-    _flatOptions.only = 'prod'
-    prefix = t.testdir({
+    config.only = 'prod'
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -1942,14 +1926,14 @@ t.test('ls --parseable', (t) => {
     })
     ls.exec([], () => {
       t.matchSnapshot(redactCwd(result), 'should output tree containing only prod deps')
-      _flatOptions.only = null
+      config.only = null
       t.end()
     })
   })
 
   t.test('--long', (t) => {
-    _flatOptions.long = true
-    prefix = t.testdir({
+    config.long = true
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -1971,13 +1955,13 @@ t.test('ls --parseable', (t) => {
     })
     ls.exec([], () => {
       t.matchSnapshot(redactCwd(result), 'should output tree info with descriptions')
-      _flatOptions.long = true
+      config.long = true
       t.end()
     })
   })
 
   t.test('--long with extraneous deps', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -1996,8 +1980,8 @@ t.test('ls --parseable', (t) => {
   })
 
   t.test('--long missing/invalid/extraneous', (t) => {
-    _flatOptions.long = true
-    prefix = t.testdir({
+    config.long = true
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -2011,14 +1995,14 @@ t.test('ls --parseable', (t) => {
     ls.exec([], (err) => {
       t.match(err, { code: 'ELSPROBLEMS' }, 'should list dep problems')
       t.matchSnapshot(redactCwd(result), 'should output parseable result containing EXTRANEOUS/INVALID labels')
-      _flatOptions.long = false
+      config.long = false
       t.end()
     })
   })
 
   t.test('--long print symlink target location', (t) => {
-    _flatOptions.long = true
-    prefix = t.testdir({
+    config.long = true
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -2051,16 +2035,16 @@ t.test('ls --parseable', (t) => {
     ls.exec([], (err) => {
       t.ifError(err, 'npm ls')
       t.matchSnapshot(redactCwd(result), 'should output parseable results with symlink targets')
-      _flatOptions.long = false
+      config.long = false
       t.end()
     })
   })
 
   t.test('--long --depth=0', (t) => {
-    _flatOptions.all = false
-    _flatOptions.depth = 0
-    _flatOptions.long = true
-    prefix = t.testdir({
+    config.all = false
+    config.depth = 0
+    config.long = true
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -2082,15 +2066,15 @@ t.test('ls --parseable', (t) => {
     })
     ls.exec([], () => {
       t.matchSnapshot(redactCwd(result), 'should output tree containing top-level deps with descriptions')
-      _flatOptions.all = true
-      _flatOptions.depth = Infinity
-      _flatOptions.long = false
+      config.all = true
+      config.depth = Infinity
+      config.long = false
       t.end()
     })
   })
 
   t.test('json read problems', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': '{broken json',
     })
     ls.exec([], (err) => {
@@ -2101,7 +2085,7 @@ t.test('ls --parseable', (t) => {
   })
 
   t.test('empty location', (t) => {
-    prefix = t.testdir({})
+    npm.prefix = t.testdir({})
     ls.exec([], (err) => {
       t.ifError(err, 'should not error out on empty locations')
       t.matchSnapshot(redactCwd(result), 'should print empty result')
@@ -2110,7 +2094,7 @@ t.test('ls --parseable', (t) => {
   })
 
   t.test('unmet peer dep', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -2137,7 +2121,7 @@ t.test('ls --parseable', (t) => {
   })
 
   t.test('unmet optional dep', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -2167,7 +2151,7 @@ t.test('ls --parseable', (t) => {
   })
 
   t.test('cycle deps', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -2203,7 +2187,7 @@ t.test('ls --parseable', (t) => {
   })
 
   t.test('using aliases', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -2234,7 +2218,7 @@ t.test('ls --parseable', (t) => {
         },
       },
     })
-    touchHiddenPackageLock(prefix)
+    touchHiddenPackageLock(npm.prefix)
     ls.exec([], () => {
       t.matchSnapshot(redactCwd(result), 'should output tree containing aliases')
       t.end()
@@ -2242,7 +2226,7 @@ t.test('ls --parseable', (t) => {
   })
 
   t.test('resolved points to git ref', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -2279,7 +2263,7 @@ t.test('ls --parseable', (t) => {
         },
       },
     })
-    touchHiddenPackageLock(prefix)
+    touchHiddenPackageLock(npm.prefix)
     ls.exec([], () => {
       t.matchSnapshot(redactCwd(result), 'should output tree containing git refs')
       t.end()
@@ -2287,7 +2271,7 @@ t.test('ls --parseable', (t) => {
   })
 
   t.test('from and resolved properties', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -2333,7 +2317,7 @@ t.test('ls --parseable', (t) => {
         },
       },
     })
-    touchHiddenPackageLock(prefix)
+    touchHiddenPackageLock(npm.prefix)
     ls.exec([], () => {
       t.matchSnapshot(redactCwd(result), 'should not be printed in tree output')
       t.end()
@@ -2341,7 +2325,7 @@ t.test('ls --parseable', (t) => {
   })
 
   t.test('global', (t) => {
-    _flatOptions.global = true
+    config.global = true
     const fixtures = t.testdir({
       node_modules: {
         a: {
@@ -2368,12 +2352,12 @@ t.test('ls --parseable', (t) => {
     })
 
     // mimics lib/npm.js globalDir getter but pointing to fixtures
-    globalDir = resolve(fixtures, 'node_modules')
+    npm.globalDir = resolve(fixtures, 'node_modules')
 
     ls.exec([], () => {
       t.matchSnapshot(redactCwd(result), 'should print parseable output for global deps')
-      globalDir = 'MISSING_GLOBAL_DIR'
-      _flatOptions.global = false
+      npm.globalDir = 'MISSING_GLOBAL_DIR'
+      config.global = false
       t.end()
     })
   })
@@ -2383,10 +2367,10 @@ t.test('ls --parseable', (t) => {
 
 t.test('ls --json', (t) => {
   t.beforeEach(cleanUpResult)
-  _flatOptions.json = true
-  _flatOptions.parseable = false
+  config.json = true
+  config.parseable = false
   t.test('no args', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -2425,7 +2409,7 @@ t.test('ls --json', (t) => {
   })
 
   t.test('missing package.json', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       ...simpleNmFixture,
     })
     ls.exec([], (err) => {
@@ -2474,7 +2458,7 @@ t.test('ls --json', (t) => {
   })
 
   t.test('extraneous deps', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -2528,7 +2512,7 @@ t.test('ls --json', (t) => {
   })
 
   t.test('with filter arg', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -2564,7 +2548,7 @@ t.test('ls --json', (t) => {
   })
 
   t.test('with filter arg nested dep', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -2600,7 +2584,7 @@ t.test('ls --json', (t) => {
   })
 
   t.test('with multiple filter args', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -2648,7 +2632,7 @@ t.test('ls --json', (t) => {
   })
 
   t.test('with missing filter arg', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -2680,9 +2664,9 @@ t.test('ls --json', (t) => {
   })
 
   t.test('default --depth value should now be 0', (t) => {
-    _flatOptions.all = false
-    _flatOptions.depth = undefined
-    prefix = t.testdir({
+    config.all = false
+    config.depth = undefined
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -2711,16 +2695,16 @@ t.test('ls --json', (t) => {
         },
         'should output json containing only top-level dependencies'
       )
-      _flatOptions.all = true
-      _flatOptions.depth = Infinity
+      config.all = true
+      config.depth = Infinity
       t.end()
     })
   })
 
   t.test('--depth=0', (t) => {
-    _flatOptions.all = false
-    _flatOptions.depth = 0
-    prefix = t.testdir({
+    config.all = false
+    config.depth = 0
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -2749,16 +2733,16 @@ t.test('ls --json', (t) => {
         },
         'should output json containing only top-level dependencies'
       )
-      _flatOptions.all = true
-      _flatOptions.depth = Infinity
+      config.all = true
+      config.depth = Infinity
       t.end()
     })
   })
 
   t.test('--depth=1', (t) => {
-    _flatOptions.all = false
-    _flatOptions.depth = 1
-    prefix = t.testdir({
+    config.all = false
+    config.depth = 1
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -2792,14 +2776,14 @@ t.test('ls --json', (t) => {
         },
         'should output json containing top-level deps and their deps only'
       )
-      _flatOptions.all = true
-      _flatOptions.depth = Infinity
+      config.all = true
+      config.depth = Infinity
       t.end()
     })
   })
 
   t.test('missing/invalid/extraneous', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -2858,8 +2842,8 @@ t.test('ls --json', (t) => {
   })
 
   t.test('--dev', (t) => {
-    _flatOptions.dev = true
-    prefix = t.testdir({
+    config.dev = true
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -2899,14 +2883,14 @@ t.test('ls --json', (t) => {
         },
         'should output json containing dev deps'
       )
-      _flatOptions.dev = false
+      config.dev = false
       t.end()
     })
   })
 
   t.test('--only=development', (t) => {
-    _flatOptions.only = 'development'
-    prefix = t.testdir({
+    config.only = 'development'
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -2946,14 +2930,14 @@ t.test('ls --json', (t) => {
         },
         'should output json containing only development deps'
       )
-      _flatOptions.only = null
+      config.only = null
       t.end()
     })
   })
 
   t.test('--link', (t) => {
-    _flatOptions.link = true
-    prefix = t.testdir({
+    config.link = true
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -2998,14 +2982,14 @@ t.test('ls --json', (t) => {
         },
         'should output json containing linked deps'
       )
-      _flatOptions.link = false
+      config.link = false
       t.end()
     })
   })
 
   t.test('--production', (t) => {
-    _flatOptions.production = true
-    prefix = t.testdir({
+    config.production = true
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -3039,14 +3023,14 @@ t.test('ls --json', (t) => {
         },
         'should output json containing production deps'
       )
-      _flatOptions.production = false
+      config.production = false
       t.end()
     })
   })
 
   t.test('--only=prod', (t) => {
-    _flatOptions.only = 'prod'
-    prefix = t.testdir({
+    config.only = 'prod'
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -3080,13 +3064,13 @@ t.test('ls --json', (t) => {
         },
         'should output json containing only prod deps'
       )
-      _flatOptions.only = null
+      config.only = null
       t.end()
     })
   })
 
   t.test('from lockfile', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       node_modules: {
         '@isaacs': {
           'dedupe-tests-a': {
@@ -3215,8 +3199,8 @@ t.test('ls --json', (t) => {
   })
 
   t.test('--long', (t) => {
-    _flatOptions.long = true
-    prefix = t.testdir({
+    config.long = true
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -3345,16 +3329,16 @@ t.test('ls --json', (t) => {
         },
         'should output long json info'
       )
-      _flatOptions.long = true
+      config.long = true
       t.end()
     })
   })
 
   t.test('--long --depth=0', (t) => {
-    _flatOptions.all = false
-    _flatOptions.depth = 0
-    _flatOptions.long = true
-    prefix = t.testdir({
+    config.all = false
+    config.depth = 0
+    config.long = true
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -3446,15 +3430,15 @@ t.test('ls --json', (t) => {
         },
         'should output json containing top-level deps in long format'
       )
-      _flatOptions.all = true
-      _flatOptions.depth = Infinity
-      _flatOptions.long = false
+      config.all = true
+      config.depth = Infinity
+      config.long = false
       t.end()
     })
   })
 
   t.test('json read problems', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': '{broken json',
     })
     ls.exec([], (err) => {
@@ -3475,7 +3459,7 @@ t.test('ls --json', (t) => {
   })
 
   t.test('empty location', (t) => {
-    prefix = t.testdir({})
+    npm.prefix = t.testdir({})
     ls.exec([], (err) => {
       t.ifError(err, 'should not error out on empty locations')
       t.deepEqual(
@@ -3488,7 +3472,7 @@ t.test('ls --json', (t) => {
   })
 
   t.test('unmet peer dep', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -3547,7 +3531,7 @@ t.test('ls --json', (t) => {
   })
 
   t.test('unmet optional dep', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -3611,7 +3595,7 @@ t.test('ls --json', (t) => {
   })
 
   t.test('cycle deps', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -3667,7 +3651,7 @@ t.test('ls --json', (t) => {
   })
 
   t.test('using aliases', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -3697,7 +3681,7 @@ t.test('ls --json', (t) => {
         },
       },
     })
-    touchHiddenPackageLock(prefix)
+    touchHiddenPackageLock(npm.prefix)
     ls.exec([], () => {
       t.deepEqual(
         jsonParse(result),
@@ -3718,7 +3702,7 @@ t.test('ls --json', (t) => {
   })
 
   t.test('resolved points to git ref', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -3757,7 +3741,7 @@ t.test('ls --json', (t) => {
         },
       },
     })
-    touchHiddenPackageLock(prefix)
+    touchHiddenPackageLock(npm.prefix)
     ls.exec([], () => {
       t.deepEqual(
         jsonParse(result),
@@ -3778,7 +3762,7 @@ t.test('ls --json', (t) => {
   })
 
   t.test('from and resolved properties', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         name: 'test-npm-ls',
         version: '1.0.0',
@@ -3841,7 +3825,7 @@ t.test('ls --json', (t) => {
         },
       },
     })
-    touchHiddenPackageLock(prefix)
+    touchHiddenPackageLock(npm.prefix)
     ls.exec([], () => {
       t.deepEqual(
         jsonParse(result),
@@ -3862,7 +3846,7 @@ t.test('ls --json', (t) => {
   })
 
   t.test('node.name fallback if missing root package name', (t) => {
-    prefix = t.testdir({
+    npm.prefix = t.testdir({
       'package.json': JSON.stringify({
         version: '1.0.0',
       }),
@@ -3881,7 +3865,7 @@ t.test('ls --json', (t) => {
   })
 
   t.test('global', (t) => {
-    _flatOptions.global = true
+    config.global = true
     const fixtures = t.testdir({
       node_modules: {
         a: {
@@ -3908,7 +3892,7 @@ t.test('ls --json', (t) => {
     })
 
     // mimics lib/npm.js globalDir getter but pointing to fixtures
-    globalDir = resolve(fixtures, 'node_modules')
+    npm.globalDir = resolve(fixtures, 'node_modules')
 
     ls.exec([], () => {
       t.deepEqual(
@@ -3931,8 +3915,8 @@ t.test('ls --json', (t) => {
         },
         'should print json output for global deps'
       )
-      globalDir = 'MISSING_GLOBAL_DIR'
-      _flatOptions.global = false
+      npm.globalDir = 'MISSING_GLOBAL_DIR'
+      config.global = false
       t.end()
     })
   })

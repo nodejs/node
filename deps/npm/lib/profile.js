@@ -38,6 +38,10 @@ const writableProfileKeys = [
 
 const BaseCommand = require('./base-command.js')
 class Profile extends BaseCommand {
+  static get description () {
+    return 'Change settings on your registry profile'
+  }
+
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'profile'
@@ -108,14 +112,14 @@ class Profile extends BaseCommand {
 
   async get (args) {
     const tfa = 'two-factor auth'
-    const conf = { ...this.npm.flatOptions }
-
-    const info = await pulseTillDone.withPromise(npmProfile.get(conf))
+    const info = await pulseTillDone.withPromise(
+      npmProfile.get(this.npm.flatOptions)
+    )
 
     if (!info.cidr_whitelist)
       delete info.cidr_whitelist
 
-    if (conf.json) {
+    if (this.npm.config.get('json')) {
       this.npm.output(JSON.stringify(info, null, 2))
       return
     }
@@ -147,7 +151,7 @@ class Profile extends BaseCommand {
         .join('\t')
       this.npm.output(values)
     } else {
-      if (conf.parseable) {
+      if (this.npm.config.get('parseable')) {
         for (const key of Object.keys(info)) {
           if (key === 'tfa')
             this.npm.output(`${key}\t${cleaned[tfa]}`)
@@ -165,7 +169,7 @@ class Profile extends BaseCommand {
   }
 
   async set (args) {
-    const conf = { ...this.npm.flatOptions }
+    const conf = this.npm.flatOptions
     const prop = (args[0] || '').toLowerCase().trim()
 
     let value = args.length > 1 ? args.slice(1).join(' ') : null
@@ -214,9 +218,9 @@ class Profile extends BaseCommand {
 
     const result = await otplease(conf, conf => npmProfile.set(newUser, conf))
 
-    if (conf.json)
+    if (this.npm.config.get('json'))
       this.npm.output(JSON.stringify({ [prop]: result[prop] }, null, 2))
-    else if (conf.parseable)
+    else if (this.npm.config.get('parseable'))
       this.npm.output(prop + '\t' + result[prop])
     else if (result[prop] != null)
       this.npm.output('Set', prop, 'to', result[prop])
@@ -239,11 +243,10 @@ class Profile extends BaseCommand {
       )
     }
 
-    const conf = { ...this.npm.flatOptions }
-    if (conf.json || conf.parseable) {
+    if (this.npm.config.get('json') || this.npm.config.get('parseable')) {
       throw new Error(
         'Enabling two-factor authentication is an interactive operation and ' +
-        (conf.json ? 'JSON' : 'parseable') + ' output mode is not available'
+        (this.npm.config.get('json') ? 'JSON' : 'parseable') + ' output mode is not available'
       )
     }
 
@@ -255,7 +258,7 @@ class Profile extends BaseCommand {
 
     // if they're using legacy auth currently then we have to
     // update them to a bearer token before continuing.
-    const creds = this.npm.config.getCredentialsByURI(conf.registry)
+    const creds = this.npm.config.getCredentialsByURI(this.npm.config.get('registry'))
     const auth = {}
 
     if (creds.token)
@@ -267,32 +270,29 @@ class Profile extends BaseCommand {
       auth.basic = { username: basic[0], password: basic[1] }
     }
 
-    if (conf.otp)
-      auth.otp = conf.otp
-
     if (!auth.basic && !auth.token) {
       throw new Error(
         'You need to be logged in to registry ' +
-        `${conf.registry} in order to enable 2fa`
+        `${this.npm.config.get('registry')} in order to enable 2fa`
       )
     }
 
     if (auth.basic) {
       log.info('profile', 'Updating authentication to bearer token')
       const result = await npmProfile.createToken(
-        auth.basic.password, false, [], conf
+        auth.basic.password, false, [], this.npm.flatOptions
       )
 
       if (!result.token) {
         throw new Error(
-          `Your registry ${conf.registry} does not seem to ` +
+          `Your registry ${this.npm.config.get('registry')} does not seem to ` +
           'support bearer tokens. Bearer tokens are required for ' +
           'two-factor authentication'
         )
       }
 
       this.npm.config.setCredentialsByURI(
-        conf.registry,
+        this.npm.config.get('registry'),
         { token: result.token }
       )
       await this.npm.config.save('user')
@@ -303,21 +303,21 @@ class Profile extends BaseCommand {
     info.tfa.password = password
 
     log.info('profile', 'Determine if tfa is pending')
-    const userInfo = await pulseTillDone.withPromise(npmProfile.get(conf))
+    const userInfo = await pulseTillDone.withPromise(
+      npmProfile.get(this.npm.flatOptions)
+    )
 
+    const conf = { ...this.npm.flatOptions }
     if (userInfo && userInfo.tfa && userInfo.tfa.pending) {
       log.info('profile', 'Resetting two-factor authentication')
       await pulseTillDone.withPromise(
         npmProfile.set({ tfa: { password, mode: 'disable' } }, conf)
       )
     } else if (userInfo && userInfo.tfa) {
-      if (conf.otp)
-        conf.otp = conf.otp
-      else {
-        const otp = await readUserInfo.otp(
+      if (!conf.otp) {
+        conf.otp = await readUserInfo.otp(
           'Enter one-time password from your authenticator app: '
         )
-        conf.otp = otp
       }
     }
 
@@ -390,9 +390,9 @@ class Profile extends BaseCommand {
       tfa: { password: password, mode: 'disable' },
     }, conf))
 
-    if (conf.json)
+    if (this.npm.config.get('json'))
       this.npm.output(JSON.stringify({ tfa: false }, null, 2))
-    else if (conf.parseable)
+    else if (this.npm.config.get('parseable'))
       this.npm.output('tfa\tfalse')
     else
       this.npm.output('Two factor authentication disabled.')

@@ -4,13 +4,18 @@ const BaseCommand = require('./base-command.js')
 
 class Ping extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'ping'
+  static get description () {
+    return 'Ping npm registry'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get description () {
-    return 'ping registry'
+  static get params () {
+    return ['registry']
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get name () {
+    return 'ping'
   }
 
   exec (args, cb) {
@@ -18,14 +23,14 @@ class Ping extends BaseCommand {
   }
 
   async ping (args) {
-    log.notice('PING', this.npm.flatOptions.registry)
+    log.notice('PING', this.npm.config.get('registry'))
     const start = Date.now()
     const details = await pingUtil(this.npm.flatOptions)
     const time = Date.now() - start
     log.notice('PONG', `${time / 1000}ms`)
-    if (this.npm.flatOptions.json) {
+    if (this.npm.config.get('json')) {
       this.npm.output(JSON.stringify({
-        registry: this.npm.flatOptions.registry,
+        registry: this.npm.config.get('registry'),
         time,
         details,
       }, null, 2))

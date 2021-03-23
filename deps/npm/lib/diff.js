@@ -12,6 +12,10 @@ const readLocalPkg = require('./utils/read-local-package.js')
 const BaseCommand = require('./base-command.js')
 
 class Diff extends BaseCommand {
+  static get description () {
+    return 'The registry diff command'
+  }
+
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'diff'
@@ -30,7 +34,7 @@ class Diff extends BaseCommand {
 
   get where () {
     const globalTop = resolve(this.npm.globalDir, '..')
-    const { global } = this.npm.flatOptions
+    const global = this.npm.config.get('global')
     return global ? globalTop : this.npm.prefix
   }
 
@@ -39,7 +43,7 @@ class Diff extends BaseCommand {
   }
 
   async diff (args) {
-    const specs = this.npm.flatOptions.diff.filter(d => d)
+    const specs = this.npm.config.get('diff').filter(d => d)
     if (specs.length > 2) {
       throw new TypeError(
         'Can\'t use more than two --diff arguments.\n\n' +
@@ -91,7 +95,7 @@ class Diff extends BaseCommand {
     }
 
     return [
-      `${pkgName}@${this.npm.flatOptions.defaultTag}`,
+      `${pkgName}@${this.npm.config.get('tag')}`,
       `file:${this.npm.prefix}`,
     ]
   }

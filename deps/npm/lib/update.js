@@ -9,13 +9,23 @@ const completion = require('./utils/completion/installed-deep.js')
 const BaseCommand = require('./base-command.js')
 class Update extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get description () {
+    return 'Update packages'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'update'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return ['global']
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get usage () {
-    return ['[-g] [<pkg>...]']
+    return ['[<pkg>...]']
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
@@ -30,11 +40,11 @@ class Update extends BaseCommand {
   async update (args) {
     const update = args.length === 0 ? true : args
     const global = path.resolve(this.npm.globalDir, '..')
-    const where = this.npm.flatOptions.global
+    const where = this.npm.config.get('global')
       ? global
       : this.npm.prefix
 
-    if (this.npm.flatOptions.depth) {
+    if (this.npm.config.get('depth')) {
       log.warn('update', 'The --depth option no longer has any effect. See RFC0019.\n' +
         'https://github.com/npm/rfcs/blob/latest/implemented/0019-remove-update-depth-option.md')
     }

@@ -10,6 +10,8 @@ description: Ping npm registry
 npm ping [--registry <registry>]
 ```
 
+Note: This command is unaware of workspaces.
+
 ### Description
 
 Ping the configured or given npm registry and verify authentication.

@@ -1,6 +1,10 @@
 const BaseCommand = require('./base-command.js')
 
 class Set extends BaseCommand {
+  static get description () {
+    return 'Set a value in the npm configuration'
+  }
+
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'set'

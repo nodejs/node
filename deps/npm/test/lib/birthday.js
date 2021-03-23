@@ -1,20 +1,23 @@
 const t = require('tap')
-const npm = {
-  flatOptions: {
-    yes: false,
-    package: [],
-  },
+const mockNpm = require('../fixtures/mock-npm')
+
+const config = {
+  yes: false,
+  package: [],
+}
+const npm = mockNpm({
+  config,
   commands: {
     exec: (args, cb) => {
-      t.equal(npm.flatOptions.yes, true, 'should say yes')
-      t.strictSame(npm.flatOptions.package, ['@npmcli/npm-birthday'],
+      t.equal(npm.config.get('yes'), true, 'should say yes')
+      t.strictSame(npm.config.get('package'), ['@npmcli/npm-birthday'],
         'uses correct package')
       t.strictSame(args, ['npm-birthday'], 'called with correct args')
       t.match(cb, Function, 'callback is a function')
       cb()
     },
   },
-}
+})
 
 const Birthday = require('../../lib/birthday.js')
 const birthday = new Birthday(npm)

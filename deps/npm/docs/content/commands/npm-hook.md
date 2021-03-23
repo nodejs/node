@@ -13,6 +13,8 @@ npm hook update <id> <url> [secret]
 npm hook rm <id>
 ```
 
+Note: This command is unaware of workspaces.
+
 ### Description
 
 Allows you to manage [npm

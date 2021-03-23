@@ -1,20 +1,13 @@
 const { test } = require('tap')
 const requireInject = require('require-inject')
-
-const npm = (base) => {
-  const config = base.config
-  return {
-    ...base,
-    flatOptions: { dryRun: false },
-    config: {
-      get: (k) => config[k],
-    },
-  }
-}
+const mockNpm = require('../fixtures/mock-npm')
 
 test('should throw in global mode', (t) => {
   const Dedupe = requireInject('../../lib/dedupe.js')
-  const dedupe = new Dedupe(npm({ config: { global: true }}))
+  const npm = mockNpm({
+    config: { 'dry-run': false, global: true },
+  })
+  const dedupe = new Dedupe(npm)
 
   dedupe.exec([], er => {
     t.match(er, { code: 'EDEDUPEGLOBAL' }, 'throws EDEDUPEGLOBAL')
@@ -36,12 +29,13 @@ test('should remove dupes using Arborist', (t) => {
       t.ok(arb, 'gets arborist tree')
     },
   })
-  const dedupe = new Dedupe(npm({
+  const npm = mockNpm({
     prefix: 'foo',
     config: {
       'dry-run': 'true',
     },
-  }))
+  })
+  const dedupe = new Dedupe(npm)
   dedupe.exec([], er => {
     if (er)
       throw er
@@ -53,17 +47,18 @@ test('should remove dupes using Arborist', (t) => {
 test('should remove dupes using Arborist - no arguments', (t) => {
   const Dedupe = requireInject('../../lib/dedupe.js', {
     '@npmcli/arborist': function (args) {
-      t.ok(args.dryRun, 'gets dryRun from flatOptions')
+      t.ok(args.dryRun, 'gets dryRun from config')
       this.dedupe = () => {}
     },
     '../../lib/utils/reify-output.js': () => {},
   })
-  const dedupe = new Dedupe(npm({
+  const npm = mockNpm({
     prefix: 'foo',
     config: {
-      'dry-run': true,
+      'dry-run': 'true',
     },
-  }))
+  })
+  const dedupe = new Dedupe(npm)
   dedupe.exec(null, () => {
     t.end()
   })

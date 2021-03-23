@@ -4,6 +4,10 @@ const Table = require('cli-table3')
 const BaseCommand = require('./base-command.js')
 
 class Org extends BaseCommand {
+  static get description () {
+    return 'Manage orgs'
+  }
+
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'org'

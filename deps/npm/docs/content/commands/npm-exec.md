@@ -11,6 +11,7 @@ npm exec -- <pkg>[@<version>] [args...]
 npm exec --package=<pkg>[@<version>] -- <cmd> [args...]
 npm exec -c '<cmd> [args...]'
 npm exec --package=foo -c '<cmd> [args...]'
+npm exec [-ws] [-w <workspace-name] [args...]
 
 npx <pkg>[@<specifier>] [args...]
 npx -p <pkg>[@<specifier>] <cmd> [args...]
@@ -145,6 +146,68 @@ $ npm x -c 'eslint && say "hooray, lint passed"'
 $ npx -c 'eslint && say "hooray, lint passed"'
 ```
 
+### Workspaces support
+
+You may use the `workspace` or `workspaces` configs in order to run an
+arbitrary command from an npm package (either one installed locally, or fetched
+remotely) in the context of the specified workspaces.
+If no positional argument or `--call` option is provided, it will open an
+interactive subshell in the context of each of these configured workspaces one
+at a time.
+
+Given a project with configured workspaces, e.g:
+
+```
+.
++-- package.json
+`-- packages
+   +-- a
+   |   `-- package.json
+   +-- b
+   |   `-- package.json
+   `-- c
+       `-- package.json
+```
+
+Assuming the workspace configuration is properly set up at the root level
+`package.json` file. e.g:
+
+```
+{
+    "workspaces": [ "./packages/*" ]
+}
+```
+
+You can execute an arbitrary command from a package in the context of each of
+the configured workspaces when using the `workspaces` configuration options,
+in this example we're using **eslint** to lint any js file found within each
+workspace folder:
+
+```
+npm exec -ws -- eslint ./*.js
+```
+
+#### Filtering workspaces
+
+It's also possible to execute a command in a single workspace using the
+`workspace` config along with a name or directory path:
+
+```
+npm exec --workspace=a -- eslint ./*.js
+```
+
+The `workspace` config can also be specified multiple times in order to run a
+specific script in the context of multiple workspaces. When defining values for
+the `workspace` config in the command line, it also possible to use `-w` as a
+shorthand, e.g:
+
+```
+npm exec -w a -w b -- eslint ./*.js
+```
+
+This last command will run the `eslint` command in both `./packages/a` and
+`./packages/b` folders.
+
 ### Compatibility with Older npx Versions
 
 The `npx` binary was rewritten in npm v7.0.0, and the standalone `npx`
@@ -194,6 +257,30 @@ requested from the server. To force full offline mode, use `offline`.
 
 Forces full offline mode. Any packages not locally cached will result in
 an error.
+
+#### workspace
+
+* Alias: `-w`
+* Type: Array
+* Default: `[]`
+
+Enable running scripts in the context of workspaces while also filtering by
+the provided names or paths provided.
+
+Valid values for the `workspace` config are either:
+- Workspace names
+- Path to a workspace directory
+- Path to a parent workspace directory (will result to selecting all of the
+children workspaces)
+
+#### workspaces
+
+* Alias: `-ws`
+* Type: Boolean
+* Default: `false`
+
+Run scripts in the context of all configured workspaces for the current
+project.
 
 ### See Also
 

@@ -1,5 +1,6 @@
 const t = require('tap')
 const requireInject = require('require-inject')
+const mockNpm = require('../fixtures/mock-npm')
 const fs = require('fs')
 
 // The way we set loglevel is kind of convoluted, and there is no way to affect
@@ -10,11 +11,13 @@ const log = require('npmlog')
 log.level = 'silent'
 
 // mock config
-const {defaults} = require('../../lib/utils/config.js')
+const {definitions} = require('../../lib/utils/config')
+const defaults = Object.entries(definitions).reduce((defaults, [key, def]) => {
+  defaults[key] = def.default
+  return defaults
+}, {})
 
-const config = {
-  list: [defaults],
-}
+const config = defaults
 
 t.afterEach(cb => {
   log.level = 'silent'
@@ -54,18 +57,17 @@ t.test('should publish with libnpmpublish, passing through flatOptions and respe
       },
     },
   })
-  const publish = new Publish({
+  const npm = mockNpm({
+    config,
     flatOptions: {
       customValue: true,
     },
-    config: {
-      ...config,
-      getCredentialsByURI: (uri) => {
-        t.same(uri, registry, 'gets credentials for expected registry')
-        return { token: 'some.registry.token' }
-      },
-    },
   })
+  npm.config.getCredentialsByURI = (uri) => {
+    t.same(uri, registry, 'gets credentials for expected registry')
+    return { token: 'some.registry.token' }
+  }
+  const publish = new Publish(npm)
 
   publish.exec([testDir], (er) => {
     if (er)
@@ -104,15 +106,12 @@ t.test('re-loads publishConfig.registry if added during script process', (t) => 
       },
     },
   })
-  const publish = new Publish({
-    config: {
-      ...config,
-      getCredentialsByURI: (uri) => {
-        t.same(uri, registry, 'gets credentials for expected registry')
-        return { token: 'some.registry.token' }
-      },
-    },
-  })
+  const npm = mockNpm({ config })
+  npm.config.getCredentialsByURI = (uri) => {
+    t.same(uri, registry, 'gets credentials for expected registry')
+    return { token: 'some.registry.token' }
+  }
+  const publish = new Publish(npm)
 
   publish.exec([testDir], (er) => {
     if (er)
@@ -148,21 +147,17 @@ t.test('if loglevel=info and json, should not output package contents', (t) => {
       },
     },
   })
-  const publish = new Publish({
-    flatOptions: {
-      json: true,
-    },
-    config: {
-      ...config,
-      getCredentialsByURI: (uri) => {
-        t.same(uri, defaults.registry, 'gets credentials for expected registry')
-        return { token: 'some.registry.token' }
-      },
-    },
+  const npm = mockNpm({
+    config: { ...config, json: true },
     output: () => {
       t.pass('output is called')
     },
   })
+  npm.config.getCredentialsByURI = (uri) => {
+    t.same(uri, defaults.registry, 'gets credentials for expected registry')
+    return { token: 'some.registry.token' }
+  }
+  const publish = new Publish(npm)
 
   publish.exec([testDir], (er) => {
     if (er)
@@ -198,20 +193,17 @@ t.test('if loglevel=silent and dry-run, should not output package contents or pu
       },
     },
   })
-  const publish = new Publish({
-    flatOptions: {
-      dryRun: true,
-    },
-    config: {
-      ...config,
-      getCredentialsByURI: () => {
-        throw new Error('should not call getCredentialsByURI in dry run')
-      },
-    },
+  const npm = mockNpm({
+    config: { ...config, 'dry-run': true },
     output: () => {
       throw new Error('should not output in dry run mode')
     },
   })
+  npm.config.getCredentialsByURI = () => {
+    throw new Error('should not call getCredentialsByURI in dry run')
+  }
+
+  const publish = new Publish(npm)
 
   publish.exec([testDir], (er) => {
     if (er)
@@ -247,20 +239,16 @@ t.test('if loglevel=info and dry-run, should not publish, should log package con
       },
     },
   })
-  const publish = new Publish({
-    flatOptions: {
-      dryRun: true,
-    },
-    config: {
-      ...config,
-      getCredentialsByURI: () => {
-        throw new Error('should not call getCredentialsByURI in dry run')
-      },
-    },
+  const npm = mockNpm({
+    config: { ...config, 'dry-run': true },
     output: () => {
       t.pass('output fn is called')
     },
   })
+  npm.config.getCredentialsByURI = () => {
+    throw new Error('should not call getCredentialsByURI in dry run')
+  }
+  const publish = new Publish(npm)
 
   publish.exec([testDir], (er) => {
     if (er)
@@ -285,12 +273,10 @@ t.test('throws when invalid tag', (t) => {
   t.plan(1)
 
   const Publish = requireInject('../../lib/publish.js')
-  const publish = new Publish({
-    flatOptions: {
-      defaultTag: '0.0.13',
-    },
-    config,
+  const npm = mockNpm({
+    config: { ...config, tag: '0.0.13' },
   })
+  const publish = new Publish(npm)
 
   publish.exec([], (err) => {
     t.match(err, {
@@ -331,15 +317,12 @@ t.test('can publish a tarball', t => {
       },
     },
   })
-  const publish = new Publish({
-    config: {
-      ...config,
-      getCredentialsByURI: (uri) => {
-        t.same(uri, defaults.registry, 'gets credentials for expected registry')
-        return { token: 'some.registry.token' }
-      },
-    },
-  })
+  const npm = mockNpm({ config })
+  npm.config.getCredentialsByURI = (uri) => {
+    t.same(uri, defaults.registry, 'gets credentials for expected registry')
+    return { token: 'some.registry.token' }
+  }
+  const publish = new Publish(npm)
 
   publish.exec([`${testDir}/tarball/package.tgz`], (er) => {
     if (er)
@@ -352,15 +335,12 @@ t.test('can publish a tarball', t => {
 t.test('should check auth for default registry', t => {
   t.plan(2)
   const Publish = requireInject('../../lib/publish.js')
-  const publish = new Publish({
-    config: {
-      ...config,
-      getCredentialsByURI: (uri) => {
-        t.same(uri, defaults.registry, 'gets credentials for expected registry')
-        return {}
-      },
-    },
-  })
+  const npm = mockNpm({ config })
+  npm.config.getCredentialsByURI = (uri) => {
+    t.same(uri, defaults.registry, 'gets credentials for expected registry')
+    return {}
+  }
+  const publish = new Publish(npm)
 
   publish.exec([], (err) => {
     t.match(err, {
@@ -375,18 +355,15 @@ t.test('should check auth for configured registry', t => {
   t.plan(2)
   const registry = 'https://some.registry'
   const Publish = requireInject('../../lib/publish.js')
-  const publish = new Publish({
-    flatOptions: {
-      registry,
-    },
-    config: {
-      ...config,
-      getCredentialsByURI: (uri) => {
-        t.same(uri, registry, 'gets credentials for expected registry')
-        return {}
-      },
-    },
+  const npm = mockNpm({
+    config,
+    flatOptions: { registry },
   })
+  npm.config.getCredentialsByURI = (uri) => {
+    t.same(uri, registry, 'gets credentials for expected registry')
+    return {}
+  }
+  const publish = new Publish(npm)
 
   publish.exec([], (err) => {
     t.match(err, {
@@ -408,18 +385,15 @@ t.test('should check auth for scope specific registry', t => {
   })
 
   const Publish = requireInject('../../lib/publish.js')
-  const publish = new Publish({
-    flatOptions: {
-      '@npm:registry': registry,
-    },
-    config: {
-      ...config,
-      getCredentialsByURI: (uri) => {
-        t.same(uri, registry, 'gets credentials for expected registry')
-        return {}
-      },
-    },
+  const npm = mockNpm({
+    config,
+    flatOptions: { '@npm:registry': registry },
   })
+  npm.config.getCredentialsByURI = (uri) => {
+    t.same(uri, registry, 'gets credentials for expected registry')
+    return {}
+  }
+  const publish = new Publish(npm)
 
   publish.exec([testDir], (err) => {
     t.match(err, {
@@ -448,18 +422,16 @@ t.test('should use auth for scope specific registry', t => {
       },
     },
   })
-  const publish = new Publish({
-    flatOptions: {
-      '@npm:registry': registry,
-    },
-    config: {
-      ...config,
-      getCredentialsByURI: (uri) => {
-        t.same(uri, registry, 'gets credentials for expected registry')
-        return { token: 'some.registry.token' }
-      },
-    },
+  const npm = mockNpm({
+    config,
+    flatOptions: { '@npm:registry': registry },
   })
+  npm.config.getCredentialsByURI = (uri) => {
+    t.same(uri, registry, 'gets credentials for expected registry')
+    return { token: 'some.registry.token' }
+  }
+  const publish = new Publish(npm)
+
   publish.exec([testDir], (er) => {
     if (er)
       throw er
@@ -489,9 +461,60 @@ t.test('read registry only from publishConfig', t => {
       },
     },
   })
+  const npm = mockNpm({
+    config,
+  })
+  npm.config.getCredentialsByURI = (uri) => {
+    t.same(uri, registry, 'gets credentials for expected registry')
+    return { token: 'some.registry.token' }
+  }
+  const publish = new Publish(npm)
+
+  publish.exec([testDir], (er) => {
+    if (er)
+      throw er
+    t.pass('got to callback')
+    t.end()
+  })
+})
+
+t.test('able to publish after if encountered multiple configs', t => {
+  t.plan(3)
+
+  const registry = 'https://some.registry'
+  const tag = 'better-tag'
+  const publishConfig = { registry }
+  const testDir = t.testdir({
+    'package.json': JSON.stringify({
+      name: 'my-cool-pkg',
+      version: '1.0.0',
+      publishConfig,
+    }, null, 2),
+  })
+
+  const configList = [defaults]
+  configList.unshift(Object.assign(Object.create(configList[0]), {
+    registry: `https://other.registry`,
+    tag: 'some-tag',
+  }))
+  configList.unshift(Object.assign(Object.create(configList[0]), { tag }))
+
+  const Publish = requireInject('../../lib/publish.js', {
+    libnpmpublish: {
+      publish: (manifest, tarData, opts) => {
+        t.same(opts.defaultTag, tag, 'gets option for expected tag')
+      },
+    },
+  })
   const publish = new Publish({
+    // what would be flattened by the configList created above
+    flatOptions: {
+      defaultTag: 'better-tag',
+      registry: 'https://other.registry',
+    },
     config: {
-      ...config,
+      get: key => configList[0][key],
+      list: configList,
       getCredentialsByURI: (uri) => {
         t.same(uri, registry, 'gets credentials for expected registry')
         return { token: 'some.registry.token' }

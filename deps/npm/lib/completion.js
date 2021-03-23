@@ -29,13 +29,13 @@
 // as an array.
 //
 
-const { types, shorthands } = require('./utils/config.js')
+const { definitions, shorthands } = require('./utils/config/index.js')
 const deref = require('./utils/deref-command.js')
 const { aliases, cmdList, plumbing } = require('./utils/cmd-list.js')
 const aliasNames = Object.keys(aliases)
 const fullList = cmdList.concat(aliasNames).filter(c => !plumbing.includes(c))
 const nopt = require('nopt')
-const configNames = Object.keys(types)
+const configNames = Object.keys(definitions)
 const shorthandNames = Object.keys(shorthands)
 const allConfs = configNames.concat(shorthandNames)
 const isWindowsShell = require('./utils/is-windows-shell.js')
@@ -46,13 +46,13 @@ const BaseCommand = require('./base-command.js')
 
 class Completion extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get name () {
-    return 'completion'
+  static get description () {
+    return 'Tab Completion for npm'
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
-  static get description () {
-    return 'npm command completion script. save to ~/.bashrc or ~/.zshrc'
+  static get name () {
+    return 'completion'
   }
 
   // completion for the completion command
@@ -147,6 +147,10 @@ class Completion extends BaseCommand {
     // take a little shortcut and use npm's arg parsing logic.
     // don't have to worry about the last arg being implicitly
     // boolean'ed, since the last block will catch that.
+    const types = Object.entries(definitions).reduce((types, [key, def]) => {
+      types[key] = def.type
+      return types
+    }, {})
     const parsed = opts.conf =
       nopt(types, shorthands, partialWords.slice(0, -1), 0)
     // check if there's a command already.
@@ -256,7 +260,7 @@ const isFlag = word => {
   const split = word.match(/^(-*)((?:no-)+)?(.*)$/)
   const no = split[2]
   const conf = split[3]
-  const type = types[conf]
+  const {type} = definitions[conf]
   return no ||
     type === Boolean ||
     (Array.isArray(type) && type.includes(Boolean)) ||

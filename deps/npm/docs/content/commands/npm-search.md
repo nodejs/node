@@ -12,6 +12,8 @@ npm search [-l|--long] [--json] [--parseable] [--no-description] [search terms .
 aliases: s, se, find
 ```
 
+Note: This command is unaware of workspaces.
+
 ### Description
 
 Search the registry for packages matching the search terms. `npm search`

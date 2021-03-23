@@ -63,11 +63,14 @@ const cmdList = {
   plumbing: [],
 }
 
+// only include a subset so that the snapshots aren't huge and
+// don't change when we add/remove config definitions.
+const definitions = require('../../lib/utils/config/definitions.js')
 const config = {
-  types: {
-    global: Boolean,
-    browser: [null, Boolean, String],
-    registry: [null, String],
+  definitions: {
+    global: definitions.global,
+    browser: definitions.browser,
+    registry: definitions.registry,
   },
   shorthands: {
     reg: ['--registry'],
@@ -80,7 +83,7 @@ const deref = (cmd) => {
 
 const Completion = requireInject('../../lib/completion.js', {
   '../../lib/utils/cmd-list.js': cmdList,
-  '../../lib/utils/config.js': config,
+  '../../lib/utils/config/index.js': config,
   '../../lib/utils/deref-command.js': deref,
   '../../lib/utils/is-windows-shell.js': false,
 })
