@@ -163,7 +163,7 @@ Depending on the host platform, the selection of toolchains may vary.
 | ---------------- | -------------------------------------------------------------- |
 | Linux            | GCC >= 8.3                                                     |
 | Windows          | Visual Studio >= 2019 with the Windows 10 SDK on a 64-bit host |
-| macOS            | Xcode >= 10 (Apple LLVM >= 10)                                 |
+| macOS            | Xcode >= 11 (Apple LLVM >= 11)                                 |
 
 ### Official binary platforms and toolchains
 
@@ -255,7 +255,7 @@ Python 3 users may also need to install `python3-distutils`.
 
 #### macOS prerequisites
 
-* Xcode Command Line Tools >= 10 for macOS
+* Xcode Command Line Tools >= 11 for macOS
 * Python (see note above)
   * Python 2.7
   * Python 3.5, 3.6, 3.7, and 3.8
