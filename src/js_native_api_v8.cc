@@ -374,8 +374,11 @@ class Reference : public RefBase {
   inline void Finalize(bool is_env_teardown = false) override {
     // During env teardown, `~napi_env()` alone is responsible for finalizing.
     // Thus, we don't want any stray gc passes to trigger a second call to
-    // `Finalize()`, so let's reset the persistent here.
-    if (is_env_teardown) _persistent.ClearWeak();
+    // `Finalize()`, so let's reset the persistent here if nothing is
+    // keeping it alive.
+    if (is_env_teardown && _persistent.IsWeak()) {
+      _persistent.ClearWeak();
+    }
 
     // Chain up to perform the rest of the finalization.
     RefBase::Finalize(is_env_teardown);
