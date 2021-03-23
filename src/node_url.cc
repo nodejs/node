@@ -208,7 +208,7 @@ CHAR_TEST(8, IsForbiddenHostCodePoint,
           ch == ' ' || ch == '#' || ch == '%' || ch == '/' ||
           ch == ':' || ch == '?' || ch == '@' || ch == '[' ||
           ch == '<' || ch == '>' || ch == '\\' || ch == ']' ||
-          ch == '^')
+          ch == '^' || ch == '|')
 
 // https://url.spec.whatwg.org/#windows-drive-letter
 TWO_CHAR_STRING_TEST(8, IsWindowsDriveLetter,
