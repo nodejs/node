@@ -8,12 +8,6 @@ rules:
     - properties: 'never'
       ignoreDestructuring: true
       allow: ['child_process']
-  comma-dangle:
-    - error
-    - arrays: 'always-multiline'
-      objects: 'only-multiline'
-      imports: 'only-multiline'
-      exports: 'only-multiline'
   no-unused-vars: [error, { args: 'after-used' }]
   prefer-arrow-callback: error
   no-var: error
