@@ -67,6 +67,16 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
 }
 
 {
+  assert.throws(() => KeyObject.from('invalid_key'), {
+    name: 'TypeError',
+    code: 'ERR_INVALID_ARG_TYPE',
+    message:
+      'The "key" argument must be an instance of CryptoKey. Received type ' +
+      "string ('invalid_key')"
+  });
+}
+
+{
   const keybuf = randomBytes(32);
   const key = createSecretKey(keybuf);
   assert.strictEqual(key.type, 'secret');
