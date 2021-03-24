@@ -2613,7 +2613,7 @@ This method handles the raw body of the HTTP message and has nothing to do
 with higher-level multi-part body encodings that may be used.
 
 If it is the first call to this method of a message, it will send the
-buffered header first, then flush the the `chunk` as described above.
+buffered header first, then flush the `chunk` as described above.
 
 The second and successive calls to this method will assume the data
 will be streamed and send the new data separately. It means that the response
