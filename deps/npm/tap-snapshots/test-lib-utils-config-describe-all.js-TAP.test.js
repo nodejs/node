@@ -64,7 +64,7 @@ registry and all registries configured for scopes. See the documentation for
 #### \`audit-level\`
 
 * Default: null
-* Type: "low", "moderate", "high", "critical", "none", or null
+* Type: "info", "low", "moderate", "high", "critical", "none", or null
 
 The minimum level of vulnerability for \`npm audit\` to exit with a non-zero
 exit code.
@@ -1261,6 +1261,14 @@ What authentication strategy to use with \`adduser\`/\`login\`.
 
 \`--cache-min=9999 (or bigger)\` is an alias for \`--prefer-offline\`.
 
+#### \`dev\`
+
+* Default: false
+* Type: Boolean
+* DEPRECATED: Please use --include=dev instead.
+
+Alias for \`--include=dev\`.
+
 #### \`init.author.email\`
 
 * Default: ""
@@ -1330,8 +1338,8 @@ Alias for --include=optional or --omit=optional
 
 #### \`production\`
 
-* Default: false
-* Type: Boolean
+* Default: null
+* Type: null or Boolean
 * DEPRECATED: Use \`--omit=dev\` instead.
 
 Alias for \`--omit=dev\`

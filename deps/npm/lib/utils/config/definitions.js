@@ -22,6 +22,36 @@ const maybeReadFile = file => {
   }
 }
 
+const buildOmitList = obj => {
+  const include = obj.include || []
+  const omit = obj.omit || []
+
+  const only = obj.only
+  if (/^prod(uction)?$/.test(only) || obj.production)
+    omit.push('dev')
+  else if (obj.production === false)
+    include.push('dev')
+
+  if (/^dev/.test(obj.also))
+    include.push('dev')
+
+  if (obj.dev)
+    include.push('dev')
+
+  if (obj.optional === false)
+    omit.push('optional')
+  else if (obj.optional === true)
+    include.push('optional')
+
+  obj.omit = [...new Set(omit)].filter(type => !include.includes(type))
+  obj.include = [...new Set(include)]
+
+  if (obj.omit.includes('dev'))
+    process.env.NODE_ENV = 'production'
+
+  return obj.omit
+}
+
 const editor = process.env.EDITOR ||
   process.env.VISUAL ||
   (isWindows ? 'notepad.exe' : 'vi')
@@ -115,6 +145,7 @@ define('_auth', {
     is safer to use a registry-provided authentication bearer token stored in
     the ~/.npmrc file by running \`npm login\`.
   `,
+  flatten,
 })
 
 define('access', {
@@ -164,12 +195,6 @@ define('also', {
   `,
   deprecated: 'Please use --include=dev instead.',
   flatten (key, obj, flatOptions) {
-    if (!/^dev(elopment)?$/.test(obj.also))
-      return
-
-    // add to include, and call the omit flattener
-    obj.include = obj.include || []
-    obj.include.push('dev')
     definitions.omit.flatten('omit', obj, flatOptions)
   },
 })
@@ -198,7 +223,7 @@ define('audit', {
 
 define('audit-level', {
   default: null,
-  type: ['low', 'moderate', 'high', 'critical', 'none', null],
+  type: ['info', 'low', 'moderate', 'high', 'critical', 'none', null],
   description: `
     The minimum level of vulnerability for \`npm audit\` to exit with
     a non-zero exit code.
@@ -474,6 +499,18 @@ define('description', {
   flatten (key, obj, flatOptions) {
     flatOptions.search = flatOptions.search || { limit: 20 }
     flatOptions.search[key] = obj[key]
+  },
+})
+
+define('dev', {
+  default: false,
+  type: Boolean,
+  description: `
+    Alias for \`--include=dev\`.
+  `,
+  deprecated: 'Please use --include=dev instead.',
+  flatten (key, obj, flatOptions) {
+    definitions.omit.flatten('omit', obj, flatOptions)
   },
 })
 
@@ -1218,10 +1255,7 @@ define('omit', {
     scripts.
   `,
   flatten (key, obj, flatOptions) {
-    const include = obj.include || []
-    const omit = flatOptions.omit || []
-    flatOptions.omit = omit.concat(obj[key])
-      .filter(type => type && !include.includes(type))
+    flatOptions.omit = buildOmitList(obj)
   },
 })
 
@@ -1236,12 +1270,6 @@ define('only', {
     \`--omit=dev\`.
   `,
   flatten (key, obj, flatOptions) {
-    const value = obj[key]
-    if (!/^prod(uction)?$/.test(value))
-      return
-
-    obj.omit = obj.omit || []
-    obj.omit.push('dev')
     definitions.omit.flatten('omit', obj, flatOptions)
   },
 })
@@ -1259,16 +1287,6 @@ define('optional', {
     Alias for --include=optional or --omit=optional
   `,
   flatten (key, obj, flatOptions) {
-    const value = obj[key]
-    if (value === null)
-      return
-    else if (value === true) {
-      obj.include = obj.include || []
-      obj.include.push('optional')
-    } else {
-      obj.omit = obj.omit || []
-      obj.omit.push('optional')
-    }
     definitions.omit.flatten('omit', obj, flatOptions)
   },
 })
@@ -1380,17 +1398,11 @@ define('preid', {
 })
 
 define('production', {
-  default: false,
-  type: Boolean,
+  default: null,
+  type: [null, Boolean],
   deprecated: 'Use `--omit=dev` instead.',
   description: 'Alias for `--omit=dev`',
   flatten (key, obj, flatOptions) {
-    const value = obj[key]
-    if (!value)
-      return
-
-    obj.omit = obj.omit || []
-    obj.omit.push('dev')
     definitions.omit.flatten('omit', obj, flatOptions)
   },
 })
@@ -1581,7 +1593,9 @@ define('save-prefix', {
     \`npm config set save-prefix='~'\` it would be set to \`~1.2.3\` which
     only allows patch upgrades.
   `,
-  flatten,
+  flatten (key, obj, flatOptions) {
+    flatOptions.savePrefix = obj['save-exact'] ? '' : obj['save-prefix']
+  },
 })
 
 define('save-prod', {

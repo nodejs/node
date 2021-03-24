@@ -175,7 +175,11 @@ class Exec extends BaseCommand {
     if (needInstall) {
       const installDir = this.cacheInstallDir(packages)
       await mkdirp(installDir)
-      const arb = new Arborist({ ...this.npm.flatOptions, path: installDir })
+      const arb = new Arborist({
+        ...this.npm.flatOptions,
+        log: this.npm.log,
+        path: installDir,
+      })
       const tree = await arb.loadActual()
 
       // at this point, we have to ensure that we get the exact same
@@ -212,7 +216,11 @@ class Exec extends BaseCommand {
               throw new Error('canceled')
           }
         }
-        await arb.reify({ ...this.npm.flatOptions, add })
+        await arb.reify({
+          ...this.npm.flatOptions,
+          log: this.npm.log,
+          add,
+        })
       }
       pathArr.unshift(resolve(installDir, 'node_modules/.bin'))
     }
