@@ -83,7 +83,7 @@ const net = require('net');
     }
   }, expectedConnections));
 
-  server.listen(0, '127.0.0.1', common.mustCall(() => {
+  server.listen(0, 'localhost', common.mustCall(() => {
     const port = server.address().port;
 
     // Total connections = 3 * 4(canConnect) * 6(doConnect) = 72
@@ -167,25 +167,25 @@ function canConnect(port) {
   const noop = () => common.mustCall();
 
   // connect(port, cb) and connect(port)
-  const portArgFunctions = doConnect([port, '127.0.0.1'], noop);
+  const portArgFunctions = doConnect([port], noop);
   for (const fn of portArgFunctions) {
     fn();
   }
 
   // connect(port, host, cb) and connect(port, host)
-  const portHostArgFunctions = doConnect([port, '127.0.0.1'], noop);
+  const portHostArgFunctions = doConnect([port, 'localhost'], noop);
   for (const fn of portHostArgFunctions) {
     fn();
   }
 
   // connect({port}, cb) and connect({port})
-  const portOptFunctions = doConnect([{ port, family: 4 }], noop);
+  const portOptFunctions = doConnect([{ port }], noop);
   for (const fn of portOptFunctions) {
     fn();
   }
 
   // connect({port, host}, cb) and connect({port, host})
-  const portHostOptFns = doConnect([{ port, host: '127.0.0.1' }], noop);
+  const portHostOptFns = doConnect([{ port, host: 'localhost' }], noop);
   for (const fn of portHostOptFns) {
     fn();
   }
@@ -205,13 +205,13 @@ function asyncFailToConnect(port) {
   }
 
   // connect({port}, cb) and connect({port})
-  const portOptFunctions = doConnect([{ port, family: 4 }], dont);
+  const portOptFunctions = doConnect([{ port }], dont);
   for (const fn of portOptFunctions) {
     fn().on('error', onError());
   }
 
   // connect({port, host}, cb) and connect({port, host})
-  const portHostOptFns = doConnect([{ port, host: '127.0.0.1' }], dont);
+  const portHostOptFns = doConnect([{ port, host: 'localhost' }], dont);
   for (const fn of portHostOptFns) {
     fn().on('error', onError());
   }
