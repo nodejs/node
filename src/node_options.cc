@@ -476,8 +476,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::trace_warnings,
             kAllowedInEnvironment);
   AddOption("--unhandled-rejections",
-            "define unhandled rejections behavior. Options are 'strict' (raise "
-            "an error), 'warn' (enforce warnings) or 'none' (silence warnings)",
+            "define unhandled rejections behavior. Options are 'strict' "
+            "(always raise an error), 'throw' (raise an error unless "
+            "'unhandledRejection' hook is set), 'warn' (log a warning), 'none' "
+            "(silence warnings), 'warn-with-error-code' (log a warning and set "
+            "exit code 1 unless 'unhandledRejection' hook is set).",
             &EnvironmentOptions::unhandled_rejections,
             kAllowedInEnvironment);
 
