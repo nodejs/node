@@ -1,3 +1,80 @@
+## v7.7.4 (2021-03-24)
+
+### BUG FIXES
+
+* [`200bee74b`](https://github.com/npm/cli/commit/200bee74b31a738687446b7b535cac67b1c582fd)
+  [#2951](https://github.com/npm/cli/issues/2951)
+  fix(config): accept explicit `production=false`
+  ([@wraithgar](https://github.com/wraithgar))
+* [`7b45e9df6`](https://github.com/npm/cli/commit/7b45e9df6102c7bd6e403d1fdc9939581c38f546)
+  [#2950](https://github.com/npm/cli/issues/2950)
+  warn if using workspaces config options in `npm config`
+  ([@ruyadorno](https://github.com/ruyadorno))
+
+## v7.7.3 (2021-03-24)
+
+### BUG FIXES
+
+* [`c76f04ac2`](https://github.com/npm/cli/commit/c76f04ac28ddf2ae4df4b3ce0aec684a118de1b5)
+  [#2925](https://github.com/npm/cli/issues/2925)
+  fix(set-script): add completion
+  ([@Yash-Singh1](https://github.com/Yash-Singh1))
+* [`0379eab69`](https://github.com/npm/cli/commit/0379eab698b78ae4aa89bbe2043607f420e52f11)
+  [#2929](https://github.com/npm/cli/issues/2929)
+  fix(install): ignore auditLevel
+  `npm install` should not be affected by the `auditLevel` config, as the
+  results of audit do not change its exit status.
+  ([@wraithgar](https://github.com/wraithgar))
+* [`98efadeb4`](https://github.com/npm/cli/commit/98efadeb4b2ae9289f14ed6f42a169230faf7239)
+  [#2923](https://github.com/npm/cli/issues/2923)
+  fix(audit-level): add `info` audit level
+  This is a valid level but wasn't configured to be allowed.
+  Also added this param to the usage output for `npm audit`
+  ([@wraithgar](https://github.com/wraithgar))
+* [`e8d2adcf4`](https://github.com/npm/cli/commit/e8d2adcf40ad63030f844c9aa44c6d16e2146797)
+  [#2945](https://github.com/npm/cli/issues/2945)
+  config should not error when workspaces are configured
+  ([@nlf](https://github.com/nlf))
+* [`aba2bc623`](https://github.com/npm/cli/commit/aba2bc623ea99e563b1b15b81dbb4ba94f86fe4c)
+  [#2944](https://github.com/npm/cli/issues/2944)
+  fix(progress): re-add progress bar to reify
+  The logger was no longer in flatOptions, we pass it in explicitly now
+  ([@wraithgar](https://github.com/wraithgar))
+* [`877b4ed29`](https://github.com/npm/cli/commit/877b4ed2925c97b5249a4d33575420dda64f7339)
+  [#2946](https://github.com/npm/cli/issues/2946)
+  fix(flatOptions): re-add `_auth`
+  This was not being added to flatOptions, and things like
+  `npm-registry-fetch` are looking for it.
+  ([@wraithgar](https://github.com/wraithgar))
+
+## v7.7.2 (2021-03-24)
+
+### BUG FIXES
+* [`a4df2b98d`](https://github.com/npm/cli/commit/a4df2b98d89429b19cd29b5fc895cdbfc0a6bd78)
+  [#2942](https://github.com/npm/cli/issues/2942)
+  Restore --dev flag, unify --omit flatteners
+  ([@isaacs](https://github.com/isaacs))
+
+### DEPENDENCIES
+* [`2cbfaac0e`](https://github.com/npm/cli/commit/2cbfaac0ecd5810316f6d76168ed9618bd11bf3a)
+  `hosted-git-info@4.0.2`
+    * [#83](https://github.com/npm/hosted-git-info/pull/83) Do not parse
+        urls for gitlab
+  ([@nlf](https://github.com/nlf))
+
+## v7.7.1 (2021-03-24)
+
+### BUG FIXES
+
+* [`543b0e39b`](https://github.com/npm/cli/commit/543b0e39bcb94fc408804b01ca9c0d7b960b2681)
+  [#2930](https://github.com/npm/cli/issues/2930)
+  fix(uninstall): use correct local prefix
+  ([@jameschensmith](https://github.com/jameschensmith))
+* [`dce4960ef`](https://github.com/npm/cli/commit/dce4960ef6d52af128affe7755b2ca72de913b6c)
+  [#2932](https://github.com/npm/cli/issues/2932)
+  fix(config): flatten savePrefix properly
+  ([@wraithgar](https://github.com/wraithgar))
+
 ## v7.7.0 (2021-03-23)
 
 ### FEATURES

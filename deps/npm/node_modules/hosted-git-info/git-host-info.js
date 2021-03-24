@@ -79,7 +79,7 @@ gitHosts.gitlab = Object.assign({}, defaults, {
   tarballtemplate: ({ domain, user, project, committish }) => `https://${domain}/${user}/${project}/repository/archive.tar.gz?ref=${maybeEncode(committish) || 'master'}`,
   extract: (url) => {
     const path = url.pathname.slice(1)
-    if (path.includes('/-/')) {
+    if (path.includes('/-/') || path.includes('/archive.tar.gz')) {
       return
     }
 

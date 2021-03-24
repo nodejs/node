@@ -1,3 +1,11 @@
+1.46.0 / 2021-02-13
+===================
+
+  * Add extension `.amr` to `audio/amr`
+  * Add extension `.m4s` to `video/iso.segment`
+  * Add extension `.opus` to `audio/ogg`
+  * Add new upstream MIME types
+
 1.45.0 / 2020-09-22
 ===================
 

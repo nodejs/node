@@ -2,6 +2,43 @@ const test = require('tap')
 const requireInject = require('require-inject')
 const parseJSON = require('json-parse-even-better-errors')
 
+test.test('completion', t => {
+  const SetScript = requireInject('../../lib/set-script.js')
+  const emptyDir = t.testdir()
+  t.test('already have a script name', async t => {
+    const setScript = new SetScript({localPrefix: emptyDir})
+    const res = await setScript.completion({conf: {argv: {remain: ['npm', 'run', 'x']}}})
+    t.equal(res, undefined)
+    t.end()
+  })
+  t.test('no package.json', async t => {
+    const setScript = new SetScript({localPrefix: emptyDir})
+    const res = await setScript.completion({conf: {argv: {remain: ['npm', 'run']}}})
+    t.strictSame(res, [])
+    t.end()
+  })
+  t.test('has package.json, no scripts', async t => {
+    const localPrefix = t.testdir({
+      'package.json': JSON.stringify({}),
+    })
+    const setScript = new SetScript({localPrefix})
+    const res = await setScript.completion({conf: {argv: {remain: ['npm', 'run']}}})
+    t.strictSame(res, [])
+    t.end()
+  })
+  t.test('has package.json, with scripts', async t => {
+    const localPrefix = t.testdir({
+      'package.json': JSON.stringify({
+        scripts: { hello: 'echo hello', world: 'echo world' },
+      }),
+    })
+    const setScript = new SetScript({localPrefix})
+    const res = await setScript.completion({conf: {argv: {remain: ['npm', 'run']}}})
+    t.strictSame(res, ['hello', 'world'])
+    t.end()
+  })
+  t.end()
+})
 test.test('fails on invalid arguments', (t) => {
   const SetScript = requireInject('../../lib/set-script.js', {
     npmlog: {},

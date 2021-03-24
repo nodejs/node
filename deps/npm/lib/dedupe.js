@@ -30,6 +30,7 @@ class Dedupe extends BaseCommand {
     const where = this.npm.prefix
     const opts = {
       ...this.npm.flatOptions,
+      log: this.npm.log,
       path: where,
       dryRun,
     }

@@ -54,6 +54,7 @@ const cliConfig = {
 
 const npm = {
   log: {
+    warn: () => null,
     info: () => null,
     enableProgress: () => null,
     disableProgress: () => null,
@@ -89,6 +90,22 @@ const config = new Config(npm)
 t.test('config no args', t => {
   config.exec([], (err) => {
     t.match(err, /usage instructions/, 'should not error out on empty locations')
+    t.end()
+  })
+})
+
+t.test('config ignores workspaces', t => {
+  npm.log.warn = (title, msg) => {
+    t.equal(title, 'config', 'should warn with expected title')
+    t.equal(
+      msg,
+      'This command does not support workspaces.',
+      'should warn with unsupported option msg'
+    )
+  }
+  config.execWorkspaces([], [], (err) => {
+    t.match(err, /usage instructions/, 'should not error out when workspaces are defined')
+    npm.log.warn = () => null
     t.end()
   })
 })
@@ -389,7 +406,7 @@ t.test('config set invalid key', t => {
     npm.config.validate = npmConfigValidate
     delete npm.config.save
     delete npm.config.set
-    delete npm.log.warn
+    npm.log.warn = () => null
   })
 
   config.exec(['set', 'foo', 'bar'], (err) => {

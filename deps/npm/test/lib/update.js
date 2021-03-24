@@ -10,6 +10,7 @@ const config = {
 const noop = () => null
 const npm = mockNpm({
   globalDir: '',
+  log: noop,
   config,
   prefix: '',
 })
@@ -38,7 +39,7 @@ t.test('no args', t => {
     constructor (args) {
       t.deepEqual(
         args,
-        { ...npm.flatOptions, path: npm.prefix },
+        { ...npm.flatOptions, path: npm.prefix, log: noop },
         'should call arborist contructor with expected args'
       )
     }
@@ -72,7 +73,7 @@ t.test('with args', t => {
     constructor (args) {
       t.deepEqual(
         args,
-        { ...npm.flatOptions, path: npm.prefix },
+        { ...npm.flatOptions, path: npm.prefix, log: noop },
         'should call arborist contructor with expected args'
       )
     }
@@ -140,7 +141,7 @@ t.test('update --global', t => {
       const { path, ...opts } = args
       t.deepEqual(
         opts,
-        npm.flatOptions,
+        { ...npm.flatOptions, log: noop },
         'should call arborist contructor with expected options'
       )
 

@@ -4,11 +4,12 @@ Fully featured SOCKS proxy client supporting SOCKSv4, SOCKSv4a, and SOCKSv5. Inc
 
 ### Features
 
-* Supports SOCKS v4, v4a, and v5 protocols.
+* Supports SOCKS v4, v4a, v5, and v5h protocols.
 * Supports the CONNECT, BIND, and ASSOCIATE commands.
 * Supports callbacks, promises, and events for proxy connection creation async flow control.
 * Supports proxy chaining (CONNECT only).
-* Supports user/pass authentication.
+* Supports user/password authentication.
+* Supports custom authentication.
 * Built in UDP frame creation & parse functions.
 * Created with TypeScript, type definitions are provided.
 
@@ -396,17 +397,19 @@ Looking for a guide to migrate from v1? Look [here](docs/migratingFromV1.md)
 
 ### SocksClient
 
-SocksClient establishes SOCKS proxy connections to remote destination hosts. These proxy connections are fully transparent to the server and once established act as full duplex streams. SOCKS v4, v4a, and v5 are supported, as well as the connect, bind, and associate commands.
+SocksClient establishes SOCKS proxy connections to remote destination hosts. These proxy connections are fully transparent to the server and once established act as full duplex streams. SOCKS v4, v4a, v5, and v5h are supported, as well as the connect, bind, and associate commands.
 
 SocksClient supports creating connections using callbacks, promises, and async/await flow control using two static factory functions createConnection and createConnectionChain. It also internally extends EventEmitter which results in allowing event handling based async flow control.
 
 **SOCKS Compatibility Table**
 
+Note: When using 4a please specify type: 4, and when using 5h please specify type 5.
+
 | Socks Version | TCP | UDP | IPv4 | IPv6 | Hostname |
 | --- | :---: | :---: | :---: | :---: | :---: |
 | SOCKS v4 | ✅ | ❌ | ✅ | ❌ | ❌ |
 | SOCKS v4a | ✅ | ❌ | ✅ | ❌ | ✅ |
-| SOCKS v5 | ✅ | ✅ | ✅ | ✅ | ✅ |
+| SOCKS v5 (includes 5hh) | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ### new SocksClient(options)
 
@@ -419,11 +422,22 @@ SocksClient supports creating connections using callbacks, promises, and async/a
   proxy: {
     host: '159.203.75.200', // ipv4, ipv6, or hostname
     port: 1080,
-    type: 5 // Proxy version (4 or 5). For v4a, just use 4.
+    type: 5 // Proxy version (4 or 5). For v4a use 4, for v5h use 5.
 
     // Optional fields
     userId: 'some username', // Used for SOCKS4 userId auth, and SOCKS5 user/pass auth in conjunction with password.
-    password: 'some password' // Used in conjunction with userId for user/pass auth for SOCKS5 proxies.
+    password: 'some password', // Used in conjunction with userId for user/pass auth for SOCKS5 proxies.
+    custom_auth_method: 0x80,  // If using a custom auth method, specify the type here. If this is set, ALL other custom_auth_*** options must be set as well.
+    custom_auth_request_handler: async () =>. {
+      // This will be called when it's time to send the custom auth handshake. You must return a Buffer containing the data to send as your authentication.
+      return Buffer.from([0x01,0x02,0x03]);
+    },
+    // This is the expected size (bytes) of the custom auth response from the proxy server.
+    custom_auth_response_size: 2,
+    // This is called when the auth response is received. The received packet is passed in as a Buffer, and you must return a boolean indicating the response from the server said your custom auth was successful or failed.
+    custom_auth_response_handler: async (data) => {
+      return data[1] === 0x00;
+    }
   },
 
   command: 'connect', // connect, bind, associate

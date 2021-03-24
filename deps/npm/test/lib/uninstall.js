@@ -22,6 +22,7 @@ const uninstall = new Uninstall(npm)
 t.afterEach(cb => {
   npm.globalDir = ''
   npm.prefix = ''
+  npm.localPrefix = ''
   npm.flatOptions.global = false
   npm.flatOptions.prefix = ''
   cb()
@@ -85,7 +86,7 @@ t.test('remove single installed lib', t => {
   const b = resolve(path, 'node_modules/b')
   t.ok(() => fs.statSync(b))
 
-  npm.config.set('prefix', path)
+  npm.localPrefix = path
 
   uninstall.exec(['b'], err => {
     if (err)
@@ -148,7 +149,7 @@ t.test('remove multiple installed libs', t => {
   t.ok(() => fs.statSync(a))
   t.ok(() => fs.statSync(b))
 
-  npm.config.set('prefix', path)
+  npm.localPrefix = path
 
   uninstall.exec(['b'], err => {
     if (err)
@@ -196,7 +197,6 @@ t.test('no args global', t => {
   npm.localPrefix = resolve(path, 'projects', 'a')
   npm.globalDir = resolve(path, 'lib', 'node_modules')
   npm.config.set('global', true)
-  npm.config.set('prefix', path)
 
   const a = resolve(path, 'lib/node_modules/a')
   t.ok(() => fs.statSync(a))

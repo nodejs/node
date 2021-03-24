@@ -13,6 +13,8 @@ declare const ERRORS: {
     InvalidSocksClientOptionsProxy: string;
     InvalidSocksClientOptionsTimeout: string;
     InvalidSocksClientOptionsProxiesLength: string;
+    InvalidSocksClientOptionsCustomAuthRange: string;
+    InvalidSocksClientOptionsCustomAuthOptions: string;
     NegotiationError: string;
     SocketClosed: string;
     ProxyConnectionTimedOut: string;
@@ -57,6 +59,9 @@ declare enum Socks5Auth {
     GSSApi = 1,
     UserPass = 2
 }
+declare const SOCKS5_CUSTOM_AUTH_START = 128;
+declare const SOCKS5_CUSTOM_AUTH_END = 254;
+declare const SOCKS5_NO_ACCEPTABLE_AUTH = 255;
 declare enum Socks5Response {
     Granted = 0,
     Failure = 1,
@@ -98,6 +103,10 @@ declare type SocksProxy = RequireOnlyOne<{
     type: SocksProxyType;
     userId?: string;
     password?: string;
+    custom_auth_method?: number;
+    custom_auth_request_handler?: () => Promise<Buffer>;
+    custom_auth_response_size?: number;
+    custom_auth_response_handler?: (data: Buffer) => Promise<boolean>;
 }, 'host' | 'ipaddress'>;
 /**
  * Represents a remote host
@@ -138,4 +147,4 @@ interface SocksUDPFrameDetails {
     remoteHost: SocksRemoteHost;
     data: Buffer;
 }
-export { DEFAULT_TIMEOUT, ERRORS, SocksProxyType, SocksCommand, Socks4Response, Socks5Auth, Socks5HostType, Socks5Response, SocksClientState, SocksProxy, SocksRemoteHost, SocksCommandOption, SocksClientOptions, SocksClientChainOptions, SocksClientEstablishedEvent, SocksClientBoundEvent, SocksUDPFrameDetails, SOCKS_INCOMING_PACKET_SIZES, };
+export { DEFAULT_TIMEOUT, ERRORS, SocksProxyType, SocksCommand, Socks4Response, Socks5Auth, Socks5HostType, Socks5Response, SocksClientState, SocksProxy, SocksRemoteHost, SocksCommandOption, SocksClientOptions, SocksClientChainOptions, SocksClientEstablishedEvent, SocksClientBoundEvent, SocksUDPFrameDetails, SOCKS_INCOMING_PACKET_SIZES, SOCKS5_CUSTOM_AUTH_START, SOCKS5_CUSTOM_AUTH_END, SOCKS5_NO_ACCEPTABLE_AUTH, };

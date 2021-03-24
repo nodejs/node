@@ -245,7 +245,7 @@ npm help \fBaudit\fP for details on what is submitted\.
 .IP \(bu 2
 Default: null
 .IP \(bu 2
-Type: "low", "moderate", "high", "critical", "none", or null
+Type: "info", "low", "moderate", "high", "critical", "none", or null
 
 .RE
 .P
@@ -1847,6 +1847,18 @@ DEPRECATED: This option has been deprecated in favor of \fB\-\-prefer\-offline\f
 .RE
 .P
 \fB\-\-cache\-min=9999 (or bigger)\fP is an alias for \fB\-\-prefer\-offline\fP\|\.
+.SS \fBdev\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+.IP \(bu 2
+DEPRECATED: Please use \-\-include=dev instead\.
+
+.RE
+.P
+Alias for \fB\-\-include=dev\fP\|\.
 .SS \fBinit\.author\.email\fP
 .RS 0
 .IP \(bu 2
@@ -1949,9 +1961,9 @@ Alias for \-\-include=optional or \-\-omit=optional
 .SS \fBproduction\fP
 .RS 0
 .IP \(bu 2
-Default: false
+Default: null
 .IP \(bu 2
-Type: Boolean
+Type: null or Boolean
 .IP \(bu 2
 DEPRECATED: Use \fB\-\-omit=dev\fP instead\.
 

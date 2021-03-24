@@ -38,8 +38,9 @@ class Uninstall extends BaseCommand {
   async uninstall (args) {
     // the /path/to/node_modules/..
     const global = this.npm.config.get('global')
-    const prefix = this.npm.config.get('prefix')
-    const path = global ? resolve(this.npm.globalDir, '..') : prefix
+    const path = global
+      ? resolve(this.npm.globalDir, '..')
+      : this.npm.localPrefix
 
     if (!args.length) {
       if (!global)
@@ -60,12 +61,15 @@ class Uninstall extends BaseCommand {
       }
     }
 
-    const arb = new Arborist({ ...this.npm.flatOptions, path })
-
-    await arb.reify({
+    const opts = {
       ...this.npm.flatOptions,
+      path,
+      log: this.npm.log,
       rm: args,
-    })
+
+    }
+    const arb = new Arborist(opts)
+    await arb.reify(opts)
     await reifyFinish(this.npm, arb)
   }
 }

@@ -32,6 +32,7 @@ Array [
   "commit-hooks",
   "depth",
   "description",
+  "dev",
   "diff",
   "diff-ignore-all-space",
   "diff-name-only",

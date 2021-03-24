@@ -2,6 +2,7 @@ const log = require('npmlog')
 const fs = require('fs')
 const parseJSON = require('json-parse-even-better-errors')
 const rpj = require('read-package-json-fast')
+const { resolve } = require('path')
 
 const BaseCommand = require('./base-command.js')
 class SetScript extends BaseCommand {
@@ -18,6 +19,16 @@ class SetScript extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get usage () {
     return ['[<script>] [<command>]']
+  }
+
+  async completion (opts) {
+    const argv = opts.conf.argv.remain
+    if (argv.length === 2) {
+      // find the script name
+      const json = resolve(this.npm.localPrefix, 'package.json')
+      const { scripts = {} } = await rpj(json).catch(er => ({}))
+      return Object.keys(scripts)
+    }
   }
 
   exec (args, cb) {

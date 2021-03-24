@@ -88,6 +88,11 @@ class Config extends BaseCommand {
     this.config(args).then(() => cb()).catch(cb)
   }
 
+  execWorkspaces (args, filters, cb) {
+    this.npm.log.warn('config', 'This command does not support workspaces.')
+    this.exec(args, cb)
+  }
+
   async config ([action, ...args]) {
     this.npm.log.disableProgress()
     try {
