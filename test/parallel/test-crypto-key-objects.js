@@ -70,7 +70,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     code: 'ERR_INVALID_ARG_TYPE',
     message:
       'The "key" argument must be an instance of CryptoKey. Received type ' +
-      "string ('no_valid_key')"
+      "string ('invalid_key')"
   });
 }
 
