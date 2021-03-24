@@ -129,7 +129,7 @@ Spacing between tokens is taken to be any ECMA-262 whitespace, ECMA-262 block co
 * The returned export names are taken to be the combination of:
   1. All `IDENTIFIER` and `IDENTIFIER_STRING` slots for `EXPORTS_MEMBER` and `EXPORTS_LITERAL` matches.
   2. The first `IDENTIFIER_STRING` slot for all `EXPORTS_DEFINE_VALUE` matches where that same string is not an `EXPORTS_DEFINE` match that is not also an `EXPORTS_DEFINE_VALUE` match.
-* The reexport specifiers are taken to be the the combination of:
+* The reexport specifiers are taken to be the combination of:
   1. The `REQUIRE` matches of the last matched of either `MODULE_EXPORTS_ASSIGN` or `EXPORTS_LITERAL`.
   2. All _top-level_ `EXPORT_STAR` `REQUIRE` matches and `EXPORTS_ASSIGN` matches whose `IDENTIFIER` also matches the first `IDENTIFIER` in `EXPORT_STAR_LIB`.
 
