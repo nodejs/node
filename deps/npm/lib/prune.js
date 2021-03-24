@@ -30,11 +30,13 @@ class Prune extends BaseCommand {
 
   async prune () {
     const where = this.npm.prefix
-    const arb = new Arborist({
+    const opts = {
       ...this.npm.flatOptions,
       path: where,
-    })
-    await arb.prune(this.npm.flatOptions)
+      log: this.npm.log,
+    }
+    const arb = new Arborist(opts)
+    await arb.prune(opts)
     await reifyFinish(this.npm, arb)
   }
 }

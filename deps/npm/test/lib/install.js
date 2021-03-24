@@ -32,7 +32,7 @@ test('should install using Arborist', (t) => {
 
   const npm = mockNpm({
     config: { dev: true },
-    flatOptions: { global: false },
+    flatOptions: { global: false, auditLevel: 'low' },
     globalDir: 'path/to/node_modules/',
     prefix: 'foo',
   })
@@ -42,7 +42,9 @@ test('should install using Arborist', (t) => {
     install.exec(['fizzbuzz'], er => {
       if (er)
         throw er
-      t.match(ARB_ARGS, { global: false, path: 'foo' })
+      t.match(ARB_ARGS,
+        { global: false, path: 'foo', auditLevel: null },
+        'Arborist gets correct args and ignores auditLevel')
       t.equal(REIFY_CALLED, true, 'called reify')
       t.strictSame(SCRIPTS, [], 'no scripts when adding dep')
       t.end()

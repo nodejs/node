@@ -51,6 +51,7 @@ class Update extends BaseCommand {
 
     const arb = new Arborist({
       ...this.npm.flatOptions,
+      log: this.npm.log,
       path: where,
     })
 

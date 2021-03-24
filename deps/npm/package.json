@@ -1,5 +1,5 @@
 {
-  "version": "7.7.0",
+  "version": "7.7.4",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "keywords": [
@@ -59,7 +59,7 @@
     "columnify": "~1.5.4",
     "glob": "^7.1.4",
     "graceful-fs": "^4.2.6",
-    "hosted-git-info": "^4.0.1",
+    "hosted-git-info": "^4.0.2",
     "ini": "^2.0.0",
     "init-package-json": "^2.0.2",
     "is-cidr": "^4.0.2",

@@ -66,6 +66,7 @@ class Link extends BaseCommand {
     const globalOpts = {
       ...this.npm.flatOptions,
       path: globalTop,
+      log: this.npm.log,
       global: true,
       prune: false,
     }
@@ -113,12 +114,14 @@ class Link extends BaseCommand {
     // reify all the pending names as symlinks there
     const localArb = new Arborist({
       ...this.npm.flatOptions,
+      log: this.npm.log,
       path: this.npm.prefix,
       save,
     })
     await localArb.reify({
       ...this.npm.flatOptions,
       path: this.npm.prefix,
+      log: this.npm.log,
       add: names.map(l => `file:${resolve(globalTop, 'node_modules', l)}`),
       save,
     })
@@ -131,9 +134,13 @@ class Link extends BaseCommand {
     const arb = new Arborist({
       ...this.npm.flatOptions,
       path: globalTop,
+      log: this.npm.log,
       global: true,
     })
-    await arb.reify({ add: [`file:${this.npm.prefix}`] })
+    await arb.reify({
+      add: [`file:${this.npm.prefix}`],
+      log: this.npm.log,
+    })
     await reifyFinish(this.npm, arb)
   }
 
