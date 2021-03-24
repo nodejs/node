@@ -83,7 +83,7 @@ const net = require('net');
     }
   }, expectedConnections));
 
-  server.listen(0, 'localhost', common.mustCall(() => {
+  server.listen(0, common.mustCall(() => {
     const port = server.address().port;
 
     // Total connections = 3 * 4(canConnect) * 6(doConnect) = 72
