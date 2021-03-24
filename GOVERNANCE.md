@@ -82,7 +82,7 @@ The current list of TSC members is in
 [the project README](./README.md#current-project-team-members).
 
 The [TSC Charter][] governs the operations of the TSC. All changes to the
-Charter need approval by the OpenJS Foundation Board of Directors.
+Charter need approval by the OpenJS Foundation Cross-Project Council (CPC).
 
 ### TSC meetings
 
