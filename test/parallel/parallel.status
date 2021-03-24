@@ -23,7 +23,8 @@ test-crypto-keygen: SKIP
 
 [$system==solaris] # Also applies to SmartOS
 # https://github.com/nodejs/node/pull/37681
-test/parallel/test-net-writable.js: PASS,FLAKY
+test/parallel/test-net-writable: PASS,FLAKY
+test/parallel/test-net-connect-options-port: PASS,FLAKY
 
 [$system==freebsd]
 # https://github.com/nodejs/node/issues/31727
