@@ -194,18 +194,26 @@ t.test('flatteners that populate flat.omit array', t => {
     // ignored if setting is not dev or development
     obj.also = 'ignored'
     definitions.also.flatten('also', obj, flat)
-    t.strictSame(obj, {also: 'ignored'}, 'nothing done')
-    t.strictSame(flat, {}, 'nothing done')
+    t.strictSame(obj, {also: 'ignored', omit: [], include: []}, 'nothing done')
+    t.strictSame(flat, {omit: []}, 'nothing done')
 
     obj.also = 'development'
     definitions.also.flatten('also', obj, flat)
-    t.strictSame(obj, { also: 'development', include: ['dev'] }, 'marked dev as included')
+    t.strictSame(obj, {
+      also: 'development',
+      omit: [],
+      include: ['dev'],
+    }, 'marked dev as included')
     t.strictSame(flat, { omit: [] }, 'nothing omitted, so nothing changed')
 
     obj.omit = ['dev', 'optional']
     obj.include = []
     definitions.also.flatten('also', obj, flat)
-    t.strictSame(obj, { also: 'development', omit: ['dev', 'optional'], include: ['dev'] }, 'marked dev as included')
+    t.strictSame(obj, {
+      also: 'development',
+      omit: ['optional'],
+      include: ['dev'],
+    }, 'marked dev as included')
     t.strictSame(flat, { omit: ['optional'] }, 'removed dev from omit')
     t.end()
   })
@@ -237,7 +245,7 @@ t.test('flatteners that populate flat.omit array', t => {
     const flat = {}
     const obj = { only: 'asdf' }
     definitions.only.flatten('only', obj, flat)
-    t.strictSame(flat, {}, 'ignored if value is not production')
+    t.strictSame(flat, { omit: [] }, 'ignored if value is not production')
 
     obj.only = 'prod'
     definitions.only.flatten('only', obj, flat)
@@ -256,18 +264,30 @@ t.test('flatteners that populate flat.omit array', t => {
     const obj = { optional: null }
 
     definitions.optional.flatten('optional', obj, flat)
-    t.strictSame(obj, { optional: null }, 'do nothing by default')
-    t.strictSame(flat, {}, 'do nothing by default')
+    t.strictSame(obj, {
+      optional: null,
+      omit: [],
+      include: [],
+    }, 'do nothing by default')
+    t.strictSame(flat, { omit: [] }, 'do nothing by default')
 
     obj.optional = true
     definitions.optional.flatten('optional', obj, flat)
-    t.strictSame(obj, {include: ['optional'], optional: true}, 'include optional when set')
+    t.strictSame(obj, {
+      omit: [],
+      optional: true,
+      include: ['optional'],
+    }, 'include optional when set')
     t.strictSame(flat, {omit: []}, 'nothing to omit in flatOptions')
 
     delete obj.include
     obj.optional = false
     definitions.optional.flatten('optional', obj, flat)
-    t.strictSame(obj, {omit: ['optional'], optional: false}, 'omit optional when set false')
+    t.strictSame(obj, {
+      omit: ['optional'],
+      optional: false,
+      include: [],
+    }, 'omit optional when set false')
     t.strictSame(flat, {omit: ['optional']}, 'omit optional when set false')
 
     t.end()
@@ -277,22 +297,46 @@ t.test('flatteners that populate flat.omit array', t => {
     const flat = {}
     const obj = {production: true}
     definitions.production.flatten('production', obj, flat)
-    t.strictSame(obj, {production: true, omit: ['dev']}, '--production sets --omit=dev')
+    t.strictSame(obj, {
+      production: true,
+      omit: ['dev'],
+      include: [],
+    }, '--production sets --omit=dev')
     t.strictSame(flat, {omit: ['dev']}, '--production sets --omit=dev')
 
     delete obj.omit
     obj.production = false
     delete flat.omit
     definitions.production.flatten('production', obj, flat)
-    t.strictSame(obj, {production: false}, '--no-production has no effect')
-    t.strictSame(flat, {}, '--no-production has no effect')
+    t.strictSame(obj, {
+      production: false,
+      include: ['dev'],
+      omit: [],
+    }, '--no-production explicitly includes dev')
+    t.strictSame(flat, { omit: [] }, '--no-production has no effect')
 
     obj.production = true
     obj.include = ['dev']
     definitions.production.flatten('production', obj, flat)
-    t.strictSame(obj, {production: true, include: ['dev'], omit: ['dev']}, 'omit and include dev')
+    t.strictSame(obj, {
+      production: true,
+      include: ['dev'],
+      omit: [],
+    }, 'omit and include dev')
     t.strictSame(flat, {omit: []}, 'do not omit dev when included')
 
+    t.end()
+  })
+
+  t.test('dev', t => {
+    const flat = {}
+    const obj = {dev: true}
+    definitions.dev.flatten('dev', obj, flat)
+    t.strictSame(obj, {
+      dev: true,
+      omit: [],
+      include: ['dev'],
+    })
     t.end()
   })
 
@@ -693,5 +737,20 @@ t.test('user-agent', t => {
   const expectCI = `${expectNoCI} ci/foo`
   definitions['user-agent'].flatten('user-agent', obj, flat)
   t.equal(flat.userAgent, expectCI)
+  t.end()
+})
+
+t.test('save-prefix', t => {
+  const obj = {
+    'save-exact': true,
+    'save-prefix': '~1.2.3',
+  }
+  const flat = {}
+  definitions['save-prefix']
+    .flatten('save-prefix', { ...obj, 'save-exact': true }, flat)
+  t.strictSame(flat, { savePrefix: '' })
+  definitions['save-prefix']
+    .flatten('save-prefix', { ...obj, 'save-exact': false }, flat)
+  t.strictSame(flat, { savePrefix: '~1.2.3' })
   t.end()
 })

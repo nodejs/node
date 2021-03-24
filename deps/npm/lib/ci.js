@@ -42,8 +42,14 @@ class CI extends BaseCommand {
     }
 
     const where = this.npm.prefix
-    const arb = new Arborist({ ...this.npm.flatOptions, path: where })
+    const opts = {
+      ...this.npm.flatOptions,
+      path: where,
+      log: this.npm.log,
+      save: false, // npm ci should never modify the lockfile or package.json
+    }
 
+    const arb = new Arborist(opts)
     await Promise.all([
       arb.loadVirtual().catch(er => {
         log.verbose('loadVirtual', er.stack)
@@ -55,8 +61,7 @@ class CI extends BaseCommand {
       }),
       removeNodeModules(where),
     ])
-    // npm ci should never modify the lockfile or package.json
-    await arb.reify({ ...this.npm.flatOptions, save: false })
+    await arb.reify(opts)
 
     const ignoreScripts = this.npm.config.get('ignore-scripts')
     // run the same set of scripts that `npm install` runs.

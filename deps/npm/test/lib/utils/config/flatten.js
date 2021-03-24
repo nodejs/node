@@ -6,6 +6,8 @@ delete process.env.NODE
 process.execPath = '/path/to/node'
 
 const obj = {
+  'save-exact': true,
+  'save-prefix': 'ignored',
   'save-dev': true,
   '@foobar:registry': 'https://foo.bar.com/',
   '//foo.bar.com:_authToken': 'foobarbazquuxasdf',
@@ -15,6 +17,8 @@ const obj = {
 const flat = flatten(obj)
 t.strictSame(flat, {
   saveType: 'dev',
+  saveExact: true,
+  savePrefix: '',
   '@foobar:registry': 'https://foo.bar.com/',
   '//foo.bar.com:_authToken': 'foobarbazquuxasdf',
   npmBin: '/path/to/npm',
@@ -26,6 +30,8 @@ t.strictSame(flat, {
 process.env.NODE = '/usr/local/bin/node.exe'
 flatten({ 'save-dev': false }, flat)
 t.strictSame(flat, {
+  saveExact: true,
+  savePrefix: '',
   '@foobar:registry': 'https://foo.bar.com/',
   '//foo.bar.com:_authToken': 'foobarbazquuxasdf',
   npmBin: '/path/to/npm',

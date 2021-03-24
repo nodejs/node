@@ -126,15 +126,16 @@ class Install extends BaseCommand {
     if (this.npm.config.get('dev'))
       log.warn('install', 'Usage of the `--dev` option is deprecated. Use `--include=dev` instead.')
 
-    const arb = new Arborist({
+    const opts = {
       ...this.npm.flatOptions,
+      log: this.npm.log,
+      auditLevel: null,
       path: where,
-    })
-
-    await arb.reify({
-      ...this.npm.flatOptions,
       add: args,
-    })
+    }
+    const arb = new Arborist(opts)
+    await arb.reify(opts)
+
     if (!args.length && !isGlobalInstall && !ignoreScripts) {
       const scriptShell = this.npm.config.get('script-shell') || undefined
       const scripts = [
