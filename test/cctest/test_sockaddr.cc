@@ -197,8 +197,12 @@ TEST(SocketAddressBlockList, Simple) {
   sockaddr_storage storage[2];
   SocketAddress::ToSockAddr(AF_INET, "10.0.0.1", 0, &storage[0]);
   SocketAddress::ToSockAddr(AF_INET, "10.0.0.2", 0, &storage[1]);
-  SocketAddress addr1(reinterpret_cast<const sockaddr*>(&storage[0]));
-  SocketAddress addr2(reinterpret_cast<const sockaddr*>(&storage[1]));
+  std::shared_ptr<SocketAddress> addr1 =
+      std::make_shared<SocketAddress>(
+          reinterpret_cast<const sockaddr*>(&storage[0]));
+  std::shared_ptr<SocketAddress> addr2 =
+      std::make_shared<SocketAddress>(
+          reinterpret_cast<const sockaddr*>(&storage[1]));
 
   bl.AddSocketAddress(addr1);
   bl.AddSocketAddress(addr2);
