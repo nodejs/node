@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -432,9 +432,13 @@ err:
 RAND_POOL *rand_pool_new(int entropy_requested, int secure,
                          size_t min_len, size_t max_len)
 {
-    RAND_POOL *pool = OPENSSL_zalloc(sizeof(*pool));
+    RAND_POOL *pool;
     size_t min_alloc_size = RAND_POOL_MIN_ALLOCATION(secure);
 
+    if (!RUN_ONCE(&rand_init, do_rand_init))
+        return NULL;
+
+    pool = OPENSSL_zalloc(sizeof(*pool));
     if (pool == NULL) {
         RANDerr(RAND_F_RAND_POOL_NEW, ERR_R_MALLOC_FAILURE);
         return NULL;

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -325,6 +325,7 @@ static int asn1_parse2(BIO *bp, const unsigned char **pp, long length,
                 }
                 if (BIO_puts(bp, "]") <= 0)
                     goto end;
+                dump_cont = 0;
             }
 
             if (!nl) {
