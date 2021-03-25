@@ -524,15 +524,19 @@ static int check_chain_extensions(X509_STORE_CTX *ctx)
                 ret = 1;
             break;
         }
-        if ((ctx->param->flags & X509_V_FLAG_X509_STRICT) && num > 1) {
+        if (ret > 0
+            && (ctx->param->flags & X509_V_FLAG_X509_STRICT) && num > 1) {
             /* Check for presence of explicit elliptic curve parameters */
             ret = check_curve(x);
-            if (ret < 0)
+            if (ret < 0) {
                 ctx->error = X509_V_ERR_UNSPECIFIED;
-            else if (ret == 0)
+                ret = 0;
+            } else if (ret == 0) {
                 ctx->error = X509_V_ERR_EC_KEY_EXPLICIT_PARAMS;
+            }
         }
-        if ((x->ex_flags & EXFLAG_CA) == 0
+        if (ret > 0
+            && (x->ex_flags & EXFLAG_CA) == 0
             && x->ex_pathlen != -1
             && (ctx->param->flags & X509_V_FLAG_X509_STRICT)) {
             ctx->error = X509_V_ERR_INVALID_EXTENSION;
