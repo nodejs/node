@@ -390,6 +390,7 @@ SocketAddressBlockList::SocketAddressBlockList(
 
 void SocketAddressBlockList::AddSocketAddress(
     const SocketAddress& address) {
+  Mutex::ScopedLock lock(mutex_);
   std::unique_ptr<Rule> rule =
       std::make_unique<SocketAddressRule>(address);
   rules_.emplace_front(std::move(rule));
@@ -398,6 +399,7 @@ void SocketAddressBlockList::AddSocketAddress(
 
 void SocketAddressBlockList::RemoveSocketAddress(
     const SocketAddress& address) {
+  Mutex::ScopedLock lock(mutex_);
   auto it = address_rules_.find(address);
   if (it != std::end(address_rules_)) {
     rules_.erase(it->second);
@@ -408,6 +410,7 @@ void SocketAddressBlockList::RemoveSocketAddress(
 void SocketAddressBlockList::AddSocketAddressRange(
     const SocketAddress& start,
     const SocketAddress& end) {
+  Mutex::ScopedLock lock(mutex_);
   std::unique_ptr<Rule> rule =
       std::make_unique<SocketAddressRangeRule>(start, end);
   rules_.emplace_front(std::move(rule));
@@ -416,12 +419,14 @@ void SocketAddressBlockList::AddSocketAddressRange(
 void SocketAddressBlockList::AddSocketAddressMask(
     const SocketAddress& network,
     int prefix) {
+  Mutex::ScopedLock lock(mutex_);
   std::unique_ptr<Rule> rule =
       std::make_unique<SocketAddressMaskRule>(network, prefix);
   rules_.emplace_front(std::move(rule));
 }
 
 bool SocketAddressBlockList::Apply(const SocketAddress& address) {
+  Mutex::ScopedLock lock(mutex_);
   for (const auto& rule : rules_) {
     if (rule->Apply(address))
       return true;
@@ -488,14 +493,25 @@ std::string SocketAddressBlockList::SocketAddressMaskRule::ToString() {
 }
 
 MaybeLocal<Array> SocketAddressBlockList::ListRules(Environment* env) {
+  Mutex::ScopedLock lock(mutex_);
   std::vector<Local<Value>> rules;
+  if (!ListRules(env, &rules))
+    return MaybeLocal<Array>();
+  return Array::New(env->isolate(), rules.data(), rules.size());
+}
+
+bool SocketAddressBlockList::ListRules(
+    Environment* env,
+    std::vector<v8::Local<v8::Value>>* rules) {
+  if (parent_ && !parent_->ListRules(env, rules))
+    return false;
   for (const auto& rule : rules_) {
     Local<Value> str;
     if (!rule->ToV8String(env).ToLocal(&str))
-      return MaybeLocal<Array>();
-    rules.push_back(str);
+      return false;
+    rules->push_back(str);
   }
-  return Array::New(env->isolate(), rules.data(), rules.size());
+  return true;
 }
 
 void SocketAddressBlockList::MemoryInfo(node::MemoryTracker* tracker) const {
@@ -519,20 +535,42 @@ void SocketAddressBlockList::SocketAddressMaskRule::MemoryInfo(
 }
 
 SocketAddressBlockListWrap::SocketAddressBlockListWrap(
-    Environment* env, Local<Object> wrap)
-    : BaseObject(env, wrap) {
+    Environment* env,
+    Local<Object> wrap,
+    std::shared_ptr<SocketAddressBlockList> blocklist)
+    : BaseObject(env, wrap),
+      blocklist_(std::move(blocklist)) {
   MakeWeak();
 }
 
 BaseObjectPtr<SocketAddressBlockListWrap> SocketAddressBlockListWrap::New(
     Environment* env) {
   Local<Object> obj;
-  if (!env->blocklist_instance_template()
+  if (!env->blocklist_constructor_template()
+          ->InstanceTemplate()
           ->NewInstance(env->context()).ToLocal(&obj)) {
-    return {};
+    return BaseObjectPtr<SocketAddressBlockListWrap>();
   }
   BaseObjectPtr<SocketAddressBlockListWrap> wrap =
-      MakeDetachedBaseObject<SocketAddressBlockListWrap>(env, obj);
+      MakeBaseObject<SocketAddressBlockListWrap>(env, obj);
+  CHECK(wrap);
+  return wrap;
+}
+
+BaseObjectPtr<SocketAddressBlockListWrap> SocketAddressBlockListWrap::New(
+    Environment* env,
+    std::shared_ptr<SocketAddressBlockList> blocklist) {
+  Local<Object> obj;
+  if (!env->blocklist_constructor_template()
+          ->InstanceTemplate()
+          ->NewInstance(env->context()).ToLocal(&obj)) {
+    return BaseObjectPtr<SocketAddressBlockListWrap>();
+  }
+  BaseObjectPtr<SocketAddressBlockListWrap> wrap =
+      MakeBaseObject<SocketAddressBlockListWrap>(
+          env,
+          obj,
+          std::move(blocklist));
   CHECK(wrap);
   return wrap;
 }
@@ -562,7 +600,7 @@ void SocketAddressBlockListWrap::AddAddress(
   if (!SocketAddress::ToSockAddr(family, *value, 0, &address))
     return;
 
-  wrap->AddSocketAddress(
+  wrap->blocklist_->AddSocketAddress(
       SocketAddress(reinterpret_cast<const sockaddr*>(&address)));
 
   args.GetReturnValue().Set(true);
@@ -597,7 +635,7 @@ void SocketAddressBlockListWrap::AddRange(
   if (start_addr > end_addr)
     return args.GetReturnValue().Set(false);
 
-  wrap->AddSocketAddressRange(start_addr, end_addr);
+  wrap->blocklist_->AddSocketAddressRange(start_addr, end_addr);
 
   args.GetReturnValue().Set(true);
 }
@@ -628,7 +666,7 @@ void SocketAddressBlockListWrap::AddSubnet(
   CHECK_IMPLIES(family == AF_INET6, prefix <= 128);
   CHECK_GE(prefix, 0);
 
-  wrap->AddSocketAddressMask(
+  wrap->blocklist_->AddSocketAddressMask(
       SocketAddress(reinterpret_cast<const sockaddr*>(&address)),
       prefix);
 
@@ -654,7 +692,8 @@ void SocketAddressBlockListWrap::Check(
     return;
 
   args.GetReturnValue().Set(
-      wrap->Apply(SocketAddress(reinterpret_cast<const sockaddr*>(&address))));
+      wrap->blocklist_->Apply(
+          SocketAddress(reinterpret_cast<const sockaddr*>(&address))));
 }
 
 void SocketAddressBlockListWrap::GetRules(
@@ -663,8 +702,41 @@ void SocketAddressBlockListWrap::GetRules(
   SocketAddressBlockListWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
   Local<Array> rules;
-  if (wrap->ListRules(env).ToLocal(&rules))
+  if (wrap->blocklist_->ListRules(env).ToLocal(&rules))
     args.GetReturnValue().Set(rules);
+}
+
+void SocketAddressBlockListWrap::MemoryInfo(MemoryTracker* tracker) const {
+  blocklist_->MemoryInfo(tracker);
+}
+
+std::unique_ptr<worker::TransferData>
+SocketAddressBlockListWrap::CloneForMessaging() const {
+  return std::make_unique<TransferData>(this);
+}
+
+bool SocketAddressBlockListWrap::HasInstance(
+    Environment* env,
+    Local<Value> value) {
+  return GetConstructorTemplate(env)->HasInstance(value);
+}
+
+Local<FunctionTemplate> SocketAddressBlockListWrap::GetConstructorTemplate(
+    Environment* env) {
+  Local<FunctionTemplate> tmpl = env->blocklist_constructor_template();
+  if (tmpl.IsEmpty()) {
+    tmpl = env->NewFunctionTemplate(SocketAddressBlockListWrap::New);
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "BlockList"));
+    tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
+    tmpl->InstanceTemplate()->SetInternalFieldCount(kInternalFieldCount);
+    env->SetProtoMethod(tmpl, "addAddress", AddAddress);
+    env->SetProtoMethod(tmpl, "addRange", AddRange);
+    env->SetProtoMethod(tmpl, "addSubnet", AddSubnet);
+    env->SetProtoMethod(tmpl, "check", Check);
+    env->SetProtoMethod(tmpl, "getRules", GetRules);
+    env->set_blocklist_constructor_template(tmpl);
+  }
+  return tmpl;
 }
 
 void SocketAddressBlockListWrap::Initialize(
@@ -674,21 +746,26 @@ void SocketAddressBlockListWrap::Initialize(
     void* priv) {
   Environment* env = Environment::GetCurrent(context);
 
-  Local<FunctionTemplate> t =
-      env->NewFunctionTemplate(SocketAddressBlockListWrap::New);
-  t->InstanceTemplate()->SetInternalFieldCount(BaseObject::kInternalFieldCount);
-
-  env->SetProtoMethod(t, "addAddress", SocketAddressBlockListWrap::AddAddress);
-  env->SetProtoMethod(t, "addRange", SocketAddressBlockListWrap::AddRange);
-  env->SetProtoMethod(t, "addSubnet", SocketAddressBlockListWrap::AddSubnet);
-  env->SetProtoMethod(t, "check", SocketAddressBlockListWrap::Check);
-  env->SetProtoMethod(t, "getRules", SocketAddressBlockListWrap::GetRules);
-
-  env->set_blocklist_instance_template(t->InstanceTemplate());
-  env->SetConstructorFunction(target, "BlockList", t);
+  env->SetConstructorFunction(
+      target,
+      "BlockList",
+      GetConstructorTemplate(env),
+      Environment::SetConstructorFunctionFlag::NONE);
 
   NODE_DEFINE_CONSTANT(target, AF_INET);
   NODE_DEFINE_CONSTANT(target, AF_INET6);
+}
+
+BaseObjectPtr<BaseObject> SocketAddressBlockListWrap::TransferData::Deserialize(
+    Environment* env,
+    Local<Context> context,
+    std::unique_ptr<worker::TransferData> self) {
+  return New(env, std::move(blocklist_));
+}
+
+void SocketAddressBlockListWrap::TransferData::MemoryInfo(
+    MemoryTracker* tracker) const {
+  blocklist_->MemoryInfo(tracker);
 }
 
 }  // namespace node
