@@ -148,6 +148,60 @@ class SocketAddress : public MemoryRetainer {
   sockaddr_storage address_;
 };
 
+class SocketAddressBase : public BaseObject {
+ public:
+  static bool HasInstance(Environment* env, v8::Local<v8::Value> value);
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
+  static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static BaseObjectPtr<SocketAddressBase> Create(
+      Environment* env,
+      std::shared_ptr<SocketAddress> address);
+
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Detail(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void LegacyDetail(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetFlowLabel(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  SocketAddressBase(
+    Environment* env,
+    v8::Local<v8::Object> wrap,
+    std::shared_ptr<SocketAddress> address);
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(SocketAddressBase);
+  SET_SELF_SIZE(SocketAddressBase);
+
+  TransferMode GetTransferMode() const override {
+    return TransferMode::kCloneable;
+  }
+  std::unique_ptr<worker::TransferData> CloneForMessaging() const override;
+
+  class TransferData : public worker::TransferData {
+   public:
+    inline explicit TransferData(const SocketAddressBase* wrap)
+        : address_(wrap->address_) {}
+
+    inline explicit TransferData(std::shared_ptr<SocketAddress> address)
+        : address_(std::move(address)) {}
+
+    BaseObjectPtr<BaseObject> Deserialize(
+        Environment* env,
+        v8::Local<v8::Context> context,
+        std::unique_ptr<worker::TransferData> self) override;
+
+    void MemoryInfo(MemoryTracker* tracker) const override;
+    SET_MEMORY_INFO_NAME(SocketAddressBase::TransferData)
+    SET_SELF_SIZE(TransferData)
+
+   private:
+    std::shared_ptr<SocketAddress> address_;
+  };
+
+ private:
+  std::shared_ptr<SocketAddress> address_;
+};
+
 template <typename T>
 class SocketAddressLRU : public MemoryRetainer {
  public:
