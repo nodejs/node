@@ -175,6 +175,7 @@ const customTypesMap = {
   'net.BlockList': 'net.html#net_class_net_blocklist',
   'net.Server': 'net.html#net_class_net_server',
   'net.Socket': 'net.html#net_class_net_socket',
+  'net.SocketAddress': 'net.html#net_class_net_socketaddress',
 
   'NodeEventTarget':
     'events.html#events_class_nodeeventtarget',
