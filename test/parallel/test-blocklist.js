@@ -138,10 +138,6 @@ const util = require('util');
 }
 
 {
-  assert.throws(() => new BlockList('NOT BLOCK LIST HANDLE'), /ERR_INVALID_ARG_TYPE/);
-}
-
-{
   const blockList = new BlockList();
   assert.throws(() => blockList.addRange('1.1.1.2', '1.1.1.1'), /ERR_INVALID_ARG_VALUE/);
 }
