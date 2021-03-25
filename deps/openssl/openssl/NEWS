@@ -5,6 +5,14 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.1.1j and OpenSSL 1.1.1k [25 Mar 2021]
+
+      o Fixed a problem with verifying a certificate chain when using the
+        X509_V_FLAG_X509_STRICT flag (CVE-2021-3450)
+      o Fixed an issue where an OpenSSL TLS server may crash if sent a
+        maliciously crafted renegotiation ClientHello message from a client
+        (CVE-2021-3449)
+
   Major changes between OpenSSL 1.1.1i and OpenSSL 1.1.1j [16 Feb 2021]
 
       o Fixed a NULL pointer deref in the X509_issuer_and_serial_hash()

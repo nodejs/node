@@ -1,4 +1,4 @@
-# Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -448,7 +448,7 @@ sub ciphersuite
 }
 
 #Update all the underlying records with the modified data from this message
-#Note: Only supports re-encrypting for TLSv1.3
+#Note: Only supports TLSv1.3 and ETM encryption
 sub repack
 {
     my $self = shift;
@@ -490,15 +490,38 @@ sub repack
         # (If a length override is ever needed to construct invalid packets,
         #  use an explicit override field instead.)
         $rec->decrypt_len(length($rec->decrypt_data));
-        $rec->len($rec->len + length($msgdata) - $old_length);
-        # Only support re-encryption for TLSv1.3.
-        if (TLSProxy::Proxy->is_tls13() && $rec->encrypted()) {
-            #Add content type (1 byte) and 16 tag bytes
-            $rec->data($rec->decrypt_data
-                .pack("C", TLSProxy::Record::RT_HANDSHAKE).("\0"x16));
+        # Only support re-encryption for TLSv1.3 and ETM.
+        if ($rec->encrypted()) {
+            if (TLSProxy::Proxy->is_tls13()) {
+                #Add content type (1 byte) and 16 tag bytes
+                $rec->data($rec->decrypt_data
+                    .pack("C", TLSProxy::Record::RT_HANDSHAKE).("\0"x16));
+            } elsif ($rec->etm()) {
+                my $data = $rec->decrypt_data;
+                #Add padding
+                my $padval = length($data) % 16;
+                $padval = 15 - $padval;
+                for (0..$padval) {
+                    $data .= pack("C", $padval);
+                }
+
+                #Add MAC. Assumed to be 20 bytes
+                foreach my $macval (0..19) {
+                    $data .= pack("C", $macval);
+                }
+
+                if ($rec->version() >= TLSProxy::Record::VERS_TLS_1_1) {
+                    #Explicit IV
+                    $data = ("\0"x16).$data;
+                }
+                $rec->data($data);
+            } else {
+                die "Unsupported encryption: No ETM";
+            }
         } else {
             $rec->data($rec->decrypt_data);
         }
+        $rec->len(length($rec->data));
 
         #Update the fragment len in case we changed it above
         ${$self->message_frag_lens}[0] = length($msgdata)
