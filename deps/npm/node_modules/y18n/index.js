@@ -11,7 +11,7 @@ function Y18N (opts) {
   this.fallbackToLanguage = typeof opts.fallbackToLanguage === 'boolean' ? opts.fallbackToLanguage : true
 
   // internal stuff.
-  this.cache = {}
+  this.cache = Object.create(null)
   this.writeQueue = []
 }
 
