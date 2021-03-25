@@ -1026,15 +1026,18 @@ inline void Environment::SetInstanceMethod(v8::Local<v8::FunctionTemplate> that,
 inline void Environment::SetConstructorFunction(
     v8::Local<v8::Object> that,
     const char* name,
-    v8::Local<v8::FunctionTemplate> tmpl) {
-  SetConstructorFunction(that, OneByteString(isolate(), name), tmpl);
+    v8::Local<v8::FunctionTemplate> tmpl,
+    SetConstructorFunctionFlag flag) {
+  SetConstructorFunction(that, OneByteString(isolate(), name), tmpl, flag);
 }
 
 inline void Environment::SetConstructorFunction(
     v8::Local<v8::Object> that,
     v8::Local<v8::String> name,
-    v8::Local<v8::FunctionTemplate> tmpl) {
-  tmpl->SetClassName(name);
+    v8::Local<v8::FunctionTemplate> tmpl,
+    SetConstructorFunctionFlag flag) {
+  if (LIKELY(flag == SetConstructorFunctionFlag::SET_CLASS_NAME))
+    tmpl->SetClassName(name);
   that->Set(
       context(),
       name,
