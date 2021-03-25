@@ -1,3 +1,12 @@
+## 6.14.12 (2021-03-25)
+
+### DEPENDENCIES
+
+* [`e47654048`](https://github.com/npm/cli/commit/e4765404844a0b6795752b2bc6f9b9107fe713be)
+  [#2737](https://github.com/npm/cli/pull/2737)
+  Update y18n to fix CVE-2020-7774
+  ([@vecerek](https://github.com/vecerek))
+
 ## 6.14.11 (2021-01-07)
 ### DEPENDENCIES
 
