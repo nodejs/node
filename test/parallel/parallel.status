@@ -25,6 +25,7 @@ test-crypto-keygen: SKIP
 # https://github.com/nodejs/node/pull/37681
 test-net-writable: PASS,FLAKY
 test-net-connect-options-port: PASS,FLAKY
+test-net-pingpong: PASS,FLAKY
 
 [$system==freebsd]
 # https://github.com/nodejs/node/issues/31727
