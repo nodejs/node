@@ -1,3 +1,31 @@
+## v7.7.5 (2021-03-25)
+
+### BUG FIXES
+
+* [`95ba87622`](https://github.com/npm/cli/commit/95ba87622e00d68270eda9e071b19737718fca16)
+  [#2949](https://github.com/npm/cli/issues/2949)
+  fix handling manual indexes in `npm help`
+  ([@dmchurch](https://github.com/dmchurch))
+* [`59cf37962`](https://github.com/npm/cli/commit/59cf37962a2286e0f7d3bd37fa9c8bc3bac94218)
+  [#2958](https://github.com/npm/cli/issues/2958)
+  always set `npm.command` to canonical command name
+  ([@isaacs](https://github.com/isaacs))
+* [`1415b4bde`](https://github.com/npm/cli/commit/1415b4bdeeaabb6e0ba12b6b1b0cc56502bd64ab)
+  [#2964](https://github.com/npm/cli/issues/2964)
+  fix(config): properly translate user-agent
+  ([@wraithgar](https://github.com/wraithgar))
+* [`59271936d`](https://github.com/npm/cli/commit/59271936d90fbd6956a41967119f578c0ba63db9)
+  [#2965](https://github.com/npm/cli/issues/2965)
+  fix(config): tie save-exact/save-prefix together
+  ([@wraithgar](https://github.com/wraithgar))
+
+### TESTS
+
+* [`97b415287`](https://github.com/npm/cli/commit/97b41528739460b2e9e72e09000aded412418cb2)
+  [#2959](https://github.com/npm/cli/issues/2959)
+  add smoke tests
+  ([@ruyadorno](https://github.com/ruyadorno))
+
 ## v7.7.4 (2021-03-24)
 
 ### BUG FIXES

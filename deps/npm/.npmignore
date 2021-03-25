@@ -39,3 +39,7 @@ docs/template.html
 Session.vim
 .nyc_output
 /.editorconfig
+
+# don't ship smoke tests
+smoke-tests/
+tap-snapshots/smoke-tests-index.js-TAP.test.js

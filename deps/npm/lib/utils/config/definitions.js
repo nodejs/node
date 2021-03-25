@@ -1526,7 +1526,10 @@ define('save-exact', {
     Dependencies saved to package.json will be configured with an exact
     version rather than using npm's default semver range operator.
   `,
-  flatten,
+  flatten (key, obj, flatOptions) {
+    // just call the save-prefix flattener, it reads from obj['save-exact']
+    definitions['save-prefix'].flatten('save-prefix', obj, flatOptions)
+  },
 })
 
 define('save-optional', {
@@ -1595,6 +1598,7 @@ define('save-prefix', {
   `,
   flatten (key, obj, flatOptions) {
     flatOptions.savePrefix = obj['save-exact'] ? '' : obj['save-prefix']
+    obj['save-prefix'] = flatOptions.savePrefix
   },
 })
 
@@ -1970,6 +1974,11 @@ define('user-agent', {
         .replace(/\{arch\}/gi, process.arch)
         .replace(/\{ci\}/gi, ciName ? `ci/${ciName}` : '')
         .trim()
+    // user-agent is a unique kind of config item that gets set from a template
+    // and ends up translated.  Because of this, the normal "should we set this
+    // to process.env also doesn't work
+    obj[key] = flatOptions.userAgent
+    process.env.npm_config_user_agent = flatOptions.userAgent
   },
 })
 
