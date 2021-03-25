@@ -220,6 +220,7 @@
       'lib/internal/repl/await.js',
       'lib/internal/repl/history.js',
       'lib/internal/repl/utils.js',
+      'lib/internal/socketaddress.js',
       'lib/internal/socket_list.js',
       'lib/internal/source_map/prepare_stack_trace.js',
       'lib/internal/source_map/source_map.js',

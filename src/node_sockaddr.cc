@@ -3,6 +3,7 @@
 #include "base64-inl.h"
 #include "base_object-inl.h"
 #include "memory_tracker-inl.h"
+#include "node_errors.h"
 #include "uv.h"
 
 #include <memory>
@@ -15,9 +16,11 @@ using v8::Array;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::Int32;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
+using v8::Uint32;
 using v8::Value;
 
 namespace {
@@ -752,6 +755,8 @@ void SocketAddressBlockListWrap::Initialize(
       GetConstructorTemplate(env),
       Environment::SetConstructorFunctionFlag::NONE);
 
+  SocketAddressBase::Initialize(env, target);
+
   NODE_DEFINE_CONSTANT(target, AF_INET);
   NODE_DEFINE_CONSTANT(target, AF_INET6);
 }
@@ -766,6 +771,144 @@ BaseObjectPtr<BaseObject> SocketAddressBlockListWrap::TransferData::Deserialize(
 void SocketAddressBlockListWrap::TransferData::MemoryInfo(
     MemoryTracker* tracker) const {
   blocklist_->MemoryInfo(tracker);
+}
+
+bool SocketAddressBase::HasInstance(Environment* env, Local<Value> value) {
+  return GetConstructorTemplate(env)->HasInstance(value);
+}
+
+Local<FunctionTemplate> SocketAddressBase::GetConstructorTemplate(
+    Environment* env) {
+  Local<FunctionTemplate> tmpl = env->socketaddress_constructor_template();
+  if (tmpl.IsEmpty()) {
+    tmpl = env->NewFunctionTemplate(New);
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "SocketAddress"));
+    tmpl->InstanceTemplate()->SetInternalFieldCount(
+        SocketAddressBase::kInternalFieldCount);
+    tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
+    env->SetProtoMethod(tmpl, "detail", Detail);
+    env->SetProtoMethod(tmpl, "legacyDetail", LegacyDetail);
+    env->SetProtoMethodNoSideEffect(tmpl, "flowlabel", GetFlowLabel);
+    env->set_socketaddress_constructor_template(tmpl);
+  }
+  return tmpl;
+}
+
+void SocketAddressBase::Initialize(Environment* env, Local<Object> target) {
+  env->SetConstructorFunction(
+      target,
+      "SocketAddress",
+      GetConstructorTemplate(env),
+      Environment::SetConstructorFunctionFlag::NONE);
+}
+
+BaseObjectPtr<SocketAddressBase> SocketAddressBase::Create(
+    Environment* env,
+    std::shared_ptr<SocketAddress> address) {
+  Local<Object> obj;
+  if (!GetConstructorTemplate(env)
+          ->InstanceTemplate()
+          ->NewInstance(env->context()).ToLocal(&obj)) {
+    return BaseObjectPtr<SocketAddressBase>();
+  }
+
+  return MakeBaseObject<SocketAddressBase>(env, obj, std::move(address));
+}
+
+void SocketAddressBase::New(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args.IsConstructCall());
+  CHECK(args[0]->IsString());  // address
+  CHECK(args[1]->IsInt32());  // port
+  CHECK(args[2]->IsInt32());  // family
+  CHECK(args[3]->IsUint32());  // flow label
+
+  Utf8Value address(env->isolate(), args[0]);
+  int32_t port = args[1].As<Int32>()->Value();
+  int32_t family = args[2].As<Int32>()->Value();
+  uint32_t flow_label = args[3].As<Uint32>()->Value();
+
+  std::shared_ptr<SocketAddress> addr = std::make_shared<SocketAddress>();
+
+  if (!SocketAddress::New(family, *address, port, addr.get()))
+    return THROW_ERR_INVALID_ADDRESS(env);
+
+  addr->set_flow_label(flow_label);
+
+  new SocketAddressBase(env, args.This(), std::move(addr));
+}
+
+void SocketAddressBase::Detail(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsObject());
+  Local<Object> detail = args[0].As<Object>();
+
+  SocketAddressBase* base;
+  ASSIGN_OR_RETURN_UNWRAP(&base, args.Holder());
+
+  Local<Value> address;
+  if (!ToV8Value(env->context(), base->address_->address()).ToLocal(&address))
+    return;
+
+  if (detail->Set(env->context(), env->address_string(), address).IsJust() &&
+      detail->Set(
+          env->context(),
+          env->port_string(),
+          Int32::New(env->isolate(), base->address_->port())).IsJust() &&
+      detail->Set(
+          env->context(),
+          env->family_string(),
+          Int32::New(env->isolate(), base->address_->family())).IsJust() &&
+      detail->Set(
+          env->context(),
+          env->flowlabel_string(),
+          Uint32::New(env->isolate(), base->address_->flow_label()))
+              .IsJust()) {
+    args.GetReturnValue().Set(detail);
+  }
+}
+
+void SocketAddressBase::GetFlowLabel(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  SocketAddressBase* base;
+  ASSIGN_OR_RETURN_UNWRAP(&base, args.Holder());
+  args.GetReturnValue().Set(base->address_->flow_label());
+}
+
+void SocketAddressBase::LegacyDetail(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  SocketAddressBase* base;
+  ASSIGN_OR_RETURN_UNWRAP(&base, args.Holder());
+  args.GetReturnValue().Set(base->address_->ToJS(env));
+}
+
+SocketAddressBase::SocketAddressBase(
+    Environment* env,
+    Local<Object> wrap,
+    std::shared_ptr<SocketAddress> address)
+    : BaseObject(env, wrap),
+      address_(std::move(address)) {
+  MakeWeak();
+}
+
+void SocketAddressBase::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("address", address_);
+}
+
+std::unique_ptr<worker::TransferData>
+SocketAddressBase::CloneForMessaging() const {
+  return std::make_unique<TransferData>(this);
+}
+
+void SocketAddressBase::TransferData::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("address", address_);
+}
+
+BaseObjectPtr<BaseObject> SocketAddressBase::TransferData::Deserialize(
+    Environment* env,
+    v8::Local<v8::Context> context,
+    std::unique_ptr<worker::TransferData> self) {
+  return SocketAddressBase::Create(env, std::move(address_));
 }
 
 }  // namespace node
