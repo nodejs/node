@@ -17,7 +17,6 @@ const obj = {
 const flat = flatten(obj)
 t.strictSame(flat, {
   saveType: 'dev',
-  saveExact: true,
   savePrefix: '',
   '@foobar:registry': 'https://foo.bar.com/',
   '//foo.bar.com:_authToken': 'foobarbazquuxasdf',
@@ -30,7 +29,6 @@ t.strictSame(flat, {
 process.env.NODE = '/usr/local/bin/node.exe'
 flatten({ 'save-dev': false }, flat)
 t.strictSame(flat, {
-  saveExact: true,
   savePrefix: '',
   '@foobar:registry': 'https://foo.bar.com/',
   '//foo.bar.com:_authToken': 'foobarbazquuxasdf',

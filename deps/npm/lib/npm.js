@@ -25,7 +25,7 @@ const proxyCmds = new Proxy({}, {
       // old way of doing things, until we can make breaking changes to the
       // npm.commands[x] api
       target[actual] = new Proxy(
-        (args, cb) => npm[_runCmd](cmd, impl, args, cb),
+        (args, cb) => npm[_runCmd](actual, impl, args, cb),
         {
           get: (target, attr, receiver) => {
             return Reflect.get(impl, attr, receiver)

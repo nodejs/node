@@ -1,5 +1,5 @@
 {
-  "version": "7.7.4",
+  "version": "7.7.5",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "keywords": [
@@ -207,7 +207,8 @@
     "lint": "npm run eslint -- test/lib test/bin \"lib/**/*.js\"",
     "lintfix": "npm run lint -- --fix",
     "prelint": "rimraf test/npm_cache*",
-    "resetdeps": "bash scripts/resetdeps.sh"
+    "resetdeps": "bash scripts/resetdeps.sh",
+    "smoke-tests": "tap smoke-tests/index.js"
   },
   "//": [
     "XXX temporarily only run unit tests while v7 beta is in progress",
