@@ -573,6 +573,7 @@ In particular, the significant differences to `JSON` are:
   * {KeyObject}s,
   * {MessagePort}s,
   * {net.BlockList}s,
+  * {net.SocketAddress}es,
   * {X509Certificate}s.
 
 ```js

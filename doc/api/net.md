@@ -135,6 +135,51 @@ added: v15.0.0
 
 The list of rules added to the blocklist.
 
+## Class: `net.SocketAddress`
+<!-- YAML
+added: REPLACEME
+-->
+### `new net.SocketAddress([options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `address` {string} The network address as either an IPv4 or IPv6 string.
+    **Default**: `'127.0.0.1'` if `family` is `'ipv4'`; `'::'` if `family` is
+    `'ipv6'`.
+  * `family` {string} One of either `'ipv4'` or 'ipv6'`. **Default**: `'ipv4'`.
+  * `flowlabel` {number} An IPv6 flow-label used only if `family` is `'ipv6'`.
+  * `port` {number} An IP port.
+
+### `socketaddress.address`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type {string}
+
+### `socketaddress.family`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type {string} Either `'ipv4'` or `'ipv6'`.
+
+### `socketaddress.flowlabel`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type {number}
+
+### `socketaddress.port`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type {number}
+
 ## Class: `net.Server`
 <!-- YAML
 added: v0.1.90
