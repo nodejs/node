@@ -47,7 +47,7 @@ How are you keeping current with OpenSSL?
 -----------------------------------------
 (In other words, "What about rebasing?")
 
-Our plan it to always rebase on top of an upstream release tag. In particular:
+Our plan is to always rebase on top of an upstream release tag. In particular:
 - The changes for QUIC will always be at the tip of the branch -- you will know what
 is from the original OpenSSL and what is for QUIC.
 - New versions are quickly created once upstream creates a new tag.

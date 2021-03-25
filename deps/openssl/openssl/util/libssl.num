@@ -513,3 +513,4 @@ SSL_set_quic_use_legacy_codepoint       20011	1_1_1i	EXIST::FUNCTION:QUIC
 SSL_set_quic_transport_version          20012	1_1_1i	EXIST::FUNCTION:QUIC
 SSL_get_peer_quic_transport_version     20013	1_1_1i	EXIST::FUNCTION:QUIC
 SSL_get_quic_transport_version          20014	1_1_1i	EXIST::FUNCTION:QUIC
+SSL_set_quic_early_data_enabled         20015	1_1_1j	EXIST::FUNCTION:QUIC

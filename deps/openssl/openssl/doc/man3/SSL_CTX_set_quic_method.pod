@@ -17,7 +17,8 @@ SSL_is_quic,
 SSL_get_peer_quic_transport_version,
 SSL_get_quic_transport_version,
 SSL_set_quic_transport_version,
-SSL_set_quic_use_legacy_codepoint
+SSL_set_quic_use_legacy_codepoint,
+SSL_set_quic_early_data_enabled
 - QUIC support
 
 =head1 SYNOPSIS
@@ -47,6 +48,7 @@ SSL_set_quic_use_legacy_codepoint
  void SSL_set_quic_transport_version(SSL *ssl, int version);
  int SSL_get_quic_transport_version(const SSL *ssl);
  int SSL_get_peer_quic_transport_version(const SSL *ssl);
+ void SSL_set_quic_early_data_enabled(SSL *ssl, int enabled);
 
 =head1 DESCRIPTION
 
@@ -105,6 +107,12 @@ SSL_set_quic_transport_version().
 
 SSL_get_peer_quic_transport_version() returns the version the that was 
 negotiated.
+
+SSL_set_quic_early_data_enabled() enables QUIC early data if a nonzero
+value is passed.  Clients must set a resumed session before calling this
+function.  Servers must additionally call SSL_CTX_set_max_early_data() or
+SSL_set_max_early_data() with 0xffffffffu as the argument, so that any
+issued session tickets indicate that server is able to accept early data.
 
 =head1 NOTES
 

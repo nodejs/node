@@ -2488,6 +2488,8 @@ __owur int SSL_get_peer_quic_transport_version(const SSL *ssl);
 
 int SSL_CIPHER_get_prf_nid(const SSL_CIPHER *c);
 
+void SSL_set_quic_early_data_enabled(SSL *ssl, int enabled);
+
 #  endif
 
 # ifdef  __cplusplus

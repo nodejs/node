@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  * Copyright 2005 Nokia. All rights reserved.
  *
@@ -4629,6 +4629,7 @@ int ssl_generate_master_secret(SSL *s, unsigned char *pms, size_t pmslen,
 
         OPENSSL_clear_free(s->s3->tmp.psk, psklen);
         s->s3->tmp.psk = NULL;
+        s->s3->tmp.psklen = 0;
         if (!s->method->ssl3_enc->generate_master_secret(s,
                     s->session->master_key, pskpms, pskpmslen,
                     &s->session->master_key_length)) {
@@ -4658,8 +4659,10 @@ int ssl_generate_master_secret(SSL *s, unsigned char *pms, size_t pmslen,
         else
             OPENSSL_cleanse(pms, pmslen);
     }
-    if (s->server == 0)
+    if (s->server == 0) {
         s->s3->tmp.pms = NULL;
+        s->s3->tmp.pmslen = 0;
+    }
     return ret;
 }
 

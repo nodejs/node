@@ -917,8 +917,8 @@ errors:
           done )
 
 ordinals:
-	( b=`pwd`; cd $(SRCDIR); $(PERL) -I$$b util/mkdef.pl crypto update )
-	( b=`pwd`; cd $(SRCDIR); $(PERL) -I$$b util/mkdef.pl ssl update )
+	$(PERL) $(SRCDIR)/util/mkdef.pl crypto update
+	$(PERL) $(SRCDIR)/util/mkdef.pl ssl update
 
 test_ordinals:
 	( cd test; \
