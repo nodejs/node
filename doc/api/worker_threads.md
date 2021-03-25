@@ -409,6 +409,7 @@ In particular, the significant differences to `JSON` are:
   * {KeyObject}s,
   * {MessagePort}s,
   * {net.BlockList}s,
+  * {net.SocketAddress}es,
 
 ```js
 const { MessageChannel } = require('worker_threads');

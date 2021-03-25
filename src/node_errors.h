@@ -39,6 +39,7 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_CRYPTO_UNKNOWN_CIPHER, Error)                                          \
   V(ERR_CRYPTO_UNKNOWN_DH_GROUP, Error)                                        \
   V(ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE, Error)                            \
+  V(ERR_INVALID_ADDRESS, Error)                                                \
   V(ERR_INVALID_ARG_VALUE, TypeError)                                          \
   V(ERR_OSSL_EVP_INVALID_DIGEST, Error)                                        \
   V(ERR_INVALID_ARG_TYPE, TypeError)                                           \
@@ -108,6 +109,7 @@ ERRORS_WITH_CODE(V)
   V(ERR_CRYPTO_UNKNOWN_DH_GROUP, "Unknown DH group")                           \
   V(ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE,                                   \
     "Context not associated with Node.js environment")                         \
+  V(ERR_INVALID_ADDRESS, "Invalid socket address")                             \
   V(ERR_INVALID_THIS, "Value of \"this\" is the wrong type")                   \
   V(ERR_INVALID_TRANSFER_OBJECT, "Found invalid object in transferList")       \
   V(ERR_MEMORY_ALLOCATION_FAILED, "Failed to allocate memory")                 \
