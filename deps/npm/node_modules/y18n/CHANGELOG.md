@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+
+### 4.0.1 (2020-11-30)
+
+### Bug Fixes
+
+* address prototype pollution issue ([#108](https://www.github.com/yargs/y18n/issues/108)) ([a9ac604](https://www.github.com/yargs/y18n/commit/a9ac604abf756dec9687be3843e2c93bfe581f25))
+
 <a name="4.0.0"></a>
 # [4.0.0](https://github.com/yargs/y18n/compare/v3.2.1...v4.0.0) (2017-10-10)
 
