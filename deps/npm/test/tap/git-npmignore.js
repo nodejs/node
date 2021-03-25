@@ -152,7 +152,7 @@ function setup (cb) {
 
         var git = escapeArg(gitPath)
 
-        exec(git + ' init', {cwd: dep}, init)
+        exec(git + ' init --initial-branch=main', {cwd: dep}, init)
 
         function init (er, _, stderr) {
           if (er) return cb(er)
