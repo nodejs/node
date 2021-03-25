@@ -340,3 +340,26 @@ test('npm help - man viewer propagates errors', t => {
     t.end()
   })
 })
+
+test('npm help with complex installation path finds proper help file', t => {
+  npmConfig.viewer = 'browser'
+  globResult = [
+    'C:/Program Files/node-v14.15.5-win-x64/node_modules/npm/man/man1/npm-install.1',
+    // glob always returns forward slashes, even on Windows
+  ]
+
+  t.teardown(() => {
+    npmConfig.viewer = undefined
+    globResult = globDefaults
+    spawnBin = null
+    spawnArgs = null
+  })
+
+  return help.exec(['1', 'install'], (err) => {
+    if (err)
+      throw err
+
+    t.match(openUrlArg, /commands(\/|\\)npm-install.html$/, 'attempts to open the correct url')
+    t.end()
+  })
+})

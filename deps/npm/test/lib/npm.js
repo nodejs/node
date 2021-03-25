@@ -15,7 +15,7 @@ for (const env of Object.keys(process.env).filter(e => /^npm_/.test(e))) {
         'should match "npm test" or "npm run test"'
       )
     } else
-      t.match(process.env[env], /^(run)|(run-script)|(exec)$/)
+      t.match(process.env[env], /^(run-script|exec)$/)
   }
   delete process.env[env]
 }
@@ -411,9 +411,14 @@ t.test('npm.load', t => {
     npm.localPrefix = dir
 
     await new Promise((res, rej) => {
-      npm.commands['run-script']([], er => {
+      // verify that calling the command with a short name still sets
+      // the npm.command property to the full canonical name of the cmd.
+      npm.command = null
+      npm.commands.run([], er => {
         if (er)
           rej(er)
+
+        t.equal(npm.command, 'run-script', 'npm.command set to canonical name')
 
         t.match(
           consoleLogs,
