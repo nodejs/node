@@ -168,6 +168,10 @@ class SocketAddressBase : public BaseObject {
     v8::Local<v8::Object> wrap,
     std::shared_ptr<SocketAddress> address);
 
+  inline const std::shared_ptr<SocketAddress>& address() const {
+    return address_;
+  }
+
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(SocketAddressBase);
   SET_SELF_SIZE(SocketAddressBase);
@@ -246,38 +250,36 @@ class SocketAddressBlockList : public MemoryRetainer {
       std::shared_ptr<SocketAddressBlockList> parent = {});
   ~SocketAddressBlockList() = default;
 
-  void AddSocketAddress(
-      const SocketAddress& address);
+  void AddSocketAddress(const std::shared_ptr<SocketAddress>& address);
 
-  void RemoveSocketAddress(
-      const SocketAddress& address);
+  void RemoveSocketAddress(const std::shared_ptr<SocketAddress>& address);
 
   void AddSocketAddressRange(
-      const SocketAddress& start,
-      const SocketAddress& end);
+      const std::shared_ptr<SocketAddress>& start,
+      const std::shared_ptr<SocketAddress>& end);
 
   void AddSocketAddressMask(
-      const SocketAddress& address,
+      const std::shared_ptr<SocketAddress>& address,
       int prefix);
 
-  bool Apply(const SocketAddress& address);
+  bool Apply(const std::shared_ptr<SocketAddress>& address);
 
   size_t size() const { return rules_.size(); }
 
   v8::MaybeLocal<v8::Array> ListRules(Environment* env);
 
   struct Rule : public MemoryRetainer {
-    virtual bool Apply(const SocketAddress& address) = 0;
+    virtual bool Apply(const std::shared_ptr<SocketAddress>& address) = 0;
     inline v8::MaybeLocal<v8::Value> ToV8String(Environment* env);
     virtual std::string ToString() = 0;
   };
 
   struct SocketAddressRule final : Rule {
-    SocketAddress address;
+    std::shared_ptr<SocketAddress> address;
 
-    explicit SocketAddressRule(const SocketAddress& address);
+    explicit SocketAddressRule(const std::shared_ptr<SocketAddress>& address);
 
-    bool Apply(const SocketAddress& address) override;
+    bool Apply(const std::shared_ptr<SocketAddress>& address) override;
     std::string ToString() override;
 
     void MemoryInfo(node::MemoryTracker* tracker) const override;
@@ -286,14 +288,14 @@ class SocketAddressBlockList : public MemoryRetainer {
   };
 
   struct SocketAddressRangeRule final : Rule {
-    SocketAddress start;
-    SocketAddress end;
+    std::shared_ptr<SocketAddress> start;
+    std::shared_ptr<SocketAddress> end;
 
     SocketAddressRangeRule(
-        const SocketAddress& start,
-        const SocketAddress& end);
+        const std::shared_ptr<SocketAddress>& start,
+        const std::shared_ptr<SocketAddress>& end);
 
-    bool Apply(const SocketAddress& address) override;
+    bool Apply(const std::shared_ptr<SocketAddress>& address) override;
     std::string ToString() override;
 
     void MemoryInfo(node::MemoryTracker* tracker) const override;
@@ -302,14 +304,14 @@ class SocketAddressBlockList : public MemoryRetainer {
   };
 
   struct SocketAddressMaskRule final : Rule {
-    SocketAddress network;
+    std::shared_ptr<SocketAddress> network;
     int prefix;
 
     SocketAddressMaskRule(
-        const SocketAddress& address,
+        const std::shared_ptr<SocketAddress>& address,
         int prefix);
 
-    bool Apply(const SocketAddress& address) override;
+    bool Apply(const std::shared_ptr<SocketAddress>& address) override;
     std::string ToString() override;
 
     void MemoryInfo(node::MemoryTracker* tracker) const override;
