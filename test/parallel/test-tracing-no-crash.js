@@ -9,7 +9,7 @@ function CheckNoSignalAndErrorCodeOne(code, signal) {
 }
 
 const child = spawn(process.execPath, [
-  '--trace-event-categories', 'madeup', '-e', 'throw new Error()'
+  '--trace-event-categories', 'madeup', '-e', 'throw new Error()',
 ], { stdio: [ 'inherit', 'inherit', 'pipe' ] });
 child.on('exit', common.mustCall(CheckNoSignalAndErrorCodeOne));
 

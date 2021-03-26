@@ -72,7 +72,7 @@ async function testBreakpointOnStart(session) {
       'params': { 'interval': 100 } },
     { 'method': 'Debugger.setBlackboxPatterns',
       'params': { 'patterns': [] } },
-    { 'method': 'Runtime.runIfWaitingForDebugger' }
+    { 'method': 'Runtime.runIfWaitingForDebugger' },
   ];
 
   await session.send(commands);
@@ -187,7 +187,7 @@ async function testCommandLineAPI(session) {
         'expression': [
           'typeof require.resolve === "function"',
           'typeof require.extensions === "object"',
-          'typeof require.cache === "object"'
+          'typeof require.cache === "object"',
         ].join(' && '),
         'includeCommandLineAPI': true
       }

@@ -26,7 +26,7 @@ for (const code of [
   } catch (e) {
     console.error(e);
     process.exit(1);
-  }`
+  }`,
 ]) {
   const child = spawnSync(process.execPath, ['-e', code], {
     stdio: 'pipe'

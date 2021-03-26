@@ -152,7 +152,7 @@ async function generateKeysToWrap() {
       },
       usages: ['sign', 'verify'],
       pair: false,
-    }
+    },
   ];
 
   const allkeys = await Promise.all(parameters.map(async (params) => {
@@ -173,7 +173,7 @@ async function generateKeysToWrap() {
           algorithm: params.algorithm,
           usages: params.privateUsages,
           key: keys.privateKey,
-        }
+        },
       ];
     }
 

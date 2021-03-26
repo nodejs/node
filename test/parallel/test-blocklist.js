@@ -107,7 +107,7 @@ const util = require('util');
   const rulesCheck = [
     'Subnet: IPv6 8592:757c:efae:4e45::/64',
     'Range: IPv4 10.0.0.1-10.0.0.10',
-    'Address: IPv4 1.1.1.1'
+    'Address: IPv4 1.1.1.1',
   ];
   assert.deepStrictEqual(blockList.rules, rulesCheck);
   console.log(blockList);

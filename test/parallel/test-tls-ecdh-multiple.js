@@ -62,7 +62,7 @@ process.on('exit', function() {
   const unsupportedCurves = [
     'wap-wsg-idm-ecid-wtls1',
     'c2pnb163v1',
-    'prime192v3'
+    'prime192v3',
   ];
 
   // Brainpool is not supported in FIPS mode

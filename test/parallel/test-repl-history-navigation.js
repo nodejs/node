@@ -116,7 +116,7 @@ const tests = [
       'const foo = true', ENTER,
       '555n + 111n', ENTER,
       '5 + 5', ENTER,
-      '55 - 13 === 42', ENTER
+      '55 - 13 === 42', ENTER,
     ],
     expected: [],
     clean: false
@@ -127,7 +127,7 @@ const tests = [
     preview: false,
     showEscapeCodes: true,
     test: [
-      '55', UP, UP, UP, UP, UP, UP, ENTER
+      '55', UP, UP, UP, UP, UP, UP, ENTER,
     ],
     expected: [
       '\x1B[1G', '\x1B[0J', prompt, '\x1B[3G',
@@ -150,7 +150,7 @@ const tests = [
       '\r\n', '55\n',
       '\x1B[1G', '\x1B[0J',
       '> ', '\x1B[3G',
-      '\r\n'
+      '\r\n',
     ],
     clean: true
   },
@@ -189,7 +189,7 @@ const tests = [
       ENTER,
       `${' '.repeat(236)} fun`,
       ESCAPE,
-      ENTER
+      ENTER,
     ],
     expected: [],
     clean: false
@@ -220,7 +220,7 @@ const tests = [
       '2',
       BACKSPACE,
       '3',
-      SIGINT
+      SIGINT,
     ],
     // A = Cursor n up
     // B = Cursor n down
@@ -315,7 +315,7 @@ const tests = [
       '\r\n',
       '\x1B[1G', '\x1B[0J',
       '> ', '\x1B[3G',
-      '\r\n'
+      '\r\n',
     ],
     clean: true
   },
@@ -343,7 +343,7 @@ const tests = [
       LEFT,
       ENTER,
       UP,
-      ENTER
+      ENTER,
     ],
     // C = Cursor n forward
     // D = Cursor n back
@@ -420,7 +420,7 @@ const tests = [
       'n', '\r\n',
       '\x1B[1G', '\x1B[0J',
       '... ', '\x1B[5G',
-      '\r\n'
+      '\r\n',
     ],
     clean: true
   },
@@ -430,7 +430,7 @@ const tests = [
     skip: !process.features.inspector,
     test: [
       'util.inspect.replDefaults.showHidden',
-      ENTER
+      ENTER,
     ],
     expected: [],
     clean: false
@@ -447,7 +447,7 @@ const tests = [
       ' = true',
       ENTER,
       '[ ]',
-      ENTER
+      ENTER,
     ],
     expected: [
       prompt,
@@ -487,7 +487,7 @@ const tests = [
       WAIT, // The second call is not awaited. It won't trigger the preview.
       BACKSPACE,
       's',
-      BACKSPACE
+      BACKSPACE,
     ],
     expected: [
       prompt,

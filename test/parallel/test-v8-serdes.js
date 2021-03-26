@@ -21,7 +21,7 @@ const objects = [
   undefined,
   null,
   42,
-  circular
+  circular,
 ];
 
 const hostObject = new (internalBinding('js_stream').JSStream)();

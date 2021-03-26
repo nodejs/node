@@ -50,7 +50,7 @@ builtinModules.forEach((moduleName) => {
     'performance',
     'setImmediate',
     'setInterval',
-    'setTimeout'
+    'setTimeout',
   ];
   assert.deepStrictEqual(new Set(Object.keys(global)), new Set(expected));
 }

@@ -11,7 +11,7 @@ const spawn = require('child_process').spawn;
 
 const methods = [
   'runInThisContext',
-  'runInContext'
+  'runInContext',
 ];
 
 if (process.argv[2] === 'child') {

@@ -63,7 +63,7 @@ assert.strictEqual(tracing.enabled, true);
 
 assert.strictEqual(getEnabledCategories(),
                    [
-                     ...[enabledCategories].filter((_) => !!_), 'node.perf'
+                     ...[enabledCategories].filter((_) => !!_), 'node.perf',
                    ].join(','));
 
 tracing.disable();
@@ -142,7 +142,7 @@ function testApiInChildProcess(execArgs, cb) {
                            '--expose-gc',
                            '--expose-internals',
                            '--no-warnings',
-                           ...execArgs
+                           ...execArgs,
                          ]
                        });
 

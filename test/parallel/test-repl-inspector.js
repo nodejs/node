@@ -28,7 +28,7 @@ putIn.run([
   'const session = new inspector.Session()',
   'session.connect()',
   'session.post("Runtime.evaluate", { expression: "1 + 1" }, console.log)',
-  'session.disconnect()'
+  'session.disconnect()',
 ]);
 
 assert(output.includes(

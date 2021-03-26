@@ -21,7 +21,7 @@ const credentialOptions = [
     key: fixtures.readKey('agent2-key.pem'),
     cert: fixtures.readKey('agent2-cert.pem'),
     ca: fixtures.readKey('ca2-cert.pem')
-  }
+  },
 ];
 let firstResponse;
 

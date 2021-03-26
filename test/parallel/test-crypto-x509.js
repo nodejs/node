@@ -149,7 +149,7 @@ const der = Buffer.from(
     'wildcards',
     'partialWildcards',
     'multiLabelWildcards',
-    'singleLabelSubdomains'
+    'singleLabelSubdomains',
   ].forEach((key) => {
     [1, '', null, {}].forEach((i) => {
       assert.throws(() => x509.checkHost('agent1', { [key]: i }), {

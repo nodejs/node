@@ -23,7 +23,7 @@ function nextdir() {
 {
   const coverageDirectory = nextdir();
   const output = spawnSync(process.execPath, [
-    require.resolve('../fixtures/source-map/basic')
+    require.resolve('../fixtures/source-map/basic'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   if (output.status !== 0) {
     console.log(output.stderr.toString());
@@ -38,7 +38,7 @@ function nextdir() {
 {
   const coverageDirectory = nextdir();
   const output = spawnSync(process.execPath, [
-    require.resolve('../fixtures/source-map/sigint')
+    require.resolve('../fixtures/source-map/sigint'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   if (!common.isWindows) {
     if (output.signal !== 'SIGINT') {
@@ -55,7 +55,7 @@ function nextdir() {
 {
   const coverageDirectory = nextdir();
   const output = spawnSync(process.execPath, [
-    require.resolve('../fixtures/source-map/exit-1')
+    require.resolve('../fixtures/source-map/exit-1'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   assert.strictEqual(output.stderr.toString(), '');
   const sourceMap = getSourceMapFromCache('exit-1.js', coverageDirectory);
@@ -67,7 +67,7 @@ function nextdir() {
   const coverageDirectory = nextdir();
   const output = spawnSync(process.execPath, [
     '--no-warnings',
-    require.resolve('../fixtures/source-map/esm-basic.mjs')
+    require.resolve('../fixtures/source-map/esm-basic.mjs'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   assert.strictEqual(output.stderr.toString(), '');
   const sourceMap = getSourceMapFromCache('esm-basic.mjs', coverageDirectory);
@@ -78,7 +78,7 @@ function nextdir() {
 {
   const coverageDirectory = nextdir();
   const output = spawnSync(process.execPath, [
-    require.resolve('../fixtures/source-map/disk-relative-path')
+    require.resolve('../fixtures/source-map/disk-relative-path'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   assert.strictEqual(output.status, 0);
   assert.strictEqual(output.stderr.toString(), '');
@@ -99,7 +99,7 @@ function nextdir() {
 {
   const coverageDirectory = nextdir();
   const output = spawnSync(process.execPath, [
-    require.resolve('../fixtures/source-map/inline-base64.js')
+    require.resolve('../fixtures/source-map/inline-base64.js'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   assert.strictEqual(output.status, 0);
   assert.strictEqual(output.stderr.toString(), '');
@@ -120,7 +120,7 @@ function nextdir() {
 {
   const coverageDirectory = nextdir();
   const output = spawnSync(process.execPath, [
-    require.resolve('../fixtures/source-map/inline-base64-type-error.js')
+    require.resolve('../fixtures/source-map/inline-base64-type-error.js'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   assert.strictEqual(output.status, 0);
   assert.strictEqual(output.stderr.toString(), '');
@@ -136,7 +136,7 @@ function nextdir() {
 {
   const coverageDirectory = nextdir();
   const output = spawnSync(process.execPath, [
-    require.resolve('../fixtures/source-map/inline-base64-json-error.js')
+    require.resolve('../fixtures/source-map/inline-base64-json-error.js'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   assert.strictEqual(output.status, 0);
   assert.strictEqual(output.stderr.toString(), '');
@@ -152,7 +152,7 @@ function nextdir() {
 // is not set.
 {
   const output = spawnSync(process.execPath, [
-    require.resolve('../fixtures/source-map/uglify-throw.js')
+    require.resolve('../fixtures/source-map/uglify-throw.js'),
   ]);
   assert.strictEqual(
     output.stderr.toString().match(/.*uglify-throw-original\.js:5:9/),
@@ -168,7 +168,7 @@ function nextdir() {
 {
   const output = spawnSync(process.execPath, [
     '--enable-source-maps',
-    require.resolve('../fixtures/source-map/uglify-throw.js')
+    require.resolve('../fixtures/source-map/uglify-throw.js'),
   ]);
   assert.match(
     output.stderr.toString(),
@@ -185,7 +185,7 @@ function nextdir() {
 {
   const output = spawnSync(process.execPath, [
     '--enable-source-maps',
-    require.resolve('../fixtures/source-map/typescript-throw.js')
+    require.resolve('../fixtures/source-map/typescript-throw.js'),
   ]);
   assert.ok(output.stderr.toString().match(/.*typescript-throw\.ts:18:11/));
   assert.ok(output.stderr.toString().match(/.*typescript-throw\.ts:24:1/));
@@ -195,7 +195,7 @@ function nextdir() {
 {
   const output = spawnSync(process.execPath, [
     '--enable-source-maps',
-    require.resolve('../fixtures/source-map/babel-throw.js')
+    require.resolve('../fixtures/source-map/babel-throw.js'),
   ]);
   assert.ok(
     output.stderr.toString().match(/.*babel-throw-original\.js:18:31/)
@@ -206,7 +206,7 @@ function nextdir() {
 {
   const output = spawnSync(process.execPath, [
     '--enable-source-maps',
-    require.resolve('../fixtures/source-map/istanbul-throw.js')
+    require.resolve('../fixtures/source-map/istanbul-throw.js'),
   ]);
   assert.ok(
     output.stderr.toString().match(/.*istanbul-throw-original\.js:5:9/)
@@ -220,7 +220,7 @@ function nextdir() {
 {
   const output = spawnSync(process.execPath, [
     '--enable-source-maps',
-    require.resolve('../fixtures/source-map/babel-esm.mjs')
+    require.resolve('../fixtures/source-map/babel-esm.mjs'),
   ]);
   assert.ok(
     output.stderr.toString().match(/.*babel-esm-original\.mjs:9:29/)
@@ -231,7 +231,7 @@ function nextdir() {
 {
   const coverageDirectory = nextdir();
   spawnSync(process.execPath, [
-    require.resolve('../fixtures/source-map/inline-base64.js')
+    require.resolve('../fixtures/source-map/inline-base64.js'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   const sourceMap = getSourceMapFromCache(
     'inline-base64.js',
@@ -244,7 +244,7 @@ function nextdir() {
 {
   const coverageDirectory = nextdir();
   spawnSync(process.execPath, [
-    require.resolve('../fixtures/source-map/istanbul-throw.js')
+    require.resolve('../fixtures/source-map/istanbul-throw.js'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   const sourceMap = getSourceMapFromCache(
     'istanbul-throw.js',
@@ -261,7 +261,7 @@ function nextdir() {
 {
   const output = spawnSync(process.execPath, [
     '--enable-source-maps',
-    require.resolve('../fixtures/source-map/emptyStackError.js')
+    require.resolve('../fixtures/source-map/emptyStackError.js'),
   ]);
 
   assert.ok(
@@ -276,7 +276,7 @@ function nextdir() {
 {
   const output = spawnSync(process.execPath, [
     '--enable-source-maps',
-    require.resolve('../fixtures/source-map/webpack.js')
+    require.resolve('../fixtures/source-map/webpack.js'),
   ]);
   // Error in original context of source content:
   assert.match(
@@ -295,7 +295,7 @@ function nextdir() {
   const coverageDirectory = nextdir();
   const output = spawnSync(process.execPath, [
     '--enable-source-maps',
-    require.resolve('../fixtures/source-map/throw-on-require-entry.js')
+    require.resolve('../fixtures/source-map/throw-on-require-entry.js'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   const sourceMap = getSourceMapFromCache(
     'throw-on-require.js',

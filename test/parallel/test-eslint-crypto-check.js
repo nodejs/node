@@ -27,7 +27,7 @@ new RuleTester().run('crypto-check', rule, {
       common.skip("missing crypto");
     }
     internalBinding("crypto");
-    `
+    `,
   ],
   invalid: [
     {
@@ -71,6 +71,6 @@ new RuleTester().run('crypto-check', rule, {
               '}\n' +
               'if (common.foo) {}\n' +
               'internalBinding("crypto")'
-    }
+    },
   ]
 });

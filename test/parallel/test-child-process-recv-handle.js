@@ -37,7 +37,7 @@ function primary() {
   // spawn() can only create one IPC channel so we use stdin/stdout as an
   // ad-hoc command channel.
   const proc = spawn(process.execPath, [
-    '--expose-internals', __filename, 'worker'
+    '--expose-internals', __filename, 'worker',
   ], {
     stdio: ['pipe', 'pipe', 'pipe', 'ipc']
   });

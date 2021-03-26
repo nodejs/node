@@ -56,7 +56,7 @@ checkStack(err.stack);
 // Verify that the stack is only decorated once for uncaught exceptions.
 const args = [
   '-e',
-  `require('${badSyntaxPath}')`
+  `require('${badSyntaxPath}')`,
 ];
 const result = spawnSync(process.argv[0], args, { encoding: 'utf8' });
 checkStack(result.stderr);

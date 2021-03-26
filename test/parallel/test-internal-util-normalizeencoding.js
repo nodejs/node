@@ -46,7 +46,7 @@ const tests = [
   [NaN, undefined],
   [0, undefined],
   [[], undefined],
-  [{}, undefined]
+  [{}, undefined],
 ];
 
 tests.forEach((e, i) => {

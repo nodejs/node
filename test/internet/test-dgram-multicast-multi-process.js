@@ -35,7 +35,7 @@ const messages = [
   Buffer.from('First message to send'),
   Buffer.from('Second message to send'),
   Buffer.from('Third message to send'),
-  Buffer.from('Fourth message to send')
+  Buffer.from('Fourth message to send'),
 ];
 const workers = {};
 const listeners = 3;

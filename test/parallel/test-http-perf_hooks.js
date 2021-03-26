@@ -53,7 +53,7 @@ server.listen(0, common.mustCall(async () => {
       path: '/',
       method: 'POST',
       data: expected
-    })
+    }),
   ]);
   server.close();
 }));
