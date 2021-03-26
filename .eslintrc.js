@@ -307,7 +307,7 @@ module.exports = {
     'template-curly-spacing': 'error',
     'unicode-bom': 'error',
     'use-isnan': 'error',
-    'valid-typeof': 'error',
+    'valid-typeof': ['error', { requireStringLiterals: true }],
 
     // Custom rules from eslint-plugin-node-core
     'node-core/no-unescaped-regexp-dot': 'error',
