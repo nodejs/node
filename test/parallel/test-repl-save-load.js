@@ -46,7 +46,7 @@ testMe._domain.on('error', function(reason) {
 const testFile = [
   'let inner = (function() {',
   '  return {one:1};',
-  '})()'
+  '})()',
 ];
 const saveFileName = join(tmpdir.path, 'test.save.js');
 
@@ -121,7 +121,7 @@ putIn.run([`.save ${invalidFileName}`]);
   const cmds = [
     'function testSave() {',
     'return "saved";',
-    '}'
+    '}',
   ];
   const putIn = new ArrayStream();
   const replServer = repl.start({ terminal: true, stream: putIn });

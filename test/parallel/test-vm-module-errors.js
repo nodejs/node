@@ -24,7 +24,7 @@ async function checkArgType() {
 
   for (const invalidOptions of [
     0, 1, null, true, 'str', () => {}, { identifier: 0 }, Symbol.iterator,
-    { context: null }, { context: 'hucairz' }, { context: {} }
+    { context: null }, { context: 'hucairz' }, { context: {} },
   ]) {
     assert.throws(() => {
       new SourceTextModule('', invalidOptions);
@@ -35,7 +35,7 @@ async function checkArgType() {
   }
 
   for (const invalidLinker of [
-    0, 1, undefined, null, true, 'str', {}, Symbol.iterator
+    0, 1, undefined, null, true, 'str', {}, Symbol.iterator,
   ]) {
     await assert.rejects(async () => {
       const m = new SourceTextModule('');

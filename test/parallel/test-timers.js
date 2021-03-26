@@ -48,7 +48,7 @@ const inputs = [
   1,
   1.0,
   2147483648,     // Browser behavior: timeouts > 2^31-1 run on next tick
-  12345678901234  // ditto
+  12345678901234,  // ditto
 ];
 
 const timeouts = [];

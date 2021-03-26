@@ -19,7 +19,7 @@ const singles = [
   'if-unmodified-since',
   'from',
   'location',
-  'max-forwards'
+  'max-forwards',
 ];
 
 server.on('stream', common.mustNotCall());

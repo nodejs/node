@@ -40,7 +40,7 @@ const bad = [
     input: [0x00, 0xdc, 0x00, 0xd8],
     expected: '\uFFFD\uFFFD',
     name: 'swapped surrogate pair'
-  }
+  },
 ];
 
 bad.forEach((t) => {

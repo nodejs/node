@@ -23,7 +23,7 @@ async function importVectorKey(
     subtle.importKey(
       'spki', publicKeyBuffer, { name, hash }, false, publicUsages),
     subtle.importKey(
-      'pkcs8', privateKeyBuffer, { name, hash }, false, privateUsages)
+      'pkcs8', privateKeyBuffer, { name, hash }, false, privateUsages),
   ]);
 
   return { publicKey, privateKey };

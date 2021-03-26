@@ -37,7 +37,7 @@ function spawnProcesses() {
       [ '-e',
         `process.chdir(${JSON.stringify(__dirname)});
         for (const file of fs.readdirSync('.'))
-          fs.watch(file, () => {});`
+          fs.watch(file, () => {});`,
       ], { stdio: ['inherit', 'inherit', 'pipe'] });
     proc.stderr.pipe(gatherStderr);
     processes.push(proc);

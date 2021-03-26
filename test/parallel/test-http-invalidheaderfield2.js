@@ -25,7 +25,7 @@ const { _checkIsHttpToken, _checkInvalidHeaderChar } = require('_http_common');
   'It\'s_fun',
   '2*3',
   '4+2',
-  '3.14159265359'
+  '3.14159265359',
 ].forEach(function(str) {
   assert.strictEqual(
     _checkIsHttpToken(str), true,
@@ -51,7 +51,7 @@ const { _checkIsHttpToken, _checkInvalidHeaderChar } = require('_http_common');
   'End)',
   'End]',
   '"Quote"',
-  'This,That'
+  'This,That',
 ].forEach(function(str) {
   assert.strictEqual(
     _checkIsHttpToken(str), false,
@@ -64,7 +64,7 @@ const { _checkIsHttpToken, _checkInvalidHeaderChar } = require('_http_common');
   'foo bar',
   'foo\tbar',
   '0123456789ABCdef',
-  '!@#$%^&*()-_=+\\;\':"[]{}<>,./?|~`'
+  '!@#$%^&*()-_=+\\;\':"[]{}<>,./?|~`',
 ].forEach(function(str) {
   assert.strictEqual(
     _checkInvalidHeaderChar(str), false,
@@ -80,7 +80,7 @@ const { _checkIsHttpToken, _checkInvalidHeaderChar } = require('_http_common');
   '\x7FMe!',
   'Testing 123\x00',
   'foo\vbar',
-  'Ding!\x07'
+  'Ding!\x07',
 ].forEach(function(str) {
   assert.strictEqual(
     _checkInvalidHeaderChar(str), true,

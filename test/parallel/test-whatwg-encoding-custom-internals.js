@@ -13,16 +13,16 @@ const { getEncodingFromLabel } = require('internal/encoding');
   const mappings = {
     'utf-8': [
       'unicode-1-1-utf-8',
-      'utf8'
+      'utf8',
     ],
     'utf-16be': [],
     'utf-16le': [
-      'utf-16'
+      'utf-16',
     ],
     'ibm866': [
       '866',
       'cp866',
-      'csibm866'
+      'csibm866',
     ],
     'iso-8859-2': [
       'csisolatin2',
@@ -32,7 +32,7 @@ const { getEncodingFromLabel } = require('internal/encoding');
       'iso_8859-2',
       'iso_8859-2:1987',
       'l2',
-      'latin2'
+      'latin2',
     ],
     'iso-8859-3': [
       'csisolatin3',
@@ -42,7 +42,7 @@ const { getEncodingFromLabel } = require('internal/encoding');
       'iso_8859-3',
       'iso_8859-3:1988',
       'l3',
-      'latin3'
+      'latin3',
     ],
     'iso-8859-4': [
       'csisolatin4',
@@ -52,7 +52,7 @@ const { getEncodingFromLabel } = require('internal/encoding');
       'iso_8859-4',
       'iso_8859-4:1988',
       'l4',
-      'latin4'
+      'latin4',
     ],
     'iso-8859-5': [
       'csisolatincyrillic',
@@ -61,7 +61,7 @@ const { getEncodingFromLabel } = require('internal/encoding');
       'iso8859-5',
       'iso88595',
       'iso_8859-5',
-      'iso_8859-5:1988'
+      'iso_8859-5:1988',
     ],
     'iso-8859-6': [
       'arabic',
@@ -76,7 +76,7 @@ const { getEncodingFromLabel } = require('internal/encoding');
       'iso8859-6',
       'iso88596',
       'iso_8859-6',
-      'iso_8859-6:1987'
+      'iso_8859-6:1987',
     ],
     'iso-8859-7': [
       'csisolatingreek',
@@ -89,7 +89,7 @@ const { getEncodingFromLabel } = require('internal/encoding');
       'iso88597',
       'iso_8859-7',
       'iso_8859-7:1987',
-      'sun_eu_greek'
+      'sun_eu_greek',
     ],
     'iso-8859-8': [
       'csiso88598e',
@@ -101,11 +101,11 @@ const { getEncodingFromLabel } = require('internal/encoding');
       'iso88598',
       'iso_8859-8',
       'iso_8859-8:1988',
-      'visual'
+      'visual',
     ],
     'iso-8859-8-i': [
       'csiso88598i',
-      'logical'
+      'logical',
     ],
     'iso-8859-10': [
       'csisolatin6',
@@ -113,51 +113,51 @@ const { getEncodingFromLabel } = require('internal/encoding');
       'iso8859-10',
       'iso885910',
       'l6',
-      'latin6'
+      'latin6',
     ],
     'iso-8859-13': [
       'iso8859-13',
-      'iso885913'
+      'iso885913',
     ],
     'iso-8859-14': [
       'iso8859-14',
-      'iso885914'
+      'iso885914',
     ],
     'iso-8859-15': [
       'csisolatin9',
       'iso8859-15',
       'iso885915',
       'iso_8859-15',
-      'l9'
+      'l9',
     ],
     'koi8-r': [
       'cskoi8r',
       'koi',
       'koi8',
-      'koi8_r'
+      'koi8_r',
     ],
     'koi8-u': [
-      'koi8-ru'
+      'koi8-ru',
     ],
     'macintosh': [
       'csmacintosh',
       'mac',
-      'x-mac-roman'
+      'x-mac-roman',
     ],
     'windows-874': [
       'dos-874',
       'iso-8859-11',
       'iso8859-11',
       'iso885911',
-      'tis-620'
+      'tis-620',
     ],
     'windows-1250': [
       'cp1250',
-      'x-cp1250'
+      'x-cp1250',
     ],
     'windows-1251': [
       'cp1251',
-      'x-cp1251'
+      'x-cp1251',
     ],
     'windows-1252': [
       'ansi_x3.4-1968',
@@ -175,11 +175,11 @@ const { getEncodingFromLabel } = require('internal/encoding');
       'l1',
       'latin1',
       'us-ascii',
-      'x-cp1252'
+      'x-cp1252',
     ],
     'windows-1253': [
       'cp1253',
-      'x-cp1253'
+      'x-cp1253',
     ],
     'windows-1254': [
       'cp1254',
@@ -192,26 +192,26 @@ const { getEncodingFromLabel } = require('internal/encoding');
       'iso_8859-9:1989',
       'l5',
       'latin5',
-      'x-cp1254'
+      'x-cp1254',
     ],
     'windows-1255': [
       'cp1255',
-      'x-cp1255'
+      'x-cp1255',
     ],
     'windows-1256': [
       'cp1256',
-      'x-cp1256'
+      'x-cp1256',
     ],
     'windows-1257': [
       'cp1257',
-      'x-cp1257'
+      'x-cp1257',
     ],
     'windows-1258': [
       'cp1258',
-      'x-cp1258'
+      'x-cp1258',
     ],
     'x-mac-cyrillic': [
-      'x-mac-ukrainian'
+      'x-mac-ukrainian',
     ],
     'gbk': [
       'chinese',
@@ -221,21 +221,21 @@ const { getEncodingFromLabel } = require('internal/encoding');
       'gb_2312',
       'gb_2312-80',
       'iso-ir-58',
-      'x-gbk'
+      'x-gbk',
     ],
     'gb18030': [ ],
     'big5': [
       'big5-hkscs',
       'cn-big5',
       'csbig5',
-      'x-x-big5'
+      'x-x-big5',
     ],
     'euc-jp': [
       'cseucpkdfmtjapanese',
-      'x-euc-jp'
+      'x-euc-jp',
     ],
     'iso-2022-jp': [
-      'csiso2022jp'
+      'csiso2022jp',
     ],
     'shift_jis': [
       'csshiftjis',
@@ -244,7 +244,7 @@ const { getEncodingFromLabel } = require('internal/encoding');
       'shift-jis',
       'sjis',
       'windows-31j',
-      'x-sjis'
+      'x-sjis',
     ],
     'euc-kr': [
       '  euc-kr  \t',
@@ -257,7 +257,7 @@ const { getEncodingFromLabel } = require('internal/encoding');
       'ks_c_5601-1989',
       'ksc5601',
       'ksc_5601',
-      'windows-949'
+      'windows-949',
     ]
   };
   Object.entries(mappings).forEach((i) => {

@@ -47,7 +47,7 @@ deepStrictEqual(
   5n,
   (one, two, three) => {},
   undefined,
-  null
+  null,
 ].forEach((input) => {
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',

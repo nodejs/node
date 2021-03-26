@@ -92,7 +92,7 @@ const { ok, strictEqual, throws } = require('assert');
     NaN,
     true,
     'AbortController',
-    Object.create(AbortController.prototype)
+    Object.create(AbortController.prototype),
   ];
   for (const badController of badAbortControllers) {
     throws(
@@ -123,7 +123,7 @@ const { ok, strictEqual, throws } = require('assert');
     NaN,
     true,
     'AbortSignal',
-    Object.create(AbortSignal.prototype)
+    Object.create(AbortSignal.prototype),
   ];
   for (const badSignal of badAbortSignals) {
     throws(

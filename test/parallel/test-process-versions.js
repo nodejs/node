@@ -12,7 +12,7 @@ const expected_keys = [
   'zlib',
   'nghttp2',
   'napi',
-  'llhttp'
+  'llhttp',
 ];
 
 if (common.hasCrypto) {

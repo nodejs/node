@@ -14,12 +14,12 @@ const propertiesToTest = [
   '_receiving',
   '_bindState',
   '_queue',
-  '_reuseAddr'
+  '_reuseAddr',
 ];
 
 const methodsToTest = [
   '_healthCheck',
-  '_stopReceiving'
+  '_stopReceiving',
 ];
 
 const propertyCases = propertiesToTest.map((propName) => {
@@ -41,7 +41,7 @@ const propertyCases = propertiesToTest.map((propName) => {
         'DEP0112'
       );
       sock[propName] = null;
-    }
+    },
   ];
 });
 

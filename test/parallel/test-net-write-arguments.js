@@ -23,7 +23,7 @@ assert.throws(() => {
   +Infinity,
   -Infinity,
   [],
-  {}
+  {},
 ].forEach((value) => {
   const socket = net.Stream({ highWaterMark: 0 });
   // We need to check the callback since 'error' will only

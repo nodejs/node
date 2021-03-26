@@ -48,7 +48,7 @@ async function prepareKeys() {
     kTests.map(async ({ namedCurve, size, pkcs8, spki, result }) => {
       const [
         privateKey,
-        publicKey
+        publicKey,
       ] = await Promise.all([
         subtle.importKey(
           'pkcs8',
@@ -67,7 +67,7 @@ async function prepareKeys() {
             namedCurve
           },
           true,
-          ['deriveKey', 'deriveBits'])
+          ['deriveKey', 'deriveBits']),
       ]);
       keys[namedCurve] = {
         privateKey,

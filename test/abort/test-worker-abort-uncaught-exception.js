@@ -12,7 +12,7 @@ if (process.argv[2] === 'child') {
 }
 
 const child = spawn(process.execPath, [
-  '--abort-on-uncaught-exception', __filename, 'child'
+  '--abort-on-uncaught-exception', __filename, 'child',
 ]);
 child.on('exit', common.mustCall((code, sig) => {
   if (common.isWindows) {

@@ -34,7 +34,7 @@ for (const raiseSignal of [ 'SIGABRT', 'SIGSEGV' ]) {
     { reset: true, count: 1, stderr: [signo], code: 0, signal: null },
     { reset: true, count: 2, stderr: [signo], code: null, signal: raiseSignal },
     { reset: false, count: 1, stderr: [signo], code: 0, signal: null },
-    { reset: false, count: 2, stderr: [signo, signo], code: 0, signal: null }
+    { reset: false, count: 2, stderr: [signo, signo], code: 0, signal: null },
   ]) {
     // We do not want to generate core files when running this test as an
     // addon test. We require this file as an abort test as well, though,

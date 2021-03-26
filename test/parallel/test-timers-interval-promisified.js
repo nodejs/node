@@ -243,6 +243,6 @@ process.on('multipleResolves', common.mustNotCall());
         return iterator.return();
       }).then(res);
     }),
-    setPromiseTimeout(time_unit * 3).then(() => post = true)
+    setPromiseTimeout(time_unit * 3).then(() => post = true),
   ]).then(common.mustCall());
 }

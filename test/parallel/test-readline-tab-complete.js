@@ -15,7 +15,7 @@ common.skipIfDumbTerminal();
 [
   'あ',
   '𐐷',
-  '🐕'
+  '🐕',
 ].forEach((char) => {
   [true, false].forEach((lineBreak) => {
     const completer = (line) => [
@@ -24,7 +24,7 @@ common.skipIfDumbTerminal();
         '',
         `${char}${'a'.repeat(10)}`, `${char}${'b'.repeat(10)}`, char.repeat(11),
       ],
-      line
+      line,
     ];
 
     let output = '';

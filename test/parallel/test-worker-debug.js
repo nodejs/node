@@ -144,7 +144,7 @@ async function testBasicWorkerDebug(session, post) {
   const workerSession = new WorkerSession(session, sessionId);
   const contextEventPromises = Promise.all([
     waitForEvent(workerSession, 'Runtime.executionContextCreated'),
-    waitForEvent(workerSession, 'Runtime.executionContextDestroyed')
+    waitForEvent(workerSession, 'Runtime.executionContextDestroyed'),
   ]);
   const consolePromise = waitForEvent(workerSession, 'Runtime.consoleAPICalled')
       .then((notification) => notification.params.args[0].value);
@@ -219,7 +219,7 @@ async function testWaitForDisconnectInWorker(session, post) {
 
   const attached = [
     waitForWorkerAttach(session),
-    waitForWorkerAttach(sessionWithoutWaiting)
+    waitForWorkerAttach(sessionWithoutWaiting),
   ];
 
   let worker = null;

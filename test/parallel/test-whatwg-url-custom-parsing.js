@@ -29,7 +29,7 @@ const typeFailures = [
   { input: new RegExp() },
   { input: 'test', base: null },
   { input: 'http://nodejs.org', base: null },
-  { input: () => {} }
+  { input: () => {} },
 ];
 
 // See https://github.com/w3c/web-platform-tests/pull/10955

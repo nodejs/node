@@ -35,7 +35,7 @@ const kCases = [
     'watch2',
     'bar',
     'dirPath'
-  )
+  ),
 ];
 
 tmpdir.refresh();

@@ -26,7 +26,7 @@ const norepeat = [
   'last-modified',
   'server',
   'age',
-  'expires'
+  'expires',
 ];
 const runCount = 2;
 

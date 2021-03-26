@@ -46,7 +46,7 @@ const server = https.createServer(opts, (req, res) => {
       cke,
       ccs,
       client.encrypt(finished),
-      client.encrypt(ill)
+      client.encrypt(ill),
     ]);
     client.write(frames, common.mustCall(() => {
       client.end();

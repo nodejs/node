@@ -12,7 +12,7 @@ const names = [
   'v8Start',
   'loopStart',
   'loopExit',
-  'bootstrapComplete'
+  'bootstrapComplete',
 ];
 
 if (process.argv[2] === 'child') {
@@ -25,7 +25,7 @@ if (process.argv[2] === 'child') {
                          cwd: tmpdir.path,
                          execArgv: [
                            '--trace-event-categories',
-                           'node.bootstrap'
+                           'node.bootstrap',
                          ]
                        });
 

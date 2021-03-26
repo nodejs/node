@@ -82,7 +82,7 @@ const contextifiedObjectError = {
   [0.0, nonContextualObjectError],
   ['', nonContextualObjectError],
   [{}, contextifiedObjectError],
-  [[], contextifiedObjectError]
+  [[], contextifiedObjectError],
 ].forEach((e) => {
   assert.throws(() => { script.runInContext(e[0]); }, e[1]);
   assert.throws(() => { vm.runInContext('', e[0]); }, e[1]);

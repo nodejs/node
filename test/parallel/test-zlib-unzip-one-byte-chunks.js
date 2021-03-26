@@ -5,7 +5,7 @@ const zlib = require('zlib');
 
 const data = Buffer.concat([
   zlib.gzipSync('abc'),
-  zlib.gzipSync('def')
+  zlib.gzipSync('def'),
 ]);
 
 const resultBuffers = [];

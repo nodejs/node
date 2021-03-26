@@ -42,7 +42,7 @@ assert.strictEqual(test_general.testGetVersion(), 8);
   new Object(),
   true,
   undefined,
-  Symbol()
+  Symbol(),
 ].forEach((val) => {
   assert.strictEqual(test_general.testNapiTypeof(val), typeof val);
 });

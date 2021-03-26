@@ -8,7 +8,7 @@ const expectedWarnings = [
   '"./fallbackdir/"',
   '"./subpath/"',
   'no_exports',
-  'default_index'
+  'default_index',
 ];
 
 process.addListener('warning', mustCall((warning) => {

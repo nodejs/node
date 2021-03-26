@@ -14,7 +14,7 @@ const url = require('url');
   [[], 'object'],
   [{}, 'object'],
   [() => {}, 'function'],
-  [Symbol('foo'), 'symbol']
+  [Symbol('foo'), 'symbol'],
 ].forEach(([val, type]) => {
   assert.throws(() => {
     url.parse(val);

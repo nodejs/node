@@ -29,7 +29,7 @@ function testRunnerMain() {
       { expectedPort: 65535 },
       { expectedPort: 1024 },
       { expectedPort: 1025 },
-      { expectedPort: 1026 }
+      { expectedPort: 1026 },
     ]
   });
 
@@ -40,7 +40,7 @@ function testRunnerMain() {
     workers: [
       { expectedPort: port + 1 },
       { expectedPort: port + 2 },
-      { expectedPort: port + 3 }
+      { expectedPort: port + 3 },
     ]
   });
 
@@ -106,7 +106,7 @@ function testRunnerMain() {
     clusterSettings: { inspectPort: 'addTwo' },
     workers: [
       { expectedPort: port + 2 },
-      { expectedPort: port + 4 }
+      { expectedPort: port + 4 },
     ]
   });
 
@@ -164,7 +164,7 @@ function testRunnerMain() {
     execArgv: [],
     clusterSettings: { inspectPort: port, execArgv: ['--inspect'] },
     workers: [
-      { expectedPort: port }
+      { expectedPort: port },
     ]
   });
 
@@ -176,7 +176,7 @@ function testRunnerMain() {
     workers: [
       { expectedInitialPort: 0 },
       { expectedInitialPort: 0 },
-      { expectedInitialPort: 0 }
+      { expectedInitialPort: 0 },
     ]
   });
 
@@ -188,7 +188,7 @@ function testRunnerMain() {
     workers: [
       { expectedInitialPort: 0 },
       { expectedInitialPort: 0 },
-      { expectedInitialPort: 0 }
+      { expectedInitialPort: 0 },
     ]
   });
 
@@ -198,7 +198,7 @@ function testRunnerMain() {
       execArgv: ['--inspect'],
       clusterSettings: { inspectPort: port + 2 },
       workers: [
-        { expectedInitialPort: port + 2 }
+        { expectedInitialPort: port + 2 },
       ]
     });
   });

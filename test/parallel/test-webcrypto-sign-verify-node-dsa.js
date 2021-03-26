@@ -21,7 +21,7 @@ async function testVerify({ algorithm,
     noVerifyPublicKey,
     privateKey,
     hmacKey,
-    wrongKeys
+    wrongKeys,
   ] = await Promise.all([
     subtle.importKey(
       'spki',
@@ -52,7 +52,7 @@ async function testVerify({ algorithm,
         hash: 'SHA-256',
       },
       false,
-      ['sign'])
+      ['sign']),
   ]);
 
   assert(await subtle.verify(algorithm, publicKey, signature, plaintext));
@@ -168,7 +168,7 @@ async function testSign({
         hash: 'SHA-256',
       },
       false,
-      ['sign'])
+      ['sign']),
   ]);
 
   {

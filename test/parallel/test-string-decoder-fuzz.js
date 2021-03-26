@@ -20,7 +20,7 @@ function randBuf(maxLen) {
 }
 
 const encodings = [
-  'utf16le', 'utf8', 'ascii', 'hex', 'base64', 'latin1', 'base64url'
+  'utf16le', 'utf8', 'ascii', 'hex', 'base64', 'latin1', 'base64url',
 ];
 
 function runSingleFuzzTest() {

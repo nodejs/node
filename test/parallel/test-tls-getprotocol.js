@@ -13,7 +13,7 @@ const fixtures = require('../common/fixtures');
 const clientConfigs = [
   { secureProtocol: 'TLSv1_method', version: 'TLSv1' },
   { secureProtocol: 'TLSv1_1_method', version: 'TLSv1.1' },
-  { secureProtocol: 'TLSv1_2_method', version: 'TLSv1.2' }
+  { secureProtocol: 'TLSv1_2_method', version: 'TLSv1.2' },
 ];
 
 const serverConfig = {

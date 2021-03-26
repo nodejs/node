@@ -19,7 +19,7 @@ const failFixtures = [
   [
     fixtures.path('failcounter.js'),
     'Mismatched <anonymous> function calls. Expected exactly 1, actual 0.',
-  ]
+  ],
 ];
 
 for (const p of failFixtures) {

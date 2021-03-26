@@ -19,7 +19,7 @@ const { WriteStream } = require('tty');
   'cursorTo',
   'moveCursor',
   'clearLine',
-  'clearScreenDown'
+  'clearScreenDown',
 ].forEach((method) => {
   readline[method] = common.mustCall(function() {
     const lastArg = arguments[arguments.length - 1];

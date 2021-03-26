@@ -9,7 +9,7 @@ const vm = require('vm');
   [32, 'latin1'],
   [NaN, 'utf8'],
   [{}, 'latin1'],
-  []
+  [],
 ].forEach((args) => {
   assert.throws(
     () => Buffer.byteLength(...args),

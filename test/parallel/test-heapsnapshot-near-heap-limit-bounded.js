@@ -21,7 +21,7 @@ const env = {
     '--trace-gc',
     '--heapsnapshot-near-heap-limit=1',
     '--max-old-space-size=50',
-    fixtures.path('workload', 'bounded.js')
+    fixtures.path('workload', 'bounded.js'),
   ], {
     cwd: tmpdir.path,
     env,

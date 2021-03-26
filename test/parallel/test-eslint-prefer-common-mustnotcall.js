@@ -16,7 +16,7 @@ new RuleTester().run('prefer-common-mustnotcall', rule, {
   valid: [
     'common.mustNotCall(fn)',
     'common.mustCall(fn)',
-    'common.mustCall(fn, 1)'
+    'common.mustCall(fn, 1)',
   ],
   invalid: [
     {
@@ -26,6 +26,6 @@ new RuleTester().run('prefer-common-mustnotcall', rule, {
     {
       code: 'common.mustCall(0)',
       errors: [{ message }]
-    }
+    },
   ]
 });

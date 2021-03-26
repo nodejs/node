@@ -75,7 +75,7 @@ server.on('session', common.mustCall((session) => {
     'abc:',
     new URL('abc:'),
     { origin: 'null' },
-    { origin: '' }
+    { origin: '' },
   ].forEach((input) => {
     assert.throws(
       () => session.altsvc('h2=":8000', input),

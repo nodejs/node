@@ -48,7 +48,7 @@ for (const { test, expected } of [
     // musl doesn't support unloading, so the output may be missing
     // a dtor + ctor pair.
     expected: [
-      'ctor cleanup dtor ctor cleanup dtor '
+      'ctor cleanup dtor ctor cleanup dtor ',
     ].concat(libcMayBeMusl ? [
       'ctor cleanup cleanup dtor ',
     ] : [])
@@ -57,7 +57,7 @@ for (const { test, expected } of [
   console.log('spawning test', test);
   const proc = child_process.spawnSync(process.execPath, [
     __filename,
-    test
+    test,
   ]);
   process.stderr.write(proc.stderr.toString());
   assert.strictEqual(proc.stderr.toString(), '');

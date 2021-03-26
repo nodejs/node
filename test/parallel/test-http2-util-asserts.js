@@ -13,7 +13,7 @@ const {
   {},
   Object.create(null),
   new Date(),
-  new (class Foo {})()
+  new (class Foo {})(),
 ].forEach((input) => {
   assertIsObject(input, 'foo', 'Object');
 });
@@ -25,7 +25,7 @@ const {
   NaN,
   Infinity,
   [],
-  [{}]
+  [{}],
 ].forEach((input) => {
   assert.throws(
     () => assertIsObject(input, 'foo', 'Object'),

@@ -5,7 +5,7 @@ const child_process = require('child_process');
 // Tests that exiting through a catchable signal resets the TTY mode.
 
 const proc = child_process.spawn(process.execPath, [
-  '-e', 'process.stdin.setRawMode(true); console.log("Y"); while(true) {}'
+  '-e', 'process.stdin.setRawMode(true); console.log("Y"); while(true) {}',
 ], { stdio: ['inherit', 'pipe', 'inherit'] });
 
 proc.stdout.on('data', common.mustCall(() => {

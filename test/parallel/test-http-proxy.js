@@ -27,7 +27,7 @@ const url = require('url');
 
 const cookies = [
   'session_token=; path=/; expires=Sun, 15-Sep-2030 13:48:52 GMT',
-  'prefers_open_id=; path=/; expires=Thu, 01-Jan-1970 00:00:00 GMT'
+  'prefers_open_id=; path=/; expires=Thu, 01-Jan-1970 00:00:00 GMT',
 ];
 
 const headers = { 'content-type': 'text/plain',

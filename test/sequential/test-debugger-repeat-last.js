@@ -9,7 +9,7 @@ const fixture = path('debugger-repeat-last.js');
 const args = [
   'inspect',
   `--port=${common.PORT}`,
-  fixture
+  fixture,
 ];
 
 const proc = spawn(process.execPath, args, { stdio: 'pipe' });

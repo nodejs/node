@@ -16,7 +16,7 @@ const allUsages = [
   'deriveBits',
   'deriveKey',
   'wrapKey',
-  'unwrapKey'
+  'unwrapKey',
 ];
 const vectors = {
   'AES-CTR': {
@@ -25,7 +25,7 @@ const vectors = {
       'encrypt',
       'decrypt',
       'wrapKey',
-      'unwrapKey'
+      'unwrapKey',
     ],
     mandatoryUsages: []
   },
@@ -35,7 +35,7 @@ const vectors = {
       'encrypt',
       'decrypt',
       'wrapKey',
-      'unwrapKey'
+      'unwrapKey',
     ],
     mandatoryUsages: []
   },
@@ -45,7 +45,7 @@ const vectors = {
       'encrypt',
       'decrypt',
       'wrapKey',
-      'unwrapKey'
+      'unwrapKey',
     ],
     mandatoryUsages: []
   },
@@ -53,7 +53,7 @@ const vectors = {
     algorithm: { length: 256 },
     usages: [
       'wrapKey',
-      'unwrapKey'
+      'unwrapKey',
     ],
     mandatoryUsages: []
   },
@@ -61,7 +61,7 @@ const vectors = {
     algorithm: { length: 256, hash: 'SHA-256' },
     usages: [
       'sign',
-      'verify'
+      'verify',
     ],
     mandatoryUsages: []
   },
@@ -73,7 +73,7 @@ const vectors = {
     },
     usages: [
       'sign',
-      'verify'
+      'verify',
     ],
     mandatoryUsages: ['sign'],
   },
@@ -85,7 +85,7 @@ const vectors = {
     },
     usages: [
       'sign',
-      'verify'
+      'verify',
     ],
     mandatoryUsages: ['sign']
   },
@@ -99,18 +99,18 @@ const vectors = {
       'encrypt',
       'decrypt',
       'wrapKey',
-      'unwrapKey'
+      'unwrapKey',
     ],
     mandatoryUsages: [
       'decrypt',
-      'unwrapKey'
+      'unwrapKey',
     ]
   },
   'ECDSA': {
     algorithm: { namedCurve: 'P-521' },
     usages: [
       'sign',
-      'verify'
+      'verify',
     ],
     mandatoryUsages: ['sign']
   },
@@ -118,22 +118,22 @@ const vectors = {
     algorithm: { namedCurve: 'P-521' },
     usages: [
       'deriveKey',
-      'deriveBits'
+      'deriveBits',
     ],
     mandatoryUsages: [
       'deriveKey',
-      'deriveBits'
+      'deriveBits',
     ]
   },
   'NODE-DSA': {
     algorithm: { modulusLength: 1024, hash: 'SHA-256' },
     usages: [
       'sign',
-      'verify'
+      'verify',
     ],
     mandatoryUsages: [
       'sign',
-      'verify'
+      'verify',
     ]
   }
 };
@@ -170,7 +170,7 @@ const vectors = {
     {
       name: 'EC',
       namedCurve: 'P521'
-    }
+    },
   ].map(async (algorithm) => test(algorithm));
 
   Promise.all(tests).then(common.mustCall());
@@ -273,7 +273,7 @@ const vectors = {
         {},
         1,
         [],
-        new Uint32Array(2)
+        new Uint32Array(2),
       ].map((publicExponent) => {
         return assert.rejects(
           subtle.generateKey(
@@ -322,7 +322,7 @@ const vectors = {
       Buffer.from([1, 0, 1]),
       'SHA-256',
       ['sign'],
-      ['verify']
+      ['verify'],
     ],
     [
       'RSA-PSS',
@@ -330,7 +330,7 @@ const vectors = {
       Buffer.from([1, 0, 1]),
       'SHA-512',
       ['sign'],
-      ['verify']
+      ['verify'],
     ],
     [
       'RSA-OAEP',
@@ -338,8 +338,8 @@ const vectors = {
       Buffer.from([3]),
       'SHA-384',
       ['decrypt', 'unwrapKey'],
-      ['encrypt', 'wrapKey']
-    ]
+      ['encrypt', 'wrapKey'],
+    ],
   ];
 
   const tests = kTests.map((args) => test(...args));
@@ -392,26 +392,26 @@ const vectors = {
       'ECDSA',
       'P-384',
       ['sign'],
-      ['verify']
+      ['verify'],
     ],
     [
       'ECDSA',
       'P-521',
       ['sign'],
-      ['verify']
+      ['verify'],
     ],
     [
       'ECDH',
       'P-384',
       ['deriveKey', 'deriveBits'],
-      []
+      [],
     ],
     [
       'ECDH',
       'P-521',
       ['deriveKey', 'deriveBits'],
-      []
-    ]
+      [],
+    ],
   ];
 
   const tests = kTests.map((args) => test(...args));
@@ -616,8 +616,8 @@ const vectors = {
       1024,
       'SHA-256',
       ['sign'],
-      ['verify']
-    ]
+      ['verify'],
+    ],
   ];
 
   const tests = kTests.map((args) => test(...args));

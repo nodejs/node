@@ -19,7 +19,7 @@ const assert = require('assert');
     'file:///root/dir1',
     'file:///root/dir1/',
     'file:///root/dir1/dir2',
-    'file:///root/dir1/dir2/'
+    'file:///root/dir1/dir2/',
   ];
 
   {

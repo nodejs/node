@@ -153,12 +153,12 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
       spki,
       pkcs8,
       publicJwk,
-      privateJwk
+      privateJwk,
     ] = await Promise.all([
       subtle.exportKey('spki', publicKey),
       subtle.exportKey('pkcs8', privateKey),
       subtle.exportKey('jwk', publicKey),
-      subtle.exportKey('jwk', privateKey)
+      subtle.exportKey('jwk', privateKey),
     ]);
 
     assert(spki);
@@ -170,7 +170,7 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
       importedSpkiPublicKey,
       importedPkcs8PrivateKey,
       importedJwkPublicKey,
-      importedJwkPrivateKey
+      importedJwkPrivateKey,
     ] = await Promise.all([
       subtle.importKey('spki', spki, {
         name: 'RSA-PSS',
@@ -211,12 +211,12 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
       spki,
       pkcs8,
       publicJwk,
-      privateJwk
+      privateJwk,
     ] = await Promise.all([
       subtle.exportKey('spki', publicKey),
       subtle.exportKey('pkcs8', privateKey),
       subtle.exportKey('jwk', publicKey),
-      subtle.exportKey('jwk', privateKey)
+      subtle.exportKey('jwk', privateKey),
     ]);
 
     assert(spki);
@@ -228,7 +228,7 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
       importedSpkiPublicKey,
       importedPkcs8PrivateKey,
       importedJwkPublicKey,
-      importedJwkPrivateKey
+      importedJwkPrivateKey,
     ] = await Promise.all([
       subtle.importKey('spki', spki, {
         name: 'ECDSA',

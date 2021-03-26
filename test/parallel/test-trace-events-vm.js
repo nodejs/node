@@ -9,7 +9,7 @@ const tmpdir = require('../common/tmpdir');
 const names = [
   'ContextifyScript::New',
   'RunInThisContext',
-  'RunInContext'
+  'RunInContext',
 ];
 
 if (process.argv[2] === 'child') {
@@ -23,7 +23,7 @@ if (process.argv[2] === 'child') {
                          cwd: tmpdir.path,
                          execArgv: [
                            '--trace-event-categories',
-                           'node.vm.script'
+                           'node.vm.script',
                          ]
                        });
 

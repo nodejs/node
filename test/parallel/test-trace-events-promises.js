@@ -23,7 +23,7 @@ if (process.argv[2] === 'child') {
                          execArgv: [
                            '--no-warnings',
                            '--trace-event-categories',
-                           'node.promises.rejections'
+                           'node.promises.rejections',
                          ]
                        });
 

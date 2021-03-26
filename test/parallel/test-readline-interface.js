@@ -76,7 +76,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   50,
   0,
   100.5,
-  5000
+  5000,
 ].forEach((crlfDelay) => {
   const [rli] = getInterface({ crlfDelay });
   assert.strictEqual(rli.crlfDelay, Math.max(crlfDelay || 100, 100));
@@ -536,7 +536,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
 [
   { ctrl: true, name: 'w' },
   { ctrl: true, name: 'backspace' },
-  { meta: true, name: 'backspace' }
+  { meta: true, name: 'backspace' },
 ].forEach((deleteWordLeftKey) => {
   let [rli, fi] = getInterface({ terminal: true, prompt: '' });
   fi.emit('data', 'the quick brown fox');
@@ -564,7 +564,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
 [
   { ctrl: true, name: 'delete' },
   { meta: true, name: 'delete' },
-  { meta: true, name: 'd' }
+  { meta: true, name: 'd' },
 ].forEach((deleteWordRightKey) => {
   let [rli, fi] = getInterface({ terminal: true, prompt: '' });
   fi.emit('data', 'the quick brown fox');

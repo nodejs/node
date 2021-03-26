@@ -94,7 +94,7 @@ const testVectors = [
     name: 'ECDH',
     privateUsages: ['deriveKey', 'deriveBits'],
     publicUsages: []
-  }
+  },
 ];
 
 async function testImportSpki({ name, publicUsages }, namedCurve, extractable) {
@@ -173,7 +173,7 @@ async function testImportJwk(
 
   const [
     publicKey,
-    privateKey
+    privateKey,
   ] = await Promise.all([
     subtle.importKey(
       'jwk',
@@ -210,7 +210,7 @@ async function testImportJwk(
       },
       { name, namedCurve },
       extractable,
-      privateUsages)
+      privateUsages),
   ]);
 
   assert.strictEqual(publicKey.type, 'public');
@@ -228,10 +228,10 @@ async function testImportJwk(
     // Test the round trip
     const [
       pubJwk,
-      pvtJwk
+      pvtJwk,
     ] = await Promise.all([
       subtle.exportKey('jwk', publicKey),
-      subtle.exportKey('jwk', privateKey)
+      subtle.exportKey('jwk', privateKey),
     ]);
 
     assert.deepStrictEqual(pubJwk.key_ops, publicUsages);

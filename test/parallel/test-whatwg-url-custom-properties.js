@@ -140,7 +140,7 @@ assert.strictEqual(url.searchParams, oldParams);
   { expected: 'wss://example.org', url: 'wss://example.org/foo' },
   { expected: 'null', url: 'gopher://gopher.quux.org/1/' },
   { expected: 'null', url: 'file:///tmp/mock/path' },
-  { expected: 'null', url: 'npm://nodejs/rules' }
+  { expected: 'null', url: 'npm://nodejs/rules' },
 ].forEach((test) => {
   assert.strictEqual(new URL(test.url).origin, test.expected);
 });

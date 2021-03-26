@@ -27,7 +27,7 @@ const answers = [
     type: 'CAA',
     critical: 128,
     issue: 'platynum.ch'
-  }
+  },
 ];
 
 const server = dgram.createSocket('udp4');

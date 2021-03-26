@@ -180,6 +180,6 @@ const { MessageChannel, MessagePort } = require('worker_threads');
     Object.getOwnPropertyNames(MessagePort.prototype).sort(),
     [
       'close', 'constructor', 'onmessage', 'onmessageerror', 'postMessage',
-      'ref', 'start', 'unref'
+      'ref', 'start', 'unref',
     ]);
 }

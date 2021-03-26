@@ -42,7 +42,7 @@ const expectedHeapSpaces = [
   'new_large_object_space',
   'new_space',
   'old_space',
-  'read_only_space'
+  'read_only_space',
 ];
 const heapSpaceStatistics = v8.getHeapSpaceStatistics();
 const actualHeapSpaceNames = heapSpaceStatistics.map((s) => s.space_name);

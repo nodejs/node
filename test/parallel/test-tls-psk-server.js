@@ -46,7 +46,7 @@ server.listen(0, () => {
     '-connect', `127.0.0.1:${server.address().port}`,
     '-cipher', CIPHERS,
     '-psk', KEY,
-    '-psk_identity', IDENTITY
+    '-psk_identity', IDENTITY,
   ]);
 
   let out = '';

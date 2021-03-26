@@ -14,7 +14,7 @@ const hashes = [
   'SHA-1',
   'SHA-256',
   'SHA-384',
-  'SHA-512'
+  'SHA-512',
 ];
 
 const keyData = {
@@ -115,7 +115,7 @@ const testVectors = [
     name: 'NODE-DSA',
     privateUsages: ['sign'],
     publicUsages: ['verify']
-  }
+  },
 ];
 
 (async function() {

@@ -18,7 +18,7 @@ const allocators = [
   SlowBuffer,
   Buffer.alloc,
   Buffer.allocUnsafe,
-  Buffer.allocUnsafeSlow
+  Buffer.allocUnsafeSlow,
 ];
 for (const allocator of allocators) {
   for (const size of sizes) {

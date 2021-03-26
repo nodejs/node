@@ -35,7 +35,7 @@ server.listen(0, common.mustCall(function() {
         'x-foo',
         'OxOxOxO',
         'x-foo-test',
-        'test, test'
+        'test, test',
       ], request.rawTrailers);
       assert.strictEqual(data, 'test\ntest');
       response.end();

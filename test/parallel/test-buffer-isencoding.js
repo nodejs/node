@@ -15,7 +15,7 @@ const assert = require('assert');
   'ucs2',
   'ucs-2',
   'utf16le',
-  'utf-16le'
+  'utf-16le',
 ].forEach((enc) => {
   assert.strictEqual(Buffer.isEncoding(enc), true);
 });
@@ -32,7 +32,7 @@ const assert = require('assert');
   [],
   1,
   0,
-  -1
+  -1,
 ].forEach((enc) => {
   assert.strictEqual(Buffer.isEncoding(enc), false);
 });

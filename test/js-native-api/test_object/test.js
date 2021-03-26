@@ -9,7 +9,7 @@ const test_object = require(`./build/${common.buildType}/test_object`);
 const object = {
   hello: 'world',
   array: [
-    1, 94, 'str', 12.321, { test: 'obj in arr' }
+    1, 94, 'str', 12.321, { test: 'obj in arr' },
   ],
   newObject: {
     test: 'obj in obj'

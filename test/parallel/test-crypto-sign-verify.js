@@ -174,14 +174,14 @@ assert.throws(
       getEffectiveSaltLength(crypto.constants.RSA_PSS_SALTLEN_DIGEST),
       crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN,
       getEffectiveSaltLength(crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN),
-      0, 16, 32, 64, 128
+      0, 16, 32, 64, 128,
     ];
 
     const verifySaltLengths = [
       crypto.constants.RSA_PSS_SALTLEN_DIGEST,
       getEffectiveSaltLength(crypto.constants.RSA_PSS_SALTLEN_DIGEST),
       getEffectiveSaltLength(crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN),
-      0, 16, 32, 64, 128
+      0, 16, 32, 64, 128,
     ];
     const errMessage = /^Error:.*data too large for key size$/;
 
@@ -390,7 +390,7 @@ assert.throws(
   });
 
   [
-    Uint8Array, Uint16Array, Uint32Array, Float32Array, Float64Array
+    Uint8Array, Uint16Array, Uint32Array, Float32Array, Float64Array,
   ].forEach((clazz) => {
     // These should all just work
     sign.update(new clazz());
@@ -429,7 +429,7 @@ assert.throws(
   { private: fixtures.readKey('rsa_private_2048.pem', 'ascii'),
     public: fixtures.readKey('rsa_public_2048.pem', 'ascii'),
     algo: 'sha1',
-    sigLen: 256 }
+    sigLen: 256 },
 ].forEach((pair) => {
   const algo = pair.algo;
 
@@ -465,7 +465,7 @@ assert.throws(
   }
 
   [
-    Uint8Array, Uint16Array, Uint32Array, Float32Array, Float64Array
+    Uint8Array, Uint16Array, Uint32Array, Float32Array, Float64Array,
   ].forEach((clazz) => {
     const data = new clazz();
     const sig = crypto.sign(algo, data, pair.private);
@@ -503,7 +503,7 @@ assert.throws(
     [
       crypto.createSign('sha1').update(data).sign(privKey),
       crypto.sign('sha1', data, privKey),
-      crypto.sign('sha1', data, { key: privKey, dsaEncoding: 'der' })
+      crypto.sign('sha1', data, { key: privKey, dsaEncoding: 'der' }),
     ].forEach((sig) => {
       // Signature length variability due to DER encoding
       assert(sig.length >= length + 4 && sig.length <= length + 8);
