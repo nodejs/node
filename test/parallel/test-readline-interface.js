@@ -31,7 +31,7 @@ const {
   getStringWidth,
   stripVTControlCharacters
 } = require('internal/util/inspect');
-const EventEmitter = require('events').EventEmitter;
+const { EventEmitter, getEventListeners } = require('events');
 const { Writable, Readable } = require('stream');
 
 class FakeInput extends EventEmitter {
@@ -1131,4 +1131,59 @@ for (let i = 0; i < 12; i++) {
   });
   rl.line = `a${' '.repeat(1e6)}a`;
   rl.cursor = rl.line.length;
+}
+
+{
+  const fi = new FakeInput();
+  const signal = AbortSignal.abort();
+
+  const rl = readline.createInterface({
+    input: fi,
+    output: fi,
+    signal,
+  });
+  rl.on('close', common.mustCall());
+  assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
+}
+
+{
+  const fi = new FakeInput();
+  const ac = new AbortController();
+  const { signal } = ac;
+  const rl = readline.createInterface({
+    input: fi,
+    output: fi,
+    signal,
+  });
+  assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
+  rl.on('close', common.mustCall());
+  ac.abort();
+  assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
+}
+
+{
+  const fi = new FakeInput();
+  const ac = new AbortController();
+  const { signal } = ac;
+  const rl = readline.createInterface({
+    input: fi,
+    output: fi,
+    signal,
+  });
+  assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
+  rl.close();
+  assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
+}
+
+{
+  // Constructor throws if signal is not an abort signal
+  assert.throws(() => {
+    readline.createInterface({
+      input: new FakeInput(),
+      signal: {},
+    });
+  }, {
+    name: 'TypeError',
+    code: 'ERR_INVALID_ARG_TYPE'
+  });
 }
