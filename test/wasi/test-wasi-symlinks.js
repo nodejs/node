@@ -66,7 +66,7 @@ if (process.argv[2] === 'wasi-child') {
       __filename,
       'wasi-child',
       options.test,
-      sandbox
+      sandbox,
     ], opts);
     console.log(child.stderr.toString());
     assert.strictEqual(child.status, 0);

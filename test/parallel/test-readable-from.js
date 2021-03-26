@@ -41,7 +41,7 @@ async function toReadablePromises() {
   const promises = [
     Promise.resolve('a'),
     Promise.resolve('b'),
-    Promise.resolve('c')
+    Promise.resolve('c'),
   ];
 
   const stream = Readable.from(promises);
@@ -192,5 +192,5 @@ Promise.all([
   toReadableOnDataNonObject(),
   destroysTheStreamWhenThrowing(),
   asTransformStream(),
-  endWithError()
+  endWithError(),
 ]).then(mustCall());

@@ -78,12 +78,12 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
 
   const cipher = createCipheriv('aes-256-ecb', key, null);
   const ciphertext = Buffer.concat([
-    cipher.update(plaintext), cipher.final()
+    cipher.update(plaintext), cipher.final(),
   ]);
 
   const decipher = createDecipheriv('aes-256-ecb', key, null);
   const deciphered = Buffer.concat([
-    decipher.update(ciphertext), decipher.final()
+    decipher.update(ciphertext), decipher.final(),
   ]);
 
   assert(plaintext.equals(deciphered));
@@ -185,15 +185,15 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     // Test distinguishing PKCS#1 public and private keys based on the
     // DER-encoded data only.
     publicEncrypt({ format: 'der', type: 'pkcs1', key: publicDER }, plaintext),
-    publicEncrypt({ format: 'der', type: 'pkcs1', key: privateDER }, plaintext)
+    publicEncrypt({ format: 'der', type: 'pkcs1', key: privateDER }, plaintext),
   ], [
     privateKey,
     { format: 'pem', key: privatePem },
-    { format: 'der', type: 'pkcs1', key: privateDER }
+    { format: 'der', type: 'pkcs1', key: privateDER },
   ]);
 
   testDecryption(publicDecrypt, [
-    privateEncrypt(privateKey, plaintext)
+    privateEncrypt(privateKey, plaintext),
   ], [
     // Decrypt using the public key.
     publicKey,
@@ -203,7 +203,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     // Decrypt using the private key.
     privateKey,
     { format: 'pem', key: privatePem },
-    { format: 'der', type: 'pkcs1', key: privateDER }
+    { format: 'der', type: 'pkcs1', key: privateDER },
   ]);
 }
 

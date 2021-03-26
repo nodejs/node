@@ -128,7 +128,7 @@ async function next() {
   const results = await Promise.all([
     iterable.next(),
     iterable.next(),
-    iterable.next()
+    iterable.next(),
   ]);
 
   assert.deepStrictEqual(results, [{
@@ -158,7 +158,7 @@ async function nextError() {
   const results = await Promise.allSettled([
     iterable.next(),
     iterable.next(),
-    iterable.next()
+    iterable.next(),
   ]);
   assert.deepStrictEqual(results, [{
     status: 'rejected',
@@ -385,7 +385,7 @@ async function run() {
     eventTargetAbortableOnBefore,
     eventTargetAbortableOnAfter,
     eventTargetAbortableOnAfter2,
-    abortableOnAfterDone
+    abortableOnAfterDone,
   ];
 
   for (const fn of funcs) {

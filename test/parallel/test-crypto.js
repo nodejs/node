@@ -27,7 +27,7 @@ if (!common.hasCrypto)
 
 common.expectWarning({
   DeprecationWarning: [
-    ['crypto.createCipher is deprecated.', 'DEP0106']
+    ['crypto.createCipher is deprecated.', 'DEP0106'],
   ]
 });
 
@@ -212,7 +212,7 @@ assert.throws(() => {
     'eKN7LggbF3Dk5wIQN6SL+fQ5H/+7NgARsVBp0QIRANxYRukavs4QvuyNhMx+vrkCEQCbf6j/',
     'Ig6/HueCK/0Jkmp+',
     '-----END RSA PRIVATE KEY-----',
-    ''
+    '',
   ].join('\n');
   crypto.createSign('SHA256').update('test').sign(priv);
 }, (err) => {

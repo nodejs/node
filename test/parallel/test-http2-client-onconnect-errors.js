@@ -21,7 +21,7 @@ const { NghttpError } = require('internal/http2/util');
 
 const specificTestKeys = [
   'NGHTTP2_ERR_STREAM_ID_NOT_AVAILABLE',
-  'NGHTTP2_ERR_INVALID_ARGUMENT'
+  'NGHTTP2_ERR_INVALID_ARGUMENT',
 ];
 
 const specificTests = [

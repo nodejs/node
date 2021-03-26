@@ -19,7 +19,7 @@ strictEqual(addImported(1), 43);
 // Test warning message
 const child = spawn(process.execPath, [
   '--experimental-wasm-modules',
-  path('/es-modules/wasm-modules.mjs')
+  path('/es-modules/wasm-modules.mjs'),
 ]);
 
 let stderr = '';

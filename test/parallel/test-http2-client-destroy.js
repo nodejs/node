@@ -16,7 +16,7 @@ const Countdown = require('../common/countdown');
   server.listen(0, common.mustCall(() => {
     const destroyCallbacks = [
       (client) => client.destroy(),
-      (client) => client[kSocket].destroy()
+      (client) => client[kSocket].destroy(),
     ];
 
     const countdown = new Countdown(destroyCallbacks.length, () => {

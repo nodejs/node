@@ -193,7 +193,7 @@ const stat = promisify(fs.stat);
     }),
     b.then(assert.fail, function(e) {
       assert.strictEqual(err, e);
-    })
+    }),
   ]);
 }
 

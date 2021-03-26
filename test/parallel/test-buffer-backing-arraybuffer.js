@@ -20,7 +20,7 @@ for (const { length, expectOnHeap } of tests) {
     new Float32Array(length / 4),
     new Float64Array(length / 8),
     Buffer.alloc(length),
-    Buffer.allocUnsafeSlow(length)
+    Buffer.allocUnsafeSlow(length),
     // Buffer.allocUnsafe() is missing because it may use pooled allocations.
   ];
 

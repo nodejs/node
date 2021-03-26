@@ -214,7 +214,7 @@ assert.throws(function() {
             '20cdc944b6022cac3c4982b10d5eeb55c3e4de15134676fb6de04460' +
             '65c97440fa8c6a58'
       }
-    }
+    },
   ];
 
   for (const testCase of rfc4231) {
@@ -286,7 +286,7 @@ assert.throws(function() {
           'Test Using Larger Than Block-Size Key and Larger Than One ' +
           'Block-Size Data',
       hmac: '6f630fad67cda0ee1fb1f562db3aa53e'
-    }
+    },
   ];
   const rfc2202_sha1 = [
     {
@@ -340,7 +340,7 @@ assert.throws(function() {
           'Test Using Larger Than Block-Size Key and Larger Than One ' +
           'Block-Size Data',
       hmac: 'e8e99d0f45237d786d6bbaa7965c7808bbff1a91'
-    }
+    },
   ];
 
   if (!common.hasFipsCrypto) {

@@ -11,7 +11,7 @@ const Countdown = require('../common/countdown');
 
 const errors = [
   'test-error',
-  Error('test')
+  Error('test'),
 ];
 let nextError;
 

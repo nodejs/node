@@ -23,7 +23,7 @@ assert.throws(() => {
   +Infinity,
   -Infinity,
   [],
-  {}
+  {},
 ].forEach((value) => {
   // We need to check the callback since 'error' will only
   // be emitted once per instance.

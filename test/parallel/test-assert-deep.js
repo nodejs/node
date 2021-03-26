@@ -164,7 +164,7 @@ assert.throws(
     new Int32Array([1]), // Int32Array
     new Uint32Array([1]), // Uint32Array
     Buffer.from([1]), // Uint8Array
-    (function() { return arguments; })(1)
+    (function() { return arguments; })(1),
   ]);
 
   for (const a of similar) {

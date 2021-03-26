@@ -29,7 +29,7 @@ common.expectWarning({
   ],
   ExperimentalWarning: [[
     'AbortController is an experimental feature. This feature could change ' +
-    'at any time'
+    'at any time',
   ]]
 });
 

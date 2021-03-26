@@ -68,12 +68,12 @@ const expectedWarnings = common.hasFipsCrypto ?
     ['Use Cipheriv for counter mode of aes-256-ccm'],
     ['Use Cipheriv for counter mode of aes-256-ccm'],
     ['Use Cipheriv for counter mode of aes-256-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm']
+    ['Use Cipheriv for counter mode of aes-256-ccm'],
   ];
 
 const expectedDeprecationWarnings = [
   ['crypto.DEFAULT_ENCODING is deprecated.', 'DEP0091'],
-  ['crypto.createCipher is deprecated.', 'DEP0106']
+  ['crypto.createCipher is deprecated.', 'DEP0106'],
 ];
 
 common.expectWarning({
@@ -310,7 +310,7 @@ for (const test of TEST_CASES) {
   decipher.setAuthTag(Buffer.from('445352d3ff85cf94', 'hex'));
   const text = Buffer.concat([
     decipher.update('3a2a3647', 'hex'),
-    decipher.final()
+    decipher.final(),
   ]);
   assert.strictEqual(text.toString('utf8'), 'node');
 }
@@ -611,7 +611,7 @@ for (const test of TEST_CASES) {
     // Decryption should still work.
     const plaintext = Buffer.concat([
       decipher.update(ciphertext),
-      decipher.final()
+      decipher.final(),
     ]);
     assert(plain.equals(plaintext));
   }

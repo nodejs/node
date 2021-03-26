@@ -62,7 +62,7 @@ dns.lookup('::1', common.mustSucceed((result, addressType) => {
   // Try calling resolve with an unsupported type.
   'HI',
   // Try calling resolve with an unsupported type that's an object key
-  'toString'
+  'toString',
 ].forEach((val) => {
   const err = {
     code: 'ERR_INVALID_OPT_VALUE',

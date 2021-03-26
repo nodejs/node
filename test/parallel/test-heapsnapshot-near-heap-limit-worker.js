@@ -14,7 +14,7 @@ const env = {
 {
   tmpdir.refresh();
   const child = spawnSync(process.execPath, [
-    fixtures.path('workload', 'grow-worker.js')
+    fixtures.path('workload', 'grow-worker.js'),
   ], {
     cwd: tmpdir.path,
     env: {

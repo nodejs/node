@@ -194,7 +194,7 @@ const tests = [
     encoded: '-> $1.00 <--',
     decoded: '\u002D\u003E\u0020\u0024\u0031\u002E\u0030\u0030\u0020\u003C' +
       '\u002D'
-  }
+  },
 ];
 
 let errors = 0;

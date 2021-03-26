@@ -64,7 +64,7 @@ const tests = [
     command: 'console.log("Baz");' +
              'process.on("uncaughtException", () => console.log("Foobar"));\n',
     expected: /^Baz\nUncaught:\nTypeError \[ERR_INVALID_REPL_INPUT]:.*uncaughtException/
-  }
+  },
 ];
 
 process.on('exit', () => {

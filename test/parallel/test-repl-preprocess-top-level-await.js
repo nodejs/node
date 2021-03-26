@@ -60,7 +60,7 @@ const testCases = [
   [ 'var a = await 1; let b = 2; const c = 3;',
     '(async () => { void (a = await 1); void (b = 2); void (c = 3); })()' ],
   [ 'let o = await 1, p',
-    '(async () => { void ( (o = await 1), (p=undefined)) })()' ]
+    '(async () => { void ( (o = await 1), (p=undefined)) })()' ],
 ];
 
 for (const [input, expected] of testCases) {

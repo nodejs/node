@@ -16,7 +16,7 @@ const env = {
   const child = spawnSync(process.execPath, [
     '--heapsnapshot-near-heap-limit=-15',
     '--max-old-space-size=50',
-    fixtures.path('workload', 'grow.js')
+    fixtures.path('workload', 'grow.js'),
   ], {
     cwd: tmpdir.path,
     env,
@@ -31,7 +31,7 @@ const env = {
     '--trace-gc',
     '--heapsnapshot-near-heap-limit=0',
     '--max-old-space-size=50',
-    fixtures.path('workload', 'grow.js')
+    fixtures.path('workload', 'grow.js'),
   ], {
     cwd: tmpdir.path,
     env,
@@ -52,7 +52,7 @@ const env = {
     '--trace-gc',
     '--heapsnapshot-near-heap-limit=1',
     '--max-old-space-size=50',
-    fixtures.path('workload', 'grow.js')
+    fixtures.path('workload', 'grow.js'),
   ], {
     cwd: tmpdir.path,
     env,
@@ -78,7 +78,7 @@ const env = {
     '--trace-gc',
     '--heapsnapshot-near-heap-limit=3',
     '--max-old-space-size=50',
-    fixtures.path('workload', 'grow.js')
+    fixtures.path('workload', 'grow.js'),
   ], {
     cwd: tmpdir.path,
     env,

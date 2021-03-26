@@ -23,7 +23,7 @@ common.expectWarning({
   DeprecationWarning: expectedDeprecationWarning,
   UnhandledPromiseRejectionWarning: [
     expectedValueWarning,
-    expectedPromiseWarning
+    expectedPromiseWarning,
   ],
 });
 

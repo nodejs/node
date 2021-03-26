@@ -11,7 +11,7 @@ const tmpdir = require('../common/tmpdir');
 
 const names = [
   'time::foo',
-  'count::bar'
+  'count::bar',
 ];
 const expectedCounts = [ 1, 2, 0 ];
 const expectedTimeTypes = [ 'b', 'n', 'e' ];
@@ -37,7 +37,7 @@ if (process.argv[2] === 'child') {
                          cwd: tmpdir.path,
                          execArgv: [
                            '--trace-event-categories',
-                           'node.console'
+                           'node.console',
                          ]
                        });
 

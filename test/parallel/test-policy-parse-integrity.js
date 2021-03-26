@@ -67,7 +67,7 @@ function test({ shouldFail, integrity, manifest = {} }) {
   const { status } = spawnSync(process.execPath, [
     '--experimental-policy',
     policyFilepath,
-    depFilepath
+    depFilepath,
   ]);
   if (shouldFail) {
     assert.notStrictEqual(status, 0);

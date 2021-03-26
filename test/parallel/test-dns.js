@@ -61,7 +61,7 @@ assert(existing.length > 0);
   assert.deepStrictEqual(dns.getServers(), [
     '127.0.0.1',
     '192.168.1.1',
-    '0.0.0.0'
+    '0.0.0.0',
   ]);
 }
 
@@ -75,7 +75,7 @@ assert(existing.length > 0);
     // Check for REDOS issues.
     ':'.repeat(100000),
     '['.repeat(100000),
-    '['.repeat(100000) + ']'.repeat(100000) + 'a'
+    '['.repeat(100000) + ']'.repeat(100000) + 'a',
   ];
   invalidServers.forEach((serv) => {
     assert.throws(
@@ -383,7 +383,7 @@ assert.throws(() => {
           retry: 900,
           expire: 1800,
           minttl: 3333333333
-        }
+        },
       ] },
   ];
 

@@ -102,7 +102,7 @@ assert.throws(() => new Blob({}), {
       'e',
       'l',
       'lo',
-      Buffer.from('world')
+      Buffer.from('world'),
     ]);
   assert.strictEqual(b.size, 10);
   b.text().then(common.mustCall((text) => {

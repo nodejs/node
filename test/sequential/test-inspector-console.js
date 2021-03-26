@@ -17,7 +17,7 @@ async function runTest() {
 
   const commands = [
     { 'method': 'Runtime.enable' },
-    { 'method': 'Runtime.runIfWaitingForDebugger' }
+    { 'method': 'Runtime.runIfWaitingForDebugger' },
   ];
 
   session.send(commands);

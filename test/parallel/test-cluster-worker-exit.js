@@ -53,7 +53,7 @@ if (cluster.isWorker) {
     worker_emitExit: [1, "the worker did not emit 'exit'"],
     worker_state: ['disconnected', 'the worker state is incorrect'],
     worker_exitedAfterDisconnect: [
-      false, 'the .exitedAfterDisconnect flag is incorrect'
+      false, 'the .exitedAfterDisconnect flag is incorrect',
     ],
     worker_died: [true, 'the worker is still running'],
     worker_exitCode: [EXIT_CODE, 'the worker exited w/ incorrect exitCode'],

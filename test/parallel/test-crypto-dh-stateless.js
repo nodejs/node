@@ -138,7 +138,7 @@ for (const [params1, params2] of [
   // Same primes, but different generator.
   [{ group: 'modp5' }, { prime: group.getPrime(), generator: 5 }],
   // Same generator, but different primes.
-  [{ primeLength: 1024 }, { primeLength: 1024 }]
+  [{ primeLength: 1024 }, { primeLength: 1024 }],
 ]) {
   assert.throws(() => {
     test(crypto.generateKeyPairSync('dh', params1),

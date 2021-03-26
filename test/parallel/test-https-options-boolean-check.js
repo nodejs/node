@@ -61,7 +61,7 @@ const caArrDataView = toDataView(caCert);
   [[keyStr, keyStr2], false],
   [false, [certStr, certStr2]],
   [[{ pem: keyBuff }], false],
-  [[{ pem: keyBuff }, { pem: keyBuff }], false]
+  [[{ pem: keyBuff }, { pem: keyBuff }], false],
 ].forEach(([key, cert]) => {
   https.createServer({ key, cert });
 });
@@ -80,7 +80,7 @@ const caArrDataView = toDataView(caCert);
   [[keyBuff, true], [certBuff, certBuff2], 1],
   [[true, keyStr2], [certStr, certStr2], 0],
   [[true, false], [certBuff, certBuff2], 0],
-  [true, [certBuff, certBuff2]]
+  [true, [certBuff, certBuff2]],
 ].forEach(([key, cert, index]) => {
   const val = index === undefined ? key : key[index];
   assert.throws(() => {
@@ -141,7 +141,7 @@ const caArrDataView = toDataView(caCert);
   [keyBuff, certBuff, {}],
   [keyBuff, certBuff, 1],
   [keyBuff, certBuff, true],
-  [keyBuff, certBuff, [caCert, true], 1]
+  [keyBuff, certBuff, [caCert, true], 1],
 ].forEach(([key, cert, ca, index]) => {
   const val = index === undefined ? ca : ca[index];
   assert.throws(() => {

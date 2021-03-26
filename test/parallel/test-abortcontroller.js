@@ -94,7 +94,7 @@ const { Event } = require('internal/event_target');
     NaN,
     true,
     'AbortController',
-    Object.create(AbortController.prototype)
+    Object.create(AbortController.prototype),
   ];
   for (const badController of badAbortControllers) {
     throws(
@@ -125,7 +125,7 @@ const { Event } = require('internal/event_target');
     NaN,
     true,
     'AbortSignal',
-    Object.create(AbortSignal.prototype)
+    Object.create(AbortSignal.prototype),
   ];
   for (const badSignal of badAbortSignals) {
     throws(

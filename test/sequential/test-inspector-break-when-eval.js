@@ -46,7 +46,7 @@ async function breakOnLine(session) {
                   'returnByValue': false,
                   'generatePreview': true,
                   'userGesture': true,
-                  'awaitPromise': false } }
+                  'awaitPromise': false } },
   ];
   session.send(commands);
   await session.waitForBreakOnLine(9, pathToFileURL(script).toString());

@@ -32,7 +32,7 @@ const tests = [
   {
     env: { NODE_NO_READLINE: '0' },
     expected: { terminal: true, useColors: true }
-  }
+  },
 ];
 
 function run(test) {

@@ -407,7 +407,7 @@ const Transform = require('_stream_transform');
     { foo: 'bar' },
     100,
     'string',
-    { nested: { things: [ { foo: 'bar' }, 100, 'string' ] } }
+    { nested: { things: [ { foo: 'bar' }, 100, 'string' ] } },
   ];
 
   let ended = false;
@@ -448,7 +448,7 @@ const Transform = require('_stream_transform');
     { foo: 'bar' },
     100,
     'string',
-    { nested: { things: [ { foo: 'bar' }, 100, 'string' ] } }
+    { nested: { things: [ { foo: 'bar' }, 100, 'string' ] } },
   ];
 
   let ended = false;

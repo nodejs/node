@@ -92,7 +92,7 @@ common.expectWarning('DeprecationWarning',
     new Uint32Array(10),
     new Float32Array(10),
     new Float64Array(10),
-    new DataView(new ArrayBuffer(10))
+    new DataView(new ArrayBuffer(10)),
   ].forEach((buf) => {
     const before = Buffer.from(buf.buffer).toString('hex');
     crypto.randomFillSync(buf);
@@ -125,7 +125,7 @@ common.expectWarning('DeprecationWarning',
     new Uint32Array(10),
     new Float32Array(10),
     new Float64Array(10),
-    new DataView(new ArrayBuffer(10))
+    new DataView(new ArrayBuffer(10)),
   ].forEach((buf) => {
     const before = Buffer.from(buf.buffer).toString('hex');
     crypto.randomFill(buf, common.mustSucceed((buf) => {
@@ -185,7 +185,7 @@ common.expectWarning('DeprecationWarning',
 {
   [
     Buffer.alloc(10),
-    new Uint8Array(new Array(10).fill(0))
+    new Uint8Array(new Array(10).fill(0)),
   ].forEach((buf) => {
     const len = Buffer.byteLength(buf);
     assert.strictEqual(len, 10, `Expected byteLength of 10, got ${len}`);

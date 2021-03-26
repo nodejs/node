@@ -32,7 +32,7 @@ const SERVER_RESPONSES = [
   'HTTP/1.0 200 ok\r\nContent-Length: 0\r\nConnection: close\r\n\r\n',
   'HTTP/1.1 200 ok\r\nContent-Length: 0\r\n\r\n',
   'HTTP/1.1 200 ok\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n',
-  'HTTP/1.1 200 ok\r\nContent-Length: 0\r\nConnection: close\r\n\r\n'
+  'HTTP/1.1 200 ok\r\nContent-Length: 0\r\nConnection: close\r\n\r\n',
 ];
 const SHOULD_KEEP_ALIVE = [
   false, // HTTP/1.0, default
@@ -40,7 +40,7 @@ const SHOULD_KEEP_ALIVE = [
   false, // HTTP/1.0, Connection: close
   true,  // HTTP/1.1, default
   true,  // HTTP/1.1, Connection: keep-alive
-  false  // HTTP/1.1, Connection: close
+  false,  // HTTP/1.1, Connection: close
 ];
 http.globalAgent.maxSockets = 5;
 
