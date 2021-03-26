@@ -968,6 +968,31 @@ for (let i = 0; i < 12; i++) {
     rli.close();
   }
 
+  // pre-aborted signal
+  {
+    const signal = AbortSignal.abort();
+    const [rli] = getInterface({ terminal });
+    rli.pause();
+    rli.on('resume', common.mustNotCall());
+    rli.question('hello?', { signal }, common.mustNotCall());
+    rli.close();
+  }
+
+  // pre-aborted signal promisified question
+  {
+    const signal = AbortSignal.abort();
+    const [rli] = getInterface({ terminal });
+    const question = util.promisify(rli.question).bind(rli);
+    rli.on('resume', common.mustNotCall());
+    rli.pause();
+    question('hello?', { signal })
+    .then(common.mustNotCall())
+    .catch(common.mustCall((error) => {
+      assert.strictEqual(error.name, 'AbortError');
+    }));
+    rli.close();
+  }
+
   // Can create a new readline Interface with a null output argument
   {
     const [rli, fi] = getInterface({ output: null, terminal });
