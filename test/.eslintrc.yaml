@@ -5,8 +5,6 @@ env:
   es6: true
 
 rules:
-  # For now, comma-dangle is more lenient in the test directory than elsewhere.
-  comma-dangle: ["error", "only-multiline"]
   no-var: error
   prefer-const: error
   symbol-description: off
