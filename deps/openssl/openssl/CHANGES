@@ -7,6 +7,50 @@
  https://github.com/openssl/openssl/commits/ and pick the appropriate
  release branch.
 
+ Changes between 1.1.1j and 1.1.1k [25 Mar 2021]
+
+  *) Fixed a problem with verifying a certificate chain when using the
+     X509_V_FLAG_X509_STRICT flag. This flag enables additional security checks
+     of the certificates present in a certificate chain. It is not set by
+     default.
+
+     Starting from OpenSSL version 1.1.1h a check to disallow certificates in
+     the chain that have explicitly encoded elliptic curve parameters was added
+     as an additional strict check.
+
+     An error in the implementation of this check meant that the result of a
+     previous check to confirm that certificates in the chain are valid CA
+     certificates was overwritten. This effectively bypasses the check
+     that non-CA certificates must not be able to issue other certificates.
+
+     If a "purpose" has been configured then there is a subsequent opportunity
+     for checks that the certificate is a valid CA.  All of the named "purpose"
+     values implemented in libcrypto perform this check.  Therefore, where
+     a purpose is set the certificate chain will still be rejected even when the
+     strict flag has been used. A purpose is set by default in libssl client and
+     server certificate verification routines, but it can be overridden or
+     removed by an application.
+
+     In order to be affected, an application must explicitly set the
+     X509_V_FLAG_X509_STRICT verification flag and either not set a purpose
+     for the certificate verification or, in the case of TLS client or server
+     applications, override the default purpose.
+     (CVE-2021-3450)
+     [Tomáš Mráz]
+
+  *) Fixed an issue where an OpenSSL TLS server may crash if sent a maliciously
+     crafted renegotiation ClientHello message from a client. If a TLSv1.2
+     renegotiation ClientHello omits the signature_algorithms extension (where
+     it was present in the initial ClientHello), but includes a
+     signature_algorithms_cert extension then a NULL pointer dereference will
+     result, leading to a crash and a denial of service attack.
+
+     A server is only vulnerable if it has TLSv1.2 and renegotiation enabled
+     (which is the default configuration). OpenSSL TLS clients are not impacted
+     by this issue.
+     (CVE-2021-3449)
+     [Peter Kästle and Samuel Sapalski]
+
  Changes between 1.1.1i and 1.1.1j [16 Feb 2021]
 
   *) Fixed the X509_issuer_and_serial_hash() function. It attempts to
