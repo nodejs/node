@@ -32,6 +32,7 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
+using v8::NewStringType;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
@@ -782,7 +783,7 @@ ssize_t Http2Session::OnMaxFrameSizePadding(size_t frameLen,
 // various callback functions. Each of these will typically result in a call
 // out to JavaScript so this particular function is rather hot and can be
 // quite expensive. This is a potential performance optimization target later.
-ssize_t Http2Session::ConsumeHTTP2Data() {
+void Http2Session::ConsumeHTTP2Data() {
   CHECK_NOT_NULL(stream_buf_.base);
   CHECK_LE(stream_buf_offset_, stream_buf_.len);
   size_t read_len = stream_buf_.len - stream_buf_offset_;
@@ -792,12 +793,14 @@ ssize_t Http2Session::ConsumeHTTP2Data() {
         read_len,
         nghttp2_session_want_read(session_.get()));
   set_receive_paused(false);
+  custom_recv_error_code_ = nullptr;
   ssize_t ret =
     nghttp2_session_mem_recv(session_.get(),
                              reinterpret_cast<uint8_t*>(stream_buf_.base) +
                                  stream_buf_offset_,
                              read_len);
   CHECK_NE(ret, NGHTTP2_ERR_NOMEM);
+  CHECK_IMPLIES(custom_recv_error_code_ != nullptr, ret < 0);
 
   if (is_receive_paused()) {
     CHECK(is_reading_stopped());
@@ -809,7 +812,7 @@ ssize_t Http2Session::ConsumeHTTP2Data() {
     // Even if all bytes were received, a paused stream may delay the
     // nghttp2_on_frame_recv_callback which may have an END_STREAM flag.
     stream_buf_offset_ += ret;
-    return ret;
+    goto done;
   }
 
   // We are done processing the current input chunk.
@@ -819,14 +822,34 @@ ssize_t Http2Session::ConsumeHTTP2Data() {
   stream_buf_allocation_.clear();
   stream_buf_ = uv_buf_init(nullptr, 0);
 
-  if (ret < 0)
-    return ret;
-
   // Send any data that was queued up while processing the received data.
-  if (!is_destroyed()) {
+  if (ret >= 0 && !is_destroyed()) {
     SendPendingData();
   }
-  return ret;
+
+done:
+  if (UNLIKELY(ret < 0)) {
+    Isolate* isolate = env()->isolate();
+    Debug(this,
+        "fatal error receiving data: %d (%s)",
+        ret,
+        custom_recv_error_code_ != nullptr ?
+            custom_recv_error_code_ : "(no custom error code)");
+    Local<Value> args[] = {
+      Integer::New(isolate, static_cast<int32_t>(ret)),
+      Null(isolate)
+    };
+    if (custom_recv_error_code_ != nullptr) {
+      args[1] = String::NewFromUtf8(
+          isolate,
+          custom_recv_error_code_,
+          NewStringType::kInternalized).ToLocalChecked();
+    }
+    MakeCallback(
+        env()->http2session_on_error_function(),
+        arraysize(args),
+        args);
+  }
 }
 
 
@@ -950,14 +973,17 @@ int Http2Session::OnInvalidFrame(nghttp2_session* handle,
                                  int lib_error_code,
                                  void* user_data) {
   Http2Session* session = static_cast<Http2Session*>(user_data);
+  const uint32_t max_invalid_frames = session->js_fields_->max_invalid_frames;
 
   Debug(session,
         "invalid frame received (%u/%u), code: %d",
         session->invalid_frame_count_,
-        session->js_fields_->max_invalid_frames,
+        max_invalid_frames,
         lib_error_code);
-  if (session->invalid_frame_count_++ > session->js_fields_->max_invalid_frames)
+  if (session->invalid_frame_count_++ > max_invalid_frames) {
+    session->custom_recv_error_code_ = "ERR_HTTP2_TOO_MANY_INVALID_FRAMES";
     return 1;
+  }
 
   // If the error is fatal or if error code is ERR_STREAM_CLOSED... emit error
   if (nghttp2_is_fatal(lib_error_code) ||
@@ -1336,6 +1362,7 @@ int Http2Session::HandleDataFrame(const nghttp2_frame* frame) {
     stream->EmitRead(UV_EOF);
   } else if (frame->hd.length == 0) {
     if (invalid_frame_count_++ > js_fields_->max_invalid_frames) {
+      custom_recv_error_code_ = "ERR_HTTP2_TOO_MANY_INVALID_FRAMES";
       Debug(this, "rejecting empty-frame-without-END_STREAM flood\n");
       // Consider a flood of 0-length frames without END_STREAM an error.
       return 1;
@@ -1520,7 +1547,7 @@ void Http2Session::OnStreamAfterWrite(WriteWrap* w, int status) {
     ConsumeHTTP2Data();
   }
 
-  if (!is_write_scheduled()) {
+  if (!is_write_scheduled() && !is_destroyed()) {
     // Schedule a new write if nghttp2 wants to send data.
     MaybeScheduleWrite();
   }
@@ -1848,21 +1875,12 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
   // offset of a DATA frame's data into the socket read buffer.
   stream_buf_ = uv_buf_init(buf.data(), static_cast<unsigned int>(nread));
 
-  Isolate* isolate = env()->isolate();
-
   // Store this so we can create an ArrayBuffer for read data from it.
   // DATA frames will be emitted as slices of that ArrayBuffer to avoid having
   // to copy memory.
   stream_buf_allocation_ = std::move(buf);
 
-  ssize_t ret = ConsumeHTTP2Data();
-
-  if (UNLIKELY(ret < 0)) {
-    Debug(this, "fatal error receiving data: %d", ret);
-    Local<Value> arg = Integer::New(isolate, static_cast<int32_t>(ret));
-    MakeCallback(env()->http2session_on_error_function(), 1, &arg);
-    return;
-  }
+  ConsumeHTTP2Data();
 
   MaybeStopReading();
 }

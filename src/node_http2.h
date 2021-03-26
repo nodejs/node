@@ -662,8 +662,9 @@ class Http2Session : public AsyncWrap,
   // Indicates whether there currently exist outgoing buffers for this stream.
   bool HasWritesOnSocketForStream(Http2Stream* stream);
 
-  // Write data from stream_buf_ to the session
-  ssize_t ConsumeHTTP2Data();
+  // Write data from stream_buf_ to the session.
+  // This will call the error callback if an error occurs.
+  void ConsumeHTTP2Data();
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(Http2Session)
@@ -898,6 +899,9 @@ class Http2Session : public AsyncWrap,
   v8::Global<v8::ArrayBuffer> stream_buf_ab_;
   AllocatedBuffer stream_buf_allocation_;
   size_t stream_buf_offset_ = 0;
+  // Custom error code for errors that originated inside one of the callbacks
+  // called by nghttp2_session_mem_recv.
+  const char* custom_recv_error_code_ = nullptr;
 
   size_t max_outstanding_pings_ = kDefaultMaxPings;
   std::queue<BaseObjectPtr<Http2Ping>> outstanding_pings_;
