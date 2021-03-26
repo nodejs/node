@@ -65,6 +65,7 @@ release).
 % cd ../node/deps/openssl
 % rm -rf openssl
 % cp -R ../../../openssl openssl
+% rm -rf openssl/.git* openssl/.travis*
 % git add --all openssl
 % git commit openssl
 ```
@@ -72,7 +73,7 @@ release).
 The commit message can be written as (with the openssl version set
 to the relevant value):
 ```text
-deps: upgrade openssl sources to 1.1.0h
+deps: upgrade openssl sources to OpenSSL_1_1_1j
 
 This updates all sources in deps/openssl/openssl by:
     $ git clone https://github.com/quictls/openssl
@@ -81,6 +82,7 @@ This updates all sources in deps/openssl/openssl by:
     $ cd ../node/deps/openssl
     $ rm -rf openssl
     $ cp -R ../openssl openssl
+    $ rm -rf openssl/.git* openssl/.travis*
     $ git add --all openssl
     $ git commit openssl
 ```
