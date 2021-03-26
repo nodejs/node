@@ -545,6 +545,9 @@ the current position of the cursor down.
 added: v0.1.98
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/37932
+    description: The `signal` option is supported now.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/33662
     description: The `history` option is supported now.
   - version: v13.9.0
@@ -601,6 +604,8 @@ changes:
     **Default:** `500`.
   * `tabSize` {integer} The number of spaces a tab is equal to (minimum 1).
     **Default:** `8`.
+  * `signal` {AbortSignal} Allows closing the interface using an AbortSignal.
+    Aborting the signal will internally call `close` on the interface.
 * Returns: {readline.Interface}
 
 The `readline.createInterface()` method creates a new `readline.Interface`
