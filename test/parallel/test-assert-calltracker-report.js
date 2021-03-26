@@ -19,7 +19,7 @@ callsfoo();
 
 // Ensures that foo was removed from the callChecks array after being called the
 // expected number of times.
-if (typeof tracker.report()[0] === undefined) {
+if (typeof tracker.report()[0] === 'undefined') {
   process.exit(1);
 }
 
