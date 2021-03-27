@@ -2759,7 +2759,7 @@ const fs = require('fs');
 
 pipeline(
   fs.createReadStream('object.json')
-    .setEncoding('utf-8'),
+    .setEncoding('utf8'),
   new Transform({
     decodeStrings: false, // Accept string input rather than Buffers
     construct(callback) {

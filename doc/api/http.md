@@ -2347,7 +2347,7 @@ changes:
 -->
 
 * `chunk` {string | Buffer}
-* `encoding` {string} Optional, **Default**: `utf-8`
+* `encoding` {string} Optional, **Default**: `utf8`
 * `callback` {Function} Optional
 * Returns: {this}
 
@@ -2589,7 +2589,7 @@ changes:
 -->
 
 * `chunk` {string | Buffer}
-* `encoding` {string} **Default**: `utf-8`
+* `encoding` {string} **Default**: `utf8`
 * `callback` {Function}
 * Returns {boolean}
 
