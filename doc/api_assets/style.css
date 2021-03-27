@@ -515,6 +515,14 @@ hr {
   padding: 1px 3px;
   border-radius: 3px;
 }
+#toc .stability_3::after {
+  background-color: var(--blue1);
+  color: var(--white);
+  content: "legacy";
+  margin-left: .25rem;
+  padding: 1px 3px;
+  border-radius: 3px;
+}
 
 #apicontent li {
   margin-bottom: .5rem;
