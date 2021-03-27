@@ -265,9 +265,9 @@ function preprocessElements({ filename }) {
           const [, prefix, number, explication] =
             text.value.match(STABILITY_RE);
 
-          const isStabilityIndex =
-            index - 2 === headingIndex || // General.
-            index - 3 === headingIndex;   // With api_metadata block.
+          // Stability indices are never more than 3 nodes away from their
+          // heading.
+          const isStabilityIndex = index - headingIndex <= 3;
 
           if (heading && isStabilityIndex) {
             heading.stability = number;
