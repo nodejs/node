@@ -140,10 +140,22 @@ static int test_alt_chains_cert_forgery(void)
 
     i = X509_verify_cert(sctx);
 
-    if (i == 0 && X509_STORE_CTX_get_error(sctx) == X509_V_ERR_INVALID_CA) {
+    if (i != 0 || X509_STORE_CTX_get_error(sctx) != X509_V_ERR_INVALID_CA)
+        goto err;
+
+    /* repeat with X509_V_FLAG_X509_STRICT */
+    X509_STORE_CTX_cleanup(sctx);
+    X509_STORE_set_flags(store, X509_V_FLAG_X509_STRICT);
+
+    if (!X509_STORE_CTX_init(sctx, store, x, untrusted))
+        goto err;
+
+    i = X509_verify_cert(sctx);
+
+    if (i == 0 && X509_STORE_CTX_get_error(sctx) == X509_V_ERR_INVALID_CA)
         /* This is the result we were expecting: Test passed */
         ret = 1;
-    }
+
  err:
     X509_STORE_CTX_free(sctx);
     X509_free(x);
