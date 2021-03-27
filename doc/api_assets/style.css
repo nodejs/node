@@ -13,7 +13,7 @@
   --red3: #ca5010;
   --green1: #43853d;
   --green2: #5a8147;
-  --green3: #454545;
+  --green3: #64de64;
   --green4: #99cc7d;
   --green5: #84ba64;
   --gray1: #707070;
@@ -49,6 +49,9 @@
 .dark-mode tt {
   color: var(--grey-smoke);
   background-color: var(--highlight-background-color);
+}
+.dark-mode a code {
+  color: var(--green3);
 }
 
 /*--------------------- Layout and Typography ----------------------------*/
@@ -605,7 +608,8 @@ a code {
   margin-bottom: 0;
 }
 
-#column2 ul li a {
+#column2 ul li a,
+#column2 ul li a code {
   color: var(--color-text-nav);
   border-radius: 0;
 }
