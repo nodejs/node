@@ -261,7 +261,7 @@ class StatusLoader {
   load() {
     const dir = path.join(__dirname, '..', 'wpt');
     const statusFile = path.join(dir, 'status', `${this.path}.json`);
-    const result = JSON.parse(fs.readFileSync(statusFile, 'utf8'));
+    const result = fs.readJSONSync(statusFile);
     this.rules.addRules(result);
 
     const subDir = fixtures.path('wpt', this.path);

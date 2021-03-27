@@ -332,6 +332,33 @@ If one or more `filehandle.read()` calls are made on a file handle and then a
 position till the end of the file. It doesn't always read from the beginning
 of the file.
 
+#### `filehandle.readJSON(options)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object|string}
+  * `encoding` {string|null} **Default:** `'utf8'`
+  * `reviver` {Function} Reviver function passed to [`JSON.parse`][].
+  * `signal` {AbortSignal} allows aborting an in-progress readJSON
+* Returns: {Promise} Fulfills upon a successful read with the contents of the
+  file parsed with [`JSON.parse`][].
+
+Asynchronously reads the contents of a file and call [`JSON.parse`][] on it.
+
+The `encoding` and `signal` options are passed to the underlying
+[`fsPromises.readFile()`][] call and the `reviver` option is passed to
+[`JSON.parse`][].
+
+If `options` is a string, then it specifies the `encoding`.
+
+The {FileHandle} has to support reading.
+
+If one or more `filehandle.read()` calls are made on a file handle and then a
+`filehandle.readJSON()` call is made, the data will be read from the current
+position till the end of the file. It doesn't always read from the beginning
+of the file.
+
 #### `filehandle.readv(buffers[, position])`
 <!-- YAML
 added:
@@ -986,6 +1013,39 @@ Aborting an ongoing request does not abort individual operating
 system requests but rather the internal buffering `fs.readFile` performs.
 
 Any specified {FileHandle} has to support reading.
+
+### `fsPromises.readJSON(path[, options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer|URL|FileHandle} filename or `FileHandle`
+* `options` {Object|string}
+  * `encoding` {string|null} **Default:** `'utf8'`
+  * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
+  * `reviver` {Function} Reviver function passed to [`JSON.parse`][].
+  * `signal` {AbortSignal} allows aborting an in-progress readFile
+* Returns: {Promise} Fulfills with the contents of the file parsed with
+  [`JSON.parse`][].
+
+Asynchronously reads the contents of a file and call [`JSON.parse`][] on it.
+
+The `path` parameter, and the `encoding`, `flag` and `signal` options are passed
+to the underlying [`fsPromises.readFile()`][] call and the `reviver` option is
+passed to [`JSON.parse`][].
+
+If `options` is a string, then it specifies the encoding.
+
+It is possible to abort an ongoing `readJSON` using an {AbortSignal}. If a
+request is aborted the promise returned is rejected with an `AbortError`.
+
+Any specified {FileHandle} has to support reading.
+
+```mjs
+import { readJSON } from 'fs/promises';
+
+const json = await readJSON('package.json');
+```
 
 ### `fsPromises.readlink(path[, options])`
 <!-- YAML
@@ -2952,6 +3012,35 @@ The Node.js GitHub issue [#25741][] provides more information and a detailed
 analysis on the performance of `fs.readFile()` for multiple file sizes in
 different Node.js versions.
 
+### `fs.readJSON(path[, options], callback)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer|URL|integer} filename or file descriptor
+* `options` {Object|string}
+  * `encoding` {string|null} **Default:** `'utf8'`
+  * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
+  * `reviver` {Function} Reviver function passed to [`JSON.parse`][].
+  * `signal` {AbortSignal} allows aborting an in-progress readJSON
+* `callback` {Function}
+  * `err` {Error|AggregateError}
+  * `data` {any}
+
+Asynchronously reads the contents of a file and call [`JSON.parse`][] on it.
+
+The `path` parameter, and the `encoding`, `flag` and `signal` options are passed
+to the underlying [`fs.readFileSync()`][] call and the `reviver` option is
+passed to to [`JSON.parse`][].
+
+For detailed information, see the documentation of [`fs.readFile()`][].
+
+```mjs
+import { readJSON } from 'fs';
+
+readJSON('package.json', callback);
+```
+
 ### `fs.readlink(path[, options], callback)`
 <!-- YAML
 added: v0.1.31
@@ -4616,6 +4705,33 @@ readFileSync('<directory>');
 
 //  FreeBSD
 readFileSync('<directory>'); // => <data>
+```
+
+### `fs.readJSONSync(path[, options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer|URL|integer} filename or file descriptor
+* `options` {Object|string}
+  * `encoding` {string|null} **Default:** `'utf8'`
+  * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
+  * `reviver` {Function} Reviver function passed to [`JSON.parse`][].
+* Returns: {any}
+
+Reads the contents of the `path` and returns the result of calling
+[`JSON.parse`][] on it.
+
+The `path` parameter, and the `encoding` and `flag` options are passed to the
+underlying [`fs.readFileSync()`][] call and the `reviver` option is passed to
+to [`JSON.parse`][].
+
+For detailed information, see the documentation of [`fs.readFile()`][].
+
+```mjs
+import { readJSONSync } from 'fs';
+
+const json = readJSONSync('package.json');
 ```
 
 ### `fs.readlinkSync(path[, options])`
@@ -6659,6 +6775,7 @@ the file contents.
 [`AHAFS`]: https://www.ibm.com/developerworks/aix/library/au-aix_event_infrastructure/
 [`Buffer.byteLength`]: buffer.md#buffer_static_method_buffer_bytelength_string_encoding
 [`FSEvents`]: https://developer.apple.com/documentation/coreservices/file_system_events
+[`JSON.Parse`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse
 [`Number.MAX_SAFE_INTEGER`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER
 [`ReadDirectoryChangesW`]: https://docs.microsoft.com/en-us/windows/desktop/api/winbase/nf-winbase-readdirectorychangesw
 [`UV_THREADPOOL_SIZE`]: cli.md#cli_uv_threadpool_size_size
@@ -6701,6 +6818,7 @@ the file contents.
 [`fs.writev()`]: #fs_fs_writev_fd_buffers_position_callback
 [`fsPromises.open()`]: #fs_fspromises_open_path_flags_mode
 [`fsPromises.opendir()`]: #fs_fspromises_opendir_path_options
+[`fsPromises.readFile()`]: #fs_fspromises_readfile_path_options
 [`fsPromises.rm()`]: #fs_fspromises_rm_path_options
 [`fsPromises.utimes()`]: #fs_fspromises_utimes_path_atime_mtime
 [`inotify(7)`]: https://man7.org/linux/man-pages/man7/inotify.7.html

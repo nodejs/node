@@ -59,8 +59,7 @@ for (const tr in tests) {
 
   const file = path.join(tmpdir.path, traceFile);
 
-  const data = fs.readFileSync(file);
-  const traces = JSON.parse(data.toString()).traceEvents
+  const traces = fs.readJSONSync(file).traceEvents
         .filter((trace) => trace.cat !== '__metadata');
 
   assert(traces.length > 0);
