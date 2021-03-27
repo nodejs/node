@@ -2462,6 +2462,7 @@ MSG_PROCESS_RETURN tls_process_certificate_request(SSL *s, PACKET *pkt)
         s->s3->tmp.ctype_len = 0;
         OPENSSL_free(s->pha_context);
         s->pha_context = NULL;
+        s->pha_context_len = 0;
 
         if (!PACKET_get_length_prefixed_1(pkt, &reqctx) ||
             !PACKET_memdup(&reqctx, &s->pha_context, &s->pha_context_len)) {
@@ -2771,16 +2772,17 @@ int tls_process_cert_status_body(SSL *s, PACKET *pkt)
     }
     s->ext.ocsp.resp = OPENSSL_malloc(resplen);
     if (s->ext.ocsp.resp == NULL) {
+        s->ext.ocsp.resp_len = 0;
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_PROCESS_CERT_STATUS_BODY,
                  ERR_R_MALLOC_FAILURE);
         return 0;
     }
+    s->ext.ocsp.resp_len = resplen;
     if (!PACKET_copy_bytes(pkt, s->ext.ocsp.resp, resplen)) {
         SSLfatal(s, SSL_AD_DECODE_ERROR, SSL_F_TLS_PROCESS_CERT_STATUS_BODY,
                  SSL_R_LENGTH_MISMATCH);
         return 0;
     }
-    s->ext.ocsp.resp_len = resplen;
 
     return 1;
 }
@@ -2905,6 +2907,7 @@ static int tls_construct_cke_psk_preamble(SSL *s, WPACKET *pkt)
     if (psklen > PSK_MAX_PSK_LEN) {
         SSLfatal(s, SSL_AD_HANDSHAKE_FAILURE,
                  SSL_F_TLS_CONSTRUCT_CKE_PSK_PREAMBLE, ERR_R_INTERNAL_ERROR);
+        psklen = PSK_MAX_PSK_LEN;   /* Avoid overrunning the array on cleanse */
         goto err;
     } else if (psklen == 0) {
         SSLfatal(s, SSL_AD_HANDSHAKE_FAILURE,
@@ -3350,9 +3353,11 @@ int tls_construct_client_key_exchange(SSL *s, WPACKET *pkt)
  err:
     OPENSSL_clear_free(s->s3->tmp.pms, s->s3->tmp.pmslen);
     s->s3->tmp.pms = NULL;
+    s->s3->tmp.pmslen = 0;
 #ifndef OPENSSL_NO_PSK
     OPENSSL_clear_free(s->s3->tmp.psk, s->s3->tmp.psklen);
     s->s3->tmp.psk = NULL;
+    s->s3->tmp.psklen = 0;
 #endif
     return 0;
 }
@@ -3427,6 +3432,7 @@ int tls_client_key_exchange_post_work(SSL *s)
  err:
     OPENSSL_clear_free(pms, pmslen);
     s->s3->tmp.pms = NULL;
+    s->s3->tmp.pmslen = 0;
     return 0;
 }
 
