@@ -104,7 +104,7 @@
     "npm-packlist": "^1.4.7",
     "npm-pick-manifest": "^3.0.2",
     "npm-profile": "^5.0.0",
-    "npm-registry-fetch": "^7.0.0",
+    "npm-registry-fetch": "^8.1.1",
     "npm-user-validate": "~1.0.0",
     "npmlog": "~4.1.2",
     "once": "~1.4.0",
