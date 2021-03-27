@@ -68,6 +68,7 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
   headers.forEach(function(h) {
     const req = http.get({
       port: port,
+      family: 4,
       headers: h
     });
     let sawUpgrade = false;

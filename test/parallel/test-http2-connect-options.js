@@ -22,7 +22,7 @@ const server = http2.createServer((req, res) => {
 });
 
 server.listen(0, '127.0.0.1', common.mustCall(() => {
-  const options = { localAddress: '127.0.0.2' };
+  const options = { localAddress: '127.0.0.2', family: 4 };
 
   const client = http2.connect(
     'http://localhost:' + server.address().port,

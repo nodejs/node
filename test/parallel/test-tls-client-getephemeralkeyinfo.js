@@ -40,6 +40,7 @@ function test(size, type, name, cipher) {
   server.listen(0, '127.0.0.1', common.mustCall(() => {
     const client = tls.connect({
       port: server.address().port,
+      family: 4,
       rejectUnauthorized: false
     }, common.mustCall(function() {
       const ekeyinfo = client.getEphemeralKeyInfo();

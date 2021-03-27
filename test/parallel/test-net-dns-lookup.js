@@ -29,8 +29,8 @@ const server = net.createServer(function(client) {
   server.close();
 });
 
-server.listen(0, '127.0.0.1', common.mustCall(function() {
-  net.connect(this.address().port, 'localhost')
+server.listen(0, common.localhostIPv4, common.mustCall(function() {
+  net.connect({ port: this.address().port, host: 'localhost', family: 4 })
     .on('lookup', common.mustCall(function(err, ip, type, host) {
       assert.strictEqual(err, null);
       assert.strictEqual(ip, '127.0.0.1');

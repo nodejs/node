@@ -42,6 +42,7 @@ const server = http.createServer((req, res) => {
 server.listen(0, '127.0.0.1', () => {
   const options = { host: 'localhost',
                     port: server.address().port,
+                    family: 4,
                     path: '/',
                     method: 'GET',
                     localAddress: '127.0.0.2' };

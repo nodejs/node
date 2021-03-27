@@ -393,7 +393,7 @@ class NodeInstance extends EventEmitter {
     console.log('[test]', `Testing ${path}`);
     const headers = hostHeaderValue ? { 'Host': hostHeaderValue } : null;
     return this.portPromise.then((port) => new Promise((resolve, reject) => {
-      const req = http.get({ host, port, path, headers }, (res) => {
+      const req = http.get({ host, port, family: 4, path, headers }, (res) => {
         let response = '';
         res.setEncoding('utf8');
         res
@@ -419,6 +419,7 @@ class NodeInstance extends EventEmitter {
     const port = await this.portPromise;
     return http.get({
       port,
+      family: 4,
       path: parseURL(devtoolsUrl).path,
       headers: {
         'Connection': 'Upgrade',
