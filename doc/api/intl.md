@@ -22,7 +22,8 @@ programs. Some of them are:
 * [`require('util').TextDecoder`][]
 * [`RegExp` Unicode Property Escapes][]
 
-Node.js (and its underlying V8 engine) uses [ICU][] to implement these features
+Node.js and the underlying V8 engine use
+[International Components for Unicode (ICU)][ICU] to implement these features
 in native C/C++ code. The full ICU data set is provided by Node.js by default.
 However, due to the size of the ICU data file, several
 options are provided for customizing the ICU data set either when
