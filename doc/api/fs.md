@@ -1317,6 +1317,8 @@ system requests but rather the internal buffering `fs.writeFile` performs.
 
 ## Callback API
 
+> Stability: 3 - Legacy: Use the Promise-based API instead.
+
 The callback APIs perform all operations asynchronously, without blocking the
 event loop, then invoke a callback function upon completion or error.
 
