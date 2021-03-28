@@ -16,6 +16,7 @@ const objects = [
   { bar: 'baz' },
   new Uint8Array([1, 2, 3, 4]),
   new Uint32Array([1, 2, 3, 4]),
+  new DataView(new ArrayBuffer(42)),
   Buffer.from([1, 2, 3, 4]),
   undefined,
   null,
