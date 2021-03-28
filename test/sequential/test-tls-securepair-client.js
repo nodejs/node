@@ -132,7 +132,7 @@ function test(keyPath, certPath, check, next) {
     pair.encrypted.pipe(s);
     s.pipe(pair.encrypted);
 
-    s.connect(port);
+    s.connect({ port, family: 4 });
 
     s.on('connect', function() {
       console.log('client connected');
