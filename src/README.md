@@ -812,7 +812,7 @@ reference to its associated JavaScript object. This can be useful when one
 `BaseObject` refers to another `BaseObject` and wants to make sure it stays
 alive during the lifetime of that reference.
 
-A `BaseObject` can be “detached” throught the `BaseObject::Detach()` method.
+A `BaseObject` can be “detached” through the `BaseObject::Detach()` method.
 In this case, it will be deleted once the last `BaseObjectPtr` referring to
 it is destroyed. There must be at least one such pointer when `Detach()` is
 called. This can be useful when one `BaseObject` fully owns another
