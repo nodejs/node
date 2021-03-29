@@ -331,5 +331,6 @@ module.exports = {
     globalThis: 'readable',
     btoa: 'readable',
     atob: 'readable',
+    performance: 'readable',
   },
 };

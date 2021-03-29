@@ -9,8 +9,7 @@ runner.setInitScript(`
   const { Blob } = require('buffer');
   global.Blob = Blob;
 
-  const { performance, PerformanceObserver } = require('perf_hooks');
-  global.performance = performance;
+  const { PerformanceObserver } = require('perf_hooks');
   global.PerformanceObserver = PerformanceObserver;
 `);
 

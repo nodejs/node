@@ -279,6 +279,10 @@ The `MessagePort` class. See [`MessagePort`][] for more details.
 
 This variable may appear to be global but is not. See [`module`][].
 
+## `performance`
+
+The [`perf_hooks.performance`][] object.
+
 ## `process`
 <!-- YAML
 added: v0.1.7
@@ -428,6 +432,7 @@ The object that acts as the namespace for all W3C
 [`console`]: console.md
 [`exports`]: modules.md#modules_exports
 [`module`]: modules.md#modules_module
+[`perf_hooks.performance`]: perf_hooks.md#perf_hooks_perf_hooks_performance
 [`process.nextTick()`]: process.md#process_process_nexttick_callback_args
 [`process` object]: process.md#process_process
 [`require()`]: modules.md#modules_require_id
