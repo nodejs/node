@@ -273,6 +273,13 @@
           }],
         ],
       }],
+      ['v8_target_arch=="riscv64"', {
+        'defines': [
+          'V8_TARGET_ARCH_RISCV64',
+          '__riscv_xlen=64',
+          'CAN_USE_FPU_INSTRUCTIONS'
+        ],
+      }],
       ['v8_target_arch=="s390x"', {
         'defines': [
           'V8_TARGET_ARCH_S390',
