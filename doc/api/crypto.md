@@ -3836,6 +3836,18 @@ const {
 console.log(getHashes()); // ['DSA', 'DSA-SHA', 'DSA-SHA1', ...]
 ```
 
+### `crypto.getRandomValues(typedArray)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `typedArray` {Buffer|TypedArray|DataView|ArrayBuffer}
+* Returns: {Buffer|TypedArray|DataView|ArrayBuffer} Returns `typedArray`.
+
+Alias for `crypto.webcrypto.getRandomValues(typedArray)`
+
+See [`webcrypto.getRandomValues()`][] for details.
+
 ### `crypto.hkdf(digest, key, salt, info, keylen, callback)`
 <!-- YAML
 added: v15.0.0
@@ -5002,6 +5014,13 @@ additional properties can be passed:
 
 If the `callback` function is provided this function uses libuv's threadpool.
 
+### `crypto.subtle`
+<!-- YAML
+added: REPLACEME
+-->
+
+Alias for [`webcrypto.subtle`][].
+
 ### `crypto.timingSafeEqual(a, b)`
 <!-- YAML
 added: v6.6.0
@@ -5724,6 +5743,8 @@ See the [list of SSL OP Flags][] for details.
 [`util.promisify()`]: util.md#util_util_promisify_original
 [`verify.update()`]: #crypto_verify_update_data_inputencoding
 [`verify.verify()`]: #crypto_verify_verify_object_signature_signatureencoding
+[`webcrypto.getRandomValues()`]: webcrypto.md#webcrypto_crypto_getrandomvalues_typedarray
+[`webcrypto.subtle`]: webcrypto.md#webcrypto_crypto_subtle
 [certificate object]: tls.md#tls_certificate_object
 [encoding]: buffer.md#buffer_buffers_and_character_encodings
 [initialization vector]: https://en.wikipedia.org/wiki/Initialization_vector
