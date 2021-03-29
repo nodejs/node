@@ -891,6 +891,10 @@ const { getEventListeners, EventEmitter } = require('events');
 added:
  - v11.13.0
  - v10.16.0
+changes:
+  - version: v14.17.0
+    pr-url: https://github.com/nodejs/node/pull/34912
+    description: The `signal` option is supported now.
 -->
 
 * `emitter` {EventEmitter}
