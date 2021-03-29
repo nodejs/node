@@ -8,8 +8,8 @@ module.exports = (mani, name) => {
     peerDependencies: peerDeps = {},
   } = mani
 
-  return typeof deps[name] === 'string' ? deps[name]
-    : typeof optDeps[name] === 'string' ? optDeps[name]
-    : typeof peerDeps[name] === 'string' ? peerDeps[name]
+  return deps && typeof deps[name] === 'string' ? deps[name]
+    : optDeps && typeof optDeps[name] === 'string' ? optDeps[name]
+    : peerDeps && typeof peerDeps[name] === 'string' ? peerDeps[name]
     : null
 }

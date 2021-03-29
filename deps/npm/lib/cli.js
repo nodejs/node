@@ -61,9 +61,6 @@ module.exports = (process) => {
       impl(npm.argv, errorHandler)
     else {
       try {
-        // I don't know why this is needed but we get a cb() not called if we
-        // omit it
-        npm.log.level = 'silent'
         if (cmd) {
           const didYouMean = require('./utils/did-you-mean.js')
           const suggestions = await didYouMean(npm, npm.localPrefix, cmd)
@@ -71,6 +68,7 @@ module.exports = (process) => {
         } else
           npm.output(npm.usage)
         process.exitCode = 1
+        return errorHandler()
       } catch (err) {
         errorHandler(err)
       }

@@ -674,7 +674,7 @@ Show extended information in \`npm ls\` and \`npm search\`.
 
 #### \`maxsockets\`
 
-* Default: Infinity
+* Default: 15
 * Type: Number
 
 The maximum number of connections to use per origin (protocol/host/port

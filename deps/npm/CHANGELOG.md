@@ -1,3 +1,31 @@
+## v7.7.6 (2021-03-29)
+
+### BUG FIXES
+
+* [`9dd2ed518`](https://github.com/npm/cli/commit/9dd2ed5189b6f283094664e9e192cf1598ec3f79)
+  fix empty newline printed to stderr
+  ([@ruyadorno](https://github.com/ruyadorno))
+* [`9d391462a`](https://github.com/npm/cli/commit/9d391462a25f637219501e2430ef1f7b89710816)
+  [#2973](https://github.com/npm/cli/issues/2973)
+  fix spelling in workspaces.md file
+  ([@sethomas](https://github.com/sethomas))
+* [`4b100249a`](https://github.com/npm/cli/commit/4b100249a6cad67e002186816e64817313b636c7)
+  [#2979](https://github.com/npm/cli/issues/2979)
+  change 'maxsockets' default value back to 15
+  ([@wallrat](https://github.com/wallrat))
+
+### DEPENDENCIES
+
+* [`a28f89572`](https://github.com/npm/cli/commit/a28f89572a708cced69cc938f877eaa969dbad9e)
+  `libnpmversion@1.1.0`
+    * fix reading `script-shell` config on `npm version` lifecycle scripts
+* [`03734c29e`](https://github.com/npm/cli/commit/03734c29e00191d17f164d1c0e75d9f228268842)
+  `npm-packlist@2.1.5`
+    * fix packaging `bundledDependencies`
+* [`80ce2a019`](https://github.com/npm/cli/commit/80ce2a019526632b01b70e1c75c42608dc160332)
+  `@npmcli/metavuln-calculator@1.1.1`
+    * fix error auditing package documents with missing dependencies
+
 ## v7.7.5 (2021-03-25)
 
 ### BUG FIXES
