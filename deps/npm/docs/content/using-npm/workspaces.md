@@ -90,7 +90,7 @@ nested workspaces to be consumed elsewhere.
 
 ### Running commands in the context of workspaces
 
-You man use the `workspace` configuration option to run commands in the context
+You can use the `workspace` configuration option to run commands in the context
 of a configured workspace.
 
 Following is a quick example on how to use the `npm run` command in the context

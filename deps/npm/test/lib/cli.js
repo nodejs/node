@@ -172,17 +172,37 @@ t.test('gracefully handles error printing usage', t => {
   t.teardown(() => {
     npmock.output = output
     errorHandlerCb = null
+    errorHandlerCalled = null
   })
   const proc = {
-    argv: ['node', 'npm', 'asdf'],
+    argv: ['node', 'npm'],
     on: () => {},
   }
   npmock.argv = []
-  npmock.output = (msg) => {
-    throw new Error('test exception')
+  errorHandlerCb = () => {
+    t.match(errorHandlerCalled, [], 'should call errorHandler with no args')
+    t.end()
+  }
+  cli(proc)
+})
+
+t.test('handles output error', t => {
+  const { output } = npmock
+  t.teardown(() => {
+    npmock.output = output
+    errorHandlerCb = null
+    errorHandlerCalled = null
+  })
+  const proc = {
+    argv: ['node', 'npm'],
+    on: () => {},
+  }
+  npmock.argv = []
+  npmock.output = () => {
+    throw new Error('ERR')
   }
   errorHandlerCb = () => {
-    t.match(errorHandlerCalled, /test exception/)
+    t.match(errorHandlerCalled, /ERR/, 'should call errorHandler with error')
     t.end()
   }
   cli(proc)
@@ -191,6 +211,7 @@ t.test('gracefully handles error printing usage', t => {
 t.test('load error calls error handler', t => {
   t.teardown(() => {
     errorHandlerCb = null
+    errorHandlerCalled = null
     LOAD_ERROR = null
   })
 
