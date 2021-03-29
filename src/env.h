@@ -960,6 +960,7 @@ class Environment : public MemoryRetainer {
   void CreateProperties();
   void DeserializeProperties(const EnvSerializeInfo* info);
 
+  void PrintInfoForSnapshotIfDebug();
   void PrintAllBaseObjects();
   void VerifyNoStrongBaseObjects();
   void EnqueueDeserializeRequest(DeserializeRequestCallback cb,
@@ -1123,6 +1124,7 @@ class Environment : public MemoryRetainer {
   // List of id's that have been destroyed and need the destroy() cb called.
   inline std::vector<double>* destroy_async_id_list();
 
+  std::set<struct node_module*> internal_bindings;
   std::set<std::string> native_modules_with_cache;
   std::set<std::string> native_modules_without_cache;
   // This is only filled during deserialization. We use a vector since

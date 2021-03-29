@@ -1232,6 +1232,25 @@ void Environment::RemoveUnmanagedFd(int fd) {
   }
 }
 
+void Environment::PrintInfoForSnapshotIfDebug() {
+  if (enabled_debug_list()->enabled(DebugCategory::MKSNAPSHOT)) {
+    fprintf(stderr, "BaseObjects at the exit of the Environment:\n");
+    PrintAllBaseObjects();
+    fprintf(stderr, "\nNative modules without cache:\n");
+    for (const auto& s : native_modules_without_cache) {
+      fprintf(stderr, "%s\n", s.c_str());
+    }
+    fprintf(stderr, "\nNative modules with cache:\n");
+    for (const auto& s : native_modules_with_cache) {
+      fprintf(stderr, "%s\n", s.c_str());
+    }
+    fprintf(stderr, "\nStatic bindings (need to be registered):\n");
+    for (const auto mod : internal_bindings) {
+      fprintf(stderr, "%s:%s\n", mod->nm_filename, mod->nm_modname);
+    }
+  }
+}
+
 void Environment::PrintAllBaseObjects() {
   size_t i = 0;
   std::cout << "BaseObjects\n";
