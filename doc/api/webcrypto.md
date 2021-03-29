@@ -2,7 +2,7 @@
 
 <!-- introduced_in=v15.0.0 -->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 Node.js provides an implementation of the standard [Web Crypto API][].
 
