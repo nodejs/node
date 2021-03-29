@@ -254,6 +254,40 @@ const net = require('net');
 }
 
 {
+  const server = http.createServer((req, res) => {
+    pipeline(req, res, common.mustSucceed());
+  });
+
+  server.listen(0, () => {
+    const req = http.request({
+      port: server.address().port
+    });
+
+    let sent = 0;
+    const rs = new Readable({
+      read() {
+        if (sent++ > 10) {
+          return;
+        }
+        rs.push('hello');
+      }
+    });
+
+    pipeline(rs, req, common.mustCall(() => {
+      server.close();
+    }));
+
+    req.on('response', (res) => {
+      let cnt = 10;
+      res.on('data', () => {
+        cnt--;
+        if (cnt === 0) rs.destroy();
+      });
+    });
+  });
+}
+
+{
   const makeTransform = () => {
     const tr = new Transform({
       transform(data, enc, cb) {
