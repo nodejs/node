@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 
 // No warnings should happen!
 const trace = console.trace;
@@ -59,3 +59,5 @@ server.listen(0, function() {
   client.end();
   client.pipe(process.stdout);
 });
+
+process.on('warning', common.mustNotCall());
