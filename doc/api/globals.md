@@ -164,6 +164,29 @@ added: REPLACEME
 
 Global alias for [`buffer.btoa()`][].
 
+## `cancelAnimationFrame(immediateObject)`
+<!-- YAML
+added: REPLACEME
+-->
+
+<!--type=global-->
+
+> Stability: 3 - Legacy: Use clearImmediate() instead.
+
+* `immediateObject` {Object} The return value of `requestAnimationFrame()`
+  identifying the request being canceled.
+
+```js
+const req = requestAnimationFrame((ts) => {
+  console.log(`called at ${ts}`);
+});
+
+cancelAnimationFrame(req);
+```
+
+In Node.js, `cancelAnimationFrame()` is an alias for `clearImmediate()`.
+Code specifically targeting Node.js should use `clearImmediate()` instead.
+
 ## `clearImmediate(immediateObject)`
 <!-- YAML
 added: v0.9.1
@@ -328,6 +351,33 @@ DataHandler.prototype.load = async function load(key) {
   this.emit('load', data);
 };
 ```
+
+## `requestAnimationFrame(callback)`
+<!-- YAML
+added: REPLACEME
+-->
+
+<!--type=global-->
+
+> Stability: 3 - Legacy: Use the setImmediate() instead.
+
+* `callback` {Function}
+* Returns {Object}
+
+Registers a function with `setImmediate()` that is invoked with a single
+argument set to the value of `perf_hooks.performance.now()`.
+
+```js
+requestAnimationFrame((ts) => {
+  console.log(`called at ${ts}`);
+});
+```
+
+Node.js does not implement the same timing and event loop frame semantics
+as Web Browsers and does not include any notion of rendering or "animation".
+The `requestAnimationFrame()` method should be considered a close approximation
+to enable cross-environment portable JavaScript code to be written. Code
+specifically targeting Node.js should use `setImmediate()` instead.
 
 ## `require()`
 

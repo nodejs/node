@@ -261,6 +261,8 @@ function platformTimeout(ms) {
   return ms; // ARMv8+
 }
 
+const requestAnimationFrame = globalThis.requestAnimationFrame;
+
 let knownGlobals = [
   atob,
   btoa,
@@ -268,6 +270,7 @@ let knownGlobals = [
   clearInterval,
   clearTimeout,
   global,
+  requestAnimationFrame,
   setImmediate,
   setInterval,
   setTimeout,

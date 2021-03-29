@@ -331,5 +331,7 @@ module.exports = {
     globalThis: 'readable',
     btoa: 'readable',
     atob: 'readable',
+    requestAnimationFrame: 'readable',
+    cancelAnimationFrame: 'readable',
   },
 };
