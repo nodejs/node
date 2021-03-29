@@ -14,7 +14,7 @@ events.captureRejections = true;
       throw _err;
     }));
 
-    res.on('error', common.mustCall((err) => {
+    res.socket.on('error', common.mustCall((err) => {
       assert.strictEqual(err, _err);
     }));
 
