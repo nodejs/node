@@ -5,6 +5,43 @@
  * Make sure to inspect the output below.  Do not ignore changes!
  */
 'use strict'
+exports[`smoke-tests/index.js TAP npm (no args) > should have expected no args output 1`] = `
+npm <command>
+
+Usage:
+
+npm install        install all the dependencies in your project
+npm install <foo>  add the <foo> dependency to your project
+npm test           run this project's tests
+npm run <foo>      run the script named <foo>
+npm <command> -h   quick help on <command>
+npm -l             display usage info for all commands
+npm help <term>    search for help on <term>
+npm help npm       more involved overview
+
+All commands:
+
+    access, adduser, audit, bin, bugs, cache, ci, completion,
+    config, dedupe, deprecate, diff, dist-tag, docs, doctor,
+    edit, exec, explain, explore, find-dupes, fund, get, help,
+    hook, init, install, install-ci-test, install-test, link,
+    ll, login, logout, ls, org, outdated, owner, pack, ping,
+    prefix, profile, prune, publish, rebuild, repo, restart,
+    root, run-script, search, set, set-script, shrinkwrap, star,
+    stars, start, stop, team, test, token, uninstall, unpublish,
+    unstar, update, version, view, whoami
+
+Specify configs in the ini-formatted file:
+    {CWD}/smoke-tests/index/.npmrc
+or on the command line via: npm <command> --key=value
+
+More configuration info: npm help config
+Configuration fields: npm help 7 config
+
+npm {CWD}
+
+`
+
 exports[`smoke-tests/index.js TAP npm diff > should have expected diff output 1`] = `
 diff --git a/package.json b/package.json
 index v1.0.4..v1.1.1 100644

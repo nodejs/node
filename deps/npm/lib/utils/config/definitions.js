@@ -1154,7 +1154,7 @@ define('long', {
 })
 
 define('maxsockets', {
-  default: Infinity,
+  default: 15,
   type: Number,
   description: `
     The maximum number of connections to use per origin (protocol/host/port
