@@ -182,6 +182,13 @@ const npmWalker = Class => class Walker extends Class {
 
   getPackageFiles (entries, pkg) {
     try {
+      // XXX this could be changed to use read-package-json-fast
+      // which handles the normalizing of bins for us, and simplifies
+      // the test for bundleDependencies and bundledDependencies later.
+      // HOWEVER if we do this, we need to be sure that we're careful
+      // about what we write back out since rpj-fast removes some fields
+      // that the user likely wants to keep. it also would add a second
+      // file read that we would want to optimize away.
       pkg = normalizePackageBin(JSON.parse(pkg.toString()))
     } catch (er) {
       // not actually a valid package.json
@@ -202,7 +209,7 @@ const npmWalker = Class => class Walker extends Class {
     // the files list as the effective readdir result, that means it
     // looks like we don't have a node_modules folder at all unless we
     // include it here.
-    if (pkg.bundleDependencies && entries.includes('node_modules'))
+    if ((pkg.bundleDependencies || pkg.bundledDependencies) && entries.includes('node_modules'))
       pkg.files.push('node_modules')
 
     const patterns = Array.from(new Set(pkg.files)).reduce((set, pattern) => {
