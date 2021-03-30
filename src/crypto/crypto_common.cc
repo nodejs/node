@@ -480,8 +480,17 @@ MaybeLocal<Object> GetLastIssuedCert(
       return MaybeLocal<Object>();
     issuer_chain = ca_info;
 
+    // Take the value of cert->get() before and after the call to cert->reset()
+    // in order to compare them and provide a way to exit this loop
+    // in case it gets stuck
+    X509* value_before_reset = cert->get();
+
     // Delete previous cert and continue aggregating issuers.
     cert->reset(ca);
+
+    X509* value_after_reset = cert->get();
+    if (value_before_reset == value_after_reset)
+      break;
   }
   return MaybeLocal<Object>(issuer_chain);
 }
