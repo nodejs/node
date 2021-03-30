@@ -1,3 +1,7 @@
+1.1.1
+- Better support for Babel reexport getter function forms (https://github.com/guybedford/cjs-module-lexer/issues/50)
+- Support Babel interopRequireWildcard reexports patterns (https://github.com/guybedford/cjs-module-lexer/issues/52)
+
 1.1.0
 - Support for Babel reexport conflict filter (https://github.com/guybedford/cjs-module-lexer/issues/36, @nicolo-ribaudo)
 - Support trailing commas in getter patterns (https://github.com/guybedford/cjs-module-lexer/issues/31)
