@@ -97,7 +97,18 @@ function parseSource (cjsSource) {
           lastTokenPos = pos;
           continue;
         case 95/*_*/:
-          if (source.startsWith('_export', pos + 1) && (keywordStart(pos) || source.charCodeAt(pos - 1) === 46/*.*/)) {
+          if (source.startsWith('interopRequireWildcard', pos + 1) && (keywordStart(pos) || source.charCodeAt(pos - 1) === 46/*.*/)) {
+            const startPos = pos;
+            pos += 23;
+            if (source.charCodeAt(pos) === 40/*(*/) {
+              pos++;
+              openTokenPosStack[openTokenDepth++] = lastTokenPos;
+              if (tryParseRequire(Import) && keywordStart(startPos)) {
+                tryBacktrackAddStarExportBinding(startPos - 1);
+              }
+            }
+          }
+          else if (source.startsWith('_export', pos + 1) && (keywordStart(pos) || source.charCodeAt(pos - 1) === 46/*.*/)) {
             pos += 8;
             if (source.startsWith('Star', pos))
               pos += 4;
@@ -254,6 +265,48 @@ function tryBacktrackAddStarExportBinding (bPos) {
   }
 }
 
+// `Object.` `prototype.`? hasOwnProperty.call(`  IDENTIFIER `, ` IDENTIFIER$2 `)`
+function tryParseObjectHasOwnProperty (it_id) {
+  ch = commentWhitespace();
+  if (ch !== 79/*O*/ || !source.startsWith('bject', pos + 1)) return false;
+  pos += 6;
+  ch = commentWhitespace();
+  if (ch !== 46/*.*/) return false;
+  pos++;
+  ch = commentWhitespace();
+  if (ch === 112/*p*/) {
+    if (!source.startsWith('rototype', pos + 1)) return false;
+    pos += 9;
+    ch = commentWhitespace();
+    if (ch !== 46/*.*/) return false;
+    pos++;
+    ch = commentWhitespace();
+  }
+  if (ch !== 104/*h*/ || !source.startsWith('asOwnProperty', pos + 1)) return false;
+  pos += 14;
+  ch = commentWhitespace();
+  if (ch !== 46/*.*/) return false;
+  pos++;
+  ch = commentWhitespace();
+  if (ch !== 99/*c*/ || !source.startsWith('all', pos + 1)) return false;
+  pos += 4;
+  ch = commentWhitespace();
+  if (ch !== 40/*(*/) return false;
+  pos++;
+  ch = commentWhitespace();
+  if (!identifier()) return false;
+  ch = commentWhitespace();
+  if (ch !== 44/*,*/) return false;
+  pos++;
+  ch = commentWhitespace();
+  if (!source.startsWith(it_id, pos)) return false;
+  pos += it_id.length;
+  ch = commentWhitespace();
+  if (ch !== 41/*)*/) return false;
+  pos++;
+  return true;
+}
+
 function tryParseObjectDefineOrKeys (keys) {
   pos += 6;
   let revertPos = pos - 1;
@@ -366,6 +419,10 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch !== 125/*}*/) break;
           pos++;
           ch = commentWhitespace();
+          if (ch === 44/*,*/) {
+            pos++;
+            ch = commentWhitespace();
+          }
           if (ch !== 125/*}*/) break;
           pos++;
           ch = commentWhitespace();
@@ -469,8 +526,94 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch === 59/*;*/)
             pos++;
           ch = commentWhitespace();
+
+          // `if (`
+          if (ch === 105/*i*/ && source.charCodeAt(pos + 1) === 102/*f*/) {
+            let inIf = true;
+            pos += 2;
+            ch = commentWhitespace();
+            if (ch !== 40/*(*/) break;
+            pos++;
+            const ifInnerPos = pos;
+            // `Object.prototype.hasOwnProperty.call(`  IDENTIFIER `, ` IDENTIFIER$2 `)) return` `;`?
+            if (tryParseObjectHasOwnProperty(it_id)) {
+              ch = commentWhitespace();
+              if (ch !== 41/*)*/) break;
+              pos++;
+              ch = commentWhitespace();
+              if (ch !== 114/*r*/ || !source.startsWith('eturn', pos + 1)) break;
+              pos += 6;
+              ch = commentWhitespace();
+              if (ch === 59/*;*/)
+                pos++;
+              ch = commentWhitespace();
+              // match next if
+              if (ch === 105/*i*/ && source.charCodeAt(pos + 1) === 102/*f*/) {
+                pos += 2;
+                ch = commentWhitespace();
+                if (ch !== 40/*(*/) break;
+                pos++;
+              }
+              else {
+                inIf = false;
+              }
+            }
+            else {
+              pos = ifInnerPos;
+            }
+
+            // IDENTIFIER$2 `in` EXPORTS_IDENTIFIER `&&` EXPORTS_IDENTIFIER `[` IDENTIFIER$2 `] ===` IDENTIFIER$1 `[` IDENTIFIER$2 `]) return` `;`?
+            if (inIf) {
+              if (!source.startsWith(it_id, pos)) break;
+              pos += it_id.length;
+              ch = commentWhitespace();
+              if (ch !== 105/*i*/ || !source.startsWith('n ', pos + 1)) break;
+              pos += 3;
+              ch = commentWhitespace();
+              if (!readExportsOrModuleDotExports(ch)) break;
+              ch = commentWhitespace();
+              if (ch !== 38/*&*/ || source.charCodeAt(pos + 1) !== 38/*&*/) break;
+              pos += 2;
+              ch = commentWhitespace();
+              if (!readExportsOrModuleDotExports(ch)) break;
+              ch = commentWhitespace();
+              if (ch !== 91/*[*/) break;
+              pos++;
+              ch = commentWhitespace();
+              if (!source.startsWith(it_id, pos)) break;
+              pos += it_id.length;
+              ch = commentWhitespace();
+              if (ch !== 93/*]*/) break;
+              pos++;
+              ch = commentWhitespace();
+              if (ch !== 61/*=*/ || !source.startsWith('==', pos + 1)) break;
+              pos += 3;
+              ch = commentWhitespace();
+              if (!source.startsWith(id, pos)) break;
+              pos += id.length;
+              ch = commentWhitespace();
+              if (ch !== 91/*[*/) break;
+              pos++;
+              ch = commentWhitespace();
+              if (!source.startsWith(it_id, pos)) break;
+              pos += it_id.length;
+              ch = commentWhitespace();
+              if (ch !== 93/*]*/) break;
+              pos++;
+              ch = commentWhitespace();
+              if (ch !== 41/*)*/) break;
+              pos++;
+              ch = commentWhitespace();
+              if (ch !== 114/*r*/ || !source.startsWith('eturn', pos + 1)) break;
+              pos += 6;
+              ch = commentWhitespace();
+              if (ch === 59/*;*/)
+                pos++;
+              ch = commentWhitespace();
+            }
+          }
         }
-        // `if (` IDENTIFIER$2 `!==` ( `'default'` | `"default"` ) `)`
+        // `if (` IDENTIFIER$2 `!==` ( `'default'` | `"default"` ) (`&& !` IDENTIFIER `.hasOwnProperty(` IDENTIFIER$2 `)`  )? `)`
         else if (ch === 33/*!*/) {
           if (!source.startsWith('==', pos + 1)) break;
           pos += 3;
@@ -483,66 +626,39 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch !== quot) break;
           pos += 1;
           ch = commentWhitespace();
+          if (ch === 38/*&*/) {
+            if (source.charCodeAt(pos + 1) !== 38/*&*/) break;
+            pos += 2;
+            ch = commentWhitespace();
+            if (ch !== 33/*!*/) break;
+            pos += 1;
+            ch = commentWhitespace();
+            if (source.startsWith(id, pos)) {
+              pos += id.length;
+              ch = commentWhitespace();
+              if (ch !== 46/*.*/) break;
+              pos++;
+              ch = commentWhitespace();
+              if (ch !== 104/*h*/ || !source.startsWith('asOwnProperty', pos + 1)) break;
+              pos += 14;
+              ch = commentWhitespace();
+              if (ch !== 40/*(*/) break;
+              pos += 1;
+              ch = commentWhitespace();
+              if (!source.startsWith(it_id, pos)) break;
+              pos += it_id.length;
+              ch = commentWhitespace();
+              if (ch !== 41/*)*/) break;
+              pos += 1;
+            }
+            else if (!tryParseObjectHasOwnProperty(it_id)) break;
+            ch = commentWhitespace();
+          }
           if (ch !== 41/*)*/) break;
           pos += 1;
           ch = commentWhitespace();
         }
         else break;
-
-        // `if (` IDENTIFIER$2 `in` EXPORTS_IDENTIFIER `&&` EXPORTS_IDENTIFIER `[` IDENTIFIER$2 `] ===` IDENTIFIER$1 `[` IDENTIFIER$2 `]) return` `;`?
-        if (ch === 105/*i*/ && source.charCodeAt(pos + 1) === 102/*f*/) {
-          pos += 2;
-          ch = commentWhitespace();
-          if (ch !== 40/*(*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (!source.startsWith(it_id, pos)) break;
-          pos += it_id.length;
-          ch = commentWhitespace();
-          if (ch !== 105/*i*/ || !source.startsWith('n ', pos + 1)) break;
-          pos += 3;
-          ch = commentWhitespace();
-          if (!readExportsOrModuleDotExports(ch)) break;
-          ch = commentWhitespace();
-          if (ch !== 38/*&*/ || source.charCodeAt(pos + 1) !== 38/*&*/) break;
-          pos += 2;
-          ch = commentWhitespace();
-          if (!readExportsOrModuleDotExports(ch)) break;
-          ch = commentWhitespace();
-          if (ch !== 91/*[*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (!source.startsWith(it_id, pos)) break;
-          pos += it_id.length;
-          ch = commentWhitespace();
-          if (ch !== 93/*]*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch !== 61/*=*/ || !source.startsWith('==', pos + 1)) break;
-          pos += 3;
-          ch = commentWhitespace();
-          if (!source.startsWith(id, pos)) break;
-          pos += id.length;
-          ch = commentWhitespace();
-          if (ch !== 91/*[*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (!source.startsWith(it_id, pos)) break;
-          pos += it_id.length;
-          ch = commentWhitespace();
-          if (ch !== 93/*]*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch !== 41/*)*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch !== 114/*r*/ || !source.startsWith('eturn', pos + 1)) break;
-          pos += 6;
-          ch = commentWhitespace();
-          if (ch === 59/*;*/)
-            pos++;
-          ch = commentWhitespace();
-        }
 
         // EXPORTS_IDENTIFIER `[` IDENTIFIER$2 `] =` IDENTIFIER$1 `[` IDENTIFIER$2 `]`
         if (readExportsOrModuleDotExports(ch)) {
@@ -619,12 +735,17 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch !== 103/*g*/ || !source.startsWith('et', pos + 1)) break;
           pos += 3;
           ch = commentWhitespace();
-          if (ch !== 58/*:*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch !== 102/*f*/ || !source.startsWith('unction', pos + 1)) break;
-          pos += 8;
-          ch = commentWhitespace();
+          if (ch === 58/*:*/) {
+            pos++;
+            ch = commentWhitespace();
+            if (ch !== 102/*f*/) break;
+            if (!source.startsWith('unction', pos + 1)) break;
+            pos += 8;
+            let lastPos = pos;
+            ch = commentWhitespace();
+            if (ch !== 40 && (lastPos === pos || !identifier())) break;
+            ch = commentWhitespace();
+          }
           if (ch !== 40/*(*/) break;
           pos++;
           ch = commentWhitespace();
@@ -656,6 +777,10 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch !== 125/*}*/) break;
           pos++;
           ch = commentWhitespace();
+          if (ch === 44/*,*/) {
+            pos++;
+            ch = commentWhitespace();
+          }
           if (ch !== 125/*}*/) break;
           pos++;
           ch = commentWhitespace();
@@ -1039,7 +1164,6 @@ function throwIfImportStatement () {
     // import.meta
     case 46/*.*/:
       throw new Error('Unexpected import.meta in CJS module.');
-      return;
 
     default:
       // no space after "import" -> not an import keyword
