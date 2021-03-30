@@ -97,7 +97,18 @@ function parseSource (cjsSource) {
           lastTokenPos = pos;
           continue;
         case 95/*_*/:
-          if (source.startsWith('_export', pos + 1) && (keywordStart(pos) || source.charCodeAt(pos - 1) === 46/*.*/)) {
+          if (source.startsWith('interopRequireWildcard', pos + 1) && (keywordStart(pos) || source.charCodeAt(pos - 1) === 46/*.*/)) {
+            const startPos = pos;
+            pos += 23;
+            if (source.charCodeAt(pos) === 40/*(*/) {
+              pos++;
+              openTokenPosStack[openTokenDepth++] = lastTokenPos;
+              if (tryParseRequire(Import) && keywordStart(startPos)) {
+                tryBacktrackAddStarExportBinding(startPos - 1);
+              }
+            }
+          }
+          else if (source.startsWith('_export', pos + 1) && (keywordStart(pos) || source.charCodeAt(pos - 1) === 46/*.*/)) {
             pos += 8;
             if (source.startsWith('Star', pos))
               pos += 4;
@@ -724,12 +735,17 @@ function tryParseObjectDefineOrKeys (keys) {
           if (ch !== 103/*g*/ || !source.startsWith('et', pos + 1)) break;
           pos += 3;
           ch = commentWhitespace();
-          if (ch !== 58/*:*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch !== 102/*f*/ || !source.startsWith('unction', pos + 1)) break;
-          pos += 8;
-          ch = commentWhitespace();
+          if (ch === 58/*:*/) {
+            pos++;
+            ch = commentWhitespace();
+            if (ch !== 102/*f*/) break;
+            if (!source.startsWith('unction', pos + 1)) break;
+            pos += 8;
+            let lastPos = pos;
+            ch = commentWhitespace();
+            if (ch !== 40 && (lastPos === pos || !identifier())) break;
+            ch = commentWhitespace();
+          }
           if (ch !== 40/*(*/) break;
           pos++;
           ch = commentWhitespace();
