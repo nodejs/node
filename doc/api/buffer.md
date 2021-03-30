@@ -3279,7 +3279,7 @@ accessed using `require('buffer')`.
 
 ### `buffer.atob(data)`
 <!-- YAML
-added: REPLACEME
+added: v15.13.0
 -->
 
 > Stability: 3 - Legacy. Use `Buffer.from(data, 'base64')` instead.
@@ -3300,7 +3300,7 @@ and binary data should be performed using `Buffer.from(str, 'base64')` and
 
 ### `buffer.btoa(data)`
 <!-- YAML
-added: REPLACEME
+added: v15.13.0
 -->
 
 > Stability: 3 - Legacy. Use `buf.toString('base64')` instead.
