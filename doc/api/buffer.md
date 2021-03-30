@@ -3279,7 +3279,7 @@ accessed using `require('buffer')`.
 
 ### `buffer.atob(data)`
 <!-- YAML
-added: REPLACEME
+added: v15.13.0
 -->
 
 * `data` {any} The Base64-encoded input string.
@@ -3298,7 +3298,7 @@ and binary data should be performed using `Buffer.from(str, 'base64')` and
 
 ### `buffer.btoa(data)`
 <!-- YAML
-added: REPLACEME
+added: v15.13.0
 -->
 
 * `data` {any} An ASCII (Latin1) string.

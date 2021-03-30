@@ -374,7 +374,7 @@ controller.abort();
 <!-- YAML
 added: v0.5.0
 changes:
-  - version: REPLACEME
+  - version: v15.13.0
     pr-url: https://github.com/nodejs/node/pull/37256
     description: timeout was added.
   - version: v15.11.0
@@ -483,7 +483,7 @@ if (process.argv[2] === 'child') {
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
+  - version: v15.13.0
     pr-url: https://github.com/nodejs/node/pull/37256
     description: timeout was added.
   - version: v15.11.0
