@@ -898,13 +898,6 @@ void Agent::ContextCreated(Local<Context> context, const ContextInfo& info) {
   client_->contextCreated(context, info);
 }
 
-bool Agent::WillWaitForConnect() {
-  if (debug_options_.wait_for_connect()) return true;
-  if (parent_handle_)
-    return parent_handle_->WaitForConnect();
-  return false;
-}
-
 bool Agent::IsActive() {
   if (client_ == nullptr)
     return false;
