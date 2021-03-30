@@ -4,6 +4,7 @@ const testSuitePaths = {
   draft6: "spec/JSON-Schema-Test-Suite/tests/draft6/",
   draft7: "spec/JSON-Schema-Test-Suite/tests/draft7/",
   draft2019: "spec/JSON-Schema-Test-Suite/tests/draft2019-09/",
+  draft2020: "spec/JSON-Schema-Test-Suite/tests/draft2020-12/",
   tests: "spec/tests/",
   security: "spec/security/",
   extras: "spec/extras/",

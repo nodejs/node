@@ -162,17 +162,6 @@ module.exports = {
         }
 
         /**
-         * Checks whether the operator of a given node is mixed with a
-         * conditional expression.
-         * @param {ASTNode} node A node to check. This is a conditional
-         *      expression node
-         * @returns {boolean} `true` if the node was mixed.
-         */
-        function isMixedWithConditionalParent(node) {
-            return !astUtils.isParenthesised(sourceCode, node) && !astUtils.isParenthesised(sourceCode, node.test);
-        }
-
-        /**
          * Gets the operator token of a given node.
          * @param {ASTNode} node A node to check. This is a BinaryExpression
          *      node or a LogicalExpression node.
@@ -220,19 +209,13 @@ module.exports = {
          * @returns {void}
          */
         function check(node) {
-            if (TARGET_NODE_TYPE.test(node.parent.type)) {
-                if (node.parent.type === "ConditionalExpression" && !shouldIgnore(node) && isMixedWithConditionalParent(node.parent)) {
-                    reportBothOperators(node);
-                } else {
-                    if (TARGET_NODE_TYPE.test(node.parent.type) &&
-                        isMixedWithParent(node) &&
-                        !shouldIgnore(node)
-                    ) {
-                        reportBothOperators(node);
-                    }
-                }
+            if (
+                TARGET_NODE_TYPE.test(node.parent.type) &&
+                isMixedWithParent(node) &&
+                !shouldIgnore(node)
+            ) {
+                reportBothOperators(node);
             }
-
         }
 
         return {

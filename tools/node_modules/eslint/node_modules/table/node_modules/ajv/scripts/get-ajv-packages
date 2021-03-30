@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+declare -a packages=(
+  "ajv-keywords"
+  "ajv-formats"
+  "ajv-cli"
+  "ajv-errors"
+  "ajv-i18n"
+)
+
+for package in "${packages[@]}"
+do
+  echo "downloading $package README..."
+  echo "---" > docs/packages/$package.md
+  echo "editLink: https://github.com/ajv-validator/$package/edit/master/README.md" >> docs/packages/$package.md
+  echo "---" >> docs/packages/$package.md
+  echo "[$package repository](https://github.com/ajv-validator/$package)" >> docs/packages/$package.md
+  echo "" >> docs/packages/$package.md
+  curl -L https://raw.githubusercontent.com/ajv-validator/$package/master/README.md >> ./docs/packages/$package.md
+done
