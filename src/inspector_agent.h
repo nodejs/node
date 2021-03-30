@@ -59,8 +59,6 @@ class Agent {
   // --inspect command line flag) or if inspector JS API had been used.
   bool IsActive();
 
-  // Option is set to wait for session connection
-  bool WillWaitForConnect();
   // Blocks till frontend connects and sends "runIfWaitingForDebugger"
   void WaitForConnect();
   // Blocks till all the sessions with "WaitForDisconnectOnShutdown" disconnect
