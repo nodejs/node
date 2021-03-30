@@ -577,7 +577,7 @@ intl_optgroup.add_argument('--without-intl',
     action='store_const',
     dest='with_intl',
     const='none',
-    help='Disable Intl, same as --with-intl=none (disables inspector)')
+    help='Disable Intl, same as --with-intl=none')
 
 intl_optgroup.add_argument('--with-icu-path',
     action='store',
@@ -1934,7 +1934,6 @@ def configure_intl(o):
 
 def configure_inspector(o):
   disable_inspector = (options.without_inspector or
-                       options.with_intl in (None, 'none') or
                        options.without_ssl)
   o['variables']['v8_enable_inspector'] = 0 if disable_inspector else 1
 
