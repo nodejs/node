@@ -779,7 +779,7 @@ const cookie = request.getHeader('Cookie');
 
 ### `request.getRawHeaderNames()`
 <!-- YAML
-added: REPLACEME
+added: v15.13.0
 -->
 
 * Returns: {string[]}
