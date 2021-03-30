@@ -1,4 +1,3 @@
-// eslint-disable-next-line import/default
 import validators from '../dist/validators';
 
 /**

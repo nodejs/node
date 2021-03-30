@@ -32,6 +32,7 @@ const debug = require("debug")("eslint:cli");
 /** @typedef {import("./eslint/eslint").ESLintOptions} ESLintOptions */
 /** @typedef {import("./eslint/eslint").LintMessage} LintMessage */
 /** @typedef {import("./eslint/eslint").LintResult} LintResult */
+/** @typedef {import("./options").ParsedCLIOptions} ParsedCLIOptions */
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -54,7 +55,7 @@ function quietFixPredicate(message) {
 
 /**
  * Translates the CLI options into the options expected by the CLIEngine.
- * @param {Object} cliOptions The CLI options to translate.
+ * @param {ParsedCLIOptions} cliOptions The CLI options to translate.
  * @returns {ESLintOptions} The options object for the CLIEngine.
  * @private
  */
@@ -221,6 +222,8 @@ const cli = {
         if (Array.isArray(args)) {
             debug("CLI args: %o", args.slice(2));
         }
+
+        /** @type {ParsedCLIOptions} */
         let options;
 
         try {
@@ -301,12 +304,16 @@ const cli = {
             await ESLint.outputFixes(results);
         }
 
+        let resultsToPrint = results;
+
         if (options.quiet) {
             debug("Quiet mode enabled - filtering out warnings");
-            results = ESLint.getErrorResults(results);
+            resultsToPrint = ESLint.getErrorResults(resultsToPrint);
         }
 
-        if (await printResults(engine, results, options.format, options.outputFile)) {
+        if (await printResults(engine, resultsToPrint, options.format, options.outputFile)) {
+
+            // Errors and warnings from the original unfiltered results should determine the exit code
             const { errorCount, warningCount } = countErrors(results);
             const tooManyWarnings =
                 options.maxWarnings >= 0 && warningCount > options.maxWarnings;
