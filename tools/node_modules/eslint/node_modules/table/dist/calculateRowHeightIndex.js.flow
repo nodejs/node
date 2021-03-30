@@ -1,4 +1,5 @@
-import _ from 'lodash';
+import isBoolean from 'is-boolean-object';
+import isNumber from 'is-number-object';
 import calculateCellHeight from './calculateCellHeight';
 
 /**
@@ -17,18 +18,18 @@ export default (rows, config) => {
     const cellHeightIndex = new Array(tableWidth).fill(1);
 
     cells.forEach((value, index1) => {
-      if (!_.isNumber(config.columns[index1].width)) {
+      if (!isNumber(config.columns[index1].width)) {
         throw new TypeError('column[index].width must be a number.');
       }
 
-      if (!_.isBoolean(config.columns[index1].wrapWord)) {
+      if (!isBoolean(config.columns[index1].wrapWord)) {
         throw new TypeError('column[index].wrapWord must be a boolean.');
       }
 
       cellHeightIndex[index1] = calculateCellHeight(value, config.columns[index1].width, config.columns[index1].wrapWord);
     });
 
-    rowSpanIndex.push(_.max(cellHeightIndex));
+    rowSpanIndex.push(Math.max(...cellHeightIndex));
   });
 
   return rowSpanIndex;

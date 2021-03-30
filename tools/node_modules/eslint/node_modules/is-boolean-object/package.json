@@ -1,0 +1,83 @@
+{
+	"name": "is-boolean-object",
+	"version": "1.1.0",
+	"author": "Jordan Harband <ljharb@gmail.com>",
+	"funding": {
+		"url": "https://github.com/sponsors/ljharb"
+	},
+	"description": "Is this value a JS Boolean? This module works cross-realm/iframe, and despite ES6 @@toStringTag.",
+	"license": "MIT",
+	"main": "index.js",
+	"scripts": {
+		"prepublish": "safe-publish-latest",
+		"pretest": "npm run lint",
+		"test": "npm run tests-only && npm run test:harmony",
+		"tests-only": "nyc tape 'test/**/*.js'",
+		"test:harmony": "node --harmony --es-staging test",
+		"posttest": "aud --production",
+		"prelint": "npm run eccheck",
+		"lint": "eslint --ext=js,mjs .",
+		"eccheck": "eclint check $(git ls-files)",
+		"version": "auto-changelog && git add CHANGELOG.md",
+		"postversion": "auto-changelog && git add CHANGELOG.md && git commit --no-edit --amend && git tag -f \"v$(node -e \"console.log(require('./package.json').version)\")\""
+	},
+	"repository": {
+		"type": "git",
+		"url": "git://github.com/ljharb/is-boolean-object.git"
+	},
+	"keywords": [
+		"Boolean",
+		"ES6",
+		"toStringTag",
+		"@@toStringTag",
+		"Boolean object",
+		"true",
+		"false",
+		"is-boolean"
+	],
+	"dependencies": {
+		"call-bind": "^1.0.0"
+	},
+	"devDependencies": {
+		"@ljharb/eslint-config": "^17.3.0",
+		"aud": "^1.1.3",
+		"auto-changelog": "^2.2.1",
+		"eclint": "^2.8.1",
+		"eslint": "^7.15.0",
+		"foreach": "^2.0.5",
+		"indexof": "^0.0.1",
+		"is": "^3.3.0",
+		"nyc": "^10.3.2",
+		"safe-publish-latest": "^1.1.4",
+		"tape": "^5.0.1"
+	},
+	"testling": {
+		"files": "test.js",
+		"browsers": [
+			"iexplore/6.0..latest",
+			"firefox/3.0..6.0",
+			"firefox/15.0..latest",
+			"firefox/nightly",
+			"chrome/4.0..10.0",
+			"chrome/20.0..latest",
+			"chrome/canary",
+			"opera/10.0..latest",
+			"opera/next",
+			"safari/4.0..latest",
+			"ipad/6.0..latest",
+			"iphone/6.0..latest",
+			"android-browser/4.2"
+		]
+	},
+	"engines": {
+		"node": ">= 0.4"
+	},
+	"auto-changelog": {
+		"output": "CHANGELOG.md",
+		"template": "keepachangelog",
+		"unreleased": false,
+		"commitLimit": false,
+		"backfillLimit": false,
+		"hideCredit": true
+	}
+}

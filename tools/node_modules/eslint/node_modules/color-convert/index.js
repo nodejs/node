@@ -1,24 +1,25 @@
-var conversions = require('./conversions');
-var route = require('./route');
+const conversions = require('./conversions');
+const route = require('./route');
 
-var convert = {};
+const convert = {};
 
-var models = Object.keys(conversions);
+const models = Object.keys(conversions);
 
 function wrapRaw(fn) {
-	var wrappedFn = function (args) {
-		if (args === undefined || args === null) {
-			return args;
+	const wrappedFn = function (...args) {
+		const arg0 = args[0];
+		if (arg0 === undefined || arg0 === null) {
+			return arg0;
 		}
 
-		if (arguments.length > 1) {
-			args = Array.prototype.slice.call(arguments);
+		if (arg0.length > 1) {
+			args = arg0;
 		}
 
 		return fn(args);
 	};
 
-	// preserve .conversion property if there is one
+	// Preserve .conversion property if there is one
 	if ('conversion' in fn) {
 		wrappedFn.conversion = fn.conversion;
 	}
@@ -27,22 +28,24 @@ function wrapRaw(fn) {
 }
 
 function wrapRounded(fn) {
-	var wrappedFn = function (args) {
-		if (args === undefined || args === null) {
-			return args;
+	const wrappedFn = function (...args) {
+		const arg0 = args[0];
+
+		if (arg0 === undefined || arg0 === null) {
+			return arg0;
 		}
 
-		if (arguments.length > 1) {
-			args = Array.prototype.slice.call(arguments);
+		if (arg0.length > 1) {
+			args = arg0;
 		}
 
-		var result = fn(args);
+		const result = fn(args);
 
-		// we're assuming the result is an array here.
+		// We're assuming the result is an array here.
 		// see notice in conversions.js; don't use box types
 		// in conversion functions.
 		if (typeof result === 'object') {
-			for (var len = result.length, i = 0; i < len; i++) {
+			for (let len = result.length, i = 0; i < len; i++) {
 				result[i] = Math.round(result[i]);
 			}
 		}
@@ -50,7 +53,7 @@ function wrapRounded(fn) {
 		return result;
 	};
 
-	// preserve .conversion property if there is one
+	// Preserve .conversion property if there is one
 	if ('conversion' in fn) {
 		wrappedFn.conversion = fn.conversion;
 	}
@@ -58,17 +61,17 @@ function wrapRounded(fn) {
 	return wrappedFn;
 }
 
-models.forEach(function (fromModel) {
+models.forEach(fromModel => {
 	convert[fromModel] = {};
 
 	Object.defineProperty(convert[fromModel], 'channels', {value: conversions[fromModel].channels});
 	Object.defineProperty(convert[fromModel], 'labels', {value: conversions[fromModel].labels});
 
-	var routes = route(fromModel);
-	var routeModels = Object.keys(routes);
+	const routes = route(fromModel);
+	const routeModels = Object.keys(routes);
 
-	routeModels.forEach(function (toModel) {
-		var fn = routes[toModel];
+	routeModels.forEach(toModel => {
+		const fn = routes[toModel];
 
 		convert[fromModel][toModel] = wrapRounded(fn);
 		convert[fromModel][toModel].raw = wrapRaw(fn);

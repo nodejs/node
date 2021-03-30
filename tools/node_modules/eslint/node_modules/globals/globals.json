@@ -1144,6 +1144,7 @@
 	"node": {
 		"__dirname": false,
 		"__filename": false,
+		"AbortController": false,
 		"Buffer": false,
 		"clearImmediate": false,
 		"clearInterval": false,
@@ -1165,6 +1166,7 @@
 		"URLSearchParams": false
 	},
 	"nodeBuiltin": {
+		"AbortController": false,
 		"Buffer": false,
 		"clearImmediate": false,
 		"clearInterval": false,

@@ -11,6 +11,7 @@
 
 const path = require("path");
 const spawn = require("cross-spawn");
+const os = require("os");
 const log = require("../shared/logging");
 const packageJson = require("../../package.json");
 
@@ -140,7 +141,8 @@ function environment() {
         `Node version: ${getBinVersion("node")}`,
         `npm version: ${getBinVersion("npm")}`,
         `Local ESLint version: ${getNpmPackageVersion("eslint", { global: false })}`,
-        `Global ESLint version: ${getNpmPackageVersion("eslint", { global: true })}`
+        `Global ESLint version: ${getNpmPackageVersion("eslint", { global: true })}`,
+        `Operating System: ${os.platform()} ${os.release()}`
     ].join("\n");
 }
 
