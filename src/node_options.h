@@ -232,7 +232,7 @@ class PerProcessOptions : public Options {
 #endif
 
   // Per-process because they affect singleton OpenSSL shared library state,
-  // or are used once during process intialization.
+  // or are used once during process initialization.
 #if HAVE_OPENSSL
   std::string openssl_config;
   std::string tls_cipher_list = DEFAULT_CIPHER_LIST_CORE;
