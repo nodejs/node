@@ -2531,6 +2531,11 @@ void MarkCompactCollector::ClearJSWeakRefs() {
             matched_cell.set_unregister_token(undefined);
           },
           gc_notify_updated_slot);
+      // The following is necessary because in the case that weak_cell has
+      // already been popped and removed from the FinalizationRegistry, the call
+      // to JSFinalizationRegistry::RemoveUnregisterToken above will not find
+      // weak_cell itself to clear its unregister token.
+      weak_cell.set_unregister_token(undefined);
     } else {
       // The unregister_token is alive.
       ObjectSlot slot = weak_cell.RawField(WeakCell::kUnregisterTokenOffset);
