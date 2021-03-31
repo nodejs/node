@@ -51,6 +51,17 @@ const expectedWithReviver = { ofLife: 21 };
     })
   );
 
+  process.once(
+    'uncaughtException',
+    mustCall((error) => {
+      assert.strictEqual(error.message, 'error in callback');
+    })
+  );
+
+  readJSON(validJsonFile, () => {
+    throw new Error('error in callback');
+  });
+
   assert.throws(() => readJSON(null, () => {}), {
     code: 'ERR_INVALID_ARG_TYPE',
   });
