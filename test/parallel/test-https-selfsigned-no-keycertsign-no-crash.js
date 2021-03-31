@@ -6,8 +6,7 @@ const common = require('../common');
 // This certificate´s keyUsage does not include the keyCertSign
 // bit, which used to crash node. The test ensures node
 // will not crash. Key and certificate are from #37889.
-// Note: This test only cares about wether node will crash or not,
-// not about the success of the connection.
+// Note: This test assumes that the connection will succeed.
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
@@ -82,12 +81,12 @@ httpsServer.on('listening', () => {
     ca: cert
   };
   // Try to connect
-  const req = https.request(clientOptions, (res) => {
+  const req = https.request(clientOptions, common.mustCall((res) => {
     httpsServer.close();
-  });
+  }));
 
-  req.on('error', (e) => {
+  req.on('error', common.mustNotCall((e) => {
     httpsServer.close();
-  });
+  }));
   req.end();
 });
