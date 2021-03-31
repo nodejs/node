@@ -25,6 +25,10 @@ server.listen(0, common.mustCall(() => {
 
   req.on('response', common.mustCall(() => {}));
   req.once('data', common.mustCall(() => {
+    // TODO: is this test needed?
+    // It errors with ERR_HTTP2_NO_SOCKET_MANIPULATION because we are
+    // calling destroy on the Proxy(ed) socket of the Http2ClientSession
+    // which causes `emit` to becalled and the error to be thrown.
     net.Socket.prototype.destroy.call(client.socket);
     server.close();
   }));

@@ -1,4 +1,5 @@
 'use strict';
+
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
@@ -7,6 +8,10 @@ const assert = require('assert');
 const tls = require('tls');
 const net = require('net');
 const fixtures = require('../common/fixtures');
+
+// TODO: is this test needed?
+// It fails with a timeout error because the `error` event is never emitted.
+// `write` doesn't error, is that a good thing?
 
 // Regression test for https://github.com/nodejs/node/issues/8074
 //
