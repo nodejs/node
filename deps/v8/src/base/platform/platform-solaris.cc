@@ -12,6 +12,7 @@
 #include <dlfcn.h>  // dladdr
 #include <errno.h>
 #include <ieeefp.h>  // finite()
+#include <thread.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>  // sigemptyset(), etc
@@ -67,20 +68,9 @@ void OS::AdjustSchedulingParams() {}
 
 // static
 Stack::StackSlot Stack::GetStackStart() {
-  pthread_attr_t attr;
-  int error;
-  pthread_attr_init(&attr);
-  error = 0;
-  if (!error) {
-    void* base;
-    size_t size;
-    error = pthread_attr_getstack(&attr, &base, &size);
-    CHECK(!error);
-    pthread_attr_destroy(&attr);
-    return reinterpret_cast<uint8_t*>(base) + size;
-  }
-  pthread_attr_destroy(&attr);
-  return nullptr;
+  stack_t s;
+  thr_stksegment(&s);
+  return s.ss_sp;
 }
 
 }  // namespace base
