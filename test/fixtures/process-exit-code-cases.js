@@ -111,3 +111,15 @@ cases.push({
   result: 0,
   error: /^Error: ok$/,
 });
+
+function exitWithThrowInUncaughtHandler() {
+  process.on('uncaughtException', () => {
+    throw new Error('ok')
+  });
+  throw new Error('bad');
+}
+cases.push({
+  func: exitWithThrowInUncaughtHandler,
+  result: 7,
+  error: /^Error: ok$/,
+});
