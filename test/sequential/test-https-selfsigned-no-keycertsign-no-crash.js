@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
 
-// This test starts an https server on port 33333 and tries
+// This test starts an https server and tries
 // to connect to it using a self-signed certificate.
 // This certificate´s keyUsage does not include the keyCertSign
 // bit, which used to crash node. The test ensures node
@@ -65,24 +65,29 @@ const serverOptions = {
   key: key,
   cert: cert
 };
-const clientOptions = {
-  hostname: '127.0.0.1',
-  port: 33333,
-  ca: cert
-};
-// start the server
+
+// Start the server
 const httpsServer = https.createServer(serverOptions, (req, res) => {
   res.writeHead(200);
   res.end('hello world\n');
 });
-httpsServer.listen(33333);
+httpsServer.listen(0);
 
-// try to connect
-const req = https.request(clientOptions, (res) => {
-  httpsServer.close();
-});
+httpsServer.on('listening', () => {
+  // Once the server started listening, built the client config
+  // with the server´s used port
+  const clientOptions = {
+    hostname: '127.0.0.1',
+    port: httpsServer.address().port,
+    ca: cert
+  };
+  // Try to connect
+  const req = https.request(clientOptions, (res) => {
+    httpsServer.close();
+  });
 
-req.on('error', (e) => {
-  httpsServer.close();
+  req.on('error', (e) => {
+    httpsServer.close();
+  });
+  req.end();
 });
-req.end();
