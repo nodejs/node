@@ -71,7 +71,6 @@ using v8::ObjectTemplate;
 using v8::Promise;
 using v8::String;
 using v8::Symbol;
-using v8::Uint32;
 using v8::Undefined;
 using v8::Value;
 
