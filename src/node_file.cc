@@ -69,7 +69,6 @@ using v8::ObjectTemplate;
 using v8::Promise;
 using v8::String;
 using v8::Symbol;
-using v8::Uint32;
 using v8::Undefined;
 using v8::Value;
 
@@ -2178,11 +2177,11 @@ static void Chown(const FunctionCallbackInfo<Value>& args) {
   BufferValue path(env->isolate(), args[0]);
   CHECK_NOT_NULL(*path);
 
-  CHECK(args[1]->IsUint32());
-  const uv_uid_t uid = static_cast<uv_uid_t>(args[1].As<Uint32>()->Value());
+  CHECK(IsSafeJsInt(args[1]));
+  const uv_uid_t uid = static_cast<uv_uid_t>(args[1].As<Integer>()->Value());
 
-  CHECK(args[2]->IsUint32());
-  const uv_gid_t gid = static_cast<uv_gid_t>(args[2].As<Uint32>()->Value());
+  CHECK(IsSafeJsInt(args[2]));
+  const uv_gid_t gid = static_cast<uv_gid_t>(args[2].As<Integer>()->Value());
 
   FSReqBase* req_wrap_async = GetReqWrap(args, 3);
   if (req_wrap_async != nullptr) {  // chown(path, uid, gid, req)
@@ -2211,11 +2210,11 @@ static void FChown(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsInt32());
   const int fd = args[0].As<Int32>()->Value();
 
-  CHECK(args[1]->IsUint32());
-  const uv_uid_t uid = static_cast<uv_uid_t>(args[1].As<Uint32>()->Value());
+  CHECK(IsSafeJsInt(args[1]));
+  const uv_uid_t uid = static_cast<uv_uid_t>(args[1].As<Integer>()->Value());
 
-  CHECK(args[2]->IsUint32());
-  const uv_gid_t gid = static_cast<uv_gid_t>(args[2].As<Uint32>()->Value());
+  CHECK(IsSafeJsInt(args[2]));
+  const uv_gid_t gid = static_cast<uv_gid_t>(args[2].As<Integer>()->Value());
 
   FSReqBase* req_wrap_async = GetReqWrap(args, 3);
   if (req_wrap_async != nullptr) {  // fchown(fd, uid, gid, req)
@@ -2241,11 +2240,11 @@ static void LChown(const FunctionCallbackInfo<Value>& args) {
   BufferValue path(env->isolate(), args[0]);
   CHECK_NOT_NULL(*path);
 
-  CHECK(args[1]->IsUint32());
-  const uv_uid_t uid = static_cast<uv_uid_t>(args[1].As<Uint32>()->Value());
+  CHECK(IsSafeJsInt(args[1]));
+  const uv_uid_t uid = static_cast<uv_uid_t>(args[1].As<Integer>()->Value());
 
-  CHECK(args[2]->IsUint32());
-  const uv_gid_t gid = static_cast<uv_gid_t>(args[2].As<Uint32>()->Value());
+  CHECK(IsSafeJsInt(args[2]));
+  const uv_gid_t gid = static_cast<uv_gid_t>(args[2].As<Integer>()->Value());
 
   FSReqBase* req_wrap_async = GetReqWrap(args, 3);
   if (req_wrap_async != nullptr) {  // lchown(path, uid, gid, req)
