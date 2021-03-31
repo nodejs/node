@@ -32,7 +32,7 @@ class ExclusiveAccess {
 
   class Scoped {
    public:
-    // ExclusiveAccess will commonly be used in conjuction with std::shared_ptr
+    // ExclusiveAccess will commonly be used in conjunction with std::shared_ptr
     // and without this constructor it's too easy to forget to keep a reference
     // around to the shared_ptr while operating on the ExclusiveAccess object.
     explicit Scoped(const std::shared_ptr<ExclusiveAccess>& shared)
