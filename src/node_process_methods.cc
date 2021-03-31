@@ -424,6 +424,44 @@ static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
   env->Exit(code);
 }
 
+static void CodeGenerationFromStringsAllowed(
+                      const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
+  bool value = context->IsCodeGenerationFromStringsAllowed();
+  args.GetReturnValue().Set(value);
+}
+
+static v8::ModifyCodeGenerationFromStringsResult CodeGenCallback(
+    Local<Context> context,
+    Local<Value> source) {
+  Environment* env = Environment::GetCurrent(context);
+  ProcessEmit(env, "codeGenerationFromString", source);
+  // returning {true, val} where val.IsEmpty() makes v8
+  // use the orignal value passed to `eval` which does not impact
+  // calls as `eval({})`
+  return {true, v8::MaybeLocal<v8::String>()};
+}
+
+static void SetEmitCodeGenFromStringEvent(
+      const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = env->context();
+
+  CHECK(args[0]->IsBoolean());
+
+  bool val = args[0]->BooleanValue(args.GetIsolate());
+  if (val) {
+    context->AllowCodeGenerationFromStrings(false);
+    isolate->SetModifyCodeGenerationFromStringsCallback(CodeGenCallback);
+  } else {
+    // This is enough to disable the handler. V8 will not call it anymore
+    // until set back to false
+    context->AllowCodeGenerationFromStrings(true);
+  }
+}
+
 class FastHrtime : public BaseObject {
  public:
   static Local<Object> New(Environment* env) {
@@ -569,6 +607,10 @@ static void InitializeProcessMethods(Local<Object> target,
   env->SetMethodNoSideEffect(target, "uptime", Uptime);
   env->SetMethod(target, "patchProcessObject", PatchProcessObject);
   env->SetMethod(target, "getFastAPIs", GetFastAPIs);
+  env->SetMethod(target, "codeGenerationFromStringsAllowed",
+                 CodeGenerationFromStringsAllowed);
+  env->SetMethod(target, "setEmitCodeGenFromStringEvent",
+                 SetEmitCodeGenFromStringEvent);
 }
 
 void RegisterProcessMethodsExternalReferences(
@@ -596,6 +638,8 @@ void RegisterProcessMethodsExternalReferences(
   registry->Register(Uptime);
   registry->Register(PatchProcessObject);
   registry->Register(GetFastAPIs);
+  registry->Register(CodeGenerationFromStringsAllowed);
+  registry->Register(SetEmitCodeGenFromStringEvent);
 }
 
 }  // namespace node
