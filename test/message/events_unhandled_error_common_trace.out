@@ -1,6 +1,6 @@
 node:events:*
-      throw er; // Unhandled 'error' event
-      ^
+        throw er; // Unhandled 'error' event
+        ^
 
 Error: foo:bar
     at bar (*events_unhandled_error_common_trace.js:*:*)
