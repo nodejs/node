@@ -82,7 +82,8 @@ const kPropertyArrayHashFieldMax: constexpr int31
 
 transitioning macro PromiseAllResolveElementClosure<F: type>(
     implicit context: Context)(
-    value: JSAny, function: JSFunction, wrapResultFunctor: F): JSAny {
+    value: JSAny, function: JSFunction, wrapResultFunctor: F,
+    hasResolveAndRejectClosures: constexpr bool): JSAny {
   // We use the {function}s context as the marker to remember whether this
   // resolve element closure was already called. It points to the resolve
   // element context (which is a FunctionContext) until it was called the
@@ -98,10 +99,6 @@ transitioning macro PromiseAllResolveElementClosure<F: type>(
   const nativeContext = LoadNativeContext(context);
   function.context = nativeContext;
 
-  // Update the value depending on whether Promise.all or
-  // Promise.allSettled is called.
-  const updatedValue = wrapResultFunctor.Call(nativeContext, value);
-
   // Determine the index from the {function}.
   assert(kPropertyArrayNoHashSentinel == 0);
   const identityHash =
@@ -116,13 +113,41 @@ transitioning macro PromiseAllResolveElementClosure<F: type>(
   const elements = UnsafeCast<FixedArray>(valuesArray.elements);
   const valuesLength = Convert<intptr>(valuesArray.length);
   if (index < valuesLength) {
-    // The {index} is in bounds of the {values_array},
-    // just store the {value} and continue.
+    // The {index} is in bounds of the {values_array}, check if this element has
+    // already been resolved, and store the {value} if not.
+    //
+    // Promise.allSettled, for each input element, has both a resolve and a
+    // reject closure that share an [[AlreadyCalled]] boolean. That is, the
+    // input element can only be settled once: after resolve is called, reject
+    // returns early, and vice versa. Using {function}'s context as the marker
+    // only tracks per-closure instead of per-element. When the second
+    // resolve/reject closure is called on the same index, values.object[index]
+    // will already exist and will not be the hole value. In that case, return
+    // early. Everything up to this point is not yet observable to user code.
+    // This is not a problem for Promise.all since Promise.all has a single
+    // resolve closure (no reject) per element.
+    if (hasResolveAndRejectClosures) {
+      if (elements.objects[index] != TheHole) deferred {
+          return Undefined;
+        }
+    }
+
+    // Update the value depending on whether Promise.all or
+    // Promise.allSettled is called.
+    const updatedValue = wrapResultFunctor.Call(nativeContext, value);
     elements.objects[index] = updatedValue;
   } else {
     // Check if we need to grow the backing store.
+    //
+    // There's no need to check if this element has already been resolved for
+    // Promise.allSettled if {values_array} has not yet grown to the index.
     const newLength = index + 1;
     const elementsLength = elements.length_intptr;
+
+    // Update the value depending on whether Promise.all or
+    // Promise.allSettled is called.
+    const updatedValue = wrapResultFunctor.Call(nativeContext, value);
+
     if (index < elementsLength) {
       // The {index} is within bounds of the {elements} backing store, so
       // just store the {value} and update the "length" of the {values_array}.
@@ -166,7 +191,7 @@ PromiseAllResolveElementClosure(
     js-implicit context: Context, receiver: JSAny,
     target: JSFunction)(value: JSAny): JSAny {
   return PromiseAllResolveElementClosure(
-      value, target, PromiseAllWrapResultAsFulfilledFunctor{});
+      value, target, PromiseAllWrapResultAsFulfilledFunctor{}, false);
 }
 
 transitioning javascript builtin
@@ -174,7 +199,7 @@ PromiseAllSettledResolveElementClosure(
     js-implicit context: Context, receiver: JSAny,
     target: JSFunction)(value: JSAny): JSAny {
   return PromiseAllResolveElementClosure(
-      value, target, PromiseAllSettledWrapResultAsFulfilledFunctor{});
+      value, target, PromiseAllSettledWrapResultAsFulfilledFunctor{}, true);
 }
 
 transitioning javascript builtin
@@ -182,6 +207,6 @@ PromiseAllSettledRejectElementClosure(
     js-implicit context: Context, receiver: JSAny,
     target: JSFunction)(value: JSAny): JSAny {
   return PromiseAllResolveElementClosure(
-      value, target, PromiseAllSettledWrapResultAsRejectedFunctor{});
+      value, target, PromiseAllSettledWrapResultAsRejectedFunctor{}, true);
 }
 }

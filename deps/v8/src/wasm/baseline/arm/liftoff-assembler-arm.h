@@ -122,11 +122,16 @@ template <void (Assembler::*op)(Register, Register, Register, SBit, Condition),
                                            SBit, Condition)>
 inline void I64Binop(LiftoffAssembler* assm, LiftoffRegister dst,
                      LiftoffRegister lhs, LiftoffRegister rhs) {
-  DCHECK_NE(dst.low_gp(), lhs.high_gp());
-  DCHECK_NE(dst.low_gp(), rhs.high_gp());
-  (assm->*op)(dst.low_gp(), lhs.low_gp(), rhs.low_gp(), SetCC, al);
+  Register dst_low = dst.low_gp();
+  if (dst_low == lhs.high_gp() || dst_low == rhs.high_gp()) {
+    dst_low = assm->GetUnusedRegister(
+                      kGpReg, LiftoffRegList::ForRegs(lhs, rhs, dst.high_gp()))
+                  .gp();
+  }
+  (assm->*op)(dst_low, lhs.low_gp(), rhs.low_gp(), SetCC, al);
   (assm->*op_with_carry)(dst.high_gp(), lhs.high_gp(), Operand(rhs.high_gp()),
                          LeaveCC, al);
+  if (dst_low != dst.low_gp()) assm->mov(dst.low_gp(), dst_low);
 }
 
 template <void (Assembler::*op)(Register, Register, const Operand&, SBit,
