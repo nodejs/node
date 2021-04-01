@@ -1,9 +1,9 @@
-.TH "NPM\-SET\-SCRIPT" "1" "March 2021" "" ""
+.TH "NPM\-SET\-SCRIPT" "1" "April 2021" "" ""
 .SH "NAME"
 \fBnpm-set-script\fR \- Set tasks in the scripts section of package\.json
 .SS Synopsis
 .P
-An npm command that lets you create a task in the scripts section of the package\.json\.
+An npm command that lets you create a task in the \fBscripts\fP section of the \fBpackage\.json\fP\|\.
 .P
 .RS 2
 .nf
@@ -29,6 +29,15 @@ npm set\-script [<script>] [<command>]
 }
 .fi
 .RE
+.SS Configuration
+.SS workspaces
+.P
+Enables workspaces context\. Tasks will be created in the \fBscripts\fP section
+of the \fBpackage\.json\fP of each workspace\.
+.SS workspace
+.P
+Enables workspaces context and limits creating a task to the
+\fBpackage\.json\fP files of the workspaces given\.
 .SS See Also
 .RS 0
 .IP \(bu 2

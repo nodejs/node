@@ -185,7 +185,7 @@ registry and all registries configured for scopes. See the documentation for
 #### `audit-level`
 
 * Default: null
-* Type: "info", "low", "moderate", "high", "critical", "none", or null
+* Type: null, "info", "low", "moderate", "high", "critical", or "none"
 
 The minimum level of vulnerability for `npm audit` to exit with a non-zero
 exit code.
@@ -1333,6 +1333,8 @@ Valid values for the `workspace` config are either: - Workspace names - Path
 to a workspace directory - Path to a parent workspace directory (will result
 to selecting all of the nested workspaces)
 
+This value is not exported to the environment for child processes.
+
 #### `workspaces`
 
 * Default: false
@@ -1340,6 +1342,8 @@ to selecting all of the nested workspaces)
 
 Enable running a command in the context of **all** the configured
 workspaces.
+
+This value is not exported to the environment for child processes.
 
 #### `yes`
 

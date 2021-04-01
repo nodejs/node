@@ -238,6 +238,7 @@ const packument = (nv, opts) => {
 }
 
 t.beforeEach(cleanLogs)
+
 t.test('should log package info', t => {
   const View = requireInject('../../lib/view.js', {
     pacote: {
@@ -546,6 +547,131 @@ t.test('throws when unpublished', (t) => {
     t.equals(err.code, 'E404')
     t.end()
   })
+})
+
+t.test('workspaces', t => {
+  t.beforeEach((done) => {
+    warnMsg = undefined
+    config.json = false
+    done()
+  })
+  const testDir = t.testdir({
+    'package.json': JSON.stringify({
+      name: 'workspaces-test-package',
+      version: '1.2.3',
+      workspaces: ['test-workspace-a', 'test-workspace-b'],
+    }),
+    'test-workspace-a': {
+      'package.json': JSON.stringify({
+        name: 'green',
+        version: '1.2.3',
+      }),
+    },
+    'test-workspace-b': {
+      'package.json': JSON.stringify({
+        name: 'orange',
+        version: '1.2.3',
+      }),
+    },
+  })
+  const View = requireInject('../../lib/view.js', {
+    pacote: {
+      packument,
+    },
+  })
+  const config = {
+    tag: 'latest',
+  }
+  let warnMsg
+  const npm = mockNpm({
+    log: {
+      warn: (msg) => {
+        warnMsg = msg
+      },
+    },
+    config,
+    localPrefix: testDir,
+  })
+  const view = new View(npm)
+
+  t.test('all workspaces', t => {
+    view.execWorkspaces([], [], (err) => {
+      t.error(err)
+      t.matchSnapshot(logs)
+      t.end()
+    })
+  })
+
+  t.test('one specific workspace', t => {
+    view.execWorkspaces([], ['green'], (err) => {
+      t.error(err)
+      t.matchSnapshot(logs)
+      t.end()
+    })
+  })
+
+  t.test('all workspaces --json', t => {
+    config.json = true
+    view.execWorkspaces([], [], (err) => {
+      t.error(err)
+      t.matchSnapshot(logs)
+      t.end()
+    })
+  })
+
+  t.test('all workspaces single field', t => {
+    view.execWorkspaces(['.', 'name'], [], (err) => {
+      t.error(err)
+      t.matchSnapshot(logs)
+      t.end()
+    })
+  })
+
+  t.test('all workspaces nonexistent field', t => {
+    view.execWorkspaces(['.', 'foo'], [], (err) => {
+      t.error(err)
+      t.matchSnapshot(logs)
+      t.end()
+    })
+  })
+
+  t.test('all workspaces nonexistent field --json', t => {
+    config.json = true
+    view.execWorkspaces(['.', 'foo'], [], (err) => {
+      t.error(err)
+      t.matchSnapshot(logs)
+      t.end()
+    })
+  })
+
+  t.test('all workspaces single field --json', t => {
+    config.json = true
+    view.execWorkspaces(['.', 'name'], [], (err) => {
+      t.error(err)
+      t.matchSnapshot(logs)
+      t.end()
+    })
+  })
+
+  t.test('single workspace --json', t => {
+    config.json = true
+    view.execWorkspaces([], ['green'], (err) => {
+      t.error(err)
+      t.matchSnapshot(logs)
+      t.end()
+    })
+  })
+
+  t.test('remote package name', t => {
+    view.execWorkspaces(['pink'], [], (err) => {
+      t.error(err)
+      t.matchSnapshot(warnMsg)
+      t.matchSnapshot(logs)
+      t.end()
+    })
+  })
+
+  t.end()
 })
 
 t.test('completion', async t => {

@@ -15,13 +15,20 @@ const { explainEdge, explainNode, printNode } = require('./explain-dep.js')
 // The full report (ie, depth=Infinity) is always written to the cache folder
 // at ${cache}/eresolve-report.txt along with full json.
 const explainEresolve = (expl, color, depth) => {
-  const { edge, current, peerConflict } = expl
+  const { edge, current, peerConflict, currentEdge } = expl
 
   const out = []
   if (edge.from && edge.from.whileInstalling)
     out.push('While resolving: ' + printNode(edge.from.whileInstalling, color))
 
-  out.push('Found: ' + explainNode(current, depth, color))
+  // it "should" be impossible for an ERESOLVE explanation to lack both
+  // current and currentEdge, but better to have a less helpful error
+  // than a crashing failure.
+  if (current)
+    out.push('Found: ' + explainNode(current, depth, color))
+  else if (currentEdge)
+    out.push('Found: ' + explainEdge(currentEdge, depth, color))
+
   out.push('\nCould not resolve dependency:\n' +
     explainEdge(edge, depth, color))
 

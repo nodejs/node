@@ -54,6 +54,11 @@ class Exec extends BaseCommand {
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return ['workspace', 'workspaces']
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get name () {
     return 'exec'
   }
@@ -339,12 +344,9 @@ class Exec extends BaseCommand {
       .slice(0, 16)
   }
 
-  async workspaces (filters) {
-    return getWorkspaces(filters, { path: this.npm.localPrefix })
-  }
-
   async _execWorkspaces (args, filters) {
-    const workspaces = await this.workspaces(filters)
+    const workspaces =
+      await getWorkspaces(filters, { path: this.npm.localPrefix })
     const getLocationMsg = async path => {
       const color = this.npm.config.get('color')
       const colorize = color ? chalk : nocolor

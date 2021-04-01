@@ -334,6 +334,9 @@ All commands:
                     Usage:
                     npm docs [<pkgname> [<pkgname> ...]]
                     
+                    Options:
+                    [--browser|--browser <browser>] [--registry <registry>] [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]] [-ws|--workspaces]
+
                     alias: home
                     
                     Run "npm help docs" for more info
@@ -366,6 +369,9 @@ All commands:
                     npm exec -c '<cmd> [args...]'
                     npm exec --package=foo -c '<cmd> [args...]'
                     
+                    Options:
+                    [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]] [-ws|--workspaces]
+
                     alias: x
                     
                     Run "npm help exec" for more info
@@ -695,6 +701,9 @@ All commands:
                     Usage:
                     npm repo [<pkgname> [<pkgname> ...]]
                     
+                    Options:
+                    [--browser|--browser <browser>] [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]] [-ws|--workspaces]
+
                     Run "npm help repo" for more info
 
     restart         npm restart
@@ -725,6 +734,9 @@ All commands:
                     Usage:
                     npm run-script <command> [-- <args>]
                     
+                    Options:
+                    [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]] [-ws|--workspaces]
+
                     aliases: run, rum, urn
                     
                     Run "npm help run-script" for more info
@@ -759,6 +771,9 @@ All commands:
                     Usage:
                     npm set-script [<script>] [<command>]
                     
+                    Options:
+                    [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]] [-ws|--workspaces]
+
                     Run "npm help set-script" for more info
 
     shrinkwrap      npm shrinkwrap
@@ -905,6 +920,9 @@ All commands:
                     Usage:
                     npm view [<@scope>/]<pkg>[@<version>] [<field>[.subfield]...]
                     
+                    Options:
+                    [--json] [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]] [-ws|--workspaces]
+
                     aliases: v, info, show
                     
                     Run "npm help view" for more info

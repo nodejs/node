@@ -27,6 +27,7 @@ class BaseCommand {
       usage = `${usage}${this.constructor.usage.map(u => `npm ${this.constructor.name} ${u}`).join('\n')}`
 
     if (this.constructor.params)
+      // TODO word wrap this along params boundaries
       usage = `${usage}\n\nOptions:\n[${this.constructor.params.map(p => ConfigDefinitions[p].usage).join('] [')}]`
 
     // Mostly this just appends aliases, this could be more clear

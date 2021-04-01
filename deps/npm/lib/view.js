@@ -7,12 +7,13 @@ const fs = require('fs')
 const jsonParse = require('json-parse-even-better-errors')
 const log = require('npmlog')
 const npa = require('npm-package-arg')
-const path = require('path')
+const { resolve } = require('path')
 const relativeDate = require('tiny-relative-date')
 const semver = require('semver')
 const style = require('ansistyles')
 const { inspect, promisify } = require('util')
 const { packument } = require('pacote')
+const getWorkspaces = require('./workspaces/get-workspaces.js')
 
 const readFile = promisify(fs.readFile)
 const readJson = async file => jsonParse(await readFile(file, 'utf8'))
@@ -22,6 +23,15 @@ class View extends BaseCommand {
   /* istanbul ignore next - see test/lib/load-all-commands.js */
   static get description () {
     return 'View registry info'
+  }
+
+  /* istanbul ignore next - see test/lib/load-all-commands.js */
+  static get params () {
+    return [
+      'json',
+      'workspace',
+      'workspaces',
+    ]
   }
 
   /* istanbul ignore next - see test/lib/load-all-commands.js */
@@ -85,43 +95,116 @@ class View extends BaseCommand {
     this.view(args).then(() => cb()).catch(cb)
   }
 
+  execWorkspaces (args, filters, cb) {
+    this.viewWorkspaces(args, filters).then(() => cb()).catch(cb)
+  }
+
   async view (args) {
     if (!args.length)
       args = ['.']
+    let pkg = args.shift()
+    const local = /^\.@/.test(pkg) || pkg === '.'
 
+    if (local) {
+      if (this.npm.config.get('global'))
+        throw new Error('Cannot use view command in global mode.')
+      const dir = this.npm.prefix
+      const manifest = await readJson(resolve(dir, 'package.json'))
+      if (!manifest.name)
+        throw new Error('Invalid package.json, no "name" field')
+      // put the version back if it existed
+      pkg = `${manifest.name}${pkg.slice(1)}`
+    }
+    let wholePackument = false
+    if (!args.length) {
+      args = ['']
+      wholePackument = true
+    }
+    const [pckmnt, data] = await this.getData(pkg, args)
+
+    if (!this.npm.config.get('json') && wholePackument) {
+      // pretty view (entire packument)
+      data.map((v) => this.prettyView(pckmnt, v[Object.keys(v)[0]]['']))
+    } else {
+      // JSON formatted output (JSON or specific attributes from packument)
+      let reducedData = data.reduce(reducer, {})
+      if (wholePackument) {
+        // No attributes
+        reducedData = cleanBlanks(reducedData)
+        log.silly('view', reducedData)
+      }
+      // disable the progress bar entirely, as we can't meaningfully update it
+      // if we may have partial lines printed.
+      log.disableProgress()
+
+      const msg = await this.jsonData(reducedData, pckmnt._id)
+      if (msg !== '')
+        console.log(msg)
+    }
+  }
+
+  async viewWorkspaces (args, filters) {
+    if (!args.length)
+      args = ['.']
+
+    const pkg = args.shift()
+
+    const local = /^\.@/.test(pkg) || pkg === '.'
+    if (!local) {
+      this.npm.log.warn('Ignoring workspaces for remote package')
+      return this.view([pkg, ...args])
+    }
+    let wholePackument = false
+    if (!args.length) {
+      wholePackument = true
+      args = [''] // getData relies on this
+    }
+    const results = {}
+    const workspaces =
+      await getWorkspaces(filters, { path: this.npm.localPrefix })
+    for (const workspace of [...workspaces.entries()]) {
+      const wsPkg = `${workspace[0]}${pkg.slice(1)}`
+      const [pckmnt, data] = await this.getData(wsPkg, args)
+
+      let reducedData = data.reduce(reducer, {})
+      if (wholePackument) {
+        // No attributes
+        reducedData = cleanBlanks(reducedData)
+        log.silly('view', reducedData)
+      }
+
+      if (!this.npm.config.get('json')) {
+        if (wholePackument)
+          data.map((v) => this.prettyView(pckmnt, v[Object.keys(v)[0]]['']))
+        else {
+          console.log(`${workspace[0]}:`)
+          const msg = await this.jsonData(reducedData, pckmnt._id)
+          if (msg !== '')
+            console.log(msg)
+        }
+      } else {
+        const msg = await this.jsonData(reducedData, pckmnt._id)
+        if (msg !== '')
+          results[workspace[0]] = JSON.parse(msg)
+      }
+    }
+    if (Object.keys(results).length > 0)
+      console.log(JSON.stringify(results, null, 2))
+  }
+
+  async getData (pkg, args) {
     const opts = {
       ...this.npm.flatOptions,
       preferOnline: true,
       fullMetadata: true,
     }
-    const pkg = args.shift()
-    let nv
-    if (/^[.]@/.test(pkg))
-      nv = npa.resolve(null, pkg.slice(2))
-    else
-      nv = npa(pkg)
 
-    const name = nv.name
-    const local = (name === '.' || !name)
-
-    if (this.npm.config.get('global') && local)
-      throw new Error('Cannot use view command in global mode.')
-
-    if (local) {
-      const dir = this.npm.prefix
-      const manifest = await readJson(path.resolve(dir, 'package.json'))
-      if (!manifest.name)
-        throw new Error('Invalid package.json, no "name" field')
-      const p = manifest.name
-      nv = npa(p)
-      if (pkg && ~pkg.indexOf('@'))
-        nv.rawSpec = pkg.split('@')[pkg.indexOf('@')]
-    }
+    const spec = npa(pkg)
 
     // get the data about this package
-    let version = nv.rawSpec || this.npm.config.get('tag')
+    let version = spec.rawSpec || this.npm.config.get('tag')
 
-    const pckmnt = await packument(nv, opts)
+    const pckmnt = await packument(spec, opts)
 
     if (pckmnt['dist-tags'] && pckmnt['dist-tags'][version])
       version = pckmnt['dist-tags'][version]
@@ -135,11 +218,9 @@ class View extends BaseCommand {
       throw er
     }
 
-    const results = []
+    const data = []
     const versions = pckmnt.versions || {}
     pckmnt.versions = Object.keys(versions).sort(semver.compareLoose)
-    if (!args.length)
-      args = ['']
 
     // remove readme unless we asked for it
     if (args.indexOf('readme') === -1)
@@ -152,36 +233,22 @@ class View extends BaseCommand {
           if (args.indexOf('readme') !== -1)
             delete versions[v].readme
 
-          results.push(showFields(pckmnt, versions[v], arg))
+          data.push(showFields(pckmnt, versions[v], arg))
         })
       }
     })
-    let retval = results.reduce(reducer, {})
-
-    if (args.length === 1 && args[0] === '') {
-      retval = cleanBlanks(retval)
-      log.silly('view', retval)
-    }
 
     if (
       !this.npm.config.get('json') &&
       args.length === 1 &&
       args[0] === ''
-    ) {
-      // general view
+    )
       pckmnt.version = version
-      await Promise.all(
-        results.map((v) => this.prettyView(pckmnt, v[Object.keys(v)[0]]['']))
-      )
-      return retval
-    } else {
-      // view by field name
-      await this.printData(retval, pckmnt._id)
-      return retval
-    }
+
+    return [pckmnt, data]
   }
 
-  async printData (data, name) {
+  async jsonData (data, name) {
     const versions = Object.keys(data)
     let msg = ''
     let msgJson = []
@@ -233,16 +300,10 @@ class View extends BaseCommand {
         msg = JSON.stringify(msgJson, null, 2) + '\n'
     }
 
-    // disable the progress bar entirely, as we can't meaningfully update it if
-    // we may have partial lines printed.
-    log.disableProgress()
-
-    // only log if there is something to log
-    if (msg !== '')
-      console.log(msg.trim())
+    return msg.trim()
   }
 
-  async prettyView (packument, manifest) {
+  prettyView (packument, manifest) {
     // More modern, pretty printing of default view
     const unicode = this.npm.config.get('unicode')
     const tags = []
@@ -375,17 +436,18 @@ function cleanBlanks (obj) {
   return clean
 }
 
-function reducer (l, r) {
-  if (r) {
-    Object.keys(r).forEach((v) => {
-      l[v] = l[v] || {}
-      Object.keys(r[v]).forEach((t) => {
-        l[v][t] = r[v][t]
+// takes an array of objects and merges them into one object
+function reducer (acc, cur) {
+  if (cur) {
+    Object.keys(cur).forEach((v) => {
+      acc[v] = acc[v] || {}
+      Object.keys(cur[v]).forEach((t) => {
+        acc[v][t] = cur[v][t]
       })
     })
   }
 
-  return l
+  return acc
 }
 
 // return whatever was printed
