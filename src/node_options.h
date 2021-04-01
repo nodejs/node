@@ -175,6 +175,8 @@ class EnvironmentOptions : public Options {
   bool tls_max_v1_3 = false;
   std::string tls_keylog;
 
+  std::string implicit_package;
+
   std::vector<std::string> preload_modules;
 
   std::vector<std::string> user_argv;

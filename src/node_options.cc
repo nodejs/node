@@ -395,6 +395,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "silence all process warnings",
             &EnvironmentOptions::no_warnings,
             kAllowedInEnvironment);
+  AddOption("--package",
+            "set file to act as package for entry point",
+            &EnvironmentOptions::implicit_package,
+            kAllowedInEnvironment);
   AddOption("--force-context-aware",
             "disable loading non-context-aware addons",
             &EnvironmentOptions::force_context_aware,
