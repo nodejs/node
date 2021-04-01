@@ -120,6 +120,6 @@ function exitWithThrowInUncaughtHandler() {
 }
 cases.push({
   func: exitWithThrowInUncaughtHandler,
-  result: 7,
+  result: 1,
   error: /^Error: ok$/,
 });
