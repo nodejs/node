@@ -33,7 +33,7 @@ PBKDF2Config& PBKDF2Config::operator=(PBKDF2Config&& other) noexcept {
 }
 
 void PBKDF2Config::MemoryInfo(MemoryTracker* tracker) const {
-  // The the job is sync, the PBKDF2Config does not own the data
+  // The job is sync, the PBKDF2Config does not own the data.
   if (mode == kCryptoJobAsync) {
     tracker->TrackFieldWithSize("pass", pass.size());
     tracker->TrackFieldWithSize("salt", salt.size());
