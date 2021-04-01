@@ -64,7 +64,7 @@ async function generateKeysToWrap() {
   const parameters = [
     {
       algorithm: {
-        name: 'RSASSA-PKCS1-V1_5',
+        name: 'RSASSA-PKCS1-v1_5',
         modulusLength: 1024,
         publicExponent: new Uint8Array([1, 0, 1]),
         hash: 'SHA-256'

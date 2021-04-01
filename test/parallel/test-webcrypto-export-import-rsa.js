@@ -457,7 +457,7 @@ const testVectors = [
     publicUsages: ['verify']
   },
   {
-    name: 'RSASSA-PKCS1-V1_5',
+    name: 'RSASSA-PKCS1-v1_5',
     privateUsages: ['sign'],
     publicUsages: ['verify']
   },

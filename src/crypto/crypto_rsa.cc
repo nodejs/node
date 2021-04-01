@@ -559,7 +559,7 @@ void Initialize(Environment* env, Local<Object> target) {
   RSAKeyExportJob::Initialize(env, target);
   RSACipherJob::Initialize(env, target);
 
-  NODE_DEFINE_CONSTANT(target, kKeyVariantRSA_SSA_PKCS1_V1_5);
+  NODE_DEFINE_CONSTANT(target, kKeyVariantRSA_SSA_PKCS1_v1_5);
   NODE_DEFINE_CONSTANT(target, kKeyVariantRSA_PSS);
   NODE_DEFINE_CONSTANT(target, kKeyVariantRSA_OAEP);
 }
