@@ -56,7 +56,7 @@ changes:
   see `options` of [`net.Socket` constructor][].
 * Returns {tty.ReadStream}
 
-Creates a ReadStream for `fd` associated with a TTY.
+Creates a `ReadStream` for `fd` associated with a TTY.
 
 ### `readStream.isRaw`
 <!-- YAML
@@ -111,7 +111,7 @@ added: v0.5.8
 * `fd` {number} A file descriptor associated with a TTY.
 * Returns {tty.WriteStream}
 
-Creates a WriteStream for `fd` associated with a TTY.
+Creates a `WriteStream` for `fd` associated with a TTY.
 
 ### Event: `'resize'`
 <!-- YAML
