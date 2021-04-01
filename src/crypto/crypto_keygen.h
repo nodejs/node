@@ -96,10 +96,13 @@ class KeyGenJob final : public CryptoJob<KeyGenTraits> {
     Environment* env = AsyncWrap::env();
     CryptoErrorStore* errors = CryptoJob<KeyGenTraits>::errors();
     AdditionalParams* params = CryptoJob<KeyGenTraits>::params();
-    if (status_ == KeyGenJobStatus::OK &&
-        LIKELY(!KeyGenTraits::EncodeKey(env, params, result).IsNothing())) {
-      *err = Undefined(env->isolate());
-      return v8::Just(true);
+
+    if (status_ == KeyGenJobStatus::OK) {
+      v8::Maybe<bool> ret = KeyGenTraits::EncodeKey(env, params, result);
+      if (ret.IsJust() && ret.FromJust()) {
+        *err = Undefined(env->isolate());
+      }
+      return ret;
     }
 
     if (errors->Empty())

@@ -12,6 +12,7 @@ const {
   createVerify,
   generateKeyPair,
   generateKeyPairSync,
+  getCurves,
   publicEncrypt,
   privateDecrypt,
   sign,
@@ -1312,5 +1313,35 @@ if (!common.hasOpenSSL3) {
         message: 'Invalid EC curve name'
       }
     );
+  }
+}
+
+{
+  // This test creates EC key pairs on curves without associated OIDs.
+  // Specifying a key encoding should not crash.
+
+  if (process.versions.openssl >= '1.1.1i') {
+    for (const namedCurve of ['Oakley-EC2N-3', 'Oakley-EC2N-4']) {
+      if (!getCurves().includes(namedCurve))
+        continue;
+
+      const params = {
+        namedCurve,
+        publicKeyEncoding: {
+          format: 'der',
+          type: 'spki'
+        }
+      };
+
+      assert.throws(() => {
+        generateKeyPairSync('ec', params);
+      }, {
+        code: 'ERR_OSSL_EC_MISSING_OID'
+      });
+
+      generateKeyPair('ec', params, common.mustCall((err) => {
+        assert.strictEqual(err.code, 'ERR_OSSL_EC_MISSING_OID');
+      }));
+    }
   }
 }
