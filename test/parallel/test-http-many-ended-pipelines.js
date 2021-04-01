@@ -21,6 +21,7 @@
 
 'use strict';
 const common = require('../common');
+const assert = require('assert');
 const http = require('http');
 const net = require('net');
 
@@ -43,6 +44,14 @@ const server = http.createServer(function(req, res) {
 server.listen(0, function() {
   const client = net.connect({ port: this.address().port,
                                allowHalfOpen: true });
+
+  client.on('error', function(err) {
+    // The socket might be destroyed by the other peer while data is still
+    // being written. The `'EPIPE'` and `'ECONNABORTED'` codes might also be
+    // valid but they have not been seen yet.
+    assert.strictEqual(err.code, 'ECONNRESET');
+  });
+
   for (let i = 0; i < numRequests; i++) {
     client.write('GET / HTTP/1.1\r\n' +
                  'Host: some.host.name\r\n' +
