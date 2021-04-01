@@ -223,7 +223,7 @@ define('audit', {
 
 define('audit-level', {
   default: null,
-  type: ['info', 'low', 'moderate', 'high', 'critical', 'none', null],
+  type: [null, 'info', 'low', 'moderate', 'high', 'critical', 'none'],
   description: `
     The minimum level of vulnerability for \`npm audit\` to exit with
     a non-zero exit code.
@@ -2042,7 +2042,9 @@ define('which', {
 define('workspace', {
   default: [],
   type: [String, Array],
+  hint: '<workspace-name>',
   short: 'w',
+  envExport: false,
   description: `
     Enable running a command in the context of the configured workspaces of the
     current project while filtering by running only the workspaces defined by
@@ -2060,6 +2062,7 @@ define('workspaces', {
   default: false,
   type: Boolean,
   short: 'ws',
+  envExport: false,
   description: `
     Enable running a command in the context of **all** the configured
     workspaces.

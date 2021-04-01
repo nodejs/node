@@ -14,8 +14,7 @@ aliases: info, show, v
 
 ### Description
 
-This command shows data about a package and prints it to the stream
-referenced by the `outfd` config, which defaults to stdout.
+This command shows data about a package and prints it to stdout.
 
 As an example, to view information about the `connect` package from the registry, you would run:
 

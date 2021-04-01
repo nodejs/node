@@ -297,7 +297,7 @@ registry and all registries configured for scopes. See the documentation for
 <h4 id="audit-level"><code>audit-level</code></h4>
 <ul>
 <li>Default: null</li>
-<li>Type: “info”, “low”, “moderate”, “high”, “critical”, “none”, or null</li>
+<li>Type: null, “info”, “low”, “moderate”, “high”, “critical”, or “none”</li>
 </ul>
 <p>The minimum level of vulnerability for <code>npm audit</code> to exit with a non-zero
 exit code.</p>
@@ -1262,6 +1262,7 @@ this configuration option.</p>
 <p>Valid values for the <code>workspace</code> config are either: - Workspace names - Path
 to a workspace directory - Path to a parent workspace directory (will result
 to selecting all of the nested workspaces)</p>
+<p>This value is not exported to the environment for child processes.</p>
 <h4 id="workspaces"><code>workspaces</code></h4>
 <ul>
 <li>Default: false</li>
@@ -1269,6 +1270,7 @@ to selecting all of the nested workspaces)</p>
 </ul>
 <p>Enable running a command in the context of <strong>all</strong> the configured
 workspaces.</p>
+<p>This value is not exported to the environment for child processes.</p>
 <h4 id="yes"><code>yes</code></h4>
 <ul>
 <li>Default: null</li>

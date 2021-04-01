@@ -1,3 +1,52 @@
+## v7.8.0 (2021-04-01)
+### FEATURES
+
+
+* [`8bcc5d73f`](https://github.com/npm/cli/commit/8bcc5d73f35434e781ff56419dd7f0c380efd072)
+  [#2972](https://github.com/npm/cli/issues/2972)
+  feat(workspaces): add repo and docs
+  ([@wraithgar](https://github.com/wraithgar))
+* [`ec520ce32`](https://github.com/npm/cli/commit/ec520ce32d5e834a32ebd58491df4200e01ce690)
+  [#2998](https://github.com/npm/cli/issues/2998)
+  feat(set-script): implement workspaces
+* [`32717a60e`](https://github.com/npm/cli/commit/32717a60eb55fcf8c7e5016223bfee78a6daba0e)
+  [#3001](https://github.com/npm/cli/issues/3001)
+  feat(view): add workspace support
+  ([@wraithgar](https://github.com/wraithgar))
+* [`7b177e43f`](https://github.com/npm/cli/commit/7b177e43f3bfb558bcd8723cdb2166a3df19647a)
+  [#3014](https://github.com/npm/cli/issues/3014)
+  feat(config): add 'envExport' flag
+  ([@isaacs](https://github.com/isaacs))
+
+### BUG FIXES
+
+* [`4c4252348`](https://github.com/npm/cli/commit/4c4252348c538246e1072421d65f4558dc948080)
+  [#3016](https://github.com/npm/cli/issues/3016)
+  fix(usage): specify the key each time for multiples
+  ([@isaacs](https://github.com/isaacs))
+* [`9237d375b`](https://github.com/npm/cli/commit/9237d375b0b7d34c7dc5ba70aec7f616f4133732)
+  [#3013](https://github.com/npm/cli/issues/3013)
+  fix(docs): add workspaces configuration
+  ([@wraithgar](https://github.com/wraithgar))
+* [`cb6eb0d20`](https://github.com/npm/cli/commit/cb6eb0d206b7e2f63d5c7a7a17bea4aed1b9f2bf)
+  [#3015](https://github.com/npm/cli/issues/3015)
+  fix(ERESOLVE): better errors when current is missing
+  ([@isaacs](https://github.com/isaacs))
+
+### DEPENDENCIES
+
+* [`61da39beb`](https://github.com/npm/cli/commit/61da39beb5373320e2b591b61ecd6596eeaba6ed)
+  `@npmcli/config@2.1.0`
+  * feat(config): add support for envExport:false
+* [`fb095a708`](https://github.com/npm/cli/commit/fb095a708a1f930bbd0195446ac611b82bfeff14)
+  `@npmcli/arborist@2.3.0`:
+  * [#2896](https://github.com/npm/cli/issues/2896) Provide currentEdge in
+  ERESOLVE if known, and address self-linking edge case.
+  * Add/remove dependencies to/from workspaces when set, not root project
+  * Only reify the portions of the dependency graph identified by the
+  `workspace` configuration value.
+  * Do not recursively `chown` the project root path.
+
 ## v7.7.6 (2021-03-29)
 
 ### BUG FIXES

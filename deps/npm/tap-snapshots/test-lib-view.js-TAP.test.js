@@ -270,3 +270,260 @@ dist-tags:
 
 published [33ma year ago[39m
 `
+
+exports[`test/lib/view.js TAP workspaces all workspaces --json > must match snapshot 1`] = `
+
+{
+  "green": {
+    "_id": "green",
+    "name": "green",
+    "dist-tags": {
+      "latest": "1.0.0"
+    },
+    "maintainers": [
+      {
+        "name": "claudia",
+        "email": "c@yellow.com",
+        "twitter": "cyellow"
+      },
+      {
+        "name": "isaacs",
+        "email": "i@yellow.com",
+        "twitter": "iyellow"
+      }
+    ],
+    "keywords": [
+      "colors",
+      "green",
+      "crayola"
+    ],
+    "versions": [
+      "1.0.0",
+      "1.0.1"
+    ],
+    "version": "1.0.0",
+    "description": "green is a very important color",
+    "bugs": {
+      "url": "http://bugs.green.com"
+    },
+    "deprecated": true,
+    "repository": {
+      "url": "http://repository.green.com"
+    },
+    "license": {
+      "type": "ACME"
+    },
+    "bin": {
+      "green": "bin/green.js"
+    },
+    "dependencies": {
+      "red": "1.0.0",
+      "yellow": "1.0.0"
+    },
+    "dist": {
+      "shasum": "123",
+      "tarball": "http://hm.green.com/1.0.0.tgz",
+      "integrity": "---",
+      "fileCount": 1,
+      "unpackedSize": 1
+    }
+  },
+  "orange": {
+    "name": "orange",
+    "dist-tags": {
+      "latest": "1.0.0"
+    },
+    "versions": [
+      "1.0.0",
+      "1.0.1"
+    ],
+    "version": "1.0.0",
+    "homepage": "http://hm.orange.com",
+    "license": {},
+    "dist": {
+      "shasum": "123",
+      "tarball": "http://hm.orange.com/1.0.0.tgz",
+      "integrity": "---",
+      "fileCount": 1,
+      "unpackedSize": 1
+    }
+  }
+}
+`
+
+exports[`test/lib/view.js TAP workspaces all workspaces > must match snapshot 1`] = `
+
+
+[4m[1m[32mgreen[39m@[32m1.0.0[39m[22m[24m | [32mACME[39m | deps: [36m2[39m | versions: [33m2[39m
+green is a very important color
+
+[1m[31mDEPRECATED[39m[22m!! - true
+
+keywords:[33mcolors[39m, [33mgreen[39m, [33mcrayola[39m
+
+bin:[33mgreen[39m
+
+dist
+.tarball:[36mhttp://hm.green.com/1.0.0.tgz[39m
+.shasum:[33m123[39m
+.integrity:[33m---[39m
+.unpackedSize:[33m1[39m B
+
+dependencies:
+[33mred[39m: 1.0.0
+[33myellow[39m: 1.0.0
+
+maintainers:
+-[33mclaudia[39m <[36mc@yellow.com[39m>
+-[33misaacs[39m <[36mi@yellow.com[39m>
+
+dist-tags:
+[1m[32mlatest[39m[22m: 1.0.0
+
+[4m[1m[32morange[39m@[32m1.0.0[39m[22m[24m | [1m[31mProprietary[39m[22m | deps: [32mnone[39m | versions: [33m2[39m
+[36mhttp://hm.orange.com[39m
+
+dist
+.tarball:[36mhttp://hm.orange.com/1.0.0.tgz[39m
+.shasum:[33m123[39m
+.integrity:[33m---[39m
+.unpackedSize:[33m1[39m B
+
+dist-tags:
+[1m[32mlatest[39m[22m: 1.0.0
+`
+
+exports[`test/lib/view.js TAP workspaces all workspaces nonexistent field --json > must match snapshot 1`] = `
+
+`
+
+exports[`test/lib/view.js TAP workspaces all workspaces nonexistent field > must match snapshot 1`] = `
+
+green:
+orange:
+`
+
+exports[`test/lib/view.js TAP workspaces all workspaces single field --json > must match snapshot 1`] = `
+
+{
+  "green": "green",
+  "orange": "orange"
+}
+`
+
+exports[`test/lib/view.js TAP workspaces all workspaces single field > must match snapshot 1`] = `
+
+green:
+green
+orange:
+orange
+`
+
+exports[`test/lib/view.js TAP workspaces one specific workspace > must match snapshot 1`] = `
+
+
+[4m[1m[32mgreen[39m@[32m1.0.0[39m[22m[24m | [32mACME[39m | deps: [36m2[39m | versions: [33m2[39m
+green is a very important color
+
+[1m[31mDEPRECATED[39m[22m!! - true
+
+keywords:[33mcolors[39m, [33mgreen[39m, [33mcrayola[39m
+
+bin:[33mgreen[39m
+
+dist
+.tarball:[36mhttp://hm.green.com/1.0.0.tgz[39m
+.shasum:[33m123[39m
+.integrity:[33m---[39m
+.unpackedSize:[33m1[39m B
+
+dependencies:
+[33mred[39m: 1.0.0
+[33myellow[39m: 1.0.0
+
+maintainers:
+-[33mclaudia[39m <[36mc@yellow.com[39m>
+-[33misaacs[39m <[36mi@yellow.com[39m>
+
+dist-tags:
+[1m[32mlatest[39m[22m: 1.0.0
+`
+
+exports[`test/lib/view.js TAP workspaces remote package name > must match snapshot 1`] = `
+Ignoring workspaces for remote package
+`
+
+exports[`test/lib/view.js TAP workspaces remote package name > must match snapshot 2`] = `
+
+
+[4m[1m[32mpink[39m@[32m1.0.0[39m[22m[24m | [1m[31mProprietary[39m[22m | deps: [32mnone[39m | versions: [33m2[39m
+
+dist
+.tarball:[36mhttp://hm.pink.com/1.0.0.tgz[39m
+.shasum:[33m123[39m
+.integrity:[33m---[39m
+.unpackedSize:[33m1[39m B
+
+dist-tags:
+[1m[32mlatest[39m[22m: 1.0.0
+`
+
+exports[`test/lib/view.js TAP workspaces single workspace --json > must match snapshot 1`] = `
+
+{
+  "green": {
+    "_id": "green",
+    "name": "green",
+    "dist-tags": {
+      "latest": "1.0.0"
+    },
+    "maintainers": [
+      {
+        "name": "claudia",
+        "email": "c@yellow.com",
+        "twitter": "cyellow"
+      },
+      {
+        "name": "isaacs",
+        "email": "i@yellow.com",
+        "twitter": "iyellow"
+      }
+    ],
+    "keywords": [
+      "colors",
+      "green",
+      "crayola"
+    ],
+    "versions": [
+      "1.0.0",
+      "1.0.1"
+    ],
+    "version": "1.0.0",
+    "description": "green is a very important color",
+    "bugs": {
+      "url": "http://bugs.green.com"
+    },
+    "deprecated": true,
+    "repository": {
+      "url": "http://repository.green.com"
+    },
+    "license": {
+      "type": "ACME"
+    },
+    "bin": {
+      "green": "bin/green.js"
+    },
+    "dependencies": {
+      "red": "1.0.0",
+      "yellow": "1.0.0"
+    },
+    "dist": {
+      "shasum": "123",
+      "tarball": "http://hm.green.com/1.0.0.tgz",
+      "integrity": "---",
+      "fileCount": 1,
+      "unpackedSize": 1
+    }
+  }
+}
+`

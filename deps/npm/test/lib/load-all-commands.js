@@ -1,8 +1,7 @@
-// Thanks to nyc not working properly with proxies this doesn't affect
-// coverage. but it does ensure that every command has a usage that renders,
-// contains its name, a description, and if it has completion it is a function.
-// That it renders also ensures that any params we've defined in our commands
-// work.
+// Our coverage mapping means that stuff like this doen't count for coverage.
+// It does ensure that every command has a usage that renders, contains its
+// name, a description, and if it has completion it is a function.  That it
+// renders also ensures that any params we've defined in our commands work.
 const requireInject = require('require-inject')
 const npm = requireInject('../../lib/npm.js')
 const t = require('tap')

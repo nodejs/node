@@ -5,7 +5,7 @@ description: Set tasks in the scripts section of package.json
 ---
 
 ### Synopsis
-An npm command that lets you create a task in the scripts section of the package.json.
+An npm command that lets you create a task in the `scripts` section of the `package.json`.
 
 ```bash
 npm set-script [<script>] [<command>]
@@ -25,6 +25,19 @@ npm set-script [<script>] [<command>]
   }
 }
 ```
+
+### Configuration
+
+#### workspaces
+
+Enables workspaces context. Tasks will be created in the `scripts` section
+of the `package.json` of each workspace.
+
+#### workspace
+
+Enables workspaces context and limits creating a task to the
+`package.json` files of the workspaces given.
+
 
 ### See Also
 

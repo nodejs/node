@@ -1,4 +1,4 @@
-const isObj = val => val && !Array.isArray(val) && typeof val === 'object'
+const isObj = val => !!val && !Array.isArray(val) && typeof val === 'object'
 
 const compare = (ak, bk, prefKeys) =>
   prefKeys.includes(ak) && !prefKeys.includes(bk) ? -1

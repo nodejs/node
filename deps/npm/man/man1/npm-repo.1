@@ -1,4 +1,4 @@
-.TH "NPM\-REPO" "1" "March 2021" "" ""
+.TH "NPM\-REPO" "1" "April 2021" "" ""
 .SH "NAME"
 \fBnpm-repo\fR \- Open package repository page in the browser
 .SS Synopsis
@@ -30,6 +30,16 @@ Set to \fBfalse\fP to suppress browser behavior and instead print urls to
 terminal\.
 .P
 Set to \fBtrue\fP to use default system URL opener\.
+.SS workspaces
+.P
+Enables workspaces context while searching the \fBpackage\.json\fP in the
+current folder\.  Repo urls for the packages named in each workspace will
+be opened\.
+.SS workspace
+.P
+Enables workspaces context and limits results to only those specified by
+this config item\.  Only the repo urls for the packages named in the
+workspaces given here will be opened\.
 .SS See Also
 .RS 0
 .IP \(bu 2
