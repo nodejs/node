@@ -349,9 +349,27 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
     if (status == UV_ECANCELED) return;
     v8::HandleScope handle_scope(env->isolate());
     v8::Context::Scope context_scope(env->context());
+
+    // TODO(tniessen): Remove the exception handling logic here as soon as we
+    // can verify that no code path in ToResult will ever throw an exception.
+    v8::Local<v8::Value> exception;
     v8::Local<v8::Value> args[2];
-    if (ptr->ToResult(&args[0], &args[1]).FromJust())
+    {
+      node::errors::TryCatchScope try_catch(env);
+      v8::Maybe<bool> ret = ptr->ToResult(&args[0], &args[1]);
+      if (!ret.IsJust()) {
+        CHECK(try_catch.HasCaught());
+        exception = try_catch.Exception();
+      } else if (!ret.FromJust()) {
+        return;
+      }
+    }
+
+    if (exception.IsEmpty()) {
       ptr->MakeCallback(env->ondone_string(), arraysize(args), args);
+    } else {
+      ptr->MakeCallback(env->ondone_string(), 1, &exception);
+    }
   }
 
   virtual v8::Maybe<bool> ToResult(
@@ -384,7 +402,8 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
     v8::Local<v8::Value> ret[2];
     env->PrintSyncTrace();
     job->DoThreadPoolWork();
-    if (job->ToResult(&ret[0], &ret[1]).FromJust()) {
+    v8::Maybe<bool> result = job->ToResult(&ret[0], &ret[1]);
+    if (result.IsJust() && result.FromJust()) {
       args.GetReturnValue().Set(
           v8::Array::New(env->isolate(), ret, arraysize(ret)));
     }
