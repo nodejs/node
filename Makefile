@@ -773,6 +773,7 @@ docclean:
 
 RAWVER=$(shell $(PYTHON) tools/getnodeversion.py)
 VERSION=v$(RAWVER)
+CHANGELOG=doc/changelogs/CHANGELOG_V$(firstword $(subst ., ,$(RAWVER))).md
 
 # For nightly builds, you must set DISTTYPE to "nightly", "next-nightly" or
 # "custom". For the nightly and next-nightly case, you need to set DATESTRING
@@ -960,6 +961,15 @@ release-only: check-xz
 		echo "" >&2 ; \
 		exit 1 ; \
 	fi
+	@if [ "$(RELEASE)" = "0" -o -f "$(CHANGELOG)" ]; then \
+		exit 0; \
+	else \
+		echo "" >&2 ; \
+		echo "#NODE_VERSION_IS_RELEASE is set to $(RELEASE) but " >&2 ; \
+		echo "$(CHANGELOG) does not exist." >&2 ; \
+		echo "" >&2 ; \
+		exit 1 ; \
+	fi
 
 $(PKG): release-only
 	$(RM) -r $(MACOSOUTDIR)
@@ -1127,7 +1137,11 @@ $(BINARYTAR): release-only
 	$(MAKE) install DESTDIR=$(BINARYNAME) V=$(V) PORTABLE=1
 	cp README.md $(BINARYNAME)
 	cp LICENSE $(BINARYNAME)
+ifeq ("$(wildcard $(CHANGELOG))","")
 	cp CHANGELOG.md $(BINARYNAME)
+else
+	cp $(CHANGELOG) $(BINARYNAME)/CHANGELOG.md
+endif
 ifeq ($(OSTYPE),darwin)
 	SIGN="$(CODESIGN_CERT)" PKGDIR="$(BINARYNAME)" sh tools/osx-codesign.sh
 endif
