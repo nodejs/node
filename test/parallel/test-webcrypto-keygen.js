@@ -65,7 +65,7 @@ const vectors = {
     ],
     mandatoryUsages: []
   },
-  'RSASSA-PKCS1-V1_5': {
+  'RSASSA-PKCS1-v1_5': {
     algorithm: {
       modulusLength: 1024,
       publicExponent: new Uint8Array([1, 0, 1]),
@@ -317,7 +317,7 @@ const vectors = {
 
   const kTests = [
     [
-      'RSASSA-PKCS1-V1_5',
+      'RSASSA-PKCS1-v1_5',
       1024,
       Buffer.from([1, 0, 1]),
       'SHA-256',
