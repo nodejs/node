@@ -197,7 +197,7 @@ async function getHandle(dest) {
           code: 'ERR_OUT_OF_RANGE',
           name: 'RangeError',
           message: 'The value of "gid" is out of range. ' +
-                  'It must be >= -1 && < 4294967296. Received -2'
+                  'It must be >= -1 && <= 4294967295. Received -2'
         });
 
       assert.rejects(
@@ -208,7 +208,7 @@ async function getHandle(dest) {
           code: 'ERR_OUT_OF_RANGE',
           name: 'RangeError',
           message: 'The value of "gid" is out of range. ' +
-                    'It must be >= -1 && < 4294967296. Received -2'
+                    'It must be >= -1 && <= 4294967295. Received -2'
         });
 
       await handle.close();
