@@ -41,6 +41,19 @@ Set to `true` to use default system URL opener.
 
 The base URL of the npm package registry.
 
+#### workspaces
+
+Enables workspaces context while searching the `package.json` in the
+current folder.  Documentation urls for the packages named in each
+workspace will be opened.
+
+#### workspace
+
+Enables workspaces context and limits results to only those specified by
+this config item.  Only the documentation urls for the packages named in
+the workspaces given here will be opened.
+
+
 ### See Also
 
 * [npm view](/commands/npm-view)

@@ -685,6 +685,7 @@ class Node {
       ...this.children.values(),
       ...this.inventory.values(),
     ].filter(n => n !== this))
+
     for (const child of family) {
       if (child.root !== root) {
         child[_delistFromMeta]()
@@ -704,12 +705,14 @@ class Node {
     }
 
     // if we had a target, and didn't find one in the new root, then bring
-    // it over as well.
-    if (this.isLink && target && !this.target)
+    // it over as well, but only if we're setting the link into a new root,
+    // as we don't want to lose the target any time we remove a link.
+    if (this.isLink && target && !this.target && root !== this)
       target.root = root
 
     // tree should always be valid upon root setter completion.
     treeCheck(this)
+    treeCheck(root)
   }
 
   get root () {

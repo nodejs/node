@@ -11,7 +11,8 @@ const {existsSync} = require('fs')
 const ssri = require('ssri')
 
 class Diff {
-  constructor ({actual, ideal}) {
+  constructor ({actual, ideal, filterSet}) {
+    this.filterSet = filterSet
     this.children = []
     this.actual = actual
     this.ideal = ideal
@@ -29,9 +30,54 @@ class Diff {
     this.removed = []
   }
 
-  static calculate ({actual, ideal}) {
+  static calculate ({actual, ideal, filterNodes = []}) {
+    // if there's a filterNode, then:
+    // - get the path from the root to the filterNode.  The root or
+    //   root.target should have an edge either to the filterNode or
+    //   a link to the filterNode.  If not, abort.  Add the path to the
+    //   filterSet.
+    // - Add set of Nodes depended on by the filterNode to filterSet.
+    // - Anything outside of that set should be ignored by getChildren
+    const filterSet = new Set()
+    for (const filterNode of filterNodes) {
+      const { root } = filterNode
+      if (root !== ideal && root !== actual)
+        throw new Error('invalid filterNode: outside idealTree/actualTree')
+      const { target } = root
+      const rootTarget = target || root
+      const edge = [...rootTarget.edgesOut.values()].filter(e => {
+        return e.to && (e.to === filterNode || e.to.target === filterNode)
+      })[0]
+      filterSet.add(root)
+      filterSet.add(rootTarget)
+      filterSet.add(ideal)
+      filterSet.add(actual)
+      if (edge && edge.to) {
+        filterSet.add(edge.to)
+        if (edge.to.target)
+          filterSet.add(edge.to.target)
+      }
+      filterSet.add(filterNode)
+
+      depth({
+        tree: filterNode,
+        visit: node => filterSet.add(node),
+        getChildren: node => {
+          node = node.target || node
+          const loc = node.location
+          const idealNode = ideal.inventory.get(loc)
+          const ideals = !idealNode ? []
+            : [...idealNode.edgesOut.values()].filter(e => e.to).map(e => e.to)
+          const actualNode = actual.inventory.get(loc)
+          const actuals = !actualNode ? []
+            : [...actualNode.edgesOut.values()].filter(e => e.to).map(e => e.to)
+          return ideals.concat(actuals)
+        },
+      })
+    }
+
     return depth({
-      tree: new Diff({actual, ideal}),
+      tree: new Diff({actual, ideal, filterSet}),
       getChildren,
       leave,
     })
@@ -89,20 +135,20 @@ const allChildren = node => {
 // to create the diff tree
 const getChildren = diff => {
   const children = []
-  const {unchanged, removed} = diff
+  const {actual, ideal, unchanged, removed, filterSet} = diff
 
   // Note: we DON'T diff fsChildren themselves, because they are either
   // included in the package contents, or part of some other project, and
   // will never appear in legacy shrinkwraps anyway.  but we _do_ include the
   // child nodes of fsChildren, because those are nodes that we are typically
   // responsible for installing.
-  const actualKids = allChildren(diff.actual)
-  const idealKids = allChildren(diff.ideal)
+  const actualKids = allChildren(actual)
+  const idealKids = allChildren(ideal)
   const paths = new Set([...actualKids.keys(), ...idealKids.keys()])
   for (const path of paths) {
     const actual = actualKids.get(path)
     const ideal = idealKids.get(path)
-    diffNode(actual, ideal, children, unchanged, removed)
+    diffNode(actual, ideal, children, unchanged, removed, filterSet)
   }
 
   if (diff.leaves && !children.length)
@@ -111,7 +157,10 @@ const getChildren = diff => {
   return children
 }
 
-const diffNode = (actual, ideal, children, unchanged, removed) => {
+const diffNode = (actual, ideal, children, unchanged, removed, filterSet) => {
+  if (filterSet.size && !(filterSet.has(ideal) || filterSet.has(actual)))
+    return
+
   const action = getAction({actual, ideal})
 
   // if it's a match, then get its children
@@ -119,7 +168,7 @@ const diffNode = (actual, ideal, children, unchanged, removed) => {
   if (action) {
     if (action === 'REMOVE')
       removed.push(actual)
-    children.push(new Diff({actual, ideal}))
+    children.push(new Diff({actual, ideal, filterSet}))
   } else {
     unchanged.push(ideal)
     // !*! Weird dirty hack warning !*!
@@ -150,7 +199,7 @@ const diffNode = (actual, ideal, children, unchanged, removed) => {
       for (const node of bundledChildren)
         node.parent = ideal
     }
-    children.push(...getChildren({actual, ideal, unchanged, removed}))
+    children.push(...getChildren({actual, ideal, unchanged, removed, filterSet}))
   }
 }
 

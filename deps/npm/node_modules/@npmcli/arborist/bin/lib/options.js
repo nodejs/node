@@ -33,7 +33,13 @@ for (const arg of process.argv.slice(2)) {
     options.omit.push(arg.substr('--omit='.length))
   } else if (/^--before=/.test(arg))
     options.before = new Date(arg.substr('--before='.length))
-  else if (/^--[^=]+=/.test(arg)) {
+  else if (/^-w.+/.test(arg)) {
+    options.workspaces = options.workspaces || []
+    options.workspaces.push(arg.replace(/^-w/, ''))
+  } else if (/^--workspace=/.test(arg)) {
+    options.workspaces = options.workspaces || []
+    options.workspaces.push(arg.replace(/^--workspace=/, ''))
+  } else if (/^--[^=]+=/.test(arg)) {
     const [key, ...v] = arg.replace(/^--/, '').split('=')
     const val = v.join('=')
     options[key] = val === 'false' ? false : val === 'true' ? true : val

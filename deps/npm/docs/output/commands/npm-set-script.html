@@ -141,11 +141,11 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#workspaces">workspaces</a></li><li><a href="#workspace">workspace</a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<p>An npm command that lets you create a task in the scripts section of the package.json.</p>
+<p>An npm command that lets you create a task in the <code>scripts</code> section of the <code>package.json</code>.</p>
 <pre lang="bash"><code>npm set-script [&lt;script&gt;] [&lt;command&gt;]
 </code></pre>
 <p><strong>Example:</strong></p>
@@ -160,6 +160,13 @@ npm command-line interface
   }
 }
 </code></pre>
+<h3 id="configuration">Configuration</h3>
+<h4 id="workspaces">workspaces</h4>
+<p>Enables workspaces context. Tasks will be created in the <code>scripts</code> section
+of the <code>package.json</code> of each workspace.</p>
+<h4 id="workspace">workspace</h4>
+<p>Enables workspaces context and limits creating a task to the
+<code>package.json</code> files of the workspaces given.</p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../commands/npm-run-script.html">npm run-script</a></li>

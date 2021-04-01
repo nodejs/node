@@ -418,6 +418,188 @@ to accept an incorrect (and potentially broken) dependency resolution.
 See \${REPORT} for a full report.
 `
 
+exports[`test/lib/utils/explain-eresolve.js TAP no current node, but has current edge > explain with color 1`] = `
+While resolving: [1meslint[22m@[1m7.22.0[22m
+Found: [33mdev[39m [1meslint[22m@"[1mfile:.[22m" from the root project
+
+Could not resolve dependency:
+[35mpeer[39m [1meslint[22m@"[1m^6.0.0[22m" from [1meslint-plugin-jsdoc[22m@[1m22.2.0[22m[2m[22m
+[2mnode_modules/eslint-plugin-jsdoc[22m
+  [33mdev[39m [1meslint-plugin-jsdoc[22m@"[1m^22.1.0[22m" from the root project
+`
+
+exports[`test/lib/utils/explain-eresolve.js TAP no current node, but has current edge > explain with no color, depth of 6 1`] = `
+While resolving: eslint@7.22.0
+Found: dev eslint@"file:." from the root project
+
+Could not resolve dependency:
+peer eslint@"^6.0.0" from eslint-plugin-jsdoc@22.2.0
+node_modules/eslint-plugin-jsdoc
+  dev eslint-plugin-jsdoc@"^22.1.0" from the root project
+`
+
+exports[`test/lib/utils/explain-eresolve.js TAP no current node, but has current edge > report 1`] = `
+# npm resolution error report
+
+\${TIME}
+
+While resolving: eslint@7.22.0
+Found: dev eslint@"file:." from the root project
+
+Could not resolve dependency:
+peer eslint@"^6.0.0" from eslint-plugin-jsdoc@22.2.0
+node_modules/eslint-plugin-jsdoc
+  dev eslint-plugin-jsdoc@"^22.1.0" from the root project
+
+Fix the upstream dependency conflict, or retry
+this command with --force, or --legacy-peer-deps
+to accept an incorrect (and potentially broken) dependency resolution.
+
+Raw JSON explanation object:
+
+{
+  "name": "no current node, but has current edge",
+  "json": true
+}
+
+`
+
+exports[`test/lib/utils/explain-eresolve.js TAP no current node, but has current edge > report with color 1`] = `
+While resolving: [1meslint[22m@[1m7.22.0[22m
+Found: [33mdev[39m [1meslint[22m@"[1mfile:.[22m" from the root project
+
+Could not resolve dependency:
+[35mpeer[39m [1meslint[22m@"[1m^6.0.0[22m" from [1meslint-plugin-jsdoc[22m@[1m22.2.0[22m[2m[22m
+[2mnode_modules/eslint-plugin-jsdoc[22m
+  [33mdev[39m [1meslint-plugin-jsdoc[22m@"[1m^22.1.0[22m" from the root project
+
+Fix the upstream dependency conflict, or retry
+this command with --force, or --legacy-peer-deps
+to accept an incorrect (and potentially broken) dependency resolution.
+
+See \${REPORT} for a full report.
+`
+
+exports[`test/lib/utils/explain-eresolve.js TAP no current node, but has current edge > report with color, depth only 2 1`] = `
+While resolving: [1meslint[22m@[1m7.22.0[22m
+Found: [33mdev[39m [1meslint[22m@"[1mfile:.[22m" from the root project
+
+Could not resolve dependency:
+[35mpeer[39m [1meslint[22m@"[1m^6.0.0[22m" from [1meslint-plugin-jsdoc[22m@[1m22.2.0[22m[2m[22m
+[2mnode_modules/eslint-plugin-jsdoc[22m
+  [33mdev[39m [1meslint-plugin-jsdoc[22m@"[1m^22.1.0[22m" from the root project
+
+Fix the upstream dependency conflict, or retry
+this command with --force, or --legacy-peer-deps
+to accept an incorrect (and potentially broken) dependency resolution.
+
+See \${REPORT} for a full report.
+`
+
+exports[`test/lib/utils/explain-eresolve.js TAP no current node, but has current edge > report with no color, depth of 6 1`] = `
+While resolving: eslint@7.22.0
+Found: dev eslint@"file:." from the root project
+
+Could not resolve dependency:
+peer eslint@"^6.0.0" from eslint-plugin-jsdoc@22.2.0
+node_modules/eslint-plugin-jsdoc
+  dev eslint-plugin-jsdoc@"^22.1.0" from the root project
+
+Fix the upstream dependency conflict, or retry
+this command with --force, or --legacy-peer-deps
+to accept an incorrect (and potentially broken) dependency resolution.
+
+See \${REPORT} for a full report.
+`
+
+exports[`test/lib/utils/explain-eresolve.js TAP no current node, no current edge, idk > explain with color 1`] = `
+While resolving: [1meslint[22m@[1m7.22.0[22m
+
+Could not resolve dependency:
+[35mpeer[39m [1meslint[22m@"[1m^6.0.0[22m" from [1meslint-plugin-jsdoc[22m@[1m22.2.0[22m[2m[22m
+[2mnode_modules/eslint-plugin-jsdoc[22m
+  [33mdev[39m [1meslint-plugin-jsdoc[22m@"[1m^22.1.0[22m" from the root project
+`
+
+exports[`test/lib/utils/explain-eresolve.js TAP no current node, no current edge, idk > explain with no color, depth of 6 1`] = `
+While resolving: eslint@7.22.0
+
+Could not resolve dependency:
+peer eslint@"^6.0.0" from eslint-plugin-jsdoc@22.2.0
+node_modules/eslint-plugin-jsdoc
+  dev eslint-plugin-jsdoc@"^22.1.0" from the root project
+`
+
+exports[`test/lib/utils/explain-eresolve.js TAP no current node, no current edge, idk > report 1`] = `
+# npm resolution error report
+
+\${TIME}
+
+While resolving: eslint@7.22.0
+
+Could not resolve dependency:
+peer eslint@"^6.0.0" from eslint-plugin-jsdoc@22.2.0
+node_modules/eslint-plugin-jsdoc
+  dev eslint-plugin-jsdoc@"^22.1.0" from the root project
+
+Fix the upstream dependency conflict, or retry
+this command with --force, or --legacy-peer-deps
+to accept an incorrect (and potentially broken) dependency resolution.
+
+Raw JSON explanation object:
+
+{
+  "name": "no current node, no current edge, idk",
+  "json": true
+}
+
+`
+
+exports[`test/lib/utils/explain-eresolve.js TAP no current node, no current edge, idk > report with color 1`] = `
+While resolving: [1meslint[22m@[1m7.22.0[22m
+
+Could not resolve dependency:
+[35mpeer[39m [1meslint[22m@"[1m^6.0.0[22m" from [1meslint-plugin-jsdoc[22m@[1m22.2.0[22m[2m[22m
+[2mnode_modules/eslint-plugin-jsdoc[22m
+  [33mdev[39m [1meslint-plugin-jsdoc[22m@"[1m^22.1.0[22m" from the root project
+
+Fix the upstream dependency conflict, or retry
+this command with --force, or --legacy-peer-deps
+to accept an incorrect (and potentially broken) dependency resolution.
+
+See \${REPORT} for a full report.
+`
+
+exports[`test/lib/utils/explain-eresolve.js TAP no current node, no current edge, idk > report with color, depth only 2 1`] = `
+While resolving: [1meslint[22m@[1m7.22.0[22m
+
+Could not resolve dependency:
+[35mpeer[39m [1meslint[22m@"[1m^6.0.0[22m" from [1meslint-plugin-jsdoc[22m@[1m22.2.0[22m[2m[22m
+[2mnode_modules/eslint-plugin-jsdoc[22m
+  [33mdev[39m [1meslint-plugin-jsdoc[22m@"[1m^22.1.0[22m" from the root project
+
+Fix the upstream dependency conflict, or retry
+this command with --force, or --legacy-peer-deps
+to accept an incorrect (and potentially broken) dependency resolution.
+
+See \${REPORT} for a full report.
+`
+
+exports[`test/lib/utils/explain-eresolve.js TAP no current node, no current edge, idk > report with no color, depth of 6 1`] = `
+While resolving: eslint@7.22.0
+
+Could not resolve dependency:
+peer eslint@"^6.0.0" from eslint-plugin-jsdoc@22.2.0
+node_modules/eslint-plugin-jsdoc
+  dev eslint-plugin-jsdoc@"^22.1.0" from the root project
+
+Fix the upstream dependency conflict, or retry
+this command with --force, or --legacy-peer-deps
+to accept an incorrect (and potentially broken) dependency resolution.
+
+See \${REPORT} for a full report.
+`
+
 exports[`test/lib/utils/explain-eresolve.js TAP withShrinkwrap > explain with color 1`] = `
 While resolving: [1m@isaacs/peer-dep-cycle-b[22m@[1m1.0.0[22m
 Found: [1m@isaacs/peer-dep-cycle-c[22m@[1m2.0.0[22m[2m[22m

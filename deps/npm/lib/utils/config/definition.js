@@ -25,6 +25,7 @@ const allowed = [
   'type',
   'typeDescription',
   'usage',
+  'envExport',
 ]
 
 const {
@@ -39,12 +40,15 @@ const {
 class Definition {
   constructor (key, def) {
     this.key = key
+    // if it's set falsey, don't export it, otherwise we do by default
+    this.envExport = true
     Object.assign(this, def)
     this.validate()
     if (!this.defaultDescription)
       this.defaultDescription = describeValue(this.default)
     if (!this.typeDescription)
       this.typeDescription = describeType(this.type)
+    // hint is only used for non-boolean values
     if (!this.hint)
       this.hint = `<${this.key}>`
     if (!this.usage)
@@ -67,6 +71,9 @@ class Definition {
   // a textual description of this config, suitable for help output
   describe () {
     const description = unindent(this.description)
+    const noEnvExport = this.envExport ? '' : `
+This value is not exported to the environment for child processes.
+`
     const deprecated = !this.deprecated ? ''
       : `* DEPRECATED: ${unindent(this.deprecated)}\n`
     return wrapAll(`#### \`${this.key}\`
@@ -75,30 +82,48 @@ class Definition {
 * Type: ${unindent(this.typeDescription)}
 ${deprecated}
 ${description}
-`)
+${noEnvExport}`)
   }
-}
-
-// Usage for a single param, abstracted because we have arrays of types in
-// config definition
-const paramUsage = (type, def) => {
-  let key = `--${def.key}`
-  if (def.short && typeof def.short === 'string')
-    key = `-${def.short}|${key}`
-  if (type === Boolean)
-    return `${key}`
-  else
-    return `${key} ${def.hint}`
 }
 
 const describeUsage = (def) => {
-  if (Array.isArray(def.type)) {
-    if (!def.type.some(d => d !== null && typeof d !== 'string'))
-      return `--${def.key} <${def.type.filter(d => d).join('|')}>`
-    else
-      return def.type.filter(d => d).map((t) => paramUsage(t, def)).join('|')
+  let key = `--${def.key}`
+  if (def.short && typeof def.short === 'string')
+    key = `-${def.short}|${key}`
+
+  // Single type
+  if (!Array.isArray(def.type))
+    return `${key}${def.type === Boolean ? '' : ' ' + def.hint}`
+
+  // Multiple types
+  let types = def.type
+  const multiple = types.includes(Array)
+  const bool = types.includes(Boolean)
+
+  // null type means optional and doesn't currently affect usage output since
+  // all non-optional params have defaults so we render everything as optional
+  types = types.filter(t => t !== null && t !== Array && t !== Boolean)
+
+  if (!types.length)
+    return key
+
+  let description
+  if (!types.some(t => typeof t !== 'string'))
+    // Specific values, use specifics given
+    description = `<${types.filter(d => d).join('|')}>`
+  else {
+    // Generic values, use hint
+    description = def.hint
   }
-  return paramUsage(def.type, def)
+
+  if (bool)
+    key = `${key}|${key}`
+
+  const usage = `${key} ${description}`
+  if (multiple)
+    return `${usage} [${usage} ...]`
+  else
+    return usage
 }
 
 const describeType = type => {

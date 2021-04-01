@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "March 2021" "" ""
+.TH "CONFIG" "7" "April 2021" "" ""
 .SH "NAME"
 \fBconfig\fR \- More than you probably want to know about npm configuration
 .SS Description
@@ -245,7 +245,7 @@ npm help \fBaudit\fP for details on what is submitted\.
 .IP \(bu 2
 Default: null
 .IP \(bu 2
-Type: "info", "low", "moderate", "high", "critical", "none", or null
+Type: null, "info", "low", "moderate", "high", "critical", or "none"
 
 .RE
 .P
@@ -1776,6 +1776,8 @@ this configuration option\.
 Valid values for the \fBworkspace\fP config are either: \- Workspace names \- Path
 to a workspace directory \- Path to a parent workspace directory (will result
 to selecting all of the nested workspaces)
+.P
+This value is not exported to the environment for child processes\.
 .SS \fBworkspaces\fP
 .RS 0
 .IP \(bu 2
@@ -1787,6 +1789,8 @@ Type: Boolean
 .P
 Enable running a command in the context of \fBall\fR the configured
 workspaces\.
+.P
+This value is not exported to the environment for child processes\.
 .SS \fByes\fP
 .RS 0
 .IP \(bu 2
