@@ -43,6 +43,21 @@ Represents the readable side of a TTY. In normal circumstances
 [`process.stdin`][] will be the only `tty.ReadStream` instance in a Node.js
 process and there should be no reason to create additional instances.
 
+### `new tty.ReadStream(fd[, options])`
+<!-- YAML
+added: v0.5.8
+changes:
+  - version: v0.9.4
+    description: The `options` argument is supported.
+-->
+
+* `fd` {number} A file descriptor associated with a TTY.
+* `options` {Object} Options passed to parent `net.Socket`,
+  see `options` of [`net.Socket` constructor][].
+* Returns {tty.ReadStream}
+
+Creates a ReadStream for `fd` associated with a TTY.
+
 ### `readStream.isRaw`
 <!-- YAML
 added: v0.7.7
@@ -87,6 +102,16 @@ Represents the writable side of a TTY. In normal circumstances,
 [`process.stdout`][] and [`process.stderr`][] will be the only
 `tty.WriteStream` instances created for a Node.js process and there
 should be no reason to create additional instances.
+
+### `new tty.WriteStream(fd)`
+<!-- YAML
+added: v0.5.8
+-->
+
+* `fd` {number} A file descriptor associated with a TTY.
+* Returns {tty.WriteStream}
+
+Creates a WriteStream for `fd` associated with a TTY.
 
 ### Event: `'resize'`
 <!-- YAML
@@ -293,6 +318,7 @@ The `tty.isatty()` method returns `true` if the given `fd` is associated with
 a TTY and `false` if it is not, including whenever `fd` is not a non-negative
 integer.
 
+[`net.Socket` constructor]: net.md#net_new_net_socket_options
 [`process.stderr`]: process.md#process_process_stderr
 [`process.stdin`]: process.md#process_process_stdin
 [`process.stdout`]: process.md#process_process_stdout
