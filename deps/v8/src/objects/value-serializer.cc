@@ -1098,7 +1098,10 @@ ValueDeserializer::ValueDeserializer(Isolate* isolate,
       position_(data.begin()),
       end_(data.begin() + data.length()),
       id_map_(isolate->global_handles()->Create(
-          ReadOnlyRoots(isolate_).empty_fixed_array())) {}
+          ReadOnlyRoots(isolate_).empty_fixed_array())) {
+              // TODO: maybe CHECK here position_ != null
+              CHECK(position_ != NULL);
+          }
 
 ValueDeserializer::~ValueDeserializer() {
   GlobalHandles::Destroy(id_map_.location());
