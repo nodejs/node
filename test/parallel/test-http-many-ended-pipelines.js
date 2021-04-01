@@ -21,14 +21,6 @@
 
 'use strict';
 const common = require('../common');
-
-// No warnings should happen!
-const trace = console.trace;
-console.trace = function() {
-  trace.apply(console, arguments);
-  throw new Error('no tracing should happen here');
-};
-
 const http = require('http');
 const net = require('net');
 
