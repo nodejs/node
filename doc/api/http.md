@@ -2720,7 +2720,7 @@ The `callback` is invoked with a single argument that is an instance of
 JSON fetching example:
 
 ```js
-http.get('http://nodejs.org/dist/index.json', (res) => {
+http.get('http://localhost:8000/', (res) => {
   const { statusCode } = res;
   const contentType = res.headers['content-type'];
 
@@ -2755,6 +2755,16 @@ http.get('http://nodejs.org/dist/index.json', (res) => {
 }).on('error', (e) => {
   console.error(`Got error: ${e.message}`);
 });
+
+// Create a local server to receive data from
+const server = http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({
+    data: 'Hello World!'
+  }));
+});
+
+server.listen(8000);
 ```
 
 ## `http.globalAgent`
