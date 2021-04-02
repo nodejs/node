@@ -4,6 +4,9 @@
   "compilerOptions": {
     "allowJs": true,
     "checkJs": true,
+    "noEmit": true,
+    "target": "ESNext",
+    "module": "CommonJS",
     "baseUrl": ".",
     "paths": {
       "internal/*": ["./lib/internal/*"],
@@ -71,9 +74,6 @@
       "http": ["./lib/http.js"],
       "buffer": ["./lib/buffer.js"],
       "fs": ["./lib/fs.js"],
-    },
-    "noEmit": true,
-    "target": "ESNext",
-    "module": "CommonJS"
+    }
   }
 }
