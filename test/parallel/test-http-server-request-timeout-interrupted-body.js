@@ -8,7 +8,7 @@ const { connect } = require('net');
 // This test validates that the server returns 408
 // after server.requestTimeout if the client
 // pauses sending in the middle of the body.
-
+let sendDelayedRequestBody;
 const server = createServer(common.mustCall((req, res) => {
   let body = '';
   req.setEncoding('utf-8');
@@ -22,6 +22,9 @@ const server = createServer(common.mustCall((req, res) => {
     res.write(body);
     res.end();
   });
+
+  assert.strictEqual(typeof sendDelayedRequestBody, 'function');
+  sendDelayedRequestBody();
 }));
 
 // 0 seconds is the default
@@ -57,7 +60,9 @@ server.listen(0, common.mustCall(() => {
   client.write('\r\n');
   client.write('1234567890');
 
-  setTimeout(() => {
-    client.write('1234567890\r\n\r\n');
-  }, common.platformTimeout(2000)).unref();
+  sendDelayedRequestBody = common.mustCall(() => {
+    setTimeout(() => {
+      client.write('1234567890\r\n\r\n');
+    }, common.platformTimeout(2000)).unref();
+  });
 }));
