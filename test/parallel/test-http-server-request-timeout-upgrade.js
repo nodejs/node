@@ -7,8 +7,12 @@ const { connect } = require('net');
 
 // This test validates that the requestTimeoout
 // is disabled after the connection is upgraded.
-
+let sendDelayedRequestHeaders;
 const server = createServer(common.mustNotCall());
+server.on('connection', common.mustCall(() => {
+  assert.strictEqual(typeof sendDelayedRequestHeaders, 'function');
+  sendDelayedRequestHeaders();
+}));
 
 // 0 seconds is the default
 assert.strictEqual(server.requestTimeout, 0);
@@ -48,8 +52,10 @@ server.listen(0, common.mustCall(() => {
   client.write('Upgrade: WebSocket\r\n');
   client.write('Connection: Upgrade\r\n\r\n');
 
-  setTimeout(() => {
-    client.write('12345678901234567890');
-    client.end();
-  }, common.platformTimeout(2000)).unref();
+  sendDelayedRequestHeaders = common.mustCall(() => {
+    setTimeout(() => {
+      client.write('12345678901234567890');
+      client.end();
+    }, common.platformTimeout(2000)).unref();
+  });
 }));
