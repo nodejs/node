@@ -373,7 +373,7 @@ does not land, the submitters should come away from the experience feeling like
 their effort was not wasted or unappreciated. Every Pull Request from a new
 contributor is an opportunity to grow the community.
 
-### Review a bit at a time.
+### Review a bit at a time
 
 Do not overwhelm new contributors.
 
