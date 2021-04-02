@@ -2781,6 +2781,19 @@ These properties are now available within the standard `detail` property
 of the `PerformanceEntry` object. The existing accessors have been
 deprecated and should no longer be used.
 
+### DEP0XXX: Nullish `position` in `fs.read` and `fs.readSync`
+<!-- YAML
+added: REPLACEME
+-->
+
+Type: Documentation-only
+
+Previously in `fs.read` and `fs.readSync`, any nullish value for `position` was
+replaced with `-1` internally. This is being deprecated and the default value
+of `position` in these functions are being changed from `null` to `-1`, thus
+conforming to the mentioned accepted data type in the documentation, `integer`
+or `bigint`.
+
 [Legacy URL API]: url.md#url_legacy_url_api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
