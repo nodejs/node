@@ -1175,7 +1175,8 @@ Maybe<T> ValueDeserializer::ReadZigZag() {
 
 Maybe<double> ValueDeserializer::ReadDouble() {
   // Warning: this uses host endianness.
-  if (position_ > end_ - sizeof(double)) return Nothing<double>();
+  if (sizeof(double) > static_cast<unsigned>(end_ - position_))
+    return Nothing<double>();
   double value;
   memcpy(&value, position_, sizeof(double));
   position_ += sizeof(double);
