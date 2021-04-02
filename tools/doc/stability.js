@@ -14,7 +14,9 @@ const visit = require('unist-util-visit');
 
 const source = `${__dirname}/../../out/doc/api`;
 const data = require(path.join(source, 'all.json'));
-const mark = '<!-- STABILITY_OVERVIEW_SLOT -->';
+const markBegin = '<!-- STABILITY_OVERVIEW_SLOT_BEGIN -->';
+const markEnd = '<!-- STABILITY_OVERVIEW_SLOT_END -->';
+const mark = `${markBegin}(.*)${markEnd}`;
 
 const output = {
   json: path.join(source, 'stability.json'),
@@ -84,16 +86,12 @@ function processStability() {
 
 function updateStabilityMark(file, value, mark) {
   const fd = fs.openSync(file, 'r+');
-  const content = fs.readFileSync(fd);
+  const content = fs.readFileSync(fd, { encoding: 'utf8' });
 
-  // Find the position of the `mark`.
-  const index = content.indexOf(mark);
-
-  // Overwrite the mark with `value` parameter.
-  const offset = fs.writeSync(fd, value, index, 'utf-8');
-
-  // Re-write the end of the file after `value`.
-  fs.writeSync(fd, content, index + mark.length, undefined, index + offset);
+  const replaced = content.replace(mark, value);
+  if (replaced !== content) {
+    fs.writeSync(fd, replaced, 0, 'utf8');
+  }
   fs.closeSync(fd);
 }
 
@@ -101,11 +99,16 @@ const stability = collectStability(data);
 
 // add markdown
 const markdownTable = createMarkdownTable(stability);
-updateStabilityMark(output.docMarkdown, markdownTable, mark);
+updateStabilityMark(output.docMarkdown,
+                    `${markBegin}\n${markdownTable}\n${markEnd}`,
+                    new RegExp(mark, 's'));
 
 // add html table
 const html = createHTML(markdownTable);
-updateStabilityMark(output.docHTML, html, mark);
+updateStabilityMark(output.docHTML, `${markBegin}${html}${markEnd}`,
+                    new RegExp(mark, 's'));
 
 // add json output
-updateStabilityMark(output.docJSON, JSON.stringify(html), JSON.stringify(mark));
+updateStabilityMark(output.docJSON,
+                    JSON.stringify(`${markBegin}${html}${markEnd}`),
+                    new RegExp(JSON.stringify(mark), 's'));
