@@ -2759,9 +2759,9 @@ http.get('http://localhost:8000/', (res) => {
 // Create a local server to receive data from
 const server = http.createServer((req, res) => {
   res.writeHead(200, { 'content-type': 'application/json' });
-  res.end(`{
-    'data': 'hello world'
-  }`);
+  res.end(JSON.stringify({
+    data: 'Hello World!'
+  }));
 });
 
 server.listen(8000);
