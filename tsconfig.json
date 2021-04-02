@@ -1,9 +1,10 @@
 {
   "include": ["lib","doc"],
   "exclude": ["src","tools","out"],
+  "files": ["./typings/primordials.d.ts"],
   "compilerOptions": {
     "allowJs": true,
-    "checkJs": true,
+    "checkJs": false,
     "noEmit": true,
     "target": "ESNext",
     "module": "CommonJS",
