@@ -31,6 +31,7 @@ const expectedModules = new Set([
   'Internal Binding types',
   'Internal Binding url',
   'Internal Binding util',
+  'NativeModule async_hooks',
   'NativeModule buffer',
   'NativeModule events',
   'NativeModule fs',
