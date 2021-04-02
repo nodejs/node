@@ -286,6 +286,15 @@ const assert = require('assert');
 const freelist = require('internal/freelist');
 ```
 
+In specific scenarios it may be useful to get a hold of `primordials` or
+`internalBinding()`. You can do so using
+
+```console
+node --expose-internals -r internal/test/binding lib/fs.js
+```
+
+This only works if you preload `internal/test/binding` by command line flag.
+
 ### Assertions
 
 When writing assertions, prefer the strict versions:
