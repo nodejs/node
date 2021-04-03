@@ -8,7 +8,7 @@
 * [Technical steering committee](#technical-steering-committee)
   * [TSC meetings](#tsc-meetings)
 * [Collaborator nominations](#collaborator-nominations)
-  * [Who can nominate Collaborators ?](#who-can-nominate-collaborators-?)
+  * [Who can nominate Collaborators?](#who-can-nominate-collaborators?)
   * [Ideal Nominees](#ideal-nominees)
   * [Nominating a new Collaborator](#nominating-a-new-collaborator)
   * [Onboarding](#onboarding)
@@ -123,7 +123,7 @@ the issue tracker is:
 
 ## Collaborator nominations
 
-### Who can nominate Collaborators ?
+### Who can nominate Collaborators?
 
 Existing Collaborators can nominate someone to become a Collaborator.
 
