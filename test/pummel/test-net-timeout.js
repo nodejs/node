@@ -45,7 +45,6 @@ const echo_server = net.createServer((socket) => {
   });
 
   socket.on('data', (d) => {
-    console.log(d);
     socket.write(d);
   });
 
@@ -105,7 +104,4 @@ process.on('exit', () => {
   console.log(`diff = ${diff}`);
 
   assert.ok(timeout < diff);
-
-  // Allow for 800 milliseconds more
-  assert.ok(diff < timeout + 800);
 });
