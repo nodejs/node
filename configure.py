@@ -999,8 +999,7 @@ def cc_macros(cc=None):
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
   except OSError:
-    error('''No acceptable C compiler found!
-
+    error('''No acceptable C compiler found!s
        Please make sure you have a C compiler installed on your system and/or
        consider adjusting the CC environment variable if you installed
        it in a non-standard prefix.''')
