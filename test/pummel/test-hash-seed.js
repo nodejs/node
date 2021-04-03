@@ -24,3 +24,9 @@ const subprocesses = [...new Array(kRepetitions)].map(generateSeed);
 
 Promise.all(subprocesses)
   .then(requiredCallback);
+
+// This test can take a long time to run. Some of our CI hosts are configured
+// to consider the task stalled if there is no output for 3 minutes. TO
+// prevent that from canceling this test and the entire test suite, output
+// something every 60 seconds or so.
+setInterval(() => { console.log('.'); }, 60000).unref();
