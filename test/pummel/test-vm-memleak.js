@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-// Flags: --max_old_space_size=32
+// Flags: --max_old_space_size=32 --expose_gc
 
 require('../common');
 const assert = require('assert');
@@ -34,6 +34,7 @@ const interval = setInterval(function() {
   } catch {
   }
 
+  global.gc();
   const rss = process.memoryUsage.rss();
   assert.ok(rss < 64 * 1024 * 1024,
             `memory usage: ${rss} (${Math.round(rss / (1024 * 1024))} MB)`);
