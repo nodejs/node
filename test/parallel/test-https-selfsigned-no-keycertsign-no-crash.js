@@ -93,8 +93,6 @@ httpsServer.on('listening', () => {
     httpsServer.close();
   }));
 
-  req.on('error', common.mustNotCall((e) => {
-    httpsServer.close();
-  }));
+  req.on('error', common.mustNotCall());
   req.end();
 });
