@@ -26,6 +26,8 @@ require('../common');
 const assert = require('assert');
 const vm = require('vm');
 
+const baselineRss = process.memoryUsage.rss();
+
 const start = Date.now();
 
 const interval = setInterval(function() {
@@ -36,8 +38,8 @@ const interval = setInterval(function() {
 
   global.gc();
   const rss = process.memoryUsage.rss();
-  assert.ok(rss < 64 * 1024 * 1024,
-            `memory usage: ${rss} (${Math.round(rss / (1024 * 1024))} MB)`);
+  assert.ok(rss < baselineRss + 32 * 1024 * 1024,
+            `memory usage: ${rss} baseline: ${baselineRss}`);
 
   // Stop after 5 seconds.
   if (Date.now() - start > 5 * 1000) {
