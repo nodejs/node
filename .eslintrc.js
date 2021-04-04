@@ -95,7 +95,6 @@ module.exports = {
       line: {
         // Ignore all lines that have less characters than 20 and all lines that
         // start with something that looks like a variable name or code.
-        // eslint-disable-next-line max-len
         ignorePattern: '.{0,20}$|[a-z]+ ?[0-9A-Z_.(/=:[#-]|std|http|ssh|ftp|(let|var|const) [a-z_A-Z0-9]+ =|[b-z] |[a-z]*[0-9].* ',
         ignoreInlineComments: true,
         ignoreConsecutiveComments: true,
@@ -137,13 +136,6 @@ module.exports = {
     'key-spacing': ['error', { mode: 'strict' }],
     'keyword-spacing': 'error',
     'linebreak-style': ['error', 'unix'],
-    'max-len': ['error', {
-      code: 80,
-      ignorePattern: '^// Flags:',
-      ignoreRegExpLiterals: true,
-      ignoreUrls: true,
-      tabWidth: 2,
-    }],
     'new-parens': 'error',
     'no-async-promise-executor': 'error',
     'no-class-assign': 'error',
@@ -185,7 +177,6 @@ module.exports = {
     'no-proto': 'error',
     'no-redeclare': ['error', { 'builtinGlobals': false }],
     'no-restricted-modules': ['error', 'sys'],
-    /* eslint-disable max-len */
     'no-restricted-properties': [
       'error',
       {
@@ -238,7 +229,6 @@ module.exports = {
         message: 'Use Number.isNaN() instead of the global isNaN() function.',
       },
     ],
-    /* eslint-enable max-len */
     'no-return-await': 'error',
     'no-self-assign': 'error',
     'no-self-compare': 'error',
