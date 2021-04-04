@@ -13,11 +13,11 @@ if (!common.hasCrypto)
 
 const crypto = require('crypto');
 
-// This test will fail for OpenSSL <= 1.1.1h
+// This test will fail for OpenSSL < 1.1.1h
 const minOpenSSL = 269488271;
 
-if (crypto.constants.OPENSSL_VERSION_NUMBER <= minOpenSSL)
-  common.skip('OpenSSL <= 1.1.1h');
+if (crypto.constants.OPENSSL_VERSION_NUMBER < minOpenSSL)
+  common.skip('OpenSSL < 1.1.1h');
 
 const https = require('https');
 
