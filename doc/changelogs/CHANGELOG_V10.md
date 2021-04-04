@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#10.24.1">10.24.1</a><br/>
 <a href="#10.24.0">10.24.0</a><br/>
 <a href="#10.23.3">10.23.3</a><br/>
 <a href="#10.23.2">10.23.2</a><br/>
@@ -74,6 +75,34 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="10.24.1"></a>
+## 2021-04-06, Version 10.24.1 'Dubnium' (LTS), @mylesborins
+
+This is a security release.
+
+### Notable Changes
+
+Vulerabilties fixed:
+
+* **CVE-2021-3450**: OpenSSL - CA certificate check bypass with X509_V_FLAG_X509_STRICT (High)
+  * This is a vulnerability in OpenSSL which may be exploited through Node.js. You can read more about it in https://www.openssl.org/news/secadv/20210325.txt
+  * Impacts:
+    * All versions of the 15.x, 14.x, 12.x and 10.x releases lines
+* **CVE-2021-3449**: OpenSSL - NULL pointer deref in signature_algorithms processing (High)
+  * This is a vulnerability in OpenSSL which may be exploited through Node.js. You can read more about it in https://www.openssl.org/news/secadv/20210325.txt
+  * Impacts:
+    * All versions of the 15.x, 14.x, 12.x and 10.x releases lines
+* **CVE-2020-7774**: npm upgrade - Update y18n to fix Prototype-Pollution (High)
+  * This is a vulnerability in the y18n npm module which may be exploited by prototype pollution. You can read more about it in https://github.com/advisories/GHSA-c4w7-xm78-47vh
+  * Impacts:
+    * All versions of the 14.x, 12.x and 10.x releases lines
+
+### Commits
+
+* [[`5e526b96ce`](https://github.com/nodejs/node/commit/5e526b96ce)] - **deps**: upgrade npm to 6.14.12 (Ruy Adorno) [#37918](https://github.com/nodejs/node/pull/37918)
+* [[`781cb6df5c`](https://github.com/nodejs/node/commit/781cb6df5c)] - **deps**: update archs files for OpenSSL-1.1.1k (Tobias Nießen) [#37940](https://github.com/nodejs/node/pull/37940)
+* [[`5db0a05a90`](https://github.com/nodejs/node/commit/5db0a05a90)] - **deps**: upgrade openssl sources to 1.1.1k (Tobias Nießen) [#37940](https://github.com/nodejs/node/pull/37940)
 
 <a id="10.24.0"></a>
 ## 2021-02-23, Version 10.24.0 'Dubnium' (LTS), @richardlau
