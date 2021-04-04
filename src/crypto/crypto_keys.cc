@@ -837,11 +837,6 @@ void KeyObjectData::MemoryInfo(MemoryTracker* tracker) const {
   }
 }
 
-std::shared_ptr<KeyObjectData> KeyObjectData::CreateSecret(
-    const ArrayBufferOrViewContents<char>& buf) {
-  return CreateSecret(buf.ToCopy());
-}
-
 std::shared_ptr<KeyObjectData> KeyObjectData::CreateSecret(ByteSource key) {
   CHECK(key);
   return std::shared_ptr<KeyObjectData>(new KeyObjectData(std::move(key)));
