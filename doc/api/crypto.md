@@ -4732,7 +4732,8 @@ added: v15.6.0
     **Default:** `false`.
 * Returns: {string}
 
-Generates a random [RFC 4122][] Version 4 UUID.
+Generates a random [RFC 4122][] Version 4 UUID. The UUID is generated using a
+cryptographic pseudorandom number generator.
 
 ### `crypto.scrypt(password, salt, keylen[, options], callback)`
 <!-- YAML
