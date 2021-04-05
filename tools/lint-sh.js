@@ -138,8 +138,7 @@ async function checkFiles(...files) {
     const data = JSON.parse(stdout);
     for (const { file, line, column, message } of data) {
       console.error(
-        `::error file=${file},line=${line},col=${column}::` +
-          `${file}:${line}:${column}: ${message}`
+        `::error file=${file},line=${line},col=${column}::${file}:${line}:${column}: ${message}`
       );
     }
   }
