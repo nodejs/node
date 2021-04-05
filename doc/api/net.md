@@ -138,11 +138,11 @@ The list of rules added to the blocklist.
 
 ## Class: `net.SocketAddress`
 <!-- YAML
-added: REPLACEME
+added: v15.14.0
 -->
 ### `new net.SocketAddress([options])`
 <!-- YAML
-added: REPLACEME
+added: v15.14.0
 -->
 
 * `options` {Object}
@@ -155,28 +155,28 @@ added: REPLACEME
 
 ### `socketaddress.address`
 <!-- YAML
-added: REPLACEME
+added: v15.14.0
 -->
 
 * Type {string}
 
 ### `socketaddress.family`
 <!-- YAML
-added: REPLACEME
+added: v15.14.0
 -->
 
 * Type {string} Either `'ipv4'` or `'ipv6'`.
 
 ### `socketaddress.flowlabel`
 <!-- YAML
-added: REPLACEME
+added: v15.14.0
 -->
 
 * Type {number}
 
 ### `socketaddress.port`
 <!-- YAML
-added: REPLACEME
+added: v15.14.0
 -->
 
 * Type {number}
@@ -543,7 +543,7 @@ it to interact with the client.
 <!-- YAML
 added: v0.3.4
 changes:
-  - version: REPLACEME
+  - version: v15.14.0
     pr-url: https://github.com/nodejs/node/pull/37735
     description: AbortSignal support was added.
 -->
