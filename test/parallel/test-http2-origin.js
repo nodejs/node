@@ -85,7 +85,7 @@ const ca = readKey('fake-startcom-root-cert.pem', 'binary');
     const client = connect(originSet[0], { ca });
     const checks = [
       ['https://foo.org', 'https://bar.org'],
-      ['https://example.org', 'https://example.com']
+      ['https://example.org', 'https://example.com'],
     ];
 
     const countdown = new Countdown(3, () => {

@@ -10,7 +10,7 @@ const common = require('../common');
 
 const { Worker } = require('worker_threads');
 const modules = [ 'fs', 'assert', 'async_hooks', 'buffer', 'child_process',
-                  'net', 'http', 'os', 'path', 'v8', 'vm'
+                  'net', 'http', 'os', 'path', 'v8', 'vm',
 ];
 if (common.hasCrypto) {
   modules.push('https');

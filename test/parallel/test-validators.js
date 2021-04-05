@@ -96,7 +96,7 @@ const invalidArgValueError = {
   [
     -1, {}, [], false, true,
     1, Infinity, -Infinity, NaN,
-    undefined, null, 1.1
+    undefined, null, 1.1,
   ].forEach((i) => assert.throws(() => validateString(i, 'name'), {
     code: 'ERR_INVALID_ARG_TYPE'
   }));
@@ -106,7 +106,7 @@ const invalidArgValueError = {
   [
     'a', {}, [], false, true,
     undefined, null, '', ' ', '0x',
-    '-0x1', '-0o1', '-0b1', '0o', '0b'
+    '-0x1', '-0o1', '-0b1', '0o', '0b',
   ].forEach((i) => assert.throws(() => validateNumber(i, 'name'), {
     code: 'ERR_INVALID_ARG_TYPE'
   }));

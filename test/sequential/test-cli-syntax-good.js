@@ -10,7 +10,7 @@ const node = process.execPath;
 // Test both sets of arguments that check syntax
 const syntaxArgs = [
   ['-c'],
-  ['--check']
+  ['--check'],
 ];
 
 // Test good syntax with and without shebang
@@ -19,7 +19,7 @@ const syntaxArgs = [
   'syntax/good_syntax',
   'syntax/good_syntax_shebang.js',
   'syntax/good_syntax_shebang',
-  'syntax/illegal_if_not_wrapped.js'
+  'syntax/illegal_if_not_wrapped.js',
 ].forEach(function(file) {
   file = fixtures.path(file);
 

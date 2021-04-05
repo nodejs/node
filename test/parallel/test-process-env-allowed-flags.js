@@ -28,7 +28,7 @@ const assert = require('assert');
     '--r',
     '-R',
     '---inspect-brk',
-    '--cheeseburgers'
+    '--cheeseburgers',
   ];
 
   goodFlags.forEach((flag) => {

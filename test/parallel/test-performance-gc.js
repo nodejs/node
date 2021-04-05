@@ -20,7 +20,7 @@ const kinds = [
   NODE_PERFORMANCE_GC_MAJOR,
   NODE_PERFORMANCE_GC_MINOR,
   NODE_PERFORMANCE_GC_INCREMENTAL,
-  NODE_PERFORMANCE_GC_WEAKCB
+  NODE_PERFORMANCE_GC_WEAKCB,
 ];
 
 // Adding an observer should force at least one gc to appear

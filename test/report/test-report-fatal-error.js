@@ -28,7 +28,7 @@ if (process.argv[2] === 'child') {
 const ARGS = [
   '--max-old-space-size=20',
   __filename,
-  'child'
+  'child',
 ];
 
 {
@@ -104,7 +104,7 @@ const ARGS = [
     '--report-on-fatalerror',
     '--report-compact',
     '--report-filename=stderr',
-    ...ARGS
+    ...ARGS,
   ];
   const child = spawnSync(process.execPath, args, { encoding: 'utf8' });
   assert.notStrictEqual(child.status, 0, 'Process exited unexpectedly');

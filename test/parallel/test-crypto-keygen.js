@@ -1092,7 +1092,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     ['group', 'prime'],
     ['group', 'primeLength'],
     ['group', 'generator'],
-    ['prime', 'primeLength']
+    ['prime', 'primeLength'],
   ];
   for (const [opt1, opt2] of incompatible) {
     assert.throws(() => {

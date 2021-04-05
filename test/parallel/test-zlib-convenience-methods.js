@@ -45,7 +45,7 @@ for (const [type, expect] of [
   ['Buffer', expectBuf],
   ...common.getBufferSources(expectBuf).map((obj) =>
     [obj[Symbol.toStringTag], obj]
-  )
+  ),
 ]) {
   for (const method of [
     ['gzip', 'gunzip', 'Gzip', 'Gunzip'],

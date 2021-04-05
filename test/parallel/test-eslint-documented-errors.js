@@ -14,7 +14,7 @@ new RuleTester().run('documented-errors', rule, {
   valid: [
     `
       E('ERR_ASSERTION', 'foo');
-    `
+    `,
   ],
   invalid: [
     {
@@ -30,8 +30,8 @@ new RuleTester().run('documented-errors', rule, {
           message:
             `doc/api/errors.md does not have an anchor for "${invalidCode}"`,
           line: 2
-        }
+        },
       ]
-    }
+    },
   ]
 });

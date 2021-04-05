@@ -12,7 +12,7 @@ const expected = [
   'Stream:created',
   'Stream:error',
   'Stream:close',
-  'Request:error'
+  'Request:error',
 ];
 
 const server = createServer();

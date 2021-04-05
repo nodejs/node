@@ -205,7 +205,7 @@ assert.throws(
 
 [
   ['a', 0, 0, NaN],
-  ['a', 0, 0, false]
+  ['a', 0, 0, false],
 ].forEach((args) => {
   assert.throws(
     () => buf1.fill(...args),

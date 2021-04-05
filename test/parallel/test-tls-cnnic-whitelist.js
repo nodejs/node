@@ -31,7 +31,7 @@ const testCases = [
       rejectUnauthorized: true
     },
     errorCode: 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY'
-  }
+  },
 ];
 
 function runTest(tindex) {

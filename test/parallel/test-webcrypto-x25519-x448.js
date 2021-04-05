@@ -200,10 +200,10 @@ async function test2(namedCurve, length) {
 
   const [
     publicKeyJwk,
-    privateKeyJwk
+    privateKeyJwk,
   ] = await Promise.all([
     subtle.exportKey('jwk', publicKey1),
-    subtle.exportKey('jwk', privateKey1)
+    subtle.exportKey('jwk', privateKey1),
   ]);
   assert.strictEqual(publicKeyJwk.kty, 'OKP');
   assert.strictEqual(privateKeyJwk.kty, 'OKP');

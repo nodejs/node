@@ -283,7 +283,7 @@ async function getHandle(dest) {
                 name: 'Error',
                 message: 'The lchmod() method is not implemented'
               })
-            )
+            ),
           ]);
         }
 

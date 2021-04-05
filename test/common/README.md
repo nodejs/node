@@ -115,12 +115,12 @@ expectWarning('Warning', 'Foobar is really bad');
 expectWarning('DeprecationWarning', 'Foobar is deprecated', 'DEP0XXX');
 
 expectWarning('DeprecationWarning', [
-  'Foobar is deprecated', 'DEP0XXX'
+  'Foobar is deprecated', 'DEP0XXX',
 ]);
 
 expectWarning('DeprecationWarning', [
   ['Foobar is deprecated', 'DEP0XXX'],
-  ['Baz is also deprecated', 'DEP0XX2']
+  ['Baz is also deprecated', 'DEP0XX2'],
 ]);
 
 expectWarning('DeprecationWarning', {
@@ -135,7 +135,7 @@ expectWarning({
   },
   Warning: [
     ['Multiple array entries are fine', 'SpecialWarningCode'],
-    ['No code is also fine']
+    ['No code is also fine'],
   ],
   SingleEntry: ['This will also work', 'WarningCode'],
   SingleString: 'Single string entries without code will also work'
@@ -665,9 +665,9 @@ validateSnapshotNodes('TLSWRAP', [
     children: [
       { name: 'enc_out' },
       { name: 'enc_in' },
-      { name: 'TLSWrap' }
+      { name: 'TLSWrap' },
     ]
-  }
+  },
 ]);
 ```
 

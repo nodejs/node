@@ -14,7 +14,7 @@ const kTests = [
   ['SHA-1', 'sha1', 160],
   ['SHA-256', 'sha256', 256],
   ['SHA-384', 'sha384', 384],
-  ['SHA-512', 'sha512', 512]
+  ['SHA-512', 'sha512', 512],
 ];
 
 // Empty hash just works, not checking result

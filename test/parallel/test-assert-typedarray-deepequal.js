@@ -25,12 +25,12 @@ const equalArrayPairs = [
   [new Uint16Array([1, 2, 3, 4]).subarray(1), new Uint16Array([2, 3, 4])],
   [new Uint32Array([1, 2, 3, 4]).subarray(1, 3), new Uint32Array([2, 3])],
   [new ArrayBuffer(3), new ArrayBuffer(3)],
-  [new SharedArrayBuffer(3), new SharedArrayBuffer(3)]
+  [new SharedArrayBuffer(3), new SharedArrayBuffer(3)],
 ];
 
 const looseEqualArrayPairs = [
   [new Float32Array([+0.0]), new Float32Array([-0.0])],
-  [new Float64Array([+0.0]), new Float64Array([-0.0])]
+  [new Float64Array([+0.0]), new Float64Array([-0.0])],
 ];
 
 const notEqualArrayPairs = [
@@ -52,15 +52,15 @@ const notEqualArrayPairs = [
   [new Uint8Array([1, 2, 3]).buffer, new Uint8Array([4, 5, 6]).buffer],
   [
     new Uint8Array(new SharedArrayBuffer(3)).fill(1).buffer,
-    new Uint8Array(new SharedArrayBuffer(3)).fill(2).buffer
+    new Uint8Array(new SharedArrayBuffer(3)).fill(2).buffer,
   ],
   [new ArrayBuffer(2), new ArrayBuffer(3)],
   [new SharedArrayBuffer(2), new SharedArrayBuffer(3)],
   [new ArrayBuffer(2), new SharedArrayBuffer(3)],
   [
     new Uint8Array(new ArrayBuffer(3)).fill(1).buffer,
-    new Uint8Array(new SharedArrayBuffer(3)).fill(2).buffer
-  ]
+    new Uint8Array(new SharedArrayBuffer(3)).fill(2).buffer,
+  ],
 ];
 
 equalArrayPairs.forEach((arrayPair) => {

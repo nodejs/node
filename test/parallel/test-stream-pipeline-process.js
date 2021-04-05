@@ -19,7 +19,7 @@ if (process.argv[2] === 'child') {
     '|',
     `"${process.execPath}"`,
     `"${__filename}"`,
-    'child'
+    'child',
   ].join(' '), common.mustSucceed((stdout) => {
     assert.strictEqual(stdout.split(os.EOL).shift().trim(), 'hello');
   }));

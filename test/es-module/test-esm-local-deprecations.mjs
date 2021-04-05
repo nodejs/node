@@ -11,7 +11,7 @@ const deprecatedFoldersIgnore =
 
 const expectedWarnings = [
   '"./" in the "exports" field',
-  '"#self/" in the "imports" field'
+  '"#self/" in the "imports" field',
 ];
 
 process.addListener('warning', (warning) => {

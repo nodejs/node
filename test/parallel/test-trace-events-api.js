@@ -64,7 +64,7 @@ assert.strictEqual(tracing.enabled, true);
 
 assert.strictEqual(getEnabledCategories(),
                    [
-                     ...[enabledCategories].filter((_) => !!_), 'node.perf'
+                     ...[enabledCategories].filter((_) => !!_), 'node.perf',
                    ].join(','));
 
 tracing.disable();
@@ -134,11 +134,11 @@ function testApiInChildProcess(execArgs, cb) {
   const expectedMarks = ['A', 'B'];
   const expectedBegins = [
     { cat: 'node,node.perf,node.perf.timerify', name: 'f' },
-    { cat: 'node,node.perf,node.perf.usertiming', name: 'A to B' }
+    { cat: 'node,node.perf,node.perf.usertiming', name: 'A to B' },
   ];
   const expectedEnds = [
     { cat: 'node,node.perf,node.perf.timerify', name: 'f' },
-    { cat: 'node,node.perf,node.perf.usertiming', name: 'A to B' }
+    { cat: 'node,node.perf,node.perf.usertiming', name: 'A to B' },
   ];
 
   const proc = cp.fork(__filename,

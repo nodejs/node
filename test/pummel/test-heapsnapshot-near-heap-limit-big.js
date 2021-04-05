@@ -20,7 +20,7 @@ if (!common.enoughTestMem)
   const child = spawnSync(process.execPath, [
     '--heapsnapshot-near-heap-limit=3',
     '--max-old-space-size=512',
-    fixtures.path('workload', 'grow.js')
+    fixtures.path('workload', 'grow.js'),
   ], {
     cwd: tmpdir.path,
     env: {
