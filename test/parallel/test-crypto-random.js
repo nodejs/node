@@ -32,8 +32,8 @@ const cryptop = require('crypto').webcrypto;
 const { kMaxLength } = require('buffer');
 const { inspect } = require('util');
 
-const kMaxUint32 = Math.pow(2, 32) - 1;
-const kMaxPossibleLength = Math.min(kMaxLength, kMaxUint32);
+const kMaxInt32 = 2 ** 31 - 1;
+const kMaxPossibleLength = Math.min(kMaxLength, kMaxInt32);
 
 common.expectWarning('DeprecationWarning',
                      'crypto.pseudoRandomBytes is deprecated.', 'DEP0115');
@@ -51,7 +51,7 @@ common.expectWarning('DeprecationWarning',
       assert.throws(() => f(value, common.mustNotCall()), errObj);
     });
 
-    [-1, NaN, 2 ** 32].forEach((value) => {
+    [-1, NaN, 2 ** 32, 2 ** 31].forEach((value) => {
       const errObj = {
         code: 'ERR_OUT_OF_RANGE',
         name: 'RangeError',
