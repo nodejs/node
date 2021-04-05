@@ -844,9 +844,9 @@ bool CipherBase::Final(AllocatedBuffer* out) {
         CHECK(mode == EVP_CIPH_GCM_MODE);
         auth_tag_len_ = sizeof(auth_tag_);
       }
-      CHECK_EQ(1, EVP_CIPHER_CTX_ctrl(ctx_.get(), EVP_CTRL_AEAD_GET_TAG,
-                      auth_tag_len_,
-                      reinterpret_cast<unsigned char*>(auth_tag_)));
+      ok = (1 == EVP_CIPHER_CTX_ctrl(ctx_.get(), EVP_CTRL_AEAD_GET_TAG,
+                     auth_tag_len_,
+                     reinterpret_cast<unsigned char*>(auth_tag_)));
     }
   }
 

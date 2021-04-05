@@ -5218,7 +5218,7 @@ mode must adhere to certain restrictions when using the cipher API:
   `plaintextLength + authTagLength`. Node.js does not include the authentication
   tag, so the ciphertext length is always `plaintextLength`.
   This is not necessary if no AAD is used.
-* As CCM processes the whole message at once, `update()` can only be called
+* As CCM processes the whole message at once, `update()` must be called exactly
   once.
 * Even though calling `update()` is sufficient to encrypt/decrypt the message,
   applications *must* call `final()` to compute or verify the

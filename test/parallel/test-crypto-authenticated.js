@@ -70,6 +70,7 @@ const expectedWarnings = common.hasFipsCrypto ?
     ['Use Cipheriv for counter mode of aes-256-ccm'],
     ['Use Cipheriv for counter mode of aes-256-ccm'],
     ['Use Cipheriv for counter mode of aes-256-ccm'],
+    ['Use Cipheriv for counter mode of aes-128-ccm'],
   ];
 
 const expectedDeprecationWarnings = [
@@ -663,5 +664,26 @@ for (const test of TEST_CASES) {
     ), errMessages.length, `iv length ${ivLength} was not rejected`);
 
     function H(length) { return '00'.repeat(length); }
+  }
+}
+
+{
+  // CCM cipher without data should not crash, see https://github.com/nodejs/node/issues/38035.
+  const algo = 'aes-128-ccm';
+  const key = Buffer.alloc(16);
+  const iv = Buffer.alloc(12);
+  const opts = { authTagLength: 10 };
+
+  for (const cipher of [
+    crypto.createCipher(algo, 'foo', opts),
+    crypto.createCipheriv(algo, key, iv, opts),
+  ]) {
+    assert.throws(() => {
+      cipher.final();
+    }, common.hasOpenSSL3 ? {
+      code: 'ERR_OSSL_TAG_NOT_SET'
+    } : {
+      message: /Unsupported state/
+    });
   }
 }
